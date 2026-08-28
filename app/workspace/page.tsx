@@ -71,6 +71,7 @@ type DraftSnapshot = {
   isNew?: boolean;
 };
 type ProviderStatus = { mode: "deepseek" | "unconfigured"; model: string | null };
+type TemplateCapabilities = { templateId: string; revision: number; slots: string[] };
 
 const initialMessages: ChatMessage[] = [
   {
@@ -101,7 +102,12 @@ export default function WorkspacePage() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
-  const [pendingDestructive, setPendingDestructive] = useState<{ message: string; summary: string; destructive: string[] } | null>(null);
+  const [pendingDestructive, setPendingDestructive] = useState<{
+    message: string;
+    summary: string;
+    destructive: string[];
+    selectedTarget: { key: string; label: string } | null;
+  } | null>(null);
   // 服务端会话 id：sessionStorage 持久化，每标签页独立（③ session 摘要）
   // SSR 安全：首帧为空串，客户端挂载后生成（避免 window is not defined）
   const [sessionId, setSessionId] = useState("");
@@ -126,6 +132,7 @@ export default function WorkspacePage() {
   const [selectedTarget, setSelectedTarget] = useState<{ key: string; label: string } | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [expectedTargets, setExpectedTargets] = useState<string[]>([]);
+  const [templateCapabilities, setTemplateCapabilities] = useState<TemplateCapabilities | null>(null);
   const [previewState, setPreviewState] = useState<"loading" | "synced" | "warning">("loading");
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>({ mode: "unconfigured", model: null });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -211,6 +218,10 @@ export default function WorkspacePage() {
   }, [messages, busy]);
 
   const currentTemplate = getTemplate(draft.templateId);
+  const activeTemplateCapabilities = templateCapabilities?.templateId === draft.templateId
+    && templateCapabilities.revision === draft.revision
+    ? templateCapabilities
+    : null;
   const saveLabel = useMemo(() => {
     if (!draftReady) return "正在读取草稿";
     if (previewState === "loading") return "草稿已保存 · 正在同步预览";
@@ -218,9 +229,9 @@ export default function WorkspacePage() {
     return "草稿与预览已同步";
   }, [draftReady, previewState]);
 
-  const selectPreviewTarget = (key: string, label: string, prompt: string) => {
-    setSelectedTarget({ key, label });
-    setInput(prompt);
+  const selectPreviewTarget = (key: string, label: string, prompt: string, slot?: string) => {
+    setSelectedTarget({ key, label: slot ? `${label}（已定位）` : label });
+    setInput(slot ? `修改我刚才选中的${label}。${prompt}` : prompt);
     setMobilePane("chat");
     window.requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -228,7 +239,7 @@ export default function WorkspacePage() {
   const submitChat = async (event?: FormEvent) => {
     event?.preventDefault();
     const value = input.trim();
-    if (!value || busy || !draftReady) return;
+    if (!value || busy || !draftReady || !activeTemplateCapabilities) return;
     setInput("");
     setBusy(true);
     setBusyText("正在连接模型…");
@@ -243,7 +254,14 @@ export default function WorkspacePage() {
       const response = await fetch(`/api/sites/${siteId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseRevision: draft.revision, message: value, selectedTarget: selectedTarget?.key ?? null, context: recentContext, sessionId }),
+        body: JSON.stringify({
+          baseRevision: draft.revision,
+          message: value,
+          selectedTarget: selectedTarget?.key ?? null,
+          context: recentContext,
+          sessionId,
+          templateCapabilities: activeTemplateCapabilities,
+        }),
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({})) as Partial<DraftSnapshot> & { message?: string };
@@ -270,11 +288,15 @@ export default function WorkspacePage() {
       const latency = typeof doneEvent.latencyMs === "number" ? `模型 ${Math.max(0.1, doneEvent.latencyMs / 1000).toFixed(1)} 秒` : undefined;
       if (status === "applied") {
         const changeSet = doneEvent.changeSet as { revision: number; appliedTargets: string[] };
-        setExpectedTargets(changeSet.appliedTargets);
-        setPreviewState("loading");
+        const nonVisualTargets = Array.isArray(doneEvent.nonVisualTargets) ? doneEvent.nonVisualTargets as string[] : [];
+        const visibleTargets = changeSet.appliedTargets.filter((target) => !nonVisualTargets.includes(target));
+        setExpectedTargets(visibleTargets);
+        setPreviewState(visibleTargets.length ? "loading" : "synced");
         setMessages((items) => [...items, {
-          id: crypto.randomUUID(), role: "assistant", status: "syncing", revision: changeSet.revision,
-          text: `草稿 v${changeSet.revision} 已保存，正在确认右侧模板已实际更新。`,
+          id: crypto.randomUUID(), role: "assistant", status: visibleTargets.length ? "syncing" : "applied", revision: changeSet.revision,
+          text: visibleTargets.length
+            ? `草稿 v${changeSet.revision} 已保存，正在确认右侧模板已实际更新。`
+            : `草稿 v${changeSet.revision} 已保存。${String(doneEvent.displayNotice ?? "")}`,
           change: String(doneEvent.summary), meta: latency,
         }]);
       } else if (status === "no_change") {
@@ -284,16 +306,29 @@ export default function WorkspacePage() {
       } else if (status === "need_confirmation") {
         // 破坏性操作需要确认：暂存待确认内容，前端弹确认框
         const destructive = Array.isArray(doneEvent.destructive) ? (doneEvent.destructive as string[]) : [];
-        setPendingDestructive({ message: value, summary: String(doneEvent.summary ?? ""), destructive });
+        setPendingDestructive({
+          message: value,
+          summary: String(doneEvent.summary ?? ""),
+          destructive,
+          selectedTarget,
+        });
         setMessages((items) => [...items, {
           id: crypto.randomUUID(), role: "assistant", status: "warning",
           text: "本次修改包含需要确认的操作。",
           change: destructive.join("、"),
         }]);
+      } else if (status === "need_clarification") {
+        const preservedDraft = doneEvent.code === "unsupported_template_slot" || doneEvent.code === "selected_target_mismatch";
+        setMessages((items) => [...items, {
+          id: crypto.randomUUID(), role: "assistant", status: "warning",
+          text: String(doneEvent.message || "需要补充更明确的修改目标。"),
+          change: preservedDraft ? "草稿和历史均未修改" : "本次没有修改草稿",
+          meta: latency,
+        }]);
       } else {
         throw new Error(String(doneEvent.error || "模型操作失败"));
       }
-      setSelectedTarget(null);
+      if (status !== "need_confirmation" && doneEvent.code !== "selected_target_mismatch") setSelectedTarget(null);
     } catch (error) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "AI 修改失败", change: "本次没有修改草稿" }]);
     } finally {
@@ -303,9 +338,10 @@ export default function WorkspacePage() {
 
   const confirmDestructive = async (confirmed: boolean) => {
     if (!pendingDestructive) return;
-    const { message, summary } = pendingDestructive;
+    const { message, summary, selectedTarget: confirmedTarget } = pendingDestructive;
     setPendingDestructive(null);
     if (!confirmed) {
+      setSelectedTarget(null);
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: "已取消本次修改。", change: summary }]);
       return;
     }
@@ -322,7 +358,15 @@ export default function WorkspacePage() {
       const response = await fetch(`/api/sites/${siteId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseRevision: draft.revision, message, selectedTarget: selectedTarget?.key ?? null, context: confirmCtx, confirmedDestructive: true, sessionId }),
+        body: JSON.stringify({
+          baseRevision: draft.revision,
+          message,
+          selectedTarget: confirmedTarget?.key ?? null,
+          context: confirmCtx,
+          confirmedDestructive: true,
+          sessionId,
+          templateCapabilities: activeTemplateCapabilities,
+        }),
       });
       const reader = response.body?.getReader();
       if (!reader) throw new Error("模型响应不可读取");
@@ -341,16 +385,32 @@ export default function WorkspacePage() {
       if ((st === "applied" || st === "no_change" || st === "conflict") && doneEvent.draft) adoptSnapshot(doneEvent as unknown as DraftSnapshot);
       if (st === "applied") {
         const changeSet = doneEvent.changeSet as { revision: number; appliedTargets: string[] };
-        setExpectedTargets(changeSet.appliedTargets);
-        setPreviewState("loading");
-        setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "applied", revision: changeSet.revision, text: `草稿 v${changeSet.revision} 已保存。`, change: String(doneEvent.summary) }]);
+        const nonVisualTargets = Array.isArray(doneEvent.nonVisualTargets) ? doneEvent.nonVisualTargets as string[] : [];
+        const visibleTargets = changeSet.appliedTargets.filter((target) => !nonVisualTargets.includes(target));
+        setExpectedTargets(visibleTargets);
+        setPreviewState(visibleTargets.length ? "loading" : "synced");
+        setMessages((items) => [...items, {
+          id: crypto.randomUUID(), role: "assistant", status: visibleTargets.length ? "syncing" : "applied", revision: changeSet.revision,
+          text: visibleTargets.length
+            ? `草稿 v${changeSet.revision} 已保存，正在确认右侧模板已实际更新。`
+            : `草稿 v${changeSet.revision} 已保存。${String(doneEvent.displayNotice ?? "")}`,
+          change: String(doneEvent.summary),
+        }]);
       } else if (st === "no_change") {
         setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", text: "模型没有生成可应用的内容差异。", change: String(doneEvent.summary || "没有变化") }]);
       } else if (st === "conflict") {
         setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: String(doneEvent.error), change: "没有覆盖较新的草稿" }]);
+      } else if (st === "need_clarification") {
+        const preservedDraft = doneEvent.code === "unsupported_template_slot" || doneEvent.code === "selected_target_mismatch";
+        setMessages((items) => [...items, {
+          id: crypto.randomUUID(), role: "assistant", status: "warning",
+          text: String(doneEvent.message || "需要补充更明确的修改目标。"),
+          change: preservedDraft ? "草稿和历史均未修改" : "本次没有修改草稿",
+        }]);
       } else {
         setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: String(doneEvent.error || "操作失败"), change: "本次没有修改草稿" }]);
       }
+      if (doneEvent.code !== "selected_target_mismatch") setSelectedTarget(null);
     } catch (error) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "确认操作失败", change: "本次没有修改草稿" }]);
     } finally {
@@ -360,6 +420,11 @@ export default function WorkspacePage() {
 
   const handlePreviewReport = (report: { revision: number; appliedSlots: string[]; missingSlots: string[] }) => {
     if (report.revision !== draft.revision) return;
+    setTemplateCapabilities({
+      templateId: draft.templateId,
+      revision: report.revision,
+      slots: [...new Set(report.appliedSlots)],
+    });
     const hasExpectedTargets = expectedTargets.length > 0;
     const visibleTargets = expectedTargets.filter((target) => {
       const language = target.match(/\.(zh|en)$/)?.[1];
@@ -498,8 +563,8 @@ export default function WorkspacePage() {
             </div>
           )}
           <form className="chat-input" onSubmit={submitChat}>
-            <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder="告诉 AI 你想怎么改..." rows={2} />
-            <button className="send-button" type="submit" disabled={!input.trim() || busy || !draftReady} aria-label="发送"><Send size={14} /></button>
+            <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder={draftReady && !activeTemplateCapabilities ? "正在识别模板可编辑位置..." : "告诉 AI 你想怎么改..."} rows={2} />
+            <button className="send-button" type="submit" disabled={!input.trim() || busy || !draftReady || !activeTemplateCapabilities} aria-label="发送"><Send size={14} /></button>
           </form>
           <div className="chat-hints"><button className="hint" onClick={() => setInput("只把第二个服务标题改为智能产线集成，其他内容不变")}>修改服务</button><button className="hint" onClick={() => setInput("重写首屏标题和说明，不要更换模板")}>优化首屏</button><button className="hint" onClick={() => setShowImport(true)}>上传商品表格</button></div>
         </div>

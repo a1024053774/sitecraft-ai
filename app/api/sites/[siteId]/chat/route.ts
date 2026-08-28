@@ -18,13 +18,21 @@ import {
   selectRetryIssues,
   shouldSelfEvaluate,
 } from "@/lib/ai-self-eval";
+import { getTemplate } from "@/lib/site-model";
+import {
+  checkSelectedTargetConformance,
+  nonVisualTemplateNotice,
+  preflightTemplateSlots,
+  selectedTargetMismatchMessage,
+  unsupportedTemplateSlotMessage,
+} from "@/lib/template-slot-guard";
 
 export const runtime = "nodejs";
 
 const chatSchema = z.object({
   baseRevision: z.number().int().nonnegative(),
   message: z.string().trim().min(1).max(4000),
-  selectedTarget: z.string().max(120).nullable().optional(),
+  selectedTarget: z.string().max(240).nullable().optional(),
   /** 最近对话上下文（多轮记忆）：[{role, text}]，最多 6 条，每条截断（过渡期保留，session 优先） */
   context: z.array(z.object({
     role: z.enum(["user", "assistant"]),
@@ -34,6 +42,12 @@ const chatSchema = z.object({
   confirmedDestructive: z.boolean().optional(),
   /** 服务端会话 id（前端 sessionStorage 生成，每标签页独立） */
   sessionId: z.string().max(80).optional(),
+  /** 当前预览 iframe 针对该 revision 实际识别到的可显示槽位 */
+  templateCapabilities: z.object({
+    templateId: z.string().max(80),
+    revision: z.number().int().nonnegative(),
+    slots: z.array(z.string().min(1).max(180)).max(3000),
+  }).optional(),
 });
 
 function event(controller: ReadableStreamDefaultController<Uint8Array>, value: unknown) {
@@ -91,6 +105,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         sessionContext,
       });
       if (!provider.ok) {
+        if (provider.code === "selected_target_mismatch" && parsed.data.selectedTarget) {
+          const message = selectedTargetMismatchMessage(parsed.data.selectedTarget);
+          if (session) pushAssistantMessage(session, message);
+          event(controller, {
+            type: "done",
+            status: "need_clarification",
+            code: provider.code,
+            message,
+            model: provider.model,
+            latencyMs: provider.latencyMs,
+            attempts: provider.attemptCount,
+          });
+          controller.close();
+          return;
+        }
         event(controller, { type: "done", status: "error", error: provider.error, code: provider.code, latencyMs: provider.latencyMs, attempts: provider.attemptCount });
         controller.close();
         return;
@@ -147,6 +176,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           }
         }
       }
+      const selectedTargetConformance = checkSelectedTargetConformance({
+        message: parsed.data.message,
+        selectedTarget: parsed.data.selectedTarget,
+        operations: finalProvider.operations,
+        draft: current.draft,
+      });
+      if (!selectedTargetConformance.matches && parsed.data.selectedTarget) {
+        const message = selectedTargetMismatchMessage(parsed.data.selectedTarget);
+        if (session) pushAssistantMessage(session, message);
+        event(controller, {
+          type: "done",
+          status: "need_clarification",
+          code: "selected_target_mismatch",
+          message,
+          summary: finalProvider.summary,
+          model: finalProvider.model,
+          latencyMs: finalProvider.latencyMs,
+          attempts: finalProvider.attemptCount,
+          selfEvaluated,
+          evalIssues,
+        });
+        controller.close();
+        return;
+      }
       // 重生成可能改变破坏性操作 → 重跑确认门（已确认则跳过）
       const finalDestructive = finalProvider.operations.filter(isDestructiveOperation);
       if (finalDestructive.length && !parsed.data.confirmedDestructive) {
@@ -158,6 +211,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           model: finalProvider.model,
           latencyMs: finalProvider.latencyMs,
           attempts: finalProvider.attemptCount,
+        });
+        controller.close();
+        return;
+      }
+      const suppliedCapabilities = parsed.data.templateCapabilities;
+      const availableSlots = suppliedCapabilities
+        && suppliedCapabilities.templateId === current.draft.templateId
+        && suppliedCapabilities.revision === current.draft.revision
+        ? suppliedCapabilities.slots
+        : undefined;
+      const slotPreflight = preflightTemplateSlots({
+        draft: current.draft,
+        operations: finalProvider.operations,
+        availableSlots,
+      });
+      if (slotPreflight.unsupportedTargets.length) {
+        const message = unsupportedTemplateSlotMessage(
+          getTemplate(current.draft.templateId).name,
+          slotPreflight.unsupportedTargets,
+        );
+        if (session) pushAssistantMessage(session, message);
+        event(controller, {
+          type: "done",
+          status: "need_clarification",
+          code: "unsupported_template_slot",
+          message,
+          summary: finalProvider.summary,
+          unsupportedTargets: slotPreflight.unsupportedTargets,
+          model: finalProvider.model,
+          latencyMs: finalProvider.latencyMs,
+          attempts: finalProvider.attemptCount,
+          selfEvaluated,
+          evalIssues,
         });
         controller.close();
         return;
@@ -189,7 +275,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             });
             pushAssistantMessage(session, finalProvider.summary);
           }
-          event(controller, { type: "done", status: "applied", summary: finalProvider.summary, rejected: finalProvider.rejected, changeSet: committed.changeSet, ...snapshot(committed.record), model: finalProvider.model, latencyMs: finalProvider.latencyMs, selfEvaluated, evalIssues, attempts: finalProvider.attemptCount });
+          event(controller, {
+            type: "done",
+            status: "applied",
+            summary: finalProvider.summary,
+            rejected: finalProvider.rejected,
+            changeSet: committed.changeSet,
+            ...snapshot(committed.record),
+            model: finalProvider.model,
+            latencyMs: finalProvider.latencyMs,
+            selfEvaluated,
+            evalIssues,
+            attempts: finalProvider.attemptCount,
+            nonVisualTargets: slotPreflight.nonVisualTargets,
+            ...(slotPreflight.nonVisualTargets.length ? { displayNotice: nonVisualTemplateNotice } : {}),
+          });
         }
       } catch (error) {
         event(controller, { type: "done", status: "error", code: "operation_error", error: error instanceof Error ? error.message : "操作应用失败" });
