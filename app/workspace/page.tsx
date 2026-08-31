@@ -42,8 +42,6 @@ import {
 } from "@/lib/site-model";
 import type { SiteOperation } from "@/lib/site-operations";
 
-const siteId = "demo";
-
 type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change";
 type ChatMessage = {
   id: string;
@@ -95,6 +93,8 @@ function readSseEvents(raw: string) {
 }
 
 export default function WorkspacePage() {
+  // SSR 安全：首帧 "demo"，客户端挂载后从 ?siteId 读取真实站点
+  const [siteId, setSiteId] = useState("demo");
   const [draft, setDraft] = useState<SiteDraft>(defaultDraft);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [canUndo, setCanUndo] = useState(false);
@@ -146,6 +146,12 @@ export default function WorkspacePage() {
     setCanRedo(Boolean(snapshot.canRedo));
     setUpdatedAt(snapshot.updatedAt ?? new Date().toISOString());
   };
+
+  useEffect(() => {
+    // 从 URL 读取站点 id（一句话建站后跳转用），默认 demo 保持向后兼容
+    const fromUrl = new URLSearchParams(window.location.search).get("siteId");
+    if (fromUrl && fromUrl !== siteId) setSiteId(fromUrl);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,7 +211,7 @@ export default function WorkspacePage() {
     }
     void loadDraft();
     return () => { cancelled = true; };
-  }, []);
+  }, [siteId]);
 
   useEffect(() => {
     fetch("/api/ai/status", { cache: "no-store" })

@@ -391,6 +391,37 @@ export function validateAIOperations(
   return { operations: accepted, rejected };
 }
 
+/**
+ * 生成场景专用校验（一句话建站初稿）。
+ * 与 validateAIOperations 不同：生成是主动建站，set_template 只查白名单（不要求"明确换模板"）；
+ * 不做 locale guard（生成 prompt 明确 zh+en）；保留白名单 + 文案长度校验。
+ */
+export function validateGenerationOperations(
+  operations: SiteOperation[],
+  templateIds: Set<string>,
+): { operations: SiteOperation[]; rejected: string[] } {
+  const rejected: string[] = [];
+  const accepted = operations.filter((operation) => {
+    if (operation.op === "set_template") {
+      if (!templateIds.has(operation.templateId)) {
+        rejected.push(`模板 ${operation.templateId} 不在白名单中`);
+        return false;
+      }
+      return true;
+    }
+    // 文案长度确定性校验（Q2）：标题/副标题超限则拒绝
+    if (operation.op === "set_text" && operation.value) {
+      const limit = copyLengthLimit(operation.target, operation.locale ?? "zh");
+      if (limit && exceedsLimit(operation.value, operation.locale ?? "zh", limit)) {
+        rejected.push(`文案超出长度限制：${operation.target} ${operation.locale ?? "zh"} 应为 ${limit}${operation.locale === "en" ? " 词" : " 字"}以内（当前 ${measureCopy(operation.value, operation.locale ?? "zh")}）`);
+        return false;
+      }
+    }
+    return true;
+  });
+  return { operations: accepted, rejected };
+}
+
 /** 各文案目标的语言长度限制（Q2）：title ≤15字/10词，subtitle ≤40字/25词 */
 function copyLengthLimit(target: string, locale: string): number | null {
   if (target === "hero.title" || target === "about.title" || target === "hero.cta") {

@@ -12,6 +12,11 @@ import {
   checkSelectedTargetConformance,
   shouldEnforceSelectedTarget,
 } from "@/lib/template-slot-guard";
+import {
+  buildIntentPrompt,
+  parseSiteIntentContent,
+  type SiteIntent,
+} from "@/lib/site-intent";
 
 export type ProviderResult =
   | { ok: true; summary: string; operations: SiteOperation[]; rejected: string[]; model: string; latencyMs: number; attemptCount: number }
@@ -189,4 +194,144 @@ export async function requestStructuredOperations(args: {
     latencyMs: Date.now() - startedAt,
     attemptCount: attemptsMade,
   };
+}
+
+export type IntentResult =
+  | { ok: true; intent: SiteIntent; model: string; latencyMs: number }
+  | { ok: false; error: string; code: "not_configured" | "provider_error" | "invalid_output" | "timeout"; model: string | null; latencyMs: number };
+
+/** 一句话 → 结构化建站意图（意图理解） */
+export async function requestSiteIntent(args: { text: string }): Promise<IntentResult> {
+  const startedAt = Date.now();
+  const { baseURL, apiKey, model } = providerConfig();
+  if (!apiKey || !model) {
+    return { ok: false, code: "not_configured", error: "尚未配置 DeepSeek API。", model: null, latencyMs: 0 };
+  }
+  const system = buildIntentPrompt(args.text);
+  let lastError = "模型没有返回有效的意图。";
+  let lastCode: "provider_error" | "invalid_output" | "timeout" = "provider_error";
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(`${baseURL}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          temperature: 0.15,
+          max_tokens: 1000,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: args.text },
+          ],
+        }),
+        signal: AbortSignal.timeout(30_000),
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        lastError = await providerError(response);
+        lastCode = "provider_error";
+        if (response.status < 500 && response.status !== 429) break;
+        continue;
+      }
+      const payload = (await response.json()) as { choices?: Array<{ message?: { content?: unknown } }> };
+      const parsed = parseSiteIntentContent(payload.choices?.[0]?.message?.content);
+      if (!parsed.data) {
+        lastError = `意图输出未通过 Schema 校验：${parsed.error}`;
+        lastCode = "invalid_output";
+        continue;
+      }
+      return { ok: true, intent: parsed.data, model, latencyMs: Date.now() - startedAt };
+    } catch (error) {
+      const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+      lastError = timedOut ? "DeepSeek 请求超时" : `无法连接 DeepSeek：${error instanceof Error ? error.message : "网络错误"}`;
+      lastCode = timedOut ? "timeout" : "provider_error";
+    }
+  }
+  return { ok: false, error: lastError, code: lastCode, model, latencyMs: Date.now() - startedAt };
+}
+
+export type DraftOpsResult =
+  | { ok: true; summary: string; operations: SiteOperation[]; model: string; latencyMs: number }
+  | { ok: false; error: string; code: "not_configured" | "provider_error" | "invalid_output" | "timeout"; model: string | null; latencyMs: number };
+
+export type DraftOpsArgs = {
+  intent: SiteIntent;
+  templateId: string;
+  baseDraft: SiteDraft;
+  scope: { sections: string[]; bilingual: boolean };
+  attemptHint?: string;
+};
+
+/** 生成整站初稿的结构化操作（骨架批 / 板块批共用） */
+export async function requestDraftOperations(args: DraftOpsArgs): Promise<DraftOpsResult> {
+  const startedAt = Date.now();
+  const { baseURL, apiKey, model } = providerConfig();
+  if (!apiKey || !model) {
+    return { ok: false, code: "not_configured", error: "尚未配置 DeepSeek API。", model: null, latencyMs: 0 };
+  }
+  const sectionsText = args.scope.sections.join("、");
+  const bilingual = args.scope.bilingual ? "（中文+英文）" : "（仅中文）";
+  const system = `你是企业官网初稿编辑器。用户要从零生成一个网站的内容。只返回 JSON：{"summary":"中文摘要","operations":[...]}。
+只允许使用以下操作，且只改列出的板块：
+1. set_text: {"op":"set_text","target":"siteName|companyName|industry|goal|hero.title|hero.subtitle|hero.cta|about.title|about.body|features.title|features.intro|services.title|services.intro|products.title|products.intro|contact.title|contact.body","locale":"zh|en","value":"新文本"}
+2. update_card: {"op":"update_card","section":"features|services","index":0基,"locale":"zh|en","title":"可选","body":"可选"}
+3. set_template: {"op":"set_template","templateId":"${args.templateId}"}
+4. set_section_visibility: {"op":"set_section_visibility","section":"about|features|services|products|contact","visible":false}
+5. update_product: {"op":"update_product","sku":"现有SKU","locale":"zh|en","name":"可选","summary":"可选"}
+
+本轮只改这些板块：${sectionsText}${bilingual}。
+规则：
+- 文案简短有力：标题≤15汉字/10词，说明≤40汉字/25词
+- 缺失的企业事实写"待补充"，不虚构客户/认证/产能/数据
+- 不要为未列出的板块生成操作
+- 每板块 2-4 条操作，总量控制`;
+  const user = `${args.attemptHint ? `${args.attemptHint}\n` : ""}企业需求：${JSON.stringify({ companyName: args.intent.companyName, industry: args.intent.industry, tone: args.intent.tone, targetAudience: args.intent.targetAudience, summary: args.intent.summary })}
+当前草稿（只读，不要改结构）：${buildDraftIndex(args.baseDraft, args.intent.summary)}`;
+  let lastError = "模型没有返回有效的操作。";
+  let lastCode: "provider_error" | "invalid_output" | "timeout" = "provider_error";
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(`${baseURL}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          temperature: 0.15,
+          max_tokens: 6000,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+        }),
+        signal: AbortSignal.timeout(45_000),
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        lastError = await providerError(response);
+        lastCode = "provider_error";
+        if (response.status < 500 && response.status !== 429) break;
+        continue;
+      }
+      const payload = (await response.json()) as { choices?: Array<{ finish_reason?: string; message?: { content?: unknown } }> };
+      if (payload.choices?.[0]?.finish_reason === "length") {
+        lastError = "输出达到 token 上限被截断";
+        lastCode = "invalid_output";
+        continue;
+      }
+      const parsed = parseModelJson(payload.choices?.[0]?.message?.content);
+      if (!parsed.data) {
+        lastError = `输出未通过结构化 Schema 校验：${parsed.error}`;
+        lastCode = "invalid_output";
+        continue;
+      }
+      return { ok: true, summary: parsed.data.summary, operations: parsed.data.operations, model, latencyMs: Date.now() - startedAt };
+    } catch (error) {
+      const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+      lastError = timedOut ? "DeepSeek 请求超时" : `无法连接 DeepSeek：${error instanceof Error ? error.message : "网络错误"}`;
+      lastCode = timedOut ? "timeout" : "provider_error";
+    }
+  }
+  return { ok: false, error: lastError, code: lastCode, model, latencyMs: Date.now() - startedAt };
 }
