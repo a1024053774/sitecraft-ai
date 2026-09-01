@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft } from "../lib/site-document.ts";
 import {
+  buildLocalPreviewSlots,
   checkSelectedTargetConformance,
   isConcreteSelectedTarget,
   nonVisualTemplateNotice,
@@ -18,6 +19,20 @@ test("keeps direct API callers backward compatible when no slot report is provid
     operations: [{ op: "update_card", section: "services", index: 1, locale: "zh", title: "产线集成" }],
   });
   assert.deepEqual(result, { unsupportedTargets: [], nonVisualTargets: [] });
+});
+
+test("local preview capabilities only advertise fields rendered by SiteRenderer", () => {
+  const slots = buildLocalPreviewSlots(defaultDraft);
+  assert.ok(slots.includes("companyName.zh"));
+  assert.ok(slots.includes("industry.zh"));
+  assert.ok(slots.includes("navigation.services.en"));
+  assert.ok(slots.includes("services.items.1.title.zh"));
+  assert.ok(slots.includes("products.FM-2401.category"));
+  assert.ok(slots.includes("features.visibility"));
+  assert.equal(slots.includes("siteName.zh"), false);
+  assert.equal(slots.includes("features.items.0.title.zh"), false);
+  assert.equal(slots.includes("services.intro.zh"), false);
+  assert.equal(slots.includes("contact.phone.zh"), false);
 });
 
 test("blocks a service card edit when the current template has no matching card slot", () => {

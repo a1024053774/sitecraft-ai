@@ -17,6 +17,7 @@ type OpenSourceTemplateFrameProps = {
     appliedSlots: string[];
     missingSlots: string[];
   }) => void;
+  onPreviewStateChange?: (state: "loading" | "ready" | "error") => void;
 };
 
 const targetPrompts: Record<string, { label: string; prompt: string }> = {
@@ -39,8 +40,21 @@ export function OpenSourceTemplateFrame({
   expectedTargets = [],
   onSelectTarget,
   onApplyReport,
+  onPreviewStateChange,
 }: OpenSourceTemplateFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const resolvedRef = useRef(false);
+
+  useEffect(() => {
+    resolvedRef.current = false;
+    onPreviewStateChange?.("loading");
+    const timeout = window.setTimeout(() => {
+      if (resolvedRef.current) return;
+      resolvedRef.current = true;
+      onPreviewStateChange?.("error");
+    }, 8000);
+    return () => window.clearTimeout(timeout);
+  }, [draft?.revision, onPreviewStateChange, templateId, variant]);
 
   useEffect(() => {
     const frameWindow = frameRef.current?.contentWindow;
@@ -74,13 +88,23 @@ export function OpenSourceTemplateFrame({
         const target = targetPrompts[data.target];
         if (target) onSelectTarget(data.slot || data.target, target.label, target.prompt, data.slot);
       }
-      if (data?.type === "sitecraft:applied" && typeof data.revision === "number" && onApplyReport) {
-        onApplyReport({ revision: data.revision, appliedSlots: data.appliedSlots ?? [], missingSlots: data.missingSlots ?? [] });
+      if (data?.type === "sitecraft:ready" && !draft && !resolvedRef.current) {
+        resolvedRef.current = true;
+        onPreviewStateChange?.("ready");
+      }
+      if (data?.type === "sitecraft:applied" && typeof data.revision === "number") {
+        if (!resolvedRef.current) {
+          resolvedRef.current = true;
+          onPreviewStateChange?.("ready");
+        }
+        if (onApplyReport) {
+          onApplyReport({ revision: data.revision, appliedSlots: data.appliedSlots ?? [], missingSlots: data.missingSlots ?? [] });
+        }
       }
     };
     window.addEventListener("message", receiveMessage);
     return () => window.removeEventListener("message", receiveMessage);
-  }, [onApplyReport, onSelectTarget]);
+  }, [draft, onApplyReport, onPreviewStateChange, onSelectTarget]);
 
   const sendContent = () => {
     frameRef.current?.contentWindow?.postMessage(
@@ -98,6 +122,11 @@ export function OpenSourceTemplateFrame({
       loading={variant === "thumbnail" ? "lazy" : "eager"}
       sandbox="allow-scripts allow-forms"
       onLoad={sendContent}
+      onError={() => {
+        if (resolvedRef.current) return;
+        resolvedRef.current = true;
+        onPreviewStateChange?.("error");
+      }}
     />
   );
 }

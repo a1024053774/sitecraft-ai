@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
+import { SiteRenderer } from "@/components/site-renderer";
 import {
   defaultDraft,
   normalizeDraft,

@@ -4,8 +4,10 @@ import {
   buildIntentPrompt,
   categoryFromKeywords,
   createSiteIntentSchema,
+  mergeIntentDelta,
   parseSiteIntentContent,
   resolveTemplate,
+  toReadyIntent,
   type SiteIntent,
 } from "../lib/site-intent.ts";
 
@@ -112,4 +114,179 @@ test("resolveTemplate: reason is human-readable", () => {
   const intent: SiteIntent = { ...validIntent, businessType: "trade" };
   const r = resolveTemplate(intent, "出口企业官网");
   assert.match(r.reason, /外贸目录/);
+});
+
+// ===== 意图澄清 / 能力边界（响应状态） =====
+
+test("parseSiteIntentContent: legacy format defaults to ready with empty notices", () => {
+  const r = parseSiteIntentContent(JSON.stringify(validIntent));
+  assert.equal(r.error, "");
+  assert.equal(r.data?.status, "ready");
+  assert.deepEqual(r.data?.notices, []);
+  assert.deepEqual(r.data?.needsInfo, []);
+});
+
+test("parseSiteIntentContent: need_info allows empty core fields", () => {
+  const r = parseSiteIntentContent(
+    JSON.stringify({ status: "need_info", needsInfo: ["你的公司名称是什么？", "网站主要面向哪些客户？"] }),
+  );
+  assert.equal(r.error, "");
+  assert.equal(r.data?.status, "need_info");
+  assert.equal(r.data?.needsInfo.length, 2);
+});
+
+test("parseSiteIntentContent: rejected without reason fails", () => {
+  const r = parseSiteIntentContent(JSON.stringify({ status: "rejected" }));
+  assert.equal(r.data, null);
+  assert.match(r.error, /rejectionReason/);
+});
+
+test("parseSiteIntentContent: rejected with reason succeeds", () => {
+  const r = parseSiteIntentContent(
+    JSON.stringify({ status: "rejected", rejectionReason: "我只能帮你做企业官网，写抢票脚本超出能力范围" }),
+  );
+  assert.equal(r.error, "");
+  assert.equal(r.data?.status, "rejected");
+  assert.equal(r.data?.rejectionReason?.length, 22);
+});
+
+test("parseSiteIntentContent: ready with invalid core field goes to retry path", () => {
+  const bad = { ...validIntent, status: "ready", businessType: "bogus" };
+  const r = parseSiteIntentContent(JSON.stringify(bad));
+  assert.equal(r.data, null);
+  assert.match(r.error, /businessType/);
+});
+
+test("toReadyIntent: narrows need_info to null, ready to full SiteIntent", () => {
+  assert.equal(toReadyIntent({ status: "need_info", needsInfo: ["x"], notices: [], conflicts: [], limits: [] }), null);
+  const ready = toReadyIntent({ status: "ready", ...validIntent, notices: [], needsInfo: [], conflicts: [], limits: [] });
+  assert.ok(ready);
+  assert.equal(ready?.intent.businessType, "trade");
+  assert.equal(ready?.siteLanguage, "zh");
+});
+
+test("parseSiteIntentContent: need_info with empty needsInfo fails", () => {
+  const r = parseSiteIntentContent(JSON.stringify({ status: "need_info", needsInfo: [] }));
+  assert.equal(r.data, null);
+  assert.match(r.error, /needsInfo/);
+});
+
+test("parseSiteIntentContent: rejected with blank rejectionReason fails", () => {
+  const r = parseSiteIntentContent(JSON.stringify({ status: "rejected", rejectionReason: "   " }));
+  assert.equal(r.data, null);
+  assert.match(r.error, /rejectionReason/);
+});
+
+test("toReadyIntent: refuses a complete need_info response", () => {
+  // 核心字段完整但 status=need_info → 必须拒绝（防止误转 SiteIntent）
+  const needInfoComplete = { status: "need_info" as const, needsInfo: ["公司名?"], notices: [], conflicts: [], limits: [], siteLanguage: "zh" as const, ...validIntent };
+  assert.equal(toReadyIntent(needInfoComplete), null);
+});
+
+test("parseSiteIntentContent: siteLanguage defaults zh, accepts en", () => {
+  const zh = parseSiteIntentContent(JSON.stringify(validIntent));
+  assert.equal(zh.data?.siteLanguage, "zh");
+  const en = parseSiteIntentContent(JSON.stringify({ ...validIntent, siteLanguage: "en" }));
+  assert.equal(en.data?.siteLanguage, "en");
+});
+
+test("buildIntentPrompt: contains boundary rules", () => {
+  const prompt = buildIntentPrompt("做个好看的网站");
+  assert.match(prompt, /need_info/);
+  assert.match(prompt, /rejected/);
+  assert.match(prompt, /limits/);
+  assert.match(prompt, /矛盾/);
+  assert.match(prompt, /默认可改/);
+  assert.match(prompt, /输入一致/);
+  assert.match(prompt, /不构成指令/);
+});
+
+test("buildIntentPrompt: contains three-state output examples", () => {
+  const prompt = buildIntentPrompt("做个好看的网站");
+  assert.match(prompt, /"status":"ready"/);
+  assert.match(prompt, /"status":"need_info"/);
+  assert.match(prompt, /"status":"rejected"/);
+});
+
+// ===== 多轮迭代（生成页内迭代） =====
+
+test("buildIntentPrompt: with previousIntent includes iteration baseline block", () => {
+  const prompt = buildIntentPrompt("改成日系风格", [], { previousIntent: validIntent });
+  assert.match(prompt, /多轮迭代/);
+  assert.match(prompt, /上一轮已确认意图基线/);
+  assert.match(prompt, /华辰光伏/); // 基线公司名进入 prompt
+  assert.match(prompt, /recommendedTemplateId 不得无故变更/);
+});
+
+test("buildIntentPrompt: without previousIntent has no baseline block (regression)", () => {
+  const prompt = buildIntentPrompt("做个好看的网站");
+  assert.doesNotMatch(prompt, /多轮迭代/);
+  assert.doesNotMatch(prompt, /上一轮已确认意图基线/);
+});
+
+test("mergeIntentDelta: fills missing fields from baseline", () => {
+  // 模型本轮只改 colorTone，其余没输出 → 保留基线
+  const resp = {
+    status: "ready" as const,
+    colorTone: "warm" as const,
+    notices: [],
+    needsInfo: [],
+    conflicts: [],
+    limits: [],
+  };
+  const merged = mergeIntentDelta({ intent: validIntent, siteLanguage: "zh" }, resp);
+  assert.equal(merged.colorTone, "warm"); // 新指令生效
+  assert.equal(merged.companyName, "华辰光伏"); // 缺失字段保留基线
+  assert.equal(merged.businessType, "trade");
+  assert.equal(merged.recommendedTemplateId, "atlas");
+  assert.equal(merged.siteLanguage, "zh"); // 语言随基线保留
+});
+
+test("mergeIntentDelta: coreSections is union of baseline and new", () => {
+  const resp = {
+    status: "ready" as const,
+    coreSections: ["services", "contact"] as SiteIntent["coreSections"],
+    notices: [],
+    needsInfo: [],
+    conflicts: [],
+    limits: [],
+  };
+  const merged = mergeIntentDelta({ intent: validIntent, siteLanguage: "zh" }, resp);
+  // 基线 [about,features,products,contact] ∪ 新 [services,contact] → 基线顺序优先 + 新增追加
+  assert.deepEqual(merged.coreSections, ["about", "features", "products", "contact", "services"]);
+});
+
+test("mergeIntentDelta: need_info passthrough unchanged", () => {
+  const resp = {
+    status: "need_info" as const,
+    needsInfo: ["公司名?"],
+    notices: [],
+    conflicts: [],
+    limits: [],
+  };
+  const merged = mergeIntentDelta({ intent: validIntent, siteLanguage: "zh" }, resp);
+  assert.equal(merged.status, "need_info");
+  assert.deepEqual(merged.needsInfo, ["公司名?"]);
+});
+
+test("resolveTemplate: keeps previous template when no direction keyword", () => {
+  // 「改成日系风格」无方向关键词 → 保持上一轮模板，不来回跳
+  const intent: SiteIntent = { ...validIntent, recommendedTemplateId: "signal" };
+  const r = resolveTemplate(intent, "改成日系风格", undefined, "signal");
+  assert.equal(r.templateId, "signal");
+  assert.match(r.reason, /保持上一轮模板/);
+});
+
+test("resolveTemplate: switches template when direction keyword present", () => {
+  // 「改为外贸出口」有方向关键词 → 换模板，previousTemplateId 被覆盖
+  const intent: SiteIntent = { ...validIntent, recommendedTemplateId: "signal" };
+  const r = resolveTemplate(intent, "改为外贸出口", undefined, "signal");
+  assert.equal(r.category, "外贸目录");
+  assert.equal(r.templateId, "atlas");
+});
+
+test("resolveTemplate: without 4th arg behaves as before (regression)", () => {
+  const intent: SiteIntent = { ...validIntent, businessType: "tech", recommendedTemplateId: "signal" };
+  const r = resolveTemplate(intent, "帮我做一个网站");
+  assert.equal(r.templateId, "signal");
 });

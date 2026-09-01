@@ -72,6 +72,33 @@ function bridgeScript(templateId: string) {
       hideLeafMatches(/API requests|uptime SLA|Basic AI models|Advanced AI models|All AI models|Sarah Chen|Marcus Rodriguez|Emily Watson|TechCorp|StartupXYZ|InnovateLabs|SOC 2|HIPAA|GDPR/i);
     }
   };
+  const applyDesignTokens = (draft) => {
+    const tokens = draft?.designTokens;
+    if (!tokens) return;
+    const isColor = (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+    if (isColor(tokens.primary)) document.documentElement.style.setProperty('--sitecraft-primary', tokens.primary);
+    if (isColor(tokens.secondary)) document.documentElement.style.setProperty('--sitecraft-secondary', tokens.secondary);
+    if (isColor(tokens.accent)) document.documentElement.style.setProperty('--sitecraft-accent', tokens.accent);
+    const fontStyles = { sans: 'Inter,Manrope,system-ui,sans-serif', editorial: 'Georgia,Times New Roman,serif', technical: 'Arial Narrow,Roboto Condensed,Arial,sans-serif' };
+    const radii = { sharp: '2px', soft: '8px', rounded: '18px' };
+    const sectionSpace = { compact: '44px', balanced: '64px', spacious: '84px' };
+    document.documentElement.style.setProperty('--sitecraft-font', fontStyles[tokens.fontStyle] || fontStyles.sans);
+    document.documentElement.style.setProperty('--sitecraft-radius', radii[tokens.radius] || radii.soft);
+    document.documentElement.style.setProperty('--sitecraft-section-space', sectionSpace[tokens.density] || sectionSpace.balanced);
+    let style = document.getElementById('sitecraft-design-tokens');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'sitecraft-design-tokens';
+      document.head.append(style);
+    }
+    const shared = 'body{font-family:var(--sitecraft-font)!important}h1,h2,h3{font-family:var(--sitecraft-font)!important}button,a[class*="btn"],a[class*="button"],[class*="card"],article{border-radius:var(--sitecraft-radius)!important}main>section,body>section{padding-top:var(--sitecraft-section-space)!important;padding-bottom:var(--sitecraft-section-space)!important}::selection{background:var(--sitecraft-accent);color:#172019}';
+    const adapters = {
+      forge: 'h1,h2,h3{color:var(--sitecraft-primary)!important}button,a[class*="btn"],a[class*="button"]{background-color:var(--sitecraft-primary)!important;color:#fff!important}[class*="card"],article{border-color:color-mix(in srgb,var(--sitecraft-primary) 22%,transparent)!important}',
+      atlas: 'h1,h2,h3{color:var(--sitecraft-primary)!important}button,a[class*="btn"],a[class*="button"]{background-color:var(--sitecraft-primary)!important;color:#fff!important}[class*="badge"],[class*="tag"]{background-color:var(--sitecraft-accent)!important;color:var(--sitecraft-primary)!important}',
+      signal: 'h1,h2,h3{color:var(--sitecraft-accent)!important}button,a[class*="btn"],a[class*="button"]{background-color:var(--sitecraft-accent)!important;color:#111827!important}[class*="card"],article{border-color:color-mix(in srgb,var(--sitecraft-accent) 26%,transparent)!important}',
+    };
+    style.textContent = shared + (adapters[templateId] || 'h1,h2,h3{color:var(--sitecraft-primary)!important}button,a[class*="btn"],a[class*="button"]{background-color:var(--sitecraft-primary)!important;color:#fff!important}');
+  };
   const cardScopes = (scope, fallbackPattern) => {
     let nodes = scope ? allVisible('article, [class*="card"], [class*="item"], [class*="service"], [class*="feature"]', scope) : [];
     nodes = nodes.filter((node) => allVisible('h2,h3,h4,strong,[class*="title"],[class*="name"],span', node).length && allVisible('p', node).length);
@@ -138,6 +165,7 @@ function bridgeScript(templateId: string) {
   const applyContent = (draft, locale, expectedTargets, variant) => {
     if (!draft) return { appliedSlots: [], missingSlots: expectedTargets || [] };
     const applied = new Set();
+    applyDesignTokens(draft);
     document.documentElement.lang = locale || 'zh';
     const hero = findHero();
     setText(hero, localize(draft.content?.hero?.title, locale), 'hero.title.' + locale, applied);
@@ -207,6 +235,18 @@ function bridgeScript(templateId: string) {
     if (!node) return;
     event.preventDefault();
     event.stopPropagation();
+    // 点选视觉反馈：给被点元素加高亮 outline（2 秒后清除；清掉上一次高亮）
+    const prev = document.querySelector('[data-sitecraft-selected]');
+    if (prev) { prev.removeAttribute('data-sitecraft-selected'); prev.style.outline = ''; }
+    node.setAttribute('data-sitecraft-selected', 'true');
+    node.style.outline = '3px solid #2e6b4f';
+    node.style.outlineOffset = '3px';
+    window.setTimeout(() => {
+      if (node.getAttribute('data-sitecraft-selected')) {
+        node.removeAttribute('data-sitecraft-selected');
+        node.style.outline = '';
+      }
+    }, 2000);
     const slot = node.dataset.sitecraftSlot || node.closest('[data-sitecraft-slot]')?.dataset.sitecraftSlot || '';
     const section = node.closest('[data-sitecraft-section]')?.dataset.sitecraftSection;
     const hero = findHero();

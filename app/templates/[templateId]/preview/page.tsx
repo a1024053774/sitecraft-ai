@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Github, Sparkles } from "lucide-react";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import { templates } from "@/lib/site-model";
+import { defaultDraft } from "@/lib/site-document";
 
 export default async function TemplatePreviewPage({
   params,
@@ -12,7 +13,7 @@ export default async function TemplatePreviewPage({
 }) {
   const { templateId } = await params;
   const template = templates.find((item) => item.id === templateId);
-  if (!template?.source.demoUrl) notFound();
+  if (!template) notFound();
 
   return (
     <main className="template-preview-page">
@@ -23,7 +24,7 @@ export default async function TemplatePreviewPage({
           </Link>
           <div>
             <strong>{template.name}</strong>
-            <span>开源原版预览 · {template.source.name} · {template.source.license}</span>
+            <span>开源模板本地快照 · {template.source.name} · {template.source.license}</span>
           </div>
         </div>
         <div className="template-preview-toolbar-actions">
@@ -39,8 +40,12 @@ export default async function TemplatePreviewPage({
         </div>
       </header>
       <div className="template-preview-canvas">
-        <OpenSourceTemplateFrame templateId={template.id} variant="preview" />
+        <TemplateFrame templateId={template.id} />
       </div>
     </main>
   );
+}
+
+function TemplateFrame({ templateId }: { templateId: string }) {
+  return <OpenSourceTemplateFrame templateId={templateId} variant="preview" />;
 }

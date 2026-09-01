@@ -22,6 +22,48 @@ export type SelectedTargetConformance = {
   operationTargets: string[];
 };
 
+/** Slots that the local SiteRenderer actually renders and can visibly update. */
+export function buildLocalPreviewSlots(draft: SiteDraft) {
+  const slots = [
+    "companyName.zh",
+    "industry.zh",
+    ...(["zh", "en"] as const).flatMap((locale) => [
+      `navigation.about.${locale}`,
+      `navigation.services.${locale}`,
+      `navigation.products.${locale}`,
+      `navigation.contact.${locale}`,
+      `hero.title.${locale}`,
+      `hero.subtitle.${locale}`,
+      `hero.cta.${locale}`,
+      `about.title.${locale}`,
+      `about.body.${locale}`,
+      `services.title.${locale}`,
+      `products.title.${locale}`,
+      `contact.title.${locale}`,
+      `contact.body.${locale}`,
+      `contact.address.${locale}`,
+    ]),
+    "contact.email.zh",
+    "about.visibility",
+    "features.visibility",
+    "services.visibility",
+    "products.visibility",
+    "contact.visibility",
+  ];
+  draft.content.services.items.forEach((_, index) => {
+    (["zh", "en"] as const).forEach((locale) => {
+      slots.push(`services.items.${index}.title.${locale}`, `services.items.${index}.body.${locale}`);
+    });
+  });
+  draft.products.forEach((product) => {
+    (["zh", "en"] as const).forEach((locale) => {
+      slots.push(`products.${product.sku}.name.${locale}`, `products.${product.sku}.summary.${locale}`);
+    });
+    slots.push(`products.${product.sku}.category`);
+  });
+  return slots;
+}
+
 function canonicalSlot(value: string) {
   return value.replace(/\.(zh|en)$/, ".$locale");
 }

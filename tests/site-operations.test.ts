@@ -118,6 +118,23 @@ test("does not increment revision for a no-op", () => {
   assert.deepEqual(result.appliedTargets, []);
 });
 
+test("applies design tokens as one reversible draft change", () => {
+  const tokens = {
+    primary: "#18385f",
+    secondary: "#e7eef7",
+    accent: "#f0bd59",
+    fontStyle: "technical" as const,
+    radius: "sharp" as const,
+    density: "compact" as const,
+  };
+  const result = applySiteOperations(defaultDraft, [{ op: "set_design_tokens", tokens }], { templateIds, lastChange: "Design variant" });
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.draft.designTokens, tokens);
+  assert.deepEqual(result.appliedTargets, ["design.tokens"]);
+  const restored = applySiteOperations(result.draft, result.inverseOperations, { templateIds, lastChange: "Undo" });
+  assert.equal(restored.draft.designTokens, null);
+});
+
 test("replaces imported products as one reversible draft change", () => {
   const products = [{
     sku: "NEW-001",

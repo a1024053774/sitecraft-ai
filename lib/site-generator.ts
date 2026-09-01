@@ -8,12 +8,14 @@
  * 分批 A（骨架/首屏/元数据）→ 批 B（板块内容，按 coreSections）；合并后单次 commit，可撤销。
  */
 
-import { cloneDraft, defaultDraft, type SiteDraft } from "./site-document.ts";
+import { cloneDraft, defaultDraft, type SectionKey, type SiteDraft } from "./site-document.ts";
 import { validateGenerationOperations, type SiteOperation } from "./site-operations.ts";
+import { evaluateOperations, shouldSelfEvaluate, type SelfEvalIssue } from "./ai-self-eval.ts";
+import { deriveDesignTokens } from "./design-variants.ts";
 import { templateCatalog } from "./template-catalog.ts";
 import type { SiteIntent } from "./site-intent.ts";
 
-export type GenerationScope = { sections: string[]; bilingual: boolean };
+export type GenerationScope = { sections: string[]; bilingual: boolean; siteLanguage: "zh" | "en" };
 
 export type DraftOpsResult =
   | { ok: true; summary: string; operations: SiteOperation[]; model: string }
@@ -40,11 +42,13 @@ export function buildGenerationPlan(
   intent: SiteIntent,
   templateId: string,
   hiddenSections: string[],
+  siteLanguage: "zh" | "en" = "zh",
 ): GenerationPlan {
   const baseDraft = cloneDraft(defaultDraft);
-  const leadingOps: SiteOperation[] = templateId !== "forge"
-    ? [{ op: "set_template", templateId }]
-    : [];
+  const leadingOps: SiteOperation[] = [
+    ...(templateId !== "forge" ? [{ op: "set_template" as const, templateId }] : []),
+    { op: "set_design_tokens", tokens: deriveDesignTokens(intent, templateId) },
+  ];
   const core = intent.coreSections as string[];
   const hidden = new Set(hiddenSections);
   const sections = core.filter((s) => !hidden.has(s));
@@ -53,39 +57,131 @@ export function buildGenerationPlan(
     section: s as "about" | "features" | "services" | "products" | "contact",
     visible: false,
   }));
-  return { baseDraft, leadingOps, scope: { sections, bilingual: true }, hideOps };
+  return { baseDraft, leadingOps, scope: { sections, bilingual: true, siteLanguage }, hideOps };
 }
 
-/** 批 A 提示：骨架/首屏/元数据（必发） */
-const BATCH_A_HINT = "第一批：只改元数据与首屏——siteName、companyName、industry、goal(zh)、hero.title/subtitle/cta(zh+en)、navigation.*(zh+en)。不要改其他板块。";
+/** 意图 → 建站需求文档（B1 首稿质量：把意图字段本地拼接成结构化需求，塞进生成 hint，零额外 LLM 调用） */
+export function buildEnhancedIntentPrompt(intent: SiteIntent): string {
+  const businessLabel: Record<string, string> = {
+    manufacturing: "工业制造",
+    trade: "外贸",
+    tech: "科技",
+    services: "专业服务",
+    other: "其他",
+  };
+  const audienceLabel: Record<string, string> = {
+    overseasB2b: "海外企业客户",
+    domesticB2b: "国内企业客户",
+    globalB2b: "全球企业客户",
+    endUsers: "终端用户",
+    investorsPartners: "投资人/合作伙伴",
+    other: "其他",
+  };
+  const toneLabel: Record<string, string> = {
+    professional: "专业可靠",
+    technical: "技术硬核",
+    friendly: "亲切友好",
+    bold: "大胆有冲击力",
+    minimal: "极简克制",
+    editorial: "编辑式/有观点",
+  };
+  const colorLabel: Record<string, string> = {
+    green: "绿色系（自然/工业）",
+    navy: "藏蓝系（稳重/全球贸易）",
+    purple: "紫色系（科技/创意）",
+    dark: "深色系（高端/极客）",
+    warm: "暖色系（亲和/专业服务）",
+    neutral: "中性色（极简/通用）",
+  };
+  const parts = [
+    `【建站需求】业务类型：${businessLabel[intent.businessType] ?? intent.businessType}`,
+    `公司/品牌：${intent.companyName}`,
+    `行业：${intent.industry}`,
+    `目标受众：${audienceLabel[intent.targetAudience] ?? intent.targetAudience}`,
+    `语气风格：${toneLabel[intent.tone] ?? intent.tone}`,
+  ];
+  if (intent.colorTone) parts.push(`色系：${colorLabel[intent.colorTone] ?? intent.colorTone}`);
+  parts.push(`核心板块：${intent.coreSections.join("、")}`);
+  parts.push(`站点概述：${intent.summary}`);
+  return parts.join("\n");
+}
 
-/** 批 B 提示：板块内容 */
-function batchBHint(intent: SiteIntent): string {
-  return `第二批：按板块补内容——about(title/body)、features(title/intro 及前 3 张卡片)、services(title/intro 及前 3 张卡片)、products(title/intro)、contact(title/body)。板块只写中文，英文可留"待补充"。不要为未列板块生成操作。`;
+/** 批 A 提示：骨架/首屏/元数据（必发）——按站点语言调整双语/单语；注入建站需求文档（B1 首稿质量） */
+function batchAHint(intent: SiteIntent, siteLanguage: "zh" | "en"): string {
+  const lang = siteLanguage === "en"
+    ? "首屏与导航使用英文，中文可留'待补充'"
+    : "首屏与导航使用中文（英文可留'待补充'）";
+  return `复用已选模板结构。第一批只填充元数据与首屏——siteName、companyName、industry、goal、hero.title/subtitle/cta、navigation.*。${lang}。不要改其他板块。\n\n${buildEnhancedIntentPrompt(intent)}`;
+}
+
+/** 批 B 提示：板块内容——按站点语言，中英站点都写对应语言；注入建站需求文档（B1 首稿质量） */
+function batchBHint(intent: SiteIntent, siteLanguage: "zh" | "en"): string {
+  const lang = siteLanguage === "en"
+    ? "板块内容一律用英文书写"
+    : "板块内容一律用中文书写";
+  return `复用已选模板结构。第二批按板块填充内容——about(title/body)、features(title/intro 及前 3 张卡片)、services(title/intro 及前 3 张卡片)、products(title/intro)、contact(title/body)。${lang}。不要为未列板块生成操作。\n\n${buildEnhancedIntentPrompt(intent)}`;
 }
 
 export type GenerateDraftArgs = {
   intent: SiteIntent;
   templateId: string;
   hiddenSections: string[];
+  siteLanguage?: "zh" | "en";
   draftOps: DraftOpsProvider;
+  /** B2 首稿自评注入（默认走真实 evaluateOperations；测试注入 mock 保不触网） */
+  selfEval?: (args: { message: string; summary: string; operations: SiteOperation[]; templateId: string }) => Promise<SelfEvalIssue[]>;
+  onProgress?: (progress: GenerationProgress) => void;
+};
+
+export type GenerationProgress = {
+  phase: "content" | "review";
+  message: string;
+  completedSections: string[];
+  activeSections: string[];
 };
 
 export type GenerateDraftOutcome =
-  | { ok: true; summary: string; operations: SiteOperation[]; model: string }
+  | { ok: true; summary: string; operations: SiteOperation[]; model: string; selfEvalIssues: SelfEvalIssue[]; completedSections: string[] }
   | { ok: false; code: string; error: string };
 
-/** 生成整站初稿：批 A（必发）→ 批 B（按板块，失败 fail-open 只提交批 A）→ 合并校验 */
+/** 为现有模板生成内容：批 A/B 并行 → 合并校验 → 首稿自评 → 单次提交。 */
 export async function generateDraftOperations(args: GenerateDraftArgs): Promise<GenerateDraftOutcome> {
-  const plan = buildGenerationPlan(args.intent, args.templateId, args.hiddenSections);
-  // 批 A：骨架/首屏/元数据
-  const batchA = await args.draftOps({
-    intent: args.intent,
-    templateId: args.templateId,
-    baseDraft: plan.baseDraft,
-    scope: { sections: plan.scope.sections, bilingual: true },
-    attemptHint: BATCH_A_HINT,
-  });
+  const plan = buildGenerationPlan(args.intent, args.templateId, args.hiddenSections, args.siteLanguage);
+  const lang = plan.scope.siteLanguage;
+  // 两批只读取同一模板草稿且目标字段互不重叠，可并行缩短等待时间；合并后仍只提交一次。
+  const completedSections = new Set<string>();
+  const reportProgress = (phase: GenerationProgress["phase"], message: string) => {
+    const allSections = ["hero", ...plan.scope.sections];
+    args.onProgress?.({
+      phase,
+      message,
+      completedSections: allSections.filter((section) => completedSections.has(section)),
+      activeSections: phase === "content" ? allSections.filter((section) => !completedSections.has(section)) : [],
+    });
+  };
+  const batchAPromise = args.draftOps({
+      intent: args.intent,
+      templateId: args.templateId,
+      baseDraft: plan.baseDraft,
+      scope: { sections: plan.scope.sections, bilingual: true, siteLanguage: lang },
+      attemptHint: batchAHint(args.intent, lang),
+    }).then((result) => {
+      if (result.ok) completedSections.add("hero");
+      reportProgress("content", result.ok ? "首屏内容已完成，正在填充其余板块…" : "首屏内容生成失败");
+      return result;
+    });
+  const batchBPromise = args.draftOps({
+      intent: args.intent,
+      templateId: args.templateId,
+      baseDraft: plan.baseDraft,
+      scope: { sections: plan.scope.sections, bilingual: false, siteLanguage: lang },
+      attemptHint: batchBHint(args.intent, lang),
+    }).then((result) => {
+      if (result.ok) plan.scope.sections.forEach((section) => completedSections.add(section));
+      reportProgress("content", result.ok ? "板块内容已完成，正在等待首屏并合并…" : "部分板块生成超时，将保留已完成内容");
+      return result;
+    });
+  const [batchA, batchB] = await Promise.all([batchAPromise, batchBPromise]);
   if (!batchA.ok) {
     return { ok: false, code: batchA.code, error: batchA.error };
   }
@@ -93,14 +189,6 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
   let summary = batchA.summary;
   let model = batchA.model;
 
-  // 批 B：板块内容（仅当有板块且模型可能补内容）
-  const batchB = await args.draftOps({
-    intent: args.intent,
-    templateId: args.templateId,
-    baseDraft: plan.baseDraft,
-    scope: { sections: plan.scope.sections, bilingual: false },
-    attemptHint: batchBHint(args.intent),
-  });
   if (batchB.ok) {
     ops = [...ops, ...batchB.operations];
     summary = `${summary}；${batchB.summary}`;
@@ -112,5 +200,98 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
   // 校验（白名单 + 长度，生成场景专用：set_template 只查白名单，不要求"明确换模板"）
   const templateIds = new Set(templateCatalog.map((t) => t.id));
   const validated = validateGenerationOperations(ops, templateIds);
-  return { ok: true, summary, operations: validated.operations, model };
+  reportProgress("review", "内容已生成，正在检查质量…");
+
+  // B2 首稿自评（仅首稿；fail-open——自评失败/异常不阻塞生成，issues 并入返回供确认页提示）
+  let selfEvalIssues: SelfEvalIssue[] = [];
+  if (shouldSelfEvaluate(validated.operations)) {
+    const runSelfEval = args.selfEval ?? (async (evalArgs) => {
+      const r = await evaluateOperations({
+        message: evalArgs.message,
+        summary: evalArgs.summary,
+        operations: evalArgs.operations,
+        templateId: evalArgs.templateId,
+      });
+      return r.issues;
+    });
+    try {
+      selfEvalIssues = await runSelfEval({
+        message: args.intent.summary,
+        summary,
+        operations: validated.operations,
+        templateId: args.templateId,
+      });
+    } catch {
+      selfEvalIssues = []; // fail-open：自评异常不影响生成
+    }
+  }
+  return {
+    ok: true,
+    summary,
+    operations: validated.operations,
+    model,
+    selfEvalIssues,
+    completedSections: ["hero", ...plan.scope.sections].filter((section) => completedSections.has(section)),
+  };
+}
+
+// ===== C 块：局部重生成（板块级） =====
+
+/** 局部重生成模式：text 只重写文本字段（保守）；all 允许结构微调（卡片增删，受视觉护栏约束） */
+export type RegenerateMode = "text" | "all";
+
+export type RegenerateSectionArgs = {
+  intent: SiteIntent;
+  templateId: string;
+  /** 当前草稿（重生成基于现状，不是从默认草稿从零写） */
+  baseDraft: SiteDraft;
+  /** 目标板块：hero 或 sectionKey */
+  section: "hero" | SectionKey;
+  /** 用户想改的方向（可空，空则按模板默认风格重写） */
+  direction?: string;
+  /** text=只重写文本；all=允许卡片增删（受 visualRules 约束） */
+  mode?: RegenerateMode;
+  siteLanguage?: "zh" | "en";
+  draftOps: DraftOpsProvider;
+};
+
+export type RegenerateOutcome =
+  | { ok: true; summary: string; operations: SiteOperation[]; model: string; selfEvalIssues: SelfEvalIssue[]; completedSections: string[] }
+  | { ok: false; code: string; error: string };
+
+/** 板块重生成 hint：只改目标板块 + 视觉一致性护栏（借鉴 replace_section_in_page 的 preserve_design_tokens）+ 可选方向 */
+function regenerateSectionHint(section: "hero" | SectionKey, direction: string | undefined, mode: RegenerateMode, siteLanguage: "zh" | "en"): string {
+  const lang = siteLanguage === "en" ? "内容用英文书写" : "内容用中文书写";
+  const directionText = direction?.trim() ? `用户想改的方向：${direction.trim()}。` : "用户未指定方向，按模板默认风格重写。";
+  const scopeText = section === "hero"
+    ? "hero.title、hero.subtitle、hero.cta"
+    : `${section}.title、${section}.intro（及该板块卡片）`;
+  const structureRule = mode === "all"
+    ? "允许增删该板块的卡片（保持模板的信息密度与风格）"
+    : "保持现有卡片数量不变，只重写文本内容";
+  return `只重生成 ${section} 板块——${scopeText}。${directionText}${structureRule}。${lang}。
+视觉护栏：必须保持当前模板的配色、字体、栅格与整体风格（preserve design tokens），不得引入与模板冲突的样式；缺失的企业事实写"待补充"，不虚构。`;
+}
+
+/**
+ * 局部重生成：只对目标板块生成定向操作，其余板块零操作（借鉴 replace_section_in_page 的 preserved_sections 语义）。
+ * 基于当前草稿（baseDraft），不是从默认草稿从零写——模型看到现状再改。
+ */
+export async function regenerateSectionOperations(args: RegenerateSectionArgs): Promise<RegenerateOutcome> {
+  const lang = args.siteLanguage ?? "zh";
+  const hint = regenerateSectionHint(args.section, args.direction, args.mode ?? "text", lang);
+  const result = await args.draftOps({
+    intent: args.intent,
+    templateId: args.templateId,
+    baseDraft: args.baseDraft,
+    scope: { sections: [args.section], bilingual: false, siteLanguage: lang },
+    attemptHint: hint,
+  });
+  if (!result.ok) {
+    return { ok: false, code: result.code, error: result.error };
+  }
+  // 校验（白名单 + 长度，与生成场景一致）
+  const templateIds = new Set(templateCatalog.map((t) => t.id));
+  const validated = validateGenerationOperations(result.operations, templateIds);
+  return { ok: true, summary: result.summary, operations: validated.operations, model: result.model, selfEvalIssues: [], completedSections: [args.section] };
 }

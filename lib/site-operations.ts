@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   cloneDraft,
+  designTokensSchema,
   editableCardSchema,
   locales,
   productSchema,
@@ -80,6 +81,10 @@ const setTemplateOperationSchema = z.object({
   op: z.literal("set_template"),
   templateId: z.string().min(1).max(80),
 });
+const setDesignTokensOperationSchema = z.object({
+  op: z.literal("set_design_tokens"),
+  tokens: designTokensSchema.nullable(),
+});
 const setSectionVisibilityOperationSchema = z.object({
   op: z.literal("set_section_visibility"),
   section: sectionKeySchema,
@@ -116,6 +121,7 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   removeCardOperationSchema,
   updateProductOperationSchema,
   setTemplateOperationSchema,
+  setDesignTokensOperationSchema,
   setSectionVisibilityOperationSchema,
   reorderSectionsOperationSchema,
   replaceProductsOperationSchema,
@@ -301,6 +307,13 @@ export function applySiteOperations(
       inverseOperations.unshift({ op: "set_template", templateId: draft.templateId });
       draft.templateId = operation.templateId;
       appliedTargets.push("template");
+      continue;
+    }
+    if (operation.op === "set_design_tokens") {
+      if (same(draft.designTokens, operation.tokens)) continue;
+      inverseOperations.unshift({ op: "set_design_tokens", tokens: structuredClone(draft.designTokens) });
+      draft.designTokens = structuredClone(operation.tokens);
+      appliedTargets.push("design.tokens");
       continue;
     }
     if (operation.op === "set_section_visibility") {

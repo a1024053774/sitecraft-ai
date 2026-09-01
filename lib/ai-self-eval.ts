@@ -117,6 +117,8 @@ function opModule(op: SiteOperation): string | null {
       return op.section;
     case "set_template":
       return "template";
+    case "set_design_tokens":
+      return "design";
     case "reorder_sections":
       return "structure";
     case "replace_products":
