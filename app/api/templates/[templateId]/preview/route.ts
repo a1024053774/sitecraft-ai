@@ -11,6 +11,10 @@ function bridgeScript(templateId: string) {
   return `<script nonce="${BRIDGE_NONCE}">
 (() => {
   const templateId = ${JSON.stringify(templateId)};
+  let activeVariant = 'preview';
+  let activeSiteKey = null;
+  let activeLeadForm = null;
+  let activeLeadRequestId = null;
   const visible = (node) => Boolean(node && node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden');
   const allVisible = (selector, scope = document) => Array.from(scope.querySelectorAll(selector)).filter(visible);
   const findHero = () => document.querySelector('[data-sitecraft-slot^="hero.title."]') || allVisible('main h1, header h1, h1')[0];
@@ -224,15 +228,53 @@ function bridgeScript(templateId: string) {
   };
   window.addEventListener('message', (event) => {
     if (event.data?.type === 'sitecraft:content' && event.data.templateId === templateId) {
+      activeVariant = event.data.variant || 'preview';
+      activeSiteKey = event.data.siteKey || null;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const report = applyContent(event.data.draft, event.data.locale, event.data.expectedTargets, event.data.variant);
         parent.postMessage({ type: 'sitecraft:applied', templateId, revision: event.data.draft?.revision, ...report }, '*');
       }));
     }
+    if (event.data?.type === 'sitecraft:lead-result' && event.data.templateId === templateId && event.data.siteKey === activeSiteKey && event.data.requestId === activeLeadRequestId && activeLeadForm) {
+      const form = activeLeadForm;
+      const button = form.querySelector('button[type="submit"], input[type="submit"]');
+      if (button) button.disabled = false;
+      let status = form.querySelector('[data-sitecraft-lead-status]');
+      if (!status) {
+        status = document.createElement('div');
+        status.dataset.sitecraftLeadStatus = 'true';
+        status.setAttribute('role', 'status');
+        status.style.cssText = 'margin-top:12px;padding:10px 12px;border-radius:6px;font:13px/1.5 system-ui,sans-serif';
+        form.append(status);
+      }
+      status.textContent = event.data.message || (event.data.ok ? '已收到你的需求。' : '提交失败，请稍后重试。');
+      status.style.background = event.data.ok ? '#eaf5e5' : '#fff1f0';
+      status.style.color = event.data.ok ? '#24583e' : '#a33a32';
+      if (event.data.ok) {
+      form.reset();
+        form.querySelectorAll('label, input, textarea, button').forEach((field) => { field.style.display = 'none'; });
+      }
+      activeLeadForm = null;
+    }
   });
+  document.addEventListener('submit', (event) => {
+    if (activeVariant !== 'published') return;
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const button = form.querySelector('button[type="submit"], input[type="submit"]');
+    if (button?.disabled) return;
+    if (button) button.disabled = true;
+    activeLeadForm = form;
+    activeLeadRequestId = crypto.randomUUID();
+    const values = Object.fromEntries(new FormData(form).entries());
+    parent.postMessage({ type: 'sitecraft:lead-submit', templateId, siteKey: activeSiteKey, requestId: activeLeadRequestId, fields: Object.assign(values, { idempotencyKey: activeLeadRequestId }) }, '*');
+  }, true);
   document.addEventListener('click', (event) => {
     const node = event.target?.closest?.('h1, p, a, button, h2, h3');
     if (!node) return;
+    if (node.closest('form')) return;
     event.preventDefault();
     event.stopPropagation();
     // 点选视觉反馈：给被点元素加高亮 outline（2 秒后清除；清掉上一次高亮）

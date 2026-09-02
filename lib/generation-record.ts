@@ -19,13 +19,37 @@ export type GenerationRecordInput = {
   latencyMs: number;
   model: string;
   status: "applied" | "no_change" | "conflict" | "error";
+  /** 用户最终拿到的结果，不与传输层 status 混用。 */
+  outcome: "complete" | "partial" | "no_change" | "conflict" | "error";
+  /** 完整建站与局部重生成必须分开统计。 */
+  mode: "full" | "regenerate";
+  missingSections: string[];
+  requestedTemplateId: string;
+  appliedTemplateId: string;
+  fallbackReason?: string;
+  errorCode?: string;
   /** 附加信息：如重生成板块、失败原因 */
   detail?: string;
 };
 
-export type GenerationRecord = GenerationRecordInput & {
+export type GenerationRecord = Omit<GenerationRecordInput, "detail" | "fallbackReason" | "errorCode"> & {
   id: number;
+  detail: string;
+  fallbackReason: string;
+  errorCode: string;
   createdAt: string;
+};
+
+export type GenerationHealthMetrics = {
+  sampleSize: number;
+  delivered: number;
+  deliveryRate: number;
+  partialRate: number;
+  templateFallbackRate: number;
+  failureRate: number;
+  timeoutRate: number;
+  p50LatencyMs: number | null;
+  p95LatencyMs: number | null;
 };
 
 const usePostgres =
@@ -50,8 +74,27 @@ export async function ensureGenerationRecordSchema() {
       model TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL,
       detail TEXT NOT NULL DEFAULT '',
+      outcome TEXT NOT NULL DEFAULT 'complete',
+      mode TEXT NOT NULL DEFAULT 'full',
+      missing_sections JSONB NOT NULL DEFAULT '[]'::jsonb,
+      requested_template_id TEXT NOT NULL DEFAULT '',
+      applied_template_id TEXT NOT NULL DEFAULT '',
+      fallback_reason TEXT NOT NULL DEFAULT '',
+      error_code TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+  // 兼容已有表：只增列并回填模板语义，不重写历史记录。
+  await getDatabasePool().query(`
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS outcome TEXT NOT NULL DEFAULT 'complete';
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'full';
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS missing_sections JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS requested_template_id TEXT NOT NULL DEFAULT '';
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS applied_template_id TEXT NOT NULL DEFAULT '';
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS fallback_reason TEXT NOT NULL DEFAULT '';
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS error_code TEXT NOT NULL DEFAULT '';
+    UPDATE generation_records SET requested_template_id = template_id WHERE requested_template_id = '';
+    UPDATE generation_records SET applied_template_id = template_id WHERE applied_template_id = '';
   `);
 }
 
@@ -61,8 +104,10 @@ export async function recordGeneration(input: GenerationRecordInput): Promise<vo
   try {
     await ensureGenerationRecordSchema();
     await getDatabasePool().query(
-      `INSERT INTO generation_records (site_id, input_text, intent, operations, template_id, latency_ms, model, status, detail)
-       VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9)`,
+      `INSERT INTO generation_records (
+         site_id, input_text, intent, operations, template_id, latency_ms, model, status, detail,
+         outcome, mode, missing_sections, requested_template_id, applied_template_id, fallback_reason, error_code
+       ) VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16)`,
       [
         input.siteId,
         input.inputText,
@@ -73,6 +118,13 @@ export async function recordGeneration(input: GenerationRecordInput): Promise<vo
         input.model,
         input.status,
         input.detail ?? "",
+        input.outcome,
+        input.mode,
+        JSON.stringify(input.missingSections),
+        input.requestedTemplateId,
+        input.appliedTemplateId,
+        input.fallbackReason ?? "",
+        input.errorCode ?? "",
       ],
     );
   } catch (error) {
@@ -86,9 +138,41 @@ export async function listGenerationRecords(limit = 50): Promise<GenerationRecor
   if (!usePostgres) return [];
   await ensureGenerationRecordSchema();
   const result = await getDatabasePool().query<GenerationRecord>(
-    `SELECT id, site_id, input_text, intent, operations, template_id, latency_ms, model, status, detail, created_at
+    `SELECT id,
+       site_id AS "siteId", input_text AS "inputText", intent, operations,
+       template_id AS "templateId", latency_ms AS "latencyMs", model, status, detail,
+       outcome, mode, missing_sections AS "missingSections",
+       requested_template_id AS "requestedTemplateId", applied_template_id AS "appliedTemplateId",
+       fallback_reason AS "fallbackReason", error_code AS "errorCode", created_at AS "createdAt"
      FROM generation_records ORDER BY id DESC LIMIT $1`,
     [limit],
   );
   return result.rows;
+}
+
+function nearestRank(sorted: number[], percentile: number) {
+  if (!sorted.length) return null;
+  return sorted[Math.max(0, Math.ceil(percentile * sorted.length) - 1)];
+}
+
+/** 只汇总完整建站终态；局部重生成不污染建站成功率和耗时。 */
+export function summarizeGenerationRecords(records: GenerationRecord[]): GenerationHealthMetrics {
+  const full = records.filter((record) => record.mode === "full");
+  const sampleSize = full.length;
+  const deliveredRecords = full.filter((record) => record.outcome === "complete" || record.outcome === "partial");
+  const delivered = deliveredRecords.length;
+  const failures = full.filter((record) => record.outcome === "error" || record.outcome === "conflict").length;
+  const latencies = full.map((record) => Math.max(0, record.latencyMs)).sort((a, b) => a - b);
+  const rate = (count: number, denominator: number) => denominator > 0 ? count / denominator : 0;
+  return {
+    sampleSize,
+    delivered,
+    deliveryRate: rate(delivered, sampleSize),
+    partialRate: rate(deliveredRecords.filter((record) => record.outcome === "partial").length, delivered),
+    templateFallbackRate: rate(deliveredRecords.filter((record) => record.requestedTemplateId !== record.appliedTemplateId).length, delivered),
+    failureRate: rate(failures, sampleSize),
+    timeoutRate: rate(full.filter((record) => record.errorCode === "timeout").length, sampleSize),
+    p50LatencyMs: nearestRank(latencies, 0.5),
+    p95LatencyMs: nearestRank(latencies, 0.95),
+  };
 }

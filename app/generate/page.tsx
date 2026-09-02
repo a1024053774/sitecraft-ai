@@ -7,8 +7,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  CircleAlert,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   MessageSquareText,
   Sparkles,
   WandSparkles,
@@ -48,6 +51,9 @@ type Step = "input" | "clarify" | "confirm" | "generating" | "done";
 type ClarifyState = { needsInfo: string[] };
 
 const GENERATE_DRAFT_KEY = "sitecraft:generate-draft:v1";
+const ACTIVE_GENERATION_KEY = "sitecraft:active-generation:v1";
+// "查看真实预览"：把用户改后的预览草稿带给新标签页的真实模板预览，避免显示模板默认内容
+const REAL_PREVIEW_DRAFT_KEY = "sitecraft:real-preview-draft:v1";
 
 const examples = [
   "做个光伏出口企业的官网，主打欧美，要显得专业可靠",
@@ -89,7 +95,10 @@ const SECTIONS_LABELS: Record<string, string> = {
 };
 
 function readSseEvents(raw: string) {
+  const lastCompleteEvent = raw.lastIndexOf("\n\n");
+  if (lastCompleteEvent < 0) return [];
   return raw
+    .slice(0, lastCompleteEvent)
     .split("\n\n")
     .map((block) => block.split("\n").find((line) => line.startsWith("data: "))?.slice(6))
     .filter(Boolean)
@@ -112,6 +121,7 @@ export default function GeneratePage() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [recommendationIndex, setRecommendationIndex] = useState(0);
   const [hiddenSections, setHiddenSections] = useState<string[]>([]);
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [previewFeedback, setPreviewFeedback] = useState<{ section: string; mode: "show" | "hide" } | null>(null);
   const previewFeedbackTimer = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -120,6 +130,9 @@ export default function GeneratePage() {
   const [generationPhase, setGenerationPhase] = useState<"content" | "review" | "saving">("content");
   const [completedSections, setCompletedSections] = useState<string[]>([]);
   const [activeSections, setActiveSections] = useState<string[]>([]);
+  const [recoveringSections, setRecoveringSections] = useState<string[]>([]);
+  const [failedSections, setFailedSections] = useState<string[]>([]);
+  const [generationElapsed, setGenerationElapsed] = useState(0);
   const [generationDuration, setGenerationDuration] = useState<number | null>(null);
   const generationStartedAt = useRef<number | null>(null);
   const [clarifyState, setClarifyState] = useState<ClarifyState | null>(null);
@@ -190,6 +203,13 @@ export default function GeneratePage() {
     () => ["hero", ...(intent?.coreSections ?? []).filter((section) => !hiddenSections.includes(section))],
     [hiddenSections, intent?.coreSections],
   );
+  const generationSectionState = (section: string) => {
+    if (completedSections.includes(section)) return "done";
+    if (failedSections.includes(section)) return "failed";
+    if (recoveringSections.includes(section)) return "recovering";
+    if (activeSections.includes(section) && generationPhase === "content") return "active";
+    return "waiting";
+  };
 
   // 再生模式：工作台「换方向重新生成」带 ?siteId 进入 → 复用现有站点重新生成
   useEffect(() => {
@@ -209,6 +229,37 @@ export default function GeneratePage() {
     }
     return () => { pageActive.current = false; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const restoreActiveGeneration = async () => {
+      try {
+        const raw = window.sessionStorage.getItem(ACTIVE_GENERATION_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw) as { siteId?: unknown; baseRevision?: unknown };
+        if (typeof saved.siteId !== "string" || typeof saved.baseRevision !== "number") {
+          window.sessionStorage.removeItem(ACTIVE_GENERATION_KEY);
+          return;
+        }
+        const response = await fetch(`/api/sites/${saved.siteId}/draft`, { cache: "no-store" });
+        if (!response.ok) throw new Error("无法读取上次生成任务");
+        const payload = await response.json() as { draft?: { revision?: unknown } };
+        const revision = typeof payload.draft?.revision === "number" ? payload.draft.revision : 0;
+        if (cancelled) return;
+        if (revision > saved.baseRevision) {
+          window.sessionStorage.removeItem(ACTIVE_GENERATION_KEY);
+          router.replace(`/workspace?siteId=${saved.siteId}&generated=1&recovered=1`);
+          return;
+        }
+        setRegenerateSiteId(saved.siteId);
+        setError("检测到上次未完成的建站任务，已保留原站点。确认需求后可继续生成，不会重复创建网站。");
+      } catch {
+        window.sessionStorage.removeItem(ACTIVE_GENERATION_KEY);
+      }
+    };
+    void restoreActiveGeneration();
+    return () => { cancelled = true; };
+  }, [router]);
 
   useEffect(() => {
     // query 预填（?q=）优先于历史草稿恢复，避免旧草稿覆盖模板页带入的话
@@ -366,6 +417,9 @@ export default function GeneratePage() {
     setGenerationPhase("content");
     setCompletedSections([]);
     setActiveSections(generationSections);
+    setRecoveringSections([]);
+    setFailedSections([]);
+    setGenerationElapsed(0);
     const sessionId = window.sessionStorage.getItem("sitecraft-session") ?? crypto.randomUUID();
     window.sessionStorage.setItem("sitecraft-session", sessionId);
     setProgressText(regenerateSiteId ? "正在为现有站点重新生成内容…" : "正在为所选模板生成内容…");
@@ -379,12 +433,15 @@ export default function GeneratePage() {
           body: JSON.stringify({ name: intent.companyName, templateId: template.id, locales: siteLanguage === "en" ? ["en"] : ["zh", "en"] }),
         });
         const sitePayload = await siteRes.json().catch(() => null);
-        siteId = sitePayload?.id ?? "demo";
+        if (!siteRes.ok || typeof sitePayload?.id !== "string") throw new Error("创建网站失败，请稍后重试");
+        siteId = sitePayload.id;
       }
       // 2. 读初始 revision
       const draftRes = await fetch(`/api/sites/${siteId}/draft`, { cache: "no-store" });
+      if (!draftRes.ok) throw new Error("读取网站草稿失败，请稍后重试");
       const draftPayload = await draftRes.json();
       const baseRevision = draftPayload.draft?.revision ?? 1;
+      window.sessionStorage.setItem(ACTIVE_GENERATION_KEY, JSON.stringify({ siteId, baseRevision, startedAt: Date.now() }));
       // 3. 执行生成
       const res = await fetch(`/api/sites/${siteId}/generate`, {
         method: "POST",
@@ -415,15 +472,29 @@ export default function GeneratePage() {
         if (status?.phase === "content" || status?.phase === "review" || status?.phase === "saving") setGenerationPhase(status.phase);
         if (Array.isArray(status?.completedSections)) setCompletedSections(status.completedSections.filter((item): item is string => typeof item === "string"));
         if (Array.isArray(status?.activeSections)) setActiveSections(status.activeSections.filter((item): item is string => typeof item === "string"));
+        if (Array.isArray(status?.recoveringSections)) setRecoveringSections(status.recoveringSections.filter((item): item is string => typeof item === "string"));
+        if (Array.isArray(status?.failedSections)) setFailedSections(status.failedSections.filter((item): item is string => typeof item === "string"));
         done = events.find((e) => e.type === "done");
         if (result.done) break;
       }
       if (!done) throw new Error("生成没有返回结果");
       if (done.status === "error") throw new Error(String(done.error || "生成失败"));
       if (done.status === "conflict") throw new Error("草稿冲突，请重试");
+      window.sessionStorage.removeItem(ACTIVE_GENERATION_KEY);
       if (!pageActive.current) return;
       if (generationStartedAt.current !== null) setGenerationDuration(Math.round(performance.now() - generationStartedAt.current));
       setStep("done");
+      // P0-2：批 B 失败时 partial=true，提示板块未完整生成（避免用户以为全是默认模板文案）
+      const partial = Boolean((done as { partial?: boolean }).partial);
+      const missingSections = Array.isArray((done as { missingSections?: string[] }).missingSections)
+        ? ((done as { missingSections?: string[] }).missingSections ?? [])
+        : [];
+      const fallbackReason = typeof done.templateFallbackReason === "string" ? done.templateFallbackReason : "";
+      const completionNotices = [
+        fallbackReason,
+        partial ? `部分板块未完整生成（${missingSections.join("、") || "板块内容"}），已保存首屏与已生成内容。可在工作台继续让 AI 补全。` : "",
+      ].filter(Boolean);
+      if (completionNotices.length) setError(completionNotices.join("；"));
       setTimeout(() => {
         if (!pageActive.current) return;
         try {
@@ -431,8 +502,8 @@ export default function GeneratePage() {
         } catch {
           // Successful navigation must continue even when storage is unavailable.
         }
-        router.push(`/workspace?siteId=${siteId}&generated=1`);
-      }, 1200);
+        router.push(`/workspace?siteId=${siteId}&generated=1${partial ? "&partial=1" : ""}`);
+      }, partial || fallbackReason ? 4000 : 1200);
     } catch (e) {
       if (pageActive.current) {
         setError(e instanceof Error ? e.message : "生成失败");
@@ -442,6 +513,14 @@ export default function GeneratePage() {
       if (pageActive.current) setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (step !== "generating" || generationStartedAt.current === null) return;
+    const updateElapsed = () => setGenerationElapsed(Math.floor((performance.now() - generationStartedAt.current!) / 1000));
+    updateElapsed();
+    const timer = window.setInterval(updateElapsed, 1000);
+    return () => window.clearInterval(timer);
+  }, [step]);
 
   return (
     <div className="app-shell">
@@ -607,34 +686,103 @@ export default function GeneratePage() {
               <h1>{intent.summary}</h1>
               <div className="generate-confirm-grid">
                 <div className="template-card generate-intent-card">
-                  <h3>意图摘要</h3>
-                  <div className="generate-intent-rows">
-                    <div><span>行业</span><strong>{BUSINESS_LABELS[intent.businessType] ?? intent.businessType} · {intent.industry}</strong></div>
-                    <div><span>受众</span><strong>{AUDIENCE_LABELS[intent.targetAudience] ?? intent.targetAudience}</strong></div>
-                    <div><span>语气</span><strong>{TONE_LABELS[intent.tone] ?? intent.tone}</strong></div>
-                    {intent.colorTone && <div><span>色系</span><strong>{intent.colorTone}</strong></div>}
+                  <div className="generate-intent-row">
+                    <h3>意图摘要</h3>
+                    <div className="generate-intent-rows">
+                      <div><span>行业</span><strong>{BUSINESS_LABELS[intent.businessType] ?? intent.businessType} · {intent.industry}</strong></div>
+                      <div><span>受众</span><strong>{AUDIENCE_LABELS[intent.targetAudience] ?? intent.targetAudience}</strong></div>
+                      <div><span>语气</span><strong>{TONE_LABELS[intent.tone] ?? intent.tone}</strong></div>
+                      {intent.colorTone && <div><span>色系</span><strong>{intent.colorTone}</strong></div>}
+                    </div>
                   </div>
-                  <h3 style={{ marginTop: 14 }}>套用到模板的板块</h3>
-                  <div className="generate-sections">
-                    {intent.coreSections.map((s) => {
-                      const isVisible = !hiddenSections.includes(s);
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          className={`generate-toggle ${isVisible ? "on" : "off"}`}
-                          aria-pressed={isVisible}
-                          onClick={() => toggleSection(s)}
-                        >
-                          {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-                          <span>{SECTIONS_LABELS[s] ?? s}</span>
-                          <strong>{isVisible ? "已显示" : "已隐藏"}</strong>
-                        </button>
-                      );
-                    })}
+                  <div className="generate-intent-row">
+                    <h3>套用到模板的板块</h3>
+                    <div className="generate-sections">
+                      {intent.coreSections.map((s) => {
+                        const isVisible = !hiddenSections.includes(s);
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            className={`generate-toggle ${isVisible ? "on" : "off"}`}
+                            aria-pressed={isVisible}
+                            title={isVisible ? `点击隐藏「${SECTIONS_LABELS[s] ?? s}」板块` : `点击重新显示「${SECTIONS_LABELS[s] ?? s}」板块`}
+                            onClick={() => toggleSection(s)}
+                          >
+                            {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                            <span>{SECTIONS_LABELS[s] ?? s}</span>
+                            <strong>{isVisible ? "已显示" : "已隐藏"}</strong>
+                          </button>
+                        );
+                      })}
+                      <span className="generate-sections-hint">点开关可增删要生成的板块</span>
+                    </div>
                   </div>
                 </div>
                 <div className="generate-template-picker" data-template-carousel>
+                  {/* 主预览区：随选中模板切换的大图，AI 内容与色板即时套用（问题 1：点卡时上面有对应变化） */}
+                  {template && (
+                    <div className={`generate-hero-preview${previewCollapsed ? " collapsed" : ""}`} data-template-hero-preview={template.id}>
+                      {!previewCollapsed && (
+                        <div className="generate-hero-preview-toolbar" aria-hidden="true">
+                          <span className="generate-hero-preview-dot" />
+                          <span className="generate-hero-preview-dot" />
+                          <span className="generate-hero-preview-dot" />
+                          <span className="generate-hero-preview-url">{template.name} · 真实模板预览</span>
+                        </div>
+                      )}
+                      {!previewCollapsed && (
+                        <div className="generate-hero-preview-frame">
+                          {templatePreviewState === "error" ? (
+                            <SiteRenderer key={`hero-fallback-${template.id}`} draft={{ ...previewDraft, templateId: template.id }} locale={siteLanguage} mode="preview" />
+                          ) : (
+                            <OpenSourceTemplateFrame
+                              key={`hero-${template.id}`}
+                              templateId={template.id}
+                              draft={{ ...previewDraft, templateId: template.id }}
+                              locale={siteLanguage}
+                              variant="preview"
+                              onPreviewStateChange={setTemplatePreviewState}
+                            />
+                          )}
+                        </div>
+                      )}
+                      <div className="generate-hero-preview-meta">
+                        <div className="generate-hero-preview-title">
+                          <strong>{template.name}</strong>
+                          <span>{template.category} · {template.reason || "推荐模板"}</span>
+                        </div>
+                        <div className="generate-hero-preview-actions">
+                          <button
+                            type="button"
+                            className="generate-preview-collapse-btn"
+                            onClick={() => setPreviewCollapsed((c) => !c)}
+                            aria-expanded={!previewCollapsed}
+                            aria-label={previewCollapsed ? "展开大预览" : "收起大预览"}
+                          >
+                            {previewCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+                            {previewCollapsed ? "展开预览" : "收起预览"}
+                          </button>
+                          <a
+                            className="generate-real-preview-link"
+                            href={`/templates/${template.id}/preview`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`在新标签页查看 ${template.name} 真实预览（含你的内容改动）`}
+                            onClick={() => {
+                              // 把用户改后的预览草稿（色板/板块/公司名/模板）存起来，
+                              // 新打开的"真实预览"页读取并套用，而不是显示模板默认内容。
+                              try {
+                                window.sessionStorage.setItem(REAL_PREVIEW_DRAFT_KEY, JSON.stringify({ ...previewDraft, templateId: template.id }));
+                              } catch { /* 存储不可用时降级为默认模板预览 */ }
+                            }}
+                          >
+                            <ExternalLink size={13} /> 查看真实预览
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="generate-preview-heading">
                     <div>
                       <h3>推荐的现有模板</h3>
@@ -701,9 +849,6 @@ export default function GeneratePage() {
                       <strong>{template.name}</strong>
                       <span>{template.category} · {template.reason}</span>
                     </div>
-                    <Link href={`/templates/${template.id}/preview` as Route} target="_blank" aria-label="打开完整模板预览">
-                      查看完整预览 <ExternalLink size={13} />
-                    </Link>
                   </div>
                   <div className="generate-preview-sections" aria-live="polite">
                     {intent.coreSections.map((s) => (
@@ -803,19 +948,28 @@ export default function GeneratePage() {
             <div className="generate-progress-view">
               <div className="eyebrow">复用模板结构 · AI 正在填充内容</div>
               <h1>{intent?.companyName || "你的网站"}</h1>
-              <div className="generate-building-preview" aria-hidden="true">
+              <div className={`generate-building-preview ${generationPhase === "content" ? "" : generationPhase}`} aria-hidden="true">
                 <div className="generate-building-bar"><i /><i /><i /><span /></div>
-                <div className="generate-building-hero"><span /><strong /><small /></div>
-                <div className="generate-building-grid"><span /><span /><span /></div>
+                <div className={`generate-building-hero ${generationSectionState("hero")}`}><span /><strong /><small /></div>
+                <div className="generate-building-grid">
+                  {generationSections.filter((section) => section !== "hero").map((section) => (
+                    <span key={section} className={generationSectionState(section)} />
+                  ))}
+                </div>
+                {(generationPhase === "review" || generationPhase === "saving") && <div className="generate-saving-shimmer" />}
               </div>
-              <div className="generate-steps">
+              <div className="generate-steps" aria-live="polite">
+                <div className="generate-elapsed"><span>已用时间</span><strong>{generationElapsed} 秒</strong></div>
                 <div className="step done"><Check size={13} /> 理解需求</div>
                 <div className="step done"><Check size={13} /> 匹配模板 · {template?.name}</div>
                 <div className="generate-section-progress">
                   {generationSections.map((section) => {
                     const done = completedSections.includes(section);
+                    const failed = failedSections.includes(section);
+                    const recovering = recoveringSections.includes(section);
                     const active = activeSections.includes(section) && generationPhase === "content";
-                    return <div className={`step ${done ? "done" : active ? "active" : ""}`} key={section}>{done ? <Check size={13} /> : active ? <LoaderCircle size={13} className="spin" /> : <span className="generate-step-dot" />}{SECTIONS_LABELS[section] ?? section}</div>;
+                    const state = done ? "done" : failed ? "failed" : recovering ? "recovering" : active ? "active" : "waiting";
+                    return <div className={`step ${state}`} key={section}>{done ? <Check size={13} /> : failed ? <CircleAlert size={13} /> : active || recovering ? <LoaderCircle size={13} className="spin" /> : <span className="generate-step-dot" />}{SECTIONS_LABELS[section] ?? section}{recovering && <small>恢复中</small>}{failed && <small>稍后补全</small>}</div>;
                   })}
                 </div>
                 <div className={`step ${generationPhase === "review" || generationPhase === "saving" ? "active" : ""}`}>{generationPhase === "review" || generationPhase === "saving" ? <LoaderCircle size={13} className="spin" /> : <span className="generate-step-dot" />}{progressText}</div>

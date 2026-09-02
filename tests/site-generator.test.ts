@@ -253,6 +253,95 @@ test("generateDraftOperations: batchA and batchB run concurrently", async () => 
   if (out.ok) assert.deepEqual(out.completedSections, ["hero", "about", "features", "products", "contact"]);
 });
 
+test("generateDraftOperations: one hanging section times out without blocking completed sibling sections", async () => {
+  const progress: Array<{ activeSections: string[]; failedSections: string[] }> = [];
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    if (args.attemptHint?.includes("第一批")) {
+      return {
+        ok: true,
+        summary: "首屏完成",
+        operations: [{ op: "set_text", target: "companyName", locale: "zh", value: "华辰光伏" }],
+        model: "test",
+      };
+    }
+    if (args.scope.sections.includes("about")) {
+      return new Promise<never>(() => {});
+    }
+    return { ok: true, summary: `${args.scope.sections[0]} 完成`, operations: [], model: "test" };
+  };
+
+  const out = await Promise.race([
+    generateDraftOperations({
+      intent,
+      templateId: "forge",
+      hiddenSections: [],
+      draftOps: fakeProvider,
+      taskTimeoutMs: 20,
+      onProgress: (item) => progress.push(item),
+    }),
+    new Promise<"hung">((resolve) => setTimeout(() => resolve("hung"), 100)),
+  ]);
+
+  assert.notEqual(out, "hung");
+  if (out === "hung") return;
+  assert.equal(out.ok, true);
+  if (out.ok) {
+    assert.equal(out.partial, true);
+    assert.deepEqual(out.missingSections, ["about"]);
+    assert.deepEqual(out.completedSections, ["hero", "features", "products", "contact"]);
+    assert.ok(progress.some((item) => item.failedSections.includes("about") && !item.activeSections.includes("about")));
+  }
+});
+
+test("generateDraftOperations: provider exceptions are isolated to the failed section", async () => {
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    if (args.attemptHint?.includes("第一批")) {
+      return { ok: true, summary: "首屏完成", operations: [], model: "test" };
+    }
+    if (args.scope.sections.length > 1) throw new Error("整批异常");
+    if (args.scope.sections[0] === "about") throw new Error("关于板块异常");
+    return { ok: true, summary: `${args.scope.sections[0]} 完成`, operations: [], model: "test" };
+  };
+
+  const out = await generateDraftOperations({
+    intent,
+    templateId: "forge",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+    taskTimeoutMs: 20,
+  });
+
+  assert.equal(out.ok, true);
+  if (out.ok) {
+    assert.equal(out.partial, true);
+    assert.deepEqual(out.missingSections, ["about"]);
+    assert.deepEqual(out.completedSections, ["hero", "features", "products", "contact"]);
+  }
+});
+
+test("generateDraftOperations: unknown template explicitly falls back to forge", async () => {
+  const seenTemplates: string[] = [];
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    seenTemplates.push(args.templateId);
+    return { ok: true, summary: "完成", operations: [], model: "test" };
+  };
+
+  const out = await generateDraftOperations({
+    intent,
+    templateId: "missing-template",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+  });
+
+  assert.equal(out.ok, true);
+  if (out.ok) {
+    assert.equal(out.requestedTemplateId, "missing-template");
+    assert.equal(out.appliedTemplateId, "forge");
+    assert.match(out.templateFallbackReason ?? "", /不可用/);
+  }
+  assert.deepEqual([...new Set(seenTemplates)], ["forge"]);
+});
+
 // ===== C1 局部重生成（板块级） =====
 
 test("regenerateSectionOperations: scope limited to target section, hint has guardrails", async () => {

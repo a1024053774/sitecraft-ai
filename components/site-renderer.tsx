@@ -28,6 +28,8 @@ type SiteRendererProps = {
   onSubmitLead?: (event: FormEvent<HTMLFormElement>) => void;
   onLocaleChange?: (locale: Locale) => void;
   submitted?: boolean;
+  submitting?: boolean;
+  submitError?: string | null;
   highlightSection?: string | null;
   highlightMode?: "show" | "hide" | null;
 };
@@ -89,6 +91,8 @@ export function SiteRenderer({
   onSubmitLead,
   onLocaleChange,
   submitted = false,
+  submitting = false,
+  submitError = null,
   highlightSection = null,
   highlightMode = null,
 }: SiteRendererProps) {
@@ -320,8 +324,9 @@ export function SiteRenderer({
                 <label>{text.company}<input name="company" /></label>
                 <label>{text.message}<textarea name="message" rows={4} required /></label>
                 <input className="honeypot" name="website" tabIndex={-1} autoComplete="off" />
-                <button className="rs-button" type="submit">
-                  {text.send} <Send size={14} />
+                {submitError ? <div className="rs-submit-error" role="alert">{submitError}</div> : null}
+                <button className="rs-button" type="submit" disabled={submitting}>
+                  {submitting ? (locale === "zh" ? "提交中…" : "Sending…") : text.send} <Send size={14} />
                 </button>
               </>
             )}

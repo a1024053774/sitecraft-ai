@@ -6,7 +6,7 @@
 - 置信度：8
 - 层级：复合
 - 状态：已落地
-- 复用量：1
+- 复用量：2
 - 来源：[Duda Template Chooser](https://developer.duda.co/docs/building-a-template-chooser)、[Sanity Section Builder](https://github.com/maciejtrzcinski/sanity-plugin-section-builder)、[Career Pilot template gallery issue](https://github.com/anurag3407/career-pilot/issues/1104)
 
 ## 问题

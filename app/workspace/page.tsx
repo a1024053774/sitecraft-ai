@@ -138,6 +138,10 @@ export default function WorkspacePage() {
   const [importState, setImportState] = useState<{ name: string; imported: number; errors: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyText, setBusyText] = useState("正在连接模型…");
+  // P0-1：对话总超时（120s）与取消——服务端单条最多 2×45s 生成 + 30s 自评 + 2×45s 重生成，
+  // 前端必须兜底，否则领导会看到无限转圈。
+  const chatAbortRef = useRef<AbortController | null>(null);
+  const CHAT_TIMEOUT_MS = 120_000;
   // P2 完成引导：从一句话建站生成完成跳转带 ?generated=1 → 显示"下一步"提示条
   const [showGuide, setShowGuide] = useState(false);
   const [mobilePane, setMobilePane] = useState<"chat" | "preview">("chat");
@@ -340,18 +344,23 @@ export default function WorkspacePage() {
       .slice(-6)
       .map((m) => ({ role: m.role, text: m.text.slice(0, 200) }));
     try {
-      const response = await fetch(`/api/sites/${siteId}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          baseRevision: draft.revision,
-          message: value,
-          selectedTarget: selectedTarget?.key ?? null,
-          context: recentContext,
-          sessionId,
-          templateCapabilities: activeTemplateCapabilities,
-        }),
-      });
+      const controller = new AbortController();
+      chatAbortRef.current = controller;
+      const timer = window.setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+      try {
+        const response = await fetch(`/api/sites/${siteId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            baseRevision: draft.revision,
+            message: value,
+            selectedTarget: selectedTarget?.key ?? null,
+            context: recentContext,
+            sessionId,
+            templateCapabilities: activeTemplateCapabilities,
+          }),
+          signal: controller.signal,
+        });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({})) as Partial<DraftSnapshot> & { message?: string };
         if (payload.draft) adoptSnapshot(payload as DraftSnapshot);
@@ -418,8 +427,13 @@ export default function WorkspacePage() {
         throw new Error(String(doneEvent.error || "模型操作失败"));
       }
       if (status !== "need_confirmation" && doneEvent.code !== "selected_target_mismatch") setSelectedTarget(null);
+      } finally {
+        window.clearTimeout(timer);
+        chatAbortRef.current = null;
+      }
     } catch (error) {
-      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "AI 修改失败", change: "本次没有修改草稿" }]);
+      const aborted = error instanceof DOMException && error.name === "AbortError";
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: aborted ? `模型响应超过 ${CHAT_TIMEOUT_MS / 1000} 秒，已停止等待。可换更简单的指令重试。` : error instanceof Error ? error.message : "AI 修改失败", change: "本次没有修改草稿" }]);
     } finally {
       setBusy(false);
     }
@@ -716,6 +730,7 @@ export default function WorkspacePage() {
             <button className="icon-button" onClick={() => void moveHistory("undo")} disabled={!canUndo || busy} aria-label="撤销"><RotateCcw size={14} /></button>
             <button className="icon-button" onClick={() => void moveHistory("redo")} disabled={!canRedo || busy} aria-label="重做"><RotateCw size={14} /></button>
             <button className="secondary-button" onClick={() => setShowImport(true)}><Upload size={14} />商品</button>
+            <Link className="secondary-button" href={`/leads?siteKey=${encodeURIComponent(siteId)}`}><MessageSquareText size={14} />询盘</Link>
             {selectedTarget && sectionFromTarget(selectedTarget.key) && (
               <button
                 className="secondary-button"
@@ -737,7 +752,7 @@ export default function WorkspacePage() {
             >
               <RefreshCw size={14} />换方向重新生成
             </button>
-            <Link className="primary-button" href="/published/forge-industrial" target="_blank" rel="noreferrer"><Globe2 size={14} />发布</Link>
+            <Link className="primary-button" href={`/published/${encodeURIComponent(siteId)}`} target="_blank" rel="noreferrer"><Globe2 size={14} />发布</Link>
           </div>
         </header>
         <div className="preview-stage">

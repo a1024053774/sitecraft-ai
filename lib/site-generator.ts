@@ -28,6 +28,7 @@ export type DraftOpsProvider = (args: {
   baseDraft: SiteDraft;
   scope: GenerationScope;
   attemptHint?: string;
+  signal?: AbortSignal;
 }) => Promise<DraftOpsResult>;
 
 export type GenerationPlan = {
@@ -131,6 +132,10 @@ export type GenerateDraftArgs = {
   /** B2 首稿自评注入（默认走真实 evaluateOperations；测试注入 mock 保不触网） */
   selfEval?: (args: { message: string; summary: string; operations: SiteOperation[]; templateId: string }) => Promise<SelfEvalIssue[]>;
   onProgress?: (progress: GenerationProgress) => void;
+  /** 单个主任务的硬截止；生产默认 25 秒，测试可注入短时间。 */
+  taskTimeoutMs?: number;
+  /** 自评属于增强项，超时后直接放行。 */
+  selfEvalTimeoutMs?: number;
 };
 
 export type GenerationProgress = {
@@ -138,61 +143,152 @@ export type GenerationProgress = {
   message: string;
   completedSections: string[];
   activeSections: string[];
+  recoveringSections: string[];
+  failedSections: string[];
 };
 
 export type GenerateDraftOutcome =
-  | { ok: true; summary: string; operations: SiteOperation[]; model: string; selfEvalIssues: SelfEvalIssue[]; completedSections: string[] }
+  | { ok: true; summary: string; operations: SiteOperation[]; model: string; selfEvalIssues: SelfEvalIssue[]; completedSections: string[]; partial: boolean; missingSections: string[]; requestedTemplateId: string; appliedTemplateId: string; templateFallbackReason?: string }
   | { ok: false; code: string; error: string };
+
+const DEFAULT_TASK_TIMEOUT_MS = 25_000;
+const DEFAULT_RECOVERY_TIMEOUT_MS = 8_000;
+const DEFAULT_SELF_EVAL_TIMEOUT_MS = 6_000;
+
+function runDraftTask(
+  draftOps: DraftOpsProvider,
+  providerArgs: Parameters<DraftOpsProvider>[0],
+  timeoutMs: number,
+): Promise<DraftOpsResult> {
+  const controller = new AbortController();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: DraftOpsResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = setTimeout(() => {
+      controller.abort(new Error("内容生成超时"));
+      finish({ ok: false, code: "timeout", error: "内容生成超时" });
+    }, Math.max(1, timeoutMs));
+    Promise.resolve()
+      .then(() => draftOps({ ...providerArgs, signal: controller.signal }))
+      .then(finish, (error: unknown) => finish({
+        ok: false,
+        code: "provider_error",
+        error: error instanceof Error ? error.message : "内容生成失败",
+      }));
+  });
+}
+
+function runWithDeadline<T>(task: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: T | undefined) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish(undefined), Math.max(1, timeoutMs));
+    task.then((value) => finish(value), () => finish(undefined));
+  });
+}
 
 /** 为现有模板生成内容：批 A/B 并行 → 合并校验 → 首稿自评 → 单次提交。 */
 export async function generateDraftOperations(args: GenerateDraftArgs): Promise<GenerateDraftOutcome> {
-  const plan = buildGenerationPlan(args.intent, args.templateId, args.hiddenSections, args.siteLanguage);
+  const requestedTemplateId = args.templateId;
+  const appliedTemplateId = templateCatalog.some((template) => template.id === requestedTemplateId) ? requestedTemplateId : "forge";
+  const templateFallbackReason = appliedTemplateId === requestedTemplateId ? undefined : `模板 ${requestedTemplateId} 不可用，已回退到 forge`;
+  const plan = buildGenerationPlan(args.intent, appliedTemplateId, args.hiddenSections, args.siteLanguage);
   const lang = plan.scope.siteLanguage;
   // 两批只读取同一模板草稿且目标字段互不重叠，可并行缩短等待时间；合并后仍只提交一次。
   const completedSections = new Set<string>();
+  const recoveringSections = new Set<string>();
+  const failedSections = new Set<string>();
+  const taskTimeoutMs = args.taskTimeoutMs ?? DEFAULT_TASK_TIMEOUT_MS;
   const reportProgress = (phase: GenerationProgress["phase"], message: string) => {
     const allSections = ["hero", ...plan.scope.sections];
     args.onProgress?.({
       phase,
       message,
       completedSections: allSections.filter((section) => completedSections.has(section)),
-      activeSections: phase === "content" ? allSections.filter((section) => !completedSections.has(section)) : [],
+      activeSections: phase === "content" ? allSections.filter((section) => !completedSections.has(section) && !recoveringSections.has(section) && !failedSections.has(section)) : [],
+      recoveringSections: allSections.filter((section) => recoveringSections.has(section)),
+      failedSections: allSections.filter((section) => failedSections.has(section)),
     });
   };
-  const batchAPromise = args.draftOps({
+  const batchAPromise = runDraftTask(args.draftOps, {
       intent: args.intent,
-      templateId: args.templateId,
+      templateId: appliedTemplateId,
       baseDraft: plan.baseDraft,
       scope: { sections: plan.scope.sections, bilingual: true, siteLanguage: lang },
       attemptHint: batchAHint(args.intent, lang),
-    }).then((result) => {
-      if (result.ok) completedSections.add("hero");
+    }, taskTimeoutMs).then((result) => {
+      if (result.ok) completedSections.add("hero"); else failedSections.add("hero");
       reportProgress("content", result.ok ? "首屏内容已完成，正在填充其余板块…" : "首屏内容生成失败");
       return result;
     });
-  const batchBPromise = args.draftOps({
-      intent: args.intent,
-      templateId: args.templateId,
-      baseDraft: plan.baseDraft,
-      scope: { sections: plan.scope.sections, bilingual: false, siteLanguage: lang },
-      attemptHint: batchBHint(args.intent, lang),
-    }).then((result) => {
+  const batchBPromise = runDraftTask(args.draftOps, {
+        intent: args.intent,
+        templateId: appliedTemplateId,
+        baseDraft: plan.baseDraft,
+        scope: { sections: plan.scope.sections, bilingual: false, siteLanguage: lang },
+        attemptHint: batchBHint(args.intent, lang),
+      }, taskTimeoutMs).then((result) => {
       if (result.ok) plan.scope.sections.forEach((section) => completedSections.add(section));
-      reportProgress("content", result.ok ? "板块内容已完成，正在等待首屏并合并…" : "部分板块生成超时，将保留已完成内容");
+      reportProgress("content", result.ok ? "板块内容已完成，正在等待首屏并合并…" : "整批内容未完成，正在逐板块恢复…");
       return result;
     });
-  const [batchA, batchB] = await Promise.all([batchAPromise, batchBPromise]);
+  const [batchA, initialBatchB] = await Promise.all([batchAPromise, batchBPromise]);
   if (!batchA.ok) {
+    if (appliedTemplateId !== "forge") {
+      reportProgress("content", `模板 ${appliedTemplateId} 生成异常，正在切换兼容模板…`);
+      const fallback = await generateDraftOperations({ ...args, templateId: "forge" });
+      if (fallback.ok) {
+        return {
+          ...fallback,
+          requestedTemplateId,
+          templateFallbackReason: `模板 ${appliedTemplateId} 生成异常，已切换到兼容模板 forge`,
+        };
+      }
+    }
     return { ok: false, code: batchA.code, error: batchA.error };
   }
+  failedSections.delete("hero");
   let ops: SiteOperation[] = [...plan.leadingOps, ...batchA.operations];
   let summary = batchA.summary;
   let model = batchA.model;
 
-  if (batchB.ok) {
-    ops = [...ops, ...batchB.operations];
-    summary = `${summary}；${batchB.summary}`;
-    model = batchB.model;
+  if (initialBatchB.ok) {
+    ops = [...ops, ...initialBatchB.operations];
+    summary = `${summary}；${initialBatchB.summary}`;
+    model = initialBatchB.model;
+  } else {
+    plan.scope.sections.forEach((section) => recoveringSections.add(section));
+    reportProgress("content", "正在隔离异常板块，已完成内容会先保留");
+    const recoveryTimeoutMs = Math.min(taskTimeoutMs, DEFAULT_RECOVERY_TIMEOUT_MS);
+    const recovered = await Promise.all(plan.scope.sections.map(async (section) => {
+      const result = await runDraftTask(args.draftOps, {
+        intent: args.intent,
+        templateId: appliedTemplateId,
+        baseDraft: plan.baseDraft,
+        scope: { sections: [section], bilingual: false, siteLanguage: lang },
+        attemptHint: `${batchBHint(args.intent, lang)}\n\n恢复模式：只生成 ${section} 板块，其他板块不要产生操作。`,
+      }, recoveryTimeoutMs);
+      recoveringSections.delete(section);
+      if (result.ok) completedSections.add(section); else failedSections.add(section);
+      reportProgress("content", result.ok ? `${section} 板块已恢复` : `${section} 板块暂未完成，稍后可补全`);
+      return result;
+    }));
+    for (const result of recovered) {
+      if (!result.ok) continue;
+      ops.push(...result.operations);
+      summary = `${summary}；${result.summary}`;
+      model = result.model;
+    }
   }
   // 合并隐藏操作
   ops = [...ops, ...plan.hideOps];
@@ -200,7 +296,7 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
   // 校验（白名单 + 长度，生成场景专用：set_template 只查白名单，不要求"明确换模板"）
   const templateIds = new Set(templateCatalog.map((t) => t.id));
   const validated = validateGenerationOperations(ops, templateIds);
-  reportProgress("review", "内容已生成，正在检查质量…");
+  reportProgress("review", "内容已生成，AI 正在质检（查证事实、核对板块与语言）…");
 
   // B2 首稿自评（仅首稿；fail-open——自评失败/异常不阻塞生成，issues 并入返回供确认页提示）
   let selfEvalIssues: SelfEvalIssue[] = [];
@@ -215,12 +311,12 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
       return r.issues;
     });
     try {
-      selfEvalIssues = await runSelfEval({
+      selfEvalIssues = (await runWithDeadline(runSelfEval({
         message: args.intent.summary,
         summary,
         operations: validated.operations,
-        templateId: args.templateId,
-      });
+        templateId: appliedTemplateId,
+      }), args.selfEvalTimeoutMs ?? DEFAULT_SELF_EVAL_TIMEOUT_MS)) ?? [];
     } catch {
       selfEvalIssues = []; // fail-open：自评异常不影响生成
     }
@@ -232,6 +328,13 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
     model,
     selfEvalIssues,
     completedSections: ["hero", ...plan.scope.sections].filter((section) => completedSections.has(section)),
+    // P0-2 假成功修复：批 B（板块内容）失败时明确标记 partial，前端提示"板块未完整生成，可让 AI 补全"，
+    // 避免用户看到默认模板的 Forge 演示文案却以为生成成功。
+    partial: failedSections.size > 0,
+    missingSections: plan.scope.sections.filter((section) => failedSections.has(section)),
+    requestedTemplateId,
+    appliedTemplateId,
+    ...(templateFallbackReason ? { templateFallbackReason } : {}),
   };
 }
 
@@ -256,7 +359,7 @@ export type RegenerateSectionArgs = {
 };
 
 export type RegenerateOutcome =
-  | { ok: true; summary: string; operations: SiteOperation[]; model: string; selfEvalIssues: SelfEvalIssue[]; completedSections: string[] }
+  | { ok: true; summary: string; operations: SiteOperation[]; model: string; selfEvalIssues: SelfEvalIssue[]; completedSections: string[]; partial: false; missingSections: [] }
   | { ok: false; code: string; error: string };
 
 /** 板块重生成 hint：只改目标板块 + 视觉一致性护栏（借鉴 replace_section_in_page 的 preserve_design_tokens）+ 可选方向 */
@@ -293,5 +396,5 @@ export async function regenerateSectionOperations(args: RegenerateSectionArgs): 
   // 校验（白名单 + 长度，与生成场景一致）
   const templateIds = new Set(templateCatalog.map((t) => t.id));
   const validated = validateGenerationOperations(result.operations, templateIds);
-  return { ok: true, summary: result.summary, operations: validated.operations, model: result.model, selfEvalIssues: [], completedSections: [args.section] };
+  return { ok: true, summary: result.summary, operations: validated.operations, model: result.model, selfEvalIssues: [], completedSections: [args.section], partial: false, missingSections: [] };
 }

@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, Github, Sparkles } from "lucide-react";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import { templates } from "@/lib/site-model";
 import { defaultDraft } from "@/lib/site-document";
+import { ClientPreviewFrame } from "@/components/client-preview-frame";
 
 export default async function TemplatePreviewPage({
   params,
@@ -40,7 +41,7 @@ export default async function TemplatePreviewPage({
         </div>
       </header>
       <div className="template-preview-canvas">
-        <TemplateFrame templateId={template.id} />
+        <ClientPreviewFrame templateId={template.id} />
       </div>
     </main>
   );

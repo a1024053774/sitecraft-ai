@@ -1,6 +1,6 @@
 import { test, expect } from "../helpers/fixtures";
 import { mockAnalyze, mockExecute, readyIntent, sseBody } from "../helpers/mock-ai";
-import { analyzeAndConfirm, expectNoCrash, watchPageErrors } from "../helpers/ui";
+import { analyzeAndConfirm, expectNoCrash, snap, watchPageErrors } from "../helpers/ui";
 
 test.describe("A. 一句话建站", () => {
   for (const sample of ["", "😀😀😀", "!!!"]) {
@@ -131,8 +131,62 @@ test.describe("A. 一句话建站", () => {
     await analyzeAndConfirm(page, message);
     await page.getByRole("button", { name: /用此模板生成站点内容/ }).click();
     await expect(page.getByText("AI 正在填充内容", { exact: false })).toBeVisible();
+    const pendingSiteId = await page.evaluate(() => JSON.parse(sessionStorage.getItem("sitecraft:active-generation:v1") ?? "null")?.siteId as string | undefined);
+    expect(pendingSiteId).toBeTruthy();
     await page.reload();
     await expect(page.locator(".generate-textarea").first()).toHaveValue(message);
+    await expect(page.locator(".generate-error")).toContainText("已保留原站点");
+    const restoredSiteId = await page.evaluate(() => JSON.parse(sessionStorage.getItem("sitecraft:active-generation:v1") ?? "null")?.siteId as string | undefined);
+    expect(restoredSiteId).toBe(pendingSiteId);
     await expectNoCrash(page);
   });
+
+  for (const viewport of [
+    { name: "desktop", width: 1440, height: 1000 },
+    { name: "mobile", width: 390, height: 844 },
+  ]) {
+    test(`生成板块在 ${viewport.name} 显示真实恢复与失败状态`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await mockAnalyze(page);
+      await page.addInitScript(() => {
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+          let body: { step?: string } | undefined;
+          try { body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined; } catch { body = undefined; }
+          if (/\/api\/sites\/[^/]+\/generate$/.test(url) && body?.step === "execute") {
+            const encoder = new TextEncoder();
+            const event = (value: Record<string, unknown>) => encoder.encode(`data: ${JSON.stringify(value)}\n\n`);
+            return new Response(new ReadableStream({
+              start(controller) {
+                controller.enqueue(event({ type: "status", value: "首屏已完成，正在恢复其他板块", phase: "content", completedSections: ["hero"], activeSections: ["products", "contact"], recoveringSections: ["about", "features", "services"], failedSections: [] }));
+                window.setTimeout(() => controller.enqueue(event({ type: "status", value: "关于板块暂未完成，其他内容继续保存", phase: "content", completedSections: ["hero", "features", "services"], activeSections: ["products", "contact"], recoveringSections: [], failedSections: ["about"] })), 500);
+                window.setTimeout(() => {
+                  controller.enqueue(event({ type: "status", value: "正在保存已完成内容", phase: "saving", completedSections: ["hero", "features", "services", "products", "contact"], activeSections: [], recoveringSections: [], failedSections: ["about"] }));
+                  controller.enqueue(event({ type: "done", status: "applied", partial: true, missingSections: ["about"] }));
+                  controller.close();
+                }, 2_000);
+              },
+            }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+          }
+          return nativeFetch(input, init);
+        };
+      });
+
+      await analyzeAndConfirm(page, "工业传感器官网，突出可靠交付");
+      await page.getByRole("button", { name: /用此模板生成站点内容/ }).click();
+      await expect(page.locator(".generate-section-progress .recovering")).toHaveCount(3);
+      await expect(page.locator(".generate-building-grid .recovering")).toHaveCount(3);
+      await expect(page.locator(".generate-section-progress .done")).toContainText(["首屏"]);
+      await snap(page, `generation-recovering-${viewport.name}`, testInfo);
+      await expect(page.locator(".generate-section-progress .failed")).toContainText("关于");
+      await expect(page.locator(".generate-building-grid .failed")).toHaveCount(1);
+      await expect(page.locator(".generate-section-progress .failed small")).toHaveText("稍后补全");
+      await expect(page.locator(".generate-progress-view")).toBeVisible();
+      const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+      expect(horizontalOverflow).toBe(false);
+      await snap(page, `generation-partial-${viewport.name}`, testInfo);
+      await expectNoCrash(page);
+    });
+  }
 });

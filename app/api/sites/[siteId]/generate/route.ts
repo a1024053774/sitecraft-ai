@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { after } from "next/server";
 import { getSite, commitOperations, snapshot } from "@/lib/site-store";
 import { requestSiteIntent, requestDraftOperations } from "@/lib/ai-provider";
 import { mergeIntentDelta, resolveTemplate, siteIntentSchema, toReadyIntent } from "@/lib/site-intent";
@@ -9,7 +10,7 @@ import {
   pushAssistantMessage,
   recordAppliedChange,
 } from "@/lib/ai-session";
-import { recordGeneration } from "@/lib/generation-record";
+import { recordGeneration, type GenerationRecordInput } from "@/lib/generation-record";
 
 export const runtime = "nodejs";
 
@@ -140,8 +141,44 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
       }
 
       // execute：为所选现有模板生成内容（单次 commit，可撤销）
+      const executeData = parsed.data;
+      const regenerate = executeData.regenerate;
+      let terminalRecordScheduled = false;
+      const recordTerminal = (terminal: {
+        status: GenerationRecordInput["status"];
+        outcome: GenerationRecordInput["outcome"];
+        operations?: GenerationRecordInput["operations"];
+        model?: string;
+        missingSections?: string[];
+        appliedTemplateId?: string;
+        fallbackReason?: string;
+        errorCode?: string;
+      }) => {
+        if (terminalRecordScheduled) return;
+        terminalRecordScheduled = true;
+        const appliedTemplateId = terminal.appliedTemplateId ?? executeData.templateId;
+        after(() => recordGeneration({
+          siteId,
+          inputText: executeData.message,
+          intent: executeData.intent,
+          operations: terminal.operations ?? [],
+          templateId: appliedTemplateId,
+          latencyMs: Date.now() - startedAt,
+          model: terminal.model ?? "",
+          status: terminal.status,
+          outcome: terminal.outcome,
+          mode: regenerate ? "regenerate" : "full",
+          missingSections: terminal.missingSections ?? [],
+          requestedTemplateId: executeData.templateId,
+          appliedTemplateId,
+          fallbackReason: terminal.fallbackReason,
+          errorCode: terminal.errorCode,
+          detail: regenerate ? `regenerate:${regenerate.section}` : undefined,
+        }));
+      };
       const current = await getSite(siteId);
       if (current.draft.revision !== parsed.data.baseRevision) {
+        recordTerminal({ status: "conflict", outcome: "conflict", errorCode: "revision_conflict" });
         event(controller, { type: "done", status: "conflict", error: "草稿已经更新，请刷新后重试。" });
         controller.close();
         return;
@@ -154,6 +191,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         phase: "content",
         completedSections: [],
         activeSections: generationSections,
+        recoveringSections: [],
+        failedSections: [],
       });
       const draftOpsProvider = async (args: Parameters<typeof requestDraftOperations>[0]) => {
         const r = await requestDraftOperations(args);
@@ -163,7 +202,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
       };
       // C 块：局部重生成（只改目标板块，基于当前草稿）与全量生成二选一
       // 提前提取（回调外窄化）：regenerate 仅 execute 分支存在
-      const regenerate = parsed.data.step === "execute" ? parsed.data.regenerate : undefined;
       const generated = regenerate
         ? await regenerateSectionOperations({
             intent: parsed.data.intent,
@@ -184,11 +222,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             onProgress: (progress) => event(controller, { type: "status", value: progress.message, ...progress }),
           });
       if (!generated.ok) {
+        recordTerminal({ status: "error", outcome: "error", errorCode: generated.code });
         event(controller, { type: "done", status: "error", error: generated.error, code: generated.code });
         controller.close();
         return;
       }
-      event(controller, { type: "status", value: "正在校验内容并保存到模板草稿…", phase: "saving", completedSections: generated.completedSections, activeSections: [] });
+      event(controller, { type: "status", value: "正在校验内容并保存到模板草稿…", phase: "saving", completedSections: generated.completedSections, activeSections: [], recoveringSections: [], failedSections: generated.missingSections });
       try {
         const committed = await commitOperations({
           siteId,
@@ -214,21 +253,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           pushAssistantMessage(session, generated.summary);
         }
         if (committed.status === "conflict") {
+          recordTerminal({ status: "conflict", outcome: "conflict", operations: generated.operations, model: generated.model, errorCode: "commit_conflict" });
           event(controller, { type: "done", status: "conflict", error: "草稿在生成期间已被更新。", ...snapshot(committed.record) });
         } else if (committed.status === "no_change") {
+          recordTerminal({ status: "no_change", outcome: "no_change", operations: generated.operations, model: generated.model });
           event(controller, { type: "done", status: "no_change", summary: generated.summary, ...snapshot(committed.record), model: generated.model });
         } else {
-          // 生成存证（Q3）：每次成功生成落 PG，供人工抽检；fail-open 不阻塞
-          await recordGeneration({
-            siteId,
-            inputText: parsed.data.message,
-            intent: parsed.data.intent,
-            operations: generated.operations,
-            templateId: parsed.data.templateId,
-            latencyMs: Date.now() - (startedAt),
-            model: generated.model,
+          const requestedTemplateId = "requestedTemplateId" in generated ? generated.requestedTemplateId : parsed.data.templateId;
+          const appliedTemplateId = "appliedTemplateId" in generated ? generated.appliedTemplateId : parsed.data.templateId;
+          const fallbackReason = "templateFallbackReason" in generated ? generated.templateFallbackReason : undefined;
+          recordTerminal({
             status: "applied",
-            detail: regenerate ? `regenerate:${regenerate.section}` : undefined,
+            outcome: generated.partial ? "partial" : "complete",
+            operations: generated.operations,
+            model: generated.model,
+            missingSections: generated.missingSections,
+            appliedTemplateId,
+            fallbackReason,
           });
           // B2 自评结果下发（fail-open：issues 仅提示，不阻塞）
           event(controller, {
@@ -239,6 +280,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             ...snapshot(committed.record),
             model: generated.model,
             selfEvalIssues: generated.selfEvalIssues,
+            // P0-2：批 B（板块内容）失败时透传 partial，前端提示"板块未完整生成"
+            partial: generated.partial,
+            missingSections: generated.missingSections,
+            requestedTemplateId,
+            appliedTemplateId,
+            templateFallbackReason: fallbackReason,
             // C 块局部重生成：返回目标板块 + 未动的板块（借鉴 replace_section_in_page 的 preserved_sections）
             ...(regenerate
               ? {
@@ -249,6 +296,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           });
         }
       } catch (error) {
+        recordTerminal({ status: "error", outcome: "error", errorCode: "operation_error" });
         event(controller, { type: "done", status: "error", code: "operation_error", error: error instanceof Error ? error.message : "生成失败" });
       }
       controller.close();

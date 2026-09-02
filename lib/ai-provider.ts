@@ -273,8 +273,9 @@ export type DraftOpsArgs = {
   intent: SiteIntent;
   templateId: string;
   baseDraft: SiteDraft;
-  scope: { sections: string[]; bilingual: boolean };
+  scope: { sections: string[]; bilingual: boolean; siteLanguage?: "zh" | "en" };
   attemptHint?: string;
+  signal?: AbortSignal;
 };
 
 /** 生成整站初稿的结构化操作（骨架批 / 板块批共用） */
@@ -319,7 +320,9 @@ export async function requestDraftOperations(args: DraftOpsArgs): Promise<DraftO
             { role: "user", content: user },
           ],
         }),
-        signal: AbortSignal.timeout(45_000),
+        signal: args.signal
+          ? AbortSignal.any([args.signal, AbortSignal.timeout(45_000)])
+          : AbortSignal.timeout(45_000),
         cache: "no-store",
       });
       if (!response.ok) {
@@ -345,6 +348,7 @@ export async function requestDraftOperations(args: DraftOpsArgs): Promise<DraftO
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
       lastError = timedOut ? "DeepSeek 请求超时" : `无法连接 DeepSeek：${error instanceof Error ? error.message : "网络错误"}`;
       lastCode = timedOut ? "timeout" : "provider_error";
+      if (args.signal?.aborted) break;
     }
   }
   return { ok: false, error: lastError, code: lastCode, model, latencyMs: Date.now() - startedAt };
