@@ -11,7 +11,7 @@ type OpenSourceTemplateFrameProps = {
   locale?: Locale;
   variant?: FrameVariant;
   expectedTargets?: string[];
-  onSelectTarget?: (target: string, label: string, prompt: string) => void;
+  onSelectTarget?: (target: string, label: string, prompt: string, slot?: string) => void;
   onApplyReport?: (report: {
     revision: number;
     appliedSlots: string[];
@@ -65,13 +65,14 @@ export function OpenSourceTemplateFrame({
       const data = event.data as {
         type?: string;
         target?: string;
+        slot?: string;
         revision?: number;
         appliedSlots?: string[];
         missingSlots?: string[];
       };
       if (data?.type === "sitecraft:select" && data.target && onSelectTarget) {
         const target = targetPrompts[data.target];
-        if (target) onSelectTarget(data.target, target.label, target.prompt);
+        if (target) onSelectTarget(data.slot || data.target, target.label, target.prompt, data.slot);
       }
       if (data?.type === "sitecraft:applied" && typeof data.revision === "number" && onApplyReport) {
         onApplyReport({ revision: data.revision, appliedSlots: data.appliedSlots ?? [], missingSlots: data.missingSlots ?? [] });
