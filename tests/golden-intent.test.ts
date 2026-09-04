@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   categoryFromKeywords,
+  normalizeUserBrief,
+  rankTemplateMatches,
   resolveTemplate,
   type SiteIntent,
 } from "../lib/site-intent.ts";
+import { templateCatalog, getTemplateMatchingProfile } from "../lib/template-catalog.ts";
 
 /**
  * B3 意图 golden 用例（回归基线）：
@@ -86,4 +89,33 @@ test("golden: colorTone preserved through intent (no drift)", () => {
     "极客风格科技站",
   );
   assert.equal(dark.templateId, "signal");
+});
+
+test("template catalog exposes a real matching profile for every template", () => {
+  assert.equal(templateCatalog.length, 22);
+  for (const template of templateCatalog) {
+    const profile = getTemplateMatchingProfile(template);
+    assert.ok(profile.aliases.length > 0, `${template.id} should have aliases`);
+    assert.ok(profile.capabilities.length > 0, `${template.id} should have capabilities`);
+    assert.ok(profile.locales.length > 0, `${template.id} should declare locales`);
+  }
+});
+
+test("template ranking keeps a Chinese industrial catalog brief on compatible templates", () => {
+  const brief = normalizeUserBrief("我们做工业自动化设备，面向欧洲采购商，提供中英文产品目录。");
+  const ranked = rankTemplateMatches(brief, brief.normalizedText, templateCatalog);
+
+  assert.equal(ranked.length, 3);
+  assert.ok(ranked.every((item) => templateCatalog.some((template) => template.id === item.templateId)));
+  assert.ok(["forge", "screwfast"].includes(ranked[0].templateId));
+  assert.ok(ranked[0].reasons.some((reason) => /产品目录/.test(reason)));
+});
+
+test("template ranking separates a service brief from manufacturing templates", () => {
+  const brief = normalizeUserBrief("我们是一家专业咨询机构，提供战略咨询和服务项目案例展示。");
+  const ranked = rankTemplateMatches(brief, brief.normalizedText, templateCatalog);
+
+  assert.equal(ranked[0].category, "专业服务");
+  assert.ok(ranked[0].reasons.some((reason) => /服务|案例/.test(reason)));
+  assert.notEqual(ranked[0].category, "制造业");
 });

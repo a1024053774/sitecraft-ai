@@ -2,6 +2,7 @@ import { access } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
+import { hasRequiredPreflightFailure } from "./preflight-result.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 
@@ -30,7 +31,11 @@ const checks = {
   playwright: await exists(path.join(root, "node_modules", "@playwright", "test")),
   chromiumCache: await exists(path.join(process.env.LOCALAPPDATA ?? "", "ms-playwright")),
   postgres: await portOpen(5432),
+  testServerPortOccupied: await portOpen(Number(process.env.TEST_PORT ?? 3210)),
 };
 
 console.log(JSON.stringify(checks));
-if (Object.values(checks).some((value) => !value)) process.exitCode = 2;
+if (checks.testServerPortOccupied) {
+  console.error("test server port is occupied; stop the existing process before Playwright acceptance");
+}
+if (hasRequiredPreflightFailure(checks)) process.exitCode = 2;

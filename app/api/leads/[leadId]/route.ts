@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { accessErrorResponse, authorizeRequest } from "@/lib/request-context";
 import { isLeadStoreEnabled, leadStatusSchema, postgresLeadStore } from "@/lib/lead-store";
 
 export const runtime = "nodejs";
@@ -13,6 +14,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ leadId: string }> },
 ) {
+  const access = authorizeRequest(request, "leads:write");
+  const denied = accessErrorResponse(access);
+  if (denied) return denied;
   const { leadId } = await params;
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_payload", details: parsed.error.flatten() }, { status: 400 });

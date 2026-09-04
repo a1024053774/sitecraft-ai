@@ -1,4 +1,5 @@
 import { Pool, type PoolClient } from "pg";
+import { throwIfAborted } from "./abort-utils.ts";
 
 const globalDatabase = globalThis as typeof globalThis & {
   __sitecraftPool?: Pool;
@@ -60,6 +61,26 @@ export async function ensureDatabaseSchema() {
         CREATE INDEX IF NOT EXISTS sitecraft_leads_site_status_idx
           ON sitecraft_leads (site_key, status, created_at DESC);
       `);
+      await getDatabasePool().query(`
+        CREATE TABLE IF NOT EXISTS sitecraft_releases (
+          workspace_id TEXT NOT NULL,
+          site_id TEXT NOT NULL,
+          release_id UUID NOT NULL,
+          version INTEGER NOT NULL CHECK (version > 0),
+          draft JSONB NOT NULL,
+          content_hash TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('published', 'superseded')),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          published_by TEXT NOT NULL,
+          rollback_of UUID,
+          PRIMARY KEY (workspace_id, release_id),
+          UNIQUE (workspace_id, site_id, version)
+        );
+        CREATE INDEX IF NOT EXISTS sitecraft_releases_site_version_idx
+          ON sitecraft_releases (workspace_id, site_id, version DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS sitecraft_releases_published_idx
+          ON sitecraft_releases (workspace_id, site_id) WHERE status = 'published';
+      `);
     })().catch((error) => {
         globalDatabase.__sitecraftSchemaReady = undefined;
         throw error;
@@ -68,12 +89,13 @@ export async function ensureDatabaseSchema() {
   return globalDatabase.__sitecraftSchemaReady;
 }
 
-export async function withDatabaseTransaction<T>(task: (client: PoolClient) => Promise<T>) {
+export async function withDatabaseTransaction<T>(task: (client: PoolClient) => Promise<T>, signal?: AbortSignal) {
   await ensureDatabaseSchema();
   const client = await getDatabasePool().connect();
   try {
     await client.query("BEGIN");
     const result = await task(client);
+    throwIfAborted(signal);
     await client.query("COMMIT");
     return result;
   } catch (error) {

@@ -23,6 +23,22 @@ const validIntent: SiteIntent = {
   summary: "光伏出口企业的双语官网",
 };
 
+const maxEnglishCompanyName = "C".repeat(60);
+const maxEnglishIndustry = "I".repeat(120);
+const maxEnglishSummary = "S".repeat(400);
+const maxEnglishReadyResponse = {
+  ...validIntent,
+  status: "ready" as const,
+  siteLanguage: "en" as const,
+  companyName: maxEnglishCompanyName,
+  industry: maxEnglishIndustry,
+  summary: maxEnglishSummary,
+  notices: [],
+  needsInfo: [],
+  conflicts: [],
+  limits: [],
+};
+
 test("parseSiteIntentContent: parses valid JSON", () => {
   const r = parseSiteIntentContent(JSON.stringify(validIntent));
   assert.equal(r.error, "");
@@ -62,6 +78,78 @@ test("createSiteIntentSchema: whitelist is injectable (subset)", () => {
   assert.equal(ok.success, true);
   const bad = subset.safeParse({ ...validIntent, recommendedTemplateId: "signal" });
   assert.equal(bad.success, false);
+});
+
+test("createSiteIntentSchema: accepts a 60-character English companyName", () => {
+  const schema = createSiteIntentSchema(["atlas"]);
+  const result = schema.safeParse({ ...validIntent, companyName: maxEnglishCompanyName });
+  assert.equal(result.success, true);
+});
+
+test("createSiteIntentSchema: rejects a 61-character English companyName", () => {
+  const schema = createSiteIntentSchema(["atlas"]);
+  const result = schema.safeParse({ ...validIntent, companyName: "C".repeat(61) });
+  assert.equal(result.success, false);
+});
+
+test("createSiteIntentSchema: accepts a 120-character English industry", () => {
+  const schema = createSiteIntentSchema(["atlas"]);
+  const result = schema.safeParse({ ...validIntent, industry: maxEnglishIndustry });
+  assert.equal(result.success, true);
+});
+
+test("createSiteIntentSchema: rejects a 121-character English industry", () => {
+  const schema = createSiteIntentSchema(["atlas"]);
+  const result = schema.safeParse({ ...validIntent, industry: "I".repeat(121) });
+  assert.equal(result.success, false);
+});
+
+test("createSiteIntentSchema: accepts a 400-character English summary", () => {
+  const schema = createSiteIntentSchema(["atlas"]);
+  const result = schema.safeParse({ ...validIntent, summary: maxEnglishSummary });
+  assert.equal(result.success, true);
+});
+
+test("createSiteIntentSchema: rejects a 401-character English summary", () => {
+  const schema = createSiteIntentSchema(["atlas"]);
+  const result = schema.safeParse({ ...validIntent, summary: "S".repeat(401) });
+  assert.equal(result.success, false);
+});
+
+test("parseSiteIntentContent: accepts ready English JSON at every maximum field boundary", () => {
+  const result = parseSiteIntentContent(JSON.stringify(maxEnglishReadyResponse));
+  assert.equal(result.error, "");
+  assert.equal(result.data?.status, "ready");
+  assert.equal(result.data?.siteLanguage, "en");
+  assert.equal(result.data?.companyName, maxEnglishCompanyName);
+  assert.equal(result.data?.industry, maxEnglishIndustry);
+  assert.equal(result.data?.summary, maxEnglishSummary);
+});
+
+test("toReadyIntent: preserves English language and maximum-length fields", () => {
+  const parsed = parseSiteIntentContent(JSON.stringify(maxEnglishReadyResponse));
+  assert.ok(parsed.data);
+  const ready = toReadyIntent(parsed.data);
+  assert.ok(ready);
+  assert.equal(ready.siteLanguage, "en");
+  assert.equal(ready.intent.companyName, maxEnglishCompanyName);
+  assert.equal(ready.intent.industry, maxEnglishIndustry);
+  assert.equal(ready.intent.summary, maxEnglishSummary);
+});
+
+test("parseSiteIntentContent: keeps English need_info compatible with omitted core fields", () => {
+  const result = parseSiteIntentContent(
+    JSON.stringify({
+      status: "need_info",
+      siteLanguage: "en",
+      needsInfo: ["What is your company name?"],
+    }),
+  );
+  assert.equal(result.error, "");
+  assert.equal(result.data?.status, "need_info");
+  assert.equal(result.data?.siteLanguage, "en");
+  assert.equal(result.data?.companyName, undefined);
+  assert.deepEqual(result.data?.needsInfo, ["What is your company name?"]);
 });
 
 test("buildIntentPrompt: contains template ids and enum guidance", () => {

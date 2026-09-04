@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { accessErrorResponse, authorizeRequest } from "@/lib/request-context";
 import { leadStatusSchema, isLeadStoreEnabled, postgresLeadStore } from "@/lib/lead-store";
 
 export const runtime = "nodejs";
@@ -8,6 +9,9 @@ function badRequest(error: string, details?: unknown) {
 }
 
 export async function GET(request: Request) {
+  const access = authorizeRequest(request, "leads:read");
+  const denied = accessErrorResponse(access);
+  if (denied) return denied;
   const url = new URL(request.url);
   const siteKey = url.searchParams.get("siteKey")?.trim() ?? "";
   if (!siteKey) return badRequest("site_key_required");

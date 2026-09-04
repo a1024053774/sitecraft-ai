@@ -6,9 +6,51 @@
  * 生产用 PG，开发（SITE_STORE != postgres 且非 production）退化为内存/无操作，避免本地无 DB 时崩。
  */
 
+import { createHash } from "node:crypto";
 import { getDatabasePool, ensureDatabaseSchema } from "./postgres.ts";
 import type { SiteIntent } from "./site-intent.ts";
 import type { SiteOperation } from "./site-operations.ts";
+import { getPromptDefinition, type PromptKey } from "./prompt-registry.ts";
+
+export type GenerationProvenance = {
+  provider: string;
+  model: string;
+  promptId: string;
+  promptVersion: string;
+  promptFingerprint: string;
+  manifestVersion: number;
+  templateId: string;
+  buildRevision: number;
+  inputHash: string;
+};
+
+export type GenerationProvenanceInput = {
+  provider: string;
+  model: string;
+  promptKey: PromptKey;
+  manifestVersion: number;
+  templateId: string;
+  buildRevision: number;
+  inputText: string;
+};
+
+export function createGenerationProvenance(input: GenerationProvenanceInput): GenerationProvenance {
+  const prompt = getPromptDefinition(input.promptKey);
+  if (!input.provider.trim() || !input.model.trim()) throw new Error("Generation provenance requires provider and model");
+  if (!Number.isInteger(input.manifestVersion) || input.manifestVersion < 0) throw new Error("Invalid manifest version");
+  if (!Number.isInteger(input.buildRevision) || input.buildRevision < 0) throw new Error("Invalid build revision");
+  return {
+    provider: input.provider,
+    model: input.model,
+    promptId: prompt.id,
+    promptVersion: prompt.version,
+    promptFingerprint: prompt.fingerprint,
+    manifestVersion: input.manifestVersion,
+    templateId: input.templateId,
+    buildRevision: input.buildRevision,
+    inputHash: createHash("sha256").update(input.inputText, "utf8").digest("hex"),
+  };
+}
 
 export type GenerationRecordInput = {
   siteId: string;
@@ -28,6 +70,7 @@ export type GenerationRecordInput = {
   appliedTemplateId: string;
   fallbackReason?: string;
   errorCode?: string;
+  provenance?: GenerationProvenance;
   /** 附加信息：如重生成板块、失败原因 */
   detail?: string;
 };
@@ -37,6 +80,7 @@ export type GenerationRecord = Omit<GenerationRecordInput, "detail" | "fallbackR
   detail: string;
   fallbackReason: string;
   errorCode: string;
+  provenance?: GenerationProvenance;
   createdAt: string;
 };
 
@@ -81,6 +125,7 @@ export async function ensureGenerationRecordSchema() {
       applied_template_id TEXT NOT NULL DEFAULT '',
       fallback_reason TEXT NOT NULL DEFAULT '',
       error_code TEXT NOT NULL DEFAULT '',
+      provenance JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
@@ -93,6 +138,7 @@ export async function ensureGenerationRecordSchema() {
     ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS applied_template_id TEXT NOT NULL DEFAULT '';
     ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS fallback_reason TEXT NOT NULL DEFAULT '';
     ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS error_code TEXT NOT NULL DEFAULT '';
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS provenance JSONB NOT NULL DEFAULT '{}'::jsonb;
     UPDATE generation_records SET requested_template_id = template_id WHERE requested_template_id = '';
     UPDATE generation_records SET applied_template_id = template_id WHERE applied_template_id = '';
   `);
@@ -106,11 +152,11 @@ export async function recordGeneration(input: GenerationRecordInput): Promise<vo
     await getDatabasePool().query(
       `INSERT INTO generation_records (
          site_id, input_text, intent, operations, template_id, latency_ms, model, status, detail,
-         outcome, mode, missing_sections, requested_template_id, applied_template_id, fallback_reason, error_code
-       ) VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16)`,
+         outcome, mode, missing_sections, requested_template_id, applied_template_id, fallback_reason, error_code, provenance
+       ) VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17::jsonb)`,
       [
         input.siteId,
-        input.inputText,
+        "",
         JSON.stringify(input.intent),
         JSON.stringify(input.operations),
         input.templateId,
@@ -125,6 +171,7 @@ export async function recordGeneration(input: GenerationRecordInput): Promise<vo
         input.appliedTemplateId,
         input.fallbackReason ?? "",
         input.errorCode ?? "",
+        JSON.stringify(input.provenance ?? {}),
       ],
     );
   } catch (error) {
@@ -139,11 +186,11 @@ export async function listGenerationRecords(limit = 50): Promise<GenerationRecor
   await ensureGenerationRecordSchema();
   const result = await getDatabasePool().query<GenerationRecord>(
     `SELECT id,
-       site_id AS "siteId", input_text AS "inputText", intent, operations,
+       site_id AS "siteId", ''::text AS "inputText", intent, operations,
        template_id AS "templateId", latency_ms AS "latencyMs", model, status, detail,
        outcome, mode, missing_sections AS "missingSections",
        requested_template_id AS "requestedTemplateId", applied_template_id AS "appliedTemplateId",
-       fallback_reason AS "fallbackReason", error_code AS "errorCode", created_at AS "createdAt"
+       fallback_reason AS "fallbackReason", error_code AS "errorCode", provenance, created_at AS "createdAt"
      FROM generation_records ORDER BY id DESC LIMIT $1`,
     [limit],
   );

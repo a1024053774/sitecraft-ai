@@ -40,7 +40,7 @@ const YEARS_PATTERN = /(\d{1,3})\s*(?:年|years?)\s*(?:经验|历史|制造|积�
 const CAPACITY_PATTERN = /(?:年|月|日)\s*产\s*(?:能)?\s*(\d+(?:\.\d+)?)\s*([A-Za-zµμ]+|[件套台个GWMW])(?:\s*[套件台个GWMW])?/i;
 
 /** 客户数类：服务客户数（如 "服务 500+ 客户"、"serving 300+ clients"） */
-const CUSTOMERS_PATTERN = /(?:服务|覆盖|合作|拥有|累计|serving|supporting|for)\s*(\d+(?:\.\d+)?)\s*\+?\s*(?:客户|企业|家|品牌|clients|customers)/i;
+const CUSTOMERS_PATTERN = /(?:服务|覆盖|合作|拥有|累计|serving|supporting|for)\s*(\d+(?:\.\d+)?)\s*\+?\s*(?:客户|企业|品牌|clients|customers|家(?:客户|企业|品牌)?)/i;
 
 /** 从一段文案里提取所有高频硬事实声明 */
 export function extractFacts(text: string): FactClaim[] {

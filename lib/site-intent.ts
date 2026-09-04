@@ -12,8 +12,9 @@
 
 import { z } from "zod";
 import { sectionKeys, type SectionKey } from "./site-document.ts";
-import { templateCatalog } from "./template-catalog.ts";
+import { getTemplateMatchingProfile, templateCatalog, type MatchingProfile } from "./template-catalog.ts";
 import type { Template, TemplateCategory } from "./site-model.ts";
+import { extractFacts, type FactKind } from "./fact-check.ts";
 
 export const BUSINESS_TYPES = ["manufacturing", "trade", "tech", "services", "other"] as const;
 export const AUDIENCES = ["overseasB2b", "domesticB2b", "globalB2b", "endUsers", "investorsPartners", "other"] as const;
@@ -24,6 +25,100 @@ export type BusinessType = (typeof BUSINESS_TYPES)[number];
 export type Audience = (typeof AUDIENCES)[number];
 export type Tone = (typeof TONES)[number];
 export type ColorTone = (typeof COLOR_TONES)[number];
+
+export type BriefIndustryKey =
+  | "industrial_automation"
+  | "solar_energy"
+  | "software_ai"
+  | "export_trade"
+  | "professional_services"
+  | "other";
+
+export type BriefSiteType = "corporate" | "catalog" | "service" | "portfolio";
+
+export type NormalizedBriefFact = {
+  kind: FactKind;
+  raw: string;
+  source: "user";
+  confidence: "confirmed";
+};
+
+export type NormalizedBrief = {
+  businessType: BusinessType;
+  industryKey: BriefIndustryKey;
+  audience: Audience;
+  siteType: BriefSiteType;
+  locales: Array<"zh" | "en">;
+  normalizedText: string;
+  facts: NormalizedBriefFact[];
+};
+
+/**
+ * 在调用模型前把用户简介压缩成稳定的匹配维度。
+ * 只从原文提取事实，不为缺失的认证、客户数或产能补值。
+ */
+export function normalizeUserBrief(text: string): NormalizedBrief {
+  const normalizedText = text.trim().replace(/\s+/g, " ");
+  if (!normalizedText) throw new Error("输入不能为空");
+
+  const manufacturingScore = (normalizedText.match(/制造|工厂|设备|机械|零部件|产线|自动化|视觉检测|industrial|manufactur/gi) ?? []).length;
+  const tradeScore = (normalizedText.match(/出口|外贸|跨境|海外市场|采购商|进口商|export|trade|overseas|international/gi) ?? []).length;
+  const techScore = (normalizedText.match(/软件|SaaS|AI|人工智能|平台|数字化|开发者|software|platform|digital/gi) ?? []).length;
+  const serviceScore = (normalizedText.match(/咨询|设计|律所|会计|服务项目|机构|agency|consulting|portfolio/gi) ?? []).length;
+
+  const businessType: BusinessType = manufacturingScore >= Math.max(tradeScore, techScore, serviceScore) && manufacturingScore > 0
+    ? "manufacturing"
+    : tradeScore >= Math.max(techScore, serviceScore) && tradeScore > 0
+      ? "trade"
+      : techScore >= Math.max(serviceScore, 1) && techScore > 0
+        ? "tech"
+        : serviceScore > 0
+          ? "services"
+          : "other";
+
+  const industryKey: BriefIndustryKey = /自动化|视觉检测|工业设备|机械|产线|manufactur|industrial/i.test(normalizedText)
+    ? "industrial_automation"
+    : /光伏|太阳能|新能源|solar|photovoltaic/i.test(normalizedText)
+      ? "solar_energy"
+      : /软件|SaaS|AI|人工智能|平台|software|developer|digital/i.test(normalizedText)
+        ? "software_ai"
+        : /出口|外贸|跨境|海外市场|export|trade/i.test(normalizedText)
+          ? "export_trade"
+          : /咨询|设计|律所|会计|服务项目|机构|agency|consulting|portfolio/i.test(normalizedText)
+            ? "professional_services"
+            : "other";
+
+  const audience: Audience = /海外|欧洲|欧美|采购商|进口商|overseas|global|international/i.test(normalizedText)
+    ? "overseasB2b"
+    : /国内企业|企业客户|经销商|供应商|domestic|business clients/i.test(normalizedText)
+      ? "domesticB2b"
+      : /消费者|终端用户|个人用户|consumer|end user/i.test(normalizedText)
+        ? "endUsers"
+        : "other";
+
+  const siteType: BriefSiteType = /产品目录|产品清单|产品展示|SKU|catalog|product list/i.test(normalizedText)
+    ? "catalog"
+    : /作品集|portfolio/i.test(normalizedText)
+      ? "portfolio"
+      : /咨询|服务项目|解决方案|consulting|services/i.test(normalizedText)
+        ? "service"
+        : "corporate";
+
+  const hasChinese = /\p{Script=Han}/u.test(normalizedText);
+  const asksForEnglish = /英文|双语|中英文|英语|bilingual|english/i.test(normalizedText);
+  const locales: Array<"zh" | "en"> = hasChinese
+    ? asksForEnglish ? ["zh", "en"] : ["zh"]
+    : ["en"];
+
+  const facts = extractFacts(normalizedText).map((fact) => ({
+    kind: fact.kind,
+    raw: fact.raw,
+    source: "user" as const,
+    confidence: "confirmed" as const,
+  }));
+
+  return { businessType, industryKey, audience, siteType, locales, normalizedText, facts };
+}
 
 export const TEMPLATE_IDS = templateCatalog.map((t) => t.id);
 
@@ -36,19 +131,42 @@ export function createSiteIntentSchema(templateIds: readonly string[]) {
     .refine((v) => templateIds.includes(v), { message: "模板不在白名单" });
   return z.object({
     businessType: z.enum(BUSINESS_TYPES),
-    companyName: z.string().min(1).max(40),
-    industry: z.string().min(1).max(60),
+    companyName: z.string().min(1).max(60),
+    industry: z.string().min(1).max(120),
     targetAudience: z.enum(AUDIENCES),
     tone: z.enum(TONES),
     colorTone: z.enum(COLOR_TONES).optional(),
     coreSections: z.array(z.enum(sectionKeys)).min(1),
     recommendedTemplateId: templateIdRefine,
-    summary: z.string().min(1).max(200),
+    summary: z.string().min(1).max(400),
   });
 }
 
 export const siteIntentSchema = createSiteIntentSchema(TEMPLATE_IDS);
 export type SiteIntent = z.infer<typeof siteIntentSchema>;
+
+/**
+ * 多轮迭代基线的宽松 schema：前端在 need_info 阶段会把「部分意图」存回并在下一轮作为
+ * previousIntent 发送——companyName/industry/summary 可能为空串或缺失（追问阶段模型不要求给全）。
+ * 服务端只用它做 mergeIntentDelta 兜底基线 + prompt 增量上下文，不需要强制完整。因此：
+ * 1) 空串统一清洗为 undefined（避免空串经 `??` 合并污染最终意图）；
+ * 2) 字段全部可选，但**存在**的字段仍校验类型/枚举/白名单（保留安全）。
+ * execute 阶段仍用严格 siteIntentSchema（确认页意图已成形，全必填）。
+ */
+const trimEmptyStrings = (value: unknown): unknown => {
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
+      if (typeof record[key] === "string" && (record[key] as string).trim() === "") {
+        record[key] = undefined;
+      }
+    }
+  }
+  return value;
+};
+
+export const previousIntentSchema = z.preprocess(trimEmptyStrings, siteIntentSchema.partial());
+export type PreviousIntent = z.infer<typeof previousIntentSchema>;
 
 /** 意图理解响应的业务决策状态 */
 export const INTENT_STATUSES = ["ready", "need_info", "rejected"] as const;
@@ -142,7 +260,7 @@ export function toReadyIntent(resp: IntentResponse): { intent: SiteIntent; siteL
  * coreSections 取并集（防用户勾选的板块被模型漏掉）。status 非 ready 原样返回。
  */
 export function mergeIntentDelta(
-  previous: { intent: SiteIntent; siteLanguage?: "zh" | "en" } | null,
+  previous: { intent: PreviousIntent; siteLanguage?: "zh" | "en" } | null,
   resp: IntentResponse,
 ): IntentResponse {
   if (!previous || resp.status !== "ready") return resp;
@@ -156,7 +274,8 @@ export function mergeIntentDelta(
     tone: resp.tone ?? base.tone,
     colorTone: resp.colorTone ?? base.colorTone,
     // 并集：基线板块顺序优先（已确认顺序），本轮新增板块追加在后；防模型漏掉用户勾选
-    coreSections: [...new Set([...base.coreSections, ...(resp.coreSections ?? [])])],
+    // 基线可能来自 need_info 部分意图（coreSections 缺省/空），空基线不影响本轮结果。
+    coreSections: [...new Set([...(base.coreSections ?? []), ...(resp.coreSections ?? [])])],
     recommendedTemplateId: resp.recommendedTemplateId ?? base.recommendedTemplateId,
     summary: resp.summary ?? base.summary,
     siteLanguage: resp.siteLanguage ?? previous.siteLanguage,
@@ -169,7 +288,7 @@ export function mergeIntentDelta(
 export function buildIntentPrompt(
   text: string,
   catalog: Template[] = templateCatalog,
-  opts?: { previousIntent?: SiteIntent | null },
+  opts?: { previousIntent?: PreviousIntent | null },
 ): string {
   const businessExamples: Record<string, string> = {
     manufacturing: "工业制造/设备/零部件/光伏组件",
@@ -265,8 +384,8 @@ ${JSON.stringify(opts.previousIntent, null, 0)}
 
 规则：
 - companyName 用一句话里的企业名；没有就用行业名占位（占位需写入 notices 标注可改）
-- industry 写行业/领域（限 60 字）
-- summary 用一句话概括你要建的网站（限 200 字）`;
+- industry 写行业/领域，中文 ≤60 字、英文 ≤110 字符，简洁概括（如 "stainless steel fastener manufacturing"）
+- summary 用一句话概括你要建的网站，中文 ≤200 字、英文 ≤380 字符，简短完整一句话`;
 }
 
 /** 业务类型 → 模板 category 映射（确定性主驱动） */
@@ -307,6 +426,82 @@ export type TemplateMatch = {
   name: string;
   reason: string;
 };
+
+export type RankedTemplateMatch = TemplateMatch & {
+  score: number;
+  reasons: string[];
+  penalties: string[];
+};
+
+function scoreProfile(brief: NormalizedBrief, rawText: string, profile: MatchingProfile) {
+  let score = 0;
+  const reasons: string[] = [];
+  const penalties: string[] = [];
+  if (profile.industries.includes(brief.industryKey)) {
+    score += 35;
+    reasons.push(`行业匹配：${brief.industryKey}`);
+  } else {
+    penalties.push(`行业画像不是${brief.industryKey}`);
+  }
+  if (profile.audiences.includes(brief.audience)) {
+    score += 20;
+    reasons.push(`受众匹配：${brief.audience}`);
+  }
+  if (profile.siteTypes.includes(brief.siteType)) {
+    score += 20;
+    reasons.push(`适合${brief.siteType === "catalog" ? "产品目录" : brief.siteType === "service" ? "服务展示" : brief.siteType === "portfolio" ? "作品集" : "企业官网"}`);
+  } else {
+    score -= 12;
+    penalties.push(`缺少${brief.siteType === "catalog" ? "产品目录" : "目标站点类型"}结构`);
+  }
+  const requiredCapability = brief.siteType === "catalog" ? "catalog" : brief.siteType === "service" ? "caseStudy" : brief.siteType === "portfolio" ? "portfolio" : "inquiry";
+  if (profile.capabilities.includes(requiredCapability)) {
+    score += 15;
+    reasons.push(`具备${requiredCapability === "catalog" ? "产品目录" : requiredCapability === "caseStudy" ? "案例/服务" : requiredCapability === "portfolio" ? "作品集" : "询盘"}能力`);
+  } else {
+    penalties.push(`未声明${requiredCapability === "catalog" ? "产品目录" : "目标"}能力`);
+  }
+  if (brief.locales.every((locale) => profile.locales.includes(locale))) {
+    score += 10;
+    reasons.push(`支持${brief.locales.join("+")}内容`);
+  } else {
+    score -= 10;
+    penalties.push("语言输出能力不足");
+  }
+  const keywordHits = profile.aliases.filter((alias) => alias.length >= 2 && rawText.toLowerCase().includes(alias.toLowerCase()));
+  if (keywordHits.length) {
+    score += Math.min(10, keywordHits.length * 2);
+    reasons.push(`命中模板标签：${keywordHits.slice(0, 2).join("、")}`);
+  }
+  return { score, reasons, penalties };
+}
+
+/** 返回稳定的 Top 3 模板候选；所有结果必须来自传入的白名单 catalog。 */
+export function rankTemplateMatches(
+  brief: NormalizedBrief,
+  rawText: string,
+  catalog: Template[] = templateCatalog,
+): RankedTemplateMatch[] {
+  return catalog
+    .map((template, index) => {
+      const profileScore = scoreProfile(brief, rawText, getTemplateMatchingProfile(template));
+      const reasons = profileScore.reasons.slice(0, 4);
+      const penalties = profileScore.penalties.slice(0, 3);
+      return {
+        templateId: template.id,
+        category: template.category,
+        name: template.name,
+        reason: [...reasons, ...penalties.slice(0, 1)].join("；") || template.description,
+        score: profileScore.score,
+        reasons,
+        penalties,
+        index,
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, 3)
+    .map(({ index: _index, ...match }) => match);
+}
 
 /**
  * 解析一句话 + 意图 → 最终模板选择。

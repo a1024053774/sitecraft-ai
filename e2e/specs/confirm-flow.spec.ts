@@ -21,11 +21,11 @@ test.describe("B. 确认页", () => {
   test("切模板后意图摘要不漂移", async ({ page }) => {
     const intentCard = page.locator(".generate-intent-card");
     const expectedFacts = ["工业制造", "工业自动化", "海外企业", "专业"];
-    const select = page.locator(".generate-select");
+    const select = page.locator(".generate-select").first();
     const values = await select.locator("option").evaluateAll((nodes) => nodes.map((node) => (node as HTMLOptionElement).value));
     if (values.length > 1) await select.selectOption(values[1]);
     for (const fact of expectedFacts) await expect(intentCard).toContainText(fact);
-    await expect(page.locator(".generate-template-card")).toHaveClass(/selected/);
+    await expect(page.locator(".generate-template-option.active")).toHaveCount(1);
   });
 });
 

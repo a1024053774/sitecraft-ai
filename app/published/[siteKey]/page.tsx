@@ -24,14 +24,14 @@ export default function PublishedSitePage() {
     setDraft(null);
     setLoadError(null);
     setFrameState("loading");
-    fetch(`/api/sites/${encodeURIComponent(siteKey)}/draft`, { cache: "no-store" })
+    fetch(`/api/public/${encodeURIComponent(siteKey)}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error(`站点加载失败（${response.status}）`);
         return response.json();
       })
-      .then((snapshot: { draft?: unknown }) => {
-        if (!snapshot.draft) throw new Error("站点草稿不存在");
-        setDraft(normalizeDraft(snapshot.draft));
+      .then((snapshot: { release?: { draft?: unknown } }) => {
+        if (!snapshot.release?.draft) throw new Error("站点还没有已发布版本");
+        setDraft(normalizeDraft(snapshot.release.draft));
       })
       .catch(() => {
         setLoadError("站点暂时无法加载，请稍后刷新重试。");

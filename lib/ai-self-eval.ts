@@ -39,6 +39,7 @@ export type SelfEvalResult = {
 };
 
 export type SelfEvalArgs = {
+  signal?: AbortSignal;
   message: string;
   summary: string;
   operations: SiteOperation[];
@@ -185,7 +186,9 @@ export async function evaluateOperations(args: SelfEvalArgs): Promise<SelfEvalRe
           },
         ],
       }),
-      signal: AbortSignal.timeout(30_000),
+      signal: args.signal
+        ? AbortSignal.any([args.signal, AbortSignal.timeout(30_000)])
+        : AbortSignal.timeout(30_000),
       cache: "no-store",
     });
     if (!response.ok) {

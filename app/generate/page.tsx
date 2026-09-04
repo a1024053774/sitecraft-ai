@@ -28,6 +28,10 @@ import { SiteRenderer } from "@/components/site-renderer";
 import { templates, type SiteDraft } from "@/lib/site-model";
 import { defaultDraft } from "@/lib/site-document";
 import { deriveDesignTokenResult } from "@/lib/design-variants";
+import { adaptIntentLimits, buildTemplateRecommendations, formatGenerationProgress, getGenerationProgress } from "@/lib/generation-experience";
+import { GENERATION_BUDGET, getGenerationWaitNotice } from "@/lib/generation-budget";
+import type { ContentCoverageReport } from "@/lib/template-content-coverage";
+import type { ContentQualityReport } from "@/lib/content-quality";
 
 type Intent = {
   businessType: string;
@@ -49,11 +53,23 @@ type Intent = {
 type TemplateMatch = { id: string; name: string; category: string; reason: string };
 type Step = "input" | "clarify" | "confirm" | "generating" | "done";
 type ClarifyState = { needsInfo: string[] };
+type GenerationCompletion = {
+  siteId: string;
+  partial: boolean;
+  fallbackReason: string;
+  missingSections: string[];
+  revision: number;
+  coverage?: ContentCoverageReport;
+  quality?: ContentQualityReport;
+  notice: string;
+  requiresReview: boolean;
+};
 
 const GENERATE_DRAFT_KEY = "sitecraft:generate-draft:v1";
 const ACTIVE_GENERATION_KEY = "sitecraft:active-generation:v1";
-// "查看真实预览"：把用户改后的预览草稿带给新标签页的真实模板预览，避免显示模板默认内容
 const REAL_PREVIEW_DRAFT_KEY = "sitecraft:real-preview-draft:v1";
+const GENERATION_TIMEOUT_MS = GENERATION_BUDGET.clientHardDeadlineMs;
+const ANALYZE_TIMEOUT_MS = GENERATION_BUDGET.clientHardDeadlineMs;
 
 const examples = [
   "做个光伏出口企业的官网，主打欧美，要显得专业可靠",
@@ -94,6 +110,19 @@ const SECTIONS_LABELS: Record<string, string> = {
   contact: "联系",
 };
 
+/**
+ * 生成幂等/会话 key。crypto.randomUUID 仅安全上下文可用（http://localhost 属安全，
+ * 但局域网 http / 非 https 不是）；缺省时降级为时间戳随机串，避免同步抛错卡死。
+ */
+function newClientKey() {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch { /* fall through to fallback */ }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function readSseEvents(raw: string) {
   const lastCompleteEvent = raw.lastIndexOf("\n\n");
   if (lastCompleteEvent < 0) return [];
@@ -124,6 +153,9 @@ export default function GeneratePage() {
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [previewFeedback, setPreviewFeedback] = useState<{ section: string; mode: "show" | "hide" } | null>(null);
   const previewFeedbackTimer = useRef<number | null>(null);
+  const analyzeControllerRef = useRef<AbortController | null>(null);
+  const generationControllerRef = useRef<AbortController | null>(null);
+  const generationRequestKeyRef = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progressText, setProgressText] = useState("");
@@ -134,6 +166,7 @@ export default function GeneratePage() {
   const [failedSections, setFailedSections] = useState<string[]>([]);
   const [generationElapsed, setGenerationElapsed] = useState(0);
   const [generationDuration, setGenerationDuration] = useState<number | null>(null);
+  const [generationCompletion, setGenerationCompletion] = useState<GenerationCompletion | null>(null);
   const generationStartedAt = useRef<number | null>(null);
   const [clarifyState, setClarifyState] = useState<ClarifyState | null>(null);
   const [clarifyText, setClarifyText] = useState("");
@@ -157,10 +190,8 @@ export default function GeneratePage() {
   }, [category, intent?.businessType]);
   const recommendationTemplates = useMemo<TemplateMatch[]>(() => {
     const options = templates.map((item) => ({ id: item.id, name: item.name, category: item.category, reason: "AI 根据你的业务方向推荐" }));
-    const primary = options.find((item) => item.id === intent?.recommendedTemplateId) ?? options[0];
-    const pool = primary ? [primary, ...options.filter((item) => item.id !== primary.id)] : options;
-    return pool.slice(0, 3);
-  }, [intent?.recommendedTemplateId]);
+    return buildTemplateRecommendations(options, intent);
+  }, [intent]);
   // 风格切换：确认页可手动选色板（覆盖 intent 推断），实时预览并随生成持久化
   const [styleTone, setStyleTone] = useState<string>("");
   const effectiveColorTone = styleTone || intent?.colorTone || "";
@@ -168,17 +199,29 @@ export default function GeneratePage() {
     () => intent && template ? deriveDesignTokenResult({ ...intent, colorTone: effectiveColorTone }, template.id) : null,
     [intent, template, effectiveColorTone],
   );
-  const previewDraft = useMemo<SiteDraft>(() => ({
-    ...defaultDraft,
-    templateId: template?.id ?? defaultDraft.templateId,
-    siteName: intent?.companyName ?? defaultDraft.siteName,
-    companyName: intent?.companyName ?? defaultDraft.companyName,
-    industry: intent?.industry ?? defaultDraft.industry,
-    hiddenSections: (previewFeedback?.mode === "hide"
-      ? hiddenSections.filter((section) => section !== previewFeedback.section)
-      : hiddenSections) as SiteDraft["hiddenSections"],
-    designTokens: designTokenResult?.tokens ?? null,
-  }), [designTokenResult?.tokens, hiddenSections, intent?.companyName, intent?.industry, previewFeedback?.mode, previewFeedback?.section, template?.id]);
+  const previewDraft = useMemo<SiteDraft>(() => {
+    const companyName = intent?.companyName || defaultDraft.companyName;
+    const summary = intent?.summary || defaultDraft.content.hero.subtitle.zh;
+    return {
+      ...defaultDraft,
+      templateId: template?.id ?? defaultDraft.templateId,
+      siteName: companyName,
+      companyName,
+      industry: intent?.industry ?? defaultDraft.industry,
+      content: {
+        ...defaultDraft.content,
+        hero: {
+          ...defaultDraft.content.hero,
+          title: { zh: companyName, en: companyName },
+          subtitle: { zh: summary, en: summary },
+        },
+      },
+      hiddenSections: (previewFeedback?.mode === "hide"
+        ? hiddenSections.filter((section) => section !== previewFeedback.section)
+        : hiddenSections) as SiteDraft["hiddenSections"],
+      designTokens: designTokenResult?.tokens ?? null,
+    };
+  }, [designTokenResult?.tokens, hiddenSections, intent?.companyName, intent?.industry, intent?.summary, previewFeedback?.mode, previewFeedback?.section, template?.id]);
 
   useEffect(() => {
     setTemplatePreviewState("loading");
@@ -213,6 +256,10 @@ export default function GeneratePage() {
 
   // 再生模式：工作台「换方向重新生成」带 ?siteId 进入 → 复用现有站点重新生成
   useEffect(() => {
+    // StrictMode 下 React 会挂载→卸载→重挂：cleanup 会把 pageActive 置 false，
+    // 重挂后 effect 重跑必须重新置 true，否则 analyze 的 finally 因 pageActive=false
+    // 跳过 setBusy(false)，追问页按钮永远 disabled（busy=true）卡死。
+    pageActive.current = true;
     const q = new URLSearchParams(window.location.search);
     const siteId = q.get("siteId");
     if (siteId) setRegenerateSiteId(siteId);
@@ -237,7 +284,7 @@ export default function GeneratePage() {
         const raw = window.sessionStorage.getItem(ACTIVE_GENERATION_KEY);
         if (!raw) return;
         const saved = JSON.parse(raw) as { siteId?: unknown; baseRevision?: unknown };
-        if (typeof saved.siteId !== "string" || typeof saved.baseRevision !== "number") {
+        if (typeof saved.siteId !== "string" || (saved.baseRevision !== null && typeof saved.baseRevision !== "number")) {
           window.sessionStorage.removeItem(ACTIVE_GENERATION_KEY);
           return;
         }
@@ -246,7 +293,7 @@ export default function GeneratePage() {
         const payload = await response.json() as { draft?: { revision?: unknown } };
         const revision = typeof payload.draft?.revision === "number" ? payload.draft.revision : 0;
         if (cancelled) return;
-        if (revision > saved.baseRevision) {
+        if (typeof saved.baseRevision === "number" && revision > saved.baseRevision) {
           window.sessionStorage.removeItem(ACTIVE_GENERATION_KEY);
           router.replace(`/workspace?siteId=${saved.siteId}&generated=1&recovered=1`);
           return;
@@ -302,9 +349,15 @@ export default function GeneratePage() {
   }, [extraContext, message]);
 
   const analyze = async (text: string) => {
+    analyzeControllerRef.current?.abort();
+    const controller = new AbortController();
+    analyzeControllerRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(new Error("需求分析超时")), ANALYZE_TIMEOUT_MS);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     setBusy(true);
     setError(null);
     setProgressText("正在理解你的需求…");
+    const idempotencyKey = newClientKey();
     try {
       // 多轮迭代：全量 history（slice(-10) 对齐服务端 cap）+ 上一轮意图基线（增量更新）
       const res = await fetch(`/api/sites/demo/generate`, {
@@ -316,27 +369,45 @@ export default function GeneratePage() {
           history: history.slice(-10),
           ...(intent ? { previousIntent: intent } : {}),
           ...(extraContext.trim() ? { extraContext: extraContext.trim() } : {}),
+          idempotencyKey,
         }),
+        signal: controller.signal,
       });
-      const reader = res.body?.getReader();
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(payload.message || "需求分析请求失败，请稍后重试");
+      }
+      reader = res.body?.getReader() ?? null;
       if (!reader) throw new Error("无法读取响应");
       const decoder = new TextDecoder();
       let raw = "";
       let done: Record<string, unknown> | undefined;
       while (true) {
         const result = await reader.read();
-        raw += decoder.decode(result.value ?? new Uint8Array(), { stream: !result.done });
+        const chunkText = decoder.decode(result.value ?? new Uint8Array(), { stream: !result.done });
+        raw += chunkText;
         const events = readSseEvents(raw);
         const status = [...events].reverse().find((e) => e.type === "status");
         if (typeof status?.value === "string") setProgressText(status.value);
         done = events.find((e) => e.type === "done");
+        if (done) {
+          // 拿到 done 即视为完成。不 await reader.cancel()：该 SSE 流在 Next dev 下
+          // 有时不落 end，await 会永久挂起拖住流程。cancel 交给浏览器/超时兜底。
+          void reader.cancel().catch(() => undefined);
+          break;
+        }
         if (result.done) break;
       }
       if (!done) throw new Error("没有返回结果");
       if (done.status === "error") throw new Error(String(done.error || "分析失败"));
       if (done.status !== "ready") throw new Error(`意外状态 ${done.status}`);
-      const parsedIntent = done.intent as Intent;
+      const parsedIntent = adaptIntentLimits(done.intent as Intent);
       const intentStatus = parsedIntent.status ?? "ready"; // 旧后端/旧模型兼容
+      // 收到合法 done 即同步复位 busy，不依赖 finally：SSE 流活性异常时
+      // finally 可能不执行（await reader.cancel() 曾永久挂起），busy 残留会让
+      // 确认/追问页按钮 disabled 且显示旧 progressText，表现像"卡死"。
+      // 此处到分支分发之间无 await，单线程下不会有新 analyze 插入竞态。
+      if (pageActive.current) setBusy(false);
       if (intentStatus === "need_info") {
         const needsInfo = parsedIntent.needsInfo ?? [];
         // 缓存模型已识别的模板推荐（need_info 时 done.template 为空，但 intent.recommendedTemplateId 可能已有）
@@ -349,7 +420,12 @@ export default function GeneratePage() {
             industry: parsedIntent.industry ?? "",
             targetAudience: parsedIntent.targetAudience ?? "other",
             tone: parsedIntent.tone ?? "professional",
-            coreSections: parsedIntent.coreSections ?? ["hero", "about", "services", "products", "contact"],
+            // coreSections 只需 schema 白名单板块（hero 是隐式前缀，不在此列）。
+            // 过滤掉越界项后再判断空，防模型输出含 hero/其它非法板块致下一轮 previousIntent 校验 400。
+            coreSections: (() => {
+              const valid = (parsedIntent.coreSections ?? []).filter((section) => section !== "hero");
+              return valid.length ? valid : ["about", "features", "services", "products", "contact"];
+            })(),
             recommendedTemplateId: parsedIntent.recommendedTemplateId,
             summary: parsedIntent.summary ?? "",
           });
@@ -380,10 +456,18 @@ export default function GeneratePage() {
       setAdjusting(false);
       setStep("confirm");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "分析失败");
-      setStep(clarifyState ? "clarify" : "input");
+      if (pageActive.current && analyzeControllerRef.current === controller) {
+        setError(controller.signal.aborted ? "需求分析等待时间过长，已停止等待，请重试。" : e instanceof Error ? e.message : "分析失败");
+        setStep(clarifyState ? "clarify" : "input");
+      }
     } finally {
-      setBusy(false);
+      window.clearTimeout(timeout);
+      try { reader?.releaseLock(); } catch { /* reader 已释放或已被取消 */ }
+      if (analyzeControllerRef.current === controller) {
+        analyzeControllerRef.current = null;
+        // 兜底：理论上收到合法 done 的分支已 setBusy(false)；此处保证异常/取消路径也不残留 busy。
+        if (pageActive.current) setBusy(false);
+      }
     }
   };
 
@@ -405,22 +489,44 @@ export default function GeneratePage() {
 
   useEffect(() => () => {
     if (previewFeedbackTimer.current) window.clearTimeout(previewFeedbackTimer.current);
+    analyzeControllerRef.current?.abort();
+    generationControllerRef.current?.abort();
   }, []);
 
+  const enterGeneratedWorkspace = (siteId: string, partial: boolean) => {
+    try {
+      window.sessionStorage.removeItem(GENERATE_DRAFT_KEY);
+    } catch {
+      // Successful navigation must continue even when storage is unavailable.
+    }
+    router.push(`/workspace?siteId=${siteId}&generated=1${partial ? "&partial=1" : ""}`);
+  };
+
   const execute = async () => {
-    if (!intent || !template) return;
+    if (!intent || !template || generationRequestKeyRef.current) return;
+    const idempotencyKey = newClientKey();
+    generationRequestKeyRef.current = idempotencyKey;
     setBusy(true);
     setError(null);
     setStep("generating");
     generationStartedAt.current = performance.now();
     setGenerationDuration(null);
+    setGenerationCompletion(null);
     setGenerationPhase("content");
     setCompletedSections([]);
     setActiveSections(generationSections);
     setRecoveringSections([]);
     setFailedSections([]);
     setGenerationElapsed(0);
-    const sessionId = window.sessionStorage.getItem("sitecraft-session") ?? crypto.randomUUID();
+    generationControllerRef.current?.abort();
+    const controller = new AbortController();
+    generationControllerRef.current = controller;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      void reader?.cancel();
+    }, GENERATION_TIMEOUT_MS);
+    const sessionId = window.sessionStorage.getItem("sitecraft-session") ?? newClientKey();
     window.sessionStorage.setItem("sitecraft-session", sessionId);
     setProgressText(regenerateSiteId ? "正在为现有站点重新生成内容…" : "正在为所选模板生成内容…");
     try {
@@ -430,20 +536,35 @@ export default function GeneratePage() {
         const siteRes = await fetch(`/api/sites`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: intent.companyName, templateId: template.id, locales: siteLanguage === "en" ? ["en"] : ["zh", "en"] }),
+          body: JSON.stringify({
+            name: intent.companyName,
+            templateId: template.id,
+            locales: siteLanguage === "en" ? ["en"] : ["zh", "en"],
+            initialDraft: {
+              ...previewDraft,
+              siteName: intent.companyName,
+              companyName: intent.companyName,
+              templateId: template.id,
+              locale: siteLanguage,
+            },
+          }),
+          signal: controller.signal,
         });
         const sitePayload = await siteRes.json().catch(() => null);
         if (!siteRes.ok || typeof sitePayload?.id !== "string") throw new Error("创建网站失败，请稍后重试");
         siteId = sitePayload.id;
+        window.sessionStorage.setItem(ACTIVE_GENERATION_KEY, JSON.stringify({ siteId, baseRevision: null, startedAt: Date.now() }));
       }
+      if (typeof siteId !== "string") throw new Error("无法确定已创建的网站，请稍后重试");
+      const generatedSiteId = siteId;
       // 2. 读初始 revision
-      const draftRes = await fetch(`/api/sites/${siteId}/draft`, { cache: "no-store" });
+      const draftRes = await fetch(`/api/sites/${generatedSiteId}/draft`, { cache: "no-store", signal: controller.signal });
       if (!draftRes.ok) throw new Error("读取网站草稿失败，请稍后重试");
       const draftPayload = await draftRes.json();
       const baseRevision = draftPayload.draft?.revision ?? 1;
-      window.sessionStorage.setItem(ACTIVE_GENERATION_KEY, JSON.stringify({ siteId, baseRevision, startedAt: Date.now() }));
+      window.sessionStorage.setItem(ACTIVE_GENERATION_KEY, JSON.stringify({ siteId: generatedSiteId, baseRevision, startedAt: Date.now() }));
       // 3. 执行生成
-      const res = await fetch(`/api/sites/${siteId}/generate`, {
+      const res = await fetch(`/api/sites/${generatedSiteId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -456,9 +577,15 @@ export default function GeneratePage() {
           hiddenSections,
           baseRevision,
           sessionId,
+          idempotencyKey,
         }),
+        signal: controller.signal,
       });
-      const reader = res.body?.getReader();
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(payload.message || "生成请求失败，请稍后重试");
+      }
+      reader = res.body?.getReader() ?? null;
       if (!reader) throw new Error("无法读取生成结果");
       const decoder = new TextDecoder();
       let raw = "";
@@ -475,6 +602,11 @@ export default function GeneratePage() {
         if (Array.isArray(status?.recoveringSections)) setRecoveringSections(status.recoveringSections.filter((item): item is string => typeof item === "string"));
         if (Array.isArray(status?.failedSections)) setFailedSections(status.failedSections.filter((item): item is string => typeof item === "string"));
         done = events.find((e) => e.type === "done");
+        if (done) {
+          // 同 analyze：不阻塞等 cancel 落地，避免 SSE 流不落 end 时挂起拖住 busy 复位。
+          void reader.cancel().catch(() => undefined);
+          break;
+        }
         if (result.done) break;
       }
       if (!done) throw new Error("生成没有返回结果");
@@ -483,44 +615,159 @@ export default function GeneratePage() {
       window.sessionStorage.removeItem(ACTIVE_GENERATION_KEY);
       if (!pageActive.current) return;
       if (generationStartedAt.current !== null) setGenerationDuration(Math.round(performance.now() - generationStartedAt.current));
-      setStep("done");
       // P0-2：批 B 失败时 partial=true，提示板块未完整生成（避免用户以为全是默认模板文案）
       const partial = Boolean((done as { partial?: boolean }).partial);
       const missingSections = Array.isArray((done as { missingSections?: string[] }).missingSections)
         ? ((done as { missingSections?: string[] }).missingSections ?? [])
         : [];
+      const missingSectionLabels = missingSections.map((section) => SECTIONS_LABELS[section] ?? section);
       const fallbackReason = typeof done.templateFallbackReason === "string" ? done.templateFallbackReason : "";
+      const quality = (done as { quality?: ContentQualityReport | null }).quality ?? undefined;
+      const qualityNeedsReview = Boolean(quality && !quality.publishable);
+      const qualityNotice = qualityNeedsReview && quality
+        ? `内容质量评分 ${quality.score}，待处理 ${quality.missingSlots.length + quality.overLimitSlots.length + quality.placeholderHits.length + quality.languageMismatches.length + quality.unverifiedFacts.length} 项问题。`
+        : "";
       const completionNotices = [
         fallbackReason,
-        partial ? `部分板块未完整生成（${missingSections.join("、") || "板块内容"}），已保存首屏与已生成内容。可在工作台继续让 AI 补全。` : "",
+        partial ? `部分板块未完整生成（${missingSectionLabels.join("、") || "板块内容"}），已保存首屏与已生成内容。可在工作台继续让 AI 补全。` : "",
+        qualityNotice,
       ].filter(Boolean);
-      if (completionNotices.length) setError(completionNotices.join("；"));
+      const requiresReview = partial || Boolean(fallbackReason) || qualityNeedsReview;
+      const completion = {
+        siteId: generatedSiteId,
+        partial,
+        fallbackReason,
+        missingSections,
+        revision: typeof (done as { draft?: { revision?: unknown } }).draft?.revision === "number"
+          ? (done as { draft: { revision: number } }).draft.revision
+          : baseRevision + (done.status === "applied" ? 1 : 0),
+        coverage: (done as { coverage?: ContentCoverageReport }).coverage,
+        quality,
+        notice: completionNotices.join("；"),
+        requiresReview,
+      };
+      setGenerationCompletion(completion);
+      if (requiresReview) {
+        setProgressText(
+          partial
+            ? "已保存当前可用内容，部分板块需要继续补全"
+            : fallbackReason
+              ? "已切换到兼容模板并保存站点初稿"
+              : qualityNeedsReview
+                ? "初稿已保存，建议处理内容质量问题"
+                : "初稿已保存",
+        );
+        return;
+      }
+      setStep("done");
       setTimeout(() => {
         if (!pageActive.current) return;
-        try {
-          window.sessionStorage.removeItem(GENERATE_DRAFT_KEY);
-        } catch {
-          // Successful navigation must continue even when storage is unavailable.
-        }
-        router.push(`/workspace?siteId=${siteId}&generated=1${partial ? "&partial=1" : ""}`);
-      }, partial || fallbackReason ? 4000 : 1200);
+        enterGeneratedWorkspace(generatedSiteId, false);
+      }, 1200);
     } catch (e) {
       if (pageActive.current) {
-        setError(e instanceof Error ? e.message : "生成失败");
+        setError(controller.signal.aborted ? "建站已超过 120 秒，已停止等待并保留当前站点。你可以直接重试，不会重复创建网站。" : e instanceof Error ? e.message : "生成失败");
         setStep("confirm");
       }
     } finally {
+      window.clearTimeout(timeout);
+      try { reader?.releaseLock(); } catch { /* reader 已释放 */ }
+      if (generationControllerRef.current === controller) generationControllerRef.current = null;
+      if (generationRequestKeyRef.current === idempotencyKey) generationRequestKeyRef.current = null;
       if (pageActive.current) setBusy(false);
     }
   };
 
+  const recoverMissingSections = async () => {
+    if (!generationCompletion?.missingSections.length || !intent || !template || busy || generationRequestKeyRef.current) return;
+    const idempotencyKey = newClientKey();
+    generationRequestKeyRef.current = idempotencyKey;
+    const sections = [...generationCompletion.missingSections];
+    setBusy(true);
+    setError(null);
+    setRecoveringSections(sections);
+    setFailedSections([]);
+    setProgressText("正在补全缺失板块…");
+    generationControllerRef.current?.abort();
+    const controller = new AbortController();
+    generationControllerRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS);
+    try {
+      const response = await fetch(`/api/sites/${generationCompletion.siteId}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: "execute",
+          message,
+          intent,
+          templateId: template.id,
+          siteLanguage,
+          hiddenSections,
+          baseRevision: generationCompletion.revision,
+          sessionId: window.sessionStorage.getItem("sitecraft-session") ?? undefined,
+          regenerateMissing: { sections },
+          idempotencyKey,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { message?: string };
+        throw new Error(payload.message || "补全请求失败，请稍后重试");
+      }
+      const raw = await response.text();
+      const events = readSseEvents(raw);
+      const done = [...events].reverse().find((item) => item.type === "done");
+      if (!done) throw new Error("补全没有返回结果");
+      if (done.status === "error" || done.status === "conflict") throw new Error(String(done.error || "补全失败"));
+      const remaining = Array.isArray(done.missingSections)
+        ? done.missingSections.filter((section): section is string => typeof section === "string")
+        : sections;
+      const revision = typeof (done as { draft?: { revision?: unknown } }).draft?.revision === "number"
+        ? (done as { draft: { revision: number } }).draft.revision
+        : generationCompletion.revision + (done.status === "applied" ? 1 : 0);
+      setCompletedSections((current) => [...new Set([...current, ...sections.filter((section) => !remaining.includes(section))])]);
+      setFailedSections(remaining);
+      setGenerationCompletion({
+        ...generationCompletion,
+        partial: remaining.length > 0,
+        missingSections: remaining,
+        revision,
+        coverage: (done as { coverage?: ContentCoverageReport }).coverage,
+        quality: (done as { quality?: ContentQualityReport | null }).quality ?? undefined,
+        notice: remaining.length > 0 ? `仍有 ${remaining.map((section) => SECTIONS_LABELS[section] ?? section).join("、")} 待补全，可直接重试。` : "缺失板块已补全，当前草稿已保存。",
+        requiresReview: true,
+      });
+      setProgressText(remaining.length > 0 ? "部分板块仍待补全" : "缺失板块已补全");
+    } catch (recoveryError) {
+      setFailedSections(sections);
+      setError(controller.signal.aborted ? "补全已超时，当前草稿未丢失，可直接重试。" : recoveryError instanceof Error ? recoveryError.message : "补全失败");
+    } finally {
+      window.clearTimeout(timeout);
+      setRecoveringSections([]);
+      if (generationControllerRef.current === controller) generationControllerRef.current = null;
+      if (generationRequestKeyRef.current === idempotencyKey) generationRequestKeyRef.current = null;
+      setBusy(false);
+    }
+  };
+
   useEffect(() => {
-    if (step !== "generating" || generationStartedAt.current === null) return;
+    if (step !== "generating" || generationStartedAt.current === null || generationCompletion) return;
     const updateElapsed = () => setGenerationElapsed(Math.floor((performance.now() - generationStartedAt.current!) / 1000));
     updateElapsed();
     const timer = window.setInterval(updateElapsed, 1000);
     return () => window.clearInterval(timer);
-  }, [step]);
+  }, [generationCompletion, step]);
+
+  const generationProgress = getGenerationProgress({
+    phase: generationPhase,
+    sections: generationSections,
+    completedSections,
+    failedSections,
+    elapsedMs: generationElapsed * 1000,
+    terminal: step === "done" || Boolean(generationCompletion),
+  });
+  const generationProgressLabel = formatGenerationProgress(generationProgress);
+  const generationWaitNotice = getGenerationWaitNotice(generationElapsed * 1000);
 
   return (
     <div className="app-shell">
@@ -765,19 +1012,21 @@ export default function GeneratePage() {
                           </button>
                           <a
                             className="generate-real-preview-link"
-                            href={`/templates/${template.id}/preview`}
+                            href={`/templates/${template.id}/preview${generationCompletion?.siteId || regenerateSiteId ? `?siteId=${encodeURIComponent(generationCompletion?.siteId ?? regenerateSiteId ?? "")}` : ""}`}
                             target="_blank"
                             rel="noreferrer"
-                            aria-label={`在新标签页查看 ${template.name} 真实预览（含你的内容改动）`}
+                            aria-label={`查看已填内容预览：${template.name}`}
                             onClick={() => {
-                              // 把用户改后的预览草稿（色板/板块/公司名/模板）存起来，
-                              // 新打开的"真实预览"页读取并套用，而不是显示模板默认内容。
+                              if (generationCompletion?.siteId || regenerateSiteId) return;
                               try {
-                                window.sessionStorage.setItem(REAL_PREVIEW_DRAFT_KEY, JSON.stringify({ ...previewDraft, templateId: template.id }));
-                              } catch { /* 存储不可用时降级为默认模板预览 */ }
+                                window.localStorage.setItem(REAL_PREVIEW_DRAFT_KEY, JSON.stringify({
+                                  savedAt: Date.now(),
+                                  draft: { ...previewDraft, templateId: template.id },
+                                }));
+                              } catch { /* 存储不可用时预览页会诚实展示模板原貌 */ }
                             }}
                           >
-                            <ExternalLink size={13} /> 查看真实预览
+                            <ExternalLink size={13} /> 查看已填内容预览
                           </a>
                         </div>
                       </div>
@@ -946,8 +1195,8 @@ export default function GeneratePage() {
 
           {step === "generating" && (
             <div className="generate-progress-view">
-              <div className="eyebrow">复用模板结构 · AI 正在填充内容</div>
-              <h1>{intent?.companyName || "你的网站"}</h1>
+              <div className="eyebrow">{generationCompletion ? "站点初稿已保存 · 等待你确认" : "复用模板结构 · AI 正在填充内容"}</div>
+              <h1>{generationCompletion ? "当前结果已保存" : intent?.companyName || "你的网站"}</h1>
               <div className={`generate-building-preview ${generationPhase === "content" ? "" : generationPhase}`} aria-hidden="true">
                 <div className="generate-building-bar"><i /><i /><i /><span /></div>
                 <div className={`generate-building-hero ${generationSectionState("hero")}`}><span /><strong /><small /></div>
@@ -960,6 +1209,22 @@ export default function GeneratePage() {
               </div>
               <div className="generate-steps" aria-live="polite">
                 <div className="generate-elapsed"><span>已用时间</span><strong>{generationElapsed} 秒</strong></div>
+                {generationWaitNotice && <div className="step active" role="status"><LoaderCircle size={13} className="spin" />{generationWaitNotice}</div>}
+                <div className="generate-completion-progress-meta" aria-live="polite">
+                  <span>建站进度</span>
+                  <strong>{generationProgressLabel}</strong>
+                </div>
+                <div
+                  className="generate-completion-progress"
+                  role="progressbar"
+                  aria-label="建站进度"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={generationProgress}
+                  aria-valuetext={generationProgressLabel}
+                >
+                  <span style={{ width: `${generationProgress}%` }} />
+                </div>
                 <div className="step done"><Check size={13} /> 理解需求</div>
                 <div className="step done"><Check size={13} /> 匹配模板 · {template?.name}</div>
                 <div className="generate-section-progress">
@@ -972,8 +1237,44 @@ export default function GeneratePage() {
                     return <div className={`step ${state}`} key={section}>{done ? <Check size={13} /> : failed ? <CircleAlert size={13} /> : active || recovering ? <LoaderCircle size={13} className="spin" /> : <span className="generate-step-dot" />}{SECTIONS_LABELS[section] ?? section}{recovering && <small>恢复中</small>}{failed && <small>稍后补全</small>}</div>;
                   })}
                 </div>
-                <div className={`step ${generationPhase === "review" || generationPhase === "saving" ? "active" : ""}`}>{generationPhase === "review" || generationPhase === "saving" ? <LoaderCircle size={13} className="spin" /> : <span className="generate-step-dot" />}{progressText}</div>
+                <div className={`step ${generationCompletion ? "done" : generationPhase === "review" || generationPhase === "saving" ? "active" : ""}`}>{generationCompletion ? <Check size={13} /> : generationPhase === "review" || generationPhase === "saving" ? <LoaderCircle size={13} className="spin" /> : <span className="generate-step-dot" />}{progressText}</div>
               </div>
+              {generationCompletion?.requiresReview && (
+                <section className="generate-terminal-panel" role="status">
+                  <strong>{generationCompletion.missingSections.length > 0 ? "初稿已保存，部分板块待补全" : generationCompletion.fallbackReason ? "已切换兼容模板并保存初稿" : generationCompletion.quality && !generationCompletion.quality.publishable ? "初稿已保存，建议处理内容质量问题" : "缺失板块已补全"}</strong>
+                  <p>{generationCompletion.notice}</p>
+                  {generationCompletion.quality && !generationCompletion.quality.publishable && (
+                    <p>
+                      质量评分 {generationCompletion.quality.score}。缺口 {generationCompletion.quality.missingSlots.length}，超长 {generationCompletion.quality.overLimitSlots.length}，占位内容 {generationCompletion.quality.placeholderHits.length}，语言问题 {generationCompletion.quality.languageMismatches.length}，待确认事实 {generationCompletion.quality.unverifiedFacts.length}。
+                    </p>
+                  )}
+                  {generationCompletion.missingSections.length > 0 && (
+                    <div className="generate-section-progress" aria-label="待补全板块">
+                      {generationCompletion.missingSections.map((section) => (
+                        <div className={`step ${recoveringSections.includes(section) ? "recovering" : "failed"}`} key={section}>
+                          {recoveringSections.includes(section) ? <LoaderCircle size={13} className="spin" /> : <CircleAlert size={13} />}
+                          {SECTIONS_LABELS[section] ?? section}
+                          <small>{recoveringSections.includes(section) ? "补全中" : "待补全"}</small>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {generationCompletion.missingSections.length > 0 && (
+                    <button type="button" className="primary-button" disabled={busy} onClick={() => void recoverMissingSections()}>
+                      {busy ? <LoaderCircle size={15} className="spin" /> : <Sparkles size={15} />}
+                      {busy ? "正在补全缺失板块" : "仅补全缺失板块"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => enterGeneratedWorkspace(generationCompletion.siteId, generationCompletion.partial)}
+                  >
+                    <ArrowRight size={15} />
+                    {generationCompletion.missingSections.length > 0 ? "进入工作台继续补全" : "进入工作台查看"}
+                  </button>
+                </section>
+              )}
             </div>
           )}
 

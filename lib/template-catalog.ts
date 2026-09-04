@@ -1,4 +1,17 @@
-import type { Template } from "@/lib/site-model";
+import type { Locale, Template } from "./site-model.ts";
+import { supportsTemplateLocale } from "./template-manifest.ts";
+
+export type TemplateCapability = "catalog" | "inquiry" | "bilingual" | "blog" | "caseStudy" | "portfolio";
+
+export type MatchingProfile = {
+  industries: string[];
+  audiences: string[];
+  siteTypes: string[];
+  styles: string[];
+  locales: Locale[];
+  capabilities: TemplateCapability[];
+  aliases: string[];
+};
 
 const commonGuardrails = [
   "保留上游模板的导航、栅格、留白、字体尺度和响应式结构",
@@ -437,3 +450,68 @@ export const templateCatalog: Template[] = [
     ),
   },
 ];
+
+export function getLocaleCompatibleTemplates(locale: Locale) {
+  return templateCatalog.filter((template) => supportsTemplateLocale(template.id, locale));
+}
+
+const CATEGORY_INDUSTRIES: Record<Template["category"], string> = {
+  "制造业": "industrial_automation",
+  "外贸目录": "export_trade",
+  "科技企业": "software_ai",
+  "专业服务": "professional_services",
+};
+
+/**
+ * 从现有模板 catalog、prompt profile 和 manifest 派生匹配画像。
+ * 画像不依赖英文模板名，新增模板只要补齐现有 catalog 字段即可参与排序。
+ */
+export function getTemplateMatchingProfile(template: Template): MatchingProfile {
+  const searchable = [
+    template.id,
+    template.name,
+    template.description,
+    ...template.tags,
+    ...template.promptProfile.structure,
+    ...template.promptProfile.starters,
+  ].join(" ");
+  const capabilities: TemplateCapability[] = [];
+  if (/产品|产品线|产品目录|product|catalog|pricing/i.test(searchable)) capabilities.push("catalog");
+  if (/询盘|联系|转化|cta|inquiry|contact/i.test(searchable)) capabilities.push("inquiry");
+  if (/双语|多语言|全球|global|bilingual|language/i.test(searchable) || template.category === "外贸目录") capabilities.push("bilingual");
+  if (/博客|文章|内容|知识|blog|editorial|knowledge/i.test(searchable)) capabilities.push("blog");
+  if (/案例|服务|咨询|机构|agency|case|consult/i.test(searchable)) capabilities.push("caseStudy");
+  if (/作品集|portfolio|个人品牌/i.test(searchable)) capabilities.push("portfolio");
+
+  const siteTypes = new Set<string>(["corporate"]);
+  if (capabilities.includes("catalog")) siteTypes.add("catalog");
+  if (capabilities.includes("caseStudy")) siteTypes.add("service");
+  if (capabilities.includes("portfolio")) siteTypes.add("portfolio");
+
+  const styles = new Set<string>();
+  if (/深色|dark|极客|科技/i.test(searchable)) styles.add("dark");
+  if (/编辑|editorial|杂志|阅读/i.test(searchable)) styles.add("editorial");
+  if (/极简|留白|简洁|minimal|clean/i.test(searchable)) styles.add("minimal");
+  if (/现代|modern|SaaS|科技/i.test(searchable)) styles.add("modern");
+  if (/工业|工程|硬核|industrial|technical/i.test(searchable)) styles.add("technical");
+
+  const audiences = template.category === "外贸目录"
+    ? ["overseasB2b", "globalB2b"]
+    : template.category === "制造业"
+      ? ["domesticB2b", "overseasB2b"]
+      : template.category === "科技企业"
+        ? ["domesticB2b", "globalB2b", "investorsPartners"]
+        : ["domesticB2b", "endUsers", "investorsPartners"];
+
+  const candidateLocales = ["zh", "en"] as const satisfies readonly Locale[];
+
+  return {
+    industries: [CATEGORY_INDUSTRIES[template.category]],
+    audiences,
+    siteTypes: [...siteTypes],
+    styles: [...styles],
+    locales: candidateLocales.filter((locale) => getLocaleCompatibleTemplates(locale).some((item) => item.id === template.id)),
+    capabilities,
+    aliases: [...new Set([template.id, template.name, ...template.tags])],
+  };
+}

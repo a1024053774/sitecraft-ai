@@ -49,14 +49,19 @@ const setTextOperationSchema = z.object({
   target: textTargetSchema,
   locale: z.enum(locales).optional(),
   value: z.string().min(1).max(1000),
+  targetId: z.string().min(1).max(240).optional(),
+  expectedValue: z.string().max(1000).optional(),
 });
 const updateCardOperationSchema = z.object({
   op: z.literal("update_card"),
   section: z.enum(["features", "services"]),
-  index: z.number().int().min(0).max(11),
+  index: z.number().int().min(0).max(11).optional().default(0),
+  itemId: z.string().min(1).max(80).optional(),
   locale: z.enum(locales),
   title: z.string().min(1).max(160).optional(),
   body: z.string().min(1).max(600).optional(),
+  targetId: z.string().min(1).max(240).optional(),
+  expectedValue: z.string().max(1000).optional(),
 }).refine((value) => value.title || value.body, "Card update requires title or body");
 const addCardOperationSchema = z.object({
   op: z.literal("add_card"),
@@ -76,6 +81,8 @@ const updateProductOperationSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   summary: z.string().min(1).max(1000).optional(),
   category: z.string().min(1).max(120).optional(),
+  targetId: z.string().min(1).max(240).optional(),
+  expectedValue: z.string().max(1000).optional(),
 }).refine((value) => value.name || value.summary || value.category, "Product update requires at least one field");
 const setTemplateOperationSchema = z.object({
   op: z.literal("set_template"),
@@ -142,6 +149,19 @@ export type ApplyResult = {
   appliedTargets: string[];
   changed: boolean;
 };
+
+export class OperationPreconditionError extends Error {
+  readonly code = "precondition_failed" as const;
+
+  constructor(target: string) {
+    super(`操作前置条件不满足：${target} 当前内容已变化，草稿未修改`);
+    this.name = "OperationPreconditionError";
+  }
+}
+
+function assertExpectedValue(expectedValue: string | undefined, actualValue: string, target: string) {
+  if (expectedValue !== undefined && expectedValue !== actualValue) throw new OperationPreconditionError(target);
+}
 
 const nonLocalizedTargets = new Set<TextTarget>([
   "siteName",
@@ -221,6 +241,7 @@ export function applySiteOperations(
     if (operation.op === "set_text") {
       const locale = nonLocalizedTargets.has(operation.target) ? "zh" : (operation.locale ?? "zh");
       const previous = readText(draft, operation.target, locale);
+      assertExpectedValue(operation.expectedValue, previous, `${operation.target}.${locale}`);
       if (previous === operation.value) continue;
       writeText(draft, operation.target, locale, operation.value);
       inverseOperations.unshift({ ...operation, locale, value: previous });
@@ -228,12 +249,22 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "update_card") {
-      const item = draft.content[operation.section].items[operation.index];
+      const items = draft.content[operation.section].items;
+      const resolvedIndex = operation.itemId
+        ? items.findIndex((candidate) => candidate.id === operation.itemId)
+        : operation.index;
+      const item = items[resolvedIndex];
       if (!item) throw new Error(`${operation.section} item ${operation.index + 1} does not exist`);
+      const expectedTarget = operation.title !== undefined
+        ? `${operation.section}.items.${resolvedIndex}.title.${operation.locale}`
+        : `${operation.section}.items.${resolvedIndex}.body.${operation.locale}`;
+      const expectedActual = operation.title !== undefined ? item.title[operation.locale] : item.body[operation.locale];
+      assertExpectedValue(operation.expectedValue, expectedActual, expectedTarget);
       const inverse: SiteOperation = {
         op: "update_card",
         section: operation.section,
-        index: operation.index,
+        index: resolvedIndex,
+        itemId: item.id,
         locale: operation.locale,
         ...(operation.title ? { title: item.title[operation.locale] } : {}),
         ...(operation.body ? { body: item.body[operation.locale] } : {}),
@@ -241,12 +272,12 @@ export function applySiteOperations(
       let changed = false;
       if (operation.title && item.title[operation.locale] !== operation.title) {
         item.title[operation.locale] = operation.title;
-        appliedTargets.push(`${operation.section}.items.${operation.index}.title.${operation.locale}`);
+        appliedTargets.push(`${operation.section}.items.${resolvedIndex}.title.${operation.locale}`);
         changed = true;
       }
       if (operation.body && item.body[operation.locale] !== operation.body) {
         item.body[operation.locale] = operation.body;
-        appliedTargets.push(`${operation.section}.items.${operation.index}.body.${operation.locale}`);
+        appliedTargets.push(`${operation.section}.items.${resolvedIndex}.body.${operation.locale}`);
         changed = true;
       }
       if (changed) inverseOperations.unshift(inverse);
@@ -274,6 +305,17 @@ export function applySiteOperations(
       const product = draft.products.find((item) => item.sku === operation.sku);
       if (!product) throw new Error(`Product ${operation.sku} does not exist`);
       const locale = operation.locale ?? "zh";
+      const expectedTarget = operation.name !== undefined
+        ? `products.${operation.sku}.name.${locale}`
+        : operation.summary !== undefined
+          ? `products.${operation.sku}.summary.${locale}`
+          : `products.${operation.sku}.category`;
+      const expectedActual = operation.name !== undefined
+        ? product.name[locale]
+        : operation.summary !== undefined
+          ? product.summary[locale]
+          : product.category;
+      assertExpectedValue(operation.expectedValue, expectedActual, expectedTarget);
       const inverse: SiteOperation = {
         op: "update_product",
         sku: operation.sku,

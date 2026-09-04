@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildGenerationPlan, generateDraftOperations, regenerateSectionOperations, type DraftOpsProvider } from "../lib/site-generator.ts";
+import { buildGenerationPlan, generateDraftOperations, regenerateMissingSectionsOperations, regenerateSectionOperations, type DraftOpsProvider } from "../lib/site-generator.ts";
 import type { SiteIntent } from "../lib/site-intent.ts";
 import { defaultDraft } from "../lib/site-document.ts";
-import type { SiteOperation } from "../lib/site-operations.ts";
+import { applySiteOperations, type SiteOperation } from "../lib/site-operations.ts";
 
 const intent: SiteIntent = {
   businessType: "trade",
@@ -105,11 +105,32 @@ test("generateDraftOperations: batchB failure fail-open only commits batchA", as
   }
 });
 
-test("generateDraftOperations: batchA failure returns error", async () => {
+test("generateDraftOperations: batchA failure returns a fast partial fallback", async () => {
   const fakeProvider: DraftOpsProvider = async () => ({ ok: false, code: "timeout", error: "超时" });
   const out = await generateDraftOperations({ intent, templateId: "forge", hiddenSections: [], draftOps: fakeProvider });
-  assert.equal(out.ok, false);
-  if (!out.ok) assert.equal(out.code, "timeout");
+  assert.equal(out.ok, true);
+  if (out.ok) {
+    assert.equal(out.partial, true);
+    assert.deepEqual(out.completedSections, ["hero"]);
+    assert.deepEqual(out.missingSections, ["about", "features", "products", "contact"]);
+  }
+});
+
+test("generateDraftOperations: slow model still returns a usable partial skeleton", async () => {
+  const fakeProvider: DraftOpsProvider = async () => ({ ok: false, code: "timeout", error: "超时" });
+  const out = await generateDraftOperations({ intent, templateId: "atlas", hiddenSections: [], draftOps: fakeProvider });
+
+  assert.equal(out.ok, true);
+  if (out.ok) {
+    assert.equal(out.partial, true);
+    assert.deepEqual(out.missingSections, ["about", "features", "products", "contact"]);
+    assert.equal(out.appliedTemplateId, "forge");
+    assert.match(out.templateFallbackReason ?? "", /兼容模板/);
+    assert.deepEqual(
+      out.operations.filter((operation) => operation.op === "set_text").map((operation) => operation.target),
+      ["siteName", "companyName", "industry", "goal", "hero.title", "hero.subtitle", "hero.cta"],
+    );
+  }
 });
 
 test("generateDraftOperations: strips operations exceeding length limits (Q2)", async () => {
@@ -142,10 +163,9 @@ test("generateDraftOperations: uses defaultDraft as base (templateId stays forge
   assert.equal(defaultDraft.templateId, "forge");
 });
 
-// ===== B2 首稿自评（注入 mock，保不触网） =====
+// ===== B2 首稿自评退出关键路径 =====
 
-test("generateDraftOperations: selfEval runs when operations >= 3, issues returned", async () => {
-  // 3 个操作 → shouldSelfEvaluate 触发 → 注入 mock 返回 issues
+test("generateDraftOperations: a hanging self-evaluation never delays the usable draft", async () => {
   const fakeProvider: DraftOpsProvider = async (args) => {
     const ops: SiteOperation[] = args.attemptHint?.includes("第一批")
       ? [{ op: "set_text", target: "hero.title", locale: "zh", value: "可靠制造" }]
@@ -156,17 +176,23 @@ test("generateDraftOperations: selfEval runs when operations >= 3, issues return
     return { ok: true, summary: "s", operations: ops, model: "test" };
   };
   let selfEvalCalls = 0;
-  const out = await generateDraftOperations({
-    intent, templateId: "forge", hiddenSections: [], draftOps: fakeProvider,
-    selfEval: async (args) => {
-      selfEvalCalls += 1;
-      assert.ok(args.operations.length >= 3); // 自评收到合并后的操作
-      return [{ severity: "warning", code: "copy", message: "首屏文案偏短" }];
-    },
-  });
-  assert.equal(out.ok, true);
-  assert.equal(selfEvalCalls, 1);
-  if (out.ok) assert.equal(out.selfEvalIssues.length, 1);
+  const out = await Promise.race([
+    generateDraftOperations({
+      intent, templateId: "forge", hiddenSections: [], draftOps: fakeProvider,
+      selfEvalTimeoutMs: 100,
+      selfEval: async () => {
+        selfEvalCalls += 1;
+        return new Promise<never>(() => {});
+      },
+    }),
+    new Promise<"blocked">((resolve) => setTimeout(() => resolve("blocked"), 25)),
+  ]);
+  assert.notEqual(out, "blocked");
+  assert.equal(selfEvalCalls, 0);
+  if (out !== "blocked") {
+    assert.equal(out.ok, true);
+    if (out.ok) assert.deepEqual(out.selfEvalIssues, []);
+  }
 });
 
 test("generateDraftOperations: selfEval skipped when only deterministic design tokens are produced", async () => {
@@ -206,18 +232,27 @@ test("generateDraftOperations: selfEval failure is fail-open", async () => {
 
 // ===== B4 并行生成：两批同时请求，批 A 仍决定整体是否可提交 =====
 
-test("generateDraftOperations: batchA failure does not commit even when parallel batchB succeeds", async () => {
+test("generateDraftOperations: batchA failure preserves successful parallel batchB content", async () => {
   let batchBCalled = false;
   const fakeProvider: DraftOpsProvider = async (args) => {
     if (args.attemptHint?.includes("第一批")) {
       return { ok: false, code: "timeout", error: "批 A 超时" };
     }
     batchBCalled = true;
-    return { ok: true, summary: "不应执行", operations: [], model: "test" };
+    return {
+      ok: true,
+      summary: "关于板块完成",
+      operations: [{ op: "set_text", target: "about.title", locale: "zh", value: "关于我们" }],
+      model: "test",
+    };
   };
   const out = await generateDraftOperations({ intent, templateId: "forge", hiddenSections: [], draftOps: fakeProvider });
-  assert.equal(out.ok, false);
-  if (!out.ok) assert.equal(out.code, "timeout");
+  assert.equal(out.ok, true);
+  if (out.ok) {
+    assert.equal(out.partial, true);
+    assert.ok(out.operations.some((operation) => operation.op === "set_text" && operation.target === "about.title"));
+    assert.deepEqual(out.missingSections, ["features", "products", "contact"]);
+  }
   assert.equal(batchBCalled, true);
 });
 
@@ -342,6 +377,200 @@ test("generateDraftOperations: unknown template explicitly falls back to forge",
   assert.deepEqual([...new Set(seenTemplates)], ["forge"]);
 });
 
+test("generateDraftOperations: provider fallback includes the compatible template operation", async () => {
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    if (args.templateId === "atlas") return { ok: false, code: "timeout", error: "原模板超时" };
+    return { ok: true, summary: "兼容模板首屏", operations: [], model: "test" };
+  };
+
+  const out = await generateDraftOperations({ intent, templateId: "atlas", hiddenSections: [], draftOps: fakeProvider });
+  assert.equal(out.ok, true);
+  if (out.ok) {
+    assert.equal(out.appliedTemplateId, "forge");
+    assert.ok(out.operations.some((operation) => operation.op === "set_template" && operation.templateId === "forge"));
+  }
+});
+
+test("generateDraftOperations: parent signal aborts both active batches", async () => {
+  const controller = new AbortController();
+  let abortedCalls = 0;
+  const fakeProvider: DraftOpsProvider = async (args) => new Promise((resolve) => {
+    args.signal?.addEventListener("abort", () => {
+      abortedCalls += 1;
+      resolve({ ok: false, code: "aborted", error: "已取消" });
+    }, { once: true });
+  });
+  const generationArgs = {
+    intent,
+    templateId: "forge",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+    taskTimeoutMs: 100,
+    signal: controller.signal,
+  };
+
+  const pending = generateDraftOperations(generationArgs);
+  setTimeout(() => controller.abort(new Error("客户端已取消")), 2);
+  const out = await Promise.race([
+    pending,
+    new Promise<"hung">((resolve) => setTimeout(() => resolve("hung"), 40)),
+  ]);
+
+  assert.notEqual(out, "hung");
+  assert.equal(abortedCalls, 2);
+});
+
+test("generateDraftOperations: template fallback shares the original deadline", async () => {
+  const seenTemplates: string[] = [];
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    seenTemplates.push(args.templateId);
+    if (args.templateId === "atlas") return new Promise<never>(() => {});
+    return { ok: true, summary: "兼容模板完成", operations: [], model: "test" };
+  };
+  const generationArgs = {
+    intent,
+    templateId: "atlas",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+    taskTimeoutMs: 30,
+    deadlineAt: Date.now() + 8,
+  };
+
+  await generateDraftOperations(generationArgs);
+
+  assert.equal(seenTemplates.includes("forge"), false);
+});
+
+test("generateDraftOperations: fallback cancellation returns the fallback terminal reason", async () => {
+  const controller = new AbortController();
+  let forgeStarted = false;
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    if (args.templateId === "atlas") {
+      return args.attemptHint?.includes("第一批")
+        ? { ok: false, code: "provider_error", error: "原模板失败" }
+        : { ok: true, summary: "板块完成", operations: [], model: "test" };
+    }
+    forgeStarted = true;
+    return new Promise((resolve) => {
+      args.signal?.addEventListener("abort", () => resolve({ ok: false, code: "aborted", error: "兼容模板已取消" }), { once: true });
+    });
+  };
+
+  const pending = generateDraftOperations({
+    intent,
+    templateId: "atlas",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+    signal: controller.signal,
+  });
+  while (!forgeStarted) await new Promise((resolve) => setTimeout(resolve, 1));
+  controller.abort(new Error("客户端取消"));
+  const out = await pending;
+
+  assert.equal(out.ok, false);
+  if (!out.ok) assert.equal(out.code, "aborted");
+});
+
+test("generateDraftOperations: recovery concurrency is limited to two sections", async () => {
+  let activeRecoveries = 0;
+  let maxActiveRecoveries = 0;
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    if (args.attemptHint?.includes("第一批")) {
+      return { ok: true, summary: "首屏完成", operations: [], model: "test" };
+    }
+    if (args.scope.sections.length > 1) {
+      return { ok: false, code: "batch_failed", error: "整批失败" };
+    }
+    activeRecoveries += 1;
+    maxActiveRecoveries = Math.max(maxActiveRecoveries, activeRecoveries);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    activeRecoveries -= 1;
+    return { ok: true, summary: `${args.scope.sections[0]} 完成`, operations: [], model: "test" };
+  };
+
+  const out = await generateDraftOperations({
+    intent,
+    templateId: "forge",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+  });
+
+  assert.equal(out.ok, true);
+  assert.ok(maxActiveRecoveries <= 2, `恢复并发达到 ${maxActiveRecoveries}`);
+});
+
+test("generateDraftOperations: insufficient remaining budget skips recovery", async () => {
+  let recoveryCalls = 0;
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    if (args.attemptHint?.includes("第一批")) {
+      return { ok: true, summary: "首屏完成", operations: [], model: "test" };
+    }
+    if (args.scope.sections.length > 1) {
+      await new Promise((resolve) => setTimeout(resolve, 12));
+      return { ok: false, code: "batch_failed", error: "整批失败" };
+    }
+    recoveryCalls += 1;
+    return { ok: true, summary: "恢复完成", operations: [], model: "test" };
+  };
+  const generationArgs = {
+    intent,
+    templateId: "forge",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+    taskTimeoutMs: 40,
+    deadlineAt: Date.now() + 15,
+  };
+
+  const out = await generateDraftOperations(generationArgs);
+
+  assert.equal(out.ok, true);
+  assert.equal(recoveryCalls, 0);
+  if (out.ok) assert.equal(out.partial, true);
+});
+
+test("generateDraftOperations: injected self-evaluation stays outside the critical path", async () => {
+  let selfEvalCalls = 0;
+  const generatedOps = [
+    { op: "set_text" as const, target: "hero.title" as const, locale: "zh" as const, value: "可靠制造" },
+    { op: "set_text" as const, target: "hero.subtitle" as const, locale: "zh" as const, value: "稳定交付" },
+    { op: "set_text" as const, target: "about.title" as const, locale: "zh" as const, value: "关于我们" },
+  ];
+  const fakeProvider: DraftOpsProvider = async () => ({ ok: true, summary: "完成", operations: generatedOps, model: "test" });
+
+  const out = await generateDraftOperations({
+    intent,
+    templateId: "forge",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+    selfEvalTimeoutMs: 5,
+    selfEval: async () => { selfEvalCalls += 1; return []; },
+  });
+
+  assert.equal(out.ok, true);
+  assert.equal(selfEvalCalls, 0);
+});
+
+test("generateDraftOperations: compatible fallback is skipped below the 25 second budget floor", async () => {
+  const seenTemplates: string[] = [];
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    seenTemplates.push(args.templateId);
+    if (args.templateId === "atlas" && args.attemptHint?.includes("第一批")) {
+      return { ok: false, code: "provider_error", error: "原模板失败" };
+    }
+    return { ok: true, summary: "完成", operations: [], model: "test" };
+  };
+
+  await generateDraftOperations({
+    intent,
+    templateId: "atlas",
+    hiddenSections: [],
+    draftOps: fakeProvider,
+    deadlineAt: Date.now() + 24_999,
+  });
+
+  assert.equal(seenTemplates.includes("forge"), false);
+});
+
 // ===== C1 局部重生成（板块级） =====
 
 test("regenerateSectionOperations: scope limited to target section, hint has guardrails", async () => {
@@ -414,4 +643,119 @@ test("regenerateSectionOperations: provider failure propagates", async () => {
   });
   assert.equal(out.ok, false);
   if (!out.ok) assert.equal(out.code, "timeout");
+});
+
+test("regenerateSectionOperations: propagates parent signal and remaining deadline", async () => {
+  const controller = new AbortController();
+  let receivedSignal: AbortSignal | undefined;
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    receivedSignal = args.signal;
+    return new Promise((resolve) => {
+      args.signal?.addEventListener("abort", () => resolve({ ok: false, code: "timeout", error: "局部生成超时" }), { once: true });
+    });
+  };
+  const regenerateArgs = {
+    intent,
+    templateId: "forge",
+    baseDraft: defaultDraft,
+    section: "about" as const,
+    draftOps: fakeProvider,
+    signal: controller.signal,
+    deadlineAt: Date.now() + 8,
+  };
+
+  const out = await Promise.race([
+    regenerateSectionOperations(regenerateArgs),
+    new Promise<"hung">((resolve) => setTimeout(() => resolve("hung"), 30)),
+  ]);
+
+  assert.notEqual(out, "hung");
+  assert.equal(receivedSignal?.aborted, true);
+  if (out !== "hung") {
+    assert.equal(out.ok, false);
+    if (!out.ok) assert.equal(out.code, "timeout");
+  }
+});
+
+test("regenerateMissingSectionsOperations: limits concurrency, shares one deadline, and preserves unrelated content", async () => {
+  let active = 0;
+  let maxActive = 0;
+  let releaseWave!: () => void;
+  const wave = new Promise<void>((resolve) => { releaseWave = resolve; });
+  const seenDeadlines: number[] = [];
+  const seenSections: string[] = [];
+  const deadlineAt = Date.now() + 10_000;
+  const baseDraft = structuredClone(defaultDraft);
+  const originalHero = JSON.stringify(baseDraft.content.hero);
+  const fakeProvider: DraftOpsProvider = async (args) => {
+    const section = args.scope.sections[0];
+    seenSections.push(section);
+    seenDeadlines.push(args.deadlineAt ?? 0);
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    if (active === 2) releaseWave();
+    await wave;
+    active -= 1;
+    if (section === "contact") return { ok: false, code: "provider_error", error: "联系板块失败" };
+    if (section === "about") {
+      return {
+        ok: true,
+        summary: "关于完成",
+        operations: [{ op: "set_text", target: "about.body", locale: "zh", value: "新的公司介绍" }],
+        model: "test",
+      };
+    }
+    return {
+      ok: true,
+      summary: "产品完成",
+      operations: [
+        { op: "set_text", target: "products.title", locale: "zh", value: "新的产品能力" },
+        { op: "set_text", target: "hero.title", locale: "zh", value: "越界修改首屏" },
+      ],
+      model: "test",
+    };
+  };
+
+  const outcome = await regenerateMissingSectionsOperations({
+    intent,
+    templateId: "forge",
+    baseDraft,
+    sections: ["about", "products", "contact"],
+    siteLanguage: "zh",
+    draftOps: fakeProvider,
+    deadlineAt,
+  });
+
+  assert.equal(outcome.ok, true);
+  assert.equal(maxActive, 2);
+  assert.deepEqual(seenSections.sort(), ["about", "contact", "products"]);
+  assert.deepEqual([...new Set(seenDeadlines)], [deadlineAt]);
+  if (!outcome.ok) return;
+  assert.deepEqual(outcome.completedSections, ["about", "products"]);
+  assert.deepEqual(outcome.missingSections, ["contact"]);
+  assert.equal(outcome.partial, true);
+  assert.equal(outcome.operations.some((operation) => operation.op === "set_text" && operation.target === "hero.title"), false);
+
+  const applied = applySiteOperations(baseDraft, outcome.operations, {
+    templateIds: new Set(["forge"]),
+    lastChange: "补全缺失板块",
+  });
+  assert.equal(applied.draft.revision, baseDraft.revision + 1);
+  assert.equal(JSON.stringify(applied.draft.content.hero), originalHero);
+  assert.equal(applied.draft.content.about.body.zh, "新的公司介绍");
+  assert.equal(applied.draft.content.products.title.zh, "新的产品能力");
+});
+
+test("regenerateMissingSectionsOperations: returns an error and no operations when every section fails", async () => {
+  const outcome = await regenerateMissingSectionsOperations({
+    intent,
+    templateId: "forge",
+    baseDraft: defaultDraft,
+    sections: ["about", "products"],
+    draftOps: async () => ({ ok: false, code: "timeout", error: "补全超时" }),
+    deadlineAt: Date.now() + 10_000,
+  });
+
+  assert.equal(outcome.ok, false);
+  if (!outcome.ok) assert.equal(outcome.code, "timeout");
 });

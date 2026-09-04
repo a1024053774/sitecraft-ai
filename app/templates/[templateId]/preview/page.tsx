@@ -2,17 +2,19 @@ import type { Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Github, Sparkles } from "lucide-react";
-import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import { templates } from "@/lib/site-model";
-import { defaultDraft } from "@/lib/site-document";
 import { ClientPreviewFrame } from "@/components/client-preview-frame";
 
 export default async function TemplatePreviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ templateId: string }>;
+  searchParams: Promise<{ siteId?: string | string[] }>;
 }) {
   const { templateId } = await params;
+  const previewSearchParams = await searchParams;
+  const siteId = typeof previewSearchParams.siteId === "string" ? previewSearchParams.siteId : undefined;
   const template = templates.find((item) => item.id === templateId);
   if (!template) notFound();
 
@@ -24,7 +26,7 @@ export default async function TemplatePreviewPage({
             <ArrowLeft size={15} />
           </Link>
           <div>
-            <strong>{template.name}</strong>
+            <strong>{siteId ? "已填内容预览" : template.name}</strong>
             <span>开源模板本地快照 · {template.source.name} · {template.source.license}</span>
           </div>
         </div>
@@ -41,12 +43,8 @@ export default async function TemplatePreviewPage({
         </div>
       </header>
       <div className="template-preview-canvas">
-        <ClientPreviewFrame templateId={template.id} />
+        <ClientPreviewFrame templateId={template.id} siteId={siteId} />
       </div>
     </main>
   );
-}
-
-function TemplateFrame({ templateId }: { templateId: string }) {
-  return <OpenSourceTemplateFrame templateId={templateId} variant="preview" />;
 }

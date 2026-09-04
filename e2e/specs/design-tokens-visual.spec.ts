@@ -43,7 +43,8 @@ for (const variant of variants) {
       { op: "set_design_tokens", tokens: coordinated.tokens },
     ]);
     await page.goto(`/workspace?siteId=${demoSite.id}`);
-    await expect(page.locator(".workspace-preview").or(page.locator(".rendered-site")).first()).toBeVisible();
+    // 产品决策：工作台预览为真实模板 iframe（.preview-stage 容器），本地近似渲染(SiteRenderer)已移除。
+    await expect(page.locator(".preview-stage").first()).toBeVisible();
     await snap(page, variant.name, testInfo);
   });
 }

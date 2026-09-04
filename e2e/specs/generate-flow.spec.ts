@@ -91,6 +91,117 @@ test.describe("A. 一句话建站", () => {
     await expect(page.locator("[data-template-selection]")).toHaveAttribute("data-template-selection", await carousel.locator("[data-template-card].active").getAttribute("data-template-card") ?? "");
   });
 
+  test("相同主模板会根据业务语义分散备选模板", async ({ page }) => {
+    await mockAnalyze(page, {
+      onMessage: (message) => readyIntent({
+        recommendedTemplateId: "forge",
+        businessType: message.includes("律师") ? "services" : "manufacturing",
+        industry: message.includes("律师") ? "跨境法律服务" : "工业紧固件制造",
+        tone: message.includes("律师") ? "editorial" : "technical",
+        summary: message,
+      }),
+    });
+
+    await analyzeAndConfirm(page, "工业紧固件制造商，面向海外采购经理");
+    const manufacturing = await page.locator("[data-template-card]").evaluateAll((cards) => cards.map((card) => card.getAttribute("data-template-card")));
+
+    await page.goto("/generate");
+    await page.locator(".generate-textarea").first().fill("跨境律师事务所，面向出海企业");
+    await page.locator(".generate-input .primary-button").click();
+    await expect(page.locator(".generate-confirm")).toBeVisible();
+    const legal = await page.locator("[data-template-card]").evaluateAll((cards) => cards.map((card) => card.getAttribute("data-template-card")));
+
+    expect(legal).not.toEqual(manufacturing);
+    expect(legal[0]).toBe("forge");
+    expect(manufacturing[0]).toBe("forge");
+  });
+
+  test("FAQ 请求自动合并到联系板块而不是显示能力拒绝", async ({ page }) => {
+    await mockAnalyze(page, {
+      onMessage: () => readyIntent({
+        coreSections: ["about", "products", "contact"],
+        limits: ["不支持独立常见问题板块，可在联系页或产品页中以折叠文本形式嵌入常见问题，或改用询盘表单替代"],
+      }),
+    });
+    await analyzeAndConfirm(page, "工业紧固件英文官网，需要常见问题和询盘表单");
+    await expect(page.getByText(/已自动把常见问题合并到联系板块/)).toBeVisible();
+    await expect(page.getByText(/^不支持独立常见问题板块/)).toHaveCount(0);
+  });
+
+  test("新标签展示已填内容预览而不是模板默认占位", async ({ page }) => {
+    await mockAnalyze(page, { onMessage: () => readyIntent({ companyName: "东莞恒准紧固件", industry: "工业紧固件制造" }) });
+    await analyzeAndConfirm(page, "东莞恒准紧固件英文官网，面向海外采购经理");
+
+    const popupPromise = page.waitForEvent("popup");
+    await page.getByRole("link", { name: /查看已填内容预览/ }).click();
+    const popup = await popupPromise;
+    await expect(popup.getByText("已填内容预览", { exact: true })).toBeVisible();
+    await expect(popup.frameLocator("iframe").getByText("东莞恒准紧固件", { exact: true }).first()).toBeVisible();
+  });
+
+  test("生成在 30/55 秒分级提示且永不关闭的响应到 120 秒才进入终态", async ({ page }) => {
+    await page.clock.install();
+    await mockAnalyze(page);
+    await mockExecute(page);
+    await page.addInitScript(() => {
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        let body: { step?: string } | undefined;
+        try { body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined; } catch { body = undefined; }
+        if (/\/api\/sites\/[^/]+\/generate$/.test(url) && body?.step === "execute") {
+          return new Response(new ReadableStream({ start() {} }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+        }
+        return nativeFetch(input, init);
+      };
+    });
+
+    await page.goto("/generate");
+    await page.locator(".generate-textarea").first().fill("工业紧固件官网，突出可靠交付");
+    await expect(page.locator(".generate-textarea").first()).toHaveValue("工业紧固件官网，突出可靠交付");
+    await expect(page.locator(".generate-char-count").first()).toHaveText("14/400");
+    await page.locator(".generate-input .primary-button").click();
+    await expect(page.locator(".generate-confirm")).toBeVisible();
+    await page.getByRole("button", { name: /用此模板生成站点内容/ }).click();
+    await expect(page.getByRole("progressbar", { name: "建站进度" })).toBeVisible();
+    await page.clock.fastForward(30_500);
+    await expect(page.getByText(/响应较慢，仍在生成/)).toBeVisible();
+    await expect(page.locator(".generate-confirm")).not.toBeVisible();
+    await page.clock.fastForward(25_000);
+    await expect(page.getByText(/延长处理/)).toBeVisible();
+    await expect(page.locator(".generate-confirm")).not.toBeVisible();
+    await page.clock.fastForward(65_000);
+    await expect(page.locator(".generate-error")).toContainText("120 秒");
+    await expect(page.locator(".generate-confirm")).toBeVisible();
+  });
+
+  test("收到 done 后即使 SSE 不关闭也立即完成生成", async ({ page }) => {
+    await mockAnalyze(page);
+    await mockExecute(page);
+    await page.addInitScript(() => {
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        let body: { step?: string } | undefined;
+        try { body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined; } catch { body = undefined; }
+        if (/\/api\/sites\/[^/]+\/generate$/.test(url) && body?.step === "execute") {
+          const encoder = new TextEncoder();
+          return new Response(new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", status: "applied", partial: false, missingSections: [] })}\n\n`));
+            },
+          }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+        }
+        return nativeFetch(input, init);
+      };
+    });
+
+    await analyzeAndConfirm(page, "工业紧固件官网，突出可靠交付");
+    await page.getByRole("button", { name: /用此模板生成站点内容/ }).click();
+
+    await expect(page).toHaveURL(/\/workspace\?siteId=.*generated=1/, { timeout: 5_000 });
+  });
+
   test("导入上下文随分析请求发送", async ({ page }) => {
     let requestBody: Record<string, unknown> | undefined;
     await mockAnalyze(page, { onMessage: (_message, body) => { requestBody = body; } });
@@ -179,9 +290,13 @@ test.describe("A. 一句话建站", () => {
       await expect(page.locator(".generate-building-grid .recovering")).toHaveCount(3);
       await expect(page.locator(".generate-section-progress .done")).toContainText(["首屏"]);
       await snap(page, `generation-recovering-${viewport.name}`, testInfo);
-      await expect(page.locator(".generate-section-progress .failed")).toContainText("关于");
+      await expect(page.getByRole("button", { name: "进入工作台继续补全" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "仅补全缺失板块" })).toBeVisible();
+      await page.waitForTimeout(4_500);
+      await expect(page).toHaveURL(/\/generate$/);
+      await expect(page.locator(".generate-section-progress .failed").first()).toContainText("关于");
       await expect(page.locator(".generate-building-grid .failed")).toHaveCount(1);
-      await expect(page.locator(".generate-section-progress .failed small")).toHaveText("稍后补全");
+      await expect(page.locator(".generate-section-progress .failed small").first()).toHaveText("稍后补全");
       await expect(page.locator(".generate-progress-view")).toBeVisible();
       const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
       expect(horizontalOverflow).toBe(false);

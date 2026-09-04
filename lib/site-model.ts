@@ -1,4 +1,4 @@
-import { templateCatalog } from "@/lib/template-catalog";
+import { templateCatalog } from "./template-catalog.ts";
 import {
   cloneDraft,
   defaultDraft,
@@ -11,7 +11,7 @@ import {
   type Product,
   type SectionKey,
   type SiteDraft,
-} from "@/lib/site-document";
+} from "./site-document.ts";
 
 export type TemplateCategory = "制造业" | "外贸目录" | "科技企业" | "专业服务";
 export type TemplateTargetKey =
