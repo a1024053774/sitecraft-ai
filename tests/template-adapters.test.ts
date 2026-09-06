@@ -25,17 +25,19 @@ test("template adapters registry carries the per-template rules only", () => {
 });
 
 test("adapters migrated from shared route preserve prior rules", () => {
-  // 从 route 迁出的 atlas/powerai/signal 仅保留既有 fragment，不做新增适配
+  // atlas 仍是占位迁移；powerai/signal 已在 B 档升级为完整适配（prepareFn+nativeFillFn+designTokenCss）
   assert.ok(atlasAdapter.sanitize?.sections?.length, "atlas published sanitize present");
   assert.ok(atlasAdapter.designTokenCss, "atlas design token css present");
   assert.equal(atlasAdapter.servicesFn, undefined, "atlas no custom servicesFn yet");
 
   assert.ok(poweraiAdapter.sanitize?.leafPatterns && poweraiAdapter.sanitize.leafPatterns.length >= 2, "powerai sanitize present");
-  assert.equal(poweraiAdapter.designTokenCss, undefined);
+  assert.ok(poweraiAdapter.prepareFn, "powerai prepareFn after B-tier expansion");
+  assert.ok(poweraiAdapter.nativeFillFn, "powerai nativeFillFn after B-tier expansion");
 
   assert.ok(signalAdapter.designTokenCss, "signal design token css present");
-  assert.equal(signalAdapter.sanitize, undefined);
-  assert.equal(signalAdapter.servicesFn, undefined);
+  assert.ok(signalAdapter.prepareFn, "signal prepareFn after B-tier expansion");
+  assert.ok(signalAdapter.nativeFillFn, "signal nativeFillFn after B-tier expansion");
+  assert.equal(signalAdapter.servicesFn, undefined, "signal has no custom servicesFn");
 
   // 每个注册表项与自身 templateId 一致，且不存在悬空引用
   for (const [templateId, adapter] of Object.entries(templateAdapters)) {
