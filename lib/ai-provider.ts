@@ -44,8 +44,31 @@ export type StructuredOpsArgs = {
   maxTokens?: number;
 };
 
+export type AIProviderName = "deepseek" | "gpt";
+
+/**
+ * 选择当前文本生成 provider。默认 DeepSeek（官方兼容 OpenAI /chat/completions）；
+ * SITECRAFT_AI_PROVIDER=gpt 时切到 GPT（可走官方 api.openai.com，或为测试配中转站 base_url）。
+ * 代码按 OpenAI 兼容协议书写；base_url/model 全由 env 决定，不写死厂商。
+ */
+export function resolveAIProviderName(): AIProviderName {
+  return process.env.SITECRAFT_AI_PROVIDER === "gpt" ? "gpt" : "deepseek";
+}
+
 function providerConfig() {
+  const provider = resolveAIProviderName();
+  if (provider === "gpt") {
+    // GPT：GPT_BASE_URL（官方 https://api.openai.com/v1，测试可配中转站）+ GPT_API_KEY + GPT_MODEL
+    return {
+      provider: "gpt" as const,
+      baseURL: (process.env.GPT_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
+      apiKey: process.env.GPT_API_KEY,
+      model: process.env.GPT_MODEL,
+    };
+  }
+  // DeepSeek 官方（默认）：DEEPSEEK_* 优先，AI_* 兼容兜底
   return {
+    provider: "deepseek" as const,
     baseURL: (process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/$/, ""),
     apiKey: process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY,
     model: process.env.DEEPSEEK_MODEL || process.env.AI_MODEL,
@@ -73,10 +96,11 @@ function parseModelJson(content: unknown): { data: AIChange | null; error: strin
 export function getAIProviderStatus() {
   const config = providerConfig();
   const configured = Boolean(config.apiKey && config.model);
+  const active = resolveAIProviderName();
   return {
     configured,
-    mode: configured ? "deepseek" as const : "unconfigured" as const,
-    provider: "DeepSeek" as const,
+    mode: configured ? (active === "gpt" ? "gpt" as const : "deepseek" as const) : "unconfigured" as const,
+    provider: active === "gpt" ? "GPT" as const : "DeepSeek" as const,
     model: config.model ?? null,
     baseURL: configured ? config.baseURL : null,
   };
@@ -348,6 +372,12 @@ export async function requestDraftOperations(args: DraftOpsArgs): Promise<DraftO
   const bilingual = args.scope.bilingual ? "（中文+英文）" : "（仅中文）";
   const capabilitySummary = args.capabilitySummary
     ?? buildTemplateCapabilitySummary(args.templateId, args.scope.siteLanguage ?? "zh");
+  const presentationText = capabilitySummary.presentation.length
+    ? capabilitySummary.presentation
+        .filter((p) => args.scope.sections.includes(p.slot) || p.slot === "hero" || p.slot === "about")
+        .map((p) => `${p.slot}=${p.presentAs}${p.capacityDefault ? `（建议${p.capacityDefault}条，最多${p.capacityMax}条）` : ""}${p.hideUnlessFilled ? "；无可靠事实则该块隐藏" : ""}`)
+        .join("\n")
+    : "";
   const capabilityText = [
     `prompt=${prompt.id}@${prompt.version}`,
     `manifestVersion=${capabilitySummary.manifestVersion}`,
@@ -373,7 +403,9 @@ export async function requestDraftOperations(args: DraftOpsArgs): Promise<DraftO
 - 不要为未列出的板块生成操作
 - 每板块 2-4 条操作，总量控制
 - 模板能力约束：${capabilityText}
-- 只能生成 editableSlots 中的内容；requiredSlots 必须尽量填充；遵守 slotConstraints 的语言和长度限制；nonContentSlots 是模板自有资源或行为，不要尝试生成内容操作。`;
+- 只能生成 editableSlots 中的内容；requiredSlots 必须尽量填充；遵守 slotConstraints 的语言和长度限制；nonContentSlots 是模板自有资源或行为，不要尝试生成内容操作。
+- 重要：每个板块在原模板里以固定排版呈现，请严格按它"能装几条、长什么样"组织内容——宁可按原生容量写少、写得实，也不要为凑满空泛地加卡片。
+${presentationText ? `\n【所选模板各板块的原生排版（必须遵守的容量与形态）】\n${presentationText}` : ""}`;
   const user = `${args.attemptHint ? `${args.attemptHint}\n` : ""}企业需求：${JSON.stringify({ companyName: args.intent.companyName, industry: args.intent.industry, tone: args.intent.tone, targetAudience: args.intent.targetAudience, summary: args.intent.summary })}
 当前草稿（只读，不要改结构）：${buildDraftIndex(args.baseDraft, args.intent.summary)}`;
   let lastError = "模型没有返回有效的操作。";

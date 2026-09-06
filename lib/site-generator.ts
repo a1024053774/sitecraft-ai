@@ -57,12 +57,28 @@ export function buildGenerationPlan(
   ];
   const core = intent.coreSections as string[];
   const hidden = new Set(hiddenSections);
-  const sections = core.filter((s) => !hidden.has(s));
-  const hideOps: SiteOperation[] = hiddenSections.map((s) => ({
-    op: "set_section_visibility",
-    section: s as "about" | "features" | "services" | "products" | "contact",
-    visible: false,
-  }));
+  let sections = core.filter((s) => !hidden.has(s));
+  // 内容站（portfolio/blog 模板）：coreSections 仍可能含企业 5 段，但按该模板站点形态
+  // 只生成实际承载的板块（个人作品集=about+features(作品)+contact；博客=about+features(文章)），
+  // 避免对模板本没有的板块催内容。baseDraft.siteModel 同步标记，渲染层据此用列表语义。
+  const template = templateCatalog.find((t) => t.id === templateId);
+  const shape = template?.shape;
+  if (shape === "portfolio") {
+    baseDraft.siteModel = "portfolio";
+    const portfolioSections = ["about", "features", "contact"];
+    sections = portfolioSections.filter((s) => core.includes(s) || true).filter((s) => !hidden.has(s));
+  } else if (shape === "blog") {
+    baseDraft.siteModel = "blog";
+    const blogSections = ["about", "features"];
+    sections = blogSections.filter((s) => !hidden.has(s));
+  }
+  const hideOps: SiteOperation[] = [...new Set(hiddenSections)]
+    .filter((s) => !sections.includes(s))
+    .map((s) => ({
+      op: "set_section_visibility",
+      section: s as "about" | "features" | "services" | "products" | "contact",
+      visible: false,
+    }));
   return { baseDraft, leadingOps, scope: { sections, bilingual: true, siteLanguage }, hideOps };
 }
 
@@ -112,20 +128,54 @@ export function buildEnhancedIntentPrompt(intent: SiteIntent): string {
   return parts.join("\n");
 }
 
+/** 从模板 presentation 提炼"每板块能装几条、什么形态"的容量提示，替换写死的"前3张卡片"。 */
+export function buildPresentationCapacityText(capabilitySummary: TemplateCapabilitySummary, sections: string[]): string {
+  const relevant = capabilitySummary.presentation.filter((p) => sections.includes(p.slot));
+  if (!relevant.length) return "";
+  return relevant
+    .map((p) => `${p.slot}:${p.capacityDefault ? `约${p.capacityDefault}条` : ""}${p.capacityMax ? `(至多${p.capacityMax}条)` : ""}${p.hideUnlessFilled ? "，无可靠事实则该块隐藏" : ""}`)
+    .join("；");
+}
+
+/** 站点形态对应的板块语义别名（提示词用），corporate 为默认企业语义。 */
+export function siteModelSectionLabels(siteModel: "corporate" | "portfolio" | "blog") {
+  if (siteModel === "portfolio") {
+    return {
+      slotText: "about(title/body 个人简介)、features(title/intro 及作品条目：每条一个代表作标题+一句成果说明)、contact(联系方式)。不要生成 services/products——作品集站没有服务/商品目录板块",
+      navHint: "导航用：关于 / 作品 / 联系 三类即可",
+    };
+  }
+  if (siteModel === "blog") {
+    return {
+      slotText: "about(title/body 站点简介)、features(title/intro 及文章条目：每条一篇文章标题+一句摘要)。不要生成 services/products/contact 企业板块——内容站只有简介+文章列表",
+      navHint: "导航用：文章 / 关于 或站点名+分类 即可",
+    };
+  }
+  return {
+    slotText: "about(title/body)、features(title/intro 及条目)、services(title/intro 及条目)、products(title/intro)、contact(title/body)",
+    navHint: "",
+  };
+}
+
 /** 批 A 提示：骨架/首屏/元数据（必发）——按站点语言调整双语/单语；注入建站需求文档（B1 首稿质量） */
-function batchAHint(intent: SiteIntent, siteLanguage: "zh" | "en"): string {
+function batchAHint(intent: SiteIntent, siteLanguage: "zh" | "en", siteModel: "corporate" | "portfolio" | "blog" = "corporate"): string {
   const lang = siteLanguage === "en"
     ? "首屏与导航使用英文，中文可留'待补充'"
     : "首屏与导航使用中文（英文可留'待补充'）";
-  return `复用已选模板结构。第一批只填充元数据与首屏——siteName、companyName、industry、goal、hero.title/subtitle/cta、navigation.*。${lang}。不要改其他板块。\n\n${buildEnhancedIntentPrompt(intent)}`;
+  const nav = siteModelSectionLabels(siteModel).navHint;
+  return `复用已选模板结构。第一批只填充元数据与首屏——siteName、companyName、industry、goal、hero.title/subtitle/cta、navigation.*。${lang}。不要改其他板块。${nav ? nav + "。" : ""}\n\n${buildEnhancedIntentPrompt(intent)}`;
 }
 
-/** 批 B 提示：板块内容——按站点语言，中英站点都写对应语言；注入建站需求文档（B1 首稿质量） */
-function batchBHint(intent: SiteIntent, siteLanguage: "zh" | "en"): string {
+/** 批 B 提示：板块内容——按站点语言；用模板原生容量提示替代"前3张卡片"硬编码 */
+function batchBHint(intent: SiteIntent, siteLanguage: "zh" | "en", capacityText: string, siteModel: "corporate" | "portfolio" | "blog" = "corporate"): string {
   const lang = siteLanguage === "en"
     ? "板块内容一律用英文书写"
     : "板块内容一律用中文书写";
-  return `复用已选模板结构。第二批按板块填充内容——about(title/body)、features(title/intro 及前 3 张卡片)、services(title/intro 及前 3 张卡片)、products(title/intro)、contact(title/body)。${lang}。不要为未列板块生成操作。\n\n${buildEnhancedIntentPrompt(intent)}`;
+  const capacityRule = capacityText
+    ? `\n板块内容容量须贴合模板原生排版：${capacityText}。宁可按容量写少、写得实，不要为凑数空泛加卡。`
+    : "每板块 2-4 条，宁少勿空。";
+  const slotText = siteModelSectionLabels(siteModel).slotText;
+  return `复用已选模板结构。第二批按板块填充内容——${slotText}。${lang}。不要为未列板块生成操作。${capacityRule}\n\n${buildEnhancedIntentPrompt(intent)}`;
 }
 
 export type GenerateDraftArgs = {
@@ -305,7 +355,7 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
       templateId: appliedTemplateId,
       baseDraft: plan.baseDraft,
       scope: { sections: plan.scope.sections, bilingual: true, siteLanguage: lang },
-      attemptHint: batchAHint(args.intent, lang),
+      attemptHint: batchAHint(args.intent, lang, plan.baseDraft.siteModel),
       deadlineAt: args.deadlineAt,
       capabilitySummary: buildTemplateCapabilitySummary(appliedTemplateId, lang),
     }, initialTaskTimeoutMs, args.signal).then((result) => {
@@ -313,14 +363,16 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
       reportProgress("content", result.ok ? "首屏内容已完成，正在填充其余板块…" : "首屏内容生成失败");
       return result;
     });
+  const batchBSummary = buildTemplateCapabilitySummary(appliedTemplateId, lang);
+  const batchBCapacityText = buildPresentationCapacityText(batchBSummary, plan.scope.sections);
   const batchBPromise = runDraftTask(args.draftOps, {
         intent: args.intent,
         templateId: appliedTemplateId,
         baseDraft: plan.baseDraft,
         scope: { sections: plan.scope.sections, bilingual: false, siteLanguage: lang },
-        attemptHint: batchBHint(args.intent, lang),
+        attemptHint: batchBHint(args.intent, lang, batchBCapacityText, plan.baseDraft.siteModel),
         deadlineAt: args.deadlineAt,
-        capabilitySummary: buildTemplateCapabilitySummary(appliedTemplateId, lang),
+        capabilitySummary: batchBSummary,
       }, initialTaskTimeoutMs, args.signal).then((result) => {
       if (result.ok) plan.scope.sections.forEach((section) => completedSections.add(section));
       reportProgress("content", result.ok ? "板块内容已完成，正在等待首屏并合并…" : "整批内容未完成，正在逐板块恢复…");
@@ -395,7 +447,7 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
             templateId: appliedTemplateId,
             baseDraft: plan.baseDraft,
             scope: { sections: [section], bilingual: false, siteLanguage: lang },
-            attemptHint: `${batchBHint(args.intent, lang)}\n\n恢复模式：只生成 ${section} 板块，其他板块不要产生操作。`,
+            attemptHint: `${batchBHint(args.intent, lang, buildPresentationCapacityText(buildTemplateCapabilitySummary(appliedTemplateId, lang), [section]), plan.baseDraft.siteModel)}\n\n恢复模式：只生成 ${section} 板块，其他板块不要产生操作。`,
             maxAttempts: 1,
             deadlineAt: recoveryDeadlineAt,
             capabilitySummary: buildTemplateCapabilitySummary(appliedTemplateId, lang),

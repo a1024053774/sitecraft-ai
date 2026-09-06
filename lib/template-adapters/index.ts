@@ -4,6 +4,19 @@ import { atlasAdapter } from "./atlas.ts";
 import { poweraiAdapter } from "./powerai.ts";
 import { signalAdapter } from "./signal.ts";
 import { moonAdapter } from "./moon.ts";
+import { screwfastAdapter } from "./screwfast.ts";
+import { landwindAdapter } from "./landwind.ts";
+import { foxiAdapter } from "./foxi.ts";
+import { astroStarterAdapter } from "./astro-starter.ts";
+import { lonestoneAdapter } from "./lonestone.ts";
+import { freshAdapter } from "./fresh.ts";
+import { awesomeAdapter } from "./awesome.ts";
+import { astrogentAdapter } from "./astrogent.ts";
+import { shadcnLanding2Adapter } from "./shadcn-landing2.ts";
+import { astrofyAdapter } from "./astrofy.ts";
+import { devportfolioAdapter } from "./devportfolio.ts";
+import { astropaperAdapter } from "./astropaper.ts";
+import { yukinaAdapter } from "./yukina.ts";
 
 /**
  * 每模板适配注册表。route 按 templateId 取 adapter；未注册模板 = 无专属适配，
@@ -15,6 +28,19 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
   powerai: poweraiAdapter,
   signal: signalAdapter,
   moon: moonAdapter,
+  screwfast: screwfastAdapter,
+  landwind: landwindAdapter,
+  foxi: foxiAdapter,
+  "astro-starter": astroStarterAdapter,
+  lonestone: lonestoneAdapter,
+  fresh: freshAdapter,
+  awesome: awesomeAdapter,
+  astrogent: astrogentAdapter,
+  "shadcn-landing2": shadcnLanding2Adapter,
+  astrofy: astrofyAdapter,
+  devportfolio: devportfolioAdapter,
+  astropaper: astropaperAdapter,
+  yukina: yukinaAdapter,
 };
 
 export function getTemplateAdapter(templateId: string): TemplateAdapter | undefined {
@@ -24,3 +50,4 @@ export function getTemplateAdapter(templateId: string): TemplateAdapter | undefi
 export function hasTemplateAdapter(templateId: string): boolean {
   return Boolean(getTemplateAdapter(templateId));
 }
+

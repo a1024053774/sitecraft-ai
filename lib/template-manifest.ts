@@ -7,13 +7,19 @@
 import type { Locale } from "./site-model.ts";
 import type { TemplateManifest } from "./template-manifests/types.ts";
 import { templateManifests } from "./template-manifests/index.ts";
+import { defaultPresentation } from "./template-manifests/shared.ts";
 
-export type { TemplateManifest, TemplateContentTarget, TemplateSlotBinding, TemplateNonContentSlot, TemplateRuntime, TemplateUiSurface } from "./template-manifests/types.ts";
+export type { TemplateManifest, TemplateContentTarget, TemplateSlotBinding, TemplateNonContentSlot, TemplateRuntime, TemplateUiSurface, TemplatePresentationBlock, PresentationRole, PresentationItemShape } from "./template-manifests/types.ts";
 
 export { templateManifests } from "./template-manifests/index.ts";
 
 export function getTemplateManifest(templateId: string): TemplateManifest | undefined {
   return templateManifests[templateId as keyof typeof templateManifests];
+}
+
+/** 某模板的原生排版角色表：手写 presentation 优先，未手写则用 defaultPresentation 兜底（card_grid 旧行为）。 */
+export function getTemplatePresentation(templateId: string) {
+  return getTemplateManifest(templateId)?.presentation ?? defaultPresentation();
 }
 
 export function supportsTemplateLocale(templateId: string, locale: Locale) {

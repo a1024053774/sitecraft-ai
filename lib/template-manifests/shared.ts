@@ -1,5 +1,5 @@
 import type { Locale } from "../site-model.ts";
-import type { TemplateManifest, TemplateContentTarget, TemplateSlotBinding, TemplateNonContentSlot, TemplateUiSurface } from "./types.ts";
+import type { TemplateManifest, TemplateContentTarget, TemplateSlotBinding, TemplateNonContentSlot, TemplateUiSurface, TemplatePresentationBlock } from "./types.ts";
 
 /**
  * 每模板 manifest 共享构建件：types（经 ./types 再导出）+ 常量 + contentSlots 工厂。
@@ -151,6 +151,55 @@ export function contentSlots(
     locales: BOTH_LOCALES,
     editable: true,
   }));
+}
+
+/**
+ * 默认原生排版兜底：未手写 presentation 的模板，各集合槽按 card_grid（旧行为）处理。
+ * 这是"零回归"关键——不升级的 16 个模板继续走通用卡片渲染，与新机制互不影响。
+ */
+export function defaultPresentation(): readonly TemplatePresentationBlock[] {
+  return [
+    {
+      slot: "about",
+      role: "split_text_media",
+      presentAs: "关于板块：标题 + 一段企业介绍正文",
+      capacity: { max: 1 },
+      itemShape: "title_body",
+      anchor: "含 about 语义的 section（id/标题定位）",
+    },
+    {
+      slot: "features",
+      role: "card_grid",
+      presentAs: "核心优势：卡片网格（未声明原生角色，通用渲染）",
+      capacity: { min: 2, default: 3, max: 12 },
+      itemShape: "title_body",
+      anchor: "含 feature 语义的 section 内 card 类元素",
+    },
+    {
+      slot: "services",
+      role: "card_grid",
+      presentAs: "服务：卡片网格（未声明原生角色，通用渲染）",
+      capacity: { min: 2, default: 3, max: 12 },
+      itemShape: "title_body",
+      anchor: "含 service 语义的 section 内 card 类元素",
+    },
+    {
+      slot: "products",
+      role: "product_grid",
+      presentAs: "产品：网格条目（未声明原生角色，通用渲染）",
+      capacity: { min: 1, default: 4, max: 1000 },
+      itemShape: "title_body",
+      anchor: "产品网格区",
+    },
+    {
+      slot: "contact",
+      role: "split_text_media",
+      presentAs: "联系板块：标题 + 说明 + 联系方式",
+      capacity: { max: 1 },
+      itemShape: "title_body",
+      anchor: "含 contact 语义的 section（id/表单/mailto 定位）",
+    },
+  ] as const;
 }
 
 export type { TemplateManifest };

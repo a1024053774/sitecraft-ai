@@ -76,7 +76,9 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
   const requiredVisibleTargets = getRequiredVisibleTargets(templateId);
   const contentSlots = getTemplateManifest(templateId)?.slots ?? [];
   const adapter = getTemplateAdapter(templateId);
+  const adapterPrepareFn = adapter?.prepareFn ?? "";
   const adapterServicesFn = adapter?.servicesFn ?? "";
+  const adapterNativeFillFn = adapter?.nativeFillFn ?? "";
   const adapterHeroFn = adapter?.heroFn ?? "";
   const adapterSanitize = adapter?.sanitize ?? { sections: [], leafPatterns: [] };
   const maxExportBytes = MAX_TEMPLATE_EXPORT_BYTES;
@@ -141,7 +143,9 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     const nodes = allVisible('main section, main article, body > section').filter((node) => node !== resolveHero()?.closest('section, header'));
     return nodes.filter((node) => !nodes.some((parent) => parent !== node && parent.contains(node)));
   };
-  const scopeBy = (key, pattern) => document.querySelector('[data-sitecraft-scope="' + key + '"]') || sectionScopes().find((scope) => pattern.test((allVisible('h1,h2,h3', scope)[0]?.textContent || '') + ' ' + (scope.id || '') + ' ' + (scope.className || '') + ' ' + (scope.textContent || '').slice(0, 500)));
+  // 兜底排除已被某槽精确认领的 section（data-sitecraft-scope 已设）：一区多义时
+  // （如 features 原生分栏文本同时含服务词），避免 services/products 兜底改写同一物理区。
+  const scopeBy = (key, pattern) => document.querySelector('[data-sitecraft-scope="' + key + '"]') || sectionScopes().filter((s) => !s.hasAttribute('data-sitecraft-scope')).find((scope) => pattern.test((allVisible('h1,h2,h3', scope)[0]?.textContent || '') + ' ' + (scope.id || '') + ' ' + (scope.className || '') + ' ' + (scope.textContent || '').slice(0, 500)));
   const unique = (nodes) => nodes.filter((node, index) => node && nodes.indexOf(node) === index);
   const hideSectionByHeading = (pattern) => {
     allVisible('h1,h2,h3').filter((heading) => pattern.test(heading.textContent || '')).forEach((heading) => {
@@ -216,7 +220,13 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
   };
   // 模板专属 services 适配：adapter.servicesFn 若声明，注入为 applyNativeServiceCards；
   // 未声明的模板走通用 applyCards('services', ...)（applyContent 内分发）。
+  ${adapterPrepareFn}
   ${adapterServicesFn}
+  // 模板专属原生排版填充：adapter.nativeFillFn 若声明，注入为 applyNativeFill（闭包访问
+  // 模板 prepareFn 声明的原生区定位器 + 共享 setText/localize/allVisible）。它让业务槽内容
+  // 填进模板自身的非卡片原生排版（icon_row/image_banner/分栏），而不是退回通用卡片重建。
+  ${adapterNativeFillFn}
+  const applyNativeFill = (typeof applyNativeContentFill === 'function') ? applyNativeContentFill : null;
   const renderAdditionalProducts = (draft, locale, startIndex, applied) => {
     let section = document.querySelector('[data-sitecraft-generated-products]');
     const remaining = (draft.products || []).slice(startIndex);
@@ -246,6 +256,17 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     remaining.forEach((product) => {
       const card = document.createElement('article');
       card.style.cssText = 'min-width:0;padding:22px;border:1px solid rgba(127,127,127,.25);border-radius:8px;background:color-mix(in srgb,currentColor 4%,transparent)';
+      // 主图：product.image 存在则插 <img>，无图退回 imageColor 色块
+      const imgUrl = typeof product.image === 'string' && product.image.trim() ? product.image.trim() : '';
+      let imgNode = null;
+      if (imgUrl) {
+        imgNode = document.createElement('img');
+        imgNode.src = imgUrl;
+        imgNode.alt = localize(product.name, locale) || product.sku;
+        imgNode.loading = 'lazy';
+        imgNode.style.cssText = 'display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:8px;margin-bottom:14px;background:#eef2f7';
+        imgNode.onerror = function () { this.style.display = 'none'; };
+      }
       const sku = document.createElement('small');
       sku.style.cssText = 'display:block;margin-bottom:12px;opacity:.58;font:11px ui-monospace,monospace';
       sku.textContent = product.sku + ' / ' + product.category;
@@ -255,6 +276,7 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
       body.style.cssText = 'margin:0;opacity:.72;line-height:1.65';
       setText(title, localize(product.name, locale), 'products.' + product.sku + '.name.' + locale, applied);
       setText(body, localize(product.summary, locale), 'products.' + product.sku + '.summary.' + locale, applied);
+      if (imgNode) card.append(imgNode);
       card.append(sku, title, body);
       grid.append(card);
     });
@@ -314,6 +336,8 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     const copy = templateUiCopy[locale] || templateUiCopy.zh;
     activeUiCopy = copy;
     allVisible('header nav a, nav a').forEach((link) => {
+      // adapter（prepareFn）已按 draft 定制并打 slot 的导航链接：不再被通用词表二次改写
+      if (link.dataset.sitecraftSlot) return;
       if (link.querySelector('img,svg') || /logo|brand/i.test(link.className || '')) return;
       const signal = ((link.getAttribute('href') || '') + ' ' + (link.textContent || '')).toLowerCase();
       let key = null;
@@ -593,7 +617,9 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
   const applyContent = (draft, locale, expectedTargets, variant) => {
     if (!draft) return { appliedSlots: [], missingSlots: expectedTargets || [] };
     const applied = new Set();
+    if (typeof prepareTemplate === 'function') prepareTemplate();
     applyDesignTokens(draft);
+    if (draft.siteName || draft.companyName) document.title = draft.siteName || draft.companyName;
     document.documentElement.lang = locale || 'zh';
     const hero = resolveHero();
     setText(hero, localize(draft.content?.hero?.title, locale), 'hero.title.' + locale, applied);
@@ -693,18 +719,32 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
       const addressNode = ensureContactNode('contact.address', 'address');
       setText(addressNode, address, 'contact.address.' + locale, applied);
     }
-    applyCards('features', featuresScope, draft.content?.features?.items, locale, applied, /feature|advantage|benefit/i);
+    // 原生排版优先：adapter 声明了 nativeFillFn 的模板，先尝试把槽内容填进模板自身的
+    // 非卡片原生区块（icon_row/image_banner/分栏）。成功则注入 setText 的 sitecraft-slot，
+    // 使下方 hasVisibleSlotPrefix 短路、不会退回通用卡片重建。
+    if (typeof applyNativeFill === 'function') applyNativeFill(draft, locale, applied);
+    // nativeFill 已把该槽填进原生区块（slot 前缀命中）时，跳过通用 applyCards，
+    // 避免其 fallback 把原生行/分栏当卡片二次覆写（landwind 等 split/分栏模板）。
+    if (!hasVisibleSlotPrefix('features.items') && !hasVisibleSlotPrefix('features.title')) {
+      applyCards('features', featuresScope, draft.content?.features?.items, locale, applied, /feature|advantage|benefit/i);
+    }
     // services 槽位分发：声明了专属 servicesFn 的模板（如 forge 原生服务卡区）调 applyNativeServiceCards；
     // 未声明的模板走通用 applyCards('services')。
     if (typeof applyNativeServiceCards === 'function') {
       applyNativeServiceCards(draft, locale, applied);
-    } else {
+    } else if (!hasVisibleSlotPrefix('services.items') && !hasVisibleSlotPrefix('services.title')) {
       applyCards('services', servicesScope, draft.content?.services?.items, locale, applied, /Name of this service|service|solution/i);
     }
 
     const productNames = (draft.products || []).map((item) => item.name?.[locale] || item.name?.zh || item.name?.en).filter(Boolean);
     if (productNames.length) {
-      const headings = productsScope ? allVisible('h3,h4,[class*="title"],[class*="name"]', productsScope) : [];
+      // 原生产品名写入保护：productsScope 若已被 nativeFill 等标为其它槽（如 features 的 icon 行），
+      // 不得把产品名覆盖进该区（scopeBy('products') 正则可能被其它 section 的 demo 文案误命中）。
+      // 产品一律由下方 renderAdditionalProducts 生成独立产品区承载；只有"确定是 products 原生区"
+      // 的 scope 才走原生标题改写。
+      const productsScopeOwned = productsScope && productsScope.getAttribute('data-sitecraft-section');
+      const nativeProductsScope = (productsScopeOwned && productsScopeOwned === 'products') ? productsScope : null;
+      const headings = nativeProductsScope ? allVisible('h3,h4,[class*="title"],[class*="name"]', nativeProductsScope) : [];
       const mappedHeadings = headings.slice(0, productNames.length);
       mappedHeadings.forEach((heading, index) => setText(heading, productNames[index], 'products.' + draft.products[index].sku + '.name.' + locale, applied));
       renderAdditionalProducts(draft, locale, 0, applied);

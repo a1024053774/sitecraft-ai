@@ -13,6 +13,24 @@ export const astropaperManifest: TemplateManifest = {
   slots: contentSlots({
       "hero.title": ["AstroPaper"],
     }),
-  nonContentSlots: NON_CONTENT_SLOTS,
+  presentation: [
+    {
+      slot: "about",
+      role: "split_text_media",
+      presentAs: "博客简介：标题与正文",
+      capacity: { max: 1 },
+      itemShape: "title_body",
+      anchor: "#about",
+    },
+    {
+      slot: "features",
+      role: "card_grid",
+      presentAs: "最新文章列表，最多 8 条",
+      capacity: { min: 1, default: 6, max: 8 },
+      itemShape: "title_body",
+      anchor: "#recent-posts li",
+    },
+  ],  nonContentSlots: NON_CONTENT_SLOTS,
   recommendation: "eligible",
 };
+

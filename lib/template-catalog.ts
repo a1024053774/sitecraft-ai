@@ -221,6 +221,7 @@ export const templateCatalog: Template[] = [
     category: "专业服务",
     description: "个人与工作室作品集模板，以项目、经历和专业能力为核心。",
     tags: ["作品集", "工作室", "个人品牌"],
+    shape: "portfolio",
     colors: { primary: "#202020", secondary: "#f5f5f5", accent: "#4f7cff" },
     headline: "Selected work,\nwith a clear point of view.",
     subtitle: "A portfolio for specialists and small creative teams.",
@@ -239,6 +240,7 @@ export const templateCatalog: Template[] = [
     category: "专业服务",
     description: "阅读体验优先的极简内容模板，适合专家、研究和企业知识库。",
     tags: ["博客", "知识内容", "阅读体验"],
+    shape: "blog",
     colors: { primary: "#1e293b", secondary: "#f8fafc", accent: "#f59e0b" },
     headline: "Ideas worth\nkeeping clear.",
     subtitle: "A fast, accessible home for durable knowledge.",
@@ -293,6 +295,7 @@ export const templateCatalog: Template[] = [
     category: "科技企业",
     description: "经典开发者作品集，集中呈现技能、项目与职业经历。",
     tags: ["开发者", "项目履历", "技术品牌"],
+    shape: "portfolio",
     colors: { primary: "#0f172a", secondary: "#f1f5f9", accent: "#38bdf8" },
     headline: "Engineering,\nmade tangible.",
     subtitle: "Projects, experience and technical strengths in one clear profile.",
@@ -329,6 +332,7 @@ export const templateCatalog: Template[] = [
     category: "专业服务",
     description: "精致的内容与博客主题，适合品牌杂志、团队动态和专业观点。",
     tags: ["品牌内容", "博客杂志", "文章归档"],
+    shape: "blog",
     colors: { primary: "#263238", secondary: "#f7f7f5", accent: "#d97706" },
     headline: "A living record\nof useful work.",
     subtitle: "An editorial home for company insight, news and field notes.",
@@ -487,6 +491,14 @@ export function getTemplateMatchingProfile(template: Template): MatchingProfile 
   if (capabilities.includes("catalog")) siteTypes.add("catalog");
   if (capabilities.includes("caseStudy")) siteTypes.add("service");
   if (capabilities.includes("portfolio")) siteTypes.add("portfolio");
+  // 显式 shape 优先决定 blog/portfolio 站点类型；缺省时由能力词兜底（兼容旧行为）。
+  // 企业向模板即使 promptProfile 含"博客/内容/作品"字眼，shape 缺省=corporate，不误收。
+  if (template.shape === "blog") siteTypes.add("blog");
+  else if (template.shape === "portfolio") siteTypes.add("portfolio");
+  else {
+    if (/博客|文章|内容站|知识库|blog|editorial|newsletter/i.test(template.name + template.description + template.tags.join(" "))) siteTypes.add("blog");
+    if (/作品集|个人品牌|portfolio/i.test(template.name + template.description + template.tags.join(" "))) siteTypes.add("portfolio");
+  }
 
   const styles = new Set<string>();
   if (/深色|dark|极客|科技/i.test(searchable)) styles.add("dark");

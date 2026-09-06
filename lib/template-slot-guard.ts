@@ -1,7 +1,7 @@
 import type { SiteDraft } from "./site-document.ts";
 import type { SiteOperation } from "./site-operations.ts";
 import type { Locale } from "./site-document.ts";
-import { getTemplateManifest } from "./template-manifest.ts";
+import { getTemplateManifest, getTemplatePresentation } from "./template-manifest.ts";
 
 const metadataTextTargets = new Set(["siteName", "industry", "goal"]);
 const nonLocalizedTextTargets = new Set([
@@ -33,6 +33,20 @@ export type TemplateCapabilitySummary = {
     required: boolean;
     editable: boolean;
   }>;
+  /**
+   * 每业务槽在该模板的原生排版（role/capacity）。生成层据此按模板"能装几条、长什么样"
+   * 组织内容，而不是为凑满通用槽位写一堆卡片。
+   * 例：features=原生icon行,建议4条,max6。
+   */
+  presentation: Array<{
+    slot: string;
+    role: string;
+    presentAs: string;
+    capacityDefault?: number;
+    capacityMax: number;
+    itemShape: string;
+    hideUnlessFilled?: boolean;
+  }>;
 };
 
 export function buildTemplateCapabilitySummary(templateId: string, locale: Locale): TemplateCapabilitySummary {
@@ -46,6 +60,7 @@ export function buildTemplateCapabilitySummary(templateId: string, locale: Local
       requiredSlots: [],
       nonContentSlots: [],
       slotConstraints: [],
+      presentation: [],
     };
   }
   return {
@@ -64,6 +79,15 @@ export function buildTemplateCapabilitySummary(templateId: string, locale: Local
       maxLength: slot.maxLength,
       required: slot.required,
       editable: slot.editable,
+    })),
+    presentation: getTemplatePresentation(templateId).map((block) => ({
+      slot: block.slot,
+      role: block.role,
+      presentAs: block.presentAs,
+      capacityDefault: block.capacity.default,
+      capacityMax: block.capacity.max,
+      itemShape: block.itemShape,
+      hideUnlessFilled: block.hideUnlessFilled,
     })),
   };
 }

@@ -240,7 +240,7 @@ export function OpenSourceTemplateFrame({
       id={id}
       ref={frameRef}
       className={`open-source-template-frame open-source-template-frame-${variant}`}
-      src={`/api/templates/${encodeURIComponent(templateId)}/preview?v=20260902-12`}
+      src={`/api/templates/${encodeURIComponent(templateId)}/preview?v=20260904-huagu`}
       title={`开源模板 ${templateId} 预览`}
       loading={variant === "thumbnail" ? "lazy" : "eager"}
       sandbox="allow-scripts allow-forms allow-same-origin"

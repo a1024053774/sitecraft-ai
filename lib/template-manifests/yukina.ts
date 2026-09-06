@@ -13,6 +13,24 @@ export const yukinaManifest: TemplateManifest = {
   slots: contentSlots({
       "hero.title": ["Yukina", "Ad Astra Per Aspera"],
     }),
-  nonContentSlots: NON_CONTENT_SLOTS,
+  presentation: [
+    {
+      slot: "about",
+      role: "split_text_media",
+      presentAs: "博客简介：标题与正文",
+      capacity: { max: 1 },
+      itemShape: "title_body",
+      anchor: "首页轮播后的简介区",
+    },
+    {
+      slot: "features",
+      role: "card_grid",
+      presentAs: "文章卡流，最多 8 条",
+      capacity: { min: 1, default: 6, max: 8 },
+      itemShape: "title_body",
+      anchor: "main 内 .onload-animation 文章卡",
+    },
+  ],  nonContentSlots: NON_CONTENT_SLOTS,
   recommendation: "eligible",
 };
+

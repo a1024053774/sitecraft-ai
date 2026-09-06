@@ -18,8 +18,17 @@ export type TemplateSanitizeRules = {
 
 export type TemplateAdapter = {
   templateId: string;
+  /** 在共享槽位扫描前执行的模板级准备逻辑源码。 */
+  prepareFn?: string;
   /** 自定义 services 槽位适配函数源码（const arrow，闭包访问共享 helper）；无则通用 applyCards */
   servicesFn?: string;
+  /**
+   * 自定义原生排版填充函数源码（const arrow，闭包访问共享 helper）。
+   * 模板某业务槽以非 card 的原生排版呈现（icon_row/image_banner/split 等）时，
+   * 用 nativeFillFn 在该槽的原生区块内定位节点改写，而不是退回通用卡片重建。
+   * 通过闭包拿到模板自身注入的定位器（如 findFeaturesSection）与共享的 setText/localize。
+   */
+  nativeFillFn?: string;
   /**
    * 自定义 hero 标题节点定位器源码（const arrow，返回节点或 null，闭包访问共享 helper）。
    * 默认 findHero() 取可见的 main h1/header h1/h1；模板首屏标题是可见 h2 或非标准结构时，

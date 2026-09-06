@@ -34,7 +34,7 @@ export type BriefIndustryKey =
   | "professional_services"
   | "other";
 
-export type BriefSiteType = "corporate" | "catalog" | "service" | "portfolio";
+export type BriefSiteType = "corporate" | "catalog" | "service" | "portfolio" | "blog";
 
 export type NormalizedBriefFact = {
   kind: FactKind;
@@ -98,11 +98,13 @@ export function normalizeUserBrief(text: string): NormalizedBrief {
 
   const siteType: BriefSiteType = /产品目录|产品清单|产品展示|SKU|catalog|product list/i.test(normalizedText)
     ? "catalog"
-    : /作品集|portfolio/i.test(normalizedText)
+    : /作品集|个人主页|个人站|简历|portfolio/i.test(normalizedText)
       ? "portfolio"
-      : /咨询|服务项目|解决方案|consulting|services/i.test(normalizedText)
-        ? "service"
-        : "corporate";
+      : /博客|内容站|知识库|文章|订阅|专栏|杂志|blog|newsletter|magazine/i.test(normalizedText)
+        ? "blog"
+        : /咨询|服务项目|解决方案|consulting|services/i.test(normalizedText)
+          ? "service"
+          : "corporate";
 
   const hasChinese = /\p{Script=Han}/u.test(normalizedText);
   const asksForEnglish = /英文|双语|中英文|英语|bilingual|english/i.test(normalizedText);
@@ -328,7 +330,11 @@ export function buildIntentPrompt(
     sky: "天蓝系（科技/物流/外贸）",
   };
   const templateLines = catalog
-    .map((t) => `- ${t.id}：${t.name}（${t.category}）描述：${t.description}；标签：${t.tags.join("、")}；模板风格：${t.headline.replace(/\n/g, " ")}`)
+    .map((t) => {
+      const suit = t.promptProfile.starters.length ? `；适合：${t.promptProfile.starters.join("、")}` : "";
+      const structure = t.promptProfile.structure.length ? `；结构：${t.promptProfile.structure.join("→")}` : "";
+      return `- ${t.id}：${t.name}（${t.category}）描述：${t.description}；标签：${t.tags.join("、")}${structure}${suit}；风格：${t.headline.replace(/\n/g, " ")}`;
+    })
     .join("\n");
 
   return `你是企业官网建站需求分析师。把用户的一句话转成结构化需求 JSON，只返回 JSON 对象。
@@ -354,6 +360,7 @@ export function buildIntentPrompt(
 
 模板白名单（recommendedTemplateId 必须选最能承载该业务方向的一个）：
 ${templateLines}
+选模板要点：优先按用户业务与各模板"适合：…"示例是否同行业/同形态来判断（如制造/五金/设备类优先制造业模板、出口/外贸类优先外贸目录模板）；标签与结构只作辅助。业务明确属制造业/贸易/科技/服务时，recommendedTemplateId 从对应分类下最能承载该业务方向的模板里挑，不要跨类选 SaaS 感模板。只有明显匹配才跨类。
 
 判定规则（按优先级从高到低）：
 1. 拒绝：需求明确不是建站（写代码/脚本、抢票、爬虫、代写文案、违规违法、成人、赌博、毒品、仇恨言论等）→ status=rejected，只填 rejectionReason（≤80 字，说明原因），其余字段可为空。
