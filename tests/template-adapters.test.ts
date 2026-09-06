@@ -7,6 +7,10 @@ import { atlasAdapter } from "../lib/template-adapters/atlas.ts";
 import { poweraiAdapter } from "../lib/template-adapters/powerai.ts";
 import { signalAdapter } from "../lib/template-adapters/signal.ts";
 import { moonAdapter } from "../lib/template-adapters/moon.ts";
+import { astrofyAdapter } from "../lib/template-adapters/astrofy.ts";
+import { devportfolioAdapter } from "../lib/template-adapters/devportfolio.ts";
+import { astropaperAdapter } from "../lib/template-adapters/astropaper.ts";
+import { yukinaAdapter } from "../lib/template-adapters/yukina.ts";
 
 test("template adapters registry carries the per-template rules only", () => {
   // forge 是全量适配：servicesFn + designTokenCss + sanitize 齐备
@@ -46,3 +50,25 @@ test("moon adapter carries heroFn for its non-h1 visible hero", () => {
   assert.match(moon!.heroFn!, /gradient-text/, "heroFn references moon gradient hero class");
   assert.equal(moon?.servicesFn, undefined, "moon has no custom servicesFn");
 });
+test("content-site adapters are registered with native fill contracts", () => {
+  for (const [templateId, adapter] of [
+    ["astrofy", astrofyAdapter],
+    ["devportfolio", devportfolioAdapter],
+    ["astropaper", astropaperAdapter],
+    ["yukina", yukinaAdapter],
+  ] as const) {
+    assert.equal(getTemplateAdapter(templateId), adapter);
+    assert.equal(adapter.templateId, templateId);
+    assert.ok(adapter.prepareFn);
+    assert.ok(adapter.nativeFillFn);
+    assert.equal(adapter.prepareFn!.includes("${"), false);
+    assert.equal(adapter.nativeFillFn!.includes("${"), false);
+  }
+});
+
+test("content adapters keep stable native anchors across repeated prepare calls", () => {
+  assert.match(astrofyAdapter.prepareFn!, /sitecraftAstrofyContact/);
+  assert.match(devportfolioAdapter.prepareFn!, /getElementById\('projects'\)/);
+  assert.doesNotMatch(devportfolioAdapter.prepareFn!, /projects\.id\s*=\s*['"]features/);
+});
+
