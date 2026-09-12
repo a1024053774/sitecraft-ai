@@ -1,6 +1,7 @@
 import type { ProviderResult } from "./ai-provider.ts";
 import { splitChatTask, type ChatTask } from "./chat-task-planner.ts";
 import type { SiteOperation } from "./site-operations.ts";
+import { operationConflictEffects } from "./site-operations.ts";
 
 type ProviderSuccess = Extract<ProviderResult, { ok: true }>;
 type ProviderFailure = Extract<ProviderResult, { ok: false }>;
@@ -18,59 +19,6 @@ function failure(code: Extract<ChatTaskPlanResult, { ok: false }>["code"], error
   return { ok: false, code, error, model: null, latencyMs: 0, attemptCount: 0 };
 }
 
-function operationEffects(operation: SiteOperation): Array<{ key: string; value: unknown }> {
-  switch (operation.op) {
-    case "set_text":
-      return [{ key: `text:${operation.target}:${operation.locale ?? "zh"}`, value: operation.value }];
-    case "update_item":
-      return [
-        ...(operation.title === undefined ? [] : [{ key: `card:${operation.section}:${operation.index}:${operation.locale}:title`, value: operation.title }]),
-        ...(operation.body === undefined ? [] : [{ key: `card:${operation.section}:${operation.index}:${operation.locale}:body`, value: operation.body }]),
-      ];
-    case "add_item":
-      return [{ key: `card:${operation.section}:${operation.item.id}`, value: operation.item }];
-    case "remove_item":
-      return [{ key: `card:${operation.section}:${operation.itemId}`, value: null }];
-    case "update_product":
-      return [
-        ...(operation.name === undefined ? [] : [{ key: `product:${operation.sku}:${operation.locale ?? "zh"}:name`, value: operation.name }]),
-        ...(operation.summary === undefined ? [] : [{ key: `product:${operation.sku}:${operation.locale ?? "zh"}:summary`, value: operation.summary }]),
-        ...(operation.category === undefined ? [] : [{ key: `product:${operation.sku}:category`, value: operation.category }]),
-      ];
-    /**
-     * 评价与 Logo（⑥-4b）按 **itemId** 定位，不用下标。
-     *
-     * 这个函数算的是"同一批操作里哪两条会撞车"。用下标的话，
-     * 两条针对**不同条目**的操作会在条目增删后算成同一个 key，
-     * 于是被误判成冲突而丢掉一条——**内容静默少改一处**。
-     */
-    case "update_testimonial":
-      return [
-        ...(operation.quote === undefined ? [] : [{ key: `testimonial:${operation.itemId}:${operation.locale}:quote`, value: operation.quote }]),
-        ...(operation.author === undefined ? [] : [{ key: `testimonial:${operation.itemId}:${operation.locale}:author`, value: operation.author }]),
-        ...(operation.role === undefined ? [] : [{ key: `testimonial:${operation.itemId}:${operation.locale}:role`, value: operation.role }]),
-      ];
-    case "update_logo":
-      return [{ key: `logo:${operation.itemId}:name`, value: operation.name }];
-    case "set_template":
-      return [{ key: "template", value: operation.templateId }];
-    case "set_design_tokens":
-      return [{ key: "design", value: operation.tokens }];
-    case "set_section_visibility":
-      return [{ key: `visibility:${operation.section}`, value: operation.visible }];
-    case "reorder_sections":
-      return [{ key: "section-order", value: operation.order }];
-    case "replace_products":
-      return [{ key: "products", value: operation.products }];
-    case "set_asset":
-      return [{ key: `asset:${operation.target}`, value: operation.asset }];
-    case "set_product_image":
-      return [{ key: `product:${operation.sku}:image`, value: operation.image }];
-    case "replace_draft":
-      return [{ key: "draft", value: operation.draft }];
-  }
-}
-
 export function mergeChatTaskResults(
   results: ProviderResult[],
   options: { maxOperations?: number } = {},
@@ -81,20 +29,23 @@ export function mergeChatTaskResults(
   const maxOperations = options.maxOperations ?? 32;
   const operations: SiteOperation[] = [];
   const exact = new Set<string>();
+  // 键由 site-operations 的 operationConflictEffects 统一构造（2026-09-12 收口），
+  // 本文件不再自己拼字符串——从前两边手拼且已经漂了（见该函数注释）。
   const effects = new Map<string, string>();
   for (const result of results as ProviderSuccess[]) {
     for (const operation of result.operations) {
       const serialized = JSON.stringify(operation);
       if (exact.has(serialized)) continue;
-      for (const effect of operationEffects(operation)) {
+      for (const effect of operationConflictEffects(operation)) {
         const value = JSON.stringify(effect.value);
         const previous = effects.get(effect.key);
         if (previous !== undefined && previous !== value) {
-          return failure("operation_conflict", `多个任务对 ${effect.key} 生成了冲突修改`);
+          // 键是内部指纹，不面向用户，所以文案里只说人话，不回显 `card:features:...`。
+          return failure("operation_conflict", "多个任务对同一处内容生成了冲突修改");
         }
       }
       exact.add(serialized);
-      for (const effect of operationEffects(operation)) effects.set(effect.key, JSON.stringify(effect.value));
+      for (const effect of operationConflictEffects(operation)) effects.set(effect.key, JSON.stringify(effect.value));
       operations.push(operation);
       if (operations.length > maxOperations) {
         return failure("too_many_operations", `聚合操作超过 ${maxOperations} 项`);

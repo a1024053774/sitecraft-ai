@@ -939,22 +939,111 @@ function dedupeByTarget(operations: SiteOperation[]): SiteOperation[] {
   });
 }
 
-function operationIdentity(operation: SiteOperation): string | null {
+/**
+ * 同批操作的**冲突指纹**——`op` 级(**单元**)，不带字段。
+ *
+ * ## 这是全仓库唯一一处拼 `card:` 前缀的地方（2026-09-12 收口）
+ *
+ * 在此之前有两处手拼，而且**已经漂了**：
+ *  - `lib/chat-task-executor.ts` 的 `operationEffects` 用 `item.id` / `operation.index`
+ *  - 本文件的 `operationIdentity` 用 `itemId ?? index`
+ * 漂了不会让任何测试变红，只会在**真实冲突上漏判 → 静默丢一条操作**。
+ * 现在两边都从这里取，**不可能再漂**。
+ *
+ * ## 单元级 vs 字段级
+ *
+ * - 本函数（单元级）：判断"两条操作是否改**同一条目**"——`dedupeByTarget` 用它。
+ * - `operationConflictEffects`（字段级）：判断"是否改**同一条目的同一字段**"——
+ *   `mergeChatTaskResults` 的冲突判定用它。
+ *
+ * 两者共用同一个单元前缀，字段级只是后面多接一段后缀，所以**前缀绝不会各写各的**。
+ *
+ * ## `add_item` 为什么用 `item.id` 而不是下标
+ *
+ * 从前 chat 侧用 `item.id`、去重侧用 `index ?? "end"`。**统一取更严的那个**：
+ * 用下标的话，两条在**同一下标**插入**不同条目**的操作会被误判成同一条而丢一条
+ * ——那正是 ⑥-4b 在 `update_testimonial` 上记过的教训（内容静默少改一处）。
+ * 用 id 则只在**真是同一个条目**时才合并。
+ */
+export function operationConflictIdentity(operation: SiteOperation): string | null {
   if (operation.op === "set_text") return `text:${operation.target}:${operation.locale ?? "zh"}`;
   if (operation.op === "update_item") return `card:${operation.section}:${operation.itemId ?? operation.index}:${operation.locale ?? "zh"}`;
-  if (operation.op === "add_item") return `add:${operation.section}:${operation.index ?? "end"}`;
-  if (operation.op === "remove_item") return `remove:${operation.section}:${operation.itemId}`;
+  if (operation.op === "add_item") return `card:${operation.section}:${operation.item.id}`;
+  if (operation.op === "remove_item") return `card:${operation.section}:${operation.itemId}`;
   if (operation.op === "update_product") return `product:${operation.sku}:${operation.locale ?? "zh"}`;
   // 评价与 Logo（⑥-4b）按 itemId 定位——它们会增删，下标随时会指到别人身上
   if (operation.op === "update_testimonial") return `testimonial:${operation.itemId}:${operation.locale}`;
   if (operation.op === "update_logo") return `logo:${operation.itemId}`;
   if (operation.op === "set_asset") return `asset:${operation.target}`;
-  if (operation.op === "set_product_image") return `product-image:${operation.sku}`;
+  if (operation.op === "set_product_image") return `product:${operation.sku}:image`;
   if (operation.op === "set_section_visibility") return `visibility:${operation.section}`;
-  if (operation.op === "reorder_sections") return "reorder";
+  if (operation.op === "reorder_sections") return "section-order";
   if (operation.op === "set_template") return "template";
-  if (operation.op === "set_design_tokens") return "tokens";
+  if (operation.op === "set_design_tokens") return "design";
+  if (operation.op === "replace_products") return "products";
+  if (operation.op === "replace_draft") return "draft";
   return null;
+}
+
+/**
+ * 单元级指纹；没有指纹的返回 `null`（`dedupeByTarget` 据此原样保留）。
+ *
+ * **保留这个名字**是有意的：它是去重路径用的既有契约名，
+ * 实现直接委托给 `operationConflictIdentity`，语义上就是同一个东西。
+ */
+function operationIdentity(operation: SiteOperation): string | null {
+  return operationConflictIdentity(operation);
+}
+
+/** 可以冲突的字段（多字段 op 才需要）；不在此表的 op 是整单元一件。 */
+const CONFLICT_FIELDS: Partial<Record<SiteOperation["op"], readonly string[]>> = {
+  update_item: ["title", "body"],
+  update_product: ["name", "summary", "category"],
+  update_testimonial: ["quote", "author", "role"],
+  update_logo: ["name"],
+};
+
+/** 单元级操作用于冲突比较的"那个值"（整单元一件的 op）。 */
+function unitConflictValue(operation: SiteOperation): unknown {
+  switch (operation.op) {
+    case "set_text": return operation.value;
+    case "add_item": return operation.item;
+    case "remove_item": return null;
+    case "set_template": return operation.templateId;
+    case "set_design_tokens": return operation.tokens;
+    case "set_section_visibility": return operation.visible;
+    case "reorder_sections": return operation.order;
+    case "replace_products": return operation.products;
+    case "set_asset": return operation.asset;
+    case "set_product_image": return operation.image;
+    case "replace_draft": return operation.draft;
+    default: return undefined;
+  }
+}
+
+function fieldConflictValue(operation: SiteOperation, field: string): unknown {
+  return (operation as unknown as Record<string, unknown>)[field];
+}
+
+/**
+ * **同批操作的冲突/去重指纹（字段级）**——`mergeChatTaskResults` 用它判断
+ * "多个任务是否改到了同一条目的同一字段而给出不同值"。
+ *
+ * 由 [`operationConflictIdentity`](#) 加字段后缀派生，所以**前缀只有一处定义**。
+ */
+export function operationConflictEffects(operation: SiteOperation): Array<{ key: string; value: unknown }> {
+  const unit = operationConflictIdentity(operation);
+  if (!unit) return [];
+  const fields = CONFLICT_FIELDS[operation.op];
+  if (!fields) return [{ key: unit, value: unitConflictValue(operation) }];
+  return fields
+    .filter((field) => fieldConflictValue(operation, field) !== undefined)
+    .map((field) => ({ key: `${unit}:${field}`, value: fieldConflictValue(operation, field) }));
+}
+
+/** 字段级指纹的键列表（供测试做同源断言）。 */
+export function operationConflictKeys(operation: SiteOperation): string[] {
+  return operationConflictEffects(operation).map((effect) => effect.key);
 }
 
 /**
