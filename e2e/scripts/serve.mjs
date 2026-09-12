@@ -3,6 +3,12 @@ import { access, readdir, stat } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
+import {
+  POSTGRES_IN_CONTAINER_PORT,
+  resolvePostgresPort,
+  resolveServerEnv,
+  resolveStoreBackend,
+} from "./pg-target.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
@@ -46,16 +52,30 @@ async function newestSourceMtime(directory) {
   return newest;
 }
 
+/**
+ * 端口来自 pg-target.mjs（单一来源），不再硬编码。
+ *
+ * ⚠️ 这里检查的是**宿主机映射端口**，不是容器内的 5432——
+ * compose 的 `5433:5432` 意味着宿主机听 5433、容器内听 5432。
+ * 拿容器内端口做检查就是检查一个永远不通的端口（假门禁）。
+ */
 async function ensurePostgres() {
-  if (await portOpen(5432)) return;
-  if (process.env.E2E_SKIP_DOCKER === "1") throw new Error("Postgres is unavailable on 5432 and E2E_SKIP_DOCKER=1");
+  const port = resolvePostgresPort();
+  if (await portOpen(port)) return;
+  if (process.env.E2E_SKIP_DOCKER === "1") {
+    throw new Error(`Postgres is unavailable on 127.0.0.1:${port} and E2E_SKIP_DOCKER=1`);
+  }
   const compose = process.platform === "win32" ? "docker.exe" : "docker";
   await new Promise((resolve, reject) => {
     const child = spawn(compose, ["compose", "up", "-d", "postgres"], { cwd: root, stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", (code) => code === 0 ? resolve() : reject(new Error(`docker compose exited with ${code}`)));
   });
-  await waitForPort(5432, 60_000);
+  // 等映射端口，不是容器内端口：容器起来不等于映射已生效。
+  await waitForPort(port, 60_000);
+  if (port === POSTGRES_IN_CONTAINER_PORT) return;
+  // 自证：compose 的映射与我们要连的端口必须一致，否则又是一次假门禁。
+  console.log(`[e2e] postgres 宿主机端口 ${port}（容器内 ${POSTGRES_IN_CONTAINER_PORT}）`);
 }
 
 async function needsBuild() {
@@ -68,14 +88,21 @@ async function needsBuild() {
   }
 }
 
-await ensurePostgres();
+const backend = resolveStoreBackend();
+if (backend === "file") {
+  console.log("[e2e] 存储后端：file（E2E_STORE=file，跳过 Postgres 准备）");
+} else {
+  await ensurePostgres();
+}
 if (await needsBuild()) await runNode([nextBin, "build"]);
 
 const server = spawn(process.execPath, [nextBin, "start", "-p", "3210"], {
   cwd: root,
   // e2e 用 relaxed 鉴权（2026-09-11 P-1 之后，非 development 默认 strict）。
   // e2e helper 不带访问头，本来就是本地测试环境；只有**生产**才必须 strict。
-  env: { ...process.env, PORT: "3210", SITECRAFT_ACCESS_MODE: "relaxed" },
+  // resolveServerEnv 决定 SITE_STORE 与 DATABASE_URL——
+  // 与 global-setup / preflight 的端口检查**同源**，所以"检查的"就是"服务连的"。
+  env: { ...resolveServerEnv(process.env), PORT: "3210", SITECRAFT_ACCESS_MODE: "relaxed" },
   stdio: "inherit",
 });
 

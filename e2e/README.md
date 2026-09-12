@@ -22,7 +22,7 @@ npm run test:e2e:real
 可用环境变量：
 
 - `E2E_FORCE_BUILD=1`：忽略缓存并重新构建。
-- `E2E_SKIP_DOCKER=1`：不尝试启动 Docker；5432 不可用时直接失败。
+- `E2E_SKIP_DOCKER=1`：不尝试启动 Docker；Postgres 不可用时直接失败。
 
 ## 定位失败
 
