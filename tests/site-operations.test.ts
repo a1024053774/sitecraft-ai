@@ -452,18 +452,29 @@ test("slotForQualityIssue: 可定位的槽位映射到预览目标", () => {
 });
 
 /**
- * ===== 阶段 1 冲突 #8：`add_card` 的 index 上限是否构成越界路径 =====
+ * ===== 阶段 1 冲突 #8：`add_card` 满员时构成越界路径 =====
  *
- * 用户裁定：**先补一个实跑复现测试，把结论（真实触发/不触发）写进报告再决定修法，
- * 不许直接改。** 所以本节只**观察并记录事实**，不加断言去"要求"某种行为。
+ * ## 病史
  *
- * 可疑点：`addCardOperationSchema` 的 `index` 上限是 `12`
- * （`site-operations.ts:120`，字面量，与 `MAX_COLLECTION_ITEMS` 无 import 关系），
- * 而 `MAX_COLLECTION_ITEMS` 也是 12、`siteDraftSchema` 用它做 `.max()`。
- * 若已有 12 条时 `index=12` 能插入成功，就会得到 13 条 → 下次读取 schema 失败 →
- * `normalizeDraft` 走 destructive 兜底，**把整站回退成演示文案**（P-0 静默数据丢失）。
+ * `addCardOperationSchema` 的 `index` 上限曾是字面量 `12`（与 `MAX_COLLECTION_ITEMS`
+ * 无 import 关系），而插入点是 `Math.min(index ?? len, len)`——满员 12 条时
+ * `index=12` 被夹到尾部，**插入成第 13 条** → `siteDraftSchema` 的 `.max(12)` 解析失败
+ * → 下次读取走 `normalizeDraft` 的 destructive 兜底，**整站回退成演示文案**。
+ *
+ * 2026-09-12 实跑复现的输出原文：
+ *
+ *     [冲突#8 观察] 插入前 12 条 → 插入后 13 条；schema 可解析 = false
+ *     [冲突#8 结论] **真实触发**
+ *
+ * ## 修法（用户裁决：A+B 一起修，B 为主防线）
+ *
+ * A：`index` 上限改读 `MAX_COLLECTION_ITEMS - 1`（消"同值不同源"）；
+ * B：**插入点加容量前置校验**——满员时抛带中文说明的 Error。
+ *
+ * B 是主防线，因为它挡得住 A 挡不住的形态：**多条独立 add_card 累计溢出**
+ * （每条各自都没超 index 上限，加起来照样越界）。本测试覆盖的正是这一形态。
  */
-test("冲突 #8 实跑复现：满员后再 add_card（index=12）会怎样", () => {
+test("冲突 #8：满员后 add_card 被拒，草稿保持可解析", () => {
   const draft = structuredClone(defaultDraft);
   draft.content.features.items = Array.from({ length: MAX_COLLECTION_ITEMS }, (_, i) => ({
     id: `f${i}`,
@@ -471,28 +482,57 @@ test("冲突 #8 实跑复现：满员后再 add_card（index=12）会怎样", ()
     body: { zh: `说明${i}`, en: `B${i}` },
   }));
 
-  const before = draft.content.features.items.length;
-  const result = applySiteOperations(
-    draft,
-    [{ op: "add_card", section: "features", index: 12, item: { id: "overflow", title: { zh: "溢出", en: "X" }, body: { zh: "溢出", en: "X" } } } as never],
-    { templateIds: new Set(["forge"]), lastChange: "冲突#8复现" },
+  /**
+   * 验收标准：
+   *  1. 满员后 add_card 必须**被拒**（不是静默插进去）；
+   *  2. 被拒之后草稿仍能通过 schema——否则下次读取会走 `normalizeDraft` 的
+   *     destructive 兜底，**整站回退成演示文案**（这才是本冲突真正的危害）；
+   *  3. 拒绝要给可读的中文原因（`applySiteOperations` 的既有约定，见同文件其它越界用例）。
+   */
+  assert.throws(
+    () => applySiteOperations(
+      draft,
+      [{ op: "add_card", section: "features", index: 12, item: { id: "overflow2", title: { zh: "溢出", en: "X" }, body: { zh: "溢出", en: "X" } } } as never],
+      { templateIds: new Set(["forge"]), lastChange: "冲突#8验收" },
+    ),
+    /容量|上限|最多|条/,
+    "满员后 add_card 必须被拒，并给出可读的中文原因",
   );
-  const after = result.draft.content.features.items.length;
 
-  // 落盘后的草稿还能不能通过 schema —— 这才是"会不会触发整站回退"的判定
-  const parseable = siteDraftSchema.safeParse(result.draft).success;
+  // 第 2 条：被拒后原草稿必须完好（未被写坏）
+  assert.equal(draft.content.features.items.length, MAX_COLLECTION_ITEMS);
+  assert.equal(siteDraftSchema.safeParse(draft).success, true, "满员草稿本身必须仍能通过 schema");
+});
 
-  // 如实记录观察结果（不断言"应该是多少"，因为修法尚未裁决）
-  console.log(`  [冲突#8 观察] 插入前 ${before} 条 → 插入后 ${after} 条；schema 可解析 = ${parseable}`);
-  console.log(`  [冲突#8 观察] MAX_COLLECTION_ITEMS = ${MAX_COLLECTION_ITEMS}`);
+test("冲突 #8 主防线场景：满员前一格连插两条，第二条必须被拒", () => {
+  /**
+   * 这正是 **A 项挡不住、必须靠 B** 的形态。
+   *
+   * 11 条时（上限 12），两条 add_card 的 `index` **各自**都没超 A 项的上限，
+   * 但**累计**会到 13。A 只看单条的 index，看不出来；B 在插入点逐条判当前条数，
+   * 所以第二条会被拦下，草稿停在第 12 条、schema 仍可解析。
+   */
+  const draft = structuredClone(defaultDraft);
+  draft.content.features.items = Array.from({ length: MAX_COLLECTION_ITEMS - 1 }, (_, i) => ({
+    id: `g${i}`,
+    title: { zh: `优势${i}`, en: `G${i}` },
+    body: { zh: `说明${i}`, en: `B${i}` },
+  }));
 
-  if (after > MAX_COLLECTION_ITEMS) {
-    console.log("  [冲突#8 结论] **真实触发**：可以插到超过上限，且该草稿无法通过 schema");
-    console.log("               → 下次读取会走 normalizeDraft 的 destructive 兜底（整站回退成演示文案）");
-  } else {
-    console.log("  [冲突#8 结论] 不触发：插入被夹在上限内");
-  }
+  const card = (id: string) => ({
+    op: "add_card" as const,
+    section: "features" as const,
+    item: { id, title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } },
+  });
 
-  // 这条断言只锁"观察本身发生了"，不锁结论——结论写进报告由人裁决
-  assert.ok(result, "复现测试本身必须能跑完（不因异常中断）");
+  // 一条一条来：第一条必须成功（还没满），第二条必须被拒（满了）
+  const first = applySiteOperations(draft, [card("a")], { templateIds: new Set(["forge"]), lastChange: "step1" });
+  assert.equal(first.draft.content.features.items.length, MAX_COLLECTION_ITEMS, "第一条应插入成功，正好满员");
+  assert.equal(siteDraftSchema.safeParse(first.draft).success, true, "满员草稿必须仍可解析");
+
+  assert.throws(
+    () => applySiteOperations(first.draft, [card("b")], { templateIds: new Set(["forge"]), lastChange: "step2" }),
+    /上限|最多/,
+    "满员后再加必须被拒——这是 A 项（单条 index 上限）挡不住的累计形态",
+  );
 });

@@ -8,6 +8,7 @@ import {
   draftAssetSchema,
   editableCardSchema,
   locales,
+  MAX_COLLECTION_ITEMS,
   productSchema,
   sectionKeySchema,
   sectionKeys,
@@ -117,7 +118,19 @@ const updateCardOperationSchema = z.object({
 const addCardOperationSchema = z.object({
   op: z.literal("add_card"),
   section: cardSectionSchema,
-  index: z.number().int().min(0).max(12).optional(),
+  /**
+   * 插入位置。上限**不能写死**：它是"最多能插到第几个位置"，
+   * 而真正的约束是 `MAX_COLLECTION_ITEMS`（`siteDraftSchema` 用它做 `.max()`）。
+   *
+   * 2026-09-12（阶段 1 冲突 #8，A 项）：此前是字面量 `12`，与 `MAX_COLLECTION_ITEMS`
+   * **无 import 关系**——典型的"同值不同源"。两者一旦漂移，这里就会成为越界入口
+   * （或反过来把合法的插入挡掉）。改为直接读常量。
+   *
+   * 注意 `- 1`：满员 12 条时合法插入位是 0..11（插到 12 就是第 13 条）。
+   * 但**光靠这里不够**——`index` 是"模型声称插哪"，真正的防线在 `applySiteOperations`
+   * 的插入点（B 项），因为多条独立 add_card 累计也会溢出。
+   */
+  index: z.number().int().min(0).max(MAX_COLLECTION_ITEMS - 1).optional(),
   item: editableCardSchema,
 });
 const removeCardOperationSchema = z.object({
@@ -481,6 +494,26 @@ export function applySiteOperations(
     if (operation.op === "add_card") {
       const items = cardItems(draft, operation.section);
       if (items.some((item) => item.id === operation.item.id)) throw new Error(`Card id ${operation.item.id} already exists`);
+      /**
+       * === B 项：插入点容量前置校验（阶段 1 冲突 #8 的**主防线**）===
+       *
+       * 为什么必须在**这里**拦，而不是只靠 `addCardOperationSchema.index.max()`（A 项）：
+       *
+       * A 项约束的是"模型声称插到第几个位置"，**单条**操作合法；但同一个批次里
+       * 多条 `add_card` **各自都没超 index 上限、加起来照样越界**。实测复现：
+       * 满员 12 条时插 `index=12`，下面的 `Math.min(..., items.length)` 把它夹到尾部，
+       * 于是得到**第 13 条** → `siteDraftSchema` 的 `.max(MAX_COLLECTION_ITEMS)` 解析失败
+       * → 下次读取走 `normalizeDraft` 的 destructive 兜底，**整站回退成演示文案**。
+       *
+       * 拒绝方式与同文件其它越界一致：**抛带中文说明的 Error**（调用方按单条捕获/丢弃）。
+       * 错误文案要说人话并带上真实数字——`features item 4 does not exist` 那种
+       * 英文原样外泄正是 2026-09-10 修过的同类缺陷。
+       */
+      if (items.length >= MAX_COLLECTION_ITEMS) {
+        throw new Error(
+          `${operation.section} 已达模板可容纳的条数上限（最多 ${MAX_COLLECTION_ITEMS} 条），无法再新增；请先删除一条或改为修改现有条目。`,
+        );
+      }
       const index = Math.min(operation.index ?? items.length, items.length);
       items.splice(index, 0, structuredClone(operation.item));
       inverseOperations.unshift({ op: "remove_card", section: operation.section, itemId: operation.item.id });
