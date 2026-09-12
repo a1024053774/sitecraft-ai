@@ -7,3 +7,17 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## 契约军规（2026-09-12 立，逐条来自本轮付过学费的债）
+
+1. **禁止手抄**：字段名/枚举值/容量/长度数字必须从权威源派生（`site-document.ts` 的 schema、`SLOT_MAX_LENGTH`、`sectionKeys`、`cardSections`、`LEGACY_OPERATION_NAMES`）。找不到派生路径就停下问，不许抄。→ 门禁 B2 手抄检测
+2. **新检查必须证明会失败**：先注入坏样本拍红、再修复拍绿，原文贴进 commit。→ glossary 附则 3
+3. 注入用字符串（prompt / 页面脚本模板字面量）内**禁用反引号**。→ `no-backtick-in-injection.test.ts`
+4. **批量替换**（sed/正则）先列撞名与范围，改后比对行为；**`tsc` 全绿不算证据**（本轮 sed 撞名，tsc 未报）。→ 肉眼过 diff
+5. **巨型文件拒收新代码**（`preview/route.ts`、`workspace/page.tsx`、`generate/page.tsx`）：先拆子模块。→ 改前看行数
+6. 新增操作名/协议串：与**别名表 + append-only 快照测试同 commit** 登记。→ `legacy-op-names.test.ts`
+7. 来不及修的：登记 glossary 待办区 `T-x` 并写处置意向，**禁止口头挂账**。→ 汇报时逐条对照裁决
+8. **改名前先问"这是来源名还是目标名"**：映射表的键是历史值，盲替换会让兼容层静默变空操作且测试全绿。
+9. **`presentation.slot` ≠ `slot`**：前者是裸段名（`presentationSlot`），后者是 DOM 点分路径；混用会静默失效（本轮 P0）。→ 同名不同义第 1 组
+10. **e2e 失败先查环境态**（测试进程与被测服务是否同库/同端口），再查业务。→ `playwright.config.ts` 同库断言
+11. **未 `await` 的 rejection 会伪装成 UI 失败**：涉及直连库的 e2e 步骤必须 `await` 并显式失败。
