@@ -1,4 +1,112 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync } from "node:fs";
+import path from "node:path";
+
+/**
+ * 让**测试进程**拿到与**被测服务**同一份环境（T-7 最小修，2026-09-12）。
+ *
+ * ## 为什么必须在 config 里做，而不是各 spec 里做
+ *
+ * Playwright 会**先加载 config、再加载每个 spec**，所以在 config 顶部加载一次，
+ * 之后所有 spec（以及它们 import 的 `lib/*`）看到的 `process.env` 都是这一份。
+ * 放在 spec 里则会**晚于** spec 顶部的 `import`——而 ESM 的 import 求值在前，
+ * 那正是本轮踩过的坑（见 `tests/site-store-op-rename.test.ts` 的注释）。
+ *
+ * ## 修的是什么
+ *
+ * e2e 里有 spec **直接 import `lib/site-store`** 并在测试进程里调用
+ * （`workspace.spec.ts` 的 `commitOperations`）。此前测试进程没加载 `.env`：
+ *
+ * ```
+ * NODE_ENV = production          ← Playwright 会设
+ * SITE_STORE = undefined         ← .env 没被加载
+ * DATABASE_URL 端口 = (未设置)
+ * → getSite 直接抛：DATABASE_URL 未配置，生产环境不会退回本地文件存储。
+ * ```
+ *
+ * 于是测试进程连不上任何库，`await commitOperations(...)` **从未生效**——
+ * 而失败伪装成 UI 问题（页面说"没有可撤销的 AI 修改"）。**登记为 T-7。**
+ *
+ * ## 为什么按 `.env.local` → `.env` 这个顺序
+ *
+ * 与 Next 的**加载顺序**一致（`.env.local` 优先于 `.env`）。
+ * ⚠️ `process.loadEnvFile` **不覆盖已存在的变量**，所以：
+ *  - CLI 显式传的 `E2E_STORE` / `DATABASE_URL` 仍然是最高优先级（不会被文件盖掉）；
+ *  - 两个文件**同值的键**（如 `DATABASE_SSL=false`）不会因顺序产生差异；
+ *  - `serve.mjs` 给被测进程的显式注入在**子进程**里做，也不受影响。
+ * 将来若出现两文件**不同值**的键，这里的顺序就是错的——所以 `DATABASE_URL` 的
+ * 一致性由下面那条断言钉住（**断言失败即红，不静默**）。
+ */
+const repoRoot = __dirname;
+
+/**
+ * ① 先记住 CLI 显式传的值（`process.loadEnvFile` **不覆盖**已存在变量，
+ *    所以 CLI 传的本来就是最高优先级）。
+ */
+const cliDatabaseUrl = process.env.DATABASE_URL?.trim();
+
+/** ② 加载 `.env.local` → `.env`（与 Next 的顺序一致），补齐池大小等非连接类配置。 */
+for (const file of [".env.local", ".env"]) {
+  const full = path.join(repoRoot, file);
+  if (existsSync(full)) process.loadEnvFile(full);
+}
+
+/**
+ * ③ **覆盖**连接串，让它与 `serve.mjs` 给被测进程的那一份**同源**。
+ *
+ * 这一步是本修的核心，也是唯一能让两边一致的做法：
+ *
+ * - 被测服务（`next start`）的连接串由 `serve.mjs` 用 `resolveServerEnv()` 注入
+ *   → 指向 `resolvePostgresPort()`；
+ * - 而 `.env.local` 里的 `DATABASE_URL` 指向 **5432**，它**不等同于** compose 实际
+ *   映射的 5433（本机 5432 还拒连）。第一次修只加载了 `.env`，于是测试进程
+ *   连 5432、被测服务连 5433——**修完仍然不同库**，实测报
+ *   `connect ECONNREFUSED 127.0.0.1:5432`。
+ *
+ * 只加载文件是不够的：**连接串必须由"e2e 实际起了哪个库"来定，而不是由 `.env` 定。**
+ * （这也是 `pg-target.mjs` 里那条"端口不读 DATABASE_URL"的同一条原则。）
+ */
+/**
+ * ⚠️ 用 CJS `require` 而不是 `import()`：Playwright 把本文件当 **CJS** 加载
+ * （实测 `SyntaxError: await is only valid in async functions`），顶层 await 不可用；
+ * 而 `createRequire` 能同步加载那个 ESM 文件（Node 24 支持 require(esm)）。
+ */
+const { createRequire } = require("node:module");
+const requireEsm = createRequire(__filename);
+const { resolveServerEnv, resolvePostgresPort } = requireEsm("./e2e/scripts/pg-target.mjs");
+
+if (!cliDatabaseUrl) {
+  const serverEnv = resolveServerEnv(process.env);
+  if (serverEnv.DATABASE_URL) {
+    process.env.DATABASE_URL = serverEnv.DATABASE_URL;
+    process.env.SITE_STORE = serverEnv.SITE_STORE;
+  } else {
+    // 文件后端模式：把连接串清掉，让 store 判定落到文件（否则会去连那个不通的 5432）。
+    delete process.env.DATABASE_URL;
+    process.env.SITE_STORE = "file";
+  }
+}
+
+/**
+ * ④ 同库断言：测试进程与被测服务必须连同一个库。
+ * 不一致就**当场报错**——否则断言会以 UI 症状失败（本轮就是这么被藏了一整轮）。
+ */
+if (process.env.E2E_STORE !== "file") {
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error(
+      "e2e 需要 DATABASE_URL（文件后端请设 E2E_STORE=file）。见 glossary T-7。",
+    );
+  }
+  const actualPort = Number(new URL(url).port || 5432);
+  const expectedPort = resolvePostgresPort();
+  if (actualPort !== expectedPort) {
+    throw new Error(
+      `测试进程的库端口(${actualPort}) 与 compose 映射(${expectedPort}) 不一致——`
+      + "两边会连不同的库，断言将以 UI 症状失败。见 glossary T-7。",
+    );
+  }
+}
 
 export default defineConfig({
   testDir: "./e2e",

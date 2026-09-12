@@ -47,20 +47,34 @@ function portFromUrl(url) {
 /**
  * 解析 e2e 要用的宿主机 PG 端口。
  *
- * 优先级：`POSTGRES_PORT`（显式覆盖）> `DATABASE_URL` 里的端口 > `DEFAULT_POSTGRES_PORT`。
+ * 优先级：`POSTGRES_PORT`（显式覆盖）> `DEFAULT_POSTGRES_PORT`。
+ *
+ * ## ⚠️ 刻意**不读** `DATABASE_URL`（2026-09-12 实测的回归）
+ *
+ * 第一版把 `DATABASE_URL` 的端口排在缺省值前面，理由是"显式传参可覆盖"。
+ * 但 `playwright.config.ts` 为修 T-7 加载了 `.env.local` 之后，
+ * `DATABASE_URL` 变成了**仓库文件里那个 5432**——它**不保证与 compose 的映射一致**，
+ * 于是 `serve.mjs` 又去等一个不存在的端口，端口修复**当场回归**。
+ *
+ * 结论：**e2e 的目标端口只能来自 compose 或显式传参，不能来自 `.env`。**
+ * 这两个来源的语义不同——`.env` 描述"应用该连哪个库"，
+ * compose 描述"e2e 实际起了哪个库"；混用就会得到这种"看起来配好了其实不通"的状态。
+ *
+ * 需要连别的库时显式传 `POSTGRES_PORT`（它优先级最高，不会被文件覆盖）。
  */
 export function resolvePostgresPort(env = process.env) {
   const explicit = Number(env.POSTGRES_PORT);
   if (Number.isInteger(explicit) && explicit > 0) return explicit;
-
-  const fromUrl = env.DATABASE_URL ? portFromUrl(env.DATABASE_URL) : null;
-  if (fromUrl && Number.isInteger(fromUrl) && fromUrl > 0) return fromUrl;
-
   return DEFAULT_POSTGRES_PORT;
 }
 
-/** 与端口配套的库名，供需要拼连接串的地方使用。 */
+/**
+ * 与端口配套的库名，供需要拼连接串的地方使用。
+ *
+ * ⚠️ 只取**库名**，不取端口——端口必须来自 compose/显式传参（见 `resolvePostgresPort`）。
+ */
 export function resolvePostgresDatabase(env = process.env) {
+  if (env.POSTGRES_DATABASE) return env.POSTGRES_DATABASE;
   if (env.DATABASE_URL) {
     try {
       const name = new URL(env.DATABASE_URL).pathname.replace(/^\//, "");

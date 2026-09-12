@@ -81,13 +81,24 @@ const checked = resolvePostgresPort({});
 const serverEnv = resolveServerEnv({});
 check("resolvePostgresPort() == 服务 DATABASE_URL 的端口", checked, Number(new URL(serverEnv.DATABASE_URL).port));
 
-// ---- 4. 显式传参可覆盖（向后兼容口子还在）----
+// ---- 4. 覆盖口子：只认显式传参，**刻意不认 DATABASE_URL** ----
+// 这是 2026-09-12 实测出的回归：config 加载 .env.local 后 DATABASE_URL 变成文件里的
+// 5432，而 compose 起的库在 5433 → 端口修复当场回归。两个来源语义不同，不能混用。
 check(
-  "DATABASE_URL 里的端口可覆盖缺省",
-  resolvePostgresPort({ DATABASE_URL: "postgresql://u:p@h:6543/db" }),
-  6543,
+  "POSTGRES_PORT 显式覆盖优先",
+  resolvePostgresPort({ POSTGRES_PORT: "7777", DATABASE_URL: "postgresql://u:p@h:6543/db" }),
+  7777,
 );
-check("POSTGRES_PORT 优先级最高", resolvePostgresPort({ POSTGRES_PORT: "7777", DATABASE_URL: "postgresql://u:p@h:6543/db" }), 7777);
+check(
+  "DATABASE_URL **不**影响 e2e 目标端口（防回归）",
+  resolvePostgresPort({ DATABASE_URL: "postgresql://u:p@h:6543/db" }),
+  DEFAULT_POSTGRES_PORT,
+);
+check(
+  "库名仍可从 DATABASE_URL 取（只取库名，不取端口）",
+  (await import("./pg-target.mjs")).resolvePostgresDatabase({ DATABASE_URL: "postgresql://u:p@h:6543/mydb" }),
+  "mydb",
+);
 
 // ---- 5. 文件后端模式不注入连接串 ----
 const fileEnv = resolveServerEnv({ E2E_STORE: "file" });

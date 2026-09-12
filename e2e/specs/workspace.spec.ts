@@ -335,7 +335,17 @@ test.describe("C. 工作台", () => {
     await input.fill("改回上一条");
     await input.press("Enter");
 
-    await expect(page.getByText("已撤销 AI 修改“AI 重写首屏标题”", { exact: false })).toBeVisible();
+    /**
+     * ⚠️ 用 `.first()` 而不是裸 `getByText`（2026-09-12，T-7 修好后才暴露）。
+     *
+     * 此前这条断言**因为 undo 静默失败而"通过"**——页面上根本没有这段文字，
+     * 于是"0 个元素"和"1 个元素"都不会触发 strict mode。
+     * T-7 修好后 undo 真的生效，页面同时出现气泡与「同步中」两个节点，
+     * 裸定位器直接撞 strict mode violation（resolved to 2 elements）。
+     *
+     * 断言的本意是"撤销结果被显示出来"，而不是"只显示一次"，所以取 first()。
+     */
+    await expect(page.getByText("已撤销 AI 修改“AI 重写首屏标题”", { exact: false }).first()).toBeVisible();
     const after = await getDraft(request, demoSite.id);
     expect((after.draft.content as { hero: { title: { zh: string } } }).hero.title.zh).toBe(originalTitle);
     expect(after.draft.revision).toBe(before.draft.revision + 2);
