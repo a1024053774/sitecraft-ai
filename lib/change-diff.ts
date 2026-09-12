@@ -107,11 +107,11 @@ function readDisplayTarget(draft: SiteDraft, target: string): string {
     return readTextTarget(draft, text[1], text[2] as "zh" | "en");
   }
 
-  const card = target.match(/^(features|services)\.items\.(\d+)\.(title|body)\.(zh|en)$/);
-  if (card) {
-    const item = draft.content[card[1] as "features" | "services"].items[Number(card[2])];
-    if (!item) return "";
-    return item[card[3] as "title" | "body"][card[4] as "zh" | "en"];
+  const match = target.match(/^(features|services)\.items\.(\d+)\.(title|body)\.(zh|en)$/);
+  if (match) {
+    const entry = draft.content[match[1] as "features" | "services"].items[Number(match[2])];
+    if (!entry) return "";
+    return entry[match[3] as "title" | "body"][match[4] as "zh" | "en"];
   }
 
   const product = target.match(/^products\.([^\.]+)\.(name|summary)\.(zh|en)$/);
@@ -135,11 +135,11 @@ function displayLabel(target: string): string {
   if (text && text[1].startsWith("navigation.")) {
     return `导航「${text[1].slice("navigation.".length)}」（${localeLabels[text[2]]}）`;
   }
-  const card = target.match(/^(features|services)\.items\.(\d+)\.(title|body)\.(zh|en)$/);
-  if (card) {
-    const section = card[1] === "features" ? "核心优势" : "服务";
-    const field = card[3] === "title" ? "标题" : "说明";
-    return `第 ${Number(card[2]) + 1} 个${section}${field}（${localeLabels[card[4]]}）`;
+  const match = target.match(/^(features|services)\.items\.(\d+)\.(title|body)\.(zh|en)$/);
+  if (match) {
+    const section = match[1] === "features" ? "核心优势" : "服务";
+    const field = match[3] === "title" ? "标题" : "说明";
+    return `第 ${Number(match[2]) + 1} 个${section}${field}（${localeLabels[match[4]]}）`;
   }
   const product = target.match(/^products\.([^\.]+)\.(name|summary)\.(zh|en)$/);
   if (product) return `商品 ${product[1]} ${product[2] === "name" ? "名称" : "简介"}（${localeLabels[product[3]]}）`;

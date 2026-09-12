@@ -102,7 +102,7 @@ const setTextOperationSchema = z.object({
  */
 export const cardSections = ["features", "services", "faq"] as const;
 const cardSectionSchema = z.enum(cardSections);
-export type CardSection = z.infer<typeof cardSectionSchema>;
+export type EditableSection = z.infer<typeof cardSectionSchema>;
 
 const updateCardOperationSchema = z.object({
   op: z.literal("update_card"),
@@ -421,7 +421,7 @@ function same(a: unknown, b: unknown) {
  * 后面的 `items.splice(...)` / `item.title[locale] = ...` 改的是这个数组，
  * 赋回去才真的落到草稿上。（写第一版时漏了这一步，等于"改了但没保存"。）
  */
-function cardItems(draft: SiteDraft, section: CardSection): EditableItem[] {
+function editableItems(draft: SiteDraft, section: EditableSection): EditableItem[] {
   const existing = draft.content[section];
   if (existing) return existing.items;
   const created = { title: { zh: "", en: "" }, intro: { zh: "", en: "" }, items: [] as EditableItem[] };
@@ -457,7 +457,7 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "update_card") {
-      const items = cardItems(draft, operation.section);
+      const items = editableItems(draft, operation.section);
       const resolvedIndex = operation.itemId
         ? items.findIndex((candidate) => candidate.id === operation.itemId)
         : operation.index;
@@ -492,7 +492,7 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "add_card") {
-      const items = cardItems(draft, operation.section);
+      const items = editableItems(draft, operation.section);
       if (items.some((item) => item.id === operation.item.id)) throw new Error(`Card id ${operation.item.id} already exists`);
       /**
        * === B 项：插入点容量前置校验（阶段 1 冲突 #8 的**主防线**）===
@@ -521,7 +521,7 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "remove_card") {
-      const items = cardItems(draft, operation.section);
+      const items = editableItems(draft, operation.section);
       const index = items.findIndex((item) => item.id === operation.itemId);
       if (index < 0) throw new Error(`Card ${operation.itemId} does not exist`);
       const [item] = items.splice(index, 1);
@@ -792,7 +792,7 @@ export function validateGenerationOperations(
   // 不过滤的话 `projected[operation.section] += 1` 会对一个不存在的键做加法，
   // 结果是 `NaN`，而 `NaN > n` 恒为 `false` —— **门槛会静默失效**。
   const capacitySections = ["features", "services"] as const;
-  const isCapacitySection = (section: CardSection): section is (typeof capacitySections)[number] =>
+  const isCapacitySection = (section: EditableSection): section is (typeof capacitySections)[number] =>
     (capacitySections as readonly string[]).includes(section);
   const projected: Record<"features" | "services", number> = capacity
     ? { ...capacity.baseCounts }

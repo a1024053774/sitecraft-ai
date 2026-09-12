@@ -165,7 +165,7 @@ export function operationDisplayTargets(operation: SiteOperation, draft: SiteDra
    * 这里只用来算"改的是第几条"，**找不到就给空数组**——
    * 空数组 = "没有可展示的目标"，调用方本来就按空处理。
    *
-   * ⚠️ 不能在这里补一个空壳（`site-operations.ts` 的 `cardItems` 才补）：
+   * ⚠️ 不能在这里补一个空壳（`site-operations.ts` 的 `editableItems` 才补）：
    * 本函数是**只读**的展示工具，凭空往草稿里塞一节会污染下游的变更统计。
    */
   const itemsOf = (section: "features" | "services" | "faq") => draft.content[section]?.items ?? [];
