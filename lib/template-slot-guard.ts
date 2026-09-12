@@ -104,10 +104,10 @@ export function buildLocalPreviewSlots(draft: SiteDraft) {
     "companyName.zh",
     "industry.zh",
     ...(["zh", "en"] as const).flatMap((locale) => [
-      `navigation.about.${locale}`,
-      `navigation.services.${locale}`,
-      `navigation.products.${locale}`,
-      `navigation.contact.${locale}`,
+      // 导航项来自草稿本身（⑥ 起是数组，项数与 id 都由数据决定）——
+      // 从前这里写死 4 个键**且漏了 `features`**，那个洞一直没人发现，
+      // 因为漏掉的后果只是"这一项没出现在本地预览的槽位清单里"，不报错。
+      ...draft.navigation.map((item) => `navigation.${item.id}.${locale}`),
       `hero.title.${locale}`,
       `hero.subtitle.${locale}`,
       `hero.cta.${locale}`,
@@ -160,10 +160,19 @@ function textOperationTarget(operation: Extract<SiteOperation, { op: "set_text" 
 }
 
 export function operationDisplayTargets(operation: SiteOperation, draft: SiteDraft): string[] {
+  /**
+   * `content.faq` 是**可选**的（图里没有 FAQ 的站不该被迫空着这一节）。
+   * 这里只用来算"改的是第几条"，**找不到就给空数组**——
+   * 空数组 = "没有可展示的目标"，调用方本来就按空处理。
+   *
+   * ⚠️ 不能在这里补一个空壳（`site-operations.ts` 的 `cardItems` 才补）：
+   * 本函数是**只读**的展示工具，凭空往草稿里塞一节会污染下游的变更统计。
+   */
+  const itemsOf = (section: "features" | "services" | "faq") => draft.content[section]?.items ?? [];
   if (operation.op === "set_text") return [textOperationTarget(operation)];
   if (operation.op === "update_card") {
     const resolvedIndex = operation.itemId
-      ? draft.content[operation.section].items.findIndex((item) => item.id === operation.itemId)
+      ? itemsOf(operation.section).findIndex((item) => item.id === operation.itemId)
       : operation.index;
     const index = resolvedIndex >= 0 ? resolvedIndex : operation.index;
     return [
@@ -172,11 +181,12 @@ export function operationDisplayTargets(operation: SiteOperation, draft: SiteDra
     ].filter((target): target is string => Boolean(target));
   }
   if (operation.op === "add_card") {
-    const index = Math.min(operation.index ?? draft.content[operation.section].items.length, draft.content[operation.section].items.length);
+    const count = itemsOf(operation.section).length;
+    const index = Math.min(operation.index ?? count, count);
     return [`${operation.section}.items.${index}`];
   }
   if (operation.op === "remove_card") {
-    const index = draft.content[operation.section].items.findIndex((item) => item.id === operation.itemId);
+    const index = itemsOf(operation.section).findIndex((item) => item.id === operation.itemId);
     return index < 0 ? [`${operation.section}.items`] : [`${operation.section}.items.${index}`];
   }
   if (operation.op === "update_product") {
@@ -196,7 +206,10 @@ export function operationDisplayTargets(operation: SiteOperation, draft: SiteDra
 /** Only exact document paths reported by the preview can override conversational context. */
 export function isConcreteSelectedTarget(target?: string | null) {
   if (!target) return false;
-  return /^(?:siteName|companyName|industry|goal|navigation\.(?:about|features|services|products|contact)|hero\.(?:title|subtitle|cta)|about\.(?:title|body)|features\.(?:title|intro)|services\.(?:title|intro)|products\.(?:title|intro)|contact\.(?:title|body|email|phone|address))\.(?:zh|en)$/.test(target)
+  return /^(?:siteName|companyName|industry|goal|hero\.(?:title|subtitle|cta)|about\.(?:title|body)|features\.(?:title|intro)|services\.(?:title|intro)|products\.(?:title|intro)|contact\.(?:title|body|email|phone|address))\.(?:zh|en)$/.test(target)
+    // 导航项的 id 是数据决定的（⑥），静态枚举装不下——这里用与
+    // `inline-edit-mapping.ts` 的 NAV_SLOT 同一个字符集，两处别各写各的。
+    || /^navigation\.[a-z0-9][a-z0-9-]{0,39}\.(?:zh|en)$/.test(target)
     || /^(?:features|services)\.items\.\d+\.(?:title|body)\.(?:zh|en)$/.test(target)
     || /^products\..+\.(?:name|summary)\.(?:zh|en)$/.test(target)
     || /^products\..+\.category$/.test(target)
@@ -351,20 +364,27 @@ export type TemplateSlotReport = {
   incompatible: boolean;
 };
 
-const TARGET_SLOT_PREFIXES: Readonly<Record<string, readonly string[]>> = {
-  brand: ["brand"],
-  heroTitle: ["hero.title"],
-  heroSubtitle: ["hero.subtitle"],
-  primaryCta: ["hero.cta"],
-  about: ["about"],
-  features: ["features"],
-  services: ["services"],
-  products: ["products"],
-  contact: ["contact"],
-};
+/**
+ * 逻辑必需目标 → 槽位前缀的别名表（注册表驱动）。
+ *
+ * 说明：五节（about/features/services/products/contact）的前缀等于节名本身，
+ * 已在 `slotMatchesTarget` 里由 fallback 覆盖，无需登记；这里只登记**名字与槽位不同**的别名
+ * （heroTitle → hero.title 等）。新增此类目标时调用 `registerRequiredTargetPrefix` 一次即可，
+ * 不要再改本表以外的任何地方（2026-09-09 泛化）。
+ */
+const requiredTargetPrefixes = new Map<string, readonly string[]>([
+  ["brand", ["brand"]],
+  ["heroTitle", ["hero.title"]],
+  ["heroSubtitle", ["hero.subtitle"]],
+  ["primaryCta", ["hero.cta"]],
+]);
+
+export function registerRequiredTargetPrefix(target: string, prefixes: readonly string[]): void {
+  requiredTargetPrefixes.set(target, prefixes);
+}
 
 function slotMatchesTarget(slot: string, target: string) {
-  const prefixes = TARGET_SLOT_PREFIXES[target] ?? [target];
+  const prefixes = requiredTargetPrefixes.get(target) ?? [target];
   return prefixes.some((prefix) => slot === prefix || slot.startsWith(prefix + "."));
 }
 

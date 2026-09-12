@@ -90,17 +90,6 @@ export function validateTemplateExportRequest(
 
 export type ExportReferenceKind = "inline" | "navigation" | "resource";
 
-export function classifyExportReference(
-  rawUrl: string,
-  tagName: string,
-  attributeName: string,
-): ExportReferenceKind {
-  const url = rawUrl.trim().toLowerCase();
-  if (!url || url.startsWith("data:") || url.startsWith("blob:") || url.startsWith("#")) return "inline";
-  if (tagName.toLowerCase() === "a" && attributeName.toLowerCase() === "href") return "navigation";
-  return "resource";
-}
-
 export function validateTemplateExportArtifact(
   html: string,
   report: TemplateExportReport,
