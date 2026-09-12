@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   MAX_TEMPLATE_EXPORT_BYTES,
   buildTemplateResourceResolverScript,
-  classifyExportReference,
   validateTemplateExportArtifact,
   validateTemplateExportRequest,
   validateTemplateExportResult,
@@ -64,14 +63,6 @@ test("export request must match the currently applied template, site and revisio
   assert.match(validateTemplateExportRequest({ ...valid, templateId: "screwfast" }, expected).error ?? "", /template/i);
   assert.match(validateTemplateExportRequest({ ...valid, siteId: "site-18" }, expected).error ?? "", /site/i);
   assert.match(validateTemplateExportRequest({ ...valid, revision: 8 }, expected).error ?? "", /revision/i);
-});
-
-test("resource references and ordinary navigation are reported separately", () => {
-  assert.equal(classifyExportReference("https://example.com/about", "a", "href"), "navigation");
-  assert.equal(classifyExportReference("mailto:sales@example.com", "a", "href"), "navigation");
-  assert.equal(classifyExportReference("https://cdn.example.com/hero.webp", "img", "src"), "resource");
-  assert.equal(classifyExportReference("https://cdn.example.com/font.woff2", "style", "url"), "resource");
-  assert.equal(classifyExportReference("data:image/webp;base64,AA==", "img", "src"), "inline");
 });
 
 test("artifact validation allows navigation but rejects remaining resource links", () => {

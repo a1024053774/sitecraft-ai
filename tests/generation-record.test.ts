@@ -12,7 +12,6 @@ const intent: SiteIntent = {
   industry: "光伏组件出口",
   targetAudience: "overseasB2b",
   tone: "professional",
-  colorTone: "green",
   coreSections: ["about", "features", "products", "contact"],
   recommendedTemplateId: "atlas",
   summary: "光伏出口企业的双语官网",

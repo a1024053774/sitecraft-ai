@@ -81,6 +81,7 @@ function pendingTargets(report: BridgeReport, draft: SiteDraft, manifest: Templa
   const visibleTargets = new Set(Object.keys(report.visibleTextsBySlot));
   return [...new Set([
     ...draftCoverage.pendingTargets,
+    ...draftCoverage.placeholderTargets,
     ...manifest.slots.filter((slot) => slot.required && !visibleTargets.has(slot.target)).map((slot) => slot.target),
     ...report.residualDemoSlots,
   ])];

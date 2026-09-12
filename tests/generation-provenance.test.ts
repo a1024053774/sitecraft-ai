@@ -18,7 +18,8 @@ test("generation provenance stores a hash instead of the original input", () => 
   assert.equal(provenance.provider, "DeepSeek");
   assert.equal(provenance.model, "deepseek-v4-flash");
   assert.equal(provenance.promptId, "draft_operations");
-  assert.equal(provenance.promptVersion, "v1");
+  // v3：draft_operations 规则段改由 content-policy.ts 策略树派生（与质检器/发布门同源）
+  assert.equal(provenance.promptVersion, "v3");
   assert.equal(provenance.manifestVersion, 1);
   assert.equal(provenance.templateId, "screwfast");
   assert.equal(provenance.buildRevision, 7);

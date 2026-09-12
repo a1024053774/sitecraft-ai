@@ -11,7 +11,7 @@ import { templateCatalog, getTemplateMatchingProfile } from "../lib/template-cat
 
 /**
  * B3 意图 golden 用例（回归基线）：
- * 覆盖各行业 + 语气/受众/色系组合，任何意图 prompt/模板规则改动都不能破坏这些核心映射。
+ * 覆盖各行业 + 语气/受众组合，任何意图 prompt/模板规则改动都不能破坏这些核心映射。
  * 纯逻辑断言（mock，不触网）：resolveTemplate 的确定性映射 + categoryFromKeywords 关键词。
  */
 
@@ -77,15 +77,15 @@ test("golden: audience/tone combinations resolve correctly", () => {
   assert.equal(techMinimal.templateId, "signal");
 });
 
-test("golden: colorTone preserved through intent (no drift)", () => {
-  // colorTone 是可选字段，resolveTemplate 不应受其影响改变模板
+test("golden: tone preserved through intent (no drift)", () => {
+  // tone 不应影响模板选择：resolveTemplate 只看业务类型与关键词
   const warm = resolveTemplate(
-    baseIntent({ businessType: "services", colorTone: "warm", recommendedTemplateId: "kindred" }),
+    baseIntent({ businessType: "services", tone: "friendly", recommendedTemplateId: "kindred" }),
     "咨询公司官网",
   );
   assert.equal(warm.templateId, "kindred");
   const dark = resolveTemplate(
-    baseIntent({ businessType: "tech", colorTone: "dark", recommendedTemplateId: "signal" }),
+    baseIntent({ businessType: "tech", tone: "technical", recommendedTemplateId: "signal" }),
     "极客风格科技站",
   );
   assert.equal(dark.templateId, "signal");

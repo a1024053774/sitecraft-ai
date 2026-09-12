@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft } from "../lib/site-document.ts";
+import { SLOT_MAX_LENGTH } from "../lib/template-slot-contract.ts";
 import {
   applySiteOperations,
   aiChangeSchema,
+  checkCopyLength,
   describeDestructive,
+  describeSlot,
   isDestructiveOperation,
+  slotForQualityIssue,
   validateAIOperations,
+  validateGenerationOperations,
   type AIOperation,
   type SiteOperation,
 } from "../lib/site-operations.ts";
@@ -249,9 +254,185 @@ test("accepts hero subtitle within 40 Chinese chars (Q2)", () => {
   assert.equal(validated.rejected.length, 0);
 });
 
-test("accepts non-length-limited targets regardless of length (Q2)", () => {
-  const validated = validateAIOperations("改公司简介", [
+// ===== 文案长度闸门的单一判定源（2026-09-11） =====
+//
+// 背景：这段逻辑此前在 validateAIOperations 与 validateGenerationOperations
+// 里**逐字重复两遍**，而就地编辑路径（PUT /draft）**完全没有**这道校验——
+// 于是用户能在编辑框把标题存成超长、发布时才被 content-quality 拦下，
+// 中间只提示"已保存"。提取为 checkCopyLength 后三条入口共用一个口径。
+
+test("checkCopyLength 是唯一判定源：与两个校验器结论一致", () => {
+  /**
+   * 超限样例按**契约容量**构造（2026-09-12）。
+   *
+   * 之前这里是 20 字的标题——当时手写的可读长度是 15，所以它"超长"。
+   * 那组手写数字已删除，长度只剩 `SLOT_MAX_LENGTH`（`hero.title` = 160）一个来源，
+   * 20 字按新口径是**合规**的。要测拦截就得真的越过契约线。
+   */
+  const over: SiteOperation = { op: "set_text", target: "hero.title", locale: "zh", value: "一".repeat(SLOT_MAX_LENGTH["hero.title"]! + 1) };
+  const ok: SiteOperation = { op: "set_text", target: "hero.title", locale: "zh", value: "精密制造与交付" };
+
+  const aiOver = validateAIOperations("改标题", [over], templateIds);
+  const genOver = validateGenerationOperations([over], templateIds);
+  assert.equal(aiOver.rejected.length, 1, "chat 路径应拒绝超长标题");
+  assert.equal(genOver.rejected.length, 1, "生成路径应拒绝超长标题");
+  assert.equal(aiOver.rejected[0], genOver.rejected[0], "两条路径的拒绝原因必须逐字一致");
+  assert.equal(aiOver.rejected[0], checkCopyLength(over), "拒绝原因来自 checkCopyLength");
+
+  assert.equal(checkCopyLength(ok), null, "合规标题不应被拒");
+  const aiOk = validateAIOperations("改标题", [ok], templateIds);
+  assert.equal(aiOk.operations.length, 1);
+});
+
+test("checkCopyLength 只管可读性受限的 5 个目标，不误伤邮箱/联系方式", () => {
+  // contact.email 曾被断言"无论如何都不受长度限制"（见上一个用例），这里锁住同一口径
+  const email: SiteOperation = { op: "set_text", target: "contact.email", locale: "zh", value: "very-long-contact-address-for-a-factory@example.com" };
+  assert.equal(checkCopyLength(email), null);
+});
+
+test("checkCopyLength 对非 set_text 操作直接放行", () => {
+  assert.equal(checkCopyLength({ op: "set_section_visibility", section: "features", visible: false }), null);
+});
+
+test("accepts non-length-limited targets regardless of length (Q2)", () => {  const validated = validateAIOperations("改公司简介", [
     { op: "set_text", target: "contact.email", locale: "zh", value: "a-very-long-email-but-no-limit@example.com" },
   ], templateIds);
   assert.equal(validated.operations.length, 1);
+});
+
+// ===== 生成路径白名单 + 容量（2026-09-08 审计修复） =====
+
+test("generation path rejects chat-only ops (reorder_sections) in draft scope", () => {
+  const validated = validateGenerationOperations([
+    { op: "reorder_sections", order: ["about", "features", "services", "products", "contact"] },
+  ], templateIds);
+  assert.equal(validated.operations.length, 0);
+  assert.match(validated.rejected[0], /不允许操作 reorder_sections/);
+});
+
+test("draft scope rejects add_card (structure changes need explicit user request)", () => {
+  const validated = validateGenerationOperations([
+    { op: "add_card", section: "features", item: { id: "x", title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } },
+  ], templateIds);
+  assert.equal(validated.operations.length, 0);
+  assert.match(validated.rejected[0], /不允许操作 add_card/);
+});
+
+test("regenerate-structure scope allows add_card but caps at template capacity", () => {
+  const capacity = {
+    presentation: [{ slot: "features.items", capacityMax: 3 }],
+    baseCounts: { features: 3, services: 0 },
+  };
+  const card = (id: string) => ({ op: "add_card" as const, section: "features" as const, item: { id, title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } });
+  const validated = validateGenerationOperations(
+    [card("a")],
+    templateIds,
+    capacity,
+    "regenerate-structure",
+  );
+  assert.equal(validated.operations.length, 0, "3 条已满，再加即超容");
+  assert.match(validated.rejected[0], /超出模板原生容量/);
+});
+
+test("regenerate-structure scope allows add_card when remove keeps count within capacity", () => {
+  const capacity = {
+    presentation: [{ slot: "features.items", capacityMax: 3 }],
+    baseCounts: { features: 3, services: 0 },
+  };
+  const validated = validateGenerationOperations([
+    { op: "remove_card", section: "features", itemId: "quality" },
+    { op: "add_card", section: "features", item: { id: "n", title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } },
+  ], templateIds, capacity, "regenerate-structure");
+  assert.equal(validated.operations.length, 2, "一增一减净增 0，不应误杀");
+  assert.equal(validated.rejected.length, 0);
+});
+
+// ===== update_card 越界防护（2026-09-10 真机修复） =====
+//
+// 真机证据：一句话建站的真实流程里，AI 输出 `update_card index 4`，
+// 而 baseDraft.content.features.items 只有 3 条 → applySiteOperations 抛
+// `features item 4 does not exist` → 整份 commitOperations 回滚，
+// **用户 66 秒生成全部丢弃，界面显示英文技术错误**。
+// 复现路径见 e2e/specs/smoke-real.spec.ts（真 DeepSeek 全流程）。
+//
+// 根因：prompt 告诉 AI「features 约6条(至多12条)」（来自模板 capacity），
+// 而让 AI 读的草稿只有 3 条，两个数字不一致 → AI 按容量写。
+// validateGenerationOperations 此前只拦 add_card 超容，update_card 完全不校验。
+
+test("draft scope rejects update_card beyond existing items (真机 bug 回归)", () => {
+  const capacity = {
+    presentation: [{ slot: "features.items", capacityMax: 12 }],
+    baseCounts: { features: 3, services: 3 },
+  };
+  const validated = validateGenerationOperations([
+    { op: "update_card", section: "features", index: 0, locale: "zh", title: "有效修改" },
+    { op: "update_card", section: "features", index: 4, locale: "zh", title: "越界" },
+  ], templateIds, capacity, "draft");
+  assert.equal(validated.operations.length, 1, "只保留合法的 index 0，越界的被拒");
+  const [kept] = validated.operations;
+  assert.ok(kept.op === "update_card", "保留的应是 update_card");
+  assert.equal(kept.index, 0);
+  // 拒绝原因要面向用户可读：index 4 即「第 5 条」（人类计数从 1 开始），
+  // 且要说明"当前仅 N 条"——直接抛英文 `features item 4 does not exist` 正是真机缺陷之一。
+  assert.ok(
+    validated.rejected.some((r) => /第 5 条/.test(r) && /当前仅 3 条/.test(r)),
+    `应给出可读的拒绝原因，实际：${JSON.stringify(validated.rejected)}`,
+  );
+});
+
+test("update_card 越界不是整批失败：合法操作照常保留", () => {
+  const capacity = {
+    presentation: [{ slot: "features.items", capacityMax: 12 }],
+    baseCounts: { features: 3, services: 0 },
+  };
+  const validated = validateGenerationOperations([
+    { op: "set_text", target: "hero.title", locale: "zh", value: "精密五金件加工" },
+    { op: "update_card", section: "features", index: 7, locale: "zh", title: "越界" },
+    { op: "update_card", section: "features", index: 2, locale: "zh", title: "最后一条是合法的" },
+  ], templateIds, capacity, "draft");
+  assert.equal(validated.operations.length, 2, "第 5 条越界不该拖垮整批");
+  assert.ok(validated.rejected.length >= 1);
+});
+
+test("没有 capacity 上下文时不误杀 update_card（向后兼容）", () => {
+  const validated = validateGenerationOperations([
+    { op: "update_card", section: "features", index: 9, locale: "zh", title: "无 capacity 时不做越界判定" },
+  ], templateIds);
+  assert.equal(validated.operations.length, 1, "缺 capacity 上下文时应放行，由应用层兜底");
+});
+
+test("draft scope allows set_design_tokens (deterministic design variant)", () => {
+  const validated = validateGenerationOperations([
+    { op: "set_design_tokens", tokens: { primary: "#123456", secondary: "#234567", accent: "#345678", fontStyle: "sans", radius: "soft", density: "balanced" } },
+  ], templateIds);
+  assert.equal(validated.operations.length, 1);
+  assert.equal(validated.rejected.length, 0);
+});
+
+// ===== 质检槽位可读化 / 可定位（2026-09-10）=====
+// 背景：工作台此前把 `hero.title` 这类原始槽位 id 直接列给用户，看不懂也点不了。
+// 用户答复「不点（细节面板），我直接进工作台看」——因此工作台提示必须可读 + 可定位。
+
+test("describeSlot: 把槽位 id 翻译成中文位置", () => {
+  assert.equal(describeSlot("hero.title"), "首屏的标题");
+  assert.equal(describeSlot("about.body"), "关于我们的正文");
+  assert.equal(describeSlot("contact.email"), "联系模块的邮箱");
+  assert.equal(describeSlot("products.FM-2401.summary"), "产品「FM-2401」的简介");
+});
+
+test("describeSlot: 未知字段退化成可读兜底而非抛错", () => {
+  // 不认识的字段不应崩：板块名仍翻译，字段名原样保留（好过显示一串 id）
+  assert.equal(describeSlot("features.unknownField"), "核心优势的unknownField");
+  assert.equal(describeSlot("unknownSection.foo"), "unknownSection的foo");
+  // 空输入等退化形态也不得抛错
+  assert.equal(describeSlot(""), "");
+});
+
+test("slotForQualityIssue: 可定位的槽位映射到预览目标", () => {
+  assert.equal(slotForQualityIssue("hero.title"), "hero.title");
+  assert.equal(slotForQualityIssue("about.body"), "about.body");
+  assert.equal(slotForQualityIssue("hero.cta"), "hero.cta");
+  // 不可定位的（如商品分类）必须返回 null，调用方只显示描述、不给出会点了没反应的气泡
+  assert.equal(slotForQualityIssue("products.FM-2401.category"), null);
+  assert.equal(slotForQualityIssue("contact.email"), null);
 });

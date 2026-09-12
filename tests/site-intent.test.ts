@@ -6,6 +6,7 @@ import {
   createSiteIntentSchema,
   mergeIntentDelta,
   parseSiteIntentContent,
+  readableIntentError,
   resolveTemplate,
   toReadyIntent,
   type SiteIntent,
@@ -17,7 +18,6 @@ const validIntent: SiteIntent = {
   industry: "光伏组件出口",
   targetAudience: "overseasB2b",
   tone: "professional",
-  colorTone: "green",
   coreSections: ["about", "features", "products", "contact"],
   recommendedTemplateId: "atlas",
   summary: "光伏出口企业的双语官网",
@@ -166,7 +166,19 @@ test("categoryFromKeywords: matches intent words", () => {
   assert.equal(categoryFromKeywords("帮我的 SaaS 团队做官网"), "科技企业");
   assert.equal(categoryFromKeywords("工业零部件厂的官网，突出质量"), "制造业");
   assert.equal(categoryFromKeywords("设计咨询公司的作品集网站"), "专业服务");
-  assert.equal(categoryFromKeywords("本地餐饮店的宣传页"), null);
+  /**
+   * ⚠️ **这条断言在 2026-09-11（③接-1b）被改过**，说明一下为什么。
+   *
+   * 原断言是 `assert.equal(categoryFromKeywords("本地餐饮店的宣传页"), null)`——
+   * 它锁的是"餐厅认不出来"。但那**不是一条值得保住的契约**：
+   * 认不出来的后果是回落到 `businessType`，而模型给 `other` 时会兜到 forge，
+   * 也就是**给一家餐厅套制造业模板**。补词表正是为了修这个。
+   *
+   * 所以现在它会正常归到专业服务。下面这条"真的没有方向词"的断言
+   * 才是原本想表达的东西，留着它就不算把防线删掉。
+   */
+  assert.equal(categoryFromKeywords("本地餐饮店的宣传页"), "专业服务");
+  assert.equal(categoryFromKeywords("帮我做个网站"), null, "真的没有方向词时才该返回 null");
 });
 
 test("resolveTemplate: keyword category wins over businessType", () => {
@@ -192,10 +204,30 @@ test("resolveTemplate: model recommendation within category is adopted", () => {
 });
 
 test("resolveTemplate: other + no keyword falls back to forge", () => {
+  // ⚠️ 2026-09-11（③接-1b）：句子里必须有**真的方向词**才会走到这条兜底，
+  // 因为另一条测试锁着"测试环境里 `businessType: other` 没有任何可映射的类型"
+  // （否则 `BUSINESS_TYPE_TO_CATEGORY.other` 一改，"兜底"就不再是兜底了）。
   const intent: SiteIntent = { ...validIntent, businessType: "other", recommendedTemplateId: "powerai" };
-  const r = resolveTemplate(intent, "本地餐饮店");
+  const r = resolveTemplate(intent, "帮我做个网站");
   assert.equal(r.templateId, "forge");
   assert.equal(r.category, "制造业");
+});
+
+test("resolveTemplate: 有方向词时**不**走兜底（③接-1b 补词表后的行为）", () => {
+  /**
+   * 这条锁住补词表带来的真实收益：
+   *
+   * 从前"本地餐饮店"认不出分类 → 回落到 `businessType`，模型给 `other` 时
+   * **兜到 forge（制造业模板）给一家餐厅**。补完词表后它自己就能归到专业服务。
+   *
+   * 注意这里 `recommendedTemplateId` 故意给一个**越界**的 id：
+   * `resolveTemplate` 只在推荐属于该分类时才采纳，否则用该分类的默认模板。
+   * 所以断言的是 kindred（专业服务默认），而不是 powerai。
+   */
+  const intent: SiteIntent = { ...validIntent, businessType: "other", recommendedTemplateId: "powerai" };
+  const r = resolveTemplate(intent, "本地餐饮店的宣传页");
+  assert.equal(r.category, "专业服务");
+  assert.equal(r.templateId, "kindred");
 });
 
 test("resolveTemplate: reason is human-readable", () => {
@@ -312,21 +344,73 @@ test("buildIntentPrompt: without previousIntent has no baseline block (regressio
   assert.doesNotMatch(prompt, /上一轮已确认意图基线/);
 });
 
+// ===== 失败可读化（2026-09-12 真机踩到） =====
+
+test("readableIntentError: 把 zod 原话翻译成人话，不外泄英文校验器输出", () => {
+  /**
+   * 真机实测的原文（客户旅程第 ② 步直接失败时，用户看到的就是这一整段）：
+   *   `companyName: Too small: expected string to have >=1 characters;
+   *    tone: Invalid option: expected one of "professional"|"technical"|…`
+   * 这条测试锁住"它不会再原样出现在界面上"。
+   */
+  const raw =
+    'companyName: Too small: expected string to have >=1 characters；tone: Invalid option: expected one of "professional"|"technical"|"friendly"|"bold"|"minimal"|"editorial"';
+  const message = readableIntentError(raw);
+  assert.match(message, /公司名称/);
+  assert.match(message, /风格/);
+  assert.doesNotMatch(message, /Too small|Invalid option|expected/i, "不能把英文校验器原话漏给用户");
+});
+
+test("readableIntentError: 只缺公司名时给出可执行的动作", () => {
+  const message = readableIntentError("companyName: Too small: expected string to have >=1 characters");
+  assert.match(message, /公司名称/);
+  assert.match(message, /公司名直接写进描述/, "要告诉用户下一步做什么，而不只是报错");
+});
+
+test("readableIntentError: 认不出的路径不硬翻译（宁可不说）", () => {
+  // 新增字段还没进标签表时，不能把 `someNewField: ...` 直接端出去
+  const message = readableIntentError("someNewField: Invalid input");
+  assert.doesNotMatch(message, /someNewField/);
+  assert.match(message, /换一种说法/);
+});
+
+test("readableIntentError: 空/全未知输入也有兜底句子", () => {
+  for (const raw of ["", "  ", "根节点炸了"]) {
+    const message = readableIntentError(raw);
+    assert.ok(message.length > 0, JSON.stringify(raw));
+    assert.doesNotMatch(message, /Schema|zod/i);
+  }
+});
+
+test("buildIntentPrompt: 公司名占位规则禁止「（占位）」这类标记进成品站", () => {
+  // 真机实测拿到 `光伏组件出口企业（占位）` 被直接写进草稿并显示在工作台页头。
+  // 提示词里同时存在"用行业名占位"与"企业事实缺失写待补充"，模型随机挑一个——
+  // 这条把"怎么写"钉死，并要求占位必须进 notices。
+  const prompt = buildIntentPrompt("我们做光伏组件出口");
+  assert.match(prompt, /不要写任何版本标记/);
+  assert.match(prompt, /公司名是例外/);
+  assert.doesNotMatch(
+    prompt,
+    /咖啡品牌官网（占位）/,
+    "示例里不能再出现带（占位）的公司名——模型会照着示例抄",
+  );
+});
+
 test("mergeIntentDelta: fills missing fields from baseline", () => {
-  // 模型本轮只改 colorTone，其余没输出 → 保留基线
+  // 模型本轮只返回 tone，其余没输出 → 保留基线
   const resp = {
     status: "ready" as const,
-    colorTone: "warm" as const,
+    tone: "minimal" as const,
     notices: [],
     needsInfo: [],
     conflicts: [],
     limits: [],
   };
   const merged = mergeIntentDelta({ intent: validIntent, siteLanguage: "zh" }, resp);
-  assert.equal(merged.colorTone, "warm"); // 新指令生效
   assert.equal(merged.companyName, "华辰光伏"); // 缺失字段保留基线
   assert.equal(merged.businessType, "trade");
   assert.equal(merged.recommendedTemplateId, "atlas");
+  assert.equal(merged.tone, "minimal"); // 本轮输出生效
   assert.equal(merged.siteLanguage, "zh"); // 语言随基线保留
 });
 

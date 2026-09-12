@@ -73,7 +73,9 @@ if (await needsBuild()) await runNode([nextBin, "build"]);
 
 const server = spawn(process.execPath, [nextBin, "start", "-p", "3210"], {
   cwd: root,
-  env: { ...process.env, PORT: "3210" },
+  // e2e 用 relaxed 鉴权（2026-09-11 P-1 之后，非 development 默认 strict）。
+  // e2e helper 不带访问头，本来就是本地测试环境；只有**生产**才必须 strict。
+  env: { ...process.env, PORT: "3210", SITECRAFT_ACCESS_MODE: "relaxed" },
   stdio: "inherit",
 });
 

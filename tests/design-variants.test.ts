@@ -61,10 +61,12 @@ test("工业行业不使用 editorial 字体", () => {
   assert.ok(result.adjustments.some((item) => item.includes("字体")));
 });
 
-test("扩充色板：graphite 适用于工业/硬核场景", () => {
-  const result = variants.deriveDesignTokenResult?.({ tone: "technical", colorTone: "graphite", industry: "机械制造" }, "forge");
+test("配色一律取模板自带值（2026-09-09 产品决策：色系选择已移除）", () => {
+  // 原先 12 个硬编码色板会让用户覆盖模板配色，实测 9/22 模板根本不生效
+  // （Tailwind 硬编码色），且削弱「真实开源模板」卖点 → 已移除。
+  const result = variants.deriveDesignTokenResult?.({ tone: "technical", industry: "机械制造" }, "forge");
   assert.ok(result, "deriveDesignTokenResult 应返回结果");
-  assert.equal(result!.tokens.primary, "#1f2933");
+  assert.equal(result!.tokens.primary, "#194c38", "应取 forge 模板自带主色，而非 graphite 色板");
   assert.equal(result!.tokens.fontStyle, "technical");
   assert.equal(result!.tokens.density, "compact");
 });

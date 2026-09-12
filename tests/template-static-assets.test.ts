@@ -58,6 +58,58 @@ test("does not rewrite external, data, hash, or application API URLs", () => {
 test("template bridge reapplies the active draft before exporting offline HTML", async () => {
   const source = await readFile(new URL("../app/api/templates/[templateId]/preview/route.ts", import.meta.url), "utf8");
   assert.match(source, /let activeDraft = null/);
-  assert.match(source, /activeDraft = event\.data\.draft/);
+  // 2026-09-11（⑥）：赋值处多包了一层 `withNavigationView`——导航数组化后，
+  // 21 个适配器仍需按 id 索引读导航，兼容视图必须套在**赋值处**
+  // （适配器读的是全局 activeDraft，包在调用处无效）。
+  // 断言放宽成"赋值自 event.data.draft"，本意（导出前重放当前草稿）不变。
+  assert.match(source, /activeDraft = withNavigationView\(event\.data\.draft/);
   assert.match(source, /await applyContent\(activeDraft, activeLocale, activeExpectedTargets, activeVariant\)/);
+});
+
+// ---- 2026-09-09：JS 字符串字面量 / 内联 CSS url() / 无前导斜杠路径 ----
+// 背景：Astro/Vite 构建产物把资源写成纯字符串或相对路径，<base> 管不到独立 JS 资源，
+// 实测导致 6 个模板资源 404（yukina 8 处最严重）。以下用例锁住新规则，防止回归或误伤。
+
+test("rewrites root-relative asset paths inside JS string literals", () => {
+  const js = 'const a={src:"/assets/pilot.png"};const b="/_astro/bg.webp";const c=\'/images/x.jpg\';';
+  assert.equal(
+    rewriteTemplateRootRelativeReferences(js, "text/javascript; charset=utf-8", assetBase),
+    'const a={src:"/api/templates/forge/assets/assets/pilot.png"};const b="/api/templates/forge/assets/_astro/bg.webp";const c=\'/api/templates/forge/assets/images/x.jpg\';',
+  );
+});
+
+test("rewrites url() inside inline style blocks embedded in HTML", () => {
+  const html = '<style>@font-face{src:url("/_astro/fonts/f.woff2")}</style>';
+  assert.match(
+    rewriteTemplateRootRelativeReferences(html, "text/html; charset=utf-8", assetBase),
+    /url\("\/api\/templates\/forge\/assets\/_astro\/fonts\/f\.woff2"\)/,
+  );
+});
+
+test("rewrites leading-slash-less relative asset paths (vite __vite__mapDeps)", () => {
+  // 实测来源：yukina dist/_astro/page.*.js 的 m.f||(m.f=["_astro/Swup.js",...])
+  const js = '__vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["_astro/Swup.js","_astro/index.modern.js"])))';
+  assert.equal(
+    rewriteTemplateRootRelativeReferences(js, "text/javascript; charset=utf-8", assetBase),
+    '__vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["/api/templates/forge/assets/_astro/Swup.js","/api/templates/forge/assets/_astro/index.modern.js"])))',
+  );
+});
+
+test("leaves plain prose and non-resource paths untouched", () => {
+  const source = '见 /about 页面；路径 /assets 目录；相对引用 "./local.js" 与 "../up.png" 不变';
+  assert.equal(
+    rewriteTemplateRootRelativeReferences(source, "text/html; charset=utf-8", assetBase),
+    source,
+  );
+});
+
+test("does not double-rewrite an already rewritten path", () => {
+  const once = rewriteTemplateRootRelativeReferences(
+    'const u="/assets/pilot.png";',
+    "text/javascript; charset=utf-8",
+    assetBase,
+  );
+  assert.equal(once, 'const u="/api/templates/forge/assets/assets/pilot.png";');
+  // 再跑一遍必须保持不变（负向断言排除 /api/）
+  assert.equal(rewriteTemplateRootRelativeReferences(once, "text/javascript; charset=utf-8", assetBase), once);
 });

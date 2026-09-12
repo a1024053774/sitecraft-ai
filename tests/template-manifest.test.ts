@@ -98,7 +98,7 @@ test("visual assets and offline form actions are explicit non-content slots", ()
     const formAction = manifest.nonContentSlots.find((slot) => slot.target === "contact.formAction");
     assert.ok(formAction);
     assert.equal(formAction.slotType, "behavior");
-    assert.equal(formAction.support, "unsupported");
+    assert.equal(formAction.support, "sitecraft-hosted");
     assert.equal("url" in formAction, false);
     assert.equal("value" in formAction, false);
   }
@@ -143,3 +143,20 @@ test("slot report accepts a required text fingerprint only when its mapped slot 
   assert.equal(report.incompatible, false);
   assert.deepEqual(report.missingSlots, []);
 });
+test("content-site manifests declare native collection capacities", () => {
+  const expected = {
+    astrofy: { max: 6, role: "product_grid" },
+    devportfolio: { max: 6, role: "product_grid" },
+    astropaper: { max: 8, role: "card_grid" },
+    yukina: { max: 8, role: "card_grid" },
+  } as const;
+  for (const [templateId, expectation] of Object.entries(expected)) {
+    const manifest = getTemplateManifest(templateId);
+    assert.ok(manifest, templateId);
+    const block = manifest.presentation?.find((item) => item.slot === "features");
+    assert.ok(block, templateId + ":features presentation");
+    assert.equal(block.capacity.max, expectation.max, templateId + ":features capacity");
+    assert.equal(block.role, expectation.role, templateId + ":features role");
+  }
+});
+

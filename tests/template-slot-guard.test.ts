@@ -36,12 +36,19 @@ test("template capability summary exposes manifest constraints without leaking s
 });
 
 test("local preview capabilities only advertise fields rendered by SiteRenderer", () => {
+  // 2026-09-10：`defaultDraft.products` 不再预置演示商品（此前是 FM-2401/2402/2403，
+  // 会让成品站显示"别人的产品"）。本测试原本断言 `products.FM-2401.category`——
+  // 那等于把演示 SKU 钉死在契约里。改为注入一个商品，验证**商品槽位本身**仍被声明。
+  const draftWithProduct = {
+    ...defaultDraft,
+    products: [{ ...defaultDraft.products[0], sku: "TEST-001" } as (typeof defaultDraft.products)[number]],
+  };
   const slots = buildLocalPreviewSlots(defaultDraft);
   assert.ok(slots.includes("companyName.zh"));
   assert.ok(slots.includes("industry.zh"));
   assert.ok(slots.includes("navigation.services.en"));
   assert.ok(slots.includes("services.items.1.title.zh"));
-  assert.ok(slots.includes("products.FM-2401.category"));
+  assert.ok(buildLocalPreviewSlots(draftWithProduct).includes("products.TEST-001.category"));
   assert.ok(slots.includes("features.visibility"));
   assert.equal(slots.includes("siteName.zh"), false);
   assert.equal(slots.includes("features.items.0.title.zh"), false);
@@ -210,4 +217,21 @@ test("does not enforce generic UI target keys or explicit unrelated instructions
 test("selected-target mismatch message states that draft and history are unchanged", () => {
   assert.match(selectedTargetMismatchMessage("hero.title.zh"), /hero\.title\.zh/);
   assert.match(selectedTargetMismatchMessage("hero.title.zh"), /草稿和历史均未修改/);
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-10：「这节可以没有」应是一等公民，而不是靠运行时隐藏绕开
+// ---------------------------------------------------------------------------
+
+test("contentSlots: optionalTargets 让模板显式声明非必填槽，缺省仍全必填（零回归）", async () => {
+  const { contentSlots } = await import("../lib/template-manifests/shared.ts");
+  const byDefault = contentSlots({});
+  assert.ok(byDefault.every((slot) => slot.required), "缺省必须保持历史行为：全部必填");
+
+  const withOptional = contentSlots({}, {}, { optionalTargets: ["products"] });
+  assert.equal(withOptional.find((slot) => slot.target === "products")?.required, false);
+  assert.ok(
+    withOptional.filter((slot) => slot.target !== "products").every((slot) => slot.required),
+    "只豁免声明的那个槽，其余不受影响",
+  );
 });

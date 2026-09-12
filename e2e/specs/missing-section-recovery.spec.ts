@@ -23,7 +23,6 @@ test("partial generation retries only missing sections and clears the persistent
             industry: "工业紧固件",
             targetAudience: "overseasB2b",
             tone: "professional",
-            colorTone: "neutral",
             coreSections: ["about", "products", "contact"],
             recommendedTemplateId: "forge",
             summary: "面向海外采购经理的工业官网",
