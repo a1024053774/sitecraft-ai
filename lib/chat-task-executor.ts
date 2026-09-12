@@ -37,6 +37,21 @@ function operationEffects(operation: SiteOperation): Array<{ key: string; value:
         ...(operation.summary === undefined ? [] : [{ key: `product:${operation.sku}:${operation.locale ?? "zh"}:summary`, value: operation.summary }]),
         ...(operation.category === undefined ? [] : [{ key: `product:${operation.sku}:category`, value: operation.category }]),
       ];
+    /**
+     * 评价与 Logo（⑥-4b）按 **itemId** 定位，不用下标。
+     *
+     * 这个函数算的是"同一批操作里哪两条会撞车"。用下标的话，
+     * 两条针对**不同条目**的操作会在条目增删后算成同一个 key，
+     * 于是被误判成冲突而丢掉一条——**内容静默少改一处**。
+     */
+    case "update_testimonial":
+      return [
+        ...(operation.quote === undefined ? [] : [{ key: `testimonial:${operation.itemId}:${operation.locale}:quote`, value: operation.quote }]),
+        ...(operation.author === undefined ? [] : [{ key: `testimonial:${operation.itemId}:${operation.locale}:author`, value: operation.author }]),
+        ...(operation.role === undefined ? [] : [{ key: `testimonial:${operation.itemId}:${operation.locale}:role`, value: operation.role }]),
+      ];
+    case "update_logo":
+      return [{ key: `logo:${operation.itemId}:name`, value: operation.name }];
     case "set_template":
       return [{ key: "template", value: operation.templateId }];
     case "set_design_tokens":
@@ -47,6 +62,10 @@ function operationEffects(operation: SiteOperation): Array<{ key: string; value:
       return [{ key: "section-order", value: operation.order }];
     case "replace_products":
       return [{ key: "products", value: operation.products }];
+    case "set_asset":
+      return [{ key: `asset:${operation.target}`, value: operation.asset }];
+    case "set_product_image":
+      return [{ key: `product:${operation.sku}:image`, value: operation.image }];
     case "replace_draft":
       return [{ key: "draft", value: operation.draft }];
   }

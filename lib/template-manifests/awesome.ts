@@ -17,6 +17,14 @@ export const awesomeManifest: TemplateManifest = {
   nonContentSlots: NON_CONTENT_SLOTS,
   presentation: [
     {
+      slot: "about",
+      role: "split_text_media",
+      presentAs: "关于：居中标题 + 一段介绍正文（#about 区块，min-h-screen 居中）。写一段 2-4 句公司/项目介绍。",
+      capacity: { max: 1 },
+      itemShape: "title_body",
+      anchor: "div#about（含 h2 标题 + 正文段落）",
+    },
+    {
       slot: "hero",
       role: "hero_split_image",
       presentAs: "首屏：浅底左右分栏，左大标题+副文+主按钮，右为 undraw 插画。标题一句话主张，副文一到两句。",
@@ -36,6 +44,7 @@ export const awesomeManifest: TemplateManifest = {
       slot: "services",
       role: "card_grid",
       presentAs: "服务支持：无原生独立服务区，由通用服务卡区承载（白底）；建议 2-4 条。",
+      nativeFallbackHost: "generated",
       capacity: { min: 2, default: 3, max: 12 },
       itemShape: "title_body",
       anchor: "通用生成服务区",
@@ -44,6 +53,7 @@ export const awesomeManifest: TemplateManifest = {
       slot: "products",
       role: "product_grid",
       presentAs: "产品中心：无原生产品卡位，由通用产品网格承载（SKU+简介+图，白卡片浅灰底）。",
+      nativeFallbackHost: "generated",
       capacity: { min: 1, default: 6, max: 1000 },
       itemShape: "title_body",
       anchor: "通用生成产品网格",
@@ -52,6 +62,7 @@ export const awesomeManifest: TemplateManifest = {
       slot: "contact",
       role: "split_text_media",
       presentAs: "联系板块：无原生联系区，由通用生成区承载（标题+正文+邮箱/电话/地址，深海军蓝底收尾）。",
+      nativeFallbackHost: "generated",
       capacity: { max: 1 },
       itemShape: "title_body",
       anchor: "通用生成联系区",

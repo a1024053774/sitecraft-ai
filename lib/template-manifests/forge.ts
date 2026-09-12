@@ -48,6 +48,7 @@ export const forgeManifest: TemplateManifest = {
     {
       slot: "services",
       role: "card_grid",
+      nativeFallbackHost: "generated",
       presentAs: "服务支持：原生深色服务卡带（3 张 .h-96 圆图卡 + p 标题 + p 说明），按条数显示、超出卡位补条；建议 2-3 条，标题/说明各一句。",
       capacity: { min: 1, default: 3, max: 6 },
       itemShape: "title_body",
@@ -57,6 +58,7 @@ export const forgeManifest: TemplateManifest = {
       slot: "products",
       role: "product_grid",
       presentAs: "产品中心：无原生产品卡位，由通用产品网格承载（SKU+名称+简介+图）。",
+      nativeFallbackHost: "generated",
       capacity: { min: 1, default: 6, max: 1000 },
       itemShape: "title_body",
       anchor: "通用生成产品网格",

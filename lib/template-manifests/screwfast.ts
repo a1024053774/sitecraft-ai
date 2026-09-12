@@ -32,6 +32,7 @@ export const screwfastManifest: TemplateManifest = {
       slot: "about",
       role: "split_text_media",
       presentAs: "关于：一段企业介绍正文（screwfast 原生无专门 about 区，由通用 about 生成兜底）",
+      nativeFallbackHost: "generated",
       capacity: { max: 1 },
       itemShape: "title_body",
       anchor: "含 about/company 语义的 section 或无则通用",
@@ -51,11 +52,15 @@ export const screwfastManifest: TemplateManifest = {
       capacity: { min: 2, default: 3, max: 6 },
       itemShape: "title_body",
       anchor: "sm:grid-cols-2 且含 svg 的无边框 section（若与 features 复用同一原生区则隐藏原生区、由生成区承载）",
+      // 文案已写明"由生成区承载"却漏了显式字段 → 门禁按注册表 requiresNative 判违规（假阳性）。
+      // 显式声明后与文案一致，L3 不再误报（2026-09-09）。
+      nativeFallbackHost: "generated",
     },
     {
       slot: "products",
       role: "product_grid",
       presentAs: "产品中心：参数化产品条目网格（SKU/材料/规格/应用）。由通用产品网格承载。",
+      nativeFallbackHost: "generated",
       capacity: { min: 1, default: 6, max: 1000 },
       itemShape: "title_body",
       anchor: "通用 renderAdditionalProducts 产品网格",

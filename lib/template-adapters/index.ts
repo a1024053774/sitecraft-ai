@@ -17,6 +17,10 @@ import { astrofyAdapter } from "./astrofy.ts";
 import { devportfolioAdapter } from "./devportfolio.ts";
 import { astropaperAdapter } from "./astropaper.ts";
 import { yukinaAdapter } from "./yukina.ts";
+import { tailwindLandingAdapter } from "./tailwind-landing.ts";
+import { shadcnLandingAdapter } from "./shadcn-landing.ts";
+import { nextjsLandingAdapter } from "./nextjs-landing.ts";
+import { kindredAdapter } from "./kindred.ts";
 
 /**
  * 每模板适配注册表。route 按 templateId 取 adapter；未注册模板 = 无专属适配，
@@ -41,13 +45,13 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
   devportfolio: devportfolioAdapter,
   astropaper: astropaperAdapter,
   yukina: yukinaAdapter,
+  "tailwind-landing": tailwindLandingAdapter,
+  "shadcn-landing": shadcnLandingAdapter,
+  "nextjs-landing": nextjsLandingAdapter,
+  kindred: kindredAdapter,
 };
 
 export function getTemplateAdapter(templateId: string): TemplateAdapter | undefined {
   return templateAdapters[templateId];
-}
-
-export function hasTemplateAdapter(templateId: string): boolean {
-  return Boolean(getTemplateAdapter(templateId));
 }
 

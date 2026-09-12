@@ -15,6 +15,31 @@ export const astrofyManifest: TemplateManifest = {
     }),
   presentation: [
     {
+      slot: "products",
+      role: "product_grid",
+      presentAs: "作品/项目：网格条目（#projects/#store，图 + 名称 + 简介）。",
+      capacity: { min: 1, default: 6, max: 1000 },
+      itemShape: "title_body",
+      anchor: "id=projects 或 id=store 区块",
+    },
+    {
+      slot: "services",
+      role: "card_grid",
+      nativeFallbackHost: "generated",
+      presentAs: "服务：作品集的服务列表（#services）。建议 2-4 条，每条一个服务方向 + 一句说明。",
+      capacity: { min: 2, default: 3, max: 6 },
+      itemShape: "title_body",
+      anchor: "id=services 区块",
+    },
+    {
+      slot: "hero",
+      role: "hero_centered",
+      presentAs: "首屏：作品集标题 + 一句自我介绍（首页 #home 区）。写一句主张 + 一句简介。",
+      capacity: { max: 1 },
+      itemShape: "title_body",
+      anchor: "id=home 区块内的标题",
+    },
+    {
       slot: "about",
       role: "split_text_media",
       presentAs: "个人简介：标题与正文",

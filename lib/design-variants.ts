@@ -1,8 +1,20 @@
+/**
+ * 设计变量推导。
+ *
+ * **2026-09-09 产品决策：不再提供「色系」选择。**
+ * 原先有 12 个硬编码色板（green/navy/forest…），用户选一个就覆盖模板自带配色。
+ * 实测问题（产品角度）：
+ *  1. 概念重复——模板本身已带设计师调好的配色，再选一次色系是同一维度的二次决策；
+ *  2. 默认「跟随 AI 判断」= 用模板原生配色，选色系反而**削弱「真实开源模板」的卖点**；
+ *  3. 执行不可靠——22 个模板里 9 个的样式是 Tailwind 硬编码色（如 text-blue-600），
+ *     CSS 变量管不到，用户选了没反应，比没有这个功能更糟。
+ * 因此：**配色一律用模板自带值**（`template.colors`），本模块只保留
+ * 「风格 ↔ 字体/圆角/密度」的冲突收敛（coordinateDesignTokens），不再改颜色。
+ */
 import { templateCatalog } from "./template-catalog.ts";
 import type { DesignTokens } from "./site-document.ts";
 
 type DesignIntent = {
-  colorTone?: string;
   industry?: string;
   tone: string;
 };
@@ -10,22 +22,6 @@ type DesignIntent = {
 export type DesignCoordinationResult = {
   tokens: DesignTokens;
   adjustments: string[];
-};
-
-const palettes: Record<string, Pick<DesignTokens, "primary" | "secondary" | "accent">> = {
-  green: { primary: "#1f5a43", secondary: "#e8f1eb", accent: "#d7ef72" },
-  navy: { primary: "#18385f", secondary: "#e7eef7", accent: "#f0bd59" },
-  purple: { primary: "#51357a", secondary: "#f0eafb", accent: "#b8ea72" },
-  dark: { primary: "#172033", secondary: "#e6ebf3", accent: "#8be0d0" },
-  warm: { primary: "#7a3f32", secondary: "#f7ebe5", accent: "#efb96f" },
-  neutral: { primary: "#303a3f", secondary: "#edf0ee", accent: "#a8d36f" },
-  // 扩充色板：覆盖科技/外贸/创意更多气质
-  teal: { primary: "#0f6b6b", secondary: "#e6f4f2", accent: "#ffd166" },
-  crimson: { primary: "#8f1d35", secondary: "#faeef1", accent: "#f2b705" },
-  indigo: { primary: "#3730a3", secondary: "#eef0fd", accent: "#6ee7b7" },
-  graphite: { primary: "#1f2933", secondary: "#f0f2f4", accent: "#f97316" },
-  forest: { primary: "#2f4f3a", secondary: "#eef3ef", accent: "#e3b341" },
-  sky: { primary: "#0e6ba8", secondary: "#eaf4fb", accent: "#f5b942" },
 };
 
 function relativeLuminance(hex: string) {
@@ -69,10 +65,9 @@ export function coordinateDesignTokens(
   return { tokens: coordinated, adjustments };
 }
 
-/** 将模型识别出的语义风格收敛为安全、可保存的模板覆盖变量。 */
+/** 将语义风格收敛为安全、可保存的模板覆盖变量。配色一律取模板自带值（见文件头说明）。 */
 export function deriveDesignTokenResult(intent: DesignIntent, templateId: string): DesignCoordinationResult {
   const template = templateCatalog.find((item) => item.id === templateId) ?? templateCatalog[0];
-  const palette = palettes[intent.colorTone ?? ""] ?? template.colors;
   const fontStyle: DesignTokens["fontStyle"] = intent.tone === "editorial"
     ? "editorial"
     : intent.tone === "technical"
@@ -90,7 +85,7 @@ export function deriveDesignTokenResult(intent: DesignIntent, templateId: string
       : "balanced";
 
   return coordinateDesignTokens(
-    { ...palette, fontStyle, radius, density },
+    { ...template.colors, fontStyle, radius, density },
     {
       tone: intent.tone,
       industry: intent.industry,
@@ -99,6 +94,3 @@ export function deriveDesignTokenResult(intent: DesignIntent, templateId: string
   );
 }
 
-export function deriveDesignTokens(intent: DesignIntent, templateId: string): DesignTokens {
-  return deriveDesignTokenResult(intent, templateId).tokens;
-}

@@ -41,6 +41,9 @@ export async function ensureDatabaseSchema() {
           PRIMARY KEY (workspace_id, site_id)
         )
       `);
+      // 存量库补列（2026-09-10）：用户粘贴的企业素材，与站点绑定。
+      // CREATE TABLE IF NOT EXISTS 对已存在的表不会加列，必须显式 ALTER。
+      await getDatabasePool().query(`ALTER TABLE sitecraft_sites ADD COLUMN IF NOT EXISTS source_material TEXT`);
       await getDatabasePool().query(`
         CREATE TABLE IF NOT EXISTS sitecraft_leads (
           id UUID PRIMARY KEY,

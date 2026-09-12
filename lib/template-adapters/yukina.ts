@@ -203,5 +203,8 @@ export const yukinaAdapter: TemplateAdapter = {
   prepareFn,
   heroFn,
   nativeFillFn,
-  designTokenCss: '#about,#features,#contact,main{opacity:1!important;visibility:visible!important}main .onload-animation{opacity:1!important;visibility:visible!important}',
+  designTokenCss: '#about,#features,#contact,main{opacity:1!important;visibility:visible!important}main .onload-animation{opacity:1!important;visibility:visible!important}' +
+    // 首屏轮播容器 `relative h-[95%]` 盖住了固定导航，导致导航链接点不到（2026-09-09 实测）。
+    // 只抬 z-index、保持 fixed 定位，不改变布局。
+    'nav.nav{position:fixed!important;z-index:100!important}',
 };

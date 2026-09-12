@@ -8,6 +8,15 @@ import type { SiteDraft } from "./site-document";
  */
 const PRODUCT_INDEX_LIMIT = 20;
 
+/**
+ * 新增板块最多带几条进索引。
+ *
+ * FAQ / 评价 / Logo 墙是 2026-09-11 加的，条数上限 12（FAQ/评价）与 24（logo）。
+ * 全量塞进去会让索引膨胀，而**用户说要改第几条时模型只需要看得见即可**——
+ * 前 8 条覆盖真实场景（实测模板里最多的一个有 9 个 Logo 位）。
+ */
+const EXTRA_SECTION_INDEX_LIMIT = 8;
+
 export type DraftIndexScope = {
   sections: readonly ChatScope[];
   productSkus: readonly string[];
@@ -33,12 +42,27 @@ function buildScopedDraftIndex(draft: SiteDraft, message: string, scope: DraftIn
       ? draft.products.filter((product) => requestedSkus.has(product.sku))
       : draft.products.slice(0, PRODUCT_INDEX_LIMIT)
     : undefined;
-  const navigation = Object.fromEntries(
-    sections
-      .filter((section): section is Exclude<ContentKey, "hero"> => section !== "hero")
-      .map((section) => [section, draft.navigation[section]]),
-  );
+  /**
+   * 导航项（⑥）是数组，不是按节的映射。
+   *
+   * **跟着 `sections` 过滤会有个坑**：用户说"把导航里的'服务'改成'解决方案'"时，
+   * scope 可能落不到 `services` 上，导航就被整个滤掉，模型看不见它、改不了。
+   * 所以**只要 scope 涉及任何板块就把整个导航带上**——它一共十几条，
+   * 比"模型看不见它"的代价小得多。
+   *
+   * 全部 scope 都是 `hero`（或空）时不带：那种情况下导航确实无关。
+   */
+  const wantsNavigation = sections.some((section) => section !== "hero");
+  const navigation = wantsNavigation ? draft.navigation : undefined;
   const content = Object.fromEntries(sections.map((section) => [section, draft.content[section]]));
+  // FAQ / 评价**跨范围保留**：它们的 scope 在 ChatScope 里还没有对应取值，
+  // 若跟着 `sections` 过滤，用户说"改一下常见问题第二条"时模型在索引里看不到它。
+  // 这两块彼此独立、体量可控，**宁可多给一点也不要让模型看不见**。
+  const extras = {
+    ...(draft.content.faq ? { faq: draft.content.faq } : {}),
+    ...(draft.content.testimonials ? { testimonials: draft.content.testimonials } : {}),
+  };
+  const logos = draft.logos.slice(0, EXTRA_SECTION_INDEX_LIMIT);
   const orderedSections = draft.sectionOrder.filter((section) => sectionSet.has(section));
   const hiddenSections = draft.hiddenSections.filter((section) => sectionSet.has(section));
 
@@ -51,8 +75,10 @@ function buildScopedDraftIndex(draft: SiteDraft, message: string, scope: DraftIn
     revision: draft.revision,
     industry: draft.industry,
     goal: draft.goal,
-    navigation,
+    ...(navigation ? { navigation } : {}),
     content,
+    ...extras,
+    ...(logos.length ? { logos } : {}),
     sectionOrder: orderedSections,
     hiddenSections,
     designTokens: draft.designTokens,

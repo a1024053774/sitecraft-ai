@@ -1,6 +1,6 @@
 import { applySiteOperations, type SiteOperation } from "./site-operations.ts";
 import { operationDisplayTargets } from "./template-slot-guard.ts";
-import { templates, type SiteDraft } from "./site-model.ts";
+import { allTemplates, type SiteDraft } from "./site-model.ts";
 
 export type ChangeDiff = {
   target: string;
@@ -9,7 +9,17 @@ export type ChangeDiff = {
   after: string;
 };
 
-const templateIds = new Set(templates.map((template) => template.id));
+/**
+ * 模板白名单。**在调用点求值，不在模块顶层**。
+ *
+ * 此前是模块级 `const`——那会在首次 import 时固化，只含编译期基线；
+ * 沉淀出的运行时模板一旦被 set_template 引用，这里的预演 apply 会抛
+ * 「Unknown template」，而 `buildChangeDiff` 的 catch 会**静默吞掉**，
+ * 表现为「AI 换了模板，但变更预览里不显示」——不报错、只是没有。
+ */
+function currentTemplateIds(): Set<string> {
+  return new Set(allTemplates().map((template) => template.id));
+}
 
 const textLabels: Record<string, string> = {
   siteName: "站点名称",
@@ -54,11 +64,6 @@ function readTextTarget(draft: SiteDraft, target: string, locale: "zh" | "en"): 
     case "companyName": return draft.companyName;
     case "industry": return draft.industry;
     case "goal": return draft.goal;
-    case "navigation.about": return draft.navigation.about[locale];
-    case "navigation.features": return draft.navigation.features[locale];
-    case "navigation.services": return draft.navigation.services[locale];
-    case "navigation.products": return draft.navigation.products[locale];
-    case "navigation.contact": return draft.navigation.contact[locale];
     case "hero.title": return draft.content.hero.title[locale];
     case "hero.subtitle": return draft.content.hero.subtitle[locale];
     case "hero.cta": return draft.content.hero.cta[locale];
@@ -75,13 +80,32 @@ function readTextTarget(draft: SiteDraft, target: string, locale: "zh" | "en"): 
     case "contact.email": return draft.content.contact.email;
     case "contact.phone": return draft.content.contact.phone;
     case "contact.address": return draft.content.contact.address[locale];
-    default: return "";
+    /**
+     * 导航项是数组（⑥），id 由数据决定 —— 按 id 找，找不到给空串。
+     *
+     * **不回退成默认文案**：这个函数算的是"这次改了什么"，
+     * 猜一个值比给空串更误导（会显示成"导航从 A 改成了 B"，而 A 根本没出现过）。
+     *
+     * ⚠️ 它**必须留在 switch 末尾**：`default` 放在中间会悄悄吃掉
+     * 它后面的每一个 case（JS 的 switch 是贯穿的，`default` 不改变落点）。
+     */
+    default: {
+      if (target.startsWith("navigation.")) {
+        const id = target.slice("navigation.".length);
+        return draft.navigation.find((item) => item.id === id)?.label[locale] ?? "";
+      }
+      return "";
+    }
   }
 }
 
 function readDisplayTarget(draft: SiteDraft, target: string): string {
   const text = target.match(/^(.+)\.(zh|en)$/);
-  if (text && textLabels[text[1]]) return readTextTarget(draft, text[1], text[2] as "zh" | "en");
+  // `textLabels` 是静态表，装不下动态的 `navigation.<id>`（⑥）——
+  // 导航的 id 由数据决定。所以多认一条。
+  if (text && (textLabels[text[1]] || text[1].startsWith("navigation."))) {
+    return readTextTarget(draft, text[1], text[2] as "zh" | "en");
+  }
 
   const card = target.match(/^(features|services)\.items\.(\d+)\.(title|body)\.(zh|en)$/);
   if (card) {
@@ -106,6 +130,11 @@ function readDisplayTarget(draft: SiteDraft, target: string): string {
 function displayLabel(target: string): string {
   const text = target.match(/^(.+)\.(zh|en)$/);
   if (text && textLabels[text[1]]) return `${textLabels[text[1]]}（${localeLabels[text[2]]}）`;
+  // 导航项（⑥）：id 是数据，标题要用**用户自己填的那个词**，
+  // 而不是 `navigation.nav-1` 这种只有开发者看得懂的路径。
+  if (text && text[1].startsWith("navigation.")) {
+    return `导航「${text[1].slice("navigation.".length)}」（${localeLabels[text[2]]}）`;
+  }
   const card = target.match(/^(features|services)\.items\.(\d+)\.(title|body)\.(zh|en)$/);
   if (card) {
     const section = card[1] === "features" ? "核心优势" : "服务";
@@ -118,6 +147,8 @@ function displayLabel(target: string): string {
   if (target.endsWith(".visibility")) return `${sectionLabels[target.split(".")[0]] ?? target.split(".")[0]}区块显示状态`;
   if (target === "sections.order") return "区块显示顺序";
   if (target === "template") return "网站模板";
+  if (target === "hero.image") return "首屏主视觉";
+  if (target === "brand.logo") return "品牌 Logo";
   return target;
 }
 
@@ -126,6 +157,7 @@ function operationTargets(operation: SiteOperation, draft: SiteDraft): string[] 
   if (targets.length) return targets;
   if (operation.op === "set_template") return ["template"];
   if (operation.op === "set_design_tokens") return ["design.tokens"];
+  if (operation.op === "set_asset") return [operation.target];
   if (operation.op === "replace_draft") return ["draft"];
   return [];
 }
@@ -134,7 +166,7 @@ function operationTargets(operation: SiteOperation, draft: SiteDraft): string[] 
 export function buildChangeDiff(operations: SiteOperation[], before: SiteDraft): ChangeDiff[] {
   let applied: ReturnType<typeof applySiteOperations>;
   try {
-    applied = applySiteOperations(before, operations, { templateIds, lastChange: "AI 修改预览" });
+    applied = applySiteOperations(before, operations, { templateIds: currentTemplateIds(), lastChange: "AI 修改预览" });
   } catch {
     // Diff is a presentation aid; an old target must never turn a committed response into a UI error.
     return [];

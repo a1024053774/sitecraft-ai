@@ -1,4 +1,5 @@
 import { templateCatalog } from "./template-catalog.ts";
+import { getRuntimeTemplates, markBaselineTemplateIds } from "./template-runtime.ts";
 import {
   cloneDraft,
   defaultDraft,
@@ -59,8 +60,58 @@ export type Template = {
 
 export const templates: Template[] = templateCatalog;
 
-export function getTemplate(id: string) {
-  return templates.find((item) => item.id === id) ?? templates[0];
+/** 编译期基线的 id 集合（22 个开源模板）。运行时模板不得与之重名。 */
+const baselineTemplateIds = templateCatalog.map((item) => item.id);
+markBaselineTemplateIds(baselineTemplateIds);
+
+/**
+ * 运行时模板装载钩子。
+ *
+ * 由服务端启动时注入（`instrumentation.ts` → `template-runtime-loader`），
+ * 客户端 bundle 里**永远是 undefined**。这是唯一能同时满足三个约束的做法：
+ *   1. `allTemplates()` 必须同步（20+ 调用点，含同步的 `getTemplate`）；
+ *   2. 装载要读磁盘，而本模块在客户端 bundle 里，**静态 import `node:fs` 会让
+ *      Turbopack 构建直接失败**（实测：`does not support external modules (request: node:fs)`）；
+ *   3. `node:fs` 无法从客户端代码里动态 `require`——打包器会替换它，
+ *      运行期得到 `undefined`，被 try/catch 吞掉后**静默退化为「服务器上也看不到沉淀模板」**。
+ *
+ * 所以改成依赖倒置：本模块只持有一个函数引用，谁在服务端谁注入。
+ * 客户端不注入 → 自动只看到基线；服务端注入 → 看到全量。两边都不会静默出错。
+ */
+let runtimeLoader: (() => void) | undefined;
+
+export function setRuntimeLoader(loader: (() => void) | undefined): void {
+  runtimeLoader = loader;
+}
+
+/**
+ * 全部可用模板 = **静态基线 + 运行时注册表**（2026-09-10，方向 3 阶段 A）。
+ *
+ * 替代此前的 `templates` 直接当全集用。保留 `templates` 导出是因为它仍准确表示
+ * 「编译期基线」，而客户端 bundle 读不到磁盘，只能用基线快照——服务端才调本函数。
+ * 调用点显式化，正是为了让「这里依赖运行期注册」在代码里看得见。
+ */
+export function allTemplates(): Template[] {
+  runtimeLoader?.();
+  const runtime = getRuntimeTemplates();
+  return runtime.length ? [...templateCatalog, ...runtime] : templateCatalog;
+}
+
+/**
+ * 找模板，**找不到时回退到第一个基线模板**。
+ *
+ * 这是历史行为，保留它是为了不改动 20+ 个调用点的类型（它们都假设拿得到一份可用模板）。
+ * 需要「找不到就是找不到」的语义时用 `findTemplate()`——**已校验过白名单的链路**
+ * （静态资源路由、预览）必须用它：把「不认识的模板」静默换成 forge，会让预览
+ * 显示另一个模板、资源路由读另一个目录，而 HTTP 状态码还是 200，极难排查。
+ */
+export function getTemplate(id: string): Template {
+  return findTemplate(id) ?? templates[0];
+}
+
+/** 精确查找：不认识这个 id 就返回 undefined，**不做回退**。 */
+export function findTemplate(id: string): Template | undefined {
+  return allTemplates().find((item) => item.id === id);
 }
 
 export function importProductsFromRows(

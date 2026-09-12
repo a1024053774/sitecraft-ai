@@ -1,9 +1,10 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
-import { defaultDraft, normalizeDraft, templates, type SiteDraft } from "./site-model.ts";
+import { allTemplates, defaultDraft, normalizeDraft, type SiteDraft } from "./site-model.ts";
 import { applySiteOperations, type SiteOperation } from "./site-operations.ts";
+import { siteDraftSchema } from "./site-document.ts";
 import { throwIfAborted } from "./abort-utils.ts";
 import type { GenerationProvenance } from "./generation-record.ts";
 
@@ -35,6 +36,13 @@ export type SiteRecord = {
   history: ChangeSet[];
   future: ChangeSet[];
   updatedAt: string;
+  /**
+   * 用户粘贴的企业素材原文（2026-09-10）。
+   *
+   * 与**站点**绑定而非随请求传递——这样生成、补全、对话三条路径都能引用同一份素材，
+   * 且用户刷新/换设备后仍在，可回看与纠正。见 `docs` 中方向 2 的方案。
+   */
+  sourceMaterial?: string;
 };
 export type SiteSnapshot = {
   draft: SiteDraft;
@@ -43,6 +51,8 @@ export type SiteSnapshot = {
   canRedo: boolean;
   updatedAt: string;
   isNew?: boolean;
+  /** 用户粘贴的企业素材（与站点绑定，生成/补全/对话共用）。 */
+  sourceMaterial?: string;
 };
 export type SiteSeed = {
   name: string;
@@ -52,7 +62,7 @@ export type SiteSeed = {
 };
 
 const storageRoot = path.join(process.cwd(), ".sitecraft-data", "sites");
-const templateIds = new Set(templates.map((item) => item.id));
+const templateIds = new Set(allTemplates().map((item) => item.id));
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const globalStore = globalThis as typeof globalThis & { __sitecraftLocks?: Map<string, Promise<void>> };
@@ -75,6 +85,9 @@ async function readRecord(siteId: string): Promise<SiteRecord | null> {
       history: Array.isArray(raw.history) ? raw.history as ChangeSet[] : [],
       future: Array.isArray(raw.future) ? raw.future as ChangeSet[] : [],
       updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : new Date().toISOString(),
+      ...(typeof raw.sourceMaterial === "string" && raw.sourceMaterial.trim()
+        ? { sourceMaterial: raw.sourceMaterial }
+        : {}),
     };
   } catch (error) {
     const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
@@ -109,8 +122,40 @@ async function withSiteLock<T>(siteId: string, task: () => Promise<T>): Promise<
     if (locks.get(siteId) === queue) locks.delete(siteId);
   }
 }
-function createRecord(siteId: string, draft: SiteDraft = defaultDraft): SiteRecord {
-  return { siteId, draft: normalizeDraft(draft), history: [], future: [], updatedAt: new Date().toISOString() };
+/**
+ * 写入前校验：草稿必须能通过 `siteDraftSchema`（P-0，2026-09-11）。
+ *
+ * ## 为什么必须有
+ *
+ * 修复前是**写入宽松 / 读取严格**：
+ *  - 写入走 `applySiteOperations`，**从不跑 `siteDraftSchema`**；
+ *  - 读取走 `normalizeDraft`，`safeParse` 一旦失败就 `cloneDraft(defaultDraft)`
+ *    并只回填 7 个字段 —— `about`/`features`/`services`/`contact`/`navigation`
+ *    **全部重置成 Forge 演示文案**，且**无任何报错**。
+ *
+ * 实测：把 `industry` 写到 130 字 → 写入成功 → 下次读取整站内容消失。
+ *
+ * 这道校验是**兜底**：`checkCopyLength` 已在操作层拦下常见超限（含可读长度与字段硬上限），
+ * 但条目数（`items.max(12)`）等结构性溢出不在它管辖内，只能靠 schema 兜住。
+ * 宁可**写入当场失败并给出可读原因**，也不能让损坏的草稿落盘、在读取时静默毁掉用户内容。
+ */
+function assertDraftWritable(draft: SiteDraft): void {
+  const parsed = siteDraftSchema.safeParse(draft);
+  if (parsed.success) return;
+  const first = parsed.error.issues[0];
+  const where = first?.path.join(".") || "草稿";
+  throw new Error(`草稿写入被拒绝（${where}）：${first?.message ?? "不符合草稿结构"}。内容未被保存，请调整后重试。`);
+}
+
+function createRecord(siteId: string, draft: SiteDraft = defaultDraft, sourceMaterial?: string): SiteRecord {
+  return {
+    siteId,
+    draft: normalizeDraft(draft),
+    history: [],
+    future: [],
+    updatedAt: new Date().toISOString(),
+    ...(sourceMaterial?.trim() ? { sourceMaterial } : {}),
+  };
 }
 function draftFromSeed(seed: SiteSeed) {
   const normalized = normalizeDraft(seed.initialDraft);
@@ -131,6 +176,7 @@ export function snapshot(record: SiteRecord, isNew?: boolean): SiteSnapshot {
     canUndo: record.history.length > 0,
     canRedo: record.future.length > 0,
     updatedAt: record.updatedAt,
+    ...(record.sourceMaterial?.trim() ? { sourceMaterial: record.sourceMaterial } : {}),
     ...(isNew === undefined ? {} : { isNew }),
   };
 }
@@ -149,6 +195,64 @@ async function createLocalSite(seed: SiteSeed) {
     const record = createRecord(id, draftFromSeed(seed));
     await writeRecord(record);
     return { id, ...snapshot(record, true) };
+  });
+}
+
+/** 列出本工作区站点（首页「我的站点」用）。 */
+export type SiteListItem = {
+  id: string;
+  name: string;
+  templateId: string;
+  locale: SiteDraft["locale"];
+  revision: number;
+  updatedAt: string;
+};
+
+async function listLocalSites(): Promise<SiteListItem[]> {
+  let entries: string[] = [];
+  try {
+    entries = await readdir(storageRoot);
+  } catch {
+    return []; // 目录不存在 = 还没有任何站点
+  }
+  const items: SiteListItem[] = [];
+  for (const entry of entries) {
+    if (!entry.endsWith(".json")) continue;
+    const siteId = entry.slice(0, -".json".length);
+    try {
+      const record = await readRecord(siteId);
+      if (!record) continue;
+      items.push({
+        id: record.siteId,
+        name: record.draft.siteName || record.draft.companyName || record.siteId,
+        templateId: record.draft.templateId,
+        locale: record.draft.locale,
+        revision: record.draft.revision,
+        updatedAt: record.updatedAt,
+      });
+    } catch {
+      // 单个文件损坏不影响其他站点
+    }
+  }
+  return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+async function listPostgresSites(): Promise<SiteListItem[]> {
+  await ensureDatabaseSchema();
+  const result = await getDatabasePool().query<{ site_id: string; draft: unknown; updated_at: Date | string }>(
+    `SELECT site_id, draft, updated_at FROM sitecraft_sites WHERE workspace_id = $1 ORDER BY updated_at DESC`,
+    [workspaceId],
+  );
+  return result.rows.map((row) => {
+    const draft = normalizeDraft(row.draft);
+    return {
+      id: row.site_id,
+      name: draft.siteName || draft.companyName || row.site_id,
+      templateId: draft.templateId,
+      locale: draft.locale,
+      revision: draft.revision,
+      updatedAt: new Date(row.updated_at).toISOString(),
+    };
   });
 }
 export type CommitResult =
@@ -186,6 +290,7 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
       lastChange: args.source === "ai" ? "刚刚通过 AI 保存" : "草稿已保存",
     });
     if (!result.changed) return { status: "no_change", record };
+    assertDraftWritable(result.draft);
     const changeSet: ChangeSet = {
       id: crypto.randomUUID(), baseRevision: record.draft.revision, revision: result.draft.revision,
       summary: args.summary, source: args.source, operations: structuredClone(args.operations),
@@ -220,6 +325,7 @@ async function moveLocalHistory(siteId: string, action: "undo" | "redo") {
       lastChange: action === "undo" ? "刚刚撤销一次修改" : "刚刚重做一次修改",
     });
     if (!result.changed) return { status: "empty" as const, record };
+    assertDraftWritable(result.draft);
     record.draft = result.draft;
     if (action === "undo") {
       record.history = record.history.slice(0, -1);
@@ -240,6 +346,7 @@ type SiteRow = {
   history: unknown;
   future: unknown;
   updated_at: Date | string;
+  source_material?: string | null;
 };
 
 function rowToRecord(row: SiteRow): SiteRecord {
@@ -249,6 +356,9 @@ function rowToRecord(row: SiteRow): SiteRecord {
     history: Array.isArray(row.history) ? row.history as ChangeSet[] : [],
     future: Array.isArray(row.future) ? row.future as ChangeSet[] : [],
     updatedAt: new Date(row.updated_at).toISOString(),
+    ...(typeof row.source_material === "string" && row.source_material.trim()
+      ? { sourceMaterial: row.source_material }
+      : {}),
   };
 }
 
@@ -256,13 +366,13 @@ async function lockPostgresRecord(client: PoolClient, siteId: string) {
   safeSiteId(siteId);
   const initial = createRecord(siteId);
   await client.query(
-    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, updated_at)
-     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4)
+    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, updated_at, source_material)
+     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4, $5)
      ON CONFLICT (workspace_id, site_id) DO NOTHING`,
-    [workspaceId, siteId, JSON.stringify(initial.draft), initial.updatedAt],
+    [workspaceId, siteId, JSON.stringify(initial.draft), initial.updatedAt, initial.sourceMaterial ?? null],
   );
   const result = await client.query<SiteRow>(
-    `SELECT site_id, draft, history, future, updated_at
+    `SELECT site_id, draft, history, future, updated_at, source_material
      FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2 FOR UPDATE`,
     [workspaceId, siteId],
   );
@@ -273,9 +383,9 @@ async function lockPostgresRecord(client: PoolClient, siteId: string) {
 async function savePostgresRecord(client: PoolClient, record: SiteRecord) {
   await client.query(
     `UPDATE sitecraft_sites
-     SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, updated_at = $6
+     SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, updated_at = $6, source_material = $7
      WHERE workspace_id = $1 AND site_id = $2`,
-    [workspaceId, record.siteId, JSON.stringify(record.draft), JSON.stringify(record.history), JSON.stringify(record.future), record.updatedAt],
+    [workspaceId, record.siteId, JSON.stringify(record.draft), JSON.stringify(record.history), JSON.stringify(record.future), record.updatedAt, record.sourceMaterial ?? null],
   );
 }
 
@@ -284,14 +394,14 @@ async function getPostgresSite(siteId: string) {
   await ensureDatabaseSchema();
   const initial = createRecord(siteId);
   const inserted = await getDatabasePool().query(
-    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, updated_at)
-     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4)
+    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, updated_at, source_material)
+     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4, $5)
      ON CONFLICT (workspace_id, site_id) DO NOTHING
      RETURNING site_id`,
-    [workspaceId, siteId, JSON.stringify(initial.draft), initial.updatedAt],
+    [workspaceId, siteId, JSON.stringify(initial.draft), initial.updatedAt, initial.sourceMaterial ?? null],
   );
   const result = await getDatabasePool().query<SiteRow>(
-    `SELECT site_id, draft, history, future, updated_at
+    `SELECT site_id, draft, history, future, updated_at, source_material
      FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2`,
     [workspaceId, siteId],
   );
@@ -304,10 +414,10 @@ async function createPostgresSite(seed: SiteSeed) {
   const id = crypto.randomUUID();
   const record = createRecord(id, draftFromSeed(seed));
   const inserted = await getDatabasePool().query(
-    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, updated_at)
-     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4)
+    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, updated_at, source_material)
+     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4, $5)
      RETURNING site_id`,
-    [workspaceId, id, JSON.stringify(record.draft), record.updatedAt],
+    [workspaceId, id, JSON.stringify(record.draft), record.updatedAt, record.sourceMaterial ?? null],
   );
   if (inserted.rowCount !== 1) throw new Error("Site record could not be created");
   return { id, ...snapshot(record, true) };
@@ -323,6 +433,7 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
       lastChange: args.source === "ai" ? "刚刚通过 DeepSeek 保存" : "草稿已保存",
     });
     if (!result.changed) return { status: "no_change", record };
+    assertDraftWritable(result.draft);
     const changeSet: ChangeSet = {
       id: crypto.randomUUID(),
       baseRevision: record.draft.revision,
@@ -363,6 +474,7 @@ async function movePostgresHistory(siteId: string, action: "undo" | "redo") {
       lastChange: action === "undo" ? "刚刚撤销一次修改" : "刚刚重做一次修改",
     });
     if (!result.changed) return { status: "empty" as const, record };
+    assertDraftWritable(result.draft);
     record.draft = result.draft;
     if (action === "undo") {
       record.history = record.history.slice(0, -1);
@@ -385,6 +497,49 @@ export function createSite(seed: SiteSeed) {
   return usePostgres ? createPostgresSite(seed) : createLocalSite(seed);
 }
 
+/**
+ * 列出本工作区的全部站点（2026-09-10）。
+ *
+ * 此前 `GET /api/sites` **恒返 `[{id:"demo"}]`**，首页又硬编码 3 个假站点——
+ * 用户建完站回首页**看不到自己的站**，属信任级缺陷（用户会怀疑"我刚才做的站去哪了"）。
+ */
+export function listSites(): Promise<SiteListItem[]> {
+  return usePostgres ? listPostgresSites() : listLocalSites();
+}
+
+/**
+ * 保存用户粘贴的企业素材（2026-09-10，方向 2）。
+ *
+ * 与**站点**绑定而非随请求传递：生成 / 补全 / 对话三条路径都能引用同一份素材，
+ * 且用户刷新或换设备后仍在，可回看与纠正。
+ * 传空串则清除。**不 bump draft.revision**——素材不是草稿内容，改它不该让草稿冲突。
+ */
+export async function setSiteSourceMaterial(siteId: string, material: string): Promise<{ sourceMaterial?: string }> {
+  const trimmed = material.trim();
+  if (usePostgres) {
+    await ensureDatabaseSchema();
+    await getDatabasePool().query(
+      `UPDATE sitecraft_sites SET source_material = $3 WHERE workspace_id = $1 AND site_id = $2`,
+      [workspaceId, safeSiteId(siteId), trimmed || null],
+    );
+    return trimmed ? { sourceMaterial: trimmed } : {};
+  }
+  return withSiteLock(siteId, async () => {
+    const existing = await readRecord(siteId);
+    const record = existing ?? createRecord(siteId);
+    if (trimmed) record.sourceMaterial = trimmed;
+    else delete record.sourceMaterial;
+    await writeRecord(record);
+    return trimmed ? { sourceMaterial: trimmed } : {};
+  });
+}
+
+/** 读取站点素材（生成/补全/对话共用）。无则返回 undefined。 */
+export async function getSiteSourceMaterial(siteId: string): Promise<string | undefined> {
+  const site = await getSite(siteId);
+  return site.sourceMaterial;
+}
+
 export function commitOperations(args: CommitArgs): Promise<CommitResult> {
   return usePostgres ? commitPostgresOperations(args) : commitLocalOperations(args);
 }
@@ -402,7 +557,7 @@ async function readFullRecord(siteId: string) {
   if (!usePostgres) return (await readRecord(siteId)) ?? createRecord(siteId);
   await getPostgresSite(siteId);
   const result = await getDatabasePool().query<SiteRow>(
-    `SELECT site_id, draft, history, future, updated_at
+    `SELECT site_id, draft, history, future, updated_at, source_material
      FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2`,
     [workspaceId, siteId],
   );

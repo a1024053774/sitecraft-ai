@@ -34,6 +34,20 @@ function scopesFor(text: string): ChatScope[] {
   return matches.length ? unique(matches) : [...allContentScopes];
 }
 
+/**
+ * 从选中的 target 推它属于哪个板块（决定 AI 修改的范围）。
+ *
+ * ## 已知的降级，是刻意的（2026-09-11，⑥）
+ *
+ * 导航项的 id 现在由数据决定，可以是 `about`（默认那几个）也可是 `nav-1`。
+ * 前缀剥掉之后，`about` 能落到 `about` 这个 scope，而 `nav-1` 落不到任何节名上，
+ * 于是退回 `"site"`——**范围变宽，不是变错**。
+ *
+ * 想推准需要拿到草稿（按 id 查那项的 `target`，`#about` → `about`），
+ * 而本函数是纯字符串的、没有草稿。**不为了这个精度去改签名**：
+ * 多给 AI 一点上下文最坏是"它看到了别处的信息"，比"它看不到要改的地方"轻。
+ * 真需要时把 draft 传进来即可，逻辑就三行。
+ */
 function scopeForTarget(target: string): ChatScope {
   const normalized = target.replace(/^navigation\./, "");
   const scope = allContentScopes.find((item) => normalized === item || normalized.startsWith(`${item}.`));

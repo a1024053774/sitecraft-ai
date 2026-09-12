@@ -57,8 +57,27 @@ function isAccessError(value: AccessResolution): value is AccessError {
   return "code" in value;
 }
 
+/**
+ * 访问模式（2026-09-11 P-1 修复）。
+ *
+ * ## 修复前的问题
+ *
+ * 此前是 `strict` 之外一律 `relaxed`——**默认不安全**。生产环境只要忘了设
+ * `SITECRAFT_ACCESS_MODE=strict`，`curl /api/sites` **不带任何头**就能列出全部站点，
+ * 且身份被回落成 `demo / internal-dev / editor`（可写）。
+ *
+ * ## 现在的规则
+ *
+ * - 显式设了就用它（两种情况都尊重）；
+ * - 否则按环境：**非 development 一律 strict**，本地 `next dev` 才 relaxed。
+ *
+ * 这样"本地开发零配置"和"生产默认安全"同时成立，不依赖部署者记得设环境变量。
+ * e2e 跑的是 `next start`（非 development），故 `e2e/scripts/serve.mjs` 显式设了 relaxed。
+ */
 function configuredMode(): "relaxed" | "strict" {
-  return process.env.SITECRAFT_ACCESS_MODE === "strict" ? "strict" : "relaxed";
+  const explicit = process.env.SITECRAFT_ACCESS_MODE?.trim();
+  if (explicit === "strict" || explicit === "relaxed") return explicit;
+  return process.env.NODE_ENV === "development" ? "relaxed" : "strict";
 }
 
 function configuredWorkspaceId() {

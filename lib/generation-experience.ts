@@ -119,3 +119,47 @@ export function getGenerationProgress(input: GenerationProgressInput) {
 export function formatGenerationProgress(value: number) {
   return `${Math.round(Math.min(100, Math.max(0, value)))}%`;
 }
+
+/**
+ * 从**流式仍未闭合的 JSON** 中提取「已经写完的可读片段」，用于实时展示。
+ *
+ * 背景（2026-09-10 用户要求「以流式输出为主提升用户体验」）：
+ * 生成阶段此前只推「已输出 N 字」——用户干等 30-90s 看不到任何内容。
+ * 但模型的输出是结构化 JSON（`{"operations":[{"op":"set_text","value":"…"}…]}`），
+ * 直接推原始增量没有可读性（全是 `{"op":"set_` 之类）。
+ *
+ * 做法：只取**已闭合的字符串字面量**——正则要求开引号与闭引号都在，天然跳过正在写的那个值，
+ * 避免把半截文字（"精密制"）当完整内容显示造成的跳变。再按「长得像正文」过滤：
+ * 长度 ≥ 8、含中日韩字符或空格（排除 `set_text` / `hero.title` / `zh` 这类标识符）。
+ *
+ * 返回最近 `limit` 条（最新在后），调用方拼成一行显示。
+ */
+export function extractStreamingSnippets(text: string, limit = 2): string[] {
+  if (!text) return [];
+  const snippets: string[] = [];
+  // 已闭合的 JSON 字符串字面量：开引号 + 非引号非换行内容 + 闭引号
+  const closed = /"((?:[^"\\\n]|\\.){2,})"/g;
+  let match: RegExpExecArray | null;
+  while ((match = closed.exec(text)) !== null) {
+    const raw = match[1];
+    // 反斜杠转义（\n / \" / \uXXXX）说明还在结构化数据里，跳过；正文里几乎不出现裸反斜杠
+    if (raw.includes("\\")) continue;
+    const value = raw.trim();
+    if (value.length < 8) continue;
+    // 必须像"人话"：含中日韩字符，或含空格的多词英文句子
+    const looksLikeProse = /[㐀-鿿]/.test(value) || /\s/.test(value);
+    if (!looksLikeProse) continue;
+    // 排除 JSON 键名/枚举/操作名等标识符形态
+    if (/^[a-z_]+(\.[a-z_]+)*$/i.test(value)) continue;
+    snippets.push(value);
+  }
+  return snippets.slice(-limit);
+}
+
+/** 把流式片段拼成一句进度文案（无可用片段时返回 null，调用方回退到"已输出 N 字"）。 */
+export function formatStreamingPreview(snippets: readonly string[]): string | null {
+  const cleaned = snippets.map((item) => item.replace(/\s+/g, " ").trim()).filter(Boolean);
+  if (!cleaned.length) return null;
+  const joined = cleaned.join(" … ");
+  return `正在生成：${joined.length > 46 ? `${joined.slice(0, 46)}…` : joined}`;
+}

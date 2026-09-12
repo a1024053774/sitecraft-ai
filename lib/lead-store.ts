@@ -1,3 +1,5 @@
+import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
 
@@ -142,6 +144,123 @@ const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_EN
 
 export function isLeadStoreEnabled() {
   return usePostgres;
+}
+
+/**
+ * 文件存储的询盘库（非 Postgres 时使用）。
+ *
+ * **2026-09-10 修复「询盘闭环在 file 模式下闭锁」**：
+ * 此前 `isLeadStoreEnabled()` 只认 Postgres，三个路由（`/api/public/[siteKey]/leads`、
+ * `/api/leads`、`/api/leads/[leadId]`）**只走 `postgresLeadStore`**——本机
+ * `SITE_STORE=file` 时公开页表单提交必然 **503**，客户看到「提交失败」，
+ * `/leads` 页也提示检查数据库连接。而 `createMemoryLeadStore` 写好了却**零调用点**（纯死代码）。
+ *
+ * 对代建服务这是致命的：当着客户演示询盘闭环会失败。故补文件持久化实现——
+ * 沿用 `site-store.ts` / `release-store.ts` 的既有约定（`.sitecraft-data/` + 原子写）。
+ *
+ * **取长补短**：`createMemoryLeadStore` 有完整的幂等/排序/状态流转逻辑但重启即丢；
+ * 本实现直接复用它作为**内存索引**，在其上叠加落盘，避免重复实现业务规则。
+ */
+class FileLeadStore implements LeadStore {
+  private readonly rootDir: string;
+  private memory: LeadStore;
+  private loaded = false;
+  private readonly seed: LeadRecord[] = [];
+  /** 串行化落盘，避免并发 create 互相覆盖（与 site-store 的锁语义一致）。 */
+  private writeChain: Promise<unknown> = Promise.resolve();
+
+  constructor(options: { rootDir?: string } = {}) {
+    this.rootDir = options.rootDir ?? path.join(process.cwd(), ".sitecraft-data", "leads");
+    this.memory = createMemoryLeadStore();
+  }
+
+  private filePath(siteKey: string) {
+    const safe = siteKey.replace(/[^a-z0-9_-]/gi, "_").slice(0, 80) || "unknown";
+    return path.join(this.rootDir, `${safe}.json`);
+  }
+
+  private async load() {
+    if (this.loaded) return;
+    this.loaded = true;
+    let entries: string[] = [];
+    try {
+      entries = await readdir(this.rootDir);
+    } catch {
+      return; // 目录不存在 = 还没有任何询盘
+    }
+    for (const entry of entries) {
+      if (!entry.endsWith(".json")) continue;
+      try {
+        const records = JSON.parse(await readFile(path.join(this.rootDir, entry), "utf8")) as LeadRecord[];
+        if (!Array.isArray(records)) continue;
+        // 用**完整记录**重建内存索引（seed），不能用 `create`——
+        // `create` 固定把 status 置为 "new"，会让已联系/已归档的询盘重启后退回未处理。
+        for (const record of records) {
+          if (record && typeof record.siteKey === "string" && typeof record.id === "string") {
+            this.seed.push(record);
+          }
+        }
+      } catch {
+        // 单个文件损坏不影响其他站点
+      }
+    }
+    // 索引就绪后用种子重建内存库（保留 status / createdAt / idempotencyKey）
+    if (this.seed.length) {
+      this.memory = createMemoryLeadStore(this.seed);
+    }
+  }
+
+  private async persist(siteKey: string) {
+    const records = await this.memory.list({ siteKey, limit: 100 });
+    await mkdir(this.rootDir, { recursive: true });
+    const target = this.filePath(siteKey);
+    const temp = `${target}.${process.pid}.tmp`;
+    await writeFile(temp, JSON.stringify(records, null, 2), "utf8");
+    await rename(temp, target);
+  }
+
+  private enqueue(task: () => Promise<void>) {
+    this.writeChain = this.writeChain.then(task, task);
+    return this.writeChain;
+  }
+
+  async create(input: LeadInput) {
+    await this.load();
+    const result = await this.memory.create(input);
+    if (result.created) await this.enqueue(() => this.persist(input.siteKey));
+    return result;
+  }
+
+  async list(options: LeadListOptions) {
+    await this.load();
+    return this.memory.list(options);
+  }
+
+  async updateStatus(input: { siteKey: string; leadId: string; status: LeadStatus }) {
+    await this.load();
+    const updated = await this.memory.updateStatus(input);
+    if (updated) await this.enqueue(() => this.persist(input.siteKey));
+    return updated;
+  }
+}
+
+export function createFileLeadStore(options: { rootDir?: string } = {}): LeadStore {
+  return new FileLeadStore(options);
+}
+
+/**
+ * 询盘存储的**统一入口**（路由层只应 import 这一个）。
+ *
+ * 此前三个路由各自 import `postgresLeadStore`，导致「存储模式」这个决策被复制了三份、
+ * 且都只实现了 Postgres 分支。集中到工厂函数后，新增存储模式只改这一处。
+ */
+let activeLeadStore: LeadStore | null = null;
+
+export function getLeadStore(): LeadStore {
+  if (!activeLeadStore) {
+    activeLeadStore = usePostgres ? createPostgresLeadStore() : createFileLeadStore();
+  }
+  return activeLeadStore;
 }
 
 export function createPostgresLeadStore(): LeadStore {

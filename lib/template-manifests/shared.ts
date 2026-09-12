@@ -1,4 +1,5 @@
 import type { Locale } from "../site-model.ts";
+import { SLOT_MAX_LENGTH } from "../template-slot-contract.ts";
 import type { TemplateManifest, TemplateContentTarget, TemplateSlotBinding, TemplateNonContentSlot, TemplateUiSurface, TemplatePresentationBlock } from "./types.ts";
 
 /**
@@ -29,21 +30,34 @@ export const NON_CONTENT_SLOTS: readonly TemplateNonContentSlot[] = [
     selector: "#contact form, section[id*='contact'] form",
     slotType: "behavior",
     coverage: "excluded",
-    support: "unsupported",
+    // 询盘提交由本站接管（bridge 拦截 → /api/public/<siteKey>/leads），不写模板 demo action。
+    // 2026-09-09 前标 unsupported，与实况不符（P3.5 / A8 契约同步）。
+    support: "sitecraft-hosted",
   },
 ] as const;
 
 export function contentSlots(
   demoFingerprints: Partial<Record<TemplateContentTarget, readonly string[]>>,
   selectors: Partial<Record<TemplateContentTarget, string>> = {},
+  /**
+   * 显式声明「本模板可以没有这些槽」。
+   *
+   * 为什么需要：`required` 此前**硬编码为 true**，模板无法声明"我这节是非必填"。
+   * 后果是「政府站/律所站本来就没有产品目录」这件事无法表达，只能靠运行时隐藏板块
+   * （`hiddenSections`）绕开——变成**一个业务事实被塞进一个渲染开关里**。
+   *
+   * 空数组（缺省）＝保持历史行为（全部必填），因此 22 个基线模板零语义变化。
+   */
+  options: { optionalTargets?: readonly TemplateContentTarget[] } = {},
 ): readonly TemplateSlotBinding[] {
+  const optional = new Set<string>(options.optionalTargets ?? []);
   const slots = [
     {
       target: "hero.title",
       selector: "main h1, header h1",
       contentType: "text",
       required: true,
-      maxLength: 160,
+      maxLength: SLOT_MAX_LENGTH["hero.title"],
       demoFingerprints: demoFingerprints["hero.title"] ?? [],
     },
     {
@@ -51,7 +65,7 @@ export function contentSlots(
       selector: "#about p, section[id*='about'] p",
       contentType: "text",
       required: true,
-      maxLength: 800,
+      maxLength: SLOT_MAX_LENGTH["about.body"],
       demoFingerprints: demoFingerprints["about.body"] ?? [],
     },
     {
@@ -59,7 +73,7 @@ export function contentSlots(
       selector: "#features article, section[id*='feature'] article",
       contentType: "collection",
       required: true,
-      maxLength: 1800,
+      maxLength: SLOT_MAX_LENGTH["features.items"],
       demoFingerprints: demoFingerprints["features.items"] ?? [],
     },
     {
@@ -67,7 +81,7 @@ export function contentSlots(
       selector: "#services article, section[id*='service'] article",
       contentType: "collection",
       required: true,
-      maxLength: 1800,
+      maxLength: SLOT_MAX_LENGTH["services.items"],
       demoFingerprints: demoFingerprints["services.items"] ?? [],
     },
     {
@@ -75,7 +89,7 @@ export function contentSlots(
       selector: "#products article, #pricing article, section[id*='product'] article",
       contentType: "collection",
       required: true,
-      maxLength: 2400,
+      maxLength: SLOT_MAX_LENGTH["products"],
       demoFingerprints: demoFingerprints.products ?? [],
     },
     {
@@ -83,7 +97,7 @@ export function contentSlots(
       selector: "#contact h2, section[id*='contact'] h2",
       contentType: "text",
       required: true,
-      maxLength: 160,
+      maxLength: SLOT_MAX_LENGTH["contact.title"],
       demoFingerprints: demoFingerprints["contact.title"] ?? [],
     },
     {
@@ -91,7 +105,7 @@ export function contentSlots(
       selector: "#contact p, section[id*='contact'] p",
       contentType: "text",
       required: true,
-      maxLength: 800,
+      maxLength: SLOT_MAX_LENGTH["contact.body"],
       demoFingerprints: demoFingerprints["contact.body"] ?? [],
     },
     {
@@ -99,7 +113,7 @@ export function contentSlots(
       selector: "#contact a[href^='mailto:'], section[id*='contact'] a[href^='mailto:']",
       contentType: "text",
       required: true,
-      maxLength: 240,
+      maxLength: SLOT_MAX_LENGTH["contact.email"],
       demoFingerprints: demoFingerprints["contact.email"] ?? [],
     },
     {
@@ -107,7 +121,7 @@ export function contentSlots(
       selector: "#contact a[href^='tel:'], section[id*='contact'] a[href^='tel:']",
       contentType: "text",
       required: true,
-      maxLength: 80,
+      maxLength: SLOT_MAX_LENGTH["contact.phone"],
       demoFingerprints: demoFingerprints["contact.phone"] ?? ["待补充"],
     },
     {
@@ -115,7 +129,7 @@ export function contentSlots(
       selector: "#contact address, section[id*='contact'] address",
       contentType: "text",
       required: true,
-      maxLength: 1000,
+      maxLength: SLOT_MAX_LENGTH["contact.address"],
       demoFingerprints: demoFingerprints["contact.address"] ?? ["地址待补充", "Address to be completed"],
     },
   ] as const;
@@ -145,6 +159,8 @@ export function contentSlots(
   };
   return slots.map((slot) => ({
     ...slot,
+    // `required` 可被模板显式豁免（见参数说明）；未声明时保持 `true`。
+    required: optional.has(slot.target) ? false : slot.required,
     selector: selectors[slot.target] ?? slot.selector,
     semanticType: semanticTypes[slot.target],
     aliases: aliases[slot.target],
@@ -155,10 +171,23 @@ export function contentSlots(
 
 /**
  * 默认原生排版兜底：未手写 presentation 的模板，各集合槽按 card_grid（旧行为）处理。
- * 这是"零回归"关键——不升级的 16 个模板继续走通用卡片渲染，与新机制互不影响。
+ * 这是"零回归"关键——不升级的模板继续走通用卡片渲染，与新机制互不影响。
+ *
+ * 2026-09-09 补 hero：此前默认表**没有 hero 项**，导致 5 个未手写 presentation 的模板
+ * （nextjs-landing/kindred/moon/shadcn-landing/tailwind-landing）的 hero 声明缺失，
+ * 生成层拿不到首屏形态提示。hero 在任何模板里都存在且形态只有两种，故按
+ * `hero_centered` 兜底（最普遍形态），需要精确的可手写覆盖。
  */
 export function defaultPresentation(): readonly TemplatePresentationBlock[] {
   return [
+    {
+      slot: "hero",
+      role: "hero_centered",
+      presentAs: "首屏：居中大字标题 + 副文（未手写声明，按居中兜底）",
+      capacity: { max: 1 },
+      itemShape: "title_body",
+      anchor: "首个可见 h1（含 header/main 内）",
+    },
     {
       slot: "about",
       role: "split_text_media",
@@ -171,6 +200,7 @@ export function defaultPresentation(): readonly TemplatePresentationBlock[] {
       slot: "features",
       role: "card_grid",
       presentAs: "核心优势：卡片网格（未声明原生角色，通用渲染）",
+      nativeFallbackHost: "generated",
       capacity: { min: 2, default: 3, max: 12 },
       itemShape: "title_body",
       anchor: "含 feature 语义的 section 内 card 类元素",
@@ -179,6 +209,7 @@ export function defaultPresentation(): readonly TemplatePresentationBlock[] {
       slot: "services",
       role: "card_grid",
       presentAs: "服务：卡片网格（未声明原生角色，通用渲染）",
+      nativeFallbackHost: "generated",
       capacity: { min: 2, default: 3, max: 12 },
       itemShape: "title_body",
       anchor: "含 service 语义的 section 内 card 类元素",

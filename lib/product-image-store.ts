@@ -13,13 +13,22 @@ import path from "node:path";
 
 const uploadsRoot = path.join(process.cwd(), ".sitecraft-data", "uploads");
 
+/**
+ * 允许上传的图片类型（2026-09-11 P-2）。
+ *
+ * ⚠️ **`image/svg+xml` 已被移除**：SVG 是**可执行文档**，能内嵌 `<script>`。
+ * 由本项目域名同源提供 = **存储型 XSS**（用户上传恶意 SVG → 他人打开
+ * `/api/product-images/x.svg` → 脚本在我们的 origin 下执行）。
+ * 产品图用不到矢量格式，故直接不放行；上传接口不再接受 `.svg`。
+ *
+ * 读取接口另有 `X-Content-Type-Options` + `CSP` 兜底，防止历史遗留文件与未来格式。
+ */
 const EXT_BY_MIME: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
   "image/avif": ".avif",
   "image/gif": ".gif",
-  "image/svg+xml": ".svg",
 };
 
 export const ALLOWED_IMAGE_MIME = Object.keys(EXT_BY_MIME);
@@ -42,6 +51,25 @@ export async function storeImage(buffer: Buffer, mime: string, originalName: str
   await mkdir(uploadsRoot, { recursive: true });
   await writeFile(path.join(uploadsRoot, fileName), buffer);
   return `/api/product-images/${fileName}`;
+}
+
+/**
+ * 存一张图，**先瘦身再落盘**（2026-09-11）。
+ *
+ * 为什么不改上面的 `storeImage`：它是纯存储原语，"存什么就是什么"。
+ * 瘦身是**上传策略**，不是存储职责——混在一起会让"我只想原样存一张图"
+ * 变成做不到的事（截图流程有时就要原图）。
+ *
+ * ⚠️ **扩展名必须跟着实际字节走**。压缩后是 WebP，文件名却还是 `.png`，
+ * 服务端按扩展名推 content-type 会返回 `image/png`——浏览器拿到 WebP 字节
+ * 却按 PNG 解析，**图片直接不显示**，而且不报错。
+ */
+export async function storeOptimizedImage(buffer: Buffer, mime: string, originalName: string): Promise<{ url: string; savedBytes: number; optimized: boolean }> {
+  const { optimizeUploadedImage } = await import("./image-optimize.ts");
+  const result = await optimizeUploadedImage(buffer, mime);
+  // 用**压缩后**的 mime 取名，而不是上传时的 mime
+  const url = await storeImage(result.buffer, result.mime, originalName);
+  return { url, savedBytes: result.savedBytes, optimized: result.optimized };
 }
 
 /** 按 URL 路径读回文件；非法/不存在返回 null。 */

@@ -33,6 +33,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
       slot: "about",
       role: "split_text_media",
       presentAs: "关于：企业介绍单块（标题 + 一段简介，无卡片），由通用生成承载于 #about（首屏之后）。",
+      nativeFallbackHost: "generated",
       capacity: { max: 1 },
       itemShape: "title_body",
       anchor: "id=about 的 section（data-sitecraft-generated-content=about）",
@@ -40,6 +41,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
     {
       slot: "features",
       role: "card_grid",
+      nativeFallbackHost: "generated",
       presentAs: "核心方案：原生 #features 浅色 icon-grid，6 张图标+标题卡（正文由适配补一行小字）。每条写完整价值点，至多 6 条。",
       capacity: { min: 3, default: 6, max: 6 },
       itemShape: "title_body",
@@ -48,6 +50,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
     {
       slot: "services",
       role: "card_grid",
+      nativeFallbackHost: "generated",
       presentAs: "服务支持：原生 #services 浅色卡（h3+p，边框卡 bg-muted/60），至多 4 条，写具体服务条目。",
       capacity: { min: 2, default: 4, max: 4 },
       itemShape: "title_body",
@@ -57,6 +60,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
       slot: "products",
       role: "product_grid",
       presentAs: "产品中心：无原生产品卡位，由通用产品网格承载（SKU+简介+图），安置于 #products（服务之后、联系之前）。",
+      nativeFallbackHost: "generated",
       capacity: { min: 1, default: 6, max: 1000 },
       itemShape: "title_body",
       anchor: "id=products 的 section（data-sitecraft-generated-products）",

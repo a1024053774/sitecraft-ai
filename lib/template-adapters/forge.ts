@@ -256,6 +256,10 @@ const designTokenCss =
   '[class*="card"],article{border-color:color-mix(in srgb,var(--sitecraft-primary) 22%,transparent)!important}' +
   // 首屏大字压在整宽背景图上，保持白色+投影可读（designToken 主色可能偏深）
   '[data-testid="hero-text"],[data-testid="intro-text"]{color:#fff!important}' +
+  // 模板自带的 hero 区是 `relative z-[-10]`，会被 <main> 的绘制层盖住：
+  // 视觉上背景图能看见，但 elementFromPoint 命中 <main>，导致**用户点不到 hero 里的标题**
+  // （2026-09-09 实测，P3.1 就地编辑因此完全失效）。抬到 0 层不影响观感。
+  'main > section.relative.z-\\[-10\\]{z-index:0!important}' +
   // 联系带（深色渐变）：标题/正文/明细保持浅色，联系方式可点
   '#contact h1,#contact p,#contact address,#contact [data-sitecraft-contact-details]{color:#f8fafc!important}' +
   '#contact [data-sitecraft-contact-details]{justify-items:center;color:#f8fafc!important}' +

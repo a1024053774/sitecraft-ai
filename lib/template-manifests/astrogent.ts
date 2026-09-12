@@ -31,10 +31,14 @@ export const astrogentManifest: TemplateManifest = {
       capacity: { max: 1 },
       itemShape: "title_body",
       anchor: "通用生成区（data-sitecraft-generated-content=about，adapter 预置 id=about）",
+      // 文案已写明"由共享生成区承载"却漏了显式字段 → 门禁按注册表 requiresNative 判违规（假阳性）。
+      // 显式声明后与文案一致，L3 不再误报（2026-09-09）。
+      nativeFallbackHost: "generated",
     },
     {
       slot: "features",
       role: "card_grid",
+      nativeFallbackHost: "generated",
       presentAs: "核心能力/产品方案：原生 #features 的 9 张圆角 border 卡（图标 svg + 标题 + 正文，lg:grid-cols-3）。建议 6 条正好 2 行 x 3；超出的原生卡隐藏。",
       capacity: { min: 2, default: 6, max: 9 },
       itemShape: "title_body",
@@ -44,6 +48,7 @@ export const astrogentManifest: TemplateManifest = {
       slot: "services",
       role: "card_grid",
       presentAs: "服务支持：原 5 步流程卡为 SaaS demo 已删除，由共享通用服务卡区承载；建议 3-4 条。",
+      nativeFallbackHost: "generated",
       capacity: { min: 2, default: 3, max: 6 },
       itemShape: "title_body",
       anchor: "通用生成区（data-sitecraft-generated-content=services，adapter 预置 id=services）",

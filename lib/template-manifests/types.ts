@@ -41,7 +41,13 @@ export type TemplateNonContentSlot =
       selector: string;
       slotType: "behavior";
       coverage: "excluded";
-      support: "unsupported";
+      /**
+       * 询盘提交的落点。`sitecraft-hosted` = 由本站接管（bridge 拦截 submit →
+       * `sitecraft:lead-submit` → `/api/public/[siteKey]/leads` → lead-store），
+       * **不再写模板自带的 mailto:/demo action**。
+       * 2026-09-09 前此处标 `unsupported`，与实况不符（A8 已打通，P3.5 契约同步）。
+       */
+      support: "sitecraft-hosted";
     };
 
 /**
@@ -88,6 +94,13 @@ export type TemplatePresentationBlock = {
   anchor: string;
   /** 演示块默认隐藏：logo_strip/stats_bar 等塞模板作者假数据的块 */
   hideUnlessFilled?: boolean;
+  /**
+   * 该槽的内容由谁承载（**显式声明，替代从 presentAs 文案正则提取**）：
+   *  - "native"：模板有原生结构承载，走 generated 兜底 = 违规；
+   *  - "generated"：模板本就没有该槽的原生位，由通用生成区承载 = 设计内行为（不违规）。
+   * 未声明时回退到注册表 `requiresNative`（见 lib/template-fidelity-guard.ts）。
+   */
+  nativeFallbackHost?: "native" | "generated";
 };
 
 export type TemplateManifest = {

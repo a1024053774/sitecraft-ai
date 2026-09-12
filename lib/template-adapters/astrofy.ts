@@ -114,13 +114,31 @@ const nativeFillFn = `
       const ct = content.contact || {};
       if (t) setText(t, localize(ct.title, locale), 'contact.title.' + locale, applied);
       if (bd) setText(bd, localize(ct.body, locale), 'contact.body.' + locale, applied);
+      // 联系方式三项都要落 slot：本适配器接管 contact 后共享引擎不再生成联系区，
+      // 只写 email 会让 contact.phone/address 判定为未覆盖（2026-09-09 全量探针发现）。
+      const ensureLine = (target, tag) => {
+        let node = contact.querySelector('[data-sitecraft-slot^="' + target + '."]');
+        if (!node) {
+          node = document.createElement(tag);
+          node.style.cssText = 'display:block;margin-top:6px';
+          contact.append(node);
+        }
+        return node;
+      };
       const email = typeof ct.email === 'string' ? ct.email : '';
       if (email) {
-        const a = document.createElement('a');
+        const a = ensureLine('contact.email', 'a');
         a.setAttribute('href', 'mailto:' + email);
         setText(a, email, 'contact.email.' + locale, applied);
-        contact.append(a);
       }
+      const phone = typeof ct.phone === 'string' ? ct.phone : '';
+      if (phone) {
+        const a = ensureLine('contact.phone', 'a');
+        a.setAttribute('href', 'tel:' + phone.replace(/\\s+/g, ''));
+        setText(a, phone, 'contact.phone.' + locale, applied);
+      }
+      const address = localize(ct.address);
+      if (address) setText(ensureLine('contact.address', 'address'), address, 'contact.address.' + locale, applied);
     }
     const headings = Array.from(main.querySelectorAll('div, h2, h3')).filter((node) => /last projects|latest from blog/i.test(node.textContent || ''));
     const featureHeading = headings[0];

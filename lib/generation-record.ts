@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { getDatabasePool, ensureDatabaseSchema } from "./postgres.ts";
 import type { SiteIntent } from "./site-intent.ts";
 import type { SiteOperation } from "./site-operations.ts";
+import type { SectionUnderstandingReport } from "./generation-trace.ts";
 import { getPromptDefinition, type PromptKey } from "./prompt-registry.ts";
 
 export type GenerationProvenance = {
@@ -71,6 +72,11 @@ export type GenerationRecordInput = {
   fallbackReason?: string;
   errorCode?: string;
   provenance?: GenerationProvenance;
+  /**
+   * P1：逐节理解对账报告（模型声明 vs 实际操作/容量）。
+   * 硬指标=withinCapacity / 兜底声明一致性；nativeRole 抄写仅作软信号。
+   */
+  sectionUnderstanding?: SectionUnderstandingReport[];
   /** 附加信息：如重生成板块、失败原因 */
   detail?: string;
 };
@@ -139,6 +145,7 @@ export async function ensureGenerationRecordSchema() {
     ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS fallback_reason TEXT NOT NULL DEFAULT '';
     ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS error_code TEXT NOT NULL DEFAULT '';
     ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS provenance JSONB NOT NULL DEFAULT '{}'::jsonb;
+    ALTER TABLE generation_records ADD COLUMN IF NOT EXISTS section_understanding JSONB NOT NULL DEFAULT '[]'::jsonb;
     UPDATE generation_records SET requested_template_id = template_id WHERE requested_template_id = '';
     UPDATE generation_records SET applied_template_id = template_id WHERE applied_template_id = '';
   `);
@@ -152,8 +159,8 @@ export async function recordGeneration(input: GenerationRecordInput): Promise<vo
     await getDatabasePool().query(
       `INSERT INTO generation_records (
          site_id, input_text, intent, operations, template_id, latency_ms, model, status, detail,
-         outcome, mode, missing_sections, requested_template_id, applied_template_id, fallback_reason, error_code, provenance
-       ) VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17::jsonb)`,
+         outcome, mode, missing_sections, requested_template_id, applied_template_id, fallback_reason, error_code, provenance, section_understanding
+       ) VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17::jsonb, $18::jsonb)`,
       [
         input.siteId,
         "",
@@ -172,6 +179,7 @@ export async function recordGeneration(input: GenerationRecordInput): Promise<vo
         input.fallbackReason ?? "",
         input.errorCode ?? "",
         JSON.stringify(input.provenance ?? {}),
+        JSON.stringify(input.sectionUnderstanding ?? []),
       ],
     );
   } catch (error) {
