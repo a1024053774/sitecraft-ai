@@ -43,12 +43,14 @@
 [submodule "vendor/open-source-templates/tailcast"]
 	path = vendor/open-source-templates/tailcast
 	url = https://github.com/matt765/Tailcast.git
+	ignore = dirty
 [submodule "vendor/open-source-templates/yukina"]
 	path = vendor/open-source-templates/yukina
 	url = https://github.com/WhitePaper233/yukina.git
 [submodule "vendor/open-source-templates/fresh"]
 	path = vendor/open-source-templates/fresh
 	url = https://github.com/cssninjaStudio/fresh.git
+	ignore = dirty
 [submodule "vendor/open-source-templates/shadcn-landing"]
 	path = vendor/open-source-templates/shadcn-landing
 	url = https://github.com/leoMirandaa/shadcn-landing-page.git
@@ -61,6 +63,8 @@
 [submodule "vendor/open-source-templates/shadcn-landing2"]
 	path = vendor/open-source-templates/shadcn-landing2
 	url = https://github.com/nobruf/shadcn-landing-page.git
+	ignore = dirty
 [submodule "vendor/open-source-templates/nextjs-landing"]
 	path = vendor/open-source-templates/nextjs-landing
 	url = https://github.com/ixartz/Next-JS-Landing-Page-Starter-Template.git
+	ignore = dirty

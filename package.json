@@ -15,7 +15,10 @@
     "e2e:install": "playwright install chromium",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types tests/*.test.ts",
-    "test:e2e:strict-access": "node scripts/run-strict-access.mjs"
+    "test:e2e:strict-access": "node scripts/run-strict-access.mjs",
+    "templates:mirror:scan": "node scripts/mirror-template-assets.mjs",
+    "templates:mirror": "node scripts/mirror-template-assets.mjs --write",
+    "test:lead-form": "node scripts/probe-lead-form.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",
