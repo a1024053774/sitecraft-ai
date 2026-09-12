@@ -254,7 +254,7 @@ const KNOWN_TARGETS = [
    * 于是"页面上明明是问答，就是点不动"——不报错、不提示，最难查的那种失效。
    *
    * **只登记真正可写的**：`faq.items` / `testimonials.items` 有就地编辑与写回
-   * （走 `update_card` 那条链的扩展），而 `faq.title` / `testimonials.title`
+   * （走 `update_item` 那条链的扩展），而 `faq.title` / `testimonials.title`
    * **故意不登记**——见 `template-composer.ts` 的 `sectionHead` 说明：
    * 打了槽位但改不动，比不打更糟。等 ⑥ 扩 `site-operations` 契约时一起补。
    *

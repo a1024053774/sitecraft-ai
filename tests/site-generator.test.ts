@@ -552,7 +552,7 @@ test("regenerateSectionOperations: scope limited to target section, hint has gua
       summary: "重生成优势板块",
       operations: [
         { op: "set_text", target: "features.title", locale: "zh", value: "核心优势（重写）" },
-        { op: "update_card", section: "features", index: 0, locale: "zh", title: "新卡片标题" },
+        { op: "update_item", section: "features", index: 0, locale: "zh", title: "新卡片标题" },
       ],
       model: "test",
     };

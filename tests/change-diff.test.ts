@@ -11,7 +11,7 @@ test("buildChangeDiff returns field-level before and after values for text and c
   before.content.services.items[1].title.zh = "原服务标题";
   const operations: SiteOperation[] = [
     { op: "set_text", target: "hero.title", locale: "zh", value: "新首屏标题" },
-    { op: "update_card", section: "services", index: 1, itemId: before.content.services.items[1].id, locale: "zh", title: "新服务标题" },
+    { op: "update_item", section: "services", index: 1, itemId: before.content.services.items[1].id, locale: "zh", title: "新服务标题" },
   ];
 
   assert.deepEqual(buildChangeDiff(operations, before), [
@@ -24,7 +24,7 @@ test("buildChangeDiff uses stable itemId and reports section visibility changes"
   const before = structuredClone(defaultDraft);
   const item = before.content.services.items[0];
   const operations: SiteOperation[] = [
-    { op: "update_card", section: "services", index: 8, itemId: item.id, locale: "en", body: "New service description" },
+    { op: "update_item", section: "services", index: 8, itemId: item.id, locale: "en", body: "New service description" },
     { op: "set_section_visibility", section: "contact", visible: false },
   ];
 
@@ -36,7 +36,7 @@ test("buildChangeDiff uses stable itemId and reports section visibility changes"
 
 test("buildChangeDiff never blocks a committed change when an old target cannot be resolved", () => {
   const operations: SiteOperation[] = [
-    { op: "update_card", section: "services", index: 0, itemId: "removed-item", locale: "zh", title: "新标题" },
+    { op: "update_item", section: "services", index: 0, itemId: "removed-item", locale: "zh", title: "新标题" },
   ];
   assert.deepEqual(buildChangeDiff(operations, defaultDraft), []);
 });

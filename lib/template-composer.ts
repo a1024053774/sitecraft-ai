@@ -182,7 +182,7 @@ function renderHero(ctx: RenderContext, variant: string): string {
  *
  * ⚠️ **刻意不打槽位**。`features.title` / `services.title` 都在 `KNOWN_TARGETS`
  * 白名单里，打上去装载器也认得——但这条路径的**写回是断的**：
- * `update_card` 只管条目，节标题要走 `set_text`，而就地编辑映射里
+ * `update_item` 只管条目，节标题要走 `set_text`，而就地编辑映射里
  * 既没有 `set_text` 的目标集含 `faq.title`/`testimonials.title`，
  * 写回侧也没有对应的字段（`content.faq.title` 不在 `textTargets` 里）。
  *

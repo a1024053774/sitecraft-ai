@@ -178,7 +178,7 @@ export function operationDisplayTargets(operation: SiteOperation, draft: SiteDra
    */
   const itemsOf = (section: "features" | "services" | "faq") => draft.content[section]?.items ?? [];
   if (operation.op === "set_text") return [textOperationTarget(operation)];
-  if (operation.op === "update_card") {
+  if (operation.op === "update_item") {
     const resolvedIndex = operation.itemId
       ? itemsOf(operation.section).findIndex((item) => item.id === operation.itemId)
       : operation.index;
@@ -188,12 +188,12 @@ export function operationDisplayTargets(operation: SiteOperation, draft: SiteDra
       operation.body ? `${operation.section}.items.${index}.body.${operation.locale}` : null,
     ].filter((target): target is string => Boolean(target));
   }
-  if (operation.op === "add_card") {
+  if (operation.op === "add_item") {
     const count = itemsOf(operation.section).length;
     const index = Math.min(operation.index ?? count, count);
     return [`${operation.section}.items.${index}`];
   }
-  if (operation.op === "remove_card") {
+  if (operation.op === "remove_item") {
     const index = itemsOf(operation.section).findIndex((item) => item.id === operation.itemId);
     return index < 0 ? [`${operation.section}.items`] : [`${operation.section}.items.${index}`];
   }

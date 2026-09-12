@@ -22,14 +22,14 @@ function operationEffects(operation: SiteOperation): Array<{ key: string; value:
   switch (operation.op) {
     case "set_text":
       return [{ key: `text:${operation.target}:${operation.locale ?? "zh"}`, value: operation.value }];
-    case "update_card":
+    case "update_item":
       return [
         ...(operation.title === undefined ? [] : [{ key: `card:${operation.section}:${operation.index}:${operation.locale}:title`, value: operation.title }]),
         ...(operation.body === undefined ? [] : [{ key: `card:${operation.section}:${operation.index}:${operation.locale}:body`, value: operation.body }]),
       ];
-    case "add_card":
+    case "add_item":
       return [{ key: `card:${operation.section}:${operation.item.id}`, value: operation.item }];
-    case "remove_card":
+    case "remove_item":
       return [{ key: `card:${operation.section}:${operation.itemId}`, value: null }];
     case "update_product":
       return [

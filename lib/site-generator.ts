@@ -375,7 +375,7 @@ function fastSkeletonOperations(intent: SiteIntent, siteLanguage: "zh" | "en"): 
 
 function operationCoversSection(operation: SiteOperation, section: string) {
   if (operation.op === "set_text") return operation.target.startsWith(`${section}.`);
-  if (operation.op === "update_card" || operation.op === "add_card" || operation.op === "remove_card") return operation.section === section;
+  if (operation.op === "update_item" || operation.op === "add_item" || operation.op === "remove_item") return operation.section === section;
   return operation.op === "replace_products" && section === "products";
 }
 
@@ -862,7 +862,7 @@ function regenerateSectionHint(section: "hero" | SectionKey, direction: string |
 
 function operationBelongsToSection(operation: SiteOperation, section: "hero" | SectionKey) {
   if (operation.op === "set_text") return operation.target.startsWith(`${section}.`);
-  if (operation.op === "update_card" || operation.op === "add_card" || operation.op === "remove_card") {
+  if (operation.op === "update_item" || operation.op === "add_item" || operation.op === "remove_item") {
     return operation.section === section;
   }
   if (operation.op === "replace_products") return section === "products";

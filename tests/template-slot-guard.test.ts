@@ -19,7 +19,7 @@ import type { SiteOperation } from "../lib/site-operations.ts";
 test("keeps direct API callers backward compatible when no slot report is provided", () => {
   const result = preflightTemplateSlots({
     draft: defaultDraft,
-    operations: [{ op: "update_card", section: "services", index: 1, locale: "zh", title: "产线集成" }],
+    operations: [{ op: "update_item", section: "services", index: 1, locale: "zh", title: "产线集成" }],
   });
   assert.deepEqual(result, { unsupportedTargets: [], nonVisualTargets: [] });
 });
@@ -59,7 +59,7 @@ test("local preview capabilities only advertise fields rendered by SiteRenderer"
 test("blocks a service card edit when the current template has no matching card slot", () => {
   const result = preflightTemplateSlots({
     draft: defaultDraft,
-    operations: [{ op: "update_card", section: "services", index: 1, locale: "zh", title: "产线集成" }],
+    operations: [{ op: "update_item", section: "services", index: 1, locale: "zh", title: "产线集成" }],
     availableSlots: ["companyName.zh", "hero.title.zh", "hero.subtitle.zh"],
   });
   assert.deepEqual(result.unsupportedTargets, ["services.items.1.title.zh"]);
@@ -98,7 +98,7 @@ test("treats project metadata as visible when a template explicitly maps it", ()
 test("blocks the whole multi-target change when any visible target is unsupported", () => {
   const operations: SiteOperation[] = [
     { op: "set_text", target: "hero.title", locale: "zh", value: "可靠制造" },
-    { op: "update_card", section: "services", index: 1, locale: "zh", title: "产线集成" },
+    { op: "update_item", section: "services", index: 1, locale: "zh", title: "产线集成" },
   ];
   const result = preflightTemplateSlots({
     draft: defaultDraft,
@@ -112,7 +112,7 @@ test("resolves a removed card id to its current visible index", () => {
   const item = defaultDraft.content.services.items[1];
   const result = preflightTemplateSlots({
     draft: defaultDraft,
-    operations: [{ op: "remove_card", section: "services", itemId: item.id }],
+    operations: [{ op: "remove_item", section: "services", itemId: item.id }],
     availableSlots: ["services.items.1.title.zh"],
   });
   assert.deepEqual(result.unsupportedTargets, []);
@@ -148,7 +148,7 @@ test("rejects an old session target when the user refers to an exact selected sl
   const result = checkSelectedTargetConformance({
     message: "把我刚才选中的位置改成：精准智造，稳定交付",
     selectedTarget: "hero.title.zh",
-    operations: [{ op: "update_card", section: "services", index: 1, locale: "zh", title: "精准智造" }],
+    operations: [{ op: "update_item", section: "services", index: 1, locale: "zh", title: "精准智造" }],
     draft: defaultDraft,
   });
   assert.equal(result.enforced, true);
@@ -163,7 +163,7 @@ test("resolves a stable card id to the current index after reorder", () => {
 
 test("rejects an operation outside the selected hero scope", () => {
   const result = validateOperationScope({
-    op: "update_card",
+    op: "update_item",
     section: "services",
     index: 1,
     locale: "zh",

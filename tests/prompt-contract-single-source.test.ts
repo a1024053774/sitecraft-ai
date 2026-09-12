@@ -13,7 +13,7 @@
  * | 长度可读建议 | 曾在三处写死 15/40 | `SLOT_MAX_LENGTH × POLISH_RATIO` |
  *
  * 前三条的后果不是"不好看"，而是**模型收到与校验器不一致的契约**：
- *  - `update_card` 的提示词只写 `features|services`，**漏了 `faq`**——
+ *  - `update_item` 的提示词只写 `features|services`，**漏了 `faq`**——
  *    而 `faq` 是真能改的（`cardSections` 含它），模型不知道；
  *  - `set_text` 的 target 白名单与 `textTargets` 平行维护，加字段时会漏改一处。
  *
@@ -69,7 +69,7 @@ test("阶段 2：意图提示词不否认代码支持的能力", () => {
 
 test("阶段 2：卡片类操作的 section 枚举与 cardSections 同源", async () => {
   /**
-   * `update_card` 能改的节 = `cardSections`（含 `faq`）。
+   * `update_item` 能改的节 = `cardSections`（含 `faq`）。
    *
    * 从 `ai-provider.ts` 的源码里取提示词模板文本——因为提示词是在**运行时**由
    * 函数拼装的，而这里要断言的是"拼装时用的枚举来自权威来源，不是手写"。

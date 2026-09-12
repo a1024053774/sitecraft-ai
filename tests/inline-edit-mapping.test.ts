@@ -101,14 +101,14 @@ test("navigation slot maps to set_text and labels the nav item", () => {
   assert.equal(result.label, "导航「关于」");
 });
 
-// ---------- 正向：update_card ----------
+// ---------- 正向：update_item ----------
 
-test("features item by id maps to update_card with itemId and index", () => {
+test("features item by id maps to update_item with itemId and index", () => {
   const result = slotToDraftOperation(base("features.items.traceability.title.zh", "全流程追溯", "全程追溯"));
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.operation, {
-    op: "update_card",
+    op: "update_item",
     section: "features",
     index: 0,
     itemId: "traceability",
@@ -119,7 +119,7 @@ test("features item by id maps to update_card with itemId and index", () => {
   assert.equal(result.label, "核心优势第 1 条标题");
 });
 
-test("features item by numeric index maps to update_card without itemId lookup failure", () => {
+test("features item by numeric index maps to update_item without itemId lookup failure", () => {
   const result = slotToDraftOperation(base("features.items.0.body.zh", "新的说明", "可核验记录。"));
   assert.equal(result.ok, true);
   if (!result.ok) return;
@@ -127,7 +127,7 @@ test("features item by numeric index maps to update_card without itemId lookup f
   assert.equal((result.operation as { body?: string }).body, "新的说明");
 });
 
-test("services item maps to update_card with section=services", () => {
+test("services item maps to update_item with section=services", () => {
   const result = slotToDraftOperation(base("services.items.engineering.title.zh", "联合工程服务", "联合工程"));
   assert.equal(result.ok, true);
   if (!result.ok) return;
@@ -267,7 +267,7 @@ test("isInlineEditableSlot mirrors the mapping accept/reject decision", () => {
 
 // ---------- ⑥-4：FAQ 的写回路径 ----------
 
-test("FAQ 条目能就地编辑了（⑥-4：update_card 的 section 扩到了 faq）", () => {
+test("FAQ 条目能就地编辑了（⑥-4：update_item 的 section 扩到了 faq）", () => {
   const draft = draftWith((d) => {
     d.content.faq = {
       title: { zh: "常见问题", en: "" },
@@ -296,7 +296,7 @@ test("**草稿里没有 faq 时也能写**——图里没有 FAQ 的站不该被
   assert.equal(draft.content.faq, undefined, "前提：这份草稿本来没有 faq 节");
   const after = applySiteOperations(
     draft,
-    [{ op: "add_card", section: "faq", item: { id: "faq-1", title: { zh: "问题", en: "" }, body: { zh: "回答", en: "" } } } as never],
+    [{ op: "add_item", section: "faq", item: { id: "faq-1", title: { zh: "问题", en: "" }, body: { zh: "回答", en: "" } } } as never],
     { templateIds: new Set(["t"]), lastChange: "test" },
   );
   assert.equal(after.draft.content.faq?.items.length, 1, "faq 节应被补出来并写入条目");

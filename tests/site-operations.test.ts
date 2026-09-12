@@ -21,7 +21,7 @@ const templateIds = new Set(["forge", "kindred", "signal"]);
 test("updates only the requested service card and creates a reversible operation", () => {
   const original = structuredClone(defaultDraft);
   const result = applySiteOperations(original, [{
-    op: "update_card",
+    op: "update_item",
     section: "services",
     index: 1,
     locale: "zh",
@@ -43,10 +43,10 @@ test("updates only the requested service card and creates a reversible operation
 test("rejects an unsolicited template switch", () => {
   const validated = validateAIOperations("只修改第二个服务标题", [
     { op: "set_template", templateId: "kindred" },
-    { op: "update_card", section: "services", index: 1, locale: "zh", title: "智能产线集成" },
+    { op: "update_item", section: "services", index: 1, locale: "zh", title: "智能产线集成" },
   ], templateIds);
   assert.equal(validated.operations.length, 1);
-  assert.equal(validated.operations[0].op, "update_card");
+  assert.equal(validated.operations[0].op, "update_item");
   assert.match(validated.rejected[0], /拒绝模板切换/);
 });
 
@@ -130,7 +130,7 @@ test("resolves a reordered service card by itemId instead of stale index", () =>
   draft.content.services.items = [draft.content.services.items[2], target, draft.content.services.items[0]];
 
   const result = applySiteOperations(draft, [{
-    op: "update_card",
+    op: "update_item",
     section: "services",
     index: 0,
     itemId: target.id,
@@ -146,7 +146,7 @@ test("accepts a card operation carrying itemId and expectedValue", () => {
   const parsed = aiChangeSchema.safeParse({
     summary: "更新服务",
     operations: [{
-      op: "update_card",
+      op: "update_item",
       section: "services",
       itemId: "integration",
       locale: "zh",
@@ -155,7 +155,7 @@ test("accepts a card operation carrying itemId and expectedValue", () => {
     }],
   });
   assert.equal(parsed.success, true);
-  if (parsed.success && parsed.data.operations[0].op === "update_card") {
+  if (parsed.success && parsed.data.operations[0].op === "update_item") {
     assert.equal(parsed.data.operations[0].index, 0);
     assert.equal(parsed.data.operations[0].itemId, "integration");
   }
@@ -212,7 +212,7 @@ test("replaces imported products as one reversible draft change", () => {
 });
 
 test("detects destructive operations that need confirmation", () => {
-  const removeCard: SiteOperation = { op: "remove_card", section: "features", itemId: "quality" };
+  const removeCard: SiteOperation = { op: "remove_item", section: "features", itemId: "quality" };
   const hideSection: SiteOperation = { op: "set_section_visibility", section: "about", visible: false };
   const showSection: SiteOperation = { op: "set_section_visibility", section: "about", visible: true };
   const switchTemplate: SiteOperation = { op: "set_template", templateId: "kindred" };
@@ -232,7 +232,7 @@ test("detects destructive operations that need confirmation", () => {
 
   // 精确字符串断言：删除和卡片之间不得有多余空格（Codex 验收反馈 D1）
   assert.equal(describeDestructive(removeCard), "删除核心优势卡片「quality」");
-  const removeService: SiteOperation = { op: "remove_card", section: "services", itemId: "delivery" };
+  const removeService: SiteOperation = { op: "remove_item", section: "services", itemId: "delivery" };
   assert.equal(describeDestructive(removeService), "删除服务卡片「delivery」");
 });
 
@@ -310,15 +310,15 @@ test("generation path rejects chat-only ops (reorder_sections) in draft scope", 
   assert.match(validated.rejected[0], /不允许操作 reorder_sections/);
 });
 
-test("draft scope rejects add_card (structure changes need explicit user request)", () => {
+test("draft scope rejects add_item (structure changes need explicit user request)", () => {
   const validated = validateGenerationOperations([
-    { op: "add_card", section: "features", item: { id: "x", title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } },
+    { op: "add_item", section: "features", item: { id: "x", title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } },
   ], templateIds);
   assert.equal(validated.operations.length, 0);
-  assert.match(validated.rejected[0], /不允许操作 add_card/);
+  assert.match(validated.rejected[0], /不允许操作 add_item/);
 });
 
-test("regenerate-structure scope allows add_card but caps at template capacity", () => {
+test("regenerate-structure scope allows add_item but caps at template capacity", () => {
   /**
    * ⚠️ `slot` 必须用**生产真实形态**（裸段名 `"features"`），不是 `"features.items"`。
    *
@@ -335,7 +335,7 @@ test("regenerate-structure scope allows add_card but caps at template capacity",
     presentation: [{ presentationSlot: "features", capacityMax: 3 }],
     baseCounts: { features: 3, services: 0 },
   };
-  const card = (id: string) => ({ op: "add_card" as const, section: "features" as const, item: { id, title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } });
+  const card = (id: string) => ({ op: "add_item" as const, section: "features" as const, item: { id, title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } });
   const validated = validateGenerationOperations(
     [card("a")],
     templateIds,
@@ -346,22 +346,22 @@ test("regenerate-structure scope allows add_card but caps at template capacity",
   assert.match(validated.rejected[0], /超出模板原生容量/);
 });
 
-test("regenerate-structure scope allows add_card when remove keeps count within capacity", () => {
+test("regenerate-structure scope allows add_item when remove keeps count within capacity", () => {
   const capacity = {
     presentation: [{ presentationSlot: "features", capacityMax: 3 }],
     baseCounts: { features: 3, services: 0 },
   };
   const validated = validateGenerationOperations([
-    { op: "remove_card", section: "features", itemId: "quality" },
-    { op: "add_card", section: "features", item: { id: "n", title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } },
+    { op: "remove_item", section: "features", itemId: "quality" },
+    { op: "add_item", section: "features", item: { id: "n", title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } },
   ], templateIds, capacity, "regenerate-structure");
   assert.equal(validated.operations.length, 2, "一增一减净增 0，不应误杀");
   assert.equal(validated.rejected.length, 0);
 });
 
-// ===== update_card 越界防护（2026-09-10 真机修复） =====
+// ===== update_item 越界防护（2026-09-10 真机修复） =====
 //
-// 真机证据：一句话建站的真实流程里，AI 输出 `update_card index 4`，
+// 真机证据：一句话建站的真实流程里，AI 输出 `update_item index 4`，
 // 而 baseDraft.content.features.items 只有 3 条 → applySiteOperations 抛
 // `features item 4 does not exist` → 整份 commitOperations 回滚，
 // **用户 66 秒生成全部丢弃，界面显示英文技术错误**。
@@ -369,21 +369,21 @@ test("regenerate-structure scope allows add_card when remove keeps count within 
 //
 // 根因：prompt 告诉 AI「features 约6条(至多12条)」（来自模板 capacity），
 // 而让 AI 读的草稿只有 3 条，两个数字不一致 → AI 按容量写。
-// validateGenerationOperations 此前只拦 add_card 超容，update_card 完全不校验。
+// validateGenerationOperations 此前只拦 add_item 超容，update_item 完全不校验。
 
-test("draft scope rejects update_card beyond existing items (真机 bug 回归)", () => {
+test("draft scope rejects update_item beyond existing items (真机 bug 回归)", () => {
   // slot 用生产真实形态（裸段名），理由见上方 regenerate-structure 用例的注释。
   const capacity = {
     presentation: [{ presentationSlot: "features", capacityMax: 12 }],
     baseCounts: { features: 3, services: 3 },
   };
   const validated = validateGenerationOperations([
-    { op: "update_card", section: "features", index: 0, locale: "zh", title: "有效修改" },
-    { op: "update_card", section: "features", index: 4, locale: "zh", title: "越界" },
+    { op: "update_item", section: "features", index: 0, locale: "zh", title: "有效修改" },
+    { op: "update_item", section: "features", index: 4, locale: "zh", title: "越界" },
   ], templateIds, capacity, "draft");
   assert.equal(validated.operations.length, 1, "只保留合法的 index 0，越界的被拒");
   const [kept] = validated.operations;
-  assert.ok(kept.op === "update_card", "保留的应是 update_card");
+  assert.ok(kept.op === "update_item", "保留的应是 update_item");
   assert.equal(kept.index, 0);
   // 拒绝原因要面向用户可读：index 4 即「第 5 条」（人类计数从 1 开始），
   // 且要说明"当前仅 N 条"——直接抛英文 `features item 4 does not exist` 正是真机缺陷之一。
@@ -393,7 +393,7 @@ test("draft scope rejects update_card beyond existing items (真机 bug 回归)"
   );
 });
 
-test("update_card 越界不是整批失败：合法操作照常保留", () => {
+test("update_item 越界不是整批失败：合法操作照常保留", () => {
   // slot 用生产真实形态（裸段名），理由见上方 regenerate-structure 用例的注释。
   const capacity = {
     presentation: [{ presentationSlot: "features", capacityMax: 12 }],
@@ -401,16 +401,16 @@ test("update_card 越界不是整批失败：合法操作照常保留", () => {
   };
   const validated = validateGenerationOperations([
     { op: "set_text", target: "hero.title", locale: "zh", value: "精密五金件加工" },
-    { op: "update_card", section: "features", index: 7, locale: "zh", title: "越界" },
-    { op: "update_card", section: "features", index: 2, locale: "zh", title: "最后一条是合法的" },
+    { op: "update_item", section: "features", index: 7, locale: "zh", title: "越界" },
+    { op: "update_item", section: "features", index: 2, locale: "zh", title: "最后一条是合法的" },
   ], templateIds, capacity, "draft");
   assert.equal(validated.operations.length, 2, "第 5 条越界不该拖垮整批");
   assert.ok(validated.rejected.length >= 1);
 });
 
-test("没有 capacity 上下文时不误杀 update_card（向后兼容）", () => {
+test("没有 capacity 上下文时不误杀 update_item（向后兼容）", () => {
   const validated = validateGenerationOperations([
-    { op: "update_card", section: "features", index: 9, locale: "zh", title: "无 capacity 时不做越界判定" },
+    { op: "update_item", section: "features", index: 9, locale: "zh", title: "无 capacity 时不做越界判定" },
   ], templateIds);
   assert.equal(validated.operations.length, 1, "缺 capacity 上下文时应放行，由应用层兜底");
 });
@@ -452,7 +452,7 @@ test("slotForQualityIssue: 可定位的槽位映射到预览目标", () => {
 });
 
 /**
- * ===== 阶段 1 冲突 #8：`add_card` 满员时构成越界路径 =====
+ * ===== 阶段 1 冲突 #8：`add_item` 满员时构成越界路径 =====
  *
  * ## 病史
  *
@@ -471,10 +471,10 @@ test("slotForQualityIssue: 可定位的槽位映射到预览目标", () => {
  * A：`index` 上限改读 `MAX_COLLECTION_ITEMS - 1`（消"同值不同源"）；
  * B：**插入点加容量前置校验**——满员时抛带中文说明的 Error。
  *
- * B 是主防线，因为它挡得住 A 挡不住的形态：**多条独立 add_card 累计溢出**
+ * B 是主防线，因为它挡得住 A 挡不住的形态：**多条独立 add_item 累计溢出**
  * （每条各自都没超 index 上限，加起来照样越界）。本测试覆盖的正是这一形态。
  */
-test("冲突 #8：满员后 add_card 被拒，草稿保持可解析", () => {
+test("冲突 #8：满员后 add_item 被拒，草稿保持可解析", () => {
   const draft = structuredClone(defaultDraft);
   draft.content.features.items = Array.from({ length: MAX_COLLECTION_ITEMS }, (_, i) => ({
     id: `f${i}`,
@@ -484,7 +484,7 @@ test("冲突 #8：满员后 add_card 被拒，草稿保持可解析", () => {
 
   /**
    * 验收标准：
-   *  1. 满员后 add_card 必须**被拒**（不是静默插进去）；
+   *  1. 满员后 add_item 必须**被拒**（不是静默插进去）；
    *  2. 被拒之后草稿仍能通过 schema——否则下次读取会走 `normalizeDraft` 的
    *     destructive 兜底，**整站回退成演示文案**（这才是本冲突真正的危害）；
    *  3. 拒绝要给可读的中文原因（`applySiteOperations` 的既有约定，见同文件其它越界用例）。
@@ -492,11 +492,11 @@ test("冲突 #8：满员后 add_card 被拒，草稿保持可解析", () => {
   assert.throws(
     () => applySiteOperations(
       draft,
-      [{ op: "add_card", section: "features", index: 12, item: { id: "overflow2", title: { zh: "溢出", en: "X" }, body: { zh: "溢出", en: "X" } } } as never],
+      [{ op: "add_item", section: "features", index: 12, item: { id: "overflow2", title: { zh: "溢出", en: "X" }, body: { zh: "溢出", en: "X" } } } as never],
       { templateIds: new Set(["forge"]), lastChange: "冲突#8验收" },
     ),
     /容量|上限|最多|条/,
-    "满员后 add_card 必须被拒，并给出可读的中文原因",
+    "满员后 add_item 必须被拒，并给出可读的中文原因",
   );
 
   // 第 2 条：被拒后原草稿必须完好（未被写坏）
@@ -508,7 +508,7 @@ test("冲突 #8 主防线场景：满员前一格连插两条，第二条必须�
   /**
    * 这正是 **A 项挡不住、必须靠 B** 的形态。
    *
-   * 11 条时（上限 12），两条 add_card 的 `index` **各自**都没超 A 项的上限，
+   * 11 条时（上限 12），两条 add_item 的 `index` **各自**都没超 A 项的上限，
    * 但**累计**会到 13。A 只看单条的 index，看不出来；B 在插入点逐条判当前条数，
    * 所以第二条会被拦下，草稿停在第 12 条、schema 仍可解析。
    */
@@ -520,7 +520,7 @@ test("冲突 #8 主防线场景：满员前一格连插两条，第二条必须�
   }));
 
   const card = (id: string) => ({
-    op: "add_card" as const,
+    op: "add_item" as const,
     section: "features" as const,
     item: { id, title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } },
   });

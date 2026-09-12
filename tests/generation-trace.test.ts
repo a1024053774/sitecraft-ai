@@ -70,8 +70,8 @@ test("reconcile: 声明 + 操作贴合容量 → declared_ok", () => {
     sections: ["features"],
     ops: [
       { op: "set_text", target: "features.title", locale: "zh", value: "x" },
-      { op: "update_card", section: "features", index: 0, locale: "zh", title: "a" },
-      { op: "update_card", section: "features", index: 1, locale: "zh", title: "b" },
+      { op: "update_item", section: "features", index: 0, locale: "zh", title: "a" },
+      { op: "update_item", section: "features", index: 1, locale: "zh", title: "b" },
     ],
     presentation,
     declarations: [{ section: "features", nativeRole: "icon_row", plannedItems: 2, fallbackDeclared: false }],
@@ -85,7 +85,7 @@ test("reconcile: 声明 + 操作贴合容量 → declared_ok", () => {
 test("reconcile: 卡片数超出模板容量 → overflow（硬指标，即使 role 抄对）", () => {
   const report = reconcileSectionUnderstanding({
     sections: ["services"],
-    ops: Array.from({ length: 6 }, (_, i) => ({ op: "update_card", section: "services", index: i, locale: "zh", title: `t${i}` })),
+    ops: Array.from({ length: 6 }, (_, i) => ({ op: "update_item", section: "services", index: i, locale: "zh", title: `t${i}` })),
     presentation,
     declarations: [{ section: "services", nativeRole: "icon_row", plannedItems: 6, fallbackDeclared: false }],
   });
@@ -129,7 +129,7 @@ test("reconcile: 本地快速初稿 → local_fallback（无模型声明可对�
 test("reconcile: role 抄写不一致 → role_mismatch（软信号，不因容量问题覆盖）", () => {
   const report = reconcileSectionUnderstanding({
     sections: ["features"],
-    ops: [{ op: "update_card", section: "features", index: 0, locale: "zh", title: "a" }],
+    ops: [{ op: "update_item", section: "features", index: 0, locale: "zh", title: "a" }],
     presentation,
     declarations: [{ section: "features", nativeRole: "card_grid", plannedItems: 1, fallbackDeclared: false }],
   });

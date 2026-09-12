@@ -3,7 +3,7 @@ import path from "node:path";
 import type { PoolClient } from "pg";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
 import { allTemplates, defaultDraft, normalizeDraft, type SiteDraft } from "./site-model.ts";
-import { applySiteOperations, type SiteOperation } from "./site-operations.ts";
+import { applySiteOperations, normalizePersistedOperations, type SiteOperation } from "./site-operations.ts";
 import { siteDraftSchema } from "./site-document.ts";
 import { throwIfAborted } from "./abort-utils.ts";
 import type { GenerationProvenance } from "./generation-record.ts";
@@ -61,7 +61,32 @@ export type SiteSeed = {
   initialDraft: SiteDraft;
 };
 
-const storageRoot = path.join(process.cwd(), ".sitecraft-data", "sites");
+/**
+ * 文件后端的存储根**解析规则**——提成纯函数，好在测试里逐字断言默认值。
+ *
+ * `SITECRAFT_DATA_ROOT` 是**测试专用**的覆盖点（2026-09-12 加，为了给
+ * "旧名读入 → undo 重放 → 新名落盘 → 再读"这条**真实链路**写测试）。
+ * 不设它时返回的分支与从前的写法**逐字节相同**：
+ * `path.join(cwd, ".sitecraft-data", "sites")`。
+ *
+ * ⚠️ 用环境变量而不是构造函数参数，是因为 `site-store` 是**函数式模块**
+ * （不像 `ReleaseStore` 那样有实例可注入 `rootDir`），改成类会牵动 20+ 个调用点。
+ *
+ * ⚠️ 之所以提成纯函数而不是写成模块级三元表达式：模块级表达式**在加载时固化**，
+ * 测试无法在加载后再改它——只能靠"在 import 之前设环境变量"这种时序约定，
+ * 而那个约定会被**同一个进程里别的测试先 import 一次**打破（本测试第一版就栽在这里）。
+ * 纯函数没有这个耦合。
+ */
+export function resolveStorageRoot(
+  env: Record<string, string | undefined>,
+  cwd: string,
+): string {
+  return env.SITECRAFT_DATA_ROOT
+    ? path.join(env.SITECRAFT_DATA_ROOT, "sites")
+    : path.join(cwd, ".sitecraft-data", "sites");
+}
+
+const storageRoot = resolveStorageRoot(process.env, process.cwd());
 const templateIds = new Set(allTemplates().map((item) => item.id));
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
@@ -73,6 +98,28 @@ function safeSiteId(siteId: string) {
   if (!/^[a-z0-9][a-z0-9_-]{0,79}$/i.test(siteId)) throw new Error("Invalid site id");
   return siteId;
 }
+
+/**
+ * **落盘 ChangeSet 的读取归一化**——两个后端的**共同**入口。
+ *
+ * 文件后端的 `readRecord()` 与 PG 后端的 `rowToRecord()` 都经过这里，
+ * 所以"同一份历史，换后端读出来必须一样"是**结构上保证**的，
+ * 而不是靠两处各写一遍、再指望它们不漂。
+ *
+ * ⚠️ 这**不是**校验：读不认识的形态时原样放行（存量比今天的 schema 更宽）。
+ * 详见 `normalizePersistedOperations` 的说明。
+ */
+function normalizePersistedChangeSets(raw: unknown[]): ChangeSet[] {
+  return raw.map((entry) => {
+    if (!entry || typeof entry !== "object") return entry as ChangeSet;
+    const changeSet = entry as ChangeSet;
+    return {
+      ...changeSet,
+      operations: normalizePersistedOperations(changeSet.operations),
+      inverseOperations: normalizePersistedOperations(changeSet.inverseOperations),
+    };
+  });
+}
 function recordPath(siteId: string) {
   return path.join(storageRoot, `${safeSiteId(siteId)}.json`);
 }
@@ -82,8 +129,8 @@ async function readRecord(siteId: string): Promise<SiteRecord | null> {
     return {
       siteId,
       draft: normalizeDraft(raw.draft),
-      history: Array.isArray(raw.history) ? raw.history as ChangeSet[] : [],
-      future: Array.isArray(raw.future) ? raw.future as ChangeSet[] : [],
+      history: Array.isArray(raw.history) ? normalizePersistedChangeSets(raw.history) : [],
+      future: Array.isArray(raw.future) ? normalizePersistedChangeSets(raw.future) : [],
       updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : new Date().toISOString(),
       ...(typeof raw.sourceMaterial === "string" && raw.sourceMaterial.trim()
         ? { sourceMaterial: raw.sourceMaterial }
@@ -353,8 +400,8 @@ function rowToRecord(row: SiteRow): SiteRecord {
   return {
     siteId: row.site_id,
     draft: normalizeDraft(row.draft),
-    history: Array.isArray(row.history) ? row.history as ChangeSet[] : [],
-    future: Array.isArray(row.future) ? row.future as ChangeSet[] : [],
+    history: Array.isArray(row.history) ? normalizePersistedChangeSets(row.history) : [],
+    future: Array.isArray(row.future) ? normalizePersistedChangeSets(row.future) : [],
     updatedAt: new Date(row.updated_at).toISOString(),
     ...(typeof row.source_material === "string" && row.source_material.trim()
       ? { sourceMaterial: row.source_material }

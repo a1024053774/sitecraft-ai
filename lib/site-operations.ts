@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { draftFieldMaxLength } from "./draft-field-limits.ts";
+import { currentOperationName } from "./legacy-op-names.ts";
 import { SLOT_MAX_LENGTH } from "./template-slot-contract.ts";
 import {
   assetTargetSchema,
@@ -91,7 +92,7 @@ const setTextOperationSchema = z.object({
   expectedValue: z.string().max(1000).optional(),
 });
 /**
- * 可被 `update_card` 改的板块。
+ * 可被 `update_item` 改的板块。
  *
  * `faq` 于 2026-09-11（⑥-4）加入：FAQ 的条目形状**就是** `EditableItem`
  * （`id`/`title`/`body`），复用同一个操作与同一套就地编辑映射最省事，
@@ -105,7 +106,7 @@ const cardSectionSchema = z.enum(cardSections);
 export type EditableSection = z.infer<typeof cardSectionSchema>;
 
 const updateCardOperationSchema = z.object({
-  op: z.literal("update_card"),
+  op: z.literal("update_item"),
   section: cardSectionSchema,
   index: z.number().int().min(0).max(11).optional().default(0),
   itemId: z.string().min(1).max(80).optional(),
@@ -116,7 +117,7 @@ const updateCardOperationSchema = z.object({
   expectedValue: z.string().max(1000).optional(),
 }).refine((value) => value.title || value.body, "Card update requires title or body");
 const addCardOperationSchema = z.object({
-  op: z.literal("add_card"),
+  op: z.literal("add_item"),
   section: cardSectionSchema,
   /**
    * 插入位置。上限**不能写死**：它是"最多能插到第几个位置"，
@@ -128,13 +129,13 @@ const addCardOperationSchema = z.object({
    *
    * 注意 `- 1`：满员 12 条时合法插入位是 0..11（插到 12 就是第 13 条）。
    * 但**光靠这里不够**——`index` 是"模型声称插哪"，真正的防线在 `applySiteOperations`
-   * 的插入点（B 项），因为多条独立 add_card 累计也会溢出。
+   * 的插入点（B 项），因为多条独立 add_item 累计也会溢出。
    */
   index: z.number().int().min(0).max(MAX_COLLECTION_ITEMS - 1).optional(),
   item: editableItemSchema,
 });
 const removeCardOperationSchema = z.object({
-  op: z.literal("remove_card"),
+  op: z.literal("remove_item"),
   section: cardSectionSchema,
   itemId: z.string().min(1).max(80),
 });
@@ -155,7 +156,7 @@ const setTemplateOperationSchema = z.object({
 /**
  * 客户评价（2026-09-11，⑥-4b）。
  *
- * ## 为什么不能复用 `update_card`
+ * ## 为什么不能复用 `update_item`
  *
  * 评价的形状是「谁说的 / 他什么身份 / 说了什么」，与 `EditableItem` 的
  * `title`/`body` **语义不同**——硬塞进去，「客户名」会被写进一个叫 `title` 的字段，
@@ -163,7 +164,7 @@ const setTemplateOperationSchema = z.object({
  *
  * ## 字段用 `itemId` 定位，不用下标
  *
- * 与 `remove_card` 同一取舍：评价会增删，下标随时会指到别人身上。
+ * 与 `remove_item` 同一取舍：评价会增删，下标随时会指到别人身上。
  * 而 `id` 是我们生成时打上去的（`quote-1` 这种），稳定。
  */
 const updateTestimonialOperationSchema = z.object({
@@ -251,8 +252,7 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   reorderSectionsOperationSchema,
 ]);
 
-export const siteOperationSchema = z.discriminatedUnion("op", [
-  setTextOperationSchema,
+export const siteOperationSchema = z.discriminatedUnion("op", [  setTextOperationSchema,
   updateCardOperationSchema,
   addCardOperationSchema,
   removeCardOperationSchema,
@@ -276,6 +276,42 @@ export const aiChangeSchema = z.object({
   operations: z.array(aiOperationSchema).max(20),
 });
 export type AIChange = z.infer<typeof aiChangeSchema>;
+
+/**
+ * **落盘操作的读取归一化**（阶段 4，2026-09-12）。
+ *
+ * ## 它只干一件事：把旧 op 名换成新名
+ *
+ * 历史上落盘的 ChangeSet 里写的还是 `update_card` 之类的旧名。改名之后，
+ * 那些数据必须**永远读得懂**（用户裁决：读取长期兼容、写入只写新名）。
+ *
+ * ## 为什么在这里，而不是在读存储的地方
+ *
+ * 归一化**只准落在两个调用点**（用户裁决第 2 条，禁止第三处）：
+ * `lib/site-store.ts` 的 `readRecord()`（文件后端）与 `rowToRecord()`（PG 后端）。
+ * 本函数是那两个点共用的**纯函数**——这样做的好处是：
+ * **同一份映射，两条读取路径不可能读出不同结果**。
+ *
+ * ## 刻意不做的事
+ *
+ * - **不校验、不抛错**：存量形态**比今天的 schema 更宽**（实测：PG 里有 8 条
+ *   `update_card` 缺 `locale`）。读到一个不认识的形态时，只能原样放行，
+ *   让下游按既有行为处理，**绝不能在这里抛错**——那会让整个站点读不出来。
+ * - **不补字段**：补默认值是"解释数据"，属于另一个决策（见 glossary T-6）。
+ *   本函数只做**名字映射**，语义边界要窄、要看得懂。
+ * - **不改写原对象**：返回新对象，调用方拿到的历史条目与落盘内容一致。
+ */
+export function normalizePersistedOperations(operations: unknown): SiteOperation[] {
+  if (!Array.isArray(operations)) return [];
+  return operations.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry as SiteOperation;
+    const named = entry as Record<string, unknown>;
+    const current = currentOperationName(named.op);
+    // 名字没变就不复制对象——绝大多数条目走这条路，避免无谓的整批深拷贝。
+    if (current === named.op) return entry as SiteOperation;
+    return { ...named, op: current } as SiteOperation;
+  });
+}
 
 export type ApplyResult = {
   draft: SiteDraft;
@@ -456,7 +492,7 @@ export function applySiteOperations(
       appliedTargets.push(`${operation.target}.${locale}`);
       continue;
     }
-    if (operation.op === "update_card") {
+    if (operation.op === "update_item") {
       const items = editableItems(draft, operation.section);
       const resolvedIndex = operation.itemId
         ? items.findIndex((candidate) => candidate.id === operation.itemId)
@@ -469,7 +505,7 @@ export function applySiteOperations(
       const expectedActual = operation.title !== undefined ? item.title[operation.locale] : item.body[operation.locale];
       assertExpectedValue(operation.expectedValue, expectedActual, expectedTarget);
       const inverse: SiteOperation = {
-        op: "update_card",
+        op: "update_item",
         section: operation.section,
         index: resolvedIndex,
         itemId: item.id,
@@ -491,7 +527,7 @@ export function applySiteOperations(
       if (changed) inverseOperations.unshift(inverse);
       continue;
     }
-    if (operation.op === "add_card") {
+    if (operation.op === "add_item") {
       const items = editableItems(draft, operation.section);
       if (items.some((item) => item.id === operation.item.id)) throw new Error(`Card id ${operation.item.id} already exists`);
       /**
@@ -500,7 +536,7 @@ export function applySiteOperations(
        * 为什么必须在**这里**拦，而不是只靠 `addCardOperationSchema.index.max()`（A 项）：
        *
        * A 项约束的是"模型声称插到第几个位置"，**单条**操作合法；但同一个批次里
-       * 多条 `add_card` **各自都没超 index 上限、加起来照样越界**。实测复现：
+       * 多条 `add_item` **各自都没超 index 上限、加起来照样越界**。实测复现：
        * 满员 12 条时插 `index=12`，下面的 `Math.min(..., items.length)` 把它夹到尾部，
        * 于是得到**第 13 条** → `siteDraftSchema` 的 `.max(MAX_COLLECTION_ITEMS)` 解析失败
        * → 下次读取走 `normalizeDraft` 的 destructive 兜底，**整站回退成演示文案**。
@@ -516,16 +552,16 @@ export function applySiteOperations(
       }
       const index = Math.min(operation.index ?? items.length, items.length);
       items.splice(index, 0, structuredClone(operation.item));
-      inverseOperations.unshift({ op: "remove_card", section: operation.section, itemId: operation.item.id });
+      inverseOperations.unshift({ op: "remove_item", section: operation.section, itemId: operation.item.id });
       appliedTargets.push(`${operation.section}.items.${index}`);
       continue;
     }
-    if (operation.op === "remove_card") {
+    if (operation.op === "remove_item") {
       const items = editableItems(draft, operation.section);
       const index = items.findIndex((item) => item.id === operation.itemId);
       if (index < 0) throw new Error(`Card ${operation.itemId} does not exist`);
       const [item] = items.splice(index, 1);
-      inverseOperations.unshift({ op: "add_card", section: operation.section, index, item });
+      inverseOperations.unshift({ op: "add_item", section: operation.section, index, item });
       appliedTargets.push(`${operation.section}.items.${index}`);
       continue;
     }
@@ -746,7 +782,7 @@ export function validateAIOperations(
 /**
  * 生成路径允许的操作，按场景区分。
  * 修复（2026-09-08）：此前是黑名单（只拒 set_template 越界 + 文案超长），
- * add_card/remove_card/reorder_sections 都能通过——与 automation.md 声明的
+ * add_item/remove_item/reorder_sections 都能通过——与 automation.md 声明的
  * "操作白名单校验"不符，AI 可借此无限加卡撑爆模板排版。
  */
 export type GenerationOpScope =
@@ -759,13 +795,13 @@ export type GenerationOpScope =
 
 const ALLOWED_OPS_BY_SCOPE: Readonly<Record<GenerationOpScope, ReadonlySet<SiteOperation["op"]>>> = Object.freeze({
   draft: new Set<SiteOperation["op"]>([
-    "set_text", "update_card", "update_product", "set_section_visibility", "set_template", "set_design_tokens",
+    "set_text", "update_item", "update_product", "set_section_visibility", "set_template", "set_design_tokens",
   ]),
   regenerate: new Set<SiteOperation["op"]>([
-    "set_text", "update_card", "update_product", "set_design_tokens",
+    "set_text", "update_item", "update_product", "set_design_tokens",
   ]),
   "regenerate-structure": new Set<SiteOperation["op"]>([
-    "set_text", "update_card", "add_card", "remove_card", "update_product", "set_design_tokens",
+    "set_text", "update_item", "add_item", "remove_item", "update_product", "set_design_tokens",
   ]),
 });
 
@@ -799,9 +835,9 @@ export function validateGenerationOperations(
     : { features: 0, services: 0 };
   if (capacity) {
     for (const operation of operations) {
-      if (operation.op !== "add_card" && operation.op !== "remove_card") continue;
+      if (operation.op !== "add_item" && operation.op !== "remove_item") continue;
       if (!isCapacitySection(operation.section)) continue;
-      if (operation.op === "add_card") projected[operation.section] += 1;
+      if (operation.op === "add_item") projected[operation.section] += 1;
       else projected[operation.section] = Math.max(0, projected[operation.section] - 1);
     }
   }
@@ -816,14 +852,14 @@ export function validateGenerationOperations(
        * `p.slot`——**裸段名**（`site-generator.ts:405`/`:891`，实例见
        * `template-manifests/forge.ts:25-67` 的 `slot: "features"`）。
        * 于是 `find` 永远返回 undefined → `overCapacity` 恒为空 →
-       * **`add_card` 越界从不被拦**。
+       * **`add_item` 越界从不被拦**。
        *
        * 单测此前喂的是 `"features.items"`，**测的是生产永远不会传的形态**，
        * 所以它一直是绿的。这正是 2026-09-10「AI 按容量提示写、越界到应用层炸掉整批」
        * 能发生的原因：当时加的这道防线**根本没接上**。
        *
-       * 注意职责边界：本集合**只管 `add_card`**（见下方 `overCapacity.has`）。
-       * `update_card` 的越界由另一条路径拦（比对草稿真实条数），那条一直是好的——
+       * 注意职责边界：本集合**只管 `add_item`**（见下方 `overCapacity.has`）。
+       * `update_item` 的越界由另一条路径拦（比对草稿真实条数），那条一直是好的——
        * 别在这里顺手改坏它。
        */
       const block = capacity.presentation.find((entry) => entry.presentationSlot === section);
@@ -842,7 +878,7 @@ export function validateGenerationOperations(
       }
       return true;
     }
-    if (operation.op === "add_card" && overCapacity.has(operation.section)) {
+    if (operation.op === "add_item" && overCapacity.has(operation.section)) {
       // 键同样是裸段名（与上方 overCapacity 的构建口径一致）。
       const block = capacity?.presentation.find((entry) => entry.presentationSlot === operation.section);
       const projectedCount = isCapacitySection(operation.section) ? projected[operation.section] : 0;
@@ -850,16 +886,16 @@ export function validateGenerationOperations(
       return false;
     }
     /**
-     * update_card 越界防护（2026-09-10 真机修复）。
+     * update_item 越界防护（2026-09-10 真机修复）。
      *
-     * 真机证据：一句话建站真实流程里，AI 输出 `update_card index 4`，
+     * 真机证据：一句话建站真实流程里，AI 输出 `update_item index 4`，
      * 而草稿 features 只有 3 条 → applySiteOperations 抛
      * `features item 4 does not exist` → **整份 commitOperations 回滚，
      * 用户 66 秒生成全部丢失，界面显示英文技术错误**。
      *
      * 根因是 prompt 与草稿不一致：给 AI 看的容量是模板值
      * （forge features `capacity.default/max = 6/12`），而草稿里只有 3 条，
-     * AI 按容量提示写到第 4、5 条。此前这里只校验 add_card，update_card 完全不拦。
+     * AI 按容量提示写到第 4、5 条。此前这里只校验 add_item，update_item 完全不拦。
      *
      * 为什么在这里拦而不是让 applySiteOperations 兜底：应用层遇到越界只能抛错，
      * 而抛错会让**整批**操作回滚——一条坏操作不该摧毁其余几十条有效内容。
@@ -867,7 +903,7 @@ export function validateGenerationOperations(
      *
      * 无 capacity 上下文时不做此判定（向后兼容，交由应用层兜底）。
      */
-    if (operation.op === "update_card" && capacity && !operation.itemId && isCapacitySection(operation.section)) {
+    if (operation.op === "update_item" && capacity && !operation.itemId && isCapacitySection(operation.section)) {
       const limit = capacity.baseCounts[operation.section];
       if (typeof limit === "number" && operation.index >= limit) {
         rejected.push(
@@ -905,9 +941,9 @@ function dedupeByTarget(operations: SiteOperation[]): SiteOperation[] {
 
 function operationIdentity(operation: SiteOperation): string | null {
   if (operation.op === "set_text") return `text:${operation.target}:${operation.locale ?? "zh"}`;
-  if (operation.op === "update_card") return `card:${operation.section}:${operation.itemId ?? operation.index}:${operation.locale ?? "zh"}`;
-  if (operation.op === "add_card") return `add:${operation.section}:${operation.index ?? "end"}`;
-  if (operation.op === "remove_card") return `remove:${operation.section}:${operation.itemId}`;
+  if (operation.op === "update_item") return `card:${operation.section}:${operation.itemId ?? operation.index}:${operation.locale ?? "zh"}`;
+  if (operation.op === "add_item") return `add:${operation.section}:${operation.index ?? "end"}`;
+  if (operation.op === "remove_item") return `remove:${operation.section}:${operation.itemId}`;
   if (operation.op === "update_product") return `product:${operation.sku}:${operation.locale ?? "zh"}`;
   // 评价与 Logo（⑥-4b）按 itemId 定位——它们会增删，下标随时会指到别人身上
   if (operation.op === "update_testimonial") return `testimonial:${operation.itemId}:${operation.locale}`;
@@ -1058,7 +1094,7 @@ function parseLocaleGuard(message: string): LocaleGuard | null {
  */
 export function isDestructiveOperation(operation: SiteOperation): boolean {
   switch (operation.op) {
-    case "remove_card":
+    case "remove_item":
     case "set_template":
     case "reorder_sections":
       return true;
@@ -1072,7 +1108,7 @@ export function isDestructiveOperation(operation: SiteOperation): boolean {
 /** 破坏性操作的简短描述，用于确认提示 */
 export function describeDestructive(operation: SiteOperation): string {
   switch (operation.op) {
-    case "remove_card":
+    case "remove_item":
       return `删除${operation.section === "features" ? "核心优势" : "服务"}卡片「${operation.itemId}」`;
     case "set_section_visibility":
       return `隐藏「${operation.section}」区块`;

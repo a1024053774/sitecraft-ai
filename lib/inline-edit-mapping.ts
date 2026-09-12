@@ -10,7 +10,7 @@
  * **slot 形态**（实测自 `scripts/probe-slot-mapping.mjs`）：
  *   - `hero.title.zh`                  → set_text，locale 取后缀
  *   - `about.body`                     → set_text，无后缀（生成兜底区写入时不带 locale），按 uiLocale
- *   - `features.items.<id|index>.title.zh` → update_card
+ *   - `features.items.<id|index>.title.zh` → update_item
  *   - `products.<sku>.name.zh`         → update_product（sku 可能含 `.`，需贪婪匹配）
  *   - `companyName.zh` / `contact.email.zh` → 非本地化 target，locale 必须归一到 zh
  *
@@ -82,13 +82,13 @@ const NAV_SLOT = /^navigation\.([a-z0-9][a-z0-9-]{0,39})(?:\.(zh|en))?$/;
  *
  * ⚠️ **`faq.` 在 2026-09-11（⑥-4）从这张表里去掉了**，来龙去脉记在这：
  *
- * ④ 时我**试过**去掉它又放回来了，理由是"放行也没用——`update_card` 的 section
+ * ④ 时我**试过**去掉它又放回来了，理由是"放行也没用——`update_item` 的 section
  * 枚举只认 features/services，faq 走不进去，用户点得动、改完报错，报错还来自
  * 一个与就地编辑不相干的接口"。那个判断当时是对的。
  *
- * ⑥-4 把 `update_card` 的 section 扩成了 `["features","services","faq"]`，
+ * ⑥-4 把 `update_item` 的 section 扩成了 `["features","services","faq"]`，
  * 前提消失了，所以**现在可以放行**：`faq.items.N.title` 会走
- * `CARD_SLOT` → `update_card`，与 features 完全同一条路。
+ * `CARD_SLOT` → `update_item`，与 features 完全同一条路。
  */
 const REJECTED_PREFIXES = ["footer.", "form.", "brand.", "hero.image"];
 
@@ -210,7 +210,7 @@ export function slotToDraftOperation(input: InlineEditInput): InlineEditResoluti
       return reject("invalid_value", `内容过长（上限 ${limit} 字），请精简后再保存`);
     }
     const operation: SiteOperation = {
-      op: "update_card",
+      op: "update_item",
       section: section as "features" | "services",
       index,
       itemId: item.id,
