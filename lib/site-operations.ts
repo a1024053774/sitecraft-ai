@@ -775,7 +775,25 @@ export function validateGenerationOperations(
   const overCapacity = new Set<string>();
   if (capacity) {
     for (const section of capacitySections) {
-      const block = capacity.presentation.find((entry) => entry.slot === `${section}.items`);
+      /**
+       * ⚠️ 查的是**裸段名** `"features"`，不是 `"features.items"`。
+       *
+       * 2026-09-12 修（阶段 1 冲突 #1，P0）：此前这里写的是 `${section}.items`，
+       * 而生产传进来的 `presentation[].slot` 是 `getTemplatePresentation()` 的
+       * `p.slot`——**裸段名**（`site-generator.ts:405`/`:891`，实例见
+       * `template-manifests/forge.ts:25-67` 的 `slot: "features"`）。
+       * 于是 `find` 永远返回 undefined → `overCapacity` 恒为空 →
+       * **`add_card` 越界从不被拦**。
+       *
+       * 单测此前喂的是 `"features.items"`，**测的是生产永远不会传的形态**，
+       * 所以它一直是绿的。这正是 2026-09-10「AI 按容量提示写、越界到应用层炸掉整批」
+       * 能发生的原因：当时加的这道防线**根本没接上**。
+       *
+       * 注意职责边界：本集合**只管 `add_card`**（见下方 `overCapacity.has`）。
+       * `update_card` 的越界由另一条路径拦（比对草稿真实条数），那条一直是好的——
+       * 别在这里顺手改坏它。
+       */
+      const block = capacity.presentation.find((entry) => entry.slot === section);
       if (block && projected[section] > block.capacityMax) overCapacity.add(section);
     }
   }
@@ -792,7 +810,8 @@ export function validateGenerationOperations(
       return true;
     }
     if (operation.op === "add_card" && overCapacity.has(operation.section)) {
-      const block = capacity?.presentation.find((entry) => entry.slot === `${operation.section}.items`);
+      // 键同样是裸段名（与上方 overCapacity 的构建口径一致）。
+      const block = capacity?.presentation.find((entry) => entry.slot === operation.section);
       const projectedCount = isCapacitySection(operation.section) ? projected[operation.section] : 0;
       rejected.push(`${operation.section} 超出模板原生容量（至多 ${block?.capacityMax ?? "?"} 条，当前将达 ${projectedCount} 条）`);
       return false;

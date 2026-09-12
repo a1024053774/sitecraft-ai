@@ -319,8 +319,20 @@ test("draft scope rejects add_card (structure changes need explicit user request
 });
 
 test("regenerate-structure scope allows add_card but caps at template capacity", () => {
+  /**
+   * ⚠️ `slot` 必须用**生产真实形态**（裸段名 `"features"`），不是 `"features.items"`。
+   *
+   * 2026-09-12 裁决（阶段 1 冲突 #1）：此前三条容量用例都喂 `"features.items"`，
+   * 而生产传的是 `getTemplatePresentation()` 的 `p.slot`——**裸段名**
+   * （`site-generator.ts:405/891`，实例见 `template-manifests/forge.ts:25-67`）。
+   * 校验器按 `${section}.items` 查（`site-operations.ts:778/795`）→ 永远匹配不上
+   * → `overCapacity` 恒为空 → **越界从不被拦，而测试一直是绿的**。
+   *
+   * 用户裁定：**先改成生产形态、确认测试先红，再修代码**。
+   * 所以这个 fixture 是"把门焊在真实位置上"，不是换个写法让它过。
+   */
   const capacity = {
-    presentation: [{ slot: "features.items", capacityMax: 3 }],
+    presentation: [{ slot: "features", capacityMax: 3 }],
     baseCounts: { features: 3, services: 0 },
   };
   const card = (id: string) => ({ op: "add_card" as const, section: "features" as const, item: { id, title: { zh: "新", en: "new" }, body: { zh: "内容", en: "body" } } });
@@ -336,7 +348,7 @@ test("regenerate-structure scope allows add_card but caps at template capacity",
 
 test("regenerate-structure scope allows add_card when remove keeps count within capacity", () => {
   const capacity = {
-    presentation: [{ slot: "features.items", capacityMax: 3 }],
+    presentation: [{ slot: "features", capacityMax: 3 }],
     baseCounts: { features: 3, services: 0 },
   };
   const validated = validateGenerationOperations([
@@ -360,8 +372,9 @@ test("regenerate-structure scope allows add_card when remove keeps count within 
 // validateGenerationOperations 此前只拦 add_card 超容，update_card 完全不校验。
 
 test("draft scope rejects update_card beyond existing items (真机 bug 回归)", () => {
+  // slot 用生产真实形态（裸段名），理由见上方 regenerate-structure 用例的注释。
   const capacity = {
-    presentation: [{ slot: "features.items", capacityMax: 12 }],
+    presentation: [{ slot: "features", capacityMax: 12 }],
     baseCounts: { features: 3, services: 3 },
   };
   const validated = validateGenerationOperations([
@@ -381,8 +394,9 @@ test("draft scope rejects update_card beyond existing items (真机 bug 回归)"
 });
 
 test("update_card 越界不是整批失败：合法操作照常保留", () => {
+  // slot 用生产真实形态（裸段名），理由见上方 regenerate-structure 用例的注释。
   const capacity = {
-    presentation: [{ slot: "features.items", capacityMax: 12 }],
+    presentation: [{ slot: "features", capacityMax: 12 }],
     baseCounts: { features: 3, services: 0 },
   };
   const validated = validateGenerationOperations([
