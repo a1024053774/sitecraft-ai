@@ -40,7 +40,7 @@ export function mergeChatTaskResults(
         const value = JSON.stringify(effect.value);
         const previous = effects.get(effect.key);
         if (previous !== undefined && previous !== value) {
-          // 键是内部指纹，不面向用户，所以文案里只说人话，不回显 `card:features:...`。
+          // 键是内部指纹，不面向用户，所以文案里只说人话，不回显 `item:features:...`。
           return failure("operation_conflict", "多个任务对同一处内容生成了冲突修改");
         }
       }

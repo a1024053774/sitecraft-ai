@@ -942,7 +942,7 @@ function dedupeByTarget(operations: SiteOperation[]): SiteOperation[] {
 /**
  * 同批操作的**冲突指纹**——`op` 级(**单元**)，不带字段。
  *
- * ## 这是全仓库唯一一处拼 `card:` 前缀的地方（2026-09-12 收口）
+ * ## 这是全仓库唯一一处拼 `item:` 前缀的地方（2026-09-12 收口）
  *
  * 在此之前有两处手拼，而且**已经漂了**：
  *  - `lib/chat-task-executor.ts` 的 `operationEffects` 用 `item.id` / `operation.index`
@@ -967,9 +967,9 @@ function dedupeByTarget(operations: SiteOperation[]): SiteOperation[] {
  */
 export function operationConflictIdentity(operation: SiteOperation): string | null {
   if (operation.op === "set_text") return `text:${operation.target}:${operation.locale ?? "zh"}`;
-  if (operation.op === "update_item") return `card:${operation.section}:${operation.itemId ?? operation.index}:${operation.locale ?? "zh"}`;
-  if (operation.op === "add_item") return `card:${operation.section}:${operation.item.id}`;
-  if (operation.op === "remove_item") return `card:${operation.section}:${operation.itemId}`;
+  if (operation.op === "update_item") return `item:${operation.section}:${operation.itemId ?? operation.index}:${operation.locale ?? "zh"}`;
+  if (operation.op === "add_item") return `item:${operation.section}:${operation.item.id}`;
+  if (operation.op === "remove_item") return `item:${operation.section}:${operation.itemId}`;
   if (operation.op === "update_product") return `product:${operation.sku}:${operation.locale ?? "zh"}`;
   // 评价与 Logo（⑥-4b）按 itemId 定位——它们会增删，下标随时会指到别人身上
   if (operation.op === "update_testimonial") return `testimonial:${operation.itemId}:${operation.locale}`;

@@ -53,10 +53,10 @@ test("冲突判定与去重判定必须共用同一个 key 构造函数", async 
   const probe: SiteOperation = { op: "update_item", section: "features", index: 3, itemId: "probe-id", locale: "zh", title: "x" };
   const keys = operations.operationConflictKeys(probe);
   assert.ok(keys.length > 0, "构造函数必须为 update_item 产出 key");
-  assert.deepEqual(keys, ["card:features:probe-id:zh:title"]);
+  assert.deepEqual(keys, ["item:features:probe-id:zh:title"]);
 
-  // 结构性断言：chat 侧**不能再自己拼** `card:` 前缀（那正是收口前漂移的来源）。
-  // ⚠️ 先剥掉注释行再判——注释里为了说明来龙去脉会提到 `card:`，
+  // 结构性断言：chat 侧**不能再自己拼** `item:` 前缀（那正是收口前漂移的来源）。
+  // ⚠️ 先剥掉注释行再判——注释里为了说明来龙去脉会提到 `item:`，
   // 拿它当"在拼键"的证据会得到一个永久为真的假断言。
   const codeOnly = executorSource
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -64,9 +64,9 @@ test("冲突判定与去重判定必须共用同一个 key 构造函数", async 
     .filter((line) => !/^\s*\/\//.test(line))
     .join("\n");
   assert.equal(
-    /`card:/.test(codeOnly),
+    /`item:/.test(codeOnly),
     false,
-    "chat-task-executor 不得再手拼 card: 键——它必须走 site-operations 的统一构造器",
+    "chat-task-executor 不得再手拼 item: 键——它必须走 site-operations 的统一构造器",
   );
   assert.match(executorSource, /operationConflictEffects/, "必须引用统一构造器");
 });

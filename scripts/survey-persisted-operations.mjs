@@ -3,7 +3,7 @@
  * 阶段 4-1 只读调研：统计已落盘的 operations / inverseOperations。
  *
  * 目的：在定 op 名别名方案**之前**，先摸清存量数据里 `update_item` / `add_item` /
- * `remove_card` / `card:` 幂等键的真实出现频次与形态。没摸清就不许动代码（用户裁决第 1 条）。
+ * `remove_card` / `card:` 批内键的真实出现频次与形态。没摸清就不许动代码（用户裁决第 1 条）。
  *
  * 只读：仅 `readFile`，不写、不迁移、不建连接池（Postgres 走独立的 pnpm 脚本）。
  *
