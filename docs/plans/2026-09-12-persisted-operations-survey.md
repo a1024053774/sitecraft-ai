@@ -5,6 +5,37 @@
 > 输出报告后**停下等我确认，再动代码**。禁止在没摸清存量数据前定别名方案。」
 >
 > 本报告完成后**停下**。未动任何产品代码，只新增两个只读脚本。
+>
+> **2026-09-12 修订**：PG 侧原为"无法取证"（本机 5432 无监听）。用户已把
+> `docker-compose.yml` 的 postgres 映射改为 `5433:5432` 并起好服务，本节据**实证**重写。
+> 见 §六「修订记录」。
+
+---
+
+## 〇、一句话看结论
+
+| 后端 | 站点 | ChangeSet | 旧名出现 | 其中 `add_card`/`remove_card` |
+|---|---:|---:|---:|---|
+| **文件** `.sitecraft-data/sites/*.json` | 433 | 109 | **288** | **0 / 0** |
+| **Postgres** `sitecraft_sites` | 845 | 553 | **398** | **0 / 0** |
+| （PG 另有）`generation_records` 存证 | 59 行 | —— | 129 | 0 / 0 |
+
+> ### ⚠️ 两个后端是**独立数据**，数字**互不包含、不可相加**
+>
+> 不是"同一批东西的两份"。实测 site_id 重叠度：
+> ```
+> PG site_id 数：845
+> 文件 site_id 数：434
+> **重叠数：39**（仅 9.0% 的文件站点在 PG 里也有）
+> PG 独有：806；文件独有：395
+> ```
+> 所以 **288 与 398 不是矛盾，也不是谁漏了谁**——它们各自统计自己那一批。
+> 合计 686 也**不是**"总存量"，只是"两批之和"，业务上无意义。
+>
+> 旁证：`ChangeSource` 分布两边截然不同——文件 `ai` 82 / `manual` 20，
+> PG `manual` 421 / `ai` 123 / `template` 9。测试产生的站点（PG 独有 806 个里的
+> `p1-schema-once-*`、`f2-timeout-twice-*` 这类）与本地演示站点（文件独有）
+> 本就是两批不同用途的数据。
 
 ---
 
@@ -23,7 +54,18 @@ SITE_STORE=file
 DATABASE_URL=postgresql://…@127.0.0.1:5432/site_studio   （凭据未打印）
 ```
 `lib/site-store.ts:67` 的判定是 `SITE_STORE === "postgres" || NODE_ENV === "production"`，
-本机 `SITE_STORE=file` → **当前后端是文件**。
+本机 `SITE_STORE=file` → **应用当前写的是文件后端**。
+
+⚠️ 但 PG 里**确实有另一批数据**（845 行）——是历史上以 `SITE_STORE=postgres`
+（或 `NODE_ENV=production`）跑出来的，与本地文件数据无交集的那部分（见 §〇 重叠度）。
+**改后端不会让两批合并**，所以别名方案必须同时覆盖两条读取路径。
+
+**PG 侧连法**（用户已起服务，宿主机映射 5433）：
+```bash
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/site_studio \
+  node scripts/survey-persisted-operations-pg.mjs
+```
+`.env.local` 的 `DATABASE_URL` 仍指向 5432，**维持不动**（用户裁决第 5 条）。
 
 ---
 
@@ -104,21 +146,75 @@ inverseOperations 总数：838
 > 本地一直是 `SITE_STORE=file`，所以 433 个文件里 0 条 provenance 是**设计使然，不是数据丢失**。
 > 与阶段 4（改用与兼容）无关，仅作事实记录。
 
-### 2.4 Postgres 侧：**无法取证**（不是「没有旧数据」）
+### 2.4 Postgres 侧：**实证结论**（845 行，与用户摸底完全吻合）
 
 ```
-$ node scripts/survey-persisted-operations-pg.mjs
-无法取证：连不上 127.0.0.1:5432 —— connect ECONNREFUSED 127.0.0.1:5432
-（本机 5432 无监听，Postgres 后端未在运行；这不是「没有旧数据」。）
-exit=2
+站点行数：845
+ChangeSet 总数：553
+forward operations：1452 / inverseOperations：1333
+
+**旧名出现次数：forward 199 / inverse 199 / 合计 398**
+**含旧名的站点数（forward）：27**
+**含旧名的站点数（forward∪inverse）：27**
 ```
 
-- `DATABASE_URL` 指向 **127.0.0.1**（本机，非生产库）；
-- `netstat` 显示本机无 5432/5433 监听；`docker ps` 里只有 `yunpai-neo4j` 一个无关容器在重启；
-- `docker-compose.yml` 定义了 `postgres:16-alpine` + 具名卷 `sitecraft_pg`，
-  但**当前未运行**。具名卷意味着：若曾用 compose 跑过，数据可能仍在该卷里。
+| op 名 | forward | inverse |
+|---|---:|---:|
+| `set_text` | 1057 | 965 |
+| **`update_card`** | **199** | **199** |
+| `set_template` | 65 | 47 |
+| `set_design_tokens` | 47 | 40 |
+| `update_product` | 38 | 37 |
+| `set_asset` | 26 | 26 |
+| `set_section_visibility` | 16 | 15 |
+| `replace_products` | 4 | 4 |
+| **`add_card`** | **0** | **0** |
+| **`remove_card`** | **0** | **0** |
 
-脚本遇到连不上时**退出码 2 并明确说"无法取证"**，不退回 0——否则「库没起」会被误读成「存量是空的」。
+**与用户摸底的对照：845 ✓ / 398 ✓ / 27 ✓ / 0 ✓ 全部一致。**
+
+#### `update_card` 的字段形态（PG 比文件多一种，见下）
+
+| 次数 | 形态 |
+|---:|---|
+| 256 | `{body, index, locale, op, section, title}` |
+| 102 | `{body, index, itemId, locale, op, section, title}` |
+| 26 | `{index, locale, op, section, title}` |
+| **8** | **`{body, index, locale, op, section}`** ← 文件后端没有这种 |
+| 6 | `{index, itemId, locale, op, section, title}` |
+
+- 带 `itemId` 的：**108 / 398**（文件侧是 126/288）。
+- `section` 取值：`features` 228 / `services` 170 —— **仍然没有 `faq`**（两个后端一致）。
+- `ChangeSource`：`manual` 421 / `ai` 123 / `template` 9。
+
+**第 4 种形态的成因（已核实，不是缺陷）**：`updateCardOperationSchema` 的
+`locale` 是 `z.enum(locales)`（**必填**，[`lib/site-operations.ts:112`](../lib/site-operations.ts#L112)），
+所以 `{…, section}` 缺 `locale` 的形态**不可能由现在的代码写出**。
+它只可能来自**更早版本**的 schema（那时 `locale` 还是可选），属于**历史遗留形态**。
+→ 这条本身不构成读取缺陷（zod 读它会失败，但落盘数据只在 undo/重放时被读），
+**但它提醒：别名方案不能假设"所有存量都符合今天的 schema"**。
+
+#### `generation_records`：**另一个 store，不是 ChangeSet**
+
+> 这一项单列，是因为它最容易和上面的 398 混起来被当成"又是旧名"。
+
+```
+generation_records 行数：59
+generation_records.operations 里的 op 名：
+       462  set_text
+       129  update_card
+        29  set_template
+        16  set_section_visibility
+        16  set_design_tokens
+         2  update_product
+  → 其中旧名：129
+  含 provenance 的行：59
+```
+
+**本报告的 398 只统计 `sitecraft_sites.history/future` 的 ChangeSet，不含这 129。**
+两者是不同的东西：ChangeSet 是**已提交的变更历史**（可 undo/redo），
+`generation_records` 是**每次生成尝试的存证**（`recordGeneration` 写入，只读回显）。
+如果把它们相加会得到 527，**那个数字没有业务含义**。
 
 ---
 
@@ -141,14 +237,46 @@ exit=2
 且内联编辑原样传递，**当前不会溢出**。这两处仍属"同值不同源"（附则 2 的口径），但**不是缺陷**，
 不构成待办。
 
-### 3.2 需要用户裁决的三点
+### 3.2 别名方案必须同时覆盖两条读取路径（**本报告最重要的一条**）
 
-1. **是否要启 Postgres 取证？** compose 里有服务与具名卷，但启容器属于「动环境」，
-   按红线不擅自做。若不启，则本报告的 PG 结论**永久停留在"无法取证"**，
-   别名方案只能建立在「文件后端 + 生产按 compose 部署时同库异卷」的假设上。
-2. **`card:` 前缀去留**：已证实零落盘、纯批内。改名是**纯改代码**，无兼容层需求
-   （这是本轮唯一一个可以"直接改干净"的协议串）。
-3. **`add_card`/`remove_card` 零存量** → 别名兼容的成本主要压在 `update_card` 一个名字上。
+两个后端是**独立数据**（重叠仅 39/434），**不是"换个后端读同一批"**。
+这意味着：
+
+> **只覆盖一条读取路径的别名方案，会漏掉另一条路径上的全部存量。**
+
+具体地，别名与读取归一化必须落在**能被两条路径共同经过的位置**：
+
+| 路径 | 入口 | 读 ChangeSet 的位置 |
+|---|---|---|
+| 文件 | [`lib/site-store.ts:79 readRecord`](../lib/site-store.ts#L79) | `history`/`future` 原样 `JSON.parse` 后直接当 `ChangeSet[]` 用 |
+| PG | [`lib/site-store.ts`](../lib/site-store.ts) 的 PG 分支 | 同样把 `history`/`future` 当 `ChangeSet[]` 用 |
+
+**两条路径都不过任何 schema 校验**——`readRecord` 里 `raw.history as ChangeSet[]` 是**类型断言**，
+不是校验（[`lib/site-store.ts:85`](../lib/site-store.ts#L85)）。
+所以"旧名读入"这件事今天**根本没有归一化点**，需要新建**唯一入口**（不是散落 `if`）。
+
+### 3.3 需要用户裁决的三点（已按 PG 实证更新）
+
+1. ~~是否启 Postgres 取证~~ → **已取证完毕**（845 行 / 398 处旧名 / 与摸底完全吻合），
+   本条**已消解**，不再需要裁决。
+   剩一个**新的**待定项：**`generation_records` 要不要一起做别名兼容？**
+   它另有 **129 处旧名**，但它是"存证"（只读回显、不参与 undo/重放），
+   按"写入只写新名、读取长期兼容"的原则，**可以只做读取侧容忍、不做写入侧改写**。
+   需用户定性：**算不算在本次兼容范围内**。
+2. **`card:` 前缀去留**：已证实**两个后端都零落盘**、纯批内。
+   改名是**纯改代码**，无兼容层需求（本轮唯一可以"直接改干净"的协议串）。
+3. **`add_card`/`remove_card` 两个后端都零存量** → 别名兼容的成本**全部压在 `update_card` 一个名字上**。
+   （连带结论：`add_card`/`remove_card` 更名**可以直接改**，不需要别名机件。）
+
+### 3.4 顺带登记：`update_card` 存在**不符合今天 schema** 的历史形态
+
+PG 侧 8 处 `{body, index, locale, op, section}` **缺 `locale`**，而今天的
+`updateCardOperationSchema.locale` 是**必填**。核对过写入代码：现在的代码写不出这种形态，
+所以它是**更早版本 schema 的遗留**。
+
+**这件事对别名方案是本报告最有价值的提醒**：
+存量数据的形态**比今天的 schema 更宽**，任何"先按今天 schema 解析、失败再兜底"的
+归一化写法都会在这 8 条上走兜底分支。归一化必须**容忍缺字段**，不能假设解析成功。
 
 ---
 
@@ -185,7 +313,28 @@ exit=2
 
 **没改**（按裁决"出报告后停下等确认"）：
 - 任何操作名、任何别名逻辑、任何 `schemaVersion`、任何 `card:` 字符串；
-- 未启 Postgres 容器；未跑迁移；未连任何远程库。
+- 未跑迁移；未连任何远程库（PG 侧全程 `SELECT`）。
 
 **写了又删的**（负向验证的产物，不留痕）：
 - 一个临时测试 `tests/tmp-itemid-cap.test.ts`，用于证伪 3.1 的推断；已删除，`tests/` 无残留。
+
+**由用户改的**（不在我的提交里、但与本报告相关）：
+- `docker-compose.yml` 的 postgres 端口映射 `5432:5432` → `5433:5432`（宿主机 5432 被占）；
+  容器内端口、healthcheck、具名卷 `sitecraft_pg` 均未动，数据未动。
+  由我以独立 chore 提交入库（commit message 已注明）。
+- `.env.local` 的 `DATABASE_URL` **仍指向 5432，维持不动**（用户裁决第 5 条）。
+
+---
+
+## 六、修订记录
+
+| 日期 | 改动 | 原因 |
+|---|---|---|
+| 2026-09-12 | 初版：PG 侧记为"无法取证" | 本机 5432 无监听，按红线不擅自启容器 |
+| 2026-09-12 | **PG 侧改为实证结论**（845 行 / 398 处旧名 / 27 站点），新增 §〇 后端独立性、§2.4 完整口径、§3.2 双路径、§3.3 更新裁决项、§3.4 历史形态登记 | 用户起好 PG 并把映射改为 5433，实证口径到手 |
+
+**修订中被推翻的一条旧结论**（如实记录，不悄悄改掉）：
+初版 §3.2 第 1 点写的是「若 PG 不启，则本报告结论永久停留在'无法取证'，
+别名方案只能建立在**假设**上」。PG 实证后该假设被**证实为假**——
+两批数据重叠仅 9%，不是"同库异卷"，**而是两个彻底独立的批次**。
+现在的 §3.2 结论（必须同时覆盖两条读取路径）正是从这条推翻里来的。

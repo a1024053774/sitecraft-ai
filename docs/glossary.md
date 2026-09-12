@@ -13,9 +13,9 @@
 
 | 术语 | 含义 | 权威定义 | 反例（禁用） |
 |---|---|---|---|
-| `item` | **一条内容条目**：`features`/`services`/`faq` 数组里的一项 | 类型 `EditableItem`（`lib/site-document.ts` 的 `editableCardSchema`）；草稿字段 `content.<section>.items` | `card`（作为**名词**使用时）、`entry`、`element` |
+| `item` | **一条内容条目**：`features`/`services`/`faq` 数组里的一项 | 类型 `EditableItem`（`lib/site-document.ts` 的 `editableItemSchema`）；草稿字段 `content.<section>.items` | `card`（作为**名词**使用时）、`entry`、`element` |
 | `slot` | **DOM 上的可编辑位置**，点分路径，可带 locale 与下标：`hero.title.zh`、`features.items.0.title.zh`、`navigation.<id>.zh` | `data-sitecraft-slot` 属性；`lib/inline-edit-mapping.ts` 的文件头 | —— |
-| `presentationSlot` | **模板原生排版的业务段名**，裸名无点分：`"features"`、`"services"` | `TemplatePresentationBlock.slot`（`lib/template-manifests/types.ts`） | ⚠️ 见下方「同名不同义」 |
+| `presentationSlot` | **模板原生排版的业务段名**，裸名无点分：`"features"`、`"services"`（**还有 `hero`**，它不是 `sectionKeys` 的一员） | `TemplatePresentationBlock.presentationSlot`（`lib/template-manifests/types.ts`） | ⚠️ 见下方「同名不同义」 |
 | `section` | **站点业务板块**：`about`/`features`/`services`/`products`/`contact` | `sectionKeys`（`lib/site-document.ts`） | `block`、`module`、`section` 以外的叫法 |
 | `target` | **操作指向的字段路径**（`set_text` 的 `target`）：`hero.title`、`about.body` | `textTargets`（`lib/site-operations.ts`） | `field`、`key` |
 | `manifest` | **模板的内容契约**：槽位声明 + 排版角色 + 容量 | `TemplateManifest`（`lib/template-manifests/types.ts`） | `schema`（那个词留给 zod） |
@@ -41,13 +41,18 @@
 |---|---|---|
 | 形态 | 点分路径，带 locale/下标：`features.items.0.title.zh` | 裸段名：`"features"` |
 | 用途 | 定位 DOM 上的可编辑节点 | 查模板原生排版角色与容量 |
-| 定义处 | `data-sitecraft-slot`、`inline-edit-mapping.ts` | `TemplatePresentationBlock.slot` |
+| 定义处 | `data-sitecraft-slot`、`inline-edit-mapping.ts` | `TemplatePresentationBlock.presentationSlot` |
 
 ⚠️ **这两者格式不同，混用会造成静默失效**——2026-09-12 修掉的 P0（冲突 #1）正是如此：
 校验器按 `${section}.items` 查生产传来的裸段名，于是 `add_card` 容量门**从未生效**。
 
 **约定**：代码里读 `presentation.slot` 的字段一律叫 `presentationSlot`；
 描述 DOM 位置的才叫 `slot`。
+
+> **附则 2 的实例（2026-09-12 自查发现）**：阶段 3 改完名后，本表**有两行没跟着改**——
+> 上面写的 `editableCardSchema` 与 `TemplatePresentationBlock.slot` **在代码里已不存在**。
+> 权威表的价值全在"能据它找到真东西"，指向不存在的符号等于自毁。
+> 教训：**改名提交必须连带更新术语表**，否则改名的就是术语表自己。
 
 ### 2. `ComposerBlock` vs `TemplatePresentationBlock`
 
@@ -127,6 +132,46 @@
 
 **本轮未做的原因**：同 T-3，属散文规则、缺机械验收手段，且需要逐条对照
 manifest 的真实容量，是独立的一批核实工作。
+
+### T-5 · `presentationSlot` 的注释手抄了段名枚举（**已完成**）
+
+`lib/template-manifests/types.ts` 的 `presentationSlot` 注释写的是
+`about|features|services|products|contact`，**漏了 `hero`**（未手写 `presentation`
+的 5 个模板走 `defaultPresentation()`，含 hero 共七值）。
+
+处置：按附则 2 改为指向 `getTemplatePresentation()` 的引用，不再抄第二份。
+见 commit `90dee19`。
+
+### T-6 · `applySiteOperations` **没有入参校验**，坏操作会静默写坏草稿
+
+**不是从代码读出来的，是实测出来的**（2026-09-12，阶段 4 调研）：
+
+把 PG 里 8 条**缺 `locale`** 的历史 `update_card` 喂给今天的代码：
+
+```
+siteOperationSchema.safeParse(corrupt).success = false    ← 读不进来
+applySiteOperations **没有抛错**，changed = true           ← 却照写
+写后的 item: { "title": { "zh": "...", "en": "...", "undefined": "新标题" } }
+```
+
+根因：`applySiteOperations` 全文件**零处** `siteOperationSchema.safeParse`，
+`update_card` 分支直接 `item.title[operation.locale] = ...`，
+而 `locale` 为 `undefined` 时 **JS 会把它转成字符串 `"undefined"` 当键**。
+
+**为什么现在没炸**：`draft` 读取会过 `normalizeDraft` → `siteDraftSchema.safeParse`，
+而 **Zod 默认剥掉未知键**（实测 `{zh,en,undefined}` → `{zh,en}`，success **true**），
+所以污染**被无声抹掉**——不是修好了，是看不见了。
+
+**为什么仍然要修**：这个洞**不是那 8 条数据造成的**，
+是"写入期没有拦截"造成的。任何能构造出缺字段操作的路径都能触发。
+与冲突 #8 同构（"schema 层兜底不算写入期拦截"）。
+
+**处置意向**：在 `applySiteOperations` 入口逐条做形状校验，不合法**抛可读错误**。
+**风险**：会改变现有行为（"能跑但错"的输入变抛错），**先跑一遍评估对 687 个测试的影响面再决定**。
+方案见 `docs/plans/2026-09-12-phase4-rename-and-compat-design.md` §四。
+
+**本轮未做的原因**：属独立批次——它与 op 改名无耦合，且改的是核心函数的契约行为，
+需先出影响面评估。**由用户决定排期。**
 
 ---
 
