@@ -83,6 +83,59 @@
 
 > 已识别但**尚未排期**的缺口。登记在此，不擅自修。
 
+### 状态一览（2026-09-12 阶段 4 收口时点）
+
+| 编号 | 一句话 | 状态 | 归属 |
+|---|---|---|---|
+| T-1 | `faq` 的 `add_item` 无容量校验 | **未做**（登记待排期） | 待用户排期 |
+| T-2 | `products` 契约两层不一致（22/17） | **只登记**（用户裁决不处理） | 关闭 |
+| T-3 | 枚举中文释义维护了三套 | **未做** | 后续批次 |
+| T-4 | `template-catalog.ts` 的 `guardrails` 数值规则未逐条核实 | **未做** | 后续批次 |
+| T-5 | `presentationSlot` 注释手抄段名枚举 | **已完成**（`90dee19`） | 关闭 |
+| T-6 | `applySiteOperations` 无入参校验 | **窄修已完成**（`46eb29f`）；**宽修未做** | 宽修另开批次 |
+| T-7 | e2e 测试进程与 `next start` **连不同的库**（脑裂） | **未做**（阶段 4 新发现，见下） | 待用户排期 |
+
+**后续批次预告**（本轮明确不做）：宽修（`applySiteOperations` 入口全面校验）、T-3、T-4、T-7。
+
+### T-7 · e2e 测试进程与 `next start` **连不同的库**（阶段 4 收口时新发现）
+
+**现象**（实测，不是推理）：`e2e/specs/workspace.spec.ts:6` 直接
+`import { commitOperations } from "../../lib/site-store"`，在 **Playwright 测试进程**里调用。
+而那个进程里：
+
+```
+NODE_ENV = production          ← playwright 会设（与 next start 一致）
+SITE_STORE = undefined         ← .env 没被 playwright 加载
+DATABASE_URL 端口 = (未设置)    ← 同上
+→ getSite 直接抛：DATABASE_URL 未配置，生产环境不会退回本地文件存储。
+   at getPostgresSite (lib/site-store.ts:441:9)
+```
+
+**同时**，被测服务（`next start`）**会**加载 `.env`，连的是 `127.0.0.1:5432` 的 Postgres。
+
+→ **两个进程连的是两个不同的库**。测试里 `await commitOperations(...)` 从未生效，
+但因为它在 `test()` 体内是**未被等待的 rejection**（`expect(ai.status)` 拿到了 undefined
+而不抛当前错误），失败以"页面说没有可撤销的 AI 修改"的形式出现，**根因被伪装成 UI 问题**。
+
+**为什么是结构性的，不是改名造成的**：
+这个 `await` 在改名**之前**就抛——连接在 `getSite()` 阶段就断了，
+而 `getSite` 与 `commitOperations` **出自同一个 `lib/site-store.ts`**，
+与 op 名没有任何关系。
+
+**影响面**：`workspace.spec.ts` 的 2 条用例（`321`/`345`），
+以及任何依赖"测试进程直接写库"的 e2e。其余 8 条失败与该模块无因果关系
+（其中 7 条 spec 连 import 都没有）。
+
+**处置意向**（需用户定，两条都有代价）：
+1. **测试进程补 `.env` 加载**（`process.loadEnvFile` 或等价手段）——最小改动，
+   但会让测试进程连**真实的 5432/5433 库**，与"e2e 不碰真实数据"的既有约定冲突；
+2. **让 e2e 走 HTTP 而不是直接 import `lib/`**——结构上更正确
+   （e2e 本就该测 HTTP 面），但要重写那两条用例的夹具方式。
+
+**未做的原因**：两条路都涉及测试架构取向，属独立批次；且本轮 e2e 批次的临时红线
+限定 diff 只允许出现在 `e2e/`、`scripts/`、`.env.example`、`docker-compose.yml`——
+选项 1 需要动测试进程的启动形态，选项 2 要改既有 spec 的夹具，都不是能顺手夹带的。
+
 ### T-1 · `faq` 的 `add_card` 无容量校验（用户裁决第 3 条：登记待排期）
 
 `capacitySections = ["features", "services"]`（`lib/site-operations.ts`），
