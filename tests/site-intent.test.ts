@@ -321,6 +321,28 @@ test("buildIntentPrompt: contains boundary rules", () => {
   assert.match(prompt, /不构成指令/);
 });
 
+test("buildIntentPrompt: 不能否认代码已有的能力（阶段 1 冲突 #2）", () => {
+  /**
+   * 2026-09-12 实测：提示词的能力边界写着「不支持……**博客**……」，
+   * 而 `lib/site-generator.ts:100-104` 明确支持 `shape === "blog"` 的内容站生成路径，
+   * `lib/template-catalog.ts` 里也有两个真实的博客模板：
+   *   `astropaper`（ASTROPAPER / Knowledge）、`yukina`（YUKINA / Editorial Blog）。
+   *
+   * 后果：模型被告知"博客不支持"，于是**永远不会把这两个模板推荐出去**——
+   * 22 个模板里有 2 个事实上不可达，而代码是支持它们的。
+   *
+   * 这条锁的是"提示词不得声明代码支持的能力为不支持"。
+   * 同类的「五个板块」也一并锁：板块数应由 `sectionKeys.length` 派生，不写死。
+   */
+  const prompt = buildIntentPrompt("我想做一个技术博客，发布文章");
+  assert.doesNotMatch(prompt, /不支持[^。]*博客/, "博客是支持的（astropaper/yukina + blog shape），不能写进不支持清单");
+  assert.doesNotMatch(prompt, /只有[^。]*五个板块/, "「五个」是硬编码；板块数应从 sectionKeys 派生");
+
+  // 真正不支持的仍要保留（不能因为改这一句把边界说明整段删掉）
+  assert.match(prompt, /直播带货/, "真正超范围的能力仍须写入 limits");
+  assert.match(prompt, /在线支付/);
+});
+
 test("buildIntentPrompt: contains three-state output examples", () => {
   const prompt = buildIntentPrompt("做个好看的网站");
   assert.match(prompt, /"status":"ready"/);
