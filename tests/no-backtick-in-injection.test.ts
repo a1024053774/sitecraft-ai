@@ -65,6 +65,66 @@ function scanRegion(lines: readonly string[], startLine: number, endLine: number
   return findings;
 }
 
+/**
+ * 注入区之外，还要查**插值表达式内部的嵌套模板字面量**。
+ *
+ * ## 为什么单独查这一处（2026-09-12 第六次踩坑后补）
+ *
+ * 上面那条只扫「注入区内」。但反引号还有另一种危险位置：**`${}` 插值表达式里
+ * 嵌套模板字面量**。它不在注入区，却同样会把外层字符串搞得极易失衡——
+ * 而且**编译器不报错**（语法合法），只有运行时行为可能不对。
+ *
+ * 实测：把 `sectionKeys.map((key) => '"' + key + '"')` 写成
+ * <code>sectionKeys.map((key) => \`"${key}"\`)</code> 时，tsc 通过、测试全绿，
+ * 是我自己读代码才发现的。这正是"靠记性"失效的又一例。
+ *
+ * 判据：`${` 之后的表达式里出现反引号 —— 一律报出，让作者改用字符串拼接。
+ */
+function findNestedTemplateLiterals(lines: readonly string[], startLine: number, endLine: number) {
+  const findings: Array<{ line: number; text: string }> = [];
+  for (let i = startLine - 1; i < Math.min(endLine, lines.length); i += 1) {
+    const text = lines[i] ?? "";
+    // 该行既有插值开口、又有反引号 —— 高度可疑（模板字面量通常不会这样跨行书写）
+    if (/\$\{/.test(text) && text.includes("`")) {
+      findings.push({ line: i + 1, text: text.trim().slice(0, 150) });
+    }
+  }
+  return findings;
+}
+
+test("注入区内不得有嵌套模板字面量（${} 里的反引号）", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const problems: string[] = [];
+
+  for (const region of INJECTION_REGIONS) {
+    const lines = fs.readFileSync(path.join(root, region.file), "utf8").split("\n");
+    // 排除两端定界符行：起点行 `return \`<script nonce="${X}">` 既有 ${} 又有反引号，
+    // 但那是**合法的模板字面量开头**，不是嵌套。
+    for (const finding of findNestedTemplateLiterals(lines, region.startLine + 1, region.endLine - 1)) {
+      problems.push(`  ${region.file}:${finding.line}\n    > ${finding.text}`);
+    }
+  }
+
+  assert.deepEqual(
+    problems,
+    [],
+    "插值表达式 ${...} 里出现反引号（嵌套模板字面量）——改用字符串拼接，\n" +
+      "否则外层模板字面量极易失衡，而且**编译器不会报错**：\n" +
+      problems.join("\n"),
+  );
+});
+
+test("嵌套检查器有效：能抓到插值里的反引号", () => {
+  const lines = [
+    "  return `<script>",                                              // 1 起点
+    "  ${items.map((x) => `\"${x}\"`).join(\",\")}",                   // 2 ← 应被抓到
+    "  ${items.join(\"|\")}",                                          // 3 合规插值
+    "  </script>`;",                                                   // 4 终点
+  ];
+  const findings = findNestedTemplateLiterals(lines, 1, 4);
+  assert.deepEqual(findings.map((f) => f.line), [2], "必须精确命中第 2 行，放过第 3 行的合规插值");
+});
+
 test("注入脚本区域内不存在反引号", () => {
   const root = path.resolve(import.meta.dirname, "..");
   const problems: string[] = [];
