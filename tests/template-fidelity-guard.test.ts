@@ -226,9 +226,9 @@ test("evaluateFidelity: 干净产物 → 通过", () => {
 
 test("manifestHostsFor: 从 presentation 提取显式声明", () => {
   const hosts = manifestHostsFor([
-    { slot: "features" },
-    { slot: "services", nativeFallbackHost: "generated" },
-    { slot: "contact", nativeFallbackHost: "native" },
+    { presentationSlot: "features" },
+    { presentationSlot: "services", nativeFallbackHost: "generated" },
+    { presentationSlot: "contact", nativeFallbackHost: "native" },
   ]);
   assert.deepEqual(hosts, { services: "generated", contact: "native" });
 });
@@ -245,7 +245,7 @@ test("接线后：声明 generated 的节走兜底不再误报结构违规", () 
   assert.equal(withoutDeclaration.structure[0].violation, true, "未声明时应按注册表判违规");
 
   // 接线后：manifest 声明该节由通用承载 = 设计内行为 → 不违规
-  const withDeclaration = evaluateFidelity({ ...base, presentation: [{ slot: "services", nativeFallbackHost: "generated" }] });
+  const withDeclaration = evaluateFidelity({ ...base, presentation: [{ presentationSlot: "services", nativeFallbackHost: "generated" }] });
   assert.equal(withDeclaration.structure[0].violation, false, "声明 generated 后不应违规");
   assert.equal(withDeclaration.structure[0].requiresNative, false);
 });
@@ -256,7 +256,7 @@ test("接线后：声明 native 的节走兜底仍判违规（真缺陷）", () 
     sections: ["products"],
     generatedSections: ["products"],
     appliedSections: [],
-    presentation: [{ slot: "products", nativeFallbackHost: "native" }],
+    presentation: [{ presentationSlot: "products", nativeFallbackHost: "native" }],
   });
   assert.equal(report.structure[0].requiresNative, true);
   assert.equal(report.structure[0].violation, true, "声明 native 却走兜底 = 真缺陷");
@@ -269,7 +269,7 @@ test("显式 manifestHosts 优先于 presentation 派生", () => {
     generatedSections: ["services"],
     appliedSections: [],
     manifestHosts: { services: "native" },
-    presentation: [{ slot: "services", nativeFallbackHost: "generated" }],
+    presentation: [{ presentationSlot: "services", nativeFallbackHost: "generated" }],
   });
   assert.equal(report.structure[0].violation, true, "显式传入应优先");
 });

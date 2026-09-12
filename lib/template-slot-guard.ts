@@ -39,7 +39,15 @@ export type TemplateCapabilitySummary = {
    * 例：features=原生icon行,建议4条,max6。
    */
   presentation: Array<{
-    slot: string;
+    /**
+     * 模板原生排版的**业务段名**（裸名，如 `"features"`）。
+     *
+     * ⚠️ 与 DOM 的 `data-sitecraft-slot`（点分路径 `features.items.0.title.zh`）
+     * **不是一个东西**——glossary「同名不同义」第 1 组。
+     * 历史上两者都叫 `slot`，导致校验器按 `${section}.items` 去查裸段名、
+     * 容量门**静默失效**（阶段 1 冲突 #1）。改名即为此。
+     */
+    presentationSlot: string;
     role: string;
     presentAs: string;
     capacityDefault?: number;
@@ -81,7 +89,7 @@ export function buildTemplateCapabilitySummary(templateId: string, locale: Local
       editable: slot.editable,
     })),
     presentation: getTemplatePresentation(templateId).map((block) => ({
-      slot: block.slot,
+      presentationSlot: block.presentationSlot,
       role: block.role,
       presentAs: block.presentAs,
       capacityDefault: block.capacity.default,

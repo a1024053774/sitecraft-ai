@@ -181,7 +181,7 @@ export function contentSlots(
 export function defaultPresentation(): readonly TemplatePresentationBlock[] {
   return [
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_centered",
       presentAs: "首屏：居中大字标题 + 副文（未手写声明，按居中兜底）",
       capacity: { max: 1 },
@@ -189,7 +189,7 @@ export function defaultPresentation(): readonly TemplatePresentationBlock[] {
       anchor: "首个可见 h1（含 header/main 内）",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "关于板块：标题 + 一段企业介绍正文",
       capacity: { max: 1 },
@@ -197,7 +197,7 @@ export function defaultPresentation(): readonly TemplatePresentationBlock[] {
       anchor: "含 about 语义的 section（id/标题定位）",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "card_grid",
       presentAs: "核心优势：卡片网格（未声明原生角色，通用渲染）",
       nativeFallbackHost: "generated",
@@ -206,7 +206,7 @@ export function defaultPresentation(): readonly TemplatePresentationBlock[] {
       anchor: "含 feature 语义的 section 内 card 类元素",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "card_grid",
       presentAs: "服务：卡片网格（未声明原生角色，通用渲染）",
       nativeFallbackHost: "generated",
@@ -215,7 +215,7 @@ export function defaultPresentation(): readonly TemplatePresentationBlock[] {
       anchor: "含 service 语义的 section 内 card 类元素",
     },
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "产品：网格条目（未声明原生角色，通用渲染）",
       capacity: { min: 1, default: 4, max: 1000 },
@@ -223,7 +223,7 @@ export function defaultPresentation(): readonly TemplatePresentationBlock[] {
       anchor: "产品网格区",
     },
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系板块：标题 + 说明 + 联系方式",
       capacity: { max: 1 },

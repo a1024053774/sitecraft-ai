@@ -83,7 +83,7 @@ export type PresentationItemShape = "title_body" | "metric_value_label" | "media
  * 使注入器定位与生成层理解都不依赖会被替换的演示文字。
  */
 export type TemplatePresentationBlock = {
-  slot: string; // about|features|services|products|contact
+  presentationSlot: string; // about|features|services|products|contact
   role: PresentationRole;
   /** 一句话给 AI 看："该板块原生是图标+标题+正文的无边框行，至多 6 条" */
   presentAs: string;

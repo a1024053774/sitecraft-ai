@@ -219,13 +219,13 @@ export function extractSectionAwareness(rawContent: unknown): SectionAwarenessDe
 export function reconcileSectionUnderstanding(args: {
   sections: string[];
   ops: readonly unknown[];
-  presentation?: Array<{ slot: string; role?: string; capacityMax?: number }>;
+  presentation?: Array<{ presentationSlot: string; role?: string; capacityMax?: number }>;
   declarations?: SectionAwarenessDeclaration[];
   hiddenSections?: string[];
   localFallback?: boolean;
 }): SectionUnderstandingReport[] {
   const hidden = new Set(args.hiddenSections ?? []);
-  const presentationBySlot = new Map((args.presentation ?? []).map((p) => [p.slot, p]));
+  const presentationBySlot = new Map((args.presentation ?? []).map((p) => [p.presentationSlot, p]));
   const asRecord = (value: unknown): Record<string, unknown> =>
     value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 

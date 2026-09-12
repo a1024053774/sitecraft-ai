@@ -71,7 +71,7 @@ function toPresentation(
 ): TemplatePresentationBlock[] | undefined {
   if (!declared?.length) return undefined;
   return declared.map((block) => ({
-    slot: block.slot,
+    presentationSlot: block.presentationSlot,
     role: block.role as TemplatePresentationBlock["role"],
     presentAs: block.presentAs,
     capacity: block.capacity,

@@ -16,7 +16,7 @@ export const landwindManifest: TemplateManifest = {
   nonContentSlots: NON_CONTENT_SLOTS,
   presentation: [
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_split_image",
       presentAs: "首屏：左主标题+说明+按钮、右产品/场景图（Flowbite 左右分栏 hero）。标题用一句话产品/能力主张，说明两句内。",
       capacity: { max: 1 },
@@ -24,7 +24,7 @@ export const landwindManifest: TemplateManifest = {
       anchor: "含 h1 的首个 section（bg-gray-50 或 bg-white 且右侧含 img）",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "关于：沿用原生图文分栏（h2+p+勾选列），分栏首行承载企业简介一句话。",
       capacity: { max: 1 },
@@ -32,7 +32,7 @@ export const landwindManifest: TemplateManifest = {
       anchor: "lg:grid-cols-2 且含 h2+ul 的分栏",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "split_text_media",
       presentAs: "核心价值：原生第 1 组图文分栏（标题+说明+勾选列 li>span 短句）。每条一行价值点，建议 2-3 条（勾选列原生 3 点），不必为凑数加卡。",
       capacity: { min: 2, default: 3, max: 3 },
@@ -40,7 +40,7 @@ export const landwindManifest: TemplateManifest = {
       anchor: "lg:grid-cols-2 分栏行 0 内 ul[role=list]>li>span",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "split_text_media",
       presentAs: "服务能力：原生第 2 组图文分栏（标题+说明+勾选列 li>span 短句）。建议 2-3 条（原生 5 点容量），写具体服务条目短句。",
       capacity: { min: 2, default: 3, max: 5 },
@@ -48,7 +48,7 @@ export const landwindManifest: TemplateManifest = {
       anchor: "lg:grid-cols-2 分栏行 1 内 ul[role=list]>li>span",
     },
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "产品中心：无原生产品卡位，由通用产品网格承载（SKU+简介+图）。",
       nativeFallbackHost: "generated",
@@ -57,7 +57,7 @@ export const landwindManifest: TemplateManifest = {
       anchor: "通用生成产品网格",
     },
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系板块：无原生联系区，由通用生成区承载（标题+正文+邮箱/电话/地址）。",
       nativeFallbackHost: "generated",

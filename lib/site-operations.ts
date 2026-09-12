@@ -771,7 +771,7 @@ const ALLOWED_OPS_BY_SCOPE: Readonly<Record<GenerationOpScope, ReadonlySet<SiteO
 
 export type GenerationCapacityContext = {
   /** 模板各板块的原生容量（来自 TemplateCapabilitySummary.presentation） */
-  presentation: readonly { slot: string; capacityMax: number }[];
+  presentation: readonly { presentationSlot: string; capacityMax: number }[];
   /** 基准草稿的现有条数（容量校验以此为起点做净增投影） */
   baseCounts: Record<"features" | "services", number>;
 };
@@ -826,7 +826,7 @@ export function validateGenerationOperations(
        * `update_card` 的越界由另一条路径拦（比对草稿真实条数），那条一直是好的——
        * 别在这里顺手改坏它。
        */
-      const block = capacity.presentation.find((entry) => entry.slot === section);
+      const block = capacity.presentation.find((entry) => entry.presentationSlot === section);
       if (block && projected[section] > block.capacityMax) overCapacity.add(section);
     }
   }
@@ -844,7 +844,7 @@ export function validateGenerationOperations(
     }
     if (operation.op === "add_card" && overCapacity.has(operation.section)) {
       // 键同样是裸段名（与上方 overCapacity 的构建口径一致）。
-      const block = capacity?.presentation.find((entry) => entry.slot === operation.section);
+      const block = capacity?.presentation.find((entry) => entry.presentationSlot === operation.section);
       const projectedCount = isCapacitySection(operation.section) ? projected[operation.section] : 0;
       rejected.push(`${operation.section} 超出模板原生容量（至多 ${block?.capacityMax ?? "?"} 条，当前将达 ${projectedCount} 条）`);
       return false;

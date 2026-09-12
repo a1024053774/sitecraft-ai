@@ -153,7 +153,7 @@ test("content-site manifests declare native collection capacities", () => {
   for (const [templateId, expectation] of Object.entries(expected)) {
     const manifest = getTemplateManifest(templateId);
     assert.ok(manifest, templateId);
-    const block = manifest.presentation?.find((item) => item.slot === "features");
+    const block = manifest.presentation?.find((item) => item.presentationSlot === "features");
     assert.ok(block, templateId + ":features presentation");
     assert.equal(block.capacity.max, expectation.max, templateId + ":features capacity");
     assert.equal(block.role, expectation.role, templateId + ":features role");

@@ -212,10 +212,10 @@ export function buildSourceMaterialBlock(material: string | undefined, budget = 
 
 /** 从模板 presentation 提炼"每板块能装几条、什么形态"的容量提示，替换写死的"前3张卡片"。 */
 export function buildPresentationCapacityText(capabilitySummary: TemplateCapabilitySummary, sections: string[]): string {
-  const relevant = capabilitySummary.presentation.filter((p) => sections.includes(p.slot));
+  const relevant = capabilitySummary.presentation.filter((p) => sections.includes(p.presentationSlot));
   if (!relevant.length) return "";
   return relevant
-    .map((p) => `${p.slot}:${p.capacityDefault ? `约${p.capacityDefault}条` : ""}${p.capacityMax ? `(至多${p.capacityMax}条)` : ""}${p.hideUnlessFilled ? "，无可靠事实则该块隐藏" : ""}`)
+    .map((p) => `${p.presentationSlot}:${p.capacityDefault ? `约${p.capacityDefault}条` : ""}${p.capacityMax ? `(至多${p.capacityMax}条)` : ""}${p.hideUnlessFilled ? "，无可靠事实则该块隐藏" : ""}`)
     .join("；");
 }
 
@@ -402,7 +402,7 @@ function buildFastFallbackOutcome(
     ),
     new Set(allTemplates().map((template) => template.id)),
     {
-      presentation: getTemplatePresentation(appliedTemplateId).map((p) => ({ slot: p.slot, capacityMax: p.capacity.max })),
+      presentation: getTemplatePresentation(appliedTemplateId).map((p) => ({ presentationSlot: p.presentationSlot, capacityMax: p.capacity.max })),
       baseCounts: {
         features: plan.baseDraft.content.features.items.length,
         services: plan.baseDraft.content.services.items.length,
@@ -487,21 +487,27 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
   const traceBatchAdopted = (batch: TraceBatchId, result: DraftOpsResult, capability: TemplateCapabilitySummary) => {
     if (!result.ok) return;
     if (result.awareness?.length) declarations.push(...result.awareness);
-    const presentation = capability.presentation.map((p) => ({ slot: p.slot, role: p.role, capacityMax: p.capacityMax }));
+    const presentation = capability.presentation.map((p) => ({ presentationSlot: p.presentationSlot, role: p.role, capacityMax: p.capacityMax }));
+    /**
+     * `slotMap` 是**追踪日志的字段格式**（见 `generation-trace.ts` 的 `batch.adopted`），
+     * 不是契约字段——这里保留 `slot` 键名不改，避免新旧 trace 格式不一致。
+     * 语义上它存的就是 `presentationSlot`（模板段名）。
+     */
     const slotMap = presentation
-      .filter((p) => plan.scope.sections.includes(p.slot) || p.slot === "hero")
+      .filter((p) => plan.scope.sections.includes(p.presentationSlot) || p.presentationSlot === "hero")
       .map((p) => {
+        const section = p.presentationSlot;
         const ops = result.operations.filter((op) => {
-          if (op.op === "set_text") return op.target.startsWith(`${p.slot}.`);
-          if ("section" in op) return op.section === p.slot;
+          if (op.op === "set_text") return op.target.startsWith(`${section}.`);
+          if ("section" in op) return op.section === section;
           return false;
         });
-        const itemCount = result.operations.filter((op) => "section" in op && op.section === p.slot).length;
+        const itemCount = result.operations.filter((op) => "section" in op && op.section === section).length;
         return {
-          slot: p.slot,
+          slot: section,
           opType: [...new Set(ops.map((op) => op.op))].join("|") || "none",
           targetCount: ops.length,
-          displayTargets: ops.map((op) => ("target" in op ? String(op.target) : `${p.slot}.items`)),
+          displayTargets: ops.map((op) => ("target" in op ? String(op.target) : `${section}.items`)),
           presentationRole: p.role,
           capacityMax: p.capacityMax,
           withinCapacity: itemCount <= p.capacityMax,
@@ -778,7 +784,7 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
   // 校验（白名单 + 长度 + 模板原生容量，生成场景专用：set_template 只查白名单，不要求"明确换模板"）
   const templateIds = new Set(allTemplates().map((t) => t.id));
   const validated = validateGenerationOperations(ops, templateIds, {
-    presentation: batchBSummary.presentation.map((p) => ({ slot: p.slot, capacityMax: p.capacityMax })),
+    presentation: batchBSummary.presentation.map((p) => ({ presentationSlot: p.presentationSlot, capacityMax: p.capacityMax })),
     baseCounts: {
       features: plan.baseDraft.content.features.items.length,
       services: plan.baseDraft.content.services.items.length,
@@ -789,7 +795,7 @@ export async function generateDraftOperations(args: GenerateDraftArgs): Promise<
   const sectionUnderstanding = reconcileSectionUnderstanding({
     sections: plan.scope.sections,
     ops: validated.operations,
-    presentation: batchBSummary.presentation.map((p) => ({ slot: p.slot, role: p.role, capacityMax: p.capacityMax })),
+    presentation: batchBSummary.presentation.map((p) => ({ presentationSlot: p.presentationSlot, role: p.role, capacityMax: p.capacityMax })),
     declarations,
     hiddenSections: args.hiddenSections,
   });
@@ -888,7 +894,7 @@ export async function regenerateSectionOperations(args: RegenerateSectionArgs): 
   // 校验（白名单 + 长度 + 容量，与生成场景一致；mode=all 才允许增删卡）
   const templateIds = new Set(allTemplates().map((t) => t.id));
   const validated = validateGenerationOperations(result.operations, templateIds, {
-    presentation: getTemplatePresentation(args.baseDraft.templateId).map((p) => ({ slot: p.slot, capacityMax: p.capacity.max })),
+    presentation: getTemplatePresentation(args.baseDraft.templateId).map((p) => ({ presentationSlot: p.presentationSlot, capacityMax: p.capacity.max })),
     baseCounts: {
       features: args.baseDraft.content.features.items.length,
       services: args.baseDraft.content.services.items.length,

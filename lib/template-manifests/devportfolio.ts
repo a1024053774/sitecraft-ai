@@ -17,7 +17,7 @@ export const devportfolioManifest: TemplateManifest = {
   }),
   presentation: [
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "项目作品：网格条目（#projects，图 + 名称 + 简介）。",
       capacity: { min: 1, default: 6, max: 1000 },
@@ -25,7 +25,7 @@ export const devportfolioManifest: TemplateManifest = {
       anchor: "section#projects",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "card_grid",
       presentAs: "技能/经历：作品集无服务区，由通用区承载。建议 2-4 条。",
       nativeFallbackHost: "generated",
@@ -34,7 +34,7 @@ export const devportfolioManifest: TemplateManifest = {
       anchor: "通用生成区",
     },
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_split_image",
       presentAs: "首屏：头像/图 + 姓名 + 一句话介绍（#hero 区）。",
       capacity: { max: 1 },
@@ -42,7 +42,7 @@ export const devportfolioManifest: TemplateManifest = {
       anchor: "section#hero",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "个人简介：标题与正文",
       capacity: { max: 1 },
@@ -50,7 +50,7 @@ export const devportfolioManifest: TemplateManifest = {
       anchor: "#about",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "product_grid",
       presentAs: "作品项目卡网格，最多 6 条",
       capacity: { min: 1, default: 4, max: 6 },
@@ -58,7 +58,7 @@ export const devportfolioManifest: TemplateManifest = {
       anchor: "#projects 内 .group.relative 项目卡",
     },
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系区块：标题与说明",
       capacity: { max: 1 },

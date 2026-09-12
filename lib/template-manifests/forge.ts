@@ -22,7 +22,7 @@ export const forgeManifest: TemplateManifest = {
   nonContentSlots: NON_CONTENT_SLOTS,
   presentation: [
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_centered",
       presentAs: "首屏：整宽背景图(heroimg) + 居中大字标题 + 居中副文。标题一句话主张 ≤12 字、副文一两句；原生无按钮，注入主 CTA 指向联系区。",
       capacity: { max: 1 },
@@ -30,7 +30,7 @@ export const forgeManifest: TemplateManifest = {
       anchor: "main > section 首个（h1[data-testid=hero-text] + h2[data-testid=intro-text]）",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "split_text_media",
       presentAs: "核心方案：原生第 1 组图文分栏（work1 图 + 右侧标题/说明段 + 圆点列表 ul>li）。列表条目只呈现 features 标题（无卡正文位），写成一词价值点；建议 4-6 条，正文信息让位于列表简洁。",
       capacity: { min: 1, default: 6, max: 12 },
@@ -38,7 +38,7 @@ export const forgeManifest: TemplateManifest = {
       anchor: "id=features 分栏内 ul>li",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "关于：原生第 2 组图文分栏（work2 图 + 右侧标题 + 一段简介）。公司简介一两句，标题可用公司/品牌名。",
       capacity: { max: 1 },
@@ -46,7 +46,7 @@ export const forgeManifest: TemplateManifest = {
       anchor: "id=about 分栏",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "card_grid",
       nativeFallbackHost: "generated",
       presentAs: "服务支持：原生深色服务卡带（3 张 .h-96 圆图卡 + p 标题 + p 说明），按条数显示、超出卡位补条；建议 2-3 条，标题/说明各一句。",
@@ -55,7 +55,7 @@ export const forgeManifest: TemplateManifest = {
       anchor: "mx-auto mt-60 服务卡带（.h-96 卡）",
     },
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "产品中心：无原生产品卡位，由通用产品网格承载（SKU+名称+简介+图）。",
       nativeFallbackHost: "generated",
@@ -64,7 +64,7 @@ export const forgeManifest: TemplateManifest = {
       anchor: "通用生成产品网格",
     },
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系板块：原生底部 CTA 深色渐变带承载（标题+正文+email/phone/address），背景图由适配器换成深色可读带。",
       capacity: { max: 1 },

@@ -60,9 +60,9 @@ test("extractSectionAwareness: 缺字段/畸形一律降级为空，不抛错", 
 // ===== 逐节对账（红队修正后的硬指标） =====
 
 const presentation = [
-  { slot: "features", role: "icon_row", capacityMax: 6 },
-  { slot: "services", role: "icon_row", capacityMax: 4 },
-  { slot: "about", role: "split_text_media", capacityMax: 1 },
+  { presentationSlot: "features", role: "icon_row", capacityMax: 6 },
+  { presentationSlot: "services", role: "icon_row", capacityMax: 4 },
+  { presentationSlot: "about", role: "split_text_media", capacityMax: 1 },
 ];
 
 test("reconcile: 声明 + 操作贴合容量 → declared_ok", () => {

@@ -21,7 +21,7 @@ export const screwfastManifest: TemplateManifest = {
   }),
   presentation: [
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_split_image",
       presentAs: "首屏：左右图文分栏（左：主标题+说明+按钮；右：产品图）。标题要有产品/能力主张，说明两句内讲清范围与交付。",
       capacity: { max: 1 },
@@ -29,7 +29,7 @@ export const screwfastManifest: TemplateManifest = {
       anchor: "md:grid-cols-2 且含 h1 的首个 section",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "关于：一段企业介绍正文（screwfast 原生无专门 about 区，由通用 about 生成兜底）",
       nativeFallbackHost: "generated",
@@ -38,7 +38,7 @@ export const screwfastManifest: TemplateManifest = {
       anchor: "含 about/company 语义的 section 或无则通用",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "icon_row",
       presentAs: "核心优势：图横幅 + 左侧标题栏 + 右侧图标+标题+正文的 2 列无边框行（icon row，非卡片）。建议 4 条（最多 6），每条标题简短。",
       capacity: { min: 2, default: 4, max: 6 },
@@ -46,7 +46,7 @@ export const screwfastManifest: TemplateManifest = {
       anchor: "含 md:grid-cols-3（左 1 栏标题 + 右 sm:grid-cols-2 icon 行）的 section；用 sm:grid-cols-2 且含 svg 的无边框行定位",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "icon_row",
       presentAs: "服务能力：图标+标题+正文的无边框行（screwfast 用 icon row 而非卡片）。建议 3-4 条。",
       capacity: { min: 2, default: 3, max: 6 },
@@ -57,7 +57,7 @@ export const screwfastManifest: TemplateManifest = {
       nativeFallbackHost: "generated",
     },
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "产品中心：参数化产品条目网格（SKU/材料/规格/应用）。由通用产品网格承载。",
       nativeFallbackHost: "generated",
@@ -66,7 +66,7 @@ export const screwfastManifest: TemplateManifest = {
       anchor: "通用 renderAdditionalProducts 产品网格",
     },
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系：标题 + 说明 + 邮箱/电话/地址 + 询盘入口。",
       capacity: { max: 1 },

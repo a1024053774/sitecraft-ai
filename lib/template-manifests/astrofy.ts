@@ -15,7 +15,7 @@ export const astrofyManifest: TemplateManifest = {
     }),
   presentation: [
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "作品/项目：网格条目（#projects/#store，图 + 名称 + 简介）。",
       capacity: { min: 1, default: 6, max: 1000 },
@@ -23,7 +23,7 @@ export const astrofyManifest: TemplateManifest = {
       anchor: "id=projects 或 id=store 区块",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "card_grid",
       nativeFallbackHost: "generated",
       presentAs: "服务：作品集的服务列表（#services）。建议 2-4 条，每条一个服务方向 + 一句说明。",
@@ -32,7 +32,7 @@ export const astrofyManifest: TemplateManifest = {
       anchor: "id=services 区块",
     },
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_centered",
       presentAs: "首屏：作品集标题 + 一句自我介绍（首页 #home 区）。写一句主张 + 一句简介。",
       capacity: { max: 1 },
@@ -40,7 +40,7 @@ export const astrofyManifest: TemplateManifest = {
       anchor: "id=home 区块内的标题",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "个人简介：标题与正文",
       capacity: { max: 1 },
@@ -48,7 +48,7 @@ export const astrofyManifest: TemplateManifest = {
       anchor: "Astrofy intro 区块",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "product_grid",
       presentAs: "作品项目卡流，最多 6 条",
       capacity: { min: 1, default: 4, max: 6 },
@@ -56,7 +56,7 @@ export const astrofyManifest: TemplateManifest = {
       anchor: "main 内原生项目卡",
     },
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系区块：标题与说明",
       capacity: { max: 1 },

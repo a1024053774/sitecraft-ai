@@ -581,8 +581,8 @@ export async function requestDraftOperations(args: DraftOpsArgs): Promise<DraftO
     ?? buildTemplateCapabilitySummary(args.templateId, args.scope.siteLanguage ?? "zh");
   const presentationText = capabilitySummary.presentation.length
     ? capabilitySummary.presentation
-        .filter((p) => args.scope.sections.includes(p.slot) || p.slot === "hero" || p.slot === "about")
-        .map((p) => `${p.slot}=role:${p.role}|${p.presentAs}${p.capacityDefault ? `（建议${p.capacityDefault}条，最多${p.capacityMax}条）` : ""}${p.hideUnlessFilled ? "；无可靠事实则该块隐藏" : ""}`)
+        .filter((p) => args.scope.sections.includes(p.presentationSlot) || p.presentationSlot === "hero" || p.presentationSlot === "about")
+        .map((p) => `${p.presentationSlot}=role:${p.role}|${p.presentAs}${p.capacityDefault ? `（建议${p.capacityDefault}条，最多${p.capacityMax}条）` : ""}${p.hideUnlessFilled ? "；无可靠事实则该块隐藏" : ""}`)
         .join("\n")
     : "";
   const capabilityText = [

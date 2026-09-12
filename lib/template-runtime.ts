@@ -51,7 +51,7 @@ export type RuntimeTemplateSlot = {
 };
 
 export type RuntimeTemplatePresentation = {
-  slot: string;
+  presentationSlot: string;
   role: string;
   presentAs: string;
   capacity: { min?: number; default?: number; max: number };

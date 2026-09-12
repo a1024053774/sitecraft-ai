@@ -327,12 +327,12 @@ export type FidelityReport = {
  * 显式 `nativeFallbackHost` 优先级更高，可覆盖该推导。
  */
 export function manifestHostsFor(
-  presentation: readonly { slot: string; role?: string; nativeFallbackHost?: "native" | "generated" }[],
+  presentation: readonly { presentationSlot: string; role?: string; nativeFallbackHost?: "native" | "generated" }[],
 ): Record<string, "native" | "generated"> {
   const hosts: Record<string, "native" | "generated"> = {};
   for (const block of presentation) {
-    if (block.nativeFallbackHost) hosts[block.slot] = block.nativeFallbackHost;
-    else if (block.role === "card_grid") hosts[block.slot] = "generated";
+    if (block.nativeFallbackHost) hosts[block.presentationSlot] = block.nativeFallbackHost;
+    else if (block.role === "card_grid") hosts[block.presentationSlot] = "generated";
   }
   return hosts;
 }
@@ -352,7 +352,7 @@ export function evaluateFidelity(args: {
    * 可选：模板的 presentation 数组。传入后自动从中派生 `manifestHosts`
    * （与显式传 manifestHosts 等价，后者优先）。
    */
-  presentation?: readonly { slot: string; role?: string; nativeFallbackHost?: "native" | "generated" }[];
+  presentation?: readonly { presentationSlot: string; role?: string; nativeFallbackHost?: "native" | "generated" }[];
 }): FidelityReport {
   const residualBlocks = detectResidualBlocks(args.visibleText);
   const assetIssues = args.html ? detectAssetIssues(args.html, args.templateId) : [];

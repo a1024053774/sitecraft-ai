@@ -17,7 +17,7 @@ export const signalManifest: TemplateManifest = {
   nonContentSlots: NON_CONTENT_SLOTS,
   presentation: [
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_centered",
       presentAs: "首屏：单栏居中大标题 + 一句副文 + 主按钮（右侧 SaaS dashboard mock / GitHub·Twitter 按钮已删）。标题一句话主张，副文一句到两句。",
       capacity: { max: 1 },
@@ -25,7 +25,7 @@ export const signalManifest: TemplateManifest = {
       anchor: "body 直系 hero 块 div.site-container（内含 h1，标题由 animated-text 拆词，适配层先归并为单行文本）",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "公司介绍：首页无原生 about 区（该模板是产品落地页，about 在子页），由通用文本区承载；建议一段 2-4 句公司简介。",
       nativeFallbackHost: "generated",
@@ -34,7 +34,7 @@ export const signalManifest: TemplateManifest = {
       anchor: "通用生成 about 区",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "card_grid",
       nativeFallbackHost: "generated",
       presentAs: "核心优势：原生 6 图标卡网格（lg:grid-cols-3，每卡 img 图标 + h3 标题 + p 正文），图标保留；恰好 6 条填满，每卡标题简短、正文一句。",
@@ -43,7 +43,7 @@ export const signalManifest: TemplateManifest = {
       anchor: "「Everything you need」6 卡区（section，标题 .animated-text；内层卡 div > img + h3 + p）",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "card_grid",
       presentAs: "服务支持：原生无独立服务区，由通用服务卡区承载；建议 2-3 条。",
       nativeFallbackHost: "generated",
@@ -52,7 +52,7 @@ export const signalManifest: TemplateManifest = {
       anchor: "通用生成服务区",
     },
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "产品中心：无原生产品卡位，由通用产品网格承载（SKU+简介+图，浅色面板 3 列）。",
       nativeFallbackHost: "generated",
@@ -61,7 +61,7 @@ export const signalManifest: TemplateManifest = {
       anchor: "通用生成产品网格",
     },
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系板块：无原生联系区，由通用生成区承载（标题+正文+邮箱/电话/地址）。",
       nativeFallbackHost: "generated",

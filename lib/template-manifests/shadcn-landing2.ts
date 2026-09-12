@@ -22,7 +22,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
   nonContentSlots: NON_CONTENT_SLOTS,
   presentation: [
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_centered",
       presentAs: "首屏：居中文本（主标题 + 一句说明 + 单一主按钮），无配图（底部产品大图 mock 已按企业站删除）。标题用一句话产品/能力主张。",
       capacity: { max: 1 },
@@ -30,7 +30,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
       anchor: "含 h1 的首个 section（container 居中文本）",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "关于：企业介绍单块（标题 + 一段简介，无卡片），由通用生成承载于 #about（首屏之后）。",
       nativeFallbackHost: "generated",
@@ -39,7 +39,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
       anchor: "id=about 的 section（data-sitecraft-generated-content=about）",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "card_grid",
       nativeFallbackHost: "generated",
       presentAs: "核心方案：原生 #features 浅色 icon-grid，6 张图标+标题卡（正文由适配补一行小字）。每条写完整价值点，至多 6 条。",
@@ -48,7 +48,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
       anchor: "#features 内 div.grid 下的 6 个圆角卡（bg-background border-0 shadow-none）",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "card_grid",
       nativeFallbackHost: "generated",
       presentAs: "服务支持：原生 #services 浅色卡（h3+p，边框卡 bg-muted/60），至多 4 条，写具体服务条目。",
@@ -57,7 +57,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
       anchor: "#services 内含卡的 grid（2 列、w-[60%]）下的圆角卡",
     },
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "产品中心：无原生产品卡位，由通用产品网格承载（SKU+简介+图），安置于 #products（服务之后、联系之前）。",
       nativeFallbackHost: "generated",
@@ -66,7 +66,7 @@ export const shadcnLanding2Manifest: TemplateManifest = {
       anchor: "id=products 的 section（data-sitecraft-generated-products）",
     },
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系板块：原生 #contact 左右分栏——左侧标题+说明+email/电话/地址（已清 demo 联系行），右侧询盘表单（真实 lead flow）。",
       capacity: { max: 1 },

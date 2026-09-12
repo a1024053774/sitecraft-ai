@@ -15,7 +15,7 @@ export const yukinaManifest: TemplateManifest = {
     }),
   presentation: [
     {
-      slot: "contact",
+      presentationSlot: "contact",
       role: "split_text_media",
       presentAs: "联系：博客无联系区，由通用区承载。",
       nativeFallbackHost: "generated",
@@ -24,7 +24,7 @@ export const yukinaManifest: TemplateManifest = {
       anchor: "通用生成联系区",
     },
     {
-      slot: "products",
+      presentationSlot: "products",
       role: "product_grid",
       presentAs: "文章列表：博客文章网格。",
       nativeFallbackHost: "generated",
@@ -33,7 +33,7 @@ export const yukinaManifest: TemplateManifest = {
       anchor: "通用生成区",
     },
     {
-      slot: "services",
+      presentationSlot: "services",
       role: "card_grid",
       presentAs: "专题/栏目：博客无服务区，由通用区承载。建议 2-4 条。",
       nativeFallbackHost: "generated",
@@ -42,7 +42,7 @@ export const yukinaManifest: TemplateManifest = {
       anchor: "通用生成区",
     },
     {
-      slot: "hero",
+      presentationSlot: "hero",
       role: "hero_centered",
       presentAs: "首屏：博客/杂志标题 + 一句副文。",
       capacity: { max: 1 },
@@ -50,7 +50,7 @@ export const yukinaManifest: TemplateManifest = {
       anchor: "首个可见 h1",
     },
     {
-      slot: "about",
+      presentationSlot: "about",
       role: "split_text_media",
       presentAs: "博客简介：标题与正文",
       capacity: { max: 1 },
@@ -58,7 +58,7 @@ export const yukinaManifest: TemplateManifest = {
       anchor: "首页轮播后的简介区",
     },
     {
-      slot: "features",
+      presentationSlot: "features",
       role: "card_grid",
       nativeFallbackHost: "generated",
       presentAs: "文章卡流，最多 8 条",
