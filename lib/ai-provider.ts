@@ -2,11 +2,13 @@ import { allTemplates, getTemplate, type SiteDraft } from "./site-model.ts";
 import { buildSourceMaterialBlock } from "./site-generator.ts";
 import {
   aiChangeSchema,
+  cardSections,
   textTargets,
   validateAIOperations,
   type AIChange,
   type SiteOperation,
 } from "./site-operations.ts";
+import { sectionKeys } from "./site-document.ts";
 import { buildDraftIndex } from "./draft-index.ts";
 import { GENERATION_BUDGET, getRemainingStageTimeout } from "./generation-budget.ts";
 import { withLimitedRetry, type RetryTaskResult } from "./ai-retry.ts";
@@ -304,12 +306,12 @@ function operationInstructions(draft: SiteDraft) {
 允许的操作：
 1. set_text: {"op":"set_text","target":目标,"locale":"zh|en","value":"新文本"}
    目标白名单：${textTargets.join(", ")}${navHint}
-2. update_card: {"op":"update_card","section":"features|services","index":从0开始,"itemId":"优先使用当前草稿中的稳定 id","locale":"zh|en","title":"可选","body":"可选","expectedValue":"可选，填写被修改字段的当前原文"}
-3. add_card: {"op":"add_card","section":"features|services","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
-4. remove_card: {"op":"remove_card","section":"features|services","itemId":"现有id"}
+2. update_card: {"op":"update_card","section":"${cardSections.join("|")}","index":从0开始,"itemId":"优先使用当前草稿中的稳定 id","locale":"zh|en","title":"可选","body":"可选","expectedValue":"可选，填写被修改字段的当前原文"}
+3. add_card: {"op":"add_card","section":"${cardSections.join("|")}","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
+4. remove_card: {"op":"remove_card","section":"${cardSections.join("|")}","itemId":"现有id"}
 5. update_product: {"op":"update_product","sku":"现有SKU","locale":"zh|en","name":"可选","summary":"可选","category":"可选","expectedValue":"可选，填写被修改字段的当前原文"}
-6. set_section_visibility: {"op":"set_section_visibility","section":"about|features|services|products|contact","visible":true|false}
-7. reorder_sections: {"op":"reorder_sections","order":["about","features","services","products","contact"]}，必须包含全部五项且不重复
+6. set_section_visibility: {"op":"set_section_visibility","section":"${sectionKeys.join("|")}","visible":true|false}
+7. reorder_sections: {"op":"reorder_sections","order":[${sectionKeys.map((key) => '"' + key + '"').join(",")}]}，必须包含全部 ${sectionKeys.length} 项且不重复
 8. set_template: {"op":"set_template","templateId":"白名单ID"}，只有用户明确要求换模板时才允许。`;
 }
 
@@ -596,10 +598,10 @@ export async function requestDraftOperations(args: DraftOpsArgs): Promise<DraftO
   const system = `你是企业官网初稿编辑器。用户已经选择了现有模板，你只为该模板生成内容，不从零生成模板，也不改写模板的 HTML、CSS 或响应式骨架。只返回 JSON：{"summary":"中文摘要","operations":[...],"templateAwareness":[...]}。
 模板的 HTML/CSS/栅格/背景图/配色/字体是冻结骨架：你的全部产出只能是落在模板各原生节内的文字内容与条项。不存在任何可改版式/换肤/造板块/换图的操作——尤其禁止"只把首屏或某板块的背景图/主视觉换掉当作完成该板块"；hero 等视觉资产一律由模板原样呈现，你只写文字。
 只允许使用以下操作，且只改列出的板块：
-1. set_text: {"op":"set_text","target":"siteName|companyName|industry|goal|hero.title|hero.subtitle|hero.cta|about.title|about.body|features.title|features.intro|services.title|services.intro|products.title|products.intro|contact.title|contact.body","locale":"zh|en","value":"新文本"}
-2. update_card: {"op":"update_card","section":"features|services","index":0基,"locale":"zh|en","title":"可选","body":"可选"}
+1. set_text: {"op":"set_text","target":"${textTargets.join("|")}","locale":"zh|en","value":"新文本"}
+2. update_card: {"op":"update_card","section":"${cardSections.join("|")}","index":0基,"locale":"zh|en","title":"可选","body":"可选"}
 3. set_template: {"op":"set_template","templateId":"${args.templateId}"}
-4. set_section_visibility: {"op":"set_section_visibility","section":"about|features|services|products|contact","visible":false}
+4. set_section_visibility: {"op":"set_section_visibility","section":"${sectionKeys.join("|")}","visible":false}
 5. update_product: {"op":"update_product","sku":"现有SKU","locale":"zh|en","name":"可选","summary":"可选"}
 
 本轮只改这些板块：${sectionsText}${bilingual}。
