@@ -93,11 +93,50 @@
 | T-4 | `template-catalog.ts` 的 `guardrails` 数值规则未逐条核实 | **未做** | 后续批次 |
 | T-5 | `presentationSlot` 注释手抄段名枚举 | **已完成**（`90dee19`） | 关闭 |
 | T-6 | `applySiteOperations` 无入参校验 | **窄修已完成**（`46eb29f`）；**宽修未做** | 宽修另开批次 |
-| T-7 | e2e 测试进程与 `next start` **连不同的库**（脑裂） | **未做**（阶段 4 新发现，见下） | 待用户排期 |
+| T-7 | e2e 测试进程与 `next start` **连不同的库**（脑裂） | **已完成**（`81220d5`） | 关闭 |
+| T-8 | 「e2e 全走 HTTP」（不再直接 import `lib/`） | **有意暂缓·2026-09-12 用户裁决** | 长期项 |
+| T-9 | e2e 文件后端模式不可达 | **已正式降级为「仅 PG 后端」** | 关闭（降级） |
 
-**后续批次预告**（本轮明确不做）：宽修（`applySiteOperations` 入口全面校验）、T-3、T-4、T-7。
+**已知·有意暂缓（2026-09-12 用户裁决：本轮治理到「收口」为止，不追求门禁全建齐）**：
+宽修（`applySiteOperations` 入口全面校验）· T-1 · T-3 · T-4 · T-8
+· 债务文档阶段 B1（pre-commit）· B3（同值检测）· B4（gate-inventory）· 阶段 C
+· Recipe 接 analyze · 配方 id/name 一致。
 
-### T-7 · e2e 测试进程与 `next start` **连不同的库**（阶段 4 收口时新发现）
+### T-7 · e2e 测试进程与 `next start` **连不同的库**（**已完成**）
+
+**处置**（commit `81220d5`）：在 `playwright.config.ts` 里把测试进程的环境与
+`serve.mjs` 给被测进程的那一份**同源化**——加载 `.env.local`→`.env` 补齐非连接类配置，
+再用 `resolveServerEnv()` **覆盖连接串**，让两边指向同一个库；并加同库断言，
+不一致就**当场报错**（而不是让断言以 UI 症状失败）。
+
+⚠️ **第一次修是错的，实测才暴露**：只加载 `.env` 会让测试进程连里面的 5432、
+被测服务连 compose 的 5433 → **修完仍然不同库**（`connect ECONNREFUSED 127.0.0.1:5432`）。
+教训：**连接串必须由"e2e 实际起了哪个库"来定，不能由 `.env` 来定。**
+
+**效果**：`workspace.spec.ts` 17/17 全绿；全套 e2e 由 96/10/2 → **99/7/2**，
+差集恰为 T-7 相关的 3 条。
+
+### T-9 · e2e 文件后端模式**不可达** → 正式降级为「仅 PG 后端」
+
+三条路都试过、都失败，且**都不在 e2e 红线内可解**：
+
+| 尝试 | 结果 |
+|---|---|
+| ① `next start` + env `NODE_ENV=development` | 被 `next start` 覆盖 → 被测服务 driver 仍是 `postgres` |
+| ② `next start --require <preload>` 钉住 NODE_ENV | `next` CLI 不认该参数：`unknown option '--require'` |
+| ③ `next dev` | 撞 `.next/dev/lock`：`Another next dev server is already running`（PID 26872，用户在跑的开发服务器） |
+
+**根因**：三个 store 的判定是 `SITE_STORE === "postgres" || NODE_ENV === "production"`，
+而 `next start` 必然把 `NODE_ENV` 设成 `production` → **文件后端在"生产形态"下不可达**。
+绕开它要么改 `lib/`（三处判定或生产守卫），要么改 `next.config.*`（配独立 `distDir`
+才能与在跑的 dev server 共存）——两者都在本批红线之外。
+
+**处置**：门禁 3 **正式降级为「仅 PG 后端」**，不留半截。
+`op-rename-roundtrip.spec.ts` 在文件模式下**显式 skip 并打印原因**（不是静默跳过）。
+文件后端的往返覆盖由单元级承担：`tests/site-store-op-rename.test.ts`
+（真实文件读写 + 归一化 + undo 重放 + 新名落盘）。
+
+### T-7 · 原登记（历史，见上方「已完成」）
 
 **现象**（实测，不是推理）：`e2e/specs/workspace.spec.ts:6` 直接
 `import { commitOperations } from "../../lib/site-store"`，在 **Playwright 测试进程**里调用。

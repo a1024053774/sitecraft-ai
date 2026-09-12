@@ -3,7 +3,6 @@ import { createSite, getDraft, putManualOps } from "../helpers/api";
 import { mockAnalyze, mockExecute } from "../helpers/mock-ai";
 import { analyzeAndConfirm } from "../helpers/ui";
 import net from "node:net";
-import fs from "node:fs";
 import path from "node:path";
 import { resolvePostgresPort, resolveStoreBackend } from "../scripts/pg-target.mjs";
 
@@ -42,20 +41,6 @@ import { resolvePostgresPort, resolveStoreBackend } from "../scripts/pg-target.m
 
 const LEGACY_OP = "update_card";
 
-/** 文件后端：直接改站点 JSON 里的 op 名。 */
-function ageFileRecordToLegacy(siteId: string) {
-  const file = path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
-  const record = JSON.parse(fs.readFileSync(file, "utf8"));
-  let aged = 0;
-  for (const changeSet of [...(record.history ?? []), ...(record.future ?? [])]) {
-    for (const op of [...(changeSet.operations ?? []), ...(changeSet.inverseOperations ?? [])]) {
-      if (op.op === "update_item") { op.op = LEGACY_OP; aged += 1; }
-    }
-  }
-  fs.writeFileSync(file, JSON.stringify(record, null, 2), "utf8");
-  return aged;
-}
-
 /** 探一下宿主机端口通不通（决定要不要给"连不上"一个可读原因）。 */
 function portOpen(port: number) {
   return new Promise<boolean>((resolve) => {
@@ -69,32 +54,29 @@ function portOpen(port: number) {
 
 test.describe("阶段 4 · op 改名 + 归一化 端到端往返", () => {
   test("一句话建站 → 生成 → save → 旧名读入 → undo 重放", async ({ page, request }) => {
-    const backend = resolveStoreBackend();
-    if (backend === "file") {
-      /**
-       * ⚠️ **文件后端当前跑不了，且不是本文件能修的**（2026-09-12 实测）。
-       *
-       * `serve.mjs` 用 `next start` 起服务，而 `next start` 会把 `NODE_ENV`
-       * 设为 `production`；三个 store 的判定都是
-       * `SITE_STORE === "postgres" || NODE_ENV === "production"`，
-       * 于是 production **强制走 PG**，`SITE_STORE=file` 覆盖不了。
-       *
-       * 实测错误（不是推断）：
-       * ```
-       * createSite failed: 422 {"error":"DATABASE_URL 未配置，生产环境不会退回本地文件存储。"}
-       * ```
-       * （`lib/postgres.ts:11`，被 `createPostgresSite` → `ensureDatabaseSchema` 触发）
-       *
-       * 解开它有两条路，**都要改 lib/ 或改被测服务形态**，超出本轮 e2e 批次的
-       * 「业务代码与 lib/ 零改动」红线，所以在此**快速失败并说明原因**，
-       * 而不是留下一个 422 让人去猜。
-       */
-      throw new Error(
-        "文件后端模式被阻断：next start 的 NODE_ENV=production 强制 usePostgres=true"
-        + "（lib/site-store.ts:92 等三处），SITE_STORE=file 覆盖不了。"
-        + "详见 docs/plans/2026-09-12-phase4-e2e-report.md 的「文件后端阻断」一节。",
+    /**
+     * **仅 PG 后端**（2026-09-12 用户裁决 2：文件后端模式正式放弃，登记 T-9）。
+     *
+     * 三条路都试过、都失败，且都不在 e2e 红线内可解：
+     *   ① `next start` + `NODE_ENV=development` → 被 next start 覆盖（实测 driver=postgres）
+     *   ② `next start --require <preload>` → next CLI 不认：`unknown option '--require'`
+     *   ③ `next dev` → 撞 `.next/dev/lock`（用户在跑的开发服务器占用）
+     * 根因：三个 store 判定含 `|| NODE_ENV === "production"`，`next start` 必然 production，
+     * 于是文件后端在"生产形态"下不可达。绕开它要改 lib/ 或 next.config.*，两者都越红线。
+     *
+     * ⚠️ 这里**显式 skip 并打印原因**，不是静默跳过（用户门禁 4 明确要求）。
+     * 文件后端在单元级已有真实覆盖：`tests/site-store-op-rename.test.ts`
+     * （真实文件读写 + 归一化 + undo 重放 + 新名落盘）。
+     */
+    if (resolveStoreBackend() === "file") {
+      console.log(
+        "[op-rename-roundtrip] 跳过：e2e 仅支持 PG 后端（文件后端模式见 glossary T-9）。"
+        + "文件后端的往返覆盖在 tests/site-store-op-rename.test.ts。",
       );
+      test.skip();
+      return;
     }
+
     if (!await portOpen(resolvePostgresPort())) {
       throw new Error(
         `本用例需要 Postgres（127.0.0.1:${resolvePostgresPort()}）。见 e2e/scripts/pg-target.mjs。`,
@@ -121,12 +103,9 @@ test.describe("阶段 4 · op 改名 + 归一化 端到端往返", () => {
     const afterSave = JSON.stringify(snapshot.draft);
     expect(afterSave).toContain("端到端第一版标题");
 
-    // ---- ③ 把盘上的 op 名改成**历史旧名**，模拟改名前的数据 ----
-    if (backend === "file") {
-      const aged = ageFileRecordToLegacy(siteId);
-      expect(aged, "必须真的改写了历史里的 op 名，否则这一段什么都没测").toBeGreaterThan(0);
-    } else {
-      // PG 后端：用 psql 风格的 jsonb 原地改写（与单元测试同一手法）。
+    // ---- ③ 把库里的 op 名改成**历史旧名**，模拟改名前的数据 ----
+    {
+      // 用 jsonb 原地改写（与单元测试同一手法）。
       const { default: pg } = await import("pg");
       const client = new pg.Client({
         connectionString: `postgresql://postgres:postgres@127.0.0.1:${resolvePostgresPort()}/site_studio`,
