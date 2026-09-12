@@ -12,6 +12,56 @@
   --green-pale: #eaf5e5;
   --orange: #ec7d48;
   --shadow: 0 18px 50px rgba(31, 52, 39, .08);
+
+  /* ---------------------------------------------------------------
+   * 字号阶梯（2026-09-11，⑤）
+   *
+   * 加之前实测：globals.css 里有 **22 种不同的 font-size**，
+   * 其中 9/10/11/12/13px 五个值占了全部用量的 87%（196/225 处）。
+   * 11 和 12、10 和 11 之间的差别**不是设计出来的**，是每次写的时候
+   * 手边那个数——所以"改大一点正文"这件事今天做不到，改一个地方不会动其它地方。
+   *
+   * **本刀只加变量，不改任何现有声明**（零视觉变化、零风险）。
+   * 改声明是另一件事：那会把当前"差不多但不一样"的地方**统一**，
+   * 属于视觉调整，要能一眼看出差别再动。
+   *
+   * 阶梯本身对应真实的排版角色，不是等比数列：
+   *   micro   9px  —— 角标、计数气泡（`nav-count` 那个 9px 就是它）
+   *   tiny   10px  —— 等宽小标签（eyebrow）
+   *   xs     11px  —— 密集元信息（表格副行、时间戳）
+   *   sm     12px  —— 次要正文、按钮
+   *   base   13px  —— 正文
+   *   md     14px  —— 强调正文
+   *   lg     15px  —— 小节标题
+   *   xl     16px  —— 卡片标题
+   *   title  20px  —— 区块标题
+   *   display      —— 页面大标题（用 clamp，见各页 h1）
+   *
+   * ⚠️ 阶梯到 16px 之后**故意留空**到 20px：实测 17/18/19/22/23px 各有 1–7 处，
+   * 它们是大标题的中间档，本来就该走 clamp 而不是钉死像素。硬塞进阶梯
+   * 会把"随视口变化"变成"固定值"，那是倒退。
+   * --------------------------------------------------------------- */
+  --text-micro: 9px;
+  --text-tiny: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 16px;
+  --text-title: 20px;
+
+  /* 间距阶梯（4 的倍数）——同样只加不改。实测间距值比字号更散，先立标尺。 */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 44px;
 }
 
 /* Keep the development indicator from covering the builder's chat controls. */
@@ -60,10 +110,29 @@ a { color: inherit; text-decoration: none; }
 .icon-button { width: 34px; height: 34px; border: 1px solid var(--line); background: white; border-radius: 8px; display: grid; place-items: center; color: var(--ink-soft); }
 .icon-button:hover { border-color: #b5c5b8; color: var(--ink); }
 .primary-button, .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; padding: 10px 15px; border: 1px solid transparent; font-size: 12px; font-weight: 700; }
+/* ⚠️ `.primary-button` / `.secondary-button` 的**配色不一致，是已知的、刻意的**：
+ * 主按钮走 `var(--green)`，次按钮的边框却是字面量 `#e2e8f0`、hover 是字面量 `#2e6b4f`
+ * （改 `--green` 时次按钮的 hover 不会跟着变）。
+ * 统一它们 = **改视觉**，超出"整理"的范围——⑤ 只做"加变量 + 消重复定义"。
+ * 真要统一时：把这里换成 `var(--line)` / `var(--green)`，然后**眼睛看一遍每个页面**，
+ * 因为 `#e2e8f0` 比 `var(--line)`（`#dfe7e1`）偏冷，换过去边框会轻微变绿。 */
 .primary-button { color: #fafff7; background: var(--green); box-shadow: 0 5px 12px rgba(46, 107, 79, .18); }
 .primary-button:hover { background: #24583f; }
-.secondary-button { background: white; border-color: var(--line); color: var(--ink-soft); }
-.secondary-button:hover { border-color: #b5c5b8; color: var(--ink); }
+.secondary-button {
+  /* 覆盖上面那条共享基础规则。**这里是 `.secondary-button` 外观的唯一出处**——
+   * 2026-09-11（⑤）之前，文件的生成页区块里还有一条作用域相同的
+   * `.secondary-button`，两条同名规则，下游生效的是后面那条：
+   * 改按钮的人**会改错地方**（改了上面那条，页面没反应）。
+   * 现在合并到这一处。合并时**逐属性对过老级联的计算值**，
+   * 其中 `justify-content: center` 是共享基础规则给的面合并后**差点漏掉**——
+   * 它是唯一一条"只由上面那条提供、不被下面那条覆盖"的属性。
+   * 这类属性最容易在合并时静默丢失，所以合并按钮规则时**必须逐属性对一遍**，
+   * 不能只看"主要那几条对上了"。 */
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border-radius: 8px;
+  background: #fff; border: 1px solid #e2e8f0; color: #0f172a; font-size: var(--text-md); font-weight: 600;
+  cursor: pointer; text-decoration: none; transition: all .15s;
+}
+.secondary-button:hover { border-color: #2e6b4f; color: #2e6b4f; }
 .page-content { max-width: 1260px; margin: 0 auto; padding: 44px 40px 70px; }
 .hero-row { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 35px; }
 .hero-row h1 { margin: 7px 0 8px; font-size: clamp(28px, 3vw, 42px); letter-spacing: -.06em; line-height: 1.08; }
@@ -162,8 +231,13 @@ a { color: inherit; text-decoration: none; }
 .change-diff-more { padding: 7px 10px; color: var(--muted); font-size: 9px; background: #f4f8f4; }
 .busy-message { display: flex; align-items: center; gap: 7px; color: #718078; }
 .busy-cancel { margin-left: auto; padding: 4px 8px; border-color: #cbd7cd; color: var(--ink-soft); }
-.spin { animation: sitecraft-spin .9s linear infinite; }
-@keyframes sitecraft-spin { to { transform: rotate(360deg); } }
+/* 全站唯一的加载旋转。
+ * 2026-09-11（⑤）之前这里、第 421 行附近、以及文件末尾各有定义，最后一条胜出，
+ * 前面三条是**死代码**——改它们不会有任何反应。四条都是同样的匀速 360° 旋转，
+ * 只有时长不同（.9s / .8s / 1s），生效的是 1s。现已合并为这一处。
+ * ⚠️ 想调快慢？**只改这一行**，否则又会退回"改了一处没反应"的状态。 */
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .chat-input-wrap { flex: 0 0 auto; padding: 12px 15px 15px; border-top: 1px solid var(--line); background: white; }
 .chat-target { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; padding: 7px 9px; border-left: 2px solid var(--green); background: var(--green-pale); color: var(--green); font-size: 10px; }
 .chat-target button { width: 22px; height: 22px; border: 0; display: grid; place-items: center; background: transparent; color: inherit; }
@@ -189,6 +263,13 @@ a { color: inherit; text-decoration: none; }
 .device-toggle { background: white; border: 1px solid var(--line); border-radius: 8px; display: flex; padding: 3px; gap: 2px; }
 .device-toggle button { border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; padding: 6px 8px; border-radius: 5px; }
 .device-toggle button.active { background: var(--green-pale); color: var(--green); }
+/* 就地编辑模式切换（文字按钮，非图标） */
+.device-toggle button[title] { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
+.edit-hint { align-self: center; padding: 4px 10px; border-radius: 6px; background: var(--green-pale); color: var(--green); font-size: 12px; }
+/* 资产替换弹窗的当前图预览（P3.2） */
+.asset-preview { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.asset-preview span { color: var(--muted); font-size: 12px; }
+.asset-preview img { max-width: 180px; max-height: 100px; border: 1px solid var(--line); border-radius: 6px; object-fit: cover; }
 .preview-stage { flex: 1; min-height: 0; overflow: auto; display: grid; place-items: start center; padding: 37px 25px 55px; }
 .preview-fallback-note { width: min(1180px, 100%); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 10px 12px; border: 1px solid #f0c36b; border-radius: 6px; background: #fff9e8; color: #76520d; font-size: 11px; line-height: 1.5; }
 .preview-fact-confirm { width: min(1180px, 100%); display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; padding: 12px 14px; border: 1px solid #f0c36b; border-radius: 8px; background: #fff9e8; color: #76520d; font-size: 12px; line-height: 1.6; }
@@ -282,13 +363,12 @@ a { color: inherit; text-decoration: none; }
 .template-tag { color: var(--green); background: var(--green-pale); border-radius: 3px; padding: 4px 6px; font-size: 9px; }
 .template-ai-profile { min-height: 38px; display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 7px; margin-top: 11px; padding: 9px 10px; border-left: 2px solid #9fbd9f; background: #f5f8f4; color: #617067; font-size: 9px; line-height: 1.5; }
 .template-ai-profile svg { margin-top: 1px; color: var(--green); }
-.template-source { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 13px; padding-top: 10px; border-top: 1px solid #edf1ed; color: #9aa69d; font-size: 9px; line-height: 1.3; }
-.template-source > span { max-width: 145px; }
-.template-source > div { display: flex; gap: 7px; flex: 0 0 auto; }
+.template-source { display: flex; align-items: center; margin-top: 13px; padding-top: 10px; border-top: 1px solid #edf1ed; color: #9aa69d; font-size: 9px; line-height: 1.3; }
+.template-source > span { max-width: 100%; }
 .template-source a { display: inline-flex; align-items: center; gap: 3px; color: var(--green); font-weight: 700; }
 .template-source a:hover { text-decoration: underline; }
-.template-bottom { display: flex; justify-content: center; margin-top: 36px; }
-.template-bottom .primary-button { min-width: 208px; }
+/* .template-bottom 已随「用这个模板开始对话」一起删除（2026-09-09）：
+   点卡片即进工作台，底部 CTA 是重复动作。 */
 .template-selected { position: fixed; right: 24px; bottom: 24px; background: var(--ink); color: white; border-radius: 10px; box-shadow: var(--shadow); padding: 12px 14px; display: flex; align-items: center; gap: 13px; font-size: 11px; }
 .template-selected small { display: block; color: #9caf9f; font-size: 9px; margin-top: 3px; }
 
@@ -349,8 +429,6 @@ a { color: inherit; text-decoration: none; }
 .lead-detail-meta a { display: inline-flex; align-items: center; gap: 6px; color: var(--green); }
 .lead-detail-message { margin: 22px 0; padding: 16px; background: #f6f8f5; color: var(--ink); font-size: 13px; line-height: 1.75; white-space: pre-wrap; }
 .lead-detail-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.spin { animation: spin .8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 .product-admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
 .product-admin-card { display: grid; grid-template-columns: 145px 1fr; gap: 17px; min-height: 160px; padding: 13px; border: 1px solid var(--line); background: white; }
 .product-admin-image { display: grid; place-items: center; color: var(--green); }
@@ -382,6 +460,32 @@ a { color: inherit; text-decoration: none; }
 .import-result { display: flex; gap: 9px; align-items: center; margin-top: 15px; padding: 10px 11px; color: var(--green); background: var(--green-pale); border-radius: 7px; font-size: 10px; }
 .import-result strong, .import-result span { display: block; }
 .import-result span { margin-top: 3px; color: var(--ink-soft); font-size: 9px; }
+
+/* 商品主图列表（2026-09-10）：modal 内滚动，避免商品多时撑爆弹窗 */
+.product-image-list { margin-top: 15px; max-height: 210px; overflow-y: auto; border-top: 1px solid #edf1ed; padding-top: 11px; }
+.product-image-head { color: var(--ink-soft); font-size: 9px; margin-bottom: 8px; }
+.product-image-row { display: grid; grid-template-columns: 32px 1fr auto auto auto; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid #f2f6f2; font-size: 10px; }
+.product-image-thumb { width: 32px; height: 32px; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid #e2eae3; }
+.product-image-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-image-sku { color: var(--ink-soft); font-size: 9px; font-variant-numeric: tabular-nums; }
+.product-image-upload { cursor: pointer; font-size: 10px; padding: 4px 10px; }
+
+/* 版本历史（2026-09-10）：后端早已可用，此前零 UI 入口 */
+.release-list { margin-top: 15px; max-height: 260px; overflow-y: auto; border-top: 1px solid #edf1ed; padding-top: 10px; display: grid; gap: 2px; }
+.release-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 2px; border-bottom: 1px solid #f2f6f2; font-size: 10px; }
+.release-meta { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.release-meta strong { font-size: 12px; }
+.release-meta span { color: var(--ink-soft); font-size: 9px; }
+.release-tag { color: var(--green); }
+.release-current { color: var(--green); font-size: 9px; white-space: nowrap; }
+
+/* 发布被质检拦下时的「可定位问题」条（2026-09-10） */
+.quality-focus-bar { position: relative; display: grid; gap: 7px; margin: 0 0 12px; padding: 11px 34px 11px 13px; background: #fff8ec; border: 1px solid #f0dcb8; border-radius: 10px; }
+.quality-focus-head { display: flex; align-items: center; gap: 6px; color: #8a6d3b; font-size: 10px; }
+.quality-focus-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.quality-focus-item { cursor: pointer; padding: 4px 10px; font: inherit; font-size: 10px; color: #6b552e; background: #fff; border: 1px solid #e8d5b0; border-radius: 999px; }
+.quality-focus-item:hover { border-color: #c9a961; background: #fffdf7; }
+.quality-focus-bar .generate-guide-close { position: absolute; top: 8px; right: 8px; }
 .modal-foot { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 10px; margin-top: 22px; }
 .modal-foot .primary-button { padding: 9px 17px; }
 .typing-dots { animation: blink 1.1s infinite; }
@@ -900,11 +1004,11 @@ a { color: inherit; text-decoration: none; }
    iframe 内部页面自己滚动——真实浏览器体验，首屏完整不滑动 */
 .generate-hero-preview-frame iframe { width: 100%; height: 100%; border: 0; background: #fff; display: block; }
 .generate-hero-preview-frame .rendered-site { width: 100%; min-height: 100%; }
-.generate-hero-preview-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; border-top: 1px solid #eef1ee; background: #f8faf9; }
-.generate-hero-preview-title { min-width: 0; }
-.generate-hero-preview-title strong, .generate-hero-preview-title span { display: block; }
-.generate-hero-preview-title strong { color: #0f172a; font-size: 13px; }
-.generate-hero-preview-title span { margin-top: 2px; color: #64748b; font-size: 11px; }
+/* ⚠️ `.generate-hero-preview-meta` 与 `.generate-hero-preview-title` 的外观
+ * 定义在下面「折叠/展开大预览」那一块里。**这里曾经还有一份**，
+ * 属性完全被下面覆盖，等于死代码（2026-09-11 ⑤ 删除）。
+ * 而且下面那份才是人们**看得到**的：font-size 14/12px、border `#e8efe9`；
+ * 这里这份是 13/11px、border `#eef1ee`——两份并存时改这一份不会有任何反应。 */
 /* 醒目"查看真实预览"按钮 */
 .generate-real-preview-link { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; padding: 6px 12px; border-radius: 6px; background: #2e6b4f; color: #fff !important; font-size: 12px; font-weight: 700; text-decoration: none !important; box-shadow: 0 2px 6px rgba(46,107,79,.25); transition: background-color 140ms ease, transform 140ms ease; }
 .generate-real-preview-link:hover { background: #24563f; transform: translateY(-1px); }
@@ -1009,14 +1113,6 @@ a { color: inherit; text-decoration: none; }
 @keyframes generate-hero-write { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 @keyframes generate-card-in { 0% { opacity: .25; } 100% { opacity: 1; } }
 .generate-building-preview { position: relative; }
-.secondary-button {
-  display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px;
-  background: #fff; border: 1px solid #e2e8f0; color: #0f172a; font-size: 14px; font-weight: 600;
-  cursor: pointer; text-decoration: none; transition: all .15s;
-}
-.secondary-button:hover { border-color: #2e6b4f; color: #2e6b4f; }
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 720px) { .generate-confirm-grid { grid-template-columns: 1fr; } .generate-template-picker { padding: 14px; } .generate-template-option { flex-basis: 84%; } .generate-template-option-cover { height: 150px; } .generate-template-selection-meta { align-items: flex-start; flex-direction: column; } .generate-hero-preview-frame { height: 380px; } }
 .generation-health { margin-bottom: 22px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .generation-health-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
@@ -1033,3 +1129,95 @@ a { color: inherit; text-decoration: none; }
 .generation-health-empty.error { color: #a33c32; }
 @media (max-width: 1100px) { .generation-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .generation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* 首页空状态（2026-09-10：此前永远显示 3 个假站点，用户看不到"我还没有站"） */
+.empty-sites { display: grid; justify-items: center; gap: 9px; padding: 44px 20px; text-align: center; border: 1px dashed #cbd9cd; border-radius: 14px; background: #f8fbf7; color: var(--ink-soft); }
+.empty-sites svg { color: #8aa891; }
+.empty-sites strong { color: var(--ink); font-size: 14px; }
+.empty-sites span { font-size: 11px; max-width: 42ch; }
+.empty-sites .primary-button { margin-top: 5px; }
+
+/* ---------------------------------------------------------------------------
+   「做一个新模板」入口（2026-09-11）
+   截图 / 网址两条路。样式沿用页面既有的变量（--green / --ink / --line / --paper），
+   不引入第二套色板。
+   --------------------------------------------------------------------------- */
+
+.template-create-band { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 720px; margin: 0 auto 20px; padding: 14px 16px; border: 1px solid #cfe0d3; border-radius: 12px; background: linear-gradient(180deg, #f2f9f3, #eaf5ec); }
+.template-create-band div { display: grid; gap: 3px; }
+.template-create-band strong { font-size: 13px; color: var(--ink); }
+.template-create-band span { font-size: 11px; color: var(--ink-soft); }
+.template-create-band .primary-button { flex: 0 0 auto; white-space: nowrap; }
+
+.template-mine { margin: 34px 0 8px; }
+.template-mine-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.template-mine-head h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+.template-mine-head span { font-size: 11px; color: var(--muted, #8a958e); }
+.template-mine-error { margin: 14px auto; max-width: 640px; text-align: center; font-size: 12px; color: #b23a3a; }
+
+/* 「仅 N 处可编辑」用暖色标出来——它是"这个站能不能改"的唯一线索，
+   与普通的深色徽标混在一起就白标了。 */
+.template-live-badge.badge-warn { background: rgba(190, 120, 40, .92); }
+
+/* ---- 弹窗 ---- */
+
+.dialog-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: rgba(18, 28, 21, .42); backdrop-filter: blur(2px); }
+.dialog { width: min(560px, 100%); max-height: 88vh; overflow: auto; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 24px 60px rgba(18, 28, 21, .22); }
+.dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+.dialog-head h2 { margin: 0 0 4px; font-size: 17px; letter-spacing: -.02em; }
+.dialog-head p { margin: 0; font-size: 11px; color: var(--ink-soft); line-height: 1.6; }
+.dialog-body { padding: 18px 20px 20px; display: grid; gap: 14px; }
+.dialog-tabs { display: flex; gap: 6px; padding: 3px; border-radius: 10px; background: var(--paper); }
+.dialog-tabs button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border: 0; border-radius: 8px; background: transparent; font-size: 12px; font-weight: 700; color: var(--ink-soft); cursor: pointer; }
+.dialog-tabs button.active { background: white; color: var(--ink); box-shadow: 0 1px 4px rgba(18, 28, 21, .1); }
+.dialog-pane { display: grid; gap: 12px; }
+.dropzone { display: grid; justify-items: center; gap: 6px; padding: 26px 18px; border: 1px dashed #b9cdbe; border-radius: 12px; background: #f8fbf7; color: var(--ink-soft); cursor: pointer; }
+.dropzone:hover { border-color: var(--green); color: var(--ink); }
+.dropzone strong { font-size: 13px; color: var(--ink); }
+.dropzone span { font-size: 11px; }
+.dialog-input, .dialog-note input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; font-size: 12px; background: white; }
+.dialog-input:focus, .dialog-note input:focus { outline: 2px solid rgba(46, 107, 79, .25); border-color: var(--green); }
+.dialog-note { display: grid; gap: 5px; }
+.dialog-note span { font-size: 11px; color: var(--ink-soft); }
+.dialog-choices { display: grid; gap: 8px; }
+.dialog-choices button { display: grid; gap: 3px; padding: 12px 14px; text-align: left; border: 1px solid var(--line); border-radius: 10px; background: white; cursor: pointer; }
+.dialog-choices button.selected { border-color: var(--green); background: #f2f9f3; box-shadow: 0 0 0 1px var(--green) inset; }
+.dialog-choices strong { font-size: 12px; color: var(--ink); }
+.dialog-choices span { font-size: 11px; color: var(--ink-soft); }
+.dialog-choices em { font-size: 10px; font-style: normal; color: var(--muted, #8a958e); }
+.dialog-hint { margin: 0; font-size: 11px; color: var(--ink-soft); line-height: 1.65; }
+.dialog-foot { display: flex; justify-content: flex-end; gap: 9px; padding-top: 4px; }
+.ghost-button { padding: 10px 15px; border: 1px solid var(--line); border-radius: 8px; background: white; font-size: 12px; font-weight: 700; color: var(--ink-soft); cursor: pointer; }
+.ghost-button:hover { color: var(--ink); border-color: #b5c5b8; }
+.dialog-progress { justify-items: center; text-align: center; padding: 30px 24px; }
+.dialog-progress strong { font-size: 14px; color: var(--ink); }
+.dialog-progress > span { font-size: 12px; color: var(--ink-soft); }
+.dialog-progress .dialog-warn { color: #b26a1e; }
+.dialog-detail { font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted, #8a958e); max-width: 100%; overflow-wrap: anywhere; }
+.dialog-thumb { width: 120px; max-height: 160px; object-fit: cover; border: 1px solid var(--line); border-radius: 10px; }
+.dialog-warnings { margin: 4px 0 0; padding: 12px 14px; list-style: none; text-align: left; border-radius: 10px; background: var(--paper); display: grid; gap: 6px; }
+.dialog-warnings li { font-size: 11px; color: var(--ink-soft); line-height: 1.6; }
+.dialog-progress .dialog-foot { width: 100%; margin-top: 8px; }
+
+/* 自己做的模板在预览页要有「可编辑程度」的如实说明（2026-09-11）。
+   截图生成的模板有十几个编辑位、网址搬来的常常只有 1 个，而两者在这一页
+   长得一模一样——不说清楚，用户进到那个 1 的只会以为是 bug。 */
+.template-edit-notice { display: flex; align-items: center; gap: 12px; max-width: 1080px; margin: 14px auto 0; padding: 12px 16px; border: 1px solid #cfe0d3; border-radius: 12px; background: #f2f9f3; color: var(--ink); }
+.template-edit-notice.notice-warn { border-color: #e6d2b4; background: #fdf7ee; }
+.template-edit-notice svg { flex: 0 0 auto; color: var(--green); }
+.template-edit-notice.notice-warn svg { color: #b26a1e; }
+.template-edit-notice > div { display: grid; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.template-edit-notice strong { font-size: 13px; }
+.template-edit-notice span { font-size: 11px; color: var(--ink-soft); line-height: 1.65; }
+.template-edit-notice .primary-button { flex: 0 0 auto; white-space: nowrap; }
+
+/* 断点恢复卡片（2026-09-11）。
+   放在弹窗**最上面**——用户打开弹窗多半就是回来接着做的，
+   把它藏在下面等于让他重新传一遍图。 */
+.resume-list { display: grid; gap: 8px; }
+.resume-card { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid #e6d2b4; border-radius: 11px; background: #fdf7ee; }
+.resume-card > svg { flex: 0 0 auto; color: #b26a1e; }
+.resume-card > div { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.resume-card strong { font-size: 12px; color: var(--ink); }
+.resume-card span { font-size: 11px; color: var(--ink-soft); line-height: 1.5; }
+.resume-card .ghost-button, .resume-card .primary-button { flex: 0 0 auto; padding: 7px 12px; font-size: 11px; }

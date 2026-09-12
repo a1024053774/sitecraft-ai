@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { accessErrorResponse, authorizeRequest } from "@/lib/request-context";
-import { isLeadStoreEnabled, leadStatusSchema, postgresLeadStore } from "@/lib/lead-store";
+import { getLeadStore, leadStatusSchema } from "@/lib/lead-store";
 
 export const runtime = "nodejs";
 
@@ -20,9 +20,8 @@ export async function PATCH(
   const { leadId } = await params;
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_payload", details: parsed.error.flatten() }, { status: 400 });
-  if (!isLeadStoreEnabled()) return NextResponse.json({ ok: false, error: "lead_store_unavailable" }, { status: 503 });
   try {
-    const lead = await postgresLeadStore.updateStatus({ leadId, ...parsed.data });
+    const lead = await getLeadStore().updateStatus({ leadId, ...parsed.data });
     if (!lead) return NextResponse.json({ ok: false, error: "lead_not_found" }, { status: 404 });
     return NextResponse.json({ ok: true, lead }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

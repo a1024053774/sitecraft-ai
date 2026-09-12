@@ -1,14 +1,22 @@
-import { templates } from "@/lib/site-model";
+import { allTemplates } from "@/lib/site-model";
+import { ensureRuntimeTemplateManifests } from "@/lib/template-runtime-server";
 import { readTemplateStaticFile, rewriteTemplateRootRelativeReferences } from "@/lib/template-static";
+import { rewriteExternalResourceReferences } from "@/lib/template-asset-mirror";
 import { getRequiredVisibleTargets, getTemplateManifest } from "@/lib/template-manifest";
 import { TEMPLATE_UI_COPY } from "@/lib/template-ui-copy";
 import { getTemplateAdapter } from "@/lib/template-adapters";
+import { navigationViewSnippet } from "@/lib/template-adapters/navigation-view";
+import { INLINE_EDIT_REJECTED_PREFIXES, INLINE_EDITABLE_PREFIXES, NAV_SLOT_PATTERN } from "@/lib/inline-edit-mapping";
+import { getBrandAssetSelector, getHeroAssetSelector } from "@/lib/template-asset-registry";
 import {
   MAX_TEMPLATE_EXPORT_BYTES,
   buildTemplateResourceResolverScript,
 } from "@/lib/template-export-contract";
 
 const BRIDGE_NONCE = "sitecraft-template-bridge";
+
+// 2026-09-08：上游模板抓取超时从固定 15s 改为 env 可配（默认 20s）。
+const UPSTREAM_TIMEOUT_MS = Number(process.env.SITECRAFT_UPSTREAM_TIMEOUT_MS || 20_000);
 
 /**
  * CSP for the local-snapshot preview (served from the vendored dist).
@@ -99,6 +107,20 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
   let activeDraft = null;
   let activeLocale = 'zh';
   let activeExpectedTargets = [];
+  // ---- 就地编辑状态（P3.1，2026-09-09）----
+  let activeEditMode = 'ai';          // 'ai' | 'direct'：direct 模式下点选直接进入编辑
+  let activeEdit = null;              // { node, slot, original, requestId }
+  let deferredContent = null;         // 编辑期间挂起的 content 消息，编辑结束后 flush
+  // 可映射的槽位前缀（与 lib/inline-edit-mapping.ts 的 isInlineEditableSlot 同源，服务端序列化注入）
+  const inlineEditableSlot = (slot) => ${JSON.stringify(INLINE_EDITABLE_PREFIXES)}.some((prefix) => slot === prefix || slot.startsWith(prefix + '.')) || /^(features|services)\\.items\\.|^products\\./.test(slot);
+  // 中段带变量的导航槽（⑥）。正则源在 lib/inline-edit-mapping.ts，
+  // 改那里就会改到这里——**别在这段注入脚本里另写一份**，两处一定会漂。
+  //
+  // ⚠️ 这里**不校验 id 是否真的存在**（那份正则在服务端也不带草稿）。
+  // 判宽了最坏是"点了才被拒并看到原因"；判窄了是"点了毫无反应"。
+  // 真正拦得住的是父窗口保存时那次 slotToDraftOperation。
+  const editableSlot = (slot) => inlineEditableSlot(slot) || new RegExp(${JSON.stringify(NAV_SLOT_PATTERN)}).test(slot);
+  const INLINE_EDIT_REJECTED = ${JSON.stringify(INLINE_EDIT_REJECTED_PREFIXES)};
   // 可见性判定：除无布局/display:none/visibility:hidden 外，还要排除 sr-only 类"仅屏幕阅读器"元素
   // （absolute + 1px + clip 裁剪，getClientRects 仍会给出 1px 矩形，不能视为可见槽位）。
   const isScreenReaderOnly = (node) => {
@@ -139,6 +161,55 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     }
     return false;
   };
+  // 访客不该看到"待补充"、假邮箱或模板演示值。发布变体下隐藏这类字段；
+  // 工作台/预览仍显示，便于用户看到缺口并补齐（2026-09-08）。
+  const HIDE_PATTERN = /(?:待补充|暂无|敬请期待|\b(?:tbd|todo)\b|to be (?:completed|provided)|coming soon)/i;
+  const HIDE_PATTERN_GLOBAL = /(?:待补充|暂无|敬请期待|\b(?:tbd|todo)\b|to be (?:completed|provided)|coming soon)/gi;
+  const isPlaceholderLike = (value) => {
+    if (typeof value !== 'string' || !value.trim()) return true;
+    // 保留域名/示例文案一定是假的，直接隐藏
+    if (/example\.com/i.test(value) || /lorem ipsum/i.test(value)) return true;
+    if (!HIDE_PATTERN.test(value)) return false;
+    // 剥掉标记后几乎没有实义残留 → 该字段就是标记本身（"地址待补充"），隐藏；
+    // 若残留较长（"企业事实尚未提供的部分将明确标记为待补充"）则是正文，照常显示。
+    const residue = value.replace(HIDE_PATTERN_GLOBAL, '').replace(/[\s\p{P}\p{S}]/gu, '');
+    return Array.from(residue).length <= 10;
+  };
+  // 发布变体才隐藏缺口字段：工作台/预览需要看到"待补充"以便用户补齐。
+  // 注意 activeVariant 在收到草稿后才赋值，必须每次实时判断，不能在顶层缓存。
+  const isPublishedVariant = () => activeVariant === 'published';
+  const setTextOrHide = (node, value, slot, applied, hideWhenPlaceholder) => {
+    if (!node) return false;
+    if (hideWhenPlaceholder && isPlaceholderLike(value)) {
+      node.hidden = true;
+      node.style.setProperty('display', 'none', 'important');
+      return false;
+    }
+    return setText(node, value, slot, applied);
+  };
+  const hideIfAllSlotsHidden = (container) => {
+    if (!container) return;
+    const slots = Array.from(container.querySelectorAll('[data-sitecraft-slot]'));
+    if (slots.length && slots.every((node) => node.hidden)) {
+      container.hidden = true;
+      container.style.setProperty('display', 'none', 'important');
+    }
+  };
+  // 发布态兜底：adapter 的 prepareFn 会绕过 setTextOrHide 直接写 DOM（如 forge 把
+  // email/phone/address 写进 footer），共享引擎的隐藏覆盖不到。这里做一次全页清扫，
+  // 确保访客在任何模板下都看不到缺口标记（2026-09-08）。
+  const scrubPlaceholders = () => {
+    const candidates = Array.from(document.querySelectorAll('a, address, span, p, li, div, small, td, dd'));
+    candidates.forEach((node) => {
+      // 只看叶子文本节点，避免把整段容器误删
+      if (node.children.length > 0) return;
+      const text = (node.textContent || '').trim();
+      if (!text || !isPlaceholderLike(text)) return;
+      const host = node.closest('a, address, li, dd, small') || node;
+      host.hidden = true;
+      host.style.setProperty('display', 'none', 'important');
+    });
+  };
   const sectionScopes = () => {
     const nodes = allVisible('main section, main article, body > section').filter((node) => node !== resolveHero()?.closest('section, header'));
     return nodes.filter((node) => !nodes.some((parent) => parent !== node && parent.contains(node)));
@@ -172,28 +243,133 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     ${JSON.stringify(adapterSanitize.sections)}.forEach((pattern) => hideSectionByHeading(new RegExp(pattern, 'i')));
     ${JSON.stringify(adapterSanitize.leafPatterns)}.forEach((pattern) => hideLeafMatches(new RegExp(pattern, 'i')));
   };
-  const applyDesignTokens = (draft) => {
-    const tokens = draft?.designTokens;
-    if (!tokens) return;
+  /**
+   * 资产替换（P3.2）：把 draft.assets 里用户上传的实拍图写进模板首屏/品牌位。
+   *
+   * 定位靠 lib/template-asset-registry.ts 的**逐模板显式 selector**——不用「hero 区面积最大的 img」
+   * 这类启发式（实测 22 模板里 shadcn-landing 最大图是 96×96 的 logo，会替换错图）。
+   * 未登记的模板一律不替换（fail-closed），并回报 missing 让 UI 明确告知用户。
+   */
+  const applyAssets = (draft) => {
+    const report = { applied: [], missing: [] };
+    const assets = (draft && draft.assets) || {};
+    const slots = [
+      { target: 'hero.image', selector: ${JSON.stringify(getHeroAssetSelector(templateId) ?? "")} },
+      { target: 'brand.logo', selector: ${JSON.stringify(getBrandAssetSelector(templateId) ?? "")} },
+    ];
+    const restore = (img, target) => {
+      if (!img || img.dataset.sitecraftAsset !== target) return;
+      const originalSrc = img.dataset.sitecraftOriginalSrc;
+      const originalSrcset = img.dataset.sitecraftOriginalSrcset;
+      if (originalSrc) img.setAttribute('src', originalSrc);
+      if (originalSrcset) img.setAttribute('srcset', originalSrcset);
+      else img.removeAttribute('srcset');
+      delete img.dataset.sitecraftAsset;
+      delete img.dataset.sitecraftOriginalSrc;
+      delete img.dataset.sitecraftOriginalSrcset;
+    };
+    for (const { target, selector } of slots) {
+      const asset = assets[target];
+      if (!selector) {
+        if (asset) report.missing.push({ target, reason: 'template_not_supported' });
+        continue;
+      }
+      const img = document.querySelector(selector)
+        || document.querySelector('[data-sitecraft-asset="' + target + '"]');
+      if (!img) {
+        if (asset) report.missing.push({ target, reason: 'no_img_element' });
+        continue;
+      }
+      if (!asset) { restore(img, target); continue; }
+      // 首次替换前记住模板原图，支持「恢复模板原图」
+      if (img.dataset.sitecraftAsset !== target) {
+        img.dataset.sitecraftOriginalSrc = img.getAttribute('src') || '';
+        img.dataset.sitecraftOriginalSrcset = img.getAttribute('srcset') || '';
+      }
+      img.removeAttribute('srcset');
+      img.removeAttribute('sizes');
+      const picture = img.closest('picture');
+      if (picture) picture.querySelectorAll('source').forEach((source) => { source.removeAttribute('srcset'); source.removeAttribute('sizes'); });
+      if (img.getAttribute('src') !== asset.url) img.setAttribute('src', asset.url);
+      if (typeof asset.alt === 'string' && asset.alt) img.setAttribute('alt', asset.alt);
+      img.dataset.sitecraftAsset = target;
+      img.dataset.sitecraftSlot = target;
+      report.applied.push(target);
+    }
+    return report;
+  };
+  /**
+   * 判断被点选的 <img> 对应哪个可替换资产槽。
+   * 只认注册表声明的 selector（fail-closed）——否则点任意插图都会弹出上传框，属于噪音。
+   */
+  const resolveAssetSlotForImage = (image) => {
+    const candidates = [
+      { target: 'hero.image', selector: ${JSON.stringify(getHeroAssetSelector(templateId) ?? "")} },
+      { target: 'brand.logo', selector: ${JSON.stringify(getBrandAssetSelector(templateId) ?? "")} },
+    ];
+    for (const { target, selector } of candidates) {
+      if (!selector) continue;
+      try {
+        if (image.matches(selector) || image.closest(selector) === image) return target;
+      } catch { /* 非法 selector 忽略 */ }
+    }
+    return image.dataset.sitecraftAsset || null;
+  };
+  /**
+   * 点选**空白处**时的资产判定：模板的 hero 图常被文字容器（relative z-10）完全覆盖，
+   * 用户点图上任何位置命中的都是那个容器而不是 <img> 本身（forge 实测）。
+   * 因此：没有命中可编辑文字槽、但落在某个已登记资产图的容器内 → 视为选图。
+   */
+  const resolveAssetSlotForNode = (node) => {
+    if (!node) return null;
+    const candidates = [
+      { target: 'hero.image', selector: ${JSON.stringify(getHeroAssetSelector(templateId) ?? "")} },
+      { target: 'brand.logo', selector: ${JSON.stringify(getBrandAssetSelector(templateId) ?? "")} },
+    ];
+    for (const { target, selector } of candidates) {
+      // 已被替换过的图 src 不再匹配原 selector，用 data-sitecraft-asset 兜底
+      let image = null;
+      try { image = document.querySelector('[data-sitecraft-asset="' + target + '"]'); } catch { /* ignore */ }
+      if (!image && selector) {
+        try { image = document.querySelector(selector); } catch { image = null; }
+      }
+      if (!image) continue;
+      const container = image.closest('section, header, main > div') || image.parentElement;
+      if (container && (container === node || container.contains(node))) return target;
+    }
+    return null;
+  };
+  const applyDesignTokens = (draft) => {    const tokens = draft?.designTokens;
+    // 适配器的 designTokenCss 是模板专属的兜底样式（生成区配色、原生区收敛等），
+    // 与用户是否设置 designTokens 无关——此前 !tokens 时整段 return，导致 18 个模板的
+    // adapter.designTokenCss 全部静默失效（2026-09-09 实测：tailwind-landing 生成区白底规则不生效）。
+    // 现在：有 tokens 走完整令牌样式，无 tokens 仍注入模板专属兜底样式。
     const isColor = (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
-    if (isColor(tokens.primary)) document.documentElement.style.setProperty('--sitecraft-primary', tokens.primary);
-    if (isColor(tokens.secondary)) document.documentElement.style.setProperty('--sitecraft-secondary', tokens.secondary);
-    if (isColor(tokens.accent)) document.documentElement.style.setProperty('--sitecraft-accent', tokens.accent);
     const fontStyles = { sans: 'Inter,Manrope,system-ui,sans-serif', editorial: 'Georgia,Times New Roman,serif', technical: 'Arial Narrow,Roboto Condensed,Arial,sans-serif' };
     const radii = { sharp: '2px', soft: '8px', rounded: '18px' };
     const sectionSpace = { compact: '44px', balanced: '64px', spacious: '84px' };
-    document.documentElement.style.setProperty('--sitecraft-font', fontStyles[tokens.fontStyle] || fontStyles.sans);
-    document.documentElement.style.setProperty('--sitecraft-radius', radii[tokens.radius] || radii.soft);
-    document.documentElement.style.setProperty('--sitecraft-section-space', sectionSpace[tokens.density] || sectionSpace.balanced);
+    if (tokens) {
+      if (isColor(tokens.primary)) document.documentElement.style.setProperty('--sitecraft-primary', tokens.primary);
+      if (isColor(tokens.secondary)) document.documentElement.style.setProperty('--sitecraft-secondary', tokens.secondary);
+      if (isColor(tokens.accent)) document.documentElement.style.setProperty('--sitecraft-accent', tokens.accent);
+      document.documentElement.style.setProperty('--sitecraft-font', fontStyles[tokens.fontStyle] || fontStyles.sans);
+      document.documentElement.style.setProperty('--sitecraft-radius', radii[tokens.radius] || radii.soft);
+      document.documentElement.style.setProperty('--sitecraft-section-space', sectionSpace[tokens.density] || sectionSpace.balanced);
+    }
     let style = document.getElementById('sitecraft-design-tokens');
     if (!style) {
       style = document.createElement('style');
       style.id = 'sitecraft-design-tokens';
       document.head.append(style);
     }
-    const shared = 'body{font-family:var(--sitecraft-font)!important}h1,h2,h3{font-family:var(--sitecraft-font)!important}button,a[class*="btn"],a[class*="button"],[class*="card"],article{border-radius:var(--sitecraft-radius)!important}main>section,body>section{padding-top:var(--sitecraft-section-space)!important;padding-bottom:var(--sitecraft-section-space)!important}::selection{background:var(--sitecraft-accent);color:#172019}';
-    const templateTokenCss = ${JSON.stringify(adapter?.designTokenCss || '')} || 'h1,h2,h3{color:var(--sitecraft-primary)!important}button,a[class*="btn"],a[class*="button"]{background-color:var(--sitecraft-primary)!important;color:#fff!important}';
-    style.textContent = shared + templateTokenCss;
+    const shared = tokens
+      ? 'body{font-family:var(--sitecraft-font)!important}h1,h2,h3{font-family:var(--sitecraft-font)!important}button,a[class*="btn"],a[class*="button"],[class*="card"],article{border-radius:var(--sitecraft-radius)!important}main>section,body>section{padding-top:var(--sitecraft-section-space)!important;padding-bottom:var(--sitecraft-section-space)!important}::selection{background:var(--sitecraft-accent);color:#172019}'
+      : '';
+    // 模板专属兜底样式始终注入；通用默认样式仅在用户设置了 designTokens 时注入
+    // （否则 --sitecraft-primary 未定义，会让按钮 background 变成 invalid → 透明，破坏模板原样）。
+    const adapterCss = ${JSON.stringify(adapter?.designTokenCss || '')};
+    const defaultTokenCss = 'h1,h2,h3{color:var(--sitecraft-primary)!important}button,a[class*="btn"],a[class*="button"]{background-color:var(--sitecraft-primary)!important;color:#fff!important}';
+    style.textContent = shared + (adapterCss || (tokens ? defaultTokenCss : ''));
   };
   const cardScopes = (scope, fallbackPattern) => {
     let nodes = scope ? allVisible('article, [class*="card"], [class*="item"], [class*="service"], [class*="feature"]', scope) : [];
@@ -220,6 +396,17 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
   };
   // 模板专属 services 适配：adapter.servicesFn 若声明，注入为 applyNativeServiceCards；
   // 未声明的模板走通用 applyCards('services', ...)（applyContent 内分发）。
+  // ⑥ 导航数组化：21 个适配器仍按「draft.navigation 点 id」这种**键索引**读导航，
+  // 而 navigation 现在是数组。这段兼容视图让它们的既有写法继续工作，
+  // 同时把「下标索引」与「把槽位路径当字段名」两类写法挡成 undefined
+  // （挡成 undefined 是"回退到兜底文案"，看得见；放行才是静默串位）。
+  ${navigationViewSnippet()}
+  // ⚠️ 适配器读的是**全局 activeDraft**（不是参数），所以兼容视图要包在赋值处，
+  // 而不是包在调用处——包在 prepareTemplate(draft) 那种地方是无效的。
+  const withNavigationView = (draft) => {
+    if (!draft || !Array.isArray(draft.navigation)) return draft;
+    return Object.assign({}, draft, { navigation: makeNavigationView(draft.navigation) });
+  };
   ${adapterPrepareFn}
   ${adapterServicesFn}
   // 模板专属原生排版填充：adapter.nativeFillFn 若声明，注入为 applyNativeFill（闭包访问
@@ -427,8 +614,10 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     }
     return blob;
   };
-  // 资源内联 fetch：单资源 8s 超时，避免某个不可达外网主机让整个导出挂死。
-  const resourceFetch = (url, options = {}) => fetch(url, Object.assign({ credentials: 'same-origin', signal: AbortSignal.timeout(8000) }, options));
+  // 资源内联 fetch：单资源超时避免某个不可达外网主机让整个导出挂死。
+  // 2026-09-08：从固定 8s 改为 env 可配（默认 15s，慢网络更宽容）。
+  const RESOURCE_TIMEOUT_MS = Number(window.__SITECRAFT_RESOURCE_TIMEOUT_MS__ || 15000);
+  const resourceFetch = (url, options = {}) => fetch(url, Object.assign({ credentials: 'same-origin', signal: AbortSignal.timeout(RESOURCE_TIMEOUT_MS) }, options));
   const fetchDataUrl = async (rawUrl, baseUrl, cache, report) => {
     if (!rawUrl || /^(data:|#)/i.test(rawUrl)) return rawUrl;
     const absolute = resolveTemplateResourceUrl(rawUrl, baseUrl);
@@ -615,10 +804,13 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     }
   };
   const applyContent = (draft, locale, expectedTargets, variant) => {
+    const generatedSections = [];
     if (!draft) return { appliedSlots: [], missingSlots: expectedTargets || [] };
     const applied = new Set();
     if (typeof prepareTemplate === 'function') prepareTemplate();
     applyDesignTokens(draft);
+    // 资产替换放在 prepareTemplate 之后（prepareFn 可能重写 img.src，必须先让它跑完）
+    const assetReport = applyAssets(draft);
     if (draft.siteName || draft.companyName) document.title = draft.siteName || draft.companyName;
     document.documentElement.lang = locale || 'zh';
     const hero = resolveHero();
@@ -711,13 +903,14 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
       };
       const email = draft.content?.contact?.email;
       const emailNode = ensureContactNode('contact.email', 'a');
-      if (setText(emailNode, email, 'contact.email.' + locale, applied)) emailNode.setAttribute('href', 'mailto:' + email);
+      if (setTextOrHide(emailNode, email, 'contact.email.' + locale, applied, isPublishedVariant())) emailNode.setAttribute('href', 'mailto:' + email);
       const phone = draft.content?.contact?.phone;
       const phoneNode = ensureContactNode('contact.phone', 'a');
-      if (setText(phoneNode, phone, 'contact.phone.' + locale, applied)) phoneNode.setAttribute('href', 'tel:' + phone);
+      if (setTextOrHide(phoneNode, phone, 'contact.phone.' + locale, applied, isPublishedVariant())) phoneNode.setAttribute('href', 'tel:' + phone);
       const address = localize(draft.content?.contact?.address, locale);
       const addressNode = ensureContactNode('contact.address', 'address');
-      setText(addressNode, address, 'contact.address.' + locale, applied);
+      setTextOrHide(addressNode, address, 'contact.address.' + locale, applied, isPublishedVariant());
+      if (isPublishedVariant()) hideIfAllSlotsHidden(details);
     }
     // 原生排版优先：adapter 声明了 nativeFillFn 的模板，先尝试把槽内容填进模板自身的
     // 非卡片原生区块（icon_row/image_banner/分栏）。成功则注入 setText 的 sitecraft-slot，
@@ -744,22 +937,41 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
       // 的 scope 才走原生标题改写。
       const productsScopeOwned = productsScope && productsScope.getAttribute('data-sitecraft-section');
       const nativeProductsScope = (productsScopeOwned && productsScopeOwned === 'products') ? productsScope : null;
-      const headings = nativeProductsScope ? allVisible('h3,h4,[class*="title"],[class*="name"]', nativeProductsScope) : [];
-      const mappedHeadings = headings.slice(0, productNames.length);
-      mappedHeadings.forEach((heading, index) => setText(heading, productNames[index], 'products.' + draft.products[index].sku + '.name.' + locale, applied));
-      renderAdditionalProducts(draft, locale, 0, applied);
+      // 适配器已把产品写进原生区（nativeFillFn 落了 products.<sku>.name 槽）时，
+      // 只生成「原生区装不下的剩余产品」，避免同一批产品在原生区与生成区各出现一次
+      // （2026-09-09 实测 nextjs-landing/kindred 重复渲染）。
+      const nativeProductSlots = new Set(Array.from(document.querySelectorAll('[data-sitecraft-slot]'))
+        .filter((node) => {
+          const slot = node.dataset.sitecraftSlot || '';
+          return slot.startsWith('products.') && slot.endsWith('.name.' + locale) && visible(node);
+        })
+        .map((node) => node.dataset.sitecraftSlot));
+      if (nativeProductSlots.size) {
+        renderAdditionalProducts(draft, locale, nativeProductSlots.size, applied);
+      } else {
+        const headings = nativeProductsScope ? allVisible('h3,h4,[class*="title"],[class*="name"]', nativeProductsScope) : [];
+        const mappedHeadings = headings.slice(0, productNames.length);
+        mappedHeadings.forEach((heading, index) => setText(heading, productNames[index], 'products.' + draft.products[index].sku + '.name.' + locale, applied));
+        renderAdditionalProducts(draft, locale, 0, applied);
+      }
     }
     const hiddenSections = new Set(draft.hiddenSections || []);
     // 动态生成区需按当前 locale 重建（hasVisibleSlotPrefix 会因上次注入的 slot 短路，导致切换语言后内容停留旧语言）；
     // 模板原生槽位已由上方 setText/applyCards 用当前 locale 更新，此处只需兜底无原生槽位的板块。
     if (!hiddenSections.has('about') && (!hasVisibleSlotPrefix('about.body') || hasGeneratedSection('about'))) {
       renderGeneratedContent('about', draft.content?.about?.title, draft.content?.about?.body, [], locale, applied);
+
+      generatedSections.push('about');
     }
     if (!hiddenSections.has('features') && (!hasVisibleSlotPrefix('features.items') || hasGeneratedSection('features'))) {
       renderGeneratedContent('features', draft.content?.features?.title, draft.content?.features?.intro, draft.content?.features?.items, locale, applied);
+
+      generatedSections.push('features');
     }
     if (!hiddenSections.has('services') && (!hasVisibleSlotPrefix('services.items') || hasGeneratedSection('services'))) {
       renderGeneratedContent('services', draft.content?.services?.title, draft.content?.services?.intro, draft.content?.services?.items, locale, applied);
+
+      generatedSections.push('services');
     }
     // 模板无真实联系区（contactScope 为空）：独立生成一个完整的联系区（标题+正文+email/phone/address），
     // 避免把联系内容塞进 FAQ/评价等误判区。已有 contactScope 时上方已写入原生槽位，这里不再重复。
@@ -785,14 +997,98 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
       details.style.cssText = 'display:grid;gap:8px;margin-top:16px';
       const email = draft.content?.contact?.email;
       const emailNode = document.createElement('a');
-      if (setText(emailNode, email, 'contact.email.' + locale, applied)) emailNode.setAttribute('href', 'mailto:' + email);
+      if (setTextOrHide(emailNode, email, 'contact.email.' + locale, applied, isPublishedVariant())) emailNode.setAttribute('href', 'mailto:' + email);
       const phone = draft.content?.contact?.phone;
       const phoneNode = document.createElement('a');
-      if (setText(phoneNode, phone, 'contact.phone.' + locale, applied)) phoneNode.setAttribute('href', 'tel:' + phone);
+      if (setTextOrHide(phoneNode, phone, 'contact.phone.' + locale, applied, isPublishedVariant())) phoneNode.setAttribute('href', 'tel:' + phone);
       const addressNode = document.createElement('address');
-      setText(addressNode, localize(draft.content?.contact?.address, locale), 'contact.address.' + locale, applied);
+      setTextOrHide(addressNode, localize(draft.content?.contact?.address, locale), 'contact.address.' + locale, applied, isPublishedVariant());
       details.append(emailNode, phoneNode, addressNode);
+      if (isPublishedVariant()) hideIfAllSlotsHidden(details);
       contactSection.append(heading, body, details);
+      // 2026-09-10 修复：此处创建的是**通用生成兜底区**，必须和 about/features/services 一样
+      // 记入 generatedSections，否则 L3 结构判定与工作台「以下板块为动态备用排版」提示**漏检 contact**。
+      generatedSections.push('contact');
+    }
+    // ===== 询盘表单兜底注入（P3.5 / A8，2026-09-09）=====
+    // 实测 22 个模板只有 2 个（astrogent / shadcn-landing2）自带可用的 name/email/message 表单，
+    // 其余 20 个发布后访客**无处提交询盘**——这是主路径缺口，不是边缘兜底。
+    // 只在 published 变体注入：工作台/预览保留模板原样，不污染编辑面。
+    // 表单由下方 submit 拦截器接管（postMessage → 父页 POST /api/public/<siteKey>/leads），
+    // 因此 action 必须为空，否则浏览器会带着访客数据跳到模板 demo 站。
+    if (isPublishedVariant() && !hiddenSections.has('contact')) {
+      const hasUsableForm = Array.from(document.querySelectorAll('form')).some((form) => {
+        const signals = Array.from(form.querySelectorAll('input, textarea')).map((field) => ((field.getAttribute('name') || '') + ' ' + (field.getAttribute('type') || '') + ' ' + (field.getAttribute('placeholder') || '')).toLowerCase()).join(' ');
+        return /name/.test(signals) && /mail/.test(signals) && /message|comment|content|body/.test(signals);
+      });
+      if (!hasUsableForm) {
+        /**
+         * ⚠️ 必须用 templateUiCopy[locale]，**不能**用 copy。
+         *
+         * 2026-09-12 真机实测（客户旅程 ⑨ 填询盘）：这段原本写的是 copy.form.labels[key]，
+         * 而 copy 是 applyTemplateUiCopy 的**局部变量**（见上方 const copy = templateUiCopy[...]），
+         * 在 applyContent 里**根本不存在** → 每次走到这里抛 ReferenceError: copy is not defined。
+         *
+         * 后果不是"表单样式不对"，而是**从这里往后的整段注入被中断**：
+         * applyContent 的异常会让后续语句**全部不执行**，包括同函数末尾的
+         * sanitizePublishedDemo() / scrubPlaceholders() —— 于是"待补充"占位标记
+         * 直接显示给访客，22 个模板里 20 个的发布站**也没有任何询盘表单**。
+         *
+         * 那个缺口正是上方注释自称要修的"主路径缺口"：能力 2026-09-09 就写了，
+         * 但一个标识符写错，**从未真正生效过**，而且静默无日志。
+         *
+         * 用 templateUiCopy[locale] 而不是 activeUiCopy：后者的赋值点在
+         * applyTemplateUiCopy（本函数**之后**才调用），这里读会拿到语言不符的那一份。
+         * 显式按 locale 取，不依赖语句顺序。
+         *
+         * （本段是注入脚本的一部分，身处模板字面量内——**注释里不能出现反引号**，
+         *   否则会提前终止外层字符串。这个坑本轮已踩到第四次。）
+         */
+        const copy = templateUiCopy[locale] || templateUiCopy.zh;
+        let form = document.querySelector('[data-sitecraft-lead-form]');
+        if (!form) {
+          form = document.createElement('form');
+          form.dataset.sitecraftLeadForm = 'true';
+          form.dataset.sitecraftGeneratedContent = 'lead-form';
+          form.noValidate = true;
+          form.style.cssText = 'display:grid;gap:14px;max-width:640px;margin:28px 0 0;font:inherit;color:inherit';
+          const contactHost = document.querySelector('[data-sitecraft-generated-content="contact"]')
+            || document.querySelector('[data-sitecraft-section="contact"]')
+            || document.querySelector('footer')?.parentElement
+            || document.querySelector('main')
+            || document.body;
+          const labelStyle = 'display:grid;gap:6px;font:inherit;font-size:13px;opacity:.82';
+          const fieldStyle = 'width:100%;padding:11px 13px;font:inherit;font-size:15px;color:inherit;background:color-mix(in srgb,currentColor 6%,transparent);border:1px solid rgba(127,127,127,.35);border-radius:8px';
+          const makeField = (key, tag, type) => {
+            const label = document.createElement('label');
+            label.style.cssText = labelStyle;
+            label.textContent = copy.form.labels[key];
+            const field = document.createElement(tag);
+            field.setAttribute('name', key);
+            if (type) field.setAttribute('type', type);
+            field.setAttribute('placeholder', copy.form.placeholders[key]);
+            field.style.cssText = fieldStyle;
+            field.required = key !== 'company';
+            label.append(field);
+            return label;
+          };
+          form.append(makeField('name', 'input', 'text'), makeField('email', 'input', 'email'), makeField('company', 'input', 'text'), makeField('message', 'textarea'));
+          // 蜜罐：真实访客看不见（视觉+读屏双重隐藏），机器人会填 → 服务端按 honeypot 丢弃
+          const honeypot = document.createElement('input');
+          honeypot.setAttribute('type', 'text');
+          honeypot.setAttribute('name', 'website');
+          honeypot.setAttribute('tabindex', '-1');
+          honeypot.setAttribute('autocomplete', 'off');
+          honeypot.setAttribute('aria-hidden', 'true');
+          honeypot.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0';
+          const submit = document.createElement('button');
+          submit.setAttribute('type', 'submit');
+          submit.textContent = copy.form.submit;
+          submit.style.cssText = 'justify-self:start;padding:12px 26px;font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--sitecraft-primary,#111);border:0;border-radius:8px;cursor:pointer';
+          form.append(honeypot, submit);
+          contactHost.append(form);
+        }
+      }
     }
     const mapped = Object.values(sectionMap).filter(Boolean);
     const commonParent = mapped.length === 5 && mapped.every((scope) => scope.parentElement === mapped[0].parentElement) ? mapped[0].parentElement : null;
@@ -803,7 +1099,7 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     applyTemplateUiCopy(draft, locale || 'zh', applied);
     document.documentElement.dataset.sitecraftTemplate = templateId;
     applied.add('template');
-    if (variant === 'published') sanitizePublishedDemo();
+    if (variant === 'published') { sanitizePublishedDemo(); scrubPlaceholders(); }
     const appliedSlots = Array.from(applied);
     const requiredTargets = Array.from(new Set([...(templateRequiredTargets || []), ...(expectedTargets || [])]));
     const targetPrefixes = {
@@ -871,20 +1167,53 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
       const prefixes = targetPrefixes[target] || [target];
       return !visibleSlots.some((slot) => prefixes.some((prefix) => slot === prefix || slot.startsWith(prefix + '.')));
     });
-    return { appliedSlots, visibleSlots, visibleTextsBySlot, residualDemoSlots, missingSlots, incompatible: missingSlots.length > 0 };
+    return { appliedSlots, visibleSlots, visibleTextsBySlot, residualDemoSlots, missingSlots, generatedContentSections: generatedSections, assetReport, incompatible: missingSlots.length > 0 };
   };
   window.addEventListener('message', (event) => {
     if (event.data?.type === 'sitecraft:content' && event.data.templateId === templateId) {
+      // 就地编辑期间挂起全量重注入：setText 用 node.textContent = value 会重建文本节点，
+      // 必然让光标塌缩；且父窗口有 4 次重试（500/1500/3500/6000ms），打字过程中会被覆盖。
+      // 这里只记下最新一份，编辑结束（commit/cancel）后再 flush（2026-09-09）。
+      if (activeEdit) {
+        deferredContent = event.data;
+        parent.postMessage({ type: 'sitecraft:applied', templateId, revision: activeRevision, deferred: true, appliedSlots: [], visibleSlots: [] }, '*');
+        return;
+      }
       activeVariant = event.data.variant || 'preview';
       activeSiteKey = event.data.siteKey || null;
       activeRevision = event.data.draft?.revision ?? null;
-      activeDraft = event.data.draft || null;
+      activeDraft = withNavigationView(event.data.draft || null);
       activeLocale = event.data.locale || 'zh';
       activeExpectedTargets = Array.isArray(event.data.expectedTargets) ? event.data.expectedTargets : [];
+      activeEditMode = event.data.editMode === 'direct' ? 'direct' : 'ai';
+      // ===== thumbnail 变体：只渲染模板原件（2026-09-09）=====
+      // 推荐卡片用 thumbnail 展示「这是个什么模板」，但此前它和 workspace 走同一条 applyContent，
+      // 把 AI 生成的内容也渲染了进去——用户看到的是「模板 + AI 文案」，认不出模板本身，
+      // 于是反馈「推荐的现有模板都像换皮」。
+      // 这里只做模板自身初始化（adapter prepareFn + 模板专属兜底样式），不注入任何 draft 内容；
+      // 仍发 sitecraft:applied 报告，否则调用方的 onPreviewStateChange 会一直等（bridge_apply_timeout）。
+      if (activeVariant === 'thumbnail') {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (typeof prepareTemplate === 'function') prepareTemplate();
+          applyDesignTokens(activeDraft);
+          parent.postMessage({
+            type: 'sitecraft:applied',
+            templateId,
+            revision: event.data.draft?.revision,
+            appliedSlots: [], visibleSlots: [], visibleTextsBySlot: {}, residualDemoSlots: [],
+            missingSlots: [], generatedContentSections: [], assetReport: { applied: [], missing: [] },
+            incompatible: false,
+          }, '*');
+        }));
+        return;
+      }
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const report = applyContent(event.data.draft, event.data.locale, event.data.expectedTargets, event.data.variant);
         parent.postMessage({ type: 'sitecraft:applied', templateId, revision: event.data.draft?.revision, ...report }, '*');
       }));
+    }
+    if (event.data?.type === 'sitecraft:edit-result' && event.data.templateId === templateId) {
+      finishInlineEdit(event.data);
     }
     if (event.data?.type === 'sitecraft:export-request') {
       void handleExportRequest(event.data);
@@ -925,9 +1254,127 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     const values = Object.fromEntries(new FormData(form).entries());
     parent.postMessage({ type: 'sitecraft:lead-submit', templateId, siteKey: activeSiteKey, requestId: activeLeadRequestId, fields: Object.assign(values, { idempotencyKey: activeLeadRequestId }) }, '*');
   }, true);
+  // ===== 就地编辑生命周期（P3.1，2026-09-09）=====
+  // 设计要点（逐条对应二次取证发现的阻断点）：
+  //  1. 编辑期间挂起 sitecraft:content（见消息处理器），避免 setText 重建文本节点导致光标塌缩；
+  //  2. 编辑节点用独立标记 data-sitecraft-editing，不复用 2 秒后会被清除的 data-sitecraft-selected；
+  //  3. 提交后由父窗口写草稿，回 edit-result；成功才退出编辑态并 flush 挂起的 content。
+  const beginInlineEdit = (node, slot) => {
+    const requestId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+    const original = (node.textContent || '').trim();
+    activeEdit = { node, slot, original, requestId };
+    node.setAttribute('contenteditable', 'plaintext-only');
+    node.setAttribute('data-sitecraft-editing', 'true');
+    node.style.outline = '3px solid #2e6b4f';
+    node.style.outlineOffset = '3px';
+    node.style.background = 'rgba(46,107,79,.06)';
+    // 阻止编辑期间的回车换行（单行/短文本字段不需要多行）
+    node.addEventListener('keydown', onEditKeydown, true);
+    node.addEventListener('focusout', onEditFocusOut, true);
+    node.focus();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = window.getSelection();
+    if (selection) { selection.removeAllRanges(); selection.addRange(range); }
+    parent.postMessage({ type: 'sitecraft:edit-start', templateId, requestId, slot }, '*');
+  };
+  const onEditKeydown = (event) => {
+    if (!activeEdit) return;
+    if (event.key === 'Escape') { event.preventDefault(); cancelInlineEdit(); return; }
+    if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); commitInlineEdit(); }
+  };
+  const onEditFocusOut = () => {
+    // blur 后若焦点仍在页面内且编辑未结束 → 视为提交（点击别处的场景已由 click 处理器先行 commit）
+    if (!activeEdit) return;
+    window.setTimeout(() => { if (activeEdit && document.activeElement !== activeEdit.node) commitInlineEdit(); }, 0);
+  };
+  const commitInlineEdit = () => {
+    if (!activeEdit) return;
+    const { node, slot, original, requestId } = activeEdit;
+    const value = (node.textContent || '').replace(/\\s+/g, ' ').trim();
+    if (value === original.replace(/\\s+/g, ' ').trim()) { cancelInlineEdit(); return; }
+    parent.postMessage({ type: 'sitecraft:edit-commit', templateId, requestId, slot, value, originalValue: original }, '*');
+  };
+  const teardownEdit = () => {
+    if (!activeEdit) return;
+    const { node } = activeEdit;
+    node.removeAttribute('contenteditable');
+    node.removeAttribute('data-sitecraft-editing');
+    node.style.outline = '';
+    node.style.outlineOffset = '';
+    node.style.background = '';
+    node.removeEventListener('keydown', onEditKeydown, true);
+    node.removeEventListener('focusout', onEditFocusOut, true);
+    activeEdit = null;
+  };
+  const cancelInlineEdit = () => {
+    if (!activeEdit) return;
+    const { node, original } = activeEdit;
+    if (node.textContent !== original) node.textContent = original;
+    teardownEdit();
+    flushDeferredContent();
+  };
+  const finishInlineEdit = (data) => {
+    if (!activeEdit || data.requestId !== activeEdit.requestId) return;
+    if (data.ok) {
+      // 成功：父窗口已写草稿，revision 变化会带来新的 content 消息（或 flush 挂起的那份）
+      teardownEdit();
+      flushDeferredContent();
+      return;
+    }
+    // 失败：回滚到编辑前的文本，保持编辑态让用户可重试
+    const { node, original } = activeEdit;
+    if (node.textContent !== original) node.textContent = original;
+    node.setAttribute('data-sitecraft-edit-error', 'true');
+    window.setTimeout(() => node.removeAttribute('data-sitecraft-edit-error'), 2500);
+  };
+  const flushDeferredContent = () => {
+    const pending = deferredContent;
+    deferredContent = null;
+    if (!pending) return;
+    activeVariant = pending.variant || activeVariant;
+    activeSiteKey = pending.siteKey || activeSiteKey;
+    activeRevision = pending.draft?.revision ?? activeRevision;
+    activeDraft = withNavigationView(pending.draft || activeDraft);
+    activeLocale = pending.locale || activeLocale;
+    activeExpectedTargets = Array.isArray(pending.expectedTargets) ? pending.expectedTargets : activeExpectedTargets;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const report = applyContent(pending.draft, pending.locale, pending.expectedTargets, pending.variant);
+      parent.postMessage({ type: 'sitecraft:applied', templateId, revision: pending.draft?.revision, ...report }, '*');
+    }));
+  };
+
   document.addEventListener('click', (event) => {
+    // 就地编辑态下：点击已在编辑的节点（移动光标）不拦截；点击别处则先提交
+    if (activeEdit) {
+      if (activeEdit.node === event.target || activeEdit.node.contains(event.target)) return;
+      commitInlineEdit();
+      return;
+    }
+    // 图片点选（P3.2）：只有注册表声明了可替换的槽位才响应，避免误报
+    const image = event.target?.closest?.('img');
+    if (image && activeEditMode === 'direct' && !image.closest('form')) {
+      const assetSlot = resolveAssetSlotForImage(image);
+      if (assetSlot) {
+        event.preventDefault();
+        event.stopPropagation();
+        parent.postMessage({ type: 'sitecraft:asset-select', templateId, target: assetSlot, currentSrc: image.getAttribute('src') || '' }, '*');
+        return;
+      }
+    }
     const node = event.target?.closest?.('h1, p, a, button, h2, h3');
-    if (!node) return;
+    if (!node) {
+      // 空白处（通常是压在图片上的文字容器）：若落在已登记资产图范围内 → 选图
+      if (activeEditMode === 'direct') {
+        const assetTarget = resolveAssetSlotForNode(event.target);
+        if (assetTarget) {
+          event.preventDefault();
+          event.stopPropagation();
+          parent.postMessage({ type: 'sitecraft:asset-select', templateId, target: assetTarget, currentSrc: '' }, '*');
+        }
+      }
+      return;
+    }
     if (node.closest('form')) return;
     event.preventDefault();
     event.stopPropagation();
@@ -945,6 +1392,19 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
     }, 2000);
     const slot = node.dataset.sitecraftSlot || node.closest('[data-sitecraft-slot]')?.dataset.sitecraftSlot || '';
     const section = node.closest('[data-sitecraft-section]')?.dataset.sitecraftSection;
+    // direct 模式 + 可映射槽位 → 直接进入就地编辑，不再走「填对话框再发送」
+    if (activeEditMode === 'direct') {
+      // 可编辑性判定：静态前缀数组 + 两条**中段带变量**的正则。
+      // 后者对应 products.<sku>.* 与 navigation.<id>.label——前缀数组表达不了。
+      // 正则源来自 lib/inline-edit-mapping.ts，**别在这里另写一份**（会漂）。
+      if (slot && editableSlot(slot) && !INLINE_EDIT_REJECTED.some((prefix) => slot.startsWith(prefix))) {
+        beginInlineEdit(node, slot);
+        return;
+      }
+      // 不可编辑的节点：仍发 select，让父窗口回落为 AI 修改
+      parent.postMessage({ type: 'sitecraft:edit-rejected', templateId, reason: slot ? 'unsupported_slot' : 'not_editable' }, '*');
+      return;
+    }
     const hero = resolveHero();
     let target = 'products';
     if (slot.startsWith('services')) target = 'services';
@@ -966,9 +1426,11 @@ function bridgeScript(templateId: string, templateRootUrl: string | null) {
 
 function prepareHtml(html: string, baseUrl: string, templateId: string, local = false) {
   const assetBase = `/api/templates/${encodeURIComponent(templateId)}/assets/`;
-  const sourceHtml = local
-    ? rewriteTemplateRootRelativeReferences(html, "text/html; charset=utf-8", assetBase)
-    : html;
+  // 境外致命资源（缺了版式就坏）重写为仓库内镜像路径，见 lib/template-asset-mirror.ts
+  const sourceHtml = rewriteExternalResourceReferences(
+    local ? rewriteTemplateRootRelativeReferences(html, "text/html; charset=utf-8", assetBase) : html,
+    templateId,
+  );
   const base = `<base href="${escapeAttribute(local ? assetBase : baseUrl)}">`;
   const normalized = sourceHtml
     .replace(/<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi, "")
@@ -989,7 +1451,13 @@ export async function GET(
   { params }: { params: Promise<{ templateId: string }> },
 ) {
   const { templateId } = await params;
-  const template = templates.find((item) => item.id === templateId);
+  // 运行时模板（沉淀产物）在磁盘上。两段都要跑，顺序不能反：
+  //   ① allTemplates() 惰性装载**模板记录**（目录/白名单）
+  //   ② ensureRuntimeTemplateManifests() 展开成 manifest + 门禁节注册——
+  //      下面的 bridgeScript 要读 manifest.slots，漏了这步会拿到空槽位表，
+  //      预览能开但**一个字段都填不进去**（静默失败，比 404 更难查）。
+  ensureRuntimeTemplateManifests();
+  const template = allTemplates().find((item) => item.id === templateId);
   if (!template) return new Response("Template not found", { status: 404 });
 
   const localIndex = await readTemplateStaticFile(template.id, ["index.html"]);
@@ -1004,7 +1472,7 @@ export async function GET(
     const response = await fetch(template.source.demoUrl, {
       headers: { "User-Agent": "Sitecraft-Template-Preview/1.0" },
       redirect: "follow",
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       next: { revalidate: 3600 },
     });
     if (!response.ok) throw new Error(`upstream status ${response.status}`);

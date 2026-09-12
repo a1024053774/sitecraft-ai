@@ -1,10 +1,14 @@
 import { z } from "zod";
 import { accessErrorResponse, authorizeRequest } from "@/lib/request-context";
 import { evaluateDraftQuality } from "@/lib/content-quality";
+import { policyDecision } from "@/lib/content-policy";
+import { collectAssetGateWarnings } from "@/lib/publish-gates";
 import { requestIdempotency } from "@/lib/request-idempotency";
 import { createRelease, getPublishedRelease } from "@/lib/release-store";
 import { getSite } from "@/lib/site-store";
-import { getTemplateManifest } from "@/lib/template-manifest";
+import { getTemplateManifest, getTemplatePresentation } from "@/lib/template-manifest";
+import { evaluateFidelity } from "@/lib/template-fidelity-guard";
+import { sectionKeys } from "@/lib/site-document";
 
 export const runtime = "nodejs";
 
@@ -13,8 +17,19 @@ const publishSchema = z.object({
   publishedBy: z.string().trim().max(80).optional(),
   idempotencyKey: z.string().trim().min(1).max(128).optional(),
   // 事实人工确认：用户核对生成内容中的数字/认证/性能声明后明确确认属实。
-  // 确认后允许跳过 unverifiedFacts 类拦截；仍不豁免 missingSlots 等硬缺口。
+  // 确认后允许跳过 unverifiedFacts / 诚实占位 两类拦截；仍不豁免 missingSlots 等硬缺口。
   factsConfirmed: z.boolean().optional().default(false),
+  /**
+   * 渲染事实（2026-09-10 接入忠实度门禁）：由工作台从预览桥的 `sitecraft:applied`
+   * 报告回传。**L2 残留区块 / L3 结构判定必须看"页面上真正渲染了什么"**——
+   * 那只能由浏览器给出，服务端从 draft JSON 重算不出来。
+   * 缺省时不跑这两层（向后兼容旧客户端 / 无头调用）。
+   */
+  renderFacts: z.object({
+    visibleTexts: z.array(z.string().max(4000)).max(500),
+    generatedSections: z.array(z.string().max(40)).max(40),
+    appliedSections: z.array(z.string().max(120)).max(200),
+  }).optional(),
 });
 
 export async function GET(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
@@ -59,24 +74,63 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     if (key) requestIdempotency.release(scope, key);
     return Response.json({ error: "publish_blocked", message: "当前模板缺少内容契约，暂时不能发布。" }, { status: 422 });
   }
-  const quality = evaluateDraftQuality(current.draft, manifest);
+  const quality = evaluateDraftQuality(current.draft, manifest, {
+    // 同上：用户素材是事实基准，否则「粘了真实资质反而发不出去」。
+    factReference: current.sourceMaterial,
+  });
   if (!quality.publishable) {
-    // 事实类声明（数字/认证/性能等）经用户显式确认属实后放行；结构性缺口（missingSlots 等）仍需补全。
-    const factsOnly = quality.missingSlots.length === 0 && quality.overLimitSlots.length === 0
-      && quality.placeholderHits.length === 0 && quality.languageMismatches.length === 0
-      && quality.unverifiedFacts.length > 0 && parsed.data.factsConfirmed;
-    if (!factsOnly) {
+    // 放行决策**从策略树派生**（lib/content-policy.ts）：发布门不再自己列"哪些字段算阻断项"。
+    // 唯一可由用户豁免的是 unverified_fact（显式确认属实后放行）。
+    // 事实缺失（fact_gap）是 warn 级，本就不在此处拦截——发布时由预览桥隐藏该字段。
+    const decision = policyDecision(quality.counts, parsed.data.factsConfirmed);
+    if (!decision.allowed) {
       if (key) requestIdempotency.release(scope, key);
       return Response.json({
         error: "publish_blocked",
-        message: parsed.data.factsConfirmed && quality.unverifiedFacts.length > 0
-          ? "发布前仍有内容需要处理（事实已确认，但存在其他待补全项）。"
-          : quality.unverifiedFacts.length > 0 && !parsed.data.factsConfirmed
-            ? "草稿包含待确认的数字/认证/性能等声明，请先人工核对后确认发布。"
-            : "发布前仍有内容需要人工确认或补全。",
+        message: decision.message || "发布前仍有内容需要人工确认或补全。",
         quality,
         revision: current.draft.revision,
       }, { status: 422 });
+    }
+  }
+
+  // 模板层门禁（L2b 资产层）：首屏主视觉仍是模板 demo 素材 → 发布成功时随结果返回警告。
+  // 不阻断（见 collectAssetGateWarnings 注释：12/22 模板命中，阻断会让新站一律发不出去）。
+  const assetWarnings = collectAssetGateWarnings(current.draft);
+
+  /**
+   * 模板忠实度门禁（L2 残留区块 + L3 结构）——2026-09-10 接线。
+   *
+   * 此前 `evaluateFidelity`（`lib/template-fidelity-guard.ts`）写了 385 行三层检测，
+   * 但**在生产代码中零 import**，只活在 scripts/ 与 tests/ 里 → 是装饰性代码。
+   * 而 P4 新模板的验收依赖它（人眼看不出来模板自带的 lorem/人名，也看不出结构偏差）。
+   *
+   * 接入需要**渲染事实**（L2 判定页面文本、L3 判定哪些节走了通用兜底区）——
+   * 这些只存在于浏览器侧，由工作台随请求带上（`renderFacts`）。
+   *
+   * **默认只警告不阻断**：L3 结构违规在 22 模板里的真实发生率未经实测，
+   * 冒然阻断可能让所有站都发不出去（这正是 L2b 资产门禁当初留成警告的原因）。
+   * 先跑出基线数据，再决定是否收紧为 422。
+   */
+  const fidelityWarnings: Array<{ description: string; severity: "high" | "medium" }> = [];
+  if (parsed.data.renderFacts) {
+    const presentation = getTemplatePresentation(current.draft.templateId);
+    const report = evaluateFidelity({
+      visibleText: parsed.data.renderFacts.visibleTexts,
+      sections: sectionKeys.filter((section) => !(current.draft.hiddenSections ?? []).includes(section)),
+      generatedSections: parsed.data.renderFacts.generatedSections,
+      appliedSections: parsed.data.renderFacts.appliedSections,
+      templateId: current.draft.templateId,
+      presentation,
+    });
+    for (const finding of report.residualBlocks) {
+      fidelityWarnings.push({ description: `模板残留内容未覆盖：${finding.description}（${finding.evidence.slice(0, 40)}）`, severity: "high" });
+    }
+    for (const check of report.structure) {
+      if (check.violation) fidelityWarnings.push({ description: `${check.section} 板块未落在模板原生排版（走了通用兜底区）`, severity: "medium" });
+    }
+    for (const issue of report.assetIssues) {
+      if (issue.severity === "high") fidelityWarnings.push({ description: issue.description, severity: "high" });
     }
   }
 
@@ -87,7 +141,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
       expectedRevision: parsed.data.baseRevision,
       publishedBy: parsed.data.publishedBy,
     });
-    const result = { status: "published", release };
+    const result = {
+      status: "published",
+      release,
+      ...(assetWarnings.length > 0 ? { assetWarnings } : {}),
+      ...(fidelityWarnings.length > 0 ? { fidelityWarnings } : {}),
+    };
     if (key) requestIdempotency.complete(scope, key, result);
     return Response.json(result, { status: 201 });
   } catch (error) {

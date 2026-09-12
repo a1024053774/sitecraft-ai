@@ -29,6 +29,13 @@ export async function GET(
     headers: {
       "Content-Type": mimeByExt[ext] ?? "application/octet-stream",
       "Cache-Control": "public, max-age=31536000, immutable",
+      // P-2 防护（2026-09-11）：本路由由**我们自己的 origin 同源**提供用户上传的文件。
+      // 上传侧已不放行 SVG，但这两个头是纵深防御——万一有历史遗留的 .svg，
+      // 或将来放开新格式，也不会让它在同源下执行脚本。
+      //  - nosniff：禁止浏览器按内容猜测类型（防 .jpg 里塞 HTML 被当页面渲染）
+      //  - CSP default-src 'none'：即使被当文档打开，也不允许加载/执行任何资源
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
     },
   });
 }

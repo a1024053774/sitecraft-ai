@@ -7,10 +7,12 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
+  CircleAlert,
   CircleHelp,
   Cloud,
   CloudUpload,
   FileSpreadsheet,
+  FileText,
   Globe2,
   History,
   Image as ImageIcon,
@@ -43,8 +45,10 @@ import {
   type Locale,
   type SiteDraft,
 } from "@/lib/site-model";
-import type { SiteOperation } from "@/lib/site-operations";
+import { describeSlot, slotForQualityIssue, type SiteOperation } from "@/lib/site-operations";
 import { buildChangeDiff, type ChangeDiff } from "@/lib/change-diff";
+import { slotToDraftOperation } from "@/lib/inline-edit-mapping";
+import { formatRenderedStructure, serializeRenderedStructure } from "@/lib/rendered-structure";
 import { readSseEvents } from "@/lib/sse-events";
 
 type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change";
@@ -58,6 +62,14 @@ type ChatMessage = {
   meta?: string;
   retryText?: string;
   diff?: ChangeDiff[];
+  /**
+   * 本次被确定性校验拒绝的操作（人话原因）。
+   *
+   * 2026-09-11 之前：`rejected` 从服务端一路冒泡到 `done` 事件，
+   * 但本文件读 doneEvent 时**独独不读它** → 用户只看到"草稿 vN 已保存"，
+   * 而超长/越界的改动其实一项都没写进去。
+   */
+  rejected?: string[];
 };
 type HistoryItem = {
   id: string;
@@ -76,7 +88,44 @@ type DraftSnapshot = {
   isNew?: boolean;
 };
 type ProviderStatus = { mode: "deepseek" | "unconfigured"; model: string | null };
-type TemplateCapabilities = { templateId: string; revision: number; slots: string[] };
+/** 版本历史条目（`/api/sites/:id/releases` 返回的 Release，去掉庞大的 draft 字段）。 */
+type ReleaseSummary = {
+  releaseId: string;
+  version: number;
+  status: "published" | "superseded";
+  createdAt: string;
+  publishedBy: string;
+  rollbackOf?: string;
+};
+type TemplateCapabilities = {
+  templateId: string;
+  revision: number;
+  slots: string[];
+  /** 页面真实渲染结构摘要（P3.3）：随 revision 失效，与 slots 同源同生命周期 */
+  structure?: string;
+};
+
+/**
+ * 从 chat 的 `done` 事件里取「被拒操作」的人话原因。
+ *
+ * 服务端一直在下发这个数组，但前端此前**从未读取** → 超长/越界的改动
+ * 被静默丢弃，用户只看到"草稿已保存"（2026-09-11 修复）。
+ */
+function chatRejected(doneEvent: Record<string, unknown>): string[] | undefined {
+  const raw = doneEvent.rejected;
+  if (!Array.isArray(raw)) return undefined;
+  const reasons = raw.filter((item): item is string => typeof item === "string");
+  return reasons.length ? reasons : undefined;
+}
+
+/** 业务节中文名（结构忠实度提示用） */
+const SECTION_LABELS: Record<string, string> = {
+  about: "关于",
+  features: "优势",
+  services: "服务",
+  products: "产品",
+  contact: "联系",
+};
 
 const initialMessages: ChatMessage[] = [
   {
@@ -123,7 +172,22 @@ export default function WorkspacePage() {
   }, []);
   const [device, setDevice] = useState<Device>("desktop");
   const [locale, setLocale] = useState<Locale>("zh");
+  // 就地编辑模式（P3.1）：direct = 点选直接改；ai = 点选后填对话框再发送（默认，保证零回归）
+  const [editMode, setEditMode] = useState<"ai" | "direct">("ai");
+  const [editHint, setEditHint] = useState<string | null>(null);
+  // 资产替换弹窗（P3.2）：点选图片后打开
+  const [assetDialog, setAssetDialog] = useState<{ target: string; currentSrc: string } | null>(null);
+  const [assetBusy, setAssetBusy] = useState(false);
+  const assetFileRef = useRef<HTMLInputElement>(null);
   const [showImport, setShowImport] = useState(false);
+  // 站点素材（2026-09-10，方向 2）：用户粘贴的企业原文，AI 生成内容时以此为准。
+  // 与站点绑定存储，用户可回看与纠正——只存不给用户看，他就无法修正 AI 依据的材料。
+  const [materialOpen, setMaterialOpen] = useState(false);
+  const [materialDraft, setMaterialDraft] = useState("");
+  const [materialBusy, setMaterialBusy] = useState(false);
+  const [materialSaved, setMaterialSaved] = useState(false);
+  // 商品主图上传中（存 SKU，避免整页 loading）；null = 空闲
+  const [productImageBusy, setProductImageBusy] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   // C 块局部重生成：方向输入弹窗（点选板块后触发）
   const [regenerateDialog, setRegenerateDialog] = useState<{ section: string; label: string } | null>(null);
@@ -144,12 +208,31 @@ export default function WorkspacePage() {
   const [factsConfirmed, setFactsConfirmed] = useState(false);
   // P2 完成引导：从一句话建站生成完成跳转带 ?generated=1 → 显示"下一步"提示条
   const [showGuide, setShowGuide] = useState(false);
+  // 部分板块未完整生成（?partial=1）：进工作台后仍保留"待补全"警示，避免半成品被当成品发布
+  const [partialNotice, setPartialNotice] = useState(false);
+  // 版本历史与回滚（2026-09-10 接线：后端早已可用，此前零 UI 入口）
+  const [releasesOpen, setReleasesOpen] = useState(false);
+  const [releases, setReleases] = useState<ReleaseSummary[]>([]);
+  const [releasesBusy, setReleasesBusy] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
+  // 发布被质检拦下时的"可定位问题"（2026-09-10）：让用户点一下就在预览里选中该处。
+  const [qualityFocus, setQualityFocus] = useState<Array<{ slot: string; label: string; target: string | null }>>([]);
+  // 渲染事实（桥接报告回传的「页面上真渲染了什么」）：发布时带给服务端做忠实度门禁。
+  // 服务端无法从 draft JSON 重算 L2 残留/L3 结构——那需要真实 DOM 文本。
+  const [renderFacts, setRenderFacts] = useState<{
+    revision: number;
+    visibleTexts: string[];
+    generatedSections: string[];
+    appliedSections: string[];
+  } | null>(null);
   const [mobilePane, setMobilePane] = useState<"chat" | "preview">("chat");
   const [selectedTarget, setSelectedTarget] = useState<{ key: string; label: string } | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [expectedTargets, setExpectedTargets] = useState<string[]>([]);
   const [templateCapabilities, setTemplateCapabilities] = useState<TemplateCapabilities | null>(null);
   const [previewState, setPreviewState] = useState<"loading" | "synced" | "warning">("loading");
+  // 结构忠实度提示（L3）：渲染事实显示某些节走了通用兜底区时告知用户（P1.4 落点）
+  const [structureNotice, setStructureNotice] = useState<string | null>(null);
   // 真实模板 iframe 握手偶发失败时，递增 key 强制重挂（不再降级为本地结构近似渲染）。
   const [previewFrameKey, setPreviewFrameKey] = useState(0);
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>({ mode: "unconfigured", model: null });
@@ -174,7 +257,12 @@ export default function WorkspacePage() {
     const fromUrl = new URLSearchParams(window.location.search).get("siteId");
     if (fromUrl && fromUrl !== siteId) setSiteId(fromUrl);
     // P2 完成引导：?generated=1 → 显示"下一步"提示条（非阻断，可关）
-    if (new URLSearchParams(window.location.search).get("generated") === "1") setShowGuide(true);
+    // 2026-09-10：同时识别 ?partial=1——生成页在「部分板块未完整生成」时带上该参数，
+    // 但此前工作台**只认 generated=1**，导致用户进工作台后「待补全」警示消失，
+    // 可能直接把半成品当成品发布。
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("generated") === "1") setShowGuide(true);
+    if (params.get("partial") === "1") setPartialNotice(true);
   }, []);
 
   useEffect(() => {
@@ -225,6 +313,10 @@ export default function WorkspacePage() {
           setDraftReady(true);
           setPreviewState("loading");
           if (new URLSearchParams(window.location.search).get("import") === "products") setShowImport(true);
+          // 模板页点「你可以对 AI 说」的 starter 带过来的指令：**只预填，不自动发送**
+          // （2026-09-09 用户确认）——避免用户没看清就消耗一次 AI 调用。
+          const presetPrompt = new URLSearchParams(window.location.search).get("prompt");
+          if (presetPrompt?.trim()) setInput(presetPrompt.trim());
         }
       } catch (error) {
         if (!cancelled) {
@@ -252,6 +344,43 @@ export default function WorkspacePage() {
   }, [messages, busy, busyText]);
 
   const currentTemplate = getTemplate(draft.templateId);
+  /**
+   * 运行时模板的名字（只对"客户端认不出"的模板才去要）。
+   *
+   * ⚠️ **不能直接信 `currentTemplate.name`**。`getTemplate()` 在找不到 id 时
+   * **静默回退到 `templates[0]`**（`lib/site-model.ts:108`），而**运行时模板
+   * 在客户端 bundle 里永远找不到**——注册表只在服务端进程里，
+   * 客户端 `allTemplates()` 恒等于那 22 个基线模板（见 `site-model.ts` 的
+   * `runtimeLoader` 说明）。
+   *
+   * 后果（2026-09-11 实测）：用截图做出来的站，工作台页头显示的是
+   * **「SMALL BIS / Small Business」**——22 个基线模板里的第一个。
+   * 用户会以为自己的模板被换掉了。
+   *
+   * 修法：**只在认不出来时才去问一次服务端**。22 个基线模板走原路、
+   * 零额外请求；运行时模板多一个本地接口调用，换来正确的名字。
+   * 问不到就退回显示 id——脏但**不撒谎**，比显示另一个模板的名字好。
+   */
+  const templateRecognized = currentTemplate.id === draft.templateId;
+  const [runtimeTemplateName, setRuntimeTemplateName] = useState<string | null>(null);
+  useEffect(() => {
+    if (templateRecognized) return;
+    let cancelled = false;
+    fetch("/api/templates/runtime", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { templates?: Array<{ id: string; name: string }> } | null) => {
+        if (cancelled || !body?.templates) return;
+        const found = body.templates.find((item) => item.id === draft.templateId);
+        if (found) setRuntimeTemplateName(found.name);
+      })
+      .catch(() => {
+        // 拿不到就继续显示 id——不弹错，这不值得打断用户
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [draft.templateId, templateRecognized]);
+  const templateName = templateRecognized ? currentTemplate.name : (runtimeTemplateName ?? draft.templateId);
   const activeTemplateCapabilities = templateCapabilities?.templateId === draft.templateId
     && templateCapabilities.revision === draft.revision
     ? templateCapabilities
@@ -264,10 +393,97 @@ export default function WorkspacePage() {
   }, [draftReady, previewState]);
 
   const selectPreviewTarget = (key: string, label: string, prompt: string, slot?: string) => {
+    // 就地编辑模式下，点选由 iframe 直接进入编辑态，父窗口不再抢焦点、不再覆写聊天输入框
+    // （二次取证发现：原先无条件 setInput + focus() 会在编辑中把光标夺走，2026-09-09）
+    if (editMode === "direct") return;
     setSelectedTarget({ key, label: slot ? `${label}（已定位）` : label });
     setInput(slot ? `修改我刚才选中的${label}。${prompt}` : prompt);
     setMobilePane("chat");
     window.requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  /**
+   * 就地编辑提交（P3.1）：映射为一条标准草稿操作后走 saveOperations。
+   * 带 expectedValue 做乐观并发保护——冲突时抛错，iframe 回滚到编辑前文本。
+   */
+  const applyImageToProduct = async (sku: string, file: File | null) => {
+    if (productImageBusy) return;
+    setProductImageBusy(sku);
+    try {
+      let image: string | null = null;
+      if (file) {
+        const form = new FormData();
+        form.append("file", file);
+        const upload = await fetch("/api/product-images", { method: "POST", body: form });
+        const uploaded = (await upload.json()) as { ok?: boolean; url?: string; error?: string };
+        if (!upload.ok || !uploaded.url) throw new Error(uploaded.error || "图片上传失败");
+        image = uploaded.url;
+      }
+      await saveOperations(
+        [{ op: "set_product_image", sku, image }],
+        image ? `更新商品 ${sku} 主图` : `清除商品 ${sku} 主图`,
+        "manual",
+      );
+      setEditHint(image ? "商品主图已更新" : "已清除商品主图");
+      window.setTimeout(() => setEditHint(null), 2500);
+    } catch (error) {
+      setEditHint(error instanceof Error ? error.message : "商品图上传失败");
+      window.setTimeout(() => setEditHint(null), 3500);
+    } finally {
+      setProductImageBusy(null);
+    }
+  };
+
+  /**
+   * 资产替换（P3.2）：上传实拍图 → 存服务端 → 写 draft.assets。
+   * `file = null` 表示恢复模板原图（写 asset: null）。
+   */
+  const replaceAsset = async (file: File | null) => {
+    if (!assetDialog || assetBusy) return;
+    setAssetBusy(true);
+    try {
+      let asset: { url: string; alt?: string; mime?: string; width?: number; height?: number } | null = null;
+      if (file) {
+        const form = new FormData();
+        form.append("file", file);
+        const upload = await fetch("/api/product-images", { method: "POST", body: form });
+        const uploaded = (await upload.json()) as { ok?: boolean; url?: string; error?: string };
+        if (!upload.ok || !uploaded.url) throw new Error(uploaded.error || "图片上传失败");
+        asset = { url: uploaded.url, alt: file.name.replace(/\.[^.]+$/, ""), mime: file.type };
+      }
+      await saveOperations(
+        [{ op: "set_asset", target: assetDialog.target as "hero.image" | "brand.logo", asset }],
+        asset ? `替换${assetDialog.target === "hero.image" ? "首屏主视觉" : "品牌 Logo"}` : "恢复模板原图",
+        "manual",
+      );
+      setAssetDialog(null);
+      setEditHint(asset ? "图片已替换" : "已恢复模板原图");
+      window.setTimeout(() => setEditHint(null), 2500);
+    } catch (error) {
+      setEditHint(error instanceof Error ? error.message : "图片替换失败");
+      window.setTimeout(() => setEditHint(null), 3500);
+    } finally {
+      setAssetBusy(false);
+    }
+  };
+
+  const commitInlineEdit = async (payload: { requestId: string; slot: string; value: string; originalValue: string }) => {
+    const resolution = slotToDraftOperation({
+      slot: payload.slot,
+      value: payload.value,
+      originalValue: payload.originalValue,
+      draft,
+      uiLocale: locale,
+    });
+    if (!resolution.ok) return { ok: false, message: resolution.message };
+    try {
+      await saveOperations([resolution.operation], `直接编辑：${resolution.label}`, "manual");
+      setEditHint(`已保存「${resolution.label}」`);
+      window.setTimeout(() => setEditHint(null), 2500);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : "保存失败" };
+    }
   };
 
   // C 块：selectedTarget key → 板块（hero/features/services/products/about/contact）
@@ -385,6 +601,7 @@ export default function WorkspacePage() {
             context: recentContext,
             sessionId,
             templateCapabilities: activeTemplateCapabilities,
+            renderedStructure: activeTemplateCapabilities?.structure || undefined,
             idempotencyKey,
           }),
           signal: controller.signal,
@@ -420,9 +637,10 @@ export default function WorkspacePage() {
           : `草稿 v${changeSet.revision} 已保存。${String(doneEvent.displayNotice ?? "")}`,
           change: String(doneEvent.summary), meta: latency,
           diff: changeSet.operations ? buildChangeDiff(changeSet.operations, previousDraft) : undefined,
+          rejected: chatRejected(doneEvent),
         }]);
       } else if (status === "no_change") {
-        setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", text: "模型没有生成可应用的内容差异，草稿和模板均未修改。", change: String(doneEvent.summary || "没有变化"), meta: latency }]);
+        setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", text: "模型没有生成可应用的内容差异。", change: String(doneEvent.summary || "没有变化"), meta: latency, rejected: chatRejected(doneEvent) }]);
       } else if (status === "conflict") {
         setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: String(doneEvent.error), change: "没有覆盖较新的草稿" }]);
       } else if (status === "need_confirmation") {
@@ -505,6 +723,7 @@ export default function WorkspacePage() {
           confirmedDestructive: true,
           sessionId,
           templateCapabilities: activeTemplateCapabilities,
+          renderedStructure: activeTemplateCapabilities?.structure || undefined,
           idempotencyKey,
         }),
         signal: controller.signal,
@@ -534,6 +753,7 @@ export default function WorkspacePage() {
           : `草稿 v${changeSet.revision} 已保存。${String(doneEvent.displayNotice ?? "")}`,
           change: String(doneEvent.summary),
           diff: changeSet.operations ? buildChangeDiff(changeSet.operations, previousDraft) : undefined,
+          rejected: chatRejected(doneEvent),
         }]);
       } else if (st === "no_change") {
         setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", text: "模型没有生成可应用的内容差异。", change: String(doneEvent.summary || "没有变化") }]);
@@ -570,12 +790,48 @@ export default function WorkspacePage() {
     }
   };
 
-  const handlePreviewReport = (report: { revision: number; appliedSlots: string[]; missingSlots: string[] }) => {
+  const handlePreviewReport = (report: {
+    revision: number;
+    appliedSlots: string[];
+    missingSlots: string[];
+    /** 渲染事实：实际走了通用兜底区的业务节（见 OpenSourceTemplateFrame 注释） */
+    generatedContentSections?: string[];
+    /** 槽位 → 页面上可见文本。发布门禁的 L2 残留判定需要它（2026-09-10 接线）。 */
+    visibleTextsBySlot?: Record<string, string[]>;
+  }) => {
     if (report.revision !== draft.revision) return;
+    // 结构忠实度（L3）：渲染事实 → 提示哪些节没落在模板原生排版。
+    // 这是 P1.4「兜底显性化」的落点：此前只消费模型自报的 fallbackDeclared，
+    // 模型说自己没问题就永远不提示（2026-09-09 接线）。
+    const generatedSections = report.generatedContentSections ?? [];
+    if (generatedSections.length > 0) {
+      const labels = generatedSections.map((section) => SECTION_LABELS[section] ?? section);
+      setStructureNotice(`以下板块当前为动态备用排版（未落在模板原生结构）：${labels.join("、")}`);
+    } else {
+      setStructureNotice(null);
+    }
     setTemplateCapabilities({
       templateId: draft.templateId,
       revision: report.revision,
       slots: [...new Set(report.appliedSlots)],
+      // P3.3 具身上下文：模型此前只看得见 draft JSON，看不见「这节在页面上是原生排版还是补的兜底区」。
+      // 序列化在这里（父页 TS）而不是 iframe 里——那段脚本是模板字符串，写不了 TS 模块。
+      structure: formatRenderedStructure(serializeRenderedStructure({
+        templateId: draft.templateId,
+        revision: report.revision,
+        appliedSlots: report.appliedSlots,
+        generatedContentSections: generatedSections,
+        hiddenSections: draft.hiddenSections,
+      })),
+    });
+    // 渲染事实（供发布门禁使用，2026-09-10 接线）：
+    // `evaluateFidelity` 需要「页面上真正渲染出来的文本」，而它只存在于桥接报告里——
+    // 服务端从 draft JSON 算不出来。这里存下来，`publishSite` 时随请求带上。
+    setRenderFacts({
+      revision: report.revision,
+      visibleTexts: Object.values(report.visibleTextsBySlot ?? {}).flat(),
+      generatedSections,
+      appliedSections: report.appliedSlots,
     });
     const hasExpectedTargets = expectedTargets.length > 0;
     const visibleTargets = expectedTargets.filter((target) => {
@@ -644,6 +900,102 @@ export default function WorkspacePage() {
     }
   };
 
+  /**
+   * 版本历史与回滚（2026-09-10 接线）。
+   *
+   * 后端 `/api/sites/:id/releases`（列表）与 `/releases/:releaseId/rollback` 一直完整可用，
+   * 但**全仓库没有任何 .tsx 调用它们**——用户发错了救不回来。
+   * 注意回滚是「以历史草稿新建一个更高版本」（不是复活旧行），并记 `rollbackOf`。
+   */
+  const openReleases = async () => {
+    setReleasesOpen(true);
+    setReleasesBusy(true);
+    setReleaseError(null);
+    try {
+      const response = await fetch(`/api/sites/${siteId}/releases`, { cache: "no-store" });
+      const payload = (await response.json()) as { releases?: ReleaseSummary[] };
+      setReleases(payload.releases ?? []);
+    } catch {
+      setReleaseError("读取版本历史失败");
+      setReleases([]);
+    } finally {
+      setReleasesBusy(false);
+    }
+  };
+
+  const rollbackTo = async (releaseId: string, version: number) => {
+    if (releasesBusy) return;
+    setReleasesBusy(true);
+    setReleaseError(null);
+    try {
+      const response = await fetch(`/api/sites/${siteId}/releases/${encodeURIComponent(releaseId)}/rollback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baseRevision: draft.revision, idempotencyKey: crypto.randomUUID() }),
+      });
+      const payload = (await response.json()) as { release?: { version?: number }; message?: string; error?: string };
+      if (!response.ok) throw new Error(payload.message || payload.error || "回滚失败");
+      // 回滚 = 以历史草稿新建更高版本；重新拉一次草稿把新内容（含历史/撤销栈）同步到界面
+      const snapshot = await fetch(`/api/sites/${siteId}/draft`, { cache: "no-store" }).then((res) => {
+        if (!res.ok) throw new Error("读取回滚后草稿失败");
+        return res.json() as Promise<DraftSnapshot>;
+      });
+      adoptSnapshot(snapshot);
+      setPreviewState("loading");
+      setReleasesOpen(false);
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "applied",
+        text: `已回滚到 v${version}（生成新版本 v${payload.release?.version ?? ""}）`,
+        change: "线上公开页读取的是新版本快照",
+      }]);
+    } catch (error) {
+      setReleaseError(error instanceof Error ? error.message : "回滚失败");
+    } finally {
+      setReleasesBusy(false);
+    }
+  };
+
+  /**
+   * 打开素材面板：拉取站点已存素材填入编辑框。
+   */
+  const openMaterial = async () => {
+    setMaterialOpen(true);
+    setMaterialSaved(false);
+    try {
+      const snapshot = await fetch(`/api/sites/${siteId}/draft`, { cache: "no-store" }).then((r) => r.json()) as { sourceMaterial?: string };
+      setMaterialDraft(snapshot.sourceMaterial ?? "");
+    } catch {
+      setMaterialDraft("");
+    }
+  };
+
+  /**
+   * 保存素材。**不走 operations**——素材不是草稿内容，改它不该 bump revision
+   * （否则用户只想补充公司简介却被当成草稿修改，可能撞上冲突）。
+   */
+  const saveMaterial = async () => {
+    if (materialBusy) return;
+    setMaterialBusy(true);
+    try {
+      const response = await fetch(`/api/sites/${siteId}/draft`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceMaterial: materialDraft }),
+      });
+      if (!response.ok) throw new Error("保存素材失败");
+      setMaterialSaved(true);
+      setEditHint("站点素材已保存，下次生成会以它为准");
+      window.setTimeout(() => setEditHint(null), 3000);
+    } catch (error) {
+      setEditHint(error instanceof Error ? error.message : "保存素材失败");
+      window.setTimeout(() => setEditHint(null), 3500);
+    } finally {
+      setMaterialBusy(false);
+    }
+  };
+
   const publishSite = async (opts?: { factsConfirmed?: boolean }) => {
     if (busy || siteId === "demo" || publishRequestKeyRef.current) return;
     const idempotencyKey = crypto.randomUUID();
@@ -654,19 +1006,31 @@ export default function WorkspacePage() {
       const response = await fetch(`/api/sites/${siteId}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseRevision: draft.revision, idempotencyKey, factsConfirmed: opts?.factsConfirmed ?? false }),
+        body: JSON.stringify({
+          baseRevision: draft.revision,
+          idempotencyKey,
+          factsConfirmed: opts?.factsConfirmed ?? false,
+          // 渲染事实（仅当与当前草稿同 revision 时可信）：服务端据此跑 L2 残留 / L3 结构门禁
+          ...(renderFacts && renderFacts.revision === draft.revision
+            ? { renderFacts: { visibleTexts: renderFacts.visibleTexts, generatedSections: renderFacts.generatedSections, appliedSections: renderFacts.appliedSections } }
+            : {}),
+        }),
       });
       const payload = await response.json().catch(() => ({})) as {
         error?: string;
         message?: string;
-        quality?: { missingSlots?: string[]; placeholderHits?: string[]; unverifiedFacts?: string[] };
+        quality?: { missingSlots?: string[]; fabricatedTargets?: string[]; metaCommentaryTargets?: string[]; unverifiedFacts?: string[] };
         release?: { version?: number };
+        assetWarnings?: Array<{ description?: string }>;
+        fidelityWarnings?: Array<{ description?: string }>;
       };
       if (!response.ok) {
         // 事实类声明需人工确认：列出待确认事实，弹出确认面板让用户核对后带 factsConfirmed 重试。
         const facts = payload.quality?.unverifiedFacts ?? [];
         const hasOnlyFacts = facts.length > 0
-          && !(payload.quality?.missingSlots?.length) && !(payload.quality?.placeholderHits?.length);
+          && !(payload.quality?.missingSlots?.length)
+          && !(payload.quality?.fabricatedTargets?.length)
+          && !(payload.quality?.metaCommentaryTargets?.length);
         if (payload.error === "publish_blocked" && facts.length && hasOnlyFacts) {
           setPendingFactConfirm(facts);
           setFactsConfirmed(false);
@@ -678,16 +1042,25 @@ export default function WorkspacePage() {
           return;
         }
         const qualityIssues = payload.quality
-          ? [...(payload.quality.missingSlots ?? []), ...(payload.quality.placeholderHits ?? []), ...(payload.quality.unverifiedFacts ?? [])]
+          ? [...(payload.quality.missingSlots ?? []), ...(payload.quality.fabricatedTargets ?? []), ...(payload.quality.metaCommentaryTargets ?? []), ...(payload.quality.unverifiedFacts ?? [])]
           : [];
         const blockedByQuality = payload.error === "publish_blocked";
+        // 2026-09-10：把原始槽位 id（`hero.title`）换成可读位置（「首屏的标题」），
+        // 并给出可在预览中一键定位的条目——用户答复「我直接进工作台看」，
+        // 那么工作台提示就必须**看得懂 + 点得到**，而不是列一串 id。
+        const readableIssues = qualityIssues.slice(0, 4).map((slot) => describeSlot(slot));
+        setQualityFocus(qualityIssues
+          .map((slot) => ({ slot, label: describeSlot(slot), target: slotForQualityIssue(slot) }))
+          .filter((item) => item.target !== null)
+          .slice(0, 6));
         setMessages((items) => [...items, {
           id: crypto.randomUUID(),
           role: "assistant",
           status: "warning",
           text: blockedByQuality ? "发布前仍有内容需要人工确认或补全。" : payload.message || "当前内容还不能发布，请先处理提示中的问题。",
-          change: qualityIssues.length ? `待处理：${qualityIssues.slice(0, 4).join("、")}` : payload.error || "发布未完成",
+          change: readableIssues.length ? `待处理：${readableIssues.join("、")}` : payload.error || "发布未完成",
         }]);
+
         return;
       }
       setMessages((items) => [...items, {
@@ -697,6 +1070,29 @@ export default function WorkspacePage() {
         text: `已发布版本 v${payload.release?.version ?? ""}，公开页读取的是独立发布快照。`,
         change: "草稿后续编辑不会改变当前线上版本",
       }]);
+      // 模板层门禁（L2b）警告：首屏主视觉仍是模板示例图 → 提示去替换（不阻断发布）
+      const assetWarning = payload.assetWarnings?.[0]?.description;
+      if (assetWarning) {
+        setMessages((items) => [...items, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          status: "warning",
+          text: assetWarning,
+          change: "在工作台点选首屏图片即可上传企业实拍图替换",
+        }]);
+      }
+      // 忠实度门禁（L2 残留 / L3 结构）：此前 evaluateFidelity 生产零调用，
+      // 现由服务端用本次携带的渲染事实判定（2026-09-10 接线）。警告不阻断。
+      const fidelityWarnings = payload.fidelityWarnings ?? [];
+      if (fidelityWarnings.length > 0) {
+        setMessages((items) => [...items, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          status: "warning",
+          text: fidelityWarnings[0].description ?? "站点仍包含模板残留内容或结构偏差。",
+          change: fidelityWarnings.length > 1 ? `另有 ${fidelityWarnings.length - 1} 项，可在发布响应中查看` : "建议在预览中确认后再对外分享",
+        }]);
+      }
       setPendingFactConfirm(null);
       setFactsConfirmed(false);
       window.open(`/published/${encodeURIComponent(siteId)}`, "_blank", "noopener,noreferrer");
@@ -761,7 +1157,7 @@ export default function WorkspacePage() {
           <div>
             <Link href="/" className="eyebrow" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowLeft size={12} />返回站点</Link>
             <h2>{draft.siteName}</h2>
-            <span className="builder-template-name">{currentTemplate.name}</span>
+            <span className="builder-template-name">{templateName}</span>
             <span className="chat-context"><span className={`provider-dot ${providerStatus.mode === "deepseek" ? "remote" : "offline"}`} />{providerStatus.mode === "deepseek" ? `DEEPSEEK API · ${providerStatus.model}` : "DeepSeek 未配置 · 不会执行本地伪修改"}</span>
           </div>
           <Link className="icon-button" href="/templates" aria-label="更换模板"><MoreHorizontal size={16} /></Link>
@@ -807,6 +1203,21 @@ export default function WorkspacePage() {
                   {message.diff.length > 6 && <div className="change-diff-more">另有 {message.diff.length - 6} 项字段变化，已保存到草稿历史。</div>}
                 </div>
               )}
+              {/*
+                被拒操作显性化（2026-09-11）：这些改动**一项都没写进草稿**，
+                却混在"草稿 vN 已保存"里。此前服务端已下发 rejected，前端未消费。
+              */}
+              {message.rejected && message.rejected.length > 0 && (
+                <div className="change-diff" aria-label="未生效的修改">
+                  <div className="change-diff-head"><strong>未生效</strong><span>共 {message.rejected.length} 项</span></div>
+                  {message.rejected.slice(0, 6).map((reason, index) => (
+                    <div className="change-diff-row" key={`${message.id}-rejected-${index}`}>
+                      <div className="change-diff-label"><AlertCircle size={11} /> {reason}</div>
+                    </div>
+                  ))}
+                  {message.rejected.length > 6 && <div className="change-diff-more">另有 {message.rejected.length - 6} 项未生效，可换更短的表述重试。</div>}
+                </div>
+              )}
             </div>
           ))}
           {busy && <div className="message assistant"><div className="message-label"><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />SITECRAFT AI</div><div className="message-bubble busy-message"><LoaderCircle className="spin" size={13} /><span>{busyText}</span><button className="hint busy-cancel" type="button" onClick={cancelChatRequest} aria-label="取消 AI 请求">取消</button></div></div>}
@@ -837,9 +1248,16 @@ export default function WorkspacePage() {
           <div className="preview-toolbar-right">
             <div className="device-toggle"><button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")} aria-label="桌面预览"><Desktop size={14} /></button><button className={device === "tablet" ? "active" : ""} onClick={() => setDevice("tablet")} aria-label="平板预览"><Tablet size={14} /></button><button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")} aria-label="手机预览"><Mobile size={14} /></button></div>
             <div className="device-toggle"><button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>中</button><button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button></div>
+            <div className="device-toggle" role="group" aria-label="编辑方式">
+              <button className={editMode === "ai" ? "active" : ""} onClick={() => setEditMode("ai")} title="点选后由 AI 修改">AI 修改</button>
+              <button className={editMode === "direct" ? "active" : ""} onClick={() => setEditMode("direct")} title="点选后直接编辑文字">直接编辑</button>
+            </div>
+            {editHint && <span className="edit-hint" role="status">{editHint}</span>}
+            {structureNotice && !editHint && <span className="edit-hint" role="status">{structureNotice}</span>}
             <button className="icon-button" onClick={() => void moveHistory("undo")} disabled={!canUndo || busy} aria-label="撤销"><RotateCcw size={14} /></button>
             <button className="icon-button" onClick={() => void moveHistory("redo")} disabled={!canRedo || busy} aria-label="重做"><RotateCw size={14} /></button>
             <button className="secondary-button" onClick={() => setShowImport(true)}><Upload size={14} />商品</button>
+            <button className="secondary-button" type="button" onClick={() => void openMaterial()} disabled={siteId === "demo"}><FileText size={14} />素材</button>
             <Link className="secondary-button" href={`/leads?siteKey=${encodeURIComponent(siteId)}`}><MessageSquareText size={14} />询盘</Link>
             {selectedTarget && sectionFromTarget(selectedTarget.key) && (
               <button
@@ -862,6 +1280,7 @@ export default function WorkspacePage() {
             >
               <RefreshCw size={14} />换方向重新生成
             </button>
+            <button className="secondary-button" type="button" onClick={() => void openReleases()} disabled={busy || siteId === "demo"}><History size={14} />版本历史</button>
             <button className="primary-button" type="button" onClick={() => void publishSite()} disabled={busy || siteId === "demo"}><Globe2 size={14} />发布</button>
           </div>
           {pendingFactConfirm && pendingFactConfirm.length > 0 && (
@@ -881,6 +1300,68 @@ export default function WorkspacePage() {
           )}
         </header>
         <div className="preview-stage">
+          {/*
+            「产品板块已隐藏」提示（2026-09-10，方向 2 的配套）。
+            生成时若站点还没有商品，`buildGenerationPlan` 会自动隐藏产品板块并合成
+            `set_section_visibility: false`——不这么做，空商品会让发布被 422 拦下。
+            但隐藏是**静默**发生的，用户只看到"产品区块没了"。这条提示把它讲清楚，
+            并给出一键开回（商品仍然是空的，所以开回后仍需导入，两个动作并列给出）。
+          */}
+          {!draft.hiddenSections.includes("products") ? null : (
+            <div className="generate-guide-note" role="status">
+              <div className="generate-guide-title">
+                <CircleAlert size={14} />
+                {draft.products.length > 0 ? "产品板块当前为隐藏状态" : "尚无商品，产品板块已自动隐藏"}
+              </div>
+              <div className="generate-guide-actions">
+                <button onClick={() => setShowImport(true)}>导入商品</button>
+                <button
+                  onClick={() => {
+                    void saveOperations(
+                      [{ op: "set_section_visibility", section: "products", visible: true }],
+                      "显示产品板块",
+                      "manual",
+                    );
+                  }}
+                >
+                  显示产品板块
+                </button>
+              </div>
+            </div>
+          )}
+          {qualityFocus.length > 0 && (
+            <div className="quality-focus-bar" role="status">
+              <div className="quality-focus-head"><CircleAlert size={13} />以下位置需要处理，点一下即可在预览中定位</div>
+              <div className="quality-focus-items">
+                {qualityFocus.map((item) => (
+                  <button
+                    key={item.slot}
+                    type="button"
+                    className="quality-focus-item"
+                    title={item.slot}
+                    onClick={() => {
+                      if (item.target) selectPreviewTarget(item.target, item.label, `请修改${item.label}，使其符合发布要求。`);
+                      // 点选后收起定位条，避免遮挡预览
+                      setQualityFocus([]);
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <button className="generate-guide-close" aria-label="关闭提示" onClick={() => setQualityFocus([])}><X size={12} /></button>
+            </div>
+          )}
+          {partialNotice && (
+            <div className="generate-guide-note" role="status">
+              <div className="generate-guide-title"><CircleAlert size={14} />部分板块未完整生成，发布前建议先补全</div>
+              <div className="generate-guide-actions">
+                <button onClick={() => { setPartialNotice(false); window.location.href = `/generate?siteId=${siteId}&recover=missing`; }}>去补全缺失板块</button>
+                <button onClick={() => setPartialNotice(false)}>继续编辑</button>
+              </div>
+              <button className="generate-guide-close" aria-label="关闭提示" onClick={() => setPartialNotice(false)}><X size={12} /></button>
+            </div>
+          )}
           {showGuide && (
             <div className="generate-guide-note" role="status">
               <div className="generate-guide-title"><Sparkles size={14} />初稿已生成，接下来你可以：</div>
@@ -892,9 +1373,41 @@ export default function WorkspacePage() {
               <button className="generate-guide-close" aria-label="关闭提示" onClick={() => setShowGuide(false)}><X size={12} /></button>
             </div>
           )}
-          <div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">forge-industrial.sites.ai</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame key={`real-${previewFrameKey}`} templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} onPreviewStateChange={handlePreviewFrameState} />}</div>
+          <div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">forge-industrial.sites.ai</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame key={`real-${previewFrameKey}`} templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} onPreviewStateChange={handlePreviewFrameState} editMode={editMode} onInlineCommit={commitInlineEdit} onAssetSelect={(payload) => setAssetDialog(payload)} onInlineRejected={(reason) => { setEditHint(reason === "unsupported_slot" ? "该位置是模板固定文案，已切换为 AI 修改" : "此位置不支持直接编辑"); window.setTimeout(() => setEditHint(null), 2500); }} />}</div>
         </div>
       </main>
+      {assetDialog && (
+        <div className="modal-backdrop" onClick={() => !assetBusy && setAssetDialog(null)}>
+          <div className="import-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div><div className="eyebrow">Asset / Image</div><h3>替换{assetDialog.target === "hero.image" ? "首屏主视觉" : "品牌 Logo"}</h3></div>
+              <button className="icon-button" onClick={() => setAssetDialog(null)} disabled={assetBusy} aria-label="关闭"><X size={15} /></button>
+            </div>
+            <p className="modal-copy">上传企业实拍图（JPG / PNG / WebP / SVG，≤5MB）。替换后会在预览中即时生效，并随导出一起内联。</p>
+            {assetDialog.currentSrc && (
+              <div className="asset-preview"><span>当前图片</span><img src={assetDialog.currentSrc} alt="当前资产" /></div>
+            )}
+            <input
+              ref={assetFileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif,image/avif"
+              hidden
+              onChange={(event) => { const file = event.target.files?.[0] ?? null; event.target.value = ""; if (file) void replaceAsset(file); }}
+            />
+            <div className="upload-zone" onClick={() => !assetBusy && assetFileRef.current?.click()}>
+              <div className="upload-icon">{assetBusy ? <LoaderCircle size={20} className="spin" /> : <CloudUpload size={20} />}</div>
+              <strong>{assetBusy ? "正在上传…" : "点击上传实拍图"}</strong>
+              <span>建议横图 16:9 或 4:3，宽度 ≥1600px</span>
+              <small>JPG / PNG / WebP / SVG · 最大 5MB</small>
+            </div>
+            <div className="modal-foot">
+              <span>当前{draft.assets[assetDialog.target as "hero.image" | "brand.logo"] ? "已替换" : "使用模板原图"}</span>
+              <button className="secondary-button" disabled={assetBusy || !draft.assets[assetDialog.target as "hero.image" | "brand.logo"]} onClick={() => void replaceAsset(null)}>恢复模板原图</button>
+              <button className="primary-button" disabled={assetBusy} onClick={() => setAssetDialog(null)}>完成</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showImport && (
         <div className="modal-backdrop" onClick={() => setShowImport(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head"><div><div className="eyebrow">Content / Products</div><h3>填充你的商品目录</h3></div><button className="icon-button" onClick={() => setShowImport(false)} aria-label="关闭"><X size={15} /></button></div>
@@ -902,7 +1415,82 @@ export default function WorkspacePage() {
           <div className="upload-zone" onClick={() => fileRef.current?.click()}><input ref={fileRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={handleFile} /><div className="upload-icon"><CloudUpload size={20} /></div><strong>点击上传表格</strong><span>需要包含 SKU、产品名称、分类等字段</span><small>CSV / XLSX · 最多 1000 行</small></div>
           <div className="import-options"><div><FileSpreadsheet size={15} /><span>支持中英文列名自动识别</span><ChevronRight size={13} style={{ marginLeft: "auto" }} /></div><div><ImageIcon size={15} /><span>可选"图片/图片URL"列填产品主图</span><ChevronRight size={13} style={{ marginLeft: "auto" }} /></div></div>
           {importState && <div className={`import-result ${importState.imported ? "" : "error"}`}>{importState.imported ? <Check size={14} /> : <AlertCircle size={14} />}<div><strong>{importState.name} {importState.imported ? "已保存" : "导入失败"}</strong><span>{importState.imported ? `新增或更新 ${importState.imported} 个商品` : importState.errors[0]}{importState.imported && importState.errors.length ? `，${importState.errors.length} 行需要检查` : ""}</span></div></div>}
+          {/* 商品主图：2026-09-10 接线。`/api/product-images` 与 `product.image` 早已就绪，
+              但此前**没有任何入口能写它**——工厂站的说服力主要来自实拍图，这条是主路径。 */}
+          {draft.products.length > 0 && (
+            <div className="product-image-list">
+              <div className="product-image-head">为商品上传实拍主图（当前 {draft.products.filter((item) => item.image).length} / {draft.products.length} 已有图）</div>
+              {draft.products.map((product) => (
+                <div className="product-image-row" key={product.sku}>
+                  <span className="product-image-thumb" style={product.image ? { backgroundImage: `url(${product.image})` } : { background: product.imageColor || "#e5e7eb" }} />
+                  <span className="product-image-name">{product.name.zh || product.name.en || product.sku}</span>
+                  <span className="product-image-sku">{product.sku}</span>
+                  <label className="secondary-button product-image-upload">
+                    {productImageBusy === product.sku ? "上传中…" : product.image ? "更换" : "上传"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      disabled={productImageBusy !== null}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        event.target.value = "";
+                        if (file) void applyImageToProduct(product.sku, file);
+                      }}
+                    />
+                  </label>
+                  {product.image && (
+                    <button type="button" className="icon-button" aria-label={`清除 ${product.sku} 主图`} disabled={productImageBusy !== null} onClick={() => void applyImageToProduct(product.sku, null)}><X size={13} /></button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="modal-foot"><span>当前草稿商品：{draft.products.length} / 1000</span><button className="primary-button" onClick={() => setShowImport(false)}>完成</button></div>
+        </div></div>
+      )}
+      {materialOpen && (
+        <div className="modal-backdrop" onClick={() => setMaterialOpen(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-head"><div><div className="eyebrow">Source / Material</div><h3>站点素材</h3></div><button className="icon-button" onClick={() => setMaterialOpen(false)} aria-label="关闭"><X size={15} /></button></div>
+          <p className="modal-copy">这里的内容会作为 AI 写文案的事实依据（公司简介、产品、资质、案例）。素材里没有的信息不会被编造。改完保存，下次生成/补全时生效。</p>
+          <textarea
+            className="generate-textarea"
+            value={materialDraft}
+            onChange={(e) => { setMaterialDraft(e.target.value); setMaterialSaved(false); }}
+            placeholder="例如：华辰光伏成立于 2001 年，专注光伏组件与逆变器制造，通过 ISO 9001 认证，年产能 2GW，产品销往德国、日本……"
+            rows={12}
+            maxLength={20000}
+          />
+          <div className="modal-foot">
+            <span>{materialDraft.trim().length} / 20000{materialSaved ? " · 已保存" : ""}</span>
+            <button className="primary-button" disabled={materialBusy} onClick={() => void saveMaterial()}>{materialBusy ? "保存中…" : "保存素材"}</button>
+          </div>
+        </div></div>
+      )}
+      {releasesOpen && (
+        <div className="modal-backdrop" onClick={() => setReleasesOpen(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-head"><div><div className="eyebrow">Releases / History</div><h3>版本历史</h3></div><button className="icon-button" onClick={() => setReleasesOpen(false)} aria-label="关闭"><X size={15} /></button></div>
+          <p className="modal-copy">每次发布都会生成一个独立快照。回滚会以历史内容**新建一个更高版本**（不会删除任何历史），公开页随即读取新版本。</p>
+          {releasesBusy && <p className="modal-copy">正在读取版本历史…</p>}
+          {releaseError && <div className="import-result error"><AlertCircle size={14} /><div><strong>操作失败</strong><span>{releaseError}</span></div></div>}
+          {!releasesBusy && !releaseError && releases.length === 0 && <p className="modal-copy">还没有发布过任何版本。点击「发布」即可生成第一个快照。</p>}
+          {releases.length > 0 && (
+            <div className="release-list">
+              {releases.map((release) => (
+                <div className="release-row" key={release.releaseId}>
+                  <div className="release-meta">
+                    <strong>v{release.version}</strong>
+                    <span>{new Date(release.createdAt).toLocaleString("zh-CN")}</span>
+                    {release.rollbackOf ? <span className="release-tag">回滚自 {release.rollbackOf.slice(0, 8)}</span> : null}
+                  </div>
+                  {release.status === "published"
+                    ? <span className="release-current">当前线上</span>
+                    : <button type="button" className="secondary-button" disabled={releasesBusy} onClick={() => void rollbackTo(release.releaseId, release.version)}>回滚到此版本</button>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="modal-foot"><span>共 {releases.length} 个版本</span><button className="primary-button" onClick={() => setReleasesOpen(false)}>完成</button></div>
         </div></div>
       )}
       {regenerateDialog && (

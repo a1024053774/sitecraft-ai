@@ -31,10 +31,21 @@ type OpenSourceTemplateFrameProps = {
     residualDemoSlots: string[];
     unmappedRequiredTargets: string[];
     missingSlots: string[];
+    /** 渲染事实：哪些业务节实际走了通用兜底区（bridge 在 renderGeneratedContent 时 push）。
+     *  这是「AI 把整站渲染成卡片墙」的唯一可靠判据——模型自报的 fallbackDeclared 不可信（2026-09-09）。 */
+    generatedContentSections: string[];
     incompatible: boolean;
   }) => void;
   onPreviewStateChange?: (state: "loading" | "ready" | "error") => void;
   onLeadSubmit?: (fields: LeadFormFields) => Promise<LeadSubmitResult>;
+  /** 就地编辑模式（P3.1）：direct 时点选直接进入编辑，ai 时沿用「填对话框再发送」 */
+  editMode?: "ai" | "direct";
+  /** 就地编辑提交：父窗口写草稿，返回结果由本组件回传给 bridge（成功才退出编辑态） */
+  onInlineCommit?: (payload: { requestId: string; slot: string; value: string; originalValue: string }) => Promise<{ ok: boolean; message?: string }>;
+  /** 点选到不可编辑节点（direct 模式下的回落提示） */
+  onInlineRejected?: (reason: string) => void;
+  /** 点选图片（P3.2）：父窗口打开替换弹窗 */
+  onAssetSelect?: (payload: { target: string; currentSrc: string }) => void;
 };
 
 const EMPTY_EXPECTED_TARGETS: string[] = [];
@@ -63,6 +74,10 @@ export function OpenSourceTemplateFrame({
   onApplyReport,
   onPreviewStateChange,
   onLeadSubmit,
+  editMode = "ai",
+  onInlineCommit,
+  onInlineRejected,
+  onAssetSelect,
 }: OpenSourceTemplateFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const resolvedRef = useRef(false);
@@ -90,7 +105,7 @@ export function OpenSourceTemplateFrame({
   useEffect(() => {
     const frameWindow = frameRef.current?.contentWindow;
     if (!frameWindow) return;
-    const payload = { type: "sitecraft:content", templateId, siteKey, draft, locale, expectedTargets: resolvedExpectedTargets, variant };
+    const payload = { type: "sitecraft:content", templateId, siteKey, draft, locale, expectedTargets: resolvedExpectedTargets, variant, editMode };
     frameWindow.postMessage(payload, "*");
     const retry = window.setTimeout(() => frameWindow.postMessage(payload, "*"), 500);
     const finalRetry = window.setTimeout(() => frameWindow.postMessage(payload, "*"), 1500);
@@ -102,7 +117,7 @@ export function OpenSourceTemplateFrame({
       window.clearTimeout(hydrationRetry);
       window.clearTimeout(settledRetry);
     };
-  }, [draft, locale, resolvedExpectedTargets, siteKey, templateId, variant]);
+  }, [draft, locale, resolvedExpectedTargets, siteKey, templateId, variant, editMode]);
 
   useEffect(() => {
     const receiveMessage = (event: MessageEvent) => {
@@ -119,19 +134,50 @@ export function OpenSourceTemplateFrame({
         visibleTextsBySlot?: Record<string, string[]>;
         residualDemoSlots?: string[];
         missingSlots?: string[];
+        generatedContentSections?: string[];
+        deferred?: boolean;
         incompatible?: boolean;
         requestId?: string;
         fields?: LeadFormFields;
+        value?: string;
+        originalValue?: string;
+        reason?: string;
+        currentSrc?: string;
       };
       if (data?.type === "sitecraft:select" && data.target && onSelectTarget) {
         const target = targetPrompts[data.target];
         if (target) onSelectTarget(data.slot || data.target, target.label, target.prompt, data.slot);
       }
+      // 就地编辑（P3.1）：提交 / 点选不可编辑节点
+      if (data?.type === "sitecraft:edit-commit" && data.requestId && data.slot) {
+        const requestId = data.requestId;
+        const slot = data.slot;
+        const value = String(data.value ?? "");
+        const originalValue = String(data.originalValue ?? "");
+        const reply = (ok: boolean, message?: string) => {
+          frameRef.current?.contentWindow?.postMessage(
+            { type: "sitecraft:edit-result", templateId, requestId, ok, ...(message ? { message } : {}) },
+            "*",
+          );
+        };
+        if (!onInlineCommit) { reply(false, "当前环境不支持直接编辑"); }
+        else {
+          void onInlineCommit({ requestId, slot, value, originalValue })
+            .then((result) => reply(result.ok, result.message))
+            .catch((error: unknown) => reply(false, error instanceof Error ? error.message : "保存失败"));
+        }
+      }
+      if (data?.type === "sitecraft:edit-rejected") {
+        onInlineRejected?.(String(data.reason ?? "unsupported_slot"));
+      }
+      if (data?.type === "sitecraft:asset-select") {
+        onAssetSelect?.({ target: String(data.target ?? ""), currentSrc: String(data.currentSrc ?? "") });
+      }
       if (data?.type === "sitecraft:ready") {
         // bridge 就绪：有 draft 时补发一次 content（防组件消息早于 bridge 加载而丢失）
         if (draft) {
           frameRef.current?.contentWindow?.postMessage(
-            { type: "sitecraft:content", templateId, siteKey, draft, locale, expectedTargets: resolvedExpectedTargets, variant },
+            { type: "sitecraft:content", templateId, siteKey, draft, locale, expectedTargets: resolvedExpectedTargets, variant, editMode },
             "*",
           );
         }
@@ -154,6 +200,8 @@ export function OpenSourceTemplateFrame({
               filledTargets: [],
               aiFilledTargets: [],
               pendingTargets: [],
+              placeholderTargets: [],
+              fabricatedTargets: [],
               residualDemoSlots: [],
               unmappedRequiredTargets: [],
             };
@@ -189,8 +237,13 @@ export function OpenSourceTemplateFrame({
           || report.incompatible
           || pendingTargets.length > 0
           || draftCoverage.unmappedRequiredTargets.length > 0;
-        // 首次应用可能发生在模板字体/资源完成布局之前；短暂缺槽位不应锁死为降级。
-        if (!resolvedRef.current && !incompatible) {
+        // 桥接已响应 = 预览可用。**缺槽位不再判「预览失败」**（2026-09-09 修正）：
+        // 此前 `pendingTargets > 0 → incompatible → 永不 ready → 8s 超时 → 父组件切
+        // SiteRenderer 本地近似渲染`。但「某个槽没填」是内容问题（页面已经渲染出来了），
+        // 不该把整个预览降级——实测 shadcn-landing2 因此长期走降级。缺槽位仍由
+        // report.pendingTargets 上报，工作台显示「部分槽位未显示」警告。
+        // deferred 报告是编辑态占位（appliedSlots 为空），不算握手完成。
+        if (!resolvedRef.current && data.deferred !== true) {
           resolvedRef.current = true;
           onPreviewStateChange?.("ready");
         }
@@ -204,6 +257,7 @@ export function OpenSourceTemplateFrame({
             pendingTargets,
             residualDemoSlots,
             unmappedRequiredTargets: draftCoverage.unmappedRequiredTargets,
+            generatedContentSections: Array.isArray(data.generatedContentSections) ? data.generatedContentSections : [],
             incompatible,
           });
         }

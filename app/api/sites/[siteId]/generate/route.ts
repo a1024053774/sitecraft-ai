@@ -1,12 +1,15 @@
 import { z } from "zod";
 import { accessErrorResponse, authorizeRequest } from "@/lib/request-context";
 import { after } from "next/server";
-import { getSite, commitOperations, snapshot, type SiteRecord } from "@/lib/site-store";
+import { getSite, commitOperations, snapshot, setSiteSourceMaterial, type SiteRecord } from "@/lib/site-store";
 import { requestSiteIntent, requestDraftOperations } from "@/lib/ai-provider";
 import { mergeIntentDelta, normalizeUserBrief, previousIntentSchema, rankTemplateMatches, resolveTemplate, siteIntentSchema, toReadyIntent } from "@/lib/site-intent";
 import { generateDraftOperations, regenerateMissingSectionsOperations, regenerateSectionOperations } from "@/lib/site-generator";
 import { getTemplate } from "@/lib/site-model";
-import { createGenerationDeadlines, GENERATION_BUDGET } from "@/lib/generation-budget";
+import { ensureRuntimeTemplateManifests, runtimeTemplateCatalog } from "@/lib/template-runtime-server";
+import { createGenerationDeadlines, computeGenerationBudgetMs, GENERATION_BUDGET } from "@/lib/generation-budget";
+import { planSectionGroups, averageGroupLatency } from "@/lib/generation-reliability";
+import { extractStreamingSnippets, formatStreamingPreview } from "@/lib/generation-experience";
 import { createGenerationProvenance } from "@/lib/generation-record";
 import { buildTemplateCapabilitySummary } from "@/lib/template-slot-guard";
 import {
@@ -15,6 +18,7 @@ import {
   recordAppliedChange,
 } from "@/lib/ai-session";
 import { recordGeneration, type GenerationRecordInput } from "@/lib/generation-record";
+import { userFacingGenerationError } from "@/lib/generation-error-message";
 import { classifyDraftCoverage, type ContentCoverageReport } from "@/lib/template-content-coverage";
 import { getTemplateManifest } from "@/lib/template-manifest";
 import { evaluateDraftQuality, type ContentQualityReport } from "@/lib/content-quality";
@@ -49,8 +53,9 @@ const generateSchema = z.discriminatedUnion("step", [
     // 多轮迭代基线：上一轮已确认意图，模型只改本轮影响的字段（增量更新）
     // 用宽松 schema：need_info 阶段前端回传的部分意图可能缺字段/空串，强校验会 400 阻断追问。
     previousIntent: previousIntentSchema.optional(),
-    // P1 导入：用户粘贴的公司简介/产品清单（可选），以用户信息为准、缺失不编造
-    extraContext: z.string().trim().max(2000).optional(),
+    // P1 导入：用户粘贴的公司简介/产品清单（可选），以用户信息为准、缺失不编造。
+    // 上限 20000：analyze 阶段用于判断意图，execute 阶段会与站点素材一起进生成提示。
+    extraContext: z.string().trim().max(20000).optional(),
     idempotencyKey: z.string().trim().min(1).max(128).optional(),
   }),
   z.object({
@@ -62,6 +67,12 @@ const generateSchema = z.discriminatedUnion("step", [
     hiddenSections: z.array(z.enum(["about", "features", "services", "products", "contact"])).default([]),
     baseRevision: z.number().int().nonnegative(),
     sessionId: z.string().max(80).optional(),
+    /**
+     * 用户素材（2026-09-10，方向 2）。**此前 execute 完全没有这个字段**——
+     * 粘的内容只影响 analyze 阶段的意图/模板判断，从不参与内容生成。
+     * 现在带上并落库到站点，生成/补全/对话三条路径共用同一份。
+     */
+    sourceMaterial: z.string().trim().max(20000).optional(),
     // C 块局部重生成：存在时只重生成指定板块（与全量生成二选一）
     regenerate: z
       .object({
@@ -84,6 +95,8 @@ const emptyCoverage = (): ContentCoverageReport => ({
   filledTargets: [],
   aiFilledTargets: [],
   pendingTargets: [],
+  placeholderTargets: [],
+  fabricatedTargets: [],
   residualDemoSlots: [],
   unmappedRequiredTargets: [],
 });
@@ -111,7 +124,16 @@ function coverageForRecord(record: SiteRecord, templateId: string) {
 
 function qualityForRecord(record: SiteRecord, templateId: string): ContentQualityReport | null {
   const manifest = getTemplateManifest(templateId);
-  return manifest ? evaluateDraftQuality(record.draft, manifest) : null;
+  if (!manifest) return null;
+  // 修复：此前传 appliedTargets: [] 导致"已由 AI 填充的槽"被误判为 missing（score 恒为 0）。
+  // 从历史变更集还原实际落地的目标。
+  const appliedTargets = record.history.flatMap((change) => change.appliedTargets ?? []);
+  return evaluateDraftQuality(record.draft, manifest, {
+    appliedTargets,
+    // 用户素材是**事实基准**：素材里写过的认证/产能/客户数，草稿照着写不该被
+    // 判成「未确认事实」。不传它，用户越是用真实素材，越发布不出去。
+    factReference: record.sourceMaterial,
+  });
 }
 
 type EventMeta = {
@@ -159,7 +181,7 @@ function event(controller: ReadableStreamDefaultController<Uint8Array>, value: u
   }
 }
 
-const ANALYZE_DEADLINE_MS = GENERATION_BUDGET.serverDeadlineMs;
+const ANALYZE_DEADLINE_MS = GENERATION_BUDGET.serverDeadlineFloorMs;
 
 export async function POST(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const access = authorizeRequest(request, "generate");
@@ -193,7 +215,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         revision: initialRevision,
         ...(idempotencyKey ? { idempotencyScope, idempotencyKey } : {}),
       });
-      if (parsed.data.step === "analyze") {
+        // 模板目录：静态基线（编译期）+ 运行时沉淀模板（磁盘）。
+        // 一次调用覆盖 analyze 与 execute 两条路径——execute 分支里的
+        // `templateCatalog` 白名单与 manifest 同样要认得沉淀模板。
+        const catalog = runtimeTemplateCatalog();
+        ensureRuntimeTemplateManifests();
+        if (parsed.data.step === "analyze") {
         const analyzeDeadlineAt = startedAt + ANALYZE_DEADLINE_MS;
         const analyzeSignal = AbortSignal.any([
           request.signal,
@@ -242,15 +269,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         event(controller, { type: "status", value: "正在匹配模板…" });
         // 关键词匹配覆盖多轮上下文：历史用户文本 + 当前文本拼接（"咖啡品牌"出现在第二轮也不丢）
         // 模板稳定性：无方向关键词（本轮只是微调）→ 保持上一轮模板，防来回跳
+        //
+        // catalog 显式传入（默认值是**编译期基线**）：
+        //   ① 沉淀模板刚生成时**没有 manifest**，`getTemplatePresentation` 会走
+        //      `defaultPresentation()` 兜底，生成层仍拿得到大致形态；
+        //   ② 但它必须能出现在推荐候选里，否则用户沉淀完模板，AI 永远不推荐它。
         const template = resolveTemplate(
           intent,
           [...history.map((h) => h.text), parsed.data.message].join(" "),
-          undefined,
+          catalog,
           parsed.data.previousIntent?.recommendedTemplateId,
         );
         const recommendations = rankTemplateMatches(
           normalizedBrief,
           [...history.map((h) => h.text), parsed.data.message].join(" "),
+          catalog,
         );
         event(controller, {
           type: "done",
@@ -289,7 +322,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         controller.close();
         return;
       }
-      const { serverDeadlineAt: deadlineAt, workDeadlineAt } = createGenerationDeadlines(startedAt);
+      // 动态预算（替代固定 115s）：按"板块组数 × 单组耗时 × 安全系数"计算。
+      // 实测教训：5 组串行时固定 115s 必然砍掉最后一组（5 个 trace 全部 @+110.0s 超时）。
+      //
+      // 2026-09-10：`concurrency` 此前硬编码 2，而 site-generator 的分组并发实际被写死为 1
+      // → 预算低估一半 → 每次生成必然砍掉尾部板块。现两处共用 `GENERATION_BUDGET.groupConcurrency`。
+      // 同时把 `observedAvgMs` 接上实测 P95（此前该参数无调用点，是死参数）——
+      // 慢模型下预算才有真实的经验支撑，而不是永远用 assumedGroupMs(60s)。
+      // 预算必须按**真正要生成的板块**算。
+      //
+      // 2026-09-12 真机实测（客户旅程）：无商品的站上，`products` 会在
+      // `buildGenerationPlan` 里被自动隐藏（见那里 `hasProducts` 的注释），
+      // 但**预算这里不知道**——它只看 `executeData.hiddenSections`（用户在确认页勾的）。
+      // 于是系统按 5 组预算、起 5 组请求，其中一组（产品，输出量最大）**注定被丢弃**。
+      // 实测代价：该组撞 `finishReason: "length"` → 重试 → 单组烧掉 70 秒，
+      // 而它写出来的东西一次都不会被采用。21.6 万 token 里相当一部分是这么没的。
+      //
+      // 判定与 `site-generator.buildGenerationPlan` **同源**（同一句 `hasProducts`），
+      // 两处若不一致会重新分叉；那边改了这里也要改。
+      const current = await getSite(siteId);
+      const willHideProducts = (current.draft.products?.length ?? 0) === 0;
+      const plannedSections = (["about", "features", "services", "products", "contact"] as const).filter(
+        (section) =>
+          !(executeData.hiddenSections ?? []).includes(section) &&
+          !(section === "products" && willHideProducts),
+      ) as string[];
+      const sectionGroups = planSectionGroups(plannedSections);
+      const groupCount = Math.max(1, sectionGroups.length);
+      const observedAvgMs = averageGroupLatency(sectionGroups, executeData.templateId ?? "");
+      const budgetMs = computeGenerationBudgetMs({ groupCount, concurrency: GENERATION_BUDGET.groupConcurrency, observedAvgMs });
+      const { serverDeadlineAt: deadlineAt, workDeadlineAt } = createGenerationDeadlines(startedAt, budgetMs);
       const generationSignal = AbortSignal.any([
         request.signal,
         responseCancelled.signal,
@@ -305,6 +367,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         appliedTemplateId?: string;
         fallbackReason?: string;
         errorCode?: string;
+        sectionUnderstanding?: GenerationRecordInput["sectionUnderstanding"];
       }) => {
         if (terminalRecordScheduled) return;
         terminalRecordScheduled = true;
@@ -337,6 +400,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           appliedTemplateId,
           fallbackReason: terminal.fallbackReason,
           errorCode: terminal.errorCode,
+          sectionUnderstanding: terminal.sectionUnderstanding,
           detail: regenerate
             ? `regenerate:${regenerate.section}`
             : regenerateMissing
@@ -344,12 +408,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
               : undefined,
         }));
       };
-      const current = await getSite(siteId);
       if (current.draft.revision !== parsed.data.baseRevision) {
         recordTerminal({ status: "conflict", outcome: "conflict", errorCode: "revision_conflict" });
         event(controller, { type: "done", status: "conflict", error: "草稿已经更新，请刷新后重试。" });
         controller.close();
         return;
+      }
+      // 素材与站点绑定（2026-09-10，方向 2）：本次带了且与已存不同则落库，
+      // 让补全/对话/下次生成都能引用同一份。不 bump revision——素材不是草稿内容。
+      if (parsed.data.step === "execute" && parsed.data.sourceMaterial && parsed.data.sourceMaterial !== current.sourceMaterial) {
+        try {
+          await setSiteSourceMaterial(siteId, parsed.data.sourceMaterial);
+        } catch {
+          // 素材落库失败不应阻断生成——本次仍用请求里带的原值
+        }
       }
       const requestedHiddenSections = parsed.data.step === "execute" ? parsed.data.hiddenSections : [];
       const generationSections = regenerateMissing
@@ -369,9 +441,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         failedSections: [],
       });
       const draftOpsProvider = async (args: Parameters<typeof requestDraftOperations>[0]) => {
-        const r = await requestDraftOperations(args);
+        // 流式：把模型增量推给前端（节流到 ~300ms，避免 SSE 洪泛）。
+        // 2026-09-10（用户要求「以流式输出为主提升用户体验」）：除字数外，
+        // 额外推送**从流式 JSON 中提取的已完整可读片段**（`preview`），
+        // 让用户实时看到"正在写什么"，而不是干等一串字数。
+        let lastPush = 0;
+        const r = await requestDraftOperations({
+          ...args,
+          onDelta: (_delta, accumulated) => {
+            const now = Date.now();
+            if (now - lastPush < 300) return;
+            lastPush = now;
+            const preview = formatStreamingPreview(extractStreamingSnippets(accumulated));
+            event(controller, {
+              type: "content_delta",
+              chars: accumulated.length,
+              batch: args.traceCtx?.batch,
+              sections: args.scope.sections,
+              ...(preview ? { preview } : {}),
+            });
+          },
+        });
         return r.ok
-          ? { ok: true as const, summary: r.summary, operations: r.operations, model: r.model }
+          ? { ok: true as const, summary: r.summary, operations: r.operations, model: r.model, awareness: r.awareness }
           : { ok: false as const, code: r.code, error: r.error };
       };
       // C 块：局部重生成（只改目标板块，基于当前草稿）与全量生成二选一
@@ -404,6 +496,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             intent: parsed.data.intent,
             templateId: parsed.data.templateId,
             hiddenSections: parsed.data.hiddenSections,
+            // 站点还没有商品 → 隐藏产品板块，避免"生成后商品为空 → 发布被拦"
+            hasProducts: (current.draft.products?.length ?? 0) > 0,
+            // 站点已有素材优先（工作台可能改过），否则用本次请求带的
+            sourceMaterial: current.sourceMaterial ?? parsed.data.sourceMaterial,
             siteLanguage: parsed.data.siteLanguage,
             draftOps: draftOpsProvider,
             signal: generationSignal,
@@ -416,8 +512,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         controller.close();
         return;
       }
-      if (generationSignal.aborted) {
-        recordTerminal({ status: "error", outcome: "error", errorCode: request.signal.aborted || responseCancelled.signal.aborted ? "client_aborted" : "timeout" });
+      // 2026-09-10 修复「把已生成好的内容扔掉」：此前这里一旦 `generationSignal.aborted`
+      // 就整份 error return——但 `generated.ok === true` 说明**内容已经生成好了**，
+      // 只因 deadline（`AbortSignal.timeout`）就丢弃，用户只看到报错、
+      // 看不出"其实已生成、只是没保存"，与 `generation-budget.ts` 承诺的
+      // 「已完成的内容会保留」直接矛盾。
+      //
+      // 两种 abort 必须区分对待：
+      //  - **客户端取消**（request/response 信号）→ 内容已无接收方，且写入边界应尽快中止；
+      //  - **deadline 超时**（generationSignal 里的 timeout）→ 内容仍在手上，
+      //    写库是本地秒级操作，应当**尽量保存已完成部分**（这正是「增量交付」的语义）。
+      const clientAbortSignal = AbortSignal.any([request.signal, responseCancelled.signal]);
+      if (clientAbortSignal.aborted) {
+        recordTerminal({ status: "error", outcome: "error", errorCode: "client_aborted" });
         try { controller.close(); } catch { /* 响应已由客户端取消 */ }
         return;
       }
@@ -431,7 +538,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           source: "ai",
           model: generated.model,
           latencyMs: 0,
-          signal: generationSignal,
+          // 只透传**客户端取消**信号：保留「取消即中止写入」的保证，
+          // 但不让 deadline 超时把已生成好的内容一并丢掉。
+          signal: clientAbortSignal,
         });
         // 播种会话：让"刚才生成的首屏"在工作区能命中
         if (parsed.data.sessionId && committed.status === "applied") {
@@ -463,6 +572,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             model: generated.model,
             partial: missingSections.length > 0,
             missingSections,
+            // 被确定性校验拒绝的操作：此前被算出即丢，用户只看到"成功"却不知有内容没写进去
+            rejected: generated.rejected,
             coverage: contentState.coverage,
             quality,
           });
@@ -486,6 +597,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             missingSections,
             appliedTemplateId,
             fallbackReason,
+            sectionUnderstanding: "sectionUnderstanding" in generated ? generated.sectionUnderstanding ?? [] : [],
           });
           // B2 自评结果下发（fail-open：issues 仅提示，不阻塞）
           event(controller, {
@@ -495,10 +607,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             changeSet: committed.changeSet,
             ...snapshot(committed.record),
             model: generated.model,
-            selfEvalIssues: generated.selfEvalIssues,
             // P0-2：批 B（板块内容）失败时透传 partial，前端提示"板块未完整生成"
             partial,
             missingSections,
+            // 被确定性校验拒绝的操作（人话原因）：与 chat 路径对齐，前端统一渲染
+            rejected: generated.rejected,
+            // P0 逐节对账（红队修正：硬指标=贴合容量/兜底一致性，供产检测/e2e 断言）
+            sectionUnderstanding: "sectionUnderstanding" in generated ? generated.sectionUnderstanding ?? [] : [],
             coverage: contentState.coverage,
             quality,
             requestedTemplateId,
@@ -522,7 +637,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         const aborted = generationSignal.aborted || (error instanceof Error && error.name === "AbortError");
         const errorCode = aborted ? (request.signal.aborted || responseCancelled.signal.aborted ? "client_aborted" : "timeout") : "operation_error";
         recordTerminal({ status: "error", outcome: "error", errorCode });
-        event(controller, { type: "done", status: "error", code: errorCode, error: aborted ? "生成已在保存前取消" : error instanceof Error ? error.message : "生成失败" });
+        event(controller, { type: "done", status: "error", code: errorCode, error: aborted ? "生成已在保存前取消" : userFacingGenerationError(error instanceof Error ? error.message : "") });
       }
       controller.close();
     },

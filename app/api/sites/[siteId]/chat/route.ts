@@ -24,6 +24,7 @@ import {
   type ChatSession,
 } from "@/lib/ai-session";
 import { getTemplate } from "@/lib/site-model";
+import { ensureRuntimeTemplateManifests } from "@/lib/template-runtime-server";
 import { createGenerationProvenance } from "@/lib/generation-record";
 import { hashRequestPayload, requestIdempotency } from "@/lib/request-idempotency";
 import { buildSseReplayResponse, SSE_HEADERS } from "@/lib/sse-response";
@@ -58,6 +59,12 @@ const chatSchema = z.object({
     revision: z.number().int().nonnegative(),
     slots: z.array(z.string().min(1).max(180)).max(3000),
   }).optional(),
+  /**
+   * 页面真实渲染结构摘要（P3.3，父页从 applied 报告序列化）。
+   * 单独字段而非塞进 capabilities：两者长度上限差一个数量级（摘要限 6000 字符），
+   * 且用途不同——capabilities 做槽位预检，本字段只进提示词。属不可信数据。
+   */
+  renderedStructure: z.string().max(6000).optional(),
   idempotencyKey: z.string().trim().min(1).max(128).optional(),
 });
 
@@ -109,6 +116,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
   const parsed = chatSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid chat payload", details: parsed.error.flatten() }, { status: 400 });
   const { siteId } = await params;
+  // 沉淀出的模板需要在对话路径可见：`getTemplate()` 会读运行时注册表，
+  // 未装载时 `preflightTemplateSlots` / `getTemplate().name` 会退回 forge，
+  // 表现为「在一个沉淀模板的站点里，AI 报的模板名和槽位契约都是错的」。
+  ensureRuntimeTemplateManifests();
   const idempotencyScope = `chat:${siteId}`;
   const idempotencyKey = parsed.data.idempotencyKey;
   if (idempotencyKey) {
@@ -252,6 +263,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             context: parsed.data.context,
             sessionContext,
             scope: { sections: task.scopes, productSkus: task.productSkus },
+            renderedStructure: parsed.data.renderedStructure,
+            // 对话改内容也要能看到用户粘贴的素材，否则「按素材改写」这类指令
+            // 只能靠 model 猜（站点素材与站点绑定存储，见 direction-2 方案）。
+            sourceMaterial: current.sourceMaterial,
             maxAttempts: 1,
             maxTokens: 2_200,
             deadlineAt: workDeadlineAt,
@@ -288,8 +303,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         return;
       }
       const finalProvider = provider;
-      const selfEvaluated = false;
-      const evalIssues: string[] = [];
       const scopeViolation = parsed.data.selectedTarget
         ? finalProvider.operations.find((operation) => !validateOperationScope(operation, {
             message: parsed.data.message,
@@ -315,8 +328,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           model: finalProvider.model,
           latencyMs: finalProvider.latencyMs,
           attempts: finalProvider.attemptCount,
-          selfEvaluated,
-          evalIssues,
         });
         controller.close();
         return;
@@ -363,8 +374,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           model: finalProvider.model,
           latencyMs: finalProvider.latencyMs,
           attempts: finalProvider.attemptCount,
-          selfEvaluated,
-          evalIssues,
         });
         controller.close();
         return;
@@ -398,7 +407,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           event(controller, { type: "done", status: "conflict", error: "草稿在 AI 处理期间已被更新，本次操作没有覆盖新版本。", ...snapshot(committed.record), attempts: finalProvider.attemptCount });
         } else if (committed.status === "no_change") {
           if (session) pushAssistantMessage(session, finalProvider.summary);
-          event(controller, { type: "done", status: "no_change", summary: finalProvider.summary, rejected: finalProvider.rejected, ...snapshot(committed.record), model: finalProvider.model, latencyMs: finalProvider.latencyMs, selfEvaluated, evalIssues, attempts: finalProvider.attemptCount });
+          event(controller, { type: "done", status: "no_change", summary: finalProvider.summary, rejected: finalProvider.rejected, ...snapshot(committed.record), model: finalProvider.model, latencyMs: finalProvider.latencyMs, attempts: finalProvider.attemptCount });
         } else {
           if (session) {
             recordAppliedChange(session, {
@@ -418,8 +427,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             ...snapshot(committed.record),
             model: finalProvider.model,
             latencyMs: finalProvider.latencyMs,
-            selfEvaluated,
-            evalIssues,
             attempts: finalProvider.attemptCount,
             nonVisualTargets: slotPreflight.nonVisualTargets,
             ...(slotPreflight.nonVisualTargets.length ? { displayNotice: nonVisualTemplateNotice } : {}),

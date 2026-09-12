@@ -80,7 +80,7 @@ export default function LeadsPage() {
 
   return (
     <div className="app-shell">
-      <AppSidebar active="leads" />
+      <AppSidebar active="leads" siteKey={siteKey} />
       <main className="main">
         <header className="topbar">
           <div className="breadcrumbs"><Link href="/">Workspace</Link><ChevronRight size={12} /><strong>询盘线索</strong></div>

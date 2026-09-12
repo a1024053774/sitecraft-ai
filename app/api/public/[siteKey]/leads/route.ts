@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isLeadStoreEnabled, normalizeLeadPayload, postgresLeadStore } from "@/lib/lead-store";
+import { getLeadStore, normalizeLeadPayload } from "@/lib/lead-store";
 
 export const runtime = "nodejs";
 
@@ -23,11 +23,8 @@ export async function POST(
   if (parsed.data.honeypot) {
     return NextResponse.json({ ok: true, status: "accepted" }, { status: 202, headers: { "Cache-Control": "no-store" } });
   }
-  if (!isLeadStoreEnabled()) {
-    return NextResponse.json({ ok: false, error: "lead_store_unavailable" }, { status: 503 });
-  }
   try {
-    const result = await postgresLeadStore.create({ ...parsed.data, siteKey, source: "published" });
+    const result = await getLeadStore().create({ ...parsed.data, siteKey, source: "published" });
     return NextResponse.json(
       {
         ok: true,

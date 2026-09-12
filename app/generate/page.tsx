@@ -24,14 +24,13 @@ import {
 import { useMemo, useRef, useState, useEffect } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
-import { SiteRenderer } from "@/components/site-renderer";
 import { templates, type SiteDraft } from "@/lib/site-model";
 import { defaultDraft } from "@/lib/site-document";
 import { deriveDesignTokenResult } from "@/lib/design-variants";
 import { adaptIntentLimits, buildTemplateRecommendations, formatGenerationProgress, getGenerationProgress } from "@/lib/generation-experience";
 import { GENERATION_BUDGET, getGenerationWaitNotice } from "@/lib/generation-budget";
 import type { ContentCoverageReport } from "@/lib/template-content-coverage";
-import type { ContentQualityReport } from "@/lib/content-quality";
+import { QUALITY_TIER_LABELS, qualityTier, type ContentQualityReport } from "@/lib/content-quality";
 
 type Intent = {
   businessType: string;
@@ -39,7 +38,6 @@ type Intent = {
   industry: string;
   targetAudience: string;
   tone: string;
-  colorTone?: string;
   coreSections: string[];
   recommendedTemplateId: string;
   summary: string;
@@ -58,6 +56,13 @@ type GenerationCompletion = {
   partial: boolean;
   fallbackReason: string;
   missingSections: string[];
+  /**
+   * 被确定性校验拒绝的操作（人话原因）。
+   *
+   * 2026-09-11 之前这个字段根本不存在：生成层算出 `rejected` 就丢，
+   * 于是「标题超长被拒 → 槽位保留旧文案 → 界面照常提示成功」对用户完全静默。
+   */
+  rejected: string[];
   revision: number;
   coverage?: ContentCoverageReport;
   quality?: ContentQualityReport;
@@ -147,6 +152,7 @@ export default function GeneratePage() {
   const [template, setTemplate] = useState<TemplateMatch | null>(null);
   const [recommendedTemplate, setRecommendedTemplate] = useState<TemplateMatch | null>(null);
   const [templatePreviewState, setTemplatePreviewState] = useState<"loading" | "ready" | "error">("loading");
+  void setTemplatePreviewState; // 仅保留 iframe 握手状态上报（不再据此降级为本地渲染）
   const carouselRef = useRef<HTMLDivElement>(null);
   const [recommendationIndex, setRecommendationIndex] = useState(0);
   const [hiddenSections, setHiddenSections] = useState<string[]>([]);
@@ -192,12 +198,11 @@ export default function GeneratePage() {
     const options = templates.map((item) => ({ id: item.id, name: item.name, category: item.category, reason: "AI 根据你的业务方向推荐" }));
     return buildTemplateRecommendations(options, intent);
   }, [intent]);
-  // 风格切换：确认页可手动选色板（覆盖 intent 推断），实时预览并随生成持久化
-  const [styleTone, setStyleTone] = useState<string>("");
-  const effectiveColorTone = styleTone || intent?.colorTone || "";
+  // 配色一律用模板自带值（2026-09-09 产品决策：移除「色系」选择，见 lib/design-variants.ts）。
+  // designTokenResult 只负责「风格 ↔ 字体/圆角/密度」的冲突收敛。
   const designTokenResult = useMemo(
-    () => intent && template ? deriveDesignTokenResult({ ...intent, colorTone: effectiveColorTone }, template.id) : null,
-    [intent, template, effectiveColorTone],
+    () => intent && template ? deriveDesignTokenResult(intent, template.id) : null,
+    [intent, template],
   );
   const previewDraft = useMemo<SiteDraft>(() => {
     const companyName = intent?.companyName || defaultDraft.companyName;
@@ -219,9 +224,14 @@ export default function GeneratePage() {
       hiddenSections: (previewFeedback?.mode === "hide"
         ? hiddenSections.filter((section) => section !== previewFeedback.section)
         : hiddenSections) as SiteDraft["hiddenSections"],
-      designTokens: designTokenResult?.tokens ?? null,
+      // 2026-09-10：不再发送 designTokens。
+      // 后端 `site-generator.ts:53` 早已停发（产品决策：配色一律取模板自带值），
+      // 但前端这里仍在发送 → 预览与生成结果不一致；且 preview 路由会据此注入
+      // `body{font-family!important}` / `border-radius!important` / `section padding!important`，
+      // 覆盖 22/22 模板的原生字体/圆角/间距，使「真实开源模板」的卖点自相矛盾。
+      designTokens: null,
     };
-  }, [designTokenResult?.tokens, hiddenSections, intent?.companyName, intent?.industry, intent?.summary, previewFeedback?.mode, previewFeedback?.section, template?.id]);
+  }, [hiddenSections, intent?.companyName, intent?.industry, intent?.summary, previewFeedback?.mode, previewFeedback?.section, template?.id]);
 
   useEffect(() => {
     setTemplatePreviewState("loading");
@@ -352,7 +362,11 @@ export default function GeneratePage() {
     analyzeControllerRef.current?.abort();
     const controller = new AbortController();
     analyzeControllerRef.current = controller;
-    const timeout = window.setTimeout(() => controller.abort(new Error("需求分析超时")), ANALYZE_TIMEOUT_MS);
+    let timeout = window.setTimeout(() => controller.abort(new Error("需求分析超时")), ANALYZE_TIMEOUT_MS);
+    const bumpAnalyzeTimeout = () => {
+      window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => controller.abort(new Error("需求分析超时")), ANALYZE_TIMEOUT_MS);
+    };
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     setBusy(true);
     setError(null);
@@ -387,6 +401,7 @@ export default function GeneratePage() {
         const chunkText = decoder.decode(result.value ?? new Uint8Array(), { stream: !result.done });
         raw += chunkText;
         const events = readSseEvents(raw);
+        if (events.length) bumpAnalyzeTimeout(); // 有进展就重置静默计时
         const status = [...events].reverse().find((e) => e.type === "status");
         if (typeof status?.value === "string") setProgressText(status.value);
         done = events.find((e) => e.type === "done");
@@ -522,10 +537,19 @@ export default function GeneratePage() {
     const controller = new AbortController();
     generationControllerRef.current = controller;
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-    const timeout = window.setTimeout(() => {
+    // 进展感知超时（替代固定总时长）：只要服务端持续推送事件就不断重置；
+    // 真正"静默无进展"超过 GENERATION_TIMEOUT_MS 才中止。
+    let timeout = window.setTimeout(() => {
       controller.abort();
       void reader?.cancel();
     }, GENERATION_TIMEOUT_MS);
+    const bumpTimeout = () => {
+      window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => {
+        controller.abort();
+        void reader?.cancel();
+      }, GENERATION_TIMEOUT_MS);
+    };
     const sessionId = window.sessionStorage.getItem("sitecraft-session") ?? newClientKey();
     window.sessionStorage.setItem("sitecraft-session", sessionId);
     setProgressText(regenerateSiteId ? "正在为现有站点重新生成内容…" : "正在为所选模板生成内容…");
@@ -570,13 +594,15 @@ export default function GeneratePage() {
         body: JSON.stringify({
           step: "execute",
           message,
-          // 用户手动选过风格 → 用 effectiveColorTone 覆盖 intent，保证生成结果与预览一致
-          intent: styleTone ? { ...intent, colorTone: styleTone } : intent,
+          intent,
           templateId: template.id,
           siteLanguage,
           hiddenSections,
           baseRevision,
           sessionId,
+          // 素材随 execute 一起发（2026-09-10，方向 2）：此前只随 analyze 发，
+          // 导致**真正写内容时模型看不到素材**，只能靠 intent 摘要泛泛而谈。
+          ...(extraContext.trim() ? { sourceMaterial: extraContext.trim() } : {}),
           idempotencyKey,
         }),
         signal: controller.signal,
@@ -594,6 +620,7 @@ export default function GeneratePage() {
         const result = await reader.read();
         raw += decoder.decode(result.value ?? new Uint8Array(), { stream: !result.done });
         const events = readSseEvents(raw);
+        if (events.length) bumpTimeout(); // 有进展就重置静默计时
         const status = [...events].reverse().find((e) => e.type === "status");
         if (typeof status?.value === "string") setProgressText(status.value);
         if (status?.phase === "content" || status?.phase === "review" || status?.phase === "saving") setGenerationPhase(status.phase);
@@ -601,6 +628,17 @@ export default function GeneratePage() {
         if (Array.isArray(status?.activeSections)) setActiveSections(status.activeSections.filter((item): item is string => typeof item === "string"));
         if (Array.isArray(status?.recoveringSections)) setRecoveringSections(status.recoveringSections.filter((item): item is string => typeof item === "string"));
         if (Array.isArray(status?.failedSections)) setFailedSections(status.failedSections.filter((item): item is string => typeof item === "string"));
+        // 流式增量：优先显示**模型正在写的内容片段**（更有临场感），
+        // 拿不到可读片段时回退到"已输出 N 字"（2026-09-10 用户要求流式为主）。
+        const delta = [...events].reverse().find((e) => e.type === "content_delta");
+        if (delta && typeof delta.chars === "number") {
+          const secs = Array.isArray(delta.sections) ? delta.sections.join("、") : "";
+          if (typeof delta.preview === "string" && delta.preview) {
+            setProgressText(`${delta.preview}${secs ? `（${secs}）` : ""}`);
+          } else {
+            setProgressText(`正在生成内容…已输出 ${delta.chars} 字${secs ? `（${secs}）` : ""}`);
+          }
+        }
         done = events.find((e) => e.type === "done");
         if (done) {
           // 同 analyze：不阻塞等 cancel 落地，避免 SSE 流不落 end 时挂起拖住 busy 复位。
@@ -622,22 +660,37 @@ export default function GeneratePage() {
         : [];
       const missingSectionLabels = missingSections.map((section) => SECTIONS_LABELS[section] ?? section);
       const fallbackReason = typeof done.templateFallbackReason === "string" ? done.templateFallbackReason : "";
+      // 被拒操作（超长/越界/白名单外）：此前完全静默，用户只看到"成功"。
+      // 与工作台 chat 路径的 rejected 同一份数据形状，统一渲染。
+      const rejected = Array.isArray((done as { rejected?: string[] }).rejected)
+        ? ((done as { rejected?: string[] }).rejected ?? []).filter((item): item is string => typeof item === "string")
+        : [];
       const quality = (done as { quality?: ContentQualityReport | null }).quality ?? undefined;
       const qualityNeedsReview = Boolean(quality && !quality.publishable);
       const qualityNotice = qualityNeedsReview && quality
-        ? `内容质量评分 ${quality.score}，待处理 ${quality.missingSlots.length + quality.overLimitSlots.length + quality.placeholderHits.length + quality.languageMismatches.length + quality.unverifiedFacts.length} 项问题。`
+        ? `内容质量评分 ${quality.score}（${QUALITY_TIER_LABELS[qualityTier(quality)]}），待处理 ${quality.missingSlots.length + quality.fabricatedTargets.length + quality.metaCommentaryTargets.length + quality.overLimitSlots.length + quality.placeholderTargets.length + quality.languageMismatches.length + quality.unverifiedFacts.length} 项问题。`
+        : "";
+      // P1.3 兜底显性化：模型声明"某节装不下"（fallbackDeclared）时明确告知用户
+      const awareness = (done as { sectionUnderstanding?: Array<{ section: string; fallbackDeclared?: boolean; verdict?: string }> }).sectionUnderstanding ?? [];
+      const declaredFallbacks = awareness.filter((item) => item.fallbackDeclared === true).map((item) => SECTIONS_LABELS[item.section] ?? item.section);
+      const fallbackNotice = declaredFallbacks.length
+        ? `以下板块因模板原生排版承载不下，已声明使用动态排版：${declaredFallbacks.join("、")}。建议检查观感。`
         : "";
       const completionNotices = [
         fallbackReason,
         partial ? `部分板块未完整生成（${missingSectionLabels.join("、") || "板块内容"}），已保存首屏与已生成内容。可在工作台继续让 AI 补全。` : "",
         qualityNotice,
+        fallbackNotice,
+        // 被拒操作必须显性化：它们**没有写进模板**，却混在"生成成功"里
+        rejected.length ? `有 ${rejected.length} 项内容未写入模板（多为超长或超出模板容量），草稿其余部分已保存。` : "",
       ].filter(Boolean);
-      const requiresReview = partial || Boolean(fallbackReason) || qualityNeedsReview;
+      const requiresReview = partial || Boolean(fallbackReason) || qualityNeedsReview || declaredFallbacks.length > 0 || rejected.length > 0;
       const completion = {
         siteId: generatedSiteId,
         partial,
         fallbackReason,
         missingSections,
+        rejected,
         revision: typeof (done as { draft?: { revision?: unknown } }).draft?.revision === "number"
           ? (done as { draft: { revision: number } }).draft.revision
           : baseRevision + (done.status === "applied" ? 1 : 0),
@@ -706,6 +759,8 @@ export default function GeneratePage() {
           baseRevision: generationCompletion.revision,
           sessionId: window.sessionStorage.getItem("sitecraft-session") ?? undefined,
           regenerateMissing: { sections },
+          // 补全也带素材：否则补出来的内容与初稿的口径不一致
+          ...(extraContext.trim() ? { sourceMaterial: extraContext.trim() } : {}),
           idempotencyKey,
         }),
         signal: controller.signal,
@@ -722,6 +777,10 @@ export default function GeneratePage() {
       const remaining = Array.isArray(done.missingSections)
         ? done.missingSections.filter((section): section is string => typeof section === "string")
         : sections;
+      // 补全阶段同样会产出被拒操作：并进既有列表，不要因为"补全成功"又把它们藏起来
+      const recoveredRejected = Array.isArray((done as { rejected?: string[] }).rejected)
+        ? ((done as { rejected?: string[] }).rejected ?? []).filter((item): item is string => typeof item === "string")
+        : [];
       const revision = typeof (done as { draft?: { revision?: unknown } }).draft?.revision === "number"
         ? (done as { draft: { revision: number } }).draft.revision
         : generationCompletion.revision + (done.status === "applied" ? 1 : 0);
@@ -731,6 +790,7 @@ export default function GeneratePage() {
         ...generationCompletion,
         partial: remaining.length > 0,
         missingSections: remaining,
+        rejected: [...new Set([...generationCompletion.rejected, ...recoveredRejected])],
         revision,
         coverage: (done as { coverage?: ContentCoverageReport }).coverage,
         quality: (done as { quality?: ContentQualityReport | null }).quality ?? undefined,
@@ -820,11 +880,11 @@ export default function GeneratePage() {
                     className="generate-textarea"
                     value={extraContext}
                     onChange={(e) => { setExtraContext(e.target.value); setDraftRestored(false); }}
-                    placeholder="粘贴公司简介/产品清单，例如：华辰光伏成立于 2001 年，专注光伏组件与逆变器制造，通过 ISO 9001 认证，产品销往欧美……"
-                    rows={4}
-                    maxLength={2000}
+                    placeholder="粘贴公司简介 / 产品清单 / 资质与案例，例如：华辰光伏成立于 2001 年，专注光伏组件与逆变器制造，通过 ISO 9001 认证，产品销往欧美……"
+                    rows={6}
+                    maxLength={20000}
                   />
-                  <div className="generate-char-count">{extraContext.trim().length}/2000</div>
+                  <div className="generate-char-count">{extraContext.trim().length}/20000</div>
                 </details>
               )}
               {error && <p className="generate-error"><AlertCircle size={13} />{error}</p>}
@@ -939,7 +999,6 @@ export default function GeneratePage() {
                       <div><span>行业</span><strong>{BUSINESS_LABELS[intent.businessType] ?? intent.businessType} · {intent.industry}</strong></div>
                       <div><span>受众</span><strong>{AUDIENCE_LABELS[intent.targetAudience] ?? intent.targetAudience}</strong></div>
                       <div><span>语气</span><strong>{TONE_LABELS[intent.tone] ?? intent.tone}</strong></div>
-                      {intent.colorTone && <div><span>色系</span><strong>{intent.colorTone}</strong></div>}
                     </div>
                   </div>
                   <div className="generate-intent-row">
@@ -980,18 +1039,14 @@ export default function GeneratePage() {
                       )}
                       {!previewCollapsed && (
                         <div className="generate-hero-preview-frame">
-                          {templatePreviewState === "error" ? (
-                            <SiteRenderer key={`hero-fallback-${template.id}`} draft={{ ...previewDraft, templateId: template.id }} locale={siteLanguage} mode="preview" />
-                          ) : (
-                            <OpenSourceTemplateFrame
-                              key={`hero-${template.id}`}
-                              templateId={template.id}
-                              draft={{ ...previewDraft, templateId: template.id }}
-                              locale={siteLanguage}
-                              variant="preview"
-                              onPreviewStateChange={setTemplatePreviewState}
-                            />
-                          )}
+                          <OpenSourceTemplateFrame
+                            key={`hero-${template.id}`}
+                            templateId={template.id}
+                            draft={{ ...previewDraft, templateId: template.id }}
+                            locale={siteLanguage}
+                            variant="preview"
+                            onPreviewStateChange={setTemplatePreviewState}
+                          />
                         </div>
                       )}
                       <div className="generate-hero-preview-meta">
@@ -1035,7 +1090,7 @@ export default function GeneratePage() {
                   <div className="generate-preview-heading">
                     <div>
                       <h3>推荐的现有模板</h3>
-                      <span>{templatePreviewState === "error" ? "本地结构预览 · 真实模板暂不可用" : "真实模板预览 · AI 内容与设计变量即时套用"}</span>
+                      <span>真实模板预览 · AI 内容与设计变量即时套用</span>
                     </div>
                     <div className="generate-carousel-controls">
                       <span>{recommendationIndex + 1} / {recommendationTemplates.length}</span>
@@ -1072,18 +1127,14 @@ export default function GeneratePage() {
                             {isActive && <Check size={13} />}
                           </div>
                           <div className="generate-template-option-cover">
-                            {isActive && templatePreviewState === "error" ? (
-                              <SiteRenderer key={`fallback-${candidate.id}`} draft={candidateDraft} locale={siteLanguage} mode="thumbnail" />
-                            ) : (
-                              <OpenSourceTemplateFrame
-                                key={`real-${candidate.id}`}
-                                templateId={candidate.id}
-                                draft={candidateDraft}
-                                locale={siteLanguage}
-                                variant="thumbnail"
-                                onPreviewStateChange={isActive ? setTemplatePreviewState : undefined}
-                              />
-                            )}
+                            <OpenSourceTemplateFrame
+                              key={`real-${candidate.id}`}
+                              templateId={candidate.id}
+                              draft={candidateDraft}
+                              locale={siteLanguage}
+                              variant="thumbnail"
+                              onPreviewStateChange={isActive ? setTemplatePreviewState : undefined}
+                            />
                           </div>
                           <div className="generate-template-option-meta">
                             <strong>{candidate.name}</strong>
@@ -1131,28 +1182,6 @@ export default function GeneratePage() {
                       );
                     })}
                   </select>
-                  <div className="generate-style-row">
-                    <select
-                      className="generate-select"
-                      value={effectiveColorTone}
-                      onChange={(e) => setStyleTone(e.target.value)}
-                      aria-label="选择配色风格"
-                    >
-                      <option value="">跟随 AI 判断（{effectiveColorTone || "默认"}）</option>
-                      <option value="green">绿色系 · 自然/工业</option>
-                      <option value="navy">藏蓝系 · 稳重/全球贸易</option>
-                      <option value="purple">紫色系 · 科技/创意</option>
-                      <option value="dark">深色系 · 高端/极客</option>
-                      <option value="warm">暖色系 · 亲和/专业服务</option>
-                      <option value="neutral">中性色 · 极简/通用</option>
-                      <option value="teal">青碧系 · 现代/外贸</option>
-                      <option value="crimson">深红系 · 高端/品牌</option>
-                      <option value="indigo">靛蓝系 · SaaS/企业软件</option>
-                      <option value="graphite">石墨系 · 工业/机械</option>
-                      <option value="forest">森林系 · 制造业/可靠</option>
-                      <option value="sky">天蓝系 · 科技/物流</option>
-                    </select>
-                  </div>
                 </div>
               </div>
               {error && <p className="generate-error"><AlertCircle size={13} />{error}</p>}
@@ -1241,13 +1270,32 @@ export default function GeneratePage() {
               </div>
               {generationCompletion?.requiresReview && (
                 <section className="generate-terminal-panel" role="status">
-                  <strong>{generationCompletion.missingSections.length > 0 ? "初稿已保存，部分板块待补全" : generationCompletion.fallbackReason ? "已切换兼容模板并保存初稿" : generationCompletion.quality && !generationCompletion.quality.publishable ? "初稿已保存，建议处理内容质量问题" : "缺失板块已补全"}</strong>
+                  <strong>{generationCompletion.rejected.length > 0 ? `初稿已保存，${generationCompletion.rejected.length} 项内容未写入模板` : generationCompletion.missingSections.length > 0 ? "初稿已保存，部分板块待补全" : generationCompletion.fallbackReason ? "已切换兼容模板并保存初稿" : generationCompletion.quality && !generationCompletion.quality.publishable ? "初稿已保存，建议处理内容质量问题" : "缺失板块已补全"}</strong>
                   <p>{generationCompletion.notice}</p>
-                  {generationCompletion.quality && !generationCompletion.quality.publishable && (
-                    <p>
-                      质量评分 {generationCompletion.quality.score}。缺口 {generationCompletion.quality.missingSlots.length}，超长 {generationCompletion.quality.overLimitSlots.length}，占位内容 {generationCompletion.quality.placeholderHits.length}，语言问题 {generationCompletion.quality.languageMismatches.length}，待确认事实 {generationCompletion.quality.unverifiedFacts.length}。
-                    </p>
+                  {/*
+                    被拒操作显性化（2026-09-11）：这些内容**没有写进模板**，
+                    此前与"成功"混在一起完全静默。列出人话原因 + 操作指引。
+                  */}
+                  {generationCompletion.rejected.length > 0 && (
+                    <div aria-label="未写入模板的内容" style={{ display: "grid", gap: 6 }}>
+                      {generationCompletion.rejected.slice(0, 6).map((reason, index) => (
+                        <div className="step failed" key={`${index}-${reason}`}>
+                          <CircleAlert size={13} />
+                          {reason}
+                        </div>
+                      ))}
+                      {generationCompletion.rejected.length > 6 && (
+                        <div className="step failed"><CircleAlert size={13} />另有 {generationCompletion.rejected.length - 6} 项，可在工作台让 AI 精简后重写</div>
+                      )}
+                    </div>
                   )}
+                  {/*
+                    2026-09-10 净删减：此处原有一段「缺口 N，伪造内容 N，说明性语句 N，超长 N，
+                    待补充 N，语言问题 N，待确认事实 N」的**七项计数**。
+                    用户明确答复「不点，我直接进工作台看」——他不看这个面板，
+                    七项干巴巴的数字对他没有可操作性。真正有用的做法是
+                    **进工作台后能定位到具体槽位**（见 app/workspace/page.tsx 的发布拦截提示）。
+                  */}
                   {generationCompletion.missingSections.length > 0 && (
                     <div className="generate-section-progress" aria-label="待补全板块">
                       {generationCompletion.missingSections.map((section) => (
