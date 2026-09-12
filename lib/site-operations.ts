@@ -473,6 +473,8 @@ export function applySiteOperations(
   let draft = cloneDraft(current);
   const inverseOperations: SiteOperation[] = [];
   const appliedTargets: string[] = [];
+  /** T-6 窄修：同一批里只报告一次坏 locale，避免一条坏历史刷屏。 */
+  let reportedInvalidLocale = false;
 
   for (const operation of operations) {
     if (operation.op === "replace_draft") {
@@ -493,6 +495,33 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "update_item") {
+      /**
+       * === T-6 窄修：`locale` 守卫（2026-09-12）===
+       *
+       * 为什么必须守：下面的代码直接写 `item.title[operation.locale] = ...`。
+       * **JS 会把 `undefined` 转成字符串 `"undefined"` 当键**，于是草稿的
+       * `title`/`body` 里会多出一个 `undefined` 键，且 `changed = true`——
+       * **数据被改坏，却不报错**。
+       *
+       * 触发条件不是假想的：PG 里有 8 条 `update_card` **缺 `locale`** 的历史，
+       * 经本轮的读取归一化（旧名 → `update_item`）后**正好落进这条路径**。
+       * 也就是说：不改名则它走不进这个分支（判别式不匹配），改名后它走得进来了。
+       *
+       * 处置取**最保守的一种**：
+       *  - 不抛错（这是 undo/重放路径，一条坏历史不该让整站操作失败）；
+       *  - 不猜 locale（那会**改错语言**，比不改更糟）；
+       *  - **跳过并报告一次**（每个 op 只报一次，避免刷屏），修复动作交给上面那层。
+       *
+       * 这**不是** T-6 的宽修。宽修（入口全面形状校验、不合法就抛可读错误）
+       * 是独立批次，见 glossary T-6 与阶段 4 方案 §四。
+       */
+      if (!locales.includes(operation.locale)) {
+        if (!reportedInvalidLocale) {
+          reportedInvalidLocale = true;
+          console.warn("[site-operations] 跳过一条缺少合法 locale 的 update_item 操作（历史数据形态，见 glossary T-6）");
+        }
+        continue;
+      }
       const items = editableItems(draft, operation.section);
       const resolvedIndex = operation.itemId
         ? items.findIndex((candidate) => candidate.id === operation.itemId)
