@@ -34,15 +34,16 @@
 | F-017 | 生成 provenance 与 prompt 版本登记 | 高 | 进行中 | F-012、F-013、F-014 | 生成与对话可追溯 provider/model/prompt/manifest/template/build revision；输入只保存哈希；真实 PostgreSQL 和 chat 运行时证据完整 | E-022（基础） |
 | F-018 | 门禁真实性与降级移除 | 高 | 已完成 | F-013 | 模板覆盖门禁有真断言且进默认回归（22/22）；发布链路接入资产门禁；渲染事实（generatedContentSections）被前端消费；不再降级为本地近似渲染；中文长度判定与提示词一致 | E-025 |
 | F-019 | 移除色系选择，配色保真 | 中 | 已完成 | F-013 | 删除 12 个硬编码色板与生成页色系下拉；配色一律取模板自带值（实测原方案仅 13/22 模板生效） | E-025 |
-| F-020 | 产品外壳真实性（首页与设置页） | 高 | 已规划 | 无 | 首页读真实站点列表并删除假统计；设置页死按钮接线或移除；用户能看到自己的站点 | 无 |
-| F-021 | 模板样式保真（designTokens 置空） | 高 | 已规划 | F-019 | 生成不再写入 designTokens；模板字体/圆角/区块间距不被 `!important` 覆盖 | 无 |
-| F-022 | 死代码与死数据清理 | 中 | 已规划 | 无 | SiteRenderer/colorTone/ai-self-eval/supportConfig/structure-check 各自接线或删除 | 无 |
+| F-020 | 产品外壳真实性（首页与设置页） | 高 | 已完成 | 无 | 首页读真实站点列表并删除假统计；设置页死按钮接线或移除；用户能看到自己的站点 | 代码核实 2026-09-12（`app/page.tsx` 读 `GET /api/sites`） |
+| F-021 | 模板样式保真（designTokens 置空） | 高 | 已完成 | F-019 | 生成不再写入 designTokens；模板字体/圆角/区块间距不被 `!important` 覆盖 | 代码核实 2026-09-12（`site-generator.ts:53` 明确不再生成 `set_design_tokens`） |
+| F-022 | 死代码与死数据清理 | 中 | 已完成 | 无 | SiteRenderer/colorTone/ai-self-eval/supportConfig/structure-check 各自接线或删除 | commit 83851e5 删除 `site-renderer.tsx`/`ai-self-eval.ts`/`structure-check.ts` |
 
 ## 功能变更历史
 
 按时间倒序追加：日期、功能 ID、变化、原因、影响、证据 ID 和确认来源。
 
 - 2026-09-09：F-018 完成、F-019 完成、F-020/F-021/F-022 新增为已规划——门禁审计发现「模板门禁」实为零断言且被 testIgnore 排除，发布链路未接任何模板层门禁；同时发现 `SiteRenderer` 降级由「缺槽位即判预览失败」误触发（shadcn-landing2 槽位竞态），以及 A10 中文长度判定单位混用导致提示词与质检器互相打架。产品审计另发现首页为硬编码演示数据、设置页 4 个按钮零 onClick、designTokens 静默覆盖 22/22 模板样式。证据：E-025，用户确认「删除降级」「以产品角度分析无用设计」。
+- 2026-09-12：**账本自相矛盾校正**。F-020/F-021/F-022 三项目本文件标「已规划」，而 `PROJECT_PROGRESS.md` 已于 2026-09-11 标「已完成（代码核实）」。按账本自己的规矩（**先核实代码实况再改状态**），本次逐项重新核实：F-020 首页确已读 `GET /api/sites`；F-021 `buildGenerationPlan` 明确「不再生成 `set_design_tokens`」并附原因（此前 `!important` 覆盖抹平 22/22 模板设计特征）；F-022 三个死代码文件已随 commit 83851e5 删除。三项目标状态更正为「已完成」并补上证据 ID。
 - 2026-09-02：F-011 新增并进入进行中——用户真实建站在 45 秒硬截止前仍未得到可用结果，证伪“45 秒适合作为产品硬截止”的假设；45 秒调整为慢请求告警与恢复检查点，保留更晚的有限硬截止，同时继续缩短真实 provider 关键路径。证据：E-013，用户真实交互反馈。
 - 2026-09-02：F-010 完成——确认页完成 FAQ 兼容映射、三模板稳定分散、已填初稿跨标签预览和真实进度；创建站点、revision 与 SSE 共用绝对截止和取消信号；生成 `done` 即终态，部分/降级停留并可进入工作台；NEXT LANDING 与 SHADCN PRO 静态资源和 wrapper 高度链闭环；工作台确认请求具备冲突快照接管与超时同等语义。证据：E-011/E-012，AI 实施并以确定性测试、生产构建和 smoke 验证；真实 DeepSeek 样本未外发。
 - 2026-09-02：F-009 完成——生成接口使用单终态门闩与 Next.js `after()` 托管响应后存证，生成记录增加 outcome/mode/missingSections/模板降级/errorCode；设置页增加最近 200 次完整建站健康指标。证据：E-009/E-010，AI 实施并验证。

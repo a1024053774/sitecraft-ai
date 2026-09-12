@@ -31,10 +31,17 @@
 |---|---|---|---|
 | 45 秒硬截止早于真实 provider 的可用结果 | 真实建站被提前终止，用户仍无法完成建站 | 将 45 秒改为慢请求告警与恢复点，设置更晚硬截止，并用真实事件时间线定位耗时 | 处理中 |
 | workspace 消息级撤销 2 个场景测试失败 | 无法判定是既有 bug 还是未提交改动引入 | 归因后修复或修正断言；本轮 workspace 改动仅新增 `structureNotice`，未触及撤销链路 | 待归因 |
-| P3.1/P3.2/P3.3 代码与测试从未 git add | 相关测试不在 `npm test` 范围内，看板却标已完成 | 纳入版本控制后重跑 | 待处理 |
+| P3.1/P3.2/P3.3 代码与测试从未 git add | 相关测试不在 `npm test` 范围内，看板却标已完成 | 纳入版本控制后重跑 | **已解除**（2026-09-12 基线提交 67f943f..71ba0f2） |
 
 ## 下一步
 
+0. **🔴 `add_card` 容量门在生产上恒不生效**（P0，2026-09-12 真机+代码双证）：
+   生产传入的 `presentation[].slot` 是**裸段名** `"features"`（`site-generator.ts:402` 与 `:778`），
+   而校验器按 `${section}.items` 查（`site-operations.ts:778`/`:795`）→ `find` 永远 undefined
+   → `overCapacity` 恒为空 → **越界从不被拦**。单测用的是 `"features.items"`
+   （`tests/site-operations.test.ts:323`/`:364`），**测的是生产永远不会传的形态**。
+   这正是 2026-09-10「AI 按容量提示写、越界到应用层炸掉整批」能发生的原因——
+   当时加的防线**其实没接上**。附带 `capacitySections` 不含 `faq`，与 `cardSections` 不一致。
 1. **`products` 契约两层不一致**（P0，2026-09-11 新发现）：`slots` 层 22/22 声明 `products` 且 `required:true`，`presentation` 层只有 17/22 声明。生成端写不出商品 + 逃生口 `optionalTargets` 零调用 → 新站产品区被静默隐藏（真机 3/3）。修法：给缺的 5 个模板传 `optionalTargets: ["products"]`。
 2. **`/export/[siteId]` 无入口**（P0）：页面存在但全站零链接，用户拿不到可交付成品。
 3. **文案长度实测**（P0）：`copyLengthLimit` 的 15/40 是拍的，卡住"一句话建站"的表达力。需按模板×槽位做字数梯度渲染实测真实破版点。
