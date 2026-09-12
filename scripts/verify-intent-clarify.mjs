@@ -66,13 +66,13 @@ async function main() {
     report("#7", "目标过模糊·做个好看的网站 → need_info 追问", ok, { status: s, needsInfo: done?.intent?.needsInfo }, "允许追问或标注两达标路径，核心是不瞎猜");
   }
 
-  // #5 风格冲突：→ 真正识别"极简 vs 鲜艳"矛盾（needsInfo 含风格/色系取舍选项，或 conflicts 非空），禁止静默全吞
+  // #5 风格冲突：→ 真正识别"极简 vs 鲜艳"矛盾（needsInfo 含风格取舍选项，或 conflicts 非空），禁止静默全吞
   {
     const { done } = await analyze("做个网站，要极简但内容丰富、色彩鲜艳");
     const s = done?.intent?.status;
     const conflicts = done?.intent?.conflicts ?? [];
     const needsInfo = done?.intent?.needsInfo ?? [];
-    const mentionsStyle = needsInfo.some((q) => /极简|鲜艳|色彩|色系|风格|A\s|B\s|C\s/.test(q));
+    const mentionsStyle = needsInfo.some((q) => /极简|鲜艳|色彩|风格|A\s|B\s|C\s/.test(q));
     const ok = conflicts.length > 0 || mentionsStyle;
     report("#5", "风格冲突·极简+鲜艳 → 追问含风格取舍 或 标冲突", ok, { status: s, conflicts, needsInfo }, "收紧：必须真正识别矛盾，任意 need_info 不算通过");
   }
