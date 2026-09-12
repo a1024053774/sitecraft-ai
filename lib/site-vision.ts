@@ -26,7 +26,7 @@
  */
 import { DRAFT_FIELD_MAX_LENGTH } from "./draft-field-limits.ts";
 import { readabilityHint } from "./content-policy.ts";
-import type { DesignTokens, EditableCard, LocalizedText, LogoItem, NavItem, Product, SiteDraft, Testimonial } from "./site-document.ts";
+import type { DesignTokens, EditableItem, LocalizedText, LogoItem, NavItem, Product, SiteDraft, Testimonial } from "./site-document.ts";
 import { defaultDraft, MAX_NAV_ITEMS, siteDraftSchema } from "./site-document.ts";
 import { COMPONENT_TYPES, COMPONENT_VARIANTS, MAX_COLLECTION_ITEMS, MAX_LOGO_ITEMS, type ComponentType } from "./template-composer-dsl.ts";
 import { MAX_CAPTURE_EDGE, MAX_CAPTURE_PIXELS, MIN_ACCEPTABLE_WIDTH } from "./site-capture.ts";
@@ -516,7 +516,7 @@ export function coerceVisionDsl(raw: unknown, options: CoerceOptions = {}): Coer
   for (const key of ["features", "services"] as const) {
     const sectionIn = modelContent[key] ?? {};
     const rawItems = Array.isArray(sectionIn.items) ? sectionIn.items : [];
-    const items: EditableCard[] = [];
+    const items: EditableItem[] = [];
     for (const [index, item] of rawItems.entries()) {
       if (items.length >= MAX_COLLECTION_ITEMS) break;
       const record = (typeof item === "object" && item ? item : {}) as Record<string, unknown>;
@@ -561,7 +561,7 @@ export function coerceVisionDsl(raw: unknown, options: CoerceOptions = {}): Coer
       : [];
 
     if (key === "faq") {
-      const items: EditableCard[] = [];
+      const items: EditableItem[] = [];
       for (const [index, item] of rawItems.entries()) {
         if (items.length >= MAX_COLLECTION_ITEMS) break;
         const record = (typeof item === "object" && item ? item : {}) as Record<string, unknown>;

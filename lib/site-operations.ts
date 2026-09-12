@@ -6,13 +6,13 @@ import {
   cloneDraft,
   designTokensSchema,
   draftAssetSchema,
-  editableCardSchema,
+  editableItemSchema,
   locales,
   MAX_COLLECTION_ITEMS,
   productSchema,
   sectionKeySchema,
   sectionKeys,
-  type EditableCard,
+  type EditableItem,
   type Locale,
   type Product,
   type SectionKey,
@@ -93,7 +93,7 @@ const setTextOperationSchema = z.object({
 /**
  * 可被 `update_card` 改的板块。
  *
- * `faq` 于 2026-09-11（⑥-4）加入：FAQ 的条目形状**就是** `EditableCard`
+ * `faq` 于 2026-09-11（⑥-4）加入：FAQ 的条目形状**就是** `EditableItem`
  * （`id`/`title`/`body`），复用同一个操作与同一套就地编辑映射最省事，
  * 也不会多出一份要维护的写回逻辑。
  *
@@ -131,7 +131,7 @@ const addCardOperationSchema = z.object({
    * 的插入点（B 项），因为多条独立 add_card 累计也会溢出。
    */
   index: z.number().int().min(0).max(MAX_COLLECTION_ITEMS - 1).optional(),
-  item: editableCardSchema,
+  item: editableItemSchema,
 });
 const removeCardOperationSchema = z.object({
   op: z.literal("remove_card"),
@@ -157,7 +157,7 @@ const setTemplateOperationSchema = z.object({
  *
  * ## 为什么不能复用 `update_card`
  *
- * 评价的形状是「谁说的 / 他什么身份 / 说了什么」，与 `EditableCard` 的
+ * 评价的形状是「谁说的 / 他什么身份 / 说了什么」，与 `EditableItem` 的
  * `title`/`body` **语义不同**——硬塞进去，「客户名」会被写进一个叫 `title` 的字段，
  * 而渲染层要用 `<blockquote>` 包正文、`<cite>` 包署名，**节点不同**。
  *
@@ -421,10 +421,10 @@ function same(a: unknown, b: unknown) {
  * 后面的 `items.splice(...)` / `item.title[locale] = ...` 改的是这个数组，
  * 赋回去才真的落到草稿上。（写第一版时漏了这一步，等于"改了但没保存"。）
  */
-function cardItems(draft: SiteDraft, section: CardSection): EditableCard[] {
+function cardItems(draft: SiteDraft, section: CardSection): EditableItem[] {
   const existing = draft.content[section];
   if (existing) return existing.items;
-  const created = { title: { zh: "", en: "" }, intro: { zh: "", en: "" }, items: [] as EditableCard[] };
+  const created = { title: { zh: "", en: "" }, intro: { zh: "", en: "" }, items: [] as EditableItem[] };
   draft.content[section] = created;
   return created.items;
 }
@@ -1166,4 +1166,4 @@ export function slotForQualityIssue(slot: string): string | null {
   return FIELD_TO_TARGET[field] ?? null;
 }
 
-export type { EditableCard, Product, SectionKey };
+export type { EditableItem, Product, SectionKey };

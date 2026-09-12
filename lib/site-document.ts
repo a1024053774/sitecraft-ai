@@ -11,20 +11,20 @@ export const localizedTextSchema = z.object({
 });
 export type LocalizedText = z.infer<typeof localizedTextSchema>;
 
-export const editableCardSchema = z.object({
+export const editableItemSchema = z.object({
   id: z.string().min(1).max(80),
   title: localizedTextSchema,
   body: localizedTextSchema,
 });
-export type EditableCard = z.infer<typeof editableCardSchema>;
+export type EditableItem = z.infer<typeof editableItemSchema>;
 
 /**
  * 客户评价（2026-09-11，④ 组件扩充）。
  *
- * ## 为什么不是 `EditableCard`
+ * ## 为什么不是 `EditableItem`
  *
  * 评价有**两个出处**：卡片有 `title`/`body`，而评价是「谁说的 / 他什么身份 / 说了什么」。
- * 硬塞进 `EditableCard` 会让字段语义漂移（`title` 到底是人名还是标题？），
+ * 硬塞进 `EditableItem` 会让字段语义漂移（`title` 到底是人名还是标题？），
  * 而字段语义漂移正是 `CLAUDE.md` 第一条铁律要防的。
  *
  * ## `quote` 单独一字段而不是复用 `body`
@@ -171,7 +171,7 @@ export type DesignTokens = z.infer<typeof designTokensSchema>;
 const contentSectionSchema = z.object({
   title: localizedTextSchema,
   intro: localizedTextSchema,
-  items: z.array(editableCardSchema).max(MAX_COLLECTION_ITEMS),
+  items: z.array(editableItemSchema).max(MAX_COLLECTION_ITEMS),
 });
 
 /** 可替换资产槽（P3.2）：首屏主视觉与品牌 Logo。能否替换由 lib/template-asset-registry.ts 逐模板声明。 */
@@ -239,12 +239,12 @@ export const siteDraftSchema = z.object({
      * 必填会把"本来就没有 FAQ 的正常站"变成非法草稿。
      *
      * 与 `products` 同样是「标题 + intro + 条目」三段，但**不复用
-     * `contentSectionSchema`**：后者的 `items` 是 `EditableCard`
+     * `contentSectionSchema`**：后者的 `items` 是 `EditableItem`
      * （`title`/`body` 语义是"小标题 + 正文"），而问答条目的
      * `question`/`answer` 在渲染上是 `<summary>`/正文，语义不同不能混用。
      */
     faq: contentSectionSchema.extend({
-      items: z.array(editableCardSchema).max(MAX_COLLECTION_ITEMS),
+      items: z.array(editableItemSchema).max(MAX_COLLECTION_ITEMS),
     }).optional(),
     /** 客户评价（2026-09-11，④）。可选，理由同 FAQ。 */
     testimonials: contentSectionSchema.extend({

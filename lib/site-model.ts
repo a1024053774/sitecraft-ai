@@ -6,7 +6,7 @@ import {
   normalizeDraft,
   starterProducts,
   type Device,
-  type EditableCard,
+  type EditableItem,
   type Locale,
   type LocalizedText,
   type Product,
@@ -159,4 +159,4 @@ export function importProductsFromRows(
 }
 
 export { cloneDraft, defaultDraft, normalizeDraft, starterProducts };
-export type { Device, EditableCard, Locale, LocalizedText, Product, SectionKey, SiteDraft };
+export type { Device, EditableItem, Locale, LocalizedText, Product, SectionKey, SiteDraft };
