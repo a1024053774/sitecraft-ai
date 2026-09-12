@@ -110,11 +110,35 @@
 实现却是 `editableCardSchema.extend({ items: z.array(editableCardSchema) })`——
 **既是复用了、又是一次冗余 extend**（与父 schema 的 items 定义完全相同）。需人判断取舍。
 
-### 冲突 #8 · `add_card` index 上限可疑
+### 冲突 #8 · `add_card` index 上限构成越界路径 —— ✅ **实跑确认真实触发**（2026-09-12）
 
-`site-operations.ts:120` 的 `index.max(12)` 与 `MAX_COLLECTION_ITEMS = 12`：
-已有 12 条时 `index=12` 会尾部插入成 **13 条**（`:484`），下次读取 schema 失败 →
-触发 `normalizeDraft` **整站回退成演示文案**。**未实跑验证**。
+按裁决"先补实跑复现测试、把结论写进报告再决定修法"，已加
+`tests/site-operations.test.ts` 的「冲突 #8 实跑复现」用例。**实测输出原文**：
+
+```
+[冲突#8 观察] 插入前 12 条 → 插入后 13 条；schema 可解析 = false
+[冲突#8 观察] MAX_COLLECTION_ITEMS = 12
+[冲突#8 结论] **真实触发**：可以插到超过上限，且该草稿无法通过 schema
+             → 下次读取会走 normalizeDraft 的 destructive 兜底（整站回退成演示文案）
+```
+
+**完整链条**（每一环都有证据）：
+
+| 环 | 事实 | 位置 |
+|---|---|---|
+| 1 | `add_card.index` 上限是字面量 `12`，**与 `MAX_COLLECTION_ITEMS` 无 import 关系** | `site-operations.ts:120` |
+| 2 | 插入点是 `Math.min(index ?? items.length, items.length)`——满员时 `index=12` 夹到 12 = **尾部**，插入成第 13 条 | `site-operations.ts:484` |
+| 3 | schema 要求 `items.length ≤ MAX_COLLECTION_ITEMS(12)` | `site-document.ts:174` |
+| 4 | 13 条的草稿 `safeParse` 失败 → `normalizeDraft` 走 destructive 兜底 | `site-document.ts:457-477` |
+
+**修法（待你裁决，本次未改代码）**，至少两条路：
+- **A（推荐）**：`add_card.index` 上限改为 `.max(MAX_COLLECTION_ITEMS - 1)` 并 import 常量——
+  与 schema 同源，顺手消掉"同值不同源"（冲突 #6 家族）；
+- **B**：在 `applySiteOperations` 的插入处加容量前置校验，超限**拒绝单条**而非静默溢出
+  （与 `update_card` 越界的处理方式一致）。
+
+A 治入口、B 治兜底；**建议 A+B 都做**，因为 B 还能挡住"多次独立的 add_card 累计溢出"这种
+A 挡不住的情况。
 
 ---
 

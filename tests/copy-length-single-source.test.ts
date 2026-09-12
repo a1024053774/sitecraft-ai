@@ -178,3 +178,36 @@ test("readabilityHint 与契约容量绑定：容量改了它跟着改", () => {
   assert.match(hint, new RegExp(`标题约 ${expectedTitle} 字`), "标题建议值应等于 hero.title 容量 × POLISH_RATIO");
   assert.match(hint, new RegExp(`说明约 ${expectedBody} 字`), "说明建议值应等于 about.body 容量 × POLISH_RATIO");
 });
+
+/**
+ * ===== 阶段 1 第五节：`about.title` 当前行为锁定（用户裁决：只锁现状，不改）=====
+ *
+ * 背景：`about.title` **不在** `SLOT_MAX_LENGTH` 里（已核实：`"about.title" in
+ * SLOT_MAX_LENGTH === false`），因此它落到 `copyLengthLimit` 的**版式启发值**分支，
+ * 被**硬拒**在中文 15 字 / 英文 10 词。
+ *
+ * 这与 `about.body` 的事故同款——后者的启发值 40 字与契约容量 800 相差 20 倍，
+ * 导致公司简介永远写不进草稿。`about.title` 目前**没有暴露出问题**，
+ * 但也没有任何测试锁着它，改动契约时不会被发现。
+ *
+ * 用户裁决：**加测试锁现状**（不修改行为）。所以下面断言的是"今天就是这样"，
+ * 不是"应该这样"。将来若决定给它补契约容量，这条测试应当**显式改掉**——
+ * 那才说明有人认真想过，而不是顺手漂移。
+ */
+test("about.title 现状锁定：走版式启发值分支（15 字 / 10 词）而非契约容量", () => {
+  assert.equal(
+    "about.title" in SLOT_MAX_LENGTH,
+    false,
+    "现状：about.title 不在 SLOT_MAX_LENGTH 里。若有人给它补了契约容量，请一并改写本测试并复查版式",
+  );
+
+  // 恰好 15 字/10 词放行；超出即硬拒（现状）
+  assert.equal(checkCopyLength(op("about.title", "字".repeat(15), "zh")), null);
+  const zhOver = checkCopyLength(op("about.title", "字".repeat(16), "zh"));
+  assert.ok(zhOver, "现状：about.title 超出 15 字被拒");
+  assert.match(zhOver, /应为 15 字以内/, "拒绝理由走的是可读/版式口径，不是模板容量口径");
+
+  const words = (n: number) => Array.from({ length: n }, () => "word").join(" ");
+  assert.equal(checkCopyLength(op("about.title", words(10), "en")), null);
+  assert.ok(checkCopyLength(op("about.title", words(11), "en")), "现状：about.title.en 超出 10 词被拒");
+});

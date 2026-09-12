@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultDraft } from "../lib/site-document.ts";
+import { defaultDraft, MAX_COLLECTION_ITEMS, siteDraftSchema } from "../lib/site-document.ts";
 import { SLOT_MAX_LENGTH } from "../lib/template-slot-contract.ts";
 import {
   applySiteOperations,
@@ -449,4 +449,50 @@ test("slotForQualityIssue: 可定位的槽位映射到预览目标", () => {
   // 不可定位的（如商品分类）必须返回 null，调用方只显示描述、不给出会点了没反应的气泡
   assert.equal(slotForQualityIssue("products.FM-2401.category"), null);
   assert.equal(slotForQualityIssue("contact.email"), null);
+});
+
+/**
+ * ===== 阶段 1 冲突 #8：`add_card` 的 index 上限是否构成越界路径 =====
+ *
+ * 用户裁定：**先补一个实跑复现测试，把结论（真实触发/不触发）写进报告再决定修法，
+ * 不许直接改。** 所以本节只**观察并记录事实**，不加断言去"要求"某种行为。
+ *
+ * 可疑点：`addCardOperationSchema` 的 `index` 上限是 `12`
+ * （`site-operations.ts:120`，字面量，与 `MAX_COLLECTION_ITEMS` 无 import 关系），
+ * 而 `MAX_COLLECTION_ITEMS` 也是 12、`siteDraftSchema` 用它做 `.max()`。
+ * 若已有 12 条时 `index=12` 能插入成功，就会得到 13 条 → 下次读取 schema 失败 →
+ * `normalizeDraft` 走 destructive 兜底，**把整站回退成演示文案**（P-0 静默数据丢失）。
+ */
+test("冲突 #8 实跑复现：满员后再 add_card（index=12）会怎样", () => {
+  const draft = structuredClone(defaultDraft);
+  draft.content.features.items = Array.from({ length: MAX_COLLECTION_ITEMS }, (_, i) => ({
+    id: `f${i}`,
+    title: { zh: `优势${i}`, en: `F${i}` },
+    body: { zh: `说明${i}`, en: `B${i}` },
+  }));
+
+  const before = draft.content.features.items.length;
+  const result = applySiteOperations(
+    draft,
+    [{ op: "add_card", section: "features", index: 12, item: { id: "overflow", title: { zh: "溢出", en: "X" }, body: { zh: "溢出", en: "X" } } } as never],
+    { templateIds: new Set(["forge"]), lastChange: "冲突#8复现" },
+  );
+  const after = result.draft.content.features.items.length;
+
+  // 落盘后的草稿还能不能通过 schema —— 这才是"会不会触发整站回退"的判定
+  const parseable = siteDraftSchema.safeParse(result.draft).success;
+
+  // 如实记录观察结果（不断言"应该是多少"，因为修法尚未裁决）
+  console.log(`  [冲突#8 观察] 插入前 ${before} 条 → 插入后 ${after} 条；schema 可解析 = ${parseable}`);
+  console.log(`  [冲突#8 观察] MAX_COLLECTION_ITEMS = ${MAX_COLLECTION_ITEMS}`);
+
+  if (after > MAX_COLLECTION_ITEMS) {
+    console.log("  [冲突#8 结论] **真实触发**：可以插到超过上限，且该草稿无法通过 schema");
+    console.log("               → 下次读取会走 normalizeDraft 的 destructive 兜底（整站回退成演示文案）");
+  } else {
+    console.log("  [冲突#8 结论] 不触发：插入被夹在上限内");
+  }
+
+  // 这条断言只锁"观察本身发生了"，不锁结论——结论写进报告由人裁决
+  assert.ok(result, "复现测试本身必须能跑完（不因异常中断）");
 });
