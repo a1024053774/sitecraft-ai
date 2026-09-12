@@ -83,7 +83,14 @@ export type PresentationItemShape = "title_body" | "metric_value_label" | "media
  * 使注入器定位与生成层理解都不依赖会被替换的演示文字。
  */
 export type TemplatePresentationBlock = {
-  presentationSlot: string; // about|features|services|products|contact
+  /**
+   * 这是**业务段名**（裸名，如 "features"），不是 DOM 的 `data-sitecraft-slot` 点分路径。
+   * 合法取值见 `getTemplatePresentation()` 的解析结果——手写模板 + `defaultPresentation()`
+   * 的兜底，共含 `hero`（第七值，不属 `sectionKeys`）。
+   * 此前这里手抄了一份枚举注释，漏了 `hero` **且**把第五节的段名写成 `contact`
+   * 与模板实况不符（2026-09-12 登记 T-5，按附则 2 改为引用而非再抄一份）。
+   */
+  presentationSlot: string;
   role: PresentationRole;
   /** 一句话给 AI 看："该板块原生是图标+标题+正文的无边框行，至多 6 条" */
   presentAs: string;
