@@ -10,10 +10,12 @@ import {
   ChevronRight,
   ExternalLink,
   Sparkles,
+  Upload,
   WandSparkles,
   MessageSquareText,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { CreateTemplateDialog } from "@/components/create-template-dialog";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import { templates } from "@/lib/site-model";
 
@@ -25,11 +27,61 @@ const starterExamples = [
   "工业零部件厂的官网，突出质量和服务",
 ];
 
+/**
+ * 运行时模板（用户自己做的）在列表里的形状。
+ *
+ * 单独一个类型而不是复用 `Template`：那个类型要求 `promptProfile`、`source.repoUrl`
+ * 等一堆**只会出现在基线模板上**的字段，为了展示一张卡片去伪造它们
+ * （填假 repoUrl、编 starters）比多写一个类型糟得多。
+ */
+type RuntimeTemplateCard = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  tags: string[];
+  source: { name: string; framework: string };
+  /** 可编辑位置的数量——**A 路径与 B 路径差别最大的地方**，必须让它可见 */
+  slots: number;
+};
+
 export default function TemplatesPage() {
   const router = useRouter();
   const [filter, setFilter] = useState("全部模板");
   const [selected, setSelected] = useState("forge");
   const [prompt, setPrompt] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  /**
+   * 用户自己做的模板（运行时注册）。
+   *
+   * **客户端拿不到**——运行时注册表只在服务端进程里有，
+   * 客户端 bundle 里 `allTemplates()` 恒等于 22 个基线模板
+   * （见 `lib/site-model.ts` 的 `runtimeLoader` 说明）。所以只能走接口。
+   */
+  const [mine, setMine] = useState<RuntimeTemplateCard[]>([]);
+  const [mineError, setMineError] = useState("");
+
+  const loadMine = useMemo(
+    () => async () => {
+      try {
+        const response = await fetch("/api/templates/runtime", { cache: "no-store" });
+        if (!response.ok) {
+          setMineError("读不到你自己做的模板（接口返回了错误）。");
+          return;
+        }
+        const body = (await response.json()) as { templates?: RuntimeTemplateCard[] };
+        setMine(body.templates ?? []);
+      } catch {
+        setMineError("读不到你自己做的模板（网络问题）。");
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    void loadMine();
+  }, [loadMine]);
+
   const visible = useMemo(
     () =>
       filter === "全部模板"
@@ -37,12 +89,29 @@ export default function TemplatesPage() {
         : templates.filter((item) => item.category === filter),
     [filter],
   );
+  /** 自己做的模板同样受分类筛选——不筛的话切到"科技企业"还能看到制造业的自己做模板，很怪。 */
+  const visibleMine = useMemo(
+    () => (filter === "全部模板" ? mine : mine.filter((item) => item.category === filter)),
+    [filter, mine],
+  );
   const goGenerate = (q?: string, templateId?: string) => {
     const params = new URLSearchParams();
     const value = (q ?? prompt).trim();
     if (value) params.set("q", value);
     if (templateId) params.set("templateId", templateId);
     router.push(`/generate${params.toString() ? `?${params.toString()}` : ""}` as Route);
+  };
+  /**
+   * 带模板直接进工作台（2026-09-09 用户需求）。
+   *
+   * 工作台已能读 `?template=<id>` 并写入 set_template（见 app/workspace/page.tsx），
+   * 这里只是把入口接上去。点 starter 文字时额外带 `prompt`，工作台会**预填**到输入框
+   * （不自动发送——避免用户没看完就烧掉一次 AI 调用）。
+   */
+  const openInWorkspace = (templateId: string, starter?: string) => {
+    const params = new URLSearchParams({ template: templateId });
+    if (starter?.trim()) params.set("prompt", starter.trim());
+    router.push(`/workspace?${params.toString()}` as Route);
   };
   return (
     <div className="template-page">
@@ -66,7 +135,7 @@ export default function TemplatesPage() {
       </header>
       <main className="page-content">
         <div className="template-intro">
-          <div className="eyebrow">22 open-source templates</div>
+          <div className="eyebrow">22 open-source templates{visibleMine.length > 0 ? ` + 你做的 ${visibleMine.length} 个` : ""}</div>
           <h1>
             先选一个方向，
             <br />
@@ -74,7 +143,22 @@ export default function TemplatesPage() {
           </h1>
           <p>
             每个模板都能被一句话驱动：直接说你的业务，AI 会推荐并生成初稿。
+            <br />
+            <strong>也可以传一张截图、给一个网址，让 AI 做一个新的。</strong>
           </p>
+        </div>
+        {/* 「用截图/网址做新模板」的入口。
+            做成**独立的一块**而不是输入框上的一个加号——因为这条路的产出
+            与"用一句话建站"完全不同（一个是造新模板，一个是选已有模板），
+            藏进加号里会让人以为"这只是另一种输入方式"（计划 §3.1 的判断）。 */}
+        <div className="template-create-band">
+          <div>
+            <strong>有现成的截图或网址？</strong>
+            <span>传一张截图（能编辑的新模板），或者给一个网址（复刻 / 原样搬下来）</span>
+          </div>
+          <button className="primary-button" onClick={() => setDialogOpen(true)}>
+            <Upload size={14} /> 做新模板 <ArrowRight size={14} />
+          </button>
         </div>
         <div className="template-prompt-band">
           <MessageSquareText size={17} className="template-prompt-icon" />
@@ -119,7 +203,10 @@ export default function TemplatesPage() {
             <article
               className={`template-card ${selected === template.id ? "selected" : ""}`}
               key={template.id}
-              onClick={() => setSelected(template.id)}
+              // 点卡片 = 选中该模板并**直接进工作台**（2026-09-09）。
+              // 用户要的是「点一下就开始编辑」：带该模板的空草稿进工作台，不跑 AI 生成、
+              // 不花额度、不用等。此前只 setSelected 不跳转，还得再点 starter 文字才生效。
+              onClick={() => openInWorkspace(template.id)}
             >
               <div className="template-cover template-live-cover">
                 <OpenSourceTemplateFrame templateId={template.id} variant="thumbnail" />
@@ -152,44 +239,81 @@ export default function TemplatesPage() {
                     <button
                       key={starter}
                       className="template-starter-chip"
-                      onClick={() => goGenerate(starter, template.id)}
+                      onClick={() => openInWorkspace(template.id, starter)}
                     >
                       {starter}
                     </button>
                   ))}
                 </div>
+                {/* 卡片底部的「预览」入口已删除（2026-09-09）：封面本身就是整页缩略预览，
+                    再挂一条文字链是重复入口。放大看整页仍走封面右下角的「预览整页」。
+                    原「官方演示」外链更早一步删过——demoUrl 实测为空 href，点了没反应。 */}
                 <div className="template-source">
                   <span>{template.source.name} · {template.source.framework}</span>
-                  <div>
-                    <a
-                      href={template.source.demoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      官方演示 <ExternalLink size={10} />
-                    </a>
-                    <Link
-                      href={`/templates/${template.id}/preview` as Route}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      预览 <ExternalLink size={10} />
-                    </Link>
-                  </div>
                 </div>
               </div>
             </article>
           ))}
         </div>
-        <div className="template-bottom">
-          <Link
-            href={`/workspace?template=${selected}`}
-            className="primary-button"
-          >
-            <Sparkles size={15} />
-            用这个模板开始对话 <ArrowRight size={15} />
-          </Link>
-        </div>
+        {/* 用户自己做的模板（运行时注册）。
+            此前它们**根本不出现在这一页**——`templates` 是编译期 22 个固定条目，
+            而拼装/截图/搬站产出的是运行时注册的。结果用户做完模板回来找不到它，
+            页头那句「22 open-source templates」也变成了假话（计划 §9.5）。 */}
+        {visibleMine.length > 0 && (
+          <section className="template-mine">
+            <div className="template-mine-head">
+              <h2>你做的模板</h2>
+              <span>
+                共 {visibleMine.length} 个 · 点卡片直接拿去建站
+              </span>
+            </div>
+            <div className="template-grid">
+              {visibleMine.map((item) => (
+                <article
+                  className={`template-card ${selected === item.id ? "selected" : ""}`}
+                  key={item.id}
+                  onClick={() => openInWorkspace(item.id)}
+                >
+                  <div className="template-cover template-live-cover">
+                    <OpenSourceTemplateFrame templateId={item.id} variant="thumbnail" />
+                    {/* 可编辑位置数是**这一页最该显示的信息**：
+                        B 路径产物有 11–13 个，A 路径搬来的常常只有 1 个，
+                        而两者卡片长得一样。不标出来，用户会以为都能改。 */}
+                    <div className={`template-live-badge ${item.slots <= 3 ? "badge-warn" : ""}`}>
+                      {item.slots <= 3 ? `仅 ${item.slots} 处可编辑` : `${item.slots} 处可编辑`}
+                    </div>
+                    <Link
+                      href={`/templates/${item.id}/preview` as Route}
+                      className="template-preview-open"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      预览整页 <ExternalLink size={11} />
+                    </Link>
+                  </div>
+                  <div className="template-info">
+                    <h3>{item.name}</h3>
+                    <p>{item.description}</p>
+                    <div className="template-tags">
+                      {item.tags.slice(0, 4).map((tag) => (
+                        <span className="template-tag" key={tag}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="template-source">
+                      <span>{item.source.name} · {item.source.framework}</span>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {mineError && <p className="template-mine-error">{mineError}</p>}
+
+        {/* 底部「用这个模板开始对话」已删除（2026-09-09）：点卡片已经直接进工作台，
+            这条 CTA 只是把同一个动作又说了一遍，还让用户以为「必须点这里才算选好」。 */}
       </main>
       <div className="template-selected">
         <div>
@@ -200,6 +324,15 @@ export default function TemplatesPage() {
         </div>
         <Check size={17} color="#b9f56b" />
       </div>
+      {dialogOpen && (
+        <CreateTemplateDialog
+          onClose={() => {
+            setDialogOpen(false);
+            // 关掉弹窗后刷新"你做的模板"——刚做好的那个应当立刻出现在列表里
+            void loadMine();
+          }}
+        />
+      )}
     </div>
   );
 }
