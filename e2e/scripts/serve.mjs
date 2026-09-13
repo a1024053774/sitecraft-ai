@@ -153,13 +153,30 @@ if (stubEnabled) {
   console.log(`[e2e] 模型 stub 已启用：${aiStub.url} → 被测服务的 DEEPSEEK_BASE_URL`);
 }
 
+/**
+ * 访问模式：**外部显式指定则尊重，否则 relaxed**。
+ *
+ * ## ⚠️ 这里此前是写死的 `"relaxed"`，那是个**假门禁**
+ *
+ * `scripts/run-strict-access.mjs` 会把 `SITECRAFT_ACCESS_MODE=strict` 传给
+ * playwright，但本行把它**覆盖掉**了——于是 `access-isolation.spec.ts`
+ * 断言 strict 行为（无头 → 401）时，服务其实跑在 relaxed 下，
+ * **这条断言从来没在它声称的条件下跑过**（实测：无头 `GET /api/sites` 返 200，不是 401）。
+ *
+ * 「显式传了却被无声覆盖」与 `register({ data })` 那个坑同族：**参数到了，
+ * 但中间层把它丢了**。所以这里改成"外部给了就用外部的"。
+ *
+ * relaxed 仍是默认：e2e helper 不带访问头，本来就是本地测试环境；
+ * 只有**生产**才必须 strict。需要 strict 的批次（`test:e2e:strict-access`、
+ * 0.6 的 strict 冒烟）自己显式传。
+ */
+const accessMode = process.env.SITECRAFT_ACCESS_MODE?.trim() || "relaxed";
+
 const server = spawn(process.execPath, serverArgs, {
   cwd: root,
-  // e2e 用 relaxed 鉴权（2026-09-11 P-1 之后，非 development 默认 strict）。
-  // e2e helper 不带访问头，本来就是本地测试环境；只有**生产**才必须 strict。
   // resolveServerEnv 决定 SITE_STORE 与 DATABASE_URL——
   // 与 global-setup / preflight 的端口检查**同源**，所以"检查的"就是"服务连的"。
-  env: { ...resolveServerEnv(process.env), PORT: "3210", SITECRAFT_ACCESS_MODE: "relaxed", ...aiStubArgs },
+  env: { ...resolveServerEnv(process.env), PORT: "3210", SITECRAFT_ACCESS_MODE: accessMode, ...aiStubArgs },
   stdio: "inherit",
 });
 

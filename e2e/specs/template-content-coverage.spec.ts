@@ -120,9 +120,19 @@ for (const templateId of templateIds) {
     const pending = pendingTargets(report, draft, manifest!);
     expect(report.visibleTextsBySlot["about.body"]).toBeUndefined();
     expect(pending).toEqual(expect.arrayContaining(["about.body", "products"]));
-    expect(pending.filter((target) => target === "about.body" || target === "products")).toEqual([
-      "about.body",
-      "products",
-    ]);
+    /**
+     * ⚠️ **无序比较才是正确语义**（2026-09-13 修正；原为有序数组字面量）。
+     *
+     * `pendingTargets()` 返回的是「**哪些位置还没填**」的**集合**——
+     * 内部是 `[...new Set([...])]`，顺序只是 `manifest.slots` 的遍历顺序，
+     * 那是实现细节，不是契约。旧断言却把它当有序数组比，于是槽位顺序一变
+     * （实测：`products` 排在 `about.body` 之前）测试就红，而**行为没有任何变化**。
+     *
+     * `toHaveLength(2)` 不是装饰：`arrayContaining` 允许"多出来的元素"和"重复元素"，
+     * 只写包含就等于放行了"还有别的待填项"这种情况。
+     */
+    const hiddenPending = pending.filter((target) => target === "about.body" || target === "products");
+    expect(hiddenPending).toEqual(expect.arrayContaining(["about.body", "products"]));
+    expect(hiddenPending, "且**恰好**这两项——防止多余项或重复项骗过上面的包含断言").toHaveLength(2);
   });
 }
