@@ -153,6 +153,33 @@ export function CreateTemplateDialog({ onClose }: { onClose: () => void }) {
     extra: Record<string, unknown> = {},
   ) {
     const endpoint = payload.endpoint ?? "from-screenshot";
+    /**
+     * ⚠️ 两个端点的**请求体形状不同**，必须分别拼（2026-09-13 修）。
+     *
+     * | 端点 | schema | 形状 |
+     * |---|---|---|
+     * | `from-screenshot` | `{ source: 二选一 }` | `source.kind === "upload"` 时 `urlPath`；`"url"` 时 `url` |
+     * | `from-url` | **顶层 `url`** | `{ url, suffix, createSite, ... }`，**没有 `source`** |
+     *
+     * 此前两个端点发的是同一份 `{...payload}`，于是"原样搬下来"（static 模式）
+     * 必然 `safeParse` 失败 → **400「请求无效」**，路由体根本不执行：
+     * 用户点这个按钮看到的就是一句没头没脑的报错。
+     * 路由 schema 是权威侧（`app/api/templates/from-url/route.ts`），这里按它拼。
+     */
+    // 后缀用时间戳避免模板 id 撞名——服务端生成的话撞了只能返 409，
+    // 而"名字被占了"对客户是没有意义的错误。
+    const suffix = `u${Date.now().toString(36).slice(-5)}`;
+    const requestBody =
+      endpoint === "from-url"
+        ? {
+            url: payload.source.kind === "url" ? payload.source.url : payload.source.urlPath,
+            suffix,
+            note: note.trim() || undefined,
+            createSite: true,
+            ...extra,
+          }
+        : { ...payload, suffix, note: note.trim() || undefined, createSite: true, ...extra };
+
     setPhase("generating");
     setMessage(
       endpoint === "from-url"
@@ -162,13 +189,10 @@ export function CreateTemplateDialog({ onClose }: { onClose: () => void }) {
     setDetail(endpoint === "from-url" ? "大约 20–40 秒" : "大约 10–20 秒");
 
     try {
-      // 后缀用时间戳避免模板 id 撞名——服务端生成的话撞了只能返 409，
-      // 而"名字被占了"对客户是没有意义的错误。
-      const suffix = `u${Date.now().toString(36).slice(-5)}`;
       const response = await fetch(`/api/templates/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, suffix, note: note.trim() || undefined, createSite: true, ...extra }),
+        body: JSON.stringify(requestBody),
       });
       const body = (await response.json().catch(() => null)) as (GenerateResult & { message?: string; detail?: string }) | null;
 
