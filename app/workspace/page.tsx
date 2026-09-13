@@ -35,6 +35,7 @@ import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useR
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import { ProductImportDialog } from "@/components/product-import-dialog";
 import { AssetReplaceDialog } from "@/components/asset-replace-dialog";
+import { SiteMaterialDialog } from "@/components/site-material-dialog";
 import {
   defaultDraft,
   getTemplate,
@@ -1407,22 +1408,14 @@ export default function WorkspacePage() {
         />
       )}
       {materialOpen && (
-        <div className="modal-backdrop" onClick={() => setMaterialOpen(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
-          <div className="modal-head"><div><div className="eyebrow">Source / Material</div><h3>站点素材</h3></div><button className="icon-button" onClick={() => setMaterialOpen(false)} aria-label="关闭"><X size={15} /></button></div>
-          <p className="modal-copy">这里的内容会作为 AI 写文案的事实依据（公司简介、产品、资质、案例）。素材里没有的信息不会被编造。改完保存，下次生成/补全时生效。</p>
-          <textarea
-            className="generate-textarea"
-            value={materialDraft}
-            onChange={(e) => { setMaterialDraft(e.target.value); setMaterialSaved(false); }}
-            placeholder="例如：华辰光伏成立于 2001 年，专注光伏组件与逆变器制造，通过 ISO 9001 认证，年产能 2GW，产品销往德国、日本……"
-            rows={12}
-            maxLength={20000}
-          />
-          <div className="modal-foot">
-            <span>{materialDraft.trim().length} / 20000{materialSaved ? " · 已保存" : ""}</span>
-            <button className="primary-button" disabled={materialBusy} onClick={() => void saveMaterial()}>{materialBusy ? "保存中…" : "保存素材"}</button>
-          </div>
-        </div></div>
+        <SiteMaterialDialog
+          value={materialDraft}
+          busy={materialBusy}
+          saved={materialSaved}
+          onClose={() => setMaterialOpen(false)}
+          onChange={(next) => { setMaterialDraft(next); setMaterialSaved(false); }}
+          onSave={() => void saveMaterial()}
+        />
       )}
       {releasesOpen && (
         <div className="modal-backdrop" onClick={() => setReleasesOpen(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
