@@ -97,8 +97,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ site
     return Response.json({
       status: result.status,
       ...(result.status === "applied" ? { changeSet: result.changeSet } : {}),
-      // B3：被拒条目必须对用户可见——静默丢弃就是"AI 说改了但没改"那一族。
-      ...(shapeChecked.rejected.length ? { rejected: shapeChecked.rejected } : {}),
+      /**
+       * B3：被拒条目必须对用户可见——静默丢弃就是"AI 说改了但没改"那一族。
+       *
+       * ⚠️ **无条件存在**（用户 2026-09-13 裁决 ②）：即使为空也要有这个字段。
+       * 此前写成条件展开（只有非空才带），未来一次改造就可能把它整个吞掉，
+       * 而消费方（见 T-18）只会看到 `undefined` 静静地什么都不显示。
+       * 断言：`tests/draft-contract.test.ts` 的 200 响应体必含 `rejected` 数组。
+       */
+      rejected: shapeChecked.rejected,
       ...snapshot(result.record),
     });
   } catch (error) {

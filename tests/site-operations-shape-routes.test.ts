@@ -64,6 +64,11 @@ test("draft：一条坏 locale，其余操作照常生效，坏的那条随响�
   console.log("DRAFT-E2E", JSON.stringify({ status: response.status, rejected: body.rejected, heroZh: body.draft?.content?.hero?.title?.zh }));
 
   assert.notEqual(response.status, 400, "坏单条不该把整批打成 400（宽修前的形态）");
+  /**
+   * 用户 2026-09-13 裁决 ②：**200 响应体必含 `rejected` 数组字段**——
+   * 即便本轮没有坏条目也要在（放未来改造把字段整个吞掉，消费方见 T-18）。
+   */
+  assert.ok(Array.isArray(body.rejected), "200 响应必须带 rejected 数组字段（无条件存在）");
   assert.equal(body.rejected?.length, 1, "坏的那条必须被拒且可见");
   assert.match(body.rejected![0], /[一-龥]/, "拒绝理由要可读（中文）");
   assert.match(body.rejected![0], /fr/, "理由要点出坏值");
@@ -103,6 +108,38 @@ test("chat：模型产出坏形状时，形状闸门在出口拦下（拒单条�
   assert.equal(result.operations.length, 2, "两条合法操作必须保留（拒单条保其余）");
   assert.equal(result.rejected.length, 1, "坏 locale 必须被拒一条");
   assert.match(result.rejected[0], /[一-龥]/, "拒绝理由要可读（中文）");
+});
+
+test("draft：无坏条目时 rejected 字段仍存在（空数组）——防未来改造吞字段", async () => {
+  const mod = draftCtx.module as {
+    GET: (r: Request, c: { params: Promise<{ siteId: string }> }) => Promise<Response>;
+    PUT: (r: Request, c: { params: Promise<{ siteId: string }> }) => Promise<Response>;
+  };
+  const params = { params: Promise.resolve({ siteId: "site-b3-allgood" }) };
+  const current = (await (await mod.GET(
+    new Request("http://localhost/api/sites/site-b3-allgood/draft", { headers: ACCESS_HEADERS }),
+    params,
+  )).json()) as { draft?: { revision?: number } };
+
+  const response = await mod.PUT(
+    new Request("http://localhost/api/sites/site-b3-allgood/draft", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...ACCESS_HEADERS },
+      body: JSON.stringify({
+        baseRevision: current.draft?.revision ?? 0,
+        summary: "B3：全好，无拒绝",
+        source: "manual",
+        operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "全好的一条" }],
+      }),
+    }),
+    params,
+  );
+  const body = (await response.json()) as { rejected?: unknown };
+  console.log("DRAFT-E2E-CLEAN", JSON.stringify({ status: response.status, rejected: body.rejected }));
+
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(body.rejected), "即使没有坏条目，rejected 也必须是数组字段");
+  assert.equal((body.rejected as unknown[]).length, 0, "本轮应无拒绝");
 });
 
 test.after(async () => {
