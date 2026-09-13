@@ -632,3 +632,82 @@ RUN 3: 8 skipped  100 passed (~6m)    0 failed
 取到 spec 结果）。
 
 ---
+
+
+---
+
+## B3 宽修 · 实施汇报（2026-09-13，DeepSeek 侧执行）
+
+> 按用户裁决 Q1-Q5 与队列 B3 原文执行完毕。**停等复审。**
+
+### 提交
+
+| commit | 内容 |
+|---|---|
+| `c07e740` | 测试与审计工具：三组坏样本 + 两条端到端 + 负向验证（**不含实现**） |
+| `0fa9b4b` | 实现与接线：`validateOperationShapes` + 出口闸门 + /draft 改造 + 入口断言 |
+
+（另 `2138e4f` / `e39c1a9` 为 0.6 收口两笔，见上。）
+
+### 三组坏样本先红后绿（原文）
+
+**先红——现状真的会静默接受（负向验证，军规 2）**：
+```
+NEG-PROOF {"changed":true,"appliedTargets":["pricing.items.0"],"draftHasPricing":true}
+```
+三个坏形状零拒绝；坏 section `pricing` **真被写进草稿**。这不是假想。
+
+**符号缺失的红**（第一形态）：
+```
+SyntaxError: The requested module '../lib/site-operations.ts'
+does not provide an export named 'validateOperationShapes'
+```
+
+**转绿**：
+```
+✔ 未知 op → 拒单条 + 可读中文原因
+✔ 非法 locale → 拒单条 + 可读中文原因
+✔ 不存在的 section → 拒单条 + 可读中文原因
+✔ 兜底断言：未知 op 直调 applySiteOperations 必须抛
+```
+
+### Q2 全量误伤检查（`scripts/b3-target-audit.ts`）
+
+```
+22 模板 × 220 target 实例：∈ textTargets 154 | collection 66 | set_text 候选 0
+✅ 误伤面（set_text 口径）= 0
+```
+66 个全部是 `features.items`/`services.items`/`products` 三个槽位级 target。
+
+### 两条端到端（Q1 要求）
+
+```
+DRAFT-E2E {"status":200,"rejected":["操作 set_text 被拒绝（字段 locale=\"fr\" 不受支持，其余操作已保留）"],
+           "heroZh":"这条必须生效"}
+CHAT-E2E  {"accepted":2,"rejected":["操作 update_item 被拒绝（字段 locale=\"de\" 不受支持，其余操作已保留）"]}
+```
+宽修前形态（取证写进测试文件头）：/draft 一条坏 locale → **整批 400**；
+/chat 的模型 op 过语义校验但从不跑 shape schema。
+
+### 回归网
+
+- `npx tsc --noEmit` → 0 错
+- `npm test` → **782 passed / 0 fail**（+5 条）
+- 全套 e2e → **100 passed / 8 skipped / 0 failed（4.2m）**
+
+### 实施中三个自纠（如实记）
+
+1. **兜底断言 v1 拦错了**：起初它拦"所有形状不合"，直接红掉既有「冲突 #8」用例
+   （index=12 + 已存在 id，旧路径抛的**容量**中文文案）。改为**只拦未知 op**——
+   已知 op 的字段越界已有分支 throw，在入口拦反而制造"一条坏操作炸整批"。
+2. **`KNOWN_OPERATION_NAMES` 一度手抄**（这正是我上一轮犯错的老毛病）——
+   改为 `siteOperationSchema.options.map(...)` 派生。
+3. **测试夹具踩坑**：`setupSubstitutedRoute` 会 chdir，同文件两个 ctx 会让
+   先建的 teardown ENOENT；改为只建一个沙箱（教训写进注释）。
+
+### 待复审确认的两处设计判断
+
+① **兜底断言只拦未知 op**——若复审认为"任何形状不合都该在 apply 入口炸"，
+   需要同步改「冲突 #8」用例的验收点（它测的是容量文案）；
+② **`/draft` 的 `rejected` 进响应体**——这是新增的对外字段，前端目前没消费；
+   若认为该走别的通道（如 207/部分成功语义），请裁决。

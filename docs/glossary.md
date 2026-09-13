@@ -92,7 +92,7 @@
 | T-3 | 枚举中文释义维护了三套 | **未做** | 后续批次 |
 | T-4 | `template-catalog.ts` 的 `guardrails` 数值规则未逐条核实 | **未做** | 后续批次 |
 | T-5 | `presentationSlot` 注释手抄段名枚举 | **已完成**（`90dee19`） | 关闭 |
-| T-6 | `applySiteOperations` 无入参校验 | **窄修已完成**（`46eb29f`）；**宽修未做** | 宽修另开批次 |
+| T-6 | `applySiteOperations` 无入参校验 | **宽修已完成**（2026-09-13，`c07e740`+`0fa9b4b`）：`validateOperationShapes` 权威派生校验 + 生成出口闸门 + /draft 拒单条保其余 + 入口未知 op 断言；重放不过宽修（Q4），locale 窄修降级为防御断言（Q3） | 关闭 |
 | T-7 | e2e 测试进程与 `next start` **连不同的库**（脑裂） | **已完成**（`81220d5`） | 关闭 |
 | T-8 | 「e2e 全走 HTTP」（不再直接 import `lib/`） | **有意暂缓·2026-09-12 用户裁决** | 长期项 |
 | T-9 | e2e 文件后端模式不可达 | **已正式降级为「仅 PG 后端」** | 关闭（降级） |
