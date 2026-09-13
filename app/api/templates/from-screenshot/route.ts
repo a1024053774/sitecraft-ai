@@ -108,6 +108,10 @@ export async function POST(request: Request) {
       "Content-Type": "application/json",
       // 把调用方的身份原样带过去——`/api/templates/runtime` 自己会再鉴权一次，
       // 这里不替它做决定，也不提权。
+      // ⚠️ 三头必须**都给**：strict 态下缺任一即 401（`lib/request-context.ts:97`）。
+      // 此前漏了 workspace-id，与 `from-url` 同因——登记在**生产默认的 strict 态**
+      // 下必然 401，而 relaxed（开发/e2e）不检查这两个头，所以 e2e 一直绿。
+      ...(request.headers.get("x-sitecraft-workspace-id") ? { "x-sitecraft-workspace-id": request.headers.get("x-sitecraft-workspace-id") as string } : {}),
       ...(request.headers.get("x-sitecraft-role") ? { "x-sitecraft-role": request.headers.get("x-sitecraft-role") as string } : {}),
       ...(request.headers.get("x-sitecraft-actor-id") ? { "x-sitecraft-actor-id": request.headers.get("x-sitecraft-actor-id") as string } : {}),
     },

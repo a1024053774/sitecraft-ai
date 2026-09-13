@@ -87,6 +87,12 @@ export async function POST(request: Request) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      // 访问上下文三头**必须原样带过去**：`/api/templates/runtime` 会**自己**再鉴权一次，
+      // 而 strict 态下三个头缺任一即 401（`lib/request-context.ts:97`）。
+      // ⚠️ 此前只转了 role + actor-id、漏了 workspace-id → 登记在**生产默认的
+      // strict 态**下必然 401，用户看到"模板没能登记进模板库"。relaxed（开发/e2e）
+      // 不检查这两个头，所以 e2e 一直是绿的——这正是它没被发现的原因。
+      ...(request.headers.get("x-sitecraft-workspace-id") ? { "x-sitecraft-workspace-id": request.headers.get("x-sitecraft-workspace-id") as string } : {}),
       ...(request.headers.get("x-sitecraft-role") ? { "x-sitecraft-role": request.headers.get("x-sitecraft-role") as string } : {}),
       ...(request.headers.get("x-sitecraft-actor-id") ? { "x-sitecraft-actor-id": request.headers.get("x-sitecraft-actor-id") as string } : {}),
     },
