@@ -32,9 +32,8 @@ import {
   X,
 } from "lucide-react";
 import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Papa from "papaparse";
-import readXlsxFile from "read-excel-file";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
+import { ProductImportDialog } from "@/components/product-import-dialog";
 import {
   defaultDraft,
   getTemplate,
@@ -50,6 +49,7 @@ import { buildChangeDiff, type ChangeDiff } from "@/lib/change-diff";
 import { slotToDraftOperation } from "@/lib/inline-edit-mapping";
 import { formatRenderedStructure, serializeRenderedStructure } from "@/lib/rendered-structure";
 import { readSseEvents } from "@/lib/sse-events";
+import { parseProductFile, uploadProductImage } from "@/lib/product-import";
 
 type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change";
 type ChatMessage = {
@@ -438,14 +438,7 @@ export default function WorkspacePage() {
     setProductImageBusy(sku);
     try {
       let image: string | null = null;
-      if (file) {
-        const form = new FormData();
-        form.append("file", file);
-        const upload = await fetch("/api/product-images", { method: "POST", body: form });
-        const uploaded = (await upload.json()) as { ok?: boolean; url?: string; error?: string };
-        if (!upload.ok || !uploaded.url) throw new Error(uploaded.error || "图片上传失败");
-        image = uploaded.url;
-      }
+      if (file) image = await uploadProductImage(file);
       await saveOperations(
         [{ op: "set_product_image", sku, image }],
         image ? `更新商品 ${sku} 主图` : `清除商品 ${sku} 主图`,
@@ -1155,22 +1148,10 @@ export default function WorkspacePage() {
     setShowImport(true);
   };
 
-  const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (file.name.toLowerCase().endsWith(".xlsx")) {
-      const rows = await readXlsxFile(file);
-      const [header, ...body] = rows;
-      const keys = (header ?? []).map((cell) => String(cell ?? "").trim());
-      await commitImportedRows(file.name, body.map((row) => Object.fromEntries(keys.map((key, index) => [key, String(row[index] ?? "")]))));
-    } else {
-      Papa.parse<Record<string, string>>(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => { void commitImportedRows(file.name, results.data); },
-      });
-    }
-    event.target.value = "";
+  const handleFile = async (file: File) => {
+    // 解析搬进 lib/product-import（B4 纯搬家）；保存链路不变。
+    const parsed = await parseProductFile(file);
+    await commitImportedRows(parsed.name, parsed.rows);
   };
 
   return (
@@ -1436,45 +1417,14 @@ export default function WorkspacePage() {
         </div>
       )}
       {showImport && (
-        <div className="modal-backdrop" onClick={() => setShowImport(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
-          <div className="modal-head"><div><div className="eyebrow">Content / Products</div><h3>填充你的商品目录</h3></div><button className="icon-button" onClick={() => setShowImport(false)} aria-label="关闭"><X size={15} /></button></div>
-          <p className="modal-copy">上传 CSV 或 XLSX 商品表格，校验后直接保存为可撤销草稿。AI 可以继续修改指定 SKU 的中英文名称、简介和分类。</p>
-          <div className="upload-zone" onClick={() => fileRef.current?.click()}><input ref={fileRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={handleFile} /><div className="upload-icon"><CloudUpload size={20} /></div><strong>点击上传表格</strong><span>需要包含 SKU、产品名称、分类等字段</span><small>CSV / XLSX · 最多 1000 行</small></div>
-          <div className="import-options"><div><FileSpreadsheet size={15} /><span>支持中英文列名自动识别</span><ChevronRight size={13} style={{ marginLeft: "auto" }} /></div><div><ImageIcon size={15} /><span>可选"图片/图片URL"列填产品主图</span><ChevronRight size={13} style={{ marginLeft: "auto" }} /></div></div>
-          {importState && <div className={`import-result ${importState.imported ? "" : "error"}`}>{importState.imported ? <Check size={14} /> : <AlertCircle size={14} />}<div><strong>{importState.name} {importState.imported ? "已保存" : "导入失败"}</strong><span>{importState.imported ? `新增或更新 ${importState.imported} 个商品` : importState.errors[0]}{importState.imported && importState.errors.length ? `，${importState.errors.length} 行需要检查` : ""}</span></div></div>}
-          {/* 商品主图：2026-09-10 接线。`/api/product-images` 与 `product.image` 早已就绪，
-              但此前**没有任何入口能写它**——工厂站的说服力主要来自实拍图，这条是主路径。 */}
-          {draft.products.length > 0 && (
-            <div className="product-image-list">
-              <div className="product-image-head">为商品上传实拍主图（当前 {draft.products.filter((item) => item.image).length} / {draft.products.length} 已有图）</div>
-              {draft.products.map((product) => (
-                <div className="product-image-row" key={product.sku}>
-                  <span className="product-image-thumb" style={product.image ? { backgroundImage: `url(${product.image})` } : { background: product.imageColor || "#e5e7eb" }} />
-                  <span className="product-image-name">{product.name.zh || product.name.en || product.sku}</span>
-                  <span className="product-image-sku">{product.sku}</span>
-                  <label className="secondary-button product-image-upload">
-                    {productImageBusy === product.sku ? "上传中…" : product.image ? "更换" : "上传"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      disabled={productImageBusy !== null}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0] ?? null;
-                        event.target.value = "";
-                        if (file) void applyImageToProduct(product.sku, file);
-                      }}
-                    />
-                  </label>
-                  {product.image && (
-                    <button type="button" className="icon-button" aria-label={`清除 ${product.sku} 主图`} disabled={productImageBusy !== null} onClick={() => void applyImageToProduct(product.sku, null)}><X size={13} /></button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="modal-foot"><span>当前草稿商品：{draft.products.length} / 1000</span><button className="primary-button" onClick={() => setShowImport(false)}>完成</button></div>
-        </div></div>
+        <ProductImportDialog
+          products={draft.products}
+          importState={importState}
+          productImageBusy={productImageBusy}
+          onClose={() => setShowImport(false)}
+          onPickFile={(file) => void handleFile(file)}
+          onUploadImage={(sku, file) => void applyImageToProduct(sku, file)}
+        />
       )}
       {materialOpen && (
         <div className="modal-backdrop" onClick={() => setMaterialOpen(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
