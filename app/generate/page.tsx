@@ -25,6 +25,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import { GenerationDoneView } from "@/components/generate/generation-done-view";
+import { ClarifyStepView } from "@/components/generate/clarify-step-view";
 import { templates, type SiteDraft } from "@/lib/site-model";
 import { defaultDraft } from "@/lib/site-document";
 import { deriveDesignTokenResult } from "@/lib/design-variants";
@@ -935,54 +936,17 @@ export default function GeneratePage() {
           )}
 
           {step === "clarify" && clarifyState && (
-            <div className="generate-input">
-              <div className="eyebrow">还差几个关键信息</div>
-              <h1>再告诉我一点，<br /><span style={{ color: "#2e6b4f" }}>才能不瞎猜。</span></h1>
-              <p>AI 觉得信息还不够，下面这些问题补充后会更准。也可以留空直接"按默认值继续"。</p>
-              <ol className="generate-clarify-list">
-                {clarifyState.needsInfo.map((q, i) => (
-                  <li key={`${i}-${q}`}>{q}</li>
-                ))}
-              </ol>
-              <textarea
-                className="generate-textarea"
-                value={clarifyText}
-                onChange={(e) => setClarifyText(e.target.value)}
-                placeholder="补充回答，例如：我是华辰光伏，做组件出口，客户在欧美"
-                rows={3}
-                maxLength={400}
-              />
-              <div className="generate-char-count">{clarifyText.trim().length}/400</div>
-              {error && <p className="generate-error"><AlertCircle size={13} />{error}</p>}
-              <div className="generate-clarify-actions">
-                <button className="secondary-button" disabled={busy} onClick={() => { setClarifyState(null); setClarifyText(""); setError(null); setStep("input"); }}>
-                  返回修改
-                </button>
-                <button
-                  className="primary-button"
-                  disabled={busy}
-                  onClick={() => {
-                    const rounds = history.filter((m) => m.role === "user").length;
-                    if (rounds >= 3) {
-                      // 已追问 3 轮仍信息不足：强制收敛，用默认值（服务端规则 5 转 ready）
-                      // 注意：不传空 history——顶层 history 自然携带已收集对话，防丢失
-                      setClarifyState(null);
-                      void analyze("按默认值继续");
-                      return;
-                    }
-                    // 留空或纯符号 → 也走默认值收敛，不发空串（避免 400）
-                    void analyze(clarifyText.trim() || "按默认值继续");
-                  }}
-                >
-                  {busy ? <LoaderCircle size={15} className="spin" /> : <Sparkles size={15} />}
-                  {busy ? progressText : "继续理解"} <ArrowRight size={15} />
-                </button>
-              </div>
-              <p className="generate-progress" style={{ marginTop: 12, fontSize: 11, color: "#94a3b8" }}>
-                已追问 {history.filter((m) => m.role === "user").length} 轮，最多 3 轮后自动用默认值继续
-              </p>
-              {busy && <p className="generate-progress">{progressText}</p>}
-            </div>
+            <ClarifyStepView
+              needsInfo={clarifyState.needsInfo}
+              clarifyText={clarifyText}
+              error={error}
+              busy={busy}
+              progressText={progressText}
+              rounds={history.filter((m) => m.role === "user").length}
+              onChangeClarifyText={setClarifyText}
+              onBackToInput={() => { setClarifyState(null); setClarifyText(""); setError(null); setStep("input"); }}
+              onContinue={(text) => { setClarifyState(null); void analyze(text); }}
+            />
           )}
 
           {step === "confirm" && intent && template && (
