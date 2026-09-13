@@ -1,7 +1,7 @@
 /**
  * 每模板适配模块契约。
  *
- * 渲染管线只有一个共享 preview bridge（app/api/templates/[templateId]/preview/route.ts）。
+ * 渲染管线只有一个共享 preview bridge（`lib/template-preview-bridge.ts`，B4 前在 preview/route.ts）。
  * 为了让「每模板只能改自己的适配文件」成立，模板专属逻辑从共享 route 抽到
  * lib/template-adapters/<templateId>.ts：route 只按 templateId 取一个适配器并注入，
  * 模板适配不再改共享渲染文件。

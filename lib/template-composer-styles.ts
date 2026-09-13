@@ -3,7 +3,7 @@
  *
  * ## 与 `applyDesignTokens` 共用同一套变量
  *
- * 变量名与取值**必须**和 `app/api/templates/[templateId]/preview/route.ts` 里的
+ * 变量名与取值**必须**和 `lib/template-preview-bridge.ts` 里的
  * `applyDesignTokens` 一致——那边是运行时覆盖用户配色的地方。**变量名对不上，
  * 用户改配色时拼装出来的页面不会跟着变**（静默失效，最难排查）。
  *

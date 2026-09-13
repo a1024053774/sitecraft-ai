@@ -110,8 +110,8 @@ export const INLINE_EDITABLE_PREFIXES: readonly string[] = [
  * 导航项（⑥）的槽位是 `navigation.<id>.label`，**中段带变量**，
  * 静态的前缀数组（`INLINE_EDITABLE_PREFIXES`）表达不了。所以额外导出这条正则源。
  *
- * ⚠️ **两处必须一致**：这里改了，`preview/route.ts` 里注入的那段也要改
- * （它直接引用本常量，所以改这一处就够）。
+ * ⚠️ **两处必须一致**：这里改了，注入桥里的那段也要改
+ * （`lib/template-preview-bridge.ts`，B4 后由它直接引用本常量，所以改这一处就够）。
  * 而**真正拦得住的是服务端保存时的那次 `slotToDraftOperation`**——
  * bridge 里的判断只是"要不要弹输入框"，用户能在 devtools 里绕过它，
  * 绕过了也只会拿到一条可读的拒绝原因。

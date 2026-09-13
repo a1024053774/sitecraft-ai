@@ -7,7 +7,8 @@
  * 写了反引号，导致外层模板字面量提前终止。
  *
  * 最典型的一次是我自己造成的——给 `app/api/templates/[templateId]/preview/route.ts`
- * 的表单注入代码写注释时用了 Markdown 风格的反引号：
+ * 的表单注入代码写注释时用了 Markdown 风格的反引号（B4 后该段代码位于
+ * `lib/template-preview-bridge.ts`，锚点见下方 `INJECTION_REGIONS`）：
  *
  *     /** ⚠️ 必须用 `templateUiCopy[locale]`，**不能**用 `copy`。 *\/
  *
@@ -24,11 +25,14 @@
  *
  * 首版写成整文件逐字符扫，结果**误报一片**：这些文件里有 100–200 个反引号，
  * 绝大多数在 JSDoc 注释、普通字符串、以及**合法**的模板字面量开合处
- * （`preview/route.ts:93` 的 `` return `<script ...` `` 就是合法的开始）。
+ * （`lib/template-preview-bridge.ts:45` 的 `` return `<script ...` `` 就是合法的开始）。
  *
  * 真正危险的只有一处：**注入脚本内部那段模板字面量里**。所以本测试先定位
  * 那段区域，只在区内找反引号——区内不需要任何嵌套模板字面量（`${}` 插值足够），
  * 所以区内出现的每一个反引号都是事故。
+ *
+ * 区域起点现在是 `lib/template-preview-bridge.ts:45` 的 `` return `<script ...` ``
+ * （B4 搬移后；原为 `preview/route.ts:93`）。
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -47,9 +51,12 @@ import test from "node:test";
  */
 const INJECTION_REGIONS = [
   {
-    file: "app/api/templates/[templateId]/preview/route.ts",
-    startLine: 93,
-    endLine: 1424,
+    // B4（2026-09-13）：原来锚 `app/api/templates/[templateId]/preview/route.ts:93-1424`，
+    // 但注入桥已在本次拆文件中搬到独立模块——**锚点必须跟着搬**，否则扫描的是
+    // 一个已经没有注入脚本的路由（空转，等于门禁静默失效）。
+    file: "lib/template-preview-bridge.ts",
+    startLine: 45,
+    endLine: 1376,
     what: "bridgeScript：注入到模板页面的桥接脚本",
   },
 ] as const;

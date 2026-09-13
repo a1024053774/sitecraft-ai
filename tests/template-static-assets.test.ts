@@ -56,7 +56,10 @@ test("does not rewrite external, data, hash, or application API URLs", () => {
 });
 
 test("template bridge reapplies the active draft before exporting offline HTML", async () => {
-  const source = await readFile(new URL("../app/api/templates/[templateId]/preview/route.ts", import.meta.url), "utf8");
+  // B4（2026-09-13）：注入桥从 route.ts 搬到独立模块，本断言的三处正则
+  // 全部命中的是桥脚本内部——**锚点必须跟人走**。若仍读老路径，
+  // 三条正则会在一个已无这些符号的文件上失败（而不是静默通过，这点还算好）。
+  const source = await readFile(new URL("../lib/template-preview-bridge.ts", import.meta.url), "utf8");
   assert.match(source, /let activeDraft = null/);
   // 2026-09-11（⑥）：赋值处多包了一层 `withNavigationView`——导航数组化后，
   // 21 个适配器仍需按 id 索引读导航，兼容视图必须套在**赋值处**
