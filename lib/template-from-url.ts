@@ -74,6 +74,25 @@ export type CreateFromUrlResult =
    */
   | { ok: false; step: "capture" | "export" | "slots"; message: string; detail?: string };
 
+/**
+ * 可注入的副作用点（**只为可测性存在**，见文件末尾「为什么加 deps」）。
+ *
+ * ⚠️ **默认值就是真实实现**——不传 `deps` 时行为与从前逐字节相同。
+ * 测试里才传 fake，生产/路由一律不传。
+ */
+export type CreateFromUrlDeps = {
+  captureSite: typeof captureSite;
+  exportStaticTemplate: typeof exportStaticTemplate;
+};
+
+/**
+ * 默认实现——**导出是为了让测试能断言它没被换成桩**。
+ *
+ * ⚠️ 不导出的话，测试只能靠行为间接推断，而那已经被证明拦不住桩
+ * （见 `tests/template-from-url.test.ts` 的「默认 deps」用例，第一版就是假门禁）。
+ */
+export const DEFAULT_DEPS: CreateFromUrlDeps = { captureSite, exportStaticTemplate };
+
 const CATEGORIES = ["制造业", "外贸目录", "科技企业", "专业服务", "其他"] as const;
 type Category = (typeof CATEGORIES)[number];
 
@@ -125,11 +144,14 @@ export function templateIdFromUrl(url: string, suffix?: string): string {
  *
  * **永不抛异常**——与 B 路径同一个契约。所有失败变成 `{ ok: false, step, message }`。
  */
-export async function createTemplateFromUrl(input: CreateFromUrlInput): Promise<CreateFromUrlResult> {
+export async function createTemplateFromUrl(
+  input: CreateFromUrlInput,
+  deps: CreateFromUrlDeps = DEFAULT_DEPS,
+): Promise<CreateFromUrlResult> {
   const startedAt = Date.now();
 
   // ---- ① 抓（与 B 路径 100% 复用这一步） ----
-  const captured = await captureSite(input.url, {
+  const captured = await deps.captureSite(input.url, {
     shotDir: ".sitecraft-data/captures",
     // A 要下载资源（搬站本体），所以要全量抓；素材沉淀只读尺寸，不额外发请求
     downloadAssets: true,
@@ -144,7 +166,7 @@ export async function createTemplateFromUrl(input: CreateFromUrlInput): Promise<
   const downloadStartedAt = Date.now();
   let exported: Awaited<ReturnType<typeof exportStaticTemplate>>;
   try {
-    exported = await exportStaticTemplate({
+    exported = await deps.exportStaticTemplate({
       html: captured.html,
       pageUrl: captured.url,
       assets: captured.assets,
@@ -209,3 +231,19 @@ export async function createTemplateFromUrl(input: CreateFromUrlInput): Promise<
 }
 
 export { isShotUsable };
+
+/**
+ * ## 为什么加 `deps`（2026-09-12）
+ *
+ * 本文件此前**零单测**——因为它直接 import `captureSite`（要开浏览器）。
+ * 而它承载的正是"抓取失败怎么说人话""搬来的站可编辑到什么程度"这类
+ * **面向客户的判断**，恰恰是最该被钉住的部分。
+ *
+ * 所以把两个副作用点提成参数：**默认值就是真实实现**（`DEFAULT_DEPS`），
+ * 不传时行为与从前逐字节相同；测试传 fake 就能在没有浏览器的情况下
+ * 跑完整条编排，包括每一条失败分支。
+ *
+ * ⚠️ 这不是"为了测试改生产代码"的妥协——它是把**已经存在的**依赖
+ * 从模块级常量提成显式参数，调用方一行都不用改。
+ * 同一条范式在 `lib/release-store.ts:75` 的构造注入里已经在用。
+ */
