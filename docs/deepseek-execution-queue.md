@@ -961,3 +961,93 @@ input 4.9 + clarify 2.9 + confirm 14.3 + generating 7.9 + done 0.4），
 4. **`[object Object]` 序列化调研**（T-17 的定性）。
 
 **输出**：一份方案报告文档，**不改任何代码**。
+
+---
+
+## B5 · 进度快照（2026-09-13 收工 · 次日继续）
+
+### 已提交
+
+| commit | 内容 |
+|---|---|
+| `a4ec10e` | **B5-1** `fix(sse): done 之后不 await cancel` —— 红证 1005ms 挂起 → 修 → 绿证 1.4ms |
+| `d2b99db` | **B5-2** `test(e2e): 流式在场感回归网 + 一条被推翻的前提` |
+
+### ⚠️ 前提更正（**必须写进终报**）
+
+开单前提「现状是 buffer 收完 `reverse().find()` 取最后一个事件」**不成立**。
+
+**取证**（跑在**未改动的现状代码**上）：
+
+```
+STREAM-OBSERVED|["正在为所选模板生成内容…",
+                 "正在复用模板结构，并行填充首屏和板块内容…",
+                 "首屏已就位，正在写「关于」…",
+                 "「关于」已完成，正在写「优势」「服务」…",
+                 "正在校验内容并保存到模板草稿…"]
+```
+
+**根因**：`app/generate/page.tsx` 的 `readSseEvents(raw)` 每收一个 chunk 就
+**重解析整个缓冲**，再 `.reverse().find()` 取**当前已有**事件里的最后一个——
+所以每个 chunk 到达都推进一次 UI。**现状本就是逐事件更新。**
+
+**后果**：用户红线「回退成取最后一个，断言必须红」**无法执行**——
+要回退成一个不存在的实现，得先写它；按附则 A1，该实验没有分辨力，
+**不能用来证明任何事**。`streaming-presence.spec.ts` 因此定位为
+**回归网**，不是负向门禁，已在文件头与断言处双重注明。
+
+### 仍然要做这次切换的三条可取证理由
+
+1. **O(n²) → O(n)**：现状每 chunk 重解析全 buffer；lib 版只留残片；
+2. **envelope 去重**：路由早在发 `sequence`/`revision`，现状**无 deduper**
+   （断点续做重放可能重复应用）；`EventDeduper` 在 `lib/sse-events.ts` 现成；
+3. **附则 2 单源**：同一契约两份实现，其中一份手写。
+
+外加 ≤40KB 需要它的 3,786 字节。
+
+### 可达性账（余量 3.2%，很紧）
+
+```
+逻辑段 1..831    42,505 字节
+JSX 段 832..1341 30,949 字节
+合计             73,454 字节
+
+可移出 = 5 个 step 块 30,014 + SSE 管道 3,786 = 33,800
+移出后 = 39,654  ✅ ≤40KB（余量 1,306）
+```
+
+**单拆 JSX 到不了 40KB**（逻辑段单独就 42,505）。
+
+### 基线九行（本日收工实测，次日对照用）
+
+```
+tsc --noEmit                → 0 错
+npm test                    → tests 786 / pass 785 / fail 0 / skipped 1   ← +1（B5-1 新增用例）
+test:side-effects           → SIDE-EFFECT-SIGNATURE|sites=479|uploads=122|
+                              captures=46|releases=11|pending-jobs=37|
+                              generated-templates=15|leads=2
+npx playwright test         → 101 passed / 8 skipped / 0 failed (3.7m)    ← +1（B5-2 新增 spec）
+```
+
+> **uploads 120→122 的口径说明**：不是 B5 跑动产生的。两个
+> `asset-sample.png` 时间戳 20:43，来自 B4 第六刀之后的 e2e 子集
+> （`asset-replace.spec.ts`，实测它会上传）。B4 收口时记的 120 是那一刻的值。
+> **基线对照时按 122 起算。**
+
+### 次日待办（按顺序）
+
+1. **B5-3 接线**：generate 页三处 SSE 消费换成 `lib/sse-events`
+   （`analyze` ~394-415 / `execute` ~614-649 / `recoverMissingSections` ~772-775），
+   删手写 `readSseEvents`（131-140）。⚠️ 观察 setState 次数——回调内联可能**增**字节。
+2. **B5-4..8 拆 5 个 step 块**进 `components/generate/`，每块一 commit：
+   input 4,859 / clarify 2,918 / confirm 14,263 / generating 7,887 / done 87。
+3. **全套六行对照** + **真机步骤叙事样张**（截图）。
+4. **B5 总汇报**（含本前提更正）。
+5. 兜底：若完稿仍 >40KB，**另开小批，不许中途扩面**。
+
+### 未做（如实记）
+
+- 三处接线**未动**（B5-3 待做）；
+- 5 个 step 块**未拆**；
+- 真机叙事样张**未取**（chrome-devtools MCP 当时未连接）；
+- `components/generate/` 目录**尚未创建**。
