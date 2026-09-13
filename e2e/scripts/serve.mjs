@@ -116,20 +116,63 @@ if (await needsBuild()) await runNode([nextBin, "build"]);
  * 所以：**e2e 只跑 PG 后端**。文件后端在单元级已覆盖
  * （`tests/site-store-op-rename.test.ts` 走真实文件读写 + 归一化 + undo 重放）。
  */
-const serverArgs = [nextBin, "start", "-p", "3210"];const server = spawn(process.execPath, serverArgs, {
+const serverArgs = [nextBin, "start", "-p", "3210"];
+
+/**
+ * 可选：本地模型 stub（阶段 0.3）。
+ *
+ * **只在 `E2E_AI_STUB=1` 时启用**——默认不注入任何东西，现有 spec 的行为逐字节不变。
+ *
+ * 开的时候把 `DEEPSEEK_BASE_URL` 指到本地 stub，于是"截图/URL → 模板"整条链路里
+ * **只有模型是假的**：前端、路由、编排、拼装、登记、建站全部真跑。
+ * 这比在浏览器层拦 `/api/templates/from-*`（那样连路由都不执行）真实得多。
+ *
+ * 用环境变量开关、而不是新加一个 serve 脚本，是为了不复制这套
+ * "建 + 迁移 + 起服务"的启动逻辑；关掉时零影响。
+ */
+const stubEnabled = process.env.E2E_AI_STUB === "1";
+let aiStub = null;
+let aiStubUrl = null;
+let aiStubArgs = {};
+if (stubEnabled) {
+  const { startAiStub, portInUse, DEFAULT_STUB_PORT } = await import("./ai-stub.mjs");
+  const stubPort = Number(process.env.E2E_AI_STUB_PORT || DEFAULT_STUB_PORT);
+  if (await portInUse(stubPort)) {
+    // 不静默挑端口：换了端口，被测服务连的就不是我们以为的那个 stub，
+    // 而测试照样绿——那是最难查的一类假绿。
+    console.error(`[e2e] 端口 ${stubPort} 已被占用，模型 stub 起不来。请先关掉占用它的进程再跑。`);
+    process.exit(1);
+  }
+  aiStub = await startAiStub({ port: stubPort });
+  aiStubUrl = aiStub.url;
+  aiStubArgs = {
+    DEEPSEEK_BASE_URL: aiStub.url,
+    DEEPSEEK_API_KEY: "e2e-stub-key",
+    DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL || "sitecraft-e2e-stub",
+  };
+  console.log(`[e2e] 模型 stub 已启用：${aiStub.url} → 被测服务的 DEEPSEEK_BASE_URL`);
+}
+
+const server = spawn(process.execPath, serverArgs, {
   cwd: root,
   // e2e 用 relaxed 鉴权（2026-09-11 P-1 之后，非 development 默认 strict）。
   // e2e helper 不带访问头，本来就是本地测试环境；只有**生产**才必须 strict。
   // resolveServerEnv 决定 SITE_STORE 与 DATABASE_URL——
   // 与 global-setup / preflight 的端口检查**同源**，所以"检查的"就是"服务连的"。
-  env: { ...resolveServerEnv(process.env), PORT: "3210", SITECRAFT_ACCESS_MODE: "relaxed" },
+  env: { ...resolveServerEnv(process.env), PORT: "3210", SITECRAFT_ACCESS_MODE: "relaxed", ...aiStubArgs },
   stdio: "inherit",
 });
 
+/** 关服务时把 stub 一并关掉——单独留着它会变成下次 run 的"端口已占用"。 */
+const stopStub = () => {
+  if (aiStub) void aiStub.close();
+};
+
 const stop = () => {
+  stopStub();
   if (!server.killed) server.kill("SIGTERM");
 };
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
 server.once("error", (error) => { console.error(error); process.exitCode = 1; });
-server.once("exit", (code) => { process.exitCode = code ?? 1; });
+server.once("exit", (code) => { stopStub(); process.exitCode = code ?? 1; });

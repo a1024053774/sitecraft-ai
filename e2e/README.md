@@ -23,6 +23,14 @@ npm run test:e2e:real
 
 - `E2E_FORCE_BUILD=1`：忽略缓存并重新构建。
 - `E2E_SKIP_DOCKER=1`：不尝试启动 Docker；Postgres 不可用时直接失败。
+- `E2E_AI_STUB=1`：启用**本地模型 stub**（`scripts/ai-stub.mjs`），把被测服务的
+  `DEEPSEEK_BASE_URL` 指到它。用于"截图/网址 → 模板"这类**要真调模型**的完整路径
+  （`specs/template-full-path.spec.ts`）——mock 只落在模型那一步，
+  **前端→路由→编排→拼装→登记→建站全部真跑**，且不出网、不烧钱。
+  不开这个开关时那些用例会整段跳过（见 spec 头部的说明）。
+  同一轮跑完由 spec 自己清理它生成的模板目录，不留痕迹。
+- `E2E_AI_STUB_PORT`：stub 的端口，默认 3311。被占用时**直接失败**而不是换端口——
+  换端口会让被测服务连到别的东西上而测试照绿。
 
 ## 定位失败
 
