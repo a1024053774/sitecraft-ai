@@ -119,6 +119,27 @@ export default defineConfig({
   // 现在它有真断言（必需槽位全覆盖 + 零 demo 残留），必须跑。
   //
   // ---------------------------------------------------------------------------
+  // ⚠️ **零断言探针 → 不进验收分母**（2026-09-13）
+  //
+  // 下面这些 spec **一条 `expect()` 都没有**，只 `console.log` 证据。
+  // 它们留在仓库里是有价值的（排查/复验要用），但**不能进全套的分母**——
+  // 否则 N 条 `passed` 里混着 N 条"什么都没断言"，正是本项目反复吃亏的
+  // "假门禁 / 看似在测实则没测"家族的入口。
+  //
+  // | spec | 手工运行 | 服务哪个 T 号 |
+  // |---|---|---|
+  // | `coverage-probe.spec.ts` | `npx playwright test e2e/specs/coverage-probe.spec.ts` | 槽位覆盖诊断 |
+  // | `clickable-asset-probe.spec.ts` | 同上（换文件名） | **T-15**（主视觉可点比例） |
+  // | `shadcn-diag2.spec.ts` | 同上 | **T-14**（CSP 白屏：顶层 vs iframe） |
+  // | `shadcn-diag3.spec.ts` | 同上 | **T-14**（iframe body 实况） |
+  // | `flash-diag.spec.ts` | 同上 | 预览重挂载时序 |
+  // | `dev-diff.spec.ts` | 同上 | 开发态差异诊断 |
+  //
+  // 手工运行都**需要服务在场**（`node e2e/scripts/serve.mjs`，或让 playwright
+  // 自己起 `webServer`——直接用 `npx playwright test <file>` 即可）。
+  // ---------------------------------------------------------------------------
+  //
+  // ---------------------------------------------------------------------------
   // ⚠️ 下面两条是 **strict 专属** spec（2026-09-13 移出默认全套）
   //
   // **它们在哪跑**（用户 2026-09-13 裁决的强制护栏：挪出默认全套必须交代去向）：
@@ -132,15 +153,19 @@ export default defineConfig({
   // **为什么必须移出**：一个 `next start` 进程只能是 strict **或** relaxed。
   // 默认全套为了不带访问头的普通 spec 跑 relaxed，而这两条断言的是
   // 「strict 下缺头必须 401」——**在 relaxed 服务上必然失败**。
-  // 它们此前混在默认全套里长期红着，被当成"环境噪声"（同族第 7 次：
+  // 它们此前混在默认全套里长期红着，被当成"环境噪声"（同族第 6 次：
   // 看似在测、实则测不了）。移出**不等于**不跑，见上面的入口与命令。
   //
   // **跑过没有**：收口报告附 `npm run test:e2e:strict` 的运行原文（8 passed）。
   // ---------------------------------------------------------------------------
   testIgnore: [
     "**/coverage-probe.spec.ts",
-    "**/clickable-asset-probe.spec.ts", // 诊断探针：打印可点比例，无断言
-    "**/real-template-export.spec.ts",
+    "**/clickable-asset-probe.spec.ts", // T-15：主视觉可点比例
+    "**/shadcn-diag2.spec.ts", // T-14：CSP 白屏（顶层 vs iframe）
+    "**/shadcn-diag3.spec.ts", // T-14：iframe body 实况
+    "**/flash-diag.spec.ts", // 预览重挂载时序
+    "**/dev-diff.spec.ts", // 开发态差异诊断
+    "**/real-template-export.spec.ts", // 依赖外网上游
     "**/strict-smoke.spec.ts", // → npm run test:e2e:strict
     "**/access-isolation.spec.ts", // → npm run test:e2e:strict
   ],

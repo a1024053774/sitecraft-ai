@@ -244,12 +244,22 @@ DATABASE_URL 端口 = (未设置)    ← 同上
 
 | 步骤 | 结果 |
 |---|---|
-| 静态 `dist/index.html` | h1=1, h2/3=78, section=13，**`id="root"` 0 处** |
-| served HTML | 结构**完全一致**（服务端没删内容） |
-| 浏览器 | `h1Count=0`、`sectionCount=0`，body 只剩 ~171KB（≈一半） |
+| 直接开 `/api/templates/shadcn-landing2/preview`（**顶层**，非 iframe） | `{"h1":0,"sections":0}` |
+| 工作台 iframe 内 | `{"h1":0,"sections":0}` |
+| 浏览器 | `h1Count=0`、`sectionCount=0` |
 
-→ `shadcn-landing2` 的整棵 DOM 由 `self.__next_f.push(...)` **运行时构建**；
-CSP 拦住 → React 从未挂载 → 服务时那 79 个标题被清空 → **真白屏**。
+→ `shadcn-landing2` 是 Next.js **导出站**：它的整棵 DOM 只存在于
+`self.__next_f.push(...)` 的 **flight 脚本载荷**里，**HTML 里本来就没有可渲染的内容**。
+CSP 拦住这些内联脚本 → 载荷永不执行 → **从头到尾什么都没有** → 白屏。
+
+> ⚠️ **一处我先写错了、已更正**（2026-09-13）：
+> 我最初写的是"服务端交付的 HTML 结构完好，是**运行时被清空**"，
+> 依据是"静态文件里 `section=13`"。**那个测量是无效证据**——
+> 我数的是 `<section>` **标签**，而它们**位于 `<script>` 的字符串载荷里**，
+> 不是可渲染的 DOM 节点。顶层直开也是 0，正说明"内容从一开始就不存在"，
+> 不是"先有后被清"。
+> **结论方向不变**（生产预览白屏），但因果描述已按实测改正。
+> 教训见 `AGENTS.md` 附则 A2。
 
 **影响面（22 个基线模板已全量盘点，脚本 `e2e/scripts/probe-inline-scripts.ts`）**：
 
@@ -279,14 +289,26 @@ CSP 拦住 → React 从未挂载 → 服务时那 79 个标题被清空 → **�
 `elementFromPoint` 在图上的**每一个采样点**都返回覆盖层（`DIV` / `H1`），
 **img 本身永远拿不到点击** → 用户**点不到、也就换不了**首屏主视觉。
 
-**工作台里的实测**（`e2e/specs/clickable-asset-probe.spec.ts`）：
+**工作台里的实测**（可复现，证据随代码保留）：
 
-| 模板 | 可点比例 |
-|---|---|
-| moon / kindred / tailwind-landing / atlas / astro-starter | 100% |
-| lonestone | 75% |
-| **forge** | **0%** |
-| landwind / foxi / yukina / fresh / screwfast | 选择器在工作台里无命中 |
+```bash
+npx playwright test e2e/specs/clickable-asset-probe.spec.ts   # 打印 WORKSPACE-CLICKABLE
+```
+
+| 模板 | 可点比例 | 遮挡 |
+|---|---|---|
+| moon / kindred / tailwind-landing / atlas / astro-starter | 100% | — |
+| lonestone | 75% | 边缘 25% 被 null 覆盖 |
+| **forge** | **0%** | `DIV,H1` |
+| landwind / foxi / yukina / fresh / screwfast | 选择器在工作台里无命中或命中 0×0 | — |
+
+⚠️ **裸预览页的数字不算数**：`landwind` 在裸预览是 100%，进工作台却不可用。
+原 `tmp-asset.spec.ts` 正是只看了裸预览才挑错模板。
+
+> **相关探针归属**：`shadcn-diag2.spec.ts` / `shadcn-diag3.spec.ts` / `flash-diag.spec.ts`
+> 出自 **`7d638af`（09-12「契约回归测试与 e2e 断言扩充」）**，**不是**本轮新增。
+> 其中 diag2/diag3 是定位 T-14 的关键证据（顶层直开 vs iframe 内），
+> `shadcn-diag2` 的"顶层直开也是 0"一举证伪了"运行时空"的错误因果。
 
 **为什么桥接的兜底没救回来**：`preview/route.ts:1354` 确实有一层兜底
 （`event.target.closest('h1,p,a,button,h2,h3')` 为 null 时走 `resolveAssetSlotForNode`），
