@@ -37,6 +37,7 @@ import { ProductImportDialog } from "@/components/product-import-dialog";
 import { AssetReplaceDialog } from "@/components/asset-replace-dialog";
 import { SiteMaterialDialog } from "@/components/site-material-dialog";
 import { ReleasesDialog } from "@/components/releases-dialog";
+import { ChatPanel } from "@/components/chat-panel";
 import {
   defaultDraft,
   getTemplate,
@@ -242,7 +243,6 @@ export default function WorkspacePage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesNearBottomRef = useRef(true);
   const userJustSentRef = useRef(false);
   const destructiveReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -366,6 +366,7 @@ export default function WorkspacePage() {
       .catch(() => setProviderStatus({ mode: "unconfigured", model: null }));
   }, []);
   useEffect(() => () => chatAbortRef.current?.abort(), []);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!messagesNearBottomRef.current && !userJustSentRef.current) return;
     userJustSentRef.current = false;
@@ -1163,96 +1164,33 @@ export default function WorkspacePage() {
         <button className={mobilePane === "chat" ? "active" : ""} onClick={() => setMobilePane("chat")} role="tab" aria-selected={mobilePane === "chat"}><MessageSquareText size={14} /> AI 对话</button>
         <button className={mobilePane === "preview" ? "active" : ""} onClick={() => setMobilePane("preview")} role="tab" aria-selected={mobilePane === "preview"}><Desktop size={14} /> 网站预览</button>
       </div>
-      <aside className={`builder-chat ${mobilePane !== "chat" ? "mobile-hidden" : ""}`}>
-        <div className="builder-chat-head">
-          <div>
-            <Link href="/" className="eyebrow" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowLeft size={12} />返回站点</Link>
-            <h2>{draft.siteName}</h2>
-            <span className="builder-template-name">{templateName}</span>
-            <span className="chat-context"><span className={`provider-dot ${providerStatus.mode === "deepseek" ? "remote" : "offline"}`} />{providerStatus.mode === "deepseek" ? `DEEPSEEK API · ${providerStatus.model}` : "DeepSeek 未配置 · 不会执行本地伪修改"}</span>
-          </div>
-          <Link className="icon-button" href="/templates" aria-label="更换模板"><MoreHorizontal size={16} /></Link>
-        </div>
-        <div className="draft-status-panel">
-          <div className="draft-status-icon"><Cloud size={15} /></div>
-          <div><strong>当前草稿 · v{draft.revision}</strong><span>{updatedAt ? `${new Date(updatedAt).toLocaleString("zh-CN")} 保存到服务器` : "正在载入"}</span></div>
-          <button type="button" onClick={() => setShowHistory((value) => !value)}><History size={13} />历史 {history.length}</button>
-        </div>
-        {showHistory && (
-          <div className="draft-history" aria-label="草稿历史">
-            <div className="draft-history-head"><strong>修改历史</strong><button onClick={() => setShowHistory(false)} aria-label="关闭历史"><X size={13} /></button></div>
-            {history.length ? history.map((item) => <div className="history-row" key={item.id}><span>v{item.revision}</span><div><strong>{item.summary}</strong><small>{new Date(item.createdAt).toLocaleString("zh-CN")} · {item.source.toUpperCase()}</small></div></div>) : <div className="history-empty">尚无修改记录</div>}
-          </div>
-        )}
-        <div
-          className="chat-messages"
-          ref={messagesRef}
-          role="log"
-          aria-live="polite"
-          aria-relevant="additions text"
-          aria-busy={busy}
-          onScroll={(event) => {
-            const node = event.currentTarget;
-            messagesNearBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight <= 96;
-          }}
-        >
-          {messages.map((message) => (
-            <div className={`message ${message.role} ${message.status ?? ""}`} key={message.id}>
-              <div className="message-label">{message.role === "assistant" ? <><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />SITECRAFT AI</> : "YOU"}</div>
-              <div className="message-bubble">{message.text}</div>
-              {message.retryText && <button className="hint" type="button" onClick={() => { setInput(message.retryText ?? ""); window.requestAnimationFrame(() => inputRef.current?.focus()); }}>重新填写原始指令</button>}
-              {message.change && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "error" || message.status === "warning" ? <AlertCircle size={11} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={11} /> : <Check size={11} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
-              {message.diff && message.diff.length > 0 && (
-                <div className="change-diff" aria-label="字段级差异">
-                  <div className="change-diff-head"><strong>字段变化</strong><span>共 {message.diff.length} 项</span></div>
-                  {message.diff.slice(0, 6).map((item) => (
-                    <div className="change-diff-row" key={`${message.id}-${item.target}`}>
-                      <div className="change-diff-label">{item.label}</div>
-                      <div className="change-diff-values"><del title="修改前">{item.before || "未填写"}</del><span aria-hidden="true">→</span><ins title="修改后">{item.after || "未填写"}</ins></div>
-                    </div>
-                  ))}
-                  {message.diff.length > 6 && <div className="change-diff-more">另有 {message.diff.length - 6} 项字段变化，已保存到草稿历史。</div>}
-                </div>
-              )}
-              {/*
-                被拒操作显性化（2026-09-11）：这些改动**一项都没写进草稿**，
-                却混在"草稿 vN 已保存"里。此前服务端已下发 rejected，前端未消费。
-              */}
-              {message.rejected && message.rejected.length > 0 && (
-                <div className="change-diff" aria-label="未生效的修改">
-                  <div className="change-diff-head"><strong>未生效</strong><span>共 {message.rejected.length} 项</span></div>
-                  {message.rejected.slice(0, 6).map((reason, index) => (
-                    <div className="change-diff-row" key={`${message.id}-rejected-${index}`}>
-                      <div className="change-diff-label"><AlertCircle size={11} /> {reason}</div>
-                    </div>
-                  ))}
-                  {message.rejected.length > 6 && <div className="change-diff-more">另有 {message.rejected.length - 6} 项未生效，可换更短的表述重试。</div>}
-                </div>
-              )}
-            </div>
-          ))}
-          {busy && <div className="message assistant"><div className="message-label"><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />SITECRAFT AI</div><div className="message-bubble busy-message"><LoaderCircle className="spin" size={13} /><span>{busyText}</span><button className="hint busy-cancel" type="button" onClick={cancelChatRequest} aria-label="取消 AI 请求">取消</button></div></div>}
-          <div ref={messagesEndRef} />
-        </div>
-        <div className="chat-input-wrap">
-          {selectedTarget && <div className="chat-target"><span>正在修改：{selectedTarget.label}</span><button aria-label="清除修改目标" onClick={() => setSelectedTarget(null)} type="button"><X size={12} /></button></div>}
-          {pendingDestructive && (
-            <div className="destructive-confirm" role="alertdialog" aria-modal="true" aria-labelledby="destructive-confirm-title" onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); void confirmDestructive(false); } }}>
-              <div className="destructive-confirm-title" id="destructive-confirm-title"><AlertCircle size={13} />确认执行以下操作</div>
-              <ul className="destructive-confirm-list">{pendingDestructive.destructive.map((item) => <li key={item}>{item}</li>)}</ul>
-              <div className="destructive-confirm-actions">
-                <button className="secondary-button" autoFocus onClick={() => void confirmDestructive(false)} disabled={busy}>取消</button>
-                <button className="primary-button" onClick={() => void confirmDestructive(true)} disabled={busy}>确认执行</button>
-              </div>
-            </div>
-          )}
-          <form className="chat-input" onSubmit={submitChat}>
-            <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder={draftReady && !activeTemplateCapabilities ? "正在识别模板可编辑位置..." : "告诉 AI 你想怎么改..."} rows={2} />
-            <button className="send-button" type="submit" disabled={!input.trim() || busy || !draftReady || !activeTemplateCapabilities} aria-label="发送"><Send size={14} /></button>
-          </form>
-          <div className="chat-hints"><button className="hint" onClick={() => setInput("只把第二个服务标题改为智能产线集成，其他内容不变")}>修改服务</button><button className="hint" onClick={() => setInput("重写首屏标题和说明，不要更换模板")}>优化首屏</button><button className="hint" onClick={() => setShowImport(true)}>上传商品表格</button></div>
-        </div>
-      </aside>
+      <ChatPanel
+        className={`builder-chat ${mobilePane !== "chat" ? "mobile-hidden" : ""}`}
+        draft={draft}
+        updatedAt={updatedAt}
+        templateName={templateName}
+        providerStatus={providerStatus}
+        history={history}
+        showHistory={showHistory}
+        messages={messages}
+        input={input}
+        busy={busy}
+        busyText={busyText}
+        draftReady={draftReady}
+        hasCapabilities={Boolean(activeTemplateCapabilities)}
+        selectedTarget={selectedTarget}
+        pendingDestructive={pendingDestructive}
+        nearBottomRef={messagesNearBottomRef}
+        endRef={messagesEndRef}
+        onToggleHistory={() => setShowHistory((value) => !value)}
+        onCloseHistory={() => setShowHistory(false)}
+        onChangeInput={setInput}
+        onClearTarget={() => setSelectedTarget(null)}
+        onConfirmDestructive={(confirmed) => void confirmDestructive(confirmed)}
+        onSubmit={() => void submitChat()}
+        onCancel={cancelChatRequest}
+        onOpenImport={() => setShowImport(true)}
+      />
       <main className={`preview-shell ${mobilePane !== "preview" ? "mobile-hidden" : ""}`}>
         <header className="preview-toolbar">
           <div className="preview-toolbar-left"><div className="project-name">{draft.siteName}</div><span className={`save-status ${previewState}`}><Check size={12} />{saveLabel}</span></div>
