@@ -1,5 +1,5 @@
 import { test, expect } from "../helpers/fixtures";
-import { mockAnalyze, readyIntent } from "../helpers/mock-ai";
+import { mockAnalyze, mockExecute, readyIntent } from "../helpers/mock-ai";
 import { analyzeAndConfirm } from "../helpers/ui";
 
 /**
@@ -136,5 +136,64 @@ test.describe("B5 · 流式在场感", () => {
       distinct.length,
       `中途状态必须出现过 ≥2 种；实际观察到 ${distinct.length} 种：${JSON.stringify(distinct)}`,
     ).toBeGreaterThanOrEqual(2);
+  });
+
+  /**
+   * B5 拆块的回归网（2026-09-14）。
+   *
+   * ## 为什么补这一条
+   *
+   * B5 把 generate 页的 5 个 step 块逐个搬进 `components/generate/`。
+   * 拆到第 2 块（追问页）时**发生了一次真实事故**：替换区间多算了 35 行，
+   * 把 confirm 块的开头一起删掉了。
+   *
+   * **`tsc` 没报错**——删掉的那段里有 `{template && (...)}`，条件渲染是合法 JSX，
+   * 类型全对。是随后的 e2e 抓到的。
+   *
+   * 所以这条用例的作用是：**任何拆分把渲染版图改坏，它必须红**。
+   * 它不测流式的"快"，只测**四个 step 视图在各自时机真的出现**——
+   * 这正是拆分最容易弄坏、而 `tsc` 最看不见的东西。
+   *
+   * ⚠️ 它**不是**流式负向门禁（那件事在 B5 被证明前提不成立，详见文件头）；
+   * 它是**结构回归网**，锁的是"每块 JSX 还在、条件还在"。
+   */
+  test("拆分后各 step 视图仍在正确时机出现（结构回归网）", async ({ page }) => {
+    await mockAnalyze(page, { onMessage: () => readyIntent() });
+    await mockExecute(page);
+
+    // ① input：初始态
+    await page.goto("/generate");
+    await expect(page.locator(".generate-input").first()).toBeVisible();
+
+    // ② clarify：need_info 分流
+    // ③ confirm：正常 ready 分流（analyzeAndConfirm 内部断言 confirm 可见）
+    await analyzeAndConfirm(page, "工业压力表官网，面向东南亚客户");
+
+    // ④ confirm 的内容确实渲染了（不只是容器在）——拆分最易丢的就是块内部
+    await expect(page.locator(".generate-confirm")).toBeVisible();
+    await expect(page.getByRole("button", { name: /用此模板生成站点内容/ })).toBeVisible();
+
+    /**
+     * ④b **实测教训**：上面两条断言**抓不住"子树被整段吞掉"**。
+     *
+     * 首版只断言了 `.generate-confirm` 容器与"用此模板生成站点内容"按钮。
+     * 我用一个真实坏样本拍过红——把 `data-template-carousel` 子树
+     * （158 行 / 9,833 字节）整段删掉，**`tsc` 全绿、上面两条断言也全绿**，
+     * 因为那个按钮在轮播**之外**。**那条"回归网"是假门禁。**
+     *
+     * 所以这里补上被吞掉的那块：推荐模板轮播（含三张卡片与切换控件）。
+     * 断言落点选的是**结构锚点**（`data-template-carousel` + 卡片数），
+     * 不是文案——文案会改，结构不会。
+     */
+    const carousel = page.locator("[data-template-carousel]");
+    await expect(carousel).toBeVisible();
+    await expect(carousel.locator("[data-template-card]")).toHaveCount(3);
+    // 主预览区（轮播的一部分，同一次事故里也会被吞）
+    await expect(page.locator("[data-template-hero-preview]")).toBeVisible();
+
+    // ⑤ generating → done：跑完一次生成，终态必须离开进度视图
+    await page.getByRole("button", { name: /用此模板生成站点内容/ }).click();
+    await expect(page.getByRole("progressbar", { name: "建站进度" })).toBeVisible();
+    await expect(page.locator(".generate-progress-view")).toHaveCount(0, { timeout: 30_000 });
   });
 });
