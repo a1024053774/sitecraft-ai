@@ -24,6 +24,7 @@ import {
 import { useMemo, useRef, useState, useEffect } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
+import { GenerationDoneView } from "@/components/generate/generation-done-view";
 import { templates, type SiteDraft } from "@/lib/site-model";
 import { defaultDraft } from "@/lib/site-document";
 import { deriveDesignTokenResult } from "@/lib/design-variants";
@@ -1323,13 +1324,7 @@ export default function GeneratePage() {
             </div>
           )}
 
-          {step === "done" && (
-            <div className="generate-progress-view">
-              <div className="eyebrow">完成</div>
-              <h1>站点内容已生成</h1>
-              {generationDuration !== null && <p>共用时 {(generationDuration / 1000).toFixed(1)} 秒，正在进入工作台…</p>}
-            </div>
-          )}
+          {step === "done" && <GenerationDoneView generationDuration={generationDuration} />}
         </div>
       </main>
     </div>
