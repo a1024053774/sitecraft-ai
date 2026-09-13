@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { siteDraftSchema } from "@/lib/site-document";
 import { accessErrorResponse, authorizeRequest } from "@/lib/request-context";
-import { siteOperationSchema, checkCopyLength } from "@/lib/site-operations";
+import { siteOperationSchema, checkCopyLength, validateOperationShapes } from "@/lib/site-operations";
 import { commitOperations, getSite, setSiteSourceMaterial, snapshot } from "@/lib/site-store";
 
 export const runtime = "nodejs";
@@ -46,7 +46,27 @@ export async function PUT(request: Request, { params }: { params: Promise<{ site
   const access = authorizeRequest(request, "edit");
   const denied = accessErrorResponse(access);
   if (denied) return denied;
-  const parsed = updateSchema.safeParse(await request.json().catch(() => null));
+  /**
+   * === B3 宽修：坏形状从"整批 400"改为"拒单条 + 其余保留" ===
+   *
+   * 此前 `z.array(siteOperationSchema)` 是全有全无：一条坏 locale 让**整批** 400
+   * （实测：`operations.1.locale` 一处不合 → 整个请求被拒，用户丢全部编辑）。
+   * 这与 `validateGenerationOperations` 的"拒单条保其余"语义不一致，
+   * 也是 B3 明文禁止的形态。
+   *
+   * 现在：外层只校验 items 是数组 → 逐条 `validateOperationShapes` 过滤 →
+   * 被拒的条目随响应返回（`rejected`），用户看得见哪条没生效、为什么。
+   */
+  const envelope = await request.json().catch(() => null);
+  const items = (envelope as { operations?: unknown } | null)?.operations;
+  if (!Array.isArray(items) || items.length < 1 || items.length > 25) {
+    return Response.json({ error: "Invalid draft update", details: "operations 必须是 1-25 条的数组" }, { status: 400 });
+  }
+  const shapeChecked = validateOperationShapes(items);
+  if (shapeChecked.valid.length === 0) {
+    return Response.json({ error: "Invalid draft update", rejected: shapeChecked.rejected }, { status: 400 });
+  }
+  const parsed = updateSchema.safeParse({ ...(envelope as Record<string, unknown>), operations: shapeChecked.valid });
   if (!parsed.success) return Response.json({ error: "Invalid draft update", details: parsed.error.flatten() }, { status: 400 });
   for (const operation of parsed.data.operations) {
     if (operation.op === "replace_draft") {
@@ -74,7 +94,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ site
   try {
     const result = await commitOperations({ siteId, ...parsed.data });
     if (result.status === "conflict") return Response.json({ error: "revision_conflict", ...snapshot(result.record) }, { status: 409 });
-    return Response.json({ status: result.status, ...(result.status === "applied" ? { changeSet: result.changeSet } : {}), ...snapshot(result.record) });
+    return Response.json({
+      status: result.status,
+      ...(result.status === "applied" ? { changeSet: result.changeSet } : {}),
+      // B3：被拒条目必须对用户可见——静默丢弃就是"AI 说改了但没改"那一族。
+      ...(shapeChecked.rejected.length ? { rejected: shapeChecked.rejected } : {}),
+      ...snapshot(result.record),
+    });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Draft update failed" }, { status: 422 });
   }

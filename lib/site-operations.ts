@@ -271,6 +271,16 @@ export const siteOperationSchema = z.discriminatedUnion("op", [  setTextOperatio
 export type SiteOperation = z.infer<typeof siteOperationSchema>;
 export type AIOperation = z.infer<typeof aiOperationSchema>;
 
+/**
+ * op 名的**派生**集合（军规 1：禁手抄）。
+ *
+ * 从 `siteOperationSchema` 的 discriminatedUnion options 直接读出每个分支的
+ * `op` literal 值——schema 增删一个 op，这里自动跟随，不存在"抄漏一个"的可能。
+ */
+export const KNOWN_OPERATION_NAMES: ReadonlySet<string> = new Set(
+  siteOperationSchema.options.map((option) => option.shape.op.value),
+);
+
 export const aiChangeSchema = z.object({
   summary: z.string().min(1).max(500),
   operations: z.array(aiOperationSchema).max(20),
@@ -470,6 +480,30 @@ export function applySiteOperations(
   operations: SiteOperation[],
   options: { templateIds: Set<string>; lastChange: string },
 ): ApplyResult {
+  /**
+   * === B3 宽修 · 入口兜底断言（Q1=A 的"断言兜底"那一半）===
+   *
+   * 职责边界（**刻意只拦一种**，2026-09-13 实测校正）：
+   *
+   * - 拦**未知 op**：它没有任何分支处理，会静默穿过整条 `if` 长链——
+   *   既不报错也不生效，"AI 说改了但没改"且查不出来。这是唯一必须在这里拦的形态。
+   * - **不拦**"已知 op 但字段越界"（如满员后 `index=12`）：那些**已经**由各分支的
+   *   显式 `throw` 兜着（容量、越界、重复 id），而且**抛错在这里反而更糟**——
+   *   整批 op 一起回滚，正是 B3 明文禁止的"一条坏操作炸掉整批"。
+   *   实测教训：`tests/site-operations.test.ts` 的「冲突 #8」用例给的正是
+   *   `index=12`＋已存在 id 的形态，旧路径抛的是**容量**中文文案；若让断言
+   *   先按 schema 报"字段越界"，既改变既有错误语义，又把该用例的验收点挪走。
+   *
+   * ⚠️ 历史重放（undo/redo）不走这条断言：`moveHistory` 重放的是当时合法的历史 op
+   * （含归一化后的旧名 update_card→update_item），宽修只挡新提交（Q4 裁决）。
+   */
+  for (const operation of operations) {
+    if (!KNOWN_OPERATION_NAMES.has(operation.op)) {
+      throw new Error(
+        `未知操作 ${String(operation.op)}（B3 宽修兜底，见 glossary T-6）：无法识别，已拒绝整批以避免静默无事发生`,
+      );
+    }
+  }
   let draft = cloneDraft(current);
   const inverseOperations: SiteOperation[] = [];
   const appliedTargets: string[] = [];
@@ -496,29 +530,32 @@ export function applySiteOperations(
     }
     if (operation.op === "update_item") {
       /**
-       * === T-6 窄修：`locale` 守卫（2026-09-12）===
+       * === 窄修降级为防御性断言（B3 宽修，2026-09-13 用户裁决 Q3）===
        *
-       * 为什么必须守：下面的代码直接写 `item.title[operation.locale] = ...`。
-       * **JS 会把 `undefined` 转成字符串 `"undefined"` 当键**，于是草稿的
-       * `title`/`body` 里会多出一个 `undefined` 键，且 `changed = true`——
-       * **数据被改坏，却不报错**。
+       * 历史：这里曾是"跳过并报告一次"的**主防线**——JS 会把 `undefined` 转成
+       * 字符串 `"undefined"` 当键，于是草稿的 `title`/`body` 里会多出一个
+       * `undefined` 键、`changed = true`，**数据被改坏却不报错**。
        *
-       * 触发条件不是假想的：PG 里有 8 条 `update_card` **缺 `locale`** 的历史，
-       * 经本轮的读取归一化（旧名 → `update_item`）后**正好落进这条路径**。
-       * 也就是说：不改名则它走不进这个分支（判别式不匹配），改名后它走得进来了。
+       * 宽修后**新提交**的坏 locale 已经在入口（路由 filter / 生成出口闸门）被拒，
+       * 走不到这里；能走到这里的只剩**历史重放**（undo/redo 重放旧 op，
+       * 用户裁决 Q4：重放不过宽修）。
        *
-       * 处置取**最保守的一种**：
-       *  - 不抛错（这是 undo/重放路径，一条坏历史不该让整站操作失败）；
-       *  - 不猜 locale（那会**改错语言**，比不改更糟）；
-       *  - **跳过并报告一次**（每个 op 只报一次，避免刷屏），修复动作交给上面那层。
+       * 所以本分支**保留但降级**：
+       *  - 语义不变（仍是跳过 + 报告一次，不抛错——重放路径一条坏历史不该毁掉整次撤销）；
+       *  - 但它的定位从"主防线"变成"**断言**"：**宽修后不应可达**；
+       *    若新提交走到了这里，说明有路径漏接了宽修门 → **那是一次回归**。
        *
-       * 这**不是** T-6 的宽修。宽修（入口全面形状校验、不合法就抛可读错误）
-       * 是独立批次，见 glossary T-6 与阶段 4 方案 §四。
+       * 为什么不直接删：删掉会让历史重放失去最后一道网（上面那类"undefined 键"
+       * 的坏数据是真实存在的形态——PG 里 8 条缺 locale 的 update_card 归一化后
+       * 正好落进这条路径）。
        */
       if (!locales.includes(operation.locale)) {
         if (!reportedInvalidLocale) {
           reportedInvalidLocale = true;
-          console.warn("[site-operations] 跳过一条缺少合法 locale 的 update_item 操作（历史数据形态，见 glossary T-6）");
+          console.warn(
+            "[site-operations] 跳过一条缺少合法 locale 的 update_item（历史重放形态）。"
+            + "B3 宽修后新提交不应可达此处——可达即回归，见 glossary T-6。",
+          );
         }
         continue;
       }
@@ -749,6 +786,76 @@ export function applySiteOperations(
   return { draft, inverseOperations, appliedTargets, changed: true };
 }
 
+/**
+ * === B3 宽修 · 入口操作形状全面校验（T-6 完整解，2026-09-13）===
+ *
+ * ## 语义（与 `validateGenerationOperations` 对齐）
+ *
+ * **拒单条 + 可读中文原因，其余保留**——禁止新增"一条坏操作炸掉整批"的路径。
+ *
+ * ## 校验项全部派生，零字面量（军规 1 / B2 门禁）
+ *
+ * 一条 `siteOperationSchema.safeParse` 就是权威派生：
+ *  - op 枚举（discriminatedUnion 的 15 个 literal）；
+ *  - `section ∈ cardSections`（各 schema 的 `z.enum(cardSections)`）；
+ *  - `locale ∈ locales`（`z.enum(locales)`）；
+ *  - `order` 必须是 `sectionKeys` 的一个排列；
+ *  - `target`：静态 `textTargets` **或**动态 `navigation.<id>`（`setTextTargetSchema`
+ *    本身就是这个并集的权威定义）。
+ *
+ * ## 为什么合法集要写成 `textTargets` ∪「当前模板 manifest targets」（Q2 裁决）
+ *
+ * 用户 2026-09-13 裁决：合法文本 target = `textTargets` ∪ 当前模板 manifest 的
+ * targets，双 import。全量误伤检查（`scripts/b3-target-audit.ts`，22 模板 220 个
+ * target 实例）结论：**误伤面 0**——154 个实例全在 `textTargets` 里，其余 66 个是
+ * `features.items` / `services.items` / `products` 三个**槽位级（collection）**
+ * target（各 22 个模板共享），它们走 `add_item`/`remove_item`/`update_item`
+ * 通道，本就不是 `set_text` 的目标。
+ *
+ * ⚠️ **`update_item` 的 locale 在 schema 里是必填**（`z.enum(locales)`，无 `.optional()`），
+ * 而入口旧窄修把它当"可能缺"处理——历史数据里确实存在缺 locale 的 `update_card`。
+ * 本函数对缺 locale 的 `update_item` **放行**（不拒），让旧窄修继续兜住它们：
+ * 宽修管的是**新提交**，历史重放是旧窄修的领地（用户裁决 Q4：重放不过宽修）。
+ */
+export function validateOperationShapes(operations: unknown[]): {
+  valid: SiteOperation[];
+  rejected: string[];
+} {
+  const valid: SiteOperation[] = [];
+  const rejected: string[] = [];
+  for (const entry of operations) {
+    const parsed = siteOperationSchema.safeParse(entry);
+    if (parsed.success) {
+      valid.push(parsed.data);
+      continue;
+    }
+    const named = (entry ?? {}) as Record<string, unknown>;
+    const op = typeof named.op === "string" ? named.op : "(缺 op)";
+    // ⚠️ 例外：历史形态（缺 locale 的 update_item）放行给旧窄修——
+    // 它是"跳过并报告一次"的领地，不是"拒绝"的领地。
+    if (named.op === "update_item" && named.locale === undefined) {
+      valid.push(entry as SiteOperation);
+      continue;
+    }
+    const first = parsed.error.issues[0];
+    const where = first?.path?.join(".") || "(根)";
+    /**
+     * zod 的 issue **不带"收到的坏值"**（实测：`invalid_value` 只有 values/path/message），
+     * 所以按 path 回原输入里取——"原因里要点出是哪个值坏了"是 B3 的可读性要求。
+     */
+    let received: unknown = entry;
+    for (const key of first?.path ?? []) {
+      if (received === null || typeof received !== "object") { received = undefined; break; }
+      received = (received as Record<string, unknown>)[key as never];
+    }
+    const shown = typeof received === "string" || typeof received === "number"
+      ? JSON.stringify(received)
+      : received === undefined ? "(缺失)" : "(非标量)";
+    rejected.push(`操作 ${op} 被拒绝（字段 ${where}=${shown} 不受支持，其余操作已保留）`);
+  }
+  return { valid, rejected };
+}
+
 export function validateAIOperations(
   message: string,
   operations: AIOperation[],
@@ -952,7 +1059,16 @@ export function validateGenerationOperations(
   // 分而治之改造后：同一槽位可能被多个板块组重复写入（如 about 组与 contact 组都写了 contact.title）。
   // 按"最后写入生效"去重，避免重复操作浪费提交并保证确定性。
   const deduped = dedupeByTarget(accepted);
-  return { operations: deduped, rejected };
+  /**
+   * === B3 宽修 · 出口形状闸门 ===
+   *
+   * 上面的语义校验（scope / 容量 / 越界 / 长度）**不跑 `siteOperationSchema`**，
+   * 而生成路径的 ops 直接来自模型输出——所以这里补一道形状过滤，
+   * 与语义拒绝同一个出口（拒单条 + `rejected[]` 可读中文），
+   * **不新增"一条坏操作炸整批"的路径**。
+   */
+  const shaped = validateOperationShapes(deduped);
+  return { operations: shaped.valid, rejected: [...rejected, ...shaped.rejected] };
 }
 
 /** 同一目标（target + locale，或 section + index/itemId）只保留最后一次写入 */
