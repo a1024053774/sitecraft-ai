@@ -36,6 +36,7 @@ import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame
 import { ProductImportDialog } from "@/components/product-import-dialog";
 import { AssetReplaceDialog } from "@/components/asset-replace-dialog";
 import { SiteMaterialDialog } from "@/components/site-material-dialog";
+import { ReleasesDialog } from "@/components/releases-dialog";
 import {
   defaultDraft,
   getTemplate,
@@ -1418,30 +1419,13 @@ export default function WorkspacePage() {
         />
       )}
       {releasesOpen && (
-        <div className="modal-backdrop" onClick={() => setReleasesOpen(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
-          <div className="modal-head"><div><div className="eyebrow">Releases / History</div><h3>版本历史</h3></div><button className="icon-button" onClick={() => setReleasesOpen(false)} aria-label="关闭"><X size={15} /></button></div>
-          <p className="modal-copy">每次发布都会生成一个独立快照。回滚会以历史内容**新建一个更高版本**（不会删除任何历史），公开页随即读取新版本。</p>
-          {releasesBusy && <p className="modal-copy">正在读取版本历史…</p>}
-          {releaseError && <div className="import-result error"><AlertCircle size={14} /><div><strong>操作失败</strong><span>{releaseError}</span></div></div>}
-          {!releasesBusy && !releaseError && releases.length === 0 && <p className="modal-copy">还没有发布过任何版本。点击「发布」即可生成第一个快照。</p>}
-          {releases.length > 0 && (
-            <div className="release-list">
-              {releases.map((release) => (
-                <div className="release-row" key={release.releaseId}>
-                  <div className="release-meta">
-                    <strong>v{release.version}</strong>
-                    <span>{new Date(release.createdAt).toLocaleString("zh-CN")}</span>
-                    {release.rollbackOf ? <span className="release-tag">回滚自 {release.rollbackOf.slice(0, 8)}</span> : null}
-                  </div>
-                  {release.status === "published"
-                    ? <span className="release-current">当前线上</span>
-                    : <button type="button" className="secondary-button" disabled={releasesBusy} onClick={() => void rollbackTo(release.releaseId, release.version)}>回滚到此版本</button>}
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="modal-foot"><span>共 {releases.length} 个版本</span><button className="primary-button" onClick={() => setReleasesOpen(false)}>完成</button></div>
-        </div></div>
+        <ReleasesDialog
+          releases={releases}
+          busy={releasesBusy}
+          error={releaseError}
+          onClose={() => setReleasesOpen(false)}
+          onRollback={(releaseId, version) => void rollbackTo(releaseId, version)}
+        />
       )}
       {regenerateDialog && (
         <div className="modal-backdrop" onClick={() => setRegenerateDialog(null)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
