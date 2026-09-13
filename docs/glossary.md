@@ -578,6 +578,33 @@ applySiteOperations **没有抛错**，changed = true           ← 却照写
 - b) 本附则（取证看 `generation_records`，不要看 history 的 op 名）；
 - c) 方案 §2.2「写入不回写历史」那句**已就地改正**。
 
+### T-19 · `core.autocrlf=true` 且**无 `.gitattributes`**——CRLF 已进中央历史
+
+**发现路径**：2026-09-13 B4 第六刀收口复核时，发现工作区文件带 CRLF（1393 个），
+而 `git add` 提交的是 LF blob；继续查发现**已入库的 blob 里也带着 CRLF**：
+
+```
+app/workspace/page.tsx                             CRLF=1393
+lib/template-preview-bridge.ts                     CRLF=1377
+app/api/templates/[templateId]/preview/route.ts    CRLF=164
+```
+
+**根因**：全局 `core.autocrlf=true`，仓库**没有 `.gitattributes` 兜底**，
+所以 CRLF 被写进对象库。任何在 Linux/CI 上 checkout 的机器都会拿到 CRLF。
+
+**已实测：不影响反引号门禁**——JS 的 `$` 分隔符容忍行尾 `\r`，
+门禁的 `assert.match(lines[n], /^<\/script>`;/)` 在 CRLF 行上**仍然匹配**。
+（若将来有人给该正则加 `m` 标志或改用更严格的行尾语义，**这条会变**。）
+
+**处置：登记不排期**（用户 2026-09-13 裁决 3）。并入 B7/T-13 部署议题。
+
+**不做的理由（用户裁决原文）**：归一化会产生**全量 diff**，
+**毒化当前字节基线与 blame**——B4 刚建立的字节曲线、以及每一刀的逐字比对证据，
+都会因为一次全仓库行尾重写而失去可比性。
+
+**将来若做，必须**：① 单独一批；② 与其他任何改动**零重叠**；
+③ 做之前先冻结并归档当前字节基线。
+
 ### B4b · workspace 跨面板状态所有权收拢（**新批次，未开工**）
 
 **登记时间**：2026-09-13，B4 收口时由用户裁决 2 立项。
