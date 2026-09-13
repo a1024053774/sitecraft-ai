@@ -6,6 +6,7 @@ import { allTemplates } from "@/lib/site-model";
 import { isRuntimeTemplatePath } from "@/lib/template-runtime";
 import { collectSlotTargetsFromHtmlString, readTemplateEntryHtml } from "@/lib/template-runtime-loader";
 import { ClientPreviewFrame } from "@/components/client-preview-frame";
+import { StartSiteButton } from "@/components/start-site-button";
 
 /**
  * 数一个模板 HTML 里实际存在的编辑位。
@@ -67,9 +68,8 @@ export default async function TemplatePreviewPage({
           <a className="secondary-button" href={template.source.demoUrl} target="_blank" rel="noreferrer">
             <ExternalLink size={14} /> 查看官方演示
           </a>
-          <Link className="primary-button" href={`/workspace?template=${template.id}` as Route}>
-            <Sparkles size={14} /> 用此模板建站
-          </Link>
+          {/* 显式建站：点它才 createSite 并跳 ?siteId=。理由见 start-site-button.tsx */}
+          <StartSiteButton templateId={template.id} label="用此模板建站" />
         </div>
       </header>
       {isMine && (
@@ -95,9 +95,7 @@ export default async function TemplatePreviewPage({
               </>
             )}
           </div>
-          <Link className="primary-button" href={`/workspace?template=${template.id}` as Route}>
-            拿去建站
-          </Link>
+          <StartSiteButton templateId={template.id} label="拿去建站" />
         </div>
       )}
       <div className="template-preview-canvas">

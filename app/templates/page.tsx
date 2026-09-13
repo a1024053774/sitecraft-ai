@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ExternalLink,
   Sparkles,
+  LoaderCircle,
   Upload,
   WandSparkles,
   MessageSquareText,
@@ -102,16 +103,50 @@ export default function TemplatesPage() {
     router.push(`/generate${params.toString() ? `?${params.toString()}` : ""}` as Route);
   };
   /**
-   * 带模板直接进工作台（2026-09-09 用户需求）。
+   * 建站：**显式点 CTA 才产生一个站**（2026-09-13 用户裁决：预览与建站解耦）。
    *
-   * 工作台已能读 `?template=<id>` 并写入 set_template（见 app/workspace/page.tsx），
-   * 这里只是把入口接上去。点 starter 文字时额外带 `prompt`，工作台会**预填**到输入框
-   * （不自动发送——避免用户没看完就烧掉一次 AI 调用）。
+   * ## 为什么不再是"点卡片直接进工作台"
+   *
+   * 旧行为（2026-09-09 加）是点卡片就 `router.push('/workspace?template=<id>')`——
+   * 而那条路径**不带 siteId**。工作台的 `siteId` 默认 `"demo"`（`workspace/page.tsx:146`），
+   * 而 `?template=` 的守卫又只认**编译期 22 个基线**（`:298` 的 `templates.some(...)`），
+   * **运行时模板（用户自己做的）不在其中** → `set_template` 不执行 →
+   * 用户点自己的模板，打开的却是 `demo` 站点（实测：显示 foxi 模板 + 云湃智算）。
+   *
+   * 现在改成两段式：**点卡片只更新预览**（零站点、零记录，反复比较零成本），
+   * **点 CTA 才真的 createSite 并跳 `?siteId=`**（拿到的是一个真站，发布/素材/版本历史都可用）。
+   *
+   * 用 `POST /api/sites` 而不是再走 `?template=`：那条路的鉴权与校验
+   * （`app/api/sites/route.ts:10` 用 `allTemplates()`，认运行时模板）都已经是对的，
+   * 直接复用，不在前端重造一遍。
    */
-  const openInWorkspace = (templateId: string, starter?: string) => {
-    const params = new URLSearchParams({ template: templateId });
-    if (starter?.trim()) params.set("prompt", starter.trim());
-    router.push(`/workspace?${params.toString()}` as Route);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState("");
+  const startSite = async (templateId: string, presetPrompt?: string) => {
+    if (starting) return;
+    setStarting(true);
+    setStartError("");
+    try {
+      const name = templates.find((item) => item.id === templateId)?.name
+        ?? mine.find((item) => item.id === templateId)?.name
+        ?? "我的站点";
+      const response = await fetch("/api/sites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, templateId, locales: ["zh", "en"] }),
+      });
+      const body = (await response.json().catch(() => null)) as { id?: string; error?: string } | null;
+      if (!response.ok || !body?.id) throw new Error(body?.error || "建站失败，请稍后重试");
+      // 建站成功 → 进工作台。带 siteId，**不带 template**（模板已经在建站时定好）。
+      // 点 starter 文字来时额外带 `prompt`——工作台会**预填到输入框**，
+      // 不自动发送（2026-09-09 用户确认：避免没看清就烧掉一次 AI 调用）。
+      const params = new URLSearchParams({ siteId: body.id });
+      if (presetPrompt?.trim()) params.set("prompt", presetPrompt.trim());
+      router.push(`/workspace?${params.toString()}` as Route);
+    } catch (error) {
+      setStartError(error instanceof Error ? error.message : "建站失败");
+      setStarting(false);
+    }
   };
   return (
     <div className="template-page">
@@ -206,10 +241,10 @@ export default function TemplatesPage() {
             <article
               className={`template-card ${selected === template.id ? "selected" : ""}`}
               key={template.id}
-              // 点卡片 = 选中该模板并**直接进工作台**（2026-09-09）。
-              // 用户要的是「点一下就开始编辑」：带该模板的空草稿进工作台，不跑 AI 生成、
-              // 不花额度、不用等。此前只 setSelected 不跳转，还得再点 starter 文字才生效。
-              onClick={() => openInWorkspace(template.id)}
+              // 点卡片 = **只选中并预览**（2026-09-13 用户裁决：预览与建站解耦）。
+              // 不建站、不写任何记录——误点与反复比较是零成本的。
+              // 想用这个模板建站，走底部那条显式 CTA。
+              onClick={() => setSelected(template.id)}
             >
               <div className="template-cover template-live-cover">
                 <OpenSourceTemplateFrame templateId={template.id} variant="thumbnail" />
@@ -242,7 +277,7 @@ export default function TemplatesPage() {
                     <button
                       key={starter}
                       className="template-starter-chip"
-                      onClick={() => openInWorkspace(template.id, starter)}
+                      onClick={() => void startSite(template.id, starter)}
                     >
                       {starter}
                     </button>
@@ -275,7 +310,9 @@ export default function TemplatesPage() {
                 <article
                   className={`template-card ${selected === item.id ? "selected" : ""}`}
                   key={item.id}
-                  onClick={() => openInWorkspace(item.id)}
+                  // 同上：只选中预览。运行时模板尤其需要——旧路径点它会掉进 `?template=`
+                  // 那条只认编译期基线的守卫，打开的是**别的站**（2026-09-13 修）。
+                  onClick={() => setSelected(item.id)}
                 >
                   <div className="template-cover template-live-cover">
                     <OpenSourceTemplateFrame templateId={item.id} variant="thumbnail" />
@@ -315,17 +352,31 @@ export default function TemplatesPage() {
 
         {mineError && <p className="template-mine-error">{mineError}</p>}
 
-        {/* 底部「用这个模板开始对话」已删除（2026-09-09）：点卡片已经直接进工作台，
-            这条 CTA 只是把同一个动作又说了一遍，还让用户以为「必须点这里才算选好」。 */}
+        {/* 底部：**预览 + 显式 CTA**（2026-09-13 用户裁决：预览与建站解耦）。
+            此前这条只是"已选模板 XXX"一个死条，而点卡片就直接进工作台——
+            现在卡片只选中，建站必须点这里的 CTA。
+            小字如实说明两者差别：预览不产生站点，发布/素材/版本历史要建站后才有。 */}
       </main>
       <div className="template-selected">
         <div>
           <strong>
-            {templates.find((item) => item.id === selected)?.name}
+            {templates.find((item) => item.id === selected)?.name
+              ?? mine.find((item) => item.id === selected)?.name
+              ?? selected}
           </strong>
-          <small>已选模板 · 可以随时让 AI 换一个方向</small>
+          <small>
+            已选 · 上方卡片只切换预览，**不会**生成站点；点右边按钮才会用它建一个站
+          </small>
+          {startError && <small className="template-start-error">{startError}</small>}
         </div>
-        <Check size={17} color="#b9f56b" />
+        <button
+          className="primary-button"
+          disabled={starting}
+          onClick={() => void startSite(selected)}
+        >
+          {starting ? <LoaderCircle size={14} className="spin" /> : <Sparkles size={14} />}
+          {starting ? "正在建站…" : "用这个模板开始"}
+        </button>
       </div>
       {dialogOpen && (
         <CreateTemplateDialog

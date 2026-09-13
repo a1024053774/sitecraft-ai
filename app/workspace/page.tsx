@@ -295,14 +295,41 @@ export default function WorkspacePage() {
         }
         window.localStorage.removeItem("sitecraft-draft");
         const requestedTemplate = new URLSearchParams(window.location.search).get("template");
-        if (requestedTemplate && templates.some((item) => item.id === requestedTemplate) && snapshot.draft.templateId !== requestedTemplate) {
+        /**
+         * ⚠️ **守卫必须同时认运行时模板**（2026-09-13 修，D-1 第 4 项）。
+         *
+         * 此前是 `templates.some(...)`——而 `templates` 是**编译期那 22 个基线**
+         * （`lib/site-model.ts`），**用户自己做的模板不在其中**。
+         * 于是点自制模板的卡片时这个守卫直接为假 → `set_template` 不执行 →
+         * 打开的是 `siteId` 默认值 `"demo"` 那个站（实测：显示别的模板 + 别的站名）。
+         *
+         * 服务端的权威口径是 `allTemplates()`（`lib/site-model.ts:94`，基线 + 运行时）；
+         * 工作台拿不到它（客户端 bundle 里运行时注册表恒为空），所以**问接口**——
+         * 同一个接口上面那段已经在用（拉运行时模板名）。
+         *
+         * 失败时**回退到旧行为**（只认基线）而不是放行：放行会让一个不存在的 id
+         * 走进 `set_template`，那是另一种静默失败。
+         */
+        const isKnownTemplate = async (id: string): Promise<boolean> => {
+          if (templates.some((item) => item.id === id)) return true;
+          try {
+            const response = await fetch("/api/templates/runtime", { cache: "no-store" });
+            if (!response.ok) return false;
+            const body = (await response.json()) as { templates?: Array<{ id: string }> };
+            return Boolean(body.templates?.some((item) => item.id === id));
+          } catch {
+            return false; // 拿不到名册就不认——保守，不猜
+          }
+        };
+        if (requestedTemplate && snapshot.draft.templateId !== requestedTemplate && (await isKnownTemplate(requestedTemplate))) {
           const response = await fetch(`/api/sites/${siteId}/draft`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               baseRevision: snapshot.draft.revision,
               operations: [{ op: "set_template", templateId: requestedTemplate }],
-              summary: `选择模板 ${getTemplate(requestedTemplate).name}`,
+              // 名字优先用运行时名册里的真名；基线用 getTemplate 的（它认得基线）
+              summary: `选择模板 ${templates.find((item) => item.id === requestedTemplate)?.name ?? requestedTemplate}`,
               source: "template",
             }),
           });
