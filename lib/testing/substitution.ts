@@ -42,21 +42,22 @@
 /** 替身表的载体：一个进程级环境变量。 */
 export const SUBSTITUTION_ENV = "SITECRAFT_TEST_SUBSTITUTIONS";
 
+/** 替身表：`别名 → { 导出名 → 脚本化返回值 }`。**值只允许数据**（见文件头）。 */
+export type SubstitutionScript = Record<string, Record<string, unknown>>;
+
 /**
  * 写替身表。必须在 `import` 被测路由**之前**调用。
  *
  * 每个用例都可以再调一次来换返回値——`fakeOr` 是**每次调用时**读表的，
  * 所以同一个替身模块能在不同用例里给出不同结果。
  */
-export function armSubstitutions(script, options = {}) {
-  if (!options.appendEnv) {
-    // 值必须是可 JSON 序列化的纯数据——函数会静默变成 undefined，
-    // 那正是"配了没生效"，所以这里当场报
-    for (const [alias, table] of Object.entries(script)) {
-      for (const [name, value] of Object.entries(table)) {
-        if (typeof value === "function") {
-          throw new Error(`[substitution] ${alias}.${name} 是函数。替身表只收数据——见本文件头「为什么是数据表」。`);
-        }
+export function armSubstitutions(script: SubstitutionScript): SubstitutionScript {
+  // 值必须是可 JSON 序列化的纯数据——函数会静默变成 undefined，
+  // 那正是"配了没生效"，所以这里当场报
+  for (const [alias, table] of Object.entries(script)) {
+    for (const [name, value] of Object.entries(table)) {
+      if (typeof value === "function") {
+        throw new Error(`[substitution] ${alias}.${name} 是函数。替身表只收数据——见本文件头「为什么是数据表」。`);
       }
     }
   }
@@ -65,7 +66,7 @@ export function armSubstitutions(script, options = {}) {
 }
 
 /** 读当前替身表（loader 与 `fakeOr` 共用同一份解析逻辑）。 */
-export function currentSubstitutions() {
+export function currentSubstitutions(): SubstitutionScript | null {
   const raw = process.env[SUBSTITUTION_ENV];
   if (!raw) return null;
   try {
@@ -92,7 +93,7 @@ export function currentSubstitutions() {
  * @param alias 本替身文件对应的源模块别名（如 `@/lib/template-from-url`）
  * @param name  该模块里的导出名
  */
-export function fakeOr(alias: string, name: string) {
+export function fakeOr(alias: string, name: string): unknown {
   const table = currentSubstitutions();
   if (!table) {
     throw new Error(

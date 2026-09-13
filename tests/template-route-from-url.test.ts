@@ -179,9 +179,10 @@ test("替身基建 · 键放错模块必须**红**，不许遍历取到值（本
     /没有 @\/lib\/template-from-screenshot 这一格/,
   );
   assert.throws(() => fakeOr("@/lib/template-from-url", "createTemplatFromUrl"), /没有 createTemplatFromUrl/);
-  const first = fakeOr("@/lib/template-from-url", "createTemplateFromUrl") as { message: string };
+  const first = fakeOr("@/lib/template-from-url", "createTemplateFromUrl") as { message?: string };
   first.message = "被调用方改过了";
-  assert.equal((fakeOr("@/lib/template-from-url", "createTemplateFromUrl") as { message: string }).message, CAPTURE_FAILED.message);
+  const second = fakeOr("@/lib/template-from-url", "createTemplateFromUrl") as { message?: string };
+  assert.equal(second.message, (CAPTURE_FAILED as { message: string }).message);
 });
 
 test("替身基建 · 函数不是合法替身值（JSON 会把它吃掉变成 undefined，所以当场拒收）", () => {

@@ -6,22 +6,36 @@
  * GET / DELETE 都不碰模型、不开浏览器，唯一副作用是自己那个 jobs 目录——
  * 所以这里跑的是**真响应**：真状态码、真响应体、真缓存头。
  *
- * ## `from-screenshot` / `from-url`：**只做结构契约**（并且如实说明为什么）
+ * ## `from-screenshot` / `from-url`：本文件只留**结构契约**
  *
- * 这两个 POST 路由的**每一条非 401 分支**都要调真模型或真开浏览器：
- * `createTemplateFromScreenshot` / `createTemplateFromUrl` 是模块级导入，
- * 没有 `mock.module`（需 `--experimental-test-module-mocks`，即改 `npm test` 脚本）
- * 就换不掉。所以它们的 400/409/422/502 分支**本轮没有端到端覆盖**，
- * 本文件不假装覆盖——只钉**结构上必须成立、违背即炸**的几件事，且全部派生自源码。
+ * ## ✅ 待办已于 2026-09-13 结清（原文保留，见下方"历史登记"）
  *
- * > 编排逻辑本身（各失败分支的 step 与文案）已在
- * > `tests/template-from-url.test.ts` / `tests/template-from-screenshot.test.ts` 覆盖。
+ * 本文件此前登记过一条待办：这两个 POST 的**非 401 分支没有端到端覆盖**，
+ * 因为编排函数是模块级 import，而 `mock.module` 要改 `npm test` 脚本。
+ *
+ * **现已关闭**：`tests/alias-loader.mjs` 提供了**按需替身**（子路径别名重定向 +
+ * `SITECRAFT_TEST_SUBSTITUTIONS`），两个 POST 的错误分支与登记成功路径
+ * 都有真实断言了，见同目录：
+ *
+ * - `template-route-from-url.test.ts`（12 测）
+ * - `template-route-from-screenshot.test.ts`（11 测）
+ *
+ * 本文件因此**只保留结构契约**——那部分仍然有价值（它钉的是"源码里必须长这样"
+ * 这类跨文件的形状约束，不是行为），且与真调用**互补**：
+ * 行为测试跑在替身上，结构测试读的是**真实源码文本**。
+ *
+ * ## 历史登记（原文，不再有效）
+ *
+ * > 这两个 POST 路由的**每一条非 401 分支**都要调真模型或真开浏览器：
+ * > `createTemplateFromScreenshot` / `createTemplateFromUrl` 是模块级导入，
+ * > 没有 `mock.module`（需 `--experimental-test-module-mocks`，即改 `npm test` 脚本）
+ * > 就换不掉。所以它们的 400/409/422/502 分支**本轮没有端到端覆盖**，
+ * > 本文件不假装覆盖。
  *
  * ## 为什么能 import 路由了
  *
  * `@/*` 别名 node 原生不认（这正是仓库此前零路由测试的原因）。
- * `tests/alias-loader.mjs` 只做路径解析、不做替身；它是**测试内 register**，
- * 不改 `npm test` 脚本、不碰 lib/——见该文件的完整实测对照表。
+ * `tests/alias-loader.mjs` 是**测试内 register**，不改 `npm test` 脚本、不碰 lib/。
  */
 import assert from "node:assert/strict";
 import test from "node:test";
