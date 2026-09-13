@@ -171,6 +171,8 @@ test.describe("D. 模板选择", () => {
     expect(new URL(page.url()).searchParams.get("template")).toBeNull();
 
     expect(await postgresSiteCount(request), "CTA 应当恰好新增一个站").toBe(dbBefore + 1);
+    // ⚠️ 这个站**不会自动清理**：仓库没有删除站点的 API，而手动删库要碰开发者数据。
+    // 按既有裁定（"e2e 写入的行不清理：本地开发卷、无害、且是写路径真的通到库的证据"）保留。
   });
 
   /**
