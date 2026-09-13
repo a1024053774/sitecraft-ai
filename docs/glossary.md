@@ -100,6 +100,8 @@
 | T-11 | `site-store` 的 `storageRoot` **模块级常量冻结**（cwd/env 在首次加载时固化） | **未做**（用户 2026-09-13 裁决：不废，禁本轮单修） | 与 T-10 并案，等部署议题一起裁 |
 | T-12 | **没有删除站点的 API**——e2e 造的站只能留在库里 | **未做**（用户 2026-09-13 裁决：本轮不修） | 待排期 |
 | T-13 | **前端生产鉴权未接入**——非 development 默认 strict，而前端一个访问头都不发 | **未做**（用户 2026-09-13 裁决：独立批次，插 B4 前） | 先出方案 |
+| T-14 | **生产 CSP 只放行桥接脚本 nonce，模板自带内联脚本被拦 → 受影响模板生产预览白屏** | **未做**（用户 2026-09-13 裁决：并入 T-13 生产就绪批） | 影响面已盘点，见下 |
+| T-15 | **全幅背景式 hero 图在点选链路不可达**——forge 类模板用户点不到首屏主视觉 | **未做**（用户 2026-09-13 裁决：独立条目） | 待排期 |
 
 **已知·有意暂缓（2026-09-12 用户裁决：本轮治理到「收口」为止，不追求门禁全建齐）**：
 宽修（`applySiteOperations` 入口全面校验）· T-1 · T-3 · T-4 · T-8
@@ -227,6 +229,74 @@ DATABASE_URL 端口 = (未设置)    ← 同上
 便判定"前缀判定作废"，**把一条正确的 P0 结论撤销了**，并扩散进本表与一个 commit。
 **那个实验什么都证明不了**：relaxed 下根本不检查这三个头。后经三条独立取证
 （路由入口打印 / 转调到达处打印 / 源码字节 grep）才纠回，并把附则 A1 立了起来。
+
+### T-14 · 生产 CSP 只放行桥接 nonce → 模板自带内联脚本被拦 → 白屏
+
+**发现路径**：0.6 修 `shadcn-pro-preview` 时，旧归因"抖动"被**证伪**
+（实测 **5/5 稳定失败**），逐层取证到 CSP。
+
+**机制**：`localPreviewCsp()`（`app/api/templates/[templateId]/preview/route.ts:35`）
+在 **production** 下只给**桥接脚本**发 nonce，模板自带的内联脚本一律被 CSP 拦。
+注释写明这是有意设计（"nothing template-shipped runs unverified"）。
+而 e2e 跑 `next start` = production，故**这是生产形态的真实表现**。
+
+**证据链**（实测，非推断）：
+
+| 步骤 | 结果 |
+|---|---|
+| 静态 `dist/index.html` | h1=1, h2/3=78, section=13，**`id="root"` 0 处** |
+| served HTML | 结构**完全一致**（服务端没删内容） |
+| 浏览器 | `h1Count=0`、`sectionCount=0`，body 只剩 ~171KB（≈一半） |
+
+→ `shadcn-landing2` 的整棵 DOM 由 `self.__next_f.push(...)` **运行时构建**；
+CSP 拦住 → React 从未挂载 → 服务时那 79 个标题被清空 → **真白屏**。
+
+**影响面（22 个基线模板已全量盘点，脚本 `e2e/scripts/probe-inline-scripts.ts`）**：
+
+| 类 | 数量 | 模板 |
+|---|---|---|
+| **拦了会白屏**（需 JS 渲染） | **1** | **`shadcn-landing2`** |
+| 有内联脚本但内容仍在静态 HTML | 17 | Astro 为主，内联多为增强 |
+| 仅 JSON-LD（拦了无影响） | 4 | `landwind` / `fresh` / `shadcn-landing` / `nextjs-landing` |
+
+> ⚠️ **这条清单把 T-13 批次的修复面钉死了**：不是"全局 CSP 契约重做"，
+> 而是**1 个模板的 CSP 策略**（给该模板的内联脚本放行，或把它改成不需内联的产物形态）。
+> 工作量按此估。
+
+**当前处置**：`shadcn-pro-preview.spec.ts` 已按用户裁决改 **`test.fail()` 显式隔离**
+（不是 skip：它仍真跑；T-14 一修好，`test.fail` 会**立刻转红**逼人来摘标记）。
+
+**T-14 修好后必做**：摘 `test.fail()`；并**换掉没有判别力的断言**——
+`heroHeight > 300` 在白屏时也"成立"（高度 0 时是更早的 `heroDisplay` 先红），
+它区分不了"白屏"与"正常"，应换成有判别力的标志（如 hydration 完成的标志元素）。
+
+### T-15 · 全幅背景式 hero 图在点选链路**不可达**
+
+**发现路径**：0.6 修 `tmp-asset.spec.ts` 超时（旧归因"等待条件写错或页面慢"，
+**两条都不是**）时，用探针量出来的。
+
+**现象**：`forge` 的首屏主视觉是**全幅背景图**，文字层整片压在上面。
+`elementFromPoint` 在图上的**每一个采样点**都返回覆盖层（`DIV` / `H1`），
+**img 本身永远拿不到点击** → 用户**点不到、也就换不了**首屏主视觉。
+
+**工作台里的实测**（`e2e/specs/clickable-asset-probe.spec.ts`）：
+
+| 模板 | 可点比例 |
+|---|---|
+| moon / kindred / tailwind-landing / atlas / astro-starter | 100% |
+| lonestone | 75% |
+| **forge** | **0%** |
+| landwind / foxi / yukina / fresh / screwfast | 选择器在工作台里无命中 |
+
+**为什么桥接的兜底没救回来**：`preview/route.ts:1354` 确实有一层兜底
+（`event.target.closest('h1,p,a,button,h2,h3')` 为 null 时走 `resolveAssetSlotForNode`），
+但用户点击时 `elementFromPoint` 命中的**正是**那些文字节点，所以兜底**测不到**。
+
+**这是一条真实产品缺口，不是坏 spec**：坏 spec（选了不可点的模板）把它挖了出来。
+处置另行排期；`asset-select.spec.ts` 的文件头已留指向本条的注释，**不许随改写蒸发**。
+
+**连带澄清**：`forge` 的 `localPath` **本来就是 `small-bis`**
+（`lib/template-catalog.ts:57-65`，id 与目录名无关）——不是命名错误。
 
 ### T-1 · `faq` 的 `add_card` 无容量校验（用户裁决第 3 条：登记待排期）
 `capacitySections = ["features", "services"]`（`lib/site-operations.ts`），

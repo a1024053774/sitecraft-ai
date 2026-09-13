@@ -242,7 +242,31 @@ test.describe("A. 一句话建站", () => {
     await analyzeAndConfirm(page, message);
     await page.getByRole("button", { name: /用此模板生成站点内容/ }).click();
     await expect(page.getByText("AI 正在填充内容", { exact: false })).toBeVisible();
-    const pendingSiteId = await page.evaluate(() => JSON.parse(sessionStorage.getItem("sitecraft:active-generation:v1") ?? "null")?.siteId as string | undefined);
+    /**
+     * ⚠️ **必须轮询，不能即时读**（2026-09-13 实测：本用例约 80% 概率假红）。
+     *
+     * 时序（`app/generate/page.tsx`）：
+     * ```
+     * :555  setProgressText("正在…生成内容…")   ← UI 先进入"生成中"（上面那句断言此刻成立）
+     * :560  await fetch POST /api/sites        ← 真实的建站请求
+     * :580  sessionStorage.setItem(ACTIVE_KEY) ← 拿到 siteId 之后才写
+     * ```
+     * "生成中"文案出现的时刻**早于** key 被写入。机器一忙建站请求就慢，
+     * 即时读到的还是 `null` → 假红。
+     *
+     * 应用本身**没有错**：它不可能在站点还没建出来之前就把 id 写进去。
+     * 错的是测试把"某个中间态"当成了"可以立刻断言的不变量"。
+     * 所以用 `expect.poll` 等它出现——**不是加固定 sleep**（那只是把窗口挪走，
+     * 机器更慢时照样红），而是等一个**真的会到来的事实**。
+     */
+    const readPendingSiteId = () =>
+      page.evaluate(
+        () => JSON.parse(sessionStorage.getItem("sitecraft:active-generation:v1") ?? "null")?.siteId as string | undefined,
+      );
+    await expect
+      .poll(readPendingSiteId, { message: "生成开始后应当把在建站点写进 sessionStorage（等它出现，不是要求它此刻已在）" })
+      .toBeTruthy();
+    const pendingSiteId = await readPendingSiteId();
     expect(pendingSiteId).toBeTruthy();
     await page.reload();
     await expect(page.locator(".generate-textarea").first()).toHaveValue(message);
