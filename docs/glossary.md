@@ -99,6 +99,7 @@
 | T-10 | `JOBS_DIR` 按 cwd 冻结 + `SITECRAFT_DATA_ROOT` 部署配置面 | **未做**（只出方案，不实施） | 与 T-11 并案，等部署议题一起裁 |
 | T-11 | `site-store` 的 `storageRoot` **模块级常量冻结**（cwd/env 在首次加载时固化） | **未做**（用户 2026-09-13 裁决：不废，禁本轮单修） | 与 T-10 并案，等部署议题一起裁 |
 | T-12 | **没有删除站点的 API**——e2e 造的站只能留在库里 | **未做**（用户 2026-09-13 裁决：本轮不修） | 待排期 |
+| T-13 | **前端生产鉴权未接入**——非 development 默认 strict，而前端一个访问头都不发 | **未做**（用户 2026-09-13 裁决：独立批次，插 B4 前） | 先出方案 |
 
 **已知·有意暂缓（2026-09-12 用户裁决：本轮治理到「收口」为止，不追求门禁全建齐）**：
 宽修（`applySiteOperations` 入口全面校验）· T-1 · T-3 · T-4 · T-8
@@ -178,8 +179,39 @@ DATABASE_URL 端口 = (未设置)    ← 同上
 限定 diff 只允许出现在 `e2e/`、`scripts/`、`.env.example`、`docker-compose.yml`——
 选项 1 需要动测试进程的启动形态，选项 2 要改既有 spec 的夹具，都不是能顺手夹带的。
 
-### T-1 · `faq` 的 `add_card` 无容量校验（用户裁决第 3 条：登记待排期）
+### T-13 · 前端生产鉴权**未接入**：非 development 默认 strict，而前端一个访问头都不发
 
+**不是读代码读出来的，是实测出来的**（2026-09-13，0.5=B2 写路由端到端测试时）。
+
+`lib/request-context.ts:77-81` 的缺省规则是"非 `development` 一律 **strict**"，
+而 strict 下 workspace / actor / role **三头缺任一即 401**（`:97`）。
+**前端一个都不发**（`grep -rln "sitecraft-workspace-id" app components` → 0 处；
+全仓库设置这些头的只有 `scripts/*.mjs` 与两条路由自己的转发），
+也**没有任何中间层替它发**（无 `middleware.ts`、无中央 fetch 封装）。
+
+**实测**（起真实服务，`SITECRAFT_ACCESS_MODE=strict` 写进 `.env.local`）：
+
+```
+无头 GET  /api/sites             -> 401
+无头 POST /api/templates/from-url -> 401   ← 带齐三头则 201，链路本身正常
+```
+
+**影响面**：见 [`2026-09-13-production-auth-inventory.md`](2026-09-13-production-auth-inventory.md)
+（穷举 23 个路由 × 全部前端调用点）。结论是**前端全部非公开读写**——
+站点列表、工作台、生成页、线索页、导出页、模板库建站/生成，
+合计 **22 个「端点 × 方法」在生产 strict 下必然 401**。
+
+**用户裁决（2026-09-13）**：真实缺陷，非有意配置；**独立批次，插 B4 之前**。
+**方向预警**：自助 SaaS 的用户手里**不该**有三个内部头——这大概率不是
+"给前端补三行头"，而是**登录态 / 凭据签发**的设计问题。**先出方案**
+（须含"维持现状 + 网关注头"这一备选），等拍板。
+
+**⚠️ 排查时踩过的坑（记录以免重走）**：`SITECRAFT_ACCESS_MODE` 放在
+**shell 环境变量**里会被 `next.config.ts` 的 `loadEnvConfig` 覆盖，只有写进
+**`.env.local`** 才生效。我据此误把一次 relaxed 下的 200 当成"strict 下鉴权被绕过"，
+写进盘点初稿后复核才发现。**判严格态前先用一个已知需鉴权的端点自证 401。**
+
+### T-1 · `faq` 的 `add_card` 无容量校验（用户裁决第 3 条：登记待排期）
 `capacitySections = ["features", "services"]`（`lib/site-operations.ts`），
 **不含 `faq`**；而 `cardSections` 含 `faq`。
 
