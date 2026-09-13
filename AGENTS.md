@@ -21,3 +21,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 9. **`presentation.slot` ≠ `slot`**：前者是裸段名（`presentationSlot`），后者是 DOM 点分路径；混用会静默失效（本轮 P0）。→ 同名不同义第 1 组
 10. **e2e 失败先查环境态**（测试进程与被测服务是否同库/同端口），再查业务。→ `playwright.config.ts` 同库断言
 11. **未 `await` 的 rejection 会伪装成 UI 失败**：涉及直连库的 e2e 步骤必须 `await` 并显式失败。
+
+> 产品与三条建站链路的口径，见 [`docs/PRODUCT-BASELINE.md`](docs/PRODUCT-BASELINE.md)——**它与旧设计文档冲突时以它为准**。
