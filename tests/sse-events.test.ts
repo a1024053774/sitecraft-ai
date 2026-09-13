@@ -113,25 +113,22 @@ test("readSseEvents deduplicates enveloped events while preserving legacy events
  */
 test("done 之后的 cancel 即使永不 resolve，readSseEvents 也必须立刻返回", async () => {
   let cancelCalled = 0;
-  const reader = {
-    async read() {
-      return { done: true as const, value: undefined };
-    },
-    cancel() {
-      cancelCalled += 1;
-      return new Promise<never>(() => { /* 永不 settle —— 模拟 Next dev 下不落 end 的流 */ });
-    },
-    releaseLock() { /* noop */ },
-  };
+  let releases = 0;
+  let reads = 0;
   // 用一个已含 done 的 chunk 触发 done 分支
   const withDone = {
-    ...reader,
     async read() {
+      reads += 1;
       return {
         done: false as const,
         value: new TextEncoder().encode('data: {"type":"done","status":"applied"}\n\n'),
       };
     },
+    cancel() {
+      cancelCalled += 1;
+      return new Promise<never>(() => { /* 永不 settle —— 模拟 Next dev 下不落 end 的流 */ });
+    },
+    releaseLock() { releases += 1; },
   };
 
   const events = await Promise.race([
@@ -142,4 +139,6 @@ test("done 之后的 cancel 即使永不 resolve，readSseEvents 也必须立刻
   assert.equal(cancelCalled, 1, "cancel 仍必须被调用（只是不许 await）");
   assert.equal(events.length, 1);
   assert.equal(events[0].type, "done");
+  // 不阻塞 cancel ≠ 不释放锁：finally 必须照常跑到，否则 reader 永久被占
+  assert.equal(releases, 1, "即便 cancel 永不 settle，finally 也必须释放 reader（恰好一次）");
 });

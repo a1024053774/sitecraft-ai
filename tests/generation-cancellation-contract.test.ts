@@ -7,10 +7,41 @@ test("generate page aborts analyze requests and releases both SSE readers", asyn
   assert.match(source, /analyzeControllerRef/);
   const analyzeBlock = source.slice(source.indexOf("const analyze = async"), source.indexOf("const toggleSection"));
   assert.match(analyzeBlock, /signal:\s*controller\.signal/);
-  assert.match(analyzeBlock, /reader\?\.releaseLock\(\)/);
   const executeBlock = source.slice(source.indexOf("const execute = async"), source.indexOf("useEffect", source.indexOf("const execute = async")));
-  assert.match(executeBlock, /reader\?\.releaseLock\(\)/);
   assert.match(executeBlock, /controller\.abort\(\);\s*void reader\?\.cancel\(\)/);
+
+  /**
+   * B5（2026-09-13）：reader 的释放**所有权从页面移到了 `lib/sse-events`**。
+   *
+   * 原断言是 `assert.match(analyzeBlock, /reader\?\.releaseLock\(\)/)` —— 它检查的是
+   * **"页面里写着这行代码"**，即机制的实现位置。换实现后它必然红，
+   * 但那条保证（reader 一定被释放）**并没有丢**——只是搬了家。
+   *
+   * 所以断言的落点从"谁写这行"改成"保证是否成立"，分两半：
+   *  ① 页面**不得**再自行释放（否则是二次调用：`releaseLock` 抛 TypeError 被吞，
+   *     看着无害，但把"谁负责释放"变成两处，将来必漂）；
+   *  ② 三个消费点都必须走 `readSseEvents`——释放由它的 `finally` 兜住，
+   *     且它对每个 reader **恰好释放一次**（对应用户红线里的"每个恰好一次"）。
+   *
+   * ⚠️ 这是**结构性断言**（读源码文本），不是行为断言。它证明不了"运行时真的释放了"——
+   * 那件事由 `tests/sse-events.test.ts` 的 `state.releases === 1` 以行为方式锁住。
+   * 两者互补：这里防"页面又长出一份自己的释放逻辑"，那里防"lib 的 finally 被删掉"。
+   */
+  assert.doesNotMatch(
+    analyzeBlock,
+    /try \{ reader\?\.releaseLock\(\)/,
+    "页面不得再自行释放 reader——所有权已归 readSseEvents 的 finally；" +
+      "如需恢复页面侧释放，请连同 lib 的 finally 一并裁决（否则是二次释放）",
+  );
+  assert.doesNotMatch(executeBlock, /try \{ reader\?\.releaseLock\(\)/, "同上（execute）");
+
+  const consumers = source.match(/await readSseEvents\(reader,/g) ?? [];
+  assert.equal(
+    consumers.length,
+    3,
+    `三个 SSE 消费点（analyze / execute / recoverMissingSections）都必须走 readSseEvents，` +
+      `实得 ${consumers.length} 处——少一处就意味着那个 reader 没人释放`,
+  );
 });
 
 test("route propagates analyze and regenerate deadlines and commit signal", async () => {

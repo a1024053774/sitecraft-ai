@@ -29,6 +29,7 @@ import { defaultDraft } from "@/lib/site-document";
 import { deriveDesignTokenResult } from "@/lib/design-variants";
 import { adaptIntentLimits, buildTemplateRecommendations, formatGenerationProgress, getGenerationProgress } from "@/lib/generation-experience";
 import { GENERATION_BUDGET, getGenerationWaitNotice } from "@/lib/generation-budget";
+import { readSseEvents } from "@/lib/sse-events";
 import type { ContentCoverageReport } from "@/lib/template-content-coverage";
 import { QUALITY_TIER_LABELS, qualityTier, type ContentQualityReport } from "@/lib/content-quality";
 
@@ -126,17 +127,6 @@ function newClientKey() {
     }
   } catch { /* fall through to fallback */ }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function readSseEvents(raw: string) {
-  const lastCompleteEvent = raw.lastIndexOf("\n\n");
-  if (lastCompleteEvent < 0) return [];
-  return raw
-    .slice(0, lastCompleteEvent)
-    .split("\n\n")
-    .map((block) => block.split("\n").find((line) => line.startsWith("data: "))?.slice(6))
-    .filter(Boolean)
-    .map((value) => JSON.parse(value as string) as Record<string, unknown>);
 }
 
 export default function GeneratePage() {
@@ -367,7 +357,6 @@ export default function GeneratePage() {
       window.clearTimeout(timeout);
       timeout = window.setTimeout(() => controller.abort(new Error("需求分析超时")), ANALYZE_TIMEOUT_MS);
     };
-    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     setBusy(true);
     setError(null);
     setProgressText("正在理解你的需求…");
@@ -391,37 +380,32 @@ export default function GeneratePage() {
         const payload = await res.json().catch(() => ({})) as { message?: string };
         throw new Error(payload.message || "需求分析请求失败，请稍后重试");
       }
-      reader = res.body?.getReader() ?? null;
+      const reader = res.body?.getReader() ?? null;
       if (!reader) throw new Error("无法读取响应");
-      const decoder = new TextDecoder();
-      let raw = "";
-      let done: Record<string, unknown> | undefined;
-      while (true) {
-        const result = await reader.read();
-        const chunkText = decoder.decode(result.value ?? new Uint8Array(), { stream: !result.done });
-        raw += chunkText;
-        const events = readSseEvents(raw);
-        if (events.length) bumpAnalyzeTimeout(); // 有进展就重置静默计时
-        const status = [...events].reverse().find((e) => e.type === "status");
-        if (typeof status?.value === "string") setProgressText(status.value);
-        done = events.find((e) => e.type === "done");
-        if (done) {
-          // 拿到 done 即视为完成。不 await reader.cancel()：该 SSE 流在 Next dev 下
-          // 有时不落 end，await 会永久挂起拖住流程。cancel 交给浏览器/超时兜底。
-          void reader.cancel().catch(() => undefined);
-          break;
-        }
-        if (result.done) break;
-      }
+      // B5：消费交给 lib/sse-events（逐事件到达即更新 + envelope 去重 + O(n)）。
+      // 此前这里是手写的 while + `readSseEvents(raw)` 重解析整个缓冲——
+      // 那份实现每收一个 chunk 就把全部数据从头解析一遍（O(n²)），
+      // 且没有 deduper（断点续做重放时可能重复应用）。
+      //
+      // ⚠️ setBusy(false) 必须在本回调里做，不能挪到 await 之后：
+      // 回调是本函数里**最后一个同步点**——readSseEvents 返回后到分支分发之间
+      // 没有 await，单线程下不会有新的 analyze 插入竞态。
+      // （原文注释：「收到合法 done 即同步复位 busy，不依赖 finally：SSE 流活性
+      //  异常时 finally 可能不执行，busy 残留会让确认/追问页按钮 disabled 且显示
+      //  旧 progressText，表现像卡死。」）
+      const events = await readSseEvents(reader, (event) => {
+        // 有进展就重置静默计时（原在 while 循环里，按每次读到 chunk 触发；
+        // 现在按每个**完整事件**触发——语义更准：半个事件不算进展）
+        bumpAnalyzeTimeout();
+        if (event.type === "status" && typeof event.value === "string") setProgressText(event.value);
+        if (event.type === "done" && pageActive.current) setBusy(false);
+      });
+      const done = events.find((e) => e.type === "done");
       if (!done) throw new Error("没有返回结果");
       if (done.status === "error") throw new Error(String(done.error || "分析失败"));
       if (done.status !== "ready") throw new Error(`意外状态 ${done.status}`);
       const parsedIntent = adaptIntentLimits(done.intent as Intent);
       const intentStatus = parsedIntent.status ?? "ready"; // 旧后端/旧模型兼容
-      // 收到合法 done 即同步复位 busy，不依赖 finally：SSE 流活性异常时
-      // finally 可能不执行（await reader.cancel() 曾永久挂起），busy 残留会让
-      // 确认/追问页按钮 disabled 且显示旧 progressText，表现像"卡死"。
-      // 此处到分支分发之间无 await，单线程下不会有新 analyze 插入竞态。
       if (pageActive.current) setBusy(false);
       if (intentStatus === "need_info") {
         const needsInfo = parsedIntent.needsInfo ?? [];
@@ -477,7 +461,11 @@ export default function GeneratePage() {
       }
     } finally {
       window.clearTimeout(timeout);
-      try { reader?.releaseLock(); } catch { /* reader 已释放或已被取消 */ }
+      // B5：这里原本还要 `reader?.releaseLock()`。现在锁由 `readSseEvents`
+      // 自己的 finally 释放（它对每个 reader 恰好释放一次），
+      // 页面再释放一次是二次调用——它会抛 TypeError 被吞掉，看着无害，
+      // 但语义上把"谁负责释放"变成了两处，将来必漂。**所有权归 lib。**
+      // `reader` 变量保留：它仍是"取到 body reader 了吗"的守卫。
       if (analyzeControllerRef.current === controller) {
         analyzeControllerRef.current = null;
         // 兜底：理论上收到合法 done 的分支已 setBusy(false)；此处保证异常/取消路径也不残留 busy。
@@ -613,40 +601,40 @@ export default function GeneratePage() {
       }
       reader = res.body?.getReader() ?? null;
       if (!reader) throw new Error("无法读取生成结果");
-      const decoder = new TextDecoder();
-      let raw = "";
-      let done: Record<string, unknown> | undefined;
-      while (true) {
-        const result = await reader.read();
-        raw += decoder.decode(result.value ?? new Uint8Array(), { stream: !result.done });
-        const events = readSseEvents(raw);
-        if (events.length) bumpTimeout(); // 有进展就重置静默计时
-        const status = [...events].reverse().find((e) => e.type === "status");
-        if (typeof status?.value === "string") setProgressText(status.value);
-        if (status?.phase === "content" || status?.phase === "review" || status?.phase === "saving") setGenerationPhase(status.phase);
-        if (Array.isArray(status?.completedSections)) setCompletedSections(status.completedSections.filter((item): item is string => typeof item === "string"));
-        if (Array.isArray(status?.activeSections)) setActiveSections(status.activeSections.filter((item): item is string => typeof item === "string"));
-        if (Array.isArray(status?.recoveringSections)) setRecoveringSections(status.recoveringSections.filter((item): item is string => typeof item === "string"));
-        if (Array.isArray(status?.failedSections)) setFailedSections(status.failedSections.filter((item): item is string => typeof item === "string"));
+      const events = await readSseEvents(reader, (event) => {
+        bumpTimeout(); // 有进展就重置静默计时（按完整事件，半事件不算）
+        if (event.type === "status") {
+          if (typeof event.value === "string") setProgressText(event.value);
+          const phase = event.phase;
+          if (phase === "content" || phase === "review" || phase === "saving") setGenerationPhase(phase);
+          const asStrings = (value: unknown) =>
+            Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : null;
+          const completed = asStrings(event.completedSections);
+          if (completed) setCompletedSections(completed);
+          const active = asStrings(event.activeSections);
+          if (active) setActiveSections(active);
+          const recovering = asStrings(event.recoveringSections);
+          if (recovering) setRecoveringSections(recovering);
+          const failed = asStrings(event.failedSections);
+          if (failed) setFailedSections(failed);
+          return;
+        }
         // 流式增量：优先显示**模型正在写的内容片段**（更有临场感），
         // 拿不到可读片段时回退到"已输出 N 字"（2026-09-10 用户要求流式为主）。
-        const delta = [...events].reverse().find((e) => e.type === "content_delta");
-        if (delta && typeof delta.chars === "number") {
-          const secs = Array.isArray(delta.sections) ? delta.sections.join("、") : "";
-          if (typeof delta.preview === "string" && delta.preview) {
-            setProgressText(`${delta.preview}${secs ? `（${secs}）` : ""}`);
+        //
+        // ⚠️ 逐事件处理在这里**比旧实现更准确**：旧实现每次取"最后一个 status +
+        // 最后一个 delta"再去重，status 与 delta 交替到达时后者会盖掉前者；
+        // 现在两类事件各按各的语义更新。
+        if (event.type === "content_delta" && typeof event.chars === "number") {
+          const secs = Array.isArray(event.sections) ? event.sections.join("、") : "";
+          if (typeof event.preview === "string" && event.preview) {
+            setProgressText(`${event.preview}${secs ? `（${secs}）` : ""}`);
           } else {
-            setProgressText(`正在生成内容…已输出 ${delta.chars} 字${secs ? `（${secs}）` : ""}`);
+            setProgressText(`正在生成内容…已输出 ${event.chars} 字${secs ? `（${secs}）` : ""}`);
           }
         }
-        done = events.find((e) => e.type === "done");
-        if (done) {
-          // 同 analyze：不阻塞等 cancel 落地，避免 SSE 流不落 end 时挂起拖住 busy 复位。
-          void reader.cancel().catch(() => undefined);
-          break;
-        }
-        if (result.done) break;
-      }
+      });
+      const done = events.find((e) => e.type === "done");
       if (!done) throw new Error("生成没有返回结果");
       if (done.status === "error") throw new Error(String(done.error || "生成失败"));
       if (done.status === "conflict") throw new Error("草稿冲突，请重试");
@@ -724,7 +712,9 @@ export default function GeneratePage() {
       }
     } finally {
       window.clearTimeout(timeout);
-      try { reader?.releaseLock(); } catch { /* reader 已释放 */ }
+      // B5：reader 的 releaseLock 归 `readSseEvents` 的 finally（每个 reader 恰好一次）。
+      // 页面侧不再重复释放——二次调用会抛 TypeError 被吞掉，看着无害，
+      // 但把"谁负责释放"变成两处，将来必漂。
       if (generationControllerRef.current === controller) generationControllerRef.current = null;
       if (generationRequestKeyRef.current === idempotencyKey) generationRequestKeyRef.current = null;
       if (pageActive.current) setBusy(false);
@@ -769,9 +759,16 @@ export default function GeneratePage() {
         const payload = await response.json().catch(() => ({})) as { message?: string };
         throw new Error(payload.message || "补全请求失败，请稍后重试");
       }
-      const raw = await response.text();
-      const events = readSseEvents(raw);
-      const done = [...events].reverse().find((item) => item.type === "done");
+      // B5：这里原来是 `await response.text()` 整串读完后才解析——
+      // 三处消费点里**唯一真正"收完才更新"**的一处（前两处是重解析缓冲）。
+      // 补全阶段同样有"恢复中"的可视化状态（recoveringSections），
+      // 整串等待会让那段时间界面完全静止。
+      const reader = response.body?.getReader() ?? null;
+      if (!reader) throw new Error("补全结果不可读取");
+      const events = await readSseEvents(reader, (event) => {
+        if (event.type === "status" && typeof event.value === "string") setProgressText(event.value);
+      });
+      const done = events.find((item) => item.type === "done");
       if (!done) throw new Error("补全没有返回结果");
       if (done.status === "error" || done.status === "conflict") throw new Error(String(done.error || "补全失败"));
       const remaining = Array.isArray(done.missingSections)
