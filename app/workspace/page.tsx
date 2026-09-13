@@ -34,6 +34,7 @@ import {
 import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import { ProductImportDialog } from "@/components/product-import-dialog";
+import { AssetReplaceDialog } from "@/components/asset-replace-dialog";
 import {
   defaultDraft,
   getTemplate,
@@ -1385,36 +1386,15 @@ export default function WorkspacePage() {
         </div>
       </main>
       {assetDialog && (
-        <div className="modal-backdrop" onClick={() => !assetBusy && setAssetDialog(null)}>
-          <div className="import-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-head">
-              <div><div className="eyebrow">Asset / Image</div><h3>替换{assetDialog.target === "hero.image" ? "首屏主视觉" : "品牌 Logo"}</h3></div>
-              <button className="icon-button" onClick={() => setAssetDialog(null)} disabled={assetBusy} aria-label="关闭"><X size={15} /></button>
-            </div>
-            <p className="modal-copy">上传企业实拍图（JPG / PNG / WebP / SVG，≤5MB）。替换后会在预览中即时生效，并随导出一起内联。</p>
-            {assetDialog.currentSrc && (
-              <div className="asset-preview"><span>当前图片</span><img src={assetDialog.currentSrc} alt="当前资产" /></div>
-            )}
-            <input
-              ref={assetFileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif,image/avif"
-              hidden
-              onChange={(event) => { const file = event.target.files?.[0] ?? null; event.target.value = ""; if (file) void replaceAsset(file); }}
-            />
-            <div className="upload-zone" onClick={() => !assetBusy && assetFileRef.current?.click()}>
-              <div className="upload-icon">{assetBusy ? <LoaderCircle size={20} className="spin" /> : <CloudUpload size={20} />}</div>
-              <strong>{assetBusy ? "正在上传…" : "点击上传实拍图"}</strong>
-              <span>建议横图 16:9 或 4:3，宽度 ≥1600px</span>
-              <small>JPG / PNG / WebP / SVG · 最大 5MB</small>
-            </div>
-            <div className="modal-foot">
-              <span>当前{draft.assets[assetDialog.target as "hero.image" | "brand.logo"] ? "已替换" : "使用模板原图"}</span>
-              <button className="secondary-button" disabled={assetBusy || !draft.assets[assetDialog.target as "hero.image" | "brand.logo"]} onClick={() => void replaceAsset(null)}>恢复模板原图</button>
-              <button className="primary-button" disabled={assetBusy} onClick={() => setAssetDialog(null)}>完成</button>
-            </div>
-          </div>
-        </div>
+        <AssetReplaceDialog
+          target={assetDialog.target as "hero.image" | "brand.logo"}
+          currentSrc={assetDialog.currentSrc}
+          hasAsset={Boolean(draft.assets[assetDialog.target as "hero.image" | "brand.logo"])}
+          busy={assetBusy}
+          onClose={() => setAssetDialog(null)}
+          onPickFile={(file) => void replaceAsset(file)}
+          onReset={() => void replaceAsset(null)}
+        />
       )}
       {showImport && (
         <ProductImportDialog
