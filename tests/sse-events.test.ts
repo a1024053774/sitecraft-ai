@@ -96,3 +96,50 @@ test("readSseEvents deduplicates enveloped events while preserving legacy events
   assert.equal(events[0].sequence, 1);
   assert.equal(events[1].type, "done");
 });
+
+/**
+ * 2026-09-13（B5）：`done` 之后的 `reader.cancel()` **不得被 await**。
+ *
+ * ## 为什么
+ *
+ * `app/generate/page.tsx` 里有一段付过代价的注释：
+ *
+ * > 拿到 done 即视为完成。不 await reader.cancel()：该 SSE 流在 Next dev 下
+ * > 有时不落 end，await 会永久挂起拖住流程。cancel 交给浏览器/超时兜底。
+ *
+ * B5 把 generate 页的 SSE 消费换成这个模块后，那条教训必须在这里也成立——
+ * 否则就是把一个已经修好的挂起原样搬回来。本用例**用一个永不 resolve 的
+ * cancel** 复现那个场景：只要实现里还 `await` 它，本用例就会超时失败。
+ */
+test("done 之后的 cancel 即使永不 resolve，readSseEvents 也必须立刻返回", async () => {
+  let cancelCalled = 0;
+  const reader = {
+    async read() {
+      return { done: true as const, value: undefined };
+    },
+    cancel() {
+      cancelCalled += 1;
+      return new Promise<never>(() => { /* 永不 settle —— 模拟 Next dev 下不落 end 的流 */ });
+    },
+    releaseLock() { /* noop */ },
+  };
+  // 用一个已含 done 的 chunk 触发 done 分支
+  const withDone = {
+    ...reader,
+    async read() {
+      return {
+        done: false as const,
+        value: new TextEncoder().encode('data: {"type":"done","status":"applied"}\n\n'),
+      };
+    },
+  };
+
+  const events = await Promise.race([
+    readSseEvents(withDone),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("readSseEvents 被永不 settle 的 cancel 挂住了")), 1_000)),
+  ]);
+
+  assert.equal(cancelCalled, 1, "cancel 仍必须被调用（只是不许 await）");
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, "done");
+});

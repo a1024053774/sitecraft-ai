@@ -85,7 +85,15 @@ export async function readSseEvents(
         events.push(event);
         onEvent?.(event);
         if (event.type === "done") {
-          await reader.cancel("sse_done").catch(() => undefined);
+          // 2026-09-13（B5）：**不 await** cancel。
+          //
+          // 这段注释的原文来自 `app/generate/page.tsx`，是本项目付过代价的一条教训：
+          // 该 SSE 流在 Next dev 下有时不落 end，`await reader.cancel()` 会**永久挂起**
+          // 拖住整个流程——表现为 busy 残留、确认页按钮永远 disabled，像卡死。
+          // B5 把 generate 页的消费换成这个模块，那条教训必须在这里也成立，
+          // 否则就是把一个已经修好的挂起原样搬回来。
+          // 回归网：`tests/sse-events.test.ts` 用"永不 settle 的 cancel"锁住本行为。
+          void reader.cancel("sse_done").catch(() => undefined);
           return events;
         }
       }
