@@ -21,6 +21,27 @@ const targetIds = ENV.length > 0 ? ENV : ALL_CATALOG_IDS;
 
 for (const templateId of targetIds) {
   test(`${templateId} 真实预览：标准草稿槽位覆盖扫描`, async ({ page }) => {
+    /**
+     * ⚠️ **实例级隔离（T-14）：只隔离 `shadcn-landing2` 这一个实例。**
+     *
+     * 依据：2026-09-13 第三次 3 连跑 RUN1 的**真实失败现场**（`test-results/run-1/`
+     * 保留了截图 + trace + error-context）——`missing=hero.title`，页面只剩
+     * about/features 两块，hero 全空。该模板是 Next.js 导出站，整棵 DOM 由内联
+     * 脚本构建，而生产 CSP 只放行桥接 nonce → **冷加载约 5% 概率白屏**
+     * （复审实测 EMPTY 1/20；探针实测 1/10、2/10）。见 `docs/glossary.md` T-14。
+     *
+     * **为什么 skip 而不是 test.fail**：间歇缺陷用 test.fail 会随机报
+     * unexpected pass（守卫自己变成随机红）。替代拉力绳 =
+     * `e2e/scripts/probe-empty-rate.mjs`（收编在 `test:e2e:strict`，EMPTY≥1 非零退出）。
+     *
+     * **复验锚点 = `probe-empty-rate` 归零后方可摘除本行**；
+     * **禁止用全套 e2e 绿反推 T-14 已修**（本轮即反例：同一改动两次 3 连跑，
+     * 一次 3/3 全绿、一次第 1 轮就红）。
+     *
+     * 其余模板（catalog 其余项）不受影响，断言原样。
+     */
+    test.skip(templateId === "shadcn-landing2",
+      "T-14：生产 CSP 拦模板内联脚本 → shadcn-landing2 间歇白屏（实测 1/20；复验锚点=probe-empty-rate 归零）");
     expect(hasManifest(templateId), `${templateId} 未注册槽位契约（manifest），先注册再扫`).toBe(true);
     await openPreview(page, templateId);
     const draft = coverageDraft(templateId);

@@ -156,7 +156,13 @@ export default defineConfig({
   // 它们此前混在默认全套里长期红着，被当成"环境噪声"（同族第 6 次：
   // 看似在测、实则测不了）。移出**不等于**不跑，见上面的入口与命令。
   //
-  // **跑过没有**：收口报告附 `npm run test:e2e:strict` 的运行原文（8 passed）。
+  // ⚠️ **条件化排除（2026-09-13 实测补丁）**：`testIgnore` **不会被 CLI 的
+  //    文件名参数穿透**——`npx playwright test strict-smoke.spec.ts` 在排除生效时
+  //    仍然 "No tests found"（本轮实测：strict 入口此前**从未真正跑起来过**，
+  //    队列里那句"8 passed"无法复现）。
+  //    所以当这次运行**显式声明 strict** 时，排除的条件就不成立了（排除的理由
+  //    是"relaxed 服务上必红"）——这正是 `serve.mjs` 同一条「外部显式给了就尊重」
+  //    原则的延伸。默认（未声明 strict）仍然排除。
   // ---------------------------------------------------------------------------
   testIgnore: [
     "**/coverage-probe.spec.ts",
@@ -166,8 +172,10 @@ export default defineConfig({
     "**/flash-diag.spec.ts", // 预览重挂载时序
     "**/dev-diff.spec.ts", // 开发态差异诊断
     "**/real-template-export.spec.ts", // 依赖外网上游
-    "**/strict-smoke.spec.ts", // → npm run test:e2e:strict
-    "**/access-isolation.spec.ts", // → npm run test:e2e:strict
+    ...(process.env.SITECRAFT_ACCESS_MODE === "strict" ? [] : [
+      "**/strict-smoke.spec.ts", // → npm run test:e2e:strict
+      "**/access-isolation.spec.ts", // → npm run test:e2e:strict
+    ]),
   ],
   fullyParallel: false,
   workers: 1,
@@ -177,7 +185,9 @@ export default defineConfig({
   reporter: [
     ["list"],
     ["html", { outputFolder: "playwright-report", open: "never" }],
-    ["json", { outputFile: "test-results/results.json" }],
+    // 每轮独立产物目录时 results.json 也跟着进去（run-1/2/3 各自一份），
+    // 否则第二轮会覆盖第一轮——"3 连跑"的可审计性就没了（2026-09-13）。
+    ["json", { outputFile: `${process.env.PW_OUTPUT_DIR ?? "test-results"}/results.json` }],
   ],
   use: {
     baseURL: "http://127.0.0.1:3210",
@@ -190,7 +200,13 @@ export default defineConfig({
     url: "http://127.0.0.1:3210/",
     timeout: 300_000,
     // 复用旧服务会让验收跑到另一份代码；端口被占用时应直接失败。
-    reuseExistingServer: false,
+    //
+    // ⚠️ **唯一的例外通道（2026-09-13）**：`scripts/run-strict-e2e.mjs` 需要
+    // **自己先起服务**（它要在 playwright 之前跑 T-14 间歇率探针，探针必须有
+    // 服务在场），于是 playwright 会发现 3210 已被占。它通过显式环境变量
+    // `PW_REUSE_EXISTING_SERVER=1` 打开复用——**默认永远是 false**，
+    // 因为那条通道的风险（跑到别的代码上）由调用方显式承担，不静默发生。
+    reuseExistingServer: process.env.PW_REUSE_EXISTING_SERVER === "1",
     env: { ...process.env, PORT: "3210" },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],

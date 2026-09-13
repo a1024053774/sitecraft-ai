@@ -89,6 +89,25 @@ function pendingTargets(report: BridgeReport, draft: SiteDraft, manifest: Templa
 
 for (const templateId of templateIds) {
   test(`${templateId} reports complete visible content without demo residue`, async ({ page }) => {
+    /**
+     * ⚠️ **实例级隔离（T-14）：只隔离 `shadcn-landing2` 这一个实例。**
+     *
+     * 同一根因见 `docs/glossary.md` T-14：生产 CSP 拦该模板的内联脚本 →
+     * **间歇**渲染不出内容（复审实测冷加载 **EMPTY 1/20**：19/20 内容完好、
+     * 1/20 槽位全空）。CSP 拦截是**必要条件不是充分条件**。
+     *
+     * **只隔离受害实例**：`forge` 实例的断言原样保留；本文件下面第二条用例
+     * （"keeps hidden about and default products pending"）也不受影响，不动。
+     *
+     * **为什么 skip 而不是 test.fail**：间歇缺陷用 test.fail 会**随机报
+     * unexpected pass**，守卫自己变成随机红。替代拉力绳 =
+     * `e2e/scripts/probe-empty-rate.mjs`（收编在 `test:e2e:strict`，EMPTY≥1 非零退出）。
+     * **禁止用全套 e2e 绿反推 T-14 已修。**
+     *
+     * **恢复条件 = T-13 修复后先跑探针归零，再摘掉本行。**
+     */
+    test.skip(templateId === "shadcn-landing2",
+      "T-14：生产 CSP 拦模板内联脚本 → shadcn-landing2 间歇白屏（实测 1/20）");
     const manifest = getTemplateManifest(templateId);
     expect(manifest).toBeTruthy();
     const draft = completeDraft(templateId);
