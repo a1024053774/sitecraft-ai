@@ -135,7 +135,10 @@ export default function TemplatesPage() {
       </header>
       <main className="page-content">
         <div className="template-intro">
-          <div className="eyebrow">22 open-source templates{visibleMine.length > 0 ? ` + 你做的 ${visibleMine.length} 个` : ""}</div>
+          {/* ⚠️ 数字**派生**自编译期基线常量，不手抄（军规 1）。
+              这里原本写死 "22 open-source templates"——正是这页把"用户做的模板"
+              加进来的原因注释里点名的那句假话：基线加了新模板它不会变。 */}
+          <div className="eyebrow">{templates.length} open-source templates{visibleMine.length > 0 ? ` + 你做的 ${visibleMine.length} 个` : ""}</div>
           <h1>
             先选一个方向，
             <br />
