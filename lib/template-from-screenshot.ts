@@ -46,6 +46,45 @@ import { captureSite } from "./site-capture-browser.ts";
 import { isShotUsable } from "./site-capture.ts";
 import { takeProductShots } from "./site-screenshot.ts";
 
+/**
+ * 可注入的副作用点（**只为可测性存在**，与 A 轨同一条范式）。
+ *
+ * ⚠️ **默认值就是真实实现**——不传 `deps` 时行为与从前逐字节相同。
+ * 测试里才传 fake，生产/路由一律不传。
+ *
+ * ## 为什么只注入这四个，不注入 `sharp`
+ *
+ * 注入面**只收副作用点**（网络 + 磁盘 IO）：抓页面、读已存图、调模型、裁产品图。
+ * `sharp` 虽然重，但它是**确定性的本地库**——造一张真图就能把尺寸闸的两向都跑实，
+ * 不需要桩。把它也提成参数只会让函数体多一层间接，换不来任何可测性。
+ *
+ * ## 为什么是四个，不是五个
+ *
+ * 被测的是**编排层**（分支与文案），不是纯逻辑：
+ * `coerceVisionDsl` / `dedupeProducts` / `planProductShots` / `composeTemplate`
+ * 都已有专门测试，在这一层继续打桩只会测到"桩接对了没"。
+ * 所以它们走真实实现，注入的 fake 只需喂它们**合法输入**。
+ */
+export type CreateFromScreenshotDeps = {
+  readStoredImage: typeof readStoredImage;
+  requestVisionDsl: typeof requestVisionDsl;
+  takeProductShots: typeof takeProductShots;
+  captureSite: typeof captureSite;
+};
+
+/**
+ * 默认实现——**导出是为了让测试能断言它没被换成桩**。
+ *
+ * ⚠️ 同 A 轨的教训：不导出的话，测试只能靠行为间接推断，而那拦不住桩
+ * （A 轨第一版就是假门禁，见 `tests/template-from-url.test.ts` 的「默认 deps」用例）。
+ */
+export const DEFAULT_DEPS: CreateFromScreenshotDeps = {
+  readStoredImage,
+  requestVisionDsl,
+  takeProductShots,
+  captureSite,
+};
+
 /** 一次生成的产物——**已经是可以直接交给登记接口的东西**。 */
 export type TemplateBundle = {
   templateId: string;
@@ -105,7 +144,10 @@ function pickCategory(raw: unknown): Category {
  * 且 message 是**给客户看的中文**。调用方（路由）直接把它转成响应，
  * 不需要再包一层 try/catch。
  */
-export async function createTemplateFromScreenshot(input: CreateFromScreenshotInput): Promise<CreateFromScreenshotResult> {
+export async function createTemplateFromScreenshot(
+  input: CreateFromScreenshotInput,
+  deps: CreateFromScreenshotDeps = DEFAULT_DEPS,
+): Promise<CreateFromScreenshotResult> {
   const startedAt = Date.now();
 
   // ---- 1. 取到那张图 ----
@@ -120,13 +162,13 @@ export async function createTemplateFromScreenshot(input: CreateFromScreenshotIn
   let titleHint = "";
 
   if (input.source.kind === "upload") {
-    const stored = await readStoredImage(input.source.urlPath);
+    const stored = await deps.readStoredImage(input.source.urlPath);
     if (!stored) {
       return { ok: false, step: "read", message: "找不到这张图，可能上传时出错了。请重新上传一次。" };
     }
     imageBuffer = stored;
   } else {
-    const captured = await captureSite(input.source.url, {
+    const captured = await deps.captureSite(input.source.url, {
       shotDir: ".sitecraft-data/captures",
       // 只有要配图时才下载资源——不配图时省掉这一步（实测整页抓取 5.5s，下载是其中大头）
       downloadAssets: Boolean(input.withProductImages),
@@ -167,7 +209,7 @@ export async function createTemplateFromScreenshot(input: CreateFromScreenshotIn
   const mime = meta.format === "jpeg" ? "image/jpeg" : "image/jpeg";
 
   const prompt = getPromptDefinition("vision_dsl");
-  const called = await requestVisionDsl({
+  const called = await deps.requestVisionDsl({
     imageDataUrl: toDataUrl(modelBuffer.toString("base64"), mime),
     systemPrompt: buildVisionSystemPrompt(),
     userPrompt: buildVisionUserPrompt({ siteModel: input.siteModel, note: input.note, titleHint }),
@@ -272,7 +314,7 @@ export async function createTemplateFromScreenshot(input: CreateFromScreenshotIn
       }
       const plan = planProductShots({ available: candidates, needed, productsRange });
     if (plan.length > 0) {
-      const captured = await takeProductShots({
+      const captured = await deps.takeProductShots({
         pageUrl: input.source.kind === "url" ? input.source.url : "",
         // 裁图要按**页面里的真实坐标**，所以必须重新打开页面——
         // 用截图文件的像素坐标去裁是错的（实测差 1.8 倍）。
