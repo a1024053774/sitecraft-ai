@@ -26,6 +26,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import { GenerationDoneView } from "@/components/generate/generation-done-view";
 import { ClarifyStepView } from "@/components/generate/clarify-step-view";
+import { InputStepView } from "@/components/generate/input-step-view";
 import { templates, type SiteDraft } from "@/lib/site-model";
 import { defaultDraft } from "@/lib/site-document";
 import { deriveDesignTokenResult } from "@/lib/design-variants";
@@ -78,13 +79,6 @@ const ACTIVE_GENERATION_KEY = "sitecraft:active-generation:v1";
 const REAL_PREVIEW_DRAFT_KEY = "sitecraft:real-preview-draft:v1";
 const GENERATION_TIMEOUT_MS = GENERATION_BUDGET.clientHardDeadlineMs;
 const ANALYZE_TIMEOUT_MS = GENERATION_BUDGET.clientHardDeadlineMs;
-
-const examples = [
-  "做个光伏出口企业的官网，主打欧美，要显得专业可靠",
-  "帮我的 SaaS 团队做官网，用户是海外开发者",
-  "工业零部件厂的官网，突出质量和服务",
-  "设计咨询公司的作品集网站",
-];
 
 const BUSINESS_LABELS: Record<string, string> = {
   manufacturing: "工业制造",
@@ -844,95 +838,39 @@ export default function GeneratePage() {
         </header>
         <div className="page-content">
           {step === "input" && (
-            <div className="generate-input">
-              <div className="eyebrow">{adjusting ? "继续调整需求" : "✨ 自然语言建站"}</div>
-              <h1>
-                {adjusting ? (
-                  <>还想怎么改？<br /><span style={{ color: "#2e6b4f" }}>继续聊，我接着调。</span></>
-                ) : (
-                  <>用一段对话，<br /><span style={{ color: "#2e6b4f" }}>变成一座网站。</span></>
-                )}
-              </h1>
-              <p>{adjusting ? "在已确认的需求上继续说，AI 只改你提到的地方。" : "描述你的业务，AI 帮你选模板、出初稿，再进工作台精修。"}</p>
-              <textarea
-                className="generate-textarea"
-                value={message}
-                onChange={(e) => { setMessage(e.target.value); setDraftRestored(false); }}
-                placeholder={adjusting ? "例如：改成日系风格 / 加上预约功能" : "例如：做个光伏出口企业的官网，主打欧美，要显得专业可靠"}
-                rows={3}
-                maxLength={400}
-              />
-              <div className="generate-char-count">{message.trim().length}/400</div>
-              {!adjusting && (
-                <div className="generate-examples">
-                  {examples.map((ex) => (
-                    <button key={ex} className="generate-chip" onClick={() => setMessage(ex)}>
-                      {ex}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!adjusting && (
-                <details className="generate-import">
-                  <summary>有现成的公司简介或产品清单？粘贴进来（选填，让内容更准）</summary>
-                  <textarea
-                    className="generate-textarea"
-                    value={extraContext}
-                    onChange={(e) => { setExtraContext(e.target.value); setDraftRestored(false); }}
-                    placeholder="粘贴公司简介 / 产品清单 / 资质与案例，例如：华辰光伏成立于 2001 年，专注光伏组件与逆变器制造，通过 ISO 9001 认证，产品销往欧美……"
-                    rows={6}
-                    maxLength={20000}
-                  />
-                  <div className="generate-char-count">{extraContext.trim().length}/20000</div>
-                </details>
-              )}
-              {error && <p className="generate-error"><AlertCircle size={13} />{error}</p>}
-              {draftRestored && <p className="generate-progress" role="status">已恢复刷新前的需求草稿</p>}
-              <div className="generate-clarify-actions">
-                {adjusting && (
-                  <button className="secondary-button" disabled={busy} onClick={() => setStep("confirm")}>
-                    返回确认页
-                  </button>
-                )}
-                <button
-                  className="primary-button"
-                  disabled={!message.trim() || busy}
-                  onClick={() => {
-                    // 正向检测是否含文字/数字：!!!/组合 emoji/带肤色 emoji 全拦，全角文字正确放行
-                    const isEmptyOrSymbolOnly = (s: string) => !/[\p{L}\p{N}]/u.test(s);
-                    if (!message.trim() || isEmptyOrSymbolOnly(message)) {
-                      setError("请输入文字描述（业务方向、目标用户等），只有表情或符号无法识别。");
-                      return;
-                    }
-                    void analyze(message);
-                  }}
-                >
-                  {busy ? <LoaderCircle size={15} className="spin" /> : <WandSparkles size={15} />}
-                  {busy ? progressText : adjusting ? "更新理解" : "开始理解需求"} <ArrowRight size={15} />
-                </button>
-                {adjusting && (
-                  <button
-                    className="secondary-button"
-                    disabled={busy}
-                    onClick={() => {
-                      // 重新开始：全量清空迭代状态
-                      setHistory([]);
-                      setIntent(null);
-                      setTemplate(null);
-                      setHiddenSections([]);
-                      setAdjusting(false);
-                      setMessage("");
-                      setError(null);
-                      setClarifyState(null);
-                      setClarifyText("");
-                    }}
-                  >
-                    重新开始
-                  </button>
-                )}
-              </div>
-              {busy && <p className="generate-progress">{progressText}</p>}
-            </div>
+            <InputStepView
+              message={message}
+              extraContext={extraContext}
+              error={error}
+              busy={busy}
+              progressText={progressText}
+              draftRestored={draftRestored}
+              adjusting={adjusting}
+              onChangeMessage={(value) => { setMessage(value); setDraftRestored(false); }}
+              onChangeExtraContext={(value) => { setExtraContext(value); setDraftRestored(false); }}
+              onBackToConfirm={() => setStep("confirm")}
+              onSubmit={() => {
+                // 正向检测是否含文字/数字：!!!/组合 emoji/带肤色 emoji 全拦，全角文字正确放行
+                const isEmptyOrSymbolOnly = (s: string) => !/[\p{L}\p{N}]/u.test(s);
+                if (!message.trim() || isEmptyOrSymbolOnly(message)) {
+                  setError("请输入文字描述（业务方向、目标用户等），只有表情或符号无法识别。");
+                  return;
+                }
+                void analyze(message);
+              }}
+              onRestart={() => {
+                // 重新开始：全量清空迭代状态
+                setHistory([]);
+                setIntent(null);
+                setTemplate(null);
+                setHiddenSections([]);
+                setAdjusting(false);
+                setMessage("");
+                setError(null);
+                setClarifyState(null);
+                setClarifyText("");
+              }}
+            />
           )}
 
           {step === "clarify" && clarifyState && (
