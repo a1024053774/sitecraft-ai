@@ -172,3 +172,69 @@ test.describe("T-21 · forge 结构回归网", () => {
     expect(hero.present, "hero 图必须仍在（证明 a/b 是两条独立路径，不是整个 hero 塌了）").toBe(true);
   });
 });
+
+/**
+ * T-22 · 头部**可见文案不得重复**（2026-09-14 登记）。
+ *
+ * ## 为什么加这条（现状已不复现，但需要常设回归网）
+ *
+ * 用户截图里曾出现「联系我们」在头部出现两次（nav 兜底词与 contact 标题同词）。
+ * 2026-09-14 实测三适配器（forge / kindred / nextjs-landing）**均已不复现**：
+ * nav 渲染的是 `draft.navigation` 的真实值（关于/优势/产品/服务/联系），
+ * 与 contact 标题「联系我们」不同词 —— 该缺陷被其他改动顺带修掉了。
+ *
+ * **但仍立此断言**：这类"同词重复"是**很容易复发**的（兜底词一改回去就复发），
+ * 而它只影响观感、不报错，没有门禁就再也回不来（S-1 的教训）。
+ *
+ * 判据：**只看可见元素**（`getClientRects().length`）——
+ * 桌面/移动两套 logo 是设计需要，不算重复。
+ */
+test.describe("T-22 · 头部可见文案不得重复", () => {
+  for (const templateId of ["forge", "kindred", "nextjs-landing"]) {
+    test(`${templateId} 头部无可见重复文案`, async ({ page, baseURL }) => {
+      await page.goto(`${baseURL}/api/templates/${templateId}/preview`);
+      const draft = emptyDraft();
+      draft.templateId = templateId;
+      draft.revision = 902;
+      await page.evaluate(
+        ({ tid, d }) =>
+          new Promise((resolve) => {
+            const timer = window.setTimeout(resolve, 8_000);
+            const receive = (event) => {
+              if (event.data?.type !== "sitecraft:applied" || event.data.revision !== d.revision) return;
+              window.clearTimeout(timer);
+              window.removeEventListener("message", receive);
+              resolve(null);
+            };
+            window.addEventListener("message", receive);
+            window.postMessage(
+              { type: "sitecraft:content", templateId: tid, siteKey: "t22-spec", draft: d, locale: d.locale, variant: "preview" },
+              "*",
+            );
+          }),
+        { tid: templateId, d: draft },
+      );
+
+      const dupes = await page.evaluate(() => {
+        const nodes = Array.from(document.querySelectorAll("header a, header button")).filter(
+          (n) => n.getClientRects().length > 0, // 只算可见的
+        );
+        const counts: Record<string, number> = {};
+        for (const node of nodes) {
+          const text = (node.textContent || "").trim();
+          if (!text) continue;
+          counts[text] = (counts[text] || 0) + 1;
+        }
+        return Object.entries(counts)
+          .filter(([, count]) => count > 1)
+          .map(([text, count]) => `${text} x${count}`);
+      });
+
+      expect(
+        dupes,
+        `${templateId} 头部出现**可见的重复文案**（含移动端隐藏元素不算）——` +
+          `历史上曾因 nav 兜底词与 contact 标题同词触发：${dupes.join("、")}`,
+      ).toEqual([]);
+    });
+  }
+});
