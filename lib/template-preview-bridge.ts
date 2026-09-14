@@ -152,6 +152,7 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
        * ⚠️ 这里**不能写反斜杠转义的单引号**：本段处于外层模板字面量内部，
        * 转义会被先吃掉一层，交付成 first === ''' —— 字符串未终止、整段脚本报废。
        * 用 charCodeAt 判等，零转义面。 */
+      let url = inner;
       if (url.length >= 2) {
         const firstCode = url.charCodeAt(0);
         const isQuote = firstCode === 39 || firstCode === 34; // ' or "
