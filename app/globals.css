@@ -145,6 +145,8 @@ a { color: inherit; text-decoration: none; }
 .stat-note { font-size: 11px; color: var(--green); }
 .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .section-heading h2 { font-size: 16px; letter-spacing: -.03em; margin: 0; }
+/* 列表被截断时的说明（首页「最近打开的站点」只显示 6 个，其余在此交代去向） */
+.section-hint { font-size: 11px; color: var(--muted); font-weight: 600; }
 .section-link { font-size: 11px; color: var(--green); font-weight: 700; }
 .site-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .site-card { background: white; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; transition: transform .2s, box-shadow .2s; }

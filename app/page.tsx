@@ -78,15 +78,25 @@ function SiteThumb({ site }: { site: SiteItem }) {
 
 export default function Dashboard() {
   const [sites, setSites] = useState<SiteItem[] | null>(null);
+  /** 工作区**全部**站点数——与下面只显示若干个的列表分开，卡片上的"站点总数"要的是它。 */
+  const [totalSites, setTotalSites] = useState(0);
 
   useEffect(() => {
-    fetch("/api/sites", { cache: "no-store" })
+    /* 2026-09-14：首页只要**最近几个**。此前拉全量（实测工作区 485 个站，
+     * 绝大多数是 e2e 造的测试数据），页面被无用历史站淹没。
+     * `listSites()` 已按 updatedAt 倒序 → 取前 6 即"最近 6 个"。 */
+    fetch("/api/sites?limit=6", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("sites_unavailable"))))
-      .then((payload: { sites?: SiteItem[] }) => setSites(payload.sites ?? []))
+      .then((payload: { sites?: SiteItem[]; total?: number }) => {
+        setSites(payload.sites ?? []);
+        setTotalSites(typeof payload.total === "number" ? payload.total : (payload.sites ?? []).length);
+      })
       .catch(() => setSites([]));
   }, []);
 
-  const siteCount = sites?.length ?? 0;
+  const siteCount = totalSites;
+  /** 站点确实比展示的多时才提示——否则"还有 N 个"会误导。 */
+  const hiddenCount = Math.max(0, totalSites - (sites?.length ?? 0));
 
   return (
     <div className="app-shell">
@@ -135,7 +145,12 @@ export default function Dashboard() {
           </div>
 
           <div className="section-heading">
-            <h2>最近的站点</h2>
+            <h2>最近打开的站点</h2>
+            {hiddenCount > 0 && (
+              <span className="section-hint">
+                仅显示最近 {sites?.length ?? 0} 个，还有 {hiddenCount} 个未显示
+              </span>
+            )}
           </div>
 
           {sites === null ? (

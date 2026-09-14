@@ -43,5 +43,17 @@ export async function GET(request: Request) {
   if (denied) return denied;
   // 2026-09-10：此前恒返 `[{id:"demo"}]`——首页因此永远看不到用户真正建的站。
   // 现列出本工作区的真实站点（文件存储扫 .sitecraft-data/sites，PG 查 sitecraft_sites）。
-  return Response.json({ sites: await listSites() }, { headers: { "Cache-Control": "no-store" } });
+  //
+  // 2026-09-14：支持 `?limit=N`。首页「最近的站点」只要最近几个——
+  // 此前它渲染**全量**（实测工作区有 485 个站，绝大多数是 e2e 造的测试数据），
+  // 页面被无用的历史站淹没。`listSites()` 已按 `updatedAt` 倒序，取前 N 即"最近"。
+  // 不传 `limit` 时行为**完全不变**（工作台的站点列表依赖全量）。
+  const limitParam = new URL(request.url).searchParams.get("limit");
+  const limit = limitParam === null ? null : Number(limitParam);
+  const all = await listSites();
+  const sites = limit !== null && Number.isFinite(limit) && limit > 0 ? all.slice(0, Math.floor(limit)) : all;
+  return Response.json(
+    { sites, total: all.length },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
