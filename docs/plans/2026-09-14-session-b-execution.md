@@ -279,3 +279,42 @@ C. 产品卡数据源：构造带 image 的 draft 时，产品区存在 <img>；
 
 两项在 2026-09-14 晚均未执行：3210 持续被占（新 PID 4680 + 大量 `TIME_WAIT`），
 且探针会 `next build` 覆盖 `.next`——正好踩到对方正在跑的那台服务器（附则 A3）。
+
+---
+
+## 九、e2e 窗口接力队列（用户 2026-09-14 裁决）
+
+**队列：B → A。** 会话 B 为第一个窗口。
+
+**B 窗口的两项（按序，跑完即关窗，等 T-21 断言批再开）：**
+
+```bash
+# 0) 确认窗口：3210 无 LISTENING，且工作区只含自己的文件
+netstat -ano | grep -E ":3210\s.*LISTENING"   # 应为空
+git status --porcelain
+
+# 1) 用 serve.mjs 起服（**禁裸 next start**——会绕过 needsBuild，T-20/附则 A3）
+#    判据：日志里必须出现 `Creating an optimized production build`
+node e2e/scripts/serve.mjs
+
+# 2) a) T-24/T-25/T-26/T-27 浏览器验收（186f1f3 备好）
+npx playwright test e2e/specs/ux-feedback-batch.spec.ts
+
+# 3) b) T-21 forge 结构探针，**贴全文原始输出**（断言等双方看过再写）
+node --experimental-strip-types scripts/probe-forge-structure.mjs
+```
+
+> 探针用 `next start`（生产形态，脚本内已带新鲜度检查 + 会自动 build）。
+> 若已在 1) 之后，`.next` 已是新鲜的，探针不会再 build 一次。
+
+**窗口未到的证据（2026-09-14 晚，会话 B 实测）**：
+- `3210 LISTENING PID 4680`（会话 A 的 e2e）；
+- 工作区出现会话 A 的在制品：`lib/template-preview-bridge.ts`（改动中）
+  + 4 个 `e2e/scripts/diag-snapshot-*.mjs`。
+
+**会话 B 在此状态下的动作**：**停等，不跑**。已办好两件事，等窗口一到即可执行：
+- `186f1f3` 的 spec 已提交（只读已备）；
+- 本清单已写死在文档里（换会话/换线程可照做）。
+
+**若 B 的 spec 有红**：只报归因，**不修** `lib/` / `app/workspace/page.tsx` 侧根因——
+T-27 那条已知「根因在 page.tsx、登记 B4b」，红了也按诊断处理（用户裁决 3）。
