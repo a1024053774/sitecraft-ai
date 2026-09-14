@@ -39,6 +39,12 @@ npm run migrate:drafts
 
 容器启动时通过运行环境注入 `DEEPSEEK_API_KEY` 和 `DATABASE_URL`。多实例示例见 `deploy/kubernetes/sitecraft.yaml`；密钥不得写入镜像或清单。
 
+> ⚠️ **生产部署前必读：[`docs/deploy-auth.md`](docs/deploy-auth.md)。**
+> **不设 `SITECRAFT_ACCESS_MODE` 时，非 development 一律 `strict`**——
+> 此时除少数公开路由外**全部返回 401**，需要网关注入三个访问头
+> （`x-sitecraft-workspace-id` / `-actor-id` / `-role`）。
+> 漏读的后果是**整站不可用**。防漂移冒烟：`npm run test:e2e:strict`。
+
 运行检查：
 
 ```bash
