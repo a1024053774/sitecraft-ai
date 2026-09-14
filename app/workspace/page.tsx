@@ -38,6 +38,7 @@ import { AssetReplaceDialog } from "@/components/asset-replace-dialog";
 import { SiteMaterialDialog } from "@/components/site-material-dialog";
 import { ReleasesDialog } from "@/components/releases-dialog";
 import { ChatPanel } from "@/components/chat-panel";
+import { RegenerateSectionButton } from "@/components/regenerate-section-button";
 import {
   defaultDraft,
   getTemplate,
@@ -1208,15 +1209,7 @@ export default function WorkspacePage() {
             <button className="secondary-button" onClick={() => setShowImport(true)}><Upload size={14} />商品</button>
             <button className="secondary-button" type="button" onClick={() => void openMaterial()} disabled={siteId === "demo"}><FileText size={14} />素材</button>
             <Link className="secondary-button" href={`/leads?siteKey=${encodeURIComponent(siteId)}`}><MessageSquareText size={14} />询盘</Link>
-            {selectedTarget && sectionFromTarget(selectedTarget.key) && (
-              <button
-                className="secondary-button"
-                disabled={busy}
-                onClick={() => setRegenerateDialog({ section: sectionFromTarget(selectedTarget.key), label: selectedTarget.label })}
-              >
-                <Sparkles size={14} />重生成此板块
-              </button>
-            )}
+            <RegenerateSectionButton selectedTarget={selectedTarget} resolveSection={sectionFromTarget} busy={busy} onRegenerate={(section, label) => setRegenerateDialog({ section, label })} />
             <button
               className="secondary-button"
               disabled={busy || siteId === "demo"}

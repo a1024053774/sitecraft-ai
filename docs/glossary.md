@@ -712,3 +712,30 @@ app/api/templates/[templateId]/preview/route.ts    CRLF=164
 **与既有纪律的关系**：
 - 关联 **T-19**（CRLF 进历史的根因）；
 - 它在「口径更正本身也要过复核」的伞下——但**第四次了**，故**单独成条、升格为硬规矩**。
+
+### X-1 · 军规 5 显式豁免：B6「重生成此板块」入口（2026-09-14 用户裁决）
+
+**军规 5**：巨型文件（`preview/route.ts` / `workspace/page.tsx` / `generate/page.tsx`）
+拒收新代码，先拆子模块。
+
+**本次豁免**：B6 把「重生成此板块」做成独立组件
+`components/regenerate-section-button.tsx`，
+`app/workspace/page.tsx` 侧**只增 2 行**：
+
+- 1 行 `import`
+- 1 行挂载（原 8 行内联按钮被它替换）
+
+**豁免成立的三条理由**（用户裁决原文）：
+
+1. **增量 2 行**——不构成"往巨型文件加代码"；
+2. **能力已存在**——局部重生成链路（`regenerateSectionOperations` →
+   `POST /api/sites/[id]/generate` 的 `regenerate` step → SSE）早已打通，
+   `submitRegenerate` 也在，本次**没写任何新逻辑**；
+3. **新代码 100% 在子模块内**——映射规则也不复制（`sectionFromTarget` 由父级传入，
+   遵附则 2）。
+
+⚠️ **不许拿这条当先例给别的批次开口子。**
+**回收条件**：**B4b 完成后回收此豁免**（届时 workspace 已可正常拆装）。
+
+> 净效果其实**是负的**：8 行内联 → 1 行挂载（页面侧 −7 行），
+> 省下的逻辑全在新组件里。豁免只是把"新增代码在页面里"这件事说清楚。
