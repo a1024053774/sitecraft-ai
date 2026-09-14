@@ -103,6 +103,69 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
     return findHero();
   };
   const localize = (value, locale) => value && typeof value === 'object' ? (value[locale] || value.zh || value.en) : value;
+  /**
+   * 修复「**任意值背景类未被编译成 CSS**」的通用兜底（T-21 机制 b / T-28）。
+   *
+   * ## 问题（vendor 构建缺陷，非本仓注入缺陷）
+   *
+   * 部分模板的 HTML 用了 Tailwind 任意值类，例如 forge 的
+   * <section class="... bg-[url('/CTAbg.jpg')] bg-cover ...">。
+   * 但它们的 dist 里**根本没有生成对应的 CSS 规则**——
+   * 实测：small-bis/dist/index.html 只引 _astro/About.B3kSiVBb.css，
+   * 而该 CSS 中 bg-\[url 规则数 = **0**。于是那张背景大图**在原生页上也不显示**。
+   *
+   * ## 做法
+   *
+   * 遍历带 class 的元素，找出含 url(...) 的任意值背景类；**当且仅当**
+   * computed style 里确实没有背景图时，把该 URL 解析出来写成**内联长属性**。
+   *
+   * ## 三条设计约束（都有代价支撑）
+   *
+   * 1. **URL 从 class 文本解析**，不手抄路径——手抄等于把 'CTAbg.jpg' 变成第二处真相
+   *    （军规 1）；class 里没有就什么都不注入。
+   * 2. **只写 backgroundImage + backgroundSize 两个长属性，绝不写 background 简写**：
+   *    简写会重置全部 background-* （含 vendor 样式表给的），且**内联优先于样式表**
+   *    —— 本轮实测过一次背景图被静默吃掉，B 在 T-27 也踩过同款。
+   * 3. **幂等**：只在「computed 无图」时动手。vendor 哪天把规则补上，这里自然不再触发，
+   *    不会与它的规则打架（这正是选内联、不选注入同名 CSS 规则的理由）。
+   */
+  const repairUncompiledBackgroundClasses = () => {
+    /* ⚠️ 这段代码处于**外层模板字面量内部**，正则里的反斜杠转义（如 s 的斜杠变体）
+     * 会被模板字面量吃掉（实测：/\\s+/ 交付到浏览器变成 /s+/），
+     * 于是 split 不按空白切、token 判定全假、函数静默不生效——**且没有任何报错**。
+     * 所以这里一律**不用反斜杠转义**：切分用字符串，判等用 indexOf。 */
+    const nodes = Array.from(document.querySelectorAll('[class*="bg-[url("]'));
+    nodes.forEach((node) => {
+      const cls = typeof node.className === 'string' ? node.className : (node.getAttribute('class') || '');
+      /* 用空格/Tab/换行三种**字面量**切分，等价于按空白切。
+       * ⚠️ 这里**不能写反斜杠转义的 n/t**：本段处于外层模板字面量内部，
+       * 它们会被**先展开成真实控制字符**（实测交付后字符串被换行劈开、语法直接崩）。
+       * 一律用 String.fromCharCode 构造，零转义面。 */
+      const NL = String.fromCharCode(10);
+      const TAB = String.fromCharCode(9);
+      const parts = cls.split(' ').join(NL).split(TAB).join(NL).split(NL);
+      const token = parts.find((name) => name.indexOf('bg-[url(') === 0);
+      if (!token) return;
+      /* token 形如 bg-[url('X')] 或 bg-[url(X)] —— 取 url( 与结尾 )] 之间的内容 */
+      const inner = token.slice('bg-[url('.length, token.endsWith(')]') ? -2 : -1);
+      /* 剥掉可能存在的成对引号（单双均可）。
+       * ⚠️ 这里**不能写反斜杠转义的单引号**：本段处于外层模板字面量内部，
+       * 转义会被先吃掉一层，交付成 first === ''' —— 字符串未终止、整段脚本报废。
+       * 用 charCodeAt 判等，零转义面。 */
+      let url = inner;
+      if (url.length >= 2) {
+        const firstCode = url.charCodeAt(0);
+        const isQuote = firstCode === 39 || firstCode === 34; // ' or "
+        if (isQuote && url.charCodeAt(url.length - 1) === firstCode) url = url.slice(1, -1);
+      }
+      if (!url) return;
+      const computed = getComputedStyle(node);
+      /* 幂等守卫：vendor 修好之后 computed 会有图，这里就不再插手 */
+      if (computed.backgroundImage && computed.backgroundImage !== 'none') return;
+      node.style.backgroundImage = 'url("' + url + '")';
+      if (!computed.backgroundSize || computed.backgroundSize === 'auto') node.style.backgroundSize = 'cover';
+    });
+  };
   const setText = (node, value, slot, applied) => {
     if (!node || typeof value !== 'string' || !value.trim()) return false;
     node.dataset.sitecraftSlot = slot;
@@ -777,6 +840,8 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
     if (!draft) return { appliedSlots: [], missingSlots: expectedTargets || [] };
     const applied = new Set();
     if (typeof prepareTemplate === 'function') prepareTemplate();
+    /* vendor 构建可能没把任意值背景类编译出规则（T-28）——在 prepareFn 造完 DOM 之后补一次 */
+    repairUncompiledBackgroundClasses();
     applyDesignTokens(draft);
     // 资产替换放在 prepareTemplate 之后（prepareFn 可能重写 img.src，必须先让它跑完）
     const assetReport = applyAssets(draft);
@@ -1164,6 +1229,7 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
       if (activeVariant === 'thumbnail') {
         requestAnimationFrame(() => requestAnimationFrame(() => {
           if (typeof prepareTemplate === 'function') prepareTemplate();
+          repairUncompiledBackgroundClasses();
           applyDesignTokens(activeDraft);
           parent.postMessage({
             type: 'sitecraft:applied',

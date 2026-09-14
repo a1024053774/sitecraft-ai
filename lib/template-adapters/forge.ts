@@ -137,7 +137,6 @@ const prepareFn = `
       cta.dataset.sitecraftContactBuilt = 'true';
       cta.id = 'contact';
       cta.dataset.sitecraftScope = 'contact';
-      cta.innerHTML = '';
       cta.style.boxSizing = 'border-box';
       cta.style.display = 'flex';
       cta.style.flexDirection = 'column';
@@ -146,11 +145,22 @@ const prepareFn = `
       cta.style.height = 'auto';
       cta.style.minHeight = '0';
       cta.style.textAlign = 'center';
-      cta.style.setProperty('background', 'linear-gradient(150deg,rgba(16,22,42,.88) 0%,rgba(28,31,74,.82) 100%)');
       cta.style.color = '#f8fafc';
       cta.style.padding = 'clamp(60px,7vw,96px) clamp(20px,7vw,48px)';
+      /* 深色遮罩用**子节点叠层**实现，绝不碰 background 系列属性——
+       * 与 vendor 原生的 <div class="bg-black bg-opacity-30"> 同思路。
+       * ⚠️ 这里连 backgroundImage:none 都不写：那会清掉 class 指定的背景图。
+       * 背景图本身的落地挂在共享层 repairUncompiledBackgroundClasses()——
+       * 因为 vendor 的 dist **根本没编译出** bg-[url(...)] 的 CSS 规则（T-28）。 */
+      cta.replaceChildren();
+      cta.style.position = 'relative';
+      cta.style.overflow = 'hidden';
+      const overlay = document.createElement('div');
+      overlay.setAttribute('data-sitecraft-contact-overlay', 'true');
+      overlay.style.cssText = 'position:absolute;inset:0;background:linear-gradient(150deg,rgba(16,22,42,.88) 0%,rgba(28,31,74,.82) 100%);pointer-events:none';
+      cta.append(overlay);
       const box = document.createElement('div');
-      box.style.cssText = 'width:100%;max-width:720px;display:flex;flex-direction:column;align-items:center;gap:1.1rem';
+      box.style.cssText = 'position:relative;z-index:1;width:100%;max-width:720px;display:flex;flex-direction:column;align-items:center;gap:1.1rem';
       const h1 = document.createElement('h1');
       h1.style.cssText = 'margin:0;font-size:clamp(30px,4.5vw,52px);font-weight:800;line-height:1.15';
       const p = document.createElement('p');

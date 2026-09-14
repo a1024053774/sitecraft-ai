@@ -8,3 +8,6 @@ export declare function templateRegions(lines: readonly string[]): Array<[number
 export declare function scanRegions(
   lines: readonly string[],
 ): Array<{ line: number; text: string }>;
+export declare function scanBackslashEscapes(
+  lines: readonly string[],
+): Array<{ line: number; text: string }>;

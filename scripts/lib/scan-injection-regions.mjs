@@ -117,3 +117,42 @@ export function scanRegions(lines) {
   }
   return findings;
 }
+
+/**
+ * 区内**反斜杠转义**检查（2026-09-14 新增，与反引号同族）。
+ *
+ * ## 为什么需要它
+ *
+ * 注入区处于**外层模板字面量内部**。写在那里的 `\s`、`\d`、`\.`、`\'` 等
+ * 会被模板字面量**先吃掉一层**：源码里的 `/\s+/` 交付到浏览器变成 `/s+/`。
+ * 后果是**静默的**——不报错、不抛异常，正则只是变成了另一个意思。
+ *
+ * 本轮实测：`cls.split(/\s+/)` 交付成 `cls.split(/s+/)`，
+ * 于是 class 不按空白切分、token 判定全假、修复函数**一声不响地不生效**，
+ * 排查了整整一轮（够写进 T-28 的教训）。
+ *
+ * ## 判据
+ *
+ * 区内出现「反斜杠 + 字母/常见转义符」即报出。
+ * 允许的例外：`\`（要的就是一个字面反斜杠）与 `\n`（换行，常见且安全）。
+ *
+ * @param {string[]} lines
+ * @returns {Array<{ line: number, text: string }>}
+ */
+export function scanBackslashEscapes(lines) {
+  const findings = [];
+  const BAD = /\[a-zA-Z.]/g;
+  for (const [start, end] of templateRegions(lines)) {
+    for (let ln = start; ln < end - 1 && ln < lines.length; ln += 1) {
+      const text = lines[ln] ?? "";
+      /* ⚠️ **不设"合法双反斜杠"逃生口**：区内的 `\\s` 恰恰是陷阱本身
+       * （写的人以为在写正则的 \s，交付后就是它），剥掉它等于放过真事故。
+       * 一律按「反斜杠 + 字母」报出；确需字面反斜杠时改用 String.fromCharCode。 */
+      const hits = text.match(BAD);
+      if (hits) {
+        findings.push({ line: ln + 1, text: `${hits.join(" ")} :: ${text.trim().slice(0, 110)}` });
+      }
+    }
+  }
+  return findings;
+}

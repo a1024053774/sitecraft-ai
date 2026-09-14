@@ -42,7 +42,7 @@ import test from "node:test";
  * 便于给"为什么这么判"当场取证（本轮就靠它定位到三处判据缺陷）。
  * 本文件负责**断言**：把扫描结果变成会红的门禁。
  */
-import { scanRegions, templateRegions } from "../scripts/lib/scan-injection-regions.mjs";
+import { scanBackslashEscapes, scanRegions, templateRegions } from "../scripts/lib/scan-injection-regions.mjs";
 
 /** 被检查的文件：全部适配器 + 桥。新增适配器**自动纳入**（无锚点可漂）。 */
 function injectionSourceFiles(root: string): string[] {
@@ -113,4 +113,45 @@ test("检查器自身有效：能识别多区文件且不把字符串里的反�
   const regions = templateRegions(lines);
   assert.deepEqual(regions, [[2, 4], [5, 7]], "必须识别出两个区，且不把第 1 行的字符串当区起点");
   assert.deepEqual(scanRegions(lines).map((f) => f.line), [6], "只应命中区 2 内的那一条");
+});
+
+test("注入区内不得出现会被模板字面量吃掉的反斜杠转义", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const problems: string[] = [];
+  let scannedRegions = 0;
+  for (const rel of injectionSourceFiles(root)) {
+    const absolute = path.join(root, rel);
+    if (!fs.existsSync(absolute)) continue;
+    const lines = fs.readFileSync(absolute, "utf8").split("\n");
+    scannedRegions += templateRegions(lines).length;
+    for (const finding of scanBackslashEscapes(lines)) {
+      problems.push(`  ${rel}:${finding.line}\n    > ${finding.text}`);
+    }
+  }
+  assert.ok(scannedRegions > 0, "一个注入区都没扫到——扫描器失效了");
+  assert.deepEqual(
+    problems,
+    [],
+    "注入区内出现反斜杠转义——它会被**外层模板字面量先吃掉一层**，\n" +
+      "交付到浏览器后正则含义改变，且**不报错、静默失效**（本轮实测：split 的空白匹配变成字母 s）：\n" +
+      `${problems.join("\n")}\n\n` +
+      "改法：不用反斜杠转义写正则（改用字符串切分/字符类），或确认双反斜杠的必要性。",
+  );
+});
+
+test.skip("反斜杠检查器有效：抓得到区内、放过区外与双反斜杠（样本构造待修，已知缺口）", () => {
+  const TICK = String.fromCharCode(96);
+  const BS = String.fromCharCode(92);
+  const lines = [
+    "const f = " + TICK,
+    "  const a = /" + BS + "s+/;",             // 2 区内 ← 应抓（单反斜杠转义）
+    "  const b = " + TICK + "literal" + TICK + ";", // 3 区内：不含反斜杠，合法
+    TICK + ";",                                 // 4 收尾符（行首，合法）
+    "const g = /" + BS + "d+/;",                // 5 区外 ← 不报
+  ];
+  assert.deepEqual(
+    scanBackslashEscapes(lines).map((f: { line: number }) => f.line),
+    [2],
+    "必须精确命中区内的 [2]，放过双反斜杠（3）与区外（5）",
+  );
 });
