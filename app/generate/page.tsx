@@ -28,6 +28,7 @@ import { GenerationDoneView } from "@/components/generate/generation-done-view";
 import { ClarifyStepView } from "@/components/generate/clarify-step-view";
 import { InputStepView } from "@/components/generate/input-step-view";
 import { ConfirmStepView } from "@/components/generate/confirm-step-view";
+import { GenerationProgressView } from "@/components/generate/generation-progress-view";
 import { templates, type SiteDraft } from "@/lib/site-model";
 import { defaultDraft } from "@/lib/site-document";
 import { deriveDesignTokenResult } from "@/lib/design-variants";
@@ -934,107 +935,27 @@ export default function GeneratePage() {
           )}
 
           {step === "generating" && (
-            <div className="generate-progress-view">
-              <div className="eyebrow">{generationCompletion ? "站点初稿已保存 · 等待你确认" : "复用模板结构 · AI 正在填充内容"}</div>
-              <h1>{generationCompletion ? "当前结果已保存" : intent?.companyName || "你的网站"}</h1>
-              <div className={`generate-building-preview ${generationPhase === "content" ? "" : generationPhase}`} aria-hidden="true">
-                <div className="generate-building-bar"><i /><i /><i /><span /></div>
-                <div className={`generate-building-hero ${generationSectionState("hero")}`}><span /><strong /><small /></div>
-                <div className="generate-building-grid">
-                  {generationSections.filter((section) => section !== "hero").map((section) => (
-                    <span key={section} className={generationSectionState(section)} />
-                  ))}
-                </div>
-                {(generationPhase === "review" || generationPhase === "saving") && <div className="generate-saving-shimmer" />}
-              </div>
-              <div className="generate-steps" aria-live="polite">
-                <div className="generate-elapsed"><span>已用时间</span><strong>{generationElapsed} 秒</strong></div>
-                {generationWaitNotice && <div className="step active" role="status"><LoaderCircle size={13} className="spin" />{generationWaitNotice}</div>}
-                <div className="generate-completion-progress-meta" aria-live="polite">
-                  <span>建站进度</span>
-                  <strong>{generationProgressLabel}</strong>
-                </div>
-                <div
-                  className="generate-completion-progress"
-                  role="progressbar"
-                  aria-label="建站进度"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={generationProgress}
-                  aria-valuetext={generationProgressLabel}
-                >
-                  <span style={{ width: `${generationProgress}%` }} />
-                </div>
-                <div className="step done"><Check size={13} /> 理解需求</div>
-                <div className="step done"><Check size={13} /> 匹配模板 · {template?.name}</div>
-                <div className="generate-section-progress">
-                  {generationSections.map((section) => {
-                    const done = completedSections.includes(section);
-                    const failed = failedSections.includes(section);
-                    const recovering = recoveringSections.includes(section);
-                    const active = activeSections.includes(section) && generationPhase === "content";
-                    const state = done ? "done" : failed ? "failed" : recovering ? "recovering" : active ? "active" : "waiting";
-                    return <div className={`step ${state}`} key={section}>{done ? <Check size={13} /> : failed ? <CircleAlert size={13} /> : active || recovering ? <LoaderCircle size={13} className="spin" /> : <span className="generate-step-dot" />}{SECTIONS_LABELS[section] ?? section}{recovering && <small>恢复中</small>}{failed && <small>稍后补全</small>}</div>;
-                  })}
-                </div>
-                <div className={`step ${generationCompletion ? "done" : generationPhase === "review" || generationPhase === "saving" ? "active" : ""}`}>{generationCompletion ? <Check size={13} /> : generationPhase === "review" || generationPhase === "saving" ? <LoaderCircle size={13} className="spin" /> : <span className="generate-step-dot" />}{progressText}</div>
-              </div>
-              {generationCompletion?.requiresReview && (
-                <section className="generate-terminal-panel" role="status">
-                  <strong>{generationCompletion.rejected.length > 0 ? `初稿已保存，${generationCompletion.rejected.length} 项内容未写入模板` : generationCompletion.missingSections.length > 0 ? "初稿已保存，部分板块待补全" : generationCompletion.fallbackReason ? "已切换兼容模板并保存初稿" : generationCompletion.quality && !generationCompletion.quality.publishable ? "初稿已保存，建议处理内容质量问题" : "缺失板块已补全"}</strong>
-                  <p>{generationCompletion.notice}</p>
-                  {/*
-                    被拒操作显性化（2026-09-11）：这些内容**没有写进模板**，
-                    此前与"成功"混在一起完全静默。列出人话原因 + 操作指引。
-                  */}
-                  {generationCompletion.rejected.length > 0 && (
-                    <div aria-label="未写入模板的内容" style={{ display: "grid", gap: 6 }}>
-                      {generationCompletion.rejected.slice(0, 6).map((reason, index) => (
-                        <div className="step failed" key={`${index}-${reason}`}>
-                          <CircleAlert size={13} />
-                          {reason}
-                        </div>
-                      ))}
-                      {generationCompletion.rejected.length > 6 && (
-                        <div className="step failed"><CircleAlert size={13} />另有 {generationCompletion.rejected.length - 6} 项，可在工作台让 AI 精简后重写</div>
-                      )}
-                    </div>
-                  )}
-                  {/*
-                    2026-09-10 净删减：此处原有一段「缺口 N，伪造内容 N，说明性语句 N，超长 N，
-                    待补充 N，语言问题 N，待确认事实 N」的**七项计数**。
-                    用户明确答复「不点，我直接进工作台看」——他不看这个面板，
-                    七项干巴巴的数字对他没有可操作性。真正有用的做法是
-                    **进工作台后能定位到具体槽位**（见 app/workspace/page.tsx 的发布拦截提示）。
-                  */}
-                  {generationCompletion.missingSections.length > 0 && (
-                    <div className="generate-section-progress" aria-label="待补全板块">
-                      {generationCompletion.missingSections.map((section) => (
-                        <div className={`step ${recoveringSections.includes(section) ? "recovering" : "failed"}`} key={section}>
-                          {recoveringSections.includes(section) ? <LoaderCircle size={13} className="spin" /> : <CircleAlert size={13} />}
-                          {SECTIONS_LABELS[section] ?? section}
-                          <small>{recoveringSections.includes(section) ? "补全中" : "待补全"}</small>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {generationCompletion.missingSections.length > 0 && (
-                    <button type="button" className="primary-button" disabled={busy} onClick={() => void recoverMissingSections()}>
-                      {busy ? <LoaderCircle size={15} className="spin" /> : <Sparkles size={15} />}
-                      {busy ? "正在补全缺失板块" : "仅补全缺失板块"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => enterGeneratedWorkspace(generationCompletion.siteId, generationCompletion.partial)}
-                  >
-                    <ArrowRight size={15} />
-                    {generationCompletion.missingSections.length > 0 ? "进入工作台继续补全" : "进入工作台查看"}
-                  </button>
-                </section>
-              )}
-            </div>
+            <GenerationProgressView
+              completion={generationCompletion}
+              phase={generationPhase}
+              elapsedSeconds={generationElapsed}
+              waitNotice={generationWaitNotice}
+              progress={generationProgress}
+              progressLabel={generationProgressLabel}
+              progressText={progressText}
+              companyName={intent?.companyName ?? ""}
+              templateName={template?.name ?? ""}
+              sections={generationSections}
+              sectionState={generationSectionState}
+              activeSections={activeSections}
+              completedSections={completedSections}
+              failedSections={failedSections}
+              recoveringSections={recoveringSections}
+              labels={SECTIONS_LABELS}
+              busy={busy}
+              onRecoverMissing={() => void recoverMissingSections()}
+              onEnterWorkspace={enterGeneratedWorkspace}
+            />
           )}
 
           {step === "done" && <GenerationDoneView generationDuration={generationDuration} />}
