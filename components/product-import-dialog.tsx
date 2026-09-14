@@ -101,7 +101,10 @@ export function ProductImportDialog({
               <span className="product-image-name">{product.name.zh || product.name.en || product.sku}</span>
               <span className="product-image-sku">{product.sku}</span>
               <label className="secondary-button product-image-upload">
-                {productImageBusy === product.sku ? "上传中…" : product.image ? "更换" : "上传"}
+                {/* T-27：input 是**全局**禁用的（productImageBusy !== null），但文案此前只看
+                    自己这一行 —— A 行上传时 B 行按钮被禁用却仍写「上传」，用户点了没反应
+                    又看不出原因。这里让文案与禁用态一致：别的行在传时显示「等待中」。 */}
+                {productImageBusy === product.sku ? "上传中…" : productImageBusy ? "等待中…" : product.image ? "更换" : "上传"}
                 <input
                   type="file"
                   accept="image/*"

@@ -105,6 +105,8 @@
 | T-16 | **跨用例状态污染 / 时序型偶发失败**：① `templates.spec.ts:190`（**证据已丢失**——第一次 3 连跑现场被覆盖）；② `generate-flow.spec.ts:283` desktop+mobile（**现场完整保留**：`test-results/run-1/` 下 error-context+快照，断言 `.recovering` 期望 3 实收 0；RUN1 红 / RUN2、RUN3 绿） | **待查·已移交 T-13 批** | **由红率数据定夺撤销或坐实**；两条单跑均未复现 |
 | T-17 | **dev 口径模板内容出现可见 `[object Object]`**——header 品牌位与正文各一处 | **未做**（2026-09-13 复审新登记） | 见下 |
 | T-18 | **`/draft` 的 `rejected` 字段前端未消费**——B3 新增的对用户可见通道，目前没有任何 UI 读它（`rejected` 会被静默忽略） | **未做**（用户 2026-09-13 裁决：**并入 B6 批一起排，别单开**） | B6 |
+| T-26 | 商品导入**没有现成样例表格**，用户得去外部打听列名格式 | **已完成（2026-09-14，`5b65267`）**——弹窗内「下载样例表格」，表头从 `PRODUCT_COLUMN_ALIASES` 派生（军规 1），6 条单测 + 双向负向验证 | 已并入本批 |
+| T-27 | **上传主图后「看不到回显」**——诊断已定，见下方专节 | **诊断已完成 · 未修**（用户 2026-09-14 裁决：并入 **B4b** 同文件作业） | 见下 |
 
 **已知·有意暂缓（2026-09-12 用户裁决：本轮治理到「收口」为止，不追求门禁全建齐）**：
 宽修（`applySiteOperations` 入口全面校验）· T-1 · T-3 · T-4 · T-8
@@ -677,7 +679,55 @@ app/api/templates/[templateId]/preview/route.ts    CRLF=164
 D 的产品决策题（截图链路适配 / 配方补全）留作**开放问题**，待用户定夺。
 
 **与 T-6 / B3 的区别**：T-6 管的是**操作入参校验**（数据层）；本项管的是
+
 **前端状态归属**（视图层）。两码事。
+
+### T-27 · 上传主图后「看不到回显」（**诊断已定 · 未修 · 并入 B4b**）
+
+**登记**：2026-09-14，会话 B。编号沿用 `docs/plans/2026-09-14-ux-feedback-batch.md`
+的批次编号（**不是**本表 T-19/T-20 那条序列）。
+
+**用户报告**：商品主图上传后没有即时回显、去向不可见。
+
+**诊断结论（先证明"每一环都通"，再定位到"看不见"）**：
+
+| 环节 | 证据 | 判定 |
+|---|---|---|
+| 上传 API 返回 URL | `app/api/product-images/route.ts:38-43` | ✅ 通 |
+| URL 落草稿 | `applyImageToProduct` → `saveOperations([{op:"set_product_image"}])` → `lib/site-operations.ts:770-780` 写 `product.image` | ✅ 通 |
+| 回灌前端 | `saveOperations` → `adoptSnapshot`（`app/workspace/page.tsx:251`）`setDraft(normalizeDraft(...))` | ✅ 通 |
+| 渲染缩略图 | `components/product-import-dialog.tsx:100` `<span style={{backgroundImage:url(...)}}>` | ⚠️ **三处叠加** |
+
+**因此：不是"没存"，是"看不见"。** 三处叠加（按可疑度排序）：
+
+1. **状态信号不完整 —— 触发静默丢弃（最可疑）**：
+   `product-image-upload` 的 `<input type="file">` 是**全局禁用**的
+   （`product-import-dialog.tsx:109` `disabled={productImageBusy !== null}`），
+   但**文案只看自己那一行**（`:104` `productImageBusy === product.sku ? "上传中…" : …`）。
+   → A 行上传期间，**B 行的按钮被禁用却仍显示「上传」**（用户看不出为什么点不动）。
+   此时用户点 B 行的 `<label>`：浏览器**静默丢弃**文件选择（禁用的 input 不派发 `change`），
+   `onUploadImage` 永不触发 → 现象正是「传了没反应」。
+   ⚠️ 依赖浏览器在禁用 input 上的行为，**未经实测**，故列为"最可疑"而非"已确认"。
+2. **缩略图默认 `background-repeat: repeat`**：`.product-image-thumb`
+   （`app/globals.css:485`）设了 `background-size: cover` 但**没设 `no-repeat`**。
+   CSV 填的是**外部图片 URL**（常非正方形），当该外部站点不可达时
+   （**同 T-21 的境外资源问题**）→ 在 32×32 方格里绘成重复花屏，
+   极易被当成"上传坏了"。
+3. 32×32 对"主图"而言太小；成功/失败**没有文字**（只有按钮文案）。
+
+**处置**：**修复并入 B4b**（同 `workspace/page.tsx` 文件作业）——
+用户 2026-09-14 裁决：根因若在该文件，禁单修（军规 5）。
+
+**可安全单修的部分**（在边界内的 `components/product-import-dialog.tsx`）：
+① 修文案一致性（禁用行显示一致的忙碌态）；② `.product-image-thumb` 补 `background-repeat: no-repeat`。
+
+**复现步骤（供 B4b 验收）**：
+1. 工作台 → 商品导入弹窗 → 导入 ≥2 个商品的表格；
+2. 给第 1 行上传主图（成功，即可看到缩略图）；
+3. 上传期间**立即**去点第 2 行的「上传」按钮 —— 观察它是否**显示「上传」却无响应**；
+4. 换用 **CSV 里填外部 URL** 的商品（非本地上传），观察 32×32 缩略图是否绘成重复花屏。
+
+**与 T-21 的关系**：现象 2 与 T-21 同源（外部图片资源不可达）；两者应一并考虑。
 
 ### T-20 · 手起 `next start` 会静默使用**过期构建**（本次两次咬到）
 
