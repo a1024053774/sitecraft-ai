@@ -30,6 +30,17 @@ async function writeSampleCsv() {
   return TEMP_CSV;
 }
 
+/**
+ * ⚠️ **入口名（附则 A4 教训）**：真实的商品导入入口是**聊天面板底部**的
+ * 「上传商品表格」按钮（`components/chat-panel.tsx:209` → `onOpenImport()`），
+ * **不是** `app/workspace/page.tsx:1261` 的「导入商品」——那个在**产品隐藏提示条**里，
+ * 非常驻。
+ *
+ * 首次写本文件时我 grep 到「导入商品」就直接拿来写断言，没确认它在页面上**可达**，
+ * 于是 T-26/T-27 双双**假红**（挂在本行找不到按钮）。
+ * 这与 `asset-select.spec.ts` 里"原断言挑 forge heroimg 但结构不可达"是同一类错：
+ * **命令能选中 ≠ 用户在页面上点得到**。
+ */
 test.describe("体验反馈批 · 浏览器验收", () => {
   test("T-24：保存站点素材后的提示写出去向（不是「已保存」就完）", async ({ page, demoSite }) => {
     await page.goto(`/workspace?siteId=${demoSite.id}`);
@@ -70,7 +81,7 @@ test.describe("体验反馈批 · 浏览器验收", () => {
     const csvPath = await writeSampleCsv();
 
     await page.goto(`/workspace?siteId=${demoSite.id}`);
-    await page.getByRole("button", { name: "导入商品" }).click();
+    await page.getByRole("button", { name: "上传商品表格" }).click();
 
     // ① 链接在场
     const download = page.getByRole("button", { name: "下载样例表格" });
@@ -97,7 +108,7 @@ test.describe("体验反馈批 · 浏览器验收", () => {
   test("T-27：缩略图容器不再 repeat（外部图不可达时不会绘成重复花屏）", async ({ page, demoSite }) => {
     const csvPath = await writeSampleCsv();
     await page.goto(`/workspace?siteId=${demoSite.id}`);
-    await page.getByRole("button", { name: "导入商品" }).click();
+    await page.getByRole("button", { name: "上传商品表格" }).click();
     await page.locator('.import-modal input[type="file"][accept*="csv"]').setInputFiles(csvPath);
     await expect(page.locator(".import-result")).toContainText("已保存", { timeout: 15_000 });
 
