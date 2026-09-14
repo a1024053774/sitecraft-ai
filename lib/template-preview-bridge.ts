@@ -1371,6 +1371,76 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
     else if (node.closest('header, nav')) target = 'brand';
     parent.postMessage({ type: 'sitecraft:select', target, slot }, '*');
   }, true);
+
+  /* ===== T-14 水合快照（2026-09-14）=====
+   *
+   * 为什么需要：shadcn-landing2 这类 Next.js 导出站，服务器发出含内容的 HTML
+   * （273KB）→ 内容**进了 DOM**；但内联 flight payload 脚本被 CSP 拦（实测 7 条
+   * 违规）→ React 拿不到数据 → 水合后**清空容器、渲染成空** → body 里只剩
+   * 8 个 script 与 1 个 style。实测间歇率 3/50（约 6%）。
+   *
+   * 做法：等模板脚本跑完（load）后把 DOM 序列化下来，此后**内容元素塌缩**即还原。
+   * 还原是一次性的（成功即断开 observer），避免与后续水合互相打架。
+   *
+   * ## ⚠️ 触发签名为什么必须"数内容元素"，而不是看 innerHTML 空不空
+   *
+   * 真实白屏态里 body 剩的是 **8 个 script + 1 个 style** ——
+   * **innerHTML 完全非空**。首版守卫写成「innerHTML.trim() 非空就返回」，
+   * 于是它判定"还有内容"、**永远不还原**：
+   *
+   * - 对这个真实形态 → **救不回来**（门禁用例 1/2 红，红得对）；
+   * - 对合法编辑 → 不误伤（用例 3 绿）——但那是因为它**根本不动**，不是因为判得准。
+   *
+   * 收紧为：**只在"内容元素数从 N 塌缩到 ~0"时才 restore**。
+   * SCRIPT / STYLE / LINK / META / TEMPLATE **不计入内容**。
+   * 普通 mutation（合法编辑、局部更新）内容元素数不变 → 一律不动。
+   * 门禁：e2e/specs/hydration-snapshot.spec.ts 三条（还原 / 一致性 / 不回滚编辑）。 */
+  (() => {
+    if (typeof MutationObserver !== 'function') return;
+    var NON_CONTENT = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TEMPLATE'];
+    let snapshot = null;
+    let restored = false;
+    const root = () => document.querySelector('main') || document.body;
+    const contentEls = (node) => {
+      if (!node) return 0;
+      return Array.prototype.filter.call(node.querySelectorAll('*'), (el) =>
+        NON_CONTENT.indexOf(el.tagName) === -1).length;
+    };
+    const capture = () => {
+      if (restored || snapshot) return;
+      const main = root();
+      if (!main || !main.innerHTML.trim()) return;
+      snapshot = main.innerHTML;
+    };
+    const restore = () => {
+      if (restored || !snapshot) return;
+      const main = root();
+      if (!main) return;
+      /* 收紧签名：只有内容元素塌缩到 0 才动。合法编辑/局部更新一律不碰。 */
+      if (contentEls(main) > 0) return;
+      main.innerHTML = snapshot;
+      restored = true;
+      observer.disconnect();
+    };
+    const observer = new MutationObserver(() => {
+      capture();
+      restore();
+    });
+    if (document.readyState === 'complete') capture();
+    else window.addEventListener('load', capture, { once: true });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    /* 水合可能晚于 load；持续观察 + 多次兜底尝试（用户裁决 1：持续观察+多次重试） */
+    let attempts = 0;
+    const pump = () => {
+      restore();
+      if (!restored && attempts < 20) {
+        attempts += 1;
+        window.setTimeout(pump, 250);
+      }
+    };
+    window.setTimeout(pump, 250);
+  })();
+
   parent.postMessage({ type: 'sitecraft:ready', templateId }, '*');
 })();
 </script>`;
