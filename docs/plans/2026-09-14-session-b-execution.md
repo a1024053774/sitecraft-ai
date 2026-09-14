@@ -500,3 +500,156 @@ A 已经把过时的那处删掉，但这条规则对**今后任何一次交接*
 
 > 两签名的**坏样本互相独立**：删产品区不会让 b 变红，抹 CTAbg 不会让 a 变红。
 > 这是它们"分开立"的判别力依据（附则 A4）。
+
+---
+
+# 十三、B 第一窗关闭 · 结果（2026-09-14 11:3x）
+
+## 窗口判据（附则 A3）
+
+| 判据 | 值 |
+|---|---|
+| run 开始 | 11:39:27 |
+| `.next/BUILD_ID` mtime | **11:39:36** |
+| `components/product-import-dialog.tsx` mtime | 11:38:50 |
+| `e2e/specs/ux-feedback-batch.spec.ts` mtime | 11:39:02 |
+
+→ **构建 mtime 晚于被测源码**，本窗口结论有效。命令：`E2E_FORCE_BUILD=1 npx playwright test …`。
+
+## ① ux 四条 spec：**4 passed**（19s 内，1 worker）
+
+```
+ok 1 T-24：保存站点素材后的提示写出去向（不是「已保存」就完）      (1.9s)
+ok 2 T-25：资产替换弹窗说明「换的是首屏大图、产品图走商品表格」   (2.7s)
+ok 3 T-26：商品导入弹窗有「下载样例表格」，且样例能被真正导入      (1.9s)
+ok 4 T-27：缩略图容器不再 repeat（有图与无图两条分支都要成立）     (1.9s)
+4 passed (18.6s)
+```
+
+### T-27 这一窗抓到一个**真缺陷**（不是假红）
+
+首轮 T-27 红，读数：`Expected substring: "no-repeat"` / `Received string: "repeat"`。
+
+**根因**：`product-import-dialog.tsx` 的**无图分支**用了 `background:` **简写**赋色——
+简写会重置全部 `background-*` 长属性（含 `background-repeat`），
+而**内联样式优先于样式表**，于是 `.product-image-thumb` 的 `no-repeat` 被静默覆盖。
+（有图分支用的是 `backgroundImage` 长属性，不重置。）
+
+**修法**：无图分支改用 **`backgroundColor`** 长属性。
+**同时把断言改成两条分支都测**——首版只测了「无图」那一条，
+结论无法推广到用户实际上传后的「有图」场景。
+
+> 这正是 `auto memory` 里记的 **StrictMode/状态类静默失效**的样式版：
+> **样式表写对了 ≠ 生效**，内联简写能把它吃掉且不报错。
+
+## ② T-21 forge 结构探针：三签名分开读（原始输出全文）
+
+```
+================ 空草稿（revision=101） ================
+bridge 报告 generatedContentSections : []
+bridge 报告 assetReport              : {"applied":[],"missing":[]}
+bridge 报告 missingSlots             : []
+hero 图存在                          : true src = /api/templates/forge/assets/heroimg.webp
+hero 段 id                           : top
+CTA(body > section) 存在             : true  id = contact
+  class                              :
+  computed background-image          : linear-gradient(150deg, rgb(16, 22, 42) 0%, rgb(28, 31, 74) 100%)
+  含 CTAbg（属性或计算样式）          : false
+生成产品区 个数                       : 0 （卡片= -1  图= -1 ）
+服务卡带 存在 / 就是 servicesScope    : true / true
+servicesScope 存在 / 其中卡片数       : true / 3
+main > section 全览                   :
+    {"id":"top","scope":null,"section":null,"classes":"relative z-[-10] h-[70vh] w-full","hasH96":false,"articleCount":0,"imgCount":1}
+    {"id":"features","scope":"features","section":"features","classes":"mb-20 mt-60 flex flex-col items-center gap-4 p-4 lg:flex-row","hasH96":false,"articleCount":0,"imgCount":1}
+    {"id":"about","scope":"about","section":"about","classes":"flex flex-col items-center gap-4 p-4 lg:flex-row","hasH96":false,"articleCount":0,"imgCount":1}
+    {"id":"services","scope":"services","section":"services","classes":"mx-auto mt-60 flex max-w-[80%] flex-col items-center justify-between rounded-lg border-y-8","hasH96":true,"articleCount":0,"imgCount":3}
+
+================ 有产品图（revision=102） ================
+bridge 报告 generatedContentSections : []
+bridge 报告 assetReport              : {"applied":[],"missing":[]}
+bridge 报告 missingSlots             : []
+hero 图存在                          : true src = /api/templates/forge/assets/heroimg.webp
+hero 段 id                           : top
+CTA(body > section) 存在             : true  id = contact
+  class                              :
+  computed background-image          : linear-gradient(150deg, rgb(16, 22, 42) 0%, rgb(28, 31, 74) 100%)
+  含 CTAbg（属性或计算样式）          : false
+生成产品区 个数                       : 1 （卡片= 2  图= 1 ）
+服务卡带 存在 / 就是 servicesScope    : true / true
+servicesScope 存在 / 其中卡片数       : true / 3
+main > section 全览                   :
+    {"id":"top","scope":null,"section":null,"classes":"relative z-[-10] h-[70vh] w-full","hasH96":false,"articleCount":0,"imgCount":1}
+    {"id":"features","scope":"features","section":"features","classes":"mb-20 mt-60 flex flex-col items-center gap-4 p-4 lg:flex-row","hasH96":false,"articleCount":0,"imgCount":1}
+    {"id":"about","scope":"about","section":"about","classes":"flex flex-col items-center gap-4 p-4 lg:flex-row","hasH96":false,"articleCount":0,"imgCount":1}
+    {"id":"services","scope":"services","section":"services","classes":"mx-auto mt-60 flex max-w-[80%] flex-col items-center justify-between rounded-lg border-y-8","hasH96":true,"articleCount":0,"imgCount":3}
+```
+
+### 【机制 a】空 `products` → `renderAdditionalProducts` 整行不生成
+
+| 读数 | 空草稿 | 有产品草稿 |
+|---|---|---|
+| `生成产品区 个数` | **0** | **1** |
+| 卡片 / 图 | —（-1，区域不存在） | **2 / 1** |
+
+**签名成立**，且与预测一致。注意「有产品」轮：2 张卡片但**只有 1 个 `<img>`**——
+草稿里只有第 1 个产品带 `image`。**无图那张卡里什么 media 都没有**（区域是 2 卡 / 1 图），
+即注释承诺的 `imageColor` 色块回退**确实未实现**（生成器侧 `template-composer.ts:476-481` 实现了）。
+
+### 【机制 b】`cta.innerHTML` 抹除 → CTAbg 背景消失
+
+两轮读数**完全相同**：`id=contact`、**`class=""`（被清空）**、
+`computed background-image = linear-gradient(150deg, …)`（默认渐变）、**含 CTAbg = false**。
+
+**签名成立**。与 `forge.ts:133-135` 的 `cta.removeAttribute('class')` + `cta.innerHTML=''` 一致。
+
+### 【反证】`heroimg` 渲染正常（两轮均 true）
+
+`src = /api/templates/forge/assets/heroimg.webp`，两轮都 true。
+→ 证明 a 与 b 是**两条独立路径**，不是"整个 hero 塌了"。
+
+---
+
+## ③ ⚠️ 我的假设 ②「板块重复」被探针推翻 —— 撤销
+
+**原假设**（本文档第一节 ②）：forge 只为 hero 段打 scope → 服务卡带未打 scope
+→ 通用注入给它叠出一个兜底板块。
+
+**实测**：`main > section` **只有 4 个**（top / features / about / services），
+`services` 段的 `scope = "services"`、`section = "services"`，
+`服务卡带 存在 / 就是 servicesScope = true / true`，空草稿下 `生成产品区 个数 = 0`。
+
+**真相**：`forge.ts:119-120` 只设了 `servicesSection.id = 'services'`（没打 scope），
+但通用 `scopeBy('services', /service|solution|process|…/i)` 的**正则兜底命中了它**
+（卡带里有 "Services" 文案），bridge 随后给这个 scope 补上 `data-sitecraft-scope="services"`。
+于是 `hasVisibleSlotPrefix('services')` 为真 → **兜底区根本没生成**。
+
+**结论：没有重复板块。假设 ② 撤销。**
+
+> **这次取证的直接价值**：若按假设 ② 写断言，会写出一条"不该有重复服务板块"，
+> 而**现状本来就没有** → 那是一条**永远绿的假门禁**（附则 A1/A4）。
+> 探针在写断言**之前**拦下了它。
+
+**T-21 修复清单据此修正为两条**（不是三条）：
+1. **机制 a**（`lib/template-preview-bridge.ts` 的 `renderAdditionalProducts`）：
+   补 `imageColor` 色块回退 —— ⚠️ **该文件在会话 B 禁碰清单**，方案交主会话排期；
+2. **机制 b**（`lib/template-adapters/forge.ts`）：CTA 改建时保留 `CTAbg` 背景，
+   而非 `innerHTML=''` 后纯渐变 —— ⚠️ **适配器不在会话 B 边界清单**，同样登记待批。
+3. ~~机制 ②板块重复~~ —— **撤销**。
+
+## ④ 红样本设计（按签名分别立，下一窗再做）
+
+| 签名 | 断言 | 坏样本（必须红） |
+|---|---|---|
+| **a** | 给定 `products` 非空 → 产品区**存在**且**卡片数 = products 数**；给定为空 → 产品区**不存在** | 删掉产品区那棵子树 |
+| **b** | CTA 段注入后 **computed `background-image` 仍含 `CTAbg`** | 抹掉该背景（即现状）→ 必须红 |
+
+两签名的坏样本**互不干扰**（删产品区不会让 b 变红，反之亦然）——
+这是它们"分开立"的判别力依据（附则 A4）。
+
+## ⑤ 窗口状态
+
+**B 第一窗关闭**（用户裁决：跑完即关，等 T-21 断言批再开）。
+- 3210 已释放；未留任何手起的 `next start`；
+- 本窗两项均已完成并落盘；
+- **未越界**：`lib/template-preview-bridge.ts` 与 `lib/template-adapters/*` 一行未改；
+  机制 a/b 的修复方案已登记，等主会话排期与用户拍板。

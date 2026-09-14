@@ -30,6 +30,12 @@ async function writeSampleCsv() {
   return TEMP_CSV;
 }
 
+/** 1×1 透明 PNG：给「有图分支」当上传夹具，不落盘、不依赖外部素材。 */
+const PNG_1X1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 /**
  * ⚠️ **入口名（附则 A4 教训）**：真实的商品导入入口是**聊天面板底部**的
  * 「上传商品表格」按钮（`components/chat-panel.tsx:209` → `onOpenImport()`），
@@ -120,7 +126,7 @@ test.describe("体验反馈批 · 浏览器验收", () => {
     await expect(page.locator(".import-result")).toContainText("新增或更新 1 个商品");
   });
 
-  test("T-27：缩略图容器不再 repeat（外部图不可达时不会绘成重复花屏）", async ({ page, demoSite }) => {
+  test("T-27：缩略图容器不再 repeat（有图与无图两条分支都要成立）", async ({ page, demoSite }) => {
     const csvPath = await writeSampleCsv();
     await page.goto(`/workspace?siteId=${demoSite.id}`);
     await openImportDialog(page);
@@ -129,21 +135,38 @@ test.describe("体验反馈批 · 浏览器验收", () => {
 
     const thumb = page.locator(".product-image-thumb").first();
     await expect(thumb).toBeVisible();
-    const repeat = await thumb.evaluate((el) => getComputedStyle(el).backgroundRepeat);
-    expect(repeat, "T-27：缩略图必须是 no-repeat").toContain("no-repeat");
 
     /**
-     * ⚠️ **自证分辨力**（附则 A4：断言容器存在 ≠ 断言内容存在）。
+     * ⚠️ **必须两条分支都测**——本文件首版只测了一条，红了。
      *
-     * 上面那条断言只有在「样式真的被读出、而不是恒返回某值」时才算数。
-     * 这里注入一个坏样本：把 `background-repeat` 逼回浏览器默认的 `repeat`，
-     * 同样的读取路径**必须读出 repeat**。
-     * 若这步也读出 no-repeat，说明前一条断言测的不是样式，是别的东西——
-     * 那它就是假门禁。
+     * 概览样例 CSV 的**图片列是空的** → 导入出的商品无图 → 走**无图分支**。
+     * 无图分支若用 `background:` **简写**赋色，会重置 `background-repeat`
+     * （内联样式优先于样式表）→ 样式表写对了也被吃掉（实测 computed = `repeat`）。
+     * 有图分支用的是 `backgroundImage` 长属性，不重置。
+     *
+     * 所以两条分支的读数**可能不同**，只测一条就会把结论推广错。
+     */
+    const noImage = await thumb.evaluate((el) => getComputedStyle(el).backgroundRepeat);
+    expect(noImage, "T-27（无图分支）：必须 no-repeat——简写 background 会重置它").toContain("no-repeat");
+
+    // 给同一商品传一张主图（走**有图分支**）——多商品时用行作用域定位，避免点错行
+    await page.locator(".product-image-row").first().getByText("上传", { exact: true }).click();
+    await page.locator(".product-image-row").first().locator('input[type="file"]')
+      .setInputFiles({ name: "probe.png", mimeType: "image/png", buffer: PNG_1X1 });
+    await expect
+      .poll(async () => await page.locator(".product-image-row").first().locator(".product-image-thumb").getAttribute("style"), { timeout: 20_000 })
+      .toContain("/api/product-images/");
+
+    const withImage = await thumb.evaluate((el) => getComputedStyle(el).backgroundRepeat);
+    expect(withImage, "T-27（有图分支）：同样必须 no-repeat").toContain("no-repeat");
+
+    /**
+     * **自证分辨力**（附则 A4）：注入坏样本逼回浏览器默认 `repeat`，
+     * 同一读取路径必须读出 repeat——否则上面两条测的不是样式。
      */
     await thumb.evaluate((el) => { (el as HTMLElement).style.backgroundRepeat = "repeat"; });
     const injected = await thumb.evaluate((el) => getComputedStyle(el).backgroundRepeat);
-    expect(injected, "坏样本：注入 repeat 后必须读出 repeat（否则前一条断言无分辨力）").toContain("repeat");
+    expect(injected, "坏样本：注入 repeat 后必须读出 repeat（否则上面两条无分辨力）").toContain("repeat");
     expect(injected).not.toContain("no-repeat");
   });
 });

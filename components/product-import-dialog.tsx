@@ -97,7 +97,12 @@ export function ProductImportDialog({
           <p className="product-image-hint">主图显示在工作台预览「产品」板块的对应商品卡片上。</p>
           {products.map((product) => (
             <div className="product-image-row" key={product.sku}>
-              <span className="product-image-thumb" style={product.image ? { backgroundImage: `url(${product.image})` } : { background: product.imageColor || "#e5e7eb" }} />
+              {/* T-27：无图分支必须用 **长属性 `backgroundColor`**，不能用 `background` 简写——
+                  `background` 会重置全部 background-* 长属性（含 `background-repeat`、`background-size`），
+                  而**内联样式优先于样式表**，于是 `.product-image-thumb` 的
+                  `no-repeat` / `cover` 被静默覆盖（实测 computed 为 `repeat`）。
+                  这是本轮 T-27 红样本抓到的真问题：样式表写对了、被内联简写吃掉。 */}
+              <span className="product-image-thumb" style={product.image ? { backgroundImage: `url(${product.image})` } : { backgroundColor: product.imageColor || "#e5e7eb" }} />
               <span className="product-image-name">{product.name.zh || product.name.en || product.sku}</span>
               <span className="product-image-sku">{product.sku}</span>
               <label className="secondary-button product-image-upload">
