@@ -123,16 +123,32 @@ const prepareFn = `
     const faq = document.querySelector('#FAQ');
     if (faq) { const island = faq.closest('astro-island') || faq.parentElement || faq; island.remove(); }
 
-    // ---- 6. CTA(body>section) 改建为企业联系带：id=contact + 深色渐变，标题/正文由共享引擎写入，
+    // ---- 6. CTA(body>section) 改建为企业联系带：id=contact，标题/正文由共享引擎写入，
     //         email/phone/address 由引擎挂到 data-sitecraft-contact-details ----
+    // ⚠️ **保留原生 class**（2026-09-14，T-21 机制 b）：
+    //     原生 CTA 的 class 含 bg-[url(/CTAbg.jpg)] bg-cover，是这张 1.33MB 背景大图
+    //     的**唯一来源**。此前 removeAttribute(class) + 纯渐变把它整段抹掉，
+    //     用户看到的就是「只剩渐变底、背景图消失」。
+    //     现在保留 class、只把 background **简写**换成不透明深色封顶（连同
+    //     background-clip/origin 一起重置，防 bg-cover 的 background-size 参与重复平铺），
+    //     压在原图之上，形成「深色遮罩 + 品牌背景」。
     const cta = document.querySelector('body > section');
     if (cta && !cta.dataset.sitecraftContactBuilt) {
       cta.dataset.sitecraftContactBuilt = 'true';
       cta.id = 'contact';
       cta.dataset.sitecraftScope = 'contact';
-      cta.removeAttribute('class');
       cta.innerHTML = '';
-      cta.style.cssText = 'box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;height:auto;min-height:0;text-align:center;background:linear-gradient(150deg,#10162a 0%,#1c1f4a 100%);color:#f8fafc;padding:clamp(60px,7vw,96px) clamp(20px,7vw,48px)';
+      cta.style.boxSizing = 'border-box';
+      cta.style.display = 'flex';
+      cta.style.flexDirection = 'column';
+      cta.style.alignItems = 'center';
+      cta.style.justifyContent = 'center';
+      cta.style.height = 'auto';
+      cta.style.minHeight = '0';
+      cta.style.textAlign = 'center';
+      cta.style.setProperty('background', 'linear-gradient(150deg,rgba(16,22,42,.88) 0%,rgba(28,31,74,.82) 100%)');
+      cta.style.color = '#f8fafc';
+      cta.style.padding = 'clamp(60px,7vw,96px) clamp(20px,7vw,48px)';
       const box = document.createElement('div');
       box.style.cssText = 'width:100%;max-width:720px;display:flex;flex-direction:column;align-items:center;gap:1.1rem';
       const h1 = document.createElement('h1');
