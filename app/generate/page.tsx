@@ -27,6 +27,7 @@ import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame
 import { GenerationDoneView } from "@/components/generate/generation-done-view";
 import { ClarifyStepView } from "@/components/generate/clarify-step-view";
 import { InputStepView } from "@/components/generate/input-step-view";
+import { ConfirmStepView } from "@/components/generate/confirm-step-view";
 import { templates, type SiteDraft } from "@/lib/site-model";
 import { defaultDraft } from "@/lib/site-document";
 import { deriveDesignTokenResult } from "@/lib/design-variants";
@@ -76,7 +77,6 @@ type GenerationCompletion = {
 
 const GENERATE_DRAFT_KEY = "sitecraft:generate-draft:v1";
 const ACTIVE_GENERATION_KEY = "sitecraft:active-generation:v1";
-const REAL_PREVIEW_DRAFT_KEY = "sitecraft:real-preview-draft:v1";
 const GENERATION_TIMEOUT_MS = GENERATION_BUDGET.clientHardDeadlineMs;
 const ANALYZE_TIMEOUT_MS = GENERATION_BUDGET.clientHardDeadlineMs;
 
@@ -888,238 +888,49 @@ export default function GeneratePage() {
           )}
 
           {step === "confirm" && intent && template && (
-            <div className="generate-confirm">
-              <div className="eyebrow">我理解你要的是</div>
-              <h1>{intent.summary}</h1>
-              <div className="generate-confirm-grid">
-                <div className="template-card generate-intent-card">
-                  <div className="generate-intent-row">
-                    <h3>意图摘要</h3>
-                    <div className="generate-intent-rows">
-                      <div><span>行业</span><strong>{BUSINESS_LABELS[intent.businessType] ?? intent.businessType} · {intent.industry}</strong></div>
-                      <div><span>受众</span><strong>{AUDIENCE_LABELS[intent.targetAudience] ?? intent.targetAudience}</strong></div>
-                      <div><span>语气</span><strong>{TONE_LABELS[intent.tone] ?? intent.tone}</strong></div>
-                    </div>
-                  </div>
-                  <div className="generate-intent-row">
-                    <h3>套用到模板的板块</h3>
-                    <div className="generate-sections">
-                      {intent.coreSections.map((s) => {
-                        const isVisible = !hiddenSections.includes(s);
-                        return (
-                          <button
-                            key={s}
-                            type="button"
-                            className={`generate-toggle ${isVisible ? "on" : "off"}`}
-                            aria-pressed={isVisible}
-                            title={isVisible ? `点击隐藏「${SECTIONS_LABELS[s] ?? s}」板块` : `点击重新显示「${SECTIONS_LABELS[s] ?? s}」板块`}
-                            onClick={() => toggleSection(s)}
-                          >
-                            {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-                            <span>{SECTIONS_LABELS[s] ?? s}</span>
-                            <strong>{isVisible ? "已显示" : "已隐藏"}</strong>
-                          </button>
-                        );
-                      })}
-                      <span className="generate-sections-hint">点开关可增删要生成的板块</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="generate-template-picker" data-template-carousel>
-                  {/* 主预览区：随选中模板切换的大图，AI 内容与色板即时套用（问题 1：点卡时上面有对应变化） */}
-                  {template && (
-                    <div className={`generate-hero-preview${previewCollapsed ? " collapsed" : ""}`} data-template-hero-preview={template.id}>
-                      {!previewCollapsed && (
-                        <div className="generate-hero-preview-toolbar" aria-hidden="true">
-                          <span className="generate-hero-preview-dot" />
-                          <span className="generate-hero-preview-dot" />
-                          <span className="generate-hero-preview-dot" />
-                          <span className="generate-hero-preview-url">{template.name} · 真实模板预览</span>
-                        </div>
-                      )}
-                      {!previewCollapsed && (
-                        <div className="generate-hero-preview-frame">
-                          <OpenSourceTemplateFrame
-                            key={`hero-${template.id}`}
-                            templateId={template.id}
-                            draft={{ ...previewDraft, templateId: template.id }}
-                            locale={siteLanguage}
-                            variant="preview"
-                            onPreviewStateChange={setTemplatePreviewState}
-                          />
-                        </div>
-                      )}
-                      <div className="generate-hero-preview-meta">
-                        <div className="generate-hero-preview-title">
-                          <strong>{template.name}</strong>
-                          <span>{template.category} · {template.reason || "推荐模板"}</span>
-                        </div>
-                        <div className="generate-hero-preview-actions">
-                          <button
-                            type="button"
-                            className="generate-preview-collapse-btn"
-                            onClick={() => setPreviewCollapsed((c) => !c)}
-                            aria-expanded={!previewCollapsed}
-                            aria-label={previewCollapsed ? "展开大预览" : "收起大预览"}
-                          >
-                            {previewCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
-                            {previewCollapsed ? "展开预览" : "收起预览"}
-                          </button>
-                          <a
-                            className="generate-real-preview-link"
-                            href={`/templates/${template.id}/preview${generationCompletion?.siteId || regenerateSiteId ? `?siteId=${encodeURIComponent(generationCompletion?.siteId ?? regenerateSiteId ?? "")}` : ""}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`查看已填内容预览：${template.name}`}
-                            onClick={() => {
-                              if (generationCompletion?.siteId || regenerateSiteId) return;
-                              try {
-                                window.localStorage.setItem(REAL_PREVIEW_DRAFT_KEY, JSON.stringify({
-                                  savedAt: Date.now(),
-                                  draft: { ...previewDraft, templateId: template.id },
-                                }));
-                              } catch { /* 存储不可用时预览页会诚实展示模板原貌 */ }
-                            }}
-                          >
-                            <ExternalLink size={13} /> 查看已填内容预览
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="generate-preview-heading">
-                    <div>
-                      <h3>推荐的现有模板</h3>
-                      <span>真实模板预览 · AI 内容与设计变量即时套用</span>
-                    </div>
-                    <div className="generate-carousel-controls">
-                      <span>{recommendationIndex + 1} / {recommendationTemplates.length}</span>
-                      <button type="button" aria-label="上一个推荐模板" onClick={() => moveRecommendation(-1)} disabled={recommendationTemplates.length < 2}><ChevronLeft size={15} /></button>
-                      <button type="button" aria-label="下一个推荐模板" onClick={() => moveRecommendation(1)} disabled={recommendationTemplates.length < 2}><ChevronRight size={15} /></button>
-                    </div>
-                  </div>
-                  <div
-                    className="generate-template-carousel"
-                    ref={carouselRef}
-                    onScroll={(event) => {
-                      const target = event.currentTarget;
-                      const first = target.querySelector<HTMLElement>("[data-template-card]");
-                      const cardWidth = first?.getBoundingClientRect().width ?? target.clientWidth;
-                      if (cardWidth) setRecommendationIndex(Math.max(0, Math.min(recommendationTemplates.length - 1, Math.round(target.scrollLeft / (cardWidth + 12)))));
-                    }}
-                  >
-                    {recommendationTemplates.map((candidate, index) => {
-                      const isActive = index === recommendationIndex;
-                      const candidateDraft = candidate.id === template.id ? previewDraft : { ...previewDraft, templateId: candidate.id };
-                      return (
-                        <article
-                          key={candidate.id}
-                          className={`generate-template-option${isActive ? " active" : ""}`}
-                          data-template-card={candidate.id}
-                          onClick={() => chooseRecommendation(candidate, index)}
-                          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); chooseRecommendation(candidate, index); } }}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`选择模板 ${candidate.name}`}
-                        >
-                          <div className="generate-template-option-label">
-                            <span>{isActive ? "当前选择" : "备选模板"}</span>
-                            {isActive && <Check size={13} />}
-                          </div>
-                          <div className="generate-template-option-cover">
-                            <OpenSourceTemplateFrame
-                              key={`real-${candidate.id}`}
-                              templateId={candidate.id}
-                              draft={candidateDraft}
-                              locale={siteLanguage}
-                              variant="thumbnail"
-                              onPreviewStateChange={isActive ? setTemplatePreviewState : undefined}
-                            />
-                          </div>
-                          <div className="generate-template-option-meta">
-                            <strong>{candidate.name}</strong>
-                            <span>{candidate.category}</span>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                  <div className="generate-template-selection-meta" data-template-selection={template.id}>
-                    <div>
-                      <strong>{template.name}</strong>
-                      <span>{template.category} · {template.reason}</span>
-                    </div>
-                  </div>
-                  <div className="generate-preview-sections" aria-live="polite">
-                    {intent.coreSections.map((s) => (
-                      <span key={s} className={`${hiddenSections.includes(s) ? "off" : "on"}${previewFeedback?.section === s ? " active" : ""}`}>
-                        {hiddenSections.includes(s) ? <EyeOff size={11} /> : <Eye size={11} />}
-                        {SECTIONS_LABELS[s] ?? s}
-                      </span>
-                    ))}
-                  </div>
-                  <select
-                    className="generate-select"
-                    value={template.id}
-                    onChange={(e) => {
-                      const selected = templates.find((t) => t.id === e.target.value);
-                      if (selected) {
-                        setTemplate({ ...template, id: selected.id, name: selected.name, category: selected.category });
-                        const selectedIndex = recommendationTemplates.findIndex((item) => item.id === selected.id);
-                        if (selectedIndex >= 0) setRecommendationIndex(selectedIndex);
-                      }
-                    }}
-                  >
-                    {["制造业", "外贸目录", "科技企业", "专业服务"].map((cat) => {
-                      const group = templateOptions.filter((t) => t.category === cat);
-                      if (!group.length) return null;
-                      return (
-                        <optgroup key={cat} label={cat === category ? `${cat}（推荐）` : cat}>
-                          {group.map((t) => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                          ))}
-                        </optgroup>
-                      );
-                    })}
-                  </select>
-                </div>
-              </div>
-              {error && <p className="generate-error"><AlertCircle size={13} />{error}</p>}
-              {(intent.notices?.length || intent.conflicts?.length || intent.limits?.length) && (
-                <div className="generate-tips">
-                  {intent.notices?.map((n) => (
-                    <div key={n} className="tip notice">ℹ {n}</div>
-                  ))}
-                  {intent.conflicts?.map((c) => (
-                    <div key={c} className="tip conflict">⚠ {c}</div>
-                  ))}
-                  {intent.limits?.map((l) => (
-                    <div key={l} className="tip limit">⛔ {l}</div>
-                  ))}
-                </div>
-              )}
-              {designTokenResult?.adjustments.length ? (
-                <div className="generate-tips design-coordination-notice" aria-live="polite">
-                  {designTokenResult.adjustments.map((adjustment) => (
-                    <div key={adjustment} className="tip notice">设计变量已协调：{adjustment}</div>
-                  ))}
-                </div>
-              ) : null}
-              {regenerateSiteId && (
-                <p className="generate-tips" style={{ marginBottom: 10 }}>
-                  <span className="tip notice">ℹ 将在现有站点上重新生成初稿（覆盖当前内容，可通过历史撤销）</span>
-                </p>
-              )}
-              <div className="generate-confirm-actions">
-                <button className="secondary-button" disabled={busy} onClick={() => { setAdjusting(true); setStep("input"); }}>
-                  <MessageSquareText size={15} /> 还想改 · 继续对话
-                </button>
-                <button className="primary-button" disabled={busy} onClick={() => void execute()}>
-                  {busy ? <LoaderCircle size={15} className="spin" /> : <Sparkles size={15} />}
-                  {busy ? progressText : "用此模板生成站点内容"} <ArrowRight size={15} />
-                </button>
-              </div>
-            </div>
+            <ConfirmStepView
+              intent={intent}
+              template={template}
+              templates={templates}
+              templateOptions={templateOptions}
+              recommendationTemplates={recommendationTemplates}
+              recommendationIndex={recommendationIndex}
+              previewCollapsed={previewCollapsed}
+              previewDraft={previewDraft}
+              hiddenSections={hiddenSections}
+              adjusting={adjusting}
+              busy={busy}
+              progressText={progressText}
+              siteLanguage={siteLanguage}
+              regenerateSiteId={regenerateSiteId}
+              generationCompletion={generationCompletion}
+              carouselRef={carouselRef}
+              category={category}
+              error={error}
+              previewFeedback={previewFeedback}
+              designTokenResult={designTokenResult}
+              businessLabels={BUSINESS_LABELS}
+              audienceLabels={AUDIENCE_LABELS}
+              toneLabels={TONE_LABELS}
+              sectionsLabels={SECTIONS_LABELS}
+              onToggleSection={toggleSection}
+              onChangeLanguage={setSiteLanguage}
+              onTogglePreviewCollapsed={() => setPreviewCollapsed((c) => !c)}
+              onPreviewStateChange={setTemplatePreviewState}
+              onMoveRecommendation={moveRecommendation}
+              onScrollToIndex={setRecommendationIndex}
+              onChooseRecommendation={chooseRecommendation}
+              onSelectTemplate={(next, matchedIndex) => {
+                // 下拉选模板：换模板本体 + 若命中推荐列表则同步轮播下标。
+                // ⚠️ 与 chooseRecommendation（点推荐卡片）**语义不同**——
+                // 后者还会 setTemplatePreviewState("loading") 并滚动轮播到位，
+                // 下拉选择**不滚动**。两者不要合并。
+                setTemplate(next);
+                if (matchedIndex >= 0) setRecommendationIndex(matchedIndex);
+              }}
+              onBackToInput={() => { setAdjusting(true); setStep("input"); }}
+              onExecute={() => void execute()}
+            />
           )}
 
           {step === "generating" && (
