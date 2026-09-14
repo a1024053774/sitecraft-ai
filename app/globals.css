@@ -180,7 +180,7 @@ a { color: inherit; text-decoration: none; }
 .quick-item svg { color: var(--green); }
 
 /* Builder */
-.builder-shell { height: 100dvh; min-height: 0; display: grid; grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; background: #eef2ed; }
+.builder-shell { height: 100dvh; min-height: 0; display: grid; grid-template-columns: 290px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; background: #eef2ed; }
 .builder-mobile-tabs { display: none; }
 .builder-chat { display: flex; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; background: #f8faf7; border-right: 1px solid var(--line); }
 .builder-chat-head { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 22px 20px 18px; border-bottom: 1px solid var(--line); }
@@ -270,7 +270,12 @@ a { color: inherit; text-decoration: none; }
 .asset-preview { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .asset-preview span { color: var(--muted); font-size: 12px; }
 .asset-preview img { max-width: 180px; max-height: 100px; border: 1px solid var(--line); border-radius: 6px; object-fit: cover; }
-.preview-stage { flex: 1; min-height: 0; overflow: auto; display: grid; place-items: start center; padding: 37px 25px 55px; }
+/* T-23（2026-09-14）：用户反馈预览两侧留白大、显示幅度小。两处放大：
+ *   ① `place-items: start center` 的**水平居中**去掉——容器比设备框宽时，居中会在两侧
+ *      各留一条等宽空白，纯属浪费；改成 stretch 让框占满可用宽度。
+ *   ② 左右 padding 25px → 12px。
+ * 桌面逻辑宽度仍是 1440（在 device frame 里），这里只放大**渲染宽度**，保真度不变。 */
+.preview-stage { flex: 1; min-height: 0; overflow: auto; display: grid; place-items: start stretch; padding: 37px 12px 55px; }
 .preview-fallback-note { width: min(1180px, 100%); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 10px 12px; border: 1px solid #f0c36b; border-radius: 6px; background: #fff9e8; color: #76520d; font-size: 11px; line-height: 1.5; }
 .preview-fact-confirm { width: min(1180px, 100%); display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; padding: 12px 14px; border: 1px solid #f0c36b; border-radius: 8px; background: #fff9e8; color: #76520d; font-size: 12px; line-height: 1.6; }
 .preview-fact-confirm-title { display: flex; align-items: center; gap: 7px; font-weight: 700; color: #7a5610; }
@@ -280,7 +285,8 @@ a { color: inherit; text-decoration: none; }
 .preview-fact-confirm-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
 .preview-fact-confirm-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b4c0e; }
 .canvas-boundary-note { width: min(1180px, 100%); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 10px 12px; border: 1px solid #b9d2c2; border-radius: 6px; background: #f1f8f3; color: #28563f; font-size: 11px; line-height: 1.5; }
-.browser-frame { width: min(100%, 1000px); background: white; border: 1px solid #d6dfd7; border-radius: 10px; box-shadow: 0 15px 40px rgba(32, 53, 40, .11); overflow: hidden; transition: width .3s ease; }
+/* T-23：桌面档 1000px → 1160px（用户拍板的中档）。平板/手机档是刻意的设备宽度，不动。 */
+.browser-frame { width: min(100%, 1160px); background: white; border: 1px solid #d6dfd7; border-radius: 10px; box-shadow: 0 15px 40px rgba(32, 53, 40, .11); overflow: hidden; transition: width .3s ease; }
 .browser-frame.tablet { width: min(100%, 660px); }
 .browser-frame.mobile { width: min(100%, 390px); }
 .browser-bar { display: flex; align-items: center; gap: 5px; height: 29px; padding: 0 11px; background: #f5f7f4; border-bottom: 1px solid #e8eee8; }
@@ -450,6 +456,8 @@ a { color: inherit; text-decoration: none; }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; }
 .modal-head h3 { margin: 6px 0 0; font-size: 20px; letter-spacing: -.05em; }
 .modal-copy { color: var(--ink-soft); font-size: 11px; line-height: 1.65; margin: 15px 0 18px; }
+/* T-25（2026-09-14）：概念澄清提示条（「这里换的是首屏大图 / 变体切的是配色」）。 */
+.modal-note { color: var(--muted); font-size: 10px; line-height: 1.65; margin: -8px 0 14px; padding: 8px 10px; background: #f2f8f0; border-left: 2px solid var(--green); border-radius: 4px; }
 .upload-zone { border: 1px dashed #a4bba8; border-radius: 10px; background: #f2f8f0; padding: 26px 16px; display: grid; place-items: center; gap: 6px; text-align: center; cursor: pointer; }
 .upload-zone:hover { border-color: var(--green); background: #edf7ea; }
 .upload-icon { width: 39px; height: 39px; border-radius: 10px; display: grid; place-items: center; color: var(--green); background: white; border: 1px solid #d6e4d6; margin-bottom: 4px; }
@@ -459,6 +467,11 @@ a { color: inherit; text-decoration: none; }
 .import-options { display: grid; gap: 3px; margin-top: 15px; }
 .import-options > div { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); padding: 9px 2px; border-bottom: 1px solid #edf1ed; font-size: 10px; }
 .import-options svg:first-child { color: var(--green); }
+/* T-26（2026-09-14）：内置样例表格下载。此前用户要拿到格式得去外部打听。 */
+.import-sample { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.import-sample span { color: var(--muted); font-size: 9px; }
+.import-sample .link-button { display: inline-flex; align-items: center; gap: 5px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--green); font: inherit; font-size: 10px; text-decoration: underline; }
+.import-sample .link-button:hover { color: #2e6b4f; }
 .import-result { display: flex; gap: 9px; align-items: center; margin-top: 15px; padding: 10px 11px; color: var(--green); background: var(--green-pale); border-radius: 7px; font-size: 10px; }
 .import-result strong, .import-result span { display: block; }
 .import-result span { margin-top: 3px; color: var(--ink-soft); font-size: 9px; }
@@ -466,6 +479,8 @@ a { color: inherit; text-decoration: none; }
 /* 商品主图列表（2026-09-10）：modal 内滚动，避免商品多时撑爆弹窗 */
 .product-image-list { margin-top: 15px; max-height: 210px; overflow-y: auto; border-top: 1px solid #edf1ed; padding-top: 11px; }
 .product-image-head { color: var(--ink-soft); font-size: 9px; margin-bottom: 8px; }
+/* T-27（2026-09-14）：主图上传后的去向说明。用户传完不知道图去哪了。 */
+.product-image-hint { color: var(--muted); font-size: 9px; line-height: 1.6; margin: 0 0 8px; }
 .product-image-row { display: grid; grid-template-columns: 32px 1fr auto auto auto; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid #f2f6f2; font-size: 10px; }
 .product-image-thumb { width: 32px; height: 32px; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid #e2eae3; }
 .product-image-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -527,7 +542,7 @@ a { color: inherit; text-decoration: none; }
   .preview-toolbar-right { min-width: 0; overflow-x: auto; }
   .preview-toolbar-right .secondary-button { padding: 8px; font-size: 0; }
   .preview-toolbar-right .secondary-button svg { margin: 0; }
-  .preview-stage { padding: 22px 10px 35px; }
+  .preview-stage { padding: 22px 8px 35px; }
   .site-preview-header { padding: 12px 17px; }
   .site-preview-nav { display: none; }
   .site-preview-hero { padding: 34px 25px; min-height: 265px; }

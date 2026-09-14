@@ -61,6 +61,11 @@ export function AssetReplaceDialog({
           <button className="icon-button" onClick={onClose} disabled={busy} aria-label="关闭"><X size={15} /></button>
         </div>
         <p className="modal-copy">上传企业实拍图（JPG / PNG / WebP / SVG，≤5MB）。替换后会在预览中即时生效，并随导出一起内联。</p>
+        {/* T-25：用户实测把「替换首屏主视觉」当成了传产品图。产品图有自己的入口
+            （商品表格导入的「图片/图片URL」列），这里写清楚免得再次跑错门。 */}
+        {target === "hero.image" && (
+          <p className="modal-note">这里换的是首屏大图；产品图请通过「上传商品表格」上传。</p>
+        )}
         {currentSrc && (
           <div className="asset-preview"><span>当前图片</span><img src={currentSrc} alt="当前资产" /></div>
         )}

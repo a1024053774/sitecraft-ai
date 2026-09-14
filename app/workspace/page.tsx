@@ -1011,7 +1011,9 @@ export default function WorkspacePage() {
       });
       if (!response.ok) throw new Error("保存素材失败");
       setMaterialSaved(true);
-      setEditHint("站点素材已保存，下次生成会以它为准");
+      // T-24：用户反馈「保存后以为没生效」——补一句去向，说明素材不是即时改版式，
+      // 而是下一次补全 / 重生成板块时才吃进内容。
+      setEditHint("站点素材已保存，去补全/重生成板块即可生效");
       window.setTimeout(() => setEditHint(null), 3000);
     } catch (error) {
       setEditHint(error instanceof Error ? error.message : "保存素材失败");

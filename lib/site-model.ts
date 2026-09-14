@@ -114,6 +114,40 @@ export function findTemplate(id: string): Template | undefined {
   return allTemplates().find((item) => item.id === id);
 }
 
+/**
+ * 商品表格的列别名表（T-26）。
+ *
+ * ⚠️ **这些数组是列名的唯一真相**：`importProductsFromRows` 按它们识别，
+ * 内置样例表格的表头也从这里派生（见 `sampleProductCsv`）。
+ * 手抄第二份列名 = 军规 1 禁的那类债——解析器改了别名，样例不会跟着改，
+ * 于是样例静默变成坏样本。`tests/product-sample-csv.test.ts` 用「改了别名
+ * 样例必须立刻红」来钉住这件事。
+ *
+ * 取值历史上散在 `importProductsFromRows` 的 `||` 链里，此处只做「提为常量」，
+ * 顺序与取值逐字保留。
+ */
+export const PRODUCT_COLUMN_ALIASES = {
+  sku: ["sku", "产品编号", "编码"],
+  name: ["name", "产品名称", "中文名称"],
+  nameEn: ["name en", "英文名称"],
+  summary: ["summary", "产品简介"],
+  summaryEn: ["summary en", "英文简介"],
+  category: ["category", "分类"],
+  image: ["image", "图片", "图片url", "主图", "图片地址"],
+} as const;
+
+/**
+ * 内置样例商品表格（T-26）。
+ *
+ * 用户此前要拿到格式得**去外部打听**，所以在商品导入弹窗里直接给一份可下载的样例。
+ * 表头取各列的**首个别名**——即解析器主推的写法，同时天然满足"每一列都被识别"。
+ * 图片列留空：填一个假地址会让用户点下载后拿到一张 404 图；列在场即可说明格式。
+ */
+export const sampleProductCsv: string = [
+  Object.values(PRODUCT_COLUMN_ALIASES).map((aliases) => aliases[0]).join(","),
+  "HC-550M,单晶光伏组件 550W,Monocrystalline Panel 550W,双玻双面，转换效率 21.3%,Bifacial glass-glass module with 21.3% efficiency,光伏组件,",
+].join("\n");
+
 export function importProductsFromRows(
   draft: SiteDraft,
   rows: Record<string, string>[],
@@ -125,22 +159,22 @@ export function importProductsFromRows(
     const normalized = Object.fromEntries(
       Object.entries(row).map(([key, value]) => [key.trim().toLowerCase(), String(value ?? "").trim()]),
     );
-    const sku = normalized.sku || normalized["产品编号"] || normalized["编码"];
-    const name = normalized.name || normalized["产品名称"] || normalized["中文名称"];
+    const sku = PRODUCT_COLUMN_ALIASES.sku.map((alias) => normalized[alias]).find(Boolean);
+    const name = PRODUCT_COLUMN_ALIASES.name.map((alias) => normalized[alias]).find(Boolean);
     if (!sku || !name) {
       errors.push(`第 ${index + 2} 行缺少 SKU 或产品名称`);
       return;
     }
     // 图片列：图片/图片URL/主图/image → 主图 URL（本地 /api/product-images/ 或完整 URL）
-    const imageRaw = normalized.image || normalized["图片"] || normalized["图片url"] || normalized["主图"] || normalized["图片地址"] || "";
+    const imageRaw = PRODUCT_COLUMN_ALIASES.image.map((alias) => normalized[alias]).find(Boolean) || "";
     const product: Product = {
       sku,
-      name: { zh: name, en: normalized["name en"] || normalized["英文名称"] || name },
+      name: { zh: name, en: PRODUCT_COLUMN_ALIASES.nameEn.map((alias) => normalized[alias]).find(Boolean) || name },
       summary: {
-        zh: normalized.summary || normalized["产品简介"] || "待补充产品简介",
-        en: normalized["summary en"] || normalized["英文简介"] || "Product description to be completed.",
+        zh: PRODUCT_COLUMN_ALIASES.summary.map((alias) => normalized[alias]).find(Boolean) || "待补充产品简介",
+        en: PRODUCT_COLUMN_ALIASES.summaryEn.map((alias) => normalized[alias]).find(Boolean) || "Product description to be completed.",
       },
-      category: normalized.category || normalized["分类"] || "未分类",
+      category: PRODUCT_COLUMN_ALIASES.category.map((alias) => normalized[alias]).find(Boolean) || "未分类",
       status: "draft",
       imageColor: "#e6eee5",
       ...(imageRaw ? { image: imageRaw } : {}),
