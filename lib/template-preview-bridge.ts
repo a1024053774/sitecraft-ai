@@ -1399,7 +1399,17 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
     if (typeof MutationObserver !== 'function') return;
     var NON_CONTENT = ['SCRIPT', 'STYLE', 'LINK', 'META', 'TEMPLATE'];
     let snapshot = null;
-    let restored = false;
+    let snapshotContent = 1;
+    let snapshotText = 0;
+    let lastContent = -1;
+    /* ⚠️ 必须初始化为"现在"（2026-09-14 实测真缺陷）：写成 0 会让首次巡检
+     * 算出「已稳定 30 年」→ 内容一到位就立刻收工 → 此后任何水合清空无人再救。
+     * 这是「锁A/锁C 拍不红」的根因。 */
+    let stableSince = Date.now();
+    let rewrites = 0;
+    /* 诊断计数器：只为回答"observer 到底跑没跑"（钩子按需读取） */
+    let observeCalls = 0;
+    let lastNSeen = -1;
     const root = () => document.querySelector('main') || document.body;
     const contentEls = (node) => {
       if (!node) return 0;
@@ -1407,44 +1417,110 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
         NON_CONTENT.indexOf(el.tagName) === -1).length;
     };
     const capture = () => {
-      if (restored || snapshot) return;
       const main = root();
       if (!main) return;
       /* ⚠️ 采"有内容元素"的第一个状态——**不能只看 innerHTML.trim()**。
        * 实测：真实白屏发生在 load 之前，等 load 再采就永远采不到
        * （DOM 已被清空）。而中间态里 innerHTML 可能是 script/style 之类
        * 的非空串——那种状态不能当快照，否则还原出来还是空的。 */
-      if (contentEls(main) === 0) return;
+      const n = contentEls(main);
+      if (n === 0) return;
+      /* 只接受**文字量更多**的新快照（2026-09-14 实测修正）。
+       * 首版判据是「内容元素数更多」——**它拦不住水合中间态**：
+       * React 水合时会留下大量**空壳节点**（实测 839 个空 div，
+       * 元素数比快照的 834 还多，文字量却是 0），于是残页照样覆盖了完整快照。
+       * 判据改成**文字量**：空壳再多也不算内容。 */
+      const text = main.innerText ? main.innerText.trim().length : 0;
+      if (snapshot && text <= snapshotText) return;
       snapshot = main.innerHTML;
+      snapshotContent = n;
+      snapshotText = text;
     };
     const restore = () => {
-      if (restored || !snapshot) return;
+      if (!snapshot || rewrites >= 3) return;
       const main = root();
       if (!main) return;
-      /* 收紧签名：只有内容元素塌缩到 0 才动。合法编辑/局部更新一律不碰。 */
-      if (contentEls(main) > 0) return;
+      /* 收紧签名：只有内容元素塌缩才动。合法编辑/局部更新一律不碰。 */
+      const n = contentEls(main);
+      if (n > snapshotContent / 2) return;
+      rewrites += 1;
       main.innerHTML = snapshot;
-      restored = true;
-      observer.disconnect();
     };
+    /* ⚠️ 判据从"是否关闸"改成"**内容元素数是否还在变**"（2026-09-14 实测）：
+     * 旧实现 restore 一次就 disconnect，而实测存在**两次清空**的路径——
+     * 桥在 194ms 抢在水合前还原，React 在 3179ms 水合时把它不认识的这批
+     * 节点再清一次，那时已无人再救。所以快照必须**活到内容稳定为止**。
+     * 稳定判据取"≥1.5s 内容元素数不变"：真实水合约 3.1s 落定，
+     * 该窗口足以覆盖；也远晚于用户可能做的编辑。 */
+    const STABLE_MS = 1500;
+    const WATCH_MS = 20000;
     const observer = new MutationObserver(() => {
-      capture();
-      restore();
+      observeContent();
     });
-    /* 立刻开始观察（不等 load）——白屏可能发生在 load 之前 */
-    capture();
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    if (document.readyState !== 'complete') window.addEventListener('load', capture, { once: true });
-    /* 水合可能晚于 load；持续观察 + 多次兜底尝试（用户裁决 1：持续观察+多次重试） */
-    let attempts = 0;
-    const pump = () => {
-      restore();
-      if (!restored && attempts < 20) {
-        attempts += 1;
-        window.setTimeout(pump, 250);
+    /* 持续观察内容元素数：变了就按读数决定"再采"还是"再救"。
+     * 不再一次性关闸——真实路径需要救两次（见上方 STABLE_MS 注释）。 */
+    const observeContent = () => {
+      observeCalls += 1;
+      const main = root();
+      if (!main) return;
+      capture();
+      const n = contentEls(main);
+      lastNSeen = n;
+      if (n !== lastContent) {
+        lastContent = n;
+        stableSince = Date.now();
       }
+      restore();
     };
-    window.setTimeout(pump, 250);
+    /* 立刻开始观察（不等 load）——白屏可能发生在 load 之前 */
+    observeContent();
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    if (document.readyState !== 'complete') window.addEventListener('load', observeContent, { once: true });
+    /* ⚠️ **绝不提前收工**（2026-09-14 实测真缺陷）：
+     * 首版让巡检在「内容已稳定且快照无损」时 disconnect——看似合理，
+     * 实测却致命：真实水合清空发生在 **3.1s**，而内容在 1.5s 就"看起来稳定"了，
+     * 观察者在那之前退休 → 水合清空时**已无人值守**（实测 observeCalls 冻结、
+     * 注入 839 个节点也不再触发）。
+     * 所以观察者必须**活满整个 WATCH_MS**。 */
+    let aliveSince = Date.now();
+    const watchdog = () => {
+      /* 只在观察者还活着时读 DOM：收工后绝不再动页面（避免与 React 打架） */
+      if (aliveSince !== -1) {
+        const main = root();
+        if (main) {
+          const n = contentEls(main);
+          if (n !== lastContent) {
+            lastContent = n;
+            stableSince = Date.now();
+          }
+        }
+        capture();
+      }
+      if (Date.now() - aliveSince < WATCH_MS) {
+        window.setTimeout(watchdog, 250);
+        return;
+      }
+      observer.disconnect();
+      aliveSince = -1;
+    };
+    window.setTimeout(watchdog, 250);
+    /* 测试钩子：**只在异常签名下**暴露内部状态，用于把三处机制各自锁住
+     *（军规 2：新机制必须有能红它的场景）。正常路径下这两个全局**永不出现**，
+     * 故不构成对外接口，也不改变任何行为。 */
+    if (/[?&]__sitecraftSnapshotProbe=1/.test(window.location.search)) {
+      try {
+        window.__sitecraftSnapshotState = {
+          snapshotLen: () => (snapshot ? snapshot.length : 0),
+          snapshotContent: () => snapshotContent,
+          snapshotText: () => snapshotText,
+          lastContent: () => lastContent,
+          rewrites: () => rewrites,
+          observeCalls: () => observeCalls,
+          lastNSeen: () => lastNSeen,
+          isStable: () => Date.now() - stableSince,
+        };
+      } catch (e) { /* 钩子绝不影响兜底逻辑 */ }
+    }
   })();
 
   parent.postMessage({ type: 'sitecraft:ready', templateId }, '*');
