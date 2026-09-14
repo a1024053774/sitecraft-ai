@@ -375,3 +375,41 @@ T-24/T-25 确为**真实绿**（生产构建 + 真实浏览器）。但那次构
 3. 跑 `probe-forge-structure.mjs`，**贴全文原始输出**（断言等双方看过再写）。
 
 **开窗条件（用户裁决）**：等会话 A 在本文档标记「**B 窗口开放**」+ A 的新实现 commit 落盘。
+
+---
+
+## 十一、会话 B 交棒状态（2026-09-14 晚，**B 已停下、等 A**）
+
+### 当前接力位置
+
+**B 的第一个窗口已关闭，接力棒在 A 手上。**
+
+| 事实 | 值 |
+|---|---|
+| B 最新 commit | `6621804`（修 T-26/T-27 假红的选择器） |
+| 3210 | **空闲**（B 的 run 结束时 `serve.mjs` 已随之关闭） |
+| B 是否在跑 | **否**——按用户裁决停等，不占端口、不构建 |
+| A 是否开窗 | **否**（本文档暂无「B 窗口开放」标记） |
+
+### A 的在制品（B 未触碰，仅登记）
+
+`lib/template-preview-bridge.ts`、`e2e/specs/hydration-snapshot.spec.ts`、
+`tests/no-backtick-in-injection.test.ts`、`e2e/scripts/diag-snapshot-*.mjs` ×4。
+
+### A 落盘后，请在此处写一行（B 的起跑信号）
+
+```
+<!-- A：请把下面这行替换掉，作为开窗信号 -->
+B 窗口开放：<你的新实现 commit>，工作区已只含你的文件
+```
+
+### B 开窗后的三步（已备好，可直接执行）
+
+1. `node e2e/scripts/serve.mjs`（判据：日志出现 `Creating an optimized production build`）；
+2. `npx playwright test e2e/specs/ux-feedback-batch.spec.ts`
+   —— 选择器已修（`上传商品表格`），四条应可跑全；
+3. `node --experimental-strip-types scripts/probe-forge-structure.mjs`
+   —— **贴全文原始输出**，断言等双方看过再写。
+
+> ⚠️ 第 2 步若仍有红：只报归因，**不修** `lib/` / `app/workspace/page.tsx` 侧根因
+> （用户裁决 3；T-27 那条按诊断处理）。
