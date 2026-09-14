@@ -41,6 +41,21 @@ async function writeSampleCsv() {
  * 这与 `asset-select.spec.ts` 里"原断言挑 forge heroimg 但结构不可达"是同一类错：
  * **命令能选中 ≠ 用户在页面上点得到**。
  */
+/**
+ * 打开商品导入弹窗。
+ *
+ * ⚠️ 用 `.upload-zone` 的父级 `.import-modal` 定位，**不按无障碍名**——
+ * 「上传商品表格」这个名字在 `app/page.tsx:198` 也有一个（是 `<Link>`，
+ * 当前页不冲突，但撞名只是时间问题）。
+ *
+ * 更关键的是**显式断言弹窗可见**：若选择器解析不到，`setInputFiles` 不会报错，
+ * 后续断言可能照样绿——那是**假绿**，比假红危险。
+ */
+async function openImportDialog(page: import("@playwright/test").Page) {
+  await page.getByRole("button", { name: "上传商品表格" }).click();
+  await expect(page.locator(".upload-zone"), "商品导入弹窗必须真的打开").toBeVisible({ timeout: 10_000 });
+}
+
 test.describe("体验反馈批 · 浏览器验收", () => {
   test("T-24：保存站点素材后的提示写出去向（不是「已保存」就完）", async ({ page, demoSite }) => {
     await page.goto(`/workspace?siteId=${demoSite.id}`);
@@ -81,7 +96,7 @@ test.describe("体验反馈批 · 浏览器验收", () => {
     const csvPath = await writeSampleCsv();
 
     await page.goto(`/workspace?siteId=${demoSite.id}`);
-    await page.getByRole("button", { name: "上传商品表格" }).click();
+    await openImportDialog(page);
 
     // ① 链接在场
     const download = page.getByRole("button", { name: "下载样例表格" });
@@ -100,7 +115,7 @@ test.describe("体验反馈批 · 浏览器验收", () => {
     expect(bytes[2]).toBe(0xbf);
 
     // ③ 用**同一份内容**回环导入——证明样例是解析器能吃的，不是摆设
-    await page.locator('.import-modal input[type="file"][accept*="csv"]').setInputFiles(csvPath);
+    await page.locator(".upload-zone input[type='file']").setInputFiles(csvPath);
     await expect(page.locator(".import-result")).toContainText("已保存", { timeout: 15_000 });
     await expect(page.locator(".import-result")).toContainText("新增或更新 1 个商品");
   });
@@ -108,8 +123,8 @@ test.describe("体验反馈批 · 浏览器验收", () => {
   test("T-27：缩略图容器不再 repeat（外部图不可达时不会绘成重复花屏）", async ({ page, demoSite }) => {
     const csvPath = await writeSampleCsv();
     await page.goto(`/workspace?siteId=${demoSite.id}`);
-    await page.getByRole("button", { name: "上传商品表格" }).click();
-    await page.locator('.import-modal input[type="file"][accept*="csv"]').setInputFiles(csvPath);
+    await openImportDialog(page);
+    await page.locator(".upload-zone input[type='file']").setInputFiles(csvPath);
     await expect(page.locator(".import-result")).toContainText("已保存", { timeout: 15_000 });
 
     const thumb = page.locator(".product-image-thumb").first();
