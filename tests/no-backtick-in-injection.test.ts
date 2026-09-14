@@ -56,7 +56,7 @@ const INJECTION_REGIONS = [
     // 一个已经没有注入脚本的路由（空转，等于门禁静默失效）。
     file: "lib/template-preview-bridge.ts",
     startLine: 45,
-    endLine: 1611,
+    endLine: 1610,
     what: "bridgeScript：注入到模板页面的桥接脚本",
   },
 ] as const;
