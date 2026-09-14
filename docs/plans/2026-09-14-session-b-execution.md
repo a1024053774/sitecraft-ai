@@ -413,3 +413,51 @@ B 窗口开放：<你的新实现 commit>，工作区已只含你的文件
 
 > ⚠️ 第 2 步若仍有红：只报归因，**不修** `lib/` / `app/workspace/page.tsx` 侧根因
 > （用户裁决 3；T-27 那条按诊断处理）。
+
+---
+
+## 十二、T-21 探针报告契约（用户裁决 4：两个机制**分开写**，不许合并）
+
+用户裁决原文：「把两个机制分开写进探针报告，不许合并成『hero 消失』一句话……
+
+- **机制 a**：轮子/产品图 = **空 `products`** → `renderAdditionalProducts` **整行不生成**；
+
+- **机制 b**：`CTAbg` 背景 = **`cta.innerHTML` 抹除**。
+
+`heroimg` 渲染正常恰好证明 a 与 b 是**两条路径、两个签名**——红样本将按签名分别立。」
+
+### 探针的现有输出已足以分开这两个机制（无需改码）
+
+`scripts/probe-forge-structure.mjs` 当前每轮打印下列字段，**逐项对应一个签名**：
+
+| 机制 | 探针字段 | 预期（空草稿 / 有产品草稿） |
+|---|---|---|
+| **a** 产品图 | `生成产品区 个数`、`generatedProductsCardCount`、`generatedProductsImgCount` | 空 products → **个数 0、无卡片**；有产品 → 个数 1、卡片=2、图=1 |
+| **b** CTAbg | `CTA(body > section) 存在`、`ctaClass`、`ctaBackgroundImage`、`含 CTAbg（属性或计算样式）` | 两者**都应为「抹除后」**：class 被清、background 是渐变、含 CTAbg = **false** |
+| **反证** heroimg | `hero 图存在`、`heroImgSrc` | **两轮都应 true**——它**不是**任何一个机制的签名 |
+
+### 报告写法（贴原始输出时按此分节，**禁止合并成一句**）
+
+```
+【机制 a】空 products → renderAdditionalProducts 整行不生成
+  签名读数：generatedProductsCount = ? / cards = ? / imgs = ?
+  对照读数（有产品草稿）：?...
+
+【机制 b】cta.innerHTML 抹除 → CTAbg 背景消失
+  签名读数：ctaClass = ? / computed background-image = ? / 含 CTAbg = ?
+  源侧对照：vendor/.../small-bis/dist/index.html 的 CTA 段 class 含 bg-[url('/CTAbg.jpg')]
+
+【反证】heroimg 渲染正常（两轮均 true）
+  → 证明 a/b 是两条独立路径，不是"整个 hero 塌了"
+  签名读数：heroImgPresent = ? / src = ?
+```
+
+### 红样本将按签名分别立（不在本次窗口）
+
+- **签名 a** → 断言：给定 `products` 非空，产品区必须**存在**且**卡片数 = products 数**；
+  给定 products 为空，产品区**不存在**。（首选"整区不生成/生成"这个二值信号，不做结构计数。）
+- **签名 b** → 断言：CTA 段注入后 **computed background-image 仍含 CTAbg**
+  （即"未被抹除"）——这是确定性签名；坏样本 = 让它被抹（现状），必须红。
+
+> 两签名的**坏样本互相独立**：删产品区不会让 b 变红，抹 CTAbg 不会让 a 变红。
+> 这是它们"分开立"的判别力依据（附则 A4）。
