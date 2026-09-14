@@ -415,7 +415,24 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
       body.style.cssText = 'margin:0;opacity:.72;line-height:1.65';
       setText(title, localize(product.name, locale), 'products.' + product.sku + '.name.' + locale, applied);
       setText(body, localize(product.summary, locale), 'products.' + product.sku + '.summary.' + locale, applied);
-      if (imgNode) card.append(imgNode);
+      if (imgNode) {
+        card.append(imgNode);
+      } else {
+        /* 无图回退色块——与生成器侧 template-composer.ts 的 sc-product__ph 对齐：
+         * 那句注释一直承诺"与 preview 注入逻辑保持一致"，但此前**只有生成器实现了**
+         * （2026-09-14 探针实测：2 张卡片只有 1 个 img，另一张什么 media 都没有）。
+         * ⚠️ 色值用 style.backgroundColor **属性赋值**，不拼进 cssText：
+         * imageColor 是 z.string().max(30) 的自由字符串，拼字符串等于把校验交给运气；
+         * 属性赋值由浏览器自己丢弃非法值，且 dompurify/合规扫描更容易通过。 */
+        const ph = document.createElement('div');
+        ph.setAttribute('data-sitecraft-product-placeholder', product.sku);
+        ph.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:4/3;border-radius:8px;margin-bottom:14px;font:12px ui-monospace,monospace;opacity:.85;color:inherit';
+        ph.style.backgroundColor = (typeof product.imageColor === 'string' && product.imageColor.trim()) || '#e8ece9';
+        const tag = document.createElement('span');
+        tag.textContent = product.sku;
+        ph.append(tag);
+        card.append(ph);
+      }
       card.append(sku, title, body);
       grid.append(card);
     });
