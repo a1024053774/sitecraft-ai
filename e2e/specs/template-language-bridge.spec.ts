@@ -21,8 +21,7 @@ for (const templateId of templates) {
      *
      * **恢复条件 = T-13 修复后先跑探针归零，再摘掉本行。**
      */
-    test.skip(templateId === "shadcn-landing2",
-      "T-14：生产 CSP 拦模板内联脚本 → shadcn-landing2 间歇白屏（实测 1/20）");
+    // T-14 已修（2026-09-14）：探针 0/50，水合快照兜底生效，skip 已摘。
     const response = await page.goto("/api/templates/" + templateId + "/preview");
     expect(response?.ok()).toBe(true);
 

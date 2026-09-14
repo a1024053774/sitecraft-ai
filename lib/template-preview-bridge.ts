@@ -1409,7 +1409,12 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
     const capture = () => {
       if (restored || snapshot) return;
       const main = root();
-      if (!main || !main.innerHTML.trim()) return;
+      if (!main) return;
+      /* ⚠️ 采"有内容元素"的第一个状态——**不能只看 innerHTML.trim()**。
+       * 实测：真实白屏发生在 load 之前，等 load 再采就永远采不到
+       * （DOM 已被清空）。而中间态里 innerHTML 可能是 script/style 之类
+       * 的非空串——那种状态不能当快照，否则还原出来还是空的。 */
+      if (contentEls(main) === 0) return;
       snapshot = main.innerHTML;
     };
     const restore = () => {
@@ -1426,9 +1431,10 @@ export function bridgeScript(templateId: string, templateRootUrl: string | null)
       capture();
       restore();
     });
-    if (document.readyState === 'complete') capture();
-    else window.addEventListener('load', capture, { once: true });
+    /* 立刻开始观察（不等 load）——白屏可能发生在 load 之前 */
+    capture();
     observer.observe(document.documentElement, { childList: true, subtree: true });
+    if (document.readyState !== 'complete') window.addEventListener('load', capture, { once: true });
     /* 水合可能晚于 load；持续观察 + 多次兜底尝试（用户裁决 1：持续观察+多次重试） */
     let attempts = 0;
     const pump = () => {

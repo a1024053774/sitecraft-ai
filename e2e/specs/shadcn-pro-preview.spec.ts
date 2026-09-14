@@ -48,7 +48,7 @@ function isTrackedStaticAsset(requestUrl: string) {
  */
 test("SHADCN PRO wrapper applies its exported styles inside the preview iframe", async ({ page, request }, testInfo) => {
   // T-14（间歇 1/20）：见文件头。探针归零后再摘。
-  test.skip(true, "T-14：生产 CSP 拦模板内联脚本 → shadcn-landing2 间歇白屏（实测 1/20）");
+  // T-14 已修（2026-09-14）：探针 0/50，水合快照兜底生效，skip 已摘。
   const failedAssets: Array<{ url: string; status?: number; error?: string }> = [];
 
   page.on("requestfailed", (request) => {

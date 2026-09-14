@@ -40,8 +40,7 @@ for (const templateId of targetIds) {
      *
      * 其余模板（catalog 其余项）不受影响，断言原样。
      */
-    test.skip(templateId === "shadcn-landing2",
-      "T-14：生产 CSP 拦模板内联脚本 → shadcn-landing2 间歇白屏（实测 1/20；复验锚点=probe-empty-rate 归零）");
+    // T-14 已修（2026-09-14）：探针 0/50，水合快照兜底生效，skip 已摘。
     expect(hasManifest(templateId), `${templateId} 未注册槽位契约（manifest），先注册再扫`).toBe(true);
     await openPreview(page, templateId);
     const draft = coverageDraft(templateId);
