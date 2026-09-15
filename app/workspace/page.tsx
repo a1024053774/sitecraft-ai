@@ -43,8 +43,14 @@ import {
 import type { SiteOperation } from "@/lib/site-operations";
 
 const siteId = "demo";
+const conversationStorageKey = `sitecraft-conversation:${siteId}`;
 
-type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change";
+function readStoredConversationId() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(conversationStorageKey);
+}
+
+type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change" | "answer" | "clarify";
 type ChatMessage = {
   id: string;
   role: "assistant" | "user";
@@ -53,6 +59,7 @@ type ChatMessage = {
   status?: ChatStatus;
   revision?: number;
   meta?: string;
+  options?: string[];
 };
 type HistoryItem = {
   id: string;
@@ -100,6 +107,7 @@ export default function WorkspacePage() {
   const [canRedo, setCanRedo] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [conversationId, setConversationId] = useState<string | null>(() => readStoredConversationId());
   const [input, setInput] = useState("");
   const [device, setDevice] = useState<Device>("desktop");
   const [locale, setLocale] = useState<Locale>("zh");
@@ -223,7 +231,12 @@ export default function WorkspacePage() {
       const response = await fetch(`/api/sites/${siteId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseRevision: draft.revision, message: value, selectedTarget: selectedTarget?.key ?? null }),
+        body: JSON.stringify({
+          baseRevision: draft.revision,
+          message: value,
+          selectedTarget: selectedTarget?.key ?? null,
+          conversationId,
+        }),
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({})) as Partial<DraftSnapshot> & { message?: string };
@@ -245,6 +258,10 @@ export default function WorkspacePage() {
         if (result.done) break;
       }
       if (!doneEvent) throw new Error("模型没有返回完成事件");
+      if (typeof doneEvent.conversationId === "string") {
+        setConversationId(doneEvent.conversationId);
+        window.localStorage.setItem(conversationStorageKey, doneEvent.conversationId);
+      }
       const status = String(doneEvent.status);
       if ((status === "applied" || status === "no_change" || status === "conflict") && doneEvent.draft) adoptSnapshot(doneEvent as unknown as DraftSnapshot);
       const latency = typeof doneEvent.latencyMs === "number" ? `模型 ${Math.max(0.1, doneEvent.latencyMs / 1000).toFixed(1)} 秒` : undefined;
@@ -261,6 +278,19 @@ export default function WorkspacePage() {
         setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", text: "模型没有生成可应用的内容差异，草稿和模板均未修改。", change: String(doneEvent.summary || "没有变化"), meta: latency }]);
       } else if (status === "conflict") {
         setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: String(doneEvent.error), change: "没有覆盖较新的草稿" }]);
+      } else if (status === "answer") {
+        setMessages((items) => [...items, {
+          id: crypto.randomUUID(), role: "assistant", status: "answer",
+          text: String(doneEvent.text || doneEvent.summary || "模型已回答，但没有返回内容。"), meta: latency,
+        }]);
+      } else if (status === "clarify") {
+        const options = Array.isArray(doneEvent.options)
+          ? doneEvent.options.filter((option): option is string => typeof option === "string")
+          : [];
+        setMessages((items) => [...items, {
+          id: crypto.randomUUID(), role: "assistant", status: "clarify",
+          text: String(doneEvent.question || "还需要你补充一点信息。"), options, meta: latency,
+        }]);
       } else {
         throw new Error(String(doneEvent.error || "模型操作失败"));
       }
@@ -393,6 +423,7 @@ export default function WorkspacePage() {
             <div className={`message ${message.role} ${message.status ?? ""}`} key={message.id}>
               <div className="message-label">{message.role === "assistant" ? <><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />SITECRAFT AI</> : "YOU"}</div>
               <div className="message-bubble">{message.text}</div>
+              {message.options?.length ? <div className="chat-hints clarify-options">{message.options.map((option) => <button className="hint" key={option} type="button" onClick={() => { setInput(option); window.requestAnimationFrame(() => inputRef.current?.focus()); }}>{option}</button>)}</div> : null}
               {message.change && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "error" || message.status === "warning" ? <AlertCircle size={11} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={11} /> : <Check size={11} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
             </div>
           ))}
