@@ -1,0 +1,682 @@
+{
+  "schema_version": "1.0.0",
+  "reviewed_on": "2026-09-15",
+  "purpose": "中小企业 AI 建站选型调研索引；不是已批准的生产白名单",
+  "evidence_boundary": "仅查阅公开官方来源；未读取用户代码；未运行外部 Skill、模板或安装器。",
+  "rules": [
+    "未完成许可证/素材/安全/版本/功能复核的条目，production_approved 必须保持 false。",
+    "主题适用行业、优先级与设计评价是本次方案建议，不是第三方测评结论。",
+    "不能用开源代码许可替代图片、字体、商标或付费组件许可。",
+    "本索引不授权爬取、再分发、训练或接入受限商业仓库。"
+  ],
+  "resources": [
+    {
+      "id": "impeccable",
+      "name": "Impeccable",
+      "category": "skill",
+      "official_urls": [
+        "https://github.com/pbakaus/impeccable",
+        "https://impeccable.style/"
+      ],
+      "license_observed": "Apache-2.0",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "新建站",
+        "存量站改造"
+      ],
+      "suggested_role": "作为主要设计工作流，分开做 shape / critique / audit / polish。",
+      "cautions": "安装器、hooks 和下载的运行时需审查；不能把规则通过当成审美或可访问性认证。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "ui-ux-pro-max",
+      "name": "UI UX Pro Max",
+      "category": "skill",
+      "official_urls": [
+        "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
+      ],
+      "license_observed": "MIT",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "跨行业",
+        "设计系统选型"
+      ],
+      "suggested_role": "检索行业、风格、配色、字体及页面模式，输出候选设计系统。",
+      "cautions": "行业匹配是建议而非品牌事实；数量、支持栈与版本以锁定版本为准。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "anthropic-frontend-design",
+      "name": "Anthropic frontend-design",
+      "category": "skill",
+      "official_urls": [
+        "https://github.com/anthropics/skills/tree/main/skills/frontend-design",
+        "https://raw.githubusercontent.com/anthropics/skills/main/skills/frontend-design/LICENSE.txt"
+      ],
+      "license_observed": "Apache-2.0",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "轻量设计约束",
+        "基线对照"
+      ],
+      "suggested_role": "作为轻量审美主技能或对照组。",
+      "cautions": "不要与多个审美主技能同时竞争控制权。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "vercel-web-design-guidelines",
+      "name": "Vercel web-design-guidelines",
+      "category": "skill",
+      "official_urls": [
+        "https://github.com/vercel-labs/agent-skills/blob/main/skills/web-design-guidelines/SKILL.md",
+        "https://github.com/vercel-labs/web-interface-guidelines"
+      ],
+      "license_observed": "本次未单独确认完整许可文件；入库前核对",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "所有网页"
+      ],
+      "suggested_role": "检查表单、键盘、语义、图片、动效与交互规范。",
+      "cautions": "不是品牌设计引擎；引用的上游规则也应版本化。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "vercel-react-best-practices",
+      "name": "Vercel react-best-practices",
+      "category": "skill",
+      "official_urls": [
+        "https://github.com/vercel-labs/agent-skills/blob/main/skills/react-best-practices/SKILL.md"
+      ],
+      "license_observed": "以所选 Skill 与规则文件许可为准，入库前复核",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "React",
+        "Next.js"
+      ],
+      "suggested_role": "React / Next.js 工程与性能审查。",
+      "cautions": "不要给纯 Astro/HTML 页面机械套用 React 专属规则。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "taste-skill",
+      "name": "Taste Skill",
+      "category": "skill",
+      "official_urls": [
+        "https://github.com/Leonxlnx/taste-skill"
+      ],
+      "license_observed": "MIT",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "视觉探索",
+        "品牌展示",
+        "旧站改造"
+      ],
+      "suggested_role": "作为 Impeccable 的替代对照；按任务选 design-taste-frontend 或 redesign-existing-projects。",
+      "cautions": "本次 README 将默认 v2 标为 experimental；先固定版本测试，不自动升级全量生产。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "marketing-skills",
+      "name": "Marketing Skills",
+      "category": "skill",
+      "official_urls": [
+        "https://github.com/coreyhaines31/marketingskills"
+      ],
+      "license_observed": "MIT",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "企业文案",
+        "落地页",
+        "询盘转化"
+      ],
+      "suggested_role": "按需用 product-marketing、copywriting、copy-editing、cro、seo-audit。",
+      "cautions": "先读真实客户资料；不得编造资历、认证、评论、价格、客户 logo 或业绩。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "agent-browser",
+      "name": "Vercel agent-browser",
+      "category": "tool_with_skills",
+      "official_urls": [
+        "https://github.com/vercel-labs/agent-browser"
+      ],
+      "license_observed": "Apache-2.0",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "真实浏览器验收"
+      ],
+      "suggested_role": "截图、交互与状态检查；配合隔离浏览器与受控测试环境。",
+      "cautions": "Skill 文件不等于浏览器执行能力；需要另外安装和验证运行环境。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "shadcn-ui",
+      "name": "shadcn/ui",
+      "category": "component_base",
+      "official_urls": [
+        "https://github.com/shadcn-ui/ui",
+        "https://ui.shadcn.com/"
+      ],
+      "license_observed": "MIT",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "React",
+        "基础交互"
+      ],
+      "suggested_role": "作为交互原件，不作为整站视觉方案。",
+      "cautions": "与 Shadcnblocks、Shadcn Studio 等独立商业产品不是同一许可。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "tailark-oss",
+      "name": "Tailark OSS blocks",
+      "category": "section_library",
+      "official_urls": [
+        "https://github.com/tailark/blocks",
+        "https://github.com/tailark/blocks/blob/main/LICENCE.md"
+      ],
+      "license_observed": "MIT（所列 OSS 仓库）",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "B2B服务",
+        "SaaS",
+        "产品营销"
+      ],
+      "suggested_role": "挑选开源页面区块，经 token 归一化后进入私有 registry。",
+      "cautions": "不要把 OSS 仓库许可外推到 Tailark 的全部商业内容；Base UI / Radix 变体需与项目匹配。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "hyperui",
+      "name": "HyperUI",
+      "category": "section_library",
+      "official_urls": [
+        "https://github.com/markmead/hyperui",
+        "https://www.hyperui.dev/"
+      ],
+      "license_observed": "MIT",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "Tailwind",
+        "HTML",
+        "营销页",
+        "商品展示"
+      ],
+      "suggested_role": "作为跨行业区块来源。",
+      "cautions": "不是完整建站引擎；复杂交互和业务连接需另行实现。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "astrowind",
+      "name": "AstroWind",
+      "category": "site_starter",
+      "official_urls": [
+        "https://github.com/arthelokyo/astrowind",
+        "https://github.com/onwidget/astrowind",
+        "https://astrowind.vercel.app/",
+        "https://github.com/arthelokyo/astrowind/blob/main/.agents/skills/use-widgets.md"
+      ],
+      "license_observed": "MIT",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "内容型企业官网",
+        "服务站",
+        "博客"
+      ],
+      "suggested_role": "整站工程底座；参考其模板配套 Skill 和组件目录组织方式。",
+      "cautions": "本次旧 onwidget 地址重定向到 arthelokyo；采用前核对仓库归属、版本与实际构建，图片单独审查。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "astroplate",
+      "name": "Astroplate",
+      "category": "site_starter",
+      "official_urls": [
+        "https://github.com/zeon-studio/astroplate"
+      ],
+      "license_observed": "代码 MIT；演示图片单独授权",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "多语言",
+        "内容更新",
+        "企业博客"
+      ],
+      "suggested_role": "内容型整站底座。",
+      "cautions": "README 明确演示图片有独立许可，不可把 MIT 当成图片授权。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "magic-ui-oss",
+      "name": "Magic UI OSS",
+      "category": "motion_components",
+      "official_urls": [
+        "https://github.com/magicuidesign/magicui"
+      ],
+      "license_observed": "MIT（所列 OSS 仓库）",
+      "suggested_priority": "P2",
+      "suggested_fit": [
+        "软件产品",
+        "少量品牌动效"
+      ],
+      "suggested_role": "仅按品牌需要选择少量装饰与动画。",
+      "cautions": "不默认全站动画，不把开源许可外推到付费产品；测试 reduced-motion 与移动性能。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "codestitch",
+      "name": "CodeStitch",
+      "category": "commercial_section_library",
+      "official_urls": [
+        "https://codestitch.app/",
+        "https://codestitch.app/terms-of-service",
+        "https://codestitch.app/faq"
+      ],
+      "license_observed": "商业服务条款",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "本地服务",
+        "家政维修",
+        "会计",
+        "传统中小企业"
+      ],
+      "suggested_role": "行业设计参考和符合授权的定制客户交付候选。",
+      "cautions": "条款禁止以其模板搭建分发/转售模板的平台、工具或服务；不能抓取整库内置生成器。",
+      "platform_embedding_status": "not_permitted_under_standard",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "lexington",
+      "name": "Lexington Themes",
+      "category": "commercial_site_themes",
+      "official_urls": [
+        "https://lexingtonthemes.com/",
+        "https://lexingtonthemes.com/legal/license",
+        "https://lexingtonthemes.com/legal/extended-licensing",
+        "https://lexingtonthemes.com/ai-ready-guide"
+      ],
+      "license_observed": "商业许可；平台用途需单独书面扩展协议",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "建筑",
+        "室内设计",
+        "法律",
+        "会计",
+        "汽车服务",
+        "摄影"
+      ],
+      "suggested_role": "行业整站设计来源；可咨询平台级/再分发授权。",
+      "cautions": "标准许可不覆盖用户选择、导出或复用模板的平台；仓库账号和 AI-agent 接入另有限制。",
+      "platform_embedding_status": "extended_license_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "shadcnblocks",
+      "name": "Shadcnblocks",
+      "category": "commercial_sections_and_themes",
+      "official_urls": [
+        "https://www.shadcnblocks.com/",
+        "https://www.shadcnblocks.com/templates",
+        "https://www.shadcnblocks.com/license"
+      ],
+      "license_observed": "商业许可",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "React",
+        "Astro",
+        "软件产品",
+        "营销官网"
+      ],
+      "suggested_role": "普通客户定制站候选；不要作为默认生成器素材源。",
+      "cautions": "许可明确禁止网站生成器、用组件训练的 AI 生成器，以及让用户生成网站/应用的工具。",
+      "platform_embedding_status": "not_permitted_under_standard",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "tailwind-plus",
+      "name": "Tailwind Plus",
+      "category": "commercial_components_and_themes",
+      "official_urls": [
+        "https://tailwindcss.com/plus",
+        "https://tailwindcss.com/plus/license"
+      ],
+      "license_observed": "本次当前许可页重定向登录，未完成全文核验",
+      "suggested_priority": "P2",
+      "suggested_fit": [
+        "待进一步选型"
+      ],
+      "suggested_role": "仅列为待核验候选。",
+      "cautions": "不要依据旧 Tailwind UI 文章推定当前许可；不列平台白名单。",
+      "platform_embedding_status": "unknown",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "cruip-simple-light",
+      "name": "Cruip Simple Light",
+      "category": "site_template",
+      "official_urls": [
+        "https://github.com/cruip/tailwind-landing-page-template",
+        "https://cruip.com/free-templates/"
+      ],
+      "license_observed": "README 同时写 GPL 与禁止重发布/再分发/转售，需澄清具体版本条款",
+      "suggested_priority": "P2",
+      "suggested_fit": [
+        "SaaS",
+        "产品落地页"
+      ],
+      "suggested_role": "设计参考和个案审查候选。",
+      "cautions": "不要简单标成 MIT 或无条件可嵌入生成器。",
+      "platform_embedding_status": "unknown",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "html5up",
+      "name": "HTML5 UP",
+      "category": "site_templates",
+      "official_urls": [
+        "https://html5up.net/",
+        "https://html5up.net/license"
+      ],
+      "license_observed": "CC BY 3.0（按官方许可及所选文件核对）",
+      "suggested_priority": "P2",
+      "suggested_fit": [
+        "单页",
+        "作品集",
+        "预算有限的展示站"
+      ],
+      "suggested_role": "作为低成本展示模板备选。",
+      "cautions": "需要遵守署名等条件，示例素材分别核对；视觉现代化改造成本需评估。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "unsplash",
+      "name": "Unsplash",
+      "category": "photos",
+      "official_urls": [
+        "https://unsplash.com/license",
+        "https://unsplash.com/documentation"
+      ],
+      "license_observed": "Unsplash License；API 另有使用指南",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "非事实性场景图",
+        "氛围图"
+      ],
+      "suggested_role": "客户原图不足时的备选来源。",
+      "cautions": "不能将库存图片冒充客户团队或已完成项目；API 有署名、热链和下载统计等要求；不复制成竞争图库。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "pexels",
+      "name": "Pexels",
+      "category": "photos_and_video",
+      "official_urls": [
+        "https://www.pexels.com/license/"
+      ],
+      "license_observed": "Pexels License",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "场景图",
+        "辅助短视频"
+      ],
+      "suggested_role": "客户原图不足时的备选来源。",
+      "cautions": "人物、品牌和暗示背书需审查；不把素材包装成客户事实。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "lucide",
+      "name": "Lucide",
+      "category": "icons",
+      "official_urls": [
+        "https://lucide.dev/license",
+        "https://lucide.dev/"
+      ],
+      "license_observed": "ISC；许可页另列相关版权声明",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "跨行业",
+        "统一图标"
+      ],
+      "suggested_role": "一个站优先统一使用一套图标。",
+      "cautions": "不能仅用图标/颜色表达关键含义；保留必要版权和许可声明。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "noto-cjk",
+      "name": "Noto CJK",
+      "category": "font_source",
+      "official_urls": [
+        "https://github.com/notofonts/noto-cjk",
+        "https://notofonts.github.io/noto-docs/website/use/"
+      ],
+      "license_observed": "SIL Open Font License",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "中文",
+        "中英混排",
+        "多语言"
+      ],
+      "suggested_role": "选 Noto Sans CJK / Noto Serif CJK 并评估子集化与授权合规的自托管。",
+      "cautions": "本包不包含任何字体文件；按实际语言、字重和网络条件测试。",
+      "platform_embedding_status": "candidate_review_required",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "landbook",
+      "name": "Land-book",
+      "category": "inspiration",
+      "official_urls": [
+        "https://land-book.com/",
+        "https://land-book.com/pro"
+      ],
+      "license_observed": "浏览灵感不构成代码、图片或设计复制授权",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "艺术方向",
+        "行业参考"
+      ],
+      "suggested_role": "人工选取设计方向，记录参考理由。",
+      "cautions": "不抓整站、品牌图或源代码作为可再分发素材。",
+      "platform_embedding_status": "reference_only",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "one-page-love",
+      "name": "One Page Love",
+      "category": "inspiration_and_directory",
+      "official_urls": [
+        "https://onepagelove.com/templates"
+      ],
+      "license_observed": "每个模板分别核对原作者许可",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "单页",
+        "落地页",
+        "活动"
+      ],
+      "suggested_role": "发现模板和布局思路后返回原作者来源核验。",
+      "cautions": "目录收录不等于统一商业授权。",
+      "platform_embedding_status": "reference_only",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "shadcn-registry",
+      "name": "shadcn Registry docs",
+      "category": "architecture_reference",
+      "official_urls": [
+        "https://ui.shadcn.com/docs/registry"
+      ],
+      "license_observed": "文档参考；实现和引用内容许可分别核对",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "React区块分发",
+        "私有组件目录"
+      ],
+      "suggested_role": "参考其 registry 组织方式，为内部区块建立版本化入口。",
+      "cautions": "本次未构建 registry；只有协议与选型建议。",
+      "platform_embedding_status": "not_applicable",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "playwright-visual",
+      "name": "Playwright visual comparisons",
+      "category": "qa_reference",
+      "official_urls": [
+        "https://playwright.dev/docs/test-snapshots"
+      ],
+      "license_observed": "官方文档参考",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "截图回归",
+        "断点测试"
+      ],
+      "suggested_role": "固定浏览器与环境，保留已审核截图作为回归基线。",
+      "cautions": "像素一致不等于审美好；浏览器/字体/环境差异会影响截图。",
+      "platform_embedding_status": "not_applicable",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "agent-skills-spec",
+      "name": "Agent Skills specification",
+      "category": "architecture_reference",
+      "official_urls": [
+        "https://agentskills.io/specification",
+        "https://agentskills.io/client-implementation/adding-skills-support"
+      ],
+      "license_observed": "官方规范参考",
+      "suggested_priority": "P0",
+      "suggested_fit": [
+        "分阶段加载",
+        "技能结构"
+      ],
+      "suggested_role": "按需加载 SKILL.md 与相关参考材料，不把所有全文堆入提示词。",
+      "cautions": "本包的自定义 Skill 是流程草案，不提供编排器或浏览器执行器。",
+      "platform_embedding_status": "not_applicable",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    },
+    {
+      "id": "core-web-vitals",
+      "name": "Core Web Vitals",
+      "category": "qa_reference",
+      "official_urls": [
+        "https://web.dev/articles/vitals"
+      ],
+      "license_observed": "官方文档参考",
+      "suggested_priority": "P1",
+      "suggested_fit": [
+        "发布后体验"
+      ],
+      "suggested_role": "区分实验室诊断与真实用户 LCP / INP / CLS。",
+      "cautions": "真实用户指标以第75百分位、移动与桌面分别观察；不以一次 Lighthouse 成绩代替。",
+      "platform_embedding_status": "not_applicable",
+      "reviewed_on": "2026-09-15",
+      "verification": "官方网页/仓库/文档检索；未安装、未运行、未做效果基准测试",
+      "production_approved": false,
+      "pinned_revision": null
+    }
+  ]
+}
