@@ -103,5 +103,7 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 ## 7. 模块收据
 
 - `rules-and-plan`：commit `533954ba3bdc0e78413d3ff1482068877a2d0c58`，已 push 到 `origin/main`；规则模块经 Cursor Grok 4.6 High Fast 只读复审通过。
-- 验证：规则/计划敏感信息扫描通过；High Fast/TodoWrite/模块提交推送规则一致；业务代码、CI、T1 和 T2/T3/T4 未纳入该 commit。
-- 下一模块：冻结并核验已有 T2/T3/T4 变更；完成后另建单独 commit 并 push。
+- `rules-receipt`：commit `0438780c45deec720b7effaaedcaa4b83786fefc`，已 push 到 `origin/main`；记录规则模块收据和下一模块。
+- `workspace-chat-bridge`：commit `626e9435d903460248d6c13a71cfbe060f3db474`，已 push 到 `origin/main`；`typecheck`、22 tests、`build` 通过，真实 `/workspace` answer 显示和 localStorage 会话 ID 刷新保留通过，Grok 只读复审 `PASS`。范围仅为工作台 conversationId 往返、answer/clarify 展示和 clarify 选项回填。
+- `workspace-chat-bridge` 限制：完整历史 GET、对齐状态机、PostgreSQL 实测、真实模型稳定 clarify 未在本模块完成，不能标作已完成。
+- 下一模块：核验并决定现有 T2/T3/T4 后端变更的保留/修正范围；完成后另建单独 commit 并 push。
