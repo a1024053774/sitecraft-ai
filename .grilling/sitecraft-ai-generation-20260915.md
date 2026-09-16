@@ -138,3 +138,4 @@ Plan / intent 与 Design / spec 经用户回答及开始执行指令确认，进
 - Round 7（2026-09-16 10:02）: 用户授权主任务读取侧边栏 `7f18c351-9e4d-4266-9658-9f28a5eea55e`，将关键边界写入 AGENTS.md 并执行交接待办。主任务已用真实浏览器复现未声明联系/商品被写入且 missing 为空，确认声明落点取代猜写的方向；模板、快照、许可分别核验，不能冒充整个建站产品已完成。
 - Round 8（2026-09-16）：声明 bridge、静态快照 loader、模板就绪 gallery 和六套素材审计完成；45 tests/build/Docker/浏览器验证通过。Next export、SPA 预渲染、客户素材准入和服务端发布 gate 保留为未完成项；模板模块已 commit `230d00b7845905a34003b75695d25dfb97cb6704` 并 push `origin/main`，远端 SHA 已核对。
 - Round 9（2026-09-16）：Docker PostgreSQL 真实会话读写与 10 路并发追加通过，数据已清理；真实 chat answer/clarify 单次探针通过。后端“草稿 commit 后会话持久化失败”的一致性边界保留为下一模块。
+- Round 10（2026-09-16）：持久化失败反例先红后绿，保留真实草稿 terminal result 并向 UI 发警告；typecheck/47 tests/build 通过；Grok 4.6 High Fast 只读验收 PASS；模块 commit `a1899899e3a93003aa68a9ccab4807e9de92fd56` 已 push origin。下一模块为可选需求对齐状态机。

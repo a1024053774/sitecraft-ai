@@ -135,8 +135,8 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - `workspace-chat-bridge`：commit `626e9435d903460248d6c13a71cfbe060f3db474`，已 push 到 `origin/main`；`typecheck`、22 tests、`build` 通过，真实 `/workspace` answer 显示和 localStorage 会话 ID 刷新保留通过，Grok 只读复审 `PASS`。范围仅为工作台 conversationId 往返、answer/clarify 展示和 clarify 选项回填。
 - `workspace-chat-bridge` 限制：完整历史 GET、对齐状态机、PostgreSQL 实测、真实模型稳定 clarify 未在本模块完成，不能标作已完成。
 - 下一模块：核验并决定现有 T2/T3/T4 后端变更的保留/修正范围；完成后另建单独 commit 并 push。
-- `p0-postgres-probe`：未改业务代码；真实 `postgres:16-alpine` 容器中创建/追加/读回会话通过，10 路并发追加保留 10 条且唯一用户数为 10；探针数据已精确删除。Docker 之前拉取阻塞，镜像恢复后才取得该证据。
-- `p0-real-chat-probe`：隔离 site 通过 Docker web 真实 DeepSeek 请求；事实问题返回 `answer` 且不改稿，模糊“把网站改好看一点”返回 `clarify` 且不改稿；隔离 site 与会话已删除。该结果是单次探针，不是模型稳定性评测。
-- `p0-backend` 当前仍未完成：会话追加在草稿 commit 成功后若失败，当前 route 可能把已修改草稿报告为 error；需独立红证据和最小一致性修正后再提交。
+- `p0-chat-backend`：commit `a1899899e3a93003aa68a9ccab4807e9de92fd56`，已 push 到 `origin/main`；包含会话文件/PG 路径、意图三态、上下文精简、Chat SSE、工作台 conversationId/answer/clarify 和持久化失败一致性修复。
+- `p0-chat-backend` 验证：typecheck 0、47 tests、build 0；真实 PostgreSQL 单轮读写与 10 路并发探针通过；真实 Docker DeepSeek answer/clarify 单次探针通过；探针数据已清理。
+- `p0-chat-backend` 限制：完整历史 GET、可选需求对齐状态机、真实模型稳定性评测、PostgreSQL 持久化失败的 live 外部故障仍未覆盖；UI 警告测试使用 route 反例和静态控制流，不声称完整浏览器 UI 证据。
 - `template-preview-contract` 验证：`npm run typecheck` 0；`npm test` 45/45；`npm run build` 0；Docker `build --pull=false web` 0；`up -d --pull never web` 后 health ready。修复前后浏览器反例见交接文档；未声明字段不会写入，missing 不会消失。
 - `template-preview-contract` 限制：nextjs-landing/shadcn-landing2 无 export，shadcn-landing 是 SPA 壳；六套演示素材仍需替换/授权，gallery 的入口门禁不是服务端发布安全边界；这些不随本提交标为完成。
