@@ -294,6 +294,15 @@ export default function WorkspacePage() {
       } else {
         throw new Error(String(doneEvent.error || "模型操作失败"));
       }
+      if (doneEvent.conversationPersisted === false) {
+        setMessages((items) => [...items, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          status: "warning",
+          text: String(doneEvent.conversationError || "会话历史保存失败"),
+          change: "会话历史没有写入，草稿以当前版本为准",
+        }]);
+      }
       setSelectedTarget(null);
     } catch (error) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "AI 修改失败", change: "本次没有修改草稿" }]);

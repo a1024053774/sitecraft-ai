@@ -130,6 +130,28 @@ export const aiChangeSchema = z.object({
 });
 export type AIChange = z.infer<typeof aiChangeSchema>;
 
+export const aiEditIntentSchema = aiChangeSchema.extend({
+  type: z.literal("edit"),
+});
+export const aiAnswerIntentSchema = z.strictObject({
+  type: z.literal("answer"),
+  text: z.string().min(1).max(4000),
+});
+export const aiClarifyIntentSchema = z.strictObject({
+  type: z.literal("clarify"),
+  question: z.string().min(1).max(800),
+  options: z.array(z.string().min(1).max(200)).max(8).optional(),
+});
+export const aiIntentResponseSchema = z.discriminatedUnion("type", [
+  aiEditIntentSchema,
+  aiAnswerIntentSchema,
+  aiClarifyIntentSchema,
+]);
+export type AIIntentResponse = z.infer<typeof aiIntentResponseSchema>;
+export type AIEditIntent = z.infer<typeof aiEditIntentSchema>;
+export type AIAnswerIntent = z.infer<typeof aiAnswerIntentSchema>;
+export type AIClarifyIntent = z.infer<typeof aiClarifyIntentSchema>;
+
 export type ApplyResult = {
   draft: SiteDraft;
   inverseOperations: SiteOperation[];

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft } from "../lib/site-document.ts";
 import {
+  aiIntentResponseSchema,
   applySiteOperations,
   validateAIOperations,
   type SiteOperation,
@@ -29,6 +30,39 @@ test("updates only the requested service card and creates a reversible operation
   const restored = applySiteOperations(result.draft, result.inverseOperations, { templateIds, lastChange: "Undo" });
   assert.equal(restored.draft.content.services.items[1].title.zh, original.content.services.items[1].title.zh);
   assert.equal(restored.draft.templateId, original.templateId);
+});
+
+test("intent union accepts edit, answer, and clarify and rejects operations on answer", () => {
+  const edit = aiIntentResponseSchema.safeParse({
+    type: "edit",
+    summary: "更新中文首屏",
+    operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "新标题" }],
+  });
+  assert.equal(edit.success, true);
+
+  const answer = aiIntentResponseSchema.safeParse({ type: "answer", text: "当前站点名称是 Forge Industrial。" });
+  assert.equal(answer.success, true);
+
+  const clarify = aiIntentResponseSchema.safeParse({
+    type: "clarify",
+    question: "你想先改哪一部分？",
+    options: ["首屏标题", "服务卡片"],
+  });
+  assert.equal(clarify.success, true);
+
+  const answerWithOps = aiIntentResponseSchema.safeParse({
+    type: "answer",
+    text: "不该带操作",
+    operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "hacked" }],
+  });
+  assert.equal(answerWithOps.success, false);
+
+  const clarifyWithOps = aiIntentResponseSchema.safeParse({
+    type: "clarify",
+    question: "不该带操作",
+    operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "hacked" }],
+  });
+  assert.equal(clarifyWithOps.success, false);
 });
 
 test("rejects an unsolicited template switch", () => {

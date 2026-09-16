@@ -40,6 +40,17 @@ export async function ensureDatabaseSchema() {
           PRIMARY KEY (workspace_id, site_id)
         )
       `)
+      .then(() => getDatabasePool().query(`
+        CREATE TABLE IF NOT EXISTS sitecraft_conversations (
+          workspace_id TEXT NOT NULL,
+          site_id TEXT NOT NULL,
+          conversation_id TEXT NOT NULL,
+          turns JSONB NOT NULL DEFAULT '[]'::jsonb,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (workspace_id, site_id, conversation_id)
+        )
+      `))
       .then(() => undefined)
       .catch((error) => {
         globalDatabase.__sitecraftSchemaReady = undefined;
