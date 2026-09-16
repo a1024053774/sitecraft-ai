@@ -136,4 +136,4 @@ Plan / intent 与 Design / spec 经用户回答及开始执行指令确认，进
 - Round 5: 用户确认不整仓搬 PR4，只取模板 adapter 精华与多出的 6 套模板；以 submodule 接入，不提交 dist。旧 D5“先不接 6 套”被本轮覆盖为“源码进 vendor，未建快照前不声称已可精确生成”。
 - Round 6: 用户确认槽位不要正则冒充命中；意图走模型，落点走声明 slot map。发现与待办写入 `docs/research/PR4模板adapter抽取-2026-09-16.md`，交给主任务继续。
 - Round 7（2026-09-16 10:02）: 用户授权主任务读取侧边栏 `7f18c351-9e4d-4266-9658-9f28a5eea55e`，将关键边界写入 AGENTS.md 并执行交接待办。主任务已用真实浏览器复现未声明联系/商品被写入且 missing 为空，确认声明落点取代猜写的方向；模板、快照、许可分别核验，不能冒充整个建站产品已完成。
-- Round 8（2026-09-16）：声明 bridge、静态快照 loader、模板就绪 gallery 和六套素材审计完成；45 tests/build/Docker/浏览器验证通过。Next export、SPA 预渲染、客户素材准入和服务端发布 gate 保留为未完成项；模板模块等待单独提交推送。
+- Round 8（2026-09-16）：声明 bridge、静态快照 loader、模板就绪 gallery 和六套素材审计完成；45 tests/build/Docker/浏览器验证通过。Next export、SPA 预渲染、客户素材准入和服务端发布 gate 保留为未完成项；模板模块已 commit `230d00b7845905a34003b75695d25dfb97cb6704` 并 push `origin/main`，远端 SHA 已核对。

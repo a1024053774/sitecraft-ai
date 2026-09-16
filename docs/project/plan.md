@@ -135,6 +135,6 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - `workspace-chat-bridge`：commit `626e9435d903460248d6c13a71cfbe060f3db474`，已 push 到 `origin/main`；`typecheck`、22 tests、`build` 通过，真实 `/workspace` answer 显示和 localStorage 会话 ID 刷新保留通过，Grok 只读复审 `PASS`。范围仅为工作台 conversationId 往返、answer/clarify 展示和 clarify 选项回填。
 - `workspace-chat-bridge` 限制：完整历史 GET、对齐状态机、PostgreSQL 实测、真实模型稳定 clarify 未在本模块完成，不能标作已完成。
 - 下一模块：核验并决定现有 T2/T3/T4 后端变更的保留/修正范围；完成后另建单独 commit 并 push。
-- `template-preview-contract`：待本次提交；范围含声明 bridge、adapter、preview route、readiness gallery、快照脚本/loader、六个 submodule、Docker ignore/compose、对应测试和证据文档；最终验收 Grok `57638423-a32d-43ae-922b-a4197c2f8f72` 为 PASS。
+- `template-preview-contract`：commit `230d00b7845905a34003b75695d25dfb97cb6704`，已 push 到 `origin/main`；范围含声明 bridge、adapter、preview route、readiness gallery、快照脚本/loader、六个 submodule、Docker ignore/compose、对应测试和证据文档；最终验收 Grok `57638423-a32d-43ae-922b-a4197c2f8f72` 为 PASS。
 - `template-preview-contract` 验证：`npm run typecheck` 0；`npm test` 45/45；`npm run build` 0；Docker `build --pull=false web` 0；`up -d --pull never web` 后 health ready。修复前后浏览器反例见交接文档；未声明字段不会写入，missing 不会消失。
 - `template-preview-contract` 限制：nextjs-landing/shadcn-landing2 无 export，shadcn-landing 是 SPA 壳；六套演示素材仍需替换/授权，gallery 的入口门禁不是服务端发布安全边界；这些不随本提交标为完成。
