@@ -617,7 +617,7 @@ test("alignment confirm conflicts when the draft revision changes, and cancel do
     conversationId,
     questionId: String(started.done?.questionId),
     questionRevision: Number(started.done?.questionRevision),
-    optionId: "advisor",
+    optionId: "editorial-service",
   });
   const clarifyOptions = asOptionCards(styled.done);
   const proposed = await postChat(siteId, {
@@ -660,7 +660,7 @@ test("alignment confirm conflicts when the draft revision changes, and cancel do
     conversationId: otherId,
     questionId: String(otherStart.done?.questionId),
     questionRevision: Number(otherStart.done?.questionRevision),
-    optionId: "advisor",
+    optionId: "editorial-service",
   });
   const cancelled = await postChat(otherSite, { action: "cancel", conversationId: otherId });
   assert.equal(cancelled.done?.action, "cancel");
@@ -711,7 +711,7 @@ test("two unrelated alignment tasks produce corresponding model questions and re
     conversationId: String(startB.done?.conversationId),
     questionId: String(startB.done?.questionId),
     questionRevision: Number(startB.done?.questionRevision),
-    optionId: "advisor",
+    optionId: "editorial-service",
   });
   assert.match(String(styleA.done?.question || ""), /ALIGN_HITL_ALPHA_Q_4401/);
   assert.match(String(styleB.done?.question || ""), /ALIGN_HITL_BETA_Q_4401/);
@@ -819,7 +819,7 @@ test("cancel suppresses a late provider answer and preserves the saved cancellat
   try {
     const selecting = postChat(siteId, {
       action: "select", conversationId, questionId: started.done?.questionId,
-      questionRevision: started.done?.questionRevision, optionId: "advisor",
+      questionRevision: started.done?.questionRevision, optionId: "editorial-service",
     });
     await providerEntered;
     const cancelled = await postChat(siteId, { action: "cancel", conversationId });

@@ -94,6 +94,16 @@ test("legacy conversation JSON without alignment stays unconfirmed after reread 
   assert.notEqual(after.alignment?.state, "confirmed");
 });
 
+test("legacy alignment style ids normalize to the visual brief ids", () => {
+  const restored = normalizeAlignmentSnapshot({
+    enabled: true,
+    state: "idle",
+    styleOptionId: "advisor",
+    styleLabel: "专业顾问",
+  });
+  assert.equal(restored.styleOptionId, "editorial-service");
+});
+
 test("conversation store persists and restores alignment across reread", async () => {
   const siteId = uniqueSiteId();
   const created = await createConversation(siteId);
@@ -635,7 +645,7 @@ test("cross-task ids, cancel, provider error retry, and completed confirm stay o
     action: "select",
     questionId: capStyleQ.questionId,
     questionRevision: capStyleQ.questionRevision,
-    optionId: "advisor",
+    optionId: "editorial-service",
   }), "cap style");
   for (let round = 0; round < 3; round += 1) {
     const asked = unwrapLive(applyClarifyResult(cap.snapshot, {

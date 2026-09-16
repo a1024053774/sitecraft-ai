@@ -48,7 +48,7 @@ export const visualBriefCatalog: VisualBrief[] = [
     summary: "用流程、功能和结果解释复杂产品。",
     audience: "技术决策者与业务团队",
     primaryAction: "预约产品演示",
-    templateId: "signal",
+    templateId: "tailwind-landing",
   },
   {
     version: 1,
@@ -57,7 +57,7 @@ export const visualBriefCatalog: VisualBrief[] = [
     summary: "用方法、案例和可信观点组织专业服务。",
     audience: "需要长期合作的企业客户",
     primaryAction: "发起项目咨询",
-    templateId: "kindred",
+    templateId: "fresh",
   },
 ];
 

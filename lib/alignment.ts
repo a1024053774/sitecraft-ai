@@ -13,8 +13,8 @@ export const ALIGNMENT_QUESTION = "请选择一个风格或主题方向。选择
 export const STYLE_OPTIONS = [
   { id: "industrial", label: "工业专业", description: "产品、规格、工艺信息优先" },
   { id: "export-catalog", label: "外贸目录", description: "分类、规格获取和询盘路径优先" },
-  { id: "tech-product", label: "技术产品", description: "真实产品截图、功能和工作流优先" },
-  { id: "advisor", label: "专业顾问", description: "方法、具体服务与真实团队优先" },
+  { id: "technical-product", label: "技术产品", description: "真实产品截图、功能和工作流优先" },
+  { id: "editorial-service", label: "专业顾问", description: "方法、具体服务与真实团队优先" },
 ] as const;
 
 export const UTILITY_OPTIONS = [
@@ -23,6 +23,10 @@ export const UTILITY_OPTIONS = [
 ] as const;
 
 const styleCatalog = [...STYLE_OPTIONS, ...UTILITY_OPTIONS];
+const legacyStyleOptionIds: Record<string, string> = { "tech-product": "technical-product", advisor: "editorial-service" };
+function canonicalStyleOptionId(optionId: string | null | undefined) {
+  return optionId ? (legacyStyleOptionIds[optionId] ?? optionId) : optionId ?? null;
+}
 
 export type AlignmentModeState =
   | "disabled"
@@ -269,7 +273,7 @@ function mapAnswers(raw: AlignmentAnswer[]): AlignmentAnswer[] {
     questionId: item.questionId,
     questionRevision: item.questionRevision,
     question: item.question ?? "",
-    optionId: item.optionId,
+    optionId: canonicalStyleOptionId(item.optionId) ?? item.optionId,
     label: item.label,
     note: item.note,
   }));
@@ -294,7 +298,7 @@ export function normalizeAlignmentSnapshot(raw: unknown): AlignmentSnapshot {
     roundCount: value.roundCount ?? 0,
     epoch: value.epoch ?? 0,
     inflightRunId: value.inflightRunId ?? null,
-    styleOptionId: value.styleOptionId ?? null,
+    styleOptionId: canonicalStyleOptionId(value.styleOptionId),
     styleLabel: value.styleLabel ?? null,
     history: (value.history ?? []).slice(-MAX_ALIGNMENT_HISTORY),
   };

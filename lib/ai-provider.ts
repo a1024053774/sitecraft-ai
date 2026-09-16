@@ -1,4 +1,5 @@
 import { getTemplate, templates, type SiteDraft } from "@/lib/site-model";
+import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
 import {
   aiIntentResponseSchema,
   textTargets,
@@ -233,6 +234,8 @@ export async function requestStructuredOperations(args: {
 {"type":"clarify","question":"你想先改哪一部分？","options":["首屏标题","服务卡片","联系方式"]}
 
 ${operationInstructions()}
+
+前端表达约束（${FRONTEND_TONE_RULES_VERSION}）：${frontendToneRules.join("；")}
 
 模板白名单：${[...templateIds].join(", ")}
 

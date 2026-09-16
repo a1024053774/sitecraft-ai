@@ -159,6 +159,15 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - 限制：目前四个主题方向只是少量已审查模板的真实映射；部分模板仍依赖上游预览，Landwind/Forge 的内容槽位覆盖不等于整页生成完成；客户素材授权、图片规划、完整页面规划、12 组质量对照和独立 AI 推荐未完成。主题视觉证据为实现可达性，不代表审美人工评审通过。
 - 收尾：本轮 PostgreSQL workspace 仅用于浏览器验收，结束前精确清理；Docker 正式工作台不受影响。CI/T1/tsconfig 和 `AGENTS.md` 的用户变更不纳入本模块提交。
 
+## 6.3 当前模块：前端去 AI 味 Skill（2026-09-17）
+
+状态：**规则已接入，效果评测未完成**。基于上游 `lieflat-less-ai-tone` MIT revision `27d29232f10124db904ca9c0536d0b67cb3b2833` 做前端窄化改编，Skill 位于 `skills/sitecraft-frontend-less-ai-tone/SKILL.md`，来源记录位于同目录 `SOURCE.md`，运行时约束位于 `lib/frontend-tone.ts`。
+
+- 保留上游有证据的边界：白名单触发、信息守恒、结构不随意重排、未命中保持原文；没有把写作规则硬套成“所有渐变/卡片/字体都不许用”。
+- SiteCraft 侧新增的规则关注层级、重复承诺、虚构指标/Logo/评价、无资料占位和 visualBrief 依据；通过现有模型 system prompt 消费，仍不允许模型直接输出或执行 CSS/HTML。
+- 已核对项目内模板、视觉和许可研究；当前模板数量足够进入 3×4 质量对照，但只有少量模板路径具备稳定本地快照，演示素材仍需独立授权核验。
+- 未完成：不同 Skill/流程组的 12 组截图对照、人工盲评、独立 AI 推荐、整站生成、多页和图片规划。规则接入不等于“去 AI 味”质量通过。
+
 ## 7. 模块收据
 
 - `rules-and-plan`：commit `533954ba3bdc0e78413d3ff1482068877a2d0c58`，已 push 到 `origin/main`；规则模块经 Cursor Grok 4.6 High Fast 只读复审通过。
