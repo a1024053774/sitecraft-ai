@@ -123,6 +123,22 @@ a { color: inherit; text-decoration: none; }
 .draft-status-panel strong { font-size: 10px; }
 .draft-status-panel span { margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .draft-status-panel > button { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; border: 0; background: transparent; color: var(--green); font-size: 9px; font-weight: 750; }
+.visual-brief-panel { flex: 0 0 auto; padding: 12px 14px 13px; border-bottom: 1px solid var(--line); background: #fbfdfb; }
+.visual-brief-head { display: flex; align-items: end; justify-content: space-between; gap: 8px; }
+.visual-brief-head > div { display: grid; gap: 4px; }
+.visual-brief-head strong { font-size: 11px; }
+.visual-brief-current { color: var(--green); font-size: 9px; font-weight: 750; white-space: nowrap; }
+.visual-brief-panel > p { margin: 7px 0 9px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.visual-brief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.visual-brief-card { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: start; gap: 7px; min-height: 67px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: white; text-align: left; }
+.visual-brief-card:hover, .visual-brief-card.selected { border-color: var(--green); background: var(--green-pale); }
+.visual-brief-card:disabled { cursor: default; opacity: .65; }
+.visual-brief-card > svg { margin-top: 2px; color: var(--green); }
+.visual-brief-swatch { width: 22px; height: 22px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }
+.visual-brief-copy { display: grid; gap: 3px; min-width: 0; }
+.visual-brief-copy strong { font-size: 10px; }
+.visual-brief-copy span, .visual-brief-copy small { overflow: hidden; color: var(--ink-soft); font-size: 8px; line-height: 1.35; text-overflow: ellipsis; }
+.visual-brief-copy small { color: var(--muted); white-space: nowrap; }
 .draft-history { flex: 0 0 auto; max-height: 210px; overflow: auto; border-bottom: 1px solid var(--line); background: white; }
 .draft-history-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #edf1ed; background: white; font-size: 10px; }
 .draft-history-head button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); }

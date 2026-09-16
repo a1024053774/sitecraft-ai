@@ -11,6 +11,8 @@ import {
   type Product,
   type SectionKey,
   type SiteDraft,
+  type VisualBrief,
+  visualBriefCatalog,
 } from "@/lib/site-document";
 
 export type TemplateCategory = "制造业" | "外贸目录" | "科技企业" | "专业服务";
@@ -100,4 +102,5 @@ export function importProductsFromRows(
 }
 
 export { cloneDraft, defaultDraft, normalizeDraft, starterProducts };
-export type { Device, EditableCard, Locale, LocalizedText, Product, SectionKey, SiteDraft };
+export type { Device, EditableCard, Locale, LocalizedText, Product, SectionKey, SiteDraft, VisualBrief };
+export { visualBriefCatalog };

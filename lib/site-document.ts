@@ -10,6 +10,57 @@ export const localizedTextSchema = z.object({
 });
 export type LocalizedText = z.infer<typeof localizedTextSchema>;
 
+export const visualBriefIds = ["industrial", "export-catalog", "technical-product", "editorial-service"] as const;
+export const visualBriefSchema = z.object({
+  version: z.literal(1),
+  id: z.enum(visualBriefIds),
+  label: z.string().min(1).max(80),
+  summary: z.string().min(1).max(240),
+  audience: z.string().min(1).max(160),
+  primaryAction: z.string().min(1).max(160),
+  templateId: z.string().min(1).max(80),
+});
+export type VisualBrief = z.infer<typeof visualBriefSchema>;
+
+export const visualBriefCatalog: VisualBrief[] = [
+  {
+    version: 1,
+    id: "industrial",
+    label: "工业专业",
+    summary: "产品、工艺与交付能力优先，留白清晰。",
+    audience: "工程客户与采购团队",
+    primaryAction: "查看产品能力",
+    templateId: "forge",
+  },
+  {
+    version: 1,
+    id: "export-catalog",
+    label: "外贸目录",
+    summary: "分类、规格与询盘路径优先，适合双语内容。",
+    audience: "海外采购与渠道客户",
+    primaryAction: "获取产品目录",
+    templateId: "landwind",
+  },
+  {
+    version: 1,
+    id: "technical-product",
+    label: "技术产品",
+    summary: "用流程、功能和结果解释复杂产品。",
+    audience: "技术决策者与业务团队",
+    primaryAction: "预约产品演示",
+    templateId: "signal",
+  },
+  {
+    version: 1,
+    id: "editorial-service",
+    label: "专业顾问",
+    summary: "用方法、案例和可信观点组织专业服务。",
+    audience: "需要长期合作的企业客户",
+    primaryAction: "发起项目咨询",
+    templateId: "kindred",
+  },
+];
+
 export const editableCardSchema = z.object({
   id: z.string().min(1).max(80),
   title: localizedTextSchema,
@@ -49,6 +100,7 @@ export const siteDraftSchema = z.object({
   siteName: z.string().min(1).max(120),
   companyName: z.string().min(1).max(120),
   templateId: z.string().min(1).max(80),
+  visualBrief: visualBriefSchema,
   locale: z.enum(locales),
   revision: z.number().int().nonnegative(),
   lastChange: z.string().max(240),
@@ -136,6 +188,7 @@ export const defaultDraft: SiteDraft = {
   siteName: "Forge Industrial",
   companyName: "Forge Industrial",
   templateId: "forge",
+  visualBrief: structuredClone(visualBriefCatalog[0]),
   locale: "zh",
   revision: 1,
   lastChange: "草稿已保存",
@@ -216,6 +269,8 @@ export function normalizeDraft(input: unknown): SiteDraft {
   if (typeof legacy.siteName === "string" && legacy.siteName.trim()) candidate.siteName = legacy.siteName;
   if (typeof legacy.companyName === "string" && legacy.companyName.trim()) candidate.companyName = legacy.companyName;
   if (typeof legacy.templateId === "string" && legacy.templateId.trim()) candidate.templateId = legacy.templateId;
+  const visualBrief = visualBriefSchema.safeParse(legacy.visualBrief);
+  if (visualBrief.success) candidate.visualBrief = visualBrief.data;
   if (typeof legacy.industry === "string") candidate.industry = legacy.industry;
   if (typeof legacy.goal === "string") candidate.goal = legacy.goal;
   if (typeof legacyHero.title === "string") candidate.content.hero.title.zh = legacyHero.title;

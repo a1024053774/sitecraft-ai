@@ -130,6 +130,7 @@ export function buildDraftPromptContext(draft: SiteDraft, selectedTarget?: strin
     siteName: draft.siteName,
     companyName: draft.companyName,
     templateId: draft.templateId,
+    visualBrief: draft.visualBrief,
     locale: draft.locale,
     industry: draft.industry,
     goal: draft.goal,

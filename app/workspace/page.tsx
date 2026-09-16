@@ -37,6 +37,7 @@ import {
   importProductsFromRows,
   normalizeDraft,
   templates,
+  visualBriefCatalog,
   type Device,
   type Locale,
   type SiteDraft,
@@ -270,14 +271,19 @@ export default function WorkspacePage() {
         }
         window.localStorage.removeItem("sitecraft-draft");
         const requestedTemplate = new URLSearchParams(window.location.search).get("template");
+        const requestedBrief = requestedTemplate
+          ? visualBriefCatalog.find((item) => item.templateId === requestedTemplate)
+          : undefined;
         if (requestedTemplate && templates.some((item) => item.id === requestedTemplate) && snapshot.draft.templateId !== requestedTemplate) {
           const response = await fetch(`/api/sites/${siteId}/draft`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               baseRevision: snapshot.draft.revision,
-              operations: [{ op: "set_template", templateId: requestedTemplate }],
-              summary: `选择模板 ${getTemplate(requestedTemplate).name}`,
+              operations: [requestedBrief
+                ? { op: "set_visual_brief", briefId: requestedBrief.id }
+                : { op: "set_template", templateId: requestedTemplate }],
+              summary: requestedBrief ? `选择主题方向 ${requestedBrief.label}` : `选择模板 ${getTemplate(requestedTemplate).name}`,
               source: "template",
             }),
           });
@@ -646,7 +652,7 @@ export default function WorkspacePage() {
     }
   };
 
-  const saveOperations = async (operations: SiteOperation[], summary: string, source: "import" | "manual") => {
+  const saveOperations = async (operations: SiteOperation[], summary: string, source: "import" | "manual" | "template") => {
     const response = await fetch(`/api/sites/${siteId}/draft`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -655,8 +661,35 @@ export default function WorkspacePage() {
     const result = await response.json() as DraftSnapshot & { error?: string; changeSet?: { appliedTargets: string[] } };
     if (!response.ok) throw new Error(result.error || "草稿保存失败");
     adoptSnapshot(result);
-    setExpectedTargets(result.changeSet?.appliedTargets ?? []);
+    setExpectedTargets((result.changeSet?.appliedTargets ?? []).filter((target) => target !== "visualBrief" && target !== "template" && target !== "draft"));
     setPreviewState("loading");
+  };
+
+  const selectVisualBrief = async (briefId: string) => {
+    if (busy || !draftReady) return;
+    const brief = visualBriefCatalog.find((item) => item.id === briefId);
+    if (!brief || (brief.id === draft.visualBrief.id && brief.templateId === draft.templateId)) return;
+    setBusy(true);
+    setBusyText("正在切换主题方向…");
+    try {
+      await saveOperations([{ op: "set_visual_brief", briefId: brief.id }], `选择主题方向 ${brief.label}`, "template");
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "applied",
+        text: `已切换为“${brief.label}”，右侧预览将使用对应版式与配色。已有内容保持不变。`,
+        change: `受众：${brief.audience} · 主要行动：${brief.primaryAction}`,
+      }]);
+    } catch (error) {
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "error",
+        text: error instanceof Error ? error.message : "主题方向保存失败",
+      }]);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const commitImportedRows = async (name: string, rows: Record<string, string>[]) => {
@@ -709,6 +742,32 @@ export default function WorkspacePage() {
           <div><strong>当前草稿 · v{draft.revision}</strong><span>{updatedAt ? `${new Date(updatedAt).toLocaleString("zh-CN")} 保存到服务器` : "正在载入"}</span></div>
           <button type="button" onClick={() => setShowHistory((value) => !value)}><History size={13} />历史 {history.length}</button>
         </div>
+        <section className="visual-brief-panel" aria-label="主题方向">
+          <div className="visual-brief-head">
+            <div><span className="eyebrow">Theme direction</span><strong>先选网站的表达方式</strong></div>
+            <span className="visual-brief-current">当前：{draft.visualBrief.label}</span>
+          </div>
+          <p>主题会改变右侧模板的版式与配色，保留当前草稿内容。</p>
+          <div className="visual-brief-grid">
+            {visualBriefCatalog.map((brief) => {
+              const template = getTemplate(brief.templateId);
+              const selected = draft.visualBrief.id === brief.id && draft.templateId === brief.templateId;
+              return (
+                <button
+                  className={selected ? "visual-brief-card selected" : "visual-brief-card"}
+                  key={brief.id}
+                  type="button"
+                  disabled={busy || !draftReady}
+                  onClick={() => void selectVisualBrief(brief.id)}
+                >
+                  <span className="visual-brief-swatch" style={{ background: `linear-gradient(135deg, ${template.colors.primary}, ${template.colors.accent})` }} />
+                  <span className="visual-brief-copy"><strong>{brief.label}</strong><span>{brief.summary}</span><small>适合：{brief.audience}</small></span>
+                  {selected ? <Check size={13} /> : null}
+                </button>
+              );
+            })}
+          </div>
+        </section>
         {showHistory && (
           <div className="draft-history" aria-label="草稿历史">
             <div className="draft-history-head"><strong>修改历史</strong><button onClick={() => setShowHistory(false)} aria-label="关闭历史"><X size={13} /></button></div>

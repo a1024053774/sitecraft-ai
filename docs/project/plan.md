@@ -147,6 +147,18 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - 不新增第二套 API、队列或模板/图片改造。CI/T1/tsconfig 等已有暂存内容继续保留，前后索引指纹 `ec1e63cd0dbaaa7283d3039c875c09d963d2a57e` 一致；模块只提交明确路径。
 - 收尾：隔离浏览器 workspace 的 1 个会话与 1 个 site 已精确清理，剩余均 0；3011 验收进程停止，3000 Docker web 保留。GitHub 对 `7f2909b` 返回 check_runs=0、status=pending/total_count=0，未宣称远端 CI 通过；既有 CI workflow 仍是用户未提交暂存项。下一步补齐风格可见效果与需求驱动页面生成，不把本模块当整个 Demo 完成。
 
+## 6.2 当前模块：主题方向到真实预览（2026-09-17）
+
+状态：**部分完成**。主题卡片、版本化 `visualBrief`、兼容模板切换和后续模型上下文已落地；完整整站生成、图片和多页仍在 P3 后续范围。
+
+- 现实门：`PASS（最小真实落点）`。用户卡片只提交固定 `briefId`；服务端从版本化 catalog 取 canonical brief，并以同一个 `set_visual_brief` operation 原子更新 `visualBrief` 与兼容 `templateId`，仍经 `commitOperations`、revision 和 undo/redo。
+- 红证据：新增 operation 前测试无法让主题选择改变草稿；修复后 `site-operations` 断言通过。模型意图 union 明确拒绝 `set_visual_brief`，主题选择保持在用户可见入口，不让模型静默换主题。
+- 真实浏览器与 PostgreSQL：隔离 workspace `p3-browser-20260917` 中，点击“外贸目录”后草稿 v1→v2、当前模板变为 `landwind`；切回“工业专业”后 v3、模板变回 `forge`；刷新后再次选择外贸目录为 v4，主题卡片与 iframe 状态均恢复。Landwind 截图显示紫色导航/宽版标题布局，Forge AX 树显示工业模板标题与服务内容，证明落点是实际模板而非摘要变化。
+- 模型边界：`visualBrief` 会进入大草稿精简上下文，保留主题受众、摘要和主要行动；主题卡片使用的操作不进入 AI operation 白名单。未把“AI 推荐”或素材许可核验冒充已完成。
+- 本地验证：`npm test` 68/68、`npm run typecheck` 0、`npm run build` 0；主题/模板定向测试与浏览器证据均通过。
+- 限制：目前四个主题方向只是少量已审查模板的真实映射；部分模板仍依赖上游预览，Landwind/Forge 的内容槽位覆盖不等于整页生成完成；客户素材授权、图片规划、完整页面规划、12 组质量对照和独立 AI 推荐未完成。主题视觉证据为实现可达性，不代表审美人工评审通过。
+- 收尾：本轮 PostgreSQL workspace 仅用于浏览器验收，结束前精确清理；Docker 正式工作台不受影响。CI/T1/tsconfig 和 `AGENTS.md` 的用户变更不纳入本模块提交。
+
 ## 7. 模块收据
 
 - `rules-and-plan`：commit `533954ba3bdc0e78413d3ff1482068877a2d0c58`，已 push 到 `origin/main`；规则模块经 Cursor Grok 4.6 High Fast 只读复审通过。

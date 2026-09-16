@@ -239,6 +239,7 @@ test("large draft prompt keeps metadata, selected section, and sku/name without 
   assert.match(userPrompt, /T4_HERO_FULL_SENTINEL_9183/);
   assert.match(userPrompt, /T4-SKU-9183/);
   assert.match(userPrompt, /T4_PRODUCT_NAME_9183/);
+  assert.match(userPrompt, /"visualBrief":\{"version":1,"id":"industrial","label":"工业专业"/);
   assert.equal(userPrompt.includes("T4_ABOUT_LONG_SENTINEL_9183"), false);
   assert.equal(userPrompt.includes("T4_PRODUCT_SUMMARY_SENTINEL_9183"), false);
   assert.equal(userPrompt.includes("T4_SERVICES_FULL_SENTINEL_9183"), false);

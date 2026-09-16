@@ -6,6 +6,8 @@ import {
   productSchema,
   sectionKeySchema,
   sectionKeys,
+  visualBriefCatalog,
+  visualBriefIds,
   type EditableCard,
   type Locale,
   type Product,
@@ -80,6 +82,10 @@ const setTemplateOperationSchema = z.object({
   op: z.literal("set_template"),
   templateId: z.string().min(1).max(80),
 });
+const setVisualBriefOperationSchema = z.object({
+  op: z.literal("set_visual_brief"),
+  briefId: z.enum(visualBriefIds),
+});
 const setSectionVisibilityOperationSchema = z.object({
   op: z.literal("set_section_visibility"),
   section: sectionKeySchema,
@@ -120,6 +126,7 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   reorderSectionsOperationSchema,
   replaceProductsOperationSchema,
   replaceDraftOperationSchema,
+  setVisualBriefOperationSchema,
 ]);
 export type SiteOperation = z.infer<typeof siteOperationSchema>;
 export type AIOperation = z.infer<typeof aiOperationSchema>;
@@ -323,6 +330,17 @@ export function applySiteOperations(
       inverseOperations.unshift({ op: "set_template", templateId: draft.templateId });
       draft.templateId = operation.templateId;
       appliedTargets.push("template");
+      continue;
+    }
+    if (operation.op === "set_visual_brief") {
+      const brief = visualBriefCatalog.find((item) => item.id === operation.briefId);
+      if (!brief) throw new Error(`Unknown visual brief ${operation.briefId}`);
+      if (!options.templateIds.has(brief.templateId)) throw new Error(`Unknown template ${brief.templateId}`);
+      if (draft.visualBrief.id === brief.id && draft.templateId === brief.templateId) continue;
+      inverseOperations.unshift({ op: "set_visual_brief", briefId: draft.visualBrief.id });
+      draft.visualBrief = structuredClone(brief);
+      draft.templateId = brief.templateId;
+      appliedTargets.push("visualBrief", "template");
       continue;
     }
     if (operation.op === "set_section_visibility") {

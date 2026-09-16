@@ -111,3 +111,25 @@ test("replaces imported products as one reversible draft change", () => {
   const restored = applySiteOperations(result.draft, result.inverseOperations, { templateIds, lastChange: "Undo" });
   assert.deepEqual(restored.draft.products, defaultDraft.products);
 });
+
+test("applies a user-facing visual brief and its compatible template as one reversible change", () => {
+  const result = applySiteOperations(defaultDraft, [{ op: "set_visual_brief", briefId: "export-catalog" }], {
+    templateIds: new Set(["forge", "landwind"]),
+    lastChange: "选择主题方向",
+  });
+  assert.equal(result.changed, true);
+  assert.equal(result.draft.visualBrief.id, "export-catalog");
+  assert.equal(result.draft.templateId, "landwind");
+  assert.equal(aiIntentResponseSchema.safeParse({
+    type: "edit",
+    summary: "不允许模型直接选择主题",
+    operations: [{ op: "set_visual_brief", briefId: "technical-product" }],
+  }).success, false);
+  assert.equal(result.draft.revision, defaultDraft.revision + 1);
+  const restored = applySiteOperations(result.draft, result.inverseOperations, {
+    templateIds: new Set(["forge", "landwind"]),
+    lastChange: "撤销主题方向",
+  });
+  assert.equal(restored.draft.templateId, defaultDraft.templateId);
+  assert.equal(restored.draft.visualBrief.id, defaultDraft.visualBrief.id);
+});
