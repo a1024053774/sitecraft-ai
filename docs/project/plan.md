@@ -130,7 +130,7 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 
 ## 6.1 当前模块：可选需求对齐与自动恢复
 
-状态：核心会话流程已通过验收，准备独立提交。首次冻结审查两项发现已修复，定向复核 `PASS`（`d1238e17-cdb9-442f-b117-667c009b708f`）。范围沿 P2；完整风格预览/视觉落地仍留在 P3，不以偏好文案冒充已应用设计。
+状态：核心会话流程已验收并提交 `7f2909bbe0514f19d5368b0493cfdb9e51217ef9`，已推送 `origin/main` 且远端 SHA 一致。首次冻结审查两项发现已修复，定向复核 `PASS`（`d1238e17-cdb9-442f-b117-667c009b708f`）。范围沿 P2；完整风格预览/视觉落地仍留在 P3，不以偏好文案冒充已应用设计。
 
 - 现实门：`PASS`。沿用同一 Chat POST、会话 JSON/JSONB 和 `commitOperations`。原任务、模型澄清问题、已答选项与实际 operations 提案持久化；点选自动继续同一任务，确认只应用原提案。
 - 红证据：连续两问复用 `needs-2/opt-2-1`；重复确认缺少工作台所需 changeSet；草稿提交后会话结果丢失导致恢复卡住；取消后的迟到 answer 仍送到 UI；取消丢弃已答内容；已保存偏好接受伪造 revision。各定向断言在修复前退出 1，修复后退出 0。
@@ -144,7 +144,8 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - 未验证/非本模块：完整历史消息恢复、多选问题、风格示意与独立风格入口、需求驱动多页、图片、12 组质量对照、表单收件均未完成；真实 DeepSeek 是单次路径证据，稳定性评测 `UNVERIFIED`。进程崩溃采用持久化状态故障注入，不声称做过真实 kill 故障演练；模型运行中服务器永久退出的自动重试未实现，可取消后重新提交，不自动计费重跑。
 - 冻结审查发现并处理：首次只读验收发现恢复提交后工作台未采纳新 draft（P1）和撤销后旧收据误报 applied（P2）。P1 已在真实浏览器复现（顶栏 v2、聊天 v3）；修复为草稿加载完成后再恢复会话，并采纳恢复响应中的 draft。P2 定向 `after undo` 先红后绿，文件/PG 提交收据与当前 revision 不一致即 conflict，不再把撤销内容当当前应用。最终 typecheck 0、67 tests、build 0、真实 PG 探针再次通过。补充截图 `p2-recovery-stale-preview-red-20260916.png` 与 `p2-recovery-current-preview-green-20260916.png`：修复后顶栏/聊天均 v4，iframe 真实标题为“恢复验证：精密制造918”。
 - Docker 最终候选 `build --pull=false web` 与 `up -d --pull never web` 成功；启动瞬间首次 health 请求 `ECONNRESET`，服务启动后回读 HTTP 200、status=ready、persistence.driver=postgres、database=ready。构建仍会访问镜像元数据/依赖边界，不据此声称离线可用。
-- 不新增第二套 API、队列或模板/图片改造。CI/T1/tsconfig 等已有暂存内容继续保留，模块验收后只提交明确路径。
+- 不新增第二套 API、队列或模板/图片改造。CI/T1/tsconfig 等已有暂存内容继续保留，前后索引指纹 `ec1e63cd0dbaaa7283d3039c875c09d963d2a57e` 一致；模块只提交明确路径。
+- 收尾：隔离浏览器 workspace 的 1 个会话与 1 个 site 已精确清理，剩余均 0；3011 验收进程停止，3000 Docker web 保留。GitHub 对 `7f2909b` 返回 check_runs=0、status=pending/total_count=0，未宣称远端 CI 通过；既有 CI workflow 仍是用户未提交暂存项。下一步补齐风格可见效果与需求驱动页面生成，不把本模块当整个 Demo 完成。
 
 ## 7. 模块收据
 
