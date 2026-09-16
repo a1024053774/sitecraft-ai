@@ -122,6 +122,8 @@ type CommitArgs = {
   operations: SiteOperation[];
   summary: string;
   source: ChangeSource;
+  // Alignment proposals use their server-issued confirmation ID as the durable receipt.
+  changeId?: string;
   model?: string;
   latencyMs?: number;
 };
@@ -129,6 +131,10 @@ type CommitArgs = {
 async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
   return withSiteLock(args.siteId, async () => {
     const record = (await readRecord(args.siteId)) ?? createRecord(args.siteId);
+    const previous = args.changeId ? [...record.history, ...record.future].find((change) => change.id === args.changeId) : undefined;
+    if (previous) return previous.revision === record.draft.revision
+      ? { status: "applied", record, changeSet: previous }
+      : { status: "conflict", record };
     if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
     const result = applySiteOperations(record.draft, args.operations, {
       templateIds,
@@ -136,7 +142,7 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
     });
     if (!result.changed) return { status: "no_change", record };
     const changeSet: ChangeSet = {
-      id: crypto.randomUUID(), baseRevision: record.draft.revision, revision: result.draft.revision,
+      id: args.changeId ?? crypto.randomUUID(), baseRevision: record.draft.revision, revision: result.draft.revision,
       summary: args.summary, source: args.source, operations: structuredClone(args.operations),
       inverseOperations: result.inverseOperations, appliedTargets: result.appliedTargets,
       ...(args.model ? { model: args.model } : {}),
@@ -243,6 +249,10 @@ async function getPostgresSite(siteId: string) {
 async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult> {
   return withDatabaseTransaction(async (client) => {
     const record = await lockPostgresRecord(client, args.siteId);
+    const previous = args.changeId ? [...record.history, ...record.future].find((change) => change.id === args.changeId) : undefined;
+    if (previous) return previous.revision === record.draft.revision
+      ? { status: "applied", record, changeSet: previous }
+      : { status: "conflict", record };
     if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
     const result = applySiteOperations(record.draft, args.operations, {
       templateIds,
@@ -250,7 +260,7 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
     });
     if (!result.changed) return { status: "no_change", record };
     const changeSet: ChangeSet = {
-      id: crypto.randomUUID(),
+      id: args.changeId ?? crypto.randomUUID(),
       baseRevision: record.draft.revision,
       revision: result.draft.revision,
       summary: args.summary,

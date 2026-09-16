@@ -128,6 +128,24 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - [ ] 工作区 query 直达和发布路径的服务端模板/素材准入：当前 gallery/detail 是展示层门禁，不是安全边界。
 - [ ] 更多页面与集合槽位：只在真实页面和手写映射完成后扩展。
 
+## 6.1 当前模块：可选需求对齐与自动恢复
+
+状态：核心会话流程已通过验收，准备独立提交。首次冻结审查两项发现已修复，定向复核 `PASS`（`d1238e17-cdb9-442f-b117-667c009b708f`）。范围沿 P2；完整风格预览/视觉落地仍留在 P3，不以偏好文案冒充已应用设计。
+
+- 现实门：`PASS`。沿用同一 Chat POST、会话 JSON/JSONB 和 `commitOperations`。原任务、模型澄清问题、已答选项与实际 operations 提案持久化；点选自动继续同一任务，确认只应用原提案。
+- 红证据：连续两问复用 `needs-2/opt-2-1`；重复确认缺少工作台所需 changeSet；草稿提交后会话结果丢失导致恢复卡住；取消后的迟到 answer 仍送到 UI；取消丢弃已答内容；已保存偏好接受伪造 revision。各定向断言在修复前退出 1，修复后退出 0。
+- 修正：问题 epoch 单调递增，确认 ID 全局唯一；重复提交匹配 ID/版本/选项/补充；取消保留已答内容，后续新任务清除旧任务答案；迟到结果不推进已取消状态。断流解析保留完整 SSE 帧，传输断开不改变已保存结果。
+- 草稿提交边界：服务端确认 ID 写入现有 ChangeSet.id；文件锁/PG 行锁内先匹配收据再检查 revision。恢复先读草稿收据；若已经确认但尚未写稿，恢复继续同一受控提交，不重调模型、不重复改稿。四路同时恢复的文件存储反例通过。收据被历史裁剪后仍以 revision 冲突阻止旧方案覆盖，不能承诺无限历史恢复。
+- 本地验证：定向 alignment/chat/provider/SSE tests 通过；`npm run typecheck` 0、`npm test` 66/66、`npm run build` 0。UI 静态源码断言只作补充，不替代浏览器证据。
+- PostgreSQL 16.15：`node --check scripts/verify-alignment-postgres.mjs` 与 `node --experimental-strip-types scripts/verify-alignment-postgres.mjs` 均退出 0。旧 `{}` alignment/turn 保留、错误 site/workspace/缺失会话拒绝、10 路 select 只调模型 stub 一次、10 路 confirm 仅一个历史记录且 revision=2、提交收据恢复不重复写稿均通过；独立探针数据精确清理为 0。此脚本用模型 stub，不证明 DeepSeek。
+- 真实浏览器与 DeepSeek：生产构建 `localhost:3011`，隔离 workspace `p2-browser-20260916`，同一会话 `8657ea8d-9adc-4f4e-867b-88259b7dc33e`。模拟企业任务先选择工业方向，模型返回两个标题选项；刷新恢复问题，点击“可靠零件，按需交付”，刷新恢复确认卡，确认后 v1→v2、history=1，iframe 首屏标题真实改变。第二个独立任务返回“获取报价/查看规格”而非旧标题问题；关闭并刷新仍 cancelled，revision=2，未提交第二个任务。
+- 浏览器截图（本机证据，不含密钥）：`/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/cursor/screenshots/` 下 `p2-alignment-question-restored-20260916.png`、`p2-alignment-confirm-375-20260916.png`、`p2-alignment-applied-768-20260916.png`、`p2-alignment-applied-1440-20260916.png`、`p2-alignment-cancel-restored-20260916.png`。375/768/1440 状态检查通过，无横向溢出；截图证明交互/字段落点，不证明行业审美或素材授权。
+- 已推送基线干净检出：`1c0d84fdda4081e3bb1bc3c6e376fe49bd2eb8b7` 的独立 worktree `npm ci`、typecheck、47 tests、build 均退出 0；不依赖当前未提交代码或密钥。
+- 未验证/非本模块：完整历史消息恢复、多选问题、风格示意与独立风格入口、需求驱动多页、图片、12 组质量对照、表单收件均未完成；真实 DeepSeek 是单次路径证据，稳定性评测 `UNVERIFIED`。进程崩溃采用持久化状态故障注入，不声称做过真实 kill 故障演练；模型运行中服务器永久退出的自动重试未实现，可取消后重新提交，不自动计费重跑。
+- 冻结审查发现并处理：首次只读验收发现恢复提交后工作台未采纳新 draft（P1）和撤销后旧收据误报 applied（P2）。P1 已在真实浏览器复现（顶栏 v2、聊天 v3）；修复为草稿加载完成后再恢复会话，并采纳恢复响应中的 draft。P2 定向 `after undo` 先红后绿，文件/PG 提交收据与当前 revision 不一致即 conflict，不再把撤销内容当当前应用。最终 typecheck 0、67 tests、build 0、真实 PG 探针再次通过。补充截图 `p2-recovery-stale-preview-red-20260916.png` 与 `p2-recovery-current-preview-green-20260916.png`：修复后顶栏/聊天均 v4，iframe 真实标题为“恢复验证：精密制造918”。
+- Docker 最终候选 `build --pull=false web` 与 `up -d --pull never web` 成功；启动瞬间首次 health 请求 `ECONNRESET`，服务启动后回读 HTTP 200、status=ready、persistence.driver=postgres、database=ready。构建仍会访问镜像元数据/依赖边界，不据此声称离线可用。
+- 不新增第二套 API、队列或模板/图片改造。CI/T1/tsconfig 等已有暂存内容继续保留，模块验收后只提交明确路径。
+
 ## 7. 模块收据
 
 - `rules-and-plan`：commit `533954ba3bdc0e78413d3ff1482068877a2d0c58`，已 push 到 `origin/main`；规则模块经 Cursor Grok 4.6 High Fast 只读复审通过。
@@ -138,5 +156,6 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - `p0-chat-backend`：commit `a1899899e3a93003aa68a9ccab4807e9de92fd56`，已 push 到 `origin/main`；包含会话文件/PG 路径、意图三态、上下文精简、Chat SSE、工作台 conversationId/answer/clarify 和持久化失败一致性修复。
 - `p0-chat-backend` 验证：typecheck 0、47 tests、build 0；真实 PostgreSQL 单轮读写与 10 路并发探针通过；真实 Docker DeepSeek answer/clarify 单次探针通过；探针数据已清理。
 - `p0-chat-backend` 限制：完整历史 GET、可选需求对齐状态机、真实模型稳定性评测、PostgreSQL 持久化失败的 live 外部故障仍未覆盖；UI 警告测试使用 route 反例和静态控制流，不声称完整浏览器 UI 证据。
+- `template-preview-contract`：commit `230d00b7845905a34003b75695d25dfb97cb6704`，收据 `1c0928fdd778cba079d8fc3744696847d13e8829`，已推送 `origin/main`；对应的是声明槽位/加载器/候选展示，不代表所有静态导出和素材准入完成。
 - `template-preview-contract` 验证：`npm run typecheck` 0；`npm test` 45/45；`npm run build` 0；Docker `build --pull=false web` 0；`up -d --pull never web` 后 health ready。修复前后浏览器反例见交接文档；未声明字段不会写入，missing 不会消失。
 - `template-preview-contract` 限制：nextjs-landing/shadcn-landing2 无 export，shadcn-landing 是 SPA 壳；六套演示素材仍需替换/授权，gallery 的入口门禁不是服务端发布安全边界；这些不随本提交标为完成。

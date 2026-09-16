@@ -164,6 +164,24 @@ a { color: inherit; text-decoration: none; }
 .chat-hints { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .hint { border: 1px solid var(--line); background: white; border-radius: 999px; padding: 5px 8px; color: var(--ink-soft); font-size: 9px; }
 .hint:hover { border-color: #aabdad; color: var(--green); }
+.hint.selected { border-color: var(--green); background: var(--green-pale); color: var(--green); }
+.chat-plus-wrap { position: relative; flex: 0 0 auto; }
+.chat-plus-button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink-soft); display: grid; place-items: center; }
+.chat-plus-button.active, .chat-plus-button[aria-expanded="true"] { border-color: var(--green); color: var(--green); background: var(--green-pale); }
+.chat-plus-menu { position: absolute; left: 0; bottom: 40px; z-index: 6; min-width: 168px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: white; box-shadow: var(--shadow); }
+.chat-plus-menu label { display: flex; gap: 8px; align-items: center; font-size: 12px; font-weight: 700; }
+.alignment-panel { margin-bottom: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fbfdfb; }
+.alignment-question, .alignment-summary, .alignment-confirmed { font-size: 12px; color: var(--ink-soft); line-height: 1.45; }
+.alignment-confirmed { color: var(--green); font-weight: 700; }
+.alignment-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.alignment-card { text-align: left; border: 1px solid var(--line); background: white; border-radius: 8px; padding: 8px; }
+.alignment-card strong { display: block; font-size: 12px; }
+.alignment-card span { display: block; color: var(--ink-soft); font-size: 10px; margin-top: 3px; line-height: 1.4; }
+.alignment-card.selected, .alignment-card:hover { border-color: var(--green); background: var(--green-pale); }
+.alignment-card:disabled { opacity: 0.65; cursor: default; }
+.alignment-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+.alignment-actions .primary-button { padding: 7px 12px; }
+.alignment-summary { margin-top: 8px; }
 .preview-shell { display: flex; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; }
 .preview-toolbar { height: 66px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.58); }
 .preview-toolbar-left, .preview-toolbar-right { display: flex; align-items: center; gap: 9px; }

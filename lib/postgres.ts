@@ -46,10 +46,15 @@ export async function ensureDatabaseSchema() {
           site_id TEXT NOT NULL,
           conversation_id TEXT NOT NULL,
           turns JSONB NOT NULL DEFAULT '[]'::jsonb,
+          alignment JSONB NOT NULL DEFAULT '{}'::jsonb,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (workspace_id, site_id, conversation_id)
         )
+      `))
+      .then(() => getDatabasePool().query(`
+        ALTER TABLE sitecraft_conversations
+        ADD COLUMN IF NOT EXISTS alignment JSONB NOT NULL DEFAULT '{}'::jsonb
       `))
       .then(() => undefined)
       .catch((error) => {

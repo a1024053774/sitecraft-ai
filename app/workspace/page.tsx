@@ -24,6 +24,7 @@ import {
   Sparkles,
   Tablet,
   Upload,
+  Plus,
   X,
 } from "lucide-react";
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -41,6 +42,7 @@ import {
   type SiteDraft,
 } from "@/lib/site-model";
 import type { SiteOperation } from "@/lib/site-operations";
+import { consumeSseFrames } from "@/lib/sse";
 
 const siteId = "demo";
 const conversationStorageKey = `sitecraft-conversation:${siteId}`;
@@ -50,7 +52,31 @@ function readStoredConversationId() {
   return window.localStorage.getItem(conversationStorageKey);
 }
 
-type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change" | "answer" | "clarify";
+type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change" | "answer" | "clarify" | "alignment";
+type AlignmentOptionCard = { id: string; label: string; description: string };
+type AlignmentResultState = { status?: string; summary?: string; text?: string; revision?: number } | null;
+type AlignmentViewState = {
+  enabled: boolean;
+  state: string;
+  questionId: string | null;
+  questionRevision: number;
+  questionKind: string | null;
+  selectedOptionId: string | null;
+  selectedLabel: string | null;
+  question: string;
+  options: AlignmentOptionCard[];
+  utilities: AlignmentOptionCard[];
+  summary: string | null;
+  saved: boolean;
+  waitingForUser: boolean;
+  awaitingConfirmation: boolean;
+  prefsOnly: boolean;
+  cannotProceed: boolean;
+  pendingMessage: string | null;
+  processing: boolean;
+  answers: Array<{ questionId: string; question: string; label: string; note: string | null }>;
+  lastResult: AlignmentResultState;
+};
 type ChatMessage = {
   id: string;
   role: "assistant" | "user";
@@ -60,6 +86,7 @@ type ChatMessage = {
   revision?: number;
   meta?: string;
   options?: string[];
+  alignment?: AlignmentViewState;
 };
 type HistoryItem = {
   id: string;
@@ -92,12 +119,88 @@ const initialMessages: ChatMessage[] = [
   },
 ];
 
-function readSseEvents(raw: string) {
-  return raw
-    .split("\n\n")
-    .map((block) => block.split("\n").find((line) => line.startsWith("data: "))?.slice(6))
-    .filter(Boolean)
-    .map((value) => JSON.parse(value as string) as Record<string, unknown>);
+async function readSseDone(response: Response, onStatus?: (value: string) => void) {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("响应不可读取");
+  const decoder = new TextDecoder();
+  let rest = "";
+  let doneEvent: Record<string, unknown> | undefined;
+  while (true) {
+    const result = await reader.read();
+    rest += decoder.decode(result.value ?? new Uint8Array(), { stream: !result.done });
+    const consumed = consumeSseFrames(rest);
+    rest = consumed.rest;
+    for (const item of consumed.events) {
+      if (item.type === "status" && typeof item.value === "string") onStatus?.(item.value);
+      if (item.type === "done") doneEvent = item;
+    }
+    if (result.done) break;
+  }
+  for (const item of consumeSseFrames(rest).events) {
+    if (item.type === "done") doneEvent = item;
+  }
+  if (!doneEvent) throw new Error("没有返回完成事件");
+  return doneEvent;
+}
+
+function asAlignmentOptions(value: unknown): AlignmentOptionCard[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const option = item as Record<string, unknown>;
+    if (typeof option.id !== "string" || typeof option.label !== "string") return [];
+    return [{
+      id: option.id,
+      label: option.label,
+      description: typeof option.description === "string" ? option.description : "",
+    }];
+  });
+}
+
+function viewFromAlignmentDone(done: Record<string, unknown>): AlignmentViewState {
+  const nested = done.alignment && typeof done.alignment === "object" ? done.alignment as Record<string, unknown> : {};
+  const lastResult = nested.lastResult && typeof nested.lastResult === "object"
+    ? nested.lastResult as AlignmentResultState
+    : done.lastResult && typeof done.lastResult === "object"
+      ? done.lastResult as AlignmentResultState
+      : null;
+  return {
+    enabled: Boolean(nested.enabled ?? done.enabled),
+    state: String(nested.state ?? done.state ?? ""),
+    questionId: typeof nested.questionId === "string" ? nested.questionId : typeof done.questionId === "string" ? done.questionId : null,
+    questionRevision: Number(nested.questionRevision ?? done.questionRevision ?? 0),
+    questionKind: typeof nested.questionKind === "string" ? nested.questionKind : typeof done.questionKind === "string" ? done.questionKind : null,
+    selectedOptionId: typeof nested.selectedOptionId === "string" ? nested.selectedOptionId : null,
+    selectedLabel: typeof nested.selectedLabel === "string" ? nested.selectedLabel : null,
+    question: String(nested.question ?? done.question ?? ""),
+    options: asAlignmentOptions(nested.options ?? done.options),
+    utilities: asAlignmentOptions(nested.utilities ?? done.utilities),
+    summary: typeof nested.summary === "string" ? nested.summary : typeof done.summary === "string" ? done.summary : null,
+    saved: Boolean(nested.saved ?? done.saved),
+    waitingForUser: Boolean(nested.waitingForUser ?? done.waitingForUser),
+    awaitingConfirmation: Boolean(nested.awaitingConfirmation ?? done.awaitingConfirmation),
+    prefsOnly: Boolean(nested.prefsOnly ?? done.prefsOnly),
+    cannotProceed: Boolean(nested.cannotProceed ?? done.cannotProceed),
+    pendingMessage: typeof nested.pendingMessage === "string" ? nested.pendingMessage : typeof done.pendingMessage === "string" ? done.pendingMessage : null,
+    processing: Boolean(nested.processing),
+    answers: Array.isArray(nested.answers) ? nested.answers as AlignmentViewState["answers"] : [],
+    lastResult,
+  };
+}
+
+function alignmentMessageText(view: AlignmentViewState, action?: string) {
+  if (view.processing) return "正在继续已保存的任务，刷新不会重复提交。";
+  if (view.cannotProceed) return view.summary || "缺少足够信息，无法继续生成。";
+  if (view.awaitingConfirmation) return view.question || "等待你选择是否应用当前方案。";
+  if (view.waitingForUser) return view.question ? `等待你选择：${view.question}` : "等待你选择";
+  if (view.prefsOnly) return "偏好已保存。";
+  if (view.lastResult?.status === "applied" && typeof view.lastResult.revision === "number") {
+    return `已应用已确认的方案，草稿 v${view.lastResult.revision}。`;
+  }
+  if (view.lastResult?.status === "answer") return view.lastResult.text || view.lastResult.summary || "模型已回答。";
+  if (view.lastResult?.summary) return view.lastResult.summary;
+  if (action === "cancel" || view.state === "cancelled") return "已关闭需求对齐。已保存的选择仍保留在会话中。";
+  return view.summary || "需求对齐已更新";
 }
 
 export default function WorkspacePage() {
@@ -107,8 +210,11 @@ export default function WorkspacePage() {
   const [canRedo, setCanRedo] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
-  const [conversationId, setConversationId] = useState<string | null>(() => readStoredConversationId());
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [plusOpen, setPlusOpen] = useState(false);
+  const [alignmentEnabled, setAlignmentEnabled] = useState(false);
+  const [alignmentView, setAlignmentView] = useState<AlignmentViewState | null>(null);
   const [device, setDevice] = useState<Device>("desktop");
   const [locale, setLocale] = useState<Locale>("zh");
   const [showImport, setShowImport] = useState(false);
@@ -202,7 +308,74 @@ export default function WorkspacePage() {
   }, []);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [messages, busy]);
+  }, [messages, busy, alignmentView]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const storedId = readStoredConversationId();
+    if (!storedId) return;
+    setConversationId(storedId);
+    let cancelled = false;
+    async function restoreAlignment() {
+      try {
+        const response = await fetch(`/api/sites/${siteId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "state",
+            conversationId: storedId,
+          }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({})) as { message?: string; error?: string };
+          if (!cancelled) {
+            setMessages((items) => [...items, {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              status: "warning",
+              text: payload.message || "无法恢复需求对齐状态。",
+              change: "没有静默创建新会话",
+            }]);
+          }
+          return;
+        }
+        const doneEvent = await readSseDone(response);
+        if (cancelled) return;
+        if (doneEvent.draft) adoptSnapshot(doneEvent as unknown as DraftSnapshot);
+        const view = viewFromAlignmentDone(doneEvent);
+        const live = view.enabled || view.waitingForUser || view.prefsOnly || Boolean(view.lastResult) || view.state === "cancelled";
+        setAlignmentView(live ? view : null);
+        setAlignmentEnabled(view.enabled);
+        if (live) {
+          setMessages((items) => [...items, {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            status: view.lastResult?.status === "applied" ? "applied" : "alignment",
+            text: alignmentMessageText(view, String(doneEvent.action || "state")),
+            alignment: view,
+            revision: view.lastResult?.revision,
+            change: view.waitingForUser ? "等待你选择" : view.prefsOnly ? "偏好已保存" : undefined,
+          }]);
+        }
+        if (typeof doneEvent.conversationId === "string") {
+          setConversationId(doneEvent.conversationId);
+          window.localStorage.setItem(conversationStorageKey, doneEvent.conversationId);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setMessages((items) => [...items, {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            status: "warning",
+            text: error instanceof Error ? error.message : "无法恢复需求对齐状态。",
+            change: "没有静默创建新会话",
+          }]);
+        }
+      }
+    }
+    void restoreAlignment();
+    return () => { cancelled = true; };
+  }, [draftReady]);
 
   const currentTemplate = getTemplate(draft.templateId);
   const saveLabel = useMemo(() => {
@@ -217,6 +390,156 @@ export default function WorkspacePage() {
     setInput(prompt);
     setMobilePane("chat");
     window.requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const applyDoneEvent = (done: Record<string, unknown>) => {
+    if (typeof done.conversationId === "string") {
+      setConversationId(done.conversationId);
+      window.localStorage.setItem(conversationStorageKey, done.conversationId);
+    }
+    const status = String(done.status);
+    const view = viewFromAlignmentDone(done);
+    const hasAlignment = Boolean(done.alignment) || status === "alignment" || view.enabled || view.waitingForUser || view.prefsOnly;
+    if (hasAlignment) {
+      const live = view.enabled || view.waitingForUser || view.prefsOnly || Boolean(view.lastResult) || view.state === "cancelled";
+      setAlignmentView(live ? view : null);
+      setAlignmentEnabled(view.enabled);
+    }
+    if ((status === "applied" || status === "no_change" || status === "conflict") && done.draft) adoptSnapshot(done as unknown as DraftSnapshot);
+    if (done.action === "state" && view.processing) return;
+    const latency = typeof done.latencyMs === "number" ? `模型 ${Math.max(0.1, done.latencyMs / 1000).toFixed(1)} 秒` : undefined;
+    if (status === "applied" && done.replayed === true) {
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(), role: "assistant", status: "applied",
+        text: `${alignmentMessageText(view)} 已读取当前草稿，本次没有重复提交。`,
+      }]);
+    } else if (status === "applied") {
+      const changeSet = done.changeSet as { revision: number; appliedTargets: string[] };
+      setExpectedTargets(changeSet.appliedTargets);
+      setPreviewState("loading");
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(), role: "assistant", status: "syncing", revision: changeSet.revision,
+        text: `草稿 v${changeSet.revision} 已保存，正在确认右侧模板已实际更新。`,
+        change: String(done.summary), meta: latency,
+        alignment: hasAlignment ? view : undefined,
+      }]);
+    } else if (status === "no_change") {
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", text: "模型没有生成可应用的内容差异，草稿和模板均未修改。", change: String(done.summary || "没有变化"), meta: latency }]);
+    } else if (status === "conflict") {
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: String(done.error), change: "没有覆盖较新的草稿" }]);
+    } else if (status === "answer") {
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(), role: "assistant", status: "answer",
+        text: String(done.text || done.summary || "模型已回答，但没有返回内容。"), meta: latency,
+      }]);
+    } else if (status === "clarify") {
+      const stringOptions = Array.isArray(done.options)
+        ? done.options.filter((option): option is string => typeof option === "string")
+        : [];
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: view.waitingForUser ? "alignment" : "clarify",
+        text: view.waitingForUser ? alignmentMessageText(view) : String(done.question || "还需要你补充一点信息。"),
+        options: view.waitingForUser ? undefined : stringOptions,
+        alignment: view.waitingForUser || view.options.length ? view : undefined,
+        meta: latency,
+        change: view.waitingForUser ? "等待你选择" : undefined,
+      }]);
+    } else if (status === "alignment") {
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "alignment",
+        text: alignmentMessageText(view, String(done.action || "")),
+        alignment: view,
+        change: view.waitingForUser ? "等待你选择" : view.saved ? "已保存选择" : view.prefsOnly ? "偏好已保存" : undefined,
+      }]);
+    } else {
+      throw new Error(String(done.error || "模型操作失败"));
+    }
+    if (done.conversationPersisted === false) {
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "warning",
+        text: String(done.conversationError || "会话历史保存失败"),
+        change: "会话历史没有写入，草稿以当前版本为准",
+      }]);
+    }
+    setSelectedTarget(null);
+  };
+
+  const runAlignment = async (body: Record<string, unknown>) => {
+    if (busy) return;
+    setBusy(true);
+    setBusyText("正在更新需求对齐…");
+    try {
+      const response = await fetch(`/api/sites/${siteId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...body,
+          conversationId: body.conversationId ?? conversationId,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { message?: string; error?: string; alignment?: AlignmentViewState };
+        if (payload.alignment) {
+          setAlignmentView(payload.alignment);
+          setAlignmentEnabled(payload.alignment.enabled);
+        }
+        throw new Error(payload.message || payload.error || "需求对齐请求失败");
+      }
+      const doneEvent = await readSseDone(response, (value) => setBusyText(value));
+      applyDoneEvent(doneEvent);
+      if ((body.action === "start" && body.message) || (body.action === "select" && body.optionId === "other")) setInput("");
+    } catch (error) {
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "error",
+        text: error instanceof Error ? error.message : "需求对齐失败",
+        change: "请以服务器草稿和恢复状态为准",
+      }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restoreStartedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!alignmentView?.processing || !conversationId) {
+      restoreStartedRef.current = null;
+      return;
+    }
+    if (busy) return;
+    restoreStartedRef.current ??= Date.now();
+    if (Date.now() - restoreStartedRef.current > 120_000) {
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: "任务仍未返回最终状态，已停止自动读取。请刷新检查服务器状态，避免重复执行。" }]);
+      return;
+    }
+    const timer = window.setTimeout(() => { void runAlignment({ action: "state" }); }, 2000);
+    return () => window.clearTimeout(timer);
+  }, [alignmentView, busy, conversationId]);
+
+  const toggleAlignment = async (enabled: boolean) => {
+    setPlusOpen(false);
+    if (!enabled) {
+      if (!conversationId) {
+        setAlignmentEnabled(false);
+        setAlignmentView(null);
+        return;
+      }
+      await runAlignment({ action: "cancel", conversationId });
+      return;
+    }
+    const pending = input.trim();
+    await runAlignment({
+      action: "start",
+      conversationId,
+      ...(pending ? { message: pending, baseRevision: draft.revision, selectedTarget: selectedTarget?.key ?? null } : {}),
+    });
   };
 
   const submitChat = async (event?: FormEvent) => {
@@ -239,73 +562,19 @@ export default function WorkspacePage() {
         }),
       });
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({})) as Partial<DraftSnapshot> & { message?: string };
+        const payload = await response.json().catch(() => ({})) as Partial<DraftSnapshot> & { message?: string; alignment?: AlignmentViewState };
         if (payload.draft) adoptSnapshot(payload as DraftSnapshot);
+        if (payload.alignment) {
+          setAlignmentView(payload.alignment);
+          setAlignmentEnabled(payload.alignment.enabled);
+        }
         throw new Error(payload.message || (response.status === 409 ? "草稿版本冲突，已载入最新版本，请重新发送。" : "AI 请求失败"));
       }
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("模型响应不可读取");
-      const decoder = new TextDecoder();
-      let raw = "";
-      let doneEvent: Record<string, unknown> | undefined;
-      while (true) {
-        const result = await reader.read();
-        raw += decoder.decode(result.value ?? new Uint8Array(), { stream: !result.done });
-        const events = readSseEvents(raw);
-        const status = [...events].reverse().find((item) => item.type === "status");
-        if (typeof status?.value === "string") setBusyText(status.value);
-        doneEvent = events.find((item) => item.type === "done");
-        if (result.done) break;
-      }
-      if (!doneEvent) throw new Error("模型没有返回完成事件");
-      if (typeof doneEvent.conversationId === "string") {
-        setConversationId(doneEvent.conversationId);
-        window.localStorage.setItem(conversationStorageKey, doneEvent.conversationId);
-      }
-      const status = String(doneEvent.status);
-      if ((status === "applied" || status === "no_change" || status === "conflict") && doneEvent.draft) adoptSnapshot(doneEvent as unknown as DraftSnapshot);
-      const latency = typeof doneEvent.latencyMs === "number" ? `模型 ${Math.max(0.1, doneEvent.latencyMs / 1000).toFixed(1)} 秒` : undefined;
-      if (status === "applied") {
-        const changeSet = doneEvent.changeSet as { revision: number; appliedTargets: string[] };
-        setExpectedTargets(changeSet.appliedTargets);
-        setPreviewState("loading");
-        setMessages((items) => [...items, {
-          id: crypto.randomUUID(), role: "assistant", status: "syncing", revision: changeSet.revision,
-          text: `草稿 v${changeSet.revision} 已保存，正在确认右侧模板已实际更新。`,
-          change: String(doneEvent.summary), meta: latency,
-        }]);
-      } else if (status === "no_change") {
-        setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", text: "模型没有生成可应用的内容差异，草稿和模板均未修改。", change: String(doneEvent.summary || "没有变化"), meta: latency }]);
-      } else if (status === "conflict") {
-        setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: String(doneEvent.error), change: "没有覆盖较新的草稿" }]);
-      } else if (status === "answer") {
-        setMessages((items) => [...items, {
-          id: crypto.randomUUID(), role: "assistant", status: "answer",
-          text: String(doneEvent.text || doneEvent.summary || "模型已回答，但没有返回内容。"), meta: latency,
-        }]);
-      } else if (status === "clarify") {
-        const options = Array.isArray(doneEvent.options)
-          ? doneEvent.options.filter((option): option is string => typeof option === "string")
-          : [];
-        setMessages((items) => [...items, {
-          id: crypto.randomUUID(), role: "assistant", status: "clarify",
-          text: String(doneEvent.question || "还需要你补充一点信息。"), options, meta: latency,
-        }]);
-      } else {
-        throw new Error(String(doneEvent.error || "模型操作失败"));
-      }
-      if (doneEvent.conversationPersisted === false) {
-        setMessages((items) => [...items, {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          status: "warning",
-          text: String(doneEvent.conversationError || "会话历史保存失败"),
-          change: "会话历史没有写入，草稿以当前版本为准",
-        }]);
-      }
-      setSelectedTarget(null);
+      const doneEvent = await readSseDone(response, (value) => setBusyText(value));
+      applyDoneEvent(doneEvent);
     } catch (error) {
-      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "AI 修改失败", change: "本次没有修改草稿" }]);
+      setInput(value);
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "AI 修改失败", change: "请以服务器草稿和恢复状态为准" }]);
     } finally {
       setBusy(false);
     }
@@ -452,6 +721,9 @@ export default function WorkspacePage() {
               <div className="message-label">{message.role === "assistant" ? <><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />SITECRAFT AI</> : "YOU"}</div>
               <div className="message-bubble">{message.text}</div>
               {message.options?.length ? <div className="chat-hints clarify-options">{message.options.map((option) => <button className="hint" key={option} type="button" onClick={() => { setInput(option); window.requestAnimationFrame(() => inputRef.current?.focus()); }}>{option}</button>)}</div> : null}
+              {message.alignment?.waitingForUser && message.alignment.selectedLabel ? (
+                <div className="change-summary alignment">{message.alignment.selectedLabel}</div>
+              ) : null}
               {message.change && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "error" || message.status === "warning" ? <AlertCircle size={11} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={11} /> : <Check size={11} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
             </div>
           ))}
@@ -460,7 +732,104 @@ export default function WorkspacePage() {
         </div>
         <div className="chat-input-wrap">
           {selectedTarget && <div className="chat-target"><span>正在修改：{selectedTarget.label}</span><button aria-label="清除修改目标" onClick={() => setSelectedTarget(null)} type="button"><X size={12} /></button></div>}
+          {alignmentView && (alignmentView.enabled || alignmentView.waitingForUser || alignmentView.prefsOnly || alignmentView.lastResult || alignmentView.answers.length) ? (
+            <div className="alignment-panel">
+              {alignmentView.answers.length ? <details className="alignment-summary"><summary>已保存的问答（{alignmentView.answers.length}）</summary>{alignmentView.answers.map((answer) => <p key={answer.questionId}><strong>{answer.question}</strong><br />{answer.label}{answer.note ? `：${answer.note}` : ""}</p>)}</details> : null}
+              {alignmentView.processing ? <div className="alignment-summary" role="status">正在继续已保存的任务…</div> : null}
+              {alignmentView.waitingForUser ? (
+                <>
+                  <div className="alignment-question">{alignmentView.question || "等待你选择"}</div>
+                  <div className="alignment-cards">
+                    {alignmentView.options.map((option) => (
+                      <button
+                        className={alignmentView.selectedOptionId === option.id ? "alignment-card selected" : "alignment-card"}
+                        key={option.id}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void runAlignment({
+                          action: alignmentView.questionKind === "confirm_ops" ? "confirm" : "select",
+                          conversationId,
+                          questionId: alignmentView.questionId,
+                          questionRevision: alignmentView.questionRevision,
+                          optionId: option.id,
+                        })}
+                      >
+                        <strong>{option.label}</strong>
+                        <span>{option.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="alignment-actions">
+                    {alignmentView.utilities.map((option) => (
+                      <button
+                        className={alignmentView.selectedOptionId === option.id ? "hint selected" : "hint"}
+                        key={option.id}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          if (option.id === "other") {
+                            if (!input.trim()) {
+                              window.requestAnimationFrame(() => inputRef.current?.focus());
+                              return;
+                            }
+                            void runAlignment({
+                              action: "select",
+                              conversationId,
+                              questionId: alignmentView.questionId,
+                              questionRevision: alignmentView.questionRevision,
+                              optionId: option.id,
+                              note: input.trim(),
+                            });
+                            return;
+                          }
+                          void runAlignment({
+                            action: "select",
+                            conversationId,
+                            questionId: alignmentView.questionId,
+                            questionRevision: alignmentView.questionRevision,
+                            optionId: option.id,
+                          });
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  {alignmentView.pendingMessage ? <div className="alignment-summary">已保存任务：{alignmentView.pendingMessage}</div> : null}
+                  {alignmentView.summary ? <div className="alignment-summary">{alignmentView.summary}</div> : null}
+                </>
+              ) : alignmentView.prefsOnly ? (
+                <div className="alignment-confirmed">偏好已保存。</div>
+              ) : alignmentView.lastResult?.status === "applied" ? (
+                <div className="alignment-confirmed">已应用已确认的方案{typeof alignmentView.lastResult.revision === "number" ? `，草稿 v${alignmentView.lastResult.revision}` : ""}</div>
+              ) : null}
+            </div>
+          ) : null}
           <form className="chat-input" onSubmit={submitChat}>
+            <div className="chat-plus-wrap">
+              <button
+                className={plusOpen || alignmentEnabled ? "chat-plus-button active" : "chat-plus-button"}
+                type="button"
+                aria-label="更多"
+                aria-expanded={plusOpen}
+                onClick={() => setPlusOpen((value) => !value)}
+              >
+                <Plus size={14} />
+              </button>
+              {plusOpen ? (
+                <div className="chat-plus-menu" role="menu">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={alignmentEnabled}
+                      disabled={busy}
+                      onChange={(event) => { void toggleAlignment(event.target.checked); }}
+                    />
+                    需求对齐
+                  </label>
+                </div>
+              ) : null}
+            </div>
             <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder="告诉 AI 你想怎么改..." rows={2} />
             <button className="send-button" type="submit" disabled={!input.trim() || busy || !draftReady} aria-label="发送"><Send size={14} /></button>
           </form>

@@ -1,6 +1,16 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
+import {
+  AlignmentActionError,
+  applyAlignmentAction,
+  disabledAlignment,
+  normalizeAlignmentSnapshot,
+  type AlignmentActionInput,
+  type AlignmentActionName,
+  type AlignmentPublicView,
+  type AlignmentSnapshot,
+} from "./alignment.ts";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
 
 export const CONVERSATION_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
@@ -35,6 +45,7 @@ export type ConversationRecord = {
   createdAt: string;
   updatedAt: string;
   turns: ConversationTurn[];
+  alignment: AlignmentSnapshot;
 };
 export type AppendConversationTurnArgs = {
   siteId: string;
@@ -89,7 +100,7 @@ function clipText(value: string, maxChars: number) {
 }
 
 function emptyRecord(siteId: string, conversationId: string, now = new Date().toISOString()): ConversationRecord {
-  return { workspaceId, siteId, conversationId, createdAt: now, updatedAt: now, turns: [] };
+  return { workspaceId, siteId, conversationId, createdAt: now, updatedAt: now, turns: [], alignment: disabledAlignment() };
 }
 
 function normalizeTurn(raw: unknown): ConversationTurn {
@@ -108,7 +119,12 @@ function normalizeTurn(raw: unknown): ConversationTurn {
   };
 }
 
-function normalizeRecord(siteId: string, conversationId: string, raw: Partial<ConversationRecord> & { workspace_id?: string; site_id?: string; conversation_id?: string }): ConversationRecord {
+function normalizeRecord(siteId: string, conversationId: string, raw: Omit<Partial<ConversationRecord>, "alignment"> & {
+  workspace_id?: string;
+  site_id?: string;
+  conversation_id?: string;
+  alignment?: unknown;
+}): ConversationRecord {
   const recordSiteId = typeof raw.siteId === "string" ? raw.siteId : raw.site_id;
   const recordConversationId = typeof raw.conversationId === "string" ? raw.conversationId : raw.conversation_id;
   const recordWorkspaceId = typeof raw.workspaceId === "string" ? raw.workspaceId : raw.workspace_id;
@@ -121,6 +137,7 @@ function normalizeRecord(siteId: string, conversationId: string, raw: Partial<Co
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : new Date().toISOString(),
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : new Date().toISOString(),
     turns: Array.isArray(raw.turns) ? raw.turns.map(normalizeTurn).slice(-MAX_CONVERSATION_TURNS) : [],
+    alignment: normalizeAlignmentSnapshot("alignment" in raw ? raw.alignment : undefined),
   };
 }
 
@@ -208,6 +225,7 @@ type ConversationRow = {
   site_id: string;
   conversation_id: string;
   turns: unknown;
+  alignment: unknown;
   created_at: Date | string;
   updated_at: Date | string;
 };
@@ -220,6 +238,7 @@ function rowToRecord(row: ConversationRow): ConversationRecord {
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
     turns: Array.isArray(row.turns) ? row.turns as ConversationTurn[] : [],
+    alignment: row.alignment,
   });
 }
 
@@ -228,13 +247,13 @@ async function lockPostgresConversation(client: PoolClient, siteId: string, conv
   safeConversationId(conversationId);
   const initial = emptyRecord(siteId, conversationId);
   await client.query(
-    `INSERT INTO sitecraft_conversations (workspace_id, site_id, conversation_id, turns, created_at, updated_at)
-     VALUES ($1, $2, $3, '[]'::jsonb, $4, $5)
+    `INSERT INTO sitecraft_conversations (workspace_id, site_id, conversation_id, turns, alignment, created_at, updated_at)
+     VALUES ($1, $2, $3, '[]'::jsonb, $6::jsonb, $4, $5)
      ON CONFLICT (workspace_id, site_id, conversation_id) DO NOTHING`,
-    [workspaceId, siteId, conversationId, initial.createdAt, initial.updatedAt],
+    [workspaceId, siteId, conversationId, initial.createdAt, initial.updatedAt, JSON.stringify(initial.alignment)],
   );
   const result = await client.query<ConversationRow>(
-    `SELECT workspace_id, site_id, conversation_id, turns, created_at, updated_at
+    `SELECT workspace_id, site_id, conversation_id, turns, alignment, created_at, updated_at
      FROM sitecraft_conversations
      WHERE workspace_id = $1 AND site_id = $2 AND conversation_id = $3
      FOR UPDATE`,
@@ -247,9 +266,9 @@ async function lockPostgresConversation(client: PoolClient, siteId: string, conv
 async function savePostgresRecord(client: PoolClient, record: ConversationRecord) {
   await client.query(
     `UPDATE sitecraft_conversations
-     SET turns = $4::jsonb, updated_at = $5
+     SET turns = $4::jsonb, alignment = $6::jsonb, updated_at = $5
      WHERE workspace_id = $1 AND site_id = $2 AND conversation_id = $3`,
-    [workspaceId, record.siteId, record.conversationId, JSON.stringify(record.turns), record.updatedAt],
+    [workspaceId, record.siteId, record.conversationId, JSON.stringify(record.turns), record.updatedAt, JSON.stringify(record.alignment)],
   );
 }
 
@@ -259,15 +278,15 @@ async function createPostgresConversation(siteId: string, conversationId = crypt
   return withDatabaseTransaction(async (client) => {
     const record = emptyRecord(siteId, conversationId);
     const inserted = await client.query(
-      `INSERT INTO sitecraft_conversations (workspace_id, site_id, conversation_id, turns, created_at, updated_at)
-       VALUES ($1, $2, $3, '[]'::jsonb, $4, $5)
+      `INSERT INTO sitecraft_conversations (workspace_id, site_id, conversation_id, turns, alignment, created_at, updated_at)
+       VALUES ($1, $2, $3, '[]'::jsonb, $6::jsonb, $4, $5)
        ON CONFLICT (workspace_id, site_id, conversation_id) DO NOTHING
        RETURNING conversation_id`,
-      [workspaceId, siteId, conversationId, record.createdAt, record.updatedAt],
+      [workspaceId, siteId, conversationId, record.createdAt, record.updatedAt, JSON.stringify(record.alignment)],
     );
     if (inserted.rowCount !== 1) throw new Error("Conversation already exists");
     const locked = await client.query<ConversationRow>(
-      `SELECT workspace_id, site_id, conversation_id, turns, created_at, updated_at
+      `SELECT workspace_id, site_id, conversation_id, turns, alignment, created_at, updated_at
        FROM sitecraft_conversations
        WHERE workspace_id = $1 AND site_id = $2 AND conversation_id = $3
        FOR UPDATE`,
@@ -283,7 +302,7 @@ async function getPostgresConversation(siteId: string, conversationId: string) {
   safeConversationId(conversationId);
   await ensureDatabaseSchema();
   const result = await getDatabasePool().query<ConversationRow>(
-    `SELECT workspace_id, site_id, conversation_id, turns, created_at, updated_at
+    `SELECT workspace_id, site_id, conversation_id, turns, alignment, created_at, updated_at
      FROM sitecraft_conversations
      WHERE workspace_id = $1 AND site_id = $2 AND conversation_id = $3`,
     [workspaceId, siteId, conversationId],
@@ -300,7 +319,7 @@ async function appendPostgresConversationTurn(args: AppendConversationTurnArgs) 
   const turn = buildTurn(args);
   return withDatabaseTransaction(async (client) => {
     const existing = await client.query<ConversationRow>(
-      `SELECT workspace_id, site_id, conversation_id, turns, created_at, updated_at
+      `SELECT workspace_id, site_id, conversation_id, turns, alignment, created_at, updated_at
        FROM sitecraft_conversations
        WHERE workspace_id = $1 AND site_id = $2 AND conversation_id = $3
        FOR UPDATE`,
@@ -375,4 +394,143 @@ export function getOrCreateConversation(siteId: string, conversationId?: string)
 }
 export function appendConversationTurn(args: AppendConversationTurnArgs) {
   return usePostgres ? appendPostgresConversationTurn(args) : appendLocalConversationTurn(args);
+}
+
+export type ApplyConversationAlignmentArgs = {
+  siteId: string;
+  conversationId?: string | null;
+  action: AlignmentActionName;
+  questionId?: string;
+  questionRevision?: number;
+  optionId?: string;
+  note?: string;
+  pendingRequest?: { message: string; baseRevision: number; selectedTarget: string | null } | null;
+};
+
+function toAlignmentInput(args: ApplyConversationAlignmentArgs): AlignmentActionInput {
+  return {
+    action: args.action,
+    questionId: args.questionId,
+    questionRevision: args.questionRevision,
+    optionId: args.optionId,
+    note: args.note,
+    pendingRequest: args.pendingRequest,
+  };
+}
+
+function alignmentResultFor(record: ConversationRecord, input: AlignmentActionInput) {
+  const result = applyAlignmentAction(record.alignment, input);
+  if (!result.ok) throw new AlignmentActionError(result);
+  return result;
+}
+
+async function applyLocalAlignmentAction(args: ApplyConversationAlignmentArgs) {
+  if (args.action !== "start" && !args.conversationId) throw new Error("Conversation id required");
+  const createNew = args.action === "start" && !args.conversationId;
+  const conversationId = args.conversationId ?? crypto.randomUUID();
+  safeSiteId(args.siteId);
+  safeConversationId(conversationId);
+  const input = toAlignmentInput(args);
+  return withConversationLock(args.siteId, conversationId, async () => {
+    const existing = await readLocalRecord(args.siteId, conversationId);
+    if (!existing && !createNew) throw new Error("Conversation not found");
+    const record = existing ?? emptyRecord(args.siteId, conversationId);
+    const result = alignmentResultFor(record, input);
+    if (args.action === "state") return { record, view: result.view, result };
+    const next: ConversationRecord = {
+      ...record,
+      alignment: result.snapshot,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeLocalRecord(next);
+    return { record: next, view: result.view, result };
+  });
+}
+
+async function applyPostgresAlignmentAction(args: ApplyConversationAlignmentArgs) {
+  if (args.action !== "start" && !args.conversationId) throw new Error("Conversation id required");
+  const createNew = args.action === "start" && !args.conversationId;
+  const conversationId = args.conversationId ?? crypto.randomUUID();
+  safeSiteId(args.siteId);
+  safeConversationId(conversationId);
+  const input = toAlignmentInput(args);
+  if (args.action === "state") {
+    const record = await getPostgresConversation(args.siteId, conversationId);
+    if (!record) throw new Error("Conversation not found");
+    const result = alignmentResultFor(record, input);
+    return { record, view: result.view, result };
+  }
+  if (args.action === "start" && createNew) {
+    return withDatabaseTransaction(async (client) => {
+      const record = await lockPostgresConversation(client, args.siteId, conversationId);
+      const result = alignmentResultFor(record, input);
+      const next: ConversationRecord = {
+        ...record,
+        alignment: result.snapshot,
+        updatedAt: new Date().toISOString(),
+      };
+      await savePostgresRecord(client, next);
+      return { record: next, view: result.view, result };
+    });
+  }
+  return withDatabaseTransaction(async (client) => {
+    const existing = await client.query<ConversationRow>(
+      `SELECT workspace_id, site_id, conversation_id, turns, alignment, created_at, updated_at
+       FROM sitecraft_conversations
+       WHERE workspace_id = $1 AND site_id = $2 AND conversation_id = $3
+       FOR UPDATE`,
+      [workspaceId, args.siteId, conversationId],
+    );
+    if (!existing.rows[0]) throw new Error("Conversation not found");
+    const record = rowToRecord(existing.rows[0]);
+    const result = alignmentResultFor(record, input);
+    const next: ConversationRecord = {
+      ...record,
+      alignment: result.snapshot,
+      updatedAt: new Date().toISOString(),
+    };
+    await savePostgresRecord(client, next);
+    return { record: next, view: result.view, result };
+  });
+}
+
+export function applyConversationAlignmentAction(args: ApplyConversationAlignmentArgs): Promise<{
+  record: ConversationRecord;
+  view: AlignmentPublicView;
+  result: ReturnType<typeof applyAlignmentAction>;
+}> {
+  return usePostgres ? applyPostgresAlignmentAction(args) : applyLocalAlignmentAction(args);
+}
+
+export async function updateConversationAlignment(
+  siteId: string,
+  conversationId: string,
+  updater: (record: ConversationRecord) => ConversationRecord,
+): Promise<ConversationRecord> {
+  safeSiteId(siteId);
+  safeConversationId(conversationId);
+  if (usePostgres) {
+    return withDatabaseTransaction(async (client) => {
+      const existing = await client.query<ConversationRow>(
+        `SELECT workspace_id, site_id, conversation_id, turns, alignment, created_at, updated_at
+         FROM sitecraft_conversations
+         WHERE workspace_id = $1 AND site_id = $2 AND conversation_id = $3
+         FOR UPDATE`,
+        [workspaceId, siteId, conversationId],
+      );
+      if (!existing.rows[0]) throw new Error("Conversation not found");
+      const next = updater(rowToRecord(existing.rows[0]));
+      next.updatedAt = new Date().toISOString();
+      await savePostgresRecord(client, next);
+      return next;
+    });
+  }
+  return withConversationLock(siteId, conversationId, async () => {
+    const existing = await readLocalRecord(siteId, conversationId);
+    if (!existing) throw new Error("Conversation not found");
+    const next = updater(existing);
+    next.updatedAt = new Date().toISOString();
+    await writeLocalRecord(next);
+    return next;
+  });
 }
