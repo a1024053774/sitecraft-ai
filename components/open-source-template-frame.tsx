@@ -16,6 +16,8 @@ type OpenSourceTemplateFrameProps = {
     revision: number;
     appliedSlots: string[];
     missingSlots: string[];
+    fallbackMatched: string[];
+    proposedAlternatives: Array<{ requested: string; proposed: string }>;
   }) => void;
 };
 
@@ -68,13 +70,21 @@ export function OpenSourceTemplateFrame({
         revision?: number;
         appliedSlots?: string[];
         missingSlots?: string[];
+        fallbackMatched?: string[];
+        proposedAlternatives?: Array<{ requested: string; proposed: string }>;
       };
       if (data?.type === "sitecraft:select" && data.target && onSelectTarget) {
         const target = targetPrompts[data.target];
         if (target) onSelectTarget(data.target, target.label, target.prompt);
       }
       if (data?.type === "sitecraft:applied" && typeof data.revision === "number" && onApplyReport) {
-        onApplyReport({ revision: data.revision, appliedSlots: data.appliedSlots ?? [], missingSlots: data.missingSlots ?? [] });
+        onApplyReport({
+          revision: data.revision,
+          appliedSlots: data.appliedSlots ?? [],
+          missingSlots: data.missingSlots ?? [],
+          fallbackMatched: data.fallbackMatched ?? [],
+          proposedAlternatives: data.proposedAlternatives ?? [],
+        });
       }
     };
     window.addEventListener("message", receiveMessage);
@@ -92,7 +102,7 @@ export function OpenSourceTemplateFrame({
     <iframe
       ref={frameRef}
       className={`open-source-template-frame open-source-template-frame-${variant}`}
-      src={`/api/templates/${encodeURIComponent(templateId)}/preview?v=20260823-11`}
+      src={`/api/templates/${encodeURIComponent(templateId)}/preview?v=20260916-declared`}
       title={`开源模板 ${templateId} 预览`}
       loading={variant === "thumbnail" ? "lazy" : "eager"}
       sandbox="allow-scripts allow-forms"

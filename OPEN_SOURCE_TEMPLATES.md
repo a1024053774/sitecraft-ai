@@ -20,7 +20,15 @@ The template catalog is sourced from public repositories with MIT licenses. The 
 | DEVPORTFOLIO | [RyanFitzgerald/devportfolio](https://github.com/RyanFitzgerald/devportfolio) | MIT | HTML + Sass + JavaScript | [GitHub Pages](https://ryanfitzgerald.github.io/devportfolio) |
 | FOXI | [oxygenna-themes/foxi-astro-theme](https://github.com/oxygenna-themes/foxi-astro-theme) | MIT | Astro + Tailwind | [foxi.netlify.app](https://foxi.netlify.app/) |
 | YUKINA | [WhitePaper233/yukina](https://github.com/WhitePaper233/yukina) | MIT | Astro + Tailwind | [yukina-blog.vercel.app](https://yukina-blog.vercel.app) |
+| SCREWFAST | [mearashadowfax/ScrewFast](https://github.com/mearashadowfax/ScrewFast) | MIT | Astro + Tailwind | [screwfast.uk](https://screwfast.uk/) |
+| FRESH | [cssninjaStudio/fresh](https://github.com/cssninjaStudio/fresh) | MIT | Astro + Bulma + Alpine.js | [fresh.cssninja.io](https://fresh.cssninja.io/) |
+| TAILWIND LANDING | [tailwindtoolbox/Landing-Page](https://github.com/tailwindtoolbox/Landing-Page) | MIT | HTML + Tailwind | [tailwindtoolbox.github.io/Landing-Page](https://tailwindtoolbox.github.io/Landing-Page) |
+| NEXT LANDING | [ixartz/Next-JS-Landing-Page-Starter-Template](https://github.com/ixartz/Next-JS-Landing-Page-Starter-Template) | MIT | Next.js + Tailwind | [creativedesignsguru.com](https://creativedesignsguru.com) |
+| SHADCN LANDING | [leoMirandaa/shadcn-landing-page](https://github.com/leoMirandaa/shadcn-landing-page) | MIT | Vite + shadcn/ui + Tailwind | [shadcn-landing-page.vercel.app](https://shadcn-landing-page.vercel.app/) |
+| SHADCN LANDING 2 | [nobruf/shadcn-landing-page](https://github.com/nobruf/shadcn-landing-page) | MIT | Next.js + shadcn/ui + Tailwind | [shadcn-landing-page-livid.vercel.app](https://shadcn-landing-page-livid.vercel.app) |
 
-The complete upstream sources are pinned as Git submodules under `vendor/open-source-templates/<id>`, including the upstream license files. Clone with `--recurse-submodules` to populate them. RicoFast declares MIT in its `package.json`. The application renders allowlisted official demos through a read-only preview adapter and maps structured content into those pages without executing upstream scripts.
+The complete upstream sources are pinned as Git submodules under `vendor/open-source-templates/<id>`, including the upstream license files. Clone with `--recurse-submodules` to populate them. RicoFast declares MIT in its `package.json`. Code license labels do not approve demo images, fonts, icons or trademarks. The gallery now distinguishes local static previews from upstream demos and marks assets pending review.
+
+Local snapshot HTML strips upstream scripts and is edited only at uniquely matched declared slots. Upstream demos are reference previews, not verified generated customer sites. Build supported snapshots with `node scripts/build-template-snapshots.mjs <ids...>`; failures and missing static exports remain explicit. See `docs/research/模板快照构建-2026-09-16.md` and `docs/research/新增六套模板素材许可-2026-09-16.md` for per-source evidence and limitations.
 
 Every catalog entry also owns an AI prompt profile with a source-aware role, page structure, editable targets, visual rules, hard guardrails, and starter prompts. The model may only return the validated structured change fields; it cannot submit raw markup or code.

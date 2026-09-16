@@ -302,7 +302,13 @@ export default function WorkspacePage() {
     }
   };
 
-  const handlePreviewReport = (report: { revision: number; appliedSlots: string[]; missingSlots: string[] }) => {
+  const handlePreviewReport = (report: {
+    revision: number;
+    appliedSlots: string[];
+    missingSlots: string[];
+    fallbackMatched: string[];
+    proposedAlternatives: Array<{ requested: string; proposed: string }>;
+  }) => {
     if (report.revision !== draft.revision) return;
     const hasExpectedTargets = expectedTargets.length > 0;
     const visibleTargets = expectedTargets.filter((target) => {
@@ -321,11 +327,24 @@ export default function WorkspacePage() {
     const missing = hasExpectedTargets
       ? report.missingSlots.filter((target) => visibleTargets.includes(target))
       : [];
-    setPreviewState(missing.length ? "warning" : "synced");
+    const fallback = report.fallbackMatched.filter((target) => !hasExpectedTargets || visibleTargets.includes(target));
+    const proposals = report.proposedAlternatives.filter((item) => missing.includes(item.requested));
+    setPreviewState(missing.length || fallback.length ? "warning" : "synced");
     if (!hasExpectedTargets) return;
     setMessages((items) => items.map((message) => {
       if (message.revision !== report.revision || message.status !== "syncing") return message;
-      if (missing.length) return { ...message, status: "warning", text: `草稿 v${report.revision} 已保存，但当前模板没有找到 ${missing.length} 个对应显示槽位。`, change: `${message.change}；未显示：${missing.join("、")}` };
+      if (missing.length || fallback.length) {
+        const fallbackNote = fallback.length ? `；回退命中未计精确槽位：${fallback.join("、")}` : "";
+        const proposalNote = proposals.length
+          ? `；可改已映射字段：${proposals.map((item) => `${item.requested}→${item.proposed}`).join("、")}`
+          : "";
+        return {
+          ...message,
+          status: "warning",
+          text: `草稿 v${report.revision} 已保存，但当前模板没有找到 ${missing.length} 个对应显示槽位。`,
+          change: `${message.change}；未显示：${missing.join("、")}${fallbackNote}${proposalNote}`,
+        };
+      }
       return { ...message, status: "applied", text: `草稿 v${report.revision} 已保存，右侧模板已确认更新。` };
     }));
     setExpectedTargets([]);

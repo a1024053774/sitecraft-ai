@@ -35,6 +35,17 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - 所有草稿修改必须经过 `commitOperations`；Skill、模型、bridge、测试夹具不得旁路写草稿。
 - 不为未来功能预置平行 API、兼容层、空 schema、双渲染器或 speculative abstraction。
 
+## 模板意图、落点和就绪边界
+
+- 模型负责理解请求并产生受控意图/操作；预览只执行版本固定的声明槽位，不在每轮调用模型猜 DOM。
+- adapter 是可审查的数据（选择器、目标、属性和必要集合映射），不存每模板可执行 JS 字符串；使用一个共享预览引擎。
+- 只向唯一且符合声明的节点写入；未声明、未命中或有歧义均报告 `missing`，不按标题正则、元素顺序或通用卡片形状猜写。
+- features/services/products 集合只有手写且经实际模板核验的映射才能修改；不得为填满页面自动追加通用商品网格。
+- `covered/applied` 只来自实际成功落点；`fallbackMatched` 只记录实际采用的回退，不把没有 adapter、上游演示或截图当作精确命中。默认关闭正则写稿，必要的例外须明确范围、证据与用户授权。
+- 固定文本清理、HTML 安全处理或路径校验中的正则不属于意图识别；清理演示内容也不得冒充草稿字段应用。
+- submodule 源码、构建后的静态 HTML、浏览器实测、素材许可和可生成状态分别记录。SPA 的空 `index.html`（包括 dist 中的空壳）不是静态快照；代码 MIT 不批准图片/字体/商标。
+- Docker 本地已有镜像时可用 `--pull never` 启动；改源码后需重建 web。镜像缓存、构建依赖、模板网络资源是不同边界，不能据镜像启动成功宣称整个应用离线可用。
+
 ## Grok 代理分工
 
 委派统一使用 **Cursor Grok 4.6 High Fast**；不可用时报告阻塞，不静默改用其他模型。进度用 **TodoWrite** 跟踪当前模块，不使用原生 Goal 工具。

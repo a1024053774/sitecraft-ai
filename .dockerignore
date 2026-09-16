@@ -1,6 +1,13 @@
 .next
+**/.next
 node_modules
+**/node_modules
+.git
+**/.git
+artifacts
+.artifact-work
 .sitecraft-data
 .env*
+**/.env*
 npm-debug.log*
 tests

@@ -1,6 +1,7 @@
 services:
   web:
     build: .
+    pull_policy: missing
     environment:
       SITE_STORE: postgres
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/site_studio
@@ -16,6 +17,7 @@ services:
     restart: unless-stopped
   postgres:
     image: postgres:16-alpine
+    pull_policy: missing
     environment:
       POSTGRES_DB: site_studio
       POSTGRES_USER: postgres
@@ -29,9 +31,13 @@ services:
       retries: 20
   redis:
     image: redis:7-alpine
+    pull_policy: missing
     ports: ["6379:6379"]
   minio:
+    # Object storage is not consumed by the current app; start it explicitly when needed.
+    profiles: ["object-storage"]
     image: minio/minio:latest
+    pull_policy: missing
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minio
@@ -40,6 +46,7 @@ services:
     volumes: ["sitecraft_minio:/data"]
   mailpit:
     image: axllent/mailpit:latest
+    pull_policy: missing
     ports: ["1025:1025", "8025:8025"]
 volumes:
   sitecraft_pg:

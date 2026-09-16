@@ -100,6 +100,34 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - 当前渲染路线若不能提供所需版式，先记录实际失败再提交一个受控替代模板方案，保留后续原生 React 决策门，不在内部 Demo 同时维护两套完整引擎。
 - 所有新资源在许可/运行/效果核验前保持候选；不安装整套 Skill 或市场镜像。
 
+## 6. 当前模块：侧边栏模板交接（2026-09-16）
+
+目标：落实侧边栏 `7f18c351-9e4d-4266-9658-9f28a5eea55e` 确认的模型意图/声明槽位边界、六套 submodule、静态快照、素材核验和浏览器验收。只处理这一模板模块，不混入未验收的 T2/T3/T4、CI/T1 或无关暂存修改。
+
+现实门：**PASS（声明落点取代猜写的方向）**；不代表模板全部已验收。
+
+- 观测：当前桥接先写 adapter 槽位，随后仍通过 `scopeBy`、卡片猜测和自动商品网格写入未声明内容；快照检测先接受 dist，SPA 空壳仍可能被误判。
+- 实测：当前 typecheck 退出 0，27 tests 通过；在已运行 Docker 镜像的真实 `tailwind-landing` 预览注入 revision=91601 的独立测试资料，未声明 contact/product 仍被写入，生成网格数=1，报告 missingSlots=[]。截图 `template-baseline-undeclared-write-20260916.png`，浏览器工具保存位置另见执行证据。
+- 预期：只有声明的唯一节点可变；未声明字段/集合保持原 DOM，报告 missing；覆盖不能按前缀或其他语言误计。
+- 未知：四套构建/导出方式和每套素材权利，交由独立任务实测；失败不得用上游演示或截图伪装本地快照。
+- 环境观测：本机 web/postgres/redis/mailpit 正在运行；只重建本项目 web，不执行 compose down，不删除数据卷或用户资料。
+
+任务：
+- [x] 读取侧边栏原对话，核对交接和真实错误，规则写入 AGENTS.md。
+- [x] 声明单节点落点、真实覆盖报告、拒绝正则猜写，具备失败前/修复后证据；集合槽位只保留真实手写映射。
+- [x] screwfast/fresh/forge 固定来源构建；tailwind-landing 源 HTML；Next 两套明确 blocked；SPA 不误报。
+- [x] 六套新增模板代码/图片/字体/图标/商标完成独立审计；未核验项不准入生成物。
+- [x] forge/screwfast/tailwind-landing 浏览器 bridge 验证；不存在的 contact 字段明确缺失，不制造节点假通过。
+- [x] 完整 `typecheck/test/build`（45 tests 全绿）；重建 web；`--pull never` 启动并回读健康结果；dist/out 不提交。
+- [x] 冻结候选并通过 Grok 4.6 High Fast 只读验收；准备仅模板模块提交推送 origin。
+
+未完成且保留：
+- [ ] `nextjs-landing` / `shadcn-landing2` 的 `output: export`：需要修改 submodule 源配置或另立受控方案。
+- [ ] `shadcn-landing` SPA 预渲染：当前空壳且 lock 不一致，不改名为静态快照。
+- [ ] 客户素材替换、notice 和服务端发布准入：素材报告只提供阻断清单，不是授权证明。
+- [ ] 工作区 query 直达和发布路径的服务端模板/素材准入：当前 gallery/detail 是展示层门禁，不是安全边界。
+- [ ] 更多页面与集合槽位：只在真实页面和手写映射完成后扩展。
+
 ## 7. 模块收据
 
 - `rules-and-plan`：commit `533954ba3bdc0e78413d3ff1482068877a2d0c58`，已 push 到 `origin/main`；规则模块经 Cursor Grok 4.6 High Fast 只读复审通过。
@@ -107,3 +135,6 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - `workspace-chat-bridge`：commit `626e9435d903460248d6c13a71cfbe060f3db474`，已 push 到 `origin/main`；`typecheck`、22 tests、`build` 通过，真实 `/workspace` answer 显示和 localStorage 会话 ID 刷新保留通过，Grok 只读复审 `PASS`。范围仅为工作台 conversationId 往返、answer/clarify 展示和 clarify 选项回填。
 - `workspace-chat-bridge` 限制：完整历史 GET、对齐状态机、PostgreSQL 实测、真实模型稳定 clarify 未在本模块完成，不能标作已完成。
 - 下一模块：核验并决定现有 T2/T3/T4 后端变更的保留/修正范围；完成后另建单独 commit 并 push。
+- `template-preview-contract`：待本次提交；范围含声明 bridge、adapter、preview route、readiness gallery、快照脚本/loader、六个 submodule、Docker ignore/compose、对应测试和证据文档；最终验收 Grok `57638423-a32d-43ae-922b-a4197c2f8f72` 为 PASS。
+- `template-preview-contract` 验证：`npm run typecheck` 0；`npm test` 45/45；`npm run build` 0；Docker `build --pull=false web` 0；`up -d --pull never web` 后 health ready。修复前后浏览器反例见交接文档；未声明字段不会写入，missing 不会消失。
+- `template-preview-contract` 限制：nextjs-landing/shadcn-landing2 无 export，shadcn-landing 是 SPA 壳；六套演示素材仍需替换/授权，gallery 的入口门禁不是服务端发布安全边界；这些不随本提交标为完成。
