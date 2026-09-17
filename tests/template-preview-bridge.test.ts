@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { defaultDraft } from "../lib/site-document.ts";
+import { applySiteOperations } from "../lib/site-operations.ts";
 import {
   PREVIEW_BRIDGE_SOURCE,
   buildPreviewBridgeScript,
@@ -605,22 +607,25 @@ function createLandwindFragment() {
   return { document, nodes: { brand, title, subtitle, cta, figma, undeclared } };
 }
 
+const THEME_COMPARE_PACKS = {
+  A17: {
+    companyName: "汉川精密阀业A17",
+    title: "定制阀组出口，按图加工 A17",
+    subtitle: "不提供现场安装；仅接受批量规格询盘 A17。",
+    cta: "获取阀组规格表 A17",
+  },
+  B84: {
+    companyName: "北湾流体接头B84",
+    title: "不锈钢快换接头目录 B84",
+    subtitle: "面向OEM装配线的接头规格与交期说明 B84。",
+    cta: "索取接头样品册 B84",
+  },
+} as const;
+
+const themeCompareOptions = { templateIds: new Set(["forge", "landwind"]), lastChange: "theme-compare" };
+
 function landwindSample(id: "A17" | "B84") {
-  const companies = {
-    A17: {
-      companyName: "汉川精密阀业A17",
-      title: "定制阀组出口，按图加工 A17",
-      subtitle: "不提供现场安装；仅接受批量规格询盘 A17。",
-      cta: "获取阀组规格表 A17",
-    },
-    B84: {
-      companyName: "北湾流体接头B84",
-      title: "不锈钢快换接头目录 B84",
-      subtitle: "面向OEM装配线的接头规格与交期说明 B84。",
-      cta: "索取接头样品册 B84",
-    },
-  } as const;
-  const sample = companies[id];
+  const sample = THEME_COMPARE_PACKS[id];
   const draft = sentinelDraft();
   draft.revision = id === "A17" ? 11 : 12;
   draft.companyName = sample.companyName;
@@ -628,6 +633,33 @@ function landwindSample(id: "A17" | "B84") {
   draft.content.hero.subtitle.zh = sample.subtitle;
   draft.content.hero.cta.zh = sample.cta;
   return { draft, sample };
+}
+
+function createForgeFragment() {
+  const { document } = createDocument();
+  const logo = createNode("h1");
+  logo.className = "font-bold";
+  logo.textContent = "LOGO";
+  const hero = createNode("h1");
+  hero.setAttribute("data-testid", "hero-text");
+  hero.textContent = "Main Keywords";
+  const subtitle = createNode("h2");
+  subtitle.setAttribute("data-testid", "intro-text");
+  subtitle.textContent = "brief description of services";
+  document.body.appendChild(logo);
+  document.body.appendChild(hero);
+  document.body.appendChild(subtitle);
+  return { document, nodes: { logo, hero, subtitle } };
+}
+
+function authoredCompareDraft(id: "A17" | "B84") {
+  const pack = THEME_COMPARE_PACKS[id];
+  return applySiteOperations(structuredClone(defaultDraft), [
+    { op: "set_text", target: "companyName", value: pack.companyName },
+    { op: "set_text", target: "hero.title", locale: "zh", value: pack.title },
+    { op: "set_text", target: "hero.subtitle", locale: "zh", value: pack.subtitle },
+    { op: "set_text", target: "hero.cta", locale: "zh", value: pack.cta },
+  ], themeCompareOptions).draft;
 }
 
 test("landwind first-screen slots follow two independent samples and leave undeclared headings", () => {
@@ -661,4 +693,56 @@ test("landwind first-screen slots follow two independent samples and leave undec
   assert.equal(nodes.title.textContent === first.sample.title, false);
   assert.ok(secondReport.appliedSlots.includes("hero.title.zh"));
   assert.ok(secondReport.missingSlots.includes("contact.email.zh"));
+});
+
+test("the same authored pack lands on forge and landwind with different chrome", () => {
+  const forgeAdapter = getTemplateAdapter("forge");
+  const landwindAdapter = getTemplateAdapter("landwind");
+  assert.ok(forgeAdapter && landwindAdapter, "both templates must stay declared before quality comparison");
+  const expected = ["companyName.zh", "hero.title.zh", "hero.subtitle.zh", "hero.cta.zh", "contact.email.zh"];
+  const forge = createForgeFragment();
+  const landwind = createLandwindFragment();
+  const forgeApi = installPreviewBridge({ document: forge.document, parent: { postMessage() {} }, addEventListener() {} }, "forge", forgeAdapter);
+  const landwindApi = installPreviewBridge({ document: landwind.document, parent: { postMessage() {} }, addEventListener() {} }, "landwind", landwindAdapter);
+
+  const packA = authoredCompareDraft("A17");
+  const packB = authoredCompareDraft("B84");
+  const landwindA = applySiteOperations(packA, [{ op: "set_visual_brief", briefId: "export-catalog" }], themeCompareOptions);
+  const landwindB = applySiteOperations(packB, [{ op: "set_visual_brief", briefId: "export-catalog" }], themeCompareOptions);
+  assert.equal(packA.templateId, "forge");
+  assert.equal(landwindA.draft.templateId, "landwind");
+  assert.equal(landwindA.draft.content.hero.title.zh, packA.content.hero.title.zh);
+
+  const forgeReport = forgeApi.applyDeclaredContent(packA, "zh", expected, "workspace");
+  const landwindReport = landwindApi.applyDeclaredContent(landwindA.draft, "zh", expected, "workspace");
+  assert.equal(forge.nodes.hero.textContent, THEME_COMPARE_PACKS.A17.title);
+  assert.equal(forge.nodes.subtitle.textContent, THEME_COMPARE_PACKS.A17.subtitle);
+  assert.equal(forge.nodes.logo.textContent, "LOGO");
+  assert.equal(forge.nodes.hero.getAttribute("data-testid"), "hero-text");
+  assert.equal(landwind.nodes.brand.textContent, THEME_COMPARE_PACKS.A17.companyName);
+  assert.equal(landwind.nodes.title.textContent, THEME_COMPARE_PACKS.A17.title);
+  assert.equal(landwind.nodes.subtitle.textContent, THEME_COMPARE_PACKS.A17.subtitle);
+  assert.equal(landwind.nodes.cta.textContent, THEME_COMPARE_PACKS.A17.cta);
+  assert.equal(landwind.nodes.undeclared.textContent, "Work with tools you already use");
+  assert.ok(landwind.nodes.title.className.includes("max-w-2xl"));
+  assert.equal(forge.nodes.hero.textContent, landwind.nodes.title.textContent);
+  assert.ok(forgeReport.appliedSlots.includes("hero.title.zh"));
+  assert.ok(forgeReport.missingSlots.includes("companyName.zh"));
+  assert.ok(forgeReport.missingSlots.includes("hero.cta.zh"));
+  assert.ok(landwindReport.appliedSlots.includes("companyName.zh"));
+  assert.ok(landwindReport.appliedSlots.includes("hero.cta.zh"));
+  assert.ok(forgeReport.missingSlots.includes("contact.email.zh"));
+  assert.ok(landwindReport.missingSlots.includes("contact.email.zh"));
+  assert.deepEqual(landwindReport.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
+  assert.deepEqual(forgeReport.fallbackMatched, []);
+  assert.deepEqual(landwindReport.fallbackMatched, []);
+
+  forgeApi.applyDeclaredContent(packB, "zh", expected, "workspace");
+  landwindApi.applyDeclaredContent(landwindB.draft, "zh", expected, "workspace");
+  assert.equal(forge.nodes.hero.textContent, THEME_COMPARE_PACKS.B84.title);
+  assert.equal(landwind.nodes.title.textContent, THEME_COMPARE_PACKS.B84.title);
+  assert.equal(forge.nodes.hero.textContent === THEME_COMPARE_PACKS.A17.title, false);
+  assert.equal(landwind.nodes.brand.textContent, THEME_COMPARE_PACKS.B84.companyName);
+  assert.equal(forge.nodes.logo.textContent, "LOGO");
+  assert.equal(landwind.nodes.undeclared.textContent, "Work with tools you already use");
 });

@@ -180,6 +180,18 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - 本地验证：`npm run typecheck` 0；`npm test` 73/73；`npm run build` 0。
 - 限制：只覆盖 Landwind 首屏文本，不含图片、后续功能区、多页或工作台整条生成旅程；上游演示图和“600 million users”等文案在 workspace 变体中仍可见，published sanitize 未在本轮浏览器验收。Docker 守护进程本次未运行，正式 `localhost:3000` 镜像未重建。CI/T1/`tsconfig` 与 `AGENTS.md` 的既有改动不纳入本模块。12 组质量对照、Forge 以外模板的同等内容落点、需求驱动页面仍未完成。
 
+## 6.5 当前模块：同一资料换主题的首屏对照（2026-09-17）
+
+状态：**部分完成**。同一份受控草稿可以落到 Forge 和 Landwind 的声明首屏，布局确实不同；换一份独立资料后正文也不同。这不是 12 组流程对照，也不是整站生成或审美通过。
+
+- 现实门：`PASS（主题对照）`。Forge 本地快照 `vendor/open-source-templates/small-bis/dist/index.html` 中 `data-testid="hero-text"` / `intro-text` 均为 1；Landwind 首屏槽位上一模块已核验。对照只走已有 `commitOperations` 内核 `applySiteOperations` 与预览 bridge，不新增模板 API。
+- 红证据：把 Forge `hero.title` 选择器改成不存在的 `hero-text-missing` 后，定向测试仍看到上游 “Main Keywords”，退出 1；恢复选择器后退出 0。
+- 契约：工业方向保持 `forge`，外贸方向切到 `landwind`，正文不丢；Forge 没有品牌名和主按钮槽位，这两项记 missing，不猜写；Landwind 未声明 h2 “Work with tools you already use” 保持原样；Forge 未声明 “LOGO” 保持原样。
+- 真实预览：隔离 `next dev --port 3013`，两个模板的 `GET /api/templates/{id}/preview` 都返回 `X-Sitecraft-Preview-Source: local-open-source-snapshot`。样本 A「汉川精密阀业A17」和样本 B「北湾流体接头B84」分别写入后，Forge 为全幅照片叠字，Landwind 为紫导航/宽标题/插画；同资料截图哈希不同，同模板换资料哈希也不同。375 宽度下 Forge 的 `scrollWidth === clientWidth`。证据在 gitignored `artifacts/p4-theme-compare-20260917/`。
+- 冻结审查：只读验收 `PASS`（`d77719b9-b12c-4514-aeb3-18891d65404c`）。审查方用 vendor 快照、截图哈希和 `applySiteOperations` 内核复测，不把伪造 DOM 片段当作布局 oracle。
+- 本地验证：定向测试先红后绿；`npm run typecheck` 0；`npm test` 76/76；`npm run build` 0。
+- 限制：未走工作台 `demo` 站点或 DeepSeek 整段生成；Forge 服务卡/联系槽位未纳入本轮对照；Landwind 下游演示图、Figma 按钮和 “600 million users” 仍在 workspace 变体中可见。Docker 正式镜像、CI/T1/`tsconfig`/`AGENTS.md` 既有改动、12 组质量对照和需求驱动多页均未完成。
+
 ## 7. 模块收据
 
 - `rules-and-plan`：commit `533954ba3bdc0e78413d3ff1482068877a2d0c58`，已 push 到 `origin/main`；规则模块经 Cursor Grok 4.6 High Fast 只读复审通过。

@@ -95,6 +95,22 @@ test("templates without homepage contact fields propose an owned alternative", (
   assert.equal(landwind?.slots.some((slot) => slot.target.startsWith("contact.")), false);
 });
 
+test("forge homepage source has unique declared hero slots and no compare-pack text", () => {
+  const html = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url), "utf8");
+  const adapter = getTemplateAdapter("forge");
+  assert.ok(adapter, "forge adapter is required before quality comparison");
+  const title = adapter.slots.find((slot) => slot.target === "hero.title");
+  const subtitle = adapter.slots.find((slot) => slot.target === "hero.subtitle");
+  assert.equal(title?.selector, '[data-testid="hero-text"]');
+  assert.equal(subtitle?.selector, '[data-testid="intro-text"]');
+  assert.equal((html.match(/data-testid="hero-text"/g) ?? []).length, 1);
+  assert.equal((html.match(/data-testid="intro-text"/g) ?? []).length, 1);
+  assert.equal(html.includes("汉川精密阀业A17"), false);
+  assert.equal(html.includes("北湾流体接头B84"), false);
+  assert.match(html, /Main Keywords/);
+  assert.match(html, />LOGO</);
+});
+
 test("landwind homepage source has exactly one node for each declared first-screen slot", () => {
   const html = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
   const adapter = getTemplateAdapter("landwind");

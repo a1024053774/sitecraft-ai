@@ -22,6 +22,23 @@ test("v2 drafts missing only visualBrief retain authored content and revision", 
   assert.deepEqual(authored, legacy);
 });
 
+test("switching visual brief keeps authored pack text and only changes the mapped template", () => {
+  const options = { templateIds: new Set(["forge", "landwind"]), lastChange: "theme-compare" };
+  const packed = applySiteOperations(structuredClone(defaultDraft), [
+    { op: "set_text", target: "companyName", value: "汉川精密阀业A17" },
+    { op: "set_text", target: "hero.title", locale: "zh", value: "定制阀组出口，按图加工 A17" },
+    { op: "set_text", target: "hero.subtitle", locale: "zh", value: "不提供现场安装；仅接受批量规格询盘 A17。" },
+  ], options);
+  assert.equal(packed.draft.templateId, "forge");
+  const swapped = applySiteOperations(packed.draft, [{ op: "set_visual_brief", briefId: "export-catalog" }], options);
+  assert.equal(swapped.draft.templateId, "landwind");
+  assert.equal(swapped.draft.visualBrief.id, "export-catalog");
+  assert.equal(swapped.draft.companyName, "汉川精密阀业A17");
+  assert.equal(swapped.draft.content.hero.title.zh, packed.draft.content.hero.title.zh);
+  assert.equal(swapped.draft.content.hero.subtitle.zh, packed.draft.content.hero.subtitle.zh);
+  assert.notEqual(swapped.draft.content.hero.title.zh, defaultDraft.content.hero.title.zh);
+});
+
 test("theme undo restores the saved template and brief even after catalog remapping", () => {
   const previous = structuredClone(defaultDraft);
   previous.templateId = "signal";

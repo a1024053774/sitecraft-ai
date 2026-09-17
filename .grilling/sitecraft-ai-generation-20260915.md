@@ -3,8 +3,8 @@ session_id: grilling-sitecraft-ai-generation-20260915
 status: confirmed
 topic: SiteCraft AI 中小企业自主建站方案
 created_at: 2026-09-15T20:20:00+08:00
-updated_at: 2026-09-17T16:40:00+08:00
-last_round: 8
+updated_at: 2026-09-17T17:20:00+08:00
+last_round: 12
 stage: execution
 ---
 
@@ -140,3 +140,4 @@ Plan / intent 与 Design / spec 经用户回答及开始执行指令确认，进
 - Round 9（2026-09-16）：Docker PostgreSQL 真实会话读写与 10 路并发追加通过，数据已清理；真实 chat answer/clarify 单次探针通过。后端“草稿 commit 后会话持久化失败”的一致性边界保留为下一模块。
 - Round 10（2026-09-16）：持久化失败反例先红后绿，保留真实草稿 terminal result 并向 UI 发警告；typecheck/47 tests/build 通过；Grok 4.6 High Fast 只读验收 PASS；模块 commit `a1899899e3a93003aa68a9ccab4807e9de92fd56` 已 push origin。下一模块为可选需求对齐状态机。
 - Round 11（2026-09-17）：从 Codex 会话 `01a0aae2-8614-75c3-8f16-61da8cfb9763` 接手质量对照前置修复。旧 v2 草稿与主题撤销先红后绿；Landwind 首屏声明槽位用 A17/B84 两份独立资料在真实预览中写入；未声明标题保持原样。审查 PASS。未把 12 组审美对照或整站生成标为完成。
+- Round 12（2026-09-17）：同一份 A17/B84 模拟资料经 `applySiteOperations` 落到 Forge 与 Landwind 声明首屏；真实预览布局不同，换资料正文不同。Forge 品牌名/CTA missing，Landwind 未声明功能区标题不写入。这不是 12 组对照。
