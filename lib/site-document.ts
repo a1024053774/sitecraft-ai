@@ -262,6 +262,14 @@ export function normalizeDraft(input: unknown): SiteDraft {
   if (parsed.success) return parsed.data;
 
   const legacy = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+  // Existing v2 documents predate visualBrief. Add only the missing metadata;
+  // never run them through the v1 conversion that reconstructs content.
+  if (legacy.schemaVersion === 2) {
+    return siteDraftSchema.parse({
+      ...legacy,
+      ...(!Object.hasOwn(legacy, "visualBrief") ? { visualBrief: structuredClone(defaultDraft.visualBrief) } : {}),
+    });
+  }
   const legacyHero = legacy.hero && typeof legacy.hero === "object"
     ? (legacy.hero as Record<string, unknown>)
     : {};

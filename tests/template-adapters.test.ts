@@ -21,8 +21,21 @@ test("adapters are JSON data, not per-template JavaScript source", () => {
   }
 });
 
+function countExactClassSelector(html: string, selector: string) {
+  assert.equal(selector.includes(","), false, "declared selectors must be unique, not fallback lists");
+  assert.match(selector, /^[a-z0-9-]+(\.[a-z0-9_-]+)+$/i, `selector ${selector} must be a simple tag.class list for HTML counting`);
+  const [tag, ...classes] = selector.split(".");
+  const matches = html.matchAll(new RegExp(`<${tag}\\b[^>]*class="([^"]*)"`, "gi"));
+  let count = 0;
+  for (const match of matches) {
+    const present = new Set((match[1] ?? "").split(/\s+/));
+    if (classes.every((className) => present.has(className))) count += 1;
+  }
+  return count;
+}
+
 test("required templates declare unique hero slots and only exact collection indexes", () => {
-  for (const id of ["forge", "screwfast", "tailwind-landing"]) {
+  for (const id of ["forge", "screwfast", "tailwind-landing", "landwind"]) {
     const adapter = getTemplateAdapter(id);
     assert.ok(adapter, `missing adapter ${id}`);
     assert.ok(adapter.slots.some((slot) => slot.target === "hero.title"));
@@ -76,6 +89,27 @@ test("templates without homepage contact fields propose an owned alternative", (
   const landing = getTemplateAdapter("tailwind-landing");
   assert.equal(landing?.alternatives?.["contact.phone"], "hero.cta");
   assert.equal(landing?.slots.some((slot) => slot.target.startsWith("contact.")), false);
+
+  const landwind = getTemplateAdapter("landwind");
+  assert.equal(landwind?.alternatives?.["contact.phone"], "hero.cta");
+  assert.equal(landwind?.slots.some((slot) => slot.target.startsWith("contact.")), false);
+});
+
+test("landwind homepage source has exactly one node for each declared first-screen slot", () => {
+  const html = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
+  const adapter = getTemplateAdapter("landwind");
+  assert.ok(adapter, "landwind adapter is required before quality comparison");
+  assert.equal(adapter.runtime, "static-html");
+  const required = ["companyName", "hero.title", "hero.subtitle", "hero.cta"];
+  for (const target of required) {
+    const slot = adapter.slots.find((item) => item.target === target);
+    assert.ok(slot, `missing declared ${target}`);
+    assert.equal(countExactClassSelector(html, slot.selector), 1, `${target} selector must be unique in landwind HTML`);
+  }
+  assert.equal(html.includes("汉川精密阀业A17"), false);
+  assert.equal(html.includes("北湾流体接头B84"), false);
+  assert.match(html, /Work with tools you already use/);
+  assert.match(html, /Building digital/);
 });
 
 test("spa-bundle adapters do not claim a local HTML snapshot", () => {

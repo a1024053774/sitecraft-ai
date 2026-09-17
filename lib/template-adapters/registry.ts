@@ -166,6 +166,25 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
     ],
     alternatives: { ...contactToHeroCta },
   },
+  landwind: {
+    templateId: "landwind",
+    runtime: "static-html",
+    slots: [
+      textSlot("companyName", "span.self-center.text-xl"),
+      textSlot("hero.title", "h1.max-w-2xl.mb-4"),
+      textSlot("hero.subtitle", "p.max-w-2xl.mb-6.font-light"),
+      textSlot("hero.cta", "a.text-center.text-gray-900.border.border-gray-200"),
+    ],
+    alternatives: { ...contactToHeroCta },
+    sanitize: {
+      sections: [
+        "Trusted by over 600 million users and 10,000 teams",
+        "Frequently asked questions",
+        "Start your free trial today",
+      ],
+      leafPatterns: ["Get Figma file", "Star themesberg/landwind"],
+    },
+  },
   "nextjs-landing": {
     templateId: "nextjs-landing",
     runtime: "next-static",

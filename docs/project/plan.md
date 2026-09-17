@@ -168,6 +168,18 @@ TodoWrite 保留完整计划和当前模块状态，不以任务清单勾选代�
 - 已核对项目内模板、视觉和许可研究；当前模板数量足够进入 3×4 质量对照，但只有少量模板路径具备稳定本地快照，演示素材仍需独立授权核验。
 - 未完成：不同 Skill/流程组的 12 组截图对照、人工盲评、独立 AI 推荐、整站生成、多页和图片规划。规则接入不等于“去 AI 味”质量通过。
 
+## 6.4 当前模块：质量对照前置修复（2026-09-17）
+
+状态：**部分完成**。旧 v2 草稿与主题撤销已修好；Landwind 首屏声明槽位已能随两份独立模拟资料变化。这不是 12 组审美对照，也不是整站生成完成。
+
+- 现实门：`PASS（对照前置）`。对照前必须保住已有草稿，并让外贸方向的 Landwind 首屏写入声明节点；缺少内容 adapter 时换主题仍会显示上游文案，不能进入 12 组对照。
+- 红证据：缺 `visualBrief` 的 v2 草稿被 v1 迁移重建，revision 43→1、正文丢失；主题撤销按 catalog id 重放，旧 `signal` 映射被改成 `tailwind-landing`。Landwind 无 adapter 时，独立样本 A17/B84 无法写入首屏。修复前定向测试退出 1，修复后退出 0。
+- 修正：`normalizeDraft` 对 `schemaVersion === 2` 只补缺失的 `visualBrief`，不重建正文；`set_visual_brief` 的 inverse 使用已有 `replace_draft` 恢复当时保存的模板与 brief。Landwind 手写唯一槽位：`companyName`、`hero.title`、`hero.subtitle`、`hero.cta`；联系邮箱保持 missing，并可提出改 `hero.cta`。未声明的后续标题不写入。
+- 真实预览：隔离 `next dev --port 3012`，`GET /api/templates/landwind/preview` 返回 `X-Sitecraft-Preview-Source: local-open-source-snapshot`。浏览器 `querySelectorAll` 对四个声明选择器均为 1。样本 A「汉川精密阀业A17」与样本 B「北湾流体接头B84」先后写入后，品牌/标题/说明/按钮均不同；上游 “Building digital” 消失；未声明 h2 “Work with tools you already use” 保持原样。375 宽度无横向溢出。截图与 JSON 在 gitignored `artifacts/p3-readiness-20260917/`。
+- 冻结审查：只读验收 `PASS`（`e702692f-0eb2-44d1-9602-b66df725ac71`）。审查方独立复测了 v2 保留、catalog 重映射撤销和真实预览双样本；实现侧测试只作泄漏检查，不是唯一 oracle。
+- 本地验证：`npm run typecheck` 0；`npm test` 73/73；`npm run build` 0。
+- 限制：只覆盖 Landwind 首屏文本，不含图片、后续功能区、多页或工作台整条生成旅程；上游演示图和“600 million users”等文案在 workspace 变体中仍可见，published sanitize 未在本轮浏览器验收。Docker 守护进程本次未运行，正式 `localhost:3000` 镜像未重建。CI/T1/`tsconfig` 与 `AGENTS.md` 的既有改动不纳入本模块。12 组质量对照、Forge 以外模板的同等内容落点、需求驱动页面仍未完成。
+
 ## 7. 模块收据
 
 - `rules-and-plan`：commit `533954ba3bdc0e78413d3ff1482068877a2d0c58`，已 push 到 `origin/main`；规则模块经 Cursor Grok 4.6 High Fast 只读复审通过。

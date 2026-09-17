@@ -6,6 +6,7 @@ import {
   installPreviewBridge,
   stripHtmlScripts,
 } from "../lib/template-adapters/preview-bridge.ts";
+import { getTemplateAdapter } from "../lib/template-adapters/index.ts";
 import type { TemplateAdapter } from "../lib/template-adapters/types.ts";
 
 type FakeNode = {
@@ -572,4 +573,92 @@ test("local snapshot script stripping removes upstream scripts only", () => {
   const stripped = stripHtmlScripts(html);
   assert.equal(stripped.includes("<script>"), false);
   assert.match(stripped, /<h1>Hi<\/h1>/);
+});
+
+function createLandwindFragment() {
+  const { document } = createDocument();
+  const brand = createNode("span");
+  brand.className = "self-center text-xl font-semibold whitespace-nowrap dark:text-white";
+  brand.textContent = "Landwind";
+  const title = createNode("h1");
+  title.className = "max-w-2xl mb-4 text-4xl font-extrabold leading-none tracking-tight md:text-5xl xl:text-6xl dark:text-white";
+  title.textContent = "Building digital products & brands.";
+  const subtitle = createNode("p");
+  subtitle.className = "max-w-2xl mb-6 font-light text-gray-500 lg:mb-8 md:text-lg lg:text-xl dark:text-gray-400";
+  subtitle.textContent = "This free and open-source landing page template was built using the utility classes from Tailwind CSS.";
+  const cta = createNode("a");
+  cta.className = "inline-flex items-center justify-center w-full px-5 py-3 text-sm font-medium text-center text-gray-900 border border-gray-200 rounded-lg sm:w-auto";
+  cta.setAttribute("href", "https://github.com/themesberg/landwind");
+  cta.textContent = "View on GitHub";
+  const figma = createNode("a");
+  figma.className = "inline-flex items-center justify-center w-full px-5 py-3 mb-2 mr-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg sm:w-auto";
+  figma.textContent = "Get Figma file";
+  const undeclared = createNode("h2");
+  undeclared.className = "mb-4 text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white";
+  undeclared.textContent = "Work with tools you already use";
+  document.body.appendChild(brand);
+  document.body.appendChild(title);
+  document.body.appendChild(subtitle);
+  document.body.appendChild(cta);
+  document.body.appendChild(figma);
+  document.body.appendChild(undeclared);
+  return { document, nodes: { brand, title, subtitle, cta, figma, undeclared } };
+}
+
+function landwindSample(id: "A17" | "B84") {
+  const companies = {
+    A17: {
+      companyName: "汉川精密阀业A17",
+      title: "定制阀组出口，按图加工 A17",
+      subtitle: "不提供现场安装；仅接受批量规格询盘 A17。",
+      cta: "获取阀组规格表 A17",
+    },
+    B84: {
+      companyName: "北湾流体接头B84",
+      title: "不锈钢快换接头目录 B84",
+      subtitle: "面向OEM装配线的接头规格与交期说明 B84。",
+      cta: "索取接头样品册 B84",
+    },
+  } as const;
+  const sample = companies[id];
+  const draft = sentinelDraft();
+  draft.revision = id === "A17" ? 11 : 12;
+  draft.companyName = sample.companyName;
+  draft.content.hero.title.zh = sample.title;
+  draft.content.hero.subtitle.zh = sample.subtitle;
+  draft.content.hero.cta.zh = sample.cta;
+  return { draft, sample };
+}
+
+test("landwind first-screen slots follow two independent samples and leave undeclared headings", () => {
+  const adapter = getTemplateAdapter("landwind");
+  assert.ok(adapter, "landwind adapter is required before quality comparison");
+  const { document, nodes } = createLandwindFragment();
+  const { api } = installOn(document, adapter);
+  const first = landwindSample("A17");
+  const second = landwindSample("B84");
+  const expected = ["companyName.zh", "hero.title.zh", "hero.subtitle.zh", "hero.cta.zh", "contact.email.zh"];
+
+  const firstReport = api.applyDeclaredContent(first.draft, "zh", expected, "workspace");
+  assert.equal(nodes.brand.textContent, first.sample.companyName);
+  assert.equal(nodes.title.textContent, first.sample.title);
+  assert.equal(nodes.subtitle.textContent, first.sample.subtitle);
+  assert.equal(nodes.cta.textContent, first.sample.cta);
+  assert.equal(nodes.figma.textContent, "Get Figma file");
+  assert.equal(nodes.undeclared.textContent, "Work with tools you already use");
+  assert.equal(nodes.title.textContent.includes("Building digital"), false);
+  assert.ok(firstReport.appliedSlots.includes("hero.title.zh"));
+  assert.ok(firstReport.missingSlots.includes("contact.email.zh"));
+  assert.deepEqual(firstReport.fallbackMatched, []);
+  assert.deepEqual(firstReport.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
+
+  const secondReport = api.applyDeclaredContent(second.draft, "zh", expected, "workspace");
+  assert.equal(nodes.brand.textContent, second.sample.companyName);
+  assert.equal(nodes.title.textContent, second.sample.title);
+  assert.equal(nodes.subtitle.textContent, second.sample.subtitle);
+  assert.equal(nodes.cta.textContent, second.sample.cta);
+  assert.equal(nodes.undeclared.textContent, "Work with tools you already use");
+  assert.equal(nodes.title.textContent === first.sample.title, false);
+  assert.ok(secondReport.appliedSlots.includes("hero.title.zh"));
+  assert.ok(secondReport.missingSlots.includes("contact.email.zh"));
 });

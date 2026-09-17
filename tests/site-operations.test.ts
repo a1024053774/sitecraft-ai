@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultDraft } from "../lib/site-document.ts";
+import { defaultDraft, normalizeDraft } from "../lib/site-document.ts";
 import {
   aiIntentResponseSchema,
   applySiteOperations,
@@ -9,6 +9,30 @@ import {
 } from "../lib/site-operations.ts";
 
 const templateIds = new Set(["forge", "kindred", "signal"]);
+
+test("v2 drafts missing only visualBrief retain authored content and revision", () => {
+  const { visualBrief: _brief, ...legacy } = structuredClone(defaultDraft);
+  legacy.revision = 43;
+  legacy.locale = "en";
+  legacy.content.hero.title.zh = "留存：定制阀组 A43";
+  legacy.content.services.items[1].body.en = "No on-site installation is offered.";
+  legacy.hiddenSections = ["features"];
+  const restored = normalizeDraft(legacy);
+  const { visualBrief: _restoredBrief, ...authored } = restored;
+  assert.deepEqual(authored, legacy);
+});
+
+test("theme undo restores the saved template and brief even after catalog remapping", () => {
+  const previous = structuredClone(defaultDraft);
+  previous.templateId = "signal";
+  previous.visualBrief = { ...previous.visualBrief, id: "technical-product", label: "保留的旧技术方向", templateId: "signal" };
+  const options = { templateIds: new Set(["signal", "landwind", "tailwind-landing"]), lastChange: "change" };
+  const changed = applySiteOperations(previous, [{ op: "set_visual_brief", briefId: "export-catalog" }], options);
+  const undone = applySiteOperations(changed.draft, changed.inverseOperations, options);
+  assert.equal(undone.draft.templateId, "signal");
+  assert.deepEqual(undone.draft.visualBrief, previous.visualBrief);
+  assert.deepEqual(undone.draft.content, previous.content);
+});
 
 test("updates only the requested service card and creates a reversible operation", () => {
   const original = structuredClone(defaultDraft);
