@@ -10,6 +10,7 @@ import {
   Cloud,
   CloudUpload,
   FileSpreadsheet,
+  FileText,
   Globe2,
   History,
   Image as ImageIcon,
@@ -44,13 +45,22 @@ import {
 } from "@/lib/site-model";
 import type { SiteOperation } from "@/lib/site-operations";
 import { consumeSseFrames } from "@/lib/sse";
+import {
+  DEFAULT_WORKSPACE_SITE_ID,
+  buildMaterialsChatMessage,
+  parseWorkspaceSiteId,
+  simulatedPackList,
+  wrapCompanyMaterials,
+  type SimulatedPackId,
+} from "@/lib/simulated-packs";
 
-const siteId = "demo";
-const conversationStorageKey = `sitecraft-conversation:${siteId}`;
+function conversationStorageKey(siteId: string) {
+  return `sitecraft-conversation:${siteId}`;
+}
 
-function readStoredConversationId() {
+function readStoredConversationId(siteId: string) {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(conversationStorageKey);
+  return window.localStorage.getItem(conversationStorageKey(siteId));
 }
 
 type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change" | "answer" | "clarify" | "alignment";
@@ -205,6 +215,7 @@ function alignmentMessageText(view: AlignmentViewState, action?: string) {
 }
 
 export default function WorkspacePage() {
+  const [siteId, setSiteId] = useState(DEFAULT_WORKSPACE_SITE_ID);
   const [draft, setDraft] = useState<SiteDraft>(defaultDraft);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [canUndo, setCanUndo] = useState(false);
@@ -219,6 +230,9 @@ export default function WorkspacePage() {
   const [device, setDevice] = useState<Device>("desktop");
   const [locale, setLocale] = useState<Locale>("zh");
   const [showImport, setShowImport] = useState(false);
+  const [showMaterials, setShowMaterials] = useState(false);
+  const [materialsText, setMaterialsText] = useState("");
+  const [loadedPackId, setLoadedPackId] = useState<SimulatedPackId | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [importState, setImportState] = useState<{ name: string; imported: number; errors: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -244,8 +258,10 @@ export default function WorkspacePage() {
   useEffect(() => {
     let cancelled = false;
     async function loadDraft() {
+      const activeSiteId = parseWorkspaceSiteId(new URLSearchParams(window.location.search).get("site"));
+      setSiteId(activeSiteId);
       try {
-        let snapshot = await fetch(`/api/sites/${siteId}/draft`, { cache: "no-store" }).then((response) => {
+        let snapshot = await fetch(`/api/sites/${activeSiteId}/draft`, { cache: "no-store" }).then((response) => {
           if (!response.ok) throw new Error("无法读取草稿");
           return response.json() as Promise<DraftSnapshot>;
         });
@@ -254,7 +270,7 @@ export default function WorkspacePage() {
           try {
             const migrated = normalizeDraft(JSON.parse(saved));
             migrated.revision = snapshot.draft.revision;
-            const response = await fetch(`/api/sites/${siteId}/draft`, {
+            const response = await fetch(`/api/sites/${activeSiteId}/draft`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -275,7 +291,7 @@ export default function WorkspacePage() {
           ? visualBriefCatalog.find((item) => item.templateId === requestedTemplate)
           : undefined;
         if (requestedTemplate && templates.some((item) => item.id === requestedTemplate) && snapshot.draft.templateId !== requestedTemplate) {
-          const response = await fetch(`/api/sites/${siteId}/draft`, {
+          const response = await fetch(`/api/sites/${activeSiteId}/draft`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -318,7 +334,7 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     if (!draftReady) return;
-    const storedId = readStoredConversationId();
+    const storedId = readStoredConversationId(siteId);
     if (!storedId) return;
     setConversationId(storedId);
     let cancelled = false;
@@ -365,7 +381,7 @@ export default function WorkspacePage() {
         }
         if (typeof doneEvent.conversationId === "string") {
           setConversationId(doneEvent.conversationId);
-          window.localStorage.setItem(conversationStorageKey, doneEvent.conversationId);
+          window.localStorage.setItem(conversationStorageKey(siteId), doneEvent.conversationId);
         }
       } catch (error) {
         if (!cancelled) {
@@ -381,7 +397,7 @@ export default function WorkspacePage() {
     }
     void restoreAlignment();
     return () => { cancelled = true; };
-  }, [draftReady]);
+  }, [draftReady, siteId]);
 
   const currentTemplate = getTemplate(draft.templateId);
   const saveLabel = useMemo(() => {
@@ -401,7 +417,7 @@ export default function WorkspacePage() {
   const applyDoneEvent = (done: Record<string, unknown>) => {
     if (typeof done.conversationId === "string") {
       setConversationId(done.conversationId);
-      window.localStorage.setItem(conversationStorageKey, done.conversationId);
+      window.localStorage.setItem(conversationStorageKey(siteId), done.conversationId);
     }
     const status = String(done.status);
     const view = viewFromAlignmentDone(done);
@@ -548,11 +564,8 @@ export default function WorkspacePage() {
     });
   };
 
-  const submitChat = async (event?: FormEvent) => {
-    event?.preventDefault();
-    const value = input.trim();
-    if (!value || busy || !draftReady) return;
-    setInput("");
+  const sendChat = async (value: string) => {
+    if (!value || busy || !draftReady) return false;
     setBusy(true);
     setBusyText("正在连接模型…");
     setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: value }]);
@@ -576,14 +589,42 @@ export default function WorkspacePage() {
         }
         throw new Error(payload.message || (response.status === 409 ? "草稿版本冲突，已载入最新版本，请重新发送。" : "AI 请求失败"));
       }
-      const doneEvent = await readSseDone(response, (value) => setBusyText(value));
+      const doneEvent = await readSseDone(response, (status) => setBusyText(status));
       applyDoneEvent(doneEvent);
+      return true;
     } catch (error) {
-      setInput(value);
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "AI 修改失败", change: "请以服务器草稿和恢复状态为准" }]);
+      return false;
     } finally {
       setBusy(false);
     }
+  };
+
+  const submitChat = async (event?: FormEvent) => {
+    event?.preventDefault();
+    const value = input.trim();
+    if (!value || busy || !draftReady) return;
+    setInput("");
+    const sent = await sendChat(value);
+    if (!sent) setInput(value);
+  };
+
+  const loadSimulatedPack = (packId: SimulatedPackId) => {
+    const pack = simulatedPackList.find((item) => item.id === packId);
+    if (!pack) return;
+    setLoadedPackId(pack.id);
+    setMaterialsText(pack.body);
+  };
+
+  const submitMaterials = async () => {
+    const source = materialsText.trim();
+    if (!source || busy || !draftReady) return;
+    const pack = loadedPackId ? simulatedPackList.find((item) => item.id === loadedPackId) : undefined;
+    const message = pack && source === pack.body
+      ? buildMaterialsChatMessage(pack)
+      : wrapCompanyMaterials(source);
+    setShowMaterials(false);
+    await sendChat(message);
   };
 
   const handlePreviewReport = (report: {
@@ -886,13 +927,29 @@ export default function WorkspacePage() {
                     />
                     需求对齐
                   </label>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={busy || !draftReady}
+                    onClick={() => {
+                      setPlusOpen(false);
+                      setShowMaterials(true);
+                    }}
+                  >
+                    提供公司资料
+                  </button>
                 </div>
               ) : null}
             </div>
             <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder="告诉 AI 你想怎么改..." rows={2} />
             <button className="send-button" type="submit" disabled={!input.trim() || busy || !draftReady} aria-label="发送"><Send size={14} /></button>
           </form>
-          <div className="chat-hints"><button className="hint" onClick={() => setInput("只把第二个服务标题改为智能产线集成，其他内容不变")}>修改服务</button><button className="hint" onClick={() => setInput("重写首屏标题和说明，不要更换模板")}>优化首屏</button><button className="hint" onClick={() => setShowImport(true)}>上传商品表格</button></div>
+          <div className="chat-hints">
+            <button className="hint" type="button" onClick={() => setShowMaterials(true)}>提供公司资料</button>
+            <button className="hint" type="button" onClick={() => setInput("只把第二个服务标题改为智能产线集成，其他内容不变")}>修改服务</button>
+            <button className="hint" type="button" onClick={() => setInput("重写首屏标题和说明，不要更换模板")}>优化首屏</button>
+            <button className="hint" type="button" onClick={() => setShowImport(true)}>上传商品表格</button>
+          </div>
         </div>
       </aside>
       <main className={`preview-shell ${mobilePane !== "preview" ? "mobile-hidden" : ""}`}>
@@ -918,6 +975,55 @@ export default function WorkspacePage() {
           {importState && <div className={`import-result ${importState.imported ? "" : "error"}`}>{importState.imported ? <Check size={14} /> : <AlertCircle size={14} />}<div><strong>{importState.name} {importState.imported ? "已保存" : "导入失败"}</strong><span>{importState.imported ? `新增或更新 ${importState.imported} 个商品` : importState.errors[0]}{importState.imported && importState.errors.length ? `，${importState.errors.length} 行需要检查` : ""}</span></div></div>}
           <div className="modal-foot"><span>当前草稿商品：{draft.products.length} / 1000</span><button className="primary-button" onClick={() => setShowImport(false)}>完成</button></div>
         </div></div>
+      )}
+      {showMaterials && (
+        <div className="modal-backdrop" onClick={() => setShowMaterials(false)}>
+          <div className="import-modal materials-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="eyebrow">Company / Materials</div>
+                <h3>提供公司资料</h3>
+              </div>
+              <button className="icon-button" onClick={() => setShowMaterials(false)} aria-label="关闭资料"><X size={15} /></button>
+            </div>
+            <p className="modal-copy">资料会经现有对话发给模型，再走 commitOperations。模拟包只用于内部 Demo，事实只能来自资料或「待补充」。当前不能另开独立页面，只能改同一模板上的声明区块。</p>
+            <div className="pack-actions">
+              {simulatedPackList.map((pack) => (
+                <button
+                  className={loadedPackId === pack.id ? "hint selected" : "hint"}
+                  key={pack.id}
+                  type="button"
+                  onClick={() => loadSimulatedPack(pack.id)}
+                >
+                  {pack.label}
+                </button>
+              ))}
+            </div>
+            <label className="materials-label" htmlFor="company-materials">公司资料正文</label>
+            <textarea
+              id="company-materials"
+              value={materialsText}
+              onChange={(event) => {
+                setLoadedPackId(null);
+                setMaterialsText(event.target.value);
+              }}
+              placeholder="粘贴公司简介、产品、联系方式和明确缺口。模拟资料请写明「模拟」。"
+              rows={10}
+            />
+            <div className="materials-count">{materialsText.trim().length} 字 · 发送时会加上生成说明，总长不超过 4000 字</div>
+            <div className="modal-foot">
+              <span><FileText size={14} /> 发送后由模型改草稿，不会绕过 commitOperations</span>
+              <button
+                className="primary-button"
+                type="button"
+                disabled={!materialsText.trim() || busy || !draftReady}
+                onClick={() => { void submitMaterials(); }}
+              >
+                根据资料生成站点
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

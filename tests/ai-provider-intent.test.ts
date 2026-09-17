@@ -352,6 +352,24 @@ test("live system prompt injects frontend-tone@0.2.0 copy and visual rules and f
   }
 });
 
+test("live system prompt treats company materials as edit facts and does not embed pack nonces", async () => {
+  nextPayload = { type: "answer", text: "P3_MATERIALS_PROMPT_ACK" };
+  const result = await requestStructuredOperations({
+    message: "P3_MATERIALS_PROMPT_USER 当前站点名称是什么？",
+    draft: defaultDraft,
+    templateId: defaultDraft.templateId,
+  });
+  assert.equal(result.ok, true);
+  const system = systemPromptFromLastRequest();
+  assert.match(system, /公司资料/);
+  assert.match(system, /不能生成额外独立 URL 页面/);
+  assert.match(system, /不得把整站静默缩成只有首页/);
+  assert.equal(system.includes("P3I-NX7Q"), false);
+  assert.equal(system.includes("P3E-MW4R"), false);
+  assert.equal(system.includes("忻州重载减速机P3I"), false);
+  assert.equal(system.includes("外高桥流体接头P3E"), false);
+});
+
 test("small draft prompt may inject the full document including all section bodies", async () => {
   const draft = shrinkDraft(defaultDraft);
   assert.equal(JSON.stringify(draft).length < 2000, true);

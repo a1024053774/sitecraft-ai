@@ -77,17 +77,36 @@ Round 14 / Q22 记下，本轮规划一并入库。
 - 文件：`skills/sitecraft-frontend-less-ai-tone/SKILL.md`、`SOURCE.md`，运行时 `lib/frontend-tone.ts`（`sitecraft-frontend-less-ai-tone@0.2.0`），`lib/ai-provider.ts` 已引用。
 - 主对话还要核：prompt 里两层都在用、用户选项不出现 Skill 名、禁止吐 CSS、测试钉版本。不要再平行写一套规则。
 
-## 当前进度（对照工作区 `02c5c83`）
+## 当前进度（对照工作区 `7df6f18` 之后的 Block 6）
 
-已有（P0–P3 骨架和 P4 前置，不是整站 Demo）：聊天与会话恢复、需求对齐、草稿只走 `commitOperations`；四张主题卡能切到真实模板（工业 Forge、外贸 Landwind）；声明槽位写入；同一份 A17/B84 换主题后首屏布局和正文都会变。
+已有（P0–P3 骨架、P4 前置，以及本块工作台主路径；仍不是整站 Demo 验收）：聊天与会话恢复、需求对齐、草稿只走 `commitOperations`；样子盘按快照挂卡；声明槽位写入；同族区块显隐；`tailwind-landing` / `fresh` 已有声明首屏；`deepseek-flash` 看过真实预览图。
 
-还没有：工作台整段生成（资料→主题→对齐→出站→对话改）；图片识别与素材授权；Q18 需求驱动多页；`tailwind-landing` / `fresh` 同等落点；12 组截图盲评；90 天清理和表单收件；样子盘改挂；同族区块显隐。
+**Block 6（P3 主路径，2026-09-18）**：用两份互不碰撞的模拟包在工作台点选跑通，不是 prompt 里写死答案，也不是测试把静态预览截图塞进去。
+
+| 项 | 工业包 | 外贸包 |
+| --- | --- | --- |
+| 站点 | `p3-industrial` | `p3-export` |
+| 资料 | 【模拟】忻州重载减速机P3I，记号 `P3I-NX7Q` | 【模拟】外高桥流体接头P3E，记号 `P3E-MW4R` |
+| 样子 | 工程工业 → `screwfast`（`set_visual_brief`） | 蓝白目录 → `landwind` |
+| 对齐 | 开启；点选「工程工业」；同一 `conversationId` 恢复后点「确认并应用」 | 开启；答案为「跳过」；同一会话确认后应用 |
+| 生成 | 聊天提交资料 → `deepseek-flash` 出 operations → `commitOperations` | 同上 |
+| 模型 | `deepseek-flash`，约 27s / 23s | `deepseek-flash`，约 28s |
+| 草稿 | 生成落到 v3/v4；对话改主按钮到 v5「索取P3I-EDIT交期」；撤销后主按钮回到「获取减速机规格表」 | 生成 v3；改主按钮到 v4「索取P3E-EDIT样品」；撤销后回到「索取接头样品册」 |
+| 声明首屏 | 标题/说明/主按钮写入 `P3I-NX7Q` 与规格表 CTA | 品牌名/标题/说明/主按钮写入 `P3E-MW4R` |
+| 未声明壳 | ScrewFast Logo、Contact Sales Team、Trusted by Industry Leaders、合作 Logo 保持原样 | Get Figma file、Airbnb/Google 等 Logo、「Work with tools you already use」保持原样 |
+| missing | `contact.*` 等非首屏声明槽位 missing，并提示可映射到 `hero.cta`；没有当精确命中 | 同左 |
+| 额外页面 | 资料只要求首页/产品/联系作当前模板区块 | 模型写明独立认证页与资料下载页当前不支持，未假装开通 |
+
+本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。生成走了真实模型，不是 mock 当 Demo。截图在 gitignore 的 `artifacts/p3-workspace-journey/`。工作台补了「提供公司资料」面板和 `?site=` 隔离，仍走现有 `/chat` + `commitOperations`。`npm test` 108 通过。`npm run typecheck` / `npm run build` 仍会被 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6` 拖失败；排除该目录后本仓库 TypeScript 为 0 错，Next 编译成功。未把 artifacts exclude 写进已提交的 `tsconfig.json`。
+
+还没有：图片识别与素材授权流水线（本块未跑）；Q18 需求驱动的独立 URL 多页（本块只能显隐当前模板区块，已在外贸包 summary 说明）；12 组截图盲评；90 天清理和表单收件。
 
 ## 下一步（一次一块，给主对话执行）
 
-1. 核 `sitecraft-frontend-less-ai-tone` 已进生成 prompt，本机 `DEEPSEEK_MODEL=deepseek-flash`。
-2. 把工作台主题卡改成上表样子盘，每张卡只挂已核快照；不再按行业 1:1 绑死。
-3. 在 `forge` / `screwfast` / `landwind` 上按 KonsTuck/Lozitick 清单显隐同族区块；槽位规则不变。需要新区块时用上表配方写进该模板自己的 HTML，不跨模板粘贴。
-4. 给 `tailwind-landing` / `fresh` 补与 Landwind 同级的声明首屏落点，再谈 12 组对照。
-5. 用一张真实预览截图打通 `deepseek-flash` 看图。
-6. 用模拟工业/外贸包跑完整工作台生成。不要先开 12 组审美评测，也不要去搬 jiro 源码。
+1. ~~核 `sitecraft-frontend-less-ai-tone` 已进生成 prompt，本机 `DEEPSEEK_MODEL=deepseek-flash`。~~
+2. ~~把工作台主题卡改成上表样子盘。~~
+3. ~~在 `forge` / `screwfast` / `landwind` 上按清单显隐同族区块。~~
+4. ~~给 `tailwind-landing` / `fresh` 补声明首屏落点。~~
+5. ~~用一张真实预览截图打通 `deepseek-flash` 看图。~~
+6. ~~用模拟工业/外贸包跑完整工作台生成。~~ 本块已跑；不要据此宣称 Demo 已验收。
+7. 不要先开 12 组审美评测（P4），也不要去做 90 天清理或表单收件（P5），不要搬 jiro 源码。
