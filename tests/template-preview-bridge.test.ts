@@ -966,6 +966,162 @@ test("declared family modules hide and show after set_section_visibility and und
   assert.equal(fragments.screwfast.navContact.hidden, false);
 });
 
+const LOOK_FIRST_SCREEN_PACKS = {
+  K07: {
+    companyName: "澄海传动件K07",
+    title: "精密齿轮出口目录 K07",
+    subtitle: "面向减速机装配的模数与交期说明 K07。",
+    cta: "索取齿轮模数表 K07",
+  },
+  M52: {
+    companyName: "甬江密封件M52",
+    title: "丁腈密封圈批量供货 M52",
+    subtitle: "不提供现场检修；仅接受规格询盘 M52。",
+    cta: "获取密封圈规格 M52",
+  },
+} as const;
+
+const lookFirstScreenOptions = {
+  templateIds: new Set(["forge", "tailwind-landing", "fresh"]),
+  lastChange: "first-screen-looks",
+};
+
+function authoredLookDraft(id: "K07" | "M52", briefId: "technical-product" | "editorial-service") {
+  const pack = LOOK_FIRST_SCREEN_PACKS[id];
+  return applySiteOperations(structuredClone(defaultDraft), [
+    { op: "set_visual_brief", briefId },
+    { op: "set_text", target: "companyName", value: pack.companyName },
+    { op: "set_text", target: "hero.title", locale: "zh", value: pack.title },
+    { op: "set_text", target: "hero.subtitle", locale: "zh", value: pack.subtitle },
+    { op: "set_text", target: "hero.cta", locale: "zh", value: pack.cta },
+  ], lookFirstScreenOptions).draft;
+}
+
+function createTailwindLandingFragment() {
+  const { document } = createDocument();
+  const hero = createNode("div");
+  hero.className = "pt-24";
+  const kicker = createNode("p");
+  kicker.className = "uppercase tracking-loose w-full";
+  kicker.textContent = "What business are you?";
+  const title = createNode("h1");
+  title.className = "my-4 text-5xl font-bold leading-tight";
+  title.textContent = "Main Hero Message to sell yourself!";
+  const subtitle = createNode("p");
+  subtitle.className = "leading-normal text-2xl mb-8";
+  subtitle.textContent = "Sub-hero message, not too long and not too short. Make it just right!";
+  const cta = createNode("button");
+  cta.className = "mx-auto lg:mx-0 hover:underline bg-white text-gray-800 font-bold rounded-full my-6 py-4 px-8 shadow-lg";
+  cta.textContent = "Subscribe";
+  hero.appendChild(kicker);
+  hero.appendChild(title);
+  hero.appendChild(subtitle);
+  hero.appendChild(cta);
+  const brand = createNode("a");
+  brand.className = "toggleColour text-white no-underline hover:no-underline font-bold text-2xl";
+  brand.textContent = "LANDING";
+  const undeclared = createNode("h2");
+  undeclared.className = "w-full my-2 text-5xl font-bold leading-tight text-center text-gray-800";
+  undeclared.textContent = "Title";
+  const footerCta = createNode("button");
+  footerCta.className = "mx-auto lg:mx-0 hover:underline bg-white text-gray-800 font-bold rounded-full my-6 py-4 px-8 shadow-lg";
+  footerCta.textContent = "Action!";
+  const echo = createNode("h3");
+  echo.className = "my-4 text-3xl leading-tight";
+  echo.textContent = "Main Hero Message to sell yourself!";
+  document.body.appendChild(brand);
+  document.body.appendChild(hero);
+  document.body.appendChild(undeclared);
+  document.body.appendChild(echo);
+  document.body.appendChild(footerCta);
+  return { document, nodes: { brand, kicker, title, subtitle, cta, undeclared, echo, footerCta } };
+}
+
+function createFreshFragment() {
+  const { document } = createDocument();
+  const title = createNode("h1");
+  title.className = "title is-1 is-bold is-spaced";
+  title.textContent = "Manage and deploy your apps seamlessly.";
+  const subtitle = createNode("h2");
+  subtitle.className = "subtitle is-5 is-muted";
+  subtitle.textContent = "Lorem ipsum sit dolor amet is a dummy text used by typography industry";
+  const cta = createNode("a");
+  cta.className = "button cta primary-btn raised mr-2";
+  cta.textContent = " Get Started ";
+  const discover = createNode("a");
+  discover.className = "button cta";
+  discover.textContent = " Discover";
+  const signup = createNode("span");
+  signup.className = "button signup-button secondary-btn raised";
+  signup.textContent = " Sign up ";
+  const undeclared = createNode("h2");
+  undeclared.className = "title is-2";
+  undeclared.textContent = "Great Power Comes";
+  document.body.appendChild(title);
+  document.body.appendChild(subtitle);
+  document.body.appendChild(cta);
+  document.body.appendChild(discover);
+  document.body.appendChild(signup);
+  document.body.appendChild(undeclared);
+  return { document, nodes: { title, subtitle, cta, discover, signup, undeclared } };
+}
+
+test("tailwind-landing and fresh first-screen slots follow two independent packs and leave undeclared chrome", () => {
+  const expected = ["companyName.zh", "hero.title.zh", "hero.subtitle.zh", "hero.cta.zh", "contact.email.zh"];
+  const cases = [
+    { templateId: "tailwind-landing", briefId: "technical-product" as const, create: createTailwindLandingFragment },
+    { templateId: "fresh", briefId: "editorial-service" as const, create: createFreshFragment },
+  ];
+  for (const item of cases) {
+    const adapter = getTemplateAdapter(item.templateId);
+    assert.ok(adapter, `${item.templateId} adapter is required before quality comparison`);
+    const { document, nodes } = item.create();
+    const { api } = installOn(document, adapter);
+    const first = authoredLookDraft("K07", item.briefId);
+    const second = authoredLookDraft("M52", item.briefId);
+    assert.equal(first.templateId, item.templateId);
+    assert.equal(first.companyName, LOOK_FIRST_SCREEN_PACKS.K07.companyName);
+    assert.equal(first.content.hero.title.zh, LOOK_FIRST_SCREEN_PACKS.K07.title);
+
+    const firstReport = api.applyDeclaredContent(first, "zh", expected, "workspace");
+    assert.equal(nodes.title.textContent, LOOK_FIRST_SCREEN_PACKS.K07.title);
+    assert.equal(nodes.subtitle.textContent, LOOK_FIRST_SCREEN_PACKS.K07.subtitle);
+    assert.equal(nodes.cta.textContent, LOOK_FIRST_SCREEN_PACKS.K07.cta);
+    if ("kicker" in nodes) assert.equal(nodes.kicker.textContent, "What business are you?");
+    if ("brand" in nodes) assert.equal(nodes.brand.textContent, "LANDING");
+    if ("footerCta" in nodes) assert.equal(nodes.footerCta.textContent, "Action!");
+    if ("echo" in nodes) assert.equal(nodes.echo.textContent, "Main Hero Message to sell yourself!");
+    if ("discover" in nodes) assert.equal(nodes.discover.textContent, " Discover");
+    if ("signup" in nodes) assert.equal(nodes.signup.textContent, " Sign up ");
+    assert.equal(nodes.undeclared.textContent === LOOK_FIRST_SCREEN_PACKS.K07.title, false);
+    assert.ok(firstReport.appliedSlots.includes("hero.title.zh"));
+    assert.ok(firstReport.appliedSlots.includes("hero.subtitle.zh"));
+    assert.ok(firstReport.appliedSlots.includes("hero.cta.zh"));
+    assert.ok(firstReport.missingSlots.includes("companyName.zh"));
+    assert.ok(firstReport.missingSlots.includes("contact.email.zh"));
+    assert.deepEqual(firstReport.fallbackMatched, []);
+    assert.deepEqual(firstReport.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
+
+    const secondReport = api.applyDeclaredContent(second, "zh", expected, "workspace");
+    assert.equal(nodes.title.textContent, LOOK_FIRST_SCREEN_PACKS.M52.title);
+    assert.equal(nodes.subtitle.textContent, LOOK_FIRST_SCREEN_PACKS.M52.subtitle);
+    assert.equal(nodes.cta.textContent, LOOK_FIRST_SCREEN_PACKS.M52.cta);
+    assert.equal(nodes.title.textContent === LOOK_FIRST_SCREEN_PACKS.K07.title, false);
+    if ("kicker" in nodes) assert.equal(nodes.kicker.textContent, "What business are you?");
+    if ("brand" in nodes) assert.equal(nodes.brand.textContent, "LANDING");
+    if ("footerCta" in nodes) assert.equal(nodes.footerCta.textContent, "Action!");
+    if ("discover" in nodes) assert.equal(nodes.discover.textContent, " Discover");
+    if ("undeclared" in nodes) {
+      assert.equal(nodes.undeclared.textContent.includes("K07"), false);
+      assert.equal(nodes.undeclared.textContent.includes("M52"), false);
+    }
+    assert.ok(secondReport.appliedSlots.includes("hero.cta.zh"));
+    assert.ok(secondReport.missingSlots.includes("companyName.zh"));
+    assert.ok(secondReport.missingSlots.includes("contact.email.zh"));
+    assert.deepEqual(secondReport.fallbackMatched, []);
+  }
+});
+
 test("undeclared hide requests do not rewrite snapshot chrome", () => {
   const landwindAdapter = getTemplateAdapter("landwind");
   assert.ok(landwindAdapter);

@@ -158,17 +158,18 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
     templateId: "fresh",
     runtime: "astro-static",
     slots: [
-      textSlot("hero.title", "section.hero h1.title"),
-      textSlot("hero.subtitle", "section.hero h2.subtitle"),
-      textSlot("hero.cta", "section.hero a.button.cta.primary-btn"),
+      textSlot("hero.title", "h1.title.is-1"),
+      textSlot("hero.subtitle", "h2.subtitle.is-5.is-muted"),
+      textSlot("hero.cta", "a.button.cta.primary-btn"),
     ],
+    alternatives: { ...contactToHeroCta },
   },
   "tailwind-landing": {
     templateId: "tailwind-landing",
     runtime: "static-html",
     slots: [
-      textSlot("hero.title", "div.pt-24 h1.my-4"),
-      textSlot("hero.subtitle", "div.pt-24 p.leading-normal"),
+      textSlot("hero.title", "h1.my-4.text-5xl"),
+      textSlot("hero.subtitle", "p.leading-normal.text-2xl"),
       textSlot("hero.cta", "div.pt-24 button"),
     ],
     alternatives: { ...contactToHeroCta },

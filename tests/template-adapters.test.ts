@@ -35,7 +35,7 @@ function countExactClassSelector(html: string, selector: string) {
 }
 
 test("required templates declare unique hero slots and only exact collection indexes", () => {
-  for (const id of ["forge", "screwfast", "tailwind-landing", "landwind"]) {
+  for (const id of ["forge", "screwfast", "tailwind-landing", "fresh", "landwind"]) {
     const adapter = getTemplateAdapter(id);
     assert.ok(adapter, `missing adapter ${id}`);
     assert.ok(adapter.slots.some((slot) => slot.target === "hero.title"));
@@ -93,6 +93,17 @@ test("templates without homepage contact fields propose an owned alternative", (
   const landwind = getTemplateAdapter("landwind");
   assert.equal(landwind?.alternatives?.["contact.phone"], "hero.cta");
   assert.equal(landwind?.slots.some((slot) => slot.target.startsWith("contact.")), false);
+
+  const fresh = reportDeclaredCoverage({
+    templateId: "fresh",
+    expectedTargets: ["contact.email.zh"],
+    appliedSlots: ["hero.cta.zh"],
+  });
+  assert.deepEqual(fresh.missingSlots, ["contact.email.zh"]);
+  assert.deepEqual(fresh.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
+  assert.equal(getTemplateAdapter("fresh")?.slots.some((slot) => slot.target.startsWith("contact.")), false);
+  assert.equal(getTemplateAdapter("fresh")?.slots.some((slot) => slot.target === "companyName"), false);
+  assert.equal(landing?.slots.some((slot) => slot.target === "companyName"), false);
 });
 
 test("forge homepage source has unique declared hero slots and no compare-pack text", () => {
@@ -126,6 +137,126 @@ test("landwind homepage source has exactly one node for each declared first-scre
   assert.equal(html.includes("北湾流体接头B84"), false);
   assert.match(html, /Work with tools you already use/);
   assert.match(html, /Building digital/);
+});
+
+const FIRST_SCREEN_PACK_TOKENS = ["澄海传动件K07", "甬江密封件M52"] as const;
+
+const SIMPLE_TAG_CLASS = /^[a-z0-9-]+(\.[a-z0-9_-]+)+$/i;
+const SIMPLE_TAG_OPTIONAL_CLASS = /^[a-z0-9-]+(\.[a-z0-9_-]+)*$/i;
+
+function countTagClasses(html: string, tag: string, classes: readonly string[]) {
+  const matches = html.matchAll(new RegExp(`<${tag}\\b([^>]*)>`, "gi"));
+  let count = 0;
+  for (const match of matches) {
+    const classMatch = match[1]?.match(/\bclass="([^"]*)"/);
+    const present = new Set((classMatch?.[1] ?? "").split(/\s+/).filter(Boolean));
+    if (classes.every((className) => present.has(className))) count += 1;
+  }
+  return count;
+}
+
+function innerOfUniqueTagClass(html: string, tag: string, classes: readonly string[]) {
+  const opener = new RegExp(`<${tag}\\b([^>]*)>`, "gi");
+  const hits: Array<{ match: RegExpExecArray; classes: string }> = [];
+  let found: RegExpExecArray | null;
+  while ((found = opener.exec(html))) {
+    const classMatch = found[1]?.match(/\bclass="([^"]*)"/);
+    const present = new Set((classMatch?.[1] ?? "").split(/\s+/).filter(Boolean));
+    if (classes.every((className) => present.has(className))) hits.push({ match: found, classes: classMatch?.[1] ?? "" });
+  }
+  assert.equal(hits.length, 1, `${tag}.${classes.join(".")} must be unique before reading descendants`);
+  const open = hits[0].match;
+  const start = open.index + open[0].length;
+  const walker = new RegExp(`<${tag}\\b[^>]*>|</${tag}>`, "gi");
+  walker.lastIndex = start;
+  let depth = 1;
+  let next: RegExpExecArray | null;
+  while ((next = walker.exec(html))) {
+    if (next[0].startsWith("</")) depth -= 1;
+    else depth += 1;
+    if (depth === 0) return html.slice(start, next.index);
+  }
+  throw new Error(`unclosed <${tag}> for ${classes.join(".")}`);
+}
+
+function parseSimpleSelector(selector: string) {
+  assert.match(selector, SIMPLE_TAG_OPTIONAL_CLASS, `selector ${selector} must stay a simple tag.class list`);
+  const [tag, ...classes] = selector.split(".");
+  return { tag, classes };
+}
+
+function countDeclaredSelector(html: string, selector: string) {
+  assert.equal(selector.includes(","), false, "declared selectors must be unique, not fallback lists");
+  if (SIMPLE_TAG_CLASS.test(selector)) return countExactClassSelector(html, selector);
+  const parts = selector.trim().split(/\s+/).filter(Boolean);
+  assert.equal(parts.length, 2, `selector ${selector} must be a unique tag.class list or one unique ancestor plus one leaf`);
+  const ancestor = parseSimpleSelector(parts[0]);
+  const leaf = parseSimpleSelector(parts[1]);
+  const inner = innerOfUniqueTagClass(html, ancestor.tag, ancestor.classes);
+  return countTagClasses(inner, leaf.tag, leaf.classes);
+}
+
+/** Independent HTML probes. Not copied from adapter selector strings. */
+const LOOK_FIRST_SCREEN_PROBES = {
+  "tailwind-landing": {
+    html: new URL("../vendor/open-source-templates/tailwind-landing/index.html", import.meta.url),
+    runtime: "static-html",
+    title: { tag: "h1", classes: ["my-4", "text-5xl"] },
+    subtitle: { tag: "p", classes: ["leading-normal", "text-2xl"] },
+    ctaAncestor: { tag: "div", classes: ["pt-24"] },
+    undeclared: ["What business are you?", "Call to Action", "Action!"],
+  },
+  fresh: {
+    html: new URL("../vendor/open-source-templates/fresh/dist/index.html", import.meta.url),
+    runtime: "astro-static",
+    title: { tag: "h1", classes: ["title", "is-1"] },
+    subtitle: { tag: "h2", classes: ["subtitle", "is-5", "is-muted"] },
+    cta: { tag: "a", classes: ["button", "cta", "primary-btn"] },
+    undeclared: ["Great Power Comes", "Discover", "Sign up"],
+  },
+} as const;
+
+test("tailwind-landing and fresh snapshots have unique first-screen nodes and leave chrome undeclared", () => {
+  for (const [templateId, probe] of Object.entries(LOOK_FIRST_SCREEN_PROBES)) {
+    const html = readFileSync(probe.html, "utf8");
+    const adapter = getTemplateAdapter(templateId);
+    assert.ok(adapter, `${templateId} adapter is required before quality comparison`);
+    assert.equal(adapter.runtime, probe.runtime);
+    assert.equal(countTagClasses(html, probe.title.tag, probe.title.classes), 1, `${templateId} hero.title probe must be unique`);
+    assert.equal(countTagClasses(html, probe.subtitle.tag, probe.subtitle.classes), 1, `${templateId} hero.subtitle probe must be unique`);
+    if ("ctaAncestor" in probe) {
+      assert.equal(countTagClasses(html, probe.ctaAncestor.tag, probe.ctaAncestor.classes), 1, `${templateId} hero wrapper must be unique`);
+      assert.equal(countTagClasses(html, "button", ["shadow-lg"]), 8, `${templateId} must not treat duplicated CTA classes as unique`);
+    } else {
+      assert.equal(countTagClasses(html, probe.cta.tag, probe.cta.classes), 1, `${templateId} hero.cta probe must be unique`);
+    }
+
+    const required = ["hero.title", "hero.subtitle", "hero.cta"] as const;
+    for (const target of required) {
+      const slot = adapter.slots.find((item) => item.target === target);
+      assert.ok(slot, `${templateId} missing declared ${target}`);
+      if (target === "hero.cta" && "ctaAncestor" in probe) {
+        assert.equal(SIMPLE_TAG_CLASS.test(slot.selector), false, `${templateId} CTA cannot fake uniqueness with duplicated button classes`);
+        assert.equal(countDeclaredSelector(html, slot.selector), 1, `${templateId} ${target} descendant selector must hit one node`);
+      } else {
+        assert.match(slot.selector, SIMPLE_TAG_CLASS, `${templateId} ${target} must be a unique tag.class list`);
+        assert.equal(countExactClassSelector(html, slot.selector), 1, `${templateId} ${target} selector must be unique`);
+      }
+    }
+    assert.equal(adapter.slots.some((slot) => slot.target === "companyName"), false, `${templateId} has no unique companyName text node`);
+    assert.equal(adapter.slots.some((slot) => slot.target.startsWith("contact.")), false);
+    assert.equal(adapter.alternatives?.["contact.email"], "hero.cta");
+    for (const token of FIRST_SCREEN_PACK_TOKENS) {
+      assert.equal(html.includes(token), false, `${templateId} snapshot must not contain pack token ${token}`);
+    }
+    for (const chrome of probe.undeclared) {
+      assert.equal(html.includes(chrome), true, `${templateId} undeclared chrome ${chrome} must remain in the snapshot`);
+    }
+  }
+  const promptSource = readFileSync(new URL("../lib/ai-provider.ts", import.meta.url), "utf8");
+  for (const token of FIRST_SCREEN_PACK_TOKENS) {
+    assert.equal(promptSource.includes(token), false, "simulated packs must not be copied into production prompts");
+  }
 });
 
 test("spa-bundle adapters do not claim a local HTML snapshot", () => {
