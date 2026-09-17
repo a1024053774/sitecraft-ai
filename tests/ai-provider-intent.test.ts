@@ -4,6 +4,7 @@ import { registerHooks } from "node:module";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
+import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "../lib/frontend-tone.ts";
 import { defaultDraft, type SiteDraft } from "../lib/site-document.ts";
 
 const envKeys = [
@@ -74,6 +75,15 @@ function userPromptFromLastRequest() {
   const user = parsed.messages?.find((item) => item.role === "user");
   assert.equal(typeof user?.content, "string");
   return String(user?.content);
+}
+
+function systemPromptFromLastRequest() {
+  const parsed = JSON.parse(lastRequestBody) as {
+    messages?: Array<{ role?: string; content?: string }>;
+  };
+  const system = parsed.messages?.find((item) => item.role === "system");
+  assert.equal(typeof system?.content, "string");
+  return String(system?.content);
 }
 
 function restoreEnv() {
@@ -319,6 +329,27 @@ test("alignment context stays in untrusted user data and is omitted when empty",
   const unconfirmedPrompt = userPromptFromLastRequest();
   assert.equal(unconfirmedPrompt.includes("ALIGN_CONFIRMED_SUMMARY_SENTINEL_9188"), false);
   assert.equal(unconfirmedPrompt.includes("已确认方向"), false);
+});
+
+test("live system prompt injects frontend-tone@0.2.0 copy and visual rules and forbids CSS/HTML", async () => {
+  assert.equal(FRONTEND_TONE_RULES_VERSION, "sitecraft-frontend-less-ai-tone@0.2.0");
+  nextPayload = { type: "answer", text: "TONE_PROMPT_ACK_0210" };
+  const result = await requestStructuredOperations({
+    message: "TONE_PROMPT_USER_0210 当前站点名称是什么？",
+    draft: defaultDraft,
+    templateId: defaultDraft.templateId,
+  });
+  assert.equal(result.ok, true);
+  const system = systemPromptFromLastRequest();
+  assert.match(system, /sitecraft-frontend-less-ai-tone@0\.2\.0/);
+  assert.match(system, /前端表达约束（sitecraft-frontend-less-ai-tone@0\.2\.0）/);
+  assert.match(system, /只返回 JSON，不输出 Markdown、HTML、CSS 或 JavaScript/);
+  assert.match(system, /不生成或改写 HTML、CSS、JavaScript/);
+  assert.match(system, /不要为了填满版面自动增加卡片、编号步骤、客户 Logo、统计数字、评价、价格或博客条目/);
+  assert.match(system, /不要把奶油衬线、酸绿黑底、三列圆角卡片墙或全大写眉题当成默认长相/);
+  for (const rule of frontendToneRules) {
+    assert.equal(system.includes(rule), true, `missing injected tone rule: ${rule.slice(0, 32)}`);
+  }
 });
 
 test("small draft prompt may inject the full document including all section bodies", async () => {
