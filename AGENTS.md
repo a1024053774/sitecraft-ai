@@ -12,13 +12,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 当前项目目标
 
-本项目先交付一个内部技术 Demo：使用模拟的工业、设备、零部件、外贸 B2B 和相邻行业资料，生成可预览、可修改、可验收的网站。重点是行业适配、视觉差异、事实可信、预览可见和可恢复的对话流程。
+本项目先交付一个内部技术 Demo：使用模拟的工业、设备、零部件、外贸 B2B 和相邻行业资料，生成可预览、可修改、可验收的网站。重点是行业适配、视觉差异、事实可信、预览可见和可恢复的对话流程。生成按「样子 → 同族模块 → 声明槽位」三层落地，细则以 `docs/project/mainline.md` 为准。
 
 长期目标可以扩展为客户自助生成/复制/导出平台，因此模板、图片、字体、图标和区块必须按平台级许可边界审查；普通客户交付许可不能直接推导为生成器许可。
 
 ## 需求与开发前门禁
 
-1. 开始功能前先读取：`docs/project/intent.md`、`docs/project/spec.md`、`docs/project/plan.md`、`.grilling/ACTIVE.md` 指向的会话记录。
+1. 开始功能前先读取：`docs/project/mainline.md`、`docs/project/intent.md`、`docs/project/spec.md`、`docs/project/plan.md`、`.grilling/ACTIVE.md` 指向的会话记录。用户提起主线、reality-first 或 `/grilling` 时先对照主线，避免在局部实现里换方向。
 2. `spec.md` 或 `plan.md` 未经项目负责人确认时，只做文档、只读调研和必要的基线核验，不新增业务功能。
 3. 需求对齐应优先通过产品选项表达：用户选择风格/主题/行业方向，不选择内部 Skill 名称。
 4. 项目聊天中的可选需求对齐必须是可恢复状态：选项通过结构化请求保存，Agent 使用同一会话继续；不能要求用户复制 AI 输出或手动发送“继续”，不能用无限保持的 HTTP 请求等待用户。

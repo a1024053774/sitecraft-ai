@@ -28,7 +28,7 @@ DeepSeek 配置写入 `.env.local`：
 ```env
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_API_KEY=server-only-secret
-DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_MODEL=deepseek-flash
 ```
 
 本地 `next dev` 会读取开发草稿；生产构建强制使用 PostgreSQL，不会退回单机文件。迁移已有开发草稿：

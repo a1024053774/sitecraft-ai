@@ -33,7 +33,7 @@ spec:
             - name: DEEPSEEK_BASE_URL
               value: https://api.deepseek.com
             - name: DEEPSEEK_MODEL
-              value: deepseek-v4-flash
+              value: deepseek-flash
           readinessProbe:
             httpGet:
               path: /api/health

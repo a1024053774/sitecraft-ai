@@ -44,7 +44,7 @@ npm run dev                  # http://localhost:3000
 NEXT_PUBLIC_PLATFORM_ROOT_DOMAIN=sites.localhost
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_API_KEY=<向发放人领取>
-DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_MODEL=deepseek-flash
 DEEPSEEK_MAX_TOKENS=6000
 DEFAULT_WORKSPACE_ID=demo
 ```
@@ -103,7 +103,7 @@ DEFAULT_WORKSPACE_ID=demo
 ### P0（必交付）
 
 **T1 · 多模态 spike**  
-写 `scripts/spike-vision.mjs`，验证 `deepseek-v4-flash` 视觉调用：content 数组 + `image_url` 还是 base64、格式/大小上限、单图耗时与 token。产出一页纪要。后面的看图写文案和 prompt 都按这个结论写，不要猜。这项先做。
+写 `scripts/spike-vision.mjs`，验证 `deepseek-flash` 视觉调用：content 数组 + `image_url` 还是 base64、格式/大小上限、单图耗时与 token。产出一页纪要。后面的看图写文案和 prompt 都按这个结论写，不要猜。这项先做。历史探针曾用已下线的 `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` 请求名，响应已是 `deepseek-flash`。
 
 **T2 · 会话记忆**  
 新建 `lib/conversation-store.ts`，跟 site-store 一样：dev 存 `.sitecraft-data/conversations/`，生产走 PG。chat API 增加 `conversationId`（没有则服务端新建并返回）。每轮存 user 原文、AI summary、已应用 operations 摘要。prompt：最近 3–5 轮原文 + 更早的一句话摘要，设 token 预算，超了丢最旧的。
