@@ -18,8 +18,10 @@ import {
   type Product,
   type SectionKey,
   type SiteDraft,
+  type SiteImageRef,
 } from "./site-document.ts";
 import { rehostPagePlan, resolvePagePlan } from "./template-pages.ts";
+import { canonicalizeOwnedImageUrl, isTemplateStockUrl } from "./site-images.ts";
 
 export const textTargets = [
   "siteName",
@@ -113,6 +115,31 @@ const setPagePlanOperationSchema = z.object({
   pages: z.array(requestedPageSchema).max(12),
   unsupported: z.array(unsupportedSitePageSchema).max(12).optional(),
 });
+export const imageSlotTargets = ["hero.image"] as const;
+export const imageSlotTargetSchema = z.enum(imageSlotTargets);
+const imageRefFields = {
+  imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/),
+  url: z.string().min(1).max(240),
+  alt: localizedTextSchema.optional(),
+};
+const setImageSlotOperationSchema = z.object({
+  op: z.literal("set_image_slot"),
+  target: imageSlotTargetSchema,
+  ...imageRefFields,
+});
+const removeImageSlotOperationSchema = z.object({
+  op: z.literal("remove_image_slot"),
+  target: imageSlotTargetSchema,
+});
+const setProductImageOperationSchema = z.object({
+  op: z.literal("set_product_image"),
+  sku: z.string().min(1).max(120),
+  ...imageRefFields,
+});
+const removeProductImageOperationSchema = z.object({
+  op: z.literal("remove_product_image"),
+  sku: z.string().min(1).max(120),
+});
 const replaceProductsOperationSchema = z.object({
   op: z.literal("replace_products"),
   products: z.array(productSchema).max(1000),
@@ -132,6 +159,10 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   setSectionVisibilityOperationSchema,
   reorderSectionsOperationSchema,
   setPagePlanOperationSchema,
+  setImageSlotOperationSchema,
+  removeImageSlotOperationSchema,
+  setProductImageOperationSchema,
+  removeProductImageOperationSchema,
 ]);
 
 export const siteOperationSchema = z.discriminatedUnion("op", [
@@ -144,6 +175,10 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   setSectionVisibilityOperationSchema,
   reorderSectionsOperationSchema,
   setPagePlanOperationSchema,
+  setImageSlotOperationSchema,
+  removeImageSlotOperationSchema,
+  setProductImageOperationSchema,
+  removeProductImageOperationSchema,
   replaceProductsOperationSchema,
   replaceDraftOperationSchema,
   setVisualBriefOperationSchema,
@@ -244,10 +279,43 @@ function same(a: unknown, b: unknown) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+const missingAlt = { zh: "待补充", en: "To be completed" };
+
+function resolveImageRef(
+  operation: { imageId: string; url: string; alt?: { zh: string; en: string } },
+  siteId?: string,
+): SiteImageRef {
+  if (isTemplateStockUrl(operation.url)) {
+    throw new Error("模板演示图没有客户授权，不能写入生成站点");
+  }
+  const url = siteId
+    ? canonicalizeOwnedImageUrl(operation.url, operation.imageId, siteId)
+    : (() => {
+      if (!operation.url.startsWith("/api/sites/") || !operation.url.includes(`/images/${operation.imageId}`)) {
+        throw new Error("图片必须属于站点上传目录，不能引用模板或外站素材");
+      }
+      return operation.url;
+    })();
+  return {
+    imageId: operation.imageId,
+    url,
+    alt: operation.alt ?? structuredClone(missingAlt),
+  };
+}
+
+function readHeroImage(draft: SiteDraft) {
+  return draft.content.hero.image;
+}
+
+function writeHeroImage(draft: SiteDraft, image: SiteImageRef | undefined) {
+  if (image) draft.content.hero.image = structuredClone(image);
+  else delete draft.content.hero.image;
+}
+
 export function applySiteOperations(
   current: SiteDraft,
   operations: SiteOperation[],
-  options: { templateIds: Set<string>; lastChange: string },
+  options: { templateIds: Set<string>; lastChange: string; siteId?: string },
 ): ApplyResult {
   let draft = cloneDraft(current);
   const inverseOperations: SiteOperation[] = [];
@@ -405,6 +473,76 @@ export function applySiteOperations(
       });
       draft.pagePlan = nextPlan;
       appliedTargets.push("pagePlan");
+      continue;
+    }
+    if (operation.op === "set_image_slot") {
+      const next = resolveImageRef(operation, options.siteId);
+      const previous = readHeroImage(draft);
+      if (same(previous, next)) continue;
+      if (previous) {
+        inverseOperations.unshift({
+          op: "set_image_slot",
+          target: operation.target,
+          imageId: previous.imageId,
+          url: previous.url,
+          alt: previous.alt,
+        });
+      } else {
+        inverseOperations.unshift({ op: "remove_image_slot", target: operation.target });
+      }
+      writeHeroImage(draft, next);
+      appliedTargets.push(operation.target);
+      continue;
+    }
+    if (operation.op === "remove_image_slot") {
+      const previous = readHeroImage(draft);
+      if (!previous) continue;
+      inverseOperations.unshift({
+        op: "set_image_slot",
+        target: operation.target,
+        imageId: previous.imageId,
+        url: previous.url,
+        alt: previous.alt,
+      });
+      writeHeroImage(draft, undefined);
+      appliedTargets.push(operation.target);
+      continue;
+    }
+    if (operation.op === "set_product_image") {
+      const product = draft.products.find((item) => item.sku === operation.sku);
+      if (!product) throw new Error(`Product ${operation.sku} does not exist`);
+      const next = resolveImageRef(operation, options.siteId);
+      const previous = product.image;
+      if (same(previous, next)) continue;
+      if (previous) {
+        inverseOperations.unshift({
+          op: "set_product_image",
+          sku: operation.sku,
+          imageId: previous.imageId,
+          url: previous.url,
+          alt: previous.alt,
+        });
+      } else {
+        inverseOperations.unshift({ op: "remove_product_image", sku: operation.sku });
+      }
+      product.image = next;
+      appliedTargets.push(`products.${operation.sku}.image`);
+      continue;
+    }
+    if (operation.op === "remove_product_image") {
+      const product = draft.products.find((item) => item.sku === operation.sku);
+      if (!product) throw new Error(`Product ${operation.sku} does not exist`);
+      const previous = product.image;
+      if (!previous) continue;
+      inverseOperations.unshift({
+        op: "set_product_image",
+        sku: operation.sku,
+        imageId: previous.imageId,
+        url: previous.url,
+        alt: previous.alt,
+      });
+      delete product.image;
+      appliedTargets.push(`products.${operation.sku}.image`);
       continue;
     }
     if (operation.op === "replace_products") {

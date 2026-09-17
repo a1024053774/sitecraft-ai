@@ -79,6 +79,7 @@ export function importProductsFromRows(
       errors.push(`第 ${index + 2} 行缺少 SKU 或产品名称`);
       return;
     }
+    const existing = next.products.findIndex((item) => item.sku === sku);
     const product: Product = {
       sku,
       name: { zh: name, en: normalized["name en"] || normalized["英文名称"] || name },
@@ -88,10 +89,10 @@ export function importProductsFromRows(
       },
       category: normalized.category || normalized["分类"] || "未分类",
       status: "draft",
-      imageColor: "#e6eee5",
+      imageColor: existing >= 0 ? next.products[existing].imageColor : "#e6eee5",
+      ...(existing >= 0 && next.products[existing].image ? { image: next.products[existing].image } : {}),
       aiGenerated: !normalized.summary,
     };
-    const existing = next.products.findIndex((item) => item.sku === sku);
     if (existing >= 0) next.products[existing] = product;
     else if (next.products.length < 1000) next.products.push(product);
     else {

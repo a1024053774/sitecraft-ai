@@ -6,6 +6,12 @@ const textSlot = (target: string, selector: string): TemplateSlot => ({
   attr: "text",
 });
 
+const srcSlot = (target: string, selector: string): TemplateSlot => ({
+  target,
+  selector,
+  attr: "src",
+});
+
 const contactToEmail = {
   "contact.title": "contact.email",
   "contact.body": "contact.email",
@@ -26,6 +32,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
     slots: [
       textSlot("hero.title", '[data-testid="hero-text"]'),
       textSlot("hero.subtitle", '[data-testid="intro-text"]'),
+      srcSlot("hero.image", 'img[alt="hero"]'),
       textSlot("contact.email", 'footer a[href^="mailto:"]'),
       textSlot("contact.phone", "footer tel"),
       textSlot("contact.address", "footer ul.max-w-\\[160px\\] > li:first-child > a"),
@@ -129,6 +136,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       textSlot("hero.title", "section.md\\:grid-cols-2.md\\:items-center.md\\:gap-8 > div > h1"),
       textSlot("hero.subtitle", "section.md\\:grid-cols-2.md\\:items-center.md\\:gap-8 p.mt-3"),
       textSlot("hero.cta", "section.md\\:grid-cols-2.md\\:items-center.md\\:gap-8 a.bg-orange-400"),
+      srcSlot("hero.image", 'img[alt="Stack of ScrewFast product boxes containing assorted hardware tools"]'),
       textSlot("features.title", "section.py-10 .lg\\:grid-cols-3 > .lg\\:col-span-1 > h2"),
       textSlot("features.intro", "section.py-10 .lg\\:grid-cols-3 > .lg\\:col-span-1 > p"),
       textSlot("features.items.0.title", "section.py-10 .lg\\:col-span-2 > .grid.sm\\:grid-cols-2 > div:nth-of-type(1) h3"),
@@ -161,6 +169,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       textSlot("hero.title", "h1.title.is-1"),
       textSlot("hero.subtitle", "h2.subtitle.is-5.is-muted"),
       textSlot("hero.cta", "a.button.cta.primary-btn"),
+      srcSlot("hero.image", "img.hero-image"),
     ],
     alternatives: { ...contactToHeroCta },
   },
@@ -171,6 +180,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       textSlot("hero.title", "h1.my-4.text-5xl"),
       textSlot("hero.subtitle", "p.leading-normal.text-2xl"),
       textSlot("hero.cta", "div.pt-24 button"),
+      srcSlot("hero.image", "img.z-50"),
     ],
     alternatives: { ...contactToHeroCta },
   },
@@ -182,6 +192,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       textSlot("hero.title", "h1.max-w-2xl.mb-4"),
       textSlot("hero.subtitle", "p.max-w-2xl.mb-6.font-light"),
       textSlot("hero.cta", "a.text-center.text-gray-900.border.border-gray-200"),
+      srcSlot("hero.image", 'img[alt="hero image"]'),
     ],
     sections: [
       { key: "solutions", selector: 'img[alt="dashboard feature image"]', root: "section" },

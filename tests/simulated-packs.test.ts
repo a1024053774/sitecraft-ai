@@ -83,6 +83,10 @@ test("workspace materials journey stays on chat/commitOperations and isolates si
   assert.match(workspaceSource, /buildMaterialsChatMessage|wrapCompanyMaterials/);
   assert.match(workspaceSource, /\/api\/sites\/\$\{siteId\}\/chat/);
   assert.match(workspaceSource, /\/published\/\$\{encodeURIComponent\(siteId\)\}/);
+  assert.match(workspaceSource, /\/api\/sites\/\$\{siteId\}\/images/);
+  assert.match(workspaceSource, /上传产品图/);
+  assert.match(workspaceSource, /data-testid="upload-product-photo"/);
+  assert.match(workspaceSource, /set_image_slot/);
   assert.equal(workspaceSource.includes("sitecraft-frontend-less-ai-tone"), false);
   assert.equal(/\bSkill\b/.test(workspaceSource), false);
 });

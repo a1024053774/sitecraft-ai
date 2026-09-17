@@ -91,6 +91,13 @@ export const editableCardSchema = z.object({
 });
 export type EditableCard = z.infer<typeof editableCardSchema>;
 
+export const siteImageRefSchema = z.object({
+  imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/),
+  url: z.string().min(1).max(240),
+  alt: localizedTextSchema,
+});
+export type SiteImageRef = z.infer<typeof siteImageRefSchema>;
+
 export const productSchema = z.object({
   sku: z.string().min(1).max(120),
   name: localizedTextSchema,
@@ -98,6 +105,7 @@ export const productSchema = z.object({
   category: z.string().max(120),
   status: z.enum(["published", "draft"]),
   imageColor: z.string().max(30),
+  image: siteImageRefSchema.optional(),
   aiGenerated: z.boolean().optional(),
 });
 export type Product = z.infer<typeof productSchema>;
@@ -188,6 +196,7 @@ export const siteDraftSchema = z.object({
       title: localizedTextSchema,
       subtitle: localizedTextSchema,
       cta: localizedTextSchema,
+      image: siteImageRefSchema.optional(),
     }),
     about: z.object({
       title: localizedTextSchema,

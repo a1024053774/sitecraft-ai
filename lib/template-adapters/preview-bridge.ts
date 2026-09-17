@@ -57,6 +57,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       "hero.title": hero.title,
       "hero.subtitle": hero.subtitle,
       "hero.cta": hero.cta,
+      "hero.image": hero.image && hero.image.url,
       "about.title": about.title,
       "about.body": about.body,
       "features.title": features.title,
@@ -82,11 +83,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (!item) return undefined;
       return localize(item[itemMatch[3]], locale);
     }
-    var productMatch = /^products\.([^.]+)\.(name|summary)$/.exec(target);
+    var productMatch = /^products\.([^.]+)\.(name|summary|image)$/.exec(target);
     if (productMatch) {
       var list = draft.products || [];
       for (var i = 0; i < list.length; i++) {
         if (list[i] && list[i].sku === productMatch[1]) {
+          if (productMatch[2] === "image") {
+            return list[i].image && typeof list[i].image.url === "string" ? list[i].image.url : undefined;
+          }
           return localize(list[i][productMatch[2]], locale);
         }
       }
@@ -99,6 +103,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (base === "hero.title") return "heroTitle";
     if (base === "hero.subtitle") return "heroSubtitle";
     if (base === "hero.cta") return "primaryCta";
+    if (base === "hero.image") return "heroImage";
     if (base === "companyName" || base === "siteName") return "brand";
     if (base === "about" || base.indexOf("about.") === 0) return "about";
     if (base === "features" || base.indexOf("features.") === 0) return "features";
@@ -109,12 +114,24 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   function writeSlot(node, slot, value, locale, applied) {
-    if (!node || typeof value !== "string") return false;
-    var appliedKey = slot.target + "." + locale;
+    if (!node) return false;
+    var appliedKey = slot.attr === "src" ? slot.target : slot.target + "." + locale;
     if (slot.attr === "src") {
+      if (typeof value !== "string" || !value) {
+        var original = node.getAttribute && node.getAttribute("data-sitecraft-original-src");
+        if (original != null) {
+          if (node.setAttribute) node.setAttribute("src", original);
+          else node.src = original;
+        }
+        return false;
+      }
+      if (node.getAttribute && node.getAttribute("data-sitecraft-original-src") == null) {
+        node.setAttribute("data-sitecraft-original-src", node.getAttribute("src") || "");
+      }
       if (node.setAttribute) node.setAttribute("src", value);
       else node.src = value;
     } else {
+      if (typeof value !== "string") return false;
       node.textContent = value;
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";

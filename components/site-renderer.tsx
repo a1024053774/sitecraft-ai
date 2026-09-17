@@ -247,10 +247,16 @@ export function SiteRenderer({
               >
                 <div
                   className="rs-product-image"
-                  style={{ backgroundColor: product.imageColor }}
+                  style={product.image?.url ? undefined : { backgroundColor: product.imageColor }}
                 >
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <ImageIcon size={34} strokeWidth={1.15} />
+                  {product.image?.url ? (
+                    <img src={product.image.url} alt={product.image.alt[locale]} />
+                  ) : (
+                    <>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <ImageIcon size={34} strokeWidth={1.15} />
+                    </>
+                  )}
                 </div>
                 <div className="rs-product-copy">
                   <small>{product.sku} / {product.category}</small>

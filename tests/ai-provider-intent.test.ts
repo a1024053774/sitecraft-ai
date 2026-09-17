@@ -365,6 +365,9 @@ test("live system prompt treats company materials as edit facts and does not emb
   assert.match(system, /默认三项不是上限/);
   assert.match(system, /不能假装开通/);
   assert.match(system, /不得把整站静默缩成只有首页/);
+  assert.match(system, /set_image_slot/);
+  assert.match(system, /模板演示图/);
+  assert.match(system, /待补充/);
   assert.equal(system.includes("P3I-NX7Q"), false);
   assert.equal(system.includes("P3E-MW4R"), false);
   assert.equal(system.includes("忻州重载减速机P3I"), false);

@@ -4,6 +4,7 @@ import type { PoolClient } from "pg";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "@/lib/postgres";
 import { defaultDraft, normalizeDraft, templates, type SiteDraft } from "@/lib/site-model";
 import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
+import { bindSiteImageOperations } from "@/lib/site-images";
 
 export type ChangeSource = "ai" | "import" | "manual" | "migration" | "template";
 export type ChangeSet = {
@@ -136,9 +137,11 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
       ? { status: "applied", record, changeSet: previous }
       : { status: "conflict", record };
     if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
+    await bindSiteImageOperations(args.siteId, args.operations);
     const result = applySiteOperations(record.draft, args.operations, {
       templateIds,
       lastChange: args.source === "ai" ? "刚刚通过 AI 保存" : "草稿已保存",
+      siteId: args.siteId,
     });
     if (!result.changed) return { status: "no_change", record };
     const changeSet: ChangeSet = {
@@ -165,6 +168,7 @@ async function moveLocalHistory(siteId: string, action: "undo" | "redo") {
     const result = applySiteOperations(record.draft, action === "undo" ? changeSet.inverseOperations : changeSet.operations, {
       templateIds,
       lastChange: action === "undo" ? "刚刚撤销一次修改" : "刚刚重做一次修改",
+      siteId,
     });
     if (!result.changed) return { status: "empty" as const, record };
     record.draft = result.draft;
@@ -254,9 +258,11 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
       ? { status: "applied", record, changeSet: previous }
       : { status: "conflict", record };
     if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
+    await bindSiteImageOperations(args.siteId, args.operations);
     const result = applySiteOperations(record.draft, args.operations, {
       templateIds,
       lastChange: args.source === "ai" ? "刚刚通过 DeepSeek 保存" : "草稿已保存",
+      siteId: args.siteId,
     });
     if (!result.changed) return { status: "no_change", record };
     const changeSet: ChangeSet = {
@@ -289,6 +295,7 @@ async function movePostgresHistory(siteId: string, action: "undo" | "redo") {
     const result = applySiteOperations(record.draft, action === "undo" ? changeSet.inverseOperations : changeSet.operations, {
       templateIds,
       lastChange: action === "undo" ? "刚刚撤销一次修改" : "刚刚重做一次修改",
+      siteId,
     });
     if (!result.changed) return { status: "empty" as const, record };
     record.draft = result.draft;

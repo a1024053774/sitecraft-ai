@@ -33,7 +33,7 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
   brand: { label: "品牌名称", prompt: "修改品牌名称，并保持当前开源模板的 Logo 区域和排版不变。" },
   heroTitle: { label: "首屏标题", prompt: "重写首屏标题，保持当前开源模板原有的字号、断行节奏和版式。" },
   heroSubtitle: { label: "首屏说明", prompt: "优化首屏说明，保留当前模板的信息密度并避免虚构企业事实。" },
-  primaryCta: { label: "主行动按钮", prompt: "优化主行动按钮文案，使用清晰动词并保持当前模板按钮样式。" },
+  heroImage: { label: "首屏图片", prompt: "只用已经上传且属于本站的产品图替换已声明的首屏图片槽，不要使用模板演示图。" },
   products: { label: "产品与能力", prompt: "根据已导入商品优化产品与能力区块，不存在的信息标记为待补充。" },
   about: { label: "关于我们", prompt: "修改关于我们区块，只使用已经提供的企业事实。" },
   features: { label: "核心优势", prompt: "修改核心优势区块，保持当前模板的信息密度和卡片数量。" },

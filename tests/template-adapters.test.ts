@@ -264,6 +264,56 @@ test("spa-bundle adapters do not claim a local HTML snapshot", () => {
   assert.notEqual(getTemplateAdapter("tailwind-landing")?.runtime, "spa-bundle");
 });
 
+test("declared hero images are unique src slots and leave logos and avatars undeclared", () => {
+  const cases = [
+    {
+      id: "forge",
+      html: new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url),
+      declared: 'alt="hero"',
+      undeclared: ['alt="completed work"', 'alt="example service"'],
+    },
+    {
+      id: "landwind",
+      html: new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url),
+      declared: 'alt="hero image"',
+      undeclared: ['alt="Landwind Logo"', 'alt="profile picture"', 'alt="dashboard feature image"'],
+    },
+    {
+      id: "screwfast",
+      html: new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url),
+      declared: "Stack of ScrewFast product boxes containing assorted hardware tools",
+      undeclared: ["Customer review avatar 1", "Samantha Ruiz photo", "ScrewFast products in floating boxes"],
+    },
+    {
+      id: "fresh",
+      html: new URL("../vendor/open-source-templates/fresh/dist/index.html", import.meta.url),
+      declared: 'class="hero-image"',
+      undeclared: ["partner-logo", "Made with Bulma"],
+    },
+    {
+      id: "tailwind-landing",
+      html: new URL("../vendor/open-source-templates/tailwind-landing/index.html", import.meta.url),
+      declared: "hero.png",
+      undeclared: [],
+    },
+  ] as const;
+  for (const item of cases) {
+    const html = readFileSync(item.html, "utf8");
+    const adapter = getTemplateAdapter(item.id);
+    const slot = adapter?.slots.find((entry) => entry.target === "hero.image");
+    assert.ok(slot, `${item.id} must declare a unique hero.image src slot`);
+    assert.equal(slot?.attr, "src");
+    assert.equal(slot?.selector.includes(","), false);
+    const declaredHits = html.split(item.declared).length - 1;
+    assert.equal(declaredHits, 1, `${item.id} declared image token must be unique`);
+    for (const chrome of item.undeclared) {
+      assert.equal(html.includes(chrome), true, `${item.id} still contains undeclared ${chrome}`);
+      assert.equal(adapter?.slots.some((entry) => entry.selector.includes(chrome)), false, `${item.id} must not declare ${chrome}`);
+    }
+    assert.equal(adapter?.slots.some((entry) => entry.attr === "src" && entry.target !== "hero.image"), false);
+  }
+});
+
 test("catalog includes extra PR4 templates without renaming shadcn-landing2 as Pro", () => {
   const catalog = readFileSync(new URL("../lib/template-catalog.ts", import.meta.url), "utf8");
   for (const id of ["screwfast", "fresh", "tailwind-landing", "nextjs-landing", "shadcn-landing", "shadcn-landing2"]) {

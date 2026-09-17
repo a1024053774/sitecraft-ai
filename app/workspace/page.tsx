@@ -128,6 +128,27 @@ type DraftSnapshot = {
   isNew?: boolean;
 };
 type ProviderStatus = { mode: "deepseek" | "unconfigured"; model: string | null };
+type SiteImageItem = {
+  imageId: string;
+  siteId: string;
+  url: string;
+  mime: string;
+  width: number;
+  height: number;
+  byteLength: number;
+  originalName: string;
+  source: string;
+  license: string;
+  createdAt: string;
+};
+type ImageFactsView = {
+  visibleText: string[];
+  name: { zh: string; en: string };
+  sellingPoints: { zh: string[]; en: string[] };
+  category: string;
+  alt: { zh: string; en: string };
+  missingFacts: string[];
+};
 
 const initialMessages: ChatMessage[] = [
   {
@@ -243,10 +264,15 @@ export default function WorkspacePage() {
   const [locale, setLocale] = useState<Locale>("zh");
   const [showImport, setShowImport] = useState(false);
   const [showMaterials, setShowMaterials] = useState(false);
+  const [showImages, setShowImages] = useState(false);
   const [materialsText, setMaterialsText] = useState("");
   const [loadedPackId, setLoadedPackId] = useState<SimulatedPackId | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [importState, setImportState] = useState<{ name: string; imported: number; errors: string[] } | null>(null);
+  const [siteImages, setSiteImages] = useState<SiteImageItem[]>([]);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [imageFacts, setImageFacts] = useState<ImageFactsView | null>(null);
+  const [imageNote, setImageNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyText, setBusyText] = useState("正在连接模型…");
   const [mobilePane, setMobilePane] = useState<"chat" | "preview">("chat");
@@ -257,6 +283,7 @@ export default function WorkspacePage() {
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>({ mode: "unconfigured", model: null });
   const [activePageId, setActivePageId] = useState("home");
   const fileRef = useRef<HTMLInputElement>(null);
+  const imageFileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -734,11 +761,12 @@ export default function WorkspacePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ baseRevision: draft.revision, operations, summary, source }),
     });
-    const result = await response.json() as DraftSnapshot & { error?: string; changeSet?: { appliedTargets: string[] } };
+    const result = await response.json() as DraftSnapshot & { error?: string; changeSet?: { appliedTargets: string[]; revision?: number } };
     if (!response.ok) throw new Error(result.error || "草稿保存失败");
     adoptSnapshot(result);
     setExpectedTargets(slotExpectedTargets((result.changeSet?.appliedTargets ?? []).filter((target) => target !== "visualBrief" && target !== "template" && target !== "draft")));
     setPreviewState("loading");
+    return result;
   };
 
   const selectVisualBrief = async (briefId: string) => {
@@ -795,6 +823,125 @@ export default function WorkspacePage() {
       });
     }
     event.target.value = "";
+  };
+
+  const loadSiteImages = async () => {
+    const response = await fetch(`/api/sites/${siteId}/images`, { cache: "no-store" });
+    const payload = await response.json() as { images?: SiteImageItem[]; error?: string };
+    if (!response.ok) throw new Error(payload.error || "无法读取站点图片");
+    const images = payload.images ?? [];
+    setSiteImages(images);
+    if (selectedImageId && !images.some((item) => item.imageId === selectedImageId)) {
+      setSelectedImageId(images[0]?.imageId ?? null);
+      setImageFacts(null);
+    } else if (!selectedImageId && images[0]) {
+      setSelectedImageId(images[0].imageId);
+    }
+    return images;
+  };
+
+  const openImageLibrary = async () => {
+    setPlusOpen(false);
+    setShowImages(true);
+    setImageNote(null);
+    try {
+      await loadSiteImages();
+    } catch (error) {
+      setImageNote(error instanceof Error ? error.message : "无法读取站点图片");
+    }
+  };
+
+  const handleImageFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || busy || !draftReady) return;
+    setBusy(true);
+    setBusyText("正在保存产品图…");
+    setImageNote(null);
+    setImageFacts(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch(`/api/sites/${siteId}/images`, { method: "POST", body: form });
+      const payload = await response.json() as { image?: SiteImageItem; error?: string };
+      if (!response.ok || !payload.image) throw new Error(payload.error || "上传失败");
+      const uploaded = payload.image;
+      setSiteImages((items) => [uploaded, ...items.filter((item) => item.imageId !== uploaded.imageId)]);
+      setSelectedImageId(uploaded.imageId);
+      setImageNote(`已保存到本站 ${uploaded.imageId} · ${uploaded.license === "user-provided" ? "用户提供" : uploaded.license} · ${uploaded.width}×${uploaded.height}`);
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "applied",
+        text: `产品图已归到当前站点 ${siteId}，尚未写入预览。可以先分析，再应用到已声明图片槽。`,
+        change: uploaded.imageId,
+      }]);
+    } catch (error) {
+      setImageNote(error instanceof Error ? error.message : "上传失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const analyzeSelectedImage = async () => {
+    if (!selectedImageId || busy) return;
+    setBusy(true);
+    setBusyText("正在看图摘录事实…");
+    setImageNote(null);
+    try {
+      const response = await fetch(`/api/sites/${siteId}/images/${selectedImageId}/analyze`, { method: "POST" });
+      const payload = await response.json() as { facts?: ImageFactsView; error?: string; model?: string; latencyMs?: number };
+      if (!response.ok || !payload.facts) throw new Error(payload.error || "分析失败");
+      const facts = payload.facts;
+      setImageFacts(facts);
+      const missing = facts.missingFacts.length ? facts.missingFacts.join("、") : "无";
+      setImageNote(`看图完成${payload.model ? ` · ${payload.model}` : ""}。缺口：${missing}`);
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "answer",
+        text: `已看图，未改草稿。可见文字 ${facts.visibleText.length} 条；名称 ${facts.name.zh}；缺口 ${missing}。`,
+        change: "analyze 没有走 commitOperations",
+        meta: typeof payload.latencyMs === "number" ? `模型 ${Math.max(0.1, payload.latencyMs / 1000).toFixed(1)} 秒` : undefined,
+      }]);
+    } catch (error) {
+      setImageNote(error instanceof Error ? error.message : "分析失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applySelectedImage = async (kind: "hero" | "product") => {
+    const image = siteImages.find((item) => item.imageId === selectedImageId);
+    if (!image || busy || !draftReady) return;
+    const alt = imageFacts?.alt ?? { zh: "待补充", en: "To be completed" };
+    const operations: SiteOperation[] = kind === "hero"
+      ? [{ op: "set_image_slot", target: "hero.image", imageId: image.imageId, url: image.url, alt }]
+      : draft.products[0]
+        ? [{ op: "set_product_image", sku: draft.products[0].sku, imageId: image.imageId, url: image.url, alt }]
+        : [];
+    if (!operations.length) {
+      setImageNote("当前草稿没有商品，无法写入产品图。");
+      return;
+    }
+    setBusy(true);
+    setBusyText("正在写入声明图片槽…");
+    try {
+      const saved = await saveOperations(operations, kind === "hero" ? "把已上传产品图写入首屏声明槽" : `把已上传产品图写入商品 ${draft.products[0].sku}`, "manual");
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "syncing",
+        revision: saved.draft.revision,
+        text: kind === "hero"
+          ? "已通过 commitOperations 写入 hero.image。没有唯一 src 槽位时预览会报告未显示，不会猜写其他图片。"
+          : `已通过 commitOperations 写入 ${draft.products[0].sku} 的产品图。当前模板若没有该 SKU 的唯一 src 槽，会报告 missing。`,
+      }]);
+    } catch (error) {
+      setImageNote(error instanceof Error ? error.message : "写入失败");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -973,6 +1120,15 @@ export default function WorkspacePage() {
                   >
                     提供公司资料
                   </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="open-image-library"
+                    disabled={busy || !draftReady}
+                    onClick={() => { void openImageLibrary(); }}
+                  >
+                    上传产品图
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -981,6 +1137,7 @@ export default function WorkspacePage() {
           </form>
           <div className="chat-hints">
             <button className="hint" type="button" onClick={() => setShowMaterials(true)}>提供公司资料</button>
+            <button className="hint" type="button" data-testid="hint-upload-photo" onClick={() => { void openImageLibrary(); }}>上传产品图</button>
             <button className="hint" type="button" onClick={() => setInput("只要一个首页，不要其他页面")}>只要首页</button>
             <button className="hint" type="button" onClick={() => setInput("请规划首页、产品、联系，另外还要独立认证页和资料下载页")}>额外页面</button>
             <button className="hint" type="button" onClick={() => setInput("按公司业务规划页面，我没有指定页面清单")}>未指定页面</button>
@@ -998,6 +1155,7 @@ export default function WorkspacePage() {
             <button className="icon-button" onClick={() => void moveHistory("undo")} disabled={!canUndo || busy} aria-label="撤销"><RotateCcw size={14} /></button>
             <button className="icon-button" onClick={() => void moveHistory("redo")} disabled={!canRedo || busy} aria-label="重做"><RotateCw size={14} /></button>
             <button className="secondary-button" onClick={() => setShowImport(true)}><Upload size={14} />商品</button>
+            <button className="secondary-button" data-testid="toolbar-upload-photo" onClick={() => { void openImageLibrary(); }}><ImageIcon size={14} />产品图</button>
             <Link className="primary-button" href={`/published/${encodeURIComponent(siteId)}?page=${encodeURIComponent(activePage?.id ?? "home")}` as Route} target="_blank" rel="noreferrer"><Globe2 size={14} />发布</Link>
           </div>
         </header>
@@ -1082,6 +1240,78 @@ export default function WorkspacePage() {
               >
                 根据资料生成站点
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showImages && (
+        <div className="modal-backdrop" onClick={() => setShowImages(false)}>
+          <div className="import-modal materials-modal" onClick={(event) => event.stopPropagation()} data-testid="image-library-modal">
+            <div className="modal-head">
+              <div>
+                <div className="eyebrow">Assets / Product photo</div>
+                <h3>上传并归属产品图</h3>
+              </div>
+              <button className="icon-button" onClick={() => setShowImages(false)} aria-label="关闭产品图"><X size={15} /></button>
+            </div>
+            <p className="modal-copy">图片先存到当前站点目录，可选看图摘录事实，再经 commitOperations 写入已声明且唯一命中的 src 槽。没有槽位会报告未显示，不会猜写 Logo 或其他 img。模板演示图没有客户授权，不能当生成素材。</p>
+            <div
+              className="upload-zone"
+              data-testid="upload-product-photo"
+              onClick={() => imageFileRef.current?.click()}
+            >
+              <input
+                ref={imageFileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                hidden
+                onChange={(event) => { void handleImageFile(event); }}
+              />
+              <div className="upload-icon"><CloudUpload size={20} /></div>
+              <strong>点击上传真实产品照片</strong>
+              <span>PNG / JPEG / WebP · 校验 magic bytes · 单张不超过 10MB</span>
+              <small>归属站点 {siteId} · 许可记为用户提供</small>
+            </div>
+            <div className="image-library" data-testid="site-image-list">
+              {siteImages.length === 0 ? <span>当前站点还没有已上传的图。</span> : siteImages.map((image) => (
+                <button
+                  className={selectedImageId === image.imageId ? "image-library-item selected" : "image-library-item"}
+                  key={image.imageId}
+                  type="button"
+                  data-testid="site-image-item"
+                  data-image-id={image.imageId}
+                  onClick={() => {
+                    setSelectedImageId(image.imageId);
+                    setImageFacts(null);
+                    setImageNote(`${image.imageId} 属于 ${image.siteId} · ${image.license}`);
+                  }}
+                >
+                  <img src={image.url} alt="" />
+                  <div>
+                    <strong>{image.originalName}</strong>
+                    <span>{image.imageId} · {image.width}×{image.height} · {image.license}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {imageFacts ? (
+              <div className="image-facts" data-testid="image-analysis">
+                <strong>看图事实（未写草稿）</strong>
+                <div>名称：{imageFacts.name.zh} / {imageFacts.name.en}</div>
+                <div>分类：{imageFacts.category}</div>
+                <div>可见文字：{imageFacts.visibleText.length ? imageFacts.visibleText.join("；") : "待补充"}</div>
+                <div>缺口：{imageFacts.missingFacts.length ? imageFacts.missingFacts.join("、") : "待补充"}</div>
+              </div>
+            ) : null}
+            {imageNote ? <div className="image-facts" data-testid="image-library-note">{imageNote}</div> : null}
+            <div className="image-actions">
+              <button className="secondary-button" type="button" data-testid="analyze-image" disabled={!selectedImageId || busy} onClick={() => { void analyzeSelectedImage(); }}>分析事实</button>
+              <button className="primary-button" type="button" data-testid="apply-hero-image" disabled={!selectedImageId || busy || !draftReady} onClick={() => { void applySelectedImage("hero"); }}>应用到首屏图</button>
+              <button className="secondary-button" type="button" data-testid="apply-product-image" disabled={!selectedImageId || busy || !draftReady} onClick={() => { void applySelectedImage("product"); }}>应用到第一个商品</button>
+            </div>
+            <div className="modal-foot">
+              <span><ImageIcon size={14} /> 分析不会改 HTML/CSS；落点只走 commitOperations</span>
+              <button className="primary-button" type="button" onClick={() => setShowImages(false)}>完成</button>
             </div>
           </div>
         </div>

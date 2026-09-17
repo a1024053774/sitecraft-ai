@@ -395,7 +395,7 @@ function sentinelDraft() {
     revision: 9,
     companyName: "Sentinel Co",
     content: {
-      hero: { title: { zh: "NEW_HERO_ZH", en: "NEW_HERO_EN" }, subtitle: { zh: "SUB_ZH", en: "SUB_EN" }, cta: { zh: "CTA_ZH", en: "CTA_EN" } },
+      hero: { title: { zh: "NEW_HERO_ZH", en: "NEW_HERO_EN" }, subtitle: { zh: "SUB_ZH", en: "SUB_EN" }, cta: { zh: "CTA_ZH", en: "CTA_EN" }, image: undefined as { imageId: string; url: string; alt: { zh: string; en: string } } | undefined },
       about: { title: { zh: "ABOUT_ZH", en: "ABOUT_EN" }, body: { zh: "ABOUT_BODY", en: "ABOUT_BODY_EN" } },
       features: {
         title: { zh: "FEAT", en: "FEAT_EN" },
@@ -1183,4 +1183,59 @@ test("in-template page switching marks the active page and hides other planned s
   assert.equal(fragments.landwind.document.documentElement.dataset.sitecraftActivePage, "products");
   assert.equal(fragments.landwind.inquiry.hidden, true);
   assert.equal(fragments.landwind.inquiry.getAttribute("data-sitecraft-page-hidden"), "true");
+});
+
+test("unique src slots write owned URLs and leave undeclared imgs unchanged", () => {
+  const documentElement = createNode("html");
+  const body = createNode("body");
+  documentElement.appendChild(body);
+  const hero = createNode("img");
+  hero.setAttribute("alt", "hero image");
+  hero.setAttribute("src", "./images/hero.png");
+  const logo = createNode("img");
+  logo.setAttribute("alt", "Landwind Logo");
+  logo.setAttribute("src", "./images/logo.svg");
+  const decoy = createNode("img");
+  decoy.setAttribute("alt", "dashboard feature image");
+  decoy.setAttribute("src", "./images/feature-1.png");
+  body.appendChild(hero);
+  body.appendChild(logo);
+  body.appendChild(decoy);
+  const listeners: FakeDocument["listeners"] = [];
+  const document: FakeDocument = {
+    documentElement,
+    body,
+    listeners,
+    querySelectorAll: (selector) => queryAll(documentElement, selector),
+    querySelector: (selector) => queryAll(documentElement, selector)[0] ?? null,
+    createElement: (tag) => createNode(tag),
+    addEventListener: (type, fn) => {
+      listeners.push({ type, fn });
+    },
+  };
+  const adapter: TemplateAdapter = {
+    templateId: "landwind-image",
+    runtime: "static-html",
+    slots: [{ target: "hero.image", selector: 'img[alt="hero image"]', attr: "src" }],
+  };
+  const { api } = installOn(document, adapter);
+  const draft = sentinelDraft();
+  draft.content.hero.image = {
+    imageId: "img_testownedimage0001",
+    url: "/api/sites/p3img-a/images/img_testownedimage0001",
+    alt: { zh: "待补充", en: "To be completed" },
+  };
+  const report = api.applyDeclaredContent(draft, "zh", ["hero.image", "products.FM-2401.image"], "workspace");
+  assert.equal(hero.getAttribute("src"), "/api/sites/p3img-a/images/img_testownedimage0001");
+  assert.equal(logo.getAttribute("src"), "./images/logo.svg");
+  assert.equal(decoy.getAttribute("src"), "./images/feature-1.png");
+  assert.ok(report.appliedSlots.includes("hero.image"));
+  assert.ok(report.missingSlots.includes("products.FM-2401.image"));
+  assert.deepEqual(report.fallbackMatched, []);
+
+  delete draft.content.hero.image;
+  const cleared = api.applyDeclaredContent(draft, "zh", ["hero.image"], "workspace");
+  assert.equal(hero.getAttribute("src"), "./images/hero.png");
+  assert.equal(logo.getAttribute("src"), "./images/logo.svg");
+  assert.equal(cleared.appliedSlots.includes("hero.image"), false);
 });

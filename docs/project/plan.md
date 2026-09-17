@@ -99,7 +99,7 @@ Round 14 / Q22 记下，本轮规划一并入库。
 
 本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。生成走了真实模型，不是 mock 当 Demo。截图在 gitignore 的 `artifacts/p3-workspace-journey/`。工作台补了「提供公司资料」面板和 `?site=` 隔离，仍走现有 `/chat` + `commitOperations`。`npm test` 108 通过。`npm run typecheck` / `npm run build` 仍会被 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6` 拖失败；排除该目录后本仓库 TypeScript 为 0 错，Next 编译成功。未把 artifacts exclude 写进已提交的 `tsconfig.json`。
 
-还没有：图片识别与素材授权流水线；12 组截图盲评；90 天清理和表单收件。不要据此宣称 Demo 已验收。
+还没有：12 组截图盲评；90 天清理和表单收件。不要据此宣称 Demo 已验收。
 
 **Q18（P3 剩余，2026-09-18）**：页面规划按「用户点名 → 模型按业务规划 → 仍不确定才用首页/产品或服务/联系」。默认三项不是上限。草稿增加 `pagePlan`，只走白名单 `set_page_plan`；落点由服务端 `resolvePagePlan` 决定，模型不能指定 placement。独立 URL 只服务快照里已有的 HTML（`forge` 的 About/Services/Contact，`screwfast` 的 products/contact）；没有对应文件就 404，不克隆首页。`landwind` 等单页快照只在同一模板里切换声明区块。工作台与 `/published/:siteKey` 读同一份 pagePlan。
 
@@ -114,6 +114,20 @@ Round 14 / Q22 记下，本轮规划一并入库。
 
 预览路由带 `X-Sitecraft-Preview-Page`。点测覆盖工作台、发布页、桌面与 390 宽。截图在 gitignore 的 `artifacts/q18-pages/`。本块未跑图片流水线，也未开 P4/P5。
 
+**P3 图片流水线（2026-09-18）**：工作台上传真实产品 JPEG → magic bytes → 站点目录 `.sitecraft-data/uploads/{workspace}/{siteId}/` → 可选 `deepseek-flash` 看图摘录事实 → 只经 `commitOperations` 写入已声明唯一 `src` 槽。没有槽位报告 missing，不猜写 Logo 或其他 img。模板演示图即使带上已上传 `imageId` 也会被拒绝。分析不改 revision，不写 HTML/CSS。
+
+| 项 | 结果 |
+| --- | --- |
+| 站点 | `p3-img-hx4k`，样子工程工业 → `screwfast` |
+| 照片 | Wikimedia 工业齿轮箱实拍 JPEG 2708×1988，约 852KB，magic `ffd8ff`，现场叠了记号 `P3IMG-HX4K`；不是 1×1，不当模板库存 |
+| 归属 | `img_f9d049a53f16493193db5a13`，`license=user-provided`，GET 带 `X-Sitecraft-Image-Site`；跨站 `p3-export` 读同一 id 为 404 |
+| 看图 | 现场 `deepseek-flash` 约 6.5s；抄到 `P3IMG-HX4K`；名称/分类为「待补充」；缺口含价格、认证、产能等；revision 仍为 2 |
+| 落点 | `set_image_slot` 写入 `content.hero.image` 到 v4；预览里声明首屏 src 换成 `/api/sites/p3-img-hx4k/images/img_f9d049a53f16493193db5a13` |
+| 未声明图 | 头像、features、施工图等仍是模板 `_astro` 资源；`undeclaredOwned` 为空 |
+| 拒绝 | 1×1 PNG 400；`./images/hero.png` 在 bind 阶段 422「模板演示图没有客户授权」 |
+
+截图与 JSON 在 gitignore 的 `artifacts/p3-image-pipeline/`。`next start` 生产模式仍走 PostgreSQL，未配 `DATABASE_URL` 时 `getSite` 不会退回本地文件；开发机点测以 `SITE_STORE=fs` 的 3034 草稿为准。不要据此宣称 Demo 已验收。
+
 ## 下一步（一次一块，给主对话执行）
 
 1. ~~核 `sitecraft-frontend-less-ai-tone` 已进生成 prompt，本机 `DEEPSEEK_MODEL=deepseek-flash`。~~
@@ -123,4 +137,5 @@ Round 14 / Q22 记下，本轮规划一并入库。
 5. ~~用一张真实预览截图打通 `deepseek-flash` 看图。~~
 6. ~~用模拟工业/外贸包跑完整工作台生成。~~ 不要据此宣称 Demo 已验收。
 7. ~~Q18 需求驱动页面：pagePlan + 真快照 URL / 页内区块，默认三项不是上限。~~
-8. 下一刀是图片识别与素材授权流水线。不要先开 12 组审美评测（P4），也不要去做 90 天清理或表单收件（P5），不要搬 jiro 源码。
+8. ~~P3 图片识别与素材授权流水线。~~
+9. 下一刀才是 12 组对照（P4）。还没做 90 天清理或表单收件（P5），不要搬 jiro 源码。
