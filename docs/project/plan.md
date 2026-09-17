@@ -68,7 +68,7 @@ How it Works 04 Kelo / 01 Luma 只借「分步」计数。工业履约步骤对�
 
 文案和版式走同一条路径，内部规则是 `sitecraft-frontend-less-ai-tone`。事实只来自用户资料或「待补充」。模型不输出 CSS。看成品用 `deepseek-flash` 看真实预览截图，人工仍做审美拍板。
 
-12 组对照要等主题卡按上表挂上、至少两套以上样子能整页生成之后再打。现在只有 Forge/Landwind 首屏对照，不能当 Demo 已验收。
+12 组对照已在 `/quality` 按 3 个模拟包 × A/B/C/D 现场跑过，见下方 P4 账。模型自评不是审美 oracle。不能当 Demo 已验收。
 
 ## 待合并：前端去 AI 味 Skill
 
@@ -99,7 +99,7 @@ Round 14 / Q22 记下，本轮规划一并入库。
 
 本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。生成走了真实模型，不是 mock 当 Demo。截图在 gitignore 的 `artifacts/p3-workspace-journey/`。工作台补了「提供公司资料」面板和 `?site=` 隔离，仍走现有 `/chat` + `commitOperations`。`npm test` 108 通过。`npm run typecheck` / `npm run build` 仍会被 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6` 拖失败；排除该目录后本仓库 TypeScript 为 0 错，Next 编译成功。未把 artifacts exclude 写进已提交的 `tsconfig.json`。
 
-还没有：12 组截图盲评；90 天清理和表单收件。不要据此宣称 Demo 已验收。
+还没有：90 天清理和表单收件。不要据此宣称 Demo 已验收。
 
 **Q18（P3 剩余，2026-09-18）**：页面规划按「用户点名 → 模型按业务规划 → 仍不确定才用首页/产品或服务/联系」。默认三项不是上限。草稿增加 `pagePlan`，只走白名单 `set_page_plan`；落点由服务端 `resolvePagePlan` 决定，模型不能指定 placement。独立 URL 只服务快照里已有的 HTML（`forge` 的 About/Services/Contact，`screwfast` 的 products/contact）；没有对应文件就 404，不克隆首页。`landwind` 等单页快照只在同一模板里切换声明区块。工作台与 `/published/:siteKey` 读同一份 pagePlan。
 
@@ -112,7 +112,7 @@ Round 14 / Q22 记下，本轮规划一并入库。
 | 多页 + 真 URL | `q18-extra` | 4 个身份；About/Contact 为独立快照页；认证与资料下载 unsupported |
 | 不能假 URL | `q18-landwind` | 全部 section；`?pagePath=Contact` 返回 404 `missing-snapshot-page` |
 
-预览路由带 `X-Sitecraft-Preview-Page`。点测覆盖工作台、发布页、桌面与 390 宽。截图在 gitignore 的 `artifacts/q18-pages/`。本块未跑图片流水线，也未开 P4/P5。
+预览路由带 `X-Sitecraft-Preview-Page`。点测覆盖工作台、发布页、桌面与 390 宽。截图在 gitignore 的 `artifacts/q18-pages/`。本块未跑图片流水线。
 
 **P3 图片流水线（2026-09-18）**：工作台上传真实产品 JPEG → magic bytes → 站点目录 `.sitecraft-data/uploads/{workspace}/{siteId}/` → 可选 `deepseek-flash` 看图摘录事实 → 只经 `commitOperations` 写入已声明唯一 `src` 槽。没有槽位报告 missing，不猜写 Logo 或其他 img。模板演示图即使带上已上传 `imageId` 也会被拒绝。分析不改 revision，不写 HTML/CSS。
 
@@ -128,6 +128,22 @@ Round 14 / Q22 记下，本轮规划一并入库。
 
 截图与 JSON 在 gitignore 的 `artifacts/p3-image-pipeline/`。`next start` 生产模式仍走 PostgreSQL，未配 `DATABASE_URL` 时 `getSite` 不会退回本地文件；开发机点测以 `SITE_STORE=fs` 的 3034 草稿为准。不要据此宣称 Demo 已验收。
 
+**P4（12 组对照，2026-09-18）**：冻结基线 `deepseek-flash`、`sitecraft-frontend-less-ai-tone@0.2.0`、样子盘、声明槽位与 `pagePlan`。三份独立模拟包（明确标「模拟」、互不撞 nonce）各跑 A/B/C/D，共 12 格，全部现场 DeepSeek，记号写入草稿。对照页 `/quality` 是评分入口：同资料只换流程组，可 `?blind=1` 隐藏分组并打乱。模型审查不是审美通过证明。作者自评界面在，样本 n=12，阈值未校准。不要据此声称客户偏好、行业真实性或转化。这不是 Demo 验收。
+
+| 包 | nonce | A 默认 | B 审美锁样子 | C 资料样子+区块 | D C+审查有限修 |
+| --- | --- | --- | --- | --- | --- |
+| 工业制造 | `P4M-K8VT` | live，forge / 明亮产品 | live，tailwind-landing / 灰底短路径 | live，screwfast / 工程工业 | live，screwfast；修 1 轮 |
+| 外贸目录 | `P4X-R3LW` | live，forge / 明亮产品 | live，tailwind-landing / 灰底短路径 | live，landwind / 蓝白目录 | live，landwind；视觉审查 UNVERIFIED（token 上限），未假装绿 |
+| 专业服务 | `P4S-Q7HN` | live，forge / 明亮产品 | live，tailwind-landing / 灰底短路径 | live，fresh / 深色产品 | live，fresh；C↔D 文案有限变化 |
+
+B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不是给 prompt 换标签。A↔B、B↔C 的样子指纹是 `look-differed`。C↔D 是 `copy-only` 或 `unchanged`，不能把 D 当成又换了一套样子。外贸/服务的 A 相对默认草稿是 `copy-only`（仍落默认明亮产品/forge）。补充证据：同一工业草稿切明亮产品/工程工业为 `look-differed`；超长标题 46 字。12 组资料都没有产品图。
+
+点测：`http://127.0.0.1:3034/quality` 首屏 HTML 已含 12 格、记号和模板差；`?blind=1&seed=19` 标签变成「样本 1–4」、分组隐藏。工作台 Look board 有「12组对照」入口。生成当时 D 组审查图在 `artifacts/p4-quality-comparison/p4{m,x,s}-d-review.png`（工业仍可见 ScrewFast 未声明英文壳，服务可见「工厂现场计量校准」）。事后再截 `/published/:id` 常是客户端读草稿前的空壳，不能拿空图冒充 12 张首屏都过了。
+
+本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。`npm test` 133 通过。`tsc` / `next build` 仍需临时排除 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6`，未把该 exclude 写进已提交 `tsconfig.json`。
+
+还没有：90 天清理和表单收件（P5）。不要据此宣称 Demo 已验收。
+
 ## 下一步（一次一块，给主对话执行）
 
 1. ~~核 `sitecraft-frontend-less-ai-tone` 已进生成 prompt，本机 `DEEPSEEK_MODEL=deepseek-flash`。~~
@@ -138,4 +154,4 @@ Round 14 / Q22 记下，本轮规划一并入库。
 6. ~~用模拟工业/外贸包跑完整工作台生成。~~ 不要据此宣称 Demo 已验收。
 7. ~~Q18 需求驱动页面：pagePlan + 真快照 URL / 页内区块，默认三项不是上限。~~
 8. ~~P3 图片识别与素材授权流水线。~~
-9. 下一刀才是 12 组对照（P4）。还没做 90 天清理或表单收件（P5），不要搬 jiro 源码。
+9. ~~12 组对照（P4）。~~ 还没做 90 天清理或表单收件（P5），不要搬 jiro 源码。不要据此宣称 Demo 已验收。

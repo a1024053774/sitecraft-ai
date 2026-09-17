@@ -969,6 +969,7 @@ export default function WorkspacePage() {
           <div className="visual-brief-head">
             <div><span className="eyebrow">Look board</span><strong>先选网站的样子</strong></div>
             <span className="visual-brief-current">当前：{draft.visualBrief.label}</span>
+            <Link className="section-link" href={"/quality" as Route}>12组对照</Link>
           </div>
           <p>样子会改变右侧预览的版式与配色，行业仍来自公司资料。</p>
           <div className="visual-brief-grid">
