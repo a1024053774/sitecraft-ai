@@ -361,8 +361,9 @@ test("live system prompt treats company materials as edit facts and does not emb
   });
   assert.equal(result.ok, true);
   const system = systemPromptFromLastRequest();
-  assert.match(system, /公司资料/);
-  assert.match(system, /不能生成额外独立 URL 页面/);
+  assert.match(system, /set_page_plan/);
+  assert.match(system, /默认三项不是上限/);
+  assert.match(system, /不能假装开通/);
   assert.match(system, /不得把整站静默缩成只有首页/);
   assert.equal(system.includes("P3I-NX7Q"), false);
   assert.equal(system.includes("P3E-MW4R"), false);

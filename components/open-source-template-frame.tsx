@@ -11,6 +11,14 @@ type OpenSourceTemplateFrameProps = {
   locale?: Locale;
   variant?: FrameVariant;
   expectedTargets?: string[];
+  pagePath?: string;
+  activePage?: {
+    id: string;
+    role: string;
+    placement: string;
+    section?: string;
+    route?: string;
+  };
   onSelectTarget?: (target: string, label: string, prompt: string) => void;
   onApplyReport?: (report: {
     revision: number;
@@ -39,6 +47,8 @@ export function OpenSourceTemplateFrame({
   locale = "zh",
   variant = "preview",
   expectedTargets = [],
+  pagePath = "",
+  activePage,
   onSelectTarget,
   onApplyReport,
 }: OpenSourceTemplateFrameProps) {
@@ -47,7 +57,7 @@ export function OpenSourceTemplateFrame({
   useEffect(() => {
     const frameWindow = frameRef.current?.contentWindow;
     if (!frameWindow) return;
-    const payload = { type: "sitecraft:content", templateId, draft, locale, expectedTargets, variant };
+    const payload = { type: "sitecraft:content", templateId, draft, locale, expectedTargets, variant, activePage };
     frameWindow.postMessage(payload, "*");
     const retry = window.setTimeout(() => frameWindow.postMessage(payload, "*"), 500);
     const finalRetry = window.setTimeout(() => frameWindow.postMessage(payload, "*"), 1500);
@@ -59,7 +69,7 @@ export function OpenSourceTemplateFrame({
       window.clearTimeout(hydrationRetry);
       window.clearTimeout(settledRetry);
     };
-  }, [draft, expectedTargets, locale, templateId, variant]);
+  }, [activePage, draft, expectedTargets, locale, templateId, variant]);
 
   useEffect(() => {
     const receiveMessage = (event: MessageEvent) => {
@@ -93,17 +103,23 @@ export function OpenSourceTemplateFrame({
 
   const sendContent = () => {
     frameRef.current?.contentWindow?.postMessage(
-      { type: "sitecraft:content", templateId, draft, locale, expectedTargets, variant },
+      { type: "sitecraft:content", templateId, draft, locale, expectedTargets, variant, activePage },
       "*",
     );
   };
 
+  const previewQuery = new URLSearchParams({ v: "20260918-pages" });
+  if (pagePath) previewQuery.set("pagePath", pagePath);
+
   return (
     <iframe
       ref={frameRef}
+      key={`${templateId}:${pagePath || "index"}`}
       className={`open-source-template-frame open-source-template-frame-${variant}`}
-      src={`/api/templates/${encodeURIComponent(templateId)}/preview?v=20260917-family`}
+      src={`/api/templates/${encodeURIComponent(templateId)}/preview?${previewQuery.toString()}`}
       title={`开源模板 ${templateId} 预览`}
+      data-page-path={pagePath || "index"}
+      data-page-placement={activePage?.placement ?? ""}
       loading={variant === "thumbnail" ? "lazy" : "eager"}
       sandbox="allow-scripts allow-forms"
       onLoad={sendContent}

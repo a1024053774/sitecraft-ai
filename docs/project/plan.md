@@ -99,7 +99,20 @@ Round 14 / Q22 记下，本轮规划一并入库。
 
 本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。生成走了真实模型，不是 mock 当 Demo。截图在 gitignore 的 `artifacts/p3-workspace-journey/`。工作台补了「提供公司资料」面板和 `?site=` 隔离，仍走现有 `/chat` + `commitOperations`。`npm test` 108 通过。`npm run typecheck` / `npm run build` 仍会被 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6` 拖失败；排除该目录后本仓库 TypeScript 为 0 错，Next 编译成功。未把 artifacts exclude 写进已提交的 `tsconfig.json`。
 
-还没有：图片识别与素材授权流水线（本块未跑）；Q18 需求驱动的独立 URL 多页（本块只能显隐当前模板区块，已在外贸包 summary 说明）；12 组截图盲评；90 天清理和表单收件。
+还没有：图片识别与素材授权流水线；12 组截图盲评；90 天清理和表单收件。不要据此宣称 Demo 已验收。
+
+**Q18（P3 剩余，2026-09-18）**：页面规划按「用户点名 → 模型按业务规划 → 仍不确定才用首页/产品或服务/联系」。默认三项不是上限。草稿增加 `pagePlan`，只走白名单 `set_page_plan`；落点由服务端 `resolvePagePlan` 决定，模型不能指定 placement。独立 URL 只服务快照里已有的 HTML（`forge` 的 About/Services/Contact，`screwfast` 的 products/contact）；没有对应文件就 404，不克隆首页。`landwind` 等单页快照只在同一模板里切换声明区块。工作台与 `/published/:siteKey` 读同一份 pagePlan。
+
+| 条件 | 站点 | 结果 |
+| --- | --- | --- |
+| 用户点名额外页 | `q18-ask-extra` 点「额外页面」发聊天 | `source=user`；首页/产品/联系落地；认证页与资料下载页写入 unsupported，未假装开通 |
+| 用户只要一页 | `q18-ask-single` 点「只要首页」 | 导航只剩首页，没有垫回三项 |
+| 未指定页面 | `q18-ask-default` 点「未指定页面」 | `source=model`，规划出首页/产品/服务/关于/联系（多于三项）；无 HTML 的详情/认证/案例页说明原因 |
+| 默认三项对照 | `q18-default` | `source=default`：首页（route）/产品（forge 落到已声明 services 区块）/联系（Contact HTML） |
+| 多页 + 真 URL | `q18-extra` | 4 个身份；About/Contact 为独立快照页；认证与资料下载 unsupported |
+| 不能假 URL | `q18-landwind` | 全部 section；`?pagePath=Contact` 返回 404 `missing-snapshot-page` |
+
+预览路由带 `X-Sitecraft-Preview-Page`。点测覆盖工作台、发布页、桌面与 390 宽。截图在 gitignore 的 `artifacts/q18-pages/`。本块未跑图片流水线，也未开 P4/P5。
 
 ## 下一步（一次一块，给主对话执行）
 
@@ -108,5 +121,6 @@ Round 14 / Q22 记下，本轮规划一并入库。
 3. ~~在 `forge` / `screwfast` / `landwind` 上按清单显隐同族区块。~~
 4. ~~给 `tailwind-landing` / `fresh` 补声明首屏落点。~~
 5. ~~用一张真实预览截图打通 `deepseek-flash` 看图。~~
-6. ~~用模拟工业/外贸包跑完整工作台生成。~~ 本块已跑；不要据此宣称 Demo 已验收。
-7. 不要先开 12 组审美评测（P4），也不要去做 90 天清理或表单收件（P5），不要搬 jiro 源码。
+6. ~~用模拟工业/外贸包跑完整工作台生成。~~ 不要据此宣称 Demo 已验收。
+7. ~~Q18 需求驱动页面：pagePlan + 真快照 URL / 页内区块，默认三项不是上限。~~
+8. 下一刀是图片识别与素材授权流水线。不要先开 12 组审美评测（P4），也不要去做 90 天清理或表单收件（P5），不要搬 jiro 源码。

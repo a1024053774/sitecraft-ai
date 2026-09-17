@@ -100,7 +100,7 @@ test("set_visual_brief maps each shipped look onto its compatible template in on
     } else {
       assert.equal(result.changed, true);
       assert.equal(result.draft.revision, defaultDraft.revision + 1);
-      assert.deepEqual(result.appliedTargets, ["visualBrief", "template"]);
+      assert.deepEqual(result.appliedTargets, ["visualBrief", "template", "pagePlan"]);
     }
   }
 });

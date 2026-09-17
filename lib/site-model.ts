@@ -8,9 +8,11 @@ import {
   type EditableCard,
   type Locale,
   type LocalizedText,
+  type PagePlan,
   type Product,
   type SectionKey,
   type SiteDraft,
+  type SitePage,
   type VisualBrief,
   visualBriefCatalog,
 } from "@/lib/site-document";
@@ -102,5 +104,5 @@ export function importProductsFromRows(
 }
 
 export { cloneDraft, defaultDraft, normalizeDraft, starterProducts };
-export type { Device, EditableCard, Locale, LocalizedText, Product, SectionKey, SiteDraft, VisualBrief };
+export type { Device, EditableCard, Locale, LocalizedText, PagePlan, Product, SectionKey, SiteDraft, SitePage, VisualBrief };
 export { visualBriefCatalog };

@@ -1,5 +1,6 @@
 import { templates } from "@/lib/site-model";
 import { buildPreviewBridgeScript, getTemplateAdapter, stripHtmlScripts } from "@/lib/template-adapters";
+import { previewPageSegments } from "@/lib/template-pages";
 import { readTemplateStaticFile } from "@/lib/template-static";
 
 function escapeAttribute(value: string) {
@@ -30,14 +31,27 @@ function prepareHtml(html: string, baseUrl: string, templateId: string, local = 
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ templateId: string }> },
 ) {
   const { templateId } = await params;
   const template = templates.find((item) => item.id === templateId);
   if (!template) return new Response("Template not found", { status: 404 });
 
-  const localIndex = await readTemplateStaticFile(template.id, ["index.html"]);
+  const requestedPath = new URL(request.url).searchParams.get("pagePath") ?? "";
+  const segments = previewPageSegments(requestedPath);
+  if (segments === null) {
+    return new Response("Invalid template page path", { status: 400 });
+  }
+  const pageSegments = segments.length ? segments : ["index.html"];
+  const localPage = await readTemplateStaticFile(template.id, pageSegments);
+  if (requestedPath && !localPage) {
+    return new Response("Template page not found", {
+      status: 404,
+      headers: { "X-Sitecraft-Preview-Page": requestedPath, "X-Sitecraft-Preview-Source": "missing-snapshot-page" },
+    });
+  }
+  const localIndex = localPage;
   if (localIndex) {
     const html = prepareHtml(localIndex.body.toString("utf8"), template.source.demoUrl, template.id, true);
     return new Response(html, {
@@ -48,8 +62,12 @@ export async function GET(
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
         "X-Sitecraft-Preview-Source": "local-open-source-snapshot",
+        "X-Sitecraft-Preview-Page": requestedPath || "index",
       },
     });
+  }
+  if (requestedPath) {
+    return new Response("Template page not found", { status: 404 });
   }
 
   try {

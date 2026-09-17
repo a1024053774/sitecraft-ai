@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import {
   AlertCircle,
   ArrowLeft,
@@ -53,9 +54,20 @@ import {
   wrapCompanyMaterials,
   type SimulatedPackId,
 } from "@/lib/simulated-packs";
+import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
 
 function conversationStorageKey(siteId: string) {
   return `sitecraft-conversation:${siteId}`;
+}
+
+function slotExpectedTargets(targets: string[]) {
+  return targets.filter((target) => (
+    target !== "visualBrief"
+    && target !== "template"
+    && target !== "draft"
+    && target !== "pagePlan"
+    && target !== "sections.order"
+  ));
 }
 
 function readStoredConversationId(siteId: string) {
@@ -243,6 +255,7 @@ export default function WorkspacePage() {
   const [expectedTargets, setExpectedTargets] = useState<string[]>([]);
   const [previewState, setPreviewState] = useState<"loading" | "synced" | "warning">("loading");
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>({ mode: "unconfigured", model: null });
+  const [activePageId, setActivePageId] = useState("home");
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -307,6 +320,9 @@ export default function WorkspacePage() {
         }
         if (!cancelled) {
           adoptSnapshot(snapshot);
+          const requestedPage = new URLSearchParams(window.location.search).get("page");
+          const nextPage = findSitePage(snapshot.draft.pagePlan, requestedPage);
+          if (nextPage) setActivePageId(nextPage.id);
           setDraftReady(true);
           setPreviewState("loading");
           if (new URLSearchParams(window.location.search).get("import") === "products") setShowImport(true);
@@ -400,6 +416,25 @@ export default function WorkspacePage() {
   }, [draftReady, siteId]);
 
   const currentTemplate = getTemplate(draft.templateId);
+  const activePage = findSitePage(draft.pagePlan, activePageId);
+  const previewPagePath = previewPathForPage(activePage);
+  const pageUrlSuffix = activePage?.placement === "route"
+    ? `/${previewPagePath || ""}`.replace(/\/$/, "") || "/"
+    : activePage?.section ? `/#${activePage.section}` : "/";
+
+  useEffect(() => {
+    const next = findSitePage(draft.pagePlan, activePageId);
+    if (next && next.id !== activePageId) setActivePageId(next.id);
+  }, [activePageId, draft.pagePlan]);
+
+  const selectSitePage = (pageId: string) => {
+    setActivePageId(pageId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("page", pageId);
+    window.history.replaceState(null, "", url);
+    setPreviewState("loading");
+  };
+
   const saveLabel = useMemo(() => {
     if (!draftReady) return "正在读取草稿";
     if (previewState === "loading") return "草稿已保存 · 正在同步预览";
@@ -437,7 +472,7 @@ export default function WorkspacePage() {
       }]);
     } else if (status === "applied") {
       const changeSet = done.changeSet as { revision: number; appliedTargets: string[] };
-      setExpectedTargets(changeSet.appliedTargets);
+      setExpectedTargets(slotExpectedTargets(changeSet.appliedTargets));
       setPreviewState("loading");
       setMessages((items) => [...items, {
         id: crypto.randomUUID(), role: "assistant", status: "syncing", revision: changeSet.revision,
@@ -684,7 +719,7 @@ export default function WorkspacePage() {
       const result = await response.json() as DraftSnapshot & { status: string; appliedTargets?: string[] };
       if (!response.ok || result.status !== "applied") throw new Error(action === "undo" ? "没有可撤销的修改" : "没有可重做的修改");
       adoptSnapshot(result);
-      setExpectedTargets(result.appliedTargets ?? []);
+      setExpectedTargets(slotExpectedTargets(result.appliedTargets ?? []));
       setPreviewState("loading");
     } catch (error) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "历史操作失败" }]);
@@ -702,7 +737,7 @@ export default function WorkspacePage() {
     const result = await response.json() as DraftSnapshot & { error?: string; changeSet?: { appliedTargets: string[] } };
     if (!response.ok) throw new Error(result.error || "草稿保存失败");
     adoptSnapshot(result);
-    setExpectedTargets((result.changeSet?.appliedTargets ?? []).filter((target) => target !== "visualBrief" && target !== "template" && target !== "draft"));
+    setExpectedTargets(slotExpectedTargets((result.changeSet?.appliedTargets ?? []).filter((target) => target !== "visualBrief" && target !== "template" && target !== "draft")));
     setPreviewState("loading");
   };
 
@@ -946,8 +981,10 @@ export default function WorkspacePage() {
           </form>
           <div className="chat-hints">
             <button className="hint" type="button" onClick={() => setShowMaterials(true)}>提供公司资料</button>
+            <button className="hint" type="button" onClick={() => setInput("只要一个首页，不要其他页面")}>只要首页</button>
+            <button className="hint" type="button" onClick={() => setInput("请规划首页、产品、联系，另外还要独立认证页和资料下载页")}>额外页面</button>
+            <button className="hint" type="button" onClick={() => setInput("按公司业务规划页面，我没有指定页面清单")}>未指定页面</button>
             <button className="hint" type="button" onClick={() => setInput("只把第二个服务标题改为智能产线集成，其他内容不变")}>修改服务</button>
-            <button className="hint" type="button" onClick={() => setInput("重写首屏标题和说明，不要更换模板")}>优化首屏</button>
             <button className="hint" type="button" onClick={() => setShowImport(true)}>上传商品表格</button>
           </div>
         </div>
@@ -961,10 +998,34 @@ export default function WorkspacePage() {
             <button className="icon-button" onClick={() => void moveHistory("undo")} disabled={!canUndo || busy} aria-label="撤销"><RotateCcw size={14} /></button>
             <button className="icon-button" onClick={() => void moveHistory("redo")} disabled={!canRedo || busy} aria-label="重做"><RotateCw size={14} /></button>
             <button className="secondary-button" onClick={() => setShowImport(true)}><Upload size={14} />商品</button>
-            <Link className="primary-button" href="/published/forge-industrial" target="_blank" rel="noreferrer"><Globe2 size={14} />发布</Link>
+            <Link className="primary-button" href={`/published/${encodeURIComponent(siteId)}?page=${encodeURIComponent(activePage?.id ?? "home")}` as Route} target="_blank" rel="noreferrer"><Globe2 size={14} />发布</Link>
           </div>
         </header>
-        <div className="preview-stage"><div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">{draft.visualBrief.label}.sites.ai</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div></div>
+        <div className="site-page-chrome">
+          <nav className="site-page-nav" aria-label="站点页面" data-testid="site-page-nav">
+            {draft.pagePlan.pages.map((page) => (
+              <button
+                className={activePage?.id === page.id ? "site-page-tab active" : "site-page-tab"}
+                key={page.id}
+                type="button"
+                data-testid="site-page-tab"
+                data-page-id={page.id}
+                data-page-placement={page.placement}
+                onClick={() => selectSitePage(page.id)}
+              >
+                <strong>{page.label[locale]}</strong>
+                <small>{page.placement === "route" ? "独立页" : "页内区块"}</small>
+              </button>
+            ))}
+          </nav>
+          <p className="site-page-source" data-testid="site-page-source">{pagePlanSourceLabel(draft.pagePlan.source)}</p>
+          {draft.pagePlan.unsupported.length ? (
+            <p className="site-page-unsupported" role="status" data-testid="site-page-unsupported">
+              未支持：{draft.pagePlan.unsupported.map((item) => `${item.requested}（${item.reason}）`).join("；")}
+            </p>
+          ) : null}
+        </div>
+        <div className="preview-stage"><div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">{draft.visualBrief.label}.sites.ai{pageUrlSuffix}</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div></div>
       </main>
       {showImport && (
         <div className="modal-backdrop" onClick={() => setShowImport(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
@@ -986,7 +1047,7 @@ export default function WorkspacePage() {
               </div>
               <button className="icon-button" onClick={() => setShowMaterials(false)} aria-label="关闭资料"><X size={15} /></button>
             </div>
-            <p className="modal-copy">资料会经现有对话发给模型，再走 commitOperations。模拟包只用于内部 Demo，事实只能来自资料或「待补充」。当前不能另开独立页面，只能改同一模板上的声明区块。</p>
+            <p className="modal-copy">资料会经现有对话发给模型，再走 commitOperations。模拟包只用于内部 Demo，事实只能来自资料或「待补充」。额外独立 URL 只有当前模板快照里已有对应 HTML 才会开通；否则在同一模板上切换声明区块，并说明做不到的页面。</p>
             <div className="pack-actions">
               {simulatedPackList.map((pack) => (
                 <button

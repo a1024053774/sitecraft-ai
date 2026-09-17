@@ -3,9 +3,13 @@ import {
   cloneDraft,
   editableCardSchema,
   locales,
+  localizedTextSchema,
+  pagePlanSourceSchema,
+  pageRoleSchema,
   productSchema,
   sectionKeySchema,
   sectionKeys,
+  unsupportedSitePageSchema,
   visibilityKeySchema,
   visualBriefCatalog,
   visualBriefIds,
@@ -15,6 +19,7 @@ import {
   type SectionKey,
   type SiteDraft,
 } from "./site-document.ts";
+import { rehostPagePlan, resolvePagePlan } from "./template-pages.ts";
 
 export const textTargets = [
   "siteName",
@@ -96,6 +101,18 @@ const reorderSectionsOperationSchema = z.object({
   op: z.literal("reorder_sections"),
   order: z.array(sectionKeySchema).length(sectionKeys.length),
 });
+const requestedPageSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(),
+  role: pageRoleSchema,
+  label: localizedTextSchema.optional(),
+  requested: z.string().min(1).max(80).optional(),
+});
+const setPagePlanOperationSchema = z.object({
+  op: z.literal("set_page_plan"),
+  source: pagePlanSourceSchema,
+  pages: z.array(requestedPageSchema).max(12),
+  unsupported: z.array(unsupportedSitePageSchema).max(12).optional(),
+});
 const replaceProductsOperationSchema = z.object({
   op: z.literal("replace_products"),
   products: z.array(productSchema).max(1000),
@@ -114,6 +131,7 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   setTemplateOperationSchema,
   setSectionVisibilityOperationSchema,
   reorderSectionsOperationSchema,
+  setPagePlanOperationSchema,
 ]);
 
 export const siteOperationSchema = z.discriminatedUnion("op", [
@@ -125,6 +143,7 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   setTemplateOperationSchema,
   setSectionVisibilityOperationSchema,
   reorderSectionsOperationSchema,
+  setPagePlanOperationSchema,
   replaceProductsOperationSchema,
   replaceDraftOperationSchema,
   setVisualBriefOperationSchema,
@@ -328,9 +347,10 @@ export function applySiteOperations(
     if (operation.op === "set_template") {
       if (!options.templateIds.has(operation.templateId)) throw new Error(`Unknown template ${operation.templateId}`);
       if (draft.templateId === operation.templateId) continue;
-      inverseOperations.unshift({ op: "set_template", templateId: draft.templateId });
+      inverseOperations.unshift({ op: "replace_draft", draft: cloneDraft(draft) });
       draft.templateId = operation.templateId;
-      appliedTargets.push("template");
+      draft.pagePlan = rehostPagePlan(draft.pagePlan, draft.templateId);
+      appliedTargets.push("template", "pagePlan");
       continue;
     }
     if (operation.op === "set_visual_brief") {
@@ -343,7 +363,8 @@ export function applySiteOperations(
       inverseOperations.unshift({ op: "replace_draft", draft: cloneDraft(draft) });
       draft.visualBrief = structuredClone(brief);
       draft.templateId = brief.templateId;
-      appliedTargets.push("visualBrief", "template");
+      draft.pagePlan = rehostPagePlan(draft.pagePlan, draft.templateId);
+      appliedTargets.push("visualBrief", "template", "pagePlan");
       continue;
     }
     if (operation.op === "set_section_visibility") {
@@ -362,6 +383,28 @@ export function applySiteOperations(
       inverseOperations.unshift({ op: "reorder_sections", order: [...draft.sectionOrder] });
       draft.sectionOrder = [...operation.order];
       appliedTargets.push("sections.order");
+      continue;
+    }
+    if (operation.op === "set_page_plan") {
+      const nextPlan = resolvePagePlan({
+        templateId: draft.templateId,
+        source: operation.source,
+        requested: operation.pages,
+        unsupported: operation.unsupported,
+      });
+      if (same(draft.pagePlan, nextPlan)) continue;
+      inverseOperations.unshift({
+        op: "set_page_plan",
+        source: draft.pagePlan.source,
+        pages: draft.pagePlan.pages.map((page) => ({
+          id: page.id,
+          role: page.role,
+          label: page.label,
+        })),
+        unsupported: structuredClone(draft.pagePlan.unsupported),
+      });
+      draft.pagePlan = nextPlan;
+      appliedTargets.push("pagePlan");
       continue;
     }
     if (operation.op === "replace_products") {

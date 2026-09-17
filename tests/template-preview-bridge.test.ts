@@ -9,6 +9,7 @@ import {
   stripHtmlScripts,
 } from "../lib/template-adapters/preview-bridge.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/index.ts";
+import { resolvePagePlan } from "../lib/template-pages.ts";
 import type { TemplateAdapter } from "../lib/template-adapters/types.ts";
 
 type FakeNode = {
@@ -1145,4 +1146,41 @@ test("undeclared hide requests do not rewrite snapshot chrome", () => {
   assert.ok(report.missingSlots.includes("industries.visibility"));
   assert.equal(report.appliedSlots.includes("products.visibility"), false);
   assert.deepEqual(report.fallbackMatched, []);
+});
+
+test("in-template page switching marks the active page and hides other planned sections on the same document", () => {
+  const landwindAdapter = getTemplateAdapter("landwind");
+  assert.ok(landwindAdapter);
+  const fragments = createFamilyFragments();
+  const draft = structuredClone(defaultDraft);
+  draft.templateId = "landwind";
+  draft.pagePlan = resolvePagePlan({
+    templateId: "landwind",
+    source: "user",
+    requested: [
+      { id: "home", role: "home" },
+      { id: "products", role: "products" },
+      { id: "contact", role: "contact" },
+    ],
+  });
+  const api = installOn(fragments.landwind.document, landwindAdapter).api;
+  api.applyDeclaredContent(draft, "zh", [], "workspace", {
+    id: "home",
+    role: "home",
+    placement: "section",
+    section: "hero",
+  });
+  assert.equal(fragments.landwind.document.documentElement.dataset.sitecraftActivePage, "home");
+  assert.equal(fragments.landwind.document.documentElement.dataset.sitecraftPagePlacement, "section");
+  assert.equal(fragments.landwind.inquiry.hidden, false);
+
+  api.applyDeclaredContent(draft, "zh", [], "workspace", {
+    id: "products",
+    role: "products",
+    placement: "section",
+    section: "products",
+  });
+  assert.equal(fragments.landwind.document.documentElement.dataset.sitecraftActivePage, "products");
+  assert.equal(fragments.landwind.inquiry.hidden, true);
+  assert.equal(fragments.landwind.inquiry.getAttribute("data-sitecraft-page-hidden"), "true");
 });

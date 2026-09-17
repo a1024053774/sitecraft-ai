@@ -65,9 +65,9 @@ test("simulated pack tokens stay out of the production system prompt", () => {
   for (const token of COLLIDING_TOKENS) {
     assert.equal(providerSource.includes(token), false, `prompt leaked colliding token ${token}`);
   }
-  assert.match(providerSource, /公司资料/);
-  assert.match(providerSource, /待补充/);
-  assert.match(providerSource, /不能另开独立页面|不能生成额外独立/);
+  assert.match(providerSource, /set_page_plan/);
+  assert.match(providerSource, /默认三项不是上限/);
+  assert.match(providerSource, /不能假装开通|不得把整站静默缩成只有首页/);
 });
 
 test("workspace materials journey stays on chat/commitOperations and isolates site ids", () => {
@@ -76,10 +76,13 @@ test("workspace materials journey stays on chat/commitOperations and isolates si
   assert.equal(parseWorkspaceSiteId("../etc/passwd"), "demo");
   assert.match(workspaceSource, /parseWorkspaceSiteId/);
   assert.match(workspaceSource, /提供公司资料/);
+  assert.match(workspaceSource, /data-testid="site-page-nav"/);
+  assert.match(workspaceSource, /只要首页/);
+  assert.match(workspaceSource, /额外页面/);
   assert.match(workspaceSource, /模拟工业包|pack\.label/);
   assert.match(workspaceSource, /buildMaterialsChatMessage|wrapCompanyMaterials/);
   assert.match(workspaceSource, /\/api\/sites\/\$\{siteId\}\/chat/);
-  assert.match(workspaceSource, /set_visual_brief/);
+  assert.match(workspaceSource, /\/published\/\$\{encodeURIComponent\(siteId\)\}/);
   assert.equal(workspaceSource.includes("sitecraft-frontend-less-ai-tone"), false);
   assert.equal(/\bSkill\b/.test(workspaceSource), false);
 });

@@ -225,7 +225,42 @@ function sitecraftPreviewBridge(templateId, adapter) {
     for (var j = 0; j < leaves.length; j++) hideLeafMatches(new RegExp(leaves[j], "i"));
   }
 
-  function applyDeclaredContent(draft, locale, expectedTargets, variant) {
+  function applyActivePage(draft, activePage) {
+    var current = activePage || {};
+    if (current.placement === "route") return;
+    if (!current.section || current.role === "home" || current.id === "home") return;
+    var specs = adapter && adapter.sections ? adapter.sections : [];
+    var planPages = draft && draft.pagePlan && Array.isArray(draft.pagePlan.pages) ? draft.pagePlan.pages : [];
+    var familyHidden = draft && Array.isArray(draft.hiddenSections) ? draft.hiddenSections : [];
+    for (var i = 0; i < specs.length; i++) {
+      var spec = specs[i];
+      if (!spec || !spec.key) continue;
+      if (familyHidden.indexOf(spec.key) !== -1) continue;
+      var node = visibilityNode(spec);
+      if (!node) continue;
+      var owners = [];
+      for (var p = 0; p < planPages.length; p++) {
+        if (planPages[p] && planPages[p].placement === "section" && planPages[p].section === spec.key) owners.push(planPages[p]);
+      }
+      var belongsToOther = false;
+      for (var o = 0; o < owners.length; o++) {
+        if (owners[o].id !== current.id) belongsToOther = true;
+      }
+      if (belongsToOther) {
+        setSectionHidden(node, spec.key, true);
+        if (node.setAttribute) node.setAttribute("data-sitecraft-page-hidden", "true");
+      }
+    }
+    for (var s = 0; s < specs.length; s++) {
+      if (specs[s] && specs[s].key === current.section) {
+        var target = visibilityNode(specs[s]);
+        if (target && target.scrollIntoView) target.scrollIntoView();
+        break;
+      }
+    }
+  }
+
+  function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage) {
     var applied = new Set();
     var currentLocale = locale || "zh";
     var expected = Array.isArray(expectedTargets) ? expectedTargets.filter(isRequestedTarget) : [];
@@ -234,6 +269,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (document.documentElement.dataset) {
         document.documentElement.dataset.sitecraftTemplate = templateId;
         document.documentElement.dataset.sitecraftVariant = variant || "preview";
+        document.documentElement.dataset.sitecraftActivePage = (activePage && activePage.id) || "";
+        document.documentElement.dataset.sitecraftPagePlacement = (activePage && activePage.placement) || "";
       }
     }
     if (adapter && draft) {
@@ -247,6 +284,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         writeSlot(node, slot, value, currentLocale, applied);
       }
       applySectionVisibility(draft, applied);
+      applyActivePage(draft, activePage);
       if (variant === "published") sanitizePublished();
     }
     return report(applied, expected, adapter);
@@ -257,7 +295,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (event && event.source && event.source !== parent) return;
     if (!data || data.type !== "sitecraft:content" || data.templateId !== templateId) return;
     var run = function () {
-      var reportPayload = applyDeclaredContent(data.draft, data.locale, data.expectedTargets, data.variant);
+      var reportPayload = applyDeclaredContent(data.draft, data.locale, data.expectedTargets, data.variant, data.activePage);
       if (parent && parent.postMessage) {
         parent.postMessage({
           type: "sitecraft:applied",
@@ -334,6 +372,7 @@ export function installPreviewBridge(
       locale: string,
       expectedTargets?: string[],
       variant?: string,
+      activePage?: { id?: string; role?: string; placement?: string; section?: string },
     ) => SlotApplyReport;
   };
 }

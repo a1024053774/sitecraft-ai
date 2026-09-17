@@ -1,4 +1,12 @@
 import { z } from "zod";
+import {
+  defaultPagePlanFor,
+  pagePlanSources,
+  pagePlacements,
+  pageRoles,
+  pageSectionKeys,
+  type PagePlan,
+} from "./template-pages.ts";
 
 export const locales = ["zh", "en"] as const;
 export type Locale = (typeof locales)[number];
@@ -121,6 +129,36 @@ export const visibilityKeys = [
 export const visibilityKeySchema = z.enum(visibilityKeys);
 export type VisibilityKey = z.infer<typeof visibilityKeySchema>;
 
+export const pageRoleSchema = z.enum(pageRoles);
+export const pagePlanSourceSchema = z.enum(pagePlanSources);
+export const pagePlacementSchema = z.enum(pagePlacements);
+export const pageSectionKeySchema = z.enum(pageSectionKeys);
+export type PageSectionKey = z.infer<typeof pageSectionKeySchema>;
+
+export const unsupportedSitePageSchema = z.object({
+  requested: z.string().min(1).max(80),
+  reason: z.string().min(1).max(240),
+});
+export const sitePageSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/),
+  role: pageRoleSchema,
+  label: localizedTextSchema,
+  placement: pagePlacementSchema,
+  section: pageSectionKeySchema.optional(),
+  route: z.string().max(80).optional(),
+  source: pagePlanSourceSchema,
+}).refine((page) => {
+  if (page.placement === "route") return typeof page.route === "string";
+  return Boolean(page.section);
+}, "Section pages need a section; route pages need a snapshot path");
+export const pagePlanSchema = z.object({
+  version: z.literal(1),
+  source: pagePlanSourceSchema,
+  pages: z.array(sitePageSchema).min(1).max(12),
+  unsupported: z.array(unsupportedSitePageSchema).max(12),
+});
+export type { PagePlan, PagePlanSource, PagePlacement, PageRole, SitePage, UnsupportedSitePage } from "./template-pages.ts";
+
 const contentSectionSchema = z.object({
   title: localizedTextSchema,
   intro: localizedTextSchema,
@@ -171,6 +209,7 @@ export const siteDraftSchema = z.object({
   }),
   sectionOrder: z.array(sectionKeySchema).length(sectionKeys.length),
   hiddenSections: z.array(visibilityKeySchema),
+  pagePlan: pagePlanSchema,
   products: z.array(productSchema).max(1000),
   supportConfig: z.object({
     enabled: z.boolean(),
@@ -281,6 +320,7 @@ export const defaultDraft: SiteDraft = {
   },
   sectionOrder: ["about", "features", "services", "products", "contact"],
   hiddenSections: [],
+  pagePlan: defaultPagePlanFor("forge"),
   products: starterProducts,
   supportConfig: { enabled: false, knowledgeSourceIds: [] },
 };
@@ -294,17 +334,26 @@ function hydrateVisualBrief(brief: VisualBrief): VisualBrief {
   return catalog ? { ...catalog, templateId: brief.templateId } : brief;
 }
 
+function pagePlanForLegacy(legacy: Record<string, unknown>): PagePlan {
+  const templateId = typeof legacy.templateId === "string" && legacy.templateId.trim()
+    ? legacy.templateId
+    : "forge";
+  const parsed = pagePlanSchema.safeParse(legacy.pagePlan);
+  return parsed.success ? parsed.data : defaultPagePlanFor(templateId);
+}
+
 export function normalizeDraft(input: unknown): SiteDraft {
   const parsed = siteDraftSchema.safeParse(input);
   if (parsed.success) return { ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) };
 
   const legacy = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
-  // Existing v2 documents predate visualBrief. Add only the missing metadata;
+  // Existing v2 documents predate visualBrief/pagePlan. Add only the missing metadata;
   // never run them through the v1 conversion that reconstructs content.
   if (legacy.schemaVersion === 2) {
     const restored = siteDraftSchema.parse({
       ...legacy,
       ...(!Object.hasOwn(legacy, "visualBrief") ? { visualBrief: structuredClone(defaultDraft.visualBrief) } : {}),
+      ...(!Object.hasOwn(legacy, "pagePlan") ? { pagePlan: pagePlanForLegacy(legacy) } : {}),
     });
     return { ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) };
   }
@@ -315,6 +364,7 @@ export function normalizeDraft(input: unknown): SiteDraft {
   if (typeof legacy.siteName === "string" && legacy.siteName.trim()) candidate.siteName = legacy.siteName;
   if (typeof legacy.companyName === "string" && legacy.companyName.trim()) candidate.companyName = legacy.companyName;
   if (typeof legacy.templateId === "string" && legacy.templateId.trim()) candidate.templateId = legacy.templateId;
+  candidate.pagePlan = defaultPagePlanFor(candidate.templateId);
   const visualBrief = visualBriefSchema.safeParse(legacy.visualBrief);
   if (visualBrief.success) candidate.visualBrief = hydrateVisualBrief(visualBrief.data);
   if (typeof legacy.industry === "string") candidate.industry = legacy.industry;
