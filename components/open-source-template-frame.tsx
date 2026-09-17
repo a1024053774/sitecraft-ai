@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Locale, SiteDraft } from "@/lib/site-model";
 
-type FrameVariant = "thumbnail" | "preview" | "workspace" | "published";
+type FrameVariant = "thumbnail" | "preview" | "workspace" | "published" | "quality";
 
 type OpenSourceTemplateFrameProps = {
   templateId: string;
@@ -53,29 +53,36 @@ export function OpenSourceTemplateFrame({
   onApplyReport,
 }: OpenSourceTemplateFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  const sendContent = useCallback(() => {
+    frameRef.current?.contentWindow?.postMessage(
+      { type: "sitecraft:content", templateId, draft, locale, expectedTargets, variant, activePage },
+      "*",
+    );
+  }, [activePage, draft, expectedTargets, locale, templateId, variant]);
 
   useEffect(() => {
-    const frameWindow = frameRef.current?.contentWindow;
-    if (!frameWindow) return;
-    const payload = { type: "sitecraft:content", templateId, draft, locale, expectedTargets, variant, activePage };
-    frameWindow.postMessage(payload, "*");
-    const retry = window.setTimeout(() => frameWindow.postMessage(payload, "*"), 500);
-    const finalRetry = window.setTimeout(() => frameWindow.postMessage(payload, "*"), 1500);
-    const hydrationRetry = window.setTimeout(() => frameWindow.postMessage(payload, "*"), 3500);
-    const settledRetry = window.setTimeout(() => frameWindow.postMessage(payload, "*"), 6000);
+    setHydrated(false);
+    sendContent();
+    const retry = window.setTimeout(sendContent, 500);
+    const finalRetry = window.setTimeout(sendContent, 1500);
+    const hydrationRetry = window.setTimeout(sendContent, 3500);
+    const settledRetry = window.setTimeout(sendContent, 6000);
     return () => {
       window.clearTimeout(retry);
       window.clearTimeout(finalRetry);
       window.clearTimeout(hydrationRetry);
       window.clearTimeout(settledRetry);
     };
-  }, [activePage, draft, expectedTargets, locale, templateId, variant]);
+  }, [sendContent]);
 
   useEffect(() => {
     const receiveMessage = (event: MessageEvent) => {
       if (event.source !== frameRef.current?.contentWindow) return;
       const data = event.data as {
         type?: string;
+        templateId?: string;
         target?: string;
         revision?: number;
         appliedSlots?: string[];
@@ -83,30 +90,30 @@ export function OpenSourceTemplateFrame({
         fallbackMatched?: string[];
         proposedAlternatives?: Array<{ requested: string; proposed: string }>;
       };
+      if (data?.type === "sitecraft:ready" && data.templateId === templateId) {
+        sendContent();
+        return;
+      }
       if (data?.type === "sitecraft:select" && data.target && onSelectTarget) {
         const target = targetPrompts[data.target];
         if (target) onSelectTarget(data.target, target.label, target.prompt);
       }
-      if (data?.type === "sitecraft:applied" && typeof data.revision === "number" && onApplyReport) {
-        onApplyReport({
-          revision: data.revision,
-          appliedSlots: data.appliedSlots ?? [],
-          missingSlots: data.missingSlots ?? [],
-          fallbackMatched: data.fallbackMatched ?? [],
-          proposedAlternatives: data.proposedAlternatives ?? [],
-        });
+      if (data?.type === "sitecraft:applied" && data.templateId === templateId) {
+        setHydrated(true);
+        if (typeof data.revision === "number" && onApplyReport) {
+          onApplyReport({
+            revision: data.revision,
+            appliedSlots: data.appliedSlots ?? [],
+            missingSlots: data.missingSlots ?? [],
+            fallbackMatched: data.fallbackMatched ?? [],
+            proposedAlternatives: data.proposedAlternatives ?? [],
+          });
+        }
       }
     };
     window.addEventListener("message", receiveMessage);
     return () => window.removeEventListener("message", receiveMessage);
-  }, [onApplyReport, onSelectTarget]);
-
-  const sendContent = () => {
-    frameRef.current?.contentWindow?.postMessage(
-      { type: "sitecraft:content", templateId, draft, locale, expectedTargets, variant, activePage },
-      "*",
-    );
-  };
+  }, [draft?.revision, onApplyReport, onSelectTarget, sendContent, templateId]);
 
   const previewQuery = new URLSearchParams({ v: "20260918-pages" });
   if (pagePath) previewQuery.set("pagePath", pagePath);
@@ -120,6 +127,8 @@ export function OpenSourceTemplateFrame({
       title={`开源模板 ${templateId} 预览`}
       data-page-path={pagePath || "index"}
       data-page-placement={activePage?.placement ?? ""}
+      data-preview-hydrated={hydrated ? "true" : "false"}
+      data-testid="open-source-template-frame"
       loading={variant === "thumbnail" ? "lazy" : "eager"}
       sandbox="allow-scripts allow-forms"
       onLoad={sendContent}

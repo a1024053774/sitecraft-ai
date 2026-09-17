@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { requestPreviewReview, requestStructuredOperations } from "./ai-provider.ts";
 import { defaultDraft } from "./site-document.ts";
@@ -26,6 +27,8 @@ import {
 const resultRoot = path.join(process.cwd(), ".sitecraft-data", "quality", "p4");
 const artifactRoot = path.join(process.cwd(), "artifacts", "p4-quality-comparison");
 const MAX_FIX_ROUNDS = 2;
+export const PREVIEW_HYDRATED_SELECTOR = '[data-preview-hydrated="true"]';
+export const QUALITY_FIRST_SCREEN = { width: 960, height: 420 };
 
 export type QualityStep = { name: string; status: "ok" | "skip" | "fail"; detail: string };
 
@@ -74,48 +77,217 @@ async function commit(siteId: string, baseRevision: number, operations: SiteOper
   return commitOperations({ siteId, baseRevision, operations, summary, source });
 }
 
-export async function capturePublishedPng(origin: string, siteId: string): Promise<{ bytes: Uint8Array | null; file: string | null; error: string }> {
-  const chrome = process.env.QUALITY_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-  await mkdir(artifactRoot, { recursive: true });
-  const file = path.join(artifactRoot, `${siteId}-review.png`);
-  const url = `${origin.replace(/\/$/, "")}/published/${encodeURIComponent(siteId)}`;
-  const args = [
+type CdpResult = { result?: { value?: unknown } };
+
+class CdpSession {
+  private seq = 0;
+  private pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+  private ws: WebSocket;
+
+  constructor(ws: WebSocket) {
+    this.ws = ws;
+    ws.addEventListener("message", (event) => {
+      const payload = JSON.parse(String(event.data)) as {
+        id?: number;
+        result?: unknown;
+        error?: { message?: string };
+      };
+      if (typeof payload.id !== "number") return;
+      const waiter = this.pending.get(payload.id);
+      if (!waiter) return;
+      this.pending.delete(payload.id);
+      if (payload.error) waiter.reject(new Error(payload.error.message || "CDP error"));
+      else waiter.resolve(payload.result);
+    });
+  }
+
+  send<T>(method: string, params?: Record<string, unknown>) {
+    const id = ++this.seq;
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`${method} 超时`));
+      }, 20_000);
+      this.pending.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value as T);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      });
+      this.ws.send(JSON.stringify({ id, method, params }));
+    });
+  }
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function openCdpSocket(url: string) {
+  const ws = new WebSocket(url);
+  await new Promise<void>((resolve, reject) => {
+    ws.addEventListener("open", () => resolve(), { once: true });
+    ws.addEventListener("error", () => reject(new Error("无法连接 Chrome DevTools")), { once: true });
+  });
+  return ws;
+}
+
+async function waitForChromeWs(chrome: string, profile: string) {
+  let stderr = "";
+  let wsUrl = "";
+  const child = spawn(/* turbopackIgnore: true */ chrome, [
     "--headless=new",
     "--disable-gpu",
     "--hide-scrollbars",
     "--no-first-run",
     "--no-default-browser-check",
-    "--window-size=1440,900",
-    `--screenshot=${file}`,
-    "--virtual-time-budget=12000",
-    "--timeout=20000",
-    url,
-  ];
-  const error = await new Promise<string>((resolve) => {
-    const child = spawn(/* turbopackIgnore: true */ chrome, args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stderr = "";
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      resolve("截图超时");
-    }, 25_000);
-    child.stderr.on("data", (chunk) => { stderr += String(chunk); });
-    child.on("error", (err) => {
-      clearTimeout(timer);
-      resolve(err.message);
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      resolve(code === 0 ? "" : stderr.trim() || `chrome 退出码 ${code}`);
-    });
-  });
-  if (error) return { bytes: null, file: null, error };
+    "--remote-debugging-port=0",
+    `--user-data-dir=${profile}`,
+    `--window-size=${QUALITY_FIRST_SCREEN.width},${QUALITY_FIRST_SCREEN.height + 120}`,
+    "about:blank",
+  ], { stdio: ["ignore", "pipe", "pipe"] });
+  const onOutput = (chunk: Buffer) => {
+    const text = String(chunk);
+    stderr += text;
+    const match = /DevTools listening on (ws:\/\/\S+)/.exec(stderr);
+    if (match?.[1]) wsUrl = match[1];
+  };
+  child.stdout.on("data", onOutput);
+  child.stderr.on("data", onOutput);
+  const started = Date.now();
+  while (!wsUrl && Date.now() - started < 15_000) {
+    if (child.exitCode != null) throw new Error(stderr.trim() || `chrome 退出码 ${child.exitCode}`);
+    await sleep(100);
+  }
+  if (!wsUrl) {
+    child.kill("SIGKILL");
+    throw new Error(stderr.trim() || "Chrome 没有给出 DevTools 地址");
+  }
+  return { child, wsUrl, stderr };
+}
+
+async function waitForExpression(cdp: CdpSession, expression: string, timeoutMs: number, label: string) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const evaluated = await cdp.send<CdpResult>("Runtime.evaluate", { expression, returnByValue: true });
+    if (evaluated.result?.value) return;
+    await sleep(250);
+  }
+  throw new Error(label);
+}
+
+function clipFromBox(content: number[] | undefined) {
+  if (!content || content.length < 8) return null;
+  const xs = [content[0], content[2], content[4], content[6]].filter((value): value is number => typeof value === "number");
+  const ys = [content[1], content[3], content[5], content[7]].filter((value): value is number => typeof value === "number");
+  if (xs.length < 4 || ys.length < 4) return null;
+  const x = Math.max(0, Math.min(...xs));
+  const y = Math.max(0, Math.min(...ys));
+  const width = Math.min(QUALITY_FIRST_SCREEN.width, Math.max(...xs) - x);
+  const height = Math.min(QUALITY_FIRST_SCREEN.height, Math.max(...ys) - y);
+  if (width < 320 || height < 200) return null;
+  return { x, y, width, height, scale: 1 };
+}
+
+export async function capturePublishedPng(origin: string, siteId: string): Promise<{ bytes: Uint8Array | null; file: string | null; error: string }> {
+  const chrome = process.env.QUALITY_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  await mkdir(artifactRoot, { recursive: true });
+  const file = path.join(artifactRoot, `${siteId}-review.png`);
+  const url = `${origin.replace(/\/$/, "")}/published/${encodeURIComponent(siteId)}`;
+  const profile = await mkdtemp(path.join(tmpdir(), "sitecraft-quality-"));
+  let child: ReturnType<typeof spawn> | null = null;
+  let ws: WebSocket | null = null;
   try {
-    const bytes = new Uint8Array(await readFile(file));
+    const launched = await waitForChromeWs(chrome, profile);
+    child = launched.child;
+    const parsed = new URL(launched.wsUrl.replace(/^ws:/, "http:"));
+    const list = await waitForExpressionReady(async () => {
+      const response = await fetch(`http://127.0.0.1:${parsed.port}/json/list`);
+      if (!response.ok) return null;
+      const targets = await response.json() as Array<{ type?: string; webSocketDebuggerUrl?: string }>;
+      return targets.find((target) => target.type === "page" && target.webSocketDebuggerUrl)?.webSocketDebuggerUrl ?? null;
+    }, 10_000, "Chrome 没有可用的页面目标");
+    ws = await openCdpSocket(list);
+    const cdp = new CdpSession(ws);
+    await cdp.send("Page.enable");
+    await cdp.send("Runtime.enable");
+    await cdp.send("DOM.enable");
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: QUALITY_FIRST_SCREEN.width,
+      height: QUALITY_FIRST_SCREEN.height + 120,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await cdp.send("Page.navigate", { url });
+    await waitForExpression(
+      cdp,
+      `location.pathname.indexOf("/published/") === 0 && document.readyState === "complete"`,
+      15_000,
+      "发布页没有完成加载",
+    );
+    await waitForExpression(
+      cdp,
+      `Boolean(document.querySelector(${JSON.stringify(PREVIEW_HYDRATED_SELECTOR)}))`,
+      20_000,
+      "预览 iframe 未完成草稿落点，拒绝把未写入槽位的模板壳拿去审查",
+    );
+    await sleep(400);
+    let clip = {
+      x: 0,
+      y: 0,
+      width: QUALITY_FIRST_SCREEN.width,
+      height: QUALITY_FIRST_SCREEN.height,
+      scale: 1,
+    };
+    try {
+      const documentNode = await cdp.send<{ root: { nodeId: number } }>("DOM.getDocument", { depth: 1 });
+      const iframe = await cdp.send<{ nodeId: number }>("DOM.querySelector", {
+        nodeId: documentNode.root.nodeId,
+        selector: "iframe.open-source-template-frame",
+      });
+      if (iframe.nodeId) {
+        const box = await cdp.send<{ model?: { content: number[] } }>("DOM.getBoxModel", { nodeId: iframe.nodeId });
+        const next = clipFromBox(box.model?.content);
+        if (next) clip = next;
+      }
+    } catch {
+      // Fall back to the first-screen viewport clip.
+    }
+    const shot = await cdp.send<{ data: string }>("Page.captureScreenshot", {
+      format: "png",
+      clip,
+      fromSurface: true,
+      captureBeyondViewport: false,
+    });
+    const bytes = new Uint8Array(Buffer.from(shot.data, "base64"));
     inspectPreviewScreenshot(bytes);
+    await writeFile(file, bytes);
     return { bytes, file, error: "" };
   } catch (err) {
     return { bytes: null, file: null, error: err instanceof Error ? err.message : "截图无法作为真实首屏" };
+  } finally {
+    ws?.close();
+    child?.kill("SIGKILL");
+    await rm(profile, { recursive: true, force: true }).catch(() => undefined);
   }
+}
+
+async function waitForExpressionReady<T>(read: () => Promise<T | null>, timeoutMs: number, label: string) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    try {
+      const value = await read();
+      if (value) return value;
+    } catch {
+      // Chrome JSON endpoint is not up yet.
+    }
+    await sleep(150);
+  }
+  throw new Error(label);
 }
 
 export async function runQualityCell(args: {

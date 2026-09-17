@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { FRONTEND_TONE_RULES_VERSION } from "../lib/frontend-tone.ts";
 import {
@@ -31,8 +31,12 @@ const runSource = readFileSync(new URL("../lib/quality-run.ts", import.meta.url)
 const matrixSource = readFileSync(new URL("../lib/quality-matrix.ts", import.meta.url), "utf8");
 const pageSource = readFileSync(new URL("../app/quality/page.tsx", import.meta.url), "utf8");
 const clientSource = readFileSync(new URL("../app/quality/quality-client.tsx", import.meta.url), "utf8");
+const frameSource = readFileSync(new URL("../components/open-source-template-frame.tsx", import.meta.url), "utf8");
+const publishedPageSource = readFileSync(new URL("../app/published/[siteKey]/page.tsx", import.meta.url), "utf8");
+const publishedClientUrl = new URL("../app/published/[siteKey]/published-client.tsx", import.meta.url);
 const workspaceSource = readFileSync(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
 const p3Source = readFileSync(new URL("../lib/simulated-packs.ts", import.meta.url), "utf8");
+const nextConfigSource = readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
 
 const P3_TOKENS = ["P3I-NX7Q", "P3E-MW4R", "忻州重载减速机P3I", "外高桥流体接头P3E"];
 const COLLIDING_TOKENS = ["汉川精密阀业A17", "北湾流体接头B84", "澄海传动件K07", "甬江密封件M52"];
@@ -176,4 +180,29 @@ test("quality runner stays on commitOperations and the comparison page is the sc
   assert.equal(/\bSkill\b/.test(clientSource), false);
   assert.match(workspaceSource, /\/quality/);
   assert.equal(QUALITY_SUPPLEMENTARY.longTitle.length > 40, true);
+});
+
+test("quality and published first screens wait for iframe apply instead of capturing an empty client shell", () => {
+  assert.equal(existsSync(publishedClientUrl), true, "published page must SSR draft into a client frame");
+  const publishedClientSource = readFileSync(publishedClientUrl, "utf8");
+  assert.match(frameSource, /sitecraft:ready/);
+  assert.match(frameSource, /data-preview-hydrated/);
+  assert.match(frameSource, /quality/);
+  assert.match(clientSource, /variant="quality"/);
+  assert.equal(clientSource.includes('variant="thumbnail"'), false);
+  assert.match(clientSource, /quality-preview-cell/);
+  assert.match(clientSource, /\/published\/\$\{/);
+  assert.equal(publishedPageSource.includes("\"use client\""), false);
+  assert.match(publishedPageSource, /getSite/);
+  assert.match(publishedPageSource, /initialDraft/);
+  assert.match(publishedPageSource, /force-dynamic/);
+  assert.match(publishedClientSource, /data-preview-hydrated/);
+  assert.match(publishedClientSource, /OpenSourceTemplateFrame/);
+  assert.equal(publishedClientSource.includes("setDraft(null)"), false);
+  assert.match(runSource, /PREVIEW_HYDRATED_SELECTOR/);
+  assert.match(runSource, /\[data-preview-hydrated="true"\]/);
+  assert.equal(runSource.includes("virtual-time-budget"), false);
+  assert.equal(runSource.includes("Page.captureScreenshot"), true);
+  assert.match(nextConfigSource, /allowedDevOrigins/);
+  assert.match(nextConfigSource, /127\.0\.0\.1/);
 });

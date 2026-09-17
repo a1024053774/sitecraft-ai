@@ -97,6 +97,7 @@ export function QualityComparisonClient({
   const [scores, setScores] = useState<ScoreMap>({});
   const [note, setNote] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [hydrated, setHydrated] = useState<Record<string, boolean>>({});
 
   const reload = useCallback(async () => {
     const response = await fetch("/api/quality/cells", { cache: "no-store" });
@@ -116,7 +117,16 @@ export function QualityComparisonClient({
   }, [reload]);
 
   const togglePreview = (siteId: string) => {
-    setExpanded((current) => ({ ...current, [siteId]: !current[siteId] }));
+    setExpanded((current) => {
+      const nextOpen = !current[siteId];
+      if (!nextOpen) {
+        setHydrated((status) => ({ ...status, [siteId]: false }));
+      }
+      return { ...current, [siteId]: nextOpen };
+    });
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-site-id="${CSS.escape(siteId)}"]`)?.scrollIntoView({ block: "nearest" });
+    });
   };
 
   const runCell = async (packId: QualityPackId, group: QualityGroupId, reviewOnly = false) => {
@@ -242,15 +252,33 @@ export function QualityComparisonClient({
                       key={presented.cellId}
                       data-testid="quality-cell"
                       data-cell-id={presented.cellId}
+                      data-site-id={presented.siteId}
                       data-group={presented.groupHidden ? "hidden" : presented.group}
                     >
                       <header>
                         <strong data-testid="quality-cell-label">{presented.displayLabel}</strong>
                         {presented.groupHidden ? null : <span data-testid="quality-cell-group">{view?.draft.visualBrief.label} / {view?.draft.templateId}</span>}
                       </header>
-                      <div className="quality-preview">
+                      <div
+                        className={`quality-preview${expanded[presented.siteId] ? " is-open" : ""}`}
+                        data-testid="quality-preview"
+                        data-preview-hydrated={hydrated[presented.siteId] ? "true" : "false"}
+                      >
                         {expanded[presented.siteId] && draft ? (
-                          <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale="zh" variant="thumbnail" />
+                          <>
+                            {hydrated[presented.siteId] ? null : (
+                              <div className="quality-empty quality-preview-pending">正在载入首屏…</div>
+                            )}
+                            <OpenSourceTemplateFrame
+                              templateId={draft.templateId}
+                              draft={draft}
+                              locale="zh"
+                              variant="quality"
+                              onApplyReport={() => {
+                                setHydrated((status) => ({ ...status, [presented.siteId]: true }));
+                              }}
+                            />
+                          </>
                         ) : (
                           <div className="quality-empty">{view?.draft.nonceVisible ? "点预览查看模板首屏" : "尚未生成"}</div>
                         )}
@@ -270,6 +298,7 @@ export function QualityComparisonClient({
                           <button className="secondary-button" type="button" disabled={Boolean(busyId)} onClick={() => { void runCell(presented.packId, presented.group, true); }}>审查修复</button>
                         ) : null}
                         <Link className="section-link" href={`/workspace?site=${encodeURIComponent(presented.siteId)}` as Route}>工作台</Link>
+                        <Link className="section-link" href={`/published/${encodeURIComponent(presented.siteId)}` as Route} target="_blank" rel="noreferrer">发布页</Link>
                       </div>
                       <div className="quality-scores" data-testid="quality-score">
                         {QUALITY_SCORE_DIMENSIONS.map((dimension) => (

@@ -133,14 +133,14 @@ Round 14 / Q22 记下，本轮规划一并入库。
 | 包 | nonce | A 默认 | B 审美锁样子 | C 资料样子+区块 | D C+审查有限修 |
 | --- | --- | --- | --- | --- | --- |
 | 工业制造 | `P4M-K8VT` | live，forge / 明亮产品 | live，tailwind-landing / 灰底短路径 | live，screwfast / 工程工业 | live，screwfast；修 1 轮 |
-| 外贸目录 | `P4X-R3LW` | live，forge / 明亮产品 | live，tailwind-landing / 灰底短路径 | live，landwind / 蓝白目录 | live，landwind；视觉审查 UNVERIFIED（token 上限），未假装绿 |
+| 外贸目录 | `P4X-R3LW` | live，forge / 明亮产品 | live，tailwind-landing / 灰底短路径 | live，landwind / 蓝白目录 | live，landwind；用缩小后的真实首屏重试视觉审查已通过；C↔D `unchanged`，未换样子 |
 | 专业服务 | `P4S-Q7HN` | live，forge / 明亮产品 | live，tailwind-landing / 灰底短路径 | live，fresh / 深色产品 | live，fresh；C↔D 文案有限变化 |
 
 B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不是给 prompt 换标签。A↔B、B↔C 的样子指纹是 `look-differed`。C↔D 是 `copy-only` 或 `unchanged`，不能把 D 当成又换了一套样子。外贸/服务的 A 相对默认草稿是 `copy-only`（仍落默认明亮产品/forge）。补充证据：同一工业草稿切明亮产品/工程工业为 `look-differed`；超长标题 46 字。12 组资料都没有产品图。
 
-点测：`http://127.0.0.1:3034/quality` 首屏 HTML 已含 12 格、记号和模板差；`?blind=1&seed=19` 标签变成「样本 1–4」、分组隐藏。工作台 Look board 有「12组对照」入口。生成当时 D 组审查图在 `artifacts/p4-quality-comparison/p4{m,x,s}-d-review.png`（工业仍可见 ScrewFast 未声明英文壳，服务可见「工厂现场计量校准」）。事后再截 `/published/:id` 常是客户端读草稿前的空壳，不能拿空图冒充 12 张首屏都过了。
+点测：`http://127.0.0.1:3034/quality` 点击 12 格「预览」后 iframe 均完成草稿落点，声明首屏可见对应包记号或主标题；未声明壳（ScrewFast Logo、Get Figma file、Discover、合作 Logo 等）保持原样，没有猜写。`?blind=1&seed=19` 标签为「样本 1–4」，分组隐藏，评分下拉可点。工作台 Look board 有「12组对照」入口。`/published/:id` 改为服务端带入草稿，不再先渲染空壳；12 张首屏在 hydration 后再截，截图在 gitignore 的 `artifacts/p4-quality-comparison/`。开发机 `127.0.0.1` 需 `allowedDevOrigins`，否则 Next 会 403 掉 client chunk，预览按钮点了也不载 iframe。外贸 D 组缩小真实首屏后视觉审查已通过；C↔D 仍是 `copy-only` / `unchanged`。
 
-本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。`npm test` 133 通过。`tsc` / `next build` 仍需临时排除 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6`，未把该 exclude 写进已提交 `tsconfig.json`。
+本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。`npm test` 134 通过。`tsc` / `next build` 仍需临时排除 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6`，未把该 exclude 写进已提交 `tsconfig.json`。
 
 还没有：90 天清理和表单收件（P5）。不要据此宣称 Demo 已验收。
 
