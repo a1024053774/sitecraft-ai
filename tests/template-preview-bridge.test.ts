@@ -139,6 +139,9 @@ function createNode(tagName: string): FakeNode {
   node.setAttribute = (name, value) => {
     node.attributes!.set(name, String(value));
   };
+  (node as FakeNode & { removeAttribute: (name: string) => void }).removeAttribute = (name) => {
+    node.attributes!.delete(name);
+  };
   node.appendChild = (child) => {
     child.parentNode = node as FakeNode;
     node.childNodes!.push(child);
@@ -251,8 +254,29 @@ function matchSimple(node: FakeNode, simple: string) {
 
 function parseChain(selector: string) {
   const chain: Array<{ combinator: "desc" | "child"; simple: string }> = [];
-  const source = selector.trim().replace(/\s*>\s*/g, " > ").replace(/\s+/g, " ");
-  const parts = source.split(" ");
+  const source = selector.trim().replace(/\s*>\s*/g, " > ");
+  const parts: string[] = [];
+  let current = "";
+  let quote = "";
+  for (const char of source) {
+    if (quote) {
+      current += char;
+      if (char === quote) quote = "";
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === " ") {
+      if (current) parts.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (current) parts.push(current);
   let combinator: "desc" | "child" = "desc";
   for (const part of parts) {
     if (part === ">") {
@@ -745,4 +769,224 @@ test("the same authored pack lands on forge and landwind with different chrome",
   assert.equal(landwind.nodes.brand.textContent, THEME_COMPARE_PACKS.B84.companyName);
   assert.equal(forge.nodes.logo.textContent, "LOGO");
   assert.equal(landwind.nodes.undeclared.textContent, "Work with tools you already use");
+});
+
+function visibilityDraft(hiddenSections: string[] = []) {
+  const draft = sentinelDraft() as ReturnType<typeof sentinelDraft> & { hiddenSections: string[]; templateId: string };
+  draft.hiddenSections = hiddenSections;
+  draft.templateId = "forge";
+  return draft;
+}
+
+function createFamilyFragments() {
+  const forge = createForgeFragment();
+  const faq = createNode("div");
+  faq.id = "FAQ";
+  faq.textContent = "Frequently Asked Questions";
+  const services = createNode("section");
+  services.className = "mx-auto mt-60 flex max-w-[80%] border-y-8 border-blue-400";
+  services.textContent = "Services";
+  const why = createNode("section");
+  const whyInner = createNode("div");
+  whyInner.className = "flex h-full bg-black bg-opacity-30";
+  whyInner.textContent = "Suggest Confidence In Your Company";
+  why.appendChild(whyInner);
+  forge.document.body.appendChild(faq);
+  forge.document.body.appendChild(services);
+  forge.document.body.appendChild(why);
+
+  const landwind = createLandwindFragment();
+  const solutions = createNode("section");
+  const tools = createNode("h2");
+  tools.textContent = "Work with tools you already use";
+  const featureImg = createNode("img");
+  featureImg.setAttribute("alt", "dashboard feature image");
+  solutions.appendChild(tools);
+  solutions.appendChild(featureImg);
+  const partners = createNode("section");
+  const trusted = createNode("h2");
+  trusted.className = "mt-3 mb-4 text-3xl font-extrabold";
+  trusted.textContent = "Trusted by over 600 million users and 10,000 teams";
+  partners.appendChild(trusted);
+  const faqSection = createNode("section");
+  const accordion = createNode("div");
+  accordion.id = "accordion-flush";
+  accordion.textContent = "Frequently asked questions";
+  faqSection.appendChild(accordion);
+  const inquiry = createNode("section");
+  const trial = createNode("h2");
+  trial.className = "mb-4 text-3xl font-extrabold leading-tight";
+  trial.textContent = "Start your free trial today";
+  inquiry.appendChild(trial);
+  const pricing = createNode("h2");
+  pricing.textContent = "Designed for business teams like yours";
+  landwind.document.body.appendChild(solutions);
+  landwind.document.body.appendChild(partners);
+  landwind.document.body.appendChild(faqSection);
+  landwind.document.body.appendChild(inquiry);
+  landwind.document.body.appendChild(pricing);
+
+  const screwfast = createDocument();
+  const navContact = createNode("a");
+  navContact.id = "contact";
+  navContact.textContent = "Contact";
+  const partnersSection = createNode("section");
+  const partnerHeading = createNode("h2");
+  partnerHeading.className = "text-2xl leading-tight font-bold";
+  partnerHeading.textContent = "Trusted by Industry Leaders";
+  partnersSection.appendChild(partnerHeading);
+  const featuresSection = createNode("section");
+  const featureImgSf = createNode("img");
+  featureImgSf.setAttribute("alt", "ScrewFast products in floating boxes");
+  featuresSection.appendChild(featureImgSf);
+  const solutionsSection = createNode("section");
+  const tab = createNode("button");
+  tab.id = "tabs-with-card-item-1";
+  tab.textContent = "Cutting-Edge Tools";
+  solutionsSection.appendChild(tab);
+  const processSection = createNode("section");
+  const processHeading = createNode("h2");
+  processHeading.className = "mb-2 text-3xl font-bold";
+  processHeading.textContent = "Fast-Track Your Projects";
+  processSection.appendChild(processHeading);
+  const faqSf = createNode("section");
+  const accordionSf = createNode("div");
+  accordionSf.className = "hs-accordion-group divide-y";
+  accordionSf.textContent = "Frequently asked questions";
+  faqSf.appendChild(accordionSf);
+  const cta = createNode("section");
+  cta.className = "relative mx-auto pt-10 pb-24";
+  cta.textContent = "Let's Build Together";
+  screwfast.document.body.appendChild(navContact);
+  screwfast.document.body.appendChild(partnersSection);
+  screwfast.document.body.appendChild(featuresSection);
+  screwfast.document.body.appendChild(solutionsSection);
+  screwfast.document.body.appendChild(processSection);
+  screwfast.document.body.appendChild(faqSf);
+  screwfast.document.body.appendChild(cta);
+
+  return {
+    forge: { ...forge, faq, services, why, whyInner },
+    landwind: { ...landwind, solutions, partners, faqSection, inquiry, pricing, trusted },
+    screwfast: {
+      document: screwfast.document,
+      navContact,
+      partnersSection,
+      featuresSection,
+      solutionsSection,
+      processSection,
+      faqSf,
+      cta,
+    },
+  };
+}
+
+test("declared family modules hide and show after set_section_visibility and undeclared chrome stays", () => {
+  const forgeAdapter = getTemplateAdapter("forge");
+  const landwindAdapter = getTemplateAdapter("landwind");
+  const screwfastAdapter = getTemplateAdapter("screwfast");
+  assert.ok(forgeAdapter && landwindAdapter && screwfastAdapter);
+  const fragments = createFamilyFragments();
+  const options = { templateIds: new Set(["forge", "screwfast", "landwind"]), lastChange: "family-modules" };
+  const hidden = applySiteOperations(structuredClone(defaultDraft), [
+    { op: "set_section_visibility", section: "faq", visible: false },
+    { op: "set_section_visibility", section: "services", visible: false },
+    { op: "set_section_visibility", section: "features", visible: false },
+    { op: "set_section_visibility", section: "partners", visible: false },
+    { op: "set_section_visibility", section: "solutions", visible: false },
+    { op: "set_section_visibility", section: "contact", visible: false },
+    { op: "set_section_visibility", section: "process", visible: false },
+    { op: "set_section_visibility", section: "industries", visible: false },
+  ], options).draft;
+
+  const forgeApi = installOn(fragments.forge.document, forgeAdapter).api;
+  const landwindApi = installOn(fragments.landwind.document, landwindAdapter).api;
+  const screwfastApi = installOn(fragments.screwfast.document, screwfastAdapter).api;
+  const expected = [
+    "faq.visibility",
+    "services.visibility",
+    "features.visibility",
+    "partners.visibility",
+    "solutions.visibility",
+    "contact.visibility",
+    "process.visibility",
+    "industries.visibility",
+    "products.visibility",
+  ];
+
+  const forgeReport = forgeApi.applyDeclaredContent(hidden, "zh", expected, "workspace");
+  assert.equal(fragments.forge.faq.hidden, true);
+  assert.equal(fragments.forge.services.hidden, true);
+  assert.equal(fragments.forge.why.hidden, true);
+  assert.equal(fragments.forge.nodes.logo.textContent, "LOGO");
+  assert.equal(fragments.forge.nodes.logo.hidden, false);
+  assert.ok(forgeReport.appliedSlots.includes("faq.visibility"));
+  assert.ok(forgeReport.appliedSlots.includes("services.visibility"));
+  assert.ok(forgeReport.appliedSlots.includes("features.visibility"));
+  assert.ok(forgeReport.missingSlots.includes("industries.visibility"));
+  assert.ok(forgeReport.missingSlots.includes("products.visibility"));
+  assert.ok(forgeReport.missingSlots.includes("contact.visibility"));
+  assert.deepEqual(forgeReport.fallbackMatched, []);
+
+  const landwindReport = landwindApi.applyDeclaredContent(hidden, "zh", expected, "workspace");
+  assert.equal(fragments.landwind.faqSection.hidden, true);
+  assert.equal(fragments.landwind.solutions.hidden, true);
+  assert.equal(fragments.landwind.partners.hidden, true);
+  assert.equal(fragments.landwind.inquiry.hidden, true);
+  assert.equal(fragments.landwind.pricing.hidden, false);
+  assert.equal(fragments.landwind.pricing.textContent, "Designed for business teams like yours");
+  assert.equal(fragments.landwind.nodes.undeclared.textContent, "Work with tools you already use");
+  assert.ok(landwindReport.appliedSlots.includes("faq.visibility"));
+  assert.ok(landwindReport.missingSlots.includes("features.visibility"));
+  assert.ok(landwindReport.missingSlots.includes("industries.visibility"));
+  assert.deepEqual(landwindReport.fallbackMatched, []);
+
+  const screwfastReport = screwfastApi.applyDeclaredContent(hidden, "zh", expected, "workspace");
+  assert.equal(fragments.screwfast.faqSf.hidden, true);
+  assert.equal(fragments.screwfast.partnersSection.hidden, true);
+  assert.equal(fragments.screwfast.featuresSection.hidden, true);
+  assert.equal(fragments.screwfast.solutionsSection.hidden, true);
+  assert.equal(fragments.screwfast.processSection.hidden, true);
+  assert.equal(fragments.screwfast.cta.hidden, true);
+  assert.equal(fragments.screwfast.navContact.hidden, false);
+  assert.equal(fragments.screwfast.navContact.textContent, "Contact");
+  assert.ok(screwfastReport.appliedSlots.includes("process.visibility"));
+  assert.ok(screwfastReport.missingSlots.includes("services.visibility"));
+  assert.ok(screwfastReport.missingSlots.includes("industries.visibility"));
+  assert.ok(screwfastReport.missingSlots.includes("products.visibility"));
+
+  const shown = applySiteOperations(hidden, [{ op: "set_section_visibility", section: "faq", visible: true }], options).draft;
+  forgeApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
+  landwindApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
+  screwfastApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
+  assert.equal(fragments.forge.faq.hidden, false);
+  assert.equal(fragments.landwind.faqSection.hidden, false);
+  assert.equal(fragments.screwfast.faqSf.hidden, false);
+  assert.equal(fragments.landwind.pricing.hidden, false);
+  assert.equal(fragments.screwfast.navContact.hidden, false);
+});
+
+test("undeclared hide requests do not rewrite snapshot chrome", () => {
+  const landwindAdapter = getTemplateAdapter("landwind");
+  assert.ok(landwindAdapter);
+  const { document, nodes } = createLandwindFragment();
+  const pricing = createNode("h2");
+  pricing.textContent = "Designed for business teams like yours";
+  document.body.appendChild(pricing);
+  const draft = visibilityDraft(["products", "about", "industries"]);
+  const report = installOn(document, landwindAdapter).api.applyDeclaredContent(draft, "zh", [
+    "products.visibility",
+    "about.visibility",
+    "industries.visibility",
+    "hero.title.zh",
+  ], "workspace");
+  assert.equal(nodes.undeclared.textContent, "Work with tools you already use");
+  assert.equal(nodes.title.textContent, "NEW_HERO_ZH");
+  assert.equal(pricing.hidden, false);
+  assert.equal(pricing.textContent, "Designed for business teams like yours");
+  assert.ok(report.missingSlots.includes("products.visibility"));
+  assert.ok(report.missingSlots.includes("about.visibility"));
+  assert.ok(report.missingSlots.includes("industries.visibility"));
+  assert.equal(report.appliedSlots.includes("products.visibility"), false);
+  assert.deepEqual(report.fallbackMatched, []);
 });

@@ -104,6 +104,23 @@ export const sectionKeys = [
 export const sectionKeySchema = z.enum(sectionKeys);
 export type SectionKey = z.infer<typeof sectionKeySchema>;
 
+/** Plan v0.6 KonsTuck / Lozitick lists. Visibility-only keys may sit outside sectionOrder. */
+export const familyModuleInventory = {
+  konstuck: ["products", "services", "features", "faq", "contact"],
+  lozitick: ["solutions", "process", "partners", "industries", "faq"],
+} as const;
+
+export const visibilityKeys = [
+  ...sectionKeys,
+  "faq",
+  "partners",
+  "process",
+  "solutions",
+  "industries",
+] as const;
+export const visibilityKeySchema = z.enum(visibilityKeys);
+export type VisibilityKey = z.infer<typeof visibilityKeySchema>;
+
 const contentSectionSchema = z.object({
   title: localizedTextSchema,
   intro: localizedTextSchema,
@@ -153,7 +170,7 @@ export const siteDraftSchema = z.object({
     }),
   }),
   sectionOrder: z.array(sectionKeySchema).length(sectionKeys.length),
-  hiddenSections: z.array(sectionKeySchema),
+  hiddenSections: z.array(visibilityKeySchema),
   products: z.array(productSchema).max(1000),
   supportConfig: z.object({
     enabled: z.boolean(),

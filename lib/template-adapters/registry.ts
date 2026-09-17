@@ -36,9 +36,13 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       textSlot("services.items.2.title", "main > section.max-w-\\[80\\%\\] > div:nth-of-type(3) > p.mb-4"),
       textSlot("services.items.2.body", "main > section.max-w-\\[80\\%\\] > div:nth-of-type(3) > p.text-lg"),
     ],
+    sections: [
+      { key: "services", selector: "section.border-y-8.border-blue-400" },
+      { key: "features", selector: "div.bg-opacity-30", root: "section" },
+      { key: "faq", selector: "#FAQ" },
+    ],
     alternatives: { ...contactToEmail },
     sanitize: {
-      sections: ["Frequently Asked Questions", "Suggest Confidence"],
       leafPatterns: [
         "A List If Needed",
         "part [1-4]",
@@ -136,14 +140,17 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       textSlot("features.items.3.title", "section.py-10 .lg\\:col-span-2 > .grid.sm\\:grid-cols-2 > div:nth-of-type(4) h3"),
       textSlot("features.items.3.body", "section.py-10 .lg\\:col-span-2 > .grid.sm\\:grid-cols-2 > div:nth-of-type(4) p"),
     ],
+    sections: [
+      { key: "partners", selector: "h2.leading-tight.text-2xl", root: "section" },
+      { key: "features", selector: 'img[alt="ScrewFast products in floating boxes"]', root: "section" },
+      { key: "solutions", selector: "#tabs-with-card-item-1", root: "section" },
+      { key: "process", selector: "h2.mb-2.text-3xl", root: "section" },
+      { key: "faq", selector: "div.hs-accordion-group", root: "section" },
+      { key: "contact", selector: "section.pt-10.pb-24" },
+    ],
     alternatives: { ...contactToHeroCta },
     sanitize: {
-      sections: [
-        "Trusted by Industry Leaders",
-        "Simple, Transparent Pricing",
-        "Frequently Asked Questions",
-        "Let's Build Together",
-      ],
+      sections: ["Simple, Transparent Pricing"],
       leafPatterns: ["Explore ScrewFast on GitHub", "Contact Sales Team", "7K[+]", "Crafted by"],
     },
   },
@@ -175,13 +182,14 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       textSlot("hero.subtitle", "p.max-w-2xl.mb-6.font-light"),
       textSlot("hero.cta", "a.text-center.text-gray-900.border.border-gray-200"),
     ],
+    sections: [
+      { key: "solutions", selector: 'img[alt="dashboard feature image"]', root: "section" },
+      { key: "partners", selector: "h2.mt-3.mb-4", root: "section" },
+      { key: "faq", selector: "#accordion-flush", root: "section" },
+      { key: "contact", selector: "h2.leading-tight", root: "section" },
+    ],
     alternatives: { ...contactToHeroCta },
     sanitize: {
-      sections: [
-        "Trusted by over 600 million users and 10,000 teams",
-        "Frequently asked questions",
-        "Start your free trial today",
-      ],
       leafPatterns: ["Get Figma file", "Star themesberg/landwind"],
     },
   },
@@ -214,6 +222,10 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
 
 export function getTemplateAdapter(templateId: string) {
   return templateAdapters[templateId];
+}
+
+export function declaredFamilySections(templateId: string) {
+  return getTemplateAdapter(templateId)?.sections ?? [];
 }
 
 function stripLocaleSuffix(target: string) {

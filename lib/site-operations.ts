@@ -6,6 +6,7 @@ import {
   productSchema,
   sectionKeySchema,
   sectionKeys,
+  visibilityKeySchema,
   visualBriefCatalog,
   visualBriefIds,
   type EditableCard,
@@ -88,7 +89,7 @@ const setVisualBriefOperationSchema = z.object({
 });
 const setSectionVisibilityOperationSchema = z.object({
   op: z.literal("set_section_visibility"),
-  section: sectionKeySchema,
+  section: visibilityKeySchema,
   visible: z.boolean(),
 });
 const reorderSectionsOperationSchema = z.object({

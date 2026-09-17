@@ -102,7 +102,7 @@ export function OpenSourceTemplateFrame({
     <iframe
       ref={frameRef}
       className={`open-source-template-frame open-source-template-frame-${variant}`}
-      src={`/api/templates/${encodeURIComponent(templateId)}/preview?v=20260916-declared`}
+      src={`/api/templates/${encodeURIComponent(templateId)}/preview?v=20260917-family`}
       title={`开源模板 ${templateId} 预览`}
       loading={variant === "thumbnail" ? "lazy" : "eager"}
       sandbox="allow-scripts allow-forms"

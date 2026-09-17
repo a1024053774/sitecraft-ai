@@ -1,4 +1,6 @@
 import { getTemplate, templates, type SiteDraft } from "@/lib/site-model";
+import { familyModuleInventory, visibilityKeys } from "@/lib/site-document";
+import { declaredFamilySections } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
 import {
   aiIntentResponseSchema,
@@ -76,7 +78,8 @@ function operationInstructions() {
 3. add_card: {"op":"add_card","section":"features|services","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
 4. remove_card: {"op":"remove_card","section":"features|services","itemId":"现有id"}
 5. update_product: {"op":"update_product","sku":"现有SKU","locale":"zh|en","name":"可选","summary":"可选","category":"可选"}
-6. set_section_visibility: {"op":"set_section_visibility","section":"about|features|services|products|contact","visible":true|false}
+6. set_section_visibility: {"op":"set_section_visibility","section":"${visibilityKeys.join("|")}","visible":true|false}
+   同一视觉族里显隐已有区块，不是拼装新页面。KonsTuck 清单：项目=products、服务=services、为什么选我们=features、FAQ=faq、询盘=contact。Lozitick 清单：方案=solutions、询盘→提货→分拣→运输=process、伙伴=partners、行业=industries、FAQ=faq。只对当前模板已声明且唯一命中的区块生效；未声明、命中多个或导航页脚等壳层保持原样并记为 missing。禁止按标题正则、元素顺序或通用卡片形状猜藏。
 7. reorder_sections: {"op":"reorder_sections","order":["about","features","services","products","contact"]}，必须包含全部五项且不重复
 8. set_template: {"op":"set_template","templateId":"白名单ID"}，只有用户明确要求换模板时才允许。
 answer 与 clarify 不得包含 operations。`;
@@ -197,12 +200,14 @@ export async function requestStructuredOperations(args: {
   }
   const template = getTemplate(args.templateId);
   const profile = template.promptProfile;
+  const declaredSections = declaredFamilySections(args.templateId).map((section) => section.key);
   const templateContext = [
     `当前开源模板：${template.name}（${template.source.name}，${template.source.framework}）`,
     `模板角色：${profile.role}`,
     `原版结构：${profile.structure.join(" -> ")}`,
     `视觉规则：${profile.visualRules.join("；")}`,
     `可编辑目标：${profile.targets.map((target) => `${target.key}=${target.guidance}`).join("；")}`,
+    `同族可显隐区块：${declaredSections.length ? declaredSections.join(", ") : "无"}。KonsTuck=${familyModuleInventory.konstuck.join(",")}；Lozitick=${familyModuleInventory.lozitick.join(",")}。未列出的区块不要 set_section_visibility。`,
     `约束：${profile.guardrails.join("；")}`,
   ].join("\n");
   const templateIds = new Set(templates.map((item) => item.id));

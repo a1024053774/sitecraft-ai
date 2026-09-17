@@ -3,11 +3,12 @@ export type {
   TemplateAdapter,
   TemplatePreviewRuntime,
   TemplateSanitizeRules,
+  TemplateSection,
   TemplateSlot,
   TemplateSlotAlternative,
   TemplateSlotAttr,
 } from "./types.ts";
-export { adapterCoverage, getTemplateAdapter, reportDeclaredCoverage, templateAdapters } from "./registry.ts";
+export { adapterCoverage, declaredFamilySections, getTemplateAdapter, reportDeclaredCoverage, templateAdapters } from "./registry.ts";
 export {
   PREVIEW_BRIDGE_NONCE,
   PREVIEW_BRIDGE_SOURCE,

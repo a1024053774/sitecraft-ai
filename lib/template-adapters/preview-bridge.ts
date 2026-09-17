@@ -154,6 +154,45 @@ function sitecraftPreviewBridge(templateId, adapter) {
     };
   }
 
+  function visibilityNode(spec) {
+    var node = uniqueNode(spec && spec.selector);
+    if (!node) return null;
+    if (spec.root === "section") {
+      return node.closest ? node.closest("section") : null;
+    }
+    return node;
+  }
+
+  function setSectionHidden(node, key, hidden) {
+    node.hidden = hidden;
+    if (node.style && node.style.setProperty) {
+      if (hidden) node.style.setProperty("display", "none", "important");
+      else if (node.style.removeProperty) node.style.removeProperty("display");
+      else node.style.setProperty("display", "");
+    }
+    if (node.setAttribute) node.setAttribute("data-sitecraft-section", key);
+    if (hidden) {
+      if (node.setAttribute) node.setAttribute("data-sitecraft-section-hidden", "true");
+    } else if (node.removeAttribute) {
+      node.removeAttribute("data-sitecraft-section-hidden");
+    } else if (node.setAttribute) {
+      node.setAttribute("data-sitecraft-section-hidden", "false");
+    }
+  }
+
+  function applySectionVisibility(draft, applied) {
+    var specs = adapter && adapter.sections ? adapter.sections : [];
+    var hidden = draft && Array.isArray(draft.hiddenSections) ? draft.hiddenSections : [];
+    for (var i = 0; i < specs.length; i++) {
+      var spec = specs[i];
+      if (!spec || !spec.key || !spec.selector) continue;
+      var node = visibilityNode(spec);
+      if (!node) continue;
+      setSectionHidden(node, spec.key, hidden.indexOf(spec.key) !== -1);
+      applied.add(spec.key + ".visibility");
+    }
+  }
+
   function hideSectionByHeading(pattern) {
     var headings = asList(document.querySelectorAll("h1,h2,h3"));
     for (var i = 0; i < headings.length; i++) {
@@ -207,6 +246,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (!node) continue;
         writeSlot(node, slot, value, currentLocale, applied);
       }
+      applySectionVisibility(draft, applied);
       if (variant === "published") sanitizePublished();
     }
     return report(applied, expected, adapter);

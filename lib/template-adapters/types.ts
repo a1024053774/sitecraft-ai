@@ -1,9 +1,17 @@
+import type { VisibilityKey } from "../site-document.ts";
+
 export type TemplateSlotAttr = "text" | "src";
 
 export type TemplateSlot = {
   target: string;
   selector: string;
   attr?: TemplateSlotAttr;
+};
+
+export type TemplateSection = {
+  key: VisibilityKey;
+  selector: string;
+  root?: "self" | "section";
 };
 
 export type TemplateSanitizeRules = {
@@ -33,6 +41,7 @@ export type TemplateAdapter = {
   templateId: string;
   runtime: TemplatePreviewRuntime;
   slots: TemplateSlot[];
+  sections?: TemplateSection[];
   alternatives?: Record<string, string>;
   sanitize?: TemplateSanitizeRules;
 };
