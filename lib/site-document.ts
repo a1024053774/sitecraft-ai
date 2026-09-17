@@ -10,7 +10,13 @@ export const localizedTextSchema = z.object({
 });
 export type LocalizedText = z.infer<typeof localizedTextSchema>;
 
-export const visualBriefIds = ["industrial", "export-catalog", "technical-product", "editorial-service"] as const;
+export const visualBriefIds = [
+  "industrial",
+  "engineering-industrial",
+  "export-catalog",
+  "technical-product",
+  "editorial-service",
+] as const;
 export const visualBriefSchema = z.object({
   version: z.literal(1),
   id: z.enum(visualBriefIds),
@@ -26,37 +32,46 @@ export const visualBriefCatalog: VisualBrief[] = [
   {
     version: 1,
     id: "industrial",
-    label: "工业专业",
-    summary: "产品、工艺与交付能力优先，留白清晰。",
-    audience: "工程客户与采购团队",
+    label: "明亮产品",
+    summary: "留白充足，产品先于故事。",
+    audience: "需要先看清产品的访客",
     primaryAction: "查看产品能力",
     templateId: "forge",
   },
   {
     version: 1,
+    id: "engineering-industrial",
+    label: "工程工业",
+    summary: "产品线、工况与询盘路径清楚。",
+    audience: "需要工程可信度的访客",
+    primaryAction: "获取技术方案",
+    templateId: "screwfast",
+  },
+  {
+    version: 1,
     id: "export-catalog",
-    label: "外贸目录",
-    summary: "分类、规格与询盘路径优先，适合双语内容。",
-    audience: "海外采购与渠道客户",
+    label: "蓝白目录",
+    summary: "蓝白分层，分类清楚，转化组件完整。",
+    audience: "需要目录与询盘路径的访客",
     primaryAction: "获取产品目录",
     templateId: "landwind",
   },
   {
     version: 1,
     id: "technical-product",
-    label: "技术产品",
-    summary: "用流程、功能和结果解释复杂产品。",
-    audience: "技术决策者与业务团队",
-    primaryAction: "预约产品演示",
+    label: "灰底短路径",
+    summary: "灰底单页，把品类和询盘压进短路径。",
+    audience: "需要快速判断下一步的访客",
+    primaryAction: "提交询盘",
     templateId: "tailwind-landing",
   },
   {
     version: 1,
     id: "editorial-service",
-    label: "专业顾问",
-    summary: "用方法、案例和可信观点组织专业服务。",
-    audience: "需要长期合作的企业客户",
-    primaryAction: "发起项目咨询",
+    label: "深色产品",
+    summary: "深底界面，用功能和结果说明产品。",
+    audience: "需要看清产品能力的访客",
+    primaryAction: "预约产品演示",
     templateId: "fresh",
   },
 ];
@@ -257,18 +272,24 @@ export function cloneDraft(draft: SiteDraft): SiteDraft {
   return structuredClone(draft);
 }
 
+function hydrateVisualBrief(brief: VisualBrief): VisualBrief {
+  const catalog = visualBriefCatalog.find((item) => item.id === brief.id);
+  return catalog ? { ...catalog, templateId: brief.templateId } : brief;
+}
+
 export function normalizeDraft(input: unknown): SiteDraft {
   const parsed = siteDraftSchema.safeParse(input);
-  if (parsed.success) return parsed.data;
+  if (parsed.success) return { ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) };
 
   const legacy = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   // Existing v2 documents predate visualBrief. Add only the missing metadata;
   // never run them through the v1 conversion that reconstructs content.
   if (legacy.schemaVersion === 2) {
-    return siteDraftSchema.parse({
+    const restored = siteDraftSchema.parse({
       ...legacy,
       ...(!Object.hasOwn(legacy, "visualBrief") ? { visualBrief: structuredClone(defaultDraft.visualBrief) } : {}),
     });
+    return { ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) };
   }
   const legacyHero = legacy.hero && typeof legacy.hero === "object"
     ? (legacy.hero as Record<string, unknown>)
@@ -278,7 +299,7 @@ export function normalizeDraft(input: unknown): SiteDraft {
   if (typeof legacy.companyName === "string" && legacy.companyName.trim()) candidate.companyName = legacy.companyName;
   if (typeof legacy.templateId === "string" && legacy.templateId.trim()) candidate.templateId = legacy.templateId;
   const visualBrief = visualBriefSchema.safeParse(legacy.visualBrief);
-  if (visualBrief.success) candidate.visualBrief = visualBrief.data;
+  if (visualBrief.success) candidate.visualBrief = hydrateVisualBrief(visualBrief.data);
   if (typeof legacy.industry === "string") candidate.industry = legacy.industry;
   if (typeof legacy.goal === "string") candidate.goal = legacy.goal;
   if (typeof legacyHero.title === "string") candidate.content.hero.title.zh = legacyHero.title;

@@ -249,7 +249,7 @@ test("large draft prompt keeps metadata, selected section, and sku/name without 
   assert.match(userPrompt, /T4_HERO_FULL_SENTINEL_9183/);
   assert.match(userPrompt, /T4-SKU-9183/);
   assert.match(userPrompt, /T4_PRODUCT_NAME_9183/);
-  assert.match(userPrompt, /"visualBrief":\{"version":1,"id":"industrial","label":"工业专业"/);
+  assert.match(userPrompt, /"visualBrief":\{"version":1,"id":"industrial","label":"明亮产品"/);
   const system = (JSON.parse(lastRequestBody) as { messages?: Array<{ role?: string; content?: string }> }).messages?.find((item) => item.role === "system");
   assert.match(String(system?.content ?? ""), /sitecraft-frontend-less-ai-tone@0\.2\.0/);
   assert.equal(userPrompt.includes("T4_ABOUT_LONG_SENTINEL_9183"), false);

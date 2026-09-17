@@ -426,10 +426,13 @@ test("alignment start returns style options without calling the provider or chan
   assert.equal(alignmentEvent.action, "start");
   assert.equal(alignmentEvent.waitingForUser, true);
   const labels = alignmentOptionsFrom(result).map((option) => option.label);
-  assert.equal(labels.includes("工业专业"), true);
-  assert.equal(labels.includes("外贸目录"), true);
-  assert.equal(labels.includes("技术产品"), true);
-  assert.equal(labels.includes("专业顾问"), true);
+  assert.equal(labels.includes("明亮产品"), true);
+  assert.equal(labels.includes("工程工业"), true);
+  assert.equal(labels.includes("蓝白目录"), true);
+  assert.equal(labels.includes("灰底短路径"), true);
+  assert.equal(labels.includes("深色产品"), true);
+  assert.equal(labels.includes("工业专业"), false);
+  assert.equal(labels.includes("外贸目录"), false);
   assert.ok(result.done);
   assert.equal(result.done.status, "alignment");
   assert.equal(result.done.action, "start");
@@ -487,7 +490,7 @@ test("alignment select is idempotent and rejects stale or unknown options withou
   assert.equal(selected.done?.saved, true);
   assert.equal(selected.done?.prefsOnly, true);
   assert.equal(selected.done?.waitingForUser, false);
-  assert.match(String(selected.done?.summary || ""), /偏好已保存|工业专业/);
+  assert.match(String(selected.done?.summary || ""), /偏好已保存|明亮产品/);
 
   const again = await postChat(siteId, {
     action: "select",

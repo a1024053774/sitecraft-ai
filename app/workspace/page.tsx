@@ -283,7 +283,7 @@ export default function WorkspacePage() {
               operations: [requestedBrief
                 ? { op: "set_visual_brief", briefId: requestedBrief.id }
                 : { op: "set_template", templateId: requestedTemplate }],
-              summary: requestedBrief ? `选择主题方向 ${requestedBrief.label}` : `选择模板 ${getTemplate(requestedTemplate).name}`,
+              summary: requestedBrief ? `选择样子 ${requestedBrief.label}` : `选择模板 ${getTemplate(requestedTemplate).name}`,
               source: "template",
             }),
           });
@@ -670,9 +670,9 @@ export default function WorkspacePage() {
     const brief = visualBriefCatalog.find((item) => item.id === briefId);
     if (!brief || (brief.id === draft.visualBrief.id && brief.templateId === draft.templateId)) return;
     setBusy(true);
-    setBusyText("正在切换主题方向…");
+    setBusyText("正在切换样子…");
     try {
-      await saveOperations([{ op: "set_visual_brief", briefId: brief.id }], `选择主题方向 ${brief.label}`, "template");
+      await saveOperations([{ op: "set_visual_brief", briefId: brief.id }], `选择样子 ${brief.label}`, "template");
       setMessages((items) => [...items, {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -685,7 +685,7 @@ export default function WorkspacePage() {
         id: crypto.randomUUID(),
         role: "assistant",
         status: "error",
-        text: error instanceof Error ? error.message : "主题方向保存失败",
+        text: error instanceof Error ? error.message : "样子保存失败",
       }]);
     } finally {
       setBusy(false);
@@ -742,12 +742,12 @@ export default function WorkspacePage() {
           <div><strong>当前草稿 · v{draft.revision}</strong><span>{updatedAt ? `${new Date(updatedAt).toLocaleString("zh-CN")} 保存到服务器` : "正在载入"}</span></div>
           <button type="button" onClick={() => setShowHistory((value) => !value)}><History size={13} />历史 {history.length}</button>
         </div>
-        <section className="visual-brief-panel" aria-label="主题方向">
+        <section className="visual-brief-panel" aria-label="网站样子">
           <div className="visual-brief-head">
-            <div><span className="eyebrow">Theme direction</span><strong>先选网站的表达方式</strong></div>
+            <div><span className="eyebrow">Look board</span><strong>先选网站的样子</strong></div>
             <span className="visual-brief-current">当前：{draft.visualBrief.label}</span>
           </div>
-          <p>主题会改变右侧模板的版式与配色，保留当前草稿内容。</p>
+          <p>样子会改变右侧预览的版式与配色，行业仍来自公司资料。</p>
           <div className="visual-brief-grid">
             {visualBriefCatalog.map((brief) => {
               const template = getTemplate(brief.templateId);
@@ -907,7 +907,7 @@ export default function WorkspacePage() {
             <Link className="primary-button" href="/published/forge-industrial" target="_blank" rel="noreferrer"><Globe2 size={14} />发布</Link>
           </div>
         </header>
-        <div className="preview-stage"><div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">forge-industrial.sites.ai</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div></div>
+        <div className="preview-stage"><div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">{draft.visualBrief.label}.sites.ai</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div></div>
       </main>
       {showImport && (
         <div className="modal-backdrop" onClick={() => setShowImport(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>

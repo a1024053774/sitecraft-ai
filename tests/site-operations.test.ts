@@ -156,7 +156,7 @@ test("replaces imported products as one reversible draft change", () => {
 test("applies a user-facing visual brief and its compatible template as one reversible change", () => {
   const result = applySiteOperations(defaultDraft, [{ op: "set_visual_brief", briefId: "export-catalog" }], {
     templateIds: new Set(["forge", "landwind"]),
-    lastChange: "选择主题方向",
+    lastChange: "选择样子",
   });
   assert.equal(result.changed, true);
   assert.equal(result.draft.visualBrief.id, "export-catalog");
@@ -169,7 +169,7 @@ test("applies a user-facing visual brief and its compatible template as one reve
   assert.equal(result.draft.revision, defaultDraft.revision + 1);
   const restored = applySiteOperations(result.draft, result.inverseOperations, {
     templateIds: new Set(["forge", "landwind"]),
-    lastChange: "撤销主题方向",
+    lastChange: "撤销样子",
   });
   assert.equal(restored.draft.templateId, defaultDraft.templateId);
   assert.equal(restored.draft.visualBrief.id, defaultDraft.visualBrief.id);

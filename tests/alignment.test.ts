@@ -154,10 +154,13 @@ test("alignment actions enforce option validity, revision bump, stale confirm, a
   assert.equal(started.snapshot.enabled, true);
   assert.equal(started.snapshot.state, "awaiting_style");
   const labels = (started.view.options ?? []).map((option) => option.label);
-  assert.equal(labels.includes("工业专业"), true);
-  assert.equal(labels.includes("外贸目录"), true);
-  assert.equal(labels.includes("技术产品"), true);
-  assert.equal(labels.includes("专业顾问"), true);
+  assert.equal(labels.includes("明亮产品"), true);
+  assert.equal(labels.includes("工程工业"), true);
+  assert.equal(labels.includes("蓝白目录"), true);
+  assert.equal(labels.includes("灰底短路径"), true);
+  assert.equal(labels.includes("深色产品"), true);
+  assert.equal(labels.includes("工业专业"), false);
+  assert.equal(labels.includes("外贸目录"), false);
   assert.equal(labels.some((label) => /impeccable|skill|frontend-design/i.test(label)), false);
   const question = started.snapshot.currentQuestion;
   assert.ok(question);
@@ -192,12 +195,12 @@ test("alignment actions enforce option validity, revision bump, stale confirm, a
   if (!selected.ok) throw new Error("expected select");
   assert.equal(selected.snapshot.state, "idle");
   assert.equal(selected.snapshot.styleOptionId, "industrial");
-  assert.equal(selected.snapshot.styleLabel, "工业专业");
+  assert.equal(selected.snapshot.styleLabel, "明亮产品");
   assert.equal(selected.view.saved, true);
   assert.equal(selected.view.prefsOnly, true);
   assert.equal(selected.view.waitingForUser, false);
   const prompt = alignmentPromptContext(selected.snapshot);
-  assert.match(prompt, /工业专业/);
+  assert.match(prompt, /明亮产品/);
   assert.match(prompt, /不可信/);
   assert.match(prompt, /IGNORE_SYSTEM_ALIGN_SENTINEL_9188/);
 
