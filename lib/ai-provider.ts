@@ -3,6 +3,16 @@ import { familyModuleInventory, visibilityKeys } from "@/lib/site-document";
 import { declaredFamilySections } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
 import {
+  inspectPreviewScreenshot,
+  parsePreviewReview,
+  pngDataUrl,
+  previewReviewSystemPrompt,
+  previewReviewUserPrompt,
+  PreviewScreenshotError,
+  type PreviewReview,
+  type PreviewScreenshotInfo,
+} from "@/lib/preview-vision";
+import {
   aiIntentResponseSchema,
   textTargets,
   validateAIOperations,
@@ -15,6 +25,16 @@ export type ProviderResult =
   | { ok: true; type: "answer"; text: string; model: string; latencyMs: number }
   | { ok: true; type: "clarify"; question: string; options?: string[]; model: string; latencyMs: number }
   | { ok: false; error: string; code: "not_configured" | "provider_error" | "invalid_output" | "timeout"; model: string | null; latencyMs: number };
+
+export type PreviewReviewResult =
+  | { ok: true; review: PreviewReview; model: string; latencyMs: number; image: PreviewScreenshotInfo }
+  | {
+    ok: false;
+    error: string;
+    code: "not_configured" | "invalid_image" | "provider_error" | "invalid_output" | "timeout";
+    model: string | null;
+    latencyMs: number;
+  };
 
 /**
  * Prompt packing uses character counts as a conservative token approximation.
@@ -278,6 +298,94 @@ ${templateContext}`,
         model,
         latencyMs: Date.now() - startedAt,
       });
+    } catch (error) {
+      const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+      lastError = timedOut ? "DeepSeek 请求超时" : `无法连接 DeepSeek：${error instanceof Error ? error.message : "网络错误"}`;
+      if (timedOut) break;
+    }
+  }
+  return {
+    ok: false,
+    code: lastError.includes("超时") ? "timeout" : lastError.includes("Schema") ? "invalid_output" : "provider_error",
+    error: lastError,
+    model,
+    latencyMs: Date.now() - startedAt,
+  };
+}
+
+export async function requestPreviewReview(args: {
+  imageBytes: Uint8Array;
+  claimedTemplateId?: string | null;
+}): Promise<PreviewReviewResult> {
+  const startedAt = Date.now();
+  const { baseURL, apiKey, model } = providerConfig();
+  let image: PreviewScreenshotInfo;
+  try {
+    image = inspectPreviewScreenshot(args.imageBytes);
+  } catch (error) {
+    const message = error instanceof PreviewScreenshotError ? error.message : "预览截图无效";
+    return { ok: false, code: "invalid_image", error: message, model: model ?? null, latencyMs: 0 };
+  }
+  if (!apiKey || !model) {
+    return { ok: false, code: "not_configured", error: "尚未配置 DeepSeek API，系统不会伪造视觉审查结果。", model: null, latencyMs: 0 };
+  }
+  const claimed = args.claimedTemplateId?.trim() || null;
+  if (claimed && !templates.some((item) => item.id === claimed)) {
+    return { ok: false, code: "invalid_image", error: `模板 ${claimed} 不在白名单中`, model, latencyMs: 0 };
+  }
+  const imageUrl = pngDataUrl(args.imageBytes);
+  let lastError = "模型没有返回有效的预览审查。";
+  let retryFeedback = "";
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(`${baseURL}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          temperature: 0,
+          max_tokens: 800,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: previewReviewSystemPrompt() },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `${previewReviewUserPrompt(claimed)}${attempt ? `\n\n上一次输出未通过 Schema：${retryFeedback}。请只修正格式，不要编造没看见的 nonce，不要输出 operations。` : ""}`,
+                },
+                { type: "image_url", image_url: { url: imageUrl } },
+              ],
+            },
+          ],
+        }),
+        signal: AbortSignal.timeout(45_000),
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        lastError = await providerError(response);
+        if (response.status < 500 && response.status !== 429) break;
+        continue;
+      }
+      const payload = (await response.json()) as {
+        model?: unknown;
+        choices?: Array<{ finish_reason?: string; message?: { content?: unknown } }>;
+      };
+      if (payload.choices?.[0]?.finish_reason === "length") {
+        retryFeedback = "输出达到 token 上限被截断，请缩短 visibleText 与 notes";
+        lastError = "DeepSeek 视觉审查输出达到 token 上限";
+        continue;
+      }
+      const parsed = parsePreviewReview(payload.choices?.[0]?.message?.content);
+      if (!parsed.data) {
+        retryFeedback = parsed.error.slice(0, 1200);
+        lastError = `模型输出未通过预览审查 Schema 校验：${retryFeedback}`;
+        continue;
+      }
+      const responseModel = typeof payload.model === "string" && payload.model.trim() ? payload.model : model;
+      return { ok: true, review: parsed.data, model: responseModel, latencyMs: Date.now() - startedAt, image };
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
       lastError = timedOut ? "DeepSeek 请求超时" : `无法连接 DeepSeek：${error instanceof Error ? error.message : "网络错误"}`;
