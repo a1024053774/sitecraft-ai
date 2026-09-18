@@ -3,7 +3,7 @@ session_id: grilling-sitecraft-ai-generation-20260915
 status: confirmed
 topic: SiteCraft AI 中小企业自主建站方案
 created_at: 2026-09-15T20:20:00+08:00
-updated_at: 2026-09-17T22:50:00+08:00
+updated_at: 2026-09-18T08:24:00+08:00
 last_round: 15
 stage: build
 ---
@@ -33,14 +33,14 @@ stage: build
 - 复用现有模板，并寻找更多不同主题/场景的开源模板；候选扩充与生产准入分开。
 - 首轮 3 行业 × 1 份资料 × 4 组流程，共 12 个结果；稳定后扩到 24。
 - 当前使用 DeepSeek，请求名 `deepseek-flash`；允许第三方模型；质量优先，暂不设成本/时延 KPI。
-- 数据保留 90 天并提供开关；保护已发布站点及其引用素材，详见 Q17。
+- 数据删除：2026-09-18 用户决定取代 Q17=A。删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。不实现 90 天自动清理或清理开关。已发布站点仍由用户控制，不得静默删除。历史 Q17=A 见 Answer history / Confirmed frontier。
 - 页面规划遵循用户明确要求、模型按需求规划、默认三类页面的优先级，详见 Q18。
 - 委派统一使用 Cursor Grok 4.6 High Fast，以 TodoWrite 跟踪；按模块验收后提交并推送到自己的 fork。
 - 本项目独立环境文件，不使用软链接；不把密钥写入 Git、Notion、prompt 或浏览器。
 
 ## Decision tree
 
-Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。负责人要求提交本次规划。不实现跨源拼装器，不把 jiro 源码推进 vendor。公开部署仍需额外授权。
+Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。2026-09-18 用户决定写入 plan v0.7：删除须由用户明确选择，系统不主动清理；Q17=A 已取代。不实现跨源拼装器，不把 jiro 源码推进 vendor。公开部署仍需额外授权。
 
 ## Decisions
 
@@ -56,7 +56,8 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。负
 - D10 | confirmed | Q12 A | 先 12 个结果，稳定后再扩 24。
 - D11 | confirmed | Q11/Q13 + Q22 | 风格/主题面向用户；Skill 名称不出现在用户选择中。内部审美规则指定为 `sitecraft-frontend-less-ai-tone`，收口任务见 plan。
 - D12 | confirmed | Q14 自定义回答 | 多主题、多场景开源候选 + 复用现有；不采纳“只选 forge 和相邻模板且不查新来源”的限制。
-- D13 | confirmed | Q15 补充 | 内部模拟公司、DeepSeek、质量优先、允许第三方模型、90 天保留与开关。
+- D13 | confirmed（数据保留部分 superseded 2026-09-18） | Q15 补充 | 内部模拟公司、DeepSeek、质量优先、允许第三方模型。原「90 天保留与开关」已被 2026-09-18 用户决定取代。
+- D23 | confirmed | user 2026-09-18 | 删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。Q17=A 与自动清理开关一并废除。不实现 90 天清理任务。
 - D14 | confirmed | 新功能说明 | 可选内嵌需求对齐，点选/等待/恢复；默认关闭、每轮题量及事件字段是设计建议，尚未获逐项确认。
 - D15 | confirmed | Q20 = B | 同一视觉族模块套件：AI 选区块，壳与 token 跟族走；内容走声明槽位。禁止跨源拼接。近期在现有整页模板里显隐，不新写拼装器。
 - D16 | confirmed | Q21 = B，用户补充 | 样子盘（Gemini 是类比不是抄 UI）。张数不锁死为 4，按手头可预览模板分类。像素风不是必做卡片。
@@ -90,7 +91,7 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。负
 - Q24 | confirmed | 统一 `deepseek-flash`。
 - Q25 | confirmed | 项目文档 + AGENTS 入口；不要复杂被动规则。
 - Q14 | confirmed | 研究多主题/适用场景开源模板并利用现有模板；原二选模板建议 rejected。
-- Q15 | confirmed | B；内部 Demo、自模拟；第三方模型允许，保留 90 天并要开关；质量优先，暂不设成本/时延指标，使用 DeepSeek。
+- Q15 | confirmed | B；内部 Demo、自模拟；第三方模型允许，保留 90 天并要开关；质量优先，暂不设成本/时延指标，使用 DeepSeek。其中「保留 90 天并要开关」已于 2026-09-18 被用户决定取代，见 Q17。
 - Q16 | resolved by evidence | 三份 env.md 的文本 DeepSeek 地址/key 一致，本项目 .env.local 已配置相同值；普通文件模式 100644、已忽略且未跟踪。不需要重复确认路径；没有改 key 或调用 API。
 
 ## Assumptions and facts
@@ -128,14 +129,14 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。负
 
 ## Confirmed frontier / Execution handoff
 
-- Q17 | confirmed | user 22:32 | 采用 A：90 天自动清理过期对话、临时产物、无引用上传与过期未发布草稿；保护已发布站点和引用素材；关闭暂停自动清理并保留手动删除。
+- Q17 | superseded 2026-09-18 | user 22:32 曾确认 A | 原采用 A：90 天自动清理过期对话、临时产物、无引用上传与过期未发布草稿；保护已发布站点和引用素材；关闭暂停自动清理并保留手动删除。2026-09-18 用户决定：删除须由用户明确选择；系统不得替用户主动删除；不实现 90 天自动清理，也不保留可暂停的自动清理开关；已发布站点仍由用户控制，不得静默删除。
 - Q18 | confirmed | user 22:32 | 用户明确要求的页面优先；未明确时模型按需求规划；仍不能确定才采用首页/产品服务/联系默认方案。原“固定三类页面”建议 superseded，不是上限。
 - Q19 | confirmed | user 22:45 | 委派只用 Cursor Grok 4.6 High Fast；使用 TodoWrite 替代原生 Goal；每个模块验收后独立 commit 并 push 到自己的 fork。
 - 执行授权 | confirmed | user 22:32 / 22:45 | 已授权按模块实施。Round 14 后以实现 `mainline.md` / plan v0.5 为序；跨源拼装器和公开部署仍需额外授权。
 
 ## Current frontier
 
-- 书面主线已确认写入。实现队列交给主对话：Skill 核 prompt → 样子盘改挂 → 同族显隐 → 补 tailwind-landing/fresh 落点 → 看图 → 整段生成。不要先做 12 组评测，不要搬 jiro 源码。
+- 书面主线已确认写入。实现队列交给主对话：Skill 核 prompt → 样子盘改挂 → 同族显隐 → 补 tailwind-landing/fresh 落点 → 看图 → 整段生成。不要先做 12 组评测，不要搬 jiro 源码。不要实现 90 天自动清理。
 - jiro 条款仍 unknown，保持配方用法。
 
 ## Risks and conflicts
@@ -146,7 +147,7 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。负
 - R4 | 旧 top5/两模板限制被本轮 Q14 更新；保留旧文档历史，不让其覆盖新要求。
 - R5 | 同一会话连续不要求模型调用一直运行；必须保存等待状态、处理重复点击/旧答案和 revision 冲突。
 - R6 | 用户没选择 Skill 产品名；Impeccable/UI UX Pro Max 等仍需准入和效果验证。
-- R7 | 数据删除具有不可逆影响，清理范围需 Q17 决定；90 天本地保留不能代表供应商侧保留。
+- R7 | 数据删除具有不可逆影响；2026-09-18 起不得替用户主动删除。本地产品政策不能代表供应商侧保留。
 - R8 | 内部模拟结果不能宣传为真实企业交付、客户满意度或转化率提升。
 - R9 | 跨模板/跨站拼 Header+Features 会重现 jiro 自己都在批评的「每一块像另一个网站」。与 Round 6 声明槽位冲突：槽位保证写到唯一节点，拼装器会引入新 DOM 与新许可面。
 - R10 | jiro 免费区当配方；条款未找到。不得把「能复制提示」当成生成器可再分发 MIT。Premium 源码禁止；模块清单可以用来显隐本地区块。
@@ -159,7 +160,7 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。负
 
 ## Final baseline
 
-Q20–Q25 与 Jiro 实测已写入 `docs/project/mainline.md`、spec v0.4、plan v0.6。这是以后防漂移对照的文本。文档存在不等于主题卡或拼装器已实现。
+Q20–Q25 与 Jiro 实测已写入 `docs/project/mainline.md`、spec v0.4、plan v0.6。2026-09-18 数据删除政策已写入 spec v0.5、plan v0.7，并取代 Q17=A。这是以后防漂移对照的文本。文档存在不等于主题卡或拼装器已实现。
 
 REALITY GATE: INCOMPLETE（jiro 条款）；PASS（配方用法、模块清单、不接 MCP）。
 
@@ -180,3 +181,4 @@ REALITY GATE: INCOMPLETE（jiro 条款）；PASS（配方用法、模块清单�
 - Round 13（2026-09-17 21:22）：用户要讨论方案而非继续实现。记录 D15–D20 为推断；核验 DeepSeek `deepseek-flash` 公告与 jiro 商业提示库事实。会话从 confirmed/execution 重开为 awaiting-user / design-reopen。前沿为 Q20–Q25。未改 intent/spec，未实现模块拼装，未改密钥。
 - Round 14（2026-09-17 22:20）：Q20=B、Q21=B（不锁 4 套）、Q22=B 并记下 Skill 收口、Q23=免费区配方并完成挑选、Q24=`deepseek-flash`、Q25=项目文档+AGENTS、不要复杂被动规则。已写入 mainline/intent/spec v0.4/plan v0.5。等待确认书面主线。
 - Round 15（2026-09-17 22:50）：并入会话 `31efb674` 的 Jiro 实测。免费整页无工业；KonsTuck/Lozitick 只借模块清单；补 FAQ/浅色页脚配方。plan 升 v0.6。负责人要求提交本次规划。
+- 2026-09-18：用户决定取代 Q17=A。删除须由用户明确选择，系统不主动清理；不实现 90 天任务或开关。已写入 intent/spec v0.5/plan v0.7/mainline/AGENTS。表单收件仍属后续。未宣称 Demo 已验收。

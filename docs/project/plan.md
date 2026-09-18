@@ -1,6 +1,6 @@
 # SiteCraft AI 执行计划
 
-状态：grilling Round 15 写入；版本 v0.6。需求事实以 [intent.md](./intent.md) 为准，主线以 [mainline.md](./mainline.md) 为准。旧 P0–P5 细账见 git 历史与 `.grilling/`。
+状态：grilling Round 15 写入；2026-09-18 用户决定取代 Q17=A；版本 v0.7。需求事实以 [intent.md](./intent.md) 为准，主线以 [mainline.md](./mainline.md) 为准。旧 P0–P5 细账见 git 历史与 `.grilling/`。
 
 ## 要做成什么样
 
@@ -99,7 +99,7 @@ Round 14 / Q22 记下，本轮规划一并入库。
 
 本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。生成走了真实模型，不是 mock 当 Demo。截图在 gitignore 的 `artifacts/p3-workspace-journey/`。工作台补了「提供公司资料」面板和 `?site=` 隔离，仍走现有 `/chat` + `commitOperations`。`npm test` 108 通过。`npm run typecheck` / `npm run build` 仍会被 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6` 拖失败；排除该目录后本仓库 TypeScript 为 0 错，Next 编译成功。未把 artifacts exclude 写进已提交的 `tsconfig.json`。
 
-还没有：90 天清理和表单收件。不要据此宣称 Demo 已验收。
+还没有：表单收件。2026-09-18 起，删除须由用户明确选择，系统不得替用户主动删除；不再做 90 天自动清理。不要据此宣称 Demo 已验收。
 
 **Q18（P3 剩余，2026-09-18）**：页面规划按「用户点名 → 模型按业务规划 → 仍不确定才用首页/产品或服务/联系」。默认三项不是上限。草稿增加 `pagePlan`，只走白名单 `set_page_plan`；落点由服务端 `resolvePagePlan` 决定，模型不能指定 placement。独立 URL 只服务快照里已有的 HTML（`forge` 的 About/Services/Contact，`screwfast` 的 products/contact）；没有对应文件就 404，不克隆首页。`landwind` 等单页快照只在同一模板里切换声明区块。工作台与 `/published/:siteKey` 读同一份 pagePlan。
 
@@ -142,7 +142,11 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 
 本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。`npm test` 134 通过。`tsc` / `next build` 仍需临时排除 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6`，未把该 exclude 写进已提交 `tsconfig.json`。
 
-还没有：90 天清理和表单收件（P5）。不要据此宣称 Demo 已验收。
+还没有：表单收件（P5）。数据删除政策见下；不要据此宣称 Demo 已验收。
+
+## 数据删除（2026-09-18）
+
+用户决定（取代 2026-09-15 的 Q17=A）：删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。不实现 90 天自动清理，也不保留可暂停的自动清理开关。已发布站点仍由用户控制，不得静默删除。表单收件仍属后续。
 
 ## 下一步（一次一块，给主对话执行）
 
@@ -154,4 +158,4 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 6. ~~用模拟工业/外贸包跑完整工作台生成。~~ 不要据此宣称 Demo 已验收。
 7. ~~Q18 需求驱动页面：pagePlan + 真快照 URL / 页内区块，默认三项不是上限。~~
 8. ~~P3 图片识别与素材授权流水线。~~
-9. ~~12 组对照（P4）。~~ 还没做 90 天清理或表单收件（P5），不要搬 jiro 源码。不要据此宣称 Demo 已验收。
+9. ~~12 组对照（P4）。~~ 还没做表单收件（P5）。Q17=A 的 90 天自动清理已于 2026-09-18 被用户决定取代，不实现、不保留自动清理任务或开关。不要搬 jiro 源码。不要据此宣称 Demo 已验收。

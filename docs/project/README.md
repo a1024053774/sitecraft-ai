@@ -1,13 +1,13 @@
 # SiteCraft AI 项目文档入口
 
-本地保存需求、规格、计划和证据；Notion 只同步方向、计划、资源摘要。主线见 [mainline.md](./mainline.md)。2026-09-17 Round 15 写入样子/模块/Jiro 配方与模型名。
+本地保存需求、规格、计划和证据；Notion 只同步方向、计划、资源摘要。主线见 [mainline.md](./mainline.md)。2026-09-17 Round 15 写入样子/模块/Jiro 配方与模型名。2026-09-18 用户决定取代 Q17=A：删除须由用户明确选择，系统不主动清理。
 
 ## 当前文件
 
 - [mainline.md](./mainline.md)：核心主线；样子 → 同族模块 → 声明槽位；模型名；jiro 用法；防漂移。
-- [intent.md](./intent.md)：已记录的产品需求、Q17/Q18 和执行授权。
-- [spec.md](./spec.md)：v0.4 规格；样子盘、同族模块、可选内嵌对齐、需求驱动页面和数据边界。
-- [plan.md](./plan.md)：v0.6 短计划；按手头快照分类的样子、Jiro 配方用法、Skill 收口和下一步。
+- [intent.md](./intent.md)：已记录的产品需求、Q18、2026-09-18 数据删除政策（Q17=A 已取代）和执行授权。
+- [spec.md](./spec.md)：v0.5 规格；样子盘、同族模块、可选内嵌对齐、需求驱动页面和数据边界。
+- [plan.md](./plan.md)：v0.7 短计划；按手头快照分类的样子、Jiro 配方用法、Skill 收口、数据删除政策和下一步。
 - [AGENTS.md](../../AGENTS.md)：项目规则、Cursor Grok 4.6 High Fast 分工、模块验收/提交/推送流程。
 - [Notion 摘要](https://app.notion.com/p/3dbfaa7adad8810c8a12e58e4b79ce42)：主要方向与进度，不存密钥或完整日志。
 
