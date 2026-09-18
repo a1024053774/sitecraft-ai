@@ -133,10 +133,11 @@ test("delete UI requires typed confirmation and does not schedule cleanup", () =
   const settings = readFileSync(new URL("../app/settings/page.tsx", import.meta.url), "utf8");
   assert.match(panel, /confirmSiteId/);
   assert.match(panel, /typed === siteId/);
-  assert.match(panel, /workspace\?site=/);
-  assert.match(panel, /published\//);
-  assert.match(panel, /previewSiteId/);
-  assert.equal((panel.match(/<iframe/g) || []).length, 1);
+  assert.match(panel, /workspaceHref/);
+  assert.match(panel, /publishedHref/);
+  assert.match(panel, /useSitePreview/);
+  assert.equal(panel.includes("delete-site-board"), false);
+  assert.equal(panel.includes("<iframe"), false);
   assert.equal(panel.includes("setInterval"), false);
   assert.equal(panel.includes("90"), false);
   assert.match(route, /deleteSiteByUserChoice/);

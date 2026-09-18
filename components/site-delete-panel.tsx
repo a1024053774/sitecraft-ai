@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import type { Route } from "next";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Trash2, X } from "lucide-react";
-
-const PREVIEW_DELAY_MS = 400;
+import {
+  FloatingSitePreview,
+  previewHint,
+  publishedHref,
+  SitePeek,
+  useSitePreview,
+  workspaceHref,
+} from "@/components/site-preview-pop";
 
 type SiteListItem = {
   siteId: string;
@@ -25,27 +30,6 @@ async function requestDelete(siteId: string, confirmSiteId: string) {
   if (!response.ok || !payload.deleted) {
     throw new Error(payload.error || "没有删除");
   }
-}
-
-function workspaceHref(siteId: string) {
-  return `/workspace?site=${encodeURIComponent(siteId)}` as Route;
-}
-
-function publishedHref(siteId: string) {
-  return `/published/${encodeURIComponent(siteId)}` as Route;
-}
-
-function SitePeek({ siteId }: { siteId: string }) {
-  return (
-    <div className="delete-preview" data-testid="site-delete-preview" data-site-id={siteId}>
-      <iframe
-        title={`${siteId} 预览`}
-        src={publishedHref(siteId)}
-        tabIndex={-1}
-        loading="lazy"
-      />
-    </div>
-  );
 }
 
 export function SiteDeleteDialog({
@@ -135,9 +119,8 @@ export function SiteDeleteDialog({
 export function SiteDeleteSettings() {
   const [sites, setSites] = useState<SiteListItem[]>([]);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [previewSiteId, setPreviewSiteId] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const hoverTimer = useRef<number | null>(null);
+  const { preview, hoverable, keepPreview, releasePreview, rowProps } = useSitePreview(!pendingId);
 
   async function refresh() {
     const response = await fetch("/api/sites", { cache: "no-store" });
@@ -145,28 +128,8 @@ export function SiteDeleteSettings() {
     setSites(payload.sites ?? []);
   }
 
-  function clearHoverTimer() {
-    if (hoverTimer.current !== null) {
-      window.clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
-    }
-  }
-
-  function schedulePreview(siteId: string) {
-    clearHoverTimer();
-    hoverTimer.current = window.setTimeout(() => {
-      setPreviewSiteId(siteId);
-    }, PREVIEW_DELAY_MS);
-  }
-
-  function hidePreview() {
-    clearHoverTimer();
-    setPreviewSiteId(null);
-  }
-
   useEffect(() => {
     void refresh();
-    return () => clearHoverTimer();
   }, []);
 
   return (
@@ -174,51 +137,37 @@ export function SiteDeleteSettings() {
       <div className="settings-icon"><Trash2 size={17} /></div>
       <div>
         <h2>手动删除</h2>
-        <p>删除须由你输入站点编号确认。系统不会自动清对话、草稿、上传或已发布站点。每行可回工作台或发布页；悬停后才加载一份发布页预览。</p>
-        {sites.length === 0 ? (
-          <p className="delete-empty" data-testid="site-delete-empty">当前没有已保存站点。打开工作台会新建草稿，不会在这里预先列一份假名单。</p>
-        ) : (
-          <div className="delete-site-board" onMouseLeave={hidePreview}>
-            <ul className="delete-site-list" data-testid="site-delete-list">
-              {sites.map((site) => (
-                <li
-                  key={site.siteId}
-                  tabIndex={0}
-                  onMouseEnter={() => schedulePreview(site.siteId)}
-                  onFocus={() => schedulePreview(site.siteId)}
-                >
-                  <div>
-                    <strong>{site.siteName}</strong>
-                    <small>{site.siteId} · {site.templateId}{site.companyName ? ` · ${site.companyName}` : ""}</small>
-                  </div>
-                  <div className="delete-site-actions">
-                    <Link className="section-link" href={workspaceHref(site.siteId)}>工作台</Link>
-                    <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>
-                    <button
-                      className="danger-button"
-                      type="button"
-                      data-testid="site-delete-open"
-                      data-site-id={site.siteId}
-                      onClick={() => {
-                        hidePreview();
-                        setPendingId(site.siteId);
-                      }}
-                    >
-                      删除
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            {pendingId || !previewSiteId ? (
-              <p className="delete-preview-hint">把鼠标停在一行上会加载该站发布页，一次只开一份。也可以直接回工作台。</p>
-            ) : (
-              <SitePeek siteId={previewSiteId} />
-            )}
-          </div>
-        )}
-        {note ? <p className="delete-note" role="status">{note}</p> : null}
+        <p>删除须由你输入站点编号确认。系统不会自动清对话、草稿、上传或已发布站点。每行可回工作台或发布页。{previewHint(hoverable)}</p>
       </div>
+      {sites.length === 0 ? (
+        <p className="delete-empty" data-testid="site-delete-empty">当前没有已保存站点。打开工作台会新建草稿，不会在这里预先列一份假名单。</p>
+      ) : (
+        <ul className="delete-site-list" data-testid="site-delete-list">
+          {sites.map((site) => (
+            <li key={site.siteId} tabIndex={0} {...rowProps(site)}>
+              <div data-preview-label="">
+                <strong>{site.siteName}</strong>
+                <small>{site.siteId} · {site.templateId}{site.companyName ? ` · ${site.companyName}` : ""}</small>
+              </div>
+              <div className="delete-site-actions" data-preview-actions="">
+                <Link className="section-link" href={workspaceHref(site.siteId)}>工作台</Link>
+                <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>
+                <button
+                  className="danger-button"
+                  type="button"
+                  data-testid="site-delete-open"
+                  data-site-id={site.siteId}
+                  onClick={() => setPendingId(site.siteId)}
+                >
+                  删除
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {note ? <p className="delete-note" role="status">{note}</p> : null}
+      <FloatingSitePreview preview={preview} onKeep={keepPreview} onRelease={releasePreview} />
       <SiteDeleteDialog
         siteId={pendingId ?? ""}
         open={Boolean(pendingId)}
