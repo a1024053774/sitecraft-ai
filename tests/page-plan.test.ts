@@ -15,7 +15,7 @@ const options = { templateIds, lastChange: "page-plan" };
 
 const FORGE_INDEX = "vendor/open-source-templates/small-bis/dist/index.html";
 const FORGE_CONTACT = "vendor/open-source-templates/small-bis/dist/Contact/index.html";
-const LANDWIND_INDEX = "vendor/open-source-templates/landwind/index.html";
+const LANDWIND_INDEX = "lib/template-adapters/overlays/landwind.index.html";
 
 test("default three is home, products and contact and is not a page cap", () => {
   const forge = defaultPagePlanFor("forge");

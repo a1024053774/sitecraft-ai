@@ -133,7 +133,7 @@ test("forge homepage source has unique declared hero slots and no compare-pack t
 });
 
 test("landwind homepage source has exactly one node for each declared first-screen slot", () => {
-  const html = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
   const adapter = getTemplateAdapter("landwind");
   assert.ok(adapter, "landwind adapter is required before quality comparison");
   assert.equal(adapter.runtime, "static-html");
@@ -284,7 +284,7 @@ test("declared hero images are unique src slots and leave logos and avatars unde
     },
     {
       id: "landwind",
-      html: new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url),
+      html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
       declared: 'alt="hero image"',
       undeclared: ['alt="Landwind Logo"', 'alt="profile picture"', 'alt="dashboard feature image"'],
     },
@@ -340,7 +340,7 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
     },
     {
       id: "landwind",
-      html: new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url),
+      html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
       count: 4,
       chrome: "Get Figma file",
     },
@@ -372,7 +372,7 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
 test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () => {
   const forgeHome = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url), "utf8");
   const forgeContact = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/Contact/index.html", import.meta.url), "utf8");
-  const landwind = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
+  const landwind = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
   const screwfast = readFileSync(new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url), "utf8");
   assert.equal((forgeHome.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 0);
   assert.equal((forgeContact.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
@@ -409,7 +409,7 @@ test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 
   const cases = [
     {
       id: "landwind",
-      html: new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url),
+      html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
       brand: ["nav"],
       chrome: ["pricing", "logo-wall", "figma", "testimonial", "footer-copyright"],
       snapshotTokens: ["$29", "$99", "$499", "Get Figma file"],
@@ -459,9 +459,11 @@ test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 
       assert.equal(html.includes(token), true, `${item.id} snapshot still contains ${token} before apply`);
     }
   }
-  const landwindHtml = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
+  const landwindHtml = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
+  const landwindVendor = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
   assert.equal(landwindHtml.toLowerCase().includes("airbnb"), false, "logo wall is SVG paths, not Airbnb text");
   assert.equal(countAttrExact(landwindHtml, "data-sitecraft-demo", "logo-wall"), 1);
+  assert.equal(countAttrExact(landwindVendor, "data-sitecraft-demo", "logo-wall"), 0, "vendor snapshot stays unmarked");
 });
 
 test("admitted kits bind looks to one family, copy concrete tokens, and never select demo pricing", () => {

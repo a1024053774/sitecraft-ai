@@ -17,7 +17,8 @@ import {
 
 const nordicHtml = readFileSync(new URL("../vendor/open-source-templates/nordic-store/index.html", import.meta.url), "utf8");
 const nordicLicense = readFileSync(new URL("../vendor/open-source-templates/nordic-store/LICENSE", import.meta.url), "utf8");
-const landwindHtml = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
+const landwindHtml = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
+const landwindVendorHtml = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
 
 test("nordic-store is MIT at the pinned SHA and is a usable static snapshot", () => {
   assert.equal(NORDIC_STORE_SHA, "b64edb872ec70d40297eb3aacb1fb4dfbb3a68c3");
@@ -52,6 +53,8 @@ test("admitted nordic product grid drops Unsplash and retail prices then mounts 
   assert.ok(composed.indexOf("<section data-sitecraft-kit=\"product-grid\"") < composed.search(/<footer\b/i));
   assert.equal(injectProductGrid(composed, restyled), composed);
   assert.equal(landwindHtml.includes("data-sitecraft-kit=\"product-grid\""), false);
+  assert.equal(landwindVendorHtml.includes('data-sitecraft-demo="logo-wall"'), false);
+  assert.equal(landwindHtml.includes('data-sitecraft-demo="logo-wall"'), true);
 });
 
 test("preview apply injects the grid onto landwind and not onto screwfast", () => {

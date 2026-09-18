@@ -8,7 +8,7 @@ import { getTemplateAdapter, templateAdapters } from "../lib/template-adapters/i
 const SNAPSHOTS = {
   forge: new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url),
   screwfast: new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url),
-  landwind: new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url),
+  landwind: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
 } as const;
 
 const NAV_CHROME_IDS = ["home", "products", "services", "blog", "contact"];

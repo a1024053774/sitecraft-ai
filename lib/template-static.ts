@@ -74,6 +74,12 @@ export function getTemplateStaticRoot(templateId: string) {
   return null;
 }
 
+export const LANDWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/landwind.index.html";
+
+function landwindHostOverlayFile() {
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), LANDWIND_HOST_OVERLAY_PATH);
+}
+
 export async function readTemplateStaticFile(templateId: string, segments: string[]) {
   const root = getTemplateStaticRoot(templateId);
   if (!root) return null;
@@ -83,6 +89,9 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
   try {
     const details = await stat(/* turbopackIgnore: true */ target);
     if (details.isDirectory()) target = path.join(target, "index.html");
+    if (templateId === "landwind" && path.basename(target) === "index.html") {
+      target = landwindHostOverlayFile();
+    }
     const body = await readFile(/* turbopackIgnore: true */ target);
     return { body, contentType: contentTypes[path.extname(target).toLowerCase()] ?? "application/octet-stream" };
   } catch {
