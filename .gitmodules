@@ -64,3 +64,6 @@
 [submodule "vendor/open-source-templates/shadcn-landing2"]
 	path = vendor/open-source-templates/shadcn-landing2
 	url = https://github.com/nobruf/shadcn-landing-page.git
+[submodule "vendor/open-source-templates/nordic-store"]
+	path = vendor/open-source-templates/nordic-store
+	url = https://github.com/tailwindtoolbox/Nordic-Store.git

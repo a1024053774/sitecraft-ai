@@ -260,8 +260,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
         continue;
       }
       if (spec.kind === "content") {
-        if (hidden.indexOf(spec.key) !== -1) applied.add("kit." + spec.key + ".omitted");
-        else applied.add("kit." + spec.key);
+        var contentNode = spec.sourceTemplateId ? visibilityNode(spec) : null;
+        if (hidden.indexOf(spec.key) !== -1) {
+          if (contentNode) setSectionHidden(contentNode, spec.key, true);
+          applied.add("kit." + spec.key + ".omitted");
+        } else {
+          applied.add("kit." + spec.key);
+        }
         continue;
       }
       if (spec.kind !== "demo") continue;

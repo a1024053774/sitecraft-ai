@@ -31,11 +31,17 @@ const kitShell = (key: string, selector: string): TemplateKitModule => ({
   selector,
 });
 
-const kitContent = (key: string, selector: string, root?: "self" | "section"): TemplateKitModule => ({
+const kitContent = (
+  key: string,
+  selector: string,
+  root?: "self" | "section",
+  sourceTemplateId?: string,
+): TemplateKitModule => ({
   key,
   kind: "content",
   selector,
   ...(root ? { root } : {}),
+  ...(sourceTemplateId ? { sourceTemplateId } : {}),
 });
 
 const kitDemo = (key: string, selector: string, root?: "self" | "section"): TemplateKitModule => ({
@@ -344,11 +350,33 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         kitContent("partners", "h2.mt-3.mb-4", "section"),
         kitContent("faq", "#accordion-flush", "section"),
         kitContent("contact", "h2.leading-tight", "section"),
+        kitContent("products", '[data-sitecraft-kit="product-grid"]', "self", "nordic-store"),
         kitDemo("pricing", demoMarker("pricing")),
         kitDemo("logo-wall", demoMarker("logo-wall")),
         kitDemo("figma", demoMarker("figma")),
         kitDemo("testimonial", demoMarker("testimonial")),
         kitDemo("footer-copyright", demoMarker("footer-copyright")),
+      ],
+    },
+  },
+  "nordic-store": {
+    templateId: "nordic-store",
+    runtime: "static-html",
+    slots: [
+      textSlot("products.title", "nav#store a.uppercase"),
+    ],
+    kit: {
+      familyId: "export-catalog",
+      tokens: {
+        background: "#ffffff",
+        text: "#111827",
+        accent: "#6c2bd9",
+        border: "#e5e7eb",
+        font: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+        radius: "0.5rem",
+      },
+      modules: [
+        kitContent("products", '[data-sitecraft-kit="product-grid"]', "self", "nordic-store"),
       ],
     },
   },

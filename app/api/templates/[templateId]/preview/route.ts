@@ -1,4 +1,5 @@
 import { templates } from "@/lib/site-model";
+import { applyAdmittedKitFragments } from "@/lib/template-adapters/kit-fragments";
 import { buildPreviewBridgeScript, getTemplateAdapter, stripHtmlScripts } from "@/lib/template-adapters";
 import { previewPageSegments } from "@/lib/template-pages";
 import { readTemplateStaticFile } from "@/lib/template-static";
@@ -14,7 +15,9 @@ function prepareHtml(html: string, baseUrl: string, templateId: string, local = 
         .replace(/(\b(?:src|href|poster)=["'])\/(?!\/)/gi, `$1${assetBase}`)
         .replace(/(\bsrcset=["'][^"']*)\/(?!\/)/gi, `$1${assetBase}`)
     : html;
-  const sourceHtml = local ? stripHtmlScripts(rewritten) : rewritten;
+  const sourceHtml = local
+    ? applyAdmittedKitFragments(stripHtmlScripts(rewritten), templateId)
+    : rewritten;
   const base = `<base href="${escapeAttribute(local ? assetBase : baseUrl)}">`;
   const normalized = sourceHtml
     .replace(/<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi, "")

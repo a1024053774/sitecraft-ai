@@ -140,7 +140,7 @@ export function OpenSourceTemplateFrame({
     return () => window.removeEventListener("message", receiveMessage);
   }, [draft?.revision, onApplyReport, onInquiry, onSelectTarget, sendContent, templateId]);
 
-  const previewQuery = new URLSearchParams({ v: "20260918-demo-chrome-3" });
+  const previewQuery = new URLSearchParams({ v: "20260918-nordic-grid-1" });
   if (pagePath) previewQuery.set("pagePath", pagePath);
 
   return (
