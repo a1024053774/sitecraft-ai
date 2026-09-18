@@ -7,6 +7,7 @@ import {
   reportDeclaredCoverage,
   templateAdapters,
 } from "../lib/template-adapters/index.ts";
+import type { TemplateDemoChrome } from "../lib/template-adapters/types.ts";
 
 test("adapters are JSON data, not per-template JavaScript source", () => {
   for (const adapter of Object.values(templateAdapters)) {
@@ -92,7 +93,13 @@ test("templates without homepage contact fields propose an owned alternative", (
 
   const landwind = getTemplateAdapter("landwind");
   assert.equal(landwind?.alternatives?.["contact.phone"], "hero.cta");
-  assert.equal(landwind?.slots.some((slot) => slot.target.startsWith("contact.")), false);
+  assert.equal(landwind?.slots.some((slot) => slot.target === "contact.email"), false);
+  assert.equal(landwind?.slots.some((slot) => slot.target === "contact.title"), true);
+  assert.equal(landwind?.slots.some((slot) => slot.target === "contact.body"), true);
+
+  const screwfastAdapter = getTemplateAdapter("screwfast");
+  assert.equal(screwfastAdapter?.slots.some((slot) => slot.target === "contact.email"), false);
+  assert.equal(screwfastAdapter?.slots.some((slot) => slot.target === "contact.title"), true);
 
   const fresh = reportDeclaredCoverage({
     templateId: "fresh",
@@ -312,6 +319,146 @@ test("declared hero images are unique src slots and leave logos and avatars unde
     }
     assert.equal(adapter?.slots.some((entry) => entry.attr === "src" && entry.target !== "hero.image"), false);
   }
+});
+
+test("screwfast forge and landwind FAQ nodes are unique and stay declared", () => {
+  const cases = [
+    {
+      id: "screwfast",
+      html: new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url),
+      count: 6,
+      chrome: "Contact Sales Team",
+    },
+    {
+      id: "forge",
+      html: new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url),
+      count: 3,
+      chrome: "Get A Free Estimate",
+    },
+    {
+      id: "landwind",
+      html: new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url),
+      count: 4,
+      chrome: "Get Figma file",
+    },
+  ] as const;
+  for (const item of cases) {
+    const html = readFileSync(item.html, "utf8");
+    const adapter = getTemplateAdapter(item.id);
+    assert.ok(adapter);
+    assert.equal((html.match(/data-sitecraft-faq="title"/g) ?? []).length, item.id === "screwfast" ? 0 : 1);
+    for (let index = 0; index < item.count; index += 1) {
+      const n = index + 1;
+      assert.equal((html.match(new RegExp(`data-sitecraft-faq="q${n}"`, "g")) ?? []).length, 1, `${item.id} q${n}`);
+      assert.equal((html.match(new RegExp(`data-sitecraft-faq="a${n}"`, "g")) ?? []).length, item.id === "screwfast" ? 0 : 1, `${item.id} a${n}`);
+      const title = adapter.slots.find((slot) => slot.target === `faq.items.${index}.title`);
+      const body = adapter.slots.find((slot) => slot.target === `faq.items.${index}.body`);
+      assert.equal(title?.selector, `[data-sitecraft-faq="q${n}"]`);
+      if (item.id === "screwfast") {
+        assert.equal(body?.selector, `#hs-basic-with-title-and-arrow-stretched-collapse${n} > p`);
+        assert.equal((html.match(new RegExp(`id="hs-basic-with-title-and-arrow-stretched-collapse${n}"`, "g")) ?? []).length, 1);
+      } else {
+        assert.equal(body?.selector, `[data-sitecraft-faq="a${n}"]`);
+      }
+    }
+    assert.equal(adapter.slots.some((slot) => slot.target === `faq.items.${item.count}.title`), false);
+    assert.equal(html.includes(item.chrome), true);
+  }
+});
+
+test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () => {
+  const forgeHome = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url), "utf8");
+  const forgeContact = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/Contact/index.html", import.meta.url), "utf8");
+  const landwind = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
+  const screwfast = readFileSync(new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url), "utf8");
+  assert.equal((forgeHome.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 0);
+  assert.equal((forgeContact.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
+  assert.equal((landwind.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
+  assert.equal((screwfast.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
+  assert.equal(forgeContact.toLowerCase().includes("web3forms"), false);
+  assert.equal((forgeContact.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
+  assert.equal((landwind.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
+  assert.equal((screwfast.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
+  assert.equal(getTemplateAdapter("forge")?.slots.some((slot) => slot.target === "contact.title"), true);
+  assert.equal(getTemplateAdapter("landwind")?.slots.some((slot) => slot.target === "contact.email"), false);
+  assert.equal(getTemplateAdapter("screwfast")?.slots.some((slot) => slot.target === "contact.email"), false);
+});
+
+test("why-choose left copy is unique on forge and screwfast", () => {
+  const forge = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url), "utf8");
+  const screwfast = readFileSync(new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url), "utf8");
+  assert.equal((forge.match(/data-sitecraft-why-choose="true"/g) ?? []).length, 1);
+  assert.equal((forge.match(/data-sitecraft-why-title/g) ?? []).length, 1);
+  assert.equal((screwfast.match(/data-sitecraft-why-choose="true"/g) ?? []).length, 1);
+  for (const index of [1, 2, 3]) {
+    assert.equal((forge.match(new RegExp(`data-sitecraft-service="${index}"`, "g")) ?? []).length, 1);
+  }
+  const adapter = getTemplateAdapter("forge");
+  assert.equal(adapter?.slots.find((slot) => slot.target === "services.title")?.selector, "[data-sitecraft-why-title]");
+  assert.equal(adapter?.slots.find((slot) => slot.target === "services.items.0.title")?.selector, '[data-sitecraft-service="1"] > p.mb-4');
+});
+
+function countAttrExact(html: string, attr: string, value: string) {
+  return html.split(`${attr}="${value}"`).length - 1;
+}
+
+test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 vetoes", () => {
+  const cases = [
+    {
+      id: "landwind",
+      html: new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url),
+      brand: ["nav"],
+      chrome: ["pricing", "logo-wall", "figma", "testimonial"],
+      snapshotTokens: ["$29", "$99", "$499", "Get Figma file"],
+    },
+    {
+      id: "screwfast",
+      html: new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url),
+      brand: ["nav", "footer"],
+      chrome: ["pricing", "reviews", "wordmark", "footer-wordmark", "github", "logo-wall", "solutions", "testimonial", "feature-extra"],
+      snapshotTokens: ["12.8k", "Simple, Transparent Pricing"],
+    },
+  ] as const;
+
+  for (const item of cases) {
+    const html = readFileSync(item.html, "utf8");
+    const adapter = getTemplateAdapter(item.id);
+    assert.ok(adapter, `${item.id} adapter is required`);
+    assert.ok(adapter.demoChrome, `${item.id} must declare demoChrome data`);
+    assert.equal(adapter.slots.some((slot) => slot.target === "companyName"), true, `${item.id} must declare companyName`);
+    assert.equal(
+      adapter.sanitize?.leafPatterns?.some((pattern) => /Get Figma|12\.8k|Airbnb/i.test(pattern)) ?? false,
+      false,
+      `${item.id} must not regex-guess demo chrome`,
+    );
+    assert.equal(
+      adapter.sanitize?.sections?.some((pattern) => /Simple, Transparent Pricing|Designed for business/i.test(pattern)) ?? false,
+      false,
+      `${item.id} must not heading-regex hide pricing`,
+    );
+
+    for (const key of item.chrome) {
+      const spec: TemplateDemoChrome | undefined = (adapter.demoChrome ?? []).find((entry) => entry.key === key);
+      assert.ok(spec, `${item.id} missing demoChrome.${key}`);
+      assert.equal(spec.selector, `[data-sitecraft-demo="${key}"]`);
+      assert.equal(countAttrExact(html, "data-sitecraft-demo", key), 1, `${item.id} ${key} marker must be unique`);
+    }
+    for (const key of item.brand) {
+      const slots = adapter.slots.filter((slot) => slot.target === "companyName" && slot.selector.includes(`data-sitecraft-brand="${key}"`));
+      assert.equal(slots.length, key === "nav" && item.id === "landwind" ? 0 : 1, `${item.id} brand ${key} slot`);
+      if (item.id === "landwind" && key === "nav") {
+        assert.equal(adapter.slots.some((slot) => slot.target === "companyName" && slot.selector === "span.self-center.text-xl"), true);
+        continue;
+      }
+      assert.equal(countAttrExact(html, "data-sitecraft-brand", key), 1, `${item.id} brand ${key} marker must be unique`);
+    }
+    for (const token of item.snapshotTokens) {
+      assert.equal(html.includes(token), true, `${item.id} snapshot still contains ${token} before apply`);
+    }
+  }
+  const landwindHtml = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
+  assert.equal(landwindHtml.toLowerCase().includes("airbnb"), false, "logo wall is SVG paths, not Airbnb text");
+  assert.equal(countAttrExact(landwindHtml, "data-sitecraft-demo", "logo-wall"), 1);
 });
 
 test("catalog includes extra PR4 templates without renaming shadcn-landing2 as Pro", () => {

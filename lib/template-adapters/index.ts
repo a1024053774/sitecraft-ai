@@ -1,6 +1,7 @@
 export type {
   SlotApplyReport,
   TemplateAdapter,
+  TemplateDemoChrome,
   TemplatePreviewRuntime,
   TemplateSanitizeRules,
   TemplateSection,

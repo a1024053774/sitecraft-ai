@@ -19,6 +19,12 @@ export type TemplateSanitizeRules = {
   leafPatterns?: string[];
 };
 
+export type TemplateDemoChrome = {
+  key: string;
+  selector: string;
+  root?: "self" | "section";
+};
+
 export type TemplatePreviewRuntime = "static-html" | "astro-static" | "next-static" | "spa-bundle";
 
 export type TemplateSlotAlternative = {
@@ -44,4 +50,5 @@ export type TemplateAdapter = {
   sections?: TemplateSection[];
   alternatives?: Record<string, string>;
   sanitize?: TemplateSanitizeRules;
+  demoChrome?: TemplateDemoChrome[];
 };

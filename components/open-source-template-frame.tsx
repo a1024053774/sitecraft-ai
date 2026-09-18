@@ -19,6 +19,13 @@ type OpenSourceTemplateFrameProps = {
     section?: string;
     route?: string;
   };
+  onInquiry?: (payload: {
+    name: string;
+    email: string;
+    company: string;
+    message: string;
+    honeypot: string;
+  }) => void;
   onSelectTarget?: (target: string, label: string, prompt: string) => void;
   onApplyReport?: (report: {
     revision: number;
@@ -38,6 +45,7 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
   about: { label: "关于我们", prompt: "修改关于我们区块，只使用已经提供的企业事实。" },
   features: { label: "核心优势", prompt: "修改核心优势区块，保持当前模板的信息密度和卡片数量。" },
   services: { label: "服务模块", prompt: "修改服务模块，可指定第几个服务的标题或说明。" },
+  faq: { label: "常见问题", prompt: "修改 FAQ 问答，只使用资料里的交期、认证、MOQ 和售后；没有的写成待补充。" },
   contact: { label: "联系模块", prompt: "修改联系区块文案和联系方式，不得虚构数据。" },
 };
 
@@ -49,6 +57,7 @@ export function OpenSourceTemplateFrame({
   expectedTargets = [],
   pagePath = "",
   activePage,
+  onInquiry,
   onSelectTarget,
   onApplyReport,
 }: OpenSourceTemplateFrameProps) {
@@ -84,6 +93,13 @@ export function OpenSourceTemplateFrame({
         type?: string;
         templateId?: string;
         target?: string;
+        payload?: {
+          name?: string;
+          email?: string;
+          company?: string;
+          message?: string;
+          honeypot?: string;
+        };
         revision?: number;
         appliedSlots?: string[];
         missingSlots?: string[];
@@ -97,6 +113,15 @@ export function OpenSourceTemplateFrame({
       if (data?.type === "sitecraft:select" && data.target && onSelectTarget) {
         const target = targetPrompts[data.target];
         if (target) onSelectTarget(data.target, target.label, target.prompt);
+      }
+      if (data?.type === "sitecraft:inquiry" && data.templateId === templateId && onInquiry) {
+        onInquiry({
+          name: data.payload?.name ?? "",
+          email: data.payload?.email ?? "",
+          company: data.payload?.company ?? "",
+          message: data.payload?.message ?? "",
+          honeypot: data.payload?.honeypot ?? "",
+        });
       }
       if (data?.type === "sitecraft:applied" && data.templateId === templateId) {
         setHydrated(true);
@@ -113,9 +138,9 @@ export function OpenSourceTemplateFrame({
     };
     window.addEventListener("message", receiveMessage);
     return () => window.removeEventListener("message", receiveMessage);
-  }, [draft?.revision, onApplyReport, onSelectTarget, sendContent, templateId]);
+  }, [draft?.revision, onApplyReport, onInquiry, onSelectTarget, sendContent, templateId]);
 
-  const previewQuery = new URLSearchParams({ v: "20260918-pages" });
+  const previewQuery = new URLSearchParams({ v: "20260918-demo-chrome-2" });
   if (pagePath) previewQuery.set("pagePath", pagePath);
 
   return (

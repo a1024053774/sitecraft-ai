@@ -70,12 +70,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
       "contact.body": contact.body,
       "contact.email": contact.email,
       "contact.phone": contact.phone,
-      "contact.address": contact.address
+      "contact.address": contact.address,
+      "faq.title": (content.faq || {}).title,
+      "faq.intro": (content.faq || {}).intro
     };
     if (Object.prototype.hasOwnProperty.call(table, target)) {
       return localize(table[target], locale);
     }
-    var itemMatch = /^(features|services)\.items\.(\d+)\.(title|body)$/.exec(target);
+    var itemMatch = /^(features|services|faq)\.items\.(\d+)\.(title|body)$/.exec(target);
     if (itemMatch) {
       var section = content[itemMatch[1]] || {};
       var items = section.items || [];
@@ -110,6 +112,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (base === "services" || base.indexOf("services.") === 0) return "services";
     if (base === "products" || base.indexOf("products.") === 0) return "products";
     if (base === "contact" || base.indexOf("contact.") === 0) return "contact";
+    if (base === "faq" || base.indexOf("faq.") === 0) return "faq";
     return null;
   }
 
@@ -150,11 +153,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return adapterObj.alternatives[semantic] || adapterObj.alternatives[requested] || null;
   }
 
-  function report(applied, expected, adapterObj) {
+  function report(applied, expected, adapterObj, extraMissing) {
     var appliedSlots = Array.from(applied);
     var missingSlots = expected.filter(function (target) {
       return appliedSlots.indexOf(target) === -1;
     });
+    var extras = extraMissing || [];
+    for (var m = 0; m < extras.length; m++) {
+      if (missingSlots.indexOf(extras[m]) === -1) missingSlots.push(extras[m]);
+    }
     var proposedAlternatives = [];
     for (var i = 0; i < missingSlots.length; i++) {
       var requested = missingSlots[i];
@@ -207,6 +214,22 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (!node) continue;
       setSectionHidden(node, spec.key, hidden.indexOf(spec.key) !== -1);
       applied.add(spec.key + ".visibility");
+    }
+  }
+
+  function applyDemoChrome(applied, extraMissing) {
+    var specs = adapter && adapter.demoChrome ? adapter.demoChrome : [];
+    for (var i = 0; i < specs.length; i++) {
+      var spec = specs[i];
+      if (!spec || !spec.key || !spec.selector) continue;
+      var slotKey = "demoChrome." + spec.key;
+      var node = visibilityNode(spec);
+      if (!node) {
+        extraMissing.push(slotKey);
+        continue;
+      }
+      setSectionHidden(node, "demo:" + spec.key, true);
+      applied.add(slotKey);
     }
   }
 
@@ -279,6 +302,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage) {
     var applied = new Set();
+    var extraMissing = [];
     var currentLocale = locale || "zh";
     var expected = Array.isArray(expectedTargets) ? expectedTargets.filter(isRequestedTarget) : [];
     if (document && document.documentElement) {
@@ -301,10 +325,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
         writeSlot(node, slot, value, currentLocale, applied);
       }
       applySectionVisibility(draft, applied);
+      applyDemoChrome(applied, extraMissing);
       applyActivePage(draft, activePage);
       if (variant === "published") sanitizePublished();
     }
-    return report(applied, expected, adapter);
+    return report(applied, expected, adapter, extraMissing);
   }
 
   function onMessage(event) {
@@ -334,6 +359,37 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
+  function fieldValue(form, name) {
+    if (!form || !form.querySelector) return "";
+    var node = form.querySelector("[name=\"" + name + "\"]");
+    if (!node) return "";
+    if (typeof node.value === "string") return node.value;
+    var attr = node.getAttribute ? node.getAttribute("value") : "";
+    if (attr) return String(attr);
+    return String(node.textContent || "");
+  }
+
+  function onInquirySubmit(event) {
+    var rawTarget = event && event.target;
+    var form = rawTarget && rawTarget.closest ? rawTarget.closest("[data-sitecraft-inquiry=\"true\"]") : null;
+    if (!form) return;
+    if (event.preventDefault) event.preventDefault();
+    if (event.stopPropagation) event.stopPropagation();
+    if (parent && parent.postMessage) {
+      parent.postMessage({
+        type: "sitecraft:inquiry",
+        templateId: templateId,
+        payload: {
+          name: fieldValue(form, "name"),
+          email: fieldValue(form, "email"),
+          company: fieldValue(form, "company"),
+          message: fieldValue(form, "message"),
+          honeypot: fieldValue(form, "honeypot")
+        }
+      }, "*");
+    }
+  }
+
   function onClick(event) {
     var variant = document.documentElement && document.documentElement.dataset
       ? document.documentElement.dataset.sitecraftVariant
@@ -353,7 +409,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   if (global.addEventListener) global.addEventListener("message", onMessage);
-  if (document && document.addEventListener) document.addEventListener("click", onClick, true);
+  if (document && document.addEventListener) {
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("submit", onInquirySubmit, true);
+  }
   if (parent && parent.postMessage) parent.postMessage({ type: "sitecraft:ready", templateId: templateId }, "*");
   global.__sitecraftApplyDeclared = applyDeclaredContent;
   return { applyDeclaredContent: applyDeclaredContent };
