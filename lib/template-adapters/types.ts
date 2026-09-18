@@ -25,6 +25,37 @@ export type TemplateDemoChrome = {
   root?: "self" | "section";
 };
 
+/** Look-board ids that currently have an admitted same-family kit. */
+export type TemplateFamilyId = "industrial" | "engineering-industrial" | "export-catalog";
+
+export type TemplateKitTokens = {
+  background: string;
+  text: string;
+  accent: string;
+  border: string;
+  font: string;
+  radius: string;
+};
+
+export type TemplateKitModuleKind = "shell" | "content" | "demo";
+
+export type TemplateKitModule = {
+  key: string;
+  kind: TemplateKitModuleKind;
+  selector: string;
+  root?: "self" | "section";
+};
+
+/**
+ * One visual family: tokens + shell + modules the shared bridge can read.
+ * 1:1 snapshot mapping stays until a look has two interchangeable kits.
+ */
+export type TemplateKit = {
+  familyId: TemplateFamilyId;
+  tokens: TemplateKitTokens;
+  modules: TemplateKitModule[];
+};
+
 export type TemplatePreviewRuntime = "static-html" | "astro-static" | "next-static" | "spa-bundle";
 
 export type TemplateSlotAlternative = {
@@ -51,4 +82,5 @@ export type TemplateAdapter = {
   alternatives?: Record<string, string>;
   sanitize?: TemplateSanitizeRules;
   demoChrome?: TemplateDemoChrome[];
+  kit?: TemplateKit;
 };

@@ -233,6 +233,48 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
+  function applyFamilyKit(draft, applied, extraMissing) {
+    var kit = adapter && adapter.kit;
+    if (!kit || !kit.familyId) return;
+    var root = document && document.documentElement;
+    var tokens = kit.tokens || {};
+    if (root && root.dataset) {
+      root.dataset.sitecraftFamily = kit.familyId;
+      if (tokens.background) root.dataset.sitecraftTokenBackground = tokens.background;
+      if (tokens.text) root.dataset.sitecraftTokenText = tokens.text;
+      if (tokens.accent) root.dataset.sitecraftTokenAccent = tokens.accent;
+      if (tokens.border) root.dataset.sitecraftTokenBorder = tokens.border;
+      if (tokens.font) root.dataset.sitecraftTokenFont = tokens.font;
+      if (tokens.radius) root.dataset.sitecraftTokenRadius = tokens.radius;
+    }
+    applied.add("kit.family." + kit.familyId);
+    var briefId = draft && draft.visualBrief && draft.visualBrief.id;
+    if (briefId && briefId !== kit.familyId) extraMissing.push("kit.family.mismatch");
+    var hidden = draft && Array.isArray(draft.hiddenSections) ? draft.hiddenSections : [];
+    var modules = kit.modules || [];
+    for (var i = 0; i < modules.length; i++) {
+      var spec = modules[i];
+      if (!spec || !spec.key || !spec.kind) continue;
+      if (spec.kind === "shell") {
+        applied.add("kit." + spec.key);
+        continue;
+      }
+      if (spec.kind === "content") {
+        if (hidden.indexOf(spec.key) !== -1) applied.add("kit." + spec.key + ".omitted");
+        else applied.add("kit." + spec.key);
+        continue;
+      }
+      if (spec.kind !== "demo") continue;
+      var node = visibilityNode(spec);
+      if (!node) {
+        extraMissing.push("kit." + spec.key);
+        continue;
+      }
+      setSectionHidden(node, "kit:" + spec.key, true);
+      applied.add("kit." + spec.key + ".omitted");
+    }
+  }
+
   function hideSectionByHeading(pattern) {
     var headings = asList(document.querySelectorAll("h1,h2,h3"));
     for (var i = 0; i < headings.length; i++) {
@@ -326,6 +368,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
       applySectionVisibility(draft, applied);
       applyDemoChrome(applied, extraMissing);
+      applyFamilyKit(draft, applied, extraMissing);
       applyActivePage(draft, activePage);
       if (variant === "published") sanitizePublished();
     }

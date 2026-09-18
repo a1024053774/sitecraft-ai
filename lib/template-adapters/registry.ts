@@ -1,4 +1,4 @@
-import type { SlotApplyReport, TemplateAdapter, TemplateSlot } from "./types.ts";
+import type { SlotApplyReport, TemplateAdapter, TemplateKitModule, TemplateSlot } from "./types.ts";
 
 const textSlot = (target: string, selector: string): TemplateSlot => ({
   target,
@@ -24,6 +24,28 @@ const contactToHeroCta = {
   "contact.phone": "hero.cta",
   "contact.address": "hero.cta",
 } as const;
+
+const kitShell = (key: string, selector: string): TemplateKitModule => ({
+  key,
+  kind: "shell",
+  selector,
+});
+
+const kitContent = (key: string, selector: string, root?: "self" | "section"): TemplateKitModule => ({
+  key,
+  kind: "content",
+  selector,
+  ...(root ? { root } : {}),
+});
+
+const kitDemo = (key: string, selector: string, root?: "self" | "section"): TemplateKitModule => ({
+  key,
+  kind: "demo",
+  selector,
+  ...(root ? { root } : {}),
+});
+
+const demoMarker = (key: string) => `[data-sitecraft-demo="${key}"]`;
 
 export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
   forge: {
@@ -67,6 +89,23 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         "part [1-4]",
         "One or two sentences about what your company offers[.]",
         "brief description of services",
+      ],
+    },
+    kit: {
+      familyId: "industrial",
+      tokens: {
+        background: "#f3f4f6",
+        text: "#0a0a0a",
+        accent: "#60a5fa",
+        border: "#9ca3af",
+        font: 'ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji",Segoe UI Symbol,"Noto Color Emoji"',
+        radius: "0.5rem",
+      },
+      modules: [
+        kitShell("hero", '[data-testid="hero-text"]'),
+        kitContent("services", "section.border-y-8.border-blue-400"),
+        kitContent("features", "div.bg-opacity-30", "section"),
+        kitContent("faq", "#FAQ"),
       ],
     },
   },
@@ -199,6 +238,35 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
     sanitize: {
       leafPatterns: ["Contact Sales Team", "7K[+]", "Crafted by"],
     },
+    kit: {
+      familyId: "engineering-industrial",
+      tokens: {
+        background: "#fff",
+        text: "oklch(20.5% 0 0)",
+        accent: "oklch(67.4% .2072 39.23)",
+        border: "oklch(92.2% 0 0)",
+        font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+        radius: "0.5rem",
+      },
+      modules: [
+        kitShell("nav", '[data-sitecraft-brand="nav"]'),
+        kitShell("footer", '[data-sitecraft-brand="footer"]'),
+        kitContent("partners", "h2.leading-tight.text-2xl", "section"),
+        kitContent("features", 'img[alt="ScrewFast products in floating boxes"]', "section"),
+        kitContent("process", "h2.mb-2.text-3xl", "section"),
+        kitContent("faq", "div.hs-accordion-group", "section"),
+        kitContent("contact", "section.pt-10.pb-24"),
+        kitDemo("pricing", demoMarker("pricing")),
+        kitDemo("reviews", demoMarker("reviews")),
+        kitDemo("wordmark", demoMarker("wordmark")),
+        kitDemo("footer-wordmark", demoMarker("footer-wordmark")),
+        kitDemo("github", demoMarker("github")),
+        kitDemo("logo-wall", demoMarker("logo-wall")),
+        kitDemo("solutions", demoMarker("solutions")),
+        kitDemo("testimonial", demoMarker("testimonial")),
+        kitDemo("feature-extra", demoMarker("feature-extra")),
+      ],
+    },
   },
   fresh: {
     templateId: "fresh",
@@ -258,6 +326,29 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       { key: "figma", selector: '[data-sitecraft-demo="figma"]' },
       { key: "testimonial", selector: '[data-sitecraft-demo="testimonial"]' },
     ],
+    kit: {
+      familyId: "export-catalog",
+      tokens: {
+        background: "#ffffff",
+        text: "#111827",
+        accent: "#6c2bd9",
+        border: "#e5e7eb",
+        font: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+        radius: "0.5rem",
+      },
+      modules: [
+        kitShell("nav", "span.self-center.text-xl"),
+        kitShell("footer", '[data-sitecraft-brand="footer"]'),
+        kitContent("solutions", 'img[alt="dashboard feature image"]', "section"),
+        kitContent("partners", "h2.mt-3.mb-4", "section"),
+        kitContent("faq", "#accordion-flush", "section"),
+        kitContent("contact", "h2.leading-tight", "section"),
+        kitDemo("pricing", demoMarker("pricing")),
+        kitDemo("logo-wall", demoMarker("logo-wall")),
+        kitDemo("figma", demoMarker("figma")),
+        kitDemo("testimonial", demoMarker("testimonial")),
+      ],
+    },
   },
   "nextjs-landing": {
     templateId: "nextjs-landing",

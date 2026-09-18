@@ -2,6 +2,11 @@ export type {
   SlotApplyReport,
   TemplateAdapter,
   TemplateDemoChrome,
+  TemplateFamilyId,
+  TemplateKit,
+  TemplateKitModule,
+  TemplateKitModuleKind,
+  TemplateKitTokens,
   TemplatePreviewRuntime,
   TemplateSanitizeRules,
   TemplateSection,
@@ -9,6 +14,8 @@ export type {
   TemplateSlotAlternative,
   TemplateSlotAttr,
 } from "./types.ts";
+export { composeKitModules, selectedKitParts, sameFamilyTokens } from "./kit.ts";
+export type { KitComposeResult, KitPart } from "./kit.ts";
 export { adapterCoverage, declaredFamilySections, getTemplateAdapter, reportDeclaredCoverage, templateAdapters } from "./registry.ts";
 export {
   PREVIEW_BRIDGE_NONCE,

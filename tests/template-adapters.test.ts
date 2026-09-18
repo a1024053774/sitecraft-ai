@@ -3,8 +3,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   adapterCoverage,
+  composeKitModules,
   getTemplateAdapter,
   reportDeclaredCoverage,
+  selectedKitParts,
+  sameFamilyTokens,
   templateAdapters,
 } from "../lib/template-adapters/index.ts";
 import type { TemplateDemoChrome } from "../lib/template-adapters/types.ts";
@@ -459,6 +462,109 @@ test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 
   const landwindHtml = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
   assert.equal(landwindHtml.toLowerCase().includes("airbnb"), false, "logo wall is SVG paths, not Airbnb text");
   assert.equal(countAttrExact(landwindHtml, "data-sitecraft-demo", "logo-wall"), 1);
+});
+
+test("admitted kits bind looks to one family, copy concrete tokens, and never select demo pricing", () => {
+  const expected = {
+    forge: { familyId: "industrial", templateId: "forge", demo: [] as string[] },
+    screwfast: {
+      familyId: "engineering-industrial",
+      templateId: "screwfast",
+      demo: ["pricing", "reviews", "wordmark", "footer-wordmark", "github", "logo-wall", "solutions", "testimonial", "feature-extra"],
+    },
+    landwind: {
+      familyId: "export-catalog",
+      templateId: "landwind",
+      demo: ["pricing", "logo-wall", "figma", "testimonial"],
+    },
+  } as const;
+
+  const familyIds = new Set<string>();
+  for (const [templateId, spec] of Object.entries(expected)) {
+    const adapter = getTemplateAdapter(templateId);
+    assert.ok(adapter?.kit, `${templateId} must declare a kit the shared bridge can read`);
+    const kit = adapter.kit;
+    assert.equal(kit.familyId, spec.familyId);
+    assert.equal(adapter.templateId, spec.templateId);
+    familyIds.add(kit.familyId);
+    for (const value of Object.values(kit.tokens)) {
+      assert.equal(typeof value, "string");
+      assert.ok(value.length > 0);
+      assert.equal(/暖灰|小圆角|明亮|工业风/.test(value), false, `${templateId} tokens must be concrete values`);
+    }
+    assert.match(kit.tokens.background, /#|rgb|oklch/);
+    assert.match(kit.tokens.radius, /^\d+(\.\d+)?rem$/);
+    assert.ok(Array.isArray(kit.modules));
+    assert.equal(kit.modules.some((module) => module.selector.includes(",")), false);
+    const demoKeys = kit.modules.filter((module) => module.kind === "demo").map((module) => module.key).sort();
+    assert.deepEqual(demoKeys, [...spec.demo].sort());
+    for (const key of spec.demo) {
+      const demo = kit.modules.find((module) => module.key === key);
+      assert.equal(demo?.selector, `[data-sitecraft-demo="${key}"]`);
+    }
+    const selected = selectedKitParts(kit, []);
+    assert.equal(selected.some((part) => part.key === "pricing"), false);
+    assert.equal(selected.some((part) => part.kind === "demo"), false);
+    assert.ok(selected.some((part) => part.kind === "shell"));
+    const composed = composeKitModules({ host: kit, parts: selected });
+    assert.equal(composed.ok, true);
+    if (composed.ok) assert.equal(composed.selected.includes("pricing"), false);
+  }
+  assert.equal(familyIds.size, 3);
+  assert.equal(getTemplateAdapter("tailwind-landing")?.kit, undefined);
+  assert.equal(getTemplateAdapter("fresh")?.kit, undefined);
+});
+
+test("same-family compose matches sample B/C and rejects mixed-skin sample A", () => {
+  const host = getTemplateAdapter("screwfast")?.kit;
+  const foreign = getTemplateAdapter("landwind")?.kit;
+  const forge = getTemplateAdapter("forge")?.kit;
+  assert.ok(host && foreign && forge);
+  assert.equal(sameFamilyTokens(host.tokens, foreign.tokens), false);
+  assert.equal(sameFamilyTokens(host.tokens, forge.tokens), false);
+
+  const family = composeKitModules({ host, parts: selectedKitParts(host, ["partners"]) });
+  assert.equal(family.ok, true);
+  if (family.ok) {
+    assert.equal(family.familyId, "engineering-industrial");
+    assert.equal(family.selected.includes("partners"), false);
+    assert.equal(family.selected.includes("faq"), true);
+    assert.equal(family.selected.includes("pricing"), false);
+  }
+
+  const frankenstein = composeKitModules({
+    host,
+    parts: [
+      { familyId: host.familyId, tokens: host.tokens, key: "nav", kind: "shell" },
+      { familyId: foreign.familyId, tokens: foreign.tokens, key: "faq", kind: "content" },
+    ],
+  });
+  assert.equal(frankenstein.ok, false);
+  if (!frankenstein.ok) {
+    assert.equal(frankenstein.reason, "cross-family");
+    assert.ok(frankenstein.families.includes("engineering-industrial"));
+    assert.ok(frankenstein.families.includes("export-catalog"));
+  }
+
+  const dropInSkin = composeKitModules({
+    host,
+    parts: [
+      { familyId: host.familyId, tokens: host.tokens, key: "nav", kind: "shell" },
+      { familyId: host.familyId, tokens: foreign.tokens, key: "faq", kind: "content" },
+    ],
+  });
+  assert.equal(dropInSkin.ok, false);
+  if (!dropInSkin.ok) assert.equal(dropInSkin.reason, "token-mismatch");
+
+  const restyled = composeKitModules({
+    host,
+    parts: [
+      { familyId: host.familyId, tokens: host.tokens, key: "nav", kind: "shell" },
+      { familyId: host.familyId, tokens: host.tokens, key: "faq", kind: "content" },
+    ],
+  });
+  assert.equal(restyled.ok, true);
+  if (restyled.ok) assert.deepEqual(restyled.selected, ["nav", "faq"]);
 });
 
 test("catalog includes extra PR4 templates without renaming shadcn-landing2 as Pro", () => {

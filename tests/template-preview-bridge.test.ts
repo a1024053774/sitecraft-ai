@@ -10,6 +10,7 @@ import {
   stripHtmlScripts,
 } from "../lib/template-adapters/preview-bridge.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/index.ts";
+import { composeKitModules, selectedKitParts } from "../lib/template-adapters/kit.ts";
 import { resolvePagePlan } from "../lib/template-pages.ts";
 import type { TemplateAdapter } from "../lib/template-adapters/types.ts";
 
@@ -1544,4 +1545,78 @@ test("demo chrome unique miss is reported as missing and does not hide a similar
   assert.ok(report.missingSlots.includes("demoChrome.pricing"));
   assert.equal(report.appliedSlots.includes("demoChrome.pricing"), false);
   assert.deepEqual(report.fallbackMatched, []);
+});
+
+test("engineering-industrial kit omits unselected SaaS pricing from the composed industrial page", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter?.kit);
+  const parts = selectedKitParts(adapter.kit, []);
+  const composed = composeKitModules({ host: adapter.kit, parts });
+  assert.equal(composed.ok, true);
+  assert.equal(parts.some((part) => part.key === "pricing"), false);
+
+  const { document } = createDocument();
+  const brand = createNode("span");
+  brand.setAttribute("data-sitecraft-brand", "nav");
+  brand.textContent = "ScrewFast";
+  const footerBrand = createNode("span");
+  footerBrand.setAttribute("data-sitecraft-brand", "footer");
+  footerBrand.textContent = "ScrewFast";
+  const pricing = createNode("section");
+  pricing.setAttribute("data-sitecraft-demo", "pricing");
+  const price29 = createNode("span");
+  price29.textContent = "$29";
+  const price99 = createNode("span");
+  price99.textContent = "$99";
+  pricing.appendChild(price29);
+  pricing.appendChild(price99);
+  const faq = createNode("section");
+  const accordion = createNode("div");
+  accordion.className = "hs-accordion-group";
+  accordion.textContent = "交期如何确认？";
+  faq.appendChild(accordion);
+  document.body.appendChild(brand);
+  document.body.appendChild(footerBrand);
+  document.body.appendChild(pricing);
+  document.body.appendChild(faq);
+
+  const draft = packDraft("industrial");
+  assert.equal(draft.visualBrief.id, "engineering-industrial");
+  assert.equal(draft.templateId, "screwfast");
+  const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
+    "companyName.zh",
+    "kit.pricing.omitted",
+    "kit.faq",
+    "kit.family.engineering-industrial",
+  ], "workspace");
+  const page = visibleText(document.body);
+  assert.equal(document.documentElement.dataset.sitecraftFamily, "engineering-industrial");
+  assert.equal(document.documentElement.dataset.sitecraftTokenAccent, adapter.kit.tokens.accent);
+  assert.equal(brand.textContent, simulatedPacks.industrial.companyName);
+  assert.equal(page.includes("$29"), false);
+  assert.equal(page.includes("$99"), false);
+  assert.equal(pricing.hidden, true);
+  assert.equal(faq.hidden, false);
+  assert.ok(report.appliedSlots.includes("kit.pricing.omitted"));
+  assert.ok(report.appliedSlots.includes("kit.faq"));
+  assert.ok(report.appliedSlots.includes("kit.family.engineering-industrial"));
+  assert.equal(report.missingSlots.includes("kit.family.mismatch"), false);
+  assert.deepEqual(report.fallbackMatched, []);
+});
+
+test("look/family mismatch is reported and landwind pricing is still omitted", () => {
+  const adapter = getTemplateAdapter("landwind");
+  assert.ok(adapter?.kit);
+  const { document, nodes } = createLandwindFragment();
+  const pricing = createNode("section");
+  pricing.setAttribute("data-sitecraft-demo", "pricing");
+  pricing.textContent = "$499";
+  document.body.appendChild(pricing);
+  const draft = packDraft("industrial");
+  assert.equal(draft.visualBrief.id, "engineering-industrial");
+  const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", ["kit.family.mismatch"], "workspace");
+  assert.ok(report.missingSlots.includes("kit.family.mismatch"));
+  assert.equal(pricing.hidden, true);
+  assert.equal(visibleText(document.body).includes("$499"), false);
+  assert.equal(nodes.brand.textContent, simulatedPacks.industrial.companyName);
 });
