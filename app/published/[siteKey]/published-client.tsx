@@ -42,6 +42,31 @@ export function PublishedSiteClient({
     window.history.replaceState(null, "", url);
   };
 
+  const postInquiry = async (
+    fields: { name: string; email: string; company: string; message: string; honeypot: string },
+    form?: HTMLFormElement,
+  ) => {
+    setInquiryStatus("sending");
+    setInquiryError("");
+    try {
+      const response = await fetch(`/api/public/${encodeURIComponent(siteKey)}/leads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      const payload = await response.json() as { id?: string; error?: string };
+      if (!response.ok || !payload.id) {
+        throw new Error(payload.error || (locale === "zh" ? "询盘未保存" : "Inquiry was not saved"));
+      }
+      setInquiryId(payload.id);
+      setInquiryStatus("sent");
+      form?.reset();
+    } catch (error) {
+      setInquiryStatus("error");
+      setInquiryError(error instanceof Error ? error.message : "询盘未保存");
+    }
+  };
+
   return (
     <main
       className="published-template-shell"
@@ -82,6 +107,9 @@ export function PublishedSiteClient({
         pagePath={previewPathForPage(activePage)}
         activePage={activePage}
         onApplyReport={() => setHydrated(true)}
+        onInquiry={(fields) => {
+          void postInquiry(fields);
+        }}
       />
       <details className="published-inquiry" data-testid="published-inquiry">
         <summary>{locale === "zh" ? "发送询盘" : "Send inquiry"}</summary>
@@ -106,31 +134,13 @@ export function PublishedSiteClient({
               event.preventDefault();
               const form = event.currentTarget;
               const data = new FormData(form);
-              setInquiryStatus("sending");
-              setInquiryError("");
-              try {
-                const response = await fetch(`/api/public/${encodeURIComponent(siteKey)}/leads`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    name: String(data.get("name") ?? ""),
-                    email: String(data.get("email") ?? ""),
-                    company: String(data.get("company") ?? ""),
-                    message: String(data.get("message") ?? ""),
-                    honeypot: String(data.get("honeypot") ?? ""),
-                  }),
-                });
-                const payload = await response.json() as { id?: string; error?: string };
-                if (!response.ok || !payload.id) {
-                  throw new Error(payload.error || (locale === "zh" ? "询盘未保存" : "Inquiry was not saved"));
-                }
-                setInquiryId(payload.id);
-                setInquiryStatus("sent");
-                form.reset();
-              } catch (error) {
-                setInquiryStatus("error");
-                setInquiryError(error instanceof Error ? error.message : "询盘未保存");
-              }
+              await postInquiry({
+                name: String(data.get("name") ?? ""),
+                email: String(data.get("email") ?? ""),
+                company: String(data.get("company") ?? ""),
+                message: String(data.get("message") ?? ""),
+                honeypot: String(data.get("honeypot") ?? ""),
+              }, form);
             }}
           >
             <label>

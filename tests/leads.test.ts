@@ -179,5 +179,9 @@ test("inbox pages stop advertising fake companies and a live mailbox", () => {
   assert.equal(settingsPage.includes("lydia@sitecraft.ai"), false);
   assert.match(publishedClient, /\/api\/public\/\$\{encodeURIComponent\(siteKey\)\}\/leads/);
   assert.match(publishedClient, /published-inquiry-form/);
+  assert.match(publishedClient, /onInquiry/);
   assert.equal(/count:\s*4/.test(sidebar), false);
+  const forgeContact = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/Contact/index.html", import.meta.url), "utf8");
+  assert.equal(forgeContact.toLowerCase().includes("web3forms"), false);
+  assert.match(forgeContact, /data-sitecraft-inquiry="true"/);
 });
