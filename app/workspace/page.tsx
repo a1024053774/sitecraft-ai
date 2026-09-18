@@ -25,6 +25,7 @@ import {
   Smartphone as Mobile,
   Sparkles,
   Tablet,
+  Trash2,
   Upload,
   Plus,
   X,
@@ -55,6 +56,7 @@ import {
   type SimulatedPackId,
 } from "@/lib/simulated-packs";
 import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
+import { SiteDeleteDialog } from "@/components/site-delete-panel";
 
 function conversationStorageKey(siteId: string) {
   return `sitecraft-conversation:${siteId}`;
@@ -265,6 +267,7 @@ export default function WorkspacePage() {
   const [showImport, setShowImport] = useState(false);
   const [showMaterials, setShowMaterials] = useState(false);
   const [showImages, setShowImages] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [materialsText, setMaterialsText] = useState("");
   const [loadedPackId, setLoadedPackId] = useState<SimulatedPackId | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -1158,6 +1161,7 @@ export default function WorkspacePage() {
             <button className="secondary-button" onClick={() => setShowImport(true)}><Upload size={14} />商品</button>
             <button className="secondary-button" data-testid="toolbar-upload-photo" onClick={() => { void openImageLibrary(); }}><ImageIcon size={14} />产品图</button>
             <Link className="primary-button" href={`/published/${encodeURIComponent(siteId)}?page=${encodeURIComponent(activePage?.id ?? "home")}` as Route} target="_blank" rel="noreferrer"><Globe2 size={14} />发布</Link>
+            <button className="icon-button" type="button" data-testid="toolbar-delete-site" aria-label="删除本站" onClick={() => setShowDelete(true)}><Trash2 size={14} /></button>
           </div>
         </header>
         <div className="site-page-chrome">
@@ -1317,6 +1321,15 @@ export default function WorkspacePage() {
           </div>
         </div>
       )}
+      <SiteDeleteDialog
+        siteId={siteId}
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onDeleted={(deletedId) => {
+          window.localStorage.removeItem(conversationStorageKey(deletedId));
+          window.location.assign("/settings#data-delete");
+        }}
+      />
     </div>
   );
 }

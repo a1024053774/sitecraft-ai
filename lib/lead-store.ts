@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
 import { getExistingSite } from "./site-store.ts";
@@ -293,6 +293,29 @@ export async function createLead(input: CreateLeadInput) {
 export async function listLeads(filter: { siteId?: string } = {}) {
   const leads = usePostgres ? await listPostgresLeads(filter.siteId) : await listLocalLeads(filter.siteId);
   return leads.map(publicLead);
+}
+
+async function deleteLocalLeads(siteId: string) {
+  safeSiteId(siteId);
+  try {
+    await unlink(recordPath(siteId));
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+    if (code !== "ENOENT") throw error;
+  }
+}
+
+async function deletePostgresLeads(siteId: string) {
+  safeSiteId(siteId);
+  await ensureDatabaseSchema();
+  await getDatabasePool().query(
+    `DELETE FROM sitecraft_site_leads WHERE workspace_id = $1 AND site_id = $2`,
+    [workspaceId, siteId],
+  );
+}
+
+export function deleteLeadsForSite(siteId: string) {
+  return usePostgres ? deletePostgresLeads(siteId) : deleteLocalLeads(siteId);
 }
 
 export function getLeadStoreStatus() {

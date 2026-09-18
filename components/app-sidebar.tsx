@@ -98,9 +98,6 @@ export function AppSidebar({ active }: { active: SidebarSection }) {
             >
               <Icon size={15} />
               {item.label}
-              {"count" in item && (
-                <span className="nav-count">{item.count}</span>
-              )}
             </Link>
           );
         })}

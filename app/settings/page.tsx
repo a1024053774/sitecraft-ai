@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ChevronRight, Globe2, Mail, ShieldCheck, Users } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
+import { SiteDeleteSettings } from "@/components/site-delete-panel";
 
 export default function SettingsPage() {
   return (
@@ -57,6 +58,7 @@ export default function SettingsPage() {
               </div>
               <button className="secondary-button">管理</button>
             </section>
+            <SiteDeleteSettings />
           </div>
         </div>
       </main>

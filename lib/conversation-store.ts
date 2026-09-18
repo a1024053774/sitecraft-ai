@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
 import {
@@ -394,6 +394,24 @@ export function getOrCreateConversation(siteId: string, conversationId?: string)
 }
 export function appendConversationTurn(args: AppendConversationTurnArgs) {
   return usePostgres ? appendPostgresConversationTurn(args) : appendLocalConversationTurn(args);
+}
+
+async function deleteLocalConversations(siteId: string) {
+  safeSiteId(siteId);
+  await rm(path.join(storageRoot, siteId), { recursive: true, force: true });
+}
+
+async function deletePostgresConversations(siteId: string) {
+  safeSiteId(siteId);
+  await ensureDatabaseSchema();
+  await getDatabasePool().query(
+    `DELETE FROM sitecraft_conversations WHERE workspace_id = $1 AND site_id = $2`,
+    [workspaceId, siteId],
+  );
+}
+
+export function deleteConversationsForSite(siteId: string) {
+  return usePostgres ? deletePostgresConversations(siteId) : deleteLocalConversations(siteId);
 }
 
 export type ApplyConversationAlignmentArgs = {

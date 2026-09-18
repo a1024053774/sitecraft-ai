@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isPng, readPngSize } from "./preview-vision.ts";
 
@@ -313,6 +313,10 @@ export async function listSiteImages(siteId: string): Promise<SiteImageRecord[]>
     if (loaded) records.push(loaded.record);
   }
   return records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function deleteImagesForSite(siteId: string) {
+  await rm(siteDir(siteId), { recursive: true, force: true });
 }
 
 export function publicImagePayload(record: SiteImageRecord) {

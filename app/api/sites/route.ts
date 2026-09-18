@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getSite } from "@/lib/site-store";
+import { getSite, listExistingSites } from "@/lib/site-store";
 import { templates } from "@/lib/site-model";
 
 const createSiteSchema = z.object({
@@ -16,5 +16,6 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  return Response.json({ sites: [{ id: "demo", ...(await getSite("demo")) }] }, { headers: { "Cache-Control": "no-store" } });
+  const sites = await listExistingSites();
+  return Response.json({ sites }, { headers: { "Cache-Control": "no-store" } });
 }
