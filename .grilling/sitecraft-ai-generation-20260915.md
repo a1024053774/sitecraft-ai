@@ -3,8 +3,8 @@ session_id: grilling-sitecraft-ai-generation-20260915
 status: confirmed
 topic: SiteCraft AI 中小企业自主建站方案
 created_at: 2026-09-15T20:20:00+08:00
-updated_at: 2026-09-18T09:15:00+08:00
-last_round: 15
+updated_at: 2026-09-18T20:21:00+08:00
+last_round: 18
 stage: build
 ---
 
@@ -27,7 +27,7 @@ stage: build
 - 长期按未来自助平台许可与数据归属边界考虑；不要求先找到 3–5 家真实客户。
 - 企业输入：简介、产品表、图片、联系方式、主要行动目标与品牌偏好。
 - 生成前有样子/主题选项，不向用户暴露 Skill 名称；卡片按手头快照分类，不锁死四张。
-- 页面：同一视觉族内选模块，内容走声明槽位；禁止跨源拼接。
+- 页面：同一视觉族内选模块，用已准入素材组这家公司的页面；禁止跨源拼接；禁止把整页快照挖空填词当成品。
 - 聊天框加号可选需求对齐；选项点击后自动继续同一任务，不复制 AI 输出、不另发“继续”。
 - AI 自动出初稿；模板、重大视觉方向和发布前确认；普通修改差异可见、可撤销。
 - 复用现有模板，并寻找更多不同主题/场景的开源模板；候选扩充与生产准入分开。
@@ -40,7 +40,7 @@ stage: build
 
 ## Decision tree
 
-Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。2026-09-18 用户决定写入 plan v0.7：删除须由用户明确选择，系统不主动清理；Q17=A 已取代。不实现跨源拼装器，不把 jiro 源码推进 vendor。公开部署仍需额外授权。
+Round 18 写入 Q27=A：同族素材套件 + 现有共享预览引擎。plan 升 v0.10，spec 升 v0.7。不另起渲染器，不把 jiro 源码或未核调研仓库推进 vendor。公开部署仍需额外授权。实现交给主对话，按 plan 分块。
 
 ## Decisions
 
@@ -48,7 +48,7 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。202
 - D2 | confirmed | 既有用户决定 | PR #4 只按能力评估，不整体合并。
 - D3 | confirmed | 既有 Q1 | 保留 submodule 和版本固定的本地/CI snapshot，不提交全量 dist。
 - D4 | superseded（范围限制部分） | 既有 top5 + 本轮 Q14 | forge/atlas/kindred/signal/lonestone 仍是已有优先复核名单；候选范围不受五套或两套限制，参见 D12。
-- D5 | confirmed | 用户 22:32/22:45 开始执行 | 原生 React/shadcn 系统性改造保留后续决策门；一句话建站目标保留，按当前 plan v0.3 的模块顺序执行。
+- D5 | confirmed deferred | Q27 = A | 原生 React/shadcn 系统性改造仍留后续。本阶段用现有 `preview-bridge` 吃同族素材套件，不另起渲染器。
 - D6 | inferred | 研究综合 | visualBrief/模板契约/operations/截图组成内部方案；不是用户逐字段批准的架构。此前标 confirmed 过强，本轮校正。
 - D7 | confirmed | Q8 C，Q15 B | 内部验证、按未来平台边界设计；Q15 明确近期不用真实客户试点。
 - D8 | confirmed | Q9 A，Q10 A | 工业/B2B 为重点；采用企业资料包输入。
@@ -59,14 +59,18 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。202
 - D13 | confirmed（数据保留部分 superseded 2026-09-18） | Q15 补充 | 内部模拟公司、DeepSeek、质量优先、允许第三方模型。原「90 天保留与开关」已被 2026-09-18 用户决定取代。
 - D23 | confirmed | user 2026-09-18 | 删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。Q17=A 与自动清理开关一并废除。不实现 90 天清理任务。
 - D14 | confirmed | 新功能说明 | 可选内嵌需求对齐，点选/等待/恢复；默认关闭、每轮题量及事件字段是设计建议，尚未获逐项确认。
-- D15 | confirmed | Q20 = B | 同一视觉族模块套件：AI 选区块，壳与 token 跟族走；内容走声明槽位。禁止跨源拼接。近期在现有整页模板里显隐，不新写拼装器。
+- D15 | confirmed（成品层 superseded by D26） | Q20 = B | 同一视觉族模块套件：AI 选区块，壳与 token 跟族走。禁止跨源拼接。「内容走声明槽位、近期只显隐整页当成品」被 D26 取代。
 - D16 | confirmed | Q21 = B，用户补充 | 样子盘（Gemini 是类比不是抄 UI）。张数不锁死为 4，按手头可预览模板分类。像素风不是必做卡片。
-- D17 | confirmed | Q22 = B | 一条路径两层：文案进槽位，样子进主题族/模块；模型不输出 CSS。
-- D18 | confirmed | Q23 + 会话 31efb674 | 免费区当版式配方；Premium 工业站只借模块清单。不提交 jiro 源码、不接 MCP、不把 Copy Prompt 当生产提示词。条款仍 unknown。
+- D17 | confirmed（槽位当成品 superseded by D26） | Q22 = B | 一条路径两层：文案和样子走同一生成路径；模型不输出 CSS。「文案进槽位」不再是成品定义。
+- D18 | confirmed | Q23 + 会话 31efb674；Round 17 补提示词 | 免费区当版式配方；Premium 工业站只借模块清单。免费整页气质不像工业，提示词设计仍要学（锁族 token、写单块、Inconsistent Sections）。不提交 jiro 源码、不接 MCP、不把 Copy Prompt 当生产提示词。条款仍 unknown。
 - D19 | confirmed | Q24 | 对话与看图统一 `deepseek-flash`。示例环境已改；本机 `.env.local` 本轮未找到/未改。
 - D20 | confirmed | Q25 | 用项目文档约束；`AGENTS.md` 增加读主线。不写复杂被动判定规则。用户提主线/reality-first/`/grilling` 时回顾。
 - D21 | confirmed | Q22 附带 | 记录待办：收口本地 Skill `sitecraft-frontend-less-ai-tone`（文件已有，`lib/frontend-tone.ts` 已引用，尚未当独立模块验收）。
 - D22 | confirmed | 会话 31efb674 + 用户要求写入文档 | Jiro 分层：架构课最高；免费组件借结构；免费整页不当工业卡；Premium 工业站只借模块清单；不接 MCP。
+- D24 | confirmed | user 2026-09-18 `/quality` 盲评 | P4 审美不过。分数在本机 `sitecraft-quality-scores-p4`。否决：主题与内容不符、Logo/站名仍是模板、未声明壳（Logo 墙、定价、ScrewFast 字标、演示图）留下。首屏缩略图不足。
+- D25 | confirmed | user 2026-09-18 | Demo 收尾包含：询盘 SMTP/Mailpit 转发；已提交 `tsconfig.json` exclude `artifacts/sitecraft-ai-pr4-b54eca6`。站内 `/leads` 已有，不等于已发信。
+- D26 | confirmed | Q26 = B，用户当场纠正 | 成品必须是这家公司的页面。开源模板、区块、样式、Jiro 提示词是素材（结构、token、许可资产、写法），不是「只当样子参考」，更不是整页挖空填词。已废弃「只改声明槽位，未声明节点保持原样」。代码 MIT ≠ 图/字体。调研 ≠ 准入。模型仍不输出 CSS。当前 iframe 挖槽是过渡实现。
+- D27 | confirmed | Q27 = A | 许可已核的同族素材套件 + 一个共享预览引擎（扩展 `preview-bridge`，不新写渲染器）。模型不输出 CSS。草稿仍走 `commitOperations`。adapter 仍是数据。拒绝 B（模型写 HTML/CSS）和 C（本阶段原生 React）。
 
 ## Answer history
 
@@ -84,12 +88,14 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。202
 - Q11 | confirmed | A + 可视化风格选项。
 - Q12 | confirmed | A；12 个结果起步。
 - Q13 | confirmed（用户体验 + 内部选型） | 用样子/主题代替 Skill 选择；内部规则为 `sitecraft-frontend-less-ai-tone`。
-- Q20 | confirmed | B | 同族模块套件 + 声明槽位。
+- Q20 | confirmed（成品层见 Q26） | B | 同族模块套件；跨源拼接禁止。声明槽位不再是成品定义。
 - Q21 | confirmed | B | 样子盘；张数随手头素材，不锁 4。
 - Q22 | confirmed | B | 文案/版式一层路径；记下 Skill 收口任务。
 - Q23 | confirmed | 免费区可作配方；已挑条目；Premium 不用。
 - Q24 | confirmed | 统一 `deepseek-flash`。
 - Q25 | confirmed | 项目文档 + AGENTS 入口；不要复杂被动规则。
+- Q26 | confirmed | B，当场纠正 | 不是「只当样子参考」。模板、区块、样式和提示词当素材用。禁止挖空填词。
+- Q27 | confirmed | A | 同族素材套件 + 现有共享引擎。拒绝模型 CSS 与本阶段 React 拼装。
 - Q14 | confirmed | 研究多主题/适用场景开源模板并利用现有模板；原二选模板建议 rejected。
 - Q15 | confirmed | B；内部 Demo、自模拟；第三方模型允许，保留 90 天并要开关；质量优先，暂不设成本/时延指标，使用 DeepSeek。其中「保留 90 天并要开关」已于 2026-09-18 被用户决定取代，见 Q17。
 - Q16 | resolved by evidence | 三份 env.md 的文本 DeepSeek 地址/key 一致，本项目 .env.local 已配置相同值；普通文件模式 100644、已忽略且未跟踪。不需要重复确认路径；没有改 key 或调用 API。
@@ -111,7 +117,8 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。202
 - A16 | observed | 2026-09-17 | 本地 `index.html` 存在于 forge、landwind、screwfast、fresh、tailwind-landing；`shadcn-landing` 是 Vite 空壳。样子盘按这五类可预览模板分，不按四张卡凑数。
 - A12 | observed | 2026-09-17 | Gemini 网页「Create images」是预置风格缩略图网格。用户明确说是类比，不是要抄那套前端。
 - A13 | observed | 2026-09-17 | 代码里四张主题卡仍是行业 1:1 绑模板。文档目标已改为按快照分类的样子盘（plan v0.5）；代码未改。
-- A14 | observed | 2026-09-17 | Skill `skills/sitecraft-frontend-less-ai-tone/` 与 `lib/frontend-tone.ts` @0.2.0 已存在且被 `lib/ai-provider.ts` 引用。Q22 将其定为内部规则，仍待独立模块验收。
+- A14 | observed | 2026-09-17 / 2026-09-18 | Skill `skills/sitecraft-frontend-less-ai-tone/` 与 `lib/frontend-tone.ts` 被 `lib/ai-provider.ts` 引用。Q22 定为内部规则。P4 冻结 `@0.2.0`。Round 17 活规则升 `@0.3.0`（禁止挖空填词）。仍待独立模块验收。
+- A17 | observed | 2026-09-18 | 会话 `d55f6e7c-b51f-491f-bb6f-5f14cf955f6a` 只读检索制造业/外贸目录 OSS。摘录入 `docs/research/开源目录与工业模板素材-2026-09-18.md`。未克隆、未构建、未准入。
 
 ## Research evidence
 
@@ -132,12 +139,14 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。202
 - Q17 | superseded 2026-09-18 | user 22:32 曾确认 A | 原采用 A：90 天自动清理过期对话、临时产物、无引用上传与过期未发布草稿；保护已发布站点和引用素材；关闭暂停自动清理并保留手动删除。2026-09-18 用户决定：删除须由用户明确选择；系统不得替用户主动删除；不实现 90 天自动清理，也不保留可暂停的自动清理开关；已发布站点仍由用户控制，不得静默删除。
 - Q18 | confirmed | user 22:32 | 用户明确要求的页面优先；未明确时模型按需求规划；仍不能确定才采用首页/产品服务/联系默认方案。原“固定三类页面”建议 superseded，不是上限。
 - Q19 | confirmed | user 22:45 | 委派只用 Cursor Grok 4.6 High Fast；使用 TodoWrite 替代原生 Goal；每个模块验收后独立 commit 并 push 到自己的 fork。
-- 执行授权 | confirmed | user 22:32 / 22:45 | 已授权按模块实施。Round 14 后以实现 `mainline.md` / plan v0.5 为序；跨源拼装器和公开部署仍需额外授权。
+- 执行授权 | confirmed | user 22:32 / 22:45 | 已授权按模块实施。Round 18 后以实现 `mainline.md` / plan v0.10 的 Q27=A 分块为序；第二套渲染器、模型 CSS、原生 React、公开部署仍需额外授权。
 
 ## Current frontier
 
-- 书面主线已确认写入。实现队列交给主对话：Skill 核 prompt → 样子盘改挂 → 同族显隐 → 补 tailwind-landing/fresh 落点 → 看图 → 整段生成。不要先做 12 组评测，不要搬 jiro 源码。不要实现 90 天自动清理。
-- jiro 条款仍 unknown，保持配方用法。
+- 生成架构 Q20–Q27 已关。实现交给主对话：plan v0.10「主对话 TODO」第 1 块起（演示壳否决 → 套件数据 → 工作台主路径 → 再谈新仓库准入）。
+- P4 负责人盲评不过（D24）。生成路径改完前不要再刷 12 组。
+- Demo 收尾（D25）：SMTP/Mailpit；tsconfig exclude artifacts。放在组页第一刀之后，不要和引擎混 commit。
+- jiro 条款仍 unknown，保持配方用法；提示词设计可学。
 
 ## Risks and conflicts
 
@@ -149,20 +158,22 @@ Round 15 已把 Jiro 实测写入 `docs/project/mainline.md` 与 plan v0.6。202
 - R6 | 用户没选择 Skill 产品名；Impeccable/UI UX Pro Max 等仍需准入和效果验证。
 - R7 | 数据删除具有不可逆影响；2026-09-18 起不得替用户主动删除。本地产品政策不能代表供应商侧保留。
 - R8 | 内部模拟结果不能宣传为真实企业交付、客户满意度或转化率提升。
-- R9 | 跨模板/跨站拼 Header+Features 会重现 jiro 自己都在批评的「每一块像另一个网站」。与 Round 6 声明槽位冲突：槽位保证写到唯一节点，拼装器会引入新 DOM 与新许可面。
-- R10 | jiro 免费区当配方；条款未找到。不得把「能复制提示」当成生成器可再分发 MIT。Premium 源码禁止；模块清单可以用来显隐本地区块。
-- R11 | D5 仍有效：不做通用 React 拼装器。同族显隐如果滑向第二套渲染器，要重新开门。
+- R9 | 跨模板/跨站拼 Header+Features 仍禁止。Q27=A 允许同一视觉族里用已准入套件、由现有共享引擎组页，不等于跨源硬拼。
+- R10 | jiro 免费区当配方；条款未找到。不得把「能复制提示」当成生成器可再分发 MIT。Premium 源码禁止；模块清单可以用来选本族区块。
+- R11 | Q27=A：扩展现有 `preview-bridge`，禁止第二套渲染器。D5 原生 React 仍推迟。
 - R12 | `deepseek-flash` 是滚动模型名；评测钉行为与日期。
 - R13 | 免费整页 6 张且无工业。未挑中的 Hero/CTA 会回到花哨默认皮，不能用。
 - C1 | Round 6 槽位 vs 模块：Q20 分层后关闭。
 - C2 | 四张风格盘硬锁：Q21 用户改为按手头素材分类后关闭。
 - C3 | 内部 Skill：Q22 指定 `sitecraft-frontend-less-ai-tone` 后关闭，收口仍待验收。
+- C4 | closed by Q26=B | P4 不过是挖空填词规则的结果，不是漏测。D26 废弃「未声明节点保持原样」作为成品规则。当前代码仍是过渡。
+- R14 | 只评首屏会把可读性打到 5，整页仍是 SaaS 模板。盲评必须滚完整页。
 
 ## Final baseline
 
-Q20–Q25 与 Jiro 实测已写入 `docs/project/mainline.md`、spec v0.4、plan v0.6。2026-09-18 数据删除政策已写入 spec v0.5、plan v0.7，并取代 Q17=A。这是以后防漂移对照的文本。文档存在不等于主题卡或拼装器已实现。
+Q20–Q27 与 Jiro 实测、开源目录调研已写入 `docs/project/mainline.md`、spec v0.7、plan v0.10。2026-09-18 数据删除政策已写入并取代 Q17=A。这是以后防漂移对照的文本。文档存在不等于组页引擎已实现，也不等于 Demo 已验收。
 
-REALITY GATE: INCOMPLETE（jiro 条款）；PASS（配方用法、模块清单、不接 MCP）。
+REALITY GATE: INCOMPLETE（jiro 条款；d55f6e7c 仓库未克隆；组页引擎未改）；PASS（配方用法、模块清单、不接 MCP、调研≠准入、Q27=A 路线）。
 
 ## Changelog
 
@@ -184,3 +195,6 @@ REALITY GATE: INCOMPLETE（jiro 条款）；PASS（配方用法、模块清单�
 - 2026-09-18：用户决定取代 Q17=A。删除须由用户明确选择，系统不主动清理；不实现 90 天任务或开关。已写入 intent/spec v0.5/plan v0.7/mainline/AGENTS。未宣称 Demo 已验收。
 - 2026-09-18：P5 表单收件。发布页表单写入 `.sitecraft-data/leads`，`/leads` 读到 `P5LEAD-CLICK-HX7K`。邮件转发 UNVERIFIED。未宣称 Demo 已验收。
 - 2026-09-18：用户手动删除入口。工作台预览栏「删除本站」、设置页「手动删除」；须输入站点编号。删除区每行有工作台/发布页链接；悬停后才加载一份发布页预览。点测删除 `p5del-look` 后草稿文件已不在。打开已删站点工作台仍会按 `getSite` 新建空草稿。未宣称 Demo 已验收。
+- Round 16（2026-09-18 19:40）：负责人完成 `/quality` 盲评并判定不过。独立整页复检同意。D24/D25 写入；D5 重开待 Q26。intent/plan v0.8/mainline 已记 FAIL。未实现 SMTP，未改 tsconfig，未新写渲染器。
+- Round 17（2026-09-18 20:01）：Q26=B，用户纠正「不是只当样子参考，当素材用」。废弃挖空填词。并入 `d55f6e7c` 调研摘录。Jiro 提示词设计可学，Copy Prompt 仍不当生产。mainline/intent/spec v0.6/plan v0.9/AGENTS/skill 运行时升 `@0.3.0`。P4 基线仍钉 `@0.2.0`。未实现组页引擎、SMTP、tsconfig。前沿 Q27。
+- Round 18（2026-09-18 20:21）：Q27=A。D27/D5 deferred。spec v0.7、plan v0.10。主对话 TODO 写入 plan。本聊天未实现引擎、未 commit、未宣称 Demo 已验收。

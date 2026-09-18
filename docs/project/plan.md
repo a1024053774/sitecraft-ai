@@ -1,12 +1,12 @@
 # SiteCraft AI 执行计划
 
-状态：grilling Round 15 写入；2026-09-18 用户决定取代 Q17=A；版本 v0.7。需求事实以 [intent.md](./intent.md) 为准，主线以 [mainline.md](./mainline.md) 为准。旧 P0–P5 细账见 git 历史与 `.grilling/`。
+状态：grilling Round 18；Q27=A、Q26=B；P4 负责人盲评不过；版本 v0.10。需求事实以 [intent.md](./intent.md) 为准，主线以 [mainline.md](./mainline.md) 为准。旧 P0–P5 细账见 git 历史与 `.grilling/`。
 
 ## 要做成什么样
 
 帮中小企业做出看起来像该行业自己建的网站：好看、不像套模板或套 AI 文案、事实不编造、改完能立刻在预览里看到。近期仍是内部 Demo，资料用模拟工业/设备/外贸包。
 
-不在本阶段做：真实客户试点、公开自助上线、整仓合并 PR #4、模型直接写 HTML/CSS、跨模板自由拼装、把 jiro 源码或 MCP 接进生成运行时。
+不在本阶段做：真实客户试点、公开自助上线、整仓合并 PR #4、模型直接写 HTML/CSS、跨模板自由拼装、把 jiro 源码或 MCP 接进生成运行时、把调研仓库未核许可就推进 `vendor/`。
 
 ## 用户看见什么
 
@@ -24,15 +24,19 @@
 
 ## 页面怎么改
 
-同一视觉族里由模型挑选要出现的区块；用不到的区块隐藏或保持模板原样，不把外站 HTML 拼进来。区块内部仍只改声明槽位。找不到、命中多个、没登记的位置报告 `missing`。草稿只走 `commitOperations`。
+同一视觉族里由模型挑选要出现的区块。开源模板、区块、样式是素材，用来组这家公司的页面（Q26=B）。禁止把外站 HTML 拼进来。已废弃：只改声明槽位、未声明节点保持原样。那是挖空填词，P4 已否决。
 
-原生 React/shadcn 系统改造仍留在后续决策门（D5）。本阶段不新写跨源模块拼装器。
+当前代码仍对 iframe 快照做声明写入，那是过渡，必须改成同一套 `preview-bridge` 吃同族素材套件（Q27=A）。找不到、命中多个、没登记的位置报告 `missing`；`missing` 不是允许把 Airbnb / ScrewFast 留在成品上。草稿只走 `commitOperations`。模型不输出 CSS。
+
+禁止另起第二套渲染器。禁止模型写 HTML/CSS。原生 React/shadcn 系统改造仍留后续（D5；Q27 未选 C）。未核许可的调研仓库不要推进 `vendor/`。
 
 ## Jiro 怎么用（2026-09-17 实测后的决定）
 
 来源：首页、[/components/free](https://jiro.build/components/free)、[/templates/free](https://jiro.build/templates/free)、工业分类和若干详情页。会话 `31efb674-560a-49b7-8fb2-3b864fe3705a`。条款页 404，**只当内部 Demo 配方**。
 
-最大价值是架构课，不是素材库。首页原文：**Inconsistent Sections — “Each block looks like a different site stitched together”。** 先 Master Prompt 再贴单块 ≈ 先锁族 token 再填槽。KonsTuck / Lozitick 是「同名族一整套」绑在一起，而且全 Premium。把 Forge 导航接到 Luma Features 上，就是他们自己批评的做法。
+最大价值是架构课和提示词设计，不是把免费整页当工业皮肤。首页原文：**Inconsistent Sections — “Each block looks like a different site stitched together”。** 先 Master Prompt 再贴单块 ≈ 先锁族 token 再组该公司页面。KonsTuck / Lozitick 是「同名族一整套」绑在一起，而且全 Premium。把 Forge 导航接到 Luma Features 上，就是他们自己批评的做法。
+
+免费整页气质不像工业，**提示词仍要看**：怎么锁一族 token、怎么约束单块、怎么禁止跨源硬拼。学写法，不因皮不对就丢掉。Copy Prompt 不当生产提示词。
 
 **免费整页 6 张，工业 0 张。** Finsyc 理财可看「克制浅色族」，不能当工业样子卡。Kelo / Velara AI / Solra 瑜伽不用。Finsyc 整页免费，同族约 13 块里 11 块锁 Premium：整页当样品，拆开要钱。
 
@@ -62,7 +66,11 @@ How it Works 04 Kelo / 01 Luma 只借「分步」计数。工业履约步骤对�
 
 **明确不用：** 果汁/AI/健身 Header 与 Hero、假金额 About、个人肖像、液态玻璃、光束/星球 CTA、SaaS 定价表、Stripe/GitHub 标志墙、健身房荧光表单。首屏和导航继续用当前 MIT 模板的壳。
 
-不要接 [jiro MCP](https://jiro.build/mcp) 到建站运行时，不要把 Copy Prompt 当生产提示词。
+不要接 [jiro MCP](https://jiro.build/mcp) 到建站运行时，不要把 Copy Prompt 当生产提示词。提示词设计可以学。
+
+## 开源目录/工业素材（2026-09-18 调研，未准入）
+
+会话 `d55f6e7c-b51f-491f-bb6f-5f14cf955f6a`。摘录：[开源目录与工业模板素材-2026-09-18.md](../research/开源目录与工业模板素材-2026-09-18.md)。Q26=B 之后这些仓库是素材候选：外贸优先核 Nordic-Store、Shop Homepage、tailwind-ecommerce；制造业公开整页很少，AstroFlow 可试。未克隆、未构建。代码 MIT ≠ 图/字体。调研 ≠ 安装。
 
 ## 质量怎么看
 
@@ -70,12 +78,9 @@ How it Works 04 Kelo / 01 Luma 只借「分步」计数。工业履约步骤对�
 
 12 组对照已在 `/quality` 按 3 个模拟包 × A/B/C/D 现场跑过，见下方 P4 账。模型自评不是审美 oracle。不能当 Demo 已验收。
 
-## 待合并：前端去 AI 味 Skill
+## 已收口：前端去 AI 味 Skill
 
-Round 14 / Q22 记下，本轮规划一并入库。
-
-- 文件：`skills/sitecraft-frontend-less-ai-tone/SKILL.md`、`SOURCE.md`，运行时 `lib/frontend-tone.ts`（`sitecraft-frontend-less-ai-tone@0.2.0`），`lib/ai-provider.ts` 已引用。
-- 主对话还要核：prompt 里两层都在用、用户选项不出现 Skill 名、禁止吐 CSS、测试钉版本。不要再平行写一套规则。
+通用规则在 `skills/frontend-less-ai-tone/`（可写 CSS/HTML，但要先定方向）。SiteCraft 叠加层在 `skills/sitecraft-frontend-less-ai-tone/`：成品是这家公司的页面，开源模板当素材，运行时是 `sitecraft-frontend-less-ai-tone@0.3.0`，生成路径不吐 CSS。P4 对照冻结的是 `@0.2.0`。对照实验在 gitignore 的 `artifacts/frontend-tone-experiment/`。规则存在不等于审美通过，也不等于 Demo 已验收。
 
 ## 当前进度（对照工作区 `7df6f18` 之后的 Block 6）
 
@@ -128,7 +133,7 @@ Round 14 / Q22 记下，本轮规划一并入库。
 
 截图与 JSON 在 gitignore 的 `artifacts/p3-image-pipeline/`。`next start` 生产模式仍走 PostgreSQL，未配 `DATABASE_URL` 时 `getSite` 不会退回本地文件；开发机点测以 `SITE_STORE=fs` 的 3034 草稿为准。不要据此宣称 Demo 已验收。
 
-**P4（12 组对照，2026-09-18）**：冻结基线 `deepseek-flash`、`sitecraft-frontend-less-ai-tone@0.2.0`、样子盘、声明槽位与 `pagePlan`。三份独立模拟包（明确标「模拟」、互不撞 nonce）各跑 A/B/C/D，共 12 格，全部现场 DeepSeek，记号写入草稿。对照页 `/quality` 是评分入口：同资料只换流程组，可 `?blind=1` 隐藏分组并打乱。模型审查不是审美通过证明。作者自评界面在，样本 n=12，阈值未校准。不要据此声称客户偏好、行业真实性或转化。这不是 Demo 验收。
+**P4（12 组对照，2026-09-18）**：冻结基线 `deepseek-flash`、`sitecraft-frontend-less-ai-tone@0.2.0`、样子盘、声明槽位与 `pagePlan`。三份独立模拟包（明确标「模拟」、互不撞 nonce）各跑 A/B/C/D，共 12 格，全部现场 DeepSeek，记号写入草稿。对照页 `/quality` 是评分入口：同资料只换流程组，可 `?blind=1` 隐藏分组并打乱。模型审查不是审美通过证明。作者自评界面在，样本 n=12，阈值未校准。不要据此声称客户偏好、行业真实性或转化。这不是 Demo 验收。活规则已升到 `@0.3.0`，不要把 P4 冻结基线改写成新规则。
 
 | 包 | nonce | A 默认 | B 审美锁样子 | C 资料样子+区块 | D C+审查有限修 |
 | --- | --- | --- | --- | --- | --- |
@@ -140,9 +145,11 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 
 点测：`http://127.0.0.1:3034/quality` 点击 12 格「预览」后 iframe 均完成草稿落点，声明首屏可见对应包记号或主标题；未声明壳（ScrewFast Logo、Get Figma file、Discover、合作 Logo 等）保持原样，没有猜写。`?blind=1&seed=19` 标签为「样本 1–4」，分组隐藏，评分下拉可点。工作台 Look board 有「12组对照」入口。`/published/:id` 改为服务端带入草稿，不再先渲染空壳；12 张首屏在 hydration 后再截，截图在 gitignore 的 `artifacts/p4-quality-comparison/`。开发机 `127.0.0.1` 需 `allowedDevOrigins`，否则 Next 会 403 掉 client chunk，预览按钮点了也不载 iframe。外贸 D 组缩小真实首屏后视觉审查已通过；C↔D 仍是 `copy-only` / `unchanged`。
 
-本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。`npm test` 134 通过。`tsc` / `next build` 仍需临时排除 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6`，未把该 exclude 写进已提交 `tsconfig.json`。
+**P4 负责人盲评（2026-09-18，不过）**：12 格五维分数在 `/quality` 本机 `localStorage`。工业/外贸默认组（forge）行业匹配与可读多为 1；外贸蓝白目录组主要行动为 1（页上仍是 `$29/$99/$499` 与 Get started）。整页复检：landwind 在写入铸件标题后仍留 Airbnb/Google/Microsoft Logo 墙、ITSM 文案和 SaaS 定价；screwfast 首屏标题换成「按图浇注球墨铸件」后导航仍是 ScrewFast、Log in、12.8k Reviews 和 ScrewFast 包装图；forge 铸件标题压在笔记本/代码首屏上，下方仍是 Lorem、`Company@email.com`。这不是评分 UI 缺提交按钮，是当时规则故意不碰未声明壳。Q26=B 已废弃该成品规则。Demo 审美未过。生成路径改完前不要再跑 12 组、不要扩 24。
 
-**P5 表单收件（2026-09-18）**：发布页右下角表单 `POST /api/public/:siteKey/leads` 落库，工作台 `/leads` 读同一条原文。成功提示不是收件证据；以收件箱可见的客户留言为准。蜜罐字段只回执、不入库。未知 `siteKey` 返回 404，且不因此新建站点草稿。设置页不再写 `lydia@sitecraft.ai` 当收件地址。邮件转发、Mailpit、生产 PostgreSQL 询盘表均未实测，标 `UNVERIFIED`。模板里的演示表单（如 web3forms）不会进收件箱；没有把 FAQ/询盘结构写进各 MIT 模板 HTML。这不是 Demo 验收。
+本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。`npm test` 134 通过。`tsc` / `next build` 仍需临时排除 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6`，未把该 exclude 写进已提交 `tsconfig.json`。用户已把该项列入 Demo 收尾。
+
+**P5 表单收件（2026-09-18）**：发布页右下角表单 `POST /api/public/:siteKey/leads` 落库，工作台 `/leads` 读同一条原文。成功提示不是收件证据；以收件箱可见的客户留言为准。蜜罐字段只回执、不入库。未知 `siteKey` 返回 404，且不因此新建站点草稿。设置页不再写 `lydia@sitecraft.ai` 当收件地址。邮件转发、Mailpit、生产 PostgreSQL 询盘表均未实测，标 `UNVERIFIED`。forge Contact、landwind 询盘区和 screwfast 首页联系区写入了 `data-sitecraft-inquiry` 表结构；iframe 预览 CSP 为 `form-action 'none'`，提交经 preview-bridge `postMessage` 由发布页代发到同一收件箱。模板演示表单（如 web3forms）已从 forge Contact 快照去掉，不会进收件箱。这不是 Demo 验收。
 
 | 项 | 结果 |
 | --- | --- |
@@ -156,7 +163,7 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 
 ## 数据删除（2026-09-18）
 
-用户决定（取代 2026-09-15 的 Q17=A）：删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。不实现 90 天自动清理，也不保留可暂停的自动清理开关。已发布站点仍由用户控制，不得静默删除。工作台预览栏有「删除本站」，设置页「手动删除」列出已保存站点；都要输入站点编号才真正删除。删除区每行可回工作台或发布页；悬停后才加载一份发布页预览，不预先打开全部 iframe。打开已删站点的工作台仍会按现有 `getSite` 新建一份空草稿，这不是自动清理。
+用户决定（取代 2026-09-15 的 Q17=A）：删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。不实现 90 天自动清理，也不保留可暂停的自动清理开关。已发布站点仍由用户控制，不得静默删除。工作台预览栏有「删除本站」，设置页「手动删除」列出已保存站点；都要输入站点编号才真正删除。删除区每行可回工作台或发布页；悬停后以浮层加载一份发布页预览，不单独留白，也不预先打开全部 iframe。打开已删站点的工作台仍会按现有 `getSite` 新建一份空草稿，这不是自动清理。
 
 ## 下一步（一次一块，给主对话执行）
 
@@ -170,4 +177,40 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 8. ~~P3 图片识别与素材授权流水线。~~
 9. ~~12 组对照（P4）。~~
 10. ~~表单收件（P5）：询盘发出去、收件箱能读到同一条。~~
-11. ~~用户手动删除入口：工作台/设置里选删，须输入站点编号确认。~~ 邮件转发未接通。不要搬 jiro 源码。不要据此宣称 Demo 已验收。
+11. ~~用户手动删除入口：工作台/设置里选删，须输入站点编号确认。~~
+12. **Q27=A：同族素材套件 + 现有共享引擎**（主线阻塞，一次一块）。扩展 `lib/template-adapters/preview-bridge.ts` 与 adapter 数据，不要第二套渲染器，不要模型 CSS，不要 React 拼装，不要把 `d55f6e7c` 未核仓库推进 `vendor/`。生成路径改完前不要再刷 12 组。分块见下方「主对话 TODO」。
+13. **Demo 收尾**：询盘 SMTP 转发（本地 Mailpit `localhost:8025` 能读到发出的信，不能把站内 `/leads` 成功提示当成已发信）。放在组页第一刀通过之后，不要和引擎同一 commit。
+14. **Demo 收尾**：把 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6` 写进已提交 `tsconfig.json` exclude，使 `tsc` / `next build` 不再依赖临时排除。
+
+### 主对话 TODO（Q27=A，按块提交）
+
+目标：成品是这家公司的页面。非目标：第二套渲染器、模型 HTML/CSS、原生 React、jiro 源码、整仓 merge PR #4、宣称 Demo 已验收、覆盖工作树里无关的站点列表/预览浮层改动。
+
+**第 1 块 — 演示壳否决（现有引擎，先红后绿）**
+
+- 现实门：对 `landwind`（外贸）和 `screwfast`（工业）各用一份已有模拟包跑 apply；整页不得出现 `$29/$99/$499`、Airbnb/Google Logo 墙、Get Figma、ScrewFast 字标、12.8k Reviews。现在会失败，先写失败测试再改。
+- 改法：在 adapter **数据**里声明必须改成公司品牌的节点（`siteName` / 导航）和必须隐藏的演示区（定价、Logo 墙、假评价）。共享引擎按唯一选择器执行；命不中记 `missing`，不准正则猜写。
+- 允许：`lib/template-adapters/{types,registry,preview-bridge}.ts` 及对应测试；必要时给快照加 `data-sitecraft-*`（只为唯一命中）。
+- 禁止：新渲染器、`set_html`/`set_css`、新仓库进 `vendor/`、`git add -A`。
+- 验收：针对性测试 + 真实浏览器整页（不要只截首屏）。`npm test` 相关文件；本块不要宣称审美通过。
+
+**第 2 块 — 套件数据（仍是一个引擎）**
+
+- 把「一族里有哪些模块、token、演示壳」写成 adapter/套件数据，给现有 bridge 用。同族才能组合。跨源 Header+Features 禁止。
+- 不新增平行 schema「以备将来」；有 bridge 消费者才加字段。
+- 验收：同一份工业资料在工程工业族里，未选用的 SaaS 定价模块不会进 DOM。
+
+**第 3 块 — 工作台主路径**
+
+- 用现有模拟工业包 / 外贸包在工作台生成；预览与 `/published/:siteKey` 读同一草稿。导航和页脚是公司名，不是模板品牌。
+- 仍走 `commitOperations` + `deepseek-flash`。不要把答案写进生产 prompt。
+- 验收：浏览器点选生成，整页检查；截图进 gitignore artifacts。不要刷 `/quality` 12 组。
+
+**第 4 块 — 新目录素材准入（第 1–3 块通过后再做）**
+
+- 候选：Nordic-Store / Shop Homepage / tailwind-ecommerce，见 `docs/research/开源目录与工业模板素材-2026-09-18.md`。先核 LICENSE、SHA、图/字体，再克隆。MIT 代码 ≠ 图可进生成器。
+- 调研 ≠ 安装。一次只准入一套，挂到已有样子卡（优先蓝白目录缺的商品网格），不要新开样子名除非有本地快照。
+
+委派 Cursor Grok 4.6 High Fast；TodoWrite 只跟踪当前这一块；改完相关测试再 `typecheck` / `test` / `build`（build 若仍被 artifacts 拖失败，记下，不要假装绿灯）。每块单独 commit，不 push 除非负责人要求。
+
+不要搬 jiro 源码。不要据此宣称 Demo 已验收。

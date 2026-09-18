@@ -1,7 +1,7 @@
 # SiteCraft AI 产品与系统规格
 
-状态：`approved-for-execution`；版本 v0.5；更新 2026-09-18。
-依据：[已记录需求](./intent.md)、[主线](./mainline.md)、grilling Round 14（Q20–Q25）；数据删除政策按 2026-09-18 用户决定。
+状态：`approved-for-execution`；版本 v0.7；更新 2026-09-18。
+依据：[已记录需求](./intent.md)、[主线](./mainline.md)、grilling Round 14（Q20–Q25）、Round 17（Q26=B）、Round 18（Q27=A）；数据删除政策按 2026-09-18 用户决定。
 确认人：项目负责人。此状态批准按模块实施，不代表产品能力已实现或允许公开部署。
 
 ## 1. 产品范围
@@ -71,23 +71,23 @@
 
 当前已存在的模板继续使用并重新分类，同时寻找不同主题、内容密度和业务场景的开源候选。此前 `forge/atlas/kindred/signal/lonestone` 是存量优先检查名单，不再限制候选数量或禁止替换。
 
-当前 iframe 渲染方式先作为基线。同一视觉族内可以显隐该模板已有区块；工业/外贸该出现哪些区块，可以对照外部同族套件的**模块清单**（例如 jiro 上 Premium 的 KonsTuck/Lozitick），但不得把不同模板或 jiro 源码拼接进预览。不将 React/Tailwind 组件直接注入第三方 HTML。原生 React/shadcn 系统性改造仍留后续决策门。
+当前 iframe + `lib/template-adapters/preview-bridge.ts` 是**唯一**预览引擎，要在这套上吃同族素材套件（Q27=A），不是成品定义上的「挖空填词」。Q26=B：开源模板、区块、样式是素材，用来组这家公司的页面。同一视觉族内可以取该族已准入素材；工业/外贸该出现哪些区块，可以对照外部同族套件的**模块清单**（例如 jiro 上 Premium 的 KonsTuck/Lozitick），但不得把不同模板或 jiro 源码拼接进预览。不将 React/Tailwind 组件直接注入第三方 HTML。原生 React/shadcn 系统性改造仍留后续决策门（Q27 未选 C）。禁止第二套渲染器，禁止模型输出 CSS。
 
 模板元数据只保留有消费者的字段：来源版本/代码许可/独立素材授权，行业与页面类型、语言、素材要求、主题倾向、支持的内容槽位及限制、已验证状态。先排除不兼容来源，再比较风格。
 
 ### 运行时归属
 
 - `visualBrief`：用户选定的受众、主要行动、语言与设计意图；同一份数据服务模板匹配和生成。
-- 模板能力说明/slot map：可编辑内容到真实页面元素的映射，覆盖和不支持项必须真实报告。
-- 素材计划：引用已有素材 ID、来源、许可、裁切/比例和事实属性，不能另建未经授权的素材镜像。
+- 模板能力说明/slot map：可编辑内容到真实页面元素的映射，覆盖和不支持项必须真实报告。声明槽位是落点工具，不是「未声明就原样留下」的成品许可。
+- 素材计划：引用已有素材 ID、来源、许可、裁切/比例和事实属性，不能另建未经授权的素材镜像。开源 HTML/CSS/token 作为素材准入时，图片、字体、图标仍须单独核验。
 - 白名单 operations：把被支持的文字、图片、主题变化转成可撤销修改。未确认的设计预案先存会话，持久化到站点时也不能绕过 commit。
-- 模块选择：只在同一 `visualBrief` / 模板族内决定显示哪些已声明区块。跨模板或跨站 HTML 拼接不是合法 operation。
+- 模块选择：只在同一 `visualBrief` / 模板族内决定使用哪些已准入区块。跨模板或跨站 HTML 拼接不是合法 operation。
 
 不为了文档名称同时持久化 DESIGN.md、page-plan.json 和 visualBrief 三套重复数据；先明确具体消费者再选字段。
 
 ### Skill 使用
 
-Impeccable、UI UX Pro Max、Marketing Skills 等仍是候选材料，不是已安装能力。审美主流程的内部实现指定为项目 Skill `sitecraft-frontend-less-ai-tone`（文案层 + 样子层，禁止模型输出 CSS）；收口任务见 plan。每次生成只走这一条审美主流程，规范检查按需要调用。用户选项不出现 Skill 名称。
+Impeccable、UI UX Pro Max、Marketing Skills 等仍是候选材料，不是已安装能力。审美主流程的内部实现指定为项目 Skill `sitecraft-frontend-less-ai-tone`（文案层 + 样子层，禁止模型输出 CSS；规范在 `skills/sitecraft-frontend-less-ai-tone/`，运行时 `sitecraft-frontend-less-ai-tone@0.3.0`）。每次生成只走这一条审美主流程，规范检查按需要调用。用户选项不出现 Skill 名称。Jiro 免费区提示词可学写法，不得当生产 prompt。
 
 运行时必须显式加载经审查且固定版本的规则/工具，并验证输出被使用；不把本地 IDE 安装 Skill 当作 DeepSeek 已自动读取。优先复用已有浏览器能力，不为截图再引入第二套工具。
 
