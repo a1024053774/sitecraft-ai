@@ -325,6 +325,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       { key: "logo-wall", selector: '[data-sitecraft-demo="logo-wall"]' },
       { key: "figma", selector: '[data-sitecraft-demo="figma"]' },
       { key: "testimonial", selector: '[data-sitecraft-demo="testimonial"]' },
+      { key: "footer-copyright", selector: '[data-sitecraft-demo="footer-copyright"]' },
     ],
     kit: {
       familyId: "export-catalog",
@@ -347,6 +348,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         kitDemo("logo-wall", demoMarker("logo-wall")),
         kitDemo("figma", demoMarker("figma")),
         kitDemo("testimonial", demoMarker("testimonial")),
+        kitDemo("footer-copyright", demoMarker("footer-copyright")),
       ],
     },
   },

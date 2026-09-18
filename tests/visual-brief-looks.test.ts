@@ -115,4 +115,6 @@ test("workspace look cards do not present Skill names or internal template ids a
   assert.equal(source.includes("sitecraft-frontend-less-ai-tone"), false);
   assert.equal(source.includes('{ op: "set_visual_brief", briefId: brief.id }'), true);
   assert.equal(source.includes("{brief.label}"), true);
+  assert.match(source, /data-testid="visual-brief-card"/);
+  assert.match(source, /data-brief-id=\{brief\.id\}/);
 });

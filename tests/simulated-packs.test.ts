@@ -77,6 +77,11 @@ test("workspace materials journey stays on chat/commitOperations and isolates si
   assert.match(workspaceSource, /parseWorkspaceSiteId/);
   assert.match(workspaceSource, /提供公司资料/);
   assert.match(workspaceSource, /data-testid="site-page-nav"/);
+  assert.match(workspaceSource, /data-testid="open-materials"/);
+  assert.match(workspaceSource, /data-testid="simulated-pack"/);
+  assert.match(workspaceSource, /data-testid="submit-materials"/);
+  assert.match(workspaceSource, /data-testid="visual-brief-card"/);
+  assert.match(workspaceSource, /data-testid="workspace-draft-revision"/);
   assert.match(workspaceSource, /只要首页/);
   assert.match(workspaceSource, /额外页面/);
   assert.match(workspaceSource, /模拟工业包|pack\.label/);
@@ -89,6 +94,28 @@ test("workspace materials journey stays on chat/commitOperations and isolates si
   assert.match(workspaceSource, /set_image_slot/);
   assert.equal(workspaceSource.includes("sitecraft-frontend-less-ai-tone"), false);
   assert.equal(/\bSkill\b/.test(workspaceSource), false);
+});
+
+test("workspace preview and published page read the same committed draft", () => {
+  const publishedPage = readFileSync(new URL("../app/published/[siteKey]/page.tsx", import.meta.url), "utf8");
+  const publishedClient = readFileSync(new URL("../app/published/[siteKey]/published-client.tsx", import.meta.url), "utf8");
+  const chatRoute = readFileSync(new URL("../app/api/sites/[siteId]/chat/route.ts", import.meta.url), "utf8");
+  const draftRoute = readFileSync(new URL("../app/api/sites/[siteId]/draft/route.ts", import.meta.url), "utf8");
+  assert.match(workspaceSource, /fetch\(`\/api\/sites\/\$\{(?:activeSiteId|siteId)\}\/draft`/);
+  assert.match(workspaceSource, /variant="workspace"/);
+  assert.match(publishedPage, /getSite\(siteKey\)/);
+  assert.match(publishedPage, /initialDraft/);
+  assert.match(publishedClient, /variant="published"/);
+  assert.match(publishedClient, /OpenSourceTemplateFrame/);
+  assert.match(draftRoute, /commitOperations/);
+  assert.match(chatRoute, /requestStructuredOperations/);
+  assert.match(chatRoute, /commitOperations/);
+  const packLoader = workspaceSource.slice(
+    workspaceSource.indexOf("const loadSimulatedPack"),
+    workspaceSource.indexOf("const submitMaterials"),
+  );
+  assert.equal(packLoader.includes("set_visual_brief"), false, "pack buttons must not skip look-first");
+  assert.equal(packLoader.includes("set_template"), false);
 });
 
 test("commitOperations-compatible ops can write pack facts without guessing undeclared chrome", () => {

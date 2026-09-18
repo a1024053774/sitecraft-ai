@@ -411,7 +411,7 @@ test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 
       id: "landwind",
       html: new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url),
       brand: ["nav"],
-      chrome: ["pricing", "logo-wall", "figma", "testimonial"],
+      chrome: ["pricing", "logo-wall", "figma", "testimonial", "footer-copyright"],
       snapshotTokens: ["$29", "$99", "$499", "Get Figma file"],
     },
     {
@@ -475,7 +475,7 @@ test("admitted kits bind looks to one family, copy concrete tokens, and never se
     landwind: {
       familyId: "export-catalog",
       templateId: "landwind",
-      demo: ["pricing", "logo-wall", "figma", "testimonial"],
+      demo: ["pricing", "logo-wall", "figma", "testimonial", "footer-copyright"],
     },
   } as const;
 

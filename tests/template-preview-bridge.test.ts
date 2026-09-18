@@ -1443,9 +1443,17 @@ test("landwind + export pack hides SaaS demo chrome on the full page, including 
   testimonial.setAttribute("data-sitecraft-demo", "testimonial");
   testimonial.textContent = "CEO at Google";
   nodes.figma.setAttribute("data-sitecraft-demo", "figma");
+  const footerBrand = createNode("span");
+  footerBrand.setAttribute("data-sitecraft-brand", "footer");
+  footerBrand.textContent = "Landwind";
+  const footerCopyright = createNode("span");
+  footerCopyright.setAttribute("data-sitecraft-demo", "footer-copyright");
+  footerCopyright.textContent = "© 2021-2022 Landwind™. All Rights Reserved.";
   document.body.appendChild(logoWall);
   document.body.appendChild(pricing);
   document.body.appendChild(testimonial);
+  document.body.appendChild(footerBrand);
+  document.body.appendChild(footerCopyright);
 
   const draft = packDraft("export");
   const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
@@ -1455,17 +1463,20 @@ test("landwind + export pack hides SaaS demo chrome on the full page, including 
     "demoChrome.logo-wall",
     "demoChrome.figma",
     "demoChrome.testimonial",
+    "demoChrome.footer-copyright",
   ], "workspace");
   const page = visibleText(document.body);
   assert.equal(nodes.brand.textContent, simulatedPacks.export.companyName);
+  assert.equal(footerBrand.textContent, simulatedPacks.export.companyName);
   assert.equal(page.includes(simulatedPacks.export.companyName), true);
-  for (const token of ["$29", "$99", "$499", "Get Figma", "Airbnb", "Google", "CEO at Google"]) {
+  for (const token of ["$29", "$99", "$499", "Get Figma", "Airbnb", "Google", "CEO at Google", "Landwind™"]) {
     assert.equal(page.includes(token), false, `landwind still shows ${token}`);
   }
   assert.equal(logoWall.hidden, true);
   assert.equal(pricing.hidden, true);
   assert.equal(nodes.figma.hidden, true);
   assert.equal(testimonial.hidden, true);
+  assert.equal(footerCopyright.hidden, true);
   assert.ok(report.appliedSlots.includes("companyName.zh"));
   assert.ok(report.appliedSlots.includes("demoChrome.pricing"));
   assert.ok(report.appliedSlots.includes("demoChrome.logo-wall"));

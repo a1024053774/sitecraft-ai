@@ -965,7 +965,7 @@ export default function WorkspacePage() {
         </div>
         <div className="draft-status-panel">
           <div className="draft-status-icon"><Cloud size={15} /></div>
-          <div><strong>当前草稿 · v{draft.revision}</strong><span>{updatedAt ? `${new Date(updatedAt).toLocaleString("zh-CN")} 保存到服务器` : "正在载入"}</span></div>
+          <div><strong data-testid="workspace-draft-revision">当前草稿 · v{draft.revision}</strong><span>{updatedAt ? `${new Date(updatedAt).toLocaleString("zh-CN")} 保存到服务器` : "正在载入"}</span></div>
           <button type="button" onClick={() => setShowHistory((value) => !value)}><History size={13} />历史 {history.length}</button>
         </div>
         <section className="visual-brief-panel" aria-label="网站样子">
@@ -984,6 +984,8 @@ export default function WorkspacePage() {
                   className={selected ? "visual-brief-card selected" : "visual-brief-card"}
                   key={brief.id}
                   type="button"
+                  data-testid="visual-brief-card"
+                  data-brief-id={brief.id}
                   disabled={busy || !draftReady}
                   onClick={() => void selectVisualBrief(brief.id)}
                 >
@@ -1116,6 +1118,7 @@ export default function WorkspacePage() {
                   <button
                     type="button"
                     role="menuitem"
+                    data-testid="open-materials"
                     disabled={busy || !draftReady}
                     onClick={() => {
                       setPlusOpen(false);
@@ -1140,7 +1143,7 @@ export default function WorkspacePage() {
             <button className="send-button" type="submit" disabled={!input.trim() || busy || !draftReady} aria-label="发送"><Send size={14} /></button>
           </form>
           <div className="chat-hints">
-            <button className="hint" type="button" onClick={() => setShowMaterials(true)}>提供公司资料</button>
+            <button className="hint" type="button" data-testid="open-materials" onClick={() => setShowMaterials(true)}>提供公司资料</button>
             <button className="hint" type="button" data-testid="hint-upload-photo" onClick={() => { void openImageLibrary(); }}>上传产品图</button>
             <button className="hint" type="button" onClick={() => setInput("只要一个首页，不要其他页面")}>只要首页</button>
             <button className="hint" type="button" onClick={() => setInput("请规划首页、产品、联系，另外还要独立认证页和资料下载页")}>额外页面</button>
@@ -1217,6 +1220,8 @@ export default function WorkspacePage() {
                   className={loadedPackId === pack.id ? "hint selected" : "hint"}
                   key={pack.id}
                   type="button"
+                  data-testid="simulated-pack"
+                  data-pack-id={pack.id}
                   onClick={() => loadSimulatedPack(pack.id)}
                 >
                   {pack.label}
@@ -1240,6 +1245,7 @@ export default function WorkspacePage() {
               <button
                 className="primary-button"
                 type="button"
+                data-testid="submit-materials"
                 disabled={!materialsText.trim() || busy || !draftReady}
                 onClick={() => { void submitMaterials(); }}
               >
