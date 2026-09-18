@@ -73,6 +73,32 @@ test("updates only the requested service card and creates a reversible operation
   assert.equal(restored.draft.templateId, original.templateId);
 });
 
+test("v2 drafts missing faq keep authored hero text and fill six pending FAQ cards", () => {
+  const legacy = structuredClone(defaultDraft) as { content: { faq?: unknown; hero: { title: { zh: string } } } };
+  legacy.content.hero.title.zh = "留存：忻州减速机 FAQ";
+  delete legacy.content.faq;
+  const restored = normalizeDraft(legacy);
+  assert.equal(restored.content.hero.title.zh, "留存：忻州减速机 FAQ");
+  assert.equal(restored.content.faq.items.length, 6);
+  assert.equal(restored.content.faq.items[0].title.zh, "待补充");
+});
+
+test("updates only the requested FAQ card and creates a reversible operation", () => {
+  const original = structuredClone(defaultDraft);
+  const result = applySiteOperations(original, [{
+    op: "update_card",
+    section: "faq",
+    index: 2,
+    locale: "zh",
+    title: "MOQ 怎么确认？",
+  }], { templateIds, lastChange: "AI saved" });
+  assert.equal(result.draft.content.faq.items[2].title.zh, "MOQ 怎么确认？");
+  assert.equal(result.draft.content.faq.items[0].title.zh, original.content.faq.items[0].title.zh);
+  assert.deepEqual(result.appliedTargets, ["faq.items.2.title.zh"]);
+  const undone = applySiteOperations(result.draft, result.inverseOperations, { templateIds, lastChange: "Undo" });
+  assert.equal(undone.draft.content.faq.items[2].title.zh, original.content.faq.items[2].title.zh);
+});
+
 test("intent union accepts edit, answer, and clarify and rejects operations on answer", () => {
   const edit = aiIntentResponseSchema.safeParse({
     type: "edit",

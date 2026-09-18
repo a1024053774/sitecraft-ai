@@ -1,4 +1,3 @@
-import { FRONTEND_TONE_RULES_VERSION } from "./frontend-tone.ts";
 import { wrapCompanyMaterials } from "./simulated-packs.ts";
 import {
   defaultDraft,
@@ -21,7 +20,7 @@ export const QUALITY_AESTHETIC_BRIEF_ID = "technical-product";
 export const QUALITY_BASELINE = {
   id: QUALITY_MATRIX_VERSION,
   model: "deepseek-flash",
-  toneVersion: FRONTEND_TONE_RULES_VERSION,
+  toneVersion: "sitecraft-frontend-less-ai-tone@0.2.0",
   frozenHead: QUALITY_FROZEN_HEAD,
   lookBoard: visualBriefCatalog.map((item) => ({ id: item.id, label: item.label, templateId: item.templateId })),
   pagePlanVersion: 1 as const,

@@ -45,7 +45,7 @@ test("P4 freezes current baseline and prepares 12 cells from 3 simulated packs",
   assert.equal(QUALITY_FROZEN_HEAD, "8199553");
   assert.equal(QUALITY_BASELINE.model, "deepseek-flash");
   assert.equal(QUALITY_BASELINE.toneVersion, "sitecraft-frontend-less-ai-tone@0.2.0");
-  assert.equal(FRONTEND_TONE_RULES_VERSION, QUALITY_BASELINE.toneVersion);
+  assert.equal(FRONTEND_TONE_RULES_VERSION, "sitecraft-frontend-less-ai-tone@0.3.0");
   assert.deepEqual(QUALITY_BASELINE.lookBoard.map((item) => item.id), [...visualBriefCatalog.map((item) => item.id)]);
   assert.equal(qualityPackList.length, 3);
   assert.equal(qualityCells.length, 12);

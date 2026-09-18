@@ -1,42 +1,68 @@
 ---
 name: sitecraft-frontend-less-ai-tone
-description: 为 SiteCraft 生成或修改网站时同时约束文案和视觉方向：减少套话和套模板长相，保留用户事实、已准入模板结构和受控预览操作。
+description: SiteCraft overlay on frontend-less-ai-tone. The generated site is this company's page built from licensed materials; look goes into visualBrief and same-family modules. Do not fill leftover template chrome. The generator must not emit CSS. Use when generating or editing a SiteCraft site, choosing a look or visualBrief, composing family modules, or when the user mentions Q22, Q26, sitecraft-frontend-less-ai-tone, 文案层, or 样子层.
 ---
 
-# SiteCraft 前端去 AI 味
+# SiteCraft 叠加层
 
-两件事合成一条项目规则：
+先读通用规则：`skills/frontend-less-ai-tone/SKILL.md`。
 
-1. **文案**：中文要像人写的行业说明，不要空泛承诺。来自 Codex 文档去 AI 味（`lieflat-less-ai-tone` 的保真写法）。
-2. **样子**：先选定与资料匹配的视觉方向，再落到已有模板，不要让模型新画一套「所有落地页都长那样」的界面。来自 Anthropic `frontend-design` 的方向盘，去掉「然后去写 CSS/HTML」。
+本仓库的生成器不能把那套方向直接写成 CSS。Q22：文案和样子走同一条路径。Q26：开源模板、区块和样式是素材，不是把整页快照挖空填词。运行时子集是 `lib/frontend-tone.ts` 的 `sitecraft-frontend-less-ai-tone@0.3.0`。不要另写一套规则，也不要把 Skill 名称写进用户选项。
 
-常见 AI 默认长相（奶油衬线、酸绿黑底、三列圆角卡片墙、全大写眉题）可以当否决，不当新的默认皮肤。Vercel 界面指南只作可访问性/表单/动效底线，不作审美主控。
+模型不输出 CSS。本叠加层不写任意 HTML/CSS/JavaScript，不绕过 `commitOperations`。
+
+## 何时用
+
+生成或改 SiteCraft 站点文案、选样子或 `visualBrief`、用同族素材组页时。用户看见的是样子名称（明亮产品、工程工业、蓝白目录、灰底短路径、深色产品），不是 Skill 名。
 
 ## 先读什么
 
-`visualBrief`、用户事实、该模板声明槽位。没有的企业事实、数字、客户、认证、评价、团队和图片写成「待补充」。
+`visualBrief`、用户事实、已准入素材（结构、token、许可资产）、当前模板能力。没有的企业事实写成「待补充」。字体只能用项目已核许可的名单。Jiro 免费区的提示词可以学写法（先锁一族 token，再写单块），不能把 Copy Prompt 贴进生产，也不能因整页气质不像工业就丢掉那些写法。
 
-效果必须落到 `visualBrief`、模板能力或白名单 operation。本 Skill 不写任意 HTML/CSS/JavaScript，不绕过 `commitOperations`。字体只能用项目已核许可的名单，Skill 里出现的字体名不是授权。
+## 运行时必须遵守
 
-## 文案
+与 `frontendToneRules` 逐字一致，已注入生成 prompt：
 
-- 先定一个主行动和一个首屏判断，再写辅助区块；不要每个模块同等喊一遍价值。
-- 保留行业术语、规格、场景和交付边界。删「赋能、领先、全面、无缝」时，确认没有丢掉事实或限制条件。
-- Hero、优势、服务、CTA 各承担不同证据，不要复制同一组承诺。
-- 不为填版面自动加三列卡片、01/02/03、客户 Logo、统计、评价、价格或博客。没有资料就让缺口可见。
-- 按钮写接下来会发生什么（「获取规格表」），不要「立即体验」。失败和空状态说明怎么补，不道歉也不含糊。
+- 先确定一个主行动和一个首屏判断，再组织辅助内容；不要让每个区块都拥有同等权重。
+- 保留真实行业术语、规格、应用场景和交付边界；缺少企业事实时写待补充，不编造数字、客户、认证、评价或团队。
+- Hero、优势、服务和 CTA 各自承担不同证据职责，避免重复同一组承诺。
+- 不要为了填满版面自动增加卡片、编号步骤、客户 Logo、统计数字、评价、价格或博客条目。
+- 视觉变化要有 visualBrief 和已选模板依据；颜色、字阶、圆角、阴影、留白和动效服务信息层级，不套用绝对的禁用清单。
+- 不要把奶油衬线、酸绿黑底、三列圆角卡片墙或全大写眉题当成默认长相；只在主题卡明确要求时才用。
+- 不要把整页模板挖空填词。生成站必须是这家公司的页面；开源模板、区块和样式是素材，不能把未选用的品牌、客户 Logo 墙、SaaS 定价或演示图留在成品上。
+- 当前草稿仍只走白名单目标；找不到或有歧义时报告 missing，不凭元素顺序、正则或相似卡片猜写。missing 不能当成可以把模板品牌留在客户站上。
+- 保留标题层级、列表、表格、引用、链接、数字和判断强度，只改明确命中的问题。
 
-## 样子
+## 怎么做
 
-- 方向来自主题卡代表的**一类模板**，不是模型现场发明版式。资料里的材料、产品和读者，决定在该类里选哪一套。
-- 只选一个记忆点（首屏图、超大标题或一条强调色），周围保持克制。
-- 字阶要有主次；颜色是角色不是随机渐变。动效最多一次进场，不要每块都 fade-up。
-- 编号、眉题、分割线只在内容真是步骤或分组时使用。
-- 未声明或有歧义的节点报告 `missing`，不按标题正则、元素顺序或通用卡片形状猜写。
-- 生成后看真实预览：中文长标题、缺图、窄屏、焦点、表单错误、`prefers-reduced-motion`。截图用来找问题；DeepSeek 视觉模型可以帮忙挑套模板感和图文不符，不能代替负责人审美拍板。
+1. 按通用规则定主行动和记忆点，再映射到已挂卡的样子，不要现场发明版式。
+2. 同一视觉族里用已准入素材组该公司页面。不要把 A 站 Header 接到 B 站 Features 上。
+3. 导航、页脚、主标题、主行动和可见区块都要是这家公司的。Airbnb Logo 墙、ScrewFast 字标、`$29` 定价卡留在成品上等于没做成。
+4. 当前实现仍走白名单 operation 与 `commitOperations`。找不到声明节点报 `missing`。`missing` 是落点失败，不是允许把演示壳留下。组页引擎未做完之前，不要假装整页快照已经是成品。
+5. 不为填版面 `add_card`。生成后看真实预览。`deepseek-flash` 可以挑套模板感，不能代替负责人拍板。
+
+## 样子盘
+
+| 样子 | 模板 | 适合 |
+| --- | --- | --- |
+| 明亮产品 | `forge` | 留白、产品先于故事 |
+| 工程工业 | `screwfast` | 产品线、工况、询盘 |
+| 蓝白目录 | `landwind` | 分类清楚、转化路径完整 |
+| 灰底短路径 | `tailwind-landing` | 单页说清品类和询盘 |
+| 深色产品 | `fresh` | 功能/界面说明，深底 |
+
+当前五张卡仍绑在整页快照上，那是过渡。Q26 之后快照是素材来源，不是交付物。
+
+## 合法落点
+
+只走白名单 operation，并经 `commitOperations`：`set_text`、`update_card`、`update_product`、`set_visual_brief`、`set_section_visibility`、`set_page_plan`、`set_image_slot`、`set_product_image`。用户明确要求时才 `set_template`。禁止 `set_css`、`set_html`、`set_style`。
 
 ## 不要做
 
-- 不要输出 Skill 名称当产品选项。
-- 不要把本规则或模型自评当成美观通过。
-- 不要为了「更像真网站」补造事实或演示图。
+- 不要把本规则或模型自评当成美观通过
+- 不要为了「更像真网站」补造事实
+- 不要再平行写一套审美规则或第二套渲染器
+- 不要把 jiro 源码或未授权字体写进生成物
+- 不要因为免费整页气质不像工业，就丢掉它的提示词设计
+
+SiteCraft 正反例见 [examples.md](examples.md)。来源见 [SOURCE.md](SOURCE.md)。

@@ -215,6 +215,7 @@ export const siteDraftSchema = z.object({
       phone: z.string().max(80),
       address: localizedTextSchema,
     }),
+    faq: contentSectionSchema,
   }),
   sectionOrder: z.array(sectionKeySchema).length(sectionKeys.length),
   hiddenSections: z.array(visibilityKeySchema),
@@ -326,6 +327,18 @@ export const defaultDraft: SiteDraft = {
       phone: "待补充",
       address: { zh: "地址待补充", en: "Address to be completed" },
     },
+    faq: {
+      title: { zh: "常见问题", en: "Frequently asked questions" },
+      intro: { zh: "只回答资料里有的交期、认证、MOQ 和售后；没有的写成待补充。", en: "Answer lead time, certificates, MOQ and after-sales from company materials; mark gaps as 待补充." },
+      items: [
+        { id: "faq-1", title: { zh: "待补充", en: "待补充" }, body: { zh: "待补充", en: "待补充" } },
+        { id: "faq-2", title: { zh: "待补充", en: "待补充" }, body: { zh: "待补充", en: "待补充" } },
+        { id: "faq-3", title: { zh: "待补充", en: "待补充" }, body: { zh: "待补充", en: "待补充" } },
+        { id: "faq-4", title: { zh: "待补充", en: "待补充" }, body: { zh: "待补充", en: "待补充" } },
+        { id: "faq-5", title: { zh: "待补充", en: "待补充" }, body: { zh: "待补充", en: "待补充" } },
+        { id: "faq-6", title: { zh: "待补充", en: "待补充" }, body: { zh: "待补充", en: "待补充" } },
+      ],
+    },
   },
   sectionOrder: ["about", "features", "services", "products", "contact"],
   hiddenSections: [],
@@ -359,8 +372,13 @@ export function normalizeDraft(input: unknown): SiteDraft {
   // Existing v2 documents predate visualBrief/pagePlan. Add only the missing metadata;
   // never run them through the v1 conversion that reconstructs content.
   if (legacy.schemaVersion === 2) {
+    const content = legacy.content && typeof legacy.content === "object"
+      ? { ...(legacy.content as Record<string, unknown>) }
+      : {};
+    if (!Object.hasOwn(content, "faq")) content.faq = structuredClone(defaultDraft.content.faq);
     const restored = siteDraftSchema.parse({
       ...legacy,
+      content,
       ...(!Object.hasOwn(legacy, "visualBrief") ? { visualBrief: structuredClone(defaultDraft.visualBrief) } : {}),
       ...(!Object.hasOwn(legacy, "pagePlan") ? { pagePlan: pagePlanForLegacy(legacy) } : {}),
     });

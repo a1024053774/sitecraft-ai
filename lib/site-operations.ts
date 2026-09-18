@@ -49,6 +49,8 @@ export const textTargets = [
   "contact.email",
   "contact.phone",
   "contact.address",
+  "faq.title",
+  "faq.intro",
 ] as const;
 export const textTargetSchema = z.enum(textTargets);
 export type TextTarget = z.infer<typeof textTargetSchema>;
@@ -61,7 +63,7 @@ const setTextOperationSchema = z.object({
 });
 const updateCardOperationSchema = z.object({
   op: z.literal("update_card"),
-  section: z.enum(["features", "services"]),
+  section: z.enum(["features", "services", "faq"]),
   index: z.number().int().min(0).max(11),
   locale: z.enum(locales),
   title: z.string().min(1).max(160).optional(),
@@ -69,13 +71,13 @@ const updateCardOperationSchema = z.object({
 }).refine((value) => value.title || value.body, "Card update requires title or body");
 const addCardOperationSchema = z.object({
   op: z.literal("add_card"),
-  section: z.enum(["features", "services"]),
+  section: z.enum(["features", "services", "faq"]),
   index: z.number().int().min(0).max(12).optional(),
   item: editableCardSchema,
 });
 const removeCardOperationSchema = z.object({
   op: z.literal("remove_card"),
-  section: z.enum(["features", "services"]),
+  section: z.enum(["features", "services", "faq"]),
   itemId: z.string().min(1).max(80),
 });
 const updateProductOperationSchema = z.object({
@@ -251,6 +253,8 @@ function localizedValue(draft: SiteDraft, target: TextTarget) {
     "contact.title": draft.content.contact.title,
     "contact.body": draft.content.contact.body,
     "contact.address": draft.content.contact.address,
+    "faq.title": draft.content.faq.title,
+    "faq.intro": draft.content.faq.intro,
   };
   return values[target];
 }
