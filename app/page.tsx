@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import type { Route } from "next";
 import {
@@ -15,53 +13,40 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
+import { getTemplate } from "@/lib/site-model";
+import { listExistingSites, type SiteListItem } from "@/lib/site-store";
 
-const sites = [
-  {
-    name: "Forge Industrial",
-    industry: "工业制造 · 产品目录",
-    updated: "2 分钟前",
-    status: "已发布",
-    colors: ["#194c38", "#b9f56b"],
-    title: "Built for the\nnext standard.",
-  },
-  {
-    name: "Northstar Robotics",
-    industry: "科技企业 · 解决方案",
-    updated: "昨天 18:42",
-    status: "草稿",
-    colors: ["#34256a", "#d9f36b"],
-    title: "Make complexity\nuseful.",
-  },
-  {
-    name: "Morrow Advisory",
-    industry: "专业服务 · 案例展示",
-    updated: "8 月 18 日",
-    status: "已发布",
-    colors: ["#6e3e2d", "#edb48b"],
-    title: "Good work,\nmade visible.",
-  },
-];
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-function SiteThumb({ site }: { site: (typeof sites)[number] }) {
+function formatUpdatedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function SiteThumb({ site }: { site: SiteListItem }) {
+  const template = getTemplate(site.templateId);
+  const brand = site.siteName.split(/\s+/)[0] || site.siteName;
   return (
     <div
       className="site-thumb"
       style={{
-        background: `linear-gradient(135deg, ${site.colors[0]}, ${site.colors[0]}dd)`,
+        background: `linear-gradient(135deg, ${template.colors.primary}, ${template.colors.primary}dd)`,
       }}
     >
       <div className="thumb-grid">
         <div className="thumb-nav">
-          <span>◼ {site.name.split(" ")[0]}</span>
+          <span>◼ {brand}</span>
           <span>ABOUT&nbsp;&nbsp; WORK&nbsp;&nbsp; CONTACT</span>
         </div>
         <div className="thumb-title">
-          {site.title.split("\n").map((line) => (
-            <span key={line} style={{ display: "block" }}>
-              {line}
-            </span>
-          ))}
+          <span style={{ display: "block" }}>{site.siteName}</span>
         </div>
         <div className="thumb-lines">
           <span />
@@ -72,7 +57,10 @@ function SiteThumb({ site }: { site: (typeof sites)[number] }) {
   );
 }
 
-export default function Dashboard() {
+export default async function Dashboard() {
+  const sites = await listExistingSites();
+  const recent = sites.slice(0, 3);
+
   return (
     <div className="app-shell">
       <AppSidebar active="sites" />
@@ -115,8 +103,8 @@ export default function Dashboard() {
                 <span>站点总数</span>
                 <LayoutTemplate size={14} />
               </div>
-              <div className="stat-value">03</div>
-              <div className="stat-note">↑ 这个月新增 1 个</div>
+              <div className="stat-value">{String(sites.length).padStart(2, "0")}</div>
+              <div className="stat-note">已保存草稿，不是演示名单</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">
@@ -137,40 +125,43 @@ export default function Dashboard() {
           </div>
           <div className="section-heading">
             <h2>最近的站点</h2>
-            <a className="section-link" href="#recent-sites">
+            <Link className="section-link" href={"/sites" as Route} data-testid="view-all-sites">
               查看全部{" "}
               <ArrowUpRight size={12} style={{ verticalAlign: "middle" }} />
-            </a>
+            </Link>
           </div>
-          <div className="site-grid" id="recent-sites">
-            {sites.map((site) => (
-              <Link
-                href={
-                  site.name === "Forge Industrial" ? "/workspace" : "/workspace"
-                }
-                className="site-card"
-                key={site.name}
-              >
-                <SiteThumb site={site} />
-                <div className="site-card-body">
-                  <div className="site-title">
-                    <strong>{site.name}</strong>
-                    <span className="site-status">● {site.status}</span>
+          <div className="site-grid">
+            {recent.length === 0 ? (
+              <p className="leads-empty recent-sites-empty">还没有已保存站点。打开工作台会新建草稿，这里不会先放演示站。</p>
+            ) : recent.map((site) => {
+              const template = getTemplate(site.templateId);
+              return (
+                <Link
+                  href={`/workspace?site=${encodeURIComponent(site.siteId)}` as Route}
+                  className="site-card"
+                  key={site.siteId}
+                >
+                  <SiteThumb site={site} />
+                  <div className="site-card-body">
+                    <div className="site-title">
+                      <strong>{site.siteName}</strong>
+                      <span className="site-status">● {template.name}</span>
+                    </div>
+                    <div className="site-meta">{site.siteId} · {template.category}</div>
+                    <div className="site-card-footer">
+                      <span>最后编辑 {formatUpdatedAt(site.updatedAt)}</span>
+                      <span className="tiny-action">
+                        打开工作台{" "}
+                        <ArrowUpRight
+                          size={11}
+                          style={{ verticalAlign: "middle" }}
+                        />
+                      </span>
+                    </div>
                   </div>
-                  <div className="site-meta">{site.industry}</div>
-                  <div className="site-card-footer">
-                    <span>最后编辑 {site.updated}</span>
-                    <span className="tiny-action">
-                      打开工作台{" "}
-                      <ArrowUpRight
-                        size={11}
-                        style={{ verticalAlign: "middle" }}
-                      />
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
           <div className="activity-panel">
             <div className="panel">

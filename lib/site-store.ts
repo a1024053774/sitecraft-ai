@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "@/lib/postgres";
@@ -335,6 +335,82 @@ export function getSite(siteId: string) {
 
 export function getExistingSite(siteId: string) {
   return usePostgres ? peekPostgresSite(siteId) : peekLocalSite(siteId);
+}
+
+export type SiteListItem = {
+  siteId: string;
+  siteName: string;
+  companyName: string;
+  templateId: string;
+  updatedAt: string;
+};
+
+function toListItem(siteId: string, item: SiteSnapshot): SiteListItem {
+  return {
+    siteId,
+    siteName: item.draft.siteName,
+    companyName: item.draft.companyName,
+    templateId: item.draft.templateId,
+    updatedAt: item.updatedAt,
+  };
+}
+
+async function listLocalSites(): Promise<SiteListItem[]> {
+  await mkdir(storageRoot, { recursive: true });
+  const names = await readdir(storageRoot);
+  const items: SiteListItem[] = [];
+  for (const name of names) {
+    if (!name.endsWith(".json")) continue;
+    const siteId = name.slice(0, -5);
+    if (!/^[a-z0-9][a-z0-9_-]{0,79}$/i.test(siteId)) continue;
+    const record = await readRecord(siteId);
+    if (record) items.push(toListItem(siteId, snapshot(record, false)));
+  }
+  return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
+}
+
+async function listPostgresSites(): Promise<SiteListItem[]> {
+  await ensureDatabaseSchema();
+  const result = await getDatabasePool().query<{ site_id: string; draft: unknown; updated_at: Date }>(
+    `SELECT site_id, draft, updated_at FROM sitecraft_sites WHERE workspace_id = $1`,
+    [workspaceId],
+  );
+  return result.rows
+    .map((row) => toListItem(row.site_id, snapshot(rowToRecord({
+      site_id: row.site_id,
+      draft: row.draft,
+      history: [],
+      future: [],
+      updated_at: row.updated_at,
+    }), false)))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
+}
+
+async function deleteLocalSiteRecord(siteId: string) {
+  return withSiteLock(siteId, async () => {
+    const existing = await readRecord(siteId);
+    if (!existing) return false;
+    await unlink(recordPath(siteId));
+    return true;
+  });
+}
+
+async function deletePostgresSiteRecord(siteId: string) {
+  safeSiteId(siteId);
+  await ensureDatabaseSchema();
+  const result = await getDatabasePool().query(
+    `DELETE FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2`,
+    [workspaceId, siteId],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+export function listExistingSites() {
+  return usePostgres ? listPostgresSites() : listLocalSites();
+}
+
+export function deleteSiteRecord(siteId: string) {
+  return usePostgres ? deletePostgresSiteRecord(siteId) : deleteLocalSiteRecord(siteId);
 }
 
 export function commitOperations(args: CommitArgs): Promise<CommitResult> {
