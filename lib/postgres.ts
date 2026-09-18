@@ -56,6 +56,15 @@ export async function ensureDatabaseSchema() {
         ALTER TABLE sitecraft_conversations
         ADD COLUMN IF NOT EXISTS alignment JSONB NOT NULL DEFAULT '{}'::jsonb
       `))
+      .then(() => getDatabasePool().query(`
+        CREATE TABLE IF NOT EXISTS sitecraft_site_leads (
+          workspace_id TEXT NOT NULL,
+          site_id TEXT NOT NULL,
+          leads JSONB NOT NULL DEFAULT '[]'::jsonb,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (workspace_id, site_id)
+        )
+      `))
       .then(() => undefined)
       .catch((error) => {
         globalDatabase.__sitecraftSchemaReady = undefined;

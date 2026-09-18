@@ -3,7 +3,7 @@ session_id: grilling-sitecraft-ai-generation-20260915
 status: confirmed
 topic: SiteCraft AI 中小企业自主建站方案
 created_at: 2026-09-15T20:20:00+08:00
-updated_at: 2026-09-18T08:24:00+08:00
+updated_at: 2026-09-18T09:15:00+08:00
 last_round: 15
 stage: build
 ---
@@ -181,4 +181,5 @@ REALITY GATE: INCOMPLETE（jiro 条款）；PASS（配方用法、模块清单�
 - Round 13（2026-09-17 21:22）：用户要讨论方案而非继续实现。记录 D15–D20 为推断；核验 DeepSeek `deepseek-flash` 公告与 jiro 商业提示库事实。会话从 confirmed/execution 重开为 awaiting-user / design-reopen。前沿为 Q20–Q25。未改 intent/spec，未实现模块拼装，未改密钥。
 - Round 14（2026-09-17 22:20）：Q20=B、Q21=B（不锁 4 套）、Q22=B 并记下 Skill 收口、Q23=免费区配方并完成挑选、Q24=`deepseek-flash`、Q25=项目文档+AGENTS、不要复杂被动规则。已写入 mainline/intent/spec v0.4/plan v0.5。等待确认书面主线。
 - Round 15（2026-09-17 22:50）：并入会话 `31efb674` 的 Jiro 实测。免费整页无工业；KonsTuck/Lozitick 只借模块清单；补 FAQ/浅色页脚配方。plan 升 v0.6。负责人要求提交本次规划。
-- 2026-09-18：用户决定取代 Q17=A。删除须由用户明确选择，系统不主动清理；不实现 90 天任务或开关。已写入 intent/spec v0.5/plan v0.7/mainline/AGENTS。表单收件仍属后续。未宣称 Demo 已验收。
+- 2026-09-18：用户决定取代 Q17=A。删除须由用户明确选择，系统不主动清理；不实现 90 天任务或开关。已写入 intent/spec v0.5/plan v0.7/mainline/AGENTS。未宣称 Demo 已验收。
+- 2026-09-18：P5 表单收件。发布页表单写入 `.sitecraft-data/leads`，`/leads` 读到 `P5LEAD-CLICK-HX7K`。邮件转发 UNVERIFIED。工作台仍无手动删除入口。未宣称 Demo 已验收。

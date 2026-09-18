@@ -34,7 +34,6 @@ const workspaceItems = [
     href: "/leads",
     label: "询盘线索",
     icon: MessageSquareText,
-    count: 4,
   },
   { id: "content", href: "/content", label: "内容与商品", icon: FileText },
 ] as const;

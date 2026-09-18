@@ -112,6 +112,12 @@ async function getLocalSite(siteId: string) {
     return snapshot(record, true);
   });
 }
+async function peekLocalSite(siteId: string) {
+  return withSiteLock(siteId, async () => {
+    const existing = await readRecord(siteId);
+    return existing ? snapshot(existing, false) : null;
+  });
+}
 export type CommitResult =
   | { status: "applied"; record: SiteRecord; changeSet: ChangeSet }
   | { status: "no_change"; record: SiteRecord }
@@ -250,6 +256,17 @@ async function getPostgresSite(siteId: string) {
   return snapshot(rowToRecord(result.rows[0]), inserted.rowCount === 1);
 }
 
+async function peekPostgresSite(siteId: string) {
+  safeSiteId(siteId);
+  await ensureDatabaseSchema();
+  const result = await getDatabasePool().query<SiteRow>(
+    `SELECT site_id, draft, history, future, updated_at
+     FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2`,
+    [workspaceId, siteId],
+  );
+  return result.rows[0] ? snapshot(rowToRecord(result.rows[0]), false) : null;
+}
+
 async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult> {
   return withDatabaseTransaction(async (client) => {
     const record = await lockPostgresRecord(client, args.siteId);
@@ -314,6 +331,10 @@ async function movePostgresHistory(siteId: string, action: "undo" | "redo") {
 
 export function getSite(siteId: string) {
   return usePostgres ? getPostgresSite(siteId) : getLocalSite(siteId);
+}
+
+export function getExistingSite(siteId: string) {
+  return usePostgres ? peekPostgresSite(siteId) : peekLocalSite(siteId);
 }
 
 export function commitOperations(args: CommitArgs): Promise<CommitResult> {

@@ -99,7 +99,7 @@ Round 14 / Q22 记下，本轮规划一并入库。
 
 本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。生成走了真实模型，不是 mock 当 Demo。截图在 gitignore 的 `artifacts/p3-workspace-journey/`。工作台补了「提供公司资料」面板和 `?site=` 隔离，仍走现有 `/chat` + `commitOperations`。`npm test` 108 通过。`npm run typecheck` / `npm run build` 仍会被 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6` 拖失败；排除该目录后本仓库 TypeScript 为 0 错，Next 编译成功。未把 artifacts exclude 写进已提交的 `tsconfig.json`。
 
-还没有：表单收件。2026-09-18 起，删除须由用户明确选择，系统不得替用户主动删除；不再做 90 天自动清理。不要据此宣称 Demo 已验收。
+当时还没有表单收件；P5 已补。2026-09-18 起，删除须由用户明确选择，系统不得替用户主动删除；不再做 90 天自动清理。不要据此宣称 Demo 已验收。
 
 **Q18（P3 剩余，2026-09-18）**：页面规划按「用户点名 → 模型按业务规划 → 仍不确定才用首页/产品或服务/联系」。默认三项不是上限。草稿增加 `pagePlan`，只走白名单 `set_page_plan`；落点由服务端 `resolvePagePlan` 决定，模型不能指定 placement。独立 URL 只服务快照里已有的 HTML（`forge` 的 About/Services/Contact，`screwfast` 的 products/contact）；没有对应文件就 404，不克隆首页。`landwind` 等单页快照只在同一模板里切换声明区块。工作台与 `/published/:siteKey` 读同一份 pagePlan。
 
@@ -142,11 +142,21 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 
 本机 `.env.local` 为 `DEEPSEEK_MODEL=deepseek-flash`。`npm test` 134 通过。`tsc` / `next build` 仍需临时排除 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6`，未把该 exclude 写进已提交 `tsconfig.json`。
 
-还没有：表单收件（P5）。数据删除政策见下；不要据此宣称 Demo 已验收。
+**P5 表单收件（2026-09-18）**：发布页右下角表单 `POST /api/public/:siteKey/leads` 落库，工作台 `/leads` 读同一条原文。成功提示不是收件证据；以收件箱可见的客户留言为准。蜜罐字段只回执、不入库。未知 `siteKey` 返回 404，且不因此新建站点草稿。设置页不再写 `lydia@sitecraft.ai` 当收件地址。邮件转发、Mailpit、生产 PostgreSQL 询盘表均未实测，标 `UNVERIFIED`。模板里的演示表单（如 web3forms）不会进收件箱；没有把 FAQ/询盘结构写进各 MIT 模板 HTML。这不是 Demo 验收。
+
+| 项 | 结果 |
+| --- | --- |
+| 站点 | `p5-inbox-hx7k`，发布页 `http://127.0.0.1:3034/published/p5-inbox-hx7k` |
+| 发送 | 点开「发送询盘」，留言 `P5LEAD-CLICK-HX7K 发出去必须能在收件箱读到` |
+| 收件 | `/leads?site=p5-inbox-hx7k` 与 `GET /api/leads?site=p5-inbox-hx7k` 读到同一条：`click@p5lead.test` / `lead_24327262ca6848719006d114` |
+| 拒绝 | 对不存在站点 POST 返回 404，`.sitecraft-data/sites/` 不出现该 id |
+| 驱动 | 开发机 `SITE_STORE=fs`；`npm test` 141 通过 |
+
+`tsc` / `next build` 仍需临时排除 gitignore 的 `artifacts/sitecraft-ai-pr4-b54eca6`。不要据此宣称 Demo 已验收。
 
 ## 数据删除（2026-09-18）
 
-用户决定（取代 2026-09-15 的 Q17=A）：删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。不实现 90 天自动清理，也不保留可暂停的自动清理开关。已发布站点仍由用户控制，不得静默删除。表单收件仍属后续。
+用户决定（取代 2026-09-15 的 Q17=A）：删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。不实现 90 天自动清理，也不保留可暂停的自动清理开关。已发布站点仍由用户控制，不得静默删除。工作台里还没有删除入口，用户目前仍不能在产品里选删。
 
 ## 下一步（一次一块，给主对话执行）
 
@@ -158,4 +168,5 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 6. ~~用模拟工业/外贸包跑完整工作台生成。~~ 不要据此宣称 Demo 已验收。
 7. ~~Q18 需求驱动页面：pagePlan + 真快照 URL / 页内区块，默认三项不是上限。~~
 8. ~~P3 图片识别与素材授权流水线。~~
-9. ~~12 组对照（P4）。~~ 还没做表单收件（P5）。Q17=A 的 90 天自动清理已于 2026-09-18 被用户决定取代，不实现、不保留自动清理任务或开关。不要搬 jiro 源码。不要据此宣称 Demo 已验收。
+9. ~~12 组对照（P4）。~~
+10. ~~表单收件（P5）：询盘发出去、收件箱能读到同一条。~~ 邮件转发未接通。工作台还没有用户手动删除入口。不要搬 jiro 源码。不要据此宣称 Demo 已验收。
