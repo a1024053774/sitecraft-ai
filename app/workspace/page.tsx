@@ -629,8 +629,21 @@ export default function WorkspacePage() {
     });
   };
 
+  const shouldGuideBusinessRequest = (value: string) => /减速机|P3I|公司资料|我们做/.test(value);
+
   const sendChat = async (value: string) => {
     if (!value || busy || !draftReady) return false;
+    if (!alignmentEnabled && shouldGuideBusinessRequest(value)) {
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: value }]);
+      setAlignmentEnabled(true);
+      await runAlignment({
+        action: "start",
+        message: value,
+        baseRevision: draft.revision,
+        selectedTarget: selectedTarget?.key ?? null,
+      });
+      return true;
+    }
     setBusy(true);
     setBusyText("正在连接模型…");
     setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: value }]);

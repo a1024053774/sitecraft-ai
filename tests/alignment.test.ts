@@ -11,6 +11,7 @@ import {
 import {
   ALIGNMENT_QUESTION_ID,
   APPROVE_OPTION_ID,
+  GUIDED_BUSINESS_QUESTION_ID,
   applyAlignmentAction,
   applyAnswerResult,
   applyClarifyResult,
@@ -132,6 +133,29 @@ test("conversation store persists and restores alignment across reread", async (
   assert.equal(reread.alignment?.enabled, true);
   assert.equal(reread.alignment?.state, "awaiting_style");
   assert.equal(reread.alignment.currentQuestion?.questionRevision, started.record.alignment.currentQuestion?.questionRevision);
+});
+
+test("guided P3I tasks ask for the business outcome before the visual direction", () => {
+  const started = applyAlignmentAction(disabledAlignment(), {
+    action: "start",
+    pendingRequest: { message: "我们做减速机，想做官网。P3I 资料已上传。", baseRevision: 1, selectedTarget: null },
+  });
+  assert.equal(started.ok, true);
+  if (!started.ok) throw new Error("expected guided start");
+  assert.equal(started.snapshot.currentQuestion?.questionId, GUIDED_BUSINESS_QUESTION_ID);
+  assert.equal(started.snapshot.currentQuestion?.kind, "clarify");
+  const goal = applyAlignmentAction(started.snapshot, {
+    action: "select",
+    questionId: GUIDED_BUSINESS_QUESTION_ID,
+    questionRevision: started.snapshot.currentQuestion?.questionRevision,
+    optionId: "rfq",
+  });
+  assert.equal(goal.ok, true);
+  if (!goal.ok) throw new Error("expected business goal selection");
+  assert.equal(goal.snapshot.currentQuestion?.questionId, ALIGNMENT_QUESTION_ID);
+  assert.equal(goal.snapshot.state, "awaiting_style");
+  assert.equal(goal.snapshot.inflightRunId, null);
+  assert.match(alignmentPromptContext(goal.snapshot), /让采购看懂产品/);
 });
 
 test("start with a specified missing conversation id does not create it", async () => {

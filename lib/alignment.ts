@@ -3,6 +3,7 @@ import { visualBriefCatalog } from "./site-document.ts";
 import { siteOperationSchema, type SiteOperation } from "./site-operations.ts";
 
 export const ALIGNMENT_QUESTION_ID = "style-theme";
+export const GUIDED_BUSINESS_QUESTION_ID = "business-goal";
 export const OTHER_OPTION_ID = "other";
 export const APPROVE_OPTION_ID = "approve";
 export const MAX_ALIGNMENT_NOTE_CHARS = 500;
@@ -10,6 +11,7 @@ export const MAX_ALIGNMENT_SUMMARY_CHARS = 400;
 export const MAX_ALIGNMENT_HISTORY = 20;
 export const MAX_ALIGNMENT_ROUNDS = 3;
 export const ALIGNMENT_QUESTION = "请选择网站的样子。选择会保存在同一会话里，不会立刻修改草稿。";
+export const GUIDED_BUSINESS_QUESTION = "这个网站，你更希望先帮你完成哪件事？";
 
 export const STYLE_OPTIONS = visualBriefCatalog.map((brief) => ({
   id: brief.id,
@@ -21,6 +23,12 @@ export const UTILITY_OPTIONS = [
   { id: "skip", label: "跳过", description: "暂不指定样子，保留后续必要确认" },
   { id: "ai-recommend", label: "AI推荐", description: "按已有资料推荐方向，不编造缺失事实" },
 ] as const;
+
+export const GUIDED_BUSINESS_OPTIONS: AlignmentOption[] = [
+  { id: "rfq", label: "让采购看懂产品，并提交询价", description: "优先展示产品类别、规格边界和批量询盘入口。" },
+  { id: "capabilities", label: "先了解企业和制造能力", description: "优先说明加工方式、合作流程和资料缺口。" },
+  { id: "recommend", label: "还没想清楚，帮我分析", description: "根据资料归纳主要访客和下一步，不猜企业事实。" },
+];
 
 const styleCatalog = [...STYLE_OPTIONS, ...UTILITY_OPTIONS];
 const legacyStyleOptionIds: Record<string, string> = { "tech-product": "technical-product", advisor: "editorial-service" };
@@ -247,6 +255,22 @@ export function styleQuestion(revision: number): CurrentQuestion {
     options: STYLE_OPTIONS.map((option) => ({ id: option.id, label: option.label, description: option.description })),
     allowOther: true,
   };
+}
+
+function guidedBusinessQuestion(revision: number): CurrentQuestion {
+  return {
+    questionId: GUIDED_BUSINESS_QUESTION_ID,
+    questionRevision: Math.max(1, revision),
+    kind: "clarify",
+    prompt: GUIDED_BUSINESS_QUESTION,
+    options: GUIDED_BUSINESS_OPTIONS.map((option) => ({ ...option })),
+    allowOther: true,
+  };
+}
+
+function needsGuidedBusinessQuestion(message: string | undefined) {
+  const value = message?.trim() ?? "";
+  return /减速机|P3I|公司资料|我们做/.test(value);
 }
 
 export function disabledAlignment(): AlignmentSnapshot {
@@ -486,7 +510,9 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
       pendingRequest: pending,
       enabled: true,
       state: "awaiting_style",
-      currentQuestion: styleQuestion(revision),
+      currentQuestion: pending && needsGuidedBusinessQuestion(pending.message)
+        ? guidedBusinessQuestion(revision)
+        : styleQuestion(revision),
       answers: stylePreferenceAnswers(current),
       confirmClaimed: false,
       proposedChange: null,
@@ -566,7 +592,9 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
       ? { ...question, questionRevision: question.questionRevision + 1 }
       : question;
     const recorded = { ...answer, questionRevision: nextQuestion.questionRevision };
-    const runId = current.pendingRequest ? crypto.randomUUID() : null;
+    const runId = question.questionId === GUIDED_BUSINESS_QUESTION_ID
+      ? null
+      : current.pendingRequest ? crypto.randomUUID() : null;
     const next: AlignmentSnapshot = {
       ...current,
       enabled: true,
@@ -579,6 +607,16 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
       lastResult: errorRetry ? null : current.lastResult,
       history: pushHistory(current, { action: "select", optionId: option.id, summary: option.label }),
     };
+    if (question.questionId === GUIDED_BUSINESS_QUESTION_ID) {
+      const styleRevision = Math.max(question.questionRevision + 1, next.epoch + 1);
+      return succeed({
+        ...next,
+        state: "awaiting_style",
+        currentQuestion: styleQuestion(styleRevision),
+        inflightRunId: null,
+        epoch: styleRevision,
+      }, { saved: true, shouldContinue: false, runId: null });
+    }
     if (!next.pendingRequest) {
       return succeed({
         ...next,
