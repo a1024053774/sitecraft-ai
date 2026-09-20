@@ -92,7 +92,7 @@ node --test --experimental-strip-types \
 - 路由结构检查：preview HTTP 200；可见 HTML 含工业 overlay 和产品 grid；脚本移除后的 body 不含 ScrewFast、Contact Sales Team、12.8k Reviews、客户 Logo 墙或 SaaS 定价。
 - 产品集合：`P3I-RA1` 直角减速机、`P3I-PL1` 行星减速机；没有空产品卡。
 
-这证明人工指定页面已经可成立，不证明自动生成、需求确认、刷新恢复或 Cua fresh 浏览器证据已完成。完整结构化记录在 `artifacts/industrial-guided-goal-2026-09-20/page-evidence.json`。
+这证明人工指定页面已经可成立，不证明自动生成、需求确认或刷新恢复已完成。完整结构化记录在 `artifacts/industrial-guided-goal-2026-09-20/page-evidence.json`。
 
 ## 需求引导与自动生成证据
 
@@ -109,5 +109,38 @@ node --test --experimental-strip-types \
 
 - `artifacts/industrial-guided-goal-2026-09-20/guided-full4-desktop.png`
 - `artifacts/industrial-guided-goal-2026-09-20/guided-full4-mobile-v2.png`
+- `artifacts/industrial-guided-goal-2026-09-20/guided-full4-mobile-cdp.png`（Cua 复核前用设备指标重采的 390px 视口）
 
-当前、人工基准、自动结果的同条件索引在 `artifacts/industrial-guided-goal-2026-09-20/comparison.json`。这证明方案状态、样式绑定、产品清单和共享预览链路已贯通；刷新/重新打开回读、真实 Cua 浏览器证据、图片等待分支和完整页面人工盲评仍未完成。
+当前、人工基准、自动结果的同条件索引在 `artifacts/industrial-guided-goal-2026-09-20/comparison.json`。这证明方案状态、样式绑定、产品清单和共享预览链路已贯通；刷新/重新打开回读、图片等待分支和完整页面人工盲评仍未完成。
+
+## 自动生成后的持久化回读证据
+
+在 `guided-p3i-full4-20260920` 完成确认后，通过现有 `commitOperations` 入口手工修改首页 CTA 为“索取 P3I-EDIT 交期”，以 revision 2 为基线提交。服务端返回 revision 3；随后重新读取草稿，确认 CTA 已更新，同时仍保留 `screwfast`、`engineering-industrial` 和两类 P3I 产品，没有重置页面方案。
+
+- 提交记录：`artifacts/industrial-guided-goal-2026-09-20/auto-edit-commit.json`
+- 回读记录：`artifacts/industrial-guided-goal-2026-09-20/auto-edit-readback.json`
+- 回读后的发布截图：`artifacts/industrial-guided-goal-2026-09-20/guided-full4-edited.png`
+
+这条探针证明修改仍经过受控操作并可在重新读取后恢复；当时的证据采集使用了 Chrome headless，后续 Cua 复核见下节。当前 GOAL 仍不把等待上传图片的后续恢复流程写成已完成能力。
+
+## 最终机器门禁
+
+2026-09-20 在最新代码上运行：
+
+```text
+npm test              # 177/177 通过
+npm run typecheck     # 通过
+npm run build         # 通过，Next.js 16.3.1
+```
+
+构建输出包含全部 App Router 路由，未产生未提交的 `next-env.d.ts` 变更。Node 的 `MODULE_TYPELESS_PACKAGE_JSON` 仅为现有测试运行警告，不影响结果。
+
+## Cua 真实浏览器复核补充
+
+随后在 Cua 的真实 Chromium 页面上复核 `guided-p3i-full4-20260920`：
+
+- 桌面视口的无障碍树读到 P3I 标题、已编辑 CTA、两张产品卡、询盘表单和资料边界 FAQ；未出现模板演示品牌或价格内容。
+- 设置 390×1400 移动视口后，外层文档和内嵌工业页的 `scrollWidth` 分别为 390 和 375，均等于各自可见宽度，没有横向溢出；产品卡数量为 2，标题保持为 `按图加工重载减速机 P3I-NX7Q`。
+- 复核结束后清除了临时移动视口覆盖，恢复默认浏览器视口。
+
+因此，桌面/移动的真实浏览器结构和溢出门禁已通过；图片等待分支、完整页面的独立人工盲评和多色板仍属于后续范围。
