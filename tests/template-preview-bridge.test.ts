@@ -834,41 +834,20 @@ function createFamilyFragments() {
   landwind.document.body.appendChild(pricing);
 
   const screwfast = createDocument();
-  const navContact = createNode("a");
-  navContact.id = "contact";
-  navContact.textContent = "Contact";
-  const partnersSection = createNode("section");
-  const partnerHeading = createNode("h2");
-  partnerHeading.className = "text-2xl leading-tight font-bold";
-  partnerHeading.textContent = "Trusted by Industry Leaders";
-  partnersSection.appendChild(partnerHeading);
-  const featuresSection = createNode("section");
-  const featureImgSf = createNode("img");
-  featureImgSf.setAttribute("alt", "ScrewFast products in floating boxes");
-  featuresSection.appendChild(featureImgSf);
-  const solutionsSection = createNode("section");
-  const tab = createNode("button");
-  tab.id = "tabs-with-card-item-1";
-  tab.textContent = "Cutting-Edge Tools";
-  solutionsSection.appendChild(tab);
-  const processSection = createNode("section");
-  const processHeading = createNode("h2");
-  processHeading.className = "mb-2 text-3xl font-bold";
-  processHeading.textContent = "Fast-Track Your Projects";
-  processSection.appendChild(processHeading);
+  const productsSection = createNode("section");
+  productsSection.setAttribute("data-sitecraft-section", "products");
+  productsSection.textContent = "Products";
+  const servicesSection = createNode("section");
+  servicesSection.setAttribute("data-sitecraft-section", "services");
+  servicesSection.textContent = "Services";
   const faqSf = createNode("section");
-  const accordionSf = createNode("div");
-  accordionSf.className = "hs-accordion-group divide-y";
-  accordionSf.textContent = "Frequently asked questions";
-  faqSf.appendChild(accordionSf);
+  faqSf.setAttribute("data-sitecraft-section", "faq");
+  faqSf.textContent = "Frequently asked questions";
   const cta = createNode("section");
-  cta.className = "relative mx-auto pt-10 pb-24";
+  cta.setAttribute("data-sitecraft-section", "contact");
   cta.textContent = "Let's Build Together";
-  screwfast.document.body.appendChild(navContact);
-  screwfast.document.body.appendChild(partnersSection);
-  screwfast.document.body.appendChild(featuresSection);
-  screwfast.document.body.appendChild(solutionsSection);
-  screwfast.document.body.appendChild(processSection);
+  screwfast.document.body.appendChild(productsSection);
+  screwfast.document.body.appendChild(servicesSection);
   screwfast.document.body.appendChild(faqSf);
   screwfast.document.body.appendChild(cta);
 
@@ -877,11 +856,8 @@ function createFamilyFragments() {
     landwind: { ...landwind, solutions, partners, faqSection, inquiry, pricing, trusted },
     screwfast: {
       document: screwfast.document,
-      navContact,
-      partnersSection,
-      featuresSection,
-      solutionsSection,
-      processSection,
+      productsSection,
+      servicesSection,
       faqSf,
       cta,
     },
@@ -950,17 +926,13 @@ test("declared family modules hide and show after set_section_visibility and und
 
   const screwfastReport = screwfastApi.applyDeclaredContent(hidden, "zh", expected, "workspace");
   assert.equal(fragments.screwfast.faqSf.hidden, true);
-  assert.equal(fragments.screwfast.partnersSection.hidden, true);
-  assert.equal(fragments.screwfast.featuresSection.hidden, true);
-  assert.equal(fragments.screwfast.solutionsSection.hidden, true);
-  assert.equal(fragments.screwfast.processSection.hidden, true);
+  assert.equal(fragments.screwfast.productsSection.hidden, false);
+  assert.equal(fragments.screwfast.servicesSection.hidden, true);
   assert.equal(fragments.screwfast.cta.hidden, true);
-  assert.equal(fragments.screwfast.navContact.hidden, false);
-  assert.equal(fragments.screwfast.navContact.textContent, "Contact");
-  assert.ok(screwfastReport.appliedSlots.includes("process.visibility"));
-  assert.ok(screwfastReport.missingSlots.includes("services.visibility"));
+  assert.ok(screwfastReport.appliedSlots.includes("services.visibility"));
+  assert.ok(screwfastReport.appliedSlots.includes("products.visibility"));
+  assert.ok(screwfastReport.appliedSlots.includes("contact.visibility"));
   assert.ok(screwfastReport.missingSlots.includes("industries.visibility"));
-  assert.ok(screwfastReport.missingSlots.includes("products.visibility"));
 
   const shown = applySiteOperations(hidden, [{ op: "set_section_visibility", section: "faq", visible: true }], options).draft;
   forgeApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
@@ -970,7 +942,6 @@ test("declared family modules hide and show after set_section_visibility and und
   assert.equal(fragments.landwind.faqSection.hidden, false);
   assert.equal(fragments.screwfast.faqSf.hidden, false);
   assert.equal(fragments.landwind.pricing.hidden, true);
-  assert.equal(fragments.screwfast.navContact.hidden, false);
 });
 
 const LOOK_FIRST_SCREEN_PACKS = {
@@ -1312,17 +1283,15 @@ test("forge and landwind FAQ slots write unique nodes and leave undeclared chrom
 test("screwfast FAQ slots write unique accordion text and leave sales chrome", () => {
   const { document } = createDocument();
   const question = createNode("span");
-  question.setAttribute("data-sitecraft-faq", "q1");
+  question.setAttribute("data-sitecraft-benchmark", "faq-item-0-title");
   question.textContent = "OLD_FAQ_Q1";
-  const answerWrap = createNode("div");
-  answerWrap.id = "hs-basic-with-title-and-arrow-stretched-collapse1";
   const answer = createNode("p");
+  answer.setAttribute("data-sitecraft-benchmark", "faq-item-0-body");
   answer.textContent = "OLD_FAQ_A1";
-  answerWrap.appendChild(answer);
   const sales = createNode("a");
   sales.textContent = "Contact Sales Team";
   document.body.appendChild(question);
-  document.body.appendChild(answerWrap);
+  document.body.appendChild(answer);
   document.body.appendChild(sales);
 
   const adapter = getTemplateAdapter("screwfast");
@@ -1343,6 +1312,30 @@ test("screwfast FAQ slots write unique accordion text and leave sales chrome", (
   assert.ok(report.appliedSlots.includes("faq.items.0.title.zh"));
   assert.ok(report.appliedSlots.includes("faq.items.0.body.zh"));
   assert.deepEqual(report.fallbackMatched, []);
+});
+
+test("screwfast benchmark renders only authored product categories into the product grid", () => {
+  const { document } = createDocument();
+  const grid = createNode("div");
+  grid.setAttribute("data-sitecraft-product-grid", "true");
+  document.body.appendChild(grid);
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const draft = packDraft("industrial") as ReturnType<typeof packDraft> & { products: Array<Record<string, unknown>> };
+  draft.products = draft.products.slice(0, 2);
+  draft.products[0].name = { zh: "直角减速机", en: "Right-angle gearbox" };
+  draft.products[1].name = { zh: "行星减速机", en: "Planetary gearbox" };
+  const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
+    "products.FM-2401.name.zh",
+    "products.FM-2401.summary.zh",
+    "products.FM-2402.name.zh",
+    "products.FM-2402.summary.zh",
+  ], "workspace");
+  assert.equal(grid.children.length, 2);
+  assert.equal(visibleText(grid).includes("直角减速机"), true);
+  assert.equal(visibleText(grid).includes("行星减速机"), true);
+  assert.ok(report.appliedSlots.includes("products.FM-2401.name.zh"));
+  assert.ok(report.appliedSlots.includes("products.FM-2402.name.zh"));
 });
 
 test("inquiry form submit posts payload to parent and does not keep web3forms action", () => {

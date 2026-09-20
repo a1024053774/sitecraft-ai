@@ -100,6 +100,49 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return undefined;
   }
 
+  function renderProductGrid(draft, locale, applied) {
+    var grid = uniqueNode('[data-sitecraft-product-grid]');
+    if (!grid || !document || !document.createElement) return;
+    grid.textContent = "";
+    var products = draft && Array.isArray(draft.products) ? draft.products : [];
+    var visible = products.filter(function (product) {
+      return product && product.status !== "archived";
+    });
+    if (!visible.length) {
+      var empty = document.createElement("p");
+      empty.className = "sitecraft-product-empty";
+      empty.textContent = locale === "en" ? "Product information to be completed." : "产品资料待补充。";
+      grid.appendChild(empty);
+      return;
+    }
+    for (var i = 0; i < visible.length; i++) {
+      var product = visible[i];
+      var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
+      var card = document.createElement("article");
+      card.className = "sitecraft-product-card";
+      card.setAttribute("data-sitecraft-product", sku);
+      var category = document.createElement("p");
+      category.className = "sitecraft-product-category";
+      category.textContent = typeof product.category === "string" && product.category
+        ? product.category
+        : (locale === "en" ? "Product category" : "产品类别");
+      category.setAttribute("data-sitecraft-slot", "products." + sku + ".category");
+      var title = document.createElement("h3");
+      title.textContent = localize(product.name, locale) || (locale === "en" ? "Product name to be completed" : "产品名称待补充");
+      title.setAttribute("data-sitecraft-slot", "products." + sku + ".name." + locale);
+      var summary = document.createElement("p");
+      summary.textContent = localize(product.summary, locale) || (locale === "en" ? "Product description to be completed." : "产品说明待补充。");
+      summary.setAttribute("data-sitecraft-slot", "products." + sku + ".summary." + locale);
+      card.appendChild(category);
+      card.appendChild(title);
+      card.appendChild(summary);
+      grid.appendChild(card);
+      applied.add("products." + sku + ".category");
+      applied.add("products." + sku + ".name." + locale);
+      applied.add("products." + sku + ".summary." + locale);
+    }
+  }
+
   function selectUiTarget(slotKey) {
     var base = stripLocale(slotKey);
     if (base === "hero.title") return "heroTitle";
@@ -362,6 +405,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
     }
     if (adapter && draft) {
+      renderProductGrid(draft, currentLocale, applied);
       var slots = adapter.slots || [];
       for (var s = 0; s < slots.length; s++) {
         var slot = slots[s];

@@ -75,9 +75,14 @@ export function getTemplateStaticRoot(templateId: string) {
 }
 
 export const LANDWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/landwind.index.html";
+export const SCREWFAST_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/screwfast.index.html";
 
 function landwindHostOverlayFile() {
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), LANDWIND_HOST_OVERLAY_PATH);
+}
+
+function screwfastHostOverlayFile() {
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), SCREWFAST_HOST_OVERLAY_PATH);
 }
 
 export async function readTemplateStaticFile(templateId: string, segments: string[]) {
@@ -91,6 +96,9 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
     if (details.isDirectory()) target = path.join(target, "index.html");
     if (templateId === "landwind" && path.basename(target) === "index.html") {
       target = landwindHostOverlayFile();
+    }
+    if (templateId === "screwfast" && path.basename(target) === "index.html") {
+      target = screwfastHostOverlayFile();
     }
     const body = await readFile(/* turbopackIgnore: true */ target);
     return { body, contentType: contentTypes[path.extname(target).toLowerCase()] ?? "application/octet-stream" };

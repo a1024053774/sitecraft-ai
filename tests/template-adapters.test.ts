@@ -101,7 +101,7 @@ test("templates without homepage contact fields propose an owned alternative", (
   assert.equal(landwind?.slots.some((slot) => slot.target === "contact.body"), true);
 
   const screwfastAdapter = getTemplateAdapter("screwfast");
-  assert.equal(screwfastAdapter?.slots.some((slot) => slot.target === "contact.email"), false);
+  assert.equal(screwfastAdapter?.slots.some((slot) => slot.target === "contact.email"), true);
   assert.equal(screwfastAdapter?.slots.some((slot) => slot.target === "contact.title"), true);
 
   const fresh = reportDeclaredCoverage({
@@ -327,12 +327,6 @@ test("declared hero images are unique src slots and leave logos and avatars unde
 test("screwfast forge and landwind FAQ nodes are unique and stay declared", () => {
   const cases = [
     {
-      id: "screwfast",
-      html: new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url),
-      count: 6,
-      chrome: "Contact Sales Team",
-    },
-    {
       id: "forge",
       html: new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url),
       count: 3,
@@ -349,24 +343,33 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
     const html = readFileSync(item.html, "utf8");
     const adapter = getTemplateAdapter(item.id);
     assert.ok(adapter);
-    assert.equal((html.match(/data-sitecraft-faq="title"/g) ?? []).length, item.id === "screwfast" ? 0 : 1);
+    assert.equal((html.match(/data-sitecraft-faq="title"/g) ?? []).length, 1);
     for (let index = 0; index < item.count; index += 1) {
       const n = index + 1;
       assert.equal((html.match(new RegExp(`data-sitecraft-faq="q${n}"`, "g")) ?? []).length, 1, `${item.id} q${n}`);
-      assert.equal((html.match(new RegExp(`data-sitecraft-faq="a${n}"`, "g")) ?? []).length, item.id === "screwfast" ? 0 : 1, `${item.id} a${n}`);
+      assert.equal((html.match(new RegExp(`data-sitecraft-faq="a${n}"`, "g")) ?? []).length, 1, `${item.id} a${n}`);
       const title = adapter.slots.find((slot) => slot.target === `faq.items.${index}.title`);
       const body = adapter.slots.find((slot) => slot.target === `faq.items.${index}.body`);
       assert.equal(title?.selector, `[data-sitecraft-faq="q${n}"]`);
-      if (item.id === "screwfast") {
-        assert.equal(body?.selector, `#hs-basic-with-title-and-arrow-stretched-collapse${n} > p`);
-        assert.equal((html.match(new RegExp(`id="hs-basic-with-title-and-arrow-stretched-collapse${n}"`, "g")) ?? []).length, 1);
-      } else {
-        assert.equal(body?.selector, `[data-sitecraft-faq="a${n}"]`);
-      }
+      assert.equal(body?.selector, `[data-sitecraft-faq="a${n}"]`);
     }
     assert.equal(adapter.slots.some((slot) => slot.target === `faq.items.${item.count}.title`), false);
     assert.equal(html.includes(item.chrome), true);
   }
+
+  const screwfast = readFileSync(new URL("../lib/template-adapters/overlays/screwfast.index.html", import.meta.url), "utf8");
+  const screwfastAdapter = getTemplateAdapter("screwfast");
+  assert.ok(screwfastAdapter);
+  for (let index = 0; index < 3; index += 1) {
+    const n = index;
+    assert.equal((screwfast.match(new RegExp(`data-sitecraft-benchmark="faq-item-${n}-title"`, "g")) ?? []).length, 1);
+    assert.equal((screwfast.match(new RegExp(`data-sitecraft-benchmark="faq-item-${n}-body"`, "g")) ?? []).length, 1);
+    assert.equal(
+      screwfastAdapter.slots.find((slot) => slot.target === `faq.items.${index}.title`)?.selector,
+      `[data-sitecraft-benchmark="faq-item-${n}-title"]`,
+    );
+  }
+  assert.equal(screwfast.includes("Contact Sales Team"), false);
 });
 
 test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () => {
@@ -384,7 +387,7 @@ test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () =
   assert.equal((screwfast.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
   assert.equal(getTemplateAdapter("forge")?.slots.some((slot) => slot.target === "contact.title"), true);
   assert.equal(getTemplateAdapter("landwind")?.slots.some((slot) => slot.target === "contact.email"), false);
-  assert.equal(getTemplateAdapter("screwfast")?.slots.some((slot) => slot.target === "contact.email"), false);
+  assert.equal(getTemplateAdapter("screwfast")?.slots.some((slot) => slot.target === "contact.email"), true);
 });
 
 test("why-choose left copy is unique on forge and screwfast", () => {

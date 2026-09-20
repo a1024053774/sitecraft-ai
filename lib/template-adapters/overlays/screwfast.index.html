@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>工业询盘首页</title>
+    <style>
+      :root {
+        --site-bg: #f4f5f3;
+        --site-surface: #ffffff;
+        --site-ink: #151817;
+        --site-muted: #5e6762;
+        --site-line: #d7ddd8;
+        --site-accent: #d9652b;
+        --site-accent-strong: #ad451d;
+        --site-accent-soft: #fff0e8;
+        --site-max: 1180px;
+        --site-radius: 18px;
+        --site-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html { background: var(--site-bg); color: var(--site-ink); font-family: var(--site-font); overflow-x: hidden; }
+      body { margin: 0; min-width: 320px; background: var(--site-bg); color: var(--site-ink); overflow-x: hidden; }
+      a { color: inherit; text-decoration: none; }
+      button, input, textarea { font: inherit; }
+      .sitecraft-page { overflow: hidden; }
+      .sitecraft-container { width: min(calc(100% - 48px), var(--site-max)); margin: 0 auto; }
+      .sitecraft-nav { border-bottom: 1px solid var(--site-line); background: rgba(244,245,243,.94); }
+      .sitecraft-nav-inner { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+      .sitecraft-brand { display: inline-flex; align-items: center; gap: 11px; font-weight: 760; letter-spacing: -.03em; }
+      .sitecraft-brand-mark { width: 30px; height: 30px; border: 2px solid var(--site-accent); border-radius: 8px; position: relative; transform: rotate(45deg); }
+      .sitecraft-brand-mark::after { content: ""; position: absolute; inset: 6px; border: 2px solid var(--site-ink); border-radius: 3px; }
+      .sitecraft-brand-name { font-size: 18px; }
+      .sitecraft-nav-links { display: flex; align-items: center; gap: 24px; color: var(--site-muted); font-size: 13px; }
+      .sitecraft-nav-links a:hover { color: var(--site-ink); }
+      .sitecraft-nav-cta { padding: 11px 16px; border: 1px solid var(--site-ink); border-radius: 999px; color: var(--site-ink); font-size: 13px; font-weight: 700; }
+      .sitecraft-nav-cta:hover { background: var(--site-ink); color: #fff; }
+      .sitecraft-hero { padding: 84px 0 72px; }
+      .sitecraft-hero-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(320px, .92fr); align-items: center; gap: 76px; }
+      .sitecraft-hero-grid > *, .sitecraft-section-head > *, .sitecraft-inquiry-wrap > *, .sitecraft-faq-grid > * { min-width: 0; }
+      .sitecraft-eyebrow { display: inline-flex; align-items: center; gap: 9px; margin: 0 0 20px; color: var(--site-accent-strong); font-size: 12px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+      .sitecraft-eyebrow::before { content: ""; width: 30px; height: 2px; background: var(--site-accent); }
+      .sitecraft-hero h1 { max-width: 650px; margin: 0; font-size: clamp(42px, 6vw, 78px); line-height: .98; letter-spacing: -.065em; text-wrap: balance; overflow-wrap: anywhere; word-break: break-word; }
+      .sitecraft-hero-copy { max-width: 590px; margin: 24px 0 0; color: var(--site-muted); font-size: clamp(17px, 2vw, 21px); line-height: 1.55; }
+      .sitecraft-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+      .sitecraft-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 22px; border: 1px solid var(--site-accent); border-radius: 999px; background: var(--site-accent); color: #fff; font-size: 14px; font-weight: 800; }
+      .sitecraft-primary:hover { border-color: var(--site-accent-strong); background: var(--site-accent-strong); }
+      .sitecraft-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 21px; border: 1px solid var(--site-line); border-radius: 999px; color: var(--site-ink); font-size: 14px; font-weight: 700; }
+      .sitecraft-secondary:hover { border-color: var(--site-ink); }
+      .sitecraft-hero-note { margin: 22px 0 0; color: var(--site-muted); font-size: 12px; line-height: 1.55; }
+      .sitecraft-diagram { position: relative; min-height: 390px; border: 1px solid var(--site-line); border-radius: 28px; background: #e8ece8; overflow: hidden; }
+      .sitecraft-diagram::before, .sitecraft-diagram::after { content: ""; position: absolute; border: 1px solid rgba(21,24,23,.14); border-radius: 50%; }
+      .sitecraft-diagram::before { width: 420px; height: 420px; right: -116px; top: -42px; }
+      .sitecraft-diagram::after { width: 270px; height: 270px; right: -25px; top: 32px; }
+      .sitecraft-diagram-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(21,24,23,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(21,24,23,.06) 1px, transparent 1px); background-size: 34px 34px; mask-image: linear-gradient(135deg, rgba(0,0,0,.7), transparent 75%); }
+      .sitecraft-diagram-core { position: absolute; width: 190px; height: 190px; right: 84px; top: 86px; border: 18px solid var(--site-accent); border-radius: 50%; box-shadow: inset 0 0 0 16px #e8ece8, 0 20px 45px rgba(21,24,23,.12); }
+      .sitecraft-diagram-core::before { content: ""; position: absolute; width: 66px; height: 66px; inset: 44px; border: 9px solid var(--site-ink); border-radius: 50%; background: #e8ece8; }
+      .sitecraft-diagram-axis { position: absolute; right: 31px; top: 176px; width: 260px; height: 4px; background: var(--site-ink); transform: rotate(-28deg); transform-origin: right center; }
+      .sitecraft-diagram-label { position: absolute; left: 30px; bottom: 28px; padding: 10px 13px; border: 1px solid rgba(21,24,23,.18); border-radius: 10px; background: rgba(255,255,255,.75); color: var(--site-muted); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+      .sitecraft-section { padding: 88px 0; border-top: 1px solid var(--site-line); }
+      .sitecraft-section-head { display: grid; grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); gap: 48px; align-items: end; margin-bottom: 36px; }
+      .sitecraft-section-kicker { margin: 0 0 12px; color: var(--site-accent-strong); font-size: 12px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+      .sitecraft-section h2 { margin: 0; font-size: clamp(30px, 4vw, 52px); line-height: 1; letter-spacing: -.05em; text-wrap: balance; }
+      .sitecraft-section-intro { max-width: 560px; margin: 0; color: var(--site-muted); font-size: 17px; line-height: 1.6; overflow-wrap: anywhere; word-break: break-word; }
+      .sitecraft-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+      .sitecraft-product-card { min-height: 220px; padding: 25px; border: 1px solid var(--site-line); border-radius: var(--site-radius); background: var(--site-surface); display: flex; flex-direction: column; justify-content: space-between; }
+      .sitecraft-product-card:nth-child(3n) { background: #eef4f0; }
+      .sitecraft-product-category { margin: 0 0 44px; color: var(--site-accent-strong); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+      .sitecraft-product-card h3 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
+      .sitecraft-product-card p { margin: 10px 0 0; color: var(--site-muted); font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; word-break: break-word; }
+      .sitecraft-product-empty { grid-column: 1 / -1; padding: 24px; border: 1px dashed var(--site-line); border-radius: var(--site-radius); color: var(--site-muted); }
+      .sitecraft-process { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--site-line); background: var(--site-line); }
+      .sitecraft-process-card { min-height: 205px; padding: 26px; background: var(--site-surface); }
+      .sitecraft-process-number { display: block; margin-bottom: 58px; color: var(--site-accent-strong); font-size: 12px; font-weight: 800; }
+      .sitecraft-process-card h3 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
+      .sitecraft-process-card p { margin: 10px 0 0; color: var(--site-muted); font-size: 14px; line-height: 1.55; }
+      .sitecraft-inquiry-wrap { display: grid; grid-template-columns: minmax(0, .82fr) minmax(360px, 1.18fr); gap: 64px; align-items: start; }
+      .sitecraft-inquiry-copy h2 { max-width: 430px; }
+      .sitecraft-inquiry-copy p { max-width: 440px; margin: 22px 0 0; color: var(--site-muted); font-size: 17px; line-height: 1.6; }
+      .sitecraft-inquiry-meta { display: grid; gap: 10px; margin-top: 28px; color: var(--site-muted); font-size: 13px; }
+      .sitecraft-inquiry-form { display: grid; gap: 14px; padding: 26px; border: 1px solid var(--site-line); border-radius: var(--site-radius); background: var(--site-surface); }
+      .sitecraft-inquiry-form label { display: grid; gap: 7px; color: var(--site-muted); font-size: 12px; font-weight: 700; }
+      .sitecraft-inquiry-form input, .sitecraft-inquiry-form textarea { width: 100%; border: 1px solid var(--site-line); border-radius: 10px; padding: 12px 13px; background: #fbfcfb; color: var(--site-ink); outline: none; }
+      .sitecraft-inquiry-form input:focus, .sitecraft-inquiry-form textarea:focus { border-color: var(--site-accent); box-shadow: 0 0 0 3px var(--site-accent-soft); }
+      .sitecraft-inquiry-form textarea { min-height: 116px; resize: vertical; }
+      .sitecraft-form-note { margin: 0; color: var(--site-muted); font-size: 11px; line-height: 1.45; }
+      .sitecraft-faq-grid { display: grid; grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); gap: 48px; }
+      .sitecraft-faq-list { display: grid; gap: 0; border-top: 1px solid var(--site-line); }
+      .sitecraft-faq-item { padding: 20px 0; border-bottom: 1px solid var(--site-line); }
+      .sitecraft-faq-item h3 { margin: 0; font-size: 16px; }
+      .sitecraft-faq-item p { margin: 9px 0 0; color: var(--site-muted); font-size: 14px; line-height: 1.55; }
+      .sitecraft-footer { padding: 30px 0 42px; border-top: 1px solid var(--site-line); }
+      .sitecraft-footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; color: var(--site-muted); font-size: 12px; }
+      .sitecraft-footer-brand { color: var(--site-ink); font-size: 15px; font-weight: 760; }
+      .sitecraft-benchmark-legacy { display: none !important; }
+      @media (max-width: 800px) {
+        .sitecraft-container { width: min(calc(100% - 32px), var(--site-max)); }
+        .sitecraft-nav-inner { min-height: 68px; }
+        .sitecraft-nav-links { gap: 12px; font-size: 12px; }
+        .sitecraft-nav-links a:not(.sitecraft-nav-cta) { display: none; }
+        .sitecraft-nav-cta { padding: 9px 12px; }
+        .sitecraft-brand-name { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sitecraft-hero { padding: 56px 0 48px; }
+        .sitecraft-hero-grid, .sitecraft-inquiry-wrap, .sitecraft-faq-grid, .sitecraft-section-head { grid-template-columns: 1fr; gap: 28px; }
+        .sitecraft-hero h1 { min-width: 0; font-size: clamp(38px, 11vw, 58px); line-height: 1.02; overflow-wrap: anywhere; word-break: break-word; }
+        .sitecraft-diagram { min-height: 280px; }
+        .sitecraft-diagram-core { right: 48px; top: 54px; transform: scale(.72); transform-origin: top right; }
+        .sitecraft-diagram-axis { right: -16px; top: 130px; transform: rotate(-28deg) scale(.78); }
+        .sitecraft-section { padding: 58px 0; }
+        .sitecraft-product-grid, .sitecraft-process { grid-template-columns: 1fr; }
+        .sitecraft-product-card { min-height: 190px; }
+        .sitecraft-process-card { min-height: 165px; }
+        .sitecraft-process-number { margin-bottom: 38px; }
+        .sitecraft-footer-inner { align-items: flex-start; flex-direction: column; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sitecraft-page" data-sitecraft-benchmark="industrial-inquiry">
+      <header class="sitecraft-nav" data-sitecraft-section="nav">
+        <div class="sitecraft-container sitecraft-nav-inner">
+          <a class="sitecraft-brand" href="#top" aria-label="企业首页">
+            <span class="sitecraft-brand-mark" aria-hidden="true"></span>
+            <span class="sitecraft-brand-name" data-sitecraft-brand="nav">企业名称</span>
+          </a>
+          <nav class="sitecraft-nav-links" aria-label="主导航">
+            <a href="#products">产品</a>
+            <a href="#process">加工方式</a>
+            <a href="#faq">常见问题</a>
+            <a class="sitecraft-nav-cta" href="#inquiry">提交询盘</a>
+          </nav>
+        </div>
+      </header>
+      <main id="top">
+        <section class="sitecraft-hero" data-sitecraft-section="hero" data-sitecraft-benchmark="hero">
+          <div class="sitecraft-container sitecraft-hero-grid">
+            <div>
+              <p class="sitecraft-eyebrow">工业制造 / 工程询盘</p>
+              <h1 data-sitecraft-benchmark="hero-title">按图加工重载减速机</h1>
+              <p class="sitecraft-hero-copy" data-sitecraft-benchmark="hero-subtitle">围绕产品类别、规格和批量需求，把一次询盘说清楚。</p>
+              <div class="sitecraft-hero-actions">
+                <a class="sitecraft-primary" data-sitecraft-benchmark="hero-cta" href="#inquiry">获取规格与交期</a>
+                <a class="sitecraft-secondary" href="#products">查看产品类别</a>
+              </div>
+              <p class="sitecraft-hero-note">按图加工 · 批量规格询盘 · 现场安装：待补充</p>
+            </div>
+            <div class="sitecraft-diagram" aria-label="工程示意图" role="img">
+              <div class="sitecraft-diagram-grid"></div>
+              <div class="sitecraft-diagram-core"></div>
+              <div class="sitecraft-diagram-axis"></div>
+              <span class="sitecraft-diagram-label">Engineering / RFQ</span>
+              <img data-sitecraft-benchmark="hero-image" alt="" src="" hidden>
+            </div>
+          </div>
+        </section>
+
+        <section id="products" class="sitecraft-section" data-sitecraft-section="products">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head">
+              <div>
+                <p class="sitecraft-section-kicker">01 / 产品范围</p>
+                <h2 data-sitecraft-benchmark="products-title">产品类别</h2>
+              </div>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="products-intro">根据资料展示已确认的产品，不用空卡凑数量。</p>
+            </div>
+            <div class="sitecraft-product-grid" data-sitecraft-product-grid></div>
+          </div>
+        </section>
+
+        <section id="process" class="sitecraft-section" data-sitecraft-section="services">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head">
+              <div>
+                <p class="sitecraft-section-kicker">02 / 合作方式</p>
+                <h2 data-sitecraft-benchmark="services-title">从图纸到批量询盘</h2>
+              </div>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="services-intro">加工方式与产品类别分开说明，让采购知道下一步需要提供什么。</p>
+            </div>
+            <div class="sitecraft-process">
+              <article class="sitecraft-process-card"><span class="sitecraft-process-number">01</span><h3 data-sitecraft-benchmark="services-item-0-title">需求与图纸</h3><p data-sitecraft-benchmark="services-item-0-body">提供应用场景、规格和图纸，缺少的字段在询盘中补充。</p></article>
+              <article class="sitecraft-process-card"><span class="sitecraft-process-number">02</span><h3 data-sitecraft-benchmark="services-item-1-title">规格评审</h3><p data-sitecraft-benchmark="services-item-1-body">按批量需求确认产品类别、关键尺寸和交期边界。</p></article>
+              <article class="sitecraft-process-card"><span class="sitecraft-process-number">03</span><h3 data-sitecraft-benchmark="services-item-2-title">批量询盘</h3><p data-sitecraft-benchmark="services-item-2-body">当前只支持批量规格询盘；现场安装和认证信息如未提供则待补充。</p></article>
+            </div>
+          </div>
+        </section>
+
+        <section id="inquiry" class="sitecraft-section" data-sitecraft-section="contact">
+          <div class="sitecraft-container sitecraft-inquiry-wrap">
+            <div class="sitecraft-inquiry-copy">
+              <p class="sitecraft-section-kicker">03 / 询盘</p>
+              <h2 data-sitecraft-benchmark="contact-title">把规格说清楚，再确认交期</h2>
+              <p data-sitecraft-benchmark="contact-body">留下产品类别、批量和规格要求。当前收件能力以工作区状态为准，资料没有提供的事实不会自动补齐。</p>
+              <div class="sitecraft-inquiry-meta"><span>邮箱：<span data-sitecraft-contact="email">待补充</span></span><span>电话：<span data-sitecraft-contact="phone">待补充</span></span></div>
+            </div>
+            <form class="sitecraft-inquiry-form" data-sitecraft-inquiry="true" action="#" method="post">
+              <label data-sitecraft-inquiry-label="name">姓名<input name="name" type="text" required maxlength="80" autocomplete="name"></label>
+              <label data-sitecraft-inquiry-label="email">邮箱<input name="email" type="email" required maxlength="160" autocomplete="email"></label>
+              <label data-sitecraft-inquiry-label="company">公司<input name="company" type="text" maxlength="120" autocomplete="organization"></label>
+              <label data-sitecraft-inquiry-label="message">规格与需求<textarea name="message" required maxlength="4000" rows="5"></textarea></label>
+              <input class="honeypot" name="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-10000px;height:0;width:0;overflow:hidden">
+              <p class="sitecraft-form-note">提交后由发布页处理。没有接通的外部邮件服务不会显示为已发送。</p>
+              <button class="sitecraft-primary" type="submit">发送询盘</button>
+            </form>
+          </div>
+        </section>
+
+        <section id="faq" class="sitecraft-section" data-sitecraft-section="faq">
+          <div class="sitecraft-container sitecraft-faq-grid">
+            <div><p class="sitecraft-section-kicker">04 / 资料边界</p><h2 data-sitecraft-benchmark="faq-title">先回答资料里有的</h2><p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro">交期、认证、MOQ 和售后只在资料有依据时展示。</p></div>
+            <div class="sitecraft-faq-list">
+              <article class="sitecraft-faq-item"><h3 data-sitecraft-benchmark="faq-item-0-title">MOQ 如何确认？</h3><p data-sitecraft-benchmark="faq-item-0-body">资料未提供时，询盘中按批量规格确认。</p></article>
+              <article class="sitecraft-faq-item"><h3 data-sitecraft-benchmark="faq-item-1-title">可以提供哪些产品？</h3><p data-sitecraft-benchmark="faq-item-1-body">页面只展示资料中确认的产品类别。</p></article>
+              <article class="sitecraft-faq-item"><h3 data-sitecraft-benchmark="faq-item-2-title">是否提供现场安装？</h3><p data-sitecraft-benchmark="faq-item-2-body">资料没有提供的服务边界标为待补充。</p></article>
+            </div>
+          </div>
+        </section>
+      </main>
+      <footer class="sitecraft-footer" data-sitecraft-section="footer">
+        <div class="sitecraft-container sitecraft-footer-inner"><span class="sitecraft-footer-brand" data-sitecraft-brand="footer">企业名称</span><span>资料有限时，页面保持诚实。</span></div>
+      </footer>
+      <div class="sitecraft-benchmark-legacy" aria-hidden="true">
+        <span data-sitecraft-demo="pricing"></span><span data-sitecraft-demo="reviews"></span><span data-sitecraft-demo="wordmark"></span><span data-sitecraft-demo="footer-wordmark"></span><span data-sitecraft-demo="github"></span><span data-sitecraft-demo="logo-wall"></span><span data-sitecraft-demo="solutions"></span><span data-sitecraft-demo="testimonial"></span><span data-sitecraft-demo="feature-extra"></span>
+      </div>
+    </div>
+  </body>
+</html>

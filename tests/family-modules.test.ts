@@ -7,11 +7,9 @@ import { getTemplateAdapter, templateAdapters } from "../lib/template-adapters/i
 
 const SNAPSHOTS = {
   forge: new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url),
-  screwfast: new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url),
+  screwfast: new URL("../lib/template-adapters/overlays/screwfast.index.html", import.meta.url),
   landwind: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
 } as const;
-
-const NAV_CHROME_IDS = ["home", "products", "services", "blog", "contact"];
 
 /** Independent HTML probes from the local snapshots. Not copied from adapter data. */
 const UNIQUE_SECTION_PROBES = {
@@ -21,12 +19,10 @@ const UNIQUE_SECTION_PROBES = {
     faq: { kind: "id", id: "FAQ" },
   },
   screwfast: {
-    partners: { kind: "class", tag: "h2", classes: ["leading-tight", "text-2xl"] },
-    features: { kind: "attr", attr: "alt", value: "ScrewFast products in floating boxes" },
-    solutions: { kind: "id", id: "tabs-with-card-item-1" },
-    process: { kind: "class", tag: "h2", classes: ["mb-2", "text-3xl"] },
-    faq: { kind: "class", tag: "div", classes: ["hs-accordion-group"] },
-    contact: { kind: "class", tag: "section", classes: ["pt-10", "pb-24"] },
+    products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
+    faq: { kind: "attr", attr: "data-sitecraft-section", value: "faq" },
+    contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
   },
   landwind: {
     solutions: { kind: "attr", attr: "alt", value: "dashboard feature image" },
@@ -38,7 +34,7 @@ const UNIQUE_SECTION_PROBES = {
 
 const MISSING_ON_TEMPLATE = {
   forge: ["products", "contact", "solutions", "process", "partners", "industries", "about"],
-  screwfast: ["products", "services", "industries", "about"],
+  screwfast: ["features", "partners", "solutions", "process", "industries", "about"],
   landwind: ["products", "services", "features", "process", "industries", "about"],
 } as const;
 
@@ -83,10 +79,7 @@ test("forge screwfast landwind snapshots have unique nodes for listed modules th
     for (const [key, probe] of Object.entries(probes)) {
       assert.equal(probeCount(html, probe), 1, `${templateId} ${key} must uniquely exist in the snapshot`);
     }
-    for (const id of NAV_CHROME_IDS) {
-      if (templateId !== "screwfast") continue;
-      assert.equal(countId(html, id), 1, `screwfast nav id #${id} exists as chrome`);
-    }
+    if (templateId === "screwfast") assert.equal(html.includes("ScrewFast"), false, "benchmark overlay must not retain host brand");
   }
 });
 
@@ -104,7 +97,7 @@ test("adapters declare only unique snapshot sections and leave the rest missing"
     for (const section of declared) {
       assert.equal(section.selector.includes(","), false, `${templateId} ${section.key} must not use a fallback selector list`);
       assert.equal(
-        NAV_CHROME_IDS.some((id) => section.selector === `#${id}`),
+        ["#home", "#products", "#services", "#blog", "#contact"].some((selector) => section.selector === selector),
         false,
         `${templateId} must not hide nav chrome #${section.selector}`,
       );
