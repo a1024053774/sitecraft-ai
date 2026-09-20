@@ -187,7 +187,8 @@ const answerSchema = z.object({
 });
 const proposedChangeSchema = z.object({
   summary: z.string().min(1).max(MAX_ALIGNMENT_SUMMARY_CHARS),
-  operations: z.array(siteOperationSchema).max(20),
+  // Guided generation reserves one operation for the user-selected visual brief.
+  operations: z.array(siteOperationSchema).max(21),
   rejected: z.array(z.string().max(200)).max(20),
   baseRevision: z.number().int().nonnegative(),
   questionId: z.string().min(1).max(80),

@@ -154,7 +154,7 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     const guidedBriefId = record.alignment.styleOptionId;
     const guidedBrief = guidedBriefId ? visualBriefCatalog.find((brief) => brief.id === guidedBriefId) : undefined;
     const guidedOperations = provider.type === "edit" && guidedBrief
-      ? [{ op: "set_visual_brief" as const, briefId: guidedBrief.id }, ...provider.operations].slice(0, 20)
+      ? [{ op: "set_visual_brief" as const, briefId: guidedBrief.id }, ...provider.operations]
       : provider.type === "edit" ? provider.operations : [];
     const result = provider.type === "answer"
       ? applyAnswerResult(record.alignment, { runId, text: provider.text })

@@ -351,6 +351,24 @@ test("alignment actions enforce option validity, revision bump, stale confirm, a
   assert.equal("stale" in proposal, false);
   if ("stale" in proposal) throw new Error("expected proposal");
   assert.equal(proposal.snapshot.state, "awaiting_confirmation");
+  const maxGuidedProposal = applyEditProposal(firstAnswer.snapshot, {
+    runId: firstAnswer.runId as string,
+    summary: "ALIGN_UNIT_GUIDED_LIMIT_9188",
+    operations: Array.from({ length: 21 }, (_, index) => ({
+      op: "set_text" as const,
+      target: "hero.title",
+      locale: "zh" as const,
+      value: `ALIGN_UNIT_GUIDED_${index}`,
+    })),
+    rejected: [],
+    baseRevision: 1,
+    model: "test",
+    latencyMs: 1,
+  });
+  assert.equal("stale" in maxGuidedProposal, false);
+  if ("stale" in maxGuidedProposal) throw new Error("expected guided proposal");
+  assert.equal(maxGuidedProposal.snapshot.proposedChange?.operations.length, 21);
+  assert.equal(normalizeAlignmentSnapshot(maxGuidedProposal.snapshot).proposedChange?.operations.length, 21);
   const confirmQuestion = proposal.snapshot.currentQuestion;
   assert.ok(confirmQuestion);
 
