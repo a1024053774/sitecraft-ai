@@ -81,3 +81,15 @@ node --test --experimental-strip-types \
 4. **方案生效**：确认主要行动、交付范围、视觉方向、默认色板和缺图处理后生成，检查页面、草稿 revision 和发布页是否读取同一方案；改色不能改文案、布局或产品。
 
 负责人：主负责人。证据位置：`artifacts/industrial-guided-goal-20260920/`（默认 gitignore）。
+
+## 本轮人工基准页证据
+
+2026-09-20 在 `SITE_STORE=fs` 开发服务上创建了 `goal-p3i-20260920`，通过 `PUT /api/sites/goal-p3i-20260920/draft` 的 `commitOperations` 写入工程工业样式、P3I 文案、两类已确认产品和询盘边界，revision 为 2。没有写入图片或未提供的企业事实。
+
+- 预览宿主：`screwfast` 的本地工业 overlay，仍走 `/api/templates/screwfast/preview`、iframe 和共享 bridge。
+- 桌面截图：`artifacts/industrial-guided-goal-2026-09-20/goal-p3i-desktop.png`，1440×1400。
+- 移动截图：`artifacts/industrial-guided-goal-2026-09-20/goal-p3i-mobile-v2.png`，390×1400；第一版曾出现长标题/导航溢出，已通过最小宽度和断行规则修复。
+- 路由结构检查：preview HTTP 200；可见 HTML 含工业 overlay 和产品 grid；脚本移除后的 body 不含 ScrewFast、Contact Sales Team、12.8k Reviews、客户 Logo 墙或 SaaS 定价。
+- 产品集合：`P3I-RA1` 直角减速机、`P3I-PL1` 行星减速机；没有空产品卡。
+
+这证明人工指定页面已经可成立，不证明自动生成、需求确认、刷新恢复或 Cua fresh 浏览器证据已完成。完整结构化记录在 `artifacts/industrial-guided-goal-2026-09-20/page-evidence.json`。
