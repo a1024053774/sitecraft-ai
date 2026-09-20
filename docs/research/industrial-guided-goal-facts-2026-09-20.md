@@ -144,3 +144,17 @@ npm run build         # 通过，Next.js 16.3.1
 - 复核结束后清除了临时移动视口覆盖，恢复默认浏览器视口。
 
 因此，桌面/移动的真实浏览器结构和溢出门禁已通过；图片等待分支、完整页面的独立人工盲评和多色板仍属于后续范围。
+
+## 默认工程橙色板的计算样式证据
+
+在同一 Cua 内嵌页面读取计算样式，确认 `engineering-industrial` kit 已从 bridge 写入 overlay 的 CSS custom properties，并影响实际页面：
+
+```text
+--site-bg:     #f4f5f3       body background: rgb(244, 245, 243)
+--site-ink:    #151817
+--site-accent: #d9652b       CTA background: rgb(217, 101, 43)
+--site-line:   #d7ddd8
+--site-radius: 1.125rem
+```
+
+这证明默认色板至少实际作用于背景、文字变量、强调按钮、边框变量和圆角；移动视口使用同一组变量且没有横向溢出。没有在本轮扩展第二套色板或自由调色入口。

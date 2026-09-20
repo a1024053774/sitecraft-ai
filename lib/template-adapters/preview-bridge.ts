@@ -289,6 +289,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (tokens.border) root.dataset.sitecraftTokenBorder = tokens.border;
       if (tokens.font) root.dataset.sitecraftTokenFont = tokens.font;
       if (tokens.radius) root.dataset.sitecraftTokenRadius = tokens.radius;
+      if (root.style && root.style.setProperty) {
+        if (tokens.background) root.style.setProperty("--site-bg", tokens.background);
+        if (tokens.text) root.style.setProperty("--site-ink", tokens.text);
+        if (tokens.accent) root.style.setProperty("--site-accent", tokens.accent);
+        if (tokens.border) root.style.setProperty("--site-line", tokens.border);
+        if (tokens.font) root.style.setProperty("--site-font", tokens.font);
+        if (tokens.radius) root.style.setProperty("--site-radius", tokens.radius);
+      }
     }
     applied.add("kit.family." + kit.familyId);
     var briefId = draft && draft.visualBrief && draft.visualBrief.id;

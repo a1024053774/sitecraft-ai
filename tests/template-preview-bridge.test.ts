@@ -29,6 +29,7 @@ type FakeNode = {
   id: string;
   textContent: string;
   dataset: Record<string, string>;
+  styleValues: Record<string, string>;
   getAttribute: (name: string) => string | null;
   setAttribute: (name: string, value: string) => void;
   appendChild: (node: FakeNode) => FakeNode;
@@ -81,7 +82,8 @@ function createNode(tagName: string): FakeNode {
     attributes: new Map<string, string>(),
     _text: "",
     hidden: false,
-    style: { setProperty() {} },
+    styleValues: {},
+    style: { setProperty(name: string, value: string) { node.styleValues![name] = value; } },
   };
 
   Object.defineProperties(node, {
@@ -1596,6 +1598,12 @@ test("engineering-industrial kit omits unselected SaaS pricing from the composed
   const page = visibleText(document.body);
   assert.equal(document.documentElement.dataset.sitecraftFamily, "engineering-industrial");
   assert.equal(document.documentElement.dataset.sitecraftTokenAccent, adapter.kit.tokens.accent);
+  assert.equal(document.documentElement.styleValues["--site-bg"], adapter.kit.tokens.background);
+  assert.equal(document.documentElement.styleValues["--site-ink"], adapter.kit.tokens.text);
+  assert.equal(document.documentElement.styleValues["--site-accent"], adapter.kit.tokens.accent);
+  assert.equal(document.documentElement.styleValues["--site-line"], adapter.kit.tokens.border);
+  assert.equal(document.documentElement.styleValues["--site-font"], adapter.kit.tokens.font);
+  assert.equal(document.documentElement.styleValues["--site-radius"], adapter.kit.tokens.radius);
   assert.equal(brand.textContent, simulatedPacks.industrial.companyName);
   assert.equal(page.includes("$29"), false);
   assert.equal(page.includes("$99"), false);

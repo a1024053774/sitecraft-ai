@@ -243,12 +243,12 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
     kit: {
       familyId: "engineering-industrial",
       tokens: {
-        background: "#fff",
-        text: "oklch(20.5% 0 0)",
-        accent: "oklch(67.4% .2072 39.23)",
-        border: "oklch(92.2% 0 0)",
+        background: "#f4f5f3",
+        text: "#151817",
+        accent: "#d9652b",
+        border: "#d7ddd8",
         font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
-        radius: "0.5rem",
+        radius: "1.125rem",
       },
       modules: [
         kitShell("nav", '[data-sitecraft-brand="nav"]'),
