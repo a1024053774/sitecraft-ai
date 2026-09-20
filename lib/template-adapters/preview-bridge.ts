@@ -115,6 +115,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
       grid.appendChild(empty);
       return;
     }
+    var hasProductImage = visible.some(function (product) {
+      return product && product.image && typeof product.image.url === "string" && product.image.url;
+    });
     for (var i = 0; i < visible.length; i++) {
       var product = visible[i];
       var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
@@ -130,6 +133,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
         image.setAttribute("data-sitecraft-slot", "products." + sku + ".image");
         card.appendChild(image);
         applied.add("products." + sku + ".image");
+      } else if (hasProductImage) {
+        var placeholder = document.createElement("div");
+        placeholder.className = "sitecraft-product-image-placeholder";
+        placeholder.textContent = locale === "en" ? "Product photo to be completed" : "产品图待补充";
+        placeholder.setAttribute("aria-label", placeholder.textContent);
+        card.appendChild(placeholder);
       }
       var category = document.createElement("p");
       category.className = "sitecraft-product-category";
