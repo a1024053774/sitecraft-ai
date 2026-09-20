@@ -299,20 +299,35 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var kit = adapter && adapter.kit;
     if (!kit || !kit.familyId) return;
     var root = document && document.documentElement;
-    var tokens = kit.tokens || {};
+    var baseTokens = kit.tokens || {};
+    var paletteId = draft && draft.paletteId ? draft.paletteId : "default";
+    var tokens = (kit.palettes && kit.palettes[paletteId]) || baseTokens;
     if (root && root.dataset) {
       root.dataset.sitecraftFamily = kit.familyId;
+      root.dataset.sitecraftPalette = paletteId;
       if (tokens.background) root.dataset.sitecraftTokenBackground = tokens.background;
+      if (tokens.surface) root.dataset.sitecraftTokenSurface = tokens.surface;
       if (tokens.text) root.dataset.sitecraftTokenText = tokens.text;
+      if (tokens.muted) root.dataset.sitecraftTokenMuted = tokens.muted;
       if (tokens.accent) root.dataset.sitecraftTokenAccent = tokens.accent;
+      if (tokens.accentStrong) root.dataset.sitecraftTokenAccentStrong = tokens.accentStrong;
+      if (tokens.accentSoft) root.dataset.sitecraftTokenAccentSoft = tokens.accentSoft;
       if (tokens.border) root.dataset.sitecraftTokenBorder = tokens.border;
+      if (tokens.diagram) root.dataset.sitecraftTokenDiagram = tokens.diagram;
+      if (tokens.tint) root.dataset.sitecraftTokenTint = tokens.tint;
       if (tokens.font) root.dataset.sitecraftTokenFont = tokens.font;
       if (tokens.radius) root.dataset.sitecraftTokenRadius = tokens.radius;
       if (root.style && root.style.setProperty) {
         if (tokens.background) root.style.setProperty("--site-bg", tokens.background);
+        if (tokens.surface) root.style.setProperty("--site-surface", tokens.surface);
         if (tokens.text) root.style.setProperty("--site-ink", tokens.text);
+        if (tokens.muted) root.style.setProperty("--site-muted", tokens.muted);
         if (tokens.accent) root.style.setProperty("--site-accent", tokens.accent);
+        if (tokens.accentStrong) root.style.setProperty("--site-accent-strong", tokens.accentStrong);
+        if (tokens.accentSoft) root.style.setProperty("--site-accent-soft", tokens.accentSoft);
         if (tokens.border) root.style.setProperty("--site-line", tokens.border);
+        if (tokens.diagram) root.style.setProperty("--site-diagram", tokens.diagram);
+        if (tokens.tint) root.style.setProperty("--site-tint", tokens.tint);
         if (tokens.font) root.style.setProperty("--site-font", tokens.font);
         if (tokens.radius) root.style.setProperty("--site-radius", tokens.radius);
       }

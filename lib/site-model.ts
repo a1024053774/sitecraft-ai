@@ -2,6 +2,7 @@ import { templateCatalog } from "@/lib/template-catalog";
 import {
   cloneDraft,
   defaultDraft,
+  engineeringPaletteCatalog,
   normalizeDraft,
   starterProducts,
   type Device,
@@ -107,3 +108,4 @@ export function importProductsFromRows(
 export { cloneDraft, defaultDraft, normalizeDraft, starterProducts };
 export type { Device, EditableCard, Locale, LocalizedText, PagePlan, Product, SectionKey, SiteDraft, SitePage, VisualBrief };
 export { visualBriefCatalog };
+export { engineeringPaletteCatalog };

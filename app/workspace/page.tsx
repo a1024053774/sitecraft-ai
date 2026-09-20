@@ -36,6 +36,7 @@ import readXlsxFile from "read-excel-file";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import {
   defaultDraft,
+  engineeringPaletteCatalog,
   getTemplate,
   importProductsFromRows,
   normalizeDraft,
@@ -812,6 +813,33 @@ export default function WorkspacePage() {
     }
   };
 
+  const selectPalette = async (paletteId: string) => {
+    if (busy || !draftReady || draft.visualBrief.id !== "engineering-industrial") return;
+    const palette = engineeringPaletteCatalog.find((item) => item.id === paletteId);
+    if (!palette || draft.paletteId === palette.id) return;
+    setBusy(true);
+    setBusyText("正在切换色板…");
+    try {
+      await saveOperations([{ op: "set_palette", paletteId: palette.id }], `选择色板 ${palette.label}`, "template");
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "applied",
+        text: `已切换为“${palette.label}”，保留当前工程工业版式、文案、产品和图片。`,
+        change: palette.summary,
+      }]);
+    } catch (error) {
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "error",
+        text: error instanceof Error ? error.message : "色板保存失败",
+      }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const commitImportedRows = async (name: string, rows: Record<string, string>[]) => {
     const result = importProductsFromRows(draft, rows);
     try {
@@ -1015,6 +1043,26 @@ export default function WorkspacePage() {
               );
             })}
           </div>
+          {draft.visualBrief.id === "engineering-industrial" ? (
+            <div className="palette-picker" aria-label="工程工业色板">
+              <div className="palette-picker-head"><span className="eyebrow">Palette</span><strong>同一版式，换一套命名色板</strong></div>
+              <div className="palette-picker-grid">
+                {engineeringPaletteCatalog.map((palette) => (
+                  <button
+                    className={draft.paletteId === palette.id ? "palette-card selected" : "palette-card"}
+                    key={palette.id}
+                    type="button"
+                    disabled={busy || !draftReady}
+                    onClick={() => void selectPalette(palette.id)}
+                  >
+                    <span className={`palette-swatch ${palette.id === "engineering-slate" ? "slate" : "orange"}`} />
+                    <span><strong>{palette.label}</strong><small>{palette.summary}</small></span>
+                    {draft.paletteId === palette.id ? <Check size={13} /> : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
         {showHistory && (
           <div className="draft-history" aria-label="草稿历史">

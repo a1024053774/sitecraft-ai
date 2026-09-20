@@ -1625,6 +1625,26 @@ test("engineering-industrial kit omits unselected SaaS pricing from the composed
   assert.deepEqual(report.fallbackMatched, []);
 });
 
+test("engineering-industrial bridge applies the named slate palette without changing family", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter?.kit?.palettes?.["engineering-slate"]);
+  const { document } = createDocument();
+  const draft = applySiteOperations(packDraft("industrial"), [{ op: "set_palette", paletteId: "engineering-slate" }], {
+    templateIds: new Set(visualBriefCatalog.map((item) => item.templateId)),
+    lastChange: "palette-compare",
+  }).draft;
+  const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", ["kit.family.engineering-industrial"], "workspace");
+  const palette = adapter.kit.palettes["engineering-slate"];
+  assert.equal(draft.paletteId, "engineering-slate");
+  assert.equal(document.documentElement.dataset.sitecraftFamily, "engineering-industrial");
+  assert.equal(document.documentElement.dataset.sitecraftPalette, "engineering-slate");
+  assert.equal(document.documentElement.styleValues["--site-bg"], palette.background);
+  assert.equal(document.documentElement.styleValues["--site-accent"], palette.accent);
+  assert.equal(document.documentElement.styleValues["--site-accent-strong"], palette.accentStrong);
+  assert.equal(document.documentElement.styleValues["--site-line"], palette.border);
+  assert.ok(report.appliedSlots.includes("kit.family.engineering-industrial"));
+});
+
 test("look/family mismatch is reported and landwind pricing is still omitted", () => {
   const adapter = getTemplateAdapter("landwind");
   assert.ok(adapter?.kit);

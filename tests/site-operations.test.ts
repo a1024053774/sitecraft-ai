@@ -200,3 +200,21 @@ test("applies a user-facing visual brief and its compatible template as one reve
   assert.equal(restored.draft.templateId, defaultDraft.templateId);
   assert.equal(restored.draft.visualBrief.id, defaultDraft.visualBrief.id);
 });
+
+test("engineering palette changes are named, reversible, and same-family only", () => {
+  const options = { templateIds: new Set(["forge", "screwfast"]), lastChange: "palette-compare" };
+  const engineering = applySiteOperations(structuredClone(defaultDraft), [
+    { op: "set_visual_brief", briefId: "engineering-industrial" },
+  ], options);
+  assert.equal(engineering.draft.paletteId, "engineering-orange");
+  const slate = applySiteOperations(engineering.draft, [{ op: "set_palette", paletteId: "engineering-slate" }], options);
+  assert.equal(slate.changed, true);
+  assert.equal(slate.draft.paletteId, "engineering-slate");
+  assert.equal(slate.appliedTargets.includes("palette"), true);
+  const restored = applySiteOperations(slate.draft, slate.inverseOperations, options);
+  assert.equal(restored.draft.paletteId, "engineering-orange");
+  assert.throws(
+    () => applySiteOperations(defaultDraft, [{ op: "set_palette", paletteId: "engineering-slate" }], options),
+    /not available/,
+  );
+});

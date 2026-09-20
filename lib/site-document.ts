@@ -25,6 +25,13 @@ export const visualBriefIds = [
   "technical-product",
   "editorial-service",
 ] as const;
+export const paletteIds = ["default", "engineering-orange", "engineering-slate"] as const;
+export const paletteIdSchema = z.enum(paletteIds);
+export type PaletteId = z.infer<typeof paletteIdSchema>;
+export const engineeringPaletteCatalog = [
+  { id: "engineering-orange" as const, label: "工程橙", summary: "暖橙强调，适合直接推进询盘。" },
+  { id: "engineering-slate" as const, label: "工程石墨", summary: "石墨与蓝灰强调，保持工程感并降低暖色比重。" },
+] as const;
 export const visualBriefSchema = z.object({
   version: z.literal(1),
   id: z.enum(visualBriefIds),
@@ -179,6 +186,7 @@ export const siteDraftSchema = z.object({
   companyName: z.string().min(1).max(120),
   templateId: z.string().min(1).max(80),
   visualBrief: visualBriefSchema,
+  paletteId: paletteIdSchema.default("default"),
   locale: z.enum(locales),
   revision: z.number().int().nonnegative(),
   lastChange: z.string().max(240),
@@ -270,6 +278,7 @@ export const defaultDraft: SiteDraft = {
   companyName: "Forge Industrial",
   templateId: "forge",
   visualBrief: structuredClone(visualBriefCatalog[0]),
+  paletteId: "default",
   locale: "zh",
   revision: 1,
   lastChange: "草稿已保存",

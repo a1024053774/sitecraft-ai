@@ -30,9 +30,15 @@ export type TemplateFamilyId = "industrial" | "engineering-industrial" | "export
 
 export type TemplateKitTokens = {
   background: string;
+  surface?: string;
   text: string;
+  muted?: string;
   accent: string;
+  accentStrong?: string;
+  accentSoft?: string;
   border: string;
+  diagram?: string;
+  tint?: string;
   font: string;
   radius: string;
 };
@@ -55,6 +61,7 @@ export type TemplateKitModule = {
 export type TemplateKit = {
   familyId: TemplateFamilyId;
   tokens: TemplateKitTokens;
+  palettes?: Readonly<Record<string, TemplateKitTokens>>;
   modules: TemplateKitModule[];
 };
 

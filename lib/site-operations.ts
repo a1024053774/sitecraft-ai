@@ -13,6 +13,7 @@ import {
   visibilityKeySchema,
   visualBriefCatalog,
   visualBriefIds,
+  paletteIdSchema,
   type EditableCard,
   type Locale,
   type Product,
@@ -95,6 +96,10 @@ const setTemplateOperationSchema = z.object({
 const setVisualBriefOperationSchema = z.object({
   op: z.literal("set_visual_brief"),
   briefId: z.enum(visualBriefIds),
+});
+const setPaletteOperationSchema = z.object({
+  op: z.literal("set_palette"),
+  paletteId: paletteIdSchema,
 });
 const setSectionVisibilityOperationSchema = z.object({
   op: z.literal("set_section_visibility"),
@@ -185,6 +190,7 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   replaceProductsOperationSchema,
   replaceDraftOperationSchema,
   setVisualBriefOperationSchema,
+  setPaletteOperationSchema,
 ]);
 export type SiteOperation = z.infer<typeof siteOperationSchema>;
 export type AIOperation = z.infer<typeof aiOperationSchema>;
@@ -436,8 +442,19 @@ export function applySiteOperations(
       inverseOperations.unshift({ op: "replace_draft", draft: cloneDraft(draft) });
       draft.visualBrief = structuredClone(brief);
       draft.templateId = brief.templateId;
+      draft.paletteId = brief.id === "engineering-industrial" ? "engineering-orange" : "default";
       draft.pagePlan = rehostPagePlan(draft.pagePlan, draft.templateId);
       appliedTargets.push("visualBrief", "template", "pagePlan");
+      continue;
+    }
+    if (operation.op === "set_palette") {
+      const allowed = operation.paletteId === "default"
+        || (draft.visualBrief.id === "engineering-industrial" && (operation.paletteId === "engineering-orange" || operation.paletteId === "engineering-slate"));
+      if (!allowed) throw new Error(`Palette ${operation.paletteId} is not available for ${draft.visualBrief.id}`);
+      if (draft.paletteId === operation.paletteId) continue;
+      inverseOperations.unshift({ op: "set_palette", paletteId: draft.paletteId });
+      draft.paletteId = operation.paletteId;
+      appliedTargets.push("palette");
       continue;
     }
     if (operation.op === "set_section_visibility") {
