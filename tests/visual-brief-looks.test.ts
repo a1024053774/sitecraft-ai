@@ -84,6 +84,15 @@ test("stored drafts refresh look labels from the catalog and keep authored conte
   assert.equal(restored.content.hero.title.zh, "留存阀组 LOOK_LABEL_9182");
 });
 
+test("legacy engineering drafts hydrate to the named default palette", () => {
+  const legacy = structuredClone(defaultDraft);
+  legacy.visualBrief = structuredClone(visualBriefCatalog.find((item) => item.id === "engineering-industrial")!);
+  legacy.templateId = "screwfast";
+  legacy.paletteId = "default";
+  const restored = normalizeDraft(legacy);
+  assert.equal(restored.paletteId, "engineering-orange");
+});
+
 test("set_visual_brief maps each shipped look onto its compatible template in one revision", () => {
   const templateIds = new Set(visualBriefCatalog.map((item) => item.templateId));
   for (const look of visualBriefCatalog) {

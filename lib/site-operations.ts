@@ -436,13 +436,14 @@ export function applySiteOperations(
       const brief = visualBriefCatalog.find((item) => item.id === operation.briefId);
       if (!brief) throw new Error(`Unknown visual brief ${operation.briefId}`);
       if (!options.templateIds.has(brief.templateId)) throw new Error(`Unknown template ${brief.templateId}`);
-      if (draft.visualBrief.id === brief.id && draft.templateId === brief.templateId) continue;
+      const nextPaletteId = brief.id === "engineering-industrial" ? "engineering-orange" : "default";
+      if (draft.visualBrief.id === brief.id && draft.templateId === brief.templateId && draft.paletteId === nextPaletteId) continue;
       // A catalog id cannot reconstruct an older mapping or a manually selected
       // template. History must restore the actual saved design and content.
       inverseOperations.unshift({ op: "replace_draft", draft: cloneDraft(draft) });
       draft.visualBrief = structuredClone(brief);
       draft.templateId = brief.templateId;
-      draft.paletteId = brief.id === "engineering-industrial" ? "engineering-orange" : "default";
+      draft.paletteId = nextPaletteId;
       draft.pagePlan = rehostPagePlan(draft.pagePlan, draft.templateId);
       appliedTargets.push("visualBrief", "template", "pagePlan");
       continue;

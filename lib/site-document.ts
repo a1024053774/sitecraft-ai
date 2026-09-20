@@ -365,6 +365,13 @@ function hydrateVisualBrief(brief: VisualBrief): VisualBrief {
   return catalog ? { ...catalog, templateId: brief.templateId } : brief;
 }
 
+function hydratePaletteId(draft: SiteDraft): SiteDraft {
+  if (draft.visualBrief.id === "engineering-industrial" && draft.paletteId === "default") {
+    return { ...draft, paletteId: "engineering-orange" };
+  }
+  return draft;
+}
+
 function pagePlanForLegacy(legacy: Record<string, unknown>): PagePlan {
   const templateId = typeof legacy.templateId === "string" && legacy.templateId.trim()
     ? legacy.templateId
@@ -375,7 +382,7 @@ function pagePlanForLegacy(legacy: Record<string, unknown>): PagePlan {
 
 export function normalizeDraft(input: unknown): SiteDraft {
   const parsed = siteDraftSchema.safeParse(input);
-  if (parsed.success) return { ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) };
+  if (parsed.success) return hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) });
 
   const legacy = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   // Existing v2 documents predate visualBrief/pagePlan. Add only the missing metadata;
@@ -391,7 +398,7 @@ export function normalizeDraft(input: unknown): SiteDraft {
       ...(!Object.hasOwn(legacy, "visualBrief") ? { visualBrief: structuredClone(defaultDraft.visualBrief) } : {}),
       ...(!Object.hasOwn(legacy, "pagePlan") ? { pagePlan: pagePlanForLegacy(legacy) } : {}),
     });
-    return { ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) };
+    return hydratePaletteId({ ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) });
   }
   const legacyHero = legacy.hero && typeof legacy.hero === "object"
     ? (legacy.hero as Record<string, unknown>)
