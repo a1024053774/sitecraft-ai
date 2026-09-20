@@ -274,3 +274,9 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 ### 第二套色板浏览器证据（2026-09-21）
 
 站点 `guided-p3i-full4-20260920` 在同一份 P3I 草稿上完成工程橙 / 工程石墨 A/B。Cua 实际读取到工程橙 `--site-bg=#f4f5f3`、`--site-accent=#d9652b`、CTA `rgb(217,101,43)`；工程石墨 `--site-bg=#eef2f5`、`--site-accent=#2d6f95`、CTA `rgb(45,111,149)`。两版字体栈、圆角 `1.125rem`、长标题和两张产品卡不变。1440、768、375 CSS px 的 outer/frame 宽度分别为 1440/998、768/361、375/338，三档 frame `scrollWidth === clientWidth`；刷新后工程橙和两张产品卡回读。完整数值在 `artifacts/continuous-queue-2026-09-21/palette-browser.json`。
+
+### 最终候选 fresh 浏览器复核（2026-09-21）
+
+在 `blind-p3i-20260920-noimage`、`blind-p3i-20260920-withimage` 和 `guided-p3i-full4-20260920` 上重新检查最终候选：1440/768/375 的 inner `scrollWidth === clientWidth`；长标题、两类产品、三步加工流程、询盘和资料边界均可读；混合有图/无图卡媒体高度一致且缺图卡显示「产品图待补充」；模板品牌、SaaS 价格、Logo 墙和假评价文字为空。真实工作台修改把 CTA 从「索取 P3I-EDIT 交期」改为「索取 P3I 复核交期」后落到 v6，点击撤销回到 v7 原 CTA，刷新/重新打开仍回读原值。
+
+复核期间发现并修复 `GUIDE-001`：普通编辑句子中出现 `P3I` 时不应重新触发业务目标引导；编辑型请求现在跳过工业新建引导，完整公司资料仍保留同一引导路径。复核读数与限制写入 `artifacts/continuous-queue-2026-09-21/final-browser-review.json`。

@@ -226,6 +226,8 @@ test("guided industrial flow reuses P3E terms and skips a business question when
   assert.equal(prefilled.snapshot.currentQuestion?.questionId, ALIGNMENT_QUESTION_ID);
   assert.equal(needsGuidedBusinessQuestion(completeMaterials), false);
   assert.equal(isGuidedIndustrialRequest(completeMaterials), true);
+  assert.equal(isGuidedIndustrialRequest("把首屏主按钮改为索取 P3I 复核交期"), false);
+  assert.equal(needsGuidedBusinessQuestion("把首屏主按钮改为索取 P3I 复核交期"), false);
 });
 
 test("start with a specified missing conversation id does not create it", async () => {
