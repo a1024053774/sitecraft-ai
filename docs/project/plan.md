@@ -270,3 +270,7 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 ### P3E 复用引导证据（2026-09-21）
 
 `tests/chat-route-conversation.test.ts` 新增完整模拟外贸 B2B / 流体接头资料路径：资料已给出目标时直接进入样式问题，不重复问业务目标；仍保留同一 `conversationId`、`style-theme → build-plan → confirm` 状态链；刷新式 `state` 读取保留待回答问题；未确认时普通聊天返回 `alignment_pending`；确认后只通过 `commitOperations` 写入公司名、首屏和两类产品，缺失交期/认证仍为「待补充」，提案 JSON 不含 HTML/CSS。该 route 测试与 alignment 测试共 28/28 通过。
+
+### 第二套色板浏览器证据（2026-09-21）
+
+站点 `guided-p3i-full4-20260920` 在同一份 P3I 草稿上完成工程橙 / 工程石墨 A/B。Cua 实际读取到工程橙 `--site-bg=#f4f5f3`、`--site-accent=#d9652b`、CTA `rgb(217,101,43)`；工程石墨 `--site-bg=#eef2f5`、`--site-accent=#2d6f95`、CTA `rgb(45,111,149)`。两版字体栈、圆角 `1.125rem`、长标题和两张产品卡不变。1440、768、375 CSS px 的 outer/frame 宽度分别为 1440/998、768/361、375/338，三档 frame `scrollWidth === clientWidth`；刷新后工程橙和两张产品卡回读。完整数值在 `artifacts/continuous-queue-2026-09-21/palette-browser.json`。
