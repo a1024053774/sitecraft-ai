@@ -93,3 +93,21 @@ node --test --experimental-strip-types \
 - 产品集合：`P3I-RA1` 直角减速机、`P3I-PL1` 行星减速机；没有空产品卡。
 
 这证明人工指定页面已经可成立，不证明自动生成、需求确认、刷新恢复或 Cua fresh 浏览器证据已完成。完整结构化记录在 `artifacts/industrial-guided-goal-2026-09-20/page-evidence.json`。
+
+## 需求引导与自动生成证据
+
+2026-09-20 通过本地 API + `deepseek-flash` 跑通完整 P3I 资料路径，站点 `guided-p3i-full4-20260920`：
+
+1. `start` 返回业务目标问题 `business-goal`，没有直接生成。
+2. 选择「让采购看懂产品，并提交询价」后进入 `style-theme`。
+3. 选择「工程工业」后进入 `build-plan`。
+4. 选择「按工业询盘首页执行，先用无图版」后才调用 provider，返回确认提案。
+5. 确认提案后 revision 变为 2；服务端把用户选择的 `engineering-industrial` 注入为受控 `set_visual_brief` operation，最终模板为 `screwfast`。
+6. provider 使用 `replace_products`，最终商品只保留直角减速机和行星减速机；“按图加工”留在商品说明/加工方式中，没有生成第三张商品卡。
+
+自动结果截图：
+
+- `artifacts/industrial-guided-goal-2026-09-20/guided-full4-desktop.png`
+- `artifacts/industrial-guided-goal-2026-09-20/guided-full4-mobile-v2.png`
+
+当前、人工基准、自动结果的同条件索引在 `artifacts/industrial-guided-goal-2026-09-20/comparison.json`。这证明方案状态、样式绑定、产品清单和共享预览链路已贯通；刷新/重新打开回读、真实 Cua 浏览器证据、图片等待分支和完整页面人工盲评仍未完成。
