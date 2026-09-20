@@ -104,7 +104,7 @@ export const productSchema = z.object({
   summary: localizedTextSchema,
   category: z.string().max(120),
   status: z.enum(["published", "draft"]),
-  imageColor: z.string().max(30),
+  imageColor: z.string().max(30).default("#e6e1cf"),
   image: siteImageRefSchema.optional(),
   aiGenerated: z.boolean().optional(),
 });

@@ -157,6 +157,7 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   addCardOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
+  replaceProductsOperationSchema,
   setTemplateOperationSchema,
   setSectionVisibilityOperationSchema,
   reorderSectionsOperationSchema,

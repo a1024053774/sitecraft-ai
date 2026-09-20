@@ -24,6 +24,7 @@ import {
   type ConversationTurnOutcome,
 } from "@/lib/conversation-store";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
+import { visualBriefCatalog } from "@/lib/site-document";
 
 export const runtime = "nodejs";
 
@@ -150,12 +151,17 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     if (record.alignment.inflightRunId !== runId) return record;
     accepted = true;
     if (!provider.ok) return { ...record, alignment: applyRunError(record.alignment, { runId, error: provider.error }) };
+    const guidedBriefId = record.alignment.styleOptionId;
+    const guidedBrief = guidedBriefId ? visualBriefCatalog.find((brief) => brief.id === guidedBriefId) : undefined;
+    const guidedOperations = provider.type === "edit" && guidedBrief
+      ? [{ op: "set_visual_brief" as const, briefId: guidedBrief.id }, ...provider.operations].slice(0, 20)
+      : provider.type === "edit" ? provider.operations : [];
     const result = provider.type === "answer"
       ? applyAnswerResult(record.alignment, { runId, text: provider.text })
       : provider.type === "clarify"
         ? applyClarifyResult(record.alignment, { runId, question: provider.question, options: provider.options ?? [] })
         : applyEditProposal(record.alignment, {
-          runId, summary: provider.summary, operations: provider.operations, rejected: provider.rejected,
+          runId, summary: provider.summary, operations: guidedOperations, rejected: provider.rejected,
           baseRevision: pending.baseRevision, model: provider.model, latencyMs: provider.latencyMs,
         });
     return "stale" in result ? record : { ...record, alignment: result.snapshot };

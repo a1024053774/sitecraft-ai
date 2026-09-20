@@ -126,20 +126,22 @@ function operationInstructions() {
 3. add_card: {"op":"add_card","section":"features|services|faq","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
 4. remove_card: {"op":"remove_card","section":"features|services|faq","itemId":"现有id"}
 5. update_product: {"op":"update_product","sku":"现有SKU","locale":"zh|en","name":"可选","summary":"可选","category":"可选"}
-6. set_section_visibility: {"op":"set_section_visibility","section":"${visibilityKeys.join("|")}","visible":true|false}
+6. replace_products: {"op":"replace_products","products":[{"sku":"已有或资料确认的SKU","name":{"zh":"...","en":"..."},"summary":{"zh":"...","en":"..."},"category":"...","status":"published|draft","imageColor":"#..."}]}
+   只有公司资料明确给出完整产品清单时才使用；只保留资料确认的产品类别。加工方式、询盘条件和服务步骤不是商品，不要把“按图加工”单独生成一张商品卡。资料没有确认的商品不要用默认商品补齐。
+7. set_section_visibility: {"op":"set_section_visibility","section":"${visibilityKeys.join("|")}","visible":true|false}
    同一视觉族里显隐已有区块，不是拼装新页面。KonsTuck 清单：项目=products、服务=services、为什么选我们=features、FAQ=faq、询盘=contact。Lozitick 清单：方案=solutions、询盘→提货→分拣→运输=process、伙伴=partners、行业=industries、FAQ=faq。只对当前模板已声明且唯一命中的区块生效；未声明或命中多个记为 missing。禁止按标题正则、元素顺序或通用卡片形状猜藏。missing 不能当成可以把导航、页脚或 Logo 墙留在客户站上。
-7. reorder_sections: {"op":"reorder_sections","order":["about","features","services","products","contact"]}，必须包含全部五项且不重复
-8. set_page_plan: {"op":"set_page_plan","source":"user|model|default","pages":[{"id":"home","role":"home","label":{"zh":"首页","en":"Home"}}],"unsupported":[{"requested":"认证页","reason":"当前模板没有独立认证 HTML"}]}
+8. reorder_sections: {"op":"reorder_sections","order":["about","features","services","products","contact"]}，必须包含全部五项且不重复
+9. set_page_plan: {"op":"set_page_plan","source":"user|model|default","pages":[{"id":"home","role":"home","label":{"zh":"首页","en":"Home"}}],"unsupported":[{"requested":"认证页","reason":"当前模板没有独立认证 HTML"}]}
    页面规划优先级：用户明确点名的页面 > 未点名时按业务规划 > 仍无法确定才用首页/产品或服务/联系。默认三项不是上限。role 只能是 home|products|services|contact|about|custom。
    source=user：用户点名了页面清单；source=model：用户没列清单但业务能规划；source=default：仍无法确定，pages 可空，系统会落到默认三项。
    不要把未支持的页面静默丢掉后假装只有首页；列进 unsupported 并说明原因。独立 URL 只有当前模板快照里已有对应 HTML 才会开通；否则同一模板内切换声明区块。禁止为了凑页去猜写未声明节点，也禁止复制首页冒充新产品站。
-9. set_template: {"op":"set_template","templateId":"白名单ID"}，只有用户明确要求换模板时才允许。
-10. set_image_slot: {"op":"set_image_slot","target":"hero.image","imageId":"img_已上传id","url":"/api/sites/当前站点/images/img_已上传id","alt":{"zh":"...","en":"..."}}
+10. set_template: {"op":"set_template","templateId":"白名单ID"}，只有用户明确要求换模板时才允许。
+11. set_image_slot: {"op":"set_image_slot","target":"hero.image","imageId":"img_已上传id","url":"/api/sites/当前站点/images/img_已上传id","alt":{"zh":"...","en":"..."}}
     只能引用当前站点已经上传、license=user-provided 的图片。禁止把模板演示图、/_astro/、./images/hero.png 或外站图库写进草稿。没有已声明且唯一命中的 src 槽位时仍可写入草稿，预览会报告 missing，不得猜写其他 img。
-11. remove_image_slot: {"op":"remove_image_slot","target":"hero.image"}
-12. set_product_image: {"op":"set_product_image","sku":"现有SKU","imageId":"img_已上传id","url":"/api/sites/当前站点/images/img_已上传id","alt":{"zh":"...","en":"..."}}
+12. remove_image_slot: {"op":"remove_image_slot","target":"hero.image"}
+13. set_product_image: {"op":"set_product_image","sku":"现有SKU","imageId":"img_已上传id","url":"/api/sites/当前站点/images/img_已上传id","alt":{"zh":"...","en":"..."}}
     同样只允许本站上传图。当前模板没有该 SKU 的唯一 src 槽位时记为 missing，不要为了填满页面改随机图片。
-13. remove_product_image: {"op":"remove_product_image","sku":"现有SKU"}
+14. remove_product_image: {"op":"remove_product_image","sku":"现有SKU"}
 answer 与 clarify 不得包含 operations。`;
 }
 
