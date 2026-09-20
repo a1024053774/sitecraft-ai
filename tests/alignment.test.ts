@@ -12,6 +12,7 @@ import {
   ALIGNMENT_QUESTION_ID,
   APPROVE_OPTION_ID,
   GUIDED_BUSINESS_QUESTION_ID,
+  GUIDED_PLAN_QUESTION_ID,
   applyAlignmentAction,
   applyAnswerResult,
   applyClarifyResult,
@@ -156,6 +157,26 @@ test("guided P3I tasks ask for the business outcome before the visual direction"
   assert.equal(goal.snapshot.state, "awaiting_style");
   assert.equal(goal.snapshot.inflightRunId, null);
   assert.match(alignmentPromptContext(goal.snapshot), /让采购看懂产品/);
+  const styled = applyAlignmentAction(goal.snapshot, {
+    action: "select",
+    questionId: ALIGNMENT_QUESTION_ID,
+    questionRevision: goal.snapshot.currentQuestion?.questionRevision,
+    optionId: "engineering-industrial",
+  });
+  assert.equal(styled.ok, true);
+  if (!styled.ok) throw new Error("expected style selection");
+  assert.equal(styled.snapshot.currentQuestion?.questionId, GUIDED_PLAN_QUESTION_ID);
+  assert.equal(styled.snapshot.inflightRunId, null);
+  const planned = applyAlignmentAction(styled.snapshot, {
+    action: "select",
+    questionId: GUIDED_PLAN_QUESTION_ID,
+    questionRevision: styled.snapshot.currentQuestion?.questionRevision,
+    optionId: "no-image",
+  });
+  assert.equal(planned.ok, true);
+  if (!planned.ok) throw new Error("expected plan selection");
+  assert.equal(planned.shouldContinue, true);
+  assert.ok(planned.runId);
 });
 
 test("start with a specified missing conversation id does not create it", async () => {

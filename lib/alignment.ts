@@ -4,6 +4,7 @@ import { siteOperationSchema, type SiteOperation } from "./site-operations.ts";
 
 export const ALIGNMENT_QUESTION_ID = "style-theme";
 export const GUIDED_BUSINESS_QUESTION_ID = "business-goal";
+export const GUIDED_PLAN_QUESTION_ID = "build-plan";
 export const OTHER_OPTION_ID = "other";
 export const APPROVE_OPTION_ID = "approve";
 export const MAX_ALIGNMENT_NOTE_CHARS = 500;
@@ -28,6 +29,11 @@ export const GUIDED_BUSINESS_OPTIONS: AlignmentOption[] = [
   { id: "rfq", label: "让采购看懂产品，并提交询价", description: "优先展示产品类别、规格边界和批量询盘入口。" },
   { id: "capabilities", label: "先了解企业和制造能力", description: "优先说明加工方式、合作流程和资料缺口。" },
   { id: "recommend", label: "还没想清楚，帮我分析", description: "根据资料归纳主要访客和下一步，不猜企业事实。" },
+];
+
+export const GUIDED_PLAN_OPTIONS: AlignmentOption[] = [
+  { id: "no-image", label: "按工业询盘首页执行，先用无图版", description: "产品、加工方式和询盘入口照当前资料生成；缺图不留空位。" },
+  { id: "wait-for-image", label: "先补充产品图，再生成图文版", description: "先保存这份方案，等上传有来源的产品图后继续。" },
 ];
 
 const styleCatalog = [...STYLE_OPTIONS, ...UTILITY_OPTIONS];
@@ -265,6 +271,17 @@ function guidedBusinessQuestion(revision: number): CurrentQuestion {
     prompt: GUIDED_BUSINESS_QUESTION,
     options: GUIDED_BUSINESS_OPTIONS.map((option) => ({ ...option })),
     allowOther: true,
+  };
+}
+
+function guidedPlanQuestion(revision: number): CurrentQuestion {
+  return {
+    questionId: GUIDED_PLAN_QUESTION_ID,
+    questionRevision: Math.max(1, revision),
+    kind: "clarify",
+    prompt: "请确认本次交付范围和资料缺口处理方式。默认使用已验证的工程橙色板，不改字体、产品或页面结构。",
+    options: GUIDED_PLAN_OPTIONS.map((option) => ({ ...option })),
+    allowOther: false,
   };
 }
 
@@ -615,6 +632,16 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
         currentQuestion: styleQuestion(styleRevision),
         inflightRunId: null,
         epoch: styleRevision,
+      }, { saved: true, shouldContinue: false, runId: null });
+    }
+    if (question.questionId === ALIGNMENT_QUESTION_ID && current.answers.some((answer) => answer.questionId === GUIDED_BUSINESS_QUESTION_ID)) {
+      const planRevision = Math.max(question.questionRevision + 1, next.epoch + 1);
+      return succeed({
+        ...next,
+        state: "awaiting_user",
+        currentQuestion: guidedPlanQuestion(planRevision),
+        inflightRunId: null,
+        epoch: planRevision,
       }, { saved: true, shouldContinue: false, runId: null });
     }
     if (!next.pendingRequest) {
