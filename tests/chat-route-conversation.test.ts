@@ -118,6 +118,51 @@ globalThis.fetch = async (input, init) => {
         value: "ALIGN_IMAGE_RESUME_TITLE_4401",
       }],
     };
+  } else if (raw.includes("P3E_FLOW_MW4R_4401")) {
+    payload = {
+      type: "edit",
+      summary: "P3E_FLOW_SUMMARY_4401",
+      operations: [
+        {
+          op: "set_text",
+          target: "companyName",
+          value: "外高桥流体接头P3E",
+        },
+        {
+          op: "set_text",
+          target: "hero.title",
+          locale: "zh",
+          value: "不锈钢快换接头目录 P3E-MW4R",
+        },
+        {
+          op: "set_text",
+          target: "hero.subtitle",
+          locale: "zh",
+          value: "面向 OEM 装配线的接头规格与交期说明；具体交期待补充。",
+        },
+        {
+          op: "replace_products",
+          products: [
+            {
+              sku: "P3E-QC1",
+              name: { zh: "快换接头", en: "Quick Coupling" },
+              summary: { zh: "面向 OEM 装配线索取样品册；认证与具体交期待补充。", en: "Sample-catalog inquiries for OEM assembly lines; certification and exact lead time to be completed." },
+              category: "流体接头",
+              status: "published",
+              imageColor: "#e6e1cf",
+            },
+            {
+              sku: "P3E-CS1",
+              name: { zh: "卡套接头", en: "Compression Fitting" },
+              summary: { zh: "批量询盘后确认规格；认证与具体交期待补充。", en: "Confirm specifications after a batch inquiry; certification and exact lead time to be completed." },
+              category: "流体接头",
+              status: "published",
+              imageColor: "#e6e1cf",
+            },
+          ],
+        },
+      ],
+    };
   } else {
     const beta = raw.includes("CHAT_SENTINEL_USER_BETA_6621");
     payload = {
@@ -665,6 +710,63 @@ test("guided image wait resumes the same saved task after a site upload", async 
   const operations = conversation?.alignment.proposedChange?.operations ?? [];
   assert.equal(operations.some((operation) => operation.op === "set_product_image" && operation.imageId === image.imageId), true);
   assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+});
+
+test("P3E complete materials reuse the guided plan, preserve missing facts, and block bypass until confirmation", async () => {
+  const siteId = uniqueSiteId();
+  const before = await getSite(siteId);
+  const materials = [
+    "P3E_FLOW_MW4R_4401",
+    "【公司资料】资料性质：模拟。不可当作真实企业。",
+    "公司名：外高桥流体接头P3E",
+    "行业：外贸 B2B / 不锈钢流体接头目录",
+    "目标：面向 OEM 装配线索取样品册",
+    "产品：快换接头、卡套接头。交期：批量询盘后确认，资料未给具体天数。",
+    "邮箱：catalog@p3e-sim.test。电话、地址、认证、案例、评价：资料未提供。",
+  ].join("\n");
+  const started = await postChat(siteId, { action: "start", message: materials, baseRevision: before.draft.revision });
+  const conversationId = String(started.done?.conversationId);
+  assert.equal(started.done?.questionId, "style-theme", "complete materials should prefill business goal");
+  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+
+  const restored = await postChat(siteId, { action: "state", conversationId });
+  assert.equal(restored.done?.questionId, "style-theme");
+  assert.equal(restored.done?.pendingMessage, materials);
+
+  const style = await postChat(siteId, {
+    action: "select", conversationId, questionId: String(started.done?.questionId),
+    questionRevision: Number(started.done?.questionRevision), optionId: "engineering-industrial",
+  });
+  assert.equal(style.done?.questionId, "build-plan");
+  assert.deepEqual(asOptionCards(style.done).map((option) => option.id), ["no-image", "wait-for-image"]);
+
+  const planned = await postChat(siteId, {
+    action: "select", conversationId, questionId: String(style.done?.questionId),
+    questionRevision: Number(style.done?.questionRevision), optionId: "no-image",
+  });
+  assert.equal(planned.done?.awaitingConfirmation, true);
+  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  const plannedRecord = await getConversation(siteId, conversationId);
+  const proposed = plannedRecord?.alignment.proposedChange;
+  assert.ok(proposed);
+  assert.equal(proposed?.operations.some((operation) => operation.op === "replace_products"), true);
+  assert.equal(JSON.stringify(proposed?.operations).includes("<style"), false);
+  assert.equal(JSON.stringify(proposed?.operations).includes("<html"), false);
+
+  const bypass = await postChat(siteId, { baseRevision: before.draft.revision, message: "直接生成 P3E_FLOW_BYPASS", conversationId });
+  assert.equal(bypass.response.status, 409);
+  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+
+  const confirmed = await postChat(siteId, {
+    action: "confirm", conversationId, questionId: String(planned.done?.questionId),
+    questionRevision: Number(planned.done?.questionRevision),
+  });
+  assert.equal(confirmed.done?.status, "applied");
+  const after = await getSite(siteId);
+  assert.equal(after.draft.companyName, "外高桥流体接头P3E");
+  assert.equal(after.draft.products.map((product) => product.name.zh).join("、"), "快换接头、卡套接头");
+  assert.match(after.draft.content.hero.subtitle.zh, /具体交期待补充/);
+  assert.equal(after.draft.visualBrief.id, "engineering-industrial");
 });
 
 test("alignment confirm conflicts when the draft revision changes, and cancel does not replay", async () => {

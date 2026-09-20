@@ -22,6 +22,8 @@ import {
   alignmentPromptContext,
   disabledAlignment,
   normalizeAlignmentSnapshot,
+  needsGuidedBusinessQuestion,
+  isGuidedIndustrialRequest,
 } from "../lib/alignment.ts";
 
 const createdSiteIds = new Set<string>();
@@ -196,6 +198,34 @@ test("guided P3I tasks ask for the business outcome before the visual direction"
   if (!planned.ok) throw new Error("expected plan selection");
   assert.equal(planned.shouldContinue, true);
   assert.ok(planned.runId);
+});
+
+test("guided industrial flow reuses P3E terms and skips a business question when materials already state the goal", () => {
+  const vague = applyAlignmentAction(disabledAlignment(), {
+    action: "start",
+    pendingRequest: { message: "我们做不锈钢流体接头，想做一个外贸官网。", baseRevision: 1, selectedTarget: null },
+  });
+  assert.equal(vague.ok, true);
+  if (!vague.ok) throw new Error("expected P3E guided start");
+  assert.equal(vague.snapshot.currentQuestion?.questionId, GUIDED_BUSINESS_QUESTION_ID);
+  assert.equal(needsGuidedBusinessQuestion("外高桥流体接头 P3E-MW4R"), true);
+
+  const completeMaterials = [
+    "【公司资料】资料性质：模拟。",
+    "公司名：外高桥流体接头P3E",
+    "目标：面向 OEM 装配线索取样品册",
+    "产品：快换接头、卡套接头。",
+    "电话、地址、认证：资料未提供。",
+  ].join("\n");
+  const prefilled = applyAlignmentAction(disabledAlignment(), {
+    action: "start",
+    pendingRequest: { message: completeMaterials, baseRevision: 1, selectedTarget: null },
+  });
+  assert.equal(prefilled.ok, true);
+  if (!prefilled.ok) throw new Error("expected prefilled P3E start");
+  assert.equal(prefilled.snapshot.currentQuestion?.questionId, ALIGNMENT_QUESTION_ID);
+  assert.equal(needsGuidedBusinessQuestion(completeMaterials), false);
+  assert.equal(isGuidedIndustrialRequest(completeMaterials), true);
 });
 
 test("start with a specified missing conversation id does not create it", async () => {

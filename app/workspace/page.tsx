@@ -58,6 +58,7 @@ import {
 } from "@/lib/simulated-packs";
 import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
+import { needsGuidedBusinessQuestion } from "@/lib/alignment";
 
 function conversationStorageKey(siteId: string) {
   return `sitecraft-conversation:${siteId}`;
@@ -630,7 +631,7 @@ export default function WorkspacePage() {
     });
   };
 
-  const shouldGuideBusinessRequest = (value: string) => /减速机|P3I|公司资料|我们做/.test(value);
+  const shouldGuideBusinessRequest = needsGuidedBusinessQuestion;
 
   const sendChat = async (value: string) => {
     if (!value || busy || !draftReady) return false;

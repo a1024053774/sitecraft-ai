@@ -302,9 +302,15 @@ function guidedImageQuestion(revision: number): CurrentQuestion {
   };
 }
 
-function needsGuidedBusinessQuestion(message: string | undefined) {
+export function isGuidedIndustrialRequest(message: string | undefined) {
   const value = message?.trim() ?? "";
-  return /减速机|P3I|公司资料|我们做/.test(value);
+  return /减速机|流体接头|快换接头|卡套接头|P3[IE]|公司资料|我们做|外贸\s*B2B/.test(value);
+}
+
+export function needsGuidedBusinessQuestion(message: string | undefined) {
+  const value = message?.trim() ?? "";
+  if (/(?:【公司资料】|资料性质：)[\s\S]*目标：/.test(value)) return false;
+  return isGuidedIndustrialRequest(value);
 }
 
 export function disabledAlignment(): AlignmentSnapshot {
@@ -652,7 +658,11 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
         epoch: styleRevision,
       }, { saved: true, shouldContinue: false, runId: null });
     }
-    if (question.questionId === ALIGNMENT_QUESTION_ID && current.answers.some((answer) => answer.questionId === GUIDED_BUSINESS_QUESTION_ID)) {
+    if (
+      question.questionId === ALIGNMENT_QUESTION_ID
+      && (current.answers.some((answer) => answer.questionId === GUIDED_BUSINESS_QUESTION_ID)
+        || isGuidedIndustrialRequest(current.pendingRequest?.message))
+    ) {
       const planRevision = Math.max(question.questionRevision + 1, next.epoch + 1);
       return succeed({
         ...next,
