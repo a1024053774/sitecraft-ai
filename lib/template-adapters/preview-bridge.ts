@@ -121,6 +121,16 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var card = document.createElement("article");
       card.className = "sitecraft-product-card";
       card.setAttribute("data-sitecraft-product", sku);
+      if (product.image && typeof product.image.url === "string" && product.image.url) {
+        var image = document.createElement("img");
+        image.className = "sitecraft-product-image";
+        image.src = product.image.url;
+        image.setAttribute("src", product.image.url);
+        image.alt = localize(product.image.alt, locale) || (locale === "en" ? "Product photo" : "产品图");
+        image.setAttribute("data-sitecraft-slot", "products." + sku + ".image");
+        card.appendChild(image);
+        applied.add("products." + sku + ".image");
+      }
       var category = document.createElement("p");
       category.className = "sitecraft-product-category";
       category.textContent = typeof product.category === "string" && product.category

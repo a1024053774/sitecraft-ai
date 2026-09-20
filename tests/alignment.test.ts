@@ -166,8 +166,26 @@ test("guided P3I tasks ask for the business outcome before the visual direction"
   assert.equal(styled.ok, true);
   if (!styled.ok) throw new Error("expected style selection");
   assert.equal(styled.snapshot.currentQuestion?.questionId, GUIDED_PLAN_QUESTION_ID);
-  assert.deepEqual(styled.snapshot.currentQuestion?.options.map((option) => option.id), ["no-image"]);
+  assert.deepEqual(styled.snapshot.currentQuestion?.options.map((option) => option.id), ["no-image", "wait-for-image"]);
   assert.equal(styled.snapshot.inflightRunId, null);
+  const waitingImage = applyAlignmentAction(styled.snapshot, {
+    action: "select",
+    questionId: GUIDED_PLAN_QUESTION_ID,
+    questionRevision: styled.snapshot.currentQuestion?.questionRevision,
+    optionId: "wait-for-image",
+  });
+  assert.equal(waitingImage.ok, true);
+  if (!waitingImage.ok) throw new Error("expected image wait selection");
+  assert.equal(waitingImage.snapshot.state, "awaiting_image");
+  assert.equal(waitingImage.snapshot.currentQuestion?.questionId, "image-upload");
+  const imageReady = applyAlignmentAction(waitingImage.snapshot, {
+    action: "image_ready",
+    imageId: "img_1234567890abcdef12345678",
+  });
+  assert.equal(imageReady.ok, true);
+  if (!imageReady.ok) throw new Error("expected image resume");
+  assert.equal(imageReady.shouldContinue, true);
+  assert.equal(imageReady.snapshot.pendingRequest?.imageId, "img_1234567890abcdef12345678");
   const planned = applyAlignmentAction(styled.snapshot, {
     action: "select",
     questionId: GUIDED_PLAN_QUESTION_ID,
@@ -354,7 +372,7 @@ test("alignment actions enforce option validity, revision bump, stale confirm, a
   const maxGuidedProposal = applyEditProposal(firstAnswer.snapshot, {
     runId: firstAnswer.runId as string,
     summary: "ALIGN_UNIT_GUIDED_LIMIT_9188",
-    operations: Array.from({ length: 21 }, (_, index) => ({
+    operations: Array.from({ length: 22 }, (_, index) => ({
       op: "set_text" as const,
       target: "hero.title",
       locale: "zh" as const,
@@ -367,8 +385,8 @@ test("alignment actions enforce option validity, revision bump, stale confirm, a
   });
   assert.equal("stale" in maxGuidedProposal, false);
   if ("stale" in maxGuidedProposal) throw new Error("expected guided proposal");
-  assert.equal(maxGuidedProposal.snapshot.proposedChange?.operations.length, 21);
-  assert.equal(normalizeAlignmentSnapshot(maxGuidedProposal.snapshot).proposedChange?.operations.length, 21);
+  assert.equal(maxGuidedProposal.snapshot.proposedChange?.operations.length, 22);
+  assert.equal(normalizeAlignmentSnapshot(maxGuidedProposal.snapshot).proposedChange?.operations.length, 22);
   const confirmQuestion = proposal.snapshot.currentQuestion;
   assert.ok(confirmQuestion);
 

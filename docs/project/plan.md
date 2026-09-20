@@ -65,6 +65,10 @@
 
 当前证据包括历史失败基线、人工基准页、自动生成页、修改后 revision 3 回读和 Cua 桌面/390px 移动复核；机器门禁为 `npm test` 177/177、`npm run typecheck`、`npm run build` 全部通过。等待上传图片后继续、多色板/自由调色和完整独立人工盲评仍明确留在后续切片。
 
+### 后续切片：上传图片后继续（2026-09-20）
+
+已补上最小可恢复图片分支：用户选择「先补充产品图」后，方案停在 `image-upload` 状态并写入会话；图片上传到当前站点并通过归属校验后，系统继续同一 `conversationId`，将图片经受控 `set_product_image`/`set_image_slot` operation 放进待确认提案。产品卡会在预览中显示已上传图片。等待图片时刷新或重新打开仍从服务端状态恢复，不会直接调用模型或修改草稿。
+
 ## Jiro 怎么用（2026-09-17 实测后的决定）
 
 来源：首页、[/components/free](https://jiro.build/components/free)、[/templates/free](https://jiro.build/templates/free)、工业分类和若干详情页。会话 `31efb674-560a-49b7-8fb2-3b864fe3705a`。条款页 404，**只当内部 Demo 配方**。

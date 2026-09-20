@@ -1327,6 +1327,11 @@ test("screwfast benchmark renders only authored product categories into the prod
   draft.products = draft.products.slice(0, 2);
   draft.products[0].name = { zh: "直角减速机", en: "Right-angle gearbox" };
   draft.products[1].name = { zh: "行星减速机", en: "Planetary gearbox" };
+  draft.products[0].image = {
+    imageId: "img_1234567890abcdef12345678",
+    url: "/api/sites/test/images/img_1234567890abcdef12345678",
+    alt: { zh: "直角减速机产品图", en: "Right-angle gearbox product photo" },
+  };
   const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
     "products.FM-2401.name.zh",
     "products.FM-2401.summary.zh",
@@ -1334,6 +1339,8 @@ test("screwfast benchmark renders only authored product categories into the prod
     "products.FM-2402.summary.zh",
   ], "workspace");
   assert.equal(grid.children.length, 2);
+  assert.equal(grid.children[0].children[0].tagName, "IMG");
+  assert.equal(grid.children[0].children[0].getAttribute("src"), "/api/sites/test/images/img_1234567890abcdef12345678");
   assert.equal(visibleText(grid).includes("直角减速机"), true);
   assert.equal(visibleText(grid).includes("行星减速机"), true);
   assert.ok(report.appliedSlots.includes("products.FM-2401.name.zh"));

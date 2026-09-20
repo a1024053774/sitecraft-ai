@@ -557,8 +557,8 @@ export default function WorkspacePage() {
     setSelectedTarget(null);
   };
 
-  const runAlignment = async (body: Record<string, unknown>) => {
-    if (busy) return;
+  const runAlignment = async (body: Record<string, unknown>, options?: { force?: boolean }) => {
+    if (busy && !options?.force) return;
     setBusy(true);
     setBusyText("正在更新需求对齐…");
     try {
@@ -871,6 +871,7 @@ export default function WorkspacePage() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || busy || !draftReady) return;
+    let resumeImageId: string | null = null;
     setBusy(true);
     setBusyText("正在保存产品图…");
     setImageNote(null);
@@ -892,10 +893,15 @@ export default function WorkspacePage() {
         text: `产品图已归到当前站点 ${siteId}，尚未写入预览。可以先分析，再应用到已声明图片槽。`,
         change: uploaded.imageId,
       }]);
+      if (alignmentView?.questionId === "image-upload") resumeImageId = uploaded.imageId;
     } catch (error) {
       setImageNote(error instanceof Error ? error.message : "上传失败");
     } finally {
       setBusy(false);
+    }
+    if (resumeImageId) {
+      setShowImages(false);
+      await runAlignment({ action: "image_ready", conversationId, imageId: resumeImageId }, { force: true });
     }
   };
 
@@ -1061,6 +1067,11 @@ export default function WorkspacePage() {
                     ))}
                   </div>
                   <div className="alignment-actions">
+                    {alignmentView.questionId === "image-upload" ? (
+                      <button className="primary-button" type="button" disabled={busy} onClick={() => void openImageLibrary()}>
+                        打开图片库上传
+                      </button>
+                    ) : null}
                     {alignmentView.utilities.map((option) => (
                       <button
                         className={alignmentView.selectedOptionId === option.id ? "hint selected" : "hint"}

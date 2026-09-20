@@ -107,6 +107,17 @@ globalThis.fetch = async (input, init) => {
           value: "ALIGN_HITL_BETA_SUB_4401",
         }],
       };
+  } else if (raw.includes("ALIGN_IMAGE_RESUME_4401")) {
+    payload = {
+      type: "edit",
+      summary: "ALIGN_IMAGE_RESUME_SUMMARY_4401",
+      operations: [{
+        op: "set_text",
+        target: "hero.title",
+        locale: "zh",
+        value: "ALIGN_IMAGE_RESUME_TITLE_4401",
+      }],
+    };
   } else {
     const beta = raw.includes("CHAT_SENTINEL_USER_BETA_6621");
     payload = {
@@ -139,6 +150,7 @@ const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/si
 };
 const { getConversation } = await import("../lib/conversation-store.ts");
 const { commitOperations, getSite } = await import("../lib/site-store.ts");
+const { saveSiteImage } = await import("../lib/site-images.ts");
 
 const createdSiteIds = new Set<string>();
 
@@ -148,10 +160,20 @@ function uniqueSiteId() {
   return siteId;
 }
 
+function pngWithSize(width: number, height: number, byteLength = 400) {
+  const bytes = Buffer.alloc(Math.max(24, byteLength));
+  bytes[0] = 0x89; bytes[1] = 0x50; bytes[2] = 0x4e; bytes[3] = 0x47;
+  bytes[4] = 0x0d; bytes[5] = 0x0a; bytes[6] = 0x1a; bytes[7] = 0x0a;
+  bytes.writeUInt32BE(13, 8); bytes.write("IHDR", 12);
+  bytes.writeUInt32BE(width, 16); bytes.writeUInt32BE(height, 20);
+  return bytes;
+}
+
 async function cleanupCreatedFiles() {
   await Promise.all([...createdSiteIds].flatMap((siteId) => [
     rm(path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`), { force: true }),
     rm(path.join(process.cwd(), ".sitecraft-data", "conversations", siteId), { recursive: true, force: true }),
+    rm(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteId), { recursive: true, force: true }),
   ]));
   createdSiteIds.clear();
 }
@@ -604,6 +626,45 @@ test("alignment HITL continues the saved task through clarify, proposal, and con
   const after = await getSite(siteId);
   assert.equal(after.draft.revision, appliedRevision);
   assert.equal(after.draft.content.hero.title.zh, "ALIGN_HITL_ALPHA_TITLE_4401");
+});
+
+test("guided image wait resumes the same saved task after a site upload", async () => {
+  const siteId = uniqueSiteId();
+  const before = await getSite(siteId);
+  const image = await saveSiteImage({
+    siteId,
+    bytes: pngWithSize(128, 96),
+    originalName: "gearbox-resume.png",
+  });
+  const task = "ALIGN_IMAGE_RESUME_4401 我们做减速机，想做官网。";
+  const started = await postChat(siteId, { action: "start", message: task, baseRevision: before.draft.revision });
+  const conversationId = String(started.done?.conversationId);
+  const business = await postChat(siteId, {
+    action: "select", conversationId, questionId: String(started.done?.questionId),
+    questionRevision: Number(started.done?.questionRevision), optionId: "rfq",
+  });
+  const style = await postChat(siteId, {
+    action: "select", conversationId, questionId: String(business.done?.questionId),
+    questionRevision: Number(business.done?.questionRevision), optionId: "engineering-industrial",
+  });
+  const waiting = await postChat(siteId, {
+    action: "select", conversationId, questionId: String(style.done?.questionId),
+    questionRevision: Number(style.done?.questionRevision), optionId: "wait-for-image",
+  });
+  assert.equal(waiting.done?.questionId, "image-upload");
+  assert.equal(waiting.done?.waitingForUser, true);
+  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  const restored = await postChat(siteId, { action: "state", conversationId });
+  assert.equal(restored.done?.questionId, "image-upload");
+  assert.equal(restored.done?.waitingForUser, true);
+
+  const resumed = await postChat(siteId, { action: "image_ready", conversationId, imageId: image.imageId });
+  assert.equal(resumed.done?.status, "alignment");
+  assert.equal(resumed.done?.awaitingConfirmation, true);
+  const conversation = await getConversation(siteId, conversationId);
+  const operations = conversation?.alignment.proposedChange?.operations ?? [];
+  assert.equal(operations.some((operation) => operation.op === "set_product_image" && operation.imageId === image.imageId), true);
+  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
 });
 
 test("alignment confirm conflicts when the draft revision changes, and cancel does not replay", async () => {

@@ -422,6 +422,7 @@ export type ApplyConversationAlignmentArgs = {
   questionRevision?: number;
   optionId?: string;
   note?: string;
+  imageId?: string;
   pendingRequest?: { message: string; baseRevision: number; selectedTarget: string | null } | null;
 };
 
@@ -432,6 +433,7 @@ function toAlignmentInput(args: ApplyConversationAlignmentArgs): AlignmentAction
     questionRevision: args.questionRevision,
     optionId: args.optionId,
     note: args.note,
+    imageId: args.imageId,
     pendingRequest: args.pendingRequest,
   };
 }

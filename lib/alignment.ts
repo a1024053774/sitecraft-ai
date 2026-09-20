@@ -5,6 +5,7 @@ import { siteOperationSchema, type SiteOperation } from "./site-operations.ts";
 export const ALIGNMENT_QUESTION_ID = "style-theme";
 export const GUIDED_BUSINESS_QUESTION_ID = "business-goal";
 export const GUIDED_PLAN_QUESTION_ID = "build-plan";
+export const GUIDED_IMAGE_QUESTION_ID = "image-upload";
 export const OTHER_OPTION_ID = "other";
 export const APPROVE_OPTION_ID = "approve";
 export const MAX_ALIGNMENT_NOTE_CHARS = 500;
@@ -33,6 +34,7 @@ export const GUIDED_BUSINESS_OPTIONS: AlignmentOption[] = [
 
 export const GUIDED_PLAN_OPTIONS: AlignmentOption[] = [
   { id: "no-image", label: "按工业询盘首页执行，先用无图版", description: "产品、加工方式和询盘入口照当前资料生成；缺图不留空位。" },
+  { id: "wait-for-image", label: "先补充产品图，再生成图文版", description: "方案先保存；上传一张用户提供的产品图后，继续同一会话生成。" },
 ];
 
 const styleCatalog = [...STYLE_OPTIONS, ...UTILITY_OPTIONS];
@@ -45,6 +47,7 @@ export type AlignmentModeState =
   | "disabled"
   | "awaiting_style"
   | "awaiting_user"
+  | "awaiting_image"
   | "awaiting_confirmation"
   | "idle"
   | "cancelled";
@@ -60,6 +63,7 @@ export type PendingRequest = {
   message: string;
   baseRevision: number;
   selectedTarget: string | null;
+  imageId?: string | null;
 };
 export type CurrentQuestion = {
   questionId: string;
@@ -109,13 +113,14 @@ export type AlignmentSnapshot = {
   styleLabel: string | null;
   history: AlignmentHistoryEntry[];
 };
-export type AlignmentActionName = "start" | "select" | "confirm" | "cancel" | "state";
+export type AlignmentActionName = "start" | "select" | "confirm" | "cancel" | "state" | "image_ready";
 export type AlignmentActionInput = {
   action: AlignmentActionName;
   questionId?: string;
   questionRevision?: number;
   optionId?: string;
   note?: string;
+  imageId?: string;
   pendingRequest?: PendingRequest | null;
 };
 export type AlignmentPublicView = {
@@ -158,7 +163,7 @@ export type AlignmentActionFailure = {
 };
 export type AlignmentActionResult = AlignmentActionSuccess | AlignmentActionFailure;
 
-const alignmentStateSchema = z.enum(["disabled", "awaiting_style", "awaiting_user", "awaiting_confirmation", "idle", "cancelled"]);
+const alignmentStateSchema = z.enum(["disabled", "awaiting_style", "awaiting_user", "awaiting_image", "awaiting_confirmation", "idle", "cancelled"]);
 const optionSchema = z.object({
   id: z.string().min(1).max(80),
   label: z.string().min(1).max(80),
@@ -168,6 +173,7 @@ const pendingRequestSchema = z.object({
   message: z.string().min(1).max(4000),
   baseRevision: z.number().int().nonnegative(),
   selectedTarget: z.string().max(120).nullable(),
+  imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/).nullable().optional(),
 });
 const currentQuestionSchema = z.object({
   questionId: z.string().min(1).max(80),
@@ -187,8 +193,8 @@ const answerSchema = z.object({
 });
 const proposedChangeSchema = z.object({
   summary: z.string().min(1).max(MAX_ALIGNMENT_SUMMARY_CHARS),
-  // Guided generation reserves one operation for the user-selected visual brief.
-  operations: z.array(siteOperationSchema).max(21),
+  // Guided generation reserves one operation for the visual brief and one for an uploaded image.
+  operations: z.array(siteOperationSchema).max(22),
   rejected: z.array(z.string().max(200)).max(20),
   baseRevision: z.number().int().nonnegative(),
   questionId: z.string().min(1).max(80),
@@ -285,6 +291,17 @@ function guidedPlanQuestion(revision: number): CurrentQuestion {
   };
 }
 
+function guidedImageQuestion(revision: number): CurrentQuestion {
+  return {
+    questionId: GUIDED_IMAGE_QUESTION_ID,
+    questionRevision: Math.max(1, revision),
+    kind: "clarify",
+    prompt: "方案已保存。请在当前站点上传一张用户提供的产品图，上传完成后继续生成图文版。",
+    options: [],
+    allowOther: false,
+  };
+}
+
 function needsGuidedBusinessQuestion(message: string | undefined) {
   const value = message?.trim() ?? "";
   return /减速机|P3I|公司资料|我们做/.test(value);
@@ -354,7 +371,7 @@ function latestAnswer(snapshot: AlignmentSnapshot): AlignmentAnswer | null {
 }
 
 function waiting(snapshot: AlignmentSnapshot) {
-  return snapshot.state === "awaiting_style" || snapshot.state === "awaiting_user" || snapshot.state === "awaiting_confirmation";
+  return snapshot.state === "awaiting_style" || snapshot.state === "awaiting_user" || snapshot.state === "awaiting_image" || snapshot.state === "awaiting_confirmation";
 }
 
 function isProcessing(snapshot: AlignmentSnapshot) {
@@ -439,6 +456,7 @@ function inProgress(snapshot: AlignmentSnapshot) {
   return snapshot.enabled && (
     snapshot.state === "awaiting_style"
     || snapshot.state === "awaiting_user"
+    || snapshot.state === "awaiting_image"
     || snapshot.state === "awaiting_confirmation"
     || Boolean(snapshot.inflightRunId)
     || Boolean(snapshot.pendingRequest && snapshot.state !== "idle" && snapshot.state !== "cancelled")
@@ -644,6 +662,16 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
         epoch: planRevision,
       }, { saved: true, shouldContinue: false, runId: null });
     }
+    if (question.questionId === GUIDED_PLAN_QUESTION_ID && option.id === "wait-for-image") {
+      const imageRevision = Math.max(question.questionRevision + 1, next.epoch + 1);
+      return succeed({
+        ...next,
+        state: "awaiting_image",
+        currentQuestion: guidedImageQuestion(imageRevision),
+        inflightRunId: null,
+        epoch: imageRevision,
+      }, { saved: true, shouldContinue: false, runId: null });
+    }
     if (!next.pendingRequest) {
       return succeed({
         ...next,
@@ -655,6 +683,24 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
     return succeed({
       ...next,
       state: question.kind === "style" ? "awaiting_style" : "awaiting_user",
+    }, { saved: true, shouldContinue: true, runId });
+  }
+
+  if (input.action === "image_ready") {
+    if (!current.pendingRequest || current.state !== "awaiting_image") {
+      return fail(current, 400, "invalid_state", "当前没有等待产品图的已保存方案。");
+    }
+    if (!input.imageId || !/^img_[a-z0-9]{16,40}$/.test(input.imageId)) {
+      return fail(current, 400, "invalid_payload", "继续生成需要有效的站点图片 ID。");
+    }
+    const runId = crypto.randomUUID();
+    return succeed({
+      ...current,
+      state: "idle",
+      currentQuestion: null,
+      pendingRequest: { ...current.pendingRequest, imageId: input.imageId },
+      inflightRunId: runId,
+      history: pushHistory(current, { action: "image_ready", summary: "已上传产品图，继续生成" }),
     }, { saved: true, shouldContinue: true, runId });
   }
 

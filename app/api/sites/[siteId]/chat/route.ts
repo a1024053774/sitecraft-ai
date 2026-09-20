@@ -25,6 +25,7 @@ import {
 } from "@/lib/conversation-store";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
 import { visualBriefCatalog } from "@/lib/site-document";
+import { readSiteImage, siteImagePublicPath } from "@/lib/site-images";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,7 @@ const chatSchema = z.object({
   conversationId: z.string().regex(CONVERSATION_ID_PATTERN).nullable().optional(),
 });
 const alignmentSchema = z.object({
-  action: z.enum(["start", "select", "confirm", "cancel", "state"]),
+  action: z.enum(["start", "select", "confirm", "cancel", "state", "image_ready"]),
   conversationId: z.string().regex(CONVERSATION_ID_PATTERN).nullable().optional(),
   questionId: z.string().trim().min(1).max(80).optional(),
   questionRevision: z.number().int().nonnegative().optional(),
@@ -44,6 +45,7 @@ const alignmentSchema = z.object({
   baseRevision: z.number().int().nonnegative().optional(),
   message: z.string().trim().min(1).max(4000).optional(),
   selectedTarget: z.string().max(120).nullable().optional(),
+  imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/).optional(),
 });
 
 type AlignmentApplied = {
@@ -137,6 +139,8 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     return;
   }
   const current = await getSite(siteId);
+  const uploadedImage = pending?.imageId ? await readSiteImage(siteId, pending.imageId) : null;
+  if (pending?.imageId && !uploadedImage) throw new Error("待继续的产品图不存在，请重新上传后再试。");
   const provider = await requestStructuredOperations({
     message: pending.message,
     draft: current.draft,
@@ -153,9 +157,39 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     if (!provider.ok) return { ...record, alignment: applyRunError(record.alignment, { runId, error: provider.error }) };
     const guidedBriefId = record.alignment.styleOptionId;
     const guidedBrief = guidedBriefId ? visualBriefCatalog.find((brief) => brief.id === guidedBriefId) : undefined;
-    const guidedOperations = provider.type === "edit" && guidedBrief
-      ? [{ op: "set_visual_brief" as const, briefId: guidedBrief.id }, ...provider.operations]
-      : provider.type === "edit" ? provider.operations : [];
+    const replacement = provider.type === "edit"
+      ? provider.operations.find((operation) => operation.op === "replace_products")
+      : undefined;
+    const targetProducts = replacement?.op === "replace_products"
+      ? replacement.products
+      : current.draft.products;
+    const imageTarget = uploadedImage
+      ? targetProducts[0]
+      : undefined;
+    const imageOperation = uploadedImage && imageTarget
+      ? [{
+        op: "set_product_image" as const,
+        sku: imageTarget.sku,
+        imageId: uploadedImage.record.imageId,
+        url: siteImagePublicPath(siteId, uploadedImage.record.imageId),
+        alt: { zh: "产品图", en: "Product photo" },
+      }]
+      : uploadedImage
+        ? [{
+          op: "set_image_slot" as const,
+          target: "hero.image" as const,
+          imageId: uploadedImage.record.imageId,
+          url: siteImagePublicPath(siteId, uploadedImage.record.imageId),
+          alt: { zh: "产品图", en: "Product photo" },
+        }]
+        : [];
+    const guidedOperations = provider.type === "edit"
+      ? [
+        ...(guidedBrief ? [{ op: "set_visual_brief" as const, briefId: guidedBrief.id }] : []),
+        ...provider.operations,
+        ...imageOperation,
+      ]
+      : [];
     const result = provider.type === "answer"
       ? applyAnswerResult(record.alignment, { runId, text: provider.text })
       : provider.type === "clarify"
@@ -411,6 +445,7 @@ async function handleAlignmentAction(siteId: string, raw: unknown) {
       questionId: parsed.data.questionId,
       questionRevision: parsed.data.questionRevision,
       optionId: parsed.data.optionId,
+      imageId: parsed.data.imageId,
       note: parsed.data.note,
       pendingRequest,
     });
