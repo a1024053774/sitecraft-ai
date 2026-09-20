@@ -58,7 +58,7 @@ import {
 } from "@/lib/simulated-packs";
 import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
-import { needsGuidedBusinessQuestion } from "@/lib/alignment";
+import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
 
 function conversationStorageKey(siteId: string) {
   return `sitecraft-conversation:${siteId}`;
