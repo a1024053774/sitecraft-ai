@@ -113,6 +113,8 @@ node --test --experimental-strip-types \
 
 当前、人工基准、自动结果的同条件索引在 `artifacts/industrial-guided-goal-2026-09-20/comparison.json`。这证明方案状态、样式绑定、产品清单和共享预览链路已贯通；刷新/重新打开回读、图片等待分支和完整页面人工盲评仍未完成。
 
+候选冻结后又以 revision 3 的自动生成草稿开启了新的可恢复会话，重新走过业务目标和工程工业样式选择；状态回读仍返回 `build-plan`，其唯一交付选项是「按工业询盘首页执行，先用无图版」，随后取消会话，未修改成品。记录在 `artifacts/industrial-guided-goal-2026-09-20/guided-final-option-check.json`，用于替代旧证据中已经撤掉的等待图片选项。
+
 ## 自动生成后的持久化回读证据
 
 在 `guided-p3i-full4-20260920` 完成确认后，通过现有 `commitOperations` 入口手工修改首页 CTA 为“索取 P3I-EDIT 交期”，以 revision 2 为基线提交。服务端返回 revision 3；随后重新读取草稿，确认 CTA 已更新，同时仍保留 `screwfast`、`engineering-industrial` 和两类 P3I 产品，没有重置页面方案。
