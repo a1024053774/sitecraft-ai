@@ -166,6 +166,7 @@ test("guided P3I tasks ask for the business outcome before the visual direction"
   assert.equal(styled.ok, true);
   if (!styled.ok) throw new Error("expected style selection");
   assert.equal(styled.snapshot.currentQuestion?.questionId, GUIDED_PLAN_QUESTION_ID);
+  assert.deepEqual(styled.snapshot.currentQuestion?.options.map((option) => option.id), ["no-image"]);
   assert.equal(styled.snapshot.inflightRunId, null);
   const planned = applyAlignmentAction(styled.snapshot, {
     action: "select",

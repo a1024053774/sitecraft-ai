@@ -33,7 +33,6 @@ export const GUIDED_BUSINESS_OPTIONS: AlignmentOption[] = [
 
 export const GUIDED_PLAN_OPTIONS: AlignmentOption[] = [
   { id: "no-image", label: "按工业询盘首页执行，先用无图版", description: "产品、加工方式和询盘入口照当前资料生成；缺图不留空位。" },
-  { id: "wait-for-image", label: "先补充产品图，再生成图文版", description: "先保存这份方案，等上传有来源的产品图后继续。" },
 ];
 
 const styleCatalog = [...STYLE_OPTIONS, ...UTILITY_OPTIONS];
