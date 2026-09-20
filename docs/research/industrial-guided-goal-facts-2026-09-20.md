@@ -53,6 +53,19 @@
 - 因此当前 assemble 的成品质量门为 `NO_GO`；“文字已写入”或“隐藏部分区块”不能作为通过条件。
 - fresh 桌面/移动浏览器复核仍待 Cua 服务恢复后补做；HTTP 200 只能证明路由响应，不能证明视觉通过。
 
+### 针对性机器检查
+
+2026-09-20 在当前基线运行：
+
+```text
+node --test --experimental-strip-types \
+  tests/template-preview-bridge.test.ts \
+  tests/alignment.test.ts \
+  tests/simulated-packs.test.ts
+```
+
+结果：36/36 通过。它证明 bridge 的声明落点、演示壳隐藏、对齐状态机和模拟资料隔离契约成立；不能证明页面比例、信息组织或整页审美成立。Cua 浏览器服务本轮启动失败，fresh 截图仍是 `UNVERIFIED`。
+
 ## 推断与边界
 
 - 需求引导可以复用现有会话状态机，但不能把“选样子”改名后冒充业务需求形成；需要明确区分事实、偏好和已确认方案。
