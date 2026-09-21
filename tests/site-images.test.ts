@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import {
@@ -13,6 +13,7 @@ import {
   readSiteImage,
   saveSiteImage,
   SiteImageError,
+  validateImageProvenance,
 } from "../lib/site-images.ts";
 import { imageFactsSchema, MISSING_FACT, parseImageFacts } from "../lib/image-facts.ts";
 import { defaultDraft } from "../lib/site-document.ts";
@@ -117,16 +118,85 @@ test("saved images are owned by site/workspace and cannot be read across sites",
   assert.equal(saved.siteId, siteA);
   assert.equal(saved.source, "user-upload");
   assert.equal(saved.license, "user-provided");
+  assert.match(saved.sourceUrl, /^user-upload:\/\//);
+  assert.equal(saved.licenseUrl, null);
+  assert.equal(saved.author, "用户提供");
+  assert.equal(saved.attribution, "用户提供；仅当前站点使用");
+  assert.equal(saved.usageScope, "current-site-only");
+  assert.match(saved.retrievedAt, /^20/);
+  assert.match(saved.sha256, /^[a-f0-9]{64}$/);
   assert.equal(saved.width, 128);
   const listed = await listSiteImages(siteA);
   assert.equal(listed.some((item) => item.imageId === saved.imageId), true);
   const loaded = await readSiteImage(siteA, saved.imageId);
   assert.ok(loaded);
   assert.equal(loaded?.record.imageId, saved.imageId);
+  const savedMetadata = JSON.parse(await readFile(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteA, `${saved.imageId}.json`), "utf8")) as Record<string, unknown>;
+  assert.equal(savedMetadata.sha256, saved.sha256);
   assert.equal(await readSiteImage(siteB, saved.imageId), null);
   const payload = publicImagePayload(saved);
   assert.equal(payload.url, `/api/sites/${siteA}/images/${saved.imageId}`);
   assert.equal(payload.url.includes("vendor/"), false);
+  assert.equal(payload.sha256, saved.sha256);
+  assert.equal(payload.attribution, saved.attribution);
+});
+
+test("public-material provenance is mandatory before a non-user image can enter a customer site", async () => {
+  const incomplete = {
+    imageId: ownedId,
+    siteId: siteA,
+    workspaceId: process.env.DEFAULT_WORKSPACE_ID || "demo",
+    mime: "image/png" as const,
+    byteLength: 400,
+    width: 128,
+    height: 96,
+    originalName: "public.png",
+    source: "user-upload" as const,
+    sourceUrl: "https://example.test/public.png",
+    license: "CC BY" as const,
+    licenseUrl: null,
+    author: "",
+    attribution: "",
+    usageScope: "generated-sites" as const,
+    retrievedAt: new Date().toISOString(),
+    sha256: "0".repeat(64),
+    createdAt: new Date().toISOString(),
+  };
+  assert.throws(() => validateImageProvenance(incomplete), /来源|licenseUrl|署名/);
+  const saved = await saveSiteImage({
+    siteId: siteA,
+    bytes: pngWithSize(128, 96, 400),
+    originalName: "cc0-product.png",
+    provenance: {
+      sourceUrl: "https://assets.example.test/cc0-product.png",
+      license: "CC0",
+      licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+      author: "Example Archive",
+      attribution: "Example Archive / CC0",
+      usageScope: "generated-sites",
+      retrievedAt: "2026-09-22T00:00:00.000Z",
+    },
+  });
+  assert.equal(saved.source, "public-material");
+  assert.equal(saved.usageScope, "generated-sites");
+  assert.equal(publicImagePayload(saved).licenseUrl, "https://creativecommons.org/publicdomain/zero/1.0/");
+  await assert.rejects(
+    () => saveSiteImage({
+      siteId: siteA,
+      bytes: pngWithSize(128, 96, 400),
+      originalName: "code-license.png",
+      provenance: {
+        sourceUrl: "https://assets.example.test/code-license.png",
+        license: "MIT",
+        licenseUrl: "https://opensource.org/license/mit/",
+        author: "Example",
+        attribution: "Example / MIT",
+        usageScope: "generated-sites",
+        retrievedAt: "2026-09-22T00:00:00.000Z",
+      },
+    }),
+    /SVG/
+  );
 });
 
 test("set_image_slot and set_product_image apply, invert, and reject template stock", () => {

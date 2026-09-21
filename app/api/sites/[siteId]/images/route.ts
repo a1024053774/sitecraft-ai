@@ -1,4 +1,4 @@
-import { listSiteImages, publicImagePayload, saveSiteImage, SiteImageError } from "@/lib/site-images";
+import { imageLicenses, imageUsageScopes, listSiteImages, publicImagePayload, saveSiteImage, SiteImageError, type ImageLicense, type ImageUsageScope } from "@/lib/site-images";
 import { getSite } from "@/lib/site-store";
 
 export const runtime = "nodejs";
@@ -37,7 +37,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
     const originalName = "name" in file && typeof file.name === "string" ? file.name : "upload";
-    const record = await saveSiteImage({ siteId, bytes, originalName });
+    const textField = (name: string) => {
+      const value = form.get(name);
+      return typeof value === "string" ? value.trim() : undefined;
+    };
+    const requestedLicense = textField("license");
+    const requestedScope = textField("usageScope");
+    const license = requestedLicense && (imageLicenses as readonly string[]).includes(requestedLicense)
+      ? requestedLicense as ImageLicense
+      : undefined;
+    const usageScope = requestedScope && (imageUsageScopes as readonly string[]).includes(requestedScope)
+      ? requestedScope as ImageUsageScope
+      : undefined;
+    if (requestedLicense && !license) return Response.json({ error: "不支持的图片许可证" }, { status: 400 });
+    if (requestedScope && !usageScope) return Response.json({ error: "不支持的图片用途范围" }, { status: 400 });
+    const record = await saveSiteImage({
+      siteId,
+      bytes,
+      originalName,
+      provenance: license ? {
+        sourceUrl: textField("sourceUrl"),
+        license,
+        licenseUrl: textField("licenseUrl") ?? null,
+        author: textField("author"),
+        attribution: textField("attribution"),
+        usageScope,
+        retrievedAt: textField("retrievedAt"),
+      } : undefined,
+    });
     return Response.json({
       ok: true,
       image: publicImagePayload(record),

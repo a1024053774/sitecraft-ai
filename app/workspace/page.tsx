@@ -142,7 +142,14 @@ type SiteImageItem = {
   byteLength: number;
   originalName: string;
   source: string;
+  sourceUrl: string;
   license: string;
+  licenseUrl: string | null;
+  author: string;
+  attribution: string;
+  usageScope: string;
+  retrievedAt: string;
+  sha256: string;
   createdAt: string;
 };
 type ImageFactsView = {
@@ -1338,7 +1345,7 @@ export default function WorkspacePage() {
               </div>
               <button className="icon-button" onClick={() => setShowImages(false)} aria-label="关闭产品图"><X size={15} /></button>
             </div>
-            <p className="modal-copy">图片先存到当前站点目录，可选看图摘录事实，再经 commitOperations 写入已声明且唯一命中的 src 槽。没有槽位会报告未显示，不会猜写 Logo 或其他 img。模板演示图没有客户授权，不能当生成素材。</p>
+            <p className="modal-copy">图片先存到当前站点目录，并记录归属、来源声明、时间和 hash；可选看图摘录事实，再经 commitOperations 写入已声明且唯一命中的 src 槽。没有槽位会报告未显示，不会猜写 Logo 或其他 img。模板演示图没有客户授权，不能当生成素材；公共素材缺少许可证和署名也不会进入成品。</p>
             <div
               className="upload-zone"
               data-testid="upload-product-photo"
@@ -1354,7 +1361,7 @@ export default function WorkspacePage() {
               <div className="upload-icon"><CloudUpload size={20} /></div>
               <strong>点击上传真实产品照片</strong>
               <span>PNG / JPEG / WebP · 校验 magic bytes · 单张不超过 10MB</span>
-              <small>归属站点 {siteId} · 许可记为用户提供</small>
+              <small>归属站点 {siteId} · 默认按用户提供、仅当前站点使用保存</small>
             </div>
             <div className="image-library" data-testid="site-image-list">
               {siteImages.length === 0 ? <span>当前站点还没有已上传的图。</span> : siteImages.map((image) => (
@@ -1373,7 +1380,8 @@ export default function WorkspacePage() {
                   <img src={image.url} alt="" />
                   <div>
                     <strong>{image.originalName}</strong>
-                    <span>{image.imageId} · {image.width}×{image.height} · {image.license}</span>
+                    <span>{image.imageId} · {image.width}×{image.height} · {image.license} · {image.usageScope}</span>
+                    <small>来源：{image.sourceUrl} · 归属：{image.author} · {image.retrievedAt.slice(0, 10)} · SHA {image.sha256.slice(0, 12)}…</small>
                   </div>
                 </button>
               ))}

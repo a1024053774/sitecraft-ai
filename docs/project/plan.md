@@ -158,7 +158,7 @@ How it Works 04 Kelo / 01 Luma 只借「分步」计数。工业履约步骤对�
 
 预览路由带 `X-Sitecraft-Preview-Page`。点测覆盖工作台、发布页、桌面与 390 宽。截图在 gitignore 的 `artifacts/q18-pages/`。本块未跑图片流水线。
 
-**P3 图片流水线（2026-09-18）**：工作台上传真实产品 JPEG → magic bytes → 站点目录 `.sitecraft-data/uploads/{workspace}/{siteId}/` → 可选 `deepseek-flash` 看图摘录事实 → 只经 `commitOperations` 写入已声明唯一 `src` 槽。没有槽位报告 missing，不猜写 Logo 或其他 img。模板演示图即使带上已上传 `imageId` 也会被拒绝。分析不改 revision，不写 HTML/CSS。
+**P3 图片流水线（2026-09-18，2026-09-22 补齐准入元数据）**：工作台上传真实产品 JPEG → magic bytes → 站点目录 `.sitecraft-data/uploads/{workspace}/{siteId}/` → 保存 `sourceUrl`、`license`、`licenseUrl`、`author`、`attribution`、`usageScope`、`retrievedAt`、`sha256` → 可选 `deepseek-flash` 看图摘录事实 → 只经 `commitOperations` 写入已声明唯一 `src` 槽。没有槽位报告 missing，不猜写 Logo 或其他 img。模板演示图即使带上已上传 `imageId` 也会被拒绝。公共素材缺少来源/许可证/作者/署名或 hash 时不能进入客户成品；当前 UI 默认只生成 `user-provided`、`current-site-only` 的无外部来源记录。分析不改 revision，不写 HTML/CSS。
 
 | 项 | 结果 |
 | --- | --- |
@@ -297,4 +297,4 @@ Gemini 审计目录为外部输入，仓库和浏览器回读后只确认了目�
 
 以下三套不进入主流程，保留明确目录状态：`shadcn-landing`（BLOCKED：SPA 空壳/白屏）、`yukina`（BLOCKED：二次元个人博客内容）、`nextjs-landing`（BLOCKED：第三方商业模板引流残留）。不为它们创建空 kit、空 palette 或假浏览器证据。其余 19 套继续区分“本地快照/上游演示/未准入”，不能把目录候选写成已交付页面。
 
-本轮每个 slice 需独立提交；每个提交先跑针对性契约测试，再跑 `npm run typecheck`、`npm test`、`npm run build`，并保留 1440/768/375 浏览器截图、草稿回读和 `/published/{siteId}` 证据。精确视口回读与 palette/文案 sentinel 记录在 `artifacts/template-family-slices-2026-09-21/browser-review.json`；截图由 Cua 内联产生，当前后端不落本地图片文件。SMTP、生产 PostgreSQL、外部图片许可和真实客户资料仍是 `UNVERIFIED`，不由本轮代码推断为已完成。
+本轮每个 slice 需独立提交；每个提交先跑针对性契约测试，再跑 `npm run typecheck`、`npm test`、`npm run build`，并保留 1440/768/375 浏览器截图、草稿回读和 `/published/{siteId}` 证据。精确视口回读与 palette/文案 sentinel 记录在 `artifacts/template-family-slices-2026-09-21/browser-review.json`；截图由 Cua 内联产生，当前后端不落本地图片文件。图片准入元数据门禁已实现，但尚未替任何公共素材完成逐张外部来源核验；SMTP、生产 PostgreSQL 和真实客户资料仍是 `UNVERIFIED`，不由本轮代码推断为已完成。

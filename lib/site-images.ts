@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isPng, readPngSize } from "./preview-vision.ts";
@@ -11,6 +12,11 @@ export const SITE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 
 export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ImageMime = (typeof imageMimeTypes)[number];
+export const imageLicenses = ["user-provided", "CC0", "Public Domain", "MIT", "Apache-2.0", "CC BY"] as const;
+export type ImageLicense = (typeof imageLicenses)[number];
+export const imageUsageScopes = ["current-site-only", "generated-sites", "docs-only"] as const;
+export type ImageUsageScope = (typeof imageUsageScopes)[number];
+export type ImageSource = "user-upload" | "public-material";
 
 export type SiteImageRecord = {
   imageId: string;
@@ -21,8 +27,15 @@ export type SiteImageRecord = {
   width: number;
   height: number;
   originalName: string;
-  source: "user-upload";
-  license: "user-provided";
+  source: ImageSource;
+  sourceUrl: string;
+  license: ImageLicense;
+  licenseUrl: string | null;
+  author: string;
+  attribution: string;
+  usageScope: ImageUsageScope;
+  retrievedAt: string;
+  sha256: string;
   createdAt: string;
 };
 
@@ -239,6 +252,38 @@ function bytesPath(siteId: string, imageId: string, mime: ImageMime) {
   return path.join(siteDir(siteId), `${safeImageId(imageId)}${ext}`);
 }
 
+function sha256(bytes: Uint8Array) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+export function validateImageProvenance(record: SiteImageRecord) {
+  if (!(imageLicenses as readonly string[]).includes(record.license) || !(imageUsageScopes as readonly string[]).includes(record.usageScope) || !(["user-upload", "public-material"] as const).includes(record.source)) {
+    throw new SiteImageError("forbidden", "图片许可证、来源类型或用途范围无效，不能进入客户成品");
+  }
+  if (!record.sourceUrl || !record.author || !record.attribution || !record.retrievedAt || Number.isNaN(Date.parse(record.retrievedAt)) || !/^[a-f0-9]{64}$/i.test(record.sha256)) {
+    throw new SiteImageError("forbidden", "图片缺少来源、归属、下载时间或 hash，不能进入客户成品");
+  }
+  if (record.license === "user-provided") {
+    if (record.source !== "user-upload" || record.usageScope !== "current-site-only") {
+      throw new SiteImageError("forbidden", "用户上传图片只能绑定当前站点使用");
+    }
+    return record;
+  }
+  if (record.source !== "public-material" || !/^https?:\/\//i.test(record.sourceUrl) || !/^https?:\/\//i.test(record.licenseUrl ?? "")) {
+    throw new SiteImageError("forbidden", "公共素材必须记录可访问的来源和许可证 URL");
+  }
+  if (!record.licenseUrl) {
+    throw new SiteImageError("forbidden", "公共素材必须记录 licenseUrl，不能进入客户成品");
+  }
+  if (record.license === "MIT" || record.license === "Apache-2.0") {
+    throw new SiteImageError("forbidden", "MIT/Apache 图片准入当前仅覆盖可核验 SVG，PNG/JPEG/WebP 不能按代码许可证放行");
+  }
+  if (record.license === "CC BY" && !record.attribution.trim()) {
+    throw new SiteImageError("forbidden", "CC BY 素材必须保留署名");
+  }
+  return record;
+}
+
 async function writeAtomic(target: string, contents: Uint8Array | string) {
   await mkdir(path.dirname(target), { recursive: true });
   const temp = `${target}.${process.pid}.${crypto.randomUUID()}.tmp`;
@@ -251,22 +296,44 @@ export async function saveSiteImage(args: {
   siteId: string;
   bytes: Uint8Array;
   originalName?: string;
+  provenance?: {
+    sourceUrl?: string;
+    license?: ImageLicense;
+    licenseUrl?: string | null;
+    author?: string;
+    attribution?: string;
+    usageScope?: ImageUsageScope;
+    retrievedAt?: string;
+  };
 }): Promise<SiteImageRecord> {
   const info = inspectSiteImage(args.bytes, "upload");
   const imageId = `img_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
+  const createdAt = new Date().toISOString();
+  const site = safeSiteId(args.siteId);
+  const provenance = args.provenance ?? {};
+  const license = provenance.license ?? "user-provided";
+  const isUserUpload = license === "user-provided";
   const record: SiteImageRecord = {
     imageId,
-    siteId: safeSiteId(args.siteId),
+    siteId: site,
     workspaceId,
     mime: info.mime,
     byteLength: info.byteLength,
     width: info.width,
     height: info.height,
     originalName: (args.originalName ?? "upload").slice(0, 180),
-    source: "user-upload",
-    license: "user-provided",
-    createdAt: new Date().toISOString(),
+    source: isUserUpload ? "user-upload" : "public-material",
+    sourceUrl: provenance.sourceUrl?.trim() || `user-upload://${workspaceId}/${site}/${imageId}`,
+    license,
+    licenseUrl: provenance.licenseUrl?.trim() || null,
+    author: isUserUpload ? (provenance.author?.trim() || "用户提供") : (provenance.author?.trim() || ""),
+    attribution: isUserUpload ? (provenance.attribution?.trim() || "用户提供；仅当前站点使用") : (provenance.attribution?.trim() || ""),
+    usageScope: provenance.usageScope ?? "current-site-only",
+    retrievedAt: provenance.retrievedAt?.trim() || createdAt,
+    sha256: sha256(args.bytes),
+    createdAt,
   };
+  validateImageProvenance(record);
   await writeAtomic(bytesPath(record.siteId, imageId, info.mime), args.bytes);
   await writeAtomic(metaPath(record.siteId, imageId), JSON.stringify(record, null, 2));
   return record;
@@ -283,14 +350,36 @@ export async function readSiteImage(siteId: string, imageId: string): Promise<{ 
     if (code === "ENOENT") return null;
     throw error;
   }
-  const record = JSON.parse(raw) as SiteImageRecord;
+  const rawRecord = JSON.parse(raw) as Partial<SiteImageRecord> & Pick<SiteImageRecord, "imageId" | "siteId" | "workspaceId" | "mime" | "byteLength" | "width" | "height" | "originalName" | "source" | "license" | "createdAt">;
+  if (!(imageMimeTypes as readonly string[]).includes(rawRecord.mime)) {
+    throw new SiteImageError("forbidden", "图片元数据的 MIME 类型无效");
+  }
+  const bytes = new Uint8Array(await readFile(bytesPath(site, id, rawRecord.mime)));
+  const needsMigration = rawRecord.sourceUrl === undefined
+    || rawRecord.licenseUrl === undefined
+    || rawRecord.author === undefined
+    || rawRecord.attribution === undefined
+    || rawRecord.usageScope === undefined
+    || rawRecord.retrievedAt === undefined
+    || rawRecord.sha256 === undefined;
+  const record: SiteImageRecord = {
+    ...rawRecord,
+    sourceUrl: rawRecord.sourceUrl ?? `user-upload://${workspaceId}/${site}/${id}`,
+    licenseUrl: rawRecord.licenseUrl ?? null,
+    author: rawRecord.author ?? "用户提供",
+    attribution: rawRecord.attribution ?? "用户提供；仅当前站点使用",
+    usageScope: rawRecord.usageScope ?? "current-site-only",
+    retrievedAt: rawRecord.retrievedAt ?? rawRecord.createdAt,
+    sha256: rawRecord.sha256 ?? sha256(bytes),
+  };
   if (record.siteId !== site || record.workspaceId !== workspaceId || record.imageId !== id) {
     throw new SiteImageError("forbidden", "图片不属于当前工作区站点");
   }
-  if (record.license !== "user-provided" || record.source !== "user-upload") {
-    throw new SiteImageError("forbidden", "只能使用用户上传且已声明来源的图片");
+  validateImageProvenance(record);
+  if (record.sha256.toLowerCase() !== sha256(bytes)) {
+    throw new SiteImageError("forbidden", "图片 hash 与文件内容不一致，不能进入客户成品");
   }
-  const bytes = new Uint8Array(await readFile(bytesPath(site, id, record.mime)));
+  if (needsMigration) await writeAtomic(metaPath(site, id), JSON.stringify(record, null, 2));
   return { record, bytes };
 }
 
@@ -320,6 +409,7 @@ export async function deleteImagesForSite(siteId: string) {
 }
 
 export function publicImagePayload(record: SiteImageRecord) {
+  validateImageProvenance(record);
   return {
     imageId: record.imageId,
     siteId: record.siteId,
@@ -330,7 +420,14 @@ export function publicImagePayload(record: SiteImageRecord) {
     byteLength: record.byteLength,
     originalName: record.originalName,
     source: record.source,
+    sourceUrl: record.sourceUrl,
     license: record.license,
+    licenseUrl: record.licenseUrl,
+    author: record.author,
+    attribution: record.attribution,
+    usageScope: record.usageScope,
+    retrievedAt: record.retrievedAt,
+    sha256: record.sha256,
     createdAt: record.createdAt,
   };
 }
