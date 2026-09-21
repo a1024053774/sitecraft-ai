@@ -126,4 +126,7 @@ test("workspace look cards do not present Skill names or internal template ids a
   assert.equal(source.includes("{brief.label}"), true);
   assert.match(source, /data-testid="visual-brief-card"/);
   assert.match(source, /data-brief-id=\{brief\.id\}/);
+  assert.match(source, /palette-swatch-row/);
+  assert.match(source, /paletteSwatchRoles/);
+  assert.match(source, /background.*surface.*text.*muted.*border.*accent.*accentStrong/);
 });

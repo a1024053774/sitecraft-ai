@@ -59,6 +59,9 @@ import {
 import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
+import { templateAdapters } from "@/lib/template-adapters/registry";
+
+const paletteSwatchRoles = ["background", "surface", "text", "muted", "border", "accent", "accentStrong"] as const;
 
 function conversationStorageKey(siteId: string) {
   return `sitecraft-conversation:${siteId}`;
@@ -1055,7 +1058,10 @@ export default function WorkspacePage() {
             <div className="palette-picker" aria-label={`${draft.visualBrief.label}色板`}>
               <div className="palette-picker-head"><span className="eyebrow">Palette</span><strong>同一版式，换一套命名色板</strong></div>
               <div className="palette-picker-grid">
-                {paletteCatalogForVisualBrief(draft.visualBrief.id).map((palette) => (
+                {paletteCatalogForVisualBrief(draft.visualBrief.id).map((palette) => {
+                  const kit = templateAdapters[draft.templateId]?.kit;
+                  const tokens = kit?.palettes?.[palette.id] ?? kit?.tokens;
+                  return (
                   <button
                     className={draft.paletteId === palette.id ? "palette-card selected" : "palette-card"}
                     key={palette.id}
@@ -1063,11 +1069,22 @@ export default function WorkspacePage() {
                     disabled={busy || !draftReady}
                     onClick={() => void selectPalette(palette.id)}
                   >
-                    <span className={`palette-swatch ${palette.id.includes("slate") || palette.id.includes("gray") || palette.id.includes("neutral") ? "slate" : "orange"}`} />
+                    <span className="palette-swatch-row" data-testid="palette-swatch-row" aria-label={`${palette.label}颜色角色`}>
+                      {paletteSwatchRoles.map((role) => (
+                        <span
+                          className="palette-swatch-role"
+                          data-role={role}
+                          key={role}
+                          title={`${role}: ${tokens?.[role] ?? "未定义"}`}
+                          style={{ backgroundColor: tokens?.[role] ?? "transparent" }}
+                        />
+                      ))}
+                    </span>
                     <span><strong>{palette.label}</strong><small>{palette.summary}</small></span>
                     {draft.paletteId === palette.id ? <Check size={13} /> : null}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : null}
