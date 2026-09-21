@@ -36,7 +36,7 @@ import readXlsxFile from "read-excel-file";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import {
   defaultDraft,
-  engineeringPaletteCatalog,
+  paletteCatalogForVisualBrief,
   getTemplate,
   importProductsFromRows,
   normalizeDraft,
@@ -815,8 +815,8 @@ export default function WorkspacePage() {
   };
 
   const selectPalette = async (paletteId: string) => {
-    if (busy || !draftReady || draft.visualBrief.id !== "engineering-industrial") return;
-    const palette = engineeringPaletteCatalog.find((item) => item.id === paletteId);
+    if (busy || !draftReady) return;
+    const palette = paletteCatalogForVisualBrief(draft.visualBrief.id).find((item) => item.id === paletteId);
     if (!palette || draft.paletteId === palette.id) return;
     setBusy(true);
     setBusyText("正在切换色板…");
@@ -1044,11 +1044,11 @@ export default function WorkspacePage() {
               );
             })}
           </div>
-          {draft.visualBrief.id === "engineering-industrial" ? (
-            <div className="palette-picker" aria-label="工程工业色板">
+          {paletteCatalogForVisualBrief(draft.visualBrief.id).length ? (
+            <div className="palette-picker" aria-label={`${draft.visualBrief.label}色板`}>
               <div className="palette-picker-head"><span className="eyebrow">Palette</span><strong>同一版式，换一套命名色板</strong></div>
               <div className="palette-picker-grid">
-                {engineeringPaletteCatalog.map((palette) => (
+                {paletteCatalogForVisualBrief(draft.visualBrief.id).map((palette) => (
                   <button
                     className={draft.paletteId === palette.id ? "palette-card selected" : "palette-card"}
                     key={palette.id}
@@ -1056,7 +1056,7 @@ export default function WorkspacePage() {
                     disabled={busy || !draftReady}
                     onClick={() => void selectPalette(palette.id)}
                   >
-                    <span className={`palette-swatch ${palette.id === "engineering-slate" ? "slate" : "orange"}`} />
+                    <span className={`palette-swatch ${palette.id.includes("slate") || palette.id.includes("gray") || palette.id.includes("neutral") ? "slate" : "orange"}`} />
                     <span><strong>{palette.label}</strong><small>{palette.summary}</small></span>
                     {draft.paletteId === palette.id ? <Check size={13} /> : null}
                   </button>

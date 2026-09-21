@@ -1,6 +1,12 @@
 import type { Metadata } from 'next'
 import './globals.css'
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+} as const;
+
 export const metadata: Metadata = {
   title: 'SiteCraft AI | 企业独立站工作台',
   description: '用自然语言搭建、修改和发布企业独立站。',

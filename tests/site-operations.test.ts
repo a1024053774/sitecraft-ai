@@ -19,7 +19,7 @@ test("v2 drafts missing only visualBrief retain authored content and revision", 
   legacy.hiddenSections = ["features"];
   const restored = normalizeDraft(legacy);
   const { visualBrief: _restoredBrief, ...authored } = restored;
-  assert.deepEqual(authored, legacy);
+  assert.deepEqual(authored, { ...legacy, paletteId: "industrial-white" });
 });
 
 test("switching visual brief keeps authored pack text and only changes the mapped template", () => {

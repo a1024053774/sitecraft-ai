@@ -6,7 +6,7 @@ import { applySiteOperations, siteOperationSchema } from "../lib/site-operations
 import { getTemplateAdapter, templateAdapters } from "../lib/template-adapters/index.ts";
 
 const SNAPSHOTS = {
-  forge: new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url),
+  forge: new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url),
   screwfast: new URL("../lib/template-adapters/overlays/screwfast.index.html", import.meta.url),
   landwind: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
 } as const;
@@ -14,9 +14,10 @@ const SNAPSHOTS = {
 /** Independent HTML probes from the local snapshots. Not copied from adapter data. */
 const UNIQUE_SECTION_PROBES = {
   forge: {
-    services: { kind: "class", tag: "section", classes: ["border-y-8", "border-blue-400"] },
-    features: { kind: "class", tag: "div", classes: ["bg-opacity-30"] },
-    faq: { kind: "id", id: "FAQ" },
+    products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
+    faq: { kind: "attr", attr: "data-sitecraft-section", value: "faq" },
+    contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
   },
   screwfast: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
@@ -25,17 +26,17 @@ const UNIQUE_SECTION_PROBES = {
     contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
   },
   landwind: {
-    solutions: { kind: "attr", attr: "alt", value: "dashboard feature image" },
-    partners: { kind: "class", tag: "h2", classes: ["mt-3", "mb-4"] },
-    faq: { kind: "id", id: "accordion-flush" },
-    contact: { kind: "class", tag: "h2", classes: ["leading-tight"] },
+    products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
+    faq: { kind: "attr", attr: "data-sitecraft-section", value: "faq" },
+    contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
   },
 } as const;
 
 const MISSING_ON_TEMPLATE = {
-  forge: ["products", "contact", "solutions", "process", "partners", "industries", "about"],
+  forge: ["features", "partners", "solutions", "process", "industries", "about"],
   screwfast: ["features", "partners", "solutions", "process", "industries", "about"],
-  landwind: ["products", "services", "features", "process", "industries", "about"],
+  landwind: ["features", "partners", "solutions", "process", "industries", "about"],
 } as const;
 
 function countId(html: string, id: string) {

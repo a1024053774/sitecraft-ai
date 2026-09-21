@@ -3,6 +3,10 @@ import {
   cloneDraft,
   defaultDraft,
   engineeringPaletteCatalog,
+  exportCatalogPaletteCatalog,
+  industrialPaletteCatalog,
+  technicalPaletteCatalog,
+  paletteCatalogForVisualBrief,
   normalizeDraft,
   starterProducts,
   type Device,
@@ -109,3 +113,4 @@ export { cloneDraft, defaultDraft, normalizeDraft, starterProducts };
 export type { Device, EditableCard, Locale, LocalizedText, PagePlan, Product, SectionKey, SiteDraft, SitePage, VisualBrief };
 export { visualBriefCatalog };
 export { engineeringPaletteCatalog };
+export { exportCatalogPaletteCatalog, industrialPaletteCatalog, technicalPaletteCatalog, paletteCatalogForVisualBrief };

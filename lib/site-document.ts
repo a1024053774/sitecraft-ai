@@ -25,13 +25,48 @@ export const visualBriefIds = [
   "technical-product",
   "editorial-service",
 ] as const;
-export const paletteIds = ["default", "engineering-orange", "engineering-slate"] as const;
+export const paletteIds = [
+  "default",
+  "engineering-orange",
+  "engineering-slate",
+  "export-sea",
+  "export-industrial-slate",
+  "industrial-white",
+  "industrial-minimal-gray",
+  "technical-white",
+  "technical-neutral",
+] as const;
 export const paletteIdSchema = z.enum(paletteIds);
 export type PaletteId = z.infer<typeof paletteIdSchema>;
 export const engineeringPaletteCatalog = [
   { id: "engineering-orange" as const, label: "工程橙", summary: "暖橙强调，适合直接推进询盘。" },
   { id: "engineering-slate" as const, label: "工程石墨", summary: "石墨与蓝灰强调，保持工程感并降低暖色比重。" },
 ] as const;
+export const exportCatalogPaletteCatalog = [
+  { id: "export-sea" as const, label: "海运蓝", summary: "清晰蓝白分层，优先目录和询盘。" },
+  { id: "export-industrial-slate" as const, label: "工业灰蓝", summary: "降低饱和度，保留目录层级和工程信号。" },
+] as const;
+export const industrialPaletteCatalog = [
+  { id: "industrial-white" as const, label: "明亮工业", summary: "白底、深墨和冷蓝强调，产品优先。" },
+  { id: "industrial-minimal-gray" as const, label: "极简冷灰", summary: "冷灰底色和深墨文字，产品优先。" },
+] as const;
+export const technicalPaletteCatalog = [
+  { id: "technical-white" as const, label: "短路径白", summary: "白底和清晰层级，先让访客看懂下一步。" },
+  { id: "technical-neutral" as const, label: "短路径石墨", summary: "石墨文字配克制蓝色行动按钮，压缩询盘路径。" },
+] as const;
+export const paletteCatalogByVisualBrief = {
+  industrial: industrialPaletteCatalog,
+  "engineering-industrial": engineeringPaletteCatalog,
+  "export-catalog": exportCatalogPaletteCatalog,
+  "technical-product": technicalPaletteCatalog,
+  "editorial-service": [],
+} as const;
+export function paletteCatalogForVisualBrief(briefId: (typeof visualBriefIds)[number]) {
+  return paletteCatalogByVisualBrief[briefId];
+}
+export function defaultPaletteIdForVisualBrief(briefId: (typeof visualBriefIds)[number]) {
+  return paletteCatalogForVisualBrief(briefId)[0]?.id ?? "default";
+}
 export const visualBriefSchema = z.object({
   version: z.literal(1),
   id: z.enum(visualBriefIds),
@@ -278,7 +313,7 @@ export const defaultDraft: SiteDraft = {
   companyName: "Forge Industrial",
   templateId: "forge",
   visualBrief: structuredClone(visualBriefCatalog[0]),
-  paletteId: "default",
+  paletteId: "industrial-white",
   locale: "zh",
   revision: 1,
   lastChange: "草稿已保存",
@@ -366,8 +401,9 @@ function hydrateVisualBrief(brief: VisualBrief): VisualBrief {
 }
 
 function hydratePaletteId(draft: SiteDraft): SiteDraft {
-  if (draft.visualBrief.id === "engineering-industrial" && draft.paletteId === "default") {
-    return { ...draft, paletteId: "engineering-orange" };
+  if (draft.paletteId === "default") {
+    const next = defaultPaletteIdForVisualBrief(draft.visualBrief.id);
+    if (next !== "default") return { ...draft, paletteId: next };
   }
   return draft;
 }

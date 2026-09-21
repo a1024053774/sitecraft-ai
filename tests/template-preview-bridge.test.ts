@@ -609,25 +609,24 @@ test("local snapshot script stripping removes upstream scripts only", () => {
 function createLandwindFragment() {
   const { document } = createDocument();
   const brand = createNode("span");
-  brand.className = "self-center text-xl font-semibold whitespace-nowrap dark:text-white";
-  brand.textContent = "Landwind";
+  brand.setAttribute("data-sitecraft-brand-name", "nav");
+  brand.textContent = "企业目录";
   const title = createNode("h1");
-  title.className = "max-w-2xl mb-4 text-4xl font-extrabold leading-none tracking-tight md:text-5xl xl:text-6xl dark:text-white";
-  title.textContent = "Building digital products & brands.";
+  title.setAttribute("data-sitecraft-benchmark", "hero-title");
+  title.textContent = "把目录、规格与询盘放在同一条路径";
   const subtitle = createNode("p");
-  subtitle.className = "max-w-2xl mb-6 font-light text-gray-500 lg:mb-8 md:text-lg lg:text-xl dark:text-gray-400";
-  subtitle.textContent = "This free and open-source landing page template was built using the utility classes from Tailwind CSS.";
+  subtitle.setAttribute("data-sitecraft-benchmark", "hero-subtitle");
+  subtitle.textContent = "围绕产品类别、规格和批量需求，把一次询盘说清楚。";
   const cta = createNode("a");
-  cta.className = "inline-flex items-center justify-center w-full px-5 py-3 text-sm font-medium text-center text-gray-900 border border-gray-200 rounded-lg sm:w-auto";
-  cta.setAttribute("href", "https://github.com/themesberg/landwind");
-  cta.textContent = "View on GitHub";
+  cta.setAttribute("data-sitecraft-benchmark", "hero-cta");
+  cta.setAttribute("href", "#contact");
+  cta.textContent = "获取产品目录";
   const figma = createNode("a");
   figma.className = "inline-flex items-center justify-center w-full px-5 py-3 mb-2 mr-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg sm:w-auto";
   figma.textContent = "Get Figma file";
   figma.setAttribute("data-sitecraft-demo", "figma");
   const undeclared = createNode("h2");
-  undeclared.className = "mb-4 text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white";
-  undeclared.textContent = "Work with tools you already use";
+  undeclared.textContent = "未选用的标题";
   document.body.appendChild(brand);
   document.body.appendChild(title);
   document.body.appendChild(subtitle);
@@ -668,18 +667,22 @@ function landwindSample(id: "A17" | "B84") {
 function createForgeFragment() {
   const { document } = createDocument();
   const logo = createNode("h1");
-  logo.className = "font-bold";
-  logo.textContent = "LOGO";
+  logo.setAttribute("data-sitecraft-brand-name", "nav");
+  logo.textContent = "明亮产品";
   const hero = createNode("h1");
-  hero.setAttribute("data-testid", "hero-text");
-  hero.textContent = "Main Keywords";
+  hero.setAttribute("data-sitecraft-benchmark", "hero-title");
+  hero.textContent = "先看清产品，再决定下一步";
   const subtitle = createNode("h2");
-  subtitle.setAttribute("data-testid", "intro-text");
-  subtitle.textContent = "brief description of services";
+  subtitle.setAttribute("data-sitecraft-benchmark", "hero-subtitle");
+  subtitle.textContent = "把已确认的产品能力、适用范围和询盘入口放在一页里。";
+  const cta = createNode("a");
+  cta.setAttribute("data-sitecraft-benchmark", "hero-cta");
+  cta.textContent = "查看产品能力";
   document.body.appendChild(logo);
   document.body.appendChild(hero);
   document.body.appendChild(subtitle);
-  return { document, nodes: { logo, hero, subtitle } };
+  document.body.appendChild(cta);
+  return { document, nodes: { logo, hero, subtitle, cta } };
 }
 
 function authoredCompareDraft(id: "A17" | "B84") {
@@ -709,7 +712,7 @@ test("landwind first-screen slots follow two independent samples and leave undec
   assert.equal(nodes.figma.textContent, "Get Figma file");
   assert.equal(nodes.figma.hidden, true);
   assert.equal(visibleText(nodes.figma), "");
-  assert.equal(nodes.undeclared.textContent, "Work with tools you already use");
+  assert.equal(nodes.undeclared.textContent, "未选用的标题");
   assert.equal(nodes.title.textContent.includes("Building digital"), false);
   assert.ok(firstReport.appliedSlots.includes("hero.title.zh"));
   assert.ok(firstReport.missingSlots.includes("contact.email.zh"));
@@ -721,7 +724,7 @@ test("landwind first-screen slots follow two independent samples and leave undec
   assert.equal(nodes.title.textContent, second.sample.title);
   assert.equal(nodes.subtitle.textContent, second.sample.subtitle);
   assert.equal(nodes.cta.textContent, second.sample.cta);
-  assert.equal(nodes.undeclared.textContent, "Work with tools you already use");
+  assert.equal(nodes.undeclared.textContent, "未选用的标题");
   assert.equal(nodes.title.textContent === first.sample.title, false);
   assert.ok(secondReport.appliedSlots.includes("hero.title.zh"));
   assert.ok(secondReport.missingSlots.includes("contact.email.zh"));
@@ -749,18 +752,17 @@ test("the same authored pack lands on forge and landwind with different chrome",
   const landwindReport = landwindApi.applyDeclaredContent(landwindA.draft, "zh", expected, "workspace");
   assert.equal(forge.nodes.hero.textContent, THEME_COMPARE_PACKS.A17.title);
   assert.equal(forge.nodes.subtitle.textContent, THEME_COMPARE_PACKS.A17.subtitle);
-  assert.equal(forge.nodes.logo.textContent, "LOGO");
-  assert.equal(forge.nodes.hero.getAttribute("data-testid"), "hero-text");
+  assert.equal(forge.nodes.logo.textContent, THEME_COMPARE_PACKS.A17.companyName);
+  assert.equal(forge.nodes.hero.getAttribute("data-sitecraft-benchmark"), "hero-title");
   assert.equal(landwind.nodes.brand.textContent, THEME_COMPARE_PACKS.A17.companyName);
   assert.equal(landwind.nodes.title.textContent, THEME_COMPARE_PACKS.A17.title);
   assert.equal(landwind.nodes.subtitle.textContent, THEME_COMPARE_PACKS.A17.subtitle);
   assert.equal(landwind.nodes.cta.textContent, THEME_COMPARE_PACKS.A17.cta);
-  assert.equal(landwind.nodes.undeclared.textContent, "Work with tools you already use");
-  assert.ok(landwind.nodes.title.className.includes("max-w-2xl"));
+  assert.equal(landwind.nodes.undeclared.textContent, "未选用的标题");
   assert.equal(forge.nodes.hero.textContent, landwind.nodes.title.textContent);
   assert.ok(forgeReport.appliedSlots.includes("hero.title.zh"));
-  assert.ok(forgeReport.missingSlots.includes("companyName.zh"));
-  assert.ok(forgeReport.missingSlots.includes("hero.cta.zh"));
+  assert.ok(forgeReport.appliedSlots.includes("companyName.zh"));
+  assert.ok(forgeReport.appliedSlots.includes("hero.cta.zh"));
   assert.ok(landwindReport.appliedSlots.includes("companyName.zh"));
   assert.ok(landwindReport.appliedSlots.includes("hero.cta.zh"));
   assert.ok(forgeReport.missingSlots.includes("contact.email.zh"));
@@ -775,8 +777,8 @@ test("the same authored pack lands on forge and landwind with different chrome",
   assert.equal(landwind.nodes.title.textContent, THEME_COMPARE_PACKS.B84.title);
   assert.equal(forge.nodes.hero.textContent === THEME_COMPARE_PACKS.A17.title, false);
   assert.equal(landwind.nodes.brand.textContent, THEME_COMPARE_PACKS.B84.companyName);
-  assert.equal(forge.nodes.logo.textContent, "LOGO");
-  assert.equal(landwind.nodes.undeclared.textContent, "Work with tools you already use");
+  assert.equal(forge.nodes.logo.textContent, THEME_COMPARE_PACKS.B84.companyName);
+  assert.equal(landwind.nodes.undeclared.textContent, "未选用的标题");
 });
 
 function visibilityDraft(hiddenSections: string[] = []) {
@@ -789,19 +791,22 @@ function visibilityDraft(hiddenSections: string[] = []) {
 function createFamilyFragments() {
   const forge = createForgeFragment();
   const faq = createNode("div");
-  faq.id = "FAQ";
+  faq.setAttribute("data-sitecraft-section", "faq");
   faq.textContent = "Frequently Asked Questions";
   const services = createNode("section");
-  services.className = "mx-auto mt-60 flex max-w-[80%] border-y-8 border-blue-400";
+  services.setAttribute("data-sitecraft-section", "services");
   services.textContent = "Services";
   const why = createNode("section");
+  why.setAttribute("data-sitecraft-section", "products");
   const whyInner = createNode("div");
-  whyInner.className = "flex h-full bg-black bg-opacity-30";
-  whyInner.textContent = "Suggest Confidence In Your Company";
+  whyInner.textContent = "Products";
   why.appendChild(whyInner);
   forge.document.body.appendChild(faq);
   forge.document.body.appendChild(services);
   forge.document.body.appendChild(why);
+  const forgeContact = createNode("section");
+  forgeContact.setAttribute("data-sitecraft-section", "contact");
+  forge.document.body.appendChild(forgeContact);
 
   const landwind = createLandwindFragment();
   const solutions = createNode("section");
@@ -822,6 +827,7 @@ function createFamilyFragments() {
   accordion.textContent = "Frequently asked questions";
   faqSection.appendChild(accordion);
   const inquiry = createNode("section");
+  inquiry.setAttribute("data-sitecraft-section", "contact");
   const trial = createNode("h2");
   trial.className = "mb-4 text-3xl font-extrabold leading-tight";
   trial.textContent = "Start your free trial today";
@@ -834,6 +840,15 @@ function createFamilyFragments() {
   landwind.document.body.appendChild(faqSection);
   landwind.document.body.appendChild(inquiry);
   landwind.document.body.appendChild(pricing);
+  const landwindProducts = createNode("section");
+  landwindProducts.setAttribute("data-sitecraft-section", "products");
+  const landwindServices = createNode("section");
+  landwindServices.setAttribute("data-sitecraft-section", "services");
+  const landwindFaq = createNode("section");
+  landwindFaq.setAttribute("data-sitecraft-section", "faq");
+  landwind.document.body.appendChild(landwindProducts);
+  landwind.document.body.appendChild(landwindServices);
+  landwind.document.body.appendChild(landwindFaq);
 
   const screwfast = createDocument();
   const productsSection = createNode("section");
@@ -854,8 +869,8 @@ function createFamilyFragments() {
   screwfast.document.body.appendChild(cta);
 
   return {
-    forge: { ...forge, faq, services, why, whyInner },
-    landwind: { ...landwind, solutions, partners, faqSection, inquiry, pricing, trusted },
+    forge: { ...forge, faq, services, why, whyInner, forgeContact },
+    landwind: { ...landwind, solutions, partners, faqSection, inquiry, pricing, trusted, landwindProducts, landwindServices, landwindFaq },
     screwfast: {
       document: screwfast.document,
       productsSection,
@@ -902,25 +917,29 @@ test("declared family modules hide and show after set_section_visibility and und
   const forgeReport = forgeApi.applyDeclaredContent(hidden, "zh", expected, "workspace");
   assert.equal(fragments.forge.faq.hidden, true);
   assert.equal(fragments.forge.services.hidden, true);
-  assert.equal(fragments.forge.why.hidden, true);
-  assert.equal(fragments.forge.nodes.logo.textContent, "LOGO");
+  assert.equal(fragments.forge.why.hidden, false);
+  assert.equal(fragments.forge.nodes.logo.textContent, "Forge Industrial");
   assert.equal(fragments.forge.nodes.logo.hidden, false);
   assert.ok(forgeReport.appliedSlots.includes("faq.visibility"));
   assert.ok(forgeReport.appliedSlots.includes("services.visibility"));
-  assert.ok(forgeReport.appliedSlots.includes("features.visibility"));
+  assert.ok(forgeReport.appliedSlots.includes("products.visibility"));
   assert.ok(forgeReport.missingSlots.includes("industries.visibility"));
-  assert.ok(forgeReport.missingSlots.includes("products.visibility"));
-  assert.ok(forgeReport.missingSlots.includes("contact.visibility"));
+  assert.equal(forgeReport.missingSlots.includes("features.visibility"), true);
+  assert.equal(forgeReport.missingSlots.includes("contact.visibility"), false);
   assert.deepEqual(forgeReport.fallbackMatched, []);
 
   const landwindReport = landwindApi.applyDeclaredContent(hidden, "zh", expected, "workspace");
-  assert.equal(fragments.landwind.faqSection.hidden, true);
-  assert.equal(fragments.landwind.solutions.hidden, true);
-  assert.equal(fragments.landwind.partners.hidden, true);
+  assert.equal(fragments.landwind.faqSection.hidden, false);
+  assert.equal(fragments.landwind.landwindFaq.hidden, true);
+  assert.equal(fragments.landwind.solutions.hidden, false);
+  assert.equal(fragments.landwind.partners.hidden, false);
   assert.equal(fragments.landwind.inquiry.hidden, true);
+  assert.equal(fragments.landwind.landwindProducts.hidden, false);
+  assert.equal(fragments.landwind.landwindServices.hidden, true);
+  assert.equal(fragments.landwind.landwindFaq.hidden, true);
   assert.equal(fragments.landwind.pricing.hidden, true);
   assert.equal(fragments.landwind.pricing.textContent, "Designed for business teams like yours");
-  assert.equal(fragments.landwind.nodes.undeclared.textContent, "Work with tools you already use");
+  assert.equal(fragments.landwind.nodes.undeclared.textContent, "未选用的标题");
   assert.ok(landwindReport.appliedSlots.includes("faq.visibility"));
   assert.ok(landwindReport.missingSlots.includes("features.visibility"));
   assert.ok(landwindReport.missingSlots.includes("industries.visibility"));
@@ -980,41 +999,35 @@ function authoredLookDraft(id: "K07" | "M52", briefId: "technical-product" | "ed
 function createTailwindLandingFragment() {
   const { document } = createDocument();
   const hero = createNode("div");
-  hero.className = "pt-24";
-  const kicker = createNode("p");
-  kicker.className = "uppercase tracking-loose w-full";
-  kicker.textContent = "What business are you?";
   const title = createNode("h1");
-  title.className = "my-4 text-5xl font-bold leading-tight";
-  title.textContent = "Main Hero Message to sell yourself!";
+  title.setAttribute("data-sitecraft-benchmark", "hero-title");
+  title.textContent = "用最短路径，把产品和询盘说清楚";
   const subtitle = createNode("p");
-  subtitle.className = "leading-normal text-2xl mb-8";
-  subtitle.textContent = "Sub-hero message, not too long and not too short. Make it just right!";
+  subtitle.setAttribute("data-sitecraft-benchmark", "hero-subtitle");
+  subtitle.textContent = "灰底、产品、下一步。先让访客判断是否值得继续。";
   const cta = createNode("button");
-  cta.className = "mx-auto lg:mx-0 hover:underline bg-white text-gray-800 font-bold rounded-full my-6 py-4 px-8 shadow-lg";
-  cta.textContent = "Subscribe";
-  hero.appendChild(kicker);
+  cta.setAttribute("data-sitecraft-benchmark", "hero-cta");
+  cta.textContent = "快速了解产品";
   hero.appendChild(title);
   hero.appendChild(subtitle);
   hero.appendChild(cta);
   const brand = createNode("a");
-  brand.className = "toggleColour text-white no-underline hover:no-underline font-bold text-2xl";
-  brand.textContent = "LANDING";
+  brand.setAttribute("data-sitecraft-brand-name", "nav");
+  brand.textContent = "短路径产品";
   const undeclared = createNode("h2");
   undeclared.className = "w-full my-2 text-5xl font-bold leading-tight text-center text-gray-800";
   undeclared.textContent = "Title";
   const footerCta = createNode("button");
-  footerCta.className = "mx-auto lg:mx-0 hover:underline bg-white text-gray-800 font-bold rounded-full my-6 py-4 px-8 shadow-lg";
-  footerCta.textContent = "Action!";
+  footerCta.textContent = "未选用按钮";
   const echo = createNode("h3");
   echo.className = "my-4 text-3xl leading-tight";
-  echo.textContent = "Main Hero Message to sell yourself!";
+  echo.textContent = "未选用文案";
   document.body.appendChild(brand);
   document.body.appendChild(hero);
   document.body.appendChild(undeclared);
   document.body.appendChild(echo);
   document.body.appendChild(footerCta);
-  return { document, nodes: { brand, kicker, title, subtitle, cta, undeclared, echo, footerCta } };
+  return { document, nodes: { brand, title, subtitle, cta, undeclared, echo, footerCta } };
 }
 
 function createFreshFragment() {
@@ -1067,17 +1080,15 @@ test("tailwind-landing and fresh first-screen slots follow two independent packs
     assert.equal(nodes.title.textContent, LOOK_FIRST_SCREEN_PACKS.K07.title);
     assert.equal(nodes.subtitle.textContent, LOOK_FIRST_SCREEN_PACKS.K07.subtitle);
     assert.equal(nodes.cta.textContent, LOOK_FIRST_SCREEN_PACKS.K07.cta);
-    if ("kicker" in nodes) assert.equal(nodes.kicker.textContent, "What business are you?");
-    if ("brand" in nodes) assert.equal(nodes.brand.textContent, "LANDING");
-    if ("footerCta" in nodes) assert.equal(nodes.footerCta.textContent, "Action!");
-    if ("echo" in nodes) assert.equal(nodes.echo.textContent, "Main Hero Message to sell yourself!");
-    if ("discover" in nodes) assert.equal(nodes.discover.textContent, " Discover");
+    if ("brand" in nodes) assert.equal(nodes.brand.textContent, LOOK_FIRST_SCREEN_PACKS.K07.companyName);
+    if ("footerCta" in nodes) assert.equal(nodes.footerCta.textContent, "未选用按钮");
     if ("signup" in nodes) assert.equal(nodes.signup.textContent, " Sign up ");
     assert.equal(nodes.undeclared.textContent === LOOK_FIRST_SCREEN_PACKS.K07.title, false);
     assert.ok(firstReport.appliedSlots.includes("hero.title.zh"));
     assert.ok(firstReport.appliedSlots.includes("hero.subtitle.zh"));
     assert.ok(firstReport.appliedSlots.includes("hero.cta.zh"));
-    assert.ok(firstReport.missingSlots.includes("companyName.zh"));
+    if (item.templateId === "tailwind-landing") assert.ok(firstReport.appliedSlots.includes("companyName.zh"));
+    else assert.ok(firstReport.missingSlots.includes("companyName.zh"));
     assert.ok(firstReport.missingSlots.includes("contact.email.zh"));
     assert.deepEqual(firstReport.fallbackMatched, []);
     assert.deepEqual(firstReport.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
@@ -1087,16 +1098,15 @@ test("tailwind-landing and fresh first-screen slots follow two independent packs
     assert.equal(nodes.subtitle.textContent, LOOK_FIRST_SCREEN_PACKS.M52.subtitle);
     assert.equal(nodes.cta.textContent, LOOK_FIRST_SCREEN_PACKS.M52.cta);
     assert.equal(nodes.title.textContent === LOOK_FIRST_SCREEN_PACKS.K07.title, false);
-    if ("kicker" in nodes) assert.equal(nodes.kicker.textContent, "What business are you?");
-    if ("brand" in nodes) assert.equal(nodes.brand.textContent, "LANDING");
-    if ("footerCta" in nodes) assert.equal(nodes.footerCta.textContent, "Action!");
-    if ("discover" in nodes) assert.equal(nodes.discover.textContent, " Discover");
+    if ("brand" in nodes) assert.equal(nodes.brand.textContent, LOOK_FIRST_SCREEN_PACKS.M52.companyName);
+    if ("footerCta" in nodes) assert.equal(nodes.footerCta.textContent, "未选用按钮");
     if ("undeclared" in nodes) {
       assert.equal(nodes.undeclared.textContent.includes("K07"), false);
       assert.equal(nodes.undeclared.textContent.includes("M52"), false);
     }
     assert.ok(secondReport.appliedSlots.includes("hero.cta.zh"));
-    assert.ok(secondReport.missingSlots.includes("companyName.zh"));
+    if (item.templateId === "tailwind-landing") assert.ok(secondReport.appliedSlots.includes("companyName.zh"));
+    else assert.ok(secondReport.missingSlots.includes("companyName.zh"));
     assert.ok(secondReport.missingSlots.includes("contact.email.zh"));
     assert.deepEqual(secondReport.fallbackMatched, []);
   }
@@ -1116,7 +1126,7 @@ test("undeclared hide requests do not rewrite snapshot chrome", () => {
     "industries.visibility",
     "hero.title.zh",
   ], "workspace");
-  assert.equal(nodes.undeclared.textContent, "Work with tools you already use");
+  assert.equal(nodes.undeclared.textContent, "未选用的标题");
   assert.equal(nodes.title.textContent, "NEW_HERO_ZH");
   assert.equal(pricing.hidden, false);
   assert.equal(pricing.textContent, "Designed for business teams like yours");

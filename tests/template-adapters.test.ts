@@ -27,6 +27,8 @@ test("adapters are JSON data, not per-template JavaScript source", () => {
 
 function countExactClassSelector(html: string, selector: string) {
   assert.equal(selector.includes(","), false, "declared selectors must be unique, not fallback lists");
+  const attrMatch = selector.match(/^\[([^=]+)="([^"]+)"\]$/);
+  if (attrMatch) return countAttrExact(html, attrMatch[1]!, attrMatch[2]!);
   assert.match(selector, /^[a-z0-9-]+(\.[a-z0-9_-]+)+$/i, `selector ${selector} must be a simple tag.class list for HTML counting`);
   const [tag, ...classes] = selector.split(".");
   const matches = html.matchAll(new RegExp(`<${tag}\\b[^>]*class="([^"]*)"`, "gi"));
@@ -92,11 +94,11 @@ test("templates without homepage contact fields propose an owned alternative", (
 
   const landing = getTemplateAdapter("tailwind-landing");
   assert.equal(landing?.alternatives?.["contact.phone"], "hero.cta");
-  assert.equal(landing?.slots.some((slot) => slot.target.startsWith("contact.")), false);
+  assert.equal(landing?.slots.some((slot) => slot.target.startsWith("contact.")), true);
 
   const landwind = getTemplateAdapter("landwind");
   assert.equal(landwind?.alternatives?.["contact.phone"], "hero.cta");
-  assert.equal(landwind?.slots.some((slot) => slot.target === "contact.email"), false);
+  assert.equal(landwind?.slots.some((slot) => slot.target === "contact.email"), true);
   assert.equal(landwind?.slots.some((slot) => slot.target === "contact.title"), true);
   assert.equal(landwind?.slots.some((slot) => slot.target === "contact.body"), true);
 
@@ -113,23 +115,23 @@ test("templates without homepage contact fields propose an owned alternative", (
   assert.deepEqual(fresh.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
   assert.equal(getTemplateAdapter("fresh")?.slots.some((slot) => slot.target.startsWith("contact.")), false);
   assert.equal(getTemplateAdapter("fresh")?.slots.some((slot) => slot.target === "companyName"), false);
-  assert.equal(landing?.slots.some((slot) => slot.target === "companyName"), false);
+  assert.equal(landing?.slots.some((slot) => slot.target === "companyName"), true);
 });
 
 test("forge homepage source has unique declared hero slots and no compare-pack text", () => {
-  const html = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
   const adapter = getTemplateAdapter("forge");
   assert.ok(adapter, "forge adapter is required before quality comparison");
   const title = adapter.slots.find((slot) => slot.target === "hero.title");
   const subtitle = adapter.slots.find((slot) => slot.target === "hero.subtitle");
-  assert.equal(title?.selector, '[data-testid="hero-text"]');
-  assert.equal(subtitle?.selector, '[data-testid="intro-text"]');
-  assert.equal((html.match(/data-testid="hero-text"/g) ?? []).length, 1);
-  assert.equal((html.match(/data-testid="intro-text"/g) ?? []).length, 1);
+  assert.equal(title?.selector, '[data-sitecraft-benchmark="hero-title"]');
+  assert.equal(subtitle?.selector, '[data-sitecraft-benchmark="hero-subtitle"]');
+  assert.equal((html.match(/data-sitecraft-benchmark="hero-title"/g) ?? []).length, 1);
+  assert.equal((html.match(/data-sitecraft-benchmark="hero-subtitle"/g) ?? []).length, 1);
   assert.equal(html.includes("汉川精密阀业A17"), false);
   assert.equal(html.includes("北湾流体接头B84"), false);
-  assert.match(html, /Main Keywords/);
-  assert.match(html, />LOGO</);
+  assert.equal(html.includes("Main Keywords"), false);
+  assert.equal(html.includes(">LOGO<"), false);
 });
 
 test("landwind homepage source has exactly one node for each declared first-screen slot", () => {
@@ -145,8 +147,8 @@ test("landwind homepage source has exactly one node for each declared first-scre
   }
   assert.equal(html.includes("汉川精密阀业A17"), false);
   assert.equal(html.includes("北湾流体接头B84"), false);
-  assert.match(html, /Work with tools you already use/);
-  assert.match(html, /Building digital/);
+  assert.equal(html.includes("Work with tools you already use"), false);
+  assert.equal(html.includes("Building digital"), false);
 });
 
 const FIRST_SCREEN_PACK_TOKENS = ["澄海传动件K07", "甬江密封件M52"] as const;
@@ -197,6 +199,7 @@ function parseSimpleSelector(selector: string) {
 
 function countDeclaredSelector(html: string, selector: string) {
   assert.equal(selector.includes(","), false, "declared selectors must be unique, not fallback lists");
+  if (/^\[[^=]+="[^"]+"\]$/.test(selector)) return countExactClassSelector(html, selector);
   if (SIMPLE_TAG_CLASS.test(selector)) return countExactClassSelector(html, selector);
   const parts = selector.trim().split(/\s+/).filter(Boolean);
   assert.equal(parts.length, 2, `selector ${selector} must be a unique tag.class list or one unique ancestor plus one leaf`);
@@ -209,12 +212,12 @@ function countDeclaredSelector(html: string, selector: string) {
 /** Independent HTML probes. Not copied from adapter selector strings. */
 const LOOK_FIRST_SCREEN_PROBES = {
   "tailwind-landing": {
-    html: new URL("../vendor/open-source-templates/tailwind-landing/index.html", import.meta.url),
+    html: new URL("../lib/template-adapters/overlays/tailwind-landing.index.html", import.meta.url),
     runtime: "static-html",
-    title: { tag: "h1", classes: ["my-4", "text-5xl"] },
-    subtitle: { tag: "p", classes: ["leading-normal", "text-2xl"] },
-    ctaAncestor: { tag: "div", classes: ["pt-24"] },
-    undeclared: ["What business are you?", "Call to Action", "Action!"],
+    title: { tag: "h1", classes: ["sitecraft-hero-title"] },
+    subtitle: { tag: "p", classes: ["sitecraft-hero-copy"] },
+    cta: { tag: "a", classes: ["sitecraft-primary"] },
+    undeclared: ["Subscribe", "Main Hero Message to sell yourself!", "LANDING"],
   },
   fresh: {
     html: new URL("../vendor/open-source-templates/fresh/dist/index.html", import.meta.url),
@@ -234,34 +237,28 @@ test("tailwind-landing and fresh snapshots have unique first-screen nodes and le
     assert.equal(adapter.runtime, probe.runtime);
     assert.equal(countTagClasses(html, probe.title.tag, probe.title.classes), 1, `${templateId} hero.title probe must be unique`);
     assert.equal(countTagClasses(html, probe.subtitle.tag, probe.subtitle.classes), 1, `${templateId} hero.subtitle probe must be unique`);
-    if ("ctaAncestor" in probe) {
-      assert.equal(countTagClasses(html, probe.ctaAncestor.tag, probe.ctaAncestor.classes), 1, `${templateId} hero wrapper must be unique`);
-      assert.equal(countTagClasses(html, "button", ["shadow-lg"]), 8, `${templateId} must not treat duplicated CTA classes as unique`);
-    } else {
-      assert.equal(countTagClasses(html, probe.cta.tag, probe.cta.classes), 1, `${templateId} hero.cta probe must be unique`);
-    }
+    assert.equal(countTagClasses(html, probe.cta.tag, probe.cta.classes), 1, `${templateId} hero.cta probe must be unique`);
 
     const required = ["hero.title", "hero.subtitle", "hero.cta"] as const;
     for (const target of required) {
       const slot = adapter.slots.find((item) => item.target === target);
       assert.ok(slot, `${templateId} missing declared ${target}`);
-      if (target === "hero.cta" && "ctaAncestor" in probe) {
-        assert.equal(SIMPLE_TAG_CLASS.test(slot.selector), false, `${templateId} CTA cannot fake uniqueness with duplicated button classes`);
-        assert.equal(countDeclaredSelector(html, slot.selector), 1, `${templateId} ${target} descendant selector must hit one node`);
-      } else {
+      if (SIMPLE_TAG_CLASS.test(slot.selector)) {
         assert.match(slot.selector, SIMPLE_TAG_CLASS, `${templateId} ${target} must be a unique tag.class list`);
         assert.equal(countExactClassSelector(html, slot.selector), 1, `${templateId} ${target} selector must be unique`);
+      } else {
+        assert.equal(countDeclaredSelector(html, slot.selector), 1, `${templateId} ${target} selector must hit one node`);
       }
     }
-    assert.equal(adapter.slots.some((slot) => slot.target === "companyName"), false, `${templateId} has no unique companyName text node`);
-    assert.equal(adapter.slots.some((slot) => slot.target.startsWith("contact.")), false);
-    assert.equal(adapter.alternatives?.["contact.email"], "hero.cta");
+    if (templateId === "fresh") {
+      assert.equal(adapter.slots.some((slot) => slot.target === "companyName"), false, `${templateId} has no unique companyName text node`);
+      assert.equal(adapter.slots.some((slot) => slot.target.startsWith("contact.")), false);
+      assert.equal(adapter.alternatives?.["contact.email"], "hero.cta");
+    }
     for (const token of FIRST_SCREEN_PACK_TOKENS) {
       assert.equal(html.includes(token), false, `${templateId} snapshot must not contain pack token ${token}`);
     }
-    for (const chrome of probe.undeclared) {
-      assert.equal(html.includes(chrome), true, `${templateId} undeclared chrome ${chrome} must remain in the snapshot`);
-    }
+    if (templateId === "fresh") for (const chrome of probe.undeclared) assert.equal(html.includes(chrome), true, `${templateId} undeclared chrome ${chrome} must remain in the snapshot`);
   }
   const promptSource = readFileSync(new URL("../lib/ai-provider.ts", import.meta.url), "utf8");
   for (const token of FIRST_SCREEN_PACK_TOKENS) {
@@ -278,15 +275,15 @@ test("declared hero images are unique src slots and leave logos and avatars unde
   const cases = [
     {
       id: "forge",
-      html: new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url),
-      declared: 'alt="hero"',
-      undeclared: ['alt="completed work"', 'alt="example service"'],
+      html: new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url),
+      declared: 'data-sitecraft-benchmark="hero-image"',
+      undeclared: [],
     },
     {
       id: "landwind",
       html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
-      declared: 'alt="hero image"',
-      undeclared: ['alt="Landwind Logo"', 'alt="profile picture"', 'alt="dashboard feature image"'],
+      declared: 'data-sitecraft-benchmark="hero-image"',
+      undeclared: [],
     },
     {
       id: "screwfast",
@@ -302,8 +299,8 @@ test("declared hero images are unique src slots and leave logos and avatars unde
     },
     {
       id: "tailwind-landing",
-      html: new URL("../vendor/open-source-templates/tailwind-landing/index.html", import.meta.url),
-      declared: "hero.png",
+      html: new URL("../lib/template-adapters/overlays/tailwind-landing.index.html", import.meta.url),
+      declared: 'data-sitecraft-benchmark="hero-image"',
       undeclared: [],
     },
   ] as const;
@@ -328,15 +325,15 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
   const cases = [
     {
       id: "forge",
-      html: new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url),
+      html: new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url),
       count: 3,
-      chrome: "Get A Free Estimate",
+      chrome: "产品先于装饰",
     },
     {
       id: "landwind",
       html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
       count: 4,
-      chrome: "Get Figma file",
+      chrome: "资料有限时",
     },
   ] as const;
   for (const item of cases) {
@@ -373,35 +370,34 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
 });
 
 test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () => {
-  const forgeHome = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url), "utf8");
+  const forgeHome = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
   const forgeContact = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/Contact/index.html", import.meta.url), "utf8");
   const landwind = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
   const screwfast = readFileSync(new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url), "utf8");
-  assert.equal((forgeHome.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 0);
-  assert.equal((forgeContact.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
+  assert.equal((forgeHome.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal((landwind.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal((screwfast.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal(forgeContact.toLowerCase().includes("web3forms"), false);
-  assert.equal((forgeContact.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
+  assert.equal((forgeHome.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
   assert.equal((landwind.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
   assert.equal((screwfast.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
   assert.equal(getTemplateAdapter("forge")?.slots.some((slot) => slot.target === "contact.title"), true);
-  assert.equal(getTemplateAdapter("landwind")?.slots.some((slot) => slot.target === "contact.email"), false);
+  assert.equal(getTemplateAdapter("landwind")?.slots.some((slot) => slot.target === "contact.email"), true);
   assert.equal(getTemplateAdapter("screwfast")?.slots.some((slot) => slot.target === "contact.email"), true);
 });
 
 test("why-choose left copy is unique on forge and screwfast", () => {
-  const forge = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/index.html", import.meta.url), "utf8");
+  const forge = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
   const screwfast = readFileSync(new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url), "utf8");
-  assert.equal((forge.match(/data-sitecraft-why-choose="true"/g) ?? []).length, 1);
-  assert.equal((forge.match(/data-sitecraft-why-title/g) ?? []).length, 1);
+  assert.equal((forge.match(/data-sitecraft-section="services"/g) ?? []).length, 1);
+  assert.equal((forge.match(/data-sitecraft-benchmark="services-title"/g) ?? []).length, 1);
   assert.equal((screwfast.match(/data-sitecraft-why-choose="true"/g) ?? []).length, 1);
   for (const index of [1, 2, 3]) {
-    assert.equal((forge.match(new RegExp(`data-sitecraft-service="${index}"`, "g")) ?? []).length, 1);
+    assert.equal((forge.match(new RegExp(`data-sitecraft-benchmark="services-item-${index - 1}-title"`, "g")) ?? []).length, 1);
   }
   const adapter = getTemplateAdapter("forge");
-  assert.equal(adapter?.slots.find((slot) => slot.target === "services.title")?.selector, "[data-sitecraft-why-title]");
-  assert.equal(adapter?.slots.find((slot) => slot.target === "services.items.0.title")?.selector, '[data-sitecraft-service="1"] > p.mb-4');
+  assert.equal(adapter?.slots.find((slot) => slot.target === "services.title")?.selector, '[data-sitecraft-benchmark="services-title"]');
+  assert.equal(adapter?.slots.find((slot) => slot.target === "services.items.0.title")?.selector, '[data-sitecraft-benchmark="services-item-0-title"]');
 });
 
 function countAttrExact(html: string, attr: string, value: string) {
@@ -415,7 +411,7 @@ test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 
       html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
       brand: ["nav"],
       chrome: ["pricing", "logo-wall", "figma", "testimonial", "footer-copyright"],
-      snapshotTokens: ["$29", "$99", "$499", "Get Figma file"],
+      snapshotTokens: ["企业目录", "产品类别"],
     },
     {
       id: "screwfast",
@@ -450,12 +446,8 @@ test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 
       assert.equal(countAttrExact(html, "data-sitecraft-demo", key), 1, `${item.id} ${key} marker must be unique`);
     }
     for (const key of item.brand) {
-      const slots = adapter.slots.filter((slot) => slot.target === "companyName" && slot.selector.includes(`data-sitecraft-brand="${key}"`));
-      assert.equal(slots.length, key === "nav" && item.id === "landwind" ? 0 : 1, `${item.id} brand ${key} slot`);
-      if (item.id === "landwind" && key === "nav") {
-        assert.equal(adapter.slots.some((slot) => slot.target === "companyName" && slot.selector === "span.self-center.text-xl"), true);
-        continue;
-      }
+      const slots = adapter.slots.filter((slot) => slot.target === "companyName" && (slot.selector.includes(`data-sitecraft-brand="${key}"`) || (item.id === "landwind" && key === "nav" && slot.selector.includes("data-sitecraft-brand-name="))));
+      assert.equal(slots.length, 1, `${item.id} brand ${key} slot`);
       assert.equal(countAttrExact(html, "data-sitecraft-brand", key), 1, `${item.id} brand ${key} marker must be unique`);
     }
     for (const token of item.snapshotTokens) {
@@ -464,7 +456,7 @@ test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 
   }
   const landwindHtml = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
   const landwindVendor = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
-  assert.equal(landwindHtml.toLowerCase().includes("airbnb"), false, "logo wall is SVG paths, not Airbnb text");
+  assert.equal(landwindHtml.toLowerCase().includes("airbnb"), false, "clean host has no logo-wall brand");
   assert.equal(countAttrExact(landwindHtml, "data-sitecraft-demo", "logo-wall"), 1);
   assert.equal(countAttrExact(landwindVendor, "data-sitecraft-demo", "logo-wall"), 0, "vendor snapshot stays unmarked");
 });
@@ -481,6 +473,11 @@ test("admitted kits bind looks to one family, copy concrete tokens, and never se
       familyId: "export-catalog",
       templateId: "landwind",
       demo: ["pricing", "logo-wall", "figma", "testimonial", "footer-copyright"],
+    },
+    "tailwind-landing": {
+      familyId: "technical-product",
+      templateId: "tailwind-landing",
+      demo: [],
     },
   } as const;
 
@@ -515,8 +512,7 @@ test("admitted kits bind looks to one family, copy concrete tokens, and never se
     assert.equal(composed.ok, true);
     if (composed.ok) assert.equal(composed.selected.includes("pricing"), false);
   }
-  assert.equal(familyIds.size, 3);
-  assert.equal(getTemplateAdapter("tailwind-landing")?.kit, undefined);
+  assert.equal(familyIds.size, 4);
   assert.equal(getTemplateAdapter("fresh")?.kit, undefined);
 });
 
@@ -570,6 +566,23 @@ test("same-family compose matches sample B/C and rejects mixed-skin sample A", (
   });
   assert.equal(restyled.ok, true);
   if (restyled.ok) assert.deepEqual(restyled.selected, ["nav", "faq"]);
+});
+
+function contrastRatio(foreground: string, background: string) {
+  const channel = (hex: string, offset: number) => {
+    const value = Number.parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (hex: string) => 0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5);
+  const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+test("engineering orange keeps its family signal while using the strong token for readable CTA text", () => {
+  const palette = getTemplateAdapter("screwfast")?.kit?.palettes?.["engineering-orange"];
+  assert.ok(palette);
+  assert.match(palette.accent, /^#d9|^#c|^#b|^#a/i);
+  assert.ok(contrastRatio(palette.accentStrong ?? palette.accent, "#ffffff") >= 4.5);
 });
 
 test("catalog includes extra PR4 templates without renaming shadcn-landing2 as Pro", () => {

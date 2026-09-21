@@ -14,6 +14,8 @@ import {
   visualBriefCatalog,
   visualBriefIds,
   paletteIdSchema,
+  defaultPaletteIdForVisualBrief,
+  paletteCatalogForVisualBrief,
   type EditableCard,
   type Locale,
   type Product,
@@ -436,7 +438,7 @@ export function applySiteOperations(
       const brief = visualBriefCatalog.find((item) => item.id === operation.briefId);
       if (!brief) throw new Error(`Unknown visual brief ${operation.briefId}`);
       if (!options.templateIds.has(brief.templateId)) throw new Error(`Unknown template ${brief.templateId}`);
-      const nextPaletteId = brief.id === "engineering-industrial" ? "engineering-orange" : "default";
+      const nextPaletteId = defaultPaletteIdForVisualBrief(brief.id);
       if (draft.visualBrief.id === brief.id && draft.templateId === brief.templateId && draft.paletteId === nextPaletteId) continue;
       // A catalog id cannot reconstruct an older mapping or a manually selected
       // template. History must restore the actual saved design and content.
@@ -450,7 +452,7 @@ export function applySiteOperations(
     }
     if (operation.op === "set_palette") {
       const allowed = operation.paletteId === "default"
-        || (draft.visualBrief.id === "engineering-industrial" && (operation.paletteId === "engineering-orange" || operation.paletteId === "engineering-slate"));
+        || paletteCatalogForVisualBrief(draft.visualBrief.id).some((palette) => palette.id === operation.paletteId);
       if (!allowed) throw new Error(`Palette ${operation.paletteId} is not available for ${draft.visualBrief.id}`);
       if (draft.paletteId === operation.paletteId) continue;
       inverseOperations.unshift({ op: "set_palette", paletteId: draft.paletteId });

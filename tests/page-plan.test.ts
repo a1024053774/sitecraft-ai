@@ -24,7 +24,7 @@ test("default three is home, products and contact and is not a page cap", () => 
   assert.equal(forge.pages[0]?.placement, "route");
   assert.equal(forge.pages[0]?.route, "");
   assert.equal(forge.pages[1]?.placement, "section");
-  assert.equal(forge.pages[1]?.section, "services");
+  assert.equal(forge.pages[1]?.section, "products");
   assert.equal(forge.pages[2]?.placement, "route");
   assert.equal(forge.pages[2]?.route, "Contact");
   assert.deepEqual(forge.unsupported, []);

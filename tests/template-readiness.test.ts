@@ -17,6 +17,8 @@ registerHooks({
 });
 
 const { templates } = await import("../lib/site-model.ts");
+const { visualBriefCatalog } = await import("../lib/site-document.ts");
+const { getTemplateAdapter } = await import("../lib/template-adapters/registry.ts");
 const { getTemplateStaticRoot } = await import("../lib/template-static.ts");
 const {
   EDIT_PREVIEW_CTA_LABEL,
@@ -56,4 +58,12 @@ test("unknown or missing snapshots cannot enter edit preview", () => {
   assert.equal(missing.hasLocalSnapshot, false);
   assert.equal(missing.canEnterEditPreview, false);
   assert.equal(missing.snapshotLabel, "仅上游演示／待构建快照");
+});
+
+test("P0 catalog entries stay blocked and never receive empty kits", () => {
+  for (const templateId of ["shadcn-landing", "yukina", "nextjs-landing"]) {
+    assert.equal(visualBriefCatalog.some((brief) => brief.templateId === templateId), false);
+    assert.equal(getTemplateAdapter(templateId)?.kit, undefined);
+  }
+  assert.equal(getTemplateAdapter("tailwind-landing")?.kit?.familyId, "technical-product");
 });

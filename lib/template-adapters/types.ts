@@ -26,7 +26,7 @@ export type TemplateDemoChrome = {
 };
 
 /** Look-board ids that currently have an admitted same-family kit. */
-export type TemplateFamilyId = "industrial" | "engineering-industrial" | "export-catalog";
+export type TemplateFamilyId = "industrial" | "engineering-industrial" | "export-catalog" | "technical-product";
 
 export type TemplateKitTokens = {
   background: string;

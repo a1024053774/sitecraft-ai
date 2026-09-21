@@ -57,9 +57,10 @@ test("admitted nordic product grid drops Unsplash and retail prices then mounts 
   assert.equal(landwindHtml.includes('data-sitecraft-demo="logo-wall"'), true);
 });
 
-test("preview apply injects the grid onto landwind and not onto screwfast", () => {
+test("preview keeps landwind's live bridge grid and does not mount a duplicate donor", () => {
   const landwind = applyAdmittedKitFragments(landwindHtml, "landwind");
-  assert.equal((landwind.match(/<section data-sitecraft-kit="product-grid"/g) ?? []).length, 1);
+  assert.equal((landwind.match(/<section data-sitecraft-kit="product-grid"/g) ?? []).length, 0);
+  assert.equal((landwind.match(/data-sitecraft-product-grid/g) ?? []).length, 1);
   assert.equal(landwind.includes("https://images.unsplash.com"), false);
   const screwfast = applyAdmittedKitFragments("<footer></footer>", "screwfast");
   assert.equal(screwfast.includes("product-grid"), false);
@@ -72,6 +73,7 @@ test("nordic-store restyles to export-catalog host tokens and does not open a ne
   assert.equal(host.familyId, "export-catalog");
   assert.equal(guest.familyId, "export-catalog");
   assert.equal(sameFamilyTokens(host.tokens, guest.tokens), true);
+  assert.match(restyleAdmittedCatalogGrid(extractNordicProductGrid(nordicHtml)!), /var\(--site-surface/);
   const products = host.modules.find((module) => module.key === "products");
   assert.equal(products?.sourceTemplateId, "nordic-store");
   const composed = composeKitModules({ host, parts: selectedKitParts(guest) });

@@ -76,6 +76,8 @@ export function getTemplateStaticRoot(templateId: string) {
 
 export const LANDWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/landwind.index.html";
 export const SCREWFAST_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/screwfast.index.html";
+export const FORGE_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/forge.index.html";
+export const TAILWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/tailwind-landing.index.html";
 
 function landwindHostOverlayFile() {
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), LANDWIND_HOST_OVERLAY_PATH);
@@ -83,6 +85,14 @@ function landwindHostOverlayFile() {
 
 function screwfastHostOverlayFile() {
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), SCREWFAST_HOST_OVERLAY_PATH);
+}
+
+function forgeHostOverlayFile() {
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), FORGE_HOST_OVERLAY_PATH);
+}
+
+function tailwindHostOverlayFile() {
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), TAILWIND_HOST_OVERLAY_PATH);
 }
 
 export async function readTemplateStaticFile(templateId: string, segments: string[]) {
@@ -99,6 +109,12 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
     }
     if (templateId === "screwfast" && path.basename(target) === "index.html") {
       target = screwfastHostOverlayFile();
+    }
+    if (templateId === "forge" && path.basename(target) === "index.html") {
+      target = forgeHostOverlayFile();
+    }
+    if (templateId === "tailwind-landing" && path.basename(target) === "index.html") {
+      target = tailwindHostOverlayFile();
     }
     const body = await readFile(/* turbopackIgnore: true */ target);
     return { body, contentType: contentTypes[path.extname(target).toLowerCase()] ?? "application/octet-stream" };

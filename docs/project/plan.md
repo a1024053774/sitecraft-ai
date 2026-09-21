@@ -280,3 +280,21 @@ B 的真实差异是生成前 `commit set_visual_brief` 锁灰底短路径，不
 在 `blind-p3i-20260920-noimage`、`blind-p3i-20260920-withimage` 和 `guided-p3i-full4-20260920` 上重新检查最终候选：1440/768/375 的 inner `scrollWidth === clientWidth`；长标题、两类产品、三步加工流程、询盘和资料边界均可读；混合有图/无图卡媒体高度一致且缺图卡显示「产品图待补充」；模板品牌、SaaS 价格、Logo 墙和假评价文字为空。真实工作台修改把 CTA 从「索取 P3I-EDIT 交期」改为「索取 P3I 复核交期」后落到 v6，点击撤销回到 v7 原 CTA，刷新/重新打开仍回读原值。
 
 复核期间发现并修复 `GUIDE-001`：普通编辑句子中出现 `P3I` 时不应重新触发业务目标引导；编辑型请求现在跳过工业新建引导，完整公司资料仍保留同一引导路径。复核读数与限制写入 `artifacts/continuous-queue-2026-09-21/final-browser-review.json`。
+
+## 模板审计收口与三条纵切片（2026-09-21）
+
+Gemini 审计目录为外部输入，仓库和浏览器回读后只确认了目录规模与原始模板问题，未把截图当作客户成品证据：`lib/template-catalog.ts` 有 22 套候选，画廊实际渲染 22 套；其中 16 套有本地静态快照，6 套只有上游演示、缺快照或不可用快照。当前用户可选的五个视觉族仍是 `industrial/forge`、`engineering-industrial/screwfast`、`export-catalog/landwind`、`technical-product/tailwind-landing` 和 `editorial-service/fresh`。
+
+本轮只推进三条可审查纵切片，不扩 22×色板矩阵：
+
+| Slice | 交付边界 | 色板 | 状态 |
+| --- | --- | --- | --- |
+| A 蓝白目录 | Landwind 客户 overlay、产品/服务/FAQ/询盘 slots、Nordic donor 来源声明与宿主 token、无 Logo 墙/SaaS/演示图 | 海运蓝、工业灰蓝 | 待真实浏览器 A/B |
+| B 明亮产品 | Forge family kit 与无图 CSS 产品示意，清理 MacBook/Main Keywords/演示文案 | 明亮工业、极简冷灰 | 待真实浏览器 A/B |
+| C 灰底短路径 | Tailwind family kit、短路径询盘结构、共享 token 和无图示意 | 短路径白、短路径石墨 | 待真实浏览器 A/B |
+
+工程橙 CTA 改用 `accentStrong`，保留工程工业族的橙色识别，同时按浏览器计算样式复查正文与 CTA 对比度。发布页移动端询盘条改为安全区 bottom inset，并给 iframe 预留底部空间；需在 375px 真实浏览器回读确认 FAQ、页脚和语言/导航不被遮挡。
+
+以下三套不进入主流程，保留明确目录状态：`shadcn-landing`（BLOCKED：SPA 空壳/白屏）、`yukina`（BLOCKED：二次元个人博客内容）、`nextjs-landing`（BLOCKED：第三方商业模板引流残留）。不为它们创建空 kit、空 palette 或假浏览器证据。其余 19 套继续区分“本地快照/上游演示/未准入”，不能把目录候选写成已交付页面。
+
+本轮每个 slice 需独立提交；每个提交先跑针对性契约测试，再跑 `npm run typecheck`、`npm test`、`npm run build`，并保留 1440/768/375 浏览器截图、草稿回读和 `/published/{siteId}` 证据。SMTP、生产 PostgreSQL、外部图片许可和真实客户资料仍是 `UNVERIFIED`，不由本轮代码推断为已完成。

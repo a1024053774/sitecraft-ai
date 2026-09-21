@@ -10,9 +10,10 @@ const PRODUCT_GRID_MARKER = 'data-sitecraft-kit="product-grid"';
 
 const HOST_GRID_STYLE = `<style>
 [data-sitecraft-kit="product-grid"]{
-  background:#ffffff;
-  color:#111827;
-  font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  background:var(--site-surface,#ffffff);
+  color:var(--site-ink,#111827);
+  font-family:var(--site-font,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif);
+  border-color:var(--site-line,#e5e7eb);
 }
 [data-sitecraft-kit="product-grid"] .sitecraft-catalog-grid{
   display:flex;
@@ -24,6 +25,9 @@ const HOST_GRID_STYLE = `<style>
 [data-sitecraft-kit="product-grid"] .sitecraft-catalog-card{
   width:100%;
   padding:1.5rem;
+  border:1px solid var(--site-line,#e5e7eb);
+  border-radius:var(--site-radius,.5rem);
+  background:var(--site-surface,#ffffff);
   box-sizing:border-box;
 }
 @media (min-width:768px){
@@ -72,6 +76,10 @@ export function readNordicStoreHtml() {
 }
 
 export function applyAdmittedKitFragments(hostHtml: string, templateId: string) {
+  // A host with the shared product-grid marker already owns the rendered
+  // collection. Keep the donor declaration for provenance, but do not mount a
+  // second static grid beside the live bridge target.
+  if (hostHtml.includes('[data-sitecraft-product-grid]') || hostHtml.includes('data-sitecraft-product-grid')) return hostHtml;
   const adapter = getTemplateAdapter(templateId);
   const guest = adapter?.kit?.modules.find((module) => module.sourceTemplateId === "nordic-store" && module.key === "products");
   if (!guest) return hostHtml;
