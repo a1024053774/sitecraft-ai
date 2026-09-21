@@ -297,6 +297,8 @@ Gemini 审计目录为外部输入，仓库和浏览器回读后只确认了目�
 
 工程橙 CTA 改用 `accentStrong`，保留工程工业族的橙色识别，同时按浏览器计算样式复查正文与 CTA 对比度。发布页移动端询盘条改为安全区 bottom inset，并给 iframe 预留底部空间；需在 375px 真实浏览器回读确认 FAQ、页脚和语言/导航不被遮挡。
 
+**独立视觉/行为审计（2026-09-22）**：Antigravity 使用 Google Chrome 153 + CDP 对四个 family、两套色板、375/768/1440、工作台/发布页、刷新回读和截图执行了独立审查。原始报告与 `evidence.json`、40 张截图保存在 `artifacts/antigravity-family-audit-2026-09-22/`；报告的唯一 FAIL 是 `overlapsFooter`。仓库回读确认该指标把 iframe 文档坐标（如 footer `top=3987`）与宿主 viewport 坐标（询盘条 `top=758`）直接比较，量纲不一致；实际 375×812 下 iframe 高 740、宿主浮条位于 758–798、iframe body 注入 `padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px))`，因此没有证明宿主/iframe 发生遮挡。纠偏读数写在 `artifacts/antigravity-family-audit-2026-09-22/mobile-overlap-review.json`，原始 FAIL 报告保留，不把该纠偏外推为真实手机硬件通过。
+
 以下三套不进入主流程，保留明确目录状态：`shadcn-landing`（BLOCKED：SPA 空壳/白屏）、`yukina`（BLOCKED：二次元个人博客内容）、`nextjs-landing`（BLOCKED：第三方商业模板引流残留）。不为它们创建空 kit、空 palette 或假浏览器证据。其余 19 套继续区分“本地快照/上游演示/未准入”，不能把目录候选写成已交付页面。
 
 本轮每个 slice 需独立提交；每个提交先跑针对性契约测试，再跑 `npm run typecheck`、`npm test`、`npm run build`，并保留 1440/768/375 浏览器截图、草稿回读和 `/published/{siteId}` 证据。精确视口回读与 palette/文案 sentinel 记录在 `artifacts/template-family-slices-2026-09-21/browser-review.json`；截图由 Cua 内联产生，当前后端不落本地图片文件。图片准入元数据门禁已实现，但尚未替任何公共素材完成逐张外部来源核验；SMTP、生产 PostgreSQL 和真实客户资料仍是 `UNVERIFIED`，不由本轮代码推断为已完成。
