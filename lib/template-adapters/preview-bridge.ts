@@ -461,7 +461,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
       applyDemoChrome(applied, extraMissing);
       applyFamilyKit(draft, applied, extraMissing);
       applyActivePage(draft, activePage);
-      if (variant === "published") sanitizePublished();
+      if (variant === "published") {
+        sanitizePublished();
+        if (document && document.body && document.body.style && document.body.style.setProperty) {
+          // The host page owns a fixed inquiry control. Reserve space inside the
+          // iframe so the final FAQ/footer line remains readable above it.
+          document.body.style.setProperty("padding-bottom", "calc(96px + env(safe-area-inset-bottom, 0px))");
+        }
+      }
     }
     return report(applied, expected, adapter, extraMissing);
   }
