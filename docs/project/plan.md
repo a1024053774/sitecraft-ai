@@ -289,12 +289,12 @@ Gemini 审计目录为外部输入，仓库和浏览器回读后只确认了目�
 
 | Slice | 交付边界 | 色板 | 状态 |
 | --- | --- | --- | --- |
-| A 蓝白目录 | Landwind 客户 overlay、产品/服务/FAQ/询盘 slots、Nordic donor 来源声明与宿主 token、无 Logo 墙/SaaS/演示图 | 海运蓝、工业灰蓝 | 待真实浏览器 A/B |
-| B 明亮产品 | Forge family kit 与无图 CSS 产品示意，清理 MacBook/Main Keywords/演示文案 | 明亮工业、极简冷灰 | 待真实浏览器 A/B |
-| C 灰底短路径 | Tailwind family kit、短路径询盘结构、共享 token 和无图示意 | 短路径白、短路径石墨 | 待真实浏览器 A/B |
+| A 蓝白目录 | Landwind 客户 overlay、产品/服务/FAQ/询盘 slots、Nordic donor 来源声明与宿主 token、无 Logo 墙/SaaS/演示图 | 海运蓝、工业灰蓝 | Cua 精确 375/768/1440 A/B 已回读；硬件待验证 |
+| B 明亮产品 | Forge family kit 与无图 CSS 产品示意，清理 MacBook/Main Keywords/演示文案 | 明亮工业、极简冷灰 | Cua 精确 375/768/1440 A/B 已回读；硬件待验证 |
+| C 灰底短路径 | Tailwind family kit、短路径询盘结构、共享 token 和无图示意 | 短路径白、短路径石墨 | Cua 精确 375/768/1440 A/B 已回读；硬件待验证 |
 
 工程橙 CTA 改用 `accentStrong`，保留工程工业族的橙色识别，同时按浏览器计算样式复查正文与 CTA 对比度。发布页移动端询盘条改为安全区 bottom inset，并给 iframe 预留底部空间；需在 375px 真实浏览器回读确认 FAQ、页脚和语言/导航不被遮挡。
 
 以下三套不进入主流程，保留明确目录状态：`shadcn-landing`（BLOCKED：SPA 空壳/白屏）、`yukina`（BLOCKED：二次元个人博客内容）、`nextjs-landing`（BLOCKED：第三方商业模板引流残留）。不为它们创建空 kit、空 palette 或假浏览器证据。其余 19 套继续区分“本地快照/上游演示/未准入”，不能把目录候选写成已交付页面。
 
-本轮每个 slice 需独立提交；每个提交先跑针对性契约测试，再跑 `npm run typecheck`、`npm test`、`npm run build`，并保留 1440/768/375 浏览器截图、草稿回读和 `/published/{siteId}` 证据。SMTP、生产 PostgreSQL、外部图片许可和真实客户资料仍是 `UNVERIFIED`，不由本轮代码推断为已完成。
+本轮每个 slice 需独立提交；每个提交先跑针对性契约测试，再跑 `npm run typecheck`、`npm test`、`npm run build`，并保留 1440/768/375 浏览器截图、草稿回读和 `/published/{siteId}` 证据。精确视口回读与 palette/文案 sentinel 记录在 `artifacts/template-family-slices-2026-09-21/browser-review.json`；截图由 Cua 内联产生，当前后端不落本地图片文件。SMTP、生产 PostgreSQL、外部图片许可和真实客户资料仍是 `UNVERIFIED`，不由本轮代码推断为已完成。
