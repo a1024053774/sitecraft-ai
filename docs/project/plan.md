@@ -304,3 +304,32 @@ Gemini 审计目录为外部输入，仓库和浏览器回读后只确认了目�
 以下三套不进入主流程，保留明确目录状态：`shadcn-landing`（BLOCKED：SPA 空壳/白屏）、`yukina`（BLOCKED：二次元个人博客内容）、`nextjs-landing`（BLOCKED：第三方商业模板引流残留）。不为它们创建空 kit、空 palette 或假浏览器证据。其余 19 套继续区分“本地快照/上游演示/未准入”，不能把目录候选写成已交付页面。
 
 本轮每个 slice 需独立提交；每个提交先跑针对性契约测试，再跑 `npm run typecheck`、`npm test`、`npm run build`，并保留 1440/768/375 浏览器截图、草稿回读和 `/published/{siteId}` 证据。精确视口回读与 palette/文案 sentinel 记录在 `artifacts/template-family-slices-2026-09-21/browser-review.json`；截图由 Cua 内联产生，当前后端不落本地图片文件。图片准入元数据门禁已实现，但尚未替任何公共素材完成逐张外部来源核验；SMTP、生产 PostgreSQL 和真实客户资料仍是 `UNVERIFIED`，不由本轮代码推断为已完成。
+
+## 需求对齐、色板和错误体验继续推进（2026-09-22）
+
+本轮目标是把“用户 Prompt → 必要澄清 → 选择 → 方案确认 → 生成/恢复”推进到当前主链，而不是新增聊天服务或第二套渲染器。
+
+- 加号只保存“需求对齐”偏好；未提交 Prompt 时不再自动弹固定风格问卷。提交 Prompt 后由 `requestAlignmentPlan` 结合 Prompt、当前草稿、会话历史和已保存答案，只返回动态问题或“资料已足够、直接生成方案”，不返回 HTML/CSS/operations。问题保存进现有 alignment snapshot，回答、刷新、关闭/重开和确认仍复用原状态机。
+- 已准入的 `industrial`、`engineering-industrial`、`export-catalog`、`technical-product` 四个 family 各扩至 4 套命名色板；同一草稿只换 host token，布局、字体、模块、文案、产品和图片不随色板变化。预览桥补了 input/focus/disabled 语义变量，旧 kit 由 surface/accentSoft/muted 安全派生。
+- 新增 `docs/project/error-catalog.md` 和 `lib/user-errors.ts`。接口保留稳定诊断码，工作台显示可行动的中文提示；409 返回最新草稿并要求用户重新核对，不自动重放旧 proposal。
+- Docker 已启动 PostgreSQL、Mailpit、Redis；web 镜像已从当前源码重建。PostgreSQL 草稿写入后重启 web 仍能读回 revision 与标题；Mailpit 可访问，但应用尚无 SMTP 发信适配器，外部邮箱仍未验证。Docker 内 DeepSeek 当前返回 HTTP 402 Payment Required，真实浏览器动态规划因此标为外部依赖未通过，保留失败证据，不用固定问题冒充模型结果。
+
+本节完成前仍需：子代理色卡来源回报及主代理筛选记录；Docker/浏览器真实模型恢复后的动态问题、不同 Prompt 分叉、确认生成、刷新/冲突/撤销回归；1440/768/375 浏览器截图和 `/published/{siteId}` 回读；针对性测试、全套 typecheck/test/build 和独立模块 commit。实机 iPhone、真实外部 SMTP、公开部署继续保持未验证/不在本轮范围。
+
+### 色卡研究来源与准入边界（2026-09-23）
+
+子代理完成只读研究，主代理只采用公开色阶和角色建模作为 token 参考，没有复制图片或字体资产：
+
+- [USWDS system color tokens](https://designsystem.digital.gov/design-tokens/color/system-tokens/)：蓝、橙、绿、青等系统色阶。
+- [USWDS theme color tokens](https://designsystem.digital.gov/design-tokens/color/theme-tokens/)：base、primary、secondary、accent-warm、accent-cool 角色关系。
+- [Tailwind color scale](https://tailwindcss.com/docs/colors)：slate、sky、blue、cyan、teal、amber 等中性/辅助色阶；代码仓库 MIT 不覆盖图片、字体和商标。
+- [Radix color scale](https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale)：背景、组件背景、实心背景和深浅文字的使用边界。
+- [WCAG 2.2 contrast minimum](https://www.w3.org/TR/wcag/#contrast-minimum)：普通文字目标 4.5:1，大字号目标 3:1。
+
+当前 4 个准入 family 的 16 套 palette 已在 `paletteSourceById` 留下来源 URL 和许可边界；这些来源只是颜色 token 证据，不改变客户图片、字体、Logo、模板演示素材的逐项 `sourceUrl/license/licenseUrl/author/attribution/hash` 门禁。候选 token 的首批对比度核算包括：工程橙深色按钮白字约 5.18:1、深海工程约 5.89:1、出口钴蓝约 6.35:1、短路径钴蓝约 6.35:1；仍需在真实 family 页面按 1440/768/375 做 A/B 回读后才可扩大用户承诺。
+
+### 临时公网预览与 VPN 边界（2026-09-23）
+
+Docker origin `http://127.0.0.1:3000` 和 `/api/health` 均回读 200；按 `local-public-preview` Skill 启动了 Quick Tunnel，实际 URL 为 `https://colon-premier-checks-sender.trycloudflare.com`。公网根页和健康检查均返回 Cloudflare 530，不能把该 URL 交给 iPhone 当作可用预览。
+
+失败根因已由 cloudflared 日志确认：当前 VPN/Shadowrocket 把全局 DNS 指向 `198.18.0.2`，`_region1-v2-origintunneld._tcp.argotunnel.com` 的 SRV 查询超时/返回不存在；`route -n get 198.41.192.47` 和 `198.41.200.23` 仍落在 `utun5` 的 `128.0.0.0/1`，此前添加的 /24 路由没有实际生效。该边界属于本机网络权限与 VPN 配置，代码和 Docker origin 没有发现故障。需要在保留 VPN 的前提下，让 `argotunnel.com` 的 DNS 查询走局域网 DNS `192.168.3.1`，并让 Cloudflare edge IP 走 `en0`；完成后重新启动 Quick Tunnel，再同时回读本地与公网 URL。当前状态为 `INCOMPLETE`，临时 tunnel 进程保留为本轮测试进程，不能视为部署或生产地址。
