@@ -355,3 +355,7 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 ### 外部模型网络复测（2026-09-23）
 
 当前主机经 VPN 解析 `api.deepseek.com` 到 `198.18.0.157`，主机 `fetch`/curl 连接超时；Docker `/models` 曾在本轮返回 200，但随后带 JSON chat 请求也出现 `UND_ERR_CONNECT_TIMEOUT`。因此 Docker 的 PostgreSQL、镜像 overlay 和应用入口是可用的，模型调用的稳定性仍是 `UNVERIFIED`，不能用一次成功探针替代持续可用性。应用继续保留安全的 provider/network 错误提示，不启用伪造生成。
+
+### Provider 错误边界收口（2026-09-23）
+
+复测期间发现结构化输出的原始校验文本（例如 `operations: Too big`）会沿 SSE `done.error` 和会话历史进入工作台。现已在 `lib/user-errors.ts` 与 Chat route 统一按诊断码映射安全的中文摘要、下一步和恢复动作；已知诊断码优先于原始 provider 文本，会话写入失败也只保留可行动提示。工作台收到错误事件后显示“需求对齐没有完成，草稿没有修改”，不再抛出原始异常。`tests/user-errors.test.ts`、`tests/chat-route-conversation.test.ts` 覆盖该边界；本轮全套 `npm test` 194/194、`npm run typecheck`、`npm run build` 通过。
