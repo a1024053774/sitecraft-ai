@@ -347,3 +347,7 @@ Docker origin `http://127.0.0.1:3000` 和 `/api/health` 均回读 200；按 `loc
 Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=ready`、DeepSeek configured；既有 `docker-pg-evidence-20260922` 草稿仍能读回 revision 2。发现并修复 Dockerfile 的运行时遗漏：生产镜像原先没有复制 `lib/template-adapters/overlays`，导致本地快照缺失时回退到上游 MacBook/Small Bis 演示。Docker Registry TLS 超时阻止完整重建，因此本轮用旧本地镜像叠加 overlay 层完成可回读的开发验证，同时保留 `sitecraft-ai-web:pre-overlay-20260923` 回退标签；Dockerfile 已加入长期复制规则，下一次镜像依赖可用时需做完整 build。
 
 本轮真实浏览器截图为 Cua 内联证据，未落本地 PNG；当前预览截图显示默认 forge 已切换为 SiteCraft 自有无图/CSS 示意和“待补充”事实边界，不再显示 Main Keywords、MacBook、small-bis 或模板 Logo/演示文案。截图仍属于浏览器引擎验证，不代表 iPhone 实机安全区、键盘、橡皮筋滚动或触感已通过。SMTP 仍只有 Mailpit 可访问，应用没有 SMTP 发信适配器；外部邮件与 Quick Tunnel 公网可用性继续为 `UNVERIFIED/INCOMPLETE`。
+
+### Forge 落点回执修复（2026-09-23）
+
+真实 v2 浏览器回读曾报告 `siteName.zh`、`contact.email.zh` 和 `products` 三个 missing。回读源码后确认：forge overlay 已有品牌、邮箱、电话和产品网格；其中 `siteName` 与 `companyName` 共用一个可见品牌节点，不能双写，故把 `siteName` 作为站点元数据从可见回执目标过滤，由 `companyName` 负责页面品牌；adapter 补齐 `contact.email`/`contact.phone`，bridge 在真实产品网格存在时记录集合根目标 `products` 为 applied。新增 adapter/bridge 契约测试后，针对性 42/42、全套 193/193 通过；浏览器刷新回读产品卡“ 不锈钢流体接头（型号待确认）”，未再出现新的落点警告。
