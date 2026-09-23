@@ -9,7 +9,7 @@ import {
   type Locale,
   type SiteDraft,
 } from "@/lib/site-model";
-import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
+import { findSitePage, previewPathForPage } from "@/lib/template-pages";
 import { userFacingError } from "@/lib/user-errors";
 
 export function PublishedSiteClient({
@@ -93,12 +93,6 @@ export function PublishedSiteClient({
           </button>
         ))}
       </nav>
-      <p className="published-page-source" data-testid="site-page-source">{pagePlanSourceLabel(draft.pagePlan.source)}</p>
-      {draft.pagePlan.unsupported.length ? (
-        <p className="published-page-unsupported" role="status" data-testid="site-page-unsupported">
-          未支持：{draft.pagePlan.unsupported.map((item) => `${item.requested}（${item.reason}）`).join("；")}
-        </p>
-      ) : null}
       <div className="published-template-locale" aria-label="站点语言">
         <button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>中</button>
         <button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button>
