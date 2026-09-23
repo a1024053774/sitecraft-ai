@@ -36,7 +36,8 @@
 
 ### 2. `/quality` 生成失败（`POST /api/quality/cells` 422）
 
-查清 422 的具体诊断码（例如 operations 超上限、schema 不合规），修生成侧根因；失败格显示中文原因和重试，不显示旧草稿冒充结果。
+已完成：真实 POST 复测当前 DeepSeek 路径返回 200；按旧 422 的 `invalid_output / operations: Too big` 反例补上诊断码、中文映射和失败结果边界。
+改动：失败格只加载 `result.ok` 的草稿，显示中文原因与“重试”，不再把旧预览当生成结果；200/200 全量测试、typecheck、build 通过。
 
 ### 3. 子页不再克隆首页
 

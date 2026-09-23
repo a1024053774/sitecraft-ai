@@ -13,6 +13,7 @@ import {
   type QualityScoreDimension,
 } from "@/lib/quality-comparison";
 import { normalizeDraft, type SiteDraft } from "@/lib/site-model";
+import { userFacingError } from "@/lib/user-errors";
 
 type CellView = {
   cellId: string;
@@ -34,6 +35,7 @@ type CellView = {
     live: boolean;
     unverified: string[];
     error?: string;
+    errorCode?: string;
   } | null;
 };
 
@@ -72,7 +74,7 @@ function readScores(): ScoreMap {
 function draftsFromPayload(payload: QualityPayload) {
   const loaded: Record<string, SiteDraft> = {};
   for (const cell of payload.cells) {
-    if (cell.previewDraft && cell.draft.nonceVisible) {
+    if (cell.previewDraft && cell.draft.nonceVisible && cell.result?.ok) {
       loaded[cell.siteId] = normalizeDraft(cell.previewDraft);
     }
   }
@@ -147,9 +149,9 @@ export function QualityComparisonClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ packId, group, reviewOnly }),
       });
-      const result = await response.json() as { ok?: boolean; error?: string; unverified?: string[]; live?: boolean };
+      const result = await response.json() as { ok?: boolean; error?: string; errorCode?: string; code?: string; unverified?: string[]; live?: boolean };
       if (!response.ok && !result.live) throw new Error(result.error || "生成失败");
-      if (result.error) setNote(`${id}：${result.error}${result.unverified?.length ? `；${result.unverified.join("；")}` : ""}`);
+      if (result.error) setNote(`${id}：${userFacingError({ code: result.errorCode ?? result.code, message: result.error })}${result.unverified?.length ? `；${result.unverified.join("；")}` : ""}`);
       else setNote(`${id} ${result.ok ? "已写入核验记号" : "已跑完但未见到核验记号"}`);
       await reload();
     } catch (err) {
@@ -253,6 +255,7 @@ export function QualityComparisonClient({
                 {cells.map(({ presented, view }) => {
                   const draft = drafts[presented.siteId];
                   const running = busyId === `${presented.packId}-${presented.group}`;
+                  const failed = view?.result?.ok === false;
                   return (
                     <article
                       className="quality-cell"
@@ -294,20 +297,28 @@ export function QualityComparisonClient({
                             ) : null}
                           </>
                         ) : (
-                          <div className="quality-empty">{view?.draft.nonceVisible ? "点预览查看模板首屏" : "尚未生成"}</div>
+                          <div className="quality-empty">{failed ? "生成失败，请重试" : view?.draft.nonceVisible ? "点预览查看模板首屏" : "尚未生成"}</div>
                         )}
                       </div>
-                      <dl>
-                        <div><dt>公司</dt><dd>{view?.draft.companyName}</dd></div>
-                        <div><dt>首屏</dt><dd>{view?.draft.heroTitle}</dd></div>
-                        <div><dt>记号</dt><dd>{view?.draft.nonceVisible ? pack.nonce : "未见"}</dd></div>
-                        <div><dt>对照默认</dt><dd>{view?.draft.lookVsDefault}</dd></div>
-                      </dl>
+                      {failed ? (
+                        <p className="quality-error" role="alert" data-testid="quality-cell-failure">
+                          {userFacingError({ code: view?.result?.errorCode, message: view?.result?.error })}
+                        </p>
+                      ) : (
+                        <dl>
+                          <div><dt>公司</dt><dd>{view?.draft.companyName}</dd></div>
+                          <div><dt>首屏</dt><dd>{view?.draft.heroTitle}</dd></div>
+                          <div><dt>记号</dt><dd>{view?.draft.nonceVisible ? pack.nonce : "未见"}</dd></div>
+                          <div><dt>对照默认</dt><dd>{view?.draft.lookVsDefault}</dd></div>
+                        </dl>
+                      )}
                       {view?.result?.unverified.length ? <p className="quality-unverified">UNVERIFIED：{view.result.unverified.join("；")}</p> : null}
-                      {view?.result?.error ? <p className="quality-error">{view.result.error}</p> : null}
+                      {!failed && view?.result?.error ? (
+                        <p className="quality-error">{userFacingError({ code: view.result.errorCode, message: view.result.error })}</p>
+                      ) : null}
                       <div className="quality-cell-actions">
                         <button className="secondary-button" type="button" data-testid="quality-preview-cell" disabled={!draft} onClick={() => togglePreview(presented.siteId)}>{expanded[presented.siteId] ? "收起预览" : "预览"}</button>
-                        <button className="secondary-button" type="button" data-testid="quality-generate-cell" disabled={Boolean(busyId)} onClick={() => { void runCell(presented.packId, presented.group); }}>{running ? "生成中…" : "生成"}</button>
+                        <button className="secondary-button" type="button" data-testid="quality-generate-cell" disabled={Boolean(busyId)} onClick={() => { void runCell(presented.packId, presented.group); }}>{running ? "生成中…" : failed ? "重试" : "生成"}</button>
                         {presented.group === "D" ? (
                           <button className="secondary-button" type="button" disabled={Boolean(busyId)} onClick={() => { void runCell(presented.packId, presented.group, true); }}>审查修复</button>
                         ) : null}

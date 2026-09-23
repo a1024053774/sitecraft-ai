@@ -11,7 +11,7 @@ import { runQualityCell } from "@/lib/quality-run";
 import { applySiteOperations } from "@/lib/site-operations";
 import { commitOperations, getSite } from "@/lib/site-store";
 import { templates } from "@/lib/site-model";
-import { userErrorPayload } from "@/lib/user-errors";
+import { userErrorPayload, userFacingError } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -117,5 +117,12 @@ export async function POST(request: Request) {
     screenshotBytes: decodePng(parsed.data.screenshotBase64),
     reviewOnly: parsed.data.reviewOnly,
   });
-  return Response.json(result, { status: result.ok ? 200 : 422, headers: { "Cache-Control": "no-store" } });
+  if (result.ok) {
+    return Response.json(result, { status: 200, headers: { "Cache-Control": "no-store" } });
+  }
+  return Response.json({
+    ...result,
+    code: result.errorCode ?? "operation_error",
+    error: userFacingError({ code: result.errorCode, message: result.error }),
+  }, { status: 422, headers: { "Cache-Control": "no-store" } });
 }

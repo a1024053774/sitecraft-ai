@@ -7,6 +7,7 @@ import { defaultDraft } from "./site-document.ts";
 import { commitOperations, getSite } from "./site-store.ts";
 import { inspectPreviewScreenshot, type PreviewReview } from "./preview-vision.ts";
 import type { SiteOperation } from "./site-operations.ts";
+import { userFacingError } from "./user-errors.ts";
 import {
   QUALITY_BASELINE,
   buildQualityFixMessage,
@@ -41,6 +42,7 @@ export type QualityCellResult = {
   live: boolean;
   unverified: string[];
   error?: string;
+  errorCode?: string;
   model: string | null;
   latencyMs: number;
   revision: number;
@@ -311,6 +313,7 @@ export async function runQualityCell(args: {
 
   const fail = async (message: string, extra?: Partial<QualityCellResult>): Promise<QualityCellResult> => {
     const snapshot = await getSite(cell.siteId);
+    const errorCode = extra?.errorCode;
     const result: QualityCellResult = {
       cellId: cell.cellId,
       packId: cell.packId,
@@ -319,7 +322,8 @@ export async function runQualityCell(args: {
       ok: false,
       live,
       unverified,
-      error: message,
+      error: userFacingError({ code: errorCode, message }),
+      errorCode,
       model,
       latencyMs: Date.now() - startedAt,
       revision: snapshot.draft.revision,
@@ -349,7 +353,7 @@ export async function runQualityCell(args: {
       const prepared = await commit(cell.siteId, current.draft.revision, resetOps, `P4 ${cell.group} 重置并套用流程前置`, "template");
       if (prepared.status === "conflict") {
         steps.push({ name: "reset", status: "fail", detail: "revision conflict" });
-        return fail("草稿版本冲突，未覆盖已有结果");
+        return fail("草稿版本冲突，未覆盖已有结果", { errorCode: "revision_conflict" });
       }
       current = await getSite(cell.siteId);
       steps.push({
@@ -366,19 +370,19 @@ export async function runQualityCell(args: {
       live = true;
       if (!provider.ok) {
         steps.push({ name: "generate", status: "fail", detail: provider.error });
-        return fail(provider.error, { model: provider.model, latencyMs: provider.latencyMs });
+        return fail(provider.error, { model: provider.model, latencyMs: provider.latencyMs, errorCode: provider.code });
       }
       model = provider.model;
       if (provider.type !== "edit") {
         const detail = provider.type === "answer" ? provider.text : provider.question;
         steps.push({ name: "generate", status: "fail", detail: `${provider.type}: ${detail}` });
-        return fail(`生成返回 ${provider.type}，没有写入草稿`);
+        return fail(`生成返回 ${provider.type}，没有写入草稿`, { errorCode: "invalid_output" });
       }
       rejected.push(...provider.rejected);
       const generated = await commit(cell.siteId, current.draft.revision, provider.operations, provider.summary, "ai");
       if (generated.status === "conflict") {
         steps.push({ name: "generate", status: "fail", detail: "revision conflict" });
-        return fail("生成时草稿已被更新");
+        return fail("生成时草稿已被更新", { errorCode: "revision_conflict" });
       }
       current = await getSite(cell.siteId);
       steps.push({
@@ -388,12 +392,12 @@ export async function runQualityCell(args: {
           ? `rev=${current.draft.revision} targets=${generated.changeSet.appliedTargets.join(",") || "none"}`
           : generated.status,
       });
-      if (generated.status !== "applied") return fail("生成没有产生可保存的草稿修改");
+      if (generated.status !== "applied") return fail("生成没有产生可保存的草稿修改", { errorCode: "operation_error" });
     } else {
       current = await getSite(cell.siteId);
       if (!draftShowsPackNonce(current.draft, pack)) {
         steps.push({ name: "generate", status: "fail", detail: "missing nonce" });
-        return fail("还没有生成结果，不能只审查");
+        return fail("还没有生成结果，不能只审查", { errorCode: "operation_error" });
       }
       steps.push({ name: "reset", status: "skip", detail: "review-only" });
       steps.push({ name: "generate", status: "skip", detail: "review-only" });
@@ -481,7 +485,8 @@ export async function runQualityCell(args: {
       ok: nonceVisible,
       live,
       unverified,
-      error: nonceVisible ? undefined : "草稿里没有出现资料核验记号",
+      error: nonceVisible ? undefined : userFacingError({ code: "operation_error", message: "草稿里没有出现资料核验记号" }),
+      errorCode: nonceVisible ? undefined : "operation_error",
       model,
       latencyMs: Date.now() - startedAt,
       revision: snapshot.draft.revision,
@@ -500,6 +505,6 @@ export async function runQualityCell(args: {
     return result;
   } catch (err) {
     steps.push({ name: "run", status: "fail", detail: err instanceof Error ? err.message : "unknown" });
-    return fail(err instanceof Error ? err.message : "对照格子执行失败");
+    return fail(err instanceof Error ? err.message : "对照格子执行失败", { errorCode: "operation_error" });
   }
 }

@@ -45,12 +45,13 @@ export type QualityCellView = {
   process: string;
   expectedLookId: string | null;
   draft: QualityCellDraftView;
-  previewDraft: SiteDraft;
+  previewDraft?: SiteDraft;
   result: {
     ok: boolean;
     live: boolean;
     unverified: string[];
     error?: string;
+    errorCode?: string;
     model: string | null;
     latencyMs: number;
     lookVsDefault: string;
@@ -102,7 +103,7 @@ export async function cellSnapshot(packId: QualityPackId, group: QualityGroupId)
       copy: copyFingerprint(draft),
       lookVsDefault: compareLookVsCopy(defaultDraft, draft),
     },
-    previewDraft: draft,
+    previewDraft: saved?.ok ? draft : undefined,
     result: saved,
   };
 }
