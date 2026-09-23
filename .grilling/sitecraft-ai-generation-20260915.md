@@ -200,3 +200,4 @@ REALITY GATE: INCOMPLETE（jiro 条款；d55f6e7c 仓库未克隆；组页引擎
 - Round 18（2026-09-18 20:21）：Q27=A。D27/D5 deferred。spec v0.7、plan v0.10。主对话 TODO 写入 plan。本聊天未实现引擎、未 commit、未宣称 Demo 已验收。
 - 2026-09-23（本轮）：新 DeepSeek key 的 models/chat 主机与 Docker 探针均 200；完成真实动态需求对齐、无型号占位方案、确认生成、刷新恢复、发布页中英文回读、色板切换/撤销和 stale revision 409 证据。修复 operations 超限重试提示，并补 Docker runtime overlay 复制与 preview revision 缓存失效。当前仍为内部 Demo 的 `INCOMPLETE`：SMTP 无发信适配器，Quick Tunnel 受 VPN DNS/路由阻断，iPhone 实机未验收，完整 Docker build 仍受 Docker Registry TLS 超时影响；本地代码 commit 待主任务收口。
 - 2026-09-23（追加）：修复 forge v2 回读的三个落点回执缺口：`siteName` 作为元数据过滤，forge adapter 声明邮箱/电话，preview bridge 把真实产品网格根目标记为 applied。针对性 adapter/bridge 42/42、全套 193/193；浏览器刷新后产品卡可见且无新 missing 警告。
+- 2026-09-23（网络复测）：主机 DeepSeek 连接超时；Docker `/models` 曾 200，随后 JSON chat 也超时。保留成功与失败两类证据，模型外部稳定性仍 `UNVERIFIED`，没有添加生产伪 fallback。

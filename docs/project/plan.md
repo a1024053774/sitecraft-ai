@@ -351,3 +351,7 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 ### Forge 落点回执修复（2026-09-23）
 
 真实 v2 浏览器回读曾报告 `siteName.zh`、`contact.email.zh` 和 `products` 三个 missing。回读源码后确认：forge overlay 已有品牌、邮箱、电话和产品网格；其中 `siteName` 与 `companyName` 共用一个可见品牌节点，不能双写，故把 `siteName` 作为站点元数据从可见回执目标过滤，由 `companyName` 负责页面品牌；adapter 补齐 `contact.email`/`contact.phone`，bridge 在真实产品网格存在时记录集合根目标 `products` 为 applied。新增 adapter/bridge 契约测试后，针对性 42/42、全套 193/193 通过；浏览器刷新回读产品卡“ 不锈钢流体接头（型号待确认）”，未再出现新的落点警告。
+
+### 外部模型网络复测（2026-09-23）
+
+当前主机经 VPN 解析 `api.deepseek.com` 到 `198.18.0.157`，主机 `fetch`/curl 连接超时；Docker `/models` 曾在本轮返回 200，但随后带 JSON chat 请求也出现 `UND_ERR_CONNECT_TIMEOUT`。因此 Docker 的 PostgreSQL、镜像 overlay 和应用入口是可用的，模型调用的稳定性仍是 `UNVERIFIED`，不能用一次成功探针替代持续可用性。应用继续保留安全的 provider/network 错误提示，不启用伪造生成。
