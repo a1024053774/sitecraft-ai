@@ -129,6 +129,7 @@ export function describeUserError(input: UserErrorInput): UserErrorDescription {
 export function userFacingError(input: UserErrorInput, fallback = "操作没有完成，当前草稿未确认发生变化。") {
   const description = describeUserError(input);
   if (input.userMessage?.trim()) return input.userMessage.trim();
+  if (input.code?.trim() && catalog[input.code.trim()]) return `${description.message} ${description.nextStep}`;
   if (input.message && /[\u4e00-\u9fff]/.test(input.message) && !/[\\/]|Error:|at |token|secret|api[_-]?key/i.test(input.message)) {
     return input.message.trim();
   }

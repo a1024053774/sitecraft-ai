@@ -271,6 +271,7 @@ function alignmentMessageText(view: AlignmentViewState, action?: string) {
   if (view.lastResult?.status === "applied" && typeof view.lastResult.revision === "number") {
     return `已应用已确认的方案，草稿 v${view.lastResult.revision}。`;
   }
+  if (view.lastResult?.status === "error") return "需求对齐没有完成，草稿没有修改。请读取当前状态后重试。";
   if (view.lastResult?.status === "answer") return view.lastResult.text || view.lastResult.summary || "模型已回答。";
   if (view.lastResult?.summary) return view.lastResult.summary;
   if (action === "cancel" || view.state === "cancelled") return "已关闭需求对齐。已保存的选择仍保留在会话中。";
@@ -571,7 +572,11 @@ export default function WorkspacePage() {
         change: view.waitingForUser ? "等待你选择" : view.saved ? "已保存选择" : view.prefsOnly ? "偏好已保存" : undefined,
       }]);
     } else {
-      throw new Error(String(done.error || "模型操作失败"));
+      const safeText = readableWorkspaceError(done, "模型操作失败");
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(), role: "assistant", status: "error",
+        text: safeText, change: "请以服务器草稿和恢复状态为准",
+      }]);
     }
     if (done.conversationPersisted === false) {
       setMessages((items) => [...items, {

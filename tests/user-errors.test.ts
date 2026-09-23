@@ -16,3 +16,9 @@ test("unknown errors do not leak raw stack or provider text", () => {
   assert.equal(message.includes("/private/token"), false);
   assert.equal(message.includes("secret"), false);
 });
+
+test("known diagnostic codes override raw provider details", () => {
+  const message = userFacingError({ code: "invalid_output", message: "模型输出未通过 Schema：operations: Too big" });
+  assert.equal(message.includes("Too big"), false);
+  assert.equal(message.includes("未经校验"), true);
+});

@@ -128,7 +128,16 @@ function alignmentError(error: unknown) {
 }
 
 function persistWarning(error: unknown) {
-  return `会话写入失败：${error instanceof Error ? error.message : "未知错误"}`;
+  return "会话历史没有写入，草稿以当前版本为准。请刷新后读取状态。";
+}
+
+function safeProviderFailure(code: string) {
+  const description = describeUserError({ code });
+  return {
+    summary: description.message,
+    userMessage: `${description.message} ${description.nextStep}`,
+    recovery: description.recovery,
+  };
 }
 
 async function planPromptStart(siteId: string, args: {
@@ -229,12 +238,13 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     conversationContext: conversationPromptContext(conversation),
     alignmentContext: alignmentPromptContext(conversation.alignment),
   });
+  const providerFailure = provider.ok ? null : safeProviderFailure(provider.code);
 
   let accepted = false;
   const applied = await updateConversationAlignment(siteId, conversationId, (record) => {
     if (record.alignment.inflightRunId !== runId) return record;
     accepted = true;
-    if (!provider.ok) return { ...record, alignment: applyRunError(record.alignment, { runId, error: provider.error }) };
+    if (!provider.ok) return { ...record, alignment: applyRunError(record.alignment, { runId, error: providerFailure!.summary }) };
     const guidedBriefId = record.alignment.styleOptionId;
     const guidedBrief = guidedBriefId ? visualBriefCatalog.find((brief) => brief.id === guidedBriefId) : undefined;
     const replacement = provider.type === "edit"
@@ -285,7 +295,7 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     event(controller, { type: "done", status: "alignment", ...viewPayload(conversationId, view, { action: "state" }) });
     return;
   }
-  const aiSummary = !provider.ok ? provider.error
+  const aiSummary = !provider.ok ? providerFailure!.summary
     : provider.type === "answer" ? provider.text
       : provider.type === "clarify" ? provider.question : provider.summary;
   const status = !provider.ok ? "error"
@@ -294,7 +304,12 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
   const doneEvent = {
     type: "done", status,
     ...viewPayload(conversationId, view, { action: provider.ok ? provider.type : "error" }),
-    ...(provider.ok ? { model: provider.model } : { error: provider.error, code: provider.code }),
+    ...(provider.ok ? { model: provider.model } : {
+      error: providerFailure!.summary,
+      userMessage: providerFailure!.userMessage,
+      recovery: providerFailure!.recovery,
+      code: provider.code,
+    }),
     ...(provider.ok && provider.type === "answer" ? { text: provider.text } : {}),
     latencyMs: provider.latencyMs,
   };
@@ -366,10 +381,14 @@ async function emitRecordedResult(siteId: string, conversationId: string, record
     });
     return;
   }
+  const safeFailure = safeProviderFailure("provider_error");
   event(controller, {
     type: "done",
     status: "error",
-    error: result.summary || "需求对齐失败",
+    error: safeFailure.summary,
+    userMessage: safeFailure.userMessage,
+    recovery: safeFailure.recovery,
+    code: "provider_error",
     conversationId,
     waitingForUser: false,
     alignment: view,
@@ -406,11 +425,12 @@ async function commitClaimedProposal(siteId: string, conversationId: string, con
       model: proposed.model ?? undefined, latencyMs: proposed.latencyMs,
     });
   } catch (error) {
-    aiSummary = error instanceof Error ? error.message : "操作应用失败";
+    const safeFailure = safeProviderFailure("operation_error");
+    aiSummary = safeFailure.summary;
     const failed = await updateConversationAlignment(siteId, conversationId, (record) => ({
       ...record, alignment: applyCommittedResult(record.alignment, { status: "error", summary: aiSummary }),
     }));
-    event(controller, { type: "done", status: "error", code: "operation_error", error: aiSummary,
+    event(controller, { type: "done", status: "error", code: "operation_error", error: aiSummary, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery,
       conversationId, alignment: publicAlignmentView(failed.alignment) });
     return;
   }
@@ -476,7 +496,8 @@ function actionStream(siteId: string, conversationId: string, action: string, ap
         event(controller, { type, ...payload });
         event(controller, { type: "done", status: waitingClarify ? "clarify" : "alignment", ...payload });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "需求对齐失败";
+        const safeFailure = safeProviderFailure("operation_error");
+        const message = safeFailure.summary;
         let view = applied.view;
         let conversationPersisted = true;
         if (applied.result.shouldContinue && applied.result.runId) {
@@ -490,7 +511,7 @@ function actionStream(siteId: string, conversationId: string, action: string, ap
           }
         }
         event(controller, {
-          type: "done", status: "error", conversationId, error: message, alignment: view,
+          type: "done", status: "error", conversationId, error: message, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery, code: "operation_error", alignment: view,
           ...(!conversationPersisted ? { conversationPersisted: false, conversationError: "任务状态保存失败，请读取服务器状态。" } : {}),
         });
       } finally {
@@ -677,9 +698,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         let doneEvent: Record<string, unknown>;
 
         if (!provider.ok) {
-          aiSummary = provider.error;
+          const safeFailure = safeProviderFailure(provider.code);
+          aiSummary = safeFailure.summary;
           appliedOperationsSummary = "not applied: provider error";
-          doneEvent = { type: "done", status: "error", error: provider.error, code: provider.code, latencyMs: provider.latencyMs };
+          doneEvent = { type: "done", status: "error", error: safeFailure.summary, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery, code: provider.code, latencyMs: provider.latencyMs };
         } else if (provider.type === "answer") {
           event(controller, { type: "answer", text: provider.text });
           outcome = "no_change";
@@ -732,9 +754,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
               doneEvent = { type: "done", status: "applied", summary: provider.summary, rejected: provider.rejected, changeSet: committed.changeSet, ...snapshot(committed.record), model: provider.model, latencyMs: provider.latencyMs };
             }
           } catch (error) {
-            aiSummary = error instanceof Error ? error.message : "操作应用失败";
+            const safeFailure = safeProviderFailure("operation_error");
+            aiSummary = safeFailure.summary;
             appliedOperationsSummary = "not applied: operation_error";
-            doneEvent = { type: "done", status: "error", code: "operation_error", error: aiSummary };
+            doneEvent = { type: "done", status: "error", code: "operation_error", error: aiSummary, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery };
           }
         }
 
@@ -757,11 +780,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         }
         emitDone(doneEvent);
       } catch (error) {
+        const safeFailure = safeProviderFailure("network_error");
         emitDone({
           type: "done",
           status: "error",
-          code: "conversation_error",
-          error: error instanceof Error ? error.message : "对话处理失败",
+          code: "network_error",
+          error: safeFailure.summary,
+          userMessage: safeFailure.userMessage,
+          recovery: safeFailure.recovery,
         });
       } finally {
         controller.close();

@@ -410,7 +410,8 @@ test("chat POST keeps applied result when append fails after a successful commit
   assert.equal(result.done.status, "applied");
   assert.equal(result.done.conversationPersisted, false);
   assert.equal(typeof result.done.conversationError, "string");
-  assert.match(String(result.done.conversationError), /会话写入失败：Conversation not found/);
+  assert.match(String(result.done.conversationError), /会话历史没有写入/);
+  assert.equal(String(result.done.conversationError).includes("Conversation not found"), false);
   assert.equal(result.done.summary, "CHAT_SENTINEL_PERSIST_SUMMARY_8812");
   assert.equal(typeof result.done.conversationId, "string");
   assert.ok(result.done.changeSet);
@@ -445,7 +446,8 @@ test("chat POST keeps answer when append fails and does not treat it as an error
   assert.equal(result.done.status, "answer");
   assert.equal(result.done.text, "CHAT_SENTINEL_ANSWER_TEXT_7730");
   assert.equal(result.done.conversationPersisted, false);
-  assert.match(String(result.done.conversationError), /会话写入失败：Conversation not found/);
+  assert.match(String(result.done.conversationError), /会话历史没有写入/);
+  assert.equal(String(result.done.conversationError).includes("Conversation not found"), false);
   assert.equal("changeSet" in result.done, false);
 
   const after = await getSite(siteId);
