@@ -97,11 +97,11 @@ test("group B is a real look-board lock, not a tone-in-prompt label, and C uses 
   assert.deepEqual(manufacturingB.preOps, [{ op: "set_visual_brief", briefId: "technical-product" }]);
   assert.equal(manufacturingC.lookBriefId, "engineering-industrial");
   assert.equal(exportC.lookBriefId, "export-catalog");
-  assert.equal(servicesC.lookBriefId, "editorial-service");
+  assert.equal(servicesC.lookBriefId, "technical-product");
   assert.notEqual(manufacturingB.lookBriefId, manufacturingC.lookBriefId);
   assert.equal(materialsLookTemplateId(qualityPacks.manufacturing), "screwfast");
   assert.equal(materialsLookTemplateId(qualityPacks.export), "landwind");
-  assert.equal(materialsLookTemplateId(qualityPacks.services), "fresh");
+  assert.equal(materialsLookTemplateId(qualityPacks.services), "tailwind-landing");
   assert.equal(qualityRecipe("manufacturing", "D").reviewAndFix, true);
   assert.equal(qualityRecipe("manufacturing", "C").reviewAndFix, false);
   assert.ok(manufacturingC.preOps.some((op) => op.op === "set_section_visibility"));

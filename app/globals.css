@@ -257,6 +257,7 @@ a { color: inherit; text-decoration: none; }
 .site-page-tab.active { border-color: var(--green); background: var(--green-pale); color: var(--green); }
 .site-page-source, .site-page-unsupported { margin: 6px 0 0; font-size: 10px; color: var(--ink-soft); line-height: 1.45; }
 .site-page-unsupported { color: #886519; }
+.legacy-look-warning { margin: 8px 0 0; padding: 8px 10px; border: 1px solid #e5c98a; border-radius: 8px; background: #fff9e9; color: #75551d; font-size: 11px; line-height: 1.45; }
 .project-name { font-size: 13px; font-weight: 800; letter-spacing: -.03em; }
 .save-status { color: var(--muted); font-size: 10px; display: flex; align-items: center; gap: 5px; }
 .save-status svg { color: var(--green); }

@@ -144,7 +144,7 @@ export const qualityPacks: Record<QualityPackId, QualityPack> = {
     email: "cal@p4s-sim.test",
     missingFacts: ["认证编号", "客户名单", "电话", "地址", "价格表"],
     extraPagesNote: "希望另有独立证书查询页。若系统无法支持，必须说明，不得假装已经开通。",
-    materialsLookId: "editorial-service",
+    materialsLookId: "technical-product",
     body: [
       "资料性质：模拟。不可当作真实企业。核验记号：P4S-Q7HN。",
       "公司名：临港计量校准P4S-Q7HN",

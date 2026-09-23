@@ -46,7 +46,8 @@
 
 ### 4. 撤下没有 kit 的样子
 
-`editorial-service`（深色产品 / `fresh`）没有 kit/overlay，选它会落回模板演示壳。先从用户可选的样子盘和需求对齐选项里撤下；`/quality` 专业服务包改用已有 kit 的视觉族。旧草稿里已存的 `editorial-service` 要能正常打开并提示换样子。
+已完成：`editorial-service/fresh` 从样子盘和需求对齐选项撤下；专业服务质量包改用 `technical-product/tailwind-landing`，旧 fresh 草稿读取时保留内容并迁移预览 kit。
+工作台对旧草稿显示换样子提示；桌面/375 宽真实浏览器确认旧预览有内容、质量页服务包均为已有 kit。
 
 ### 5. 发布页不对访客显示开发提示
 

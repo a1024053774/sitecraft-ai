@@ -155,15 +155,6 @@ export const visualBriefCatalog: VisualBrief[] = [
     primaryAction: "提交询盘",
     templateId: "tailwind-landing",
   },
-  {
-    version: 1,
-    id: "editorial-service",
-    label: "深色产品",
-    summary: "深底界面，用功能和结果说明产品。",
-    audience: "需要看清产品能力的访客",
-    primaryAction: "预约产品演示",
-    templateId: "fresh",
-  },
 ];
 
 export const editableCardSchema = z.object({
@@ -261,6 +252,7 @@ export const siteDraftSchema = z.object({
   companyName: z.string().min(1).max(120),
   templateId: z.string().min(1).max(80),
   visualBrief: visualBriefSchema,
+  legacyVisualBriefId: z.literal("editorial-service").optional(),
   paletteId: paletteIdSchema.default("default"),
   locale: z.enum(locales),
   revision: z.number().int().nonnegative(),
@@ -448,6 +440,19 @@ function hydratePaletteId(draft: SiteDraft): SiteDraft {
   return draft;
 }
 
+function migrateRetiredVisualBrief(draft: SiteDraft): SiteDraft {
+  if (draft.visualBrief.id !== "editorial-service" && draft.templateId !== "fresh") return draft;
+  const fallback = visualBriefCatalog.find((item) => item.id === "technical-product");
+  if (!fallback) return draft;
+  return {
+    ...draft,
+    templateId: fallback.templateId,
+    visualBrief: structuredClone(fallback),
+    paletteId: defaultPaletteIdForVisualBrief(fallback.id),
+    legacyVisualBriefId: "editorial-service",
+  };
+}
+
 function pagePlanForLegacy(legacy: Record<string, unknown>): PagePlan {
   const templateId = typeof legacy.templateId === "string" && legacy.templateId.trim()
     ? legacy.templateId
@@ -459,7 +464,7 @@ function pagePlanForLegacy(legacy: Record<string, unknown>): PagePlan {
 export function normalizeDraft(input: unknown): SiteDraft {
   const parsed = siteDraftSchema.safeParse(input);
   if (parsed.success) {
-    const hydrated = hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) });
+    const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) }));
     return { ...hydrated, pagePlan: rehostPagePlan(hydrated.pagePlan, hydrated.templateId) };
   }
 
@@ -477,7 +482,7 @@ export function normalizeDraft(input: unknown): SiteDraft {
       ...(!Object.hasOwn(legacy, "visualBrief") ? { visualBrief: structuredClone(defaultDraft.visualBrief) } : {}),
       ...(!Object.hasOwn(legacy, "pagePlan") ? { pagePlan: pagePlanForLegacy(legacy) } : {}),
     });
-    const hydrated = hydratePaletteId({ ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) });
+    const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) }));
     return { ...hydrated, pagePlan: rehostPagePlan(hydrated.pagePlan, hydrated.templateId) };
   }
   const legacyHero = legacy.hero && typeof legacy.hero === "object"
@@ -497,5 +502,5 @@ export function normalizeDraft(input: unknown): SiteDraft {
   if (typeof legacyHero.cta === "string") candidate.content.hero.cta.zh = legacyHero.cta;
   const products = z.array(productSchema).max(1000).safeParse(legacy.products);
   if (products.success) candidate.products = products.data;
-  return candidate;
+  return migrateRetiredVisualBrief(candidate);
 }

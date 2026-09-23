@@ -27,10 +27,9 @@ const LOOK_BOARD = [
   { id: "engineering-industrial", label: "工程工业", templateId: "screwfast" },
   { id: "export-catalog", label: "蓝白目录", templateId: "landwind" },
   { id: "technical-product", label: "灰底短路径", templateId: "tailwind-landing" },
-  { id: "editorial-service", label: "深色产品", templateId: "fresh" },
 ] as const;
 
-const OMITTED_TEMPLATES = ["atlas", "powerai", "astro-starter", "shadcn-landing", "nextjs-landing"] as const;
+const OMITTED_TEMPLATES = ["atlas", "powerai", "astro-starter", "fresh", "shadcn-landing", "nextjs-landing"] as const;
 const INDUSTRY_CARD_LABELS = ["工业专业", "外贸目录", "技术产品", "专业顾问"];
 
 test("look board ships snapshot-backed looks with look-language labels, not industry 1:1", () => {
@@ -40,7 +39,8 @@ test("look board ships snapshot-backed looks with look-language labels, not indu
     visualBriefCatalog.map((item) => ({ id: item.id, label: item.label, templateId: item.templateId })),
     shipped.map((item) => ({ id: item.id, label: item.label, templateId: item.templateId })),
   );
-  assert.deepEqual([...visualBriefIds], shipped.map((item) => item.id));
+  assert.deepEqual([...visualBriefIds].filter((id) => shipped.some((item) => item.id === id)), shipped.map((item) => item.id));
+  assert.equal(visualBriefIds.includes("editorial-service"), true, "legacy drafts keep the removed id in the schema");
 
   for (const item of visualBriefCatalog) {
     assert.equal(INDUSTRY_CARD_LABELS.includes(item.label), false, `${item.id} still uses an industry card label`);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft, visualBriefCatalog } from "../lib/site-document.ts";
-import { applySiteOperations } from "../lib/site-operations.ts";
+import { applySiteOperations, type SiteOperation } from "../lib/site-operations.ts";
 import { simulatedPacks } from "../lib/simulated-packs.ts";
 import {
   PREVIEW_BRIDGE_SOURCE,
@@ -988,13 +988,25 @@ const lookFirstScreenOptions = {
 
 function authoredLookDraft(id: "K07" | "M52", briefId: "technical-product" | "editorial-service") {
   const pack = LOOK_FIRST_SCREEN_PACKS[id];
-  return applySiteOperations(structuredClone(defaultDraft), [
-    { op: "set_visual_brief", briefId },
+  const seed = structuredClone(defaultDraft);
+  if (briefId === "editorial-service") {
+    seed.templateId = "fresh";
+    seed.visualBrief = {
+      ...seed.visualBrief,
+      id: "editorial-service",
+      label: "深色产品",
+      summary: "历史草稿样子",
+      templateId: "fresh",
+    };
+  }
+  const operations: SiteOperation[] = [
+    ...(briefId === "technical-product" ? [{ op: "set_visual_brief", briefId } as const] : []),
     { op: "set_text", target: "companyName", value: pack.companyName },
     { op: "set_text", target: "hero.title", locale: "zh", value: pack.title },
     { op: "set_text", target: "hero.subtitle", locale: "zh", value: pack.subtitle },
     { op: "set_text", target: "hero.cta", locale: "zh", value: pack.cta },
-  ], lookFirstScreenOptions).draft;
+  ];
+  return applySiteOperations(seed, operations, lookFirstScreenOptions).draft;
 }
 
 function createTailwindLandingFragment() {

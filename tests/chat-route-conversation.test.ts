@@ -510,7 +510,7 @@ test("alignment start returns style options without calling the provider or chan
   assert.equal(labels.includes("工程工业"), true);
   assert.equal(labels.includes("蓝白目录"), true);
   assert.equal(labels.includes("灰底短路径"), true);
-  assert.equal(labels.includes("深色产品"), true);
+  assert.equal(labels.includes("深色产品"), false);
   assert.equal(labels.includes("工业专业"), false);
   assert.equal(labels.includes("外贸目录"), false);
   assert.ok(result.done);
@@ -814,7 +814,7 @@ test("alignment confirm conflicts when the draft revision changes, and cancel do
     conversationId,
     questionId: String(started.done?.questionId),
     questionRevision: Number(started.done?.questionRevision),
-    optionId: "editorial-service",
+    optionId: "technical-product",
   });
   const clarifyOptions = asOptionCards(styled.done);
   const proposed = await postChat(siteId, {
@@ -857,7 +857,7 @@ test("alignment confirm conflicts when the draft revision changes, and cancel do
     conversationId: otherId,
     questionId: String(otherStart.done?.questionId),
     questionRevision: Number(otherStart.done?.questionRevision),
-    optionId: "editorial-service",
+    optionId: "technical-product",
   });
   const cancelled = await postChat(otherSite, { action: "cancel", conversationId: otherId });
   assert.equal(cancelled.done?.action, "cancel");
@@ -908,7 +908,7 @@ test("two unrelated alignment tasks produce corresponding model questions and re
     conversationId: String(startB.done?.conversationId),
     questionId: String(startB.done?.questionId),
     questionRevision: Number(startB.done?.questionRevision),
-    optionId: "editorial-service",
+    optionId: "technical-product",
   });
   assert.match(String(styleA.done?.question || ""), /ALIGN_HITL_ALPHA_Q_4401/);
   assert.match(String(styleB.done?.question || ""), /ALIGN_HITL_BETA_Q_4401/);
@@ -1016,7 +1016,7 @@ test("cancel suppresses a late provider answer and preserves the saved cancellat
   try {
     const selecting = postChat(siteId, {
       action: "select", conversationId, questionId: started.done?.questionId,
-      questionRevision: started.done?.questionRevision, optionId: "editorial-service",
+      questionRevision: started.done?.questionRevision, optionId: "technical-product",
     });
     await providerEntered;
     const cancelled = await postChat(siteId, { action: "cancel", conversationId });

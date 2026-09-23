@@ -475,6 +475,7 @@ export default function WorkspacePage() {
   }, [draftReady, siteId]);
 
   const currentTemplate = getTemplate(draft.templateId);
+  const legacyLookRetained = draft.legacyVisualBriefId === "editorial-service" || draft.visualBrief.id === "editorial-service";
   const activePage = findSitePage(draft.pagePlan, activePageId);
   const previewPagePath = previewPathForPage(activePage);
   const pageUrlSuffix = activePage?.placement === "route"
@@ -1071,6 +1072,11 @@ export default function WorkspacePage() {
             <span className="visual-brief-current">当前：{draft.visualBrief.label}</span>
             <Link className="section-link" href={"/quality" as Route}>12组对照</Link>
           </div>
+          {legacyLookRetained ? (
+            <p className="legacy-look-warning" role="status" data-testid="legacy-look-warning">
+              当前草稿使用已撤下的“深色产品”样子，旧预览仍可打开；请换用可用样子后再继续修改。
+            </p>
+          ) : null}
           <p>样子会改变右侧预览的版式与配色，行业仍来自公司资料。</p>
           <div className="visual-brief-grid">
             {visualBriefCatalog.map((brief) => {

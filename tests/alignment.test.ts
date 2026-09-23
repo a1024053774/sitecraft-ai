@@ -254,7 +254,7 @@ test("alignment actions enforce option validity, revision bump, stale confirm, a
   assert.equal(labels.includes("工程工业"), true);
   assert.equal(labels.includes("蓝白目录"), true);
   assert.equal(labels.includes("灰底短路径"), true);
-  assert.equal(labels.includes("深色产品"), true);
+  assert.equal(labels.includes("深色产品"), false);
   assert.equal(labels.includes("工业专业"), false);
   assert.equal(labels.includes("外贸目录"), false);
   assert.equal(labels.some((label) => /impeccable|skill|frontend-design/i.test(label)), false);
@@ -762,7 +762,7 @@ test("cross-task ids, cancel, provider error retry, and completed confirm stay o
     action: "select",
     questionId: capStyleQ.questionId,
     questionRevision: capStyleQ.questionRevision,
-    optionId: "editorial-service",
+    optionId: "technical-product",
   }), "cap style");
   for (let round = 0; round < 3; round += 1) {
     const asked = unwrapLive(applyClarifyResult(cap.snapshot, {

@@ -33,7 +33,7 @@ test("user-facing theme cards and alignment options do not expose Skill names", 
   }
   assert.deepEqual(
     visualBriefCatalog.map((item) => item.label),
-    ["明亮产品", "工程工业", "蓝白目录", "灰底短路径", "深色产品"],
+    ["明亮产品", "工程工业", "蓝白目录", "灰底短路径"],
   );
 });
 
