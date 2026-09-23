@@ -31,11 +31,8 @@
 
 ### 1. 预览白屏和无限载入
 
-已知：服务端 `/api/templates/*/preview` 返回 200；内置浏览器里 iframe 请求报 `net::ERR_BLOCKED_BY_CLIENT`，`/quality` 单元格停在「正在载入首屏…」。`quality-client.tsx` 只在 `onApplyReport` 后隐藏载入态，iframe 加载失败或 bridge 不回执时没有失败态、超时和重试。
-
-- 在真实浏览器复现，用控制台和网络面板确定根因（浏览器拦截、sandbox/CSP、bridge 未回执、局域网 origin 不在 `allowedDevOrigins`、`max-age=300` 缓存旧 HTML），修根因。
-- 无论根因是什么，`OpenSourceTemplateFrame` 的所有使用处（工作台、发布页、`/quality`、模板画廊）都要有：载入超时 → 可读失败提示 + 重试，不再白屏或无限转圈。
-- 开发环境预览不应被 5 分钟缓存卡住旧版本。
+已完成：真实浏览器回读确认当前 iframe 200、bridge 回执和 CSP/sandbox 均可用；根因是失败/未回执没有状态出口，另修正开发环境 `max-age=300` 缓存。
+改动：所有 `OpenSourceTemplateFrame` 使用处现在有超时/加载失败中文提示、重试按钮和质量页状态回执；聚焦测试、桌面/375 宽浏览器检查通过。
 
 ### 2. `/quality` 生成失败（`POST /api/quality/cells` 422）
 

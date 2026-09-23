@@ -4,6 +4,10 @@ import { buildPreviewBridgeScript, getTemplateAdapter, stripHtmlScripts } from "
 import { previewPageSegments } from "@/lib/template-pages";
 import { readTemplateStaticFile } from "@/lib/template-static";
 
+const PREVIEW_CACHE_CONTROL = process.env.NODE_ENV === "production"
+  ? "public, max-age=300, stale-while-revalidate=3600"
+  : "no-store";
+
 function escapeAttribute(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
 }
@@ -60,7 +64,7 @@ export async function GET(
     return new Response(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=300",
+        "Cache-Control": PREVIEW_CACHE_CONTROL,
         "Content-Security-Policy": `default-src 'none'; base-uri 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https:; img-src 'self' https: data: blob:; font-src 'self' https: data:; media-src 'self' https: data: blob:; connect-src 'none'; form-action 'none'; frame-ancestors 'self';`,
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
@@ -88,7 +92,7 @@ export async function GET(
     return new Response(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+        "Cache-Control": PREVIEW_CACHE_CONTROL,
         "Content-Security-Policy": `default-src 'none'; base-uri ${demoOrigin}; script-src https: 'unsafe-inline'; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; media-src * data: blob:; connect-src https:; form-action 'none'; frame-ancestors 'self';`,
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
@@ -100,7 +104,7 @@ export async function GET(
       const fallbackHtml = `<!doctype html><html lang="zh"><head><meta name="viewport" content="width=device-width"><style>*{box-sizing:border-box}body{margin:0;background:#f4f5f3;font:14px system-ui;color:#263238}.note{padding:10px 16px;background:#263238;color:white;text-align:center}.preview{display:block;width:100%;height:auto}</style></head><body><div class="note">Yukina 官方 README 预览 · 上游内容集合缺失，暂用官方全页预览图</div><main><section><h1>企业内容与品牌故事</h1><p>当前模板使用官方预览图，结构化内容仍会保存并回报可用槽位。</p></section><img class="preview" src="https://s2.loli.net/2025/01/26/S4URrsj9TFgOKAp.webp" alt="Yukina template official preview"></main></body></html>`;
       return new Response(
         prepareHtml(fallbackHtml, template.source.demoUrl, template.id),
-        { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300" } },
+        { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": PREVIEW_CACHE_CONTROL } },
       );
     }
     return new Response(

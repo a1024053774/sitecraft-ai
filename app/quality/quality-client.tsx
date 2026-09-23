@@ -98,6 +98,8 @@ export function QualityComparisonClient({
   const [note, setNote] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [hydrated, setHydrated] = useState<Record<string, boolean>>({});
+  const [previewState, setPreviewState] = useState<Record<string, "loading" | "ready" | "error">>({});
+  const [previewErrors, setPreviewErrors] = useState<Record<string, string>>({});
 
   const reload = useCallback(async () => {
     const response = await fetch("/api/quality/cells", { cache: "no-store" });
@@ -121,6 +123,11 @@ export function QualityComparisonClient({
       const nextOpen = !current[siteId];
       if (!nextOpen) {
         setHydrated((status) => ({ ...status, [siteId]: false }));
+        setPreviewState((status) => ({ ...status, [siteId]: "loading" }));
+        setPreviewErrors((errors) => ({ ...errors, [siteId]: "" }));
+      } else {
+        setPreviewState((status) => ({ ...status, [siteId]: "loading" }));
+        setPreviewErrors((errors) => ({ ...errors, [siteId]: "" }));
       }
       return { ...current, [siteId]: nextOpen };
     });
@@ -266,9 +273,9 @@ export function QualityComparisonClient({
                       >
                         {expanded[presented.siteId] && draft ? (
                           <>
-                            {hydrated[presented.siteId] ? null : (
+                            {previewState[presented.siteId] !== "error" && !hydrated[presented.siteId] ? (
                               <div className="quality-empty quality-preview-pending">正在载入首屏…</div>
-                            )}
+                            ) : null}
                             <OpenSourceTemplateFrame
                               templateId={draft.templateId}
                               draft={draft}
@@ -277,7 +284,14 @@ export function QualityComparisonClient({
                               onApplyReport={() => {
                                 setHydrated((status) => ({ ...status, [presented.siteId]: true }));
                               }}
+                              onLoadState={(state, message) => {
+                                setPreviewState((status) => ({ ...status, [presented.siteId]: state }));
+                                setPreviewErrors((errors) => ({ ...errors, [presented.siteId]: message ?? "" }));
+                              }}
                             />
+                            {previewState[presented.siteId] === "error" && previewErrors[presented.siteId] ? (
+                              <p className="quality-error" data-testid="preview-load-error-reason">{previewErrors[presented.siteId]}</p>
+                            ) : null}
                           </>
                         ) : (
                           <div className="quality-empty">{view?.draft.nonceVisible ? "点预览查看模板首屏" : "尚未生成"}</div>

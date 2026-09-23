@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Locale, SiteDraft } from "@/lib/site-model";
 
 type FrameVariant = "thumbnail" | "preview" | "workspace" | "published" | "quality";
+type PreviewLoadState = "loading" | "ready" | "error";
 
 type OpenSourceTemplateFrameProps = {
   templateId: string;
@@ -34,6 +35,7 @@ type OpenSourceTemplateFrameProps = {
     fallbackMatched: string[];
     proposedAlternatives: Array<{ requested: string; proposed: string }>;
   }) => void;
+  onLoadState?: (state: PreviewLoadState, message?: string) => void;
 };
 
 const targetPrompts: Record<string, { label: string; prompt: string }> = {
@@ -53,6 +55,7 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
 // the iframe URL prevents a browser from showing an older template shell after
 // the runtime asset bundle has been rebuilt.
 const PREVIEW_ASSET_REVISION = "20260923-family-kit-2";
+export const PREVIEW_TIMEOUT_MS = 10_000;
 
 export function OpenSourceTemplateFrame({
   templateId,
@@ -65,31 +68,58 @@ export function OpenSourceTemplateFrame({
   onInquiry,
   onSelectTarget,
   onApplyReport,
+  onLoadState,
 }: OpenSourceTemplateFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [loadState, setLoadState] = useState<PreviewLoadState>("loading");
+  const [loadError, setLoadError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const loadStateRef = useRef(onLoadState);
+  loadStateRef.current = onLoadState;
+  const timeoutRef = useRef<number | null>(null);
+  const contentRef = useRef({ templateId, draft, locale, expectedTargets, variant, activePage });
+  contentRef.current = { templateId, draft, locale, expectedTargets, variant, activePage };
+
+  const reportLoadState = useCallback((state: PreviewLoadState, message?: string) => {
+    if (state !== "loading" && timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setLoadState(state);
+    setLoadError(message ?? "");
+    loadStateRef.current?.(state, message);
+  }, []);
 
   const sendContent = useCallback(() => {
+    const content = contentRef.current;
     frameRef.current?.contentWindow?.postMessage(
-      { type: "sitecraft:content", templateId, draft, locale, expectedTargets, variant, activePage },
+      { type: "sitecraft:content", typeVersion: 1, ...content },
       "*",
     );
-  }, [activePage, draft, expectedTargets, locale, templateId, variant]);
+  }, []);
 
   useEffect(() => {
     setHydrated(false);
+    reportLoadState("loading");
     sendContent();
     const retry = window.setTimeout(sendContent, 500);
     const finalRetry = window.setTimeout(sendContent, 1500);
     const hydrationRetry = window.setTimeout(sendContent, 3500);
     const settledRetry = window.setTimeout(sendContent, 6000);
+    const timeout = window.setTimeout(() => {
+      reportLoadState("error", "预览载入超时，bridge 没有回执。请重试；如果仍失败，请检查本地浏览器是否拦截了 iframe。");
+    }, PREVIEW_TIMEOUT_MS);
+    timeoutRef.current = timeout;
     return () => {
       window.clearTimeout(retry);
       window.clearTimeout(finalRetry);
       window.clearTimeout(hydrationRetry);
       window.clearTimeout(settledRetry);
+      window.clearTimeout(timeout);
+      if (timeoutRef.current === timeout) timeoutRef.current = null;
     };
-  }, [sendContent]);
+  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, draft?.revision, expectedTargets.join("|"), locale, pagePath, reportLoadState, sendContent, templateId, variant]);
 
   useEffect(() => {
     const receiveMessage = (event: MessageEvent) => {
@@ -130,6 +160,7 @@ export function OpenSourceTemplateFrame({
       }
       if (data?.type === "sitecraft:applied" && data.templateId === templateId) {
         setHydrated(true);
+        reportLoadState("ready");
         if (typeof data.revision === "number" && onApplyReport) {
           onApplyReport({
             revision: data.revision,
@@ -143,25 +174,39 @@ export function OpenSourceTemplateFrame({
     };
     window.addEventListener("message", receiveMessage);
     return () => window.removeEventListener("message", receiveMessage);
-  }, [draft?.revision, onApplyReport, onInquiry, onSelectTarget, sendContent, templateId]);
+  }, [draft?.revision, onApplyReport, onInquiry, onSelectTarget, reportLoadState, sendContent, templateId]);
 
   const previewQuery = new URLSearchParams({ v: PREVIEW_ASSET_REVISION });
   if (pagePath) previewQuery.set("pagePath", pagePath);
 
+  const retry = () => {
+    setAttempt((value) => value + 1);
+  };
+
   return (
-    <iframe
-      ref={frameRef}
-      key={`${templateId}:${pagePath || "index"}`}
-      className={`open-source-template-frame open-source-template-frame-${variant}`}
-      src={`/api/templates/${encodeURIComponent(templateId)}/preview?${previewQuery.toString()}`}
-      title={`开源模板 ${templateId} 预览`}
-      data-page-path={pagePath || "index"}
-      data-page-placement={activePage?.placement ?? ""}
-      data-preview-hydrated={hydrated ? "true" : "false"}
-      data-testid="open-source-template-frame"
-      loading={variant === "thumbnail" ? "lazy" : "eager"}
-      sandbox="allow-scripts allow-forms"
-      onLoad={sendContent}
-    />
+    <div className={`open-source-template-frame-shell open-source-template-frame-shell-${variant}`} data-preview-state={loadState}>
+      <iframe
+        ref={frameRef}
+        key={`${templateId}:${pagePath || "index"}:${attempt}`}
+        className={`open-source-template-frame open-source-template-frame-${variant}`}
+        src={`/api/templates/${encodeURIComponent(templateId)}/preview?${previewQuery.toString()}`}
+        title={`开源模板 ${templateId} 预览`}
+        data-page-path={pagePath || "index"}
+        data-page-placement={activePage?.placement ?? ""}
+        data-preview-hydrated={hydrated ? "true" : "false"}
+        data-testid="open-source-template-frame"
+        loading={variant === "thumbnail" ? "lazy" : "eager"}
+        sandbox="allow-scripts allow-forms"
+        onLoad={sendContent}
+        onError={() => reportLoadState("error", "预览文件没有载入。请重试；如果仍失败，请检查本地浏览器是否拦截了 iframe。")}
+      />
+      {loadState === "error" ? (
+        <div className="open-source-template-frame-error" role="alert" data-testid="preview-load-error">
+          <strong>预览暂时无法显示</strong>
+          <span>{loadError || "预览载入失败。"}</span>
+          <button className="secondary-button" type="button" onClick={retry}>重试</button>
+        </div>
+      ) : null}
+    </div>
   );
 }
