@@ -5,6 +5,7 @@ import {
   pagePlacements,
   pageRoles,
   pageSectionKeys,
+  rehostPagePlan,
   type PagePlan,
 } from "./template-pages.ts";
 
@@ -457,7 +458,10 @@ function pagePlanForLegacy(legacy: Record<string, unknown>): PagePlan {
 
 export function normalizeDraft(input: unknown): SiteDraft {
   const parsed = siteDraftSchema.safeParse(input);
-  if (parsed.success) return hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) });
+  if (parsed.success) {
+    const hydrated = hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) });
+    return { ...hydrated, pagePlan: rehostPagePlan(hydrated.pagePlan, hydrated.templateId) };
+  }
 
   const legacy = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   // Existing v2 documents predate visualBrief/pagePlan. Add only the missing metadata;
@@ -473,7 +477,8 @@ export function normalizeDraft(input: unknown): SiteDraft {
       ...(!Object.hasOwn(legacy, "visualBrief") ? { visualBrief: structuredClone(defaultDraft.visualBrief) } : {}),
       ...(!Object.hasOwn(legacy, "pagePlan") ? { pagePlan: pagePlanForLegacy(legacy) } : {}),
     });
-    return hydratePaletteId({ ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) });
+    const hydrated = hydratePaletteId({ ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) });
+    return { ...hydrated, pagePlan: rehostPagePlan(hydrated.pagePlan, hydrated.templateId) };
   }
   const legacyHero = legacy.hero && typeof legacy.hero === "object"
     ? (legacy.hero as Record<string, unknown>)

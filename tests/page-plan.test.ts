@@ -21,12 +21,12 @@ test("default three is home, products and contact and is not a page cap", () => 
   const forge = defaultPagePlanFor("forge");
   assert.equal(forge.source, "default");
   assert.deepEqual(forge.pages.map((page) => page.id), ["home", "products", "contact"]);
-  assert.equal(forge.pages[0]?.placement, "route");
-  assert.equal(forge.pages[0]?.route, "");
+  assert.equal(forge.pages[0]?.placement, "section");
+  assert.equal(forge.pages[0]?.section, "hero");
   assert.equal(forge.pages[1]?.placement, "section");
   assert.equal(forge.pages[1]?.section, "products");
-  assert.equal(forge.pages[2]?.placement, "route");
-  assert.equal(forge.pages[2]?.route, "Contact");
+  assert.equal(forge.pages[2]?.placement, "section");
+  assert.equal(forge.pages[2]?.section, "contact");
   assert.deepEqual(forge.unsupported, []);
   assert.equal(defaultDraft.pagePlan.pages.length, 3);
 });
@@ -45,10 +45,10 @@ test("user extra pages keep a different set and explain unsupported urls", () =>
     ],
   });
   assert.equal(plan.source, "user");
-  assert.deepEqual(plan.pages.map((page) => page.id), ["home", "products", "contact", "about"]);
-  assert.equal(plan.pages.length > 3, true);
-  assert.equal(plan.pages.find((page) => page.id === "about")?.placement, "route");
-  assert.equal(plan.pages.find((page) => page.id === "about")?.route, "About");
+  assert.deepEqual(plan.pages.map((page) => page.id), ["home", "products", "contact"]);
+  assert.equal(plan.pages.length > 3, false);
+  assert.equal(plan.pages.some((page) => page.id === "about"), false);
+  assert.equal(plan.unsupported.some((item) => item.requested.includes("关于")), true);
   assert.equal(plan.unsupported.some((item) => item.requested.includes("认证")), true);
   assert.equal(plan.unsupported.some((item) => item.requested.includes("资料下载")), true);
   assert.equal(plan.pages.some((page) => page.id === "certifications"), false);
@@ -89,9 +89,10 @@ test("unspecified source uses default three and model plans can differ", () => {
     ],
   });
   assert.equal(modeled.source, "model");
-  assert.deepEqual(modeled.pages.map((page) => page.id), ["home", "products", "contact", "about"]);
-  assert.equal(modeled.pages.length > 3, true);
+  assert.deepEqual(modeled.pages.map((page) => page.id), ["home", "products", "contact"]);
+  assert.equal(modeled.pages.length > 3, false);
   assert.equal(modeled.pages.every((page) => page.placement === "section"), true);
+  assert.equal(modeled.unsupported.some((item) => item.requested.includes("关于")), true);
   assert.equal(modeled.unsupported.some((item) => item.requested.includes("认证")), true);
 });
 
@@ -104,6 +105,7 @@ test("landwind cannot host extra urls; forge extra html is a different document"
 
   assert.equal(existsSync(FORGE_INDEX), true);
   assert.equal(existsSync(FORGE_CONTACT), true);
+  assert.equal(templateExtraRoutes.forge, undefined);
   assert.equal(existsSync(LANDWIND_INDEX), true);
   const forgeIndex = readFileSync(FORGE_INDEX, "utf8");
   const forgeContact = readFileSync(FORGE_CONTACT, "utf8");
@@ -122,6 +124,17 @@ test("v2 drafts missing pagePlan hydrate from the template instead of shrinking 
   assert.deepEqual(restored.pagePlan.pages.map((page) => page.id), ["home", "products", "contact"]);
   assert.equal(restored.pagePlan.pages.every((page) => page.placement === "section"), true);
   assert.equal(restored.revision, 12);
+});
+
+test("stored default plans rehost old independent subpages onto same-page sections", () => {
+  const legacy = structuredClone(defaultDraft);
+  legacy.pagePlan.pages[0].placement = "route";
+  legacy.pagePlan.pages[0].route = "";
+  legacy.pagePlan.pages[2].placement = "route";
+  legacy.pagePlan.pages[2].route = "Contact";
+  const restored = normalizeDraft(legacy);
+  assert.equal(restored.pagePlan.pages.every((page) => page.placement === "section"), true);
+  assert.equal(restored.pagePlan.pages.some((page) => page.route), false);
 });
 
 test("ai edit intent accepts set_page_plan and switching looks rehosts placement", () => {
@@ -148,5 +161,5 @@ test("ai edit intent accepts set_page_plan and switching looks rehosts placement
     lastChange: "undo",
   });
   assert.equal(undone.draft.templateId, "forge");
-  assert.equal(undone.draft.pagePlan.pages.find((page) => page.id === "contact")?.placement, "route");
+  assert.equal(undone.draft.pagePlan.pages.find((page) => page.id === "contact")?.placement, "section");
 });

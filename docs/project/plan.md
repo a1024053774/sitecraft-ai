@@ -41,7 +41,8 @@
 
 ### 3. 子页不再克隆首页
 
-`lib/template-static.ts` 对任何 `index.html` 都换成首页 overlay，`screwfast/products/`、`forge/About/` 等子页因此是首页复制品；未命中的快照子页仍是模板演示壳。本轮做诚实降级：overlay 只作用于根 `index.html`；没有 SiteCraft overlay 的独立子页不再对外路由，`pagePlan` 改为同页区块或如实标 unsupported。补测试防回归。给子页做同族 overlay 留到下一轮。
+已完成：overlay 仅作用根 `index.html`；独立子页不再进入 `templateExtraRoutes`，pagePlan 改为同页声明区块或 unsupported，旧 default 草稿读取时也会 rehost。
+验证：静态加载器红测、pagePlan 回归、工作台桌面/375 宽真实浏览器均通过；本轮不新增子页 overlay。
 
 ### 4. 撤下没有 kit 的样子
 

@@ -30,22 +30,13 @@ type ExtraRoute = {
 };
 
 /**
- * Extra HTML documents that actually exist in local snapshots.
- * Tests must keep this table honest against vendor files. Missing paths
+ * Extra HTML documents that have an admitted SiteCraft overlay.
+ * Vendor subpages without one stay out of the public page plan; missing paths
  * must not be faked by cloning index.html.
  */
 export const templateExtraRoutes: Readonly<Record<string, readonly ExtraRoute[]>> = {
-  forge: [
-    { role: "home", path: "" },
-    { role: "about", path: "About" },
-    { role: "services", path: "Services" },
-    { role: "contact", path: "Contact" },
-  ],
-  screwfast: [
-    { role: "home", path: "" },
-    { role: "products", path: "products" },
-    { role: "contact", path: "contact" },
-  ],
+  // Independent vendor subpages have no SiteCraft overlay yet. Keep them out
+  // of the public page plan until a same-family subpage overlay is admitted.
 };
 
 export type RequestedSitePage = {
@@ -126,7 +117,7 @@ function sectionForRole(role: PageRole, templateId: string): PageSectionKey | un
   if (declared.has(role)) return role;
   if (role === "products" && declared.has("services")) return "services";
   if (role === "services" && declared.has("products")) return "products";
-  return role;
+  return undefined;
 }
 
 function placeRequestedPage(templateId: string, item: RequestedSitePage, source: PagePlanSource): SitePage | UnsupportedSitePage {

@@ -104,16 +104,17 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
   try {
     const details = await stat(/* turbopackIgnore: true */ target);
     if (details.isDirectory()) target = path.join(target, "index.html");
-    if (templateId === "landwind" && path.basename(target) === "index.html") {
+    const isRootIndex = target === path.join(root, "index.html");
+    if (isRootIndex && templateId === "landwind") {
       target = landwindHostOverlayFile();
     }
-    if (templateId === "screwfast" && path.basename(target) === "index.html") {
+    if (isRootIndex && templateId === "screwfast") {
       target = screwfastHostOverlayFile();
     }
-    if (templateId === "forge" && path.basename(target) === "index.html") {
+    if (isRootIndex && templateId === "forge") {
       target = forgeHostOverlayFile();
     }
-    if (templateId === "tailwind-landing" && path.basename(target) === "index.html") {
+    if (isRootIndex && templateId === "tailwind-landing") {
       target = tailwindHostOverlayFile();
     }
     const body = await readFile(/* turbopackIgnore: true */ target);

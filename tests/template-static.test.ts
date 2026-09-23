@@ -19,7 +19,7 @@ registerHooks({
   },
 });
 
-const { getTemplateStaticRoot, isSpaShellHtml, isUsableStaticHtml } = await import("../lib/template-static.ts");
+const { getTemplateStaticRoot, isSpaShellHtml, isUsableStaticHtml, readTemplateStaticFile } = await import("../lib/template-static.ts");
 const { getTemplate } = await import("../lib/site-model.ts");
 
 type SnapshotHtmlOracle = {
@@ -176,4 +176,25 @@ test("isolated fixture: spa-bundle without rendered snapshot is not readable", (
       assert.equal(getTemplateStaticRoot("shadcn-landing"), null);
     },
   );
+});
+
+test("only the root index receives the SiteCraft overlay; independent subpages keep their source", async () => {
+  const tempRoot = mkdtempSync(path.join(os.tmpdir(), "sitecraft-overlay-"));
+  const previous = process.cwd();
+  try {
+    writeIndex(tempRoot, "forge", "index.html", renderedPage);
+    writeIndex(tempRoot, "forge", path.join("About", "index.html"), "<!doctype html><html><body><h1>About source</h1><p>Independent source page.</p></body></html>");
+    const overlay = path.join(tempRoot, "lib/template-adapters/overlays/forge.index.html");
+    mkdirSync(path.dirname(overlay), { recursive: true });
+    writeFileSync(overlay, "<!doctype html><html><body><h1>SiteCraft root overlay</h1><p>Overlay body.</p></body></html>");
+    process.chdir(tempRoot);
+    const root = await readTemplateStaticFile("forge", []);
+    const subpage = await readTemplateStaticFile("forge", ["About"]);
+    assert.equal(root?.body.toString("utf8").includes("SiteCraft root overlay"), true);
+    assert.equal(subpage?.body.toString("utf8").includes("About source"), true);
+    assert.equal(subpage?.body.toString("utf8").includes("SiteCraft root overlay"), false);
+  } finally {
+    process.chdir(previous);
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
