@@ -377,3 +377,7 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 ### 当前浏览器回读与 Docker 分层证据（2026-09-23）
 
 当前源码 `3034` 浏览器新建 `browser-final-20260923`：工作台回读 v1，forge 预览中的 contact email 为「待补充」；切换“手机预览”后首屏、产品/流程/询盘/FAQ 仍可读，未见 `hello@example.com`、模板 Logo 墙或演示价格；发布页回读同一草稿，发布页表单提交后显示「已写入收件箱」和 lead id。Docker `3000` 新建 `docker-final-20260923`：健康检查、PostgreSQL、当前 overlay 和同样的无演示邮箱回读均通过；模型动态问答仍因当前 VPN/TLS 超时显示安全失败提示。Cua 内联手机截图未落 PNG；当前与历史精确视口证据索引写在 `artifacts/browser-final-20260923/evidence.json`，不能把浏览器设备模式外推为 iPhone 实机通过。
+
+### 用户可达 API 错误入口收口（2026-09-23）
+
+补查站点创建、草稿 PUT、历史 undo/redo、询盘列表、预览审查和质量对照 API：无效 payload、未知历史动作、缺少截图和质量辅助失败现在统一返回 `userErrorPayload` 的中文提示、稳定码和恢复动作，不再把英文校验文本、Zod details 或内部异常直接交给界面。预览审查仍保留安全的图片尺寸提示（例如 1×1），不泄露 provider 原文。针对性 22/22、typecheck 通过；随后需跑全套回归并单独提交。

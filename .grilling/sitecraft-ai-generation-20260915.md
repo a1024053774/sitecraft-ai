@@ -206,3 +206,4 @@ REALITY GATE: INCOMPLETE（jiro 条款；d55f6e7c 仓库未克隆；组页引擎
 - 2026-09-23（Docker/Mailpit/SMTP）：外置硬盘连接后 PostgreSQL healthy、Docker overlay 存在；Mailpit/Redis 曾退出，已不动卷重启。新增 opt-in Nodemailer 转发，询盘先存收件箱，邮件失败不回滚；本地真实 POST + Mailpit 回读 `SMTP-LOCAL-20260923` 成功。外部邮箱未验证，`SMTP_TO` 为空时保持 stored-only。
 - 2026-09-23（默认事实与色卡研究）：空草稿 contact email 改为「待补充」；色卡研究确认四个已有 kit 各 4 套足够，fresh 无 kit 暂缓。研究来源只约束颜色 token，不扩展素材许可。
 - 2026-09-23（当前浏览器回读）：3034 `browser-final-20260923` 工作台/发布页回读同一 v1，手机预览首屏与整页结构可读，发布页表单真实写入 lead；Docker `docker-final-20260923` 回读新 overlay 与「待补充」邮箱。模型动态问答在 Docker 仍为超时安全失败；硬件 iPhone 仍未验证。
+- 2026-09-23（API 错误入口）：站点创建、草稿、历史、质量页、预览审查和询盘列表的无效请求统一走用户错误目录，保留可读恢复建议并移除英文/Zod/raw exception 泄露；针对性 22/22 通过。
