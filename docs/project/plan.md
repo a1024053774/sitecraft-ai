@@ -373,3 +373,7 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 ### 色卡研究回报（2026-09-23）
 
 只读子代理回报了 USWDS、Radix Colors、Tailwind 官方色阶和 WCAG 2.2 的可核验来源、角色映射和对比度建议。四个已有 family kit（industrial/forge、engineering-industrial/screwfast、export-catalog/landwind、technical-product/tailwind-landing）各保留 4 套明显区分的命名色板；`editorial-service/fresh` 没有 kit，维持暂缓，不创建空 palette。公开色阶只作为 token 研究来源，不能推导图片、字体或商标许可。具体来源仍记录在 `paletteSourceById`，页面 A/B 浏览器证据必须按 family 单独判断。
+
+### 当前浏览器回读与 Docker 分层证据（2026-09-23）
+
+当前源码 `3034` 浏览器新建 `browser-final-20260923`：工作台回读 v1，forge 预览中的 contact email 为「待补充」；切换“手机预览”后首屏、产品/流程/询盘/FAQ 仍可读，未见 `hello@example.com`、模板 Logo 墙或演示价格；发布页回读同一草稿，发布页表单提交后显示「已写入收件箱」和 lead id。Docker `3000` 新建 `docker-final-20260923`：健康检查、PostgreSQL、当前 overlay 和同样的无演示邮箱回读均通过；模型动态问答仍因当前 VPN/TLS 超时显示安全失败提示。Cua 内联手机截图未落 PNG；当前与历史精确视口证据索引写在 `artifacts/browser-final-20260923/evidence.json`，不能把浏览器设备模式外推为 iPhone 实机通过。
