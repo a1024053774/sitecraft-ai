@@ -198,3 +198,4 @@ REALITY GATE: INCOMPLETE（jiro 条款；d55f6e7c 仓库未克隆；组页引擎
 - Round 16（2026-09-18 19:40）：负责人完成 `/quality` 盲评并判定不过。独立整页复检同意。D24/D25 写入；D5 重开待 Q26。intent/plan v0.8/mainline 已记 FAIL。未实现 SMTP，未改 tsconfig，未新写渲染器。
 - Round 17（2026-09-18 20:01）：Q26=B，用户纠正「不是只当样子参考，当素材用」。废弃挖空填词。并入 `d55f6e7c` 调研摘录。Jiro 提示词设计可学，Copy Prompt 仍不当生产。mainline/intent/spec v0.6/plan v0.9/AGENTS/skill 运行时升 `@0.3.0`。P4 基线仍钉 `@0.2.0`。未实现组页引擎、SMTP、tsconfig。前沿 Q27。
 - Round 18（2026-09-18 20:21）：Q27=A。D27/D5 deferred。spec v0.7、plan v0.10。主对话 TODO 写入 plan。本聊天未实现引擎、未 commit、未宣称 Demo 已验收。
+- 2026-09-23（本轮）：新 DeepSeek key 的 models/chat 主机与 Docker 探针均 200；完成真实动态需求对齐、无型号占位方案、确认生成、刷新恢复、发布页中英文回读、色板切换/撤销和 stale revision 409 证据。修复 operations 超限重试提示，并补 Docker runtime overlay 复制与 preview revision 缓存失效。当前仍为内部 Demo 的 `INCOMPLETE`：SMTP 无发信适配器，Quick Tunnel 受 VPN DNS/路由阻断，iPhone 实机未验收，完整 Docker build 仍受 Docker Registry TLS 超时影响；本地代码 commit 待主任务收口。

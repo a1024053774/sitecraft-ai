@@ -333,3 +333,17 @@ Gemini 审计目录为外部输入，仓库和浏览器回读后只确认了目�
 Docker origin `http://127.0.0.1:3000` 和 `/api/health` 均回读 200；按 `local-public-preview` Skill 启动了 Quick Tunnel，实际 URL 为 `https://colon-premier-checks-sender.trycloudflare.com`。公网根页和健康检查均返回 Cloudflare 530，不能把该 URL 交给 iPhone 当作可用预览。
 
 失败根因已由 cloudflared 日志确认：当前 VPN/Shadowrocket 把全局 DNS 指向 `198.18.0.2`，`_region1-v2-origintunneld._tcp.argotunnel.com` 的 SRV 查询超时/返回不存在；`route -n get 198.41.192.47` 和 `198.41.200.23` 仍落在 `utun5` 的 `128.0.0.0/1`，此前添加的 /24 路由没有实际生效。该边界属于本机网络权限与 VPN 配置，代码和 Docker origin 没有发现故障。需要在保留 VPN 的前提下，让 `argotunnel.com` 的 DNS 查询走局域网 DNS `192.168.3.1`，并让 Cloudflare edge IP 走 `en0`；完成后重新启动 Quick Tunnel，再同时回读本地与公网 URL。当前状态为 `INCOMPLETE`，临时 tunnel 进程保留为本轮测试进程，不能视为部署或生产地址。
+
+### 新 key 恢复与真实浏览器主链（2026-09-23）
+
+负责人更新 `.env.local` 后，主机请求 `GET /models` 与最小 `POST /chat/completions` 均返回 200，模型为 `deepseek-flash`；容器内同一 key/模型也返回 `OK`。之前的 402 已确认是旧 key 余额，不是网络或代码鉴权问题。
+
+在当前源码的 `3034` 浏览器入口上完成一条真实路径：启用需求对齐 → 提交“不锈钢流体接头英文出口目录” → 模型提出“真实型号/接口还是无型号占位版”的针对性问题 → 选择无型号占位版 → 首次结构化输出超过 20 条操作而失败并保留任务 → 重试后生成待确认方案 → 用户确认 → 草稿从 v1 到 v2。确认摘要明确保留“待补充”，没有认证、参数或型号编造；预览实际显示不锈钢流体接头产品卡、询盘路径和 FAQ 边界。刷新后回读 v2、已应用问答和同一预览；切换“极简冷灰”生成 v3，字体/版式/文案/产品不变，再撤销回 v4。
+
+这次失败暴露出模型在完整建站请求中可能超过 `aiIntentResponseSchema` 的 20 条 operations 上限。已在 `lib/ai-provider.ts` 的生产提示和重试反馈中明确上限、优先级和缩减策略；真实第二次请求成功进入确认，而没有放宽白名单或绕过 `commitOperations`。
+
+发布页 `http://127.0.0.1:3034/published/goal-live-20260923?page=home` 回读同一 v2 草稿；中英文 iframe 均显示不锈钢流体接头文案与产品卡。对过期版本的并发 PUT 实测为首个请求 200、第二个旧 revision 409，响应带 `revision_conflict`、可读中文提示和最新标题 `CONFLICT_A_20260923`，未覆盖新版本。
+
+Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=ready`、DeepSeek configured；既有 `docker-pg-evidence-20260922` 草稿仍能读回 revision 2。发现并修复 Dockerfile 的运行时遗漏：生产镜像原先没有复制 `lib/template-adapters/overlays`，导致本地快照缺失时回退到上游 MacBook/Small Bis 演示。Docker Registry TLS 超时阻止完整重建，因此本轮用旧本地镜像叠加 overlay 层完成可回读的开发验证，同时保留 `sitecraft-ai-web:pre-overlay-20260923` 回退标签；Dockerfile 已加入长期复制规则，下一次镜像依赖可用时需做完整 build。
+
+本轮真实浏览器截图为 Cua 内联证据，未落本地 PNG；当前预览截图显示默认 forge 已切换为 SiteCraft 自有无图/CSS 示意和“待补充”事实边界，不再显示 Main Keywords、MacBook、small-bis 或模板 Logo/演示文案。截图仍属于浏览器引擎验证，不代表 iPhone 实机安全区、键盘、橡皮筋滚动或触感已通过。SMTP 仍只有 Mailpit 可访问，应用没有 SMTP 发信适配器；外部邮件与 Quick Tunnel 公网可用性继续为 `UNVERIFIED/INCOMPLETE`。
