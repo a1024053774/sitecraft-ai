@@ -103,6 +103,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function renderProductGrid(draft, locale, applied) {
     var grid = uniqueNode('[data-sitecraft-product-grid]');
     if (!grid || !document || !document.createElement) return;
+    // The collection root is a declared host capability. Individual cards
+    // report their own product targets below, while this marker confirms that
+    // replace_products rendered the collection itself.
+    applied.add("products");
     grid.textContent = "";
     var products = draft && Array.isArray(draft.products) ? draft.products : [];
     var visible = products.filter(function (product) {

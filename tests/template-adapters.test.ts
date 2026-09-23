@@ -134,6 +134,13 @@ test("forge homepage source has unique declared hero slots and no compare-pack t
   assert.equal(html.includes(">LOGO<"), false);
 });
 
+test("forge declares authored contact and collection targets", () => {
+  const adapter = getTemplateAdapter("forge");
+  assert.ok(adapter);
+  assert.equal(adapter.slots.some((slot) => slot.target === "contact.email"), true);
+  assert.equal(adapter.slots.some((slot) => slot.target === "contact.phone"), true);
+});
+
 test("landwind homepage source has exactly one node for each declared first-screen slot", () => {
   const html = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
   const adapter = getTemplateAdapter("landwind");

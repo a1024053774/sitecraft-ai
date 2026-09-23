@@ -1344,6 +1344,7 @@ test("screwfast benchmark renders only authored product categories into the prod
     alt: { zh: "直角减速机产品图", en: "Right-angle gearbox product photo" },
   };
   const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
+    "products",
     "products.FM-2401.name.zh",
     "products.FM-2401.summary.zh",
     "products.FM-2402.name.zh",
@@ -1358,6 +1359,7 @@ test("screwfast benchmark renders only authored product categories into the prod
   assert.equal(visibleText(grid).includes("行星减速机"), true);
   assert.ok(report.appliedSlots.includes("products.FM-2401.name.zh"));
   assert.ok(report.appliedSlots.includes("products.FM-2402.name.zh"));
+  assert.ok(report.appliedSlots.includes("products"));
 });
 
 test("inquiry form submit posts payload to parent and does not keep web3forms action", () => {

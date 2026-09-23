@@ -75,6 +75,7 @@ function slotExpectedTargets(targets: string[]) {
     && target !== "draft"
     && target !== "pagePlan"
     && target !== "sections.order"
+    && !target.startsWith("siteName.")
   ));
 }
 
