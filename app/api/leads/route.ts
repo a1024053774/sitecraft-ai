@@ -1,4 +1,5 @@
 import { LeadStoreError, listLeads, SITE_ID_PATTERN } from "@/lib/lead-store";
+import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -15,8 +16,9 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     const status = error instanceof LeadStoreError && error.code === "invalid" ? 400 : 500;
+    const code = error instanceof LeadStoreError && error.code === "invalid" ? "invalid_payload" : "database_error";
     return Response.json(
-      { error: error instanceof Error ? error.message : "无法读取询盘" },
+      userErrorPayload({ code }),
       { status },
     );
   }

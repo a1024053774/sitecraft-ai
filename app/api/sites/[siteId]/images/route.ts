@@ -1,5 +1,6 @@
 import { imageLicenses, imageUsageScopes, listSiteImages, publicImagePayload, saveSiteImage, SiteImageError, type ImageLicense, type ImageUsageScope } from "@/lib/site-images";
 import { getSite } from "@/lib/site-store";
+import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,11 @@ function statusFor(error: unknown) {
   return 500;
 }
 
+function imageErrorPayload(error: unknown) {
+  const code = error instanceof SiteImageError ? "image_invalid" : "database_error";
+  return userErrorPayload({ code });
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   try {
@@ -21,7 +27,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
       images: records.map(publicImagePayload),
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "无法列出图片" }, { status: statusFor(error) });
+    return Response.json(imageErrorPayload(error), { status: statusFor(error) });
   }
 }
 
@@ -30,10 +36,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
   try {
     await getSite(siteId);
     const form = await request.formData().catch(() => null);
-    if (!form) return Response.json({ error: "需要 multipart 表单，字段名 file 或 image" }, { status: 400 });
+    if (!form) return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 400 });
     const file = form.get("file") ?? form.get("image");
     if (!(file instanceof Blob) || file.size <= 0) {
-      return Response.json({ error: "需要图片文件" }, { status: 400 });
+      return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 400 });
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
     const originalName = "name" in file && typeof file.name === "string" ? file.name : "upload";
@@ -49,8 +55,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     const usageScope = requestedScope && (imageUsageScopes as readonly string[]).includes(requestedScope)
       ? requestedScope as ImageUsageScope
       : undefined;
-    if (requestedLicense && !license) return Response.json({ error: "不支持的图片许可证" }, { status: 400 });
-    if (requestedScope && !usageScope) return Response.json({ error: "不支持的图片用途范围" }, { status: 400 });
+    if (requestedLicense && !license) return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 400 });
+    if (requestedScope && !usageScope) return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 400 });
     const record = await saveSiteImage({
       siteId,
       bytes,
@@ -70,6 +76,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
       image: publicImagePayload(record),
     }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "上传失败" }, { status: statusFor(error) });
+    return Response.json(imageErrorPayload(error), { status: statusFor(error) });
   }
 }

@@ -406,7 +406,7 @@ export const defaultDraft: SiteDraft = {
     contact: {
       title: { zh: "说说你的下一件事。", en: "Tell us what comes next." },
       body: { zh: "留下项目需求，我们会尽快与你联系。", en: "Share your requirements and our team will reply soon." },
-      email: "hello@example.com",
+      email: "待补充",
       phone: "待补充",
       address: { zh: "地址待补充", en: "Address to be completed" },
     },

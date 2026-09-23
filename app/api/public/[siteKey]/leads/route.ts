@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { createLead, LeadStoreError } from "@/lib/lead-store";
+import { deliverLeadNotification } from "@/lib/smtp";
+import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -27,7 +29,7 @@ export async function POST(
   const { siteKey } = await params;
   const parsed = leadSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return Response.json({ error: "询盘字段无效" }, { status: 400 });
+    return Response.json(userErrorPayload({ code: "lead_invalid" }), { status: 400 });
   }
   if (parsed.data.honeypot) {
     return Response.json({ status: "accepted" }, { status: 201 });
@@ -40,18 +42,30 @@ export async function POST(
       company: parsed.data.company,
       message: parsed.data.message,
     });
+    const delivery = await deliverLeadNotification({
+      siteId: lead.siteId,
+      name: lead.name,
+      email: lead.email,
+      company: lead.company,
+      message: lead.message,
+    });
     return Response.json(
       {
         id: lead.id,
         siteKey: lead.siteId,
         status: lead.status,
         receivedAt: lead.receivedAt,
+        delivery: delivery.status === "sent" ? "smtp" : "stored_only",
+        ...(delivery.status === "failed" ? { deliveryWarning: "询盘已写入收件箱，邮件转发结果未确认；请勿重复提交留言。" } : {}),
       },
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    const code = error instanceof LeadStoreError
+      ? error.code === "not_found" ? "lead_not_found" : error.code === "full" ? "lead_full" : "lead_invalid"
+      : "database_error";
     return Response.json(
-      { error: error instanceof Error ? error.message : "询盘未保存" },
+      userErrorPayload({ code }),
       { status: statusFor(error) },
     );
   }

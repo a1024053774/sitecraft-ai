@@ -1,4 +1,5 @@
 import { readSiteImage, SiteImageError } from "@/lib/site-images";
+import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -6,7 +7,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
   const { siteId, imageId } = await params;
   try {
     const loaded = await readSiteImage(siteId, imageId);
-    if (!loaded) return new Response("Image not found", { status: 404 });
+    if (!loaded) return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 404 });
     return new Response(Buffer.from(loaded.bytes), {
       headers: {
         "Content-Type": loaded.record.mime,
@@ -20,8 +21,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
   } catch (error) {
     if (error instanceof SiteImageError) {
       const status = error.code === "not_found" ? 404 : error.code === "forbidden" ? 403 : 400;
-      return new Response(error.message, { status });
+      return Response.json(userErrorPayload({ code: "image_invalid" }), { status });
     }
-    return new Response("Image read failed", { status: 500 });
+    return Response.json(userErrorPayload({ code: "database_error" }), { status: 500 });
   }
 }

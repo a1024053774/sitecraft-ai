@@ -1,4 +1,5 @@
 import { SiteDeleteError, deleteSiteByUserChoice } from "@/lib/site-delete";
+import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -14,11 +15,12 @@ export async function DELETE(
   } catch (error) {
     if (error instanceof SiteDeleteError) {
       const status = error.code === "not_found" ? 404 : 400;
-      return Response.json({ error: error.message, code: error.code }, { status });
+      const code = error.code === "not_found" ? "site_not_found" : "delete_unconfirmed";
+      return Response.json(userErrorPayload({ code }), { status });
     }
     if (error instanceof Error && error.message === "Invalid site id") {
-      return Response.json({ error: "站点编号无效", code: "invalid" }, { status: 400 });
+      return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
     }
-    return Response.json({ error: error instanceof Error ? error.message : "删除失败" }, { status: 500 });
+    return Response.json(userErrorPayload({ code: "database_error" }), { status: 500 });
   }
 }

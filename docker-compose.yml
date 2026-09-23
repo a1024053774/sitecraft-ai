@@ -10,6 +10,10 @@ services:
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
       DEEPSEEK_MAX_TOKENS: ${DEEPSEEK_MAX_TOKENS:-6000}
       DEFAULT_WORKSPACE_ID: ${DEFAULT_WORKSPACE_ID:-demo}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@sitecraft.local}
+      SMTP_TO: ${SMTP_TO:-}
     ports: ["3000:3000"]
     depends_on:
       postgres:

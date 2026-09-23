@@ -1,5 +1,6 @@
 import { requestImageFacts } from "@/lib/ai-provider";
 import { readSiteImage, SiteImageError } from "@/lib/site-images";
+import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -15,14 +16,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ si
   const { siteId, imageId } = await params;
   try {
     const loaded = await readSiteImage(siteId, imageId);
-    if (!loaded) return Response.json({ ok: false, error: "图片不属于当前站点" }, { status: 404 });
+    if (!loaded) return Response.json({ ok: false, ...userErrorPayload({ code: "image_invalid" }) }, { status: 404 });
     const result = await requestImageFacts({
       imageBytes: loaded.bytes,
       originalName: loaded.record.originalName,
     });
     if (!result.ok) {
+      const userCode = result.code === "invalid_image" ? "image_invalid" : result.code;
       return Response.json(
-        { ok: false, error: result.error, code: result.code, model: result.model },
+        { ok: false, ...userErrorPayload({ code: userCode }), model: result.model },
         { status: statusFor(result.code) },
       );
     }
@@ -52,8 +54,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ si
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof SiteImageError) {
-      return Response.json({ ok: false, error: error.message }, { status: error.code === "forbidden" ? 403 : 400 });
+      return Response.json({ ok: false, ...userErrorPayload({ code: "image_invalid" }) }, { status: error.code === "forbidden" ? 403 : 400 });
     }
-    return Response.json({ ok: false, error: error instanceof Error ? error.message : "分析失败" }, { status: 500 });
+    return Response.json({ ok: false, ...userErrorPayload({ code: "provider_error" }) }, { status: 500 });
   }
 }

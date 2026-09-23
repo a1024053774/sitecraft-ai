@@ -28,6 +28,7 @@ export function PublishedSiteClient({
   const [inquiryStatus, setInquiryStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [inquiryError, setInquiryError] = useState("");
   const [inquiryId, setInquiryId] = useState("");
+  const [deliveryWarning, setDeliveryWarning] = useState(false);
 
   useEffect(() => {
     setHydrated(false);
@@ -49,22 +50,24 @@ export function PublishedSiteClient({
   ) => {
     setInquiryStatus("sending");
     setInquiryError("");
+    setDeliveryWarning(false);
     try {
       const response = await fetch(`/api/public/${encodeURIComponent(siteKey)}/leads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fields),
       });
-      const payload = await response.json() as { id?: string; error?: string; code?: string; userMessage?: string; recovery?: string };
+      const payload = await response.json() as { id?: string; error?: string; code?: string; userMessage?: string; recovery?: string; deliveryWarning?: string };
       if (!response.ok || !payload.id) {
         throw new Error(userFacingError({ code: payload.code, message: payload.error, userMessage: payload.userMessage, recovery: payload.recovery }, locale === "zh" ? "询盘未保存" : "Inquiry was not saved"));
       }
       setInquiryId(payload.id);
+      setDeliveryWarning(Boolean(payload.deliveryWarning));
       setInquiryStatus("sent");
       form?.reset();
     } catch (error) {
       setInquiryStatus("error");
-      setInquiryError(error instanceof Error ? error.message : "询盘未保存");
+      setInquiryError(userFacingError({ message: error instanceof Error ? error.message : null }, "询盘未保存"));
     }
   };
 
@@ -123,6 +126,9 @@ export function PublishedSiteClient({
           <div className="published-inquiry-success" data-testid="published-inquiry-success">
             <strong>{locale === "zh" ? "已写入收件箱" : "Saved to inbox"}</strong>
             <span>{inquiryId}</span>
+            {deliveryWarning ? <p role="status">{locale === "zh"
+              ? "留言已保存，邮件转发结果尚未确认。无需重复提交。"
+              : "Your message is saved. Email forwarding is unconfirmed. Please do not submit it again."}</p> : null}
             <Link href={`/leads?site=${encodeURIComponent(siteKey)}` as Route}>
               {locale === "zh" ? "打开询盘线索" : "Open inbox"}
             </Link>
