@@ -37,6 +37,10 @@ export type TemplateKitTokens = {
   accentStrong?: string;
   accentSoft?: string;
   border: string;
+  /** Semantic form/control roles; older kits derive these from surface/accentSoft/muted. */
+  input?: string;
+  focus?: string;
+  disabled?: string;
   diagram?: string;
   tint?: string;
   font: string;

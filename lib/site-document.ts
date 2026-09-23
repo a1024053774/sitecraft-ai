@@ -29,30 +29,69 @@ export const paletteIds = [
   "default",
   "engineering-orange",
   "engineering-slate",
+  "engineering-deep-blue",
+  "engineering-oxide",
   "export-sea",
   "export-industrial-slate",
+  "export-cobalt",
+  "export-ink",
   "industrial-white",
   "industrial-minimal-gray",
+  "industrial-mint",
+  "industrial-sand",
   "technical-white",
   "technical-neutral",
+  "technical-cobalt",
+  "technical-olive",
 ] as const;
 export const paletteIdSchema = z.enum(paletteIds);
 export type PaletteId = z.infer<typeof paletteIdSchema>;
+export type PaletteSource = {
+  sourceUrl: string;
+  sourceLabel: string;
+  licenseNote: string;
+};
+export const paletteSourceById: Record<Exclude<PaletteId, "default">, PaletteSource> = {
+  "engineering-orange": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/system-tokens/", sourceLabel: "USWDS orange system tokens", licenseNote: "公开 token 参考，不是图片或字体资产；逐项准入仍需核验。" },
+  "engineering-slate": { sourceUrl: "https://tailwindcss.com/docs/colors", sourceLabel: "Tailwind slate/sky scale", licenseNote: "公开色阶参考；MIT 代码许可不外推到图片、字体或商标。" },
+  "engineering-deep-blue": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/theme-tokens/", sourceLabel: "USWDS primary/accent roles", licenseNote: "角色建模参考；页面对比度需按宿主 token 实测。" },
+  "engineering-oxide": { sourceUrl: "https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale", sourceLabel: "Radix orange/amber scale", licenseNote: "公开色阶和对比说明参考，不代表外部素材准入。" },
+  "export-sea": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/system-tokens/", sourceLabel: "USWDS blue system tokens", licenseNote: "公开 token 参考，不是图片或字体资产。" },
+  "export-industrial-slate": { sourceUrl: "https://tailwindcss.com/docs/colors", sourceLabel: "Tailwind slate/sky scale", licenseNote: "公开色阶参考；代码许可不覆盖图片、字体和商标。" },
+  "export-cobalt": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/system-tokens/", sourceLabel: "USWDS blue-vivid scale", licenseNote: "公开 token 参考；白字组合需实测。" },
+  "export-ink": { sourceUrl: "https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale", sourceLabel: "Radix cyan/blue scale", licenseNote: "公开色阶和语义角色参考，不是外部素材许可。" },
+  "industrial-white": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/theme-tokens/", sourceLabel: "USWDS base/primary roles", licenseNote: "公开角色建模参考。" },
+  "industrial-minimal-gray": { sourceUrl: "https://tailwindcss.com/docs/colors", sourceLabel: "Tailwind slate scale", licenseNote: "公开色阶参考；不把 MIT 代码许可外推到素材。" },
+  "industrial-mint": { sourceUrl: "https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale", sourceLabel: "Radix mint/teal scale", licenseNote: "公开色阶和对比说明参考。" },
+  "industrial-sand": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/system-tokens/", sourceLabel: "USWDS orange/yellow system tokens", licenseNote: "公开 token 参考；禁用和焦点状态需按页面实测。" },
+  "technical-white": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/theme-tokens/", sourceLabel: "USWDS base/primary roles", licenseNote: "公开角色建模参考。" },
+  "technical-neutral": { sourceUrl: "https://tailwindcss.com/docs/colors", sourceLabel: "Tailwind slate scale", licenseNote: "公开色阶参考；代码许可不覆盖素材。" },
+  "technical-cobalt": { sourceUrl: "https://www.w3.org/TR/wcag/#contrast-minimum", sourceLabel: "WCAG contrast target with blue roles", licenseNote: "对比度验收标准参考，不是素材许可。" },
+  "technical-olive": { sourceUrl: "https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale", sourceLabel: "Radix olive scale", licenseNote: "公开色阶和语义角色参考。" },
+};
 export const engineeringPaletteCatalog = [
   { id: "engineering-orange" as const, label: "工程橙", summary: "暖橙强调，适合直接推进询盘。" },
   { id: "engineering-slate" as const, label: "工程石墨", summary: "石墨与蓝灰强调，保持工程感并降低暖色比重。" },
+  { id: "engineering-deep-blue" as const, label: "深海工程", summary: "深蓝强调和浅灰表面，适合技术参数与长期设备业务。" },
+  { id: "engineering-oxide" as const, label: "氧化铜", summary: "低饱和铜色配墨绿灰，保留工程现场信号并降低刺眼度。" },
 ] as const;
 export const exportCatalogPaletteCatalog = [
   { id: "export-sea" as const, label: "海运蓝", summary: "清晰蓝白分层，优先目录和询盘。" },
   { id: "export-industrial-slate" as const, label: "工业灰蓝", summary: "降低饱和度，保留目录层级和工程信号。" },
+  { id: "export-cobalt" as const, label: "钴蓝目录", summary: "更鲜明的目录强调色，适合分类、筛选和产品入口。" },
+  { id: "export-ink" as const, label: "海港墨蓝", summary: "墨蓝正文和青蓝动作，适合高信息密度的出口目录。" },
 ] as const;
 export const industrialPaletteCatalog = [
   { id: "industrial-white" as const, label: "明亮工业", summary: "白底、深墨和冷蓝强调，产品优先。" },
   { id: "industrial-minimal-gray" as const, label: "极简冷灰", summary: "冷灰底色和深墨文字，产品优先。" },
+  { id: "industrial-mint" as const, label: "冷薄荷", summary: "浅薄荷背景配深青文字，适合清晰、克制的产品说明。" },
+  { id: "industrial-sand" as const, label: "矿砂米灰", summary: "温和矿砂底色配深棕墨，适合材料和加工能力表达。" },
 ] as const;
 export const technicalPaletteCatalog = [
   { id: "technical-white" as const, label: "短路径白", summary: "白底和清晰层级，先让访客看懂下一步。" },
   { id: "technical-neutral" as const, label: "短路径石墨", summary: "石墨文字配克制蓝色行动按钮，压缩询盘路径。" },
+  { id: "technical-cobalt" as const, label: "短路径钴蓝", summary: "中性灰底配高识别蓝色按钮，适合快速进入询盘。" },
+  { id: "technical-olive" as const, label: "短路径橄榄", summary: "低饱和橄榄强调配深墨文字，适合稳定、务实的服务入口。" },
 ] as const;
 export const paletteCatalogByVisualBrief = {
   industrial: industrialPaletteCatalog,

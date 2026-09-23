@@ -302,6 +302,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var baseTokens = kit.tokens || {};
     var paletteId = draft && draft.paletteId ? draft.paletteId : "default";
     var tokens = (kit.palettes && kit.palettes[paletteId]) || baseTokens;
+    var inputToken = tokens.input || tokens.surface || tokens.background;
+    var focusToken = tokens.focus || tokens.accentSoft || tokens.accent;
+    var disabledToken = tokens.disabled || tokens.muted || tokens.border;
     if (root && root.dataset) {
       root.dataset.sitecraftFamily = kit.familyId;
       root.dataset.sitecraftPalette = paletteId;
@@ -313,6 +316,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (tokens.accentStrong) root.dataset.sitecraftTokenAccentStrong = tokens.accentStrong;
       if (tokens.accentSoft) root.dataset.sitecraftTokenAccentSoft = tokens.accentSoft;
       if (tokens.border) root.dataset.sitecraftTokenBorder = tokens.border;
+      if (inputToken) root.dataset.sitecraftTokenInput = inputToken;
+      if (focusToken) root.dataset.sitecraftTokenFocus = focusToken;
+      if (disabledToken) root.dataset.sitecraftTokenDisabled = disabledToken;
       if (tokens.diagram) root.dataset.sitecraftTokenDiagram = tokens.diagram;
       if (tokens.tint) root.dataset.sitecraftTokenTint = tokens.tint;
       if (tokens.font) root.dataset.sitecraftTokenFont = tokens.font;
@@ -326,6 +332,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (tokens.accentStrong) root.style.setProperty("--site-accent-strong", tokens.accentStrong);
         if (tokens.accentSoft) root.style.setProperty("--site-accent-soft", tokens.accentSoft);
         if (tokens.border) root.style.setProperty("--site-line", tokens.border);
+        if (inputToken) root.style.setProperty("--site-input", inputToken);
+        if (focusToken) root.style.setProperty("--site-focus", focusToken);
+        if (disabledToken) root.style.setProperty("--site-disabled", disabledToken);
         if (tokens.diagram) root.style.setProperty("--site-diagram", tokens.diagram);
         if (tokens.tint) root.style.setProperty("--site-tint", tokens.tint);
         if (tokens.font) root.style.setProperty("--site-font", tokens.font);
