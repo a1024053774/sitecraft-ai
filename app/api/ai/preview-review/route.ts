@@ -1,4 +1,5 @@
 import { requestPreviewReview } from "@/lib/ai-provider";
+import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -13,19 +14,20 @@ function statusFor(code: string) {
 export async function POST(request: Request) {
   const form = await request.formData().catch(() => null);
   if (!form) {
-    return Response.json({ error: "需要 multipart 表单，字段名 screenshot" }, { status: 400 });
+    return Response.json({ ok: false, ...userErrorPayload({ code: "image_invalid" }) }, { status: 400 });
   }
   const file = form.get("screenshot");
   if (!(file instanceof Blob) || file.size <= 0) {
-    return Response.json({ error: "需要 screenshot 文件" }, { status: 400 });
+    return Response.json({ ok: false, ...userErrorPayload({ code: "image_invalid" }) }, { status: 400 });
   }
   const claimedRaw = form.get("claimedTemplateId");
   const claimedTemplateId = typeof claimedRaw === "string" && claimedRaw.trim() ? claimedRaw.trim() : null;
   const imageBytes = new Uint8Array(await file.arrayBuffer());
   const result = await requestPreviewReview({ imageBytes, claimedTemplateId });
   if (!result.ok) {
+    const code = result.code === "invalid_image" ? "image_invalid" : result.code;
     return Response.json(
-      { ok: false, error: result.error, code: result.code, model: result.model, aesthetic: "human" },
+      { ok: false, ...userErrorPayload({ code, userMessage: result.code === "invalid_image" ? result.error : undefined }), model: result.model, aesthetic: "human" },
       { status: statusFor(result.code) },
     );
   }

@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const siteId = new URL(request.url).searchParams.get("site")?.trim() || undefined;
   if (siteId && !SITE_ID_PATTERN.test(siteId)) {
-    return Response.json({ error: "站点编号无效" }, { status: 400 });
+    return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
   }
   try {
     const leads = await listLeads(siteId ? { siteId } : {});

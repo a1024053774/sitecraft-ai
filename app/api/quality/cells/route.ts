@@ -11,6 +11,7 @@ import { runQualityCell } from "@/lib/quality-run";
 import { applySiteOperations } from "@/lib/site-operations";
 import { commitOperations, getSite } from "@/lib/site-store";
 import { templates } from "@/lib/site-model";
+import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   const raw = await request.json().catch(() => null);
   if (raw && typeof raw === "object" && "action" in raw) {
     const parsed = supplementarySchema.safeParse(raw);
-    if (!parsed.success) return Response.json({ error: "Invalid supplementary payload" }, { status: 400 });
+    if (!parsed.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
     try {
       if (parsed.data.action === "style-switch") {
         const sourceId = parsed.data.sourceSiteId || "p4m-c";
@@ -103,12 +104,12 @@ export async function POST(request: Request) {
         templateId: long.draft.templateId,
       });
     } catch (error) {
-      return Response.json({ error: error instanceof Error ? error.message : "supplementary failed" }, { status: 422 });
+      return Response.json(userErrorPayload({ code: "operation_error" }), { status: 422 });
     }
   }
 
   const parsed = runSchema.safeParse(raw);
-  if (!parsed.success) return Response.json({ error: "Invalid quality run payload", details: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
   const result = await runQualityCell({
     packId: parsed.data.packId,
     group: parsed.data.group,
