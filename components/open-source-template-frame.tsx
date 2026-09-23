@@ -49,6 +49,11 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
   contact: { label: "联系模块", prompt: "修改联系区块文案和联系方式，不得虚构数据。" },
 };
 
+// Bump when the local snapshot/host overlay contract changes. Keeping this in
+// the iframe URL prevents a browser from showing an older template shell after
+// the runtime asset bundle has been rebuilt.
+const PREVIEW_ASSET_REVISION = "20260923-family-kit-2";
+
 export function OpenSourceTemplateFrame({
   templateId,
   draft,
@@ -140,7 +145,7 @@ export function OpenSourceTemplateFrame({
     return () => window.removeEventListener("message", receiveMessage);
   }, [draft?.revision, onApplyReport, onInquiry, onSelectTarget, sendContent, templateId]);
 
-  const previewQuery = new URLSearchParams({ v: "20260918-nordic-grid-1" });
+  const previewQuery = new URLSearchParams({ v: PREVIEW_ASSET_REVISION });
   if (pagePath) previewQuery.set("pagePath", pagePath);
 
   return (

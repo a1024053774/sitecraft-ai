@@ -17,5 +17,9 @@ COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/vendor ./vendor
+# Template preview routes resolve host overlays from process.cwd() at runtime.
+# Keep the admitted local overlays in the production image so a missing runtime
+# asset cannot silently fall back to an upstream demo page.
+COPY --from=build /app/lib/template-adapters/overlays ./lib/template-adapters/overlays
 EXPOSE 3000
 CMD ["npm", "run", "start"]
