@@ -202,3 +202,4 @@ REALITY GATE: INCOMPLETE（jiro 条款；d55f6e7c 仓库未克隆；组页引擎
 - 2026-09-23（追加）：修复 forge v2 回读的三个落点回执缺口：`siteName` 作为元数据过滤，forge adapter 声明邮箱/电话，preview bridge 把真实产品网格根目标记为 applied。针对性 adapter/bridge 42/42、全套 193/193；浏览器刷新后产品卡可见且无新 missing 警告。
 - 2026-09-23（网络复测）：主机 DeepSeek 连接超时；Docker `/models` 曾 200，随后 JSON chat 也超时。保留成功与失败两类证据，模型外部稳定性仍 `UNVERIFIED`，没有添加生产伪 fallback。
 - 2026-09-23（错误边界）：结构化输出校验、provider/network 和会话写入异常统一按诊断码映射为安全中文提示；SSE `done`、会话记录和工作台不再暴露 `operations: Too big`、原始路径或供应商异常。针对性测试与全套 194/194、typecheck、build 均通过。
+- 2026-09-23（新 key 连通性复测）：`/api/ai/status` 在 3034/3000 均为 configured；同轮一次最小 DeepSeek chat 返回 200，之后清理响应文件的两次 `/models` 与 chat 均 TLS 超时。无缓存探针写入 gitignored `artifacts/key-recovery-2026-09-23/current-network-probe.json`，外部模型稳定性仍 `UNVERIFIED`。

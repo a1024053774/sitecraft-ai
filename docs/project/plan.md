@@ -359,3 +359,7 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 ### Provider 错误边界收口（2026-09-23）
 
 复测期间发现结构化输出的原始校验文本（例如 `operations: Too big`）会沿 SSE `done.error` 和会话历史进入工作台。现已在 `lib/user-errors.ts` 与 Chat route 统一按诊断码映射安全的中文摘要、下一步和恢复动作；已知诊断码优先于原始 provider 文本，会话写入失败也只保留可行动提示。工作台收到错误事件后显示“需求对齐没有完成，草稿没有修改”，不再抛出原始异常。`tests/user-errors.test.ts`、`tests/chat-route-conversation.test.ts` 覆盖该边界；本轮全套 `npm test` 194/194、`npm run typecheck`、`npm run build` 通过。
+
+### 新 key 连通性复测（2026-09-23）
+
+`.env.local` 的 DeepSeek 配置在 `3034` 和 Docker `3000` 的 `/api/ai/status` 都显示 `configured=true`、模型为 `deepseek-flash`。同轮第一次最小 chat 探针曾返回 HTTP 200 且有一条模型结果，说明新 key 至少成功通过过一次鉴权；随后清理响应文件后连续两次独立的 `/models` 与最小 chat 探针均为 TLS 连接超时，没有把旧响应当作成功。最新无缓存证据保存在 `artifacts/key-recovery-2026-09-23/current-network-probe.json`（gitignored）。结论仍是 `UNVERIFIED`：key 看起来已生效，但 VPN/代理链路不稳定，不能承诺当前浏览器一定能完成动态生成。
