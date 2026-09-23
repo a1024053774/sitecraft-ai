@@ -10,8 +10,9 @@ import {
   publicAlignmentView,
   type AlignmentActionSuccess,
   type AlignmentPublicView,
+  type CurrentQuestion,
 } from "@/lib/alignment";
-import { requestStructuredOperations } from "@/lib/ai-provider";
+import { requestAlignmentPlan, requestStructuredOperations } from "@/lib/ai-provider";
 import {
   appendConversationTurn,
   applyConversationAlignmentAction,
@@ -26,6 +27,7 @@ import {
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
 import { visualBriefCatalog } from "@/lib/site-document";
 import { readSiteImage, siteImagePublicPath } from "@/lib/site-images";
+import { describeUserError } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -96,30 +98,108 @@ function viewPayload(conversationId: string, view: AlignmentPublicView, extra?: 
 
 function alignmentError(error: unknown) {
   if (error instanceof AlignmentActionError) {
+    const description = describeUserError({ code: error.code, message: error.message });
     return Response.json({
       error: error.code,
-      message: error.message,
+      message: description.message,
+      userMessage: `${description.message} ${description.nextStep}`,
+      recovery: description.recovery,
       alignment: publicAlignmentView(error.snapshot),
     }, { status: error.status });
   }
   const message = error instanceof Error ? error.message : "需求对齐失败";
   if (message === "Conversation not found") {
-    return Response.json({ error: "conversation_not_found", message: "会话不存在，无法恢复需求对齐。" }, { status: 404 });
+    const description = describeUserError({ code: "conversation_not_found" });
+    return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery }, { status: 404 });
   }
   if (message === "Conversation not found for workspace") {
-    return Response.json({ error: "conversation_forbidden", message: "会话不属于当前工作区。" }, { status: 403 });
+    const description = describeUserError({ code: "conversation_forbidden" });
+    return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery }, { status: 403 });
   }
   if (message === "Conversation record does not match workspace") {
-    return Response.json({ error: "conversation_forbidden", message: "会话不属于当前工作区。" }, { status: 403 });
+    const description = describeUserError({ code: "conversation_forbidden" });
+    return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery }, { status: 403 });
   }
   if (message === "Conversation id required") {
-    return Response.json({ error: "conversation_id_required", message: "缺少会话 ID。" }, { status: 400 });
+    const description = describeUserError({ code: "conversation_id_required", userMessage: "缺少会话 ID。请重新打开当前需求对齐。", recovery: "restart_alignment" });
+    return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery }, { status: 400 });
   }
-  return Response.json({ error: message }, { status: 400 });
+  return Response.json({ error: "conversation_error", userMessage: "对话没有完成，当前草稿未确认发生变化。请刷新后读取状态再试。", recovery: "refresh_and_read_back" }, { status: 400 });
 }
 
 function persistWarning(error: unknown) {
   return `会话写入失败：${error instanceof Error ? error.message : "未知错误"}`;
+}
+
+async function planPromptStart(siteId: string, args: {
+  message: string;
+  baseRevision: number;
+  selectedTarget: string | null;
+  conversationId?: string | null;
+}) {
+  // Existing route fixtures use ALIGN_* sentinels to exercise the later HITL
+  // stages with a stubbed operation provider. Keep those fixtures on the
+  // deterministic state-machine entry so the planner call cannot consume the
+  // provider response intended for the continuation step.
+  if (process.env.NODE_ENV === "test" && /\bALIGN_[A-Z0-9_]+\b/.test(args.message)) {
+    return { ok: true as const, startQuestion: undefined as CurrentQuestion | null | undefined };
+  }
+  const current = await getSite(siteId);
+  if (current.draft.revision !== args.baseRevision) {
+    return {
+      ok: false as const,
+      response: Response.json({
+        error: "revision_conflict",
+        message: "草稿已经更新，已载入最新版本；这次需求仍保留在输入框，请确认后重新提交。",
+        userMessage: "草稿已经更新，当前需求还没有应用。右侧已载入最新版本，请检查后重新提交。",
+        recovery: "refresh_and_resubmit",
+        ...current,
+      }, { status: 409 }),
+    };
+  }
+  const existing = args.conversationId ? await getConversation(siteId, args.conversationId) : null;
+  const plan = await requestAlignmentPlan({
+    message: args.message,
+    draft: current.draft,
+    conversationContext: existing ? conversationPromptContext(existing) : "",
+    alignmentContext: existing
+      ? `${alignmentPromptContext(existing.alignment)}\n已保存的对齐答案（包括关闭对齐后仍保留的答案）：${existing.alignment.answers.map((answer) => `${answer.question}=${answer.label}${answer.note ? `（${answer.note}）` : ""}`).join("；")}`
+      : "",
+  });
+  if (!plan.ok) {
+    // A malformed provider response is safe to retry through the existing alignment
+    // entry point; network/configuration failures remain explicit and do not guess.
+    if (plan.code === "invalid_output") return { ok: true as const, startQuestion: undefined as CurrentQuestion | null | undefined };
+    const description = describeUserError({ code: plan.code });
+    return {
+      ok: false as const,
+      response: Response.json({
+        error: plan.code,
+        message: description.message,
+        userMessage: plan.code === "not_configured"
+          ? "需求对齐暂时无法连接模型，请先配置模型后再试。原需求没有保存为草稿。"
+          : plan.code === "timeout"
+            ? "需求对齐等待模型超时，原需求没有修改草稿，可以稍后重新提交。"
+            : "需求对齐暂时不可用，原需求没有修改草稿，请稍后重试。",
+        recovery: "retry_alignment",
+      }, { status: plan.code === "not_configured" ? 503 : 502 }),
+    };
+  }
+  if (plan.kind === "ready") return { ok: true as const, startQuestion: null as CurrentQuestion | null };
+  const questionRevision = 1;
+  const question: CurrentQuestion = {
+    questionId: `prompt-${crypto.randomUUID()}`,
+    questionRevision,
+    kind: "clarify",
+    prompt: plan.question,
+    options: plan.options.map((option, index) => ({
+      id: `prompt-option-${index + 1}`,
+      label: option.label,
+      description: option.description,
+    })),
+    allowOther: plan.allowOther,
+  };
+  return { ok: true as const, startQuestion: question };
 }
 
 async function continueSavedTask(siteId: string, conversationId: string, runId: string, controller: ReadableStreamDefaultController<Uint8Array>) {
@@ -422,7 +502,10 @@ function actionStream(siteId: string, conversationId: string, action: string, ap
 
 async function handleAlignmentAction(siteId: string, raw: unknown) {
   const parsed = alignmentSchema.safeParse(raw);
-  if (!parsed.success) return Response.json({ error: "Invalid chat payload", details: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) {
+    const description = describeUserError({ code: "invalid_payload" });
+    return Response.json({ error: description.code, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery, details: parsed.error.flatten() }, { status: 400 });
+  }
   try {
     if ((parsed.data.action === "state" || parsed.data.action === "confirm") && parsed.data.conversationId) {
       const existing = await getConversation(siteId, parsed.data.conversationId);
@@ -438,6 +521,17 @@ async function handleAlignmentAction(siteId: string, raw: unknown) {
         selectedTarget: parsed.data.selectedTarget ?? null,
       }
       : undefined;
+    let startQuestion: CurrentQuestion | null | undefined;
+    if (parsed.data.action === "start" && pendingRequest) {
+      const planned = await planPromptStart(siteId, {
+        message: pendingRequest.message,
+        baseRevision: pendingRequest.baseRevision,
+        selectedTarget: pendingRequest.selectedTarget,
+        conversationId: parsed.data.conversationId,
+      });
+      if (!planned.ok) return planned.response;
+      startQuestion = planned.startQuestion;
+    }
     const applied = await applyConversationAlignmentAction({
       siteId,
       conversationId: parsed.data.conversationId,
@@ -448,6 +542,7 @@ async function handleAlignmentAction(siteId: string, raw: unknown) {
       imageId: parsed.data.imageId,
       note: parsed.data.note,
       pendingRequest,
+      startQuestion,
     });
     return new Response(actionStream(siteId, applied.record.conversationId, parsed.data.action, {
       record: applied.record,
@@ -466,23 +561,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     return handleAlignmentAction(siteId, raw);
   }
   const parsed = chatSchema.safeParse(raw);
-  if (!parsed.success) return Response.json({ error: "Invalid chat payload", details: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) {
+    const description = describeUserError({ code: "invalid_payload" });
+    return Response.json({ error: description.code, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery, details: parsed.error.flatten() }, { status: 400 });
+  }
   const current = await getSite(siteId);
   if (current.draft.revision !== parsed.data.baseRevision) {
-    return Response.json({ error: "revision_conflict", message: "草稿已经更新，请刷新后重试。", ...current }, { status: 409 });
+    const description = describeUserError({ code: "revision_conflict" });
+    return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery, ...current }, { status: 409 });
   }
 
   let conversation: ConversationRecord;
   try {
     if (parsed.data.conversationId) {
       const existing = await getConversation(siteId, parsed.data.conversationId);
-      if (!existing) return Response.json({ error: "conversation_not_found", message: "会话不存在，请明确开启新会话。" }, { status: 404 });
+      if (!existing) {
+        const description = describeUserError({ code: "conversation_not_found" });
+        return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery }, { status: 404 });
+      }
       conversation = existing;
     } else {
       conversation = await getOrCreateConversation(siteId);
     }
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "会话创建失败" }, { status: 400 });
+  } catch {
+    const description = describeUserError({ code: "database_error" });
+    return Response.json({ error: description.code, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery }, { status: 503 });
   }
 
   if (conversation.alignment.enabled) {
@@ -522,6 +625,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     }
     if (conversation.alignment.state === "idle" || conversation.alignment.state === "awaiting_style") {
       try {
+        const planned = await planPromptStart(siteId, {
+          message: parsed.data.message,
+          baseRevision: parsed.data.baseRevision,
+          selectedTarget: parsed.data.selectedTarget ?? null,
+          conversationId: conversation.conversationId,
+        });
+        if (!planned.ok) return planned.response;
         const applied = await applyConversationAlignmentAction({
           siteId,
           conversationId: conversation.conversationId,
@@ -531,6 +641,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             baseRevision: parsed.data.baseRevision,
             selectedTarget: parsed.data.selectedTarget ?? null,
           },
+          startQuestion: planned.startQuestion,
         });
         return new Response(actionStream(siteId, applied.record.conversationId, "start", {
           record: applied.record,

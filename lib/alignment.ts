@@ -124,6 +124,8 @@ export type AlignmentActionInput = {
   note?: string;
   imageId?: string;
   pendingRequest?: PendingRequest | null;
+  /** Server-created question from the prompt planner. Undefined keeps the legacy preference-only entry. */
+  startQuestion?: CurrentQuestion | null;
 };
 export type AlignmentPublicView = {
   enabled: boolean;
@@ -537,24 +539,32 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
       return succeed(next, { shouldContinue: Boolean(next.inflightRunId), prefsOnly: !next.pendingRequest, runId: next.inflightRunId });
     }
     const revision = (current.currentQuestion?.questionRevision ?? current.epoch ?? 0) + 1;
+    const hasPlannerDecision = input.startQuestion !== undefined && Boolean(pending);
+    const plannerQuestion = input.startQuestion ?? null;
+    const shouldContinueImmediately = hasPlannerDecision && plannerQuestion === null;
     const next: AlignmentSnapshot = {
       ...current,
       pendingRequest: pending,
       enabled: true,
-      state: "awaiting_style",
-      currentQuestion: pending && needsGuidedBusinessQuestion(pending.message)
-        ? guidedBusinessQuestion(revision)
-        : styleQuestion(revision),
+      state: shouldContinueImmediately ? "idle" : plannerQuestion ? "awaiting_user" : "awaiting_style",
+      currentQuestion: plannerQuestion ?? (hasPlannerDecision
+        ? null
+        : pending && needsGuidedBusinessQuestion(pending.message)
+          ? guidedBusinessQuestion(revision)
+          : styleQuestion(revision)),
       answers: stylePreferenceAnswers(current),
       confirmClaimed: false,
       proposedChange: null,
-      inflightRunId: null,
+      inflightRunId: shouldContinueImmediately ? crypto.randomUUID() : null,
       epoch: current.epoch + 1,
       roundCount: 0,
       lastResult: null,
       history: pushHistory(current, { action: "start" }),
     };
-    return succeed(next);
+    return succeed(next, {
+      shouldContinue: shouldContinueImmediately,
+      runId: next.inflightRunId,
+    });
   }
 
   if (input.action === "select") {

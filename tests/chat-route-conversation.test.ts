@@ -69,6 +69,17 @@ globalThis.fetch = async (input, init) => {
         value: "CHAT_SENTINEL_PERSIST_TITLE_8812",
       }],
     };
+  } else if (raw.includes("DYNAMIC_ALIGN_PROMPT_20260923")) {
+    payload = {
+      kind: "question",
+      question: "这次出口目录先按什么方式帮助采购商筛选？",
+      options: [
+        { label: "按型号和接口筛选", description: "先看目录字段和询盘入口。" },
+        { label: "先看加工能力", description: "先看工艺范围和交付边界。" },
+      ],
+      allowOther: true,
+      rationale: "用户已说明出口目录和采购筛选目标，尚缺字段优先级。",
+    };
   } else if (raw.includes("ALIGN_HITL_ALPHA_4401")) {
     const n = (hitlCallCounts.get("alpha") ?? 0) + 1;
     hitlCallCounts.set("alpha", n);
@@ -515,6 +526,24 @@ test("alignment start returns style options without calling the provider or chan
   assert.ok(record);
   assert.equal(record.alignment?.enabled, true);
   assert.equal(record.alignment?.state, "awaiting_style");
+});
+
+test("prompt alignment asks a provider-planned question and persists it without changing the draft", async () => {
+  const siteId = uniqueSiteId();
+  const before = await getSite(siteId);
+  const result = await postChat(siteId, {
+    action: "start",
+    message: "DYNAMIC_ALIGN_PROMPT_20260923 我们做流体接头出口目录，采购商要找产品。",
+    baseRevision: before.draft.revision,
+  });
+  assert.equal(result.response.status, 200);
+  assert.equal(result.done?.status, "clarify");
+  assert.match(String(result.done?.question), /出口目录|筛选/);
+  assert.equal(String(result.done?.question).includes("请选择网站的样子"), false);
+  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  const record = await getConversation(siteId, String(result.done?.conversationId));
+  assert.equal(record?.alignment.state, "awaiting_user");
+  assert.equal(record?.alignment.currentQuestion?.kind, "clarify");
 });
 
 test("alignment select is idempotent and rejects stale or unknown options without changing the draft", async () => {

@@ -10,6 +10,7 @@ import {
   type AlignmentActionName,
   type AlignmentPublicView,
   type AlignmentSnapshot,
+  type CurrentQuestion,
 } from "./alignment.ts";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
 
@@ -424,6 +425,7 @@ export type ApplyConversationAlignmentArgs = {
   note?: string;
   imageId?: string;
   pendingRequest?: { message: string; baseRevision: number; selectedTarget: string | null } | null;
+  startQuestion?: CurrentQuestion | null;
 };
 
 function toAlignmentInput(args: ApplyConversationAlignmentArgs): AlignmentActionInput {
@@ -435,6 +437,7 @@ function toAlignmentInput(args: ApplyConversationAlignmentArgs): AlignmentAction
     note: args.note,
     imageId: args.imageId,
     pendingRequest: args.pendingRequest,
+    startQuestion: args.startQuestion,
   };
 }
 

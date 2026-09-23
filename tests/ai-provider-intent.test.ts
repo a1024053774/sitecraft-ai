@@ -57,7 +57,7 @@ registerHooks({
   },
 });
 
-const { requestStructuredOperations } = await import("../lib/ai-provider.ts") as {
+const { requestStructuredOperations, requestAlignmentPlan } = await import("../lib/ai-provider.ts") as {
   requestStructuredOperations: (args: {
     message: string;
     draft: SiteDraft;
@@ -66,6 +66,7 @@ const { requestStructuredOperations } = await import("../lib/ai-provider.ts") as
     conversationContext?: string | null;
     alignmentContext?: string | null;
   }) => ReturnType<typeof import("../lib/ai-provider.ts").requestStructuredOperations>;
+  requestAlignmentPlan: typeof import("../lib/ai-provider.ts").requestAlignmentPlan;
 };
 
 function userPromptFromLastRequest() {
@@ -391,4 +392,31 @@ test("small draft prompt may inject the full document including all section bodi
   assert.match(userPrompt, /T4_SMALL_SITE_9183/);
   assert.match(userPrompt, /T4_SMALL_ABOUT_BODY_9183/);
   assert.match(userPrompt, /schemaVersion/);
+});
+
+test("alignment planner returns a prompt-specific question without operations", async () => {
+  nextPayload = {
+    kind: "question",
+    question: "这次目录最需要先让哪类采购方筛选？",
+    options: [
+      { label: "按型号和接口筛选", description: "突出目录字段和询盘入口。" },
+      { label: "先看加工能力", description: "突出工艺范围和交付边界。" },
+    ],
+    allowOther: true,
+    rationale: "当前 Prompt 明确是出口目录，但没有说明采购入口。",
+  };
+  const result = await requestAlignmentPlan({
+    message: "我们做不锈钢流体接头，想做英文出口目录，采购商要快速找匹配型号。",
+    draft: defaultDraft,
+    conversationContext: "",
+    alignmentContext: "",
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected alignment plan");
+  assert.equal(result.kind, "question");
+  assert.match(result.question, /目录|采购/);
+  assert.equal(result.options.length, 2);
+  assert.equal(JSON.stringify(result).includes("operations"), false);
+  assert.match(lastRequestBody, /只返回 JSON/);
+  assert.match(lastRequestBody, /不能用推荐补造/);
 });

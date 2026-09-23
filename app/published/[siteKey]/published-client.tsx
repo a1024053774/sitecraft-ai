@@ -10,6 +10,7 @@ import {
   type SiteDraft,
 } from "@/lib/site-model";
 import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
+import { userFacingError } from "@/lib/user-errors";
 
 export function PublishedSiteClient({
   siteKey,
@@ -54,9 +55,9 @@ export function PublishedSiteClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fields),
       });
-      const payload = await response.json() as { id?: string; error?: string };
+      const payload = await response.json() as { id?: string; error?: string; code?: string; userMessage?: string; recovery?: string };
       if (!response.ok || !payload.id) {
-        throw new Error(payload.error || (locale === "zh" ? "询盘未保存" : "Inquiry was not saved"));
+        throw new Error(userFacingError({ code: payload.code, message: payload.error, userMessage: payload.userMessage, recovery: payload.recovery }, locale === "zh" ? "询盘未保存" : "Inquiry was not saved"));
       }
       setInquiryId(payload.id);
       setInquiryStatus("sent");

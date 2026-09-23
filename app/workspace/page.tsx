@@ -60,8 +60,9 @@ import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/tem
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
 import { templateAdapters } from "@/lib/template-adapters/registry";
+import { userFacingError } from "@/lib/user-errors";
 
-const paletteSwatchRoles = ["background", "surface", "text", "muted", "border", "accent", "accentStrong"] as const;
+const paletteSwatchRoles = ["background", "surface", "text", "muted", "border", "accent", "accentStrong", "input", "focus", "disabled"] as const;
 
 function conversationStorageKey(siteId: string) {
   return `sitecraft-conversation:${siteId}`;
@@ -163,6 +164,20 @@ type ImageFactsView = {
   alt: { zh: string; en: string };
   missingFacts: string[];
 };
+
+function readableWorkspaceError(value: unknown, fallback: string) {
+  if (value && typeof value === "object") {
+    const raw = value as { code?: unknown; status?: unknown; message?: unknown; error?: unknown; userMessage?: unknown; recovery?: unknown };
+    return userFacingError({
+      code: typeof raw.code === "string" ? raw.code : undefined,
+      status: typeof raw.status === "number" ? raw.status : undefined,
+      message: typeof raw.message === "string" ? raw.message : typeof raw.error === "string" ? raw.error : undefined,
+      userMessage: typeof raw.userMessage === "string" ? raw.userMessage : undefined,
+      recovery: typeof raw.recovery === "string" ? raw.recovery : undefined,
+    }, fallback);
+  }
+  return userFacingError({ message: value instanceof Error ? value.message : undefined }, fallback);
+}
 
 const initialMessages: ChatMessage[] = [
   {
@@ -371,7 +386,7 @@ export default function WorkspacePage() {
         }
       } catch (error) {
         if (!cancelled) {
-          setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "草稿加载失败" }]);
+          setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "草稿加载失败") }]);
           setDraftReady(true);
         }
       }
@@ -413,7 +428,7 @@ export default function WorkspacePage() {
               id: crypto.randomUUID(),
               role: "assistant",
               status: "warning",
-              text: payload.message || "无法恢复需求对齐状态。",
+              text: readableWorkspaceError(payload, "无法恢复需求对齐状态。"),
               change: "没有静默创建新会话",
             }]);
           }
@@ -447,7 +462,7 @@ export default function WorkspacePage() {
             id: crypto.randomUUID(),
             role: "assistant",
             status: "warning",
-            text: error instanceof Error ? error.message : "无法恢复需求对齐状态。",
+            text: readableWorkspaceError(error, "无法恢复需求对齐状态。"),
             change: "没有静默创建新会话",
           }]);
         }
@@ -583,12 +598,12 @@ export default function WorkspacePage() {
         }),
       });
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({})) as { message?: string; error?: string; alignment?: AlignmentViewState };
+        const payload = await response.json().catch(() => ({})) as { message?: string; userMessage?: string; error?: string; code?: string; recovery?: string; alignment?: AlignmentViewState };
         if (payload.alignment) {
           setAlignmentView(payload.alignment);
           setAlignmentEnabled(payload.alignment.enabled);
         }
-        throw new Error(payload.message || payload.error || "需求对齐请求失败");
+        throw new Error(readableWorkspaceError(payload, "需求对齐请求失败"));
       }
       const doneEvent = await readSseDone(response, (value) => setBusyText(value));
       applyDoneEvent(doneEvent);
@@ -598,7 +613,7 @@ export default function WorkspacePage() {
         id: crypto.randomUUID(),
         role: "assistant",
         status: "error",
-        text: error instanceof Error ? error.message : "需求对齐失败",
+        text: readableWorkspaceError(error, "需求对齐失败"),
         change: "请以服务器草稿和恢复状态为准",
       }]);
     } finally {
@@ -634,6 +649,13 @@ export default function WorkspacePage() {
       return;
     }
     const pending = input.trim();
+    // Enabling the optional mode alone does not start a fixed questionnaire.
+    // The first question is planned from the Prompt when the user submits it.
+    if (!pending) {
+      setAlignmentEnabled(true);
+      setAlignmentView(null);
+      return;
+    }
     await runAlignment({
       action: "start",
       conversationId,
@@ -645,7 +667,18 @@ export default function WorkspacePage() {
 
   const sendChat = async (value: string) => {
     if (!value || busy || !draftReady) return false;
-    if (!alignmentEnabled && shouldGuideBusinessRequest(value)) {
+    if (alignmentEnabled) {
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: value }]);
+      setAlignmentEnabled(true);
+      await runAlignment({
+        action: "start",
+        message: value,
+        baseRevision: draft.revision,
+        selectedTarget: selectedTarget?.key ?? null,
+      });
+      return true;
+    }
+    if (shouldGuideBusinessRequest(value)) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: value }]);
       setAlignmentEnabled(true);
       await runAlignment({
@@ -671,19 +704,19 @@ export default function WorkspacePage() {
         }),
       });
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({})) as Partial<DraftSnapshot> & { message?: string; alignment?: AlignmentViewState };
+        const payload = await response.json().catch(() => ({})) as Partial<DraftSnapshot> & { message?: string; userMessage?: string; error?: string; code?: string; recovery?: string; alignment?: AlignmentViewState };
         if (payload.draft) adoptSnapshot(payload as DraftSnapshot);
         if (payload.alignment) {
           setAlignmentView(payload.alignment);
           setAlignmentEnabled(payload.alignment.enabled);
         }
-        throw new Error(payload.message || (response.status === 409 ? "草稿版本冲突，已载入最新版本，请重新发送。" : "AI 请求失败"));
+        throw new Error(readableWorkspaceError({ ...payload, status: response.status }, response.status === 409 ? "草稿版本冲突，已载入最新版本，请重新发送。" : "AI 请求失败"));
       }
       const doneEvent = await readSseDone(response, (status) => setBusyText(status));
       applyDoneEvent(doneEvent);
       return true;
     } catch (error) {
-      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "AI 修改失败", change: "请以服务器草稿和恢复状态为准" }]);
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "AI 修改失败"), change: "请以服务器草稿和恢复状态为准" }]);
       return false;
     } finally {
       setBusy(false);
@@ -777,7 +810,7 @@ export default function WorkspacePage() {
       setExpectedTargets(slotExpectedTargets(result.appliedTargets ?? []));
       setPreviewState("loading");
     } catch (error) {
-      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: error instanceof Error ? error.message : "历史操作失败" }]);
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "历史操作失败") }]);
     } finally {
       setBusy(false);
     }
@@ -790,7 +823,7 @@ export default function WorkspacePage() {
       body: JSON.stringify({ baseRevision: draft.revision, operations, summary, source }),
     });
     const result = await response.json() as DraftSnapshot & { error?: string; changeSet?: { appliedTargets: string[]; revision?: number } };
-    if (!response.ok) throw new Error(result.error || "草稿保存失败");
+    if (!response.ok) throw new Error(readableWorkspaceError({ ...result, status: response.status }, "草稿保存失败"));
     adoptSnapshot(result);
     setExpectedTargets(slotExpectedTargets((result.changeSet?.appliedTargets ?? []).filter((target) => target !== "visualBrief" && target !== "template" && target !== "draft")));
     setPreviewState("loading");
@@ -817,7 +850,7 @@ export default function WorkspacePage() {
         id: crypto.randomUUID(),
         role: "assistant",
         status: "error",
-        text: error instanceof Error ? error.message : "样子保存失败",
+        text: readableWorkspaceError(error, "样子保存失败"),
       }]);
     } finally {
       setBusy(false);
@@ -844,7 +877,7 @@ export default function WorkspacePage() {
         id: crypto.randomUUID(),
         role: "assistant",
         status: "error",
-        text: error instanceof Error ? error.message : "色板保存失败",
+        text: readableWorkspaceError(error, "色板保存失败"),
       }]);
     } finally {
       setBusy(false);
@@ -857,7 +890,7 @@ export default function WorkspacePage() {
       await saveOperations([{ op: "replace_products", products: result.products }], `导入商品表格 ${name}`, "import");
       setImportState({ name, imported: result.imported, errors: result.errors });
     } catch (error) {
-      setImportState({ name, imported: 0, errors: [error instanceof Error ? error.message : "导入失败"] });
+      setImportState({ name, imported: 0, errors: [readableWorkspaceError(error, "导入失败")] });
     }
     setShowImport(true);
   };
@@ -902,7 +935,7 @@ export default function WorkspacePage() {
     try {
       await loadSiteImages();
     } catch (error) {
-      setImageNote(error instanceof Error ? error.message : "无法读取站点图片");
+      setImageNote(readableWorkspaceError(error, "无法读取站点图片"));
     }
   };
 
@@ -934,7 +967,7 @@ export default function WorkspacePage() {
       }]);
       if (alignmentView?.questionId === "image-upload") resumeImageId = uploaded.imageId;
     } catch (error) {
-      setImageNote(error instanceof Error ? error.message : "上传失败");
+      setImageNote(readableWorkspaceError(error, "上传失败"));
     } finally {
       setBusy(false);
     }
@@ -966,7 +999,7 @@ export default function WorkspacePage() {
         meta: typeof payload.latencyMs === "number" ? `模型 ${Math.max(0.1, payload.latencyMs / 1000).toFixed(1)} 秒` : undefined,
       }]);
     } catch (error) {
-      setImageNote(error instanceof Error ? error.message : "分析失败");
+      setImageNote(readableWorkspaceError(error, "分析失败"));
     } finally {
       setBusy(false);
     }
@@ -999,7 +1032,7 @@ export default function WorkspacePage() {
           : `已通过 commitOperations 写入 ${draft.products[0].sku} 的产品图。当前模板若没有该 SKU 的唯一 src 槽，会报告 missing。`,
       }]);
     } catch (error) {
-      setImageNote(error instanceof Error ? error.message : "写入失败");
+      setImageNote(readableWorkspaceError(error, "写入失败"));
     } finally {
       setBusy(false);
     }
@@ -1061,6 +1094,13 @@ export default function WorkspacePage() {
                 {paletteCatalogForVisualBrief(draft.visualBrief.id).map((palette) => {
                   const kit = templateAdapters[draft.templateId]?.kit;
                   const tokens = kit?.palettes?.[palette.id] ?? kit?.tokens;
+                  const tokenForRole = (role: (typeof paletteSwatchRoles)[number]) => {
+                    if (!tokens) return undefined;
+                    if (role === "input") return tokens.input ?? tokens.surface ?? tokens.background;
+                    if (role === "focus") return tokens.focus ?? tokens.accentSoft ?? tokens.accent;
+                    if (role === "disabled") return tokens.disabled ?? tokens.muted ?? tokens.border;
+                    return tokens[role];
+                  };
                   return (
                   <button
                     className={draft.paletteId === palette.id ? "palette-card selected" : "palette-card"}
@@ -1075,8 +1115,8 @@ export default function WorkspacePage() {
                           className="palette-swatch-role"
                           data-role={role}
                           key={role}
-                          title={`${role}: ${tokens?.[role] ?? "未定义"}`}
-                          style={{ backgroundColor: tokens?.[role] ?? "transparent" }}
+                          title={`${role}: ${tokenForRole(role) ?? "未定义"}`}
+                          style={{ backgroundColor: tokenForRole(role) ?? "transparent" }}
                         />
                       ))}
                     </span>

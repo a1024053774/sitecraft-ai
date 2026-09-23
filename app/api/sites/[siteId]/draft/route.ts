@@ -2,6 +2,7 @@ import { z } from "zod";
 import { siteDraftSchema } from "@/lib/site-document";
 import { siteOperationSchema } from "@/lib/site-operations";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
+import { describeUserError } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
@@ -30,9 +31,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ site
   const { siteId } = await params;
   try {
     const result = await commitOperations({ siteId, ...parsed.data });
-    if (result.status === "conflict") return Response.json({ error: "revision_conflict", ...snapshot(result.record) }, { status: 409 });
+    if (result.status === "conflict") {
+      const description = describeUserError({ code: "revision_conflict" });
+      return Response.json({ error: description.code, userMessage: description.message, recovery: description.recovery, ...snapshot(result.record) }, { status: 409 });
+    }
     return Response.json({ status: result.status, ...(result.status === "applied" ? { changeSet: result.changeSet } : {}), ...snapshot(result.record) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Draft update failed" }, { status: 422 });
+    const description = describeUserError({ code: "operation_error" });
+    return Response.json({ error: description.code, userMessage: description.message, recovery: description.recovery }, { status: 422 });
   }
 }
