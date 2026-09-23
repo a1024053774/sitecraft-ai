@@ -43,7 +43,7 @@ Jiro 最大的架构课写在它自己首页上：**跨源把 Header 和 Feature
 2026-09-17 对照 [免费组件](https://jiro.build/components/free)、[免费模板](https://jiro.build/templates/free) 和工业分类后的用法：
 
 - **学形态**：按 Header / FAQ 分区浏览 ≈ 模块选择；Collection 名是视觉族，不是行业名。
-- **借结构**：克制的分栏、手风琴、三步/四步流程、询盘表。配方表见 [plan.md](./plan.md)。接到**已准入、同一视觉族**的素材上，颜色跟当前族走。
+- **借结构**：克制的分栏、手风琴、三步/四步流程、询盘表。配方表见 [plan-history.md](./plan-history.md) 的「Jiro 怎么用」。接到**已准入、同一视觉族**的素材上，颜色跟当前族走。
 - **工业/外贸整页**：KonsTuck、Lozitick 全是 Premium。只借「这一类站该有哪些区块」的清单。不买、不搬橙底工地皮和飞机图。
 - **不用**：把免费六张整页当工业样子卡；Premium 源码；jiro MCP 进生成运行时；Copy Prompt 当生产提示词；把提示词或缩略图提交进 `vendor/`。
 

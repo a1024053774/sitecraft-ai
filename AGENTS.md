@@ -1,94 +1,95 @@
-<!-- BEGIN:nextjs-agent-rules -->
-
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
-<!-- END:nextjs-agent-rules -->
-
 # SiteCraft AI 项目规则
 
-## 当前项目目标
+## 目标与优先级
 
-本项目先交付一个内部技术 Demo：使用模拟的工业、设备、零部件、外贸 B2B 和相邻行业资料，生成可预览、可修改、可验收的网站。重点是行业适配、视觉差异、事实可信、预览可见和可恢复的对话流程。生成按「样子 → 同族模块素材 → 这家公司的完整页面」落地，细则以 `docs/project/mainline.md` 为准。不得把整页快照挖空填词当成品。
+内部技术 Demo：用模拟的工业、设备、零部件、外贸 B2B 资料，生成**看起来像那家公司自己建的**网站，并能在对话里修改、在预览里看到。
 
-长期目标可以扩展为客户自助生成/复制/导出平台，因此模板、图片、字体、图标和区块必须按平台级许可边界审查；普通客户交付许可不能直接推导为生成器许可。
+做任何事前先问：**这件事有没有让负责人看到的生成站更好看、更真、更好改？** 优先级固定为：
 
-## 需求与开发前门禁
+1. 生成页面的质量（负责人肉眼判断）；
+2. 主流程可用：资料/Prompt → 需求对齐 → 确认 → 生成 → 修改/撤销 → 刷新恢复；
+3. 其他一切（部署、环境、基础设施、证据整理）。
 
-1. 开始功能前先读取：`docs/project/mainline.md`、`docs/project/intent.md`、`docs/project/spec.md`、`docs/project/plan.md`、`.grilling/ACTIVE.md` 指向的会话记录。用户提起主线、reality-first 或 `/grilling` 时先对照主线，避免在局部实现里换方向。
-2. `spec.md` 或 `plan.md` 未经项目负责人确认时，只做文档、只读调研和必要的基线核验，不新增业务功能。
-3. 需求对齐应优先通过产品选项表达：用户选择风格/主题/行业方向，不选择内部 Skill 名称。
-4. 项目聊天中的可选需求对齐必须是可恢复状态：选项通过结构化请求保存，Agent 使用同一会话继续；不能要求用户复制 AI 输出或手动发送“继续”，不能用无限保持的 HTTP 请求等待用户。
-5. 所有设计选择必须能落到 `visualBrief`、模板能力/slot map 或白名单 operation；只改 prompt 文案而不改变可见结果不算完成。
-6. 页面规划以“用户明确要求 → 模型依据业务需求规划 → 无法确定时首页/产品服务/联系”排序；默认三类页面不是页面数量或类型上限。用户要求的页面无法支持时必须说明，不得静默缩成首页。
-7. 删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。不实现 90 天自动清理，也不保留可暂停的自动清理开关。已发布站点仍由用户控制，不得静默删除。
-8. 新模板和 Skill 需逐项核验来源、版本、许可和实际效果；资源调研不等于安装或准入。
+排在 3 的事不能占用 1、2 的时间。当前该做什么只看 `docs/project/plan.md` 的「下一步」。
 
-## 变更边界与 PR #4
+## 开工前
 
-- 以自己的 fork `a1024053774/sitecraft-ai` 为主线；不得向 `upstream` 推送。
-- `hlanan886/sitecraft-ai#4` 只按能力竖切参考，不整体 merge、批量 cherry-pick 或搬运其全量 dist。
-- 现有未提交代码是用户已有工作。编辑前先查看 `git status` 和 diff；不得覆盖、回滚或重排无关变更。
-- 所有草稿修改必须经过 `commitOperations`；Skill、模型、bridge、测试夹具不得旁路写草稿。
-- 不为未来功能预置平行 API、兼容层、空 schema、双渲染器或 speculative abstraction。
+- 读 `docs/project/plan.md`，需要时再读 `mainline.md`（主线与素材规则）、`intent.md`（已确认需求）、`spec.md`（规格）。`plan-history.md` 和 `.grilling/` 是历史，不是待办。
+- 用户说「主线」「reality-first」或 `/grilling` 时，先用几句话对照 mainline 和 plan：这次任务是否让站点更好看、更真、更好改；对不上就停下来说。
+- 看 `git status` 和 diff。现有未提交代码是用户的工作，不覆盖、不回滚、不重排。
 
-## 模板意图、落点和就绪边界
+## 本阶段不做
 
-- 写或改前端时遵循 `skills/frontend-less-ai-tone/`。生成或修改 SiteCraft 站点文案、样子或同族模块时，再叠加 `skills/sitecraft-frontend-less-ai-tone/`。运行时子集是 `lib/frontend-tone.ts`（`sitecraft-frontend-less-ai-tone@0.3.0`）。用户选项不出现 Skill 名称。SiteCraft 生成路径上模型不输出 CSS。
-- 模型负责理解请求并产生受控意图/操作；预览只走现有共享引擎（`lib/template-adapters/preview-bridge.ts`）与已准入同族素材套件（Q27=A）。不在每轮调用模型猜 DOM，不另起第二套渲染器，不让模型输出 CSS，本阶段不做原生 React 拼装。
-- adapter 是可审查的数据（选择器、目标、属性和必要集合映射），不存每模板可执行 JS 字符串；使用一个共享预览引擎。
-- 写入仍须唯一命中声明节点；未声明、未命中或有歧义均报告 `missing`，不按标题正则、元素顺序或通用卡片形状猜写。`missing` 是落点失败，不是允许把未选用的模板品牌、客户 Logo 墙、SaaS 定价或演示图留在成品上。
-- features/services/products 集合只有手写且经实际模板核验的映射才能修改；不得为填满页面自动追加通用商品网格。
-- `covered/applied` 只来自实际成功落点；`fallbackMatched` 只记录实际采用的回退，不把没有 adapter、上游演示或截图当作精确命中。默认关闭正则写稿，必要的例外须明确范围、证据与用户授权。
-- 固定文本清理、HTML 安全处理或路径校验中的正则不属于意图识别；清理演示内容也不得冒充草稿字段应用。开源模板、Jiro 区块和提示词是素材与写法参考，调研不等于准入。
-- submodule 源码、构建后的静态 HTML、浏览器实测、素材许可和可生成状态分别记录。SPA 的空 `index.html`（包括 dist 中的空壳）不是静态快照；代码 MIT 不批准图片/字体/商标。
-- Docker 本地已有镜像时可用 `--pull never` 启动；改源码后需重建 web。镜像缓存、构建依赖、模板网络资源是不同边界，不能据镜像启动成功宣称整个应用离线可用。
+以下事项不是当前目标，**不要主动开始、不要排进 Goal 队列、不要因为它们没验证就把任务标成未完成**：
 
-## 执行与协作
+- 公网部署、Cloudflare/任何临时公网隧道、iPhone/Android 实机测试。移动端用浏览器设备模式（375/768/1440）验收即可。
+- 修本机网络或系统：VPN、DNS、路由表、`/etc/hosts`、代理、Docker Registry。需要 sudo 的操作一律不做。
+- 外部邮箱送达、生产数据库运维、完整 Docker 镜像重建。
+- 真实客户试点、整仓合并 `hlanan886/sitecraft-ai#4`、批量 cherry-pick 或搬运其 dist。
 
-- 当前不绑定任何特定模型或客户端。主负责人可以直接完成小型和中型任务；只有任务边界清楚且并行能缩短验证路径时，才使用受控委派。
-- 持续任务可以使用当前 harness 提供的 Goal/任务机制，也可以用本文件、`docs/project/plan.md` 和提交记录跟踪进度；不要求某个特定任务工具，也不把任务工具当成产品能力。
-- 委派任务必须说明输入、允许修改的文件、禁止范围、命令、验收条件和回报格式。多个代理不得同时修改相同文件；主负责人负责需求、规格、架构取舍、资源准入、跨模块集成、风险判断、最终验收和 Git 提交/推送。
-- 子任务完成后先保留证据并报告验证结果，再由主负责人决定是否纳入候选；不可用的模型或工具不应被静默替换成未经授权的外部服务。
+**环境问题只报告一次**：DeepSeek 连不上、Docker 没起、外置硬盘没插等，最多试一次，然后用一句话告诉负责人需要他做什么（例如「在 VPN 客户端给 `api.deepseek.com` 加 DIRECT 规则」），接着做不依赖它的工作。不写探针日志、不为此单独提交文档。
 
-## 验收与证据
+用户明确要求做上面某一项时照做，但只做那一次，做完回到 plan。
 
-每个独立功能完成后必须：
+## 生成路径的硬约束
 
-1. 保留失败证据或明确说明未覆盖的外部边界；
-2. 运行相关测试，再运行 `npm run typecheck`、`npm test`、`npm run build`；
-3. UI/预览功能必须做真实浏览器截图和状态检查；截图一致不等于审美通过；
-4. 生成质量必须区分机器否决项、浏览器证据和人工评审；模型自评不能作为唯一美观 oracle；
-5. 关键外部路径（DeepSeek、PostgreSQL、文件存储、表单收件）未实测时标为 `UNVERIFIED`，不声称已完成；
-6. 结构风险或验收面改变时，在冻结候选上调用一次匹配的审查流程，不重复刷审查。
+这些是用户多轮决定后的结论，改动前须负责人重新确认：
 
-机器否决项至少包括：事实只能来自用户资料或“待补充”、提问不改 revision、非法 target/index/SKU 不静默错改、注入不改变系统规则、fallback 不冒充精确 slot、来源与许可可追溯、成品不得残留未选用的模板品牌/客户 Logo 墙/SaaS 定价/演示图或假评价数字。
+- **样子 → 同族模块素材 → 这家公司的完整页面**（细则见 `mainline.md`）。开源模板、区块、样式是素材；不得把整页快照挖空填词当成品，不得跨视觉族拼接区块。
+- **一个预览引擎**：`lib/template-adapters/preview-bridge.ts` + 已准入的同族 overlay/kit。不另起渲染器，本阶段不做原生 React/shadcn 拼装。
+- **运行时模型不输出 HTML/CSS**。模型理解需求、产生受控意图和白名单 operation；开发侧可以自由改 overlay 的 HTML/CSS、组件和布局。
+- **所有草稿修改走 `commitOperations`**。Skill、模型、测试夹具不得旁路写草稿。
+- **adapter 是可审查数据**（选择器、目标、属性、集合映射），不存每模板可执行 JS。写入须唯一命中声明节点；未命中报告 `missing`，不按标题正则、元素顺序或卡片形状猜写。`covered/applied` 只来自实际落点。
+- **成品否决项**：事实只能来自用户资料或「待补充」；不得残留未选用的模板品牌、客户 Logo 墙、SaaS 定价、演示图、假评价/数字、空链接。`missing` 是落点失败，不是保留演示壳的理由。
+- 页面规划：用户点名的页面 → 模型按业务规划 → 实在无法确定时首页/产品服务/联系。默认三页不是上限；做不到的页面要明确说明，不静默缩成首页。
+- 需求对齐：选项通过结构化请求保存，同一会话继续，刷新可恢复；不要求用户复制输出或手打「继续」；不靠挂起的 HTTP 请求等用户。用户选的是样子/主题/行业方向，不是内部 Skill 名。
+- 设计选择必须落到 `visualBrief`、kit/slot map 或白名单 operation；只改 prompt 文案而页面看不出变化不算完成。
+- 删除只由用户明确选择；系统不自动清理对话、草稿、上传或站点，不做定时清理或清理开关。
+- 前端改动遵循 `skills/frontend-less-ai-tone/`；生成或改 SiteCraft 站点文案/样子时叠加 `skills/sitecraft-frontend-less-ai-tone/`（运行时子集 `lib/frontend-tone.ts`）。
+- 不为未来功能预置平行 API、兼容层、空 schema 或推测性抽象。
 
-## Git 提交与 GitHub 同步
+## 素材与许可
 
-每个独立功能完成并通过验收后，必须单独提交并推送到自己的 GitHub fork：
+- 代码 MIT/Apache 不代表图片、字体、图标、商标可用，须分别核验；普通客户交付许可不能推导为生成器再分发许可。
+- 调研不等于准入：新模板/仓库须核来源、版本、许可和实际渲染效果后才进 `vendor/` 或挂样子卡。SPA 空壳 `index.html` 不算静态快照。
+- 没有授权图片时用无图/CSS 示意版，不冒充实拍。`resources/` 是研究资料，不是运行时自动加载的 Skill。
 
-1. 提交前确认只包含本模块文件，检查暂存区与未暂存差异；不得 `git add -A` 混入用户工作，也不得为方便提交清空或重排无关暂存内容。必要时使用显式路径的单模块提交。
-2. 业务模块提交前运行目标测试与全套 `typecheck/test/build`；纯文档/规则模块执行文本、链接、敏感信息和范围核验，不宣称业务已验收。
-3. 提交一个可读的单模块 commit，不把多个未验收模块混在一起。
-4. 推送前核对 `origin` 为 `a1024053774/sitecraft-ai`，再推送当前工作分支；绝不推送 `upstream`，不 force-push。
-5. 回读远端分支 SHA 与本地 commit 对照，记录 commit、分支、验证命令和未解决限制。
-6. GitHub CI 未完成时不能声称远端门禁已通过；推送失败时保留本地 commit 并报告，不绕过认证。
+## 验收
 
-## 密钥、环境与资源
+一个功能算完成：
 
-- 项目使用本地 `.env.local`；密钥只存在被 gitignore 的本地文件，不进入代码、文档、prompt、SSE、截图或提交。
-- 当前环境来源已从 `env.md` 映射到 `.env.local`；不创建软链接，不复制原始 `env.md` 到项目。
-- 生成物默认只接受来源、版本和再分发许可可核验的 MIT/Apache 资源；图片、字体、图标、商标和演示素材必须分别核验。
-- 用户提供的 `resources/` 是研究资料，不是运行时 Skill 自动加载目录；每个资源要经过版本、许可、执行方式和效果验证。
+1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；
+2. UI/预览改动在真实浏览器里打开看过（桌面 + 375 宽），截图放 gitignore 的 `artifacts/`；
+3. 页面质量以负责人肉眼为准。代理自查和外部模型审计能找问题，不能宣布审美通过；
+4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作。
 
-## 多语言文本和文档
+不需要：实机证据、公网证据、每次探针的 JSON 归档、独立的「证据记录」提交、对同一候选反复审查。
 
-保留中文用户文案、任务书、注释和现有提示词的 UTF-8 内容；窄改优先，不做无关格式化、全文件重写或标点归一化。对文档和 prompt 的宽改要检查 diff 中的乱码、替换字符、BOM 和换行变化。
+## 文档
 
-## 完成定义
+- `plan.md` 只写当前状态和下一步，完成一项改 1–3 行。不追加逐轮日志，不叠加「更正」段落；过时内容删掉或移到 `plan-history.md`。
+- 需求/方向变化写进 `intent.md` / `mainline.md`，改动前经负责人确认；不另建第二套规格。
+- 中文内容保持 UTF-8，窄改优先，不做无关格式化或标点归一化。
 
-“功能完成”同时要求：需求契约满足、实现路径可达、针对性失败证据已处理、相关测试通过、必要的浏览器/外部证据已取得、冻结候选已审查、单功能 commit 已创建并推送到 `origin`。缺少其中一项时使用“部分完成/未验证”，不要用代码存在或测试数量替代验收。
+## Git
+
+- 以 fork `a1024053774/sitecraft-ai` 为主线（`origin`）；绝不推 `upstream`，不 force-push。
+- 一个功能一个 commit，文档更新并入同一个 commit。只 add 本功能的显式路径，不 `git add -A` 混入用户工作。
+- 推送后核对远端 SHA；推送失败保留本地 commit 并报告，不绕过认证。
+
+## 密钥与环境
+
+- 密钥只在 gitignore 的 `.env.local`，不进代码、文档、prompt、SSE、截图或提交。不建软链接，不复制 `env.md`。
+- 模型：DeepSeek `deepseek-flash`（对话与看图同一条）。
+- 开发机用 `SITE_STORE=fs` 即可；Docker（PostgreSQL/Mailpit）在外置硬盘，没插就跳过，不影响页面质量工作。
+
+## 协作
+
+- 不绑定特定模型或客户端。小中型任务主负责人直接做；只有边界清楚、并行能缩短路径时才委派，委派须写清输入、可改文件、禁止范围和验收。多个代理不改同一文件。
+- 用 Goal/连续模式时，队列只能来自 `plan.md` 的「下一步」。可以连续做，但遇到需要负责人判断的节点（盲评、方案二选一）要停下等；队列做完就停，不自行把「本阶段不做」里的事或新方向加进队列。

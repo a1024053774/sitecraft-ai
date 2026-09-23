@@ -7,7 +7,9 @@
 - [mainline.md](./mainline.md)：核心主线；样子 → 同族模块 → 声明槽位；模型名；jiro 用法；防漂移。
 - [intent.md](./intent.md)：已记录的产品需求、Q18、2026-09-18 数据删除政策（Q17=A 已取代）和执行授权。
 - [spec.md](./spec.md)：v0.5 规格；样子盘、同族模块、可选内嵌对齐、需求驱动页面和数据边界。
-- [plan.md](./plan.md)：v0.7 短计划；按手头快照分类的样子、Jiro 配方用法、Skill 收口、数据删除政策和下一步。
+- [plan.md](./plan.md)：当前状态、下一步和本阶段不做的事。只有这里是待办来源。
+- [plan-history.md](./plan-history.md)：v0.12 及之前的逐轮账、Jiro/开源素材配方表和各类证据记录，只供追溯。
+- [error-catalog.md](./error-catalog.md)：用户可见错误码与中文提示。
 - [AGENTS.md](../../AGENTS.md)：项目规则、模型无关的执行与协作方式、模块验收/提交/推送流程。
 - [Notion 摘要](https://app.notion.com/p/3dbfaa7adad8810c8a12e58e4b79ce42)：主要方向与进度，不存密钥或完整日志。
 

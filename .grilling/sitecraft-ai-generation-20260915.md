@@ -35,7 +35,7 @@ stage: build
 - 当前使用 DeepSeek，请求名 `deepseek-flash`；允许第三方模型；质量优先，暂不设成本/时延 KPI。
 - 数据删除：2026-09-18 用户决定取代 Q17=A。删除须由用户明确选择；系统不得替用户主动删除对话、草稿、上传或站点。不实现 90 天自动清理或清理开关。已发布站点仍由用户控制，不得静默删除。历史 Q17=A 见 Answer history / Confirmed frontier。
 - 页面规划遵循用户明确要求、模型按需求规划、默认三类页面的优先级，详见 Q18。
-- 委派统一使用 Cursor Grok 4.6 High Fast，以 TodoWrite 跟踪；按模块验收后提交并推送到自己的 fork。
+- 协作不绑定特定模型或客户端（取代 Q19 的 Cursor Grok 4.6 High Fast + TodoWrite）；按模块验收后提交并推送到自己的 fork。
 - 本项目独立环境文件，不使用软链接；不把密钥写入 Git、Notion、prompt 或浏览器。
 
 ## Decision tree
