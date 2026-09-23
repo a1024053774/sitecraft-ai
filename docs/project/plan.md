@@ -381,3 +381,7 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 ### 用户可达 API 错误入口收口（2026-09-23）
 
 补查站点创建、草稿 PUT、历史 undo/redo、询盘列表、预览审查和质量对照 API：无效 payload、未知历史动作、缺少截图和质量辅助失败现在统一返回 `userErrorPayload` 的中文提示、稳定码和恢复动作，不再把英文校验文本、Zod details 或内部异常直接交给界面。预览审查仍保留安全的图片尺寸提示（例如 1×1），不泄露 provider 原文。针对性 22/22、typecheck 通过；随后需跑全套回归并单独提交。
+
+### DeepSeek 路由复测（2026-09-23）
+
+当前 `dig @192.168.3.1 api.deepseek.com` 返回 `61.170.66.121` 与 `61.170.82.99`；使用 `curl --interface en0 --resolve` 对这两个地址的 `/models` 探针可返回 HTTP 200。系统默认解析仍是 VPN 的 `198.18.0.157`，`route -n get` 显示 `utun5`，应用内 fetch 继续超时。添加 /32 主机路由和 `/etc/hosts` 解析需要本机 sudo 密码；本轮没有读取或代填密码，保留为外部网络配置边界，不用伪造动态问答成功。
