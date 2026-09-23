@@ -203,3 +203,5 @@ REALITY GATE: INCOMPLETE（jiro 条款；d55f6e7c 仓库未克隆；组页引擎
 - 2026-09-23（网络复测）：主机 DeepSeek 连接超时；Docker `/models` 曾 200，随后 JSON chat 也超时。保留成功与失败两类证据，模型外部稳定性仍 `UNVERIFIED`，没有添加生产伪 fallback。
 - 2026-09-23（错误边界）：结构化输出校验、provider/network 和会话写入异常统一按诊断码映射为安全中文提示；SSE `done`、会话记录和工作台不再暴露 `operations: Too big`、原始路径或供应商异常。针对性测试与全套 194/194、typecheck、build 均通过。
 - 2026-09-23（新 key 连通性复测）：`/api/ai/status` 在 3034/3000 均为 configured；同轮一次最小 DeepSeek chat 返回 200，之后清理响应文件的两次 `/models` 与 chat 均 TLS 超时。无缓存探针写入 gitignored `artifacts/key-recovery-2026-09-23/current-network-probe.json`，外部模型稳定性仍 `UNVERIFIED`。
+- 2026-09-23（Docker/Mailpit/SMTP）：外置硬盘连接后 PostgreSQL healthy、Docker overlay 存在；Mailpit/Redis 曾退出，已不动卷重启。新增 opt-in Nodemailer 转发，询盘先存收件箱，邮件失败不回滚；本地真实 POST + Mailpit 回读 `SMTP-LOCAL-20260923` 成功。外部邮箱未验证，`SMTP_TO` 为空时保持 stored-only。
+- 2026-09-23（默认事实与色卡研究）：空草稿 contact email 改为「待补充」；色卡研究确认四个已有 kit 各 4 套足够，fresh 无 kit 暂缓。研究来源只约束颜色 token，不扩展素材许可。

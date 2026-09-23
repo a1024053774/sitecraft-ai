@@ -363,3 +363,13 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 ### 新 key 连通性复测（2026-09-23）
 
 `.env.local` 的 DeepSeek 配置在 `3034` 和 Docker `3000` 的 `/api/ai/status` 都显示 `configured=true`、模型为 `deepseek-flash`。同轮第一次最小 chat 探针曾返回 HTTP 200 且有一条模型结果，说明新 key 至少成功通过过一次鉴权；随后清理响应文件后连续两次独立的 `/models` 与最小 chat 探针均为 TLS 连接超时，没有把旧响应当作成功。最新无缓存证据保存在 `artifacts/key-recovery-2026-09-23/current-network-probe.json`（gitignored）。结论仍是 `UNVERIFIED`：key 看起来已生效，但 VPN/代理链路不稳定，不能承诺当前浏览器一定能完成动态生成。
+
+### Docker 与本地 Mailpit 复核（2026-09-23）
+
+外置硬盘重新连接后，未删除数据卷地回读 Docker：PostgreSQL `healthy`、web `3000`、运行时 `lib/template-adapters/overlays` 存在；之前退出的 Mailpit/Redis 用 `docker compose up -d mailpit redis` 恢复，Mailpit API `8025` 返回 200，初始收件数为 0。Docker `/api/health` 仍返回 `persistence.driver=postgres`、`database=ready`，既有 `docker-pg-evidence-20260922` 草稿回读 revision 2。
+
+本轮补上 opt-in SMTP 转发：`lib/smtp.ts` 使用已安装的 Nodemailer SMTP transport，服务器只在配置 `SMTP_TO` 时发送，未配置时明确返回 `stored_only`；询盘先写 PostgreSQL/文件收件箱，邮件失败不回滚已保存留言。用 `SMTP_HOST=127.0.0.1`、Mailpit `1025`、`SMTP_TO=inbox@example.test` 启动本地开发入口后，真实 `POST /api/public/smoke-smtp-20260923/leads` 返回 `delivery=smtp`，Mailpit API 回读同一主题 `SiteCraft 新询盘 · smoke-smtp-20260923` 和正文标记 `SMTP-LOCAL-20260923`。原始回读保存在 `artifacts/smtp-20260923/`（gitignored）；这证明本地收件链路，不证明外部邮箱送达。默认空草稿的 contact email 已改为「待补充」，不再把 `hello@example.com` 当成客户事实。
+
+### 色卡研究回报（2026-09-23）
+
+只读子代理回报了 USWDS、Radix Colors、Tailwind 官方色阶和 WCAG 2.2 的可核验来源、角色映射和对比度建议。四个已有 family kit（industrial/forge、engineering-industrial/screwfast、export-catalog/landwind、technical-product/tailwind-landing）各保留 4 套明显区分的命名色板；`editorial-service/fresh` 没有 kit，维持暂缓，不创建空 palette。公开色阶只作为 token 研究来源，不能推导图片、字体或商标许可。具体来源仍记录在 `paletteSourceById`，页面 A/B 浏览器证据必须按 family 单独判断。
