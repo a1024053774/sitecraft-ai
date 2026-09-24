@@ -131,10 +131,10 @@
             <span class="sitecraft-brand-name" data-sitecraft-brand="nav">企业名称</span>
           </a>
           <nav class="sitecraft-nav-links" aria-label="主导航">
-            <a href="#products">产品</a>
-            <a href="#process">加工方式</a>
-            <a href="#faq">常见问题</a>
-            <a class="sitecraft-nav-cta" href="#inquiry">提交询盘</a>
+            <a href="#products" data-sitecraft-nav="products">产品</a>
+            <a href="#process" data-sitecraft-nav="services">加工方式</a>
+            <a href="#faq" data-sitecraft-ui="faq">常见问题</a>
+            <a class="sitecraft-nav-cta" href="#inquiry" data-sitecraft-nav="contact">提交询盘</a>
           </nav>
         </div>
       </header>
@@ -142,20 +142,20 @@
         <section class="sitecraft-hero" data-sitecraft-section="hero" data-sitecraft-benchmark="hero">
           <div class="sitecraft-container sitecraft-hero-grid">
             <div>
-              <p class="sitecraft-eyebrow">工业制造 / 工程询盘</p>
+              <p class="sitecraft-eyebrow" data-sitecraft-optional="industry" hidden></p>
               <h1 data-sitecraft-benchmark="hero-title">按图加工重载减速机</h1>
               <p class="sitecraft-hero-copy" data-sitecraft-benchmark="hero-subtitle">围绕产品类别、规格和批量需求，把一次询盘说清楚。</p>
               <div class="sitecraft-hero-actions">
                 <a class="sitecraft-primary" data-sitecraft-benchmark="hero-cta" href="#inquiry">获取规格与交期</a>
                 <a class="sitecraft-secondary" href="#products">查看产品类别</a>
               </div>
-              <p class="sitecraft-hero-note">按图加工 · 批量规格询盘 · 现场安装：待补充</p>
+              <p class="sitecraft-hero-note" data-sitecraft-optional="action" hidden></p>
             </div>
             <div class="sitecraft-diagram" aria-label="工程示意图" role="img">
               <div class="sitecraft-diagram-grid"></div>
               <div class="sitecraft-diagram-core"></div>
               <div class="sitecraft-diagram-axis"></div>
-              <span class="sitecraft-diagram-label">Engineering / RFQ</span>
+              
               <img data-sitecraft-benchmark="hero-image" alt="" src="" hidden>
             </div>
           </div>
@@ -165,7 +165,7 @@
           <div class="sitecraft-container">
             <div class="sitecraft-section-head">
               <div>
-                <p class="sitecraft-section-kicker">01 / 产品范围</p>
+                <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>01</span> <span data-sitecraft-ui="products">产品</span></p>
                 <h2 data-sitecraft-benchmark="products-title">产品类别</h2>
               </div>
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="products-intro">根据资料展示已确认的产品，不用空卡凑数量。</p>
@@ -178,7 +178,7 @@
           <div class="sitecraft-container">
             <div class="sitecraft-section-head">
               <div>
-                <p class="sitecraft-section-kicker">02 / 合作方式</p>
+                <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>02</span> <span data-sitecraft-ui="services">合作方式</span></p>
                 <h2 data-sitecraft-benchmark="services-title">从图纸到批量询盘</h2>
               </div>
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="services-intro">加工方式与产品类别分开说明，让采购知道下一步需要提供什么。</p>
@@ -194,26 +194,26 @@
         <section id="inquiry" class="sitecraft-section" data-sitecraft-section="contact">
           <div class="sitecraft-container sitecraft-inquiry-wrap">
             <div class="sitecraft-inquiry-copy">
-              <p class="sitecraft-section-kicker">03 / 询盘</p>
+              <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>03</span> <span data-sitecraft-ui="contact">询盘</span></p>
               <h2 data-sitecraft-benchmark="contact-title">把规格说清楚，再确认交期</h2>
-              <p data-sitecraft-benchmark="contact-body">留下产品类别、批量和规格要求。当前收件能力以工作区状态为准，资料没有提供的事实不会自动补齐。</p>
-              <div class="sitecraft-inquiry-meta"><span>邮箱：<span data-sitecraft-contact="email">待补充</span></span><span>电话：<span data-sitecraft-contact="phone">待补充</span></span></div>
+              <p data-sitecraft-benchmark="contact-body">留下产品类别、批量和规格要求。</p>
+              <div class="sitecraft-inquiry-meta"><span><span data-sitecraft-ui="emailPrefix">邮箱</span>：<span data-sitecraft-contact="email">待补充</span></span><span><span data-sitecraft-ui="phonePrefix">电话</span>：<span data-sitecraft-contact="phone">待补充</span></span></div>
             </div>
             <form class="sitecraft-inquiry-form" data-sitecraft-inquiry="true" action="#" method="post">
               <label data-sitecraft-inquiry-label="name">姓名<input name="name" type="text" required maxlength="80" autocomplete="name"></label>
               <label data-sitecraft-inquiry-label="email">邮箱<input name="email" type="email" required maxlength="160" autocomplete="email"></label>
               <label data-sitecraft-inquiry-label="company">公司<input name="company" type="text" maxlength="120" autocomplete="organization"></label>
-              <label data-sitecraft-inquiry-label="message">规格与需求<textarea name="message" required maxlength="4000" rows="5"></textarea></label>
+              <label data-sitecraft-inquiry-label="message">需求<textarea name="message" required maxlength="4000" rows="5"></textarea></label>
               <input class="honeypot" name="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-10000px;height:0;width:0;overflow:hidden">
-              <p class="sitecraft-form-note">提交后由发布页处理。没有接通的外部邮件服务不会显示为已发送。</p>
-              <button class="sitecraft-primary" type="submit">发送询盘</button>
+              
+              <button class="sitecraft-primary" type="submit" data-sitecraft-ui="submit">发送询盘</button>
             </form>
           </div>
         </section>
 
         <section id="faq" class="sitecraft-section" data-sitecraft-section="faq">
           <div class="sitecraft-container sitecraft-faq-grid">
-            <div><p class="sitecraft-section-kicker">04 / 资料边界</p><h2 data-sitecraft-benchmark="faq-title">先回答资料里有的</h2><p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro">交期、认证、MOQ 和售后只在资料有依据时展示。</p></div>
+            <div><p class="sitecraft-section-kicker"><span data-sitecraft-section-index>04</span> <span data-sitecraft-ui="faq">常见问题</span></p><h2 data-sitecraft-benchmark="faq-title">先回答资料里有的</h2><p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro">交期、认证、MOQ 和售后只在资料有依据时展示。</p></div>
             <div class="sitecraft-faq-list">
               <article class="sitecraft-faq-item"><h3 data-sitecraft-benchmark="faq-item-0-title">MOQ 如何确认？</h3><p data-sitecraft-benchmark="faq-item-0-body">资料未提供时，询盘中按批量规格确认。</p></article>
               <article class="sitecraft-faq-item"><h3 data-sitecraft-benchmark="faq-item-1-title">可以提供哪些产品？</h3><p data-sitecraft-benchmark="faq-item-1-body">页面只展示资料中确认的产品类别。</p></article>
@@ -223,7 +223,7 @@
         </section>
       </main>
       <footer class="sitecraft-footer" data-sitecraft-section="footer">
-        <div class="sitecraft-container sitecraft-footer-inner"><span class="sitecraft-footer-brand" data-sitecraft-brand="footer">企业名称</span><span>资料有限时，页面保持诚实。</span></div>
+        <div class="sitecraft-container sitecraft-footer-inner"><span class="sitecraft-footer-brand" data-sitecraft-brand="footer">企业名称</span></div>
       </footer>
       <div class="sitecraft-benchmark-legacy" aria-hidden="true">
         <span data-sitecraft-demo="pricing"></span><span data-sitecraft-demo="reviews"></span><span data-sitecraft-demo="wordmark"></span><span data-sitecraft-demo="footer-wordmark"></span><span data-sitecraft-demo="github"></span><span data-sitecraft-demo="logo-wall"></span><span data-sitecraft-demo="solutions"></span><span data-sitecraft-demo="testimonial"></span><span data-sitecraft-demo="feature-extra"></span>

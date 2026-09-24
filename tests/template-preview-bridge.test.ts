@@ -696,6 +696,47 @@ function authoredCompareDraft(id: "A17" | "B84") {
   ], themeCompareOptions).draft;
 }
 
+test("hero lines read industry and the chosen action, and navigation follows the draft language", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const { document } = createDocument();
+  const eyebrow = createNode("p");
+  eyebrow.setAttribute("data-sitecraft-optional", "industry");
+  eyebrow.hidden = true;
+  const note = createNode("p");
+  note.setAttribute("data-sitecraft-optional", "action");
+  note.hidden = true;
+  const nav = createNode("a");
+  nav.setAttribute("data-sitecraft-nav", "services");
+  nav.textContent = "服务";
+  const label = createNode("span");
+  label.setAttribute("data-sitecraft-ui", "faq");
+  label.textContent = "常见问题";
+  document.body.appendChild(eyebrow);
+  document.body.appendChild(note);
+  document.body.appendChild(nav);
+  document.body.appendChild(label);
+  const { api } = installOn(document, adapter);
+  const draft = structuredClone(defaultDraft);
+  draft.industry = "";
+  draft.navigation.services = { zh: "加工方式", en: "Process" };
+  draft.visualBrief = structuredClone(visualBriefCatalog.find((item) => item.id === "engineering-industrial")!);
+  api.applyDeclaredContent(draft, "zh", [], "workspace");
+  assert.equal(eyebrow.hidden, true);
+  assert.equal(eyebrow.textContent, "");
+  assert.equal(note.hidden, false);
+  assert.equal(note.textContent, "获取技术方案");
+  assert.equal(nav.textContent, "加工方式");
+  assert.equal(label.textContent, "常见问题");
+  api.applyDeclaredContent(draft, "en", [], "workspace");
+  assert.equal(nav.textContent, "Process");
+  assert.equal(label.textContent, "Questions");
+  draft.industry = "减速机";
+  api.applyDeclaredContent(draft, "zh", [], "workspace");
+  assert.equal(eyebrow.hidden, false);
+  assert.equal(eyebrow.textContent, "减速机");
+});
+
 test("landwind first-screen slots follow two independent samples and leave undeclared headings", () => {
   const adapter = getTemplateAdapter("landwind");
   assert.ok(adapter, "landwind adapter is required before quality comparison");

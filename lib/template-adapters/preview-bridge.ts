@@ -72,7 +72,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
       "contact.phone": contact.phone,
       "contact.address": contact.address,
       "faq.title": (content.faq || {}).title,
-      "faq.intro": (content.faq || {}).intro
+      "faq.intro": (content.faq || {}).intro,
+      industry: draft.industry,
+      primaryAction: draft.visualBrief && draft.visualBrief.primaryAction,
+      "navigation.about": draft.navigation && draft.navigation.about,
+      "navigation.features": draft.navigation && draft.navigation.features,
+      "navigation.services": draft.navigation && draft.navigation.services,
+      "navigation.products": draft.navigation && draft.navigation.products,
+      "navigation.contact": draft.navigation && draft.navigation.contact
     };
     if (Object.prototype.hasOwnProperty.call(table, target)) {
       return localize(table[target], locale);
@@ -201,6 +208,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
       else node.src = value;
     } else {
       if (typeof value !== "string") return false;
+      var optional = node.getAttribute && node.getAttribute("data-sitecraft-optional");
+      var trimmed = value.trim();
+      if (optional && (!trimmed || trimmed === "待补充" || trimmed === "To be provided")) {
+        node.textContent = "";
+        node.hidden = true;
+        return false;
+      }
+      if (optional) node.hidden = false;
       node.textContent = value;
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";
@@ -445,6 +460,36 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
+  function setLeadingText(node, text) {
+    var children = node.childNodes || [];
+    for (var i = 0; i < children.length; i++) {
+      if (children[i] && children[i].nodeType === 3) {
+        children[i].nodeValue = text;
+        return;
+      }
+    }
+    if (node.insertBefore && document && document.createTextNode) {
+      node.insertBefore(document.createTextNode(text), node.firstChild || null);
+      return;
+    }
+    node.textContent = text;
+  }
+
+  function applyVisitorChrome(locale) {
+    if (!document || !document.querySelectorAll) return;
+    var copy = locale === "en"
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", submit: "Send inquiry" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", submit: "发送询盘" };
+    var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
+    for (var i = 0; i < labels.length; i++) {
+      var node = labels[i];
+      var key = (node.getAttribute && (node.getAttribute("data-sitecraft-inquiry-label") || node.getAttribute("data-sitecraft-ui"))) || "";
+      if (!copy[key]) continue;
+      if (node.querySelector && node.querySelector("input,textarea,select")) setLeadingText(node, copy[key]);
+      else node.textContent = copy[key];
+    }
+  }
+
   function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage) {
     var applied = new Set();
     var extraMissing = [];
@@ -460,6 +505,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
     }
     if (adapter && draft) {
+      applyVisitorChrome(currentLocale);
       renderProductGrid(draft, currentLocale, applied);
       var slots = adapter.slots || [];
       for (var s = 0; s < slots.length; s++) {

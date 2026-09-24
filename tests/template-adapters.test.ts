@@ -358,7 +358,7 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
       assert.equal(body?.selector, `[data-sitecraft-faq="a${n}"]`);
     }
     assert.equal(adapter.slots.some((slot) => slot.target === `faq.items.${item.count}.title`), false);
-    assert.equal(html.includes(item.chrome), true);
+    assert.equal(html.includes(item.chrome), false);
   }
 
   const screwfast = readFileSync(new URL("../lib/template-adapters/overlays/screwfast.index.html", import.meta.url), "utf8");
