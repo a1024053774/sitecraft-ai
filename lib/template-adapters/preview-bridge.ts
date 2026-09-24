@@ -296,6 +296,33 @@ function sitecraftPreviewBridge(templateId, adapter) {
       setSectionHidden(node, spec.key, hidden.indexOf(spec.key) !== -1);
       applied.add(spec.key + ".visibility");
     }
+    syncHiddenNavigation(hidden);
+  }
+
+  function syncHiddenNavigation(hiddenKeys) {
+    if (!document || !document.querySelectorAll) return;
+    var links = document.querySelectorAll("a[href^='#']");
+    for (var i = 0; i < links.length; i++) {
+      var link = links[i];
+      var href = link.getAttribute ? link.getAttribute("href") || "" : "";
+      var target = null;
+      if (href.charAt(0) === "#" && href.length > 1 && document.querySelector) {
+        target = document.querySelector("#" + href.slice(1));
+      }
+      var navKey = link.getAttribute ? link.getAttribute("data-sitecraft-nav") : "";
+      var pointsAtHidden = Boolean(target && target.getAttribute && target.getAttribute("data-sitecraft-section-hidden") === "true");
+      if (!pointsAtHidden && navKey && hiddenKeys.indexOf(navKey) !== -1) pointsAtHidden = true;
+      link.hidden = pointsAtHidden;
+    }
+    var indexes = document.querySelectorAll("[data-sitecraft-section-index]");
+    var visibleCount = 0;
+    for (var n = 0; n < indexes.length; n++) {
+      var indexNode = indexes[n];
+      var owner = indexNode.closest ? indexNode.closest("section") : null;
+      if (owner && owner.getAttribute && owner.getAttribute("data-sitecraft-section-hidden") === "true") continue;
+      visibleCount += 1;
+      indexNode.textContent = visibleCount < 10 ? "0" + visibleCount : String(visibleCount);
+    }
   }
 
   function applyDemoChrome(applied, extraMissing) {

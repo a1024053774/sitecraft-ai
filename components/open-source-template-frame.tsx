@@ -121,12 +121,16 @@ export function OpenSourceTemplateFrame({
   useEffect(() => {
     setHydrated(false);
     reportLoadState("loading");
+    // The document may already have loaded before this effect attached
+    // onLoad. Push the draft either way. The failure timer still starts
+    // only from onLoad, so an off-screen thumbnail does not time out.
+    sendContent();
     if (frameRef.current?.dataset.documentLoaded === "true") handleFrameLoad();
     else clearBridgeWait();
     return () => {
       clearBridgeWait();
     };
-  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearBridgeWait, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, pagePath, reportLoadState, templateId, variant]);
+  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearBridgeWait, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, pagePath, reportLoadState, sendContent, templateId, variant]);
 
   useEffect(() => {
     const receiveMessage = (event: MessageEvent) => {

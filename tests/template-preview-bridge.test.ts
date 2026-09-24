@@ -737,6 +737,51 @@ test("hero lines read industry and the chosen action, and navigation follows the
   assert.equal(eyebrow.textContent, "减速机");
 });
 
+test("hiding a section also hides its navigation link and renumbers the visible sections", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const { document } = createDocument();
+  const navServices = createNode("a");
+  navServices.setAttribute("href", "#process");
+  navServices.setAttribute("data-sitecraft-nav", "services");
+  navServices.textContent = "加工方式";
+  const navProducts = createNode("a");
+  navProducts.setAttribute("href", "#products");
+  navProducts.setAttribute("data-sitecraft-nav", "products");
+  const navFaq = createNode("a");
+  navFaq.setAttribute("href", "#faq");
+  document.body.appendChild(navProducts);
+  document.body.appendChild(navServices);
+  document.body.appendChild(navFaq);
+  const sections = [
+    ["products", "products", "01"],
+    ["services", "process", "02"],
+    ["contact", "inquiry", "03"],
+    ["faq", "faq", "04"],
+  ] as const;
+  const indexes = [];
+  for (const [key, id, number] of sections) {
+    const section = createNode("section");
+    section.id = id;
+    section.setAttribute("data-sitecraft-section", key);
+    const index = createNode("span");
+    index.setAttribute("data-sitecraft-section-index", "");
+    index.textContent = number;
+    section.appendChild(index);
+    document.body.appendChild(section);
+    indexes.push(index);
+  }
+  const { api } = installOn(document, adapter);
+  const draft = structuredClone(defaultDraft);
+  draft.hiddenSections = ["services"];
+  draft.templateId = "screwfast";
+  api.applyDeclaredContent(draft, "zh", [], "workspace");
+  assert.equal(navServices.hidden, true);
+  assert.equal(navProducts.hidden, false);
+  assert.equal(navFaq.hidden, false);
+  assert.deepEqual(indexes.map((node) => node.textContent), ["01", "02", "02", "03"]);
+});
+
 test("landwind first-screen slots follow two independent samples and leave undeclared headings", () => {
   const adapter = getTemplateAdapter("landwind");
   assert.ok(adapter, "landwind adapter is required before quality comparison");
