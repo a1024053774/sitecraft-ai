@@ -585,11 +585,18 @@ function sitecraftPreviewBridge(templateId, adapter) {
     syncHiddenNavigation(hiddenKeys);
   }
 
+  function applyDocumentTitle(draft) {
+    if (!document) return;
+    var name = draft && typeof draft.companyName === "string" ? draft.companyName.trim() : "";
+    if (!name && draft && typeof draft.siteName === "string") name = draft.siteName.trim();
+    if (name) document.title = name;
+  }
+
   function applyVisitorChrome(locale) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", submit: "Send inquiry" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", submit: "发送询盘" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", submit: "Send inquiry", schematic: "Schematic", footerNote: "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs." }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", submit: "发送询盘", schematic: "示意", footerNote: "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
@@ -616,6 +623,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
     if (adapter && draft) {
       applyVisitorChrome(currentLocale);
+      applyDocumentTitle(draft);
       renderProductGrid(draft, currentLocale, applied);
       var slots = adapter.slots || [];
       for (var s = 0; s < slots.length; s++) {
@@ -626,6 +634,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (!node) continue;
         writeSlot(node, slot, value, currentLocale, applied);
       }
+      applyDocumentTitle(draft);
       applySectionVisibility(draft, applied);
       collapseUnprovidedEntries(draft, currentLocale);
       applyDemoChrome(applied, extraMissing);
@@ -633,11 +642,6 @@ function sitecraftPreviewBridge(templateId, adapter) {
       applyActivePage(draft, activePage);
       if (variant === "published") {
         sanitizePublished();
-        if (document && document.body && document.body.style && document.body.style.setProperty) {
-          // The host page owns a fixed inquiry control. Reserve space inside the
-          // iframe so the final FAQ/footer line remains readable above it.
-          document.body.style.setProperty("padding-bottom", "calc(96px + env(safe-area-inset-bottom, 0px))");
-        }
       }
     }
     return report(applied, expected, adapter, extraMissing);

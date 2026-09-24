@@ -78,37 +78,41 @@ export function PublishedSiteClient({
       data-site-key={siteKey}
       data-testid="published-template-shell"
     >
-      <nav className="published-page-nav" aria-label="站点页面" data-testid="site-page-nav">
-        {draft.pagePlan.pages.map((page) => (
-          <button
-            className={activePage?.id === page.id ? "active" : ""}
-            key={page.id}
-            type="button"
-            data-testid="site-page-tab"
-            data-page-id={page.id}
-            data-page-placement={page.placement}
-            onClick={() => selectPage(page.id)}
-          >
-            {page.label[locale]}
-          </button>
-        ))}
-      </nav>
-      <div className="published-template-locale" aria-label="站点语言">
-        <button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>中</button>
-        <button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button>
+      <div className="published-chrome-bar" data-testid="published-chrome-bar">
+        <nav className="published-page-nav" aria-label="站点页面" data-testid="site-page-nav">
+          {draft.pagePlan.pages.map((page) => (
+            <button
+              className={activePage?.id === page.id ? "active" : ""}
+              key={page.id}
+              type="button"
+              data-testid="site-page-tab"
+              data-page-id={page.id}
+              data-page-placement={page.placement}
+              onClick={() => selectPage(page.id)}
+            >
+              {page.label[locale]}
+            </button>
+          ))}
+        </nav>
+        <div className="published-template-locale" aria-label="站点语言">
+          <button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>中</button>
+          <button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button>
+        </div>
       </div>
-      <OpenSourceTemplateFrame
-        templateId={draft.templateId}
-        draft={draft}
-        locale={locale}
-        variant="published"
-        pagePath={previewPathForPage(activePage)}
-        activePage={activePage}
-        onApplyReport={() => setHydrated(true)}
-        onInquiry={(fields) => {
-          void postInquiry(fields);
-        }}
-      />
+      <div className="published-template-stage">
+        <OpenSourceTemplateFrame
+          templateId={draft.templateId}
+          draft={draft}
+          locale={locale}
+          variant="published"
+          pagePath={previewPathForPage(activePage)}
+          activePage={activePage}
+          onApplyReport={() => setHydrated(true)}
+          onInquiry={(fields) => {
+            void postInquiry(fields);
+          }}
+        />
+      </div>
       <details className="published-inquiry" data-testid="published-inquiry">
         <summary>{locale === "zh" ? "发送询盘" : "Send inquiry"}</summary>
         <p>

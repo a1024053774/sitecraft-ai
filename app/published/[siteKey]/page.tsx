@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getSite } from "@/lib/site-store";
 import { normalizeDraft } from "@/lib/site-model";
 import { findSitePage } from "@/lib/template-pages";
@@ -10,6 +11,38 @@ type PublishedSearch = { page?: string | string[] };
 
 function firstQuery(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function localizeText(value: unknown, locale: "zh" | "en" = "zh") {
+  if (typeof value === "string") return value.trim();
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  const preferred = record[locale];
+  if (typeof preferred === "string" && preferred.trim()) return preferred.trim();
+  const fallback = record.zh ?? record.en;
+  return typeof fallback === "string" ? fallback.trim() : "";
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ siteKey: string }>;
+}): Promise<Metadata> {
+  const { siteKey } = await params;
+  try {
+    const site = await getSite(siteKey);
+    const draft = normalizeDraft(site.draft);
+    const title = (draft.companyName || draft.siteName || siteKey).trim() || siteKey;
+    const description = localizeText(draft.content?.hero?.subtitle)
+      || localizeText(draft.visualBrief?.summary)
+      || undefined;
+    return {
+      title,
+      ...(description ? { description } : {}),
+    };
+  } catch {
+    return { title: siteKey };
+  }
 }
 
 export default async function PublishedSitePage({

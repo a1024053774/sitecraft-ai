@@ -288,8 +288,8 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         border: "#d7ddd8",
         diagram: "#e8ece8",
         tint: "#eef4f0",
-        font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
-        radius: "1.125rem",
+        font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+        radius: "0.25rem",
       },
       palettes: {
         "engineering-orange": {
@@ -303,8 +303,8 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
           border: "#d7ddd8",
           diagram: "#e8ece8",
           tint: "#eef4f0",
-          font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
-          radius: "1.125rem",
+          font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+          radius: "0.25rem",
         },
         "engineering-slate": {
           background: "#eef2f5",
@@ -317,14 +317,14 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
           border: "#cbd6df",
           diagram: "#dfe8ee",
           tint: "#e8f0f4",
-          font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
-          radius: "1.125rem",
+          font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+          radius: "0.25rem",
         },
         "engineering-deep-blue": {
-          background: "#eef3f6", surface: "#ffffff", text: "#12212c", muted: "#536875", accent: "#236b8e", accentStrong: "#164862", accentSoft: "#e3f0f5", border: "#cddbe2", diagram: "#dfeaf0", tint: "#edf4f7", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"', radius: "1.125rem",
+          background: "#eef3f6", surface: "#ffffff", text: "#12212c", muted: "#536875", accent: "#236b8e", accentStrong: "#164862", accentSoft: "#e3f0f5", border: "#cddbe2", diagram: "#dfeaf0", tint: "#edf4f7", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
         },
         "engineering-oxide": {
-          background: "#f2f4f1", surface: "#ffffff", text: "#1d2723", muted: "#58655e", accent: "#9a5b35", accentStrong: "#6f3f25", accentSoft: "#f4e9e1", border: "#d8ded8", diagram: "#e7ece7", tint: "#eef3ee", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"', radius: "1.125rem",
+          background: "#f2f4f1", surface: "#ffffff", text: "#1d2723", muted: "#58655e", accent: "#9a5b35", accentStrong: "#6f3f25", accentSoft: "#f4e9e1", border: "#d8ded8", diagram: "#e7ece7", tint: "#eef3ee", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
         },
       },
       modules: [

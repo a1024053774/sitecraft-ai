@@ -594,7 +594,7 @@ test("empty declared values clear old content and unmapped clicks keep navigatio
     stopPropagation() {},
   });
   assert.equal(preventPublished, false);
-  assert.equal(published.document.body.styleValues["padding-bottom"], "calc(96px + env(safe-area-inset-bottom, 0px))");
+  assert.equal(published.document.body.styleValues["padding-bottom"], undefined);
 });
 
 test("unsupported structural changes remain missing instead of disappearing from the report", () => {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>工业询盘首页</title>
+    <title>工程工业首页</title>
     <style>
       :root {
         --site-bg: #f4f5f3;
@@ -16,109 +16,514 @@
         --site-accent-soft: #fff0e8;
         --site-diagram: #e8ece8;
         --site-tint: #eef4f0;
-        --site-max: 1180px;
-        --site-radius: 18px;
-        --site-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --site-max: 1120px;
+        --site-radius: 4px;
+        --site-nav-h: 64px;
+        --site-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
       }
       * { box-sizing: border-box; }
       html { background: var(--site-bg); color: var(--site-ink); font-family: var(--site-font); overflow-x: hidden; }
       body { margin: 0; min-width: 320px; background: var(--site-bg); color: var(--site-ink); overflow-x: hidden; }
       a { color: inherit; text-decoration: none; }
       button, input, textarea { font: inherit; }
-      .sitecraft-page { overflow: hidden; }
+      .sitecraft-page {
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, color-mix(in srgb, var(--site-tint) 55%, transparent) 0, transparent 220px),
+          repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 47px,
+            color-mix(in srgb, var(--site-line) 55%, transparent) 47px,
+            color-mix(in srgb, var(--site-line) 55%, transparent) 48px
+          );
+      }
       .sitecraft-container { width: min(calc(100% - 48px), var(--site-max)); margin: 0 auto; }
-      .sitecraft-nav { border-bottom: 1px solid var(--site-line); background: var(--site-bg); }
-      .sitecraft-nav-inner { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
-      .sitecraft-brand { display: inline-flex; align-items: center; gap: 11px; font-weight: 760; letter-spacing: -.03em; }
-      .sitecraft-brand-mark { width: 30px; height: 30px; border: 2px solid var(--site-accent); border-radius: 8px; position: relative; transform: rotate(45deg); }
-      .sitecraft-brand-mark::after { content: ""; position: absolute; inset: 6px; border: 2px solid var(--site-ink); border-radius: 3px; }
-      .sitecraft-brand-name { font-size: 18px; }
-      .sitecraft-nav-links { display: flex; align-items: center; gap: 24px; color: var(--site-muted); font-size: 13px; }
-      .sitecraft-nav-links a:hover { color: var(--site-ink); }
-      .sitecraft-nav-cta { padding: 11px 16px; border: 1px solid var(--site-ink); border-radius: 999px; color: var(--site-ink); font-size: 13px; font-weight: 700; }
-      .sitecraft-nav-cta:hover { background: var(--site-ink); color: #fff; }
-      .sitecraft-hero { padding: 84px 0 72px; }
-      .sitecraft-hero-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(320px, .92fr); align-items: center; gap: 76px; }
+
+      .sitecraft-nav {
+        position: sticky;
+        top: 0;
+        z-index: 12;
+        border-bottom: 1px solid var(--site-line);
+        background: color-mix(in srgb, var(--site-bg) 92%, #fff);
+        backdrop-filter: saturate(1.1) blur(8px);
+      }
+      .sitecraft-nav-inner {
+        min-height: var(--site-nav-h);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 28px;
+      }
+      .sitecraft-brand { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+      .sitecraft-brand-mark {
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+        border: 2px solid var(--site-accent-strong);
+        background:
+          linear-gradient(135deg, var(--site-accent) 0 38%, transparent 38% 62%, var(--site-ink) 62%);
+      }
+      .sitecraft-brand-name {
+        font-size: clamp(16px, 2.2vw, 20px);
+        font-weight: 700;
+        letter-spacing: -.02em;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+      }
+      .sitecraft-nav-links {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        color: var(--site-muted);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .sitecraft-nav-cta {
+        padding: 9px 14px;
+        border: 1px solid var(--site-accent-strong);
+        background: var(--site-accent-strong);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .sitecraft-hero { padding: 56px 0 64px; scroll-margin-top: var(--site-nav-h); }
+      .sitecraft-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, .95fr);
+        align-items: stretch;
+        gap: 48px;
+      }
       .sitecraft-hero-grid > *, .sitecraft-section-head > *, .sitecraft-inquiry-wrap > *, .sitecraft-faq-grid > * { min-width: 0; }
-      .sitecraft-eyebrow { display: inline-flex; align-items: center; gap: 9px; margin: 0 0 20px; color: var(--site-accent-strong); font-size: 12px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-      .sitecraft-eyebrow::before { content: ""; width: 30px; height: 2px; background: var(--site-accent); }
-      .sitecraft-hero h1 { max-width: 650px; margin: 0; font-size: clamp(42px, 6vw, 78px); line-height: .98; letter-spacing: -.065em; text-wrap: balance; overflow-wrap: anywhere; word-break: break-word; }
-      .sitecraft-hero-copy { max-width: 590px; margin: 24px 0 0; color: var(--site-muted); font-size: clamp(17px, 2vw, 21px); line-height: 1.55; }
-      .sitecraft-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
-      .sitecraft-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 22px; border: 1px solid var(--site-accent-strong); border-radius: 999px; background: var(--site-accent-strong); color: #fff; font-size: 14px; font-weight: 800; }
-      .sitecraft-primary:hover { border-color: var(--site-accent); background: var(--site-accent); }
-      .sitecraft-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 21px; border: 1px solid var(--site-line); border-radius: 999px; color: var(--site-ink); font-size: 14px; font-weight: 700; }
-      .sitecraft-secondary:hover { border-color: var(--site-ink); }
-      .sitecraft-hero-note { margin: 22px 0 0; color: var(--site-muted); font-size: 12px; line-height: 1.55; }
-      .sitecraft-diagram { position: relative; min-height: 390px; border: 1px solid var(--site-line); border-radius: 28px; background: var(--site-diagram); overflow: hidden; }
-      .sitecraft-diagram::before, .sitecraft-diagram::after { content: ""; position: absolute; border: 1px solid rgba(21,24,23,.14); border-radius: 50%; }
-      .sitecraft-diagram::before { width: 420px; height: 420px; right: -116px; top: -42px; }
-      .sitecraft-diagram::after { width: 270px; height: 270px; right: -25px; top: 32px; }
-      .sitecraft-diagram-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(21,24,23,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(21,24,23,.06) 1px, transparent 1px); background-size: 34px 34px; mask-image: linear-gradient(135deg, rgba(0,0,0,.7), transparent 75%); }
-      .sitecraft-diagram-core { position: absolute; width: 190px; height: 190px; right: 84px; top: 86px; border: 18px solid var(--site-accent); border-radius: 50%; box-shadow: inset 0 0 0 16px var(--site-diagram), 0 20px 45px rgba(21,24,23,.12); }
-      .sitecraft-diagram-core::before { content: ""; position: absolute; width: 66px; height: 66px; inset: 44px; border: 9px solid var(--site-ink); border-radius: 50%; background: var(--site-diagram); }
-      .sitecraft-diagram-axis { position: absolute; right: 31px; top: 176px; width: 260px; height: 4px; background: var(--site-ink); transform: rotate(-28deg); transform-origin: right center; }
-      .sitecraft-diagram-label { position: absolute; left: 30px; bottom: 28px; padding: 10px 13px; border: 1px solid rgba(21,24,23,.18); border-radius: 10px; background: rgba(255,255,255,.75); color: var(--site-muted); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-      .sitecraft-section { padding: 88px 0; border-top: 1px solid var(--site-line); }
-      .sitecraft-section-head { display: grid; grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); gap: 48px; align-items: end; margin-bottom: 36px; max-width: 100%; }
-      .sitecraft-section-kicker { margin: 0 0 12px; color: var(--site-accent-strong); font-size: 12px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-      .sitecraft-section h2 { margin: 0; font-size: clamp(30px, 4vw, 52px); line-height: 1; letter-spacing: -.05em; text-wrap: balance; }
-      .sitecraft-section-intro { width: 100%; max-width: 560px; margin: 0; color: var(--site-muted); font-size: 17px; line-height: 1.6; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
-      .sitecraft-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-      .sitecraft-product-card { min-height: 220px; padding: 25px; border: 1px solid var(--site-line); border-radius: var(--site-radius); background: var(--site-surface); display: flex; flex-direction: column; justify-content: space-between; }
-      .sitecraft-product-image { display: block; width: 100%; height: 150px; object-fit: cover; border-radius: 12px; margin-bottom: 22px; background: #e8ece8; }
-      .sitecraft-product-image-placeholder { display: grid; place-items: center; width: 100%; height: 150px; margin-bottom: 22px; border: 1px dashed var(--site-line); border-radius: 12px; background: #f4f6f4; color: var(--site-muted); font-size: 11px; letter-spacing: .04em; text-align: center; }
-      .sitecraft-product-card:nth-child(3n) { background: var(--site-tint); }
-      .sitecraft-product-category { margin: 0 0 44px; color: var(--site-accent-strong); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-      .sitecraft-product-card h3 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
-      .sitecraft-product-card p { margin: 10px 0 0; color: var(--site-muted); font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; word-break: break-word; }
-      .sitecraft-product-empty { grid-column: 1 / -1; padding: 24px; border: 1px dashed var(--site-line); border-radius: var(--site-radius); color: var(--site-muted); }
-      .sitecraft-process { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--site-line); background: var(--site-line); }
-      .sitecraft-process-card { min-height: 205px; padding: 26px; background: var(--site-surface); }
-      .sitecraft-process-number { display: block; margin-bottom: 58px; color: var(--site-accent-strong); font-size: 12px; font-weight: 800; }
-      .sitecraft-process-card h3 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
-      .sitecraft-process-card p { margin: 10px 0 0; color: var(--site-muted); font-size: 14px; line-height: 1.55; }
-      .sitecraft-inquiry-wrap { display: grid; grid-template-columns: minmax(0, .82fr) minmax(360px, 1.18fr); gap: 64px; align-items: start; }
-      .sitecraft-inquiry-copy h2 { max-width: 430px; }
-      .sitecraft-inquiry-copy p { max-width: 440px; margin: 22px 0 0; color: var(--site-muted); font-size: 17px; line-height: 1.6; }
-      .sitecraft-inquiry-meta { display: grid; gap: 10px; margin-top: 28px; color: var(--site-muted); font-size: 13px; }
-      .sitecraft-inquiry-form { display: grid; gap: 14px; padding: 26px; border: 1px solid var(--site-line); border-radius: var(--site-radius); background: var(--site-surface); }
-      .sitecraft-inquiry-form label { display: grid; gap: 7px; color: var(--site-muted); font-size: 12px; font-weight: 700; }
-      .sitecraft-inquiry-form input, .sitecraft-inquiry-form textarea { width: 100%; border: 1px solid var(--site-line); border-radius: 10px; padding: 12px 13px; background: var(--site-surface); color: var(--site-ink); outline: none; }
-      .sitecraft-inquiry-form input:focus, .sitecraft-inquiry-form textarea:focus { border-color: var(--site-accent); box-shadow: 0 0 0 3px var(--site-accent-soft); }
-      .sitecraft-inquiry-form textarea { min-height: 116px; resize: vertical; }
-      .sitecraft-form-note { margin: 0; color: var(--site-muted); font-size: 11px; line-height: 1.45; }
-      .sitecraft-faq-grid { display: grid; grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); gap: 48px; }
+      .sitecraft-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 18px;
+        color: var(--site-accent-strong);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .08em;
+      }
+      .sitecraft-eyebrow::before { content: ""; width: 22px; height: 2px; background: var(--site-accent); }
+      .sitecraft-hero h1 {
+        max-width: 16ch;
+        margin: 0;
+        font-size: clamp(34px, 4.8vw, 56px);
+        line-height: 1.08;
+        letter-spacing: -.04em;
+        font-weight: 760;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .sitecraft-hero-copy {
+        max-width: 38ch;
+        margin: 18px 0 0;
+        color: var(--site-muted);
+        font-size: clamp(15px, 1.5vw, 18px);
+        line-height: 1.65;
+      }
+      .sitecraft-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+      .sitecraft-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border: 1px solid var(--site-accent-strong);
+        background: var(--site-accent-strong);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .sitecraft-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 16px;
+        border: 1px solid var(--site-line);
+        background: var(--site-surface);
+        color: var(--site-ink);
+        font-size: 14px;
+        font-weight: 650;
+      }
+
+      .sitecraft-diagram {
+        position: relative;
+        min-height: 360px;
+        border: 1px solid var(--site-line);
+        background:
+          linear-gradient(160deg, var(--site-diagram), color-mix(in srgb, var(--site-tint) 70%, var(--site-diagram))),
+          var(--site-diagram);
+        overflow: hidden;
+      }
+      .sitecraft-diagram-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(color-mix(in srgb, var(--site-ink) 8%, transparent) 1px, transparent 1px),
+          linear-gradient(90deg, color-mix(in srgb, var(--site-ink) 8%, transparent) 1px, transparent 1px);
+        background-size: 28px 28px;
+        mask-image: linear-gradient(120deg, rgba(0,0,0,.75), transparent 82%);
+      }
+      .sitecraft-diagram-ring {
+        position: absolute;
+        right: 56px;
+        top: 58px;
+        width: 196px;
+        height: 196px;
+        border: 14px solid var(--site-accent);
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 14px var(--site-diagram);
+      }
+      .sitecraft-diagram-ring::before {
+        content: "";
+        position: absolute;
+        inset: 42px;
+        border: 8px solid var(--site-ink);
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--site-diagram) 80%, #fff);
+      }
+      .sitecraft-diagram-shaft {
+        position: absolute;
+        right: 18px;
+        top: 148px;
+        width: 248px;
+        height: 5px;
+        background: var(--site-ink);
+        transform: rotate(-24deg);
+        transform-origin: right center;
+      }
+      .sitecraft-diagram-plate {
+        position: absolute;
+        left: 28px;
+        top: 48px;
+        width: 118px;
+        height: 78px;
+        border: 1px solid color-mix(in srgb, var(--site-ink) 28%, var(--site-line));
+        background: color-mix(in srgb, var(--site-surface) 70%, transparent);
+      }
+      .sitecraft-diagram-plate::after {
+        content: "";
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        top: 18px;
+        height: 1px;
+        background: color-mix(in srgb, var(--site-ink) 22%, transparent);
+        box-shadow: 0 14px 0 color-mix(in srgb, var(--site-ink) 18%, transparent), 0 28px 0 color-mix(in srgb, var(--site-ink) 14%, transparent);
+      }
+      .sitecraft-diagram-label {
+        position: absolute;
+        left: 24px;
+        bottom: 22px;
+        padding: 7px 10px;
+        border: 1px solid color-mix(in srgb, var(--site-ink) 18%, var(--site-line));
+        background: color-mix(in srgb, var(--site-surface) 88%, transparent);
+        color: var(--site-muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .12em;
+      }
+
+      .sitecraft-section {
+        padding: 72px 0;
+        border-top: 1px solid var(--site-line);
+        scroll-margin-top: var(--site-nav-h);
+        background: color-mix(in srgb, var(--site-bg) 88%, #fff);
+      }
+      .sitecraft-section-head {
+        display: grid;
+        grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr);
+        gap: 36px;
+        align-items: end;
+        margin-bottom: 28px;
+      }
+      .sitecraft-section-kicker {
+        margin: 0 0 10px;
+        color: var(--site-accent-strong);
+        font-size: 12px;
+        font-weight: 750;
+        letter-spacing: .1em;
+      }
+      .sitecraft-section h2 {
+        margin: 0;
+        font-size: clamp(26px, 3.4vw, 40px);
+        line-height: 1.12;
+        letter-spacing: -.035em;
+        text-wrap: balance;
+      }
+      .sitecraft-section-intro {
+        width: 100%;
+        max-width: 46ch;
+        margin: 0;
+        color: var(--site-muted);
+        font-size: 15px;
+        line-height: 1.65;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .sitecraft-product-grid { display: grid; gap: 0; border-top: 1px solid var(--site-line); }
+      .sitecraft-product-card {
+        display: grid;
+        grid-template-columns: minmax(96px, 140px) minmax(0, 1fr);
+        gap: 18px 28px;
+        align-items: start;
+        padding: 22px 0;
+        border-bottom: 1px solid var(--site-line);
+        background: transparent;
+        min-height: 0;
+      }
+      .sitecraft-product-card:has(.sitecraft-product-image),
+      .sitecraft-product-card:has(.sitecraft-product-image-placeholder) {
+        grid-template-columns: minmax(120px, 160px) minmax(96px, 140px) minmax(0, 1fr);
+      }
+      .sitecraft-product-image {
+        display: block;
+        width: 100%;
+        height: 96px;
+        object-fit: cover;
+        border: 1px solid var(--site-line);
+        background: var(--site-diagram);
+        grid-row: 1 / span 2;
+      }
+      .sitecraft-product-image-placeholder {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 96px;
+        border: 1px dashed var(--site-line);
+        background: var(--site-tint);
+        color: var(--site-muted);
+        font-size: 11px;
+        text-align: center;
+        grid-row: 1 / span 2;
+      }
+      .sitecraft-product-category {
+        margin: 0;
+        color: var(--site-accent-strong);
+        font-size: 12px;
+        font-weight: 750;
+        letter-spacing: .06em;
+        grid-column: -2;
+      }
+      .sitecraft-product-card h3 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -.02em;
+        grid-column: -1;
+        grid-row: 1;
+      }
+      .sitecraft-product-card > p:not(.sitecraft-product-category) {
+        margin: 0;
+        color: var(--site-muted);
+        font-size: 14px;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        grid-column: -1;
+      }
+      .sitecraft-product-empty {
+        padding: 22px 0;
+        color: var(--site-muted);
+        border-bottom: 1px dashed var(--site-line);
+      }
+
+      .sitecraft-process {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0;
+        border: 1px solid var(--site-line);
+        background: var(--site-surface);
+      }
+      .sitecraft-process-card {
+        min-height: 188px;
+        padding: 22px 20px 24px;
+        border-right: 1px solid var(--site-line);
+        background: var(--site-surface);
+      }
+      .sitecraft-process-card:last-child { border-right: 0; }
+      .sitecraft-process-number {
+        display: block;
+        margin-bottom: 36px;
+        color: var(--site-accent-strong);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .08em;
+      }
+      .sitecraft-process-card h3 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+      .sitecraft-process-card p { margin: 10px 0 0; color: var(--site-muted); font-size: 14px; line-height: 1.6; }
+
+      .sitecraft-inquiry-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, .85fr) minmax(300px, 1.15fr);
+        gap: 48px;
+        align-items: start;
+      }
+      .sitecraft-inquiry-copy h2 { max-width: 14ch; }
+      .sitecraft-inquiry-copy > p { max-width: 36ch; margin: 16px 0 0; color: var(--site-muted); font-size: 15px; line-height: 1.65; }
+      .sitecraft-inquiry-meta {
+        display: grid;
+        gap: 8px;
+        margin-top: 24px;
+        padding-top: 18px;
+        border-top: 1px solid var(--site-line);
+        color: var(--site-muted);
+        font-size: 13px;
+      }
+      .sitecraft-inquiry-form {
+        display: grid;
+        gap: 12px;
+        padding: 22px;
+        border: 1px solid var(--site-line);
+        background: var(--site-surface);
+      }
+      .sitecraft-inquiry-form label { display: grid; gap: 6px; color: var(--site-muted); font-size: 12px; font-weight: 700; }
+      .sitecraft-inquiry-form input,
+      .sitecraft-inquiry-form textarea {
+        width: 100%;
+        border: 1px solid var(--site-line);
+        border-radius: var(--site-radius);
+        padding: 11px 12px;
+        background: var(--site-surface);
+        color: var(--site-ink);
+        outline: none;
+      }
+      .sitecraft-inquiry-form input:focus,
+      .sitecraft-inquiry-form textarea:focus {
+        border-color: var(--site-accent);
+        box-shadow: 0 0 0 3px var(--site-accent-soft);
+      }
+      .sitecraft-inquiry-form textarea { min-height: 112px; resize: vertical; }
+
+      .sitecraft-faq-grid {
+        display: grid;
+        grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr);
+        gap: 40px;
+      }
       .sitecraft-faq-list { display: grid; gap: 0; border-top: 1px solid var(--site-line); }
-      .sitecraft-faq-item { padding: 20px 0; border-bottom: 1px solid var(--site-line); }
-      .sitecraft-faq-item h3 { margin: 0; font-size: 16px; }
-      .sitecraft-faq-item p { margin: 9px 0 0; color: var(--site-muted); font-size: 14px; line-height: 1.55; }
-      .sitecraft-footer { padding: 30px 0 42px; border-top: 1px solid var(--site-line); }
-      .sitecraft-footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; color: var(--site-muted); font-size: 12px; }
-      .sitecraft-footer-brand { color: var(--site-ink); font-size: 15px; font-weight: 760; }
+      .sitecraft-faq-item {
+        border-bottom: 1px solid var(--site-line);
+        background: transparent;
+        padding: 0;
+      }
+      .sitecraft-faq-item details { margin: 0; }
+      .sitecraft-faq-item summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 0;
+        font-size: 15px;
+        font-weight: 650;
+      }
+      .sitecraft-faq-item summary::-webkit-details-marker { display: none; }
+      .sitecraft-faq-item summary::after {
+        content: "+";
+        flex: 0 0 auto;
+        color: var(--site-accent-strong);
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1;
+      }
+      .sitecraft-faq-item details[open] summary::after { content: "–"; }
+      .sitecraft-faq-answer {
+        padding: 0 0 16px;
+        color: var(--site-muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .sitecraft-faq-answer p { margin: 0; }
+
+      .sitecraft-footer {
+        padding: 28px 0 40px;
+        border-top: 1px solid var(--site-line);
+        background: color-mix(in srgb, var(--site-tint) 40%, var(--site-bg));
+      }
+      .sitecraft-footer-inner {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        color: var(--site-muted);
+        font-size: 12px;
+      }
+      .sitecraft-footer-brand { color: var(--site-ink); font-size: 15px; font-weight: 700; }
+      .sitecraft-footer-note { max-width: 42ch; line-height: 1.55; }
       .sitecraft-benchmark-legacy { display: none !important; }
+
+      @media (prefers-reduced-motion: no-preference) {
+        html { scroll-behavior: smooth; }
+        .sitecraft-nav-links a,
+        .sitecraft-primary,
+        .sitecraft-secondary,
+        .sitecraft-nav-cta,
+        .sitecraft-product-card,
+        .sitecraft-process-card,
+        .sitecraft-faq-item summary {
+          transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 140ms ease;
+        }
+        .sitecraft-primary:hover,
+        .sitecraft-nav-cta:hover { background: var(--site-accent); border-color: var(--site-accent); }
+        .sitecraft-secondary:hover { border-color: var(--site-ink); }
+        .sitecraft-nav-links a:hover { color: var(--site-ink); }
+        .sitecraft-primary:active,
+        .sitecraft-secondary:active,
+        .sitecraft-nav-cta:active { transform: translateY(1px); }
+        .sitecraft-product-card:hover { background: color-mix(in srgb, var(--site-tint) 55%, transparent); }
+        .sitecraft-diagram {
+          opacity: 0;
+          animation: sitecraft-diagram-in 600ms ease forwards;
+        }
+        @keyframes sitecraft-diagram-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .sitecraft-faq-item details::details-content {
+          transition: height 160ms ease, content-visibility 160ms allow-discrete;
+          overflow: clip;
+        }
+      }
+
       @media (max-width: 800px) {
         .sitecraft-container { width: min(calc(100% - 32px), var(--site-max)); }
-        .sitecraft-nav-inner { min-height: 68px; }
-        .sitecraft-nav-links { gap: 12px; font-size: 12px; }
+        :root { --site-nav-h: 58px; }
+        .sitecraft-nav-inner { min-height: var(--site-nav-h); gap: 12px; }
+        .sitecraft-nav-links { gap: 10px; font-size: 12px; }
         .sitecraft-nav-links a:not(.sitecraft-nav-cta) { display: none; }
-        .sitecraft-nav-cta { padding: 9px 12px; }
-        .sitecraft-brand-name { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sitecraft-hero { padding: 56px 0 48px; }
-        .sitecraft-hero-grid, .sitecraft-inquiry-wrap, .sitecraft-faq-grid, .sitecraft-section-head { grid-template-columns: 1fr; gap: 28px; }
-        .sitecraft-section-head > * { width: 100%; max-width: 100%; }
-        .sitecraft-hero h1 { min-width: 0; font-size: clamp(38px, 11vw, 58px); line-height: 1.02; overflow-wrap: anywhere; word-break: break-word; }
-        .sitecraft-diagram { min-height: 280px; }
-        .sitecraft-diagram-core { right: 48px; top: 54px; transform: scale(.72); transform-origin: top right; }
-        .sitecraft-diagram-axis { right: -16px; top: 130px; transform: rotate(-28deg) scale(.78); }
-        .sitecraft-section { padding: 58px 0; }
-        .sitecraft-product-grid, .sitecraft-process { grid-template-columns: 1fr; }
-        .sitecraft-product-card { min-height: 190px; }
-        .sitecraft-product-image { height: 180px; }
-        .sitecraft-product-image-placeholder { height: 180px; }
-        .sitecraft-process-card { min-height: 165px; }
-        .sitecraft-process-number { margin-bottom: 38px; }
-        .sitecraft-footer-inner { align-items: flex-start; flex-direction: column; }
+        .sitecraft-nav-cta { padding: 8px 11px; }
+        .sitecraft-brand-name { max-width: 46vw; }
+        .sitecraft-hero { padding: 40px 0 44px; }
+        .sitecraft-hero-grid,
+        .sitecraft-inquiry-wrap,
+        .sitecraft-faq-grid,
+        .sitecraft-section-head { grid-template-columns: 1fr; gap: 24px; }
+        .sitecraft-hero h1 { max-width: none; font-size: clamp(30px, 9vw, 42px); }
+        .sitecraft-diagram { min-height: 260px; }
+        .sitecraft-diagram-ring { right: 28px; top: 42px; transform: scale(.78); transform-origin: top right; }
+        .sitecraft-diagram-shaft { right: -8px; top: 118px; transform: rotate(-24deg) scale(.82); }
+        .sitecraft-section { padding: 52px 0; }
+        .sitecraft-product-card,
+        .sitecraft-product-card:has(.sitecraft-product-image),
+        .sitecraft-product-card:has(.sitecraft-product-image-placeholder) {
+          grid-template-columns: 1fr;
+        }
+        .sitecraft-product-image,
+        .sitecraft-product-image-placeholder { height: 160px; grid-row: auto; }
+        .sitecraft-product-category,
+        .sitecraft-product-card h3,
+        .sitecraft-product-card > p:not(.sitecraft-product-category) { grid-column: auto; grid-row: auto; }
+        .sitecraft-process { grid-template-columns: 1fr; }
+        .sitecraft-process-card { min-height: 0; border-right: 0; border-bottom: 1px solid var(--site-line); }
+        .sitecraft-process-card:last-child { border-bottom: 0; }
+        .sitecraft-process-number { margin-bottom: 18px; }
+        .sitecraft-footer-inner { flex-direction: column; }
       }
     </style>
   </head>
@@ -149,13 +554,13 @@
                 <a class="sitecraft-primary" data-sitecraft-benchmark="hero-cta" href="#inquiry">获取规格与交期</a>
                 <a class="sitecraft-secondary" href="#products">查看产品类别</a>
               </div>
-              
             </div>
             <div class="sitecraft-diagram" aria-label="工程示意图" role="img">
               <div class="sitecraft-diagram-grid"></div>
-              <div class="sitecraft-diagram-core"></div>
-              <div class="sitecraft-diagram-axis"></div>
-              
+              <div class="sitecraft-diagram-plate" aria-hidden="true"></div>
+              <div class="sitecraft-diagram-ring" aria-hidden="true"></div>
+              <div class="sitecraft-diagram-shaft" aria-hidden="true"></div>
+              <span class="sitecraft-diagram-label" data-sitecraft-ui="schematic">示意</span>
               <img data-sitecraft-benchmark="hero-image" alt="" src="" hidden>
             </div>
           </div>
@@ -205,7 +610,6 @@
               <label data-sitecraft-inquiry-label="company">公司<input name="company" type="text" maxlength="120" autocomplete="organization"></label>
               <label data-sitecraft-inquiry-label="message">需求<textarea name="message" required maxlength="4000" rows="5"></textarea></label>
               <input class="honeypot" name="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-10000px;height:0;width:0;overflow:hidden">
-              
               <button class="sitecraft-primary" type="submit" data-sitecraft-ui="submit">发送询盘</button>
             </form>
           </div>
@@ -213,17 +617,39 @@
 
         <section id="faq" class="sitecraft-section" data-sitecraft-section="faq">
           <div class="sitecraft-container sitecraft-faq-grid">
-            <div><p class="sitecraft-section-kicker"><span data-sitecraft-section-index>04</span> <span data-sitecraft-ui="faq">常见问题</span></p><h2 data-sitecraft-benchmark="faq-title">先回答资料里有的</h2><p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro">交期、认证、MOQ 和售后只在资料有依据时展示。</p></div>
+            <div>
+              <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>04</span> <span data-sitecraft-ui="faq">常见问题</span></p>
+              <h2 data-sitecraft-benchmark="faq-title">先回答资料里有的</h2>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro">交期、认证、MOQ 和售后只在资料有依据时展示。</p>
+            </div>
             <div class="sitecraft-faq-list">
-              <article class="sitecraft-faq-item"><h3 data-sitecraft-benchmark="faq-item-0-title">MOQ 如何确认？</h3><p data-sitecraft-benchmark="faq-item-0-body">资料未提供时，询盘中按批量规格确认。</p></article>
-              <article class="sitecraft-faq-item"><h3 data-sitecraft-benchmark="faq-item-1-title">可以提供哪些产品？</h3><p data-sitecraft-benchmark="faq-item-1-body">页面只展示资料中确认的产品类别。</p></article>
-              <article class="sitecraft-faq-item"><h3 data-sitecraft-benchmark="faq-item-2-title">是否提供现场安装？</h3><p data-sitecraft-benchmark="faq-item-2-body">资料没有提供的服务边界标为待补充。</p></article>
+              <article class="sitecraft-faq-item">
+                <details>
+                  <summary data-sitecraft-benchmark="faq-item-0-title">MOQ 如何确认？</summary>
+                  <div class="sitecraft-faq-answer"><p data-sitecraft-benchmark="faq-item-0-body">资料未提供时，询盘中按批量规格确认。</p></div>
+                </details>
+              </article>
+              <article class="sitecraft-faq-item">
+                <details>
+                  <summary data-sitecraft-benchmark="faq-item-1-title">可以提供哪些产品？</summary>
+                  <div class="sitecraft-faq-answer"><p data-sitecraft-benchmark="faq-item-1-body">页面只展示资料中确认的产品类别。</p></div>
+                </details>
+              </article>
+              <article class="sitecraft-faq-item">
+                <details>
+                  <summary data-sitecraft-benchmark="faq-item-2-title">是否提供现场安装？</summary>
+                  <div class="sitecraft-faq-answer"><p data-sitecraft-benchmark="faq-item-2-body">资料没有提供的服务边界标为待补充。</p></div>
+                </details>
+              </article>
             </div>
           </div>
         </section>
       </main>
       <footer class="sitecraft-footer" data-sitecraft-section="footer">
-        <div class="sitecraft-container sitecraft-footer-inner"><span class="sitecraft-footer-brand" data-sitecraft-brand="footer">企业名称</span></div>
+        <div class="sitecraft-container sitecraft-footer-inner">
+          <span class="sitecraft-footer-brand" data-sitecraft-brand="footer">企业名称</span>
+          <span class="sitecraft-footer-note" data-sitecraft-ui="footerNote">规格与交期以询盘确认为准；页面插图为结构示意，非实拍。</span>
+        </div>
       </footer>
       <div class="sitecraft-benchmark-legacy" aria-hidden="true">
         <span data-sitecraft-demo="pricing"></span><span data-sitecraft-demo="reviews"></span><span data-sitecraft-demo="wordmark"></span><span data-sitecraft-demo="footer-wordmark"></span><span data-sitecraft-demo="github"></span><span data-sitecraft-demo="logo-wall"></span><span data-sitecraft-demo="solutions"></span><span data-sitecraft-demo="testimonial"></span><span data-sitecraft-demo="feature-extra"></span>
