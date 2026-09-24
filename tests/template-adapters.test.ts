@@ -141,6 +141,54 @@ test("forge declares authored contact and collection targets", () => {
   assert.equal(adapter.slots.some((slot) => slot.target === "contact.phone"), true);
 });
 
+test("forge declares products title and intro slots that hit the overlay nodes", () => {
+  const html = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
+  const adapter = getTemplateAdapter("forge");
+  assert.ok(adapter);
+  const title = adapter.slots.find((slot) => slot.target === "products.title");
+  const intro = adapter.slots.find((slot) => slot.target === "products.intro");
+  assert.ok(title, "forge must declare products.title so overlay methodology defaults do not remain");
+  assert.ok(intro, "forge must declare products.intro so overlay methodology defaults do not remain");
+  assert.equal(title?.selector, '[data-sitecraft-benchmark="products-title"]');
+  assert.equal(intro?.selector, '[data-sitecraft-benchmark="products-intro"]');
+  assert.equal((html.match(/data-sitecraft-benchmark="products-title"/g) ?? []).length, 1);
+  assert.equal((html.match(/data-sitecraft-benchmark="products-intro"/g) ?? []).length, 1);
+});
+
+test("family overlays declare every content slot attribute exactly once", () => {
+  const families = ["forge", "landwind", "screwfast", "tailwind-landing"] as const;
+  const contentAttr = /data-sitecraft-(?:benchmark|optional|faq|contact|brand(?:-name)?|nav)="([^"]+)"/g;
+  const skipBenchmark = new Set(["bright-product", "industrial-inquiry", "export-directory", "hero"]);
+  for (const id of families) {
+    const html = readFileSync(new URL(`../lib/template-adapters/overlays/${id}.index.html`, import.meta.url), "utf8");
+    const adapter = getTemplateAdapter(id);
+    assert.ok(adapter, id);
+    const selectors = new Map<string, number>();
+    let match: RegExpExecArray | null;
+    const re = new RegExp(contentAttr.source, "g");
+    while ((match = re.exec(html))) {
+      const attr = match[0];
+      if (attr.startsWith("data-sitecraft-benchmark=") && skipBenchmark.has(match[1]!)) continue;
+      if (attr === 'data-sitecraft-brand="nav"' && html.includes('data-sitecraft-brand-name="nav"')) {
+        // Wrapper brand mark on forge/tailwind; the text node uses brand-name.
+        continue;
+      }
+      selectors.set(`[${attr}]`, (selectors.get(`[${attr}]`) ?? 0) + 1);
+    }
+    for (const [selector, count] of selectors) {
+      assert.equal(count, 1, `${id} ${selector} must be unique in overlay`);
+      const declared = adapter.slots.filter((slot) => slot.selector === selector);
+      assert.equal(declared.length, 1, `${id} ${selector} must have exactly one adapter declaration`);
+    }
+    for (const slot of adapter.slots.filter((item) => item.selector.startsWith("[data-sitecraft-"))) {
+      const attr = slot.selector.slice(1, -1);
+      assert.equal((html.match(new RegExp(attr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length, 1, `${id} declared ${slot.target} (${slot.selector}) must hit exactly one node`);
+    }
+    assert.equal(adapter.slots.some((slot) => slot.target === "primaryAction"), false, `${id} must not bind catalog primaryAction`);
+    assert.equal(html.includes('data-sitecraft-optional="action"'), false, `${id} must not keep optional action chrome`);
+  }
+});
+
 test("landwind homepage source has exactly one node for each declared first-screen slot", () => {
   const html = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
   const adapter = getTemplateAdapter("landwind");

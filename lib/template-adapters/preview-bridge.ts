@@ -74,7 +74,6 @@ function sitecraftPreviewBridge(templateId, adapter) {
       "faq.title": (content.faq || {}).title,
       "faq.intro": (content.faq || {}).intro,
       industry: draft.industry,
-      primaryAction: draft.visualBrief && draft.visualBrief.primaryAction,
       "navigation.about": draft.navigation && draft.navigation.about,
       "navigation.features": draft.navigation && draft.navigation.features,
       "navigation.services": draft.navigation && draft.navigation.services,

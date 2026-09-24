@@ -696,16 +696,13 @@ function authoredCompareDraft(id: "A17" | "B84") {
   ], themeCompareOptions).draft;
 }
 
-test("hero lines read industry and the chosen action, and navigation follows the draft language", () => {
+test("hero lines read industry and navigation follows the draft language", () => {
   const adapter = getTemplateAdapter("screwfast");
   assert.ok(adapter);
   const { document } = createDocument();
   const eyebrow = createNode("p");
   eyebrow.setAttribute("data-sitecraft-optional", "industry");
   eyebrow.hidden = true;
-  const note = createNode("p");
-  note.setAttribute("data-sitecraft-optional", "action");
-  note.hidden = true;
   const nav = createNode("a");
   nav.setAttribute("data-sitecraft-nav", "services");
   nav.textContent = "服务";
@@ -713,7 +710,6 @@ test("hero lines read industry and the chosen action, and navigation follows the
   label.setAttribute("data-sitecraft-ui", "faq");
   label.textContent = "常见问题";
   document.body.appendChild(eyebrow);
-  document.body.appendChild(note);
   document.body.appendChild(nav);
   document.body.appendChild(label);
   const { api } = installOn(document, adapter);
@@ -724,8 +720,6 @@ test("hero lines read industry and the chosen action, and navigation follows the
   api.applyDeclaredContent(draft, "zh", [], "workspace");
   assert.equal(eyebrow.hidden, true);
   assert.equal(eyebrow.textContent, "");
-  assert.equal(note.hidden, false);
-  assert.equal(note.textContent, "获取技术方案");
   assert.equal(nav.textContent, "加工方式");
   assert.equal(label.textContent, "常见问题");
   api.applyDeclaredContent(draft, "en", [], "workspace");
