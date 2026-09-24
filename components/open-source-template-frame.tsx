@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Locale, SiteDraft } from "@/lib/site-model";
+import {
+  PREVIEW_CHROME_HINT,
+  PREVIEW_TIMEOUT_MS,
+  createPreviewLoadController,
+  mapPreviewUpstreamReason,
+} from "@/lib/preview-load-timing";
 
 type FrameVariant = "thumbnail" | "preview" | "workspace" | "published" | "quality";
 type PreviewLoadState = "loading" | "ready" | "error";
@@ -55,8 +61,7 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
 // the iframe URL prevents a browser from showing an older template shell after
 // the runtime asset bundle has been rebuilt.
 const PREVIEW_ASSET_REVISION = "20260923-family-kit-2";
-export const PREVIEW_TIMEOUT_MS = 10_000;
-const PREVIEW_CHROME_HINT = "如果预览打不开，请用 Chrome 打开。";
+export { PREVIEW_TIMEOUT_MS, PREVIEW_CHROME_HINT };
 
 export function OpenSourceTemplateFrame({
   templateId,
@@ -71,6 +76,7 @@ export function OpenSourceTemplateFrame({
   onApplyReport,
   onLoadState,
 }: OpenSourceTemplateFrameProps) {
+  const shellRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [hydrated, setHydrated] = useState(false);
   const [loadState, setLoadState] = useState<PreviewLoadState>("loading");
@@ -78,26 +84,28 @@ export function OpenSourceTemplateFrame({
   const [attempt, setAttempt] = useState(0);
   const loadStateRef = useRef(onLoadState);
   loadStateRef.current = onLoadState;
-  const timeoutRef = useRef<number | null>(null);
   const bridgeWaitersRef = useRef<number[]>([]);
+  const loadControllerRef = useRef<ReturnType<typeof createPreviewLoadController> | null>(null);
   const contentRef = useRef({ templateId, draft, locale, expectedTargets, variant, activePage });
   contentRef.current = { templateId, draft, locale, expectedTargets, variant, activePage };
 
-  const clearBridgeWait = useCallback(() => {
-    if (timeoutRef.current !== null) {
-      window.clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+  const clearBridgeWaiters = useCallback(() => {
     for (const timer of bridgeWaitersRef.current) window.clearTimeout(timer);
     bridgeWaitersRef.current = [];
   }, []);
 
+  const clearLoadController = useCallback(() => {
+    loadControllerRef.current?.clear();
+    loadControllerRef.current = null;
+    clearBridgeWaiters();
+  }, [clearBridgeWaiters]);
+
   const reportLoadState = useCallback((state: PreviewLoadState, message?: string) => {
-    if (state !== "loading") clearBridgeWait();
+    if (state !== "loading") clearLoadController();
     setLoadState(state);
     setLoadError(message ?? "");
     loadStateRef.current?.(state, message);
-  }, [clearBridgeWait]);
+  }, [clearLoadController]);
 
   const sendContent = useCallback(() => {
     const content = contentRef.current;
@@ -110,27 +118,58 @@ export function OpenSourceTemplateFrame({
   const handleFrameLoad = useCallback(() => {
     if (frameRef.current) frameRef.current.dataset.documentLoaded = "true";
     sendContent();
-    clearBridgeWait();
+    clearBridgeWaiters();
     bridgeWaitersRef.current = [500, 1500, 3500, 6000].map((delay) => window.setTimeout(sendContent, delay));
-    const timeout = window.setTimeout(() => {
-      reportLoadState("error", `页面已经打开，但内容没有显示出来。请重试。${PREVIEW_CHROME_HINT}`);
-    }, PREVIEW_TIMEOUT_MS);
-    timeoutRef.current = timeout;
-  }, [clearBridgeWait, reportLoadState, sendContent]);
+    loadControllerRef.current?.markDocumentLoaded();
+  }, [clearBridgeWaiters, sendContent]);
 
   useEffect(() => {
     setHydrated(false);
     reportLoadState("loading");
-    // The document may already have loaded before this effect attached
-    // onLoad. Push the draft either way. The failure timer still starts
-    // only from onLoad, so an off-screen thumbnail does not time out.
+    clearLoadController();
+    const controller = createPreviewLoadController({
+      variant,
+      onTimeout: (message) => reportLoadState("error", message),
+      setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+      clearTimeout: (id) => window.clearTimeout(id as number),
+    });
+    loadControllerRef.current = controller;
+    // Push the draft even if onLoad already fired before this effect attached.
     sendContent();
-    if (frameRef.current?.dataset.documentLoaded === "true") handleFrameLoad();
-    else clearBridgeWait();
+    if (frameRef.current?.dataset.documentLoaded === "true") {
+      handleFrameLoad();
+    } else if (variant !== "thumbnail") {
+      controller.armDocumentWait();
+    }
     return () => {
-      clearBridgeWait();
+      clearLoadController();
     };
-  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearBridgeWait, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, pagePath, reportLoadState, sendContent, templateId, variant]);
+  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearLoadController, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, pagePath, reportLoadState, sendContent, templateId, variant]);
+
+  useEffect(() => {
+    if (variant !== "thumbnail") return;
+    const shell = shellRef.current;
+    if (!shell) return;
+    const controller = loadControllerRef.current;
+    if (!controller) return;
+
+    if (typeof IntersectionObserver !== "function") {
+      controller.markVisible();
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadControllerRef.current?.markVisible();
+          observer.disconnect();
+        }
+      },
+      { root: null, rootMargin: "120px 0px", threshold: 0.01 },
+    );
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [attempt, templateId, variant, pagePath]);
 
   useEffect(() => {
     const receiveMessage = (event: MessageEvent) => {
@@ -154,7 +193,8 @@ export function OpenSourceTemplateFrame({
         reason?: string;
       };
       if (data?.type === "sitecraft:error") {
-        const reason = typeof data.reason === "string" && data.reason.trim() ? data.reason.trim() : "预览没有载入。";
+        const raw = typeof data.reason === "string" && data.reason.trim() ? data.reason.trim() : "预览没有载入。";
+        const reason = mapPreviewUpstreamReason(raw);
         reportLoadState("error", `${reason} ${PREVIEW_CHROME_HINT}`);
         return;
       }
@@ -201,7 +241,11 @@ export function OpenSourceTemplateFrame({
   };
 
   return (
-    <div className={`open-source-template-frame-shell open-source-template-frame-shell-${variant}`} data-preview-state={loadState}>
+    <div
+      ref={shellRef}
+      className={`open-source-template-frame-shell open-source-template-frame-shell-${variant}`}
+      data-preview-state={loadState}
+    >
       <iframe
         ref={frameRef}
         key={`${templateId}:${pagePath || "index"}:${attempt}`}

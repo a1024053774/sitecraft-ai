@@ -1,3 +1,4 @@
+import { mapPreviewUpstreamReason } from "@/lib/preview-load-timing";
 import { templates } from "@/lib/site-model";
 import { applyAdmittedKitFragments } from "@/lib/template-adapters/kit-fragments";
 import { buildPreviewBridgeScript, getTemplateAdapter, stripHtmlScripts } from "@/lib/template-adapters";
@@ -99,7 +100,8 @@ export async function GET(
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown upstream error";
+    const raw = error instanceof Error ? error.message : "unknown upstream error";
+    const message = mapPreviewUpstreamReason(raw);
     if (template.id === "yukina") {
       const fallbackHtml = `<!doctype html><html lang="zh"><head><meta name="viewport" content="width=device-width"><style>*{box-sizing:border-box}body{margin:0;background:#f4f5f3;font:14px system-ui;color:#263238}.note{padding:10px 16px;background:#263238;color:white;text-align:center}.preview{display:block;width:100%;height:auto}</style></head><body><div class="note">Yukina 官方 README 预览 · 上游内容集合缺失，暂用官方全页预览图</div><main><section><h1>企业内容与品牌故事</h1><p>当前模板使用官方预览图，结构化内容仍会保存并回报可用槽位。</p></section><img class="preview" src="https://s2.loli.net/2025/01/26/S4URrsj9TFgOKAp.webp" alt="Yukina template official preview"></main></body></html>`;
       return new Response(
