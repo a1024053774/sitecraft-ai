@@ -595,8 +595,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function applyVisitorChrome(locale) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", submit: "Send inquiry", schematic: "Schematic", footerNote: "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs." }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", submit: "发送询盘", schematic: "示意", footerNote: "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", submit: "Send inquiry", schematic: "Schematic", footerNote: "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs.", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", submit: "发送询盘", schematic: "示意", footerNote: "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];

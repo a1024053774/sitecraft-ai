@@ -252,7 +252,9 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       textSlot("contact.title", '[data-sitecraft-benchmark="contact-title"]'),
       textSlot("contact.body", '[data-sitecraft-benchmark="contact-body"]'),
       textSlot("contact.email", '[data-sitecraft-contact="email"]'),
+      textSlot("contact.email", '[data-sitecraft-contact="footer-email"]'),
       textSlot("contact.phone", '[data-sitecraft-contact="phone"]'),
+      textSlot("contact.phone", '[data-sitecraft-contact="footer-phone"]'),
     ],
     sections: [
       { key: "products", selector: '[data-sitecraft-section="products"]' },
