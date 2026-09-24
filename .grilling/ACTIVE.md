@@ -1,2 +1,2 @@
-active_session: .grilling/sitecraft-ai-generation-20260915.md
-session_id: grilling-sitecraft-ai-generation-20260915
+active_session: .grilling/guided-build-ui-20260924.md
+session_id: grilling-guided-build-ui-20260924

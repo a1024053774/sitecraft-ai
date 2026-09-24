@@ -385,3 +385,12 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 
 已完成：发布页移除 `pagePlanSourceLabel` 和「未支持：…」开发提示，工作台继续显示页面规划诊断。
 桌面/375 宽真实浏览器确认发布页仅显示页面导航、语言、站点预览和询盘入口，预览均有内容与 bridge 回执。
+
+## 评审修复 1–4（2026-09-24，`bb4adc2`..`4af893a`，仅存档）
+
+按顺序做，每项细节见评审文档对应小节：
+
+1. **已完成**：确认样子时清除 `legacyVisualBriefId`，撤销后恢复。非缩略图在 onLoad 不到时也会超时并提示用 Chrome；缩略图用 IntersectionObserver，进视口才计时。502 原因映射成中文。Chrome 1440/375 下 `/templates` 屏幕外缩略图 12 秒后仍为 loading、无误报。截图在 `artifacts/defect-a2-rollback-20260924/`。
+2. **已完成**：四个 overlay 去掉方法论句子与资料边界；`forge` 补齐 `products.title`/`products.intro` 槽位。去掉 catalog `primaryAction` 行（非公司资料）。四族 content 槽位与 adapter 一一对应。screwfast 1440/375 与 forge `ab-ind-asm` 在 ready 后截图见 `artifacts/p0-1-overlay-20260924/`。
+3. **已完成**：隐藏分区时，指向它的导航项一起隐藏，可见分区重新编号。P3I 隐藏了 services 后，导航不再出现「加工方式」，常见问题是 03 而不是 04。截图在 `artifacts/p0-2-nav-20260924/`。
+4. **已完成**：标题和正文都缺的 FAQ 条目按草稿+声明槽位隐藏，整块都缺就隐藏；句内「待补充」保留。同文档再次 apply 填好 FAQ 后条目与分区会恢复。模型指令正则只留在 `validateAIOperations`。截图在 `artifacts/p0-3-gaps-20260924/`。
