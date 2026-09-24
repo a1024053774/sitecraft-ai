@@ -355,7 +355,10 @@ a { color: inherit; text-decoration: none; }
 .template-preview-toolbar-title strong { font-size: 13px; }
 .template-preview-toolbar-title span { margin-top: 3px; color: var(--muted); font-size: 9px; }
 .template-preview-frame { width: 100%; height: 100%; border: 0; background: white; }
-.open-source-template-frame-shell { position: relative; width: 100%; background: white; }
+.open-source-template-frame-shell { position: relative; width: 100%; background: #e7eeea; }
+.open-source-template-frame-loading { position: absolute; inset: 0; z-index: 2; overflow: hidden; background: linear-gradient(#f4f7f4, #e7eeea); }
+.open-source-template-frame-loading span { display: block; height: 2px; width: 36%; background: #2e6b4f; animation: preview-load-bar 1.1s ease-in-out infinite; }
+@keyframes preview-load-bar { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
 .open-source-template-frame { display: block; width: 100%; border: 0; background: white; }
 .open-source-template-frame-error { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; gap: 9px; padding: 24px; background: rgba(248, 251, 248, .97); color: var(--ink); text-align: center; }
 .open-source-template-frame-error strong { font-size: 14px; }

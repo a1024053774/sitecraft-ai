@@ -107,8 +107,9 @@ export async function GET(
         { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": PREVIEW_CACHE_CONTROL } },
       );
     }
+    const reason = JSON.stringify(message);
     return new Response(
-      `<!doctype html><html lang="zh"><body style="font:14px system-ui;padding:40px;color:#33413a;background:#f4f7f4"><h1>模板预览暂时无法加载</h1><p>${message}</p><p>源码已经保存在本地模板库中，请稍后重试官方演示。</p></body></html>`,
+      `<!doctype html><html lang="zh"><body style="font:14px system-ui;padding:40px;color:#33413a;background:#f4f7f4"><h1>模板预览暂时无法加载</h1><p>${escapeAttribute(message)}</p><script>parent.postMessage({ type: "sitecraft:error", reason: ${reason} }, "*");</script></body></html>`,
       { status: 502, headers: { "Content-Type": "text/html; charset=utf-8" } },
     );
   }

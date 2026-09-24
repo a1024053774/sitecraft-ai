@@ -207,6 +207,36 @@ test("applies a user-facing visual brief and its compatible template as one reve
   assert.equal(restored.draft.visualBrief.id, defaultDraft.visualBrief.id);
 });
 
+test("confirming the current look clears a retired visual brief and undo restores it", () => {
+  const legacy = structuredClone(defaultDraft);
+  legacy.visualBrief = {
+    ...legacy.visualBrief,
+    id: "editorial-service",
+    label: "深色产品",
+    templateId: "fresh",
+  };
+  const migrated = normalizeDraft(legacy);
+  assert.equal(migrated.legacyVisualBriefId, "editorial-service");
+  assert.equal(migrated.visualBrief.id, "technical-product");
+  const options = {
+    templateIds: new Set(["tailwind-landing", "forge", "screwfast", "landwind"]),
+    lastChange: "确认样子",
+  };
+  const confirmed = applySiteOperations(migrated, [{ op: "set_visual_brief", briefId: "technical-product" }], options);
+  assert.equal(confirmed.changed, true);
+  assert.equal(confirmed.draft.legacyVisualBriefId, undefined);
+  assert.equal(confirmed.draft.visualBrief.id, "technical-product");
+  const undone = applySiteOperations(confirmed.draft, confirmed.inverseOperations, options);
+  assert.equal(undone.draft.legacyVisualBriefId, "editorial-service");
+
+  const switched = applySiteOperations(migrated, [{ op: "set_visual_brief", briefId: "engineering-industrial" }], options);
+  assert.equal(switched.draft.legacyVisualBriefId, undefined);
+  assert.equal(switched.draft.visualBrief.id, "engineering-industrial");
+  const switchUndone = applySiteOperations(switched.draft, switched.inverseOperations, options);
+  assert.equal(switchUndone.draft.legacyVisualBriefId, "editorial-service");
+  assert.equal(switchUndone.draft.visualBrief.id, "technical-product");
+});
+
 test("engineering palette changes are named, reversible, and same-family only", () => {
   const options = { templateIds: new Set(["forge", "screwfast"]), lastChange: "palette-compare" };
   const engineering = applySiteOperations(structuredClone(defaultDraft), [

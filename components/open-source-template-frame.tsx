@@ -56,6 +56,7 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
 // the runtime asset bundle has been rebuilt.
 const PREVIEW_ASSET_REVISION = "20260923-family-kit-2";
 export const PREVIEW_TIMEOUT_MS = 10_000;
+const PREVIEW_CHROME_HINT = "如果预览打不开，请用 Chrome 打开。";
 
 export function OpenSourceTemplateFrame({
   templateId,
@@ -78,18 +79,25 @@ export function OpenSourceTemplateFrame({
   const loadStateRef = useRef(onLoadState);
   loadStateRef.current = onLoadState;
   const timeoutRef = useRef<number | null>(null);
+  const bridgeWaitersRef = useRef<number[]>([]);
   const contentRef = useRef({ templateId, draft, locale, expectedTargets, variant, activePage });
   contentRef.current = { templateId, draft, locale, expectedTargets, variant, activePage };
 
-  const reportLoadState = useCallback((state: PreviewLoadState, message?: string) => {
-    if (state !== "loading" && timeoutRef.current !== null) {
+  const clearBridgeWait = useCallback(() => {
+    if (timeoutRef.current !== null) {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    for (const timer of bridgeWaitersRef.current) window.clearTimeout(timer);
+    bridgeWaitersRef.current = [];
+  }, []);
+
+  const reportLoadState = useCallback((state: PreviewLoadState, message?: string) => {
+    if (state !== "loading") clearBridgeWait();
     setLoadState(state);
     setLoadError(message ?? "");
     loadStateRef.current?.(state, message);
-  }, []);
+  }, [clearBridgeWait]);
 
   const sendContent = useCallback(() => {
     const content = contentRef.current;
@@ -99,27 +107,26 @@ export function OpenSourceTemplateFrame({
     );
   }, []);
 
+  const handleFrameLoad = useCallback(() => {
+    if (frameRef.current) frameRef.current.dataset.documentLoaded = "true";
+    sendContent();
+    clearBridgeWait();
+    bridgeWaitersRef.current = [500, 1500, 3500, 6000].map((delay) => window.setTimeout(sendContent, delay));
+    const timeout = window.setTimeout(() => {
+      reportLoadState("error", `页面已经打开，但内容没有显示出来。请重试。${PREVIEW_CHROME_HINT}`);
+    }, PREVIEW_TIMEOUT_MS);
+    timeoutRef.current = timeout;
+  }, [clearBridgeWait, reportLoadState, sendContent]);
+
   useEffect(() => {
     setHydrated(false);
     reportLoadState("loading");
-    sendContent();
-    const retry = window.setTimeout(sendContent, 500);
-    const finalRetry = window.setTimeout(sendContent, 1500);
-    const hydrationRetry = window.setTimeout(sendContent, 3500);
-    const settledRetry = window.setTimeout(sendContent, 6000);
-    const timeout = window.setTimeout(() => {
-      reportLoadState("error", "预览载入超时，bridge 没有回执。请重试；如果仍失败，请检查本地浏览器是否拦截了 iframe。");
-    }, PREVIEW_TIMEOUT_MS);
-    timeoutRef.current = timeout;
+    if (frameRef.current?.dataset.documentLoaded === "true") handleFrameLoad();
+    else clearBridgeWait();
     return () => {
-      window.clearTimeout(retry);
-      window.clearTimeout(finalRetry);
-      window.clearTimeout(hydrationRetry);
-      window.clearTimeout(settledRetry);
-      window.clearTimeout(timeout);
-      if (timeoutRef.current === timeout) timeoutRef.current = null;
+      clearBridgeWait();
     };
-  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, draft?.revision, expectedTargets.join("|"), locale, pagePath, reportLoadState, sendContent, templateId, variant]);
+  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearBridgeWait, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, pagePath, reportLoadState, templateId, variant]);
 
   useEffect(() => {
     const receiveMessage = (event: MessageEvent) => {
@@ -140,7 +147,13 @@ export function OpenSourceTemplateFrame({
         missingSlots?: string[];
         fallbackMatched?: string[];
         proposedAlternatives?: Array<{ requested: string; proposed: string }>;
+        reason?: string;
       };
+      if (data?.type === "sitecraft:error") {
+        const reason = typeof data.reason === "string" && data.reason.trim() ? data.reason.trim() : "预览没有载入。";
+        reportLoadState("error", `${reason} ${PREVIEW_CHROME_HINT}`);
+        return;
+      }
       if (data?.type === "sitecraft:ready" && data.templateId === templateId) {
         sendContent();
         return;
@@ -197,9 +210,14 @@ export function OpenSourceTemplateFrame({
         data-testid="open-source-template-frame"
         loading={variant === "thumbnail" ? "lazy" : "eager"}
         sandbox="allow-scripts allow-forms"
-        onLoad={sendContent}
-        onError={() => reportLoadState("error", "预览文件没有载入。请重试；如果仍失败，请检查本地浏览器是否拦截了 iframe。")}
+        onLoad={handleFrameLoad}
+        onError={() => reportLoadState("error", `预览没有载入。请重试。${PREVIEW_CHROME_HINT}`)}
       />
+      {loadState === "loading" ? (
+        <div className="open-source-template-frame-loading" data-testid="preview-load-progress" aria-hidden="true">
+          <span />
+        </div>
+      ) : null}
       {loadState === "error" ? (
         <div className="open-source-template-frame-error" role="alert" data-testid="preview-load-error">
           <strong>预览暂时无法显示</strong>

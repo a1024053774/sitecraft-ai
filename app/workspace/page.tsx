@@ -840,7 +840,9 @@ export default function WorkspacePage() {
   const selectVisualBrief = async (briefId: string) => {
     if (busy || !draftReady) return;
     const brief = visualBriefCatalog.find((item) => item.id === briefId);
-    if (!brief || (brief.id === draft.visualBrief.id && brief.templateId === draft.templateId)) return;
+    if (!brief) return;
+    const alreadySelected = brief.id === draft.visualBrief.id && brief.templateId === draft.templateId;
+    if (alreadySelected && !draft.legacyVisualBriefId) return;
     setBusy(true);
     setBusyText("正在切换样子…");
     try {
