@@ -32,7 +32,7 @@
 1. **已完成**：确认样子时清除 `legacyVisualBriefId`，撤销后恢复。非缩略图在 onLoad 不到时也会超时并提示用 Chrome；缩略图用 IntersectionObserver，进视口才计时。502 原因映射成中文。Chrome 1440/375 下 `/templates` 屏幕外缩略图 12 秒后仍为 loading、无误报。截图在 `artifacts/defect-a2-rollback-20260924/`。
 2. **已完成**：四个 overlay 去掉方法论句子与资料边界；`forge` 补齐 `products.title`/`products.intro` 槽位。去掉 catalog `primaryAction` 行（非公司资料）。四族 content 槽位与 adapter 一一对应。screwfast 1440/375 与 forge `ab-ind-asm` 在 ready 后截图见 `artifacts/p0-1-overlay-20260924/`。
 3. **已完成**：隐藏分区时，指向它的导航项一起隐藏，可见分区重新编号。P3I 隐藏了 services 后，导航不再出现「加工方式」，常见问题是 03 而不是 04。截图在 `artifacts/p0-2-nav-20260924/`。
-4. **已完成**：标题和正文都缺的条目不渲染，整块都缺就隐藏；句内「待补充」保留。生成操作会拒绝把模型指令写成 FAQ 引言。P3I 的常见问题整面不再出现。截图在 `artifacts/p0-3-gaps-20260924/`。
+4. **已完成**：标题和正文都缺的 FAQ 条目按草稿+声明槽位隐藏，整块都缺就隐藏；句内「待补充」保留。同文档再次 apply 填好 FAQ 后条目与分区会恢复。模型指令正则只留在 `validateAIOperations`。截图在 `artifacts/p0-3-gaps-20260924/`。
 5. 1–4 做完后**请负责人用 Chrome 重新盲评**，按结果修页面。
 6. **生成站克制动效**和**页面标题用公司名**（P0-6、P0-5）。
 7. **工作台**：样子盘/色板默认折叠，修改后在预览高亮改动处，移动端工具栏和文案清理（P1-7 至 P1-10）。

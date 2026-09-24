@@ -509,44 +509,73 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return !text || text === "待补充" || text === "To be provided";
   }
 
-  function isModelInstruction(value) {
-    return /只回答资料|没有的写成待补充|写成待补充|mark gaps/i.test(String(value || ""));
+  function setEntryHidden(node, hidden) {
+    if (!node) return;
+    node.hidden = hidden;
+    if (node.style && node.style.setProperty) {
+      if (hidden) node.style.setProperty("display", "none", "important");
+      else if (node.style.removeProperty) node.style.removeProperty("display");
+      else node.style.setProperty("display", "");
+    }
   }
 
-  function collapseUnprovidedEntries() {
-    if (!document || !document.querySelectorAll) return;
-    var intros = document.querySelectorAll("[data-sitecraft-faq='intro'], [data-sitecraft-benchmark='faq-intro']");
-    for (var i = 0; i < intros.length; i++) {
-      if (!isModelInstruction(intros[i].textContent)) continue;
-      intros[i].textContent = "";
-      intros[i].hidden = true;
+  function collapseUnprovidedEntries(draft, locale) {
+    if (!document || !adapter) return;
+    var slots = adapter.slots || [];
+    var byIndex = {};
+    for (var s = 0; s < slots.length; s++) {
+      var slot = slots[s];
+      if (!slot || !slot.target || !slot.selector) continue;
+      var match = /^faq\.items\.(\d+)\.(title|body)$/.exec(slot.target);
+      if (!match) continue;
+      var index = match[1];
+      if (!byIndex[index]) byIndex[index] = {};
+      byIndex[index][match[2]] = slot;
     }
-    var articles = document.querySelectorAll("article");
-    var touched = [];
-    for (var a = 0; a < articles.length; a++) {
-      var article = articles[a];
-      var heading = article.querySelector ? article.querySelector("h2, h3, h4") : null;
-      var body = article.querySelector ? article.querySelector("p") : null;
-      if (!heading || !body) continue;
-      var section = article.closest ? article.closest("section") : null;
-      if (section && touched.indexOf(section) === -1) touched.push(section);
-      if (isGapMarker(heading.textContent) && isGapMarker(body.textContent)) {
-        article.hidden = true;
-        if (article.style && article.style.setProperty) article.style.setProperty("display", "none", "important");
+    var indexes = Object.keys(byIndex);
+    if (!indexes.length) return;
+
+    var sectionSpec = null;
+    var sectionList = adapter.sections || [];
+    for (var sec = 0; sec < sectionList.length; sec++) {
+      if (sectionList[sec] && sectionList[sec].key === "faq") {
+        sectionSpec = sectionList[sec];
+        break;
       }
     }
-    for (var s = 0; s < touched.length; s++) {
-      var owner = touched[s];
-      var cards = owner.querySelectorAll ? owner.querySelectorAll("article") : [];
-      var anyVisible = false;
-      for (var c = 0; c < cards.length; c++) {
-        if (!cards[c].hidden) anyVisible = true;
-      }
-      if (!anyVisible && cards.length) {
-        var key = owner.getAttribute ? owner.getAttribute("data-sitecraft-section") : "";
-        setSectionHidden(owner, key || "gap", true);
+    var sectionNode = sectionSpec ? visibilityNode(sectionSpec) : null;
+    var anyVisible = false;
+    var sawEntry = false;
+    var draftHidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf("faq") !== -1;
+
+    for (var i = 0; i < indexes.length; i++) {
+      var parts = byIndex[indexes[i]];
+      var titleSlot = parts.title;
+      var bodySlot = parts.body;
+      if (!titleSlot || !bodySlot) continue;
+      var titleValue = readDraftValue(draft, titleSlot.target, locale);
+      var bodyValue = readDraftValue(draft, bodySlot.target, locale);
+      var titleNode = uniqueNode(titleSlot.selector);
+      var bodyNode = uniqueNode(bodySlot.selector);
+      if (!titleNode && !bodyNode) continue;
+      sawEntry = true;
+      var entry = null;
+      if (titleNode && titleNode.closest) entry = titleNode.closest("article");
+      if (!entry && bodyNode && bodyNode.closest) entry = bodyNode.closest("article");
+      if (!entry) entry = titleNode || bodyNode;
+      if (!sectionNode && entry && entry.closest) sectionNode = entry.closest("section");
+      if (isGapMarker(titleValue) && isGapMarker(bodyValue)) {
+        setEntryHidden(entry, true);
+      } else {
+        setEntryHidden(entry, false);
+        anyVisible = true;
       }
     }
+
+    if (sectionNode && !draftHidden && sawEntry) {
+      setSectionHidden(sectionNode, "faq", !anyVisible);
+    }
+
     var hiddenKeys = [];
     var hiddenNodes = document.querySelectorAll("[data-sitecraft-section-hidden='true']");
     for (var h = 0; h < hiddenNodes.length; h++) {
@@ -598,7 +627,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         writeSlot(node, slot, value, currentLocale, applied);
       }
       applySectionVisibility(draft, applied);
-      collapseUnprovidedEntries();
+      collapseUnprovidedEntries(draft, currentLocale);
       applyDemoChrome(applied, extraMissing);
       applyFamilyKit(draft, applied, extraMissing);
       applyActivePage(draft, activePage);

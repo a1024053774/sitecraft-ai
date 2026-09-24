@@ -22,7 +22,10 @@ type FakeNode = {
   attributes: Map<string, string>;
   _text: string;
   hidden?: boolean;
-  style?: { setProperty: (name: string, value: string, priority?: string) => void };
+  style?: {
+    setProperty: (name: string, value: string, priority?: string) => void;
+    removeProperty?: (name: string) => void;
+  };
   children: FakeNode[];
   parentElement: FakeNode | null;
   className: string;
@@ -83,7 +86,10 @@ function createNode(tagName: string): FakeNode {
     _text: "",
     hidden: false,
     styleValues: {},
-    style: { setProperty(name: string, value: string) { node.styleValues![name] = value; } },
+    style: {
+      setProperty(name: string, value: string) { node.styleValues![name] = value; },
+      removeProperty(name: string) { delete node.styleValues![name]; },
+    },
   };
 
   Object.defineProperties(node, {
@@ -811,19 +817,79 @@ test("a FAQ entry with no title and no body is hidden, and a sentence gap stays 
   const draft = applySiteOperations(structuredClone(defaultDraft), [
     { op: "set_text", target: "faq.intro", locale: "zh", value: "交期和认证只写资料里已经有的。" },
     { op: "update_card", section: "faq", index: 0, locale: "zh", title: "交期如何确认？", body: "批量规格询盘的交期待补充。" },
-    { op: "update_card", section: "faq", index: 1, locale: "en", title: "Lead time", body: "To be provided" },
+    { op: "update_card", section: "faq", index: 1, locale: "zh", title: "待补充", body: "待补充" },
   ], { templateIds: new Set(["screwfast"]), lastChange: "faq-gap" }).draft;
-  draft.content.faq.intro.zh = "只回答资料里有的交期、认证、MOQ 和售后；没有的写成待补充。";
-  draft.content.faq.items[1].title.zh = "待补充";
-  draft.content.faq.items[1].body.zh = "待补充";
   api.applyDeclaredContent(draft, "zh", [], "workspace");
-  assert.equal(intro.hidden, true);
-  assert.equal(intro.textContent, "");
+  assert.equal(intro.hidden, false);
+  assert.equal(intro.textContent, "交期和认证只写资料里已经有的。");
   assert.equal(real.hidden, false);
   assert.equal(realBody.textContent, "批量规格询盘的交期待补充。");
   assert.equal(empty.hidden, true);
   assert.equal(nav.hidden, false);
   assert.equal(section.hidden, false);
+});
+
+test("filling FAQ gaps on the same preview document restores entries and the section", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const { document } = createDocument();
+  const section = createNode("section");
+  section.id = "faq";
+  section.setAttribute("data-sitecraft-section", "faq");
+  const entries = [0, 1, 2].map((index) => {
+    const article = createNode("article");
+    const title = createNode("h3");
+    title.setAttribute("data-sitecraft-benchmark", `faq-item-${index}-title`);
+    const body = createNode("p");
+    body.setAttribute("data-sitecraft-benchmark", `faq-item-${index}-body`);
+    article.appendChild(title);
+    article.appendChild(body);
+    section.appendChild(article);
+    return { article, title, body };
+  });
+  const nav = createNode("a");
+  nav.setAttribute("href", "#faq");
+  nav.setAttribute("data-sitecraft-ui", "faq");
+  nav.textContent = "常见问题";
+  document.body.appendChild(nav);
+  document.body.appendChild(section);
+  const { api } = installOn(document, adapter);
+
+  const gapDraft = structuredClone(defaultDraft);
+  gapDraft.content.faq = {
+    title: { zh: "常见问题", en: "FAQ" },
+    intro: { zh: "待补充", en: "To be provided" },
+    items: [
+      { id: "faq-gap-0", title: { zh: "待补充", en: "To be provided" }, body: { zh: "待补充", en: "To be provided" } },
+      { id: "faq-gap-1", title: { zh: "待补充", en: "To be provided" }, body: { zh: "待补充", en: "To be provided" } },
+      { id: "faq-gap-2", title: { zh: "待补充", en: "To be provided" }, body: { zh: "待补充", en: "To be provided" } },
+    ],
+  };
+  api.applyDeclaredContent(gapDraft, "zh", [], "workspace");
+  for (const entry of entries) assert.equal(entry.article.hidden, true);
+  assert.equal(section.hidden, true);
+  assert.equal(nav.hidden, true);
+
+  const filledDraft = structuredClone(gapDraft);
+  filledDraft.content.faq = {
+    title: { zh: "常见问题", en: "FAQ" },
+    intro: { zh: "交期和认证以资料为准。", en: "Lead time follows materials." },
+    items: [
+      { id: "faq-fill-0", title: { zh: "交期如何确认？", en: "Lead time?" }, body: { zh: "批量询盘后确认。", en: "Confirm after RFQ." } },
+      { id: "faq-fill-1", title: { zh: "MOQ 是多少？", en: "MOQ?" }, body: { zh: "MOQ 20台。", en: "MOQ 20 units." } },
+      { id: "faq-fill-2", title: { zh: "是否安装？", en: "Install?" }, body: { zh: "不提供现场安装。", en: "No on-site install." } },
+    ],
+  };
+  api.applyDeclaredContent(filledDraft, "zh", [], "workspace");
+  for (const entry of entries) {
+    assert.equal(entry.article.hidden, false, "filled FAQ entries must become visible again on the same document");
+    assert.notEqual(entry.article.styleValues.display, "none");
+  }
+  assert.equal(section.hidden, false, "FAQ section must reopen after gaps are filled");
+  assert.notEqual(section.styleValues.display, "none");
+  assert.equal(nav.hidden, false);
+  assert.equal(entries[0].title.textContent, "交期如何确认？");
+  assert.equal(entries[0].body.textContent, "批量询盘后确认。");
 });
 
 test("landwind first-screen slots follow two independent samples and leave undeclared headings", () => {
@@ -1086,7 +1152,10 @@ test("declared family modules hide and show after set_section_visibility and und
   assert.ok(screwfastReport.appliedSlots.includes("contact.visibility"));
   assert.ok(screwfastReport.missingSlots.includes("industries.visibility"));
 
-  const shown = applySiteOperations(hidden, [{ op: "set_section_visibility", section: "faq", visible: true }], options).draft;
+  const shown = applySiteOperations(hidden, [
+    { op: "set_section_visibility", section: "faq", visible: true },
+    { op: "update_card", section: "faq", index: 0, locale: "zh", title: "交期如何确认？", body: "批量询盘后确认。" },
+  ], options).draft;
   forgeApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
   landwindApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
   screwfastApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
