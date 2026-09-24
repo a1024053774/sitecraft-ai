@@ -356,3 +356,32 @@ Docker `/api/health` 当前回读 `persistence.driver=postgres`、`database=read
 ### DeepSeek 路由复测（2026-09-23）
 
 当前 `dig @192.168.3.1 api.deepseek.com` 返回 `61.170.66.121` 与 `61.170.82.99`；使用 `curl --interface en0 --resolve` 对这两个地址的 `/models` 探针可返回 HTTP 200。系统默认解析仍是 VPN 的 `198.18.0.157`，`route -n get` 显示 `utun5`，应用内 fetch 继续超时。添加 /32 主机路由和 `/etc/hosts` 解析需要本机 sudo 密码；本轮没有读取或代填密码，保留为外部网络配置边界，不用伪造动态问答成功。
+
+## 系统功能收口 1–5（2026-09-23，已提交 `ee10225`..`6295956`，仅存档）
+
+负责人盲评时遇到预览白屏，盲评先暂停，先把系统功能做稳。按顺序做：
+
+### 1. 预览白屏和无限载入
+
+已完成：真实浏览器回读确认当前 iframe 200、bridge 回执和 CSP/sandbox 均可用；根因是失败/未回执没有状态出口，另修正开发环境 `max-age=300` 缓存。
+改动：所有 `OpenSourceTemplateFrame` 使用处现在有超时/加载失败中文提示、重试按钮和质量页状态回执；聚焦测试、桌面/375 宽浏览器检查通过。
+
+### 2. `/quality` 生成失败（`POST /api/quality/cells` 422）
+
+已完成：真实 POST 复测当前 DeepSeek 路径返回 200；按旧 422 的 `invalid_output / operations: Too big` 反例补上诊断码、中文映射和失败结果边界。
+改动：失败格只加载 `result.ok` 的草稿，显示中文原因与“重试”，不再把旧预览当生成结果；200/200 全量测试、typecheck、build 通过。
+
+### 3. 子页不再克隆首页
+
+已完成：overlay 仅作用根 `index.html`；独立子页不再进入 `templateExtraRoutes`，pagePlan 改为同页声明区块或 unsupported，旧 default 草稿读取时也会 rehost。
+验证：静态加载器红测、pagePlan 回归、工作台桌面/375 宽真实浏览器均通过；本轮不新增子页 overlay。
+
+### 4. 撤下没有 kit 的样子
+
+已完成：`editorial-service/fresh` 从样子盘和需求对齐选项撤下；专业服务质量包改用 `technical-product/tailwind-landing`，旧 fresh 草稿读取时保留内容并迁移预览 kit。
+工作台对旧草稿显示换样子提示；桌面/375 宽真实浏览器确认旧预览有内容、质量页服务包均为已有 kit。
+
+### 5. 发布页不对访客显示开发提示
+
+已完成：发布页移除 `pagePlanSourceLabel` 和「未支持：…」开发提示，工作台继续显示页面规划诊断。
+桌面/375 宽真实浏览器确认发布页仅显示页面导航、语言、站点预览和询盘入口，预览均有内容与 bridge 回执。
