@@ -132,6 +132,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
     for (var i = 0; i < visible.length; i++) {
       var product = visible[i];
       var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
+      var productName = localize(product.name, locale) || "";
+      var productSummary = localize(product.summary, locale) || "";
+      if (isGapMarker(productName) && isGapMarker(productSummary)) continue;
       var card = document.createElement("article");
       card.className = "sitecraft-product-card";
       card.setAttribute("data-sitecraft-product", sku);
@@ -158,10 +161,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
         : (locale === "en" ? "Product category" : "产品类别");
       category.setAttribute("data-sitecraft-slot", "products." + sku + ".category");
       var title = document.createElement("h3");
-      title.textContent = localize(product.name, locale) || (locale === "en" ? "Product name to be completed" : "产品名称待补充");
+      title.textContent = productName || (locale === "en" ? "Product name to be completed" : "产品名称待补充");
       title.setAttribute("data-sitecraft-slot", "products." + sku + ".name." + locale);
       var summary = document.createElement("p");
-      summary.textContent = localize(product.summary, locale) || (locale === "en" ? "Product description to be completed." : "产品说明待补充。");
+      summary.textContent = productSummary || (locale === "en" ? "Product description to be completed." : "产品说明待补充。");
       summary.setAttribute("data-sitecraft-slot", "products." + sku + ".summary." + locale);
       card.appendChild(category);
       card.appendChild(title);
@@ -502,6 +505,58 @@ function sitecraftPreviewBridge(templateId, adapter) {
     node.textContent = text;
   }
 
+  function isGapMarker(value) {
+    var text = String(value || "").trim();
+    return !text || text === "待补充" || text === "To be provided";
+  }
+
+  function isModelInstruction(value) {
+    return /只回答资料|没有的写成待补充|写成待补充|mark gaps/i.test(String(value || ""));
+  }
+
+  function collapseUnprovidedEntries() {
+    if (!document || !document.querySelectorAll) return;
+    var intros = document.querySelectorAll("[data-sitecraft-faq='intro'], [data-sitecraft-benchmark='faq-intro']");
+    for (var i = 0; i < intros.length; i++) {
+      if (!isModelInstruction(intros[i].textContent)) continue;
+      intros[i].textContent = "";
+      intros[i].hidden = true;
+    }
+    var articles = document.querySelectorAll("article");
+    var touched = [];
+    for (var a = 0; a < articles.length; a++) {
+      var article = articles[a];
+      var heading = article.querySelector ? article.querySelector("h2, h3, h4") : null;
+      var body = article.querySelector ? article.querySelector("p") : null;
+      if (!heading || !body) continue;
+      var section = article.closest ? article.closest("section") : null;
+      if (section && touched.indexOf(section) === -1) touched.push(section);
+      if (isGapMarker(heading.textContent) && isGapMarker(body.textContent)) {
+        article.hidden = true;
+        if (article.style && article.style.setProperty) article.style.setProperty("display", "none", "important");
+      }
+    }
+    for (var s = 0; s < touched.length; s++) {
+      var owner = touched[s];
+      var cards = owner.querySelectorAll ? owner.querySelectorAll("article") : [];
+      var anyVisible = false;
+      for (var c = 0; c < cards.length; c++) {
+        if (!cards[c].hidden) anyVisible = true;
+      }
+      if (!anyVisible && cards.length) {
+        var key = owner.getAttribute ? owner.getAttribute("data-sitecraft-section") : "";
+        setSectionHidden(owner, key || "gap", true);
+      }
+    }
+    var hiddenKeys = [];
+    var hiddenNodes = document.querySelectorAll("[data-sitecraft-section-hidden='true']");
+    for (var h = 0; h < hiddenNodes.length; h++) {
+      var hiddenKey = hiddenNodes[h].getAttribute && hiddenNodes[h].getAttribute("data-sitecraft-section");
+      if (hiddenKey) hiddenKeys.push(hiddenKey);
+    }
+    syncHiddenNavigation(hiddenKeys);
+  }
+
   function applyVisitorChrome(locale) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
@@ -544,6 +599,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         writeSlot(node, slot, value, currentLocale, applied);
       }
       applySectionVisibility(draft, applied);
+      collapseUnprovidedEntries();
       applyDemoChrome(applied, extraMissing);
       applyFamilyKit(draft, applied, extraMissing);
       applyActivePage(draft, activePage);

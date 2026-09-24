@@ -782,6 +782,56 @@ test("hiding a section also hides its navigation link and renumbers the visible 
   assert.deepEqual(indexes.map((node) => node.textContent), ["01", "02", "02", "03"]);
 });
 
+test("a FAQ entry with no title and no body is hidden, and a sentence gap stays visible", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const { document } = createDocument();
+  const section = createNode("section");
+  section.id = "faq";
+  section.setAttribute("data-sitecraft-section", "faq");
+  const intro = createNode("p");
+  intro.setAttribute("data-sitecraft-benchmark", "faq-intro");
+  const real = createNode("article");
+  const realTitle = createNode("h3");
+  realTitle.setAttribute("data-sitecraft-benchmark", "faq-item-0-title");
+  const realBody = createNode("p");
+  realBody.setAttribute("data-sitecraft-benchmark", "faq-item-0-body");
+  real.appendChild(realTitle);
+  real.appendChild(realBody);
+  const empty = createNode("article");
+  const emptyTitle = createNode("h3");
+  emptyTitle.setAttribute("data-sitecraft-benchmark", "faq-item-1-title");
+  const emptyBody = createNode("p");
+  emptyBody.setAttribute("data-sitecraft-benchmark", "faq-item-1-body");
+  empty.appendChild(emptyTitle);
+  empty.appendChild(emptyBody);
+  section.appendChild(intro);
+  section.appendChild(real);
+  section.appendChild(empty);
+  const nav = createNode("a");
+  nav.setAttribute("href", "#faq");
+  nav.textContent = "常见问题";
+  document.body.appendChild(nav);
+  document.body.appendChild(section);
+  const { api } = installOn(document, adapter);
+  const draft = applySiteOperations(structuredClone(defaultDraft), [
+    { op: "set_text", target: "faq.intro", locale: "zh", value: "交期和认证只写资料里已经有的。" },
+    { op: "update_card", section: "faq", index: 0, locale: "zh", title: "交期如何确认？", body: "批量规格询盘的交期待补充。" },
+    { op: "update_card", section: "faq", index: 1, locale: "en", title: "Lead time", body: "To be provided" },
+  ], { templateIds: new Set(["screwfast"]), lastChange: "faq-gap" }).draft;
+  draft.content.faq.intro.zh = "只回答资料里有的交期、认证、MOQ 和售后；没有的写成待补充。";
+  draft.content.faq.items[1].title.zh = "待补充";
+  draft.content.faq.items[1].body.zh = "待补充";
+  api.applyDeclaredContent(draft, "zh", [], "workspace");
+  assert.equal(intro.hidden, true);
+  assert.equal(intro.textContent, "");
+  assert.equal(real.hidden, false);
+  assert.equal(realBody.textContent, "批量规格询盘的交期待补充。");
+  assert.equal(empty.hidden, true);
+  assert.equal(nav.hidden, false);
+  assert.equal(section.hidden, false);
+});
+
 test("landwind first-screen slots follow two independent samples and leave undeclared headings", () => {
   const adapter = getTemplateAdapter("landwind");
   assert.ok(adapter, "landwind adapter is required before quality comparison");

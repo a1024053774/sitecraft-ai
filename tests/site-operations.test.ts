@@ -237,6 +237,28 @@ test("confirming the current look clears a retired visual brief and undo restore
   assert.equal(switchUndone.draft.visualBrief.id, "technical-product");
 });
 
+test("generation refuses a model instruction as the FAQ intro and a card whose title and body are both missing", () => {
+  const kept = applySiteOperations(defaultDraft, [{
+    op: "update_card",
+    section: "faq",
+    index: 0,
+    locale: "zh",
+    title: "交期如何确认？",
+    body: "批量规格询盘的交期待补充。",
+  }], { templateIds, lastChange: "gap-rule" });
+  assert.equal(kept.draft.content.faq.items[0].title.zh, "交期如何确认？");
+  assert.equal(kept.draft.content.faq.items[0].body.zh, "批量规格询盘的交期待补充。");
+  const validated = validateAIOperations("改常见问题", [
+    { op: "set_text", target: "faq.intro", locale: "zh", value: "没有的写成待补充" },
+    { op: "update_card", section: "faq", index: 0, locale: "zh", title: "待补充", body: "待补充" },
+    { op: "update_card", section: "faq", index: 0, locale: "zh", title: "交期如何确认？", body: "批量规格询盘的交期待补充。" },
+  ], templateIds);
+  assert.equal(validated.operations.length, 1);
+  assert.equal(validated.operations[0].op, "update_card");
+  assert.match(validated.rejected.join("\n"), /常见问题引言/);
+  assert.match(validated.rejected.join("\n"), /标题和正文都缺/);
+});
+
 test("engineering palette changes are named, reversible, and same-family only", () => {
   const options = { templateIds: new Set(["forge", "screwfast"]), lastChange: "palette-compare" };
   const engineering = applySiteOperations(structuredClone(defaultDraft), [

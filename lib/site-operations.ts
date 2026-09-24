@@ -596,6 +596,21 @@ export function validateAIOperations(
   const rejected: string[] = [];
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
   const accepted = operations.filter((operation) => {
+    if (operation.op === "set_text" && operation.target === "faq.intro" && isModelInstruction(operation.value)) {
+      rejected.push("常见问题引言是写给模型的指令，已拒绝");
+      return false;
+    }
+    if (operation.op === "update_card" && operation.title && operation.body && isGapMarker(operation.title) && isGapMarker(operation.body)) {
+      rejected.push("标题和正文都缺的条目不会写入");
+      return false;
+    }
+    if (operation.op === "add_card") {
+      const cardIsGap = (["zh", "en"] as const).every((locale) => isGapMarker(operation.item.title[locale]) && isGapMarker(operation.item.body[locale]));
+      if (cardIsGap) {
+        rejected.push("标题和正文都缺的条目不会写入");
+        return false;
+      }
+    }
     if (operation.op !== "set_template") return true;
     if (!explicitTemplateSwitch) {
       rejected.push("用户没有明确要求更换模板，已拒绝模板切换");
@@ -608,6 +623,15 @@ export function validateAIOperations(
     return true;
   });
   return { operations: accepted, rejected };
+}
+
+function isGapMarker(value: string) {
+  const text = value.trim();
+  return text.length === 0 || text === "待补充" || text === "To be provided";
+}
+
+function isModelInstruction(value: string) {
+  return /只回答资料|没有的写成待补充|写成待补充|mark gaps/i.test(value);
 }
 
 export function describeTarget(target: string) {
