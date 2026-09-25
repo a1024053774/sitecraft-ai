@@ -7,6 +7,9 @@ import {
   pagePlanSourceSchema,
   pageRoleSchema,
   productSchema,
+  productSpecParameterSchema,
+  catalogSectionKeys,
+  catalogSectionValueSchema,
   sectionKeySchema,
   sectionKeys,
   unsupportedSitePageSchema,
@@ -16,9 +19,12 @@ import {
   paletteIdSchema,
   defaultPaletteIdForVisualBrief,
   paletteCatalogForVisualBrief,
+  type CatalogSectionKey,
+  type CatalogSectionValue,
   type EditableCard,
   type Locale,
   type Product,
+  type ProductSpecParameter,
   type SectionKey,
   type SiteDraft,
   type SiteImageRef,
@@ -91,6 +97,16 @@ const updateProductOperationSchema = z.object({
   summary: z.string().min(1).max(1000).optional(),
   category: z.string().min(1).max(120).optional(),
 }).refine((value) => value.name || value.summary || value.category, "Product update requires at least one field");
+const setProductSpecsOperationSchema = z.object({
+  op: z.literal("set_product_specs"),
+  sku: z.string().min(1).max(120),
+  specs: z.array(productSpecParameterSchema).max(12),
+});
+const setCatalogSectionOperationSchema = z.object({
+  op: z.literal("set_catalog_section"),
+  section: z.enum(catalogSectionKeys),
+  value: catalogSectionValueSchema.nullable(),
+});
 const setTemplateOperationSchema = z.object({
   op: z.literal("set_template"),
   templateId: z.string().min(1).max(80),
@@ -164,6 +180,8 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   addCardOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
+  setProductSpecsOperationSchema,
+  setCatalogSectionOperationSchema,
   replaceProductsOperationSchema,
   setTemplateOperationSchema,
   setSectionVisibilityOperationSchema,
@@ -181,6 +199,8 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   addCardOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
+  setProductSpecsOperationSchema,
+  setCatalogSectionOperationSchema,
   setTemplateOperationSchema,
   setSectionVisibilityOperationSchema,
   reorderSectionsOperationSchema,
@@ -325,6 +345,72 @@ function writeHeroImage(draft: SiteDraft, image: SiteImageRef | undefined) {
   else delete draft.content.hero.image;
 }
 
+function readCatalogSection(draft: SiteDraft, section: CatalogSectionKey): CatalogSectionValue | null {
+  const value = draft.content[section];
+  return value ? structuredClone(value) as CatalogSectionValue : null;
+}
+
+function normalizeCatalogSection(
+  section: CatalogSectionKey,
+  value: CatalogSectionValue | null,
+): CatalogSectionValue | null {
+  if (!value) return null;
+  if (section !== "certifications") {
+    return {
+      title: structuredClone(value.title),
+      intro: structuredClone(value.intro),
+      items: value.items.map((item) => ({
+        id: item.id,
+        title: structuredClone(item.title),
+        body: structuredClone(item.body),
+      })),
+    };
+  }
+  return {
+    title: structuredClone(value.title),
+    intro: structuredClone(value.intro),
+    items: value.items.map((item) => ({
+      id: item.id,
+      title: structuredClone(item.title),
+      body: structuredClone(item.body),
+      status: item.status === "已有" ? "已有" : "待补充",
+    })),
+  };
+}
+
+function writeCatalogSection(
+  draft: SiteDraft,
+  section: CatalogSectionKey,
+  value: CatalogSectionValue | null,
+) {
+  if (!value) {
+    delete draft.content[section];
+    return;
+  }
+  if (section === "certifications") {
+    draft.content.certifications = {
+      title: structuredClone(value.title),
+      intro: structuredClone(value.intro),
+      items: value.items.map((item) => ({
+        id: item.id,
+        title: structuredClone(item.title),
+        body: structuredClone(item.body),
+        status: item.status === "已有" ? "已有" : "待补充",
+      })),
+    };
+    return;
+  }
+  draft.content[section] = {
+    title: structuredClone(value.title),
+    intro: structuredClone(value.intro),
+    items: value.items.map((item) => ({
+      id: item.id,
+      title: structuredClone(item.title),
+      body: structuredClone(item.body),
+    })),
+  };
+}
+
 export function applySiteOperations(
   current: SiteDraft,
   operations: SiteOperation[],
@@ -423,6 +509,31 @@ export function applySiteOperations(
         changed = true;
       }
       if (changed) inverseOperations.unshift(inverse);
+      continue;
+    }
+    if (operation.op === "set_product_specs") {
+      const product = draft.products.find((item) => item.sku === operation.sku);
+      if (!product) throw new Error(`Product ${operation.sku} does not exist`);
+      const previous = product.specs ? structuredClone(product.specs) : [];
+      const next = structuredClone(operation.specs);
+      if (same(previous, next)) continue;
+      inverseOperations.unshift({ op: "set_product_specs", sku: operation.sku, specs: previous });
+      if (next.length) product.specs = next;
+      else delete product.specs;
+      appliedTargets.push(`products.${operation.sku}.specs`);
+      continue;
+    }
+    if (operation.op === "set_catalog_section") {
+      const previous = readCatalogSection(draft, operation.section);
+      const next = normalizeCatalogSection(operation.section, operation.value);
+      if (same(previous, next)) continue;
+      inverseOperations.unshift({
+        op: "set_catalog_section",
+        section: operation.section,
+        value: previous,
+      });
+      writeCatalogSection(draft, operation.section, next);
+      appliedTargets.push(`content.${operation.section}`);
       continue;
     }
     if (operation.op === "set_template") {
@@ -594,35 +705,116 @@ export function validateAIOperations(
   templateIds: Set<string>,
 ): { operations: SiteOperation[]; rejected: string[] } {
   const rejected: string[] = [];
+  const accepted: SiteOperation[] = [];
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
-  const accepted = operations.filter((operation) => {
+  for (const operation of operations) {
     if (operation.op === "set_text" && operation.target === "faq.intro" && isModelInstruction(operation.value)) {
       rejected.push("常见问题引言是写给模型的指令，已拒绝");
-      return false;
+      continue;
     }
     if (operation.op === "update_card" && operation.title && operation.body && isGapMarker(operation.title) && isGapMarker(operation.body)) {
       rejected.push("标题和正文都缺的条目不会写入");
-      return false;
+      continue;
     }
     if (operation.op === "add_card") {
       const cardIsGap = (["zh", "en"] as const).every((locale) => isGapMarker(operation.item.title[locale]) && isGapMarker(operation.item.body[locale]));
       if (cardIsGap) {
         rejected.push("标题和正文都缺的条目不会写入");
-        return false;
+        continue;
       }
     }
-    if (operation.op !== "set_template") return true;
-    if (!explicitTemplateSwitch) {
-      rejected.push("用户没有明确要求更换模板，已拒绝模板切换");
-      return false;
+    if (operation.op === "set_product_specs") {
+      accepted.push({ ...operation, specs: groundProductSpecs(operation.specs, message, rejected) });
+      continue;
     }
-    if (!templateIds.has(operation.templateId)) {
-      rejected.push(`模板 ${operation.templateId} 不在白名单中`);
-      return false;
+    if (operation.op === "set_catalog_section") {
+      if (!operation.value) {
+        accepted.push(operation);
+        continue;
+      }
+      accepted.push({ ...operation, value: groundCatalogSection(operation.value, message, rejected) });
+      continue;
     }
-    return true;
-  });
+    if (operation.op === "replace_products") {
+      accepted.push({
+        ...operation,
+        products: operation.products.map((product) => {
+          if (!product.specs?.length) return product;
+          return { ...product, specs: groundProductSpecs(product.specs, message, rejected) };
+        }),
+      });
+      continue;
+    }
+    if (operation.op === "set_template") {
+      if (!explicitTemplateSwitch) {
+        rejected.push("用户没有明确要求更换模板，已拒绝模板切换");
+        continue;
+      }
+      if (!templateIds.has(operation.templateId)) {
+        rejected.push(`模板 ${operation.templateId} 不在白名单中`);
+        continue;
+      }
+      accepted.push(operation);
+      continue;
+    }
+    accepted.push(operation);
+  }
   return { operations: accepted, rejected };
+}
+
+function groundProductSpecs(
+  specs: ProductSpecParameter[],
+  materials: string,
+  rejected: string[],
+): ProductSpecParameter[] {
+  return specs.map((spec) => {
+    const value = spec.value.trim();
+    if (isGapMarker(value)) {
+      return { ...spec, value: value.length ? value : "待补充" };
+    }
+    if (materialsIncludesFact(materials, value)) return spec;
+    rejected.push(`参数「${spec.name.zh || spec.name.en}」的值不在资料中，已改为待补充`);
+    return { ...spec, value: "待补充" };
+  });
+}
+
+function groundCatalogSection(
+  section: CatalogSectionValue,
+  materials: string,
+  rejected: string[],
+): CatalogSectionValue {
+  return {
+    ...section,
+    items: section.items.map((item) => {
+      const next = { ...item, title: { ...item.title }, body: { ...item.body } };
+      for (const locale of ["zh", "en"] as const) {
+        const title = next.title[locale].trim();
+        const body = next.body[locale].trim();
+        if (!isGapMarker(title) && !materialsIncludesFact(materials, title) && /[\d]/.test(title)) {
+          rejected.push(`条目标题「${title}」含资料外数字，已改为待补充`);
+          next.title[locale] = "待补充";
+        }
+        if (!isGapMarker(body) && !materialsIncludesFact(materials, body) && (/[\d]/.test(body) || !materialsIncludesFact(materials, next.title.zh || next.title.en))) {
+          // Keep title when it appears in materials; only ground the invented body/fact.
+          if (!materialsIncludesFact(materials, body)) {
+            rejected.push(`条目正文不在资料中，已改为待补充`);
+            next.body[locale] = "待补充";
+          }
+        }
+      }
+      return next;
+    }),
+  };
+}
+
+function materialsIncludesFact(materials: string, value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (materials.includes(trimmed)) return true;
+  // Allow minor whitespace differences around ranges like "i=25–100".
+  const compact = trimmed.replace(/\s+/g, "");
+  const compactMaterials = materials.replace(/\s+/g, "");
+  return compactMaterials.includes(compact);
 }
 
 function isGapMarker(value: string) {

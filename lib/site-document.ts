@@ -171,6 +171,12 @@ export const siteImageRefSchema = z.object({
 });
 export type SiteImageRef = z.infer<typeof siteImageRefSchema>;
 
+export const productSpecParameterSchema = z.object({
+  name: localizedTextSchema,
+  value: z.string().max(200),
+});
+export type ProductSpecParameter = z.infer<typeof productSpecParameterSchema>;
+
 export const productSchema = z.object({
   sku: z.string().min(1).max(120),
   name: localizedTextSchema,
@@ -179,6 +185,8 @@ export const productSchema = z.object({
   status: z.enum(["published", "draft"]),
   imageColor: z.string().max(30).default("#e6e1cf"),
   image: siteImageRefSchema.optional(),
+  /** Optional; absent on old drafts means the product has no declared parameters. */
+  specs: z.array(productSpecParameterSchema).max(12).optional(),
   aiGenerated: z.boolean().optional(),
 });
 export type Product = z.infer<typeof productSchema>;
@@ -206,6 +214,8 @@ export const visibilityKeys = [
   "process",
   "solutions",
   "industries",
+  "capabilities",
+  "certifications",
 ] as const;
 export const visibilityKeySchema = z.enum(visibilityKeys);
 export type VisibilityKey = z.infer<typeof visibilityKeySchema>;
@@ -245,6 +255,35 @@ const contentSectionSchema = z.object({
   intro: localizedTextSchema,
   items: z.array(editableCardSchema).max(12),
 });
+export type ContentSection = z.infer<typeof contentSectionSchema>;
+
+export const certificationStatuses = ["已有", "待补充"] as const;
+export const certificationStatusSchema = z.enum(certificationStatuses);
+export type CertificationStatus = z.infer<typeof certificationStatusSchema>;
+
+export const certificationItemSchema = editableCardSchema.extend({
+  status: certificationStatusSchema,
+});
+export type CertificationItem = z.infer<typeof certificationItemSchema>;
+
+export const certificationSectionSchema = z.object({
+  title: localizedTextSchema,
+  intro: localizedTextSchema,
+  items: z.array(certificationItemSchema).max(12),
+});
+export type CertificationSection = z.infer<typeof certificationSectionSchema>;
+
+export const catalogSectionKeys = ["industries", "capabilities", "certifications"] as const;
+export type CatalogSectionKey = (typeof catalogSectionKeys)[number];
+
+export const catalogSectionValueSchema = z.object({
+  title: localizedTextSchema,
+  intro: localizedTextSchema,
+  items: z.array(editableCardSchema.extend({
+    status: certificationStatusSchema.optional(),
+  })).max(12),
+});
+export type CatalogSectionValue = z.infer<typeof catalogSectionValueSchema>;
 
 export const siteDraftSchema = z.object({
   schemaVersion: z.literal(2),
@@ -291,6 +330,10 @@ export const siteDraftSchema = z.object({
       address: localizedTextSchema,
     }),
     faq: contentSectionSchema,
+    /** Optional manufacturer blocks; absent on old drafts means hide. */
+    industries: contentSectionSchema.optional(),
+    capabilities: contentSectionSchema.optional(),
+    certifications: certificationSectionSchema.optional(),
   }),
   sectionOrder: z.array(sectionKeySchema).length(sectionKeys.length),
   hiddenSections: z.array(visibilityKeySchema),
