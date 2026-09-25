@@ -67,6 +67,11 @@ export type TemplateKit = {
   tokens: TemplateKitTokens;
   palettes?: Readonly<Record<string, TemplateKitTokens>>;
   modules: TemplateKitModule[];
+  /** Declared hero schematic ids chosen from draft.industry substrings (adapter data, not JS). */
+  heroSchematics?: {
+    default: string;
+    rules: Array<{ includes: string[]; schematic: string }>;
+  };
 };
 
 export type TemplatePreviewRuntime = "static-html" | "astro-static" | "next-static" | "spa-bundle";

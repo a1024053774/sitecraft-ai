@@ -129,8 +129,8 @@
       .sitecraft-hero-grid {
         display: grid;
         grid-template-columns: minmax(0, 1.05fr) minmax(280px, .95fr);
-        align-items: stretch;
-        gap: 40px;
+        align-items: center;
+        gap: 36px;
       }
       .sitecraft-hero-grid > *, .sitecraft-section-head > *, .sitecraft-inquiry-wrap > *, .sitecraft-faq-grid > * { min-width: 0; }
       .sitecraft-eyebrow {
@@ -190,13 +190,82 @@
 
       .sitecraft-diagram {
         position: relative;
-        min-height: 380px;
+        min-height: 320px;
         border: 1px solid var(--site-line);
         background:
           linear-gradient(165deg, var(--site-surface), color-mix(in srgb, var(--site-diagram) 80%, var(--site-tint))),
           var(--site-diagram);
         overflow: hidden;
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--site-surface) 70%, transparent);
+      }
+      .sitecraft-diagram.sitecraft-diagram-photo {
+        background: var(--site-surface);
+      }
+      .sitecraft-diagram.sitecraft-diagram-photo > :not([data-sitecraft-benchmark="hero-image"]) {
+        display: none !important;
+      }
+      .sitecraft-diagram [data-sitecraft-benchmark="hero-image"] {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .sitecraft-diagram[data-sitecraft-hero-schematic="fitting"] .sitecraft-diagram-housing,
+      .sitecraft-diagram[data-sitecraft-hero-schematic="fitting"] .sitecraft-diagram-shaft-in,
+      .sitecraft-diagram[data-sitecraft-hero-schematic="fitting"] .sitecraft-diagram-shaft-out,
+      .sitecraft-diagram[data-sitecraft-hero-schematic="fitting"] .sitecraft-diagram-flange,
+      .sitecraft-diagram[data-sitecraft-hero-schematic="fitting"] .sitecraft-diagram-callout {
+        display: none;
+      }
+      .sitecraft-diagram[data-sitecraft-hero-schematic="fitting"] .sitecraft-diagram-fitting {
+        display: block;
+      }
+      .sitecraft-diagram-fitting {
+        display: none;
+        position: absolute;
+        left: 56px;
+        top: 110px;
+        width: 240px;
+        height: 84px;
+        border: 2px solid color-mix(in srgb, var(--site-ink) 45%, var(--site-line));
+        border-radius: 42px;
+        background: color-mix(in srgb, var(--site-surface) 70%, var(--site-diagram));
+      }
+      .sitecraft-diagram-fitting::before,
+      .sitecraft-diagram-fitting::after {
+        content: "";
+        position: absolute;
+        top: 18px;
+        width: 48px;
+        height: 48px;
+        border: 2px solid color-mix(in srgb, var(--site-ink) 40%, var(--site-line));
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--site-diagram) 60%, var(--site-surface));
+      }
+      .sitecraft-diagram-fitting::before { left: -18px; }
+      .sitecraft-diagram-fitting::after { right: -18px; }
+      .sitecraft-diagram[data-sitecraft-hero-schematic="generic"] .sitecraft-diagram-housing,
+      .sitecraft-diagram[data-sitecraft-hero-schematic="generic"] .sitecraft-diagram-shaft-in,
+      .sitecraft-diagram[data-sitecraft-hero-schematic="generic"] .sitecraft-diagram-shaft-out,
+      .sitecraft-diagram[data-sitecraft-hero-schematic="generic"] .sitecraft-diagram-flange,
+      .sitecraft-diagram[data-sitecraft-hero-schematic="generic"] .sitecraft-diagram-callout {
+        display: none;
+      }
+      .sitecraft-diagram[data-sitecraft-hero-schematic="generic"] .sitecraft-diagram-generic {
+        display: grid;
+      }
+      .sitecraft-diagram-generic {
+        display: none;
+        position: absolute;
+        inset: 48px 40px 56px;
+        grid-template-columns: 1.2fr .8fr;
+        gap: 14px;
+      }
+      .sitecraft-diagram-generic span {
+        border: 1px solid color-mix(in srgb, var(--site-ink) 22%, var(--site-line));
+        background: color-mix(in srgb, var(--site-surface) 78%, var(--site-diagram));
       }
       .sitecraft-diagram-grid {
         position: absolute;
@@ -288,25 +357,6 @@
       .sitecraft-diagram-callout-housing { left: 64px; top: 52px; }
       .sitecraft-diagram-callout-gear { left: 168px; top: 248px; }
       .sitecraft-diagram-callout-shaft { left: 286px; top: 118px; }
-      .sitecraft-diagram-plate {
-        position: absolute;
-        right: 22px;
-        top: 28px;
-        width: 108px;
-        height: 72px;
-        border: 1px solid color-mix(in srgb, var(--site-ink) 22%, var(--site-line));
-        background: color-mix(in srgb, var(--site-surface) 82%, transparent);
-      }
-      .sitecraft-diagram-plate::after {
-        content: "";
-        position: absolute;
-        left: 10px;
-        right: 10px;
-        top: 16px;
-        height: 1px;
-        background: color-mix(in srgb, var(--site-ink) 20%, transparent);
-        box-shadow: 0 12px 0 color-mix(in srgb, var(--site-ink) 16%, transparent), 0 24px 0 color-mix(in srgb, var(--site-ink) 12%, transparent);
-      }
       .sitecraft-diagram-label {
         position: absolute;
         left: 20px;
@@ -884,13 +934,14 @@
                 <a class="sitecraft-secondary" href="#products">查看产品类别</a>
               </div>
             </div>
-            <div class="sitecraft-diagram" aria-label="减速机结构示意" role="img">
+            <div class="sitecraft-diagram" aria-label="结构示意" role="img" data-sitecraft-hero-schematic="generic">
               <div class="sitecraft-diagram-grid"></div>
-              <div class="sitecraft-diagram-plate" aria-hidden="true"></div>
               <div class="sitecraft-diagram-shaft-in" aria-hidden="true"></div>
               <div class="sitecraft-diagram-flange" aria-hidden="true"></div>
               <div class="sitecraft-diagram-housing" aria-hidden="true"></div>
               <div class="sitecraft-diagram-shaft-out" aria-hidden="true"></div>
+              <div class="sitecraft-diagram-fitting" aria-hidden="true"></div>
+              <div class="sitecraft-diagram-generic" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
               <span class="sitecraft-diagram-callout sitecraft-diagram-callout-housing" data-sitecraft-ui="diagramHousing" aria-hidden="true">壳体</span>
               <span class="sitecraft-diagram-callout sitecraft-diagram-callout-gear" data-sitecraft-ui="diagramGear" aria-hidden="true">齿轮区</span>
               <span class="sitecraft-diagram-callout sitecraft-diagram-callout-shaft" data-sitecraft-ui="diagramShaft" aria-hidden="true">输出轴</span>

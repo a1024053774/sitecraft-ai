@@ -278,3 +278,39 @@ test("published visitor strips pack simulation labels from product intro", () =>
   installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [], "workspace");
   assert.equal(productsIntro.textContent.includes("以下参数为模拟设定"), true);
 });
+
+test("screwfast hero uses first product photo or industry schematic from adapter data", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter?.kit?.heroSchematics);
+  const { document, body } = createDocument();
+  const diagram = createNode("div");
+  diagram.className = "sitecraft-diagram";
+  const image = createNode("img");
+  image.setAttribute("data-sitecraft-benchmark", "hero-image");
+  image.hidden = true;
+  diagram.appendChild(image);
+  body.appendChild(diagram);
+
+  const withPhoto = structuredClone(defaultDraft);
+  withPhoto.industry = "外贸 B2B / 不锈钢流体接头目录";
+  withPhoto.products[0].image = {
+    imageId: "img_1234567890abcdef12345678",
+    url: "/api/sites/test/images/img_1234567890abcdef12345678",
+    alt: { zh: "接头", en: "Fitting" },
+  };
+  installOn(document, adapter).api.applyDeclaredContent(withPhoto, "zh", [], "published");
+  assert.equal(image.getAttribute("src"), "/api/sites/test/images/img_1234567890abcdef12345678");
+  assert.equal(image.hidden, false);
+  assert.equal(diagram.getAttribute("data-sitecraft-hero-mode"), "photo");
+
+  const noPhoto = structuredClone(defaultDraft);
+  noPhoto.industry = "外贸 B2B / 不锈钢流体接头目录";
+  noPhoto.products = noPhoto.products.map((product) => {
+    const next = { ...product };
+    delete next.image;
+    return next;
+  });
+  installOn(document, adapter).api.applyDeclaredContent(noPhoto, "zh", [], "published");
+  assert.equal(diagram.getAttribute("data-sitecraft-hero-schematic"), "fitting");
+  assert.equal(diagram.getAttribute("data-sitecraft-hero-mode"), "schematic");
+});

@@ -480,6 +480,70 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
     }
   }
 
+  function applyHeroVisual(draft, locale, applied) {
+    if (!document || !document.querySelector) return;
+    var diagram = uniqueNode(".sitecraft-diagram");
+    var heroImage = uniqueNode('[data-sitecraft-benchmark="hero-image"]');
+    if (!diagram && !heroImage) return;
+    var products = draft && Array.isArray(draft.products) ? draft.products : [];
+    var photo = null;
+    for (var i = 0; i < products.length; i++) {
+      var product = products[i];
+      if (product && product.image && typeof product.image.url === "string" && product.image.url) {
+        photo = product.image;
+        break;
+      }
+    }
+    if (photo && heroImage) {
+      if (heroImage.setAttribute) heroImage.setAttribute("src", photo.url);
+      if (heroImage.removeAttribute) heroImage.removeAttribute("hidden");
+      heroImage.hidden = false;
+      heroImage.src = photo.url;
+      heroImage.alt = localize(photo.alt, locale) || (locale === "en" ? "Product photo" : "产品图");
+      if (diagram) {
+        diagram.className = String(diagram.className || "").replace(/\bsitecraft-diagram-photo\b/g, "").trim() + " sitecraft-diagram-photo";
+        if (diagram.setAttribute) diagram.setAttribute("data-sitecraft-hero-mode", "photo");
+      }
+      applied.add("hero.image");
+      return;
+    }
+    if (heroImage) {
+      heroImage.hidden = true;
+      if (heroImage.setAttribute) heroImage.setAttribute("hidden", "");
+    }
+    if (!diagram) return;
+    diagram.className = String(diagram.className || "").replace(/\bsitecraft-diagram-photo\b/g, "").trim();
+    var schematic = "generic";
+    var rules = adapter && adapter.kit && adapter.kit.heroSchematics ? adapter.kit.heroSchematics : null;
+    if (rules) {
+      schematic = rules.default || "generic";
+      var industry = draft && typeof draft.industry === "string" ? draft.industry.toLowerCase() : "";
+      var list = Array.isArray(rules.rules) ? rules.rules : [];
+      for (var r = 0; r < list.length; r++) {
+        var rule = list[r];
+        if (!rule || !Array.isArray(rule.includes)) continue;
+        var hit = false;
+        for (var k = 0; k < rule.includes.length; k++) {
+          var needle = String(rule.includes[k] || "").toLowerCase();
+          if (needle && industry.indexOf(needle) !== -1) {
+            hit = true;
+            break;
+          }
+        }
+        if (hit && rule.schematic) {
+          schematic = rule.schematic;
+          break;
+        }
+      }
+    }
+    if (diagram.setAttribute) {
+      diagram.setAttribute("data-sitecraft-hero-mode", "schematic");
+      diagram.setAttribute("data-sitecraft-hero-schematic", schematic);
+    }
+    var label = locale === "en" ? "Schematic" : "示意";
+    if (diagram.setAttribute) diagram.setAttribute("aria-label", label);
+  }
+
   function applyFamilyKit(draft, applied, extraMissing) {
     var kit = adapter && adapter.kit;
     if (!kit || !kit.familyId) return;
@@ -901,6 +965,7 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
     if (adapter && draft) {
       applyDocumentTitle(draft);
       renderProductGrid(draft, currentLocale, applied);
+      applyHeroVisual(draft, currentLocale, applied);
       applyVisitorChrome(currentLocale, draft, variant || "preview");
       applyLocaleSwitch(currentLocale, offersVisitorEnglish === true, variant || "preview");
       var slots = adapter.slots || [];
