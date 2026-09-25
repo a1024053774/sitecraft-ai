@@ -90,6 +90,33 @@
         font-size: 13px;
         font-weight: 700;
       }
+      .sitecraft-locale-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        margin-left: 4px;
+        padding: 2px;
+        border: 1px solid var(--site-line);
+        border-radius: 2px;
+        background: var(--site-tint);
+      }
+      .sitecraft-locale-switch[hidden] { display: none !important; }
+      .sitecraft-locale-switch button {
+        min-width: 28px;
+        height: 24px;
+        border: 0;
+        border-radius: 1px;
+        background: transparent;
+        color: var(--site-muted);
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .sitecraft-locale-switch button.active {
+        background: var(--site-surface);
+        color: var(--site-ink);
+      }
 
       .sitecraft-hero {
         padding: 48px 0 56px;
@@ -838,6 +865,10 @@
             <a href="#certifications" data-sitecraft-ui="certifications">认证</a>
             <a href="#faq" data-sitecraft-ui="faq">常见问题</a>
             <a class="sitecraft-nav-cta" href="#inquiry" data-sitecraft-nav="contact">提交询盘</a>
+            <div class="sitecraft-locale-switch" data-sitecraft-locale-switch hidden>
+              <button type="button" data-sitecraft-locale="zh" data-sitecraft-ui="localeZh" aria-pressed="true">中</button>
+              <button type="button" data-sitecraft-locale="en" data-sitecraft-ui="localeEn" aria-pressed="false">EN</button>
+            </div>
           </nav>
         </div>
       </header>

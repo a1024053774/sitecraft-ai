@@ -19,6 +19,7 @@ type OpenSourceTemplateFrameProps = {
   variant?: FrameVariant;
   expectedTargets?: string[];
   pagePath?: string;
+  offersVisitorEnglish?: boolean;
   activePage?: {
     id: string;
     role: string;
@@ -33,6 +34,7 @@ type OpenSourceTemplateFrameProps = {
     message: string;
     honeypot: string;
   }) => void;
+  onLocaleChange?: (locale: Locale) => void;
   onSelectTarget?: (target: string, label: string, prompt: string) => void;
   onApplyReport?: (report: {
     revision: number;
@@ -70,8 +72,10 @@ export function OpenSourceTemplateFrame({
   variant = "preview",
   expectedTargets = [],
   pagePath = "",
+  offersVisitorEnglish = false,
   activePage,
   onInquiry,
+  onLocaleChange,
   onSelectTarget,
   onApplyReport,
   onLoadState,
@@ -86,8 +90,24 @@ export function OpenSourceTemplateFrame({
   loadStateRef.current = onLoadState;
   const bridgeWaitersRef = useRef<number[]>([]);
   const loadControllerRef = useRef<ReturnType<typeof createPreviewLoadController> | null>(null);
-  const contentRef = useRef({ templateId, draft, locale, expectedTargets, variant, activePage });
-  contentRef.current = { templateId, draft, locale, expectedTargets, variant, activePage };
+  const contentRef = useRef({
+    templateId,
+    draft,
+    locale,
+    expectedTargets,
+    variant,
+    activePage,
+    offersVisitorEnglish,
+  });
+  contentRef.current = {
+    templateId,
+    draft,
+    locale,
+    expectedTargets,
+    variant,
+    activePage,
+    offersVisitorEnglish,
+  };
 
   const clearBridgeWaiters = useCallback(() => {
     for (const timer of bridgeWaitersRef.current) window.clearTimeout(timer);
@@ -144,7 +164,7 @@ export function OpenSourceTemplateFrame({
     return () => {
       clearLoadController();
     };
-  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearLoadController, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, pagePath, reportLoadState, sendContent, templateId, variant]);
+  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearLoadController, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, offersVisitorEnglish, pagePath, reportLoadState, sendContent, templateId, variant]);
 
   useEffect(() => {
     if (variant !== "thumbnail") return;
@@ -178,6 +198,7 @@ export function OpenSourceTemplateFrame({
         type?: string;
         templateId?: string;
         target?: string;
+        locale?: Locale;
         payload?: {
           name?: string;
           email?: string;
@@ -200,6 +221,10 @@ export function OpenSourceTemplateFrame({
       }
       if (data?.type === "sitecraft:ready" && data.templateId === templateId) {
         sendContent();
+        return;
+      }
+      if (data?.type === "sitecraft:locale" && data.templateId === templateId && onLocaleChange) {
+        if (data.locale === "zh" || data.locale === "en") onLocaleChange(data.locale);
         return;
       }
       if (data?.type === "sitecraft:select" && data.target && onSelectTarget) {
@@ -231,7 +256,7 @@ export function OpenSourceTemplateFrame({
     };
     window.addEventListener("message", receiveMessage);
     return () => window.removeEventListener("message", receiveMessage);
-  }, [draft?.revision, onApplyReport, onInquiry, onSelectTarget, reportLoadState, sendContent, templateId]);
+  }, [draft?.revision, onApplyReport, onInquiry, onLocaleChange, onSelectTarget, reportLoadState, sendContent, templateId]);
 
   const previewQuery = new URLSearchParams({ v: PREVIEW_ASSET_REVISION });
   if (pagePath) previewQuery.set("pagePath", pagePath);

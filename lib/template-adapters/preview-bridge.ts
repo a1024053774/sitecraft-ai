@@ -721,8 +721,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function applyVisitorChrome(locale) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", schematic: "Schematic", footerNote: "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs.", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", schematic: "示意", footerNote: "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", schematic: "Schematic", footerNote: "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs.", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft", localeZh: "中", localeEn: "EN" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", schematic: "示意", footerNote: "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴", localeZh: "中", localeEn: "EN" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
@@ -733,7 +733,34 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
-  function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage) {
+  function applyLocaleSwitch(locale, offersVisitorEnglish, variant) {
+    if (!document || !document.querySelectorAll) return;
+    var switchers = asList(document.querySelectorAll("[data-sitecraft-locale-switch]"));
+    for (var i = 0; i < switchers.length; i++) {
+      var root = switchers[i];
+      var show = variant === "published" && offersVisitorEnglish === true;
+      if (root.hidden !== undefined) root.hidden = !show;
+      if (root.style && root.style.setProperty) {
+        if (!show) root.style.setProperty("display", "none", "important");
+        else if (root.style.removeProperty) root.style.removeProperty("display");
+      }
+      if (!show) continue;
+      var buttons = asList(root.querySelectorAll ? root.querySelectorAll("[data-sitecraft-locale]") : []);
+      for (var b = 0; b < buttons.length; b++) {
+        var button = buttons[b];
+        var value = button.getAttribute ? button.getAttribute("data-sitecraft-locale") : "";
+        var active = value === locale;
+        if (button.classList && button.classList.toggle) button.classList.toggle("active", active);
+        else if (button.setAttribute) {
+          var className = String(button.className || "").replace(/\bactive\b/g, "").trim();
+          button.className = active ? (className + " active").trim() : className;
+        }
+        if (button.setAttribute) button.setAttribute("aria-pressed", active ? "true" : "false");
+      }
+    }
+  }
+
+  function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage, offersVisitorEnglish) {
     var applied = new Set();
     var extraMissing = [];
     var currentLocale = locale || "zh";
@@ -749,6 +776,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
     if (adapter && draft) {
       applyVisitorChrome(currentLocale);
+      applyLocaleSwitch(currentLocale, offersVisitorEnglish === true, variant || "preview");
       applyDocumentTitle(draft);
       renderProductGrid(draft, currentLocale, applied);
       var slots = adapter.slots || [];
@@ -788,7 +816,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (event && event.source && event.source !== parent) return;
     if (!data || data.type !== "sitecraft:content" || data.templateId !== templateId) return;
     var run = function () {
-      var reportPayload = applyDeclaredContent(data.draft, data.locale, data.expectedTargets, data.variant, data.activePage);
+      var reportPayload = applyDeclaredContent(
+        data.draft,
+        data.locale,
+        data.expectedTargets,
+        data.variant,
+        data.activePage,
+        data.offersVisitorEnglish
+      );
       if (parent && parent.postMessage) {
         parent.postMessage({
           type: "sitecraft:applied",
@@ -842,11 +877,22 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   function onClick(event) {
+    var rawTarget = event && event.target;
+    var localeButton = rawTarget && rawTarget.closest ? rawTarget.closest("[data-sitecraft-locale]") : null;
+    if (localeButton) {
+      var nextLocale = localeButton.getAttribute ? localeButton.getAttribute("data-sitecraft-locale") : "";
+      if ((nextLocale === "zh" || nextLocale === "en") && parent && parent.postMessage) {
+        if (event.preventDefault) event.preventDefault();
+        if (event.stopPropagation) event.stopPropagation();
+        parent.postMessage({ type: "sitecraft:locale", templateId: templateId, locale: nextLocale }, "*");
+      }
+      return;
+    }
     var variant = document.documentElement && document.documentElement.dataset
       ? document.documentElement.dataset.sitecraftVariant
       : "";
     if (variant === "published") return;
-    var rawTarget = event && event.target;
+    if (!rawTarget) return;
     var node = rawTarget && rawTarget.closest ? rawTarget.closest("[data-sitecraft-slot]") : null;
     if (!node) return;
     if (event.preventDefault) event.preventDefault();
