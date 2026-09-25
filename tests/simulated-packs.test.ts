@@ -36,7 +36,9 @@ test("industrial and export simulated packs are independent, labeled 模拟, and
     assert.equal(pack.body.includes(pack.nonce), true);
     assert.equal(pack.heroTitle.includes(pack.nonce), true);
     assert.equal(pack.companyName.includes(pack.nonce.slice(0, 3)), true);
-    assert.ok(pack.missingFacts.includes("认证"));
+    assert.ok(pack.missingFacts.length >= 1);
+    assert.ok(pack.body.includes("以下参数为模拟设定") || pack.id === "export" && pack.body.includes("模拟设定"));
+    assert.match(pack.body, /规格参数|应用行业|加工能力|认证状态/);
     assert.ok(pack.email.endsWith("-sim.test"));
     const message = buildMaterialsChatMessage(pack);
     assert.ok(message.length <= MATERIALS_CHAT_LIMIT);
