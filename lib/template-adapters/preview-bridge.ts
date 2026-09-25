@@ -482,7 +482,7 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
 
   function applyHeroVisual(draft, locale, applied) {
     if (!document || !document.querySelector) return;
-    var diagram = uniqueNode(".sitecraft-diagram");
+    var diagram = uniqueNode("[data-sitecraft-hero-visual]");
     var heroImage = uniqueNode('[data-sitecraft-benchmark="hero-image"]');
     if (!diagram && !heroImage) return;
     var products = draft && Array.isArray(draft.products) ? draft.products : [];

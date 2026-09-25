@@ -285,6 +285,7 @@ test("screwfast hero uses first product photo or industry schematic from adapter
   const { document, body } = createDocument();
   const diagram = createNode("div");
   diagram.className = "sitecraft-diagram";
+  diagram.setAttribute("data-sitecraft-hero-visual", "");
   const image = createNode("img");
   image.setAttribute("data-sitecraft-benchmark", "hero-image");
   image.hidden = true;
