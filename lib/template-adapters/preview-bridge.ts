@@ -103,6 +103,20 @@ function sitecraftPreviewBridge(templateId, adapter) {
         }
       }
     }
+    var catalogMatch = /^(industries|capabilities|certifications)\.(title|intro)$/.exec(target);
+    if (catalogMatch) {
+      var catalog = content[catalogMatch[1]] || {};
+      return localize(catalog[catalogMatch[2]], locale);
+    }
+    var catalogItemMatch = /^(industries|capabilities|certifications)\.items\.(\d+)\.(title|body|status)$/.exec(target);
+    if (catalogItemMatch) {
+      var catalogSection = content[catalogItemMatch[1]] || {};
+      var catalogItems = catalogSection.items || [];
+      var catalogItem = catalogItems[Number(catalogItemMatch[2])];
+      if (!catalogItem) return undefined;
+      if (catalogItemMatch[3] === "status") return catalogItem.status;
+      return localize(catalogItem[catalogItemMatch[3]], locale);
+    }
     return undefined;
   }
 
@@ -146,12 +160,24 @@ function sitecraftPreviewBridge(templateId, adapter) {
         image.setAttribute("data-sitecraft-slot", "products." + sku + ".image");
         card.appendChild(image);
         applied.add("products." + sku + ".image");
-      } else if (hasProductImage) {
+      } else {
         var placeholder = document.createElement("div");
-        placeholder.className = "sitecraft-product-image-placeholder";
-        placeholder.textContent = locale === "en" ? "Product photo to be completed" : "产品图待补充";
-        placeholder.setAttribute("aria-label", placeholder.textContent);
+        placeholder.className = "sitecraft-product-image-placeholder sitecraft-product-schematic";
+        placeholder.setAttribute("role", "img");
+        placeholder.setAttribute("aria-label", locale === "en" ? "Schematic" : "示意");
+        var schematicMark = document.createElement("span");
+        schematicMark.className = "sitecraft-product-schematic-mark";
+        schematicMark.setAttribute("aria-hidden", "true");
+        var schematicLabel = document.createElement("span");
+        schematicLabel.className = "sitecraft-product-schematic-label";
+        schematicLabel.textContent = locale === "en" ? "Schematic" : "示意";
+        placeholder.appendChild(schematicMark);
+        placeholder.appendChild(schematicLabel);
         card.appendChild(placeholder);
+        if (hasProductImage) {
+          // Keep prior missing-photo marker when the catalog already has at least one real photo.
+          placeholder.className += " sitecraft-product-image-missing";
+        }
       }
       var category = document.createElement("p");
       category.className = "sitecraft-product-category";
@@ -168,10 +194,98 @@ function sitecraftPreviewBridge(templateId, adapter) {
       card.appendChild(category);
       card.appendChild(title);
       card.appendChild(summary);
+      var specs = Array.isArray(product.specs) ? product.specs : [];
+      var visibleSpecs = [];
+      for (var s = 0; s < specs.length; s++) {
+        var specItem = specs[s];
+        if (!specItem) continue;
+        var specName = localize(specItem.name, locale) || "";
+        var specValue = typeof specItem.value === "string" ? specItem.value : "";
+        if (isGapMarker(specName) && isGapMarker(specValue)) continue;
+        visibleSpecs.push({ name: specName, value: specValue });
+      }
+      if (visibleSpecs.length) {
+        var table = document.createElement("table");
+        table.className = "sitecraft-product-specs";
+        table.setAttribute("data-sitecraft-slot", "products." + sku + ".specs");
+        var tbody = document.createElement("tbody");
+        for (var si = 0; si < visibleSpecs.length; si++) {
+          var row = document.createElement("tr");
+          var th = document.createElement("th");
+          th.scope = "row";
+          th.textContent = visibleSpecs[si].name || (locale === "en" ? "Parameter" : "参数");
+          var td = document.createElement("td");
+          td.textContent = visibleSpecs[si].value || (locale === "en" ? "To be provided" : "待补充");
+          row.appendChild(th);
+          row.appendChild(td);
+          tbody.appendChild(row);
+        }
+        table.appendChild(tbody);
+        card.appendChild(table);
+        applied.add("products." + sku + ".specs");
+      }
       grid.appendChild(card);
       applied.add("products." + sku + ".category");
       applied.add("products." + sku + ".name." + locale);
       applied.add("products." + sku + ".summary." + locale);
+    }
+  }
+
+  function renderCatalogSections(draft, locale, applied) {
+    var keys = ["industries", "capabilities", "certifications"];
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      var sectionNode = uniqueNode('[data-sitecraft-section="' + key + '"]');
+      var grid = uniqueNode('[data-sitecraft-catalog-grid="' + key + '"]');
+      if (!sectionNode && !grid) continue;
+      var section = draft && draft.content ? draft.content[key] : null;
+      var items = section && Array.isArray(section.items) ? section.items : [];
+      var visibleItems = [];
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (!item) continue;
+        var title = localize(item.title, locale) || "";
+        var body = localize(item.body, locale) || "";
+        if (isGapMarker(title) && isGapMarker(body)) continue;
+        visibleItems.push({
+          index: i,
+          id: item.id,
+          title: title,
+          body: body,
+          status: typeof item.status === "string" ? item.status : "",
+        });
+      }
+      var draftHidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf(key) !== -1;
+      var shouldHide = draftHidden || !section || !visibleItems.length;
+      if (sectionNode) setSectionHidden(sectionNode, key, shouldHide);
+      if (!grid || shouldHide) continue;
+      grid.textContent = "";
+      applied.add(key);
+      for (var v = 0; v < visibleItems.length; v++) {
+        var visible = visibleItems[v];
+        var card = document.createElement("article");
+        card.className = "sitecraft-catalog-card";
+        if (visible.id) card.setAttribute("data-sitecraft-catalog-item", String(visible.id));
+        var heading = document.createElement("h3");
+        heading.textContent = visible.title || (locale === "en" ? "To be provided" : "待补充");
+        heading.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".title." + locale);
+        var copy = document.createElement("p");
+        copy.textContent = visible.body || (locale === "en" ? "To be provided" : "待补充");
+        copy.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".body." + locale);
+        card.appendChild(heading);
+        if (key === "certifications" && visible.status) {
+          var status = document.createElement("p");
+          status.className = "sitecraft-cert-status";
+          status.textContent = visible.status;
+          status.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".status");
+          card.appendChild(status);
+        }
+        card.appendChild(copy);
+        grid.appendChild(card);
+        applied.add(key + ".items." + visible.index + ".title." + locale);
+        applied.add(key + ".items." + visible.index + ".body." + locale);
+        if (key === "certifications" && visible.status) applied.add(key + ".items." + visible.index + ".status");
+      }
     }
   }
 
@@ -188,6 +302,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (base === "products" || base.indexOf("products.") === 0) return "products";
     if (base === "contact" || base.indexOf("contact.") === 0) return "contact";
     if (base === "faq" || base.indexOf("faq.") === 0) return "faq";
+    if (base === "industries" || base.indexOf("industries.") === 0) return "industries";
+    if (base === "capabilities" || base.indexOf("capabilities.") === 0) return "capabilities";
+    if (base === "certifications" || base.indexOf("certifications.") === 0) return "certifications";
     return null;
   }
 
@@ -595,8 +712,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function applyVisitorChrome(locale) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", submit: "Send inquiry", schematic: "Schematic", footerNote: "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs.", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", submit: "发送询盘", schematic: "示意", footerNote: "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", schematic: "Schematic", footerNote: "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs.", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", schematic: "示意", footerNote: "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
@@ -637,6 +754,16 @@ function sitecraftPreviewBridge(templateId, adapter) {
       applyDocumentTitle(draft);
       applySectionVisibility(draft, applied);
       collapseUnprovidedEntries(draft, currentLocale);
+      renderCatalogSections(draft, currentLocale, applied);
+      syncHiddenNavigation((function () {
+        var hiddenKeys = [];
+        var hiddenNodes = document.querySelectorAll("[data-sitecraft-section-hidden='true']");
+        for (var h = 0; h < hiddenNodes.length; h++) {
+          var hiddenKey = hiddenNodes[h].getAttribute && hiddenNodes[h].getAttribute("data-sitecraft-section");
+          if (hiddenKey) hiddenKeys.push(hiddenKey);
+        }
+        return hiddenKeys;
+      })());
       applyDemoChrome(applied, extraMissing);
       applyFamilyKit(draft, applied, extraMissing);
       applyActivePage(draft, activePage);

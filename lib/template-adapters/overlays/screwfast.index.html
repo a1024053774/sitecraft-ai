@@ -450,6 +450,99 @@
         font-size: 13px;
         border-top: 0;
       }
+      .sitecraft-product-specs {
+        grid-column: 1 / -1;
+        width: 100%;
+        margin: 4px 0 0;
+        border-collapse: collapse;
+        border: 1px solid var(--site-line);
+        background: var(--site-surface);
+        font-size: 12px;
+      }
+      .sitecraft-product-specs th,
+      .sitecraft-product-specs td {
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--site-line);
+        text-align: left;
+        vertical-align: top;
+      }
+      .sitecraft-product-specs tr:last-child th,
+      .sitecraft-product-specs tr:last-child td { border-bottom: 0; }
+      .sitecraft-product-specs th {
+        width: 38%;
+        color: var(--site-muted);
+        font-weight: 600;
+        background: var(--site-tint);
+      }
+      .sitecraft-product-specs td {
+        color: var(--site-text);
+        font-variant-numeric: tabular-nums;
+      }
+      .sitecraft-product-schematic {
+        display: grid;
+        place-items: center;
+        gap: 4px;
+        position: relative;
+        overflow: hidden;
+      }
+      .sitecraft-product-schematic-mark {
+        display: block;
+        width: 42px;
+        height: 28px;
+        border: 1.5px solid var(--site-accent-strong);
+        border-radius: 2px;
+        background:
+          linear-gradient(90deg, transparent 46%, var(--site-accent-strong) 46%, var(--site-accent-strong) 54%, transparent 54%),
+          color-mix(in srgb, var(--site-diagram) 80%, var(--site-accent-soft));
+        opacity: .85;
+      }
+      .sitecraft-product-schematic-label {
+        font-size: 10px;
+        letter-spacing: .08em;
+        color: var(--site-muted);
+      }
+      .sitecraft-catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1px;
+        border: 1px solid var(--site-line);
+        background: var(--site-line);
+      }
+      .sitecraft-catalog-card {
+        margin: 0;
+        padding: 18px 16px;
+        background: var(--site-surface);
+        min-height: 0;
+      }
+      .sitecraft-catalog-card h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -.01em;
+        line-height: 1.35;
+      }
+      .sitecraft-catalog-card > p {
+        margin: 0;
+        color: var(--site-muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .sitecraft-cert-status {
+        margin: 0 0 8px !important;
+        color: var(--site-accent-strong) !important;
+        font-size: 12px !important;
+        font-weight: 700;
+        letter-spacing: .04em;
+      }
+      .sitecraft-cert-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      @media (max-width: 900px) {
+        .sitecraft-catalog-grid,
+        .sitecraft-cert-grid {
+          grid-template-columns: 1fr;
+        }
+      }
 
       .sitecraft-process {
         display: grid;
@@ -731,7 +824,10 @@
           </a>
           <nav class="sitecraft-nav-links" aria-label="主导航">
             <a href="#products" data-sitecraft-nav="products">产品</a>
+            <a href="#industries" data-sitecraft-ui="industries">应用行业</a>
+            <a href="#capabilities" data-sitecraft-ui="capabilities">加工能力</a>
             <a href="#process" data-sitecraft-nav="services">加工方式</a>
+            <a href="#certifications" data-sitecraft-ui="certifications">认证</a>
             <a href="#faq" data-sitecraft-ui="faq">常见问题</a>
             <a class="sitecraft-nav-cta" href="#inquiry" data-sitecraft-nav="contact">提交询盘</a>
           </nav>
@@ -786,11 +882,37 @@
           </div>
         </section>
 
+        <section id="industries" class="sitecraft-section" data-sitecraft-section="industries">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head">
+              <div>
+                <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>02</span> <span data-sitecraft-ui="industries">应用行业</span></p>
+                <h2 data-sitecraft-benchmark="industries-title">应用行业</h2>
+              </div>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="industries-intro">资料确认的工况入口，未写明的行业不展示。</p>
+            </div>
+            <div class="sitecraft-catalog-grid" data-sitecraft-catalog-grid="industries"></div>
+          </div>
+        </section>
+
+        <section id="capabilities" class="sitecraft-section" data-sitecraft-section="capabilities">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head">
+              <div>
+                <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>03</span> <span data-sitecraft-ui="capabilities">加工能力</span></p>
+                <h2 data-sitecraft-benchmark="capabilities-title">加工能力与主设备</h2>
+              </div>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="capabilities-intro">只列资料给出的工序或设备，不补假产能。</p>
+            </div>
+            <div class="sitecraft-catalog-grid" data-sitecraft-catalog-grid="capabilities"></div>
+          </div>
+        </section>
+
         <section id="process" class="sitecraft-section" data-sitecraft-section="services">
           <div class="sitecraft-container">
             <div class="sitecraft-section-head">
               <div>
-                <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>02</span> <span data-sitecraft-ui="services">合作方式</span></p>
+                <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>04</span> <span data-sitecraft-ui="services">合作方式</span></p>
                 <h2 data-sitecraft-benchmark="services-title">从图纸到批量询盘</h2>
               </div>
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="services-intro">加工方式与产品类别分开说明，让采购知道下一步需要提供什么。</p>
@@ -800,6 +922,19 @@
               <article class="sitecraft-process-card"><span class="sitecraft-process-number">02</span><h3 data-sitecraft-benchmark="services-item-1-title">规格评审</h3><p data-sitecraft-benchmark="services-item-1-body">按批量需求确认产品类别、关键尺寸和交期边界。</p></article>
               <article class="sitecraft-process-card"><span class="sitecraft-process-number">03</span><h3 data-sitecraft-benchmark="services-item-2-title">批量询盘</h3><p data-sitecraft-benchmark="services-item-2-body">当前只支持批量规格询盘；现场安装和认证信息如未提供则待补充。</p></article>
             </div>
+          </div>
+        </section>
+
+        <section id="certifications" class="sitecraft-section" data-sitecraft-section="certifications">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head">
+              <div>
+                <p class="sitecraft-section-kicker"><span data-sitecraft-section-index>05</span> <span data-sitecraft-ui="certifications">认证状态</span></p>
+                <h2 data-sitecraft-benchmark="certifications-title">认证状态</h2>
+              </div>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="certifications-intro">已有或待补充；认证中写在条目说明里。</p>
+            </div>
+            <div class="sitecraft-catalog-grid sitecraft-cert-grid" data-sitecraft-catalog-grid="certifications"></div>
           </div>
         </section>
 

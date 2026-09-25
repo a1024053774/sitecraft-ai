@@ -1564,8 +1564,8 @@ test("screwfast benchmark renders only authored product categories into the prod
   assert.equal(grid.children.length, 2);
   assert.equal(grid.children[0].children[0].tagName, "IMG");
   assert.equal(grid.children[0].children[0].getAttribute("src"), "/api/sites/test/images/img_1234567890abcdef12345678");
-  assert.equal(grid.children[1].children[0].className, "sitecraft-product-image-placeholder");
-  assert.equal(grid.children[1].children[0].textContent, "产品图待补充");
+  assert.equal(grid.children[1].children[0].className.includes("sitecraft-product-image-placeholder"), true);
+  assert.equal(grid.children[1].children[0].textContent.includes("示意"), true);
   assert.equal(visibleText(grid).includes("直角减速机"), true);
   assert.equal(visibleText(grid).includes("行星减速机"), true);
   assert.ok(report.appliedSlots.includes("products.FM-2401.name.zh"));
