@@ -1,4 +1,5 @@
 import type { SlotApplyReport, TemplateAdapter } from "./types.ts";
+import { DEFAULT_DRAFT_SENTINEL } from "../draft-sentinel.ts";
 
 export const PREVIEW_BRIDGE_NONCE = "sitecraft-template-bridge";
 
@@ -7,10 +8,11 @@ export const PREVIEW_BRIDGE_NONCE = "sitecraft-template-bridge";
  * into the preview document and also executed by tests.
  */
 export const PREVIEW_BRIDGE_SOURCE = String.raw`
-function sitecraftPreviewBridge(templateId, adapter) {
+function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
   var global = this || (typeof window !== "undefined" ? window : globalThis);
   var document = global.document;
   var parent = global.parent || global;
+  var sentinel = defaultSentinel || null;
 
   function asList(result) {
     return Array.prototype.slice.call(result || []);
@@ -317,7 +319,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return null;
   }
 
-  function writeSlot(node, slot, value, locale, applied) {
+  function writeSlot(node, slot, value, locale, applied, variant) {
     if (!node) return false;
     var appliedKey = slot.attr === "src" ? slot.target : slot.target + "." + locale;
     if (slot.attr === "src") {
@@ -336,18 +338,27 @@ function sitecraftPreviewBridge(templateId, adapter) {
       else node.src = value;
     } else {
       if (typeof value !== "string") return false;
+      var nextValue = value;
+      if (variant === "published" && slot.target === "products.intro") {
+        nextValue = stripSimulationLabel(nextValue, locale);
+      }
+      if (variant === "published" && isDefaultSentinelValue(slot.target, nextValue, locale)) {
+        node.textContent = "";
+        hideSlotEntry(node);
+        return false;
+      }
       var optional = node.getAttribute && node.getAttribute("data-sitecraft-optional");
-      var trimmed = value.trim();
+      var trimmed = nextValue.trim();
       if (optional && (!trimmed || trimmed === "待补充" || trimmed === "To be provided")) {
         node.textContent = "";
         node.hidden = true;
         return false;
       }
       if (optional) node.hidden = false;
-      node.textContent = value;
+      node.textContent = nextValue;
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";
-        if (/^mailto:/i.test(href)) node.setAttribute("href", "mailto:" + value);
+        if (/^mailto:/i.test(href)) node.setAttribute("href", "mailto:" + nextValue);
       }
     }
     if (node.dataset) node.dataset.sitecraftSlot = appliedKey;
@@ -632,7 +643,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   function isGapMarker(value) {
     var text = String(value || "").trim();
-    return !text || text === "待补充" || text === "To be provided";
+    return !text || text === "待补充" || text === "To be provided" || text === "To be completed";
   }
 
   function setEntryHidden(node, hidden) {
@@ -645,61 +656,147 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
-  function collapseUnprovidedEntries(draft, locale) {
+  function readSentinelLocalized(node, locale) {
+    if (!node || typeof node !== "object") return undefined;
+    if (typeof node[locale] === "string") return node[locale];
+    return undefined;
+  }
+
+  function sentinelValueFor(target, locale) {
+    if (!sentinel || !sentinel.content) return undefined;
+    var content = sentinel.content;
+    if (target === "hero.title") return readSentinelLocalized(content.hero && content.hero.title, locale);
+    if (target === "hero.subtitle") return readSentinelLocalized(content.hero && content.hero.subtitle, locale);
+    if (target === "hero.cta") return readSentinelLocalized(content.hero && content.hero.cta, locale);
+    if (target === "about.title") return readSentinelLocalized(content.about && content.about.title, locale);
+    if (target === "about.body") return readSentinelLocalized(content.about && content.about.body, locale);
+    if (target === "features.title") return readSentinelLocalized(content.features && content.features.title, locale);
+    if (target === "features.intro") return readSentinelLocalized(content.features && content.features.intro, locale);
+    if (target === "services.title") return readSentinelLocalized(content.services && content.services.title, locale);
+    if (target === "services.intro") return readSentinelLocalized(content.services && content.services.intro, locale);
+    if (target === "products.title") return readSentinelLocalized(content.products && content.products.title, locale);
+    if (target === "products.intro") return readSentinelLocalized(content.products && content.products.intro, locale);
+    if (target === "contact.title") return readSentinelLocalized(content.contact && content.contact.title, locale);
+    if (target === "contact.body") return readSentinelLocalized(content.contact && content.contact.body, locale);
+    if (target === "contact.address") return readSentinelLocalized(content.contact && content.contact.address, locale);
+    if (target === "faq.title") return readSentinelLocalized(content.faq && content.faq.title, locale);
+    if (target === "faq.intro") return readSentinelLocalized(content.faq && content.faq.intro, locale);
+    var featureMatch = /^features\.items\.(\d+)\.(title|body)$/.exec(target);
+    if (featureMatch && content.features && Array.isArray(content.features.items)) {
+      var feature = content.features.items[Number(featureMatch[1])];
+      return feature ? readSentinelLocalized(feature[featureMatch[2]], locale) : undefined;
+    }
+    var serviceMatch = /^services\.items\.(\d+)\.(title|body)$/.exec(target);
+    if (serviceMatch && content.services && Array.isArray(content.services.items)) {
+      var service = content.services.items[Number(serviceMatch[1])];
+      return service ? readSentinelLocalized(service[serviceMatch[2]], locale) : undefined;
+    }
+    var faqMatch = /^faq\.items\.(\d+)\.(title|body)$/.exec(target);
+    if (faqMatch && content.faq && Array.isArray(content.faq.items)) {
+      var faq = content.faq.items[Number(faqMatch[1])];
+      return faq ? readSentinelLocalized(faq[faqMatch[2]], locale) : undefined;
+    }
+    return undefined;
+  }
+
+  function isDefaultSentinelValue(target, value, locale) {
+    if (typeof value !== "string") return false;
+    var expected = sentinelValueFor(target, locale);
+    if (expected == null) return false;
+    return value.trim() === String(expected).trim();
+  }
+
+  function stripSimulationLabel(text, locale) {
+    if (typeof text !== "string") return text;
+    if (locale === "en") {
+      return text
+        .replace(/\s*The following parameters are simulated settings\.?/gi, "")
+        .replace(/\s*以下参数为模拟设定。?/g, "")
+        .trim();
+    }
+    return text.replace(/\s*以下参数为模拟设定。?/g, "").trim();
+  }
+
+  function hideSlotEntry(node) {
+    if (!node) return;
+    var entry = node.closest ? node.closest("article") : null;
+    setEntryHidden(entry || node, true);
+  }
+
+  function collapseUnprovidedEntries(draft, locale, variant) {
     if (!document || !adapter) return;
     var slots = adapter.slots || [];
-    var byIndex = {};
-    for (var s = 0; s < slots.length; s++) {
-      var slot = slots[s];
-      if (!slot || !slot.target || !slot.selector) continue;
-      var match = /^faq\.items\.(\d+)\.(title|body)$/.exec(slot.target);
-      if (!match) continue;
-      var index = match[1];
-      if (!byIndex[index]) byIndex[index] = {};
-      byIndex[index][match[2]] = slot;
-    }
-    var indexes = Object.keys(byIndex);
-    if (!indexes.length) return;
+    var groups = ["faq", "features", "services"];
+    for (var g = 0; g < groups.length; g++) {
+      var group = groups[g];
+      var byIndex = {};
+      for (var s = 0; s < slots.length; s++) {
+        var slot = slots[s];
+        if (!slot || !slot.target || !slot.selector) continue;
+        var match = new RegExp("^" + group + "\\.items\\.(\\d+)\\.(title|body)$").exec(slot.target);
+        if (!match) continue;
+        var index = match[1];
+        if (!byIndex[index]) byIndex[index] = {};
+        byIndex[index][match[2]] = slot;
+      }
+      var indexes = Object.keys(byIndex);
+      if (!indexes.length) continue;
 
-    var sectionSpec = null;
-    var sectionList = adapter.sections || [];
-    for (var sec = 0; sec < sectionList.length; sec++) {
-      if (sectionList[sec] && sectionList[sec].key === "faq") {
-        sectionSpec = sectionList[sec];
-        break;
+      var sectionSpec = null;
+      var sectionList = adapter.sections || [];
+      for (var sec = 0; sec < sectionList.length; sec++) {
+        if (sectionList[sec] && sectionList[sec].key === group) {
+          sectionSpec = sectionList[sec];
+          break;
+        }
+      }
+      var sectionNode = sectionSpec ? visibilityNode(sectionSpec) : null;
+      var anyVisible = false;
+      var sawEntry = false;
+      var draftHidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf(group) !== -1;
+
+      for (var i = 0; i < indexes.length; i++) {
+        var parts = byIndex[indexes[i]];
+        var titleSlot = parts.title;
+        var bodySlot = parts.body;
+        if (!titleSlot || !bodySlot) continue;
+        var titleValue = readDraftValue(draft, titleSlot.target, locale);
+        var bodyValue = readDraftValue(draft, bodySlot.target, locale);
+        var titleNode = uniqueNode(titleSlot.selector);
+        var bodyNode = uniqueNode(bodySlot.selector);
+        if (!titleNode && !bodyNode) continue;
+        sawEntry = true;
+        var entry = null;
+        if (titleNode && titleNode.closest) entry = titleNode.closest("article");
+        if (!entry && bodyNode && bodyNode.closest) entry = bodyNode.closest("article");
+        if (!entry) entry = titleNode || bodyNode;
+        if (!sectionNode && entry && entry.closest) sectionNode = entry.closest("section");
+        var unprovided = (isGapMarker(titleValue) && isGapMarker(bodyValue))
+          || (variant === "published"
+            && isDefaultSentinelValue(titleSlot.target, titleValue, locale)
+            && isDefaultSentinelValue(bodySlot.target, bodyValue, locale));
+        if (unprovided) {
+          setEntryHidden(entry, true);
+          if (titleNode) titleNode.textContent = "";
+          if (bodyNode) bodyNode.textContent = "";
+        } else {
+          setEntryHidden(entry, false);
+          anyVisible = true;
+        }
+      }
+
+      if (sectionNode && !draftHidden && sawEntry) {
+        setSectionHidden(sectionNode, group, !anyVisible);
       }
     }
-    var sectionNode = sectionSpec ? visibilityNode(sectionSpec) : null;
-    var anyVisible = false;
-    var sawEntry = false;
-    var draftHidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf("faq") !== -1;
 
-    for (var i = 0; i < indexes.length; i++) {
-      var parts = byIndex[indexes[i]];
-      var titleSlot = parts.title;
-      var bodySlot = parts.body;
-      if (!titleSlot || !bodySlot) continue;
-      var titleValue = readDraftValue(draft, titleSlot.target, locale);
-      var bodyValue = readDraftValue(draft, bodySlot.target, locale);
-      var titleNode = uniqueNode(titleSlot.selector);
-      var bodyNode = uniqueNode(bodySlot.selector);
-      if (!titleNode && !bodyNode) continue;
-      sawEntry = true;
-      var entry = null;
-      if (titleNode && titleNode.closest) entry = titleNode.closest("article");
-      if (!entry && bodyNode && bodyNode.closest) entry = bodyNode.closest("article");
-      if (!entry) entry = titleNode || bodyNode;
-      if (!sectionNode && entry && entry.closest) sectionNode = entry.closest("section");
-      if (isGapMarker(titleValue) && isGapMarker(bodyValue)) {
-        setEntryHidden(entry, true);
-      } else {
-        setEntryHidden(entry, false);
-        anyVisible = true;
+    if (variant === "published") {
+      var contactTitle = readDraftValue(draft, "contact.title", locale);
+      var contactBody = readDraftValue(draft, "contact.body", locale);
+      if (isDefaultSentinelValue("contact.title", contactTitle, locale) && isDefaultSentinelValue("contact.body", contactBody, locale)) {
+        var contactSection = uniqueNode('[data-sitecraft-section="contact"]');
+        if (contactSection) setSectionHidden(contactSection, "contact", true);
       }
-    }
-
-    if (sectionNode && !draftHidden && sawEntry) {
-      setSectionHidden(sectionNode, "faq", !anyVisible);
     }
 
     var hiddenKeys = [];
@@ -711,6 +808,20 @@ function sitecraftPreviewBridge(templateId, adapter) {
     syncHiddenNavigation(hiddenKeys);
   }
 
+  function clearUnprovidedCatalogChrome(draft, variant) {
+    if (variant !== "published" || !document) return;
+    var keys = ["industries", "capabilities", "certifications"];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var section = draft && draft.content ? draft.content[key] : null;
+      if (section) continue;
+      var intro = uniqueNode('[data-sitecraft-benchmark="' + key + '-intro"]');
+      var title = uniqueNode('[data-sitecraft-benchmark="' + key + '-title"]');
+      if (intro) intro.textContent = "";
+      if (title) title.textContent = "";
+    }
+  }
+
   function applyDocumentTitle(draft) {
     if (!document) return;
     var name = draft && typeof draft.companyName === "string" ? draft.companyName.trim() : "";
@@ -718,11 +829,23 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (name) document.title = name;
   }
 
-  function applyVisitorChrome(locale) {
+  function applyVisitorChrome(locale, draft, variant) {
     if (!document || !document.querySelectorAll) return;
+    var hasSchematic = false;
+    if (document.querySelector) {
+      hasSchematic = Boolean(
+        document.querySelector(".sitecraft-product-schematic")
+        || document.querySelector(".sitecraft-diagram:not([hidden])")
+      );
+    }
+    var products = draft && Array.isArray(draft.products) ? draft.products : [];
+    var hasProductPhoto = products.some(function (product) {
+      return product && product.image && typeof product.image.url === "string" && product.image.url;
+    });
+    var showSchematicNote = hasSchematic || (!hasProductPhoto && products.length > 0);
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", schematic: "Schematic", footerNote: "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs.", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft", localeZh: "中", localeEn: "EN" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", schematic: "示意", footerNote: "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴", localeZh: "中", localeEn: "EN" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", schematic: "Schematic", footerNote: showSchematicNote ? "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs." : "Lead times are confirmed by inquiry.", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft", localeZh: "中", localeEn: "EN" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", schematic: "示意", footerNote: showSchematicNote ? "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。" : "规格与交期以询盘确认为准。", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴", localeZh: "中", localeEn: "EN" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
@@ -731,6 +854,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (node.querySelector && node.querySelector("input,textarea,select")) setLeadingText(node, copy[key]);
       else node.textContent = copy[key];
     }
+    void variant;
   }
 
   function applyLocaleSwitch(locale, offersVisitorEnglish, variant) {
@@ -775,10 +899,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
     }
     if (adapter && draft) {
-      applyVisitorChrome(currentLocale);
-      applyLocaleSwitch(currentLocale, offersVisitorEnglish === true, variant || "preview");
       applyDocumentTitle(draft);
       renderProductGrid(draft, currentLocale, applied);
+      applyVisitorChrome(currentLocale, draft, variant || "preview");
+      applyLocaleSwitch(currentLocale, offersVisitorEnglish === true, variant || "preview");
       var slots = adapter.slots || [];
       for (var s = 0; s < slots.length; s++) {
         var slot = slots[s];
@@ -786,12 +910,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var value = readDraftValue(draft, slot.target, currentLocale);
         var node = uniqueNode(slot.selector);
         if (!node) continue;
-        writeSlot(node, slot, value, currentLocale, applied);
+        writeSlot(node, slot, value, currentLocale, applied, variant || "preview");
       }
       applyDocumentTitle(draft);
       applySectionVisibility(draft, applied);
-      collapseUnprovidedEntries(draft, currentLocale);
+      collapseUnprovidedEntries(draft, currentLocale, variant || "preview");
       renderCatalogSections(draft, currentLocale, applied);
+      clearUnprovidedCatalogChrome(draft, variant || "preview");
       syncHiddenNavigation((function () {
         var hiddenKeys = [];
         var hiddenNodes = document.querySelectorAll("[data-sitecraft-section-hidden='true']");
@@ -925,7 +1050,7 @@ export function buildPreviewBridgeScript(
   adapter: TemplateAdapter | null,
   nonce = PREVIEW_BRIDGE_NONCE,
 ) {
-  return `<script nonce="${nonce}">(${PREVIEW_BRIDGE_SOURCE}).call(window, ${JSON.stringify(templateId)}, ${JSON.stringify(adapter)});</script>`;
+  return `<script nonce="${nonce}">(${PREVIEW_BRIDGE_SOURCE}).call(window, ${JSON.stringify(templateId)}, ${JSON.stringify(adapter)}, ${JSON.stringify(DEFAULT_DRAFT_SENTINEL)});</script>`;
 }
 
 export function installPreviewBridge(
@@ -937,15 +1062,17 @@ export function installPreviewBridge(
     "globalObject",
     "templateId",
     "adapter",
-    `${PREVIEW_BRIDGE_SOURCE}\nreturn sitecraftPreviewBridge.call(globalObject, templateId, adapter);`,
+    "defaultSentinel",
+    `${PREVIEW_BRIDGE_SOURCE}\nreturn sitecraftPreviewBridge.call(globalObject, templateId, adapter, defaultSentinel);`,
   );
-  return runner(globalObject, templateId, adapter) as {
+  return runner(globalObject, templateId, adapter, DEFAULT_DRAFT_SENTINEL) as {
     applyDeclaredContent: (
       draft: unknown,
       locale: string,
       expectedTargets?: string[],
       variant?: string,
       activePage?: { id?: string; role?: string; placement?: string; section?: string },
+      offersVisitorEnglish?: boolean,
     ) => SlotApplyReport;
   };
 }
