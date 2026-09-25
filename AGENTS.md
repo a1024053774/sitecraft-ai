@@ -93,13 +93,3 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - 不绑定特定模型或客户端。小中型任务主负责人直接做；只有边界清楚、并行能缩短路径时才委派，委派须写清输入、可改文件、禁止范围和验收。多个代理不改同一文件。
 - 用 Goal/连续模式时，队列只能来自 `plan.md` 的「下一步」。可以连续做，但遇到需要负责人判断的节点（盲评、方案二选一）要停下等；队列做完就停，不自行把「本阶段不做」里的事或新方向加进队列。
-
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->

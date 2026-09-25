@@ -399,7 +399,7 @@ export const defaultDraft: SiteDraft = {
   navigation: {
     about: { zh: "关于", en: "About" },
     features: { zh: "优势", en: "Advantages" },
-    services: { zh: "服务", en: "Services" },
+    services: { zh: "合作方式", en: "How we work" },
     products: { zh: "产品", en: "Products" },
     contact: { zh: "联系", en: "Contact" },
   },

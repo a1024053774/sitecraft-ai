@@ -588,15 +588,16 @@
       }
       .sitecraft-catalog-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1px;
-        border: 1px solid var(--site-line);
-        background: var(--site-line);
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        border: 0;
+        background: transparent;
       }
       .sitecraft-catalog-card {
         margin: 0;
         padding: 18px 16px;
         background: var(--site-surface);
+        border: 1px solid var(--site-line);
         min-height: 0;
       }
       .sitecraft-catalog-card h3 {
@@ -620,7 +621,7 @@
         letter-spacing: .04em;
       }
       .sitecraft-cert-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       }
       @media (max-width: 900px) {
         .sitecraft-catalog-grid,
@@ -911,7 +912,7 @@
             <a href="#products" data-sitecraft-nav="products">产品</a>
             <a href="#industries" data-sitecraft-ui="industries">应用行业</a>
             <a href="#capabilities" data-sitecraft-ui="capabilities">加工能力</a>
-            <a href="#process" data-sitecraft-nav="services">加工方式</a>
+            <a href="#process" data-sitecraft-nav="services">合作方式</a>
             <a href="#certifications" data-sitecraft-ui="certifications">认证</a>
             <a href="#faq" data-sitecraft-ui="faq">常见问题</a>
             <a class="sitecraft-nav-cta" href="#inquiry" data-sitecraft-nav="contact">提交询盘</a>
