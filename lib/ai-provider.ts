@@ -175,7 +175,8 @@ function operationInstructions() {
 13. set_image_slot: {"op":"set_image_slot","target":"hero.image","imageId":"img_已上传id","url":"/api/sites/当前站点/images/img_已上传id","alt":{"zh":"...","en":"..."}}
     只能引用当前站点已经上传、license=user-provided 的图片。禁止把模板演示图、/_astro/、./images/hero.png 或外站图库写进草稿。没有已声明且唯一命中的 src 槽位时仍可写入草稿，预览会报告 missing，不得猜写其他 img。
 14. remove_image_slot: {"op":"remove_image_slot","target":"hero.image"}
-15. set_product_image: {"op":"set_product_image","sku":"现有SKU","imageId":"img_已上传id","url":"/api/sites/当前站点/images/img_已上传id","alt":{"zh":"...","en":"..."}}
+15. set_product_image: {"op":"set_product_image","sku":"现有SKU","imageId":"img_已上传id","url":"/api/sites/当前站点/images/img_已上传id","alt":{"zh":"...","en":"..."},"credit":{"zh":"图片：作者 / 许可","en":"Photo: author / license"}}
+   credit 仅在 CC-BY / CC-BY-SA 等需署名许可时写入；访客页显示草稿 credit，不写死在模板里。
     同样只允许本站上传图。当前模板没有该 SKU 的唯一 src 槽位时记为 missing，不要为了填满页面改随机图片。
 16. remove_product_image: {"op":"remove_product_image","sku":"现有SKU"}
 answer 与 clarify 不得包含 operations。

@@ -268,6 +268,25 @@ test("bindSiteImageOperations refuses template stock even when imageId exists", 
   assert.equal(operations[0].url, "./images/hero.png");
 });
 
+test("set_product_image stores credit on the draft image ref", () => {
+  const imageId = "img_testownedimage0002";
+  const url = `/api/sites/${siteA}/images/${imageId}`;
+  const options = { templateIds, lastChange: "image-credit", siteId: siteA };
+  const applied = applySiteOperations(structuredClone(defaultDraft), [{
+    op: "set_product_image",
+    sku: defaultDraft.products[0].sku,
+    imageId,
+    url,
+    alt: { zh: "直角减速机实物", en: "Right-angle gearbox photo" },
+    credit: { zh: "图片：Whoisjohngalt / CC BY-SA 4.0", en: "Photo: Whoisjohngalt / CC BY-SA 4.0" },
+  }], options);
+  assert.equal(applied.changed, true);
+  assert.equal(applied.draft.products[0].image?.credit?.zh, "图片：Whoisjohngalt / CC BY-SA 4.0");
+  assert.equal(applied.draft.products[0].image?.credit?.en, "Photo: Whoisjohngalt / CC BY-SA 4.0");
+  const restored = applySiteOperations(applied.draft, applied.inverseOperations, options);
+  assert.equal(restored.draft.products[0].image, undefined);
+});
+
 test("image facts schema keeps 待补充, drops CSS/HTML/operations, and is not an edit intent", () => {
   const parsed = imageFactsSchema.safeParse({
     type: "image_facts",

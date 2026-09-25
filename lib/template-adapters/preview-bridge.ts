@@ -160,6 +160,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
         image.setAttribute("data-sitecraft-slot", "products." + sku + ".image");
         card.appendChild(image);
         applied.add("products." + sku + ".image");
+        var creditText = localize(product.image.credit, locale) || "";
+        if (creditText) {
+          var credit = document.createElement("p");
+          credit.className = "sitecraft-product-image-credit";
+          credit.textContent = creditText;
+          credit.setAttribute("data-sitecraft-slot", "products." + sku + ".image.credit");
+          card.appendChild(credit);
+          applied.add("products." + sku + ".image.credit");
+        }
       } else {
         var placeholder = document.createElement("div");
         placeholder.className = "sitecraft-product-image-placeholder sitecraft-product-schematic";

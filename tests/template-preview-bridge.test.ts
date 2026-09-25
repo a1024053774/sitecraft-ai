@@ -1538,6 +1538,27 @@ test("screwfast FAQ slots write unique accordion text and leave sales chrome", (
   assert.deepEqual(report.fallbackMatched, []);
 });
 
+test("screwfast product grid shows draft image credit under the photo", () => {
+  const { document } = createDocument();
+  const grid = createNode("div");
+  grid.setAttribute("data-sitecraft-product-grid", "true");
+  document.body.appendChild(grid);
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const draft = packDraft("industrial") as ReturnType<typeof packDraft> & { products: Array<Record<string, unknown>> };
+  draft.products = draft.products.slice(0, 1);
+  draft.products[0].name = { zh: "直角减速机", en: "Right-angle gearbox" };
+  draft.products[0].image = {
+    imageId: "img_1234567890abcdef12345678",
+    url: "/api/sites/test/images/img_1234567890abcdef12345678",
+    alt: { zh: "直角减速机产品图", en: "Right-angle gearbox product photo" },
+    credit: { zh: "图片：Whoisjohngalt / CC BY-SA 4.0", en: "Photo: Whoisjohngalt / CC BY-SA 4.0" },
+  };
+  installOn(document, adapter).api.applyDeclaredContent(draft, "zh", ["products"], "published");
+  assert.equal(visibleText(grid).includes("图片：Whoisjohngalt / CC BY-SA 4.0"), true);
+  assert.equal(visibleText(grid).includes("Whoisjohngalt"), true);
+});
+
 test("screwfast benchmark renders only authored product categories into the product grid", () => {
   const { document } = createDocument();
   const grid = createNode("div");

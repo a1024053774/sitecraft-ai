@@ -12,7 +12,7 @@ export const SITE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 
 export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ImageMime = (typeof imageMimeTypes)[number];
-export const imageLicenses = ["user-provided", "CC0", "Public Domain", "MIT", "Apache-2.0", "CC BY"] as const;
+export const imageLicenses = ["user-provided", "CC0", "Public Domain", "MIT", "Apache-2.0", "CC BY", "CC BY-SA"] as const;
 export type ImageLicense = (typeof imageLicenses)[number];
 export const imageUsageScopes = ["current-site-only", "generated-sites", "docs-only"] as const;
 export type ImageUsageScope = (typeof imageUsageScopes)[number];
@@ -278,8 +278,8 @@ export function validateImageProvenance(record: SiteImageRecord) {
   if (record.license === "MIT" || record.license === "Apache-2.0") {
     throw new SiteImageError("forbidden", "MIT/Apache 图片准入当前仅覆盖可核验 SVG，PNG/JPEG/WebP 不能按代码许可证放行");
   }
-  if (record.license === "CC BY" && !record.attribution.trim()) {
-    throw new SiteImageError("forbidden", "CC BY 素材必须保留署名");
+  if ((record.license === "CC BY" || record.license === "CC BY-SA") && !record.attribution.trim()) {
+    throw new SiteImageError("forbidden", "CC BY / CC BY-SA 素材必须保留署名");
   }
   return record;
 }

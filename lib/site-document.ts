@@ -168,6 +168,8 @@ export const siteImageRefSchema = z.object({
   imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/),
   url: z.string().min(1).max(240),
   alt: localizedTextSchema,
+  /** Visitor-facing attribution for CC-BY / CC-BY-SA photos; absent when no credit is required. */
+  credit: localizedTextSchema.optional(),
 });
 export type SiteImageRef = z.infer<typeof siteImageRefSchema>;
 

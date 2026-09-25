@@ -146,6 +146,7 @@ const imageRefFields = {
   imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/),
   url: z.string().min(1).max(240),
   alt: localizedTextSchema.optional(),
+  credit: localizedTextSchema.optional(),
 };
 const setImageSlotOperationSchema = z.object({
   op: z.literal("set_image_slot"),
@@ -315,7 +316,12 @@ function same(a: unknown, b: unknown) {
 const missingAlt = { zh: "待补充", en: "To be completed" };
 
 function resolveImageRef(
-  operation: { imageId: string; url: string; alt?: { zh: string; en: string } },
+  operation: {
+    imageId: string;
+    url: string;
+    alt?: { zh: string; en: string };
+    credit?: { zh: string; en: string };
+  },
   siteId?: string,
 ): SiteImageRef {
   if (isTemplateStockUrl(operation.url)) {
@@ -329,11 +335,13 @@ function resolveImageRef(
       }
       return operation.url;
     })();
-  return {
+  const next: SiteImageRef = {
     imageId: operation.imageId,
     url,
     alt: operation.alt ?? structuredClone(missingAlt),
   };
+  if (operation.credit) next.credit = structuredClone(operation.credit);
+  return next;
 }
 
 function readHeroImage(draft: SiteDraft) {
@@ -626,6 +634,7 @@ export function applySiteOperations(
           imageId: previous.imageId,
           url: previous.url,
           alt: previous.alt,
+          ...(previous.credit ? { credit: previous.credit } : {}),
         });
       } else {
         inverseOperations.unshift({ op: "remove_image_slot", target: operation.target });
@@ -643,6 +652,7 @@ export function applySiteOperations(
         imageId: previous.imageId,
         url: previous.url,
         alt: previous.alt,
+        ...(previous.credit ? { credit: previous.credit } : {}),
       });
       writeHeroImage(draft, undefined);
       appliedTargets.push(operation.target);
@@ -661,6 +671,7 @@ export function applySiteOperations(
           imageId: previous.imageId,
           url: previous.url,
           alt: previous.alt,
+          ...(previous.credit ? { credit: previous.credit } : {}),
         });
       } else {
         inverseOperations.unshift({ op: "remove_product_image", sku: operation.sku });
@@ -680,6 +691,7 @@ export function applySiteOperations(
         imageId: previous.imageId,
         url: previous.url,
         alt: previous.alt,
+        ...(previous.credit ? { credit: previous.credit } : {}),
       });
       delete product.image;
       appliedTargets.push(`products.${operation.sku}.image`);

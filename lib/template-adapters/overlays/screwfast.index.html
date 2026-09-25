@@ -389,6 +389,14 @@
         grid-column: 1;
         grid-row: 1;
       }
+      .sitecraft-product-image-credit {
+        grid-column: 1;
+        margin: 4px 0 0;
+        color: var(--site-muted);
+        font-size: 10px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
       .sitecraft-product-image-placeholder {
         display: grid;
         place-items: center;
@@ -440,8 +448,8 @@
         padding-left: 12px;
         border-left: 1px solid var(--site-line);
       }
-      .sitecraft-product-card:has(.sitecraft-product-image) > p:not(.sitecraft-product-category),
-      .sitecraft-product-card:has(.sitecraft-product-image-placeholder) > p:not(.sitecraft-product-category) {
+      .sitecraft-product-card:has(.sitecraft-product-image) > p:not(.sitecraft-product-category):not(.sitecraft-product-image-credit),
+      .sitecraft-product-card:has(.sitecraft-product-image-placeholder) > p:not(.sitecraft-product-category):not(.sitecraft-product-image-credit) {
         grid-column: 4;
       }
       .sitecraft-product-empty {
@@ -795,8 +803,8 @@
         .sitecraft-product-card:has(.sitecraft-product-image-placeholder) .sitecraft-product-category,
         .sitecraft-product-card:has(.sitecraft-product-image) h3,
         .sitecraft-product-card:has(.sitecraft-product-image-placeholder) h3,
-        .sitecraft-product-card:has(.sitecraft-product-image) > p:not(.sitecraft-product-category),
-        .sitecraft-product-card:has(.sitecraft-product-image-placeholder) > p:not(.sitecraft-product-category) {
+        .sitecraft-product-card:has(.sitecraft-product-image) > p:not(.sitecraft-product-category):not(.sitecraft-product-image-credit),
+        .sitecraft-product-card:has(.sitecraft-product-image-placeholder) > p:not(.sitecraft-product-category):not(.sitecraft-product-image-credit) {
           grid-column: auto;
           grid-row: auto;
           padding-left: 0;
