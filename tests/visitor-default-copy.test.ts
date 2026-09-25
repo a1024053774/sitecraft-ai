@@ -83,7 +83,8 @@ function createNode(tagName: string): FakeNode {
     matches(selector) {
       const attr = /^\[([^=\]]+)(?:=\"([^\"]*)\")?\]$/.exec(selector);
       if (attr) {
-        const value = this.getAttribute(attr[1]);
+        const getter = this.getAttribute?.bind(this);
+        const value = getter ? getter(attr[1]) : null;
         return attr[2] === undefined ? value != null : value === attr[2];
       }
       if (selector.startsWith("#")) return this.id === selector.slice(1);
@@ -99,7 +100,8 @@ function createNode(tagName: string): FakeNode {
       return out;
     },
     querySelector(selector) {
-      return this.querySelectorAll(selector)[0] ?? null;
+      const list = this.querySelectorAll?.(selector) ?? [];
+      return list[0] ?? null;
     },
   };
   Object.defineProperty(node, "textContent", {

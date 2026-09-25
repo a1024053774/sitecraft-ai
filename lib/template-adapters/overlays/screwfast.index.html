@@ -201,10 +201,10 @@
       .sitecraft-diagram.sitecraft-diagram-photo {
         background: var(--site-surface);
       }
-      .sitecraft-diagram.sitecraft-diagram-photo > :not([data-sitecraft-benchmark="hero-image"]) {
+      .sitecraft-diagram.sitecraft-diagram-photo > :not(.sitecraft-hero-photo) {
         display: none !important;
       }
-      .sitecraft-diagram [data-sitecraft-benchmark="hero-image"] {
+      .sitecraft-diagram .sitecraft-hero-photo {
         position: absolute;
         inset: 0;
         width: 100%;
@@ -947,7 +947,7 @@
               <span class="sitecraft-diagram-callout sitecraft-diagram-callout-gear" data-sitecraft-ui="diagramGear" aria-hidden="true">齿轮区</span>
               <span class="sitecraft-diagram-callout sitecraft-diagram-callout-shaft" data-sitecraft-ui="diagramShaft" aria-hidden="true">输出轴</span>
               <span class="sitecraft-diagram-label" data-sitecraft-ui="schematic">示意</span>
-              <img data-sitecraft-benchmark="hero-image" alt="" src="" hidden>
+              <img class="sitecraft-hero-photo" data-sitecraft-benchmark="hero-image" alt="" src="" hidden>
             </div>
           </div>
         </section>
