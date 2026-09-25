@@ -381,7 +381,7 @@ function normalizeCatalogSection(
       id: item.id,
       title: structuredClone(item.title),
       body: structuredClone(item.body),
-      status: item.status === "已有" ? "已有" : "待补充",
+      status: item.status === "已有" || item.status === "认证中" ? item.status : "待补充",
     })),
   };
 }
@@ -403,7 +403,7 @@ function writeCatalogSection(
         id: item.id,
         title: structuredClone(item.title),
         body: structuredClone(item.body),
-        status: item.status === "已有" ? "已有" : "待补充",
+        status: item.status === "已有" || item.status === "认证中" ? item.status : "待补充",
       })),
     };
     return;

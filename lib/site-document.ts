@@ -259,7 +259,7 @@ const contentSectionSchema = z.object({
 });
 export type ContentSection = z.infer<typeof contentSectionSchema>;
 
-export const certificationStatuses = ["已有", "待补充"] as const;
+export const certificationStatuses = ["已有", "认证中", "待补充"] as const;
 export const certificationStatusSchema = z.enum(certificationStatuses);
 export type CertificationStatus = z.infer<typeof certificationStatusSchema>;
 

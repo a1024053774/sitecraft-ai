@@ -242,7 +242,7 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
     }
   }
 
-  function renderCatalogSections(draft, locale, applied) {
+  function renderCatalogSections(draft, locale, applied, variant) {
     var keys = ["industries", "capabilities", "certifications"];
     for (var k = 0; k < keys.length; k++) {
       var key = keys[k];
@@ -258,12 +258,14 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
         var title = localize(item.title, locale) || "";
         var body = localize(item.body, locale) || "";
         if (isGapMarker(title) && isGapMarker(body)) continue;
+        var status = typeof item.status === "string" ? item.status : "";
+        if (key === "certifications" && variant === "published" && status === "待补充") continue;
         visibleItems.push({
           index: i,
           id: item.id,
           title: title,
           body: body,
-          status: typeof item.status === "string" ? item.status : "",
+          status: status,
         });
       }
       var draftHidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf(key) !== -1;
@@ -285,11 +287,11 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
         copy.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".body." + locale);
         card.appendChild(heading);
         if (key === "certifications" && visible.status) {
-          var status = document.createElement("p");
-          status.className = "sitecraft-cert-status";
-          status.textContent = visible.status;
-          status.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".status");
-          card.appendChild(status);
+          var statusNode = document.createElement("p");
+          statusNode.className = "sitecraft-cert-status";
+          statusNode.textContent = visible.status;
+          statusNode.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".status");
+          card.appendChild(statusNode);
         }
         card.appendChild(copy);
         grid.appendChild(card);
@@ -980,7 +982,7 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
       applyDocumentTitle(draft);
       applySectionVisibility(draft, applied);
       collapseUnprovidedEntries(draft, currentLocale, variant || "preview");
-      renderCatalogSections(draft, currentLocale, applied);
+      renderCatalogSections(draft, currentLocale, applied, variant || "preview");
       clearUnprovidedCatalogChrome(draft, variant || "preview");
       syncHiddenNavigation((function () {
         var hiddenKeys = [];

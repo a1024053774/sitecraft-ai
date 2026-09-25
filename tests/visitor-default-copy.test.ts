@@ -315,3 +315,37 @@ test("screwfast hero uses first product photo or industry schematic from adapter
   assert.equal(diagram.getAttribute("data-sitecraft-hero-schematic"), "fitting");
   assert.equal(diagram.getAttribute("data-sitecraft-hero-mode"), "schematic");
 });
+
+test("visitor page shows only 已有 and 认证中 certifications", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const { document, body } = createDocument();
+  const section = createNode("section");
+  section.setAttribute("data-sitecraft-section", "certifications");
+  const grid = createNode("div");
+  grid.setAttribute("data-sitecraft-catalog-grid", "certifications");
+  section.appendChild(grid);
+  body.appendChild(section);
+  const draft = structuredClone(defaultDraft);
+  draft.content.certifications = {
+    title: { zh: "认证状态", en: "Certifications" },
+    intro: { zh: "当前认证进展如下。", en: "Current certification status." },
+    items: [
+      { id: "cert-iso", title: { zh: "ISO 9001", en: "ISO 9001" }, body: { zh: "质量管理体系。", en: "QMS." }, status: "认证中" },
+      { id: "cert-ce", title: { zh: "CE", en: "CE" }, body: { zh: "资料未提供。", en: "Not provided." }, status: "待补充" },
+      { id: "cert-ok", title: { zh: "材料报告", en: "Material report" }, body: { zh: "可追溯。", en: "Traceable." }, status: "已有" },
+    ],
+  };
+  installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [], "published");
+  const text = visibleText(body);
+  assert.equal(text.includes("ISO 9001"), true);
+  assert.equal(text.includes("材料报告"), true);
+  assert.equal(text.includes("CE"), false);
+  assert.equal(text.includes("认证中"), true);
+  assert.equal(text.includes("已有"), true);
+  assert.equal(section.hidden, false);
+
+  draft.content.certifications.items = draft.content.certifications.items.map((item) => ({ ...item, status: "待补充" }));
+  installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [], "published");
+  assert.equal(section.hidden, true);
+});

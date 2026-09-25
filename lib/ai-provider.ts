@@ -160,8 +160,8 @@ function operationInstructions() {
 5. update_product: {"op":"update_product","sku":"现有SKU","locale":"zh|en","name":"可选","summary":"可选","category":"可选"}
 6. set_product_specs: {"op":"set_product_specs","sku":"现有SKU","specs":[{"name":{"zh":"速比范围","en":"Ratio range"},"value":"i=25–100"}]}
    只写入资料明确给出的规格参数；参数名中英双语，参数值必须能在资料正文中找到，找不到写成「待补充」，禁止编造数字。
-7. set_catalog_section: {"op":"set_catalog_section","section":"industries|capabilities|certifications","value":{"title":{"zh":"...","en":"..."},"intro":{"zh":"...","en":"..."},"items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."},"status":"已有|待补充"}]} }
-   industries=应用行业卡片；capabilities=加工能力或主设备卡片；certifications=认证状态（status 仅 已有/待补充；若资料写明认证中，把「认证中」写进 body，status 用待补充）。value 可为 null 清空整块。条目事实必须出自资料，资料外数字改为「待补充」。
+7. set_catalog_section: {"op":"set_catalog_section","section":"industries|capabilities|certifications","value":{"title":{"zh":"...","en":"..."},"intro":{"zh":"...","en":"..."},"items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."},"status":"已有|认证中|待补充"}]} }
+   industries=应用行业卡片；capabilities=加工能力或主设备卡片；certifications=认证状态（status 为 已有/认证中/待补充；访客页只展示 已有 与 认证中）。value 可为 null 清空整块。条目事实必须出自资料，资料外数字改为「待补充」。
 8. replace_products: {"op":"replace_products","products":[{"sku":"已有或资料确认的SKU","name":{"zh":"...","en":"..."},"summary":{"zh":"...","en":"..."},"category":"...","status":"published|draft","imageColor":"#...","specs":[{"name":{"zh":"...","en":"..."},"value":"..."}]}]}
    只有公司资料明确给出完整产品清单时才使用；只保留资料确认的产品类别。加工方式、询盘条件和服务步骤不是商品，不要把“按图加工”单独生成一张商品卡。资料没有确认的商品不要用默认商品补齐。specs 可选，规则同 set_product_specs。
 9. set_section_visibility: {"op":"set_section_visibility","section":"${visibilityKeys.join("|")}","visible":true|false}
