@@ -32,3 +32,20 @@ test("alignment card exposes 1-4 questions and commits all selections once", () 
   if (!submitted.ok) return;
   assert.equal(submitted.snapshot.answers.length, 2);
 });
+
+test("submitted single-question card retains recommendation, other note and palette choice in confirmation", async () => {
+  const { normalizeAlignmentSnapshot, applyEditProposal, publicAlignmentView } = await import('../lib/alignment.ts');
+  const question = { questionId:'palette-card', questionRevision:1, kind:'clarify' as const, prompt:'选择配色',options:[],allowOther:false, questions:[{questionId:'palette', field:'colorSet' as const,prompt:'色彩集',allowOther:true,options:[{id:'graphite',label:'石墨工坊',description:'适合工业',recommended:true},{id:'orange',label:'工程暖橙',description:'醒目'}]}] };
+  const start = applyAlignmentAction(disabledAlignment(),{action:'start',pendingRequest:{message:'临港接头',baseRevision:1,selectedTarget:null},startQuestion:question});
+  assert.ok(start.ok); if(!start.ok) return;
+  const restored = normalizeAlignmentSnapshot(start.snapshot);
+  assert.equal(restored.currentQuestion?.questions?.[0].options[0].recommended,true);
+  const submitted = applyAlignmentAction(restored,{action:'select',questionId:'palette-card',questionRevision:1,selections:[{questionId:'palette',optionId:'other',note:'松石'}]});
+  assert.ok(submitted.ok); if(!submitted.ok) return;
+  const proposal=applyEditProposal(submitted.snapshot,{runId:submitted.runId!,summary:'生成临港接头',operations:[],rejected:[],baseRevision:1,model:null,latencyMs:0});
+  assert.ok(!('stale' in proposal)); if('stale' in proposal) return;
+  const view=publicAlignmentView(normalizeAlignmentSnapshot(proposal.snapshot));
+  assert.match(view.question,/色彩集：松石/);
+  assert.equal(view.questions[0].questionId,'palette');
+  assert.equal(view.answers[0].note,'松石');
+});

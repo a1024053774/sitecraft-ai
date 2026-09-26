@@ -14,10 +14,10 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 用厚资料的模拟包生成后，发布页切到 EN，全部是这家公司的英文内容，没有默认英文
+- [x] 用厚资料的模拟包生成后，发布页切到 EN，读回这家公司的英文内容；缺失事实按 `To be provided`
 - [x] 一次 operation 可同时写入 zh/en，撤销时一起恢复
 - [x] 只有默认英文的旧草稿（含 `overlay-sparse-20260924`）发布页没有 EN 切换
-- [ ] 真实调用一次 DeepSeek 的端到端运行，产物放 `artifacts/`；当前环境未配置 `DEEPSEEK_API_KEY`，未进行外部调用
+- [x] 通过 3034 dev server 真实调用一次 DeepSeek 生成，产物放 `artifacts/`
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
@@ -31,10 +31,12 @@ supersedes:
 
 - `node --test --experimental-strip-types tests/draft-english.test.ts tests/site-operations.test.ts`：PASS。
 - `npm run typecheck`：PASS。
-- `npm test`：236 tests PASS。
+- `npm test`：238 tests PASS。
 - `npm run build`：PASS。
 - `node scripts/check-published.mjs --out artifacts/t024-published-sparse-check overlay-sparse-20260924`：PASS，1440/768/375 均 `offersEnglish: false`。
 
 产物：[artifacts/t024-published-sparse-check/report.json](../../artifacts/t024-published-sparse-check/report.json)
 
 实现提交：`5a796efad1b93f629978347bf86b8ecbb0941d52`。
+
+补充证据：真实生成请求在 3034 返回 `applied`，站点 `df18c960-7b61-4d5c-b583-adc1237b0732`；随后读回中英文草稿并切换发布页 EN。生成站点先选择了 forge，后用受控模板切换操作改到 screwfast 以使用已验证的双语发布 overlay。读回：[artifacts/t024-generation-attempt.json](../../artifacts/t024-generation-attempt.json)、[artifacts/t024-published-en-final3/readback.json](../../artifacts/t024-published-en-final3/readback.json)、[artifacts/t024-published-en-final3/report.json](../../artifacts/t024-published-en-final3/report.json)，截图：[artifacts/t024-published-en-final3/en-1440.png](../../artifacts/t024-published-en-final3/en-1440.png)。

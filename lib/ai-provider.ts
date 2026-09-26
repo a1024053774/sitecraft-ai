@@ -44,8 +44,8 @@ export type AlignmentPlanResult =
     ok: true;
     kind: "question";
     question: string;
-    options: Array<{ label: string; description: string }>;
-    questions?: Array<{ question: string; options: Array<{ label: string; description: string }>; allowOther: boolean }>;
+    options: Array<{ label: string; description: string; recommended?: boolean }>;
+    questions?: Array<{ field?: "goal" | "pages" | "style" | "colorSet" | "other"; question: string; options: Array<{ label: string; description: string; recommended?: boolean }>; allowOther: boolean }>;
     allowOther: boolean;
     rationale: string | null;
     model: string;
@@ -64,10 +64,10 @@ const alignmentPlanSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("question"),
     question: z.string().min(1).max(800),
-    options: z.array(z.object({ label: z.string().min(1).max(100), description: z.string().max(220).default("") })).min(2).max(6),
+    options: z.array(z.object({ label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional() })).min(2).max(4),
     allowOther: z.boolean().default(true),
     rationale: z.string().max(260).nullable().optional(),
-    questions: z.array(z.object({ question: z.string().min(1).max(800), options: z.array(z.object({ label: z.string().min(1).max(100), description: z.string().max(220).default("") })).min(2).max(4), allowOther: z.boolean().default(true) })).min(1).max(4).optional(),
+    questions: z.array(z.object({ field: z.enum(["goal", "pages", "style", "colorSet", "other"]).optional(), question: z.string().min(1).max(800), options: z.array(z.object({ label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional() })).min(2).max(4), allowOther: z.boolean().default(true) })).min(1).max(4).optional(),
   }),
   z.object({ kind: z.literal("ready"), summary: z.string().min(1).max(400) }),
 ]);
@@ -289,10 +289,10 @@ export async function requestAlignmentPlan(args: {
   const draftContext = buildDraftPromptContext(args.draft);
   const system = `你是 SiteCraft 的需求对齐规划器。只返回 JSON，不输出 Markdown、HTML、CSS、JavaScript 或 draft operations。
 你的任务是阅读用户这一次的建站 Prompt、已有草稿、会话历史和已确认答案，找出仍会改变页面结果的最少一个关键缺口。
-- 如果仍有关键缺口，返回单题格式，或返回 questions 数组（1–4 题）让用户一次提交整张卡：{"kind":"question","question":"...","options":[...],"allowOther":true,"questions":[{"question":"...","options":[...],"allowOther":true}],"rationale":"..."}。
+- 如果仍有关键缺口，返回 questions 数组（1–4 题，每题 field 为 goal/pages/style/colorSet/other，配色题必须是 colorSet）让用户一次提交整张卡：{"kind":"question","question":"...","options":[...],"allowOther":true,"questions":[{"field":"colorSet","question":"...","options":[{"label":"石墨工坊","description":"推荐理由","recommended":true},{"label":"工程暖橙","description":"..."}],"allowOther":true}],"rationale":"..."}。
 - 如果资料和 Prompt 已足够形成一份可审查方案，返回 {"kind":"ready","summary":"..."}，不要追问风格偏好。
 - 问题必须针对这次 Prompt，不得套行业问卷，不得只问固定的风格、业务目标或工业问题。
-- 已明确的信息不要重复问；每轮最多 6 个选项，选项必须是用户能判断的结果差异，描述简短。
+- 已明确的信息不要重复问；每题 2–4 个选项，必须给一个选项 recommended:true 并在 description 写推荐理由，所有问题允许其他（allowOther:true），选项必须是用户能判断的结果差异，描述简短。
 - 认证、参数、客户、产能、图片授权、联系方式等企业事实不能用推荐补造。缺失事实应问用户是否补充，或说明将按“待补充/无图版”继续。
 - “交给 AI 推荐”只能用于视觉偏好或结构偏好，不能用于企业事实。
 - 只承诺当前系统可通过受控页面规划、视觉样子、色板、文案、产品/服务区块和询盘入口实现的结果；不承诺后台、认证页、邮件送达等未接通能力。

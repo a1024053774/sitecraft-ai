@@ -16,18 +16,19 @@ supersedes:
 
 ## Acceptance
 
-- [x] 新建站点从资料进入后，出现一张 1–4 题的卡；全部答完一次提交，同一会话继续
+- [x] 新建站点从资料进入后，出现一张 1–4 题的卡；全部答完一次提交，同一会话继续（1 题也统一提交 `selections`）
 - [x] 最多 3 轮，之后进入方案确认（现有状态机保留并限制 `MAX_ALIGNMENT_ROUNDS`）
-- [x] 刷新页面后仍是同一张卡、同样的已选答案（会话快照持久化 `questions` 与答案）
+- [x] 刷新页面后仍是同一张卡、同样的已选答案（会话快照持久化 `questions` 与答案，工作台回填选中态和“其他”说明）
 - [x] 已生成的站点改文案时不出现完整的对齐流程（沿用既有 alignmentEnabled/已生成草稿分支）
-- [x] 确认文案显示实际选中的配色
-- [x] 端到端流程（资料 → 对齐 → 确认 → 生成 → 预览）有一条可以重跑的测试或脚本，产物放 `artifacts/`
+- [x] 确认文案显示实际选中的色彩集；样子单独标注
+- [x] 需求卡协议支持每题 2–4 个选项、推荐标记和“其他”补充说明
+- [ ] HTTP 端到端流程（资料 → 对齐 → 确认 → 生成 → 预览）有一条可以重跑的测试或脚本，产物放 `artifacts/`（本轮 3034 规划器返回 502，失败证据已保留）
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
-实现：`CurrentQuestion.questions` 支持 1–4 题；Chat API 接收 `selections` 并由状态机一次校验、保存全部答案；工作台仅增加多题卡选择和一次提交入口，保留单题路径。确认提示使用实际 `styleLabel`，移除固定“工程橙色板”文案。
+实现：`CurrentQuestion.questions` 支持 1–4 题；Chat API 接收 `selections` 并由状态机一次校验、保存全部答案；工作台统一使用整卡提交（包括 1 题），支持推荐标记和“其他”说明，并从会话答案恢复选中态。确认提示按字段分别显示样子与色彩集。
 
 验证命令与结果：
 
@@ -36,7 +37,9 @@ supersedes:
 - `npm test`：235 tests PASS。
 - `npm run build`：PASS。
 - `node scripts/verify-alignment-multi-question.mjs`：PASS。
+- `node --experimental-strip-types scripts/check-alignment-card-ui.mjs artifacts/t019-ui-final2`：PASS，1/2 题卡在 1440/768/375 通过，包含推荐、“其他”说明和刷新恢复；截图与读回报告在该目录。
+- `node scripts/verify-alignment-multi-question.mjs artifacts/t019-red-http`：BLOCKED，3034 规划器返回 502 `provider_error`，逐步输入/读回失败证据保留。
 
-产物：[artifacts/t019-alignment-multi-question.json](../../artifacts/t019-alignment-multi-question.json)
+产物：[artifacts/t019-ui-final2/report.json](../../artifacts/t019-ui-final2/report.json)、[artifacts/t019-red-http/report.json](../../artifacts/t019-red-http/report.json)
 
 Commit：实现 `a1753036edd0ed8f2b7d541cf5174282805a5341`；本票 Resolution 回写为后续文档提交。

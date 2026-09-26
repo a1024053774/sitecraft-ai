@@ -54,7 +54,7 @@ export type AlignmentModeState =
   | "idle"
   | "cancelled";
 export type AlignmentQuestionKind = "style" | "clarify" | "confirm_ops";
-export type AlignmentOption = { id: string; label: string; description: string };
+export type AlignmentOption = { id: string; label: string; description: string; recommended?: boolean };
 export type AlignmentHistoryEntry = {
   at: string;
   action: string;
@@ -78,6 +78,7 @@ export type CurrentQuestion = {
   questions?: AlignmentCardQuestion[];
 };
 export type AlignmentCardQuestion = {
+  field?: "goal" | "pages" | "style" | "colorSet" | "other";
   questionId: string;
   prompt: string;
   options: AlignmentOption[];
@@ -112,6 +113,7 @@ export type AlignmentSnapshot = {
   state: AlignmentModeState;
   pendingRequest: PendingRequest | null;
   currentQuestion: CurrentQuestion | null;
+  submittedCard?: CurrentQuestion | null;
   answers: AlignmentAnswer[];
   proposedChange: ProposedChange | null;
   lastResult: RecordedResult | null;
@@ -182,6 +184,7 @@ const optionSchema = z.object({
   id: z.string().min(1).max(80),
   label: z.string().min(1).max(80),
   description: z.string().max(200).default(""),
+  recommended: z.boolean().optional(),
 });
 const pendingRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -197,8 +200,9 @@ const currentQuestionSchema = z.object({
   options: z.array(optionSchema).max(12),
   allowOther: z.boolean(),
   questions: z.array(z.object({
+    field: z.enum(["goal", "pages", "style", "colorSet", "other"]).optional(),
     questionId: z.string().min(1).max(80), prompt: z.string().min(1).max(800),
-    options: z.array(optionSchema).min(2).max(6), allowOther: z.boolean(),
+    options: z.array(optionSchema).min(2).max(4), allowOther: z.boolean(),
   })).min(1).max(4).optional(),
 });
 const answerSchema = z.object({
@@ -238,6 +242,7 @@ export const alignmentSnapshotSchema = z.object({
   state: alignmentStateSchema,
   pendingRequest: pendingRequestSchema.nullable().optional(),
   currentQuestion: currentQuestionSchema.nullable().optional(),
+  submittedCard: currentQuestionSchema.nullable().optional(),
   answers: z.array(answerSchema).max(MAX_ALIGNMENT_HISTORY).optional(),
   proposedChange: proposedChangeSchema.nullable().optional(),
   lastResult: recordedResultSchema.nullable().optional(),
@@ -298,12 +303,12 @@ function guidedBusinessQuestion(revision: number): CurrentQuestion {
   };
 }
 
-function guidedPlanQuestion(revision: number, styleLabel = "当前选中的配色") : CurrentQuestion {
+function guidedPlanQuestion(revision: number, styleLabel = "当前样子") : CurrentQuestion {
   return {
     questionId: GUIDED_PLAN_QUESTION_ID,
     questionRevision: Math.max(1, revision),
     kind: "clarify",
-    prompt: `请确认本次交付范围和资料缺口处理方式。将使用${styleLabel}，不改字体、产品或页面结构。`,
+    prompt: `请确认本次交付范围和资料缺口处理方式。样子：${styleLabel}。色彩集尚未选择；请在方案确认中核对配色。`,
     options: GUIDED_PLAN_OPTIONS.map((option) => ({ ...option })),
     allowOther: false,
   };
@@ -351,7 +356,7 @@ function mapAnswers(raw: AlignmentAnswer[]): AlignmentAnswer[] {
 }
 
 function cardQuestions(question: CurrentQuestion | null): AlignmentCardQuestion[] {
-  if (!question) return [];
+  if (!question || question.kind === "confirm_ops" || question.questionId === GUIDED_IMAGE_QUESTION_ID) return [];
   if (question.questions?.length) return question.questions;
   return [{ questionId: question.questionId, prompt: question.prompt, options: question.options, allowOther: question.allowOther }];
 }
@@ -368,6 +373,7 @@ export function normalizeAlignmentSnapshot(raw: unknown): AlignmentSnapshot {
     state: value.state,
     pendingRequest: value.pendingRequest ?? null,
     currentQuestion: value.currentQuestion ?? null,
+    submittedCard: value.submittedCard ?? null,
     answers: mapAnswers(value.answers ?? []),
     proposedChange: value.proposedChange ?? null,
     lastResult: value.lastResult ?? null,
@@ -445,7 +451,7 @@ export function publicAlignmentView(snapshot: AlignmentSnapshot, extras?: {
     lastResult: snapshot.lastResult,
     styleLabel: snapshot.styleLabel,
     answers: snapshot.answers,
-    questions: cardQuestions(question),
+    questions: cardQuestions((!question || question.kind === "confirm_ops") && snapshot.submittedCard ? snapshot.submittedCard : question),
     processing,
   };
 }
@@ -566,6 +572,7 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
     const next: AlignmentSnapshot = {
       ...current,
       pendingRequest: pending,
+      submittedCard: null,
       enabled: true,
       state: shouldContinueImmediately ? "idle" : plannerQuestion ? "awaiting_user" : "awaiting_style",
       currentQuestion: plannerQuestion ?? (hasPlannerDecision
@@ -589,6 +596,11 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
   }
 
   if (input.action === "select") {
+    if (!current.currentQuestion?.questions?.length && input.selections?.length === 1) {
+      const selection = input.selections[0];
+      if (selection.questionId !== current.currentQuestion?.questionId) return fail(current, 409, "stale_question", "问题已更新，请读取当前卡片。");
+      input = { ...input, optionId: selection.optionId, note: selection.note };
+    }
     if (typeof input.questionRevision !== "number" || !input.questionId?.trim() || (!input.optionId?.trim() && !input.selections?.length)) {
       return fail(current, 400, "invalid_payload", "选择请求缺少问题 ID、版本或选项。");
     }
@@ -639,7 +651,7 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
         answers = [...answers.filter((item) => item.questionId !== cardQuestion.questionId), { questionId: cardQuestion.questionId, questionRevision: question.questionRevision, question: cardQuestion.prompt, optionId: option.id, label: option.label, note: answerNote }];
       }
       const runId = current.pendingRequest ? crypto.randomUUID() : null;
-      const next: AlignmentSnapshot = { ...current, enabled: true, answers: answers.slice(-MAX_ALIGNMENT_HISTORY), inflightRunId: runId, state: current.pendingRequest ? "awaiting_user" : "idle", currentQuestion: current.pendingRequest ? question : null, epoch: current.epoch + 1, history: pushHistory(current, { action: "select", summary: "已提交整张需求卡" }) };
+      const next: AlignmentSnapshot = { ...current, submittedCard: question, enabled: true, answers: answers.slice(-MAX_ALIGNMENT_HISTORY), inflightRunId: runId, state: current.pendingRequest ? "awaiting_user" : "idle", currentQuestion: current.pendingRequest ? question : null, epoch: current.epoch + 1, history: pushHistory(current, { action: "select", summary: "已提交整张需求卡" }) };
       return succeed(next, { saved: true, shouldContinue: Boolean(runId), prefsOnly: !next.pendingRequest, runId });
     }
     const option = findQuestionOption(question, input.optionId ?? "");
@@ -884,7 +896,11 @@ export function applyEditProposal(snapshot: AlignmentSnapshot, args: {
       questionId,
       questionRevision,
       kind: "confirm_ops",
-      prompt: `请确认将应用：${summary}。确认后才会修改草稿，不会重新生成另一份方案。`,
+      prompt: `请确认将应用：${summary}。${snapshot.answers.map((answer) => {
+        const field = snapshot.submittedCard?.questions?.find((q) => q.questionId === answer.questionId)?.field;
+        const label = field === "colorSet" ? "色彩集" : field === "style" ? "样子" : answer.question;
+        return `${label}：${answer.note || answer.label}`;
+      }).join("；")}。确认后才会修改草稿，不会重新生成另一份方案。`,
       options: [{ id: APPROVE_OPTION_ID, label: "确认并应用", description: "使用已提出的修改。" }],
       allowOther: false,
     },

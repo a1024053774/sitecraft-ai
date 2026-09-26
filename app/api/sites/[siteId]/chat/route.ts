@@ -207,12 +207,14 @@ async function planPromptStart(siteId: string, args: {
       id: `prompt-option-${index + 1}`,
       label: option.label,
       description: option.description,
+      recommended: option.recommended ?? index === 0,
     })),
     allowOther: plan.allowOther,
-    questions: plan.questions?.slice(0, 4).map((item, questionIndex) => ({
+    questions: (plan.questions ?? [{ field: "other" as const, question: plan.question, options: plan.options, allowOther: plan.allowOther }]).map((item, questionIndex) => ({
       questionId: `prompt-${questionIndex + 1}-${crypto.randomUUID()}`,
+      field: item.field,
       prompt: item.question,
-      options: item.options.map((option, index) => ({ id: `prompt-${questionIndex + 1}-option-${index + 1}`, label: option.label, description: option.description })),
+      options: item.options.map((option, index) => ({ id: `prompt-${questionIndex + 1}-option-${index + 1}`, label: option.label, description: option.description, recommended: option.recommended ?? index === 0 })),
       allowOther: item.allowOther,
     })),
   };

@@ -85,8 +85,8 @@ function readStoredConversationId(siteId: string) {
 }
 
 type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change" | "answer" | "clarify" | "alignment";
-type AlignmentOptionCard = { id: string; label: string; description: string };
-type AlignmentQuestionCard = { questionId: string; prompt: string; options: AlignmentOptionCard[]; allowOther: boolean };
+type AlignmentOptionCard = { id: string; label: string; description: string; recommended?: boolean };
+type AlignmentQuestionCard = { field?: string; questionId: string; prompt: string; options: AlignmentOptionCard[]; allowOther: boolean };
 type AlignmentResultState = { status?: string; summary?: string; text?: string; revision?: number } | null;
 type AlignmentViewState = {
   enabled: boolean;
@@ -108,7 +108,7 @@ type AlignmentViewState = {
   cannotProceed: boolean;
   pendingMessage: string | null;
   processing: boolean;
-  answers: Array<{ questionId: string; question: string; label: string; note: string | null }>;
+  answers: Array<{ questionId: string; optionId: string; question: string; label: string; note: string | null }>;
   lastResult: AlignmentResultState;
 };
 type ChatMessage = {
@@ -229,6 +229,7 @@ function asAlignmentOptions(value: unknown): AlignmentOptionCard[] {
       id: option.id,
       label: option.label,
       description: typeof option.description === "string" ? option.description : "",
+      recommended: option.recommended === true,
     }];
   });
 }
@@ -254,7 +255,7 @@ function viewFromAlignmentDone(done: Record<string, unknown>): AlignmentViewStat
       if (!item || typeof item !== "object") return [];
       const q = item as Record<string, unknown>;
       if (typeof q.questionId !== "string" || typeof q.prompt !== "string") return [];
-      return [{ questionId: q.questionId, prompt: q.prompt, options: asAlignmentOptions(q.options), allowOther: Boolean(q.allowOther) }];
+      return [{ field: typeof q.field === "string" ? q.field : undefined, questionId: q.questionId, prompt: q.prompt, options: asAlignmentOptions(q.options), allowOther: Boolean(q.allowOther) }];
     }) : [],
     utilities: asAlignmentOptions(nested.utilities ?? done.utilities),
     summary: typeof nested.summary === "string" ? nested.summary : typeof done.summary === "string" ? done.summary : null,
@@ -300,6 +301,11 @@ export default function WorkspacePage() {
   const [alignmentEnabled, setAlignmentEnabled] = useState(false);
   const [alignmentView, setAlignmentView] = useState<AlignmentViewState | null>(null);
   const [alignmentSelections, setAlignmentSelections] = useState<Record<string, string>>({});
+  const [alignmentNotes, setAlignmentNotes] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setAlignmentSelections(Object.fromEntries((alignmentView?.answers ?? []).map(a => [a.questionId, a.optionId])));
+    setAlignmentNotes(Object.fromEntries((alignmentView?.answers ?? []).map(a => [a.questionId, a.note ?? ""])));
+  }, [alignmentView]);
   const [device, setDevice] = useState<Device>("desktop");
   const [locale, setLocale] = useState<Locale>("zh");
   const [showImport, setShowImport] = useState(false);
@@ -1179,16 +1185,20 @@ export default function WorkspacePage() {
             <div className="alignment-panel">
               {alignmentView.answers.length ? <details className="alignment-summary"><summary>已保存的问答（{alignmentView.answers.length}）</summary>{alignmentView.answers.map((answer) => <p key={answer.questionId}><strong>{answer.question}</strong><br />{answer.label}{answer.note ? `：${answer.note}` : ""}</p>)}</details> : null}
               {alignmentView.processing ? <div className="alignment-summary" role="status">正在继续已保存的任务…</div> : null}
-              {alignmentView.waitingForUser ? (
+              {alignmentView.waitingForUser || alignmentView.questions.length > 0 ? (
                 <>
                   <div className="alignment-question">{alignmentView.question || "等待你选择"}</div>
-                  {alignmentView.questions.length > 1 ? alignmentView.questions.map((cardQuestion) => <div key={cardQuestion.questionId}>
+                  {alignmentView.questions.length >= 1 ? alignmentView.questions.map((cardQuestion) => <div key={cardQuestion.questionId}>
                     <div className="alignment-question">{cardQuestion.prompt}</div>
                     <div className="alignment-cards">{cardQuestion.options.map((option) => (
-                      <button className={alignmentSelections[cardQuestion.questionId] === option.id ? "alignment-card selected" : "alignment-card"} key={option.id} type="button" disabled={busy} onClick={() => setAlignmentSelections((items) => ({ ...items, [cardQuestion.questionId]: option.id }))}>
-                        <strong>{option.label}</strong><span>{option.description}</span>
+                      <button className={alignmentSelections[cardQuestion.questionId] === option.id ? "alignment-card selected" : "alignment-card"} key={option.id} type="button" disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onClick={() => setAlignmentSelections((items) => ({ ...items, [cardQuestion.questionId]: option.id }))}>
+                        <strong>{option.label}{option.recommended ? "（推荐）" : ""}</strong><span>{option.description}</span>
                       </button>
                     ))}</div>
+                    {cardQuestion.allowOther ? <label>
+                      <input type="radio" name={cardQuestion.questionId} checked={alignmentSelections[cardQuestion.questionId] === "other"} disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onChange={() => setAlignmentSelections(items => ({ ...items, [cardQuestion.questionId]: "other" }))} />其他，我来写
+                      {alignmentSelections[cardQuestion.questionId] === "other" ? <input aria-label={`${cardQuestion.prompt}：其他说明`} value={alignmentNotes[cardQuestion.questionId] ?? ""} disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onChange={event => setAlignmentNotes(items => ({ ...items, [cardQuestion.questionId]: event.target.value }))} /> : null}
+                    </label> : null}
                   </div>) : <div className="alignment-cards">
                     {alignmentView.options.map((option) => (
                       <button
@@ -1209,14 +1219,15 @@ export default function WorkspacePage() {
                       </button>
                     ))}
                   </div>}
-                  {alignmentView.questions.length > 1 ? <button className="primary-button" type="button" disabled={busy || alignmentView.questions.some((item) => !alignmentSelections[item.questionId])} onClick={() => void runAlignment({ action: "select", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision, selections: alignmentView.questions.map((item) => ({ questionId: item.questionId, optionId: alignmentSelections[item.questionId] })) })}>提交全部答案</button> : null}
+                  {alignmentView.questions.length >= 1 && alignmentView.waitingForUser && !alignmentView.awaitingConfirmation ? <button className="primary-button" type="button" disabled={busy || alignmentView.questions.some((item) => (!alignmentSelections[item.questionId] || (alignmentSelections[item.questionId] === "other" && !alignmentNotes[item.questionId]?.trim())))} onClick={() => void runAlignment({ action: "select", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision, selections: alignmentView.questions.map((item) => ({ questionId: item.questionId, optionId: alignmentSelections[item.questionId], note: alignmentNotes[item.questionId] })) })}>提交全部答案</button> : null}
+                  {alignmentView.awaitingConfirmation && alignmentView.questions.length >= 1 ? <button type="button" className="primary-button" disabled={busy} onClick={() => void runAlignment({ action: "confirm", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision })}>确认并应用</button> : null}
                   <div className="alignment-actions">
                     {alignmentView.questionId === "image-upload" ? (
                       <button className="primary-button" type="button" disabled={busy} onClick={() => void openImageLibrary()}>
                         打开图片库上传
                       </button>
                     ) : null}
-                    {alignmentView.utilities.map((option) => (
+                    {(alignmentView.questions.length ? [] : alignmentView.utilities).map((option) => (
                       <button
                         className={alignmentView.selectedOptionId === option.id ? "hint selected" : "hint"}
                         key={option.id}
