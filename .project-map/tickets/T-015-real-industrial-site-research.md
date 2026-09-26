@@ -2,9 +2,9 @@
 id: T-015
 title: 调研真实工业企业官网的版式
 type: research
-status: open
+status: closed
 blocked_by: []
-claimed_by:
+claimed_by: grok-a
 supersedes:
 ---
 
@@ -17,3 +17,9 @@ supersedes:
 最后总结 5–8 条可以照搬的版式规律，并写明哪些做法依赖真实素材，在「没有照片、只有模拟资料」时做不了。只记录版式规律，不复制它们的文字、图片和商标。
 
 ## Resolution
+
+记录：[工业官网版式调研-2026-09-26.md](../../docs/research/工业官网版式调研-2026-09-26.md)。首页截图在 `artifacts/research-industrial-sites-20260926/`，不提交。
+
+六家首页都是实拍首屏加产品族入口，参数收成范围、小表或选型工具，不铺型号大表。
+询盘放在找当地销售、选型、询盘清单或页脚电话，不靠首页长表单。
+现场图、厂房和证书墙依赖真实照片；只有模拟资料时只能做系列范围、目录页脚和联系条。
