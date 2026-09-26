@@ -156,10 +156,10 @@ function operationInstructions() {
 允许的操作：
 1. set_text: {"op":"set_text","target":目标,"value":{"zh":"中文文本","en":"English text"}}（一条 operation 必须同时提供 zh/en；缺失英文写 To be provided）
    目标白名单：${textTargets.join(", ")}
-2. update_card: {"op":"update_card","section":"features|services|faq","index":从0开始,"locale":"zh|en","title":"可选","body":"可选"}
+2. update_card: {"op":"update_card","section":"features|services|faq","index":从0开始,"title":{"zh":"中文标题","en":"English title"},"body":{"zh":"中文正文","en":"English body"}}
 3. add_card: {"op":"add_card","section":"features|services|faq","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
 4. remove_card: {"op":"remove_card","section":"features|services|faq","itemId":"现有id"}
-5. update_product: {"op":"update_product","sku":"现有SKU","locale":"zh|en","name":"可选","summary":"可选","category":"可选"}
+5. update_product: {"op":"update_product","sku":"现有SKU","name":{"zh":"中文名称","en":"English name"},"summary":{"zh":"中文摘要","en":"English summary"},"category":"可选"}
 6. set_product_specs: {"op":"set_product_specs","sku":"现有SKU","specs":[{"name":{"zh":"速比范围","en":"Ratio range"},"value":"i=25–100"}]}
    只写入资料明确给出的规格参数；参数名中英双语，参数值必须能在资料正文中找到，找不到写成「待补充」，禁止编造数字。
 7. set_catalog_section: {"op":"set_catalog_section","section":"industries|capabilities|certifications","value":{"title":{"zh":"...","en":"..."},"intro":{"zh":"...","en":"..."},"items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."},"status":"已有|认证中|待补充"}]} }

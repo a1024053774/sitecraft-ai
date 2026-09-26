@@ -36,3 +36,5 @@ supersedes:
 - `node scripts/check-published.mjs --out artifacts/t024-published-sparse-check overlay-sparse-20260924`：PASS，1440/768/375 均 `offersEnglish: false`。
 
 产物：[artifacts/t024-published-sparse-check/report.json](../../artifacts/t024-published-sparse-check/report.json)
+
+实现提交：`5a796efad1b93f629978347bf86b8ecbb0941d52`。
