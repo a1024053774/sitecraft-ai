@@ -40,3 +40,5 @@ supersedes:
 实现提交：`5a796efad1b93f629978347bf86b8ecbb0941d52`。
 
 补充证据：真实生成请求在 3034 返回 `applied`，站点 `df18c960-7b61-4d5c-b583-adc1237b0732`；随后读回中英文草稿并切换发布页 EN。生成站点先选择了 forge，后用受控模板切换操作改到 screwfast 以使用已验证的双语发布 overlay。读回：[artifacts/t024-generation-attempt.json](../../artifacts/t024-generation-attempt.json)、[artifacts/t024-published-en-final3/readback.json](../../artifacts/t024-published-en-final3/readback.json)、[artifacts/t024-published-en-final3/report.json](../../artifacts/t024-published-en-final3/report.json)，截图：[artifacts/t024-published-en-final3/en-1440.png](../../artifacts/t024-published-en-final3/en-1440.png)。
+
+修复提交：`32a0ede484860e2788d0350a92072b5a4af5b3ed`。

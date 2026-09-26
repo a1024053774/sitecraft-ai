@@ -42,4 +42,6 @@ supersedes:
 
 产物：[artifacts/t019-ui-final2/report.json](../../artifacts/t019-ui-final2/report.json)、[artifacts/t019-red-http/report.json](../../artifacts/t019-red-http/report.json)
 
+修复提交：`32a0ede484860e2788d0350a92072b5a4af5b3ed`。
+
 Commit：实现 `a1753036edd0ed8f2b7d541cf5174282805a5341`；本票 Resolution 回写为后续文档提交。
