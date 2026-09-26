@@ -4,7 +4,7 @@ title: 工程工业样板两个方向的原型
 type: prototype
 status: open
 blocked_by: [T-015]
-claimed_by:
+claimed_by: claude
 supersedes:
 ---
 

@@ -16,12 +16,14 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const BASE = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
-const CDP_PORT = process.env.CDP_PORT || "9346";
+// Each run gets its own Chrome (port and profile), so parallel runs by different agents never
+// share a browser and a restart here cannot kill someone else's.
+const CDP_PORT = process.env.CDP_PORT || String(9400 + (process.pid % 500));
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const PROFILE = "/tmp/sitecraft-published-check";
+const PROFILE = `/tmp/sitecraft-published-check-${process.pid}`;
 const WIDTHS = [1440, 768, 375];
 const DEFAULT_SITES = ["overlay-p3i-thick-20260925", "overlay-p3e-thick-20260925", "overlay-sparse-20260924"];
 
@@ -331,4 +333,5 @@ for (const siteKey of siteKeys) {
 fs.writeFileSync(path.join(outDir, "report.json"), JSON.stringify(results, null, 2));
 console.log(`report: ${path.join(outDir, "report.json")}`);
 browser.ws.close();
+spawnSync("pkill", ["-f", `user-data-dir=${PROFILE}`]);
 process.exit(results.some((r) => r.failures.length) ? 1 : 0);
