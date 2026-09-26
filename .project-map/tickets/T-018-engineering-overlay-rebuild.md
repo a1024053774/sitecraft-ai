@@ -30,3 +30,5 @@ supersedes:
 - [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
+
+进行中（2026-09-26，Claude）：已按「样本册」重写 screwfast overlay，首屏改为照片 / 参数铭牌 / 仅文字三种模式（去掉按行业子串挑示意图），产品卡按 adapter 的 `productCard` 声明生成，联系方式整段缺口时整行不显示。`npm test` 238/238；`node scripts/check-published.mjs --out artifacts/published-check/t018-r1` 9/9。未做：逐张目检截图、独立盲评、typecheck/build 复核。

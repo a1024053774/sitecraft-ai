@@ -358,13 +358,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         kitDemo("testimonial", demoMarker("testimonial")),
         kitDemo("feature-extra", demoMarker("feature-extra")),
       ],
-      heroSchematics: {
-        default: "generic",
-        rules: [
-          { includes: ["减速", "gear", "传动"], schematic: "reducer" },
-          { includes: ["流体", "接头", "fitting", "阀"], schematic: "fitting" },
-        ],
-      },
+      productCard: { keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
     },
   },
   fresh: {

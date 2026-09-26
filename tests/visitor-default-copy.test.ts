@@ -105,7 +105,8 @@ function createNode(tagName: string): FakeNode {
   };
   Object.defineProperty(node, "textContent", {
     get() { return this._text ?? ""; },
-    set(value: string) { this._text = String(value ?? ""); },
+    // As in the real DOM, assigning textContent replaces all children.
+    set(value: string) { this._text = String(value ?? ""); this.childNodes.length = 0; this.children.length = 0; },
   });
   node.style = {
     setProperty(name, value) { node.styleValues![name] = value; },
@@ -257,41 +258,76 @@ test("ungenerated default draft hides default and meta copy on the visitor page"
   }
 });
 
-test("screwfast hero uses first product photo or industry schematic from adapter data", () => {
+/**
+ * T-018: the hero picture depends on the draft's products, never on the industry text. A photo
+ * when there is one (plus a key-spec strip), a nameplate of key specs when there is none, and
+ * text only when there are neither. Fails on the old substring rule, which drew a different
+ * schematic for "流体接头" and "减速机".
+ */
+test("screwfast hero picks photo, spec nameplate or nothing from products, not industry text", () => {
   const adapter = getTemplateAdapter("screwfast");
-  assert.ok(adapter?.kit?.heroSchematics);
+  assert.ok(adapter);
   const { document, body } = createDocument();
-  const diagram = createNode("div");
-  diagram.className = "sitecraft-diagram";
-  diagram.setAttribute("data-sitecraft-hero-visual", "");
+  const hero = createNode("section");
+  hero.setAttribute("data-sitecraft-section", "hero");
+  const visual = createNode("figure");
+  visual.setAttribute("data-sitecraft-hero-visual", "");
   const image = createNode("img");
   image.setAttribute("data-sitecraft-benchmark", "hero-image");
-  image.hidden = true;
-  diagram.appendChild(image);
-  body.appendChild(diagram);
+  const nameplate = createNode("dl");
+  nameplate.setAttribute("data-sitecraft-hero-nameplate", "");
+  visual.appendChild(image);
+  visual.appendChild(nameplate);
+  hero.appendChild(visual);
+  const strip = createNode("div");
+  strip.setAttribute("data-sitecraft-hero-specs", "");
+  body.appendChild(hero);
+  body.appendChild(strip);
+  const specs = [
+    { name: { zh: "通径", en: "Bore" }, value: "DN8–DN25" },
+    { name: { zh: "额定压力", en: "Rated pressure" }, value: "2.5 MPa" },
+  ];
+  const noPhoto = (industry: string) => {
+    const draft = structuredClone(defaultDraft);
+    draft.industry = industry;
+    draft.products = draft.products.slice(0, 1).map((product) => {
+      const next = { ...product, specs } as typeof product;
+      delete (next as { image?: unknown }).image;
+      return next;
+    });
+    return draft;
+  };
 
-  const withPhoto = structuredClone(defaultDraft);
-  withPhoto.industry = "外贸 B2B / 不锈钢流体接头目录";
+  const render = (draft: typeof defaultDraft) => {
+    installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [], "published");
+    return { mode: hero.getAttribute("data-sitecraft-hero-mode"), plate: visibleText(nameplate), schematic: visual.getAttribute("data-sitecraft-hero-schematic") };
+  };
+  const fittings = render(noPhoto("外贸 B2B / 不锈钢流体接头目录"));
+  const gearboxes = render(noPhoto("工业制造 / 重载减速机"));
+  assert.equal(fittings.mode, "nameplate");
+  assert.equal(gearboxes.mode, "nameplate");
+  assert.equal(fittings.schematic, null);
+  assert.equal(gearboxes.schematic, null);
+  assert.deepEqual(fittings, gearboxes, "the industry text must not change the hero");
+  assert.ok(fittings.plate.includes("DN8–DN25"));
+  assert.equal(strip.hidden, true, "the strip only accompanies a photo");
+
+  const bare = noPhoto("外贸 B2B / 不锈钢流体接头目录");
+  bare.products = bare.products.map((product) => ({ ...product, specs: [] }));
+  assert.equal(render(bare).mode, "none");
+  assert.equal(visual.hidden, true);
+
+  const withPhoto = noPhoto("外贸 B2B / 不锈钢流体接头目录");
   withPhoto.products[0].image = {
     imageId: "img_1234567890abcdef12345678",
     url: "/api/sites/test/images/img_1234567890abcdef12345678",
     alt: { zh: "接头", en: "Fitting" },
   };
-  installOn(document, adapter).api.applyDeclaredContent(withPhoto, "zh", [], "published");
+  assert.equal(render(withPhoto).mode, "photo");
   assert.equal(image.getAttribute("src"), "/api/sites/test/images/img_1234567890abcdef12345678");
   assert.equal(image.hidden, false);
-  assert.equal(diagram.getAttribute("data-sitecraft-hero-mode"), "photo");
-
-  const noPhoto = structuredClone(defaultDraft);
-  noPhoto.industry = "外贸 B2B / 不锈钢流体接头目录";
-  noPhoto.products = noPhoto.products.map((product) => {
-    const next = { ...product };
-    delete next.image;
-    return next;
-  });
-  installOn(document, adapter).api.applyDeclaredContent(noPhoto, "zh", [], "published");
-  assert.equal(diagram.getAttribute("data-sitecraft-hero-schematic"), "fitting");
-  assert.equal(diagram.getAttribute("data-sitecraft-hero-mode"), "schematic");
+  assert.equal(strip.hidden, false);
+  assert.ok(visibleText(strip).includes("2.5 MPa"));
 });
 
 test("visitor page shows only 已有 and 认证中 certifications", () => {

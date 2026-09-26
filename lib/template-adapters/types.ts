@@ -67,10 +67,14 @@ export type TemplateKit = {
   tokens: TemplateKitTokens;
   palettes?: Readonly<Record<string, TemplateKitTokens>>;
   modules: TemplateKitModule[];
-  /** Declared hero schematic ids chosen from draft.industry substrings (adapter data, not JS). */
-  heroSchematics?: {
-    default: string;
-    rules: Array<{ includes: string[]; schematic: string }>;
+  /**
+   * Catalog-book product cards: how many specs sit on the card, whether the full list folds away,
+   * and where the per-series inquiry link points. Families without it keep the plain card.
+   */
+  productCard?: {
+    keySpecs: number;
+    collapseSpecs: boolean;
+    askHref: string;
   };
 };
 
