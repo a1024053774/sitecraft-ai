@@ -33,7 +33,7 @@ type OpenSourceTemplateFrameProps = {
     company: string;
     message: string;
     honeypot: string;
-  }) => void;
+  }) => Promise<{ ok: boolean; message: string }>;
   onLocaleChange?: (locale: Locale) => void;
   onSelectTarget?: (target: string, label: string, prompt: string) => void;
   onApplyReport?: (report: {
@@ -62,7 +62,7 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
 // Bump when the local snapshot/host overlay contract changes. Keeping this in
 // the iframe URL prevents a browser from showing an older template shell after
 // the runtime asset bundle has been rebuilt.
-const PREVIEW_ASSET_REVISION = "20260923-family-kit-2";
+const PREVIEW_ASSET_REVISION = "20260926-inquiry-result";
 export { PREVIEW_TIMEOUT_MS, PREVIEW_CHROME_HINT };
 
 export function OpenSourceTemplateFrame({
@@ -232,12 +232,15 @@ export function OpenSourceTemplateFrame({
         if (target) onSelectTarget(data.target, target.label, target.prompt);
       }
       if (data?.type === "sitecraft:inquiry" && data.templateId === templateId && onInquiry) {
-        onInquiry({
+        // The result goes back into the page so the visitor sees it next to the form.
+        void onInquiry({
           name: data.payload?.name ?? "",
           email: data.payload?.email ?? "",
           company: data.payload?.company ?? "",
           message: data.payload?.message ?? "",
           honeypot: data.payload?.honeypot ?? "",
+        }).then((result) => {
+          frameRef.current?.contentWindow?.postMessage({ type: "sitecraft:inquiry-result", templateId, ...result }, "*");
         });
       }
       if (data?.type === "sitecraft:applied" && data.templateId === templateId) {

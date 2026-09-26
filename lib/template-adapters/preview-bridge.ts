@@ -911,6 +911,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function onMessage(event) {
     var data = event && event.data;
     if (event && event.source && event.source !== parent) return;
+    if (data && data.type === "sitecraft:inquiry-result" && data.templateId === templateId) {
+      showInquiryResult(data.ok === true, typeof data.message === "string" ? data.message : "");
+      return;
+    }
     if (!data || data.type !== "sitecraft:content" || data.templateId !== templateId) return;
     var run = function () {
       var reportPayload = applyDeclaredContent(
@@ -952,12 +956,51 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return String(node.textContent || "");
   }
 
+  function inquiryForm() {
+    return uniqueNode("[data-sitecraft-inquiry=\"true\"]");
+  }
+
+  // The status line lives inside the form so the visitor sees the result where they clicked.
+  function inquiryStatusNode(form) {
+    var node = form.querySelector ? form.querySelector("[data-sitecraft-inquiry-status]") : null;
+    if (node || !document.createElement) return node;
+    node = document.createElement("p");
+    node.setAttribute("data-sitecraft-inquiry-status", "");
+    node.setAttribute("role", "status");
+    node.setAttribute("aria-live", "polite");
+    node.className = "sitecraft-inquiry-status";
+    node.hidden = true;
+    form.appendChild(node);
+    return node;
+  }
+
+  function setInquiryState(form, state, message) {
+    form.setAttribute("data-sitecraft-inquiry-state", state);
+    var button = form.querySelector ? form.querySelector("[type=\"submit\"]") : null;
+    if (button) button.disabled = state === "sending";
+    var status = inquiryStatusNode(form);
+    if (!status) return;
+    status.textContent = message || "";
+    status.hidden = !message;
+    if (state === "error") status.setAttribute("role", "alert");
+    else status.setAttribute("role", "status");
+  }
+
+  function showInquiryResult(ok, message) {
+    var form = inquiryForm();
+    if (!form) return;
+    if (ok && form.reset) form.reset();
+    setInquiryState(form, ok ? "sent" : "error", message);
+  }
+
   function onInquirySubmit(event) {
     var rawTarget = event && event.target;
     var form = rawTarget && rawTarget.closest ? rawTarget.closest("[data-sitecraft-inquiry=\"true\"]") : null;
     if (!form) return;
     if (event.preventDefault) event.preventDefault();
     if (event.stopPropagation) event.stopPropagation();
+    if (form.getAttribute("data-sitecraft-inquiry-state") === "sending") return;
+    setInquiryState(form, "sending", "");
     if (parent && parent.postMessage) {
       parent.postMessage({
         type: "sitecraft:inquiry",

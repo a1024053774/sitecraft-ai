@@ -900,6 +900,11 @@
         .sitecraft-process-card:last-child { border-bottom: 0; }
         .sitecraft-faq-list { padding: 0 14px; }
       }
+      .sitecraft-inquiry-status { margin: 4px 0 0; padding: 10px 12px; border-left: 3px solid currentColor; font-size: 14px; line-height: 1.5; }
+      .sitecraft-inquiry-status[hidden] { display: none; }
+      [data-sitecraft-inquiry-state="sent"] .sitecraft-inquiry-status { color: #1f6f43; background: rgba(31, 111, 67, 0.08); }
+      [data-sitecraft-inquiry-state="error"] .sitecraft-inquiry-status { color: #9a3412; background: rgba(154, 52, 18, 0.08); }
+      [data-sitecraft-inquiry-state="sending"] [type="submit"] { opacity: 0.6; cursor: progress; }
     </style>
   </head>
   <body>

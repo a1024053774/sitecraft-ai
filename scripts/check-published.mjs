@@ -6,7 +6,11 @@
  * preview iframe to be ready and its height to settle, asserts visitor-page rules, and
  * saves a full-page screenshot plus report.json.
  *
- *   node scripts/check-published.mjs [--out artifacts/published-check/<label>] [siteKey ...]
+ *   node scripts/check-published.mjs [--out artifacts/published-check/<label>] [--submit] [siteKey ...]
+ *
+ * --submit also sends one real inquiry per site at 1440 and 375 (it lands in that site's inbox),
+ * double-clicks submit to check for duplicates, and sends an over-long message the API rejects to
+ * check that the visitor sees the error next to the form with their input kept.
  *
  * Needs the dev server on http://127.0.0.1:3034 and Google Chrome. Exit 1 on any failed rule.
  */
@@ -33,7 +37,8 @@ const FORBIDDEN_TEXT = [
 const args = process.argv.slice(2);
 const outIndex = args.indexOf("--out");
 const outDir = outIndex >= 0 ? args[outIndex + 1] : path.join("artifacts", "published-check", new Date().toISOString().replace(/[:.]/g, "-"));
-const sites = args.filter((arg, i) => arg !== "--out" && i !== outIndex + 1);
+const submit = args.includes("--submit");
+const sites = args.filter((arg, i) => arg !== "--out" && arg !== "--submit" && (outIndex < 0 || i !== outIndex + 1));
 const siteKeys = sites.length ? sites : DEFAULT_SITES;
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -170,6 +175,76 @@ function judge(report) {
   return failures;
 }
 
+const FORM = `document.querySelector('[data-sitecraft-inquiry="true"]')`;
+
+async function fillForm(browser, frame, marker) {
+  await browser.evaluate(`(() => {
+    const form = ${FORM};
+    const set = (name, value) => { const el = form.querySelector('[name="' + name + '"]'); el.value = value; el.dispatchEvent(new Event("input", { bubbles: true })); };
+    set("name", "验收访客"); set("email", "visitor@example.test"); set("company", "验收公司"); set("message", ${JSON.stringify(marker)});
+  })()`, frame);
+}
+
+async function readForm(browser, frame) {
+  return browser.evaluate(`(() => {
+    const form = ${FORM};
+    const status = form && (form.querySelector("[data-sitecraft-inquiry-status]") || form.parentElement.querySelector("[data-sitecraft-inquiry-status]"));
+    const visible = status && getComputedStyle(status).display !== "none" && status.getBoundingClientRect().height > 0;
+    return { state: form.getAttribute("data-sitecraft-inquiry-state"), statusText: visible ? status.textContent.trim() : "", message: form.querySelector('[name="message"]').value };
+  })()`, frame);
+}
+
+async function leadCount(siteKey, marker) {
+  const payload = await fetch(`${BASE}/api/leads?site=${encodeURIComponent(siteKey)}`).then((r) => r.json());
+  const leads = payload.leads || payload.items || [];
+  return leads.filter((lead) => JSON.stringify(lead).includes(marker)).length;
+}
+
+async function shootForm(browser, sessionId, frame, width, file) {
+  const top = await browser.evaluate(`${FORM}.closest("section").getBoundingClientRect().top + scrollY`, frame);
+  const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: Math.max(0, top - 40), width, height: 900, scale: 1 } }, sessionId);
+  fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
+}
+
+async function checkSubmission(browser, sessionId, frame, siteKey, width) {
+  const failures = [];
+  const shotBase = path.join(outDir, `${siteKey}-${width}-inquiry`);
+  const marker = `check-published ${siteKey} ${width} ${Date.now()}`;
+  // Success path: double click must still create exactly one lead.
+  await fillForm(browser, frame, marker);
+  await browser.evaluate(`(() => { const b = ${FORM}.querySelector('[type="submit"]'); b.click(); b.click(); })()`, frame);
+  const sent = await waitFor(async () => {
+    const form = await readForm(browser, frame);
+    return form.state === "sent" || form.state === "error" ? form : null;
+  }, `${siteKey} inquiry result`, 20000).catch(() => null);
+  if (!sent || sent.state !== "sent") failures.push(`inquiry success not shown at the form (state ${sent && sent.state})`);
+  else {
+    await shootForm(browser, sessionId, frame, width, `${shotBase}-sent.png`);
+    if (!sent.statusText) failures.push("inquiry success has no visible status text");
+    if (sent.message) failures.push("form was not cleared after success");
+  }
+  await sleep(800);
+  const count = await leadCount(siteKey, marker);
+  if (count !== 1) failures.push(`expected 1 stored lead for this submission, found ${count}`);
+  // Failure path: a message longer than the server accepts is rejected by the real API (the
+  // browser's maxlength does not apply to values set by script). The visitor must see why and keep
+  // their text.
+  const failMarker = `${marker} failure `.padEnd(4100, "x");
+  await fillForm(browser, frame, failMarker);
+  await browser.evaluate(`${FORM}.querySelector('[type="submit"]').click()`, frame);
+  const failed = await waitFor(async () => {
+    const form = await readForm(browser, frame);
+    return form.state === "error" ? form : null;
+  }, `${siteKey} inquiry error`, 15000).catch(() => null);
+  if (!failed) failures.push("inquiry failure not shown at the form");
+  else {
+    await shootForm(browser, sessionId, frame, width, `${shotBase}-error.png`);
+    if (!failed.statusText) failures.push("inquiry failure has no visible status text");
+    if (failed.message !== failMarker) failures.push("visitor input was lost after a failed submission");
+  }
+  return { failures, success: sent, failure: failed };
+}
+
 async function checkOne(browser, siteKey, width) {
   const { targetId, sessionId } = await openPage(browser);
   try {
@@ -202,17 +277,36 @@ async function checkOne(browser, siteKey, width) {
     fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
     const failures = judge(report);
     delete report.text;
+    if (submit && width !== 768) {
+      const result = await checkSubmission(browser, sessionId, frame, siteKey, width);
+      failures.push(...result.failures);
+      report.inquiry = { success: result.success, failure: result.failure };
+    }
     return { siteKey, width, screenshot: file, failures, ...report };
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
   }
 }
 
-const browser = await connectChrome();
+// Headless Chrome occasionally stops answering DevTools after a long run; restart it once per
+// crashed page instead of reporting a page failure that is really a browser hang.
+async function restartChrome(browser) {
+  try { browser.ws.close(); } catch {}
+  spawn("pkill", ["-f", `user-data-dir=${PROFILE}`]);
+  await sleep(1500);
+  return connectChrome();
+}
+
+let browser = await connectChrome();
 const results = [];
 for (const siteKey of siteKeys) {
   for (const width of WIDTHS) {
-    const result = await checkOne(browser, siteKey, width).catch((error) => ({ siteKey, width, failures: [`check crashed: ${error.message}`] }));
+    let result = await checkOne(browser, siteKey, width).catch((error) => ({ crashed: error }));
+    if (result.crashed) {
+      console.log(`     (browser stopped responding: ${result.crashed.message}; restarting Chrome and retrying)`);
+      browser = await restartChrome(browser);
+      result = await checkOne(browser, siteKey, width).catch((error) => ({ siteKey, width, failures: [`check crashed: ${error.message}`] }));
+    }
     results.push(result);
     console.log(`${result.failures.length ? "FAIL" : "ok  "} ${siteKey} @${width}${result.failures.map((f) => `\n     - ${f}`).join("")}`);
   }

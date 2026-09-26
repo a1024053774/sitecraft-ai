@@ -25,8 +25,6 @@ export function PublishedSiteClient({
   const [locale, setLocale] = useState<Locale>("zh");
   const [activePageId, setActivePageId] = useState(initialPageId);
   const [hydrated, setHydrated] = useState(false);
-  const [inquiryStatus, setInquiryStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [inquiryError, setInquiryError] = useState("");
 
   useEffect(() => {
     setHydrated(false);
@@ -41,9 +39,7 @@ export function PublishedSiteClient({
 
   const postInquiry = async (
     fields: { name: string; email: string; company: string; message: string; honeypot: string },
-  ) => {
-    setInquiryStatus("sending");
-    setInquiryError("");
+  ): Promise<{ ok: boolean; message: string }> => {
     try {
       const response = await fetch(`/api/public/${encodeURIComponent(siteKey)}/leads`, {
         method: "POST",
@@ -65,12 +61,12 @@ export function PublishedSiteClient({
           recovery: payload.recovery,
         }, locale === "zh" ? "询盘未保存" : "Inquiry was not saved"));
       }
-      setInquiryStatus("sent");
+      return { ok: true, message: locale === "zh" ? "询盘已发送。" : "Your inquiry has been sent." };
     } catch (error) {
-      setInquiryStatus("error");
-      setInquiryError(userFacingError({
-        message: error instanceof Error ? error.message : null,
-      }, "询盘未保存"));
+      return {
+        ok: false,
+        message: userFacingError({ message: error instanceof Error ? error.message : null }, locale === "zh" ? "询盘未保存" : "Inquiry was not saved"),
+      };
     }
   };
 
@@ -80,7 +76,6 @@ export function PublishedSiteClient({
       data-preview-hydrated={hydrated ? "true" : "false"}
       data-site-key={siteKey}
       data-offers-english={offersEnglish ? "true" : "false"}
-      data-inquiry-status={inquiryStatus}
       data-testid="published-template-shell"
     >
       <div className="published-template-stage">
@@ -94,16 +89,9 @@ export function PublishedSiteClient({
           activePage={activePage}
           onLocaleChange={setLocale}
           onApplyReport={() => setHydrated(true)}
-          onInquiry={(fields) => {
-            void postInquiry(fields);
-          }}
+          onInquiry={postInquiry}
         />
       </div>
-      {inquiryStatus === "error" ? (
-        <p className="published-inquiry-error" role="alert" data-testid="published-inquiry-error">
-          {inquiryError}
-        </p>
-      ) : null}
     </main>
   );
 }
