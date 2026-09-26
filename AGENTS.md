@@ -10,18 +10,19 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 内部技术 Demo：用模拟的工业、设备、零部件、外贸 B2B 资料，生成**看起来像那家公司自己建的**网站，并能在对话里修改、在预览里看到。
 
-做任何事前先问：**这件事有没有让负责人看到的生成站更好看、更真、更好改？** 优先级固定为：
+做任何事前先问：**这件事有没有让生成站更好看、更真、更好改？** 优先级固定为：
 
-1. 生成页面的质量（负责人肉眼判断）；
+1. 生成页面的质量（由独立审核 agent 盲评判断）；
 2. 主流程可用：资料/Prompt → 需求对齐 → 确认 → 生成 → 修改/撤销 → 刷新恢复；
 3. 其他一切（部署、环境、基础设施、证据整理）。
 
-排在 3 的事不能占用 1、2 的时间。当前该做什么只看 `docs/project/plan.md` 的「下一步」。
+排在 3 的事不能占用 1、2 的时间。当前该做什么只看 project-map 的 frontier（见「开工前」）。
 
 ## 开工前
 
-- 读 `docs/project/plan.md`，需要时再读 `mainline.md`（主线与素材规则）、`intent.md`（已确认需求）、`spec.md`（规格）。`plan-history.md` 和 `.grilling/` 是历史，不是待办。
-- 用户说「主线」「reality-first」或 `/grilling` 时，先用几句话对照 mainline 和 plan：这次任务是否让站点更好看、更真、更好改；对不上就停下来说。
+- 运行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`（project-map skill 的脚本；Claude 端也可用 `~/.claude/skills/project-map/scripts/`），再读 `.project-map/MAP.md` 和术语表 `CONTEXT.md`。只从 frontier 领票：开工前在票的 `claimed_by` 写上自己的名字，一次只做一张 build 票，按票里的验收勾选项交付。
+- 需要时再读 `docs/project/` 下的 `mainline.md`（主线与素材规则）、`intent.md`（已确认需求）、`spec.md`（规格）。`plan-history.md`、`review-*.md` 和 `.grilling/` 是历史记录，不是待办。
+- 用户说「主线」「reality-first」或 `/grilling` 时，先用几句话对照 mainline 和 MAP：这次任务是否让站点更好看、更真、更好改；对不上就停下来说。
 - 看 `git status` 和 diff。现有未提交代码是用户的工作，不覆盖、不回滚、不重排。
 
 ## 本阶段不做
@@ -65,16 +66,18 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 一个功能算完成：
 
 1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；
-2. UI/预览改动在真实浏览器里打开看过（桌面 + 375 宽），截图放 gitignore 的 `artifacts/`；
-3. 页面质量以负责人肉眼为准。代理自查和外部模型审计能找问题，不能宣布审美通过；
-4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作。
+2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`。截图前确认预览已就绪、整页高度已稳定，每张都打开看过；载入态、空白或截断的截图不算证据；
+3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
+4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；
+5. 对应票的验收勾选项都有证据，票已关闭；`project_map.py status` 里没有过时的 living doc。
 
 不需要：实机证据、公网证据、每次探针的 JSON 归档、独立的「证据记录」提交、对同一候选反复审查。
 
 ## 文档
 
-- `plan.md` 只写当前状态和下一步，完成一项改 1–3 行。不追加逐轮日志，不叠加「更正」段落；过时内容删掉或移到 `plan-history.md`。
-- 需求/方向变化写进 `intent.md` / `mainline.md`，改动前经负责人确认；不另建第二套规格。
+- 决定和待办只放在 `.project-map/`：决定写在决定票里，工作写成 build 票，下一步做什么由脚本算出来。不另写计划文件，不追加逐轮日志，不叠加「更正」段落；`MAP.md` 不超过 150 行。
+- MAP 里登记的 living docs 只写当前真相：代码改了就同步，被取代的内容直接删掉。
+- 需求或方向变化要开决定票，经负责人确认后写进 `intent.md` / `mainline.md`；不另建第二套规格。新定下的术语写进 `CONTEXT.md`。
 - 中文内容保持 UTF-8，窄改优先，不做无关格式化或标点归一化。
 
 ## Git
@@ -91,5 +94,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 协作
 
-- 不绑定特定模型或客户端。小中型任务主负责人直接做；只有边界清楚、并行能缩短路径时才委派，委派须写清输入、可改文件、禁止范围和验收。多个代理不改同一文件。
-- 用 Goal/连续模式时，队列只能来自 `plan.md` 的「下一步」。可以连续做，但遇到需要负责人判断的节点（盲评、方案二选一）要停下等；队列做完就停，不自行把「本阶段不做」里的事或新方向加进队列。
+分工（2026-09-26 负责人决定，见 `.project-map/tickets/T-013-roles-and-review.md`）：
+
+- **负责人**：只定方向和需求，不做盲评和审核。
+- **Claude（主负责人）**：所有视觉和界面工作（生成站 overlay、色板、工作台），整合、提交和推送。
+- **Astra（Codex）**：不涉及界面的工程逻辑，例如需求对齐协议、生成与 operation、中英文生成、色板生成规则。功能需要界面配合时，只做让功能能用的最小界面，外观留给界面票。
+- **两个 Grok 4.7 agent（Cursor）**：独立审核（盲评、代码审核、票的验收）和调研。审核者不能审自己参与过的工作。
+
+规则：
+
+- 多个代理不改同一文件，靠 `claimed_by` 避免撞票。委派时写清输入、可改范围、禁止范围和验收。
+- 用 Goal/连续模式时，队列只能来自 frontier。需要负责人决定方向或需求时停下来等；盲评和审核交给审核 agent，不等负责人。队列做完就停，不自行把「本阶段不做」里的事或新方向加进队列。

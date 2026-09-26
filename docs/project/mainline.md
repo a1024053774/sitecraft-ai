@@ -1,6 +1,6 @@
 # SiteCraft 主线
 
-负责人确认前以本文 + [intent.md](./intent.md) / [spec.md](./spec.md) / [plan.md](./plan.md) 为准。会话记录在 `.grilling/`，不另写第二套规格。
+负责人确认前以本文 + [intent.md](./intent.md) / [spec.md](./spec.md) 为准；决定和待办在 [.project-map/MAP.md](../../.project-map/MAP.md)，术语在 [CONTEXT.md](../../CONTEXT.md)。grilling 会话记录在 `.grilling/`，不另写第二套规格。
 
 更新：2026-09-18，Q27=A、Q26=B。P4 负责人盲评不过。数据删除政策取代 Q17=A。开源素材摘录见 [开源目录与工业模板素材-2026-09-18.md](../research/开源目录与工业模板素材-2026-09-18.md)。Jiro 实测来自 2026-09-17 会话 `31efb674-560a-49b7-8fb2-3b864fe3705a`。
 
@@ -22,7 +22,7 @@
 
 组页方式（Q27=A）：许可已核的**同族素材套件** + **一个**共享预览引擎。从已准入 HTML/CSS/token/区块抽出模块，组这家公司的页面。模型不输出 CSS。草稿仍走 `commitOperations`。adapter 仍是可审查数据（选择器、目标、显隐、清理规则），不存每模板可执行 JS。禁止另起第二套渲染器，禁止模型写 HTML/CSS，本阶段不做原生 React/shadcn 拼装（D5 仍留后续）。
 
-当前代码仍按声明槽位写 iframe 快照。那是过渡，必须改成同一套 `preview-bridge` 吃素材套件，不能并行再写一个渲染器。未核许可的调研仓库不要推进 `vendor/`。
+四个视觉族的首页已经是 SiteCraft 自己写的 overlay，由同一个 `preview-bridge` 写入内容；子页和其余模板仍是按声明槽位写快照的过渡做法。往后也只扩展这一个引擎，不并行再写一个渲染器。未核许可的调研仓库不要推进 `vendor/`。
 
 验收否决：未选用的模板品牌、客户 Logo 墙、SaaS 定价、演示图、假评价数字不能出现在生成站上。只改标题而留下 ScrewFast / Airbnb / `$29` 不算做成。`missing` 是落点失败，不是允许演示壳留下。
 
@@ -55,6 +55,6 @@ Jiro 最大的架构课写在它自己首页上：**跨源把 Header 和 Feature
 
 ## 防漂移
 
-用户说「主线」「reality-first」或 `/grilling` 时，先读本文和当前 `plan.md`，用几句话对照：目标、当前切片、这次任务有没有让站点更好看、更真、更能改。对不上就停，不在局部实现里换方向。
+用户说「主线」「reality-first」或 `/grilling` 时，先读本文和 `.project-map/MAP.md`，用几句话对照：目标、当前切片、这次任务有没有让站点更好看、更真、更能改。对不上就停，不在局部实现里换方向。
 
 不另建 `REALITY.md`，不用规则引擎去猜「被动要不要拦」。日常约束靠本目录文档和 `AGENTS.md` 里的入口。
