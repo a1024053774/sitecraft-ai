@@ -51,9 +51,9 @@
 | Doc | Covers | Verified |
 | --- | --- | --- |
 | [AGENTS.md](../AGENTS.md) | `package.json`, `scripts/**` | |
-| [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `lib/simulated-packs.ts`, `lib/template-adapters/**` | |
+| [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `lib/simulated-packs.ts`, `lib/template-adapters/**` | 937bae7 |
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**` | |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-00[1-9]-*.md`, `.project-map/tickets/T-01[0-4]-*.md` | |
-| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/**`, `lib/frontend-tone.ts` | 624cb86 |
+| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/**`, `lib/frontend-tone.ts` | 937bae7 |
 | [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/workspace/**`, `app/api/**` | |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | |

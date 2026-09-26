@@ -1028,6 +1028,16 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
       return;
     }
+    // The preview document has a <base href> pointing at template assets, so a plain "#section"
+    // link would resolve to the assets folder and navigate the frame away. Scroll in place instead.
+    var anchor = rawTarget && rawTarget.closest ? rawTarget.closest("a[href^=\"#\"]") : null;
+    if (anchor) {
+      var hash = anchor.getAttribute("href") || "";
+      var section = hash.length > 1 && document.getElementById ? document.getElementById(hash.slice(1)) : null;
+      if (event.preventDefault) event.preventDefault();
+      if (section && section.scrollIntoView) section.scrollIntoView({ behavior: "smooth", block: "start" });
+      else if (hash === "#top" && global.scrollTo) global.scrollTo({ top: 0, behavior: "smooth" });
+    }
     var variant = document.documentElement && document.documentElement.dataset
       ? document.documentElement.dataset.sitecraftVariant
       : "";

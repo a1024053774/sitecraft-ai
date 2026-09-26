@@ -23,7 +23,7 @@ supersedes:
 ## Acceptance
 
 - [x] 三份样板草稿的发布页都有询盘区和表单，首屏主按钮能跳到询盘区
-- [x] 默认条目的判断不依赖文字比对：把默认文案改一个字，隐藏行为保持不变（写成测试）
+- [x] 访客页是否显示一段文字，不取决于旧演示文案：用 `set_text` 写入与旧演示文案逐字相同的句子，照常显示；整段是缺口标记（T-009）的说明句不显示。写成测试，并在文字比对的旧实现上失败（措辞于 2026-09-26 修订，原因见 Resolution）
 - [x] 访客页上不出现模拟标注；渲染代码里没有删除标注的正则
 - [x] 任何宽度下首屏都没有破图
 - [x] 用了实拍照片的样板，页脚不再写「结构示意，非实拍」
@@ -50,3 +50,9 @@ supersedes:
 - `npm test` 234/234，`npm run typecheck`、`npm run build` 通过。
 
 遗留：资料少的样板英文未生成，发布页仍显示 EN 切换（判断在 `draft-english.ts`，归 T-024）。
+
+2026-09-26 返工（grok-b 验收 NO_GO，`artifacts/review-t016-t019-20260926.md`）：
+
+- 验收项措辞修订：原文「把默认文案改一个字，隐藏行为保持不变」是按「记录哪些槽位被写过」的设计写的。实际做法是从源头删掉演示文案，「待补充 / To be provided」是 T-009 定下的、草稿里表示缺少事实的数据写法，相当于空值；把它改成「待补充x」就成了写进去的内容，照常显示是对的。要证明的是隐藏与否不取决于旧演示文案，因此改为现在的措辞。新增测试 `tests/visitor-default-copy.test.ts`「authored copy shows even when it matches old demo text; whole-gap sentences are omitted」：在 `3e645a8`（文字比对实现）上失败，失败信息为 inquiry section must stay visible；在当前代码上通过。
+- 检查脚本的漏洞已补：照片计数包含首屏实拍；主按钮会真的点击，并确认询盘表单进入视口。
+- 补点击检查时发现真 bug：预览页里的 `<base href>` 指向模板资源目录，所有 `#section` 锚点（首屏按钮、导航）点击后都会让 iframe 跳到资源目录。预览引擎现在接管页内锚点，改为在页内滚动。修复前脚本一点击就因 iframe 跳转而崩溃（`artifacts/published-check/t016-rework/` 首次运行）；修复后 `node scripts/check-published.mjs --out artifacts/published-check/t016-rework` 9/9 通过。

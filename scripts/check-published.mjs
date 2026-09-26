@@ -151,13 +151,24 @@ const INSPECT = `(async () => {
   await Promise.all([...document.images].filter(visible).map(settle));
   const images = [...document.images].filter(visible);
   const broken = images.filter((img) => !img.getAttribute("src") || !img.complete || img.naturalWidth === 0).map((img) => img.outerHTML.slice(0, 160));
-  const photos = images.filter((img) => img.naturalWidth > 0 && !img.closest("[data-sitecraft-hero-schematic]"));
+  // Every loaded <img> is a photo; schematics are drawn with CSS and labelled 示意.
+  const photos = images.filter((img) => img.naturalWidth > 0);
+  // Follow the hero button the way a visitor would and see where the page lands.
+  let ctaLandsOnForm = false;
+  if (cta && form) {
+    cta.click();
+    await new Promise((done) => setTimeout(done, 1500));
+    const rect = form.getBoundingClientRect();
+    ctaLandsOnForm = rect.top < innerHeight && rect.bottom > 0;
+    scrollTo(0, 0);
+  }
   return {
     height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
     contactVisible: visible(contact),
     formVisible: visible(form),
     ctaHref: cta && cta.getAttribute("href"),
     ctaTargetVisible: visible(ctaTarget),
+    ctaLandsOnForm,
     broken,
     photoCount: photos.length,
     saysSchematicOnly: text.includes("非实拍"),
@@ -169,6 +180,7 @@ function judge(report) {
   const failures = [];
   if (!report.contactVisible || !report.formVisible) failures.push("inquiry section or form is not visible");
   if (!report.ctaTargetVisible) failures.push(`hero CTA ${report.ctaHref} does not lead to a visible section`);
+  if (!report.ctaLandsOnForm) failures.push("clicking the hero CTA does not bring the inquiry form into view");
   if (report.broken.length) failures.push(`broken images: ${report.broken.join(" | ")}`);
   if (report.photoCount > 0 && report.saysSchematicOnly) failures.push("page shows photos but still says illustrations are not real photos");
   for (const phrase of FORBIDDEN_TEXT) if (report.text.includes(phrase)) failures.push(`forbidden visitor text: ${phrase}`);

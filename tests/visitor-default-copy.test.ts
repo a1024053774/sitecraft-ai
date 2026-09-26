@@ -327,3 +327,45 @@ test("visitor page shows only 已有 and 认证中 certifications", () => {
   installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [], "published");
   assert.equal(section.hidden, true);
 });
+
+/**
+ * Whether copy shows on the visitor page must not depend on what the old demo draft said.
+ * Writing the old demo sentence through set_text is authored content and must show; a field
+ * whose whole value is the gap marker (T-009) is omitted. Fails on a text-comparison
+ * implementation such as 3e645a8, which hid the whole inquiry section for these sentences.
+ */
+test("authored copy shows even when it matches old demo text; whole-gap sentences are omitted", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const { document, body } = createDocument();
+  const contact = createNode("section");
+  contact.setAttribute("data-sitecraft-section", "contact");
+  const title = createNode("h2");
+  title.setAttribute("data-sitecraft-benchmark", "contact-title");
+  const copy = createNode("p");
+  copy.setAttribute("data-sitecraft-benchmark", "contact-body");
+  contact.appendChild(title);
+  contact.appendChild(copy);
+  const products = createNode("section");
+  products.setAttribute("data-sitecraft-section", "products");
+  const intro = createNode("p");
+  intro.setAttribute("data-sitecraft-benchmark", "products-intro");
+  intro.textContent = "overlay-products-intro";
+  products.appendChild(intro);
+  body.appendChild(contact);
+  body.appendChild(products);
+
+  const draft = applySiteOperations(structuredClone(defaultDraft), [
+    { op: "set_text", target: "contact.title", locale: "zh", value: "说说你的下一件事。" },
+    { op: "set_text", target: "contact.body", locale: "zh", value: "留下项目需求，我们会尽快与你联系。" },
+    { op: "set_text", target: "products.intro", locale: "zh", value: "待补充" },
+  ], { templateIds: new Set(["forge", "screwfast"]), lastChange: "authored-demo-text" }).draft;
+
+  installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [], "published");
+
+  assert.notEqual(contact.getAttribute("data-sitecraft-section-hidden"), "true", "inquiry section must stay visible");
+  assert.notEqual(contact.hidden, true, "inquiry section must stay visible");
+  assert.equal(visibleText(title).trim(), "说说你的下一件事。");
+  assert.equal(visibleText(copy).trim(), "留下项目需求，我们会尽快与你联系。");
+  assert.equal(intro.hidden, true, "a whole-gap intro sentence is omitted");
+});
