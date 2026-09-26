@@ -68,15 +68,22 @@ const setTextOperationSchema = z.object({
   op: z.literal("set_text"),
   target: textTargetSchema,
   locale: z.enum(locales).optional(),
-  value: z.string().min(1).max(1000),
+  value: z.union([
+    z.string().min(1).max(1000),
+    z.object({ zh: z.string().min(1).max(1000), en: z.string().min(1).max(1000) }),
+  ]),
 });
+const localizedOperationValueSchema = z.union([
+  z.string().min(1).max(1000),
+  z.object({ zh: z.string().min(1).max(1000), en: z.string().min(1).max(1000) }),
+]);
 const updateCardOperationSchema = z.object({
   op: z.literal("update_card"),
   section: z.enum(["features", "services", "faq"]),
   index: z.number().int().min(0).max(11),
-  locale: z.enum(locales),
-  title: z.string().min(1).max(160).optional(),
-  body: z.string().min(1).max(600).optional(),
+  locale: z.enum(locales).optional(),
+  title: localizedOperationValueSchema.optional(),
+  body: localizedOperationValueSchema.optional(),
 }).refine((value) => value.title || value.body, "Card update requires title or body");
 const addCardOperationSchema = z.object({
   op: z.literal("add_card"),
@@ -93,8 +100,8 @@ const updateProductOperationSchema = z.object({
   op: z.literal("update_product"),
   sku: z.string().min(1).max(120),
   locale: z.enum(locales).optional(),
-  name: z.string().min(1).max(200).optional(),
-  summary: z.string().min(1).max(1000).optional(),
+  name: localizedOperationValueSchema.optional(),
+  summary: localizedOperationValueSchema.optional(),
   category: z.string().min(1).max(120).optional(),
 }).refine((value) => value.name || value.summary || value.category, "Product update requires at least one field");
 const setProductSpecsOperationSchema = z.object({
@@ -437,10 +444,21 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "set_text") {
+      if (typeof operation.value === "object") {
+        const previous = { zh: readText(draft, operation.target, "zh"), en: readText(draft, operation.target, "en") };
+        if (previous.zh === operation.value.zh && previous.en === operation.value.en) continue;
+        writeText(draft, operation.target, "zh", operation.value.zh);
+        writeText(draft, operation.target, "en", operation.value.en);
+        if (!isGapMarker(operation.value.en)) draft.englishReady = true;
+        inverseOperations.unshift({ op: "set_text", target: operation.target, value: previous });
+        appliedTargets.push(`${operation.target}.zh`, `${operation.target}.en`);
+        continue;
+      }
       const locale = nonLocalizedTargets.has(operation.target) ? "zh" : (operation.locale ?? "zh");
       const previous = readText(draft, operation.target, locale);
       if (previous === operation.value) continue;
       writeText(draft, operation.target, locale, operation.value);
+      if (locale === "en" && !isGapMarker(operation.value)) draft.englishReady = true;
       inverseOperations.unshift({ ...operation, locale, value: previous });
       appliedTargets.push(`${operation.target}.${locale}`);
       continue;
@@ -448,23 +466,36 @@ export function applySiteOperations(
     if (operation.op === "update_card") {
       const item = draft.content[operation.section].items[operation.index];
       if (!item) throw new Error(`${operation.section} item ${operation.index + 1} does not exist`);
+      if ((typeof operation.title === "object" && operation.title) || (typeof operation.body === "object" && operation.body)) {
+        const inverse: SiteOperation = {
+          op: "update_card", section: operation.section, index: operation.index,
+          ...(operation.title ? { title: typeof operation.title === "object" ? structuredClone(item.title) : item.title.zh } : {}),
+          ...(operation.body ? { body: typeof operation.body === "object" ? structuredClone(item.body) : item.body.zh } : {}),
+        };
+        let changed = false;
+        if (typeof operation.title === "object") { if (item.title.zh !== operation.title.zh || item.title.en !== operation.title.en) changed = true; item.title = structuredClone(operation.title); appliedTargets.push(`${operation.section}.items.${operation.index}.title.zh`, `${operation.section}.items.${operation.index}.title.en`); }
+        if (typeof operation.body === "object") { if (item.body.zh !== operation.body.zh || item.body.en !== operation.body.en) changed = true; item.body = structuredClone(operation.body); appliedTargets.push(`${operation.section}.items.${operation.index}.body.zh`, `${operation.section}.items.${operation.index}.body.en`); }
+        if (changed) { if ((typeof operation.title === "object" && !isGapMarker(operation.title.en)) || (typeof operation.body === "object" && !isGapMarker(operation.body.en))) draft.englishReady = true; inverseOperations.unshift(inverse); }
+        continue;
+      }
       const inverse: SiteOperation = {
         op: "update_card",
         section: operation.section,
         index: operation.index,
-        locale: operation.locale,
-        ...(operation.title ? { title: item.title[operation.locale] } : {}),
-        ...(operation.body ? { body: item.body[operation.locale] } : {}),
+        locale: operation.locale ?? "zh",
+        ...(operation.title ? { title: item.title[operation.locale ?? "zh"] } : {}),
+        ...(operation.body ? { body: item.body[operation.locale ?? "zh"] } : {}),
       };
       let changed = false;
-      if (operation.title && item.title[operation.locale] !== operation.title) {
-        item.title[operation.locale] = operation.title;
-        appliedTargets.push(`${operation.section}.items.${operation.index}.title.${operation.locale}`);
+      const locale = operation.locale ?? "zh";
+      if (operation.title && typeof operation.title === "string" && item.title[locale] !== operation.title) {
+        item.title[locale] = operation.title;
+        appliedTargets.push(`${operation.section}.items.${operation.index}.title.${locale}`);
         changed = true;
       }
-      if (operation.body && item.body[operation.locale] !== operation.body) {
-        item.body[operation.locale] = operation.body;
-        appliedTargets.push(`${operation.section}.items.${operation.index}.body.${operation.locale}`);
+      if (operation.body && typeof operation.body === "string" && item.body[locale] !== operation.body) {
+        item.body[locale] = operation.body;
+        appliedTargets.push(`${operation.section}.items.${operation.index}.body.${locale}`);
         changed = true;
       }
       if (changed) inverseOperations.unshift(inverse);
@@ -491,6 +522,18 @@ export function applySiteOperations(
     if (operation.op === "update_product") {
       const product = draft.products.find((item) => item.sku === operation.sku);
       if (!product) throw new Error(`Product ${operation.sku} does not exist`);
+      if ((typeof operation.name === "object" && operation.name) || (typeof operation.summary === "object" && operation.summary)) {
+        const inverse: SiteOperation = { op: "update_product", sku: operation.sku,
+          ...(operation.name ? { name: typeof operation.name === "object" ? structuredClone(product.name) : product.name.zh } : {}),
+          ...(operation.summary ? { summary: typeof operation.summary === "object" ? structuredClone(product.summary) : product.summary.zh } : {}),
+          ...(operation.category ? { category: product.category } : {}),
+        };
+        let changed = false;
+        if (typeof operation.name === "object") { if (product.name.zh !== operation.name.zh || product.name.en !== operation.name.en) changed = true; product.name = structuredClone(operation.name); appliedTargets.push(`products.${operation.sku}.name.zh`, `products.${operation.sku}.name.en`); }
+        if (typeof operation.summary === "object") { if (product.summary.zh !== operation.summary.zh || product.summary.en !== operation.summary.en) changed = true; product.summary = structuredClone(operation.summary); appliedTargets.push(`products.${operation.sku}.summary.zh`, `products.${operation.sku}.summary.en`); }
+        if (changed) { if ((typeof operation.name === "object" && !isGapMarker(operation.name.en)) || (typeof operation.summary === "object" && !isGapMarker(operation.summary.en))) draft.englishReady = true; inverseOperations.unshift(inverse); }
+        continue;
+      }
       const locale = operation.locale ?? "zh";
       const inverse: SiteOperation = {
         op: "update_product",
@@ -829,13 +872,14 @@ function materialsIncludesFact(materials: string, value: string) {
   return compactMaterials.includes(compact);
 }
 
-function isGapMarker(value: string) {
-  const text = value.trim();
+function isGapMarker(value: string | { zh: string; en: string }) {
+  const text = typeof value === "string" ? value.trim() : value.zh.trim();
   return text.length === 0 || text === "待补充" || text === "To be provided";
 }
 
-function isModelInstruction(value: string) {
-  return /只回答资料|没有的写成待补充|写成待补充|mark gaps/i.test(value);
+function isModelInstruction(value: string | { zh: string; en: string }) {
+  const text = typeof value === "string" ? value : `${value.zh}\n${value.en}`;
+  return /只回答资料|没有的写成待补充|写成待补充|mark gaps/i.test(text);
 }
 
 export function describeTarget(target: string) {

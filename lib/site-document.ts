@@ -296,6 +296,8 @@ export const siteDraftSchema = z.object({
   legacyVisualBriefId: z.literal("editorial-service").optional(),
   paletteId: paletteIdSchema.default("default"),
   locale: z.enum(locales),
+  /** Set by a bilingual content operation once English has been authored. */
+  englishReady: z.boolean().default(false),
   revision: z.number().int().nonnegative(),
   lastChange: z.string().max(240),
   industry: z.string().max(120),
@@ -392,6 +394,7 @@ export const defaultDraft: SiteDraft = {
   visualBrief: structuredClone(visualBriefCatalog[0]),
   paletteId: "industrial-white",
   locale: "zh",
+  englishReady: false,
   revision: 1,
   lastChange: "草稿已保存",
   industry: "工业制造",

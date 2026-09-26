@@ -48,3 +48,9 @@ test("published client removes SiteCraft chrome bars", () => {
   assert.match(publishedClient, /onInquiry/);
   assert.match(publishedClient, /\/api\/public\/\$\{encodeURIComponent\(siteKey\)\}\/leads/);
 });
+
+test("sparse legacy draft with only inherited English does not offer visitor English", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const raw = JSON.parse(await readFile(".sitecraft-data/sites/overlay-sparse-20260924.json", "utf8")) as { draft: typeof defaultDraft };
+  assert.equal(draftOffersVisitorEnglish(raw.draft), false);
+});

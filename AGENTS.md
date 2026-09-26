@@ -66,7 +66,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 一个功能算完成：
 
 1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；
-2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`。发布页用 `node scripts/check-published.mjs --out artifacts/published-check/<标签>`（需 3034 端口的 dev server）检查访客页规则并截图；新增访客页规则时把断言加进这个脚本。截图前确认预览已就绪、整页高度已稳定，每张都打开看过；载入态、空白或截断的截图不算证据；
+2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`。发布页用 `node scripts/check-published.mjs --out artifacts/published-check/<标签>`（需 3034 端口的 dev server）检查访客页规则并截图；新增访客页规则（包括英文开关）时把断言加进这个脚本。截图前确认预览已就绪、整页高度已稳定，每张都打开看过；载入态、空白或截断的截图不算证据；
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
 4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；
 5. 对应票的验收勾选项都有证据，票已关闭；`project_map.py status` 里没有过时的 living doc。

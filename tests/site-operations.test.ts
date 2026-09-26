@@ -276,3 +276,15 @@ test("engineering palette changes are named, reversible, and same-family only", 
     /not available/,
   );
 });
+
+test("one localized text operation writes zh and en together and undo restores both", () => {
+  const result = applySiteOperations(structuredClone(defaultDraft), [{
+    op: "set_text",
+    target: "hero.title",
+    value: { zh: "双语标题", en: "Bilingual title" },
+  }], { templateIds: new Set(["forge"]), lastChange: "bilingual" });
+  assert.equal(result.draft.content.hero.title.zh, "双语标题");
+  assert.equal(result.draft.content.hero.title.en, "Bilingual title");
+  const restored = applySiteOperations(result.draft, result.inverseOperations, { templateIds: new Set(["forge"]), lastChange: "undo" });
+  assert.deepEqual(restored.draft.content.hero.title, defaultDraft.content.hero.title);
+});
