@@ -2,7 +2,7 @@
 id: T-027
 title: 访客提交询盘后看到结果
 type: build
-status: open
+status: closed
 blocked_by: [T-016]
 claimed_by: claude
 supersedes:
@@ -21,7 +21,7 @@ supersedes:
 - [x] 模拟服务端失败时，表单旁看得到失败提示，已填内容还在（用超出服务端长度上限的需求说明触发真实的校验失败）
 - [x] 1440 / 375 截图显示成功和失败两种状态
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -37,3 +37,5 @@ supersedes:
 
 副作用：每跑一次 `--submit`，每份样板的收件箱多几条带 `check-published` 标记的测试询盘。
 检查脚本在长时间运行后偶发 headless Chrome 不再响应 DevTools，脚本会重启 Chrome 并重跑该页一次（原因是浏览器挂起，不是页面失败；移除条件：找到挂起根因后删掉重启逻辑）。
+
+独立审核：grok-b，2026-09-26，PASS，`node scripts/check-published.mjs --submit --out artifacts/published-check/review-t027`。

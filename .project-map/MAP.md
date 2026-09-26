@@ -2,7 +2,7 @@
 
 ## Destination
 
-工程工业样板经独立盲评通过；新建站点走需求对齐的多题卡片，在第 1 轮选样子和色彩集；工作台按方向 B 改版（含手机逐题抽屉、深浅主题）；中英文一起生成。完成标志是 T-016 至 T-026 全部关闭。需求见 [intent.md](../docs/project/intent.md)，规格见 [spec.md](../docs/project/spec.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
+工程工业样板经独立盲评通过；新建站点走需求对齐的多题卡片，在第 1 轮选样子和色彩集；工作台按方向 B 改版（含手机逐题抽屉、深浅主题）；中英文一起生成。完成标志是 T-016 至 T-027 全部关闭。需求见 [intent.md](../docs/project/intent.md)，规格见 [spec.md](../docs/project/spec.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
 
 ## Notes
 
@@ -52,9 +52,9 @@
 | Doc | Covers | Verified |
 | --- | --- | --- |
 | [AGENTS.md](../AGENTS.md) | `package.json`, `scripts/**` | |
-| [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `lib/simulated-packs.ts`, `lib/template-adapters/**` | 937bae7 |
+| [CONTEXT.md](../CONTEXT.md) | `lib/site-document.ts`, `lib/site-operations.ts`, `lib/alignment.ts`, `lib/template-adapters/types.ts` | |
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**` | |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-00[1-9]-*.md`, `.project-map/tickets/T-01[0-4]-*.md` | |
-| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/**`, `lib/frontend-tone.ts` | 937bae7 |
+| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/types.ts`, `lib/template-adapters/registry.ts`, `lib/frontend-tone.ts` | |
 | [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/workspace/**`, `app/api/**` | |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | |

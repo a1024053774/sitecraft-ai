@@ -157,10 +157,13 @@ const INSPECT = `(async () => {
   let ctaLandsOnForm = false;
   if (cta && form) {
     cta.click();
-    await new Promise((done) => setTimeout(done, 1500));
-    const rect = form.getBoundingClientRect();
-    ctaLandsOnForm = rect.top < innerHeight && rect.bottom > 0;
-    scrollTo(0, 0);
+    // Smooth scrolling takes a variable time; poll for up to 5 s instead of guessing.
+    for (let waited = 0; waited < 5000 && !ctaLandsOnForm; waited += 200) {
+      await new Promise((done) => setTimeout(done, 200));
+      const rect = form.getBoundingClientRect();
+      ctaLandsOnForm = rect.top < innerHeight && rect.bottom > 0;
+    }
+    scrollTo({ top: 0, behavior: "instant" });
   }
   return {
     height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
@@ -213,8 +216,10 @@ async function leadCount(siteKey, marker) {
 }
 
 async function shootForm(browser, sessionId, frame, width, file) {
-  const top = await browser.evaluate(`${FORM}.closest("section").getBoundingClientRect().top + scrollY`, frame);
-  const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: Math.max(0, top - 40), width, height: 900, scale: 1 } }, sessionId);
+  // The frame is stretched to the full page height, so frame coordinates equal page coordinates.
+  // Measure after the state change: a long message grows the textarea and moves the section.
+  const box = await browser.evaluate(`(() => { const r = ${FORM}.closest("section").getBoundingClientRect(); return { top: r.top + scrollY, height: r.height }; })()`, frame);
+  const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: Math.max(0, box.top - 40), width, height: Math.max(600, box.height + 80), scale: 1 } }, sessionId);
   fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
 }
 

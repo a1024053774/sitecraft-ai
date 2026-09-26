@@ -2,7 +2,7 @@
 id: T-016
 title: 访客页始终有询盘入口，缺口按草稿数据判断
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: claude
 supersedes:
@@ -29,7 +29,7 @@ supersedes:
 - [x] 用了实拍照片的样板，页脚不再写「结构示意，非实拍」
 - [x] 用 Chrome 在 1440 / 768 / 375 截取完整页面（三份样板草稿）；逐张打开确认不是载入态、不是空白，截图放 `artifacts/`，重新生成截图的命令写进 Resolution
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -56,3 +56,5 @@ supersedes:
 - 验收项措辞修订：原文「把默认文案改一个字，隐藏行为保持不变」是按「记录哪些槽位被写过」的设计写的。实际做法是从源头删掉演示文案，「待补充 / To be provided」是 T-009 定下的、草稿里表示缺少事实的数据写法，相当于空值；把它改成「待补充x」就成了写进去的内容，照常显示是对的。要证明的是隐藏与否不取决于旧演示文案，因此改为现在的措辞。新增测试 `tests/visitor-default-copy.test.ts`「authored copy shows even when it matches old demo text; whole-gap sentences are omitted」：在 `3e645a8`（文字比对实现）上失败，失败信息为 inquiry section must stay visible；在当前代码上通过。
 - 检查脚本的漏洞已补：照片计数包含首屏实拍；主按钮会真的点击，并确认询盘表单进入视口。
 - 补点击检查时发现真 bug：预览页里的 `<base href>` 指向模板资源目录，所有 `#section` 锚点（首屏按钮、导航）点击后都会让 iframe 跳到资源目录。预览引擎现在接管页内锚点，改为在页内滚动。修复前脚本一点击就因 iframe 跳转而崩溃（`artifacts/published-check/t016-rework/` 首次运行）；修复后 `node scripts/check-published.mjs --out artifacts/published-check/t016-rework` 9/9 通过。
+
+独立审核：grok-b，2026-09-26，PASS，`node scripts/check-published.mjs --out artifacts/published-check/review2-t016`（9/9）；新测试在临时 worktree 的 `3e645a8` 上失败，断言为 inquiry section must stay visible。
