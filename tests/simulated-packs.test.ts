@@ -37,7 +37,9 @@ test("industrial and export simulated packs are independent, labeled 模拟, and
     assert.equal(pack.heroTitle.includes(pack.nonce), true);
     assert.equal(pack.companyName.includes(pack.nonce.slice(0, 3)), true);
     assert.ok(pack.missingFacts.length >= 1);
-    assert.ok(pack.body.includes("以下参数为模拟设定") || pack.id === "export" && pack.body.includes("模拟设定"));
+    // The pack declares itself simulated once, up front; fact lines carry no labels the model could copy onto the page.
+    assert.match(pack.body.split("\n")[0], /^资料性质：模拟/);
+    assert.equal(pack.body.split("\n").slice(1).some((line) => line.includes("模拟")), false);
     assert.match(pack.body, /规格参数|应用行业|加工能力|认证状态/);
     assert.ok(pack.email.endsWith("-sim.test"));
     const message = buildMaterialsChatMessage(pack);

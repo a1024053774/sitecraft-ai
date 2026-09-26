@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft } from "../lib/site-document.ts";
 import { applySiteOperations } from "../lib/site-operations.ts";
-import { DEFAULT_DRAFT_SENTINEL } from "../lib/draft-sentinel.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/index.ts";
 import {
   installPreviewBridge,
@@ -163,7 +162,6 @@ function installOn(document: ReturnType<typeof createDocument>["document"], adap
  * (applyDeclaredContent writes defaultDraft services onto published slots).
  */
 test("ungenerated default draft hides default and meta copy on the visitor page", () => {
-  assert.equal(DEFAULT_DRAFT_SENTINEL.content.services.items[0].title.zh, "需求与评估");
   const adapter = getTemplateAdapter("screwfast");
   assert.ok(adapter);
   const { document, body } = createDocument();
@@ -257,28 +255,6 @@ test("ungenerated default draft hides default and meta copy on the visitor page"
   ]) {
     assert.equal(page.includes(phrase), false, `visitor page still shows «${phrase}»`);
   }
-});
-
-test("published visitor strips pack simulation labels from product intro", () => {
-  const adapter = getTemplateAdapter("screwfast");
-  assert.ok(adapter);
-  const { document, body } = createDocument();
-  const productsIntro = createNode("p");
-  productsIntro.setAttribute("data-sitecraft-benchmark", "products-intro");
-  body.appendChild(productsIntro);
-  const draft = applySiteOperations(structuredClone(defaultDraft), [{
-    op: "set_text",
-    target: "products.intro",
-    locale: "zh",
-    value: "直角减速机与行星减速机；按图加工。以下参数为模拟设定。",
-  }], { templateIds: new Set(["forge", "screwfast"]), lastChange: "sim-label" }).draft;
-
-  installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [], "published");
-  assert.equal(productsIntro.textContent.includes("以下参数为模拟设定"), false);
-  assert.equal(productsIntro.textContent.includes("直角减速机"), true);
-
-  installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [], "workspace");
-  assert.equal(productsIntro.textContent.includes("以下参数为模拟设定"), true);
 });
 
 test("screwfast hero uses first product photo or industry schematic from adapter data", () => {

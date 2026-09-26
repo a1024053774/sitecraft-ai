@@ -13,7 +13,7 @@ const templateIds = new Set(["forge", "kindred", "signal"]);
 test("default draft keeps unprovided contact facts as pending", () => {
   assert.equal(defaultDraft.content.contact.email, "待补充");
   assert.equal(defaultDraft.content.contact.phone, "待补充");
-  assert.equal(defaultDraft.content.contact.address.zh, "地址待补充");
+  assert.equal(defaultDraft.content.contact.address.zh, "待补充");
 });
 
 test("v2 drafts missing only visualBrief retain authored content and revision", () => {

@@ -1,5 +1,4 @@
 import type { SlotApplyReport, TemplateAdapter } from "./types.ts";
-import { DEFAULT_DRAFT_SENTINEL } from "../draft-sentinel.ts";
 
 export const PREVIEW_BRIDGE_NONCE = "sitecraft-template-bridge";
 
@@ -8,11 +7,10 @@ export const PREVIEW_BRIDGE_NONCE = "sitecraft-template-bridge";
  * into the preview document and also executed by tests.
  */
 export const PREVIEW_BRIDGE_SOURCE = String.raw`
-function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
+function sitecraftPreviewBridge(templateId, adapter) {
   var global = this || (typeof window !== "undefined" ? window : globalThis);
   var document = global.document;
   var parent = global.parent || global;
-  var sentinel = defaultSentinel || null;
 
   function asList(result) {
     return Array.prototype.slice.call(result || []);
@@ -341,15 +339,7 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
     } else {
       if (typeof value !== "string") return false;
       var nextValue = value;
-      if (variant === "published" && slot.target === "products.intro") {
-        nextValue = stripSimulationLabel(nextValue, locale);
-      }
-      if (variant === "published" && isDefaultSentinelValue(slot.target, nextValue, locale)) {
-        node.textContent = "";
-        hideSlotEntry(node);
-        return false;
-      }
-      var optional = node.getAttribute && node.getAttribute("data-sitecraft-optional");
+      var optional = (node.getAttribute && node.getAttribute("data-sitecraft-optional")) || isStandaloneSentenceTarget(slot.target);
       var trimmed = nextValue.trim();
       if (optional && (!trimmed || trimmed === "待补充" || trimmed === "To be provided")) {
         node.textContent = "";
@@ -707,6 +697,12 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
     node.textContent = text;
   }
 
+  // Intro and body fields are whole sentences: when the entire field is a gap, the sentence is
+  // omitted instead of printing a lone 待补充. Headings stay; they are labels, not facts.
+  function isStandaloneSentenceTarget(target) {
+    return /\.intro$/.test(target) || target === "contact.body" || target === "hero.subtitle" || target === "about.body";
+  }
+
   function isGapMarker(value) {
     var text = String(value || "").trim();
     return !text || text === "待补充" || text === "To be provided" || text === "To be completed";
@@ -720,73 +716,6 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
       else if (node.style.removeProperty) node.style.removeProperty("display");
       else node.style.setProperty("display", "");
     }
-  }
-
-  function readSentinelLocalized(node, locale) {
-    if (!node || typeof node !== "object") return undefined;
-    if (typeof node[locale] === "string") return node[locale];
-    return undefined;
-  }
-
-  function sentinelValueFor(target, locale) {
-    if (!sentinel || !sentinel.content) return undefined;
-    var content = sentinel.content;
-    if (target === "hero.title") return readSentinelLocalized(content.hero && content.hero.title, locale);
-    if (target === "hero.subtitle") return readSentinelLocalized(content.hero && content.hero.subtitle, locale);
-    if (target === "hero.cta") return readSentinelLocalized(content.hero && content.hero.cta, locale);
-    if (target === "about.title") return readSentinelLocalized(content.about && content.about.title, locale);
-    if (target === "about.body") return readSentinelLocalized(content.about && content.about.body, locale);
-    if (target === "features.title") return readSentinelLocalized(content.features && content.features.title, locale);
-    if (target === "features.intro") return readSentinelLocalized(content.features && content.features.intro, locale);
-    if (target === "services.title") return readSentinelLocalized(content.services && content.services.title, locale);
-    if (target === "services.intro") return readSentinelLocalized(content.services && content.services.intro, locale);
-    if (target === "products.title") return readSentinelLocalized(content.products && content.products.title, locale);
-    if (target === "products.intro") return readSentinelLocalized(content.products && content.products.intro, locale);
-    if (target === "contact.title") return readSentinelLocalized(content.contact && content.contact.title, locale);
-    if (target === "contact.body") return readSentinelLocalized(content.contact && content.contact.body, locale);
-    if (target === "contact.address") return readSentinelLocalized(content.contact && content.contact.address, locale);
-    if (target === "faq.title") return readSentinelLocalized(content.faq && content.faq.title, locale);
-    if (target === "faq.intro") return readSentinelLocalized(content.faq && content.faq.intro, locale);
-    var featureMatch = /^features\.items\.(\d+)\.(title|body)$/.exec(target);
-    if (featureMatch && content.features && Array.isArray(content.features.items)) {
-      var feature = content.features.items[Number(featureMatch[1])];
-      return feature ? readSentinelLocalized(feature[featureMatch[2]], locale) : undefined;
-    }
-    var serviceMatch = /^services\.items\.(\d+)\.(title|body)$/.exec(target);
-    if (serviceMatch && content.services && Array.isArray(content.services.items)) {
-      var service = content.services.items[Number(serviceMatch[1])];
-      return service ? readSentinelLocalized(service[serviceMatch[2]], locale) : undefined;
-    }
-    var faqMatch = /^faq\.items\.(\d+)\.(title|body)$/.exec(target);
-    if (faqMatch && content.faq && Array.isArray(content.faq.items)) {
-      var faq = content.faq.items[Number(faqMatch[1])];
-      return faq ? readSentinelLocalized(faq[faqMatch[2]], locale) : undefined;
-    }
-    return undefined;
-  }
-
-  function isDefaultSentinelValue(target, value, locale) {
-    if (typeof value !== "string") return false;
-    var expected = sentinelValueFor(target, locale);
-    if (expected == null) return false;
-    return value.trim() === String(expected).trim();
-  }
-
-  function stripSimulationLabel(text, locale) {
-    if (typeof text !== "string") return text;
-    if (locale === "en") {
-      return text
-        .replace(/\s*The following parameters are simulated settings\.?/gi, "")
-        .replace(/\s*以下参数为模拟设定。?/g, "")
-        .trim();
-    }
-    return text.replace(/\s*以下参数为模拟设定。?/g, "").trim();
-  }
-
-  function hideSlotEntry(node) {
-    if (!node) return;
-    var entry = node.closest ? node.closest("article") : null;
-    setEntryHidden(entry || node, true);
   }
 
   function collapseUnprovidedEntries(draft, locale, variant) {
@@ -837,10 +766,7 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
         if (!entry && bodyNode && bodyNode.closest) entry = bodyNode.closest("article");
         if (!entry) entry = titleNode || bodyNode;
         if (!sectionNode && entry && entry.closest) sectionNode = entry.closest("section");
-        var unprovided = (isGapMarker(titleValue) && isGapMarker(bodyValue))
-          || (variant === "published"
-            && isDefaultSentinelValue(titleSlot.target, titleValue, locale)
-            && isDefaultSentinelValue(bodySlot.target, bodyValue, locale));
+        var unprovided = isGapMarker(titleValue) && isGapMarker(bodyValue);
         if (unprovided) {
           setEntryHidden(entry, true);
           if (titleNode) titleNode.textContent = "";
@@ -853,15 +779,6 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
 
       if (sectionNode && !draftHidden && sawEntry) {
         setSectionHidden(sectionNode, group, !anyVisible);
-      }
-    }
-
-    if (variant === "published") {
-      var contactTitle = readDraftValue(draft, "contact.title", locale);
-      var contactBody = readDraftValue(draft, "contact.body", locale);
-      if (isDefaultSentinelValue("contact.title", contactTitle, locale) && isDefaultSentinelValue("contact.body", contactBody, locale)) {
-        var contactSection = uniqueNode('[data-sitecraft-section="contact"]');
-        if (contactSection) setSectionHidden(contactSection, "contact", true);
       }
     }
 
@@ -897,21 +814,9 @@ function sitecraftPreviewBridge(templateId, adapter, defaultSentinel) {
 
   function applyVisitorChrome(locale, draft, variant) {
     if (!document || !document.querySelectorAll) return;
-    var hasSchematic = false;
-    if (document.querySelector) {
-      hasSchematic = Boolean(
-        document.querySelector(".sitecraft-product-schematic")
-        || document.querySelector(".sitecraft-diagram:not([hidden])")
-      );
-    }
-    var products = draft && Array.isArray(draft.products) ? draft.products : [];
-    var hasProductPhoto = products.some(function (product) {
-      return product && product.image && typeof product.image.url === "string" && product.image.url;
-    });
-    var showSchematicNote = hasSchematic || (!hasProductPhoto && products.length > 0);
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", schematic: "Schematic", footerNote: showSchematicNote ? "Lead times are confirmed by inquiry. Diagrams are schematic, not photographs." : "Lead times are confirmed by inquiry.", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft", localeZh: "中", localeEn: "EN" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", schematic: "示意", footerNote: showSchematicNote ? "规格与交期以询盘确认为准；页面插图为结构示意，非实拍。" : "规格与交期以询盘确认为准。", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴", localeZh: "中", localeEn: "EN" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", schematic: "Schematic", footerContact: "Contact", footerNav: "Navigate", catalogSeries: "Series", catalogProduct: "Product", catalogSummary: "Notes", catalogMedia: "Photo", diagramHousing: "Housing", diagramGear: "Gear set", diagramShaft: "Output shaft", localeZh: "中", localeEn: "EN" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", schematic: "示意", footerContact: "联系", footerNav: "导航", catalogSeries: "系列", catalogProduct: "产品", catalogSummary: "说明", catalogMedia: "图", diagramHousing: "壳体", diagramGear: "齿轮区", diagramShaft: "输出轴", localeZh: "中", localeEn: "EN" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
@@ -1117,7 +1022,7 @@ export function buildPreviewBridgeScript(
   adapter: TemplateAdapter | null,
   nonce = PREVIEW_BRIDGE_NONCE,
 ) {
-  return `<script nonce="${nonce}">(${PREVIEW_BRIDGE_SOURCE}).call(window, ${JSON.stringify(templateId)}, ${JSON.stringify(adapter)}, ${JSON.stringify(DEFAULT_DRAFT_SENTINEL)});</script>`;
+  return `<script nonce="${nonce}">(${PREVIEW_BRIDGE_SOURCE}).call(window, ${JSON.stringify(templateId)}, ${JSON.stringify(adapter)});</script>`;
 }
 
 export function installPreviewBridge(
@@ -1129,10 +1034,9 @@ export function installPreviewBridge(
     "globalObject",
     "templateId",
     "adapter",
-    "defaultSentinel",
-    `${PREVIEW_BRIDGE_SOURCE}\nreturn sitecraftPreviewBridge.call(globalObject, templateId, adapter, defaultSentinel);`,
+    `${PREVIEW_BRIDGE_SOURCE}\nreturn sitecraftPreviewBridge.call(globalObject, templateId, adapter);`,
   );
-  return runner(globalObject, templateId, adapter, DEFAULT_DRAFT_SENTINEL) as {
+  return runner(globalObject, templateId, adapter) as {
     applyDeclaredContent: (
       draft: unknown,
       locale: string,
