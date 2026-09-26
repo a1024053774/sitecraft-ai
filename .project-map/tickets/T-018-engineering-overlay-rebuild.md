@@ -4,7 +4,7 @@ title: 按选定方向重做工程工业 overlay
 type: build
 status: open
 blocked_by: [T-016, T-017]
-claimed_by:
+claimed_by: claude
 supersedes:
 ---
 
