@@ -45,6 +45,7 @@ export type AlignmentPlanResult =
     kind: "question";
     question: string;
     options: Array<{ label: string; description: string }>;
+    questions?: Array<{ question: string; options: Array<{ label: string; description: string }>; allowOther: boolean }>;
     allowOther: boolean;
     rationale: string | null;
     model: string;
@@ -66,6 +67,7 @@ const alignmentPlanSchema = z.discriminatedUnion("kind", [
     options: z.array(z.object({ label: z.string().min(1).max(100), description: z.string().max(220).default("") })).min(2).max(6),
     allowOther: z.boolean().default(true),
     rationale: z.string().max(260).nullable().optional(),
+    questions: z.array(z.object({ question: z.string().min(1).max(800), options: z.array(z.object({ label: z.string().min(1).max(100), description: z.string().max(220).default("") })).min(2).max(4), allowOther: z.boolean().default(true) })).min(1).max(4).optional(),
   }),
   z.object({ kind: z.literal("ready"), summary: z.string().min(1).max(400) }),
 ]);
@@ -287,7 +289,7 @@ export async function requestAlignmentPlan(args: {
   const draftContext = buildDraftPromptContext(args.draft);
   const system = `你是 SiteCraft 的需求对齐规划器。只返回 JSON，不输出 Markdown、HTML、CSS、JavaScript 或 draft operations。
 你的任务是阅读用户这一次的建站 Prompt、已有草稿、会话历史和已确认答案，找出仍会改变页面结果的最少一个关键缺口。
-- 如果仍有关键缺口，返回 {"kind":"question","question":"...","options":[{"label":"...","description":"..."}],"allowOther":true,"rationale":"..."}。
+- 如果仍有关键缺口，返回单题格式，或返回 questions 数组（1–4 题）让用户一次提交整张卡：{"kind":"question","question":"...","options":[...],"allowOther":true,"questions":[{"question":"...","options":[...],"allowOther":true}],"rationale":"..."}。
 - 如果资料和 Prompt 已足够形成一份可审查方案，返回 {"kind":"ready","summary":"..."}，不要追问风格偏好。
 - 问题必须针对这次 Prompt，不得套行业问卷，不得只问固定的风格、业务目标或工业问题。
 - 已明确的信息不要重复问；每轮最多 6 个选项，选项必须是用户能判断的结果差异，描述简短。
@@ -332,7 +334,7 @@ export async function requestAlignmentPlan(args: {
       }
       const latencyMs = Date.now() - startedAt;
       return parsed.data.kind === "question"
-        ? { ok: true, kind: "question", question: parsed.data.question, options: parsed.data.options, allowOther: parsed.data.allowOther, rationale: parsed.data.rationale ?? null, model, latencyMs }
+        ? { ok: true, kind: "question", question: parsed.data.question, options: parsed.data.options, questions: parsed.data.questions, allowOther: parsed.data.allowOther, rationale: parsed.data.rationale ?? null, model, latencyMs }
         : { ok: true, kind: "ready", summary: parsed.data.summary, model, latencyMs };
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");

@@ -43,6 +43,7 @@ const alignmentSchema = z.object({
   questionId: z.string().trim().min(1).max(80).optional(),
   questionRevision: z.number().int().nonnegative().optional(),
   optionId: z.string().trim().min(1).max(80).optional(),
+  selections: z.array(z.object({ questionId: z.string().trim().min(1).max(80), optionId: z.string().trim().min(1).max(80), note: z.string().max(500).optional() })).max(4).optional(),
   note: z.string().max(500).optional(),
   baseRevision: z.number().int().nonnegative().optional(),
   message: z.string().trim().min(1).max(4000).optional(),
@@ -88,6 +89,7 @@ function viewPayload(conversationId: string, view: AlignmentPublicView, extra?: 
     questionRevision: view.questionRevision,
     questionKind: view.questionKind,
     options: view.options,
+    questions: view.questions,
     utilities: view.utilities,
     pendingMessage: view.pendingMessage,
     lastResult: view.lastResult,
@@ -207,6 +209,12 @@ async function planPromptStart(siteId: string, args: {
       description: option.description,
     })),
     allowOther: plan.allowOther,
+    questions: plan.questions?.slice(0, 4).map((item, questionIndex) => ({
+      questionId: `prompt-${questionIndex + 1}-${crypto.randomUUID()}`,
+      prompt: item.question,
+      options: item.options.map((option, index) => ({ id: `prompt-${questionIndex + 1}-option-${index + 1}`, label: option.label, description: option.description })),
+      allowOther: item.allowOther,
+    })),
   };
   return { ok: true as const, startQuestion: question };
 }
@@ -560,6 +568,7 @@ async function handleAlignmentAction(siteId: string, raw: unknown) {
       questionId: parsed.data.questionId,
       questionRevision: parsed.data.questionRevision,
       optionId: parsed.data.optionId,
+      selections: parsed.data.selections,
       imageId: parsed.data.imageId,
       note: parsed.data.note,
       pendingRequest,

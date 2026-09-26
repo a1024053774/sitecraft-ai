@@ -74,6 +74,14 @@ export type CurrentQuestion = {
   prompt: string;
   options: AlignmentOption[];
   allowOther: boolean;
+  /** A card may contain 1–4 independent questions submitted together. */
+  questions?: AlignmentCardQuestion[];
+};
+export type AlignmentCardQuestion = {
+  questionId: string;
+  prompt: string;
+  options: AlignmentOption[];
+  allowOther: boolean;
 };
 export type AlignmentAnswer = {
   questionId: string;
@@ -122,6 +130,7 @@ export type AlignmentActionInput = {
   questionRevision?: number;
   optionId?: string;
   note?: string;
+  selections?: Array<{ questionId: string; optionId: string; note?: string }>;
   imageId?: string;
   pendingRequest?: PendingRequest | null;
   /** Server-created question from the prompt planner. Undefined keeps the legacy preference-only entry. */
@@ -148,6 +157,7 @@ export type AlignmentPublicView = {
   lastResult: RecordedResult | null;
   styleLabel: string | null;
   answers: AlignmentAnswer[];
+  questions: AlignmentCardQuestion[];
   processing: boolean;
 };
 export type AlignmentActionSuccess = {
@@ -186,6 +196,10 @@ const currentQuestionSchema = z.object({
   prompt: z.string().min(1).max(800),
   options: z.array(optionSchema).max(12),
   allowOther: z.boolean(),
+  questions: z.array(z.object({
+    questionId: z.string().min(1).max(80), prompt: z.string().min(1).max(800),
+    options: z.array(optionSchema).min(2).max(6), allowOther: z.boolean(),
+  })).min(1).max(4).optional(),
 });
 const answerSchema = z.object({
   questionId: z.string().min(1).max(80),
@@ -284,12 +298,12 @@ function guidedBusinessQuestion(revision: number): CurrentQuestion {
   };
 }
 
-function guidedPlanQuestion(revision: number): CurrentQuestion {
+function guidedPlanQuestion(revision: number, styleLabel = "当前选中的配色") : CurrentQuestion {
   return {
     questionId: GUIDED_PLAN_QUESTION_ID,
     questionRevision: Math.max(1, revision),
     kind: "clarify",
-    prompt: "请确认本次交付范围和资料缺口处理方式。默认使用已验证的工程橙色板，不改字体、产品或页面结构。",
+    prompt: `请确认本次交付范围和资料缺口处理方式。将使用${styleLabel}，不改字体、产品或页面结构。`,
     options: GUIDED_PLAN_OPTIONS.map((option) => ({ ...option })),
     allowOther: false,
   };
@@ -334,6 +348,12 @@ function mapAnswers(raw: AlignmentAnswer[]): AlignmentAnswer[] {
     label: item.label,
     note: item.note,
   }));
+}
+
+function cardQuestions(question: CurrentQuestion | null): AlignmentCardQuestion[] {
+  if (!question) return [];
+  if (question.questions?.length) return question.questions;
+  return [{ questionId: question.questionId, prompt: question.prompt, options: question.options, allowOther: question.allowOther }];
 }
 
 export function normalizeAlignmentSnapshot(raw: unknown): AlignmentSnapshot {
@@ -425,6 +445,7 @@ export function publicAlignmentView(snapshot: AlignmentSnapshot, extras?: {
     lastResult: snapshot.lastResult,
     styleLabel: snapshot.styleLabel,
     answers: snapshot.answers,
+    questions: cardQuestions(question),
     processing,
   };
 }
@@ -568,7 +589,7 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
   }
 
   if (input.action === "select") {
-    if (typeof input.questionRevision !== "number" || !input.optionId?.trim() || !input.questionId?.trim()) {
+    if (typeof input.questionRevision !== "number" || !input.questionId?.trim() || (!input.optionId?.trim() && !input.selections?.length)) {
       return fail(current, 400, "invalid_payload", "选择请求缺少问题 ID、版本或选项。");
     }
     if (claimInProgress(current)) {
@@ -576,7 +597,7 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
     }
     const note = input.note?.trim() ? clipAlignmentText(input.note.trim(), MAX_ALIGNMENT_NOTE_CHARS) : null;
     if (current.inflightRunId) {
-      if (sameSelection(latestAnswer(current), input, input.optionId, note)) {
+      if (input.optionId && sameSelection(latestAnswer(current), input, input.optionId, note)) {
         return succeed(current, { saved: true });
       }
       return fail(current, 409, "invalid_state", "正在根据已保存的任务继续，请稍候。");
@@ -604,7 +625,24 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
     if (question.kind === "confirm_ops") {
       return fail(current, 400, "invalid_state", "请使用确认操作提交方案。");
     }
-    const option = findQuestionOption(question, input.optionId);
+    if (question.questions?.length) {
+      const selections = input.selections ?? [];
+      if (selections.length !== question.questions.length) return fail(current, 400, "invalid_payload", "请完成这张卡上的所有问题后一次提交。");
+      let answers = current.answers;
+      for (const cardQuestion of question.questions) {
+        const selection = selections.find((item) => item.questionId === cardQuestion.questionId);
+        if (!selection) return fail(current, 400, "invalid_payload", "请完成这张卡上的所有问题后一次提交。");
+        const option = selection.optionId === OTHER_OPTION_ID && cardQuestion.allowOther ? otherOption() : cardQuestion.options.find((item) => item.id === selection.optionId);
+        if (!option) return fail(current, 400, "invalid_option", "未知的选项。");
+        const answerNote = selection.note?.trim() ? clipAlignmentText(selection.note.trim(), MAX_ALIGNMENT_NOTE_CHARS) : null;
+        if (option.id === OTHER_OPTION_ID && !answerNote) return fail(current, 400, "invalid_payload", "选择其他时请填写补充说明。");
+        answers = [...answers.filter((item) => item.questionId !== cardQuestion.questionId), { questionId: cardQuestion.questionId, questionRevision: question.questionRevision, question: cardQuestion.prompt, optionId: option.id, label: option.label, note: answerNote }];
+      }
+      const runId = current.pendingRequest ? crypto.randomUUID() : null;
+      const next: AlignmentSnapshot = { ...current, enabled: true, answers: answers.slice(-MAX_ALIGNMENT_HISTORY), inflightRunId: runId, state: current.pendingRequest ? "awaiting_user" : "idle", currentQuestion: current.pendingRequest ? question : null, epoch: current.epoch + 1, history: pushHistory(current, { action: "select", summary: "已提交整张需求卡" }) };
+      return succeed(next, { saved: true, shouldContinue: Boolean(runId), prefsOnly: !next.pendingRequest, runId });
+    }
+    const option = findQuestionOption(question, input.optionId ?? "");
     if (!option) return fail(current, 400, "invalid_option", "未知的选项。");
     if (option.id === OTHER_OPTION_ID && !note && question.kind !== "style") {
       return fail(current, 400, "invalid_payload", "选择其他时请填写补充说明。");
@@ -668,7 +706,7 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
       return succeed({
         ...next,
         state: "awaiting_user",
-        currentQuestion: guidedPlanQuestion(planRevision),
+        currentQuestion: guidedPlanQuestion(planRevision, next.styleLabel ?? "当前选中的配色"),
         inflightRunId: null,
         epoch: planRevision,
       }, { saved: true, shouldContinue: false, runId: null });
