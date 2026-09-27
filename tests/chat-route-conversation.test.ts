@@ -747,7 +747,7 @@ test("P3E complete materials reuse the guided plan, preserve missing facts, and 
   const siteId = uniqueSiteId();
   const before = await getSite(siteId);
   const materials = [
-    "P3E_FLOW_MW4R_4401",
+    "P3E_FLOW_MW4R_4401 ALIGN_GUIDED_P3E_FIXTURE_4401",
     "【公司资料】资料性质：模拟。不可当作真实企业。",
     "公司名：外高桥流体接头P3E",
     "行业：外贸 B2B / 不锈钢流体接头目录",
