@@ -717,8 +717,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (!kit || !kit.familyId) return;
     var root = document && document.documentElement;
     var baseTokens = kit.tokens || {};
-    var paletteId = draft && draft.paletteId ? draft.paletteId : "default";
-    var tokens = (kit.palettes && kit.palettes[paletteId]) || baseTokens;
+    var customPalette = draft && draft.customPalette && typeof draft.customPalette === "object" ? draft.customPalette : null;
+    var paletteId = customPalette ? "custom" : (draft && draft.paletteId ? draft.paletteId : "default");
+    var tokens = customPalette || (kit.palettes && kit.palettes[paletteId]) || baseTokens;
     var inputToken = tokens.input || tokens.surface || tokens.background;
     var focusToken = tokens.focus || tokens.accentSoft || tokens.accent;
     var disabledToken = tokens.disabled || tokens.muted || tokens.border;

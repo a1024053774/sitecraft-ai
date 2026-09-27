@@ -62,6 +62,7 @@ import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
+import { generateCustomPalette } from "@/lib/custom-brand-color";
 
 const paletteSwatchRoles = ["background", "surface", "text", "muted", "border", "accent", "accentStrong", "input", "focus", "disabled"] as const;
 
@@ -382,6 +383,7 @@ export default function WorkspacePage() {
   const [showImages, setShowImages] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [materialsText, setMaterialsText] = useState("");
+  const [brandColor, setBrandColor] = useState("#1f5aa6");
   const [loadedPackId, setLoadedPackId] = useState<SimulatedPackId | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [importState, setImportState] = useState<{ name: string; imported: number; errors: string[] } | null>(null);
@@ -400,6 +402,7 @@ export default function WorkspacePage() {
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>({ mode: "unconfigured", model: null });
   const [activePageId, setActivePageId] = useState("home");
   const fileRef = useRef<HTMLInputElement>(null);
+  const brandLogoRef = useRef<HTMLInputElement>(null);
   const imageFileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -957,7 +960,7 @@ export default function WorkspacePage() {
   const selectPalette = async (paletteId: string) => {
     if (busy || !draftReady) return;
     const palette = paletteCatalogForVisualBrief(draft.visualBrief.id).find((item) => item.id === paletteId);
-    if (!palette || draft.paletteId === palette.id) return;
+    if (!palette || (draft.paletteId === palette.id && !draft.customPalette)) return;
     setBusy(true);
     setBusyText("正在切换色板…");
     try {
@@ -978,6 +981,61 @@ export default function WorkspacePage() {
       }]);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const applyCustomBrandColor = async (sourceColor: string, source: "color" | "logo") => {
+    if (busy || !draftReady) return;
+    try {
+      const generated = generateCustomPalette(sourceColor, source);
+      setBusy(true);
+      setBusyText("正在生成品牌色板…");
+      await saveOperations([{ op: "set_custom_palette", palette: generated.palette }], "应用自定义品牌色板", "manual");
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "applied",
+        text: generated.palette.adjustmentNote,
+        change: `已从${source === "logo" ? "Logo" : "主色"}生成整套品牌色板。可在历史里撤销。`,
+      }]);
+    } catch (error) {
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "品牌色板生成失败") }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sampleLogoColor = async (file: File) => {
+    const url = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.src = url;
+      await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = () => reject(new Error("无法读取 Logo 图片")); });
+      const canvas = document.createElement("canvas");
+      canvas.width = 64; canvas.height = 64;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("当前浏览器无法读取 Logo 颜色");
+      context.drawImage(image, 0, 0, 64, 64);
+      const pixels = context.getImageData(0, 0, 64, 64).data;
+      let red = 0; let green = 0; let blue = 0; let weight = 0;
+      for (let index = 0; index < pixels.length; index += 4) {
+        const alpha = pixels[index + 3] / 255;
+        const max = Math.max(pixels[index], pixels[index + 1], pixels[index + 2]);
+        const min = Math.min(pixels[index], pixels[index + 1], pixels[index + 2]);
+        const saturation = (max - min) / 255;
+        const brightness = max / 255;
+        const sampleWeight = alpha * (0.2 + saturation) * (brightness > 0.97 ? 0.1 : 1);
+        red += pixels[index] * sampleWeight;
+        green += pixels[index + 1] * sampleWeight;
+        blue += pixels[index + 2] * sampleWeight;
+        weight += sampleWeight;
+      }
+      if (!weight) throw new Error("Logo 没有可用的颜色像素");
+      const sampled = `#${[red, green, blue].map((value) => Math.round(value / weight).toString(16).padStart(2, "0")).join("")}`;
+      setBrandColor(sampled);
+      await applyCustomBrandColor(sampled, "logo");
+    } finally {
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -1236,6 +1294,16 @@ export default function WorkspacePage() {
                   </button>
                   );
                 })}
+              </div>
+              <div className="custom-palette-panel" data-testid="custom-palette-panel">
+                <div className="palette-picker-head"><span className="eyebrow">自定义品牌色</span><strong>从主色或 Logo 生成</strong></div>
+                <div className="custom-palette-controls">
+                  <label className="custom-color-input"><span>主色</span><input data-testid="custom-brand-color" type="color" value={brandColor} disabled={busy || !draftReady} onChange={(event) => setBrandColor(event.target.value)} /></label>
+                  <button className="secondary-button" type="button" data-testid="apply-custom-brand-color" disabled={busy || !draftReady} onClick={() => void applyCustomBrandColor(brandColor, "color")}>应用品牌色</button>
+                  <button className="secondary-button" type="button" data-testid="sample-logo-color" disabled={busy || !draftReady} onClick={() => brandLogoRef.current?.click()}>从 Logo 取色</button>
+                  <input ref={brandLogoRef} data-testid="custom-brand-logo" type="file" accept="image/*" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void sampleLogoColor(file); event.currentTarget.value = ""; }} />
+                </div>
+                {draft.customPalette ? <div className="custom-palette-status" role="status"><span className="palette-swatch-row">{[draft.customPalette.background, draft.customPalette.surface, draft.customPalette.text, draft.customPalette.accent, draft.customPalette.accentStrong, draft.customPalette.border].map((color) => <i key={color} style={{ backgroundColor: color }} />)}</span><span>{draft.customPalette.adjustmentNote}</span></div> : null}
               </div>
             </div>
           ) : null}

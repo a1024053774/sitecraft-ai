@@ -29,6 +29,7 @@ import {
   type SiteDraft,
   type SiteImageRef,
 } from "./site-document.ts";
+import { customPaletteSchema } from "./custom-brand-color.ts";
 import { rehostPagePlan, resolvePagePlan } from "./template-pages.ts";
 import { canonicalizeOwnedImageUrl, isTemplateStockUrl } from "./site-images.ts";
 
@@ -129,6 +130,10 @@ const setPaletteOperationSchema = z.object({
   op: z.literal("set_palette"),
   paletteId: paletteIdSchema,
 });
+const setCustomPaletteOperationSchema = z.object({
+  op: z.literal("set_custom_palette"),
+  palette: customPaletteSchema.nullable(),
+});
 const setSectionVisibilityOperationSchema = z.object({
   op: z.literal("set_section_visibility"),
   section: visibilityKeySchema,
@@ -224,6 +229,7 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   replaceDraftOperationSchema,
   setVisualBriefOperationSchema,
   setPaletteOperationSchema,
+  setCustomPaletteOperationSchema,
 ]);
 export type SiteOperation = z.infer<typeof siteOperationSchema>;
 export type AIOperation = z.infer<typeof aiOperationSchema>;
@@ -643,9 +649,18 @@ export function applySiteOperations(
       const allowed = operation.paletteId === "default"
         || paletteCatalogForVisualBrief(draft.visualBrief.id).some((palette) => palette.id === operation.paletteId);
       if (!allowed) throw new Error(`Palette ${operation.paletteId} is not available for ${draft.visualBrief.id}`);
-      if (draft.paletteId === operation.paletteId) continue;
+      if (draft.paletteId === operation.paletteId && !draft.customPalette) continue;
+      if (draft.customPalette) inverseOperations.unshift({ op: "set_custom_palette", palette: structuredClone(draft.customPalette) });
       inverseOperations.unshift({ op: "set_palette", paletteId: draft.paletteId });
       draft.paletteId = operation.paletteId;
+      draft.customPalette = null;
+      appliedTargets.push("palette");
+      continue;
+    }
+    if (operation.op === "set_custom_palette") {
+      if (JSON.stringify(draft.customPalette) === JSON.stringify(operation.palette)) continue;
+      inverseOperations.unshift({ op: "set_custom_palette", palette: draft.customPalette ? structuredClone(draft.customPalette) : null });
+      draft.customPalette = operation.palette ? structuredClone(operation.palette) : null;
       appliedTargets.push("palette");
       continue;
     }

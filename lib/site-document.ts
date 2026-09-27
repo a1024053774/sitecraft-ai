@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customPaletteSchema } from "./custom-brand-color.ts";
 import {
   defaultPagePlanFor,
   pagePlanSources,
@@ -281,6 +282,7 @@ export const siteDraftSchema = z.object({
   visualBrief: visualBriefSchema,
   legacyVisualBriefId: z.literal("editorial-service").optional(),
   paletteId: paletteIdSchema.default("default"),
+  customPalette: customPaletteSchema.nullable().default(null),
   locale: z.enum(locales),
   /** Set by a bilingual content operation once English has been authored. */
   englishReady: z.boolean().default(false),
@@ -379,6 +381,7 @@ export const defaultDraft: SiteDraft = {
   templateId: "forge",
   visualBrief: structuredClone(visualBriefCatalog[0]),
   paletteId: "industrial-porcelain",
+  customPalette: null,
   locale: "zh",
   englishReady: false,
   revision: 1,
