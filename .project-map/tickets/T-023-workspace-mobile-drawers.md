@@ -27,7 +27,7 @@ supersedes:
 
 红态：`node scripts/check-mobile-drawers.mjs artifacts/workspace-t023-red7` 在旧代码上失败于 `375 alignment must use the bottom drawer`。
 
-新鲜证据：`node scripts/check-mobile-drawers.mjs artifacts/workspace-t023-green10` 返回 `PASS`。报告记录 375 的 3 题逐题显示、一次提交后服务端读回 3 个答案、刷新后「已保存的问答（3）」与抽屉恢复；文档宽度等于视口、预览工具栏无溢出。768 报告记录预览标签隐藏对话、对话标签重新打开抽屉。截图已逐张查看：`artifacts/workspace-t023-green10/workspace-375.png`、`artifacts/workspace-t023-green10/workspace-768.png`。
+新鲜证据：`node scripts/check-mobile-drawers.mjs artifacts/workspace-t023-green12` 返回 `PASS`。报告记录 375 的 3 题逐题显示、一次提交后服务端读回 3 个答案、刷新后「已保存的问答（3）」与抽屉恢复；切到「网站预览」后工具栏可见，10 个按钮均在 0–375 视口内，文档宽度等于视口且无横向溢出。768 报告记录预览标签隐藏对话、对话标签重新打开抽屉。截图已逐张查看：`artifacts/workspace-t023-green12/workspace-375.png`、`artifacts/workspace-t023-green12/workspace-768.png`。
 
 相关检查：`npm run typecheck` 通过；`npm test` 248/248 通过；`npm run build` 通过。
 

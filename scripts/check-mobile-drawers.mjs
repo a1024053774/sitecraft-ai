@@ -74,10 +74,6 @@ try {
       assert.equal(initial.drawer, true, "375 alignment must use the bottom drawer");
       assert.match(initial.step, /1\s*\/\s*\d+/, "375 must expose one-question step progress");
       assert.equal(initial.questionCount, 1, "375 must show one question at a time");
-      const overflow = await browser.eval(`(()=>{const toolbar=document.querySelector(".preview-toolbar");return {documentWidth:document.documentElement.scrollWidth,viewport:innerWidth,toolbarRight:toolbar?.getBoundingClientRect().right||0,toolbarOverflow:toolbar ? toolbar.scrollWidth > toolbar.clientWidth : true}})()`, sessionId);
-      report.widths.at(-1).overflow = overflow;
-      assert.ok(overflow.documentWidth <= overflow.viewport, "375 document must not overflow horizontally");
-      assert.equal(overflow.toolbarOverflow, false, "375 preview toolbar must fit");
       const total = await browser.eval(`document.querySelectorAll("[data-testid=alignment-step-total]").length ? Number(document.querySelector("[data-testid=alignment-step-total]").textContent) : 0`, sessionId);
       for (let index = 0; index < total; index += 1) {
         await browser.eval(`document.querySelector("[data-testid=alignment-card-question] .alignment-card")?.click()`, sessionId);
@@ -99,6 +95,14 @@ try {
       report.widths.at(-1).afterSubmit = { submitted, restored };
       assert.equal(restored.drawer, true, "375 drawer must survive refresh");
       assert.ok(restored.answers, "375 refresh must retain submitted answers");
+      await browser.eval(`document.querySelector('.builder-mobile-tabs button:nth-child(2)')?.click()`, sessionId);
+      await sleep(400);
+      const overflow = await browser.eval(`(()=>{const toolbar=document.querySelector(".preview-toolbar"),buttons=[...document.querySelectorAll(".preview-toolbar button")].map(button=>{const rect=button.getBoundingClientRect();return {label:button.textContent?.trim()||"",left:rect.left,right:rect.right,visible:rect.width>0&&rect.height>0}});return {documentWidth:document.documentElement.scrollWidth,viewport:innerWidth,previewVisible:!document.querySelector(".preview-shell")?.classList.contains("mobile-hidden"),toolbarVisible:Boolean(toolbar&&toolbar.getBoundingClientRect().height),toolbarRight:toolbar?.getBoundingClientRect().right||0,toolbarOverflow:toolbar ? toolbar.scrollWidth > toolbar.clientWidth : true,buttons}})()`, sessionId);
+      report.widths.at(-1).overflow = overflow;
+      assert.equal(overflow.previewVisible, true, "375 preview tab must show the preview");
+      assert.ok(overflow.documentWidth <= overflow.viewport, "375 document must not overflow horizontally");
+      assert.equal(overflow.toolbarOverflow, false, "375 preview toolbar must fit");
+      assert.ok(overflow.buttons.length > 0 && overflow.buttons.every((button) => button.visible && button.left >= 0 && button.right <= overflow.viewport), "375 preview toolbar buttons must be reachable");
     } else {
       const open = await browser.eval(`(()=>({chat:!document.querySelector(".builder-chat")?.classList.contains("mobile-hidden"),preview:!document.querySelector(".preview-shell")?.classList.contains("mobile-hidden"),tabs:[...document.querySelectorAll(".builder-mobile-tabs button")].map(x=>x.textContent)}))()`, sessionId);
       await browser.eval(`document.querySelector('.builder-mobile-tabs button:nth-child(2)')?.click()`, sessionId);

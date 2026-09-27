@@ -645,6 +645,15 @@ a { color: inherit; text-decoration: none; }
   .settings-section .secondary-button { grid-column: 2; justify-self: start; }
 }
 @media (max-width: 600px) {
+  .preview-toolbar { gap: 4px; padding: 0 8px; }
+  .preview-toolbar-left { min-width: 0; }
+  .preview-toolbar-left .project-name { display: none; }
+  .preview-toolbar-right { flex: 1; justify-content: flex-end; gap: 3px; overflow: visible; }
+  .preview-toolbar-right .device-toggle { gap: 0; padding: 2px; }
+  .preview-toolbar-right .device-toggle button { padding: 5px 6px; }
+  .preview-toolbar-right .icon-button { width: 28px; height: 28px; padding: 0; }
+  .preview-toolbar-right .secondary-button, .preview-toolbar-right .primary-button { width: 29px; height: 29px; justify-content: center; gap: 0; padding: 0; font-size: 0; }
+  .preview-toolbar-right .secondary-button svg, .preview-toolbar-right .primary-button svg { margin: 0; }
   .alignment-panel[data-mobile-drawer="true"] { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80; max-height: min(78dvh, 680px); overflow-y: auto; margin: 0; padding: 13px 13px calc(13px + env(safe-area-inset-bottom)); border-radius: 15px 15px 0 0; background: var(--workspace-surface, #fbfdfb); box-shadow: 0 -14px 36px rgba(23, 32, 25, .22); }
   .alignment-panel[data-mobile-drawer="true"] .alignment-step-indicator { display: block; }
   .alignment-panel[data-mobile-drawer="true"] .alignment-cards { grid-template-columns: 1fr; }
