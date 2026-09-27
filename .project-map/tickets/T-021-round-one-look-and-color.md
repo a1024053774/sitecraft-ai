@@ -26,6 +26,8 @@ supersedes:
 
 新鲜证据：`node scripts/verify-alignment-multi-question.mjs artifacts/t021-final-correct` 通过资料、四题卡、一次提交、刷新、确认、生成和发布页预览读回；样子选项稳定为 visualBrief ID，色彩选项携带 registry 真值 `paletteId` 与 `swatches`，读回为 `engineering-industrial` / `engineering-graphite`，发布页包含选中 paletteId。`npm run typecheck` 与 alignment tests 通过。
 
+复审补修：route 只接受模型返回的稳定 style/colorSet ID 与 palette metadata，并从 registry 真值生成 swatches；新增建站路由夹具测试标记，避免聊天测试把明确的 guided fixture 误送规划器。提交：`9e70da9cc339f4773cc71c0e2c955ccc2dc1e3e8`、`3e5631adf1dc0ffa130a7646dd991a3d2402bbce`。
+
 实现提交：`9e70da9cc339f4773cc71c0e2c955ccc2dc1e3e8`。
 
 独立审核：grok-a，2026-09-27，PASS，`artifacts/t021-final-correct/report.json`。色彩 `swatches` 与 engineering registry 的背景、表面、正文、强调、强调深、边框一致；读回 `engineering-industrial` / `engineering-graphite`。`npm test` 另有 1 项失败在 `tests/chat-route-conversation.test.ts`（期望 `style-theme`），该勾选项未勾。
