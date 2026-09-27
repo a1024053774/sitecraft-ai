@@ -2,7 +2,7 @@
 id: T-025
 title: 自定义品牌色
 type: build
-status: open
+status: closed
 blocked_by: [T-020, T-022]
 claimed_by: astra
 supersedes:
@@ -14,11 +14,11 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 输入 3 种有代表性的颜色（很浅、很深、高饱和），生成的色板都通过对比度检查
-- [ ] 从一张 Logo 取色得到的主色合理
-- [ ] 应用后可以撤销
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 输入 3 种有代表性的颜色（很浅、很深、高饱和），生成的色板都通过对比度检查
+- [x] 从一张 Logo 取色得到的主色合理
+- [x] 应用后可以撤销
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -31,3 +31,5 @@ supersedes:
 相关检查：`npm run typecheck` 通过；`npm test` 250/250 通过；`npm run build` 通过。
 
 实现提交：待提交后填写 SHA。
+
+独立审核：grok-b，2026-09-27，PASS，`node scripts/check-custom-brand-color.mjs artifacts/t025-review-grokb`（在 `06db72e` 之后）。浅色 `#f4fbff`、深色 `#111827`、高饱和 `#ff00aa` 的正文与白字按钮对比均不低于 4.5:1。Logo 来源写入 `source: logo`，调整说明为已压暗强调色。撤销后 `customPalette` 为空。发布页 HTML 含 `#007bc1`。`npm test` 250/250，`npm run typecheck` 与 `npm run build` 通过。
