@@ -2,7 +2,7 @@
 id: T-028
 title: 新建站点用上所选模板，不再带演示品牌名
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: astra
 supersedes:
@@ -19,7 +19,7 @@ supersedes:
 - [x] 通过 `POST /api/sites` 分别以四个视觉族新建站点，读回的草稿模板、设计意图与请求一致
 - [x] 新建站点的公司名和站点名不含任何演示品牌；访客页和工作台都看不到「Forge Industrial」
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -30,3 +30,5 @@ supersedes:
 产物：[artifacts/t028-site-creation-final/report.json](../../artifacts/t028-site-creation-final/report.json)
 
 实现提交：`9a9401d14517ab58df9f6b2ce2f97350a498177c`；访客页证据提交：`d3efcf076769ddaacc9ecb6408f625ae2b49a66d`；精确占位断言提交：`373b4f7c5c65ffc70babc1a2244e62e8458ff054`。
+
+独立审核：grok-b，2026-09-26，PASS，`node scripts/verify-site-creation.mjs artifacts/t028-review2-20260926`。
