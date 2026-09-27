@@ -16,9 +16,17 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 通过 `POST /api/sites` 分别以四个视觉族新建站点，读回的草稿模板、设计意图与请求一致
-- [ ] 新建站点的公司名和站点名不含任何演示品牌；访客页和工作台都看不到「Forge Industrial」
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 通过 `POST /api/sites` 分别以四个视觉族新建站点，读回的草稿模板、设计意图与请求一致
+- [x] 新建站点的公司名和站点名不含任何演示品牌；访客页和工作台都看不到「Forge Industrial」
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
+
+实现：`defaultDraft` 使用“未命名站点/未命名企业”；`POST /api/sites` 创建后通过 `commitOperations` 写入请求模板对应的 `visualBrief`、模板和页面计划。
+
+验证：`node --test --experimental-strip-types tests/site-creation.test.ts` 在旧实现上先因返回 `forge` 失败，修复后 PASS；`node scripts/verify-site-creation.mjs artifacts/t028-site-creation` 通过四个模板并保存输入/读回结果；全套 `npm test` 240、typecheck、build 通过。
+
+产物：[artifacts/t028-site-creation/report.json](../../artifacts/t028-site-creation/report.json)
+
+实现提交：待提交后填写 SHA。

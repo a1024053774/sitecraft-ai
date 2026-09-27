@@ -1115,7 +1115,7 @@ test("declared family modules hide and show after set_section_visibility and und
   assert.equal(fragments.forge.faq.hidden, true);
   assert.equal(fragments.forge.services.hidden, true);
   assert.equal(fragments.forge.why.hidden, false);
-  assert.equal(fragments.forge.nodes.logo.textContent, "Forge Industrial");
+  assert.equal(fragments.forge.nodes.logo.textContent, "未命名企业");
   assert.equal(fragments.forge.nodes.logo.hidden, false);
   assert.ok(forgeReport.appliedSlots.includes("faq.visibility"));
   assert.ok(forgeReport.appliedSlots.includes("services.visibility"));

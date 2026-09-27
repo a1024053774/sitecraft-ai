@@ -388,8 +388,8 @@ export const starterProducts: Product[] = [
 
 export const defaultDraft: SiteDraft = {
   schemaVersion: 2,
-  siteName: "Forge Industrial",
-  companyName: "Forge Industrial",
+  siteName: "未命名站点",
+  companyName: "未命名企业",
   templateId: "forge",
   visualBrief: structuredClone(visualBriefCatalog[0]),
   paletteId: "industrial-white",
