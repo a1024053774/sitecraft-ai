@@ -32,9 +32,13 @@ const UNIQUE_SECTION_PROBES = {
     faq: { kind: "attr", attr: "data-sitecraft-section", value: "faq" },
     contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
   },
+  // T-031: the blue-catalog look hosts the catalog sections as well.
   landwind: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
+    capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
+    certifications: { kind: "attr", attr: "data-sitecraft-section", value: "certifications" },
     faq: { kind: "attr", attr: "data-sitecraft-section", value: "faq" },
     contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
   },
@@ -43,7 +47,7 @@ const UNIQUE_SECTION_PROBES = {
 const MISSING_ON_TEMPLATE = {
   forge: ["features", "partners", "solutions", "process", "about"],
   screwfast: ["features", "partners", "solutions", "process", "about"],
-  landwind: ["features", "partners", "solutions", "process", "industries", "about"],
+  landwind: ["features", "partners", "solutions", "process", "about"],
 } as const;
 
 function countId(html: string, id: string) {
