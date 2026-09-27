@@ -24,3 +24,13 @@ supersedes:
 - [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 
 ## Resolution
+
+实现：tailwind-landing 按样板结构补上首屏照片/短路径产品卡、参数折叠、行业/能力/认证区块、缺口隐藏、移动导航和必填询盘表单；保留灰底、紧凑路径与强按钮的技术产品气质。adapter 声明对应槽位、section、kit modules 与 `productCard`。
+
+新鲜证据（2026-09-27）：`node scripts/check-published.mjs --out artifacts/published-check/t032-post-commit palette-sample-technical-graphite palette-sample-technical-warm-orange`，6/6 通过；1440/768/375 截图逐张查看。目标测试、typecheck、npm test 246、build 均通过。
+
+盲评材料：改后截图在 `artifacts/review-t032-blind/`，随机映射仅保存在 `/tmp/t032-blind-map.txt`，未提交。
+
+实现提交：`1f471e6af8838a5507b9f94e9afa34e9b81c5976`。
+
+代码审核修复：移除误写入 forge 的目录 textSlot，补到 tailwind-landing 并加槽位归属测试；无照片时隐藏技术产品装饰区，不保留模板英文。修复与最终证据待本票提交后回写。

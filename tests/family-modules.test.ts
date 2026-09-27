@@ -9,6 +9,7 @@ const SNAPSHOTS = {
   forge: new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url),
   screwfast: new URL("../lib/template-adapters/overlays/screwfast.index.html", import.meta.url),
   landwind: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
+  "tailwind-landing": new URL("../lib/template-adapters/overlays/tailwind-landing.index.html", import.meta.url),
 } as const;
 
 /** Independent HTML probes from the local snapshots. Not copied from adapter data. */
@@ -42,12 +43,22 @@ const UNIQUE_SECTION_PROBES = {
     faq: { kind: "attr", attr: "data-sitecraft-section", value: "faq" },
     contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
   },
+  "tailwind-landing": {
+    products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
+    capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
+    services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
+    certifications: { kind: "attr", attr: "data-sitecraft-section", value: "certifications" },
+    faq: { kind: "attr", attr: "data-sitecraft-section", value: "faq" },
+    contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
+  },
 } as const;
 
 const MISSING_ON_TEMPLATE = {
   forge: ["features", "partners", "solutions", "process", "about"],
   screwfast: ["features", "partners", "solutions", "process", "about"],
   landwind: ["features", "partners", "solutions", "process", "about"],
+  "tailwind-landing": ["features", "partners", "solutions", "process", "about"],
 } as const;
 
 function countId(html: string, id: string) {
@@ -96,7 +107,7 @@ test("forge screwfast landwind snapshots have unique nodes for listed modules th
 });
 
 test("adapters declare only unique snapshot sections and leave the rest missing", () => {
-  for (const templateId of ["forge", "screwfast", "landwind"] as const) {
+  for (const templateId of ["forge", "screwfast", "landwind", "tailwind-landing"] as const) {
     const adapter = getTemplateAdapter(templateId);
     assert.ok(adapter, `${templateId} adapter is required`);
     const declared = adapter.sections ?? [];
@@ -120,8 +131,19 @@ test("adapters declare only unique snapshot sections and leave the rest missing"
   }
 });
 
+test("catalog text slots belong to the technical short-path adapter", () => {
+  const catalogTargets = ["industries.title", "industries.intro", "capabilities.title", "capabilities.intro", "certifications.title", "certifications.intro"];
+  const forge = getTemplateAdapter("forge");
+  const technical = getTemplateAdapter("tailwind-landing");
+  assert.ok(forge && technical);
+  for (const target of catalogTargets) {
+    assert.equal(forge.slots.some((slot) => slot.target === target), false, `forge must not declare ${target}`);
+    assert.equal(technical.slots.filter((slot) => slot.target === target).length, 1, `technical look must declare ${target} once`);
+  }
+});
+
 test("set_section_visibility hides and shows listed modules through the whitelist op", () => {
-  const options = { templateIds: new Set(["forge", "screwfast", "landwind"]), lastChange: "family-modules" };
+  const options = { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing"]), lastChange: "family-modules" };
   const hidden = applySiteOperations(structuredClone(defaultDraft), [
     { op: "set_section_visibility", section: "faq", visible: false },
     { op: "set_section_visibility", section: "services", visible: false },
