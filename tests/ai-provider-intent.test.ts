@@ -420,3 +420,23 @@ test("alignment planner returns a prompt-specific question without operations", 
   assert.match(lastRequestBody, /只返回 JSON/);
   assert.match(lastRequestBody, /不能用推荐补造/);
 });
+
+test("alignment planner normalizes a questions-only card instead of returning provider_error", async () => {
+  nextPayload = {
+    kind: "question",
+    questions: [{ field: "colorSet", question: "选哪套色彩集？", options: [
+      { label: "石墨工坊", description: "适合工业", recommended: true },
+      { label: "工程暖橙", description: "强调行动" },
+    ], allowOther: true }],
+    allowOther: true,
+    rationale: "需要确认色彩集",
+  };
+  const result = await requestAlignmentPlan({ message: "请先让我选色彩集", draft: defaultDraft, conversationContext: "", alignmentContext: "" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected questions-only alignment plan");
+  assert.equal(result.kind, "question");
+  if (result.kind !== "question") throw new Error("expected question result");
+  assert.equal(result.questions?.[0]?.field, "colorSet");
+  assert.equal(result.question, "选哪套色彩集？");
+  assert.equal(result.options[0].recommended, true);
+});

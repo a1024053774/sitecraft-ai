@@ -63,12 +63,12 @@ export type AlignmentPlanResult =
 const alignmentPlanSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("question"),
-    question: z.string().min(1).max(800),
-    options: z.array(z.object({ label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional() })).min(2).max(4),
+    question: z.string().min(1).max(800).optional(),
+    options: z.array(z.object({ label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional() })).min(2).max(4).optional(),
     allowOther: z.boolean().default(true),
     rationale: z.string().max(260).nullable().optional(),
     questions: z.array(z.object({ field: z.enum(["goal", "pages", "style", "colorSet", "other"]).optional(), question: z.string().min(1).max(800), options: z.array(z.object({ label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional() })).min(2).max(4), allowOther: z.boolean().default(true) })).min(1).max(4).optional(),
-  }),
+  }).refine((value) => Boolean(value.questions?.length || (value.question && value.options?.length)), "question or questions is required"),
   z.object({ kind: z.literal("ready"), summary: z.string().min(1).max(400) }),
 ]);
 
@@ -307,7 +307,7 @@ export async function requestAlignmentPlan(args: {
         body: JSON.stringify({
           model,
           temperature: 0.1,
-          max_tokens: 900,
+          max_tokens: 1800,
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: system },
@@ -334,7 +334,7 @@ export async function requestAlignmentPlan(args: {
       }
       const latencyMs = Date.now() - startedAt;
       return parsed.data.kind === "question"
-        ? { ok: true, kind: "question", question: parsed.data.question, options: parsed.data.options, questions: parsed.data.questions, allowOther: parsed.data.allowOther, rationale: parsed.data.rationale ?? null, model, latencyMs }
+        ? { ok: true, kind: "question", question: parsed.data.question ?? parsed.data.questions?.[0]?.question ?? "还需要你补充一点信息。", options: parsed.data.options ?? parsed.data.questions?.[0]?.options ?? [], questions: parsed.data.questions, allowOther: parsed.data.allowOther, rationale: parsed.data.rationale ?? null, model, latencyMs }
         : { ok: true, kind: "ready", summary: parsed.data.summary, model, latencyMs };
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
@@ -344,7 +344,7 @@ export async function requestAlignmentPlan(args: {
   }
   return {
     ok: false,
-    code: lastError.includes("超时") ? "timeout" : lastError.includes("Schema") ? "invalid_output" : "provider_error",
+    code: lastError.includes("超时") ? "timeout" : lastError.includes("Schema") || lastError.includes("长度上限") ? "invalid_output" : "provider_error",
     error: lastError,
     model,
     latencyMs: Date.now() - startedAt,

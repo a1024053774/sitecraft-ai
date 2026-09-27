@@ -287,7 +287,7 @@ export function styleQuestion(revision: number): CurrentQuestion {
     questionRevision: Math.max(1, revision),
     kind: "style",
     prompt: ALIGNMENT_QUESTION,
-    options: STYLE_OPTIONS.map((option) => ({ id: option.id, label: option.label, description: option.description })),
+    options: STYLE_OPTIONS.map((option, index) => ({ id: option.id, label: option.label, description: option.description, recommended: index === 0 })),
     allowOther: true,
   };
 }
@@ -298,7 +298,7 @@ function guidedBusinessQuestion(revision: number): CurrentQuestion {
     questionRevision: Math.max(1, revision),
     kind: "clarify",
     prompt: GUIDED_BUSINESS_QUESTION,
-    options: GUIDED_BUSINESS_OPTIONS.map((option) => ({ ...option })),
+    options: GUIDED_BUSINESS_OPTIONS.map((option, index) => ({ ...option, recommended: index === 0 })),
     allowOther: true,
   };
 }
@@ -309,7 +309,7 @@ function guidedPlanQuestion(revision: number, styleLabel = "当前样子") : Cur
     questionRevision: Math.max(1, revision),
     kind: "clarify",
     prompt: `请确认本次交付范围和资料缺口处理方式。样子：${styleLabel}。色彩集尚未选择；请在方案确认中核对配色。`,
-    options: GUIDED_PLAN_OPTIONS.map((option) => ({ ...option })),
+    options: GUIDED_PLAN_OPTIONS.map((option, index) => ({ ...option, recommended: index === 0 })),
     allowOther: false,
   };
 }

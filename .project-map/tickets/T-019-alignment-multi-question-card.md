@@ -22,7 +22,7 @@ supersedes:
 - [x] 已生成的站点改文案时不出现完整的对齐流程（沿用既有 alignmentEnabled/已生成草稿分支）
 - [x] 确认文案显示实际选中的色彩集；样子单独标注
 - [x] 需求卡协议支持每题 2–4 个选项、推荐标记和“其他”补充说明
-- [ ] HTTP 端到端流程（资料 → 对齐 → 确认 → 生成 → 预览）有一条可以重跑的测试或脚本，产物放 `artifacts/`（本轮 3034 规划器返回 502，失败证据已保留）
+- [x] HTTP 端到端流程（资料 → 对齐 → 确认 → 生成 → 预览）有一条可以重跑的测试或脚本，产物放 `artifacts/`
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
@@ -34,14 +34,18 @@ supersedes:
 
 - `node --test --experimental-strip-types tests/alignment-multi-question.e2e.test.ts`：先在改动前失败，改动后 PASS。
 - `npm run typecheck`：PASS。
-- `npm test`：235 tests PASS。
+- `npm test`：240 tests PASS。
 - `npm run build`：PASS。
 - `node scripts/verify-alignment-multi-question.mjs`：PASS。
 - `node --experimental-strip-types scripts/check-alignment-card-ui.mjs artifacts/t019-ui-final2`：PASS，1/2 题卡在 1440/768/375 通过，包含推荐、“其他”说明和刷新恢复；截图与读回报告在该目录。
 - `node scripts/verify-alignment-multi-question.mjs artifacts/t019-red-http`：BLOCKED，3034 规划器返回 502 `provider_error`，逐步输入/读回失败证据保留。
+- 根因复现：直接读取 `.env.local` 调用规划器时，模型返回 `finish_reason=length`；原固定 `max_tokens: 900` 重试后仍被归类为笼统 `provider_error`。修复为 1800，并允许 `questions` 仅数组响应归一化。
+- `node scripts/verify-alignment-multi-question.mjs artifacts/t019-http-final`：PASS，3034 真实完成资料、需求卡、刷新读回、一次提交、确认、生成和草稿预览读回。
 
 产物：[artifacts/t019-ui-final2/report.json](../../artifacts/t019-ui-final2/report.json)、[artifacts/t019-red-http/report.json](../../artifacts/t019-red-http/report.json)
 
 修复提交：`32a0ede484860e2788d0350a92072b5a4af5b3ed`。
+
+规划器根因修复与真实 HTTP 证据提交：待提交后填写 SHA。
 
 Commit：实现 `a1753036edd0ed8f2b7d541cf5174282805a5341`；本票 Resolution 回写为后续文档提交。
