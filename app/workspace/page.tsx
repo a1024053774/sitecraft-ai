@@ -36,6 +36,7 @@ import readXlsxFile from "read-excel-file";
 import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
 import {
   defaultDraft,
+  colorSetCatalog,
   paletteCatalogForVisualBrief,
   getTemplate,
   importProductsFromRows,
@@ -304,10 +305,22 @@ export default function WorkspacePage() {
   const [alignmentView, setAlignmentView] = useState<AlignmentViewState | null>(null);
   const [alignmentSelections, setAlignmentSelections] = useState<Record<string, string>>({});
   const [alignmentNotes, setAlignmentNotes] = useState<Record<string, string>>({});
+  const [lookPanelOpen, setLookPanelOpen] = useState(false);
+  const [workspaceTheme, setWorkspaceTheme] = useState<"light" | "dark">("light");
+  const [workspaceAccent, setWorkspaceAccent] = useState("porcelain");
   useEffect(() => {
     setAlignmentSelections(Object.fromEntries((alignmentView?.answers ?? []).map(a => [a.questionId, a.optionId])));
     setAlignmentNotes(Object.fromEntries((alignmentView?.answers ?? []).map(a => [a.questionId, a.note ?? ""])));
   }, [alignmentView]);
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem("sitecraft-workspace-theme");
+    const storedAccent = window.localStorage.getItem("sitecraft-workspace-accent");
+    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    setWorkspaceTheme(storedTheme === "dark" || (!storedTheme && prefersDark) ? "dark" : "light");
+    if (storedAccent && colorSetCatalog.some((item) => item.id === storedAccent)) setWorkspaceAccent(storedAccent);
+  }, []);
+  const toggleWorkspaceTheme = () => setWorkspaceTheme((theme) => { const next = theme === "light" ? "dark" : "light"; window.localStorage.setItem("sitecraft-workspace-theme", next); return next; });
+  const chooseWorkspaceAccent = (accent: string) => { setWorkspaceAccent(accent); window.localStorage.setItem("sitecraft-workspace-accent", accent); };
   const [device, setDevice] = useState<Device>("desktop");
   const [locale, setLocale] = useState<Locale>("zh");
   const [showImport, setShowImport] = useState(false);
@@ -1065,7 +1078,7 @@ export default function WorkspacePage() {
   };
 
   return (
-    <div className="builder-shell">
+    <div className={`builder-shell workspace-theme-${workspaceTheme} workspace-accent-${workspaceAccent}`}>
       <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">
         <button className={mobilePane === "chat" ? "active" : ""} onClick={() => setMobilePane("chat")} role="tab" aria-selected={mobilePane === "chat"}><MessageSquareText size={14} /> AI 对话</button>
         <button className={mobilePane === "preview" ? "active" : ""} onClick={() => setMobilePane("preview")} role="tab" aria-selected={mobilePane === "preview"}><Desktop size={14} /> 网站预览</button>
@@ -1075,17 +1088,19 @@ export default function WorkspacePage() {
           <div>
             <Link href="/" className="eyebrow" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowLeft size={12} />返回站点</Link>
             <h2>{draft.siteName}</h2>
-            <span className="builder-template-name">{currentTemplate.name}</span>
-            <span className="chat-context"><span className={`provider-dot ${providerStatus.mode === "deepseek" ? "remote" : "offline"}`} />{providerStatus.mode === "deepseek" ? `DEEPSEEK API · ${providerStatus.model}` : "DeepSeek 未配置 · 不会执行本地伪修改"}</span>
+            <span className="builder-template-name">当前样子：{draft.visualBrief.label}</span>
+            <span className="chat-context"><span className={`provider-dot ${providerStatus.mode === "deepseek" ? "remote" : "offline"}`} />{providerStatus.mode === "deepseek" ? "AI 已连接" : "AI 暂不可用"}</span>
           </div>
           <Link className="icon-button" href="/templates" aria-label="更换模板"><MoreHorizontal size={16} /></Link>
         </div>
-        <div className="draft-status-panel">
+          <div className="draft-status-panel">
           <div className="draft-status-icon"><Cloud size={15} /></div>
           <div><strong data-testid="workspace-draft-revision">当前草稿 · v{draft.revision}</strong><span>{updatedAt ? `${new Date(updatedAt).toLocaleString("zh-CN")} 保存到服务器` : "正在载入"}</span></div>
           <button type="button" onClick={() => setShowHistory((value) => !value)}><History size={13} />历史 {history.length}</button>
-        </div>
-        <section className="visual-brief-panel" aria-label="网站样子">
+          </div>
+        <div className="workspace-controls"><button type="button" onClick={toggleWorkspaceTheme}>{workspaceTheme === "dark" ? "浅色界面" : "深色界面"}</button><label>强调色<select value={workspaceAccent} onChange={(event) => chooseWorkspaceAccent(event.target.value)}>{colorSetCatalog.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label></div>
+        <div className="chat-look-actions"><button type="button" onClick={() => setLookPanelOpen((value) => !value)}>样子</button><button type="button" onClick={() => setLookPanelOpen((value) => !value)}>配色</button></div>
+        <section className={lookPanelOpen ? "visual-brief-panel" : "visual-brief-panel look-panel-collapsed"} aria-label="网站样子">
           <div className="visual-brief-head">
             <div><span className="eyebrow">Look board</span><strong>先选网站的样子</strong></div>
             <span className="visual-brief-current">当前：{draft.visualBrief.label}</span>

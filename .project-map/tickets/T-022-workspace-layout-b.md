@@ -23,3 +23,9 @@ supersedes:
 - [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
+
+实现：工作台桌面布局改为预览主区 + 右侧对话区；样子/配色通过对话区按钮展开；新增跟随系统的深浅主题、6 套色彩集强调色切换，站点 iframe 仍使用草稿自己的 palette；内部模型名和 API 标签不再展示。
+
+证据：`node scripts/check-workspace-layout.mjs overlay-p3i-thick-20260925 artifacts/workspace-t022-final`，1440/768 均读回右侧对话、居中预览、样子/配色按钮、主题和强调色控件，内部标签检查为 false；截图已查看。
+
+实现提交：待提交后填写 SHA。
