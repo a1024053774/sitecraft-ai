@@ -50,7 +50,7 @@ supersedes:
 
 审核后修复：`invalid_output` 不再被转换成内置样子问题；当前请求明确返回错误并可重试。提交：`1078250844c474196fbf750776567974537d0afb`。
 
-聊天路由测试修复：测试用的恢复/延迟 provider 哨兵现在走明确的 deterministic alignment 入口，不再把合法测试夹具误送到规划器；`tests/chat-route-conversation.test.ts` 19/19 通过且进程正常退出。提交：`e1b5e09dc5d427932c1d94636801c4b83e739682`。
+聊天路由测试修复：测试用的恢复/延迟 provider 哨兵现在走明确的 deterministic alignment 入口，不再把合法测试夹具误送到规划器；`tests/chat-route-conversation.test.ts` 19/19 通过且进程正常退出。提交：`e1b5e09dc5d427932c1d94636801c4b83e739682`。全套 `npm test` 最终 246/246 通过。
 
 本次复核：本地读取 `.env.local` 调规划器得到原始元信息 `finish_reason=length`，原始 JSON 未完整结束；对照 schema 确认首要原因是规划器输出预算不足，已在 `1291fbb` 将预算从 900 提到 1800，并允许 questions-only 卡归一化。3034 重跑若仍返回 invalid_output，现在产物会明确写入 `retry_alignment`，不再换成内置样子卡：[artifacts/t019-http-after-invalid-output/report.json](../../artifacts/t019-http-after-invalid-output/report.json)。此前成功走完生成/预览的真实证据仍在：[artifacts/t019-http-final/report.json](../../artifacts/t019-http-final/report.json)。
 

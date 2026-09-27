@@ -33,7 +33,7 @@ supersedes:
 
 - `node --test --experimental-strip-types tests/draft-english.test.ts tests/site-operations.test.ts`：PASS。
 - `npm run typecheck`：PASS。
-- `npm test`：240 tests PASS。
+- `npm test`：246 tests PASS。
 - `npm run build`：PASS。
 - `node scripts/check-published.mjs --out artifacts/t024-published-sparse-check overlay-sparse-20260924`：PASS，1440/768/375 均 `offersEnglish: false`。
 
