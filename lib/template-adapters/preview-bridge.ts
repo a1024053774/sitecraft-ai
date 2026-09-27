@@ -195,9 +195,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
       var category = document.createElement("p");
       category.className = "sitecraft-product-category";
-      category.textContent = typeof product.category === "string" && product.category
-        ? product.category
-        : (locale === "en" ? "Product category" : "产品类别");
+      category.textContent = localize(product.category, locale) ||
+        (locale === "en" ? "Product category" : "产品类别");
       category.setAttribute("data-sitecraft-slot", "products." + sku + ".category");
       var title = document.createElement("h3");
       title.textContent = productName || (locale === "en" ? "Product name to be completed" : "产品名称待补充");
@@ -272,10 +271,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
     var body = document.createElement("div");
     body.className = "sitecraft-product-body";
-    if (typeof product.category === "string" && product.category && product.category !== productName) {
+    var productCategory = localize(product.category, locale) || "";
+    if (productCategory && productCategory !== productName) {
       var category = document.createElement("p");
       category.className = "sitecraft-product-category";
-      category.textContent = product.category;
+      category.textContent = productCategory;
       category.setAttribute("data-sitecraft-slot", "products." + sku + ".category");
       body.appendChild(category);
       applied.add("products." + sku + ".category");

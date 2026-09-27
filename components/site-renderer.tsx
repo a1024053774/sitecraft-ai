@@ -190,7 +190,7 @@ export function SiteRenderer({
             <div className="rs-visual-main">
               <div className="rs-visual-index">01</div>
               <div>
-                <small>{draft.products[0]?.category ?? "CAPABILITY"}</small>
+                <small>{typeof draft.products[0]?.category === "string" ? draft.products[0]?.category : draft.products[0]?.category?.[locale] ?? "CAPABILITY"}</small>
                 <strong>
                   {draft.products[0]
                     ? draft.products[0].name[locale]
@@ -259,7 +259,7 @@ export function SiteRenderer({
                   )}
                 </div>
                 <div className="rs-product-copy">
-                  <small>{product.sku} / {product.category}</small>
+                  <small>{product.sku} / {typeof product.category === "string" ? product.category : product.category[locale]}</small>
                   <strong>{product.name[locale]}</strong>
                   <p>{product.summary[locale]}</p>
                   <ArrowUpRight size={16} />

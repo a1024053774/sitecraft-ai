@@ -72,6 +72,7 @@ const setTextOperationSchema = z.object({
     z.string().min(1).max(1000),
     z.object({ zh: z.string().min(1).max(1000), en: z.string().min(1).max(1000) }),
   ]),
+  englishReadyBefore: z.boolean().optional(),
 });
 const localizedOperationValueSchema = z.union([
   z.string().min(1).max(1000),
@@ -102,7 +103,8 @@ const updateProductOperationSchema = z.object({
   locale: z.enum(locales).optional(),
   name: localizedOperationValueSchema.optional(),
   summary: localizedOperationValueSchema.optional(),
-  category: z.string().min(1).max(120).optional(),
+  category: localizedOperationValueSchema.optional(),
+  englishReadyBefore: z.boolean().optional(),
 }).refine((value) => value.name || value.summary || value.category, "Product update requires at least one field");
 const setProductSpecsOperationSchema = z.object({
   op: z.literal("set_product_specs"),
@@ -445,21 +447,25 @@ export function applySiteOperations(
     }
     if (operation.op === "set_text") {
       if (typeof operation.value === "object") {
+        const previousEnglishReady = draft.englishReady;
         const previous = { zh: readText(draft, operation.target, "zh"), en: readText(draft, operation.target, "en") };
         if (previous.zh === operation.value.zh && previous.en === operation.value.en) continue;
         writeText(draft, operation.target, "zh", operation.value.zh);
         writeText(draft, operation.target, "en", operation.value.en);
         if (!isGapMarker(operation.value.en)) draft.englishReady = true;
-        inverseOperations.unshift({ op: "set_text", target: operation.target, value: previous });
+        inverseOperations.unshift({ op: "set_text", target: operation.target, value: previous, englishReadyBefore: previousEnglishReady });
+        if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
         appliedTargets.push(`${operation.target}.zh`, `${operation.target}.en`);
         continue;
       }
       const locale = nonLocalizedTargets.has(operation.target) ? "zh" : (operation.locale ?? "zh");
+      const previousEnglishReady = draft.englishReady;
       const previous = readText(draft, operation.target, locale);
       if (previous === operation.value) continue;
       writeText(draft, operation.target, locale, operation.value);
       if (locale === "en" && !isGapMarker(operation.value)) draft.englishReady = true;
-      inverseOperations.unshift({ ...operation, locale, value: previous });
+      inverseOperations.unshift({ ...operation, locale, value: previous, englishReadyBefore: previousEnglishReady });
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
       appliedTargets.push(`${operation.target}.${locale}`);
       continue;
     }
@@ -522,26 +528,31 @@ export function applySiteOperations(
     if (operation.op === "update_product") {
       const product = draft.products.find((item) => item.sku === operation.sku);
       if (!product) throw new Error(`Product ${operation.sku} does not exist`);
-      if ((typeof operation.name === "object" && operation.name) || (typeof operation.summary === "object" && operation.summary)) {
+      if ((typeof operation.name === "object" && operation.name) || (typeof operation.summary === "object" && operation.summary) || (typeof operation.category === "object" && operation.category)) {
+        const previousEnglishReady = draft.englishReady;
         const inverse: SiteOperation = { op: "update_product", sku: operation.sku,
           ...(operation.name ? { name: typeof operation.name === "object" ? structuredClone(product.name) : product.name.zh } : {}),
           ...(operation.summary ? { summary: typeof operation.summary === "object" ? structuredClone(product.summary) : product.summary.zh } : {}),
-          ...(operation.category ? { category: product.category } : {}),
+          ...(operation.category ? { category: structuredClone(product.category) } : {}),
+          englishReadyBefore: previousEnglishReady,
         };
         let changed = false;
         if (typeof operation.name === "object") { if (product.name.zh !== operation.name.zh || product.name.en !== operation.name.en) changed = true; product.name = structuredClone(operation.name); appliedTargets.push(`products.${operation.sku}.name.zh`, `products.${operation.sku}.name.en`); }
         if (typeof operation.summary === "object") { if (product.summary.zh !== operation.summary.zh || product.summary.en !== operation.summary.en) changed = true; product.summary = structuredClone(operation.summary); appliedTargets.push(`products.${operation.sku}.summary.zh`, `products.${operation.sku}.summary.en`); }
-        if (changed) { if ((typeof operation.name === "object" && !isGapMarker(operation.name.en)) || (typeof operation.summary === "object" && !isGapMarker(operation.summary.en))) draft.englishReady = true; inverseOperations.unshift(inverse); }
+        if (typeof operation.category === "object") { if (JSON.stringify(product.category) !== JSON.stringify(operation.category)) changed = true; product.category = structuredClone(operation.category); appliedTargets.push(`products.${operation.sku}.category.zh`, `products.${operation.sku}.category.en`); }
+        if (changed) { if ((typeof operation.name === "object" && !isGapMarker(operation.name.en)) || (typeof operation.summary === "object" && !isGapMarker(operation.summary.en)) || (typeof operation.category === "object" && !isGapMarker(operation.category.en))) draft.englishReady = true; if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore; inverseOperations.unshift(inverse); }
         continue;
       }
       const locale = operation.locale ?? "zh";
+      const previousEnglishReady = draft.englishReady;
       const inverse: SiteOperation = {
         op: "update_product",
         sku: operation.sku,
         locale,
         ...(operation.name ? { name: product.name[locale] } : {}),
         ...(operation.summary ? { summary: product.summary[locale] } : {}),
-        ...(operation.category ? { category: product.category } : {}),
+        ...(operation.category ? { category: structuredClone(product.category) } : {}),
+        englishReadyBefore: previousEnglishReady,
       };
       let changed = false;
       if (operation.name && product.name[locale] !== operation.name) {
@@ -554,12 +565,15 @@ export function applySiteOperations(
         appliedTargets.push(`products.${operation.sku}.summary.${locale}`);
         changed = true;
       }
-      if (operation.category && product.category !== operation.category) {
+      if (operation.category && typeof operation.category === "string" && product.category !== operation.category) {
         product.category = operation.category;
         appliedTargets.push(`products.${operation.sku}.category`);
         changed = true;
       }
-      if (changed) inverseOperations.unshift(inverse);
+      if (changed) {
+        if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+        inverseOperations.unshift(inverse);
+      }
       continue;
     }
     if (operation.op === "set_product_specs") {

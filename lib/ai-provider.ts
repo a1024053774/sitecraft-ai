@@ -159,12 +159,12 @@ function operationInstructions() {
 2. update_card: {"op":"update_card","section":"features|services|faq","index":从0开始,"title":{"zh":"中文标题","en":"English title"},"body":{"zh":"中文正文","en":"English body"}}
 3. add_card: {"op":"add_card","section":"features|services|faq","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
 4. remove_card: {"op":"remove_card","section":"features|services|faq","itemId":"现有id"}
-5. update_product: {"op":"update_product","sku":"现有SKU","name":{"zh":"中文名称","en":"English name"},"summary":{"zh":"中文摘要","en":"English summary"},"category":"可选"}
+5. update_product: {"op":"update_product","sku":"现有SKU","name":{"zh":"中文名称","en":"English name"},"summary":{"zh":"中文摘要","en":"English summary"},"category":{"zh":"中文类别","en":"English category"}}
 6. set_product_specs: {"op":"set_product_specs","sku":"现有SKU","specs":[{"name":{"zh":"速比范围","en":"Ratio range"},"value":"i=25–100"}]}
    只写入资料明确给出的规格参数；参数名中英双语，参数值必须能在资料正文中找到，找不到写成「待补充」，禁止编造数字。
 7. set_catalog_section: {"op":"set_catalog_section","section":"industries|capabilities|certifications","value":{"title":{"zh":"...","en":"..."},"intro":{"zh":"...","en":"..."},"items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."},"status":"已有|认证中|待补充"}]} }
    industries=应用行业卡片；capabilities=加工能力或主设备卡片；certifications=认证状态（status 为 已有/认证中/待补充；访客页只展示 已有 与 认证中）。value 可为 null 清空整块。条目事实必须出自资料，资料外数字改为「待补充」。
-8. replace_products: {"op":"replace_products","products":[{"sku":"已有或资料确认的SKU","name":{"zh":"...","en":"..."},"summary":{"zh":"...","en":"..."},"category":"...","status":"published|draft","imageColor":"#...","specs":[{"name":{"zh":"...","en":"..."},"value":"..."}]}]}
+8. replace_products: {"op":"replace_products","products":[{"sku":"已有或资料确认的SKU","name":{"zh":"...","en":"..."},"summary":{"zh":"...","en":"..."},"category":{"zh":"中文类别","en":"English category"},"status":"published|draft","imageColor":"#...","specs":[{"name":{"zh":"...","en":"..."},"value":"..."}]}]}
    只有公司资料明确给出完整产品清单时才使用；只保留资料确认的产品类别。加工方式、询盘条件和服务步骤不是商品，不要把“按图加工”单独生成一张商品卡。资料没有确认的商品不要用默认商品补齐。specs 可选，规则同 set_product_specs。
 9. set_section_visibility: {"op":"set_section_visibility","section":"${visibilityKeys.join("|")}","visible":true|false}
    同一视觉族里显隐已有区块，不是拼装新页面。KonsTuck 清单：项目=products、服务=services、为什么选我们=features、FAQ=faq、询盘=contact。Lozitick 清单：方案=solutions、询盘→提货→分拣→运输=process、伙伴=partners、行业=industries、FAQ=faq。screwfast 另声明 industries/capabilities/certifications。只对当前模板已声明且唯一命中的区块生效；未声明或命中多个记为 missing。禁止按标题正则、元素顺序或通用卡片形状猜藏。missing 不能当成可以把导航、页脚或 Logo 墙留在客户站上。

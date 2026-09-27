@@ -1596,6 +1596,22 @@ test("screwfast benchmark renders only authored product categories into the prod
   assert.ok(report.appliedSlots.includes("products"));
 });
 
+test("screwfast product categories localize on the English preview", () => {
+  const { document } = createDocument();
+  const grid = createNode("div");
+  grid.setAttribute("data-sitecraft-product-grid", "true");
+  document.body.appendChild(grid);
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  const draft = packDraft("industrial") as ReturnType<typeof packDraft> & { products: Array<Record<string, unknown>> };
+  draft.products = draft.products.slice(0, 1);
+  draft.products[0].name = { zh: "卡套接头", en: "Ferrule fittings" };
+  draft.products[0].category = { zh: "流体连接件", en: "Fluid connectors" };
+  installOn(document, adapter).api.applyDeclaredContent(draft, "en", ["products"], "published");
+  assert.equal(visibleText(grid).includes("Fluid connectors"), true);
+  assert.equal(visibleText(grid).includes("流体连接件"), false);
+});
+
 test("inquiry form submit posts payload to parent and does not keep web3forms action", () => {
   const { document } = createDocument();
   const form = createNode("form");

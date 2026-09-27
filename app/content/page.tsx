@@ -41,7 +41,7 @@ export default function ContentPage() {
                   <PackageOpen size={26} />
                 </div>
                 <div>
-                  <small>{product.sku} · {product.category}</small>
+                  <small>{product.sku} · {typeof product.category === "string" ? product.category : product.category.zh}</small>
                   <h2>{product.name.zh}</h2>
                   <p>{product.summary.zh}</p>
                 </div>
