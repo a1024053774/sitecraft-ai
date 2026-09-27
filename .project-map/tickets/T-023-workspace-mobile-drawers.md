@@ -31,4 +31,6 @@ supersedes:
 
 相关检查：`npm run typecheck` 通过；`npm test` 248/248 通过；`npm run build` 通过。
 
-实现提交：待提交后填写 SHA。
+实现提交：`8ea8bf0`。
+
+独立审核：grok-a，2026-09-27，NO_GO。证据 `artifacts/workspace-t023-green10`、红态 `artifacts/workspace-t023-red7`。375 底部抽屉逐题（第 1/3 到第 3/3）、一次 `selections` 后服务端 3 个答案（明亮产品、首页 + 产品 + 询盘、石墨工坊）、刷新后「已保存的问答（3）」成立。768 报告里预览标签隐藏对话、对话标签重新打开。375 预览工具栏未看见：截图停在「AI 对话」，`toolbarRight` 为 0；`.preview-toolbar` 在 `mobile-hidden` 下被量成不溢出。详见 `artifacts/review-t023-20260927.md`。
