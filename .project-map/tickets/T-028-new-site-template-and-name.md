@@ -29,4 +29,4 @@ supersedes:
 
 产物：[artifacts/t028-site-creation-final/report.json](../../artifacts/t028-site-creation-final/report.json)
 
-实现提交：`9a9401d14517ab58df9f6b2ce2f97350a498177c`。
+实现提交：`9a9401d14517ab58df9f6b2ce2f97350a498177c`；访客页证据提交：`d3efcf076769ddaacc9ecb6408f625ae2b49a66d`。
