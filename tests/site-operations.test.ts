@@ -297,6 +297,18 @@ test("undoing the only English operation restores englishReady and keeps a diffe
   assert.equal(restored.content.hero.title.en, "To be provided");
 });
 
+test("undoing the only bilingual card update restores englishReady", () => {
+  const result = applySiteOperations(structuredClone(defaultDraft), [{
+    op: "update_card", section: "features", index: 0,
+    title: { zh: "产品聚焦", en: "Focused product range" },
+    body: { zh: "只写资料中的产品", en: "Only documented products" },
+  }], { templateIds: new Set(["forge"]), lastChange: "bilingual card" });
+  assert.equal(result.draft.englishReady, true);
+  const restored = applySiteOperations(result.draft, result.inverseOperations, { templateIds: new Set(["forge"]), lastChange: "undo" }).draft;
+  assert.equal(restored.englishReady, false);
+  assert.equal(restored.content.features.items[0].title.en, "To be provided");
+});
+
 test("one product operation writes a bilingual category and undo restores it", () => {
   const sku = defaultDraft.products[0].sku;
   const result = applySiteOperations(structuredClone(defaultDraft), [{ op: "update_product", sku, category: { zh: "卡套接头", en: "Ferrule fittings" } }], { templateIds: new Set(["forge"]), lastChange: "category" });
