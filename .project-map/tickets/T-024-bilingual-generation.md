@@ -47,4 +47,6 @@ supersedes:
 
 本轮修复提交：`7399758bc336304ad55325e5e6ff6e9535deea18`。
 
+复审补修：`update_card` 双语撤销现在与 `set_text` 一样恢复 `englishReady`，提交 `dcb42d3d8d2c4d697a35f847124965432dde2486`。
+
 独立稀疏草稿回归测试改为测试内构造，不依赖 gitignore 的 `.sitecraft-data`：`c710598dc1cdc28b8b6087881d2bdc4fc92042c0`。
