@@ -29,4 +29,4 @@ supersedes:
 
 产物：[artifacts/t028-site-creation/report.json](../../artifacts/t028-site-creation/report.json)
 
-实现提交：待提交后填写 SHA。
+实现提交：`9a9401d14517ab58df9f6b2ce2f97350a498177c`。

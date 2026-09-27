@@ -46,6 +46,6 @@ supersedes:
 
 修复提交：`32a0ede484860e2788d0350a92072b5a4af5b3ed`。
 
-规划器根因修复与真实 HTTP 证据提交：待提交后填写 SHA。
+规划器根因修复与真实 HTTP 证据提交：`1291fbbc9338cdadc63c59db28bceea947df5a20`。
 
 Commit：实现 `a1753036edd0ed8f2b7d541cf5174282805a5341`；本票 Resolution 回写为后续文档提交。
