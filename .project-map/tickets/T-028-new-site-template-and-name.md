@@ -27,6 +27,6 @@ supersedes:
 
 验证：`node --test --experimental-strip-types tests/site-creation.test.ts` 在旧实现上先因返回 `forge` 失败，修复后 PASS；`node scripts/verify-site-creation.mjs artifacts/t028-site-creation` 通过四个模板并保存输入/读回结果；全套 `npm test` 240、typecheck、build 通过。
 
-产物：[artifacts/t028-site-creation/report.json](../../artifacts/t028-site-creation/report.json)
+产物：[artifacts/t028-site-creation-final/report.json](../../artifacts/t028-site-creation-final/report.json)
 
 实现提交：`9a9401d14517ab58df9f6b2ce2f97350a498177c`。
