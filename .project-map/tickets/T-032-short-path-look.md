@@ -4,7 +4,7 @@ title: 按样板改灰底短路径样子（tailwind-landing）
 type: build
 status: open
 blocked_by: [T-029]
-claimed_by:
+claimed_by: astra
 supersedes:
 ---
 
