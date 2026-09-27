@@ -44,8 +44,8 @@ export type AlignmentPlanResult =
     ok: true;
     kind: "question";
     question: string;
-    options: Array<{ label: string; description: string; recommended?: boolean }>;
-    questions?: Array<{ field?: "goal" | "pages" | "style" | "colorSet" | "other"; question: string; options: Array<{ label: string; description: string; recommended?: boolean }>; allowOther: boolean }>;
+    options: Array<{ id?: string; label: string; description: string; recommended?: boolean; paletteId?: string; swatches?: string[] }>;
+    questions?: Array<{ field?: "goal" | "pages" | "style" | "colorSet" | "other"; question: string; options: Array<{ id?: string; label: string; description: string; recommended?: boolean; paletteId?: string; swatches?: string[] }>; allowOther: boolean }>;
     allowOther: boolean;
     rationale: string | null;
     model: string;
@@ -64,10 +64,10 @@ const alignmentPlanSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("question"),
     question: z.string().min(1).max(800).optional(),
-    options: z.array(z.object({ label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional() })).min(2).max(4).optional(),
+    options: z.array(z.object({ id: z.string().min(1).max(80).optional(), label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional(), paletteId: z.string().max(80).optional(), swatches: z.array(z.string().max(30)).max(10).optional() })).min(2).max(4).optional(),
     allowOther: z.boolean().default(true),
     rationale: z.string().max(260).nullable().optional(),
-    questions: z.array(z.object({ field: z.enum(["goal", "pages", "style", "colorSet", "other"]).optional(), question: z.string().min(1).max(800), options: z.array(z.object({ label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional() })).min(2).max(4), allowOther: z.boolean().default(true) })).min(1).max(4).optional(),
+    questions: z.array(z.object({ field: z.enum(["goal", "pages", "style", "colorSet", "other"]).optional(), question: z.string().min(1).max(800), options: z.array(z.object({ id: z.string().min(1).max(80).optional(), label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional(), paletteId: z.string().max(80).optional(), swatches: z.array(z.string().max(30)).max(10).optional() })).min(2).max(4), allowOther: z.boolean().default(true) })).min(1).max(4).optional(),
   }).refine((value) => Boolean(value.questions?.length || (value.question && value.options?.length)), "question or questions is required"),
   z.object({ kind: z.literal("ready"), summary: z.string().min(1).max(400) }),
 ]);
@@ -289,7 +289,7 @@ export async function requestAlignmentPlan(args: {
   const draftContext = buildDraftPromptContext(args.draft);
   const system = `你是 SiteCraft 的需求对齐规划器。只返回 JSON，不输出 Markdown、HTML、CSS、JavaScript 或 draft operations。
 你的任务是阅读用户这一次的建站 Prompt、已有草稿、会话历史和已确认答案，找出仍会改变页面结果的最少一个关键缺口。
-- 如果仍有关键缺口，只返回 questions 数组（1–4 题，每题 field 为 goal/pages/style/colorSet/other，配色题必须是 colorSet），不要重复输出顶层 question/options：{"kind":"question","questions":[{"field":"colorSet","question":"...","options":[{"label":"石墨工坊","description":"推荐理由","recommended":true},{"label":"工程暖橙","description":"..."}],"allowOther":true}],"rationale":"..."}。
+- 如果仍有关键缺口，只返回 questions 数组（1–4 题，每题 field 为 goal/pages/style/colorSet/other，配色题必须是 colorSet），不要重复输出顶层 question/options。style/colorSet 题的 option 必须有稳定 id；colorSet 题还必须有 paletteId 和 swatches：{"kind":"question","questions":[{"field":"colorSet","question":"...","options":[{"id":"colorSet:graphite","label":"石墨工坊","description":"推荐理由","recommended":true,"paletteId":"engineering-graphite","swatches":["#edeeef","#f6f6f6","#1b1c1e","#3d4853"]},{"id":"colorSet:warm-orange","label":"工程暖橙","description":"...","paletteId":"engineering-warm-orange","swatches":["#f0eeed","#f7f6f6","#1f1c1a","#c2531c"]}],"allowOther":true}],"rationale":"..."}。
 - 如果资料和 Prompt 已足够形成一份可审查方案，返回 {"kind":"ready","summary":"..."}，不要追问风格偏好。
 - 问题必须针对这次 Prompt，不得套行业问卷，不得只问固定的风格、业务目标或工业问题。
 - 已明确的信息不要重复问；每题 2–4 个选项，必须给一个选项 recommended:true 并在 description 写推荐理由，所有问题允许其他（allowOther:true），选项必须是用户能判断的结果差异，描述简短。

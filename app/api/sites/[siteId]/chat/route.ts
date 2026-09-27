@@ -27,6 +27,7 @@ import {
 } from "@/lib/conversation-store";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
 import { visualBriefCatalog, type PaletteId } from "@/lib/site-document";
+import { templateAdapters } from "@/lib/template-adapters/registry";
 import { readSiteImage, siteImagePublicPath } from "@/lib/site-images";
 import { describeUserError } from "@/lib/user-errors";
 
@@ -207,7 +208,11 @@ async function planPromptStart(siteId: string, args: {
     ...plannerQuestions,
     ...(plannerQuestions.some((item) => item.field === "colorSet") ? [] : [requiredLookQuestions[1]]),
   ].filter(Boolean).slice(0, 4);
-  const stableOptionMissing = questions.some((item) => (item.field === "style" || item.field === "colorSet") && item.options.some((option) => !("id" in option) || !option.id));
+  const stableOptionMissing = questions.some((item) => {
+    if (item.field === "style") return item.options.some((option) => !("id" in option) || !option.id || !visualBriefCatalog.some((brief) => brief.id === option.id));
+    if (item.field === "colorSet") return item.options.some((option) => !("id" in option) || !option.id || !("paletteId" in option) || !option.paletteId);
+    return false;
+  });
   if (stableOptionMissing) {
     const description = describeUserError({ code: "invalid_output" });
     return { ok: false as const, response: Response.json({ error: "invalid_output", message: description.message, userMessage: "需求对齐规划缺少稳定的样子或色彩集选项 ID，原需求没有修改草稿，请重试。", recovery: "retry_alignment" }, { status: 502 }) };
@@ -233,8 +238,12 @@ async function planPromptStart(siteId: string, args: {
         label: option.label,
         description: option.description,
         recommended: option.recommended === true || (index === 0 && !item.options.some((candidate) => candidate.recommended === true)),
-        ...(item.field === "colorSet" && "paletteId" in option && option.paletteId ? { paletteId: option.paletteId } : {}),
-        ...(item.field === "colorSet" && "swatches" in option && option.swatches ? { swatches: option.swatches } : {}),
+        ...(() => {
+          if (item.field !== "colorSet" || !("paletteId" in option) || !option.paletteId) return {};
+          const owner = Object.values(templateAdapters).find((candidate) => candidate.kit?.palettes?.[option.paletteId!]);
+          const tokens = owner?.kit?.palettes?.[option.paletteId];
+          return { paletteId: option.paletteId, swatches: tokens ? [tokens.background, tokens.surface, tokens.text, tokens.accent, tokens.accentStrong, tokens.border].filter((value): value is string => Boolean(value)) : [] };
+        })(),
       })),
       allowOther: item.allowOther,
     })),

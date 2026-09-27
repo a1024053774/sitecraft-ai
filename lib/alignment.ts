@@ -684,8 +684,8 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
         if (cardQuestion.field === "style") selectedStyleId = option.id;
         if (cardQuestion.field === "colorSet") {
           const setId = option.id.startsWith("colorSet:") ? option.id.slice("colorSet:".length) : undefined;
-          const briefId = (selectedStyleId && visualBriefCatalog.some((brief) => brief.id === selectedStyleId)) ? selectedStyleId as (typeof visualBriefIds)[number] : "engineering-industrial";
-          selectedPaletteId = setId ? paletteCatalogForVisualBrief(briefId).find((palette) => palette.colorSet === setId)?.id ?? option.paletteId ?? selectedPaletteId : option.paletteId ?? selectedPaletteId;
+          const briefId = selectedStyleId && visualBriefCatalog.some((brief) => brief.id === selectedStyleId) ? selectedStyleId as (typeof visualBriefIds)[number] : null;
+          selectedPaletteId = briefId && setId ? paletteCatalogForVisualBrief(briefId).find((palette) => palette.colorSet === setId)?.id ?? option.paletteId ?? selectedPaletteId : option.paletteId ?? selectedPaletteId;
         }
       }
       const runId = current.pendingRequest ? crypto.randomUUID() : null;

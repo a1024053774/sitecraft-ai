@@ -40,6 +40,9 @@ try {
   const draft = await request('preview-draft-readback',`/api/sites/${site.id}/draft`);
   assert.deepEqual(draft.draft,confirmed.draft);
   assert.ok(draft.draft.revision>site.draft.revision);
+  const publishedHtml = await fetch(`${base}/published/${site.id}`).then(response => response.text());
+  assert.ok(publishedHtml.includes(draft.draft.paletteId), 'published preview readback must expose selected palette');
+  report.steps.push({step:'preview-published-readback',input:{siteId:site.id},status:200,result:{paletteId:draft.draft.paletteId,containsPaletteId:publishedHtml.includes(draft.draft.paletteId),containsCompanyName:publishedHtml.includes(draft.draft.companyName)}});
   report.result='PASS'; report.siteId=site.id;
 } catch(error) { report.result='FAIL';report.error=String(error);process.exitCode=1; }
 await writeFile(`${out}/report.json`,JSON.stringify(report,null,2));
