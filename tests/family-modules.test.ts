@@ -137,7 +137,7 @@ test("catalog text slots belong to the technical short-path adapter", () => {
   const technical = getTemplateAdapter("tailwind-landing");
   assert.ok(forge && technical);
   for (const target of catalogTargets) {
-    assert.equal(forge.slots.some((slot) => slot.target === target), false, `forge must not declare ${target}`);
+    assert.equal(forge.slots.filter((slot) => slot.target === target).length, 1, `forge must declare ${target} once`);
     assert.equal(technical.slots.filter((slot) => slot.target === target).length, 1, `technical look must declare ${target} once`);
   }
 });

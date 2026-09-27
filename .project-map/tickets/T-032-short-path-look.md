@@ -31,6 +31,6 @@ supersedes:
 
 盲评材料：改后截图在 `artifacts/review-t032-blind/`，随机映射仅保存在 `/tmp/t032-blind-map.txt`，未提交。
 
-实现提交：`1f471e6af8838a5507b9f94e9afa34e9b81c5976`。
+实现提交：`c8385b7dbfff33bb9418c11c3eebcf2ca7aa9326`。
 
-代码审核修复：移除误写入 forge 的目录 textSlot，补到 tailwind-landing 并加槽位归属测试；无照片时隐藏技术产品装饰区，不保留模板英文。修复与最终证据待本票提交后回写。
+代码审核修复：tailwind-landing 的目录 textSlot 保持各一条，forge 恢复已有的 6 条目录槽并增加各自恰好一条的归属测试；无照片时隐藏技术产品装饰区，不保留模板英文；补上手机菜单、电话缺口整行隐藏和参数同排。最终证据：`node scripts/check-published.mjs --out artifacts/published-check/t032-final3 palette-sample-technical-graphite palette-sample-technical-warm-orange`，6/6 通过。
