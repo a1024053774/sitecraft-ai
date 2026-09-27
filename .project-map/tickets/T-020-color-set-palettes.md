@@ -2,7 +2,7 @@
 id: T-020
 title: 6 套色彩集 × 4 个样子的色板
 type: build
-status: open
+status: closed
 blocked_by: [T-018]
 claimed_by: claude
 supersedes:
@@ -16,9 +16,9 @@ supersedes:
 
 - [x] 4 个样子 × 6 套色彩集都有色板，对比度脚本全部通过
 - [x] 换色彩集后预览变色，版式和内容不变，撤销能恢复
-- [ ] 每个样子挑 2 套色彩集截图（1440 / 375），交独立审核 agent 看是否协调
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 每个样子挑 2 套色彩集截图（1440 / 375），交独立审核 agent 看是否协调
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -33,3 +33,5 @@ supersedes:
 - `node scripts/seed-palette-samples.mjs` 用减速机样板的内容、只经 `replace_draft` → `set_visual_brief` → `set_palette` 建了 8 个样板（每个样子 2 套色彩集），`node scripts/check-published.mjs --out artifacts/published-check/t020-palettes <8 个站点>` 24/24 通过，截图同目录（1440 / 768 / 375）。
 - 换色彩集与撤销：对 `palette-sample-engineering-patina` 经草稿 API 换成松石，内容长度与模板不变；调用撤销接口后回到铜锈。
 - 在只含本票改动的 HEAD worktree 里：typecheck、build 通过；测试除 `tests/chat-route-conversation.test.ts`（该文件在纯 HEAD 上同样失败并会卡住，已转 Astra）外 226/226 通过。
+
+独立审核：grok-a，2026-09-27，PASS，artifacts/review-t020-20260927.md
