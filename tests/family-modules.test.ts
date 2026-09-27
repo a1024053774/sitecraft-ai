@@ -13,9 +13,13 @@ const SNAPSHOTS = {
 
 /** Independent HTML probes from the local snapshots. Not copied from adapter data. */
 const UNIQUE_SECTION_PROBES = {
+  // T-030: the bright-product look now hosts the catalog sections the engineering sample proved out.
   forge: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
+    capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
+    certifications: { kind: "attr", attr: "data-sitecraft-section", value: "certifications" },
     faq: { kind: "attr", attr: "data-sitecraft-section", value: "faq" },
     contact: { kind: "attr", attr: "data-sitecraft-section", value: "contact" },
   },
@@ -37,7 +41,7 @@ const UNIQUE_SECTION_PROBES = {
 } as const;
 
 const MISSING_ON_TEMPLATE = {
-  forge: ["features", "partners", "solutions", "process", "industries", "about"],
+  forge: ["features", "partners", "solutions", "process", "about"],
   screwfast: ["features", "partners", "solutions", "process", "about"],
   landwind: ["features", "partners", "solutions", "process", "industries", "about"],
 } as const;

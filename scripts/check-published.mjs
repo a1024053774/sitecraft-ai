@@ -167,7 +167,27 @@ const INSPECT = `(async () => {
     }
     scrollTo({ top: 0, behavior: "instant" });
   }
+  // Nothing may sit on top of a real hero photo (decorative rings, cards, labels).
+  const heroImage = document.querySelector('[data-sitecraft-benchmark="hero-image"]');
+  let heroPhotoCovered = false;
+  if (heroImage && visible(heroImage) && heroImage.naturalWidth > 0) {
+    heroImage.scrollIntoView({ block: "center" });
+    const box = heroImage.getBoundingClientRect();
+    for (const [fx, fy] of [[0.5, 0.5], [0.25, 0.25], [0.75, 0.75], [0.25, 0.75], [0.75, 0.25]]) {
+      const hit = document.elementFromPoint(box.left + box.width * fx, box.top + box.height * fy);
+      if (hit && hit !== heroImage) heroPhotoCovered = true;
+    }
+    scrollTo({ top: 0, behavior: "instant" });
+  }
+  // Decorative section numbers such as "01" / "02".
+  const numbering = [...document.querySelectorAll("body *")].filter((el) => !el.children.length && visible(el) && /^0[1-9]$/.test(el.textContent.trim())).length;
+  // On a phone the header must still offer navigation: a visible link or a menu toggle.
+  const header = document.querySelector('[data-sitecraft-section="nav"]') || document.querySelector("header");
+  const headerNav = header ? [...header.querySelectorAll("a[href^='#'], summary, button")].filter((el) => visible(el) && !el.closest("[data-sitecraft-locale-switch]") && el.getAttribute("href") !== "#top" && !el.closest(".sitecraft-brand")).length : 0;
   return {
+    heroPhotoCovered,
+    numbering,
+    phoneNav: innerWidth >= 500 || headerNav > 0,
     height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
     contactVisible: visible(contact),
     formVisible: visible(form),
@@ -181,8 +201,12 @@ const INSPECT = `(async () => {
   };
 })()`;
 
-function judge(report) {
+function judge(report, expectedText) {
   const failures = [];
+  if (report.heroPhotoCovered) failures.push("something is drawn on top of the hero photo");
+  if (report.numbering) failures.push(`decorative section numbers visible (${report.numbering})`);
+  if (!report.phoneNav) failures.push("no navigation or menu in the header at phone width");
+  for (const phrase of expectedText) if (!report.text.includes(phrase)) failures.push(`draft content missing from the page: ${phrase}`);
   if (!report.contactVisible || !report.formVisible) failures.push("inquiry section or form is not visible");
   if (!report.ctaTargetVisible) failures.push(`hero CTA ${report.ctaHref} does not lead to a visible section`);
   if (!report.ctaLandsOnForm) failures.push("clicking the hero CTA does not bring the inquiry form into view");
@@ -264,6 +288,25 @@ async function checkSubmission(browser, sessionId, frame, siteKey, width) {
   return { failures, success: sent, failure: failed };
 }
 
+// Catalog entries the draft actually provides must reach the visitor page (visitor-visible ones only).
+async function expectedDraftText(siteKey) {
+  const payload = await fetch(`${BASE}/api/sites/${siteKey}/draft`).then((r) => r.json()).catch(() => null);
+  const draft = payload && (payload.draft || payload);
+  const content = draft && draft.content;
+  if (!content) return [];
+  const gap = (v) => !v || /^(待补充|To be provided)$/.test(String(v).trim());
+  const out = [];
+  for (const key of ["industries", "capabilities", "certifications"]) {
+    for (const item of (content[key] && content[key].items) || []) {
+      const title = item.title && item.title.zh;
+      if (gap(title)) continue;
+      if (key === "certifications" && !(item.status === "已有" || item.status === "认证中")) continue;
+      out.push(title);
+    }
+  }
+  return out;
+}
+
 async function checkOne(browser, siteKey, width) {
   const { targetId, sessionId } = await openPage(browser);
   try {
@@ -294,7 +337,7 @@ async function checkOne(browser, siteKey, width) {
     const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: report.height, scale: 1 } }, sessionId);
     const file = path.join(outDir, `${siteKey}-${width}.png`);
     fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
-    const failures = judge(report);
+    const failures = judge(report, await expectedDraftText(siteKey));
     delete report.text;
     if (submit && width !== 768) {
       const result = await checkSubmission(browser, sessionId, frame, siteKey, width);
