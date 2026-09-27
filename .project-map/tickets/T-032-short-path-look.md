@@ -33,4 +33,4 @@ supersedes:
 
 实现提交：`c8385b7dbfff33bb9418c11c3eebcf2ca7aa9326`。
 
-代码审核修复：tailwind-landing 的目录 textSlot 保持各一条，forge 恢复已有的 6 条目录槽并增加各自恰好一条的归属测试；无照片时隐藏技术产品装饰区，不保留模板英文；补上手机菜单、电话缺口整行隐藏和参数同排。最终证据：`node scripts/check-published.mjs --out artifacts/published-check/t032-final3 palette-sample-technical-graphite palette-sample-technical-warm-orange`，6/6 通过。
+代码审核修复：tailwind-landing 的目录 textSlot 保持各一条，forge 恢复已有的 6 条目录槽并增加各自恰好一条的归属测试；无照片时隐藏技术产品装饰区，不保留模板英文；补上手机菜单、电话缺口整行隐藏和参数同排。最终证据：`node scripts/check-published.mjs --out artifacts/published-check/t032-post-509 palette-sample-technical-graphite palette-sample-technical-warm-orange`，6/6 通过。
