@@ -80,6 +80,50 @@ function slotExpectedTargets(targets: string[]) {
   ));
 }
 
+const sectionLabels: Record<string, string> = {
+  hero: "首屏",
+  about: "关于我们",
+  features: "优势",
+  services: "服务",
+  products: "产品",
+  industries: "应用行业",
+  capabilities: "加工能力",
+  certifications: "认证",
+  contact: "询盘",
+  faq: "常见问题",
+};
+
+function changeTargetLabel(target: string) {
+  if (target === "palette") return "配色";
+  if (target === "products") return "产品目录";
+  if (target === "pagePlan") return "页面规划";
+  const parts = target.split(".");
+  const section = sectionLabels[parts[0]];
+  if (!section) return "页面内容";
+  if (parts[0] === "products" && parts[1] && !/^intro$/.test(parts[1])) {
+    if (parts[2] === "name") return `${section}名称`;
+    if (parts[2] === "summary") return `${section}说明`;
+    if (parts[2] === "category") return `${section}类别`;
+    if (parts[2] === "specs") return `${section}参数`;
+    if (parts[2] === "image") return `${section}图片`;
+  }
+  if (parts[1] === "intro") return `${section}介绍`;
+  if (parts[1] === "items" && parts[2] && /^\d+$/.test(parts[2])) {
+    const index = Number(parts[2]) + 1;
+    if (parts[3] === "title") return `${section}第${index}项标题`;
+    if (parts[3] === "body") return `${section}第${index}项说明`;
+    return `${section}第${index}项`;
+  }
+  if (parts[1] === "title") return `${section}标题`;
+  if (parts[1] === "body" || parts[1] === "subtitle") return `${section}说明`;
+  if (parts[1] === "visibility") return `${section}显示`;
+  return section;
+}
+
+function changeTargetLabels(targets: string[]) {
+  return [...new Set(targets.map(changeTargetLabel))];
+}
+
 function readStoredConversationId(siteId: string) {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(conversationStorageKey(siteId));
@@ -356,7 +400,7 @@ export default function WorkspacePage() {
     setCanUndo(Boolean(snapshot.canUndo));
     setCanRedo(Boolean(snapshot.canRedo));
     setUpdatedAt(snapshot.updatedAt ?? new Date().toISOString());
-    setLastChangedTargets(slotExpectedTargets(snapshot.history?.[0]?.appliedTargets ?? []));
+    setLastChangedTargets(changeTargetLabels(slotExpectedTargets(snapshot.history?.[0]?.appliedTargets ?? [])));
   };
 
   useEffect(() => {
@@ -866,7 +910,7 @@ export default function WorkspacePage() {
     adoptSnapshot(result);
     const appliedTargets = slotExpectedTargets((result.changeSet?.appliedTargets ?? []).filter((target) => target !== "visualBrief" && target !== "template" && target !== "draft"));
     setExpectedTargets(appliedTargets);
-    setLastChangedTargets(appliedTargets);
+    setLastChangedTargets(changeTargetLabels(appliedTargets));
     setPreviewState("loading");
     return result;
   };

@@ -26,6 +26,8 @@ supersedes:
 
 实现：工作台桌面布局改为预览主区 + 右侧对话区；样子/配色通过对话区按钮展开；新增跟随系统的深浅主题、6 套色彩集强调色切换，站点 iframe 仍使用草稿自己的 palette；内部模型名和 API 标签不再展示。
 
-证据（修复后新跑）：`node scripts/check-workspace-layout.mjs overlay-p3i-thick-20260925 artifacts/workspace-t022-r2`，脚本返回 `PASS`。报告读回 1440 宽预览在左、对话停靠右（1060/380），768 宽切换为「AI 对话 / 网站预览」抽屉，两个宽度都有样子/配色按钮、主题和 6 套工作台强调色控件，内部标签检查为 false，并且 `changeMarker: true`。截图已逐张查看：`artifacts/workspace-t022-r2/workspace-1440.png`、`artifacts/workspace-t022-r2/workspace-768.png`。
+证据（修复后新跑）：`node scripts/check-workspace-layout.mjs overlay-p3i-thick-20260925 artifacts/workspace-t022-r3`，脚本返回 `PASS`。报告读回 1440 宽预览在左、对话停靠右（1060/380），768 宽切换为「AI 对话 / 网站预览」抽屉，两个宽度都有样子/配色按钮、主题和 6 套工作台强调色控件，内部标签检查为 false，改动标记为用户可读的「产品介绍、优势第1项标题」等中文位置且不含开发路径。截图已逐张查看：`artifacts/workspace-t022-r3/workspace-1440.png`、`artifacts/workspace-t022-r3/workspace-768.png`。
 
-实现提交：待提交后填写 SHA。
+实现提交：`6bf68cd`。
+
+独立审核：grok-a，2026-09-27，NO_GO。证据 `artifacts/workspace-t022-r2`（1440 预览左 1060 / 对话右 380；768 为 AI 对话与网站预览抽屉；深色青花瓷，站点联系按钮仍为橙色；欢迎句已改为「当前站点」）。预览标记显示 `products.intro.zh`、`features.items.0.title.zh` 等英文字段路径，没有标到改动位置。详见 `artifacts/review-t022-20260927.md`。
