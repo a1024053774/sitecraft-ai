@@ -888,12 +888,12 @@ export default function WorkspacePage() {
     setBusy(true);
     setBusyText("正在切换色板…");
     try {
-      await saveOperations([{ op: "set_palette", paletteId: palette.id }], `选择色板 ${palette.label}`, "template");
+      await saveOperations([{ op: "set_palette", paletteId: palette.id }], `选择色彩集 ${palette.label}`, "template");
       setMessages((items) => [...items, {
         id: crypto.randomUUID(),
         role: "assistant",
         status: "applied",
-        text: `已切换为“${palette.label}”，保留当前工程工业版式、文案、产品和图片。`,
+        text: `已切换为“${palette.label}”，保留当前${draft.visualBrief.label}版式、文案、产品和图片。`,
         change: palette.summary,
       }]);
     } catch (error) {
@@ -1118,7 +1118,7 @@ export default function WorkspacePage() {
           </div>
           {paletteCatalogForVisualBrief(draft.visualBrief.id).length ? (
             <div className="palette-picker" aria-label={`${draft.visualBrief.label}色板`}>
-              <div className="palette-picker-head"><span className="eyebrow">Palette</span><strong>同一版式，换一套命名色板</strong></div>
+              <div className="palette-picker-head"><span className="eyebrow">色彩集</span><strong>同一版式，换一套配色</strong></div>
               <div className="palette-picker-grid">
                 {paletteCatalogForVisualBrief(draft.visualBrief.id).map((palette) => {
                   const kit = templateAdapters[draft.templateId]?.kit;

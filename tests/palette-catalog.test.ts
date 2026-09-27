@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  paletteCatalogByVisualBrief,
-  paletteSourceById,
+  colorSetCatalog,
+  defaultDraft,
+  normalizeDraft,
+  paletteCatalogForVisualBrief,
   type PaletteId,
 } from "../lib/site-document.ts";
 import { templateAdapters } from "../lib/template-adapters/registry.ts";
@@ -25,36 +28,71 @@ function contrast(left: string, right: string) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-test("admitted palette cards expose named multi-role tokens from their host kit", () => {
+// The token behind the white-text primary button, read from the overlay's own CSS rather than assumed.
+function buttonToken(templateId: string): "accent" | "accentStrong" {
+  const html = readFileSync(new URL(`../lib/template-adapters/overlays/${templateId}.index.html`, import.meta.url), "utf8");
+  const match = /\.sitecraft-primary\s*\{[^}]*background:\s*var\(--site-(accent-strong|accent)\)/.exec(html);
+  assert.ok(match, `${templateId} primary button background not found`);
+  return match[1] === "accent-strong" ? "accentStrong" : "accent";
+}
+
+test("every look offers one palette per colour set, in the colour-set names users pick from", () => {
+  assert.deepEqual(colorSetCatalog.map((set) => set.label), ["青花瓷", "石墨工坊", "工程暖橙", "铜锈", "松石", "莫兰迪"]);
   for (const family of admittedFamilies) {
-    const cards = paletteCatalogByVisualBrief[family.briefId];
+    const cards = paletteCatalogForVisualBrief(family.briefId);
+    assert.deepEqual(cards.map((card) => card.colorSet), colorSetCatalog.map((set) => set.id), family.briefId);
+    assert.deepEqual(cards.map((card) => card.label), colorSetCatalog.map((set) => set.label), family.briefId);
     const kit = templateAdapters[family.templateId]?.kit;
-    assert.ok(cards.length >= 4, `${family.briefId} should expose at least four reviewed palette candidates`);
-    assert.ok(kit?.palettes, `${family.templateId} must declare palette tokens`);
     for (const card of cards) {
-      assert.ok(card.label.length > 0);
-      assert.ok(card.summary.length > 0);
-      const tokens = kit?.palettes?.[card.id as PaletteId];
+      const tokens = kit?.palettes?.[card.id];
       assert.ok(tokens, `${family.templateId}/${card.id} must resolve to host tokens`);
-      assert.ok(paletteSourceById[card.id as Exclude<PaletteId, "default">]?.sourceUrl, `${card.id} must keep a research source`);
       for (const role of roles) assert.ok(tokens?.[role], `${family.templateId}/${card.id} missing ${role}`);
-      assert.ok(contrast(tokens?.accentStrong ?? tokens!.accent, "#ffffff") >= 4.5, `${card.id} CTA token must be readable with white text`);
     }
   }
 });
 
-test("palette pairs keep font and radius stable while changing the named color roles", () => {
+test("all 24 palettes meet WCAG AA for body text, secondary text and white button text", () => {
+  const failures: string[] = [];
   for (const family of admittedFamilies) {
     const kit = templateAdapters[family.templateId]?.kit;
-    const cards = paletteCatalogByVisualBrief[family.briefId];
-    const first = kit?.palettes?.[cards[0].id as PaletteId];
-    const second = kit?.palettes?.[cards[1].id as PaletteId];
-    assert.ok(first && second);
-    assert.equal(first.font, second.font);
-    assert.equal(first.radius, second.radius);
-    assert.notDeepEqual(
-      [first.background, first.surface, first.text, first.muted, first.border, first.accent, first.accentStrong],
-      [second.background, second.surface, second.text, second.muted, second.border, second.accent, second.accentStrong],
-    );
+    const button = buttonToken(family.templateId);
+    for (const card of paletteCatalogForVisualBrief(family.briefId)) {
+      const t = kit!.palettes![card.id]!;
+      const checks: Array<[string, number]> = [
+        ["text/background", contrast(t.text!, t.background!)],
+        ["text/surface", contrast(t.text!, t.surface!)],
+        ["muted/background", contrast(t.muted!, t.background!)],
+        ["muted/surface", contrast(t.muted!, t.surface!)],
+        [`white/${button}`, contrast("#ffffff", t[button]!)],
+      ];
+      for (const [name, ratio] of checks) if (ratio < 4.5) failures.push(`${card.id} ${name} ${ratio.toFixed(2)}`);
+    }
+  }
+  assert.deepEqual(failures, []);
+});
+
+test("palettes in one look keep font and radius and differ in colour", () => {
+  for (const family of admittedFamilies) {
+    const kit = templateAdapters[family.templateId]?.kit;
+    const palettes = paletteCatalogForVisualBrief(family.briefId).map((card) => kit!.palettes![card.id]!);
+    assert.equal(new Set(palettes.map((p) => p.font)).size, 1);
+    assert.equal(new Set(palettes.map((p) => p.radius)).size, 1);
+    assert.equal(new Set(palettes.map((p) => `${p.background}${p.accent}${p.text}`)).size, palettes.length);
+  }
+});
+
+test("drafts saved with a retired palette id open on the nearest colour set", () => {
+  const retired: Array<[string, PaletteId]> = [
+    ["engineering-orange", "engineering-warm-orange"],
+    ["engineering-slate", "engineering-porcelain"],
+    ["industrial-white", "industrial-porcelain"],
+    ["export-ink", "export-turquoise"],
+    ["technical-olive", "technical-patina"],
+  ];
+  for (const [old, next] of retired) {
+    const stored = { ...structuredClone(defaultDraft), paletteId: old, revision: 7 };
+    const draft = normalizeDraft(stored);
+    assert.equal(draft.paletteId, next, old);
+    assert.equal(draft.revision, 7, "renaming the palette must not drop the stored draft");
   }
 });

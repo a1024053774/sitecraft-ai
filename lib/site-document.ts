@@ -26,86 +26,72 @@ export const visualBriefIds = [
   "technical-product",
   "editorial-service",
 ] as const;
-export const paletteIds = [
-  "default",
-  "engineering-orange",
-  "engineering-slate",
-  "engineering-deep-blue",
-  "engineering-oxide",
-  "export-sea",
-  "export-industrial-slate",
-  "export-cobalt",
-  "export-ink",
-  "industrial-white",
-  "industrial-minimal-gray",
-  "industrial-mint",
-  "industrial-sand",
-  "technical-white",
-  "technical-neutral",
-  "technical-cobalt",
-  "technical-olive",
+/**
+ * 色彩集: the colour directions a user picks. Each look carries one 色板 (palette) per set, so a
+ * palette id is `<look prefix>-<colour set>`. Values live in the adapter kit (registry.ts).
+ */
+export const colorSetCatalog = [
+  { id: "porcelain", label: "青花瓷", summary: "钴蓝强调配冷白底，清楚、稳重。" },
+  { id: "graphite", label: "石墨工坊", summary: "石墨灰强调，低饱和，适合参数和图纸为主的页面。" },
+  { id: "warm-orange", label: "工程暖橙", summary: "暖橙强调，行动入口醒目。" },
+  { id: "patina", label: "铜锈", summary: "铜绿强调配石灰底，沉稳，适合重型设备。" },
+  { id: "turquoise", label: "松石", summary: "松石青强调配冷底，适合流体、洁净和精密件。" },
+  { id: "morandi", label: "莫兰迪", summary: "灰调陶土强调配暖灰底，克制、柔和。" },
 ] as const;
+export type ColorSetId = (typeof colorSetCatalog)[number]["id"];
+const palettePrefixByVisualBrief = {
+  industrial: "industrial",
+  "engineering-industrial": "engineering",
+  "export-catalog": "export",
+  "technical-product": "technical",
+} as const;
+const defaultColorSetByVisualBrief: Record<keyof typeof palettePrefixByVisualBrief, ColorSetId> = {
+  industrial: "porcelain",
+  "engineering-industrial": "warm-orange",
+  "export-catalog": "porcelain",
+  "technical-product": "porcelain",
+};
+type PalettePrefix = (typeof palettePrefixByVisualBrief)[keyof typeof palettePrefixByVisualBrief];
+const paletteIdList = (Object.values(palettePrefixByVisualBrief) as PalettePrefix[])
+  .flatMap((prefix) => colorSetCatalog.map((set) => `${prefix}-${set.id}` as `${PalettePrefix}-${ColorSetId}`));
+export const paletteIds = ["default", ...paletteIdList] as ["default", ...Array<`${PalettePrefix}-${ColorSetId}`>];
 export const paletteIdSchema = z.enum(paletteIds);
 export type PaletteId = z.infer<typeof paletteIdSchema>;
-export type PaletteSource = {
-  sourceUrl: string;
-  sourceLabel: string;
-  licenseNote: string;
+export type PaletteCatalogEntry = { id: PaletteId; colorSet: ColorSetId; label: string; summary: string };
+
+/**
+ * Palette ids before colour sets (2026-09-27). Stored drafts still carry them, so they are renamed
+ * on read to the nearest colour set. Remove once every stored draft has been rewritten with a
+ * current id (for example by a save through commitOperations after this change).
+ */
+const retiredPaletteIds: Record<string, PaletteId> = {
+  "industrial-white": "industrial-porcelain",
+  "industrial-minimal-gray": "industrial-graphite",
+  "industrial-mint": "industrial-turquoise",
+  "industrial-sand": "industrial-morandi",
+  "engineering-orange": "engineering-warm-orange",
+  "engineering-slate": "engineering-porcelain",
+  "engineering-deep-blue": "engineering-porcelain",
+  "engineering-oxide": "engineering-morandi",
+  "export-sea": "export-porcelain",
+  "export-industrial-slate": "export-graphite",
+  "export-cobalt": "export-porcelain",
+  "export-ink": "export-turquoise",
+  "technical-white": "technical-porcelain",
+  "technical-neutral": "technical-graphite",
+  "technical-cobalt": "technical-porcelain",
+  "technical-olive": "technical-patina",
 };
-export const paletteSourceById: Record<Exclude<PaletteId, "default">, PaletteSource> = {
-  "engineering-orange": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/system-tokens/", sourceLabel: "USWDS orange system tokens", licenseNote: "公开 token 参考，不是图片或字体资产；逐项准入仍需核验。" },
-  "engineering-slate": { sourceUrl: "https://tailwindcss.com/docs/colors", sourceLabel: "Tailwind slate/sky scale", licenseNote: "公开色阶参考；MIT 代码许可不外推到图片、字体或商标。" },
-  "engineering-deep-blue": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/theme-tokens/", sourceLabel: "USWDS primary/accent roles", licenseNote: "角色建模参考；页面对比度需按宿主 token 实测。" },
-  "engineering-oxide": { sourceUrl: "https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale", sourceLabel: "Radix orange/amber scale", licenseNote: "公开色阶和对比说明参考，不代表外部素材准入。" },
-  "export-sea": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/system-tokens/", sourceLabel: "USWDS blue system tokens", licenseNote: "公开 token 参考，不是图片或字体资产。" },
-  "export-industrial-slate": { sourceUrl: "https://tailwindcss.com/docs/colors", sourceLabel: "Tailwind slate/sky scale", licenseNote: "公开色阶参考；代码许可不覆盖图片、字体和商标。" },
-  "export-cobalt": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/system-tokens/", sourceLabel: "USWDS blue-vivid scale", licenseNote: "公开 token 参考；白字组合需实测。" },
-  "export-ink": { sourceUrl: "https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale", sourceLabel: "Radix cyan/blue scale", licenseNote: "公开色阶和语义角色参考，不是外部素材许可。" },
-  "industrial-white": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/theme-tokens/", sourceLabel: "USWDS base/primary roles", licenseNote: "公开角色建模参考。" },
-  "industrial-minimal-gray": { sourceUrl: "https://tailwindcss.com/docs/colors", sourceLabel: "Tailwind slate scale", licenseNote: "公开色阶参考；不把 MIT 代码许可外推到素材。" },
-  "industrial-mint": { sourceUrl: "https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale", sourceLabel: "Radix mint/teal scale", licenseNote: "公开色阶和对比说明参考。" },
-  "industrial-sand": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/system-tokens/", sourceLabel: "USWDS orange/yellow system tokens", licenseNote: "公开 token 参考；禁用和焦点状态需按页面实测。" },
-  "technical-white": { sourceUrl: "https://designsystem.digital.gov/design-tokens/color/theme-tokens/", sourceLabel: "USWDS base/primary roles", licenseNote: "公开角色建模参考。" },
-  "technical-neutral": { sourceUrl: "https://tailwindcss.com/docs/colors", sourceLabel: "Tailwind slate scale", licenseNote: "公开色阶参考；代码许可不覆盖素材。" },
-  "technical-cobalt": { sourceUrl: "https://www.w3.org/TR/wcag/#contrast-minimum", sourceLabel: "WCAG contrast target with blue roles", licenseNote: "对比度验收标准参考，不是素材许可。" },
-  "technical-olive": { sourceUrl: "https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale", sourceLabel: "Radix olive scale", licenseNote: "公开色阶和语义角色参考。" },
-};
-export const engineeringPaletteCatalog = [
-  { id: "engineering-orange" as const, label: "工程橙", summary: "暖橙强调，适合直接推进询盘。" },
-  { id: "engineering-slate" as const, label: "工程石墨", summary: "石墨与蓝灰强调，保持工程感并降低暖色比重。" },
-  { id: "engineering-deep-blue" as const, label: "深海工程", summary: "深蓝强调和浅灰表面，适合技术参数与长期设备业务。" },
-  { id: "engineering-oxide" as const, label: "氧化铜", summary: "低饱和铜色配墨绿灰，保留工程现场信号并降低刺眼度。" },
-] as const;
-export const exportCatalogPaletteCatalog = [
-  { id: "export-sea" as const, label: "海运蓝", summary: "清晰蓝白分层，优先目录和询盘。" },
-  { id: "export-industrial-slate" as const, label: "工业灰蓝", summary: "降低饱和度，保留目录层级和工程信号。" },
-  { id: "export-cobalt" as const, label: "钴蓝目录", summary: "更鲜明的目录强调色，适合分类、筛选和产品入口。" },
-  { id: "export-ink" as const, label: "海港墨蓝", summary: "墨蓝正文和青蓝动作，适合高信息密度的出口目录。" },
-] as const;
-export const industrialPaletteCatalog = [
-  { id: "industrial-white" as const, label: "明亮工业", summary: "白底、深墨和冷蓝强调，产品优先。" },
-  { id: "industrial-minimal-gray" as const, label: "极简冷灰", summary: "冷灰底色和深墨文字，产品优先。" },
-  { id: "industrial-mint" as const, label: "冷薄荷", summary: "浅薄荷背景配深青文字，适合清晰、克制的产品说明。" },
-  { id: "industrial-sand" as const, label: "矿砂米灰", summary: "温和矿砂底色配深棕墨，适合材料和加工能力表达。" },
-] as const;
-export const technicalPaletteCatalog = [
-  { id: "technical-white" as const, label: "短路径白", summary: "白底和清晰层级，先让访客看懂下一步。" },
-  { id: "technical-neutral" as const, label: "短路径石墨", summary: "石墨文字配克制蓝色行动按钮，压缩询盘路径。" },
-  { id: "technical-cobalt" as const, label: "短路径钴蓝", summary: "中性灰底配高识别蓝色按钮，适合快速进入询盘。" },
-  { id: "technical-olive" as const, label: "短路径橄榄", summary: "低饱和橄榄强调配深墨文字，适合稳定、务实的服务入口。" },
-] as const;
-export const paletteCatalogByVisualBrief = {
-  industrial: industrialPaletteCatalog,
-  "engineering-industrial": engineeringPaletteCatalog,
-  "export-catalog": exportCatalogPaletteCatalog,
-  "technical-product": technicalPaletteCatalog,
-  "editorial-service": [],
-} as const;
-export function paletteCatalogForVisualBrief(briefId: (typeof visualBriefIds)[number]) {
-  return paletteCatalogByVisualBrief[briefId];
+
+export function paletteCatalogForVisualBrief(briefId: (typeof visualBriefIds)[number]): PaletteCatalogEntry[] {
+  if (!(briefId in palettePrefixByVisualBrief)) return [];
+  const prefix = palettePrefixByVisualBrief[briefId as keyof typeof palettePrefixByVisualBrief];
+  return colorSetCatalog.map((set) => ({ id: `${prefix}-${set.id}` as PaletteId, colorSet: set.id, label: set.label, summary: set.summary }));
 }
-export function defaultPaletteIdForVisualBrief(briefId: (typeof visualBriefIds)[number]) {
-  return paletteCatalogForVisualBrief(briefId)[0]?.id ?? "default";
+export function defaultPaletteIdForVisualBrief(briefId: (typeof visualBriefIds)[number]): PaletteId {
+  if (!(briefId in palettePrefixByVisualBrief)) return "default";
+  const key = briefId as keyof typeof palettePrefixByVisualBrief;
+  return `${palettePrefixByVisualBrief[key]}-${defaultColorSetByVisualBrief[key]}` as PaletteId;
 }
 export const visualBriefSchema = z.object({
   version: z.literal(1),
@@ -392,7 +378,7 @@ export const defaultDraft: SiteDraft = {
   companyName: "未命名企业",
   templateId: "forge",
   visualBrief: structuredClone(visualBriefCatalog[0]),
-  paletteId: "industrial-white",
+  paletteId: "industrial-porcelain",
   locale: "zh",
   englishReady: false,
   revision: 1,
@@ -505,7 +491,15 @@ function pagePlanForLegacy(legacy: Record<string, unknown>): PagePlan {
   return parsed.success ? parsed.data : defaultPagePlanFor(templateId);
 }
 
-export function normalizeDraft(input: unknown): SiteDraft {
+function renameRetiredPalette(input: unknown): unknown {
+  if (!input || typeof input !== "object") return input;
+  const paletteId = (input as { paletteId?: unknown }).paletteId;
+  if (typeof paletteId !== "string" || !Object.hasOwn(retiredPaletteIds, paletteId)) return input;
+  return { ...(input as Record<string, unknown>), paletteId: retiredPaletteIds[paletteId] };
+}
+
+export function normalizeDraft(rawInput: unknown): SiteDraft {
+  const input = renameRetiredPalette(rawInput);
   const parsed = siteDraftSchema.safeParse(input);
   if (parsed.success) {
     const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) }));

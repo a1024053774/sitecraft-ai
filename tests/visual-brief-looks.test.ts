@@ -90,7 +90,7 @@ test("legacy engineering drafts hydrate to the named default palette", () => {
   legacy.templateId = "screwfast";
   legacy.paletteId = "default";
   const restored = normalizeDraft(legacy);
-  assert.equal(restored.paletteId, "engineering-orange");
+  assert.equal(restored.paletteId, "engineering-warm-orange");
 });
 
 test("set_visual_brief maps each shipped look onto its compatible template in one revision", () => {

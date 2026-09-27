@@ -25,7 +25,7 @@ test("v2 drafts missing only visualBrief retain authored content and revision", 
   legacy.hiddenSections = ["features"];
   const restored = normalizeDraft(legacy);
   const { visualBrief: _restoredBrief, ...authored } = restored;
-  assert.deepEqual(authored, { ...legacy, paletteId: "industrial-white" });
+  assert.deepEqual(authored, { ...legacy, paletteId: "industrial-porcelain" });
 });
 
 test("switching visual brief keeps authored pack text and only changes the mapped template", () => {
@@ -264,15 +264,15 @@ test("engineering palette changes are named, reversible, and same-family only", 
   const engineering = applySiteOperations(structuredClone(defaultDraft), [
     { op: "set_visual_brief", briefId: "engineering-industrial" },
   ], options);
-  assert.equal(engineering.draft.paletteId, "engineering-orange");
-  const slate = applySiteOperations(engineering.draft, [{ op: "set_palette", paletteId: "engineering-slate" }], options);
+  assert.equal(engineering.draft.paletteId, "engineering-warm-orange");
+  const slate = applySiteOperations(engineering.draft, [{ op: "set_palette", paletteId: "engineering-porcelain" }], options);
   assert.equal(slate.changed, true);
-  assert.equal(slate.draft.paletteId, "engineering-slate");
+  assert.equal(slate.draft.paletteId, "engineering-porcelain");
   assert.equal(slate.appliedTargets.includes("palette"), true);
   const restored = applySiteOperations(slate.draft, slate.inverseOperations, options);
-  assert.equal(restored.draft.paletteId, "engineering-orange");
+  assert.equal(restored.draft.paletteId, "engineering-warm-orange");
   assert.throws(
-    () => applySiteOperations(defaultDraft, [{ op: "set_palette", paletteId: "engineering-slate" }], options),
+    () => applySiteOperations(defaultDraft, [{ op: "set_palette", paletteId: "engineering-porcelain" }], options),
     /not available/,
   );
 });

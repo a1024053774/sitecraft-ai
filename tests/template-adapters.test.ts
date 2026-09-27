@@ -634,7 +634,7 @@ function contrastRatio(foreground: string, background: string) {
 }
 
 test("engineering orange keeps its family signal while using the strong token for readable CTA text", () => {
-  const palette = getTemplateAdapter("screwfast")?.kit?.palettes?.["engineering-orange"];
+  const palette = getTemplateAdapter("screwfast")?.kit?.palettes?.["engineering-warm-orange"];
   assert.ok(palette);
   assert.match(palette.accent, /^#d9|^#c|^#b|^#a/i);
   assert.ok(contrastRatio(palette.accentStrong ?? palette.accent, "#ffffff") >= 4.5);

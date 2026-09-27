@@ -1890,17 +1890,17 @@ test("engineering-industrial kit omits unselected SaaS pricing from the composed
 
 test("engineering-industrial bridge applies the named slate palette without changing family", () => {
   const adapter = getTemplateAdapter("screwfast");
-  assert.ok(adapter?.kit?.palettes?.["engineering-slate"]);
+  assert.ok(adapter?.kit?.palettes?.["engineering-porcelain"]);
   const { document } = createDocument();
-  const draft = applySiteOperations(packDraft("industrial"), [{ op: "set_palette", paletteId: "engineering-slate" }], {
+  const draft = applySiteOperations(packDraft("industrial"), [{ op: "set_palette", paletteId: "engineering-porcelain" }], {
     templateIds: new Set(visualBriefCatalog.map((item) => item.templateId)),
     lastChange: "palette-compare",
   }).draft;
   const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", ["kit.family.engineering-industrial"], "workspace");
-  const palette = adapter.kit.palettes["engineering-slate"];
-  assert.equal(draft.paletteId, "engineering-slate");
+  const palette = adapter.kit.palettes["engineering-porcelain"];
+  assert.equal(draft.paletteId, "engineering-porcelain");
   assert.equal(document.documentElement.dataset.sitecraftFamily, "engineering-industrial");
-  assert.equal(document.documentElement.dataset.sitecraftPalette, "engineering-slate");
+  assert.equal(document.documentElement.dataset.sitecraftPalette, "engineering-porcelain");
   assert.equal(document.documentElement.styleValues["--site-bg"], palette.background);
   assert.equal(document.documentElement.styleValues["--site-accent"], palette.accent);
   assert.equal(document.documentElement.styleValues["--site-accent-strong"], palette.accentStrong);
