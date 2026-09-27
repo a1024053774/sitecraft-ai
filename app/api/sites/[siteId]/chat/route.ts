@@ -25,7 +25,7 @@ import {
   type ConversationTurnOutcome,
 } from "@/lib/conversation-store";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
-import { visualBriefCatalog } from "@/lib/site-document";
+import { visualBriefCatalog, type PaletteId } from "@/lib/site-document";
 import { readSiteImage, siteImagePublicPath } from "@/lib/site-images";
 import { describeUserError } from "@/lib/user-errors";
 
@@ -287,6 +287,7 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     const guidedOperations = provider.type === "edit"
       ? [
         ...(guidedBrief ? [{ op: "set_visual_brief" as const, briefId: guidedBrief.id }] : []),
+        ...(record.alignment.paletteId ? [{ op: "set_palette" as const, paletteId: record.alignment.paletteId as PaletteId }] : []),
         ...provider.operations,
         ...imageOperation,
       ]

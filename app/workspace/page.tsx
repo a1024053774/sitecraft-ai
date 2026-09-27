@@ -85,7 +85,7 @@ function readStoredConversationId(siteId: string) {
 }
 
 type ChatStatus = "syncing" | "applied" | "warning" | "error" | "no_change" | "answer" | "clarify" | "alignment";
-type AlignmentOptionCard = { id: string; label: string; description: string; recommended?: boolean };
+type AlignmentOptionCard = { id: string; label: string; description: string; recommended?: boolean; paletteId?: string; swatches?: string[] };
 type AlignmentQuestionCard = { field?: string; questionId: string; prompt: string; options: AlignmentOptionCard[]; allowOther: boolean };
 type AlignmentResultState = { status?: string; summary?: string; text?: string; revision?: number } | null;
 type AlignmentViewState = {
@@ -230,6 +230,8 @@ function asAlignmentOptions(value: unknown): AlignmentOptionCard[] {
       label: option.label,
       description: typeof option.description === "string" ? option.description : "",
       recommended: option.recommended === true,
+      paletteId: typeof option.paletteId === "string" ? option.paletteId : undefined,
+      swatches: Array.isArray(option.swatches) ? option.swatches.filter((value): value is string => typeof value === "string") : undefined,
     }];
   });
 }
@@ -1192,6 +1194,7 @@ export default function WorkspacePage() {
                     <div className="alignment-question">{cardQuestion.prompt}</div>
                     <div className="alignment-cards">{cardQuestion.options.map((option) => (
                       <button className={alignmentSelections[cardQuestion.questionId] === option.id ? "alignment-card selected" : "alignment-card"} key={option.id} type="button" disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onClick={() => setAlignmentSelections((items) => ({ ...items, [cardQuestion.questionId]: option.id }))}>
+                        {option.swatches?.length ? <span className="palette-swatch-row" aria-label={`${option.label}颜色预览`}>{option.swatches.map((color) => <i key={color} style={{ backgroundColor: color }} />)}</span> : null}
                         <strong>{option.label}{option.recommended ? "（推荐）" : ""}</strong><span>{option.description}</span>
                       </button>
                     ))}</div>

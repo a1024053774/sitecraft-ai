@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { visualBriefCatalog } from "./site-document.ts";
+import { colorSetCatalog, paletteCatalogForVisualBrief, visualBriefCatalog } from "./site-document.ts";
+import { templateAdapters } from "./template-adapters/registry.ts";
 import { siteOperationSchema, type SiteOperation } from "./site-operations.ts";
 import { isGuidedIndustrialRequest, needsGuidedBusinessQuestion } from "./guided-flow.ts";
 export { isGuidedIndustrialRequest, needsGuidedBusinessQuestion } from "./guided-flow.ts";
@@ -54,7 +55,7 @@ export type AlignmentModeState =
   | "idle"
   | "cancelled";
 export type AlignmentQuestionKind = "style" | "clarify" | "confirm_ops";
-export type AlignmentOption = { id: string; label: string; description: string; recommended?: boolean };
+export type AlignmentOption = { id: string; label: string; description: string; recommended?: boolean; paletteId?: string; swatches?: string[] };
 export type AlignmentHistoryEntry = {
   at: string;
   action: string;
@@ -122,6 +123,7 @@ export type AlignmentSnapshot = {
   epoch: number;
   inflightRunId: string | null;
   styleOptionId: string | null;
+  paletteId: string | null;
   styleLabel: string | null;
   history: AlignmentHistoryEntry[];
 };
@@ -185,6 +187,8 @@ const optionSchema = z.object({
   label: z.string().min(1).max(80),
   description: z.string().max(200).default(""),
   recommended: z.boolean().optional(),
+  paletteId: z.string().max(80).optional(),
+  swatches: z.array(z.string().max(30)).max(10).optional(),
 });
 const pendingRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -251,6 +255,7 @@ export const alignmentSnapshotSchema = z.object({
   epoch: z.number().int().nonnegative().optional(),
   inflightRunId: z.string().max(80).nullable().optional(),
   styleOptionId: z.string().max(80).nullable().optional(),
+  paletteId: z.string().max(80).nullable().optional(),
   styleLabel: z.string().max(80).nullable().optional(),
   history: z.array(historyEntrySchema).max(MAX_ALIGNMENT_HISTORY).optional(),
 });
@@ -282,6 +287,21 @@ export function otherOption(): AlignmentOption {
 }
 
 export function styleQuestion(revision: number): CurrentQuestion {
+  const recommendedBrief = visualBriefCatalog.find((brief) => brief.id === "engineering-industrial") ?? visualBriefCatalog[0];
+  const palettes = paletteCatalogForVisualBrief(recommendedBrief.id);
+  const adapter = templateAdapters[recommendedBrief.templateId];
+  const paletteOptions = colorSetCatalog.filter((set) => ["porcelain", "graphite", "warm-orange", "turquoise"].includes(set.id)).map((set, index) => {
+    const palette = palettes.find((item) => item.colorSet === set.id);
+    const tokens = palette ? adapter?.kit?.palettes?.[palette.id] : undefined;
+    return {
+      id: `colorSet:${set.id}`,
+      label: set.label,
+      description: set.summary,
+      recommended: palette?.colorSet === "warm-orange" || (!palettes.some((item) => item.colorSet === "warm-orange") && index === 0),
+      paletteId: palette?.id,
+      swatches: tokens ? [tokens.background, tokens.surface, tokens.text, tokens.accent, tokens.accentStrong, tokens.border].filter((value): value is string => Boolean(value)) : undefined,
+    };
+  });
   return {
     questionId: ALIGNMENT_QUESTION_ID,
     questionRevision: Math.max(1, revision),
@@ -289,6 +309,10 @@ export function styleQuestion(revision: number): CurrentQuestion {
     prompt: ALIGNMENT_QUESTION,
     options: STYLE_OPTIONS.map((option, index) => ({ id: option.id, label: option.label, description: option.description, recommended: index === 0 })),
     allowOther: true,
+    questions: [
+      { field: "style", questionId: ALIGNMENT_QUESTION_ID, prompt: "选择网站的样子", options: STYLE_OPTIONS.map((option, index) => ({ id: option.id, label: option.label, description: option.description, recommended: option.id === recommendedBrief.id || (index === 0 && !STYLE_OPTIONS.some((item) => item.id === recommendedBrief.id)) })), allowOther: true },
+      { field: "colorSet", questionId: "color-set", prompt: `选择配色（当前样子：${recommendedBrief.label}）`, options: paletteOptions, allowOther: true },
+    ],
   };
 }
 
@@ -339,6 +363,7 @@ export function disabledAlignment(): AlignmentSnapshot {
     epoch: 0,
     inflightRunId: null,
     styleOptionId: null,
+    paletteId: null,
     styleLabel: null,
     history: [],
   };
@@ -382,6 +407,7 @@ export function normalizeAlignmentSnapshot(raw: unknown): AlignmentSnapshot {
     epoch: value.epoch ?? 0,
     inflightRunId: value.inflightRunId ?? null,
     styleOptionId: canonicalStyleOptionId(value.styleOptionId),
+    paletteId: value.paletteId ?? null,
     styleLabel: value.styleLabel ?? null,
     history: (value.history ?? []).slice(-MAX_ALIGNMENT_HISTORY),
   };
@@ -637,10 +663,16 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
     if (question.kind === "confirm_ops") {
       return fail(current, 400, "invalid_state", "请使用确认操作提交方案。");
     }
+    if (question.questions?.length && !input.selections?.length && input.optionId) {
+      const legacyQuestion = { ...question, questions: undefined, options: question.questions[0].options, prompt: question.questions[0].prompt, allowOther: question.questions[0].allowOther };
+      return applyAlignmentAction({ ...current, currentQuestion: legacyQuestion }, input);
+    }
     if (question.questions?.length) {
       const selections = input.selections ?? [];
       if (selections.length !== question.questions.length) return fail(current, 400, "invalid_payload", "请完成这张卡上的所有问题后一次提交。");
       let answers = current.answers;
+      let selectedStyleId = current.styleOptionId;
+      let selectedPaletteId = current.paletteId;
       for (const cardQuestion of question.questions) {
         const selection = selections.find((item) => item.questionId === cardQuestion.questionId);
         if (!selection) return fail(current, 400, "invalid_payload", "请完成这张卡上的所有问题后一次提交。");
@@ -649,9 +681,11 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
         const answerNote = selection.note?.trim() ? clipAlignmentText(selection.note.trim(), MAX_ALIGNMENT_NOTE_CHARS) : null;
         if (option.id === OTHER_OPTION_ID && !answerNote) return fail(current, 400, "invalid_payload", "选择其他时请填写补充说明。");
         answers = [...answers.filter((item) => item.questionId !== cardQuestion.questionId), { questionId: cardQuestion.questionId, questionRevision: question.questionRevision, question: cardQuestion.prompt, optionId: option.id, label: option.label, note: answerNote }];
+        if (cardQuestion.field === "style") selectedStyleId = option.id;
+        if (cardQuestion.field === "colorSet") selectedPaletteId = option.paletteId ?? selectedPaletteId;
       }
       const runId = current.pendingRequest ? crypto.randomUUID() : null;
-      const next: AlignmentSnapshot = { ...current, submittedCard: question, enabled: true, answers: answers.slice(-MAX_ALIGNMENT_HISTORY), inflightRunId: runId, state: current.pendingRequest ? "awaiting_user" : "idle", currentQuestion: current.pendingRequest ? question : null, epoch: current.epoch + 1, history: pushHistory(current, { action: "select", summary: "已提交整张需求卡" }) };
+      const next: AlignmentSnapshot = { ...current, submittedCard: question, enabled: true, styleOptionId: selectedStyleId, paletteId: selectedPaletteId, answers: answers.slice(-MAX_ALIGNMENT_HISTORY), inflightRunId: runId, state: current.pendingRequest ? "awaiting_user" : "idle", currentQuestion: current.pendingRequest ? question : null, epoch: current.epoch + 1, history: pushHistory(current, { action: "select", summary: "已提交整张需求卡" }) };
       return succeed(next, { saved: true, shouldContinue: Boolean(runId), prefsOnly: !next.pendingRequest, runId });
     }
     const option = findQuestionOption(question, input.optionId ?? "");
