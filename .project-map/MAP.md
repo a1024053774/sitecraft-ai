@@ -2,7 +2,7 @@
 
 ## Destination
 
-工程工业样板经独立盲评通过；新建站点走需求对齐的多题卡片，在第 1 轮选样子和色彩集；工作台按方向 B 改版（含手机逐题抽屉、深浅主题）；中英文一起生成。完成标志是 T-016 至 T-027 全部关闭。需求见 [intent.md](../docs/project/intent.md)，规格见 [spec.md](../docs/project/spec.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
+工程工业样板经独立盲评通过；新建站点走需求对齐的多题卡片，在第 1 轮选样子和色彩集；工作台按方向 B 改版（含手机逐题抽屉、深浅主题）；中英文一起生成。完成标志是 T-016 至 T-032 全部关闭。需求见 [intent.md](../docs/project/intent.md)，规格见 [spec.md](../docs/project/spec.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
 
 ## Notes
 
@@ -31,15 +31,14 @@
 - [T-014 工程工业样板怎么做](tickets/T-014-sample-prototype-first.md)：先出两个方向的原型，盲评选一个，再实现
 - [T-015 调研真实工业企业官网的版式](tickets/T-015-real-industrial-site-research.md)：首页是实拍加产品族入口，参数收在范围或选型工具里；没有照片就做不了现场图和证书墙
 - [T-017 工程工业样板两个方向的原型](tickets/T-017-engineering-sample-prototypes.md)：盲评选「样本册」（白底产品族卡片、关键参数在卡上、完整参数收起），借用首屏规格条和独立询盘底
+- [T-029 其余三个样子是否现在按工程工业样板改](tickets/T-029-push-sample-to-other-looks.md)：要，每个样子一张票，借结构不借外观
 
 ## Not yet specified
 
-- 其余三个视觉族按工程工业样板推开：等 T-018 过了盲评再拆票。
 - 新开源素材的准入：需要先定准入流程和第一批候选。
 - 子页面的同族 overlay、`fresh` kit。
 - 按资料多少选择不同的区块变体。
 - 生成站动效、改标题（评审 P0-5、P0-6）。
-- 明亮产品、蓝白目录、灰底短路径三个族的首屏：实拍照片上仍压着装饰圆环和「01 / 产品」卡片，需要按工程工业样板的做法推开（T-020 截图里看到）。
 
 ## Out of scope
 
