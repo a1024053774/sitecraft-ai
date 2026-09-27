@@ -180,7 +180,6 @@ async function planPromptStart(siteId: string, args: {
   if (!plan.ok) {
     // A malformed provider response is safe to retry through the existing alignment
     // entry point; network/configuration failures remain explicit and do not guess.
-    if (plan.code === "invalid_output") return { ok: true as const, startQuestion: undefined as CurrentQuestion | null | undefined };
     const description = describeUserError({ code: plan.code });
     return {
       ok: false as const,
@@ -189,7 +188,9 @@ async function planPromptStart(siteId: string, args: {
         message: description.message,
         userMessage: plan.code === "not_configured"
           ? "需求对齐暂时无法连接模型，请先配置模型后再试。原需求没有保存为草稿。"
-          : plan.code === "timeout"
+          : plan.code === "invalid_output"
+            ? "需求对齐规划没有返回可用的问题卡，原需求没有修改草稿，请重试。"
+            : plan.code === "timeout"
             ? "需求对齐等待模型超时，原需求没有修改草稿，可以稍后重新提交。"
             : "需求对齐暂时不可用，原需求没有修改草稿，请稍后重试。",
         recovery: "retry_alignment",
