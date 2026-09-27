@@ -49,8 +49,18 @@ test("published client removes SiteCraft chrome bars", () => {
   assert.match(publishedClient, /\/api\/public\/\$\{encodeURIComponent\(siteKey\)\}\/leads/);
 });
 
-test("sparse legacy draft with only inherited English does not offer visitor English", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const raw = JSON.parse(await readFile(".sitecraft-data/sites/overlay-sparse-20260924.json", "utf8")) as { draft: typeof defaultDraft };
-  assert.equal(draftOffersVisitorEnglish(raw.draft), false);
+test("sparse legacy draft with only inherited English does not offer visitor English", () => {
+  const draft = structuredClone(defaultDraft);
+  draft.templateId = "screwfast";
+  draft.visualBrief = { ...draft.visualBrief, id: "engineering-industrial", templateId: "screwfast" };
+  draft.siteName = "临汾传动件示意厂";
+  draft.companyName = "临汾传动件示意厂";
+  draft.content.hero.title.zh = "行星减速机按图加工";
+  draft.content.hero.title.en = "Planetary gearbox inherited English";
+  draft.content.hero.subtitle.zh = "现有减速机品类有货可询；规格和交期按询盘确认。";
+  draft.content.hero.subtitle.en = "Inherited English subtitle";
+  draft.products[0].name = { zh: "行星减速机", en: "Planetary gearbox Precision Module" };
+  draft.products[0].summary = { zh: "批量规格询盘，交期待补充。", en: "Inherited product summary" };
+  draft.englishReady = false;
+  assert.equal(draftOffersVisitorEnglish(draft), false);
 });
