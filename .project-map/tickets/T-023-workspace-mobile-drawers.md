@@ -2,7 +2,7 @@
 id: T-023
 title: 平板和手机：对话抽屉和逐题作答的底部抽屉
 type: build
-status: open
+status: closed
 blocked_by: [T-022]
 claimed_by: astra
 supersedes:
@@ -14,12 +14,12 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 375 宽能走完一轮对齐（逐题作答、提交），刷新后能恢复
-- [ ] 768 宽对话抽屉可以开合，不挡住预览的主要操作
-- [ ] 375 宽工具栏不溢出，按钮都能点到
-- [ ] 375 / 768 截图交独立审核 agent 验收
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 375 宽能走完一轮对齐（逐题作答、提交），刷新后能恢复
+- [x] 768 宽对话抽屉可以开合，不挡住预览的主要操作
+- [x] 375 宽工具栏不溢出，按钮都能点到
+- [x] 375 / 768 截图交独立审核 agent 验收
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -34,3 +34,5 @@ supersedes:
 实现提交：`8ea8bf0`。
 
 独立审核：grok-a，2026-09-27，NO_GO。证据 `artifacts/workspace-t023-green10`、红态 `artifacts/workspace-t023-red7`。375 底部抽屉逐题（第 1/3 到第 3/3）、一次 `selections` 后服务端 3 个答案（明亮产品、首页 + 产品 + 询盘、石墨工坊）、刷新后「已保存的问答（3）」成立。768 报告里预览标签隐藏对话、对话标签重新打开。375 预览工具栏未看见：截图停在「AI 对话」，`toolbarRight` 为 0；`.preview-toolbar` 在 `mobile-hidden` 下被量成不溢出。详见 `artifacts/review-t023-20260927.md`。
+
+独立审核：grok-a，2026-09-27，PASS，`83620b7`，`node scripts/check-mobile-drawers.mjs artifacts/workspace-t023-green12`。375 仍是第 1/3 到第 3/3、一次提交后 3 个答案（明亮产品、单页聚焦、石墨工坊），刷新后「已保存的问答（3）」。切到「网站预览」后 `toolbarVisible=true`、`toolbarOverflow=false`，10 个按钮 `left>=0` 且 `right<=375`；截图右缘发布与删除都完整。768 预览标签隐藏对话、对话标签重新打开，截图为对话抽屉。红态 `workspace-t023-red7` 先失败于底部抽屉。票面已记 `npm run typecheck` 通过、`npm test` 248/248、`npm run build` 通过。
