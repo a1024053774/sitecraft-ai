@@ -17,7 +17,7 @@ supersedes:
 - [x] 工业类资料进来时，工程工业标为推荐并有理由；选其他样子也能生成
 - [x] 色卡显示的颜色就是生成页面使用的颜色
 - [x] 选不同的样子和配色，生成出的页面明显不同
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
@@ -31,3 +31,7 @@ supersedes:
 实现提交：`9e70da9cc339f4773cc71c0e2c955ccc2dc1e3e8`。
 
 独立审核：grok-a，2026-09-27，PASS，`artifacts/t021-final-correct/report.json`。色彩 `swatches` 与 engineering registry 的背景、表面、正文、强调、强调深、边框一致；读回 `engineering-industrial` / `engineering-graphite`。`npm test` 另有 1 项失败在 `tests/chat-route-conversation.test.ts`（期望 `style-theme`），该勾选项未勾。
+
+独立审核：grok-b，2026-09-27，PASS，`3e5631a` 将 P3E 夹具标成 `ALIGN_GUIDED_P3E_FIXTURE_4401`，只在 `NODE_ENV=test` 时跳过规划器。`node --test --experimental-strip-types --test-name-pattern "P3E complete materials" tests/chat-route-conversation.test.ts` 通过。`npm test` 248 通过，`npm run typecheck` 通过。此前在 `9e70da9` 之后的 `artifacts/t021-review-9e70da9/report.json` 已含发布页读回，色块与 engineering registry 一致。
+
+复审 `3e5631a`：`npm test` 248/248，`npm run typecheck` 通过。本次未重跑 `npm run build`。
