@@ -8,6 +8,7 @@ import {
   applyRunError,
   alignmentPromptContext,
   publicAlignmentView,
+  styleQuestion,
   type AlignmentActionSuccess,
   type AlignmentPublicView,
   type CurrentQuestion,
@@ -199,6 +200,13 @@ async function planPromptStart(siteId: string, args: {
   }
   if (plan.kind === "ready") return { ok: true as const, startQuestion: null as CurrentQuestion | null };
   const questionRevision = 1;
+  const plannerQuestions = plan.questions ?? [{ field: "other" as const, question: plan.question, options: plan.options, allowOther: plan.allowOther }];
+  const requiredLookQuestions = styleQuestion(questionRevision).questions ?? [];
+  const questions = [
+    ...(plannerQuestions.some((item) => item.field === "style") ? [] : [requiredLookQuestions[0]]),
+    ...plannerQuestions,
+    ...(plannerQuestions.some((item) => item.field === "colorSet") ? [] : [requiredLookQuestions[1]]),
+  ].filter(Boolean).slice(0, 4);
   const question: CurrentQuestion = {
     questionId: `prompt-${crypto.randomUUID()}`,
     questionRevision,
@@ -211,10 +219,10 @@ async function planPromptStart(siteId: string, args: {
       recommended: option.recommended === true || (index === 0 && !plan.options.some((candidate) => candidate.recommended === true)),
     })),
     allowOther: plan.allowOther,
-    questions: (plan.questions ?? [{ field: "other" as const, question: plan.question, options: plan.options, allowOther: plan.allowOther }]).map((item, questionIndex) => ({
+    questions: questions.map((item, questionIndex) => ({
       questionId: `prompt-${questionIndex + 1}-${crypto.randomUUID()}`,
       field: item.field,
-      prompt: item.question,
+      prompt: "question" in item ? item.question : item.prompt,
       options: item.options.map((option, index) => ({ id: `prompt-${questionIndex + 1}-option-${index + 1}`, label: option.label, description: option.description, recommended: option.recommended === true || (index === 0 && !item.options.some((candidate) => candidate.recommended === true)) })),
       allowOther: item.allowOther,
     })),

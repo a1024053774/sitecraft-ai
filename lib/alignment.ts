@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { colorSetCatalog, paletteCatalogForVisualBrief, visualBriefCatalog } from "./site-document.ts";
+import { colorSetCatalog, paletteCatalogForVisualBrief, visualBriefCatalog, visualBriefIds } from "./site-document.ts";
 import { templateAdapters } from "./template-adapters/registry.ts";
 import { siteOperationSchema, type SiteOperation } from "./site-operations.ts";
 import { isGuidedIndustrialRequest, needsGuidedBusinessQuestion } from "./guided-flow.ts";
@@ -682,7 +682,11 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
         if (option.id === OTHER_OPTION_ID && !answerNote) return fail(current, 400, "invalid_payload", "选择其他时请填写补充说明。");
         answers = [...answers.filter((item) => item.questionId !== cardQuestion.questionId), { questionId: cardQuestion.questionId, questionRevision: question.questionRevision, question: cardQuestion.prompt, optionId: option.id, label: option.label, note: answerNote }];
         if (cardQuestion.field === "style") selectedStyleId = option.id;
-        if (cardQuestion.field === "colorSet") selectedPaletteId = option.paletteId ?? selectedPaletteId;
+        if (cardQuestion.field === "colorSet") {
+          const setId = colorSetCatalog.find((set) => set.label === option.label)?.id;
+          const briefId = (selectedStyleId && visualBriefCatalog.some((brief) => brief.id === selectedStyleId)) ? selectedStyleId as (typeof visualBriefIds)[number] : "engineering-industrial";
+          selectedPaletteId = option.paletteId ?? (setId ? paletteCatalogForVisualBrief(briefId).find((palette) => palette.colorSet === setId)?.id ?? selectedPaletteId : selectedPaletteId);
+        }
       }
       const runId = current.pendingRequest ? crypto.randomUUID() : null;
       const next: AlignmentSnapshot = { ...current, submittedCard: question, enabled: true, styleOptionId: selectedStyleId, paletteId: selectedPaletteId, answers: answers.slice(-MAX_ALIGNMENT_HISTORY), inflightRunId: runId, state: current.pendingRequest ? "awaiting_user" : "idle", currentQuestion: current.pendingRequest ? question : null, epoch: current.epoch + 1, history: pushHistory(current, { action: "select", summary: "已提交整张需求卡" }) };

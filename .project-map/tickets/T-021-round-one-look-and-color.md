@@ -4,7 +4,7 @@ title: 第 1 轮卡片选样子和配色
 type: build
 status: open
 blocked_by: [T-019, T-020]
-claimed_by:
+claimed_by: astra
 supersedes:
 ---
 
@@ -21,3 +21,9 @@ supersedes:
 - [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
+
+实现：第 1 轮需求卡强制包含样子与色彩集两题；工业推荐工程工业并附理由，其余样子仍可选。色彩集选项携带当前样子的真实 paletteId 与 swatches，提交后写入 `visualBrief` 和 `paletteId`。
+
+新鲜证据：`node scripts/verify-alignment-multi-question.mjs artifacts/t021-http-look-color-2` 通过资料、四题卡、一次提交、刷新、确认、生成和预览读回；读回为 `engineering-industrial` / `engineering-graphite`。`npm run typecheck` 与 alignment tests 通过。
+
+实现提交：待提交后填写 SHA。
