@@ -8,9 +8,6 @@ import {
   applyRunError,
   alignmentPromptContext,
   publicAlignmentView,
-  isGuidedIndustrialRequest,
-  needsGuidedBusinessQuestion,
-  styleQuestion,
   type AlignmentActionSuccess,
   type AlignmentPublicView,
   type CurrentQuestion,
@@ -157,12 +154,6 @@ async function planPromptStart(siteId: string, args: {
   // provider response intended for the continuation step.
   if (process.env.NODE_ENV === "test" && /\b(?:ALIGN|RECOVERY|CLAIM|UNDONE|LATE)_[A-Z0-9_]+\b/.test(args.message)) {
     return { ok: true as const, startQuestion: undefined as CurrentQuestion | null | undefined };
-  }
-  // Complete, materials-first industrial packs have already supplied the business
-  // goal. Their deterministic style question is a planned guided path, not a
-  // replacement for a failed model planner response.
-  if (isGuidedIndustrialRequest(args.message) && !needsGuidedBusinessQuestion(args.message)) {
-    return { ok: true as const, startQuestion: styleQuestion(1) };
   }
   const current = await getSite(siteId);
   if (current.draft.revision !== args.baseRevision) {

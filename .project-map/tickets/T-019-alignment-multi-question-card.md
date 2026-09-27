@@ -54,4 +54,6 @@ supersedes:
 
 本次复核：本地读取 `.env.local` 调规划器得到原始元信息 `finish_reason=length`，原始 JSON 未完整结束；对照 schema 确认首要原因是规划器输出预算不足，已在 `1291fbb` 将预算从 900 提到 1800，并允许 questions-only 卡归一化。3034 重跑若仍返回 invalid_output，现在产物会明确写入 `retry_alignment`，不再换成内置样子卡：[artifacts/t019-http-after-invalid-output/report.json](../../artifacts/t019-http-after-invalid-output/report.json)。此前成功走完生成/预览的真实证据仍在：[artifacts/t019-http-final/report.json](../../artifacts/t019-http-final/report.json)。
 
+本次新鲜证据（2026-09-27T04:05:35Z）：撤掉 `e1b5e09` 的工业资料早退分支，规划器只返回 questions-only 卡；原始响应保存在 [artifacts/t019-planner-raw-20260927T032918Z.json](../../artifacts/t019-planner-raw-20260927T032918Z.json)，两次均为 `finish_reason=length`，首个 JSON 在 questions 第一题中途截断，第二次为空，未出现字段名/枚举/题数校验错误。提示词已去掉重复的顶层 question/options，3034 真实命令 `node scripts/verify-alignment-multi-question.mjs artifacts/t019-http-root-fix` 于该时间后重新通过，包含 confirm 和 preview-draft-readback。
+
 Commit：实现 `a1753036edd0ed8f2b7d541cf5174282805a5341`；本票 Resolution 回写为后续文档提交。
