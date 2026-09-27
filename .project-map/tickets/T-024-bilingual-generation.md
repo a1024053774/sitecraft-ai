@@ -2,7 +2,7 @@
 id: T-024
 title: 中英文一起生成
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: astra
 supersedes:
@@ -21,7 +21,7 @@ supersedes:
 - [x] 只有默认英文的旧草稿（含 `overlay-sparse-20260924`）发布页没有 EN 切换
 - [x] 通过 3034 dev server 真实调用一次 DeepSeek 生成，产物放 `artifacts/`
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -50,3 +50,5 @@ supersedes:
 复审补修：`update_card` 双语撤销现在与 `set_text` 一样恢复 `englishReady`，提交 `dcb42d3d8d2c4d697a35f847124965432dde2486`。
 
 独立稀疏草稿回归测试改为测试内构造，不依赖 gitignore 的 `.sitecraft-data`：`c710598dc1cdc28b8b6087881d2bdc4fc92042c0`。
+
+独立审核：grok-b，2026-09-26，PASS，`tests/site-operations.test.ts:300-310`（只改一张卡后撤销，`englishReady` 回到 false）；`lib/site-operations.ts` 中 `set_text`、`update_card`、`update_product` 对象写入的逆操作都恢复 `englishReady`。
