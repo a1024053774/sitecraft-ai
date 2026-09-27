@@ -185,6 +185,12 @@
         .sitecraft-hero-specs dl { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
         .sitecraft-hero-spec { border-left: 0; border-right: 0 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.14); padding: 14px 16px; }
         .sitecraft-hero-spec dd { font-size: 17px; }
+      }
+      @media (max-width: 480px) {
+        /* Series-prefixed labels like「直角减速机 · 额定输出扭矩」need the full width on phones. */
+        .sitecraft-hero-specs dl { grid-template-columns: 1fr; }
+        .sitecraft-hero-spec { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+        .sitecraft-hero-spec dd { margin: 0; white-space: nowrap; }
         .sitecraft-section, .sitecraft-pair { padding: 52px 0; }
         .sitecraft-section-head { display: block; margin-bottom: 26px; }
         .sitecraft-section-intro { margin-top: 10px; }
