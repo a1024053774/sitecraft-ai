@@ -19,7 +19,7 @@ supersedes:
 - [x] 一次对话修改后，预览里标出改动的位置
 - [x] 界面上不出现模板 ID、模型名或英文开发标签
 - [x] 1440 / 768 截图交独立审核 agent 验收
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
@@ -32,4 +32,4 @@ supersedes:
 
 独立审核：grok-a，2026-09-27，NO_GO。证据 `artifacts/workspace-t022-r2`（1440 预览左 1060 / 对话右 380；768 为 AI 对话与网站预览抽屉；深色青花瓷，站点联系按钮仍为橙色；欢迎句已改为「当前站点」）。预览标记显示 `products.intro.zh`、`features.items.0.title.zh` 等英文字段路径，没有标到改动位置。详见 `artifacts/review-t022-20260927.md`。
 
-独立审核：grok-a，2026-09-27，PASS，`a6d4f90`，`node scripts/check-workspace-layout.mjs overlay-p3i-thick-20260925 artifacts/workspace-t022-r3`。1440 预览左 1060、对话右 380，两栏高 1000；768 为 AI 对话 / 网站预览抽屉，站点名完整。深色青花瓷时「发布」为蓝、站点「联系」为橙。改动标记为「本次修改：产品介绍、优势第1项标题、优势第1项说明、优势第2项标题、优势第2项说明」，不含 `products.` / `features.` 路径。对话署名为「AI 助手」。测试、typecheck、`npm test`、build 本次未重跑，该勾未打。
+独立审核：grok-a，2026-09-27，PASS，`a6d4f90`，`node scripts/check-workspace-layout.mjs overlay-p3i-thick-20260925 artifacts/workspace-t022-r3`。1440 预览左 1060、对话右 380，两栏高 1000；768 为 AI 对话 / 网站预览抽屉，站点名完整。深色青花瓷时「发布」为蓝、站点「联系」为橙。改动标记为「本次修改：产品介绍、优势第1项标题、优势第1项说明、优势第2项标题、优势第2项说明」，不含 `products.` / `features.` 路径。对话署名为「AI 助手」。`a6d4f90` 代码不再变更后、本次复审前重跑：`npm run typecheck` 通过，`npm test` 248/248 通过，`npm run build` 通过。
