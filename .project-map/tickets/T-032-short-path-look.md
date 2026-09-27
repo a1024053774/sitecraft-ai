@@ -36,3 +36,5 @@ supersedes:
 代码审核修复：tailwind-landing 的目录 textSlot 保持各一条，forge 恢复已有的 6 条目录槽并增加各自恰好一条的归属测试；无照片时隐藏技术产品装饰区，不保留模板英文；补上手机菜单、电话缺口整行隐藏和参数同排。最终证据：`node scripts/check-published.mjs --out artifacts/published-check/t032-post-509 palette-sample-technical-graphite palette-sample-technical-warm-orange`，6/6 通过。
 
 独立审核：grok-a，2026-09-27，PASS，`node scripts/check-published.mjs --out artifacts/published-check/t032-grok-a-r5 palette-sample-technical-graphite palette-sample-technical-warm-orange`（6/6）。375 菜单为产品、应用行业、加工能力、认证状态、询盘；电话「待补充」不出现。`npm test` 另有 1 项失败在 `tests/chat-route-conversation.test.ts`，不计入本票。
+
+复核 `artifacts/published-check/t032-post-509`：石墨与工程暖橙 375、石墨 768 顶栏有「菜单」；石墨 1440 询盘只有邮箱，没有「电话：待补充」；`8500 N·m`、`200 mm` 与标签同一行。PASS。
