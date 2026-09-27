@@ -48,4 +48,6 @@ supersedes:
 
 规划器根因修复与真实 HTTP 证据提交：`1291fbbc9338cdadc63c59db28bceea947df5a20`。
 
+审核后修复：`invalid_output` 不再被转换成内置样子问题；当前请求明确返回错误并可重试。提交：`1078250844c474196fbf750776567974537d0afb`。
+
 Commit：实现 `a1753036edd0ed8f2b7d541cf5174282805a5341`；本票 Resolution 回写为后续文档提交。
