@@ -187,12 +187,12 @@ const initialMessages: ChatMessage[] = [
   {
     id: "welcome",
     role: "assistant",
-    text: "我已经载入你选择的开源模板。现在可以修改首屏、关于、优势、服务、商品和联系区块；每次操作都会保存为可撤销草稿。",
+    text: "我已经载入当前站点。现在可以修改首屏、关于、优势、服务、商品和联系区块；每次操作都会保存为可撤销草稿。",
   },
   {
     id: "guide",
     role: "assistant",
-    text: "可以直接说“把第二个服务标题改为智能产线集成”或点击右侧内容后再下达指令。模板只有在你明确要求更换时才会切换。",
+    text: "可以直接说“把第二个服务标题改为智能产线集成”，或点击右侧内容后再下达指令。每次修改都会保留在草稿历史里。",
   },
 ];
 
@@ -341,6 +341,7 @@ export default function WorkspacePage() {
   const [selectedTarget, setSelectedTarget] = useState<{ key: string; label: string } | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [expectedTargets, setExpectedTargets] = useState<string[]>([]);
+  const [lastChangedTargets, setLastChangedTargets] = useState<string[]>([]);
   const [previewState, setPreviewState] = useState<"loading" | "synced" | "warning">("loading");
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>({ mode: "unconfigured", model: null });
   const [activePageId, setActivePageId] = useState("home");
@@ -355,6 +356,7 @@ export default function WorkspacePage() {
     setCanUndo(Boolean(snapshot.canUndo));
     setCanRedo(Boolean(snapshot.canRedo));
     setUpdatedAt(snapshot.updatedAt ?? new Date().toISOString());
+    setLastChangedTargets(slotExpectedTargets(snapshot.history?.[0]?.appliedTargets ?? []));
   };
 
   useEffect(() => {
@@ -862,7 +864,9 @@ export default function WorkspacePage() {
     const result = await response.json() as DraftSnapshot & { error?: string; changeSet?: { appliedTargets: string[]; revision?: number } };
     if (!response.ok) throw new Error(readableWorkspaceError({ ...result, status: response.status }, "草稿保存失败"));
     adoptSnapshot(result);
-    setExpectedTargets(slotExpectedTargets((result.changeSet?.appliedTargets ?? []).filter((target) => target !== "visualBrief" && target !== "template" && target !== "draft")));
+    const appliedTargets = slotExpectedTargets((result.changeSet?.appliedTargets ?? []).filter((target) => target !== "visualBrief" && target !== "template" && target !== "draft"));
+    setExpectedTargets(appliedTargets);
+    setLastChangedTargets(appliedTargets);
     setPreviewState("loading");
     return result;
   };
@@ -1184,7 +1188,7 @@ export default function WorkspacePage() {
         <div className="chat-messages">
           {messages.map((message) => (
             <div className={`message ${message.role} ${message.status ?? ""}`} key={message.id}>
-              <div className="message-label">{message.role === "assistant" ? <><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />SITECRAFT AI</> : "YOU"}</div>
+              <div className="message-label">{message.role === "assistant" ? <><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />AI 助手</> : "你"}</div>
               <div className="message-bubble">{message.text}</div>
               {message.options?.length ? <div className="chat-hints clarify-options">{message.options.map((option) => <button className="hint" key={option} type="button" onClick={() => { setInput(option); window.requestAnimationFrame(() => inputRef.current?.focus()); }}>{option}</button>)}</div> : null}
               {message.alignment?.waitingForUser && message.alignment.selectedLabel ? (
@@ -1193,7 +1197,7 @@ export default function WorkspacePage() {
               {message.change && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "error" || message.status === "warning" ? <AlertCircle size={11} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={11} /> : <Check size={11} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
             </div>
           ))}
-          {busy && <div className="message assistant"><div className="message-label"><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />SITECRAFT AI</div><div className="message-bubble busy-message"><LoaderCircle className="spin" size={13} />{busyText}</div></div>}
+          {busy && <div className="message assistant"><div className="message-label"><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />AI 助手</div><div className="message-bubble busy-message"><LoaderCircle className="spin" size={13} />{busyText}</div></div>}
           <div ref={messagesEndRef} />
         </div>
         <div className="chat-input-wrap">
@@ -1388,7 +1392,7 @@ export default function WorkspacePage() {
             </p>
           ) : null}
         </div>
-        <div className="preview-stage"><div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">{draft.visualBrief.label}.sites.ai{pageUrlSuffix}</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div></div>
+        <div className="preview-stage">{lastChangedTargets.length ? <div className="preview-change-markers" data-testid="preview-change-markers">本次修改：{lastChangedTargets.slice(0, 5).join("、")}</div> : null}<div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">{draft.visualBrief.label}.sites.ai{pageUrlSuffix}</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div></div>
       </main>
       {showImport && (
         <div className="modal-backdrop" onClick={() => setShowImport(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>

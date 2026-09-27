@@ -4,7 +4,7 @@ title: 工作台改版：方向 B 布局与深浅主题
 type: build
 status: open
 blocked_by: [T-019]
-claimed_by:
+claimed_by: astra
 supersedes:
 ---
 
@@ -26,6 +26,6 @@ supersedes:
 
 实现：工作台桌面布局改为预览主区 + 右侧对话区；样子/配色通过对话区按钮展开；新增跟随系统的深浅主题、6 套色彩集强调色切换，站点 iframe 仍使用草稿自己的 palette；内部模型名和 API 标签不再展示。
 
-证据：`node scripts/check-workspace-layout.mjs overlay-p3i-thick-20260925 artifacts/workspace-t022-final`，1440/768 均读回右侧对话、居中预览、样子/配色按钮、主题和强调色控件，内部标签检查为 false；截图已查看。
+证据（修复后新跑）：`node scripts/check-workspace-layout.mjs overlay-p3i-thick-20260925 artifacts/workspace-t022-r2`，脚本返回 `PASS`。报告读回 1440 宽预览在左、对话停靠右（1060/380），768 宽切换为「AI 对话 / 网站预览」抽屉，两个宽度都有样子/配色按钮、主题和 6 套工作台强调色控件，内部标签检查为 false，并且 `changeMarker: true`。截图已逐张查看：`artifacts/workspace-t022-r2/workspace-1440.png`、`artifacts/workspace-t022-r2/workspace-768.png`。
 
 实现提交：待提交后填写 SHA。

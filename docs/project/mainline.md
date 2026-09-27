@@ -28,6 +28,8 @@
 
 文案去 AI 味和版式去 AI 味走同一条生成路径。内部规则用 `sitecraft-frontend-less-ai-tone`（`skills/sitecraft-frontend-less-ai-tone/`，运行时 `@0.3.0`；P4 冻结基线仍是 `@0.2.0`）。模型不输出 CSS。草稿仍只走 `commitOperations`。
 
+需求对齐卡里的色块只从当前视觉族 adapter 的 registry 色板派生；模型返回的颜色值不能覆盖页面实际使用的色板。
+
 ## 素材怎么用
 
 开源仓库、本地快照、Jiro 免费区都是可审查素材，不是成品。代码 MIT 不批准图片、字体、图标或商标。调研不等于准入，也不等于已经能生成。
