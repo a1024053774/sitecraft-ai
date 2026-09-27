@@ -31,4 +31,12 @@ supersedes:
 
 ## Resolution
 
-进行中（2026-09-26，Claude）：已按「样本册」重写 screwfast overlay，首屏改为照片 / 参数铭牌 / 仅文字三种模式（去掉按行业子串挑示意图），产品卡按 adapter 的 `productCard` 声明生成，联系方式整段缺口时整行不显示。`npm test` 238/238；`node scripts/check-published.mjs --out artifacts/published-check/t018-r1` 9/9。未做：逐张目检截图、独立盲评、typecheck/build 复核。
+2026-09-27，Claude。按盲评选中的「样本册」（T-017）重写工程工业族：
+
+- 首屏由草稿产品决定：有照片放照片并在下方加关键参数条；没照片放参数铭牌；两者都没有只留文字。删除了按 `draft.industry` 子串挑示意图的规则（grok-b 审核第 6 条）。
+- 产品卡按 adapter 的 `productCard` 声明生成：照片（仅真实照片）、系列名、3 个关键参数、一句说明、「全部参数」折叠表、询这款规格链接，图片署名单独一行；窄屏参数改为左名右值。
+- 应用行业与加工能力并排成两列清单，认证用标签，询盘单独一块底色，页脚分产品 / 导航 / 联系三列；手机顶栏收进菜单。
+- 联系方式整段缺口时整行不显示；全部缺口时，询盘左侧清单和页脚联系栏一起隐藏。
+- 盲评要求的 4 处与借用的 3 处都已落实。
+
+证据：`node scripts/check-published.mjs --out artifacts/published-check/t018-r2` 9/9，截图已逐张核对。新测试「screwfast hero picks photo, spec nameplate or nothing from products, not industry text」在旧的子串实现上失败；产品卡测试改为要求无照片时不出现任何替代图。`npm test`、typecheck、build 在我的改动上通过（`4bef178` 提交时 238/238；提交本条时工作树里另有 Astra 未提交的 T-024 红测试，与本票无关）。

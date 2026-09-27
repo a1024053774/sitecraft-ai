@@ -169,6 +169,9 @@
       .sitecraft-footer-links { display: grid; gap: 8px; }
       .sitecraft-footer-links a:hover { color: #fff; }
       .sitecraft-footer-contact { display: grid; gap: 8px; }
+      /* When every contact line is a gap, drop the empty list and the footer column with it. */
+      .sitecraft-inquiry-lines:not(:has(> li:not([hidden]))) { display: none; }
+      .sitecraft-footer-inner > div:has(.sitecraft-footer-contact):not(:has([data-sitecraft-line]:not([hidden]))) { display: none; }
       .sitecraft-benchmark-legacy { display: none !important; }
 
       @media (max-width: 900px) {
