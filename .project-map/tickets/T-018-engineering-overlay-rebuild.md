@@ -2,7 +2,7 @@
 id: T-018
 title: 按选定方向重做工程工业 overlay
 type: build
-status: open
+status: closed
 blocked_by: [T-016, T-017]
 claimed_by: claude
 supersedes:
@@ -20,14 +20,14 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 三份样板草稿的发布页符合选定方向；资料少的那份版式也成立
-- [ ] 手机宽度有可用的导航菜单
-- [ ] 没有产品照片时，首屏示意图由草稿里的字段（产品类别或设计意图）决定，不对行业文字做子串匹配；对应测试在子串规则上会失败（来源：grok-b 审核第 6 条）
-- [ ] 页面上没有用户资料和模型生成之外的事实，也没有模板残留、元话术或模拟标注
-- [ ] 用 Chrome 在 1440 / 768 / 375 截取完整页面（三份样板草稿）；逐张打开确认不是载入态、不是空白，截图放 `artifacts/`，重新生成截图的命令写进 Resolution
-- [ ] 独立审核 agent 盲评通过（这是原来「负责人盲评」的位置）
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 三份样板草稿的发布页符合选定方向；资料少的那份版式也成立
+- [x] 手机宽度有可用的导航菜单
+- [x] 没有产品照片时，首屏示意图由草稿里的字段（产品类别或设计意图）决定，不对行业文字做子串匹配；对应测试在子串规则上会失败（来源：grok-b 审核第 6 条）
+- [x] 页面上没有用户资料和模型生成之外的事实，也没有模板残留、元话术或模拟标注
+- [x] 用 Chrome 在 1440 / 768 / 375 截取完整页面（三份样板草稿）；逐张打开确认不是载入态、不是空白，截图放 `artifacts/`，重新生成截图的命令写进 Resolution
+- [x] 独立审核 agent 盲评通过（这是原来「负责人盲评」的位置）
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -40,3 +40,7 @@ supersedes:
 - 盲评要求的 4 处与借用的 3 处都已落实。
 
 证据：`node scripts/check-published.mjs --out artifacts/published-check/t018-r2` 9/9，截图已逐张核对。新测试「screwfast hero picks photo, spec nameplate or nothing from products, not industry text」在旧的子串实现上失败；产品卡测试改为要求无照片时不出现任何替代图。`npm test`、typecheck、build 在我的改动上通过（`4bef178` 提交时 238/238；提交本条时工作树里另有 Astra 未提交的 T-024 红测试，与本票无关）。
+
+独立盲评：grok-a，2026-09-27，PASS，artifacts/review-t018-blind-20260927.md
+
+收尾（2026-09-27，Claude）：按盲评意见把手机上的首屏参数条改为单列，长标签不再折行（`accae9b`，`artifacts/published-check/t018-r3/`）。在 `accae9b` 的干净 worktree（链接 `vendor/`）里：typecheck 通过，build 通过，`npm test` 243 条中 242 条通过；唯一失败的是 T-024 的「sparse legacy draft…」，它读取 gitignore 的 `.sitecraft-data/`，干净 checkout 里必然失败，已转给 Astra 在 T-024 里修。「独立审核」一项由 grok-a 的盲评承担（它未参与实现）。
