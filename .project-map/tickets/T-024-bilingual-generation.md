@@ -46,3 +46,5 @@ supersedes:
 修复提交：`32a0ede484860e2788d0350a92072b5a4af5b3ed`。
 
 本轮修复提交：`7399758bc336304ad55325e5e6ff6e9535deea18`。
+
+独立稀疏草稿回归测试改为测试内构造，不依赖 gitignore 的 `.sitecraft-data`：`c710598dc1cdc28b8b6087881d2bdc4fc92042c0`。
