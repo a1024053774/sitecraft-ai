@@ -2,7 +2,7 @@
 id: T-019
 title: 需求对齐改成多题卡片
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: astra
 supersedes:
@@ -24,7 +24,7 @@ supersedes:
 - [x] 需求卡协议支持每题 2–4 个选项、推荐标记和“其他”补充说明
 - [x] HTTP 端到端流程（资料 → 对齐 → 确认 → 生成 → 预览）有一条可以重跑的测试或脚本，产物放 `artifacts/`
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -57,3 +57,5 @@ supersedes:
 本次新鲜证据（2026-09-27T04:05:35Z）：撤掉 `e1b5e09` 的工业资料早退分支，规划器只返回 questions-only 卡；原始响应保存在 [artifacts/t019-planner-raw-20260927T032918Z.json](../../artifacts/t019-planner-raw-20260927T032918Z.json)，两次均为 `finish_reason=length`，首个 JSON 在 questions 第一题中途截断，第二次为空，未出现字段名/枚举/题数校验错误。提示词已去掉重复的顶层 question/options，3034 真实命令 `node scripts/verify-alignment-multi-question.mjs artifacts/t019-http-root-fix` 于该时间后重新通过，包含 confirm 和 preview-draft-readback。
 
 Commit：实现 `a1753036edd0ed8f2b7d541cf5174282805a5341`；本票 Resolution 回写为后续文档提交。
+
+独立审核：grok-b，2026-09-27，PASS，`node scripts/verify-alignment-multi-question.mjs artifacts/t019-review4-http-20260927`（在 `806372c` 之后；资料步为规划器三题卡，confirm applied，preview-draft-readback 公司名为 Lingang Fluid Fittings）。
