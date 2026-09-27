@@ -10,7 +10,7 @@ test('creating a site applies each requested visual template and neutral names',
     const payload = await response.json() as { draft: { templateId: string; visualBrief: { templateId: string }; siteName: string; companyName: string } };
     assert.equal(payload.draft.templateId, templateId);
     assert.equal(payload.draft.visualBrief.templateId, templateId);
-    assert.notEqual(payload.draft.siteName, 'Forge Industrial');
-    assert.notEqual(payload.draft.companyName, 'Forge Industrial');
+    assert.equal(payload.draft.siteName, '未命名站点');
+    assert.equal(payload.draft.companyName, '未命名企业');
   }
 });
