@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyAlignmentAction, disabledAlignment, type CurrentQuestion } from "../lib/alignment.ts";
+import { applyAlignmentAction, disabledAlignment, styleQuestion, type CurrentQuestion } from "../lib/alignment.ts";
 
 test("alignment card exposes 1-4 questions and commits all selections once", () => {
   const card: CurrentQuestion = {
@@ -48,4 +48,18 @@ test("submitted single-question card retains recommendation, other note and pale
   assert.match(view.question,/色彩集：松石/);
   assert.equal(view.questions[0].questionId,'palette');
   assert.equal(view.answers[0].note,'松石');
+});
+
+test("choosing 明亮产品 keeps the industrial visual brief id", () => {
+  const question = styleQuestion(1);
+  const selections = question.questions!.map((item) => ({
+    questionId: item.questionId,
+    optionId: item.field === "style" ? "industrial" : item.options.find((option) => option.id === "colorSet:porcelain")!.id,
+  }));
+  const started = applyAlignmentAction(disabledAlignment(), { action: "start", pendingRequest: { message: "工业资料", baseRevision: 1, selectedTarget: null }, startQuestion: question });
+  assert.ok(started.ok); if (!started.ok) return;
+  const submitted = applyAlignmentAction(started.snapshot, { action: "select", questionId: question.questionId, questionRevision: question.questionRevision, selections });
+  assert.ok(submitted.ok); if (!submitted.ok) return;
+  assert.equal(submitted.snapshot.styleOptionId, "industrial");
+  assert.equal(submitted.snapshot.paletteId, "industrial-porcelain");
 });

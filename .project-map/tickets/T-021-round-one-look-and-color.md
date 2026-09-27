@@ -24,6 +24,6 @@ supersedes:
 
 实现：第 1 轮需求卡强制包含样子与色彩集两题；工业推荐工程工业并附理由，其余样子仍可选。色彩集选项携带当前样子的真实 paletteId 与 swatches，提交后写入 `visualBrief` 和 `paletteId`。
 
-新鲜证据：`node scripts/verify-alignment-multi-question.mjs artifacts/t021-http-look-color-2` 通过资料、四题卡、一次提交、刷新、确认、生成和预览读回；读回为 `engineering-industrial` / `engineering-graphite`。`npm run typecheck` 与 alignment tests 通过。
+新鲜证据：`node scripts/verify-alignment-multi-question.mjs artifacts/t021-final-route` 通过资料、四题卡、一次提交、刷新、确认、生成和发布页预览读回；样子选项稳定为 visualBrief ID，色彩选项携带 `paletteId` 和 `swatches`，读回为 `engineering-industrial` / `engineering-graphite`，发布页包含选中 paletteId。`npm run typecheck` 与 alignment tests 通过。
 
 实现提交：待提交后填写 SHA。

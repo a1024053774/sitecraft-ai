@@ -207,6 +207,11 @@ async function planPromptStart(siteId: string, args: {
     ...plannerQuestions,
     ...(plannerQuestions.some((item) => item.field === "colorSet") ? [] : [requiredLookQuestions[1]]),
   ].filter(Boolean).slice(0, 4);
+  const stableOptionMissing = questions.some((item) => (item.field === "style" || item.field === "colorSet") && item.options.some((option) => !("id" in option) || !option.id));
+  if (stableOptionMissing) {
+    const description = describeUserError({ code: "invalid_output" });
+    return { ok: false as const, response: Response.json({ error: "invalid_output", message: description.message, userMessage: "需求对齐规划缺少稳定的样子或色彩集选项 ID，原需求没有修改草稿，请重试。", recovery: "retry_alignment" }, { status: 502 }) };
+  }
   const question: CurrentQuestion = {
     questionId: `prompt-${crypto.randomUUID()}`,
     questionRevision,
@@ -223,7 +228,14 @@ async function planPromptStart(siteId: string, args: {
       questionId: `prompt-${questionIndex + 1}-${crypto.randomUUID()}`,
       field: item.field,
       prompt: "question" in item ? item.question : item.prompt,
-      options: item.options.map((option, index) => ({ id: `prompt-${questionIndex + 1}-option-${index + 1}`, label: option.label, description: option.description, recommended: option.recommended === true || (index === 0 && !item.options.some((candidate) => candidate.recommended === true)) })),
+      options: item.options.map((option, index) => ({
+        id: (item.field === "style" || item.field === "colorSet") && "id" in option && typeof option.id === "string" ? option.id : `prompt-${questionIndex + 1}-option-${index + 1}`,
+        label: option.label,
+        description: option.description,
+        recommended: option.recommended === true || (index === 0 && !item.options.some((candidate) => candidate.recommended === true)),
+        ...(item.field === "colorSet" && "paletteId" in option && option.paletteId ? { paletteId: option.paletteId } : {}),
+        ...(item.field === "colorSet" && "swatches" in option && option.swatches ? { swatches: option.swatches } : {}),
+      })),
       allowOther: item.allowOther,
     })),
   };
