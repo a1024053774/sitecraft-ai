@@ -349,13 +349,23 @@ export default function WorkspacePage() {
   const [alignmentView, setAlignmentView] = useState<AlignmentViewState | null>(null);
   const [alignmentSelections, setAlignmentSelections] = useState<Record<string, string>>({});
   const [alignmentNotes, setAlignmentNotes] = useState<Record<string, string>>({});
+  const [alignmentStep, setAlignmentStep] = useState(0);
+  const [mobileAlignment, setMobileAlignment] = useState(false);
   const [lookPanelOpen, setLookPanelOpen] = useState(false);
   const [workspaceTheme, setWorkspaceTheme] = useState<"light" | "dark">("light");
   const [workspaceAccent, setWorkspaceAccent] = useState("porcelain");
   useEffect(() => {
     setAlignmentSelections(Object.fromEntries((alignmentView?.answers ?? []).map(a => [a.questionId, a.optionId])));
     setAlignmentNotes(Object.fromEntries((alignmentView?.answers ?? []).map(a => [a.questionId, a.note ?? ""])));
+    setAlignmentStep(0);
   }, [alignmentView]);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 600px)");
+    const update = () => setMobileAlignment(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
   useEffect(() => {
     const storedTheme = window.localStorage.getItem("sitecraft-workspace-theme");
     const storedAccent = window.localStorage.getItem("sitecraft-workspace-accent");
@@ -1125,6 +1135,13 @@ export default function WorkspacePage() {
     }
   };
 
+  const alignmentQuestions = alignmentView?.questions ?? [];
+  const visibleAlignmentQuestions = mobileAlignment
+    ? alignmentQuestions.slice(Math.min(alignmentStep, Math.max(0, alignmentQuestions.length - 1)), Math.min(alignmentStep, Math.max(0, alignmentQuestions.length - 1)) + 1)
+    : alignmentQuestions;
+  const activeAlignmentQuestion = alignmentQuestions[alignmentStep];
+  const activeAlignmentReady = Boolean(activeAlignmentQuestion && alignmentSelections[activeAlignmentQuestion.questionId] && (alignmentSelections[activeAlignmentQuestion.questionId] !== "other" || alignmentNotes[activeAlignmentQuestion.questionId]?.trim()));
+
   return (
     <div className={`builder-shell workspace-theme-${workspaceTheme} workspace-accent-${workspaceAccent}`}>
       <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">
@@ -1247,13 +1264,15 @@ export default function WorkspacePage() {
         <div className="chat-input-wrap">
           {selectedTarget && <div className="chat-target"><span>正在修改：{selectedTarget.label}</span><button aria-label="清除修改目标" onClick={() => setSelectedTarget(null)} type="button"><X size={12} /></button></div>}
           {alignmentView && (alignmentView.enabled || alignmentView.waitingForUser || alignmentView.prefsOnly || alignmentView.lastResult || alignmentView.answers.length) ? (
-            <div className="alignment-panel">
+            <div className="alignment-panel" data-mobile-drawer={mobileAlignment && alignmentView.questions.length >= 1 ? "true" : undefined}>
               {alignmentView.answers.length ? <details className="alignment-summary"><summary>已保存的问答（{alignmentView.answers.length}）</summary>{alignmentView.answers.map((answer) => <p key={answer.questionId}><strong>{answer.question}</strong><br />{answer.label}{answer.note ? `：${answer.note}` : ""}</p>)}</details> : null}
               {alignmentView.processing ? <div className="alignment-summary" role="status">正在继续已保存的任务…</div> : null}
               {alignmentView.waitingForUser || alignmentView.questions.length > 0 ? (
                 <>
                   <div className="alignment-question">{alignmentView.question || "等待你选择"}</div>
-                  {alignmentView.questions.length >= 1 ? alignmentView.questions.map((cardQuestion) => <div key={cardQuestion.questionId}>
+                  {alignmentView.questions.length >= 1 ? <>
+                  {mobileAlignment ? <div className="alignment-step-indicator" data-testid="alignment-step">第 {alignmentStep + 1} / <span data-testid="alignment-step-total">{alignmentView.questions.length}</span> 题</div> : null}
+                  {visibleAlignmentQuestions.map((cardQuestion) => <div key={cardQuestion.questionId} data-testid="alignment-card-question" className="alignment-card-question">
                     <div className="alignment-question">{cardQuestion.prompt}</div>
                     <div className="alignment-cards">{cardQuestion.options.map((option) => (
                       <button className={alignmentSelections[cardQuestion.questionId] === option.id ? "alignment-card selected" : "alignment-card"} key={option.id} type="button" disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onClick={() => setAlignmentSelections((items) => ({ ...items, [cardQuestion.questionId]: option.id }))}>
@@ -1265,7 +1284,12 @@ export default function WorkspacePage() {
                       <input type="radio" name={cardQuestion.questionId} checked={alignmentSelections[cardQuestion.questionId] === "other"} disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onChange={() => setAlignmentSelections(items => ({ ...items, [cardQuestion.questionId]: "other" }))} />其他，我来写
                       {alignmentSelections[cardQuestion.questionId] === "other" ? <input aria-label={`${cardQuestion.prompt}：其他说明`} value={alignmentNotes[cardQuestion.questionId] ?? ""} disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onChange={event => setAlignmentNotes(items => ({ ...items, [cardQuestion.questionId]: event.target.value }))} /> : null}
                     </label> : null}
-                  </div>) : <div className="alignment-cards">
+                  </div>)}
+                  {mobileAlignment && alignmentView.waitingForUser && !alignmentView.awaitingConfirmation ? <div className="alignment-mobile-nav">
+                    <button type="button" className="secondary-button" disabled={busy || alignmentStep === 0} onClick={() => setAlignmentStep((step) => Math.max(0, step - 1))}>上一题</button>
+                    {alignmentStep < alignmentView.questions.length - 1 ? <button type="button" className="secondary-button" data-testid="alignment-next" disabled={busy || !activeAlignmentReady} onClick={() => setAlignmentStep((step) => Math.min(alignmentView.questions.length - 1, step + 1))}>下一题</button> : null}
+                  </div> : null}
+                  </> : <div className="alignment-cards">
                     {alignmentView.options.map((option) => (
                       <button
                         className={alignmentView.selectedOptionId === option.id ? "alignment-card selected" : "alignment-card"}
@@ -1285,8 +1309,8 @@ export default function WorkspacePage() {
                       </button>
                     ))}
                   </div>}
-                  {alignmentView.questions.length >= 1 && alignmentView.waitingForUser && !alignmentView.awaitingConfirmation ? <button className="primary-button" type="button" disabled={busy || alignmentView.questions.some((item) => (!alignmentSelections[item.questionId] || (alignmentSelections[item.questionId] === "other" && !alignmentNotes[item.questionId]?.trim())))} onClick={() => void runAlignment({ action: "select", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision, selections: alignmentView.questions.map((item) => ({ questionId: item.questionId, optionId: alignmentSelections[item.questionId], note: alignmentNotes[item.questionId] })) })}>提交全部答案</button> : null}
-                  {alignmentView.awaitingConfirmation && alignmentView.questions.length >= 1 ? <button type="button" className="primary-button" disabled={busy} onClick={() => void runAlignment({ action: "confirm", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision })}>确认并应用</button> : null}
+                  {alignmentView.questions.length >= 1 && alignmentView.waitingForUser && !alignmentView.awaitingConfirmation ? <button className="primary-button" data-testid="alignment-submit" type="button" disabled={busy || alignmentView.questions.some((item) => (!alignmentSelections[item.questionId] || (alignmentSelections[item.questionId] === "other" && !alignmentNotes[item.questionId]?.trim())))} onClick={() => void runAlignment({ action: "select", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision, selections: alignmentView.questions.map((item) => ({ questionId: item.questionId, optionId: alignmentSelections[item.questionId], note: alignmentNotes[item.questionId] })) })}>提交全部答案</button> : null}
+                  {alignmentView.awaitingConfirmation && alignmentView.questions.length >= 1 ? <><div className="alignment-confirmed" data-testid="alignment-submitted">已保存你的选择，请确认生成方案</div><button type="button" className="primary-button" disabled={busy} onClick={() => void runAlignment({ action: "confirm", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision })}>确认并应用</button></> : null}
                   <div className="alignment-actions">
                     {alignmentView.questionId === "image-upload" ? (
                       <button className="primary-button" type="button" disabled={busy} onClick={() => void openImageLibrary()}>
