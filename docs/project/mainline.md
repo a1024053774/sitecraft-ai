@@ -26,7 +26,7 @@
 
 验收否决：未选用的模板品牌、客户 Logo 墙、SaaS 定价、演示图、假评价数字不能出现在生成站上。只改标题而留下 ScrewFast / Airbnb / `$29` 不算做成。`missing` 是落点失败，不是允许演示壳留下。
 
-文案去 AI 味和版式去 AI 味走同一条生成路径。内部规则用 `sitecraft-frontend-less-ai-tone`（`skills/sitecraft-frontend-less-ai-tone/`，运行时 `@0.3.0`；P4 冻结基线仍是 `@0.2.0`）。模型不输出 CSS。草稿仍只走 `commitOperations`。
+文案去 AI 味和版式去 AI 味走同一条生成路径。内部规则用 `sitecraft-frontend-less-ai-tone`（`skills/sitecraft-frontend-less-ai-tone/`，运行时 `@0.3.1`；P4 冻结基线仍是 `@0.2.0`）。模型不输出 CSS。草稿仍只走 `commitOperations`。访客页说明类文字不写只交代缺口的句子和建站元话术（T-045）。
 
 需求对齐卡里的色块只从当前视觉族 adapter 的 registry 色板派生；模型返回的颜色值不能覆盖页面实际使用的色板。
 
