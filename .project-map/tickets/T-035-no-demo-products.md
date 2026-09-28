@@ -2,7 +2,7 @@
 id: T-035
 title: 新草稿不带演示商品
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -20,7 +20,7 @@ supersedes:
 - [x] 资料、表格或对话提供商品后，商品区正常出现
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 1440 和 375 浏览器截图
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -33,3 +33,9 @@ supersedes:
 浏览器（Kiro 的 Chrome，dev server 3034）：用 `POST /api/sites` 按四个样子各建一个新站（id 记在 `artifacts/t035/sites.txt`），发布页 1440 / 375 都没有商品区、没有演示商品、没有指向隐藏区块的链接、没有横向溢出，截图 `artifacts/t035/published-*-{1440,375}.png`；工作台预览显示「产品资料待补充。」（`artifacts/t035/workspace-screwfast-1440.png`）。有商品的站点照常显示：`node scripts/check-published.mjs --out artifacts/published-check/t035-with-products bdfcba17-1b8b-429f-9c52-893edcd2a244 palette-sample-export-porcelain` 6 项 ok。
 
 另：`/content` 页原来把这三件演示商品当「商品草稿」列出，现在显示 0 件和导入入口。
+
+2026-09-28 grok-b 独立审核：工作台保留「产品资料待补充。」是这次核对里确认的编辑提示，不是演示商品。发布页隐藏空商品区，以及指向它的导航和「看产品系列」。页脚「产品」只剩没有链接的栏目标签。
+
+独立审核：grok-b，2026-09-28，PASS，`node --test --experimental-strip-types tests/no-demo-products.test.ts` 6/6；`npm run typecheck` 通过；`npm test` 266/266（当时工作区有一张未纳入 `6f807c8` 的 `tests/workspace-new-site-entry.test.ts`，不计入）；`npm run build` 通过。新建站 `be23d934-422c-4426-af82-82f73788409d`（screwfast，`products` 为 []），`node scripts/check-published.mjs --out artifacts/published-check/t035-review-grokb-new be23d934-422c-4426-af82-82f73788409d` 1440/768/375 均 ok，截图在该目录。有商品的站 `node scripts/check-published.mjs --out artifacts/published-check/t035-review-grokb bdfcba17-1b8b-429f-9c52-893edcd2a244`：1440 与 768 ok，375 脚本报目录文案和首屏按钮未滚到表单，但 `bdfcba17-1b8b-429f-9c52-893edcd2a244-375.png` 上产品卡、应用行业和 ISO 9001 仍在。
+
+实现提交：`6f807c8`
