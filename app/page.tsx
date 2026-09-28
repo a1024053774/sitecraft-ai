@@ -15,6 +15,7 @@ import {
 import { AppSidebar } from "@/components/app-sidebar";
 import { getTemplate } from "@/lib/site-model";
 import { listExistingSites, type SiteListItem } from "@/lib/site-store";
+import { listLeads, type PublicLead } from "@/lib/lead-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -58,8 +59,12 @@ function SiteThumb({ site }: { site: SiteListItem }) {
 }
 
 export default async function Dashboard() {
-  const sites = await listExistingSites();
+  const [sites, leads] = await Promise.all([listExistingSites(), listLeads()]);
   const recent = sites.slice(0, 3);
+  const activities = [
+    ...sites.map((site) => ({ kind: "site" as const, at: site.updatedAt, title: `已更新 ${site.siteName}`, detail: `打开${getTemplate(site.templateId).name}工作台继续修改`, icon: "sparkles" as const })),
+    ...leads.map((lead: PublicLead) => ({ kind: "lead" as const, at: lead.receivedAt, title: "收到新的询盘", detail: [lead.company, lead.name].filter(Boolean).join(" · ") || "访客询盘", icon: "message" as const })),
+  ].sort((left, right) => right.at.localeCompare(left.at)).slice(0, 3);
 
   return (
     <div className="app-shell">
@@ -111,16 +116,16 @@ export default async function Dashboard() {
                 <span>收到的询盘</span>
                 <MessageSquareText size={14} />
               </div>
-              <div className="stat-value">24</div>
-              <div className="stat-note">↑ 比上月多 18%</div>
+              <div className="stat-value">{String(leads.length).padStart(2, "0")}</div>
+              <div className="stat-note">来自当前工作区</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">
-                <span>已发布页面</span>
+                <span>最近更新</span>
                 <Globe2 size={14} />
               </div>
-              <div className="stat-value">18</div>
-              <div className="stat-note">全部运行正常</div>
+              <div className="stat-value">{String(recent.length).padStart(2, "0")}</div>
+              <div className="stat-note">最近三项站点记录</div>
             </div>
           </div>
           <div className="section-heading">
@@ -171,36 +176,13 @@ export default async function Dashboard() {
                   活动记录
                 </Link>
               </div>
-              <div className="activity-row">
-                <div className="activity-icon">
-                  <Sparkles size={14} />
+              {activities.length ? activities.map((activity) => (
+                <div className="activity-row" key={`${activity.kind}-${activity.at}-${activity.title}`}>
+                  <div className="activity-icon">{activity.icon === "message" ? <MessageSquareText size={14} /> : <Sparkles size={14} />}</div>
+                  <div className="activity-text"><strong>{activity.title}</strong><span>{activity.detail}</span></div>
+                  <span className="activity-time">{formatUpdatedAt(activity.at)}</span>
                 </div>
-                <div className="activity-text">
-                  <strong>AI 更新了 Forge Industrial 的首页</strong>
-                  <span>“把产品能力放到首屏，并让标题更有工程感”</span>
-                </div>
-                <span className="activity-time">2 MIN</span>
-              </div>
-              <div className="activity-row">
-                <div className="activity-icon">
-                  <Globe2 size={14} />
-                </div>
-                <div className="activity-text">
-                  <strong>Forge Industrial 发布了新版本</strong>
-                  <span>forge-industrial.sites.ai</span>
-                </div>
-                <span className="activity-time">1 DAY</span>
-              </div>
-              <div className="activity-row">
-                <div className="activity-icon">
-                  <MessageSquareText size={14} />
-                </div>
-                <div className="activity-text">
-                  <strong>收到来自 Germany 的新询盘</strong>
-                  <span>Northstar Robotics · 产品询盘</span>
-                </div>
-                <span className="activity-time">2 DAY</span>
-              </div>
+              )) : <p className="leads-empty">暂无动态。创建站点或收到询盘后会显示在这里。</p>}
             </div>
             <div className="panel">
               <div className="section-heading">

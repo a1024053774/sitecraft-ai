@@ -217,7 +217,7 @@ export function QualityComparisonClient({
         <header className="topbar">
           <div className="breadcrumbs"><span>workspace</span><strong>12组对照</strong></div>
           <div className="top-actions">
-            <span className="quality-live-count" data-testid="quality-live-count">{liveCount} / 12 已现场写入记号</span>
+            {blind ? <span className="quality-live-count" data-testid="quality-live-count">盲评模式</span> : <span className="quality-live-count" data-testid="quality-live-count">{liveCount} / 12 已现场写入记号</span>}
           </div>
         </header>
         <div className="page-content quality-page" data-testid="quality-page">
@@ -235,10 +235,7 @@ export function QualityComparisonClient({
           </div>
 
           <div className="quality-baseline" data-testid="quality-baseline">
-            <span>模型 {payload.baseline.model}</span>
-            <span>表达约束冻结 {payload.baseline.toneVersion.split("@").at(-1)}</span>
-            <span>冻结 HEAD {payload.baseline.frozenHead}</span>
-            <span>{payload.provider.configured ? `已配置 ${payload.provider.model}` : "DeepSeek 未配置，不会伪造成功"}</span>
+            {blind ? <span>盲评中：已隐藏内部信息</span> : <><span>模型 {payload.baseline.model}</span><span>表达约束冻结 {payload.baseline.toneVersion.split("@").at(-1)}</span><span>冻结 HEAD {payload.baseline.frozenHead}</span><span>{payload.provider.configured ? `已配置 ${payload.provider.model}` : "DeepSeek 未配置，不会伪造成功"}</span></>}
           </div>
 
           <p className="quality-disclaimer">评分人：项目负责人（作者自评）。样本很小，阈值未校准。不要据此声称客户满意度、行业真实性或转化率。若格子只改了文案或标签，不能说样子生效。</p>
@@ -249,7 +246,7 @@ export function QualityComparisonClient({
             <section className="quality-pack" key={pack.id} data-testid="quality-pack" data-pack-id={pack.id}>
               <div className="section-heading">
                 <h2>{pack.label}</h2>
-                <span>核验记号 {pack.nonce} · {pack.industry}</span>
+                {blind ? <span>盲评样本</span> : <span>核验记号 {pack.nonce} · {pack.industry}</span>}
               </div>
               <div className="quality-grid">
                 {cells.map(({ presented, view }) => {
@@ -308,11 +305,10 @@ export function QualityComparisonClient({
                         <dl>
                           <div><dt>公司</dt><dd>{view?.draft.companyName}</dd></div>
                           <div><dt>首屏</dt><dd>{view?.draft.heroTitle}</dd></div>
-                          <div><dt>记号</dt><dd>{view?.draft.nonceVisible ? pack.nonce : "未见"}</dd></div>
-                          <div><dt>对照默认</dt><dd>{view?.draft.lookVsDefault}</dd></div>
+                          {blind ? null : <><div><dt>记号</dt><dd>{view?.draft.nonceVisible ? pack.nonce : "未见"}</dd></div><div><dt>对照默认</dt><dd>{view?.draft.lookVsDefault}</dd></div></>}
                         </dl>
                       )}
-                      {view?.result?.unverified.length ? <p className="quality-unverified">UNVERIFIED：{view.result.unverified.join("；")}</p> : null}
+                      {!blind && view?.result?.unverified.length ? <p className="quality-unverified">UNVERIFIED：{view.result.unverified.join("；")}</p> : null}
                       {!failed && view?.result?.error ? (
                         <p className="quality-error">{userFacingError({ code: view.result.errorCode, message: view.result.error })}</p>
                       ) : null}
@@ -352,11 +348,9 @@ export function QualityComparisonClient({
               <h2>流程差（非盲评）</h2>
               <span>已完成评分 {scoredCount} / 12 · 作者自评</span>
             </div>
-            <ul className="quality-compare-list" data-testid="quality-pack-comparisons">
-              {payload.packComparisons.map((item) => (
-                <li key={item.packId}>{item.packId}：A↔B {item.aVsB}；B↔C {item.bVsC}；C↔D {item.cVsD}</li>
-              ))}
-            </ul>
+            {blind ? null : <ul className="quality-compare-list" data-testid="quality-pack-comparisons">
+              {payload.packComparisons.map((item) => <li key={item.packId}>{item.packId}：A↔B {item.aVsB}；B↔C {item.bVsC}；C↔D {item.cVsD}</li>)}
+            </ul>}
             {blind ? null : (
               <ul className="quality-compare-list">
                 {payload.groups.map((group) => (

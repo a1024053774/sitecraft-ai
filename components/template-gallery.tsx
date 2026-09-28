@@ -107,7 +107,7 @@ export function TemplateGallery({
                 onClick={() => setSelected(template.id)}
               >
                 <div className="template-cover template-live-cover">
-                  <OpenSourceTemplateFrame templateId={template.id} variant="thumbnail" />
+                  {status?.hasLocalSnapshot ? <OpenSourceTemplateFrame templateId={template.id} variant="thumbnail" /> : <div className="template-cover-unavailable"><strong>仅有上游演示</strong><span>未准入本地快照</span></div>}
                   <div className="template-live-badge">{status?.snapshotLabel ?? "仅上游演示／待构建快照"}</div>
                   <Link
                     href={`/templates/${template.id}/preview` as Route}

@@ -348,6 +348,9 @@ a { color: inherit; text-decoration: none; }
 .template-card { background: white; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform .2s, box-shadow .2s; }
 .template-card:hover, .template-card.selected { transform: translateY(-4px); box-shadow: var(--shadow); border-color: #84a38b; }
 .template-cover { height: 190px; padding: 13px; position: relative; overflow: hidden; }
+.template-cover-unavailable { height: 100%; display: grid; place-content: center; gap: 7px; padding: 20px; background: #f1f4f0; color: var(--ink-soft); text-align: center; }
+.template-cover-unavailable strong { font-size: 13px; }
+.template-cover-unavailable span { color: var(--muted); font-size: 10px; }
 .template-cover > div { border: 1px solid rgba(255,255,255,.32); height: 100%; padding: 11px; position: relative; z-index: 1; }
 .template-cover::after { content: ''; position: absolute; width: 180px; height: 180px; right: -70px; bottom: -90px; border-radius: 50%; background: rgba(255,255,255,.19); }
 .template-mini-nav { display: flex; justify-content: space-between; font-size: 8px; color: rgba(255,255,255,.83); }

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { Route } from "next";
 import {
-  ChevronRight,
   Columns3,
   FileText,
   LayoutTemplate,
@@ -122,35 +121,6 @@ export function AppSidebar({ active }: { active: SidebarSection }) {
         })}
       </nav>
       <div className="sidebar-spacer" />
-      <div className="usage">
-        <div className="eyebrow">当前套餐</div>
-        <div className="usage-row">
-          <span>AI 生成额度</span>
-          <strong>34%</strong>
-        </div>
-        <div className="progress">
-          <span />
-        </div>
-        <div style={{ color: "#8fa398", fontSize: 10, marginTop: 9 }}>
-          本月已使用 3 / 10 次
-        </div>
-      </div>
-      <Link
-        className="profile"
-        href={"/settings#profile" as Route}
-        onClick={() => setMobileOpen(false)}
-      >
-        <div className="avatar">LY</div>
-        <div>
-          <div className="profile-name">Lydia Yang</div>
-          <div className="profile-email">lydia@sitecraft.ai</div>
-        </div>
-        <ChevronRight
-          size={14}
-          color="#9aa69d"
-          style={{ marginLeft: "auto" }}
-        />
-      </Link>
       </aside>
     </>
   );

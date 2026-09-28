@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { getAIProviderStatus } from "./ai-provider.ts";
 import {
@@ -61,7 +62,7 @@ export type QualityCellView = {
 };
 
 export type QualityMatrixPayload = {
-  baseline: typeof QUALITY_BASELINE;
+  baseline: Omit<typeof QUALITY_BASELINE, "frozenHead"> & { frozenHead: string };
   provider: ReturnType<typeof getAIProviderStatus>;
   packs: Array<{ id: QualityPackId; label: string; nonce: string; industry: string; materialsLookId: string }>;
   groups: Array<{ id: QualityGroupId; label: string; process: string }>;
@@ -69,6 +70,14 @@ export type QualityMatrixPayload = {
   packComparisons: Array<{ packId: QualityPackId; aVsB: string; bVsC: string; cVsD: string }>;
   supplementary: typeof QUALITY_SUPPLEMENTARY;
 };
+
+function runtimeFrozenHead() {
+  try {
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim() || QUALITY_BASELINE.frozenHead;
+  } catch {
+    return QUALITY_BASELINE.frozenHead;
+  }
+}
 
 async function readSavedResult(cellId: string) {
   try {
@@ -130,7 +139,7 @@ export async function loadQualityMatrix(): Promise<QualityMatrixPayload> {
     };
   });
   return {
-    baseline: QUALITY_BASELINE,
+    baseline: { ...QUALITY_BASELINE, frozenHead: runtimeFrozenHead() },
     provider: getAIProviderStatus(),
     packs: QUALITY_PACK_IDS.map((id) => ({
       id,
