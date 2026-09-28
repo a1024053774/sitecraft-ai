@@ -23,3 +23,15 @@ export function workspaceUrlForSite(currentSearch: string, siteId: string): stri
   params.set("site", siteId);
   return `/workspace?${params.toString()}`;
 }
+
+// React runs the load effect twice in development; both runs of one entry share the creation that
+// is still in flight. Once it settles the entry is forgotten, so a later 新建站点 makes a new site.
+const inflightCreations = new Map<string, Promise<string>>();
+
+export function createSiteOnce(key: string, create: () => Promise<string>): Promise<string> {
+  const pending = inflightCreations.get(key);
+  if (pending) return pending;
+  const created = create().finally(() => { inflightCreations.delete(key); });
+  inflightCreations.set(key, created);
+  return created;
+}

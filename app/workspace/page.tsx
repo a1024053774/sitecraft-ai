@@ -61,7 +61,7 @@ import {
 import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
-import { resolveWorkspaceEntry, workspaceUrlForSite } from "@/lib/workspace-entry";
+import { createSiteOnce, resolveWorkspaceEntry, workspaceUrlForSite } from "@/lib/workspace-entry";
 import { changeTargetLabels, describePreviewGaps } from "@/lib/workspace-copy";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
@@ -298,9 +298,6 @@ function alignmentMessageText(view: AlignmentViewState, action?: string) {
   return view.summary || "需求对齐已更新";
 }
 
-// One in-flight creation per entry URL, shared by the two effect runs in development.
-let pendingSiteCreation: { key: string; promise: Promise<string> } | null = null;
-
 async function createSiteForTemplate(templateId: string): Promise<string> {
   const response = await fetch("/api/sites", {
     method: "POST",
@@ -308,10 +305,7 @@ async function createSiteForTemplate(templateId: string): Promise<string> {
     body: JSON.stringify({ name: "未命名站点", templateId, locales: ["zh", "en"] }),
   });
   const created = await response.json().catch(() => ({})) as { id?: string; userMessage?: string };
-  if (!response.ok || !created.id) {
-    pendingSiteCreation = null;
-    throw new Error(created.userMessage || "新站点没有建成，请回到模板页重试。");
-  }
+  if (!response.ok || !created.id) throw new Error(created.userMessage || "新站点没有建成，请回到模板页重试。");
   return created.id;
 }
 
@@ -403,11 +397,8 @@ export default function WorkspacePage() {
       const entry = resolveWorkspaceEntry(window.location.search, templates.map((item) => item.id));
       if (entry.kind === "open") return parseWorkspaceSiteId(entry.siteId);
       const key = window.location.search;
-      // Effects run twice in development; both runs must share one POST so no orphan site is created.
-      if (pendingSiteCreation?.key !== key) {
-        pendingSiteCreation = { key, promise: createSiteForTemplate(entry.templateId) };
-      }
-      const createdId = await pendingSiteCreation.promise;
+      // Effects run twice in development; both runs share the one POST that is still in flight.
+      const createdId = await createSiteOnce(key, () => createSiteForTemplate(entry.templateId));
       window.history.replaceState(null, "", workspaceUrlForSite(key, createdId));
       return createdId;
     }

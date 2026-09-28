@@ -39,3 +39,31 @@ test("the workspace creates the site through POST /api/sites and never rewrites 
   // The old path switched the requested template onto whatever site was open (the shared demo).
   assert.doesNotMatch(source, /requestedTemplate/);
 });
+
+// grok-b's T-036 review: the in-flight creation was kept for the whole page session, so a second
+// 新建站点 with the same template (client-side navigation, no reload) reopened the first site.
+test("two effect runs of one entry share a single creation", async () => {
+  const { createSiteOnce } = await import("../lib/workspace-entry.ts");
+  let calls = 0;
+  let release: (id: string) => void = () => {};
+  const create = () => { calls += 1; return new Promise<string>((resolve) => { release = resolve; }); };
+  const first = createSiteOnce("?template=landwind", create);
+  const second = createSiteOnce("?template=landwind", create);
+  release("site-a");
+  assert.deepEqual(await Promise.all([first, second]), ["site-a", "site-a"]);
+  assert.equal(calls, 1);
+});
+
+test("a later 新建站点 with the same template creates another site", async () => {
+  const { createSiteOnce } = await import("../lib/workspace-entry.ts");
+  let n = 0;
+  const create = async () => `site-${++n}`;
+  assert.equal(await createSiteOnce("?template=screwfast", create), "site-1");
+  assert.equal(await createSiteOnce("?template=screwfast", create), "site-2");
+});
+
+test("a failed creation can be retried", async () => {
+  const { createSiteOnce } = await import("../lib/workspace-entry.ts");
+  await assert.rejects(createSiteOnce("?template=forge", async () => { throw new Error("down"); }));
+  assert.equal(await createSiteOnce("?template=forge", async () => "site-ok"), "site-ok");
+});
