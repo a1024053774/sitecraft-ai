@@ -812,6 +812,8 @@ function sourceWrittenName(value: string | { zh: string; en: string }, message: 
   return candidates.find((item) => message.includes(item)) ?? candidates[0];
 }
 
+const INTERNAL_REASON = /HTML|CSS|快照|URL|声明|区块|字段|模板|槽|slot|operation/i;
+
 export function validateAIOperations(
   message: string,
   operations: AIOperation[],
@@ -821,6 +823,17 @@ export function validateAIOperations(
   const accepted: SiteOperation[] = [];
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
   for (const operation of operations) {
+    if (operation.op === "set_page_plan" && operation.unsupported?.length) {
+      // The model explains unsupported pages in its own words; reasons that talk about templates,
+      // snapshots or HTML are replaced so the workspace only shows plain language.
+      accepted.push({
+        ...operation,
+        unsupported: operation.unsupported.map((item) => INTERNAL_REASON.test(item.reason)
+          ? { requested: item.requested, reason: `当前样子还没有「${item.requested}」页面，这一页先不单独做。` }
+          : item),
+      });
+      continue;
+    }
     if (operation.op === "set_text" && (operation.target === "companyName" || operation.target === "siteName")) {
       const name = sourceWrittenName(operation.value, message);
       if (!name) {

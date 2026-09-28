@@ -440,7 +440,7 @@ export async function requestStructuredOperations(args: {
             {
               role: "system",
               content: `你是企业独立站的结构化编辑助手。只返回 JSON，不输出 Markdown、HTML、CSS 或 JavaScript。必须从以下三种 type 中自选一种，且只能选一种：
-1. edit：用户提出了明确、可执行的草稿修改。返回 {"type":"edit","summary":"中文摘要","operations":[...]}。只能通过指定操作修改当前草稿。
+1. edit：用户提出了明确、可执行的草稿修改。返回 {"type":"edit","summary":"中文摘要","operations":[...]}。只能通过指定操作修改当前草稿。summary 和 unsupported 的 reason 会直接给用户看：用页面上的说法（首屏、产品、询盘、认证页），不要写模板、快照、HTML、URL、区块、字段、槽位或 operation 名。
 2. answer：用户在询问可回答的事实、能力、当前草稿内容或操作说明，且不要求改稿。返回 {"type":"answer","text":"中文回答"}。提问不改稿，禁止附带 operations。
 3. clarify：目标不明确、范围过大或缺少关键定位，无法安全改稿。返回 {"type":"clarify","question":"需要用户确认的问题","options":["可选选项"]}。提问不改稿，禁止附带 operations。像“把网站改好看点”“优化一下”“更专业一些”这类无法确定修改目标的请求必须 clarify，不能猜测后 edit。
 明确修改才 edit。可回答的事实问题用 answer。无法确定目标时必须 clarify。

@@ -141,7 +141,7 @@ function placeRequestedPage(templateId: string, item: RequestedSitePage, source:
   if (!section) {
     return {
       requested,
-      reason: `当前模板没有「${requested}」的独立 HTML，也没有可切换的声明区块，不能假装另开站点。`,
+      reason: `当前样子还没有「${requested}」页面，也没有能放它的区块，这一页先不单独做。`,
     };
   }
   return {

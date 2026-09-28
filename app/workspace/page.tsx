@@ -53,6 +53,7 @@ import {
   DEFAULT_WORKSPACE_SITE_ID,
   buildMaterialsChatMessage,
   parseWorkspaceSiteId,
+  stripMaterialsInstruction,
   simulatedPackList,
   wrapCompanyMaterials,
   type SimulatedPackId,
@@ -61,6 +62,7 @@ import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/tem
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
 import { resolveWorkspaceEntry, workspaceUrlForSite } from "@/lib/workspace-entry";
+import { changeTargetLabels, describePreviewGaps } from "@/lib/workspace-copy";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
 import { generateCustomPalette } from "@/lib/custom-brand-color";
@@ -79,52 +81,11 @@ function slotExpectedTargets(targets: string[]) {
     && target !== "pagePlan"
     && target !== "sections.order"
     && !target.startsWith("siteName.")
+    // The business goal guides generation; no look has a visitor slot for it.
+    && !target.startsWith("goal.")
   ));
 }
 
-const sectionLabels: Record<string, string> = {
-  hero: "首屏",
-  about: "关于我们",
-  features: "优势",
-  services: "服务",
-  products: "产品",
-  industries: "应用行业",
-  capabilities: "加工能力",
-  certifications: "认证",
-  contact: "询盘",
-  faq: "常见问题",
-};
-
-function changeTargetLabel(target: string) {
-  if (target === "palette") return "配色";
-  if (target === "products") return "产品目录";
-  if (target === "pagePlan") return "页面规划";
-  const parts = target.split(".");
-  const section = sectionLabels[parts[0]];
-  if (!section) return "页面内容";
-  if (parts[0] === "products" && parts[1] && !/^intro$/.test(parts[1])) {
-    if (parts[2] === "name") return `${section}名称`;
-    if (parts[2] === "summary") return `${section}说明`;
-    if (parts[2] === "category") return `${section}类别`;
-    if (parts[2] === "specs") return `${section}参数`;
-    if (parts[2] === "image") return `${section}图片`;
-  }
-  if (parts[1] === "intro") return `${section}介绍`;
-  if (parts[1] === "items" && parts[2] && /^\d+$/.test(parts[2])) {
-    const index = Number(parts[2]) + 1;
-    if (parts[3] === "title") return `${section}第${index}项标题`;
-    if (parts[3] === "body") return `${section}第${index}项说明`;
-    return `${section}第${index}项`;
-  }
-  if (parts[1] === "title") return `${section}标题`;
-  if (parts[1] === "body" || parts[1] === "subtitle") return `${section}说明`;
-  if (parts[1] === "visibility") return `${section}显示`;
-  return section;
-}
-
-function changeTargetLabels(targets: string[]) {
-  return [...new Set(targets.map(changeTargetLabel))];
-}
 
 function readStoredConversationId(siteId: string) {
   if (typeof window === "undefined") return null;
@@ -611,7 +572,7 @@ export default function WorkspacePage() {
   const saveLabel = useMemo(() => {
     if (!draftReady) return "正在读取草稿";
     if (previewState === "loading") return "草稿已保存 · 正在同步预览";
-    if (previewState === "warning") return "草稿已保存 · 部分槽位未显示";
+    if (previewState === "warning") return "草稿已保存 · 部分内容未显示";
     return "草稿与预览已同步";
   }, [draftReady, previewState]);
 
@@ -789,7 +750,7 @@ export default function WorkspacePage() {
   const sendChat = async (value: string) => {
     if (!value || busy || !draftReady) return false;
     if (alignmentEnabled) {
-      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: value }]);
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: stripMaterialsInstruction(value) }]);
       setAlignmentEnabled(true);
       await runAlignment({
         action: "start",
@@ -800,7 +761,7 @@ export default function WorkspacePage() {
       return true;
     }
     if (shouldGuideBusinessRequest(value)) {
-      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: value }]);
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: stripMaterialsInstruction(value) }]);
       setAlignmentEnabled(true);
       await runAlignment({
         action: "start",
@@ -812,7 +773,7 @@ export default function WorkspacePage() {
     }
     setBusy(true);
     setBusyText("正在连接模型…");
-    setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: value }]);
+    setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: stripMaterialsInstruction(value) }]);
     try {
       const response = await fetch(`/api/sites/${siteId}/chat`, {
         method: "POST",
@@ -899,19 +860,22 @@ export default function WorkspacePage() {
     const fallback = report.fallbackMatched.filter((target) => !hasExpectedTargets || visibleTargets.includes(target));
     const proposals = report.proposedAlternatives.filter((item) => missing.includes(item.requested));
     setPreviewState(missing.length || fallback.length ? "warning" : "synced");
-    if (!hasExpectedTargets) return;
+    if (!hasExpectedTargets) {
+      // Changes with nothing to place in the preview (page plan only) are done once it reloads.
+      setMessages((items) => items.map((message) => message.revision === report.revision && message.status === "syncing"
+        ? { ...message, status: "applied", text: `草稿 v${report.revision} 已保存，预览已更新。` }
+        : message));
+      return;
+    }
     setMessages((items) => items.map((message) => {
       if (message.revision !== report.revision || message.status !== "syncing") return message;
       if (missing.length || fallback.length) {
-        const fallbackNote = fallback.length ? `；回退命中未计精确槽位：${fallback.join("、")}` : "";
-        const proposalNote = proposals.length
-          ? `；可改已映射字段：${proposals.map((item) => `${item.requested}→${item.proposed}`).join("、")}`
-          : "";
+        const gaps = describePreviewGaps({ revision: report.revision, missing, fallback, proposals });
         return {
           ...message,
           status: "warning",
-          text: `草稿 v${report.revision} 已保存，但当前模板没有找到 ${missing.length} 个对应显示槽位。`,
-          change: `${message.change}；未显示：${missing.join("、")}${fallbackNote}${proposalNote}`,
+          text: gaps.text,
+          change: [message.change, gaps.change].filter(Boolean).join("；"),
         };
       }
       return { ...message, status: "applied", text: `草稿 v${report.revision} 已保存，右侧模板已确认更新。` };
@@ -1142,7 +1106,7 @@ export default function WorkspacePage() {
         id: crypto.randomUUID(),
         role: "assistant",
         status: "applied",
-        text: `产品图已归到当前站点 ${siteId}，尚未写入预览。可以先分析，再应用到已声明图片槽。`,
+        text: "产品图已上传到这个站点，还没放进页面。可以先分析图里的信息，再放到首屏或第一个产品。",
         change: uploaded.imageId,
       }]);
       if (alignmentView?.questionId === "image-upload") resumeImageId = uploaded.imageId;
@@ -1175,7 +1139,7 @@ export default function WorkspacePage() {
         role: "assistant",
         status: "answer",
         text: `已看图，未改草稿。可见文字 ${facts.visibleText.length} 条；名称 ${facts.name.zh}；缺口 ${missing}。`,
-        change: "analyze 没有走 commitOperations",
+        change: "只读取了图片，没有修改草稿",
         meta: typeof payload.latencyMs === "number" ? `模型 ${Math.max(0.1, payload.latencyMs / 1000).toFixed(1)} 秒` : undefined,
       }]);
     } catch (error) {
@@ -1199,17 +1163,17 @@ export default function WorkspacePage() {
       return;
     }
     setBusy(true);
-    setBusyText("正在写入声明图片槽…");
+    setBusyText("正在放入图片…");
     try {
-      const saved = await saveOperations(operations, kind === "hero" ? "把已上传产品图写入首屏声明槽" : `把已上传产品图写入商品 ${draft.products[0].sku}`, "manual");
+      const saved = await saveOperations(operations, kind === "hero" ? "把已上传的产品图放到首屏" : `把已上传的产品图放到产品「${draft.products[0].name.zh}」`, "manual");
       setMessages((items) => [...items, {
         id: crypto.randomUUID(),
         role: "assistant",
         status: "syncing",
         revision: saved.draft.revision,
         text: kind === "hero"
-          ? "已通过 commitOperations 写入 hero.image。没有唯一 src 槽位时预览会报告未显示，不会猜写其他图片。"
-          : `已通过 commitOperations 写入 ${draft.products[0].sku} 的产品图。当前模板若没有该 SKU 的唯一 src 槽，会报告 missing。`,
+          ? "已放到首屏图片。当前样子没有首屏图片位置时会提示没有显示，不会换到别的图片上。"
+          : `已放到产品「${draft.products[0].name.zh}」的图片。当前样子没有这个产品的图片位置时会提示没有显示。`,
       }]);
     } catch (error) {
       setImageNote(readableWorkspaceError(error, "写入失败"));
@@ -1458,7 +1422,7 @@ export default function WorkspacePage() {
                       </button>
                     ))}
                   </div>
-                  {alignmentView.pendingMessage ? <div className="alignment-summary">已保存任务：{alignmentView.pendingMessage}</div> : null}
+                  {alignmentView.pendingMessage ? <div className="alignment-summary">已保存任务：{stripMaterialsInstruction(alignmentView.pendingMessage)}</div> : null}
                   {alignmentView.summary ? <div className="alignment-summary">{alignmentView.summary}</div> : null}
                 </>
               ) : alignmentView.prefsOnly ? (
@@ -1588,7 +1552,7 @@ export default function WorkspacePage() {
               </div>
               <button className="icon-button" onClick={() => setShowMaterials(false)} aria-label="关闭资料"><X size={15} /></button>
             </div>
-            <p className="modal-copy">资料会经现有对话发给模型，再走 commitOperations。模拟包只用于内部 Demo，事实只能来自资料或「待补充」。额外独立 URL 只有当前模板快照里已有对应 HTML 才会开通；否则在同一模板上切换声明区块，并说明做不到的页面。</p>
+            <p className="modal-copy">资料会发给 AI 生成网站。页面上的事实只来自资料，资料没写的地方显示「待补充」。模拟包只用于内部演示。当前样子做不到的页面，会在生成结果里说明。</p>
             <div className="pack-actions">
               {simulatedPackList.map((pack) => (
                 <button
@@ -1616,7 +1580,7 @@ export default function WorkspacePage() {
             />
             <div className="materials-count">{materialsText.trim().length} 字 · 发送时会加上生成说明，总长不超过 4000 字</div>
             <div className="modal-foot">
-              <span><FileText size={14} /> 发送后由模型改草稿，不会绕过 commitOperations</span>
+              <span><FileText size={14} /> 生成的每一步都能在历史里撤销</span>
               <button
                 className="primary-button"
                 type="button"
@@ -1640,7 +1604,7 @@ export default function WorkspacePage() {
               </div>
               <button className="icon-button" onClick={() => setShowImages(false)} aria-label="关闭产品图"><X size={15} /></button>
             </div>
-            <p className="modal-copy">图片先存到当前站点目录，并记录归属、来源声明、时间和 hash；可选看图摘录事实，再经 commitOperations 写入已声明且唯一命中的 src 槽。没有槽位会报告未显示，不会猜写 Logo 或其他 img。模板演示图没有客户授权，不能当生成素材；公共素材缺少许可证和署名也不会进入成品。</p>
+            <p className="modal-copy">图片只存在这个站点下。可以先让 AI 读出图里的文字和参数，再放到首屏或第一个产品；当前样子没有对应的图片位置时会提示没有显示，不会放到 Logo 或别的图上。模板自带的演示图没有授权，不能用在你的网站上；没有许可和署名的公共图片也不会用。</p>
             <div
               className="upload-zone"
               data-testid="upload-product-photo"
@@ -1697,7 +1661,7 @@ export default function WorkspacePage() {
               <button className="secondary-button" type="button" data-testid="apply-product-image" disabled={!selectedImageId || busy || !draftReady} onClick={() => { void applySelectedImage("product"); }}>应用到第一个商品</button>
             </div>
             <div className="modal-foot">
-              <span><ImageIcon size={14} /> 分析不会改 HTML/CSS；落点只走 commitOperations</span>
+              <span><ImageIcon size={14} /> 分析只读取图片，不改页面</span>
               <button className="primary-button" type="button" onClick={() => setShowImages(false)}>完成</button>
             </div>
           </div>

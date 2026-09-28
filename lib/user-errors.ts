@@ -77,7 +77,7 @@ const catalog: Record<string, UserErrorDescription> = {
   invalid_output: {
     code: "invalid_output",
     message: "模型返回的方案无法安全校验，草稿没有修改。",
-    nextStep: "重新提交或缩小需求范围；不会把未经校验的 HTML/CSS 写入页面。",
+    nextStep: "重新提交或缩小需求范围；未经校验的内容不会写进页面。",
     recovery: "retry_with_narrower_prompt",
   },
   operation_error: {

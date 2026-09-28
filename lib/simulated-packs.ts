@@ -120,3 +120,10 @@ export function wrapCompanyMaterials(body: string): string {
 export function buildMaterialsChatMessage(pack: SimulatedPack): string {
   return wrapCompanyMaterials(pack.body);
 }
+
+// The generation instruction wrapped around pasted materials is for the model only; the chat shows
+// the user what they pasted.
+export function stripMaterialsInstruction(message: string): string {
+  const prefix = `${MATERIALS_INSTRUCTION}\n\n`;
+  return message.startsWith(prefix) ? message.slice(prefix.length) : message;
+}

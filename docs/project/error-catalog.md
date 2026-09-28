@@ -10,7 +10,7 @@
 | `alignment_pending` | 会话仍等待回答、生成或确认 | 不重复生成 | 继续当前问题、确认方案或关闭对齐 |
 | `invalid_payload` / `invalid_option` | 缺少字段、选项不属于当前问题 | 不保存 | 检查当前问题和补充说明 |
 | `not_configured` | 模型密钥或模型名未配置 | 不伪造修改 | 配置模型后重新提交 |
-| `timeout` / `provider_error` / `invalid_output` | 模型超时、服务异常或结构化输出不合法 | 不自动覆盖草稿 | 先读取状态，再按提示重试；不会写 HTML/CSS |
+| `timeout` / `provider_error` / `invalid_output` | 模型超时、服务异常或结构化输出不合法 | 不自动覆盖草稿 | 先读取状态，再按提示重试；未经校验的内容不会写进页面 |
 | `operation_error` | 受控 operation 校验或保存失败 | 草稿保持原版本 | 读取最新草稿后再试，不确认旧方案 |
 | `image_invalid` | 图片格式、大小、来源、许可证或归属不符合 | 图片不进入成品 | 上传有效图片并补齐来源、许可、作者和站点用途 |
 | `lead_invalid` | 访客提交的询盘缺姓名、邮箱或需求说明 | 不保存 | 询盘内容不完整；检查后再提交 |
