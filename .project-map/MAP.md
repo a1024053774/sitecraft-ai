@@ -9,7 +9,7 @@
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-033](tickets/T-033-roles-after-claude.md)，取代 T-013）：负责人只定方向和需求，不做盲评和审核。Kiro 做规划与执行，并负责整合、提交和推送；Cursor 的两个 Grok agent 可分担执行；不同 harness 互相验收；前端盲评交给 Codex（Astra）；Claude Code 不排工。
-- 现状（2026-09-26）：主链能走通（资料 → 可选需求对齐 → 确认 → `commitOperations` → 预览 → 修改/撤销 → 发布页）。四个视觉族有首页 overlay，各 4 套色板。工程工业样板做到 v5（截图在 `artifacts/overlay-sample-20260924/*-v5.png`）：模拟资料已加厚，产品照片许可已核，但厚资料的两份样板丢了询盘区，整页仍像一张资料表。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md) 和 [review-2026-09-24.md](../docs/project/review-2026-09-24.md)，只供追溯。
+- 现状（2026-09-28）：主链能走通。新建站点从模板页的四个样子背后模板进入（T-036、T-044），默认开启需求对齐，第 1 轮固定问样子和目录色彩集（T-034）；资料 → 对齐 → 确认 → `commitOperations` → 预览 → 修改/撤销 → 发布页 → 询盘都在浏览器里实测过。四个视觉族各有首页 overlay 和 6 套色彩集色板。2026-09-28 Codex 盲评 8 个样本（两份模拟资料 × 四个样子）2 PASS 6 NO_GO，主要问题是访客页的缺口说明和元话术（T-045）、首屏孤字和手机公司名截断（T-046），另指出同一样子换公司资料后品牌差异不明显（未定，见 Not yet specified）。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md) 和 [review-2026-09-24.md](../docs/project/review-2026-09-24.md)，只供追溯。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 
@@ -40,6 +40,8 @@
 - 子页面的同族 overlay、`fresh` kit。
 - 按资料多少选择不同的区块变体。
 - 生成站动效、改标题（评审 P0-5、P0-6）。
+- 同一个样子里，不同公司怎么拉开品牌差异（2026-09-28 盲评：四对样本版式和颜色近乎复用）。
+- 按现在的生成路径要不要重跑 12 组对照（intent §4；上次 2026-09-18 负责人盲评不过之后没有重跑）。
 
 ## Out of scope
 
