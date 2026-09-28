@@ -2,7 +2,7 @@
 id: T-046
 title: 首屏标题不留孤字，手机上公司名不被截断
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: grok-a
 supersedes:
@@ -24,7 +24,7 @@ supersedes:
 - [x] `check-published.mjs` 加断言：首屏标题最后一行不是孤字；页头公司名没有被截断
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 盲评样本站点（`artifacts/blind-20260928/samples-*.json` 里的 8 个 id）跑 `check-published.mjs` 通过，截图打开看过
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -39,3 +39,6 @@ supersedes:
 实现提交：本 commit。
 
 跨 harness 审核：
+
+独立审核：Kiro，2026-09-28 17:02，PASS（`3476328` 之后新跑）。Kiro 自己的探针（`artifacts/kiro-browse/hero-brand-probe.js`：逐字量首屏标题的行，另查公司名是否被截断、是否还是 nowrap+ellipsis、页头是否溢出）在 T-045 重新生成的 8 个站和原盲评里出孤字的两个站（`4f4e932b`、`bc281787`）上各跑 1440 / 768 / 375，共 30 次，0 处问题。截图：「重载减速 / 机按图加工」「不锈钢快 / 换接头目录」两行均衡（`artifacts/t046-review-kiro/hero-*-1440.png`）；375 上「外高桥流体接头 / P3E」完整换行，没有省略号，旁边的语言切换和菜单按钮不挤（`header-export-375.png`）。`npm test`、`npm run typecheck`、`npm run build` 通过。
+
