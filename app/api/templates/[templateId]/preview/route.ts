@@ -13,7 +13,7 @@ function escapeAttribute(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
 }
 
-function prepareHtml(html: string, baseUrl: string, templateId: string, local = false) {
+function prepareHtml(html: string, baseUrl: string, templateId: string, local = false, editor = false) {
   const assetBase = `/api/templates/${encodeURIComponent(templateId)}/assets/`;
   const rewritten = local
     ? html
@@ -27,15 +27,16 @@ function prepareHtml(html: string, baseUrl: string, templateId: string, local = 
   const normalized = sourceHtml
     .replace(/<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi, "")
     .replace(/<base\b[^>]*>/gi, "");
-  const injection = `${base}<meta name="sitecraft-template" content="${escapeAttribute(templateId)}"><style>html{scroll-behavior:smooth}body{min-height:100vh}[class*="scroll-fade"],[class*="fade-up"],[class*="reveal"],[data-aos]{opacity:1!important;visibility:visible!important;transform:none!important}[data-sitecraft-slot]{cursor:pointer}[data-sitecraft-slot]:hover{outline:2px solid rgba(46,107,79,.45);outline-offset:3px}</style>`;
+  const injection = `${base}<meta name="sitecraft-template" content="${escapeAttribute(templateId)}"><style>html{scroll-behavior:smooth}body{min-height:100vh}[class*="scroll-fade"],[class*="fade-up"],[class*="reveal"],[data-aos]{opacity:1!important;visibility:visible!important;transform:none!important}</style>`;
   const finalStateStyle = `<style>html body [class*="scroll-fade"],html body [class*="fade-up"],html body [class*="reveal"],html body [data-aos]{opacity:1!important;visibility:visible!important;transform:none!important}</style>`;
+  const editorChrome = editor ? `<style>[data-sitecraft-slot]{cursor:pointer}[data-sitecraft-slot]:hover{outline:2px solid rgba(46,107,79,.45);outline-offset:3px}</style>` : "";
   const bridge = buildPreviewBridgeScript(templateId, getTemplateAdapter(templateId) ?? null);
   if (/<head\b[^>]*>/i.test(normalized)) {
     return normalized
-      .replace(/<head\b([^>]*)>/i, `<head$1>${injection}`)
+      .replace(/<head\b([^>]*)>/i, `<head$1>${injection}${editorChrome}`)
       .replace(/<\/body\s*>/i, `${finalStateStyle}${bridge}</body>`);
   }
-  return `<!doctype html><html><head>${injection}</head><body>${normalized}${finalStateStyle}${bridge}</body></html>`;
+  return `<!doctype html><html><head>${injection}${editorChrome}</head><body>${normalized}${finalStateStyle}${bridge}</body></html>`;
 }
 
 export async function GET(
@@ -51,6 +52,7 @@ export async function GET(
   if (segments === null) {
     return new Response("Invalid template page path", { status: 400 });
   }
+  const editor = new URL(request.url).searchParams.get("editor") === "1";
   const pageSegments = segments.length ? segments : ["index.html"];
   const localPage = await readTemplateStaticFile(template.id, pageSegments);
   if (requestedPath && !localPage) {
@@ -61,7 +63,7 @@ export async function GET(
   }
   const localIndex = localPage;
   if (localIndex) {
-    const html = prepareHtml(localIndex.body.toString("utf8"), template.source.demoUrl, template.id, true);
+    const html = prepareHtml(localIndex.body.toString("utf8"), template.source.demoUrl, template.id, true, editor);
     return new Response(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
@@ -88,7 +90,7 @@ export async function GET(
     if (!response.ok) throw new Error(`upstream status ${response.status}`);
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html")) throw new Error("upstream did not return HTML");
-    const html = prepareHtml(await response.text(), response.url, template.id);
+    const html = prepareHtml(await response.text(), response.url, template.id, false, editor);
     const demoOrigin = new URL(response.url).origin;
     return new Response(html, {
       headers: {
@@ -105,7 +107,7 @@ export async function GET(
     if (template.id === "yukina") {
       const fallbackHtml = `<!doctype html><html lang="zh"><head><meta name="viewport" content="width=device-width"><style>*{box-sizing:border-box}body{margin:0;background:#f4f5f3;font:14px system-ui;color:#263238}.note{padding:10px 16px;background:#263238;color:white;text-align:center}.preview{display:block;width:100%;height:auto}</style></head><body><div class="note">Yukina 官方 README 预览 · 上游内容集合缺失，暂用官方全页预览图</div><main><section><h1>企业内容与品牌故事</h1><p>当前模板使用官方预览图，结构化内容仍会保存并回报可用槽位。</p></section><img class="preview" src="https://s2.loli.net/2025/01/26/S4URrsj9TFgOKAp.webp" alt="Yukina template official preview"></main></body></html>`;
       return new Response(
-        prepareHtml(fallbackHtml, template.source.demoUrl, template.id),
+        prepareHtml(fallbackHtml, template.source.demoUrl, template.id, false, editor),
         { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": PREVIEW_CACHE_CONTROL } },
       );
     }

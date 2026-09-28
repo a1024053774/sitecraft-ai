@@ -184,7 +184,11 @@ const INSPECT = `(async () => {
   // On a phone the header must still offer navigation: a visible link or a menu toggle.
   const header = document.querySelector('[data-sitecraft-section="nav"]') || document.querySelector("header");
   const headerNav = header ? [...header.querySelectorAll("a[href^='#'], summary, button")].filter((el) => visible(el) && !el.closest("[data-sitecraft-locale-switch]") && el.getAttribute("href") !== "#top" && !el.closest(".sitecraft-brand")).length : 0;
+  const editableSlot = [...document.querySelectorAll("[data-sitecraft-slot]")].find((el) => !el.closest("a, button, summary, label, input, select, textarea"));
+  const previewCss = [...document.querySelectorAll("style")].map((node) => node.textContent || "").join("");
   return {
+    editorCursor: editableSlot ? getComputedStyle(editableSlot).cursor : "",
+    editorHoverOutline: previewCss.includes("[data-sitecraft-slot]:hover{") && previewCss.includes("outline:"),
     heroPhotoCovered,
     numbering,
     phoneNav: innerWidth >= 500 || headerNav > 0,
@@ -203,6 +207,8 @@ const INSPECT = `(async () => {
 
 function judge(report, expectedText) {
   const failures = [];
+  if (report.editorCursor === "pointer") failures.push("visitor slot uses a pointer cursor");
+  if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
   if (report.heroPhotoCovered) failures.push("something is drawn on top of the hero photo");
   if (report.numbering) failures.push(`decorative section numbers visible (${report.numbering})`);
   if (!report.phoneNav) failures.push("no navigation or menu in the header at phone width");

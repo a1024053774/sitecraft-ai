@@ -62,7 +62,7 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
 // Bump when the local snapshot/host overlay contract changes. Keeping this in
 // the iframe URL prevents a browser from showing an older template shell after
 // the runtime asset bundle has been rebuilt.
-const PREVIEW_ASSET_REVISION = "20260927-technical-short-path-v8";
+const PREVIEW_ASSET_REVISION = "20260928-visitor-no-editor-chrome";
 export { PREVIEW_TIMEOUT_MS, PREVIEW_CHROME_HINT };
 
 export function OpenSourceTemplateFrame({
@@ -263,6 +263,7 @@ export function OpenSourceTemplateFrame({
 
   const previewQuery = new URLSearchParams({ v: PREVIEW_ASSET_REVISION });
   if (pagePath) previewQuery.set("pagePath", pagePath);
+  if (variant === "workspace") previewQuery.set("editor", "1");
 
   const retry = () => {
     setAttempt((value) => value + 1);
