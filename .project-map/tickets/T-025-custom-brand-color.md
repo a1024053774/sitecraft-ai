@@ -30,6 +30,6 @@ supersedes:
 
 相关检查：`npm run typecheck` 通过；`npm test` 250/250 通过；`npm run build` 通过。
 
-实现提交：待提交后填写 SHA。
+实现提交：`06db72e`。
 
 独立审核：grok-b，2026-09-27，PASS，`node scripts/check-custom-brand-color.mjs artifacts/t025-review-grokb`（在 `06db72e` 之后）。浅色 `#f4fbff`、深色 `#111827`、高饱和 `#ff00aa` 的正文与白字按钮对比均不低于 4.5:1。Logo 来源写入 `source: logo`，调整说明为已压暗强调色。撤销后 `customPalette` 为空。发布页 HTML 含 `#007bc1`。`npm test` 250/250，`npm run typecheck` 与 `npm run build` 通过。
