@@ -95,12 +95,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 协作
 
-分工（2026-09-26 负责人决定，见 `.project-map/tickets/T-013-roles-and-review.md`）：
+分工（2026-09-28 负责人决定，见 `.project-map/tickets/T-033-roles-after-claude.md`，取代 T-013）：
 
 - **负责人**：只定方向和需求，不做盲评和审核。
-- **Claude（主负责人）**：所有视觉和界面工作（生成站 overlay、色板、工作台），整合、提交和推送。
-- **Astra（Codex）**：不涉及界面的工程逻辑，例如需求对齐协议、生成与 operation、中英文生成、色板生成规则。功能需要界面配合时，只做让功能能用的最小界面，外观留给界面票。
-- **两个 Grok 4.7 agent（Cursor）**：独立审核（盲评、代码审核、票的验收）和调研。审核者不能审自己参与过的工作。
+- **Kiro（主负责人）**：整体规划与执行，整合、提交和推送。
+- **两个 Grok 4.7 agent（Cursor）**：分担 Kiro 委派的执行票，并审核 Kiro 做的票；调研。
+- **Astra（Codex）**：前端页面盲评。
+- **Claude Code**：不排工。
+
+不同 harness 之间互相验收：Kiro 做的票由 Grok 审，Grok 做的票由 Kiro 审；审核者不能审自己参与过的工作。
 
 规则：
 

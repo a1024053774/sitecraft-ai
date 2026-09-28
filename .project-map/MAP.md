@@ -2,13 +2,13 @@
 
 ## Destination
 
-工程工业样板经独立盲评通过；新建站点走需求对齐的多题卡片，在第 1 轮选样子和色彩集；工作台按方向 B 改版（含手机逐题抽屉、深浅主题）；中英文一起生成。完成标志是 T-016 至 T-032 全部关闭。需求见 [intent.md](../docs/project/intent.md)，规格见 [spec.md](../docs/project/spec.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
+工程工业样板经独立盲评通过；新建站点走需求对齐的多题卡片，在第 1 轮选样子和色彩集；工作台按方向 B 改版（含手机逐题抽屉、深浅主题）；中英文一起生成。完成标志是 T-016 至 T-032 全部关闭，并且 2026-09-28 浏览器实操验收发现的缺口（T-034 至 T-042）全部关闭。需求见 [intent.md](../docs/project/intent.md)，规格见 [spec.md](../docs/project/spec.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
 
 ## Notes
 
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
-- 分工（[T-013](tickets/T-013-roles-and-review.md)）：负责人只定方向和需求，不做盲评和审核。Claude 做所有视觉和界面工作，并负责整合；Codex 的 Astra 做不涉及界面的工程逻辑；Cursor 的两个 Grok agent 做独立审核和调研。
+- 分工（[T-033](tickets/T-033-roles-after-claude.md)，取代 T-013）：负责人只定方向和需求，不做盲评和审核。Kiro 做规划与执行，并负责整合、提交和推送；Cursor 的两个 Grok agent 可分担执行；不同 harness 互相验收；前端盲评交给 Codex（Astra）；Claude Code 不排工。
 - 现状（2026-09-26）：主链能走通（资料 → 可选需求对齐 → 确认 → `commitOperations` → 预览 → 修改/撤销 → 发布页）。四个视觉族有首页 overlay，各 4 套色板。工程工业样板做到 v5（截图在 `artifacts/overlay-sample-20260924/*-v5.png`）：模拟资料已加厚，产品照片许可已核，但厚资料的两份样板丢了询盘区，整页仍像一张资料表。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md) 和 [review-2026-09-24.md](../docs/project/review-2026-09-24.md)，只供追溯。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
@@ -27,7 +27,8 @@
 - [T-010 模拟资料包要多厚，照片用什么许可](tickets/T-010-simulated-pack-thickening.md)：加厚并标为模拟；CC0/公有领域/CC-BY/CC-BY-SA，内容必须对得上
 - [T-011 生成站用什么浏览器看](tickets/T-011-review-browser.md)：用 Chrome；预览被拦截时报错并提示
 - [T-012 待办以哪里为准](tickets/T-012-todo-source.md)：project-map 取代 plan.md
-- [T-013 谁做什么，谁来审核](tickets/T-013-roles-and-review.md)：Claude 做界面，Astra 做逻辑，Grok 做审核和调研；负责人不做审核
+- [T-013 谁做什么，谁来审核](tickets/T-013-roles-and-review.md)：Claude 做界面，Astra 做逻辑，Grok 做审核和调研；负责人不做审核（已被 T-033 取代）
+- [T-033 2026-09-28 起谁做什么](tickets/T-033-roles-after-claude.md)：Kiro 规划执行，Grok 分担执行，跨 harness 互相验收，Codex 盲评，Claude Code 不排工
 - [T-014 工程工业样板怎么做](tickets/T-014-sample-prototype-first.md)：先出两个方向的原型，盲评选一个，再实现
 - [T-015 调研真实工业企业官网的版式](tickets/T-015-real-industrial-site-research.md)：首页是实拍加产品族入口，参数收在范围或选型工具里；没有照片就做不了现场图和证书墙
 - [T-017 工程工业样板两个方向的原型](tickets/T-017-engineering-sample-prototypes.md)：盲评选「样本册」（白底产品族卡片、关键参数在卡上、完整参数收起），借用首屏规格条和独立询盘底
