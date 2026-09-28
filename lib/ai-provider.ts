@@ -3,6 +3,7 @@ import { z } from "zod";
 import { familyModuleInventory, visibilityKeys } from "@/lib/site-document";
 import { declaredFamilySections } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
+import { plainSummary } from "@/lib/workspace-copy";
 import {
   inspectPreviewScreenshot,
   parsePreviewReview,
@@ -426,7 +427,7 @@ function successResult(data: AIIntentResponse, args: {
   return {
     ok: true,
     type: "edit",
-    summary: data.summary,
+    summary: plainSummary(data.summary, validated.operations),
     operations: validated.operations,
     rejected: validated.rejected,
     model: args.model,

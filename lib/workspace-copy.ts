@@ -82,3 +82,24 @@ export function describePreviewGaps(args: {
     change: parts.join("；"),
   };
 }
+
+const INTERNAL_WORDS = /HTML|CSS|URL|网址|快照|模板|槽位|槽|字段|声明|slot|operation|schema/i;
+
+function operationLabel(operation: { op?: unknown; target?: unknown; section?: unknown }) {
+  if (operation.op === "set_page_plan") return "页面规划";
+  if (operation.op === "set_palette" || operation.op === "set_custom_palette") return "配色";
+  if (operation.op === "set_visual_brief") return "样子";
+  if (operation.op === "replace_products" || operation.op === "update_product" || operation.op === "set_product_specs") return "产品";
+  if (operation.op === "set_catalog_section" && typeof operation.section === "string") return changeTargetLabel(operation.section);
+  if (typeof operation.target === "string") return changeTargetLabel(operation.target);
+  if (typeof operation.section === "string") return changeTargetLabel(operation.section);
+  return "";
+}
+
+// The model's summary is shown to the user. When it talks about templates, snapshots or HTML, show
+// the page parts that changed instead.
+export function plainSummary(summary: string, operations: Array<{ op?: unknown; target?: unknown; section?: unknown }>) {
+  if (!INTERNAL_WORDS.test(summary)) return summary;
+  const parts = [...new Set(operations.map(operationLabel).filter(Boolean))];
+  return parts.length ? `已更新：${parts.join("、")}` : "已更新页面内容";
+}

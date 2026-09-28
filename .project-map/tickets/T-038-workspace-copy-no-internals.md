@@ -48,3 +48,6 @@ spec §3.4：不向用户暴露字段路径。
 同一站点再发「只把关于标题改为公司简介，其他内容不变」，提示是「当前样子没有位置显示：关于我们标题」，没有字段路径（`05-gap-message-1440.png`）。「已保存的问答」只有「明亮产品」「青花瓷」。资料气泡在 T-037 实测里是资料正文，没有「【公司资料】以下内容明确标记」。产品图上传区仍有「校验 magic bytes」，这次不据此否决。
 
 命令：`node --test --experimental-strip-types tests/workspace-copy.test.ts` 5/5；`npm test` 304/304；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t038-review-grokb/`。
+
+修复（Kiro，2026-09-28 16:10）：按 grok-b 的复现修。模型自己写的修改摘要会直接显示给用户，里面提到模板、快照、HTML、网址、槽位、字段时，改成列出这次改动的页面部分（`lib/workspace-copy.ts` 的 `plainSummary`，在 `lib/ai-provider.ts` 生成结果时套用）；产品图上传提示去掉「校验 magic bytes」和站点 id。红态 16:06 `tests/workspace-copy.test.ts` 新增两项失败；绿态 7/7，`npm test` 307/307，`npm run typecheck`、`npm run build` 通过。浏览器 1440：在 grok-b 用的站点 `19cef2c7-dbc6-4cd3-8e75-4fe94610685f` 上发「请增加独立认证页和资料下载页」，提示为「已把认证内容放到首页的认证区块里展示；独立认证页和资料下载页当前样子做不出来，先列为待支持」+「当前样子没有位置显示：认证」，对话面板里搜不到 HTML、网址、URL、快照、槽位、commitOperations、magic（`artifacts/t038/unsupported-summary-1440.png`、`image-modal-1440.png`）。
+

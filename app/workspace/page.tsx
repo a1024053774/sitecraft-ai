@@ -1613,8 +1613,8 @@ export default function WorkspacePage() {
               />
               <div className="upload-icon"><CloudUpload size={20} /></div>
               <strong>点击上传真实产品照片</strong>
-              <span>PNG / JPEG / WebP · 校验 magic bytes · 单张不超过 10MB</span>
-              <small>归属站点 {siteId} · 默认按用户提供、仅当前站点使用保存</small>
+              <span>PNG / JPEG / WebP · 单张不超过 10MB</span>
+              <small>只保存在这个站点下，按用户提供的图片使用</small>
             </div>
             <div className="image-library" data-testid="site-image-list">
               {siteImages.length === 0 ? <span>当前站点还没有已上传的图。</span> : siteImages.map((image) => (
