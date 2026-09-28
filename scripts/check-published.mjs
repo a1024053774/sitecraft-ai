@@ -184,6 +184,36 @@ const INSPECT = `(async () => {
   // On a phone the header must still offer navigation: a visible link or a menu toggle.
   const header = document.querySelector('[data-sitecraft-section="nav"]') || document.querySelector("header");
   const headerNav = header ? [...header.querySelectorAll("a[href^='#'], summary, button")].filter((el) => visible(el) && !el.closest("[data-sitecraft-locale-switch]") && el.getAttribute("href") !== "#top" && !el.closest(".sitecraft-brand")).length : 0;
+  function textLines(el) {
+    const node = el && [...el.childNodes].find((item) => item.nodeType === 3 && (item.textContent || "").trim());
+    if (!node) return [];
+    const value = node.textContent || "";
+    const range = document.createRange();
+    const lines = [];
+    let line = "";
+    let lastTop = null;
+    for (let index = 0; index < value.length; index += 1) {
+      range.setStart(node, index);
+      range.setEnd(node, index + 1);
+      const top = Math.round(range.getBoundingClientRect().top);
+      if (lastTop !== null && Math.abs(top - lastTop) > 1) {
+        lines.push(line);
+        line = value[index];
+      } else line += value[index];
+      lastTop = top;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+  const heroLines = textLines(document.querySelector(".sitecraft-hero h1"));
+  const heroLast = (heroLines[heroLines.length - 1] || "").split(" ").join("");
+  const heroOrphan = heroLines.length > 1 && Array.from(heroLast).length < 2;
+  const headerControls = header ? [...header.querySelectorAll(".sitecraft-nav-cta, summary")].filter((el) => visible(el)) : [];
+  const headerControlStacked = headerControls.some((el) => textLines(el).length > 1);
+  const brand = document.querySelector(".sitecraft-brand-name");
+  const brandClipped = Boolean(brand && brand.scrollWidth > brand.clientWidth + 1);
+  const siteHeader = document.querySelector(".sitecraft-nav") || document.querySelector("header");
+  const headerOverflow = Boolean(siteHeader && (siteHeader.scrollWidth > siteHeader.clientWidth + 1 || siteHeader.getBoundingClientRect().right > innerWidth + 1));
   const editableSlot = [...document.querySelectorAll("[data-sitecraft-slot]")].find((el) => !el.closest("a, button, summary, label, input, select, textarea"));
   const previewCss = [...document.querySelectorAll("style")].map((node) => node.textContent || "").join("");
   const cardOverflow = [];
@@ -207,6 +237,10 @@ const INSPECT = `(async () => {
     horizontalScroll: document.documentElement.scrollWidth > innerWidth + 1,
     cardOverflow: cardOverflow.length,
     cardOverflowSample: cardOverflow.slice(0, 6),
+    heroOrphan,
+    brandClipped,
+    headerOverflow,
+    headerControlStacked,
     heroPhotoCovered,
     numbering,
     phoneNav: innerWidth >= 500 || headerNav > 0,
@@ -229,6 +263,10 @@ function judge(report, expectedText) {
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
   if (report.horizontalScroll) failures.push("visitor page scrolls horizontally");
   if (report.cardOverflow) failures.push(`card content overflows its card (${report.cardOverflow}: ${(report.cardOverflowSample || []).join(", ")})`);
+  if (report.heroOrphan) failures.push("hero title last line is a single character");
+  if (report.brandClipped) failures.push("header company name is truncated");
+  if (report.headerOverflow) failures.push("header overflows the viewport");
+  if (report.headerControlStacked) failures.push("header control text wraps inside its button");
   if (report.heroPhotoCovered) failures.push("something is drawn on top of the hero photo");
   if (report.numbering) failures.push(`decorative section numbers visible (${report.numbering})`);
   if (!report.phoneNav) failures.push("no navigation or menu in the header at phone width");

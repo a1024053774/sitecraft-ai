@@ -19,11 +19,23 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 四个样子的首屏标题在 1440 / 768 / 375 下最后一行不少于 2 个字（用 `text-wrap: balance` 或等效办法）
-- [ ] 375 下公司名完整显示（可以换行或缩小字号），不出现省略号，页头不溢出
-- [ ] `check-published.mjs` 加断言：首屏标题最后一行不是孤字；页头公司名没有被截断
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 盲评样本站点（`artifacts/blind-20260928/samples-*.json` 里的 8 个 id）跑 `check-published.mjs` 通过，截图打开看过
+- [x] 四个样子的首屏标题在 1440 / 768 / 375 下最后一行不少于 2 个字（用 `text-wrap: balance` 或等效办法）
+- [x] 375 下公司名完整显示（可以换行或缩小字号），不出现省略号，页头不溢出
+- [x] `check-published.mjs` 加断言：首屏标题最后一行不是孤字；页头公司名没有被截断
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 盲评样本站点（`artifacts/blind-20260928/samples-*.json` 里的 8 个 id）跑 `check-published.mjs` 通过，截图打开看过
 - [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
+
+2026-09-28 16:40（UTC-4）。四个 overlay 的页头公司名去掉 `ellipsis` / `nowrap`，可以换行。灰底短路径首屏标题加上 `text-wrap: balance`（另外三个样子原来就有）。窄屏上灰底短路径的「联系」和「菜单」不收缩、不换行，长公司名不再把这两个按钮挤成竖排。
+
+红态（16:33，对 HEAD 的 overlay 和 `scripts/check-published.mjs`）：`node --test --experimental-strip-types tests/headline-orphans.test.ts` 失败，`forge.index.html still ellipsizes the brand name`，exit 1。
+
+绿态：同一命令通过（16:33）。`npm run typecheck` 通过（16:33）。`npm test` 313/313 通过（16:34）。`npm run build` 通过（16:40）。
+
+`node scripts/check-published.mjs --out artifacts/published-check/t046`，站点为 `samples-industrial.json` 与 `samples-export.json` 里的 8 个 id，24/24 通过（16:33–16:39，exit 0）。看过 1440/768/375：灰底短路径「重载减速机按图加工」分成「重载减速 / 机按图加工」，「不锈钢快换接头目录」分成「不锈钢快 / 换接头目录」；375 页头公司名完整，「联系」「菜单」横排。另外三个样子的公司名换行后是全称，没有省略号。
+
+实现提交：本 commit。
+
+跨 harness 审核：
