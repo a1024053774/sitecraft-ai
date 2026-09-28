@@ -11,7 +11,9 @@ test("short-path product photos are cropped inside the card", () => {
   assert.match(rule[0], /max-width:100%/);
   assert.match(rule[0], /object-fit:cover/);
   assert.match(checkSource, /visitor page scrolls horizontally/);
-  assert.match(checkSource, /product image overflows its card/);
+  assert.match(checkSource, /\.sitecraft-product-card, \.sitecraft-catalog-card/);
+  assert.match(checkSource, /overflowX === "hidden"/);
+  assert.match(checkSource, /card content overflows its card/);
   assert.match(checkSource, /inquiry screenshot is blank/);
   assert.doesNotMatch(checkSource, /width !== 768/);
 });

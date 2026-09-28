@@ -38,3 +38,5 @@ supersedes:
 - 通过：灰底短路径产品图在卡内裁切。Kiro 用通用溢出探针（任一可见元素越过视口、或越过所在卡片且没有被祖先裁掉）在四个样板站 × 1440/768/375 上跑，12 次都是 0 处（`artifacts/kiro-browse/overflow-probe.js`）。`--submit` 的 24 张询盘图都不空，抽看 `palette-sample-technical-graphite-1440-inquiry-error.png`、`palette-sample-export-porcelain-768-inquiry-sent.png`，表单和提示都在。`npm test` 289/289（14:25，含本提交）。
 - 不通过：验收第 2 项要求「访客页没有元素宽出视口或宽出所在卡片」。现在的断言只查 `.sitecraft-product-image` 越过 `.sitecraft-product-card`，外加文档横向滚动。但 overlay 给 `html,body` 设了 `overflow-x:hidden`，像本票那种被裁掉的溢出，横向滚动检查抓不到；参数表、长英文词、目录卡里的其他元素溢出也不会报。请把卡片检查推广到 `.sitecraft-product-card`、`.sitecraft-catalog-card` 里的所有可见元素（卡内有 `overflow:hidden` 祖先的不算），再跑四个样板站确认没有误报。
 
+2026-09-28 15:07（UTC-4）。卡片溢出改为检查 `.sitecraft-product-card` 和 `.sitecraft-catalog-card` 里每个可见元素是否宽出卡片；卡内 `overflow-x: hidden` 或 `clip` 的祖先下面的元素不计。`node --test --experimental-strip-types tests/technical-product-image.test.ts` 在改动前失败（脚本里没有目录卡选择器），改完通过。`node scripts/check-published.mjs --out artifacts/published-check/t040-cards palette-sample-industrial-porcelain palette-sample-engineering-warm-orange palette-sample-export-porcelain palette-sample-technical-graphite` 12/12 通过，`cardOverflow` 都是 0。
+

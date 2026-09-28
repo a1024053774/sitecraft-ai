@@ -186,17 +186,27 @@ const INSPECT = `(async () => {
   const headerNav = header ? [...header.querySelectorAll("a[href^='#'], summary, button")].filter((el) => visible(el) && !el.closest("[data-sitecraft-locale-switch]") && el.getAttribute("href") !== "#top" && !el.closest(".sitecraft-brand")).length : 0;
   const editableSlot = [...document.querySelectorAll("[data-sitecraft-slot]")].find((el) => !el.closest("a, button, summary, label, input, select, textarea"));
   const previewCss = [...document.querySelectorAll("style")].map((node) => node.textContent || "").join("");
-  const productImageOverflow = [...document.querySelectorAll(".sitecraft-product-image")].filter((img) => {
-    const card = img.closest(".sitecraft-product-card");
-    const imageBox = img.getBoundingClientRect();
-    const limit = card ? card.getBoundingClientRect().right : innerWidth;
-    return imageBox.width > 2 && imageBox.right > limit + 1;
-  }).length;
+  const cardOverflow = [];
+  for (const card of document.querySelectorAll(".sitecraft-product-card, .sitecraft-catalog-card")) {
+    for (const el of card.querySelectorAll("*")) {
+      if (!visible(el)) continue;
+      let clipped = false;
+      for (let parent = el.parentElement; parent && parent !== card; parent = parent.parentElement) {
+        const overflowX = getComputedStyle(parent).overflowX;
+        if (overflowX === "hidden" || overflowX === "clip") { clipped = true; break; }
+      }
+      if (clipped) continue;
+      const box = el.getBoundingClientRect();
+      const bounds = card.getBoundingClientRect();
+      if (box.width > 2 && (box.right > bounds.right + 1 || box.left < bounds.left - 1)) cardOverflow.push(el.tagName.toLowerCase());
+    }
+  }
   return {
     editorCursor: editableSlot ? getComputedStyle(editableSlot).cursor : "",
     editorHoverOutline: previewCss.includes("[data-sitecraft-slot]:hover{") && previewCss.includes("outline:"),
     horizontalScroll: document.documentElement.scrollWidth > innerWidth + 1,
-    productImageOverflow,
+    cardOverflow: cardOverflow.length,
+    cardOverflowSample: cardOverflow.slice(0, 6),
     heroPhotoCovered,
     numbering,
     phoneNav: innerWidth >= 500 || headerNav > 0,
@@ -218,7 +228,7 @@ function judge(report, expectedText) {
   if (report.editorCursor === "pointer") failures.push("visitor slot uses a pointer cursor");
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
   if (report.horizontalScroll) failures.push("visitor page scrolls horizontally");
-  if (report.productImageOverflow) failures.push("product image overflows its card");
+  if (report.cardOverflow) failures.push(`card content overflows its card (${report.cardOverflow}: ${(report.cardOverflowSample || []).join(", ")})`);
   if (report.heroPhotoCovered) failures.push("something is drawn on top of the hero photo");
   if (report.numbering) failures.push(`decorative section numbers visible (${report.numbering})`);
   if (!report.phoneNav) failures.push("no navigation or menu in the header at phone width");
