@@ -2,7 +2,7 @@
 id: T-047
 title: 灰底短路径桌面版的字号和留白
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: grok-a
 supersedes:
@@ -26,7 +26,7 @@ supersedes:
 - [x] 只有标题的目录卡更紧凑，区块间距收紧到和其他样子相近；375 不是缩小的桌面版（单列、字号正常）
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 灰底短路径的两个样本站（`543a6783-…`、`7809b283-07ae-4254-9f75-272ce53e0e2d`）和 `palette-sample-technical-graphite` 跑 `check-published` 通过，1440 / 768 / 375 截图打开看过
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution；之后交 Codex 盲评
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution；之后交 Codex 盲评
 
 ## Resolution
 
@@ -41,3 +41,6 @@ supersedes:
 实现提交：本 commit。
 
 跨 harness 审核：
+
+独立审核：Kiro，2026-09-28 18:10，PASS（`a386a8a` 之后新跑）。1440：两个没有照片的站首屏右侧是参数铭牌，graphite 样板是产品照片；产品参数 14px，标签 / 数值两列；「全部参数」「询这款规格」是蓝色链接；区块内边距 64px；只有标题的目录卡变矮（`artifacts/t047-review-kiro/543a6783-1440-*.png`）。375：正文 16px，产品卡 343px 单列，铭牌逐行，没有横向溢出（`543a6783-375-00.png`）。`node scripts/check-published.mjs --out artifacts/published-check/t047-review-kiro 543a6783-7b9a-437b-99c5-39b93a53e72a 7809b283-07ae-4254-9f75-272ce53e0e2d palette-sample-technical-graphite` 9/9 ok；`npm test` 315/315。已把这三个站匿名后交 Codex 盲评（`artifacts/blind-20260928-r3/`）。
+
