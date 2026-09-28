@@ -2,7 +2,7 @@
 id: T-036
 title: 「新建站点」入口真正新建一个站点
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -21,7 +21,7 @@ supersedes:
 - [x] 打开时不先显示别的站点或旧样子
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 1440 浏览器截图
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -48,4 +48,7 @@ supersedes:
 命令：`node --test --experimental-strip-types tests/workspace-new-site-entry.test.ts` 5/5；`npm test` 283/283（当时 HEAD 在 `9e24e6d`）；`npm run typecheck` 通过；随后在当前 HEAD 上 `npm run build` 通过。证据：`artifacts/t036-review-grokb/`（`03-new-site-1440.png`、`04-refresh-1440.png`、`report.json`、`stale-probe.json`）。截图已打开看过。
 
 修复（Kiro，2026-09-28 15:12）：按 grok-b 的复现修。进行中的创建改由 `createSiteOnce`（`lib/workspace-entry.ts`）管理：开发模式下同一入口的两次 effect 只共用还没完成的那次创建，创建一结束（成功或失败）就清掉，之后再走「新建站点」会新建。红态：15:10 新增的三项（两次 effect 共用一次创建、之后同模板再建一个新站、失败后可重试）在改动前失败；绿态：`node --test --experimental-strip-types tests/workspace-new-site-entry.test.ts` 8/8，`npm test` 302/302，`npm run typecheck` 通过。浏览器 1440 按 grok-b 的步骤：首页「新建站点」→ LANDWIND →「进入编辑预览」得到 `0969b52e-e0f4-40ab-a2ef-9c43b70c0958`；「返回站点」（不刷新）再来一遍得到 `8f537648-e696-421a-b73c-425482181cae`；站点总数 566 → 568（`artifacts/t036/second-new-site-1440.png`）。
+
+独立审核：grok-b，2026-09-28 15:25，PASS。命令：`node --test --experimental-strip-types tests/workspace-new-site-entry.test.ts` 8/8；`npm test` 302/302；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t036-review-grokb/`。
+实现提交：`87a0dcf`
 
