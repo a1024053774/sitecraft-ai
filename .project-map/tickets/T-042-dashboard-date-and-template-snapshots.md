@@ -37,4 +37,11 @@ GENAI 要么补齐本地快照，要么按 T-026 的规则标为「仅有上游�
 
 实现提交：`28d86321d47a2ee76d6cc71966bd29630d46cc2e`。
 
-跨 harness 审核：留空。
+跨 harness 审核：Kiro，2026-09-28 11:42，NO_GO（`28d8632` 之后新跑）。
+
+- 通过的部分：首页没有日期戳；GENAI 和 TAILCAST 缩略图有样式（`artifacts/t042-review-kiro/templates-genai-1440.png`）；`node --test --experimental-strip-types tests/template-snapshot-assets.test.ts` 5/5；GENAI 的 `about.yA3EGTjS.css` 200，TAILCAST 字体带 `Access-Control-Allow-Origin: *`；submodule SHA 与本票一致，GENAI `LICENSE` 为 MIT，TAILCAST `package.json` 写 MIT（仓库里的许可文件是小写 `license`）。
+- 不通过：验收第 2 项是「每张挂 iframe 的缩略图都完整显示样式，没有 404 资源」。在 1440 打开 `/templates`、滚完整页，缩略图里仍有 11 个 404 和 3 个被 CORS 拦下的字体（`artifacts/t042-review-kiro/templates-console.json`）：
+  - srcset 改写把前缀插到了最后一个斜杠：`/_astro/api/templates/lonestone/assets/hero-image.DwIC_L_T_1xrKIH.webp`、`/_astro/api/templates/moon/assets/astronaut.B8IC2jL3_Z1pTs8N.webp`、`/assets/images/home/screenshots/api/templates/kindred/assets/landing-1.webp`（`landing-2` 同）。根因是 `app/api/templates/[templateId]/preview/route.ts` 第 21 行 `(\bsrcset=["'][^"']*)\/(?!\/)` 贪婪匹配，只改一处且改错位置；每个 srcset 候选 URL 都要单独改。AstroWind 缩略图的首屏图因此显示成替代文字「AstroWind Hero Image」。
+  - 根路径图片没走资源路由：ricofast `/assets/stack/{astro,figma,motion,node,tailwind}.jpg`，foxi `/_astro/cta-dark-bg.h-w07icx.webp`、`/_astro/testimonial-bg-01.CofysqBI.webp`。
+  - 根路径字体没走资源路由、被 CORS 拦下：`/_astro/fonts/5288773a5a229461.woff2`（astrowind）、`/_astro/fonts/3827da0b0bf6b4db.woff2`、`/_astro/fonts/aef5e683e5734387.woff2`（astroplate）；这几条不在 `.css` 文件里，改写 CSS 覆盖不到，应查 HTML 里的内联 `<style>` / `style=` / preload。
+- 复现：Chrome 1440 打开 `http://localhost:3034/templates`，逐屏滚到底，看控制台和网络面板的 4xx 与 CORS 报错。
