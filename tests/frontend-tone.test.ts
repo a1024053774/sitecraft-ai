@@ -12,8 +12,8 @@ const SKILL_NAME_LEAKS = [
   "less-ai-tone",
 ];
 
-test("runtime frontend tone is pinned at sitecraft-frontend-less-ai-tone@0.3.0", () => {
-  assert.equal(FRONTEND_TONE_RULES_VERSION, "sitecraft-frontend-less-ai-tone@0.3.0");
+test("runtime frontend tone is pinned at sitecraft-frontend-less-ai-tone@0.3.1", () => {
+  assert.equal(FRONTEND_TONE_RULES_VERSION, "sitecraft-frontend-less-ai-tone@0.3.1");
 });
 
 test("user-facing theme cards and alignment options do not expose Skill names", () => {
@@ -62,7 +62,7 @@ test("AI intent schema rejects CSS and HTML write operations", () => {
 
 test("project skill keeps the pinned runtime rules and forbids CSS emission", () => {
   const skill = readFileSync(new URL("../skills/sitecraft-frontend-less-ai-tone/SKILL.md", import.meta.url), "utf8");
-  assert.match(skill, /sitecraft-frontend-less-ai-tone@0\.3\.0/);
+  assert.match(skill, /sitecraft-frontend-less-ai-tone@0\.3\.1/);
   assert.match(skill, /commitOperations/);
   assert.match(skill, /visualBrief/);
   assert.match(skill, /missing/);
@@ -84,7 +84,7 @@ test("skill source pins upstream revisions and does not claim font licensing", (
 test("cursor skill loader points at the project skill and does not fork rules", () => {
   const loader = readFileSync(new URL("../.cursor/skills/sitecraft-frontend-less-ai-tone/SKILL.md", import.meta.url), "utf8");
   assert.match(loader, /skills\/sitecraft-frontend-less-ai-tone\/SKILL\.md/);
-  assert.match(loader, /sitecraft-frontend-less-ai-tone@0\.3\.0/);
+  assert.match(loader, /sitecraft-frontend-less-ai-tone@0\.3\.1/);
   assert.equal(
     loader.includes("先确定一个主行动和一个首屏判断，再组织辅助内容"),
     false,

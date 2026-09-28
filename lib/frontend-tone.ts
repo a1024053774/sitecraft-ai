@@ -1,10 +1,11 @@
-export const FRONTEND_TONE_RULES_VERSION = "sitecraft-frontend-less-ai-tone@0.3.0";
+export const FRONTEND_TONE_RULES_VERSION = "sitecraft-frontend-less-ai-tone@0.3.1";
 
 /** Runtime-safe subset of the local skill. These rules guide content decisions;
  * template adapters and commitOperations still own every visible write. */
 export const frontendToneRules = [
   "先确定一个主行动和一个首屏判断，再组织辅助内容；不要让每个区块都拥有同等权重。",
   "保留真实行业术语、规格、应用场景和交付边界；缺少企业事实时写待补充，不编造数字、客户、认证、评价或团队。",
+  "说明类文字（首屏说明、关于、区块引言、卡片和产品说明、询盘正文）只写这家公司做什么；资料没有的事实不要写成「电话与地址待补充」这样的句子，直接不提，整段都没有可写的事实时该字段写待补充；也不要写描述建站过程或资料本身的话（例如「整站共用」「资料中」）。",
   "Hero、优势、服务和 CTA 各自承担不同证据职责，避免重复同一组承诺。",
   "不要为了填满版面自动增加卡片、编号步骤、客户 Logo、统计数字、评价、价格或博客条目。",
   "视觉变化要有 visualBrief 和已选模板依据；颜色、字阶、圆角、阴影、留白和动效服务信息层级，不套用绝对的禁用清单。",

@@ -802,7 +802,9 @@ test("P3E complete materials reuse the guided plan, preserve missing facts, and 
   const after = await getSite(siteId);
   assert.equal(after.draft.companyName, "外高桥流体接头P3E");
   assert.equal(after.draft.products.map((product) => product.name.zh).join("、"), "快换接头、卡套接头");
-  assert.match(after.draft.content.hero.subtitle.zh, /具体交期待补充/);
+  // T-045: the gap-only sentence "具体交期待补充" does not reach visitor prose, and no lead time is invented.
+  assert.equal(after.draft.content.hero.subtitle.zh, "面向 OEM 装配线的接头规格与交期说明。");
+  assert.doesNotMatch(after.draft.content.hero.subtitle.zh, /\d+\s*(?:天|日|周)/);
   assert.equal(after.draft.visualBrief.id, "engineering-industrial");
 });
 

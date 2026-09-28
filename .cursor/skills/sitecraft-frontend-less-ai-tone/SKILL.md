@@ -7,4 +7,4 @@ description: SiteCraft overlay on frontend-less-ai-tone. The generated site is t
 
 立即读取并遵循仓库内规范：`skills/sitecraft-frontend-less-ai-tone/SKILL.md`。
 
-通用规则在 `skills/frontend-less-ai-tone/SKILL.md`。本叠加层的运行时子集是 `lib/frontend-tone.ts`（`sitecraft-frontend-less-ai-tone@0.3.0`）。不要另写一套规则，不要输出 CSS，不要把 Skill 名称写进用户选项。
+通用规则在 `skills/frontend-less-ai-tone/SKILL.md`。本叠加层的运行时子集是 `lib/frontend-tone.ts`（`sitecraft-frontend-less-ai-tone@0.3.1`）。不要另写一套规则，不要输出 CSS，不要把 Skill 名称写进用户选项。

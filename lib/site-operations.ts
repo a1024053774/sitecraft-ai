@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { stripGapTalkBilingual } from "./visitor-prose.ts";
 import {
   cloneDraft,
   editableCardSchema,
@@ -812,6 +813,38 @@ function sourceWrittenName(value: string | { zh: string; en: string }, message: 
   return candidates.find((item) => message.includes(item)) ?? candidates[0];
 }
 
+// Visitor prose drops gap-only and build-talk sentences before it reaches the draft (T-045).
+const VISITOR_PROSE_TARGETS = new Set<TextTarget>(["hero.subtitle", "about.body", "features.intro", "services.intro", "products.intro", "contact.body", "faq.intro"]);
+
+function cleanVisitorProse(operation: AIOperation): AIOperation {
+  if (operation.op === "set_text" && VISITOR_PROSE_TARGETS.has(operation.target)) {
+    return { ...operation, value: stripGapTalkBilingual(operation.value, operation.locale ?? "zh") } as AIOperation;
+  }
+  if (operation.op === "update_card" && operation.body) {
+    return { ...operation, body: stripGapTalkBilingual(operation.body, operation.locale ?? "zh") } as AIOperation;
+  }
+  if (operation.op === "add_card") {
+    return { ...operation, item: { ...operation.item, body: stripGapTalkBilingual(operation.item.body) as { zh: string; en: string } } } as AIOperation;
+  }
+  if (operation.op === "update_product" && operation.summary) {
+    return { ...operation, summary: stripGapTalkBilingual(operation.summary, operation.locale ?? "zh") } as AIOperation;
+  }
+  if (operation.op === "replace_products") {
+    return { ...operation, products: operation.products.map((product) => ({ ...product, summary: stripGapTalkBilingual(product.summary) as { zh: string; en: string } })) } as AIOperation;
+  }
+  if (operation.op === "set_catalog_section" && operation.value) {
+    return {
+      ...operation,
+      value: {
+        ...operation.value,
+        intro: stripGapTalkBilingual(operation.value.intro) as { zh: string; en: string },
+        items: operation.value.items.map((item) => ({ ...item, body: stripGapTalkBilingual(item.body) as { zh: string; en: string } })),
+      },
+    } as AIOperation;
+  }
+  return operation;
+}
+
 const INTERNAL_REASON = /HTML|CSS|快照|URL|声明|区块|字段|模板|槽|slot|operation/i;
 
 export function validateAIOperations(
@@ -822,7 +855,8 @@ export function validateAIOperations(
   const rejected: string[] = [];
   const accepted: SiteOperation[] = [];
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
-  for (const operation of operations) {
+  for (const rawOperation of operations) {
+    const operation = cleanVisitorProse(rawOperation);
     if (operation.op === "set_page_plan" && operation.unsupported?.length) {
       // The model explains unsupported pages in its own words; reasons that talk about templates,
       // snapshots or HTML are replaced so the workspace only shows plain language.
@@ -843,7 +877,7 @@ export function validateAIOperations(
       accepted.push({ op: "set_text", target: operation.target, value: name });
       continue;
     }
-    if (operation.op === "set_text" && operation.target === "faq.intro" && isModelInstruction(operation.value)) {
+    if (rawOperation.op === "set_text" && rawOperation.target === "faq.intro" && isModelInstruction(rawOperation.value)) {
       rejected.push("常见问题引言是写给模型的指令，已拒绝");
       continue;
     }

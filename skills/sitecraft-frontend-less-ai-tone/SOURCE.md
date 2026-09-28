@@ -1,6 +1,6 @@
 # 来源与改编
 
-SiteCraft 叠加层。通用规则在 `skills/frontend-less-ai-tone/`。运行时只注入 `lib/frontend-tone.ts` 的 `sitecraft-frontend-less-ai-tone@0.3.0`。不要另写一套规则。P4 冻结基线仍是 `@0.2.0`。
+SiteCraft 叠加层。通用规则在 `skills/frontend-less-ai-tone/`。运行时只注入 `lib/frontend-tone.ts` 的 `sitecraft-frontend-less-ai-tone@0.3.1`。不要另写一套规则。P4 冻结基线仍是 `@0.2.0`。
 
 目录里的 `LICENSE.txt` 是文案层上游的 MIT 副本，不是样子层的许可证，也不批准任何模板图片、字体、图标或商标。
 

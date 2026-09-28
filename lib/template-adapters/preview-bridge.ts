@@ -396,9 +396,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var heading = document.createElement("h3");
         heading.textContent = visible.title || (locale === "en" ? "To be provided" : "待补充");
         heading.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".title." + locale);
-        var copy = document.createElement("p");
-        copy.textContent = visible.body || (locale === "en" ? "To be provided" : "待补充");
-        copy.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".body." + locale);
+        var copy = null;
+        // Visitors see no "待补充" body, and a certification body that only repeats its status is dropped.
+        var repeatsStatus = key === "certifications" && visible.status && (visible.body === visible.status || visible.body === certificationStatusLabel(visible.status, locale));
+        var bodyIsGap = isGapMarker(visible.body);
+        if (!((bodyIsGap || repeatsStatus) && variant !== "workspace")) {
+          copy = document.createElement("p");
+          copy.textContent = visible.body || (locale === "en" ? "To be provided" : "待补充");
+          copy.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".body." + locale);
+        }
         card.appendChild(heading);
         if (key === "certifications" && visible.status) {
           var statusNode = document.createElement("p");
@@ -407,7 +413,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
           statusNode.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".status");
           card.appendChild(statusNode);
         }
-        card.appendChild(copy);
+        if (copy) card.appendChild(copy);
         grid.appendChild(card);
         applied.add(key + ".items." + visible.index + ".title." + locale);
         applied.add(key + ".items." + visible.index + ".body." + locale);
@@ -974,6 +980,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
         } else {
           setEntryHidden(entry, false);
           anyVisible = true;
+          // Visitors see the title alone rather than a "待补充" body (T-045).
+          if (bodyNode && variant !== "workspace" && isGapMarker(bodyValue)) {
+            bodyNode.textContent = "";
+            bodyNode.hidden = true;
+          } else if (bodyNode && bodyNode.hidden && !isGapMarker(bodyValue)) {
+            bodyNode.hidden = false;
+          }
         }
       }
 
