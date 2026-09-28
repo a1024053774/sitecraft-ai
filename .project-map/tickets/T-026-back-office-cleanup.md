@@ -2,7 +2,7 @@
 id: T-026
 title: 后台页面清理
 type: build
-status: open
+status: closed
 blocked_by: [T-022]
 claimed_by: astra
 supersedes:
@@ -17,10 +17,10 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 首页、侧栏和 /quality 页上没有写死的假数据
-- [ ] /templates 页没有加载失败或超时的缩略图
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
+- [x] 首页、侧栏和 /quality 页上没有写死的假数据
+- [x] /templates 页没有加载失败或超时的缩略图
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 独立审核 agent（不是做这张票的 agent）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -32,4 +32,6 @@ supersedes:
 
 相关检查：`node --test --experimental-strip-types tests/dashboard-cleanup.test.ts` 3/3 通过；`npm run typecheck` 通过；`npm test` 253/253 通过；`npm run build` 通过。
 
-实现提交：待提交后填写 SHA。
+实现提交：`00f7bb1`。
+
+独立审核：grok-a，2026-09-28，PASS，`00f7bb1`，`node scripts/check-back-office-cleanup.mjs artifacts/t026-green4`。首页站点总数 342、询盘 26、最近动态三条来自已存站点，无 Forge 与假询盘；无数据时源码为空态「暂无动态」「还没有已保存站点」。侧栏无套餐、额度、账户。模板页 16 个本地 iframe，6 张为「仅有上游演示 / 未准入本地快照」且不挂 iframe。盲评页显示「盲评模式」，卡片只见公司与首屏，无核验记号、冻结 HEAD、对照默认。`runtimeFrozenHead` 读取 `git rev-parse --short HEAD`。本次复核：`npm run typecheck` 通过，`npm test` 253/253 通过，`npm run build` 通过。红态为票面所记实现前 3 项失败。
