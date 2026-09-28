@@ -2,7 +2,7 @@
 id: T-040
 title: 灰底短路径的产品图不溢出卡片
 type: build
-status: open
+status: closed
 blocked_by: [T-039]
 claimed_by: grok-a
 supersedes:
@@ -21,7 +21,7 @@ supersedes:
 - [x] `check-published.mjs --submit` 的询盘成功和失败截图在三个宽度下都拍到表单和提示
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过
 - [x] 四个样子的样板站跑 `check-published.mjs` 通过，截图打开看过
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -39,4 +39,6 @@ supersedes:
 - 不通过：验收第 2 项要求「访客页没有元素宽出视口或宽出所在卡片」。现在的断言只查 `.sitecraft-product-image` 越过 `.sitecraft-product-card`，外加文档横向滚动。但 overlay 给 `html,body` 设了 `overflow-x:hidden`，像本票那种被裁掉的溢出，横向滚动检查抓不到；参数表、长英文词、目录卡里的其他元素溢出也不会报。请把卡片检查推广到 `.sitecraft-product-card`、`.sitecraft-catalog-card` 里的所有可见元素（卡内有 `overflow:hidden` 祖先的不算），再跑四个样板站确认没有误报。
 
 2026-09-28 15:07（UTC-4）。卡片溢出改为检查 `.sitecraft-product-card` 和 `.sitecraft-catalog-card` 里每个可见元素是否宽出卡片；卡内 `overflow-x: hidden` 或 `clip` 的祖先下面的元素不计。`node --test --experimental-strip-types tests/technical-product-image.test.ts` 在改动前失败（脚本里没有目录卡选择器），改完通过。`node scripts/check-published.mjs --out artifacts/published-check/t040-cards palette-sample-industrial-porcelain palette-sample-engineering-warm-orange palette-sample-export-porcelain palette-sample-technical-graphite` 12/12 通过，`cardOverflow` 都是 0。
+
+独立审核（复审）：Kiro，2026-09-28 15:25，PASS（`00ec5d5` 之后新跑）。卡片检查已覆盖产品卡和目录卡里的所有可见元素。为确认它真能抓到原来的问题，Kiro 在灰底短路径样板站 1440 和 375 上临时把产品图恢复成 960×720：检查从 0 处变成 2 处，去掉后回到 0（`artifacts/kiro-browse/reinject-overflow.js`）。`node scripts/check-published.mjs --out artifacts/published-check/t040-review-kiro` 四个样板站 × 1440/768/375 共 12 项 ok，没有误报。
 
