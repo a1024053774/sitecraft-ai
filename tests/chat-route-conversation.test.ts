@@ -540,7 +540,9 @@ test("prompt alignment asks a provider-planned question and persists it without 
   });
   assert.equal(result.response.status, 200);
   assert.equal(result.done?.status, "clarify");
-  assert.match(String(result.done?.question), /出口目录|筛选/);
+  // The card also carries the catalog look/color questions (T-034); the planner's question is one of them.
+  const prompts = ((result.done?.questions ?? []) as Array<{ prompt: string }>).map((item) => item.prompt);
+  assert.ok(prompts.some((prompt) => /出口目录|筛选/.test(prompt)), `planner question missing from ${prompts.join(" | ")}`);
   assert.equal(String(result.done?.question).includes("请选择网站的样子"), false);
   assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
   const record = await getConversation(siteId, String(result.done?.conversationId));

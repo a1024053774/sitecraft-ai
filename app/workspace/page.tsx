@@ -184,6 +184,7 @@ type DraftSnapshot = {
   canRedo: boolean;
   updatedAt: string;
   isNew?: boolean;
+  hasGeneratedContent?: boolean;
 };
 type ProviderStatus = { mode: "deepseek" | "unconfigured"; model: string | null };
 type SiteImageItem = {
@@ -488,6 +489,9 @@ export default function WorkspacePage() {
         window.localStorage.removeItem("sitecraft-draft");
         if (!cancelled) {
           adoptSnapshot(snapshot);
+          // A site that was never generated starts with 需求对齐 on (spec §3.1); a saved
+          // conversation restored below still decides the final state.
+          if (!snapshot.hasGeneratedContent) setAlignmentEnabled(true);
           const requestedPage = new URLSearchParams(window.location.search).get("page");
           const nextPage = findSitePage(snapshot.draft.pagePlan, requestedPage);
           if (nextPage) setActivePageId(nextPage.id);
@@ -745,7 +749,8 @@ export default function WorkspacePage() {
     }
     if (busy) return;
     restoreStartedRef.current ??= Date.now();
-    if (Date.now() - restoreStartedRef.current > 120_000) {
+    // The server may run two 90 s generation attempts; stop polling only after that.
+    if (Date.now() - restoreStartedRef.current > 200_000) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: "任务仍未返回最终状态，已停止自动读取。请刷新检查服务器状态，避免重复执行。" }]);
       return;
     }
@@ -1218,6 +1223,16 @@ export default function WorkspacePage() {
     ? alignmentQuestions.slice(Math.min(alignmentStep, Math.max(0, alignmentQuestions.length - 1)), Math.min(alignmentStep, Math.max(0, alignmentQuestions.length - 1)) + 1)
     : alignmentQuestions;
   const activeAlignmentQuestion = alignmentQuestions[alignmentStep];
+  // 配色按所选样子显示: color-set swatches follow the look picked in the same card.
+  const cardColorSwatches = (optionId: string, fallback?: string[]) => {
+    const lookQuestion = alignmentQuestions.find((item) => item.field === "style");
+    const brief = lookQuestion ? visualBriefCatalog.find((item) => item.id === alignmentSelections[lookQuestion.questionId]) : undefined;
+    const setId = optionId.startsWith("colorSet:") ? optionId.slice("colorSet:".length) : "";
+    const palette = brief && setId ? paletteCatalogForVisualBrief(brief.id).find((item) => item.colorSet === setId) : undefined;
+    const tokens = brief && palette ? templateAdapters[brief.templateId]?.kit?.palettes?.[palette.id] : undefined;
+    if (!tokens) return fallback;
+    return [tokens.background, tokens.surface, tokens.text, tokens.accent, tokens.accentStrong, tokens.border].filter((value): value is string => Boolean(value));
+  };
   const activeAlignmentReady = Boolean(activeAlignmentQuestion && alignmentSelections[activeAlignmentQuestion.questionId] && (alignmentSelections[activeAlignmentQuestion.questionId] !== "other" || alignmentNotes[activeAlignmentQuestion.questionId]?.trim()));
 
   return (
@@ -1355,7 +1370,7 @@ export default function WorkspacePage() {
             <div className="alignment-panel" data-mobile-drawer={mobileAlignment && alignmentView.questions.length >= 1 ? "true" : undefined}>
               {alignmentView.answers.length ? <details className="alignment-summary"><summary>已保存的问答（{alignmentView.answers.length}）</summary>{alignmentView.answers.map((answer) => <p key={answer.questionId}><strong>{answer.question}</strong><br />{answer.label}{answer.note ? `：${answer.note}` : ""}</p>)}</details> : null}
               {alignmentView.processing ? <div className="alignment-summary" role="status">正在继续已保存的任务…</div> : null}
-              {alignmentView.waitingForUser || alignmentView.questions.length > 0 ? (
+              {alignmentView.waitingForUser || alignmentView.awaitingConfirmation ? (
                 <>
                   <div className="alignment-question">{alignmentView.question || "等待你选择"}</div>
                   {alignmentView.questions.length >= 1 ? <>
@@ -1364,7 +1379,10 @@ export default function WorkspacePage() {
                     <div className="alignment-question">{cardQuestion.prompt}</div>
                     <div className="alignment-cards">{cardQuestion.options.map((option) => (
                       <button className={alignmentSelections[cardQuestion.questionId] === option.id ? "alignment-card selected" : "alignment-card"} key={option.id} type="button" disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onClick={() => setAlignmentSelections((items) => ({ ...items, [cardQuestion.questionId]: option.id }))}>
-                        {option.swatches?.length ? <span className="palette-swatch-row" aria-label={`${option.label}颜色预览`}>{option.swatches.map((color) => <i key={color} style={{ backgroundColor: color }} />)}</span> : null}
+                        {(() => {
+                          const swatches = cardQuestion.field === "colorSet" ? cardColorSwatches(option.id, option.swatches) : option.swatches;
+                          return swatches?.length ? <span className="palette-swatch-row" aria-label={`${option.label}颜色预览`}>{swatches.map((color, index) => <i key={`${index}-${color}`} className="palette-swatch-role" style={{ backgroundColor: color }} />)}</span> : null;
+                        })()}
                         <strong>{option.label}{option.recommended ? "（推荐）" : ""}</strong><span>{option.description}</span>
                       </button>
                     ))}</div>

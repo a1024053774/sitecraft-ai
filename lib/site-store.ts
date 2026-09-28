@@ -34,6 +34,8 @@ export type SiteSnapshot = {
   canRedo: boolean;
   updatedAt: string;
   isNew?: boolean;
+  // True once any model-generated change is in the history; a new site stays false until then.
+  hasGeneratedContent: boolean;
 };
 
 const storageRoot = path.join(process.cwd(), ".sitecraft-data", "sites");
@@ -101,6 +103,7 @@ export function snapshot(record: SiteRecord, isNew?: boolean): SiteSnapshot {
     canRedo: record.future.length > 0,
     updatedAt: record.updatedAt,
     ...(isNew === undefined ? {} : { isNew }),
+    hasGeneratedContent: record.history.some((change) => change.source === "ai"),
   };
 }
 async function getLocalSite(siteId: string) {

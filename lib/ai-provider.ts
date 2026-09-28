@@ -275,6 +275,9 @@ function parseAlignmentPlan(content: unknown) {
  * This is deliberately separate from edit intent: it can only return a question
  * or a readiness summary, never draft operations or HTML/CSS.
  */
+// A 4-question card with reasons ran past 1800 output tokens in about 1 of 3 runs (finish_reason=length).
+const ALIGNMENT_PLAN_MAX_TOKENS = 3000;
+
 export async function requestAlignmentPlan(args: {
   message: string;
   draft: SiteDraft;
@@ -289,7 +292,8 @@ export async function requestAlignmentPlan(args: {
   const draftContext = buildDraftPromptContext(args.draft);
   const system = `你是 SiteCraft 的需求对齐规划器。只返回 JSON，不输出 Markdown、HTML、CSS、JavaScript 或 draft operations。
 你的任务是阅读用户这一次的建站 Prompt、已有草稿、会话历史和已确认答案，找出仍会改变页面结果的最少一个关键缺口。
-- 如果仍有关键缺口，只返回 questions 数组（1–4 题，每题 field 为 goal/pages/style/colorSet/other，配色题必须是 colorSet），不要重复输出顶层 question/options。style/colorSet 题的 option 必须有稳定 id；colorSet 题还必须有 paletteId 和 swatches：{"kind":"question","questions":[{"field":"colorSet","question":"...","options":[{"id":"colorSet:graphite","label":"石墨工坊","description":"推荐理由","recommended":true,"paletteId":"engineering-graphite","swatches":["#edeeef","#f6f6f6","#1b1c1e","#3d4853"]},{"id":"colorSet:warm-orange","label":"工程暖橙","description":"...","paletteId":"engineering-warm-orange","swatches":["#f0eeed","#f7f6f6","#1f1c1a","#c2531c"]}],"allowOther":true}],"rationale":"..."}。
+- 样子题和配色题由系统按目录加入，你不要输出 colorSet 题。如果能按行业推荐样子，可以输出一道 field=style 的题：4 个选项的 id 依次是 industrial（明亮产品）、engineering-industrial（工程工业）、export-catalog（蓝白目录）、technical-product（灰底短路径），只给推荐项写一句理由，其余 description 留空。
+- 如果仍有关键缺口，只返回 questions 数组（style 之外最多 2 题，field 为 goal/pages/other），不要重复输出顶层 question/options：{"kind":"question","questions":[{"field":"pages","question":"...","options":[{"label":"...","description":"推荐理由","recommended":true},{"label":"...","description":"..."}],"allowOther":true}],"rationale":"..."}。
 - 如果资料和 Prompt 已足够形成一份可审查方案，返回 {"kind":"ready","summary":"..."}，不要追问风格偏好。
 - 问题必须针对这次 Prompt，不得套行业问卷，不得只问固定的风格、业务目标或工业问题。
 - 已明确的信息不要重复问；每题 2–4 个选项，必须给一个选项 recommended:true 并在 description 写推荐理由，所有问题允许其他（allowOther:true），选项必须是用户能判断的结果差异，描述简短。
@@ -307,7 +311,7 @@ export async function requestAlignmentPlan(args: {
         body: JSON.stringify({
           model,
           temperature: 0.1,
-          max_tokens: 1800,
+          max_tokens: ALIGNMENT_PLAN_MAX_TOKENS,
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: system },
@@ -382,6 +386,16 @@ function successResult(data: AIIntentResponse, args: {
   };
 }
 
+// Bilingual full-site generation writes about 20 operations with {zh,en} values; 6000 output
+// tokens truncated it (finish_reason=length), so the budget has a floor and each attempt gets 90 s.
+const STRUCTURED_OPERATIONS_MIN_TOKENS = 8192;
+const STRUCTURED_OPERATIONS_TIMEOUT_MS = 90_000;
+
+function structuredOperationsMaxTokens() {
+  const configured = Number(process.env.DEEPSEEK_MAX_TOKENS);
+  return Number.isFinite(configured) && configured > STRUCTURED_OPERATIONS_MIN_TOKENS ? configured : STRUCTURED_OPERATIONS_MIN_TOKENS;
+}
+
 export async function requestStructuredOperations(args: {
   message: string;
   draft: SiteDraft;
@@ -420,7 +434,7 @@ export async function requestStructuredOperations(args: {
         body: JSON.stringify({
           model,
           temperature: 0.15,
-          max_tokens: Number(process.env.DEEPSEEK_MAX_TOKENS || 6000),
+          max_tokens: structuredOperationsMaxTokens(),
           response_format: { type: "json_object" },
           messages: [
             {
@@ -450,7 +464,7 @@ ${templateContext}`,
             },
           ],
         }),
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(STRUCTURED_OPERATIONS_TIMEOUT_MS),
         cache: "no-store",
       });
       if (!response.ok) {

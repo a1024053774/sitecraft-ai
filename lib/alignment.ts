@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { colorSetCatalog, paletteCatalogForVisualBrief, visualBriefCatalog, visualBriefIds } from "./site-document.ts";
+import { colorSetCatalog, defaultPaletteIdForVisualBrief, paletteCatalogForVisualBrief, paletteIds, visualBriefCatalog, visualBriefIds } from "./site-document.ts";
 import { templateAdapters } from "./template-adapters/registry.ts";
 import { siteOperationSchema, type SiteOperation } from "./site-operations.ts";
 import { isGuidedIndustrialRequest, needsGuidedBusinessQuestion } from "./guided-flow.ts";
@@ -286,32 +286,51 @@ export function otherOption(): AlignmentOption {
   return { id: OTHER_OPTION_ID, label: "其他/补充", description: "用补充说明回答，不必复制问题或另发继续" };
 }
 
-export function styleQuestion(revision: number): CurrentQuestion {
-  const recommendedBrief = visualBriefCatalog.find((brief) => brief.id === "engineering-industrial") ?? visualBriefCatalog[0];
-  const palettes = paletteCatalogForVisualBrief(recommendedBrief.id);
-  const adapter = templateAdapters[recommendedBrief.templateId];
-  const paletteOptions = colorSetCatalog.filter((set) => ["porcelain", "graphite", "warm-orange", "turquoise"].includes(set.id)).map((set, index) => {
+// Four of the six color sets fit the 2–4 option rule; the other two stay in the 配色 panel next to the input.
+const CARD_COLOR_SETS = ["porcelain", "graphite", "warm-orange", "turquoise"] as const;
+
+export function lookCardColorOptions(briefId: (typeof visualBriefIds)[number]) {
+  const brief = visualBriefCatalog.find((item) => item.id === briefId) ?? visualBriefCatalog[0];
+  const palettes = paletteCatalogForVisualBrief(brief.id);
+  const adapter = templateAdapters[brief.templateId];
+  const defaultPaletteId = defaultPaletteIdForVisualBrief(brief.id);
+  return colorSetCatalog.filter((set) => (CARD_COLOR_SETS as readonly string[]).includes(set.id)).map((set) => {
     const palette = palettes.find((item) => item.colorSet === set.id);
     const tokens = palette ? adapter?.kit?.palettes?.[palette.id] : undefined;
     return {
       id: `colorSet:${set.id}`,
       label: set.label,
       description: set.summary,
-      recommended: palette?.colorSet === "warm-orange" || (!palettes.some((item) => item.colorSet === "warm-orange") && index === 0),
+      recommended: palette?.id === defaultPaletteId,
       paletteId: palette?.id,
       swatches: tokens ? [tokens.background, tokens.surface, tokens.text, tokens.accent, tokens.accentStrong, tokens.border].filter((value): value is string => Boolean(value)) : undefined,
     };
   });
+}
+
+// The round-1 look card: 样子 first, then 色彩集 from the catalog. `recommendation` carries the
+// planner's industry-based pick (T-006); without one the draft's current look is recommended.
+export function styleQuestion(revision: number, recommendation: { briefId?: string | null; reason?: string | null } = {}): CurrentQuestion {
+  const recommendedBrief = visualBriefCatalog.find((brief) => brief.id === recommendation.briefId)
+    ?? visualBriefCatalog.find((brief) => brief.id === "engineering-industrial")
+    ?? visualBriefCatalog[0];
+  const reason = recommendation.reason?.trim() ? clipAlignmentText(recommendation.reason.trim(), 200) : null;
+  const styleOptions = STYLE_OPTIONS.map((option) => ({
+    id: option.id,
+    label: option.label,
+    description: option.id === recommendedBrief.id && reason ? reason : option.description,
+    recommended: option.id === recommendedBrief.id,
+  }));
   return {
     questionId: ALIGNMENT_QUESTION_ID,
     questionRevision: Math.max(1, revision),
     kind: "style",
     prompt: ALIGNMENT_QUESTION,
-    options: STYLE_OPTIONS.map((option, index) => ({ id: option.id, label: option.label, description: option.description, recommended: index === 0 })),
+    options: styleOptions,
     allowOther: true,
     questions: [
-      { field: "style", questionId: ALIGNMENT_QUESTION_ID, prompt: "选择网站的样子", options: STYLE_OPTIONS.map((option, index) => ({ id: option.id, label: option.label, description: option.description, recommended: option.id === recommendedBrief.id || (index === 0 && !STYLE_OPTIONS.some((item) => item.id === recommendedBrief.id)) })), allowOther: true },
-      { field: "colorSet", questionId: "color-set", prompt: `选择配色（当前样子：${recommendedBrief.label}）`, options: paletteOptions, allowOther: true },
+      { field: "style", questionId: ALIGNMENT_QUESTION_ID, prompt: "选择网站的样子", options: styleOptions, allowOther: true },
+      { field: "colorSet", questionId: "color-set", prompt: "选择配色", options: lookCardColorOptions(recommendedBrief.id), allowOther: true },
     ],
   };
 }
@@ -587,7 +606,7 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
     const pending = current.state === "cancelled"
       ? (incomingPending ?? null)
       : (incomingPending ?? current.pendingRequest);
-    if (current.styleOptionId && (current.state === "idle" || current.state === "cancelled") && (current.enabled || current.state === "cancelled")) {
+    if (current.styleOptionId && (current.state === "idle" || current.state === "cancelled") && (current.enabled || current.state === "cancelled" || completedConfirmStatus(current.lastResult?.status))) {
       const next = newPendingTask(current, pending);
       return succeed(next, { shouldContinue: Boolean(next.inflightRunId), prefsOnly: !next.pendingRequest, runId: next.inflightRunId });
     }
@@ -685,7 +704,10 @@ export function applyAlignmentAction(current: AlignmentSnapshot, input: Alignmen
         if (cardQuestion.field === "colorSet") {
           const setId = option.id.startsWith("colorSet:") ? option.id.slice("colorSet:".length) : undefined;
           const briefId = selectedStyleId && visualBriefCatalog.some((brief) => brief.id === selectedStyleId) ? selectedStyleId as (typeof visualBriefIds)[number] : null;
-          selectedPaletteId = briefId && setId ? paletteCatalogForVisualBrief(briefId).find((palette) => palette.colorSet === setId)?.id ?? option.paletteId ?? selectedPaletteId : option.paletteId ?? selectedPaletteId;
+          const fromCatalog = briefId && setId ? paletteCatalogForVisualBrief(briefId).find((palette) => palette.colorSet === setId)?.id : undefined;
+          // Only catalog palettes may reach the snapshot; an unknown set keeps the previous choice.
+          const offered = option.paletteId && (paletteIds as readonly string[]).includes(option.paletteId) ? option.paletteId : undefined;
+          selectedPaletteId = fromCatalog ?? offered ?? selectedPaletteId;
         }
       }
       const runId = current.pendingRequest ? crypto.randomUUID() : null;
@@ -988,6 +1010,9 @@ export function applyRunError(snapshot: AlignmentSnapshot, args: { runId: string
 export function applyCommittedResult(snapshot: AlignmentSnapshot, result: RecordedResult): AlignmentSnapshot {
   return {
     ...snapshot,
+    // Once the confirmed plan is on the draft the full interview is over; later edits go through
+    // the normal chat entry (spec §3.1). Answers stay for context.
+    enabled: result.status === "applied" ? false : snapshot.enabled,
     state: "idle",
     currentQuestion: null,
     proposedChange: snapshot.proposedChange,

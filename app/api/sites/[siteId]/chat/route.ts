@@ -199,36 +199,44 @@ async function planPromptStart(siteId: string, args: {
       }, { status: plan.code === "not_configured" ? 503 : 502 }),
     };
   }
-  if (plan.kind === "ready") return { ok: true as const, startQuestion: null as CurrentQuestion | null };
-  const questionRevision = 1;
-  const plannerQuestions = plan.questions ?? [{ field: "other" as const, question: plan.question, options: plan.options, allowOther: plan.allowOther }];
-  const requiredLookQuestions = styleQuestion(questionRevision).questions ?? [];
-  const questions = [
-    ...(plannerQuestions.some((item) => item.field === "style") ? [] : [requiredLookQuestions[0]]),
-    ...plannerQuestions,
-    ...(plannerQuestions.some((item) => item.field === "colorSet") ? [] : [requiredLookQuestions[1]]),
-  ].filter(Boolean).slice(0, 4);
-  const stableOptionMissing = questions.some((item) => {
-    if (item.field === "style") return item.options.some((option) => !("id" in option) || !option.id || !visualBriefCatalog.some((brief) => brief.id === option.id));
-    if (item.field === "colorSet") return item.options.some((option) => !("id" in option) || !option.id || !("paletteId" in option) || !option.paletteId);
-    return false;
-  });
-  if (stableOptionMissing) {
-    const description = describeUserError({ code: "invalid_output" });
-    return { ok: false as const, response: Response.json({ error: "invalid_output", message: description.message, userMessage: "需求对齐规划缺少稳定的样子或色彩集选项 ID，原需求没有修改草稿，请重试。", recovery: "retry_alignment" }, { status: 502 }) };
+  // Round 1 on a site that was never generated always settles 样子 and 色彩集 (spec §3.1), and those
+  // two questions are always built from the catalog; the planner may only recommend a look.
+  const needLook = !existing?.alignment.styleOptionId;
+  const needColor = !existing?.alignment.paletteId;
+  if (plan.kind === "ready" && (current.hasGeneratedContent || (!needLook && !needColor))) {
+    return { ok: true as const, startQuestion: null as CurrentQuestion | null };
   }
+  const questionRevision = 1;
+  const plannerQuestions = plan.kind === "question"
+    ? plan.questions ?? [{ field: "other" as const, question: plan.question ?? "", options: plan.options ?? [], allowOther: plan.allowOther }]
+    : [];
+  const plannerStyle = plannerQuestions.find((item) => item.field === "style");
+  const plannerPick = plannerStyle?.options.find((option) => option.recommended === true && "id" in option && visualBriefCatalog.some((brief) => brief.id === option.id));
+  const lookCard = styleQuestion(questionRevision, {
+    briefId: plannerPick && "id" in plannerPick ? plannerPick.id : current.draft.visualBrief.id,
+    reason: plannerPick?.description,
+  }).questions ?? [];
+  const questions = [
+    ...(needLook ? [lookCard[0]] : []),
+    ...(needColor ? [lookCard[1]] : []),
+    ...plannerQuestions.filter((item) => item.field !== "style" && item.field !== "colorSet"),
+  ].filter(Boolean).slice(0, 4);
+  if (!questions.length) return { ok: true as const, startQuestion: null as CurrentQuestion | null };
+  const cardPrompt = questions.length > 1
+    ? "开始生成前，先确认下面几项。"
+    : "question" in questions[0] ? questions[0].question : questions[0].prompt;
   const question: CurrentQuestion = {
     questionId: `prompt-${crypto.randomUUID()}`,
     questionRevision,
     kind: "clarify",
-    prompt: plan.question,
-    options: plan.options.map((option, index) => ({
+    prompt: cardPrompt,
+    options: questions[0].options.map((option, index) => ({
       id: `prompt-option-${index + 1}`,
       label: option.label,
       description: option.description,
-      recommended: option.recommended === true || (index === 0 && !plan.options.some((candidate) => candidate.recommended === true)),
+      recommended: option.recommended === true || (index === 0 && !questions[0].options.some((candidate) => candidate.recommended === true)),
     })),
-    allowOther: plan.allowOther,
+    allowOther: questions[0].allowOther,
     questions: questions.map((item, questionIndex) => ({
       questionId: `prompt-${questionIndex + 1}-${crypto.randomUUID()}`,
       field: item.field,
@@ -238,12 +246,9 @@ async function planPromptStart(siteId: string, args: {
         label: option.label,
         description: option.description,
         recommended: option.recommended === true || (index === 0 && !item.options.some((candidate) => candidate.recommended === true)),
-        ...(() => {
-          if (item.field !== "colorSet" || !("paletteId" in option) || !option.paletteId) return {};
-          const owner = Object.values(templateAdapters).find((candidate) => candidate.kit?.palettes?.[option.paletteId!]);
-          const tokens = owner?.kit?.palettes?.[option.paletteId];
-          return { paletteId: option.paletteId, swatches: tokens ? [tokens.background, tokens.surface, tokens.text, tokens.accent, tokens.accentStrong, tokens.border].filter((value): value is string => Boolean(value)) : [] };
-        })(),
+        ...(item.field === "colorSet" && "paletteId" in option && option.paletteId
+          ? { paletteId: option.paletteId, swatches: "swatches" in option && option.swatches ? option.swatches : [] }
+          : {}),
       })),
       allowOther: item.allowOther,
     })),
