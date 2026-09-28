@@ -2,7 +2,7 @@
 id: T-046
 title: 首屏标题不留孤字，手机上公司名不被截断
 type: build
-status: closed
+status: open
 blocked_by: []
 claimed_by: grok-a
 supersedes:
@@ -24,7 +24,7 @@ supersedes:
 - [x] `check-published.mjs` 加断言：首屏标题最后一行不是孤字；页头公司名没有被截断
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 盲评样本站点（`artifacts/blind-20260928/samples-*.json` 里的 8 个 id）跑 `check-published.mjs` 通过，截图打开看过
-- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -35,6 +35,16 @@ supersedes:
 绿态：同一命令通过（16:33）。`npm run typecheck` 通过（16:33）。`npm test` 313/313 通过（16:34）。`npm run build` 通过（16:40）。
 
 `node scripts/check-published.mjs --out artifacts/published-check/t046`，站点为 `samples-industrial.json` 与 `samples-export.json` 里的 8 个 id，24/24 通过（16:33–16:39，exit 0）。看过 1440/768/375：灰底短路径「重载减速机按图加工」分成「重载减速 / 机按图加工」，「不锈钢快换接头目录」分成「不锈钢快 / 换接头目录」；375 页头公司名完整，「联系」「菜单」横排。另外三个样子的公司名换行后是全称，没有省略号。
+
+实现提交：本 commit。
+
+2026-09-28 17:15（UTC-4）。Kiro 否决页头公司名：`brandClipped` 只比 `.sitecraft-brand-name` 自己的 scrollWidth。父级 flex 被挤扁时名字在盒子里换行，scrollWidth 不会更大，截断会被放过。检查改为同时看 scrollHeight，并逐字对照 `overflow` 为 hidden 或 clip 的祖先和视口。灰底短路径在 480px 以下把公司名限制在 7em 内换行，型号单独成行。
+
+红态（17:05）：`node --test --experimental-strip-types tests/headline-orphans.test.ts` 失败，源码里没有 `scrollHeight > brand.clientHeight + 1`，exit 1。
+
+绿态：同一命令通过。`npm test` 314/314、`npm run typecheck` 通过（17:07）。`npm run build` 通过（17:15）。
+
+`node scripts/check-published.mjs --out artifacts/published-check/t046`，8 个盲评站点，24/24 通过（17:09–17:15，exit 0）。375 灰底短路径页头是「外高桥流体接头 / P3E」和「忻州重载减速机 / P3I」，没有省略号。
 
 实现提交：本 commit。
 

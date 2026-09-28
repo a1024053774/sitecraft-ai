@@ -14,6 +14,8 @@ test("hero titles balance and mobile brand names are not ellipsized", () => {
   }
   assert.match(checkSource, /hero title last line is a single character/);
   assert.match(checkSource, /header company name is truncated/);
+  assert.match(checkSource, /scrollHeight > brand\.clientHeight \+ 1/);
+  assert.match(checkSource, /parentStyle\.overflowX === "hidden" \|\| parentStyle\.overflowX === "clip"/);
   assert.match(checkSource, /header overflows the viewport/);
   assert.match(checkSource, /header control text wraps inside its button/);
 });

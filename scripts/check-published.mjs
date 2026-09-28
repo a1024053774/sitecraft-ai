@@ -211,7 +211,37 @@ const INSPECT = `(async () => {
   const headerControls = header ? [...header.querySelectorAll(".sitecraft-nav-cta, summary")].filter((el) => visible(el)) : [];
   const headerControlStacked = headerControls.some((el) => textLines(el).length > 1);
   const brand = document.querySelector(".sitecraft-brand-name");
-  const brandClipped = Boolean(brand && brand.scrollWidth > brand.clientWidth + 1);
+  // A squeezed flex parent can wrap the name inside the box, so scrollWidth stays
+  // equal to clientWidth while a later line or the last glyph is clipped.
+  let brandClipped = false;
+  if (brand) {
+    brandClipped = brand.scrollWidth > brand.clientWidth + 1 || brand.scrollHeight > brand.clientHeight + 1;
+    const brandNode = [...brand.childNodes].find((item) => item.nodeType === 3 && (item.textContent || "").trim());
+    const brandValue = brandNode ? brandNode.textContent || "" : "";
+    const range = document.createRange();
+    for (let index = 0; index < brandValue.length && !brandClipped; index += 1) {
+      const character = brandValue[index];
+      if (character.trim() === "") continue;
+      range.setStart(brandNode, index);
+      range.setEnd(brandNode, index + 1);
+      const rect = range.getBoundingClientRect();
+      if (rect.width < 0.5 || rect.height < 0.5 || rect.left < -1 || rect.right > innerWidth + 1) {
+        brandClipped = true;
+        break;
+      }
+      let parent = brand.parentElement;
+      while (parent && !brandClipped) {
+        const parentStyle = getComputedStyle(parent);
+        const clipX = parentStyle.overflowX === "hidden" || parentStyle.overflowX === "clip";
+        const clipY = parentStyle.overflowY === "hidden" || parentStyle.overflowY === "clip";
+        if (clipX || clipY) {
+          const bounds = parent.getBoundingClientRect();
+          if ((clipX && (rect.left < bounds.left - 1 || rect.right > bounds.right + 1)) || (clipY && (rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1))) brandClipped = true;
+        }
+        parent = parent.parentElement;
+      }
+    }
+  }
   const siteHeader = document.querySelector(".sitecraft-nav") || document.querySelector("header");
   const headerOverflow = Boolean(siteHeader && (siteHeader.scrollWidth > siteHeader.clientWidth + 1 || siteHeader.getBoundingClientRect().right > innerWidth + 1));
   const editableSlot = [...document.querySelectorAll("[data-sitecraft-slot]")].find((el) => !el.closest("a, button, summary, label, input, select, textarea"));
