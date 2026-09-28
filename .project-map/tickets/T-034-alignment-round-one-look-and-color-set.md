@@ -2,7 +2,7 @@
 id: T-034
 title: 需求对齐第 1 轮固定问样子和色彩集，新建站点默认开启
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -25,7 +25,7 @@ supersedes:
 - [x] 已生成过的站点做普通修改时不重问完整需求
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 375 和 1440 浏览器实操截图
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -49,3 +49,11 @@ supersedes:
 - 1440 新站点确认后，加号菜单的对齐自动关闭，面板显示「已应用已确认的方案，草稿 v3」；再发「把首屏标题改成：重载减速机，按图定制」，2.6 s 直接变成 v4，没有问题卡（`artifacts/t034/after-confirm-1440.png`、`after-plain-edit-1440.png`）。
 
 截图里还能看到的问题属于别的票：中文页头「To be provided」（T-037），提示里的字段路径和「独立 HTML」（T-038），改动标记挡导航（T-041），深色主题文字太淡（T-043）。
+
+独立审核：grok-b，2026-09-28 14:38，PASS。命令：`node --test --experimental-strip-types tests/alignment-look-card.test.ts tests/alignment-round-one-look-color.test.ts tests/structured-output-budget.test.ts tests/chat-route-conversation.test.ts` 30/30；`npm test` 289/289；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t034-review-grokb/`。实现提交：`9e24e6d`
+
+1440 新建 SCREWFAST 站点 `93397484-7a2c-463e-83d9-01cd3b26ffd9`，加号菜单里需求对齐默认勾选。发送液压快换接头那句后，卡片是样子、配色、页面路径、产品系列四题。配色是青花瓷、石墨工坊、工程暖橙（推荐）、松石，色块 9×9，没有目录外的名字。推荐样子是工程工业；改选明亮产品后，工程暖橙的强调色从 `rgb(217, 101, 43)` 变成 `rgb(194, 83, 28)`。提交的是非推荐的明亮产品和青花瓷。刷新后确认按钮和 4 条答案还在，没有「会话历史没有写入」。确认后草稿 `industrial` / `industrial-porcelain` / forge，v3。再发「把首屏标题改成：重载减速机，按图定制」，直接变成 v4，标题已改，没有新的问题卡。截图已打开：`02-card-after-look-1440.png`、`03-card-selected-1440.png`、`05-after-refresh-1440.png`、`06-after-confirm-1440.png`、`07-plain-edit-1440.png`。
+
+375 新建 forge 站点 `38099936-0026-4942-9f63-5cab4692c69e`，用「提供公司资料」提交模拟工业包（正文带「目标：」）。底部抽屉先是「第 1 / 4 题 选择网站的样子」，下一题是「第 2 / 4 题 选择配色」，四套目录色彩集带色块。截图已打开：`08-drawer-q1-375.png`、`09-drawer-q2-375.png`。
+
+判断：卡上只放 4 套，满足「配色只能从 6 套目录里出、不能由模型另编」。这一轮题目本身选不到铜锈和莫兰迪；同一提交写入的 spec §3.1 写明卡上 4 套，其余在「配色」按钮，按钮里的目录仍是 6 套。确认后 `enabled: false`，之后的普通修改不再出卡，这一点已在 v4 看到。显式再勾上需求对齐并发送，不会重新访谈：`applyAlignmentAction` 的 start 在已有 `styleOptionId` 且上次确认已应用时直接 `newPendingTask` 并继续生成，规划器的新题被丢掉。
