@@ -13,13 +13,20 @@ function escapeAttribute(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
 }
 
-function prepareHtml(html: string, baseUrl: string, templateId: string, local = false, editor = false) {
+function rewriteSrcsetValue(value: string, assetBase: string) {
+  return value.replace(/(^|[\s,])(\/(?!\/|api\/templates\/)[^\s,]+)/g, (_match, lead: string, url: string) => `${lead}${assetBase}${url.slice(1)}`);
+}
+
+function rewriteLocalSnapshotHtml(html: string, assetBase: string) {
+  return html
+    .replace(/(\b(?:src|href|poster)=["'])\/(?!\/|api\/templates\/)/gi, `$1${assetBase}`)
+    .replace(/\bsrcset=(["'])([^"']*)\1/gi, (_full, quote: string, value: string) => `srcset=${quote}${rewriteSrcsetValue(value, assetBase)}${quote}`)
+    .replace(/url\(\s*(['"]?)\/(?!\/|api\/templates\/)/gi, `url($1${assetBase}`);
+}
+
+export function prepareHtml(html: string, baseUrl: string, templateId: string, local = false, editor = false) {
   const assetBase = `/api/templates/${encodeURIComponent(templateId)}/assets/`;
-  const rewritten = local
-    ? html
-        .replace(/(\b(?:src|href|poster)=["'])\/(?!\/)/gi, `$1${assetBase}`)
-        .replace(/(\bsrcset=["'][^"']*)\/(?!\/)/gi, `$1${assetBase}`)
-    : html;
+  const rewritten = local ? rewriteLocalSnapshotHtml(html, assetBase) : html;
   const sourceHtml = local
     ? applyAdmittedKitFragments(stripHtmlScripts(rewritten), templateId)
     : rewritten;

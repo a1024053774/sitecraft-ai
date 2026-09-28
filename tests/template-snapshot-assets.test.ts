@@ -21,6 +21,7 @@ registerHooks({
 
 const { getTemplateStaticRoot, readTemplateStaticFile } = await import("../lib/template-static.ts");
 const assetsRoute = await import("../app/api/templates/[templateId]/assets/[...assetPath]/route.ts");
+const { prepareHtml } = await import("../app/api/templates/[templateId]/preview/route.ts");
 
 function stylesheetHref(html: string) {
   const tags = html.match(/<link\b[^>]*>/gi) ?? [];
@@ -94,6 +95,43 @@ test("astro-starter stylesheet link is CORS-enabled for the sandboxed preview fr
   for (const tag of stylesheets) {
     assert.match(tag, /\bcrossorigin=["']anonymous["']/);
   }
+});
+
+test("local preview rewrites every srcset candidate, inline image, and inline font onto the asset route", () => {
+  const html = [
+    '<img src="/_astro/hero-image.DwIC_L_T_Z1bMl6O.webp" srcset="/_astro/hero-image.DwIC_L_T_Hcxl8.webp 400w, /_astro/hero-image.DwIC_L_T_1xrKIH.webp 768w">',
+    '<source srcset="/assets/images/home/screenshots/landing-1.webp" type="image/webp">',
+    '<img src="/_astro/astronaut.B8IC2jL3_jwrcE.webp" srcset="/_astro/astronaut.B8IC2jL3_ZmKNbP.webp 450w, /_astro/astronaut.B8IC2jL3_Z1pTs8N.webp 900w">',
+    '<div style="background-image: url(/assets/stack/astro.jpg)"></div>',
+    '<div style="background-image:url(/_astro/cta-dark-bg.h-w07icx.webp)"></div>',
+    '<div style="background-image:url(/_astro/testimonial-bg-01.CofysqBI.webp)"></div>',
+    '<style>@font-face{font-family:Heebo;src:url("/_astro/fonts/3827da0b0bf6b4db.woff2") format("woff2")}</style>',
+    '<style>@font-face{font-family:Signika;src:url("/_astro/fonts/aef5e683e5734387.woff2") format("woff2")}</style>',
+    '<style>@font-face{font-family:Inter;src:url("/_astro/fonts/5288773a5a229461.woff2") format("woff2")}</style>',
+    '<link rel="preload" href="/_astro/fonts/5288773a5a229461.woff2" as="font" type="font/woff2" crossorigin>',
+  ].join("");
+  const preview = prepareHtml(html, "https://example.test/", "lonestone", true);
+  assert.equal(preview.includes("/_astro/api/templates/"), false);
+  assert.equal(preview.includes("/screenshots/api/templates/"), false);
+  for (const path of [
+    "_astro/hero-image.DwIC_L_T_Hcxl8.webp",
+    "_astro/hero-image.DwIC_L_T_1xrKIH.webp",
+    "assets/images/home/screenshots/landing-1.webp",
+    "_astro/astronaut.B8IC2jL3_ZmKNbP.webp",
+    "_astro/astronaut.B8IC2jL3_Z1pTs8N.webp",
+    "assets/stack/astro.jpg",
+    "_astro/cta-dark-bg.h-w07icx.webp",
+    "_astro/testimonial-bg-01.CofysqBI.webp",
+    "_astro/fonts/3827da0b0bf6b4db.woff2",
+    "_astro/fonts/aef5e683e5734387.woff2",
+    "_astro/fonts/5288773a5a229461.woff2",
+  ]) {
+    assert.equal(preview.includes(`/api/templates/lonestone/assets/${path}`), true, path);
+    assert.equal(preview.includes(`"${path}"`) || preview.includes(`/${path}`) && !preview.includes(`/api/templates/lonestone/assets/${path}`), false);
+  }
+  assert.equal(preview.includes('url("/_astro/fonts/'), false);
+  assert.equal(preview.includes("url(/assets/stack/"), false);
+  assert.equal(preview.includes("url(/_astro/cta-dark-bg"), false);
 });
 
 test("template asset responses allow sandboxed preview font loads", async () => {
