@@ -60,3 +60,5 @@ supersedes:
 
 后续修复（Kiro，2026-09-28 15:33）：准备盲评样本时，外贸资料包的规划在 4 次里有 1 次因 `summary` 超过 400 字被判 Schema 不合格（又是「需求对齐规划没有返回可用的问题卡」）。规划器的说明、题目和选项文字过长时现在截断，不再整张卡失败（`lib/ai-provider.ts` 的 `clipPlanProse`）。红态 15:31 `tests/structured-output-budget.test.ts` 新增一项失败，改后 5/5，`npm test` 303/303。样本脚本 `scripts/generate-look-samples.mjs` 按四个样子各跑一遍「资料 → 需求对齐 → 确认」。
 
+后续修复 2（Kiro，15:43）：外贸资料包确认后的整站生成，两次尝试都因目录条目缺 `body` 被判 Schema 不合格（真实 6 次重放里 1 次：`operations.15.value.items.0.body: expected object, received undefined`），用户看到「模型返回的方案无法安全校验」。目录条目缺标题或正文时按缺口补「待补充 / To be provided」（`fillMissingCatalogText`），不再整次失败。红态 15:41 新增一项失败，改后 `tests/structured-output-budget.test.ts` 6/6，`npm test` 304/304，`npm run build` 通过。
+
