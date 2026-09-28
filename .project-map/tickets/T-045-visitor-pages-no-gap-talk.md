@@ -2,7 +2,7 @@
 id: T-045
 title: 访客页不写缺口说明和建站元话术
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -25,7 +25,7 @@ supersedes:
 - [x] 目录卡正文整段是缺口时，访客页只显示标题；认证卡正文与状态相同时只显示一次
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 用两份模拟资料重新生成四个样子，`check-published` 通过，1440 / 375 截图打开看过
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -41,4 +41,6 @@ supersedes:
 绿态（16:37）：同一命令 6/6；`npm test` 314/314、`npm run typecheck`、`npm run build` 通过。
 
 生成实测（真实 DeepSeek）：`node --experimental-strip-types scripts/generate-look-samples.mjs --pack industrial|export` 重新生成 8 个站（id 在 `artifacts/t045/samples-*.json`），8 个都一次走通。逐页探针（`artifacts/kiro-browse/gap-talk-probe.js`）在 8 站中英文页上都没有纯缺口句和建站元话术；剩下的整格「待补充」是参数表里资料没给的参数值（事实字段，按规则保留）。`node scripts/check-published.mjs --out artifacts/published-check/t045 <8 个 id>` 24 项 ok。抽看 `7809b283-…-1440.png`（灰底短路径外贸）、`3bda89e0-…-375.png`（工程工业工业包）和明亮产品的合作方式区块（`artifacts/t045/forge-services-1440.png`，只剩标题）。截图里首屏标题和手机公司名的变化来自 grok-a 同时在做的 T-046，不算本票。
+
+独立审核：grok-b，2026-09-28 17:42，PASS。`stripGapTalk` 去掉整句缺口和建站元话术，含数字或真实事实的分句保留；目录卡和服务卡在访客页上正文整段是缺口时只留标题，认证状态只出现一次。`sitecraft-frontend-less-ai-tone@0.3.1`。用真实 DeepSeek 跑 `node --experimental-strip-types scripts/generate-look-samples.mjs --pack export --out artifacts/t045-review-grokb/samples-export.json`，四个样子都一次生成（`15bdbc69-5702-4934-b114-98821573efcb`、`6618ea07-6878-463d-bb0c-b2a223270929`、`db425109-8e0b-4bcd-8de8-ea02d893e730`、`bbab05e2-c8bb-4f71-a348-62aaaa4a975d`）。中文发布页和明亮产品、工程工业、蓝白目录的英文页上都没有「电话与地址待补充」这类纯缺口句，也没有「整站」「资料中」。食品饮料灌装、化工取样、自动攻丝只显示标题；快换接头的 DN8–DN25、2.5 MPa、316L 和邮箱 catalog@p3e-sim.test 都还在；「批量交期在询盘后确认」还在，资料里那句「资料未给具体天数」没有带上页面。`node scripts/check-published.mjs --out artifacts/t045-review-grokb/published` 这四个站 × 1440/768/375 共 12 项 ok。灰底短路径的发布页没有中/EN 开关，英文只核对了草稿，没有纯缺口句。命令：`node --test --experimental-strip-types tests/visitor-prose.test.ts` 6/6；`npm test` 314/314；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t045-review-grokb/`。实现提交：`c796866`
 
