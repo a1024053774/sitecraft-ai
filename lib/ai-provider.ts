@@ -255,11 +255,35 @@ export function buildDraftPromptContext(draft: SiteDraft, selectedTarget?: strin
   return `${DRAFT_UNTRUSTED_NOTICE}\n当前草稿精简上下文（站点元信息、分区概览、商品 sku/名称，以及所选分区全文；字符预算是 token 的保守近似）：${clipChars(packed, DRAFT_PROMPT_CHAR_BUDGET)}`;
 }
 
+// Prose lengths the plan schema allows. Longer model prose is clipped instead of failing the card.
+function clipPlanProse(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const clip = (value: unknown, max: number) => (typeof value === "string" && value.length > max ? `${value.slice(0, max - 1)}…` : value);
+  const clipOptions = (options: unknown) => Array.isArray(options)
+    ? options.map((option) => option && typeof option === "object"
+      ? { ...option, label: clip((option as { label?: unknown }).label, 80), description: clip((option as { description?: unknown }).description, 200) }
+      : option)
+    : options;
+  const plan = raw as Record<string, unknown>;
+  return {
+    ...plan,
+    summary: clip(plan.summary, 400),
+    question: clip(plan.question, 800),
+    rationale: clip(plan.rationale, 260),
+    options: clipOptions(plan.options),
+    questions: Array.isArray(plan.questions)
+      ? plan.questions.map((item) => item && typeof item === "object"
+        ? { ...item, question: clip((item as { question?: unknown }).question, 800), options: clipOptions((item as { options?: unknown }).options) }
+        : item)
+      : plan.questions,
+  };
+}
+
 function parseAlignmentPlan(content: unknown) {
   if (typeof content !== "string") return { data: null, error: "message.content 不是字符串" };
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
-    const parsed = alignmentPlanSchema.safeParse(JSON.parse(cleaned));
+    const parsed = alignmentPlanSchema.safeParse(clipPlanProse(JSON.parse(cleaned)));
     if (parsed.success) return { data: parsed.data, error: "" };
     return {
       data: null,

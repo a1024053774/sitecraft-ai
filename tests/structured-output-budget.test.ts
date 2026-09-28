@@ -84,3 +84,28 @@ test("the alignment planner has room for a full card and is not asked for color-
   assert.match(system, /不要输出 colorSet 题/);
   assert.doesNotMatch(system, /swatches/);
 });
+
+// The export pack's planner reply failed Schema in 1 of 4 real runs: "summary: Too big: expected
+// string to have <=400 characters". Over-long prose is clipped, not treated as a broken card.
+test("an over-long planner summary or option description is clipped instead of failing", async () => {
+  const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
+  const replies = [
+    { kind: "ready", summary: "资料完整。".repeat(150) },
+    { kind: "question", questions: [{ field: "pages", question: "页面重点怎么排？", allowOther: true, options: [
+      { label: "产品分类 + 询盘", description: "方便经销商按系列筛选。".repeat(30), recommended: true },
+      { label: "只要首页", description: "路径最短。" },
+    ] }] },
+  ];
+  const original = globalThis.fetch;
+  try {
+    for (const reply of replies) {
+      globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(reply) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+      const plan = await requestAlignmentPlan({ message: "外贸资料", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" });
+      assert.equal(plan.ok, true, JSON.stringify(plan).slice(0, 200));
+      if (plan.ok && plan.kind === "ready") assert.ok(plan.summary.length <= 400);
+      if (plan.ok && plan.kind === "question") assert.ok((plan.questions?.[0]?.options[0]?.description.length ?? 0) <= 200);
+    }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
