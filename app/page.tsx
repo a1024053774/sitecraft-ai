@@ -89,7 +89,6 @@ export default async function Dashboard() {
         <div className="page-content">
           <div className="hero-row">
             <div>
-              <div className="eyebrow">Site studio / 08.21</div>
               <h1>
                 把你的能力，
                 <br />

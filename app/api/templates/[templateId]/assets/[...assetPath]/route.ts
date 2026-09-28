@@ -12,6 +12,7 @@ export async function GET(
       "Content-Type": asset.contentType,
       "Cache-Control": "public, max-age=31536000, immutable",
       "X-Content-Type-Options": "nosniff",
+      "Access-Control-Allow-Origin": "*",
     },
   });
 }

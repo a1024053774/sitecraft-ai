@@ -23,6 +23,51 @@ const contentTypes: Record<string, string> = {
 
 const EMPTY_MOUNT = /<(?:div|main)([^>]*\bid=["'](?:root|app|__next)["'][^>]*)>(\s*)<\/(?:div|main)>/i;
 
+// Snapshots built for a public base path (Astro `base`) keep that prefix in
+// HTML. The files themselves sit at the snapshot root, and the preview frame
+// asks for them through the asset route.
+const SNAPSHOT_PUBLIC_BASE: Record<string, string> = {
+  powerai: "astro-genai-startup-theme",
+};
+
+function assetRoutePrefix(templateId: string) {
+  return `/api/templates/${encodeURIComponent(templateId)}/assets/`;
+}
+
+function rewriteSnapshotCssUrls(css: string, templateId: string) {
+  const prefix = assetRoutePrefix(templateId);
+  return css.replace(/url\(\s*(['"]?)\/(?!\/|api\/templates\/)/g, `url($1${prefix}`);
+}
+
+function ensureLocalStylesheetCrossorigin(html: string) {
+  return html.replace(/<link\b[^>]*>/gi, (tag) => {
+    if (!/\brel=["'][^"']*\bstylesheet\b/i.test(tag)) return tag;
+    if (/\bcrossorigin\b/i.test(tag)) return tag;
+    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1] ?? "";
+    if (/^(?:https?:)?\/\//i.test(href)) return tag;
+    return tag.replace(/^<link\b/i, '<link crossorigin="anonymous"');
+  });
+}
+
+function containedSnapshotPath(root: string, segments: string[]) {
+  const candidate = path.resolve(root, ...segments);
+  if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) return null;
+  return candidate;
+}
+
+async function existingSnapshotTarget(root: string, segments: string[]) {
+  const candidate = containedSnapshotPath(root, segments);
+  if (!candidate) return null;
+  try {
+    const details = await stat(/* turbopackIgnore: true */ candidate);
+    const target = details.isDirectory() ? path.join(candidate, "index.html") : candidate;
+    await stat(/* turbopackIgnore: true */ target);
+    return target;
+  } catch {
+    return null;
+  }
+}
+
 export function isSpaShellHtml(html: string) {
   const withoutComments = html.replace(/<!--[\s\S]*?-->/g, "");
   const withoutAssets = withoutComments
@@ -98,12 +143,13 @@ function tailwindHostOverlayFile() {
 export async function readTemplateStaticFile(templateId: string, segments: string[]) {
   const root = getTemplateStaticRoot(templateId);
   if (!root) return null;
-  const candidate = path.resolve(root, ...segments);
-  if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) return null;
-  let target = candidate;
+  const base = SNAPSHOT_PUBLIC_BASE[templateId];
+  let target = await existingSnapshotTarget(root, segments);
+  if (!target && base && segments[0] === base && segments.length > 1) {
+    target = await existingSnapshotTarget(root, segments.slice(1));
+  }
+  if (!target) return null;
   try {
-    const details = await stat(/* turbopackIgnore: true */ target);
-    if (details.isDirectory()) target = path.join(target, "index.html");
     const isRootIndex = target === path.join(root, "index.html");
     if (isRootIndex && templateId === "landwind") {
       target = landwindHostOverlayFile();
@@ -118,7 +164,14 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
       target = tailwindHostOverlayFile();
     }
     const body = await readFile(/* turbopackIgnore: true */ target);
-    return { body, contentType: contentTypes[path.extname(target).toLowerCase()] ?? "application/octet-stream" };
+    const extension = path.extname(target).toLowerCase();
+    if (extension === ".html") {
+      return { body: Buffer.from(ensureLocalStylesheetCrossorigin(body.toString("utf8"))), contentType: contentTypes[".html"] };
+    }
+    if (extension === ".css") {
+      return { body: Buffer.from(rewriteSnapshotCssUrls(body.toString("utf8"), templateId)), contentType: contentTypes[".css"] };
+    }
+    return { body, contentType: contentTypes[extension] ?? "application/octet-stream" };
   } catch {
     return null;
   }
