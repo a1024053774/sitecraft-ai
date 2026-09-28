@@ -60,6 +60,7 @@ import {
 import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/template-pages";
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
+import { resolveWorkspaceEntry, workspaceUrlForSite } from "@/lib/workspace-entry";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
 import { generateCustomPalette } from "@/lib/custom-brand-color";
@@ -335,6 +336,23 @@ function alignmentMessageText(view: AlignmentViewState, action?: string) {
   return view.summary || "需求对齐已更新";
 }
 
+// One in-flight creation per entry URL, shared by the two effect runs in development.
+let pendingSiteCreation: { key: string; promise: Promise<string> } | null = null;
+
+async function createSiteForTemplate(templateId: string): Promise<string> {
+  const response = await fetch("/api/sites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "未命名站点", templateId, locales: ["zh", "en"] }),
+  });
+  const created = await response.json().catch(() => ({})) as { id?: string; userMessage?: string };
+  if (!response.ok || !created.id) {
+    pendingSiteCreation = null;
+    throw new Error(created.userMessage || "新站点没有建成，请回到模板页重试。");
+  }
+  return created.id;
+}
+
 export default function WorkspacePage() {
   const [siteId, setSiteId] = useState(DEFAULT_WORKSPACE_SITE_ID);
   const [draft, setDraft] = useState<SiteDraft>(defaultDraft);
@@ -418,8 +436,29 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     let cancelled = false;
+    // `?site=` opens that site; `?template=` alone is the 新建站点 entry and creates a new site.
+    async function resolveActiveSiteId() {
+      const entry = resolveWorkspaceEntry(window.location.search, templates.map((item) => item.id));
+      if (entry.kind === "open") return parseWorkspaceSiteId(entry.siteId);
+      const key = window.location.search;
+      // Effects run twice in development; both runs must share one POST so no orphan site is created.
+      if (pendingSiteCreation?.key !== key) {
+        pendingSiteCreation = { key, promise: createSiteForTemplate(entry.templateId) };
+      }
+      const createdId = await pendingSiteCreation.promise;
+      window.history.replaceState(null, "", workspaceUrlForSite(key, createdId));
+      return createdId;
+    }
     async function loadDraft() {
-      const activeSiteId = parseWorkspaceSiteId(new URLSearchParams(window.location.search).get("site"));
+      let activeSiteId: string;
+      try {
+        activeSiteId = await resolveActiveSiteId();
+      } catch (error) {
+        if (!cancelled) {
+          setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "新站点没有建成，请回到模板页重试。") }]);
+        }
+        return;
+      }
       setSiteId(activeSiteId);
       try {
         let snapshot = await fetch(`/api/sites/${activeSiteId}/draft`, { cache: "no-store" }).then((response) => {
@@ -447,25 +486,6 @@ export default function WorkspacePage() {
           }
         }
         window.localStorage.removeItem("sitecraft-draft");
-        const requestedTemplate = new URLSearchParams(window.location.search).get("template");
-        const requestedBrief = requestedTemplate
-          ? visualBriefCatalog.find((item) => item.templateId === requestedTemplate)
-          : undefined;
-        if (requestedTemplate && templates.some((item) => item.id === requestedTemplate) && snapshot.draft.templateId !== requestedTemplate) {
-          const response = await fetch(`/api/sites/${activeSiteId}/draft`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              baseRevision: snapshot.draft.revision,
-              operations: [requestedBrief
-                ? { op: "set_visual_brief", briefId: requestedBrief.id }
-                : { op: "set_template", templateId: requestedTemplate }],
-              summary: requestedBrief ? `选择样子 ${requestedBrief.label}` : `选择模板 ${getTemplate(requestedTemplate).name}`,
-              source: "template",
-            }),
-          });
-          if (response.ok) snapshot = await response.json() as DraftSnapshot;
-        }
         if (!cancelled) {
           adoptSnapshot(snapshot);
           const requestedPage = new URLSearchParams(window.location.search).get("page");
