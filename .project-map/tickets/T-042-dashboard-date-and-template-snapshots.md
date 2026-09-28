@@ -35,6 +35,6 @@ GENAI 要么补齐本地快照，要么按 T-026 的规则标为「仅有上游�
 
 浏览器（未重启 3034 上的 dev server）：1440 宽 Chrome。首页截图没有日期戳。模板页 GENAI 缩略图有紫粉渐变和导航，TAILCAST 缩略图是深色首屏和按钮。本地快照资源请求没有 4xx。截图：`artifacts/t042/dashboard-1440.png`、`artifacts/t042/templates-1440.png`、`artifacts/t042/templates-genai-tailcast-1440.png`。
 
-提交与本 Resolution 在同一提交；SHA 以该提交为准。
+实现提交：`28d86321d47a2ee76d6cc71966bd29630d46cc2e`。
 
 跨 harness 审核：留空。
