@@ -2,7 +2,7 @@
 id: T-043
 title: 工作台深色主题的文字看得清
 type: build
-status: open
+status: closed
 blocked_by: [T-041]
 claimed_by: grok-a
 supersedes:
@@ -27,7 +27,7 @@ supersedes:
 - [x] 深色和浅色主题下，上面这些元素的正文对比度都 ≥ 4.5:1（小于 18px 的次要文字也按 4.5:1）；有测试或检查脚本量出来
 - [x] 1440 / 768 / 375 深浅两套主题截图，打开看过
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -57,4 +57,6 @@ supersedes:
 - 不通过：验收第 1 项是「深色和浅色主题下，上面这些元素的正文对比度都 ≥ 4.5:1（小于 18px 的次要文字也按 4.5:1）」，意图是工作台界面文字都看得清。Kiro 用逐个文字节点的探针（`artifacts/kiro-browse/contrast-all.js`，考虑透明度和祖先 opacity，跳过禁用控件）在同一站点 1440 上查：深色 52 个节点里 20 个低于 4.5，例如「已保存的问答」1.57、对齐面板里的答案 1.57、「按你点名的页面规划」1.52、「商品」「产品图」按钮 1.60、页面标签的「页内区块」2.16–2.43、「AI 已连接」2.30、保存时间 2.22、EN 2.43、改动标记 3.05；浅色 12 个，例如「返回站点」「强调色」「AI 助手」2.96、保存时间 2.83、「页内区块」2.76–3.10、改动标记 3.05。请把这些也拉到 4.5，并把检查改成扫描整个工作台的文字，而不是只查 7 个选择器。
 
 2026-09-28 15:35（UTC-4）。同一支 `artifacts/kiro-browse/contrast-all.js` 写进 `tests/workspace-dark-contrast.test.ts`，扫描 `.builder-shell` 里每个可见文字节点（iframe 和禁用控件除外）。深色/浅色 × 1440，以及 375 的对话页和网站预览，`lowCount` 都是 0：深色 1440 查了 41 个，375 对话 27、预览 16；浅色同样。改动标记改为实底 `#eef3f8`、字 `#17211b`。对齐面板的问题和摘要在深色下改为 `#17211b`（这张草稿没展开对齐卡，扫描里没有那几句）。`npm run typecheck` 通过。`npm test` 303/303 通过。`npm run build` 通过。截图 `artifacts/t043/workspace-{dark,light}-1440-workspace.png` 和 `workspace-{dark,light}-375-{chat,preview}.png`。没有改 `app/workspace/page.tsx`。保留了 `.alignment-card .palette-swatch-row`。
+
+独立审核（复审）：Kiro，2026-09-28 15:52，PASS（`d11cd32` 之后新跑，HEAD `9efe4f4`）。同一个逐个文字节点探针（`artifacts/kiro-browse/contrast-all.js`）在深浅两套主题、1440 和 375 下都是 0 处低于 4.5:1（1440 各 52 个节点，375 各 38 个）；截图 `artifacts/t043-review-kiro/after-fix-{dark,light}-{1440,375}.png` 打开看过，对齐面板、页面标签、保存时间、改动标记都看得清。`npm test` 全部通过。
 
