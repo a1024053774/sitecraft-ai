@@ -120,7 +120,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return undefined;
   }
 
-  function renderProductGrid(draft, locale, applied) {
+  function renderProductGrid(draft, locale, applied, variant) {
     var grid = uniqueNode('[data-sitecraft-product-grid]');
     if (!grid || !document || !document.createElement) return;
     // The collection root is a declared host capability. Individual cards
@@ -130,13 +130,17 @@ function sitecraftPreviewBridge(templateId, adapter) {
     grid.textContent = "";
     var products = draft && Array.isArray(draft.products) ? draft.products : [];
     var visible = products.filter(function (product) {
-      return product && product.status !== "archived";
+      if (!product || product.status === "archived") return false;
+      return !(isGapMarker(localize(product.name, locale) || "") && isGapMarker(localize(product.summary, locale) || ""));
     });
     if (!visible.length) {
-      var empty = document.createElement("p");
-      empty.className = "sitecraft-product-empty";
-      empty.textContent = locale === "en" ? "Product information to be completed." : "产品资料待补充。";
-      grid.appendChild(empty);
+      // Visitors never see an empty shell (hideEmptyProductSection hides the block); the workspace keeps a hint.
+      if (variant === "workspace") {
+        var empty = document.createElement("p");
+        empty.className = "sitecraft-product-empty";
+        empty.textContent = locale === "en" ? "Product information to be completed." : "产品资料待补充。";
+        grid.appendChild(empty);
+      }
       return;
     }
     var cardSpec = adapter && adapter.kit && adapter.kit.productCard;
@@ -563,6 +567,16 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var pointsAtHidden = Boolean(target && target.getAttribute && target.getAttribute("data-sitecraft-section-hidden") === "true");
       if (!pointsAtHidden && navKey && hiddenKeys.indexOf(navKey) !== -1) pointsAtHidden = true;
       link.hidden = pointsAtHidden;
+      // Overlay button styles (display:flex) beat the [hidden] default, so enforce it inline.
+      if (link.style && link.style.setProperty && link.setAttribute) {
+        if (pointsAtHidden) {
+          link.style.setProperty("display", "none", "important");
+          link.setAttribute("data-sitecraft-nav-hidden", "true");
+        } else if (link.getAttribute("data-sitecraft-nav-hidden") === "true") {
+          if (link.style.removeProperty) link.style.removeProperty("display");
+          if (link.removeAttribute) link.removeAttribute("data-sitecraft-nav-hidden");
+        }
+      }
     }
     var indexes = document.querySelectorAll("[data-sitecraft-section-index]");
     var visibleCount = 0;
@@ -968,6 +982,20 @@ function sitecraftPreviewBridge(templateId, adapter) {
     syncHiddenNavigation(hiddenKeys);
   }
 
+  // Gap rule for the product block: with no visible product, visitors see no product section at all.
+  // Runs after applySectionVisibility so the draft's own hiddenSections cannot re-show it.
+  function hideEmptyProductSection(draft, locale, variant) {
+    if (variant === "workspace") return;
+    var section = uniqueNode('[data-sitecraft-section="products"]');
+    if (!section) return;
+    var products = draft && Array.isArray(draft.products) ? draft.products : [];
+    var anyVisible = products.some(function (product) {
+      if (!product || product.status === "archived") return false;
+      return !(isGapMarker(localize(product.name, locale) || "") && isGapMarker(localize(product.summary, locale) || ""));
+    });
+    if (!anyVisible) setSectionHidden(section, "products", true);
+  }
+
   function clearUnprovidedCatalogChrome(draft, variant) {
     if (variant !== "published" || !document) return;
     var keys = ["industries", "capabilities", "certifications"];
@@ -1048,7 +1076,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
     if (adapter && draft) {
       applyDocumentTitle(draft);
-      renderProductGrid(draft, currentLocale, applied);
+      renderProductGrid(draft, currentLocale, applied, variant || "preview");
       renderFooterProducts(draft, currentLocale);
       applyHeroVisual(draft, currentLocale, applied);
       applyVisitorChrome(currentLocale, draft, variant || "preview");
@@ -1067,6 +1095,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       collapseUnprovidedEntries(draft, currentLocale, variant || "preview");
       renderCatalogSections(draft, currentLocale, applied, variant || "preview");
       clearUnprovidedCatalogChrome(draft, variant || "preview");
+      hideEmptyProductSection(draft, currentLocale, variant || "preview");
       syncHiddenNavigation((function () {
         var hiddenKeys = [];
         var hiddenNodes = document.querySelectorAll("[data-sitecraft-section-hidden='true']");

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft } from "../lib/site-document.ts";
+import { draftWithFixtureProducts } from "./fixtures/draft-with-products.ts";
 import { applySiteOperations } from "../lib/site-operations.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/index.ts";
 import {
@@ -288,7 +289,7 @@ test("screwfast hero picks photo, spec nameplate or nothing from products, not i
     { name: { zh: "额定压力", en: "Rated pressure" }, value: "2.5 MPa" },
   ];
   const noPhoto = (industry: string) => {
-    const draft = structuredClone(defaultDraft);
+    const draft = structuredClone(draftWithFixtureProducts);
     draft.industry = industry;
     draft.products = draft.products.slice(0, 1).map((product) => {
       const next = { ...product, specs } as typeof product;

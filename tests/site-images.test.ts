@@ -16,7 +16,7 @@ import {
   validateImageProvenance,
 } from "../lib/site-images.ts";
 import { imageFactsSchema, MISSING_FACT, parseImageFacts } from "../lib/image-facts.ts";
-import { defaultDraft } from "../lib/site-document.ts";
+import { draftWithFixtureProducts as defaultDraft } from "./fixtures/draft-with-products.ts";
 import { aiIntentResponseSchema, applySiteOperations } from "../lib/site-operations.ts";
 
 const ONE_BY_ONE_PNG = Buffer.from(

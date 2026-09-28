@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { defaultDraft } from "../lib/site-document.ts";
+import { draftWithFixtureProducts as defaultDraft } from "./fixtures/draft-with-products.ts";
 import { draftOffersVisitorEnglish } from "../lib/draft-english.ts";
 import { applySiteOperations } from "../lib/site-operations.ts";
 

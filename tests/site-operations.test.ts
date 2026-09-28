@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft, normalizeDraft } from "../lib/site-document.ts";
+import { draftWithFixtureProducts } from "./fixtures/draft-with-products.ts";
 import {
   aiIntentResponseSchema,
   applySiteOperations,
@@ -310,9 +311,9 @@ test("undoing the only bilingual card update restores englishReady", () => {
 });
 
 test("one product operation writes a bilingual category and undo restores it", () => {
-  const sku = defaultDraft.products[0].sku;
-  const result = applySiteOperations(structuredClone(defaultDraft), [{ op: "update_product", sku, category: { zh: "卡套接头", en: "Ferrule fittings" } }], { templateIds: new Set(["forge"]), lastChange: "category" });
+  const sku = draftWithFixtureProducts.products[0].sku;
+  const result = applySiteOperations(structuredClone(draftWithFixtureProducts), [{ op: "update_product", sku, category: { zh: "卡套接头", en: "Ferrule fittings" } }], { templateIds: new Set(["forge"]), lastChange: "category" });
   assert.deepEqual(result.draft.products[0].category, { zh: "卡套接头", en: "Ferrule fittings" });
   const restored = applySiteOperations(result.draft, result.inverseOperations, { templateIds: new Set(["forge"]), lastChange: "undo" }).draft;
-  assert.deepEqual(restored.products[0].category, defaultDraft.products[0].category);
+  assert.deepEqual(restored.products[0].category, draftWithFixtureProducts.products[0].category);
 });

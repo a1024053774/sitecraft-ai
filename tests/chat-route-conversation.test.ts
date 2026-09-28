@@ -739,7 +739,11 @@ test("guided image wait resumes the same saved task after a site upload", async 
   assert.equal(resumed.done?.awaitingConfirmation, true);
   const conversation = await getConversation(siteId, conversationId);
   const operations = conversation?.alignment.proposedChange?.operations ?? [];
-  assert.equal(operations.some((operation) => operation.op === "set_product_image" && operation.imageId === image.imageId), true);
+  // A new site has no products (T-035), so the uploaded photo is proposed for the hero image.
+  assert.equal(operations.some((operation) => (
+    (operation.op === "set_product_image" || (operation.op === "set_image_slot" && operation.target === "hero.image"))
+    && operation.imageId === image.imageId
+  )), true);
   assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
 });
 

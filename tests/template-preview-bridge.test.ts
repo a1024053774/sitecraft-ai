@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft, visualBriefCatalog } from "../lib/site-document.ts";
+import { draftWithFixtureProducts } from "./fixtures/draft-with-products.ts";
 import { applySiteOperations, type SiteOperation } from "../lib/site-operations.ts";
 import { simulatedPacks } from "../lib/simulated-packs.ts";
 import {
@@ -1671,7 +1672,7 @@ function visibleText(node: FakeNode): string {
 function packDraft(id: "industrial" | "export") {
   const pack = simulatedPacks[id];
   const briefId = id === "industrial" ? "engineering-industrial" : "export-catalog";
-  return applySiteOperations(structuredClone(defaultDraft), [
+  return applySiteOperations(structuredClone(draftWithFixtureProducts), [
     { op: "set_visual_brief", briefId },
     { op: "set_text", target: "companyName", value: pack.companyName },
     { op: "set_text", target: "hero.title", locale: "zh", value: pack.heroTitle },

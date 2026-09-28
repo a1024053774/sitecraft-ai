@@ -4,7 +4,8 @@ import { registerHooks } from "node:module";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
-import { defaultDraft, normalizeDraft, type SiteDraft } from "../lib/site-document.ts";
+import { normalizeDraft, type SiteDraft } from "../lib/site-document.ts";
+import { draftWithFixtureProducts as defaultDraft } from "./fixtures/draft-with-products.ts";
 import {
   applySiteOperations,
   validateAIOperations,
@@ -92,13 +93,17 @@ test("spec values absent from materials become 待补充 under validateAIOperati
 test("commitOperations persists product specs on a real site record", async () => {
   const siteId = `spec-tracer-${Date.now().toString(36)}`;
   const before = await getSite(siteId);
-  const sku = before.draft.products[0].sku;
+  // New sites carry no products (T-035), so the tracer adds one in the same commit.
+  const sku = defaultDraft.products[0].sku;
   const committed = await commitOperations({
     siteId,
     baseRevision: before.draft.revision,
     summary: "tracer: product specs",
     source: "manual",
     operations: [{
+      op: "replace_products",
+      products: structuredClone(defaultDraft.products.slice(0, 1)),
+    }, {
       op: "set_product_specs",
       sku,
       specs: [
