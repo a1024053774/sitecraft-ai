@@ -24,6 +24,10 @@ export type PreviewLoadController = {
   markVisible: () => void;
   /** iframe onLoad fired — switch to the bridge-ack wait. */
   markDocumentLoaded: () => void;
+  /** Preview is behind another mobile tab. Stop the clock without failing. */
+  hold: () => void;
+  /** Preview is visible again. Resume whichever wait is still unfinished. */
+  release: () => void;
   clear: () => void;
 };
 
@@ -67,6 +71,7 @@ export function createPreviewLoadController(
   let visible = args.variant !== "thumbnail";
   let documentLoaded = false;
   let documentWaitArmed = false;
+  let held = false;
 
   const clear = () => {
     if (timer !== null) {
@@ -76,6 +81,7 @@ export function createPreviewLoadController(
   };
 
   const startBridgeWait = () => {
+    if (held) return;
     clear();
     timer = args.setTimeout(() => {
       timer = null;
@@ -84,7 +90,7 @@ export function createPreviewLoadController(
   };
 
   const startDocumentWait = () => {
-    if (!visible || documentLoaded || documentWaitArmed) return;
+    if (held || !visible || documentLoaded || documentWaitArmed) return;
     documentWaitArmed = true;
     clear();
     timer = args.setTimeout(() => {
@@ -105,6 +111,19 @@ export function createPreviewLoadController(
       documentLoaded = true;
       documentWaitArmed = true;
       startBridgeWait();
+    },
+    hold: () => {
+      held = true;
+      clear();
+    },
+    release: () => {
+      if (!held) return;
+      held = false;
+      if (documentLoaded) startBridgeWait();
+      else {
+        documentWaitArmed = false;
+        startDocumentWait();
+      }
     },
     clear,
   };

@@ -102,6 +102,30 @@ test("after onLoad the timer only covers the missing applied acknowledgement", (
   assert.match(failures[0]!, /Chrome/);
 });
 
+test("a hidden workspace preview does not enter the error state", () => {
+  const timers = createFakeTimers();
+  const failures: string[] = [];
+  const controller = createPreviewLoadController({
+    variant: "workspace",
+    onTimeout: (message) => failures.push(message),
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout,
+  });
+
+  controller.armDocumentWait();
+  controller.hold();
+  timers.advance(PREVIEW_TIMEOUT_MS * 3);
+  assert.equal(failures.length, 0, "a preview behind the chat tab must not time out");
+  controller.markDocumentLoaded();
+  timers.advance(PREVIEW_TIMEOUT_MS * 3);
+  assert.equal(failures.length, 0, "the bridge wait must also stay paused while hidden");
+  controller.release();
+  timers.advance(PREVIEW_TIMEOUT_MS - 1);
+  assert.equal(failures.length, 0);
+  timers.advance(1);
+  assert.equal(failures.length, 1);
+});
+
 test("upstream English preview reasons map to Chinese without leaking raw status text", () => {
   assert.match(mapPreviewUpstreamReason("upstream status 502"), /上游|重试/);
   assert.doesNotMatch(mapPreviewUpstreamReason("upstream status 502"), /upstream|502/i);

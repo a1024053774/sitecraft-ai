@@ -161,7 +161,21 @@ export function OpenSourceTemplateFrame({
     } else if (variant !== "thumbnail") {
       controller.armDocumentWait();
     }
+    const host = shellRef.current?.closest(".preview-shell");
+    const syncHiddenPreview = () => {
+      const hidden = Boolean(shellRef.current?.closest(".mobile-hidden"));
+      if (hidden) {
+        controller.hold();
+        return;
+      }
+      sendContent();
+      controller.release();
+    };
+    syncHiddenPreview();
+    const observer = host ? new MutationObserver(syncHiddenPreview) : null;
+    observer?.observe(host!, { attributes: true, attributeFilter: ["class"] });
     return () => {
+      observer?.disconnect();
       clearLoadController();
     };
   }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearLoadController, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, offersVisitorEnglish, pagePath, reportLoadState, sendContent, templateId, variant]);

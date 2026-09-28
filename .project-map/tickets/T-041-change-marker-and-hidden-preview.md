@@ -18,11 +18,19 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 1440 / 768 / 375 下改动标记不覆盖站点页头任何文字
-- [ ] 手机上在「AI 对话」标签完成一次修改，不出现预览错误；切到预览时直接是新内容
-- [ ] 模板页浮条在缩略图上方
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
-- [ ] 1440 / 768 / 375 浏览器截图
+- [x] 1440 / 768 / 375 下改动标记不覆盖站点页头任何文字
+- [x] 手机上在「AI 对话」标签完成一次修改，不出现预览错误；切到预览时直接是新内容
+- [x] 模板页浮条在缩略图上方
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
+- [x] 1440 / 768 / 375 浏览器截图
 - [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
+
+2026-09-28 14:45（UTC-4）。改动标记改为文档流，放在预览框上方。预览带 `mobile-hidden` 时 `hold()` 停掉载入计时，切回再 `release()`。模板浮条 `z-index: 40`。
+
+失败测试：`node --test --experimental-strip-types tests/preview-load-timing.test.ts tests/workspace-chrome-layout.test.ts` 改动前 4 项失败（`hold` 不存在、标记 `top: 74px`、浮条无 z-index）。改完这 8 项通过。`npm run typecheck` 通过。`npm test` 293/293 通过。`npm run build` 通过。
+
+截图 `artifacts/t041/`。1440 标记底边 217.5、预览框顶 227.5，页头「忻州重载减速机P3I」和导航都露着。768、375 同样在预览框上方。375 在对话页等过超时后没有「预览暂时无法显示」，切到网站预览是 `ready`。模板页 1440/768/375 浮条命中测试为 true，z-index 40。保留了 `.alignment-card .palette-swatch-row`。
+
+实现提交：本 commit。
