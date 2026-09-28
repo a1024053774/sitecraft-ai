@@ -186,9 +186,17 @@ const INSPECT = `(async () => {
   const headerNav = header ? [...header.querySelectorAll("a[href^='#'], summary, button")].filter((el) => visible(el) && !el.closest("[data-sitecraft-locale-switch]") && el.getAttribute("href") !== "#top" && !el.closest(".sitecraft-brand")).length : 0;
   const editableSlot = [...document.querySelectorAll("[data-sitecraft-slot]")].find((el) => !el.closest("a, button, summary, label, input, select, textarea"));
   const previewCss = [...document.querySelectorAll("style")].map((node) => node.textContent || "").join("");
+  const productImageOverflow = [...document.querySelectorAll(".sitecraft-product-image")].filter((img) => {
+    const card = img.closest(".sitecraft-product-card");
+    const imageBox = img.getBoundingClientRect();
+    const limit = card ? card.getBoundingClientRect().right : innerWidth;
+    return imageBox.width > 2 && imageBox.right > limit + 1;
+  }).length;
   return {
     editorCursor: editableSlot ? getComputedStyle(editableSlot).cursor : "",
     editorHoverOutline: previewCss.includes("[data-sitecraft-slot]:hover{") && previewCss.includes("outline:"),
+    horizontalScroll: document.documentElement.scrollWidth > innerWidth + 1,
+    productImageOverflow,
     heroPhotoCovered,
     numbering,
     phoneNav: innerWidth >= 500 || headerNav > 0,
@@ -209,6 +217,8 @@ function judge(report, expectedText) {
   const failures = [];
   if (report.editorCursor === "pointer") failures.push("visitor slot uses a pointer cursor");
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
+  if (report.horizontalScroll) failures.push("visitor page scrolls horizontally");
+  if (report.productImageOverflow) failures.push("product image overflows its card");
   if (report.heroPhotoCovered) failures.push("something is drawn on top of the hero photo");
   if (report.numbering) failures.push(`decorative section numbers visible (${report.numbering})`);
   if (!report.phoneNav) failures.push("no navigation or menu in the header at phone width");
@@ -247,12 +257,44 @@ async function leadCount(siteKey, marker) {
   return leads.filter((lead) => JSON.stringify(lead).includes(marker)).length;
 }
 
+function screenshotInk(file) {
+  const probe = spawnSync("python3", ["-c", "from PIL import Image\nimport sys\nim=Image.open(sys.argv[1]).convert('L')\nvals=list(im.resize((48,48)).getdata())\nprint(sum(1 for v in vals if v < 245))\n", file], { encoding: "utf8" });
+  const ink = Number((probe.stdout || "").trim());
+  return Number.isFinite(ink) ? ink : 0;
+}
+
 async function shootForm(browser, sessionId, frame, width, file) {
-  // The frame is stretched to the full page height, so frame coordinates equal page coordinates.
-  // Measure after the state change: a long message grows the textarea and moves the section.
-  const box = await browser.evaluate(`(() => { const r = ${FORM}.closest("section").getBoundingClientRect(); return { top: r.top + scrollY, height: r.height }; })()`, frame);
-  const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: Math.max(0, box.top - 40), width, height: Math.max(600, box.height + 80), scale: 1 } }, sessionId);
-  fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
+  const docHeight = await browser.evaluate(`Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)`, frame);
+  await browser.evaluate(`(() => {
+    const height = "${docHeight}px";
+    for (const el of document.querySelectorAll("iframe.open-source-template-frame, .open-source-template-frame-shell, .published-template-stage, .published-template-shell")) {
+      el.style.height = height;
+      el.style.minHeight = height;
+    }
+  })()`, sessionId);
+  await sleep(200);
+  const localTop = await browser.evaluate(`(() => { const rect = ${FORM}.closest("section").getBoundingClientRect(); return rect.top + scrollY; })()`, frame);
+  const page = await browser.evaluate(`(() => { const node = document.querySelector("iframe.open-source-template-frame"); const rect = node.getBoundingClientRect(); return { frameTop: rect.top + scrollY, pageHeight: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) }; })()`, sessionId);
+  const y = Math.max(0, Math.round(page.frameTop + localTop - 16));
+  const full = `${file}.full.png`;
+  const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: page.pageHeight, scale: 1 } }, sessionId);
+  fs.writeFileSync(full, Buffer.from(shot.data, "base64"));
+  const cropped = `${file}.crop.png`;
+  spawnSync("python3", ["-c", "from PIL import Image\nimport sys\nim=Image.open(sys.argv[1])\ny=max(0, min(int(sys.argv[2]), im.height - 1))\nh=max(1, min(int(sys.argv[3]), im.height - y))\nim.crop((0, y, im.width, y + h)).save(sys.argv[4])\n", full, String(y), "1000", cropped], { encoding: "utf8" });
+  fs.rmSync(full, { force: true });
+  await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 1000, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
+  await browser.evaluate(`scrollTo(0, ${y})`, sessionId);
+  await sleep(800);
+  const view = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, sessionId);
+  const viewed = `${file}.view.png`;
+  fs.writeFileSync(viewed, Buffer.from(view.data, "base64"));
+  const cropInk = fs.existsSync(cropped) ? screenshotInk(cropped) : 0;
+  const viewInk = screenshotInk(viewed);
+  fs.copyFileSync(viewInk >= cropInk ? viewed : cropped, file);
+  fs.rmSync(cropped, { force: true });
+  fs.rmSync(viewed, { force: true });
+  if (Math.max(cropInk, viewInk) < 24) return "inquiry screenshot is blank";
+  return "";
 }
 
 async function checkSubmission(browser, sessionId, frame, siteKey, width) {
@@ -268,7 +310,8 @@ async function checkSubmission(browser, sessionId, frame, siteKey, width) {
   }, `${siteKey} inquiry result`, 20000).catch(() => null);
   if (!sent || sent.state !== "sent") failures.push(`inquiry success not shown at the form (state ${sent && sent.state})`);
   else {
-    await shootForm(browser, sessionId, frame, width, `${shotBase}-sent.png`);
+    const sentBlank = await shootForm(browser, sessionId, frame, width, `${shotBase}-sent.png`);
+    if (sentBlank) failures.push(sentBlank);
     if (!sent.statusText) failures.push("inquiry success has no visible status text");
     if (sent.message) failures.push("form was not cleared after success");
   }
@@ -287,7 +330,8 @@ async function checkSubmission(browser, sessionId, frame, siteKey, width) {
   }, `${siteKey} inquiry error`, 15000).catch(() => null);
   if (!failed) failures.push("inquiry failure not shown at the form");
   else {
-    await shootForm(browser, sessionId, frame, width, `${shotBase}-error.png`);
+    const errorBlank = await shootForm(browser, sessionId, frame, width, `${shotBase}-error.png`);
+    if (errorBlank) failures.push(errorBlank);
     if (!failed.statusText) failures.push("inquiry failure has no visible status text");
     if (failed.message !== failMarker) failures.push("visitor input was lost after a failed submission");
   }
@@ -345,7 +389,7 @@ async function checkOne(browser, siteKey, width) {
     fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
     const failures = judge(report, await expectedDraftText(siteKey));
     delete report.text;
-    if (submit && width !== 768) {
+    if (submit) {
       const result = await checkSubmission(browser, sessionId, frame, siteKey, width);
       failures.push(...result.failures);
       report.inquiry = { success: result.success, failure: result.failure };
