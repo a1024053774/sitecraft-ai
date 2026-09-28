@@ -2,7 +2,7 @@
 id: T-044
 title: 只有四个样子背后的模板能进入新建站点
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -20,7 +20,7 @@ T-036 之后，模板页里选 ASTROGENT、ATLAS、GENAI 这类不属于四个�
 - [x] 直接打开 `/workspace?template=<不能生成的模板>` 时，工作台说明这个模板不能直接生成，不新建站点，也不改 demo 或其他站点
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 1440 浏览器截图
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -31,4 +31,6 @@ T-036 之后，模板页里选 ASTROGENT、ATLAS、GENAI 这类不属于四个�
 绿态（16:01）：同一命令全部通过；`npm test` 305/305、`npm run typecheck`、`npm run build` 通过。
 
 浏览器（Kiro 的 Chrome，1440）：模板页选 ASTROGENT，底部是只作参考的说明，没有进入按钮；选 SCREWFAST 时按钮是 `/workspace?template=screwfast`（`artifacts/t044/gallery-reference-only-1440.png`）。`/templates/astrogent/preview` 没有进入按钮，`/templates/screwfast/preview` 有。直接打开 `/workspace?template=astrogent` 显示上面的说明，站点总数 629 → 629、demo 仍是 v15（`artifacts/t044/workspace-refused-1440.png`）。
+
+独立审核：grok-b，2026-09-28 17:26，PASS。模板页选中 ASTROGENT / Agency 和 ATLAS（页面上是 ASTROPLATE / Business）时，底部是「这个模板只作参考，不能直接生成网站。请从明亮产品、工程工业、蓝白目录、灰底短路径背后的模板开始。」，浮条是「只作参考 · 不可生成」，没有进入按钮；选 SCREWFAST 时按钮链到 `/workspace?template=screwfast`。`/templates/astrogent/preview` 没有进入按钮，`/templates/screwfast/preview` 有。直接打开 `/workspace?template=astrogent` 仍停在这个地址，对话里是「「ASTROGENT」只作参考，不能直接生成网站。请回到模板页，从四个样子背后的模板开始。」，这次没有 POST `/api/sites`。紧接着再打开同一地址，`GET /api/sites` 仍是 726、demo 仍是 v15（`updatedAt` 2026-09-28T13:44:18.678Z）。命令：`node --test --experimental-strip-types tests/template-readiness.test.ts tests/workspace-new-site-entry.test.ts` 13/13；`npm test` 314/314；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t044-review-grokb/`。实现提交：`61f5032`
 
