@@ -2,7 +2,7 @@
 id: T-038
 title: 工作台提示不露字段路径和内部词
 type: build
-status: open
+status: closed
 blocked_by: [T-034, T-036]
 claimed_by: kiro
 supersedes:
@@ -22,7 +22,7 @@ spec §3.4：不向用户暴露字段路径。
 - [x] 资料弹窗、未支持页面说明和工作台提示里没有 commitOperations、HTML、slot、字段路径这类词
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 1440 浏览器截图
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -50,4 +50,6 @@ spec §3.4：不向用户暴露字段路径。
 命令：`node --test --experimental-strip-types tests/workspace-copy.test.ts` 5/5；`npm test` 304/304；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t038-review-grokb/`。
 
 修复（Kiro，2026-09-28 16:10）：按 grok-b 的复现修。模型自己写的修改摘要会直接显示给用户，里面提到模板、快照、HTML、网址、槽位、字段时，改成列出这次改动的页面部分（`lib/workspace-copy.ts` 的 `plainSummary`，在 `lib/ai-provider.ts` 生成结果时套用）；产品图上传提示去掉「校验 magic bytes」和站点 id。红态 16:06 `tests/workspace-copy.test.ts` 新增两项失败；绿态 7/7，`npm test` 307/307，`npm run typecheck`、`npm run build` 通过。浏览器 1440：在 grok-b 用的站点 `19cef2c7-dbc6-4cd3-8e75-4fe94610685f` 上发「请增加独立认证页和资料下载页」，提示为「已把认证内容放到首页的认证区块里展示；独立认证页和资料下载页当前样子做不出来，先列为待支持」+「当前样子没有位置显示：认证」，对话面板里搜不到 HTML、网址、URL、快照、槽位、commitOperations、magic（`artifacts/t038/unsupported-summary-1440.png`、`image-modal-1440.png`）。
+
+独立审核：grok-b，2026-09-28 17:11，PASS。同一站点再发「请增加独立认证页和资料下载页」，草稿 v5→v6。绿色摘要是「已应用：已更新：页面规划、认证」。页面规划下方是「未支持：独立认证页（当前样子还没有「独立认证页」页面，这一页先不单独做。）；资料下载页（当前样子还没有资料下载页面，也还没有可下载的文件，这一页先不单独做；需要的图纸或样本请在询盘里说明，我们再提供。）」。产品图弹窗是「PNG / JPEG / WebP · 单张不超过 10MB」「只保存在这个站点下，按用户提供的图片使用」，没有 magic、站点 id。对话面板和弹窗里搜不到 HTML、网址、URL、快照、槽位、commitOperations、magic、站点 id。`plainSummary` 在 `lib/ai-provider.ts` 的生成结果上套用。命令：`node --test --experimental-strip-types tests/workspace-copy.test.ts` 7/7；`npm test` 314/314；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t038-review-grokb/r2-01-after-request-1440.png`、`r2-02-image-modal-1440.png`。实现提交：`1aa096f`
 
