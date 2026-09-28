@@ -169,7 +169,9 @@ export function TemplateGallery({
             </Link>
           ) : (
             <p>
-              当前模板没有本地静态快照，不能进入生成。请浏览官方演示或整页预览。
+              {selectedReadiness?.hasLocalSnapshot
+                ? "这个模板只作参考，不能直接生成网站。请从明亮产品、工程工业、蓝白目录、灰底短路径背后的模板开始。"
+                : "当前模板没有本地静态快照，不能进入生成。请浏览官方演示或整页预览。"}
             </p>
           )}
         </div>
@@ -182,7 +184,9 @@ export function TemplateGallery({
           <small>
             {canEnterEditPreview
               ? `有限预览 · 非发布 · ${selectedReadiness?.assetLabel ?? "素材待核验"}`
-              : `${selectedReadiness?.snapshotLabel ?? "仅上游演示／待构建快照"} · 不可生成`}
+              : selectedReadiness?.hasLocalSnapshot
+                ? "只作参考 · 不可生成"
+                : `${selectedReadiness?.snapshotLabel ?? "仅上游演示／待构建快照"} · 不可生成`}
           </small>
         </div>
         <Check size={17} color="#b9f56b" />

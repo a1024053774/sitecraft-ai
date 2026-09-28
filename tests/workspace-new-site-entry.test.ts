@@ -38,6 +38,9 @@ test("the workspace creates the site through POST /api/sites and never rewrites 
   assert.match(source, /history\.replaceState\([^)]*workspaceUrlForSite\(/);
   // The old path switched the requested template onto whatever site was open (the shared demo).
   assert.doesNotMatch(source, /requestedTemplate/);
+  // T-044: only look templates create a site; others are explained and nothing is created.
+  assert.match(source, /resolveWorkspaceEntry\([\s\S]{0,160}visualBriefCatalog\.map\(\(brief\) => brief\.templateId\)\)/);
+  assert.match(source, /entry\.kind === "refuse"[\s\S]{0,200}只作参考，不能直接生成网站/);
 });
 
 // grok-b's T-036 review: the in-flight creation was kept for the whole page session, so a second
@@ -66,4 +69,11 @@ test("a failed creation can be retried", async () => {
   const { createSiteOnce } = await import("../lib/workspace-entry.ts");
   await assert.rejects(createSiteOnce("?template=forge", async () => { throw new Error("down"); }));
   assert.equal(await createSiteOnce("?template=forge", async () => "site-ok"), "site-ok");
+});
+
+test("a template that is not behind one of the looks is refused, not created or opened", () => {
+  const catalog = [...known, "astrogent", "atlas"];
+  assert.deepEqual(resolveWorkspaceEntry("?template=astrogent", catalog, known), { kind: "refuse", templateId: "astrogent" });
+  assert.deepEqual(resolveWorkspaceEntry("?template=screwfast", catalog, known), { kind: "create", templateId: "screwfast" });
+  assert.deepEqual(resolveWorkspaceEntry("?template=not-a-template", catalog, known), { kind: "open", siteId: "demo" });
 });

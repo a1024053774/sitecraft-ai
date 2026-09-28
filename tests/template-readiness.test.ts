@@ -41,15 +41,18 @@ test("readiness count follows the catalog and never claims a ready asset pack", 
 });
 
 test("local snapshot availability is getTemplateStaticRoot, not a generation-ready claim", () => {
+  // T-044: only the templates behind the four looks can start a site; the rest are reference only.
+  const lookTemplates = new Set(visualBriefCatalog.map((brief) => brief.templateId));
   for (const template of templates) {
     const root = getTemplateStaticRoot(template.id);
     const item = getTemplateReadiness(template.id);
     assert.equal(item.templateId, template.id);
     assert.equal(item.hasLocalSnapshot, root !== null);
-    assert.equal(item.canEnterEditPreview, root !== null);
+    assert.equal(item.canEnterEditPreview, root !== null && lookTemplates.has(template.id), template.id);
     assert.equal(item.snapshotLabel, root ? "本地静态预览" : "仅上游演示／待构建快照");
     assert.equal(item.assetLabel, "素材待核验");
   }
+  assert.deepEqual(listTemplateReadiness().filter((item) => item.canEnterEditPreview).map((item) => item.templateId).sort(), [...lookTemplates].sort());
 });
 
 test("unknown or missing snapshots cannot enter edit preview", () => {

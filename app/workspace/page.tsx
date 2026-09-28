@@ -394,8 +394,11 @@ export default function WorkspacePage() {
     let cancelled = false;
     // `?site=` opens that site; `?template=` alone is the 新建站点 entry and creates a new site.
     async function resolveActiveSiteId() {
-      const entry = resolveWorkspaceEntry(window.location.search, templates.map((item) => item.id));
+      const entry = resolveWorkspaceEntry(window.location.search, templates.map((item) => item.id), visualBriefCatalog.map((brief) => brief.templateId));
       if (entry.kind === "open") return parseWorkspaceSiteId(entry.siteId);
+      if (entry.kind === "refuse") {
+        throw new Error(`「${getTemplate(entry.templateId).name.split(" / ")[0]}」只作参考，不能直接生成网站。请回到模板页，从四个样子背后的模板开始。`);
+      }
       const key = window.location.search;
       // Effects run twice in development; both runs share the one POST that is still in flight.
       const createdId = await createSiteOnce(key, () => createSiteForTemplate(entry.templateId));
