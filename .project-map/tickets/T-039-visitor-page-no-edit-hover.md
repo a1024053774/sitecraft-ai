@@ -26,4 +26,4 @@ supersedes:
 
 2026-09-28 11:31（UTC-4）。描边和手型只在工作台 iframe 带 `editor=1` 时注入。新测试 `node --test --experimental-strip-types tests/visitor-editor-chrome.test.ts` 在改动前失败（共用注入仍含 `data-sitecraft-slot`），改完通过。`npm run typecheck` 通过。`npm run build` 通过。全量 `npm test` 在当前工作区是 244/260：失败的 16 项来自未提交的 `lib/site-document.ts`、`lib/template-adapters/preview-bridge.ts` 和 `tests/no-demo-products.test.ts`，本票没有改这些文件。`node scripts/check-published.mjs --out artifacts/published-check/t039` 9/9 通过（11:30）。看过 `overlay-p3i-thick-20260925-1440.png` 和 `375.png`，页上没有编辑描边。
 
-实现提交：待写入 SHA。
+实现提交：`4743da495ec2e555dd0740560aed2bf669fc270e`。
