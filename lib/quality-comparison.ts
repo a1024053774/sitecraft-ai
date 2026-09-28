@@ -346,7 +346,7 @@ export function draftShowsPackNonce(draft: SiteDraft, pack: QualityPack) {
   const haystack = [
     draft.companyName,
     draft.siteName,
-    draft.industry,
+    typeof draft.industry === "string" ? draft.industry : draft.industry.zh,
     draft.goal,
     draft.content.hero.title.zh,
     draft.content.hero.subtitle.zh,

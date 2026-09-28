@@ -288,7 +288,8 @@ export const siteDraftSchema = z.object({
   englishReady: z.boolean().default(false),
   revision: z.number().int().nonnegative(),
   lastChange: z.string().max(240),
-  industry: z.string().max(120),
+  // Bilingual since T-037; a single string is the older one-language form and shows on both pages.
+  industry: z.union([z.string().max(120), localizedTextSchema]),
   goal: z.string().max(500),
   navigation: z.object({
     about: localizedTextSchema,
@@ -353,7 +354,7 @@ export const defaultDraft: SiteDraft = {
   englishReady: false,
   revision: 1,
   lastChange: "草稿已保存",
-  industry: "工业制造",
+  industry: { zh: "待补充", en: "To be provided" },
   goal: "展示核心产品与工程能力，获取全球客户询盘",
   navigation: {
     about: { zh: "关于", en: "About" },

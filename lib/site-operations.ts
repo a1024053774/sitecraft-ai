@@ -272,7 +272,6 @@ export type ApplyResult = {
 const nonLocalizedTargets = new Set<TextTarget>([
   "siteName",
   "companyName",
-  "industry",
   "goal",
   "contact.email",
   "contact.phone",
@@ -308,7 +307,7 @@ function localizedValue(draft: SiteDraft, target: TextTarget) {
 function readText(draft: SiteDraft, target: TextTarget, locale: Locale) {
   if (target === "siteName") return draft.siteName;
   if (target === "companyName") return draft.companyName;
-  if (target === "industry") return draft.industry;
+  if (target === "industry") return typeof draft.industry === "string" ? draft.industry : draft.industry[locale];
   if (target === "goal") return draft.goal;
   if (target === "contact.email") return draft.content.contact.email;
   if (target === "contact.phone") return draft.content.contact.phone;
@@ -318,7 +317,12 @@ function readText(draft: SiteDraft, target: TextTarget, locale: Locale) {
 function writeText(draft: SiteDraft, target: TextTarget, locale: Locale, value: string) {
   if (target === "siteName") draft.siteName = value;
   else if (target === "companyName") draft.companyName = value;
-  else if (target === "industry") draft.industry = value;
+  else if (target === "industry") {
+    // An older single-language industry becomes bilingual on its first write.
+    const current = typeof draft.industry === "string" ? { zh: draft.industry, en: draft.industry } : { ...draft.industry };
+    current[locale] = value;
+    draft.industry = current;
+  }
   else if (target === "goal") draft.goal = value;
   else if (target === "contact.email") draft.content.contact.email = value;
   else if (target === "contact.phone") draft.content.contact.phone = value;
@@ -457,9 +461,14 @@ export function applySiteOperations(
         const previousEnglishReady = draft.englishReady;
         const previous = { zh: readText(draft, operation.target, "zh"), en: readText(draft, operation.target, "en") };
         if (previous.zh === operation.value.zh && previous.en === operation.value.en) continue;
-        writeText(draft, operation.target, "zh", operation.value.zh);
-        writeText(draft, operation.target, "en", operation.value.en);
-        if (!isGapMarker(operation.value.en)) draft.englishReady = true;
+        if (nonLocalizedTargets.has(operation.target)) {
+          // A one-language field keeps the Chinese value; the English one used to overwrite it.
+          writeText(draft, operation.target, "zh", operation.value.zh);
+        } else {
+          writeText(draft, operation.target, "zh", operation.value.zh);
+          writeText(draft, operation.target, "en", operation.value.en);
+          if (!isGapMarker(operation.value.en)) draft.englishReady = true;
+        }
         inverseOperations.unshift({ op: "set_text", target: operation.target, value: previous, englishReadyBefore: previousEnglishReady });
         if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
         appliedTargets.push(`${operation.target}.zh`, `${operation.target}.en`);
@@ -792,6 +801,17 @@ export function applySiteOperations(
   return { draft, inverseOperations, appliedTargets, changed: true };
 }
 
+// Company and site names are facts: use the wording that appears in the user's message or materials
+// (so a model translation such as an English rendering of a Chinese name is not kept). With no such
+// wording the Chinese value is used; a gap never replaces the current neutral name.
+function sourceWrittenName(value: string | { zh: string; en: string }, message: string): string | null {
+  const candidates = (typeof value === "string" ? [value] : [value.zh, value.en])
+    .map((item) => item.trim())
+    .filter((item) => item && !isGapMarker(item));
+  if (!candidates.length) return null;
+  return candidates.find((item) => message.includes(item)) ?? candidates[0];
+}
+
 export function validateAIOperations(
   message: string,
   operations: AIOperation[],
@@ -801,6 +821,15 @@ export function validateAIOperations(
   const accepted: SiteOperation[] = [];
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
   for (const operation of operations) {
+    if (operation.op === "set_text" && (operation.target === "companyName" || operation.target === "siteName")) {
+      const name = sourceWrittenName(operation.value, message);
+      if (!name) {
+        rejected.push(`${operation.target === "companyName" ? "公司名" : "站名"}资料里没有，保留原来的名称`);
+        continue;
+      }
+      accepted.push({ op: "set_text", target: operation.target, value: name });
+      continue;
+    }
     if (operation.op === "set_text" && operation.target === "faq.intro" && isModelInstruction(operation.value)) {
       rejected.push("常见问题引言是写给模型的指令，已拒绝");
       continue;

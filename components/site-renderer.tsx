@@ -153,7 +153,7 @@ export function SiteRenderer({
           <div className="rs-hero-copy">
             <div className="rs-kicker">
               <span>{String(template.id.length).padStart(2, "0")}</span>
-              {draft.industry} / {template.source.name}
+              {typeof draft.industry === "string" ? draft.industry : draft.industry[locale]} / {template.source.name}
             </div>
             <h1>
               {headline.split("\n").map((line) => (

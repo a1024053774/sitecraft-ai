@@ -403,7 +403,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (key === "certifications" && visible.status) {
           var statusNode = document.createElement("p");
           statusNode.className = "sitecraft-cert-status";
-          statusNode.textContent = visible.status;
+          statusNode.textContent = certificationStatusLabel(visible.status, locale);
           statusNode.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".status");
           card.appendChild(statusNode);
         }
@@ -897,6 +897,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function isGapMarker(value) {
     var text = String(value || "").trim();
     return !text || text === "待补充" || text === "To be provided" || text === "To be completed";
+  }
+
+  // Certification status is stored as the Chinese enum; the English page shows its English label.
+  function certificationStatusLabel(status, locale) {
+    if (locale !== "en") return status;
+    if (status === "已有") return "Certified";
+    if (status === "认证中") return "In progress";
+    if (status === "待补充") return "To be provided";
+    return status;
   }
 
   function setEntryHidden(node, hidden) {
