@@ -48,4 +48,4 @@ GENAI 要么补齐本地快照，要么按 T-026 的规则标为「仅有上游�
 
 2026-09-28 12:20 EDT，grok-b 按 NO_GO 修预览 HTML 改写。`prepareHtml` 不再用贪婪的 srcset 正则；每个 srcset 候选、内联 `style` / `<style>` 里的 `url(/...)`、以及 `src` / `href` / `poster` 的根路径都单独改到资源路由。红态：`node --test --experimental-strip-types --test-name-pattern "local preview rewrites every srcset" tests/template-snapshot-assets.test.ts` 失败，输出里仍有 `/_astro/api/templates/`。绿态：同一文件 6/6。`npm run typecheck` 通过。`npm test` 272/272 通过。`npm run build` 通过。1440 滚完 `/templates`（16 个 iframe，6 个未准入占位），缩略图网络没有模板资源 4xx 或 CORS；页面自身的 `/favicon.ico` 仍是 404，不在缩略图里。截图：`artifacts/t042/templates-1440.png`、`artifacts/t042/card-astrowind-1440.png`、`artifacts/t042/card-astroplate-1440.png`、`artifacts/t042/card-odyssey-1440.png`、`artifacts/t042/card-ricofast-1440.png`、`artifacts/t042/card-moon-1440.png`、`artifacts/t042/card-foxi-1440.png`。控制台记录：`artifacts/t042/templates-console.json`。
 
-修复提交：`PENDING`
+修复提交：`c7cc1e9807e8c66d1b465f4afbc135b8c429270e`
