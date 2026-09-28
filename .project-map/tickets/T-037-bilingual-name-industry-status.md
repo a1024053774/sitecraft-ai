@@ -2,7 +2,7 @@
 id: T-037
 title: 公司名、行业和认证状态在中英文页各自显示对
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -23,7 +23,7 @@ supersedes:
 - [x] 英文页的认证状态是英文（Certified / In progress）
 - [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过；新测试在改动前的代码上先失败
 - [x] 用模拟资料实际生成一次，1440 中英文截图
-- [ ] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
+- [x] 另一个 harness 的审核 agent 验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -43,3 +43,6 @@ supersedes:
 
 - 模拟工业包新建站点 `4e0ee91c-8de7-4d20-a4ac-5f8620276139`：站名和公司名都是「忻州重载减速机P3I」；行业 `{工业制造 / 重载减速机, Industrial manufacturing / Heavy-duty gear reducers}`。中文页首屏「工业制造 / 重载减速机」、认证「认证中」；英文页页头仍是「忻州重载减速机P3I」，首屏行业英文，认证「In progress」。截图 `artifacts/t037/published-zh-1440-*.png`、`published-en-1440-*.png`。
 - 一句话需求、不给资料新建站点 `dba919f1-3e60-488d-b630-8036df635b5c`：公司名和站名保留「未命名企业 / 未命名站点」，中文页没有「To be provided」（`artifacts/t037/no-materials-zh-1440.png`）。
+
+独立审核：grok-b，2026-09-28 15:44，PASS。命令：`node --test --experimental-strip-types tests/bilingual-name-industry-status.test.ts` 6/6；`npm test` 303/303；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t037-review-grokb/`。真实 DeepSeek：模拟工业包站点 `19cef2c7-dbc6-4cd3-8e75-4fe94610685f` 中英文页头都是「忻州重载减速机P3I」，首屏行业中文「工业制造 / 重载减速机」、英文「Industrial manufacturing / Heavy-duty gearboxes」，认证状态中文「认证中」、英文「In progress」。只发一句需求的站点 `9e5a1a80-18a1-4bd1-8be3-d604e840ba10` 页头是「未命名企业」，没有「To be provided」。旧草稿 `1868ab9a-c55d-4b7e-84d5-4e4c4e51470e` 的单语行业「工业制造」在发布页仍显示。对一份同样的单语行业做写入再撤销后，中英文都回到这句原文。
+实现提交：`23aeb6a`
