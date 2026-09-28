@@ -40,3 +40,11 @@ spec §3.4：不向用户暴露字段路径。
 绿态（15:00）：同一命令 5/5；`npm test` 299/299、`npm run typecheck`、`npm run build` 通过。
 
 浏览器（Kiro 的 Chrome，1440，真实 DeepSeek）：新建站点 `d159e898-4afc-47b4-8ea1-0fdaa4cdc6c6`，资料弹窗文案（`artifacts/t038/materials-modal-1440.png`）；对齐卡下方「已保存任务」只显示资料正文（`card-with-materials-1440.png`）；生成后提示「有 5 处内容没有按原位显示…当前样子没有位置显示：经营目标、关于我们标题…」（此时经营目标还没排除），之后单改关于标题时提示「当前样子没有位置显示：关于我们标题」（`gap-message-1440.png`）；要求独立认证页、资料下载页、售后服务页时，页面规划下方写「当前样子还没有「…」页面，这一页先不单独做」，消息落在「草稿 v8 已保存，预览已更新」（`unsupported-pages-1440.png`）。
+
+2026-09-28 15:53 grok-b 审核 `d0a49fd`，不通过。页面规划下方的说明、缺口提示、资料弹窗和产品图正文都没有 commitOperations、HTML、槽位或字段路径。不通过的是聊天里的「已应用」摘要：模型写了「当前模板」「认证区块」，`validateAIOperations` 只改写 unsupported 的 reason，summary 原样进气泡。提示词写明 summary 会直接给用户看，并且不要写模板和区块。
+
+复现：工作台打开已生成站点（本次是 `19cef2c7-dbc6-4cd3-8e75-4fe94610685f`），发送「请增加独立认证页和资料下载页」。页面规划下方是「未支持：独立认证页（当前样子还没有「独立认证页」页面，这一页先不单独做。）；资料下载页（当前样子还没有「资料下载页」页面，这一页先不单独做。）」。绿色摘要是「已应用：当前模板没有独立的认证页和资料下载页，无法单独开通网址：……认证改为在同一页显示认证区块……」。截图 `artifacts/t038-review-grokb/04-unsupported-pages-1440.png`。
+
+同一站点再发「只把关于标题改为公司简介，其他内容不变」，提示是「当前样子没有位置显示：关于我们标题」，没有字段路径（`05-gap-message-1440.png`）。「已保存的问答」只有「明亮产品」「青花瓷」。资料气泡在 T-037 实测里是资料正文，没有「【公司资料】以下内容明确标记」。产品图上传区仍有「校验 magic bytes」，这次不据此否决。
+
+命令：`node --test --experimental-strip-types tests/workspace-copy.test.ts` 5/5；`npm test` 304/304；`npm run typecheck` 通过；`npm run build` 通过。证据：`artifacts/t038-review-grokb/`。
