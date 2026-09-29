@@ -64,7 +64,7 @@ export function SiteDeleteDialog({
       <div className="import-modal delete-modal" data-testid="site-delete-dialog" onClick={(event) => event.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <div className="eyebrow">Delete / Confirm</div>
+            <div className="eyebrow">删除站点</div>
             <h3>删除站点 {siteId}</h3>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="关闭删除"><X size={15} /></button>
