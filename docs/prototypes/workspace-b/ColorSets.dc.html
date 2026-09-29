@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>色彩集与自定义品牌色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&amp;family=Noto+Serif+SC:wght@600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', sans-serif;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+input,textarea{font-family:inherit}
+a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}
+
+</style>
+</helmet>
+<div style="width: 980px; height: 760px; display: flex; gap: 24px; padding: 28px; box-sizing: border-box; background: #F6F5F1; color: #1C1F1D; overflow: hidden">
+<section style="width: 420px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 18px; border: 1px solid #E3E1DA; background: #FFFFFF">
+<span style="display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: #EFEDE7; align-self: flex-start">
+<button type="button" aria-pressed="{{ setsPressed }}" onClick="{{ showSets }}" style="{{ setsTab }}">色彩集</button>
+<button type="button" aria-pressed="{{ customPressed }}" onClick="{{ showCustom }}" style="{{ customTab }}">自定义</button>
+</span>
+<sc-if value="{{ onSets }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{ sets }}" as="o" hint-placeholder-count="6"><button type="button" aria-pressed="{{ o.pressed }}" onClick="{{ o.pick }}" style="{{ o.style }}">
+<span style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 14px; font-weight: 500">{{ o.label }}</span><span style="font-size: 12px; color: #5E625D">{{ o.note }}</span></span>
+<span style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px"><sc-for list="{{ o.sw }}" as="s" hint-placeholder-count="8"><span style="width: 18px; height: 18px; border-radius: 4px; background: {{ s }}; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08)"></span></sc-for></span>
+</button></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ onCustom }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<span style="font-size: 13px; line-height: 1.6; color: #5E625D">输入品牌主色，或从上传的 Logo 里取色。系统按固定规则配出背景、正文、按钮等整套颜色，并检查文字对比度。</span>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500">品牌主色<span style="display: flex; align-items: center; gap: 8px"><span style="width: 38px; height: 38px; border-radius: 9px; background: #1F6F8B"></span><input type="text" value="#1F6F8B" style="flex-grow: 1; height: 38px; padding: 0 12px; border-radius: 9px; border: 1px solid #E3E1DA; font-size: 14px; color: #1C1F1D; background: #FFFFFF"></span></label>
+<button type="button" style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 40px; border-radius: 10px; border: 1px solid #E3E1DA; background: #FFFFFF; color: #1C1F1D; font-size: 13px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4.5l5 5M17 7l-9.5 9.5-3 .9.9-3L15 5"/></svg>从 Logo 取色</button>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: #EFEDE7">
+<span style="font-size: 12px; color: #5E625D">生成的整套颜色</span>
+<span style="display: flex; gap: 6px"><span style="width: 26px; height: 26px; border-radius: 5px; background: #F2F6F7; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08)"></span><span style="width: 26px; height: 26px; border-radius: 5px; background: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08)"></span><span style="width: 26px; height: 26px; border-radius: 5px; background: #DDEBEF"></span><span style="width: 26px; height: 26px; border-radius: 5px; background: #D3E0E4"></span><span style="width: 26px; height: 26px; border-radius: 5px; background: #4F6770"></span><span style="width: 26px; height: 26px; border-radius: 5px; background: #13282F"></span><span style="width: 26px; height: 26px; border-radius: 5px; background: #1F6F8B"></span><span style="width: 26px; height: 26px; border-radius: 5px; background: #144B5E"></span></span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #1F4D38"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>按钮白字对比度 5.6 : 1，正文 14.9 : 1，都达标</span>
+</div>
+</div>
+</sc-if>
+</section>
+<section style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0">
+<span style="display: flex; justify-content: space-between; font-size: 13px; color: #5E625D"><span>在「工程工业」样子里的效果</span><span style="color: #1C1F1D; font-weight: 500">{{ label }}</span></span>
+<div style="border-radius: 14px; overflow: hidden; border: 1px solid #E3E1DA; box-shadow: 0 12px 32px rgba(28,31,29,.08)"><div style="background: {{c.bg}}; color: {{c.ink}}; font-family: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', sans-serif">
+
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; border-bottom: 1px solid {{c.line}}; background: {{c.surface}}">
+<span style="display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px"><span style="width: 22px; height: 22px; border-radius: 5px; border: 2px solid {{c.accent}}; box-sizing: border-box"></span>忻州重载减速机</span>
+<span style="display: flex; gap: 22px; font-size: 13px; color: {{c.muted}}"><span>产品</span><span>加工能力</span><span>联系</span></span>
+<span style="padding: 7px 14px; border-radius: 999px; background: {{c.accent}}; color: #FFFFFF; font-size: 12px; font-weight: 500">提交询盘</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 36px; align-items: stretch; padding: 36px 28px">
+<div style="display: flex; flex-direction: column; gap: 14px; flex-grow: 1; min-width: 0">
+<span style="font-size: 12px; letter-spacing: .12em; color: {{c.deep}}; font-weight: 500">工业制造 · 重载减速机</span>
+<span style="position: relative; display: block; "><span style="display: block; margin: 0; font-family: 'Noto Serif SC', 'Songti SC', serif; font-size: 32px; line-height: 1.18; font-weight: 700">按图加工的<br>重载减速机</span></span>
+<span style="font-size: 14px; line-height: 1.7; color: {{c.muted}}; max-width: 30em">直角与行星减速机，按图纸加工，只接受批量规格询盘，起订量 20 台。</span>
+<span style="display: flex; gap: 10px; flex-wrap: wrap"><span style="padding: 10px 18px; border-radius: 8px; background: {{c.accent}}; color: #FFFFFF; font-size: 13px; font-weight: 500">提交批量询盘</span><span style="padding: 10px 18px; border-radius: 8px; border: 1px solid {{c.line}}; background: {{c.surface}}; font-size: 13px">查看产品</span></span>
+</div>
+
+</div>
+<div style="padding: 0 28px 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+<div style="padding: 18px; border-radius: 12px; background: {{c.surface}}; border: 1px solid {{c.line}}"><span style="display: block; font-size: 11px; color: {{c.deep}}; margin-bottom: 6px">减速机</span><span style="display: block; font-weight: 700; font-size: 15px; margin-bottom: 6px">直角减速机</span><span style="display: block; font-size: 12px; color: {{c.muted}}; line-height: 1.6">按图加工，批量规格询盘，起订量 20 台。</span></div>
+<div style="padding: 18px; border-radius: 12px; background: {{c.surface}}; border: 1px solid {{c.line}}"><span style="display: block; font-size: 11px; color: {{c.deep}}; margin-bottom: 6px">减速机</span><span style="display: block; font-weight: 700; font-size: 15px; margin-bottom: 6px">行星减速机</span><span style="display: block; font-size: 12px; color: {{c.muted}}; line-height: 1.6">按图加工，批量规格询盘，起订量 20 台。</span></div>
+</div>
+</div></div>
+<span style="font-size: 12px; line-height: 1.6; color: #5E625D">同一套色彩集在 4 个样子里各调一份（6 × 4 = 24 组），换色不改版式和内容。</span>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 980, "height": 760}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'sets', color: 'orange' };
+  }
+  renderVals() {
+    const T = {"ground": "#F6F5F1", "panel": "#FFFFFF", "ink": "#1C1F1D", "muted": "#5E625D", "line": "#E3E1DA", "soft": "#EFEDE7", "brand": "#2E6B4F", "brandInk": "#FFFFFF", "brandTint": "#E4EFE8", "brandDeep": "#1F4D38"};
+    const SETS = [{"id": "qinghua", "label": "青花瓷", "note": "钴蓝配瓷白，稳重、出口感强", "c": {"bg": "#F4F6F9", "surface": "#FFFFFF", "ink": "#16233A", "muted": "#55657C", "accent": "#1F4E9C", "deep": "#0F2E63", "line": "#D8DEE8", "tint": "#E3EAF5"}}, {"id": "graphite", "label": "石墨工坊", "note": "石墨与冷灰，克制的工程感", "c": {"bg": "#F3F3F1", "surface": "#FFFFFF", "ink": "#1E2226", "muted": "#5A6168", "accent": "#34495C", "deep": "#1F2C38", "line": "#DCDDDA", "tint": "#E4E7EA"}}, {"id": "orange", "label": "工程暖橙", "note": "暖橙信号色，直接推进询盘", "c": {"bg": "#F5F3EF", "surface": "#FFFFFF", "ink": "#1D1B18", "muted": "#625C55", "accent": "#B34A18", "deep": "#7E3310", "line": "#E2DDD5", "tint": "#F4E2D6"}}, {"id": "oxide", "label": "铜锈", "note": "铜棕配墨绿灰，材料与加工", "c": {"bg": "#F2F0EB", "surface": "#FBFAF7", "ink": "#1F2420", "muted": "#5B625B", "accent": "#83552F", "deep": "#3E5A4C", "line": "#DAD6CC", "tint": "#ECE2D6"}}, {"id": "turquoise", "label": "松石", "note": "青绿与薄荷，清爽可信", "c": {"bg": "#F1F5F4", "surface": "#FFFFFF", "ink": "#14302C", "muted": "#516B66", "accent": "#1B7063", "deep": "#12514A", "line": "#D5E2DF", "tint": "#DCEDE9"}}, {"id": "morandi", "label": "莫兰迪", "note": "低饱和灰调，服务与咨询", "c": {"bg": "#F3F1EE", "surface": "#FBFAF8", "ink": "#2B2A2E", "muted": "#67636A", "accent": "#56655F", "deep": "#7E6A72", "line": "#E0DCD7", "tint": "#E8E3DE"}}];
+    const s = this.state;
+    const tab = (on) => 'border: 0; border-radius: 7px; padding: 6px 14px; font-size: 13px; background: ' + (on ? T.panel : 'transparent') + '; color: ' + (on ? T.ink : T.muted) + '; font-weight: ' + (on ? 500 : 400);
+    const row = (on) => 'display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 12px; color: ' + T.ink + '; border: 1px solid ' + (on ? T.brand : 'transparent') + '; background: ' + (on ? T.brandTint : T.soft);
+    const sets = SETS.map((c) => ({ label: c.label, note: c.note, sw: [c.c.bg, c.c.surface, c.c.tint, c.c.line, c.c.muted, c.c.ink, c.c.accent, c.c.deep], pressed: String(s.color === c.id), style: row(s.color === c.id), pick: () => this.setState({ color: c.id }) }));
+    const cur = SETS.find((c) => c.id === s.color) || SETS[0];
+    return {
+      sets, c: cur.c, label: cur.label,
+      onSets: s.tab === 'sets', onCustom: s.tab === 'custom',
+      setsTab: tab(s.tab === 'sets'), customTab: tab(s.tab === 'custom'),
+      setsPressed: String(s.tab === 'sets'), customPressed: String(s.tab === 'custom'),
+      showSets: () => this.setState({ tab: 'sets' }), showCustom: () => this.setState({ tab: 'custom' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

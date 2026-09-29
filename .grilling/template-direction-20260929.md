@@ -5,7 +5,7 @@ topic: 生成站只能用 4 个简陋模板——方向（区块库 + token 等�
 destination_artifact: .project-map 决定票（生成方向、分工）；接受后同步 intent.md / mainline.md / AGENTS.md / MAP.md
 created_at: 2026-09-29
 updated_at: 2026-09-29
-last_round: 3
+last_round: 4
 ---
 
 ## Destination
@@ -32,23 +32,24 @@ last_round: 3
 - D4b confirmed（R3）：T-048 实现交给 Kiro（Opus 5.5），Claude 规划和验收。
 - D5 confirmed（R3）：推送 fd0a69d（已推，远端 = fd0a69d）；云端会话由负责人开，Opus 5.5 high；第一批 T-050、T-051。
 - D6 confirmed（R3）：新增第三份厚资料包，交给云端（T-050）。
+- D3 confirmed（R4）：旧 overlay 逐个迁；其余三个样子的迁移由 Sonnet 5.5 子 agent 做，Claude 验收（inferred：工程工业这条线仍是 Kiro）。
+- D7 confirmed（R4）：模型 CSS 的边界与三档宽度守门按 R3 提议。
+- D8 confirmed（R4）：盲评改由 Codex gpt-6.1-sol；Astra 做代码审查。
+- D9 confirmed（R4）：Kiro/子 agent 本地提交不推送，Claude 验收后推送。
+- 新增（R4，范围外但负责人明确要求）：工作台交互问题交云端 → build 票 T-052；原型 B 源文件拷到 `docs/prototypes/workspace-b/`。
 
 ## Frontier
 
-- Q3 旧 overlay 迁移：逐个迁、迁完删旧 overlay。
-- Q7 模型 CSS 的边界与三档宽度守门。
-- Q8 Kiro 执行 T-048 时由谁盲评。
-- Q9 提交与推送由谁做。
+- 负责人确认最终基线 → 关闭 T-048、T-049，同步 living docs。
 
 ## Blocked
 
-- 区块库第一批区块与变体数（等 T-051 调研）
-- CSS 校验具体做法（等 T-051）
+- 区块库第一批区块与变体数、CSS 校验具体做法（等 T-051；属于 spec，不在本会话）
 
 ## Not yet specified (fog)
 
-- 区块变体按资料多少自动选择的规则。
-- 子页面怎么用区块库组。
+- 区块变体按资料多少自动选择的规则（spec）。
+- 子页面怎么用区块库组（spec）。
 
 ## Out of scope
 
