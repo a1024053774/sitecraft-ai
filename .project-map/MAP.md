@@ -34,13 +34,14 @@
 - [T-017 工程工业样板两个方向的原型](tickets/T-017-engineering-sample-prototypes.md)：盲评选「样本册」（白底产品族卡片、关键参数在卡上、完整参数收起），借用首屏规格条和独立询盘底
 - [T-029 其余三个样子是否现在按工程工业样板改](tickets/T-029-push-sample-to-other-looks.md)：要，每个样子一张票，借结构不借外观
 - [T-048 生成站怎么摆脱 4 个固定版式](tickets/T-048-generation-direction-block-library-css.md)：自有区块库 + 设计 token + 模型写受限站点样式（不写 HTML 和文字）；工程工业先迁，其余逐个迁，旧 overlay 盲评通过后删
+- [T-051 区块素材与 CSS 校验调研](tickets/T-051-block-material-and-css-guard-research.md)：结构参考 HyperUI、Meraki UI；站点样式走做法 A（结构化规则，不加依赖）；Preline 不用；第一版不用图标
 - [T-049 2026-09-29 起谁做什么](tickets/T-049-roles-2026-09-29.md)：Claude 规划验收，Kiro/Sonnet 执行，Astra 审代码，gpt-6.1-sol 盲评，Grok 杂活，云端做 T-050–T-052
 
 ## Not yet specified
 
 - 新开源素材的准入：需要先定准入流程和第一批候选。
 - 子页面的同族 overlay、`fresh` kit。
-- 按资料多少选择不同的区块变体；区块库第一批区块和变体数（等 T-051 调研后写进 spec）。
+- 厚资料里区块库还放不下的内容：沿革时间线、交期与起订、质检步骤（草稿没有这些字段，等 T-053 后定）。
 - 生成站动效、改标题（评审 P0-5、P0-6）。
 - 按现在的生成路径要不要重跑 12 组对照（intent §4；上次 2026-09-18 负责人盲评不过之后没有重跑）。
 

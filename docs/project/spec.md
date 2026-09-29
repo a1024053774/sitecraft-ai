@@ -99,7 +99,16 @@
 
 当前已存在的模板继续使用并重新分类，同时寻找不同主题、内容密度和业务场景的开源候选。此前 `forge/atlas/kindred/signal/lonestone` 是存量优先检查名单，不再限制候选数量或禁止替换。
 
-当前 iframe + `lib/template-adapters/preview-bridge.ts` 是**唯一**预览引擎，要在这套上吃同族素材套件（Q27=A），不是成品定义上的「挖空填词」。Q26=B：开源模板、区块、样式是素材，用来组这家公司的页面。同一视觉族内可以取该族已准入素材；工业/外贸该出现哪些区块，可以对照外部同族套件的**模块清单**（例如 jiro 上 Premium 的 KonsTuck/Lozitick），但不得把不同模板或 jiro 源码拼接进预览。不将 React/Tailwind 组件直接注入第三方 HTML。原生 React/shadcn 系统性改造仍留后续决策门（Q27 未选 C）。禁止第二套渲染器，禁止模型输出 CSS。
+当前 iframe + `lib/template-adapters/preview-bridge.ts` 是**唯一**预览引擎。开源模板、区块、样式是移植进 SiteCraft 区块库的素材，不整页挖空填词，也不把未经移植的外部区块直接拼进页面。原生 React/shadcn 系统性改造仍留后续决策门。
+
+### 区块库、设计 token 与站点样式（2026-09-29，T-048 / T-051）
+
+- **区块库**放在 `lib/blocks/`：每个区块变体是一段开发侧 HTML（根节点 `data-sc-block="<区块>" data-sc-variant="<变体>"`，可改样式的部位标 `data-sc-part`），配一份数据清单（`lib/blocks/catalog.ts`）：区块、变体、读哪些草稿字段、槽位（沿用 adapter 的 `selector → target` 写法）、最少资料条件（例如「参数对比」要 ≥2 个产品共有 ≥4 项参数）。清单是可审查数据，不存可执行 JS。结构可参考 HyperUI、Meraki UI（MIT，改写成自己的类名并保留许可声明）；它们的图片、图标不用，Preline 不用；第一版不用图标。
+- **样子 = 设计 token + 默认变体组合**。token 全部是 `--site-*` CSS 变量（和现有色板同一套命名）：字体组合、字号比例、圆角、间距密度、分割线、表面处理；颜色仍来自色板。一个样子的 token 和默认变体写在 `lib/blocks/looks/<样子>.ts`。
+- **组页**：服务端按样子把区块库拼成该样子的整页骨架（所有区块的所有变体都在里面），走现有的模板静态文件路由，取代旧的 `overlays/<模板>.index.html`；预览桥先按草稿删掉没选中的变体，再照旧写槽位、处理显隐和顺序。所以写入仍唯一命中声明节点，预览引擎还是一个。
+- **区块编排**沿用草稿现有的 `sectionOrder` / `hiddenSections`，新增 `blockVariants`（区块 → 变体）。新 operation 只有 `set_block_variant`（带前值 inverse）；变体不满足最少资料条件时拒绝并说明，不静默换别的。
+- **站点样式**（负责人 2026-09-29 选 T-051 的做法 A）：模型输出结构化规则，不写 CSS 文本：`{ block, part?, media?, declarations: { 属性: 值 } }`。新 operation `set_site_style` 整份替换规则表，inverse 恢复前一份。校验按 [T-051 调研](../research/区块素材与CSS校验调研-2026-09-29.md) §3.3 的白名单：区块/部件只能是清单里有的；`media` 只能是项目断点；属性按组放行；值里禁一切字符串、反斜杠、非 ASCII、`url()` 等资源函数、`!important`；`content`、`position`（除 static/relative）、`z-index`、`overflow*`、`opacity`、`transform`、`list-style*` 等整条禁用；序列化后 ≤ 8 KB、≤ 40 条规则、≤ 200 条声明。页面上的 CSS 由服务端从规则表生成，加 `[data-sc-block=…]` 前缀，放进 `@layer site-style`，排在区块库基础层之前，不透传模型原文。
+- **三档检查**：`set_site_style` 提交前，在常驻的无头 Chrome 里（沿用 `scripts/check-published.mjs` 的原生 CDP 做法，不加浏览器依赖）按 375 / 768 / 1440 各渲染一次候选草稿，和不带新样式的基线比：新增横向溢出（`scrollWidth` 和元素右边界两种都查）、新增文字框重叠、槽位文字被藏，任何一项出现就拒绝这次修改，并告诉用户哪一档、哪个区块出了问题。候选草稿在内存里渲染，不先写修订再撤回。检查起不来（没有 Chrome）时报错，不跳过。
 
 模板元数据只保留有消费者的字段：来源版本/代码许可/独立素材授权，行业与页面类型、语言、素材要求、主题倾向、支持的内容槽位及限制、已验证状态。先排除不兼容来源，再比较风格。
 
@@ -121,7 +130,7 @@
 
 ### Skill 使用
 
-Impeccable、UI UX Pro Max、Marketing Skills 等仍是候选材料，不是已安装能力。审美主流程的内部实现指定为项目 Skill `sitecraft-frontend-less-ai-tone`（文案层 + 样子层，禁止模型输出 CSS；规范在 `skills/sitecraft-frontend-less-ai-tone/`，运行时 `sitecraft-frontend-less-ai-tone@0.3.1`）。每次生成只走这一条审美主流程，规范检查按需要调用。用户选项不出现 Skill 名称。Jiro 免费区提示词可学写法，不得当生产 prompt。
+Impeccable、UI UX Pro Max、Marketing Skills 等仍是候选材料，不是已安装能力。审美主流程的内部实现指定为项目 Skill `sitecraft-frontend-less-ai-tone`（文案层 + 样子层，模型只能写受限的站点样式；规范在 `skills/sitecraft-frontend-less-ai-tone/`，运行时 `sitecraft-frontend-less-ai-tone@0.3.1`）。每次生成只走这一条审美主流程，规范检查按需要调用。用户选项不出现 Skill 名称。Jiro 免费区提示词可学写法，不得当生产 prompt。
 
 运行时必须显式加载经审查且固定版本的规则/工具，并验证输出被使用；不把本地 IDE 安装 Skill 当作 DeepSeek 已自动读取。优先复用已有浏览器能力，不为截图再引入第二套工具。
 

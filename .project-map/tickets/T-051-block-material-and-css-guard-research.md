@@ -2,7 +2,7 @@
 id: T-051
 title: 区块素材与模型 CSS 校验方案调研
 type: research
-status: open
+status: closed
 blocked_by: []
 claimed_by: cloud
 supersedes:
@@ -26,3 +26,5 @@ T-048 倾向「自有区块库 + 模型写受限 CSS」。开工前要三类事�
 4. 作用域用服务端前缀改写 + 服务端加的 `@layer`；`@scope`（Chrome 118、iOS Safari 17.4、Firefox 146 起）等目标浏览器定了再加；预览已是 sandbox iframe，风险在站点文档内部。
 5. 三档检查沿用 `scripts/check-published.mjs` 的原始 CDP 做法，不加浏览器依赖。合成页实测：Chrome 冷启动约 0.86 s，三档检查约 0.2 s；`scrollWidth` 和元素边界两种溢出检查都要（`nowrap` 只有前者查得到），文字框两两相交能查出负边距重叠；只拒绝相对基线新增的问题。真实页面估计 1–3 s，要常驻 Chrome 进程。
 6. 推荐做法 B：模型写 CSS 文本，服务端用 postcss 解析、按白名单转成结构化规则存进 operation，页面 CSS 从结构重新生成，不透传原文。不想加依赖就退到 A（模型直接输出结构化规则）。C（css-tree 语法校验）不推荐。待定：是否加 `postcss`/`postcss-value-parser` 直接依赖、Preline 条款、图标用哪套。
+
+负责人 2026-09-29 定：站点样式走做法 A（模型输出结构化规则，不加 postcss 依赖）；Preline 不用；区块库第一版不用图标。已写进 [spec.md §4](../../docs/project/spec.md)。
