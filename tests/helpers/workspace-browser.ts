@@ -28,6 +28,7 @@ export class Cdp {
   id = 1;
   pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   ws!: WebSocket;
+  listeners = new Map<string, Array<(params: Record<string, unknown>, sessionId?: string) => void>>();
 
   constructor(url: string) { this.url = url; }
 
@@ -38,7 +39,8 @@ export class Cdp {
       this.ws.addEventListener("error", () => reject(new Error("Chrome socket failed")), { once: true });
     });
     this.ws.addEventListener("message", (event) => {
-      const message = JSON.parse(String(event.data)) as { id?: number; error?: unknown; result?: unknown };
+      const message = JSON.parse(String(event.data)) as { id?: number; error?: unknown; result?: unknown; method?: string; params?: Record<string, unknown>; sessionId?: string };
+      if (message.method) for (const listener of this.listeners.get(message.method) ?? []) listener(message.params ?? {}, message.sessionId);
       const pending = message.id ? this.pending.get(message.id) : undefined;
       if (!pending) return;
       this.pending.delete(message.id!);
@@ -56,6 +58,10 @@ export class Cdp {
         reject: (error) => { clearTimeout(timer); reject(error); },
       });
     });
+  }
+
+  on(method: string, listener: (params: Record<string, unknown>, sessionId?: string) => void) {
+    this.listeners.set(method, [...(this.listeners.get(method) ?? []), listener]);
   }
 
   async eval<T = unknown>(expression: string, sessionId: string) {
@@ -183,4 +189,37 @@ export function sendChatExpression(text: string) {
     box.dispatchEvent(new Event("input", { bubbles: true }));
     return true;
   })()`;
+}
+
+// Makes the chat POST fail the way the server does when no model is configured (HTTP 503,
+// the same body shape), so the failed-request UI is tested on any machine, including ones
+// that do have a model key. Only POSTs to the chat route are answered; every other paused
+// request continues untouched. Returns a stop function that removes the interception and
+// lists what was answered.
+export async function failChatRequests(browser: Cdp, sessionId: string) {
+  const intercepted: string[] = [];
+  const handler = (params: Record<string, unknown>, from?: string) => {
+    if (from !== sessionId) return;
+    const request = params.request as { url: string; method: string };
+    if (request.method !== "POST") {
+      browser.send("Fetch.continueRequest", { requestId: params.requestId }, sessionId).catch(() => {});
+      return;
+    }
+    intercepted.push(`${request.method} ${request.url}`);
+    const message = "模型服务尚未配置，草稿没有伪造修改。";
+    const body = { error: "not_configured", message, userMessage: `${message} 配置模型后重新提交；当前草稿和已上传素材不会被覆盖。`, recovery: "configure_provider" };
+    browser.send("Fetch.fulfillRequest", {
+      requestId: params.requestId,
+      responseCode: 503,
+      responseHeaders: [{ name: "Content-Type", value: "application/json" }],
+      body: Buffer.from(JSON.stringify(body)).toString("base64"),
+    }, sessionId).catch(() => {});
+  };
+  browser.on("Fetch.requestPaused", handler);
+  await browser.send("Fetch.enable", { patterns: [{ urlPattern: "*/api/sites/*/chat", requestStage: "Request" }] }, sessionId);
+  return async () => {
+    await browser.send("Fetch.disable", {}, sessionId);
+    browser.listeners.set("Fetch.requestPaused", (browser.listeners.get("Fetch.requestPaused") ?? []).filter((item) => item !== handler));
+    return intercepted;
+  };
 }

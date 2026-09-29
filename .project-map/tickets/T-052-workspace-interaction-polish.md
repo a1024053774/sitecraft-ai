@@ -57,3 +57,11 @@ cloud，2026-09-29（时间为 UTC）。实现提交：本 commit（分支 `clou
 截图（已逐张打开看过，gitignore 不提交）：`artifacts/t052/workspace-{dark,light}-{1440,768,375}-{error,alignment-card,preview}.png`；报告 `artifacts/t052/{contrast,interaction,motion}-report.json`；改动前红态 `artifacts/t052-red/`。
 
 没做或拿不准：原型里的「都交给 AI 推荐」没有做（服务端没有这个动作）；对话栏顶部原来的「更换模板」链接去掉了；`scripts/check-published.mjs` 没跑（Chrome 路径写死为 macOS），iframe 的刷新样式对访客页只在内容更新时生效，建议本地跑一次；`project_map.py status` 云端没有这个脚本，没跑。盲评和代码审查由本地安排。
+
+本地复核（Claude，2026-09-29 纽约时间 16:40–17:30，合并后的 `family-kit-assembly`）：
+
+- 云端两条浏览器测试默认「机器上没配模型、对话请求会 503」。本机有 DeepSeek 密钥，请求真的成功，进度收起和错误态等不到，测试超时。已改成用 CDP Fetch 只拦截 `POST /api/sites/*/chat` 并按服务端无模型时的 503 形状返回（`tests/helpers/workspace-browser.ts` 的 `failChatRequests`），不伪造成功回复、不改 API。另修需求对齐卡「推荐」标记在长选项旁被挤成竖排（`.recommend-badge` 不收缩、不换行）。
+- `./node_modules/.bin/tsc --noEmit` 通过；全量测试除这两个浏览器文件外全部通过（3034 dev server 在跑时 319 条中 317 条过，剩下两条即这两个文件）。
+- 这两个文件按场景拆开、每个场景单独起 Chrome 跑：motion 三档、contrast 深浅三档和 6 个强调色全部通过；一次跑完整套仍然失败，原因是本机 Google Chrome 154 启动约 20–35 秒后唤醒 GoogleUpdater 并退出（空闲的无头 Chrome 也一样，加 `--disable-background-networking --disable-component-update` 无效），属于本机环境问题，待负责人处理 Chrome 更新后重跑一次完整命令。
+- 截图 `artifacts/t052/workspace-{dark,light}-{1440,768,375}-{alignment-card,error,preview}.png` 共 18 张，本地生成；Claude 看过深色 1440 两张、浅色 1440 错误态、深色 375 需求对齐抽屉、浅色 768 预览，没有看到错位或截断。审美结论等盲评。
+

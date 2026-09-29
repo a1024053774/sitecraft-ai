@@ -16,6 +16,7 @@ import {
   waitFor,
   type Cdp,
   type WorkspacePage,
+  failChatRequests,
 } from "./helpers/workspace-browser.ts";
 
 // T-043 measured seven selectors, then every text node on one screen. T-052: every workspace
@@ -62,8 +63,12 @@ async function runSteps(browser: Cdp, page: WorkspacePage, prefix: string, steps
     if (step.action) {
       const acted = await browser.eval<boolean>(step.action, page.sessionId);
       if (!acted) { failures.push(`${prefix} ${step.name}: control not found`); continue; }
+      // The error state is made by a failed chat request, answered here with the server's
+      // no-model 503 so it does not depend on the machine having a model key.
+      const stopFailing = step.name === "error" ? await failChatRequests(browser, page.sessionId) : null;
       if (step.name === "error") await browser.eval(step.after!, page.sessionId);
       const ready = step.ready ? await waitFor(browser, page.sessionId, step.ready, 15000) : true;
+      if (stopFailing) await stopFailing();
       if (!ready) { failures.push(`${prefix} ${step.name}: state did not appear`); continue; }
     }
     const measured = await scan(browser, page, `${prefix} ${step.name}`, report);

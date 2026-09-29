@@ -14,6 +14,7 @@ import {
   waitFor,
   type Cdp,
   type WorkspacePage,
+  failChatRequests,
 } from "./helpers/workspace-browser.ts";
 
 // T-052: the action row sits above the chat box with 36 px (44 px on phones) buttons, 需求对齐
@@ -196,8 +197,10 @@ async function exerciseMotion(browser: Cdp, width: number, reducedMotion: boolea
   await browser.eval(clickExpression("alignment-submit"), page.sessionId);
   steps.submitted = await waitFor(browser, page.sessionId, `!document.querySelector("[data-testid=alignment-submit]") && !document.querySelector("[data-testid=chat-progress]")`, 15000);
 
-  // A request that fails (no model is configured here), slowed so the progress block is seen.
+  // A request that fails (the server's no-model 503, answered here so it does not depend on
+  // the machine having a model key), slowed so the progress block is seen.
   if (width <= 600) await showPane(browser, page, "chat");
+  const stopFailing = await failChatRequests(browser, page.sessionId);
   await browser.send("Network.enable", {}, page.sessionId);
   await browser.send("Network.emulateNetworkConditions", { offline: false, latency: 1200, downloadThroughput: -1, uploadThroughput: -1 }, page.sessionId);
   await browser.eval(sendChatExpression("首屏标题写成按图加工的重载减速机"), page.sessionId);
@@ -205,6 +208,7 @@ async function exerciseMotion(browser: Cdp, width: number, reducedMotion: boolea
   steps.progressShown = await waitFor(browser, page.sessionId, `Boolean(document.querySelector("[data-testid=chat-progress] [data-step-state=current]"))`, 5000);
   steps.progress = await browser.eval(`[...document.querySelectorAll("[data-testid=chat-progress] [data-step]")].map((item) => item.dataset.stepState + ":" + item.textContent.trim())`, page.sessionId);
   steps.progressClosed = await waitFor(browser, page.sessionId, `!document.querySelector("[data-testid=chat-progress]") && Boolean(document.querySelector(".message.error"))`, 20000);
+  await stopFailing();
   await browser.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, page.sessionId);
 
   // A palette change is written to the draft; the preview updates without a full cover.
