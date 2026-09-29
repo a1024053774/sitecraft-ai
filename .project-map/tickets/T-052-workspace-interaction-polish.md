@@ -29,8 +29,31 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 上面 1–6 项都做到；对话、需求对齐、换样子、换配色、撤销和重做照常能用
-- [ ] 深浅两套主题下，全部工作台文字对比度 ≥ 4.5:1，由检查脚本或测试量出来，新检查在改动前先失败
-- [ ] 1440 / 768 / 375 深浅两套主题截图（云端有无头 Chrome 就截，没有就说明没截；本地由 Claude 在 Chrome 里补看）
+- [x] 上面 1–6 项都做到；对话、需求对齐、换样子、换配色、撤销和重做照常能用
+- [x] 深浅两套主题下，全部工作台文字对比度 ≥ 4.5:1，由检查脚本或测试量出来，新检查在改动前先失败
+- [x] 1440 / 768 / 375 深浅两套主题截图（云端有无头 Chrome 就截，没有就说明没截；本地由 Claude 在 Chrome 里补看）
 - [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过
 - [ ] 盲评（Codex gpt-6.1-sol）和代码审查（Codex Astra）通过，结论记在 Resolution
+
+## Resolution
+
+cloud，2026-09-29（时间为 UTC）。实现提交：本 commit（分支 `cloud/t052-workspace`，基于 `fc9f8e9`）。
+
+实现：
+
+1. 版式照原型 B：顶栏横跨全宽（返回、站名、保存状态｜预览宽度、中/EN｜撤销、重做、发布、删除）；1440 预览在左、对话 420px 在右；768 对话是盖在预览上的右侧抽屉（顶栏「对话 / 预览」开合，抽屉里有收起按钮）；375「对话 / 预览」切换，预览页的操作排在第二行。样子和配色写在画布上方；去掉假的浏览器地址栏。颜色全部改成工作台自己的深浅两套变量（`--ws-*`），6 个强调色各有深浅两版。
+2. 输入框上方一排：需求对齐开关、样子、配色、公司资料、上传产品图、商品表格；桌面 36px、手机 44px。删掉「只要首页」「额外页面」「未指定页面」「修改服务」和欢迎语里的「智能产线集成」例句。
+3. 需求对齐从「+」菜单移出，做成带「开 / 关」字样的开关（`role="switch"`）；「+」菜单删除。
+4. 动画：对话里的进行中卡片写当前一步和步骤列表，只按服务端状态前进，完成或失败后 200ms 淡出；需求对齐卡选中打勾、换题滑入、提交后收起（保存返回前不反向打断），手机底部抽屉滑入/滑出；样子/配色面板、对话框淡入；预览刷新改为顶部细条加 200ms 轻微变暗，已显示过的页面不再被整块盖住（`components/open-source-template-frame.tsx`）。只用 `transform`/`opacity`，150–300ms，`prefers-reduced-motion` 下全部关掉。
+5. 深色对比度：新的扫描脚本 `scripts/workspace-contrast-scan.js` 量每个可见文字节点、输入值和占位符（合成祖先背景、计入透明度，禁用控件除外）；`tests/workspace-dark-contrast.test.ts` 在深浅 × 1440/768/375 下走对话、错误、需求对齐卡与抽屉、样子、配色、历史、资料/产品图/商品表格三个对话框、删除对话框、预览工具栏，另在 1440 下把 6 个强调色各量一遍。
+6. 去掉「Look board」和对话框的英文眉题（Content / Products 等，含删除对话框），历史来源显示中文，色块提示写中文角色名，图片库不再显示 SHA 和英文许可代码，预览 iframe 的标题改为「网站预览」。
+
+改动前失败（`fc9f8e9`，19:43）：`node --test --experimental-strip-types tests/workspace-dark-contrast.test.ts tests/workspace-interaction.test.ts`，3 条全部失败。对比度 74 个画面里 680 处低于 4.5:1（例如深色样子面板「当前：」2.30、深色历史「修改历史」1.13、浅色样子面板说明 3.03）；版式检查失败于 `1440: the action row is missing`；动画检查同样失败。
+
+改动后（20:21–20:23，最后一次代码改动之后）：同一命令包含在 `npm test` 里，4 条工作台检查全部通过：76 个画面 3586 个文字节点 0 处低于 4.5:1；三档宽度操作排都在输入框上方、按钮高度达标、开关可开可关、没有英文标签和开发自测按钮；动画只有 `transform`/`opacity`、有限时长都在 150–300ms，减少动态效果时 0 个动画；换配色、换样子、撤销、重做在 1440 和 375 下都写入新草稿版本。`npm run typecheck` 通过，`npm run build` 通过。`npm test` 315 条里 303 过、12 条失败：都是 vendor 模板快照缺失（screwfast 构建要连 `images.unsplash.com`，云端网络策略返回 403；nordic-store、powerai、astro-starter 子模块没有初始化）。把本次改动 stash 掉后在同一容器里跑这 6 个测试文件，失败完全相同，不是本次改动引起；需要在有快照的本地环境复跑一次。
+
+检查的前提：需要 3034 的 dev server 和 Chrome（`CHROME_PATH` 可指定）。测试站用 forge 模板新建（screwfast 快照云端建不出来）。需求对齐卡是服务端不带 Prompt 的 `action: "start"` 返回的真实第 1 轮卡（按目录生成，不调模型）；错误状态是没有配置模型时真实返回的 503；进行中卡片靠把网络延迟调到 1200ms 看到，没有伪造 AI 回复，没有改 API。
+
+截图（已逐张打开看过，gitignore 不提交）：`artifacts/t052/workspace-{dark,light}-{1440,768,375}-{error,alignment-card,preview}.png`；报告 `artifacts/t052/{contrast,interaction,motion}-report.json`；改动前红态 `artifacts/t052-red/`。
+
+没做或拿不准：原型里的「都交给 AI 推荐」没有做（服务端没有这个动作）；对话栏顶部原来的「更换模板」链接去掉了；`scripts/check-published.mjs` 没跑（Chrome 路径写死为 macOS），iframe 的刷新样式对访客页只在内容更新时生效，建议本地跑一次；`project_map.py status` 云端没有这个脚本，没跑。盲评和代码审查由本地安排。

@@ -7,8 +7,6 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
-  CircleHelp,
-  Cloud,
   CloudUpload,
   FileSpreadsheet,
   FileText,
@@ -18,16 +16,15 @@ import {
   Laptop as Desktop,
   LoaderCircle,
   MessageSquareText,
-  MoreHorizontal,
+  Moon,
   RotateCcw,
   RotateCw,
   Send,
   Smartphone as Mobile,
   Sparkles,
+  Sun,
   Tablet,
   Trash2,
-  Upload,
-  Plus,
   X,
 } from "lucide-react";
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -68,6 +65,36 @@ import { userFacingError } from "@/lib/user-errors";
 import { generateCustomPalette } from "@/lib/custom-brand-color";
 
 const paletteSwatchRoles = ["background", "surface", "text", "muted", "border", "accent", "accentStrong", "input", "focus", "disabled"] as const;
+const paletteRoleNames: Record<(typeof paletteSwatchRoles)[number], string> = {
+  background: "背景", surface: "卡片", text: "正文", muted: "次要文字", border: "边线",
+  accent: "强调", accentStrong: "强调（深）", input: "输入框", focus: "焦点", disabled: "不可用",
+};
+const historySourceNames: Record<string, string> = { ai: "对话", import: "表格导入", manual: "手动", migration: "迁移", template: "样子" };
+const imageLicenseNames: Record<string, string> = { "user-provided": "用户提供" };
+const imageScopeNames: Record<string, string> = { "current-site-only": "只用于本站", "generated-sites": "可用于生成站", "docs-only": "只用于文档" };
+
+// Steps of one piece of work shown in the chat. A step with `match` becomes current when the
+// server reports that status; `optional` steps are listed only once they are reached.
+type JobStep = { label: string; match?: RegExp; optional?: boolean };
+const chatEditJob: JobStep[] = [
+  { label: "读你的要求" },
+  { label: "生成修改", match: /调用模型|生成结构化/ },
+  { label: "校验并写入草稿", match: /校验|保存草稿/ },
+];
+const alignmentStartJob: JobStep[] = [
+  { label: "读资料和要求，规划页面和要问你的问题" },
+  { label: "整理问题卡" },
+];
+const alignmentAnswerJob: JobStep[] = [
+  { label: "保存你的选择" },
+  { label: "按确认的方案生成修改", match: /应用已确认的方案|根据已保存的任务继续|调用模型/, optional: true },
+  { label: "校验并写入草稿", match: /校验|保存草稿/, optional: true },
+];
+type ProgressView = { id: number; steps: JobStep[]; current: number; detail: string; closing: boolean };
+
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
 
 function conversationStorageKey(siteId: string) {
   return `sitecraft-conversation:${siteId}`;
@@ -195,12 +222,12 @@ const initialMessages: ChatMessage[] = [
   {
     id: "welcome",
     role: "assistant",
-    text: "我已经载入当前站点。现在可以修改首屏、关于、优势、服务、商品和联系区块；每次操作都会保存为可撤销草稿。",
+    text: "已载入当前站点。可以先提供公司资料，也可以直接说想怎么改首屏、产品、优势、常见问题或联系方式。",
   },
   {
     id: "guide",
     role: "assistant",
-    text: "可以直接说“把第二个服务标题改为智能产线集成”，或点击右侧内容后再下达指令。每次修改都会保留在草稿历史里。",
+    text: "也可以在预览里点一块内容，再说改成什么。每次修改都存成新的草稿版本，右上角可以撤销。",
   },
 ];
 
@@ -319,14 +346,15 @@ export default function WorkspacePage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [plusOpen, setPlusOpen] = useState(false);
   const [alignmentEnabled, setAlignmentEnabled] = useState(false);
   const [alignmentView, setAlignmentView] = useState<AlignmentViewState | null>(null);
   const [alignmentSelections, setAlignmentSelections] = useState<Record<string, string>>({});
   const [alignmentNotes, setAlignmentNotes] = useState<Record<string, string>>({});
   const [alignmentStep, setAlignmentStep] = useState(0);
-  const [mobileAlignment, setMobileAlignment] = useState(false);
-  const [lookPanelOpen, setLookPanelOpen] = useState(false);
+  const [alignmentLeaving, setAlignmentLeaving] = useState(false);
+  const stepDirectionRef = useRef<"next" | "back">("next");
+  const [phoneLayout, setPhoneLayout] = useState(false);
+  const [lookPanel, setLookPanel] = useState<"look" | "color" | null>(null);
   const [workspaceTheme, setWorkspaceTheme] = useState<"light" | "dark">("light");
   const [workspaceAccent, setWorkspaceAccent] = useState("porcelain");
   useEffect(() => {
@@ -336,7 +364,7 @@ export default function WorkspacePage() {
   }, [alignmentView]);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 600px)");
-    const update = () => setMobileAlignment(media.matches);
+    const update = () => setPhoneLayout(media.matches);
     update();
     media.addEventListener?.("change", update);
     return () => media.removeEventListener?.("change", update);
@@ -367,6 +395,8 @@ export default function WorkspacePage() {
   const [imageNote, setImageNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyText, setBusyText] = useState("正在连接模型…");
+  const [progress, setProgress] = useState<ProgressView | null>(null);
+  const jobRef = useRef<{ id: number; steps: JobStep[]; current: number }>({ id: 0, steps: [], current: 0 });
   const [mobilePane, setMobilePane] = useState<"chat" | "preview">("chat");
   const [selectedTarget, setSelectedTarget] = useState<{ key: string; label: string } | null>(null);
   const [draftReady, setDraftReady] = useState(false);
@@ -380,6 +410,33 @@ export default function WorkspacePage() {
   const imageFileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const startJob = (steps: JobStep[], text: string) => {
+    jobRef.current = { id: jobRef.current.id + 1, steps, current: 0 };
+    setBusyText(text);
+    setBusy(true);
+  };
+  const advanceJob = (index: number, text: string) => {
+    jobRef.current = { ...jobRef.current, current: Math.max(jobRef.current.current, index) };
+    setBusyText(text);
+  };
+  const reportStatus = (value: string) => {
+    const { steps, current } = jobRef.current;
+    const next = steps.findIndex((step, index) => index > current && step.match?.test(value));
+    if (next > current) jobRef.current = { ...jobRef.current, current: next };
+    setBusyText(value);
+  };
+  useEffect(() => {
+    if (busy) {
+      // Each job is its own element, so a job that starts while the last one fades out enters fresh.
+      setProgress({ id: jobRef.current.id, steps: jobRef.current.steps, current: jobRef.current.current, detail: busyText, closing: false });
+      return;
+    }
+    // Finished or failed: the progress fades out, then leaves the conversation.
+    setProgress((view) => (view ? { ...view, closing: true } : view));
+    const timer = window.setTimeout(() => setProgress(null), prefersReducedMotion() ? 0 : 220);
+    return () => window.clearTimeout(timer);
+  }, [busy, busyText]);
 
   const adoptSnapshot = (snapshot: DraftSnapshot) => {
     setDraft(normalizeDraft(snapshot.draft));
@@ -661,8 +718,9 @@ export default function WorkspacePage() {
 
   const runAlignment = async (body: Record<string, unknown>, options?: { force?: boolean }) => {
     if (busy && !options?.force) return;
-    setBusy(true);
-    setBusyText("正在更新需求对齐…");
+    const planning = body.action === "start" && Boolean(body.message);
+    if (planning) startJob(alignmentStartJob, "正在读资料和要求，规划页面和要问你的问题…");
+    else startJob(alignmentAnswerJob, body.action === "state" ? "正在读取需求对齐的进度…" : body.action === "cancel" ? "正在关闭需求对齐…" : "正在保存你的选择…");
     try {
       const response = await fetch(`/api/sites/${siteId}/chat`, {
         method: "POST",
@@ -680,7 +738,8 @@ export default function WorkspacePage() {
         }
         throw new Error(readableWorkspaceError(payload, "需求对齐请求失败"));
       }
-      const doneEvent = await readSseDone(response, (value) => setBusyText(value));
+      if (planning) advanceJob(1, "正在整理问题卡…");
+      const doneEvent = await readSseDone(response, reportStatus);
       applyDoneEvent(doneEvent);
       if ((body.action === "start" && body.message) || (body.action === "select" && body.optionId === "other")) setInput("");
     } catch (error) {
@@ -714,7 +773,6 @@ export default function WorkspacePage() {
   }, [alignmentView, busy, conversationId]);
 
   const toggleAlignment = async (enabled: boolean) => {
-    setPlusOpen(false);
     if (!enabled) {
       if (!conversationId) {
         setAlignmentEnabled(false);
@@ -765,8 +823,7 @@ export default function WorkspacePage() {
       });
       return true;
     }
-    setBusy(true);
-    setBusyText("正在连接模型…");
+    startJob(chatEditJob, "正在读你的要求…");
     setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: stripMaterialsInstruction(value) }]);
     try {
       const response = await fetch(`/api/sites/${siteId}/chat`, {
@@ -788,7 +845,7 @@ export default function WorkspacePage() {
         }
         throw new Error(readableWorkspaceError({ ...payload, status: response.status }, response.status === 409 ? "草稿版本冲突，已载入最新版本，请重新发送。" : "AI 请求失败"));
       }
-      const doneEvent = await readSseDone(response, (status) => setBusyText(status));
+      const doneEvent = await readSseDone(response, reportStatus);
       applyDoneEvent(doneEvent);
       return true;
     } catch (error) {
@@ -879,8 +936,8 @@ export default function WorkspacePage() {
 
   const moveHistory = async (action: "undo" | "redo") => {
     if (busy) return;
-    setBusy(true);
-    setBusyText(action === "undo" ? "正在撤销并保存…" : "正在重做并保存…");
+    const text = action === "undo" ? "正在撤销并保存…" : "正在重做并保存…";
+    startJob([{ label: text }], text);
     try {
       const response = await fetch(`/api/sites/${siteId}/history/${action}`, { method: "POST" });
       const result = await response.json() as DraftSnapshot & { status: string; appliedTargets?: string[] };
@@ -917,8 +974,7 @@ export default function WorkspacePage() {
     if (!brief) return;
     const alreadySelected = brief.id === draft.visualBrief.id && brief.templateId === draft.templateId;
     if (alreadySelected && !draft.legacyVisualBriefId) return;
-    setBusy(true);
-    setBusyText("正在切换样子…");
+    startJob([{ label: "正在切换样子…" }], "正在切换样子…");
     try {
       await saveOperations([{ op: "set_visual_brief", briefId: brief.id }], `选择样子 ${brief.label}`, "template");
       setMessages((items) => [...items, {
@@ -944,8 +1000,7 @@ export default function WorkspacePage() {
     if (busy || !draftReady) return;
     const palette = paletteCatalogForVisualBrief(draft.visualBrief.id).find((item) => item.id === paletteId);
     if (!palette || (draft.paletteId === palette.id && !draft.customPalette)) return;
-    setBusy(true);
-    setBusyText("正在切换色板…");
+    startJob([{ label: "正在切换色板…" }], "正在切换色板…");
     try {
       await saveOperations([{ op: "set_palette", paletteId: palette.id }], `选择色彩集 ${palette.label}`, "template");
       setMessages((items) => [...items, {
@@ -971,8 +1026,7 @@ export default function WorkspacePage() {
     if (busy || !draftReady) return;
     try {
       const generated = generateCustomPalette(sourceColor, source);
-      setBusy(true);
-      setBusyText("正在生成品牌色板…");
+      startJob([{ label: "正在生成品牌色板…" }], "正在生成品牌色板…");
       await saveOperations([{ op: "set_custom_palette", palette: generated.palette }], "应用自定义品牌色板", "manual");
       setMessages((items) => [...items, {
         id: crypto.randomUUID(),
@@ -1067,7 +1121,6 @@ export default function WorkspacePage() {
   };
 
   const openImageLibrary = async () => {
-    setPlusOpen(false);
     setShowImages(true);
     setImageNote(null);
     try {
@@ -1082,8 +1135,7 @@ export default function WorkspacePage() {
     event.target.value = "";
     if (!file || busy || !draftReady) return;
     let resumeImageId: string | null = null;
-    setBusy(true);
-    setBusyText("正在保存产品图…");
+    startJob([{ label: "正在保存产品图…" }], "正在保存产品图…");
     setImageNote(null);
     setImageFacts(null);
     try {
@@ -1095,13 +1147,13 @@ export default function WorkspacePage() {
       const uploaded = payload.image;
       setSiteImages((items) => [uploaded, ...items.filter((item) => item.imageId !== uploaded.imageId)]);
       setSelectedImageId(uploaded.imageId);
-      setImageNote(`已保存到本站 ${uploaded.imageId} · ${uploaded.license === "user-provided" ? "用户提供" : uploaded.license} · ${uploaded.width}×${uploaded.height}`);
+      setImageNote(`已保存到本站 · ${imageLicenseNames[uploaded.license] ?? uploaded.license} · ${uploaded.width}×${uploaded.height}`);
       setMessages((items) => [...items, {
         id: crypto.randomUUID(),
         role: "assistant",
         status: "applied",
         text: "产品图已上传到这个站点，还没放进页面。可以先分析图里的信息，再放到首屏或第一个产品。",
-        change: uploaded.imageId,
+        change: `${uploaded.originalName} 已保存到本站`,
       }]);
       if (alignmentView?.questionId === "image-upload") resumeImageId = uploaded.imageId;
     } catch (error) {
@@ -1117,8 +1169,7 @@ export default function WorkspacePage() {
 
   const analyzeSelectedImage = async () => {
     if (!selectedImageId || busy) return;
-    setBusy(true);
-    setBusyText("正在看图摘录事实…");
+    startJob([{ label: "正在看图摘录事实…" }], "正在看图摘录事实…");
     setImageNote(null);
     try {
       const response = await fetch(`/api/sites/${siteId}/images/${selectedImageId}/analyze`, { method: "POST" });
@@ -1156,8 +1207,7 @@ export default function WorkspacePage() {
       setImageNote("当前草稿没有商品，无法写入产品图。");
       return;
     }
-    setBusy(true);
-    setBusyText("正在放入图片…");
+    startJob([{ label: "正在放入图片…" }], "正在放入图片…");
     try {
       const saved = await saveOperations(operations, kind === "hero" ? "把已上传的产品图放到首屏" : `把已上传的产品图放到产品「${draft.products[0].name.zh}」`, "manual");
       setMessages((items) => [...items, {
@@ -1177,8 +1227,9 @@ export default function WorkspacePage() {
   };
 
   const alignmentQuestions = alignmentView?.questions ?? [];
-  const visibleAlignmentQuestions = mobileAlignment
-    ? alignmentQuestions.slice(Math.min(alignmentStep, Math.max(0, alignmentQuestions.length - 1)), Math.min(alignmentStep, Math.max(0, alignmentQuestions.length - 1)) + 1)
+  const alignmentStepIndex = Math.min(alignmentStep, Math.max(0, alignmentQuestions.length - 1));
+  const visibleAlignmentQuestions = phoneLayout
+    ? alignmentQuestions.slice(alignmentStepIndex, alignmentStepIndex + 1)
     : alignmentQuestions;
   const activeAlignmentQuestion = alignmentQuestions[alignmentStep];
   // 配色按所选样子显示: color-set swatches follow the look picked in the same card.
@@ -1192,166 +1243,166 @@ export default function WorkspacePage() {
     return [tokens.background, tokens.surface, tokens.text, tokens.accent, tokens.accentStrong, tokens.border].filter((value): value is string => Boolean(value));
   };
   const activeAlignmentReady = Boolean(activeAlignmentQuestion && alignmentSelections[activeAlignmentQuestion.questionId] && (alignmentSelections[activeAlignmentQuestion.questionId] !== "other" || alignmentNotes[activeAlignmentQuestion.questionId]?.trim()));
+  const alignmentComplete = alignmentQuestions.every((item) => alignmentSelections[item.questionId] && (alignmentSelections[item.questionId] !== "other" || alignmentNotes[item.questionId]?.trim()));
+  const goToAlignmentStep = (next: number) => {
+    stepDirectionRef.current = next < alignmentStep ? "back" : "next";
+    setAlignmentStep(Math.max(0, Math.min(alignmentQuestions.length - 1, next)));
+  };
+  const submitAlignment = async () => {
+    if (!alignmentView) return;
+    // The card folds away while the answers are saved; it comes back if saving fails.
+    setAlignmentLeaving(true);
+    const started = Date.now();
+    try {
+      await runAlignment({ action: "select", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision, selections: alignmentView.questions.map((item) => ({ questionId: item.questionId, optionId: alignmentSelections[item.questionId], note: alignmentNotes[item.questionId] })) });
+    } finally {
+      // Let the fold finish before the next state fades in; an interrupted transition reverses at a shorter duration.
+      const remaining = prefersReducedMotion() ? 0 : 260 - (Date.now() - started);
+      if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining));
+      setAlignmentLeaving(false);
+    }
+  };
+  const questionHint = (question: AlignmentQuestionCard) => question.field === "colorSet" ? "会按所选样子调好" : question.field === "style" ? "单选，推荐按你的行业给出" : "单选";
+  const currentPaletteLabel = draft.customPalette ? "自定义品牌色" : paletteCatalogForVisualBrief(draft.visualBrief.id).find((item) => item.id === draft.paletteId)?.label;
+  const alignmentOpen = Boolean(alignmentView && (alignmentView.enabled || alignmentView.waitingForUser || alignmentView.prefsOnly || alignmentView.lastResult || alignmentView.answers.length));
+  const alignmentDrawer = phoneLayout && Boolean(alignmentView && alignmentView.questions.length >= 1 && (alignmentView.waitingForUser || alignmentView.awaitingConfirmation));
+  const visibleSteps = progress ? progress.steps.filter((step, index) => !step.optional || index <= progress.current) : [];
+  const submitAlignmentButton = alignmentView && alignmentView.questions.length >= 1 && alignmentView.waitingForUser && !alignmentView.awaitingConfirmation
+    ? <button className="primary-button" data-testid="alignment-submit" type="button" disabled={busy || !alignmentComplete} onClick={() => void submitAlignment()}>提交全部答案</button>
+    : null;
+  const toggleLookPanel = (panel: "look" | "color") => setLookPanel((value) => (value === panel ? null : panel));
 
   return (
-    <div className={`builder-shell workspace-theme-${workspaceTheme} workspace-accent-${workspaceAccent}`}>
-      <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">
-        <button className={mobilePane === "chat" ? "active" : ""} onClick={() => setMobilePane("chat")} role="tab" aria-selected={mobilePane === "chat"}><MessageSquareText size={14} /> AI 对话</button>
-        <button className={mobilePane === "preview" ? "active" : ""} onClick={() => setMobilePane("preview")} role="tab" aria-selected={mobilePane === "preview"}><Desktop size={14} /> 网站预览</button>
-      </div>
-      <aside className={`builder-chat ${mobilePane !== "chat" ? "mobile-hidden" : ""}`}>
-        <div className="builder-chat-head">
-          <div>
-            <Link href="/" className="eyebrow" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowLeft size={12} />返回站点</Link>
-            <h2>{draft.siteName}</h2>
-            <span className="builder-template-name">当前样子：{draft.visualBrief.label}</span>
-            <span className="chat-context"><span className={`provider-dot ${providerStatus.mode === "deepseek" ? "remote" : "offline"}`} />{providerStatus.mode === "deepseek" ? "AI 已连接" : "AI 暂不可用"}</span>
-          </div>
-          <Link className="icon-button" href="/templates" aria-label="更换模板"><MoreHorizontal size={16} /></Link>
+    <div className={`builder-shell workspace-theme-${workspaceTheme} workspace-accent-${workspaceAccent} pane-${mobilePane}`}>
+      <header className="preview-toolbar workspace-topbar">
+        <div className="preview-toolbar-left">
+          <Link href="/" className="topbar-back" aria-label="返回站点"><ArrowLeft size={17} /></Link>
+          <div className="project-name">{draft.siteName}</div>
+          <span className={`save-status ${previewState}`}>{previewState === "loading" ? <LoaderCircle className="spin" size={12} /> : previewState === "warning" ? <AlertCircle size={12} /> : <Check size={12} />}{saveLabel}</span>
         </div>
-          <div className="draft-status-panel">
-          <div className="draft-status-icon"><Cloud size={15} /></div>
-          <div><strong data-testid="workspace-draft-revision">当前草稿 · v{draft.revision}</strong><span>{updatedAt ? `${new Date(updatedAt).toLocaleString("zh-CN")} 保存到服务器` : "正在载入"}</span></div>
-          <button type="button" onClick={() => setShowHistory((value) => !value)}><History size={13} />历史 {history.length}</button>
+        <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">
+          <button className={mobilePane === "chat" ? "active" : ""} onClick={() => setMobilePane("chat")} role="tab" aria-selected={mobilePane === "chat"}><MessageSquareText size={15} />对话</button>
+          <button className={mobilePane === "preview" ? "active" : ""} onClick={() => setMobilePane("preview")} role="tab" aria-selected={mobilePane === "preview"}><Desktop size={15} />预览</button>
+        </div>
+        <div className="topbar-tools">
+          <div className="preview-toolbar-center">
+            <div className="device-toggle" role="group" aria-label="预览宽度"><button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")} aria-label="桌面预览" aria-pressed={device === "desktop"}><Desktop size={15} /></button><button className={device === "tablet" ? "active" : ""} onClick={() => setDevice("tablet")} aria-label="平板预览" aria-pressed={device === "tablet"}><Tablet size={15} /></button><button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")} aria-label="手机预览" aria-pressed={device === "mobile"}><Mobile size={15} /></button></div>
+            <div className="device-toggle" role="group" aria-label="预览语言"><button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")} aria-pressed={locale === "zh"}>中</button><button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")} aria-pressed={locale === "en"}>EN</button></div>
           </div>
-        <div className="workspace-controls"><button type="button" onClick={toggleWorkspaceTheme}>{workspaceTheme === "dark" ? "浅色界面" : "深色界面"}</button><label>强调色<select value={workspaceAccent} onChange={(event) => chooseWorkspaceAccent(event.target.value)}>{colorSetCatalog.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label></div>
-        <div className="chat-look-actions"><button type="button" onClick={() => setLookPanelOpen((value) => !value)}>样子</button><button type="button" onClick={() => setLookPanelOpen((value) => !value)}>配色</button></div>
-        <section className={lookPanelOpen ? "visual-brief-panel" : "visual-brief-panel look-panel-collapsed"} aria-label="网站样子">
-          <div className="visual-brief-head">
-            <div><span className="eyebrow">Look board</span><strong>先选网站的样子</strong></div>
-            <span className="visual-brief-current">当前：{draft.visualBrief.label}</span>
-            <Link className="section-link" href={"/quality" as Route}>12组对照</Link>
+          <div className="preview-toolbar-right">
+            <button className="icon-button" onClick={() => void moveHistory("undo")} disabled={!canUndo || busy} aria-label="撤销"><RotateCcw size={15} /></button>
+            <button className="icon-button" onClick={() => void moveHistory("redo")} disabled={!canRedo || busy} aria-label="重做"><RotateCw size={15} /></button>
+            <Link className="primary-button" href={`/published/${encodeURIComponent(siteId)}?page=${encodeURIComponent(activePage?.id ?? "home")}` as Route} target="_blank" rel="noreferrer"><Globe2 size={15} />发布</Link>
+            <button className="icon-button" type="button" data-testid="toolbar-delete-site" aria-label="删除本站" onClick={() => setShowDelete(true)}><Trash2 size={15} /></button>
           </div>
-          {legacyLookRetained ? (
-            <p className="legacy-look-warning" role="status" data-testid="legacy-look-warning">
-              当前草稿使用已撤下的“深色产品”样子，旧预览仍可打开；请换用可用样子后再继续修改。
+        </div>
+      </header>
+      <main className={`preview-shell ${phoneLayout && mobilePane !== "preview" ? "mobile-hidden" : ""}`}>
+        <div className="site-page-chrome">
+          <div className="canvas-meta">
+            <nav className="site-page-nav" aria-label="站点页面" data-testid="site-page-nav">
+              {draft.pagePlan.pages.map((page) => (
+                <button
+                  className={activePage?.id === page.id ? "site-page-tab active" : "site-page-tab"}
+                  key={page.id}
+                  type="button"
+                  data-testid="site-page-tab"
+                  data-page-id={page.id}
+                  data-page-placement={page.placement}
+                  aria-pressed={activePage?.id === page.id}
+                  onClick={() => selectSitePage(page.id)}
+                >
+                  <strong>{page.label[locale]}</strong>
+                  <small>{page.placement === "route" ? "独立页" : "页内区块"}</small>
+                </button>
+              ))}
+            </nav>
+            <span className="builder-template-name">{draft.visualBrief.label}{currentPaletteLabel ? ` · ${currentPaletteLabel}` : ""}</span>
+          </div>
+          <p className="site-page-source" data-testid="site-page-source">{pagePlanSourceLabel(draft.pagePlan.source)}</p>
+          {draft.pagePlan.unsupported.length ? (
+            <p className="site-page-unsupported" role="status" data-testid="site-page-unsupported">
+              未支持：{draft.pagePlan.unsupported.map((item) => `${item.requested}（${item.reason}）`).join("；")}
             </p>
           ) : null}
-          <p>样子会改变右侧预览的版式与配色，行业仍来自公司资料。</p>
-          <div className="visual-brief-grid">
-            {visualBriefCatalog.map((brief) => {
-              const template = getTemplate(brief.templateId);
-              const selected = draft.visualBrief.id === brief.id && draft.templateId === brief.templateId;
-              return (
-                <button
-                  className={selected ? "visual-brief-card selected" : "visual-brief-card"}
-                  key={brief.id}
-                  type="button"
-                  data-testid="visual-brief-card"
-                  data-brief-id={brief.id}
-                  disabled={busy || !draftReady}
-                  onClick={() => void selectVisualBrief(brief.id)}
-                >
-                  <span className="visual-brief-swatch" style={{ background: `linear-gradient(135deg, ${template.colors.primary}, ${template.colors.accent})` }} />
-                  <span className="visual-brief-copy"><strong>{brief.label}</strong><span>{brief.summary}</span><small>适合：{brief.audience}</small></span>
-                  {selected ? <Check size={13} /> : null}
-                </button>
-              );
-            })}
+        </div>
+        <div className="preview-stage">
+          {lastChangedTargets.length ? <div className="preview-change-markers" data-testid="preview-change-markers">本次修改：{lastChangedTargets.slice(0, 5).join("、")}</div> : null}
+          <div className={`browser-frame ${device}`}>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div>
+        </div>
+      </main>
+      <aside className={`builder-chat ${mobilePane !== "chat" ? "mobile-hidden" : ""}`} aria-label="对话">
+        <div className="builder-chat-head">
+          <div className="chat-head-status">
+            <strong data-testid="workspace-draft-revision">当前草稿 · v{draft.revision}</strong>
+            <span><span className="chat-context"><span className={`provider-dot ${providerStatus.mode === "deepseek" ? "remote" : "offline"}`} />{providerStatus.mode === "deepseek" ? "AI 已连接" : "AI 暂不可用"}</span><span className="chat-head-time"> · {updatedAt ? `${new Date(updatedAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 保存` : "正在载入"}</span></span>
           </div>
-          {paletteCatalogForVisualBrief(draft.visualBrief.id).length ? (
-            <div className="palette-picker" aria-label={`${draft.visualBrief.label}色板`}>
-              <div className="palette-picker-head"><span className="eyebrow">色彩集</span><strong>同一版式，换一套配色</strong></div>
-              <div className="palette-picker-grid">
-                {paletteCatalogForVisualBrief(draft.visualBrief.id).map((palette) => {
-                  const kit = templateAdapters[draft.templateId]?.kit;
-                  const tokens = kit?.palettes?.[palette.id] ?? kit?.tokens;
-                  const tokenForRole = (role: (typeof paletteSwatchRoles)[number]) => {
-                    if (!tokens) return undefined;
-                    if (role === "input") return tokens.input ?? tokens.surface ?? tokens.background;
-                    if (role === "focus") return tokens.focus ?? tokens.accentSoft ?? tokens.accent;
-                    if (role === "disabled") return tokens.disabled ?? tokens.muted ?? tokens.border;
-                    return tokens[role];
-                  };
-                  return (
-                  <button
-                    className={draft.paletteId === palette.id ? "palette-card selected" : "palette-card"}
-                    key={palette.id}
-                    type="button"
-                    disabled={busy || !draftReady}
-                    onClick={() => void selectPalette(palette.id)}
-                  >
-                    <span className="palette-swatch-row" data-testid="palette-swatch-row" aria-label={`${palette.label}颜色角色`}>
-                      {paletteSwatchRoles.map((role) => (
-                        <span
-                          className="palette-swatch-role"
-                          data-role={role}
-                          key={role}
-                          title={`${role}: ${tokenForRole(role) ?? "未定义"}`}
-                          style={{ backgroundColor: tokenForRole(role) ?? "transparent" }}
-                        />
-                      ))}
-                    </span>
-                    <span><strong>{palette.label}</strong><small>{palette.summary}</small></span>
-                    {draft.paletteId === palette.id ? <Check size={13} /> : null}
-                  </button>
-                  );
-                })}
-              </div>
-              <div className="custom-palette-panel" data-testid="custom-palette-panel">
-                <div className="palette-picker-head"><span className="eyebrow">自定义品牌色</span><strong>从主色或 Logo 生成</strong></div>
-                <div className="custom-palette-controls">
-                  <label className="custom-color-input"><span>主色</span><input data-testid="custom-brand-color" type="color" value={brandColor} disabled={busy || !draftReady} onChange={(event) => setBrandColor(event.target.value)} /></label>
-                  <button className="secondary-button" type="button" data-testid="apply-custom-brand-color" disabled={busy || !draftReady} onClick={() => void applyCustomBrandColor(brandColor, "color")}>应用品牌色</button>
-                  <button className="secondary-button" type="button" data-testid="sample-logo-color" disabled={busy || !draftReady} onClick={() => brandLogoRef.current?.click()}>从 Logo 取色</button>
-                  <input ref={brandLogoRef} data-testid="custom-brand-logo" type="file" accept="image/*" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void sampleLogoColor(file); event.currentTarget.value = ""; }} />
-                </div>
-                {draft.customPalette ? <div className="custom-palette-status" role="status"><span className="palette-swatch-row">{[draft.customPalette.background, draft.customPalette.surface, draft.customPalette.text, draft.customPalette.accent, draft.customPalette.accentStrong, draft.customPalette.border].map((color) => <i key={color} style={{ backgroundColor: color }} />)}</span><span>{draft.customPalette.adjustmentNote}</span></div> : null}
-              </div>
+          <div className="chat-head-actions">
+            <button className="chat-head-button" type="button" data-testid="history-toggle" aria-expanded={showHistory} onClick={() => setShowHistory((value) => !value)}><History size={14} />历史 {history.length}</button>
+            <div className="workspace-controls">
+              <button type="button" data-testid="workspace-theme-toggle" onClick={toggleWorkspaceTheme} aria-label={workspaceTheme === "dark" ? "换成浅色界面" : "换成深色界面"} title={workspaceTheme === "dark" ? "浅色界面" : "深色界面"}>{workspaceTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />}</button>
+              <select aria-label="工作台强调色" value={workspaceAccent} onChange={(event) => chooseWorkspaceAccent(event.target.value)}>{colorSetCatalog.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
             </div>
-          ) : null}
-        </section>
+            <button className="icon-button chat-drawer-close" type="button" aria-label="收起对话" onClick={() => setMobilePane("preview")}><X size={15} /></button>
+          </div>
+        </div>
         {showHistory && (
           <div className="draft-history" aria-label="草稿历史">
-            <div className="draft-history-head"><strong>修改历史</strong><button onClick={() => setShowHistory(false)} aria-label="关闭历史"><X size={13} /></button></div>
-            {history.length ? history.map((item) => <div className="history-row" key={item.id}><span>v{item.revision}</span><div><strong>{item.summary}</strong><small>{new Date(item.createdAt).toLocaleString("zh-CN")} · {item.source.toUpperCase()}</small></div></div>) : <div className="history-empty">尚无修改记录</div>}
+            <div className="draft-history-head"><strong>修改历史</strong><button onClick={() => setShowHistory(false)} aria-label="关闭历史"><X size={14} /></button></div>
+            {history.length ? history.map((item) => <div className="history-row" key={item.id}><span>v{item.revision}</span><div><strong>{item.summary}</strong><small>{new Date(item.createdAt).toLocaleString("zh-CN")} · {historySourceNames[item.source] ?? "修改"}</small></div></div>) : <div className="history-empty">还没有修改记录。改动保存后会列在这里，可以撤销。</div>}
           </div>
         )}
         <div className="chat-messages">
           {messages.map((message) => (
             <div className={`message ${message.role} ${message.status ?? ""}`} key={message.id}>
-              <div className="message-label">{message.role === "assistant" ? <><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />AI 助手</> : "你"}</div>
+              <div className="message-label">{message.role === "assistant" ? <><Sparkles size={12} />AI 助手</> : "你"}</div>
               <div className="message-bubble">{message.text}</div>
               {message.options?.length ? <div className="chat-hints clarify-options">{message.options.map((option) => <button className="hint" key={option} type="button" onClick={() => { setInput(option); window.requestAnimationFrame(() => inputRef.current?.focus()); }}>{option}</button>)}</div> : null}
               {message.alignment?.waitingForUser && message.alignment.selectedLabel ? (
                 <div className="change-summary alignment">{message.alignment.selectedLabel}</div>
               ) : null}
-              {message.change && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "error" || message.status === "warning" ? <AlertCircle size={11} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={11} /> : <Check size={11} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
+              {message.change && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "error" || message.status === "warning" ? <AlertCircle size={12} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={12} /> : <Check size={12} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
             </div>
           ))}
-          {busy && <div className="message assistant"><div className="message-label"><Sparkles size={10} style={{ verticalAlign: "middle", marginRight: 4 }} />AI 助手</div><div className="message-bubble busy-message"><LoaderCircle className="spin" size={13} />{busyText}</div></div>}
-          <div ref={messagesEndRef} />
-        </div>
-        <div className="chat-input-wrap">
-          {selectedTarget && <div className="chat-target"><span>正在修改：{selectedTarget.label}</span><button aria-label="清除修改目标" onClick={() => setSelectedTarget(null)} type="button"><X size={12} /></button></div>}
-          {alignmentView && (alignmentView.enabled || alignmentView.waitingForUser || alignmentView.prefsOnly || alignmentView.lastResult || alignmentView.answers.length) ? (
-            <div className="alignment-panel" data-mobile-drawer={mobileAlignment && alignmentView.questions.length >= 1 ? "true" : undefined}>
+          {alignmentView && alignmentOpen ? (
+            <div className={`alignment-panel${alignmentLeaving ? " is-leaving" : ""}`} data-mobile-drawer={alignmentDrawer ? "true" : undefined} aria-label="需求对齐">
+              {alignmentDrawer ? <span className="alignment-drawer-handle" aria-hidden="true" /> : null}
               {alignmentView.answers.length ? <details className="alignment-summary"><summary>已保存的问答（{alignmentView.answers.length}）</summary>{alignmentView.answers.map((answer) => <p key={answer.questionId}><strong>{answer.question}</strong><br />{answer.label}{answer.note ? `：${answer.note}` : ""}</p>)}</details> : null}
               {alignmentView.processing ? <div className="alignment-summary" role="status">正在继续已保存的任务…</div> : null}
               {alignmentView.waitingForUser || alignmentView.awaitingConfirmation ? (
                 <>
-                  <div className="alignment-question">{alignmentView.question || "等待你选择"}</div>
+                  <div className="alignment-head">
+                    {alignmentDrawer ? <span className="alignment-step-indicator" data-testid="alignment-step">开始生成前 · 第 {alignmentStepIndex + 1}{" / "}<span data-testid="alignment-step-total">{alignmentView.questions.length}</span>{" 题"}</span> : <strong>{alignmentView.question || "等待你选择"}</strong>}
+                    {alignmentDrawer ? <span className="alignment-step-dots" aria-hidden="true">{alignmentView.questions.map((item, index) => <i key={item.questionId} className={index < alignmentStepIndex ? "done" : index === alignmentStepIndex ? "current" : ""} />)}</span> : null}
+                  </div>
                   {alignmentView.questions.length >= 1 ? <>
-                  {mobileAlignment ? <div className="alignment-step-indicator" data-testid="alignment-step">第 {alignmentStep + 1} / <span data-testid="alignment-step-total">{alignmentView.questions.length}</span> 题</div> : null}
-                  {visibleAlignmentQuestions.map((cardQuestion) => <div key={cardQuestion.questionId} data-testid="alignment-card-question" className="alignment-card-question">
-                    <div className="alignment-question">{cardQuestion.prompt}</div>
-                    <div className="alignment-cards">{cardQuestion.options.map((option) => (
-                      <button className={alignmentSelections[cardQuestion.questionId] === option.id ? "alignment-card selected" : "alignment-card"} key={option.id} type="button" disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onClick={() => setAlignmentSelections((items) => ({ ...items, [cardQuestion.questionId]: option.id }))}>
+                  {visibleAlignmentQuestions.map((cardQuestion) => {
+                    const number = alignmentQuestions.indexOf(cardQuestion) + 1;
+                    const layout = cardQuestion.field === "style" || cardQuestion.field === "colorSet" || cardQuestion.options.some((option) => option.description) ? "grid" : "pills";
+                    const locked = busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation;
+                    return <div key={cardQuestion.questionId} data-testid="alignment-card-question" className={phoneLayout ? "alignment-card-question step-enter" : "alignment-card-question"} data-step-direction={stepDirectionRef.current}>
+                    <div className="alignment-q-head">{alignmentView.questions.length > 1 && !alignmentDrawer ? <b>{number}</b> : null}<span className="alignment-question">{cardQuestion.prompt}</span><small>{questionHint(cardQuestion)}</small></div>
+                    <div className="alignment-cards" data-layout={layout}>{cardQuestion.options.map((option) => {
+                      const selected = alignmentSelections[cardQuestion.questionId] === option.id;
+                      return (
+                      <button className={selected ? "alignment-card selected" : "alignment-card"} key={option.id} type="button" aria-pressed={selected} disabled={locked} onClick={() => setAlignmentSelections((items) => ({ ...items, [cardQuestion.questionId]: option.id }))}>
                         {(() => {
                           const swatches = cardQuestion.field === "colorSet" ? cardColorSwatches(option.id, option.swatches) : option.swatches;
                           return swatches?.length ? <span className="palette-swatch-row" aria-label={`${option.label}颜色预览`}>{swatches.map((color, index) => <i key={`${index}-${color}`} className="palette-swatch-role" style={{ backgroundColor: color }} />)}</span> : null;
                         })()}
-                        <strong>{option.label}{option.recommended ? "（推荐）" : ""}</strong><span>{option.description}</span>
+                        <strong>{option.label}{option.recommended ? <span className="recommend-badge">推荐</span> : null}</strong>{option.description ? <span>{option.description}</span> : null}
+                        {selected ? <Check className="option-check" size={13} aria-hidden="true" /> : null}
                       </button>
-                    ))}</div>
-                    {cardQuestion.allowOther ? <label>
-                      <input type="radio" name={cardQuestion.questionId} checked={alignmentSelections[cardQuestion.questionId] === "other"} disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onChange={() => setAlignmentSelections(items => ({ ...items, [cardQuestion.questionId]: "other" }))} />其他，我来写
-                      {alignmentSelections[cardQuestion.questionId] === "other" ? <input aria-label={`${cardQuestion.prompt}：其他说明`} value={alignmentNotes[cardQuestion.questionId] ?? ""} disabled={busy || !alignmentView.waitingForUser || alignmentView.awaitingConfirmation} onChange={event => setAlignmentNotes(items => ({ ...items, [cardQuestion.questionId]: event.target.value }))} /> : null}
-                    </label> : null}
-                  </div>)}
-                  {mobileAlignment && alignmentView.waitingForUser && !alignmentView.awaitingConfirmation ? <div className="alignment-mobile-nav">
-                    <button type="button" className="secondary-button" disabled={busy || alignmentStep === 0} onClick={() => setAlignmentStep((step) => Math.max(0, step - 1))}>上一题</button>
-                    {alignmentStep < alignmentView.questions.length - 1 ? <button type="button" className="secondary-button" data-testid="alignment-next" disabled={busy || !activeAlignmentReady} onClick={() => setAlignmentStep((step) => Math.min(alignmentView.questions.length - 1, step + 1))}>下一题</button> : null}
+                      );
+                    })}
+                    {cardQuestion.allowOther ? <button className={alignmentSelections[cardQuestion.questionId] === "other" ? "alignment-card selected" : "alignment-card"} type="button" aria-pressed={alignmentSelections[cardQuestion.questionId] === "other"} disabled={locked} onClick={() => setAlignmentSelections((items) => ({ ...items, [cardQuestion.questionId]: "other" }))}><strong>其他，我来写</strong>{alignmentSelections[cardQuestion.questionId] === "other" ? <Check className="option-check" size={13} aria-hidden="true" /> : null}</button> : null}
+                    </div>
+                    {cardQuestion.allowOther && alignmentSelections[cardQuestion.questionId] === "other" ? <input className="alignment-other-note" aria-label={`${cardQuestion.prompt}：其他说明`} placeholder="写下你的想法" value={alignmentNotes[cardQuestion.questionId] ?? ""} disabled={locked} onChange={(event) => setAlignmentNotes((items) => ({ ...items, [cardQuestion.questionId]: event.target.value }))} /> : null}
+                  </div>;
+                  })}
+                  {alignmentDrawer && alignmentView.waitingForUser && !alignmentView.awaitingConfirmation ? <div className="alignment-mobile-nav">
+                    <button type="button" className="secondary-button" disabled={busy || alignmentStep === 0} onClick={() => goToAlignmentStep(alignmentStep - 1)}>上一题</button>
+                    {alignmentStep < alignmentView.questions.length - 1 ? <button type="button" className="primary-button" data-testid="alignment-next" disabled={busy || !activeAlignmentReady} onClick={() => goToAlignmentStep(alignmentStep + 1)}>下一题</button> : submitAlignmentButton}
                   </div> : null}
                   </> : <div className="alignment-cards">
                     {alignmentView.options.map((option) => (
@@ -1369,12 +1420,12 @@ export default function WorkspacePage() {
                         })}
                       >
                         <strong>{option.label}</strong>
-                        <span>{option.description}</span>
+                        {option.description ? <span>{option.description}</span> : null}
                       </button>
                     ))}
                   </div>}
-                  {alignmentView.questions.length >= 1 && alignmentView.waitingForUser && !alignmentView.awaitingConfirmation ? <button className="primary-button" data-testid="alignment-submit" type="button" disabled={busy || alignmentView.questions.some((item) => (!alignmentSelections[item.questionId] || (alignmentSelections[item.questionId] === "other" && !alignmentNotes[item.questionId]?.trim())))} onClick={() => void runAlignment({ action: "select", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision, selections: alignmentView.questions.map((item) => ({ questionId: item.questionId, optionId: alignmentSelections[item.questionId], note: alignmentNotes[item.questionId] })) })}>提交全部答案</button> : null}
-                  {alignmentView.awaitingConfirmation && alignmentView.questions.length >= 1 ? <><div className="alignment-confirmed" data-testid="alignment-submitted">已保存你的选择，请确认生成方案</div><button type="button" className="primary-button" disabled={busy} onClick={() => void runAlignment({ action: "confirm", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision })}>确认并应用</button></> : null}
+                  {submitAlignmentButton && !alignmentDrawer ? <div className="alignment-submit-bar">{submitAlignmentButton}</div> : null}
+                  {alignmentView.awaitingConfirmation && alignmentView.questions.length >= 1 ? <><div className="alignment-confirmed" data-testid="alignment-submitted">已保存你的选择，请确认生成方案</div><div className="alignment-submit-bar"><button type="button" className="primary-button" disabled={busy} onClick={() => void runAlignment({ action: "confirm", conversationId, questionId: alignmentView.questionId, questionRevision: alignmentView.questionRevision })}>确认并应用</button></div></> : null}
                   <div className="alignment-actions">
                     {alignmentView.questionId === "image-upload" ? (
                       <button className="primary-button" type="button" disabled={busy} onClick={() => void openImageLibrary()}>
@@ -1426,109 +1477,135 @@ export default function WorkspacePage() {
               ) : null}
             </div>
           ) : null}
-          <form className="chat-input" onSubmit={submitChat}>
-            <div className="chat-plus-wrap">
-              <button
-                className={plusOpen || alignmentEnabled ? "chat-plus-button active" : "chat-plus-button"}
-                type="button"
-                aria-label="更多"
-                aria-expanded={plusOpen}
-                onClick={() => setPlusOpen((value) => !value)}
-              >
-                <Plus size={14} />
-              </button>
-              {plusOpen ? (
-                <div className="chat-plus-menu" role="menu">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={alignmentEnabled}
-                      disabled={busy}
-                      onChange={(event) => { void toggleAlignment(event.target.checked); }}
-                    />
-                    需求对齐
-                  </label>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    data-testid="open-materials"
-                    disabled={busy || !draftReady}
-                    onClick={() => {
-                      setPlusOpen(false);
-                      setShowMaterials(true);
-                    }}
-                  >
-                    提供公司资料
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    data-testid="open-image-library"
-                    disabled={busy || !draftReady}
-                    onClick={() => { void openImageLibrary(); }}
-                  >
-                    上传产品图
-                  </button>
-                </div>
-              ) : null}
+          {progress ? (
+            <div key={progress.id} className={progress.closing ? "message assistant chat-progress is-closing" : "message assistant chat-progress"} data-testid="chat-progress" role="status" aria-live="polite">
+              <div className="message-label"><Sparkles size={12} />AI 助手</div>
+              <div className="message-bubble progress-bubble">
+                <div className="progress-current"><LoaderCircle className="spin" size={14} aria-hidden="true" /><span>{progress.detail}</span></div>
+                {visibleSteps.length > 1 ? <ol className="progress-steps">{visibleSteps.map((step, index) => <li key={step.label} data-step data-step-state={index < progress.current ? "done" : index === progress.current ? "current" : "pending"}>{step.label}</li>)}</ol> : null}
+              </div>
             </div>
-            <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder="告诉 AI 你想怎么改..." rows={2} />
-            <button className="send-button" type="submit" disabled={!input.trim() || busy || !draftReady} aria-label="发送"><Send size={14} /></button>
-          </form>
-          <div className="chat-hints">
-            <button className="hint" type="button" data-testid="open-materials" onClick={() => setShowMaterials(true)}>提供公司资料</button>
-            <button className="hint" type="button" data-testid="hint-upload-photo" onClick={() => { void openImageLibrary(); }}>上传产品图</button>
-            <button className="hint" type="button" onClick={() => setInput("只要一个首页，不要其他页面")}>只要首页</button>
-            <button className="hint" type="button" onClick={() => setInput("请规划首页、产品、联系，另外还要独立认证页和资料下载页")}>额外页面</button>
-            <button className="hint" type="button" onClick={() => setInput("按公司业务规划页面，我没有指定页面清单")}>未指定页面</button>
-            <button className="hint" type="button" onClick={() => setInput("只把第二个服务标题改为智能产线集成，其他内容不变")}>修改服务</button>
-            <button className="hint" type="button" onClick={() => setShowImport(true)}>上传商品表格</button>
+          ) : null}
+          <div ref={messagesEndRef} />
+        </div>
+        <div className="chat-input-wrap">
+          {selectedTarget && <div className="chat-target"><span>正在修改：{selectedTarget.label}</span><button aria-label="清除修改目标" onClick={() => setSelectedTarget(null)} type="button"><X size={13} /></button></div>}
+          {lookPanel === "look" ? (
+            <section className="visual-brief-panel" aria-label="网站样子">
+              <div className="visual-brief-head">
+                <div><strong>先选网站的样子</strong><span className="visual-brief-current">当前：{draft.visualBrief.label}</span></div>
+                <Link className="section-link" href={"/quality" as Route}>12组对照</Link>
+                <button className="panel-close" type="button" aria-label="收起样子" onClick={() => setLookPanel(null)}><X size={14} /></button>
+              </div>
+              {legacyLookRetained ? (
+                <p className="legacy-look-warning" role="status" data-testid="legacy-look-warning">
+                  当前草稿使用已撤下的“深色产品”样子，旧预览仍可打开；请换用可用样子后再继续修改。
+                </p>
+              ) : null}
+              <p>样子会改变预览的版式与配色，行业仍来自公司资料。</p>
+              <div className="visual-brief-grid">
+                {visualBriefCatalog.map((brief) => {
+                  const template = getTemplate(brief.templateId);
+                  const selected = draft.visualBrief.id === brief.id && draft.templateId === brief.templateId;
+                  return (
+                    <button
+                      className={selected ? "visual-brief-card selected" : "visual-brief-card"}
+                      key={brief.id}
+                      type="button"
+                      data-testid="visual-brief-card"
+                      data-brief-id={brief.id}
+                      aria-pressed={selected}
+                      disabled={busy || !draftReady}
+                      onClick={() => void selectVisualBrief(brief.id)}
+                    >
+                      <span className="visual-brief-swatch" style={{ background: `linear-gradient(135deg, ${template.colors.primary}, ${template.colors.accent})` }} />
+                      <span className="visual-brief-copy"><strong>{brief.label}</strong><span>{brief.summary}</span><small>适合：{brief.audience}</small></span>
+                      {selected ? <Check size={14} /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+          {lookPanel === "color" ? (
+            <section className="visual-brief-panel" aria-label="网站配色">
+              <div className="palette-picker-head">
+                <div><strong>同一版式，换一套配色</strong><span className="visual-brief-current">当前：{currentPaletteLabel ?? "未选"}</span></div>
+                <button className="panel-close" type="button" aria-label="收起配色" onClick={() => setLookPanel(null)}><X size={14} /></button>
+              </div>
+              {paletteCatalogForVisualBrief(draft.visualBrief.id).length ? (
+                <div className="palette-picker" aria-label={`${draft.visualBrief.label}色板`}>
+                  <div className="palette-picker-grid">
+                    {paletteCatalogForVisualBrief(draft.visualBrief.id).map((palette) => {
+                      const kit = templateAdapters[draft.templateId]?.kit;
+                      const tokens = kit?.palettes?.[palette.id] ?? kit?.tokens;
+                      const tokenForRole = (role: (typeof paletteSwatchRoles)[number]) => {
+                        if (!tokens) return undefined;
+                        if (role === "input") return tokens.input ?? tokens.surface ?? tokens.background;
+                        if (role === "focus") return tokens.focus ?? tokens.accentSoft ?? tokens.accent;
+                        if (role === "disabled") return tokens.disabled ?? tokens.muted ?? tokens.border;
+                        return tokens[role];
+                      };
+                      const selected = draft.paletteId === palette.id && !draft.customPalette;
+                      return (
+                      <button
+                        className={selected ? "palette-card selected" : "palette-card"}
+                        key={palette.id}
+                        type="button"
+                        aria-pressed={selected}
+                        disabled={busy || !draftReady}
+                        onClick={() => void selectPalette(palette.id)}
+                      >
+                        <span className="palette-swatch-row" data-testid="palette-swatch-row" aria-label={`${palette.label}颜色角色`}>
+                          {paletteSwatchRoles.map((role) => (
+                            <span
+                              className="palette-swatch-role"
+                              data-role={role}
+                              key={role}
+                              title={`${paletteRoleNames[role]}：${tokenForRole(role) ?? "未定义"}`}
+                              style={{ backgroundColor: tokenForRole(role) ?? "transparent" }}
+                            />
+                          ))}
+                        </span>
+                        <span><strong>{palette.label}</strong><small>{palette.summary}</small></span>
+                        {selected ? <Check size={14} /> : null}
+                      </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : <p>这个样子没有可换的配色。</p>}
+              {paletteCatalogForVisualBrief(draft.visualBrief.id).length ? <div className="custom-palette-panel" data-testid="custom-palette-panel">
+                <div className="palette-picker-head"><div><strong>自定义品牌色</strong><span className="visual-brief-current">从主色或 Logo 生成整套颜色</span></div></div>
+                <div className="custom-palette-controls">
+                  <label className="custom-color-input"><span>主色</span><input data-testid="custom-brand-color" type="color" value={brandColor} disabled={busy || !draftReady} onChange={(event) => setBrandColor(event.target.value)} /></label>
+                  <button className="secondary-button" type="button" data-testid="apply-custom-brand-color" disabled={busy || !draftReady} onClick={() => void applyCustomBrandColor(brandColor, "color")}>应用品牌色</button>
+                  <button className="secondary-button" type="button" data-testid="sample-logo-color" disabled={busy || !draftReady} onClick={() => brandLogoRef.current?.click()}>从 Logo 取色</button>
+                  <input ref={brandLogoRef} data-testid="custom-brand-logo" type="file" accept="image/*" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void sampleLogoColor(file); event.currentTarget.value = ""; }} />
+                </div>
+                {draft.customPalette ? <div className="custom-palette-status" role="status"><span className="palette-swatch-row">{[draft.customPalette.background, draft.customPalette.surface, draft.customPalette.text, draft.customPalette.accent, draft.customPalette.accentStrong, draft.customPalette.border].map((color) => <i key={color} style={{ backgroundColor: color }} />)}</span><span>{draft.customPalette.adjustmentNote}</span></div> : null}
+              </div> : null}
+            </section>
+          ) : null}
+          <div className="chat-actions" data-testid="chat-actions" role="toolbar" aria-label="对话操作">
+            <button className={alignmentEnabled ? "chat-action alignment-switch on" : "chat-action alignment-switch"} type="button" role="switch" aria-checked={alignmentEnabled} data-testid="alignment-toggle" disabled={busy} onClick={() => { void toggleAlignment(!alignmentEnabled); }}>
+              <span className="switch-track" aria-hidden="true"><span className="switch-knob" /></span>需求对齐<span className="switch-state">{alignmentEnabled ? "开" : "关"}</span>
+            </button>
+            <button className="chat-action" type="button" data-testid="open-look-panel" aria-expanded={lookPanel === "look"} onClick={() => toggleLookPanel("look")}>样子</button>
+            <button className="chat-action" type="button" data-testid="open-color-panel" aria-expanded={lookPanel === "color"} onClick={() => toggleLookPanel("color")}>配色</button>
+            <button className="chat-action" type="button" data-testid="open-materials" disabled={busy || !draftReady} onClick={() => setShowMaterials(true)}>公司资料</button>
+            <button className="chat-action" type="button" data-testid="open-image-library" disabled={busy || !draftReady} onClick={() => { void openImageLibrary(); }}>上传产品图</button>
+            <button className="chat-action" type="button" data-testid="open-product-import" onClick={() => setShowImport(true)}>商品表格</button>
           </div>
+          <form className="chat-input" onSubmit={submitChat}>
+            <textarea ref={inputRef} aria-label="给 AI 的消息" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder={alignmentEnabled ? "说说公司和想要的网站，AI 会先问几件事再生成…" : "告诉 AI 你想怎么改…"} rows={2} />
+            <button className="send-button" type="submit" data-testid="chat-send" disabled={!input.trim() || busy || !draftReady} aria-label="发送"><Send size={15} /></button>
+          </form>
         </div>
       </aside>
-      <main className={`preview-shell ${mobilePane !== "preview" ? "mobile-hidden" : ""}`}>
-        <header className="preview-toolbar">
-          <div className="preview-toolbar-left"><div className="project-name">{draft.siteName}</div><span className={`save-status ${previewState}`}><Check size={12} />{saveLabel}</span></div>
-          <div className="preview-toolbar-right">
-            <div className="device-toggle"><button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")} aria-label="桌面预览"><Desktop size={14} /></button><button className={device === "tablet" ? "active" : ""} onClick={() => setDevice("tablet")} aria-label="平板预览"><Tablet size={14} /></button><button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")} aria-label="手机预览"><Mobile size={14} /></button></div>
-            <div className="device-toggle"><button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>中</button><button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button></div>
-            <button className="icon-button" onClick={() => void moveHistory("undo")} disabled={!canUndo || busy} aria-label="撤销"><RotateCcw size={14} /></button>
-            <button className="icon-button" onClick={() => void moveHistory("redo")} disabled={!canRedo || busy} aria-label="重做"><RotateCw size={14} /></button>
-            <button className="secondary-button" onClick={() => setShowImport(true)}><Upload size={14} />商品</button>
-            <button className="secondary-button" data-testid="toolbar-upload-photo" onClick={() => { void openImageLibrary(); }}><ImageIcon size={14} />产品图</button>
-            <Link className="primary-button" href={`/published/${encodeURIComponent(siteId)}?page=${encodeURIComponent(activePage?.id ?? "home")}` as Route} target="_blank" rel="noreferrer"><Globe2 size={14} />发布</Link>
-            <button className="icon-button" type="button" data-testid="toolbar-delete-site" aria-label="删除本站" onClick={() => setShowDelete(true)}><Trash2 size={14} /></button>
-          </div>
-        </header>
-        <div className="site-page-chrome">
-          <nav className="site-page-nav" aria-label="站点页面" data-testid="site-page-nav">
-            {draft.pagePlan.pages.map((page) => (
-              <button
-                className={activePage?.id === page.id ? "site-page-tab active" : "site-page-tab"}
-                key={page.id}
-                type="button"
-                data-testid="site-page-tab"
-                data-page-id={page.id}
-                data-page-placement={page.placement}
-                onClick={() => selectSitePage(page.id)}
-              >
-                <strong>{page.label[locale]}</strong>
-                <small>{page.placement === "route" ? "独立页" : "页内区块"}</small>
-              </button>
-            ))}
-          </nav>
-          <p className="site-page-source" data-testid="site-page-source">{pagePlanSourceLabel(draft.pagePlan.source)}</p>
-          {draft.pagePlan.unsupported.length ? (
-            <p className="site-page-unsupported" role="status" data-testid="site-page-unsupported">
-              未支持：{draft.pagePlan.unsupported.map((item) => `${item.requested}（${item.reason}）`).join("；")}
-            </p>
-          ) : null}
-        </div>
-        <div className="preview-stage">{lastChangedTargets.length ? <div className="preview-change-markers" data-testid="preview-change-markers">本次修改：{lastChangedTargets.slice(0, 5).join("、")}</div> : null}<div className={`browser-frame ${device}`}><div className="browser-bar"><span className="browser-dot" /><span className="browser-dot" /><span className="browser-dot" /><div className="browser-url">{draft.visualBrief.label}.sites.ai{pageUrlSuffix}</div><CircleHelp size={11} color="#adb8af" /></div>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div></div>
-      </main>
       {showImport && (
         <div className="modal-backdrop" onClick={() => setShowImport(false)}><div className="import-modal" onClick={(event) => event.stopPropagation()}>
-          <div className="modal-head"><div><div className="eyebrow">Content / Products</div><h3>填充你的商品目录</h3></div><button className="icon-button" onClick={() => setShowImport(false)} aria-label="关闭"><X size={15} /></button></div>
+          <div className="modal-head"><div><div className="eyebrow">商品</div><h3>填充你的商品目录</h3></div><button className="icon-button" onClick={() => setShowImport(false)} aria-label="关闭"><X size={15} /></button></div>
           <p className="modal-copy">上传 CSV 或 XLSX 商品表格，校验后直接保存为可撤销草稿。AI 可以继续修改指定 SKU 的中英文名称、简介和分类。</p>
           <div className="upload-zone" onClick={() => fileRef.current?.click()}><input ref={fileRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={handleFile} /><div className="upload-icon"><CloudUpload size={20} /></div><strong>点击上传表格</strong><span>需要包含 SKU、产品名称、分类等字段</span><small>CSV / XLSX · 最多 1000 行</small></div>
           <div className="import-options"><div><FileSpreadsheet size={15} /><span>支持中英文列名自动识别</span><ChevronRight size={13} style={{ marginLeft: "auto" }} /></div><div><ImageIcon size={15} /><span>相同 SKU 自动更新，新增项进入草稿</span><ChevronRight size={13} style={{ marginLeft: "auto" }} /></div></div>
@@ -1541,7 +1618,7 @@ export default function WorkspacePage() {
           <div className="import-modal materials-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-head">
               <div>
-                <div className="eyebrow">Company / Materials</div>
+                <div className="eyebrow">资料</div>
                 <h3>提供公司资料</h3>
               </div>
               <button className="icon-button" onClick={() => setShowMaterials(false)} aria-label="关闭资料"><X size={15} /></button>
@@ -1593,7 +1670,7 @@ export default function WorkspacePage() {
           <div className="import-modal materials-modal" onClick={(event) => event.stopPropagation()} data-testid="image-library-modal">
             <div className="modal-head">
               <div>
-                <div className="eyebrow">Assets / Product photo</div>
+                <div className="eyebrow">产品图</div>
                 <h3>上传并归属产品图</h3>
               </div>
               <button className="icon-button" onClick={() => setShowImages(false)} aria-label="关闭产品图"><X size={15} /></button>
@@ -1617,7 +1694,7 @@ export default function WorkspacePage() {
               <small>只保存在这个站点下，按用户提供的图片使用</small>
             </div>
             <div className="image-library" data-testid="site-image-list">
-              {siteImages.length === 0 ? <span>当前站点还没有已上传的图。</span> : siteImages.map((image) => (
+              {siteImages.length === 0 ? <span>这个站点还没有上传过图片。上传后会列在这里，可以先分析再放进页面。</span> : siteImages.map((image) => (
                 <button
                   className={selectedImageId === image.imageId ? "image-library-item selected" : "image-library-item"}
                   key={image.imageId}
@@ -1627,14 +1704,14 @@ export default function WorkspacePage() {
                   onClick={() => {
                     setSelectedImageId(image.imageId);
                     setImageFacts(null);
-                    setImageNote(`${image.imageId} 属于 ${image.siteId} · ${image.license}`);
+                    setImageNote(`${image.originalName} · 只属于本站 · ${imageLicenseNames[image.license] ?? image.license}`);
                   }}
                 >
                   <img src={image.url} alt="" />
                   <div>
                     <strong>{image.originalName}</strong>
-                    <span>{image.imageId} · {image.width}×{image.height} · {image.license} · {image.usageScope}</span>
-                    <small>来源：{image.sourceUrl} · 归属：{image.author} · {image.retrievedAt.slice(0, 10)} · SHA {image.sha256.slice(0, 12)}…</small>
+                    <span>{image.width}×{image.height} · {imageLicenseNames[image.license] ?? image.license} · {imageScopeNames[image.usageScope] ?? image.usageScope}</span>
+                    <small>归属：{image.author} · {image.retrievedAt.slice(0, 10)} 保存</small>
                   </div>
                 </button>
               ))}

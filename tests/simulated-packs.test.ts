@@ -86,8 +86,6 @@ test("workspace materials journey stays on chat/commitOperations and isolates si
   assert.match(workspaceSource, /data-testid="submit-materials"/);
   assert.match(workspaceSource, /data-testid="visual-brief-card"/);
   assert.match(workspaceSource, /data-testid="workspace-draft-revision"/);
-  assert.match(workspaceSource, /只要首页/);
-  assert.match(workspaceSource, /额外页面/);
   assert.match(workspaceSource, /模拟工业包|pack\.label/);
   assert.match(workspaceSource, /buildMaterialsChatMessage|wrapCompanyMaterials/);
   assert.match(workspaceSource, /\/api\/sites\/\$\{siteId\}\/chat/);

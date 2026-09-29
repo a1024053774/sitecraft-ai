@@ -90,6 +90,10 @@ export function OpenSourceTemplateFrame({
   loadStateRef.current = onLoadState;
   const bridgeWaitersRef = useRef<number[]>([]);
   const loadControllerRef = useRef<ReturnType<typeof createPreviewLoadController> | null>(null);
+  // The document that has already shown content. New content for it is a refresh: the page
+  // stays visible under a thin bar instead of being covered while the bridge rewrites it.
+  const shownFrameRef = useRef<string | null>(null);
+  const frameKey = [templateId, pagePath || "index", attempt].join(":");
   const contentRef = useRef({
     templateId,
     draft,
@@ -258,6 +262,7 @@ export function OpenSourceTemplateFrame({
         });
       }
       if (data?.type === "sitecraft:applied" && data.templateId === templateId) {
+        shownFrameRef.current = frameKey;
         setHydrated(true);
         reportLoadState("ready");
         if (typeof data.revision === "number" && onApplyReport) {
@@ -273,11 +278,13 @@ export function OpenSourceTemplateFrame({
     };
     window.addEventListener("message", receiveMessage);
     return () => window.removeEventListener("message", receiveMessage);
-  }, [draft?.revision, onApplyReport, onInquiry, onLocaleChange, onSelectTarget, reportLoadState, sendContent, templateId]);
+  }, [draft?.revision, frameKey, onApplyReport, onInquiry, onLocaleChange, onSelectTarget, reportLoadState, sendContent, templateId]);
 
   const previewQuery = new URLSearchParams({ v: PREVIEW_ASSET_REVISION });
   if (pagePath) previewQuery.set("pagePath", pagePath);
   if (variant === "workspace") previewQuery.set("editor", "1");
+
+  const refreshing = loadState === "loading" && shownFrameRef.current === frameKey;
 
   const retry = () => {
     setAttempt((value) => value + 1);
@@ -288,13 +295,14 @@ export function OpenSourceTemplateFrame({
       ref={shellRef}
       className={`open-source-template-frame-shell open-source-template-frame-shell-${variant}`}
       data-preview-state={loadState}
+      data-preview-refreshing={refreshing ? "true" : undefined}
     >
       <iframe
         ref={frameRef}
-        key={`${templateId}:${pagePath || "index"}:${attempt}`}
+        key={frameKey}
         className={`open-source-template-frame open-source-template-frame-${variant}`}
         src={`/api/templates/${encodeURIComponent(templateId)}/preview?${previewQuery.toString()}`}
-        title={`开源模板 ${templateId} 预览`}
+        title={variant === "workspace" ? "网站预览" : `开源模板 ${templateId} 预览`}
         data-page-path={pagePath || "index"}
         data-page-placement={activePage?.placement ?? ""}
         data-preview-hydrated={hydrated ? "true" : "false"}
@@ -305,7 +313,7 @@ export function OpenSourceTemplateFrame({
         onError={() => reportLoadState("error", `预览没有载入。请重试。${PREVIEW_CHROME_HINT}`)}
       />
       {loadState === "loading" ? (
-        <div className="open-source-template-frame-loading" data-testid="preview-load-progress" aria-hidden="true">
+        <div className={refreshing ? "open-source-template-frame-loading refresh" : "open-source-template-frame-loading"} data-testid="preview-load-progress" aria-hidden="true">
           <span />
         </div>
       ) : null}
