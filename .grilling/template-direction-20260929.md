@@ -1,11 +1,11 @@
 ---
 session_id: grilling-template-direction-20260929
-status: awaiting-user
+status: confirmed
 topic: 生成站只能用 4 个简陋模板——方向（区块库 + token 等）与云端/本地分工
 destination_artifact: .project-map 决定票（生成方向、分工）；接受后同步 intent.md / mainline.md / AGENTS.md / MAP.md
 created_at: 2026-09-29
 updated_at: 2026-09-29
-last_round: 4
+last_round: 5
 ---
 
 ## Destination
@@ -40,16 +40,11 @@ last_round: 4
 
 ## Frontier
 
-- 负责人确认最终基线 → 关闭 T-048、T-049，同步 living docs。
+（空）
 
-## Blocked
+## Handoff
 
-- 区块库第一批区块与变体数、CSS 校验具体做法（等 T-051；属于 spec，不在本会话）
-
-## Not yet specified (fog)
-
-- 区块变体按资料多少自动选择的规则（spec）。
-- 子页面怎么用区块库组（spec）。
+2026-09-29 负责人确认基线；T-048、T-049 已关闭，living docs 已同步。下一步在本会话之外按 project-map 流程做：T-051 调研回来后写区块库 spec（第一批区块与变体、token 清单、站点样式校验与三档检查），拆出工程工业 tracer 票派给 Kiro，其余三个样子的迁移票给 Sonnet 5.5 子 agent。云端 T-050/T-051/T-052 回来后由 Claude 审、合并，并安排 Astra 审代码、gpt-6.1-sol 盲评。
 
 ## Out of scope
 

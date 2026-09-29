@@ -42,15 +42,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 这些是用户多轮决定后的结论，改动前须负责人重新确认：
 
-- **样子 → 同族模块素材 → 这家公司的完整页面**（细则见 `mainline.md`）。开源模板、区块、样式是素材；不得把整页快照挖空填词当成品，不得跨视觉族拼接区块。
-- **一个预览引擎**：`lib/template-adapters/preview-bridge.ts` + 已准入的同族 overlay/kit。不另起渲染器，本阶段不做原生 React/shadcn 拼装。
-- **运行时模型不输出 HTML/CSS**。模型理解需求、产生受控意图和白名单 operation；开发侧可以自由改 overlay 的 HTML/CSS、组件和布局。
+- **样子 → SiteCraft 区块库 + 这个样子的 token → 这家公司的完整页面**（T-048，细则见 `mainline.md`）。开源模板、区块、样式是移植进区块库的素材；不得把整页快照挖空填词当成品，不得把未经移植的外部区块直接拼进页面。
+- **一个预览引擎**：`lib/template-adapters/preview-bridge.ts` + SiteCraft 区块库。迁移期间，还没迁的样子继续用它的旧 overlay；迁完并盲评通过后删掉旧 overlay，不留兼容层。不另起渲染器，本阶段不做原生 React/shadcn 拼装。
+- **运行时模型不输出 HTML 和文字，可以写受限的站点样式**（T-048）。模型理解需求、产生受控意图和白名单 operation；它能写的 CSS 只作用于站点区块，加不进文字、外部资源和固定定位，有大小上限，作为一个 operation 走 `commitOperations`、可单独撤销；提交前按 375 / 768 / 1440 渲染检查横向溢出和文字重叠，不过就拒绝并告诉用户原因，不静默回退。开发侧可以自由改区块库和 overlay 的 HTML/CSS、组件和布局。
 - **所有草稿修改走 `commitOperations`**。Skill、模型、测试夹具不得旁路写草稿。
 - **adapter 是可审查数据**（选择器、目标、属性、集合映射），不存每模板可执行 JS。写入须唯一命中声明节点；未命中报告 `missing`，不按标题正则、元素顺序或卡片形状猜写。`covered/applied` 只来自实际落点。
 - **成品否决项**：事实只能来自用户资料或「待补充」；不得残留未选用的模板品牌、客户 Logo 墙、SaaS 定价、演示图、假评价/数字、空链接。`missing` 是落点失败，不是保留演示壳的理由。
 - 页面规划：用户点名的页面 → 模型按业务规划 → 实在无法确定时首页/产品服务/联系。默认三页不是上限；做不到的页面要明确说明，不静默缩成首页。
 - 需求对齐：选项通过结构化请求保存，同一会话继续，刷新可恢复；不要求用户复制输出或手打「继续」；不靠挂起的 HTTP 请求等用户。用户选的是样子/主题/行业方向，不是内部 Skill 名。
-- 设计选择必须落到 `visualBrief`、kit/slot map 或白名单 operation；只改 prompt 文案而页面看不出变化不算完成。
+- 设计选择必须落到 `visualBrief`、token、区块编排、站点样式或白名单 operation；只改 prompt 文案而页面看不出变化不算完成。
 - 删除只由用户明确选择；系统不自动清理对话、草稿、上传或站点，不做定时清理或清理开关。
 - 前端改动遵循 `skills/frontend-less-ai-tone/`；生成或改 SiteCraft 站点文案/样子时叠加 `skills/sitecraft-frontend-less-ai-tone/`（运行时子集 `lib/frontend-tone.ts`）。
 - 不为未来功能预置平行 API、兼容层、空 schema 或推测性抽象。
@@ -95,15 +95,18 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 协作
 
-分工（2026-09-28 负责人决定，见 `.project-map/tickets/T-033-roles-after-claude.md`，取代 T-013）：
+分工（2026-09-29 负责人决定，见 `.project-map/tickets/T-049-roles-2026-09-29.md`，取代 T-033）：
 
 - **负责人**：只定方向和需求，不做盲评和审核。
-- **Kiro（主负责人）**：整体规划与执行，整合、提交和推送。
-- **两个 Grok 4.7 agent（Cursor）**：分担 Kiro 委派的执行票，并审核 Kiro 做的票；调研。
-- **Astra（Codex）**：前端页面盲评。
-- **Claude Code**：不排工。
+- **Claude（本地桌面会话）**：规划、拆票、验收、整合与推送；可以用 Sonnet 5.5 子 agent 写代码。
+- **Kiro（Opus 5.5）**：按 Claude 的规划做大块实现（T-048 工程工业这条线）。
+- **Sonnet 5.5 子 agent**：Claude 派的编码票（T-048 其余三个样子的迁移）。
+- **Codex GPT-6（Astra）**：代码与逻辑审查。
+- **Codex gpt-6.1-sol**：页面盲评。
+- **Cursor Grok**：杂活，只改派给它的文件。
+- **云端会话**：负责人开的 Claude 云端会话，在 `cloud/*` 分支上做票并推送，Claude 审后合并。
 
-不同 harness 之间互相验收：Kiro 做的票由 Grok 审，Grok 做的票由 Kiro 审；审核者不能审自己参与过的工作。
+Kiro 和子 agent 每张票在本地提交、不推送；Claude 验收、Astra 审核通过后由 Claude 推送。审核者不能审自己参与过的工作。Herdr 工作区里的 Kiro、Codex、Cursor 由 Claude 直接派活。
 
 规则：
 
