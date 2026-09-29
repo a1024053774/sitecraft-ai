@@ -2,7 +2,7 @@ export const WORKSPACE_SITE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 export const DEFAULT_WORKSPACE_SITE_ID = "demo";
 export const MATERIALS_CHAT_LIMIT = 4000;
 
-export type SimulatedPackId = "industrial" | "export";
+export type SimulatedPackId = "industrial" | "export" | "molding";
 
 export type SimulatedPack = {
   id: SimulatedPackId;
@@ -98,9 +98,60 @@ export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
       "页面要求：希望另有独立认证页与资料下载页。若系统无法支持，必须说明，不得假装已经开通。",
     ].join("\n"),
   },
+  // Thick pack: shows the page ceiling; only customer list and reviews stay as gaps.
+  molding: {
+    id: "molding",
+    siteId: "p3-molding",
+    label: "模拟注塑厚资料包",
+    nonce: "P3T-JD5K",
+    companyName: "宁海精密注塑模具P3T",
+    industry: "注塑模具与精密注塑件 / 内销与外贸",
+    goal: "获取模具开发与批量注塑询盘，内销与出口并行",
+    heroTitle: "精密注塑模具与注塑件 P3T-JD5K",
+    heroSubtitle: "模具设计、试模到批量注塑在同一厂区完成，内销与出口订单并行。",
+    heroCta: "提交图纸获取报价",
+    email: "rfq@p3t-sim.test",
+    missingFacts: ["客户名单", "评价"],
+    extraPagesNote: "页面按首页、产品、生产与质检、常见问题、联系规划；当前模板不支持的独立页面须说明。",
+    body: [
+      "资料性质：模拟。不可当作真实企业。核验记号：P3T-JD5K。",
+      "公司名：宁海精密注塑模具P3T",
+      "行业：注塑模具与精密注塑件 / 内销与外贸",
+      "目标：获取模具开发与批量注塑询盘，内销与出口并行",
+      "首屏可用事实：精密注塑模具与注塑件 P3T-JD5K。",
+      "首屏说明：模具设计、试模到批量注塑在同一厂区完成，内销与出口订单并行。",
+      "主按钮：提交图纸获取报价",
+      "公司简介：宁海精密注塑模具P3T 从事塑料注塑模具设计制造与精密注塑件生产。工厂有模具车间和注塑车间，按图纸或样品开模，并承接批量注塑。内销与出口订单并行，出口以欧洲和东南亚为主。",
+      "沿革：2008 年 建厂，从模具维修和小型模具起步；2013 年 注塑车间投产；2017 年 开始承接出口订单；2021 年 新增恒温精密模具车间；2024 年 建成三坐标与影像测量室。",
+      "产品：多腔热流道模具；双色注塑模具；精密结构注塑件；透明光学注塑件；金属嵌件注塑件。",
+      "多腔热流道模具规格参数：型腔数 1–32 腔；模具尺寸 最大 900×1200 mm；模具钢材 S136/H13/NAK80；热流道 开放式/针阀式；成型周期 12–40 s；模具寿命 50–100 万模次；型腔公差 ±0.01 mm。",
+      "双色注塑模具规格参数：成型方式 旋转式/机械手转移；适配机型 双色注塑机 120–650 t；材料组合 PC+TPU/PP+TPE/ABS+PC；包胶厚度 ≥0.8 mm；配合公差 ±0.02 mm；模具寿命 30–50 万模次。",
+      "精密结构注塑件规格参数：适用材料 PA66+GF/POM/PBT/PC；单件重量 0.5–350 g；尺寸公差 ±0.02 mm；平面度 ≤0.05 mm；表面处理 咬花/喷砂/高光；成型机台 90–800 t。",
+      "透明光学注塑件规格参数：适用材料 PMMA/PC/COC；透光率 ≥90%（PMMA 2 mm 厚）；壁厚 0.8–6 mm；表面粗糙度 Ra ≤0.02 μm；成型环境 十万级洁净车间；尺寸公差 ±0.03 mm。",
+      "金属嵌件注塑件规格参数：嵌件类型 铜螺母/冲压端子/不锈钢轴；嵌件放置 机械手/人工；适用材料 PBT+GF/PA6/LCP；定位精度 ±0.05 mm；尺寸公差 ±0.03 mm；成型机台 立式 55–250 t。",
+      "产能：模具年产约 180 套；注塑机 42 台（90–800 t），月注塑能力约 600 万件。",
+      "加工能力/主设备：高速 CNC 加工中心 12 台；精密慢走丝线切割 6 台；镜面电火花 8 台；精密平面磨床 4 台；注塑机 42 台（90–800 t）；双色注塑机 3 台。",
+      "检测设备：三坐标测量机；二次元影像测量仪；色差仪；拉力试验机；恒温恒湿箱。",
+      "质检流程：来料检验（树脂批次与嵌件尺寸）；试模后首件全尺寸检测；过程巡检每 2 小时抽检；外观与功能全检；出货抽检并附检测报告。",
+      "应用行业：家电外壳与结构件；汽车内饰件与连接器；医疗器械耗材外壳；照明透镜与灯罩；电动工具壳体。",
+      "认证状态：ISO 9001 已有；ISO 14001 已有；IATF 16949 认证中。",
+      "问：没有图纸只有样品能开模吗？答：可以，先做 3D 扫描和逆向建模，图纸确认后再开模。",
+      "问：开模周期多久？答：单腔模具约 25–35 天，多腔热流道和双色模具约 40–55 天，从图纸确认开始计。",
+      "问：试模样品怎么提供？答：T1 试模后 3 天内寄出样品和全尺寸检测报告，每套模具含 3 次试模。",
+      "问：模具归谁所有？答：模具费付清后模具归买方所有，可存放在本厂用于批量生产。",
+      "问：出口订单用什么贸易条款？答：常用 FOB 宁波和 EXW，也可按订单约定 CIF。",
+      "MOQ：注塑件 5000 件起；模具单套起接。",
+      "交期：模具 25–55 天；批量注塑件在模具确认后 15–20 天。",
+      "邮箱：rfq@p3t-sim.test",
+      "电话：0000-0000000（虚构）",
+      "地址：示例省示例市模具园区 0 号（虚构）",
+      "客户名单、评价：资料未提供。",
+      "页面：首页、产品、生产与质检、常见问题、联系；当前模板不支持的独立页面须说明，不得假装已经开通。",
+    ].join("\n"),
+  },
 };
 
-export const simulatedPackList: SimulatedPack[] = [simulatedPacks.industrial, simulatedPacks.export];
+export const simulatedPackList: SimulatedPack[] = [simulatedPacks.industrial, simulatedPacks.export, simulatedPacks.molding];
 
 export function parseWorkspaceSiteId(value: string | null | undefined): string {
   const site = value?.trim() ?? "";

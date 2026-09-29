@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { defaultDraft, visualBriefCatalog } from "../lib/site-document.ts";
 import { applySiteOperations } from "../lib/site-operations.ts";
 import {
   MATERIALS_CHAT_LIMIT,
+  WORKSPACE_SITE_ID_PATTERN,
   buildMaterialsChatMessage,
   parseWorkspaceSiteId,
   simulatedPackList,
@@ -23,7 +25,7 @@ const providerSource = readFileSync(new URL("../lib/ai-provider.ts", import.meta
 const workspaceSource = readFileSync(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
 
 test("industrial and export simulated packs are independent, labeled 模拟, and use unique nonces", () => {
-  assert.equal(simulatedPackList.length, 2);
+  assert.equal(simulatedPackList.length, 3);
   assert.equal(simulatedPacks.industrial.siteId, "p3-industrial");
   assert.equal(simulatedPacks.export.siteId, "p3-export");
   assert.notEqual(simulatedPacks.industrial.siteId, simulatedPacks.export.siteId);
@@ -56,6 +58,90 @@ test("industrial and export simulated packs are independent, labeled 模拟, and
   assert.equal(simulatedPacks.industrial.body.includes(simulatedPacks.export.nonce), false);
   assert.equal(simulatedPacks.export.body.includes(simulatedPacks.industrial.nonce), false);
   assert.match(simulatedPacks.export.extraPagesNote, /独立认证/);
+});
+
+// The two gap-heavy packs are fixtures for 「待补充」; the thick pack must not change them.
+const EXISTING_PACK_SHA256 = {
+  industrial: "83cdcab93c8f78c15e87d3ddd70eabdf004a62ec3075e94a7322690e78ff59b9",
+  export: "08d87a8364fb27f3bf50f3126dedc89e42efc04f5595d361251433d31780cc38",
+} as const;
+
+function bodyLine(body: string, label: string): string {
+  const line = body.split("\n").find((item) => item.startsWith(`${label}：`));
+  assert.ok(line, `missing line ${label}`);
+  return line.slice(label.length + 1);
+}
+
+function listItems(value: string): string[] {
+  return value.replace(/。$/, "").split("；").map((item) => item.trim()).filter(Boolean);
+}
+
+test("thick molding pack is a third workspace pack with full facts and only the declared gaps", () => {
+  const pack = simulatedPacks.molding;
+  assert.ok(pack, "simulatedPacks.molding is missing");
+  assert.equal(simulatedPackList.includes(pack), true, "workspace pack list must offer the thick pack");
+  assert.equal(new Set(simulatedPackList.map((item) => item.id)).size, simulatedPackList.length);
+  assert.equal(new Set(simulatedPackList.map((item) => item.siteId)).size, simulatedPackList.length);
+  assert.equal(new Set(simulatedPackList.map((item) => item.nonce)).size, simulatedPackList.length);
+  assert.match(pack.siteId, WORKSPACE_SITE_ID_PATTERN);
+  for (const id of ["industrial", "export"] as const) {
+    const hash = createHash("sha256").update(JSON.stringify(simulatedPacks[id])).digest("hex");
+    assert.equal(hash, EXISTING_PACK_SHA256[id], `${id} pack changed`);
+  }
+
+  assert.match(pack.nonce, /^P3T-[A-Z0-9]{4}$/);
+  assert.match(pack.companyName, /P3T/);
+  assert.match(pack.label, /模拟/);
+  assert.match(pack.industry, /注塑/);
+  assert.match(pack.email, /^[a-z0-9.-]+@[a-z0-9-]+\.test$/);
+  assert.equal(pack.body.includes(pack.email), true);
+  assert.equal(pack.body.includes(`核验记号：${pack.nonce}`), true);
+  assert.equal(pack.body.includes(simulatedPacks.industrial.nonce), false);
+  assert.equal(pack.body.includes(simulatedPacks.export.nonce), false);
+
+  const intro = bodyLine(pack.body, "公司简介");
+  const sentences = intro.split("。").filter((item) => item.trim());
+  assert.ok(sentences.length >= 2 && sentences.length <= 3, `intro has ${sentences.length} sentences`);
+  const milestones = listItems(bodyLine(pack.body, "沿革"));
+  assert.ok(milestones.length >= 3 && milestones.length <= 5);
+  for (const item of milestones) assert.match(item, /^\d{4} 年/);
+
+  const products = listItems(bodyLine(pack.body, "产品"));
+  assert.equal(products.length, 5);
+  for (const product of products) {
+    const params = listItems(bodyLine(pack.body, `${product}规格参数`));
+    assert.ok(params.length >= 5 && params.length <= 8, `${product} has ${params.length} params`);
+    for (const param of params) assert.match(param, /^\S+ \S/, `${product} param lacks a value: ${param}`);
+  }
+
+  assert.match(bodyLine(pack.body, "产能"), /\d/);
+  assert.ok(listItems(bodyLine(pack.body, "加工能力/主设备")).length >= 4);
+  assert.ok(listItems(bodyLine(pack.body, "检测设备")).length >= 3);
+  const qc = listItems(bodyLine(pack.body, "质检流程"));
+  assert.ok(qc.length >= 4 && qc.length <= 6);
+  const industries = listItems(bodyLine(pack.body, "应用行业"));
+  assert.ok(industries.length >= 4 && industries.length <= 6);
+  const certs = bodyLine(pack.body, "认证状态");
+  assert.match(certs, /已有/);
+  assert.match(certs, /认证中/);
+  const faq = pack.body.split("\n").filter((line) => /^问：.+答：/.test(line));
+  assert.ok(faq.length >= 4 && faq.length <= 6, `faq has ${faq.length} entries`);
+  assert.match(bodyLine(pack.body, "MOQ"), /\d/);
+  assert.match(bodyLine(pack.body, "交期"), /\d/);
+  assert.match(bodyLine(pack.body, "电话"), /^0000-/);
+  assert.match(bodyLine(pack.body, "地址"), /虚构/);
+
+  assert.deepEqual(pack.missingFacts, ["客户名单", "评价"]);
+  const gapLines = pack.body.split("\n").filter((line) => /客户|评价/.test(line));
+  assert.deepEqual(gapLines, ["客户名单、评价：资料未提供。"]);
+  for (const word of ["奖", "荣获", "市场份额", "占有率", "好评", "五星", "知名", "500强", "领先", "第一"]) {
+    assert.equal(pack.body.includes(word), false, `thick pack must not claim ${word}`);
+  }
+
+  const message = buildMaterialsChatMessage(pack);
+  assert.ok(message.length <= MATERIALS_CHAT_LIMIT, `message is ${message.length} chars`);
+  assert.equal(message.includes("…[truncated]"), false, "thick pack must fit without truncation");
+  assert.equal(message.endsWith(pack.body), true);
 });
 
 test("simulated pack tokens stay out of the production system prompt", () => {
