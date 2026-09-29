@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import test from "node:test";
 
-const scan = readFileSync(new URL("../artifacts/kiro-browse/contrast-all.js", import.meta.url), "utf8");
+const scan = readFileSync(new URL("../scripts/workspace-contrast-scan.js", import.meta.url), "utf8");
 const base = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 const port = 9365 + (process.pid % 200);
 const out = new URL("../artifacts/t043/", import.meta.url);
