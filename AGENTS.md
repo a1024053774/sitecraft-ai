@@ -100,7 +100,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **负责人**：只定方向和需求，不做盲评和审核。
 - **Claude（本地桌面会话）**：规划、拆票、验收、整合与推送；可以用 Sonnet 5.5 子 agent 写代码。
 - **Kiro（Opus 5.5）**：按 Claude 的规划做大块实现（T-048 工程工业这条线）。
-- **Sonnet 5.5 子 agent**：Claude 派的编码票（T-048 其余三个样子的迁移）。
+- **Sonnet 5.5 子 agent**：Claude 派的小编码票。
+- **Codex**：额度宽裕，优先多派；T-048 其余三个样子的迁移由它做，这部分代码审查改由 Kiro 或 Grok 做。
 - **Codex GPT-6（Astra）**：代码与逻辑审查。
 - **Codex gpt-6.1-sol**：页面盲评。
 - **Cursor Grok**：杂活，只改派给它的文件。
