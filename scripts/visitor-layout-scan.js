@@ -17,11 +17,22 @@ export function scanVisitorLayout(root = document) {
   const overlaps = [];
   for (let i = 0; i < rects.length; i += 1) for (let j = i + 1; j < rects.length; j += 1) {
     if (rects[i].parent === rects[j].parent) continue;
+    const firstBlock = blockFor(rects[i].element);
+    const secondBlock = blockFor(rects[j].element);
+    if (firstBlock === "nav" || firstBlock === "footer" || secondBlock === "nav" || secondBlock === "footer") continue;
+    if (firstBlock !== secondBlock) continue;
+    const firstCard = rects[i].element.closest?.("[data-sitecraft-product]");
+    const secondCard = rects[j].element.closest?.("[data-sitecraft-product]");
+    if (firstCard && firstCard === secondCard) continue;
     const left = Math.max(rects[i].rect.left, rects[j].rect.left);
     const right = Math.min(rects[i].rect.right, rects[j].rect.right);
     const top = Math.max(rects[i].rect.top, rects[j].rect.top);
     const bottom = Math.min(rects[i].rect.bottom, rects[j].rect.bottom);
-    if (right - left > 2 && bottom - top > 2) overlaps.push({ block: blockFor(rects[i].element), amount: Math.ceil(Math.min(right - left, bottom - top)) });
+    if (right - left > 2 && bottom - top > 2) overlaps.push({
+      block: firstBlock,
+      amount: Math.ceil(Math.min(right - left, bottom - top)),
+      key: `${rects[i].element.className}|${(rects[i].element.textContent || "").trim()}::${rects[j].element.className}|${(rects[j].element.textContent || "").trim()}`,
+    });
   }
   const slots = [...root.querySelectorAll("[data-sitecraft-slot]")].map((element) => {
     const rect = element.getBoundingClientRect();

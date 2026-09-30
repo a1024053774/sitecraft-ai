@@ -96,6 +96,16 @@ test("on the engineering look the model gets the layouts it may pick, what each 
   assert.match(user, /"blockVariants":\{"products":"compare"\}/, "the model sees the layouts the draft shows now");
 });
 
+test("the engineering prompt exposes style directions, the material recommendation, and the extra style operation", async () => {
+  await ask(packDraft("molding"), "按加工能力、产能、工艺和检测来做一个工厂实力网站", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.match(system, /set_site_style/);
+  for (const direction of ["spec-led", "catalog-led", "capability-led", "规格为主", "目录为主", "工厂实力"]) assert.ok(system.includes(direction), direction);
+  assert.match(system, /服务端建议「capability-led」/);
+  assert.match(system, /样式这一条不占 24 条普通 operation/);
+  assert.match(system, /可改部件/);
+});
+
 test("looks still on their own overlay get no layout menu", async () => {
   await ask(structuredClone(defaultDraft), "看看现在的页面", { type: "answer", text: "ok" });
   const system = lastMessage("system");

@@ -1,5 +1,6 @@
 import type { TemplateBlockRender, TemplateSlot } from "../template-adapters/types.ts";
 import type { VisibilityKey } from "../site-document.ts";
+import type { SiteStyleDirectionId, SiteStyleRule } from "./site-style.ts";
 
 /**
  * SiteCraft block library (T-048, T-053): the data half. Each block lists its variants; each
@@ -305,6 +306,7 @@ export type BlockLook = {
     bottom: readonly BlockId[];
   };
   defaults: Readonly<Record<BlockId, string>>;
+  styleDirections?: Readonly<Record<SiteStyleDirectionId, { label: string; summary: string; rules: readonly SiteStyleRule[] }>>;
 };
 
 export function layoutBlocks(look: BlockLook): BlockId[] {

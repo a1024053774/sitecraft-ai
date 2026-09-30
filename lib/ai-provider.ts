@@ -3,6 +3,7 @@ import { z } from "zod";
 import { familyModuleInventory, visibilityKeys, visualBriefCatalog } from "@/lib/site-document";
 import { blockCatalog, layoutBlocks, type BlockLook, type BlockRequirement } from "@/lib/blocks/catalog";
 import { blockLookForTemplate } from "@/lib/blocks/looks/index";
+import { styleDirectionRecommendation } from "@/lib/blocks/site-style";
 import { declaredFamilySections, getTemplateAdapter } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
 import { plainSummary } from "@/lib/workspace-copy";
@@ -238,7 +239,19 @@ function faqInstructions(templateId: string) {
   return steps ? `${faq}   合作方式：当前样子的访客页最多显示 ${steps} 步，资料里有几步就写几步，最多 ${steps} 步；用一条 replace_cards（section=services）写完整组。\n` : faq;
 }
 
-function operationInstructions(templateId: string) {
+function siteStyleInstructions(templateId: string, draft: SiteDraft, materials: string) {
+  const look = blockLookForTemplate(templateId);
+  if (!look?.styleDirections) return "";
+  const recommendation = styleDirectionRecommendation(draft, materials);
+  const directions = Object.entries(look.styleDirections).map(([id, direction]) => `${id}=${direction.label}：${direction.summary}`).join("；");
+  const parts = layoutBlocks(look)
+    .filter((block) => blockCatalog[block].kind === "content")
+    .map((block) => `${blockCatalog[block].label}(${block})：${[...new Set(Object.values(blockCatalog[block].variants).flatMap((variant) => variant.parts))].join("、")}`)
+    .join("；");
+  return `18. set_site_style: {"op":"set_site_style","direction":"spec-led|catalog-led|capability-led","rules":[{"block":"区块","part":"部件","media":"desktop|tablet|phone","declarations":{"属性":"值"}}]}。只能改区块库区块和部件，不能改文字、显隐、定位、顺序或尺寸上限；规则会由服务端校验并在 375/768/1440 检查。可改部件：${parts}。版式方向：${directions}。服务端建议「${recommendation.direction}」（${recommendation.reason}）；用户明确要求时按用户要求改方向。整站生成必须给一条 set_site_style，方向规则后再追加用户要求的规则，样式这一条不占 24 条普通 operation。`;
+}
+
+function operationInstructions(templateId: string, draft: SiteDraft, materials: string) {
   return `当 type 为 edit 时，输出 JSON：{"type":"edit","summary":"中文摘要","operations":[...]}。
 允许的操作：
 1. set_text: {"op":"set_text","target":目标,"value":{"zh":"中文文本","en":"English text"}}（一条 operation 必须同时提供 zh/en；缺失英文写 To be provided）
@@ -269,8 +282,8 @@ ${faqInstructions(templateId)}5. update_product: {"op":"update_product","sku":"�
    credit 仅在 CC-BY / CC-BY-SA 等需署名许可时写入；访客页显示草稿 credit，不写死在模板里。
     同样只允许本站上传图。当前模板没有该 SKU 的唯一 src 槽位时记为 missing，不要为了填满页面改随机图片。
 16. remove_product_image: {"op":"remove_product_image","sku":"现有SKU"}
-${layoutInstructions(templateId)}answer 与 clarify 不得包含 operations。
-每次 edit 的 operations 最多 ${MAX_AI_OPERATIONS} 条。优先保留用户明确要求、页面规划、视觉样子和关键首屏/产品/询盘字段；不要为了重写默认文案逐个改写整份草稿。已有集合需要整体替换时优先使用 replace_products、replace_cards、set_catalog_section 或 set_page_plan，仍不得超过 ${MAX_AI_OPERATIONS} 条。`;
+${layoutInstructions(templateId)}${siteStyleInstructions(templateId, draft, materials)}answer 与 clarify 不得包含 operations。
+每次 edit 的 operations 最多 ${MAX_AI_OPERATIONS} 条普通 operation，另可有一条 set_site_style。优先保留用户明确要求、页面规划、视觉样子和关键首屏/产品/询盘字段；不要为了重写默认文案逐个改写整份草稿。已有集合需要整体替换时优先使用 replace_products、replace_cards、set_catalog_section 或 set_page_plan，普通 operation 仍不得超过 ${MAX_AI_OPERATIONS} 条。`;
 }
 
 // What a layout needs, in the words the menu uses (the check itself is lib/blocks/requirements.ts).
@@ -364,6 +377,7 @@ export function buildDraftPromptContext(draft: SiteDraft, selectedTarget?: strin
     sectionOrder: draft.sectionOrder,
     hiddenSections: draft.hiddenSections,
     blockVariants: draft.blockVariants,
+    siteStyle: draft.siteStyle,
     pagePlan: draft.pagePlan,
     sections: sectionOverview(draft),
     products: draft.products.map((product) => ({ sku: product.sku, name: product.name })),
@@ -649,7 +663,7 @@ export async function requestStructuredOperations(args: {
 {"type":"answer","text":"当前站点名称是 Forge Industrial。"}
 {"type":"clarify","question":"你想先改哪一部分？","options":["首屏标题","服务卡片","联系方式"]}
 
-${operationInstructions(args.templateId)}
+${operationInstructions(args.templateId, args.draft, args.message)}
 
 前端表达约束（${FRONTEND_TONE_RULES_VERSION}）：${frontendToneRules.join("；")}
 

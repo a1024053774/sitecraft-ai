@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { blockCatalog } from "./catalog.ts";
+import type { SiteDraft } from "../site-document.ts";
 
 /** Site-content blocks that may receive model-authored style rules. Page chrome stays protected. */
 export const siteStyleBlocks = [
@@ -16,6 +17,9 @@ export type SiteStyleBlock = (typeof siteStyleBlocks)[number];
 
 export const siteStyleMedia = ["desktop", "tablet", "phone"] as const;
 export type SiteStyleMedia = (typeof siteStyleMedia)[number];
+export const siteStyleDirectionIds = ["spec-led", "catalog-led", "capability-led"] as const;
+export type SiteStyleDirectionId = (typeof siteStyleDirectionIds)[number];
+export const siteStyleDirectionSchema = z.enum(siteStyleDirectionIds);
 
 export const SITE_STYLE_MAX_RULES = 40;
 export const SITE_STYLE_MAX_DECLARATIONS = 200;
@@ -71,10 +75,28 @@ export type SiteStyleRule = z.infer<typeof siteStyleRuleSchema>;
 
 /** The persisted shape; direction ids are tightened when the look recipes are added in step 3. */
 export const siteStyleSchema = z.object({
-  direction: z.string().min(1).max(40).nullable().optional(),
+  direction: siteStyleDirectionSchema.nullable().optional(),
   rules: z.array(siteStyleRuleSchema).max(SITE_STYLE_MAX_RULES),
 }).strict();
 export type SiteStyle = z.infer<typeof siteStyleSchema>;
+
+export function styleDirectionRecommendation(draft: Pick<SiteDraft, "content" | "products">, materials = "") {
+  const text = String(materials).toLowerCase();
+  const capabilities = draft.content.capabilities?.items.filter((item) => item.title.zh !== "待补充" || item.body.zh !== "待补充").length ?? 0;
+  const services = draft.content.services.items.filter((item) => item.title.zh !== "待补充" || item.body.zh !== "待补充").length;
+  const categories = new Set(draft.products.map((product) => typeof product.category === "string" ? product.category : product.category.zh).filter(Boolean));
+  if (capabilities >= 5 || services >= 4 || /产能|工艺|检测|加工能力/.test(text)) {
+    return { direction: "capability-led" as const, reason: "资料里的加工能力、工艺或合作流程较多" };
+  }
+  if (/oem|外贸|目录|样品册|采购|catalog|sample book/.test(text) || categories.size >= 2 || draft.products.length >= 4) {
+    return { direction: "catalog-led" as const, reason: "资料面向目录采购或产品类别较多" };
+  }
+  return { direction: "spec-led" as const, reason: "资料以少量系列和规格询盘为主" };
+}
+
+export function suggestSiteStyleDirection(draft: Pick<SiteDraft, "content" | "products">, materials = "") {
+  return styleDirectionRecommendation(draft, materials).direction;
+}
 
 type ValidationError = { ok: false; errors: string[] };
 type ValidationSuccess = { ok: true; rules: SiteStyleRule[]; declarationCount: number; bytes: number };
@@ -136,6 +158,7 @@ function checkPropertyValue(property: string, rawValue: string): string | null {
   if (syntaxError) return syntaxError;
   if (property === "color" || property === "background-color" || property.endsWith("-color")) return checkColor(value);
   if (property === "font-size") {
+    if (validToken(value)) return null;
     if (/^clamp\(/.test(value)) {
       const first = numberWithUnit(value.slice(6).split(",")[0] ?? "");
       if (!first || first.unit !== "px" || first.number < 12) return "字号最小值不能小于 12px";

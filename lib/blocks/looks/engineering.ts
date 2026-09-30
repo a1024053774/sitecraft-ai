@@ -1,4 +1,50 @@
 import type { BlockLook } from "../catalog.ts";
+import type { SiteStyleRule } from "../site-style.ts";
+
+const specLedRules: SiteStyleRule[] = [
+  { block: "hero", part: "band", declarations: { "padding-block": "48px" } },
+  { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1)" } },
+  { block: "products", part: "head", declarations: { "border-top": "2px solid var(--site-ink)", "padding-top": "12px" } },
+  { block: "products", part: "grid", declarations: { gap: "16px" } },
+  { block: "industries", part: "list", declarations: { "padding-block": "20px" } },
+  { block: "capabilities", part: "list", declarations: { "padding-block": "20px" } },
+  { block: "services", part: "steps", declarations: { gap: "8px" } },
+  { block: "services", part: "item", declarations: { "padding-block": "14px" } },
+  { block: "certifications", part: "head", declarations: { "padding-top": "16px" } },
+  { block: "faq", part: "list", declarations: { "padding-block": "8px" } },
+  { block: "faq", part: "item", declarations: { "padding-block": "8px" } },
+  { block: "contact", part: "copy", declarations: { "padding-top": "12px" } },
+];
+
+const catalogLedRules: SiteStyleRule[] = [
+  { block: "hero", part: "specs", declarations: { "background-color": "var(--site-ink)", color: "var(--site-surface)", "padding-block": "24px" } },
+  { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1-display)" } },
+  { block: "products", declarations: { "background-color": "var(--site-surface)", "padding-block": "24px" } },
+  { block: "products", part: "grid", declarations: { gap: "24px", border: "1px solid var(--site-line)", "border-radius": "4px", "padding-block": "8px" } },
+  { block: "products", part: "title", declarations: { "font-size": "var(--site-h2)" } },
+  { block: "industries", part: "list", declarations: { "padding-block": "28px" } },
+  { block: "capabilities", part: "list", declarations: { "padding-block": "28px" } },
+  { block: "services", part: "steps", declarations: { gap: "16px" } },
+  { block: "services", part: "item", declarations: { "border": "1px solid var(--site-line)", "border-radius": "4px", "padding-block": "20px" } },
+  { block: "certifications", part: "badges", declarations: { gap: "16px", "padding-block": "12px" } },
+  { block: "faq", part: "list", declarations: { "padding-block": "12px" } },
+  { block: "contact", part: "form", declarations: { "border-radius": "4px", "padding-block": "24px" } },
+];
+
+const capabilityLedRules: SiteStyleRule[] = [
+  { block: "hero", part: "band", declarations: { "padding-block": "88px" } },
+  { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1-display)" } },
+  { block: "products", part: "head", declarations: { "padding-block": "28px" } },
+  { block: "products", part: "grid", declarations: { gap: "32px" } },
+  { block: "industries", part: "list", declarations: { "background-color": "var(--site-accent-soft)", "padding-block": "32px" } },
+  { block: "capabilities", part: "list", declarations: { "background-color": "var(--site-diagram)", "padding-block": "32px" } },
+  { block: "services", part: "steps", declarations: { "background-color": "var(--site-accent-soft)", gap: "20px", "padding-block": "12px" } },
+  { block: "services", part: "item", declarations: { "padding-block": "24px", "padding-inline": "20px" } },
+  { block: "certifications", part: "head", declarations: { "padding-top": "24px" } },
+  { block: "faq", part: "list", declarations: { "padding-block": "16px" } },
+  { block: "faq", part: "item", declarations: { "padding-block": "14px" } },
+  { block: "contact", part: "copy", declarations: { "background-color": "var(--site-diagram)", "padding-block": "24px" } },
+];
 
 /**
  * 工程工业 (engineering-industrial): a catalog book. White product plates with the key specs on
@@ -37,5 +83,10 @@ export const engineeringLook: BlockLook = {
     faq: "accordion",
     contact: "split",
     footer: "columns",
+  },
+  styleDirections: {
+    "spec-led": { label: "规格为主", summary: "紧凑、通底、用细线突出参数与分区。", rules: specLedRules },
+    "catalog-led": { label: "目录为主", summary: "深色参数条、浅色产品带和描边卡片，适合目录询盘。", rules: catalogLedRules },
+    "capability-led": { label: "工厂实力", summary: "首屏更高、能力与流程使用浅色面板带，版面更疏朗。", rules: capabilityLedRules },
   },
 };

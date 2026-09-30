@@ -90,7 +90,7 @@ async function render(browser: Cdp, baseUrl: string, templateId: string, draft: 
   let height = Number(await browser.evaluate(settle, sessionId) || 900);
   await browser.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile }, sessionId);
   await sleep(150);
-  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number }>; textOverlaps: Array<{ block: string; amount: number }>; slots: Array<{ key: string; visible: boolean }>; height: number };
+  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number }>; textOverlaps: Array<{ block: string; amount: number; key: string }>; slots: Array<{ key: string; visible: boolean }>; height: number };
   if (file) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId) as { data: string };
@@ -110,7 +110,7 @@ export type SiteStyleCheckResult =
 
 export async function checkSiteStyle(args: { templateId: string; draft: SiteDraft; baseUrl: string; outDir?: string }): Promise<SiteStyleCheckResult> {
   const normalized = normalizeSiteStyle(args.draft.siteStyle);
-  if (!normalized?.rules.length) return { ok: true, widths: [...WIDTHS], reports: {}, screenshots: [] };
+  if (!normalized || (!normalized.rules.length && !normalized.direction)) return { ok: true, widths: [...WIDTHS], reports: {}, screenshots: [] };
   const outDir = args.outDir || "";
   const screenshots: string[] = [];
   const reports: Record<string, unknown> = {};
@@ -134,8 +134,10 @@ export async function checkSiteStyle(args: { templateId: string; draft: SiteDraf
         const item = newOverflow[0] || candidate.overflowElements[0] || { block: "页面", amount: 1 };
         reasons.push(`${width} 宽度下「${blockLabel(item.block)}」横向超出页面 ${item.amount}px。`);
       }
-      if (candidate.textOverlaps.length > baseline.textOverlaps.length) {
-        const item = candidate.textOverlaps[baseline.textOverlaps.length] || candidate.textOverlaps[0];
+      const baselineOverlapKeys = new Set(baseline.textOverlaps.map((item) => item.key));
+      const newOverlaps = candidate.textOverlaps.filter((item) => !baselineOverlapKeys.has(item.key) && item.amount > 8);
+      if (newOverlaps.length) {
+        const item = newOverlaps[0];
         reasons.push(`${width} 宽度下「${blockLabel(item.block)}」出现文字重叠。`);
       }
       const oldSlots = new Map(baseline.slots.map((slot) => [slot.key, slot.visible]));

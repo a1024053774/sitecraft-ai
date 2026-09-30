@@ -952,7 +952,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var nameplate = uniqueNode("[data-sitecraft-hero-nameplate]");
     var strip = uniqueNode("[data-sitecraft-hero-specs]");
     var heroRender = blockRender("hero");
-    var stripAlways = Boolean(heroRender && heroRender.heroSpecs === "always");
+    var compareProducts = Boolean(draft && draft.blockVariants && draft.blockVariants.products === "compare");
+    var stripAlways = Boolean(heroRender && heroRender.heroSpecs === "always") && !compareProducts;
     if (!visual && !heroImage && !(strip && stripAlways)) return;
     var products = visibleProducts(draft, locale);
     var photo = null;
@@ -992,7 +993,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (mode === "nameplate") renderFacts(nameplate, facts, "sitecraft-nameplate-cell");
     }
     if (strip) {
-      var showStrip = facts.length > 0 && (stripAlways || mode === "photo");
+      var showStrip = facts.length > 0 && !compareProducts && (stripAlways || mode === "photo");
       strip.hidden = !showStrip;
       var stripList = strip.querySelector ? (strip.querySelector("dl") || strip) : strip;
       if (showStrip) renderFacts(stripList, facts, "sitecraft-hero-spec");
@@ -1120,7 +1121,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function applySiteStyle(draft, applied) {
     var existing = document && document.querySelector ? document.querySelector("style[data-sc-site-style]") : null;
     var blocks = adapter && adapter.blocks;
-    var rules = draft && draft.siteStyle && Array.isArray(draft.siteStyle.rules) ? draft.siteStyle.rules : [];
+    var siteStyle = draft && draft.siteStyle && typeof draft.siteStyle === "object" ? draft.siteStyle : null;
+    var direction = siteStyle && typeof siteStyle.direction === "string" ? siteStyle.direction : "";
+    var directionSpec = adapter && adapter.blocks && adapter.blocks.styleDirections && direction ? adapter.blocks.styleDirections[direction] : null;
+    var directionRules = directionSpec && Array.isArray(directionSpec.rules) ? directionSpec.rules : [];
+    var rules = siteStyle && Array.isArray(siteStyle.rules) ? directionRules.concat(siteStyle.rules) : directionRules;
     if (!blocks || !rules.length) {
       if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
       return;

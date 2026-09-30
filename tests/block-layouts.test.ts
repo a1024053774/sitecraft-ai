@@ -118,6 +118,12 @@ test("大标题加参数条: full-width statement, the key specs in a strip even
   assert.ok(report.appliedSlots.includes("hero.title.zh"));
 });
 
+test("c1: choosing the product comparison table removes the hero parameter strip", () => {
+  const draft = withLayouts(packDraft("industrial"), { hero: "statement", products: "compare" });
+  const { document } = render(draft);
+  assert.equal(document.querySelector('[data-sc-block="hero"] [data-sitecraft-hero-specs]')?.hidden, true);
+});
+
 test("按类别分组: one group per category in material order, cards without a repeated category, no gap rows", () => {
   const draft = withLayouts(packDraft("molding"), { products: "grouped" });
   const { document, report } = render(draft);

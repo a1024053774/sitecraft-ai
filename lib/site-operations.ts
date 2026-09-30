@@ -2,7 +2,7 @@ import { z } from "zod";
 import { blockCatalog, layoutBlocks, type BlockId, type BlockLook } from "./blocks/catalog.ts";
 import { blockLookForTemplate } from "./blocks/looks/index.ts";
 import { checkVariantRequirements } from "./blocks/requirements.ts";
-import { normalizeSiteStyle, siteStyleRuleSchema, validateSiteStyleRules } from "./blocks/site-style.ts";
+import { normalizeSiteStyle, siteStyleDirectionSchema, siteStyleRuleSchema, validateSiteStyleRules } from "./blocks/site-style.ts";
 import { stripGapTalkBilingual } from "./visitor-prose.ts";
 import {
   cloneDraft,
@@ -153,7 +153,7 @@ const setBlockVariantOperationSchema = z.object({
 });
 const setSiteStyleOperationSchema = z.object({
   op: z.literal("set_site_style"),
-  direction: z.string().min(1).max(40).nullable().optional(),
+  direction: siteStyleDirectionSchema.nullable().optional(),
   rules: z.array(siteStyleRuleSchema).max(40),
 });
 const setCustomPaletteOperationSchema = z.object({
