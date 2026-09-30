@@ -2,7 +2,7 @@
 id: T-053
 title: 工程工业迁到区块库（区块库主线第一段）
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -50,7 +50,7 @@ supersedes:
 - [x] 同一份资料下，模型选的变体组合能被 `set_block_variant` 改掉，撤销后恢复；不满足资料条件的变体被拒绝并有说明
 - [x] 旧 overlay 与新区块库版本交 Codex gpt-6.1-sol 盲评（不告诉哪版是新的）：新版不差于旧版（「遮住文字后三家公司能看出不同」2026-09-30 起改由 T-054 验收，见下）
 - [x] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] Codex Astra 代码审查通过；Claude 验收；旧 overlay 已删除
+- [x] Codex Astra 代码审查通过；Claude 验收；旧 overlay 已删除
 
 ## Resolution
 
@@ -84,3 +84,4 @@ Kiro，2026-09-30（纽约时间）。提交都在本地、未推送：`a320973`
 - 邮箱换行检查对所有样子生效，还用 overlay 的 forge / landwind 已有站点在 375 下不通过，已记在 T-055 / T-056。
 - 常见问题 6 条（T-059）、双语参数值（T-060）另有票。
 
+独立审核：Astra（Codex GPT-6）复审 PASS，2026-09-30 纽约时间上午，候选 4abaf43，全量 442/442，抽查两个站 check-published 通过（`artifacts/review-astra-t053-t061-final.md`）。盲评以 `artifacts/blind-t053-final-r3.md` 为准：总体新版明显更好、注塑旧版有阻断级跨格重叠、遮字版新版能看出三家不同；P3I、P3E 两处「小」差距记为遗留。Claude 验收关闭。

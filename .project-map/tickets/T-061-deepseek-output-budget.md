@@ -2,7 +2,7 @@
 id: T-061
 title: DeepSeek 结构化输出被推理用完 token，生成时常失败
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -16,10 +16,10 @@ T-053 第 3 步实跑发现（Kiro，2026-09-30，日志 `artifacts/t053/probe-p
 
 ## Acceptance
 
-- [ ] 写明查到的 DeepSeek 事实和来源（文档链接、一次真实请求的 `usage`）
-- [ ] 三份模拟资料各走 3 次需求对齐生成，截断失败为 0 或给出真实原因；记录每次的 token 用量
-- [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查通过；Claude 验收
+- [x] 写明查到的 DeepSeek 事实和来源（文档链接、一次真实请求的 `usage`）
+- [x] 三份模拟资料各走 3 次需求对齐生成，截断失败为 0 或给出真实原因；记录每次的 token 用量
+- [x] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -69,3 +69,5 @@ Astra 审查 NO_GO（2026-09-30，`artifacts/review-astra-t058-t061.md`）：看
 测试：`tests/ai-provider-vision-failures.test.ts`（两条调用各：截断只发一次并返回 `truncated`；HTTP、网络、超时、不是 JSON、格式不对的日志行；失败后成功只记失败；两条接口的截断文案），`tests/structured-output-budget.test.ts`（第二次的超时是 360 / 150 秒剩下的时间；用完就不发第二次）。改动前失败：06:41 在 `fc6f09c` 上 `node --test --experimental-strip-types tests/ai-provider-vision-failures.test.ts tests/structured-output-budget.test.ts`，21 条中 6 条失败（`artifacts/t061/red-t061-rework.txt`）。改动后：06:45–06:47 `npm run typecheck` 通过、`npm test` 441/441、`npm run build` 通过（`artifacts/t061/t061c-*.txt`）。文档：spec §6、错误目录。
 
 真实运行（`b0aa2da`）：06:51 看图一次 430 token（推理 286）6.7 秒、预览审查一次 684 token（推理 477）5.3 秒，都一次成功（`artifacts/t061/probe-budget.jsonl`）；06:52–06:56 三份资料依次各一次需求对齐生成（`artifacts/t061/accept-runs.mjs 1 --packs industrial,export,molding --label rework-b0aa2da`），3 次都一次成功、没有失败日志行：P3I 生成 8883 token（推理 6598）37 秒，P3E 26328（推理 24099）110 秒，注塑 22291（推理 17995）89 秒（`artifacts/t061/rework-b0aa2da-summary.json`）。
+
+独立审核：Astra（Codex GPT-6）复审 PASS，2026-09-30 纽约时间上午，候选 4abaf43（`artifacts/review-astra-t053-t061-final.md`）。Claude 验收关闭。

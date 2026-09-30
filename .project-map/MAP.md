@@ -9,7 +9,7 @@
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-049](tickets/T-049-roles-2026-09-29.md)，取代 T-033）：负责人只定方向和需求。Claude 规划、验收、整合推送；Kiro（Opus 5.5）、Codex 和 Sonnet 5.5 子 agent 执行（三个样子的迁移给 Codex）；Codex Astra 审代码；Codex gpt-6.1-sol 盲评；Grok 做杂活；云端会话在 `cloud/*` 分支做票。
-- 现状（2026-09-28）：主链能走通。新建站点从模板页的四个样子背后模板进入（T-036、T-044），默认开启需求对齐，第 1 轮固定问样子和目录色彩集（T-034）；资料 → 对齐 → 确认 → `commitOperations` → 预览 → 修改/撤销 → 发布页 → 询盘都在浏览器里实测过。四个视觉族各有首页 overlay 和 6 套色彩集色板。2026-09-28 Codex 盲评 8 个样本（两份模拟资料 × 四个样子）2 PASS 6 NO_GO，主要问题是访客页的缺口说明和元话术（T-045）、首屏孤字和手机公司名截断（T-046），另指出同一样子换公司资料后品牌差异不明显（未定，见 Not yet specified）。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md) 和 [review-2026-09-24.md](../docs/project/review-2026-09-24.md)，只供追溯。
+- 现状（2026-09-30）：工程工业已迁到 SiteCraft 区块库（T-053）：首屏、产品、询盘可按资料换布局（大标题加参数条、按类别分组、参数对比表、联系条），模型按资料选、条件不够时拒绝并说明；盲评总体明显好于旧 overlay。工作台按原型 B 改版（T-052）。DeepSeek 推理预算和截断提示已修（T-061、T-058）。下一步是站点样式（T-054），它承担「遮住文字后同一样子下能看出不同公司」的硬性验收；之后其余三个样子迁移（T-055–T-057，Codex）。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md)，只供追溯。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 
