@@ -4,7 +4,7 @@ title: 站点样式：模型写结构化样式规则，校验加三档检查
 type: build
 status: open
 blocked_by: [T-053]
-claimed_by:
+claimed_by: kiro
 supersedes:
 ---
 

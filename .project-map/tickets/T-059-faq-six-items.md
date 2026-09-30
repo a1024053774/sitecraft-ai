@@ -4,7 +4,7 @@ title: 常见问题在访客页放到 6 条
 type: build
 status: open
 blocked_by: [T-053]
-claimed_by:
+claimed_by: kiro
 supersedes:
 ---
 
