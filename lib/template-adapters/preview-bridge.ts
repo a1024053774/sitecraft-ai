@@ -606,7 +606,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         card.className = "sitecraft-catalog-card";
         if (visible.id) card.setAttribute("data-sitecraft-catalog-item", String(visible.id));
         var heading = document.createElement("h3");
-        heading.textContent = visible.title || (locale === "en" ? "To be provided" : "待补充");
+        heading.textContent = visible.title ? (adapter && adapter.blocks ? emailBreakPoints(visible.title) : visible.title) : (locale === "en" ? "To be provided" : "待补充");
         heading.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".title." + locale);
         var copy = null;
         // Visitors see no "待补充" body, and a certification body that only repeats its status is dropped.
@@ -614,7 +614,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var bodyIsGap = isGapMarker(visible.body);
         if (!((bodyIsGap || repeatsStatus) && variant !== "workspace")) {
           copy = document.createElement("p");
-          copy.textContent = visible.body || (locale === "en" ? "To be provided" : "待补充");
+          copy.textContent = visible.body ? (adapter && adapter.blocks ? emailBreakPoints(visible.body) : visible.body) : (locale === "en" ? "To be provided" : "待补充");
           copy.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".body." + locale);
         }
         card.appendChild(heading);
@@ -688,7 +688,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      node.textContent = slot.target === "contact.email" && adapter && adapter.blocks ? emailBreakPoints(nextValue) : nextValue;
+      node.textContent = adapter && adapter.blocks ? emailBreakPoints(nextValue) : nextValue;
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";
         if (/^mailto:/i.test(href)) node.setAttribute("href", "mailto:" + nextValue);
@@ -922,11 +922,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return out;
   }
 
-  // A contact email on a block-library page wraps only at the @ (T-053): a word joiner after each
-  // hyphen keeps p3i-sim.test whole, and zero-width spaces on both sides of the @ are its break
-  // points. The draft and the mailto link keep the address as written; copying drops the marks.
+  // On a block-library page an email address wraps only at the @ (T-053), whether it is the contact
+  // email or sits in a sentence: a word joiner after each hyphen keeps p3i-sim.test whole, and
+  // zero-width spaces on both sides of the @ are its break points. The draft and the mailto link keep
+  // the text as written; copying drops the marks.
   function emailBreakPoints(text) {
-    return String(text).replace(/-(?=.)/g, "-\u2060").replace(/@/g, "\u200b@\u200b");
+    return String(text).replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+/g, function (email) {
+      return email.replace(/-(?=.)/g, "-\u2060").replace("@", "\u200b@\u200b");
+    });
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;

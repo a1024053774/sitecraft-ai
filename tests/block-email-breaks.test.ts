@@ -44,6 +44,26 @@ test("the contact and footer email break only at the @ on block-library pages", 
   assert.equal(draft.content.contact.email, "inquiry@p3i-sim.test", "the draft keeps the address as written");
 });
 
+// The model often writes the address into a sentence ("规格发到 catalog@p3e-sim.test，…"); it wraps
+// the same way there: at the @, not after the hyphen (seen on a P3E page at 1440, 2026-09-30).
+test("an email inside a sentence also breaks only at its @", () => {
+  const draft = packDraft("export");
+  draft.content.contact.body = { zh: "把接头规格与批量数量发到 catalog@p3e-sim.test，交期在批量确认后回复。", en: "Send specifications to catalog@p3e-sim.test; lead time follows." };
+  draft.content.faq.items[0] = { ...draft.content.faq.items[0], title: { zh: "图纸发到哪里？", en: "Where do drawings go?" }, body: { zh: "图纸请发到 rfq-cn@p3e-sim.test 或 catalog@p3e-sim.test。", en: "Send drawings to rfq-cn@p3e-sim.test." } };
+  const bodyOf = (document: HtmlDocument, key: string) => document.querySelector(`[data-sitecraft-benchmark="${key}"]`)?.textContent;
+  const zh = render("screwfast", draft);
+  assert.equal(bodyOf(zh, "contact-body"), `把接头规格与批量数量发到 catalog${Z}@${Z}p3e-${J}sim.test，交期在批量确认后回复。`);
+  assert.equal(bodyOf(zh, "faq-item-0-body"), `图纸请发到 rfq-${J}cn${Z}@${Z}p3e-${J}sim.test 或 catalog${Z}@${Z}p3e-${J}sim.test。`);
+  assert.equal(bodyOf(zh, "faq-item-0-title"), "图纸发到哪里？", "text without an email is written as is");
+  assert.equal(bodyOf(render("screwfast", draft, "en"), "contact-body"), `Send specifications to catalog${Z}@${Z}p3e-${J}sim.test; lead time follows.`);
+  for (const templateId of ["forge", "landwind", "tailwind-landing"]) {
+    const selector = getTemplateAdapter(templateId)?.slots.find((slot) => slot.target === "contact.body")?.selector;
+    assert.ok(selector, `${templateId} declares the contact body`);
+    assert.equal(render(templateId, draft).querySelector(selector)?.textContent, "把接头规格与批量数量发到 catalog@p3e-sim.test，交期在批量确认后回复。", `${templateId} writes it as is`);
+  }
+  assert.equal(draft.content.contact.body.zh, "把接头规格与批量数量发到 catalog@p3e-sim.test，交期在批量确认后回复。", "the draft keeps the sentence as written");
+});
+
 test("the looks still on their own overlay keep writing the email as it is", () => {
   const draft = packDraft("industrial");
   for (const templateId of ["forge", "landwind", "tailwind-landing"]) {
