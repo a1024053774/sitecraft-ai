@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import { defaultDraft, familyModuleInventory, visibilityKeys } from "../lib/site-document.ts";
 import { applySiteOperations, siteOperationSchema } from "../lib/site-operations.ts";
 import { getTemplateAdapter, templateAdapters } from "../lib/template-adapters/index.ts";
+import { servedHomeHtml, withoutTemplates } from "./fixtures/look-pages.ts";
 
+/** The served home pages; 工程工业 is composed from the block library, the others are overlays. */
 const SNAPSHOTS = {
-  forge: new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url),
-  screwfast: new URL("../lib/template-adapters/overlays/screwfast.index.html", import.meta.url),
-  landwind: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
-  "tailwind-landing": new URL("../lib/template-adapters/overlays/tailwind-landing.index.html", import.meta.url),
+  forge: servedHomeHtml("forge"),
+  screwfast: withoutTemplates(servedHomeHtml("screwfast")),
+  landwind: servedHomeHtml("landwind"),
+  "tailwind-landing": servedHomeHtml("tailwind-landing"),
 } as const;
 
 /** Independent HTML probes from the local snapshots. Not copied from adapter data. */
@@ -98,7 +99,7 @@ test("plan v0.6 family inventory is KonsTuck and Lozitick module lists", () => {
 
 test("forge screwfast landwind snapshots have unique nodes for listed modules that exist", () => {
   for (const [templateId, probes] of Object.entries(UNIQUE_SECTION_PROBES)) {
-    const html = readFileSync(SNAPSHOTS[templateId as keyof typeof SNAPSHOTS], "utf8");
+    const html = SNAPSHOTS[templateId as keyof typeof SNAPSHOTS];
     for (const [key, probe] of Object.entries(probes)) {
       assert.equal(probeCount(html, probe), 1, `${templateId} ${key} must uniquely exist in the snapshot`);
     }

@@ -93,6 +93,16 @@ export type SlotApplyReport = {
 };
 
 /**
+ * Block-library pages (T-053): the page keeps each variant of a block in a <template> and shows
+ * one entity per block; the bridge mounts the draft's choice (or the default) before writing.
+ */
+export type TemplateBlocks = {
+  order: string[];
+  defaults: Record<string, string>;
+  variants: Record<string, string[]>;
+};
+
+/**
  * Data-only preview adapter. Selectors are injected into the shared iframe
  * bridge; per-template JavaScript source is not stored here.
  */
@@ -105,4 +115,5 @@ export type TemplateAdapter = {
   sanitize?: TemplateSanitizeRules;
   demoChrome?: TemplateDemoChrome[];
   kit?: TemplateKit;
+  blocks?: TemplateBlocks;
 };

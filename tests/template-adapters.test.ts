@@ -11,6 +11,7 @@ import {
   templateAdapters,
 } from "../lib/template-adapters/index.ts";
 import type { TemplateDemoChrome } from "../lib/template-adapters/types.ts";
+import { servedHomeHtml, withoutTemplates } from "./fixtures/look-pages.ts";
 
 test("adapters are JSON data, not per-template JavaScript source", () => {
   for (const adapter of Object.values(templateAdapters)) {
@@ -160,7 +161,7 @@ test("family overlays declare every content slot attribute exactly once", () => 
   const contentAttr = /data-sitecraft-(?:benchmark|optional|faq|contact|brand(?:-name)?|nav)="([^"]+)"/g;
   const skipBenchmark = new Set(["bright-product", "industrial-inquiry", "export-directory", "hero"]);
   for (const id of families) {
-    const html = readFileSync(new URL(`../lib/template-adapters/overlays/${id}.index.html`, import.meta.url), "utf8");
+    const html = withoutTemplates(servedHomeHtml(id));
     const adapter = getTemplateAdapter(id);
     assert.ok(adapter, id);
     const selectors = new Map<string, number>();
@@ -327,40 +328,42 @@ test("spa-bundle adapters do not claim a local HTML snapshot", () => {
 });
 
 test("declared hero images are unique src slots and leave logos and avatars undeclared", () => {
+  const read = (url: URL) => readFileSync(url, "utf8");
   const cases = [
     {
       id: "forge",
-      html: new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url),
+      html: read(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url)),
       declared: 'data-sitecraft-benchmark="hero-image"',
       undeclared: [],
     },
     {
       id: "landwind",
-      html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
+      html: read(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url)),
       declared: 'data-sitecraft-benchmark="hero-image"',
       undeclared: [],
     },
     {
+      // 工程工业 is composed from the block library; the ScrewFast snapshot is no longer served.
       id: "screwfast",
-      html: new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url),
-      declared: "Stack of ScrewFast product boxes containing assorted hardware tools",
-      undeclared: ["Customer review avatar 1", "Samantha Ruiz photo", "ScrewFast products in floating boxes"],
+      html: withoutTemplates(servedHomeHtml("screwfast")),
+      declared: 'data-sitecraft-benchmark="hero-image"',
+      undeclared: [],
     },
     {
       id: "fresh",
-      html: new URL("../vendor/open-source-templates/fresh/dist/index.html", import.meta.url),
+      html: read(new URL("../vendor/open-source-templates/fresh/dist/index.html", import.meta.url)),
       declared: 'class="hero-image"',
       undeclared: ["partner-logo", "Made with Bulma"],
     },
     {
       id: "tailwind-landing",
-      html: new URL("../lib/template-adapters/overlays/tailwind-landing.index.html", import.meta.url),
+      html: read(new URL("../lib/template-adapters/overlays/tailwind-landing.index.html", import.meta.url)),
       declared: 'data-sitecraft-benchmark="hero-image"',
       undeclared: [],
     },
   ] as const;
   for (const item of cases) {
-    const html = readFileSync(item.html, "utf8");
+    const html = item.html;
     const adapter = getTemplateAdapter(item.id);
     const slot = adapter?.slots.find((entry) => entry.target === "hero.image");
     assert.ok(slot, `${item.id} must declare a unique hero.image src slot`);
@@ -409,7 +412,7 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
     assert.equal(html.includes(item.chrome), false);
   }
 
-  const screwfast = readFileSync(new URL("../lib/template-adapters/overlays/screwfast.index.html", import.meta.url), "utf8");
+  const screwfast = withoutTemplates(servedHomeHtml("screwfast"));
   const screwfastAdapter = getTemplateAdapter("screwfast");
   assert.ok(screwfastAdapter);
   for (let index = 0; index < 3; index += 1) {
@@ -428,25 +431,24 @@ test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () =
   const forgeHome = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
   const forgeContact = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/Contact/index.html", import.meta.url), "utf8");
   const landwind = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
-  const screwfast = readFileSync(new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url), "utf8");
+  const screwfast = withoutTemplates(servedHomeHtml("screwfast"));
   assert.equal((forgeHome.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal((landwind.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal((screwfast.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal(forgeContact.toLowerCase().includes("web3forms"), false);
+  assert.equal(screwfast.toLowerCase().includes("web3forms"), false);
   assert.equal((forgeHome.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
   assert.equal((landwind.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
-  assert.equal((screwfast.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
+  assert.equal((screwfast.match(/data-sitecraft-benchmark="contact-title"/g) ?? []).length, 1);
   assert.equal(getTemplateAdapter("forge")?.slots.some((slot) => slot.target === "contact.title"), true);
   assert.equal(getTemplateAdapter("landwind")?.slots.some((slot) => slot.target === "contact.email"), true);
   assert.equal(getTemplateAdapter("screwfast")?.slots.some((slot) => slot.target === "contact.email"), true);
 });
 
-test("why-choose left copy is unique on forge and screwfast", () => {
+test("services copy is unique on forge", () => {
   const forge = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
-  const screwfast = readFileSync(new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url), "utf8");
   assert.equal((forge.match(/data-sitecraft-section="services"/g) ?? []).length, 1);
   assert.equal((forge.match(/data-sitecraft-benchmark="services-title"/g) ?? []).length, 1);
-  assert.equal((screwfast.match(/data-sitecraft-why-choose="true"/g) ?? []).length, 1);
   for (const index of [1, 2, 3]) {
     assert.equal((forge.match(new RegExp(`data-sitecraft-benchmark="services-item-${index - 1}-title"`, "g")) ?? []).length, 1);
   }
@@ -459,7 +461,9 @@ function countAttrExact(html: string, attr: string, value: string) {
   return html.split(`${attr}="${value}"`).length - 1;
 }
 
-test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 vetoes", () => {
+// 工程工业 has no demo chrome left to declare: its page is composed from the block library
+// (tests/block-compose.test.ts checks the page carries none).
+test("landwind declares unique demo-chrome and brand nodes for Q27 vetoes", () => {
   const cases = [
     {
       id: "landwind",
@@ -467,13 +471,6 @@ test("landwind and screwfast declare unique demo-chrome and brand nodes for Q27 
       brand: ["nav"],
       chrome: ["pricing", "logo-wall", "figma", "testimonial", "footer-copyright"],
       snapshotTokens: ["企业目录", "产品类别"],
-    },
-    {
-      id: "screwfast",
-      html: new URL("../vendor/open-source-templates/screwfast/dist/index.html", import.meta.url),
-      brand: ["nav", "footer"],
-      chrome: ["pricing", "reviews", "wordmark", "footer-wordmark", "github", "logo-wall", "solutions", "testimonial", "feature-extra"],
-      snapshotTokens: ["12.8k", "Simple, Transparent Pricing"],
     },
   ] as const;
 
@@ -522,7 +519,7 @@ test("admitted kits bind looks to one family, copy concrete tokens, and never se
     screwfast: {
       familyId: "engineering-industrial",
       templateId: "screwfast",
-      demo: ["pricing", "reviews", "wordmark", "footer-wordmark", "github", "logo-wall", "solutions", "testimonial", "feature-extra"],
+      demo: [] as string[],
     },
     landwind: {
       familyId: "export-catalog",

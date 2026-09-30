@@ -1751,59 +1751,30 @@ test("landwind + export pack hides SaaS demo chrome on the full page, including 
   assert.deepEqual(report.fallbackMatched, []);
 });
 
-test("screwfast + industrial pack replaces the wordmark and hides fake reviews and pricing", () => {
+// 工程工业 now comes from the block library: its page carries no ScrewFast wordmark, reviews or
+// pricing at all (tests/block-compose.test.ts), so there is no demo chrome left to hide here.
+test("screwfast + industrial pack replaces the placeholder brand in the header and footer", () => {
   const adapter = getTemplateAdapter("screwfast");
   assert.ok(adapter);
+  assert.equal(adapter.demoChrome, undefined);
   const { document } = createDocument();
   const brand = createNode("span");
   brand.setAttribute("data-sitecraft-brand", "nav");
-  brand.textContent = "ScrewFast";
+  brand.textContent = "企业名称";
   const footerBrand = createNode("span");
   footerBrand.setAttribute("data-sitecraft-brand", "footer");
-  footerBrand.textContent = "ScrewFast";
-  const wordmark = createNode("svg");
-  wordmark.setAttribute("data-sitecraft-demo", "wordmark");
-  wordmark.setAttribute("aria-label", "ScrewFast");
-  const reviews = createNode("p");
-  reviews.setAttribute("data-sitecraft-demo", "reviews");
-  const reviewsCount = createNode("span");
-  reviewsCount.textContent = "12.8k";
-  reviews.appendChild(reviewsCount);
-  reviews.appendChild(createNode("span")).textContent = " Reviews";
-  const pricing = createNode("section");
-  pricing.setAttribute("data-sitecraft-demo", "pricing");
-  pricing.textContent = "Simple, Transparent Pricing";
-  const github = createNode("a");
-  github.setAttribute("data-sitecraft-demo", "github");
-  github.textContent = "Explore ScrewFast on GitHub";
+  footerBrand.textContent = "企业名称";
   document.body.appendChild(brand);
-  document.body.appendChild(wordmark);
-  document.body.appendChild(reviews);
-  document.body.appendChild(pricing);
-  document.body.appendChild(github);
   document.body.appendChild(footerBrand);
 
   const draft = packDraft("industrial");
-  const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
-    "companyName.zh",
-    "demoChrome.reviews",
-    "demoChrome.pricing",
-    "demoChrome.wordmark",
-    "demoChrome.github",
-  ], "workspace");
+  const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", ["companyName.zh"], "workspace");
   const page = visibleText(document.body);
   assert.equal(brand.textContent, simulatedPacks.industrial.companyName);
   assert.equal(footerBrand.textContent, simulatedPacks.industrial.companyName);
-  assert.equal(page.includes(simulatedPacks.industrial.companyName), true);
-  for (const token of ["ScrewFast", "12.8k", "Reviews", "Simple, Transparent Pricing"]) {
-    assert.equal(page.includes(token), false, `screwfast still shows ${token}`);
-  }
-  assert.equal(wordmark.hidden, true);
-  assert.equal(reviews.hidden, true);
-  assert.equal(pricing.hidden, true);
-  assert.equal(github.hidden, true);
+  assert.equal(page.includes("企业名称"), false);
   assert.ok(report.appliedSlots.includes("companyName.zh"));
-  assert.ok(report.appliedSlots.includes("demoChrome.reviews"));
+  assert.deepEqual(report.missingSlots, []);
   assert.deepEqual(report.fallbackMatched, []);
 });
 
@@ -1826,49 +1797,41 @@ test("demo chrome unique miss is reported as missing and does not hide a similar
   assert.deepEqual(report.fallbackMatched, []);
 });
 
-test("engineering-industrial kit omits unselected SaaS pricing from the composed industrial page", () => {
+test("engineering-industrial kit applies its family tokens and selects no demo module", () => {
   const adapter = getTemplateAdapter("screwfast");
   assert.ok(adapter?.kit);
   const parts = selectedKitParts(adapter.kit, []);
   const composed = composeKitModules({ host: adapter.kit, parts });
   assert.equal(composed.ok, true);
-  assert.equal(parts.some((part) => part.key === "pricing"), false);
+  assert.equal(adapter.kit.modules.some((module) => module.kind === "demo"), false);
+  assert.ok(parts.some((part) => part.key === "faq"));
 
   const { document } = createDocument();
   const brand = createNode("span");
   brand.setAttribute("data-sitecraft-brand", "nav");
-  brand.textContent = "ScrewFast";
+  brand.textContent = "企业名称";
   const footerBrand = createNode("span");
   footerBrand.setAttribute("data-sitecraft-brand", "footer");
-  footerBrand.textContent = "ScrewFast";
-  const pricing = createNode("section");
-  pricing.setAttribute("data-sitecraft-demo", "pricing");
-  const price29 = createNode("span");
-  price29.textContent = "$29";
-  const price99 = createNode("span");
-  price99.textContent = "$99";
-  pricing.appendChild(price29);
-  pricing.appendChild(price99);
+  footerBrand.textContent = "企业名称";
   const faq = createNode("section");
-  const accordion = createNode("div");
-  accordion.className = "hs-accordion-group";
-  accordion.textContent = "交期如何确认？";
-  faq.appendChild(accordion);
+  faq.setAttribute("data-sitecraft-section", "faq");
+  const question = createNode("summary");
+  question.setAttribute("data-sitecraft-benchmark", "faq-item-0-title");
+  faq.appendChild(question);
   document.body.appendChild(brand);
   document.body.appendChild(footerBrand);
-  document.body.appendChild(pricing);
   document.body.appendChild(faq);
 
-  const draft = packDraft("industrial");
+  const draft = applySiteOperations(packDraft("industrial"), [
+    { op: "update_card", section: "faq", index: 0, title: { zh: "交期如何确认？", en: "How is lead time confirmed?" }, body: { zh: "按批量确认。", en: "Per batch." } },
+  ], { templateIds: new Set(visualBriefCatalog.map((item) => item.templateId)), lastChange: "kit-faq" }).draft;
   assert.equal(draft.visualBrief.id, "engineering-industrial");
   assert.equal(draft.templateId, "screwfast");
   const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
     "companyName.zh",
-    "kit.pricing.omitted",
     "kit.faq",
     "kit.family.engineering-industrial",
   ], "workspace");
-  const page = visibleText(document.body);
   assert.equal(document.documentElement.dataset.sitecraftFamily, "engineering-industrial");
   assert.equal(document.documentElement.dataset.sitecraftTokenAccent, adapter.kit.tokens.accent);
   assert.equal(document.documentElement.styleValues["--site-bg"], adapter.kit.tokens.background);
@@ -1878,11 +1841,8 @@ test("engineering-industrial kit omits unselected SaaS pricing from the composed
   assert.equal(document.documentElement.styleValues["--site-font"], adapter.kit.tokens.font);
   assert.equal(document.documentElement.styleValues["--site-radius"], adapter.kit.tokens.radius);
   assert.equal(brand.textContent, simulatedPacks.industrial.companyName);
-  assert.equal(page.includes("$29"), false);
-  assert.equal(page.includes("$99"), false);
-  assert.equal(pricing.hidden, true);
+  assert.equal(question.textContent, "交期如何确认？");
   assert.equal(faq.hidden, false);
-  assert.ok(report.appliedSlots.includes("kit.pricing.omitted"));
   assert.ok(report.appliedSlots.includes("kit.faq"));
   assert.ok(report.appliedSlots.includes("kit.family.engineering-industrial"));
   assert.equal(report.missingSlots.includes("kit.family.mismatch"), false);

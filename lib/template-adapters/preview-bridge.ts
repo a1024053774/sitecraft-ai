@@ -732,6 +732,44 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
+  // Block-library pages (T-053) keep every variant of a block in a <template> and show one entity
+  // per block. Mount the variant the draft picked (or the look's default) before any slot is
+  // written, so each declared selector still hits one node. An entity that already shows the
+  // wanted variant is left alone: content is re-sent several times and must not rebuild the page.
+  function mountBlockVariants(draft, applied, extraMissing) {
+    var blocks = adapter && adapter.blocks;
+    if (!blocks || !Array.isArray(blocks.order) || !document || !document.querySelectorAll) return;
+    var chosen = draft && draft.blockVariants && typeof draft.blockVariants === "object" ? draft.blockVariants : {};
+    for (var i = 0; i < blocks.order.length; i++) {
+      var block = blocks.order[i];
+      var available = (blocks.variants && blocks.variants[block]) || [];
+      var requested = typeof chosen[block] === "string" ? chosen[block] : "";
+      var known = !requested || available.indexOf(requested) !== -1;
+      var wanted = requested && known ? requested : (blocks.defaults && blocks.defaults[block]);
+      var live = asList(document.querySelectorAll('[data-sc-block="' + block + '"]'));
+      var templates = asList(document.querySelectorAll('template[data-sc-template^="' + block + ':"]'));
+      if (!live.length && !templates.length) continue;
+      var showing = live.length === 1 && live[0].getAttribute && live[0].getAttribute("data-sc-variant") === wanted;
+      if (!showing) {
+        var source = null;
+        for (var t = 0; t < templates.length; t++) {
+          if (templates[t].getAttribute("data-sc-template") === block + ":" + wanted) source = templates[t];
+        }
+        if (!source || !source.content || !source.content.cloneNode) {
+          extraMissing.push("blockVariants." + block);
+          continue;
+        }
+        var anchor = live[0] || templates[0];
+        anchor.parentNode.insertBefore(source.content.cloneNode(true), anchor);
+        for (var l = 0; l < live.length; l++) {
+          if (live[l].parentNode) live[l].parentNode.removeChild(live[l]);
+        }
+      }
+      if (known) applied.add("blockVariants." + block);
+      else extraMissing.push("blockVariants." + block);
+    }
+  }
+
   function applyFamilyKit(draft, applied, extraMissing) {
     var kit = adapter && adapter.kit;
     if (!kit || !kit.familyId) return;
@@ -1096,6 +1134,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         document.documentElement.dataset.sitecraftPagePlacement = (activePage && activePage.placement) || "";
       }
     }
+    mountBlockVariants(draft, applied, extraMissing);
     if (adapter && draft) {
       applyDocumentTitle(draft);
       renderProductGrid(draft, currentLocale, applied, variant || "preview");

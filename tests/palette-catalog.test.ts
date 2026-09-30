@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   colorSetCatalog,
@@ -9,6 +8,7 @@ import {
   type PaletteId,
 } from "../lib/site-document.ts";
 import { templateAdapters } from "../lib/template-adapters/registry.ts";
+import { servedHomeHtml } from "./fixtures/look-pages.ts";
 
 const roles = ["background", "surface", "text", "muted", "border", "accent", "accentStrong", "accentSoft", "diagram", "tint", "font", "radius"] as const;
 const admittedFamilies = [
@@ -28,9 +28,9 @@ function contrast(left: string, right: string) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-// The token behind the white-text primary button, read from the overlay's own CSS rather than assumed.
+// The token behind the white-text primary button, read from the served page's own CSS rather than assumed.
 function buttonToken(templateId: string): "accent" | "accentStrong" {
-  const html = readFileSync(new URL(`../lib/template-adapters/overlays/${templateId}.index.html`, import.meta.url), "utf8");
+  const html = servedHomeHtml(templateId);
   const match = /\.sitecraft-primary\s*\{[^}]*background:\s*var\(--site-(accent-strong|accent)\)/.exec(html);
   assert.ok(match, `${templateId} primary button background not found`);
   return match[1] === "accent-strong" ? "accentStrong" : "accent";

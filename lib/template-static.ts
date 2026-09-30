@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { composedPageForTemplate } from "@/lib/blocks/compose";
 import { getTemplate } from "@/lib/site-model";
 
 const contentTypes: Record<string, string> = {
@@ -120,16 +121,11 @@ export function getTemplateStaticRoot(templateId: string) {
 }
 
 export const LANDWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/landwind.index.html";
-export const SCREWFAST_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/screwfast.index.html";
 export const FORGE_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/forge.index.html";
 export const TAILWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/tailwind-landing.index.html";
 
 function landwindHostOverlayFile() {
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), LANDWIND_HOST_OVERLAY_PATH);
-}
-
-function screwfastHostOverlayFile() {
-  return path.resolve(/* turbopackIgnore: true */ process.cwd(), SCREWFAST_HOST_OVERLAY_PATH);
 }
 
 function forgeHostOverlayFile() {
@@ -151,11 +147,13 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
   if (!target) return null;
   try {
     const isRootIndex = target === path.join(root, "index.html");
+    // Looks on the block library serve a page composed from lib/blocks (T-053).
+    const composed = isRootIndex ? composedPageForTemplate(templateId) : null;
+    if (composed !== null) {
+      return { body: Buffer.from(ensureLocalStylesheetCrossorigin(composed)), contentType: contentTypes[".html"] };
+    }
     if (isRootIndex && templateId === "landwind") {
       target = landwindHostOverlayFile();
-    }
-    if (isRootIndex && templateId === "screwfast") {
-      target = screwfastHostOverlayFile();
     }
     if (isRootIndex && templateId === "forge") {
       target = forgeHostOverlayFile();
