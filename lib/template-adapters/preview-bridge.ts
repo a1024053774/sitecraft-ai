@@ -866,6 +866,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function renderFooterProducts(draft, locale) {
     var list = uniqueNode("[data-sitecraft-footer-products]");
     if (!list || !document.createElement) return;
+    // Shown again if the page was first shown without a draft (hideGapsWithoutDraft hides it).
+    if (list.parentNode && list.parentNode.hidden) setEntryHidden(list.parentNode, false);
     list.textContent = "";
     var products = visibleProducts(draft, locale);
     for (var i = 0; i < products.length; i++) {
@@ -1349,6 +1351,27 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (!anyVisible) setSectionHidden(section, "products", true);
   }
 
+  // Without a draft (the template gallery thumbnail and the template preview page), a block-library
+  // page follows the gap rule of a draft that provides nothing (T-059): entries and contact lines with
+  // nothing to show are left out, and a block with nothing to show is hidden together with the links
+  // to it. Pages with a draft keep the rules above; the old overlays keep their page as it is.
+  function hideGapsWithoutDraft(locale, variant, applied) {
+    if (!document || !adapter || !adapter.blocks) return;
+    renderCatalogSections(null, locale, applied, variant);
+    hideEmptyProductSection(null, locale, variant);
+    var slots = adapter.slots || [];
+    for (var s = 0; s < slots.length; s++) {
+      var node = slots[s] && slots[s].selector ? uniqueNode(slots[s].selector) : null;
+      var line = node && node.closest ? node.closest("[data-sitecraft-line]") : null;
+      if (line) setEntryHidden(line, true);
+    }
+    // The footer products column holds links to the products; with none it would be a lone label.
+    var footerProducts = uniqueNode("[data-sitecraft-footer-products]");
+    if (footerProducts && footerProducts.parentNode) setEntryHidden(footerProducts.parentNode, true);
+    // Last: after hiding the empty entry blocks it also hides the links to every hidden block.
+    collapseUnprovidedEntries(null, locale, variant);
+  }
+
   function clearUnprovidedCatalogChrome(draft, variant) {
     if (variant !== "published" || !document) return;
     var keys = ["industries", "capabilities", "certifications"];
@@ -1466,6 +1489,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (variant === "published") {
         sanitizePublished();
       }
+    } else if (adapter) {
+      hideGapsWithoutDraft(currentLocale, variant || "preview", applied);
     }
     return report(applied, expected, adapter, extraMissing);
   }
