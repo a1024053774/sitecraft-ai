@@ -1,6 +1,8 @@
 import type { SlotApplyReport, TemplateAdapter } from "./types.ts";
+import { siteStyleCss } from "../blocks/site-style.ts";
 
 export const PREVIEW_BRIDGE_NONCE = "sitecraft-template-bridge";
+const SITE_STYLE_CSS_SOURCE = `(${siteStyleCss.toString()})`;
 
 /**
  * Browser/iframe runtime. Keep this body as plain JavaScript: it is stringified
@@ -11,6 +13,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
   var global = this || (typeof window !== "undefined" ? window : globalThis);
   var document = global.document;
   var parent = global.parent || global;
+  var siteStyleCss = ${SITE_STYLE_CSS_SOURCE};
 
   function asList(result) {
     return Array.prototype.slice.call(result || []);
@@ -1114,6 +1117,25 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
+  function applySiteStyle(draft, applied) {
+    var existing = document && document.querySelector ? document.querySelector("style[data-sc-site-style]") : null;
+    var blocks = adapter && adapter.blocks;
+    var rules = draft && draft.siteStyle && Array.isArray(draft.siteStyle.rules) ? draft.siteStyle.rules : [];
+    if (!blocks || !rules.length) {
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      return;
+    }
+    var node = existing;
+    if (!node && document && document.createElement && document.head) {
+      node = document.createElement("style");
+      node.setAttribute("data-sc-site-style", "true");
+      document.head.appendChild(node);
+    }
+    if (!node) return;
+    node.textContent = siteStyleCss(rules);
+    if (node.textContent) applied.add("siteStyle");
+  }
+
   function hideSectionByHeading(pattern) {
     var headings = asList(document.querySelectorAll("h1,h2,h3"));
     for (var i = 0; i < headings.length; i++) {
@@ -1485,6 +1507,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       })());
       applyDemoChrome(applied, extraMissing);
       applyFamilyKit(draft, applied, extraMissing);
+      applySiteStyle(draft, applied);
       applyActivePage(draft, activePage);
       if (variant === "published") {
         sanitizePublished();

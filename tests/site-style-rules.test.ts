@@ -34,6 +34,10 @@ test("forbidden properties and values are rejected with a useful reason", () => 
     ["fixed position", { position: "fixed" }],
     ["z-index", { "z-index": "999" }],
     ["display", { display: "none" }],
+    ["overflow", { overflow: "hidden" }],
+    ["transform", { transform: "scale(1)" }],
+    ["opacity", { opacity: "0" }],
+    ["visibility", { visibility: "hidden" }],
     ["min-width", { "min-width": "520px" }],
     ["negative margin", { "margin-top": "-1px" }],
     ["unknown function", { color: "paint(foo)" }],
@@ -62,6 +66,7 @@ test("property values stay inside their numeric and grammar bounds", () => {
   const rejected = [
     rule({ gap: "161px" }),
     rule({ "font-size": "10px" }),
+    rule({ "font-size": "clamp(10px, 4vw, 64px)" }),
     rule({ "border-radius": "13px" }),
     rule({ "grid-column": "2 / 3" }),
     rule({ "max-width": "100px" }),

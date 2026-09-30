@@ -202,11 +202,26 @@ function validateRule(rule: SiteStyleRule, index: number, errors: string[]) {
   }
 }
 
-function serializeUnchecked(rules: readonly SiteStyleRule[]) {
+export function siteStyleCss(rules: readonly SiteStyleRule[]) {
+  const mediaQueries: Record<string, string> = { desktop: "(min-width: 901px)", tablet: "(max-width: 900px)", phone: "(max-width: 480px)" };
+  const allowedProperties = new Set([
+    "padding", "padding-top", "padding-right", "padding-bottom", "padding-left", "padding-block", "padding-block-start", "padding-block-end", "padding-inline", "padding-inline-start", "padding-inline-end", "margin-top", "margin-bottom", "margin-block", "gap", "row-gap", "column-gap", "max-width", "min-height", "grid-template-columns", "grid-column", "align-items", "align-content", "align-self", "justify-items", "justify-content", "justify-self", "font-size", "font-weight", "line-height", "letter-spacing", "text-align", "text-wrap", "border", "border-top", "border-right", "border-bottom", "border-left", "border-width", "border-top-width", "border-right-width", "border-bottom-width", "border-left-width", "border-color", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color", "border-radius", "color", "background-color",
+  ]);
+  const tokens = new Set([
+    "--site-bg", "--site-surface", "--site-ink", "--site-muted", "--site-accent", "--site-accent-strong", "--site-accent-soft", "--site-line", "--site-diagram", "--site-tint", "--site-font", "--site-radius", "--site-input", "--site-focus", "--site-disabled", "--site-container", "--site-gutter", "--site-gutter-narrow", "--site-section-space", "--site-section-space-narrow", "--site-h1", "--site-h1-display", "--site-h2", "--site-rule", "--site-rule-strong",
+  ]);
+  const functions = new Set(["var", "calc", "clamp", "min", "max", "minmax", "repeat", "color-mix"]);
+  const safe = (value: unknown) => {
+    if (typeof value !== "string" || !/^[\x20-\x7e]+$/.test(value) || /["'\\@!;{}<>]|\/\*/.test(value)) return false;
+    for (const match of value.matchAll(/([a-z-]+)\s*\(/gi)) if (!functions.has(match[1].toLowerCase())) return false;
+    for (const match of value.matchAll(/var\(([^)]+)\)/g)) if (!tokens.has(match[1].trim()) || match[1].includes(",")) return false;
+    if (value.includes("color-mix(") && !/^color-mix\(\s*in srgb\s*,\s*var\(--site-[a-z0-9-]+\)(?:\s+\d+%)?\s*,\s*var\(--site-[a-z0-9-]+\)(?:\s+\d+%)?\s*\)$/.test(value.trim())) return false;
+    return true;
+  };
   const chunks: string[] = [];
   for (const rule of rules) {
     const selector = `[data-sc-block="${rule.block}"]${rule.part ? ` [data-sc-part="${rule.part}"]` : ""}`;
-    const declarations = Object.entries(rule.declarations).filter(([property, value]) => allowedProperties.has(property) && !checkPropertyValue(property, value)).map(([property, value]) => `${property}: ${value};`).join(" ");
+    const declarations = Object.entries(rule.declarations).filter(([property, value]) => allowedProperties.has(property) && safe(value)).map(([property, value]) => `${property}: ${value};`).join(" ");
     if (!declarations) continue;
     const body = `${selector} { ${declarations} }`;
     chunks.push(rule.media ? `@media ${mediaQueries[rule.media]} { ${body} }` : body);
@@ -214,8 +229,8 @@ function serializeUnchecked(rules: readonly SiteStyleRule[]) {
   return chunks.length ? `@layer site-style { ${chunks.join(" ")} }` : "";
 }
 
-export function siteStyleCss(rules: readonly SiteStyleRule[]) {
-  return serializeUnchecked(rules);
+function serializeUnchecked(rules: readonly SiteStyleRule[]) {
+  return siteStyleCss(rules);
 }
 
 export function validateSiteStyleRules(input: unknown): SiteStyleValidation {
@@ -232,4 +247,13 @@ export function validateSiteStyleRules(input: unknown): SiteStyleValidation {
   const bytes = new TextEncoder().encode(serializeUnchecked(parsed.data)).byteLength;
   if (bytes > SITE_STYLE_MAX_BYTES) errors.push(`站点样式序列化后不能超过 ${SITE_STYLE_MAX_BYTES} 字节`);
   return errors.length ? { ok: false, errors: errors.slice(0, 6) } : { ok: true, rules: parsed.data, declarationCount, bytes };
+}
+
+export function normalizeSiteStyle(input: unknown): SiteStyle | undefined {
+  const parsed = siteStyleSchema.safeParse(input);
+  if (!parsed.success) return undefined;
+  const rules = parsed.data.rules.filter((rule) => validateSiteStyleRules([rule]).ok);
+  if (!rules.length && !parsed.data.direction) return undefined;
+  const hasDirection = Object.hasOwn(parsed.data, "direction");
+  return { ...(hasDirection ? { direction: parsed.data.direction ?? null } : {}), rules };
 }

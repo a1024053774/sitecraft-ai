@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { blockCatalog, blockIds } from "./blocks/catalog.ts";
+import { normalizeSiteStyle, siteStyleSchema } from "./blocks/site-style.ts";
 import { customPaletteSchema } from "./custom-brand-color.ts";
 import {
   defaultPagePlanFor,
@@ -341,6 +342,7 @@ export const siteDraftSchema = z.object({
   sectionOrder: z.array(sectionKeySchema).length(sectionKeys.length),
   hiddenSections: z.array(visibilityKeySchema),
   blockVariants: blockVariantsSchema.default({}),
+  siteStyle: siteStyleSchema.optional(),
   pagePlan: pagePlanSchema,
   products: z.array(productSchema).max(1000),
   supportConfig: z.object({
@@ -497,8 +499,19 @@ function dropUnknownBlockVariants(input: unknown): unknown {
   return { ...(input as Record<string, unknown>), blockVariants: kept };
 }
 
+function dropInvalidSiteStyle(input: unknown): unknown {
+  if (!input || typeof input !== "object" || !Object.hasOwn(input, "siteStyle")) return input;
+  const siteStyle = normalizeSiteStyle((input as { siteStyle?: unknown }).siteStyle);
+  if (!siteStyle) {
+    const copy = { ...(input as Record<string, unknown>) };
+    delete copy.siteStyle;
+    return copy;
+  }
+  return { ...(input as Record<string, unknown>), siteStyle };
+}
+
 export function normalizeDraft(rawInput: unknown): SiteDraft {
-  const input = dropUnknownBlockVariants(renameRetiredPalette(rawInput));
+  const input = dropInvalidSiteStyle(dropUnknownBlockVariants(renameRetiredPalette(rawInput)));
   const parsed = siteDraftSchema.safeParse(input);
   if (parsed.success) {
     const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) }));

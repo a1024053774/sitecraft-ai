@@ -2,6 +2,7 @@ import { z } from "zod";
 import { blockCatalog, layoutBlocks, type BlockId, type BlockLook } from "./blocks/catalog.ts";
 import { blockLookForTemplate } from "./blocks/looks/index.ts";
 import { checkVariantRequirements } from "./blocks/requirements.ts";
+import { normalizeSiteStyle, siteStyleRuleSchema, validateSiteStyleRules } from "./blocks/site-style.ts";
 import { stripGapTalkBilingual } from "./visitor-prose.ts";
 import {
   cloneDraft,
@@ -150,6 +151,11 @@ const setBlockVariantOperationSchema = z.object({
   block: blockIdSchema,
   variant: z.string().min(1).max(40).nullable(),
 });
+const setSiteStyleOperationSchema = z.object({
+  op: z.literal("set_site_style"),
+  direction: z.string().min(1).max(40).nullable().optional(),
+  rules: z.array(siteStyleRuleSchema).max(40),
+});
 const setCustomPaletteOperationSchema = z.object({
   op: z.literal("set_custom_palette"),
   palette: customPaletteSchema.nullable(),
@@ -229,6 +235,7 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   setProductImageOperationSchema,
   removeProductImageOperationSchema,
   setBlockVariantOperationSchema,
+  setSiteStyleOperationSchema,
 ]);
 
 export const siteOperationSchema = z.discriminatedUnion("op", [
@@ -254,6 +261,7 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   setPaletteOperationSchema,
   setCustomPaletteOperationSchema,
   setBlockVariantOperationSchema,
+  setSiteStyleOperationSchema,
 ]);
 export type SiteOperation = z.infer<typeof siteOperationSchema>;
 export type AIOperation = z.infer<typeof aiOperationSchema>;
@@ -512,6 +520,23 @@ export function applySiteOperations(
   const layoutRequests = new Map<BlockId, string>();
 
   for (const operation of operations) {
+    if (operation.op === "set_site_style") {
+      const next = normalizeSiteStyle({ direction: operation.direction ?? null, rules: operation.rules });
+      if (!next) {
+        if (draft.siteStyle !== undefined) {
+          inverseOperations.unshift({ op: "set_site_style", direction: draft.siteStyle.direction ?? null, rules: draft.siteStyle.rules });
+          draft.siteStyle = undefined;
+          appliedTargets.push("siteStyle");
+        }
+        continue;
+      }
+      const previous = draft.siteStyle;
+      if (same(previous, next)) continue;
+      draft.siteStyle = next;
+      inverseOperations.unshift({ op: "set_site_style", direction: previous?.direction ?? null, rules: previous?.rules ?? [] });
+      appliedTargets.push("siteStyle");
+      continue;
+    }
     if (operation.op === "set_block_variant") {
       const spec = blockCatalog[operation.block];
       if (operation.variant !== null && !Object.hasOwn(spec.variants, operation.variant)) throw new Error(`${spec.label}没有这种布局。`);
@@ -1036,6 +1061,15 @@ export function validateAIOperations(
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
   for (const rawOperation of operations) {
     const operation = cleanVisitorProse(rawOperation);
+    if (operation.op === "set_site_style") {
+      const checked = validateSiteStyleRules(operation.rules);
+      if (!checked.ok) {
+        rejected.push(...checked.errors.slice(0, 2).map((error) => `站点样式没有应用：${error}`));
+        continue;
+      }
+      accepted.push({ ...operation, rules: checked.rules });
+      continue;
+    }
     if (operation.op === "set_page_plan" && operation.unsupported?.length) {
       // The model explains unsupported pages in its own words; reasons that talk about templates,
       // snapshots or HTML are replaced so the workspace only shows plain language.
