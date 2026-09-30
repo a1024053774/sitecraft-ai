@@ -14,6 +14,8 @@ supersedes:
 
 执行：Codex。代码审查：Kiro 或 Grok（不是做这张票的 agent）。
 
+另外：这个样子旧 overlay 的产品卡参数值过长时会溢出到隔壁格（注塑资料在 1440 下被 T-053 新加的 `check-published` 文字溢出检查判失败），迁移时按 T-053 的做法处理：值可以换行，只在 / + – 、 之后断开。
+
 ## Acceptance
 
 - [ ] 三份模拟资料用这个样子生成，`check-published` 通过，1440 / 768 / 375 截图打开看过
