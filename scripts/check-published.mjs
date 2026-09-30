@@ -132,6 +132,14 @@ async function attachPreviewFrame(browser) {
   return sessionId;
 }
 
+// Finds text a visitor cannot read in full; kept in its own file so a probe runs the same code.
+const TEXT_FIT_SCAN = fs.readFileSync(new URL("./visitor-text-fit-scan.js", import.meta.url), "utf8").trim();
+const TEXT_FIT_FAILURES = [
+  ["overflow", "text runs out of its cell or card"],
+  ["ellipsis", "text is cut off with an ellipsis or a line clamp"],
+  ["clipped", "text is clipped by its container"],
+];
+
 // Runs inside the preview document and reports what a visitor would see.
 const INSPECT = `(async () => {
   const visible = (el) => {
@@ -261,12 +269,15 @@ const INSPECT = `(async () => {
       if (box.width > 2 && (box.right > bounds.right + 1 || box.left < bounds.left - 1)) cardOverflow.push(el.tagName.toLowerCase());
     }
   }
+  // Text a visitor cannot read in full: past its cell or card, behind an ellipsis, or clipped.
+  const textFit = (${TEXT_FIT_SCAN})(document.body);
   return {
     editorCursor: editableSlot ? getComputedStyle(editableSlot).cursor : "",
     editorHoverOutline: previewCss.includes("[data-sitecraft-slot]:hover{") && previewCss.includes("outline:"),
     horizontalScroll: document.documentElement.scrollWidth > innerWidth + 1,
     cardOverflow: cardOverflow.length,
     cardOverflowSample: cardOverflow.slice(0, 6),
+    textFit: textFit.slice(0, 40),
     heroOrphan,
     brandClipped,
     headerOverflow,
@@ -293,6 +304,10 @@ function judge(report, expectedText) {
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
   if (report.horizontalScroll) failures.push("visitor page scrolls horizontally");
   if (report.cardOverflow) failures.push(`card content overflows its card (${report.cardOverflow}: ${(report.cardOverflowSample || []).join(", ")})`);
+  for (const [kind, message] of TEXT_FIT_FAILURES) {
+    const items = (report.textFit || []).filter((item) => item.kind === kind);
+    if (items.length) failures.push(`${message} (${items.length}: ${items.slice(0, 6).map((item) => `${item.element} "${item.text}"`).join(", ")})`);
+  }
   if (report.heroOrphan) failures.push("hero title last line is a single character");
   if (report.brandClipped) failures.push("header company name is truncated");
   if (report.headerOverflow) failures.push("header overflows the viewport");

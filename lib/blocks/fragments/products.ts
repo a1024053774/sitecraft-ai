@@ -26,7 +26,7 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-key { padding: 14px 12px 14px 0; }
 .sitecraft-product-key + .sitecraft-product-key { padding-left: 14px; border-left: var(--site-rule); }
 .sitecraft-product-key dt { font-size: 12px; color: var(--site-muted); }
-.sitecraft-product-key dd { margin: 4px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sitecraft-product-key dd { margin: 4px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-wrap: balance; }
 .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { font-size: 22px; }
 .sitecraft-product-summary { margin: 0; color: var(--site-muted); line-height: 1.6; }
 .sitecraft-product-more summary { cursor: pointer; list-style: none; font-size: 14px; font-weight: 600; color: var(--site-accent-strong); }
@@ -90,6 +90,10 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-key, .sitecraft-product-key + .sitecraft-product-key { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-left: 0; }
 .sitecraft-product-key + .sitecraft-product-key { border-top: var(--site-rule); }
 .sitecraft-product-key dd, .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { margin: 0; font-size: 16px; }
+/* Default cards on phones: the value keeps its line and the label wraps, unless the value needs
+   more than most of the row. */
+.sitecraft-product-grid .sitecraft-product-key dt { min-width: 0; overflow-wrap: anywhere; }
+.sitecraft-product-grid .sitecraft-product-key dd { flex: 0 0 auto; max-width: 70%; text-align: right; }
 .sitecraft-product-groups .sitecraft-product-body { padding: 20px; }
 .sitecraft-product-groups .sitecraft-product-key dd, .sitecraft-product-groups .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { font-size: 16px; }
 .sitecraft-compare-series-card { padding: 18px 18px 16px; }

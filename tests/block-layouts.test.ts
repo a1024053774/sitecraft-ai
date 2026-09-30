@@ -4,7 +4,7 @@ import { blockCatalog, blockIds } from "../lib/blocks/catalog.ts";
 import { composedPageForTemplate } from "../lib/blocks/compose.ts";
 import { baseFragment, blockFragments } from "../lib/blocks/fragments/index.ts";
 import { engineeringLook } from "../lib/blocks/looks/index.ts";
-import { checkVariantRequirements } from "../lib/blocks/requirements.ts";
+import { checkVariantRequirements, sharedSpecNames } from "../lib/blocks/requirements.ts";
 import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { cssRules } from "./fixtures/css-rules.ts";
@@ -178,6 +178,21 @@ test("参数对比表 leaves a spec out of the table when one product has no val
   assert.doesNotMatch(text(products), GAP_TEXT);
 });
 
+test("参数对比表 needs 2–4 products sharing at least 3 specs with values", () => {
+  assert.deepEqual(blockCatalog.products.variants.compare.requires, [{ kind: "sharedSpecs", minProducts: 2, maxProducts: 4, minShared: 3 }]);
+  // The P3I materials with the mounting of one series still to be provided: three shared specs.
+  const three = packDraft("industrial");
+  three.products[1].specs![4] = { name: { zh: "安装方式", en: "Mounting" }, value: "待补充" };
+  assert.deepEqual(sharedSpecNames(three), ["速比范围", "额定输出扭矩", "输入转速"]);
+  assert.equal(checkVariantRequirements(three, "products", "compare").ok, true);
+  const two = structuredClone(three);
+  two.products[0].specs![3] = { name: { zh: "输入转速", en: "Input speed" }, value: "待补充" };
+  const result = checkVariantRequirements(two, "products", "compare");
+  assert.equal(result.ok, false);
+  assert.match(result.failures[0].message, /至少 3 项/);
+  assert.match(result.failures[0].message, /只共有 2 项（速比范围、额定输出扭矩）/);
+});
+
 test("联系条: one cell per contact line that has a value, the address included, the form below", () => {
   const molding = render(withLayouts(packDraft("molding"), { contact: "band" }));
   const contact = entity(molding.document, "contact");
@@ -227,6 +242,8 @@ test("the new layouts speak English on the English page", () => {
 });
 
 test("renderer and requirement agree on the three packs", () => {
+  const compareRequirement = blockCatalog.products.variants.compare.requires?.[0];
+  assert.ok(compareRequirement && compareRequirement.kind === "sharedSpecs");
   for (const pack of ["industrial", "export", "molding"] as const) {
     const draft = packDraft(pack);
     const hero = entity(render(withLayouts(draft, { hero: "statement" })).document, "hero");
@@ -238,7 +255,7 @@ test("renderer and requirement agree on the three packs", () => {
     const compare = entity(render(withLayouts(draft, { products: "compare" })).document, "products");
     const rows = compare.querySelectorAll("tbody tr").length;
     const columns = compare.querySelectorAll(".sitecraft-compare-series-card").length;
-    assert.equal(checkVariantRequirements(draft, "products", "compare").ok, rows >= 4 && columns >= 2 && columns <= 4, `${pack} compare ${rows}x${columns}`);
+    assert.equal(checkVariantRequirements(draft, "products", "compare").ok, rows >= compareRequirement.minShared && columns >= compareRequirement.minProducts && columns <= compareRequirement.maxProducts, `${pack} compare ${rows}x${columns}`);
     const band = entity(render(withLayouts(draft, { contact: "band" })).document, "contact");
     const lines = band.querySelectorAll(".sitecraft-band-line").filter((line) => !line.hidden).length;
     assert.equal(checkVariantRequirements(draft, "contact", "band").ok, lines >= 2, `${pack} band ${lines}`);

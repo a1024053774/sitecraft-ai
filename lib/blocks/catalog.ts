@@ -153,7 +153,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-product-grid]"],
         parts: ["head", "grid"],
         render: { products: "compare", askHref: "#inquiry" },
-        requires: [{ kind: "sharedSpecs", minProducts: 2, maxProducts: 4, minShared: 4 }],
+        requires: [{ kind: "sharedSpecs", minProducts: 2, maxProducts: 4, minShared: 3 }],
       },
     },
   },

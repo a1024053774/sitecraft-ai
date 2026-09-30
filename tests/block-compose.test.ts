@@ -99,6 +99,34 @@ function withTokenValues(rule: CssRule, tokens: Readonly<Record<string, string>>
 
 const ruleKey = (rule: CssRule) => `${rule.context} ${rule.selector} { ${rule.declarations.join("; ")} }`;
 
+// Rules of the old page the block library changes on purpose, or adds for the default layouts
+// (`from: null`), matched by media context and selector.
+const INTENDED_CHANGES: Array<{ why: string; context: string; selector: string; from: string[] | null; to: string[] }> = [
+  {
+    why: "default product cards: key spec values wrap instead of running into the next cell",
+    context: "",
+    selector: ".sitecraft-product-key dd",
+    from: ["margin: 4px 0 0", "font-size: 18px", "font-weight: 700", "font-variant-numeric: tabular-nums", "white-space: nowrap"],
+    to: ["margin: 4px 0 0", "font-size: 18px", "font-weight: 700", "font-variant-numeric: tabular-nums", "overflow-wrap: anywhere", "text-wrap: balance"],
+  },
+  {
+    why: "default cards on phones: the label may break so the value keeps its line",
+    context: "@media (max-width: 480px)",
+    selector: ".sitecraft-product-grid .sitecraft-product-key dt",
+    from: null,
+    to: ["min-width: 0", "overflow-wrap: anywhere"],
+  },
+  {
+    why: "default cards on phones: the value keeps its line up to 70% of the row, then wraps",
+    context: "@media (max-width: 480px)",
+    selector: ".sitecraft-product-grid .sitecraft-product-key dd",
+    from: null,
+    to: ["flex: 0 0 auto", "max-width: 70%", "text-align: right"],
+  },
+];
+const changeKey = (change: (typeof INTENDED_CHANGES)[number], side: "from" | "to") =>
+  ruleKey({ context: change.context, selector: change.selector, declarations: change[side] ?? [] });
+
 test("the composed CSS keeps every rule of the old overlay; spacing, headings and dividers read look tokens", async () => {
   const oldRules = cssRules(styleText(OLD_OVERLAY)).filter((rule) => rule.selector !== ":root" && rule.selector !== ".sitecraft-benchmark-legacy");
   const newRules = cssRules(styleText(await servedEngineeringPage()))
@@ -106,11 +134,20 @@ test("the composed CSS keeps every rule of the old overlay; spacing, headings an
     .map((rule) => withTokenValues(rule, engineeringLook.tokens));
   const newKeys = new Set(newRules.map(ruleKey));
   const oldKeys = new Set(oldRules.map(ruleKey));
-  assert.deepEqual(oldRules.map(ruleKey).filter((key) => !newKeys.has(key)), [], "every rule of the old page is kept");
+  const replaced = new Set(INTENDED_CHANGES.filter((change) => change.from).map((change) => changeKey(change, "from")));
+  const replacements = new Set(INTENDED_CHANGES.map((change) => changeKey(change, "to")));
+  for (const change of INTENDED_CHANGES) {
+    if (change.from) {
+      assert.ok(oldKeys.has(changeKey(change, "from")), `the old page has the rule being changed (${change.why})`);
+      assert.equal(newKeys.has(changeKey(change, "from")), false, `the old version is gone (${change.why})`);
+    }
+    assert.ok(newKeys.has(changeKey(change, "to")), `the new page has the changed rule (${change.why})`);
+  }
+  assert.deepEqual(oldRules.map(ruleKey).filter((key) => !newKeys.has(key) && !replaced.has(key)), [], "every other rule of the old page is kept");
   // Rules the old page did not have belong to the layouts it did not have; each selector names a
   // class only those layouts use, so the default layouts render as before.
   const layoutClasses = ["sitecraft-statement", "sitecraft-compare", "sitecraft-product-group", "sitecraft-band"];
-  for (const rule of newRules.filter((item) => !oldKeys.has(ruleKey(item)))) {
+  for (const rule of newRules.filter((item) => !oldKeys.has(ruleKey(item)) && !replacements.has(ruleKey(item)))) {
     for (const part of rule.selector.split(",")) {
       assert.ok(layoutClasses.some((name) => part.includes(`.${name}`)), `${rule.context} ${part.trim()} is new and not scoped to a new layout`);
     }
