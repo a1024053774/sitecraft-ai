@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { layoutBlocks } from "../lib/blocks/catalog.ts";
+import { blockCatalog, layoutBlocks } from "../lib/blocks/catalog.ts";
 import { composedPageForTemplate } from "../lib/blocks/compose.ts";
 import { engineeringLook } from "../lib/blocks/looks/index.ts";
 import { visualBriefCatalog, type SiteDraft } from "../lib/site-document.ts";
@@ -83,8 +83,9 @@ test("the engineering page renders a pack draft with one entity per block and ev
     assert.equal(entities[0].getAttribute("data-sc-variant"), engineeringLook.defaults[block]);
     assert.ok(report.appliedSlots.includes(`blockVariants.${block}`), `${block} mount is reported`);
   }
+  const mounted = new Set(layoutBlocks(engineeringLook).flatMap((block) => blockCatalog[block].variants[engineeringLook.defaults[block]].slots.map((slot) => slot.selector)));
   for (const slot of adapter.slots) {
-    assert.equal(document.querySelectorAll(slot.selector).length, 1, `${slot.target} ${slot.selector}`);
+    assert.equal(document.querySelectorAll(slot.selector).length, mounted.has(slot.selector) ? 1 : 0, `${slot.target} ${slot.selector}`);
   }
   assert.equal(document.querySelector('[data-sitecraft-brand="nav"]')?.textContent, simulatedPacks.industrial.companyName);
   assert.equal(document.querySelector('[data-sitecraft-brand="footer"]')?.textContent, simulatedPacks.industrial.companyName);

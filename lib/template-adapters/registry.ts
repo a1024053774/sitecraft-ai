@@ -279,7 +279,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
           background: "#f6f4f4", surface: "#fdfcfc", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
         },
       },
-      productCard: { keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
+      // Product cards are configured per layout in the block catalog (render parameters).
     },
   }),
   fresh: {

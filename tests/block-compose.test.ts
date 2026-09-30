@@ -104,7 +104,17 @@ test("the composed CSS keeps every rule of the old overlay; spacing, headings an
   const newRules = cssRules(styleText(await servedEngineeringPage()))
     .filter((rule) => rule.selector !== ":root")
     .map((rule) => withTokenValues(rule, engineeringLook.tokens));
-  assert.deepEqual(newRules.map(ruleKey).sort(), oldRules.map(ruleKey).sort());
+  const newKeys = new Set(newRules.map(ruleKey));
+  const oldKeys = new Set(oldRules.map(ruleKey));
+  assert.deepEqual(oldRules.map(ruleKey).filter((key) => !newKeys.has(key)), [], "every rule of the old page is kept");
+  // Rules the old page did not have belong to the layouts it did not have; each selector names a
+  // class only those layouts use, so the default layouts render as before.
+  const layoutClasses = ["sitecraft-statement", "sitecraft-compare", "sitecraft-product-group", "sitecraft-band"];
+  for (const rule of newRules.filter((item) => !oldKeys.has(ruleKey(item)))) {
+    for (const part of rule.selector.split(",")) {
+      assert.ok(layoutClasses.some((name) => part.includes(`.${name}`)), `${rule.context} ${part.trim()} is new and not scoped to a new layout`);
+    }
+  }
   const usesTokens = cssRules(styleText(await servedEngineeringPage())).some((rule) => rule.declarations.some((item) => item.includes("var(--site-rule)")));
   assert.ok(usesTokens, "dividers must read the look's rule token");
 });
@@ -140,8 +150,10 @@ test("the screwfast adapter is built from the catalog and declares no demo chrom
   assert.equal(adapter.sanitize, undefined);
   assert.equal(adapter.kit?.modules.some((module) => module.kind === "demo"), false);
   const document = parseHtmlDocument(await servedEngineeringPage());
+  // Slots of layouts that are not mounted have no node; the mounted defaults' slots hit one each.
+  const mounted = new Set(layoutBlocks(engineeringLook).flatMap((block) => blockCatalog[block].variants[engineeringLook.defaults[block]].slots.map((slot) => slot.selector)));
   for (const slot of adapter.slots) {
-    assert.equal(document.querySelectorAll(slot.selector).length, 1, `${slot.target} ${slot.selector} must hit one node on the served page`);
+    assert.equal(document.querySelectorAll(slot.selector).length, mounted.has(slot.selector) ? 1 : 0, `${slot.target} ${slot.selector} on the served page`);
   }
   for (const section of adapter.sections ?? []) {
     assert.equal(document.querySelectorAll(section.selector).length, 1, `section ${section.key}`);

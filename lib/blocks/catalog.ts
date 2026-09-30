@@ -1,12 +1,14 @@
-import type { TemplateSlot } from "../template-adapters/types.ts";
+import type { TemplateBlockRender, TemplateSlot } from "../template-adapters/types.ts";
 import type { VisibilityKey } from "../site-document.ts";
 
 /**
  * SiteCraft block library (T-048, T-053): the data half. Each block lists its variants; each
  * variant says which slots it declares (the adapter's `selector -> target` form), which fixed
- * nodes the preview bridge renders into (`markers`) and which parts carry `data-sc-part`. The
- * HTML and CSS live in `fragments/` and are only read on the server. No functions here: the
- * catalog is reviewable data and ships to the client through the adapter registry.
+ * nodes the preview bridge renders into (`markers`), which parts carry `data-sc-part`, how the
+ * bridge fills it (`render`) and what the materials must hold before it can be chosen
+ * (`requires`, checked by requirements.ts). The HTML and CSS live in `fragments/` and are only
+ * read on the server. No functions here: the catalog is reviewable data and ships to the client
+ * through the adapter registry.
  */
 export const blockIds = [
   "nav",
@@ -30,7 +32,24 @@ export type BlockVariantSpec = {
   markers: string[];
   /** `data-sc-part` names in this variant, each used once (for site styles, T-054). */
   parts: string[];
+  render?: TemplateBlockRender;
+  /** What the materials must hold before this variant can be picked; defaults need nothing. */
+  requires?: BlockRequirement[];
 };
+
+/**
+ * Minimum materials for a variant, as data. Counted on the draft the way the bridge renders it:
+ * gaps (待补充 / To be provided) never count.
+ */
+export type BlockRequirement =
+  /** Hero spec strip: at least `min` product specs with a value (the strip shows up to 4). */
+  | { kind: "heroFacts"; min: number }
+  /** Grouping: at least `minGroups` named product categories, the largest with `minLargest` products. */
+  | { kind: "productGroups"; minGroups: number; minLargest: number }
+  /** Comparison: `minProducts`–`maxProducts` products sharing `minShared` specs that all have values. */
+  | { kind: "sharedSpecs"; minProducts: number; maxProducts: number; minShared: number }
+  /** Contact band: at least `min` of email, phone and address. */
+  | { kind: "contactLines"; min: number };
 
 export type BlockSpec = {
   label: string;
@@ -89,6 +108,20 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ["[data-sitecraft-hero-visual]", "[data-sitecraft-hero-credit]", "[data-sitecraft-hero-nameplate]", "[data-sitecraft-hero-specs]"],
         parts: ["band", "copy", "actions", "visual", "specs"],
+        render: { heroSpecs: "with-photo" },
+      },
+      statement: {
+        label: "大标题加参数条",
+        slots: [
+          benchmark("hero.title", "hero-title"),
+          benchmark("hero.subtitle", "hero-subtitle"),
+          benchmark("hero.cta", "hero-cta"),
+          text("industry", '[data-sitecraft-optional="industry"]'),
+        ],
+        markers: ["[data-sitecraft-hero-specs]"],
+        parts: ["band", "copy", "actions", "specs"],
+        render: { heroSpecs: "always" },
+        requires: [{ kind: "heroFacts", min: 3 }],
       },
     },
   },
@@ -104,6 +137,23 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         slots: [benchmark("products.title", "products-title"), benchmark("products.intro", "products-intro")],
         markers: ["[data-sitecraft-product-grid]"],
         parts: ["head", "grid"],
+        render: { products: "cards", keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
+      },
+      grouped: {
+        label: "按类别分组",
+        slots: [benchmark("products.title", "products-title"), benchmark("products.intro", "products-intro")],
+        markers: ["[data-sitecraft-product-grid]"],
+        parts: ["head", "grid"],
+        render: { products: "grouped", keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
+        requires: [{ kind: "productGroups", minGroups: 2, minLargest: 2 }],
+      },
+      compare: {
+        label: "参数对比表",
+        slots: [benchmark("products.title", "products-title"), benchmark("products.intro", "products-intro")],
+        markers: ["[data-sitecraft-product-grid]"],
+        parts: ["head", "grid"],
+        render: { products: "compare", askHref: "#inquiry" },
+        requires: [{ kind: "sharedSpecs", minProducts: 2, maxProducts: 4, minShared: 4 }],
       },
     },
   },
@@ -199,6 +249,19 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ['[data-sitecraft-inquiry="true"]'],
         parts: ["copy", "lines", "form"],
+      },
+      band: {
+        label: "联系条",
+        slots: [
+          benchmark("contact.title", "contact-title"),
+          benchmark("contact.body", "contact-body"),
+          text("contact.email", '[data-sitecraft-contact="email"]'),
+          text("contact.phone", '[data-sitecraft-contact="phone"]'),
+          text("contact.address", '[data-sitecraft-contact="address"]'),
+        ],
+        markers: ['[data-sitecraft-inquiry="true"]'],
+        parts: ["copy", "lines", "form"],
+        requires: [{ kind: "contactLines", min: 2 }],
       },
     },
   },

@@ -100,6 +100,20 @@ export type TemplateBlocks = {
   order: string[];
   defaults: Record<string, string>;
   variants: Record<string, string[]>;
+  /** How the bridge fills a mounted variant, from the block catalog: block -> variant -> params. */
+  render?: Record<string, Record<string, TemplateBlockRender>>;
+};
+
+/** Render parameters of one block variant. Blocks read only the fields that concern them. */
+export type TemplateBlockRender = {
+  /** Product block: cards, cards grouped by category, or a comparison table. */
+  products?: "cards" | "grouped" | "compare";
+  /** Product cards: specs on the card, whether the full list folds away, the inquiry link. */
+  keySpecs?: number;
+  collapseSpecs?: boolean;
+  askHref?: string;
+  /** Hero block: the key-spec strip shows under a product photo only, or whenever there are specs. */
+  heroSpecs?: "with-photo" | "always";
 };
 
 /**

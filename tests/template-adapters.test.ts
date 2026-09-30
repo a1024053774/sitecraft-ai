@@ -181,9 +181,16 @@ test("family overlays declare every content slot attribute exactly once", () => 
       const declared = adapter.slots.filter((slot) => slot.selector === selector);
       assert.equal(declared.length, 1, `${id} ${selector} must have exactly one adapter declaration`);
     }
-    for (const slot of adapter.slots.filter((item) => item.selector.startsWith("[data-sitecraft-"))) {
+    // A block-library page shows the default layouts; slots only other layouts have (the contact
+    // band's address) sit in their <template> and are checked per layout in block-catalog.test.ts.
+    const mountedOnly = (selector: string) => !adapter.blocks || selectors.has(selector);
+    for (const slot of adapter.slots.filter((item) => item.selector.startsWith("[data-sitecraft-") && mountedOnly(item.selector))) {
       const attr = slot.selector.slice(1, -1);
       assert.equal((html.match(new RegExp(attr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length, 1, `${id} declared ${slot.target} (${slot.selector}) must hit exactly one node`);
+    }
+    if (adapter.blocks) {
+      const unmounted = adapter.slots.filter((slot) => !mountedOnly(slot.selector)).map((slot) => slot.target);
+      assert.deepEqual(unmounted, ["contact.address"], `${id}: only the contact band's address is off the default page`);
     }
     assert.equal(adapter.slots.some((slot) => slot.target === "primaryAction"), false, `${id} must not bind catalog primaryAction`);
     assert.equal(html.includes('data-sitecraft-optional="action"'), false, `${id} must not keep optional action chrome`);

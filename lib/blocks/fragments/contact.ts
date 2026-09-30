@@ -23,10 +23,31 @@ export const contactFragment: BlockFragment = {
 [data-sitecraft-inquiry-state="sending"] [type="submit"] { opacity: 0.6; cursor: progress; }
 /* When every contact line is a gap, drop the empty list. */
 .sitecraft-inquiry-lines:not(:has(> li:not([hidden]))) { display: none; }
+/* 联系条: heading and note on one line, the contact details in a dark strip (only the ones that have
+   a value), the form across the full width below. */
+.sitecraft-band { display: grid; gap: 30px; }
+.sitecraft-band-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px 56px; align-items: end; }
+.sitecraft-band-head > p { margin: 0; max-width: 40em; color: var(--site-muted); line-height: 1.6; }
+.sitecraft-band-lines { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1px; background: rgba(255, 255, 255, 0.16); border-top: 3px solid var(--site-accent); }
+.sitecraft-band-line { min-width: 0; padding: 20px 24px 22px; background: var(--site-ink); color: #fff; }
+.sitecraft-band-line dt { font-size: 12px; color: rgba(255, 255, 255, 0.66); }
+.sitecraft-band-line dd { margin: 6px 0 0; font-size: 19px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.sitecraft-band-lines:not(:has(> .sitecraft-band-line:not([hidden]))) { display: none; }
+.sitecraft-band-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sitecraft-band-form label[data-sitecraft-inquiry-label="email"] { grid-column: auto; }
+`,
+  narrow: `
+.sitecraft-band-head { grid-template-columns: 1fr; }
+.sitecraft-band-form { grid-template-columns: 1fr 1fr; }
+.sitecraft-band-form label[data-sitecraft-inquiry-label="email"] { grid-column: 1 / -1; }
 `,
   phone: `
 .sitecraft-inquiry-wrap { grid-template-columns: 1fr; gap: 36px; }
 .sitecraft-inquiry-form { grid-template-columns: 1fr; padding: 20px; }
+.sitecraft-band { gap: 24px; }
+.sitecraft-band-line { padding: 16px 18px 18px; }
+.sitecraft-band-line dd { font-size: 17px; }
+.sitecraft-band-form { grid-template-columns: 1fr; }
 `,
   variants: {
     split: `<section id="inquiry" class="sitecraft-section sitecraft-inquiry" data-sitecraft-section="contact" data-sc-block="contact" data-sc-variant="split">
@@ -40,6 +61,27 @@ export const contactFragment: BlockFragment = {
               </ul>
             </div>
             <form class="sitecraft-inquiry-form" data-sitecraft-inquiry="true" action="#" method="post" data-sc-part="form">
+              <label data-sitecraft-inquiry-label="name">姓名<input name="name" type="text" required maxlength="80" autocomplete="name"></label>
+              <label data-sitecraft-inquiry-label="company">公司<input name="company" type="text" maxlength="120" autocomplete="organization"></label>
+              <label data-sitecraft-inquiry-label="email">邮箱<input name="email" type="email" required maxlength="160" autocomplete="email"></label>
+              <label data-sitecraft-inquiry-label="message">需求<textarea name="message" required maxlength="4000" rows="5"></textarea></label>
+              <input class="honeypot" name="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-10000px;height:0;width:0;overflow:hidden">
+              <button class="sitecraft-btn sitecraft-primary" type="submit" data-sitecraft-ui="submit">发送询盘</button>
+            </form>
+          </div>
+        </section>`,
+    band: `<section id="inquiry" class="sitecraft-section sitecraft-inquiry" data-sitecraft-section="contact" data-sc-block="contact" data-sc-variant="band">
+          <div class="sitecraft-container sitecraft-band">
+            <div class="sitecraft-band-head" data-sc-part="copy">
+              <h2 data-sitecraft-benchmark="contact-title">询盘</h2>
+              <p data-sitecraft-benchmark="contact-body" hidden></p>
+            </div>
+            <dl class="sitecraft-band-lines" data-sc-part="lines">
+              <div class="sitecraft-band-line" data-sitecraft-line><dt data-sitecraft-ui="emailPrefix">邮箱</dt><dd data-sitecraft-contact="email"></dd></div>
+              <div class="sitecraft-band-line" data-sitecraft-line><dt data-sitecraft-ui="phonePrefix">电话</dt><dd data-sitecraft-contact="phone"></dd></div>
+              <div class="sitecraft-band-line" data-sitecraft-line><dt data-sitecraft-ui="addressPrefix">地址</dt><dd data-sitecraft-contact="address"></dd></div>
+            </dl>
+            <form class="sitecraft-inquiry-form sitecraft-band-form" data-sitecraft-inquiry="true" action="#" method="post" data-sc-part="form">
               <label data-sitecraft-inquiry-label="name">姓名<input name="name" type="text" required maxlength="80" autocomplete="name"></label>
               <label data-sitecraft-inquiry-label="company">公司<input name="company" type="text" maxlength="120" autocomplete="organization"></label>
               <label data-sitecraft-inquiry-label="email">邮箱<input name="email" type="email" required maxlength="160" autocomplete="email"></label>

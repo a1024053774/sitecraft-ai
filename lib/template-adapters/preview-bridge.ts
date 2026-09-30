@@ -144,6 +144,16 @@ function sitecraftPreviewBridge(templateId, adapter) {
       return;
     }
     var cardSpec = adapter && adapter.kit && adapter.kit.productCard;
+    var layout = blockRender("products");
+    if (layout && layout.products === "compare") {
+      renderCompare(grid, visible, locale, applied, layout);
+      return;
+    }
+    if (layout && layout.products === "grouped") {
+      renderGrouped(grid, visible, locale, applied, layout);
+      return;
+    }
+    if (layout && layout.products === "cards") cardSpec = layout;
     if (cardSpec) {
       for (var c = 0; c < visible.length; c++) renderCatalogCard(grid, visible[c], c, locale, applied, cardSpec);
       return;
@@ -250,6 +260,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   // Catalog-book card: photo (only a real one), series, name, the key specs, a short line, the
   // full spec list folded away, then credit and a per-series inquiry link on their own lines.
+  // cardSpec options for the grouped layout: showCategory false (the group already names it),
+  // titleTag "h4" (the group title is the h3), hideGapSpecs (spec rows without a value are left out).
   function renderCatalogCard(grid, product, index, locale, applied, cardSpec) {
     var sku = typeof product.sku === "string" ? product.sku : "product-" + index;
     var productName = localize(product.name, locale) || "";
@@ -276,7 +288,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var body = document.createElement("div");
     body.className = "sitecraft-product-body";
     var productCategory = localize(product.category, locale) || "";
-    if (productCategory && productCategory !== productName) {
+    if (cardSpec.showCategory !== false && productCategory && productCategory !== productName) {
       var category = document.createElement("p");
       category.className = "sitecraft-product-category";
       category.textContent = productCategory;
@@ -284,12 +296,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
       body.appendChild(category);
       applied.add("products." + sku + ".category");
     }
-    var title = document.createElement("h3");
+    var title = document.createElement(cardSpec.titleTag || "h3");
     title.textContent = productName;
     title.setAttribute("data-sitecraft-slot", "products." + sku + ".name." + locale);
     body.appendChild(title);
     applied.add("products." + sku + ".name." + locale);
     var specs = visibleSpecs(product, locale);
+    if (cardSpec.hideGapSpecs) specs = specs.filter(function (spec) { return !isGapMarker(spec.name) && !isGapMarker(spec.value); });
     var keys = specs.filter(function (spec) { return !isGapMarker(spec.value); }).slice(0, cardSpec.keySpecs || 3);
     if (keys.length) {
       var dl = document.createElement("dl");
@@ -354,6 +367,205 @@ function sitecraftPreviewBridge(templateId, adapter) {
     body.appendChild(foot);
     card.appendChild(body);
     grid.appendChild(card);
+  }
+
+  // Render parameters of the variant a block shows (from the block catalog). Without an entity on
+  // the page (hand-built fragments) the look's default variant applies; other looks have none.
+  function blockRender(block) {
+    var blocks = adapter && adapter.blocks;
+    if (!blocks || !blocks.render || !blocks.render[block]) return null;
+    var entity = uniqueNode('[data-sc-block="' + block + '"]');
+    var variant = entity && entity.getAttribute ? entity.getAttribute("data-sc-variant") : (blocks.defaults && blocks.defaults[block]);
+    return blocks.render[block][variant] || null;
+  }
+
+  // Specs with a real name and value, keyed by the Chinese name so series can be matched on the
+  // English page too. The comparison and grouped layouts never show a gap in a spec cell.
+  function valuedSpecs(product, locale) {
+    var specs = product && Array.isArray(product.specs) ? product.specs : [];
+    var list = [];
+    for (var s = 0; s < specs.length; s++) {
+      var item = specs[s];
+      if (!item) continue;
+      var name = localize(item.name, locale) || "";
+      var value = typeof item.value === "string" ? item.value.trim() : "";
+      var key = (item.name && typeof item.name === "object" ? item.name.zh : item.name) || name;
+      key = String(key || "").trim();
+      if (isGapMarker(key) || isGapMarker(name) || isGapMarker(value)) continue;
+      list.push({ key: key, name: name, value: value });
+    }
+    return list;
+  }
+
+  function askLink(href, locale) {
+    var ask = document.createElement("a");
+    ask.className = "sitecraft-product-ask";
+    ask.setAttribute("href", href || "#inquiry");
+    ask.textContent = locale === "en" ? "Ask about this series" : "询这款规格";
+    return ask;
+  }
+
+  // 按类别分组: products in first-seen category order, each category heading its own cards; products
+  // without a category go last under a plain label.
+  function renderGrouped(grid, products, locale, applied, layout) {
+    var groups = [];
+    var byLabel = {};
+    var other = null;
+    for (var i = 0; i < products.length; i++) {
+      var label = String(localize(products[i].category, locale) || "").trim();
+      if (isGapMarker(label)) {
+        if (!other) other = { label: "", items: [] };
+        other.items.push({ product: products[i], index: i });
+        continue;
+      }
+      if (!Object.prototype.hasOwnProperty.call(byLabel, label)) {
+        byLabel[label] = { label: label, items: [] };
+        groups.push(byLabel[label]);
+      }
+      byLabel[label].items.push({ product: products[i], index: i });
+    }
+    if (other) groups.push(other);
+    var cardSpec = { keySpecs: layout.keySpecs || 3, collapseSpecs: layout.collapseSpecs !== false, askHref: layout.askHref || "#inquiry", showCategory: false, titleTag: "h4", hideGapSpecs: true };
+    for (var g = 0; g < groups.length; g++) {
+      var group = document.createElement("div");
+      group.className = "sitecraft-product-group";
+      var heading = document.createElement("h3");
+      heading.className = "sitecraft-product-group-title";
+      heading.textContent = groups[g].label || (locale === "en" ? "Other products" : "其他产品");
+      var cards = document.createElement("div");
+      cards.className = "sitecraft-product-group-cards";
+      group.appendChild(heading);
+      group.appendChild(cards);
+      for (var c = 0; c < groups[g].items.length; c++) renderCatalogCard(cards, groups[g].items[c].product, groups[g].items[c].index, locale, applied, cardSpec);
+      grid.appendChild(group);
+    }
+  }
+
+  // 参数对比表: a short note per series (name, category, summary, the specs only it has, folded, and
+  // an inquiry link), then a table with a row for each spec every series has with a value and a
+  // column per series. Each value cell also names its series for the stacked phone layout.
+  function renderCompare(grid, products, locale, applied, layout) {
+    var specsBySeries = [];
+    for (var p = 0; p < products.length; p++) specsBySeries.push(valuedSpecs(products[p], locale));
+    var shared = [];
+    if (products.length >= 2) {
+      for (var f = 0; f < specsBySeries[0].length; f++) {
+        var key = specsBySeries[0][f].key;
+        var everywhere = true;
+        for (var o = 1; o < specsBySeries.length && everywhere; o++) {
+          everywhere = specsBySeries[o].some(function (spec) { return spec.key === key; });
+        }
+        if (everywhere) shared.push(specsBySeries[0][f]);
+      }
+    }
+    var sharedKeys = shared.map(function (spec) { return spec.key; });
+    var series = document.createElement("div");
+    series.className = "sitecraft-compare-series";
+    var names = [];
+    for (var i = 0; i < products.length; i++) {
+      var product = products[i];
+      var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
+      var productName = localize(product.name, locale) || "";
+      var productSummary = localize(product.summary, locale) || "";
+      names.push({ sku: sku, name: productName });
+      var card = document.createElement("article");
+      card.className = "sitecraft-compare-series-card";
+      card.setAttribute("data-sitecraft-product", sku);
+      var productCategory = localize(product.category, locale) || "";
+      if (productCategory && !isGapMarker(productCategory) && productCategory !== productName) {
+        var category = document.createElement("p");
+        category.className = "sitecraft-product-category";
+        category.textContent = productCategory;
+        category.setAttribute("data-sitecraft-slot", "products." + sku + ".category");
+        card.appendChild(category);
+        applied.add("products." + sku + ".category");
+      }
+      var title = document.createElement("h3");
+      title.textContent = productName;
+      title.setAttribute("data-sitecraft-slot", "products." + sku + ".name." + locale);
+      card.appendChild(title);
+      applied.add("products." + sku + ".name." + locale);
+      if (!isGapMarker(productSummary)) {
+        var summary = document.createElement("p");
+        summary.className = "sitecraft-compare-summary";
+        summary.textContent = productSummary;
+        summary.setAttribute("data-sitecraft-slot", "products." + sku + ".summary." + locale);
+        card.appendChild(summary);
+        applied.add("products." + sku + ".summary." + locale);
+      }
+      var extras = specsBySeries[i].filter(function (spec) { return sharedKeys.indexOf(spec.key) === -1; });
+      if (extras.length) {
+        var more = document.createElement("details");
+        more.className = "sitecraft-product-more sitecraft-compare-more";
+        var toggle = document.createElement("summary");
+        toggle.textContent = locale === "en" ? "Other specifications (" + extras.length + ")" : "其他参数（" + extras.length + " 项）";
+        var list = document.createElement("dl");
+        list.className = "sitecraft-compare-extra";
+        list.setAttribute("data-sitecraft-slot", "products." + sku + ".specs");
+        for (var e = 0; e < extras.length; e++) {
+          var row = document.createElement("div");
+          var dt = document.createElement("dt");
+          dt.textContent = extras[e].name;
+          var dd = document.createElement("dd");
+          dd.textContent = extras[e].value;
+          row.appendChild(dt);
+          row.appendChild(dd);
+          list.appendChild(row);
+        }
+        more.appendChild(toggle);
+        more.appendChild(list);
+        card.appendChild(more);
+      }
+      if (extras.length || shared.length) applied.add("products." + sku + ".specs");
+      card.appendChild(askLink(layout.askHref, locale));
+      series.appendChild(card);
+    }
+    grid.appendChild(series);
+    if (!shared.length) return;
+    var table = document.createElement("table");
+    table.className = "sitecraft-compare-table";
+    var head = document.createElement("thead");
+    var headRow = document.createElement("tr");
+    var corner = document.createElement("th");
+    corner.setAttribute("scope", "col");
+    corner.textContent = locale === "en" ? "Specification" : "参数";
+    headRow.appendChild(corner);
+    for (var n = 0; n < names.length; n++) {
+      var column = document.createElement("th");
+      column.setAttribute("scope", "col");
+      column.textContent = names[n].name;
+      headRow.appendChild(column);
+    }
+    head.appendChild(headRow);
+    table.appendChild(head);
+    var bodyRows = document.createElement("tbody");
+    for (var r = 0; r < shared.length; r++) {
+      var tr = document.createElement("tr");
+      var th = document.createElement("th");
+      th.setAttribute("scope", "row");
+      th.textContent = shared[r].name;
+      tr.appendChild(th);
+      for (var s = 0; s < specsBySeries.length; s++) {
+        var match = null;
+        for (var m = 0; m < specsBySeries[s].length; m++) {
+          if (specsBySeries[s][m].key === shared[r].key) { match = specsBySeries[s][m]; break; }
+        }
+        var td = document.createElement("td");
+        td.setAttribute("data-sitecraft-slot", "products." + names[s].sku + ".specs");
+        var cellLabel = document.createElement("span");
+        cellLabel.className = "sitecraft-compare-label";
+        cellLabel.textContent = names[s].name;
+        var cellValue = document.createElement("span");
+        cellValue.className = "sitecraft-compare-value";
+        cellValue.textContent = match ? match.value : "";
+        td.appendChild(cellLabel);
+        td.appendChild(cellValue);
+        tr.appendChild(td);
+      }
+      bodyRows.appendChild(tr);
+    }
+    table.appendChild(bodyRows);
+    grid.appendChild(table);
   }
 
   function renderCatalogSections(draft, locale, applied, variant) {
@@ -677,7 +889,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;
-  // otherwise text only. No drawn stand-in pretends to be a product.
+  // otherwise text only. No drawn stand-in pretends to be a product. The key-spec strip shows under
+  // a photo, or, for the statement layout (render heroSpecs "always"), whenever there are specs.
   function applyHeroVisual(draft, locale, applied) {
     if (!document || !document.querySelector) return;
     var hero = uniqueNode('[data-sitecraft-section="hero"]');
@@ -686,7 +899,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var credit = uniqueNode("[data-sitecraft-hero-credit]");
     var nameplate = uniqueNode("[data-sitecraft-hero-nameplate]");
     var strip = uniqueNode("[data-sitecraft-hero-specs]");
-    if (!visual && !heroImage) return;
+    var heroRender = blockRender("hero");
+    var stripAlways = Boolean(heroRender && heroRender.heroSpecs === "always");
+    if (!visual && !heroImage && !(strip && stripAlways)) return;
     var products = visibleProducts(draft, locale);
     var photo = null;
     for (var i = 0; i < products.length; i++) {
@@ -725,7 +940,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (mode === "nameplate") renderFacts(nameplate, facts, "sitecraft-nameplate-cell");
     }
     if (strip) {
-      var showStrip = mode === "photo" && facts.length > 0;
+      var showStrip = facts.length > 0 && (stripAlways || mode === "photo");
       strip.hidden = !showStrip;
       var stripList = strip.querySelector ? (strip.querySelector("dl") || strip) : strip;
       if (showStrip) renderFacts(stripList, facts, "sitecraft-hero-spec");
@@ -1080,8 +1295,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function applyVisitorChrome(locale, draft, variant) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", viewProducts: "View product series", menu: "Menu", footerContact: "Contact", footerNav: "Navigate", footerProducts: "Products", localeZh: "中", localeEn: "EN" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", viewProducts: "看产品系列", menu: "菜单", footerContact: "联系", footerNav: "导航", footerProducts: "产品", localeZh: "中", localeEn: "EN" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", addressPrefix: "Address", products: "Products", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", viewProducts: "View product series", menu: "Menu", footerContact: "Contact", footerNav: "Navigate", footerProducts: "Products", localeZh: "中", localeEn: "EN" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", addressPrefix: "地址", products: "产品", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", viewProducts: "看产品系列", menu: "菜单", footerContact: "联系", footerNav: "导航", footerProducts: "产品", localeZh: "中", localeEn: "EN" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
