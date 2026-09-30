@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import path from "node:path";
 import test from "node:test";
@@ -17,6 +16,13 @@ registerHooks({
 // Found while verifying T-034: bilingual full-site generation from the simulated industrial pack
 // (about 20 operations with {zh,en} values) was cut off at 6000 output tokens; with both attempts
 // truncated the user saw "模型服务暂时不可用". The budget and the per-attempt timeout must fit it.
+//
+// T-061 (2026-09-30): deepseek-flash thinks by default and its reasoning tokens count against
+// max_tokens (a real 8192-token answer was 8192 reasoning tokens and no content). Measured without a
+// cap, whole-site generation used 13.7K–22.7K completion tokens (11.2K–18.7K of them reasoning) in
+// 57–95 s, and alignment planning 2.6K–3.2K in 13–16 s (artifacts/t061/probe-budget.jsonl). Thinking
+// stays on (quality); the budgets and timeouts fit the measurements, and an answer that still hits
+// the cap is reported as cut off instead of being retried.
 
 const env = process.env as Record<string, string | undefined>;
 delete env.DEEPSEEK_MAX_TOKENS;
@@ -27,15 +33,18 @@ env.DEEPSEEK_BASE_URL = "https://budget-stub.test.invalid";
 const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
 const { defaultDraft } = await import("../lib/site-document.ts");
 
-test("structured generation asks for an 8192-token budget by default", async () => {
-  assert.equal(await requestedMaxTokens(undefined), 8192);
+test("structured generation asks for a 32768-token budget by default and leaves thinking at its default", async () => {
+  assert.equal(await requestedMaxTokens(undefined), 32768);
+  assert.equal(lastBody.thinking, undefined, "thinking mode is not switched off");
+  assert.equal(lastBody.reasoning_effort, undefined, "the reasoning effort is not lowered");
 });
 
-test("a lower configured budget is raised to 8192, a higher one is kept", async () => {
-  assert.equal(await requestedMaxTokens("6000"), 8192);
-  assert.equal(await requestedMaxTokens("12000"), 12000);
+test("a lower configured budget is raised to 32768, a higher one is kept", async () => {
+  assert.equal(await requestedMaxTokens("8192"), 32768);
+  assert.equal(await requestedMaxTokens("40000"), 40000);
 });
 
+let lastBody: Record<string, unknown> = {};
 async function requestedMaxTokens(configured: string | undefined) {
   if (configured === undefined) delete env.DEEPSEEK_MAX_TOKENS;
   else env.DEEPSEEK_MAX_TOKENS = configured;
@@ -52,15 +61,62 @@ async function requestedMaxTokens(configured: string | undefined) {
     globalThis.fetch = original;
     delete env.DEEPSEEK_MAX_TOKENS;
   }
+  lastBody = body;
   return body.max_tokens;
 }
 
-test("each structured-generation attempt may run up to 90 s", async () => {
-  const source = await readFile(new URL("../lib/ai-provider.ts", import.meta.url), "utf8");
-  const start = source.indexOf("export async function requestStructuredOperations");
-  const end = source.indexOf("export async function", start + 10);
-  assert.match(source.slice(start, end), /AbortSignal\.timeout\(STRUCTURED_OPERATIONS_TIMEOUT_MS\)/);
-  assert.match(source, /const STRUCTURED_OPERATIONS_TIMEOUT_MS = 90_000;/);
+// The per-attempt timeouts, read from the AbortSignal.timeout calls the provider makes.
+async function attemptTimeouts(reply: Record<string, unknown>, call: () => Promise<unknown>) {
+  const seen: number[] = [];
+  const originalTimeout = AbortSignal.timeout;
+  const original = globalThis.fetch;
+  AbortSignal.timeout = (ms: number) => { seen.push(ms); return originalTimeout.call(AbortSignal, ms); };
+  globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(reply) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  try {
+    await call();
+  } finally {
+    AbortSignal.timeout = originalTimeout;
+    globalThis.fetch = original;
+  }
+  return seen;
+}
+
+test("a structured-generation attempt may run up to 180 s and a planning attempt up to 90 s", async () => {
+  const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
+  assert.deepEqual(await attemptTimeouts({ type: "answer", text: "这是工程工业样子的站点。" }, () => requestStructuredOperations({ message: "这个网站是做什么的？", draft: structuredClone(defaultDraft), templateId: defaultDraft.templateId, selectedTarget: null })), [180_000]);
+  assert.deepEqual(await attemptTimeouts({ kind: "ready", summary: "资料足够。" }, () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" })), [90_000]);
+});
+
+// An answer that still hits the cap is not retried (the same budget would most likely be spent the
+// same way, and the user would wait twice as long): the call reports that it was cut off.
+test("an answer cut off at the token budget is reported as truncated after one attempt", async () => {
+  const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
+  const original = globalThis.fetch;
+  let requests = 0;
+  globalThis.fetch = async () => {
+    requests += 1;
+    return new Response(JSON.stringify({ choices: [{ finish_reason: "length", message: { content: "" } }], usage: { completion_tokens: 32768, completion_tokens_details: { reasoning_tokens: 32768 } } }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    const generated = await requestStructuredOperations({ message: "请根据资料生成网站", draft: structuredClone(defaultDraft), templateId: defaultDraft.templateId, selectedTarget: null });
+    assert.equal(requests, 1, "generation is not retried after a cut-off answer");
+    assert.equal(generated.ok, false);
+    if (generated.ok) return;
+    assert.equal(generated.code, "truncated");
+    assert.match(generated.error, /截断/);
+    requests = 0;
+    const planned = await requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" });
+    assert.equal(requests, 1, "planning is not retried after a cut-off answer");
+    assert.equal(planned.ok, false);
+    if (planned.ok) return;
+    assert.equal(planned.code, "truncated");
+    assert.match(planned.error, /截断/);
+  } finally {
+    globalThis.fetch = original;
+    console.warn = originalWarn;
+  }
 });
 
 // The alignment planner hit its 1800-token cap in 2 of 6 real runs (2026-09-28), which surfaced as
@@ -79,7 +135,7 @@ test("the alignment planner has room for a full card and is not asked for color-
   } finally {
     globalThis.fetch = original;
   }
-  assert.equal(body.max_tokens, 3000);
+  assert.equal(body.max_tokens, 8192);
   const system = body.messages?.find((message) => message.role === "system")?.content ?? "";
   assert.match(system, /不要输出 colorSet 题/);
   assert.doesNotMatch(system, /swatches/);

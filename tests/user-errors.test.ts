@@ -22,3 +22,13 @@ test("known diagnostic codes override raw provider details", () => {
   assert.equal(message.includes("Too big"), false);
   assert.equal(message.includes("未经校验"), true);
 });
+
+// T-061: an answer cut off at the model's token budget says so, instead of "服务暂时不可用".
+test("a cut-off model answer is described as truncated, with the draft unchanged", () => {
+  const truncated = describeUserError({ code: "truncated" });
+  assert.equal(truncated.code, "truncated");
+  assert.equal(truncated.message, "这次生成被截断，没有改动草稿。");
+  assert.match(truncated.nextStep, /重试/);
+  assert.equal(userFacingError({ code: "truncated", message: "DeepSeek 输出达到 token 上限" }).includes("token"), false);
+  assert.ok(errorCatalog().some((item) => item.code === "truncated"));
+});

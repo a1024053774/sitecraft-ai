@@ -192,6 +192,8 @@ async function planPromptStart(siteId: string, args: {
         message: description.message,
         userMessage: plan.code === "not_configured"
           ? "需求对齐暂时无法连接模型，请先配置模型后再试。原需求没有保存为草稿。"
+          : plan.code === "truncated"
+            ? "需求对齐规划被截断，原需求没有修改草稿，可以重试。"
           : plan.code === "invalid_output"
             ? "需求对齐规划没有返回可用的问题卡，原需求没有修改草稿，请重试。"
             : plan.code === "timeout"

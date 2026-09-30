@@ -74,6 +74,12 @@ const catalog: Record<string, UserErrorDescription> = {
     nextStep: "稍后重试；已保存的问题和答案仍可继续。",
     recovery: "retry_after_state_read",
   },
+  truncated: {
+    code: "truncated",
+    message: "这次生成被截断，没有改动草稿。",
+    nextStep: "可以直接重试；已保存的问题和答案仍可继续。",
+    recovery: "retry_after_state_read",
+  },
   invalid_output: {
     code: "invalid_output",
     message: "模型返回的方案无法安全校验，草稿没有修改。",

@@ -140,13 +140,14 @@ test("an answer that fails the schema is logged as schema, without the answer", 
 });
 
 test("an answer cut off at max_tokens is logged as truncated, with the token usage", async () => {
-  const usage = { prompt_tokens: 5291, completion_tokens: 8192, completion_tokens_details: { reasoning_tokens: 8192 } };
+  const usage = { prompt_tokens: 5291, completion_tokens: 32768, completion_tokens_details: { reasoning_tokens: 32768 } };
   const cut = () => json({ id: "cmpl-2", choices: [{ finish_reason: "length", message: { content: `{"type":"edit","summary":"${SENTINEL}` } }], usage }, { trace: "trace-cut" });
-  const { logged } = await run([cut, () => answer(edit)]);
+  const { result, logged } = await run([cut]);
+  assert.equal(!result.ok && result.code, "truncated", "a cut-off answer is not retried (T-061)");
   assert.deepEqual(logged, [{
     call: "structured_operations", attempt: 1, of: 2, category: "truncated", status: 200, ms: logged[0]?.ms, traceId: "trace-cut",
-    finish: "length", tokens: { prompt: 5291, completion: 8192, reasoning: 8192 },
-  }], "the failed first attempt is logged even though the second one succeeds");
+    finish: "length", tokens: { prompt: 5291, completion: 32768, reasoning: 32768 },
+  }]);
 });
 
 test("a failed attempt followed by a good one logs only the failure; a good call logs nothing", async () => {
@@ -159,12 +160,17 @@ test("a failed attempt followed by a good one logs only the failure; a good call
 });
 
 test("the alignment planning call logs its failures the same way", async () => {
-  const usage = { prompt_tokens: 2445, completion_tokens: 3000, completion_tokens_details: { reasoning_tokens: 3000 } };
-  const cut = () => json({ choices: [{ finish_reason: "length", message: { content: "" } }], usage }, { trace: "trace-plan" });
-  const { result, logged } = await run([cut, () => { throw new DOMException("timeout", "TimeoutError"); }], "plan");
+  const bad = () => answer(JSON.stringify({ kind: "question", questions: `bad ${SENTINEL}` }), {}, "trace-plan");
+  const { result, logged } = await run([bad, () => { throw new DOMException("timeout", "TimeoutError"); }], "plan");
   assert.equal(result.ok, false);
   assert.deepEqual(logged.map(({ call, attempt, category, traceId }) => ({ call, attempt, category, traceId })), [
-    { call: "alignment_plan", attempt: 1, category: "truncated", traceId: "trace-plan" },
+    { call: "alignment_plan", attempt: 1, category: "schema", traceId: "trace-plan" },
     { call: "alignment_plan", attempt: 2, category: "timeout", traceId: null },
+  ]);
+  const usage = { prompt_tokens: 2445, completion_tokens: 8192, completion_tokens_details: { reasoning_tokens: 8192 } };
+  const cut = await run([() => json({ choices: [{ finish_reason: "length", message: { content: "" } }], usage }, { trace: "trace-plan-cut" })], "plan");
+  assert.equal(!cut.result.ok && cut.result.code, "truncated");
+  assert.deepEqual(cut.logged.map(({ call, attempt, category, traceId, tokens }) => ({ call, attempt, category, traceId, tokens })), [
+    { call: "alignment_plan", attempt: 1, category: "truncated", traceId: "trace-plan-cut", tokens: { prompt: 2445, completion: 8192, reasoning: 8192 } },
   ]);
 });
