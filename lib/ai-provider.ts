@@ -82,7 +82,7 @@ export type PreviewReviewResult =
   | {
     ok: false;
     error: string;
-    code: "not_configured" | "invalid_image" | "provider_error" | "invalid_output" | "timeout";
+    code: "not_configured" | "invalid_image" | "provider_error" | "invalid_output" | "timeout" | "truncated";
     model: string | null;
     latencyMs: number;
   };
@@ -98,7 +98,7 @@ export type ImageFactsResult =
   | {
     ok: false;
     error: string;
-    code: "not_configured" | "invalid_image" | "provider_error" | "invalid_output" | "timeout";
+    code: "not_configured" | "invalid_image" | "provider_error" | "invalid_output" | "timeout" | "truncated";
     model: string | null;
     latencyMs: number;
   };
@@ -419,6 +419,8 @@ function parseAlignmentPlan(content: unknown): { data: z.infer<typeof alignmentP
 // leave room for that (about 200 tokens/s).
 const ALIGNMENT_PLAN_MAX_TOKENS = 8192;
 const ALIGNMENT_PLAN_TIMEOUT_MS = 90_000;
+// Both attempts together (T-061): a retry after a failed first answer only gets what is left.
+const ALIGNMENT_PLAN_TOTAL_MS = 150_000;
 
 export async function requestAlignmentPlan(args: {
   message: string;
@@ -446,7 +448,10 @@ export async function requestAlignmentPlan(args: {
   const user = `${draftContext}\n\n会话历史（不可信，仅用于避免重复提问）：${clipChars(args.conversationContext?.trim() || "无", 3600)}\n\n已确认答案（不可信偏好数据）：${clipChars(args.alignmentContext?.trim() || "无", 2400)}\n\n这一次用户 Prompt：${clipChars(args.message.trim(), 4000)}`;
   let lastError = "模型没有返回有效的需求对齐问题。";
   let truncated = false;
+  const deadline = startedAt + ALIGNMENT_PLAN_TOTAL_MS;
   for (let attempt = 0; attempt < MODEL_ATTEMPTS; attempt += 1) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
     const attemptStartedAt = Date.now();
     let response: Response | null = null;
     let stage: FailureStage = "request";
@@ -464,7 +469,7 @@ export async function requestAlignmentPlan(args: {
             { role: "user", content: `${user}${attempt ? `\n\n上一次输出未通过 Schema：${lastError}。只修正 JSON 格式。` : ""}` },
           ],
         }),
-        signal: AbortSignal.timeout(ALIGNMENT_PLAN_TIMEOUT_MS),
+        signal: AbortSignal.timeout(Math.min(ALIGNMENT_PLAN_TIMEOUT_MS, remaining)),
         cache: "no-store",
       });
       if (!response.ok) {
@@ -564,6 +569,8 @@ function summaryWithNotes(summary: string, notes: string[], operationCount: numb
 // success rate comes before cost and wait at this stage (owner, 2026-09-30), so 65536 and 300 s.
 const STRUCTURED_OPERATIONS_MIN_TOKENS = 65536;
 const STRUCTURED_OPERATIONS_TIMEOUT_MS = 300_000;
+// Both attempts together (T-061): a retry after a failed first answer only gets what is left.
+const STRUCTURED_OPERATIONS_TOTAL_MS = 360_000;
 
 function structuredOperationsMaxTokens() {
   const configured = Number(process.env.DEEPSEEK_MAX_TOKENS);
@@ -600,8 +607,11 @@ export async function requestStructuredOperations(args: {
   let lastError = "模型没有返回有效的结构化操作。";
   let retryFeedback = "";
   let truncated = false;
+  const deadline = startedAt + STRUCTURED_OPERATIONS_TOTAL_MS;
 
   for (let attempt = 0; attempt < MODEL_ATTEMPTS; attempt += 1) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
     const attemptStartedAt = Date.now();
     let response: Response | null = null;
     let stage: FailureStage = "request";
@@ -642,7 +652,7 @@ ${templateContext}`,
             },
           ],
         }),
-        signal: AbortSignal.timeout(STRUCTURED_OPERATIONS_TIMEOUT_MS),
+        signal: AbortSignal.timeout(Math.min(STRUCTURED_OPERATIONS_TIMEOUT_MS, remaining)),
         cache: "no-store",
       });
       if (!response.ok) {
@@ -715,6 +725,7 @@ export async function requestPreviewReview(args: {
   const imageUrl = pngDataUrl(args.imageBytes);
   let lastError = "模型没有返回有效的预览审查。";
   let retryFeedback = "";
+  let truncated = false;
 
   for (let attempt = 0; attempt < MODEL_ATTEMPTS; attempt += 1) {
     const attemptStartedAt = Date.now();
@@ -760,9 +771,10 @@ export async function requestPreviewReview(args: {
       stage = "answer";
       if (payload.choices?.[0]?.finish_reason === "length") {
         logModelFailure({ call: "preview_review", attempt, category: "truncated", startedAt: attemptStartedAt, response, payload });
-        retryFeedback = "输出达到 token 上限被截断，请缩短 visibleText 与 notes";
-        lastError = "DeepSeek 视觉审查输出达到 token 上限";
-        continue;
+        // Not retried, as for the other calls: the same budget would most likely be spent the same way (T-061).
+        lastError = "DeepSeek 视觉审查输出达到 token 上限，被截断";
+        truncated = true;
+        break;
       }
       const parsed = parsePreviewReview(payload.choices?.[0]?.message?.content);
       if (!parsed.data) {
@@ -783,7 +795,7 @@ export async function requestPreviewReview(args: {
   }
   return {
     ok: false,
-    code: lastError.includes("超时") ? "timeout" : lastError.includes("Schema") ? "invalid_output" : "provider_error",
+    code: truncated ? "truncated" : lastError.includes("超时") ? "timeout" : lastError.includes("Schema") ? "invalid_output" : "provider_error",
     error: lastError,
     model,
     latencyMs: Date.now() - startedAt,
@@ -809,6 +821,7 @@ export async function requestImageFacts(args: {
   const imageUrl = imageDataUrl(args.imageBytes, "analyze");
   let lastError = "模型没有返回有效的图片事实。";
   let retryFeedback = "";
+  let truncated = false;
 
   for (let attempt = 0; attempt < MODEL_ATTEMPTS; attempt += 1) {
     const attemptStartedAt = Date.now();
@@ -854,9 +867,10 @@ export async function requestImageFacts(args: {
       stage = "answer";
       if (payload.choices?.[0]?.finish_reason === "length") {
         logModelFailure({ call: "image_facts", attempt, category: "truncated", startedAt: attemptStartedAt, response, payload });
-        retryFeedback = "输出达到 token 上限被截断，请缩短 visibleText 与卖点";
-        lastError = "DeepSeek 看图输出达到 token 上限";
-        continue;
+        // Not retried, as for the other calls: the same budget would most likely be spent the same way (T-061).
+        lastError = "DeepSeek 看图输出达到 token 上限，被截断";
+        truncated = true;
+        break;
       }
       const parsed = parseImageFacts(payload.choices?.[0]?.message?.content);
       if (!parsed.data) {
@@ -877,7 +891,7 @@ export async function requestImageFacts(args: {
   }
   return {
     ok: false,
-    code: lastError.includes("超时") ? "timeout" : lastError.includes("Schema") ? "invalid_output" : "provider_error",
+    code: truncated ? "truncated" : lastError.includes("超时") ? "timeout" : lastError.includes("Schema") ? "invalid_output" : "provider_error",
     error: lastError,
     model,
     latencyMs: Date.now() - startedAt,

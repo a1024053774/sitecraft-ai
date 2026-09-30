@@ -89,6 +89,71 @@ test("a structured-generation attempt may run up to 300 s and a planning attempt
   assert.deepEqual(await attemptTimeouts({ kind: "ready", summary: "资料足够。" }, () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" })), [90_000]);
 });
 
+// T-061 rework (Astra, review of 23807c8): a retry after a failed first answer (not JSON, wrong shape,
+// HTTP 5xx) only gets what is left of the call's total: 360 s for generation, 150 s for planning. The
+// clock is moved forward while the first attempt runs; the second attempt's AbortSignal.timeout gets
+// the rest, and there is no second request when nothing is left.
+async function timedAttempts(firstAttemptMs: number, answers: [unknown, unknown], call: () => Promise<{ ok: boolean; code?: string }>) {
+  const seen: number[] = [];
+  const realNow = Date.now;
+  let skew = 0;
+  Date.now = () => realNow.call(Date) + skew;
+  const originalTimeout = AbortSignal.timeout;
+  AbortSignal.timeout = (ms: number) => { seen.push(ms); return originalTimeout.call(AbortSignal, ms); };
+  const original = globalThis.fetch;
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  let sent = 0;
+  globalThis.fetch = async () => {
+    sent += 1;
+    if (sent === 1) skew += firstAttemptMs;
+    const content = JSON.stringify(answers[sent === 1 ? 0 : 1]);
+    return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const result = await call();
+    return { seen, sent, result };
+  } finally {
+    Date.now = realNow;
+    AbortSignal.timeout = originalTimeout;
+    globalThis.fetch = original;
+    console.warn = originalWarn;
+  }
+}
+
+test("a structured retry only gets what is left of 360 s, and there is none when nothing is left", async () => {
+  const wrongShape = { type: "edit", summary: "按资料生成", operations: "not a list" };
+  const answer = { type: "answer", text: "这是工程工业样子的站点。" };
+  const generate = () => requestStructuredOperations({ message: "请根据资料生成网站", draft: structuredClone(defaultDraft), templateId: defaultDraft.templateId, selectedTarget: null });
+  const retried = await timedAttempts(250_000, [wrongShape, answer], generate);
+  assert.equal(retried.sent, 2);
+  assert.equal(retried.result.ok, true);
+  assert.equal(retried.seen[0], 300_000);
+  assert.ok(retried.seen[1] <= 110_000 && retried.seen[1] >= 109_000, `second attempt timeout ${retried.seen[1]}`);
+  const spent = await timedAttempts(360_000, [wrongShape, answer], generate);
+  assert.equal(spent.sent, 1, "no second request once 360 s are used");
+  assert.deepEqual(spent.seen, [300_000]);
+  assert.equal(spent.result.ok, false);
+  assert.equal(spent.result.code, "invalid_output", "the first attempt's failure is what the user is told");
+});
+
+test("a planning retry only gets what is left of 150 s, and there is none when nothing is left", async () => {
+  const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
+  const wrongShape = { kind: "question" };
+  const ready = { kind: "ready", summary: "资料足够。" };
+  const plan = () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" });
+  const retried = await timedAttempts(80_000, [wrongShape, ready], plan);
+  assert.equal(retried.sent, 2);
+  assert.equal(retried.result.ok, true);
+  assert.equal(retried.seen[0], 90_000);
+  assert.ok(retried.seen[1] <= 70_000 && retried.seen[1] >= 69_000, `second attempt timeout ${retried.seen[1]}`);
+  const spent = await timedAttempts(150_000, [wrongShape, ready], plan);
+  assert.equal(spent.sent, 1, "no second request once 150 s are used");
+  assert.deepEqual(spent.seen, [90_000]);
+  assert.equal(spent.result.ok, false);
+  assert.equal(spent.result.code, "invalid_output");
+});
+
 // An answer that still hits the cap is not retried (the same budget would most likely be spent the
 // same way, and the user would wait twice as long): the call reports that it was cut off.
 test("an answer cut off at the token budget is reported as truncated after one attempt", async () => {
