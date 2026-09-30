@@ -99,6 +99,15 @@ const addCardOperationSchema = z.object({
   index: z.number().int().min(0).max(12).optional(),
   item: editableCardSchema,
 });
+// T-059: a whole card group in one operation (the model's whole-site generation), like
+// set_catalog_section for catalogs. Up to the draft's own twelve entries, so undo can put back any
+// list a draft already has; the model's own FAQ limit is applied in validateAIOperations.
+const replaceCardsOperationSchema = z.object({
+  op: z.literal("replace_cards"),
+  section: z.enum(["features", "services", "faq"]),
+  items: z.array(editableCardSchema).max(12).refine((list) => new Set(list.map((item) => item.id)).size === list.length, "Card ids must be unique"),
+  englishReadyBefore: z.boolean().optional(),
+});
 const removeCardOperationSchema = z.object({
   op: z.literal("remove_card"),
   section: z.enum(["features", "services", "faq"]),
@@ -205,6 +214,7 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   setTextOperationSchema,
   updateCardOperationSchema,
   addCardOperationSchema,
+  replaceCardsOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -225,6 +235,7 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   setTextOperationSchema,
   updateCardOperationSchema,
   addCardOperationSchema,
+  replaceCardsOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -288,6 +299,10 @@ export type ApplyResult = {
 };
 
 /** Said when a layout is asked for on a look that has not moved to the block library yet. */
+// The most FAQ entries the model may write in one card group: a draft carries six, and the
+// engineering page shows six (T-059).
+const MAX_AI_CARDS: Partial<Record<"features" | "services" | "faq", number>> = { faq: 6 };
+
 export const LAYOUT_LOOK_NOT_READY = "当前样子还不能单独换首屏、产品或询盘的布局。";
 
 function variantLabel(block: BlockId, variant: string) {
@@ -601,6 +616,22 @@ export function applySiteOperations(
       items.splice(index, 0, structuredClone(operation.item));
       inverseOperations.unshift({ op: "remove_card", section: operation.section, itemId: operation.item.id });
       appliedTargets.push(`${operation.section}.items.${index}`);
+      continue;
+    }
+    if (operation.op === "replace_cards") {
+      const section = draft.content[operation.section];
+      const previous = structuredClone(section.items);
+      const next = structuredClone(operation.items);
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      section.items = next;
+      inverseOperations.unshift({ op: "replace_cards", section: operation.section, items: previous, englishReadyBefore: previousEnglishReady });
+      if (next.some((item) => !isGapMarker(item.title.en) || !isGapMarker(item.body.en))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      for (let index = 0; index < next.length; index += 1) {
+        for (const part of ["title", "body"]) appliedTargets.push(`${operation.section}.items.${index}.${part}.zh`, `${operation.section}.items.${index}.${part}.en`);
+      }
+      if (!next.length) appliedTargets.push(operation.section);
       continue;
     }
     if (operation.op === "remove_card") {
@@ -920,6 +951,9 @@ function cleanVisitorProse(operation: AIOperation): AIOperation {
   if (operation.op === "add_card") {
     return { ...operation, item: { ...operation.item, body: stripGapTalkBilingual(operation.item.body) as { zh: string; en: string } } } as AIOperation;
   }
+  if (operation.op === "replace_cards") {
+    return { ...operation, items: operation.items.map((item) => ({ ...item, body: stripGapTalkBilingual(item.body) as { zh: string; en: string } })) } as AIOperation;
+  }
   if (operation.op === "update_product" && operation.summary) {
     return { ...operation, summary: stripGapTalkBilingual(operation.summary, operation.locale ?? "zh") } as AIOperation;
   }
@@ -1034,6 +1068,15 @@ export function validateAIOperations(
         rejected.push("标题和正文都缺的条目不会写入");
         continue;
       }
+    }
+    if (operation.op === "replace_cards") {
+      const shown = operation.items.filter((item) => !(["zh", "en"] as const).every((locale) => isGapMarker(item.title[locale]) && isGapMarker(item.body[locale])));
+      if (shown.length < operation.items.length) rejected.push("标题和正文都缺的条目不会写入");
+      if (operation.items.length && !shown.length) continue;
+      const limit = MAX_AI_CARDS[operation.section];
+      if (limit !== undefined && shown.length > limit) rejected.push(`常见问题最多写 ${limit} 条，其余 ${shown.length - limit} 条没有写入`);
+      accepted.push({ ...operation, items: limit === undefined ? shown : shown.slice(0, limit) });
+      continue;
     }
     if (operation.op === "set_product_specs") {
       accepted.push({ ...operation, specs: groundProductSpecs(operation.specs, message, rejected) });

@@ -86,7 +86,8 @@ export function describePreviewGaps(args: {
   };
 }
 
-const INTERNAL_WORDS = /HTML|CSS|URL|网址|快照|模板|槽位|槽|字段|声明|slot|operation|schema|变体|variant/i;
+// Operation names (set_text, replace_cards, …) are internal words too.
+const INTERNAL_WORDS = /HTML|CSS|URL|网址|快照|模板|槽位|槽|字段|声明|slot|operation|schema|变体|variant|\b(?:set|add|update|remove|replace|reorder)_[a-z_]+\b/i;
 
 function operationLabel(operation: { op?: unknown; target?: unknown; section?: unknown; block?: unknown }) {
   if (operation.op === "set_page_plan") return "页面规划";

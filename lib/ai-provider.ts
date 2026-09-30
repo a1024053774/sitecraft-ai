@@ -233,7 +233,7 @@ function logModelFailure(entry: {
 function faqInstructions(templateId: string) {
   const slots = (getTemplateAdapter(templateId)?.slots ?? []).filter((slot) => /^faq\.items\.\d+\.title$/.test(slot.target)).length;
   if (!slots) return "";
-  return `   常见问题：当前样子的访客页最多显示 ${slots} 条，先显示有问有答的条目。资料里有几组问答就写几条，最多 ${slots} 条，问和答都要出自资料；草稿里已有的待补充条目用 update_card 按 index 覆盖，不够再用 add_card。\n`;
+  return `   常见问题：当前样子的访客页最多显示 ${slots} 条，先显示有问有答的条目。资料里有几组问答就写几条，最多 ${slots} 条，问和答都要出自资料；用一条 replace_cards（section=faq）写完整组。\n`;
 }
 
 function operationInstructions(templateId: string) {
@@ -244,6 +244,7 @@ function operationInstructions(templateId: string) {
 2. update_card: {"op":"update_card","section":"features|services|faq","index":从0开始,"title":{"zh":"中文标题","en":"English title"},"body":{"zh":"中文正文","en":"English body"}}
 3. add_card: {"op":"add_card","section":"features|services|faq","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
 4. remove_card: {"op":"remove_card","section":"features|services|faq","itemId":"现有id"}
+4b. replace_cards: {"op":"replace_cards","section":"features|services|faq","items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}]}（整组替换这一组卡片：按资料生成或重做整站时，每一组用一条 replace_cards 写完全部条目，不要逐条 add_card / update_card；只改其中某一条时用 update_card）
 ${faqInstructions(templateId)}5. update_product: {"op":"update_product","sku":"现有SKU","name":{"zh":"中文名称","en":"English name"},"summary":{"zh":"中文摘要","en":"English summary"},"category":{"zh":"中文类别","en":"English category"}}
 6. set_product_specs: {"op":"set_product_specs","sku":"现有SKU","specs":[{"name":{"zh":"速比范围","en":"Ratio range"},"value":"i=25–100"}]}
    只写入资料明确给出的规格参数；参数名中英双语，参数值必须能在资料正文中找到，找不到写成「待补充」，禁止编造数字。
@@ -267,7 +268,7 @@ ${faqInstructions(templateId)}5. update_product: {"op":"update_product","sku":"�
     同样只允许本站上传图。当前模板没有该 SKU 的唯一 src 槽位时记为 missing，不要为了填满页面改随机图片。
 16. remove_product_image: {"op":"remove_product_image","sku":"现有SKU"}
 ${layoutInstructions(templateId)}answer 与 clarify 不得包含 operations。
-每次 edit 的 operations 最多 ${MAX_AI_OPERATIONS} 条。优先保留用户明确要求、页面规划、视觉样子和关键首屏/产品/询盘字段；不要为了重写默认文案逐个改写整份草稿。已有集合需要整体替换时优先使用 replace_products、set_catalog_section 或 set_page_plan，仍不得超过 ${MAX_AI_OPERATIONS} 条。`;
+每次 edit 的 operations 最多 ${MAX_AI_OPERATIONS} 条。优先保留用户明确要求、页面规划、视觉样子和关键首屏/产品/询盘字段；不要为了重写默认文案逐个改写整份草稿。已有集合需要整体替换时优先使用 replace_products、replace_cards、set_catalog_section 或 set_page_plan，仍不得超过 ${MAX_AI_OPERATIONS} 条。`;
 }
 
 // What a layout needs, in the words the menu uses (the check itself is lib/blocks/requirements.ts).
