@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import test from "node:test";
 import {
+  base,
   clickExpression,
   closeModalExpression,
   closePage,
@@ -29,6 +30,8 @@ type Geometry = {
   toggle: { inRow: boolean; role: string | null; checked: string | null; text: string } | null;
   plusMenu: boolean;
   menuCheckbox: boolean;
+  groups: Array<{ name: string | null; buttons: string[]; left: number; right: number; top: number; secondary: boolean }>;
+  placeholder: { text: string; clipped: boolean } | null;
 };
 
 const geometryExpression = `(() => {
@@ -40,6 +43,8 @@ const geometryExpression = `(() => {
     input: document.querySelector(".chat-input") ? { top: box(document.querySelector(".chat-input")).top } : null,
     buttons: row ? [...row.querySelectorAll("button")].map((item) => ({ text: item.textContent.trim(), height: box(item).height })) : [],
     toggle: toggle ? { inRow: Boolean(row && row.contains(toggle)), role: toggle.getAttribute("role"), checked: toggle.getAttribute("aria-checked"), text: toggle.innerText } : null,
+    groups: row ? [...row.querySelectorAll("[data-group]")].map((group) => { const r = box(group); return { name: group.getAttribute("data-group"), buttons: [...group.querySelectorAll("button")].map((item) => item.textContent.trim()), left: r.left, right: r.right, top: r.top, secondary: group.classList.contains("secondary") }; }) : [],
+    placeholder: (() => { const area = document.querySelector(".chat-input textarea"); if (!area) return null; const probe = document.createElement("div"); const style = getComputedStyle(area); probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font:" + style.font + ";letter-spacing:" + style.letterSpacing; probe.textContent = area.placeholder; document.body.appendChild(probe); const need = probe.getBoundingClientRect().width; probe.remove(); const room = area.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight); return { text: area.placeholder, clipped: need > room }; })(),
     plusMenu: Boolean(document.querySelector(".chat-plus-button, .chat-plus-menu")),
     menuCheckbox: [...document.querySelectorAll("label")].some((label) => label.textContent.includes("需求对齐") && label.querySelector("input[type=checkbox]")),
   };
@@ -115,6 +120,10 @@ test("the action row sits above the chat box, 需求对齐 is a visible switch, 
       for (const button of before.buttons) assert.ok(button.height >= minimum, `${width}: 「${button.text}」 is ${button.height}px, needs ${minimum}px`);
       assert.equal(before.plusMenu, false, `${width}: the + menu is gone`);
       assert.equal(before.menuCheckbox, false, `${width}: 需求对齐 is not a checkbox in a menu`);
+      assert.deepEqual(before.groups.map((group) => [group.name, group.buttons.map((text) => text.replace(/\s*(开|关)$/, ""))]), [["alignment", ["需求对齐"]], ["look", ["样子", "配色"]], ["materials", ["公司资料", "上传产品图", "商品表格"]]], `${width}: the action row is grouped alignment / look / materials`);
+      assert.equal(before.groups[2].secondary, true, `${width}: the materials group is secondary`);
+      assert.equal(before.groups[1].secondary, false);
+      assert.ok(before.placeholder && !before.placeholder.clipped, `${width}: the placeholder 「${before.placeholder?.text}」 fits without an ellipsis`);
       assert.ok(before.toggle?.inRow, `${width}: 需求对齐 switch sits in the action row`);
       assert.equal(before.toggle.role, "switch");
       // A site that was never generated starts with 需求对齐 on.
@@ -266,30 +275,125 @@ test("workspace motion is 150–300 ms of transform/opacity and stops under pref
   }
 });
 
-test("look, color, undo and redo still write the draft from the new controls", { timeout: 180000 }, async () => {
+// The server is the authority: every step is read back from GET /api/sites/<id>/draft, and
+// the page is reloaded at the end, so a UI that only updates React state fails here.
+test("look, color, undo and redo still write the draft from the new controls", { timeout: 240000 }, async () => {
   const browser = await openBrowser();
   try {
     for (const width of [1440, 375]) {
-      const page = await openWorkspace(browser, { siteId: await createSite(`T052 修改 ${width}`), width, theme: "dark" });
+      const siteId = await createSite(`T052 修改 ${width}`);
+      const page = await openWorkspace(browser, { siteId, width, theme: "dark" });
+      const server = async () => {
+        const response = await fetch(`${base}/api/sites/${siteId}/draft`, { cache: "no-store" });
+        const body = await response.json() as { draft: { revision: number; visualBrief: { id: string; label: string }; paletteId: string } };
+        return { revision: body.draft.revision, brief: body.draft.visualBrief.id, palette: body.draft.paletteId };
+      };
       const state = () => browser.eval<{ revision: string; look: string }>(`({ revision: document.querySelector("[data-testid=workspace-draft-revision]").textContent, look: document.querySelector(".builder-template-name").textContent })`, page.sessionId);
-      const changed = (before: { revision: string; look: string }) => waitFor(browser, page.sessionId, `document.querySelector("[data-testid=workspace-draft-revision]").textContent !== ${JSON.stringify(before.revision)} && document.querySelector(".builder-template-name").textContent !== ${JSON.stringify(before.look)}`, 10000);
+      const shows = (revision: number) => waitFor(browser, page.sessionId, `document.querySelector("[data-testid=workspace-draft-revision]").textContent.includes("v${revision}")`, 10000);
       if (width <= 600) await showPane(browser, page, "chat");
-      const start = await state();
+      const start = await server();
+      const startUi = await state();
+
       await browser.eval(clickExpression("open-color-panel"), page.sessionId);
       await sleep(300);
       await browser.eval(`document.querySelector(".palette-card:not(.selected)").click()`, page.sessionId);
-      assert.ok(await changed(start), `${width}: a color set is saved as a new draft version`);
-      const colored = await state();
+      const colored = await (async () => { for (let i = 0; i < 60; i += 1) { const now = await server(); if (now.revision > start.revision) return now; await sleep(150); } return await server(); })();
+      assert.equal(colored.revision, start.revision + 1, `${width}: the server saved the color set as a new revision`);
+      assert.equal(colored.brief, start.brief, `${width}: a color set keeps the look`);
+      assert.notEqual(colored.palette, start.palette, `${width}: the server holds the new palette`);
+      assert.ok(await shows(colored.revision), `${width}: the page shows the server revision ${colored.revision}`);
+      const coloredUi = await state();
+      assert.notEqual(coloredUi.look, startUi.look, `${width}: the page names the new palette`);
+
       await browser.eval(clickExpression("open-look-panel"), page.sessionId);
       await sleep(300);
       await browser.eval(`document.querySelector("[data-testid=visual-brief-card]:not(.selected)").click()`, page.sessionId);
-      assert.ok(await changed(colored), `${width}: a look is saved as a new draft version`);
-      const looked = await state();
+      const looked = await (async () => { for (let i = 0; i < 60; i += 1) { const now = await server(); if (now.revision > colored.revision) return now; await sleep(150); } return await server(); })();
+      assert.equal(looked.revision, colored.revision + 1, `${width}: the server saved the look as a new revision`);
+      assert.notEqual(looked.brief, colored.brief, `${width}: the server holds the new look`);
+      assert.ok(await shows(looked.revision));
+      const lookedUi = await state();
+
       if (width <= 600) await showPane(browser, page, "preview");
       await browser.eval(clickExpression("undo", "撤销"), page.sessionId);
-      assert.ok(await waitFor(browser, page.sessionId, `document.querySelector(".builder-template-name").textContent === ${JSON.stringify(colored.look)}`, 10000), `${width}: undo brings the previous look back`);
+      assert.ok(await waitFor(browser, page.sessionId, `document.querySelector(".builder-template-name").textContent === ${JSON.stringify(coloredUi.look)}`, 10000), `${width}: undo brings the previous look back`);
+      const undone = await server();
+      assert.equal(undone.brief, colored.brief, `${width}: the server undid the look`);
+      assert.equal(undone.palette, colored.palette, `${width}: the server undid the palette with it`);
+      assert.ok(undone.revision > looked.revision, `${width}: undo is a new revision, not a rewrite of history`);
+      assert.ok(await shows(undone.revision));
+
       await browser.eval(clickExpression("redo", "重做"), page.sessionId);
-      assert.ok(await waitFor(browser, page.sessionId, `document.querySelector(".builder-template-name").textContent === ${JSON.stringify(looked.look)}`, 10000), `${width}: redo applies the look again`);
+      assert.ok(await waitFor(browser, page.sessionId, `document.querySelector(".builder-template-name").textContent === ${JSON.stringify(lookedUi.look)}`, 10000), `${width}: redo applies the look again`);
+      const redone = await server();
+      assert.equal(redone.brief, looked.brief, `${width}: the server redid the look`);
+      assert.equal(redone.palette, looked.palette);
+      assert.ok(await shows(redone.revision));
+
+      // Reload: what the UI shows now must be what the server restores.
+      await browser.send("Page.reload", {}, page.sessionId);
+      assert.ok(await waitFor(browser, page.sessionId, `Boolean(document.querySelector("[data-testid=workspace-draft-revision]")) && Boolean(document.querySelector("[data-testid=open-source-template-frame]"))`, 20000), `${width}: the workspace reloads`);
+      assert.ok(await shows(redone.revision), `${width}: after a reload the page shows revision ${redone.revision}`);
+      const reloaded = await state();
+      assert.equal(reloaded.look, lookedUi.look, `${width}: after a reload the look and palette are the same`);
+      assert.deepEqual(await server(), redone, `${width}: reloading changed nothing on the server`);
+      await closePage(browser, page);
+    }
+  } finally {
+    browser.ws.close();
+  }
+});
+
+// Blind review of T-052: the round-one card first showed its middle. Its title and the
+// first question must be inside the chat viewport when the card opens, and choosing an
+// option must not move the panel.
+test("the alignment card opens at its top and choosing an option does not scroll the chat", { timeout: 180000 }, async () => {
+  const browser = await openBrowser();
+  try {
+    for (const width of [1440, 768]) {
+      const siteId = await createSite(`T052 卡片顶部 ${width}`);
+      const conversationId = await startAlignmentCard(siteId);
+      const page = await openWorkspace(browser, { siteId, width, theme: "dark", conversationId });
+      if (width <= 900) await showPane(browser, page, "chat");
+      assert.ok(await waitFor(browser, page.sessionId, `Boolean(document.querySelector(".alignment-panel .alignment-card"))`, 15000), `${width}: the card appears`);
+      await sleep(900);
+      const inView = `(() => {
+        const box = document.querySelector(".chat-messages").getBoundingClientRect();
+        const inside = (el) => { if (!el) return "missing"; const r = el.getBoundingClientRect(); return r.top >= box.top - 1 && r.bottom <= box.bottom + 1 ? "yes" : "no:" + Math.round(r.top - box.top) + "," + Math.round(r.bottom - box.bottom); };
+        return { head: inside(document.querySelector(".alignment-panel .alignment-head")), question: inside(document.querySelector(".alignment-panel .alignment-q-head")), scrollTop: document.querySelector(".chat-messages").scrollTop };
+      })()`;
+      const opened = await browser.eval<{ head: string; question: string; scrollTop: number }>(inView, page.sessionId);
+      assert.equal(opened.head, "yes", `${width}: the card title is in the chat viewport (${opened.head})`);
+      assert.equal(opened.question, "yes", `${width}: question 1 is in the chat viewport (${opened.question})`);
+      // A stale scroll position must not survive: scroll far down, reload the chat, look again.
+      await browser.eval(`(() => { document.querySelector(".chat-messages").scrollTop = 99999; })()`, page.sessionId);
+      await browser.eval(`document.querySelector(".alignment-panel .alignment-card:not(.selected)")?.click()`, page.sessionId);
+      const scrolled = await browser.eval<number>(`document.querySelector(".chat-messages").scrollTop`, page.sessionId);
+      await sleep(600);
+      const after = await browser.eval<number>(`document.querySelector(".chat-messages").scrollTop`, page.sessionId);
+      assert.equal(after, scrolled, `${width}: choosing an option does not move the chat`);
+      await closePage(browser, page);
+    }
+  } finally {
+    browser.ws.close();
+  }
+});
+
+test("a failed request shows one error message and one plain retry line, not two red boxes", { timeout: 180000 }, async () => {
+  const browser = await openBrowser();
+  try {
+    for (const width of [1440, 375]) {
+      const page = await openWorkspace(browser, { siteId: await createSite(`T052 错误 ${width}`), width, theme: "light" });
+      if (width <= 600) await showPane(browser, page, "chat");
+      const stop = await failChatRequests(browser, page.sessionId);
+      await browser.eval(sendChatExpression("把首屏标题写成按图加工的重载减速机"), page.sessionId);
+      await browser.eval(clickExpression("chat-send", "发送"), page.sessionId);
+      assert.ok(await waitFor(browser, page.sessionId, `Boolean(document.querySelector(".message.error .message-bubble"))`, 15000), `${width}: the error shows`);
+      await stop();
+      const seen = await browser.eval<{ boxes: number; note: string; text: string }>(`(() => { const message = document.querySelector(".message.error"); return { boxes: message.querySelectorAll(".change-summary").length, note: message.querySelector(".error-note")?.textContent ?? "", text: message.innerText }; })()`, page.sessionId);
+      assert.equal(seen.boxes, 0, `${width}: only the main message is boxed`);
+      assert.equal(seen.note, "已保存的草稿没有变化，可以直接重试。");
+      assert.ok(!/服务器|恢复状态|注意：/.test(seen.text), `${width}: no developer wording in ${seen.text}`);
       await closePage(browser, page);
     }
   } finally {

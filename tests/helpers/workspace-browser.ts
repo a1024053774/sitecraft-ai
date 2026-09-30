@@ -196,7 +196,7 @@ export function sendChatExpression(text: string) {
 // that do have a model key. Only POSTs to the chat route are answered; every other paused
 // request continues untouched. Returns a stop function that removes the interception and
 // lists what was answered.
-export async function failChatRequests(browser: Cdp, sessionId: string) {
+export async function failChatRequests(browser: Cdp, sessionId: string, delayMs = 0) {
   const intercepted: string[] = [];
   const handler = (params: Record<string, unknown>, from?: string) => {
     if (from !== sessionId) return;
@@ -208,12 +208,14 @@ export async function failChatRequests(browser: Cdp, sessionId: string) {
     intercepted.push(`${request.method} ${request.url}`);
     const message = "模型服务尚未配置，草稿没有伪造修改。";
     const body = { error: "not_configured", message, userMessage: `${message} 配置模型后重新提交；当前草稿和已上传素材不会被覆盖。`, recovery: "configure_provider" };
-    browser.send("Fetch.fulfillRequest", {
-      requestId: params.requestId,
-      responseCode: 503,
-      responseHeaders: [{ name: "Content-Type", value: "application/json" }],
-      body: Buffer.from(JSON.stringify(body)).toString("base64"),
-    }, sessionId).catch(() => {});
+    setTimeout(() => {
+      browser.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 503,
+        responseHeaders: [{ name: "Content-Type", value: "application/json" }],
+        body: Buffer.from(JSON.stringify(body)).toString("base64"),
+      }, sessionId).catch(() => {});
+    }, delayMs);
   };
   browser.on("Fetch.requestPaused", handler);
   await browser.send("Fetch.enable", { patterns: [{ urlPattern: "*/api/sites/*/chat", requestStage: "Request" }] }, sessionId);

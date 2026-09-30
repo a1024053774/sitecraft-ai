@@ -431,7 +431,7 @@ test("chat POST keeps applied result when append fails after a successful commit
   assert.equal(ui.appliedBranchClaimsNoDraftChange, false);
   assert.equal(ui.showsConversationWarning, true);
   assert.equal(pageSource.includes("本次没有修改草稿"), false);
-  assert.equal(pageSource.includes("请以服务器草稿和恢复状态为准"), true);
+  assert.equal(pageSource.includes("已保存的草稿没有变化，可以直接重试。"), true);
 });
 
 test("chat POST keeps answer when append fails and does not treat it as an error", async () => {

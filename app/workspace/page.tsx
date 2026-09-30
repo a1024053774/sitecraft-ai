@@ -410,6 +410,7 @@ export default function WorkspacePage() {
   const imageFileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   const startJob = (steps: JobStep[], text: string) => {
     jobRef.current = { id: jobRef.current.id + 1, steps, current: 0 };
@@ -528,9 +529,24 @@ export default function WorkspacePage() {
       .then((status: ProviderStatus) => setProviderStatus(status))
       .catch(() => setProviderStatus({ mode: "unconfigured", model: null }));
   }, []);
+  // A card that waits for the user is anchored by its top: its title and first question show
+  // when it opens or a new round arrives, whatever scroll position the chat had. Everything
+  // else follows the newest message.
+  const alignmentCardKey = alignmentView && (alignmentView.waitingForUser || alignmentView.awaitingConfirmation) ? `${conversationId}:${alignmentView.questionId}:${alignmentView.questionRevision}` : null;
   useEffect(() => {
+    if (alignmentCardKey) return;
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [messages, busy, alignmentView]);
+  }, [messages, busy, alignmentCardKey]);
+  useEffect(() => {
+    if (!alignmentCardKey) return;
+    const frame = window.requestAnimationFrame(() => {
+      const list = chatMessagesRef.current;
+      const card = list?.querySelector<HTMLElement>(".alignment-panel:not([data-mobile-drawer])");
+      if (!list || !card) return;
+      list.scrollTo({ top: Math.max(0, card.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop - 12), behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [alignmentCardKey]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -701,7 +717,7 @@ export default function WorkspacePage() {
       const safeText = readableWorkspaceError(done, "模型操作失败");
       setMessages((items) => [...items, {
         id: crypto.randomUUID(), role: "assistant", status: "error",
-        text: safeText, change: "请以服务器草稿和恢复状态为准",
+        text: safeText, change: "已保存的草稿没有变化，可以直接重试。",
       }]);
     }
     if (done.conversationPersisted === false) {
@@ -748,7 +764,7 @@ export default function WorkspacePage() {
         role: "assistant",
         status: "error",
         text: readableWorkspaceError(error, "需求对齐失败"),
-        change: "请以服务器草稿和恢复状态为准",
+        change: "已保存的草稿没有变化，可以直接重试。",
       }]);
     } finally {
       setBusy(false);
@@ -849,7 +865,7 @@ export default function WorkspacePage() {
       applyDoneEvent(doneEvent);
       return true;
     } catch (error) {
-      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "AI 修改失败"), change: "请以服务器草稿和恢复状态为准" }]);
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "AI 修改失败"), change: "已保存的草稿没有变化，可以直接重试。" }]);
       return false;
     } finally {
       setBusy(false);
@@ -1352,7 +1368,7 @@ export default function WorkspacePage() {
             {history.length ? history.map((item) => <div className="history-row" key={item.id}><span>v{item.revision}</span><div><strong>{item.summary}</strong><small>{new Date(item.createdAt).toLocaleString("zh-CN")} · {historySourceNames[item.source] ?? "修改"}</small></div></div>) : <div className="history-empty">还没有修改记录。改动保存后会列在这里，可以撤销。</div>}
           </div>
         )}
-        <div className="chat-messages">
+        <div className="chat-messages" ref={chatMessagesRef}>
           {messages.map((message) => (
             <div className={`message ${message.role} ${message.status ?? ""}`} key={message.id}>
               <div className="message-label">{message.role === "assistant" ? <><Sparkles size={12} />AI 助手</> : "你"}</div>
@@ -1361,7 +1377,8 @@ export default function WorkspacePage() {
               {message.alignment?.waitingForUser && message.alignment.selectedLabel ? (
                 <div className="change-summary alignment">{message.alignment.selectedLabel}</div>
               ) : null}
-              {message.change && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "error" || message.status === "warning" ? <AlertCircle size={12} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={12} /> : <Check size={12} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
+              {message.change && message.status === "error" ? <p className="error-note">{message.change}{message.meta ? ` · ${message.meta}` : ""}</p> : null}
+              {message.change && message.status !== "error" && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "warning" ? <AlertCircle size={12} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={12} /> : <Check size={12} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
             </div>
           ))}
           {alignmentView && alignmentOpen ? (
@@ -1588,17 +1605,23 @@ export default function WorkspacePage() {
             </section>
           ) : null}
           <div className="chat-actions" data-testid="chat-actions" role="toolbar" aria-label="对话操作">
+            <div className="chat-action-group" data-group="alignment">
             <button className={alignmentEnabled ? "chat-action alignment-switch on" : "chat-action alignment-switch"} type="button" role="switch" aria-checked={alignmentEnabled} data-testid="alignment-toggle" disabled={busy} onClick={() => { void toggleAlignment(!alignmentEnabled); }}>
               <span className="switch-track" aria-hidden="true"><span className="switch-knob" /></span>需求对齐<span className="switch-state">{alignmentEnabled ? "开" : "关"}</span>
             </button>
+            </div>
+            <div className="chat-action-group" data-group="look">
             <button className="chat-action" type="button" data-testid="open-look-panel" aria-expanded={lookPanel === "look"} onClick={() => toggleLookPanel("look")}>样子</button>
             <button className="chat-action" type="button" data-testid="open-color-panel" aria-expanded={lookPanel === "color"} onClick={() => toggleLookPanel("color")}>配色</button>
+            </div>
+            <div className="chat-action-group secondary" data-group="materials">
             <button className="chat-action" type="button" data-testid="open-materials" disabled={busy || !draftReady} onClick={() => setShowMaterials(true)}>公司资料</button>
             <button className="chat-action" type="button" data-testid="open-image-library" disabled={busy || !draftReady} onClick={() => { void openImageLibrary(); }}>上传产品图</button>
             <button className="chat-action" type="button" data-testid="open-product-import" onClick={() => setShowImport(true)}>商品表格</button>
+            </div>
           </div>
           <form className="chat-input" onSubmit={submitChat}>
-            <textarea ref={inputRef} aria-label="给 AI 的消息" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder={alignmentEnabled ? "说说公司和想要的网站，AI 会先问几件事再生成…" : "告诉 AI 你想怎么改…"} rows={2} />
+            <textarea ref={inputRef} aria-label="给 AI 的消息" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder={alignmentEnabled ? "告诉我公司资料，或想改哪里" : "告诉 AI 你想怎么改…"} rows={2} />
             <button className="send-button" type="submit" data-testid="chat-send" disabled={!input.trim() || busy || !draftReady} aria-label="发送"><Send size={15} /></button>
           </form>
         </div>

@@ -65,3 +65,9 @@ cloud，2026-09-29（时间为 UTC）。实现提交：本 commit（分支 `clou
 - 这两个文件按场景拆开、每个场景单独起 Chrome 跑：motion 三档、contrast 深浅三档和 6 个强调色全部通过；一次跑完整套仍然失败，原因是本机 Google Chrome 154 启动约 20–35 秒后唤醒 GoogleUpdater 并退出（空闲的无头 Chrome 也一样，加 `--disable-background-networking --disable-component-update` 无效），属于本机环境问题，待负责人处理 Chrome 更新后重跑一次完整命令。
 - 截图 `artifacts/t052/workspace-{dark,light}-{1440,768,375}-{alignment-card,error,preview}.png` 共 18 张，本地生成；Claude 看过深色 1440 两张、浅色 1440 错误态、深色 375 需求对齐抽屉、浅色 768 预览，没有看到错位或截断。审美结论等盲评。
 
+审查与返工（2026-09-29 纽约时间 20:00–20:40）：
+
+- 盲评 gpt-6.1-sol NO_GO（`artifacts/blind-t052-workspace.md`）：P0 需求对齐卡打开时从中段显示；P1 动画没有过程证据；P2 输入框上方按钮同质、375 占位提示被省略、错误态第二个红框像开发提示。Astra 代码审查 NO_GO（`artifacts/review-astra-t050-t052.md`）：浏览器测试没跑完（本机普通 Chrome 无头约 40 秒退出，见 AGENTS 验收第 2 条）；换样子/配色/撤销/重做只看 DOM、没有服务器回读和刷新。
+- 返工（Sonnet 子 agent，Claude 验收）：卡片打开或新一轮到来时滚到卡片顶部（改动前 `1440: the card title is in the chat viewport (no:-12,-682)`）；操作行分三组（需求对齐｜样子、配色｜公司资料、上传产品图、商品表格，最后一组为次要样式，按钮都保留可见）；占位提示改为「告诉我公司资料，或想改哪里」并断言三档不被截断；错误态只留一个红框，下面一行「已保存的草稿没有变化，可以直接重试。」；换样子/配色/撤销/重做每步 GET 草稿核对 revision、样子、色板，最后 `Page.reload` 核对（用只改 React state 的错误实现验证过会失败）；新增 `scripts/capture-workspace-motion-frames.ts`，输出 `artifacts/t052/frames/`（7 个场景 × 三档 × 正常/减少动态，附 index.md）。
+- 证据：`CHROME_PATH=<headless shell> SITE_STORE=fs node --test --experimental-strip-types tests/*.test.ts` 321/321，`tsc --noEmit`、`npm run build` 通过。Claude 看过返工后的深色 1440 需求对齐卡：标题和第 1 题在首屏，操作行分组清楚。待 gpt-6.1-sol 复评、Astra 复审。
+
