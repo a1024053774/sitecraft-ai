@@ -34,6 +34,11 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px soli
 .sitecraft-catalog-card { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 16px; padding: 15px 0; border-bottom: var(--site-rule); }
 .sitecraft-catalog-card h3 { margin: 0; font-size: 16px; font-weight: 650; }
 .sitecraft-catalog-card p { margin: 0; color: var(--site-muted); line-height: 1.55; }
+/* Spec values: keep words and Chinese runs whole and break only at spaces and after / + – 、 (the
+   bridge marks those points); a single piece wider than its cell still breaks rather than
+   running out of it. The layouts that add values opt in with their own class. */
+.sitecraft-nameplate-cell dd, .sitecraft-hero-spec dd, .sitecraft-product-key dd, .sitecraft-product-specs td { word-break: keep-all; overflow-wrap: anywhere; }
+.sitecraft-compare-value, .sitecraft-compare-extra dd { word-break: keep-all; overflow-wrap: anywhere; }
 `,
   narrow: `
 .sitecraft-container { width: min(100% - var(--site-gutter-narrow), var(--site-container)); }

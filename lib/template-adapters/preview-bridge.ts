@@ -329,7 +329,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         th.scope = "row";
         th.textContent = specs[si].name;
         var td = document.createElement("td");
-        td.textContent = specs[si].value || (locale === "en" ? "To be provided" : "待补充");
+        setValueText(td, specs[si].value || (locale === "en" ? "To be provided" : "待补充"));
         row.appendChild(th);
         row.appendChild(td);
         tbody.appendChild(row);
@@ -507,7 +507,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
           var dt = document.createElement("dt");
           dt.textContent = extras[e].name;
           var dd = document.createElement("dd");
-          dd.textContent = extras[e].value;
+          setValueText(dd, extras[e].value);
           row.appendChild(dt);
           row.appendChild(dd);
           list.appendChild(row);
@@ -557,7 +557,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         cellLabel.textContent = names[s].name;
         var cellValue = document.createElement("span");
         cellValue.className = "sitecraft-compare-value";
-        cellValue.textContent = match ? match.value : "";
+        setValueText(cellValue, match ? match.value : "");
         td.appendChild(cellLabel);
         td.appendChild(cellValue);
         tr.appendChild(td);
@@ -881,11 +881,20 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var dt = document.createElement("dt");
       dt.textContent = facts[i].label;
       var dd = document.createElement("dd");
-      dd.textContent = facts[i].value;
+      setValueText(dd, facts[i].value);
       cell.appendChild(dt);
       cell.appendChild(dd);
       container.appendChild(cell);
     }
+  }
+
+  // Spec values (T-053): on block-library pages a value breaks only at spaces and after / + – 、,
+  // and the cell CSS keeps words and Chinese runs whole. A zero-width space marks each such point
+  // in the rendered text; the draft keeps the value as written. (A <wbr> element gives the same
+  // breaks but shifts glyphs even where the line does not wrap.) Other looks write values as is.
+  function setValueText(node, value) {
+    var text = value == null ? "" : String(value);
+    node.textContent = adapter && adapter.blocks ? text.replace(/([\/+–、])(?=\S)/g, "$1\u200b") : text;
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;
@@ -1538,10 +1547,21 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
+  // The zero-width break points added to spec values are not part of the value: a visitor who
+  // copies a grade like S136/H13/NAK80 gets it as written in the materials.
+  function onCopy(event) {
+    if (!adapter || !adapter.blocks || !event || !event.clipboardData || !global.getSelection) return;
+    var text = String(global.getSelection() || "");
+    if (text.indexOf("\u200b") === -1) return;
+    event.clipboardData.setData("text/plain", text.replace(/\u200b/g, ""));
+    if (event.preventDefault) event.preventDefault();
+  }
+
   if (global.addEventListener) global.addEventListener("message", onMessage);
   if (document && document.addEventListener) {
     document.addEventListener("click", onClick, true);
     document.addEventListener("submit", onInquirySubmit, true);
+    document.addEventListener("copy", onCopy, true);
   }
   if (parent && parent.postMessage) parent.postMessage({ type: "sitecraft:ready", templateId: templateId }, "*");
   global.__sitecraftApplyDeclared = applyDeclaredContent;

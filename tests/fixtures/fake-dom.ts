@@ -123,8 +123,9 @@ export function createDocument() {
   return { document, html, body };
 }
 
+// Zero-width spaces (line-break points the bridge adds to spec values) are not seen, so they are dropped.
 export function visibleText(node: FakeNode): string {
   if (node.hidden || node.styleValues.display === "none") return "";
-  if (!node.childNodes.length) return node.textContent ?? "";
+  if (!node.childNodes.length) return (node.textContent ?? "").replace(/\u200b/g, "");
   return node.childNodes.map((child) => visibleText(child)).join(" ");
 }

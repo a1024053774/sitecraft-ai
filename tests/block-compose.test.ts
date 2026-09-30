@@ -123,6 +123,13 @@ const INTENDED_CHANGES: Array<{ why: string; context: string; selector: string; 
     from: null,
     to: ["flex: 0 0 auto", "max-width: 70%", "text-align: right"],
   },
+  {
+    why: "spec values keep words and Chinese runs whole; the bridge adds break points after / + – 、",
+    context: "",
+    selector: ".sitecraft-nameplate-cell dd, .sitecraft-hero-spec dd, .sitecraft-product-key dd, .sitecraft-product-specs td",
+    from: null,
+    to: ["word-break: keep-all", "overflow-wrap: anywhere"],
+  },
 ];
 const changeKey = (change: (typeof INTENDED_CHANGES)[number], side: "from" | "to") =>
   ruleKey({ context: change.context, selector: change.selector, declarations: change[side] ?? [] });

@@ -62,7 +62,7 @@ const targetPrompts: Record<string, { label: string; prompt: string }> = {
 // Bump when the local snapshot/host overlay contract changes. Keeping this in
 // the iframe URL prevents a browser from showing an older template shell after
 // the runtime asset bundle has been rebuilt.
-const PREVIEW_ASSET_REVISION = "20260929-t053-layouts";
+const PREVIEW_ASSET_REVISION = "20260930-t053-value-breaks";
 export { PREVIEW_TIMEOUT_MS, PREVIEW_CHROME_HINT };
 
 export function OpenSourceTemplateFrame({
