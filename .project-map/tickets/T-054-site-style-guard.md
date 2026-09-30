@@ -37,7 +37,7 @@ supersedes:
 
 ## Resolution
 
-Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb449c`、`190238b`、`6dde6b2`、`af3b6eb`；返工提交为 `650d584`、`03670c7`，均未推送。代码审查：待填写。盲评：待填写。
+Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb449c`、`190238b`、`6dde6b2`、`af3b6eb`；返工提交为 `650d584`、`03670c7`、`0b61472`，均未推送。代码审查：待填写。盲评：待填写。
 
 返工实现：
 
@@ -51,4 +51,5 @@ Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb44
 - 真实 DeepSeek 需求对齐按工业、外贸、注塑依次各跑一次：`artifacts/t061/t054-rework-industrial-summary.json`（`ff393add…`，建议/选择方向与产品对比布局）、`t054-rework-export-summary.json`（`70060b1d…`，规格方向与产品卡片）、`t054-rework-molding-summary.json`（`9c10c17b…`，工厂实力与产品分组）。三次模型调用均记录；工业与外贸首个结构化响应因 schema 字段类型失败后按真实原因记录并由既有调用流程完成，未用静默成功掩盖。
 - 三站各做一次真实样式对话并通过提交检查，记录在 [style-requests-rework.json](../../artifacts/t054/style-requests-rework.json)。实际工作台输入框证据在 [workspace-ui-1790790783953](../../artifacts/t054/workspace-ui-1790790783953/)：首屏更有分量只修改样式；375 宽度四列产品请求被拒，原因含「375 宽度下『产品』横向超出页面 153px」。
 - 三站发布页三档最新检查通过：[published-rework-20260930-1755/report.json](../../artifacts/t054/published-rework-20260930-1755/report.json)；此前注塑 375 标题溢出的失败报告保留在 [published-rework-20260930-1750/report.json](../../artifacts/t054/published-rework-20260930-1750/report.json)。
+- 全量 `npm test` 通过（490/490），`npm run typecheck` 和 `npm run build` 通过；完整日志见 [rework-npm-test-final.txt](../../artifacts/t054/rework-npm-test-final.txt)。
 - 最新盲评包为 [blind/README.md](../../artifacts/t054/blind/README.md)、[blind-key.json](../../artifacts/t054/blind-key.json)，随机代号为 `99df`/`c52f`，三家各含带样式与去掉样式的 1440/768/375 原图及 `-masked.png`；上一包完整移至 [blind-r1](../../artifacts/t054/blind-r1/)，中间重建包保留在 `blind-prior-*`。
