@@ -22,7 +22,9 @@ registerHooks({
 // cap, whole-site generation used 13.7K–22.7K completion tokens (11.2K–18.7K of them reasoning) in
 // 57–95 s, and alignment planning 2.6K–3.2K in 13–16 s (artifacts/t061/probe-budget.jsonl). Thinking
 // stays on (quality); the budgets and timeouts fit the measurements, and an answer that still hits
-// the cap is reported as cut off instead of being retried.
+// the cap is reported as cut off instead of being retried. The acceptance runs then cut off one
+// molding generation at 32768 (32761 tokens, 31191 of them reasoning, 136 s); the owner chose success
+// rate over cost and wait at this stage, so the floor is 65536 and an attempt may run 300 s.
 
 const env = process.env as Record<string, string | undefined>;
 delete env.DEEPSEEK_MAX_TOKENS;
@@ -33,15 +35,15 @@ env.DEEPSEEK_BASE_URL = "https://budget-stub.test.invalid";
 const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
 const { defaultDraft } = await import("../lib/site-document.ts");
 
-test("structured generation asks for a 32768-token budget by default and leaves thinking at its default", async () => {
-  assert.equal(await requestedMaxTokens(undefined), 32768);
+test("structured generation asks for a 65536-token budget by default and leaves thinking at its default", async () => {
+  assert.equal(await requestedMaxTokens(undefined), 65536);
   assert.equal(lastBody.thinking, undefined, "thinking mode is not switched off");
   assert.equal(lastBody.reasoning_effort, undefined, "the reasoning effort is not lowered");
 });
 
-test("a lower configured budget is raised to 32768, a higher one is kept", async () => {
-  assert.equal(await requestedMaxTokens("8192"), 32768);
-  assert.equal(await requestedMaxTokens("40000"), 40000);
+test("a lower configured budget is raised to 65536, a higher one is kept", async () => {
+  assert.equal(await requestedMaxTokens("32768"), 65536);
+  assert.equal(await requestedMaxTokens("100000"), 100000);
 });
 
 let lastBody: Record<string, unknown> = {};
@@ -81,9 +83,9 @@ async function attemptTimeouts(reply: Record<string, unknown>, call: () => Promi
   return seen;
 }
 
-test("a structured-generation attempt may run up to 180 s and a planning attempt up to 90 s", async () => {
+test("a structured-generation attempt may run up to 300 s and a planning attempt up to 90 s", async () => {
   const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
-  assert.deepEqual(await attemptTimeouts({ type: "answer", text: "这是工程工业样子的站点。" }, () => requestStructuredOperations({ message: "这个网站是做什么的？", draft: structuredClone(defaultDraft), templateId: defaultDraft.templateId, selectedTarget: null })), [180_000]);
+  assert.deepEqual(await attemptTimeouts({ type: "answer", text: "这是工程工业样子的站点。" }, () => requestStructuredOperations({ message: "这个网站是做什么的？", draft: structuredClone(defaultDraft), templateId: defaultDraft.templateId, selectedTarget: null })), [300_000]);
   assert.deepEqual(await attemptTimeouts({ kind: "ready", summary: "资料足够。" }, () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" })), [90_000]);
 });
 

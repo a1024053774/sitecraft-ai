@@ -1,3 +1,5 @@
+import { errorCatalog } from "./user-errors.ts";
+
 // User-facing names for draft targets in the workspace. Field paths (hero.title.zh, contact.phone)
 // stay internal; the workspace only ever shows these Chinese page-part names (spec §3.4).
 
@@ -115,4 +117,12 @@ export function noChangeReply(summary: unknown, rejected: unknown): { text: stri
     : [];
   if (reasons.length) return { text: "", change: `${reasons.join("；")}。` };
   return { text: "模型没有生成可应用的内容差异，草稿和模板均未修改。", change: String(summary || "没有变化") };
+}
+
+// A guided run that failed, read back after a refresh (T-061). The stored reason is the error catalog's
+// message for that failure (cut off, timed out, service down, not saved); show it with its next step,
+// as the workspace did at the time. Anything else, such as an older record, gets the general line.
+export function alignmentFailureText(summary: unknown): string {
+  const known = typeof summary === "string" ? errorCatalog().find((item) => item.message === summary.trim()) : undefined;
+  return known ? `${known.message} ${known.nextStep}` : "需求对齐没有完成，草稿没有修改。请读取当前状态后重试。";
 }

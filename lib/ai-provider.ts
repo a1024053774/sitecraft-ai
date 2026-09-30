@@ -6,6 +6,7 @@ import { blockLookForTemplate } from "@/lib/blocks/looks/index";
 import { declaredFamilySections } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
 import { plainSummary } from "@/lib/workspace-copy";
+import { schemaIssueFields } from "@/lib/schema-issue-fields";
 import {
   inspectPreviewScreenshot,
   parsePreviewReview,
@@ -146,14 +147,14 @@ function fillMissingCatalogText(raw: unknown): unknown {
   };
 }
 
-function parseModelJson(content: unknown): { data: AIIntentResponse | null; error: string } {
+function parseModelJson(content: unknown): { data: AIIntentResponse | null; error: string; fields?: string[] } {
   if (typeof content !== "string") return { data: null, error: "message.content 不是字符串" };
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
     const parsed = aiIntentResponseSchema.safeParse(fillMissingCatalogText(JSON.parse(cleaned)));
     if (parsed.success) return { data: parsed.data, error: "" };
     const issues = parsed.error.issues.slice(0, 6).map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`);
-    return { data: null, error: issues.join("；") };
+    return { data: null, error: issues.join("；"), fields: schemaIssueFields(parsed.error.issues) };
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : "JSON 解析失败" };
   }
@@ -201,6 +202,7 @@ function logModelFailure(entry: {
   response?: Response | null;
   payload?: { choices?: Array<{ finish_reason?: string }>; usage?: ModelUsage | null } | null;
   error?: unknown;
+  fields?: string[];
 }) {
   const word = (value: unknown, pattern: RegExp) => (typeof value === "string" && pattern.test(value) ? value : null);
   const count = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : null);
@@ -221,19 +223,9 @@ function logModelFailure(entry: {
     ...(finish ? { finish } : {}),
     ...(usage ? { tokens: { prompt: count(usage.prompt_tokens), completion: count(usage.completion_tokens), reasoning: count(usage.completion_tokens_details?.reasoning_tokens) } } : {}),
     ...(cause ? { cause } : {}),
+    ...(entry.fields?.length ? { fields: entry.fields.filter((field) => /^[A-Za-z0-9_.?]{1,200}:[a-z_]{1,40}$/.test(field)) } : {}),
   };
   console.warn(`[sitecraft] DeepSeek call failed ${JSON.stringify(line)}`);
-}
-
-// An answer that did not pass: not JSON at all (parse), or JSON of the wrong shape (schema).
-function unparsedCategory(content: unknown): FailureCategory {
-  if (typeof content !== "string") return "parse";
-  try {
-    JSON.parse(content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
-    return "schema";
-  } catch {
-    return "parse";
-  }
 }
 
 function operationInstructions(templateId: string) {
@@ -400,7 +392,7 @@ function clipPlanProse(raw: unknown): unknown {
   };
 }
 
-function parseAlignmentPlan(content: unknown) {
+function parseAlignmentPlan(content: unknown): { data: z.infer<typeof alignmentPlanSchema> | null; error: string; fields?: string[] } {
   if (typeof content !== "string") return { data: null, error: "message.content 不是字符串" };
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
@@ -409,6 +401,7 @@ function parseAlignmentPlan(content: unknown) {
     return {
       data: null,
       error: parsed.error.issues.slice(0, 6).map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`).join("；"),
+      fields: schemaIssueFields(parsed.error.issues),
     };
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : "JSON 解析失败" };
@@ -492,7 +485,8 @@ export async function requestAlignmentPlan(args: {
       }
       const parsed = parseAlignmentPlan(payload.choices?.[0]?.message?.content);
       if (!parsed.data) {
-        logModelFailure({ call: "alignment_plan", attempt, category: unparsedCategory(payload.choices?.[0]?.message?.content), startedAt: attemptStartedAt, response, payload });
+        // An answer that is not JSON at all (parse), or JSON of the wrong shape (schema, with the fields).
+        logModelFailure({ call: "alignment_plan", attempt, category: parsed.fields ? "schema" : "parse", fields: parsed.fields, startedAt: attemptStartedAt, response, payload });
         lastError = `需求对齐问题未通过 Schema 校验：${parsed.error.slice(0, 800)}`;
         continue;
       }
@@ -566,8 +560,10 @@ function summaryWithNotes(summary: string, notes: string[], operationCount: numb
 // one answer is 13.7K–22.7K completion tokens, 11.2K–18.7K of them reasoning, in 57–95 s; at 8192 every
 // first attempt was cut off, often with no content. Thinking stays on (quality); the budget has a floor
 // with room above the largest answer, and each attempt may run long enough to reach it (~240 tokens/s).
-const STRUCTURED_OPERATIONS_MIN_TOKENS = 32768;
-const STRUCTURED_OPERATIONS_TIMEOUT_MS = 180_000;
+// At 32768 the acceptance runs still cut off one molding answer (32761 tokens, 31191 reasoning, 136 s);
+// success rate comes before cost and wait at this stage (owner, 2026-09-30), so 65536 and 300 s.
+const STRUCTURED_OPERATIONS_MIN_TOKENS = 65536;
+const STRUCTURED_OPERATIONS_TIMEOUT_MS = 300_000;
 
 function structuredOperationsMaxTokens() {
   const configured = Number(process.env.DEEPSEEK_MAX_TOKENS);
@@ -667,7 +663,8 @@ ${templateContext}`,
       }
       const parsedChange = parseModelJson(payload.choices?.[0]?.message?.content);
       if (!parsedChange.data) {
-        logModelFailure({ call: "structured_operations", attempt, category: unparsedCategory(payload.choices?.[0]?.message?.content), startedAt: attemptStartedAt, response, payload });
+        // An answer that is not JSON at all (parse), or JSON of the wrong shape (schema, with the fields).
+        logModelFailure({ call: "structured_operations", attempt, category: parsedChange.fields ? "schema" : "parse", fields: parsedChange.fields, startedAt: attemptStartedAt, response, payload });
         retryFeedback = parsedChange.error.slice(0, 1200);
         lastError = `模型输出未通过结构化 Schema 校验：${retryFeedback}`;
         continue;
@@ -769,7 +766,8 @@ export async function requestPreviewReview(args: {
       }
       const parsed = parsePreviewReview(payload.choices?.[0]?.message?.content);
       if (!parsed.data) {
-        logModelFailure({ call: "preview_review", attempt, category: unparsedCategory(payload.choices?.[0]?.message?.content), startedAt: attemptStartedAt, response, payload });
+        // An answer that is not JSON at all (parse), or JSON of the wrong shape (schema, with the fields).
+        logModelFailure({ call: "preview_review", attempt, category: parsed.fields ? "schema" : "parse", fields: parsed.fields, startedAt: attemptStartedAt, response, payload });
         retryFeedback = parsed.error.slice(0, 1200);
         lastError = `模型输出未通过预览审查 Schema 校验：${retryFeedback}`;
         continue;
@@ -862,7 +860,8 @@ export async function requestImageFacts(args: {
       }
       const parsed = parseImageFacts(payload.choices?.[0]?.message?.content);
       if (!parsed.data) {
-        logModelFailure({ call: "image_facts", attempt, category: unparsedCategory(payload.choices?.[0]?.message?.content), startedAt: attemptStartedAt, response, payload });
+        // An answer that is not JSON at all (parse), or JSON of the wrong shape (schema, with the fields).
+        logModelFailure({ call: "image_facts", attempt, category: parsed.fields ? "schema" : "parse", fields: parsed.fields, startedAt: attemptStartedAt, response, payload });
         retryFeedback = parsed.error.slice(0, 1200);
         lastError = `模型输出未通过图片事实 Schema 校验：${retryFeedback}`;
         continue;

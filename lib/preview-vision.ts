@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { schemaIssueFields } from "./schema-issue-fields.ts";
 
 export const MIN_PREVIEW_WIDTH = 320;
 export const MIN_PREVIEW_HEIGHT = 200;
@@ -98,14 +99,14 @@ export function pngDataUrl(bytes: Uint8Array) {
   return `data:${info.mime};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
-export function parsePreviewReview(content: unknown): { data: PreviewReview | null; error: string } {
+export function parsePreviewReview(content: unknown): { data: PreviewReview | null; error: string; fields?: string[] } {
   if (typeof content !== "string") return { data: null, error: "message.content 不是字符串" };
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
     const parsed = previewReviewSchema.safeParse(JSON.parse(cleaned));
     if (parsed.success) return { data: parsed.data, error: "" };
     const issues = parsed.error.issues.slice(0, 6).map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`);
-    return { data: null, error: issues.join("；") };
+    return { data: null, error: issues.join("；"), fields: schemaIssueFields(parsed.error.issues) };
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : "JSON 解析失败" };
   }

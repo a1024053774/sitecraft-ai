@@ -59,7 +59,7 @@ import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/tem
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
 import { createSiteOnce, resolveWorkspaceEntry, workspaceUrlForSite } from "@/lib/workspace-entry";
-import { changeTargetLabels, describePreviewGaps, noChangeReply } from "@/lib/workspace-copy";
+import { alignmentFailureText, changeTargetLabels, describePreviewGaps, noChangeReply } from "@/lib/workspace-copy";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
 import { generateCustomPalette } from "@/lib/custom-brand-color";
@@ -312,13 +312,14 @@ function viewFromAlignmentDone(done: Record<string, unknown>): AlignmentViewStat
 function alignmentMessageText(view: AlignmentViewState, action?: string) {
   if (view.processing) return "正在继续已保存的任务，刷新不会重复提交。";
   if (view.cannotProceed) return view.summary || "缺少足够信息，无法继续生成。";
+  // A run that failed keeps its card for a retry; say first why it failed, the way it was said then.
+  if (view.lastResult?.status === "error") return alignmentFailureText(view.lastResult.summary);
   if (view.awaitingConfirmation) return view.question || "等待你选择是否应用当前方案。";
   if (view.waitingForUser) return view.question ? `等待你选择：${view.question}` : "等待你选择";
   if (view.prefsOnly) return "偏好已保存。";
   if (view.lastResult?.status === "applied" && typeof view.lastResult.revision === "number") {
     return `已应用已确认的方案，草稿 v${view.lastResult.revision}。`;
   }
-  if (view.lastResult?.status === "error") return "需求对齐没有完成，草稿没有修改。请读取当前状态后重试。";
   if (view.lastResult?.status === "answer") return view.lastResult.text || view.lastResult.summary || "模型已回答。";
   if (view.lastResult?.summary) return view.lastResult.summary;
   if (action === "cancel" || view.state === "cancelled") return "已关闭需求对齐。已保存的选择仍保留在会话中。";

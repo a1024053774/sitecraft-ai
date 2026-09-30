@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { describePreviewGaps, noChangeReply } from "../lib/workspace-copy.ts";
+import { alignmentFailureText, describePreviewGaps, noChangeReply } from "../lib/workspace-copy.ts";
 import { stripMaterialsInstruction, wrapCompanyMaterials } from "../lib/simulated-packs.ts";
 import { resolvePagePlan } from "../lib/template-pages.ts";
 
@@ -113,4 +113,24 @@ test("the workspace answers a no-change turn with that reply and draws no empty 
   assert.match(source, /noChangeReply\(done\.summary, done\.rejected\)/);
   assert.ok(!source.includes(NO_DIFFERENCE), "the sentence is written in one place");
   assert.match(source, /\{message\.text \? <div className="message-bubble">\{message\.text\}<\/div> : null\}/);
+});
+
+// T-061: after a refresh, a guided run that failed says why, the way it said it at the time (cut off
+// → cut off). Only the error catalog's wording is shown; anything else gets the general line.
+const GENERAL_FAILURE = "需求对齐没有完成，草稿没有修改。请读取当前状态后重试。";
+
+test("a restored failed alignment run says the real reason", () => {
+  assert.equal(alignmentFailureText("这次生成被截断，没有改动草稿。"), "这次生成被截断，没有改动草稿。 可以直接重试；已保存的问题和答案仍可继续。");
+  assert.equal(alignmentFailureText("模型服务暂时不可用，草稿没有因此改写。"), "模型服务暂时不可用，草稿没有因此改写。 稍后重试；已保存的问题和答案仍可继续。");
+  for (const other of ["Error: /private/token=secret", "", undefined, 3]) assert.equal(alignmentFailureText(other), GENERAL_FAILURE);
+});
+
+test("the workspace restores a failed run with that reason, before the card it shows again", async () => {
+  const source = await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  const start = source.indexOf("function alignmentMessageText");
+  const body = source.slice(start, source.indexOf("\n}\n", start));
+  const failed = body.indexOf('if (view.lastResult?.status === "error") return alignmentFailureText(view.lastResult.summary);');
+  assert.ok(failed > 0, "the failure branch uses the stored reason");
+  assert.ok(failed < body.indexOf("if (view.awaitingConfirmation)") && failed < body.indexOf("if (view.waitingForUser)"), "it comes before the waiting branches, which a failed run's card would otherwise take");
+  assert.ok(!source.includes(GENERAL_FAILURE), "the general line is written in one place");
 });

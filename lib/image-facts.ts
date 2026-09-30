@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { schemaIssueFields } from "./schema-issue-fields.ts";
 import { localizedTextSchema } from "./site-document.ts";
 
 export const MISSING_FACT = "待补充";
@@ -18,14 +19,14 @@ export const imageFactsSchema = z.object({
 
 export type ImageFacts = z.infer<typeof imageFactsSchema>;
 
-export function parseImageFacts(content: unknown): { data: ImageFacts | null; error: string } {
+export function parseImageFacts(content: unknown): { data: ImageFacts | null; error: string; fields?: string[] } {
   if (typeof content !== "string") return { data: null, error: "message.content 不是字符串" };
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
     const parsed = imageFactsSchema.safeParse(JSON.parse(cleaned));
     if (parsed.success) return { data: parsed.data, error: "" };
     const issues = parsed.error.issues.slice(0, 6).map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`);
-    return { data: null, error: issues.join("；") };
+    return { data: null, error: issues.join("；"), fields: schemaIssueFields(parsed.error.issues) };
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : "JSON 解析失败" };
   }

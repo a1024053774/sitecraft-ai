@@ -127,15 +127,24 @@ test("a body or an answer that is not JSON is logged as parse", async () => {
     { attempt: 1, category: "parse", finish: "stop" },
     { attempt: 2, category: "parse", finish: "stop" },
   ]);
+  assert.ok([...body.logged, ...content.logged].every((line) => !("fields" in line)), "an answer that is not JSON has no fields to name");
 });
 
-test("an answer that fails the schema is logged as schema, without the answer", async () => {
+test("an answer that fails the schema is logged as schema with the fields it got wrong, not their values", async () => {
   const bad = () => answer(JSON.stringify({ type: "edit", summary: MATERIALS, operations: `bad ${SENTINEL}` }));
   const { result, logged } = await run([bad, bad]);
   assert.equal(!result.ok && result.code, "invalid_output");
-  assert.deepEqual(logged.map(({ attempt, category }) => ({ attempt, category })), [
-    { attempt: 1, category: "schema" },
-    { attempt: 2, category: "schema" },
+  assert.deepEqual(logged.map(({ attempt, category, fields }) => ({ attempt, category, fields })), [
+    { attempt: 1, category: "schema", fields: ["operations:invalid_type"] },
+    { attempt: 2, category: "schema", fields: ["operations:invalid_type"] },
+  ]);
+  const op = { op: "set_text", target: "hero.title", value: { zh: `${SENTINEL} 标题`, en: "Title" } };
+  const tooMany = () => answer(JSON.stringify({ type: "edit", summary: "按资料生成", operations: Array.from({ length: 25 }, () => op) }));
+  const missing = () => answer(JSON.stringify({ type: "edit", summary: "按资料生成", operations: [{ ...op, value: { zh: `${SENTINEL} 标题` } }] }));
+  const second = await run([tooMany, missing]);
+  assert.deepEqual(second.logged.map(({ attempt, fields }) => ({ attempt, fields })), [
+    { attempt: 1, fields: ["operations:too_big"] },
+    { attempt: 2, fields: ["operations.0.value:invalid_union"] },
   ]);
 });
 
@@ -163,9 +172,9 @@ test("the alignment planning call logs its failures the same way", async () => {
   const bad = () => answer(JSON.stringify({ kind: "question", questions: `bad ${SENTINEL}` }), {}, "trace-plan");
   const { result, logged } = await run([bad, () => { throw new DOMException("timeout", "TimeoutError"); }], "plan");
   assert.equal(result.ok, false);
-  assert.deepEqual(logged.map(({ call, attempt, category, traceId }) => ({ call, attempt, category, traceId })), [
-    { call: "alignment_plan", attempt: 1, category: "schema", traceId: "trace-plan" },
-    { call: "alignment_plan", attempt: 2, category: "timeout", traceId: null },
+  assert.deepEqual(logged.map(({ call, attempt, category, traceId, fields }) => ({ call, attempt, category, traceId, fields })), [
+    { call: "alignment_plan", attempt: 1, category: "schema", traceId: "trace-plan", fields: ["questions:invalid_type", "questions:too_big"] },
+    { call: "alignment_plan", attempt: 2, category: "timeout", traceId: null, fields: undefined },
   ]);
   const usage = { prompt_tokens: 2445, completion_tokens: 8192, completion_tokens_details: { reasoning_tokens: 8192 } };
   const cut = await run([() => json({ choices: [{ finish_reason: "length", message: { content: "" } }], usage }, { trace: "trace-plan-cut" })], "plan");
