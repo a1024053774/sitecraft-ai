@@ -22,7 +22,7 @@ const BASE = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 // Each run gets its own Chrome (port and profile), so parallel runs by different agents never
 // share a browser and a restart here cannot kill someone else's.
 const CDP_PORT = process.env.CDP_PORT || String(9400 + (process.pid % 500));
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PROFILE = `/tmp/sitecraft-published-check-${process.pid}`;
 const WIDTHS = [1440, 768, 375];
 const DEFAULT_SITES = ["overlay-p3i-thick-20260925", "overlay-p3e-thick-20260925", "overlay-sparse-20260924"];
@@ -33,7 +33,7 @@ const FORBIDDEN_TEXT = [
   "说说你的下一件事", "留下项目需求，我们会尽快与你联系", "需求与评估", "方案与实施", "交付与支持",
   "为下一代标准而造", "为复杂项目，提供确定答案", "Forge Industrial",
   "以下内容可通过表格批量导入", "仅列资料中的认证", "资料给出的主工序", "资料确认的工况入口", "只列资料给出的工序",
-  "模拟设定", "simulated settings",
+  "模拟设定", "simulated settings", "虚构",
 ];
 
 const args = process.argv.slice(2);
@@ -92,7 +92,7 @@ async function connectChrome() {
   const versionUrl = `http://127.0.0.1:${CDP_PORT}/json/version`;
   let version = await fetch(versionUrl).then((r) => r.json()).catch(() => null);
   if (!version) {
-    spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${PROFILE}`, "--headless=new", "--no-first-run", "--no-default-browser-check", "about:blank"], { stdio: "ignore", detached: true }).unref();
+    spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${PROFILE}`, "--headless=new", "--no-first-run", "--no-default-browser-check", "--site-per-process", "--enable-features=IsolateSandboxedIframes", "about:blank"], { stdio: "ignore", detached: true }).unref();
     for (let i = 0; i < 60 && !version; i++) {
       await sleep(250);
       version = await fetch(versionUrl).then((r) => r.json()).catch(() => null);

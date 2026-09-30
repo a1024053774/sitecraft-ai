@@ -129,7 +129,8 @@ test("thick molding pack is a third workspace pack with full facts and only the 
   assert.match(bodyLine(pack.body, "MOQ"), /\d/);
   assert.match(bodyLine(pack.body, "交期"), /\d/);
   assert.match(bodyLine(pack.body, "电话"), /^0000-/);
-  assert.match(bodyLine(pack.body, "地址"), /虚构/);
+  assert.match(bodyLine(pack.body, "地址"), /示例省示例市模具园区 0 号/);
+  assert.equal(pack.body.includes("虚构"), false, "simulation labels must not enter the pack body");
 
   assert.deepEqual(pack.missingFacts, ["客户名单", "评价"]);
   const gapLines = pack.body.split("\n").filter((line) => /客户|评价/.test(line));

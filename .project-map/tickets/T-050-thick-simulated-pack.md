@@ -40,3 +40,11 @@ supersedes:
 - 改动前失败（先改测试、未改代码时运行 `node --test --experimental-strip-types tests/simulated-packs.test.ts`）：`not ok 1 … expected: 3 actual: 2`；`not ok 2 - thick molding pack … error: 'simulatedPacks.molding is missing'`。改动后 7/7 通过。
 - 2026-09-29T19:30Z 运行：`npm run typecheck` 通过；`SITE_STORE=fs npm run build` 通过；`SITE_STORE=fs npm test` 313 项 297 通过、16 失败。16 项失败在未改动的 fc9f8e9 上同样失败（312 项 296 通过），原因是云端克隆没有 `vendor/open-source-templates/*` 子模块及其本地构建的 `dist/`、没有 gitignore 的 `artifacts/kiro-browse/contrast-all.js`，以及一项需要本地服务的 fetch；与本票无关，但本票第 3 条的「`npm test` 通过」在云端没有完整证据，需在本机补跑一次。
 - 独立审核：待 Codex（Astra）验收。
+
+审查与返工（2026-09-29 纽约时间）：
+
+- Astra 代码审查 NO_GO（`artifacts/review-astra-t050-t052.md`）：电话、地址带「（虚构）」，写进联系方式槽位会原样上访客页。返工（Sonnet 子 agent，Claude 验收）：从资料里去掉这两处标注，保留 `0000-0000000` 和示例地址；测试改为资料正文不得含「虚构」，改动前 `simulation labels must not enter the pack body` 失败。`scripts/check-published.mjs` 的禁止文字加「虚构」，Chrome 路径改为优先读 `CHROME_PATH`，并加 `--site-per-process --enable-features=IsolateSandboxedIframes`（Chrome for Testing headless shell 默认不把 sandbox iframe 拆成独立调试目标，不加会一直等不到预览 iframe）。Astra 所提「数量卡得比票面松」不采纳：票面写的就是范围。
+- Astra 真实生成一次得到 `provider_error`，诊断为 DeepSeek 间歇失败、状态机安全失败，同一资料手动重跑生成成功（站点 `1b15ff52-71c0-4f98-8de2-85be2fef32c5`，草稿 v2）；失败分类日志另开 T-058。
+- 20:35 左右：`CHROME_PATH=<headless shell> node scripts/check-published.mjs --out artifacts/published-check/t050-molding 1b15ff52-71c0-4f98-8de2-85be2fef32c5`，1440 / 768 / 375 全部 ok；Claude 看过 1440 整页：首屏规格条、5 个产品及参数、应用行业、加工能力与设备、认证、询盘都在，没有「虚构」「模拟」字样。看到的遗留：产品卡关键参数值过长时被截断（交 T-053 重做区块时处理）；常见问题这次模型没有写入；沿革、质检流程、交期起订草稿没有字段（MAP「Not yet specified」）。
+- 全量测试 321/321、`tsc --noEmit`、`npm run build` 通过（Sonnet 子 agent 在最后一次改动后跑）。待 Astra 复审。
+
