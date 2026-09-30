@@ -1,7 +1,7 @@
 import type { BlockFragment } from "./types.ts";
 
 const serviceItem = (index: number) =>
-  `<article class="sitecraft-process-card"><h3 data-sitecraft-benchmark="services-item-${index}-title"></h3><p data-sitecraft-benchmark="services-item-${index}-body"></p></article>`;
+  `<article class="sitecraft-process-card" data-sc-part="item"><h3 data-sitecraft-benchmark="services-item-${index}-title"></h3><p data-sitecraft-benchmark="services-item-${index}-body"></p></article>`;
 
 // How we work: short numbered steps only when the draft provides them.
 export const servicesFragment: BlockFragment = {
@@ -16,7 +16,7 @@ export const servicesFragment: BlockFragment = {
     steps: `<section id="process" class="sitecraft-section" data-sitecraft-section="services" data-sc-block="services" data-sc-variant="steps">
           <div class="sitecraft-container">
             <div class="sitecraft-section-head" data-sc-part="head">
-              <h2 data-sitecraft-benchmark="services-title">合作方式</h2>
+              <h2 data-sitecraft-benchmark="services-title" data-sc-part="title">合作方式</h2>
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="services-intro" hidden></p>
             </div>
             <div class="sitecraft-process" data-sc-part="steps">
@@ -38,7 +38,7 @@ export const certificationsFragment: BlockFragment = {
     badges: `<section id="certifications" class="sitecraft-section" data-sitecraft-section="certifications" data-sc-block="certifications" data-sc-variant="badges">
           <div class="sitecraft-container">
             <div class="sitecraft-section-head" data-sc-part="head">
-              <h2 data-sitecraft-benchmark="certifications-title">认证</h2>
+              <h2 data-sitecraft-benchmark="certifications-title" data-sc-part="title">认证</h2>
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="certifications-intro" hidden></p>
             </div>
             <div class="sitecraft-catalog-grid sitecraft-cert-grid" data-sitecraft-catalog-grid="certifications" data-sc-part="badges"></div>
@@ -48,7 +48,7 @@ export const certificationsFragment: BlockFragment = {
 };
 
 const faqItem = (index: number) =>
-  `<article class="sitecraft-faq-item"><details><summary data-sitecraft-benchmark="faq-item-${index}-title"></summary><div class="sitecraft-faq-answer"><p data-sitecraft-benchmark="faq-item-${index}-body"></p></div></details></article>`;
+  `<article class="sitecraft-faq-item" data-sc-part="item"><details><summary data-sitecraft-benchmark="faq-item-${index}-title"></summary><div class="sitecraft-faq-answer"><p data-sitecraft-benchmark="faq-item-${index}-body"></p></div></details></article>`;
 
 export const faqFragment: BlockFragment = {
   css: `
@@ -62,7 +62,7 @@ export const faqFragment: BlockFragment = {
     accordion: `<section id="faq" class="sitecraft-section" data-sitecraft-section="faq" data-sc-block="faq" data-sc-variant="accordion">
           <div class="sitecraft-container">
             <div class="sitecraft-section-head" data-sc-part="head">
-              <h2 data-sitecraft-benchmark="faq-title">常见问题</h2>
+              <h2 data-sitecraft-benchmark="faq-title" data-sc-part="title">常见问题</h2>
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro" hidden></p>
             </div>
             <div class="sitecraft-faq-list" data-sc-part="list">

@@ -6,7 +6,7 @@ export type CssRule = { context: string; selector: string; declarations: string[
 const squash = (value: string) => value.replace(/\s+/g, " ").trim();
 
 export function cssRules(css: string, context = ""): CssRule[] {
-  const source = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const source = css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/@layer\s+[^;{}]+;/g, "");
   const rules: CssRule[] = [];
   let index = 0;
   while (index < source.length) {
@@ -22,6 +22,7 @@ export function cssRules(css: string, context = ""): CssRule[] {
     }
     const body = source.slice(open + 1, end - 1);
     if (prelude.startsWith("@media")) rules.push(...cssRules(body, prelude));
+    else if (prelude.startsWith("@layer")) rules.push(...cssRules(body, context));
     else {
       rules.push({
         context,

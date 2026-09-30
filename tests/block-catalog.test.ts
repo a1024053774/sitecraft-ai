@@ -50,8 +50,11 @@ test("every declared slot, marker and part hits exactly one node in its variant"
       assert.equal(fragment.querySelectorAll(marker).length, 1, `${block}:${variant} marker ${marker}`);
     }
     const parts = fragment.querySelectorAll("[data-sc-part]").map((node) => node.getAttribute("data-sc-part") ?? "");
-    assert.deepEqual([...parts].sort(), [...spec.parts].sort(), `${block}:${variant} parts in markup and catalog`);
-    assert.equal(new Set(parts).size, parts.length, `${block}:${variant} repeats a part`);
+    assert.deepEqual([...new Set(parts)].sort(), [...new Set(spec.parts)].sort(), `${block}:${variant} parts in markup and catalog`);
+    const repeatable = new Set(["item"]);
+    for (const part of new Set(parts)) {
+      if (!repeatable.has(part)) assert.equal(parts.filter((value) => value === part).length, 1, `${block}:${variant} repeats ${part}`);
+    }
     const declared = new Set(spec.slots.map((slot) => slot.selector));
     for (const match of markup.matchAll(CONTENT_ATTR)) {
       const selector = `[${match[0]}]`;
@@ -59,6 +62,29 @@ test("every declared slot, marker and part hits exactly one node in its variant"
       assert.ok(declared.has(selector), `${block}:${variant} carries ${selector} without declaring a slot`);
     }
   });
+});
+
+test("styleable titles and repeated entries have named parts", () => {
+  const required: Record<string, string[]> = {
+    hero: ["title"],
+    products: ["title"],
+    industries: ["title"],
+    capabilities: ["title"],
+    services: ["title", "item"],
+    certifications: ["title"],
+    faq: ["title", "item"],
+    contact: ["title"],
+  };
+  for (const [block, parts] of Object.entries(required)) {
+    for (const variant of Object.keys(blockCatalog[block as (typeof blockIds)[number]].variants)) {
+      const spec = blockCatalog[block as (typeof blockIds)[number]].variants[variant];
+      const markup = variantMarkup(block as (typeof blockIds)[number], variant).fragment;
+      for (const part of parts) {
+        assert.ok(spec.parts.includes(part), `${block}:${variant} catalog declares ${part}`);
+        assert.ok(markup.querySelectorAll(`[data-sc-part="${part}"]`).length > 0, `${block}:${variant} markup declares ${part}`);
+      }
+    }
+  }
 });
 
 test("a block's anchor and visibility node are on every variant", () => {

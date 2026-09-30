@@ -77,6 +77,15 @@ test("the page root carries the palette and the look tokens; spacing, headings a
   }
 });
 
+test("the composed page declares the block and site-style layers in order", async () => {
+  const css = styleText(await servedEngineeringPage());
+  const declaration = css.indexOf("@layer sc-blocks, site-style;");
+  const blockLayer = css.indexOf("@layer sc-blocks {");
+  assert.ok(declaration >= 0, "the layer order must be declared before block CSS");
+  assert.ok(blockLayer > declaration, "block CSS must follow the layer order declaration");
+  assert.match(css.slice(blockLayer), /\.sitecraft-hero\s*\{/);
+});
+
 test("the composed page carries no demo chrome from the old ScrewFast host", async () => {
   const html = await servedEngineeringPage();
   for (const leftover of ["data-sitecraft-demo", "sitecraft-benchmark-legacy", "ScrewFast", "12.8k", "Pricing", "$29", "Reviews", "<script", "http:", "https:"]) {

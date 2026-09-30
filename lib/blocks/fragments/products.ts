@@ -6,7 +6,7 @@ import type { BlockFragment } from "./types.ts";
 const section = (variant: string, gridClass: string) => `<section id="products" class="sitecraft-section" data-sitecraft-section="products" data-sc-block="products" data-sc-variant="${variant}">
           <div class="sitecraft-container">
             <div class="sitecraft-section-head" data-sc-part="head">
-              <h2 data-sitecraft-benchmark="products-title">产品</h2>
+              <h2 data-sitecraft-benchmark="products-title" data-sc-part="title">产品</h2>
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="products-intro" hidden></p>
             </div>
             <div class="${gridClass}" data-sitecraft-product-grid data-sc-part="grid"></div>

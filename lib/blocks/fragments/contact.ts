@@ -55,7 +55,7 @@ export const contactFragment: BlockFragment = {
     split: `<section id="inquiry" class="sitecraft-section sitecraft-inquiry" data-sitecraft-section="contact" data-sc-block="contact" data-sc-variant="split">
           <div class="sitecraft-container sitecraft-inquiry-wrap">
             <div class="sitecraft-inquiry-copy" data-sc-part="copy">
-              <h2 data-sitecraft-benchmark="contact-title">询盘</h2>
+              <h2 data-sitecraft-benchmark="contact-title" data-sc-part="title">询盘</h2>
               <p data-sitecraft-benchmark="contact-body" hidden></p>
               <ul class="sitecraft-inquiry-lines" data-sc-part="lines">
                 <li data-sitecraft-line><span data-sitecraft-ui="emailPrefix">邮箱</span><span data-sitecraft-contact="email"></span></li>
@@ -75,7 +75,7 @@ export const contactFragment: BlockFragment = {
     band: `<section id="inquiry" class="sitecraft-section sitecraft-inquiry" data-sitecraft-section="contact" data-sc-block="contact" data-sc-variant="band">
           <div class="sitecraft-container sitecraft-band">
             <div class="sitecraft-band-head" data-sc-part="copy">
-              <h2 data-sitecraft-benchmark="contact-title">询盘</h2>
+              <h2 data-sitecraft-benchmark="contact-title" data-sc-part="title">询盘</h2>
               <p data-sitecraft-benchmark="contact-body" hidden></p>
             </div>
             <dl class="sitecraft-band-lines" data-sc-part="lines">

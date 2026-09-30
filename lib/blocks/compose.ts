@@ -47,12 +47,13 @@ export function composeLookDocument(look: BlockLook, palette: TemplateKitTokens)
   const root = [...paletteDeclarations(palette), ...Object.entries(look.tokens)].map(([name, value]) => `  ${name}: ${value};`).join("\n");
   const narrow = [baseFragment.narrow, ...fragments.map((fragment) => fragment.narrow)].filter(Boolean).join("");
   const phone = [baseFragment.phone, ...fragments.map((fragment) => fragment.phone)].filter(Boolean).join("");
+  const blockCss = [baseFragment.css, ...fragments.map((fragment) => fragment.css)].join("\n");
   const css = [
+    "@layer sc-blocks, site-style;",
     `:root {\n${root}\n}`,
-    baseFragment.css,
-    ...fragments.map((fragment) => fragment.css),
-    `@media ${BREAKPOINTS.narrow} {${narrow}}`,
-    `@media ${BREAKPOINTS.phone} {${phone}}`,
+    `@layer sc-blocks {\n${blockCss}\n}`,
+    `@layer sc-blocks { @media ${BREAKPOINTS.narrow} {${narrow}} }`,
+    `@layer sc-blocks { @media ${BREAKPOINTS.phone} {${phone}} }`,
   ].join("\n");
   const body = [
     ...look.layout.top.map((block) => blockMarkup(look, block)),

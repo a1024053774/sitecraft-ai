@@ -73,7 +73,7 @@ export const heroFragment: BlockFragment = {
           <div class="sitecraft-container sitecraft-hero-grid">
             <div data-sc-part="copy">
               <p class="sitecraft-eyebrow" data-sitecraft-optional="industry" hidden></p>
-              <h1 data-sitecraft-benchmark="hero-title"></h1>
+              <h1 data-sitecraft-benchmark="hero-title" data-sc-part="title"></h1>
               <p class="sitecraft-hero-copy" data-sitecraft-benchmark="hero-subtitle" hidden></p>
               <div class="sitecraft-hero-actions" data-sc-part="actions">
                 <a class="sitecraft-btn sitecraft-primary" data-sitecraft-benchmark="hero-cta" href="#inquiry">提交询盘</a>
@@ -93,7 +93,7 @@ export const heroFragment: BlockFragment = {
         <section class="sitecraft-hero" data-sitecraft-section="hero" data-sitecraft-benchmark="hero" data-sc-part="band">
           <div class="sitecraft-container sitecraft-statement" data-sc-part="copy">
             <p class="sitecraft-eyebrow" data-sitecraft-optional="industry" hidden></p>
-            <h1 data-sitecraft-benchmark="hero-title"></h1>
+            <h1 data-sitecraft-benchmark="hero-title" data-sc-part="title"></h1>
             <div class="sitecraft-statement-foot">
               <p class="sitecraft-hero-copy" data-sitecraft-benchmark="hero-subtitle" hidden></p>
               <div class="sitecraft-hero-actions" data-sc-part="actions">
