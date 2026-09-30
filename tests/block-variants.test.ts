@@ -103,7 +103,11 @@ test("a later change that leaves a chosen layout short puts it back to the defau
   const redone = apply(undone.draft, [{ op: "replace_products", products: fewer }]);
   assert.deepEqual(redone.draft.blockVariants, {});
   // Changing the contact lines works the same way.
-  const banded = apply(packDraft("molding"), [setLayout("contact", "band")]).draft;
+  const banded = apply(packDraft("industrial"), [
+    { op: "set_text", target: "contact.phone", value: "0571-1234567" },
+    { op: "set_text", target: "contact.address", value: { zh: "浙江省杭州市工业园区 8 号", en: "No. 8, Industrial Park, Hangzhou, Zhejiang" } },
+    setLayout("contact", "band"),
+  ]).draft;
   const emailOnly = apply(banded, [{ op: "set_text", target: "contact.phone", value: "待补充" }, { op: "set_text", target: "contact.address", value: { zh: "待补充", en: "To be provided" } }]);
   assert.deepEqual(emailOnly.draft.blockVariants, {});
   assert.match(emailOnly.notices[0], /联系条要邮箱、电话、地址至少 2 项；现在只有邮箱，询盘改回左右布局。/);

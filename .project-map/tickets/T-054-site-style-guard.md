@@ -37,24 +37,18 @@ supersedes:
 
 ## Resolution
 
-Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb449c`、`190238b`、`6dde6b2`、`af3b6eb`；最终修正与证据补充待本段一起提交，未推送。代码审查和盲评两项留空。
+Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb449c`、`190238b`、`6dde6b2`、`af3b6eb`；返工提交为 `650d584`、`03670c7`，均未推送。代码审查：待填写。盲评：待填写。
 
-实现：
+返工实现：
 
-- 工程工业提供规格为主、目录为主、工厂实力三个方向，每个 12 条白名单规则；目录方向加重参数条，选产品参数对比布局时首屏参数条隐藏（c1），参数条动态部件 `spec/spec-label/spec-value` 可审查。
-- 服务端根据资料中的产品类别、能力/设备清单和流程项目给出建议方向并写进模型提示；模型提示列出方向、部件、白名单、上限和已定位样式请求规则。模型 operation 上限为 24 条普通操作，`set_site_style` 另计；需求对齐 proposal 上限为 28。
-- 提交守卫串行运行候选/无样式基线的三档检查，覆盖中文 375/768/1440，以及 `englishReady` 时的英文三档；检查绘制文字 range、横向溢出、对比度和新增文字重叠。无 Chrome 时只拒绝样式，混合普通操作继续提交；撤销/重做不查。方向只有规则时也触发检查。
-- 预览桥注入单一 `data-sc-site-style` 节点并合并方向配方与追加规则；不透传模型 CSS 原文。
+- `border-top/right/bottom/left` 与 `border` 共用 0–4px `solid` 站点颜色校验；`calc/min/max/clamp` 的每个长度字面量都逐项检查单位和上下界，`font-size` 的 `clamp` 允许 12–96px 与受限 vw 项，负值、超上限和嵌套非法值均拒绝。
+- 三档站点样式检查以 90 秒总时限覆盖排队、Chrome 启动、渲染和扫描；超时返回“检查没有完成”，混合 operation 的普通修改继续提交。扫描器增加首屏标题单字断行检测；工厂实力方向在手机压低标题字号，标题使用 `keep-all`/`pretty` 避免词中断行。
+- 注塑模拟资料删除占位电话和地址，并将「电话」「地址」写入 `missingFacts`；联系条不再满足该资料的版式前置条件，相关渲染测试同步。
 
-验证：
+返工前后证据：
 
-- 红态与修复证据：`artifacts/t054/step1-red.txt`、`step2-red.txt`、`step3-red.txt`、`step4-red.txt`；扫描器最后一轮红态和修复记录见 `artifacts/t054/final-root-red.txt`、`final-root-green-a.txt`、`final-direction-c1-red.txt`、`final-direction-c1-green.txt`。
-- 三份资料 × 三个方向三档检查全部通过：[directions-materials-20260930-122154/report.json](../../artifacts/t054/directions-materials-20260930-122154/report.json)。同一份工业资料的 1440/375 截图：[directions-20260930-121736](../../artifacts/t054/directions-20260930-121736/)。旧目录 `directions/` 和中断尝试目录均保留。
-- 最终 `npm run typecheck`、`npm run build`、`CHROME_PATH=... npm test` 均通过；全量 489/489 日志：[final-npm-test-2.txt](../../artifacts/t054/final-npm-test-2.txt)。
-
-真实生成与发布：
-
-- DeepSeek 串行记录：工业最终 `d72232c6…` 建议规格为主，模型选择 `capability-led`、产品 `compare`；P3E `92023362…` 建议目录为主，模型选择 `spec-led`、首屏 `statement`、产品 `cards`；注塑 `762782a3…` 建议工厂实力，模型选择 `capability-led`、产品 `grouped`、询盘 `band`。随后三站各走一次真实样式请求：工业“首屏更有分量”、P3E“参数表更紧凑”、注塑“分区之间紧凑一点”，三次均应用 `set_site_style`；样式证据见 [style-requests-final.json](../../artifacts/t054/style-requests-final.json)。三家的方向差异来自最终模型输出，未手工改草稿。原始记录见 `artifacts/t061/t054-final-final-summary.json`；此前首轮与修复重跑记录保留在 `t054-final-runs-summary.json`、`t054-final-industrial-rerun-summary.json`。
-- 最终三站 `check-published` 三档通过：[published-final-final/report.json](../../artifacts/t054/published-final-final/report.json)。
-- 真实工作台输入框证据：[workspace-ui-1790788095591](../../artifacts/t054/workspace-ui-1790788095591/)。首屏更有分量只应用 `set_site_style`；手机四列 240px 请求显示“未修改：站点样式没有应用：375 宽度下「产品」横向超出页面 153px”。早期 API 直调/缺 Chrome 失败产物保留在 `workspace-style-*` 目录。
-- 盲评包：[blind/README.md](../../artifacts/t054/blind/README.md)、[blind-key.json](../../artifacts/t054/blind-key.json)，正式包为 3 家 × 2 版 × 1440/768/375 原图与 `-masked.png`；旧/失败构建产物保存在 `blind-prior-*` 和 `blind-build-failures/`，未放进正式 README。
+- 白名单/函数的红态和绿态：`artifacts/t054/rework-red-border-calc.txt`、`rework-red-timeout.txt`、`rework-green-timeout.txt`；首屏断行与注塑缺口红态：`rework-red-orphan.txt`、`rework-red-orphan-molding.txt`，修复后规则、扫描、版式和模拟资料测试均通过。
+- 真实 DeepSeek 需求对齐按工业、外贸、注塑依次各跑一次：`artifacts/t061/t054-rework-industrial-summary.json`（`ff393add…`，建议/选择方向与产品对比布局）、`t054-rework-export-summary.json`（`70060b1d…`，规格方向与产品卡片）、`t054-rework-molding-summary.json`（`9c10c17b…`，工厂实力与产品分组）。三次模型调用均记录；工业与外贸首个结构化响应因 schema 字段类型失败后按真实原因记录并由既有调用流程完成，未用静默成功掩盖。
+- 三站各做一次真实样式对话并通过提交检查，记录在 [style-requests-rework.json](../../artifacts/t054/style-requests-rework.json)。实际工作台输入框证据在 [workspace-ui-1790790783953](../../artifacts/t054/workspace-ui-1790790783953/)：首屏更有分量只修改样式；375 宽度四列产品请求被拒，原因含「375 宽度下『产品』横向超出页面 153px」。
+- 三站发布页三档最新检查通过：[published-rework-20260930-1755/report.json](../../artifacts/t054/published-rework-20260930-1755/report.json)；此前注塑 375 标题溢出的失败报告保留在 [published-rework-20260930-1750/report.json](../../artifacts/t054/published-rework-20260930-1750/report.json)。
+- 最新盲评包为 [blind/README.md](../../artifacts/t054/blind/README.md)、[blind-key.json](../../artifacts/t054/blind-key.json)，随机代号为 `99df`/`c52f`，三家各含带样式与去掉样式的 1440/768/375 原图及 `-masked.png`；上一包完整移至 [blind-r1](../../artifacts/t054/blind-r1/)，中间重建包保留在 `blind-prior-*`。
