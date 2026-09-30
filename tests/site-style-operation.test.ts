@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultDraft, normalizeDraft } from "../lib/site-document.ts";
-import { applySiteOperations, aiOperationSchema, siteOperationSchema, type SiteOperation } from "../lib/site-operations.ts";
+import { applySiteOperations, aiChangeSchema, aiOperationSchema, siteOperationSchema, type SiteOperation } from "../lib/site-operations.ts";
 
 const options = { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing"]), lastChange: "site-style" };
 const style: Extract<SiteOperation, { op: "set_site_style" }> = {
@@ -34,4 +34,11 @@ test("normalizeDraft keeps valid site rules and drops unknown or unsafe ones", (
   } };
   const restored = normalizeDraft(raw);
   assert.deepEqual(restored.siteStyle, { direction: "spec-led", rules: [raw.siteStyle.rules[0]] });
+});
+
+test("the style operation does not consume the model's 24 ordinary-operation budget", () => {
+  const ordinary = { op: "set_text", target: "hero.title", locale: "zh", value: "标题" } as const;
+  const styleOperation = { op: "set_site_style", direction: null, rules: [] } as const;
+  assert.equal(aiChangeSchema.safeParse({ summary: "s", operations: [...Array.from({ length: 24 }, () => ordinary), styleOperation] }).success, true);
+  assert.equal(aiChangeSchema.safeParse({ summary: "s", operations: [...Array.from({ length: 25 }, () => ordinary), styleOperation] }).success, false);
 });

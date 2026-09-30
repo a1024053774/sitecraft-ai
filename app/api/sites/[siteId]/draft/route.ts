@@ -35,7 +35,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ site
       const description = describeUserError({ code: "revision_conflict" });
       return Response.json({ error: description.code, userMessage: description.message, recovery: description.recovery, ...snapshot(result.record) }, { status: 409 });
     }
-    return Response.json({ status: result.status, ...(result.status === "applied" ? { changeSet: result.changeSet } : {}), ...snapshot(result.record) });
+    return Response.json({
+      status: result.status,
+      ...(result.status === "applied" ? { changeSet: result.changeSet, rejected: result.rejected } : {}),
+      ...(result.status === "rejected" ? { rejected: result.reasons } : {}),
+      ...snapshot(result.record),
+    });
   } catch (error) {
     const description = describeUserError({ code: "operation_error" });
     return Response.json({ error: description.code, userMessage: description.message, recovery: description.recovery }, { status: 422 });

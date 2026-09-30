@@ -5,6 +5,7 @@ import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "
 import { defaultDraft, normalizeDraft, templates, type SiteDraft } from "@/lib/site-model";
 import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
 import { bindSiteImageOperations } from "@/lib/site-images";
+import { checkSiteStyle } from "@/lib/site-style-check";
 
 export type ChangeSource = "ai" | "import" | "manual" | "migration" | "template";
 export type ChangeSet = {
@@ -128,9 +129,10 @@ async function peekLocalSite(siteId: string) {
   });
 }
 export type CommitResult =
-  | { status: "applied"; record: SiteRecord; changeSet: ChangeSet }
+  | { status: "applied"; record: SiteRecord; changeSet: ChangeSet; rejected?: string[] }
   | { status: "no_change"; record: SiteRecord }
-  | { status: "conflict"; record: SiteRecord };
+  | { status: "conflict"; record: SiteRecord }
+  | { status: "rejected"; record: SiteRecord; reasons: string[] };
 
 type CommitArgs = {
   siteId: string;
@@ -144,6 +146,24 @@ type CommitArgs = {
   latencyMs?: number;
 };
 
+type StyleGuardResult = { operations: SiteOperation[]; rejected: string[]; rejectedOnly: boolean };
+
+async function guardSiteStyle(record: SiteRecord, args: CommitArgs): Promise<StyleGuardResult> {
+  const styleOperations = args.operations.filter((operation) => operation.op === "set_site_style" && operation.rules.length > 0);
+  if (!styleOperations.length) return { operations: args.operations, rejected: [], rejectedOnly: false };
+  const candidate = applySiteOperations(record.draft, args.operations, {
+    templateIds,
+    lastChange: args.source === "ai" ? "刚刚通过 AI 保存" : "草稿已保存",
+    siteId: args.siteId,
+  });
+  if (JSON.stringify(candidate.draft.siteStyle) === JSON.stringify(record.draft.siteStyle)) return { operations: args.operations, rejected: [], rejectedOnly: false };
+  const baseUrl = process.env.SITECRAFT_BASE || `http://127.0.0.1:${process.env.PORT || "3034"}`;
+  const checked = await checkSiteStyle({ templateId: candidate.draft.templateId, draft: candidate.draft, baseUrl });
+  if (checked.ok) return { operations: args.operations, rejected: [], rejectedOnly: false };
+  const kept = args.operations.filter((operation) => operation.op !== "set_site_style");
+  return { operations: kept, rejected: checked.reasons.map((reason) => `站点样式没有应用：${reason}`), rejectedOnly: kept.length === 0 };
+}
+
 async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
   return withSiteLock(args.siteId, async () => {
     const record = (await readRecord(args.siteId)) ?? createRecord(args.siteId);
@@ -152,8 +172,11 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
       ? { status: "applied", record, changeSet: previous }
       : { status: "conflict", record };
     if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
-    await bindSiteImageOperations(args.siteId, args.operations);
-    const result = applySiteOperations(record.draft, args.operations, {
+    const guarded = await guardSiteStyle(record, args);
+    if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
+    const operations = guarded.operations;
+    await bindSiteImageOperations(args.siteId, operations);
+    const result = applySiteOperations(record.draft, operations, {
       templateIds,
       lastChange: args.source === "ai" ? "刚刚通过 AI 保存" : "草稿已保存",
       siteId: args.siteId,
@@ -161,7 +184,7 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
     if (!result.changed) return { status: "no_change", record };
     const changeSet: ChangeSet = {
       id: args.changeId ?? crypto.randomUUID(), baseRevision: record.draft.revision, revision: result.draft.revision,
-      summary: summaryWithNotices(args.summary, result.notices), source: args.source, operations: structuredClone(args.operations),
+      summary: summaryWithNotices(args.summary, [...guarded.rejected, ...result.notices]), source: args.source, operations: structuredClone(operations),
       inverseOperations: result.inverseOperations, appliedTargets: result.appliedTargets,
       ...(args.model ? { model: args.model } : {}),
       ...(args.latencyMs === undefined ? {} : { latencyMs: args.latencyMs }),
@@ -172,7 +195,7 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
     record.future = [];
     record.updatedAt = new Date().toISOString();
     await writeRecord(record);
-    return { status: "applied", record, changeSet };
+    return { status: "applied", record, changeSet, ...(guarded.rejected.length ? { rejected: guarded.rejected } : {}) };
   });
 }
 async function moveLocalHistory(siteId: string, action: "undo" | "redo") {
@@ -284,8 +307,11 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
       ? { status: "applied", record, changeSet: previous }
       : { status: "conflict", record };
     if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
-    await bindSiteImageOperations(args.siteId, args.operations);
-    const result = applySiteOperations(record.draft, args.operations, {
+    const guarded = await guardSiteStyle(record, args);
+    if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
+    const operations = guarded.operations;
+    await bindSiteImageOperations(args.siteId, operations);
+    const result = applySiteOperations(record.draft, operations, {
       templateIds,
       lastChange: args.source === "ai" ? "刚刚通过 DeepSeek 保存" : "草稿已保存",
       siteId: args.siteId,
@@ -295,9 +321,9 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
       id: args.changeId ?? crypto.randomUUID(),
       baseRevision: record.draft.revision,
       revision: result.draft.revision,
-      summary: summaryWithNotices(args.summary, result.notices),
+      summary: summaryWithNotices(args.summary, [...guarded.rejected, ...result.notices]),
       source: args.source,
-      operations: structuredClone(args.operations),
+      operations: structuredClone(operations),
       inverseOperations: result.inverseOperations,
       appliedTargets: result.appliedTargets,
       ...(args.model ? { model: args.model } : {}),
@@ -309,7 +335,7 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
     record.future = [];
     record.updatedAt = new Date().toISOString();
     await savePostgresRecord(client, record);
-    return { status: "applied", record, changeSet };
+    return { status: "applied", record, changeSet, ...(guarded.rejected.length ? { rejected: guarded.rejected } : {}) };
   });
 }
 

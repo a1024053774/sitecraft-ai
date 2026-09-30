@@ -268,10 +268,14 @@ export type AIOperation = z.infer<typeof aiOperationSchema>;
 
 /** How many operations one model answer may carry (T-053: 24, up from 20). */
 export const MAX_AI_OPERATIONS = 24;
+const aiOperationsSchema = z.array(aiOperationSchema).superRefine((operations, context) => {
+  const ordinary = operations.filter((operation) => operation.op !== "set_site_style").length;
+  if (ordinary > MAX_AI_OPERATIONS) context.addIssue({ code: "too_big", maximum: MAX_AI_OPERATIONS, origin: "array", inclusive: true, message: `最多 ${MAX_AI_OPERATIONS} 条普通 operation；站点样式另计` });
+});
 
 export const aiChangeSchema = z.object({
   summary: z.string().min(1).max(500),
-  operations: z.array(aiOperationSchema).max(MAX_AI_OPERATIONS),
+  operations: aiOperationsSchema,
 });
 export type AIChange = z.infer<typeof aiChangeSchema>;
 

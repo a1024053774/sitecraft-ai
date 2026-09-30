@@ -15,8 +15,8 @@ export const MAX_ALIGNMENT_NOTE_CHARS = 500;
 export const MAX_ALIGNMENT_SUMMARY_CHARS = 400;
 export const MAX_ALIGNMENT_HISTORY = 20;
 export const MAX_ALIGNMENT_ROUNDS = 3;
-/** The model's 24 operations plus the look, the colour set and one uploaded image (T-053). */
-export const MAX_PROPOSAL_OPERATIONS = 27;
+/** The model's 24 ordinary operations plus look, colour set, image and one site-style operation. */
+export const MAX_PROPOSAL_OPERATIONS = 28;
 const MAX_PROPOSAL_REJECTED = 20;
 const MAX_PROPOSAL_REJECTED_CHARS = 200;
 export const ALIGNMENT_QUESTION = "请选择网站的样子。选择会保存在同一会话里，不会立刻修改草稿。";
