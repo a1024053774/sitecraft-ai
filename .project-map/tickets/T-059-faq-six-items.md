@@ -2,7 +2,7 @@
 id: T-059
 title: 常见问题在访客页放到 6 条
 type: build
-status: open
+status: closed
 blocked_by: [T-053]
 claimed_by: kiro
 supersedes:
@@ -17,7 +17,7 @@ supersedes:
 - [x] 注塑资料生成后访客页显示 5 组问答，P3I、P3E 只显示实际写入的条目，没有空壳
 - [x] `check-published` 三档通过，截图打开看过
 - [x] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查通过；Claude 验收
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -53,3 +53,5 @@ Kiro，2026-09-30（纽约时间）。提交：`a1a31fb`（常见问题 6 条）
 - 还用 overlay 的三个样子，没有草稿时照旧显示各自的空骨架（灰底短路径的常见问题还写着「待补充」），迁到区块库后自动按同一规则。
 
 Astra P1 返工（2026-09-30，纽约时间）：审查发现模型侧 `replace_cards` 接受空 `items` 会静默清空已有卡片。先在 `4aaf9ab50e6b1872250f01e476db8e83bed76428` 上加入回归测试并运行 `node --test --experimental-strip-types tests/replace-cards.test.ts`；10:41:05 EDT 结果为 8 条中 7 通过、1 失败，失败内容正是空列表仍被接受，原始输出保存在 `artifacts/t059-red-empty-replace-cards.txt`。修复只在 `validateAIOperations` 返回「没有可写入的条目，整组没有修改」并丢弃模型操作，未改 `siteOperationSchema` 或 `applySiteOperations`，因此 inverse 仍可合法写回空组。新增测试覆盖已有条目遇到空模型列表保持原样，以及空组写入后撤销回到空组；修复后相关测试 18/18、`npm run typecheck`、全量 `npm test`、`npm run build` 均通过。本次返工单独提交：`fix: reject empty replace_cards from model (T-059)`。
+
+独立审核：Astra（Codex GPT-6）首审 NO_GO（`replace_cards` 空列表会清空整组），返工 99207bc（codex-build）后复审 PASS，2026-09-30 10:52 纽约时间，相关测试 31/31、全量通过（`artifacts/review-astra-t059.md`）。Claude 验收关闭。
