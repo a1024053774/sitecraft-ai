@@ -226,7 +226,8 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
     variants: {
       accordion: {
         label: "折叠问答",
-        slots: [benchmark("faq.title", "faq-title"), benchmark("faq.intro", "faq-intro"), ...itemSlots("faq", 3)],
+        // Six entries, as many as a draft carries (T-059); empty ones are not shown.
+        slots: [benchmark("faq.title", "faq-title"), benchmark("faq.intro", "faq-intro"), ...itemSlots("faq", 6)],
         markers: [],
         parts: ["head", "list"],
       },

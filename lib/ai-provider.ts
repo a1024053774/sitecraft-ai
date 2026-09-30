@@ -3,7 +3,7 @@ import { z } from "zod";
 import { familyModuleInventory, visibilityKeys, visualBriefCatalog } from "@/lib/site-document";
 import { blockCatalog, layoutBlocks, type BlockLook, type BlockRequirement } from "@/lib/blocks/catalog";
 import { blockLookForTemplate } from "@/lib/blocks/looks/index";
-import { declaredFamilySections } from "@/lib/template-adapters/registry";
+import { declaredFamilySections, getTemplateAdapter } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
 import { plainSummary } from "@/lib/workspace-copy";
 import { schemaIssueFields } from "@/lib/schema-issue-fields";
@@ -228,6 +228,14 @@ function logModelFailure(entry: {
   console.warn(`[sitecraft] DeepSeek call failed ${JSON.stringify(line)}`);
 }
 
+// How many FAQ entries the current look shows, from its adapter (T-059): the model writes every
+// question the materials have, up to that many, over the draft's empty entries first.
+function faqInstructions(templateId: string) {
+  const slots = (getTemplateAdapter(templateId)?.slots ?? []).filter((slot) => /^faq\.items\.\d+\.title$/.test(slot.target)).length;
+  if (!slots) return "";
+  return `   常见问题：当前样子的访客页最多显示 ${slots} 条，先显示有问有答的条目。资料里有几组问答就写几条，最多 ${slots} 条，问和答都要出自资料；草稿里已有的待补充条目用 update_card 按 index 覆盖，不够再用 add_card。\n`;
+}
+
 function operationInstructions(templateId: string) {
   return `当 type 为 edit 时，输出 JSON：{"type":"edit","summary":"中文摘要","operations":[...]}。
 允许的操作：
@@ -236,7 +244,7 @@ function operationInstructions(templateId: string) {
 2. update_card: {"op":"update_card","section":"features|services|faq","index":从0开始,"title":{"zh":"中文标题","en":"English title"},"body":{"zh":"中文正文","en":"English body"}}
 3. add_card: {"op":"add_card","section":"features|services|faq","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
 4. remove_card: {"op":"remove_card","section":"features|services|faq","itemId":"现有id"}
-5. update_product: {"op":"update_product","sku":"现有SKU","name":{"zh":"中文名称","en":"English name"},"summary":{"zh":"中文摘要","en":"English summary"},"category":{"zh":"中文类别","en":"English category"}}
+${faqInstructions(templateId)}5. update_product: {"op":"update_product","sku":"现有SKU","name":{"zh":"中文名称","en":"English name"},"summary":{"zh":"中文摘要","en":"English summary"},"category":{"zh":"中文类别","en":"English category"}}
 6. set_product_specs: {"op":"set_product_specs","sku":"现有SKU","specs":[{"name":{"zh":"速比范围","en":"Ratio range"},"value":"i=25–100"}]}
    只写入资料明确给出的规格参数；参数名中英双语，参数值必须能在资料正文中找到，找不到写成「待补充」，禁止编造数字。
 7. set_catalog_section: {"op":"set_catalog_section","section":"industries|capabilities|certifications","value":{"title":{"zh":"...","en":"..."},"intro":{"zh":"...","en":"..."},"items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."},"status":"已有|认证中|待补充"}]} }

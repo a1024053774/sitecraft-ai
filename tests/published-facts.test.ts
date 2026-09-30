@@ -28,7 +28,10 @@ function sampleDraft(): SiteDraft {
     { id: "faq-3", title: GAP, body: GAP },
     { id: "install", title: text("能否现场安装？"), body: GAP },
     { id: "drawing", title: text("要不要图纸？"), body: text("附图纸与规格要求。") },
-    { id: "extra", title: text("第四条问答"), body: text("超出这个样子的问答条数，不显示。") },
+    { id: "fourth", title: text("第四条问答"), body: text("第四条的答案。") },
+    { id: "fifth", title: text("第五条问答"), body: text("第五条的答案。") },
+    { id: "sixth", title: text("第六条问答"), body: text("第六条的答案。") },
+    { id: "extra", title: text("第七条问答"), body: text("超出这个样子的问答条数，不显示。") },
   ];
   draft.content.services.items = [
     { id: "step-1", title: text("发送图纸"), body: text("附图纸与规格要求。") },
@@ -55,13 +58,14 @@ test("the facts come from the draft: products and their specs, entries the look 
     ["product description", "按图加工的重载直角减速机，底脚或法兰安装。"],
     ["spec name", "速比范围"], ["spec value", "i=25–100"], ["spec value", "≤1500 r/min"], ["spec value", "底脚/法兰"], ["spec value", "IP65"],
     ["FAQ question", "起订量多少？"], ["FAQ answer", "批量规格询盘 MOQ 20 台。"], ["FAQ question", "能否现场安装？"], ["FAQ question", "要不要图纸？"],
+    ["FAQ question", "第四条问答"], ["FAQ question", "第六条问答"], ["FAQ answer", "第六条的答案。"],
     ["step title", "发送图纸"], ["step body", "附图纸与规格要求。"],
     ["industries entry", "矿山输送"], ["capabilities entry", "滚齿与磨齿"], ["capabilities body", "齿轮滚齿后磨齿，出厂前跑合。"], ["capabilities entry", "箱体数控镗铣"],
     ["certifications entry", "ISO 9001"],
     ["contact email", "inquiry@p3i-sim.test"],
   ]) assert.ok(has(facts, kind, value), `expected ${kind} "${value}"`);
   const texts = facts.map((fact) => fact.text);
-  for (const absent of ["待补充", "To be provided", "润滑方式", "停产系列", "第四条问答", "超出这个样子的问答条数，不显示。", "认证中", "CE", "资料待补"]) {
+  for (const absent of ["待补充", "To be provided", "润滑方式", "停产系列", "第七条问答", "超出这个样子的问答条数，不显示。", "认证中", "CE", "资料待补"]) {
     assert.ok(!texts.includes(absent), `not expected: ${absent}`);
   }
   assert.ok(!facts.some((fact) => fact.kind === "certifications body"), "certificates are badges: name and status");

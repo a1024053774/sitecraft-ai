@@ -66,7 +66,7 @@ export const faqFragment: BlockFragment = {
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro" hidden></p>
             </div>
             <div class="sitecraft-faq-list" data-sc-part="list">
-              ${[0, 1, 2].map(faqItem).join("\n              ")}
+              ${[0, 1, 2, 3, 4, 5].map(faqItem).join("\n              ")}
             </div>
           </div>
         </section>`,

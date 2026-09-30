@@ -30,7 +30,8 @@ function render(templateId: string, draft: SiteDraft, expected: string[] = [], v
   return { document, report };
 }
 
-const slotted = (document: HtmlDocument, group: "faq" | "services", part: "title" | "body") => [0, 1, 2].map((index) => {
+// The engineering page shows six FAQ entries (T-059) and three cooperation steps.
+const slotted = (document: HtmlDocument, group: "faq" | "services", part: "title" | "body") => [0, 1, 2, 3, 4, 5].slice(0, group === "faq" ? 6 : 3).map((index) => {
   const node = document.querySelector(`[data-sitecraft-benchmark="${group}-item-${index}-${part}"]`);
   return node ? { text: visibleText(node).trim(), slot: node.getAttribute("data-sitecraft-slot") } : null;
 });
@@ -47,34 +48,40 @@ function moldingFaq(): SiteDraft {
   return draft;
 }
 
-test("questions added after the empty FAQ entries reach the page, first three in draft order", () => {
+test("questions added after the empty FAQ entries reach the page, in draft order", () => {
   const { document, report } = render("screwfast", moldingFaq());
-  assert.deepEqual(slotted(document, "faq", "title"), [
+  assert.deepEqual(slotted(document, "faq", "title").slice(0, 4), [
     { text: "没有图纸只有样品能开模吗？", slot: "faq.items.6.title.zh" },
     { text: "开模周期多久？", slot: "faq.items.7.title.zh" },
     { text: "试模样品怎么提供？", slot: "faq.items.8.title.zh" },
+    { text: "模具归谁所有？", slot: "faq.items.9.title.zh" },
   ]);
+  assert.deepEqual(slotted(document, "faq", "title").slice(4).map((item) => item?.text), ["", ""], "the two slots left over are empty and hidden");
   assert.equal(slotted(document, "faq", "body")[1]?.text, "单腔模具约 25–35 天。");
   const section = document.querySelector('[data-sitecraft-section="faq"]');
   assert.ok(section && section.getAttribute("data-sitecraft-section-hidden") !== "true" && !section.hidden, "the FAQ section is shown");
   assert.ok(report.appliedSlots.includes("faq.items.6.title.zh"));
-  assert.ok(!report.appliedSlots.includes("faq.items.0.title.zh"), "a placeholder that is not on the page is not reported as written");
+  // Four questions and six slots: two placeholders fill the rest (hidden); the other four are not on the page.
+  assert.ok(!report.appliedSlots.includes("faq.items.2.title.zh"), "a placeholder that is not on the page is not reported as written");
 });
 
 test("a change to a shown entry is confirmed; one to an entry the page has no room for is reported missing", () => {
-  const { report } = render("screwfast", moldingFaq(), ["faq.items.7.body.zh", "faq.items.9.title.zh"], "workspace");
-  assert.deepEqual(report.missingSlots, ["faq.items.9.title.zh"]);
+  const draft = moldingFaq();
+  // Seven entries with content for six slots: the seventh (index 12) has no room.
+  draft.content.faq.items.push(entry("export-terms", "出口用什么贸易条款？", "常用 FOB 宁波和 EXW。"), entry("moq", "起订量多少？", "注塑件 5000 件起。"), entry("lead-time", "批量交期多久？", "模具确认后 15–20 天。"));
+  const { report } = render("screwfast", draft, ["faq.items.7.body.zh", "faq.items.11.title.zh", "faq.items.12.title.zh"], "workspace");
+  assert.deepEqual(report.missingSlots, ["faq.items.12.title.zh"]);
 });
 
 test("entries with content come first wherever they sit; the slots left over hold placeholders, hidden as before", () => {
   const draft = packDraft("industrial");
   draft.content.faq.items = [entry("moq", "起订量多少？", "批量规格询盘 MOQ 20 台。"), placeholder("faq-2"), placeholder("faq-3"), entry("install", "能否现场安装？", "不提供现场安装。")];
   const published = render("screwfast", draft).document;
-  assert.deepEqual(slotted(published, "faq", "title").map((item) => item?.slot), ["faq.items.0.title.zh", "faq.items.3.title.zh", "faq.items.1.title.zh"]);
+  assert.deepEqual(slotted(published, "faq", "title").map((item) => item?.slot).slice(0, 4), ["faq.items.0.title.zh", "faq.items.3.title.zh", "faq.items.1.title.zh", "faq.items.2.title.zh"]);
   assert.deepEqual(slotted(published, "faq", "title").map((item) => item?.text).slice(0, 2), ["起订量多少？", "能否现场安装？"]);
   assert.equal(slotted(published, "faq", "title")[2]?.text, "", "an empty entry is not shown");
   const workspace = render("screwfast", draft, [], "workspace").document;
-  assert.deepEqual(slotted(workspace, "faq", "title").map((item) => item?.text), ["起订量多少？", "能否现场安装？", ""]);
+  assert.deepEqual(slotted(workspace, "faq", "title").map((item) => item?.text), ["起订量多少？", "能否现场安装？", "", "", "", ""]);
 });
 
 test("cooperation steps work the same way, and entries already in order render as before", () => {
@@ -83,7 +90,7 @@ test("cooperation steps work the same way, and entries already in order render a
   assert.deepEqual(slotted(render("screwfast", draft).document, "services", "title")[0], { text: "发送图纸", slot: "services.items.3.title.zh" });
   const ordered = packDraft("industrial");
   ordered.content.faq.items = [entry("a", "问一", "答一"), entry("b", "问二", "答二"), entry("c", "问三", "答三"), placeholder("faq-4")];
-  assert.deepEqual(slotted(render("screwfast", ordered).document, "faq", "title").map((item) => item?.slot), ["faq.items.0.title.zh", "faq.items.1.title.zh", "faq.items.2.title.zh"]);
+  assert.deepEqual(slotted(render("screwfast", ordered).document, "faq", "title").map((item) => item?.slot).slice(0, 4), ["faq.items.0.title.zh", "faq.items.1.title.zh", "faq.items.2.title.zh", "faq.items.3.title.zh"]);
 });
 
 test("the looks still on their own overlay show added questions too", () => {
