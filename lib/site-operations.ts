@@ -1072,6 +1072,10 @@ export function validateAIOperations(
       }
     }
     if (operation.op === "replace_cards") {
+      if (!operation.items.length) {
+        rejected.push("没有可写入的条目，整组没有修改");
+        continue;
+      }
       const shown = operation.items.filter((item) => !(["zh", "en"] as const).every((locale) => isGapMarker(item.title[locale]) && isGapMarker(item.body[locale])));
       if (shown.length < operation.items.length) rejected.push("标题和正文都缺的条目不会写入");
       if (operation.items.length && !shown.length) continue;

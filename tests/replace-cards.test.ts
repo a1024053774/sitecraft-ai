@@ -146,6 +146,25 @@ test("from the model: at most six FAQ entries, no empty entries, no accidental w
   assert.equal((steps.operations[0] as unknown as { items: unknown[] }).items.length, 6, "steps are limited to six too (T-059)");
 });
 
+test("from the model: an empty replace_cards list does not wipe an existing group", () => {
+  const before = packDraft("molding");
+  before.content.faq.items = items(1);
+  const snapshot = structuredClone(before);
+  const result = validateAIOperations("按资料重做常见问题", [{ op: "replace_cards", section: "faq", items: [] } as never], options.templateIds, before);
+  assert.deepEqual(result.operations, [], "an empty model list is not a request to delete the group");
+  assert.ok(result.rejected.includes("没有可写入的条目，整组没有修改"), JSON.stringify(result.rejected));
+  assert.deepEqual(before, snapshot, "model-side validation does not mutate the draft");
+});
+
+test("an inverse can still restore an empty group after a model replacement", () => {
+  const before = structuredClone(packDraft("molding"));
+  before.content.faq.items = [];
+  const applied = applySiteOperations(before, [replaceFaq(items(2))], options);
+  assert.deepEqual(applied.draft.content.faq.items, items(2));
+  const undone = applySiteOperations(applied.draft, applied.inverseOperations, options);
+  assert.deepEqual(undone.draft.content.faq.items, [], "the inverse is allowed to carry an empty list");
+});
+
 test("the model is told to write a whole card group in one replace_cards, and update_card for one entry", async () => {
   await requestStructuredOperations({ message: "看看现在的页面", draft: structuredClone(defaultDraft), templateId: "screwfast" });
   const system = String((JSON.parse(lastBody) as { messages: Array<{ role: string; content: string }> }).messages.find((item) => item.role === "system")?.content ?? "");

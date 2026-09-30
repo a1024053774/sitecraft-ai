@@ -52,3 +52,4 @@ Kiro，2026-09-30（纽约时间）。提交：`a1a31fb`（常见问题 6 条）
 - 模板预览页（`/templates/screwfast/preview`）的 iframe 只有 150px 高（外壳没有高度，`.open-source-template-frame-preview` 的 `height: 100%` 落空，浏览器用默认高度），页面只露出页头；这次没改父页面 CSS，与本票无关。
 - 还用 overlay 的三个样子，没有草稿时照旧显示各自的空骨架（灰底短路径的常见问题还写着「待补充」），迁到区块库后自动按同一规则。
 
+Astra P1 返工（2026-09-30，纽约时间）：审查发现模型侧 `replace_cards` 接受空 `items` 会静默清空已有卡片。先在 `4aaf9ab50e6b1872250f01e476db8e83bed76428` 上加入回归测试并运行 `node --test --experimental-strip-types tests/replace-cards.test.ts`；10:41:05 EDT 结果为 8 条中 7 通过、1 失败，失败内容正是空列表仍被接受，原始输出保存在 `artifacts/t059-red-empty-replace-cards.txt`。修复只在 `validateAIOperations` 返回「没有可写入的条目，整组没有修改」并丢弃模型操作，未改 `siteOperationSchema` 或 `applySiteOperations`，因此 inverse 仍可合法写回空组。新增测试覆盖已有条目遇到空模型列表保持原样，以及空组写入后撤销回到空组；修复后相关测试 18/18、`npm run typecheck`、全量 `npm test`、`npm run build` 均通过。本次返工单独提交：`fix: reject empty replace_cards from model (T-059)`。
