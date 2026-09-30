@@ -3,7 +3,9 @@
 //  - "overflow": a box's own text runs past the box (a value kept on one line in a narrow cell),
 //    or a line of text runs past the block it belongs to;
 //  - "ellipsis": text cut off by text-overflow: ellipsis or a line clamp;
-//  - "clipped": text drawn past an ancestor that hides overflow (the page edge included).
+//  - "clipped": text drawn past an ancestor that hides overflow (the page edge included);
+//  - "email": an email address that wraps anywhere but at the @ (after a hyphen, inside a name),
+//    unless the part it wraps in is wider than its line on its own.
 // Closed <details> outside the header are opened while measuring, so folded spec lists count,
 // and closed again afterwards. Returns [{ kind, element, text }], one entry per element.
 ((root) => {
@@ -68,6 +70,40 @@
       while (block.parentElement && getComputedStyle(block).display === "inline") block = block.parentElement;
       const bounds = block.getBoundingClientRect();
       if (rects.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1)) add("overflow", block);
+    }
+    // Email addresses: find where each one wraps by the line each of its characters sits on.
+    const EMAIL = /[\w.+\-\u200b\u2060]+@[\w\-\u200b\u2060]+(?:\.[\w\-\u200b\u2060]+)+/g;
+    const emails = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    while (emails.nextNode()) {
+      const node = emails.currentNode;
+      const parent = node.parentElement;
+      const text = node.textContent;
+      if (!parent || text.indexOf("@") === -1 || ignored(parent) || !shown(parent)) continue;
+      let line = parent;
+      while (line.parentElement && ["inline", "inline-block", "contents"].includes(getComputedStyle(line).display)) line = line.parentElement;
+      const lineStyle = getComputedStyle(line);
+      const lineWidth = line.clientWidth - parseFloat(lineStyle.paddingLeft) - parseFloat(lineStyle.paddingRight);
+      for (const match of text.matchAll(EMAIL)) {
+        const chars = [];
+        for (let i = match.index; i < match.index + match[0].length; i++) {
+          const ch = text.charAt(i);
+          if (ch === "\u200b" || ch === "\u2060") continue;
+          range.setStart(node, i);
+          range.setEnd(node, i + 1);
+          const rect = [...range.getClientRects()].find((item) => item.width > 0.5) || range.getBoundingClientRect();
+          chars.push({ ch, rect });
+        }
+        const at = chars.findIndex((item) => item.ch === "@");
+        const partWidth = (from, to) => chars.slice(from, to).reduce((sum, item) => sum + item.rect.width, 0);
+        for (let k = 1; k < chars.length; k++) {
+          const before = chars[k - 1];
+          const after = chars[k];
+          if (after.rect.top < before.rect.bottom - 1) continue;
+          if (before.ch === "@" || after.ch === "@") continue;
+          const width = k <= at ? partWidth(0, at) : partWidth(at + 1, chars.length);
+          if (width <= lineWidth + 1) add("email", parent);
+        }
+      }
     }
   } finally {
     for (const node of opened) node.open = false;

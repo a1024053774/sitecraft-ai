@@ -9,6 +9,8 @@ export const contactFragment: BlockFragment = {
 .sitecraft-inquiry-lines { margin: 24px 0 0; padding: 0; list-style: none; border-top: var(--site-rule); }
 .sitecraft-inquiry-lines li { display: flex; gap: 16px; padding: 12px 0; border-bottom: var(--site-rule); }
 .sitecraft-inquiry-lines li > span:first-child { min-width: 3em; color: var(--site-muted); }
+/* A contact value wraps where the bridge lets it (an email only at the @); a part wider than the line still breaks. */
+.sitecraft-inquiry-lines li > span:last-child { overflow-wrap: anywhere; }
 .sitecraft-inquiry-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 28px; background: var(--site-surface); border: var(--site-rule); }
 .sitecraft-inquiry-form label { display: grid; gap: 6px; font-size: 13px; color: var(--site-muted); }
 .sitecraft-inquiry-form label[data-sitecraft-inquiry-label="email"], .sitecraft-inquiry-form label[data-sitecraft-inquiry-label="message"] { grid-column: 1 / -1; }
@@ -101,7 +103,7 @@ export const footerFragment: BlockFragment = {
 .sitecraft-footer-label, .sitecraft-footer-brand { display: block; margin-bottom: 14px; color: #fff; font-size: 15px; font-weight: 650; }
 .sitecraft-footer-links { display: grid; gap: 8px; }
 .sitecraft-footer-links a:hover { color: #fff; }
-.sitecraft-footer-contact { display: grid; gap: 8px; }
+.sitecraft-footer-contact { display: grid; gap: 8px; overflow-wrap: anywhere; }
 /* When every contact line is a gap, drop the footer contact column. */
 .sitecraft-footer-inner > div:has(.sitecraft-footer-contact):not(:has([data-sitecraft-line]:not([hidden]))) { display: none; }
 `,

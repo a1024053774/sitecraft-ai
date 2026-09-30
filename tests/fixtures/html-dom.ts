@@ -497,9 +497,10 @@ export function parseHtmlFragment(html: string): HtmlFragment {
 }
 
 /** Text a visitor could see: skips hidden nodes, inline display:none, templates, styles and scripts.
- *  Zero-width spaces (line-break points the bridge adds to spec values) are not seen, so they are dropped. */
+ *  Zero-width spaces and word joiners (line-break marks the bridge adds to spec values and emails) are not
+ *  seen, so they are dropped. */
 export function visibleText(node: HtmlNode): string {
-  if (node instanceof HtmlText) return node.nodeValue.replace(/\u200b/g, "");
+  if (node instanceof HtmlText) return node.nodeValue.replace(/[\u200b\u2060]/g, "");
   if (node instanceof HtmlElement) {
     if (node.hidden || node.styleValues.display === "none") return "";
     if (["template", "style", "script", "head"].includes(node.localName)) return "";

@@ -59,7 +59,7 @@ import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/tem
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
 import { createSiteOnce, resolveWorkspaceEntry, workspaceUrlForSite } from "@/lib/workspace-entry";
-import { changeTargetLabels, describePreviewGaps } from "@/lib/workspace-copy";
+import { changeTargetLabels, describePreviewGaps, noChangeReply } from "@/lib/workspace-copy";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
 import { generateCustomPalette } from "@/lib/custom-brand-color";
@@ -682,7 +682,7 @@ export default function WorkspacePage() {
         alignment: hasAlignment ? view : undefined,
       }]);
     } else if (status === "no_change") {
-      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", text: "模型没有生成可应用的内容差异，草稿和模板均未修改。", change: String(done.summary || "没有变化"), meta: latency }]);
+      setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "no_change", ...noChangeReply(done.summary, done.rejected), meta: latency }]);
     } else if (status === "conflict") {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "warning", text: String(done.error), change: "没有覆盖较新的草稿" }]);
     } else if (status === "answer") {
@@ -1372,7 +1372,7 @@ export default function WorkspacePage() {
           {messages.map((message) => (
             <div className={`message ${message.role} ${message.status ?? ""}`} key={message.id}>
               <div className="message-label">{message.role === "assistant" ? <><Sparkles size={12} />AI 助手</> : "你"}</div>
-              <div className="message-bubble">{message.text}</div>
+              {message.text ? <div className="message-bubble">{message.text}</div> : null}
               {message.options?.length ? <div className="chat-hints clarify-options">{message.options.map((option) => <button className="hint" key={option} type="button" onClick={() => { setInput(option); window.requestAnimationFrame(() => inputRef.current?.focus()); }}>{option}</button>)}</div> : null}
               {message.alignment?.waitingForUser && message.alignment.selectedLabel ? (
                 <div className="change-summary alignment">{message.alignment.selectedLabel}</div>

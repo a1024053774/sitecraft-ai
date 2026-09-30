@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { describePreviewGaps } from "../lib/workspace-copy.ts";
+import { describePreviewGaps, noChangeReply } from "../lib/workspace-copy.ts";
 import { stripMaterialsInstruction, wrapCompanyMaterials } from "../lib/simulated-packs.ts";
 import { resolvePagePlan } from "../lib/template-pages.ts";
 
@@ -89,4 +89,28 @@ test("a model summary that talks about internals is replaced by the changed page
 test("the upload hint does not mention magic bytes", async () => {
   const source = await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, /magic bytes/i);
+});
+
+// T-053: when the system refused what the model asked for, the reply is only the reason
+// ("未修改：……"); the "no applicable difference" sentence is for a turn that simply changed nothing.
+const NO_DIFFERENCE = "模型没有生成可应用的内容差异，草稿和模板均未修改。";
+
+test("a refused chat turn says only why nothing changed", () => {
+  const layout = "参数对比表要 2–4 个产品共有至少 3 项都有数值的同名参数；现在只共有 2 项（额定压力、主体材质），产品仍按产品卡片显示。";
+  assert.deepEqual(noChangeReply(layout, [layout]), { text: "", change: layout });
+  assert.deepEqual(noChangeReply(`${layout}${layout}`, [layout, layout]), { text: "", change: layout });
+  assert.deepEqual(
+    noChangeReply("已把产品改成参数对比表", ["用户没有明确要求更换模板，已拒绝模板切换", layout]),
+    { text: "", change: `用户没有明确要求更换模板，已拒绝模板切换；${layout}` },
+  );
+  assert.deepEqual(noChangeReply("标题已经是这句了", []), { text: NO_DIFFERENCE, change: "标题已经是这句了" });
+  assert.deepEqual(noChangeReply(undefined, undefined), { text: NO_DIFFERENCE, change: "没有变化" });
+  assert.deepEqual(noChangeReply("", ["", 3]), { text: NO_DIFFERENCE, change: "没有变化" });
+});
+
+test("the workspace answers a no-change turn with that reply and draws no empty bubble", async () => {
+  const source = await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /noChangeReply\(done\.summary, done\.rejected\)/);
+  assert.ok(!source.includes(NO_DIFFERENCE), "the sentence is written in one place");
+  assert.match(source, /\{message\.text \? <div className="message-bubble">\{message\.text\}<\/div> : null\}/);
 });

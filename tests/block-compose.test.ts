@@ -130,6 +130,20 @@ const INTENDED_CHANGES: Array<{ why: string; context: string; selector: string; 
     from: null,
     to: ["word-break: keep-all", "overflow-wrap: anywhere"],
   },
+  {
+    why: "contact lines: an email wraps only at the @ (the bridge marks it); a part wider than the line still breaks",
+    context: "",
+    selector: ".sitecraft-inquiry-lines li > span:last-child",
+    from: null,
+    to: ["overflow-wrap: anywhere"],
+  },
+  {
+    why: "footer contact: the same for the footer email",
+    context: "",
+    selector: ".sitecraft-footer-contact",
+    from: ["display: grid", "gap: 8px"],
+    to: ["display: grid", "gap: 8px", "overflow-wrap: anywhere"],
+  },
 ];
 const changeKey = (change: (typeof INTENDED_CHANGES)[number], side: "from" | "to") =>
   ruleKey({ context: change.context, selector: change.selector, declarations: change[side] ?? [] });

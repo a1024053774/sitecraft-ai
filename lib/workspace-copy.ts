@@ -105,3 +105,14 @@ export function plainSummary(summary: string, operations: Array<{ op?: unknown; 
   const parts = [...new Set(operations.map(operationLabel).filter(Boolean))];
   return parts.length ? `已更新：${parts.join("、")}` : "已更新页面内容";
 }
+
+// A chat turn that changed nothing. When the system refused what the model asked for (a layout the
+// materials do not support, a look switch nobody asked for), the reasons are the whole reply and the
+// workspace shows them as "未修改：……"; the generic sentence is only for a turn that had nothing to apply.
+export function noChangeReply(summary: unknown, rejected: unknown): { text: string; change: string } {
+  const reasons = Array.isArray(rejected)
+    ? [...new Set(rejected.filter((item): item is string => typeof item === "string").map((item) => item.trim().replace(/[。.；;]+$/, "")).filter(Boolean))]
+    : [];
+  if (reasons.length) return { text: "", change: `${reasons.join("；")}。` };
+  return { text: "模型没有生成可应用的内容差异，草稿和模板均未修改。", change: String(summary || "没有变化") };
+}

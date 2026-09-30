@@ -688,7 +688,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      node.textContent = nextValue;
+      node.textContent = slot.target === "contact.email" && adapter && adapter.blocks ? emailBreakPoints(nextValue) : nextValue;
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";
         if (/^mailto:/i.test(href)) node.setAttribute("href", "mailto:" + nextValue);
@@ -920,6 +920,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
       else if (ch === "/" && slashPiece(text, i, -1) >= 3 && slashPiece(text, i, 1) >= 3) out += "\u200b";
     }
     return out;
+  }
+
+  // A contact email on a block-library page wraps only at the @ (T-053): a word joiner after each
+  // hyphen keeps p3i-sim.test whole, and zero-width spaces on both sides of the @ are its break
+  // points. The draft and the mailto link keep the address as written; copying drops the marks.
+  function emailBreakPoints(text) {
+    return String(text).replace(/-(?=.)/g, "-\u2060").replace(/@/g, "\u200b@\u200b");
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;
@@ -1572,13 +1579,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
-  // The zero-width break points added to spec values are not part of the value: a visitor who
-  // copies a grade like S136/H13/NAK80 gets it as written in the materials.
+  // The zero-width break points added to spec values and the marks in an email are not part of the
+  // text: a visitor who copies a grade like S136/H13/NAK80 or an address gets it as written.
   function onCopy(event) {
     if (!adapter || !adapter.blocks || !event || !event.clipboardData || !global.getSelection) return;
     var text = String(global.getSelection() || "");
-    if (text.indexOf("\u200b") === -1) return;
-    event.clipboardData.setData("text/plain", text.replace(/\u200b/g, ""));
+    if (!/[\u200b\u2060]/.test(text)) return;
+    event.clipboardData.setData("text/plain", text.replace(/[\u200b\u2060]/g, ""));
     if (event.preventDefault) event.preventDefault();
   }
 
