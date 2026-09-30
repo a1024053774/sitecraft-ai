@@ -890,6 +890,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
       dt.textContent = facts[i].label;
       var dd = document.createElement("dd");
       setValueText(dd, facts[i].value);
+      if (adapter && adapter.blocks && cellClass === "sitecraft-hero-spec") {
+        cell.setAttribute("data-sc-part", "spec");
+        dt.setAttribute("data-sc-part", "spec-label");
+        dd.setAttribute("data-sc-part", "spec-value");
+      }
       cell.appendChild(dt);
       cell.appendChild(dd);
       container.appendChild(cell);
@@ -954,6 +959,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var heroRender = blockRender("hero");
     var compareProducts = Boolean(draft && draft.blockVariants && draft.blockVariants.products === "compare");
     var stripAlways = Boolean(heroRender && heroRender.heroSpecs === "always") && !compareProducts;
+    if (compareProducts && strip) strip.hidden = true;
     if (!visual && !heroImage && !(strip && stripAlways)) return;
     var products = visibleProducts(draft, locale);
     var photo = null;

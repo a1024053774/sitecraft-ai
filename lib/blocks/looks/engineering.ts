@@ -5,7 +5,7 @@ const specLedRules: SiteStyleRule[] = [
   { block: "hero", part: "band", declarations: { "padding-block": "48px" } },
   { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1)" } },
   { block: "products", part: "head", declarations: { "border-top": "2px solid var(--site-ink)", "padding-top": "12px" } },
-  { block: "products", part: "grid", declarations: { gap: "16px" } },
+  { block: "products", part: "grid", declarations: { gap: "24px" } },
   { block: "industries", part: "list", declarations: { "padding-block": "20px" } },
   { block: "capabilities", part: "list", declarations: { "padding-block": "20px" } },
   { block: "services", part: "steps", declarations: { gap: "8px" } },
@@ -17,7 +17,10 @@ const specLedRules: SiteStyleRule[] = [
 ];
 
 const catalogLedRules: SiteStyleRule[] = [
-  { block: "hero", part: "specs", declarations: { "background-color": "var(--site-ink)", color: "var(--site-surface)", "padding-block": "24px" } },
+  { block: "hero", part: "specs", declarations: { "background-color": "var(--site-ink)", color: "var(--site-surface)", "border-top": "3px solid var(--site-accent)" } },
+  { block: "hero", part: "spec-label", declarations: { color: "var(--site-surface)" } },
+  { block: "hero", part: "spec-value", declarations: { color: "var(--site-surface)", "font-size": "28px" } },
+  { block: "hero", part: "spec-value", media: "phone", declarations: { "font-size": "18px" } },
   { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1-display)" } },
   { block: "products", declarations: { "background-color": "var(--site-surface)", "padding-block": "24px" } },
   { block: "products", part: "grid", declarations: { gap: "24px", border: "1px solid var(--site-line)", "border-radius": "4px", "padding-block": "8px" } },

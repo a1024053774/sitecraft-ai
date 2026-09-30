@@ -1,50 +1,68 @@
+// Browser-only. Compare actual text-line rectangles, never the unused boxes of closed details.
 export function scanVisitorLayout(root = document) {
-  const visible = (element) => {
-    if (!element) return false;
-    const style = getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+  const blockFor = el => el.closest('[data-sc-block]')?.getAttribute('data-sc-block') || '页面';
+  const visible = el => {
+    if (!el || el.closest('script,style,template,noscript,[aria-hidden="true"]')) return false;
+    for (let p=el;p;p=p.parentElement) {
+      const s=getComputedStyle(p);
+      if(s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0) return false;
+      if(p.tagName==='DETAILS'&&!p.open) {
+        const summary=[...p.children].find(c=>c.tagName==='SUMMARY');
+        if(!summary?.contains(el)) return false;
+      }
+    }
+    return el.getClientRects().length>0;
   };
-  const blockFor = (element) => element?.closest?.("[data-sc-block]")?.getAttribute("data-sc-block") || "页面";
-  const overflowElements = [...root.querySelectorAll("body *")].map((element) => {
-    if (!visible(element)) return null;
-    const rect = element.getBoundingClientRect();
-    const amount = Math.max(rect.right - innerWidth, -rect.left, 0);
-    return amount > 1 ? { block: blockFor(element), amount: Math.ceil(amount) } : null;
-  }).filter(Boolean);
-  const textElements = [...root.querySelectorAll("body *")].filter((element) => visible(element) && !element.children.length && (element.textContent || "").trim());
-  const rects = textElements.map((element) => ({ element, rect: element.getBoundingClientRect(), parent: element.parentElement }));
-  const overlaps = [];
-  for (let i = 0; i < rects.length; i += 1) for (let j = i + 1; j < rects.length; j += 1) {
-    if (rects[i].parent === rects[j].parent) continue;
-    const firstBlock = blockFor(rects[i].element);
-    const secondBlock = blockFor(rects[j].element);
-    if (firstBlock === "nav" || firstBlock === "footer" || secondBlock === "nav" || secondBlock === "footer") continue;
-    if (firstBlock !== secondBlock) continue;
-    const firstCard = rects[i].element.closest?.("[data-sitecraft-product]");
-    const secondCard = rects[j].element.closest?.("[data-sitecraft-product]");
-    if (firstCard && firstCard === secondCard) continue;
-    const left = Math.max(rects[i].rect.left, rects[j].rect.left);
-    const right = Math.min(rects[i].rect.right, rects[j].rect.right);
-    const top = Math.max(rects[i].rect.top, rects[j].rect.top);
-    const bottom = Math.min(rects[i].rect.bottom, rects[j].rect.bottom);
-    if (right - left > 2 && bottom - top > 2) overlaps.push({
-      block: firstBlock,
-      amount: Math.ceil(Math.min(right - left, bottom - top)),
-      key: `${rects[i].element.className}|${(rects[i].element.textContent || "").trim()}::${rects[j].element.className}|${(rects[j].element.textContent || "").trim()}`,
-    });
+  const keyFor = el => {
+    const path=[];
+    for(let p=el;p&&p!==document.body;p=p.parentElement) {
+      path.unshift(`${p.tagName}:${[...p.parentElement.children].indexOf(p)}`);
+    }
+    return path.join('/');
+  };
+  const overflowElements=[];
+  for(const el of root.querySelectorAll('body *')) {
+    if(!visible(el)) continue;
+    const r=el.getBoundingClientRect();
+    if(r.width<1||r.height<1) continue;
+    const amount=Math.max(r.right-innerWidth,-r.left,0);
+    if(amount>1) overflowElements.push({block:blockFor(el),key:keyFor(el),amount:Math.ceil(amount)});
   }
-  const slots = [...root.querySelectorAll("[data-sitecraft-slot]")].map((element) => {
-    const rect = element.getBoundingClientRect();
-    return { key: element.getAttribute("data-sitecraft-slot") || "", visible: visible(element) && rect.right > 0 && rect.left < innerWidth && rect.bottom > 0 && rect.top < innerHeight };
-  });
-  return {
-    horizontalScroll: document.documentElement.scrollWidth > innerWidth + 1,
-    overflowElements: overflowElements.slice(0, 20),
-    textOverlaps: overlaps.slice(0, 20),
-    slots,
-    height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+  const walker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT);
+  const range=document.createRange(), lines=[];
+  while(walker.nextNode()) {
+    const n=walker.currentNode, el=n.parentElement;
+    if(!n.textContent.trim()||!visible(el)) continue;
+    range.selectNodeContents(n);
+    const key=`${keyFor(el)}:${[...el.childNodes].indexOf(n)}:${n.textContent.trim()}`;
+    for(const rect of range.getClientRects()) if(rect.width>.5&&rect.height>.5) lines.push({el,rect,key});
+  }
+  const textOverlaps=[];
+  for(let i=0;i<lines.length;i++) for(let j=i+1;j<lines.length;j++) {
+    const a=lines[i], b=lines[j];
+    if(a.el===b.el) continue;
+    const x=Math.min(a.rect.right,b.rect.right)-Math.max(a.rect.left,b.rect.left);
+    const y=Math.min(a.rect.bottom,b.rect.bottom)-Math.max(a.rect.top,b.rect.top);
+    if(x>2&&y>2) textOverlaps.push({block:blockFor(a.el),amount:Math.min(x,y),key:[a.key,b.key].sort().join('::')});
+  }
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const rgba = color => { ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);return [...ctx.getImageData(0,0,1,1).data].map((v,i)=>i===3?v/255:v); };
+  const over=(fg,bg)=>[0,1,2].map(i=>fg[i]*fg[3]+bg[i]*(1-fg[3]));
+  const luminance=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((v,c,i)=>v+c*[.2126,.7152,.0722][i],0);
+  const contrast = el => {
+    const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
+    let bg=[255,255,255];for(const p of chain)bg=over(rgba(getComputedStyle(p).backgroundColor),bg);
+    const fg=over(rgba(getComputedStyle(el).color),bg),a=luminance(fg),b=luminance(bg);
+    return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
   };
+  const slots=[...root.querySelectorAll('[data-sitecraft-slot]')].map(el=>{
+    const r=el.getBoundingClientRect();
+    const painted=visible(el)&&r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;
+    const textLines=lines.filter(l=>el.contains(l.el));
+    const ratio=painted&&textLines.length?Math.min(...textLines.map(l=>contrast(l.el))):21;
+    return {key:keyFor(el),slot:el.getAttribute('data-sitecraft-slot'),block:blockFor(el),visible:painted,contrast:ratio};
+  });
+  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,slots,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
 }
-
 export default scanVisitorLayout;

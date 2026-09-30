@@ -69,7 +69,7 @@ async function startChrome() {
   return { browser, chrome, profile };
 }
 
-async function render(browser: Cdp, baseUrl: string, templateId: string, draft: SiteDraft, width: number, file: string) {
+async function render(browser: Cdp, baseUrl: string, templateId: string, draft: SiteDraft, width: number, file: string, locale = "zh") {
   const target = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
   const attached = await browser.send("Target.attachToTarget", { targetId: target.targetId, flatten: true }) as { sessionId: string };
   const sessionId = attached.sessionId;
@@ -85,12 +85,12 @@ async function render(browser: Cdp, baseUrl: string, templateId: string, draft: 
     await sleep(100);
   }
   if (!ready) throw new Error("站点样式没有应用：预览桥没有就绪");
-  await browser.evaluate(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
+  await browser.evaluate(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, ${JSON.stringify(locale)}, [], "published", null, ${draft.englishReady})`, sessionId);
   const settle = `(async () => { await document.fonts.ready; await Promise.all([...document.images].filter((img) => !img.complete).map((img) => new Promise((done) => { img.addEventListener('load', done, { once: true }); img.addEventListener('error', done, { once: true }); setTimeout(done, 8000); }))); await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))); return Math.max(document.documentElement.scrollHeight, document.body.scrollHeight); })()`;
   let height = Number(await browser.evaluate(settle, sessionId) || 900);
   await browser.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile }, sessionId);
   await sleep(150);
-  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number }>; textOverlaps: Array<{ block: string; amount: number; key: string }>; slots: Array<{ key: string; visible: boolean }>; height: number };
+  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number; key: string }>; textOverlaps: Array<{ block: string; amount: number; key: string }>; slots: Array<{ key: string; visible: boolean; block: string; contrast: number }>; height: number };
   if (file) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId) as { data: string };
@@ -108,7 +108,7 @@ export type SiteStyleCheckResult =
   | { ok: true; widths: number[]; reports: Record<string, unknown>; screenshots: string[] }
   | { ok: false; reasons: string[]; widths: number[]; reports: Record<string, unknown>; screenshots: string[] };
 
-export async function checkSiteStyle(args: { templateId: string; draft: SiteDraft; baseUrl: string; outDir?: string }): Promise<SiteStyleCheckResult> {
+async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; baseUrl: string; outDir?: string }): Promise<SiteStyleCheckResult> {
   const normalized = normalizeSiteStyle(args.draft.siteStyle);
   if (!normalized || (!normalized.rules.length && !normalized.direction)) return { ok: true, widths: [...WIDTHS], reports: {}, screenshots: [] };
   const outDir = args.outDir || "";
@@ -120,35 +120,45 @@ export async function checkSiteStyle(args: { templateId: string; draft: SiteDraf
   let profile = "";
   try {
     ({ browser, chrome, profile } = await startChrome());
-    for (const width of WIDTHS) {
+    for (const locale of args.draft.englishReady ? ["zh", "en"] : ["zh"]) for (const width of WIDTHS) {
       const baselineDraft = { ...args.draft, siteStyle: undefined };
       const candidateDraft = { ...args.draft, siteStyle: normalized };
-      const baselineFile = outDir ? path.join(outDir, `baseline-${width}.png`) : "";
-      const candidateFile = outDir ? path.join(outDir, `candidate-${width}.png`) : "";
-      const baseline = await render(browser, args.baseUrl, args.templateId, baselineDraft, width, baselineFile);
-      const candidate = await render(browser, args.baseUrl, args.templateId, candidateDraft, width, candidateFile);
+      const baselineFile = outDir ? path.join(outDir, `baseline-${locale}-${width}.png`) : "";
+      const candidateFile = outDir ? path.join(outDir, `candidate-${locale}-${width}.png`) : "";
+      const baseline = await render(browser, args.baseUrl, args.templateId, baselineDraft, width, baselineFile, locale);
+      const candidate = await render(browser, args.baseUrl, args.templateId, candidateDraft, width, candidateFile, locale);
       if (baselineFile) screenshots.push(baselineFile, candidateFile);
-      reports[String(width)] = { baseline, candidate };
-      const newOverflow = candidate.overflowElements.filter((item) => !baseline.overflowElements.some((old) => old.block === item.block && old.amount >= item.amount));
+      reports[`${locale}-${width}`] = { baseline, candidate };
+      const newOverflow = candidate.overflowElements.filter((item) => !baseline.overflowElements.some((old) => old.key === item.key && old.amount >= item.amount));
       if ((candidate.horizontalScroll && !baseline.horizontalScroll) || newOverflow.length) {
         const item = newOverflow[0] || candidate.overflowElements[0] || { block: "页面", amount: 1 };
         reasons.push(`${width} 宽度下「${blockLabel(item.block)}」横向超出页面 ${item.amount}px。`);
       }
       const baselineOverlapKeys = new Set(baseline.textOverlaps.map((item) => item.key));
-      const newOverlaps = candidate.textOverlaps.filter((item) => !baselineOverlapKeys.has(item.key) && item.amount > 8);
+      const newOverlaps = candidate.textOverlaps.filter((item) => !baselineOverlapKeys.has(item.key) && item.amount > 2);
       if (newOverlaps.length) {
         const item = newOverlaps[0];
         reasons.push(`${width} 宽度下「${blockLabel(item.block)}」出现文字重叠。`);
       }
-      const oldSlots = new Map(baseline.slots.map((slot) => [slot.key, slot.visible]));
-      for (const slot of candidate.slots) if (oldSlots.get(slot.key) && !slot.visible) reasons.push(`${width} 宽度下槽位文字被样式遮住。`);
+      const oldSlots = new Map(baseline.slots.map((slot) => [slot.key, slot]));
+      for (const slot of candidate.slots) {
+        const old = oldSlots.get(slot.key);
+        if (old?.visible && (!slot.visible || (old.contrast >= 3 && slot.contrast < 3))) reasons.push(`${width} 宽度下「${blockLabel(slot.block)}」文字被遮住或对比度不足 3:1。`);
+      }
     }
   } catch (error) {
     reasons.push(error instanceof Error ? error.message : "站点样式没有应用：样式检查失败");
   } finally {
     browser?.close();
     chrome?.kill();
-    if (profile) fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    // Profiles stay alongside evidence; no automatic deletion.
   }
   return reasons.length ? { ok: false, reasons: reasons.slice(0, 3), widths: [...WIDTHS], reports, screenshots } : { ok: true, widths: [...WIDTHS], reports, screenshots };
+}
+
+let pendingCheck: Promise<unknown> = Promise.resolve();
+export function checkSiteStyle(args: Parameters<typeof runSiteStyleCheck>[0]): Promise<SiteStyleCheckResult> {
+  const result = pendingCheck.then(() => runSiteStyleCheck(args));
+  pendingCheck = result.then(() => undefined, () => undefined);
+  return result;
 }

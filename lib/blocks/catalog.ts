@@ -33,6 +33,8 @@ export type BlockVariantSpec = {
   markers: string[];
   /** `data-sc-part` names in this variant, each used once (for site styles, T-054). */
   parts: string[];
+  /** Parts created by the shared bridge after material content is mounted. */
+  renderedParts?: string[];
   render?: TemplateBlockRender;
   /** What the materials must hold before this variant can be picked; defaults need nothing. */
   requires?: BlockRequirement[];
@@ -109,6 +111,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ["[data-sitecraft-hero-visual]", "[data-sitecraft-hero-credit]", "[data-sitecraft-hero-nameplate]", "[data-sitecraft-hero-specs]"],
         parts: ["band", "copy", "title", "actions", "visual", "specs"],
+        renderedParts: ["spec", "spec-label", "spec-value"],
         render: { heroSpecs: "with-photo" },
       },
       statement: {
@@ -121,6 +124,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ["[data-sitecraft-hero-specs]"],
         parts: ["band", "copy", "title", "actions", "specs"],
+        renderedParts: ["spec", "spec-label", "spec-value"],
         render: { heroSpecs: "always" },
         requires: [{ kind: "heroFacts", min: 3 }],
       },

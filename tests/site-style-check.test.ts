@@ -29,3 +29,8 @@ test("a legal grid rule that cannot fit on a phone is rejected with width and bl
     assert.ok(result.reasons.some((reason) => /产品/.test(reason)), result.reasons.join("；"));
   }
 });
+
+test('a white title on its white surface is rejected for contrast', async () => {
+ const result=await checkSiteStyle({templateId:'screwfast',draft:{...baseDraft,siteStyle:{direction:null,rules:[{block:'hero',part:'title',declarations:{color:'var(--site-surface)'}}]}},baseUrl:'http://127.0.0.1:3034',outDir:`artifacts/t054/contrast-${Date.now()}`});
+ assert.equal(result.ok,false); if(!result.ok)assert.match(result.reasons.join(' '),/对比度/);
+});

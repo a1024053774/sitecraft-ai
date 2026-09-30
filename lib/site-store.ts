@@ -149,7 +149,7 @@ type CommitArgs = {
 type StyleGuardResult = { operations: SiteOperation[]; rejected: string[]; rejectedOnly: boolean };
 
 async function guardSiteStyle(record: SiteRecord, args: CommitArgs): Promise<StyleGuardResult> {
-  const styleOperations = args.operations.filter((operation) => operation.op === "set_site_style" && operation.rules.length > 0);
+  const styleOperations = args.operations.filter((operation) => operation.op === "set_site_style" && (operation.rules.length > 0 || operation.direction));
   if (!styleOperations.length) return { operations: args.operations, rejected: [], rejectedOnly: false };
   const candidate = applySiteOperations(record.draft, args.operations, {
     templateIds,
@@ -161,7 +161,7 @@ async function guardSiteStyle(record: SiteRecord, args: CommitArgs): Promise<Sty
   const checked = await checkSiteStyle({ templateId: candidate.draft.templateId, draft: candidate.draft, baseUrl });
   if (checked.ok) return { operations: args.operations, rejected: [], rejectedOnly: false };
   const kept = args.operations.filter((operation) => operation.op !== "set_site_style");
-  return { operations: kept, rejected: checked.reasons.map((reason) => `站点样式没有应用：${reason}`), rejectedOnly: kept.length === 0 };
+  return { operations: kept, rejected: checked.reasons.map((reason) => reason.startsWith("站点样式没有应用：") ? reason : `站点样式没有应用：${reason}`), rejectedOnly: kept.length === 0 };
 }
 
 async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {

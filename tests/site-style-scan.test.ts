@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import { readFileSync, mkdirSync } from 'node:fs';
+import test from 'node:test';
+import { Cdp, openBrowser } from './helpers/workspace-browser.ts';
+const source = readFileSync('scripts/visitor-layout-scan.js','utf8').replace('export function','function').replace('export default scanVisitorLayout;','');
+test('layout scanning measures painted text: closed details excluded, 3px overlap within/across blocks detected', async () => {
+  const browser = await openBrowser();
+  const {targetId} = await browser.send('Target.createTarget',{url:'about:blank'}) as {targetId:string};
+  const {sessionId} = await browser.send('Target.attachToTarget',{targetId,flatten:true}) as {sessionId:string};
+  try {
+    await browser.send('Runtime.enable',{},sessionId);
+    await browser.send('Page.enable',{},sessionId);
+    await browser.send('Page.setDocumentContent',{frameId:(await browser.send('Page.getFrameTree',{},sessionId) as {frameTree:{frame:{id:string}}}).frameTree.frame.id, html:`<html><body style="margin:0"><section data-sc-block="products"><article data-sitecraft-product="a"><p id="a" style="position:absolute;top:40px;left:10px;margin:0;font:20px/20px monospace">AAAAAAA</p><p id="b" style="position:absolute;top:57px;left:10px;margin:0;font:20px/20px monospace">BBBBBBB</p><details><summary>closed</summary><p id="folded">NOT PAINTED</p></details></article></section><section data-sc-block="contact"><p id="c" style="position:absolute;top:40px;left:30px;margin:0;font:20px/20px monospace">CCCCCC</p></section></body></html>`},sessionId);
+    const scan = await browser.eval<{textOverlaps:Array<{key:string}>}>(`(()=>{${source};return scanVisitorLayout(document)})()`,sessionId);
+    mkdirSync('artifacts/t054/scan-regression',{recursive:true});
+    const {writeFileSync}=await import('node:fs'); writeFileSync('artifacts/t054/scan-regression/result.json',JSON.stringify(scan,null,2));
+    assert.ok(scan.textOverlaps.some(x=>x.key.includes('AAAA')&&x.key.includes('BBBB')), '3px overlap in same product must not be exempt');
+    assert.ok(scan.textOverlaps.some(x=>x.key.includes('AAAA')&&x.key.includes('CCCC')), 'cross-block overlap must not be exempt');
+    assert.ok(!scan.textOverlaps.some(x=>x.key.includes('NOT PAINTED')), 'closed details are not painted');
+  } finally { await browser.send('Target.closeTarget',{targetId}); await browser.send('Browser.close'); browser.ws.close(); }
+});

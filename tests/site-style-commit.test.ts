@@ -65,3 +65,10 @@ test("without Chrome a mixed commit keeps ordinary changes and rejects only styl
   assert.equal(after.draft.content.hero.title.zh, "正常标题");
   assert.equal(after.draft.siteStyle, undefined);
 });
+
+test('direction-only style must also be checked before saving', async () => {
+  const siteId = newSite(); const before=await getSite(siteId);
+  const result=await commitOperations({siteId,baseRevision:before.draft.revision,source:'manual',summary:'direction',operations:[{op:'set_site_style',direction:'catalog-led',rules:[]}]});
+  assert.equal(result.status,'rejected');
+  assert.deepEqual((await getSite(siteId)).draft,before.draft);
+});

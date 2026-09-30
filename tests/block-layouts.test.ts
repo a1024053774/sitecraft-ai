@@ -305,3 +305,14 @@ test("the new layouts' CSS lets values wrap and never touches the default layout
     assert.ok(wraps(selector), `${selector} values must be allowed to break`);
   }
 });
+
+test('c1: changing cards to comparison hides an already mounted statement strip', () => {
+ const draft=withLayouts(packDraft('industrial'),{hero:'statement'});
+ const { document }=render(draft);
+ const adapter=getTemplateAdapter('screwfast');
+ assert.ok(adapter);
+ const globalObject={document,parent:{postMessage(){}},addEventListener(){}};
+ const api=installPreviewBridge(globalObject,'screwfast',adapter);
+ api.applyDeclaredContent({...draft,blockVariants:{hero:'statement',products:'compare'}},'zh',[],'published');
+ assert.equal(document.querySelector('[data-sitecraft-hero-specs]')?.hidden,true);
+});

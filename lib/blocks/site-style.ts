@@ -34,7 +34,7 @@ const mediaQueries: Record<SiteStyleMedia, string> = {
 const partsByBlock: Record<SiteStyleBlock, readonly string[]> = Object.fromEntries(
   siteStyleBlocks.map((block) => [
     block,
-    [...new Set(Object.values(blockCatalog[block].variants).flatMap((variant) => variant.parts))],
+    [...new Set(Object.values(blockCatalog[block].variants).flatMap((variant) => [...variant.parts, ...(variant.renderedParts || [])]))],
   ]),
 ) as unknown as Record<SiteStyleBlock, readonly string[]>;
 
@@ -82,21 +82,22 @@ export type SiteStyle = z.infer<typeof siteStyleSchema>;
 
 export function styleDirectionRecommendation(draft: Pick<SiteDraft, "content" | "products">, materials = "") {
   const text = String(materials).toLowerCase();
-  const capabilities = draft.content.capabilities?.items.filter((item) => item.title.zh !== "待补充" || item.body.zh !== "待补充").length ?? 0;
-  const services = draft.content.services.items.filter((item) => item.title.zh !== "待补充" || item.body.zh !== "待补充").length;
-  const categories = new Set(draft.products.map((product) => typeof product.category === "string" ? product.category : product.category.zh).filter(Boolean));
-  if (capabilities >= 5 || services >= 4 || /产能|工艺|检测|加工能力/.test(text)) {
-    return { direction: "capability-led" as const, reason: "资料里的加工能力、工艺或合作流程较多" };
+  const provided = (value: string) => Boolean(value.trim()) && !/^(待补充|to be provided)$/i.test(value.trim());
+  const count = (items: Array<{title:{zh:string};body:{zh:string}}> = []) => items.filter(item => provided(item.title.zh) || provided(item.body.zh)).length;
+  // A labelled list is explicit material data, unlike a keyword in the wrapper instructions.
+  const listCount = (label: RegExp) => Math.max(0, ...text.split("\n").filter(line => label.test(line)).map(line => line.slice(line.indexOf("：")+1).split(/[；;]/).filter(part => provided(part.replace(/[。.]$/, ""))).length));
+  const capabilities = Math.max(count(draft.content.capabilities?.items), listCount(/^(?:加工能力(?:\/主设备)?|主设备|设备清单|检测设备)：/));
+  const services = Math.max(count(draft.content.services.items), listCount(/^(?:合作流程|合作方式|质检流程|工艺流程)：/));
+  const categories = new Set(draft.products.map(product => typeof product.category === "string" ? product.category : product.category.zh).filter(provided));
+  if (capabilities >= 5 || services >= 4 || /工厂实力|按(?:加工能力|工艺|产能|检测)|要(?:加工能力|工艺|产能|检测)/.test(text)) {
+    return { direction: "capability-led" as const, reason: `加工能力或设备 ${capabilities} 项，流程 ${services} 步，资料侧重工艺与检测` };
   }
-  if (/oem|外贸|目录|样品册|采购|catalog|sample book/.test(text) || categories.size >= 2 || draft.products.length >= 4) {
-    return { direction: "catalog-led" as const, reason: "资料面向目录采购或产品类别较多" };
+  if (/oem|外贸|目录|样品册|catalog|sample book/.test(text + JSON.stringify(draft.content.hero)) || (categories.size >= 2 && draft.products.length >= 4)) {
+    return { direction: "catalog-led" as const, reason: "面向目录、样品册或 OEM 采购，或至少两个类别四个系列" };
   }
   return { direction: "spec-led" as const, reason: "资料以少量系列和规格询盘为主" };
 }
 
-export function suggestSiteStyleDirection(draft: Pick<SiteDraft, "content" | "products">, materials = "") {
-  return styleDirectionRecommendation(draft, materials).direction;
-}
 
 type ValidationError = { ok: false; errors: string[] };
 type ValidationSuccess = { ok: true; rules: SiteStyleRule[]; declarationCount: number; bytes: number };
