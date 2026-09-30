@@ -54,7 +54,7 @@ Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb44
 
 真实生成与发布：
 
-- DeepSeek 串行记录：工业最终 `d72232c6…` 建议规格为主，模型选择 `capability-led`、产品 `compare`；P3E `92023362…` 建议目录为主，模型选择 `spec-led`、首屏 `statement`、产品 `cards`；注塑 `762782a3…` 建议工厂实力，模型选择 `capability-led`、产品 `grouped`、询盘 `band`。三家的方向差异来自最终模型输出，未手工改草稿。原始记录见 `artifacts/t061/t054-final-final-summary.json`；此前首轮与修复重跑记录保留在 `t054-final-runs-summary.json`、`t054-final-industrial-rerun-summary.json`。
-- 最终三站 `check-published` 三档通过：[published-final-final/report.json](../../artifacts/t054/published-final-final/report.json)、[published-final-final/report.json](../../artifacts/t054/published-final-final/report.json)。
+- DeepSeek 串行记录：工业最终 `d72232c6…` 建议规格为主，模型选择 `capability-led`、产品 `compare`；P3E `92023362…` 建议目录为主，模型选择 `spec-led`、首屏 `statement`、产品 `cards`；注塑 `762782a3…` 建议工厂实力，模型选择 `capability-led`、产品 `grouped`、询盘 `band`。随后三站各走一次真实样式请求：工业“首屏更有分量”、P3E“参数表更紧凑”、注塑“分区之间紧凑一点”，三次均应用 `set_site_style`；样式证据见 [style-requests-final.json](../../artifacts/t054/style-requests-final.json)。三家的方向差异来自最终模型输出，未手工改草稿。原始记录见 `artifacts/t061/t054-final-final-summary.json`；此前首轮与修复重跑记录保留在 `t054-final-runs-summary.json`、`t054-final-industrial-rerun-summary.json`。
+- 最终三站 `check-published` 三档通过：[published-final-final/report.json](../../artifacts/t054/published-final-final/report.json)。
 - 真实工作台输入框证据：[workspace-ui-1790788095591](../../artifacts/t054/workspace-ui-1790788095591/)。首屏更有分量只应用 `set_site_style`；手机四列 240px 请求显示“未修改：站点样式没有应用：375 宽度下「产品」横向超出页面 153px”。早期 API 直调/缺 Chrome 失败产物保留在 `workspace-style-*` 目录。
 - 盲评包：[blind/README.md](../../artifacts/t054/blind/README.md)、[blind-key.json](../../artifacts/t054/blind-key.json)，正式包为 3 家 × 2 版 × 1440/768/375 原图与 `-masked.png`；旧/失败构建产物保存在 `blind-prior-*` 和 `blind-build-failures/`，未放进正式 README。
