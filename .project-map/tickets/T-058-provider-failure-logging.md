@@ -2,7 +2,7 @@
 id: T-058
 title: DeepSeek 失败时服务端记下脱敏的失败类别
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: kiro
 supersedes:
@@ -16,9 +16,9 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 测试覆盖每种分类各一例（用假的 fetch），并断言日志里没有 key 和资料正文；测试在改动前先失败
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查（Astra）通过；Claude 验收
+- [x] 测试覆盖每种分类各一例（用假的 fetch），并断言日志里没有 key 和资料正文；测试在改动前先失败
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 代码审查（Astra）通过；Claude 验收
 
 ## Resolution
 
@@ -37,3 +37,5 @@ Kiro，2026-09-30（纽约时间）。提交：`3c5c3bb`（失败日志），`56
 改动后：`3c5c3bb`，04:03–04:04 `npm run typecheck` 通过、`npm test` 398/398、`npm run build` 通过（`artifacts/t061/t058-*.txt`）；`568d406`，04:50–04:52 typecheck 通过、`npm test` 406/406、build 通过（`artifacts/t061/t061b-*.txt`）。
 
 真实运行：T-061 验收（04:20–04:34，`0f6bec2`，真实 DeepSeek）记下 4 行：1 行 parse、2 行 schema（都在第二次尝试成功前）和 1 行 truncated，都带 trace id 和 token 用量（`artifacts/t061/accept-runs.log`）。字段路径是之后加的，还没有在真实失败里出现过（`568d406` 之后注塑 3 次都一次成功，没有失败行）。
+
+独立审核：Astra（Codex GPT-6）PASS，2026-09-30 纽约时间约 06:10，候选 23807c8，针对性测试 34/34（`artifacts/review-astra-t058-t061.md`）。遗留 P2：看图、预览审查两条路径的失败日志没有测试覆盖，随 T-061 返工补上。Claude 验收关闭。
