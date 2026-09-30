@@ -2,7 +2,7 @@
 id: T-050
 title: 第三份厚模拟资料包
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: cloud
 supersedes:
@@ -27,8 +27,8 @@ supersedes:
 
 - [x] `simulatedPacks` 增加这份包，工作台模拟资料入口能选到；现有两份内容不变
 - [x] 资料正文加包装后不超过 `MATERIALS_CHAT_LIMIT`；超了就删减内容，不改上限（改上限要另开决定票）
-- [ ] 测试按上面的要求写（包数、核验记号、缺口保留、不含客户名/评价/奖项字样、长度上限），新测试在改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 独立审核（Codex Astra）验收通过，结论记在 Resolution
+- [x] 测试按上面的要求写（包数、核验记号、缺口保留、不含客户名/评价/奖项字样、长度上限），新测试在改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 独立审核（Codex Astra）验收通过，结论记在 Resolution
 
 ## Resolution
 
@@ -47,4 +47,4 @@ supersedes:
 - Astra 真实生成一次得到 `provider_error`，诊断为 DeepSeek 间歇失败、状态机安全失败，同一资料手动重跑生成成功（站点 `1b15ff52-71c0-4f98-8de2-85be2fef32c5`，草稿 v2）；失败分类日志另开 T-058。
 - 20:35 左右：`CHROME_PATH=<headless shell> node scripts/check-published.mjs --out artifacts/published-check/t050-molding 1b15ff52-71c0-4f98-8de2-85be2fef32c5`，1440 / 768 / 375 全部 ok；Claude 看过 1440 整页：首屏规格条、5 个产品及参数、应用行业、加工能力与设备、认证、询盘都在，没有「虚构」「模拟」字样。看到的遗留：产品卡关键参数值过长时被截断（交 T-053 重做区块时处理）；常见问题这次模型没有写入；沿革、质检流程、交期起订草稿没有字段（MAP「Not yet specified」）。
 - 全量测试 321/321、`tsc --noEmit`、`npm run build` 通过（Sonnet 子 agent 在最后一次改动后跑）。待 Astra 复审。
-
+- 独立审核：Astra（Codex GPT-6）复审 PASS，2026-09-29 20:50 纽约时间，在 523435c（与 fc29130 的运行时代码相同）上跑 `CHROME_PATH=<headless shell> SITE_STORE=fs node --test --experimental-strip-types tests/*.test.ts` 321/321，`check-published` 对站点 `1b15ff52-…` 三档全部 ok（`artifacts/review-astra-t050-t052-r2.md`）。Claude 验收关闭。

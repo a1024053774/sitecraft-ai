@@ -2,7 +2,7 @@
 id: T-052
 title: 工作台交互照原型 B 改齐，补动画，按钮上移，需求对齐外露，深色可读
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: cloud
 supersedes:
@@ -32,8 +32,8 @@ supersedes:
 - [x] 上面 1–6 项都做到；对话、需求对齐、换样子、换配色、撤销和重做照常能用
 - [x] 深浅两套主题下，全部工作台文字对比度 ≥ 4.5:1，由检查脚本或测试量出来，新检查在改动前先失败
 - [x] 1440 / 768 / 375 深浅两套主题截图（云端有无头 Chrome 就截，没有就说明没截；本地由 Claude 在 Chrome 里补看）
-- [ ] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 盲评（Codex gpt-6.1-sol）和代码审查（Codex Astra）通过，结论记在 Resolution
+- [x] 相关测试、`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 盲评（Codex gpt-6.1-sol）和代码审查（Codex Astra）通过，结论记在 Resolution
 
 ## Resolution
 
@@ -70,4 +70,4 @@ cloud，2026-09-29（时间为 UTC）。实现提交：本 commit（分支 `clou
 - 盲评 gpt-6.1-sol NO_GO（`artifacts/blind-t052-workspace.md`）：P0 需求对齐卡打开时从中段显示；P1 动画没有过程证据；P2 输入框上方按钮同质、375 占位提示被省略、错误态第二个红框像开发提示。Astra 代码审查 NO_GO（`artifacts/review-astra-t050-t052.md`）：浏览器测试没跑完（本机普通 Chrome 无头约 40 秒退出，见 AGENTS 验收第 2 条）；换样子/配色/撤销/重做只看 DOM、没有服务器回读和刷新。
 - 返工（Sonnet 子 agent，Claude 验收）：卡片打开或新一轮到来时滚到卡片顶部（改动前 `1440: the card title is in the chat viewport (no:-12,-682)`）；操作行分三组（需求对齐｜样子、配色｜公司资料、上传产品图、商品表格，最后一组为次要样式，按钮都保留可见）；占位提示改为「告诉我公司资料，或想改哪里」并断言三档不被截断；错误态只留一个红框，下面一行「已保存的草稿没有变化，可以直接重试。」；换样子/配色/撤销/重做每步 GET 草稿核对 revision、样子、色板，最后 `Page.reload` 核对（用只改 React state 的错误实现验证过会失败）；新增 `scripts/capture-workspace-motion-frames.ts`，输出 `artifacts/t052/frames/`（7 个场景 × 三档 × 正常/减少动态，附 index.md）。
 - 证据：`CHROME_PATH=<headless shell> SITE_STORE=fs node --test --experimental-strip-types tests/*.test.ts` 321/321，`tsc --noEmit`、`npm run build` 通过。Claude 看过返工后的深色 1440 需求对齐卡：标题和第 1 题在首屏，操作行分组清楚。待 gpt-6.1-sol 复评、Astra 复审。
-
+- 盲评：gpt-6.1-sol 复评 PASS（`artifacts/blind-t052-workspace-r2.md`，看过重新生成的 18 张截图和 `artifacts/t052/frames/` 逐帧）；遗留建议：桌面资料入口仍偏密，可在后续迭代再整理。代码审查：Astra 复审 PASS，2026-09-29 20:50 纽约时间，523435c 上全量 321/321（`artifacts/review-astra-t050-t052-r2.md`）。Claude 验收关闭。
