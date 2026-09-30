@@ -70,7 +70,7 @@ test("requirements follow the materials of the three packs", () => {
   const expected: Record<PackDraftId, Record<string, boolean>> = {
     industrial: { "hero:statement": true, "products:grouped": false, "products:compare": true, "contact:band": false },
     export: { "hero:statement": true, "products:grouped": false, "products:compare": false, "contact:band": false },
-    molding: { "hero:statement": true, "products:grouped": true, "products:compare": false, "contact:band": true },
+    molding: { "hero:statement": true, "products:grouped": true, "products:compare": false, "contact:band": false },
   };
   for (const [pack, cases] of Object.entries(expected) as Array<[PackDraftId, Record<string, boolean>]>) {
     const draft = packDraft(pack);
@@ -199,18 +199,16 @@ test("参数对比表 needs 2–4 products sharing at least 3 specs with values"
   assert.match(result.failures[0].message, /只共有 2 项（速比范围、额定输出扭矩）/);
 });
 
-test("联系条: one cell per contact line that has a value, the address included, the form below", () => {
-  const molding = render(withLayouts(packDraft("molding"), { contact: "band" }));
-  const contact = entity(molding.document, "contact");
+test("联系条: one cell per contact line that has a value, the form below", () => {
+  const industrialBand = render(withLayouts(packDraft("industrial"), { contact: "band" }));
+  const contact = entity(industrialBand.document, "contact");
   assert.equal(contact.getAttribute("data-sc-variant"), "band");
   const lines = contact.querySelectorAll(".sitecraft-band-line").filter((line) => !line.hidden);
-  assert.deepEqual(lines.map((line) => text(line.querySelector("dt"))), ["邮箱", "电话", "地址"]);
-  assert.deepEqual(lines.map((line) => text(line.querySelector("dd"))), ["rfq@p3t-sim.test", "0000-0000000", "示例省示例市模具园区 0 号"]);
+  assert.deepEqual(lines.map((line) => text(line.querySelector("dt"))), ["邮箱"]);
+  assert.deepEqual(lines.map((line) => text(line.querySelector("dd"))), ["inquiry@p3i-sim.test"]);
   assert.equal(contact.querySelectorAll('[data-sitecraft-inquiry="true"]').length, 1);
-  assert.ok(molding.report.appliedSlots.includes("contact.address.zh"));
 
-  const industrial = render(withLayouts(packDraft("industrial"), { contact: "band" }));
-  const sparse = entity(industrial.document, "contact");
+  const sparse = entity(render(withLayouts(packDraft("molding"), { contact: "band" })).document, "contact");
   assert.deepEqual(sparse.querySelectorAll(".sitecraft-band-line").filter((line) => !line.hidden).map((line) => text(line.querySelector("dt"))), ["邮箱"]);
   assert.doesNotMatch(text(sparse), GAP_TEXT);
 });
@@ -236,10 +234,7 @@ test("the new layouts speak English on the English page", () => {
   }
   assert.deepEqual(entity(industrial.document, "products").querySelectorAll("thead th").map((node) => text(node)), ["Specification", "Right-angle gearbox", "Planetary gearbox"]);
   assert.match(text(entity(industrial.document, "products").querySelector(".sitecraft-compare-more summary")), /^Other specifications \(1\)$/);
-  const molding = render(withLayouts(packDraft("molding"), { products: "grouped", contact: "band" }), "en");
-  const contact = entity(molding.document, "contact");
-  assert.deepEqual(contact.querySelectorAll(".sitecraft-band-line dt").map((node) => text(node)), ["Email", "Phone", "Address"]);
-  assert.equal(text(contact.querySelector('[data-sitecraft-contact="address"]')), "No. 0, Mold Park, Sample City, Sample Province");
+  const molding = render(withLayouts(packDraft("molding"), { products: "grouped" }), "en");
   const groups = entity(molding.document, "products");
   assert.deepEqual(groups.querySelectorAll(".sitecraft-product-group-title").map((node) => text(node)), ["Injection molds", "Precision molded parts"]);
   for (const toggle of groups.querySelectorAll(".sitecraft-product-more summary")) assert.match(text(toggle), /^All specifications \(\d+\)$/);

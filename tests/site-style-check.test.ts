@@ -34,3 +34,14 @@ test('a white title on its white surface is rejected for contrast', async () => 
  const result=await checkSiteStyle({templateId:'screwfast',draft:{...baseDraft,siteStyle:{direction:null,rules:[{block:'hero',part:'title',declarations:{color:'var(--site-surface)'}}]}},baseUrl:'http://127.0.0.1:3034',outDir:`artifacts/t054/contrast-${Date.now()}`});
  assert.equal(result.ok,false); if(!result.ok)assert.match(result.reasons.join(' '),/对比度/);
 });
+
+test("a style check that exceeds its total deadline is rejected as incomplete", async () => {
+  const result = await checkSiteStyle({
+    templateId: "screwfast",
+    draft: { ...baseDraft, siteStyle: { direction: "spec-led", rules: [] } },
+    baseUrl: process.env.SITECRAFT_BASE || "http://127.0.0.1:3034",
+    timeoutMs: 1,
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.match(result.reasons.join("；"), /检查没有完成/);
+});

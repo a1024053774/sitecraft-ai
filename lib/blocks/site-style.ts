@@ -107,7 +107,7 @@ const unsafeValueCharacters = /["'\\@!;{}<>]|\/\*/;
 const functionPattern = /([a-z-]+)\s*\(/gi;
 const allowedFunctions = new Set(["var", "calc", "clamp", "min", "max", "minmax", "repeat", "color-mix"]);
 const lengthPattern = /^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|%|fr|ch))$/;
-const numericUnitPattern = /(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem|%|fr|ch|em)?/g;
+const numericUnitPattern = /(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem|%|fr|ch|em|vw)?/g;
 
 function numberWithUnit(value: string) {
   const match = /^(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem|%|fr|ch|em)?$/.exec(value.trim());
@@ -140,11 +140,20 @@ function numericParts(value: string) {
   return [...value.matchAll(numericUnitPattern)].map((match) => ({ number: Number(match[1]), unit: match[2] ?? "" }));
 }
 
-function checkRange(value: string, min: number, max: number, units: Set<string>, label: string) {
-  if (validToken(value) || /^(?:calc|min|max|clamp)\(/.test(value.trim())) return null;
+function checkBoundedExpression(value: string, min: number, max: number, units: Set<string>, label: string, unitRanges: Map<string, [number, number]> = new Map()) {
+  if (validToken(value)) return null;
   const parts = numericParts(value);
-  if (!parts.length || parts.some((part) => !(part.number === 0 && part.unit === "" || units.has(part.unit)) || part.number < min || part.number > max)) return `${label}超出允许范围`;
+  if (!parts.length || parts.some((part) => {
+    if (part.number === 0 && part.unit === "") return false;
+    if (!units.has(part.unit)) return true;
+    const [partMin, partMax] = unitRanges.get(part.unit) || [min, max];
+    return part.number < partMin || part.number > partMax;
+  })) return `${label}超出允许范围`;
   return null;
+}
+
+function checkRange(value: string, min: number, max: number, units: Set<string>, label: string) {
+  return checkBoundedExpression(value, min, max, units, label);
 }
 
 function checkColor(value: string) {
@@ -160,11 +169,7 @@ function checkPropertyValue(property: string, rawValue: string): string | null {
   if (property === "color" || property === "background-color" || property.endsWith("-color")) return checkColor(value);
   if (property === "font-size") {
     if (validToken(value)) return null;
-    if (/^clamp\(/.test(value)) {
-      const first = numberWithUnit(value.slice(6).split(",")[0] ?? "");
-      if (!first || first.unit !== "px" || first.number < 12) return "字号最小值不能小于 12px";
-      return null;
-    }
+    if (/(?:calc|min|max|clamp)\(/.test(value)) return checkBoundedExpression(value, 12, 96, new Set(["px", "vw"]), "字号", new Map([["vw", [0, 10]]]));
     const parsed = numberWithUnit(value);
     return !parsed || parsed.unit !== "px" || parsed.number < 12 || parsed.number > 96 ? "字号必须在 12–96px 之间" : null;
   }
@@ -190,17 +195,18 @@ function checkPropertyValue(property: string, rawValue: string): string | null {
   }
   if (property === "max-width") {
     if (validToken(value)) return null;
+    if (/(?:calc|min|max|clamp)\(/.test(value)) return "max-width 函数表达式暂不开放";
     const parsed = numberWithUnit(value);
     return !parsed || !((parsed.unit === "px" && parsed.number >= 240) || (parsed.unit === "ch" && parsed.number >= 20) || (parsed.unit === "%" && parsed.number >= 50)) ? "max-width 至少为 240px、20ch 或 50%" : null;
   }
   if (property === "min-height") return checkRange(value, 0, 720, new Set(["px"]), "min-height");
   if (property === "border-radius") return checkRange(value, 0, 12, new Set(["px"]), "圆角");
-  if (property.includes("border") && (property === "border" || property.startsWith("border-") && !property.endsWith("color") && !property.endsWith("radius"))) {
-    if (property === "border") {
-      const match = /^(0|(?:\d+(?:\.\d+)?px))\s+solid\s+(.+)$/.exec(value);
-      if (!match || Number.parseFloat(match[1]) > 4 || checkColor(match[2])) return "边线必须是 0–4px solid 的站点颜色";
-      return null;
-    }
+  if (property === "border" || /^(?:border-top|border-right|border-bottom|border-left)$/.test(property)) {
+    const match = /^(0|(?:\d+(?:\.\d+)?px))\s+solid\s+(.+)$/.exec(value);
+    if (!match || Number.parseFloat(match[1]) > 4 || checkColor(match[2])) return "边线必须是 0–4px solid 的站点颜色";
+    return null;
+  }
+  if (property.includes("border") && property.startsWith("border-") && !property.endsWith("color") && !property.endsWith("radius")) {
     if (property.endsWith("width")) {
       return checkRange(value, 0, 4, new Set(["px"]), "边线宽度");
     }

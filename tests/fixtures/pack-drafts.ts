@@ -85,8 +85,6 @@ const packs: Record<PackDraftId, { operations: SiteOperation[] }> = {
       { op: "set_text", target: "hero.subtitle", value: { zh: "模具设计、试模到批量注塑在同一厂区完成，内销与出口订单并行。", en: "Mold design, trials and volume molding under one roof, for domestic and export orders." } },
       { op: "set_text", target: "hero.cta", value: { zh: "提交图纸获取报价", en: "Send drawings for a quote" } },
       { op: "set_text", target: "contact.email", value: simulatedPacks.molding.email },
-      { op: "set_text", target: "contact.phone", value: "0000-0000000" },
-      { op: "set_text", target: "contact.address", value: { zh: "示例省示例市模具园区 0 号", en: "No. 0, Mold Park, Sample City, Sample Province" } },
       {
         op: "replace_products",
         products: [

@@ -36,7 +36,7 @@ const catalogLedRules: SiteStyleRule[] = [
 
 const capabilityLedRules: SiteStyleRule[] = [
   { block: "hero", part: "band", declarations: { "padding-block": "88px" } },
-  { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1-display)" } },
+  { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1)", "text-wrap": "pretty" } },
   { block: "products", part: "head", declarations: { "padding-block": "28px" } },
   { block: "products", part: "grid", declarations: { gap: "32px" } },
   { block: "industries", part: "list", declarations: { "background-color": "var(--site-accent-soft)", "padding-block": "32px" } },

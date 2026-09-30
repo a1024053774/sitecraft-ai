@@ -54,6 +54,7 @@ test("property values stay inside their numeric and grammar bounds", () => {
   const accepted = [
     rule({ gap: "160px", "font-size": "96px", "border-radius": "12px", "grid-column": "span 4" }),
     rule({ "grid-template-columns": "repeat(4, minmax(240px, 1fr))" }),
+    rule({ "font-size": "clamp(12px, 4vw, 64px)" }),
     rule({ color: "color-mix(in srgb, var(--site-ink) 70%, var(--site-accent))" }),
     rule({ "max-width": "50%", "min-height": "720px" }),
     rule({ "min-height": "0", "border-radius": "0" }),
@@ -75,6 +76,14 @@ test("property values stay inside their numeric and grammar bounds", () => {
     rule({ "line-height": "2.1" }),
     rule({ border: "1px dashed var(--site-line)" }),
     rule({ border: "1px solid red" }),
+    rule({ "border-top": "999px dashed var(--site-line)" }),
+    rule({ "border-right": "999px dashed var(--site-line)" }),
+    rule({ "border-bottom": "999px dashed var(--site-line)" }),
+    rule({ "border-left": "999px dashed var(--site-line)" }),
+    rule({ gap: "calc(-1000px)" }),
+    rule({ gap: "min(-20px, 2px)" }),
+    rule({ "font-size": "clamp(-100px, 10vw, 200px)" }),
+    rule({ "font-size": "min(12px, calc(120px + 1px))" }),
   ];
   for (const candidate of rejected) assert.equal(validateSiteStyleRules([candidate]).ok, false);
 });

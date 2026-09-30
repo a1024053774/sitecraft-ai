@@ -111,7 +111,7 @@ export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
     heroSubtitle: "模具设计、试模到批量注塑在同一厂区完成，内销与出口订单并行。",
     heroCta: "提交图纸获取报价",
     email: "rfq@p3t-sim.test",
-    missingFacts: ["客户名单", "评价"],
+    missingFacts: ["客户名单", "评价", "电话", "地址"],
     extraPagesNote: "页面按首页、产品、生产与质检、常见问题、联系规划；当前模板不支持的独立页面须说明。",
     body: [
       "资料性质：模拟。不可当作真实企业。核验记号：P3T-JD5K。",
@@ -143,8 +143,6 @@ export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
       "MOQ：注塑件 5000 件起；模具单套起接。",
       "交期：模具 25–55 天；批量注塑件在模具确认后 15–20 天。",
       "邮箱：rfq@p3t-sim.test",
-      "电话：0000-0000000",
-      "地址：示例省示例市模具园区 0 号",
       "客户名单、评价：资料未提供。",
       "页面：首页、产品、生产与质检、常见问题、联系；当前模板不支持的独立页面须说明，不得假装已经开通。",
     ].join("\n"),

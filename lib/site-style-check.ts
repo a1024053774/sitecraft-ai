@@ -9,6 +9,7 @@ const scanSource = fs.readFileSync(path.join(process.cwd(), "scripts/visitor-lay
   .replace(/export default scanVisitorLayout;?/g, "")
   .replace(/export function scanVisitorLayout/g, "function scanVisitorLayout");
 const WIDTHS = [375, 768, 1440] as const;
+export const SITE_STYLE_CHECK_TIMEOUT_MS = 90_000;
 
 type CdpResult = { result?: { value?: unknown }; exceptionDetails?: { exception?: { description?: string }; text?: string } };
 class Cdp {
@@ -52,24 +53,32 @@ class Cdp {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function startChrome() {
+async function startChrome(deadline: number) {
   const executable = process.env.CHROME_PATH;
   if (!executable || !fs.existsSync(executable)) throw new Error("站点样式没有应用：样式检查没有运行（找不到 Chrome，设置 CHROME_PATH 后重试）");
+  if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
   const port = 9950 + (process.pid % 100);
   const profile = path.join(process.cwd(), ".sitecraft-data", `site-style-check-${process.pid}`);
   const chrome = spawn(executable, [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--headless", "--no-first-run", "--hide-scrollbars", "about:blank"], { stdio: "ignore" });
-  let version: { webSocketDebuggerUrl?: string } | null = null;
-  for (let attempt = 0; attempt < 80 && !version; attempt += 1) {
-    await sleep(250);
-    version = await fetch(`http://127.0.0.1:${port}/json/version`).then((response) => response.json()).catch(() => null);
+  try {
+    let version: { webSocketDebuggerUrl?: string } | null = null;
+    for (let attempt = 0; attempt < 80 && !version; attempt += 1) {
+      if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
+      await sleep(250);
+      version = await fetch(`http://127.0.0.1:${port}/json/version`).then((response) => response.json()).catch(() => null);
+    }
+    if (!version?.webSocketDebuggerUrl) throw new Error("站点样式没有应用：Chrome DevTools endpoint 不可用");
+    const browser = new Cdp(version.webSocketDebuggerUrl);
+    await browser.connect();
+    return { browser, chrome, profile };
+  } catch (error) {
+    chrome.kill();
+    throw error;
   }
-  if (!version?.webSocketDebuggerUrl) throw new Error("站点样式没有应用：Chrome DevTools endpoint 不可用");
-  const browser = new Cdp(version.webSocketDebuggerUrl);
-  await browser.connect();
-  return { browser, chrome, profile };
 }
 
-async function render(browser: Cdp, baseUrl: string, templateId: string, draft: SiteDraft, width: number, file: string, locale = "zh") {
+async function render(browser: Cdp, baseUrl: string, templateId: string, draft: SiteDraft, width: number, file: string, locale: string, deadline: number) {
+  if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
   const target = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
   const attached = await browser.send("Target.attachToTarget", { targetId: target.targetId, flatten: true }) as { sessionId: string };
   const sessionId = attached.sessionId;
@@ -80,17 +89,21 @@ async function render(browser: Cdp, baseUrl: string, templateId: string, draft: 
   await browser.send("Page.navigate", { url: `${baseUrl}/api/templates/${encodeURIComponent(templateId)}/preview?site-style=${Date.now()}-${Math.random()}` }, sessionId);
   let ready = false;
   for (let attempt = 0; attempt < 300; attempt += 1) {
+    if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
     ready = Boolean(await browser.evaluate("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false));
     if (ready) break;
     await sleep(100);
   }
   if (!ready) throw new Error("站点样式没有应用：预览桥没有就绪");
+  if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
   await browser.evaluate(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, ${JSON.stringify(locale)}, [], "published", null, ${draft.englishReady})`, sessionId);
   const settle = `(async () => { await document.fonts.ready; await Promise.all([...document.images].filter((img) => !img.complete).map((img) => new Promise((done) => { img.addEventListener('load', done, { once: true }); img.addEventListener('error', done, { once: true }); setTimeout(done, 8000); }))); await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))); return Math.max(document.documentElement.scrollHeight, document.body.scrollHeight); })()`;
-  let height = Number(await browser.evaluate(settle, sessionId) || 900);
+  if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
+  const height = Number(await browser.evaluate(settle, sessionId) || 900);
   await browser.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile }, sessionId);
   await sleep(150);
-  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number; key: string }>; textOverlaps: Array<{ block: string; amount: number; key: string }>; slots: Array<{ key: string; visible: boolean; block: string; contrast: number }>; height: number };
+  if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
+  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number; key: string }>; textOverlaps: Array<{ block: string; amount: number; key: string }>; heroTitleOrphan?: boolean; slots: Array<{ key: string; visible: boolean; block: string; contrast: number }>; height: number };
   if (file) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId) as { data: string };
@@ -108,7 +121,7 @@ export type SiteStyleCheckResult =
   | { ok: true; widths: number[]; reports: Record<string, unknown>; screenshots: string[] }
   | { ok: false; reasons: string[]; widths: number[]; reports: Record<string, unknown>; screenshots: string[] };
 
-async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; baseUrl: string; outDir?: string }): Promise<SiteStyleCheckResult> {
+async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; baseUrl: string; outDir?: string; timeoutMs?: number }, deadline: number): Promise<SiteStyleCheckResult> {
   const normalized = normalizeSiteStyle(args.draft.siteStyle);
   if (!normalized || (!normalized.rules.length && !normalized.direction)) return { ok: true, widths: [...WIDTHS], reports: {}, screenshots: [] };
   const outDir = args.outDir || "";
@@ -119,14 +132,15 @@ async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; b
   let chrome: ReturnType<typeof spawn> | null = null;
   let profile = "";
   try {
-    ({ browser, chrome, profile } = await startChrome());
+    ({ browser, chrome, profile } = await startChrome(deadline));
     for (const locale of args.draft.englishReady ? ["zh", "en"] : ["zh"]) for (const width of WIDTHS) {
+      if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
       const baselineDraft = { ...args.draft, siteStyle: undefined };
       const candidateDraft = { ...args.draft, siteStyle: normalized };
       const baselineFile = outDir ? path.join(outDir, `baseline-${locale}-${width}.png`) : "";
       const candidateFile = outDir ? path.join(outDir, `candidate-${locale}-${width}.png`) : "";
-      const baseline = await render(browser, args.baseUrl, args.templateId, baselineDraft, width, baselineFile, locale);
-      const candidate = await render(browser, args.baseUrl, args.templateId, candidateDraft, width, candidateFile, locale);
+      const baseline = await render(browser, args.baseUrl, args.templateId, baselineDraft, width, baselineFile, locale, deadline);
+      const candidate = await render(browser, args.baseUrl, args.templateId, candidateDraft, width, candidateFile, locale, deadline);
       if (baselineFile) screenshots.push(baselineFile, candidateFile);
       reports[`${locale}-${width}`] = { baseline, candidate };
       const newOverflow = candidate.overflowElements.filter((item) => !baseline.overflowElements.some((old) => old.key === item.key && old.amount >= item.amount));
@@ -140,6 +154,7 @@ async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; b
         const item = newOverlaps[0];
         reasons.push(`${width} 宽度下「${blockLabel(item.block)}」出现文字重叠。`);
       }
+      if (candidate.heroTitleOrphan && !baseline.heroTitleOrphan) reasons.push(`${width} 宽度下「首屏」标题在词中间断开单字。`);
       const oldSlots = new Map(baseline.slots.map((slot) => [slot.key, slot]));
       for (const slot of candidate.slots) {
         const old = oldSlots.get(slot.key);
@@ -147,7 +162,9 @@ async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; b
       }
     }
   } catch (error) {
-    reasons.push(error instanceof Error ? error.message : "站点样式没有应用：样式检查失败");
+    reasons.push(error instanceof Error && error.message === "STYLE_CHECK_TIMEOUT"
+      ? `站点样式没有应用：检查没有完成（超过 ${Math.ceil((args.timeoutMs ?? SITE_STYLE_CHECK_TIMEOUT_MS) / 1000)} 秒），请稍后重试。`
+      : error instanceof Error ? error.message : "站点样式没有应用：样式检查失败");
   } finally {
     browser?.close();
     chrome?.kill();
@@ -158,7 +175,31 @@ async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; b
 
 let pendingCheck: Promise<unknown> = Promise.resolve();
 export function checkSiteStyle(args: Parameters<typeof runSiteStyleCheck>[0]): Promise<SiteStyleCheckResult> {
-  const result = pendingCheck.then(() => runSiteStyleCheck(args));
-  pendingCheck = result.then(() => undefined, () => undefined);
-  return result;
+  const deadline = Date.now() + (args.timeoutMs ?? SITE_STYLE_CHECK_TIMEOUT_MS);
+  const queued = pendingCheck.then(() => runSiteStyleCheck(args, deadline));
+  pendingCheck = queued.then(() => undefined, () => undefined);
+  const timeoutResult: SiteStyleCheckResult = {
+    ok: false,
+    reasons: [`站点样式没有应用：检查没有完成（超过 ${Math.ceil((args.timeoutMs ?? SITE_STYLE_CHECK_TIMEOUT_MS) / 1000)} 秒），请稍后重试。`],
+    widths: [...WIDTHS],
+    reports: {},
+    screenshots: [],
+  };
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; resolve(timeoutResult); }
+    }, Math.max(0, deadline - Date.now()));
+    queued.then((value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    }, () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(timeoutResult);
+    });
+  });
 }

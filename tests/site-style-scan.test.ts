@@ -19,3 +19,17 @@ test('layout scanning measures painted text: closed details excluded, 3px overla
     assert.ok(!scan.textOverlaps.some(x=>x.key.includes('NOT PAINTED')), 'closed details are not painted');
   } finally { await browser.send('Target.closeTarget',{targetId}); await browser.send('Browser.close'); browser.ws.close(); }
 });
+
+test('layout scanning flags a single-character break in the hero title', async () => {
+  const browser = await openBrowser();
+  const {targetId} = await browser.send('Target.createTarget',{url:'about:blank'}) as {targetId:string};
+  const {sessionId} = await browser.send('Target.attachToTarget',{targetId,flatten:true}) as {sessionId:string};
+  try {
+    await browser.send('Runtime.enable',{},sessionId);
+    await browser.send('Page.enable',{},sessionId);
+    const frameId=(await browser.send('Page.getFrameTree',{},sessionId) as {frameTree:{frame:{id:string}}}).frameTree.frame.id;
+    await browser.send('Page.setDocumentContent',{frameId, html:`<html><body style="margin:0"><section data-sc-block="hero"><h1 style="width:110px;margin:0;font:32px/36px sans-serif;overflow-wrap:anywhere">重载减速机</h1></section></body></html>`},sessionId);
+    const scan = await browser.eval<{heroTitleOrphan:boolean}>(`(()=>{${source};return scanVisitorLayout(document)})()`,sessionId);
+    assert.equal(scan.heroTitleOrphan, true, 'the scanner must report the one-character hero-title line');
+  } finally { await browser.send('Target.closeTarget',{targetId}); await browser.send('Browser.close'); browser.ws.close(); }
+});

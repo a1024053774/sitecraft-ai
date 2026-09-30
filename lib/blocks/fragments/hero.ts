@@ -7,7 +7,7 @@ export const heroFragment: BlockFragment = {
 .sitecraft-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; padding: 64px 0 72px; }
 .sitecraft-hero[data-sitecraft-hero-mode="none"] .sitecraft-hero-grid { grid-template-columns: minmax(0, 1fr); }
 .sitecraft-eyebrow { margin: 0 0 18px; font-size: 13px; color: var(--site-muted); letter-spacing: 0.02em; }
-.sitecraft-hero h1 { margin: 0; max-width: 16em; font-size: var(--site-h1); line-height: 1.1; letter-spacing: -0.03em; font-weight: 750; text-wrap: balance; overflow-wrap: anywhere; }
+.sitecraft-hero h1 { margin: 0; max-width: 16em; font-size: var(--site-h1); line-height: 1.1; letter-spacing: -0.03em; font-weight: 750; text-wrap: balance; word-break: keep-all; overflow-wrap: normal; }
 .sitecraft-hero-copy { margin: 22px 0 0; max-width: 34em; font-size: 18px; line-height: 1.6; color: var(--site-muted); }
 .sitecraft-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 .sitecraft-hero-visual { margin: 0; }

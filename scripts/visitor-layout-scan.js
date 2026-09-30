@@ -37,6 +37,25 @@ export function scanVisitorLayout(root = document) {
     const key=`${keyFor(el)}:${[...el.childNodes].indexOf(n)}:${n.textContent.trim()}`;
     for(const rect of range.getClientRects()) if(rect.width>.5&&rect.height>.5) lines.push({el,rect,key});
   }
+  const heroTitle = root.querySelector('[data-sc-block="hero"] h1');
+  let heroTitleOrphan = false;
+  if (heroTitle && visible(heroTitle)) {
+    const characterLines = [];
+    const titleWalker = document.createTreeWalker(heroTitle, NodeFilter.SHOW_TEXT);
+    while (titleWalker.nextNode()) {
+      const node = titleWalker.currentNode;
+      for (let i = 0; i < node.textContent.length; i++) {
+        range.setStart(node, i); range.setEnd(node, i + 1);
+        const rect = range.getBoundingClientRect();
+        if (rect.width > .5 && rect.height > .5) characterLines.push({ char: node.textContent[i], top: Math.round(rect.top) });
+      }
+    }
+    const grouped = new Map();
+    for (const item of characterLines) grouped.set(item.top, [...(grouped.get(item.top) || []), item.char]);
+    const tops = [...grouped.keys()].sort((a, b) => a - b);
+    const last = tops.length > 1 ? grouped.get(tops[tops.length - 1]) : [];
+    heroTitleOrphan = Boolean(last?.length === 1 && /[\u3400-\u9fff]/.test(last[0]));
+  }
   const textOverlaps=[];
   for(let i=0;i<lines.length;i++) for(let j=i+1;j<lines.length;j++) {
     const a=lines[i], b=lines[j];
@@ -63,6 +82,6 @@ export function scanVisitorLayout(root = document) {
     const ratio=painted&&textLines.length?Math.min(...textLines.map(l=>contrast(l.el))):21;
     return {key:keyFor(el),slot:el.getAttribute('data-sitecraft-slot'),block:blockFor(el),visible:painted,contrast:ratio};
   });
-  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,slots,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
+  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,slots,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
 }
 export default scanVisitorLayout;
