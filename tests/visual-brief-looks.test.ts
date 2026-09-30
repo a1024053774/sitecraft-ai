@@ -19,9 +19,10 @@ registerHooks({
   },
 });
 
-const { getTemplateStaticRoot } = await import("../lib/template-static.ts");
+const { getTemplateReadiness } = await import("../lib/template-readiness.ts");
 
-// Plan v0.6 look board. Cards ship only when getTemplateStaticRoot finds a usable snapshot.
+// Plan v0.6 look board. Cards ship only when the look has a local page: a usable snapshot, or, for a
+// look on the block library, the page composed from lib/blocks (T-053).
 const LOOK_BOARD = [
   { id: "industrial", label: "明亮产品", templateId: "forge" },
   { id: "engineering-industrial", label: "工程工业", templateId: "screwfast" },
@@ -33,7 +34,7 @@ const OMITTED_TEMPLATES = ["atlas", "powerai", "astro-starter", "fresh", "shadcn
 const INDUSTRY_CARD_LABELS = ["工业专业", "外贸目录", "技术产品", "专业顾问"];
 
 test("look board ships snapshot-backed looks with look-language labels, not industry 1:1", () => {
-  const shipped = LOOK_BOARD.filter((look) => getTemplateStaticRoot(look.templateId) !== null);
+  const shipped = LOOK_BOARD.filter((look) => getTemplateReadiness(look.templateId).hasLocalSnapshot);
   assert.ok(shipped.length >= 1, "at least one listed look must have a local snapshot");
   assert.deepEqual(
     visualBriefCatalog.map((item) => ({ id: item.id, label: item.label, templateId: item.templateId })),
@@ -46,7 +47,7 @@ test("look board ships snapshot-backed looks with look-language labels, not indu
     assert.equal(INDUSTRY_CARD_LABELS.includes(item.label), false, `${item.id} still uses an industry card label`);
     assert.equal(item.label, LOOK_BOARD.find((look) => look.id === item.id)?.label);
     assert.notEqual(item.label, item.templateId);
-    assert.equal(getTemplateStaticRoot(item.templateId) !== null, true, `${item.templateId} has no usable local snapshot`);
+    assert.equal(getTemplateReadiness(item.templateId).hasLocalSnapshot, true, `${item.templateId} has no local page`);
   }
 
   const shippedTemplateIds = new Set(visualBriefCatalog.map((item) => item.templateId));

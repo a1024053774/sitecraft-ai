@@ -137,6 +137,14 @@ function tailwindHostOverlayFile() {
 }
 
 export async function readTemplateStaticFile(templateId: string, segments: string[]) {
+  // A look on the block library (T-053) serves one page, composed from lib/blocks, and nothing from
+  // the vendor snapshot: not its pages, not its files (the composed page uses none), and it does not
+  // need the snapshot to be built.
+  const composed = composedPageForTemplate(templateId);
+  if (composed !== null) {
+    const isRootIndex = segments.length === 0 || (segments.length === 1 && segments[0] === "index.html");
+    return isRootIndex ? { body: Buffer.from(ensureLocalStylesheetCrossorigin(composed)), contentType: contentTypes[".html"] } : null;
+  }
   const root = getTemplateStaticRoot(templateId);
   if (!root) return null;
   const base = SNAPSHOT_PUBLIC_BASE[templateId];
@@ -147,11 +155,6 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
   if (!target) return null;
   try {
     const isRootIndex = target === path.join(root, "index.html");
-    // Looks on the block library serve a page composed from lib/blocks (T-053).
-    const composed = isRootIndex ? composedPageForTemplate(templateId) : null;
-    if (composed !== null) {
-      return { body: Buffer.from(ensureLocalStylesheetCrossorigin(composed)), contentType: contentTypes[".html"] };
-    }
     if (isRootIndex && templateId === "landwind") {
       target = landwindHostOverlayFile();
     }

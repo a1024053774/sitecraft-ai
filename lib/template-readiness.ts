@@ -1,3 +1,4 @@
+import { blockLookForTemplate } from "@/lib/blocks/looks/index";
 import { templates, visualBriefCatalog } from "@/lib/site-model";
 import { getTemplateStaticRoot } from "@/lib/template-static";
 
@@ -18,7 +19,9 @@ export type TemplateReadiness = {
 };
 
 export function getTemplateReadiness(templateId: string): TemplateReadiness {
-  const hasLocalSnapshot = getTemplateStaticRoot(templateId) !== null;
+  // A local page to preview: a usable snapshot, or, for a look on the block library, the page composed
+  // from lib/blocks, which needs no snapshot (T-053).
+  const hasLocalSnapshot = Boolean(blockLookForTemplate(templateId)) || getTemplateStaticRoot(templateId) !== null;
   return {
     templateId,
     hasLocalSnapshot,

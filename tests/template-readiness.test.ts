@@ -20,6 +20,7 @@ const { templates } = await import("../lib/site-model.ts");
 const { visualBriefCatalog } = await import("../lib/site-document.ts");
 const { getTemplateAdapter } = await import("../lib/template-adapters/registry.ts");
 const { getTemplateStaticRoot } = await import("../lib/template-static.ts");
+const { blockLookForTemplate } = await import("../lib/blocks/looks/index.ts");
 const {
   EDIT_PREVIEW_CTA_LABEL,
   SOURCE_MATERIAL_NOTICE,
@@ -40,16 +41,17 @@ test("readiness count follows the catalog and never claims a ready asset pack", 
   }
 });
 
-test("local snapshot availability is getTemplateStaticRoot, not a generation-ready claim", () => {
+test("a local page is a usable snapshot or a block-library page, not a generation-ready claim", () => {
   // T-044: only the templates behind the four looks can start a site; the rest are reference only.
+  // T-053: a look on the block library has its page in lib/blocks and needs no snapshot.
   const lookTemplates = new Set(visualBriefCatalog.map((brief) => brief.templateId));
   for (const template of templates) {
-    const root = getTemplateStaticRoot(template.id);
+    const local = Boolean(blockLookForTemplate(template.id)) || getTemplateStaticRoot(template.id) !== null;
     const item = getTemplateReadiness(template.id);
     assert.equal(item.templateId, template.id);
-    assert.equal(item.hasLocalSnapshot, root !== null);
-    assert.equal(item.canEnterEditPreview, root !== null && lookTemplates.has(template.id), template.id);
-    assert.equal(item.snapshotLabel, root ? "本地静态预览" : "仅上游演示／待构建快照");
+    assert.equal(item.hasLocalSnapshot, local);
+    assert.equal(item.canEnterEditPreview, local && lookTemplates.has(template.id), template.id);
+    assert.equal(item.snapshotLabel, local ? "本地静态预览" : "仅上游演示／待构建快照");
     assert.equal(item.assetLabel, "素材待核验");
   }
   assert.deepEqual(listTemplateReadiness().filter((item) => item.canEnterEditPreview).map((item) => item.templateId).sort(), [...lookTemplates].sort());

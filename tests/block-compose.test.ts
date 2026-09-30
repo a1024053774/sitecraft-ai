@@ -8,12 +8,13 @@ import { blockCatalog, layoutBlocks } from "../lib/blocks/catalog.ts";
 import { composedPageForTemplate } from "../lib/blocks/compose.ts";
 import { engineeringLook } from "../lib/blocks/looks/index.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
-import { cssRules, rootVariables, styleText, type CssRule } from "./fixtures/css-rules.ts";
-import { HtmlElement, parseHtmlDocument, serializeNode, type HtmlNode } from "./fixtures/html-dom.ts";
+import { cssRules, rootVariables, styleText } from "./fixtures/css-rules.ts";
+import { parseHtmlDocument } from "./fixtures/html-dom.ts";
 
-// T-053 step 1: the engineering home page comes from the block library instead of the screwfast
-// overlay. With only default variants the page must be the old page: same markup once the block
-// markers are taken off, same CSS rules once the look tokens are read back as values.
+// T-053: the engineering home page is composed from the block library. Until the blind review had
+// passed, this file also compared the default page with the old screwfast overlay (same markup, same
+// CSS rules once the look tokens were read back); the overlay is deleted now (step 5), so the checks
+// here are about the composed page itself.
 
 const REPO_ROOT = process.cwd();
 registerHooks({
@@ -27,10 +28,6 @@ registerHooks({
   },
 });
 const { readTemplateStaticFile } = await import("../lib/template-static.ts");
-
-// The overlay the block library replaces; removed together with this comparison once the blind
-// review has passed (T-053).
-const OLD_OVERLAY = readFileSync(new URL("../lib/template-adapters/overlays/screwfast.index.html", import.meta.url), "utf8");
 
 async function servedEngineeringPage() {
   const served = await readTemplateStaticFile("screwfast", ["index.html"]);
@@ -65,130 +62,19 @@ test("the other looks still serve their own overlay", async () => {
   }
 });
 
-function unwrapBlockMarkers(parent: { childNodes: HtmlNode[] }) {
-  for (const child of [...parent.childNodes]) {
-    if (!(child instanceof HtmlElement)) continue;
-    unwrapBlockMarkers(child);
-    if (child.localName === "template" || child.className.includes("sitecraft-benchmark-legacy")) {
-      child.remove();
-      continue;
-    }
-    const wrapper = child.hasAttribute("data-sc-block") && child.localName === "div" && !child.className;
-    for (const name of [...child.attributes.keys()]) if (name.startsWith("data-sc-")) child.removeAttribute(name);
-    if (wrapper && child.parentNode) {
-      for (const grandchild of [...child.childNodes]) child.parentNode.insertBefore(grandchild, child);
-      child.remove();
-    }
+test("the page root carries the palette and the look tokens; spacing, headings and dividers read them", async () => {
+  const page = await servedEngineeringPage();
+  const root = rootVariables(cssRules(styleText(page)));
+  const palette = getTemplateAdapter("screwfast")?.kit?.tokens;
+  assert.ok(palette, "the engineering look has a default palette");
+  for (const [name, token] of [["--site-bg", palette.background], ["--site-surface", palette.surface], ["--site-ink", palette.text], ["--site-muted", palette.muted], ["--site-line", palette.border], ["--site-accent", palette.accent]] as const) {
+    assert.equal(root.get(name), token, name);
   }
-}
-
-function comparableMarkup(html: string) {
-  const document = parseHtmlDocument(html);
-  unwrapBlockMarkers(document);
-  return serializeNode(document.documentElement, { skip: (element) => element.localName === "style" });
-}
-
-test("with templates and block markers taken off, the default page has the old overlay's markup", async () => {
-  assert.equal(comparableMarkup(await servedEngineeringPage()), comparableMarkup(OLD_OVERLAY));
-});
-
-function withTokenValues(rule: CssRule, tokens: Readonly<Record<string, string>>): CssRule {
-  const read = (value: string) => value.replace(/var\((--site-[a-z0-9-]+)\)/g, (whole, name: string) => tokens[name] ?? whole);
-  return { ...rule, declarations: rule.declarations.map(read) };
-}
-
-const ruleKey = (rule: CssRule) => `${rule.context} ${rule.selector} { ${rule.declarations.join("; ")} }`;
-
-// Rules of the old page the block library changes on purpose, or adds for the default layouts
-// (`from: null`), matched by media context and selector.
-const INTENDED_CHANGES: Array<{ why: string; context: string; selector: string; from: string[] | null; to: string[] }> = [
-  {
-    why: "default product cards: key spec values wrap instead of running into the next cell",
-    context: "",
-    selector: ".sitecraft-product-key dd",
-    from: ["margin: 4px 0 0", "font-size: 18px", "font-weight: 700", "font-variant-numeric: tabular-nums", "white-space: nowrap"],
-    to: ["margin: 4px 0 0", "font-size: 18px", "font-weight: 700", "font-variant-numeric: tabular-nums", "overflow-wrap: anywhere", "text-wrap: balance"],
-  },
-  {
-    why: "default cards on phones: the label may break so the value keeps its line",
-    context: "@media (max-width: 480px)",
-    selector: ".sitecraft-product-grid .sitecraft-product-key dt",
-    from: null,
-    to: ["min-width: 0", "overflow-wrap: anywhere"],
-  },
-  {
-    why: "default cards on phones: the value keeps its line up to 70% of the row, then wraps",
-    context: "@media (max-width: 480px)",
-    selector: ".sitecraft-product-grid .sitecraft-product-key dd",
-    from: null,
-    to: ["flex: 0 0 auto", "max-width: 70%", "text-align: right"],
-  },
-  {
-    why: "spec values keep words and Chinese runs whole; the bridge adds break points after / + – 、",
-    context: "",
-    selector: ".sitecraft-nameplate-cell dd, .sitecraft-hero-spec dd, .sitecraft-product-key dd, .sitecraft-product-specs td",
-    from: null,
-    to: ["word-break: keep-all", "overflow-wrap: anywhere"],
-  },
-  {
-    why: "contact lines: an email wraps only at the @ (the bridge marks it); a part wider than the line still breaks",
-    context: "",
-    selector: ".sitecraft-inquiry-lines li > span:last-child",
-    from: null,
-    to: ["overflow-wrap: anywhere"],
-  },
-  {
-    why: "footer contact: the same for the footer email",
-    context: "",
-    selector: ".sitecraft-footer-contact",
-    from: ["display: grid", "gap: 8px"],
-    to: ["display: grid", "gap: 8px", "overflow-wrap: anywhere"],
-  },
-];
-const changeKey = (change: (typeof INTENDED_CHANGES)[number], side: "from" | "to") =>
-  ruleKey({ context: change.context, selector: change.selector, declarations: change[side] ?? [] });
-
-test("the composed CSS keeps every rule of the old overlay; spacing, headings and dividers read look tokens", async () => {
-  const oldRules = cssRules(styleText(OLD_OVERLAY)).filter((rule) => rule.selector !== ":root" && rule.selector !== ".sitecraft-benchmark-legacy");
-  const newRules = cssRules(styleText(await servedEngineeringPage()))
-    .filter((rule) => rule.selector !== ":root")
-    .map((rule) => withTokenValues(rule, engineeringLook.tokens));
-  const newKeys = new Set(newRules.map(ruleKey));
-  const oldKeys = new Set(oldRules.map(ruleKey));
-  const replaced = new Set(INTENDED_CHANGES.filter((change) => change.from).map((change) => changeKey(change, "from")));
-  const replacements = new Set(INTENDED_CHANGES.map((change) => changeKey(change, "to")));
-  for (const change of INTENDED_CHANGES) {
-    if (change.from) {
-      assert.ok(oldKeys.has(changeKey(change, "from")), `the old page has the rule being changed (${change.why})`);
-      assert.equal(newKeys.has(changeKey(change, "from")), false, `the old version is gone (${change.why})`);
-    }
-    assert.ok(newKeys.has(changeKey(change, "to")), `the new page has the changed rule (${change.why})`);
+  for (const [name, value] of Object.entries(engineeringLook.tokens)) assert.equal(root.get(name), value, name);
+  const rules = cssRules(styleText(page));
+  for (const token of ["var(--site-rule)", "var(--site-h1)", "var(--site-section-space)", "var(--site-container)"]) {
+    assert.ok(rules.some((rule) => rule.declarations.some((item) => item.includes(token))), `the page CSS reads ${token}`);
   }
-  assert.deepEqual(oldRules.map(ruleKey).filter((key) => !newKeys.has(key) && !replaced.has(key)), [], "every other rule of the old page is kept");
-  // Rules the old page did not have belong to the layouts it did not have; each selector names a
-  // class only those layouts use, so the default layouts render as before.
-  const layoutClasses = ["sitecraft-statement", "sitecraft-compare", "sitecraft-product-group", "sitecraft-band"];
-  for (const rule of newRules.filter((item) => !oldKeys.has(ruleKey(item)) && !replacements.has(ruleKey(item)))) {
-    for (const part of rule.selector.split(",")) {
-      assert.ok(layoutClasses.some((name) => part.includes(`.${name}`)), `${rule.context} ${part.trim()} is new and not scoped to a new layout`);
-    }
-  }
-  const usesTokens = cssRules(styleText(await servedEngineeringPage())).some((rule) => rule.declarations.some((item) => item.includes("var(--site-rule)")));
-  assert.ok(usesTokens, "dividers must read the look's rule token");
-});
-
-test("the page root carries the default palette the old overlay had, plus the look tokens", async () => {
-  const oldRoot = rootVariables(cssRules(styleText(OLD_OVERLAY)));
-  const newRoot = rootVariables(cssRules(styleText(await servedEngineeringPage())));
-  for (const [name, value] of oldRoot) {
-    if (name === "--site-radius") {
-      // Unused by the engineering CSS; the palette writes the same 4px as 0.25rem.
-      assert.equal(newRoot.get(name), getTemplateAdapter("screwfast")?.kit?.tokens.radius);
-      continue;
-    }
-    assert.equal(newRoot.get(name), value, name);
-  }
-  for (const [name, value] of Object.entries(engineeringLook.tokens)) assert.equal(newRoot.get(name), value, name);
 });
 
 test("the composed page carries no demo chrome from the old ScrewFast host", async () => {
