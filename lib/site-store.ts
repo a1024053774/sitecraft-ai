@@ -93,6 +93,12 @@ async function withSiteLock<T>(siteId: string, task: () => Promise<T>): Promise<
 function createRecord(siteId: string): SiteRecord {
   return { siteId, draft: structuredClone(defaultDraft), history: [], future: [], updatedAt: new Date().toISOString() };
 }
+// A layout put back to its default by this change (T-053) is said in the change's summary, unless
+// the summary already says it (the model path adds it before the commit).
+function summaryWithNotices(summary: string, notices: string[]) {
+  const missing = notices.filter((notice) => !summary.includes(notice));
+  return missing.length ? `${summary.replace(/[。.]\s*$/, "")}。${missing.join("")}` : summary;
+}
 export function snapshot(record: SiteRecord, isNew?: boolean): SiteSnapshot {
   return {
     draft: structuredClone(record.draft),
@@ -155,7 +161,7 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
     if (!result.changed) return { status: "no_change", record };
     const changeSet: ChangeSet = {
       id: args.changeId ?? crypto.randomUUID(), baseRevision: record.draft.revision, revision: result.draft.revision,
-      summary: args.summary, source: args.source, operations: structuredClone(args.operations),
+      summary: summaryWithNotices(args.summary, result.notices), source: args.source, operations: structuredClone(args.operations),
       inverseOperations: result.inverseOperations, appliedTargets: result.appliedTargets,
       ...(args.model ? { model: args.model } : {}),
       ...(args.latencyMs === undefined ? {} : { latencyMs: args.latencyMs }),
@@ -289,7 +295,7 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
       id: args.changeId ?? crypto.randomUUID(),
       baseRevision: record.draft.revision,
       revision: result.draft.revision,
-      summary: args.summary,
+      summary: summaryWithNotices(args.summary, result.notices),
       source: args.source,
       operations: structuredClone(args.operations),
       inverseOperations: result.inverseOperations,

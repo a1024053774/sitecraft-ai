@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { blockCatalog, blockIds } from "./blocks/catalog.ts";
 import { customPaletteSchema } from "./custom-brand-color.ts";
 import {
   defaultPagePlanFor,
@@ -265,6 +266,15 @@ export type CertificationSection = z.infer<typeof certificationSectionSchema>;
 export const catalogSectionKeys = ["industries", "capabilities", "certifications"] as const;
 export type CatalogSectionKey = (typeof catalogSectionKeys)[number];
 
+/** The block-library blocks a draft can pick a layout for (T-053). */
+export const blockIdSchema = z.enum(blockIds);
+/**
+ * 布局: block -> the variant it shows. A missing block shows its look's default. Not bound to a
+ * look: looks on the block library share blocks, and other looks ignore it.
+ */
+export const blockVariantsSchema = z.partialRecord(blockIdSchema, z.string().min(1).max(40));
+export type BlockVariants = z.infer<typeof blockVariantsSchema>;
+
 export const catalogSectionValueSchema = z.object({
   title: localizedTextSchema,
   intro: localizedTextSchema,
@@ -330,6 +340,7 @@ export const siteDraftSchema = z.object({
   }),
   sectionOrder: z.array(sectionKeySchema).length(sectionKeys.length),
   hiddenSections: z.array(visibilityKeySchema),
+  blockVariants: blockVariantsSchema.default({}),
   pagePlan: pagePlanSchema,
   products: z.array(productSchema).max(1000),
   supportConfig: z.object({
@@ -419,6 +430,7 @@ export const defaultDraft: SiteDraft = {
   },
   sectionOrder: ["about", "features", "services", "products", "contact"],
   hiddenSections: [],
+  blockVariants: {},
   pagePlan: defaultPagePlanFor("forge"),
   products: starterProducts,
   supportConfig: { enabled: false, knowledgeSourceIds: [] },
@@ -469,8 +481,24 @@ function renameRetiredPalette(input: unknown): unknown {
   return { ...(input as Record<string, unknown>), paletteId: retiredPaletteIds[paletteId] };
 }
 
+// A stored layout for a block or a variant the library does not have (any more) is dropped on
+// read, so one stale entry cannot make the whole draft fail to load.
+function dropUnknownBlockVariants(input: unknown): unknown {
+  if (!input || typeof input !== "object" || !Object.hasOwn(input, "blockVariants")) return input;
+  const raw = (input as { blockVariants?: unknown }).blockVariants;
+  const kept: Record<string, string> = {};
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    for (const [block, variant] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof variant !== "string" || !(blockIds as readonly string[]).includes(block)) continue;
+      if (!Object.hasOwn(blockCatalog[block as (typeof blockIds)[number]].variants, variant)) continue;
+      kept[block] = variant;
+    }
+  }
+  return { ...(input as Record<string, unknown>), blockVariants: kept };
+}
+
 export function normalizeDraft(rawInput: unknown): SiteDraft {
-  const input = renameRetiredPalette(rawInput);
+  const input = dropUnknownBlockVariants(renameRetiredPalette(rawInput));
   const parsed = siteDraftSchema.safeParse(input);
   if (parsed.success) {
     const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) }));

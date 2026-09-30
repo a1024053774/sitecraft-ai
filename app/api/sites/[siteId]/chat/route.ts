@@ -27,6 +27,8 @@ import {
 } from "@/lib/conversation-store";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
 import { visualBriefCatalog, type PaletteId } from "@/lib/site-document";
+import { templates } from "@/lib/site-model";
+import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { readSiteImage, siteImagePublicPath } from "@/lib/site-images";
 import { describeUserError } from "@/lib/user-errors";
@@ -275,10 +277,21 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
   const current = await getSite(siteId);
   const uploadedImage = pending?.imageId ? await readSiteImage(siteId, pending.imageId) : null;
   if (pending?.imageId && !uploadedImage) throw new Error("待继续的产品图不存在，请重新上传后再试。");
+  // Plan on the look and colour set picked in the card, applied in memory only: the model then gets
+  // that look's layouts, and its layout requests are checked on that look (T-053). The saved draft
+  // changes only at confirmation, through commitOperations.
+  const chosenBrief = visualBriefCatalog.find((brief) => brief.id === conversation.alignment.styleOptionId);
+  const lookOperations: SiteOperation[] = [
+    ...(chosenBrief ? [{ op: "set_visual_brief" as const, briefId: chosenBrief.id }] : []),
+    ...(conversation.alignment.paletteId ? [{ op: "set_palette" as const, paletteId: conversation.alignment.paletteId as PaletteId }] : []),
+  ];
+  const planningDraft = lookOperations.length
+    ? applySiteOperations(current.draft, lookOperations, { templateIds: new Set(templates.map((item) => item.id)), lastChange: "planning" }).draft
+    : current.draft;
   const provider = await requestStructuredOperations({
     message: pending.message,
-    draft: current.draft,
-    templateId: current.draft.templateId,
+    draft: planningDraft,
+    templateId: planningDraft.templateId,
     selectedTarget: pending.selectedTarget,
     conversationContext: conversationPromptContext(conversation),
     alignmentContext: alignmentPromptContext(conversation.alignment),

@@ -1,7 +1,11 @@
 import { z } from "zod";
+import { blockCatalog, layoutBlocks, type BlockId, type BlockLook } from "./blocks/catalog.ts";
+import { blockLookForTemplate } from "./blocks/looks/index.ts";
+import { checkVariantRequirements } from "./blocks/requirements.ts";
 import { stripGapTalkBilingual } from "./visitor-prose.ts";
 import {
   cloneDraft,
+  blockIdSchema,
   editableCardSchema,
   locales,
   localizedTextSchema,
@@ -131,6 +135,12 @@ const setPaletteOperationSchema = z.object({
   op: z.literal("set_palette"),
   paletteId: paletteIdSchema,
 });
+/** 布局 (T-053): the variant a block-library block shows; null goes back to the look's default. */
+const setBlockVariantOperationSchema = z.object({
+  op: z.literal("set_block_variant"),
+  block: blockIdSchema,
+  variant: z.string().min(1).max(40).nullable(),
+});
 const setCustomPaletteOperationSchema = z.object({
   op: z.literal("set_custom_palette"),
   palette: customPaletteSchema.nullable(),
@@ -208,6 +218,7 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   removeImageSlotOperationSchema,
   setProductImageOperationSchema,
   removeProductImageOperationSchema,
+  setBlockVariantOperationSchema,
 ]);
 
 export const siteOperationSchema = z.discriminatedUnion("op", [
@@ -231,13 +242,17 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   setVisualBriefOperationSchema,
   setPaletteOperationSchema,
   setCustomPaletteOperationSchema,
+  setBlockVariantOperationSchema,
 ]);
 export type SiteOperation = z.infer<typeof siteOperationSchema>;
 export type AIOperation = z.infer<typeof aiOperationSchema>;
 
+/** How many operations one model answer may carry (T-053: 24, up from 20). */
+export const MAX_AI_OPERATIONS = 24;
+
 export const aiChangeSchema = z.object({
   summary: z.string().min(1).max(500),
-  operations: z.array(aiOperationSchema).max(20),
+  operations: z.array(aiOperationSchema).max(MAX_AI_OPERATIONS),
 });
 export type AIChange = z.infer<typeof aiChangeSchema>;
 
@@ -268,7 +283,35 @@ export type ApplyResult = {
   inverseOperations: SiteOperation[];
   appliedTargets: string[];
   changed: boolean;
+  /** Layouts put back to their default because this change left their materials short, in page words. */
+  notices: string[];
 };
+
+/** Said when a layout is asked for on a look that has not moved to the block library yet. */
+export const LAYOUT_LOOK_NOT_READY = "当前样子还不能单独换首屏、产品或询盘的布局。";
+
+function variantLabel(block: BlockId, variant: string) {
+  return blockCatalog[block].variants[variant]?.label ?? variant;
+}
+
+/** 「产品仍按产品卡片显示」「产品仍按类别分组显示」 */
+function keepsLayoutPhrase(block: BlockId, variant: string) {
+  const label = variantLabel(block, variant);
+  return `${blockCatalog[block].label}${label.startsWith("按") ? `仍${label}` : `仍按${label}`}显示`;
+}
+
+const withoutFullStop = (text: string) => text.replace(/[。.]\s*$/, "");
+
+/** The layout request refused on this draft, and why; null when the draft can show it. */
+function layoutRefusal(draft: SiteDraft, look: BlockLook | undefined, block: BlockId, variant: string): string | null {
+  const spec = blockCatalog[block];
+  if (!Object.hasOwn(spec.variants, variant)) return `${spec.label}没有这种布局。`;
+  if (!look) return LAYOUT_LOOK_NOT_READY;
+  if (!layoutBlocks(look).includes(block)) return `当前样子没有${spec.label}这一块。`;
+  if (look.defaults[block] === variant) return null;
+  const check = checkVariantRequirements(draft, block, variant);
+  return check.ok ? null : check.failures.map((failure) => failure.message).join("");
+}
 
 const nonLocalizedTargets = new Set<TextTarget>([
   "siteName",
@@ -448,8 +491,27 @@ export function applySiteOperations(
   let draft = cloneDraft(current);
   const inverseOperations: SiteOperation[] = [];
   const appliedTargets: string[] = [];
+  // Layouts this batch asks for; checked once the whole batch is done (T-053).
+  const layoutRequests = new Map<BlockId, string>();
 
   for (const operation of operations) {
+    if (operation.op === "set_block_variant") {
+      const spec = blockCatalog[operation.block];
+      if (operation.variant !== null && !Object.hasOwn(spec.variants, operation.variant)) throw new Error(`${spec.label}没有这种布局。`);
+      const look = blockLookForTemplate(draft.templateId);
+      const next = operation.variant === null || look?.defaults[operation.block] === operation.variant ? undefined : operation.variant;
+      if (next === undefined) layoutRequests.delete(operation.block);
+      else layoutRequests.set(operation.block, next);
+      const previous = draft.blockVariants[operation.block];
+      if (previous === next) continue;
+      const blockVariants = { ...draft.blockVariants };
+      if (next === undefined) delete blockVariants[operation.block];
+      else blockVariants[operation.block] = next;
+      draft.blockVariants = blockVariants;
+      inverseOperations.unshift({ op: "set_block_variant", block: operation.block, variant: previous ?? null });
+      appliedTargets.push(`blockVariants.${operation.block}`);
+      continue;
+    }
     if (operation.op === "replace_draft") {
       if (same(draft, operation.draft)) continue;
       inverseOperations.unshift({ op: "replace_draft", draft: cloneDraft(draft) });
@@ -796,10 +858,42 @@ export function applySiteOperations(
     }
   }
 
-  if (!inverseOperations.length) return { draft: current, inverseOperations: [], appliedTargets: [], changed: false };
+  // Layouts are checked on the draft the whole batch ends on, so a layout and the materials it
+  // needs can come in either order, and an undo that restores both passes too. A layout asked for
+  // here that the draft cannot show refuses the batch; one chosen earlier that this batch leaves
+  // short goes back to the look's default, with a notice.
+  const notices: string[] = [];
+  const look = blockLookForTemplate(draft.templateId);
+  const blockVariants = { ...draft.blockVariants };
+  let layoutsChanged = false;
+  for (const [block, variant] of layoutRequests) {
+    const refusal = layoutRefusal(draft, look, block, variant);
+    if (refusal) throw new Error(refusal);
+    if (look?.defaults[block] === variant) {
+      delete blockVariants[block];
+      layoutsChanged = true;
+    }
+  }
+  if (look) {
+    for (const [key, variant] of Object.entries(draft.blockVariants)) {
+      const block = key as BlockId;
+      if (layoutRequests.has(block) || !variant) continue;
+      if (!layoutBlocks(look).includes(block)) continue;
+      const refusal = layoutRefusal(draft, look, block, variant);
+      if (!refusal) continue;
+      delete blockVariants[block];
+      layoutsChanged = true;
+      inverseOperations.unshift({ op: "set_block_variant", block, variant });
+      appliedTargets.push(`blockVariants.${block}`);
+      notices.push(`${withoutFullStop(refusal)}，${blockCatalog[block].label}改回${variantLabel(block, look.defaults[block])}。`);
+    }
+  }
+  if (layoutsChanged) draft.blockVariants = blockVariants;
+
+  if (!inverseOperations.length) return { draft: current, inverseOperations: [], appliedTargets: [], changed: false, notices: [] };
   draft.revision = current.revision + 1;
   draft.lastChange = options.lastChange;
-  return { draft, inverseOperations, appliedTargets, changed: true };
+  return { draft, inverseOperations, appliedTargets, changed: true, notices };
 }
 
 // Company and site names are facts: use the wording that appears in the user's message or materials
@@ -847,12 +941,61 @@ function cleanVisitorProse(operation: AIOperation): AIOperation {
 
 const INTERNAL_REASON = /HTML|CSS|快照|URL|声明|区块|字段|模板|槽|slot|operation/i;
 
+/**
+ * Checks the model's layout requests on the draft its other changes produce (T-053): a layout the
+ * materials do not support is dropped with a reason, and a layout the change leaves short is
+ * announced as going back to the default. Without a draft (older callers) requests pass through
+ * and the commit checks them.
+ */
+function checkLayoutRequests(
+  accepted: SiteOperation[],
+  draft: SiteDraft,
+  templateIds: Set<string>,
+  rejected: string[],
+  notes: string[],
+): SiteOperation[] {
+  const requests = accepted.filter((operation) => operation.op === "set_block_variant");
+  const others = accepted.filter((operation) => operation.op !== "set_block_variant");
+  let after: SiteDraft;
+  try {
+    after = applySiteOperations(draft, others, { templateIds, lastChange: "layout-check" }).draft;
+  } catch {
+    // The other changes fail on their own; the commit reports that. Nothing to add here.
+    return accepted;
+  }
+  const look = blockLookForTemplate(after.templateId);
+  const refused = new Set<SiteOperation>();
+  for (const operation of requests) {
+    if (operation.op !== "set_block_variant" || operation.variant === null) continue;
+    const refusal = layoutRefusal(after, look, operation.block, operation.variant);
+    if (!refusal) continue;
+    refused.add(operation);
+    const showing = after.blockVariants[operation.block] ?? look?.defaults[operation.block];
+    const note = refusal === LAYOUT_LOOK_NOT_READY || !showing || !look
+      ? refusal
+      : `${withoutFullStop(refusal)}，${keepsLayoutPhrase(operation.block, showing)}。`;
+    if (!notes.includes(note)) notes.push(note);
+    rejected.push(note);
+  }
+  const kept = accepted.filter((operation) => !refused.has(operation));
+  try {
+    for (const notice of applySiteOperations(draft, kept, { templateIds, lastChange: "layout-check" }).notices) {
+      if (!notes.includes(notice)) notes.push(notice);
+    }
+  } catch {
+    // Same as above: the commit reports it.
+  }
+  return kept;
+}
+
 export function validateAIOperations(
   message: string,
   operations: AIOperation[],
   templateIds: Set<string>,
-): { operations: SiteOperation[]; rejected: string[] } {
+  draft?: SiteDraft,
+): { operations: SiteOperation[]; rejected: string[]; notes: string[] } {
   const rejected: string[] = [];
+  const notes: string[] = [];
   const accepted: SiteOperation[] = [];
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
   for (const rawOperation of operations) {
@@ -928,7 +1071,8 @@ export function validateAIOperations(
     }
     accepted.push(operation);
   }
-  return { operations: accepted, rejected };
+  const checked = draft ? checkLayoutRequests(accepted, draft, templateIds, rejected, notes) : accepted;
+  return { operations: checked, rejected, notes };
 }
 
 function groundProductSpecs(

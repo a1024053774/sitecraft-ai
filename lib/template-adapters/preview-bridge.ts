@@ -891,10 +891,35 @@ function sitecraftPreviewBridge(templateId, adapter) {
   // Spec values (T-053): on block-library pages a value breaks only at spaces and after / + – 、,
   // and the cell CSS keeps words and Chinese runs whole. A zero-width space marks each such point
   // in the rendered text; the draft keeps the value as written. (A <wbr> element gives the same
-  // breaks but shifts glyphs even where the line does not wrap.) Other looks write values as is.
+  // breaks but shifts glyphs even where the line does not wrap.) A slash only breaks between two
+  // pieces of at least 3 characters (pieces end at a space or another slash), so units such as
+  // r/min, G1/4 and N/m stay whole. Other looks write values as is.
   function setValueText(node, value) {
     var text = value == null ? "" : String(value);
-    node.textContent = adapter && adapter.blocks ? text.replace(/([\/+–、])(?=\S)/g, "$1\u200b") : text;
+    node.textContent = adapter && adapter.blocks ? valueBreakPoints(text) : text;
+  }
+
+  function slashPiece(text, at, step) {
+    var length = 0;
+    for (var i = at + step; i >= 0 && i < text.length; i += step) {
+      var ch = text.charAt(i);
+      if (ch === "/" || /\s/.test(ch)) break;
+      length += 1;
+    }
+    return length;
+  }
+
+  function valueBreakPoints(text) {
+    var out = "";
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      out += ch;
+      var next = text.charAt(i + 1);
+      if (!next || /\s/.test(next)) continue;
+      if (ch === "+" || ch === "–" || ch === "、") out += "\u200b";
+      else if (ch === "/" && slashPiece(text, i, -1) >= 3 && slashPiece(text, i, 1) >= 3) out += "\u200b";
+    }
+    return out;
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;

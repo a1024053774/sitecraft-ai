@@ -33,6 +33,7 @@ export function changeTargetLabel(target: string) {
   if (exactLabels[path]) return exactLabels[path];
   const parts = path.split(".");
   if (parts[0] === "navigation") return "导航";
+  if (parts[0] === "blockVariants") return `${sectionLabels[parts[1]] ?? "页面"}布局`;
   const section = sectionLabels[parts[0]];
   if (!section) return "页面内容";
   if (parts[0] === "products" && parts[1] && !/^intro$/.test(parts[1])) {
@@ -83,12 +84,13 @@ export function describePreviewGaps(args: {
   };
 }
 
-const INTERNAL_WORDS = /HTML|CSS|URL|网址|快照|模板|槽位|槽|字段|声明|slot|operation|schema/i;
+const INTERNAL_WORDS = /HTML|CSS|URL|网址|快照|模板|槽位|槽|字段|声明|slot|operation|schema|变体|variant/i;
 
-function operationLabel(operation: { op?: unknown; target?: unknown; section?: unknown }) {
+function operationLabel(operation: { op?: unknown; target?: unknown; section?: unknown; block?: unknown }) {
   if (operation.op === "set_page_plan") return "页面规划";
   if (operation.op === "set_palette" || operation.op === "set_custom_palette") return "配色";
   if (operation.op === "set_visual_brief") return "样子";
+  if (operation.op === "set_block_variant" && typeof operation.block === "string") return changeTargetLabel(`blockVariants.${operation.block}`);
   if (operation.op === "replace_products" || operation.op === "update_product" || operation.op === "set_product_specs") return "产品";
   if (operation.op === "set_catalog_section" && typeof operation.section === "string") return changeTargetLabel(operation.section);
   if (typeof operation.target === "string") return changeTargetLabel(operation.target);
@@ -98,7 +100,7 @@ function operationLabel(operation: { op?: unknown; target?: unknown; section?: u
 
 // The model's summary is shown to the user. When it talks about templates, snapshots or HTML, show
 // the page parts that changed instead.
-export function plainSummary(summary: string, operations: Array<{ op?: unknown; target?: unknown; section?: unknown }>) {
+export function plainSummary(summary: string, operations: Array<{ op?: unknown; target?: unknown; section?: unknown; block?: unknown }>) {
   if (!INTERNAL_WORDS.test(summary)) return summary;
   const parts = [...new Set(operations.map(operationLabel).filter(Boolean))];
   return parts.length ? `已更新：${parts.join("、")}` : "已更新页面内容";

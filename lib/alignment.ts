@@ -15,6 +15,10 @@ export const MAX_ALIGNMENT_NOTE_CHARS = 500;
 export const MAX_ALIGNMENT_SUMMARY_CHARS = 400;
 export const MAX_ALIGNMENT_HISTORY = 20;
 export const MAX_ALIGNMENT_ROUNDS = 3;
+/** The model's 24 operations plus the look, the colour set and one uploaded image (T-053). */
+export const MAX_PROPOSAL_OPERATIONS = 27;
+const MAX_PROPOSAL_REJECTED = 20;
+const MAX_PROPOSAL_REJECTED_CHARS = 200;
 export const ALIGNMENT_QUESTION = "请选择网站的样子。选择会保存在同一会话里，不会立刻修改草稿。";
 export const GUIDED_BUSINESS_QUESTION = "这个网站，你更希望先帮你完成哪件事？";
 
@@ -219,9 +223,9 @@ const answerSchema = z.object({
 });
 const proposedChangeSchema = z.object({
   summary: z.string().min(1).max(MAX_ALIGNMENT_SUMMARY_CHARS),
-  // Guided generation reserves one operation for the visual brief and one for an uploaded image.
-  operations: z.array(siteOperationSchema).max(22),
-  rejected: z.array(z.string().max(200)).max(20),
+  // A guided proposal adds the look, the colour set and an uploaded image to the model's 24.
+  operations: z.array(siteOperationSchema).max(MAX_PROPOSAL_OPERATIONS),
+  rejected: z.array(z.string().max(MAX_PROPOSAL_REJECTED_CHARS)).max(MAX_PROPOSAL_REJECTED),
   baseRevision: z.number().int().nonnegative(),
   questionId: z.string().min(1).max(80),
   questionRevision: z.number().int().nonnegative(),
@@ -967,7 +971,8 @@ export function applyEditProposal(snapshot: AlignmentSnapshot, args: {
     proposedChange: {
       summary,
       operations: args.operations,
-      rejected: args.rejected,
+      // The saved proposal keeps the first refusals, each clipped; the summary already says what matters.
+      rejected: args.rejected.slice(0, MAX_PROPOSAL_REJECTED).map((item) => clipAlignmentText(item, MAX_PROPOSAL_REJECTED_CHARS)),
       baseRevision: args.baseRevision,
       questionId,
       questionRevision,

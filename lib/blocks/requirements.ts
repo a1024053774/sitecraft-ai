@@ -102,12 +102,13 @@ export function checkRequirement(draft: SiteDraft, requirement: BlockRequirement
   }
   if (requirement.kind === "sharedSpecs") {
     const count = visibleProducts(draft).length;
+    const needs = `参数对比表要 ${requirement.minProducts}–${requirement.maxProducts} 个产品共有至少 ${requirement.minShared} 项都有数值的同名参数`;
     if (count < requirement.minProducts || count > requirement.maxProducts) {
-      return result(false, 0, [], `参数对比表要 ${requirement.minProducts}–${requirement.maxProducts} 个产品；现在有 ${count} 个。`);
+      return result(false, 0, [], `${needs}；现在有 ${count} 个产品。`);
     }
     const shared = sharedSpecNames(draft);
     return result(shared.length >= requirement.minShared, shared.length, shared,
-      `参数对比表要这些产品共有至少 ${requirement.minShared} 项都有数值的同名参数；现在${shared.length ? `只共有 ${shared.length} 项（${list(shared)}）` : "没有共有的参数"}。`);
+      `${needs}；现在${shared.length ? `只共有 ${shared.length} 项（${list(shared)}）` : "没有共有的参数"}。`);
   }
   const lines = contactLines(draft);
   return result(lines.length >= requirement.min, lines.length, lines,
