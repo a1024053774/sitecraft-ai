@@ -92,6 +92,33 @@ export async function openBrowser() {
 
 export type WorkspacePage = { sessionId: string; targetId: string };
 
+// Next recompiles /workspace while other agents edit. The first navigation then
+// never paints, and the original 20s render wait fails. Ask the dev server until
+// the document is actually the workspace, once, before that first navigation.
+let workspaceServerReady = false;
+
+async function waitForWorkspaceServer() {
+  if (workspaceServerReady) return;
+  const started = Date.now();
+  let last = "no response";
+  while (Date.now() - started < 60000) {
+    try {
+      const response = await fetch(`${base}/workspace`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+      const body = await response.text();
+      const marked = body.includes("builder-shell");
+      if (response.status === 200 && marked) {
+        workspaceServerReady = true;
+        return;
+      }
+      last = `HTTP ${response.status}${marked ? "" : ", response has no builder-shell"}`;
+    } catch (error) {
+      last = error instanceof Error ? error.message : "fetch failed";
+    }
+    await sleep(250);
+  }
+  throw new Error(`workspace page was not ready at ${base}/workspace within 60s (${last})`);
+}
+
 export async function openWorkspace(browser: Cdp, options: {
   siteId: string;
   width: number;
@@ -101,6 +128,7 @@ export async function openWorkspace(browser: Cdp, options: {
   reducedMotion?: boolean;
   height?: number;
 }): Promise<WorkspacePage> {
+  await waitForWorkspaceServer();
   const created = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
   const attached = await browser.send("Target.attachToTarget", { targetId: created.targetId, flatten: true }) as { sessionId: string };
   const { sessionId } = attached;
