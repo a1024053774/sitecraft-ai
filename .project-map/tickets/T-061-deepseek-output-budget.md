@@ -58,3 +58,14 @@ Kiro，2026-09-30（纽约时间）。提交：`0f6bec2`（预算、截断不重
 遗留：注塑一次整站生成的推理量在 8K–31K 之间波动；格式不对时的重试会拉长等待，最坏约 2 × 300 秒（验收里最慢一次整趟 182 秒）。验收建的 12 个站点留在 `.sitecraft-data`。
 
 Astra 审查 NO_GO（2026-09-30，`artifacts/review-astra-t058-t061.md`）：看图和预览审查截断后仍重试并报 `provider_error`，与 spec §6、错误目录不一致。返工（Claude 定）：截断规则统一到四个模型调用（`truncated`、不重试、真实原因）；结构化生成两次尝试总时限 360 秒、规划两次合计 150 秒；补看图、预览审查的截断和失败日志测试；新的恢复截图记下候选 SHA。
+
+返工（Kiro，2026-09-30 纽约时间；提交 `b0aa2da`，本地未推送；勾选项等 Astra 复审）：
+
+- 截断规则统一到四个调用：看图和预览审查的回答到了 800 上限时只发一次、返回 `truncated`（原来重试一次后报 `provider_error`），两条接口（`/api/ai/preview-review`、`/api/sites/<id>/images/<id>/analyze`）照错误目录显示「这次生成被截断，没有改动草稿。 可以直接重试；已保存的问题和答案仍可继续。」，状态 502。
+- 两次尝试合计有上限：整站生成 360 秒（每次仍最多 300 秒）、需求对齐规划 150 秒（每次最多 90 秒）；第二次只用剩下的时间，一点不剩就不发第二次请求，告诉用户第一次的失败原因。原来最坏是 2 × 300 秒、2 × 90 秒。
+- T-058 在同一份审查里的缺口：看图、预览审查两条路径的失败日志（HTTP、截断、不是 JSON / 格式不对、网络和超时）有了测试；逐个删掉这两条路径的 8 个 `logModelFailure` 调用，新测试每次都失败（`artifacts/t061/mutation-log-calls.txt`）。
+- 恢复截图记下候选：`artifacts/t061/restore-failure/truncated-after-b0aa2da-1440.png` 和同名 `.json`（`candidate` 为完整 SHA，`trackedFilesMatchCandidate: true`），06:47 在 `b0aa2da` 上用同一个截断站点和会话重跑，对话里仍先显示截断原因、问题卡在下面，看过。
+
+测试：`tests/ai-provider-vision-failures.test.ts`（两条调用各：截断只发一次并返回 `truncated`；HTTP、网络、超时、不是 JSON、格式不对的日志行；失败后成功只记失败；两条接口的截断文案），`tests/structured-output-budget.test.ts`（第二次的超时是 360 / 150 秒剩下的时间；用完就不发第二次）。改动前失败：06:41 在 `fc6f09c` 上 `node --test --experimental-strip-types tests/ai-provider-vision-failures.test.ts tests/structured-output-budget.test.ts`，21 条中 6 条失败（`artifacts/t061/red-t061-rework.txt`）。改动后：06:45–06:47 `npm run typecheck` 通过、`npm test` 441/441、`npm run build` 通过（`artifacts/t061/t061c-*.txt`）。文档：spec §6、错误目录。
+
+真实运行（`b0aa2da`）：06:51 看图一次 430 token（推理 286）6.7 秒、预览审查一次 684 token（推理 477）5.3 秒，都一次成功（`artifacts/t061/probe-budget.jsonl`）；06:52–06:56 三份资料依次各一次需求对齐生成（`artifacts/t061/accept-runs.mjs 1 --packs industrial,export,molding --label rework-b0aa2da`），3 次都一次成功、没有失败日志行：P3I 生成 8883 token（推理 6598）37 秒，P3E 26328（推理 24099）110 秒，注塑 22291（推理 17995）89 秒（`artifacts/t061/rework-b0aa2da-summary.json`）。
