@@ -34,6 +34,13 @@ supersedes:
 - Kiro 在自己的提交里更新 spec §4、CONTEXT、mainline 和本票 Resolution；MAP 的 Verified 列由 Claude 改。
 - 3034 dev server 归 Kiro 使用，其他 agent 这段时间不在 3034 上跑浏览器测试。
 
+## 进展与待办（Claude，2026-09-30）
+
+- 第 1–4 步已提交（a320973 … 1c9d606，本地未推送），每步 Claude 验收。
+- 早期盲评（gpt-6.1-sol，`artifacts/blind-t053-early.md`，三家 × 新旧两版 × 三档）：新版在 P3E（首屏大标题加参数条）和 P3I 第 3 步样本（参数对比表）上「明显」更好；模型全选默认的 P3I 两版几乎相同；无否决项。「公司之间差异」它按内容回答，最终盲评说明里要专门问版式本身。
+- Astra 代码审查（`artifacts/review-astra-t053.md`）NO_GO，原因是实跑证据未做（等 T-061）；另两条要在收尾时处理：`check-published` 补资料事实落页核对（产品名、参数、常见问题、目录条目正文，不只目录标题）；确认预览桥把默认挂载也记入 applied 不会让改动标记说得过宽，必要时把「已挂载」和「本次写入」分开，配测试。
+- 收尾顺序：T-061/T-058 → 上面两条 → 三份资料依次重新生成 → 最终盲评包（说明里专门问版式差异）→ Astra 复审 → 第 5 步删 overlay → 关票。
+
 ## Acceptance
 
 - [ ] 三份模拟资料（P3I、P3E、注塑 molding）用工程工业生成，`node scripts/check-published.mjs` 通过，1440 / 768 / 375 截图打开看过
