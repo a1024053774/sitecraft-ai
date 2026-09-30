@@ -17,6 +17,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { expectedFacts, missingFacts } from "./published-facts.mjs";
 
 const BASE = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 // Each run gets its own Chrome (port and profile), so parallel runs by different agents never
@@ -134,6 +135,9 @@ async function attachPreviewFrame(browser) {
 
 // Finds text a visitor cannot read in full; kept in its own file so a probe runs the same code.
 const TEXT_FIT_SCAN = fs.readFileSync(new URL("./visitor-text-fit-scan.js", import.meta.url), "utf8").trim();
+// The text a visitor can read, folded spec lists and answers opened; the draft's material facts are
+// looked for in it (scripts/published-facts.mjs).
+const READABLE_TEXT = fs.readFileSync(new URL("./visitor-readable-text.js", import.meta.url), "utf8").trim();
 const TEXT_FIT_FAILURES = [
   ["overflow", "text runs out of its cell or card"],
   ["ellipsis", "text is cut off with an ellipsis or a line clamp"],
@@ -272,6 +276,7 @@ const INSPECT = `(async () => {
   }
   // Text a visitor cannot read in full: past its cell or card, behind an ellipsis, or clipped.
   const textFit = (${TEXT_FIT_SCAN})(document.body);
+  const readable = (${READABLE_TEXT})(document.body);
   return {
     editorCursor: editableSlot ? getComputedStyle(editableSlot).cursor : "",
     editorHoverOutline: previewCss.includes("[data-sitecraft-slot]:hover{") && previewCss.includes("outline:"),
@@ -296,10 +301,11 @@ const INSPECT = `(async () => {
     photoCount: photos.length,
     saysSchematicOnly: text.includes("非实拍"),
     text,
+    readable,
   };
 })()`;
 
-function judge(report, expectedText) {
+function judge(report, facts) {
   const failures = [];
   if (report.editorCursor === "pointer") failures.push("visitor slot uses a pointer cursor");
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
@@ -316,7 +322,8 @@ function judge(report, expectedText) {
   if (report.heroPhotoCovered) failures.push("something is drawn on top of the hero photo");
   if (report.numbering) failures.push(`decorative section numbers visible (${report.numbering})`);
   if (!report.phoneNav) failures.push("no navigation or menu in the header at phone width");
-  for (const phrase of expectedText) if (!report.text.includes(phrase)) failures.push(`draft content missing from the page: ${phrase}`);
+  const missing = missingFacts(facts, report.readable);
+  if (missing.length) failures.push(`material facts missing from the page (${missing.length} of ${facts.length}: ${missing.slice(0, 6).map((fact) => `${fact.kind} "${fact.text.slice(0, 40)}"`).join(", ")})`);
   if (!report.contactVisible || !report.formVisible) failures.push("inquiry section or form is not visible");
   if (!report.ctaTargetVisible) failures.push(`hero CTA ${report.ctaHref} does not lead to a visible section`);
   if (!report.ctaLandsOnForm) failures.push("clicking the hero CTA does not bring the inquiry form into view");
@@ -433,22 +440,12 @@ async function checkSubmission(browser, sessionId, frame, siteKey, width) {
 }
 
 // Catalog entries the draft actually provides must reach the visitor page (visitor-visible ones only).
-async function expectedDraftText(siteKey) {
+// The draft's material facts (products and specs, FAQ, steps, catalog entries and bodies, contact),
+// read from the draft API, not from the page.
+async function draftFacts(siteKey) {
   const payload = await fetch(`${BASE}/api/sites/${siteKey}/draft`).then((r) => r.json()).catch(() => null);
   const draft = payload && (payload.draft || payload);
-  const content = draft && draft.content;
-  if (!content) return [];
-  const gap = (v) => !v || /^(待补充|To be provided)$/.test(String(v).trim());
-  const out = [];
-  for (const key of ["industries", "capabilities", "certifications"]) {
-    for (const item of (content[key] && content[key].items) || []) {
-      const title = item.title && item.title.zh;
-      if (gap(title)) continue;
-      if (key === "certifications" && !(item.status === "已有" || item.status === "认证中")) continue;
-      out.push(title);
-    }
-  }
-  return out;
+  return draft && draft.content ? expectedFacts(draft) : [];
 }
 
 async function checkOne(browser, siteKey, width) {
@@ -481,8 +478,11 @@ async function checkOne(browser, siteKey, width) {
     const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: report.height, scale: 1 } }, sessionId);
     const file = path.join(outDir, `${siteKey}-${width}.png`);
     fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
-    const failures = judge(report, await expectedDraftText(siteKey));
+    const facts = await draftFacts(siteKey);
+    const failures = judge(report, facts);
+    report.facts = { expected: facts.length, missing: missingFacts(facts, report.readable).length };
     delete report.text;
+    delete report.readable;
     if (submit) {
       const result = await checkSubmission(browser, sessionId, frame, siteKey, width);
       failures.push(...result.failures);

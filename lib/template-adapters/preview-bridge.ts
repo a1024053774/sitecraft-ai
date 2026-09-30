@@ -706,6 +706,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return adapterObj.alternatives[semantic] || adapterObj.alternatives[requested] || null;
   }
 
+  // appliedSlots are the declared targets on the page now, the blocks mounted with the look's default
+  // layout included; the workspace uses them only to confirm that a change's targets landed. What a
+  // change wrote is its change set's appliedTargets (server side), which the change markers name.
   function report(applied, expected, adapterObj, extraMissing) {
     var appliedSlots = Array.from(applied);
     var missingSlots = expected.filter(function (target) {
@@ -1193,6 +1196,37 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   // Intro and body fields are whole sentences: when the entire field is a gap, the sentence is
   // omitted instead of printing a lone 待补充. Headings stay; they are labels, not facts.
+  // FAQ, cooperation steps and features have a fixed number of entries on the page, written by index.
+  // They show the draft's entries that have a title or a body first, in draft order, then its
+  // placeholders: a new draft carries empty entries, and an entry added with add_card goes after them,
+  // so by index the page showed placeholders while the added entries never reached it (T-053). The
+  // slot written for an entry carries that entry's own index (faq.items.6.title.zh), so selecting it
+  // in the workspace and confirming a change stay on that entry.
+  function entryTarget(draft, target, locale) {
+    var match = /^(features|services|faq)\.items\.(\d+)\.(title|body)$/.exec(target || "");
+    if (!match || !draft || !draft.content) return target;
+    var items = (draft.content[match[1]] || {}).items || [];
+    var provided = [];
+    var placeholders = [];
+    for (var i = 0; i < items.length; i++) {
+      if (!items[i]) continue;
+      if (isGapMarker(localize(items[i].title, locale)) && isGapMarker(localize(items[i].body, locale))) placeholders.push(i);
+      else provided.push(i);
+    }
+    var index = provided.concat(placeholders)[Number(match[2])];
+    return index === undefined ? target : match[1] + ".items." + index + "." + match[3];
+  }
+
+  function withTarget(slot, target) {
+    if (!slot || slot.target === target) return slot;
+    var copy = {};
+    for (var key in slot) {
+      if (Object.prototype.hasOwnProperty.call(slot, key)) copy[key] = slot[key];
+    }
+    copy.target = target;
+    return copy;
+  }
+
   function isStandaloneSentenceTarget(target) {
     return /\.intro$/.test(target) || target === "contact.body" || target === "hero.subtitle" || target === "about.body";
   }
@@ -1258,8 +1292,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var titleSlot = parts.title;
         var bodySlot = parts.body;
         if (!titleSlot || !bodySlot) continue;
-        var titleValue = readDraftValue(draft, titleSlot.target, locale);
-        var bodyValue = readDraftValue(draft, bodySlot.target, locale);
+        var titleValue = readDraftValue(draft, entryTarget(draft, titleSlot.target, locale), locale);
+        var bodyValue = readDraftValue(draft, entryTarget(draft, bodySlot.target, locale), locale);
         var titleNode = uniqueNode(titleSlot.selector);
         var bodyNode = uniqueNode(bodySlot.selector);
         if (!titleNode && !bodyNode) continue;
@@ -1405,10 +1439,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
       for (var s = 0; s < slots.length; s++) {
         var slot = slots[s];
         if (!slot || !slot.selector || !slot.target) continue;
-        var value = readDraftValue(draft, slot.target, currentLocale);
+        var entrySlot = withTarget(slot, entryTarget(draft, slot.target, currentLocale));
+        var value = readDraftValue(draft, entrySlot.target, currentLocale);
         var node = uniqueNode(slot.selector);
         if (!node) continue;
-        writeSlot(node, slot, value, currentLocale, applied, variant || "preview");
+        writeSlot(node, entrySlot, value, currentLocale, applied, variant || "preview");
       }
       applyDocumentTitle(draft);
       applySectionVisibility(draft, applied);
