@@ -30,8 +30,8 @@ function render(templateId: string, draft: SiteDraft, expected: string[] = [], v
   return { document, report };
 }
 
-// The engineering page shows six FAQ entries (T-059) and three cooperation steps.
-const slotted = (document: HtmlDocument, group: "faq" | "services", part: "title" | "body") => [0, 1, 2, 3, 4, 5].slice(0, group === "faq" ? 6 : 3).map((index) => {
+// The engineering page shows six FAQ entries and six cooperation steps (T-059).
+const slotted = (document: HtmlDocument, group: "faq" | "services", part: "title" | "body") => [0, 1, 2, 3, 4, 5].map((index) => {
   const node = document.querySelector(`[data-sitecraft-benchmark="${group}-item-${index}-${part}"]`);
   return node ? { text: visibleText(node).trim(), slot: node.getAttribute("data-sitecraft-slot") } : null;
 });

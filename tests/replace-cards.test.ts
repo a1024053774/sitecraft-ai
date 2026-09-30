@@ -143,7 +143,7 @@ test("from the model: at most six FAQ entries, no empty entries, no accidental w
   assert.deepEqual(allGaps.operations, [], "a list with nothing to show does not wipe the FAQ");
   assert.ok(allGaps.rejected.includes("标题和正文都缺的条目不会写入"));
   const steps = validateAIOperations("资料", [{ op: "replace_cards", section: "services", items: [...items(), ...items(2).map((item) => ({ ...item, id: `${item.id}-b` }))] } as never], options.templateIds);
-  assert.equal((steps.operations[0] as unknown as { items: unknown[] }).items.length, 7, "the six-entry limit is for the FAQ");
+  assert.equal((steps.operations[0] as unknown as { items: unknown[] }).items.length, 6, "steps are limited to six too (T-059)");
 });
 
 test("the model is told to write a whole card group in one replace_cards, and update_card for one entry", async () => {

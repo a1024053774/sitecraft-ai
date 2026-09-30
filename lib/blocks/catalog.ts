@@ -196,7 +196,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
     variants: {
       steps: {
         label: "编号步骤",
-        slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 3)],
+        slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
         markers: [],
         parts: ["head", "steps"],
       },

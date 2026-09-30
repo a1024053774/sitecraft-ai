@@ -20,7 +20,7 @@ export const servicesFragment: BlockFragment = {
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="services-intro" hidden></p>
             </div>
             <div class="sitecraft-process" data-sc-part="steps">
-              ${[0, 1, 2].map(serviceItem).join("\n              ")}
+              ${[0, 1, 2, 3, 4, 5].map(serviceItem).join("\n              ")}
             </div>
           </div>
         </section>`,

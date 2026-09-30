@@ -233,7 +233,9 @@ function logModelFailure(entry: {
 function faqInstructions(templateId: string) {
   const slots = (getTemplateAdapter(templateId)?.slots ?? []).filter((slot) => /^faq\.items\.\d+\.title$/.test(slot.target)).length;
   if (!slots) return "";
-  return `   常见问题：当前样子的访客页最多显示 ${slots} 条，先显示有问有答的条目。资料里有几组问答就写几条，最多 ${slots} 条，问和答都要出自资料；用一条 replace_cards（section=faq）写完整组。\n`;
+  const steps = (getTemplateAdapter(templateId)?.slots ?? []).filter((slot) => /^services\.items\.\d+\.title$/.test(slot.target)).length;
+  const faq = `   常见问题：当前样子的访客页最多显示 ${slots} 条，先显示有问有答的条目。资料里有几组问答就写几条，最多 ${slots} 条，问和答都要出自资料；用一条 replace_cards（section=faq）写完整组。\n`;
+  return steps ? `${faq}   合作方式：当前样子的访客页最多显示 ${steps} 步，资料里有几步就写几步，最多 ${steps} 步；用一条 replace_cards（section=services）写完整组。\n` : faq;
 }
 
 function operationInstructions(templateId: string) {

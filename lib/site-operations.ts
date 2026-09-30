@@ -301,7 +301,9 @@ export type ApplyResult = {
 /** Said when a layout is asked for on a look that has not moved to the block library yet. */
 // The most FAQ entries the model may write in one card group: a draft carries six, and the
 // engineering page shows six (T-059).
-const MAX_AI_CARDS: Partial<Record<"features" | "services" | "faq", number>> = { faq: 6 };
+// Steps: the engineering page shows six (T-059).
+const MAX_AI_CARDS: Partial<Record<"features" | "services" | "faq", number>> = { faq: 6, services: 6 };
+const CARD_GROUP_WORDS: Record<"features" | "services" | "faq", { name: string; unit: string }> = { faq: { name: "常见问题", unit: "条" }, services: { name: "合作方式", unit: "步" }, features: { name: "优势", unit: "条" } };
 
 export const LAYOUT_LOOK_NOT_READY = "当前样子还不能单独换首屏、产品或询盘的布局。";
 
@@ -1074,7 +1076,8 @@ export function validateAIOperations(
       if (shown.length < operation.items.length) rejected.push("标题和正文都缺的条目不会写入");
       if (operation.items.length && !shown.length) continue;
       const limit = MAX_AI_CARDS[operation.section];
-      if (limit !== undefined && shown.length > limit) rejected.push(`常见问题最多写 ${limit} 条，其余 ${shown.length - limit} 条没有写入`);
+      const words = CARD_GROUP_WORDS[operation.section];
+      if (limit !== undefined && shown.length > limit) rejected.push(`${words.name}最多写 ${limit} ${words.unit}，其余 ${shown.length - limit} ${words.unit}没有写入`);
       accepted.push({ ...operation, items: limit === undefined ? shown : shown.slice(0, limit) });
       continue;
     }
