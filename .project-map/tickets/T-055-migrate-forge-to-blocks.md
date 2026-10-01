@@ -45,5 +45,6 @@ supersedes:
 - 代码审查：Astra 首审 NO_GO（证据与覆盖），返工 44794ab 后复审 PASS（`artifacts/review-astra-t055.md`）。
 - 盲评：gpt-6.1-sol 首轮旧版更好（窄屏两列、指标带过窄、分组留白），返工后复评（`artifacts/blind-t055-r2.md`）：c1 新版略好、c2 持平、c3 新版明显更好；遮字三家可分、与工程工业可分；无否决项。
 - 删除旧 overlay：已删除 `lib/template-adapters/overlays/forge.index.html`、`FORGE_HOST_OVERLAY_PATH`/`forgeHostOverlayFile` 分支及只读取该 overlay 的测试；forge 预览继续直接由区块库页面提供，landwind/tailwind overlay 路径保留。
+- T-055 遗留返工（随 T-056）：共享 `services.cards` 恢复步号并从 1 重新计数，空条目不占号；明亮产品合作方式区块作为预期变化，其余页面保持不变。失败/通过证据见 `artifacts/t056/red-step-numbers.txt`、`green-step-numbers.txt`。
 
 Claude 验收关闭（2026-10-01）。

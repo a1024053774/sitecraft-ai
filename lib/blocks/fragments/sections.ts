@@ -11,9 +11,8 @@ export const servicesFragment: BlockFragment = {
 .sitecraft-process-card::before { content: counter(step); display: block; margin-bottom: 10px; font-size: 13px; font-weight: 700; color: var(--site-accent-strong); }
 .sitecraft-process-card h3 { margin: 0 0 6px; font-size: 17px; }
 .sitecraft-process-card p { margin: 0; color: var(--site-muted); line-height: 1.55; }
-.sitecraft-process-cards { gap: 16px; border-top: 0; counter-reset: none; }
+.sitecraft-process-cards { gap: 16px; border-top: 0; }
 .sitecraft-process-cards .sitecraft-process-card { padding: 20px; border: var(--site-rule); border-radius: var(--site-card-radius); }
-.sitecraft-process-cards .sitecraft-process-card::before { display: none; }
 `,
   variants: {
     steps: `<section id="process" class="sitecraft-section" data-sitecraft-section="services" data-sc-block="services" data-sc-variant="steps">
