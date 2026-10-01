@@ -58,7 +58,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function needsCharacterFit(value) {
     var text = String(value || "");
     var hasHan = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(text);
-    return (hasHan && characterUnits(text) >= 10) || /[A-Za-z0-9]{20,}/.test(text);
+    var mixedHanAndAscii = hasHan && /[A-Za-z0-9]/.test(text);
+    var hasNaturalBreakPunctuation = /[，,、：:；;]/.test(text);
+    return (hasHan && !mixedHanAndAscii && !hasNaturalBreakPunctuation && characterUnits(text) >= 10) || /[A-Za-z0-9]{20,}/.test(text);
   }
 
   function fitTextEnabled() {
