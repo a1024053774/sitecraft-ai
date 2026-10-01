@@ -99,6 +99,17 @@ test("the engineering page renders a pack draft with one entity per block and ev
   assert.equal(page.includes("企业名称"), false, "placeholder brand must be replaced");
 });
 
+test("the bridge follows an explicit block order and keeps the paired blocks together", () => {
+  const { document, api } = engineeringPage();
+  const draft = packDraft();
+  draft.sectionOrder = ["certifications", "products", "capabilities", "industries", "services", "faq", "contact"];
+  api.applyDeclaredContent(draft, "zh", [], "published");
+  const liveOrder = () => [...document.querySelectorAll("main [data-sc-block]")].map((node) => node.getAttribute("data-sc-block"));
+  assert.deepEqual(liveOrder(), ["hero", "certifications", "products", "capabilities", "industries", "services", "faq", "contact"]);
+  const navOrder = [...document.querySelectorAll(".sitecraft-nav-links a")].map((node) => node.getAttribute("data-sitecraft-nav") || node.getAttribute("data-sitecraft-ui"));
+  assert.deepEqual(navOrder, ["certifications", "products", "capabilities", "industries", "services", "faq"]);
+});
+
 test("the bright product bridge mounts variants and reports section visibility back to navigation", () => {
   const html = composedPageForTemplate("forge");
   assert.ok(html, "forge must be composed from the block library");

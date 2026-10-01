@@ -1131,6 +1131,127 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
+  function resolveBlockOrder(rawOrder, blocks) {
+    var main = Array.isArray(blocks && blocks.main) ? blocks.main.slice() : [];
+    if (!Array.isArray(rawOrder) || !rawOrder.length || !main.length) return main;
+    var allowed = {};
+    for (var i = 0; i < main.length; i++) allowed[main[i]] = true;
+    var requested = [];
+    for (var r = 0; r < rawOrder.length; r++) {
+      var item = rawOrder[r];
+      if (allowed[item] && requested.indexOf(item) === -1) requested.push(item);
+    }
+    if (!requested.length) return main;
+    var rank = {};
+    for (var n = 0; n < requested.length; n++) rank[requested[n]] = n;
+    var groups = Array.isArray(blocks.groups) ? blocks.groups : [];
+    var grouped = {};
+    var units = [];
+    for (var g = 0; g < groups.length; g++) {
+      var group = groups[g].filter(function (block) { return allowed[block] && !grouped[block]; });
+      if (group.length < 2) continue;
+      for (var gi = 0; gi < group.length; gi++) grouped[group[gi]] = true;
+      units.push({ members: group, index: units.length });
+    }
+    for (var b = 0; b < main.length; b++) {
+      if (grouped[main[b]]) continue;
+      units.push({ members: [main[b]], index: units.length });
+    }
+    for (var u = 0; u < units.length; u++) {
+      var unit = units[u];
+      var best = requested.length + unit.index;
+      for (var m = 0; m < unit.members.length; m++) if (rank[unit.members[m]] !== undefined) best = Math.min(best, rank[unit.members[m]]);
+      unit.rank = best;
+    }
+    units.sort(function (a, b) { return a.rank - b.rank || a.index - b.index; });
+    var result = [];
+    for (var s = 0; s < units.length; s++) {
+      var members = units[s].members.slice();
+      members.sort(function (a, b) { return (rank[a] === undefined ? requested.length : rank[a]) - (rank[b] === undefined ? requested.length : rank[b]); });
+      for (var q = 0; q < members.length; q++) result.push(members[q]);
+    }
+    // Hero is fixed at the head of every block-library main column.
+    var heroIndex = main.indexOf("hero");
+    if (heroIndex >= 0 && result.indexOf("hero") >= 0) {
+      result.splice(result.indexOf("hero"), 1);
+      result.splice(heroIndex, 0, "hero");
+    }
+    return result;
+  }
+
+  function linkBlock(link) {
+    var value = link && link.getAttribute ? (link.getAttribute("data-sitecraft-nav") || link.getAttribute("data-sitecraft-ui") || "") : "";
+    if (value === "services") return "services";
+    if (["products", "industries", "capabilities", "certifications", "faq", "contact"].indexOf(value) >= 0) return value;
+    var href = link && link.getAttribute ? link.getAttribute("href") || "" : "";
+    return ({ "#products": "products", "#industries": "industries", "#capabilities": "capabilities", "#process": "services", "#certifications": "certifications", "#faq": "faq", "#inquiry": "contact" })[href] || null;
+  }
+
+  function reorderLinks(container, order) {
+    if (!container || !container.querySelectorAll || !container.appendChild) return;
+    var links = asList(container.querySelectorAll("a[href]"));
+    var rank = {};
+    for (var i = 0; i < order.length; i++) rank[order[i]] = i;
+    links.sort(function (a, b) {
+      var aBlock = linkBlock(a); var bBlock = linkBlock(b);
+      var aRank = aBlock && rank[aBlock] !== undefined ? rank[aBlock] : order.length + links.indexOf(a);
+      var bRank = bBlock && rank[bBlock] !== undefined ? rank[bBlock] : order.length + links.indexOf(b);
+      return aRank - bRank;
+    });
+    for (var n = 0; n < links.length; n++) container.appendChild(links[n]);
+  }
+
+  function applyBlockOrder(draft, applied) {
+    var blocks = adapter && adapter.blocks;
+    if (!blocks || !Array.isArray(blocks.main) || !draft || !Array.isArray(draft.sectionOrder) || !draft.sectionOrder.length) return;
+    var order = resolveBlockOrder(draft.sectionOrder, blocks);
+    var main = uniqueNode("main");
+    if (!main) return;
+    var groups = Array.isArray(blocks.groups) ? blocks.groups : [];
+    var grouped = {};
+    var units = {};
+    for (var g = 0; g < groups.length; g++) {
+      var group = groups[g];
+      var live = group.length ? uniqueNode('[data-sc-block="' + group[0] + '"]') : null;
+      var pair = live && live.closest ? live.closest(".sitecraft-pair") : null;
+      if (!pair) continue;
+      var groupUnit = { root: pair, nodes: [pair], members: group };
+      for (var gi = 0; gi < group.length; gi++) { grouped[group[gi]] = true; units[group[gi]] = groupUnit; }
+      var pairParent = live.parentNode;
+      var pairOrder = order.filter(function (block) { return group.indexOf(block) >= 0; });
+      for (var po = 0; po < pairOrder.length; po++) {
+        var blockNodes = asList(pairParent.querySelectorAll('[data-sc-block="' + pairOrder[po] + '"], template[data-sc-template^="' + pairOrder[po] + ':"]'));
+        for (var pn = 0; pn < blockNodes.length; pn++) pairParent.appendChild(blockNodes[pn]);
+      }
+    }
+    for (var b = 0; b < blocks.main.length; b++) {
+      var block = blocks.main[b];
+      if (grouped[block]) continue;
+      var entity = uniqueNode('[data-sc-block="' + block + '"]');
+      if (!entity) continue;
+      var nodeList = [entity];
+      var parentNode = entity.parentNode;
+      if (parentNode && parentNode.querySelectorAll) nodeList = nodeList.concat(asList(parentNode.querySelectorAll('template[data-sc-template^="' + block + ':"]')));
+      units[block] = { root: entity, nodes: nodeList, members: [block] };
+    }
+    var moved = [];
+    for (var o = 0; o < order.length; o++) {
+      var unit = units[order[o]];
+      if (!unit || moved.indexOf(unit.root) >= 0) continue;
+      moved.push(unit.root);
+      for (var ni = 0; ni < unit.nodes.length; ni++) if (unit.nodes[ni].parentNode === main) main.appendChild(unit.nodes[ni]);
+      if (unit.root.parentNode === main && unit.nodes.indexOf(unit.root) < 0) main.appendChild(unit.root);
+    }
+    var nav = document.querySelector ? document.querySelector(".sitecraft-nav-links") : null;
+    reorderLinks(nav, order);
+    var menus = document.querySelectorAll ? document.querySelectorAll(".sitecraft-menu-panel") : [];
+    for (var mi = 0; mi < menus.length; mi++) reorderLinks(menus[mi], order);
+    var footerLabel = document.querySelector ? document.querySelector('[data-sitecraft-ui="footerNav"]') : null;
+    var footerLinks = footerLabel && footerLabel.parentNode ? footerLabel.parentNode.querySelector(".sitecraft-footer-links") : null;
+    reorderLinks(footerLinks, order);
+    applied.add("sectionOrder");
+  }
+
   function applyFamilyKit(draft, applied, extraMissing) {
     var kit = adapter && adapter.kit;
     if (!kit || !kit.familyId) return;
@@ -1586,6 +1707,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
     }
     mountBlockVariants(draft, applied, extraMissing);
+    applyBlockOrder(draft, applied);
     if (adapter && draft) {
       applyDocumentTitle(draft);
       renderProductGrid(draft, currentLocale, applied, variant || "preview");

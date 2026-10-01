@@ -1,4 +1,4 @@
-import { blockCatalog, layoutBlocks, type BlockLook } from "./catalog.ts";
+import { blockCatalog, layoutBlocks, type BlockId, type BlockLook } from "./catalog.ts";
 import type { TemplateAdapter, TemplateBlockRender, TemplateKit, TemplateKitModule, TemplateSection, TemplateSlot } from "../template-adapters/types.ts";
 
 /**
@@ -29,6 +29,10 @@ export function blockAdapterFor(
     if (spec.kind === "shell") modules.push({ key: block, kind: "shell", selector: `[data-sc-block="${block}"]` });
     else if (spec.section) modules.push({ key: spec.section.key, kind: "content", selector: spec.section.selector });
   }
+  const main = look.layout.main.flatMap((item) => typeof item === "string" ? [item] : [...item]);
+  const groups = look.layout.main
+    .filter((item): item is readonly [BlockId, BlockId] => Array.isArray(item))
+    .map((item) => [...item]);
   return {
     templateId: look.templateId,
     runtime: "static-html",
@@ -36,6 +40,6 @@ export function blockAdapterFor(
     sections,
     ...(options.alternatives ? { alternatives: { ...options.alternatives } } : {}),
     kit: { ...options.kit, modules },
-    blocks: { order, defaults: { ...look.defaults }, ...(look.heroTitle ? { heroTitle: look.heroTitle } : {}), ...(look.fitText ? { fitText: look.fitText } : {}), variants, render, ...(look.styleDirections ? { styleDirections: look.styleDirections } : {}) },
+    blocks: { order, main, groups, defaults: { ...look.defaults }, ...(look.heroTitle ? { heroTitle: look.heroTitle } : {}), ...(look.fitText ? { fitText: look.fitText } : {}), variants, render, ...(look.styleDirections ? { styleDirections: look.styleDirections } : {}) },
   };
 }

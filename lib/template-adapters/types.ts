@@ -97,10 +97,14 @@ export type SlotApplyReport = {
  */
 export type TemplateBlocks = {
   order: string[];
+  /** Content blocks in the look's default main-column order; hero and shell stay fixed. */
+  main?: string[];
   defaults: Record<string, string>;
   /** Hero title policy for this look; only declared looks opt into word spans. */
   heroTitle?: "words";
   fitText?: "container";
+  /** Paired content blocks move as one visual unit. */
+  groups?: string[][];
   variants: Record<string, string[]>;
   /** How the bridge fills a mounted variant, from the block catalog: block -> variant -> params. */
   render?: Record<string, Record<string, TemplateBlockRender>>;
