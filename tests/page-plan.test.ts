@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import test from "node:test";
 import { defaultDraft, normalizeDraft } from "../lib/site-document.ts";
 import { aiIntentResponseSchema, applySiteOperations } from "../lib/site-operations.ts";
@@ -13,8 +13,6 @@ import {
 const templateIds = new Set(["forge", "screwfast", "landwind", "tailwind-landing", "fresh"]);
 const options = { templateIds, lastChange: "page-plan" };
 
-const FORGE_INDEX = "vendor/open-source-templates/small-bis/dist/index.html";
-const FORGE_CONTACT = "vendor/open-source-templates/small-bis/dist/Contact/index.html";
 const LANDWIND_INDEX = "lib/template-adapters/overlays/landwind.index.html";
 
 test("default three is home, products and contact and is not a page cap", () => {
@@ -96,21 +94,15 @@ test("unspecified source uses default three and model plans can differ", () => {
   assert.equal(modeled.unsupported.some((item) => item.requested.includes("认证")), true);
 });
 
-test("landwind cannot host extra urls; forge extra html is a different document", () => {
+test("landwind cannot host extra urls", () => {
   const landwind = defaultPagePlanFor("landwind");
   assert.equal(landwind.pages.every((page) => page.placement === "section"), true);
   assert.equal(templateExtraRoutes.landwind, undefined);
   assert.equal(previewPageSegments("../etc/passwd"), null);
   assert.deepEqual(previewPageSegments("Contact"), ["Contact"]);
 
-  assert.equal(existsSync(FORGE_INDEX), true);
-  assert.equal(existsSync(FORGE_CONTACT), true);
   assert.equal(templateExtraRoutes.forge, undefined);
   assert.equal(existsSync(LANDWIND_INDEX), true);
-  const forgeIndex = readFileSync(FORGE_INDEX, "utf8");
-  const forgeContact = readFileSync(FORGE_CONTACT, "utf8");
-  assert.notEqual(forgeIndex, forgeContact);
-  assert.equal(forgeContact.includes("Contact") || forgeContact.length > 40, true);
   assert.equal(existsSync("vendor/open-source-templates/landwind/Contact/index.html"), false);
   assert.equal(existsSync("vendor/open-source-templates/landwind/products/index.html"), false);
 });

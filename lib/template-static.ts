@@ -121,15 +121,10 @@ export function getTemplateStaticRoot(templateId: string) {
 }
 
 export const LANDWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/landwind.index.html";
-export const FORGE_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/forge.index.html";
 export const TAILWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/tailwind-landing.index.html";
 
 function landwindHostOverlayFile() {
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), LANDWIND_HOST_OVERLAY_PATH);
-}
-
-function forgeHostOverlayFile() {
-  return path.resolve(/* turbopackIgnore: true */ process.cwd(), FORGE_HOST_OVERLAY_PATH);
 }
 
 function tailwindHostOverlayFile() {
@@ -157,9 +152,6 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
     const isRootIndex = target === path.join(root, "index.html");
     if (isRootIndex && templateId === "landwind") {
       target = landwindHostOverlayFile();
-    }
-    if (isRootIndex && templateId === "forge") {
-      target = forgeHostOverlayFile();
     }
     if (isRootIndex && templateId === "tailwind-landing") {
       target = tailwindHostOverlayFile();

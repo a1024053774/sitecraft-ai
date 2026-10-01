@@ -182,7 +182,4 @@ test("inbox pages stop advertising fake companies and a live mailbox", () => {
   assert.equal(publishedClient.includes("published-inquiry-form"), false);
   assert.equal(publishedClient.includes("published-chrome-bar"), false);
   assert.equal(/count:\s*4/.test(sidebar), false);
-  const forgeContact = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/Contact/index.html", import.meta.url), "utf8");
-  assert.equal(forgeContact.toLowerCase().includes("web3forms"), false);
-  assert.match(forgeContact, /data-sitecraft-inquiry="true"/);
 });

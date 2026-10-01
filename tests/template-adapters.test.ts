@@ -119,45 +119,8 @@ test("templates without homepage contact fields propose an owned alternative", (
   assert.equal(landing?.slots.some((slot) => slot.target === "companyName"), true);
 });
 
-test("forge homepage source has unique declared hero slots and no compare-pack text", () => {
-  const html = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
-  const adapter = getTemplateAdapter("forge");
-  assert.ok(adapter, "forge adapter is required before quality comparison");
-  const title = adapter.slots.find((slot) => slot.target === "hero.title");
-  const subtitle = adapter.slots.find((slot) => slot.target === "hero.subtitle");
-  assert.equal(title?.selector, '[data-sitecraft-benchmark="hero-title"]');
-  assert.equal(subtitle?.selector, '[data-sitecraft-benchmark="hero-subtitle"]');
-  assert.equal((html.match(/data-sitecraft-benchmark="hero-title"/g) ?? []).length, 1);
-  assert.equal((html.match(/data-sitecraft-benchmark="hero-subtitle"/g) ?? []).length, 1);
-  assert.equal(html.includes("汉川精密阀业A17"), false);
-  assert.equal(html.includes("北湾流体接头B84"), false);
-  assert.equal(html.includes("Main Keywords"), false);
-  assert.equal(html.includes(">LOGO<"), false);
-});
-
-test("forge declares authored contact and collection targets", () => {
-  const adapter = getTemplateAdapter("forge");
-  assert.ok(adapter);
-  assert.equal(adapter.slots.some((slot) => slot.target === "contact.email"), true);
-  assert.equal(adapter.slots.some((slot) => slot.target === "contact.phone"), true);
-});
-
-test("forge declares products title and intro slots that hit the overlay nodes", () => {
-  const html = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
-  const adapter = getTemplateAdapter("forge");
-  assert.ok(adapter);
-  const title = adapter.slots.find((slot) => slot.target === "products.title");
-  const intro = adapter.slots.find((slot) => slot.target === "products.intro");
-  assert.ok(title, "forge must declare products.title so overlay methodology defaults do not remain");
-  assert.ok(intro, "forge must declare products.intro so overlay methodology defaults do not remain");
-  assert.equal(title?.selector, '[data-sitecraft-benchmark="products-title"]');
-  assert.equal(intro?.selector, '[data-sitecraft-benchmark="products-intro"]');
-  assert.equal((html.match(/data-sitecraft-benchmark="products-title"/g) ?? []).length, 1);
-  assert.equal((html.match(/data-sitecraft-benchmark="products-intro"/g) ?? []).length, 1);
-});
-
 test("family overlays declare every content slot attribute exactly once", () => {
-  const families = ["forge", "landwind", "screwfast", "tailwind-landing"] as const;
+  const families = ["landwind", "screwfast", "tailwind-landing"] as const;
   const contentAttr = /data-sitecraft-(?:benchmark|optional|faq|contact|brand(?:-name)?|nav)="([^"]+)"/g;
   const skipBenchmark = new Set(["bright-product", "industrial-inquiry", "export-directory", "hero"]);
   for (const id of families) {
@@ -338,12 +301,6 @@ test("declared hero images are unique src slots and leave logos and avatars unde
   const read = (url: URL) => readFileSync(url, "utf8");
   const cases = [
     {
-      id: "forge",
-      html: read(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url)),
-      declared: 'data-sitecraft-benchmark="hero-image"',
-      undeclared: [],
-    },
-    {
       id: "landwind",
       html: read(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url)),
       declared: 'data-sitecraft-benchmark="hero-image"',
@@ -429,33 +386,15 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
 });
 
 test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () => {
-  const forgeHome = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
-  const forgeContact = readFileSync(new URL("../vendor/open-source-templates/small-bis/dist/Contact/index.html", import.meta.url), "utf8");
   const landwind = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
   const screwfast = withoutTemplates(servedHomeHtml("screwfast"));
-  assert.equal((forgeHome.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal((landwind.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal((screwfast.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
-  assert.equal(forgeContact.toLowerCase().includes("web3forms"), false);
   assert.equal(screwfast.toLowerCase().includes("web3forms"), false);
-  assert.equal((forgeHome.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
   assert.equal((landwind.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
   assert.equal((screwfast.match(/data-sitecraft-benchmark="contact-title"/g) ?? []).length, 1);
-  assert.equal(getTemplateAdapter("forge")?.slots.some((slot) => slot.target === "contact.title"), true);
   assert.equal(getTemplateAdapter("landwind")?.slots.some((slot) => slot.target === "contact.email"), true);
   assert.equal(getTemplateAdapter("screwfast")?.slots.some((slot) => slot.target === "contact.email"), true);
-});
-
-test("services copy is unique on forge", () => {
-  const forge = readFileSync(new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url), "utf8");
-  assert.equal((forge.match(/data-sitecraft-section="services"/g) ?? []).length, 1);
-  assert.equal((forge.match(/data-sitecraft-benchmark="services-title"/g) ?? []).length, 1);
-  for (const index of [1, 2, 3]) {
-    assert.equal((forge.match(new RegExp(`data-sitecraft-benchmark="services-item-${index - 1}-title"`, "g")) ?? []).length, 1);
-  }
-  const adapter = getTemplateAdapter("forge");
-  assert.equal(adapter?.slots.find((slot) => slot.target === "services.title")?.selector, '[data-sitecraft-benchmark="services-title"]');
-  assert.equal(adapter?.slots.find((slot) => slot.target === "services.items.0.title")?.selector, '[data-sitecraft-benchmark="services-item-0-title"]');
 });
 
 function countAttrExact(html: string, attr: string, value: string) {
