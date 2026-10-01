@@ -692,7 +692,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      node.textContent = adapter && adapter.blocks ? emailBreakPoints(nextValue) : nextValue;
+      if (adapter && adapter.blocks && slot.target === "hero.title") {
+        node.textContent = "";
+        writeHeroTitle(node, nextValue);
+      } else {
+        node.textContent = adapter && adapter.blocks ? emailBreakPoints(nextValue) : nextValue;
+      }
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";
         if (/^mailto:/i.test(href)) node.setAttribute("href", "mailto:" + nextValue);
@@ -955,6 +960,29 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return String(text).replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+/g, function (email) {
       return email.replace(/-(?=.)/g, "-\u2060").replace("@", "\u200b@\u200b");
     });
+  }
+
+  // Keep known Chinese product words together in hero titles while leaving authored text and
+  // clipboard values unchanged. The wrapper is a DOM text span, not model HTML.
+  function writeHeroTitle(node, text) {
+    var words = ["模具", "减速机", "注塑件", "结构件", "快换接头", "卡套接头"];
+    var value = String(text);
+    if (!node.ownerDocument || !document.createTextNode || !document.createElement) {
+      node.textContent = value;
+      return;
+    }
+    var pattern = new RegExp("(" + words.join("|") + ")", "g");
+    var last = 0;
+    var match;
+    while ((match = pattern.exec(value))) {
+      if (match.index > last) node.appendChild(document.createTextNode(value.slice(last, match.index)));
+      var span = document.createElement("span");
+      span.style.whiteSpace = "nowrap";
+      span.textContent = match[0];
+      node.appendChild(span);
+      last = match.index + match[0].length;
+    }
+    if (last < value.length) node.appendChild(document.createTextNode(value.slice(last)));
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;

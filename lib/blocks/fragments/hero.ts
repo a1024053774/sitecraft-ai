@@ -60,6 +60,7 @@ export const heroFragment: BlockFragment = {
 .sitecraft-statement-specs .sitecraft-hero-spec dd { font-size: 21px; }
 `,
   phone: `
+.sitecraft-hero h1 { font-size: var(--site-h1-narrow, var(--site-h1)); }
 /* Series-prefixed labels like「直角减速机 · 额定输出扭矩」need the full width on phones. */
 .sitecraft-hero-specs dl { grid-template-columns: 1fr; }
 .sitecraft-hero-spec { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
