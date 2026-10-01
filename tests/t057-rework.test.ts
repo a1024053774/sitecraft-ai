@@ -40,6 +40,29 @@ test("hero titles use Intl.Segmenter words instead of a hard-coded product list"
   }
 });
 
+test("an engineering title that is not orphaned keeps its original line grouping", async () => {
+  const base = packDraft("industrial");
+  const draft = { ...base, templateId: "screwfast", content: { ...base.content, hero: { ...base.content.hero, title: { zh: "按图加工重载减速机 P3I-NX7Q", en: "Heavy-duty gearbox P3I-NX7Q" } } } };
+  const browser = await openBrowser();
+  const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/screwfast/preview?t057-title=${Date.now()}` }) as { targetId: string };
+  const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
+  try {
+    await browser.send("Page.enable", {}, sessionId);
+    await browser.send("Runtime.enable", {}, sessionId);
+    await browser.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+    for (let waited = 0; waited < 15000; waited += 100) {
+      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
+    const lines = await browser.eval<string[]>(`(() => { const h=document.querySelector('[data-sc-block="hero"] h1'); const r=document.createRange(); const rows=new Map(); const w=document.createTreeWalker(h,NodeFilter.SHOW_TEXT); while(w.nextNode()){const n=w.currentNode; for(let i=0;i<n.textContent.length;i++){r.setStart(n,i);r.setEnd(n,i+1);const q=r.getBoundingClientRect();if(q.width>.5){const k=Math.round(q.top);rows.set(k,(rows.get(k)||"")+n.textContent[i]);}}} return [...rows.entries()].sort((a,b)=>a[0]-b[0]).map(([,text])=>text); })()`, sessionId);
+    assert.ok(lines.some((line) => line.includes("重载减速机")), JSON.stringify(lines));
+  } finally {
+    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    closeBrowser(browser);
+  }
+});
+
 test("the title scanner catches a wrapped word inside a span, including a repeated occurrence", async () => {
   const source = readFileSync("scripts/visitor-layout-scan.js", "utf8").replace("export function", "function").replace("export default scanVisitorLayout;", "");
   const browser = await openBrowser();

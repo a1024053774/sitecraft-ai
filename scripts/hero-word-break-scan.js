@@ -15,7 +15,7 @@
       range.setStart(node, index);
       range.setEnd(node, index + 1);
       const rect = range.getClientRects()[0] || range.getBoundingClientRect();
-      if (rect.width > 0.5 && rect.height > 0.5) chars.push({ offset: offset + index, char: text[index], rect });
+      if (rect.width > 0.5 && rect.height > 0.5) chars.push({ offset: offset + index, char: text[index], parent: node.parentElement, rect });
     }
     offset += text.length;
   }
@@ -27,7 +27,9 @@
   }
   const tops = [...lines.keys()].sort((a, b) => a - b);
   const lastLine = tops.length > 1 ? lines.get(tops[tops.length - 1]) || [] : [];
-  result.heroOrphan = lastLine.length === 1 && /[\u3400-\u9fff]/.test(lastLine[0]);
+  const lastItems = chars.filter((item) => Math.round(item.rect.top) === tops[tops.length - 1] && item.char.trim());
+  const shortWord = lastLine.length <= 2 && /^[\u3400-\u9fff]+$/.test(lastLine.join("")) && lastItems.every((item) => item.parent?.getAttribute("data-sitecraft-hero-word") === "true");
+  result.heroOrphan = (lastLine.length === 1 && /[\u3400-\u9fff]/.test(lastLine[0])) || shortWord;
 
   const lineWidth = title.clientWidth || title.getBoundingClientRect().width;
   const segments = Array.from(new Intl.Segmenter("zh", { granularity: "word" }).segment(title.textContent || ""));

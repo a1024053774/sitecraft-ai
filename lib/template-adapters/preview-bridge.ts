@@ -985,18 +985,6 @@ function sitecraftPreviewBridge(templateId, adapter) {
       previous.segment += tail.segment;
       segments.pop();
     }
-    var lineWidth = node.clientWidth || (node.getBoundingClientRect && node.getBoundingClientRect().width) || 0;
-    var computed = global.getComputedStyle ? global.getComputedStyle(node) : null;
-    var naturalWidth = function (word) {
-      if (!document.body || !document.createElement) return 0;
-      var probe = document.createElement("span");
-      probe.textContent = word;
-      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;font:" + (computed?.font || "inherit") + ";letter-spacing:" + (computed?.letterSpacing || "normal") + ";font-weight:" + (computed?.fontWeight || "normal");
-      document.body.appendChild(probe);
-      var width = probe.getBoundingClientRect().width;
-      probe.remove();
-      return width;
-    };
     for (var part of segments) {
       var segment = String(part.segment || "");
       if (!segment) continue;
@@ -1005,15 +993,62 @@ function sitecraftPreviewBridge(templateId, adapter) {
         continue;
       }
       var span = document.createElement("span");
-      var keepTogether = !lineWidth || naturalWidth(segment) <= lineWidth + 1;
-      span.style.display = "inline-block";
-      span.style.whiteSpace = keepTogether ? "nowrap" : "normal";
-      span.style.maxWidth = "100%";
-      span.style.wordBreak = "keep-all";
-      span.style.overflowWrap = "anywhere";
+      span.setAttribute("data-sitecraft-hero-word", "true");
       span.textContent = segment;
       node.appendChild(span);
     }
+    queueHeroTitleBalance(node);
+  }
+
+  function balanceHeroTitleIfOrphan(node) {
+    if (!node || !node.ownerDocument || !node.querySelectorAll) return;
+    var range = document.createRange();
+    var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    var chars = [];
+    while (walker.nextNode()) {
+      var textNode = walker.currentNode;
+      for (var i = 0; i < textNode.textContent.length; i++) {
+        range.setStart(textNode, i); range.setEnd(textNode, i + 1);
+        var rect = range.getClientRects()[0] || range.getBoundingClientRect();
+        if (rect.width > .5 && rect.height > .5) chars.push({ char: textNode.textContent[i], top: Math.round(rect.top), parent: textNode.parentElement });
+      }
+    }
+    var lines = {};
+    for (var c = 0; c < chars.length; c++) {
+      if (!chars[c].char.trim()) continue;
+      (lines[chars[c].top] || (lines[chars[c].top] = [])).push(chars[c]);
+    }
+    var tops = Object.keys(lines).map(Number).sort(function (a, b) { return a - b; });
+    if (tops.length < 2) return;
+    var last = lines[tops[tops.length - 1]] || [];
+    var lastText = last.map(function (item) { return item.char; }).join("");
+    var shortWord = lastText.length <= 2 && /^[\u3400-\u9fff]+$/.test(lastText) && last.every(function (item) { return item.parent && item.parent.getAttribute("data-sitecraft-hero-word") === "true"; });
+    if (!(lastText.length === 1 && /[\u3400-\u9fff]/.test(lastText[0])) && !shortWord) return;
+    node.style.textWrap = "balance";
+    var lineWidth = node.clientWidth || (node.getBoundingClientRect && node.getBoundingClientRect().width) || 0;
+    var computed = global.getComputedStyle ? global.getComputedStyle(node) : null;
+    var words = node.querySelectorAll("[data-sitecraft-hero-word]");
+    for (var w = 0; w < words.length; w++) {
+      var word = words[w];
+      var probe = document.createElement("span");
+      probe.textContent = word.textContent || "";
+      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;font:" + (computed?.font || "inherit") + ";letter-spacing:" + (computed?.letterSpacing || "normal") + ";font-weight:" + (computed?.fontWeight || "normal");
+      document.body.appendChild(probe);
+      var natural = probe.getBoundingClientRect().width;
+      probe.remove();
+      var keep = !lineWidth || natural <= lineWidth + 1;
+      word.style.display = "inline-block";
+      word.style.whiteSpace = keep ? "nowrap" : "normal";
+      word.style.maxWidth = "100%";
+      word.style.wordBreak = "keep-all";
+      word.style.overflowWrap = "anywhere";
+    }
+  }
+
+  function queueHeroTitleBalance(node) {
+    var run = function () { balanceHeroTitleIfOrphan(node); };
+    if (global.requestAnimationFrame) global.requestAnimationFrame(function () { global.requestAnimationFrame(run); });
+    else run();
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;
