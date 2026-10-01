@@ -5,6 +5,6 @@ export const ENTRY_SLOTS: Readonly<Record<"screwfast" | "forge" | "landwind" | "
 
 export function normalizeReadable(text: unknown): string;
 
-export function expectedFacts(draft: unknown): PublishedFact[];
+export function expectedFacts(draft: unknown, locale?: "zh" | "en"): PublishedFact[];
 
 export function missingFacts(facts: PublishedFact[], readable: unknown): PublishedFact[];

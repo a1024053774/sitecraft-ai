@@ -225,6 +225,10 @@ const INSPECT = `(async () => {
   const heroTitleScan = (${HERO_WORD_BREAK_SCAN})(document.querySelector(".sitecraft-hero h1"));
   const heroOrphan = heroTitleScan.heroOrphan;
   const heroTitleWordBreak = heroTitleScan.heroTitleWordBreak;
+  const englishSpecValueHan = [...document.querySelectorAll(".sitecraft-product-key dd, .sitecraft-product-specs td, .sitecraft-compare-value, .sitecraft-hero-spec dd, .sitecraft-nameplate dd")]
+    .filter(visible)
+    .filter((el) => /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(el.textContent || ""))
+    .map((el) => ({ element: el.tagName.toLowerCase(), text: (el.textContent || "").trim() }));
   const headerControls = header ? [...header.querySelectorAll(".sitecraft-nav-cta, summary")].filter((el) => visible(el)) : [];
   const headerControlStacked = headerControls.some((el) => textLines(el).length > 1);
   const brand = document.querySelector(".sitecraft-brand-name");
@@ -304,6 +308,7 @@ const INSPECT = `(async () => {
     textFit: textFit.slice(0, 40),
     heroOrphan,
     heroTitleWordBreak,
+    englishSpecValueHan,
     brandClipped,
     headerOverflow,
     headerControlStacked,
@@ -324,7 +329,7 @@ const INSPECT = `(async () => {
   };
 })()`;
 
-function judge(report, facts) {
+function judge(report, facts, locale = "zh") {
   const failures = [];
   if (report.editorCursor === "pointer") failures.push("visitor slot uses a pointer cursor");
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
@@ -336,6 +341,7 @@ function judge(report, facts) {
   }
   if (report.heroOrphan) failures.push("hero title last line is a single character");
   if (report.heroTitleWordBreak) failures.push("hero title breaks inside a Chinese word");
+  if (locale === "en" && report.englishSpecValueHan.length) failures.push(`English spec values contain Chinese (${report.englishSpecValueHan.slice(0, 6).map((item) => `${item.element} \"${item.text}\"`).join(", ")})`);
   if (report.brandClipped) failures.push("header company name is truncated");
   if (report.headerOverflow) failures.push("header overflows the viewport");
   if (report.headerControlStacked) failures.push("header control text wraps inside its button");
@@ -462,10 +468,10 @@ async function checkSubmission(browser, sessionId, frame, siteKey, width) {
 // Catalog entries the draft actually provides must reach the visitor page (visitor-visible ones only).
 // The draft's material facts (products and specs, FAQ, steps, catalog entries and bodies, contact),
 // read from the draft API, not from the page.
-async function draftFacts(siteKey) {
+async function draftFacts(siteKey, locale = "zh") {
   const payload = await fetch(`${BASE}/api/sites/${siteKey}/draft`).then((r) => r.json()).catch(() => null);
   const draft = payload && (payload.draft || payload);
-  return draft && draft.content ? expectedFacts(draft) : [];
+  return { draft, facts: draft && draft.content ? expectedFacts(draft, locale) : [] };
 }
 
 async function checkOne(browser, siteKey, width) {
@@ -479,36 +485,53 @@ async function checkOne(browser, siteKey, width) {
       return state === "ready";
     }, `${siteKey} preview ready`);
     const frame = await attachPreviewFrame(browser);
-    let last = 0;
-    let stable = 0;
-    await waitFor(async () => {
-      const h = await browser.evaluate(`document.documentElement.scrollHeight`, frame);
-      stable = Math.abs(h - last) < 8 && h > 600 ? stable + 1 : 0;
-      last = h;
-      return stable >= 4;
-    }, `${siteKey} height to settle`);
-    const report = await browser.evaluate(INSPECT, frame);
-    await browser.send("Emulation.setDeviceMetricsOverride", { width, height: report.height, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
-    await browser.evaluate(`(() => {
-      for (const el of document.querySelectorAll(".published-template-shell, .published-template-stage, .open-source-template-frame-shell, iframe.open-source-template-frame")) {
-        el.style.height = "${report.height}px"; el.style.minHeight = "${report.height}px"; el.style.overflow = "visible";
-      }
-    })()`, sessionId);
-    await sleep(600);
-    const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: report.height, scale: 1 } }, sessionId);
-    const file = path.join(outDir, `${siteKey}-${width}.png`);
-    fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
-    const facts = await draftFacts(siteKey);
-    const failures = judge(report, facts);
+    const capture = async (locale) => {
+      let last = 0;
+      let stable = 0;
+      await waitFor(async () => {
+        const h = await browser.evaluate(`document.documentElement.scrollHeight`, frame);
+        stable = Math.abs(h - last) < 8 && h > 600 ? stable + 1 : 0;
+        last = h;
+        return stable >= 4;
+      }, `${siteKey} ${locale} height to settle`);
+      const captured = await browser.evaluate(INSPECT, frame);
+      await browser.send("Emulation.setDeviceMetricsOverride", { width, height: captured.height, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
+      await browser.evaluate(`(() => {
+        for (const el of document.querySelectorAll(".published-template-shell, .published-template-stage, .open-source-template-frame-shell, iframe.open-source-template-frame")) {
+          el.style.height = "${captured.height}px"; el.style.minHeight = "${captured.height}px"; el.style.overflow = "visible";
+        }
+      })()`, sessionId);
+      await sleep(600);
+      const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: captured.height, scale: 1 } }, sessionId);
+      const file = path.join(outDir, `${siteKey}-${locale}-${width}.png`);
+      fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
+      return { ...captured, screenshot: file };
+    };
+    const { draft, facts } = await draftFacts(siteKey, "zh");
+    const report = await capture("zh");
+    const failures = judge(report, facts, "zh");
     report.facts = { expected: facts.length, missing: missingFacts(facts, report.readable).length };
-    delete report.text;
-    delete report.readable;
     if (submit) {
       const result = await checkSubmission(browser, sessionId, frame, siteKey, width);
       failures.push(...result.failures);
       report.inquiry = { success: result.success, failure: result.failure };
     }
-    return { siteKey, width, screenshot: file, failures, ...report };
+    let english = null;
+    if (draft?.englishReady === true) {
+      await browser.evaluate(`document.querySelector('[data-sitecraft-locale="en"]')?.click()`, frame);
+      await waitFor(() => browser.evaluate(`document.documentElement.lang === "en"`, frame), `${siteKey} English locale`);
+      const enReport = await capture("en");
+      const enFacts = expectedFacts(draft, "en");
+      const enFailures = judge(enReport, enFacts, "en");
+      enReport.facts = { expected: enFacts.length, missing: missingFacts(enFacts, enReport.readable).length };
+      delete enReport.text;
+      delete enReport.readable;
+      english = { ...enReport, failures: enFailures };
+      failures.push(...enFailures.map((failure) => `English page: ${failure}`));
+    }
+    delete report.text;
+    delete report.readable;
+    return { siteKey, width, screenshot: report.screenshot, failures, ...report, english };
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
   }

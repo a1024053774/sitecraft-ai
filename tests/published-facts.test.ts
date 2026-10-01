@@ -71,6 +71,16 @@ test("the facts come from the draft: products and their specs, entries the look 
   assert.ok(!facts.some((fact) => fact.kind === "certifications body"), "certificates are badges: name and status");
 });
 
+test("English facts use English spec values and omit missing English values", () => {
+  const draft = sampleDraft();
+  draft.englishReady = true;
+  draft.products[0].specs![0].value = { zh: "底脚/法兰", en: "Foot / flange" };
+  draft.products[0].specs![1].value = { zh: "安装方向", en: "To be provided" };
+  const facts = expectedFacts(draft, "en");
+  assert.ok(has(facts, "spec value", "Foot / flange"));
+  assert.ok(!facts.some((fact) => fact.text === "底脚/法兰" || fact.text === "安装方向"));
+});
+
 test("sections the draft hides are not expected", () => {
   const draft = sampleDraft();
   draft.hiddenSections = ["faq", "services", "capabilities"];

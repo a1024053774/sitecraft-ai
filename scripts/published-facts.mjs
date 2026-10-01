@@ -28,14 +28,14 @@ const DEFAULT_CERTIFICATION_VARIANTS = {
 
 const GAP = /^(待补充|To be provided|To be completed)$/;
 const isGap = (value) => !value || GAP.test(String(value).trim());
-const zh = (value) => (value && typeof value === "object" ? value.zh : value) ?? "";
+const localize = (value, locale) => (value && typeof value === "object" ? value[locale] : value) ?? "";
 
 // The break marks the bridge adds (U+200B, U+2060) are not part of a fact; white space counts once.
 export function normalizeReadable(text) {
   return String(text ?? "").replace(/[\u200b\u2060]/g, "").replace(/\s+/g, " ").trim();
 }
 
-export function expectedFacts(draft) {
+export function expectedFacts(draft, locale = "zh") {
   const facts = [];
   const add = (kind, value) => {
     const text = normalizeReadable(value);
@@ -46,13 +46,15 @@ export function expectedFacts(draft) {
   if (!hidden.has("products")) {
     for (const product of Array.isArray(draft?.products) ? draft.products : []) {
       // A product with neither a name nor a description is not shown.
-      if (!product || (isGap(zh(product.name)) && isGap(zh(product.summary)))) continue;
-      add("product name", zh(product.name));
-      add("product description", zh(product.summary));
+      if (!product || (isGap(localize(product.name, locale)) && isGap(localize(product.summary, locale)))) continue;
+      add("product name", localize(product.name, locale));
+      add("product description", localize(product.summary, locale));
       for (const spec of Array.isArray(product.specs) ? product.specs : []) {
         if (!spec || isGap(spec.value)) continue;
-        add("spec name", zh(spec.name));
-        add("spec value", spec.value);
+        const value = localize(spec.value, locale);
+        if (isGap(value)) continue;
+        add("spec name", localize(spec.name, locale));
+        add("spec value", value);
       }
     }
   }
@@ -60,18 +62,18 @@ export function expectedFacts(draft) {
   for (const [key, question, answer] of [["faq", "FAQ question", "FAQ answer"], ["services", "step title", "step body"]]) {
     if (hidden.has(key)) continue;
     const items = Array.isArray(content[key]?.items) ? content[key].items : [];
-    const provided = items.filter((item) => item && !(isGap(zh(item.title)) && isGap(zh(item.body))));
+    const provided = items.filter((item) => item && !(isGap(localize(item.title, locale)) && isGap(localize(item.body, locale))));
     for (const item of provided.slice(0, entries[key])) {
-      add(question, zh(item.title));
-      add(answer, zh(item.body));
+      add(question, localize(item.title, locale));
+      add(answer, localize(item.body, locale));
     }
   }
   for (const key of ["industries", "capabilities", "certifications"]) {
     if (hidden.has(key)) continue;
     for (const item of Array.isArray(content[key]?.items) ? content[key].items : []) {
       if (!item) continue;
-      const title = zh(item.title);
-      const body = zh(item.body);
+      const title = localize(item.title, locale);
+      const body = localize(item.body, locale);
       if (isGap(title) && isGap(body)) continue;
       // Visitors see no certificate that is still a gap.
       if (key === "certifications" && item.status === "待补充") continue;
