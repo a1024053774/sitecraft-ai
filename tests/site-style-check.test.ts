@@ -3,6 +3,7 @@ import test from "node:test";
 import type { SiteDraft } from "../lib/site-document.ts";
 import { checkSiteStyle } from "../lib/site-style-check.ts";
 import { brightLook } from "../lib/blocks/looks/bright.ts";
+import { catalogLook } from "../lib/blocks/looks/catalog.ts";
 import { visualBriefCatalog } from "../lib/site-document.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
 
@@ -58,6 +59,23 @@ test("bright product directions pass all three browser widths for all three mate
         draft: { ...packDraft(pack), templateId: "forge", visualBrief: structuredClone(brightBrief), siteStyle: { direction, rules: [] } },
         baseUrl: process.env.SITECRAFT_BASE || "http://127.0.0.1:3034",
         outDir: `artifacts/t055/site-style-bright/${pack}-${direction}`,
+      });
+      assert.equal(result.ok, true, `${pack}/${direction}: ${result.ok ? "" : result.reasons.join("；")}`);
+      assert.deepEqual(result.widths, [375, 768, 1440]);
+    }
+  }
+});
+
+test("catalog directions pass all three browser widths for all three materials", async () => {
+  const catalogBrief = visualBriefCatalog.find((brief) => brief.id === "export-catalog");
+  assert.ok(catalogBrief);
+  for (const pack of ["industrial", "export", "molding"] as const) {
+    for (const direction of ["spec-led", "catalog-led", "capability-led"] as const) {
+      const result = await checkSiteStyle({
+        templateId: "landwind",
+        draft: { ...packDraft(pack), templateId: "landwind", visualBrief: structuredClone(catalogBrief), siteStyle: { direction, rules: [] } },
+        baseUrl: process.env.SITECRAFT_BASE || "http://127.0.0.1:3034",
+        outDir: `artifacts/t056/site-style-catalog/${pack}-${direction}`,
       });
       assert.equal(result.ok, true, `${pack}/${direction}: ${result.ok ? "" : result.reasons.join("；")}`);
       assert.deepEqual(result.widths, [375, 768, 1440]);

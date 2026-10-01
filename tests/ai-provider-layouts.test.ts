@@ -139,11 +139,11 @@ test("an appearance edit keeps the direction menu without a material recommendat
   assert.doesNotMatch(system, /服务端建议/);
 });
 
-test("looks still on their own overlay get no layout menu", async () => {
+test("catalog look exposes the block layout menu", async () => {
   await ask({ ...structuredClone(defaultDraft), templateId: "landwind" }, "看看现在的页面", { type: "answer", text: "ok" });
   const system = lastMessage("system");
-  assert.equal(system.includes("set_block_variant"), false);
-  assert.equal(system.includes("参数对比表"), false);
+  assert.match(system, /set_block_variant/);
+  assert.match(system, /目录行/);
   assert.match(system, /最多 24 条/);
 });
 

@@ -8,7 +8,7 @@ export const navFragment: BlockFragment = {
 .sitecraft-brand { display: flex; align-items: center; gap: 12px; min-width: 0; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
 .sitecraft-brand-mark { width: 30px; height: 30px; flex: none; background: var(--site-ink); position: relative; }
 .sitecraft-brand-mark::after { content: ""; position: absolute; inset: 0; background: var(--site-accent); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
-.sitecraft-brand-name { min-width: 0; line-height: 1.15; white-space: normal; }
+.sitecraft-brand-name { min-width: 0; line-height: 1.15; white-space: normal; word-break: keep-all; overflow-wrap: normal; text-wrap: balance; }
 .sitecraft-nav-links { display: flex; align-items: center; gap: 26px; font-size: 14px; color: var(--site-muted); }
 .sitecraft-nav-links a:hover { color: var(--site-ink); }
 .sitecraft-nav-tools { display: flex; align-items: center; gap: 12px; flex: none; }

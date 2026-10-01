@@ -255,6 +255,20 @@ const INSPECT = `(async () => {
         parent = parent.parentElement;
       }
     }
+    // A company name may fit its box while still breaking between two characters of one word.
+    // Treat that as the same visitor-facing brand failure as clipping.
+    if (!brandClipped && brandNode) {
+      const wordChar = (value) => /[\u4e00-\u9fffA-Za-z0-9]/.test(value);
+      const range = document.createRange();
+      for (let index = 0; index + 1 < brandValue.length; index += 1) {
+        if (!wordChar(brandValue[index]) || !wordChar(brandValue[index + 1])) continue;
+        range.setStart(brandNode, index); range.setEnd(brandNode, index + 1);
+        const first = range.getBoundingClientRect();
+        range.setStart(brandNode, index + 1); range.setEnd(brandNode, index + 2);
+        const second = range.getBoundingClientRect();
+        if (Math.abs(first.top - second.top) > 1) { brandClipped = true; break; }
+      }
+    }
   }
   const siteHeader = document.querySelector(".sitecraft-nav") || document.querySelector("header");
   const headerOverflow = Boolean(siteHeader && (siteHeader.scrollWidth > siteHeader.clientWidth + 1 || siteHeader.getBoundingClientRect().right > innerWidth + 1));

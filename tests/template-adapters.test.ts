@@ -10,7 +10,6 @@ import {
   sameFamilyTokens,
   templateAdapters,
 } from "../lib/template-adapters/index.ts";
-import type { TemplateDemoChrome } from "../lib/template-adapters/types.ts";
 import { servedHomeHtml, withoutTemplates } from "./fixtures/look-pages.ts";
 
 test("adapters are JSON data, not per-template JavaScript source", () => {

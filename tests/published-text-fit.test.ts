@@ -26,4 +26,5 @@ test("check-published runs the text-fit scan and reports each way text can fail 
   assert.match(scan, /overflowX === "hidden" \|\| [\w.]*overflowX === "clip"/, "text hidden by a clipping ancestor");
   assert.match(scan, /details:not\(\[open\]\)/, "folded spec lists are opened while measuring");
   assert.match(scan, /narrow-body/, "catalog cards with only a few glyphs per body line are reported");
+  assert.match(checkSource, /company name may fit its box while still breaking/, "brand word breaks share the truncation check");
 });
