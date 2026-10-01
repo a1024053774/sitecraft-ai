@@ -30,7 +30,8 @@ supersedes:
 - [ ] 三份模拟资料用这个样子生成，`check-published` 通过，1440 / 768 / 375 截图打开看过
 - [ ] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
 - [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查通过；Claude 验收；旧 overlay 已删除
+- [ ] 代码审查通过；Claude 验收
+- [x] 旧 overlay 已删除
 
 ## Resolution
 
@@ -77,6 +78,21 @@ supersedes:
 - 最终验证（提交 `2985b70` 后）：`npm test` 510/510，0 失败/0 跳过；typecheck、build 通过。日志：`artifacts/t057/full-r7-2985b70.log`、`artifacts/t057/typecheck-r7-2985b70.log`、`artifacts/t057/build-r7-2985b70.log`。
 - `check-published` 于 `2026-10-01 13:44:16 -0400`（独立 `CDP_PORT=9984`）运行，9/9 通过；报告和截图在 `artifacts/t057/published-r7-2985b70/`。
 - 三套对照均晚于新提交：工程工业 `artifacts/t057/engineering-2985b70/report.json` 66/66 一致；明亮产品 `artifacts/t057/forge-2985b70/report.json` 9/9 一致；蓝白目录 `artifacts/t057/landwind-2985b70/report.json` 9/9 一致。报告时间分别为 13:45:49、13:46:08、13:46:30 -0400。
+
+### 删除旧 overlay（最终步骤）
+
+- 删除 `lib/template-adapters/overlays/tailwind-landing.index.html`，删空并移除 `Dockerfile` 的 overlay COPY；`lib/template-static.ts` 只保留 composed page 路径，不再有灰底 host overlay 常量或分支。
+- 原 overlay 专属测试改为区块库拼页断言；`tests/engineering-page-without-snapshot.test.ts` 增加灰底 overlay 不存在、源码无引用断言。`git grep 'overlays/'` 只剩历史票 T-046/T-047/T-053/T-055/T-056/T-057。
+- 最终提交 `2985b70` 后的全量/build/check-published/三套对照证据仍有效；删除本步只移除已不再读取的旧文件和路由分支，最终代码与文档一并提交。
+
+### 删除步骤最终证据（代码提交 `1a2b0a3`，证据均在删除后生成）
+
+- 删除 `lib/template-adapters/overlays/tailwind-landing.index.html` 和空的 `overlays/` 目录，移除 Dockerfile 的 COPY；`lib/template-static.ts` 只走 `composedPageForTemplate`。原 overlay 专属测试已改为区块库拼页断言，灰底短路径的源码无引用断言已加入 `tests/engineering-page-without-snapshot.test.ts`。
+- 删除后 `git grep 'overlays/'` 只命中历史票 T-046、T-047、T-053、T-055、T-056、T-057；生产代码、Dockerfile、测试和 living docs 不再引用旧路径。
+- 删除后全量测试（`2026-10-01 14:17:03 -0400`）512/512、0 失败/0 跳过；`npm run typecheck`（14:18:10）和 `npm run build`（14:18:35）均通过。日志：`artifacts/t057/full-delete-1a2b0a3.log`、`artifacts/t057/typecheck-delete-1a2b0a3.log`、`artifacts/t057/build-delete-1a2b0a3.log`。
+- 删除后 `check-published`（14:19:18）三份真实草稿 9/9 通过，报告和截图在 `artifacts/t057/published-delete-1a2b0a3/`。
+- 删除后对照均无非预期差异：工程工业用 `scripts/compare-engineering-default.mjs --old 7d09e6e`，66/66；明亮产品用 `scripts/compare-look-baseline.mjs --template forge --old 7d09e6e`，9/9；蓝白目录用同脚本 `--template landwind --old 7d09e6e`，9/9。报告分别为 `artifacts/t057/engineering-delete-1a2b0a3-rerun/`（14:22:35）、`artifacts/t057/forge-delete-1a2b0a3/`（14:23:00）、`artifacts/t057/landwind-delete-1a2b0a3/`（14:23:19）。
+- 灰底短路径的删除前后区块库页逐像素对照用 `node artifacts/t057/compare-tailwind-composed-delete-1a2b0a3.mjs --template tailwind-landing --old 9cdfabd --out artifacts/t057/tailwind-composed-delete-1a2b0a3`（Chrome for Testing，14:27:56）完成，3 份草稿 × 3 档共 9/9、`different=0`；报告：`artifacts/t057/tailwind-composed-delete-1a2b0a3/report.json`。旧提交源码归档在 `artifacts/t057/source-archives/compare-delete-1a2b0a3/`。
 
 ### 短路径标题平衡收窄（候选 `9cdfabd`）
 

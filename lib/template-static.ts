@@ -120,12 +120,6 @@ export function getTemplateStaticRoot(templateId: string) {
   return null;
 }
 
-export const TAILWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/tailwind-landing.index.html";
-
-function tailwindHostOverlayFile() {
-  return path.resolve(/* turbopackIgnore: true */ process.cwd(), TAILWIND_HOST_OVERLAY_PATH);
-}
-
 export async function readTemplateStaticFile(templateId: string, segments: string[]) {
   // A look on the block library (T-053) serves one page, composed from lib/blocks, and nothing from
   // the vendor snapshot: not its pages, not its files (the composed page uses none), and it does not
@@ -145,9 +139,6 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
   if (!target) return null;
   try {
     const isRootIndex = target === path.join(root, "index.html");
-    if (isRootIndex && templateId === "tailwind-landing") {
-      target = tailwindHostOverlayFile();
-    }
     const body = await readFile(/* turbopackIgnore: true */ target);
     const extension = path.extname(target).toLowerCase();
     if (extension === ".html") {

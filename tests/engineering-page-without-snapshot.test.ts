@@ -12,6 +12,7 @@ import { pathToFileURL } from "node:url";
 // overlay is deleted and nothing refers to it. The submodule and the template's reference entry stay.
 
 const REPO_ROOT = process.cwd();
+const OVERLAY_ROOT = path.join(REPO_ROOT, "lib", "template-adapters", "overlays");
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (!specifier.startsWith("@/")) return nextResolve(specifier, context);
@@ -72,11 +73,27 @@ test("without the vendor snapshot the engineering page is still served and can s
 });
 
 test("the bright product page no longer ships the retired forge overlay", () => {
-  assert.equal(existsSync(path.join(REPO_ROOT, "lib/template-adapters/overlays/forge.index.html")), false);
+  assert.equal(existsSync(path.join(OVERLAY_ROOT, "forge.index.html")), false);
 });
 
 test("the blue-white catalog page no longer ships the retired landwind overlay", () => {
-  assert.equal(existsSync(path.join(REPO_ROOT, "lib/template-adapters/overlays/landwind.index.html")), false);
+  assert.equal(existsSync(path.join(OVERLAY_ROOT, "landwind.index.html")), false);
+});
+
+test("the grey short-path page no longer ships or references an overlay", () => {
+  assert.equal(existsSync(path.join(OVERLAY_ROOT, "tailwind-landing.index.html")), false);
+  const sources: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const file = path.join(dir, name);
+      if (statSync(file).isDirectory()) walk(file);
+      else if (/\.(ts|tsx|mjs|js|html)$/.test(name)) sources.push(file);
+    }
+  };
+  for (const dir of ["lib", "app", "components", "scripts"]) walk(path.join(REPO_ROOT, dir));
+  for (const file of [...sources, path.join(REPO_ROOT, "Dockerfile")]) {
+    assert.equal(readFileSync(file, "utf8").includes(["overlays", "tailwind-landing"].join("/")), false, path.relative(REPO_ROOT, file));
+  }
 });
 
 test("the snapshot's own pages and assets are not served for the engineering look", async () => {
@@ -95,7 +112,7 @@ test("the snapshot's own pages and assets are not served for the engineering loo
 });
 
 test("the old screwfast overlay is gone and nothing refers to it; the submodule and the reference entry stay", () => {
-  assert.equal(existsSync(path.join(REPO_ROOT, "lib/template-adapters/overlays/screwfast.index.html")), false);
+  assert.equal(existsSync(path.join(OVERLAY_ROOT, "screwfast.index.html")), false);
   const sources: string[] = [];
   const walk = (dir: string) => {
     for (const name of readdirSync(dir)) {
@@ -106,7 +123,7 @@ test("the old screwfast overlay is gone and nothing refers to it; the submodule 
   };
   for (const dir of ["lib", "app", "components", "scripts"]) walk(path.join(REPO_ROOT, dir));
   for (const file of [...sources, path.join(REPO_ROOT, "Dockerfile")]) {
-    assert.equal(readFileSync(file, "utf8").includes("overlays/screwfast"), false, path.relative(REPO_ROOT, file));
+    assert.equal(readFileSync(file, "utf8").includes(["overlays", "screwfast"].join("/")), false, path.relative(REPO_ROOT, file));
   }
   const template = getTemplate("screwfast");
   assert.equal(template.id, "screwfast", "the template entry stays");

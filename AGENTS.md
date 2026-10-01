@@ -47,8 +47,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 这些是用户多轮决定后的结论，改动前须负责人重新确认：
 
 - **样子 → SiteCraft 区块库 + 这个样子的 token → 这家公司的完整页面**（T-048，细则见 `mainline.md`）。开源模板、区块、样式是移植进区块库的素材；不得把整页快照挖空填词当成品，不得把未经移植的外部区块直接拼进页面。
-- **一个预览引擎**：`lib/template-adapters/preview-bridge.ts` + SiteCraft 区块库。迁移期间，还没迁的样子继续用它的旧 overlay；迁完并盲评通过后删掉旧 overlay，不留兼容层。不另起渲染器，本阶段不做原生 React/shadcn 拼装。
-- **运行时模型不输出 HTML 和文字，可以写受限的站点样式**（T-048）。模型理解需求、产生受控意图和白名单 operation；它能写的 CSS 只作用于站点区块，加不进文字、外部资源和固定定位，有大小上限，作为一个 operation 走 `commitOperations`、可单独撤销；提交前按 375 / 768 / 1440 渲染检查横向溢出和文字重叠，不过就拒绝并告诉用户原因，不静默回退。开发侧可以自由改区块库和 overlay 的 HTML/CSS、组件和布局。
+- **一个预览引擎**：`lib/template-adapters/preview-bridge.ts` + SiteCraft 区块库。四个生产样子都由区块库拼页，不保留旧 overlay 兼容层。不另起渲染器，本阶段不做原生 React/shadcn 拼装。
+- **运行时模型不输出 HTML 和文字，可以写受限的站点样式**（T-048）。模型理解需求、产生受控意图和白名单 operation；它能写的 CSS 只作用于站点区块，加不进文字、外部资源和固定定位，有大小上限，作为一个 operation 走 `commitOperations`、可单独撤销；提交前按 375 / 768 / 1440 渲染检查横向溢出和文字重叠，不过就拒绝并告诉用户原因，不静默回退。开发侧可以自由改区块库的 HTML/CSS、组件和布局。
 - **所有草稿修改走 `commitOperations`**。Skill、模型、测试夹具不得旁路写草稿。
 - **adapter 是可审查数据**（选择器、目标、属性、集合映射），不存每模板可执行 JS。写入须唯一命中声明节点；未命中报告 `missing`，不按标题正则、元素顺序或卡片形状猜写。`covered/applied` 只来自实际落点。
 - **成品否决项**：事实只能来自用户资料或「待补充」；不得残留未选用的模板品牌、客户 Logo 墙、SaaS 定价、演示图、假评价/数字、空链接。`missing` 是落点失败，不是保留演示壳的理由。
