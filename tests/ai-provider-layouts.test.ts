@@ -96,6 +96,15 @@ test("on the engineering look the model gets the layouts it may pick, what each 
   assert.match(user, /"blockVariants":\{"products":"compare"\}/, "the model sees the layouts the draft shows now");
 });
 
+test("the product spec prompt distinguishes shared strings from bilingual values", async () => {
+  await ask(packDraft("industrial"), "看看现在的产品参数", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.match(system, /纯数字、单位和型号值两种语言相同，只写字符串/);
+  assert.match(system, /带中文或中文全角标点的值写成 \{zh,en\}/);
+  assert.match(system, /底脚\/法兰/);
+  assert.match(system, /Foot \/ flange/);
+});
+
 test("an appearance edit prompt exposes style directions without a material recommendation", async () => {
   await ask(packDraft("molding"), "按加工能力、产能、工艺和检测来做一个工厂实力网站", { type: "answer", text: "ok" }, true);
   const system = lastMessage("system");
