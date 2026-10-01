@@ -88,6 +88,7 @@ export const brightLook: BlockLook = {
     "--site-footer-head": "var(--site-ink)",
     "--site-footer-top": "var(--site-rule)",
     "--site-eyebrow": "var(--site-accent-strong)",
+    "--site-group-columns": "1fr",
   },
   layout: {
     top: ["nav"],

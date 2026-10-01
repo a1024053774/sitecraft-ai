@@ -73,7 +73,7 @@ ${css}
     </style>
   </head>
   <body>
-    <div class="sitecraft-page">
+    <div class="sitecraft-page sitecraft-look-${look.id}">
 ${body}
     </div>
   </body>

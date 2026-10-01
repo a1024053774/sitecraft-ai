@@ -38,10 +38,10 @@ supersedes:
 
 - 实现：明亮产品使用区块库 look 与 token，补齐卡片行业/能力、步骤卡、展开 FAQ、面板询盘四类变体；站点样式三方向在明亮产品上各自使用 12 条白名单配方。卡片正文改为标题上、说明下；参数值在分隔符处断行；迁移旧 overlay 专属的两个 skip 测试已删除，浏览器关闭不再等待失联响应。
 - 真实生成：工业、外贸、注塑三份资料各依次完成一次需求对齐与 DeepSeek 生成，结果均 applied；记录在 `artifacts/t055/t055-industrial-summary.json`、`t055-export-summary.json`、`t055-molding-summary.json`。
-- 样式验收：三份资料 × 三个方向 × 375/768/1440 三档浏览器检查通过；测试共 496/496、0 skip；`npm run typecheck`、`npm run build` 通过。
-- 发布检查：三份真实草稿的 `check-published` 九档全部通过，报告在 `artifacts/t055/published-real/report.json`。
-- 盲评包：`artifacts/t055/blind/`，对照表 `artifacts/t055/blind-key.json`；同一份草稿同时提供旧 overlay、新区块库版和独立命名的工程工业参照遮字图。
-- 工程工业 66 张默认页对照沿用前两步报告，迁移改动保持 0 差异。
+- 样式验收：三份资料 × 三个方向 × 375/768/1440 三档浏览器检查通过；新增浏览器断言覆盖明亮产品 768/375 单列产品卡与名称/数值行式指标；测试共 500/500、0 skip；`npm run typecheck`、`npm run build` 通过。
+- 发布检查：三份真实草稿重新渲染后，`check-published` 九档全部通过，报告在 `artifacts/t055/published-r1b/report.json`。
+- 工程工业 66 张默认页使用 `scripts/compare-engineering-default.mjs --old 472a304` 重新对照，`artifacts/t055/default-compare-current-r2/report.json` 为 66 identical、0 unexpected。
+- 盲评包：新版在 `artifacts/t055/blind/`，旧包移到 `artifacts/t055/blind-r1/`，对照表 `artifacts/t055/blind-key.json`；同一份草稿同时提供旧 overlay、新区块库版和独立命名的工程工业参照遮字图。
 - 代码审查：
 - 盲评：
 - 删除旧 overlay：

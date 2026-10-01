@@ -46,7 +46,7 @@ export const productsFragment: BlockFragment = {
 /* 按类别分组: each category heads its own row of cards; key specs read as name/value rows so long
    values (materials lists, tolerances with notes) wrap instead of running out of the card. */
 .sitecraft-product-groups { display: grid; gap: 44px; }
-.sitecraft-product-group { display: grid; grid-template-columns: minmax(0, 12em) minmax(0, 1fr); gap: 20px 44px; padding-top: 22px; border-top: var(--site-rule-strong); }
+.sitecraft-product-group { display: grid; grid-template-columns: var(--site-group-columns, minmax(0, 12em) minmax(0, 1fr)); gap: 20px 44px; padding-top: 22px; border-top: var(--site-rule-strong); }
 .sitecraft-product-group-title { margin: 0; font-size: 21px; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; overflow-wrap: anywhere; }
 .sitecraft-product-group-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; }
 .sitecraft-product-groups .sitecraft-product-body { padding: 24px 26px 22px; }
@@ -57,6 +57,7 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-groups .sitecraft-product-key dt { flex: none; max-width: 45%; font-size: 13px; }
 .sitecraft-product-groups .sitecraft-product-key dd, .sitecraft-product-groups .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { margin: 0; min-width: 0; font-size: 17px; text-align: right; white-space: normal; overflow-wrap: anywhere; }
 .sitecraft-product-groups .sitecraft-product-specs td { overflow-wrap: anywhere; }
+.sitecraft-look-industrial .sitecraft-product-group-title { padding-bottom: 10px; border-bottom: var(--site-rule-strong); }
 /* 参数对比表: one short note per series, then a table with a row for each spec every series has
    and a column per series. On phones every row becomes a block that names the series per value. */
 .sitecraft-compare { display: grid; gap: 28px; }
@@ -81,6 +82,12 @@ export const productsFragment: BlockFragment = {
 `,
   narrow: `
 .sitecraft-product-group { grid-template-columns: 1fr; gap: 16px; }
+.sitecraft-look-industrial .sitecraft-product-grid { grid-template-columns: 1fr; }
+.sitecraft-look-industrial .sitecraft-product-keys { grid-template-columns: 1fr; }
+.sitecraft-look-industrial .sitecraft-product-key, .sitecraft-look-industrial .sitecraft-product-key + .sitecraft-product-key { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-left: 0; }
+.sitecraft-look-industrial .sitecraft-product-key + .sitecraft-product-key { border-top: var(--site-rule); }
+.sitecraft-look-industrial .sitecraft-product-key dt { min-width: 0; overflow-wrap: anywhere; }
+.sitecraft-look-industrial .sitecraft-product-key dd, .sitecraft-look-industrial .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { margin: 0; flex: 0 0 auto; max-width: 70%; font-size: 16px; text-align: right; }
 .sitecraft-compare-table th, .sitecraft-compare-table td { padding: 13px 14px; }
 `,
   phone: `

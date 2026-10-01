@@ -97,6 +97,7 @@ export const engineeringLook: BlockLook = {
     "--site-footer-head": "#fff",
     "--site-footer-top": "none",
     "--site-eyebrow": "var(--site-muted)",
+    "--site-group-columns": "minmax(0, 12em) minmax(0, 1fr)",
     "--site-rule": "1px solid var(--site-line)",
     "--site-rule-strong": "2px solid var(--site-ink)",
   },

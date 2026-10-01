@@ -29,3 +29,12 @@ test("bright catalog cards keep the body wide under the title", () => {
   assert.ok(card, "bright catalog cards have a look-specific rule");
   assert.ok(card.declarations.includes("display: block"), card.declarations.join("; "));
 });
+
+test("bright product cards switch to one-column rows on 768px and below, and grouped labels stack above full-width cards", () => {
+  const page = composedPageForTemplate("forge");
+  assert.ok(page);
+  assert.match(page, /sitecraft-look-industrial/);
+  assert.match(page, /sitecraft-look-industrial[^}]*sitecraft-product-grid[^}]*grid-template-columns:\s*1fr/);
+  assert.match(page, /sitecraft-look-industrial[^}]*sitecraft-product-keys[^}]*grid-template-columns:\s*1fr/);
+  assert.match(page, /--site-group-columns:\s*1fr/);
+});

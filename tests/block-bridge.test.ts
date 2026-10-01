@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { blockCatalog, layoutBlocks } from "../lib/blocks/catalog.ts";
 import { composedPageForTemplate } from "../lib/blocks/compose.ts";
-import { engineeringLook } from "../lib/blocks/looks/index.ts";
+import { brightLook, engineeringLook } from "../lib/blocks/looks/index.ts";
 import { visualBriefCatalog, type SiteDraft } from "../lib/site-document.ts";
 import { applySiteOperations } from "../lib/site-operations.ts";
 import { simulatedPacks } from "../lib/simulated-packs.ts";
@@ -97,6 +97,49 @@ test("the engineering page renders a pack draft with one entity per block and ev
   const page = visibleText(document.body);
   assert.ok(page.includes("直角减速机"));
   assert.equal(page.includes("企业名称"), false, "placeholder brand must be replaced");
+});
+
+test("the bright product bridge mounts variants and reports section visibility back to navigation", () => {
+  const html = composedPageForTemplate("forge");
+  assert.ok(html, "forge must be composed from the block library");
+  const adapter = getTemplateAdapter("forge");
+  assert.ok(adapter?.blocks);
+  const document = parseHtmlDocument(html);
+  const api = install(document, adapter);
+  const bright = applySiteOperations(packDraft(), [
+    { op: "set_visual_brief", briefId: "industrial" },
+    { op: "set_section_visibility", section: "industries", visible: false },
+    { op: "set_section_visibility", section: "services", visible: false },
+  ], { templateIds: new Set(visualBriefCatalog.map((item) => item.templateId)), lastChange: "bright-visibility" }).draft as SiteDraft & { blockVariants: Record<string, string> };
+  bright.blockVariants = { products: "grouped", industries: "cards", capabilities: "cards", services: "cards", faq: "open", contact: "panel" };
+  const report = api.applyDeclaredContent(bright, "zh", [], "published");
+  assert.equal(document.querySelector('[data-sc-block="products"]')?.getAttribute("data-sc-variant"), "grouped");
+  assert.equal(document.querySelector('[data-sitecraft-section="industries"]')?.getAttribute("data-sitecraft-section-hidden"), "true");
+  assert.equal(document.querySelector('[data-sitecraft-nav="services"]')?.getAttribute("data-sitecraft-nav-hidden"), "true");
+  assert.ok(report.appliedSlots.includes("industries.visibility"));
+  assert.ok(report.appliedSlots.includes("blockVariants.products"));
+});
+
+test("every declared variant has unique live slots on both block-library looks", () => {
+  for (const [templateId, look] of [["screwfast", engineeringLook], ["forge", brightLook]] as const) {
+    const adapter = getTemplateAdapter(templateId);
+    assert.ok(adapter?.blocks);
+    for (const block of layoutBlocks(look)) {
+      for (const variant of adapter.blocks.variants[block] ?? []) {
+        const html = composedPageForTemplate(templateId);
+        assert.ok(html);
+        const document = parseHtmlDocument(html);
+        const api = install(document, adapter);
+        const raw = packDraft();
+        const selected = templateId === "forge"
+          ? applySiteOperations(raw, [{ op: "set_visual_brief", briefId: "industrial" }], { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing"]), lastChange: "bright-variant-slots" }).draft
+          : raw;
+        (selected as SiteDraft & { blockVariants: Record<string, string> }).blockVariants = { [block]: variant };
+        api.applyDeclaredContent(selected, "zh", [], "published");
+        for (const slot of blockCatalog[block].variants[variant].slots) assert.equal(document.querySelectorAll(slot.selector).length, 1, `${templateId} ${block}:${variant} ${slot.selector}`);
+      }
+    }
+  }
 });
 
 test("without a block choice, and on thumbnails without a draft, the default entities stay in place", () => {
