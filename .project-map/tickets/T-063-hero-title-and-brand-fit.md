@@ -2,7 +2,7 @@
 id: T-063
 title: 首屏大标题和页眉公司名按长度放得下
 type: build
-status: open
+status: closed
 blocked_by: [T-057]
 claimed_by: codex-build
 supersedes:
@@ -20,10 +20,10 @@ T-060 验收时用三份模拟资料真实生成，工程工业页面出了两�
 
 ## Acceptance
 
-- [ ] 测试先写、改动前先失败：用模型原始长标题和公司名（上面两例），在工程工业的 375/768/1440 中英文页都不裁、不溢出、不在词中间断开、没有孤字；英文页公司名不截断
-- [ ] 工程工业 66 张、明亮/蓝白/灰底各 9 张对照，原本放得下的标题和页眉逐像素不变，只有原本溢出的那几张有变化，逐张说明
-- [ ] T-060 的三份真实草稿（模型原始标题）`check-published` 中英文三档通过，检查不放宽；截图逐张看过
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过
+- [x] 测试先写、改动前先失败：用模型原始长标题和公司名（上面两例），在工程工业的 375/768/1440 中英文页都不裁、不溢出、不在词中间断开、没有孤字；英文页公司名不截断
+- [x] 工程工业 66 张、明亮/蓝白/灰底各 9 张对照，原本放得下的标题和页眉逐像素不变，只有原本溢出的那几张有变化，逐张说明
+- [x] T-060 的三份真实草稿（模型原始标题）`check-published` 中英文三档通过，检查不放宽；截图逐张看过
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -32,3 +32,7 @@ T-060 验收时用三份模拟资料真实生成，工程工业页面出了两�
 - 最终证据均在 `a50d582` 之后生成：三份原始标题草稿的 `check-published` 报告和中英文截图 `artifacts/t063/published-final-a50d582/`，三份各 1440/768/375 均通过，英文参数值无汉字且品牌未截断。
 - 对照均在 `a50d582` 之后生成：`scripts/compare-engineering-default.mjs --old 7d09e6e --out artifacts/t063/engineering-final-a50d582` 为 66 张中 65 张逐像素一致，1 张注塑资料首屏/参数区域有预期标题差异，报告标记 `only-hero+products`；`scripts/compare-look-baseline.mjs --template forge --old 7d09e6e --out artifacts/t063/forge-final-a50d582`、`--template landwind` 对应目录各 9/9 零差异；灰底短路径 `artifacts/t057/compare-tailwind-composed-delete-1a2b0a3.mjs --template tailwind-landing --old 9cdfabd --out artifacts/t063/tailwind-final-a50d582` 为 9/9 零差异。
 - 最终验证命令均在 `a50d582` 之后运行：`npm test` 523/523、0 失败/0 跳过（`artifacts/t063/full-final-a50d582.log`）；`npm run typecheck` 与 `npm run build` 通过（对应 `typecheck-final-a50d582.log`、`build-final-a50d582.log`）。
+
+- 代码审查：Astra PASS（候选 `d7aeb32`，`artifacts/review-astra-t060-t063.md`）；残余 P2 同 T-057（验收脚本宽度测量重复）。工程工业唯一差异图（注塑 1440）为原本贴住参数面板的首屏标题缩小后放进本栏，Claude 看过。
+
+Claude 验收关闭（2026-10-01）。
