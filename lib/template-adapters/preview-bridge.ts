@@ -905,9 +905,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
   // Spec values (T-053): on block-library pages a value breaks only at spaces and after / + – 、,
   // and the cell CSS keeps words and Chinese runs whole. A zero-width space marks each such point
   // in the rendered text; the draft keeps the value as written. (A <wbr> element gives the same
-  // breaks but shifts glyphs even where the line does not wrap.) A slash only breaks between two
-  // pieces of at least 3 characters (pieces end at a space or another slash), so units such as
-  // r/min, G1/4 and N/m stay whole. Other looks write values as is.
+  // breaks but shifts glyphs even where the line does not wrap.) A slash breaks between normal
+  // alphabetic pieces of at least two characters or any pieces of at least three characters, so
+  // units such as r/min, G1/4 and N/m stay whole. Other looks write values as is.
   function setValueText(node, value) {
     var text = value == null ? "" : String(value);
     node.textContent = adapter && adapter.blocks ? valueBreakPoints(text) : text;
@@ -931,9 +931,20 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var next = text.charAt(i + 1);
       if (!next || /\s/.test(next)) continue;
       if (ch === "+" || ch === "–" || ch === "、") out += "\u200b";
-      else if (ch === "/" && slashPiece(text, i, -1) >= 3 && slashPiece(text, i, 1) >= 3) out += "\u200b";
+      else if (ch === "/" && slashBreakAllowed(text, i)) out += "\u200b";
     }
     return out;
+  }
+
+  function slashBreakAllowed(text, at) {
+    var before = slashPiece(text, at, -1);
+    var after = slashPiece(text, at, 1);
+    if (before < 3 || after < 3) {
+      var left = text.slice(at - before, at);
+      var right = text.slice(at + 1, at + 1 + after);
+      if (before < 2 || after < 2 || !/^[A-Za-z]+$/.test(left) || !/^[A-Za-z]+$/.test(right)) return false;
+    }
+    return true;
   }
 
   // On a block-library page an email address wraps only at the @ (T-053), whether it is the contact

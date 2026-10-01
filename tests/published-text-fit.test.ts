@@ -15,6 +15,7 @@ test("check-published runs the text-fit scan and reports each way text can fail 
     "text runs out of its cell or card",
     "text is cut off with an ellipsis or a line clamp",
     "text is clipped by its container",
+    "catalog card body is squeezed into a narrow column",
   ]) {
     assert.ok(checkSource.includes(message), `check-published reports: ${message}`);
   }
@@ -24,4 +25,5 @@ test("check-published runs the text-fit scan and reports each way text can fail 
   assert.match(scan, /webkitLineClamp/, "line-clamp truncation");
   assert.match(scan, /overflowX === "hidden" \|\| [\w.]*overflowX === "clip"/, "text hidden by a clipping ancestor");
   assert.match(scan, /details:not\(\[open\]\)/, "folded spec lists are opened while measuring");
+  assert.match(scan, /narrow-body/, "catalog cards with only a few glyphs per body line are reported");
 });

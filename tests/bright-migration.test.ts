@@ -3,6 +3,8 @@ import test from "node:test";
 import { blockCatalog } from "../lib/blocks/catalog.ts";
 import { composedPageForTemplate } from "../lib/blocks/compose.ts";
 import { blockLookForTemplate } from "../lib/blocks/looks/index.ts";
+import { cssRules } from "./fixtures/css-rules.ts";
+import { styleText } from "./fixtures/css-rules.ts";
 
 test("the bright-product migration declares its five block-library variants", () => {
   assert.ok(blockCatalog.industries.variants.cards);
@@ -17,4 +19,13 @@ test("forge is served by a composed block-library look", () => {
   const page = composedPageForTemplate("forge");
   assert.ok(page?.includes('data-sc-block="hero"'));
   assert.equal(page?.includes("data-sitecraft-demo"), false);
+});
+
+test("bright catalog cards keep the body wide under the title", () => {
+  const page = composedPageForTemplate("forge");
+  assert.ok(page);
+  const rules = cssRules(styleText(page));
+  const card = rules.find((rule) => rule.selector === ".sitecraft-catalog-cards .sitecraft-catalog-card");
+  assert.ok(card, "bright catalog cards have a look-specific rule");
+  assert.ok(card.declarations.includes("display: block"), card.declarations.join("; "));
 });

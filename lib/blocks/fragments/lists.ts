@@ -19,7 +19,8 @@ const cards = (key: "industries" | "capabilities", title: string) => `<section i
 
 export const industriesFragment: BlockFragment = {
   css: `.sitecraft-catalog-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; border-top: 0; }
-.sitecraft-catalog-cards .sitecraft-catalog-card { min-width: 0; padding: 20px; background: var(--site-key-bg); border: var(--site-rule); border-radius: var(--site-tile-radius); }`,
+.sitecraft-catalog-cards .sitecraft-catalog-card { display: block; min-width: 0; padding: 20px; background: var(--site-key-bg); border: var(--site-rule); border-radius: var(--site-tile-radius); }
+.sitecraft-catalog-cards .sitecraft-catalog-card p { margin-top: 8px; }`,
   variants: { list: list("industries", "应用行业"), cards: cards("industries", "应用行业") },
 };
 

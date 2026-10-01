@@ -42,6 +42,16 @@
       else if (clamp && el.scrollHeight > el.clientHeight + 1) add("ellipsis", el);
       else if (wide) add("overflow", el);
     }
+    // A catalog card body must have enough width to read as a sentence. The old two-column
+    // treatment left only a few glyphs per line even though no pixel overflow was reported.
+    for (const card of root.querySelectorAll(".sitecraft-catalog-cards .sitecraft-catalog-card")) {
+      const body = card.querySelector("p");
+      if (!body || !shown(body)) continue;
+      const cardWidth = card.getBoundingClientRect().width;
+      const bodyWidth = body.getBoundingClientRect().width;
+      const fontSize = parseFloat(getComputedStyle(body).fontSize) || 16;
+      if (cardWidth > 0 && bodyWidth / fontSize < 5 && (body.textContent || "").trim().length >= 6) add("narrow-body", body);
+    }
     // Each line of text against the ancestors that clip it, then against the block it sits in.
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const range = document.createRange();

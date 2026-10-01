@@ -142,6 +142,7 @@ const TEXT_FIT_FAILURES = [
   ["overflow", "text runs out of its cell or card"],
   ["ellipsis", "text is cut off with an ellipsis or a line clamp"],
   ["clipped", "text is clipped by its container"],
+  ["narrow-body", "catalog card body is squeezed into a narrow column"],
   ["email", "an email address wraps at a hyphen or inside a name instead of at the @"],
 ];
 
