@@ -6,7 +6,10 @@ import { applySiteOperations, type SiteOperation } from "../../lib/site-operatio
 import { simulatedPacks } from "../../lib/simulated-packs.ts";
 
 const gap = { zh: "待补充", en: "To be provided" };
-const spec = (zh: string, en: string, value: string) => ({ name: { zh, en }, value });
+const spec = (zh: string, en: string, value: string | [string, string]) => ({
+  name: { zh, en },
+  value: Array.isArray(value) ? { zh: value[0], en: value[1] } : value,
+});
 const product = (sku: string, name: [string, string], category: [string, string] | null, summary: [string, string], specs: Product["specs"]): Product => ({
   sku,
   name: { zh: name[0], en: name[1] },
@@ -37,14 +40,14 @@ const packs: Record<PackDraftId, { operations: SiteOperation[] }> = {
             spec("额定输出扭矩", "Rated output torque", "8500 N·m"),
             spec("中心距", "Center distance", "200 mm"),
             spec("输入转速", "Input speed", "≤1500 r/min"),
-            spec("安装方式", "Mounting", "底脚/法兰"),
+            spec("安装方式", "Mounting", ["底脚/法兰", "Foot / flange"]),
           ]),
           product("planetary-gearbox", ["行星减速机", "Planetary gearbox"], ["重载减速机", "Heavy-duty gearboxes"], ["法兰安装的行星减速机，防护等级 IP65。", "Flange-mounted planetary gearbox, IP65."], [
             spec("速比范围", "Ratio range", "i=4–100"),
             spec("额定输出扭矩", "Rated output torque", "3200 N·m"),
             spec("机座号", "Frame size", "F280"),
             spec("输入转速", "Input speed", "≤3000 r/min"),
-            spec("安装方式", "Mounting", "法兰"),
+            spec("安装方式", "Mounting", ["法兰", "Flange"]),
             spec("防护等级", "Protection class", "IP65"),
           ]),
         ],
@@ -89,14 +92,14 @@ const packs: Record<PackDraftId, { operations: SiteOperation[] }> = {
         op: "replace_products",
         products: [
           product("hot-runner-mold", ["多腔热流道模具", "Multi-cavity hot runner mold"], ["注塑模具", "Injection molds"], ["多腔热流道模具，开放式或针阀式热流道。", "Multi-cavity hot runner molds, open or valve gate."], [
-            spec("型腔数", "Cavities", "1–32 腔"),
-            spec("模具尺寸", "Mold size", "最大 900×1200 mm"),
+            spec("型腔数", "Cavities", ["1–32 腔", "1–32 cavities"]),
+            spec("模具尺寸", "Mold size", ["最大 900×1200 mm", "Up to 900×1200 mm"]),
             spec("模具钢材", "Mold steel", "S136/H13/NAK80"),
             spec("成型周期", "Cycle time", "12–40 s"),
           ]),
           product("two-shot-mold", ["双色注塑模具", "Two-shot injection mold"], ["注塑模具", "Injection molds"], ["旋转式或机械手转移的双色模具。", "Rotary or robot-transfer two-shot molds."], [
-            spec("成型方式", "Molding method", "旋转式/机械手转移"),
-            spec("适配机型", "Machines", "双色注塑机 120–650 t"),
+            spec("成型方式", "Molding method", ["旋转式/机械手转移", "Rotary / robot transfer"]),
+            spec("适配机型", "Machines", ["双色注塑机 120–650 t", "Two-shot injection machine 120–650 t"]),
             spec("材料组合", "Material pairs", "PC+TPU/PP+TPE/ABS+PC"),
             spec("包胶厚度", "Overmold thickness", "≥0.8 mm"),
           ]),
@@ -108,12 +111,12 @@ const packs: Record<PackDraftId, { operations: SiteOperation[] }> = {
           ]),
           product("optical-parts", ["透明光学注塑件", "Transparent optical molded parts"], ["精密注塑件", "Precision molded parts"], ["洁净车间成型的透明件。", "Transparent parts molded in a clean room."], [
             spec("适用材料", "Materials", "PMMA/PC/COC"),
-            spec("透光率", "Light transmission", "≥90%（PMMA 2 mm 厚）"),
+            spec("透光率", "Light transmission", ["≥90%（PMMA 2 mm 厚）", "≥90% (PMMA, 2 mm thick)"]),
             spec("壁厚", "Wall thickness", "0.8–6 mm"),
-            spec("成型环境", "Molding environment", "十万级洁净车间"),
+            spec("成型环境", "Molding environment", ["十万级洁净车间", "Class 100,000 clean room"]),
           ]),
           product("insert-molded-parts", ["金属嵌件注塑件", "Metal insert molded parts"], ["精密注塑件", "Precision molded parts"], ["铜螺母、端子等嵌件注塑。", "Molding over brass nuts, terminals and shafts."], [
-            spec("嵌件类型", "Insert types", "铜螺母/冲压端子/不锈钢轴"),
+            spec("嵌件类型", "Insert types", ["铜螺母/冲压端子/不锈钢轴", "Brass nuts / stamped terminals / stainless steel shafts"]),
             spec("适用材料", "Materials", "PBT+GF/PA6/LCP"),
             spec("定位精度", "Positioning accuracy", "±0.05 mm"),
           ]),

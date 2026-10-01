@@ -45,6 +45,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return undefined;
   }
 
+  function specValueText(value, locale) {
+    return typeof value === "string" ? value : localize(value, locale) || "";
+  }
+
   function readDraftValue(draft, target, locale) {
     if (!draft) return undefined;
     var content = draft.content || {};
@@ -230,7 +234,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var specItem = specs[s];
         if (!specItem) continue;
         var specName = localize(specItem.name, locale) || "";
-        var specValue = typeof specItem.value === "string" ? specItem.value : "";
+        var specValue = specValueText(specItem.value, locale);
         if (isGapMarker(specName) && isGapMarker(specValue)) continue;
         visibleSpecs.push({ name: specName, value: specValue });
       }
@@ -391,7 +395,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var item = specs[s];
       if (!item) continue;
       var name = localize(item.name, locale) || "";
-      var value = typeof item.value === "string" ? item.value.trim() : "";
+      var value = specValueText(item.value, locale).trim();
       var key = (item.name && typeof item.name === "object" ? item.name.zh : item.name) || name;
       key = String(key || "").trim();
       if (isGapMarker(key) || isGapMarker(name) || isGapMarker(value)) continue;
@@ -842,7 +846,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var item = specs[s];
       if (!item) continue;
       var name = localize(item.name, locale) || "";
-      var value = typeof item.value === "string" ? item.value : "";
+      var value = specValueText(item.value, locale);
       if (isGapMarker(name) && isGapMarker(value)) continue;
       list.push({ name: name, value: value });
     }
@@ -1329,7 +1333,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   function isGapMarker(value) {
-    var text = String(value || "").trim();
+    var text = value && typeof value === "object" ? String(value.zh || "").trim() : String(value || "").trim();
     return !text || text === "待补充" || text === "To be provided" || text === "To be completed";
   }
 

@@ -1,5 +1,5 @@
 import { blockCatalog, type BlockId, type BlockRequirement } from "./catalog.ts";
-import type { Product, SiteDraft } from "../site-document.ts";
+import { specValueText, type Product, type SiteDraft } from "../site-document.ts";
 
 /**
  * Checks a variant's minimum materials (the catalog's `requires`) against a draft. Counts follow
@@ -20,7 +20,10 @@ export type RequirementResult = {
 
 const GAP = new Set(["", "待补充", "To be provided", "To be completed"]);
 export function isGapText(value: unknown) {
-  return GAP.has(String(value ?? "").trim());
+  const text = value && typeof value === "object" && "zh" in value
+    ? String((value as { zh?: unknown }).zh ?? "")
+    : String(value ?? "");
+  return GAP.has(text.trim());
 }
 
 function zh(value: string | { zh: string; en: string } | undefined) {
@@ -45,7 +48,7 @@ export function heroFacts(draft: SiteDraft) {
     const valued = (product.specs ?? []).filter((spec) => !isGapText(spec.value));
     for (const spec of valued.slice(0, perProduct)) {
       if (facts.length >= 4) break;
-      facts.push({ product: zh(product.name), name: zh(spec.name), value: spec.value.trim() });
+      facts.push({ product: zh(product.name), name: zh(spec.name), value: specValueText(spec.value, "zh").trim() });
     }
   }
   return facts;
