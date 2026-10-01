@@ -21,7 +21,7 @@ img { display: block; max-width: 100%; }
 .sitecraft-secondary:hover { border-color: var(--site-ink); }
 a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--site-accent); outline-offset: 2px; }
 .sitecraft-section { padding: var(--site-section-space) 0; border-bottom: var(--site-rule); }
-.sitecraft-section-head { display: flex; justify-content: space-between; align-items: end; gap: 32px; margin-bottom: 36px; }
+.sitecraft-section-head { display: flex; justify-content: space-between; align-items: end; gap: 32px; margin-bottom: 36px; padding-bottom: var(--site-head-pad); border-bottom: var(--site-head-rule); }
 .sitecraft-section h2 { margin: 0; font-size: var(--site-h2); letter-spacing: var(--site-heading-tracking); line-height: 1.15; }
 .sitecraft-section-intro { margin: 0; max-width: 32em; color: var(--site-muted); font-size: 16px; line-height: 1.6; }
 /* Two list blocks side by side (the look decides which); either may be absent. */

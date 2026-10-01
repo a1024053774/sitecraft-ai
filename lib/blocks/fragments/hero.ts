@@ -3,11 +3,11 @@ import type { BlockFragment } from "./types.ts";
 // Hero: one statement, one action, then a photo, or a nameplate of key specs, or nothing.
 export const heroFragment: BlockFragment = {
   css: `
-.sitecraft-hero { background: var(--site-surface); border-bottom: var(--site-rule); }
+.sitecraft-hero { background: var(--site-hero-bg); border-bottom: var(--site-rule); }
 .sitecraft-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; padding: 64px 0 72px; }
 .sitecraft-hero-grid > [data-sc-part="copy"] { min-width: 0; }
 .sitecraft-hero[data-sitecraft-hero-mode="none"] .sitecraft-hero-grid { grid-template-columns: minmax(0, 1fr); }
-.sitecraft-eyebrow { margin: 0 0 18px; font-size: 13px; color: var(--site-eyebrow); letter-spacing: 0.02em; }
+.sitecraft-eyebrow { margin: 0 0 18px; padding: var(--site-eyebrow-pad); background: var(--site-eyebrow-bg); font-size: 13px; color: var(--site-eyebrow); letter-spacing: 0.02em; }
 .sitecraft-hero h1 { margin: 0; max-width: var(--site-heading-max); font-size: var(--site-h1); line-height: var(--site-h1-leading); letter-spacing: var(--site-h1-tracking); font-weight: 750; text-wrap: var(--site-heading-text-wrap); word-break: var(--site-heading-break); overflow-wrap: var(--site-heading-wrap); }
 .sitecraft-hero-copy { margin: 22px 0 0; max-width: 34em; font-size: 18px; line-height: 1.6; color: var(--site-muted); }
 .sitecraft-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }

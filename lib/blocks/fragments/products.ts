@@ -22,7 +22,7 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-body { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 26px 28px 24px; }
 .sitecraft-product-category { margin: 0; font-size: 13px; font-weight: 600; color: var(--site-accent-strong); }
 .sitecraft-product-card h3 { margin: 0; font-size: 24px; letter-spacing: -0.01em; }
-.sitecraft-product-keys { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--site-key-gap); background: var(--site-key-bg); border-top: var(--site-rule); border-bottom: var(--site-rule); }
+.sitecraft-product-keys { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--site-key-gap); background: var(--site-key-bg); border-top: var(--site-keys-border); border-bottom: var(--site-keys-border); }
 .sitecraft-product-key { padding: 14px 12px 14px 0; }
 .sitecraft-product-key + .sitecraft-product-key { padding-left: 14px; border-left: var(--site-rule); }
 .sitecraft-product-key dt { font-size: 12px; color: var(--site-muted); }
