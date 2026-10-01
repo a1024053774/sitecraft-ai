@@ -1,4 +1,48 @@
 import type { BlockLook } from "../catalog.ts";
+import type { SiteStyleRule } from "../site-style.ts";
+
+const specLedRules: SiteStyleRule[] = [
+  { block: "hero", part: "band", declarations: { "padding-block": "52px" } },
+  { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1)" } },
+  { block: "products", part: "grid", declarations: { gap: "16px" } },
+  { block: "industries", part: "list", declarations: { "padding-block": "18px" } },
+  { block: "capabilities", part: "list", declarations: { "padding-block": "18px" } },
+  { block: "services", part: "steps", declarations: { gap: "1px" } },
+  { block: "services", part: "item", declarations: { "padding-block": "16px" } },
+  { block: "contact", part: "copy", declarations: { "padding-block": "20px" } },
+  { block: "contact", part: "form", declarations: { "padding-block": "20px" } },
+  { block: "certifications", part: "list", declarations: { gap: "12px" } },
+  { block: "faq", part: "list", declarations: { "padding-block": "10px" } },
+  { block: "hero", part: "actions", declarations: { "padding-block": "4px" } },
+];
+const catalogLedRules: SiteStyleRule[] = [
+  { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1-display)" } },
+  { block: "products", part: "grid", declarations: { gap: "24px", "padding-block": "8px" } },
+  { block: "industries", part: "list", declarations: { "padding-block": "28px" } },
+  { block: "capabilities", part: "list", declarations: { "padding-block": "28px" } },
+  { block: "services", part: "steps", declarations: { gap: "1px", "padding-block": "8px" } },
+  { block: "services", part: "item", declarations: { "padding-block": "22px" } },
+  { block: "contact", part: "copy", declarations: { "padding-block": "28px" } },
+  { block: "contact", part: "form", declarations: { "padding-block": "28px" } },
+  { block: "certifications", part: "list", declarations: { gap: "18px", "padding-block": "12px" } },
+  { block: "faq", part: "list", declarations: { "padding-block": "16px" } },
+  { block: "hero", part: "actions", declarations: { "padding-block": "8px" } },
+  { block: "products", declarations: { "background-color": "var(--site-surface)" } },
+];
+const capabilityLedRules: SiteStyleRule[] = [
+  { block: "hero", part: "band", declarations: { "padding-block": "88px" } },
+  { block: "hero", part: "title", declarations: { "font-size": "var(--site-h1-display)" } },
+  { block: "products", part: "grid", declarations: { gap: "28px" } },
+  { block: "industries", part: "list", declarations: { "background-color": "var(--site-accent-soft)", "padding-block": "28px" } },
+  { block: "capabilities", part: "list", declarations: { "background-color": "var(--site-accent-soft)", "padding-block": "28px" } },
+  { block: "services", part: "steps", declarations: { "background-color": "var(--site-accent-soft)", gap: "1px", "padding-block": "12px" } },
+  { block: "services", part: "item", declarations: { "padding-block": "24px", "padding-inline": "20px" } },
+  { block: "contact", part: "copy", declarations: { "background-color": "var(--site-tint)", "padding-block": "28px" } },
+  { block: "contact", part: "form", declarations: { "padding-block": "28px" } },
+  { block: "certifications", part: "list", declarations: { "padding-block": "16px" } },
+  { block: "faq", part: "list", declarations: { "padding-block": "16px" } },
+  { block: "products", part: "head", declarations: { "padding-block": "24px" } },
+];
 
 /** Grey short-path look token seams. Variants and registry wiring land in later T-057 steps. */
 export const shortPathLook: BlockLook = {
@@ -98,5 +142,10 @@ export const shortPathLook: BlockLook = {
     faq: "side",
     contact: "panel",
     footer: "line",
+  },
+  styleDirections: {
+    "spec-led": { label: "规格为主", summary: "收紧区块间距，突出标题与参数行。", rules: specLedRules },
+    "catalog-led": { label: "目录为主", summary: "放大产品目录节奏，卡片留白更舒展。", rules: catalogLedRules },
+    "capability-led": { label: "工厂实力", summary: "突出能力与合作方式，使用浅色区块面。", rules: capabilityLedRules },
   },
 };
