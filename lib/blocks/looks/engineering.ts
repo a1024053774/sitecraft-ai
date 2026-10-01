@@ -58,6 +58,7 @@ const capabilityLedRules: SiteStyleRule[] = [
 export const engineeringLook: BlockLook = {
   id: "engineering-industrial",
   templateId: "screwfast",
+  heroTitle: "words",
   documentTitle: "工程工业首页",
   tokens: {
     "--site-container": "1200px",
@@ -73,7 +74,7 @@ export const engineeringLook: BlockLook = {
     "--site-heading-wrap": "normal",
     "--site-heading-break": "keep-all",
     "--site-heading-max": "16em",
-    "--site-heading-text-wrap": "balance",
+    "--site-heading-text-wrap": "pretty",
     "--site-heading-tracking": "-0.02em",
     "--site-card-radius": "0",
     "--site-media-radius": "0",
