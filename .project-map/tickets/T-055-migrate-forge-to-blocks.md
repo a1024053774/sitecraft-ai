@@ -33,3 +33,15 @@ supersedes:
 - [ ] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
 - [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
 - [ ] 代码审查通过；Claude 验收；旧 overlay 已删除
+
+## Resolution
+
+- 实现：明亮产品使用区块库 look 与 token，补齐卡片行业/能力、步骤卡、展开 FAQ、面板询盘四类变体；站点样式三方向在明亮产品上各自使用 12 条白名单配方。卡片正文改为标题上、说明下；参数值在分隔符处断行；迁移旧 overlay 专属的两个 skip 测试已删除，浏览器关闭不再等待失联响应。
+- 真实生成：工业、外贸、注塑三份资料各依次完成一次需求对齐与 DeepSeek 生成，结果均 applied；记录在 `artifacts/t055/t055-industrial-summary.json`、`t055-export-summary.json`、`t055-molding-summary.json`。
+- 样式验收：三份资料 × 三个方向 × 375/768/1440 三档浏览器检查通过；测试共 496/496、0 skip；`npm run typecheck`、`npm run build` 通过。
+- 发布检查：三份真实草稿的 `check-published` 九档全部通过，报告在 `artifacts/t055/published-real/report.json`。
+- 盲评包：`artifacts/t055/blind/`，对照表 `artifacts/t055/blind-key.json`；同一份草稿同时提供旧 overlay、新区块库版和独立命名的工程工业参照遮字图。
+- 工程工业 66 张默认页对照沿用前两步报告，迁移改动保持 0 差异。
+- 代码审查：
+- 盲评：
+- 删除旧 overlay：

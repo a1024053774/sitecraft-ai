@@ -52,7 +52,7 @@ test("bright product directions pass all three browser widths for all three mate
   const brightBrief = visualBriefCatalog.find((brief) => brief.id === "industrial");
   assert.ok(brightBrief);
   for (const pack of ["industrial", "export", "molding"] as const) {
-    for (const direction of Object.keys(brightLook.styleDirections ?? {})) {
+    for (const direction of ["spec-led", "catalog-led", "capability-led"] as const) {
       const result = await checkSiteStyle({
         templateId: "forge",
         draft: { ...packDraft(pack), templateId: "forge", visualBrief: structuredClone(brightBrief), siteStyle: { direction, rules: [] } },
