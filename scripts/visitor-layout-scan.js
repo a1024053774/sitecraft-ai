@@ -1,8 +1,9 @@
 // Browser-only. Compare actual text-line rectangles, never the unused boxes of closed details.
 // Keep this expression in lockstep with scripts/hero-word-break-scan.js and check-published.
-const scanHeroTitleWordBreak = (root) => {
+const scanHeroTitle = (root) => {
   const title = root?.matches?.("h1") ? root : root?.querySelector?.("h1");
-  if (!title || typeof Intl?.Segmenter !== "function") return false;
+  const result = { heroOrphan: false, heroTitleWordBreak: false };
+  if (!title || typeof Intl?.Segmenter !== "function") return result;
   const range = document.createRange();
   const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT);
   const chars = [];
@@ -13,12 +14,37 @@ const scanHeroTitleWordBreak = (root) => {
     for (let index = 0; index < text.length; index += 1) {
       range.setStart(node, index); range.setEnd(node, index + 1);
       const rect = range.getClientRects()[0] || range.getBoundingClientRect();
-      if (rect.width > 0.5 && rect.height > 0.5) chars.push({ offset: offset + index, rect });
+      if (rect.width > 0.5 && rect.height > 0.5) chars.push({ offset: offset + index, char: text[index], rect });
     }
     offset += text.length;
   }
+  const lines = new Map();
+  for (const item of chars) {
+    if (!item.char.trim()) continue;
+    const top = Math.round(item.rect.top);
+    lines.set(top, [...(lines.get(top) || []), item.char]);
+  }
+  const tops = [...lines.keys()].sort((a, b) => a - b);
+  const lastLine = tops.length > 1 ? lines.get(tops[tops.length - 1]) || [] : [];
+  result.heroOrphan = lastLine.length === 1 && /[\u3400-\u9fff]/.test(lastLine[0]);
   const lineWidth = title.clientWidth || title.getBoundingClientRect().width;
-  const segments = new Intl.Segmenter("zh", { granularity: "word" }).segment(title.textContent || "");
+  const segments = Array.from(new Intl.Segmenter("zh", { granularity: "word" }).segment(title.textContent || ""));
+  const tail = segments[segments.length - 1];
+  const previous = segments[segments.length - 2];
+  if (tail && previous && tail.isWordLike && previous.isWordLike && tail.segment.length === 1 && /[\u3400-\u9fff]/.test(tail.segment) && /[\u3400-\u9fff]$/.test(previous.segment)) {
+    previous.segment += tail.segment;
+    segments.pop();
+  }
+  const naturalWidth = (word) => {
+    const probe = document.createElement("span");
+    const style = getComputedStyle(title);
+    probe.textContent = word;
+    probe.style.cssText = `position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;font:${style.font};letter-spacing:${style.letterSpacing};font-weight:${style.fontWeight}`;
+    document.body.appendChild(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  };
   for (const part of segments) {
     const word = String(part.segment || "");
     if (!part.isWordLike || word.length < 2 || /^\s+$/.test(word)) continue;
@@ -26,11 +52,11 @@ const scanHeroTitleWordBreak = (root) => {
     if (own.length < 2) continue;
     const left = Math.min(...own.map((item) => item.rect.left));
     const right = Math.max(...own.map((item) => item.rect.right));
-    if (right - left > lineWidth + 1) continue;
+    if (naturalWidth(word) > lineWidth + 1) continue;
     const top = own[0].rect.top;
-    if (own.some((item) => Math.abs(item.rect.top - top) > 1)) return true;
+    if (own.some((item) => Math.abs(item.rect.top - top) > 1)) result.heroTitleWordBreak = true;
   }
-  return false;
+  return result;
 };
 
 export function scanVisitorLayout(root = document) {
@@ -90,7 +116,9 @@ export function scanVisitorLayout(root = document) {
     const last = tops.length > 1 ? grouped.get(tops[tops.length - 1]) : [];
     heroTitleOrphan = Boolean(last?.length === 1 && /[\u3400-\u9fff]/.test(last[0]));
   }
-  const heroTitleWordBreak = scanHeroTitleWordBreak(heroTitle);
+  const heroTitleScan = scanHeroTitle(heroTitle);
+  const heroTitleWordBreak = heroTitleScan.heroTitleWordBreak;
+  heroTitleOrphan = heroTitleScan.heroOrphan;
   const textOverlaps=[];
   for(let i=0;i<lines.length;i++) for(let j=i+1;j<lines.length;j++) {
     const a=lines[i], b=lines[j];

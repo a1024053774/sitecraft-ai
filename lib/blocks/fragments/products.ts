@@ -110,7 +110,7 @@ export const productsFragment: BlockFragment = {
    more than most of the row. */
 .sitecraft-product-grid .sitecraft-product-key dt { min-width: 0; overflow-wrap: anywhere; }
 .sitecraft-product-grid .sitecraft-product-key dd { flex: 0 0 auto; max-width: 70%; text-align: right; }
-.sitecraft-look-short-path .sitecraft-product-grid .sitecraft-product-key dd { flex: 1 1 auto; min-width: 0; max-width: 70%; white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
+.sitecraft-look-technical-product .sitecraft-product-grid .sitecraft-product-key dd { flex: 1 1 auto; min-width: 0; max-width: 70%; white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
 .sitecraft-product-groups .sitecraft-product-body { padding: 20px; }
 .sitecraft-product-groups .sitecraft-product-key dd, .sitecraft-product-groups .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { font-size: 16px; }
 .sitecraft-compare-series-card { padding: 18px 18px 16px; }

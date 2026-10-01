@@ -49,9 +49,35 @@ test("the title scanner catches a wrapped word inside a span, including a repeat
     await browser.send("Runtime.enable", {}, sessionId);
     await browser.send("Page.enable", {}, sessionId);
     const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
-    await browser.send("Page.setDocumentContent", { frameId, html: `<html><body><section data-sc-block="hero"><h1 style="width:44px;margin:0;font:32px/36px sans-serif;overflow-wrap:anywhere"><span style="white-space:normal">注塑</span>与<span style="white-space:normal">注塑</span></h1></section></body></html>` }, sessionId);
+    await browser.send("Page.setDocumentContent", { frameId, html: `<html><body><section data-sc-block="hero"><h1 style="width:200px;margin:0;font:32px/36px sans-serif;overflow-wrap:anywhere"><span>注</span><br><span>塑</span>与<span>注塑</span></h1></section></body></html>` }, sessionId);
     const result = await browser.eval<{ heroTitleWordBreak: boolean }>(`(() => { ${source}; return scanVisitorLayout(document); })()`, sessionId);
     assert.equal(result.heroTitleWordBreak, true);
+  } finally {
+    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    closeBrowser(browser);
+  }
+});
+
+test("the shared title scan reports an orphan line and allows an overlong word to break", async () => {
+  const source = readFileSync("scripts/hero-word-break-scan.js", "utf8").trim();
+  const layoutSource = readFileSync("scripts/visitor-layout-scan.js", "utf8").replace("export function", "function").replace("export default scanVisitorLayout;", "");
+  const checkSource = readFileSync("scripts/check-published.mjs", "utf8");
+  assert.match(checkSource, /heroOrphan/);
+  assert.match(checkSource, /hero-word-break-scan\.js/);
+  const browser = await openBrowser();
+  const { targetId } = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
+  const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
+  try {
+    await browser.send("Runtime.enable", {}, sessionId);
+    await browser.send("Page.enable", {}, sessionId);
+    const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
+    await browser.send("Page.setDocumentContent", { frameId, html: `<html><body><section data-sc-block="hero"><h1 style="width:343px;margin:0;font:40px/1 sans-serif;text-wrap:balance"><span>精密</span><span>注塑</span><span>模具</span><span>与</span><span>注塑</span><br><span>件</span></h1></section></body></html>` }, sessionId);
+    const orphan = await browser.eval<{ heroTitleOrphan: boolean; heroTitleWordBreak: boolean }>(`(() => { ${layoutSource}; return scanVisitorLayout(document); })()`, sessionId);
+    assert.equal(orphan.heroTitleOrphan, true);
+    await browser.send("Page.setDocumentContent", { frameId, html: `<html><body><section data-sc-block="hero"><h1 style="width:120px;margin:0;font:32px/36px monospace;overflow-wrap:anywhere"><span style="white-space:normal;word-break:keep-all;overflow-wrap:anywhere">Electromechanical</span></h1></section></body></html>` }, sessionId);
+    const overlong = await browser.eval<{ heroTitleWordBreak: boolean; result: { heroTitleWordBreak: boolean } }>(`(() => { const result = (${source})(document.querySelector('h1')); ${layoutSource}; return { heroTitleWordBreak: scanVisitorLayout(document).heroTitleWordBreak, result }; })()`, sessionId);
+    assert.equal(overlong.result.heroTitleWordBreak, false);
+    assert.equal(overlong.heroTitleWordBreak, false);
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
     closeBrowser(browser);
@@ -70,6 +96,32 @@ test("a visible unmarked layer covering link text is reported as covered", async
     await browser.send("Page.setDocumentContent", { frameId, html: `<html><body style="margin:0"><a id="copy" href="#" style="position:absolute;left:20px;top:20px;width:140px;height:32px;font:20px/32px sans-serif">正文链接</a><div style="position:absolute;z-index:5;left:20px;top:20px;width:140px;height:32px;background:#fff"></div></body></html>` }, sessionId);
     const result = await browser.eval<Array<{ kind: string }>>(`(() => (${source})(document.body))()`, sessionId);
     assert.ok(result.some((item) => item.kind === "covered"), JSON.stringify(result));
+  } finally {
+    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    closeBrowser(browser);
+  }
+});
+
+test("coverage follows the painted stacking order and catches pointer-free covers", async () => {
+  const source = readFileSync("scripts/visitor-text-fit-scan.js", "utf8").trim();
+  const cases = [
+    ["upper", '<p id="copy" style="z-index:1">正文</p><div id="cover" style="z-index:2"></div>', true],
+    ["lower", '<p id="copy" style="z-index:2">无遮挡正文</p><div id="cover" style="z-index:1;background:#ddd"></div>', false],
+    ["transparent", '<p id="copy" style="z-index:1">无遮挡正文</p><div id="cover" style="z-index:2;opacity:0"></div>', false],
+    ["pointer-free", '<p id="copy" style="z-index:1">被遮挡正文</p><div id="cover" style="z-index:2;pointer-events:none"></div>', true],
+  ] as const;
+  const browser = await openBrowser();
+  const { targetId } = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
+  const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
+  try {
+    await browser.send("Runtime.enable", {}, sessionId);
+    await browser.send("Page.enable", {}, sessionId);
+    const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
+    for (const [, body, expected] of cases) {
+      await browser.send("Page.setDocumentContent", { frameId, html: `<html><head><style>body{margin:0}h1,p{margin:0}#copy,#cover{position:absolute;left:20px;top:40px;width:160px;height:32px;font:24px/32px sans-serif;background:#fff}</style></head><body>${body}</body></html>` }, sessionId);
+      const result = await browser.eval<Array<{ kind: string }>>(`(() => (${source})(document.body))()`, sessionId);
+      assert.equal(result.some((item) => item.kind === "covered"), expected, JSON.stringify(result));
+    }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
     closeBrowser(browser);
@@ -109,15 +161,19 @@ test("short-path product values stay inside their cards at all published widths"
   for (const width of [1440, 768, 375]) {
     const { browser, targetId, sessionId } = await preview(draft, width);
     try {
-      const failures = await browser.eval<Array<{ text: string; right: number; cardRight: number; lineRight: number }>>(`(() => [...document.querySelectorAll('.sitecraft-product-card')].flatMap((card) => {
+      const failures = await browser.eval<{ failures: Array<{ text: string; right: number; cardRight: number; lineRight: number }>; root: string; flex: string }>(`(() => { const root = document.querySelector('.sitecraft-page')?.className || ''; const values = [...document.querySelectorAll('.sitecraft-product-card')]; const flex = getComputedStyle(values[0]?.querySelector('.sitecraft-product-key dd')).flex; const failures = values.flatMap((card) => {
         const cardRight = card.getBoundingClientRect().right;
         return [...card.querySelectorAll('.sitecraft-product-key dd')].flatMap((value) => {
           const box = value.getBoundingClientRect();
           const range = document.createRange(); range.selectNodeContents(value);
           return [...range.getClientRects()].filter((line) => line.width > .5).map((line) => ({ text: value.textContent || "", right: box.right, cardRight, lineRight: line.right })).filter((line) => line.lineRight > cardRight + 1 || line.right > cardRight + 1);
         });
-      }))()`, sessionId);
-      assert.deepEqual(failures, [], `${width}: ${JSON.stringify(failures)}`);
+      }); return { failures, root, flex }; })()`, sessionId);
+      assert.deepEqual(failures.failures, [], `${width}: ${JSON.stringify(failures.failures)}`);
+      if (width === 375) {
+        assert.match(failures.root, /sitecraft-look-technical-product/);
+        assert.equal(failures.flex, "1 1 auto");
+      }
     } finally {
       await browser.send("Target.closeTarget", { targetId }).catch(() => {});
       closeBrowser(browser);

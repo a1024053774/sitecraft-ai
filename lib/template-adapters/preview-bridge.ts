@@ -978,7 +978,25 @@ function sitecraftPreviewBridge(templateId, adapter) {
       node.textContent = value;
       return;
     }
-    var segments = segmenter.segment(value);
+    var segments = Array.from(segmenter.segment(value));
+    var tail = segments[segments.length - 1];
+    var previous = segments[segments.length - 2];
+    if (tail && previous && tail.isWordLike && previous.isWordLike && tail.segment.length === 1 && /[\u3400-\u9fff]/.test(tail.segment) && /[\u3400-\u9fff]$/.test(previous.segment)) {
+      previous.segment += tail.segment;
+      segments.pop();
+    }
+    var lineWidth = node.clientWidth || (node.getBoundingClientRect && node.getBoundingClientRect().width) || 0;
+    var computed = global.getComputedStyle ? global.getComputedStyle(node) : null;
+    var naturalWidth = function (word) {
+      if (!document.body || !document.createElement) return 0;
+      var probe = document.createElement("span");
+      probe.textContent = word;
+      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;font:" + (computed?.font || "inherit") + ";letter-spacing:" + (computed?.letterSpacing || "normal") + ";font-weight:" + (computed?.fontWeight || "normal");
+      document.body.appendChild(probe);
+      var width = probe.getBoundingClientRect().width;
+      probe.remove();
+      return width;
+    };
     for (var part of segments) {
       var segment = String(part.segment || "");
       if (!segment) continue;
@@ -987,7 +1005,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
         continue;
       }
       var span = document.createElement("span");
-      span.style.whiteSpace = "normal";
+      var keepTogether = !lineWidth || naturalWidth(segment) <= lineWidth + 1;
+      span.style.display = "inline-block";
+      span.style.whiteSpace = keepTogether ? "nowrap" : "normal";
+      span.style.maxWidth = "100%";
       span.style.wordBreak = "keep-all";
       span.style.overflowWrap = "anywhere";
       span.textContent = segment;

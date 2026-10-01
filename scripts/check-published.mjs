@@ -222,10 +222,9 @@ const INSPECT = `(async () => {
     if (line) lines.push(line);
     return lines;
   }
-  const heroLines = textLines(document.querySelector(".sitecraft-hero h1"));
-  const heroLast = (heroLines[heroLines.length - 1] || "").split(" ").join("");
-  const heroOrphan = heroLines.length > 1 && Array.from(heroLast).length < 2;
-  const heroTitleWordBreak = (${HERO_WORD_BREAK_SCAN})(document.querySelector(".sitecraft-hero h1"));
+  const heroTitleScan = (${HERO_WORD_BREAK_SCAN})(document.querySelector(".sitecraft-hero h1"));
+  const heroOrphan = heroTitleScan.heroOrphan;
+  const heroTitleWordBreak = heroTitleScan.heroTitleWordBreak;
   const headerControls = header ? [...header.querySelectorAll(".sitecraft-nav-cta, summary")].filter((el) => visible(el)) : [];
   const headerControlStacked = headerControls.some((el) => textLines(el).length > 1);
   const brand = document.querySelector(".sitecraft-brand-name");

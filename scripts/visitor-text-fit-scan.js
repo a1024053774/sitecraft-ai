@@ -17,7 +17,7 @@
   const shown = (el) => {
     const style = getComputedStyle(el);
     const box = el.getBoundingClientRect();
-    if (style.display === "none" || style.visibility === "hidden" || box.width <= 0 || box.height <= 0) return false;
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0 || box.width <= 0 || box.height <= 0) return false;
     for (let ancestor = el; ancestor; ancestor = ancestor.parentElement) {
       if (ancestor.tagName === "DETAILS" && !ancestor.open && !ancestor.querySelector(":scope > summary")?.contains(el)) return false;
     }
@@ -31,6 +31,28 @@
     if (reported.has(el)) return;
     reported.add(el);
     found.push({ kind, element: describe(el), text: (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 60) });
+  };
+  const coverAtPoint = (x, y, chain) => {
+    const hits = document.elementsFromPoint(x, y);
+    const ownIndex = hits.findIndex((hit) => chain.has(hit));
+    if (ownIndex >= 0 && hits.slice(0, ownIndex).some((hit) => shown(hit) && !hit.contains([...chain][0]))) return true;
+    // elementsFromPoint omits pointer-events:none. Temporarily make each geometric candidate
+    // hit-testable and compare its actual painted order with the text's own element.
+    const candidates = [...document.querySelectorAll("*")].filter((candidate) => {
+      const style = getComputedStyle(candidate);
+      const rect = candidate.getBoundingClientRect();
+      return style.pointerEvents === "none" && shown(candidate) && rect.left <= x && rect.right >= x && rect.top <= y && rect.bottom >= y && !chain.has(candidate);
+    });
+    for (const candidate of candidates) {
+      const previous = candidate.style.pointerEvents;
+      candidate.style.pointerEvents = "auto";
+      const probeHits = document.elementsFromPoint(x, y);
+      candidate.style.pointerEvents = previous;
+      const candidateIndex = probeHits.indexOf(candidate);
+      const probeOwnIndex = probeHits.findIndex((hit) => chain.has(hit));
+      if (candidateIndex >= 0 && probeOwnIndex >= 0 && candidateIndex < probeOwnIndex) return true;
+    }
+    return false;
   };
   const ownText = (el) => [...el.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim());
   const ignored = (el) => Boolean(el.closest("script, style, template, noscript"));
@@ -93,15 +115,7 @@
       const centeredRects = [...range.getClientRects()].filter((rect) => rect.width > 0.5 && rect.height > 0.5);
       const chain = new Set();
       for (let ancestor = parent; ancestor; ancestor = ancestor.parentElement) chain.add(ancestor);
-      const covered = centeredRects.some((rect) => {
-        const hits = document.elementsFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        return hits.some((hit) => {
-          // The text's own element and ancestors are the only legitimate hits. Any other
-          // visible element, including an unmarked decorative layer or a link/button child,
-          // can cover the painted center and must be reported.
-          return shown(hit) && !chain.has(hit) && !hit.contains(parent);
-        });
-      });
+      const covered = centeredRects.some((rect) => coverAtPoint(rect.left + rect.width / 2, rect.top + rect.height / 2, chain));
       window.scrollTo(savedX, savedY);
       if (covered) {
         add("covered", parent);
