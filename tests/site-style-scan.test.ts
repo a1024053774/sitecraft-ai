@@ -30,3 +30,8 @@ test('layout scanning measures painted text: closed details excluded, 3px overla
     browser.ws.close();
   }
 });
+
+test('hero title scanning reports known CJK word breaks', () => {
+  assert.match(source, /heroTitleWordBreak/, 'the layout scan exposes title word-break evidence');
+  assert.match(source, /模具|减速机/, 'the title scan covers the migration reproductions');
+});

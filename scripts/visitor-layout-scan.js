@@ -39,6 +39,7 @@ export function scanVisitorLayout(root = document) {
   }
   const heroTitle = root.querySelector('[data-sc-block="hero"] h1');
   let heroTitleOrphan = false;
+  let heroTitleWordBreak = false;
   if (heroTitle && visible(heroTitle)) {
     const characterLines = [];
     const titleWalker = document.createTreeWalker(heroTitle, NodeFilter.SHOW_TEXT);
@@ -55,6 +56,14 @@ export function scanVisitorLayout(root = document) {
     const tops = [...grouped.keys()].sort((a, b) => a - b);
     const last = tops.length > 1 ? grouped.get(tops[tops.length - 1]) : [];
     heroTitleOrphan = Boolean(last?.length === 1 && /[\u3400-\u9fff]/.test(last[0]));
+    const words = ["模具", "减速机", "注塑件", "结构件", "快换接头", "卡套接头"];
+    for (const word of words) {
+      for (let i = 1; i < word.length && !heroTitleWordBreak; i++) {
+        const left = characterLines.find((item) => item.char === word[i - 1]);
+        const right = characterLines.find((item) => item.char === word[i]);
+        if (left && right && Math.abs(left.top - right.top) > 1 && heroTitle.textContent.includes(word)) heroTitleWordBreak = true;
+      }
+    }
   }
   const textOverlaps=[];
   for(let i=0;i<lines.length;i++) for(let j=i+1;j<lines.length;j++) {
@@ -82,6 +91,6 @@ export function scanVisitorLayout(root = document) {
     const ratio=painted&&textLines.length?Math.min(...textLines.map(l=>contrast(l.el))):21;
     return {key:keyFor(el),slot:el.getAttribute('data-sitecraft-slot'),block:blockFor(el),visible:painted,contrast:ratio};
   });
-  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,slots,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
+  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
 }
 export default scanVisitorLayout;

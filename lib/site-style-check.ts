@@ -103,7 +103,7 @@ async function render(browser: Cdp, baseUrl: string, templateId: string, draft: 
   await browser.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile }, sessionId);
   await sleep(150);
   if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
-  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number; key: string }>; textOverlaps: Array<{ block: string; amount: number; key: string }>; heroTitleOrphan?: boolean; slots: Array<{ key: string; visible: boolean; block: string; contrast: number }>; height: number };
+  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number; key: string }>; textOverlaps: Array<{ block: string; amount: number; key: string }>; heroTitleOrphan?: boolean; heroTitleWordBreak?: boolean; slots: Array<{ key: string; visible: boolean; block: string; contrast: number }>; height: number };
   if (file) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId) as { data: string };
@@ -155,6 +155,7 @@ async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; b
         reasons.push(`${width} 宽度下「${blockLabel(item.block)}」出现文字重叠。`);
       }
       if (candidate.heroTitleOrphan && !baseline.heroTitleOrphan) reasons.push(`${width} 宽度下「首屏」标题在词中间断开单字。`);
+      if (candidate.heroTitleWordBreak && !baseline.heroTitleWordBreak) reasons.push(`${width} 宽度下「首屏」标题在汉字词中间断行。`);
       const oldSlots = new Map(baseline.slots.map((slot) => [slot.key, slot]));
       for (const slot of candidate.slots) {
         const old = oldSlots.get(slot.key);

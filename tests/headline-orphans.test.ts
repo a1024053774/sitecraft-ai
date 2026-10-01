@@ -14,6 +14,8 @@ test("hero titles balance and mobile brand names are not ellipsized", () => {
     assert.doesNotMatch(html, /\.sitecraft-brand-name[^{]*\{[^}]*nowrap/, `${templateId} still keeps the brand name on one line`);
   }
   assert.match(checkSource, /hero title last line is a single character/);
+  assert.match(checkSource, /hero title breaks inside a Chinese word/);
+  assert.match(readFileSync(new URL("../scripts/visitor-layout-scan.js", import.meta.url), "utf8"), /heroTitleWordBreak/);
   assert.match(checkSource, /header company name is truncated/);
   assert.match(checkSource, /scrollHeight > brand\.clientHeight \+ 1/);
   assert.match(checkSource, /parentStyle\.overflowX === "hidden" \|\| parentStyle\.overflowX === "clip"/);

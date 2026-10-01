@@ -224,6 +224,20 @@ const INSPECT = `(async () => {
   const heroLines = textLines(document.querySelector(".sitecraft-hero h1"));
   const heroLast = (heroLines[heroLines.length - 1] || "").split(" ").join("");
   const heroOrphan = heroLines.length > 1 && Array.from(heroLast).length < 2;
+  let heroTitleWordBreak = false;
+  const heroTitleValue = document.querySelector(".sitecraft-hero h1")?.textContent || "";
+  const heroWords = ["模具", "减速机", "注塑件", "结构件", "快换接头", "卡套接头"];
+  for (const word of heroWords) {
+    for (let index = 1; index < word.length && !heroTitleWordBreak; index += 1) {
+      if (!heroTitleValue.includes(word)) continue;
+      const node = document.querySelector(".sitecraft-hero h1");
+      const textNode = node && [...node.childNodes].find((item) => item.nodeType === 3 && (item.textContent || "").includes(word));
+      if (!textNode) continue;
+      const range = document.createRange(); range.setStart(textNode, (textNode.textContent || "").indexOf(word) + index - 1); range.setEnd(textNode, (textNode.textContent || "").indexOf(word) + index);
+      const left = range.getBoundingClientRect(); range.setStart(textNode, (textNode.textContent || "").indexOf(word) + index); range.setEnd(textNode, (textNode.textContent || "").indexOf(word) + index + 1);
+      const right = range.getBoundingClientRect(); if (Math.abs(left.top - right.top) > 1) heroTitleWordBreak = true;
+    }
+  }
   const headerControls = header ? [...header.querySelectorAll(".sitecraft-nav-cta, summary")].filter((el) => visible(el)) : [];
   const headerControlStacked = headerControls.some((el) => textLines(el).length > 1);
   const brand = document.querySelector(".sitecraft-brand-name");
@@ -302,6 +316,7 @@ const INSPECT = `(async () => {
     cardOverflowSample: cardOverflow.slice(0, 6),
     textFit: textFit.slice(0, 40),
     heroOrphan,
+    heroTitleWordBreak,
     brandClipped,
     headerOverflow,
     headerControlStacked,
@@ -333,6 +348,7 @@ function judge(report, facts) {
     if (items.length) failures.push(`${message} (${items.length}: ${items.slice(0, 6).map((item) => `${item.element} "${item.text}"`).join(", ")})`);
   }
   if (report.heroOrphan) failures.push("hero title last line is a single character");
+  if (report.heroTitleWordBreak) failures.push("hero title breaks inside a Chinese word");
   if (report.brandClipped) failures.push("header company name is truncated");
   if (report.headerOverflow) failures.push("header overflows the viewport");
   if (report.headerControlStacked) failures.push("header control text wraps inside its button");
