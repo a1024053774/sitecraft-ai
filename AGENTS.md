@@ -104,15 +104,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - **负责人**：只定方向和需求，不做盲评和审核。
 - **Claude（本地桌面会话）**：规划、拆票、验收、整合与推送；可以用 Sonnet 5.5 子 agent 写代码。
-- **Kiro（Opus 5.5）**：按 Claude 的规划做大块实现（T-048 工程工业这条线）。
 - **Sonnet 5.5 子 agent**：Claude 派的小编码票。
-- **Codex**：额度宽裕，优先多派；T-048 其余三个样子的迁移由它做，这部分代码审查改由 Kiro 或 Grok 做。
+- **Codex**：额度宽裕，执行都交给它（Herdr 里的 `codex-build`，需要时 Claude 再开 Codex 窗格）；执行和审查必须是不同的 Codex 实例。Kiro 2026-10-01 起不再使用。
 - **Codex GPT-6（Astra）**：代码与逻辑审查。
 - **Codex gpt-6.1-sol**：页面盲评。
 - **Cursor Grok**：杂活，只改派给它的文件。
 - **云端会话**：负责人开的 Claude 云端会话，在 `cloud/*` 分支上做票并推送，Claude 审后合并。
 
-Kiro 和子 agent 每张票在本地提交、不推送；Claude 验收、Astra 审核通过后由 Claude 推送。审核者不能审自己参与过的工作。Herdr 工作区里的 Kiro、Codex、Cursor 由 Claude 直接派活。
+执行的 agent 每张票在本地提交、不推送；Claude 验收、Astra 审核通过后由 Claude 推送。审核者不能审自己参与过的工作。Herdr 工作区里的 Codex、Cursor 由 Claude 直接派活。
 
 规则：
 
