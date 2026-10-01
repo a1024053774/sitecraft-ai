@@ -52,7 +52,7 @@ registerHooks({
   },
 });
 
-const { isSiteStyleRequest, requestStructuredOperations } = await import("../lib/ai-provider.ts");
+const { buildDraftPromptContext, isSiteStyleRequest, requestStructuredOperations } = await import("../lib/ai-provider.ts");
 
 test.after(() => {
   globalThis.fetch = originalFetch;
@@ -146,6 +146,27 @@ test("an appearance edit keeps the direction menu without a material recommendat
   assert.match(system, /set_site_style/);
   for (const direction of ["spec-led", "catalog-led", "capability-led", "规格为主", "目录为主", "工厂实力"]) assert.ok(system.includes(direction), direction);
   assert.doesNotMatch(system, /服务端建议/);
+});
+
+test("section order instructions name the movable blocks and only allow explicit user requests", async () => {
+  await ask(packDraft("industrial"), "看看现在的页面", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.match(system, /reorder_sections/);
+  assert.match(system, /认证.*产品.*应用行业.*加工能力.*合作方式.*常见问题.*询盘/);
+  assert.match(system, /只有用户明确提出顺序/);
+  const reorder = system.slice(system.indexOf("10. reorder_sections"), system.indexOf("11. set_page_plan"));
+  assert.doesNotMatch(reorder, /必须包含全部五项/);
+  assert.doesNotMatch(reorder, /about.*features.*services.*products.*contact/);
+});
+
+test("compact prompt context keeps the effective block order without losing content", () => {
+  const draft = packDraft("industrial");
+  draft.sectionOrder = ["certifications", "products"];
+  draft.products = Array.from({ length: 90 }, (_, index) => ({ ...draft.products[0], sku: `sku-${index}`, name: { zh: `产品${index}-${"很长的产品名称".repeat(8)}`, en: `Product ${index} ${"long product name ".repeat(8)}` } }));
+  const context = buildDraftPromptContext(draft);
+  assert.match(context, /sectionOrder/);
+  assert.match(context, /certifications.*products/);
+  assert.match(context, /sections/);
 });
 
 test("catalog look exposes the block layout menu", async () => {

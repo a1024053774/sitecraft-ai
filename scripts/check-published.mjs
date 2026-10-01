@@ -149,6 +149,46 @@ const TEXT_FIT_FAILURES = [
   ["email", "an email address wraps at a hyphen or inside a name instead of at the @"],
 ];
 
+const DEFAULT_BLOCK_ORDER = {
+  forge: ["hero", "products", "industries", "capabilities", "services", "certifications", "faq", "contact"],
+  screwfast: ["hero", "products", "industries", "capabilities", "services", "certifications", "faq", "contact"],
+  landwind: ["hero", "products", "industries", "capabilities", "services", "certifications", "faq", "contact"],
+  "tailwind-landing": ["hero", "products", "industries", "capabilities", "services", "contact", "certifications", "faq"],
+};
+const BLOCK_GROUPS = {
+  forge: [],
+  screwfast: [["industries", "capabilities"]],
+  landwind: [["industries", "capabilities"]],
+  "tailwind-landing": [],
+};
+
+function expectedBlockOrder(draft, templateId) {
+  const main = [...(DEFAULT_BLOCK_ORDER[templateId] || DEFAULT_BLOCK_ORDER.forge)];
+  const raw = Array.isArray(draft?.sectionOrder) ? draft.sectionOrder : [];
+  if (!raw.length) return main;
+  const requested = [...new Set(raw.filter((block) => main.includes(block)))];
+  if (!requested.length) return main;
+  const rank = new Map(requested.map((block, index) => [block, index]));
+  const grouped = new Set();
+  const units = [];
+  for (const group of BLOCK_GROUPS[templateId] || []) {
+    const members = group.filter((block) => main.includes(block) && !grouped.has(block));
+    if (members.length < 2) continue;
+    members.forEach((block) => grouped.add(block));
+    units.push({ members, index: units.length });
+  }
+  for (const block of main) if (!grouped.has(block)) units.push({ members: [block], index: units.length });
+  units.forEach((unit) => {
+    const ranks = unit.members.map((block) => rank.get(block)).filter((value) => value !== undefined);
+    unit.rank = ranks.length ? Math.min(...ranks) : requested.length + unit.index;
+  });
+  units.sort((a, b) => a.rank - b.rank || a.index - b.index);
+  const result = units.flatMap((unit) => [...unit.members].sort((a, b) => (rank.get(a) ?? requested.length) - (rank.get(b) ?? requested.length)));
+  const hero = main.indexOf("hero");
+  if (hero >= 0) { result.splice(result.indexOf("hero"), 1); result.splice(hero, 0, "hero"); }
+  return result;
+}
+
 // Runs inside the preview document and reports what a visitor would see.
 const INSPECT = `(async () => {
   const visible = (el) => {
@@ -158,6 +198,7 @@ const INSPECT = `(async () => {
     return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
   };
   const text = document.body.innerText;
+  const pageSectionOrder = [...document.querySelectorAll("main [data-sc-block]")].map((node) => node.getAttribute("data-sc-block"));
   const contact = document.querySelector('[data-sitecraft-section="contact"]');
   const form = contact && contact.querySelector("form");
   const cta = document.querySelector('[data-sitecraft-benchmark="hero-cta"]');
@@ -303,6 +344,7 @@ const INSPECT = `(async () => {
     editorCursor: editableSlot ? getComputedStyle(editableSlot).cursor : "",
     editorHoverOutline: previewCss.includes("[data-sitecraft-slot]:hover{") && previewCss.includes("outline:"),
     horizontalScroll: document.documentElement.scrollWidth > innerWidth + 1,
+    pageSectionOrder,
     cardOverflow: cardOverflow.length,
     cardOverflowSample: cardOverflow.slice(0, 6),
     textFit: textFit.slice(0, 40),
@@ -329,8 +371,9 @@ const INSPECT = `(async () => {
   };
 })()`;
 
-function judge(report, facts, locale = "zh") {
+function judge(report, facts, locale = "zh", expectedOrder = null) {
   const failures = [];
+  if (expectedOrder && JSON.stringify(report.pageSectionOrder) !== JSON.stringify(expectedOrder)) failures.push(`区块顺序不一致（期望 ${expectedOrder.join("、")}，实际 ${(report.pageSectionOrder || []).join("、")}）`);
   if (report.editorCursor === "pointer") failures.push("visitor slot uses a pointer cursor");
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
   if (report.horizontalScroll) failures.push("visitor page scrolls horizontally");
@@ -508,8 +551,9 @@ async function checkOne(browser, siteKey, width) {
       return { ...captured, screenshot: file };
     };
     const { draft, facts } = await draftFacts(siteKey, "zh");
+    const expectedOrder = expectedBlockOrder(draft, draft?.templateId);
     const report = await capture("zh");
-    const failures = judge(report, facts, "zh");
+    const failures = judge(report, facts, "zh", expectedOrder);
     report.facts = { expected: facts.length, missing: missingFacts(facts, report.readable).length };
     if (submit) {
       const result = await checkSubmission(browser, sessionId, frame, siteKey, width);
@@ -522,7 +566,7 @@ async function checkOne(browser, siteKey, width) {
       await waitFor(() => browser.evaluate(`document.documentElement.lang === "en"`, frame), `${siteKey} English locale`);
       const enReport = await capture("en");
       const enFacts = expectedFacts(draft, "en");
-      const enFailures = judge(enReport, enFacts, "en");
+      const enFailures = judge(enReport, enFacts, "en", expectedOrder);
       enReport.facts = { expected: enFacts.length, missing: missingFacts(enFacts, enReport.readable).length };
       delete enReport.text;
       delete enReport.readable;

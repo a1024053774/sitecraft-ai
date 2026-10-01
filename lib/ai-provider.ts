@@ -2,6 +2,7 @@ import { getTemplate, templates, type SiteDraft } from "@/lib/site-model";
 import { z } from "zod";
 import { familyModuleInventory, visibilityKeys, visualBriefCatalog } from "@/lib/site-document";
 import { blockCatalog, layoutBlocks, type BlockLook, type BlockRequirement } from "@/lib/blocks/catalog";
+import { effectiveBlockOrder } from "@/lib/blocks/order";
 import { blockLookForTemplate } from "@/lib/blocks/looks/index";
 import { declaredFamilySections, getTemplateAdapter } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
@@ -256,7 +257,17 @@ export function isSiteStyleRequest(message: string) {
   return /样式|外观|版式|风格|留白|字阶|字重|更有分量|更紧凑|(?:规格|目录|工厂实力)为主|(?:规格|目录|工厂实力)(?:方向|风格)/.test(message);
 }
 
-function operationInstructions(templateId: string, allowSiteStyle: boolean) {
+function blockOrderInstructions(templateId: string, draft: SiteDraft) {
+  const look = blockLookForTemplate(templateId);
+  if (!look) return "";
+  const labels = effectiveBlockOrder(draft, look)
+    .filter((block) => block !== "hero")
+    .map((block) => blockCatalog[block].label);
+  const current = labels.join("、").replace("应用行业、加工能力", "应用行业+加工能力（并排，一起移动）");
+  return `10. reorder_sections：{"op":"reorder_sections","order":["products","industries","capabilities","services","certifications","faq","contact"]}。order 只写可排区块 products、industries、capabilities、services、certifications、faq、contact，可省略未提到的区块；未知键丢弃，缺少的按当前顺序接在后面，null 表示恢复默认顺序。可排顺序菜单：认证、产品、应用行业、加工能力、合作方式、常见问题、询盘。当前顺序：${current}。应用行业和加工能力是并排组，整组一起移动，组内按顺序排；导航、菜单和页脚导航会跟着页面顺序，导航右侧的询盘按钮不动。只有用户明确提出顺序（明确点名要哪个区块先后）时才使用 reorder_sections；整站生成和需求对齐保持默认顺序，不自行调整。示例：把认证放到产品前面。顺序这一条不占 24 条普通 operation。\n`;
+}
+
+function operationInstructions(templateId: string, allowSiteStyle: boolean, draft: SiteDraft) {
   return `当 type 为 edit 时，输出 JSON：{"type":"edit","summary":"中文摘要","operations":[...]}。
 允许的操作：
 1. set_text: {"op":"set_text","target":目标,"value":{"zh":"中文文本","en":"English text"}}（一条 operation 必须同时提供 zh/en；缺失英文写 To be provided）
@@ -274,7 +285,7 @@ ${faqInstructions(templateId)}5. update_product: {"op":"update_product","sku":"�
    只有公司资料明确给出完整产品清单时才使用；只保留资料确认的产品类别。加工方式、询盘条件和服务步骤不是商品，不要把“按图加工”单独生成一张商品卡。资料没有确认的商品不要用默认商品补齐。specs 可选，规则同 set_product_specs。
 9. set_section_visibility: {"op":"set_section_visibility","section":"${visibilityKeys.join("|")}","visible":true|false}
    同一视觉族里显隐已有区块，不是拼装新页面。KonsTuck 清单：项目=products、服务=services、为什么选我们=features、FAQ=faq、询盘=contact。Lozitick 清单：方案=solutions、询盘→提货→分拣→运输=process、伙伴=partners、行业=industries、FAQ=faq。screwfast 另声明 industries/capabilities/certifications。只对当前模板已声明且唯一命中的区块生效；未声明或命中多个记为 missing。禁止按标题正则、元素顺序或通用卡片形状猜藏。missing 不能当成可以把导航、页脚或 Logo 墙留在客户站上。
-10. reorder_sections: {"op":"reorder_sections","order":["about","features","services","products","contact"]}，必须包含全部五项且不重复
+${blockOrderInstructions(templateId, draft)}
 11. set_page_plan: {"op":"set_page_plan","source":"user|model|default","pages":[{"id":"home","role":"home","label":{"zh":"首页","en":"Home"}}],"unsupported":[{"requested":"认证页","reason":"当前模板没有独立认证 HTML"}]}
    页面规划优先级：用户明确点名的页面 > 未点名时按业务规划 > 仍无法确定才用首页/产品或服务/联系。默认三项不是上限。role 只能是 home|products|services|contact|about|custom。
    source=user：用户点名了页面清单；source=model：用户没列清单但业务能规划；source=default：仍无法确定，pages 可空，系统会落到默认三项。
@@ -346,8 +357,11 @@ function sectionItemCount(draft: SiteDraft, key: ContentSectionKey) {
 function sectionOverview(draft: SiteDraft) {
   const keys: ContentSectionKey[] = [];
   const seen = new Set<string>();
-  for (const key of ["hero", ...(draft.sectionOrder ?? [])] as ContentSectionKey[]) {
+  const look = blockLookForTemplate(draft.templateId);
+  const ordered = look ? effectiveBlockOrder(draft, look) : [];
+  for (const key of ["hero", ...ordered, ...CONTENT_SECTION_KEYS] as ContentSectionKey[]) {
     if (seen.has(key)) continue;
+    if (!isContentSectionKey(key)) continue;
     seen.add(key);
     keys.push(key);
   }
@@ -671,7 +685,7 @@ export async function requestStructuredOperations(args: {
 {"type":"answer","text":"当前站点名称是 Forge Industrial。"}
 {"type":"clarify","question":"你想先改哪一部分？","options":["首屏标题","服务卡片","联系方式"]}
 
-${operationInstructions(args.templateId, args.allowSiteStyle === true)}
+${operationInstructions(args.templateId, args.allowSiteStyle === true, args.draft)}
 
 前端表达约束（${FRONTEND_TONE_RULES_VERSION}）：${frontendToneRules.join("；")}
 

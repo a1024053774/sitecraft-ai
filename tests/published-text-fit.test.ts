@@ -32,3 +32,9 @@ test("check-published runs the text-fit scan and reports each way text can fail 
   assert.match(scan, /narrow-body/, "catalog cards with only a few glyphs per body line are reported");
   assert.match(checkSource, /company name may fit its box while still breaking/, "brand word breaks share the truncation check");
 });
+
+test("check-published verifies the visitor block order against the draft", () => {
+  assert.match(checkSource, /pageSectionOrder/);
+  assert.match(checkSource, /expectedBlockOrder/);
+  assert.match(checkSource, /区块顺序/);
+});
