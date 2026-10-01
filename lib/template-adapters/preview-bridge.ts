@@ -49,6 +49,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return typeof value === "string" ? value : localize(value, locale) || "";
   }
 
+  function characterUnits(value) {
+    var chars = Array.from(String(value || "").trim()).filter(function (char) { return !/^\s$/.test(char); });
+    return chars.length || 1;
+  }
+
   function readDraftValue(draft, target, locale) {
     if (!draft) return undefined;
     var content = draft.content || {};
@@ -696,6 +701,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
+      if (slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-chars", String(characterUnits(nextValue)));
+      if ((slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-brand-chars", String(characterUnits(nextValue)));
       if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";
         writeHeroTitle(node, nextValue);

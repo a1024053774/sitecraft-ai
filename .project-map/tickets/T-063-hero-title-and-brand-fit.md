@@ -4,7 +4,7 @@ title: 首屏大标题和页眉公司名按长度放得下
 type: build
 status: open
 blocked_by: [T-057]
-claimed_by:
+claimed_by: codex-build
 supersedes:
 ---
 

@@ -4,11 +4,13 @@ export const navFragment: BlockFragment = {
   css: `
 .sitecraft-rule { height: 4px; background: var(--site-accent); }
 .sitecraft-nav { position: relative; z-index: 5; background: var(--site-surface); border-bottom: var(--site-rule); }
-.sitecraft-nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 72px; }
+.sitecraft-nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 72px; container-type: inline-size; }
 .sitecraft-brand { display: flex; align-items: center; gap: 12px; min-width: 0; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
 .sitecraft-brand-mark { width: 30px; height: 30px; flex: none; background: var(--site-ink); position: relative; }
 .sitecraft-brand-mark::after { content: ""; position: absolute; inset: 0; background: var(--site-accent); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
 .sitecraft-brand-name { min-width: 0; line-height: 1.15; white-space: normal; word-break: keep-all; overflow-wrap: normal; text-wrap: balance; }
+.sitecraft-nav-inner:has(.sitecraft-brand-name[style*="--sitecraft-brand-chars"]) .sitecraft-brand { flex: 1 1 auto; min-width: 0; container-type: inline-size; }
+.sitecraft-brand-name[style*="--sitecraft-brand-chars"] { font-size: max(10px, min(clamp(11px, 3.2vw, 17px), calc(100cqw / var(--sitecraft-brand-chars)))); white-space: normal; word-break: normal; overflow-wrap: anywhere; }
 .sitecraft-nav-links { display: flex; align-items: center; gap: 26px; font-size: 14px; color: var(--site-muted); }
 .sitecraft-nav-links a:hover { color: var(--site-ink); }
 .sitecraft-nav-tools { display: flex; align-items: center; gap: 12px; flex: none; }
