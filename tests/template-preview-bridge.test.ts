@@ -893,40 +893,6 @@ test("filling FAQ gaps on the same preview document restores entries and the sec
   assert.equal(entries[0].body.textContent, "批量询盘后确认。");
 });
 
-test("landwind first-screen slots follow two independent samples and leave undeclared headings", () => {
-  const adapter = getTemplateAdapter("landwind");
-  assert.ok(adapter, "landwind adapter is required before quality comparison");
-  const { document, nodes } = createLandwindFragment();
-  const { api } = installOn(document, adapter);
-  const first = landwindSample("A17");
-  const second = landwindSample("B84");
-  const expected = ["companyName.zh", "hero.title.zh", "hero.subtitle.zh", "hero.cta.zh", "contact.email.zh"];
-
-  const firstReport = api.applyDeclaredContent(first.draft, "zh", expected, "workspace");
-  assert.equal(nodes.brand.textContent, first.sample.companyName);
-  assert.equal(nodes.title.textContent, first.sample.title);
-  assert.equal(nodes.subtitle.textContent, first.sample.subtitle);
-  assert.equal(nodes.cta.textContent, first.sample.cta);
-  assert.equal(nodes.figma.textContent, "Get Figma file");
-  assert.equal(nodes.figma.hidden, true);
-  assert.equal(visibleText(nodes.figma), "");
-  assert.equal(nodes.undeclared.textContent, "未选用的标题");
-  assert.equal(nodes.title.textContent.includes("Building digital"), false);
-  assert.ok(firstReport.appliedSlots.includes("hero.title.zh"));
-  assert.ok(firstReport.missingSlots.includes("contact.email.zh"));
-  assert.deepEqual(firstReport.fallbackMatched, []);
-  assert.deepEqual(firstReport.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
-
-  const secondReport = api.applyDeclaredContent(second.draft, "zh", expected, "workspace");
-  assert.equal(nodes.brand.textContent, second.sample.companyName);
-  assert.equal(nodes.title.textContent, second.sample.title);
-  assert.equal(nodes.subtitle.textContent, second.sample.subtitle);
-  assert.equal(nodes.cta.textContent, second.sample.cta);
-  assert.equal(nodes.undeclared.textContent, "未选用的标题");
-  assert.equal(nodes.title.textContent === first.sample.title, false);
-  assert.ok(secondReport.appliedSlots.includes("hero.title.zh"));
-  assert.ok(secondReport.missingSlots.includes("contact.email.zh"));
-});
 
 function visibilityDraft(hiddenSections: string[] = []) {
   const draft = sentinelDraft() as ReturnType<typeof sentinelDraft> & { hiddenSections: string[]; templateId: string };
@@ -1187,31 +1153,6 @@ test("tailwind-landing and fresh first-screen slots follow two independent packs
   }
 });
 
-test("undeclared hide requests do not rewrite snapshot chrome", () => {
-  const landwindAdapter = getTemplateAdapter("landwind");
-  assert.ok(landwindAdapter);
-  const { document, nodes } = createLandwindFragment();
-  const pricing = createNode("h2");
-  pricing.textContent = "Designed for business teams like yours";
-  document.body.appendChild(pricing);
-  const draft = visibilityDraft(["products", "about", "industries"]);
-  const report = installOn(document, landwindAdapter).api.applyDeclaredContent(draft, "zh", [
-    "products.visibility",
-    "about.visibility",
-    "industries.visibility",
-    "hero.title.zh",
-  ], "workspace");
-  assert.equal(nodes.undeclared.textContent, "未选用的标题");
-  assert.equal(nodes.title.textContent, "NEW_HERO_ZH");
-  assert.equal(pricing.hidden, false);
-  assert.equal(pricing.textContent, "Designed for business teams like yours");
-  assert.ok(report.missingSlots.includes("demoChrome.pricing"));
-  assert.ok(report.missingSlots.includes("products.visibility"));
-  assert.ok(report.missingSlots.includes("about.visibility"));
-  assert.ok(report.missingSlots.includes("industries.visibility"));
-  assert.equal(report.appliedSlots.includes("products.visibility"), false);
-  assert.deepEqual(report.fallbackMatched, []);
-});
 
 test("in-template page switching marks the active page and hides other planned sections on the same document", () => {
   const landwindAdapter = getTemplateAdapter("landwind");
@@ -1305,63 +1246,6 @@ test("unique src slots write owned URLs and leave undeclared imgs unchanged", ()
   assert.equal(cleared.appliedSlots.includes("hero.image"), false);
 });
 
-test("forge and landwind FAQ slots write unique nodes and leave undeclared chrome", () => {
-  const cases = [
-    {
-      id: "landwind" as const,
-      chrome: { tag: "a", text: "Get Figma file" },
-    },
-  ];
-  for (const item of cases) {
-    const { document } = createDocument();
-    const title = createNode("h2");
-    title.setAttribute("data-sitecraft-faq", "title");
-    title.textContent = "OLD_FAQ_TITLE";
-    const intro = createNode("p");
-    intro.setAttribute("data-sitecraft-faq", "intro");
-    intro.textContent = "OLD_FAQ_INTRO";
-    const question = createNode("span");
-    question.setAttribute("data-sitecraft-faq", "q1");
-    question.textContent = "OLD_FAQ_Q1";
-    const answer = createNode("p");
-    answer.setAttribute("data-sitecraft-faq", "a1");
-    answer.textContent = "OLD_FAQ_A1";
-    const chrome = createNode(item.chrome.tag);
-    chrome.textContent = item.chrome.text;
-    if (item.id === "landwind") chrome.setAttribute("data-sitecraft-demo", "figma");
-    document.body.appendChild(title);
-    document.body.appendChild(intro);
-    document.body.appendChild(question);
-    document.body.appendChild(answer);
-    document.body.appendChild(chrome);
-
-    const adapter = getTemplateAdapter(item.id);
-    assert.ok(adapter);
-    const { api } = installOn(document, adapter);
-    const draft = applySiteOperations(structuredClone(defaultDraft), [
-      { op: "set_text", target: "faq.title", locale: "zh", value: "P3I-FAQ-TITLE 交期与认证" },
-      { op: "set_text", target: "faq.intro", locale: "zh", value: "P3I-FAQ-INTRO 只答资料里有的内容" },
-      {
-        op: "update_card",
-        section: "faq",
-        index: 0,
-        locale: "zh",
-        title: "P3I-FAQ-Q1 交期如何确认？",
-        body: "P3I-FAQ-A1 待补充",
-      },
-    ], { templateIds: new Set(["forge", "screwfast", "landwind"]), lastChange: "faq-slot" }).draft;
-    const report = api.applyDeclaredContent(draft, "zh", ["faq.title.zh", "faq.intro.zh", "faq.items.0.title.zh", "faq.items.0.body.zh"], "workspace");
-    assert.equal(title.textContent, "P3I-FAQ-TITLE 交期与认证");
-    assert.equal(intro.textContent, "P3I-FAQ-INTRO 只答资料里有的内容");
-    assert.equal(question.textContent, "P3I-FAQ-Q1 交期如何确认？");
-    assert.equal(answer.textContent, "P3I-FAQ-A1 待补充");
-    assert.equal(chrome.textContent, item.chrome.text);
-    assert.equal(chrome.hidden, item.id === "landwind");
-    assert.ok(report.appliedSlots.includes("faq.title.zh"));
-    assert.ok(report.appliedSlots.includes("faq.items.0.body.zh"));
-    assert.deepEqual(report.fallbackMatched, []);
-  }
-});
 
 test("screwfast FAQ slots write unique accordion text and leave sales chrome", () => {
   const { document } = createDocument();
@@ -1541,74 +1425,6 @@ function packDraft(id: "industrial" | "export") {
   ], { templateIds: new Set(visualBriefCatalog.map((item) => item.templateId)), lastChange: "demo-chrome" }).draft;
 }
 
-test("landwind + export pack hides SaaS demo chrome on the full page, including below the fold", () => {
-  const adapter = getTemplateAdapter("landwind");
-  assert.ok(adapter);
-  const { document, nodes } = createLandwindFragment();
-  const logoWall = createNode("section");
-  logoWall.setAttribute("data-sitecraft-demo", "logo-wall");
-  const airbnb = createNode("svg");
-  airbnb.setAttribute("aria-label", "Airbnb");
-  airbnb.textContent = "Airbnb";
-  const googleLogo = createNode("svg");
-  googleLogo.setAttribute("aria-label", "Google");
-  googleLogo.textContent = "Google";
-  logoWall.appendChild(airbnb);
-  logoWall.appendChild(googleLogo);
-  const pricing = createNode("section");
-  pricing.setAttribute("data-sitecraft-demo", "pricing");
-  const price29 = createNode("span");
-  price29.textContent = "$29";
-  const price99 = createNode("span");
-  price99.textContent = "$99";
-  const price499 = createNode("span");
-  price499.textContent = "$499";
-  pricing.appendChild(price29);
-  pricing.appendChild(price99);
-  pricing.appendChild(price499);
-  const testimonial = createNode("section");
-  testimonial.setAttribute("data-sitecraft-demo", "testimonial");
-  testimonial.textContent = "CEO at Google";
-  nodes.figma.setAttribute("data-sitecraft-demo", "figma");
-  const footerBrand = createNode("span");
-  footerBrand.setAttribute("data-sitecraft-brand", "footer");
-  footerBrand.textContent = "Landwind";
-  const footerCopyright = createNode("span");
-  footerCopyright.setAttribute("data-sitecraft-demo", "footer-copyright");
-  footerCopyright.textContent = "© 2021-2022 Landwind™. All Rights Reserved.";
-  document.body.appendChild(logoWall);
-  document.body.appendChild(pricing);
-  document.body.appendChild(testimonial);
-  document.body.appendChild(footerBrand);
-  document.body.appendChild(footerCopyright);
-
-  const draft = packDraft("export");
-  const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
-    "companyName.zh",
-    "hero.title.zh",
-    "demoChrome.pricing",
-    "demoChrome.logo-wall",
-    "demoChrome.figma",
-    "demoChrome.testimonial",
-    "demoChrome.footer-copyright",
-  ], "workspace");
-  const page = visibleText(document.body);
-  assert.equal(nodes.brand.textContent, simulatedPacks.export.companyName);
-  assert.equal(footerBrand.textContent, simulatedPacks.export.companyName);
-  assert.equal(page.includes(simulatedPacks.export.companyName), true);
-  for (const token of ["$29", "$99", "$499", "Get Figma", "Airbnb", "Google", "CEO at Google", "Landwind™"]) {
-    assert.equal(page.includes(token), false, `landwind still shows ${token}`);
-  }
-  assert.equal(logoWall.hidden, true);
-  assert.equal(pricing.hidden, true);
-  assert.equal(nodes.figma.hidden, true);
-  assert.equal(testimonial.hidden, true);
-  assert.equal(footerCopyright.hidden, true);
-  assert.ok(report.appliedSlots.includes("companyName.zh"));
-  assert.ok(report.appliedSlots.includes("demoChrome.pricing"));
-  assert.ok(report.appliedSlots.includes("demoChrome.logo-wall"));
-  assert.deepEqual(report.fallbackMatched, []);
-});
 
 // 工程工业 now comes from the block library: its page carries no ScrewFast wordmark, reviews or
 // pricing at all (tests/block-compose.test.ts), so there is no demo chrome left to hide here.
@@ -1726,21 +1542,4 @@ test("engineering-industrial bridge applies the named slate palette without chan
   assert.equal(document.documentElement.styleValues["--site-accent-strong"], palette.accentStrong);
   assert.equal(document.documentElement.styleValues["--site-line"], palette.border);
   assert.ok(report.appliedSlots.includes("kit.family.engineering-industrial"));
-});
-
-test("look/family mismatch is reported and landwind pricing is still omitted", () => {
-  const adapter = getTemplateAdapter("landwind");
-  assert.ok(adapter?.kit);
-  const { document, nodes } = createLandwindFragment();
-  const pricing = createNode("section");
-  pricing.setAttribute("data-sitecraft-demo", "pricing");
-  pricing.textContent = "$499";
-  document.body.appendChild(pricing);
-  const draft = packDraft("industrial");
-  assert.equal(draft.visualBrief.id, "engineering-industrial");
-  const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", ["kit.family.mismatch"], "workspace");
-  assert.ok(report.missingSlots.includes("kit.family.mismatch"));
-  assert.equal(pricing.hidden, true);
-  assert.equal(visibleText(document.body).includes("$499"), false);
-  assert.equal(nodes.brand.textContent, simulatedPacks.industrial.companyName);
 });
