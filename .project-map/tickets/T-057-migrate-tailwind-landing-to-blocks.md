@@ -69,3 +69,10 @@ supersedes:
 - 最终验证（提交 `6fcd856` 后）：`npm test` 507/507，0 失败/0 跳过；typecheck、build 通过。日志：`artifacts/t057/full-r5-6fcd856.log`、`artifacts/t057/typecheck-r5-6fcd856.log`、`artifacts/t057/build-r5-6fcd856.log`。
 - 三份草稿 `check-published` 于 `2026-10-01 13:00:56 -0400` 运行，9/9 通过；660cde13 三档无孤行、无拆词，截图在 `artifacts/t057/published-r5-6fcd856/`。
 - 三套对照均晚于 `6fcd856`：工程工业 `artifacts/t057/engineering-6fcd856/report.json` 为 66/66 逐像素一致；明亮产品 `artifacts/t057/forge-6fcd856/report.json` 为 9/9 一致；蓝白目录 `artifacts/t057/landwind-6fcd856/report.json` 为 9/9 一致。报告时间分别为 13:02:40、13:03:12、13:03:34 -0400。
+
+### 第三次复审返工（候选 `57f897a`）
+
+- 预览桥删除孤行测量、宽度 probe、RAF 和模板分支；`TemplateBlocks.heroTitle` 作为声明数据，只有 `shortPathLook` 为 `"words"`。工程工业、明亮产品、蓝白目录不写词 span，灰底短路径由浏览器 CSS `text-wrap: pretty` 处理孤行。测试覆盖声明 gating、二次写入结构一致和 resize 后不重新写入仍可重排。
+- 最终全量（提交 `57f897a` 后）：`npm test` 508/508，0 失败/0 跳过；typecheck、build 通过。日志：`artifacts/t057/full-r6-57f897a.log`、`artifacts/t057/typecheck-r6-57f897a.log`、`artifacts/t057/build-r6-57f897a.log`。
+- 三份草稿 `check-published` 于 `2026-10-01 13:28:38 -0400` 运行，9/9 通过；报告和截图在 `artifacts/t057/published-r6-57f897a/`。
+- 三套最终对照均晚于提交：工程工业 `artifacts/t057/engineering-57f897a/report.json` 为 66/66 一致；明亮产品 `artifacts/t057/forge-57f897a/report.json` 为 9/9 一致；蓝白目录 `artifacts/t057/landwind-57f897a/report.json` 为 9/9 一致。报告时间分别为 13:30:09、13:30:28、13:30:51 -0400。P2 扫描脚本未改。
