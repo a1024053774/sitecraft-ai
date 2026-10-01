@@ -971,35 +971,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       node.textContent = value;
       return;
     }
-    var segmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
-      ? new Intl.Segmenter("zh", { granularity: "word" })
-      : null;
-    if (!segmenter) {
-      node.textContent = value;
-      return;
-    }
-    var segments = Array.from(segmenter.segment(value));
-    var tail = segments[segments.length - 1];
-    var previous = segments[segments.length - 2];
-    if (tail && previous && tail.isWordLike && previous.isWordLike && tail.segment.length === 1 && /[\u3400-\u9fff]/.test(tail.segment) && /[\u3400-\u9fff]$/.test(previous.segment)) {
-      previous.segment += tail.segment;
-      segments.pop();
-    }
-    for (var part of segments) {
-      var segment = String(part.segment || "");
-      if (!segment) continue;
-      if (!part.isWordLike || /^\s+$/.test(segment)) {
-        node.appendChild(document.createTextNode(segment));
-        continue;
-      }
-      var span = document.createElement("span");
-      span.setAttribute("data-sitecraft-hero-word", "true");
-      span.style.whiteSpace = "normal";
-      span.style.wordBreak = "keep-all";
-      span.style.overflowWrap = "anywhere";
-      span.textContent = segment;
-      node.appendChild(span);
-    }
+    node.textContent = value;
     balanceHeroTitleIfOrphan(node);
     queueHeroTitleBalance(node);
   }
@@ -1026,16 +998,63 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (tops.length < 2) return;
     var last = lines[tops[tops.length - 1]] || [];
     var lastText = last.map(function (item) { return item.char; }).join("");
-    var shortWord = lastText.length <= 2 && /^[\u3400-\u9fff]+$/.test(lastText) && last.every(function (item) { return item.parent && item.parent.getAttribute("data-sitecraft-hero-word") === "true"; });
-    if (!(lastText.length === 1 && /[\u3400-\u9fff]/.test(lastText[0])) && !shortWord) return;
-    node.style.textWrap = "balance";
+    var shortWord = lastText.length <= 2 && /^[\u3400-\u9fff]+$/.test(lastText);
+    var value = node.textContent || "";
+    var segmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function" ? new Intl.Segmenter("zh", { granularity: "word" }) : null;
+    if (!segmenter) return;
+    var segments = Array.from(segmenter.segment(value));
+    var tail = segments[segments.length - 1];
+    var previous = segments[segments.length - 2];
+    if (tail && previous && tail.isWordLike && previous.isWordLike && tail.segment.length === 1 && /[\u3400-\u9fff]/.test(tail.segment) && /[\u3400-\u9fff]$/.test(previous.segment)) {
+      previous.segment += tail.segment;
+      segments.pop();
+    }
     var lineWidth = node.clientWidth || (node.getBoundingClientRect && node.getBoundingClientRect().width) || 0;
     var computed = global.getComputedStyle ? global.getComputedStyle(node) : null;
-    var words = node.querySelectorAll("[data-sitecraft-hero-word]");
-    for (var w = 0; w < words.length; w++) {
-      var word = words[w];
+    var naturalWidth = function (word) {
       var probe = document.createElement("span");
-      probe.textContent = word.textContent || "";
+      probe.textContent = word;
+      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;font:" + (computed?.font || "inherit") + ";letter-spacing:" + (computed?.letterSpacing || "normal") + ";font-weight:" + (computed?.fontWeight || "normal");
+      document.body.appendChild(probe);
+      var width = probe.getBoundingClientRect().width;
+      probe.remove();
+      return width;
+    };
+    var wordSplit = false;
+    for (var checkPart of segments) {
+      var checkWord = String(checkPart.segment || "");
+      if (!checkPart.isWordLike || checkWord.length < 2 || naturalWidth(checkWord) > lineWidth + 1) continue;
+      var start = checkPart.index;
+      var end = start + checkWord.length;
+      var topByOffset = [];
+      var offset = 0;
+      var textWalker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      while (textWalker.nextNode()) {
+        var current = textWalker.currentNode;
+        for (var ci = 0; ci < current.textContent.length; ci++) if (offset + ci >= start && offset + ci < end) {
+          range.setStart(current, ci); range.setEnd(current, ci + 1);
+          topByOffset.push(range.getBoundingClientRect().top);
+        }
+        offset += current.textContent.length;
+      }
+      if (topByOffset.length > 1 && topByOffset.some(function (top) { return Math.abs(top - topByOffset[0]) > 1; })) { wordSplit = true; break; }
+    }
+    if (templateId !== "tailwind-landing") wordSplit = false;
+    if (!(lastText.length === 1 && /[\u3400-\u9fff]/.test(lastText[0])) && !shortWord && !wordSplit) return;
+    node.textContent = "";
+    if (lastText.length === 1 || shortWord) node.style.textWrap = "balance";
+    for (var part of segments) {
+      var segment = String(part.segment || "");
+      if (!segment) continue;
+      if (!part.isWordLike || /^\s+$/.test(segment)) {
+        node.appendChild(document.createTextNode(segment));
+        continue;
+      }
+      var word = document.createElement("span");
+      word.setAttribute("data-sitecraft-hero-word", "true");
+      word.textContent = segment;
+      var probe = document.createElement("span");
+      probe.textContent = segment;
       probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;font:" + (computed?.font || "inherit") + ";letter-spacing:" + (computed?.letterSpacing || "normal") + ";font-weight:" + (computed?.fontWeight || "normal");
       document.body.appendChild(probe);
       var natural = probe.getBoundingClientRect().width;
@@ -1046,6 +1065,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       word.style.maxWidth = "100%";
       word.style.wordBreak = "keep-all";
       word.style.overflowWrap = "anywhere";
+      node.appendChild(word);
     }
   }
 
