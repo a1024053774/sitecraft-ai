@@ -18,7 +18,7 @@ supersedes:
 
 执行交给 Codex（Herdr 里的 `codex-build`，GPT-6-Astra），照 Kiro 的计划分步做；Kiro 积分不够，只写了计划。
 
-- 版式方向配方：开发侧写好 3 个方向（规格为主、目录为主、工厂实力），每个 12–20 条白名单规则、三份资料三档检查过；模型选一个方向，再按用户要求加规则。仍是「模型写受限的站点样式」，只是不从零写。`set_site_style` 整份替换「方向 + 规则」。服务端先按资料算出「建议方向」写进提示，模型可按用户的话改。
+- 版式方向配方：开发侧写好 3 个方向（规格为主、目录为主、工厂实力），每个 12–20 条白名单规则、三份资料三档检查过；只在用户明确提出外观要求时，模型才选一个方向并按用户要求加规则。仍是「模型写受限的站点样式」，只是不从零写。`set_site_style` 整份替换「方向 + 规则」。整站生成和需求对齐不计算或提供建议方向。
 - CSS 由我们的序列化函数在预览文档里生成，桥和检查用同一段代码；不透传模型原文。区块样式在 `@layer sc-blocks`，站点样式在其后的 `@layer site-style`；缺口和显隐靠不开放 `display` 和 `!important` 保住。spec 相应措辞随第 1 步修改。
 - 白名单按计划收窄：不放 `display`、`order`、十六进制颜色、渐变、阴影；导航和页脚不开放。
 - 三档检查只查访客首页（中文三档，有英文时英文也查），含对比度；只拒绝新增问题；规则表为空时不开浏览器。撤销和重做不查（撤销必须永远能退回），之后内容变长导致的问题靠 check-published 发现。
@@ -41,7 +41,7 @@ supersedes:
 
 ## Resolution
 
-Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb449c`、`190238b`、`6dde6b2`、`af3b6eb`；返工提交为 `650d584`、`03670c7`、`0b61472`，均未推送。负责人决定提交 `d0cd279` 后改为只按用户要求使用样式；本轮实现提交待补。代码审查：PASS（Astra）。盲评：R2 已回传，结论为三家不带样式略好。
+Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb449c`、`190238b`、`6dde6b2`、`af3b6eb`；返工提交为 `650d584`、`03670c7`、`0b61472`，均未推送。负责人决定提交 `d0cd279` 后改为只按用户要求使用样式；本轮实现提交为 `2c3b08f`、`b510359`，均未推送。代码审查：PASS（Astra）。盲评：R2 已回传，结论为三家不带样式略好。
 
 负责人决定后的实现：
 
@@ -61,4 +61,6 @@ Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb44
 - 三站各做一次真实样式对话并通过提交检查，记录在 [style-requests-rework.json](../../artifacts/t054/style-requests-rework.json)。实际工作台输入框证据在 [workspace-ui-1790790783953](../../artifacts/t054/workspace-ui-1790790783953/)：首屏更有分量只修改样式；375 宽度四列产品请求被拒，原因含「375 宽度下『产品』横向超出页面 153px」。
 - 三站发布页三档最新检查通过：[published-rework-20260930-1755/report.json](../../artifacts/t054/published-rework-20260930-1755/report.json)；此前注塑 375 标题溢出的失败报告保留在 [published-rework-20260930-1750/report.json](../../artifacts/t054/published-rework-20260930-1750/report.json)。
 - 全量 `npm test` 通过（490/490），`npm run typecheck` 和 `npm run build` 通过；完整日志见 [rework-npm-test-final.txt](../../artifacts/t054/rework-npm-test-final.txt)。
+- 负责人决定后的三份真实生成依次记录在 `artifacts/t061/t054-r3-industrial-summary.json`（`5eb7daff…`）、`t054-r3-export-summary.json`（`8c210e93…`）、`t054-r3-molding-summary.json`（`a4d12f11…`）；[t054-r3-site-style-check.json](../../artifacts/t061/t054-r3-site-style-check.json) 记录三份草稿生成后 `siteStyle: null`。P3I 工作台第一次样式请求因 1440 首屏文字重叠被真实拒绝，草稿保持 v3，失败证据在 `workspace-ui-1790827312248/`；收窄外观提示后再次从同一 v3 草稿输入“首屏更有分量”通过检查并保存 v4，成功截图与报告在 [workspace-ui-1790827459700](../../artifacts/t054/workspace-ui-1790827459700/)。
+- 本轮 `npm test` 通过 490/490（`artifacts/t054/r3-npm-test-final.txt`），`npm run typecheck`、`npm run build` 通过；站点扫描器单测绿态见 `r3-site-style-scan-green.txt`。
 - 最新盲评包为 [blind/README.md](../../artifacts/t054/blind/README.md)、[blind-key.json](../../artifacts/t054/blind-key.json)，随机代号为 `99df`/`c52f`，三家各含带样式与去掉样式的 1440/768/375 原图及 `-masked.png`；上一包完整移至 [blind-r1](../../artifacts/t054/blind-r1/)，中间重建包保留在 `blind-prior-*`。
