@@ -68,6 +68,7 @@ export const engineeringLook: BlockLook = {
     "--site-section-space-narrow": "52px",
     "--site-h1": "clamp(34px, 4.6vw, 58px)",
     "--site-h1-fit-min": "24px",
+    "--site-brand-fit-min": "8px",
     "--site-h1-display": "clamp(30px, 4.8vw, 64px)",
     "--site-h2": "clamp(27px, 3vw, 38px)",
     "--site-h1-leading": "1.1",
