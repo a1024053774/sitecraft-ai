@@ -26,6 +26,7 @@ export const navFragment: BlockFragment = {
   narrow: `
 .sitecraft-nav-links, .sitecraft-nav .sitecraft-nav-cta { display: none; }
 .sitecraft-menu { display: block; }
+.sitecraft-brand-name { font-size: clamp(11px, 3.2vw, 17px); }
 `,
   variants: {
     bar: `<div data-sc-block="nav" data-sc-variant="bar">

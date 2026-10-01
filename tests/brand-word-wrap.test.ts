@@ -23,17 +23,18 @@ test("the catalog look keeps the company name together at phone width", async ()
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
-    const style = await browser.eval<{ split: boolean; wordBreak: string; wrap: string }>(`(() => {
+    const style = await browser.eval<{ split: boolean; wordBreak: string; wrap: string; overflow: boolean }>(`(() => {
       const node = document.querySelector('.sitecraft-brand-name');
       const text = node?.textContent || '';
       const target = '模具'; const at = text.indexOf(target);
-      if (!node || at < 0) return { split: false, wordBreak: '', wrap: '' };
+      if (!node || at < 0) return { split: false, wordBreak: '', wrap: '', overflow: false };
       const range = document.createRange();
       range.setStart(node.firstChild, at); range.setEnd(node.firstChild, at + 1); const a = range.getBoundingClientRect();
       range.setStart(node.firstChild, at + 1); range.setEnd(node.firstChild, at + 2); const b = range.getBoundingClientRect();
-      return { split: Math.abs(a.top - b.top) > 1, wordBreak: getComputedStyle(node).wordBreak, wrap: getComputedStyle(node).textWrap };
+      return { split: Math.abs(a.top - b.top) > 1, wordBreak: getComputedStyle(node).wordBreak, wrap: getComputedStyle(node).textWrap, overflow: node.scrollWidth > node.clientWidth + 1 };
     })()`, sessionId);
     assert.equal(style.split, false, "公司名不能在“模具”中间换行");
+    assert.equal(style.overflow, false, "公司名不能溢出顶栏");
     assert.equal(style.wordBreak, "keep-all", "公司名使用整词断行规则");
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
