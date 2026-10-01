@@ -144,6 +144,13 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "grid"],
         render: { products: "cards", keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
       },
+      rows: {
+        label: "目录行",
+        slots: [benchmark("products.title", "products-title"), benchmark("products.intro", "products-intro")],
+        markers: ["[data-sitecraft-product-grid]"],
+        parts: ["head", "title", "grid"],
+        render: { products: "rows", keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
+      },
       grouped: {
         label: "按类别分组",
         slots: [benchmark("products.title", "products-title"), benchmark("products.intro", "products-intro")],

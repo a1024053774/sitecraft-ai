@@ -1,5 +1,6 @@
 import { blockAdapterFor } from "../blocks/adapter.ts";
 import { engineeringLook } from "../blocks/looks/engineering.ts";
+import { catalogLook } from "../blocks/looks/catalog.ts";
 import { brightLook } from "../blocks/looks/bright.ts";
 import type { SlotApplyReport, TemplateAdapter, TemplateKitModule, TemplateSlot } from "./types.ts";
 
@@ -567,6 +568,15 @@ if (forgeKit) {
   (templateAdapters as Record<string, TemplateAdapter>).forge = blockAdapterFor(brightLook, {
     alternatives: { ...contactToEmail },
     kit: forgeKitWithoutModules,
+  });
+}
+
+const landwindKit = templateAdapters.landwind.kit;
+if (landwindKit) {
+  const { modules: _modules, ...landwindKitWithoutModules } = landwindKit;
+  (templateAdapters as Record<string, TemplateAdapter>).landwind = blockAdapterFor(catalogLook, {
+    alternatives: { ...contactToHeroCta },
+    kit: landwindKitWithoutModules,
   });
 }
 

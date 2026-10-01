@@ -156,7 +156,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       renderGrouped(grid, visible, locale, applied, layout);
       return;
     }
-    if (layout && layout.products === "cards") cardSpec = layout;
+    if (layout && (layout.products === "cards" || layout.products === "rows")) cardSpec = layout;
     if (cardSpec) {
       for (var c = 0; c < visible.length; c++) renderCatalogCard(grid, visible[c], c, locale, applied, cardSpec);
       return;

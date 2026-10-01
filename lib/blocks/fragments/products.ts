@@ -43,6 +43,13 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-ask:hover { color: var(--site-accent-strong); }
 .sitecraft-product-image-credit { margin: 0; font-size: 12px; color: var(--site-muted); }
 .sitecraft-product-empty { margin: 0; color: var(--site-muted); }
+/* 目录行: one series per row; photos occupy a fixed left column and no-photo rows use the full width. */
+.sitecraft-product-rows { display: grid; gap: 20px; }
+.sitecraft-product-rows .sitecraft-product-card { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); min-width: 0; }
+.sitecraft-product-rows .sitecraft-product-card[data-sitecraft-product-photo="false"] { grid-template-columns: 1fr; border-left: var(--site-card-edge); }
+.sitecraft-product-rows .sitecraft-product-media { height: 100%; min-height: 220px; aspect-ratio: auto; }
+.sitecraft-product-rows .sitecraft-product-body { min-width: 0; }
+.sitecraft-product-rows .sitecraft-product-keys { border: var(--site-keys-border); }
 /* 按类别分组: each category heads its own row of cards; key specs read as name/value rows so long
    values (materials lists, tolerances with notes) wrap instead of running out of the card. */
 .sitecraft-product-groups { display: grid; gap: 44px; }
@@ -92,6 +99,8 @@ export const productsFragment: BlockFragment = {
 `,
   phone: `
 .sitecraft-product-body { padding: 20px; }
+.sitecraft-product-rows .sitecraft-product-card { grid-template-columns: 1fr; }
+.sitecraft-product-rows .sitecraft-product-media { min-height: 0; aspect-ratio: 16 / 10; }
 /* Narrow screens: key specs as name/value rows so units never break. */
 .sitecraft-product-keys { grid-template-columns: 1fr; }
 .sitecraft-product-key, .sitecraft-product-key + .sitecraft-product-key { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-left: 0; }
@@ -115,6 +124,7 @@ export const productsFragment: BlockFragment = {
 `,
   variants: {
     cards: section("cards", "sitecraft-product-grid"),
+    rows: section("rows", "sitecraft-product-rows"),
     grouped: section("grouped", "sitecraft-product-groups"),
     compare: section("compare", "sitecraft-compare"),
   },

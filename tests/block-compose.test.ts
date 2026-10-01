@@ -52,14 +52,17 @@ test("the engineering home page is composed from the block library with one enti
   assert.equal(document.querySelectorAll("template").length, layoutBlocks(engineeringLook).reduce((sum, block) => sum + Object.keys(blockCatalog[block].variants).length, 0));
 });
 
-test("the other looks still serve their own overlay", async () => {
-  for (const templateId of ["landwind", "tailwind-landing"]) {
+test("the remaining overlay look still serves its own overlay", async () => {
+  assert.ok(await readTemplateStaticFile("landwind", ["index.html"]));
+  const templateId = "tailwind-landing";
+  {
     const served = await readTemplateStaticFile(templateId, ["index.html"]);
     const overlay = readFileSync(new URL(`../lib/template-adapters/overlays/${templateId}.index.html`, import.meta.url), "utf8");
     assert.ok(served, templateId);
     assert.equal(served.body.toString("utf8").includes("data-sc-block"), false, `${templateId} must not be composed yet`);
     assert.equal(served.body.toString("utf8").replace(/<link crossorigin="anonymous"/g, "<link"), overlay, `${templateId} overlay`);
   }
+  assert.ok(composedPageForTemplate("landwind"));
 });
 
 test("the page root carries the palette and the look tokens; spacing, headings and dividers read them", async () => {

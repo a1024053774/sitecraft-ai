@@ -343,33 +343,7 @@ test("declared hero images are unique src slots and leave logos and avatars unde
   }
 });
 
-test("screwfast forge and landwind FAQ nodes are unique and stay declared", () => {
-  const cases = [
-    {
-      id: "landwind",
-      html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
-      count: 4,
-      chrome: "资料有限时",
-    },
-  ] as const;
-  for (const item of cases) {
-    const html = readFileSync(item.html, "utf8");
-    const adapter = getTemplateAdapter(item.id);
-    assert.ok(adapter);
-    assert.equal((html.match(/data-sitecraft-faq="title"/g) ?? []).length, 1);
-    for (let index = 0; index < item.count; index += 1) {
-      const n = index + 1;
-      assert.equal((html.match(new RegExp(`data-sitecraft-faq="q${n}"`, "g")) ?? []).length, 1, `${item.id} q${n}`);
-      assert.equal((html.match(new RegExp(`data-sitecraft-faq="a${n}"`, "g")) ?? []).length, 1, `${item.id} a${n}`);
-      const title = adapter.slots.find((slot) => slot.target === `faq.items.${index}.title`);
-      const body = adapter.slots.find((slot) => slot.target === `faq.items.${index}.body`);
-      assert.equal(title?.selector, `[data-sitecraft-faq="q${n}"]`);
-      assert.equal(body?.selector, `[data-sitecraft-faq="a${n}"]`);
-    }
-    assert.equal(adapter.slots.some((slot) => slot.target === `faq.items.${item.count}.title`), false);
-    assert.equal(html.includes(item.chrome), false);
-  }
-
+test("screwfast and landwind FAQ nodes are unique and stay declared", () => {
   const screwfast = withoutTemplates(servedHomeHtml("screwfast"));
   const screwfastAdapter = getTemplateAdapter("screwfast");
   assert.ok(screwfastAdapter);
@@ -383,6 +357,13 @@ test("screwfast forge and landwind FAQ nodes are unique and stay declared", () =
     );
   }
   assert.equal(screwfast.includes("Contact Sales Team"), false);
+  const landwind = withoutTemplates(servedHomeHtml("landwind"));
+  const landwindAdapter = getTemplateAdapter("landwind");
+  assert.ok(landwindAdapter);
+  for (let index = 0; index < 6; index += 1) {
+    assert.equal((landwind.match(new RegExp(`data-sitecraft-benchmark="faq-item-${index}-title"`, "g")) ?? []).length, 1);
+    assert.equal(landwindAdapter.slots.find((slot) => slot.target === `faq.items.${index}.title`)?.selector, `[data-sitecraft-benchmark="faq-item-${index}-title"]`);
+  }
 });
 
 test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () => {
@@ -403,56 +384,6 @@ function countAttrExact(html: string, attr: string, value: string) {
 
 // 工程工业 has no demo chrome left to declare: its page is composed from the block library
 // (tests/block-compose.test.ts checks the page carries none).
-test("landwind declares unique demo-chrome and brand nodes for Q27 vetoes", () => {
-  const cases = [
-    {
-      id: "landwind",
-      html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
-      brand: ["nav"],
-      chrome: ["pricing", "logo-wall", "figma", "testimonial", "footer-copyright"],
-      snapshotTokens: ["企业目录", "产品类别"],
-    },
-  ] as const;
-
-  for (const item of cases) {
-    const html = readFileSync(item.html, "utf8");
-    const adapter = getTemplateAdapter(item.id);
-    assert.ok(adapter, `${item.id} adapter is required`);
-    assert.ok(adapter.demoChrome, `${item.id} must declare demoChrome data`);
-    assert.equal(adapter.slots.some((slot) => slot.target === "companyName"), true, `${item.id} must declare companyName`);
-    assert.equal(
-      adapter.sanitize?.leafPatterns?.some((pattern) => /Get Figma|12\.8k|Airbnb/i.test(pattern)) ?? false,
-      false,
-      `${item.id} must not regex-guess demo chrome`,
-    );
-    assert.equal(
-      adapter.sanitize?.sections?.some((pattern) => /Simple, Transparent Pricing|Designed for business/i.test(pattern)) ?? false,
-      false,
-      `${item.id} must not heading-regex hide pricing`,
-    );
-
-    for (const key of item.chrome) {
-      const spec: TemplateDemoChrome | undefined = (adapter.demoChrome ?? []).find((entry) => entry.key === key);
-      assert.ok(spec, `${item.id} missing demoChrome.${key}`);
-      assert.equal(spec.selector, `[data-sitecraft-demo="${key}"]`);
-      assert.equal(countAttrExact(html, "data-sitecraft-demo", key), 1, `${item.id} ${key} marker must be unique`);
-    }
-    for (const key of item.brand) {
-      const slots = adapter.slots.filter((slot) => slot.target === "companyName" && (slot.selector.includes(`data-sitecraft-brand="${key}"`) || (item.id === "landwind" && key === "nav" && slot.selector.includes("data-sitecraft-brand-name="))));
-      assert.equal(slots.length, 1, `${item.id} brand ${key} slot`);
-      assert.equal(countAttrExact(html, "data-sitecraft-brand", key), 1, `${item.id} brand ${key} marker must be unique`);
-    }
-    for (const token of item.snapshotTokens) {
-      assert.equal(html.includes(token), true, `${item.id} snapshot still contains ${token} before apply`);
-    }
-  }
-  const landwindHtml = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
-  const landwindVendor = readFileSync(new URL("../vendor/open-source-templates/landwind/index.html", import.meta.url), "utf8");
-  assert.equal(landwindHtml.toLowerCase().includes("airbnb"), false, "clean host has no logo-wall brand");
-  assert.equal(countAttrExact(landwindHtml, "data-sitecraft-demo", "logo-wall"), 1);
-  assert.equal(countAttrExact(landwindVendor, "data-sitecraft-demo", "logo-wall"), 0, "vendor snapshot stays unmarked");
-});
-
 test("admitted kits bind looks to one family, copy concrete tokens, and never select demo pricing", () => {
   const expected = {
     forge: { familyId: "industrial", templateId: "forge", demo: [] as string[] },
@@ -464,7 +395,7 @@ test("admitted kits bind looks to one family, copy concrete tokens, and never se
     landwind: {
       familyId: "export-catalog",
       templateId: "landwind",
-      demo: ["pricing", "logo-wall", "figma", "testimonial", "footer-copyright"],
+      demo: [],
     },
     "tailwind-landing": {
       familyId: "technical-product",
