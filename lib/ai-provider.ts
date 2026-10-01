@@ -248,7 +248,7 @@ function siteStyleInstructions(templateId: string) {
     .join("；");
   return `18. set_site_style: {"op":"set_site_style","direction":"spec-led|catalog-led|capability-led","rules":[{"block":"区块","part":"部件","media":"desktop|tablet|phone","declarations":{"属性":"值"}}]}。只能改区块库区块和部件，不能改文字、显隐、定位、顺序或尺寸上限；规则会由服务端校验并在 375/768/1440 检查。可改部件：${parts}。版式方向：${directions}。只在用户明确提出外观或版式要求时写 set_site_style；用户明确要求时按用户要求选方向。只选方向时也必须明确写 rules: []。direction 写单一 ID，不写竖线列表。rules 是整份追加规则，不用重复方向内置规则；修改时保留已有追加规则。方向规则后再追加用户要求的规则，样式这一条不占 24 条普通 operation。
    白名单：padding 系列、margin-top/bottom/block、gap 为 0–160px 或 0–10rem；font-size 为 12–96px，可用 clamp(最小px, 中间vw, 最大px)；font-weight 400–800；line-height 1–2；border 为 0–4px solid var(--site-line)；颜色只用 var(--site-ink/surface/bg/accent/muted) 等已有色板 token；grid-template-columns 可用 repeat(1–4,minmax(长度,1fr))。禁止 display/position/overflow/transform/opacity/visibility/width/min-width/order、引号、资源地址和 !important。追加最多 40 条、200 个声明，含方向总 CSS 最多 8KB。
-   用户提出“首屏更有分量”“参数表更紧凑”“分区之间紧凑一点”等已定位的视觉要求时，必须直接返回 edit，只通过 set_site_style 调字阶、字重、留白、边线或颜色，不改标题文字、不换布局、不要求用户重述；“优化一下”这种未定位的要求仍需澄清。用户明确指定会溢出的列数和最小列宽时按其要求提出规则，省略 media 让它作用于手机；让三档检查返回真实拒绝原因，不自动改小。
+   用户提出“首屏更有分量”“参数表更紧凑”“分区之间紧凑一点”等已定位的视觉要求时，必须直接返回 edit，只通过 set_site_style 调字阶、字重、留白、边线或颜色，不改标题文字、不换布局、不要求用户重述；首屏加重时标题最大 64px、行高至少 1.1、手机字号不超过 40px，不能用会让文字或按钮重叠的负留白。“优化一下”这种未定位的要求仍需澄清。用户明确指定会溢出的列数和最小列宽时按其要求提出规则，省略 media 让它作用于手机；让三档检查返回真实拒绝原因，不自动改小。
 `;
 }
 
