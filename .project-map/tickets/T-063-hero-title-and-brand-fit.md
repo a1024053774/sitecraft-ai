@@ -24,3 +24,11 @@ T-060 验收时用三份模拟资料真实生成，工程工业页面出了两�
 - [ ] 工程工业 66 张、明亮/蓝白/灰底各 9 张对照，原本放得下的标题和页眉逐像素不变，只有原本溢出的那几张有变化，逐张说明
 - [ ] T-060 的三份真实草稿（模型原始标题）`check-published` 中英文三档通过，检查不放宽；截图逐张看过
 - [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+
+## Resolution
+
+- 失败证据：在 T-063 实现前运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/t063-hero-title-fit.test.ts`，源码契约与三档原始标题检查均失败，日志 `artifacts/t063-red-before.txt`；T-060 严格发布复现保存在 `artifacts/t060/strict-red-ff4fb1b/`。
+- 实现提交：`5841a3d`（字符 CSS 变量和容器单位）、`0ffe615`（菜单预留宽度）、`3cbad1f`（仅由 look 声明启用）、`ff598ab`（保留整词断行）、`a1a99da`（只对长标题/公司名写变量）。没有样子专用 CSS 覆盖、模板分支或 JS 布局测量；严格检查脚本未放宽。
+- T-060 三份真实草稿用模型原始标题在最终代码 `801d344` 后 `check-published` 中英文 9/9 通过，报告和截图 `artifacts/t063/published-final-801d344/`。
+- 工程工业对照命令 `scripts/compare-engineering-default.mjs --old 7d09e6e` 的最终报告 `artifacts/t063/engineering-final-801d344/`：原本放得下的工程工业页面保持一致；差异只落在注塑资料原本溢出的首屏标题/页眉区域。明亮产品、蓝白目录、灰底短路径分别为 `artifacts/t063/forge-final-3cbad1f/`、`landwind-final-3cbad1f/`、`tailwind-final-3cbad1f/`，均 9/9 逐像素一致。
+- 最终验证：`npm test` 521/521、0 失败/0 跳过（`artifacts/t063/full-final-801d344.log`）；typecheck、build 通过（`artifacts/t063/typecheck-final-801d344.log`、`build-final-801d344.log`）。
