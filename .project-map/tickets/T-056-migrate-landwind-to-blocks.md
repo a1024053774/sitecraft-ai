@@ -33,3 +33,20 @@ supersedes:
 - [ ] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
 - [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
 - [ ] 代码审查通过；Claude 验收；旧 overlay 已删除
+
+## Resolution
+
+- 三份资料各真实跑过一次 DeepSeek（按工业、外贸、注塑顺序，未并行），均完成“需求对齐 → 确认 → 生成”，草稿 `templateId=landwind`、方向为 `export-catalog / 蓝白目录`：
+  - 工业 `4345e6dc-8756-4170-ab7f-68576d601892`：模型建议并写入 `products=compare`，2 个产品。
+  - 外贸 `bc386e3d-0d4a-427f-ab22-a309b823ffdf`：写入 `industries=cards`、`services=steps`，2 个产品。
+  - 注塑 `3f729be4-8a22-4127-91b8-9c658178d405`：资料不足的变体被拒，保留默认排法，5 个产品。
+  原始调用和结果：`artifacts/t056/t056-industrial-summary.json`、`t056-export-summary.json`、`t056-molding-summary.json`（2026-10-01 09:54–09:58 UTC）。
+- 发布页三档检查：
+  `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node scripts/check-published.mjs --out artifacts/t056/published-real-final 4345e6dc-8756-4170-ab7f-68576d601892 bc386e3d-0d4a-427f-ab22-a309b823ffdf 3f729be4-8a22-4127-91b8-9c658178d405`
+  9/9（1440/768/375 × 3）通过，0 failures；逐张截图已查看，文件在 `artifacts/t056/published-real-final/`。
+- 旧新事实、顺序、显隐对照：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell OUT=artifacts/t056/landwind-old-new-compare-r2 node --experimental-strip-types artifacts/t056/compare-landwind-facts.mjs`，旧侧从 `472a304` 的 `lib/template-adapters/overlays/landwind.index.html`、bridge、adapter 取代码，新侧用当前区块库；同一份草稿、同一 Chrome、9 组宽度结果，报告在 `artifacts/t056/landwind-old-new-compare-r2/report.json`。每组都有非空事实和 10 个显隐节点，规范化区块顺序 9/9 一致；工业资料因新版选择参数对比表，旧 overlay 记录 26/36 个共同事实（外贸 38/44、注塑 70/88），差异明细保存在报告中，没有空结果。
+- 盲评包：`artifacts/t056/blind/`，两版使用新随机代号并随机顺序，每张旧版/新版截图均有 `-masked.png`；工程工业和明亮产品参照图分别以 `engineering`、`bright` 命名。README 保留五问并加入“和另外两个样子放在一起能看出是不同的样子吗”，对照表单独在 `artifacts/t056/blind-key.json`，截图检查用的接触表在 `artifacts/t056/blind-contact-sheet.png`。
+- 验证（2026-10-01）：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 497/497 通过、0 skipped；`npm run typecheck` 通过；`npm run build` 通过。
+- 代码审查：
+- 盲评：
+- 删除旧 overlay：
