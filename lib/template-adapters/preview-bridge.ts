@@ -54,6 +54,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return chars.length || 1;
   }
 
+  function fitTextEnabled() {
+    return Boolean(adapter && adapter.blocks && adapter.blocks.fitText === "container");
+  }
+
   function readDraftValue(draft, target, locale) {
     if (!draft) return undefined;
     var content = draft.content || {};
@@ -701,8 +705,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-chars", String(characterUnits(nextValue)));
-      if ((slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-brand-chars", String(characterUnits(nextValue)));
+      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-chars", String(characterUnits(nextValue)));
+      if (fitTextEnabled() && (slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-brand-chars", String(characterUnits(nextValue)));
       if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";
         writeHeroTitle(node, nextValue);

@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
 import { openBrowser } from "./helpers/workspace-browser.ts";
+import { engineeringLook } from "../lib/blocks/looks/engineering.ts";
 
 const fitSource = readFileSync("scripts/visitor-text-fit-scan.js", "utf8");
 
 test("T-063 uses declared character CSS sizing without a look-specific selector", () => {
+  assert.equal(engineeringLook.fitText, "container");
   const bridge = readFileSync("lib/template-adapters/preview-bridge.ts", "utf8");
   const hero = readFileSync("lib/blocks/fragments/hero.ts", "utf8");
   const nav = readFileSync("lib/blocks/fragments/nav.ts", "utf8");

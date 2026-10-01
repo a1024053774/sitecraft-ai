@@ -369,6 +369,7 @@ export type BlockLook = {
   templateId: string;
   documentTitle: string;
   heroTitle?: "words";
+  fitText?: "container";
   tokens: Readonly<Record<string, string>>;
   layout: {
     top: readonly BlockId[];

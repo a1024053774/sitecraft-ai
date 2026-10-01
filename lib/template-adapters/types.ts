@@ -100,6 +100,7 @@ export type TemplateBlocks = {
   defaults: Record<string, string>;
   /** Hero title policy for this look; only declared looks opt into word spans. */
   heroTitle?: "words";
+  fitText?: "container";
   variants: Record<string, string[]>;
   /** How the bridge fills a mounted variant, from the block catalog: block -> variant -> params. */
   render?: Record<string, Record<string, TemplateBlockRender>>;
