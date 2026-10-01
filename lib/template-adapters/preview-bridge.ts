@@ -984,7 +984,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
     // model token still gets the same protection on the short-path look.
     var hasHan = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(value);
     var hasLongToken = /[A-Za-z0-9]{20,}/.test(value);
-    if ((hasHan && Array.from(value).length < 10) || (!hasHan && !hasLongToken)) {
+    var mixedHanAndAscii = hasHan && /[A-Za-z0-9]/.test(value);
+    var hasNaturalBreakPunctuation = /[，,、：:；;]/.test(value);
+    if ((!hasHan && !hasLongToken) || (hasHan && (mixedHanAndAscii || hasNaturalBreakPunctuation || Array.from(value).length < 10))) {
       node.textContent = value;
       return;
     }

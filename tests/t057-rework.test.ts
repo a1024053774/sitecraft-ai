@@ -62,7 +62,7 @@ test("a long short-path hero word stays inside a 375px viewport", async () => {
 
 test("an engineering title uses declared word spans without splitting its words", async () => {
   const base = packDraft("industrial");
-  const draft = { ...base, templateId: "screwfast", content: { ...base.content, hero: { ...base.content.hero, title: { zh: "按图加工重载减速机 P3I-NX7Q", en: "Heavy-duty gearbox P3I-NX7Q" } } } };
+  const draft = { ...base, templateId: "screwfast", content: { ...base.content, hero: { ...base.content.hero, title: { zh: "按图加工重载减速机定制方案", en: "Heavy-duty gearbox customization" } } } };
   const browser = await openBrowser();
   const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/screwfast/preview?t057-title=${Date.now()}` }) as { targetId: string };
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
