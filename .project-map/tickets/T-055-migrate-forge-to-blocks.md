@@ -2,7 +2,7 @@
 id: T-055
 title: 「明亮产品」迁到区块库
 type: build
-status: open
+status: closed
 blocked_by: [T-054]
 claimed_by: codex-build
 supersedes:
@@ -29,10 +29,10 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 三份模拟资料用这个样子生成，`check-published` 通过，1440 / 768 / 375 截图打开看过
-- [ ] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
-- [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查通过；Claude 验收；旧 overlay 已删除
+- [x] 三份模拟资料用这个样子生成，`check-published` 通过，1440 / 768 / 375 截图打开看过
+- [x] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
+- [x] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 代码审查通过；Claude 验收；旧 overlay 已删除
 
 ## Resolution
 
@@ -42,6 +42,8 @@ supersedes:
 - 发布检查：删除旧 overlay 后三份真实草稿重新渲染，`check-published` 九档全部通过，报告在 `artifacts/t055/published-delete/report.json`。
 - 工程工业 66 张默认页使用 `scripts/compare-engineering-default.mjs --old 472a304` 重新对照，删除旧 overlay 后 `artifacts/t055/default-compare-delete/report.json` 为 66 identical、0 unexpected。
 - 盲评包：新版在 `artifacts/t055/blind/`，旧包移到 `artifacts/t055/blind-r1/`，对照表 `artifacts/t055/blind-key.json`；同一份草稿同时提供旧 overlay、新区块库版和独立命名的工程工业参照遮字图。
-- 代码审查：
-- 盲评：
+- 代码审查：Astra 首审 NO_GO（证据与覆盖），返工 44794ab 后复审 PASS（`artifacts/review-astra-t055.md`）。
+- 盲评：gpt-6.1-sol 首轮旧版更好（窄屏两列、指标带过窄、分组留白），返工后复评（`artifacts/blind-t055-r2.md`）：c1 新版略好、c2 持平、c3 新版明显更好；遮字三家可分、与工程工业可分；无否决项。
 - 删除旧 overlay：已删除 `lib/template-adapters/overlays/forge.index.html`、`FORGE_HOST_OVERLAY_PATH`/`forgeHostOverlayFile` 分支及只读取该 overlay 的测试；forge 预览继续直接由区块库页面提供，landwind/tailwind overlay 路径保留。
+
+Claude 验收关闭（2026-10-01）。

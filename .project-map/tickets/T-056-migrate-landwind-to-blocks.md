@@ -4,7 +4,7 @@ title: 「蓝白目录」迁到区块库
 type: build
 status: open
 blocked_by: [T-055]
-claimed_by:
+claimed_by: codex-build
 supersedes:
 ---
 
