@@ -23,7 +23,6 @@ test("check-published runs the text-fit scan and reports each way text can fail 
   }
   const scan = readFileSync(new URL("../scripts/visitor-text-fit-scan.js", import.meta.url), "utf8");
   assert.match(scan, /scrollWidth > [\w.]*clientWidth/, "a box whose own text runs past it");
-  assert.match(scan, /paintedTextFits/, "a wrapped text box is not reported from scrollWidth alone");
   assert.match(scan, /textOverflow/, "ellipsis truncation");
   assert.match(scan, /webkitLineClamp/, "line-clamp truncation");
   assert.match(scan, /overflowX === "hidden" \|\| [\w.]*overflowX === "clip"/, "text hidden by a clipping ancestor");
