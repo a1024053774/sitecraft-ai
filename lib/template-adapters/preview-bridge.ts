@@ -970,9 +970,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
       node.textContent = value;
       return;
     }
-    node.textContent = "";
     var segmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function" ? new Intl.Segmenter("zh", { granularity: "word" }) : null;
-    if (!segmenter) return;
+    if (!segmenter) {
+      node.textContent = value;
+      return;
+    }
+    node.textContent = "";
     for (var part of segmenter.segment(value)) {
       var segment = String(part.segment || "");
       if (!segment) continue;
@@ -982,7 +985,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
       var span = document.createElement("span");
       span.setAttribute("data-sitecraft-hero-word", "true");
-      span.style.whiteSpace = "nowrap";
+      span.style.display = "inline-block";
+      span.style.maxWidth = "100%";
+      span.style.whiteSpace = "normal";
       span.style.wordBreak = "keep-all";
       span.style.overflowWrap = "anywhere";
       span.textContent = segment;

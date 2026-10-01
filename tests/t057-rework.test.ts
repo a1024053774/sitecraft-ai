@@ -9,6 +9,11 @@ const closeBrowser = (browser: { ws: WebSocket; id: number }) => {
   browser.ws.close();
 };
 
+test("the Segmenter fallback keeps the authored hero title", () => {
+  const source = readFileSync("lib/template-adapters/preview-bridge.ts", "utf8");
+  assert.match(source, /if \(!segmenter\) \{[\s\S]{0,120}node\.textContent = value/);
+});
+
 async function preview(draft: unknown, width = 375) {
   const browser = await openBrowser();
   const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/tailwind-landing/preview?t057=${Date.now()}` }) as { targetId: string };
@@ -34,6 +39,21 @@ test("hero titles use Intl.Segmenter words instead of a hard-coded product list"
     }))()`, sessionId);
     assert.equal(result.text, "精密注塑模具与注塑件");
     assert.equal(Array.isArray(result.spans), true);
+  } finally {
+    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    closeBrowser(browser);
+  }
+});
+
+test("a long short-path hero word stays inside a 375px viewport", async () => {
+  const base = packDraft("export");
+  const draft = { ...base, templateId: "tailwind-landing", content: { ...base.content, hero: { ...base.content.hero, title: { zh: "ElectromechanicalSuperLongModelNumber", en: "ElectromechanicalSuperLongModelNumber" } } } };
+  const { browser, targetId, sessionId } = await preview(draft, 375);
+  try {
+    const result = await browser.eval<{ scrollWidth: number; innerWidth: number; right: number; wordRight: number }>(`(() => { const h=document.querySelector('[data-sc-block="hero"] h1'); const r=h.getBoundingClientRect(); const word=[...h.querySelectorAll('[data-sitecraft-hero-word]')].reduce((max,n)=>Math.max(max,n.getBoundingClientRect().right),0); return { scrollWidth:document.documentElement.scrollWidth, innerWidth, right:r.right, wordRight:word }; })()`, sessionId);
+    assert.ok(result.scrollWidth <= result.innerWidth + 1, JSON.stringify(result));
+    assert.ok(result.right <= result.innerWidth + 1, JSON.stringify(result));
+    assert.ok(result.wordRight <= result.right + 1, JSON.stringify(result));
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
     closeBrowser(browser);
