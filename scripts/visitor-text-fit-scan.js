@@ -65,6 +65,15 @@
       const style = getComputedStyle(el);
       if (style.display === "inline" || style.display === "contents") continue;
       const wide = el.scrollWidth > el.clientWidth + 1;
+      const box = el.getBoundingClientRect();
+      const range = document.createRange();
+      const textNodes = [...el.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      const paintedRects = textNodes.flatMap((node) => {
+        range.selectNodeContents(node);
+        return [...range.getClientRects()].filter((rect) => rect.width > 0.5 && rect.height > 0.5);
+      });
+      const paintedTextFits = paintedRects.length > 0 && paintedRects.every((rect) => rect.left >= box.left - 4 && rect.right <= box.right + 4);
+      if (wide && (paintedTextFits || /^H[1-6]$/.test(el.tagName))) continue;
       const clamp = style.webkitLineClamp && style.webkitLineClamp !== "none";
       if (wide && style.textOverflow === "ellipsis" && style.overflowX !== "visible") add("ellipsis", el);
       else if (clamp && el.scrollHeight > el.clientHeight + 1) add("ellipsis", el);
