@@ -4,7 +4,7 @@ title: 「明亮产品」迁到区块库
 type: build
 status: open
 blocked_by: [T-054]
-claimed_by:
+claimed_by: codex-build
 supersedes:
 ---
 

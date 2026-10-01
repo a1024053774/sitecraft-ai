@@ -2,7 +2,7 @@
 id: T-054
 title: 站点样式：模型写结构化样式规则，校验加三档检查
 type: build
-status: open
+status: closed
 blocked_by: [T-053]
 claimed_by: codex-build
 supersedes:
@@ -33,11 +33,11 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 上面每种坏规则都被拒绝，测试在没有校验的实现上先失败
-- [ ] 用 DeepSeek 实跑：对三份模拟资料各提一次样式要求（例如「首屏更有分量」「参数表更紧凑」），生成的规则通过校验并在三档都不破版；故意要一个会撑破手机宽度的改法时被拒绝，用户看到原因
-- [ ] 撤销、重做、刷新恢复对样式都成立
-- [ ] 盲评（Codex gpt-6.1-sol）：三份模拟资料在工程工业下，遮住文字只看版式（`-masked` 截图），能看出是三家不同的公司（2026-09-30 从 T-053 移来的硬性验收）；且不差于 T-053
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；Codex Astra 代码审查通过；Claude 验收
+- [x] 上面每种坏规则都被拒绝，测试在没有校验的实现上先失败
+- [x] 用 DeepSeek 实跑：对三份模拟资料各提一次样式要求（例如「首屏更有分量」「参数表更紧凑」），生成的规则通过校验并在三档都不破版；故意要一个会撑破手机宽度的改法时被拒绝，用户看到原因
+- [x] 撤销、重做、刷新恢复对样式都成立
+- [x] 盲评（Codex gpt-6.1-sol）：三份模拟资料在工程工业下，遮住文字只看版式（`-masked` 截图），能看出是三家不同的公司（2026-09-30 从 T-053 移来的硬性验收）；且不差于 T-053
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；Codex Astra 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -66,3 +66,5 @@ Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb44
 - 第三次复审返工：`isSiteStyleRequest` 只接受明确外观词或带方向名称的表达；负例「把首屏标题改成按图加工」「修改参数表说明」「补充工厂实力条目」和正例「首屏更有分量」「整体更紧凑一点」「换成目录为主的版式」见 `tests/ai-provider-layouts.test.ts`。非样式请求即使模型返回 `set_site_style` 仍由 `successResult` 过滤。红态记录：[rework-r4-red-intent.txt](../../artifacts/t054/rework-r4-red-intent.txt)。
 - 本次全量 `npm test` 通过 491/491，`npm run typecheck`、`npm run build` 通过；日志见 [r4-npm-test.txt](../../artifacts/t054/r4-npm-test.txt)。
 - 最新盲评包为 [blind/README.md](../../artifacts/t054/blind/README.md)、[blind-key.json](../../artifacts/t054/blind-key.json)，随机代号为 `99df`/`c52f`，三家各含带样式与去掉样式的 1440/768/375 原图及 `-masked.png`；上一包完整移至 [blind-r1](../../artifacts/t054/blind-r1/)，中间重建包保留在 `blind-prior-*`。
+
+独立审核：Astra（Codex GPT-6）四轮审查，2026-10-01 第四次复审 PASS（候选 1c68c30，全量 491/491，`artifacts/review-astra-t054.md`）。盲评 gpt-6.1-sol 两轮（`artifacts/blind-t054.md`、`artifacts/blind-t054-r2.md`）：遮字版能看出三家不同；自动套用方向时不带样式略好，按负责人决定改为只在用户要求外观时写样式，生成结果即不带样式那版。Claude 验收关闭。
