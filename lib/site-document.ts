@@ -204,6 +204,19 @@ export const sectionKeys = [
 export const sectionKeySchema = z.enum(sectionKeys);
 export type SectionKey = z.infer<typeof sectionKeySchema>;
 
+/** Content blocks that can move in the block-library page. Shell and hero blocks stay fixed. */
+export const movableBlockIds = [
+  "products",
+  "industries",
+  "capabilities",
+  "services",
+  "certifications",
+  "faq",
+  "contact",
+] as const;
+export const movableBlockIdSchema = z.enum(movableBlockIds);
+export type MovableBlockId = z.infer<typeof movableBlockIdSchema>;
+
 /** Plan v0.6 KonsTuck / Lozitick lists. Visibility-only keys may sit outside sectionOrder. */
 export const familyModuleInventory = {
   konstuck: ["products", "services", "features", "faq", "contact"],
@@ -351,7 +364,7 @@ export const siteDraftSchema = z.object({
     capabilities: contentSectionSchema.optional(),
     certifications: certificationSectionSchema.optional(),
   }),
-  sectionOrder: z.array(sectionKeySchema).length(sectionKeys.length),
+  sectionOrder: z.array(movableBlockIdSchema).optional(),
   hiddenSections: z.array(visibilityKeySchema),
   blockVariants: blockVariantsSchema.default({}),
   siteStyle: siteStyleSchema.optional(),
@@ -442,7 +455,6 @@ export const defaultDraft: SiteDraft = {
       ],
     },
   },
-  sectionOrder: ["about", "features", "services", "products", "contact"],
   hiddenSections: [],
   blockVariants: {},
   pagePlan: defaultPagePlanFor("forge"),
@@ -522,8 +534,37 @@ function dropInvalidSiteStyle(input: unknown): unknown {
   return { ...(input as Record<string, unknown>), siteStyle };
 }
 
+function normalizeSectionOrder(input: unknown): unknown {
+  if (!input || typeof input !== "object" || !Object.hasOwn(input, "sectionOrder")) return input;
+  const raw = (input as { sectionOrder?: unknown }).sectionOrder;
+  if (!Array.isArray(raw)) {
+    const copy = { ...(input as Record<string, unknown>) };
+    delete copy.sectionOrder;
+    return copy;
+  }
+  const legacy = raw.length === sectionKeys.length
+    && raw.every((item) => typeof item === "string" && (sectionKeys as readonly string[]).includes(item))
+    && new Set(raw).size === sectionKeys.length;
+  if (legacy) {
+    const copy = { ...(input as Record<string, unknown>) };
+    delete copy.sectionOrder;
+    return copy;
+  }
+  const kept: MovableBlockId[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string" || !(movableBlockIds as readonly string[]).includes(item)) continue;
+    if (!kept.includes(item as MovableBlockId)) kept.push(item as MovableBlockId);
+  }
+  if (!kept.length) {
+    const copy = { ...(input as Record<string, unknown>) };
+    delete copy.sectionOrder;
+    return copy;
+  }
+  return { ...(input as Record<string, unknown>), sectionOrder: kept };
+}
+
 export function normalizeDraft(rawInput: unknown): SiteDraft {
-  const input = dropInvalidSiteStyle(dropUnknownBlockVariants(renameRetiredPalette(rawInput)));
+  const input = normalizeSectionOrder(dropInvalidSiteStyle(dropUnknownBlockVariants(renameRetiredPalette(rawInput))));
   const parsed = siteDraftSchema.safeParse(input);
   if (parsed.success) {
     const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) }));

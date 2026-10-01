@@ -107,6 +107,7 @@ function slotExpectedTargets(targets: string[]) {
     && target !== "draft"
     && target !== "pagePlan"
     && target !== "sections.order"
+    && target !== "sectionOrder"
     && !target.startsWith("siteName.")
     // The business goal guides generation; no look has a visitor slot for it.
     && !target.startsWith("goal.")

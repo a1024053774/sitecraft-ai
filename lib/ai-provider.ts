@@ -346,7 +346,7 @@ function sectionItemCount(draft: SiteDraft, key: ContentSectionKey) {
 function sectionOverview(draft: SiteDraft) {
   const keys: ContentSectionKey[] = [];
   const seen = new Set<string>();
-  for (const key of ["hero", ...draft.sectionOrder] as ContentSectionKey[]) {
+  for (const key of ["hero", ...(draft.sectionOrder ?? [])] as ContentSectionKey[]) {
     if (seen.has(key)) continue;
     seen.add(key);
     keys.push(key);

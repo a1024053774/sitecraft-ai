@@ -35,6 +35,7 @@ export function changeTargetLabel(target: string) {
   if (exactLabels[path]) return exactLabels[path];
   const parts = path.split(".");
   if (parts[0] === "navigation") return "导航";
+  if (parts[0] === "sectionOrder") return "区块顺序";
   if (parts[0] === "blockVariants") return `${sectionLabels[parts[1]] ?? "页面"}布局`;
   const section = sectionLabels[parts[0]];
   if (!section) return "页面内容";

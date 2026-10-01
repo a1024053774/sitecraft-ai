@@ -16,8 +16,8 @@ import {
   productSpecParameterSchema,
   catalogSectionKeys,
   catalogSectionValueSchema,
-  sectionKeySchema,
-  sectionKeys,
+  movableBlockIdSchema,
+  movableBlockIds,
   unsupportedSitePageSchema,
   visibilityKeySchema,
   visualBriefCatalog,
@@ -171,7 +171,7 @@ const setSectionVisibilityOperationSchema = z.object({
 });
 const reorderSectionsOperationSchema = z.object({
   op: z.literal("reorder_sections"),
-  order: z.array(sectionKeySchema).length(sectionKeys.length),
+  order: z.array(movableBlockIdSchema).max(movableBlockIds.length).nullable(),
 });
 const requestedPageSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(),
@@ -852,11 +852,13 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "reorder_sections") {
-      if (new Set(operation.order).size !== sectionKeys.length) throw new Error("Section order contains duplicates");
-      if (same(draft.sectionOrder, operation.order)) continue;
-      inverseOperations.unshift({ op: "reorder_sections", order: [...draft.sectionOrder] });
-      draft.sectionOrder = [...operation.order];
-      appliedTargets.push("sections.order");
+      if (new Set(operation.order ?? []).size !== (operation.order ?? []).length) throw new Error("区块顺序不能重复");
+      const previous = draft.sectionOrder ? [...draft.sectionOrder] : null;
+      if (same(previous, operation.order)) continue;
+      inverseOperations.unshift({ op: "reorder_sections", order: previous });
+      if (operation.order === null || operation.order.length === 0) delete draft.sectionOrder;
+      else draft.sectionOrder = [...operation.order];
+      appliedTargets.push("sectionOrder");
       continue;
     }
     if (operation.op === "set_page_plan") {
