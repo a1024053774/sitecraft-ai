@@ -14,7 +14,6 @@ function sitecraftPreviewBridge(templateId, adapter) {
   var document = global.document;
   var parent = global.parent || global;
   var siteStyleCss = ${SITE_STYLE_CSS_SOURCE};
-  var fitTitleActive = false;
 
   function asList(result) {
     return Array.prototype.slice.call(result || []);
@@ -50,17 +49,17 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return typeof value === "string" ? value : localize(value, locale) || "";
   }
 
-  function characterUnits(value) {
-    var chars = Array.from(String(value || "").trim()).filter(function (char) { return !/^\s$/.test(char); });
-    return chars.length || 1;
-  }
-
-  function needsCharacterFit(value) {
-    var text = String(value || "");
-    var hasHan = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(text);
-    var mixedHanAndAscii = hasHan && /[A-Za-z0-9]/.test(text);
-    var hasNaturalBreakPunctuation = /[，,、：:；;]/.test(text);
-    return (hasHan && !mixedHanAndAscii && !hasNaturalBreakPunctuation && characterUnits(text) >= 10) || /[A-Za-z0-9]{20,}/.test(text);
+  function longestRunEm(value) {
+    var text = String(value || "").trim();
+    var runs = text.split(/[\s，、。；：！？]+/).filter(Boolean);
+    var width = function (run) {
+      return Array.from(run).reduce(function (sum, char) {
+        if (/[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(char)) return sum + 1;
+        if (/[A-Za-z0-9]/.test(char)) return sum + 0.6;
+        return sum + 0.4;
+      }, 0);
+    };
+    return Math.max(1, ...runs.map(width)).toFixed(2);
   }
 
   function fitTextEnabled() {
@@ -714,13 +713,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) {
-        if (needsCharacterFit(nextValue)) node.style.setProperty("--sitecraft-title-chars", String(characterUnits(nextValue)));
-        else if (node.style.removeProperty) node.style.removeProperty("--sitecraft-title-chars");
-      }
+      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-run", longestRunEm(nextValue));
       if (fitTextEnabled() && (slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) {
-        if (fitTitleActive) node.style.setProperty("--sitecraft-brand-chars", String(characterUnits(nextValue)));
-        else if (node.style.removeProperty) node.style.removeProperty("--sitecraft-brand-chars");
+        node.style.setProperty("--sitecraft-brand-run", longestRunEm(nextValue));
       }
       if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";
@@ -1577,9 +1572,6 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage, offersVisitorEnglish) {
-    var heroTitle = draft && draft.content && draft.content.hero ? localize(draft.content.hero.title, locale) : "";
-    var titleZh = draft && draft.content && draft.content.hero ? localize(draft.content.hero.title, "zh") : "";
-    fitTitleActive = Boolean(needsCharacterFit(titleZh));
     var applied = new Set();
     var extraMissing = [];
     var currentLocale = locale || "zh";
