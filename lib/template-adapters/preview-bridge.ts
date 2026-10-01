@@ -1578,8 +1578,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage, offersVisitorEnglish) {
     var heroTitle = draft && draft.content && draft.content.hero ? localize(draft.content.hero.title, locale) : "";
-    var brandValue = draft && (draft.companyName || draft.siteName) ? (draft.companyName || draft.siteName) : "";
-    fitTitleActive = Boolean(needsCharacterFit(heroTitle) || characterUnits(brandValue) >= 11);
+    var titleZh = draft && draft.content && draft.content.hero ? localize(draft.content.hero.title, "zh") : "";
+    fitTitleActive = Boolean(needsCharacterFit(titleZh));
     var applied = new Set();
     var extraMissing = [];
     var currentLocale = locale || "zh";
