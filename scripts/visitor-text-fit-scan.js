@@ -3,7 +3,9 @@
 //  - "overflow": a box's own text runs past the box (a value kept on one line in a narrow cell),
 //    or a line of text runs past the block it belongs to;
 //  - "ellipsis": text cut off by text-overflow: ellipsis or a line clamp;
-//  - "clipped": text drawn past an ancestor that hides overflow (the page edge included);
+//  - "clipped": text drawn past an ancestor that hides overflow;
+//  - "viewport": text drawn outside the visitor viewport horizontally;
+//  - "covered": another visible element sits over the text;
 //  - "email": an email address that wraps anywhere but at the @ (after a hyphen, inside a name),
 //    unless the part it wraps in is wider than its line on its own.
 // Closed <details> outside the header are opened while measuring, so folded spec lists count,
@@ -74,6 +76,26 @@
       }
       if (clipped) {
         add("clipped", parent);
+        continue;
+      }
+      if (rects.some((rect) => rect.left < -1 || rect.right > document.documentElement.clientWidth + 1)) {
+        add("viewport", parent);
+        continue;
+      }
+      const savedX = window.scrollX;
+      const savedY = window.scrollY;
+      parent.scrollIntoView({ block: "center", inline: "nearest" });
+      range.selectNodeContents(node);
+      const centeredRects = [...range.getClientRects()].filter((rect) => rect.width > 0.5 && rect.height > 0.5);
+      const chain = new Set();
+      for (let ancestor = parent; ancestor; ancestor = ancestor.parentElement) chain.add(ancestor);
+      const covered = centeredRects.some((rect) => {
+        const hits = document.elementsFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return hits.some((hit) => shown(hit) && !chain.has(hit) && !hit.contains(parent) && !parent.contains(hit));
+      });
+      window.scrollTo(savedX, savedY);
+      if (covered) {
+        add("covered", parent);
         continue;
       }
       let block = parent;

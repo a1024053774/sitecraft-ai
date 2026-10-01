@@ -4,7 +4,7 @@ import type { BlockFragment } from "./types.ts";
 export const heroFragment: BlockFragment = {
   css: `
 .sitecraft-hero { background: var(--site-hero-bg); border-bottom: var(--site-rule); }
-.sitecraft-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; padding: 64px 0 72px; }
+.sitecraft-hero-grid { display: grid; grid-template-columns: var(--site-hero-columns, minmax(0, 1fr) minmax(0, 1.05fr)); gap: 56px; align-items: center; padding: 64px 0 72px; }
 .sitecraft-hero-grid > [data-sc-part="copy"] { min-width: 0; }
 .sitecraft-hero[data-sitecraft-hero-mode="none"] .sitecraft-hero-grid { grid-template-columns: minmax(0, 1fr); }
 .sitecraft-eyebrow { margin: 0 0 18px; padding: var(--site-eyebrow-pad); background: var(--site-eyebrow-bg); font-size: 13px; color: var(--site-eyebrow); letter-spacing: 0.02em; }
