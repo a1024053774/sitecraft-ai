@@ -175,6 +175,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ['[data-sitecraft-catalog-grid="industries"]'],
         parts: ["title", "list"],
       },
+      cards: {
+        label: "行业卡片",
+        slots: [benchmark("industries.title", "industries-title"), benchmark("industries.intro", "industries-intro")],
+        markers: ['[data-sitecraft-catalog-grid="industries"]'],
+        parts: ["head", "title", "list"],
+      },
     },
   },
   capabilities: {
@@ -190,6 +196,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ['[data-sitecraft-catalog-grid="capabilities"]'],
         parts: ["title", "list"],
       },
+      cards: {
+        label: "能力卡片",
+        slots: [benchmark("capabilities.title", "capabilities-title"), benchmark("capabilities.intro", "capabilities-intro")],
+        markers: ['[data-sitecraft-catalog-grid="capabilities"]'],
+        parts: ["head", "title", "list"],
+      },
     },
   },
   services: {
@@ -201,6 +213,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
     variants: {
       steps: {
         label: "编号步骤",
+        slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
+        markers: [],
+        parts: ["head", "title", "steps", "item"],
+      },
+      cards: {
+        label: "步骤卡片",
         slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
         markers: [],
         parts: ["head", "title", "steps", "item"],
@@ -236,6 +254,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: [],
         parts: ["head", "title", "list", "item"],
       },
+      open: {
+        label: "展开问答",
+        slots: [benchmark("faq.title", "faq-title"), benchmark("faq.intro", "faq-intro"), ...itemSlots("faq", 6)],
+        markers: [],
+        parts: ["head", "title", "list", "item"],
+      },
     },
   },
   contact: {
@@ -253,6 +277,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
           text("contact.email", '[data-sitecraft-contact="email"]'),
           text("contact.phone", '[data-sitecraft-contact="phone"]'),
         ],
+        markers: ['[data-sitecraft-inquiry="true"]'],
+        parts: ["copy", "title", "lines", "form"],
+      },
+      panel: {
+        label: "面板询盘",
+        slots: [benchmark("contact.title", "contact-title"), benchmark("contact.body", "contact-body"), text("contact.email", '[data-sitecraft-contact="email"]'), text("contact.phone", '[data-sitecraft-contact="phone"]')],
         markers: ['[data-sitecraft-inquiry="true"]'],
         parts: ["copy", "title", "lines", "form"],
       },

@@ -67,7 +67,7 @@ test("a layout whose materials are short is refused with a reason in page terms"
   });
   assert.throws(() => apply(packDraft("industrial"), [setLayout("contact", "band")]), /联系条要邮箱、电话、地址至少 2 项；现在只有邮箱/);
   assert.throws(() => apply(packDraft("industrial"), [setLayout("products", "poster")]), /产品没有这种布局/);
-  assert.throws(() => apply(structuredClone(defaultDraft), [setLayout("products", "compare")]), /当前样子还不能单独换首屏、产品或询盘的布局/);
+  assert.throws(() => apply({ ...structuredClone(defaultDraft), templateId: "landwind" }, [setLayout("products", "compare")]), /当前样子还不能单独换首屏、产品或询盘的布局/);
 });
 
 test("materials and layout in one batch are checked after the whole batch, in either order", () => {
@@ -115,12 +115,12 @@ test("a later change that leaves a chosen layout short puts it back to the defau
 
 test("layouts stay in the draft on a look that is not on the block library, and are checked again when the look comes back", () => {
   const compared = apply(packDraft("industrial"), [setLayout("products", "compare")]).draft;
-  const onForge = apply(compared, [{ op: "set_visual_brief", briefId: "industrial" }]);
-  assert.deepEqual(onForge.draft.blockVariants, { products: "compare" });
-  assert.deepEqual(onForge.notices, []);
-  const fewer = structuredClone(onForge.draft.products);
+  const onOverlay = apply(compared, [{ op: "set_visual_brief", briefId: "export-catalog" }]);
+  assert.deepEqual(onOverlay.draft.blockVariants, { products: "compare" });
+  assert.deepEqual(onOverlay.notices, []);
+  const fewer = structuredClone(onOverlay.draft.products);
   fewer[1].specs = fewer[1].specs!.slice(0, 2);
-  const edited = apply(onForge.draft, [{ op: "replace_products", products: fewer }]);
+  const edited = apply(onOverlay.draft, [{ op: "replace_products", products: fewer }]);
   assert.deepEqual(edited.draft.blockVariants, { products: "compare" }, "no check while the look cannot show it");
   const back = apply(edited.draft, [{ op: "set_visual_brief", briefId: "engineering-industrial" }]);
   assert.deepEqual(back.draft.blockVariants, {});
@@ -140,13 +140,13 @@ test("the model's layout requests are checked against the draft after its other 
   assert.deepEqual(accepted.notes, []);
 
   // Materials that arrive in the same answer count, whatever the order.
-  const empty = applySiteOperations(structuredClone(defaultDraft), [{ op: "set_visual_brief", briefId: "engineering-industrial" }], options).draft;
+  const empty = applySiteOperations({ ...structuredClone(defaultDraft), templateId: "landwind" }, [{ op: "set_visual_brief", briefId: "engineering-industrial" }], options).draft;
   const products = packDraft("industrial").products;
   const materials = simulatedPacks.industrial.body;
   const together = validateAIOperations(materials, [setLayout("products", "compare"), { op: "replace_products", products }], options.templateIds, empty);
   assert.deepEqual(together.operations.map((operation) => operation.op), ["set_block_variant", "replace_products"]);
 
-  const onForge = validateAIOperations("首屏换成大标题", [setLayout("hero", "statement")], options.templateIds, structuredClone(defaultDraft));
+  const onForge = validateAIOperations("首屏换成大标题", [setLayout("hero", "statement")], options.templateIds, { ...structuredClone(defaultDraft), templateId: "landwind" });
   assert.deepEqual(onForge.operations, []);
   assert.deepEqual(onForge.notes, ["当前样子还不能单独换首屏、产品或询盘的布局。"]);
 

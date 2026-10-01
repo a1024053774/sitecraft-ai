@@ -53,7 +53,7 @@ test("the engineering home page is composed from the block library with one enti
 });
 
 test("the other looks still serve their own overlay", async () => {
-  for (const templateId of ["forge", "landwind", "tailwind-landing"]) {
+  for (const templateId of ["landwind", "tailwind-landing"]) {
     const served = await readTemplateStaticFile(templateId, ["index.html"]);
     const overlay = readFileSync(new URL(`../lib/template-adapters/overlays/${templateId}.index.html`, import.meta.url), "utf8");
     assert.ok(served, templateId);
@@ -111,5 +111,5 @@ test("the screwfast adapter is built from the catalog and declares no demo chrom
   for (const section of adapter.sections ?? []) {
     assert.equal(document.querySelectorAll(section.selector).length, 1, `section ${section.key}`);
   }
-  assert.equal(composedPageForTemplate("forge"), null);
+  assert.ok(composedPageForTemplate("forge")?.includes('data-sc-block="hero"'));
 });

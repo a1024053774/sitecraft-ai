@@ -62,9 +62,12 @@ test("without the vendor snapshot the engineering page is still served and can s
     const html = await response.text();
     assert.match(html, /data-sc-block="hero"/);
     assert.match(html, /__sitecraftApplyDeclared/);
-    // A look still on its overlay needs its snapshot, as before.
-    assert.equal(await readTemplateStaticFile("forge", []), null);
-    assert.equal(getTemplateReadiness("forge").canEnterEditPreview, false);
+    const bright = composedPageForTemplate("forge");
+    assert.ok(bright, "the bright look is also composed");
+    const brightServed = await readTemplateStaticFile("forge", []);
+    assert.ok(brightServed);
+    assert.match(brightServed.body.toString("utf8"), /data-sc-block="hero"/);
+    assert.equal(getTemplateReadiness("forge").canEnterEditPreview, true);
   });
 });
 

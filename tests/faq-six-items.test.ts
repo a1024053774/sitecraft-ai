@@ -142,5 +142,5 @@ test("the model is told how many FAQ entries the current look shows", async () =
     const system = String((JSON.parse(lastBody) as { messages: Array<{ role: string; content: string }> }).messages.find((item) => item.role === "system")?.content ?? "");
     assert.ok(system.includes(`常见问题：当前样子的访客页最多显示 ${slots[templateId]} 条`), `${templateId}: ${slots[templateId]} entries`);
   }
-  assert.deepEqual(slots, { screwfast: 6, forge: 3, landwind: 4, "tailwind-landing": 3 });
+  assert.deepEqual(slots, { screwfast: 6, forge: 6, landwind: 4, "tailwind-landing": 3 });
 });

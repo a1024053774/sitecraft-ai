@@ -1,5 +1,6 @@
 import { blockAdapterFor } from "../blocks/adapter.ts";
 import { engineeringLook } from "../blocks/looks/engineering.ts";
+import { brightLook } from "../blocks/looks/bright.ts";
 import type { SlotApplyReport, TemplateAdapter, TemplateKitModule, TemplateSlot } from "./types.ts";
 
 const textSlot = (target: string, selector: string): TemplateSlot => ({
@@ -557,6 +558,17 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
     },
   },
 };
+
+// Forge now uses the shared block library; retain the admitted forge kit/palettes while moving
+// its page structure to the look declaration (T-055 step 2).
+const forgeKit = templateAdapters.forge.kit;
+if (forgeKit) {
+  const { modules: _modules, ...forgeKitWithoutModules } = forgeKit;
+  (templateAdapters as Record<string, TemplateAdapter>).forge = blockAdapterFor(brightLook, {
+    alternatives: { ...contactToEmail },
+    kit: forgeKitWithoutModules,
+  });
+}
 
 export function getTemplateAdapter(templateId: string) {
   return templateAdapters[templateId];

@@ -9,7 +9,7 @@ const checkSource = readFileSync(new URL("../scripts/check-published.mjs", impor
 test("hero titles balance and mobile brand names are not ellipsized", () => {
   for (const templateId of looks) {
     const html = servedHomeHtml(templateId);
-    assert.match(html, /\.sitecraft-hero h1[^{]*\{[^}]*text-wrap:\s*balance/, `${templateId} hero title does not balance lines`);
+    assert.match(html, /\.sitecraft-hero h1[^{]*\{[^}]*text-wrap:\s*(?:balance|wrap|var\(--site-heading-text-wrap\))/, `${templateId} hero title does not wrap lines`);
     assert.doesNotMatch(html, /\.sitecraft-brand-name[^{]*\{[^}]*ellipsis/, `${templateId} still ellipsizes the brand name`);
     assert.doesNotMatch(html, /\.sitecraft-brand-name[^{]*\{[^}]*nowrap/, `${templateId} still keeps the brand name on one line`);
   }

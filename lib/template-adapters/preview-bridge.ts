@@ -607,6 +607,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var visible = visibleItems[v];
         var card = document.createElement("article");
         card.className = "sitecraft-catalog-card";
+        card.setAttribute("data-sc-part", "item");
         if (visible.id) card.setAttribute("data-sitecraft-catalog-item", String(visible.id));
         var heading = document.createElement("h3");
         heading.textContent = visible.title ? (adapter && adapter.blocks ? emailBreakPoints(visible.title) : visible.title) : (locale === "en" ? "To be provided" : "待补充");

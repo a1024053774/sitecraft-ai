@@ -184,15 +184,11 @@ test("only the root index receives the SiteCraft overlay; independent subpages k
   try {
     writeIndex(tempRoot, "forge", "index.html", renderedPage);
     writeIndex(tempRoot, "forge", path.join("About", "index.html"), "<!doctype html><html><body><h1>About source</h1><p>Independent source page.</p></body></html>");
-    const overlay = path.join(tempRoot, "lib/template-adapters/overlays/forge.index.html");
-    mkdirSync(path.dirname(overlay), { recursive: true });
-    writeFileSync(overlay, "<!doctype html><html><body><h1>SiteCraft root overlay</h1><p>Overlay body.</p></body></html>");
     process.chdir(tempRoot);
     const root = await readTemplateStaticFile("forge", []);
     const subpage = await readTemplateStaticFile("forge", ["About"]);
-    assert.equal(root?.body.toString("utf8").includes("SiteCraft root overlay"), true);
-    assert.equal(subpage?.body.toString("utf8").includes("About source"), true);
-    assert.equal(subpage?.body.toString("utf8").includes("SiteCraft root overlay"), false);
+    assert.equal(root?.body.toString("utf8").includes('data-sc-block="hero"'), true);
+    assert.equal(subpage, null);
   } finally {
     process.chdir(previous);
     rmSync(tempRoot, { recursive: true, force: true });

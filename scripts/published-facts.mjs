@@ -12,7 +12,7 @@
 // adapters.
 export const ENTRY_SLOTS = {
   screwfast: { faq: 6, services: 6 },
-  forge: { faq: 3, services: 3 },
+  forge: { faq: 6, services: 6 },
   landwind: { faq: 4, services: 3 },
   "tailwind-landing": { faq: 3, services: 3 },
 };

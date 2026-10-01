@@ -56,7 +56,7 @@ test("an email inside a sentence also breaks only at its @", () => {
   assert.equal(bodyOf(zh, "faq-item-0-body"), `图纸请发到 rfq-${J}cn${Z}@${Z}p3e-${J}sim.test 或 catalog${Z}@${Z}p3e-${J}sim.test。`);
   assert.equal(bodyOf(zh, "faq-item-0-title"), "图纸发到哪里？", "text without an email is written as is");
   assert.equal(bodyOf(render("screwfast", draft, "en"), "contact-body"), `Send specifications to catalog${Z}@${Z}p3e-${J}sim.test; lead time follows.`);
-  for (const templateId of ["forge", "landwind", "tailwind-landing"]) {
+  for (const templateId of ["landwind", "tailwind-landing"]) {
     const selector = getTemplateAdapter(templateId)?.slots.find((slot) => slot.target === "contact.body")?.selector;
     assert.ok(selector, `${templateId} declares the contact body`);
     assert.equal(render(templateId, draft).querySelector(selector)?.textContent, "把接头规格与批量数量发到 catalog@p3e-sim.test，交期在批量确认后回复。", `${templateId} writes it as is`);
@@ -66,7 +66,7 @@ test("an email inside a sentence also breaks only at its @", () => {
 
 test("the looks still on their own overlay keep writing the email as it is", () => {
   const draft = packDraft("industrial");
-  for (const templateId of ["forge", "landwind", "tailwind-landing"]) {
+  for (const templateId of ["landwind", "tailwind-landing"]) {
     const shown = shownEmails(render(templateId, draft));
     assert.ok(shown.length > 0, `${templateId} shows the email`);
     for (const text of shown) assert.equal(text, "inquiry@p3i-sim.test", templateId);

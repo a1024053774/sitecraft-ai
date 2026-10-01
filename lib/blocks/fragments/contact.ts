@@ -12,6 +12,7 @@ export const contactFragment: BlockFragment = {
 /* A contact value wraps where the bridge lets it (an email only at the @); a part wider than the line still breaks. */
 .sitecraft-inquiry-lines li > span:last-child { overflow-wrap: anywhere; }
 .sitecraft-inquiry-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 28px; background: var(--site-surface); border: var(--site-rule); border-radius: var(--site-panel-radius); }
+.sitecraft-inquiry-panel { padding: 32px; border-radius: var(--site-panel-radius); }
 .sitecraft-inquiry-form label { display: grid; gap: 6px; font-size: 13px; color: var(--site-muted); }
 .sitecraft-inquiry-form label[data-sitecraft-inquiry-label="email"], .sitecraft-inquiry-form label[data-sitecraft-inquiry-label="message"] { grid-column: 1 / -1; }
 .sitecraft-inquiry-form input, .sitecraft-inquiry-form textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--site-line); background: var(--site-bg); color: var(--site-ink); font-size: 15px; }
@@ -53,6 +54,26 @@ export const contactFragment: BlockFragment = {
 `,
   variants: {
     split: `<section id="inquiry" class="sitecraft-section sitecraft-inquiry" data-sitecraft-section="contact" data-sc-block="contact" data-sc-variant="split">
+          <div class="sitecraft-container sitecraft-inquiry-wrap">
+            <div class="sitecraft-inquiry-copy" data-sc-part="copy">
+              <h2 data-sitecraft-benchmark="contact-title" data-sc-part="title">询盘</h2>
+              <p data-sitecraft-benchmark="contact-body" hidden></p>
+              <ul class="sitecraft-inquiry-lines" data-sc-part="lines">
+                <li data-sitecraft-line><span data-sitecraft-ui="emailPrefix">邮箱</span><span data-sitecraft-contact="email"></span></li>
+                <li data-sitecraft-line><span data-sitecraft-ui="phonePrefix">电话</span><span data-sitecraft-contact="phone"></span></li>
+              </ul>
+            </div>
+            <form class="sitecraft-inquiry-form" data-sitecraft-inquiry="true" action="#" method="post" data-sc-part="form">
+              <label data-sitecraft-inquiry-label="name">姓名<input name="name" type="text" required maxlength="80" autocomplete="name"></label>
+              <label data-sitecraft-inquiry-label="company">公司<input name="company" type="text" maxlength="120" autocomplete="organization"></label>
+              <label data-sitecraft-inquiry-label="email">邮箱<input name="email" type="email" required maxlength="160" autocomplete="email"></label>
+              <label data-sitecraft-inquiry-label="message">需求<textarea name="message" required maxlength="4000" rows="5"></textarea></label>
+              <input class="honeypot" name="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-10000px;height:0;width:0;overflow:hidden">
+              <button class="sitecraft-btn sitecraft-primary" type="submit" data-sitecraft-ui="submit">发送询盘</button>
+            </form>
+          </div>
+        </section>`,
+    panel: `<section id="inquiry" class="sitecraft-section sitecraft-inquiry sitecraft-inquiry-panel" data-sitecraft-section="contact" data-sc-block="contact" data-sc-variant="panel">
           <div class="sitecraft-container sitecraft-inquiry-wrap">
             <div class="sitecraft-inquiry-copy" data-sc-part="copy">
               <h2 data-sitecraft-benchmark="contact-title" data-sc-part="title">询盘</h2>

@@ -389,12 +389,6 @@ test("declared hero images are unique src slots and leave logos and avatars unde
 test("screwfast forge and landwind FAQ nodes are unique and stay declared", () => {
   const cases = [
     {
-      id: "forge",
-      html: new URL("../lib/template-adapters/overlays/forge.index.html", import.meta.url),
-      count: 3,
-      chrome: "产品先于装饰",
-    },
-    {
       id: "landwind",
       html: new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url),
       count: 4,

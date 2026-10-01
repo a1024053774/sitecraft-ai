@@ -5,6 +5,10 @@ import { engineeringLook } from "../lib/blocks/looks/engineering.ts";
 const sharedStyleTokens = {
   "--site-h1-leading": "1.1",
   "--site-h1-tracking": "-0.03em",
+  "--site-heading-wrap": "normal",
+  "--site-heading-break": "keep-all",
+  "--site-heading-max": "16em",
+  "--site-heading-text-wrap": "balance",
   "--site-heading-tracking": "-0.02em",
   "--site-card-radius": "0",
   "--site-media-radius": "0",

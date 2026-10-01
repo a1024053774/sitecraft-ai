@@ -11,6 +11,9 @@ export const servicesFragment: BlockFragment = {
 .sitecraft-process-card::before { content: counter(step); display: block; margin-bottom: 10px; font-size: 13px; font-weight: 700; color: var(--site-accent-strong); }
 .sitecraft-process-card h3 { margin: 0 0 6px; font-size: 17px; }
 .sitecraft-process-card p { margin: 0; color: var(--site-muted); line-height: 1.55; }
+.sitecraft-process-cards { gap: 16px; border-top: 0; counter-reset: none; }
+.sitecraft-process-cards .sitecraft-process-card { padding: 20px; border: var(--site-rule); border-radius: var(--site-card-radius); }
+.sitecraft-process-cards .sitecraft-process-card::before { display: none; }
 `,
   variants: {
     steps: `<section id="process" class="sitecraft-section" data-sitecraft-section="services" data-sc-block="services" data-sc-variant="steps">
@@ -20,6 +23,17 @@ export const servicesFragment: BlockFragment = {
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="services-intro" hidden></p>
             </div>
             <div class="sitecraft-process" data-sc-part="steps">
+              ${[0, 1, 2, 3, 4, 5].map(serviceItem).join("\n              ")}
+            </div>
+          </div>
+        </section>`,
+    cards: `<section id="process" class="sitecraft-section" data-sitecraft-section="services" data-sc-block="services" data-sc-variant="cards">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head" data-sc-part="head">
+              <h2 data-sitecraft-benchmark="services-title" data-sc-part="title">合作方式</h2>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="services-intro" hidden></p>
+            </div>
+            <div class="sitecraft-process sitecraft-process-cards" data-sc-part="steps">
               ${[0, 1, 2, 3, 4, 5].map(serviceItem).join("\n              ")}
             </div>
           </div>
@@ -49,6 +63,8 @@ export const certificationsFragment: BlockFragment = {
 
 const faqItem = (index: number) =>
   `<article class="sitecraft-faq-item" data-sc-part="item"><details><summary data-sitecraft-benchmark="faq-item-${index}-title"></summary><div class="sitecraft-faq-answer"><p data-sitecraft-benchmark="faq-item-${index}-body"></p></div></details></article>`;
+const openFaqItem = (index: number) =>
+  `<article class="sitecraft-faq-item" data-sc-part="item"><details open><summary data-sitecraft-benchmark="faq-item-${index}-title"></summary><div class="sitecraft-faq-answer"><p data-sitecraft-benchmark="faq-item-${index}-body"></p></div></details></article>`;
 
 export const faqFragment: BlockFragment = {
   css: `
@@ -67,6 +83,17 @@ export const faqFragment: BlockFragment = {
             </div>
             <div class="sitecraft-faq-list" data-sc-part="list">
               ${[0, 1, 2, 3, 4, 5].map(faqItem).join("\n              ")}
+            </div>
+          </div>
+        </section>`,
+    open: `<section id="faq" class="sitecraft-section" data-sitecraft-section="faq" data-sc-block="faq" data-sc-variant="open">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head" data-sc-part="head">
+              <h2 data-sitecraft-benchmark="faq-title" data-sc-part="title">常见问题</h2>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro" hidden></p>
+            </div>
+            <div class="sitecraft-faq-list" data-sc-part="list">
+              ${[0, 1, 2, 3, 4, 5].map(openFaqItem).join("\n              ")}
             </div>
           </div>
         </section>`,

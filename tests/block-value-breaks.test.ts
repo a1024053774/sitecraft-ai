@@ -114,12 +114,12 @@ test("copying from the page gives the value without the break points", () => {
   };
   assert.deepEqual(copy("screwfast", `模具钢材 S136/${Z}H13/${Z}NAK80`), { written: [["text/plain", "模具钢材 S136/H13/NAK80"]], prevented: true });
   assert.deepEqual(copy("screwfast", "询盘"), { written: [], prevented: false }, "text without break points copies as usual");
-  assert.deepEqual(copy("forge", `S136/${Z}H13`), { written: [], prevented: false }, "other looks leave copying alone");
+  assert.deepEqual(copy("landwind", `S136/${Z}H13`), { written: [], prevented: false }, "other looks leave copying alone");
 });
 
 test("the looks still on their own overlay keep writing values as they are", () => {
   const draft = packDraft("molding");
-  for (const templateId of ["forge", "landwind", "tailwind-landing"]) {
+  for (const templateId of ["landwind", "tailwind-landing"]) {
     const document = render(templateId, draft);
     const values = document.querySelectorAll(".sitecraft-product-key dd, .sitecraft-product-specs td, [data-sitecraft-hero-nameplate] dd");
     assert.ok(values.length > 0, `${templateId} renders spec values`);
