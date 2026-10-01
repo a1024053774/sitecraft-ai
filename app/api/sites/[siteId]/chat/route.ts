@@ -13,7 +13,7 @@ import {
   type AlignmentPublicView,
   type CurrentQuestion,
 } from "@/lib/alignment";
-import { requestAlignmentPlan, requestStructuredOperations } from "@/lib/ai-provider";
+import { isSiteStyleRequest, requestAlignmentPlan, requestStructuredOperations } from "@/lib/ai-provider";
 import {
   appendConversationTurn,
   applyConversationAlignmentAction,
@@ -297,6 +297,7 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     selectedTarget: pending.selectedTarget,
     conversationContext: conversationPromptContext(conversation),
     alignmentContext: alignmentPromptContext(conversation.alignment),
+    allowSiteStyle: false,
   });
   const providerFailure = provider.ok ? null : safeProviderFailure(provider.code);
 
@@ -758,6 +759,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           selectedTarget: parsed.data.selectedTarget,
           conversationContext: conversationPromptContext(conversation),
           alignmentContext: conversation.alignment.enabled ? alignmentPromptContext(conversation.alignment) : "",
+          allowSiteStyle: isSiteStyleRequest(parsed.data.message),
         });
 
         let outcome: ConversationTurnOutcome = "error";

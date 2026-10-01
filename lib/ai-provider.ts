@@ -3,7 +3,6 @@ import { z } from "zod";
 import { familyModuleInventory, visibilityKeys, visualBriefCatalog } from "@/lib/site-document";
 import { blockCatalog, layoutBlocks, type BlockLook, type BlockRequirement } from "@/lib/blocks/catalog";
 import { blockLookForTemplate } from "@/lib/blocks/looks/index";
-import { styleDirectionRecommendation } from "@/lib/blocks/site-style";
 import { declaredFamilySections, getTemplateAdapter } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
 import { plainSummary } from "@/lib/workspace-copy";
@@ -239,22 +238,25 @@ function faqInstructions(templateId: string) {
   return steps ? `${faq}   合作方式：当前样子的访客页最多显示 ${steps} 步，资料里有几步就写几步，最多 ${steps} 步；用一条 replace_cards（section=services）写完整组。\n` : faq;
 }
 
-function siteStyleInstructions(templateId: string, draft: SiteDraft, materials: string) {
+function siteStyleInstructions(templateId: string) {
   const look = blockLookForTemplate(templateId);
   if (!look?.styleDirections) return "";
-  const recommendation = styleDirectionRecommendation(draft, materials);
   const directions = Object.entries(look.styleDirections).map(([id, direction]) => `${id}=${direction.label}：${direction.summary}`).join("；");
   const parts = layoutBlocks(look)
     .filter((block) => blockCatalog[block].kind === "content")
     .map((block) => `${blockCatalog[block].label}(${block})：${[...new Set(Object.values(blockCatalog[block].variants).flatMap((variant) => [...variant.parts, ...(variant.renderedParts || [])]))].join("、")}`)
     .join("；");
-  return `18. set_site_style: {"op":"set_site_style","direction":"spec-led|catalog-led|capability-led","rules":[{"block":"区块","part":"部件","media":"desktop|tablet|phone","declarations":{"属性":"值"}}]}。只能改区块库区块和部件，不能改文字、显隐、定位、顺序或尺寸上限；规则会由服务端校验并在 375/768/1440 检查。可改部件：${parts}。版式方向：${directions}。服务端建议「${recommendation.direction}」（${recommendation.reason}）；用户明确要求时按用户要求改方向。整站生成必须给一条 set_site_style，放在 operations 的第一条以免遗漏；只选方向时也必须明确写 rules: []。direction 写单一 ID，不写竖线列表。rules 是整份追加规则，不用重复方向内置规则；修改时保留已有追加规则。方向规则后再追加用户要求的规则，样式这一条不占 24 条普通 operation。
+  return `18. set_site_style: {"op":"set_site_style","direction":"spec-led|catalog-led|capability-led","rules":[{"block":"区块","part":"部件","media":"desktop|tablet|phone","declarations":{"属性":"值"}}]}。只能改区块库区块和部件，不能改文字、显隐、定位、顺序或尺寸上限；规则会由服务端校验并在 375/768/1440 检查。可改部件：${parts}。版式方向：${directions}。只在用户明确提出外观或版式要求时写 set_site_style；用户明确要求时按用户要求选方向。只选方向时也必须明确写 rules: []。direction 写单一 ID，不写竖线列表。rules 是整份追加规则，不用重复方向内置规则；修改时保留已有追加规则。方向规则后再追加用户要求的规则，样式这一条不占 24 条普通 operation。
    白名单：padding 系列、margin-top/bottom/block、gap 为 0–160px 或 0–10rem；font-size 为 12–96px，可用 clamp(最小px, 中间vw, 最大px)；font-weight 400–800；line-height 1–2；border 为 0–4px solid var(--site-line)；颜色只用 var(--site-ink/surface/bg/accent/muted) 等已有色板 token；grid-template-columns 可用 repeat(1–4,minmax(长度,1fr))。禁止 display/position/overflow/transform/opacity/visibility/width/min-width/order、引号、资源地址和 !important。追加最多 40 条、200 个声明，含方向总 CSS 最多 8KB。
    用户提出“首屏更有分量”“参数表更紧凑”“分区之间紧凑一点”等已定位的视觉要求时，必须直接返回 edit，只通过 set_site_style 调字阶、字重、留白、边线或颜色，不改标题文字、不换布局、不要求用户重述；“优化一下”这种未定位的要求仍需澄清。用户明确指定会溢出的列数和最小列宽时按其要求提出规则，省略 media 让它作用于手机；让三档检查返回真实拒绝原因，不自动改小。
 `;
 }
 
-function operationInstructions(templateId: string, draft: SiteDraft, materials: string) {
+export function isSiteStyleRequest(message: string) {
+  return /样式|外观|版式|首屏|更有分量|更紧凑|留白|字阶|字重|目录为主|工厂实力|参数表/.test(message);
+}
+
+function operationInstructions(templateId: string, draft: SiteDraft, materials: string, allowSiteStyle: boolean) {
   return `当 type 为 edit 时，输出 JSON：{"type":"edit","summary":"中文摘要","operations":[...]}。
 允许的操作：
 1. set_text: {"op":"set_text","target":目标,"value":{"zh":"中文文本","en":"English text"}}（一条 operation 必须同时提供 zh/en；缺失英文写 To be provided）
@@ -285,8 +287,8 @@ ${faqInstructions(templateId)}5. update_product: {"op":"update_product","sku":"�
    credit 仅在 CC-BY / CC-BY-SA 等需署名许可时写入；访客页显示草稿 credit，不写死在模板里。
     同样只允许本站上传图。当前模板没有该 SKU 的唯一 src 槽位时记为 missing，不要为了填满页面改随机图片。
 16. remove_product_image: {"op":"remove_product_image","sku":"现有SKU"}
-${layoutInstructions(templateId)}${siteStyleInstructions(templateId, draft, materials)}answer 与 clarify 不得包含 operations。
-每次 edit 的 operations 最多 ${MAX_AI_OPERATIONS} 条普通 operation，${blockLookForTemplate(templateId) ? "另可有一条 set_site_style。" : "。"}优先保留用户明确要求、页面规划、视觉样子和关键首屏/产品/询盘字段；不要为了重写默认文案逐个改写整份草稿。已有集合需要整体替换时优先使用 replace_products、replace_cards、set_catalog_section 或 set_page_plan，普通 operation 仍不得超过 ${MAX_AI_OPERATIONS} 条。`;
+${layoutInstructions(templateId)}${allowSiteStyle ? siteStyleInstructions(templateId) : "整站资料生成和需求对齐阶段不要输出 set_site_style，也不要自行选择站点版式方向；保持现有站点样式不变。\n"}answer 与 clarify 不得包含 operations。
+每次 edit 的 operations 最多 ${MAX_AI_OPERATIONS} 条普通 operation，${allowSiteStyle && blockLookForTemplate(templateId) ? "另可有一条 set_site_style。" : "。"}优先保留用户明确要求、页面规划、视觉样子和关键首屏/产品/询盘字段；不要为了重写默认文案逐个改写整份草稿。已有集合需要整体替换时优先使用 replace_products、replace_cards、set_catalog_section 或 set_page_plan，普通 operation 仍不得超过 ${MAX_AI_OPERATIONS} 条。`;
 }
 
 // What a layout needs, in the words the menu uses (the check itself is lib/blocks/requirements.ts).
@@ -549,6 +551,7 @@ function successResult(data: AIIntentResponse, args: {
   draft: SiteDraft;
   model: string;
   latencyMs: number;
+  allowSiteStyle: boolean;
 }): ProviderResult {
   if (data.type === "answer") {
     return { ok: true, type: "answer", text: data.text, model: args.model, latencyMs: args.latencyMs };
@@ -563,7 +566,8 @@ function successResult(data: AIIntentResponse, args: {
       latencyMs: args.latencyMs,
     };
   }
-  const validated = validateAIOperations(args.message, data.operations, args.templateIds, args.draft);
+  const operations = args.allowSiteStyle ? data.operations : data.operations.filter((operation) => operation.op !== "set_site_style");
+  const validated = validateAIOperations(args.message, operations, args.templateIds, args.draft);
   return {
     ok: true,
     type: "edit",
@@ -612,6 +616,7 @@ export async function requestStructuredOperations(args: {
   selectedTarget?: string | null;
   conversationContext?: string | null;
   alignmentContext?: string | null;
+  allowSiteStyle?: boolean;
 }): Promise<ProviderResult> {
   const startedAt = Date.now();
   const { baseURL, apiKey, model } = providerConfig();
@@ -666,7 +671,7 @@ export async function requestStructuredOperations(args: {
 {"type":"answer","text":"当前站点名称是 Forge Industrial。"}
 {"type":"clarify","question":"你想先改哪一部分？","options":["首屏标题","服务卡片","联系方式"]}
 
-${operationInstructions(args.templateId, args.draft, args.message)}
+${operationInstructions(args.templateId, args.draft, args.message, args.allowSiteStyle === true)}
 
 前端表达约束（${FRONTEND_TONE_RULES_VERSION}）：${frontendToneRules.join("；")}
 
@@ -713,6 +718,7 @@ ${templateContext}`,
         draft: args.draft,
         model,
         latencyMs: Date.now() - startedAt,
+        allowSiteStyle: args.allowSiteStyle === true,
       });
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");

@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { blockCatalog } from "./catalog.ts";
-import type { SiteDraft } from "../site-document.ts";
 
 /** Site-content blocks that may receive model-authored style rules. Page chrome stays protected. */
 export const siteStyleBlocks = [
@@ -79,25 +78,6 @@ export const siteStyleSchema = z.object({
   rules: z.array(siteStyleRuleSchema).max(SITE_STYLE_MAX_RULES),
 }).strict();
 export type SiteStyle = z.infer<typeof siteStyleSchema>;
-
-export function styleDirectionRecommendation(draft: Pick<SiteDraft, "content" | "products">, materials = "") {
-  const text = String(materials).toLowerCase();
-  const provided = (value: string) => Boolean(value.trim()) && !/^(待补充|to be provided)$/i.test(value.trim());
-  const count = (items: Array<{title:{zh:string};body:{zh:string}}> = []) => items.filter(item => provided(item.title.zh) || provided(item.body.zh)).length;
-  // A labelled list is explicit material data, unlike a keyword in the wrapper instructions.
-  const listCount = (label: RegExp) => Math.max(0, ...text.split("\n").filter(line => label.test(line)).map(line => line.slice(line.indexOf("：")+1).split(/[；;]/).filter(part => provided(part.replace(/[。.]$/, ""))).length));
-  const capabilities = Math.max(count(draft.content.capabilities?.items), listCount(/^(?:加工能力(?:\/主设备)?|主设备|设备清单|检测设备)：/));
-  const services = Math.max(count(draft.content.services.items), listCount(/^(?:合作流程|合作方式|质检流程|工艺流程)：/));
-  const categories = new Set(draft.products.map(product => typeof product.category === "string" ? product.category : product.category.zh).filter(provided));
-  if (capabilities >= 5 || services >= 4 || /工厂实力|按(?:加工能力|工艺|产能|检测)|要(?:加工能力|工艺|产能|检测)/.test(text)) {
-    return { direction: "capability-led" as const, reason: `加工能力或设备 ${capabilities} 项，流程 ${services} 步，资料侧重工艺与检测` };
-  }
-  if (/oem|外贸|目录|样品册|catalog|sample book/.test(text + JSON.stringify(draft.content.hero)) || (categories.size >= 2 && draft.products.length >= 4)) {
-    return { direction: "catalog-led" as const, reason: "面向目录、样品册或 OEM 采购，或至少两个类别四个系列" };
-  }
-  return { direction: "spec-led" as const, reason: "资料以少量系列和规格询盘为主" };
-}
-
 
 type ValidationError = { ok: false; errors: string[] };
 type ValidationSuccess = { ok: true; rules: SiteStyleRule[]; declarationCount: number; bytes: number };

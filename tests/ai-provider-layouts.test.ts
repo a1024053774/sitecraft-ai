@@ -67,9 +67,9 @@ function lastMessage(role: "system" | "user") {
 const options = { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing"]), lastChange: "layouts" };
 const setLayout = (block: string, variant: string | null) => ({ op: "set_block_variant", block, variant });
 
-async function ask(draft: SiteDraft, message: string, payload: Record<string, unknown> | Array<Record<string, unknown>>) {
+async function ask(draft: SiteDraft, message: string, payload: Record<string, unknown> | Array<Record<string, unknown>>, allowSiteStyle = false) {
   payloads = Array.isArray(payload) ? [...payload] : [payload];
-  return requestStructuredOperations({ message, draft, templateId: draft.templateId });
+  return requestStructuredOperations({ message, draft, templateId: draft.templateId, allowSiteStyle });
 }
 
 test("on the engineering look the model gets the layouts it may pick, what each needs, and a 24-operation limit", async () => {
@@ -97,13 +97,33 @@ test("on the engineering look the model gets the layouts it may pick, what each 
 });
 
 test("the engineering prompt exposes style directions, the material recommendation, and the extra style operation", async () => {
-  await ask(packDraft("molding"), "按加工能力、产能、工艺和检测来做一个工厂实力网站", { type: "answer", text: "ok" });
+  await ask(packDraft("molding"), "按加工能力、产能、工艺和检测来做一个工厂实力网站", { type: "answer", text: "ok" }, true);
   const system = lastMessage("system");
   assert.match(system, /set_site_style/);
   for (const direction of ["spec-led", "catalog-led", "capability-led", "规格为主", "目录为主", "工厂实力"]) assert.ok(system.includes(direction), direction);
-  assert.match(system, /服务端建议「capability-led」/);
+  assert.doesNotMatch(system, /服务端建议/);
   assert.match(system, /样式这一条不占 24 条普通 operation/);
   assert.match(system, /可改部件/);
+});
+
+test("full-site generation omits style directions, recommendations, and set_site_style output", async () => {
+  const result = await ask(packDraft("industrial"), "资料生成整站", {
+    type: "edit",
+    summary: "生成整站",
+    operations: [{ op: "set_site_style", direction: "spec-led", rules: [] }],
+  });
+  const system = lastMessage("system");
+  assert.doesNotMatch(system, /spec-led|catalog-led|capability-led|规格为主|目录为主|工厂实力|服务端建议/);
+  assert.equal(result.ok, true);
+  if (result.ok && result.type === "edit") assert.equal(result.operations.some((operation) => operation.op === "set_site_style"), false);
+});
+
+test("an appearance edit keeps the direction menu without a material recommendation", async () => {
+  await ask(packDraft("industrial"), "首屏更有分量", { type: "answer", text: "ok" }, true);
+  const system = lastMessage("system");
+  assert.match(system, /set_site_style/);
+  for (const direction of ["spec-led", "catalog-led", "capability-led", "规格为主", "目录为主", "工厂实力"]) assert.ok(system.includes(direction), direction);
+  assert.doesNotMatch(system, /服务端建议/);
 });
 
 test("looks still on their own overlay get no layout menu", async () => {
