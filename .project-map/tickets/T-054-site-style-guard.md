@@ -41,7 +41,7 @@ supersedes:
 
 ## Resolution
 
-Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb449c`、`190238b`、`6dde6b2`、`af3b6eb`；返工提交为 `650d584`、`03670c7`、`0b61472`，均未推送。负责人决定提交 `d0cd279` 后改为只按用户要求使用样式；本轮实现提交为 `2c3b08f`、`b510359`、`b75acab`，均未推送。代码审查：PASS（Astra）。盲评：R2 已回传，结论为三家不带样式略好。
+Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb449c`、`190238b`、`6dde6b2`、`af3b6eb`；返工提交为 `650d584`、`03670c7`、`0b61472`，均未推送。负责人决定提交 `d0cd279` 后改为只按用户要求使用样式；本轮实现提交为 `2c3b08f`、`b510359`、`b75acab`，本次正则返工提交待补，均未推送。代码审查：第三次复审 NO_GO，本次返工待复审。盲评：R2 已回传，结论为三家不带样式略好。
 
 负责人决定后的实现：
 
@@ -63,4 +63,6 @@ Codex，2026-09-30（纽约时间）。第 1–5 步提交为 `5418d88`、`3cb44
 - 全量 `npm test` 通过（490/490），`npm run typecheck` 和 `npm run build` 通过；完整日志见 [r3-npm-test-head.txt](../../artifacts/t054/r3-npm-test-head.txt)。
 - 负责人决定后的三份真实生成依次记录在 `artifacts/t061/t054-r3-industrial-summary.json`（`5eb7daff…`）、`t054-r3-export-summary.json`（`8c210e93…`）、`t054-r3-molding-summary.json`（`a4d12f11…`）；[t054-r3-site-style-check.json](../../artifacts/t061/t054-r3-site-style-check.json) 记录三份草稿生成后 `siteStyle: null`。P3I 工作台第一次样式请求因 1440 首屏文字重叠被真实拒绝，草稿保持 v3，失败证据在 `workspace-ui-1790827312248/`；收窄外观提示后再次从同一 v3 草稿输入“首屏更有分量”通过检查并保存 v4，成功截图与报告在 [workspace-ui-1790827459700](../../artifacts/t054/workspace-ui-1790827459700/)。
 - 本轮 `npm test` 通过 490/490（`artifacts/t054/r3-npm-test-final.txt`），`npm run typecheck`、`npm run build` 通过；站点扫描器单测绿态见 `r3-site-style-scan-green.txt`。
+- 第三次复审返工：`isSiteStyleRequest` 只接受明确外观词或带方向名称的表达；负例「把首屏标题改成按图加工」「修改参数表说明」「补充工厂实力条目」和正例「首屏更有分量」「整体更紧凑一点」「换成目录为主的版式」见 `tests/ai-provider-layouts.test.ts`。非样式请求即使模型返回 `set_site_style` 仍由 `successResult` 过滤。红态记录：[rework-r4-red-intent.txt](../../artifacts/t054/rework-r4-red-intent.txt)。
+- 本次全量 `npm test` 通过 491/491，`npm run typecheck`、`npm run build` 通过；日志见 [r4-npm-test.txt](../../artifacts/t054/r4-npm-test.txt)。
 - 最新盲评包为 [blind/README.md](../../artifacts/t054/blind/README.md)、[blind-key.json](../../artifacts/t054/blind-key.json)，随机代号为 `99df`/`c52f`，三家各含带样式与去掉样式的 1440/768/375 原图及 `-masked.png`；上一包完整移至 [blind-r1](../../artifacts/t054/blind-r1/)，中间重建包保留在 `blind-prior-*`。

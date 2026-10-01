@@ -253,7 +253,7 @@ function siteStyleInstructions(templateId: string) {
 }
 
 export function isSiteStyleRequest(message: string) {
-  return /样式|外观|版式|首屏|更有分量|更紧凑|留白|字阶|字重|目录为主|工厂实力|参数表/.test(message);
+  return /样式|外观|版式|风格|留白|字阶|字重|更有分量|更紧凑|(?:规格|目录|工厂实力)为主|(?:规格|目录|工厂实力)(?:方向|风格)/.test(message);
 }
 
 function operationInstructions(templateId: string, allowSiteStyle: boolean) {

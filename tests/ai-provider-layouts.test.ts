@@ -52,7 +52,7 @@ registerHooks({
   },
 });
 
-const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
+const { isSiteStyleRequest, requestStructuredOperations } = await import("../lib/ai-provider.ts");
 
 test.after(() => {
   globalThis.fetch = originalFetch;
@@ -104,6 +104,19 @@ test("an appearance edit prompt exposes style directions without a material reco
   assert.doesNotMatch(system, /服务端建议/);
   assert.match(system, /样式这一条不占 24 条普通 operation/);
   assert.match(system, /可改部件/);
+});
+
+test("only explicit appearance wording opens the site-style path", () => {
+  for (const message of [
+    "把首屏标题改成按图加工",
+    "修改参数表说明",
+    "补充工厂实力条目",
+  ]) assert.equal(isSiteStyleRequest(message), false, message);
+  for (const message of [
+    "首屏更有分量",
+    "整体更紧凑一点",
+    "换成目录为主的版式",
+  ]) assert.equal(isSiteStyleRequest(message), true, message);
 });
 
 test("full-site generation omits style directions, recommendations, and set_site_style output", async () => {
