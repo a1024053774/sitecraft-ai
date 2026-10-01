@@ -3,7 +3,7 @@ id: T-060
 title: 产品参数值中英双语
 type: build
 status: open
-blocked_by: [T-053]
+blocked_by: [T-053, T-063]
 claimed_by: codex-build
 supersedes:
 ---
