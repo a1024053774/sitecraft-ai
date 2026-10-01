@@ -994,6 +994,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
       var span = document.createElement("span");
       span.setAttribute("data-sitecraft-hero-word", "true");
+      span.style.whiteSpace = "normal";
+      span.style.wordBreak = "keep-all";
+      span.style.overflowWrap = "anywhere";
       span.textContent = segment;
       node.appendChild(span);
     }
