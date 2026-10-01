@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SiteDraft } from "../lib/site-document.ts";
 import { checkSiteStyle } from "../lib/site-style-check.ts";
+import { brightLook } from "../lib/blocks/looks/bright.ts";
+import { visualBriefCatalog } from "../lib/site-document.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
 
 const baseDraft: SiteDraft = packDraft("industrial");
@@ -44,4 +46,21 @@ test("a style check that exceeds its total deadline is rejected as incomplete", 
   });
   assert.equal(result.ok, false);
   if (!result.ok) assert.match(result.reasons.join("；"), /检查没有完成/);
+});
+
+test("bright product directions pass all three browser widths for all three materials", async () => {
+  const brightBrief = visualBriefCatalog.find((brief) => brief.id === "industrial");
+  assert.ok(brightBrief);
+  for (const pack of ["industrial", "export", "molding"] as const) {
+    for (const direction of Object.keys(brightLook.styleDirections ?? {})) {
+      const result = await checkSiteStyle({
+        templateId: "forge",
+        draft: { ...packDraft(pack), templateId: "forge", visualBrief: structuredClone(brightBrief), siteStyle: { direction, rules: [] } },
+        baseUrl: process.env.SITECRAFT_BASE || "http://127.0.0.1:3034",
+        outDir: `artifacts/t055/site-style-bright/${pack}-${direction}`,
+      });
+      assert.equal(result.ok, true, `${pack}/${direction}: ${result.ok ? "" : result.reasons.join("；")}`);
+      assert.deepEqual(result.widths, [375, 768, 1440]);
+    }
+  }
 });
