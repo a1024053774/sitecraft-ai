@@ -31,3 +31,17 @@ supersedes:
 - [ ] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
 - [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
 - [ ] 代码审查通过；Claude 验收；旧 overlay 已删除
+
+## Resolution
+
+- 第 4 步真实生成（提交 `309d953` 之后，DeepSeek 串行一次一个）：工程工业资料于 `2026-10-01T13:40:49Z` 开始、`13:42:34Z` 写入 `artifacts/t057/t057-industrial-summary.json`，结果 `applied`；外贸资料于 `13:42:40Z` 开始、`13:43:33Z` 写入 `artifacts/t057/t057-export-summary.json`，结果 `applied`；注塑资料于 `13:43:40Z` 开始、`13:44:35Z` 写入 `artifacts/t057/t057-molding-summary.json`，结果 `applied`。三份草稿的 `templateId` 均为 `tailwind-landing`。
+- `check-published` 于 `2026-10-01T13:45:14Z`（提交 `309d953`）运行：
+  `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node scripts/check-published.mjs --out artifacts/t057/published-real-309d953 907f94ea-4738-4859-aa80-9a5674ec184f ed29083e-d01f-4b93-adaf-8674d4690483 660cde13-a572-4eca-a0c4-cfab7f7e4fe9`
+  共 9 个视口（3 站点 × 1440/768/375），`failures: []`，产物含 9 张截图和 `artifacts/t057/published-real-309d953/report.json`。
+- 旧 overlay 与新区块库对照于 `2026-10-01T13:45:49Z`（提交 `309d953`）运行：
+  `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell OUT=artifacts/t057/tailwind-old-new-facts-309d953 node --experimental-strip-types artifacts/t057/compare-tailwind-facts.mjs`
+  从 `7d09e6e` 取旧 overlay、同一份三份草稿渲染新区块库，完成 9 组事实、区块顺序和显隐抽取；事实结果均非空、顺序均为 `nav > hero > products > industries > capabilities > services > contact > certifications > faq > footer`，`failures: []`。报告：`artifacts/t057/tailwind-old-new-facts-309d953/report.json`。
+- 第 5 步盲评包于 `2026-10-01T13:52:39Z` 生成，基线为 `7d09e6e`，新区块库为提交 `309d953`；三家公司各有旧版/新版随机代号，1440/768/375 均有原图和 `-masked.png`，并附工程工业、明亮产品、蓝白目录三套参照图（同样有 `-masked.png`）。README 保留第 5 问并要求只看遮字版判断公司差异和“四个样子能否区分”。盲评包：`artifacts/t057/blind/`；对照表：`artifacts/t057/blind-key.json`；上一版包保留在 `artifacts/t057/blind-r1/`。
+- 代码审查：
+- 盲评：
+- 删除旧 overlay：
