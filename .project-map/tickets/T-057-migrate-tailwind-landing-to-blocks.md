@@ -2,7 +2,7 @@
 id: T-057
 title: 「灰底短路径」迁到区块库
 type: build
-status: open
+status: closed
 blocked_by: [T-056]
 claimed_by: codex-build
 supersedes:
@@ -27,11 +27,10 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 三份模拟资料用这个样子生成，`check-published` 通过，1440 / 768 / 375 截图打开看过
-- [ ] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
-- [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查通过；Claude 验收
-- [x] 旧 overlay 已删除
+- [x] 三份模拟资料用这个样子生成，`check-published` 通过，1440 / 768 / 375 截图打开看过
+- [x] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
+- [x] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 代码审查通过；Claude 验收；旧 overlay 已删除
 
 ## Resolution
 
@@ -108,3 +107,9 @@ supersedes:
 - 最终全量（提交 `57f897a` 后）：`npm test` 508/508，0 失败/0 跳过；typecheck、build 通过。日志：`artifacts/t057/full-r6-57f897a.log`、`artifacts/t057/typecheck-r6-57f897a.log`、`artifacts/t057/build-r6-57f897a.log`。
 - 三份草稿 `check-published` 于 `2026-10-01 13:28:38 -0400` 运行，9/9 通过；报告和截图在 `artifacts/t057/published-r6-57f897a/`。
 - 三套最终对照均晚于提交：工程工业 `artifacts/t057/engineering-57f897a/report.json` 为 66/66 一致；明亮产品 `artifacts/t057/forge-57f897a/report.json` 为 9/9 一致；蓝白目录 `artifacts/t057/landwind-57f897a/report.json` 为 9/9 一致。报告时间分别为 13:30:09、13:30:28、13:30:51 -0400。P2 扫描脚本未改。
+
+- 代码审查：Astra 第四次复审 PASS（候选 `6657ad1`，`artifacts/review-astra-t057.md`）；残余 P2：宽度测量在预览桥外的发布扫描、样式扫描各有一份，属验收侧，未改。
+- 盲评：`artifacts/blind-t057.md`；三组新旧互有略优、无否决项，遮字版及与另三个样子并排均能区分；两版共有的 375 材料组合截断已在 `d9f2d8b` 修正。
+- 删除旧 overlay（`8e52a71`；代码与 `1a2b0a3` 相同，证据在其后运行）：`npm test` 512/512、typecheck、build 通过；`check-published` 9/9（`artifacts/t057/published-delete-1a2b0a3/`）；工程工业 66/66、明亮 9/9、蓝白 9/9 与 `7d09e6e` 一致；灰底短路径删除前后（对 `9cdfabd`）9/9 逐像素一致（`artifacts/t057/tailwind-composed-delete-1a2b0a3/`）。
+
+Claude 验收关闭（2026-10-01）。
