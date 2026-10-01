@@ -979,6 +979,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
       node.textContent = value;
       return;
     }
+    // Keep the declared word policy from changing titles that already fit in one line. CJK
+    // headings need the spans once they reach the width-sensitive range; a genuinely long ASCII
+    // model token still gets the same protection on the short-path look.
+    var hasHan = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(value);
+    var hasLongToken = /[A-Za-z0-9]{20,}/.test(value);
+    if ((hasHan && Array.from(value).length < 10) || (!hasHan && !hasLongToken)) {
+      node.textContent = value;
+      return;
+    }
     node.textContent = "";
     for (var part of segmenter.segment(value)) {
       var segment = String(part.segment || "");

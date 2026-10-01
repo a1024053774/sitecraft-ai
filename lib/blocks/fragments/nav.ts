@@ -9,7 +9,6 @@ export const navFragment: BlockFragment = {
 .sitecraft-brand-mark { width: 30px; height: 30px; flex: none; background: var(--site-ink); position: relative; }
 .sitecraft-brand-mark::after { content: ""; position: absolute; inset: 0; background: var(--site-accent); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
 .sitecraft-brand-name { min-width: 0; line-height: 1.15; white-space: normal; word-break: keep-all; overflow-wrap: normal; text-wrap: balance; }
-.sitecraft-look-engineering-industrial .sitecraft-brand { flex: 1 1 auto; }
 .sitecraft-look-engineering-industrial .sitecraft-brand-name { white-space: normal; word-break: normal; overflow-wrap: anywhere; }
 .sitecraft-nav-links { display: flex; align-items: center; gap: 26px; font-size: 14px; color: var(--site-muted); }
 .sitecraft-nav-links a:hover { color: var(--site-ink); }
@@ -32,7 +31,6 @@ export const navFragment: BlockFragment = {
 .sitecraft-nav-links, .sitecraft-nav .sitecraft-nav-cta { display: none; }
 .sitecraft-menu { display: block; }
 .sitecraft-brand-name { font-size: clamp(11px, 3.2vw, 17px); }
-.sitecraft-look-engineering-industrial .sitecraft-brand-name { max-width: 100%; }
 `,
   variants: {
     bar: `<div data-sc-block="nav" data-sc-variant="bar">

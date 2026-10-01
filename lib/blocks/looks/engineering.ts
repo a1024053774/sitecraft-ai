@@ -74,7 +74,7 @@ export const engineeringLook: BlockLook = {
     "--site-heading-wrap": "normal",
     "--site-heading-break": "keep-all",
     "--site-heading-max": "16em",
-    "--site-heading-text-wrap": "pretty",
+    "--site-heading-text-wrap": "balance",
     "--site-heading-tracking": "-0.02em",
     "--site-card-radius": "0",
     "--site-media-radius": "0",
