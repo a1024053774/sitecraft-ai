@@ -75,7 +75,7 @@ test("nordic-store restyles to export-catalog host tokens and does not open a ne
   assert.equal(sameFamilyTokens(host.tokens, guest.tokens), true);
   assert.match(restyleAdmittedCatalogGrid(extractNordicProductGrid(nordicHtml)!), /var\(--site-surface/);
   const products = host.modules.find((module) => module.key === "products");
-  assert.equal(products?.sourceTemplateId, "nordic-store");
+  assert.equal(products?.sourceTemplateId, undefined, "landwind now owns its composed product block");
   const composed = composeKitModules({ host, parts: selectedKitParts(guest) });
   assert.equal(composed.ok, true);
   if (composed.ok) {
