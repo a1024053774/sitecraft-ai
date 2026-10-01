@@ -3,9 +3,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
 import { openBrowser } from "./helpers/workspace-browser.ts";
+import { engineeringLook } from "../lib/blocks/looks/engineering.ts";
 
 const textFit = readFileSync("scripts/visitor-text-fit-scan.js", "utf8");
 const wordScan = readFileSync("scripts/hero-word-break-scan.js", "utf8");
+
+test("engineering declares the long-title word policy while short-path keeps words", async () => {
+  assert.equal(engineeringLook.heroTitle, "long-words");
+});
 
 test("engineering generated titles and the Chinese company name fit both locales at all three widths", async () => {
   const browser = await openBrowser();

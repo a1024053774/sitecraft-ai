@@ -696,7 +696,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
+      if (adapter && adapter.blocks && (adapter.blocks.heroTitle === "words" || adapter.blocks.heroTitle === "long-words") && slot.target === "hero.title") {
         node.textContent = "";
         writeHeroTitle(node, nextValue);
       } else {
@@ -982,11 +982,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
     // Keep the declared word policy from changing titles that already fit in one line. CJK
     // headings need the spans once they reach the width-sensitive range; a genuinely long ASCII
     // model token still gets the same protection on the short-path look.
+    var policy = adapter && adapter.blocks ? adapter.blocks.heroTitle : "words";
     var hasHan = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(value);
     var hasLongToken = /[A-Za-z0-9]{20,}/.test(value);
     var mixedHanAndAscii = hasHan && /[A-Za-z0-9]/.test(value);
     var hasNaturalBreakPunctuation = /[，,、：:；;]/.test(value);
-    if ((!hasHan && !hasLongToken) || (hasHan && (mixedHanAndAscii || hasNaturalBreakPunctuation || Array.from(value).length < 10))) {
+    if (policy === "long-words" && ((!hasHan && !hasLongToken) || (hasHan && (mixedHanAndAscii || hasNaturalBreakPunctuation || Array.from(value).length < 10)))) {
       node.textContent = value;
       return;
     }
