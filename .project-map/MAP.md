@@ -57,7 +57,7 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [AGENTS.md](../AGENTS.md) | `package.json`, `scripts/check-published.mjs`, block-library preview path | a5a6d72 |
+| [AGENTS.md](../AGENTS.md) | `package.json`, `scripts/check-published.mjs`, block-library preview path | 91a88dc |
 | [CONTEXT.md](../CONTEXT.md) | `lib/site-document.ts`, `lib/site-operations.ts`, `lib/alignment.ts`, `lib/template-adapters/types.ts`, block-library preview path | 8e52a71 |
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**` | |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-00[1-9]-*.md`, `.project-map/tickets/T-01[0-4]-*.md` | |
