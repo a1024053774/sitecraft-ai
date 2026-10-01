@@ -14,6 +14,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
   var document = global.document;
   var parent = global.parent || global;
   var siteStyleCss = ${SITE_STYLE_CSS_SOURCE};
+  var fitTitleActive = false;
 
   function asList(result) {
     return Array.prototype.slice.call(result || []);
@@ -52,6 +53,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function characterUnits(value) {
     var chars = Array.from(String(value || "").trim()).filter(function (char) { return !/^\s$/.test(char); });
     return chars.length || 1;
+  }
+
+  function needsCharacterFit(value) {
+    var text = String(value || "");
+    var hasHan = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(text);
+    return (hasHan && characterUnits(text) >= 10) || /[A-Za-z0-9]{20,}/.test(text);
   }
 
   function fitTextEnabled() {
@@ -705,8 +712,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-chars", String(characterUnits(nextValue)));
-      if (fitTextEnabled() && (slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-brand-chars", String(characterUnits(nextValue)));
+      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) {
+        if (needsCharacterFit(nextValue)) node.style.setProperty("--sitecraft-title-chars", String(characterUnits(nextValue)));
+        else if (node.style.removeProperty) node.style.removeProperty("--sitecraft-title-chars");
+      }
+      if (fitTextEnabled() && (slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) {
+        if (fitTitleActive) node.style.setProperty("--sitecraft-brand-chars", String(characterUnits(nextValue)));
+        else if (node.style.removeProperty) node.style.removeProperty("--sitecraft-brand-chars");
+      }
       if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";
         writeHeroTitle(node, nextValue);
@@ -1562,6 +1575,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage, offersVisitorEnglish) {
+    fitTitleActive = Boolean(draft && draft.content && draft.content.hero && needsCharacterFit(localize(draft.content.hero.title, locale)));
     var applied = new Set();
     var extraMissing = [];
     var currentLocale = locale || "zh";
