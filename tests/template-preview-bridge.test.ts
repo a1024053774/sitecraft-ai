@@ -928,39 +928,6 @@ test("landwind first-screen slots follow two independent samples and leave undec
   assert.ok(secondReport.missingSlots.includes("contact.email.zh"));
 });
 
-test("the same authored pack lands on forge and landwind with different chrome", { skip: "forge now uses the composed block library; bright migration coverage is in bright-migration.test.ts" }, () => {
-  const landwindAdapter = getTemplateAdapter("landwind");
-  assert.ok(landwindAdapter, "landwind adapter is required before quality comparison");
-  const expected = ["companyName.zh", "hero.title.zh", "hero.subtitle.zh", "hero.cta.zh", "contact.email.zh"];
-  const landwind = createLandwindFragment();
-  const landwindApi = installPreviewBridge({ document: landwind.document, parent: { postMessage() {} }, addEventListener() {} }, "landwind", landwindAdapter);
-
-  const packA = authoredCompareDraft("A17");
-  const packB = authoredCompareDraft("B84");
-  const landwindA = applySiteOperations(packA, [{ op: "set_visual_brief", briefId: "export-catalog" }], themeCompareOptions);
-  const landwindB = applySiteOperations(packB, [{ op: "set_visual_brief", briefId: "export-catalog" }], themeCompareOptions);
-  assert.equal(packA.templateId, "forge");
-  assert.equal(landwindA.draft.templateId, "landwind");
-  assert.equal(landwindA.draft.content.hero.title.zh, packA.content.hero.title.zh);
-
-  const landwindReport = landwindApi.applyDeclaredContent(landwindA.draft, "zh", expected, "workspace");
-  assert.equal(landwind.nodes.brand.textContent, THEME_COMPARE_PACKS.A17.companyName);
-  assert.equal(landwind.nodes.title.textContent, THEME_COMPARE_PACKS.A17.title);
-  assert.equal(landwind.nodes.subtitle.textContent, THEME_COMPARE_PACKS.A17.subtitle);
-  assert.equal(landwind.nodes.cta.textContent, THEME_COMPARE_PACKS.A17.cta);
-  assert.equal(landwind.nodes.undeclared.textContent, "未选用的标题");
-  assert.ok(landwindReport.appliedSlots.includes("companyName.zh"));
-  assert.ok(landwindReport.appliedSlots.includes("hero.cta.zh"));
-  assert.ok(landwindReport.missingSlots.includes("contact.email.zh"));
-  assert.deepEqual(landwindReport.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
-  assert.deepEqual(landwindReport.fallbackMatched, []);
-
-  landwindApi.applyDeclaredContent(landwindB.draft, "zh", expected, "workspace");
-  assert.equal(landwind.nodes.title.textContent, THEME_COMPARE_PACKS.B84.title);
-  assert.equal(landwind.nodes.brand.textContent, THEME_COMPARE_PACKS.B84.companyName);
-  assert.equal(landwind.nodes.undeclared.textContent, "未选用的标题");
-});
-
 function visibilityDraft(hiddenSections: string[] = []) {
   const draft = sentinelDraft() as ReturnType<typeof sentinelDraft> & { hiddenSections: string[]; templateId: string };
   draft.hiddenSections = hiddenSections;
@@ -1060,76 +1027,6 @@ function createFamilyFragments() {
     },
   };
 }
-
-test("declared family modules hide and show after set_section_visibility and undeclared chrome stays", { skip: "forge now uses the composed block library; family module coverage remains for overlay looks" }, () => {
-  const landwindAdapter = getTemplateAdapter("landwind");
-  const screwfastAdapter = getTemplateAdapter("screwfast");
-  assert.ok(landwindAdapter && screwfastAdapter);
-  const fragments = createFamilyFragments();
-  const options = { templateIds: new Set(["forge", "screwfast", "landwind"]), lastChange: "family-modules" };
-  const hidden = applySiteOperations(structuredClone(defaultDraft), [
-    { op: "set_section_visibility", section: "faq", visible: false },
-    { op: "set_section_visibility", section: "services", visible: false },
-    { op: "set_section_visibility", section: "features", visible: false },
-    { op: "set_section_visibility", section: "partners", visible: false },
-    { op: "set_section_visibility", section: "solutions", visible: false },
-    { op: "set_section_visibility", section: "contact", visible: false },
-    { op: "set_section_visibility", section: "process", visible: false },
-    { op: "set_section_visibility", section: "industries", visible: false },
-  ], options).draft;
-
-  const landwindApi = installOn(fragments.landwind.document, landwindAdapter).api;
-  const screwfastApi = installOn(fragments.screwfast.document, screwfastAdapter).api;
-  const expected = [
-    "faq.visibility",
-    "services.visibility",
-    "features.visibility",
-    "partners.visibility",
-    "solutions.visibility",
-    "contact.visibility",
-    "process.visibility",
-    "industries.visibility",
-    "products.visibility",
-  ];
-
-  const landwindReport = landwindApi.applyDeclaredContent(hidden, "zh", expected, "workspace");
-  assert.equal(fragments.landwind.faqSection.hidden, false);
-  assert.equal(fragments.landwind.landwindFaq.hidden, true);
-  assert.equal(fragments.landwind.solutions.hidden, false);
-  assert.equal(fragments.landwind.partners.hidden, false);
-  assert.equal(fragments.landwind.inquiry.hidden, true);
-  assert.equal(fragments.landwind.landwindProducts.hidden, false);
-  assert.equal(fragments.landwind.landwindServices.hidden, true);
-  assert.equal(fragments.landwind.landwindFaq.hidden, true);
-  assert.equal(fragments.landwind.pricing.hidden, true);
-  assert.equal(fragments.landwind.pricing.textContent, "Designed for business teams like yours");
-  assert.equal(fragments.landwind.nodes.undeclared.textContent, "未选用的标题");
-  assert.ok(landwindReport.appliedSlots.includes("faq.visibility"));
-  assert.ok(landwindReport.missingSlots.includes("features.visibility"));
-  assert.ok(landwindReport.missingSlots.includes("industries.visibility"));
-  assert.deepEqual(landwindReport.fallbackMatched, []);
-
-  const screwfastReport = screwfastApi.applyDeclaredContent(hidden, "zh", expected, "workspace");
-  assert.equal(fragments.screwfast.faqSf.hidden, true);
-  assert.equal(fragments.screwfast.productsSection.hidden, false);
-  assert.equal(fragments.screwfast.servicesSection.hidden, true);
-  assert.equal(fragments.screwfast.cta.hidden, true);
-  assert.ok(screwfastReport.appliedSlots.includes("services.visibility"));
-  assert.ok(screwfastReport.appliedSlots.includes("products.visibility"));
-  assert.ok(screwfastReport.appliedSlots.includes("contact.visibility"));
-  assert.ok(screwfastReport.missingSlots.includes("industries.visibility"));
-
-  const shown = applySiteOperations(hidden, [
-    { op: "set_section_visibility", section: "faq", visible: true },
-    { op: "update_card", section: "faq", index: 0, locale: "zh", title: "交期如何确认？", body: "批量询盘后确认。" },
-  ], options).draft;
-  landwindApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
-  screwfastApi.applyDeclaredContent(shown, "zh", ["faq.visibility"], "workspace");
-  assert.equal(fragments.forge.faq.hidden, false);
-  assert.equal(fragments.landwind.faqSection.hidden, false);
-  assert.equal(fragments.screwfast.faqSf.hidden, false);
-  assert.equal(fragments.landwind.pricing.hidden, true);
-});
 
 const LOOK_FIRST_SCREEN_PACKS = {
   K07: {

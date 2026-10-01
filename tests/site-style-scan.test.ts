@@ -18,5 +18,5 @@ test('layout scanning measures painted text: closed details excluded, 3px overla
     assert.ok(scan.textOverlaps.some(x=>x.key.includes('AAAA')&&x.key.includes('CCCC')), 'cross-block overlap must not be exempt');
     assert.ok(!scan.textOverlaps.some(x=>x.key.includes('NOT PAINTED')), 'closed details are not painted');
     assert.equal(scan.heroTitleOrphan, true, 'the scanner must report the one-character hero-title line');
-  } finally { await browser.send('Target.closeTarget',{targetId}); await browser.send('Browser.close'); browser.ws.close(); }
+  } finally { await browser.send('Target.closeTarget',{targetId}); void browser.send('Browser.close').catch(() => {}); browser.ws.close(); }
 });
