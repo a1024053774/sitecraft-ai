@@ -62,3 +62,10 @@ supersedes:
 - 最终全量（提交 `d9f2d8b` 后）：`npm test` 506/506、0 失败/0 跳过；`npm run typecheck`、`npm run build` 通过。日志：`artifacts/t057/full-r3-d9f2d8b.log`、`artifacts/t057/typecheck-r3-d9f2d8b.log`、`artifacts/t057/build-r3-d9f2d8b.log`。
 - 三份灰底短路径草稿 `check-published` 于 `2026-10-01 12:19:58 -0400` 运行，9/9 通过；660cde13 三档 `heroOrphan: false`、`heroTitleWordBreak: false`。报告和新截图：`artifacts/t057/published-r3-d9f2d8b/`。
 - 三套对照均在提交 `d9f2d8b` 后重新生成：工程工业 `artifacts/t057/engineering-d9f2d8b/report.json`（66 张中 33 张逐像素一致，其余差异均位于首屏标题；注塑 1440 的下方仅有由首屏高度变化带来的 1px 对齐差异）；明亮产品 `artifacts/t057/forge-d9f2d8b/report.json`（9/9 一致）；蓝白目录 `artifacts/t057/landwind-d9f2d8b/report.json`（9/9 一致）。报告时间分别为 12:21:43、12:22:11、12:23:30 -0400，均晚于提交。
+
+### 再收窄返工（候选 `6fcd856`）
+
+- 统一平衡换行的失败证据保留在 `artifacts/t057/engineering-d9f2d8b/`；新增浏览器回归锁定原本不孤行的工程标题“重载减速机”不能被拆开。实现改为先保留原始纯文本布局，只有灰底短路径标题检测到孤行或词内断行时才切分词片段并重排；其他样子不进入重排路径。
+- 最终验证（提交 `6fcd856` 后）：`npm test` 507/507，0 失败/0 跳过；typecheck、build 通过。日志：`artifacts/t057/full-r5-6fcd856.log`、`artifacts/t057/typecheck-r5-6fcd856.log`、`artifacts/t057/build-r5-6fcd856.log`。
+- 三份草稿 `check-published` 于 `2026-10-01 13:00:56 -0400` 运行，9/9 通过；660cde13 三档无孤行、无拆词，截图在 `artifacts/t057/published-r5-6fcd856/`。
+- 三套对照均晚于 `6fcd856`：工程工业 `artifacts/t057/engineering-6fcd856/report.json` 为 66/66 逐像素一致；明亮产品 `artifacts/t057/forge-6fcd856/report.json` 为 9/9 一致；蓝白目录 `artifacts/t057/landwind-6fcd856/report.json` 为 9/9 一致。报告时间分别为 13:02:40、13:03:12、13:03:34 -0400。
