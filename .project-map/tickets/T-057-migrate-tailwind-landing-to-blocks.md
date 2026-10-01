@@ -78,6 +78,14 @@ supersedes:
 - `check-published` 于 `2026-10-01 13:44:16 -0400`（独立 `CDP_PORT=9984`）运行，9/9 通过；报告和截图在 `artifacts/t057/published-r7-2985b70/`。
 - 三套对照均晚于新提交：工程工业 `artifacts/t057/engineering-2985b70/report.json` 66/66 一致；明亮产品 `artifacts/t057/forge-2985b70/report.json` 9/9 一致；蓝白目录 `artifacts/t057/landwind-2985b70/report.json` 9/9 一致。报告时间分别为 13:45:49、13:46:08、13:46:30 -0400。
 
+### 短路径标题平衡收窄（候选 `9cdfabd`）
+
+- 失败证据：`artifacts/t057/rework-red-before-r8.log` 在 `2985b70` 上复现 375 宽标题以「与」结尾；测试随后锁定 375/768/1440 三档不得以「与」结尾、不得孤行、不得拆词。
+- `9cdfabd` 将 `--site-heading-text-wrap` 从 `pretty` 改回 `balance`，词 span 样式保持不变。
+- 最终验证（提交 `9cdfabd` 后）：`npm test` 511/511，0 失败/0 跳过；typecheck、build 通过。日志：`artifacts/t057/full-r8-9cdfabd.log`、`artifacts/t057/typecheck-r8-9cdfabd.log`、`artifacts/t057/build-r8-9cdfabd.log`。
+- `check-published` 于 `2026-10-01 13:54:45 -0400` 运行，9/9 通过；报告和截图：`artifacts/t057/published-r8-9cdfabd/`。
+- 三套对照均晚于提交：工程工业 `artifacts/t057/engineering-9cdfabd/report.json` 66/66 一致；明亮产品 `artifacts/t057/forge-9cdfabd/report.json` 9/9 一致；蓝白目录 `artifacts/t057/landwind-9cdfabd/report.json` 9/9 一致。报告时间分别为 13:56:20、13:56:37、13:56:57 -0400。
+
 ### 第三次复审返工（候选 `57f897a`）
 
 - 预览桥删除孤行测量、宽度 probe、RAF 和模板分支；`TemplateBlocks.heroTitle` 作为声明数据，只有 `shortPathLook` 为 `"words"`。工程工业、明亮产品、蓝白目录不写词 span，灰底短路径由浏览器 CSS `text-wrap: pretty` 处理孤行。测试覆盖声明 gating、二次写入结构一致和 resize 后不重新写入仍可重排。
