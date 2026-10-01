@@ -30,5 +30,5 @@ test("check-published runs the text-fit scan and reports each way text can fail 
   assert.match(scan, /elementsFromPoint/, "text covered by another element");
   assert.match(scan, /details:not\(\[open\]\)/, "folded spec lists are opened while measuring");
   assert.match(scan, /narrow-body/, "catalog cards with only a few glyphs per body line are reported");
-  assert.match(checkSource, /company name may fit its box while still breaking/, "brand word breaks share the truncation check");
+  assert.match(checkSource, /brandClipped/, "actual brand clipping remains part of the visitor checks");
 });
