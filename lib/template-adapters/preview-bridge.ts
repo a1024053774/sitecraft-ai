@@ -1026,6 +1026,18 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var blocks = adapter && adapter.blocks;
     if (!blocks || !Array.isArray(blocks.order) || !document || !document.querySelectorAll) return;
     var chosen = draft && draft.blockVariants && typeof draft.blockVariants === "object" ? draft.blockVariants : {};
+    // A grouped industries/capabilities pair must keep one visual treatment. Resolve a
+    // mismatched model choice at render time without mutating the saved draft.
+    var industryVariant = typeof chosen.industries === "string" ? chosen.industries : (blocks.defaults && blocks.defaults.industries);
+    var capabilityVariant = typeof chosen.capabilities === "string" ? chosen.capabilities : (blocks.defaults && blocks.defaults.capabilities);
+    if (industryVariant && capabilityVariant && industryVariant !== capabilityVariant) {
+      var pairVariant = industryVariant === "cards" || capabilityVariant === "cards" ? "cards" : "list";
+      chosen = {};
+      var originalChoices = draft && draft.blockVariants && typeof draft.blockVariants === "object" ? draft.blockVariants : {};
+      for (var chosenKey in originalChoices) chosen[chosenKey] = originalChoices[chosenKey];
+      chosen.industries = pairVariant;
+      chosen.capabilities = pairVariant;
+    }
     for (var i = 0; i < blocks.order.length; i++) {
       var block = blocks.order[i];
       var available = (blocks.variants && blocks.variants[block]) || [];
@@ -1331,6 +1343,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       }
       var sectionNode = sectionSpec ? visibilityNode(sectionSpec) : null;
       var anyVisible = false;
+      var visibleCount = 0;
       var sawEntry = false;
       var draftHidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf(group) !== -1;
 
@@ -1358,6 +1371,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         } else {
           setEntryHidden(entry, false);
           anyVisible = true;
+          visibleCount += 1;
           // Visitors see the title alone rather than a "待补充" body (T-045).
           if (bodyNode && variant !== "workspace" && isGapMarker(bodyValue)) {
             bodyNode.textContent = "";
@@ -1368,6 +1382,19 @@ function sitecraftPreviewBridge(templateId, adapter) {
         }
       }
 
+      if (group === "services" && sectionNode) {
+        var process = sectionNode.querySelector ? sectionNode.querySelector(".sitecraft-process") : null;
+        if (process && process.setAttribute) {
+          process.setAttribute("data-sitecraft-entry-count", String(visibleCount));
+          var processCards = process.querySelectorAll ? process.querySelectorAll(".sitecraft-process-card") : [];
+          var lastVisible = null;
+          for (var pc = 0; pc < processCards.length; pc++) {
+            if (processCards[pc].removeAttribute) processCards[pc].removeAttribute("data-sitecraft-last-visible");
+            if (!processCards[pc].hidden && (!processCards[pc].style || processCards[pc].style.display !== "none")) lastVisible = processCards[pc];
+          }
+          if (lastVisible && lastVisible.setAttribute) lastVisible.setAttribute("data-sitecraft-last-visible", "true");
+        }
+      }
       if (sectionNode && !draftHidden && sawEntry) {
         setSectionHidden(sectionNode, group, !anyVisible);
       }

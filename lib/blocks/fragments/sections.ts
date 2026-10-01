@@ -11,8 +11,18 @@ export const servicesFragment: BlockFragment = {
 .sitecraft-process-card::before { content: counter(step); display: block; margin-bottom: 10px; font-size: 13px; font-weight: 700; color: var(--site-accent-strong); }
 .sitecraft-process-card h3 { margin: 0 0 6px; font-size: 17px; }
 .sitecraft-process-card p { margin: 0; color: var(--site-muted); line-height: 1.55; }
+.sitecraft-process[data-sitecraft-entry-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sitecraft-process[data-sitecraft-entry-count="5"], .sitecraft-process[data-sitecraft-entry-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .sitecraft-process-cards { gap: 16px; border-top: 0; }
 .sitecraft-process-cards .sitecraft-process-card { padding: 20px; border: var(--site-rule); border-radius: var(--site-card-radius); }
+`,
+  narrow: `
+.sitecraft-process[data-sitecraft-entry-count="4"], .sitecraft-process[data-sitecraft-entry-count="5"], .sitecraft-process[data-sitecraft-entry-count="6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sitecraft-process[data-sitecraft-entry-count="5"] > .sitecraft-process-card[data-sitecraft-last-visible="true"] { grid-column: 1 / -1; }
+`,
+  phone: `
+.sitecraft-process[data-sitecraft-entry-count="4"], .sitecraft-process[data-sitecraft-entry-count="5"], .sitecraft-process[data-sitecraft-entry-count="6"] { grid-template-columns: 1fr; }
+.sitecraft-process[data-sitecraft-entry-count="5"] > .sitecraft-process-card[data-sitecraft-last-visible="true"] { grid-column: auto; }
 `,
   variants: {
     steps: `<section id="process" class="sitecraft-section" data-sitecraft-section="services" data-sc-block="services" data-sc-variant="steps">
