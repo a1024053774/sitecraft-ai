@@ -96,7 +96,7 @@ test("on the engineering look the model gets the layouts it may pick, what each 
   assert.match(user, /"blockVariants":\{"products":"compare"\}/, "the model sees the layouts the draft shows now");
 });
 
-test("the engineering prompt exposes style directions, the material recommendation, and the extra style operation", async () => {
+test("an appearance edit prompt exposes style directions without a material recommendation", async () => {
   await ask(packDraft("molding"), "按加工能力、产能、工艺和检测来做一个工厂实力网站", { type: "answer", text: "ok" }, true);
   const system = lastMessage("system");
   assert.match(system, /set_site_style/);

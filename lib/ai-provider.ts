@@ -256,7 +256,7 @@ export function isSiteStyleRequest(message: string) {
   return /样式|外观|版式|首屏|更有分量|更紧凑|留白|字阶|字重|目录为主|工厂实力|参数表/.test(message);
 }
 
-function operationInstructions(templateId: string, draft: SiteDraft, materials: string, allowSiteStyle: boolean) {
+function operationInstructions(templateId: string, allowSiteStyle: boolean) {
   return `当 type 为 edit 时，输出 JSON：{"type":"edit","summary":"中文摘要","operations":[...]}。
 允许的操作：
 1. set_text: {"op":"set_text","target":目标,"value":{"zh":"中文文本","en":"English text"}}（一条 operation 必须同时提供 zh/en；缺失英文写 To be provided）
@@ -671,7 +671,7 @@ export async function requestStructuredOperations(args: {
 {"type":"answer","text":"当前站点名称是 Forge Industrial。"}
 {"type":"clarify","question":"你想先改哪一部分？","options":["首屏标题","服务卡片","联系方式"]}
 
-${operationInstructions(args.templateId, args.draft, args.message, args.allowSiteStyle === true)}
+${operationInstructions(args.templateId, args.allowSiteStyle === true)}
 
 前端表达约束（${FRONTEND_TONE_RULES_VERSION}）：${frontendToneRules.join("；")}
 
