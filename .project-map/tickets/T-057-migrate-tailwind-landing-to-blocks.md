@@ -70,6 +70,14 @@ supersedes:
 - 三份草稿 `check-published` 于 `2026-10-01 13:00:56 -0400` 运行，9/9 通过；660cde13 三档无孤行、无拆词，截图在 `artifacts/t057/published-r5-6fcd856/`。
 - 三套对照均晚于 `6fcd856`：工程工业 `artifacts/t057/engineering-6fcd856/report.json` 为 66/66 逐像素一致；明亮产品 `artifacts/t057/forge-6fcd856/report.json` 为 9/9 一致；蓝白目录 `artifacts/t057/landwind-6fcd856/report.json` 为 9/9 一致。报告时间分别为 13:02:40、13:03:12、13:03:34 -0400。
 
+### 第三次复审返工（候选 `57f897a`，最终修订 `2985b70`）
+
+- 旧桥实际探针已完成：从 `d9f2d8b`、`6fcd856` 导出到 `artifacts/t057/old-bridge-scratch/`，运行日志 `artifacts/t057/red-old-bridges.log`。两份旧桥均击中新测试的声明 gating/非声明样子与短路径标题行为反例。
+- `2985b70`：Segmenter 不可用时回退写入原始纯文本；短路径词 span 改为 `display:inline-block; max-width:100%; white-space:normal; word-break:keep-all; overflow-wrap:anywhere`，长英文/型号不再横向溢出；新增回归测试覆盖 fallback 与 375 长词。
+- 最终验证（提交 `2985b70` 后）：`npm test` 510/510，0 失败/0 跳过；typecheck、build 通过。日志：`artifacts/t057/full-r7-2985b70.log`、`artifacts/t057/typecheck-r7-2985b70.log`、`artifacts/t057/build-r7-2985b70.log`。
+- `check-published` 于 `2026-10-01 13:44:16 -0400`（独立 `CDP_PORT=9984`）运行，9/9 通过；报告和截图在 `artifacts/t057/published-r7-2985b70/`。
+- 三套对照均晚于新提交：工程工业 `artifacts/t057/engineering-2985b70/report.json` 66/66 一致；明亮产品 `artifacts/t057/forge-2985b70/report.json` 9/9 一致；蓝白目录 `artifacts/t057/landwind-2985b70/report.json` 9/9 一致。报告时间分别为 13:45:49、13:46:08、13:46:30 -0400。
+
 ### 第三次复审返工（候选 `57f897a`）
 
 - 预览桥删除孤行测量、宽度 probe、RAF 和模板分支；`TemplateBlocks.heroTitle` 作为声明数据，只有 `shortPathLook` 为 `"words"`。工程工业、明亮产品、蓝白目录不写词 span，灰底短路径由浏览器 CSS `text-wrap: pretty` 处理孤行。测试覆盖声明 gating、二次写入结构一致和 resize 后不重新写入仍可重排。
