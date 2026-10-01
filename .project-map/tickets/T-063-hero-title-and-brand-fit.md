@@ -23,12 +23,12 @@ T-060 验收时用三份模拟资料真实生成，工程工业页面出了两�
 - [ ] 测试先写、改动前先失败：用模型原始长标题和公司名（上面两例），在工程工业的 375/768/1440 中英文页都不裁、不溢出、不在词中间断开、没有孤字；英文页公司名不截断
 - [ ] 工程工业 66 张、明亮/蓝白/灰底各 9 张对照，原本放得下的标题和页眉逐像素不变，只有原本溢出的那几张有变化，逐张说明
 - [ ] T-060 的三份真实草稿（模型原始标题）`check-published` 中英文三档通过，检查不放宽；截图逐张看过
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过
 
 ## Resolution
 
-- 失败证据：在 T-063 实现前运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/t063-hero-title-fit.test.ts`，源码契约与三档原始标题检查均失败，日志 `artifacts/t063-red-before.txt`；T-060 严格发布复现保存在 `artifacts/t060/strict-red-ff4fb1b/`。
-- 实现提交：`5841a3d`（字符 CSS 变量和容器单位）、`0ffe615`（菜单预留宽度）、`3cbad1f`（仅由 look 声明启用）、`ff598ab`、`a1a99da`、`2feb531`、`b191b14`、`dd39432`、`fa8e35c`、`ecb59a2`、`7664a57`（run 宽度、品牌独立和可断长句回归测试）。没有样子专用 CSS 覆盖、模板分支或 JS 布局测量；严格检查脚本未放宽。
-- T-060 三份真实草稿用模型原始标题在最终代码 `b191b14` 后 `check-published` 中英文 9/9 通过，报告和截图 `artifacts/t063/published-final-7664a57/`。
-- 工程工业对照命令 `scripts/compare-engineering-default.mjs --old 7d09e6e` 的最终报告 `artifacts/t063/engineering-final-7664a57/`：原本放得下的工程工业页面保持一致；差异只落在注塑资料原本溢出的首屏标题/页眉区域。明亮产品、蓝白目录、灰底短路径分别为 `artifacts/t063/forge-final-current/`、`landwind-final-current/`、`tailwind-final-current/`，均 9/9 逐像素一致。
-- 最终验证：`npm test` 521/521、0 失败/0 跳过（`artifacts/t063/full-final-7664a57.log`）；typecheck、build 通过（`artifacts/t063/typecheck-final-7664a57.log`、`build-final-b191b14.log`）。
+- 失败证据：在提交 `a50d582` 前临时恢复 `--site-brand-fit-min: 4px` 与 `white-space: nowrap`，运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npx tsx --test tests/t063-hero-title-fit.test.ts`，同一条超长公司名在 375px 下得到 `fontSize: 12`、`lineCount: 1`、`scrollWidth: 272/clientWidth: 132` 并失败；日志 `artifacts/t063/red-brand-floor-before.txt`。恢复后同命令 4/4 通过。
+- 实现提交：`a50d582` 将工程工业品牌字号下限改为 11px，并把 fitted brand 从 nowrap 改为 `white-space: normal; word-break: keep-all; overflow-wrap: normal`，允许在已有可断点换成多行；新增 375px 字号、行数和扫描断言。未加入样子专用覆盖、模板分支或布局测量。
+- 最终证据均在 `a50d582` 之后生成：三份原始标题草稿的 `check-published` 报告和中英文截图 `artifacts/t063/published-final-a50d582/`，三份各 1440/768/375 均通过，英文参数值无汉字且品牌未截断。
+- 对照均在 `a50d582` 之后生成：`scripts/compare-engineering-default.mjs --old 7d09e6e --out artifacts/t063/engineering-final-a50d582` 为 66 张中 65 张逐像素一致，1 张注塑资料首屏/参数区域有预期标题差异，报告标记 `only-hero+products`；`scripts/compare-look-baseline.mjs --template forge --old 7d09e6e --out artifacts/t063/forge-final-a50d582`、`--template landwind` 对应目录各 9/9 零差异；灰底短路径 `artifacts/t057/compare-tailwind-composed-delete-1a2b0a3.mjs --template tailwind-landing --old 9cdfabd --out artifacts/t063/tailwind-final-a50d582` 为 9/9 零差异。
+- 最终验证命令均在 `a50d582` 之后运行：`npm test` 523/523、0 失败/0 跳过（`artifacts/t063/full-final-a50d582.log`）；`npm run typecheck` 与 `npm run build` 通过（对应 `typecheck-final-a50d582.log`、`build-final-a50d582.log`）。
