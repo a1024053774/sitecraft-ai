@@ -692,7 +692,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (adapter && adapter.blocks && slot.target === "hero.title") {
+      if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";
         writeHeroTitle(node, nextValue);
       } else {
@@ -962,117 +962,32 @@ function sitecraftPreviewBridge(templateId, adapter) {
     });
   }
 
-  // Keep words together in hero titles while leaving authored text and clipboard values unchanged.
-  // Intl.Segmenter supplies the language-aware boundaries; a single segment that is wider than its
-  // line is deliberately left breakable by CSS, so this never turns an overlong word into overflow.
+  // Look-specific title handling is declared in adapter.blocks.heroTitle. This function only writes
+  // text and word nodes; line balancing belongs to the look's CSS.
   function writeHeroTitle(node, text) {
     var value = String(text);
     if (!node.ownerDocument || !document.createTextNode || !document.createElement) {
       node.textContent = value;
       return;
     }
-    node.textContent = value;
-    balanceHeroTitleIfOrphan(node);
-    queueHeroTitleBalance(node);
-  }
-
-  function balanceHeroTitleIfOrphan(node) {
-    if (!node || !node.ownerDocument || !node.querySelectorAll) return;
-    var range = document.createRange();
-    var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-    var chars = [];
-    while (walker.nextNode()) {
-      var textNode = walker.currentNode;
-      for (var i = 0; i < textNode.textContent.length; i++) {
-        range.setStart(textNode, i); range.setEnd(textNode, i + 1);
-        var rect = range.getClientRects()[0] || range.getBoundingClientRect();
-        if (rect.width > .5 && rect.height > .5) chars.push({ char: textNode.textContent[i], top: Math.round(rect.top), parent: textNode.parentElement });
-      }
-    }
-    var lines = {};
-    for (var c = 0; c < chars.length; c++) {
-      if (!chars[c].char.trim()) continue;
-      (lines[chars[c].top] || (lines[chars[c].top] = [])).push(chars[c]);
-    }
-    var tops = Object.keys(lines).map(Number).sort(function (a, b) { return a - b; });
-    if (tops.length < 2) return;
-    var last = lines[tops[tops.length - 1]] || [];
-    var lastText = last.map(function (item) { return item.char; }).join("");
-    var shortWord = lastText.length <= 2 && /^[\u3400-\u9fff]+$/.test(lastText);
-    var value = node.textContent || "";
+    node.textContent = "";
     var segmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function" ? new Intl.Segmenter("zh", { granularity: "word" }) : null;
     if (!segmenter) return;
-    var segments = Array.from(segmenter.segment(value));
-    var tail = segments[segments.length - 1];
-    var previous = segments[segments.length - 2];
-    if (tail && previous && tail.isWordLike && previous.isWordLike && tail.segment.length === 1 && /[\u3400-\u9fff]/.test(tail.segment) && /[\u3400-\u9fff]$/.test(previous.segment)) {
-      previous.segment += tail.segment;
-      segments.pop();
-    }
-    var lineWidth = node.clientWidth || (node.getBoundingClientRect && node.getBoundingClientRect().width) || 0;
-    var computed = global.getComputedStyle ? global.getComputedStyle(node) : null;
-    var naturalWidth = function (word) {
-      var probe = document.createElement("span");
-      probe.textContent = word;
-      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;font:" + (computed?.font || "inherit") + ";letter-spacing:" + (computed?.letterSpacing || "normal") + ";font-weight:" + (computed?.fontWeight || "normal");
-      document.body.appendChild(probe);
-      var width = probe.getBoundingClientRect().width;
-      probe.remove();
-      return width;
-    };
-    var wordSplit = false;
-    for (var checkPart of segments) {
-      var checkWord = String(checkPart.segment || "");
-      if (!checkPart.isWordLike || checkWord.length < 2 || naturalWidth(checkWord) > lineWidth + 1) continue;
-      var start = checkPart.index;
-      var end = start + checkWord.length;
-      var topByOffset = [];
-      var offset = 0;
-      var textWalker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-      while (textWalker.nextNode()) {
-        var current = textWalker.currentNode;
-        for (var ci = 0; ci < current.textContent.length; ci++) if (offset + ci >= start && offset + ci < end) {
-          range.setStart(current, ci); range.setEnd(current, ci + 1);
-          topByOffset.push(range.getBoundingClientRect().top);
-        }
-        offset += current.textContent.length;
-      }
-      if (topByOffset.length > 1 && topByOffset.some(function (top) { return Math.abs(top - topByOffset[0]) > 1; })) { wordSplit = true; break; }
-    }
-    if (templateId !== "tailwind-landing") wordSplit = false;
-    if (!(lastText.length === 1 && /[\u3400-\u9fff]/.test(lastText[0])) && !shortWord && !wordSplit) return;
-    node.textContent = "";
-    if (lastText.length === 1 || shortWord) node.style.textWrap = "balance";
-    for (var part of segments) {
+    for (var part of segmenter.segment(value)) {
       var segment = String(part.segment || "");
       if (!segment) continue;
       if (!part.isWordLike || /^\s+$/.test(segment)) {
         node.appendChild(document.createTextNode(segment));
         continue;
       }
-      var word = document.createElement("span");
-      word.setAttribute("data-sitecraft-hero-word", "true");
-      word.textContent = segment;
-      var probe = document.createElement("span");
-      probe.textContent = segment;
-      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;font:" + (computed?.font || "inherit") + ";letter-spacing:" + (computed?.letterSpacing || "normal") + ";font-weight:" + (computed?.fontWeight || "normal");
-      document.body.appendChild(probe);
-      var natural = probe.getBoundingClientRect().width;
-      probe.remove();
-      var keep = !lineWidth || natural <= lineWidth + 1;
-      word.style.display = "inline-block";
-      word.style.whiteSpace = keep ? "nowrap" : "normal";
-      word.style.maxWidth = "100%";
-      word.style.wordBreak = "keep-all";
-      word.style.overflowWrap = "anywhere";
-      node.appendChild(word);
+      var span = document.createElement("span");
+      span.setAttribute("data-sitecraft-hero-word", "true");
+      span.style.whiteSpace = "nowrap";
+      span.style.wordBreak = "keep-all";
+      span.style.overflowWrap = "anywhere";
+      span.textContent = segment;
+      node.appendChild(span);
     }
-  }
-
-  function queueHeroTitleBalance(node) {
-    var run = function () { balanceHeroTitleIfOrphan(node); };
-    if (global.requestAnimationFrame) global.requestAnimationFrame(function () { global.requestAnimationFrame(run); });
-    else run();
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;

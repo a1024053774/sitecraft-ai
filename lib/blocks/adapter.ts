@@ -36,6 +36,6 @@ export function blockAdapterFor(
     sections,
     ...(options.alternatives ? { alternatives: { ...options.alternatives } } : {}),
     kit: { ...options.kit, modules },
-    blocks: { order, defaults: { ...look.defaults }, variants, render, ...(look.styleDirections ? { styleDirections: look.styleDirections } : {}) },
+    blocks: { order, defaults: { ...look.defaults }, ...(look.heroTitle ? { heroTitle: look.heroTitle } : {}), variants, render, ...(look.styleDirections ? { styleDirections: look.styleDirections } : {}) },
   };
 }

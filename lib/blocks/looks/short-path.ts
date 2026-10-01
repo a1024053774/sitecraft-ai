@@ -48,6 +48,7 @@ const capabilityLedRules: SiteStyleRule[] = [
 export const shortPathLook: BlockLook = {
   id: "technical-product",
   templateId: "tailwind-landing",
+  heroTitle: "words",
   documentTitle: "灰底短路径首页",
   tokens: {
     "--site-container": "1180px",
@@ -64,7 +65,7 @@ export const shortPathLook: BlockLook = {
     "--site-heading-wrap": "anywhere",
     "--site-heading-break": "normal",
     "--site-heading-max": "16em",
-    "--site-heading-text-wrap": "balance",
+    "--site-heading-text-wrap": "pretty",
     "--site-heading-tracking": "-0.05em",
     "--site-card-radius": "var(--site-radius)",
     "--site-media-radius": "24px",

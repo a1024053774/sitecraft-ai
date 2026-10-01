@@ -57,6 +57,27 @@ test("an engineering title that is not orphaned keeps its original line grouping
     await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
     const lines = await browser.eval<string[]>(`(() => { const h=document.querySelector('[data-sc-block="hero"] h1'); const r=document.createRange(); const rows=new Map(); const w=document.createTreeWalker(h,NodeFilter.SHOW_TEXT); while(w.nextNode()){const n=w.currentNode; for(let i=0;i<n.textContent.length;i++){r.setStart(n,i);r.setEnd(n,i+1);const q=r.getBoundingClientRect();if(q.width>.5){const k=Math.round(q.top);rows.set(k,(rows.get(k)||"")+n.textContent[i]);}}} return [...rows.entries()].sort((a,b)=>a[0]-b[0]).map(([,text])=>text); })()`, sessionId);
     assert.ok(lines.some((line) => line.includes("重载减速机")), JSON.stringify(lines));
+    assert.equal(await browser.eval<number>(`document.querySelectorAll('[data-sitecraft-hero-word]').length`, sessionId), 0);
+    assert.equal(await browser.eval<string>(`document.querySelector('[data-sc-block="hero"] h1').style.textWrap`, sessionId), "");
+  } finally {
+    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    closeBrowser(browser);
+  }
+});
+
+test("short-path word spans are declared, idempotent, and CSS reflows after a viewport change", async () => {
+  const draft = { ...packDraft("molding"), templateId: "tailwind-landing" };
+  const { browser, targetId, sessionId } = await preview(draft, 1440);
+  try {
+    const first = await browser.eval<{ html: string; spans: number }>(`(() => { const h=document.querySelector('[data-sc-block="hero"] h1'); return { html:h.innerHTML, spans:h.querySelectorAll('[data-sitecraft-hero-word]').length }; })()`, sessionId);
+    assert.ok(first.spans > 0);
+    await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
+    assert.equal(await browser.eval<string>(`document.querySelector('[data-sc-block="hero"] h1').innerHTML`, sessionId), first.html);
+    await browser.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 900, deviceScaleFactor: 1, mobile: true }, sessionId);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const narrow = await browser.eval<{ orphan: boolean; wordBreak: boolean }>(`(() => { ${readFileSync("scripts/visitor-layout-scan.js", "utf8").replace("export function", "function").replace("export default scanVisitorLayout;", "")}; const r=scanVisitorLayout(document); return { orphan:r.heroTitleOrphan, wordBreak:r.heroTitleWordBreak }; })()`, sessionId);
+    assert.equal(narrow.orphan, false);
+    assert.equal(narrow.wordBreak, false);
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
     closeBrowser(browser);

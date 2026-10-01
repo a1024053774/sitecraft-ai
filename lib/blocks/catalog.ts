@@ -368,6 +368,7 @@ export type BlockLook = {
   /** Template id behind the look; the preview route serves the composed page for it. */
   templateId: string;
   documentTitle: string;
+  heroTitle?: "words";
   tokens: Readonly<Record<string, string>>;
   layout: {
     top: readonly BlockId[];
