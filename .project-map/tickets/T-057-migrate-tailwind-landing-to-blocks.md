@@ -54,3 +54,11 @@ supersedes:
 - 最终验证（提交 `27cca5b` 后）：`npm test` 504/504 通过、0 失败/0 跳过（日志 `artifacts/t057/full-r2-27cca5b.log`）；`npm run typecheck` 和 `npm run build` 通过（日志分别为 `artifacts/t057/typecheck-r2-27cca5b.log`、`artifacts/t057/build-r2-27cca5b.log`）。
 - 三份灰底短路径草稿的 `check-published` 于 `2026-10-01 11:37:09 -0400`（提交 `27cca5b` 后）运行：3 站点 × 1440/768/375 共 9/9 通过，报告和截图在 `artifacts/t057/published-r2-27cca5b/`。
 - 三套最终对照均在提交 `27cca5b` 后重新生成：工程工业 `artifacts/t057/engineering-27cca5b/report.json`（66 张，21 张完全一致；其余差异均为首屏词分段导致，注塑 1440 的下方内容只多 1px 的行高对齐误差）；明亮产品 `artifacts/t057/forge-27cca5b/report.json`（9 张中 3 张，仅首屏标题）；蓝白目录 `artifacts/t057/landwind-27cca5b/report.json`（9 张中 6 张，仅首屏标题）。逐张 before/after/diff 裁切和分类报告：`artifacts/t057/hero-segmenter-diffs/report.json`，接触表：`artifacts/t057/hero-segmenter-diffs/contact-sheet.png`；产物生成时间均晚于 `27cca5b`。
+
+### 复审返工（Astra 复审，候选 `d9f2d8b`）
+
+- 失败证据先行：在 `9fb4f99` 上运行新增的孤行、超长词、下层/透明层/`pointer-events:none` 遮挡和实际 look 类名命中测试，记录在 `artifacts/t057/rework-red-before-r3.log`；旧实现的孤行检查漏报、超长词误报、遮挡误判/漏报、参数规则命中数为 0 均被击中。
+- `d9f2d8b`：共享标题扫描现在按同一次词出现返回 `heroOrphan` 与 `heroTitleWordBreak`，测量单词未换行自然宽度后才判断拆词；首屏词片段按自然宽度设为不可拆的行内块，超长词保留强制断开，尾部单字与前词合并避免孤行。`check-published` 与 `visitor-layout-scan` 使用同一结果。遮挡扫描按 `elementsFromPoint` 的真实层叠顺序判断，过滤透明/下层元素，并临时启用 `pointer-events:none` 候选做几何层序判断。参数规则改为实际 look class `sitecraft-look-technical-product`，并有计算样式断言。
+- 最终全量（提交 `d9f2d8b` 后）：`npm test` 506/506、0 失败/0 跳过；`npm run typecheck`、`npm run build` 通过。日志：`artifacts/t057/full-r3-d9f2d8b.log`、`artifacts/t057/typecheck-r3-d9f2d8b.log`、`artifacts/t057/build-r3-d9f2d8b.log`。
+- 三份灰底短路径草稿 `check-published` 于 `2026-10-01 12:19:58 -0400` 运行，9/9 通过；660cde13 三档 `heroOrphan: false`、`heroTitleWordBreak: false`。报告和新截图：`artifacts/t057/published-r3-d9f2d8b/`。
+- 三套对照均在提交 `d9f2d8b` 后重新生成：工程工业 `artifacts/t057/engineering-d9f2d8b/report.json`（66 张中 33 张逐像素一致，其余差异均位于首屏标题；注塑 1440 的下方仅有由首屏高度变化带来的 1px 对齐差异）；明亮产品 `artifacts/t057/forge-d9f2d8b/report.json`（9/9 一致）；蓝白目录 `artifacts/t057/landwind-d9f2d8b/report.json`（9/9 一致）。报告时间分别为 12:21:43、12:22:11、12:23:30 -0400，均晚于提交。
