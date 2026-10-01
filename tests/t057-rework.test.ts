@@ -104,6 +104,23 @@ test("short-path word spans are declared, idempotent, and CSS reflows after a vi
   }
 });
 
+test("short-path hero never leaves the conjunction at the end of a line", async () => {
+  const draft = { ...packDraft("molding"), templateId: "tailwind-landing" };
+  const layoutSource = readFileSync("scripts/visitor-layout-scan.js", "utf8").replace("export function", "function").replace("export default scanVisitorLayout;", "");
+  for (const width of [375, 768, 1440]) {
+    const { browser, targetId, sessionId } = await preview(draft, width);
+    try {
+      const result = await browser.eval<{ lines: string[]; orphan: boolean; wordBreak: boolean }>(`(() => { const h=document.querySelector('[data-sc-block="hero"] h1'); const r=document.createRange(), rows=new Map(), w=document.createTreeWalker(h,NodeFilter.SHOW_TEXT); while(w.nextNode()){const n=w.currentNode; for(let i=0;i<n.textContent.length;i++){r.setStart(n,i);r.setEnd(n,i+1);const q=r.getBoundingClientRect();if(q.width>.5){const k=Math.round(q.top);rows.set(k,(rows.get(k)||"")+n.textContent[i]);}}} ${layoutSource}; const scan=scanVisitorLayout(document); return { lines:[...rows.entries()].sort((a,b)=>a[0]-b[0]).map(([,text])=>text), orphan:scan.heroTitleOrphan, wordBreak:scan.heroTitleWordBreak }; })()`, sessionId);
+      assert.ok(result.lines.every((line) => !line.endsWith("与")), `${width}: ${JSON.stringify(result)}`);
+      assert.equal(result.orphan, false, `${width}: ${JSON.stringify(result)}`);
+      assert.equal(result.wordBreak, false, `${width}: ${JSON.stringify(result)}`);
+    } finally {
+      await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+      closeBrowser(browser);
+    }
+  }
+});
+
 test("the title scanner catches a wrapped word inside a span, including a repeated occurrence", async () => {
   const source = readFileSync("scripts/visitor-layout-scan.js", "utf8").replace("export function", "function").replace("export default scanVisitorLayout;", "");
   const browser = await openBrowser();
