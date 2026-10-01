@@ -22,6 +22,9 @@ export const navFragment: BlockFragment = {
 .sitecraft-menu-panel { position: absolute; right: 0; top: calc(100% + 8px); min-width: 210px; display: grid; background: var(--site-surface); border: 1px solid var(--site-line); box-shadow: 0 14px 30px rgba(0, 0, 0, 0.08); }
 .sitecraft-menu-panel a { padding: 13px 16px; border-bottom: var(--site-rule); font-size: 15px; }
 .sitecraft-menu-panel a:last-child { border-bottom: 0; }
+.sitecraft-nav-short .sitecraft-brand-mark { background: transparent; border: 1px solid var(--site-accent); border-radius: var(--site-control-radius); }
+.sitecraft-nav-short .sitecraft-brand-mark::after { background: var(--site-accent); opacity: .22; }
+.sitecraft-nav-short .sitecraft-nav-links { gap: 22px; }
 `,
   narrow: `
 .sitecraft-nav-links, .sitecraft-nav .sitecraft-nav-cta { display: none; }
@@ -61,6 +64,39 @@ export const navFragment: BlockFragment = {
                 <a href="#certifications" data-sitecraft-ui="certifications">认证</a>
                 <a href="#faq" data-sitecraft-ui="faq">常见问题</a>
                 <a href="#inquiry" data-sitecraft-ui="contact">询盘</a>
+              </nav>
+            </details>
+          </div>
+        </div>
+      </header>
+    </div>`,
+    short: `<div data-sc-block="nav" data-sc-variant="short">
+      <div class="sitecraft-rule" aria-hidden="true" data-sc-part="rule"></div>
+      <header class="sitecraft-nav sitecraft-nav-short" data-sitecraft-section="nav" data-sc-part="bar">
+        <div class="sitecraft-container sitecraft-nav-inner">
+          <a class="sitecraft-brand" href="#top" aria-label="企业首页" data-sc-part="brand">
+            <span class="sitecraft-brand-mark" aria-hidden="true"></span>
+            <span class="sitecraft-brand-name" data-sitecraft-brand="nav">企业名称</span>
+          </a>
+          <nav class="sitecraft-nav-links" aria-label="主导航" data-sc-part="links">
+            <a href="#products" data-sitecraft-nav="products">产品</a>
+          </nav>
+          <div class="sitecraft-nav-tools" data-sc-part="tools">
+            <div class="sitecraft-locale-switch" data-sitecraft-locale-switch hidden>
+              <button type="button" data-sitecraft-locale="zh" data-sitecraft-ui="localeZh" aria-pressed="true">中</button>
+              <button type="button" data-sitecraft-locale="en" data-sitecraft-ui="localeEn" aria-pressed="false">EN</button>
+            </div>
+            <a class="sitecraft-btn sitecraft-primary sitecraft-nav-cta" href="#inquiry" data-sitecraft-nav="contact">提交询盘</a>
+            <details class="sitecraft-menu">
+              <summary data-sitecraft-ui="menu">菜单</summary>
+              <nav class="sitecraft-menu-panel" aria-label="菜单">
+                <a href="#products" data-sitecraft-ui="products">产品</a>
+                <a href="#industries" data-sitecraft-ui="industries">应用行业</a>
+                <a href="#capabilities" data-sitecraft-ui="capabilities">加工能力</a>
+                <a href="#process" data-sitecraft-ui="services">合作方式</a>
+                <a href="#inquiry" data-sitecraft-ui="contact">询盘</a>
+                <a href="#certifications" data-sitecraft-ui="certifications">认证</a>
+                <a href="#faq" data-sitecraft-ui="faq">常见问题</a>
               </nav>
             </details>
           </div>

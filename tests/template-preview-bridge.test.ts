@@ -1100,12 +1100,9 @@ function createFreshFragment() {
   return { document, nodes: { title, subtitle, cta, discover, signup, undeclared } };
 }
 
-test("tailwind-landing and fresh first-screen slots follow two independent packs and leave undeclared chrome", () => {
+test("fresh first-screen slots follow its independent pack and leave undeclared chrome", () => {
   const expected = ["companyName.zh", "hero.title.zh", "hero.subtitle.zh", "hero.cta.zh", "contact.email.zh"];
-  const cases = [
-    { templateId: "tailwind-landing", briefId: "technical-product" as const, create: createTailwindLandingFragment },
-    { templateId: "fresh", briefId: "editorial-service" as const, create: createFreshFragment },
-  ];
+  const cases = [{ templateId: "fresh", briefId: "editorial-service" as const, create: createFreshFragment }];
   for (const item of cases) {
     const adapter = getTemplateAdapter(item.templateId);
     assert.ok(adapter, `${item.templateId} adapter is required before quality comparison`);
@@ -1121,15 +1118,12 @@ test("tailwind-landing and fresh first-screen slots follow two independent packs
     assert.equal(nodes.title.textContent, LOOK_FIRST_SCREEN_PACKS.K07.title);
     assert.equal(nodes.subtitle.textContent, LOOK_FIRST_SCREEN_PACKS.K07.subtitle);
     assert.equal(nodes.cta.textContent, LOOK_FIRST_SCREEN_PACKS.K07.cta);
-    if ("brand" in nodes) assert.equal(nodes.brand.textContent, LOOK_FIRST_SCREEN_PACKS.K07.companyName);
-    if ("footerCta" in nodes) assert.equal(nodes.footerCta.textContent, "未选用按钮");
     if ("signup" in nodes) assert.equal(nodes.signup.textContent, " Sign up ");
     assert.equal(nodes.undeclared.textContent === LOOK_FIRST_SCREEN_PACKS.K07.title, false);
     assert.ok(firstReport.appliedSlots.includes("hero.title.zh"));
     assert.ok(firstReport.appliedSlots.includes("hero.subtitle.zh"));
     assert.ok(firstReport.appliedSlots.includes("hero.cta.zh"));
-    if (item.templateId === "tailwind-landing") assert.ok(firstReport.appliedSlots.includes("companyName.zh"));
-    else assert.ok(firstReport.missingSlots.includes("companyName.zh"));
+    assert.ok(firstReport.missingSlots.includes("companyName.zh"));
     assert.ok(firstReport.missingSlots.includes("contact.email.zh"));
     assert.deepEqual(firstReport.fallbackMatched, []);
     assert.deepEqual(firstReport.proposedAlternatives, [{ requested: "contact.email.zh", proposed: "hero.cta" }]);
@@ -1139,15 +1133,11 @@ test("tailwind-landing and fresh first-screen slots follow two independent packs
     assert.equal(nodes.subtitle.textContent, LOOK_FIRST_SCREEN_PACKS.M52.subtitle);
     assert.equal(nodes.cta.textContent, LOOK_FIRST_SCREEN_PACKS.M52.cta);
     assert.equal(nodes.title.textContent === LOOK_FIRST_SCREEN_PACKS.K07.title, false);
-    if ("brand" in nodes) assert.equal(nodes.brand.textContent, LOOK_FIRST_SCREEN_PACKS.M52.companyName);
-    if ("footerCta" in nodes) assert.equal(nodes.footerCta.textContent, "未选用按钮");
     if ("undeclared" in nodes) {
       assert.equal(nodes.undeclared.textContent.includes("K07"), false);
       assert.equal(nodes.undeclared.textContent.includes("M52"), false);
     }
     assert.ok(secondReport.appliedSlots.includes("hero.cta.zh"));
-    if (item.templateId === "tailwind-landing") assert.ok(secondReport.appliedSlots.includes("companyName.zh"));
-    else assert.ok(secondReport.missingSlots.includes("companyName.zh"));
     assert.ok(secondReport.missingSlots.includes("contact.email.zh"));
     assert.deepEqual(secondReport.fallbackMatched, []);
   }

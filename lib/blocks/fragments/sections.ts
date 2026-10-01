@@ -56,6 +56,13 @@ export const certificationsFragment: BlockFragment = {
 .sitecraft-cert-grid .sitecraft-catalog-card { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: var(--site-surface); border: var(--site-rule); }
 .sitecraft-cert-grid .sitecraft-catalog-card p:not(.sitecraft-cert-status) { display: none; }
 .sitecraft-cert-status { padding: 3px 8px; border: 1px solid currentColor; font-size: 12px; color: var(--site-accent-strong); }
+.sitecraft-cert-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; border-top: 0; }
+.sitecraft-cert-cards .sitecraft-catalog-card { display: block; min-width: 0; padding: 20px; background: var(--site-surface); border: var(--site-rule); border-radius: var(--site-tile-radius); }
+.sitecraft-cert-cards .sitecraft-catalog-card p:not(.sitecraft-cert-status) { display: block; margin-top: 8px; }
+.sitecraft-cert-cards .sitecraft-cert-status { display: inline-block; margin-top: 12px; }
+`,
+  phone: `
+.sitecraft-cert-cards { grid-template-columns: 1fr; }
 `,
   variants: {
     badges: `<section id="certifications" class="sitecraft-section" data-sitecraft-section="certifications" data-sc-block="certifications" data-sc-variant="badges">
@@ -65,6 +72,15 @@ export const certificationsFragment: BlockFragment = {
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="certifications-intro" hidden></p>
             </div>
             <div class="sitecraft-catalog-grid sitecraft-cert-grid" data-sitecraft-catalog-grid="certifications" data-sc-part="badges"></div>
+          </div>
+        </section>`,
+    cards: `<section id="certifications" class="sitecraft-section" data-sitecraft-section="certifications" data-sc-block="certifications" data-sc-variant="cards">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head" data-sc-part="head">
+              <h2 data-sitecraft-benchmark="certifications-title" data-sc-part="title">认证</h2>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="certifications-intro" hidden></p>
+            </div>
+            <div class="sitecraft-catalog-grid sitecraft-cert-cards" data-sitecraft-catalog-grid="certifications" data-sc-part="list"></div>
           </div>
         </section>`,
   },
@@ -82,6 +98,15 @@ export const faqFragment: BlockFragment = {
 .sitecraft-faq-item summary { cursor: pointer; padding: 16px 0; font-weight: 650; list-style: none; }
 .sitecraft-faq-item summary::-webkit-details-marker { display: none; }
 .sitecraft-faq-answer p { margin: 0 0 16px; color: var(--site-muted); line-height: 1.6; }
+.sitecraft-faq-side { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 56px; }
+.sitecraft-faq-side .sitecraft-section-head { display: block; margin: 0; padding: 0; border: 0; }
+.sitecraft-faq-side .sitecraft-faq-list { border-top: var(--site-rule-strong); }
+.sitecraft-faq-side .sitecraft-faq-item { padding: 14px 0; }
+.sitecraft-faq-side .sitecraft-faq-item summary { padding: 0 0 8px; }
+.sitecraft-faq-side .sitecraft-faq-answer p { margin: 0; }
+`,
+  narrow: `
+.sitecraft-faq-side { grid-template-columns: 1fr; gap: 28px; }
 `,
   variants: {
     accordion: `<section id="faq" class="sitecraft-section" data-sitecraft-section="faq" data-sc-block="faq" data-sc-variant="accordion">
@@ -104,6 +129,17 @@ export const faqFragment: BlockFragment = {
             <div class="sitecraft-faq-list" data-sc-part="list">
               ${[0, 1, 2, 3, 4, 5].map(openFaqItem).join("\n              ")}
             </div>
+          </div>
+        </section>`,
+    side: `<section id="faq" class="sitecraft-section sitecraft-faq-side" data-sitecraft-section="faq" data-sc-block="faq" data-sc-variant="side">
+          <div class="sitecraft-container sitecraft-faq-side-head" data-sc-part="head">
+            <div class="sitecraft-section-head">
+              <h2 data-sitecraft-benchmark="faq-title" data-sc-part="title">常见问题</h2>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="faq-intro" hidden></p>
+            </div>
+          </div>
+          <div class="sitecraft-faq-list" data-sc-part="list">
+            ${[0, 1, 2, 3, 4, 5].map((index) => `<article class="sitecraft-faq-item" data-sc-part="item"><h3 data-sitecraft-benchmark="faq-item-${index}-title"></h3><div class="sitecraft-faq-answer"><p data-sitecraft-benchmark="faq-item-${index}-body"></p></div></article>`).join("\n              ")}
           </div>
         </section>`,
   },

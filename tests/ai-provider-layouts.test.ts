@@ -91,7 +91,7 @@ test("on the engineering look the model gets the layouts it may pick, what each 
   // Blocks with a single layout (navigation, footer, lists, steps, FAQ) are not offered.
   const menu = system.slice(system.indexOf("可选布局"));
   assert.ok(menu.length > 0 && system.includes("可选布局"));
-  for (const variant of ["bar", "columns", "badges"]) assert.equal(menu.includes(`${variant}=`), false, `${variant} is not a choice`);
+  for (const variant of ["bar", "columns", "badges", "short", "line", "cards", "side"]) assert.ok(menu.includes(`${variant}=`), `${variant} is available to the migrated look`);
   const user = lastMessage("user");
   assert.match(user, /"blockVariants":\{"products":"compare"\}/, "the model sees the layouts the draft shows now");
 });

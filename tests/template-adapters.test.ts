@@ -152,7 +152,7 @@ test("remaining overlays declare every content slot attribute exactly once", () 
     }
     if (adapter.blocks) {
       const unmounted = adapter.slots.filter((slot) => !mountedOnly(slot.selector)).map((slot) => slot.target);
-      assert.deepEqual(unmounted, ["contact.address"], `${id}: only the contact band's address is off the default page`);
+      assert.deepEqual(unmounted, id === "tailwind-landing" ? ["navigation.services", "contact.address"] : ["contact.address"], `${id}: only the contact band's address is off the default page`);
     }
     assert.equal(adapter.slots.some((slot) => slot.target === "primaryAction"), false, `${id} must not bind catalog primaryAction`);
     assert.equal(html.includes('data-sitecraft-optional="action"'), false, `${id} must not keep optional action chrome`);

@@ -93,6 +93,16 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-locale-switch]"],
         parts: ["rule", "bar", "brand", "links", "tools"],
       },
+      short: {
+        label: "短导航",
+        slots: [
+          text("companyName", '[data-sitecraft-brand="nav"]'),
+          text("navigation.products", '[data-sitecraft-nav="products"]'),
+          text("navigation.contact", '[data-sitecraft-nav="contact"]'),
+        ],
+        markers: ["[data-sitecraft-locale-switch]"],
+        parts: ["rule", "bar", "brand", "links", "tools"],
+      },
     },
   },
   hero: {
@@ -245,6 +255,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ['[data-sitecraft-catalog-grid="certifications"]'],
         parts: ["head", "title", "badges"],
       },
+      cards: {
+        label: "认证卡片",
+        slots: [benchmark("certifications.title", "certifications-title"), benchmark("certifications.intro", "certifications-intro")],
+        markers: ['[data-sitecraft-catalog-grid="certifications"]'],
+        parts: ["head", "title", "list"],
+      },
     },
   },
   faq: {
@@ -263,6 +279,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
       },
       open: {
         label: "展开问答",
+        slots: [benchmark("faq.title", "faq-title"), benchmark("faq.intro", "faq-intro"), ...itemSlots("faq", 6)],
+        markers: [],
+        parts: ["head", "title", "list", "item"],
+      },
+      side: {
+        label: "旁注问答",
         slots: [benchmark("faq.title", "faq-title"), benchmark("faq.intro", "faq-intro"), ...itemSlots("faq", 6)],
         markers: [],
         parts: ["head", "title", "list", "item"],
@@ -322,6 +344,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ["[data-sitecraft-footer-products]"],
         parts: ["columns", "about"],
+      },
+      line: {
+        label: "一行页脚",
+        slots: [text("companyName", '[data-sitecraft-brand="footer"]'), text("contact.email", '[data-sitecraft-contact="footer-email"]'), text("contact.phone", '[data-sitecraft-contact="footer-phone"]')],
+        markers: [],
+        parts: ["line", "brand", "contact"],
       },
     },
   },

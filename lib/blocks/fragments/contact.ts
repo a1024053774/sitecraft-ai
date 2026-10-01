@@ -125,12 +125,17 @@ export const footerFragment: BlockFragment = {
 .sitecraft-footer-links { display: grid; gap: 8px; }
 .sitecraft-footer-links a:hover { color: #fff; }
 .sitecraft-footer-contact { display: grid; gap: 8px; overflow-wrap: anywhere; }
+.sitecraft-footer-line-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 32px; }
+.sitecraft-footer-line .sitecraft-footer-brand { margin: 0; }
+.sitecraft-footer-line .sitecraft-footer-contact { display: flex; flex-wrap: wrap; gap: 18px; }
 /* When every contact line is a gap, drop the footer contact column. */
 .sitecraft-footer-inner > div:has(.sitecraft-footer-contact):not(:has([data-sitecraft-line]:not([hidden]))) { display: none; }
 `,
   phone: `
 .sitecraft-footer-inner { grid-template-columns: 1fr 1fr; }
 .sitecraft-footer-about { grid-column: 1 / -1; }
+.sitecraft-footer-line-inner { align-items: flex-start; flex-direction: column; gap: 12px; }
+.sitecraft-footer-line .sitecraft-footer-contact { gap: 8px 16px; }
 `,
   variants: {
     columns: `<footer class="sitecraft-footer" data-sitecraft-section="footer" data-sc-block="footer" data-sc-variant="columns">
@@ -158,6 +163,15 @@ export const footerFragment: BlockFragment = {
               <span data-sitecraft-line><span data-sitecraft-ui="emailPrefix">邮箱</span>：<span data-sitecraft-contact="footer-email"></span></span>
               <span data-sitecraft-line><span data-sitecraft-ui="phonePrefix">电话</span>：<span data-sitecraft-contact="footer-phone"></span></span>
             </div>
+          </div>
+        </div>
+      </footer>`,
+    line: `<footer class="sitecraft-footer sitecraft-footer-line" data-sitecraft-section="footer" data-sc-block="footer" data-sc-variant="line">
+        <div class="sitecraft-container sitecraft-footer-line-inner" data-sc-part="line">
+          <span class="sitecraft-footer-brand" data-sitecraft-brand="footer" data-sc-part="brand">企业名称</span>
+          <div class="sitecraft-footer-contact" data-sc-part="contact">
+            <span data-sitecraft-line><span data-sitecraft-ui="emailPrefix">邮箱</span>：<span data-sitecraft-contact="footer-email"></span></span>
+            <span data-sitecraft-line><span data-sitecraft-ui="phonePrefix">电话</span>：<span data-sitecraft-contact="footer-phone"></span></span>
           </div>
         </div>
       </footer>`,

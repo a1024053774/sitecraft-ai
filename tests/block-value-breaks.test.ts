@@ -123,17 +123,6 @@ test("copying from the page gives the value without the break points", () => {
   assert.deepEqual(copy("landwind", `模具钢材 S136/${Z}H13`), { written: [["text/plain", "模具钢材 S136/H13"]], prevented: true });
 });
 
-test("the remaining overlay look keeps writing values as they are", () => {
-  const draft = packDraft("molding");
-  for (const templateId of ["tailwind-landing"]) {
-    const document = render(templateId, draft);
-    const values = document.querySelectorAll(".sitecraft-product-key dd, .sitecraft-product-specs td, [data-sitecraft-hero-nameplate] dd");
-    assert.ok(values.length > 0, `${templateId} renders spec values`);
-    assert.equal(document.body.textContent.includes(Z), false, `${templateId} must not get break points yet (T-055–T-057)`);
-    assert.ok(values.some((node) => node.textContent === "S136/H13/NAK80" || node.textContent === "PC+TPU/PP+TPE/ABS+PC"), `${templateId} shows the raw value`);
-  }
-});
-
 test("value cells keep words and Chinese runs whole and only force a break inside a piece wider than the cell", () => {
   const html = composedPageForTemplate("screwfast");
   assert.ok(html);

@@ -14,7 +14,7 @@ export const ENTRY_SLOTS = {
   screwfast: { faq: 6, services: 6 },
   forge: { faq: 6, services: 6 },
   landwind: { faq: 6, services: 6 },
-  "tailwind-landing": { faq: 3, services: 3 },
+  "tailwind-landing": { faq: 6, services: 6 },
 };
 
 const GAP = /^(待补充|To be provided|To be completed)$/;

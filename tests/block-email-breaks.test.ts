@@ -60,19 +60,9 @@ test("an email inside a sentence also breaks only at its @", () => {
     const selector = getTemplateAdapter(templateId)?.slots.find((slot) => slot.target === "contact.body")?.selector;
     assert.ok(selector, `${templateId} declares the contact body`);
     const shown = render(templateId, draft).querySelector(selector)?.textContent;
-    if (templateId === "tailwind-landing") assert.equal(shown, "把接头规格与批量数量发到 catalog@p3e-sim.test，交期在批量确认后回复。", `${templateId} writes it as is`);
-    else assert.equal(shown, `把接头规格与批量数量发到 catalog${Z}@${Z}p3e-${J}sim.test，交期在批量确认后回复。`, `${templateId} uses block email breaks`);
+    assert.equal(shown, `把接头规格与批量数量发到 catalog${Z}@${Z}p3e-${J}sim.test，交期在批量确认后回复。`, `${templateId} uses block email breaks`);
   }
   assert.equal(draft.content.contact.body.zh, "把接头规格与批量数量发到 catalog@p3e-sim.test，交期在批量确认后回复。", "the draft keeps the sentence as written");
-});
-
-test("the remaining overlay look keeps writing the email as it is", () => {
-  const draft = packDraft("industrial");
-  for (const templateId of ["tailwind-landing"]) {
-    const shown = shownEmails(render(templateId, draft));
-    assert.ok(shown.length > 0, `${templateId} shows the email`);
-    for (const text of shown) assert.equal(text, "inquiry@p3i-sim.test", templateId);
-  }
 });
 
 test("copying an email from the page gives the address without the break marks", () => {

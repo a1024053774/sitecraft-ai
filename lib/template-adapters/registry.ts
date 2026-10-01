@@ -2,6 +2,7 @@ import { blockAdapterFor } from "../blocks/adapter.ts";
 import { engineeringLook } from "../blocks/looks/engineering.ts";
 import { catalogLook } from "../blocks/looks/catalog.ts";
 import { brightLook } from "../blocks/looks/bright.ts";
+import { shortPathLook } from "../blocks/looks/short-path.ts";
 import type { SlotApplyReport, TemplateAdapter, TemplateKitModule, TemplateSlot } from "./types.ts";
 
 const textSlot = (target: string, selector: string): TemplateSlot => ({
@@ -575,6 +576,15 @@ if (landwindKit) {
   (templateAdapters as Record<string, TemplateAdapter>).landwind = blockAdapterFor(catalogLook, {
     alternatives: { ...contactToHeroCta },
     kit: landwindKitWithoutModules,
+  });
+}
+
+const shortPathKit = templateAdapters["tailwind-landing"].kit;
+if (shortPathKit) {
+  const { modules: _modules, ...shortPathKitWithoutModules } = shortPathKit;
+  (templateAdapters as Record<string, TemplateAdapter>)["tailwind-landing"] = blockAdapterFor(shortPathLook, {
+    alternatives: { ...contactToHeroCta },
+    kit: shortPathKitWithoutModules,
   });
 }
 
