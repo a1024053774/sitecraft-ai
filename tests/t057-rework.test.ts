@@ -76,6 +76,25 @@ test("a visible unmarked layer covering link text is reported as covered", async
   }
 });
 
+test("closed navigation details are not painted, while visible link text remains covered-checkable", async () => {
+  const source = readFileSync("scripts/visitor-text-fit-scan.js", "utf8").trim();
+  const browser = await openBrowser();
+  const { targetId } = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
+  const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
+  try {
+    await browser.send("Runtime.enable", {}, sessionId);
+    await browser.send("Page.enable", {}, sessionId);
+    const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
+    await browser.send("Page.setDocumentContent", { frameId, html: `<html><body style="margin:0"><header><details><summary>菜单</summary><a href="#" style="position:absolute;left:20px;top:20px;width:140px;height:32px">隐藏导航</a><div style="position:absolute;z-index:5;left:20px;top:20px;width:140px;height:32px;background:#fff"></div></details></header><a href="#" style="position:absolute;left:20px;top:80px;width:140px;height:32px;font:20px/32px sans-serif">可见链接</a><div style="position:absolute;z-index:5;left:20px;top:80px;width:140px;height:32px;background:#fff"></div></body></html>` }, sessionId);
+    const result = await browser.eval<Array<{ kind: string; text: string }>>(`(() => (${source})(document.body))()`, sessionId);
+    assert.ok(result.some((item) => item.kind === "covered" && item.text === "可见链接"), JSON.stringify(result));
+    assert.ok(!result.some((item) => item.text === "隐藏导航"), JSON.stringify(result));
+  } finally {
+    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    closeBrowser(browser);
+  }
+});
+
 test("certification bodies are expected for cards and omitted for badges", () => {
   const cards = { ...packDraft("export"), templateId: "tailwind-landing", blockVariants: { certifications: "cards" }, content: { ...packDraft("export").content, certifications: { title: { zh: "认证", en: "Certifications" }, intro: { zh: "", en: "" }, items: [{ id: "iso", title: { zh: "ISO 9001", en: "ISO 9001" }, body: { zh: "认证中", en: "In progress" }, status: "认证中" }] } } };
   const cardFacts = expectedFacts(cards);

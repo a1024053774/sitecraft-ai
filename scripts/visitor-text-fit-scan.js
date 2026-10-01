@@ -17,7 +17,11 @@
   const shown = (el) => {
     const style = getComputedStyle(el);
     const box = el.getBoundingClientRect();
-    return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+    if (style.display === "none" || style.visibility === "hidden" || box.width <= 0 || box.height <= 0) return false;
+    for (let ancestor = el; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor.tagName === "DETAILS" && !ancestor.open && !ancestor.querySelector(":scope > summary")?.contains(el)) return false;
+    }
+    return true;
   };
   const describe = (el) => {
     const first = typeof el.className === "string" ? el.className.trim().split(/\s+/)[0] : "";
