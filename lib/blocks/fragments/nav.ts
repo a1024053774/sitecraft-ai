@@ -32,7 +32,7 @@ export const navFragment: BlockFragment = {
 .sitecraft-brand-name { font-size: clamp(11px, 3.2vw, 17px); }
 .sitecraft-nav-inner:has(.sitecraft-brand-name[style*="--sitecraft-brand-run"]) { container-type: inline-size; }
 .sitecraft-nav-inner:has(.sitecraft-brand-name[style*="--sitecraft-brand-run"]) .sitecraft-brand { flex: 1 1 auto; min-width: 0; container-type: inline-size; }
-.sitecraft-brand-name[style*="--sitecraft-brand-run"] { display: inline-block; max-width: 100%; font-size: max(var(--site-brand-fit-min, 8px), min(var(--site-brand-size, 17px), calc((100cqw - var(--sitecraft-brand-mark-width) - var(--sitecraft-brand-gap)) / var(--sitecraft-brand-run)))); white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
+.sitecraft-brand-name[style*="--sitecraft-brand-run"] { display: inline-block; max-width: 100%; font-size: max(var(--site-brand-fit-min, 8px), min(var(--site-brand-size, 17px), calc((100cqw - var(--sitecraft-brand-mark-width) - var(--sitecraft-brand-gap)) / var(--sitecraft-brand-run)))); white-space: normal; word-break: keep-all; overflow-wrap: normal; }
 `,
   variants: {
     bar: `<div data-sc-block="nav" data-sc-variant="bar">

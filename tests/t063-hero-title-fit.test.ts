@@ -78,3 +78,28 @@ test("original engineering titles and company name fit in every published viewpo
     browser.ws.close();
   }
 });
+
+test("long engineering brand keeps the readable floor and wraps instead of clipping at 375px", async () => {
+  const browser = await openBrowser();
+  const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/screwfast/preview?t063-brand-floor=${Date.now()}` }) as { targetId: string };
+  const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
+  try {
+    await browser.send("Runtime.enable", {}, sessionId);
+    for (let waited = 0; waited < 15000; waited += 100) {
+      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const draft = packDraft("molding");
+    draft.companyName = "宁海精密注塑模具，海外销售中心，国际订单服务部";
+    await browser.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 900, deviceScaleFactor: 1, mobile: true }, sessionId);
+    await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, true); document.fonts.ready`, sessionId);
+    const result = await browser.eval<{ fontSize: number; scrollWidth: number; clientWidth: number; lineCount: number; whiteSpace: string; failures: unknown[] }>(`(()=>{const brand=document.querySelector('.sitecraft-brand-name');const range=document.createRange();range.selectNodeContents(brand);const lines=new Set([...range.getClientRects()].map((rect)=>Math.round(rect.top)));const failures=(${fitSource})(document.body).filter((item)=>item.kind==='overflow'||item.kind==='clipped'||item.kind==='viewport');return {fontSize:parseFloat(getComputedStyle(brand).fontSize),scrollWidth:brand.scrollWidth,clientWidth:brand.clientWidth,lineCount:lines.size,whiteSpace:getComputedStyle(brand).whiteSpace,failures}})()`, sessionId);
+    assert.ok(result.fontSize >= 11, JSON.stringify(result));
+    assert.ok(result.scrollWidth <= result.clientWidth + 1, JSON.stringify(result));
+    assert.ok(result.lineCount >= 2, JSON.stringify(result));
+    assert.deepEqual(result.failures, [], JSON.stringify(result));
+  } finally {
+    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    browser.ws.close();
+  }
+});
