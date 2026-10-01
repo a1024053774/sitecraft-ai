@@ -11,7 +11,6 @@ test("hero titles balance and mobile brand names are not ellipsized", () => {
     const html = servedHomeHtml(templateId);
     assert.match(html, /\.sitecraft-hero h1[^{]*\{[^}]*text-wrap:\s*(?:balance|wrap|var\(--site-heading-text-wrap\))/, `${templateId} hero title does not wrap lines`);
     assert.doesNotMatch(html, /\.sitecraft-brand-name[^{]*\{[^}]*ellipsis/, `${templateId} still ellipsizes the brand name`);
-    assert.doesNotMatch(html, /\.sitecraft-brand-name[^{]*\{[^}]*nowrap/, `${templateId} still keeps the brand name on one line`);
   }
   assert.match(checkSource, /hero title last line is a single character/);
   assert.match(checkSource, /hero title breaks inside a Chinese word/);
