@@ -25,11 +25,14 @@ import {
   paletteIdSchema,
   defaultPaletteIdForVisualBrief,
   paletteCatalogForVisualBrief,
+  hasHan,
+  specValueText,
   type CatalogSectionKey,
   type CatalogSectionValue,
   type EditableCard,
   type Locale,
   type Product,
+  type ProductSpecValue,
   type ProductSpecParameter,
   type SectionKey,
   type SiteDraft,
@@ -127,6 +130,7 @@ const setProductSpecsOperationSchema = z.object({
   op: z.literal("set_product_specs"),
   sku: z.string().min(1).max(120),
   specs: z.array(productSpecParameterSchema).max(12),
+  englishReadyBefore: z.boolean().optional(),
 });
 const setCatalogSectionOperationSchema = z.object({
   op: z.literal("set_catalog_section"),
@@ -210,6 +214,7 @@ const removeProductImageOperationSchema = z.object({
 const replaceProductsOperationSchema = z.object({
   op: z.literal("replace_products"),
   products: z.array(productSchema).max(1000),
+  englishReadyBefore: z.boolean().optional(),
 });
 const replaceDraftOperationSchema = z.object({
   op: z.literal("replace_draft"),
@@ -512,6 +517,41 @@ function writeCatalogSection(
   };
 }
 
+const ENGLISH_SPEC_GAP = "To be provided";
+
+function normalizeSpecValue(value: ProductSpecValue): ProductSpecValue {
+  if (typeof value === "string") {
+    const zh = value.trim();
+    if (isGapMarker(zh) || !hasHan(zh)) return zh;
+    return { zh, en: ENGLISH_SPEC_GAP };
+  }
+  const zh = value.zh.trim();
+  const en = value.en.trim();
+  if (isGapMarker(zh)) return zh || "待补充";
+  if (!hasHan(zh)) return zh;
+  if (!en || isGapMarker(en) || hasHan(en)) return { zh, en: ENGLISH_SPEC_GAP };
+  return { zh, en };
+}
+
+function normalizeProductSpecs(product: Product): Product {
+  if (!product.specs) return structuredClone(product);
+  return {
+    ...structuredClone(product),
+    specs: product.specs.map((spec) => ({ ...structuredClone(spec), value: normalizeSpecValue(spec.value) })),
+  };
+}
+
+function specsHaveReadyEnglish(specs: ProductSpecParameter[] | undefined): boolean {
+  return Boolean(specs?.some((spec) => typeof spec.value !== "string" && !isGapMarker(spec.value.en)));
+}
+
+function productHasReadyEnglish(product: Product): boolean {
+  return !isGapMarker(product.name.en)
+    || !isGapMarker(product.summary.en)
+    || (typeof product.category === "object" && !isGapMarker(product.category.en))
+    || specsHaveReadyEnglish(product.specs);
+}
+
 export function applySiteOperations(
   current: SiteDraft,
   operations: SiteOperation[],
@@ -729,11 +769,14 @@ export function applySiteOperations(
       const product = draft.products.find((item) => item.sku === operation.sku);
       if (!product) throw new Error(`Product ${operation.sku} does not exist`);
       const previous = product.specs ? structuredClone(product.specs) : [];
-      const next = structuredClone(operation.specs);
+      const next = operation.specs.map((spec) => ({ ...structuredClone(spec), value: normalizeSpecValue(spec.value) }));
       if (same(previous, next)) continue;
-      inverseOperations.unshift({ op: "set_product_specs", sku: operation.sku, specs: previous });
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "set_product_specs", sku: operation.sku, specs: previous, englishReadyBefore: previousEnglishReady });
       if (next.length) product.specs = next;
       else delete product.specs;
+      if (specsHaveReadyEnglish(next)) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
       appliedTargets.push(`products.${operation.sku}.specs`);
       continue;
     }
@@ -913,9 +956,13 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "replace_products") {
-      if (same(draft.products, operation.products)) continue;
-      inverseOperations.unshift({ op: "replace_products", products: structuredClone(draft.products) });
-      draft.products = structuredClone(operation.products);
+      const next = operation.products.map(normalizeProductSpecs);
+      if (same(draft.products, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "replace_products", products: structuredClone(draft.products), englishReadyBefore: previousEnglishReady });
+      draft.products = next;
+      if (next.some(productHasReadyEnglish)) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
       appliedTargets.push("products");
     }
   }
@@ -1124,7 +1171,7 @@ export function validateAIOperations(
       continue;
     }
     if (operation.op === "set_product_specs") {
-      accepted.push({ ...operation, specs: groundProductSpecs(operation.specs, message, rejected) });
+      accepted.push({ ...operation, specs: groundProductSpecs(operation.specs, message, rejected, notes) });
       continue;
     }
     if (operation.op === "set_catalog_section") {
@@ -1140,7 +1187,7 @@ export function validateAIOperations(
         ...operation,
         products: operation.products.map((product) => {
           if (!product.specs?.length) return product;
-          return { ...product, specs: groundProductSpecs(product.specs, message, rejected) };
+          return { ...product, specs: groundProductSpecs(product.specs, message, rejected, notes) };
         }),
       });
       continue;
@@ -1167,15 +1214,27 @@ function groundProductSpecs(
   specs: ProductSpecParameter[],
   materials: string,
   rejected: string[],
+  notes: string[] = [],
 ): ProductSpecParameter[] {
   return specs.map((spec) => {
-    const value = spec.value.trim();
+    const value = specValueText(spec.value, "zh").trim();
     if (isGapMarker(value)) {
-      return { ...spec, value: value.length ? value : "待补充" };
+      return { ...spec, value: normalizeSpecValue(spec.value) };
     }
-    if (materialsIncludesFact(materials, value)) return spec;
+    if (materialsIncludesFact(materials, value)) {
+      const normalized = normalizeSpecValue(spec.value);
+      if (typeof normalized !== "string" && isGapMarker(normalized.en)) {
+        notes.push(`参数「${spec.name.zh || spec.name.en}」还没有英文值，英文页暂不显示这一项`);
+      }
+      return { ...spec, value: normalized };
+    }
     rejected.push(`参数「${spec.name.zh || spec.name.en}」的值不在资料中，已改为待补充`);
-    return { ...spec, value: "待补充" };
+    return {
+      ...spec,
+      value: typeof spec.value === "object" || hasHan(value)
+        ? { zh: "待补充", en: ENGLISH_SPEC_GAP }
+        : "待补充",
+    };
   });
 }
 

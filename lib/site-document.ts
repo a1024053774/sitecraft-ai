@@ -22,6 +22,18 @@ export const localizedTextSchema = z.object({
 });
 export type LocalizedText = z.infer<typeof localizedTextSchema>;
 
+const HAN_OR_FULLWIDTH_RE = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/;
+export function hasHan(value: string): boolean {
+  return HAN_OR_FULLWIDTH_RE.test(value);
+}
+
+export const productSpecValueSchema = z.union([z.string().max(200), localizedTextSchema]);
+export type ProductSpecValue = z.infer<typeof productSpecValueSchema>;
+
+export function specValueText(value: ProductSpecValue, locale: Locale): string {
+  return typeof value === "string" ? value : value[locale];
+}
+
 export const visualBriefIds = [
   "industrial",
   "engineering-industrial",
@@ -164,7 +176,7 @@ export type SiteImageRef = z.infer<typeof siteImageRefSchema>;
 
 export const productSpecParameterSchema = z.object({
   name: localizedTextSchema,
-  value: z.string().max(200),
+  value: productSpecValueSchema,
 });
 export type ProductSpecParameter = z.infer<typeof productSpecParameterSchema>;
 
