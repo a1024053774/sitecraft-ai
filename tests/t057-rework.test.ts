@@ -60,9 +60,9 @@ test("a long short-path hero word stays inside a 375px viewport", async () => {
   }
 });
 
-test("an engineering title uses declared word spans without splitting its words", async () => {
+test("an engineering title that is not orphaned keeps its original line grouping", async () => {
   const base = packDraft("industrial");
-  const draft = { ...base, templateId: "screwfast", content: { ...base.content, hero: { ...base.content.hero, title: { zh: "按图加工重载减速机定制方案", en: "Heavy-duty gearbox customization" } } } };
+  const draft = { ...base, templateId: "screwfast", content: { ...base.content, hero: { ...base.content.hero, title: { zh: "按图加工重载减速机 P3I-NX7Q", en: "Heavy-duty gearbox P3I-NX7Q" } } } };
   const browser = await openBrowser();
   const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/screwfast/preview?t057-title=${Date.now()}` }) as { targetId: string };
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
@@ -77,7 +77,7 @@ test("an engineering title uses declared word spans without splitting its words"
     await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
     const lines = await browser.eval<string[]>(`(() => { const h=document.querySelector('[data-sc-block="hero"] h1'); const r=document.createRange(); const rows=new Map(); const w=document.createTreeWalker(h,NodeFilter.SHOW_TEXT); while(w.nextNode()){const n=w.currentNode; for(let i=0;i<n.textContent.length;i++){r.setStart(n,i);r.setEnd(n,i+1);const q=r.getBoundingClientRect();if(q.width>.5){const k=Math.round(q.top);rows.set(k,(rows.get(k)||"")+n.textContent[i]);}}} return [...rows.entries()].sort((a,b)=>a[0]-b[0]).map(([,text])=>text); })()`, sessionId);
     assert.ok(lines.some((line) => line.includes("重载减速机")), JSON.stringify(lines));
-    assert.ok(await browser.eval<number>(`document.querySelectorAll('[data-sitecraft-hero-word]').length`, sessionId) > 0);
+    assert.equal(await browser.eval<number>(`document.querySelectorAll('[data-sitecraft-hero-word]').length`, sessionId), 0);
     assert.equal(await browser.eval<string>(`document.querySelector('[data-sc-block="hero"] h1').style.textWrap`, sessionId), "");
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});

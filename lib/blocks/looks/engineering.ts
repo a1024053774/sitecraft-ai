@@ -58,7 +58,6 @@ const capabilityLedRules: SiteStyleRule[] = [
 export const engineeringLook: BlockLook = {
   id: "engineering-industrial",
   templateId: "screwfast",
-  heroTitle: "long-words",
   documentTitle: "工程工业首页",
   tokens: {
     "--site-container": "1200px",
