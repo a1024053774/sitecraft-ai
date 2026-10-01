@@ -45,3 +45,12 @@ supersedes:
 - 代码审查：
 - 盲评：
 - 删除旧 overlay：
+
+### 返工（Astra 第三次复审与盲评后的候选）
+
+- 失败证据先行：在 `367a60c` 前运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/t057-rework.test.ts tests/published-facts.test.ts tests/site-style-scan.test.ts`，4 项按错误实现失败（硬编码首屏词、包裹后的词拆分漏报、无标记遮挡漏报、认证卡正文未进事实表），记录在 `artifacts/t057/rework-red-before-r2.log`。
+- `367a60c`：首屏标题改为 `Intl.Segmenter("zh", { granularity: "word" })` 的词片段，片段 DOM 使用可在超长单词时强制断开的约束；`scripts/hero-word-break-scan.js`、`visitor-layout-scan.js` 和 `check-published` 使用同一按词出现配对的拆词判定；覆盖扫描检查所有可见元素和链接文字，闭合菜单内容排除；认证卡正文进入 expected facts，徽章不进入；短路径 375 参数值增加可收缩、可换行约束；补齐短路径三档、英文、缺口、无草稿、询盘状态和参数几何测试。
+- `27cca5b`：补充闭合导航详情的遮挡回归，避免不可见菜单文字被误判。提交后专项回归 16/16 通过。
+- 最终验证（提交 `27cca5b` 后）：`npm test` 504/504 通过、0 失败/0 跳过（日志 `artifacts/t057/full-r2-27cca5b.log`）；`npm run typecheck` 和 `npm run build` 通过（日志分别为 `artifacts/t057/typecheck-r2-27cca5b.log`、`artifacts/t057/build-r2-27cca5b.log`）。
+- 三份灰底短路径草稿的 `check-published` 于 `2026-10-01 11:37:09 -0400`（提交 `27cca5b` 后）运行：3 站点 × 1440/768/375 共 9/9 通过，报告和截图在 `artifacts/t057/published-r2-27cca5b/`。
+- 三套最终对照均在提交 `27cca5b` 后重新生成：工程工业 `artifacts/t057/engineering-27cca5b/report.json`（66 张，21 张完全一致；其余差异均为首屏词分段导致，注塑 1440 的下方内容只多 1px 的行高对齐误差）；明亮产品 `artifacts/t057/forge-27cca5b/report.json`（9 张中 3 张，仅首屏标题）；蓝白目录 `artifacts/t057/landwind-27cca5b/report.json`（9 张中 6 张，仅首屏标题）。逐张 before/after/diff 裁切和分类报告：`artifacts/t057/hero-segmenter-diffs/report.json`，接触表：`artifacts/t057/hero-segmenter-diffs/contact-sheet.png`；产物生成时间均晚于 `27cca5b`。
