@@ -11,7 +11,7 @@ export const navFragment: BlockFragment = {
 .sitecraft-brand-name { min-width: 0; line-height: 1.15; white-space: normal; word-break: keep-all; overflow-wrap: normal; text-wrap: balance; }
 .sitecraft-nav-inner:has(.sitecraft-brand-name[style*="--sitecraft-brand-run"]) { container-type: inline-size; }
 .sitecraft-nav-inner:has(.sitecraft-brand-name[style*="--sitecraft-brand-run"]) .sitecraft-brand { flex: 1 1 auto; min-width: 0; container-type: inline-size; }
-.sitecraft-brand-name[style*="--sitecraft-brand-run"] { font-size: max(9px, min(clamp(11px, 3.2vw, 17px), calc(100cqw / var(--sitecraft-brand-run)))); white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
+.sitecraft-brand-name[style*="--sitecraft-brand-run"] { display: inline-block; max-width: 100%; font-size: max(9px, min(clamp(11px, 3.2vw, 17px), calc(100cqw / var(--sitecraft-brand-run)))); white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
 .sitecraft-nav-links { display: flex; align-items: center; gap: 26px; font-size: 14px; color: var(--site-muted); }
 .sitecraft-nav-links a:hover { color: var(--site-ink); }
 .sitecraft-nav-tools { display: flex; align-items: center; gap: 12px; flex: none; }
