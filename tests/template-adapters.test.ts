@@ -118,8 +118,8 @@ test("templates without homepage contact fields propose an owned alternative", (
   assert.equal(landing?.slots.some((slot) => slot.target === "companyName"), true);
 });
 
-test("family overlays declare every content slot attribute exactly once", () => {
-  const families = ["landwind", "screwfast", "tailwind-landing"] as const;
+test("remaining overlays declare every content slot attribute exactly once", () => {
+  const families = ["screwfast", "tailwind-landing"] as const;
   const contentAttr = /data-sitecraft-(?:benchmark|optional|faq|contact|brand(?:-name)?|nav)="([^"]+)"/g;
   const skipBenchmark = new Set(["bright-product", "industrial-inquiry", "export-directory", "hero"]);
   for (const id of families) {
@@ -157,23 +157,6 @@ test("family overlays declare every content slot attribute exactly once", () => 
     assert.equal(adapter.slots.some((slot) => slot.target === "primaryAction"), false, `${id} must not bind catalog primaryAction`);
     assert.equal(html.includes('data-sitecraft-optional="action"'), false, `${id} must not keep optional action chrome`);
   }
-});
-
-test("landwind homepage source has exactly one node for each declared first-screen slot", () => {
-  const html = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
-  const adapter = getTemplateAdapter("landwind");
-  assert.ok(adapter, "landwind adapter is required before quality comparison");
-  assert.equal(adapter.runtime, "static-html");
-  const required = ["companyName", "hero.title", "hero.subtitle", "hero.cta"];
-  for (const target of required) {
-    const slot = adapter.slots.find((item) => item.target === target);
-    assert.ok(slot, `missing declared ${target}`);
-    assert.equal(countExactClassSelector(html, slot.selector), 1, `${target} selector must be unique in landwind HTML`);
-  }
-  assert.equal(html.includes("汉川精密阀业A17"), false);
-  assert.equal(html.includes("北湾流体接头B84"), false);
-  assert.equal(html.includes("Work with tools you already use"), false);
-  assert.equal(html.includes("Building digital"), false);
 });
 
 const FIRST_SCREEN_PACK_TOKENS = ["澄海传动件K07", "甬江密封件M52"] as const;
@@ -300,12 +283,6 @@ test("declared hero images are unique src slots and leave logos and avatars unde
   const read = (url: URL) => readFileSync(url, "utf8");
   const cases = [
     {
-      id: "landwind",
-      html: read(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url)),
-      declared: 'data-sitecraft-benchmark="hero-image"',
-      undeclared: [],
-    },
-    {
       // 工程工业 is composed from the block library; the ScrewFast snapshot is no longer served.
       id: "screwfast",
       html: withoutTemplates(servedHomeHtml("screwfast")),
@@ -342,7 +319,7 @@ test("declared hero images are unique src slots and leave logos and avatars unde
   }
 });
 
-test("screwfast and landwind FAQ nodes are unique and stay declared", () => {
+test("screwfast FAQ nodes are unique and stay declared", () => {
   const screwfast = withoutTemplates(servedHomeHtml("screwfast"));
   const screwfastAdapter = getTemplateAdapter("screwfast");
   assert.ok(screwfastAdapter);
@@ -356,24 +333,13 @@ test("screwfast and landwind FAQ nodes are unique and stay declared", () => {
     );
   }
   assert.equal(screwfast.includes("Contact Sales Team"), false);
-  const landwind = withoutTemplates(servedHomeHtml("landwind"));
-  const landwindAdapter = getTemplateAdapter("landwind");
-  assert.ok(landwindAdapter);
-  for (let index = 0; index < 6; index += 1) {
-    assert.equal((landwind.match(new RegExp(`data-sitecraft-benchmark="faq-item-${index}-title"`, "g")) ?? []).length, 1);
-    assert.equal(landwindAdapter.slots.find((slot) => slot.target === `faq.items.${index}.title`)?.selector, `[data-sitecraft-benchmark="faq-item-${index}-title"]`);
-  }
 });
 
 test("inquiry forms are unique in MIT snapshots and do not keep web3forms", () => {
-  const landwind = readFileSync(new URL("../lib/template-adapters/overlays/landwind.index.html", import.meta.url), "utf8");
   const screwfast = withoutTemplates(servedHomeHtml("screwfast"));
-  assert.equal((landwind.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal((screwfast.match(/data-sitecraft-inquiry="true"/g) ?? []).length, 1);
   assert.equal(screwfast.toLowerCase().includes("web3forms"), false);
-  assert.equal((landwind.match(/data-sitecraft-contact="title"/g) ?? []).length, 1);
   assert.equal((screwfast.match(/data-sitecraft-benchmark="contact-title"/g) ?? []).length, 1);
-  assert.equal(getTemplateAdapter("landwind")?.slots.some((slot) => slot.target === "contact.email"), true);
   assert.equal(getTemplateAdapter("screwfast")?.slots.some((slot) => slot.target === "contact.email"), true);
 });
 

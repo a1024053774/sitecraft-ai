@@ -13,7 +13,6 @@ import {
 const templateIds = new Set(["forge", "screwfast", "landwind", "tailwind-landing", "fresh"]);
 const options = { templateIds, lastChange: "page-plan" };
 
-const LANDWIND_INDEX = "lib/template-adapters/overlays/landwind.index.html";
 
 test("default three is home, products and contact and is not a page cap", () => {
   const forge = defaultPagePlanFor("forge");
@@ -102,7 +101,6 @@ test("landwind cannot host extra urls", () => {
   assert.deepEqual(previewPageSegments("Contact"), ["Contact"]);
 
   assert.equal(templateExtraRoutes.forge, undefined);
-  assert.equal(existsSync(LANDWIND_INDEX), true);
   assert.equal(existsSync("vendor/open-source-templates/landwind/Contact/index.html"), false);
   assert.equal(existsSync("vendor/open-source-templates/landwind/products/index.html"), false);
 });

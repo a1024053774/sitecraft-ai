@@ -1128,7 +1128,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         continue;
       }
       if (spec.kind === "content") {
-        var contentNode = spec.sourceTemplateId ? visibilityNode(spec) : null;
+        var contentNode = visibilityNode(spec);
         if (hidden.indexOf(spec.key) !== -1) {
           if (contentNode) setSectionHidden(contentNode, spec.key, true);
           applied.add("kit." + spec.key + ".omitted");

@@ -1,6 +1,5 @@
 import { mapPreviewUpstreamReason } from "@/lib/preview-load-timing";
 import { templates } from "@/lib/site-model";
-import { applyAdmittedKitFragments } from "@/lib/template-adapters/kit-fragments";
 import { buildPreviewBridgeScript, getTemplateAdapter, stripHtmlScripts } from "@/lib/template-adapters";
 import { previewPageSegments } from "@/lib/template-pages";
 import { readTemplateStaticFile } from "@/lib/template-static";
@@ -27,9 +26,7 @@ function rewriteLocalSnapshotHtml(html: string, assetBase: string) {
 export function prepareHtml(html: string, baseUrl: string, templateId: string, local = false, editor = false) {
   const assetBase = `/api/templates/${encodeURIComponent(templateId)}/assets/`;
   const rewritten = local ? rewriteLocalSnapshotHtml(html, assetBase) : html;
-  const sourceHtml = local
-    ? applyAdmittedKitFragments(stripHtmlScripts(rewritten), templateId)
-    : rewritten;
+  const sourceHtml = local ? stripHtmlScripts(rewritten) : rewritten;
   const base = `<base href="${escapeAttribute(local ? assetBase : baseUrl)}">`;
   const normalized = sourceHtml
     .replace(/<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi, "")

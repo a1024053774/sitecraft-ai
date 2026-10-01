@@ -75,6 +75,10 @@ test("the bright product page no longer ships the retired forge overlay", () => 
   assert.equal(existsSync(path.join(REPO_ROOT, "lib/template-adapters/overlays/forge.index.html")), false);
 });
 
+test("the blue-white catalog page no longer ships the retired landwind overlay", () => {
+  assert.equal(existsSync(path.join(REPO_ROOT, "lib/template-adapters/overlays/landwind.index.html")), false);
+});
+
 test("the snapshot's own pages and assets are not served for the engineering look", async () => {
   const root = getTemplateStaticRoot("screwfast");
   if (root) {

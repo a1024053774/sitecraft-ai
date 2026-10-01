@@ -55,8 +55,6 @@ export type TemplateKitModule = {
   kind: TemplateKitModuleKind;
   selector: string;
   root?: "self" | "section";
-  /** Guest snapshot that supplies this module; host preview injects it. */
-  sourceTemplateId?: string;
 };
 
 /**

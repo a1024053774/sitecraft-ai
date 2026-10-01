@@ -39,13 +39,11 @@ const kitContent = (
   key: string,
   selector: string,
   root?: "self" | "section",
-  sourceTemplateId?: string,
 ): TemplateKitModule => ({
   key,
   kind: "content",
   selector,
   ...(root ? { root } : {}),
-  ...(sourceTemplateId ? { sourceTemplateId } : {}),
 });
 
 const kitDemo = (key: string, selector: string, root?: "self" | "section"): TemplateKitModule => ({
@@ -490,7 +488,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       modules: [
         kitShell("nav", '[data-sitecraft-brand="nav"]'),
         kitShell("footer", '[data-sitecraft-brand="footer"]'),
-        kitContent("products", '[data-sitecraft-section="products"]', "self", "nordic-store"),
+        kitContent("products", '[data-sitecraft-section="products"]', "self"),
         kitContent("industries", '[data-sitecraft-section="industries"]'),
         kitContent("capabilities", '[data-sitecraft-section="capabilities"]'),
         kitContent("services", '[data-sitecraft-section="services"]'),
@@ -529,7 +527,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         radius: "0.875rem",
       },
       modules: [
-        kitContent("products", '[data-sitecraft-kit="product-grid"]', "self", "nordic-store"),
+        kitContent("products", '[data-sitecraft-kit="product-grid"]', "self"),
       ],
     },
   },

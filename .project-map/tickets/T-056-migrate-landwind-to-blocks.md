@@ -29,10 +29,10 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 三份模拟资料用这个样子生成，`check-published` 通过，1440 / 768 / 375 截图打开看过
-- [ ] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
-- [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查通过；Claude 验收；旧 overlay 已删除
+- [x] 三份模拟资料用这个样子生成，`check-published` 通过，1440 / 768 / 375 截图打开看过
+- [x] 盲评（Codex gpt-6.1-sol，旧版与新版不标来源）：新版不差于旧版；和工程工业放在一起能看出是不同的样子
+- [x] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 代码审查通过；Claude 验收；旧 overlay 已删除
 
 ## Resolution
 
@@ -51,6 +51,9 @@ supersedes:
 - 明亮产品对照：`artifacts/t056/bright-layout-rules/report.json` 9/9 事实和区块顺序一致；逐张几何核对记录在 `artifacts/t056/bright-layout-rules-diff.json`：注塑资料 1440/768 的合作步骤网格是本次 5 条均衡规则的预期变化，其余差异仅为既有顶栏公司名修复（无额外变化）。
 - 验证（2026-10-01）：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 499/499 通过、0 skipped；`npm run typecheck` 通过；`npm run build` 通过。
 - 盲评包已重做：旧包移至 `artifacts/t056/blind-r1/`（旧对照表为 `blind-r1-key.json`），新包在 `artifacts/t056/blind/`，使用新随机代号，36 张原图均有 `-masked.png`，并附工程工业、明亮产品参照图；新对照表为 `artifacts/t056/blind-key.json`。逐张检查用接触表 `artifacts/t056/blind-contact-sheet-r2.png`。
-- 代码审查：
-- 盲评：
-- 删除旧 overlay：
+- 删除后的最终验证：全量 `npm test` 495/495、0 skipped，`npm run typecheck` 和 `npm run build` 通过；三份真实草稿删除后 `check-published` 9/9 通过，报告在 `artifacts/t056/published-after-landwind-delete/report.json`；工程工业对照在 `artifacts/t056/engineering-after-landwind-delete/`，明亮产品对照在 `artifacts/t056/bright-after-landwind-delete/report.json`。
+- 代码审查：Astra 复审 PASS（候选 `3ee0e7a`，`artifacts/review-astra-t056.md`）。
+- 盲评：`artifacts/blind-t056-r2.md`；c1、c3 新版略胜，c2 旧版小幅领先（清单节奏，作为遗留取舍），无否决项；遮字版和与工程工业、明亮产品参照均能区分。
+- 删除旧 overlay：删除 `lib/template-adapters/overlays/landwind.index.html`、`LANDWIND_HOST_OVERLAY_PATH`/`landwindHostOverlayFile` 分支，以及只为旧 donor 存在的 `kit-fragments.ts`、相关导出、路由注入和测试；`tailwind-landing` overlay 路径与模板参考条目保留，蓝白目录预览只走区块库且不再读取 vendor landwind snapshot。
+
+Claude 验收关闭（2026-10-01）。

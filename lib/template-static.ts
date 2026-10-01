@@ -120,12 +120,7 @@ export function getTemplateStaticRoot(templateId: string) {
   return null;
 }
 
-export const LANDWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/landwind.index.html";
 export const TAILWIND_HOST_OVERLAY_PATH = "lib/template-adapters/overlays/tailwind-landing.index.html";
-
-function landwindHostOverlayFile() {
-  return path.resolve(/* turbopackIgnore: true */ process.cwd(), LANDWIND_HOST_OVERLAY_PATH);
-}
 
 function tailwindHostOverlayFile() {
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), TAILWIND_HOST_OVERLAY_PATH);
@@ -150,9 +145,6 @@ export async function readTemplateStaticFile(templateId: string, segments: strin
   if (!target) return null;
   try {
     const isRootIndex = target === path.join(root, "index.html");
-    if (isRootIndex && templateId === "landwind") {
-      target = landwindHostOverlayFile();
-    }
     if (isRootIndex && templateId === "tailwind-landing") {
       target = tailwindHostOverlayFile();
     }
