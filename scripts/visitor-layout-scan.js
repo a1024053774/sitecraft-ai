@@ -1,4 +1,38 @@
 // Browser-only. Compare actual text-line rectangles, never the unused boxes of closed details.
+// Keep this expression in lockstep with scripts/hero-word-break-scan.js and check-published.
+const scanHeroTitleWordBreak = (root) => {
+  const title = root?.matches?.("h1") ? root : root?.querySelector?.("h1");
+  if (!title || typeof Intl?.Segmenter !== "function") return false;
+  const range = document.createRange();
+  const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT);
+  const chars = [];
+  let offset = 0;
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const text = node.textContent || "";
+    for (let index = 0; index < text.length; index += 1) {
+      range.setStart(node, index); range.setEnd(node, index + 1);
+      const rect = range.getClientRects()[0] || range.getBoundingClientRect();
+      if (rect.width > 0.5 && rect.height > 0.5) chars.push({ offset: offset + index, rect });
+    }
+    offset += text.length;
+  }
+  const lineWidth = title.clientWidth || title.getBoundingClientRect().width;
+  const segments = new Intl.Segmenter("zh", { granularity: "word" }).segment(title.textContent || "");
+  for (const part of segments) {
+    const word = String(part.segment || "");
+    if (!part.isWordLike || word.length < 2 || /^\s+$/.test(word)) continue;
+    const own = chars.filter((item) => item.offset >= part.index && item.offset < part.index + word.length);
+    if (own.length < 2) continue;
+    const left = Math.min(...own.map((item) => item.rect.left));
+    const right = Math.max(...own.map((item) => item.rect.right));
+    if (right - left > lineWidth + 1) continue;
+    const top = own[0].rect.top;
+    if (own.some((item) => Math.abs(item.rect.top - top) > 1)) return true;
+  }
+  return false;
+};
+
 export function scanVisitorLayout(root = document) {
   const blockFor = el => el.closest('[data-sc-block]')?.getAttribute('data-sc-block') || '页面';
   const visible = el => {
@@ -39,7 +73,6 @@ export function scanVisitorLayout(root = document) {
   }
   const heroTitle = root.querySelector('[data-sc-block="hero"] h1');
   let heroTitleOrphan = false;
-  let heroTitleWordBreak = false;
   if (heroTitle && visible(heroTitle)) {
     const characterLines = [];
     const titleWalker = document.createTreeWalker(heroTitle, NodeFilter.SHOW_TEXT);
@@ -56,15 +89,8 @@ export function scanVisitorLayout(root = document) {
     const tops = [...grouped.keys()].sort((a, b) => a - b);
     const last = tops.length > 1 ? grouped.get(tops[tops.length - 1]) : [];
     heroTitleOrphan = Boolean(last?.length === 1 && /[\u3400-\u9fff]/.test(last[0]));
-    const words = ["模具", "减速机", "注塑件", "结构件", "快换接头", "卡套接头"];
-    for (const word of words) {
-      for (let i = 1; i < word.length && !heroTitleWordBreak; i++) {
-        const left = characterLines.find((item) => item.char === word[i - 1]);
-        const right = characterLines.find((item) => item.char === word[i]);
-        if (left && right && Math.abs(left.top - right.top) > 1 && heroTitle.textContent.includes(word)) heroTitleWordBreak = true;
-      }
-    }
   }
+  const heroTitleWordBreak = scanHeroTitleWordBreak(heroTitle);
   const textOverlaps=[];
   for(let i=0;i<lines.length;i++) for(let j=i+1;j<lines.length;j++) {
     const a=lines[i], b=lines[j];

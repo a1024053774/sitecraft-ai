@@ -33,5 +33,6 @@ test('layout scanning measures painted text: closed details excluded, 3px overla
 
 test('hero title scanning reports known CJK word breaks', () => {
   assert.match(source, /heroTitleWordBreak/, 'the layout scan exposes title word-break evidence');
-  assert.match(source, /模具|减速机/, 'the title scan covers the migration reproductions');
+  assert.match(source, /Intl\.Segmenter/, 'the title scan uses language-aware word boundaries');
+  assert.doesNotMatch(source, /\["模具"|\["减速机"/, 'the title scan must not hard-code simulated product words');
 });

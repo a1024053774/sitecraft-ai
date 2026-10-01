@@ -89,15 +89,13 @@
       const centeredRects = [...range.getClientRects()].filter((rect) => rect.width > 0.5 && rect.height > 0.5);
       const chain = new Set();
       for (let ancestor = parent; ancestor; ancestor = ancestor.parentElement) chain.add(ancestor);
-      const parentPart = parent.closest("[data-sc-part]")?.getAttribute("data-sc-part") || "";
-      if (parent.closest("a,button,summary,nav")) continue;
       const covered = centeredRects.some((rect) => {
         const hits = document.elementsFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
         return hits.some((hit) => {
-          if (!shown(hit) || chain.has(hit) || hit.contains(parent) || parent.contains(hit)) return false;
-          const hitPart = hit.closest("[data-sc-part]")?.getAttribute("data-sc-part") || "";
-          if (!hitPart || !parentPart) return false;
-          return hitPart !== parentPart;
+          // The text's own element and ancestors are the only legitimate hits. Any other
+          // visible element, including an unmarked decorative layer or a link/button child,
+          // can cover the painted center and must be reported.
+          return shown(hit) && !chain.has(hit) && !hit.contains(parent);
         });
       });
       window.scrollTo(savedX, savedY);

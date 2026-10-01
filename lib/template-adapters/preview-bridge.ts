@@ -962,27 +962,37 @@ function sitecraftPreviewBridge(templateId, adapter) {
     });
   }
 
-  // Keep known Chinese product words together in hero titles while leaving authored text and
-  // clipboard values unchanged. The wrapper is a DOM text span, not model HTML.
+  // Keep words together in hero titles while leaving authored text and clipboard values unchanged.
+  // Intl.Segmenter supplies the language-aware boundaries; a single segment that is wider than its
+  // line is deliberately left breakable by CSS, so this never turns an overlong word into overflow.
   function writeHeroTitle(node, text) {
-    var words = ["模具", "减速机", "注塑件", "结构件", "快换接头", "卡套接头"];
     var value = String(text);
     if (!node.ownerDocument || !document.createTextNode || !document.createElement) {
       node.textContent = value;
       return;
     }
-    var pattern = new RegExp("(" + words.join("|") + ")", "g");
-    var last = 0;
-    var match;
-    while ((match = pattern.exec(value))) {
-      if (match.index > last) node.appendChild(document.createTextNode(value.slice(last, match.index)));
-      var span = document.createElement("span");
-      span.style.whiteSpace = "nowrap";
-      span.textContent = match[0];
-      node.appendChild(span);
-      last = match.index + match[0].length;
+    var segmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+      ? new Intl.Segmenter("zh", { granularity: "word" })
+      : null;
+    if (!segmenter) {
+      node.textContent = value;
+      return;
     }
-    if (last < value.length) node.appendChild(document.createTextNode(value.slice(last)));
+    var segments = segmenter.segment(value);
+    for (var part of segments) {
+      var segment = String(part.segment || "");
+      if (!segment) continue;
+      if (!part.isWordLike || /^\s+$/.test(segment)) {
+        node.appendChild(document.createTextNode(segment));
+        continue;
+      }
+      var span = document.createElement("span");
+      span.style.whiteSpace = "normal";
+      span.style.wordBreak = "keep-all";
+      span.style.overflowWrap = "anywhere";
+      span.textContent = segment;
+      node.appendChild(span);
+    }
   }
 
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;

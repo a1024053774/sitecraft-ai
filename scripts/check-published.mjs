@@ -135,6 +135,7 @@ async function attachPreviewFrame(browser) {
 
 // Finds text a visitor cannot read in full; kept in its own file so a probe runs the same code.
 const TEXT_FIT_SCAN = fs.readFileSync(new URL("./visitor-text-fit-scan.js", import.meta.url), "utf8").trim();
+const HERO_WORD_BREAK_SCAN = fs.readFileSync(new URL("./hero-word-break-scan.js", import.meta.url), "utf8").trim();
 // The text a visitor can read, folded spec lists and answers opened; the draft's material facts are
 // looked for in it (scripts/published-facts.mjs).
 const READABLE_TEXT = fs.readFileSync(new URL("./visitor-readable-text.js", import.meta.url), "utf8").trim();
@@ -224,20 +225,7 @@ const INSPECT = `(async () => {
   const heroLines = textLines(document.querySelector(".sitecraft-hero h1"));
   const heroLast = (heroLines[heroLines.length - 1] || "").split(" ").join("");
   const heroOrphan = heroLines.length > 1 && Array.from(heroLast).length < 2;
-  let heroTitleWordBreak = false;
-  const heroTitleValue = document.querySelector(".sitecraft-hero h1")?.textContent || "";
-  const heroWords = ["模具", "减速机", "注塑件", "结构件", "快换接头", "卡套接头"];
-  for (const word of heroWords) {
-    for (let index = 1; index < word.length && !heroTitleWordBreak; index += 1) {
-      if (!heroTitleValue.includes(word)) continue;
-      const node = document.querySelector(".sitecraft-hero h1");
-      const textNode = node && [...node.childNodes].find((item) => item.nodeType === 3 && (item.textContent || "").includes(word));
-      if (!textNode) continue;
-      const range = document.createRange(); range.setStart(textNode, (textNode.textContent || "").indexOf(word) + index - 1); range.setEnd(textNode, (textNode.textContent || "").indexOf(word) + index);
-      const left = range.getBoundingClientRect(); range.setStart(textNode, (textNode.textContent || "").indexOf(word) + index); range.setEnd(textNode, (textNode.textContent || "").indexOf(word) + index + 1);
-      const right = range.getBoundingClientRect(); if (Math.abs(left.top - right.top) > 1) heroTitleWordBreak = true;
-    }
-  }
+  const heroTitleWordBreak = (${HERO_WORD_BREAK_SCAN})(document.querySelector(".sitecraft-hero h1"));
   const headerControls = header ? [...header.querySelectorAll(".sitecraft-nav-cta, summary")].filter((el) => visible(el)) : [];
   const headerControlStacked = headerControls.some((el) => textLines(el).length > 1);
   const brand = document.querySelector(".sitecraft-brand-name");
