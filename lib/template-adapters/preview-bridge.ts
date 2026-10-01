@@ -997,6 +997,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       span.textContent = segment;
       node.appendChild(span);
     }
+    balanceHeroTitleIfOrphan(node);
     queueHeroTitleBalance(node);
   }
 
