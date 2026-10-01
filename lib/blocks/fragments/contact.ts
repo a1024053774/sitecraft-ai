@@ -11,7 +11,7 @@ export const contactFragment: BlockFragment = {
 .sitecraft-inquiry-lines li > span:first-child { min-width: 3em; color: var(--site-muted); }
 /* A contact value wraps where the bridge lets it (an email only at the @); a part wider than the line still breaks. */
 .sitecraft-inquiry-lines li > span:last-child { overflow-wrap: anywhere; }
-.sitecraft-inquiry-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 28px; background: var(--site-surface); border: var(--site-rule); }
+.sitecraft-inquiry-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 28px; background: var(--site-surface); border: var(--site-rule); border-radius: var(--site-panel-radius); }
 .sitecraft-inquiry-form label { display: grid; gap: 6px; font-size: 13px; color: var(--site-muted); }
 .sitecraft-inquiry-form label[data-sitecraft-inquiry-label="email"], .sitecraft-inquiry-form label[data-sitecraft-inquiry-label="message"] { grid-column: 1 / -1; }
 .sitecraft-inquiry-form input, .sitecraft-inquiry-form textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--site-line); background: var(--site-bg); color: var(--site-ink); font-size: 15px; }
@@ -98,9 +98,9 @@ export const contactFragment: BlockFragment = {
 
 export const footerFragment: BlockFragment = {
   css: `
-.sitecraft-footer { padding: 56px 0 36px; background: var(--site-ink); color: rgba(255, 255, 255, 0.72); font-size: 14px; }
+.sitecraft-footer { padding: 56px 0 36px; background: var(--site-footer-bg); color: var(--site-footer-ink); font-size: 14px; border-top: var(--site-footer-top); }
 .sitecraft-footer-inner { display: grid; grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr)); gap: 32px; }
-.sitecraft-footer-label, .sitecraft-footer-brand { display: block; margin-bottom: 14px; color: #fff; font-size: 15px; font-weight: 650; }
+.sitecraft-footer-label, .sitecraft-footer-brand { display: block; margin-bottom: 14px; color: var(--site-footer-head); font-size: 15px; font-weight: 650; }
 .sitecraft-footer-links { display: grid; gap: 8px; }
 .sitecraft-footer-links a:hover { color: #fff; }
 .sitecraft-footer-contact { display: grid; gap: 8px; overflow-wrap: anywhere; }

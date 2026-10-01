@@ -31,9 +31,9 @@ function contrast(left: string, right: string) {
 // The token behind the white-text primary button, read from the served page's own CSS rather than assumed.
 function buttonToken(templateId: string): "accent" | "accentStrong" {
   const html = servedHomeHtml(templateId);
-  const match = /\.sitecraft-primary\s*\{[^}]*background:\s*var\(--site-(accent-strong|accent)\)/.exec(html);
+  const match = /\.sitecraft-primary\s*\{[^}]*background:\s*var\(--site-(accent-strong|accent|primary-bg)\)/.exec(html);
   assert.ok(match, `${templateId} primary button background not found`);
-  return match[1] === "accent-strong" ? "accentStrong" : "accent";
+  return match[1] === "accent" ? "accent" : "accentStrong";
 }
 
 test("every look offers one palette per colour set, in the colour-set names users pick from", () => {

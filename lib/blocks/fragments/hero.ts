@@ -6,19 +6,19 @@ export const heroFragment: BlockFragment = {
 .sitecraft-hero { background: var(--site-surface); border-bottom: var(--site-rule); }
 .sitecraft-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; padding: 64px 0 72px; }
 .sitecraft-hero[data-sitecraft-hero-mode="none"] .sitecraft-hero-grid { grid-template-columns: minmax(0, 1fr); }
-.sitecraft-eyebrow { margin: 0 0 18px; font-size: 13px; color: var(--site-muted); letter-spacing: 0.02em; }
-.sitecraft-hero h1 { margin: 0; max-width: 16em; font-size: var(--site-h1); line-height: 1.1; letter-spacing: -0.03em; font-weight: 750; text-wrap: balance; word-break: keep-all; overflow-wrap: normal; }
+.sitecraft-eyebrow { margin: 0 0 18px; font-size: 13px; color: var(--site-eyebrow); letter-spacing: 0.02em; }
+.sitecraft-hero h1 { margin: 0; max-width: 16em; font-size: var(--site-h1); line-height: var(--site-h1-leading); letter-spacing: var(--site-h1-tracking); font-weight: 750; text-wrap: balance; word-break: keep-all; overflow-wrap: normal; }
 .sitecraft-hero-copy { margin: 22px 0 0; max-width: 34em; font-size: 18px; line-height: 1.6; color: var(--site-muted); }
 .sitecraft-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 .sitecraft-hero-visual { margin: 0; }
 .sitecraft-hero-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--site-diagram); }
 .sitecraft-hero-credit { margin: 8px 0 0; font-size: 12px; color: var(--site-muted); }
-.sitecraft-nameplate { margin: 0; padding: 32px 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px 28px; background: var(--site-ink); color: #fff; }
-.sitecraft-nameplate-cell dt { font-size: 13px; color: rgba(255, 255, 255, 0.66); }
+.sitecraft-nameplate { margin: 0; padding: 32px 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px 28px; border-radius: var(--site-media-radius); background: var(--site-plate-bg); color: var(--site-plate-ink); }
+.sitecraft-nameplate-cell dt { font-size: 13px; color: var(--site-plate-muted); }
 .sitecraft-nameplate-cell dd { margin: 6px 0 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.sitecraft-hero-specs { background: var(--site-ink); color: #fff; border-top: 3px solid var(--site-accent); }
+.sitecraft-hero-specs { background: var(--site-plate-bg); color: var(--site-plate-ink); border-top: var(--site-specs-top); }
 .sitecraft-hero-specs dl { margin: 0 auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
-.sitecraft-hero-spec { padding: 18px 22px; border-left: 1px solid rgba(255, 255, 255, 0.14); }
+.sitecraft-hero-spec { padding: 18px 22px; background: var(--site-spec-cell-bg); border-left: 1px solid rgba(255, 255, 255, 0.14); }
 .sitecraft-hero-spec:last-child { border-right: 1px solid rgba(255, 255, 255, 0.14); }
 .sitecraft-hero-spec dt { font-size: 12px; color: rgba(255, 255, 255, 0.62); }
 .sitecraft-hero-spec dd { margin: 5px 0 0; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }

@@ -14,15 +14,15 @@ button, input, textarea { font: inherit; }
 img { display: block; max-width: 100%; }
 [hidden] { display: none !important; }
 .sitecraft-container { width: min(100% - var(--site-gutter), var(--site-container)); margin: 0 auto; }
-.sitecraft-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 22px; border: 1px solid transparent; font-size: 15px; font-weight: 650; cursor: pointer; }
-.sitecraft-primary { background: var(--site-accent-strong); color: #fff; }
-.sitecraft-primary:hover { background: var(--site-ink); }
+.sitecraft-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 22px; border: 1px solid transparent; border-radius: var(--site-control-radius); font-size: 15px; font-weight: 650; cursor: pointer; }
+.sitecraft-primary { background: var(--site-primary-bg); color: var(--site-plate-ink); }
+.sitecraft-primary:hover { background: var(--site-primary-hover); }
 .sitecraft-secondary { background: var(--site-surface); border-color: var(--site-line); color: var(--site-ink); }
 .sitecraft-secondary:hover { border-color: var(--site-ink); }
 a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--site-accent); outline-offset: 2px; }
 .sitecraft-section { padding: var(--site-section-space) 0; border-bottom: var(--site-rule); }
 .sitecraft-section-head { display: flex; justify-content: space-between; align-items: end; gap: 32px; margin-bottom: 36px; }
-.sitecraft-section h2 { margin: 0; font-size: var(--site-h2); letter-spacing: -0.02em; line-height: 1.15; }
+.sitecraft-section h2 { margin: 0; font-size: var(--site-h2); letter-spacing: var(--site-heading-tracking); line-height: 1.15; }
 .sitecraft-section-intro { margin: 0; max-width: 32em; color: var(--site-muted); font-size: 16px; line-height: 1.6; }
 /* Two list blocks side by side (the look decides which); either may be absent. */
 .sitecraft-pair { padding: var(--site-section-space) 0; border-bottom: var(--site-rule); }
@@ -31,7 +31,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px soli
 .sitecraft-list h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.02em; }
 .sitecraft-list .sitecraft-section-intro { margin-bottom: 20px; font-size: 15px; }
 .sitecraft-catalog-grid { border-top: var(--site-rule-strong); }
-.sitecraft-catalog-card { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 16px; padding: 15px 0; border-bottom: var(--site-rule); }
+.sitecraft-catalog-card { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 16px; padding: 15px 0; border-radius: var(--site-card-radius); border-bottom: var(--site-rule); }
 .sitecraft-catalog-card h3 { margin: 0; font-size: 16px; font-weight: 650; }
 .sitecraft-catalog-card p { margin: 0; color: var(--site-muted); line-height: 1.55; }
 /* Spec values: keep words and Chinese runs whole and break only at spaces and after / + – 、 (the
