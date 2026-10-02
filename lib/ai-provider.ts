@@ -33,7 +33,6 @@ import {
 import {
   aiIntentResponseSchema,
   MAX_AI_OPERATIONS,
-  sanitizeReorderSectionsInput,
   textTargets,
   validateAIOperations,
   type AIIntentResponse,
@@ -153,21 +152,8 @@ function parseModelJson(content: unknown): { data: AIIntentResponse | null; erro
   if (typeof content !== "string") return { data: null, error: "message.content 不是字符串" };
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
-    const raw = fillMissingCatalogText(JSON.parse(cleaned));
-    const droppedByIndex: string[][] = [];
-    const sanitized = raw && typeof raw === "object" && (raw as { type?: unknown }).type === "edit" && Array.isArray((raw as { operations?: unknown }).operations)
-      ? { ...(raw as Record<string, unknown>), operations: (raw as { operations: unknown[] }).operations.map((operation, index) => {
-          const result = sanitizeReorderSectionsInput(operation);
-          droppedByIndex[index] = result.dropped;
-          return result.operation;
-        }) }
-      : raw;
-    const parsed = aiIntentResponseSchema.safeParse(sanitized);
+    const parsed = aiIntentResponseSchema.safeParse(fillMissingCatalogText(JSON.parse(cleaned)));
     if (parsed.success) {
-      if (parsed.data.type === "edit") parsed.data.operations.forEach((operation, index) => {
-        const dropped = droppedByIndex[index];
-        if (dropped?.length) Object.defineProperty(operation, "__droppedOrderKeys", { value: dropped, enumerable: false });
-      });
       return { data: parsed.data, error: "" };
     }
     const issues = parsed.error.issues.slice(0, 6).map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`);
