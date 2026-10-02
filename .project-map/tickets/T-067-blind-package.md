@@ -2,7 +2,7 @@
 id: T-067
 title: 基线与专家版的盲评包（绝对评分 + 交换位置成对比较）
 type: build
-status: open
+status: closed
 blocked_by: [T-066]
 claimed_by: codex-build
 supersedes:
@@ -39,7 +39,46 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 包目录里 9 个页面 × 7 张图齐全，代号随机，看不出来源；对照表在包目录外
-- [ ] 三份资料摘要和 9 个采购任务（答案另存）齐全
-- [ ] 18 道成对比较题按 AB / BA 各一次、顺序打乱
-- [ ] 打包脚本和命令写进 Resolution，可以一条命令重建
+- [x] 包目录里 9 个页面 × 8 张图齐全，代号随机，看不出来源；对照表在包目录外
+- [x] 三份资料摘要和 9 个采购任务（答案另存）齐全
+- [x] 18 道成对比较题按 AB / BA 各一次、顺序打乱
+- [x] 打包脚本和命令写进 Resolution，可以一条命令重建
+
+## Resolution
+
+2026-10-02 14:06:55 EDT（America/New_York），在提交 `c40313490438810ee72c2b26527801ec34900bad`（分支 `family-kit-assembly`）上完成补充；该提交是开始本票前已有的 T-066 文档提交，本票没有创建 commit、没有 push，也没有改 `lib/`、`app/`、`scripts/`。
+
+一条命令可从 T-065/T-066 的既有渲染产物重建包和包外对照表：
+
+```sh
+node artifacts/t067/build.mjs
+```
+
+输出为 `artifacts/t067/blind/` 和同一个 `artifacts/t067/blind-key.json`。本次补充后为 9 个页面、每页 8 张评分图（中文 1440 / 768 / 375 全图与三张遮字版、英文 1440 / 375 全图，共 72 张）；英文 375 直接取自 T-065/T-066 的既有 render 目录。重建时复用既有 key 中的 9 个代号、页面顺序和 18 道题的 AB/BA 顺序，不重新随机；旧图片包归档为 `blind-prior-*`，key 原地更新。
+
+| 公司 | 页面代号 | 来源页 | siteId |
+| --- | --- | --- | --- |
+| c1 | 随机 4 位十六进制代号（见包外 key） | industrial baseline-1 | `5488ffa0-7f02-47fb-8a87-7a1010d88f04` |
+| c1 | 随机 4 位十六进制代号（见包外 key） | industrial baseline-2 | `3447743e-10f5-4312-8f20-97da4a24ab5f` |
+| c1 | 随机 4 位十六进制代号（见包外 key） | industrial expert | `5233c15c-966e-4716-aa6d-7168773df13e` |
+| c2 | 随机 4 位十六进制代号（见包外 key） | export baseline-1 | `8d90525e-813f-432e-8b7b-f9341c71e77f` |
+| c2 | 随机 4 位十六进制代号（见包外 key） | export baseline-2 | `700b5b39-e72b-4484-b88a-f76e212daf6a` |
+| c2 | 随机 4 位十六进制代号（见包外 key） | export expert | `04d99180-2831-4147-96cf-95eae3913b27` |
+| c3 | 随机 4 位十六进制代号（见包外 key） | molding baseline-1 | `4f5389e7-6054-43dc-bca9-e744ff6d4467` |
+| c3 | 随机 4 位十六进制代号（见包外 key） | molding baseline-2 | `10f47272-a7bd-4bdc-a567-99c444f99fef` |
+| c3 | 随机 4 位十六进制代号（见包外 key） | molding expert | `82976660-1768-4c3f-8986-509e2a0e45c1` |
+
+真实代号、来源、文件映射只在 `artifacts/t067/blind-key.json`；评分者只拿 `artifacts/t067/blind/`。`materials-c1.md`、`materials-c2.md`、`materials-c3.md` 从 `lib/simulated-packs.ts` 原样摘录公司事实、产品、参数和缺失事实清单，只去掉资料性质/核验记号说明。README 写了 9 道采购题，答案和截图位置只在 key 的 `procurementTasks` 中。
+
+成对比较由每家公司三页两两配对生成 6 题，再将三家公司共 18 题全部打乱；每个配对的 AB、BA 各出现一次。题目只写公司分组、随机代号和 A/B 顺序，README 没有答案。
+
+匿名性核验命令和结果：
+
+```sh
+node artifacts/t067/build.mjs
+python3 artifacts/t067/validate.py | tee artifacts/t067/validation.txt
+```
+
+`artifacts/t067/validation.txt` 记录：9 页、每页 8 张、共 72 张；`pixel_preservation PASS`、PNG metadata PASS、uniform mtime PASS、binary debug marker scan PASS、source UUID scan PASS。README 的「评分说明」与票面原文逐字一致（字符数相同、精确比较 PASS）。包内文件名只有 `c1/c2/c3-随机代号-语言-宽度[-masked].png`，不含 siteId；图片复制顺序仍随机，所有包内文件最后统一 touch 到同一时间。
+
+Claude 验收（2026-10-02 EDT）：包目录只有 72 张 PNG、README 和三份资料摘要；对照表、旧包归档、脚本都在包目录外；README 里没有答案和来源信息。原票误写成「7 张图」漏了英文 375，已补成 8 张并沿用原代号。本票只产出 artifacts，不需要代码审查。
