@@ -56,7 +56,7 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell SITECRAFT_BASE=http://127.0.0.1:3034 node scripts/check-published.mjs --out artifacts/t069/check-published/molding 4f5389e7-6054-43dc-bca9-e744ff6d4467
 ```
 
-三份 `report.json` 的中文/英文 1440、768、375 failures 均为空。产品稳定 id 和卡片稳定寻址已同步到 `CONTEXT.md`、`docs/project/spec.md`；提交后 MAP 的两行 Living docs Verified 会更新为本票提交 SHA。
+三份 `report.json` 的中文/英文 1440、768、375 failures 均为空。产品稳定 id 和卡片稳定寻址已同步到 `CONTEXT.md`、`docs/project/spec.md`；MAP 的两行 Living docs Verified 已回填到本次修复提交。
 
 Astra NO_GO rework 已处理：旧文件记录的 history/future 在读入时按对应草稿状态迁移卡片 index、产品 SKU、inverseOperations 和 appliedTargets，写入 `historySchemaVersion: 2` 后持久化；Postgres 锁读也在迁移后保存，undo/redo 只运行新 schema。产品补 id 只由草稿读入、operation/`replace_draft` 入口保证，预览桥缺 id 直接 missing，不再按位置和 SKU 推导地址。补 id 先预留所有显式 id，重复显式 id 拒绝；卡片和产品 id 限制为安全字符且最长 80，selectedTarget/API 上限统一为 200。
 
