@@ -141,7 +141,7 @@ test("按类别分组: one group per category in material order, cards without a
   assert.match(text(structural), /PA66\+GF\/POM\/PBT\/PC/);
   assert.doesNotMatch(text(products), GAP_TEXT);
   assert.ok(report.appliedSlots.includes("products"));
-  assert.ok(report.appliedSlots.includes("products.optical-parts.name.zh"));
+  assert.ok(report.appliedSlots.includes(`products.${draft.products[3].id}.name.zh`));
 });
 
 test("按类别分组 puts products without a category last under a plain label", () => {
@@ -170,7 +170,7 @@ test("参数对比表: series on top, then one row per spec every product has, o
   // Specs only one series has stay with that series, folded.
   assert.deepEqual(series.map((card) => card.querySelectorAll(".sitecraft-compare-extra dt").map((node) => text(node))), [["中心距"], ["机座号", "防护等级"]]);
   assert.doesNotMatch(text(products), GAP_TEXT);
-  assert.ok(report.appliedSlots.includes("products.right-angle-gearbox.specs"));
+  assert.ok(report.appliedSlots.includes(`products.${draft.products[0].id}.specs`));
 });
 
 test("参数对比表 leaves a spec out of the table when one product has no value for it", () => {

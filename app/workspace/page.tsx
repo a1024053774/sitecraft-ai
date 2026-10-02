@@ -645,8 +645,8 @@ export default function WorkspacePage() {
     return "草稿与预览已同步";
   }, [draftReady, previewState]);
 
-  const selectPreviewTarget = (key: string, label: string, prompt: string) => {
-    setSelectedTarget({ key, label });
+  const selectPreviewTarget = (key: string, label: string, prompt: string, slot?: string) => {
+    setSelectedTarget({ key: slot || key, label });
     setInput(prompt);
     setMobilePane("chat");
     window.requestAnimationFrame(() => inputRef.current?.focus());
@@ -1219,7 +1219,7 @@ export default function WorkspacePage() {
     const operations: SiteOperation[] = kind === "hero"
       ? [{ op: "set_image_slot", target: "hero.image", imageId: image.imageId, url: image.url, alt }]
       : draft.products[0]
-        ? [{ op: "set_product_image", sku: draft.products[0].sku, imageId: image.imageId, url: image.url, alt }]
+        ? [{ op: "set_product_image", productId: draft.products[0].id || "", imageId: image.imageId, url: image.url, alt }]
         : [];
     if (!operations.length) {
       setImageNote("当前草稿没有商品，无法写入产品图。");

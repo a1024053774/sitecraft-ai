@@ -86,7 +86,7 @@ test("one replace_cards writes the whole FAQ, in both languages, and the page sh
   const before = packDraft("molding");
   const result = applySiteOperations(before, [replaceFaq()], options);
   assert.deepEqual(result.draft.content.faq.items, items());
-  assert.ok(result.appliedTargets.includes("faq.items.4.title.zh") && result.appliedTargets.includes("faq.items.4.body.en"));
+  assert.ok(result.appliedTargets.includes("faq.items.qa-5.title.zh") && result.appliedTargets.includes("faq.items.qa-5.body.en"));
   assert.equal(result.draft.englishReady, true, "English entries make the English page ready");
   assert.deepEqual(shownFaq(result.draft), QA.map((item) => item[0]));
   assert.deepEqual(shownFaq(result.draft, "en"), QA.map((item) => item[2]));

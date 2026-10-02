@@ -1,7 +1,7 @@
 // Test fixture only. New drafts carry no products (T-035); tests that exercise product
 // operations start from this draft with three neutral fixture products. Runtime code must
 // not import this file.
-import { defaultDraft as emptyDefaultDraft, type Product, type SiteDraft } from "../../lib/site-document.ts";
+import { defaultDraft as emptyDefaultDraft, normalizeDraft, type Product, type SiteDraft } from "../../lib/site-document.ts";
 
 export const fixtureProducts: Product[] = [
   {
@@ -30,7 +30,7 @@ export const fixtureProducts: Product[] = [
   },
 ];
 
-export const draftWithFixtureProducts: SiteDraft = Object.freeze({
+export const draftWithFixtureProducts: SiteDraft = Object.freeze(normalizeDraft({
   ...structuredClone(emptyDefaultDraft),
   products: structuredClone(fixtureProducts),
-}) as SiteDraft;
+})) as SiteDraft;

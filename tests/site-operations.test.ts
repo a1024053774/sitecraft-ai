@@ -63,7 +63,7 @@ test("updates only the requested service card and creates a reversible operation
   const result = applySiteOperations(original, [{
     op: "update_card",
     section: "services",
-    index: 1,
+    itemId: original.content.services.items[1].id,
     locale: "zh",
     title: "智能产线集成",
   }], { templateIds, lastChange: "AI saved" });
@@ -72,7 +72,7 @@ test("updates only the requested service card and creates a reversible operation
   assert.equal(result.draft.templateId, "forge");
   assert.equal(result.draft.content.services.items[1].title.zh, "智能产线集成");
   assert.equal(result.draft.content.services.items[0].title.zh, original.content.services.items[0].title.zh);
-  assert.deepEqual(result.appliedTargets, ["services.items.1.title.zh"]);
+  assert.deepEqual(result.appliedTargets, [`services.items.${original.content.services.items[1].id}.title.zh`]);
   assert.equal(result.draft.revision, original.revision + 1);
 
   const restored = applySiteOperations(result.draft, result.inverseOperations, { templateIds, lastChange: "Undo" });
@@ -95,13 +95,13 @@ test("updates only the requested FAQ card and creates a reversible operation", (
   const result = applySiteOperations(original, [{
     op: "update_card",
     section: "faq",
-    index: 2,
+    itemId: original.content.faq.items[2].id,
     locale: "zh",
     title: "MOQ 怎么确认？",
   }], { templateIds, lastChange: "AI saved" });
   assert.equal(result.draft.content.faq.items[2].title.zh, "MOQ 怎么确认？");
   assert.equal(result.draft.content.faq.items[0].title.zh, original.content.faq.items[0].title.zh);
-  assert.deepEqual(result.appliedTargets, ["faq.items.2.title.zh"]);
+  assert.deepEqual(result.appliedTargets, [`faq.items.${original.content.faq.items[2].id}.title.zh`]);
   const undone = applySiteOperations(result.draft, result.inverseOperations, { templateIds, lastChange: "Undo" });
   assert.equal(undone.draft.content.faq.items[2].title.zh, original.content.faq.items[2].title.zh);
 });
@@ -142,7 +142,7 @@ test("intent union accepts edit, answer, and clarify and rejects operations on a
 test("rejects an unsolicited template switch", () => {
   const validated = validateAIOperations("只修改第二个服务标题", [
     { op: "set_template", templateId: "kindred" },
-    { op: "update_card", section: "services", index: 1, locale: "zh", title: "智能产线集成" },
+    { op: "update_card", section: "services", itemId: "service-2", locale: "zh", title: "智能产线集成" },
   ], templateIds);
   assert.equal(validated.operations.length, 1);
   assert.equal(validated.operations[0].op, "update_card");
@@ -242,7 +242,7 @@ test("generation refuses a model instruction as the FAQ intro and a card whose t
   const kept = applySiteOperations(defaultDraft, [{
     op: "update_card",
     section: "faq",
-    index: 0,
+    itemId: defaultDraft.content.faq.items[0].id,
     locale: "zh",
     title: "交期如何确认？",
     body: "批量规格询盘的交期待补充。",
@@ -251,8 +251,8 @@ test("generation refuses a model instruction as the FAQ intro and a card whose t
   assert.equal(kept.draft.content.faq.items[0].body.zh, "批量规格询盘的交期待补充。");
   const validated = validateAIOperations("改常见问题", [
     { op: "set_text", target: "faq.intro", locale: "zh", value: "没有的写成待补充" },
-    { op: "update_card", section: "faq", index: 0, locale: "zh", title: "待补充", body: "待补充" },
-    { op: "update_card", section: "faq", index: 0, locale: "zh", title: "交期如何确认？", body: "批量规格询盘的交期待补充。" },
+    { op: "update_card", section: "faq", itemId: "faq-1", locale: "zh", title: "待补充", body: "待补充" },
+    { op: "update_card", section: "faq", itemId: "faq-1", locale: "zh", title: "交期如何确认？", body: "批量规格询盘的交期待补充。" },
   ], templateIds);
   assert.equal(validated.operations.length, 1);
   assert.equal(validated.operations[0].op, "update_card");
@@ -300,7 +300,7 @@ test("undoing the only English operation restores englishReady and keeps a diffe
 
 test("undoing the only bilingual card update restores englishReady", () => {
   const result = applySiteOperations(structuredClone(defaultDraft), [{
-    op: "update_card", section: "features", index: 0,
+    op: "update_card", section: "features", itemId: defaultDraft.content.features.items[0].id,
     title: { zh: "产品聚焦", en: "Focused product range" },
     body: { zh: "只写资料中的产品", en: "Only documented products" },
   }], { templateIds: new Set(["forge"]), lastChange: "bilingual card" });
@@ -311,8 +311,8 @@ test("undoing the only bilingual card update restores englishReady", () => {
 });
 
 test("one product operation writes a bilingual category and undo restores it", () => {
-  const sku = draftWithFixtureProducts.products[0].sku;
-  const result = applySiteOperations(structuredClone(draftWithFixtureProducts), [{ op: "update_product", sku, category: { zh: "卡套接头", en: "Ferrule fittings" } }], { templateIds: new Set(["forge"]), lastChange: "category" });
+  const productId = draftWithFixtureProducts.products[0].id!;
+  const result = applySiteOperations(structuredClone(draftWithFixtureProducts), [{ op: "update_product", productId, category: { zh: "卡套接头", en: "Ferrule fittings" } }], { templateIds: new Set(["forge"]), lastChange: "category" });
   assert.deepEqual(result.draft.products[0].category, { zh: "卡套接头", en: "Ferrule fittings" });
   const restored = applySiteOperations(result.draft, result.inverseOperations, { templateIds: new Set(["forge"]), lastChange: "undo" }).draft;
   assert.deepEqual(restored.products[0].category, draftWithFixtureProducts.products[0].category);

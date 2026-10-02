@@ -34,6 +34,17 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return typeof target === "string" && target.length > 0;
   }
 
+  function stableProductIdentity(product, index) {
+    if (product && typeof product.id === "string" && product.id) return product.id;
+    var value = String(index) + "\u0000" + String(product && product.sku || "");
+    var hash = 2166136261;
+    for (var i = 0; i < value.length; i++) {
+      hash ^= value.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return "prod-" + index.toString(36) + "-" + (hash >>> 0).toString(36);
+  }
+
   function stripLocale(target) {
     return String(target || "").replace(/\.(zh|en)$/, "");
   }
@@ -107,11 +118,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (Object.prototype.hasOwnProperty.call(table, target)) {
       return localize(table[target], locale);
     }
-    var itemMatch = /^(features|services|faq)\.items\.(\d+)\.(title|body)$/.exec(target);
+    var itemMatch = /^(features|services|faq)\.items\.([^.]+)\.(title|body)$/.exec(target);
     if (itemMatch) {
       var section = content[itemMatch[1]] || {};
       var items = section.items || [];
-      var item = items[Number(itemMatch[2])];
+      var item = null;
+      for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        if (items[itemIndex] && items[itemIndex].id === itemMatch[2]) { item = items[itemIndex]; break; }
+      }
       if (!item) return undefined;
       return localize(item[itemMatch[3]], locale);
     }
@@ -119,7 +133,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (productMatch) {
       var list = draft.products || [];
       for (var i = 0; i < list.length; i++) {
-        if (list[i] && list[i].sku === productMatch[1]) {
+        if (list[i] && stableProductIdentity(list[i], i) === productMatch[1]) {
           if (productMatch[2] === "image") {
             return list[i].image && typeof list[i].image.url === "string" ? list[i].image.url : undefined;
           }
@@ -187,6 +201,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     });
     for (var i = 0; i < visible.length; i++) {
       var product = visible[i];
+      var productId = stableProductIdentity(product, i);
       var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
       var productName = localize(product.name, locale) || "";
       var productSummary = localize(product.summary, locale) || "";
@@ -200,17 +215,17 @@ function sitecraftPreviewBridge(templateId, adapter) {
         image.src = product.image.url;
         image.setAttribute("src", product.image.url);
         image.alt = localize(product.image.alt, locale) || (locale === "en" ? "Product photo" : "产品图");
-        image.setAttribute("data-sitecraft-slot", "products." + sku + ".image");
+        image.setAttribute("data-sitecraft-slot", "products." + productId + ".image");
         card.appendChild(image);
-        applied.add("products." + sku + ".image");
+        applied.add("products." + productId + ".image");
         var creditText = localize(product.image.credit, locale) || "";
         if (creditText) {
           var credit = document.createElement("p");
           credit.className = "sitecraft-product-image-credit";
           credit.textContent = creditText;
-          credit.setAttribute("data-sitecraft-slot", "products." + sku + ".image.credit");
+          credit.setAttribute("data-sitecraft-slot", "products." + productId + ".image.credit");
           card.appendChild(credit);
-          applied.add("products." + sku + ".image.credit");
+          applied.add("products." + productId + ".image.credit");
         }
       } else {
         var placeholder = document.createElement("div");
@@ -235,13 +250,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
       category.className = "sitecraft-product-category";
       category.textContent = localize(product.category, locale) ||
         (locale === "en" ? "Product category" : "产品类别");
-      category.setAttribute("data-sitecraft-slot", "products." + sku + ".category");
+      category.setAttribute("data-sitecraft-slot", "products." + productId + ".category");
       var title = document.createElement("h3");
       title.textContent = productName || (locale === "en" ? "Product name to be completed" : "产品名称待补充");
-      title.setAttribute("data-sitecraft-slot", "products." + sku + ".name." + locale);
+      title.setAttribute("data-sitecraft-slot", "products." + productId + ".name." + locale);
       var summary = document.createElement("p");
       summary.textContent = productSummary || (locale === "en" ? "Product description to be completed." : "产品说明待补充。");
-      summary.setAttribute("data-sitecraft-slot", "products." + sku + ".summary." + locale);
+      summary.setAttribute("data-sitecraft-slot", "products." + productId + ".summary." + locale);
       card.appendChild(category);
       card.appendChild(title);
       card.appendChild(summary);
@@ -258,7 +273,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (visibleSpecs.length) {
         var table = document.createElement("table");
         table.className = "sitecraft-product-specs";
-        table.setAttribute("data-sitecraft-slot", "products." + sku + ".specs");
+        table.setAttribute("data-sitecraft-slot", "products." + productId + ".specs");
         var tbody = document.createElement("tbody");
         for (var si = 0; si < visibleSpecs.length; si++) {
           var row = document.createElement("tr");
@@ -273,12 +288,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
         }
         table.appendChild(tbody);
         card.appendChild(table);
-        applied.add("products." + sku + ".specs");
+        applied.add("products." + productId + ".specs");
       }
       grid.appendChild(card);
-      applied.add("products." + sku + ".category");
-      applied.add("products." + sku + ".name." + locale);
-      applied.add("products." + sku + ".summary." + locale);
+      applied.add("products." + productId + ".category");
+      applied.add("products." + productId + ".name." + locale);
+      applied.add("products." + productId + ".summary." + locale);
     }
   }
 
@@ -287,6 +302,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
   // cardSpec options for the grouped layout: showCategory false (the group already names it),
   // titleTag "h4" (the group title is the h3), hideGapSpecs (spec rows without a value are left out).
   function renderCatalogCard(grid, product, index, locale, applied, cardSpec) {
+    var productId = stableProductIdentity(product, index);
     var sku = typeof product.sku === "string" ? product.sku : "product-" + index;
     var productName = localize(product.name, locale) || "";
     var productSummary = localize(product.summary, locale) || "";
@@ -304,10 +320,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
       image.src = product.image.url;
       image.setAttribute("src", product.image.url);
       image.alt = localize(product.image.alt, locale) || productName;
-      image.setAttribute("data-sitecraft-slot", "products." + sku + ".image");
+      image.setAttribute("data-sitecraft-slot", "products." + productId + ".image");
       media.appendChild(image);
       card.appendChild(media);
-      applied.add("products." + sku + ".image");
+      applied.add("products." + productId + ".image");
     }
     var body = document.createElement("div");
     body.className = "sitecraft-product-body";
@@ -316,15 +332,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var category = document.createElement("p");
       category.className = "sitecraft-product-category";
       category.textContent = productCategory;
-      category.setAttribute("data-sitecraft-slot", "products." + sku + ".category");
+      category.setAttribute("data-sitecraft-slot", "products." + productId + ".category");
       body.appendChild(category);
-      applied.add("products." + sku + ".category");
+      applied.add("products." + productId + ".category");
     }
     var title = document.createElement(cardSpec.titleTag || "h3");
     title.textContent = productName;
-    title.setAttribute("data-sitecraft-slot", "products." + sku + ".name." + locale);
+    title.setAttribute("data-sitecraft-slot", "products." + productId + ".name." + locale);
     body.appendChild(title);
-    applied.add("products." + sku + ".name." + locale);
+    applied.add("products." + productId + ".name." + locale);
     var specs = visibleSpecs(product, locale);
     if (cardSpec.hideGapSpecs) specs = specs.filter(function (spec) { return !isGapMarker(spec.name) && !isGapMarker(spec.value); });
     var keys = specs.filter(function (spec) { return !isGapMarker(spec.value); }).slice(0, cardSpec.keySpecs || 3);
@@ -338,14 +354,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var summary = document.createElement("p");
       summary.className = "sitecraft-product-summary";
       summary.textContent = productSummary;
-      summary.setAttribute("data-sitecraft-slot", "products." + sku + ".summary." + locale);
+      summary.setAttribute("data-sitecraft-slot", "products." + productId + ".summary." + locale);
       body.appendChild(summary);
-      applied.add("products." + sku + ".summary." + locale);
+      applied.add("products." + productId + ".summary." + locale);
     }
     if (specs.length > keys.length || (!cardSpec.collapseSpecs && specs.length)) {
       var table = document.createElement("table");
       table.className = "sitecraft-product-specs";
-      table.setAttribute("data-sitecraft-slot", "products." + sku + ".specs");
+      table.setAttribute("data-sitecraft-slot", "products." + productId + ".specs");
       var tbody = document.createElement("tbody");
       for (var si = 0; si < specs.length; si++) {
         var row = document.createElement("tr");
@@ -370,7 +386,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       } else {
         body.appendChild(table);
       }
-      applied.add("products." + sku + ".specs");
+      applied.add("products." + productId + ".specs");
     }
     var foot = document.createElement("div");
     foot.className = "sitecraft-product-foot";
@@ -384,9 +400,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var credit = document.createElement("p");
       credit.className = "sitecraft-product-image-credit";
       credit.textContent = creditText;
-      credit.setAttribute("data-sitecraft-slot", "products." + sku + ".image.credit");
+      credit.setAttribute("data-sitecraft-slot", "products." + productId + ".image.credit");
       foot.appendChild(credit);
-      applied.add("products." + sku + ".image.credit");
+      applied.add("products." + productId + ".image.credit");
     }
     body.appendChild(foot);
     card.appendChild(body);
@@ -488,10 +504,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var names = [];
     for (var i = 0; i < products.length; i++) {
       var product = products[i];
+      var productId = stableProductIdentity(product, i);
       var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
       var productName = localize(product.name, locale) || "";
       var productSummary = localize(product.summary, locale) || "";
-      names.push({ sku: sku, name: productName });
+      names.push({ id: productId, name: productName });
       var card = document.createElement("article");
       card.className = "sitecraft-compare-series-card";
       card.setAttribute("data-sitecraft-product", sku);
@@ -500,22 +517,22 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var category = document.createElement("p");
         category.className = "sitecraft-product-category";
         category.textContent = productCategory;
-        category.setAttribute("data-sitecraft-slot", "products." + sku + ".category");
+        category.setAttribute("data-sitecraft-slot", "products." + productId + ".category");
         card.appendChild(category);
-        applied.add("products." + sku + ".category");
+        applied.add("products." + productId + ".category");
       }
       var title = document.createElement("h3");
       title.textContent = productName;
-      title.setAttribute("data-sitecraft-slot", "products." + sku + ".name." + locale);
+      title.setAttribute("data-sitecraft-slot", "products." + productId + ".name." + locale);
       card.appendChild(title);
-      applied.add("products." + sku + ".name." + locale);
+      applied.add("products." + productId + ".name." + locale);
       if (!isGapMarker(productSummary)) {
         var summary = document.createElement("p");
         summary.className = "sitecraft-compare-summary";
         summary.textContent = productSummary;
-        summary.setAttribute("data-sitecraft-slot", "products." + sku + ".summary." + locale);
+        summary.setAttribute("data-sitecraft-slot", "products." + productId + ".summary." + locale);
         card.appendChild(summary);
-        applied.add("products." + sku + ".summary." + locale);
+        applied.add("products." + productId + ".summary." + locale);
       }
       var extras = specsBySeries[i].filter(function (spec) { return sharedKeys.indexOf(spec.key) === -1; });
       if (extras.length) {
@@ -525,7 +542,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         toggle.textContent = locale === "en" ? "Other specifications (" + extras.length + ")" : "其他参数（" + extras.length + " 项）";
         var list = document.createElement("dl");
         list.className = "sitecraft-compare-extra";
-        list.setAttribute("data-sitecraft-slot", "products." + sku + ".specs");
+        list.setAttribute("data-sitecraft-slot", "products." + productId + ".specs");
         for (var e = 0; e < extras.length; e++) {
           var row = document.createElement("div");
           var dt = document.createElement("dt");
@@ -540,7 +557,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         more.appendChild(list);
         card.appendChild(more);
       }
-      if (extras.length || shared.length) applied.add("products." + sku + ".specs");
+      if (extras.length || shared.length) applied.add("products." + productId + ".specs");
       card.appendChild(askLink(layout.askHref, locale));
       series.appendChild(card);
     }
@@ -575,7 +592,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
           if (specsBySeries[s][m].key === shared[r].key) { match = specsBySeries[s][m]; break; }
         }
         var td = document.createElement("td");
-        td.setAttribute("data-sitecraft-slot", "products." + names[s].sku + ".specs");
+        td.setAttribute("data-sitecraft-slot", "products." + names[s].id + ".specs");
         var cellLabel = document.createElement("span");
         cellLabel.className = "sitecraft-compare-label";
         cellLabel.textContent = names[s].name;
@@ -626,13 +643,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
       applied.add(key);
       for (var v = 0; v < visibleItems.length; v++) {
         var visible = visibleItems[v];
+        var itemTarget = visible.id;
+        if (!itemTarget) continue;
         var card = document.createElement("article");
         card.className = "sitecraft-catalog-card";
         card.setAttribute("data-sc-part", "item");
         if (visible.id) card.setAttribute("data-sitecraft-catalog-item", String(visible.id));
         var heading = document.createElement("h3");
         heading.textContent = visible.title ? (adapter && adapter.blocks ? emailBreakPoints(visible.title) : visible.title) : (locale === "en" ? "To be provided" : "待补充");
-        heading.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".title." + locale);
+        heading.setAttribute("data-sitecraft-slot", key + ".items." + itemTarget + ".title." + locale);
         var copy = null;
         // Visitors see no "待补充" body, and a certification body that only repeats its status is dropped.
         var repeatsStatus = key === "certifications" && visible.status && (visible.body === visible.status || visible.body === certificationStatusLabel(visible.status, locale));
@@ -640,21 +659,21 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (!((bodyIsGap || repeatsStatus) && variant !== "workspace")) {
           copy = document.createElement("p");
           copy.textContent = visible.body ? (adapter && adapter.blocks ? emailBreakPoints(visible.body) : visible.body) : (locale === "en" ? "To be provided" : "待补充");
-          copy.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".body." + locale);
+          copy.setAttribute("data-sitecraft-slot", key + ".items." + itemTarget + ".body." + locale);
         }
         card.appendChild(heading);
         if (key === "certifications" && visible.status) {
           var statusNode = document.createElement("p");
           statusNode.className = "sitecraft-cert-status";
           statusNode.textContent = certificationStatusLabel(visible.status, locale);
-          statusNode.setAttribute("data-sitecraft-slot", key + ".items." + visible.index + ".status");
+          statusNode.setAttribute("data-sitecraft-slot", key + ".items." + itemTarget + ".status");
           card.appendChild(statusNode);
         }
         if (copy) card.appendChild(copy);
         grid.appendChild(card);
-        applied.add(key + ".items." + visible.index + ".title." + locale);
-        applied.add(key + ".items." + visible.index + ".body." + locale);
-        if (key === "certifications" && visible.status) applied.add(key + ".items." + visible.index + ".status");
+        applied.add(key + ".items." + itemTarget + ".title." + locale);
+        applied.add(key + ".items." + itemTarget + ".body." + locale);
+        if (key === "certifications" && visible.status) applied.add(key + ".items." + itemTarget + ".status");
       }
     }
   }
@@ -1439,12 +1458,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   // Intro and body fields are whole sentences: when the entire field is a gap, the sentence is
   // omitted instead of printing a lone 待补充. Headings stay; they are labels, not facts.
-  // FAQ, cooperation steps and features have a fixed number of entries on the page, written by index.
+  // FAQ, cooperation steps and features have a fixed number of entries on the page. Adapter slots
+  // are positional capabilities, but every rendered and selected target is rewritten to the card id.
   // They show the draft's entries that have a title or a body first, in draft order, then its
   // placeholders: a new draft carries empty entries, and an entry added with add_card goes after them,
-  // so by index the page showed placeholders while the added entries never reached it (T-053). The
-  // slot written for an entry carries that entry's own index (faq.items.6.title.zh), so selecting it
-  // in the workspace and confirming a change stay on that entry.
+  // so the page shows authored entries before placeholders (T-053). The slot written for an entry
+  // carries that entry's id, so selection remains attached when another card is removed or moved.
   function entryTarget(draft, target, locale) {
     var match = /^(features|services|faq)\.items\.(\d+)\.(title|body)$/.exec(target || "");
     if (!match || !draft || !draft.content) return target;
@@ -1457,7 +1476,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       else provided.push(i);
     }
     var index = provided.concat(placeholders)[Number(match[2])];
-    return index === undefined ? target : match[1] + ".items." + index + "." + match[3];
+    var item = index === undefined ? null : items[index];
+    return item && item.id ? match[1] + ".items." + item.id + "." + match[3] : target;
   }
 
   function withTarget(slot, target) {
@@ -1468,6 +1488,18 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
     copy.target = target;
     return copy;
+  }
+
+  function entryHasContent(draft, target, locale) {
+    var match = /^(features|services|faq)\.items\.([^.]+)\.(title|body)$/.exec(target || "");
+    if (!match || !draft || !draft.content) return true;
+    var items = (draft.content[match[1]] || {}).items || [];
+    var item = null;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i] && items[i].id === match[2]) { item = items[i]; break; }
+    }
+    if (!item) return false;
+    return !(isGapMarker(localize(item.title, locale)) && isGapMarker(localize(item.body, locale)));
   }
 
   function isStandaloneSentenceTarget(target) {
@@ -1720,6 +1752,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var slot = slots[s];
         if (!slot || !slot.selector || !slot.target) continue;
         var entrySlot = withTarget(slot, entryTarget(draft, slot.target, currentLocale));
+        if (!entryHasContent(draft, entrySlot.target, currentLocale)) continue;
         var value = readDraftValue(draft, entrySlot.target, currentLocale);
         var node = uniqueNode(slot.selector);
         if (!node) continue;

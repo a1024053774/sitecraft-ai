@@ -497,7 +497,7 @@ test("declared-only generated bridge writes unique sentinels and reports exact m
     "contact.email.zh",
     "contact.title.zh",
     "about.title.zh",
-    "features.items.1.title.zh",
+    "features.items.one.title.zh",
     "features.items.10.title.zh",
     "products.SKU-1.name.zh",
   ], "workspace");
@@ -514,14 +514,14 @@ test("declared-only generated bridge writes unique sentinels and reports exact m
   assert.deepEqual(report.fallbackMatched, []);
   assert.ok(report.appliedSlots.includes("hero.title.zh"));
   assert.ok(report.appliedSlots.includes("contact.email.zh"));
-  assert.ok(report.appliedSlots.includes("features.items.1.title.zh"));
+  assert.ok(report.appliedSlots.includes("features.items.one.title.zh"));
   assert.ok(report.missingSlots.includes("hero.title.en"));
   assert.ok(report.missingSlots.includes("about.title.zh"));
   assert.ok(report.missingSlots.includes("features.items.10.title.zh"));
   assert.ok(report.missingSlots.includes("products.SKU-1.name.zh"));
   assert.ok(report.missingSlots.includes("contact.title.zh"));
   assert.deepEqual(report.proposedAlternatives, [{ requested: "contact.title.zh", proposed: "contact.email" }]);
-  assert.equal(report.missingSlots.includes("features.items.1.title.zh"), false);
+  assert.equal(report.missingSlots.includes("features.items.one.title.zh"), false);
 });
 
 test("ambiguous declared selectors and missing adapters write nothing", () => {
@@ -817,8 +817,8 @@ test("a FAQ entry with no title and no body is hidden, and a sentence gap stays 
   const { api } = installOn(document, adapter);
   const draft = applySiteOperations(structuredClone(defaultDraft), [
     { op: "set_text", target: "faq.intro", locale: "zh", value: "交期和认证只写资料里已经有的。" },
-    { op: "update_card", section: "faq", index: 0, locale: "zh", title: "交期如何确认？", body: "批量规格询盘的交期待补充。" },
-    { op: "update_card", section: "faq", index: 1, locale: "zh", title: "待补充", body: "待补充" },
+    { op: "update_card", section: "faq", itemId: defaultDraft.content.faq.items[0].id, locale: "zh", title: "交期如何确认？", body: "批量规格询盘的交期待补充。" },
+    { op: "update_card", section: "faq", itemId: defaultDraft.content.faq.items[1].id, locale: "zh", title: "待补充", body: "待补充" },
   ], { templateIds: new Set(["screwfast"]), lastChange: "faq-gap" }).draft;
   api.applyDeclaredContent(draft, "zh", [], "workspace");
   assert.equal(intro.hidden, false);
@@ -1257,17 +1257,17 @@ test("screwfast FAQ slots write unique accordion text and leave sales chrome", (
   const draft = applySiteOperations(structuredClone(defaultDraft), [{
     op: "update_card",
     section: "faq",
-    index: 0,
+    itemId: defaultDraft.content.faq.items[0].id,
     locale: "zh",
     title: "P3I-FAQ-Q1 交期如何确认？",
     body: "P3I-FAQ-A1 待补充",
   }], { templateIds: new Set(["forge", "screwfast"]), lastChange: "faq-slot" }).draft;
-  const report = api.applyDeclaredContent(draft, "zh", ["faq.items.0.title.zh", "faq.items.0.body.zh"], "workspace");
+  const report = api.applyDeclaredContent(draft, "zh", [`faq.items.${defaultDraft.content.faq.items[0].id}.title.zh`, `faq.items.${defaultDraft.content.faq.items[0].id}.body.zh`], "workspace");
   assert.equal(question.textContent, "P3I-FAQ-Q1 交期如何确认？");
   assert.equal(answer.textContent, "P3I-FAQ-A1 待补充");
   assert.equal(sales.textContent, "Contact Sales Team");
-  assert.ok(report.appliedSlots.includes("faq.items.0.title.zh"));
-  assert.ok(report.appliedSlots.includes("faq.items.0.body.zh"));
+  assert.ok(report.appliedSlots.includes(`faq.items.${defaultDraft.content.faq.items[0].id}.title.zh`));
+  assert.ok(report.appliedSlots.includes(`faq.items.${defaultDraft.content.faq.items[0].id}.body.zh`));
   assert.deepEqual(report.fallbackMatched, []);
 });
 
@@ -1310,10 +1310,10 @@ test("screwfast benchmark renders only authored product categories into the prod
   };
   const report = installOn(document, adapter).api.applyDeclaredContent(draft, "zh", [
     "products",
-    "products.FM-2401.name.zh",
-    "products.FM-2401.summary.zh",
-    "products.FM-2402.name.zh",
-    "products.FM-2402.summary.zh",
+    `products.${draft.products[0].id}.name.zh`,
+    `products.${draft.products[0].id}.summary.zh`,
+    `products.${draft.products[1].id}.name.zh`,
+    `products.${draft.products[1].id}.summary.zh`,
   ], "workspace");
   assert.equal(grid.children.length, 2);
   // A real photo sits in the card's media block; a product without one gets no stand-in picture.
@@ -1324,8 +1324,8 @@ test("screwfast benchmark renders only authored product categories into the prod
   assert.equal(visibleText(grid.children[1]).includes("示意"), false);
   assert.equal(visibleText(grid).includes("直角减速机"), true);
   assert.equal(visibleText(grid).includes("行星减速机"), true);
-  assert.ok(report.appliedSlots.includes("products.FM-2401.name.zh"));
-  assert.ok(report.appliedSlots.includes("products.FM-2402.name.zh"));
+  assert.ok(report.appliedSlots.includes(`products.${draft.products[0].id}.name.zh`));
+  assert.ok(report.appliedSlots.includes(`products.${draft.products[1].id}.name.zh`));
   assert.ok(report.appliedSlots.includes("products"));
 });
 
@@ -1488,7 +1488,7 @@ test("engineering-industrial kit applies its family tokens and selects no demo m
   document.body.appendChild(faq);
 
   const draft = applySiteOperations(packDraft("industrial"), [
-    { op: "update_card", section: "faq", index: 0, title: { zh: "交期如何确认？", en: "How is lead time confirmed?" }, body: { zh: "按批量确认。", en: "Per batch." } },
+    { op: "update_card", section: "faq", itemId: "faq-1", title: { zh: "交期如何确认？", en: "How is lead time confirmed?" }, body: { zh: "按批量确认。", en: "Per batch." } },
   ], { templateIds: new Set(visualBriefCatalog.map((item) => item.templateId)), lastChange: "kit-faq" }).draft;
   assert.equal(draft.visualBrief.id, "engineering-industrial");
   assert.equal(draft.templateId, "screwfast");

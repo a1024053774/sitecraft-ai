@@ -7,6 +7,7 @@ import { normalizeSiteStyle, siteStyleDirectionSchema, siteStyleRuleSchema, vali
 import { stripGapTalkBilingual } from "./visitor-prose.ts";
 import {
   cloneDraft,
+  ensureProductIds,
   blockIdSchema,
   editableCardSchema,
   locales,
@@ -92,7 +93,7 @@ const localizedOperationValueSchema = z.union([
 const updateCardOperationSchema = z.object({
   op: z.literal("update_card"),
   section: z.enum(["features", "services", "faq"]),
-  index: z.number().int().min(0).max(11),
+  itemId: z.string().min(1).max(80),
   locale: z.enum(locales).optional(),
   title: localizedOperationValueSchema.optional(),
   body: localizedOperationValueSchema.optional(),
@@ -120,7 +121,7 @@ const removeCardOperationSchema = z.object({
 });
 const updateProductOperationSchema = z.object({
   op: z.literal("update_product"),
-  sku: z.string().min(1).max(120),
+  productId: z.string().min(1).max(120),
   locale: z.enum(locales).optional(),
   name: localizedOperationValueSchema.optional(),
   summary: localizedOperationValueSchema.optional(),
@@ -129,7 +130,7 @@ const updateProductOperationSchema = z.object({
 }).refine((value) => value.name || value.summary || value.category, "Product update requires at least one field");
 const setProductSpecsOperationSchema = z.object({
   op: z.literal("set_product_specs"),
-  sku: z.string().min(1).max(120),
+  productId: z.string().min(1).max(120),
   specs: z.array(productSpecParameterSchema).max(12),
   englishReadyBefore: z.boolean().optional(),
 });
@@ -209,12 +210,12 @@ const removeImageSlotOperationSchema = z.object({
 });
 const setProductImageOperationSchema = z.object({
   op: z.literal("set_product_image"),
-  sku: z.string().min(1).max(120),
+  productId: z.string().min(1).max(120),
   ...imageRefFields,
 });
 const removeProductImageOperationSchema = z.object({
   op: z.literal("remove_product_image"),
-  sku: z.string().min(1).max(120),
+  productId: z.string().min(1).max(120),
 });
 const replaceProductsOperationSchema = z.object({
   op: z.literal("replace_products"),
@@ -564,6 +565,7 @@ export function applySiteOperations(
   options: { templateIds: Set<string>; lastChange: string; siteId?: string },
 ): ApplyResult {
   let draft = cloneDraft(current);
+  draft.products = ensureProductIds(draft.products);
   const inverseOperations: SiteOperation[] = [];
   const appliedTargets: string[] = [];
   // Layouts this batch asks for; checked once the whole batch is done (T-053).
@@ -641,26 +643,28 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "update_card") {
-      const item = draft.content[operation.section].items[operation.index];
-      if (!item) throw new Error(`${operation.section} item ${operation.index + 1} does not exist`);
+      const items = draft.content[operation.section].items;
+      const index = items.findIndex((item) => item.id === operation.itemId);
+      const item = index >= 0 ? items[index] : undefined;
+      if (!item) throw new Error(`${operation.section} item ${operation.itemId} does not exist`);
       if ((typeof operation.title === "object" && operation.title) || (typeof operation.body === "object" && operation.body)) {
         const previousEnglishReady = draft.englishReady;
         const inverse: SiteOperation = {
-          op: "update_card", section: operation.section, index: operation.index,
+          op: "update_card", section: operation.section, itemId: operation.itemId,
           ...(operation.title ? { title: typeof operation.title === "object" ? structuredClone(item.title) : item.title.zh } : {}),
           ...(operation.body ? { body: typeof operation.body === "object" ? structuredClone(item.body) : item.body.zh } : {}),
           englishReadyBefore: previousEnglishReady,
         };
         let changed = false;
-        if (typeof operation.title === "object") { if (item.title.zh !== operation.title.zh || item.title.en !== operation.title.en) changed = true; item.title = structuredClone(operation.title); appliedTargets.push(`${operation.section}.items.${operation.index}.title.zh`, `${operation.section}.items.${operation.index}.title.en`); }
-        if (typeof operation.body === "object") { if (item.body.zh !== operation.body.zh || item.body.en !== operation.body.en) changed = true; item.body = structuredClone(operation.body); appliedTargets.push(`${operation.section}.items.${operation.index}.body.zh`, `${operation.section}.items.${operation.index}.body.en`); }
+        if (typeof operation.title === "object") { if (item.title.zh !== operation.title.zh || item.title.en !== operation.title.en) changed = true; item.title = structuredClone(operation.title); appliedTargets.push(`${operation.section}.items.${operation.itemId}.title.zh`, `${operation.section}.items.${operation.itemId}.title.en`); }
+        if (typeof operation.body === "object") { if (item.body.zh !== operation.body.zh || item.body.en !== operation.body.en) changed = true; item.body = structuredClone(operation.body); appliedTargets.push(`${operation.section}.items.${operation.itemId}.body.zh`, `${operation.section}.items.${operation.itemId}.body.en`); }
         if (changed) { if ((typeof operation.title === "object" && !isGapMarker(operation.title.en)) || (typeof operation.body === "object" && !isGapMarker(operation.body.en))) draft.englishReady = true; if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore; inverseOperations.unshift(inverse); }
         continue;
       }
       const inverse: SiteOperation = {
         op: "update_card",
         section: operation.section,
-        index: operation.index,
+        itemId: operation.itemId,
         locale: operation.locale ?? "zh",
         ...(operation.title ? { title: item.title[operation.locale ?? "zh"] } : {}),
         ...(operation.body ? { body: item.body[operation.locale ?? "zh"] } : {}),
@@ -670,12 +674,12 @@ export function applySiteOperations(
       const previousEnglishReady = draft.englishReady;
       if (operation.title && typeof operation.title === "string" && item.title[locale] !== operation.title) {
         item.title[locale] = operation.title;
-        appliedTargets.push(`${operation.section}.items.${operation.index}.title.${locale}`);
+        appliedTargets.push(`${operation.section}.items.${operation.itemId}.title.${locale}`);
         changed = true;
       }
       if (operation.body && typeof operation.body === "string" && item.body[locale] !== operation.body) {
         item.body[locale] = operation.body;
-        appliedTargets.push(`${operation.section}.items.${operation.index}.body.${locale}`);
+        appliedTargets.push(`${operation.section}.items.${operation.itemId}.body.${locale}`);
         changed = true;
       }
       if (changed) {
@@ -692,7 +696,7 @@ export function applySiteOperations(
       const index = Math.min(operation.index ?? items.length, items.length);
       items.splice(index, 0, structuredClone(operation.item));
       inverseOperations.unshift({ op: "remove_card", section: operation.section, itemId: operation.item.id });
-      appliedTargets.push(`${operation.section}.items.${index}`);
+      appliedTargets.push(`${operation.section}.items.${operation.item.id}`);
       continue;
     }
     if (operation.op === "replace_cards") {
@@ -705,8 +709,8 @@ export function applySiteOperations(
       inverseOperations.unshift({ op: "replace_cards", section: operation.section, items: previous, englishReadyBefore: previousEnglishReady });
       if (next.some((item) => !isGapMarker(item.title.en) || !isGapMarker(item.body.en))) draft.englishReady = true;
       if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
-      for (let index = 0; index < next.length; index += 1) {
-        for (const part of ["title", "body"]) appliedTargets.push(`${operation.section}.items.${index}.${part}.zh`, `${operation.section}.items.${index}.${part}.en`);
+      for (const item of next) {
+        for (const part of ["title", "body"]) appliedTargets.push(`${operation.section}.items.${item.id}.${part}.zh`, `${operation.section}.items.${item.id}.${part}.en`);
       }
       if (!next.length) appliedTargets.push(operation.section);
       continue;
@@ -717,24 +721,24 @@ export function applySiteOperations(
       if (index < 0) throw new Error(`Card ${operation.itemId} does not exist`);
       const [item] = items.splice(index, 1);
       inverseOperations.unshift({ op: "add_card", section: operation.section, index, item });
-      appliedTargets.push(`${operation.section}.items.${index}`);
+      appliedTargets.push(`${operation.section}.items.${operation.itemId}`);
       continue;
     }
     if (operation.op === "update_product") {
-      const product = draft.products.find((item) => item.sku === operation.sku);
-      if (!product) throw new Error(`Product ${operation.sku} does not exist`);
+      const product = draft.products.find((item) => item.id === operation.productId);
+      if (!product) throw new Error(`Product ${operation.productId} does not exist`);
       if ((typeof operation.name === "object" && operation.name) || (typeof operation.summary === "object" && operation.summary) || (typeof operation.category === "object" && operation.category)) {
         const previousEnglishReady = draft.englishReady;
-        const inverse: SiteOperation = { op: "update_product", sku: operation.sku,
+        const inverse: SiteOperation = { op: "update_product", productId: operation.productId,
           ...(operation.name ? { name: typeof operation.name === "object" ? structuredClone(product.name) : product.name.zh } : {}),
           ...(operation.summary ? { summary: typeof operation.summary === "object" ? structuredClone(product.summary) : product.summary.zh } : {}),
           ...(operation.category ? { category: structuredClone(product.category) } : {}),
           englishReadyBefore: previousEnglishReady,
         };
         let changed = false;
-        if (typeof operation.name === "object") { if (product.name.zh !== operation.name.zh || product.name.en !== operation.name.en) changed = true; product.name = structuredClone(operation.name); appliedTargets.push(`products.${operation.sku}.name.zh`, `products.${operation.sku}.name.en`); }
-        if (typeof operation.summary === "object") { if (product.summary.zh !== operation.summary.zh || product.summary.en !== operation.summary.en) changed = true; product.summary = structuredClone(operation.summary); appliedTargets.push(`products.${operation.sku}.summary.zh`, `products.${operation.sku}.summary.en`); }
-        if (typeof operation.category === "object") { if (JSON.stringify(product.category) !== JSON.stringify(operation.category)) changed = true; product.category = structuredClone(operation.category); appliedTargets.push(`products.${operation.sku}.category.zh`, `products.${operation.sku}.category.en`); }
+        if (typeof operation.name === "object") { if (product.name.zh !== operation.name.zh || product.name.en !== operation.name.en) changed = true; product.name = structuredClone(operation.name); appliedTargets.push(`products.${operation.productId}.name.zh`, `products.${operation.productId}.name.en`); }
+        if (typeof operation.summary === "object") { if (product.summary.zh !== operation.summary.zh || product.summary.en !== operation.summary.en) changed = true; product.summary = structuredClone(operation.summary); appliedTargets.push(`products.${operation.productId}.summary.zh`, `products.${operation.productId}.summary.en`); }
+        if (typeof operation.category === "object") { if (JSON.stringify(product.category) !== JSON.stringify(operation.category)) changed = true; product.category = structuredClone(operation.category); appliedTargets.push(`products.${operation.productId}.category.zh`, `products.${operation.productId}.category.en`); }
         if (changed) { if ((typeof operation.name === "object" && !isGapMarker(operation.name.en)) || (typeof operation.summary === "object" && !isGapMarker(operation.summary.en)) || (typeof operation.category === "object" && !isGapMarker(operation.category.en))) draft.englishReady = true; if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore; inverseOperations.unshift(inverse); }
         continue;
       }
@@ -742,7 +746,7 @@ export function applySiteOperations(
       const previousEnglishReady = draft.englishReady;
       const inverse: SiteOperation = {
         op: "update_product",
-        sku: operation.sku,
+        productId: operation.productId,
         locale,
         ...(operation.name ? { name: product.name[locale] } : {}),
         ...(operation.summary ? { summary: product.summary[locale] } : {}),
@@ -752,17 +756,17 @@ export function applySiteOperations(
       let changed = false;
       if (operation.name && product.name[locale] !== operation.name) {
         product.name[locale] = operation.name;
-        appliedTargets.push(`products.${operation.sku}.name.${locale}`);
+        appliedTargets.push(`products.${operation.productId}.name.${locale}`);
         changed = true;
       }
       if (operation.summary && product.summary[locale] !== operation.summary) {
         product.summary[locale] = operation.summary;
-        appliedTargets.push(`products.${operation.sku}.summary.${locale}`);
+        appliedTargets.push(`products.${operation.productId}.summary.${locale}`);
         changed = true;
       }
       if (operation.category && typeof operation.category === "string" && product.category !== operation.category) {
         product.category = operation.category;
-        appliedTargets.push(`products.${operation.sku}.category`);
+        appliedTargets.push(`products.${operation.productId}.category`);
         changed = true;
       }
       if (changed) {
@@ -772,18 +776,18 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "set_product_specs") {
-      const product = draft.products.find((item) => item.sku === operation.sku);
-      if (!product) throw new Error(`Product ${operation.sku} does not exist`);
+      const product = draft.products.find((item) => item.id === operation.productId);
+      if (!product) throw new Error(`Product ${operation.productId} does not exist`);
       const previous = product.specs ? structuredClone(product.specs) : [];
       const next = operation.specs.map((spec) => ({ ...structuredClone(spec), value: normalizeSpecValue(spec.value) }));
       if (same(previous, next)) continue;
       const previousEnglishReady = draft.englishReady;
-      inverseOperations.unshift({ op: "set_product_specs", sku: operation.sku, specs: previous, englishReadyBefore: previousEnglishReady });
+      inverseOperations.unshift({ op: "set_product_specs", productId: operation.productId, specs: previous, englishReadyBefore: previousEnglishReady });
       if (next.length) product.specs = next;
       else delete product.specs;
       if (specsHaveReadyEnglish(next)) draft.englishReady = true;
       if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
-      appliedTargets.push(`products.${operation.sku}.specs`);
+      appliedTargets.push(`products.${operation.productId}.specs`);
       continue;
     }
     if (operation.op === "set_catalog_section") {
@@ -926,46 +930,46 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "set_product_image") {
-      const product = draft.products.find((item) => item.sku === operation.sku);
-      if (!product) throw new Error(`Product ${operation.sku} does not exist`);
+      const product = draft.products.find((item) => item.id === operation.productId);
+      if (!product) throw new Error(`Product ${operation.productId} does not exist`);
       const next = resolveImageRef(operation, options.siteId);
       const previous = product.image;
       if (same(previous, next)) continue;
       if (previous) {
         inverseOperations.unshift({
           op: "set_product_image",
-          sku: operation.sku,
+          productId: operation.productId,
           imageId: previous.imageId,
           url: previous.url,
           alt: previous.alt,
           ...(previous.credit ? { credit: previous.credit } : {}),
         });
       } else {
-        inverseOperations.unshift({ op: "remove_product_image", sku: operation.sku });
+        inverseOperations.unshift({ op: "remove_product_image", productId: operation.productId });
       }
       product.image = next;
-      appliedTargets.push(`products.${operation.sku}.image`);
+      appliedTargets.push(`products.${operation.productId}.image`);
       continue;
     }
     if (operation.op === "remove_product_image") {
-      const product = draft.products.find((item) => item.sku === operation.sku);
-      if (!product) throw new Error(`Product ${operation.sku} does not exist`);
+      const product = draft.products.find((item) => item.id === operation.productId);
+      if (!product) throw new Error(`Product ${operation.productId} does not exist`);
       const previous = product.image;
       if (!previous) continue;
       inverseOperations.unshift({
         op: "set_product_image",
-        sku: operation.sku,
+        productId: operation.productId,
         imageId: previous.imageId,
         url: previous.url,
         alt: previous.alt,
         ...(previous.credit ? { credit: previous.credit } : {}),
       });
       delete product.image;
-      appliedTargets.push(`products.${operation.sku}.image`);
+      appliedTargets.push(`products.${operation.productId}.image`);
       continue;
     }
     if (operation.op === "replace_products") {
-      const next = operation.products.map(normalizeProductSpecs);
+      const next = ensureProductIds(operation.products).map(normalizeProductSpecs);
       if (same(draft.products, next)) continue;
       const previousEnglishReady = draft.englishReady;
       inverseOperations.unshift({ op: "replace_products", products: structuredClone(draft.products), englishReadyBefore: previousEnglishReady });

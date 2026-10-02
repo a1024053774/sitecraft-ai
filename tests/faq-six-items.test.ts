@@ -107,7 +107,7 @@ test("five questions added after the six empty entries (add_card) show the same 
   ];
   const { document, report } = render("screwfast", draft);
   assert.deepEqual(shownFaq(document), MOLDING_QA);
-  assert.ok(report.appliedSlots.includes("faq.items.10.title.zh"), "the fifth question keeps its own index");
+  assert.ok(report.appliedSlots.includes("faq.items.qa-4.title.zh"), "the fifth question keeps its own id");
 });
 
 test("materials without questions leave no FAQ shell", () => {

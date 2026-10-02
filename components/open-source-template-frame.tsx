@@ -35,7 +35,7 @@ type OpenSourceTemplateFrameProps = {
     honeypot: string;
   }) => Promise<{ ok: boolean; message: string }>;
   onLocaleChange?: (locale: Locale) => void;
-  onSelectTarget?: (target: string, label: string, prompt: string) => void;
+  onSelectTarget?: (target: string, label: string, prompt: string, slot?: string) => void;
   onApplyReport?: (report: {
     revision: number;
     appliedSlots: string[];
@@ -216,6 +216,7 @@ export function OpenSourceTemplateFrame({
         type?: string;
         templateId?: string;
         target?: string;
+        slot?: string;
         locale?: Locale;
         payload?: {
           name?: string;
@@ -247,7 +248,7 @@ export function OpenSourceTemplateFrame({
       }
       if (data?.type === "sitecraft:select" && data.target && onSelectTarget) {
         const target = targetPrompts[data.target];
-        if (target) onSelectTarget(data.target, target.label, target.prompt);
+        if (target) onSelectTarget(data.target, target.label, target.prompt, data.slot);
       }
       if (data?.type === "sitecraft:inquiry" && data.templateId === templateId && onInquiry) {
         // The result goes back into the page so the visitor sees it next to the form.

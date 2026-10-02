@@ -26,7 +26,7 @@ import {
   type ConversationTurnOutcome,
 } from "@/lib/conversation-store";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
-import { visualBriefCatalog, type PaletteId } from "@/lib/site-document";
+import { ensureProductIds, visualBriefCatalog, type PaletteId } from "@/lib/site-document";
 import { templates } from "@/lib/site-model";
 import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
 import { templateAdapters } from "@/lib/template-adapters/registry";
@@ -312,7 +312,7 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
       ? provider.operations.find((operation) => operation.op === "replace_products")
       : undefined;
     const targetProducts = replacement?.op === "replace_products"
-      ? replacement.products
+      ? ensureProductIds(replacement.products)
       : current.draft.products;
     const imageTarget = uploadedImage
       ? targetProducts[0]
@@ -320,7 +320,7 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     const imageOperation = uploadedImage && imageTarget
       ? [{
         op: "set_product_image" as const,
-        sku: imageTarget.sku,
+        productId: imageTarget.id ?? "",
         imageId: uploadedImage.record.imageId,
         url: siteImagePublicPath(siteId, uploadedImage.record.imageId),
         alt: { zh: "产品图", en: "Product photo" },

@@ -19,7 +19,7 @@ const templateIds = new Set(["forge", "screwfast", "landwind", "tailwind-landing
 test("localized spec values are accepted and rendered by locale", () => {
   const operation = {
     op: "set_product_specs",
-    sku: defaultDraft.products[0].sku,
+    productId: defaultDraft.products[0].id!,
     specs: [{ name: { zh: "安装方式", en: "Mounting" }, value: { zh: "底脚/法兰", en: "Foot / flange" } }],
   } as const;
   assert.equal(siteOperationSchema.safeParse(operation).success, true);
@@ -41,10 +41,10 @@ test("normalizeDraft preserves old string values and accepts new localized value
 });
 
 test("model spec values are normalized from materials and explain missing English", () => {
-  const sku = defaultDraft.products[0].sku;
+  const productId = defaultDraft.products[0].id!;
   const validated = validateAIOperations("产品资料：安装方式为底脚/法兰；防护等级 IP65；转移方式为旋转式。", [{
     op: "set_product_specs",
-    sku,
+    productId,
     specs: [
       { name: { zh: "安装方式", en: "Mounting" }, value: "底脚/法兰" },
       { name: { zh: "防护等级", en: "Ingress protection" }, value: { zh: "IP65", en: "IP65 rated" } },
@@ -65,10 +65,10 @@ test("model spec values are normalized from materials and explain missing Englis
 test("set_product_specs opens englishReady and undo restores specs and flag", () => {
   const original = structuredClone(defaultDraft);
   original.englishReady = false;
-  const sku = original.products[0].sku;
+  const productId = original.products[0].id!;
   const changed = applySiteOperations(original, [{
     op: "set_product_specs",
-    sku,
+    productId,
     specs: [{ name: { zh: "安装方式", en: "Mounting" }, value: { zh: "底脚/法兰", en: "Foot / flange" } }],
   } as SiteOperation], { templateIds, lastChange: "bilingual specs" });
   assert.equal(changed.draft.englishReady, true);

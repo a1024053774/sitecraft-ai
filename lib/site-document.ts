@@ -181,6 +181,8 @@ export const productSpecParameterSchema = z.object({
 export type ProductSpecParameter = z.infer<typeof productSpecParameterSchema>;
 
 export const productSchema = z.object({
+  /** Stable identity for addressing a product; absent only on pre-T-069 drafts. */
+  id: z.string().min(1).max(120).optional(),
   sku: z.string().min(1).max(120),
   name: localizedTextSchema,
   summary: localizedTextSchema,
@@ -193,6 +195,31 @@ export const productSchema = z.object({
   aiGenerated: z.boolean().optional(),
 });
 export type Product = z.infer<typeof productSchema>;
+
+function stableProductHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/** Deterministic only for migration: once written, a product keeps its id if its SKU changes. */
+export function productStableId(product: Pick<Product, "sku">, index: number) {
+  return `prod-${index.toString(36)}-${stableProductHash(`${index}\u0000${product.sku}`)}`;
+}
+
+export function ensureProductIds(products: readonly Product[]): Product[] {
+  const used = new Set<string>();
+  return products.map((product, index) => {
+    let id = product.id && !used.has(product.id) ? product.id : productStableId(product, index);
+    let suffix = 1;
+    while (used.has(id)) id = `${productStableId(product, index)}-${suffix++}`;
+    used.add(id);
+    return product.id === id ? product : { ...product, id };
+  });
+}
 
 export const sectionKeys = [
   "about",
@@ -567,7 +594,7 @@ export function normalizeDraft(rawInput: unknown): SiteDraft {
   const input = normalizeSectionOrder(dropInvalidSiteStyle(dropUnknownBlockVariants(renameRetiredPalette(rawInput))));
   const parsed = siteDraftSchema.safeParse(input);
   if (parsed.success) {
-    const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...parsed.data, visualBrief: hydrateVisualBrief(parsed.data.visualBrief) }));
+    const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...parsed.data, products: ensureProductIds(parsed.data.products), visualBrief: hydrateVisualBrief(parsed.data.visualBrief) }));
     return { ...hydrated, pagePlan: rehostPagePlan(hydrated.pagePlan, hydrated.templateId) };
   }
 
@@ -585,7 +612,7 @@ export function normalizeDraft(rawInput: unknown): SiteDraft {
       ...(!Object.hasOwn(legacy, "visualBrief") ? { visualBrief: structuredClone(defaultDraft.visualBrief) } : {}),
       ...(!Object.hasOwn(legacy, "pagePlan") ? { pagePlan: pagePlanForLegacy(legacy) } : {}),
     });
-    const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...restored, visualBrief: hydrateVisualBrief(restored.visualBrief) }));
+    const hydrated = migrateRetiredVisualBrief(hydratePaletteId({ ...restored, products: ensureProductIds(restored.products), visualBrief: hydrateVisualBrief(restored.visualBrief) }));
     return { ...hydrated, pagePlan: rehostPagePlan(hydrated.pagePlan, hydrated.templateId) };
   }
   const legacyHero = legacy.hero && typeof legacy.hero === "object"
@@ -605,5 +632,6 @@ export function normalizeDraft(rawInput: unknown): SiteDraft {
   if (typeof legacyHero.cta === "string") candidate.content.hero.cta.zh = legacyHero.cta;
   const products = z.array(productSchema).max(1000).safeParse(legacy.products);
   if (products.success) candidate.products = products.data;
+  candidate.products = ensureProductIds(candidate.products);
   return migrateRetiredVisualBrief(candidate);
 }

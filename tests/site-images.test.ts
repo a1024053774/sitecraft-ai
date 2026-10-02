@@ -211,7 +211,7 @@ test("set_image_slot and set_product_image apply, invert, and reject template st
     alt: { zh: "减速机实物", en: "Gearbox photo" },
   }, {
     op: "set_product_image",
-    sku: defaultDraft.products[0].sku,
+    productId: defaultDraft.products[0].id!,
     imageId,
     url,
   }], options);
@@ -220,7 +220,7 @@ test("set_image_slot and set_product_image apply, invert, and reject template st
   assert.equal(applied.draft.content.hero.image?.url, url);
   assert.equal(applied.draft.products[0].image?.imageId, imageId);
   assert.ok(applied.appliedTargets.includes("hero.image"));
-  assert.ok(applied.appliedTargets.includes(`products.${defaultDraft.products[0].sku}.image`));
+  assert.ok(applied.appliedTargets.includes(`products.${defaultDraft.products[0].id}.image`));
 
   const restored = applySiteOperations(applied.draft, applied.inverseOperations, options);
   assert.equal(restored.draft.content.hero.image, undefined);
@@ -274,7 +274,7 @@ test("set_product_image stores credit on the draft image ref", () => {
   const options = { templateIds, lastChange: "image-credit", siteId: siteA };
   const applied = applySiteOperations(structuredClone(defaultDraft), [{
     op: "set_product_image",
-    sku: defaultDraft.products[0].sku,
+    productId: defaultDraft.products[0].id!,
     imageId,
     url,
     alt: { zh: "直角减速机实物", en: "Right-angle gearbox photo" },

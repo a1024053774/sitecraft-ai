@@ -113,7 +113,7 @@ test("D limited fixes drop illegal template, SKU and image writes instead of sil
     { op: "set_text", target: "hero.title", locale: "zh", value: "待补充" },
     { op: "set_template", templateId: "forge" },
     { op: "set_visual_brief", briefId: "export-catalog" },
-    { op: "update_product", sku: "NO-SUCH-SKU", locale: "zh", name: "错写" },
+    { op: "update_product", productId: "NO-SUCH-PRODUCT", locale: "zh", name: "错写" },
     { op: "add_card", section: "features", item: { id: "x", title: { zh: "x", en: "x" }, body: { zh: "x", en: "x" } } },
     { op: "set_section_visibility", section: "faq", visible: false },
   ]);
