@@ -42,6 +42,7 @@ import {
   type SiteImageRef,
 } from "./site-document.ts";
 import { customPaletteSchema } from "./custom-brand-color.ts";
+import { SiteMigrationError } from "./site-migration.ts";
 import { rehostPagePlan, resolvePagePlan } from "./template-pages.ts";
 import { canonicalizeOwnedImageUrl, isTemplateStockUrl } from "./site-images.ts";
 
@@ -573,13 +574,20 @@ function cardIdAt(draft: SiteDraft, section: "features" | "services" | "faq", in
   return item.id;
 }
 
-function productIdForSku(draft: SiteDraft, sku: string) {
-  const product = draft.products.find((item) => item.sku === sku);
-  if (!product?.id) throw new Error(`Cannot migrate product SKU ${sku}: product id is missing`);
-  return product.id;
+function productIdForSku(draft: SiteDraft, sku: string, context: { siteId?: string | null; changeId?: string } = {}) {
+  const matches = draft.products.filter((item) => item.sku === sku);
+  if (matches.length !== 1 || !matches[0].id) {
+    throw new SiteMigrationError({
+      siteId: context.siteId,
+      field: `history.${context.changeId ?? "unknown"}.productTarget`,
+      value: sku,
+      reason: matches.length === 0 ? "SKU 没有唯一匹配的产品" : "SKU 匹配多个产品",
+    });
+  }
+  return matches[0].id;
 }
 
-function migrateHistoricalOperation(raw: unknown, draft: SiteDraft): SiteOperation {
+function migrateHistoricalOperation(raw: unknown, draft: SiteDraft, context: { siteId?: string | null; changeId?: string }): SiteOperation {
   if (!raw || typeof raw !== "object") throw new Error("Cannot migrate malformed historical operation");
   const operation = raw as Record<string, unknown>;
   if (operation.op === "update_card" && typeof operation.index === "number" && typeof operation.itemId !== "string") {
@@ -589,7 +597,7 @@ function migrateHistoricalOperation(raw: unknown, draft: SiteDraft): SiteOperati
   if (["update_product", "set_product_specs", "set_product_image", "remove_product_image"].includes(String(operation.op))
     && typeof operation.sku === "string" && typeof operation.productId !== "string") {
     const { sku: _sku, ...rest } = operation;
-    return { ...rest, productId: productIdForSku(draft, operation.sku) } as SiteOperation;
+    return { ...rest, productId: productIdForSku(draft, operation.sku, context) } as SiteOperation;
   }
   if (operation.op === "replace_products" && Array.isArray(operation.products)) {
     const existingBySku = new Map(draft.products.map((product) => [product.sku, product.id]));
@@ -600,16 +608,16 @@ function migrateHistoricalOperation(raw: unknown, draft: SiteDraft): SiteOperati
     return { ...operation, products } as SiteOperation;
   }
   if (operation.op === "replace_draft" && operation.draft) {
-    return { ...operation, draft: normalizeDraft(operation.draft) } as SiteOperation;
+    return { ...operation, draft: normalizeDraft(operation.draft, { siteId: context.siteId }) } as SiteOperation;
   }
   return raw as SiteOperation;
 }
 
-function migrateHistoricalOperations(raw: unknown[], draft: SiteDraft) {
-  return raw.map((operation) => migrateHistoricalOperation(operation, draft));
+function migrateHistoricalOperations(raw: unknown[], draft: SiteDraft, context: { siteId?: string | null; changeId?: string }) {
+  return raw.map((operation) => migrateHistoricalOperation(operation, draft, context));
 }
 
-function migrateHistoricalTarget(target: string, draft: SiteDraft) {
+function migrateHistoricalTarget(target: string, draft: SiteDraft, context: { siteId?: string | null; changeId?: string }) {
   const card = /^(features|services|faq)\.items\.(\d+)(\..+)$/.exec(target);
   if (card) return `${card[1]}.items.${cardIdAt(draft, card[1] as "features" | "services" | "faq", Number(card[2]))}${card[3]}`;
   if (target.startsWith("products.")) {
@@ -617,14 +625,14 @@ function migrateHistoricalTarget(target: string, draft: SiteDraft) {
     const match = [...draft.products]
       .filter((product) => rest.startsWith(`${product.sku}.`))
       .sort((a, b) => b.sku.length - a.sku.length)[0];
-    if (match?.id) return `products.${match.id}${rest.slice(match.sku.length)}`;
+    if (match) return `products.${productIdForSku(draft, match.sku, context)}${rest.slice(match.sku.length)}`;
   }
   return target;
 }
 
-function migrateHistoricalTargets(targets: string[], before: SiteDraft, after: SiteDraft, operations: SiteOperation[]) {
+function migrateHistoricalTargets(targets: string[], before: SiteDraft, after: SiteDraft, operations: SiteOperation[], context: { siteId?: string | null; changeId?: string }) {
   const targetState = operations.some((operation) => operation.op === "replace_cards" || operation.op === "replace_products" || operation.op === "add_card") ? after : before;
-  return targets.map((target) => migrateHistoricalTarget(target, targetState));
+  return targets.map((target) => migrateHistoricalTarget(target, targetState, context));
 }
 
 function applyMigrationOperations(draft: SiteDraft, operations: SiteOperation[], templateIds: Set<string>) {
@@ -636,6 +644,7 @@ export function migrateSiteHistory(args: {
   history: HistoricalChangeInput[];
   future: HistoricalChangeInput[];
   templateIds: Set<string>;
+  siteId?: string | null;
 }) {
   const current = normalizeDraft(args.draft);
   let reverseState = current;
@@ -643,14 +652,15 @@ export function migrateSiteHistory(args: {
   let changed = false;
   for (let index = history.length - 1; index >= 0; index -= 1) {
     const change = history[index];
-    const inverseOperations = migrateHistoricalOperations(change.inverseOperations, reverseState);
+    const context = { siteId: args.siteId, changeId: typeof change.id === "string" ? change.id : undefined };
+    const inverseOperations = migrateHistoricalOperations(change.inverseOperations, reverseState, context);
     const before = applyMigrationOperations(reverseState, inverseOperations, args.templateIds);
-    const operations = migrateHistoricalOperations(change.operations, before);
+    const operations = migrateHistoricalOperations(change.operations, before, context);
     history[index] = {
       ...change,
       operations,
       inverseOperations,
-      appliedTargets: migrateHistoricalTargets(change.appliedTargets, before, reverseState, operations),
+      appliedTargets: migrateHistoricalTargets(change.appliedTargets, before, reverseState, operations, context),
     };
     reverseState = before;
     changed = changed || JSON.stringify(change.operations) !== JSON.stringify(operations) || JSON.stringify(change.inverseOperations) !== JSON.stringify(inverseOperations);
@@ -658,16 +668,17 @@ export function migrateSiteHistory(args: {
   let futureState = current;
   const future = args.future.map((change) => {
     const before = futureState;
-    const operations = migrateHistoricalOperations(change.operations, before);
+    const context = { siteId: args.siteId, changeId: typeof change.id === "string" ? change.id : undefined };
+    const operations = migrateHistoricalOperations(change.operations, before, context);
     const after = applyMigrationOperations(before, operations, args.templateIds);
-    const inverseOperations = migrateHistoricalOperations(change.inverseOperations, after);
+    const inverseOperations = migrateHistoricalOperations(change.inverseOperations, after, context);
     futureState = after;
     changed = changed || JSON.stringify(change.operations) !== JSON.stringify(operations) || JSON.stringify(change.inverseOperations) !== JSON.stringify(inverseOperations);
     return {
       ...change,
       operations,
       inverseOperations,
-      appliedTargets: migrateHistoricalTargets(change.appliedTargets, before, after, operations),
+      appliedTargets: migrateHistoricalTargets(change.appliedTargets, before, after, operations, context),
     };
   });
   return { draft: current, history, future, changed };

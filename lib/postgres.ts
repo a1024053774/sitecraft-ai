@@ -36,6 +36,7 @@ export async function ensureDatabaseSchema() {
           draft JSONB NOT NULL,
           history JSONB NOT NULL DEFAULT '[]'::jsonb,
           future JSONB NOT NULL DEFAULT '[]'::jsonb,
+          history_schema_version INTEGER NOT NULL DEFAULT 1,
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (workspace_id, site_id)
         )
@@ -51,6 +52,10 @@ export async function ensureDatabaseSchema() {
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (workspace_id, site_id, conversation_id)
         )
+      `))
+      .then(() => getDatabasePool().query(`
+        ALTER TABLE sitecraft_sites
+        ADD COLUMN IF NOT EXISTS history_schema_version INTEGER NOT NULL DEFAULT 1
       `))
       .then(() => getDatabasePool().query(`
         ALTER TABLE sitecraft_conversations

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { blockCatalog, blockIds } from "./blocks/catalog.ts";
 import { normalizeSiteStyle, siteStyleSchema } from "./blocks/site-style.ts";
 import { customPaletteSchema } from "./custom-brand-color.ts";
+import { assertStableItemIds } from "./site-migration.ts";
 import {
   defaultPagePlanFor,
   pagePlanSources,
@@ -599,7 +600,8 @@ function normalizeSectionOrder(input: unknown): unknown {
   return { ...(input as Record<string, unknown>), sectionOrder: kept };
 }
 
-export function normalizeDraft(rawInput: unknown): SiteDraft {
+export function normalizeDraft(rawInput: unknown, options: { siteId?: string | null } = {}): SiteDraft {
+  assertStableItemIds(rawInput, options.siteId);
   const input = normalizeSectionOrder(dropInvalidSiteStyle(dropUnknownBlockVariants(renameRetiredPalette(rawInput))));
   const parsed = siteDraftSchema.safeParse(input);
   if (parsed.success) {

@@ -144,7 +144,7 @@ test("legacy history migrates index and sku operations before undo and redo", as
     assert.equal(redone.record.draft.content.services.items[1].title.zh, "新标题");
     assert.equal(redone.record.draft.products[0].name.zh, "改后产品");
     const persisted = JSON.parse(await (await import("node:fs/promises")).readFile(recordPath, "utf8"));
-    assert.equal(persisted.historySchemaVersion, 2);
+    assert.equal(persisted.historySchemaVersion, 3);
     assert.equal("index" in persisted.history[0].operations[0], false);
     assert.equal("sku" in persisted.history[0].operations[1], false);
     assert.ok(persisted.history[0].appliedTargets.includes("services.items.history-selected.title.zh"));
@@ -207,6 +207,76 @@ test("a missing product id is reported missing instead of deriving one from SKU 
   assert.ok(report.missingSlots.includes(requested));
   assert.equal(report.appliedSlots.includes(requested), false);
   assert.equal(report.appliedSlots.some((target) => target.includes(missingSku)), false);
+});
+
+test("v2 dotted SKU history migrates A.B and A.B.C operations, inverse, and targets to the right ids", async () => {
+  const siteId = `t069-dotted-${Date.now().toString(36)}`;
+  const recordPath = path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
+  const draft = structuredClone(defaultDraft) as typeof defaultDraft & { products: Array<Record<string, unknown>> };
+  draft.products = [
+    { id: "product-a", sku: "A.B", name: text("新 A"), summary: text("摘要"), category: text("类别"), status: "published", imageColor: "#fff" },
+    { id: "product-b", sku: "A.B.C", name: text("新 B"), summary: text("摘要"), category: text("类别"), status: "published", imageColor: "#fff" },
+  ];
+  const raw = {
+    siteId,
+    draft,
+    historySchemaVersion: 2,
+    history: [{ id: "dotted-change", baseRevision: 1, revision: 2, summary: "dotted", source: "manual",
+      operations: [{ op: "update_product", sku: "A.B", name: text("新 A") }, { op: "update_product", sku: "A.B.C", name: text("新 B") }],
+      inverseOperations: [{ op: "update_product", sku: "A.B.C", name: text("旧 B") }, { op: "update_product", sku: "A.B", name: text("旧 A") }],
+      appliedTargets: ["products.A.B.name.zh", "products.A.B.C.name.zh"], createdAt: new Date().toISOString() }],
+    future: [], updatedAt: new Date().toISOString(),
+  };
+  await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
+  await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
+  try {
+    const loaded = await getSite(siteId);
+    assert.equal(loaded.draft.products[0].id, "product-a");
+    const persisted = JSON.parse(await (await import("node:fs/promises")).readFile(recordPath, "utf8"));
+    assert.equal(persisted.historySchemaVersion, 3);
+    assert.deepEqual(persisted.history[0].operations.map((operation: { productId: string }) => operation.productId), ["product-a", "product-b"]);
+    assert.deepEqual(persisted.history[0].inverseOperations.map((operation: { productId: string }) => operation.productId), ["product-b", "product-a"]);
+    assert.deepEqual(persisted.history[0].appliedTargets, ["products.product-a.name.zh", "products.product-b.name.zh"]);
+  } finally {
+    await unlink(recordPath).catch(() => {});
+  }
+});
+
+test("duplicate SKU in a legacy target reports a migration error instead of choosing the first product", async () => {
+  const siteId = `t069-duplicate-sku-${Date.now().toString(36)}`;
+  const recordPath = path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
+  const draft = structuredClone(defaultDraft) as typeof defaultDraft & { products: Array<Record<string, unknown>> };
+  draft.products = [
+    { id: "dup-a", sku: "DUP", name: text("A"), summary: text("摘要"), category: text("类别"), status: "published", imageColor: "#fff" },
+    { id: "dup-b", sku: "DUP", name: text("B"), summary: text("摘要"), category: text("类别"), status: "published", imageColor: "#eee" },
+  ];
+  const raw = {
+    siteId, draft, historySchemaVersion: 2,
+    history: [{ id: "duplicate-change", baseRevision: 1, revision: 2, summary: "duplicate", source: "manual", operations: [{ op: "update_product", sku: "DUP", name: text("错写") }], inverseOperations: [], appliedTargets: ["products.DUP.name.zh"], createdAt: new Date().toISOString() }],
+    future: [], updatedAt: new Date().toISOString(),
+  };
+  await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
+  await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
+  try {
+    await assert.rejects(() => getSite(siteId), new RegExp(`site=${siteId}.*DUP`));
+  } finally {
+    await unlink(recordPath).catch(() => {});
+  }
+});
+
+test("legacy dotted item ids fail with a site-specific migration error before defaults can load", async () => {
+  const siteId = `t069-dotted-id-${Date.now().toString(36)}`;
+  const recordPath = path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
+  const draft = structuredClone(defaultDraft) as typeof defaultDraft;
+  draft.content.services.items[0].id = "legacy.dot";
+  const raw = { siteId, draft, historySchemaVersion: 2, history: [], future: [], updatedAt: new Date().toISOString() };
+  await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
+  await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
+  try {
+    await assert.rejects(() => getSite(siteId), new RegExp(`site=${siteId}.*legacy\\.dot`));
+  } finally {
+    await unlink(recordPath).catch(() => {});
+  }
 });
 
 test("replace_draft is also normalized through the one id gateway", () => {

@@ -26,7 +26,7 @@ export type SiteRecord = {
   draft: SiteDraft;
   history: ChangeSet[];
   future: ChangeSet[];
-  historySchemaVersion: 2;
+  historySchemaVersion: number;
   updatedAt: string;
 };
 export type SiteSnapshot = {
@@ -60,20 +60,21 @@ async function readRecord(siteId: string): Promise<SiteRecord | null> {
     const raw = JSON.parse(await readFile(recordPath(siteId), "utf8")) as Partial<SiteRecord>;
     const record = {
       siteId,
-      draft: normalizeDraft(raw.draft),
+      draft: normalizeDraft(raw.draft, { siteId }),
       history: Array.isArray(raw.history) ? raw.history as ChangeSet[] : [],
       future: Array.isArray(raw.future) ? raw.future as ChangeSet[] : [],
-      historySchemaVersion: raw.historySchemaVersion === 2 ? 2 as const : 1,
+      historySchemaVersion: typeof raw.historySchemaVersion === "number" ? raw.historySchemaVersion : 1,
       updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : new Date().toISOString(),
     };
-    if (record.historySchemaVersion !== 2) {
+    if (record.historySchemaVersion < 3) {
       const migrated = migrateSiteHistory({
         draft: record.draft,
         history: record.history,
         future: record.future,
         templateIds,
+        siteId,
       });
-      const upgraded: SiteRecord = { ...record, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[], historySchemaVersion: 2 };
+      const upgraded: SiteRecord = { ...record, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[], historySchemaVersion: 3 };
       await writeRecord(upgraded);
       return upgraded;
     }
@@ -106,7 +107,7 @@ async function withSiteLock<T>(siteId: string, task: () => Promise<T>): Promise<
   }
 }
 function createRecord(siteId: string): SiteRecord {
-  return { siteId, draft: structuredClone(defaultDraft), history: [], future: [], historySchemaVersion: 2, updatedAt: new Date().toISOString() };
+  return { siteId, draft: structuredClone(defaultDraft), history: [], future: [], historySchemaVersion: 3, updatedAt: new Date().toISOString() };
 }
 // A layout put back to its default by this change (T-053) is said in the change's summary, unless
 // the summary already says it (the model path adds it before the commit).
@@ -242,16 +243,17 @@ type SiteRow = {
   draft: unknown;
   history: unknown;
   future: unknown;
+  history_schema_version?: number;
   updated_at: Date | string;
 };
 
 function rowToRecord(row: SiteRow): SiteRecord {
   return {
     siteId: row.site_id,
-    draft: normalizeDraft(row.draft),
+    draft: normalizeDraft(row.draft, { siteId: row.site_id }),
     history: Array.isArray(row.history) ? row.history as ChangeSet[] : [],
     future: Array.isArray(row.future) ? row.future as ChangeSet[] : [],
-    historySchemaVersion: 2,
+    historySchemaVersion: row.history_schema_version ?? 1,
     updatedAt: new Date(row.updated_at).toISOString(),
   };
 }
@@ -260,21 +262,21 @@ async function lockPostgresRecord(client: PoolClient, siteId: string) {
   safeSiteId(siteId);
   const initial = createRecord(siteId);
   await client.query(
-    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, updated_at)
-     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4)
+    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, history_schema_version, updated_at)
+     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4, $5)
      ON CONFLICT (workspace_id, site_id) DO NOTHING`,
-    [workspaceId, siteId, JSON.stringify(initial.draft), initial.updatedAt],
+    [workspaceId, siteId, JSON.stringify(initial.draft), 3, initial.updatedAt],
   );
   const result = await client.query<SiteRow>(
-    `SELECT site_id, draft, history, future, updated_at
+    `SELECT site_id, draft, history, future, history_schema_version, updated_at
      FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2 FOR UPDATE`,
     [workspaceId, siteId],
   );
   if (!result.rows[0]) throw new Error("Site record could not be created");
   const record = rowToRecord(result.rows[0]);
-  const migrated = migrateSiteHistory({ draft: record.draft, history: record.history, future: record.future, templateIds });
-  if (migrated.changed || JSON.stringify(migrated.draft) !== JSON.stringify(record.draft)) {
-    const upgraded: SiteRecord = { ...record, ...migrated, historySchemaVersion: 2, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[] };
+  const migrated = migrateSiteHistory({ draft: record.draft, history: record.history, future: record.future, templateIds, siteId });
+  if (record.historySchemaVersion < 3 || migrated.changed || JSON.stringify(migrated.draft) !== JSON.stringify(record.draft)) {
+    const upgraded: SiteRecord = { ...record, ...migrated, historySchemaVersion: 3, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[] };
     await savePostgresRecord(client, upgraded);
     return upgraded;
   }
@@ -284,9 +286,9 @@ async function lockPostgresRecord(client: PoolClient, siteId: string) {
 async function savePostgresRecord(client: PoolClient, record: SiteRecord) {
   await client.query(
     `UPDATE sitecraft_sites
-     SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, updated_at = $6
+     SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, history_schema_version = $6, updated_at = $7
      WHERE workspace_id = $1 AND site_id = $2`,
-    [workspaceId, record.siteId, JSON.stringify(record.draft), JSON.stringify(record.history), JSON.stringify(record.future), record.updatedAt],
+    [workspaceId, record.siteId, JSON.stringify(record.draft), JSON.stringify(record.history), JSON.stringify(record.future), record.historySchemaVersion, record.updatedAt],
   );
 }
 
@@ -295,30 +297,51 @@ async function getPostgresSite(siteId: string) {
   await ensureDatabaseSchema();
   const initial = createRecord(siteId);
   const inserted = await getDatabasePool().query(
-    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, updated_at)
-     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4)
+    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, history_schema_version, updated_at)
+     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4, $5)
      ON CONFLICT (workspace_id, site_id) DO NOTHING
      RETURNING site_id`,
-    [workspaceId, siteId, JSON.stringify(initial.draft), initial.updatedAt],
+    [workspaceId, siteId, JSON.stringify(initial.draft), 3, initial.updatedAt],
   );
   const result = await getDatabasePool().query<SiteRow>(
-    `SELECT site_id, draft, history, future, updated_at
+    `SELECT site_id, draft, history, future, history_schema_version, updated_at
      FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2`,
     [workspaceId, siteId],
   );
   if (!result.rows[0]) throw new Error("Site record could not be read");
-  return snapshot(rowToRecord(result.rows[0]), inserted.rowCount === 1);
+  const record = rowToRecord(result.rows[0]);
+  if (record.historySchemaVersion < 3) {
+    const migrated = migrateSiteHistory({ draft: record.draft, history: record.history, future: record.future, templateIds, siteId });
+    const upgraded: SiteRecord = { ...record, ...migrated, historySchemaVersion: 3, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[] };
+    await getDatabasePool().query(
+      `UPDATE sitecraft_sites SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, history_schema_version = $6, updated_at = $7 WHERE workspace_id = $1 AND site_id = $2`,
+      [workspaceId, siteId, JSON.stringify(upgraded.draft), JSON.stringify(upgraded.history), JSON.stringify(upgraded.future), upgraded.historySchemaVersion, upgraded.updatedAt],
+    );
+    return snapshot(upgraded, inserted.rowCount === 1);
+  }
+  return snapshot(record, inserted.rowCount === 1);
 }
 
 async function peekPostgresSite(siteId: string) {
   safeSiteId(siteId);
   await ensureDatabaseSchema();
   const result = await getDatabasePool().query<SiteRow>(
-    `SELECT site_id, draft, history, future, updated_at
+    `SELECT site_id, draft, history, future, history_schema_version, updated_at
      FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2`,
     [workspaceId, siteId],
   );
-  return result.rows[0] ? snapshot(rowToRecord(result.rows[0]), false) : null;
+  if (!result.rows[0]) return null;
+  const record = rowToRecord(result.rows[0]);
+  if (record.historySchemaVersion < 3) {
+    const migrated = migrateSiteHistory({ draft: record.draft, history: record.history, future: record.future, templateIds, siteId });
+    const upgraded: SiteRecord = { ...record, ...migrated, historySchemaVersion: 3, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[] };
+    await getDatabasePool().query(
+      `UPDATE sitecraft_sites SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, history_schema_version = $6, updated_at = $7 WHERE workspace_id = $1 AND site_id = $2`,
+      [workspaceId, siteId, JSON.stringify(upgraded.draft), JSON.stringify(upgraded.history), JSON.stringify(upgraded.future), upgraded.historySchemaVersion, upgraded.updatedAt],
+    );
+    return snapshot(upgraded, false);
+  }
+  return snapshot(record, false);
 }
 
 async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult> {
@@ -428,8 +451,8 @@ async function listLocalSites(): Promise<SiteListItem[]> {
 
 async function listPostgresSites(): Promise<SiteListItem[]> {
   await ensureDatabaseSchema();
-  const result = await getDatabasePool().query<{ site_id: string; draft: unknown; updated_at: Date }>(
-    `SELECT site_id, draft, updated_at FROM sitecraft_sites WHERE workspace_id = $1`,
+  const result = await getDatabasePool().query<{ site_id: string; draft: unknown; history_schema_version: number; updated_at: Date }>(
+    `SELECT site_id, draft, history_schema_version, updated_at FROM sitecraft_sites WHERE workspace_id = $1`,
     [workspaceId],
   );
   return result.rows
@@ -438,6 +461,7 @@ async function listPostgresSites(): Promise<SiteListItem[]> {
       draft: row.draft,
       history: [],
       future: [],
+      history_schema_version: row.history_schema_version,
       updated_at: row.updated_at,
     }), false)))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));

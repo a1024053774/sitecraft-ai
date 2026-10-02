@@ -2,6 +2,7 @@ import { z } from "zod";
 import { siteDraftSchema } from "@/lib/site-document";
 import { siteOperationSchema } from "@/lib/site-operations";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
+import { SiteMigrationError, assertStableItemIds } from "@/lib/site-migration";
 import { describeUserError, userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
@@ -15,20 +16,31 @@ const updateSchema = z.object({
 
 export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
-  return Response.json(await getSite(siteId), { headers: { "Cache-Control": "no-store" } });
+  try {
+    return Response.json(await getSite(siteId), { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (error instanceof SiteMigrationError) return Response.json(userErrorPayload({ code: error.code }), { status: 422 });
+    throw error;
+  }
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+  const { siteId } = await params;
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
-  for (const operation of parsed.data.operations) {
-    if (operation.op === "replace_draft") {
-      const validDraft = siteDraftSchema.safeParse(operation.draft);
-      if (!validDraft.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
-      operation.draft = validDraft.data;
+  try {
+    for (const operation of parsed.data.operations) {
+      if (operation.op === "replace_draft") {
+        assertStableItemIds(operation.draft, siteId);
+        const validDraft = siteDraftSchema.safeParse(operation.draft);
+        if (!validDraft.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
+        operation.draft = validDraft.data;
+      }
     }
+  } catch (error) {
+    if (error instanceof SiteMigrationError) return Response.json(userErrorPayload({ code: error.code }), { status: 422 });
+    throw error;
   }
-  const { siteId } = await params;
   try {
     const result = await commitOperations({ siteId, ...parsed.data });
     if (result.status === "conflict") {
@@ -42,6 +54,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ site
       ...snapshot(result.record),
     });
   } catch (error) {
+    if (error instanceof SiteMigrationError) return Response.json(userErrorPayload({ code: error.code }), { status: 422 });
     const description = describeUserError({ code: "operation_error" });
     return Response.json({ error: description.code, userMessage: description.message, recovery: description.recovery }, { status: 422 });
   }
