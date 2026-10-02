@@ -2,7 +2,7 @@
 id: T-069
 title: 卡片和产品按稳定 id 寻址
 type: build
-status: open
+status: closed
 blocked_by: [T-067]
 claimed_by: codex-build
 supersedes:
@@ -21,7 +21,7 @@ supersedes:
 
 - [x] 测试先写、改动前先失败：选中第 2 张卡后删掉第 1 张，再按选中目标修改，改到的是原来那张；改了产品型号后，按原选中目标修改，改到的是同一个产品
 - [x] 旧草稿（只有 sku、卡片按序号）读入后能正常预览、点选、修改、撤销
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；`check-published` 三份资料中英文三档通过；代码审查通过；Claude 验收
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；`check-published` 三份资料中英文三档通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -68,4 +68,6 @@ Astra NO_GO rework 已处理：旧文件记录的 history/future 在读入时按
 
 - [x] 测试先写、改动前先失败：选中第 2 张卡后删掉第 1 张，再按选中目标修改，改到的是原来那张；改了产品型号后，按原选中目标修改，改到的是同一个产品
 - [x] 旧草稿（只有 sku、卡片按序号）读入后能正常预览、点选、修改、撤销
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；`check-published` 三份资料中英文三档通过；代码审查通过；Claude 验收
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；`check-published` 三份资料中英文三档通过；代码审查通过；Claude 验收
+
+独立审核与验收（2026-10-02 EDT）：Astra（gpt-6-astra）四轮审查，前三轮 NO_GO（旧 history 未迁移、预览桥按序号/sku 的第二条路径、id 冲突、点号与长度、迁移版本、重复 SKU、各入口错误传播），第四轮 PASS（`artifacts/review-astra-t069.md`，候选 `118d707`）。第三轮后 supervisor 收窄范围：本机 4814 条记录里点号 id、点号 SKU、重复 SKU 均为 0，不为这些不存在的旧数据形态铺贯穿 SSE/列表/Postgres 的 422 通道，改为抛带 siteId/字段/旧值的 `SiteMigrationError` 走通用错误路径。export 基线站第一次 `check-published` 因 Chrome 超时失败（证据保留），supervisor 在 `15660a8` 上重跑通过，最终轮三站全部通过。未实测：Postgres 存储（本阶段 Docker 不在线，仅单元/静态验证）。Claude 验收关闭。
