@@ -25,7 +25,7 @@ supersedes:
 
 ## Resolution
 
-2026-10-02 16:01:14 EDT（America/New_York），Astra NO_GO rework 已完成，修复提交 SHA 在本次本地提交后回填；本票未 push，代码审查和 Claude 验收留给后续实例。
+2026-10-02 16:01:14 EDT（America/New_York），Astra NO_GO rework 已完成，修复提交为本地 `1e3805e`（`fix: migrate legacy item targets and harden stable ids (T-069)`）；本票未 push，代码审查和 Claude 验收留给后续实例。
 
 红色证据先于实现运行：
 
