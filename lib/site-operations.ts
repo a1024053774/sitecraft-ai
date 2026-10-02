@@ -612,8 +612,13 @@ function migrateHistoricalOperations(raw: unknown[], draft: SiteDraft) {
 function migrateHistoricalTarget(target: string, draft: SiteDraft) {
   const card = /^(features|services|faq)\.items\.(\d+)(\..+)$/.exec(target);
   if (card) return `${card[1]}.items.${cardIdAt(draft, card[1] as "features" | "services" | "faq", Number(card[2]))}${card[3]}`;
-  const product = /^products\.([^.]+)(\..+)$/.exec(target);
-  if (product) return `products.${productIdForSku(draft, product[1])}${product[2]}`;
+  if (target.startsWith("products.")) {
+    const rest = target.slice("products.".length);
+    const match = [...draft.products]
+      .filter((product) => rest.startsWith(`${product.sku}.`))
+      .sort((a, b) => b.sku.length - a.sku.length)[0];
+    if (match?.id) return `products.${match.id}${rest.slice(match.sku.length)}`;
+  }
   return target;
 }
 
