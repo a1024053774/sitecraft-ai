@@ -169,6 +169,24 @@ test("compact prompt context keeps the effective block order without losing cont
   assert.match(context, /sections/);
 });
 
+test("model reorder output drops unknown blocks, fills the rest, and explains the drop", async () => {
+  const result = await ask(packDraft("industrial"), "把认证放到产品前面", {
+    type: "edit",
+    summary: "调整区块顺序",
+    operations: [{ op: "reorder_sections", order: ["certifications", "unknown", "products"] }],
+  });
+  assert.equal(result.ok, true);
+  if (result.ok && result.type === "edit") {
+    const operation = result.operations.find((item) => item.op === "reorder_sections");
+    assert.ok(operation && operation.order !== null);
+    if (operation && operation.order !== null) {
+      assert.equal((operation.order as string[]).includes("unknown"), false);
+      assert.equal(operation.order.length, 7);
+    }
+    assert.match(result.summary, /忽略未知项：unknown/);
+  }
+});
+
 test("catalog look exposes the block layout menu", async () => {
   await ask({ ...structuredClone(defaultDraft), templateId: "landwind" }, "看看现在的页面", { type: "answer", text: "ok" });
   const system = lastMessage("system");

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { blockCatalog, layoutBlocks, type BlockId, type BlockLook } from "./blocks/catalog.ts";
+import { effectiveBlockOrder } from "./blocks/order.ts";
 import { blockLookForTemplate } from "./blocks/looks/index.ts";
 import { checkVariantRequirements } from "./blocks/requirements.ts";
 import { normalizeSiteStyle, siteStyleDirectionSchema, siteStyleRuleSchema, validateSiteStyleRules } from "./blocks/site-style.ts";
@@ -270,6 +271,16 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
 ]);
 export type SiteOperation = z.infer<typeof siteOperationSchema>;
 export type AIOperation = z.infer<typeof aiOperationSchema>;
+
+/** Filter an untrusted reorder payload before a schema or commit boundary. */
+export function sanitizeReorderSectionsInput(input: unknown): { operation: unknown; dropped: string[] } {
+  if (!input || typeof input !== "object" || (input as { op?: unknown }).op !== "reorder_sections") return { operation: input, dropped: [] };
+  const rawOrder = (input as { order?: unknown }).order;
+  if (!Array.isArray(rawOrder)) return { operation: input, dropped: [] };
+  const dropped = rawOrder.filter((item): item is string => typeof item === "string" && !(movableBlockIds as readonly string[]).includes(item));
+  const order = rawOrder.filter((item): item is string => typeof item === "string" && (movableBlockIds as readonly string[]).includes(item));
+  return { operation: { ...(input as Record<string, unknown>), order }, dropped };
+}
 
 /** How many operations one model answer may carry (T-053: 24, up from 20). */
 export const MAX_AI_OPERATIONS = 24;
@@ -852,12 +863,14 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "reorder_sections") {
-      if (new Set(operation.order ?? []).size !== (operation.order ?? []).length) throw new Error("区块顺序不能重复");
+      const sanitized = sanitizeReorderSectionsInput(operation).operation as typeof operation;
+      const nextOrder = sanitized.order;
+      if (new Set(nextOrder ?? []).size !== (nextOrder ?? []).length) throw new Error("区块顺序不能重复");
       const previous = draft.sectionOrder ? [...draft.sectionOrder] : null;
-      if (same(previous, operation.order)) continue;
+      if (same(previous, nextOrder)) continue;
       inverseOperations.unshift({ op: "reorder_sections", order: previous });
-      if (operation.order === null || operation.order.length === 0) delete draft.sectionOrder;
-      else draft.sectionOrder = [...operation.order];
+      if (nextOrder === null || nextOrder.length === 0) delete draft.sectionOrder;
+      else draft.sectionOrder = [...nextOrder];
       appliedTargets.push("sectionOrder");
       continue;
     }
@@ -1114,6 +1127,22 @@ export function validateAIOperations(
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
   for (const rawOperation of operations) {
     const operation = cleanVisitorProse(rawOperation);
+    if (operation.op === "reorder_sections") {
+      const sanitized = sanitizeReorderSectionsInput(operation);
+      const dropped = [...sanitized.dropped, ...(((operation as unknown as { __droppedOrderKeys?: unknown }).__droppedOrderKeys as string[] | undefined) ?? [])];
+      let normalized = sanitized.operation as typeof operation;
+      if (dropped.length) notes.push(`区块顺序中忽略未知项：${dropped.join("、")}。`);
+      if (draft && normalized.order !== null) {
+        const look = blockLookForTemplate(draft.templateId);
+        if (look) {
+          const resolved = effectiveBlockOrder({ ...draft, sectionOrder: normalized.order ?? undefined }, look)
+            .filter((block): block is (typeof movableBlockIds)[number] => (movableBlockIds as readonly string[]).includes(block));
+          normalized = { ...normalized, order: resolved } as typeof operation;
+        }
+      }
+      accepted.push(normalized);
+      continue;
+    }
     if (operation.op === "set_site_style") {
       const checked = validateSiteStyleRules(operation.rules);
       if (!checked.ok) {

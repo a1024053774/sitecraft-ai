@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { siteDraftSchema } from "@/lib/site-document";
-import { siteOperationSchema } from "@/lib/site-operations";
+import { sanitizeReorderSectionsInput, siteOperationSchema } from "@/lib/site-operations";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
 import { describeUserError, userErrorPayload } from "@/lib/user-errors";
 
@@ -19,7 +19,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
-  const parsed = updateSchema.safeParse(await request.json().catch(() => null));
+  const raw = await request.json().catch(() => null) as Record<string, unknown> | null;
+  const sanitized = raw && Array.isArray(raw.operations)
+    ? { ...raw, operations: raw.operations.map((operation) => sanitizeReorderSectionsInput(operation).operation) }
+    : raw;
+  const parsed = updateSchema.safeParse(sanitized);
   if (!parsed.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
   for (const operation of parsed.data.operations) {
     if (operation.op === "replace_draft") {
