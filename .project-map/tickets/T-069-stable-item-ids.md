@@ -25,7 +25,7 @@ supersedes:
 
 ## Resolution
 
-2026-10-02 16:01:14 EDT（America/New_York），Astra NO_GO rework 已完成，修复提交为本地 `1e3805e`（`fix: migrate legacy item targets and harden stable ids (T-069)`）；本票未 push，代码审查和 Claude 验收留给后续实例。
+2026-10-02 16:01:14 EDT（America/New_York），Astra NO_GO rework 已完成，主修复提交为本地 `1e3805e`，随后补充 dotted legacy SKU target 修复提交 `55d9712`；本票未 push，代码审查和 Claude 验收留给后续实例。
 
 红色证据先于实现运行：
 
@@ -62,7 +62,7 @@ Astra NO_GO rework 已处理：旧文件记录的 history/future 在读入时按
 
 本次 rework 红测均在 `fc4f1cf` 临时 worktree 上跑出失败并保存：`artifacts/t069/red-rework-history.txt`、`red-rework-selection.txt`、`red-rework-gateway.txt`、`red-rework-conflicts.txt`；临时 worktree 已移除，`git worktree list` 中没有本票创建的记录。修复后的 `tests/stable-item-ids-rework.test.ts` 8/8 通过，覆盖旧 history/future undo→redo、三 sentinel、bridge `sitecraft:select` → selectedTarget、replace_draft、缺 id missing、显式 id 冲突和点号/最大长度边界。
 
-最终证据：`artifacts/t069/typecheck-rework-final2.txt`、`npm-test-rework-final2.txt`（545/545）、`build-rework-final.txt`，以及 `artifacts/t069/check-published-rework/{industrial,export,molding}/report.json`；三份报告的中文/英文 1440、768、375 failures 均为空。P1/P2 修复还同步更新了 `CONTEXT.md`、`docs/project/spec.md`，MAP 的 Living docs Verified 在修复提交后回填。
+最终证据：`artifacts/t069/typecheck-rework-final3.txt`、`npm-test-rework-final3.txt`（545/545）、`build-rework-final3.txt`，以及 `artifacts/t069/check-published-rework-final/{industrial,export,molding}/report.json`；三份报告的中文/英文 1440、768、375 failures 均为空。P1/P2 修复还同步更新了 `CONTEXT.md`、`docs/project/spec.md`，MAP 的 Living docs Verified 已回填到 `55d9712`。
 
 - [x] 测试先写、改动前先失败：选中第 2 张卡后删掉第 1 张，再按选中目标修改，改到的是原来那张；改了产品型号后，按原选中目标修改，改到的是同一个产品
 - [x] 旧草稿（只有 sku、卡片按序号）读入后能正常预览、点选、修改、撤销
