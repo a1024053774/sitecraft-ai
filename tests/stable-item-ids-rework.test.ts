@@ -23,10 +23,32 @@ registerHooks({
 });
 
 const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
-const { getSite, moveHistory } = await import("../lib/site-store.ts");
+const { getSite, migratePostgresRecordIfNeeded, moveHistory } = await import("../lib/site-store.ts");
 
 const options = { templateIds: new Set(["forge", "screwfast"]), lastChange: "T-069 rework" };
 const text = (value: string) => ({ zh: value, en: value });
+
+test("Postgres history migration persists only records below schema version 3", async () => {
+  const record = {
+    siteId: "t069-postgres-gateway",
+    draft: normalizeDraft(defaultDraft, { siteId: "t069-postgres-gateway" }),
+    history: [],
+    future: [],
+    historySchemaVersion: 2,
+    updatedAt: new Date().toISOString(),
+  };
+  let writes = 0;
+  const upgraded = await migratePostgresRecordIfNeeded(record, async (saved) => {
+    writes += 1;
+    assert.equal(saved.historySchemaVersion, 3);
+  });
+  assert.equal(upgraded.historySchemaVersion, 3);
+  assert.equal(writes, 1);
+  await migratePostgresRecordIfNeeded(upgraded, async () => {
+    writes += 1;
+  });
+  assert.equal(writes, 1);
+});
 
 test("three card sentinels keep the selected middle card after deleting the first", () => {
   const draft = structuredClone(defaultDraft);
@@ -278,6 +300,60 @@ test("missing SKU in a legacy applied target reports a migration error", async (
   await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
   try {
     await assert.rejects(() => getSite(siteId), new RegExp(`site=${siteId}.*MISSING`));
+  } finally {
+    await unlink(recordPath).catch(() => {});
+  }
+});
+
+test("legacy add/remove aggregate targets migrate from card indexes to stable ids", async () => {
+  const siteId = `t069-aggregate-targets-${Date.now().toString(36)}`;
+  const recordPath = path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
+  const draft = structuredClone(defaultDraft);
+  const added = { id: "aggregate-added", title: text("新增"), body: text("新增") };
+  draft.content.services.items = [
+    { id: "aggregate-first", title: text("第一张"), body: text("第一张") },
+    { id: "aggregate-third", title: text("第三张"), body: text("第三张") },
+  ];
+  const raw = {
+    siteId,
+    draft,
+    historySchemaVersion: 2,
+    history: [
+      {
+        id: "aggregate-add",
+        baseRevision: 0,
+        revision: 1,
+        summary: "旧 add",
+        source: "manual",
+        operations: [{ op: "add_card", section: "services", index: 1, item: added }],
+        inverseOperations: [{ op: "remove_card", section: "services", itemId: added.id }],
+        appliedTargets: ["services.items.1"],
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: "aggregate-remove",
+        baseRevision: 1,
+        revision: 2,
+        summary: "旧 remove",
+        source: "manual",
+        operations: [{ op: "remove_card", section: "services", itemId: added.id }],
+        inverseOperations: [{ op: "add_card", section: "services", index: 1, item: added }],
+        appliedTargets: ["services.items.1"],
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    future: [],
+    updatedAt: new Date().toISOString(),
+  };
+  await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
+  await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
+  try {
+    await getSite(siteId);
+    const persisted = JSON.parse(await (await import("node:fs/promises")).readFile(recordPath, "utf8"));
+    assert.deepEqual(persisted.history.map((change: { appliedTargets: string[] }) => change.appliedTargets), [
+      ["services.items.aggregate-added"],
+      ["services.items.aggregate-added"],
+    ]);
   } finally {
     await unlink(recordPath).catch(() => {});
   }

@@ -258,6 +258,29 @@ function rowToRecord(row: SiteRow): SiteRecord {
   };
 }
 
+export async function migratePostgresRecordIfNeeded(
+  record: SiteRecord,
+  persist: (record: SiteRecord) => Promise<void>,
+) {
+  if (record.historySchemaVersion >= 3) return record;
+  const migrated = migrateSiteHistory({
+    draft: record.draft,
+    history: record.history,
+    future: record.future,
+    templateIds,
+    siteId: record.siteId,
+  });
+  const upgraded: SiteRecord = {
+    ...record,
+    ...migrated,
+    historySchemaVersion: 3,
+    history: migrated.history as ChangeSet[],
+    future: migrated.future as ChangeSet[],
+  };
+  await persist(upgraded);
+  return upgraded;
+}
+
 async function lockPostgresRecord(client: PoolClient, siteId: string) {
   safeSiteId(siteId);
   const initial = createRecord(siteId);
@@ -274,16 +297,10 @@ async function lockPostgresRecord(client: PoolClient, siteId: string) {
   );
   if (!result.rows[0]) throw new Error("Site record could not be created");
   const record = rowToRecord(result.rows[0]);
-  const migrated = migrateSiteHistory({ draft: record.draft, history: record.history, future: record.future, templateIds, siteId });
-  if (record.historySchemaVersion < 3 || migrated.changed || JSON.stringify(migrated.draft) !== JSON.stringify(record.draft)) {
-    const upgraded: SiteRecord = { ...record, ...migrated, historySchemaVersion: 3, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[] };
-    await savePostgresRecord(client, upgraded);
-    return upgraded;
-  }
-  return record;
+  return migratePostgresRecordIfNeeded(record, (upgraded) => savePostgresRecord(client, upgraded));
 }
 
-async function savePostgresRecord(client: PoolClient, record: SiteRecord) {
+async function savePostgresRecord(client: Pick<PoolClient, "query">, record: SiteRecord) {
   await client.query(
     `UPDATE sitecraft_sites
      SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, history_schema_version = $6, updated_at = $7
@@ -310,16 +327,8 @@ async function getPostgresSite(siteId: string) {
   );
   if (!result.rows[0]) throw new Error("Site record could not be read");
   const record = rowToRecord(result.rows[0]);
-  if (record.historySchemaVersion < 3) {
-    const migrated = migrateSiteHistory({ draft: record.draft, history: record.history, future: record.future, templateIds, siteId });
-    const upgraded: SiteRecord = { ...record, ...migrated, historySchemaVersion: 3, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[] };
-    await getDatabasePool().query(
-      `UPDATE sitecraft_sites SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, history_schema_version = $6, updated_at = $7 WHERE workspace_id = $1 AND site_id = $2`,
-      [workspaceId, siteId, JSON.stringify(upgraded.draft), JSON.stringify(upgraded.history), JSON.stringify(upgraded.future), upgraded.historySchemaVersion, upgraded.updatedAt],
-    );
-    return snapshot(upgraded, inserted.rowCount === 1);
-  }
-  return snapshot(record, inserted.rowCount === 1);
+  const migrated = await migratePostgresRecordIfNeeded(record, (upgraded) => savePostgresRecord(getDatabasePool(), upgraded));
+  return snapshot(migrated, inserted.rowCount === 1);
 }
 
 async function peekPostgresSite(siteId: string) {
@@ -332,16 +341,8 @@ async function peekPostgresSite(siteId: string) {
   );
   if (!result.rows[0]) return null;
   const record = rowToRecord(result.rows[0]);
-  if (record.historySchemaVersion < 3) {
-    const migrated = migrateSiteHistory({ draft: record.draft, history: record.history, future: record.future, templateIds, siteId });
-    const upgraded: SiteRecord = { ...record, ...migrated, historySchemaVersion: 3, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[] };
-    await getDatabasePool().query(
-      `UPDATE sitecraft_sites SET draft = $3::jsonb, history = $4::jsonb, future = $5::jsonb, history_schema_version = $6, updated_at = $7 WHERE workspace_id = $1 AND site_id = $2`,
-      [workspaceId, siteId, JSON.stringify(upgraded.draft), JSON.stringify(upgraded.history), JSON.stringify(upgraded.future), upgraded.historySchemaVersion, upgraded.updatedAt],
-    );
-    return snapshot(upgraded, false);
-  }
-  return snapshot(record, false);
+  const migrated = await migratePostgresRecordIfNeeded(record, (upgraded) => savePostgresRecord(getDatabasePool(), upgraded));
+  return snapshot(migrated, false);
 }
 
 async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult> {
@@ -451,20 +452,24 @@ async function listLocalSites(): Promise<SiteListItem[]> {
 
 async function listPostgresSites(): Promise<SiteListItem[]> {
   await ensureDatabaseSchema();
-  const result = await getDatabasePool().query<{ site_id: string; draft: unknown; history_schema_version: number; updated_at: Date }>(
-    `SELECT site_id, draft, history_schema_version, updated_at FROM sitecraft_sites WHERE workspace_id = $1`,
+  const result = await getDatabasePool().query<{ site_id: string; draft: unknown; history: unknown; future: unknown; history_schema_version: number; updated_at: Date }>(
+    `SELECT site_id, draft, history, future, history_schema_version, updated_at FROM sitecraft_sites WHERE workspace_id = $1`,
     [workspaceId],
   );
-  return result.rows
-    .map((row) => toListItem(row.site_id, snapshot(rowToRecord({
+  const items: SiteListItem[] = [];
+  for (const row of result.rows) {
+    const record = rowToRecord({
       site_id: row.site_id,
       draft: row.draft,
-      history: [],
-      future: [],
+      history: row.history,
+      future: row.future,
       history_schema_version: row.history_schema_version,
       updated_at: row.updated_at,
-    }), false)))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
+    });
+    const migrated = await migratePostgresRecordIfNeeded(record, (upgraded) => savePostgresRecord(getDatabasePool(), upgraded));
+    items.push(toListItem(row.site_id, snapshot(migrated, false)));
+  }
+  return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }
 
 async function deleteLocalSiteRecord(siteId: string) {

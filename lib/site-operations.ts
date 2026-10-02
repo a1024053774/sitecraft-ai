@@ -637,8 +637,8 @@ function migrateHistoricalOperations(raw: unknown[], draft: SiteDraft, context: 
 }
 
 function migrateHistoricalTarget(target: string, draft: SiteDraft, context: { siteId?: string | null; changeId?: string }) {
-  const card = /^(features|services|faq)\.items\.(\d+)(\..+)$/.exec(target);
-  if (card) return `${card[1]}.items.${cardIdAt(draft, card[1] as "features" | "services" | "faq", Number(card[2]), context)}${card[3]}`;
+  const card = /^(features|services|faq)\.items\.(\d+)(\..*)?$/.exec(target);
+  if (card) return `${card[1]}.items.${cardIdAt(draft, card[1] as "features" | "services" | "faq", Number(card[2]), context)}${card[3] ?? ""}`;
   if (target.startsWith("products.")) {
     const rest = target.slice("products.".length);
     if (draft.products.some((product) => product.id && rest.startsWith(`${product.id}.`))) return target;

@@ -1,5 +1,4 @@
 export class SiteMigrationError extends Error {
-  readonly code = "site_migration_error";
   readonly siteId: string | null;
   readonly field: string;
   readonly value: string;
@@ -54,4 +53,3 @@ export function assertStableItemIds(raw: unknown, siteId?: string | null) {
     });
   }
 }
-

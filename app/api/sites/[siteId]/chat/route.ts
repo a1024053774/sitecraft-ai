@@ -27,7 +27,6 @@ import {
 } from "@/lib/conversation-store";
 import { commitOperations, getSite, snapshot } from "@/lib/site-store";
 import { ensureProductIds, visualBriefCatalog, type PaletteId } from "@/lib/site-document";
-import { SiteMigrationError } from "@/lib/site-migration";
 import { templates } from "@/lib/site-model";
 import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
 import { templateAdapters } from "@/lib/template-adapters/registry";
@@ -161,12 +160,7 @@ async function planPromptStart(siteId: string, args: {
     return { ok: true as const, startQuestion: undefined as CurrentQuestion | null | undefined };
   }
   let current;
-  try {
-    current = await getSite(siteId);
-  } catch (error) {
-    if (error instanceof SiteMigrationError) return { ok: false as const, response: Response.json(userErrorPayload({ code: error.code }), { status: 422 }) };
-    throw error;
-  }
+  current = await getSite(siteId);
   if (current.draft.revision !== args.baseRevision) {
     return {
       ok: false as const,
@@ -284,12 +278,7 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     return;
   }
   let current;
-  try {
-    current = await getSite(siteId);
-  } catch (error) {
-    if (error instanceof SiteMigrationError) return Response.json(userErrorPayload({ code: error.code }), { status: 422 });
-    throw error;
-  }
+  current = await getSite(siteId);
   const uploadedImage = pending?.imageId ? await readSiteImage(siteId, pending.imageId) : null;
   if (pending?.imageId && !uploadedImage) throw new Error("待继续的产品图不存在，请重新上传后再试。");
   // Plan on the look and colour set picked in the card, applied in memory only: the model then gets
@@ -407,12 +396,7 @@ async function recoverCommittedProposal(siteId: string, conversation: Conversati
   const proposal = alignment.proposedChange;
   if (!alignment.confirmClaimed || alignment.lastResult || !proposal) return conversation;
   let current;
-  try {
-    current = await getSite(siteId);
-  } catch (error) {
-    if (error instanceof SiteMigrationError) return Response.json(userErrorPayload({ code: error.code }), { status: 422 });
-    throw error;
-  }
+  current = await getSite(siteId);
   const receipt = current.history.find((change) => change.id === proposal.questionId);
   if (!receipt) return conversation;
   return updateConversationAlignment(siteId, conversation.conversationId, (record) => {
@@ -675,12 +659,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     return Response.json({ error: description.code, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery, details: parsed.error.flatten() }, { status: 400 });
   }
   let current;
-  try {
-    current = await getSite(siteId);
-  } catch (error) {
-    if (error instanceof SiteMigrationError) return Response.json(userErrorPayload({ code: error.code }), { status: 422 });
-    throw error;
-  }
+  current = await getSite(siteId);
   if (current.draft.revision !== parsed.data.baseRevision) {
     const description = describeUserError({ code: "revision_conflict" });
     return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery, ...current }, { status: 409 });

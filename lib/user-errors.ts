@@ -140,12 +140,6 @@ const catalog: Record<string, UserErrorDescription> = {
     nextStep: "稍后读取草稿或收件箱确认状态，不要根据按钮结果猜测已保存。",
     recovery: "read_back_then_retry",
   },
-  site_migration_error: {
-    code: "site_migration_error",
-    message: "旧站点资料无法安全迁移，当前草稿没有改动。",
-    nextStep: "请联系管理员处理这份旧站点记录；系统没有丢弃或覆盖原始资料。",
-    recovery: "contact_admin_for_migration",
-  },
   network_error: {
     code: "network_error",
     message: "网络连接中断，当前操作结果需要回读确认。",

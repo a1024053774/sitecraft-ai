@@ -1,5 +1,4 @@
 import { SiteDeleteError, deleteSiteByUserChoice } from "@/lib/site-delete";
-import { SiteMigrationError } from "@/lib/site-migration";
 import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
@@ -19,7 +18,6 @@ export async function DELETE(
       const code = error.code === "not_found" ? "site_not_found" : "delete_unconfirmed";
       return Response.json(userErrorPayload({ code }), { status });
     }
-    if (error instanceof SiteMigrationError) return Response.json(userErrorPayload({ code: error.code }), { status: 422 });
     if (error instanceof Error && error.message === "Invalid site id") {
       return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
     }
