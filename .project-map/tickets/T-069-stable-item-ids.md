@@ -25,7 +25,7 @@ supersedes:
 
 ## Resolution
 
-2026-10-02 15:04:55 EDT（America/New_York），基于实施前提交 `c18ac3e2ab5beb655795ac7d1eedb7994f4d7b1a` 完成本票；本地提交 SHA 在提交后由最终汇报核对。本票未 push，代码审查和 Claude 验收留给后续实例。
+2026-10-02 15:04:55 EDT（America/New_York），实现提交为本地 `fc4f1cf`（`fix: use stable ids for preview item targets (T-069)`）；本票未 push，代码审查和 Claude 验收留给后续实例。MAP 的 Living docs Verified 已同步到该提交。
 
 红色证据先于实现运行：
 
