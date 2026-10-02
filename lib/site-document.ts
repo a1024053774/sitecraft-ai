@@ -22,6 +22,8 @@ export const localizedTextSchema = z.object({
 });
 export type LocalizedText = z.infer<typeof localizedTextSchema>;
 
+export const stableItemIdSchema = z.string().regex(/^[A-Za-z0-9_-]+$/).max(80);
+
 const HAN_OR_FULLWIDTH_RE = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/;
 export function hasHan(value: string): boolean {
   return HAN_OR_FULLWIDTH_RE.test(value);
@@ -159,7 +161,7 @@ export const visualBriefCatalog: VisualBrief[] = [
 ];
 
 export const editableCardSchema = z.object({
-  id: z.string().min(1).max(80),
+  id: stableItemIdSchema,
   title: localizedTextSchema,
   body: localizedTextSchema,
 });
@@ -182,7 +184,7 @@ export type ProductSpecParameter = z.infer<typeof productSpecParameterSchema>;
 
 export const productSchema = z.object({
   /** Stable identity for addressing a product; absent only on pre-T-069 drafts. */
-  id: z.string().min(1).max(120).optional(),
+  id: stableItemIdSchema.optional(),
   sku: z.string().min(1).max(120),
   name: localizedTextSchema,
   summary: localizedTextSchema,
@@ -211,9 +213,16 @@ export function productStableId(product: Pick<Product, "sku">, index: number) {
 }
 
 export function ensureProductIds(products: readonly Product[]): Product[] {
-  const used = new Set<string>();
+  const explicit = new Set<string>();
+  for (const product of products) {
+    if (!product.id) continue;
+    if (explicit.has(product.id)) throw new Error(`Duplicate product id ${product.id}`);
+    explicit.add(product.id);
+  }
+  const used = new Set(explicit);
   return products.map((product, index) => {
-    let id = product.id && !used.has(product.id) ? product.id : productStableId(product, index);
+    if (product.id) return product;
+    let id = productStableId(product, index);
     let suffix = 1;
     while (used.has(id)) id = `${productStableId(product, index)}-${suffix++}`;
     used.add(id);

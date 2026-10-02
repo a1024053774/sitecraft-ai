@@ -19,13 +19,13 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 测试先写、改动前先失败：选中第 2 张卡后删掉第 1 张，再按选中目标修改，改到的是原来那张；改了产品型号后，按原选中目标修改，改到的是同一个产品
-- [ ] 旧草稿（只有 sku、卡片按序号）读入后能正常预览、点选、修改、撤销
+- [x] 测试先写、改动前先失败：选中第 2 张卡后删掉第 1 张，再按选中目标修改，改到的是原来那张；改了产品型号后，按原选中目标修改，改到的是同一个产品
+- [x] 旧草稿（只有 sku、卡片按序号）读入后能正常预览、点选、修改、撤销
 - [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；`check-published` 三份资料中英文三档通过；代码审查通过；Claude 验收
 
 ## Resolution
 
-2026-10-02 15:04:55 EDT（America/New_York），实现提交为本地 `fc4f1cf`（`fix: use stable ids for preview item targets (T-069)`）；本票未 push，代码审查和 Claude 验收留给后续实例。MAP 的 Living docs Verified 已同步到该提交。
+2026-10-02 16:01:14 EDT（America/New_York），Astra NO_GO rework 已完成，修复提交 SHA 在本次本地提交后回填；本票未 push，代码审查和 Claude 验收留给后续实例。
 
 红色证据先于实现运行：
 
@@ -57,6 +57,12 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 ```
 
 三份 `report.json` 的中文/英文 1440、768、375 failures 均为空。产品稳定 id 和卡片稳定寻址已同步到 `CONTEXT.md`、`docs/project/spec.md`；提交后 MAP 的两行 Living docs Verified 会更新为本票提交 SHA。
+
+Astra NO_GO rework 已处理：旧文件记录的 history/future 在读入时按对应草稿状态迁移卡片 index、产品 SKU、inverseOperations 和 appliedTargets，写入 `historySchemaVersion: 2` 后持久化；Postgres 锁读也在迁移后保存，undo/redo 只运行新 schema。产品补 id 只由草稿读入、operation/`replace_draft` 入口保证，预览桥缺 id 直接 missing，不再按位置和 SKU 推导地址。补 id 先预留所有显式 id，重复显式 id 拒绝；卡片和产品 id 限制为安全字符且最长 80，selectedTarget/API 上限统一为 200。
+
+本次 rework 红测均在 `fc4f1cf` 临时 worktree 上跑出失败并保存：`artifacts/t069/red-rework-history.txt`、`red-rework-selection.txt`、`red-rework-gateway.txt`、`red-rework-conflicts.txt`；临时 worktree 已移除，`git worktree list` 中没有本票创建的记录。修复后的 `tests/stable-item-ids-rework.test.ts` 8/8 通过，覆盖旧 history/future undo→redo、三 sentinel、bridge `sitecraft:select` → selectedTarget、replace_draft、缺 id missing、显式 id 冲突和点号/最大长度边界。
+
+最终证据：`artifacts/t069/typecheck-rework-final2.txt`、`npm-test-rework-final2.txt`（545/545）、`build-rework-final.txt`，以及 `artifacts/t069/check-published-rework/{industrial,export,molding}/report.json`；三份报告的中文/英文 1440、768、375 failures 均为空。P1/P2 修复还同步更新了 `CONTEXT.md`、`docs/project/spec.md`，MAP 的 Living docs Verified 在修复提交后回填。
 
 - [x] 测试先写、改动前先失败：选中第 2 张卡后删掉第 1 张，再按选中目标修改，改到的是原来那张；改了产品型号后，按原选中目标修改，改到的是同一个产品
 - [x] 旧草稿（只有 sku、卡片按序号）读入后能正常预览、点选、修改、撤销

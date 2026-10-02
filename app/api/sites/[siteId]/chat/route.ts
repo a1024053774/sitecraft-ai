@@ -38,7 +38,7 @@ export const runtime = "nodejs";
 const chatSchema = z.object({
   baseRevision: z.number().int().nonnegative(),
   message: z.string().trim().min(1).max(4000),
-  selectedTarget: z.string().max(120).nullable().optional(),
+  selectedTarget: z.string().max(200).nullable().optional(),
   conversationId: z.string().regex(CONVERSATION_ID_PATTERN).nullable().optional(),
 });
 const alignmentSchema = z.object({
@@ -51,7 +51,7 @@ const alignmentSchema = z.object({
   note: z.string().max(500).optional(),
   baseRevision: z.number().int().nonnegative().optional(),
   message: z.string().trim().min(1).max(4000).optional(),
-  selectedTarget: z.string().max(120).nullable().optional(),
+  selectedTarget: z.string().max(200).nullable().optional(),
   imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/).optional(),
 });
 

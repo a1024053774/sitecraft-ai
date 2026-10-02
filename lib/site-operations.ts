@@ -8,6 +8,7 @@ import { stripGapTalkBilingual } from "./visitor-prose.ts";
 import {
   cloneDraft,
   ensureProductIds,
+  normalizeDraft,
   blockIdSchema,
   editableCardSchema,
   locales,
@@ -559,6 +560,114 @@ function productHasReadyEnglish(product: Product): boolean {
     || specsHaveReadyEnglish(product.specs);
 }
 
+type HistoricalChangeInput = {
+  operations: unknown[];
+  inverseOperations: unknown[];
+  appliedTargets: string[];
+  [key: string]: unknown;
+};
+
+function cardIdAt(draft: SiteDraft, section: "features" | "services" | "faq", index: number) {
+  const item = draft.content[section].items[index];
+  if (!item?.id) throw new Error(`Cannot migrate ${section} index ${index}: card id is missing`);
+  return item.id;
+}
+
+function productIdForSku(draft: SiteDraft, sku: string) {
+  const product = draft.products.find((item) => item.sku === sku);
+  if (!product?.id) throw new Error(`Cannot migrate product SKU ${sku}: product id is missing`);
+  return product.id;
+}
+
+function migrateHistoricalOperation(raw: unknown, draft: SiteDraft): SiteOperation {
+  if (!raw || typeof raw !== "object") throw new Error("Cannot migrate malformed historical operation");
+  const operation = raw as Record<string, unknown>;
+  if (operation.op === "update_card" && typeof operation.index === "number" && typeof operation.itemId !== "string") {
+    const { index: _index, ...rest } = operation;
+    return { ...rest, itemId: cardIdAt(draft, operation.section as "features" | "services" | "faq", operation.index) } as SiteOperation;
+  }
+  if (["update_product", "set_product_specs", "set_product_image", "remove_product_image"].includes(String(operation.op))
+    && typeof operation.sku === "string" && typeof operation.productId !== "string") {
+    const { sku: _sku, ...rest } = operation;
+    return { ...rest, productId: productIdForSku(draft, operation.sku) } as SiteOperation;
+  }
+  if (operation.op === "replace_products" && Array.isArray(operation.products)) {
+    const existingBySku = new Map(draft.products.map((product) => [product.sku, product.id]));
+    const products = ensureProductIds((operation.products as Product[]).map((product) => ({
+      ...product,
+      ...(product.id || !existingBySku.get(product.sku) ? {} : { id: existingBySku.get(product.sku) }),
+    })));
+    return { ...operation, products } as SiteOperation;
+  }
+  if (operation.op === "replace_draft" && operation.draft) {
+    return { ...operation, draft: normalizeDraft(operation.draft) } as SiteOperation;
+  }
+  return raw as SiteOperation;
+}
+
+function migrateHistoricalOperations(raw: unknown[], draft: SiteDraft) {
+  return raw.map((operation) => migrateHistoricalOperation(operation, draft));
+}
+
+function migrateHistoricalTarget(target: string, draft: SiteDraft) {
+  const card = /^(features|services|faq)\.items\.(\d+)(\..+)$/.exec(target);
+  if (card) return `${card[1]}.items.${cardIdAt(draft, card[1] as "features" | "services" | "faq", Number(card[2]))}${card[3]}`;
+  const product = /^products\.([^.]+)(\..+)$/.exec(target);
+  if (product) return `products.${productIdForSku(draft, product[1])}${product[2]}`;
+  return target;
+}
+
+function migrateHistoricalTargets(targets: string[], before: SiteDraft, after: SiteDraft, operations: SiteOperation[]) {
+  const targetState = operations.some((operation) => operation.op === "replace_cards" || operation.op === "replace_products" || operation.op === "add_card") ? after : before;
+  return targets.map((target) => migrateHistoricalTarget(target, targetState));
+}
+
+function applyMigrationOperations(draft: SiteDraft, operations: SiteOperation[], templateIds: Set<string>) {
+  return applySiteOperations(draft, operations, { templateIds, lastChange: "迁移旧历史" }).draft;
+}
+
+export function migrateSiteHistory(args: {
+  draft: SiteDraft;
+  history: HistoricalChangeInput[];
+  future: HistoricalChangeInput[];
+  templateIds: Set<string>;
+}) {
+  const current = normalizeDraft(args.draft);
+  let reverseState = current;
+  const history = [...args.history];
+  let changed = false;
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const change = history[index];
+    const inverseOperations = migrateHistoricalOperations(change.inverseOperations, reverseState);
+    const before = applyMigrationOperations(reverseState, inverseOperations, args.templateIds);
+    const operations = migrateHistoricalOperations(change.operations, before);
+    history[index] = {
+      ...change,
+      operations,
+      inverseOperations,
+      appliedTargets: migrateHistoricalTargets(change.appliedTargets, before, reverseState, operations),
+    };
+    reverseState = before;
+    changed = changed || JSON.stringify(change.operations) !== JSON.stringify(operations) || JSON.stringify(change.inverseOperations) !== JSON.stringify(inverseOperations);
+  }
+  let futureState = current;
+  const future = args.future.map((change) => {
+    const before = futureState;
+    const operations = migrateHistoricalOperations(change.operations, before);
+    const after = applyMigrationOperations(before, operations, args.templateIds);
+    const inverseOperations = migrateHistoricalOperations(change.inverseOperations, after);
+    futureState = after;
+    changed = changed || JSON.stringify(change.operations) !== JSON.stringify(operations) || JSON.stringify(change.inverseOperations) !== JSON.stringify(inverseOperations);
+    return {
+      ...change,
+      operations,
+      inverseOperations,
+      appliedTargets: migrateHistoricalTargets(change.appliedTargets, before, after, operations),
+    };
+  });
+  return { draft: current, history, future, changed };
+}
+
 export function applySiteOperations(
   current: SiteDraft,
   operations: SiteOperation[],
@@ -610,6 +719,7 @@ export function applySiteOperations(
       if (same(draft, operation.draft)) continue;
       inverseOperations.unshift({ op: "replace_draft", draft: cloneDraft(draft) });
       draft = cloneDraft(operation.draft);
+      draft.products = ensureProductIds(draft.products);
       appliedTargets.push("draft");
       continue;
     }

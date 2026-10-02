@@ -3,7 +3,7 @@ import path from "node:path";
 import type { PoolClient } from "pg";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "@/lib/postgres";
 import { defaultDraft, normalizeDraft, templates, type SiteDraft } from "@/lib/site-model";
-import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
+import { applySiteOperations, migrateSiteHistory, type SiteOperation } from "@/lib/site-operations";
 import { bindSiteImageOperations } from "@/lib/site-images";
 import { checkSiteStyle } from "@/lib/site-style-check";
 
@@ -26,6 +26,7 @@ export type SiteRecord = {
   draft: SiteDraft;
   history: ChangeSet[];
   future: ChangeSet[];
+  historySchemaVersion: 2;
   updatedAt: string;
 };
 export type SiteSnapshot = {
@@ -57,13 +58,26 @@ function recordPath(siteId: string) {
 async function readRecord(siteId: string): Promise<SiteRecord | null> {
   try {
     const raw = JSON.parse(await readFile(recordPath(siteId), "utf8")) as Partial<SiteRecord>;
-    return {
+    const record = {
       siteId,
       draft: normalizeDraft(raw.draft),
       history: Array.isArray(raw.history) ? raw.history as ChangeSet[] : [],
       future: Array.isArray(raw.future) ? raw.future as ChangeSet[] : [],
+      historySchemaVersion: raw.historySchemaVersion === 2 ? 2 as const : 1,
       updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : new Date().toISOString(),
     };
+    if (record.historySchemaVersion !== 2) {
+      const migrated = migrateSiteHistory({
+        draft: record.draft,
+        history: record.history,
+        future: record.future,
+        templateIds,
+      });
+      const upgraded: SiteRecord = { ...record, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[], historySchemaVersion: 2 };
+      await writeRecord(upgraded);
+      return upgraded;
+    }
+    return record as SiteRecord;
   } catch (error) {
     const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
     if (code === "ENOENT") return null;
@@ -92,7 +106,7 @@ async function withSiteLock<T>(siteId: string, task: () => Promise<T>): Promise<
   }
 }
 function createRecord(siteId: string): SiteRecord {
-  return { siteId, draft: structuredClone(defaultDraft), history: [], future: [], updatedAt: new Date().toISOString() };
+  return { siteId, draft: structuredClone(defaultDraft), history: [], future: [], historySchemaVersion: 2, updatedAt: new Date().toISOString() };
 }
 // A layout put back to its default by this change (T-053) is said in the change's summary, unless
 // the summary already says it (the model path adds it before the commit).
@@ -237,6 +251,7 @@ function rowToRecord(row: SiteRow): SiteRecord {
     draft: normalizeDraft(row.draft),
     history: Array.isArray(row.history) ? row.history as ChangeSet[] : [],
     future: Array.isArray(row.future) ? row.future as ChangeSet[] : [],
+    historySchemaVersion: 2,
     updatedAt: new Date(row.updated_at).toISOString(),
   };
 }
@@ -256,7 +271,14 @@ async function lockPostgresRecord(client: PoolClient, siteId: string) {
     [workspaceId, siteId],
   );
   if (!result.rows[0]) throw new Error("Site record could not be created");
-  return rowToRecord(result.rows[0]);
+  const record = rowToRecord(result.rows[0]);
+  const migrated = migrateSiteHistory({ draft: record.draft, history: record.history, future: record.future, templateIds });
+  if (migrated.changed || JSON.stringify(migrated.draft) !== JSON.stringify(record.draft)) {
+    const upgraded: SiteRecord = { ...record, ...migrated, historySchemaVersion: 2, history: migrated.history as ChangeSet[], future: migrated.future as ChangeSet[] };
+    await savePostgresRecord(client, upgraded);
+    return upgraded;
+  }
+  return record;
 }
 
 async function savePostgresRecord(client: PoolClient, record: SiteRecord) {

@@ -197,7 +197,7 @@ const optionSchema = z.object({
 const pendingRequestSchema = z.object({
   message: z.string().min(1).max(4000),
   baseRevision: z.number().int().nonnegative(),
-  selectedTarget: z.string().max(120).nullable(),
+  selectedTarget: z.string().max(200).nullable(),
   imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/).nullable().optional(),
 });
 const currentQuestionSchema = z.object({

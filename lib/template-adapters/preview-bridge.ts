@@ -34,15 +34,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return typeof target === "string" && target.length > 0;
   }
 
-  function stableProductIdentity(product, index) {
-    if (product && typeof product.id === "string" && product.id) return product.id;
-    var value = String(index) + "\u0000" + String(product && product.sku || "");
-    var hash = 2166136261;
-    for (var i = 0; i < value.length; i++) {
-      hash ^= value.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    return "prod-" + index.toString(36) + "-" + (hash >>> 0).toString(36);
+  function stableProductIdentity(product) {
+    return product && typeof product.id === "string" && product.id ? product.id : null;
   }
 
   function stripLocale(target) {
@@ -201,7 +194,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     });
     for (var i = 0; i < visible.length; i++) {
       var product = visible[i];
-      var productId = stableProductIdentity(product, i);
+      var productId = stableProductIdentity(product);
+      if (!productId) continue;
       var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
       var productName = localize(product.name, locale) || "";
       var productSummary = localize(product.summary, locale) || "";
@@ -302,7 +296,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   // cardSpec options for the grouped layout: showCategory false (the group already names it),
   // titleTag "h4" (the group title is the h3), hideGapSpecs (spec rows without a value are left out).
   function renderCatalogCard(grid, product, index, locale, applied, cardSpec) {
-    var productId = stableProductIdentity(product, index);
+    var productId = stableProductIdentity(product);
+    if (!productId) return;
     var sku = typeof product.sku === "string" ? product.sku : "product-" + index;
     var productName = localize(product.name, locale) || "";
     var productSummary = localize(product.summary, locale) || "";
@@ -504,7 +499,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var names = [];
     for (var i = 0; i < products.length; i++) {
       var product = products[i];
-      var productId = stableProductIdentity(product, i);
+      var productId = stableProductIdentity(product);
+      if (!productId) continue;
       var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
       var productName = localize(product.name, locale) || "";
       var productSummary = localize(product.summary, locale) || "";
