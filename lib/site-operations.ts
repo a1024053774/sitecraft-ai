@@ -42,7 +42,7 @@ import {
   type SiteImageRef,
 } from "./site-document.ts";
 import { customPaletteSchema } from "./custom-brand-color.ts";
-import { SiteMigrationError } from "./site-migration.ts";
+import { SiteMigrationError, assertStableItemIds } from "./site-migration.ts";
 import { rehostPagePlan, resolvePagePlan } from "./template-pages.ts";
 import { canonicalizeOwnedImageUrl, isTemplateStockUrl } from "./site-images.ts";
 
@@ -568,9 +568,16 @@ type HistoricalChangeInput = {
   [key: string]: unknown;
 };
 
-function cardIdAt(draft: SiteDraft, section: "features" | "services" | "faq", index: number) {
+function cardIdAt(draft: SiteDraft, section: "features" | "services" | "faq", index: number, context: { siteId?: string | null; changeId?: string } = {}) {
   const item = draft.content[section].items[index];
-  if (!item?.id) throw new Error(`Cannot migrate ${section} index ${index}: card id is missing`);
+  if (!item?.id) {
+    throw new SiteMigrationError({
+      siteId: context.siteId,
+      field: `history.${context.changeId ?? "unknown"}.cardTarget`,
+      value: `${section}[${index}]`,
+      reason: "卡片序号没有唯一对应的稳定 id",
+    });
+  }
   return item.id;
 }
 
@@ -592,7 +599,7 @@ function migrateHistoricalOperation(raw: unknown, draft: SiteDraft, context: { s
   const operation = raw as Record<string, unknown>;
   if (operation.op === "update_card" && typeof operation.index === "number" && typeof operation.itemId !== "string") {
     const { index: _index, ...rest } = operation;
-    return { ...rest, itemId: cardIdAt(draft, operation.section as "features" | "services" | "faq", operation.index) } as SiteOperation;
+    return { ...rest, itemId: cardIdAt(draft, operation.section as "features" | "services" | "faq", operation.index, context) } as SiteOperation;
   }
   if (["update_product", "set_product_specs", "set_product_image", "remove_product_image"].includes(String(operation.op))
     && typeof operation.sku === "string" && typeof operation.productId !== "string") {
@@ -600,7 +607,19 @@ function migrateHistoricalOperation(raw: unknown, draft: SiteDraft, context: { s
     return { ...rest, productId: productIdForSku(draft, operation.sku, context) } as SiteOperation;
   }
   if (operation.op === "replace_products" && Array.isArray(operation.products)) {
-    const existingBySku = new Map(draft.products.map((product) => [product.sku, product.id]));
+    const existingBySku = new Map<string, string>();
+    for (const product of draft.products) {
+      const previous = existingBySku.get(product.sku);
+      if (previous) {
+        throw new SiteMigrationError({
+          siteId: context.siteId,
+          field: `history.${context.changeId ?? "unknown"}.replace_products.sku`,
+          value: product.sku,
+          reason: "SKU 匹配多个产品",
+        });
+      }
+      if (product.id) existingBySku.set(product.sku, product.id);
+    }
     const products = ensureProductIds((operation.products as Product[]).map((product) => ({
       ...product,
       ...(product.id || !existingBySku.get(product.sku) ? {} : { id: existingBySku.get(product.sku) }),
@@ -619,13 +638,22 @@ function migrateHistoricalOperations(raw: unknown[], draft: SiteDraft, context: 
 
 function migrateHistoricalTarget(target: string, draft: SiteDraft, context: { siteId?: string | null; changeId?: string }) {
   const card = /^(features|services|faq)\.items\.(\d+)(\..+)$/.exec(target);
-  if (card) return `${card[1]}.items.${cardIdAt(draft, card[1] as "features" | "services" | "faq", Number(card[2]))}${card[3]}`;
+  if (card) return `${card[1]}.items.${cardIdAt(draft, card[1] as "features" | "services" | "faq", Number(card[2]), context)}${card[3]}`;
   if (target.startsWith("products.")) {
     const rest = target.slice("products.".length);
+    if (draft.products.some((product) => product.id && rest.startsWith(`${product.id}.`))) return target;
     const match = [...draft.products]
       .filter((product) => rest.startsWith(`${product.sku}.`))
       .sort((a, b) => b.sku.length - a.sku.length)[0];
-    if (match) return `products.${productIdForSku(draft, match.sku, context)}${rest.slice(match.sku.length)}`;
+    if (!match) {
+      throw new SiteMigrationError({
+        siteId: context.siteId,
+        field: `history.${context.changeId ?? "unknown"}.productTarget`,
+        value: rest.split(".")[0] ?? rest,
+        reason: "SKU 没有唯一匹配的产品",
+      });
+    }
+    return `products.${productIdForSku(draft, match.sku, context)}${rest.slice(match.sku.length)}`;
   }
   return target;
 }
@@ -689,6 +717,7 @@ export function applySiteOperations(
   operations: SiteOperation[],
   options: { templateIds: Set<string>; lastChange: string; siteId?: string },
 ): ApplyResult {
+  assertStableItemIds(current, options.siteId);
   let draft = cloneDraft(current);
   draft.products = ensureProductIds(draft.products);
   const inverseOperations: SiteOperation[] = [];
@@ -732,6 +761,7 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "replace_draft") {
+      assertStableItemIds(operation.draft, options.siteId);
       if (same(draft, operation.draft)) continue;
       inverseOperations.unshift({ op: "replace_draft", draft: cloneDraft(draft) });
       draft = cloneDraft(operation.draft);
@@ -1095,6 +1125,7 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "replace_products") {
+      assertStableItemIds({ products: operation.products }, options.siteId);
       const next = ensureProductIds(operation.products).map(normalizeProductSpecs);
       if (same(draft.products, next)) continue;
       const previousEnglishReady = draft.englishReady;

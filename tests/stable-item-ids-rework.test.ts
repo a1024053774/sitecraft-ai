@@ -264,6 +264,25 @@ test("duplicate SKU in a legacy target reports a migration error instead of choo
   }
 });
 
+test("missing SKU in a legacy applied target reports a migration error", async () => {
+  const siteId = `t069-missing-sku-${Date.now().toString(36)}`;
+  const recordPath = path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
+  const draft = structuredClone(defaultDraft) as typeof defaultDraft & { products: Array<Record<string, unknown>> };
+  draft.products = [{ id: "known-product", sku: "KNOWN", name: text("产品"), summary: text("摘要"), category: text("类别"), status: "published", imageColor: "#fff" }];
+  const raw = {
+    siteId, draft, historySchemaVersion: 2,
+    history: [{ id: "missing-target", baseRevision: 1, revision: 2, summary: "missing", source: "manual", operations: [], inverseOperations: [], appliedTargets: ["products.MISSING.name.zh"], createdAt: new Date().toISOString() }],
+    future: [], updatedAt: new Date().toISOString(),
+  };
+  await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
+  await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
+  try {
+    await assert.rejects(() => getSite(siteId), new RegExp(`site=${siteId}.*MISSING`));
+  } finally {
+    await unlink(recordPath).catch(() => {});
+  }
+});
+
 test("legacy dotted item ids fail with a site-specific migration error before defaults can load", async () => {
   const siteId = `t069-dotted-id-${Date.now().toString(36)}`;
   const recordPath = path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
