@@ -9,7 +9,7 @@
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-049](tickets/T-049-roles-2026-09-29.md)，取代 T-033）：负责人只定方向和需求。Claude 规划、验收、整合推送；Codex（`codex-build` 等）和 Sonnet 5.5 子 agent 执行（Kiro 2026-10-01 起不再使用）；Codex Astra 审代码；Codex gpt-6.1-sol 盲评；Grok 做杂活；云端会话在 `cloud/*` 分支做票。
-- 现状（2026-10-01）：工程工业已迁到 SiteCraft 区块库（T-053）：首屏、产品、询盘可按资料换布局（大标题加参数条、按类别分组、参数对比表、联系条），模型按资料选、条件不够时拒绝并说明；盲评总体明显好于旧 overlay。工作台按原型 B 改版（T-052）。DeepSeek 推理预算和截断提示已修（T-061、T-058）。站点样式已做（T-054）：只在用户提外观要求时写，白名单加三档检查；整站生成不写样式（两轮盲评：自动套方向不如不套）。四个生产样子均已迁到区块库并删掉旧 overlay；产品参数值中英双语（T-060），工程工业长标题和公司名按长度缩字号（T-063），草稿区块顺序（T-062）已接入四个样子。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md)，只供追溯。
+- 现状（2026-10-01）：工程工业已迁到 SiteCraft 区块库（T-053）：首屏、产品、询盘可按资料换布局（大标题加参数条、按类别分组、参数对比表、联系条），模型按资料选、条件不够时拒绝并说明；盲评总体明显好于旧 overlay。工作台按原型 B 改版（T-052）。DeepSeek 推理预算和截断提示已修（T-061、T-058）。站点样式已做（T-054）：只在用户提外观要求时写，白名单加三档检查；整站生成不写样式（两轮盲评：自动套方向不如不套）。四个生产样子均已迁到区块库并删掉旧 overlay；产品参数值中英双语（T-060），工程工业长标题和公司名按长度缩字号（T-063），草稿区块顺序（T-062）已接入四个样子，只在用户明说时调整。frontier 已清空，下一步方向待负责人定。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md)，只供追溯。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 

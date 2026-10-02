@@ -2,7 +2,7 @@
 id: T-062
 title: 区块库页面按草稿的区块顺序排
 type: build
-status: open
+status: closed
 blocked_by: [T-054]
 claimed_by: codex-build
 supersedes:
@@ -14,10 +14,10 @@ T-054 计划时发现：区块库页面（工程工业）不读草稿的 `sectio
 
 ## Acceptance
 
-- [ ] 对话「把认证放到产品前面」生效，撤销恢复；工作台预览和访客页一致
-- [ ] 默认顺序的页面和现在逐像素一致
-- [ ] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过；`check-published` 三档通过
-- [ ] 代码审查通过；Claude 验收
+- [x] 对话「把认证放到产品前面」生效，撤销恢复；工作台预览和访客页一致
+- [x] 默认顺序的页面和现在逐像素一致
+- [x] 测试先写、改动前先失败；`npm run typecheck`、`npm test`、`npm run build` 通过；`check-published` 三档通过
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -28,3 +28,7 @@ T-054 计划时发现：区块库页面（工程工业）不读草稿的 `sectio
 - 默认逐像素对照：工程工业 66/66、明亮产品/蓝白目录/灰底短路径各 9/9 零差异；报告目录 `artifacts/t062/{engineering,forge,landwind,tailwind}-default-25acf4b/`，基线为 T-062 开工前 `eb95da0`。
 - 显式顺序发布检查 `artifacts/t062/published-order-25acf4b/` 在中英文三档通过，真实 DOM 顺序断言无失败。
 - 本轮只改模型/提交边界和测试，没有改预览桥或 CSS；因此沿用 `25acf4b` 后生成的默认对照与显式顺序 `check-published` 证据，未重复运行视觉检查。
+
+- 代码审查：Astra 复审 PASS（候选 `63c6bc9`，`artifacts/review-astra-t062.md`）。工作台「改后」截图预览框截止处为 iframe 固定 760px 内部滚动，非高度失同步（`artifacts/t062/workspace-height-*.json`）；默认顺序四个样子逐像素不变。
+
+Claude 验收关闭（2026-10-01）。
