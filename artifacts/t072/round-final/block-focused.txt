@@ -1,0 +1,38 @@
+(node:93457) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-layouts.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ each block gains its no-photo layout, with a user-facing name, a render mode and a materials requirement (3.232166ms)
+✔ requirements follow the materials of the three packs (5.242916ms)
+✔ 大标题加参数条: full-width statement, the key specs in a strip even without a photo, no photo slot (22.601667ms)
+✔ c1: choosing the product comparison table removes the hero parameter strip (11.243916ms)
+✔ 按类别分组: one group per category in material order, cards without a repeated category, no gap rows (8.688125ms)
+✔ 按类别分组 puts products without a category last under a plain label (9.9025ms)
+✔ 参数对比表: series on top, then one row per spec every product has, one column per product (6.827791ms)
+✔ 参数对比表 leaves a spec out of the table when one product has no value for it (4.914208ms)
+✔ 参数对比表 needs 2–4 products sharing at least 3 specs with values (0.650291ms)
+✔ 联系条: one cell per contact line that has a value, the form below (10.831ms)
+✔ the new layouts speak English on the English page (18.278042ms)
+✔ renderer and requirement agree on the three packs (51.256833ms)
+✔ switching the product layout rebuilds the block for the new choice and leaves nothing behind (10.440541ms)
+✔ the new layouts' CSS lets values wrap and never touches the default layouts (1.64875ms)
+✔ c1: changing cards to comparison hides an already mounted statement strip (5.548291ms)
+(node:93458) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-value-breaks.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ product cards break key values and the full spec list only after / + – 、, and the draft keeps its values (28.101458ms)
+✔ the bright product cards use the same separator-only value breaks (8.875458ms)
+✔ the hero nameplate, the statement strip, grouped cards and the comparison table use the same break points (30.303292ms)
+✔ a slash breaks between readable pieces, while units stay whole (4.504125ms)
+✔ a separator before a space or at the end of a value, or a full-width one, is left alone (3.175042ms)
+✔ copying from the page gives the value without the break points (6.462791ms)
+✔ value cells keep words and Chinese runs whole and only force a break inside a piece wider than the cell (3.513958ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 356.62925

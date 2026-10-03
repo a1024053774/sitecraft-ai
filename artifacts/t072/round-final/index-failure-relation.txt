@@ -1,0 +1,42 @@
+T-072 final index failure relation
+test commit: d7394f42563ed4db057a7e95c4541b0df6637208
+T-072 base: 5271eda4c36b19d74575f21c9a1e73c81fd6e1b
+index-table fix: 60bce15f5dd6477a7e6475420bc6fdbaa1e6fc2a
+
+git merge-base --is-ancestor 60bce15 5271eda (exit status expected 1):
+exit=1
+
+files changed by the index-table fix:
+M	lib/blocks/fragments/products.ts
+M	lib/template-adapters/preview-bridge.ts
+M	tests/block-product-index.test.ts
+
+index test result after final T-072 code:
+✔ 型号索引表 is in the catalog with a user-facing name, its own render mode and a 3-product requirement (1.673333ms)
+✔ 型号索引表 needs at least 3 visible products and says so in page words when short (9.87925ms)
+✔ 型号索引表 declares its slots once each and carries no summary node (1.758875ms)
+✔ 型号索引表 renders one row per product with its own first three valued specs and an inquiry link (44.664333ms)
+✔ 型号索引表 does not show the summary: an edit of it is reported missing, not applied (26.592041ms)
+✔ 型号索引表 reads the English draft and keeps a product with fewer specs as a short row (15.886542ms)
+✖ 型号索引表 has no horizontal overflow at 1440, 768 and 375 on two looks (1073.316166ms)
+✔ 型号索引表 rule tokens resolve to a real value on every block look (4.431167ms)
+✔ a layout request for the index table is refused for a 2-product company and recorded for a 5-product one (5.247042ms)
+ℹ tests 9
+ℹ pass 8
+ℹ fail 1
+✖ failing tests:
+✖ 型号索引表 has no horizontal overflow at 1440, 768 and 375 on two looks (1073.316166ms)
+    actual: 10,
+    expected: 5,
+
+T-072 changed files do not include the index fragment/bridge:
+artifacts/t072/round-final/generate.mjs
+lib/alignment-recommendation.ts
+tests/alignment-material-recommendation-t072.test.ts
+tests/alignment-material-route-t072.test.ts
+tests/fixtures/pack-drafts.ts
+tests/pack-drafts-materials-t072.test.ts
+
+workspace browser endpoint at the run:
+COMMAND   PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    18902 luckye   13u  IPv6 0x336d742fc332b43e      0t0  TCP *:3034 (LISTEN)

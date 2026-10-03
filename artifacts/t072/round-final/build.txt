@@ -1,0 +1,49 @@
+npm notice run ai-site-studio@0.1.0 build
+npm notice run next build
+▲ Next.js 16.3.1 (Turbopack)
+✓ Running next.config.ts took 97ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1039ms
+  Running TypeScript ...
+  Finished TypeScript in 6.1s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/12) ...
+  Generating static pages using 9 workers (3/12)
+  Generating static pages using 9 workers (6/12)
+  Generating static pages using 9 workers (9/12)
+✓ Generating static pages using 9 workers (12/12) in 637ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /api/ai/preview-review
+├ ƒ /api/ai/status
+├ ƒ /api/health
+├ ƒ /api/leads
+├ ƒ /api/public/[siteKey]/leads
+├ ƒ /api/quality/cells
+├ ƒ /api/sites
+├ ƒ /api/sites/[siteId]
+├ ƒ /api/sites/[siteId]/chat
+├ ƒ /api/sites/[siteId]/draft
+├ ƒ /api/sites/[siteId]/history/[action]
+├ ƒ /api/sites/[siteId]/images
+├ ƒ /api/sites/[siteId]/images/[imageId]
+├ ƒ /api/sites/[siteId]/images/[imageId]/analyze
+├ ƒ /api/templates/[templateId]/assets/[...assetPath]
+├ ƒ /api/templates/[templateId]/preview
+├ ○ /content
+├ ƒ /leads
+├ ƒ /published/[siteKey]
+├ ƒ /quality
+├ ○ /settings
+├ ƒ /sites
+├ ○ /templates
+├ ƒ /templates/[templateId]/preview
+└ ○ /workspace
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

@@ -1,0 +1,662 @@
+{
+  "generatedAt": "2026-10-03T08:33:51.952Z",
+  "timezone": "America/New_York",
+  "commit": "d7394f42563ed4db057a7e95c4541b0df6637208",
+  "runsPerPack": 2,
+  "packs": [
+    "industrial",
+    "export",
+    "molding"
+  ],
+  "stopped": null,
+  "results": [
+    {
+      "pack": "industrial",
+      "run": 1,
+      "at": "2026-10-03T08:31:55.569Z",
+      "http": 200,
+      "status": "clarify",
+      "code": null,
+      "look": {
+        "id": "engineering-industrial",
+        "label": "工程工业",
+        "reason": "结构化资料有2 个产品、1 个产品类别、2 个产品有至少 3 项非空参数（每个 5–6 项）；4 个应用行业、4 项能力、3 项认证，参数和制造/应用条目较多，工程工业更适合承载参数选型与能力证据。"
+      },
+      "colorSet": {
+        "id": "colorSet:graphite",
+        "label": "石墨工坊",
+        "reason": "矿山输送、冶金辊道、港口起重、水泥窑传动这些重载工况，配滚齿磨齿与动平衡试验的加工能力，深色重工业基调更贴合。"
+      },
+      "plannerOutput": {
+        "kind": "question",
+        "questions": [
+          {
+            "field": "style",
+            "question": "用哪种页面样子承载这两台减速机的参数与批量规格询盘？",
+            "options": [
+              {
+                "id": "engineering-industrial",
+                "label": "工程工业",
+                "description": "资料给的是两台重载减速机的速比、额定扭矩、中心距、机座号等可比参数，加上滚齿磨齿、箱体数控镗铣、动平衡与跑合试验等加工设备，以及 MOQ 20 台的批量规格询盘，适合参数选型式的工程页面。",
+                "recommended": true
+              },
+              {
+                "id": "industrial",
+                "label": "明亮产品",
+                "description": "",
+                "recommended": false
+              },
+              {
+                "id": "export-catalog",
+                "label": "蓝白目录",
+                "description": "",
+                "recommended": false
+              },
+              {
+                "id": "technical-product",
+                "label": "灰底短路径",
+                "description": "",
+                "recommended": false
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "colorSet",
+            "question": "用哪套配色承载重载工况与工厂加工能力？",
+            "options": [
+              {
+                "id": "colorSet:graphite",
+                "label": "石墨工坊",
+                "description": "矿山输送、冶金辊道、港口起重、水泥窑传动这些重载工况，配滚齿磨齿与动平衡试验的加工能力，深色重工业基调更贴合。",
+                "recommended": true
+              },
+              {
+                "id": "colorSet:porcelain",
+                "label": "青花瓷",
+                "description": "",
+                "recommended": false
+              },
+              {
+                "id": "colorSet:warm-orange",
+                "label": "工程暖橙",
+                "description": "",
+                "recommended": false
+              },
+              {
+                "id": "colorSet:turquoise",
+                "label": "松石",
+                "description": "",
+                "recommended": false
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "other",
+            "question": "资料没有提供任何照片或图纸，首屏和产品区的图片怎么处理？",
+            "options": [
+              {
+                "label": "先做无图版，不用未经授权的图片",
+                "description": "资料未提供车间照或产品外观照，首屏与产品区用文字加规格条承载，图片位留空待补。",
+                "recommended": true
+              },
+              {
+                "label": "我提供车间/装配照片和两台减速机外观照",
+                "description": "按实物照片排首屏与产品区，需我确认图片授权。"
+              },
+              {
+                "label": "先用中性占位图，后续替换",
+                "description": "保留图片位，用占位块示意，等实物照片到位再换。"
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "other",
+            "question": "资料里有按图加工、4 项加工设备（滚齿与磨齿、箱体数控镗铣、动平衡与跑合试验、装配与出厂检验）和 4 个应用行业（矿山输送、冶金辊道、港口起重、水泥窑传动），但没有公司简介、产能数字和客户案例。首页的「关于/优势」怎么摆？",
+            "options": [
+              {
+                "label": "不设独立关于区块，把这 8 条做成应用行业与加工能力区块",
+                "description": "资料只有产品参数、应用行业和加工设备这些可核事实，硬写公司简介只能留「待补充」，不如把已有事实摆成能力清单。",
+                "recommended": true
+              },
+              {
+                "label": "保留关于区块，只写重载减速机、按图加工、批量规格询盘",
+                "description": "正文只用资料原文，其余位置写明「待补充」。"
+              },
+              {
+                "label": "我先补公司简介、产能和客户资料再写",
+                "description": "等补齐后再一次性填充关于与优势区块。"
+              }
+            ],
+            "allowOther": true
+          }
+        ],
+        "rationale": "资料已给出公司名、行业、目标、首屏事实与说明、主按钮、两台减速机的完整参数、4 个应用行业、4 项加工设备与 MOQ、邮箱，样子的视觉形态仍是最影响结果的一项；图片素材和关于/优势区块的填充来源是资料唯一没交代、且会改变页面结果的两处，因此连同样子与配色一起确认。"
+      },
+      "plannerRecommendations": {
+        "style": {
+          "id": "engineering-industrial",
+          "label": "工程工业",
+          "reason": "资料给的是两台重载减速机的速比、额定扭矩、中心距、机座号等可比参数，加上滚齿磨齿、箱体数控镗铣、动平衡与跑合试验等加工设备，以及 MOQ 20 台的批量规格询盘，适合参数选型式的工程页面。"
+        },
+        "colorSet": {
+          "id": "colorSet:graphite",
+          "label": "石墨工坊",
+          "reason": "矿山输送、冶金辊道、港口起重、水泥窑传动这些重载工况，配滚齿磨齿与动平衡试验的加工能力，深色重工业基调更贴合。"
+        }
+      },
+      "call": {
+        "pack": "industrial",
+        "run": 1,
+        "http": 200,
+        "ms": 20970,
+        "finish": "stop",
+        "usage": {
+          "prompt": 2383,
+          "completion": 4107,
+          "reasoning": 3306
+        },
+        "traceId": "c6c77856c01a3a3423ad153eace1da2c"
+      }
+    },
+    {
+      "pack": "industrial",
+      "run": 2,
+      "at": "2026-10-03T08:32:16.575Z",
+      "http": 200,
+      "status": "clarify",
+      "code": null,
+      "look": {
+        "id": "engineering-industrial",
+        "label": "工程工业",
+        "reason": "结构化资料有2 个产品、1 个产品类别、2 个产品有至少 3 项非空参数（每个 5–6 项）；4 个应用行业、4 项能力、3 项认证，参数和制造/应用条目较多，工程工业更适合承载参数选型与能力证据。"
+      },
+      "colorSet": {
+        "id": "colorSet:warm-orange",
+        "label": "工程暖橙",
+        "reason": "暖橙强调，行动入口醒目。"
+      },
+      "plannerOutput": {
+        "kind": "question",
+        "questions": [
+          {
+            "field": "style",
+            "question": "资料只有两款减速机和一条加工方式，页面样子按哪套区块形态走？",
+            "options": [
+              {
+                "label": "工程工业（engineering-industrial）",
+                "description": "直角（i=25–100、8500 N·m、中心距200 mm）与行星（i=4–100、3200 N·m、F280、IP65）都能按速比、扭矩、机座号逐项对照，加上滚齿磨齿、箱体数控镗铣、动平衡与跑合试验等加工能力，最适合参数选型和批量规格询盘。",
+                "recommended": true
+              },
+              {
+                "label": "明亮产品（industrial）",
+                "description": ""
+              },
+              {
+                "label": "蓝白目录（export-catalog）",
+                "description": ""
+              },
+              {
+                "label": "灰底短路径（technical-product）",
+                "description": ""
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "colorSet",
+            "question": "工程工业形态下用哪套配色？",
+            "options": [
+              {
+                "label": "石墨工坊（graphite）",
+                "description": "面向矿山输送、冶金辊道、港口起重、水泥窑传动这类重载工况，深灰底色最能衬托 8500 N·m 级重载减速机的参数与金属质感。",
+                "recommended": true
+              },
+              {
+                "label": "青花瓷（porcelain）",
+                "description": ""
+              },
+              {
+                "label": "工程暖橙（warm-orange）",
+                "description": ""
+              },
+              {
+                "label": "松石（turquoise）",
+                "description": ""
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "other",
+            "question": "资料只写了业务范围，没有公司简介、规模等「关于我们」正文，这个区块怎么处理？",
+            "options": [
+              {
+                "label": "用现有事实生成简短关于",
+                "description": "只写按图加工重载减速机、滚齿磨齿与数控镗铣等主设备、动平衡与跑合试验、四项应用行业，不出现规模数字。",
+                "recommended": true
+              },
+              {
+                "label": "区块保留，正文写「待补充」",
+                "description": "位置先留着，等公司简介和工厂信息补齐后再填。"
+              },
+              {
+                "label": "暂时隐藏关于区块",
+                "description": "首页只保留首屏、产品、合作方式、常见问题与询盘。"
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "other",
+            "question": "两款减速机的规格参数在产品区怎么展开？",
+            "options": [
+              {
+                "label": "按参数表逐项全列",
+                "description": "直角列速比、扭矩、中心距、输入转速、安装方式；行星再加机座号与 IP65，方便批量选型对比。",
+                "recommended": true
+              },
+              {
+                "label": "只列速比与额定扭矩",
+                "description": "其余参数留到询盘后提供，产品区更紧凑。"
+              }
+            ],
+            "allowOther": true
+          }
+        ],
+        "rationale": "资料已给出公司名、行业、两款产品及其参数、应用行业、加工能力、MOQ 与邮箱，产品类别与「按图加工」已分开，因此不再重复问业务目标或产品清单；需要确认的是重载工况下的样子与配色、无正文的关于区块如何落地，以及参数表展示深度。电话、地址、产能、客户名单两项认证状态将按「待补充」写入对应字段。"
+      },
+      "plannerRecommendations": {
+        "style": {
+          "id": null,
+          "label": "工程工业（engineering-industrial）",
+          "reason": "直角（i=25–100、8500 N·m、中心距200 mm）与行星（i=4–100、3200 N·m、F280、IP65）都能按速比、扭矩、机座号逐项对照，加上滚齿磨齿、箱体数控镗铣、动平衡与跑合试验等加工能力，最适合参数选型和批量规格询盘。"
+        },
+        "colorSet": {
+          "id": null,
+          "label": "石墨工坊（graphite）",
+          "reason": "面向矿山输送、冶金辊道、港口起重、水泥窑传动这类重载工况，深灰底色最能衬托 8500 N·m 级重载减速机的参数与金属质感。"
+        }
+      },
+      "call": {
+        "pack": "industrial",
+        "run": 2,
+        "http": 200,
+        "ms": 16597,
+        "finish": "stop",
+        "usage": {
+          "prompt": 2506,
+          "completion": 3236,
+          "reasoning": 2570
+        },
+        "traceId": "0db718d66da163dda7b31ebd08b476eb"
+      }
+    },
+    {
+      "pack": "export",
+      "run": 1,
+      "at": "2026-10-03T08:32:49.400Z",
+      "http": 200,
+      "status": "clarify",
+      "code": null,
+      "look": {
+        "id": "export-catalog",
+        "label": "蓝白目录",
+        "reason": "结构化资料有2 个产品、1 个产品类别、2 个产品有至少 3 项非空参数（每个 5–5 项）；4 个应用行业、4 项能力、3 项认证，各产品参数行数一致且完整，蓝白目录更适合按系列浏览和发起询盘。"
+      },
+      "colorSet": {
+        "id": "colorSet:porcelain",
+        "label": "青花瓷",
+        "reason": "钴蓝强调配冷白底，清楚、稳重。"
+      },
+      "plannerOutput": {
+        "kind": "question",
+        "questions": [
+          {
+            "field": "style",
+            "question": "页面样子用哪一种？",
+            "options": [
+              {
+                "label": "工程工业",
+                "description": "两个产品系列都有可比较的参数（DN8–DN25、2.5 MPa、316L、HRC 20–24），并有数控车削、自动攻丝、气密试验台、钝化清洁包装与 ISO 9001／认证中状态，工程工业样式的深色产品板和参数线最适合选型与工程询盘。",
+                "recommended": true
+              },
+              {
+                "label": "明亮产品",
+                "description": ""
+              },
+              {
+                "label": "蓝白目录",
+                "description": ""
+              },
+              {
+                "label": "灰底短路径",
+                "description": ""
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "colorSet",
+            "question": "配色用哪一套？",
+            "options": [
+              {
+                "label": "石墨工坊",
+                "description": "316L／316 不锈钢本体与食品饮料灌装、制药洁净流体、半导体超纯水辅助回路等洁净工况，适合石墨色板承托参数线与认证状态。",
+                "recommended": true
+              },
+              {
+                "label": "青花瓷",
+                "description": ""
+              },
+              {
+                "label": "工程暖橙",
+                "description": ""
+              },
+              {
+                "label": "松石",
+                "description": ""
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "pages",
+            "question": "资料要求「独立认证页」和「资料下载页」，但当前模板快照没有对应独立 URL，只能在同模板上加声明区块。你希望怎么承载？",
+            "options": [
+              {
+                "label": "合并为一个「认证与资料索取」区块放首页",
+                "description": "资料只给了认证状态（ISO 9001 已有、材料可追溯报告认证中、FDA 待补充）和索取样品册的邮箱，没有可下载文件的名称与授权，单区块就能完整承载。",
+                "recommended": true
+              },
+              {
+                "label": "认证状态写进「关于我们」，页脚放索取样品册入口",
+                "description": "不新增区块，认证与索取入口分散在已有区块里。"
+              },
+              {
+                "label": "两块都不做，只在询盘区块说明可索取样品册",
+                "description": "页面最短，但认证状态在页面上没有固定位置。"
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "other",
+            "question": "资料只提供邮箱 catalog@p3e-sim.test，电话与地址待补充。索取「接头样品册」的入口做成什么形式？",
+            "options": [
+              {
+                "label": "面板询盘表单，表单旁展示邮箱",
+                "description": "访客可一次提交通径、压力、接口螺纹等选型信息，邮箱作为备用通道，契合 OEM 装配线索取样品册的路径。",
+                "recommended": true
+              },
+              {
+                "label": "只放邮箱链接，不做表单",
+                "description": "最直接，但访客无法一次把选型参数发过来。"
+              },
+              {
+                "label": "表单为主，联系方式处保留「待补充」占位",
+                "description": "把电话、地址做成待补充字段，等资料补齐后再填。",
+                "recommended": false
+              }
+            ],
+            "allowOther": true
+          }
+        ],
+        "rationale": "资料已补齐公司名、行业、目标、首屏、两个产品（快换接头、卡套接头）及各自参数、应用行业、加工能力、认证状态与邮箱，产品类别与加工方式已按要求分开，可据改写草稿。独立「认证」页与「资料下载」页在当前模板快照中没有对应 HTML，不会假装已开通，改为在同一模板上以声明区块承载；其余页面仍在同一模板内切换声明区块。缺失的电话、地址、案例、评价、具体交期天数与 FDA 状态按「待补充」处理。"
+      },
+      "plannerRecommendations": {
+        "style": {
+          "id": null,
+          "label": "工程工业",
+          "reason": "两个产品系列都有可比较的参数（DN8–DN25、2.5 MPa、316L、HRC 20–24），并有数控车削、自动攻丝、气密试验台、钝化清洁包装与 ISO 9001／认证中状态，工程工业样式的深色产品板和参数线最适合选型与工程询盘。"
+        },
+        "colorSet": {
+          "id": null,
+          "label": "石墨工坊",
+          "reason": "316L／316 不锈钢本体与食品饮料灌装、制药洁净流体、半导体超纯水辅助回路等洁净工况，适合石墨色板承托参数线与认证状态。"
+        }
+      },
+      "call": {
+        "pack": "export",
+        "run": 1,
+        "http": 200,
+        "ms": 22383,
+        "finish": "stop",
+        "usage": {
+          "prompt": 2366,
+          "completion": 4367,
+          "reasoning": 3639
+        },
+        "traceId": "efc34b91251cdeb52b4f2f5b54be157f"
+      }
+    },
+    {
+      "pack": "export",
+      "run": 2,
+      "at": "2026-10-03T08:33:11.808Z",
+      "http": 200,
+      "status": "clarify",
+      "code": null,
+      "look": {
+        "id": "export-catalog",
+        "label": "蓝白目录",
+        "reason": "结构化资料有2 个产品、1 个产品类别、2 个产品有至少 3 项非空参数（每个 5–5 项）；4 个应用行业、4 项能力、3 项认证，各产品参数行数一致且完整，蓝白目录更适合按系列浏览和发起询盘。"
+      },
+      "colorSet": {
+        "id": "colorSet:graphite",
+        "label": "石墨工坊",
+        "reason": "316L/316 不锈钢主体、气密试验与钝化清洁包装是这份资料的核心看点，深色石墨底更能承托金属质感与通径、压力参数线。"
+      },
+      "plannerOutput": {
+        "kind": "question",
+        "questions": [
+          {
+            "field": "style",
+            "question": "页面样子",
+            "options": [
+              {
+                "id": "engineering-industrial",
+                "label": "工程工业",
+                "description": "快换接头有 DN8–DN25/2.5 MPa/316L/FKM/G1 系列规格，卡套接头有 6–22 mm/16 MPa/316/HRC 20–24 参数，还要展示数控车削、气密试验台等加工能力与 ISO 9001 状态，适合参数可比、工程询盘的样子。",
+                "recommended": true
+              },
+              {
+                "id": "industrial",
+                "label": "明亮产品",
+                "description": ""
+              },
+              {
+                "id": "export-catalog",
+                "label": "蓝白目录",
+                "description": ""
+              },
+              {
+                "id": "technical-product",
+                "label": "灰底短路径",
+                "description": ""
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "colorSet",
+            "question": "配色方案",
+            "options": [
+              {
+                "id": "colorSet:porcelain",
+                "label": "青花瓷",
+                "description": "",
+                "recommended": false
+              },
+              {
+                "id": "colorSet:graphite",
+                "label": "石墨工坊",
+                "description": "316L/316 不锈钢主体、气密试验与钝化清洁包装是这份资料的核心看点，深色石墨底更能承托金属质感与通径、压力参数线。",
+                "recommended": true
+              },
+              {
+                "id": "colorSet:warm-orange",
+                "label": "工程暖橙",
+                "description": "",
+                "recommended": false
+              },
+              {
+                "id": "colorSet:turquoise",
+                "label": "松石",
+                "description": "",
+                "recommended": false
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "pages",
+            "question": "你要的独立认证页与资料下载页，当前模板的页面入口只有首页、产品、联系，如何处理？",
+            "options": [
+              {
+                "label": "认证与样品册索取做成首页内的独立区块",
+                "description": "在首页增加认证区块（ISO 9001 已有、材料可追溯报告认证中、FDA 待补充）和样品册索取区块，导航用锚点直达，不假装开通独立页面。",
+                "recommended": true
+              },
+              {
+                "label": "认证并入产品页，样品册索取只放询盘区",
+                "description": "页面数量最少，认证状态跟随两个接头产品的规格一起出现，样品册索取和询盘合并在同一入口。"
+              },
+              {
+                "label": "暂不做认证与样品册内容",
+                "description": "只保留现有首页、产品、联系三页，认证信息和样品册索取等你确认后再加。"
+              }
+            ],
+            "allowOther": true
+          },
+          {
+            "field": "other",
+            "question": "样品册用什么方式让 OEM 访客拿到？",
+            "options": [
+              {
+                "label": "询盘表单提交，由邮箱回执发送",
+                "description": "资料只给了 catalog@p3e-sim.test，系统不做文件托管；表单收集需求后由该邮箱回发样品册。",
+                "recommended": true
+              },
+              {
+                "label": "放外链下载按钮",
+                "description": "需要一个可公开访问的样品册文件地址，地址未提供前按钮无法指向内容。"
+              },
+              {
+                "label": "只展示邮箱，不做表单",
+                "description": "页面最轻，但访客需自行复制邮箱发信，线索收集会变弱。"
+              }
+            ],
+            "allowOther": true
+          }
+        ],
+        "rationale": "公司名、行业、目标、首屏、产品清单（快换接头、卡套接头）、规格参数、应用行业、加工能力与认证状态都已给全，可直接改写；电话、地址、案例、评价按资料写「待补充」。唯一会改变页面结果的是你另外要的认证页与资料下载页，当前模板快照只有首页/产品/联系三个入口，必须先定在哪呈现；样品册缺少文件托管方式，也需要你选一种索取路径。样子保持工程工业不变，配色按 316L 不锈钢与参数选型的呈现倾向给出推荐。"
+      },
+      "plannerRecommendations": {
+        "style": {
+          "id": "engineering-industrial",
+          "label": "工程工业",
+          "reason": "快换接头有 DN8–DN25/2.5 MPa/316L/FKM/G1 系列规格，卡套接头有 6–22 mm/16 MPa/316/HRC 20–24 参数，还要展示数控车削、气密试验台等加工能力与 ISO 9001 状态，适合参数可比、工程询盘的样子。"
+        },
+        "colorSet": {
+          "id": "colorSet:graphite",
+          "label": "石墨工坊",
+          "reason": "316L/316 不锈钢主体、气密试验与钝化清洁包装是这份资料的核心看点，深色石墨底更能承托金属质感与通径、压力参数线。"
+        }
+      },
+      "call": {
+        "pack": "export",
+        "run": 2,
+        "http": 200,
+        "ms": 16142,
+        "finish": "stop",
+        "usage": {
+          "prompt": 2366,
+          "completion": 3338,
+          "reasoning": 2574
+        },
+        "traceId": "c76a6456054a0d75afd8c34ce09d65f0"
+      }
+    },
+    {
+      "pack": "molding",
+      "run": 1,
+      "at": "2026-10-03T08:33:27.972Z",
+      "http": 200,
+      "status": "clarify",
+      "code": null,
+      "look": {
+        "id": "engineering-industrial",
+        "label": "工程工业",
+        "reason": "结构化资料有5 个产品、2 个产品类别、5 个产品有至少 3 项非空参数（每个 6–7 项）；5 个应用行业、6 项能力、3 项认证，参数和制造/应用条目较多，工程工业更适合承载参数选型与能力证据。"
+      },
+      "colorSet": {
+        "id": "colorSet:warm-orange",
+        "label": "工程暖橙",
+        "reason": "暖橙强调，行动入口醒目。"
+      },
+      "plannerOutput": {
+        "kind": "ready",
+        "summary": "资料完整，可按现有 engineering-industrial 样子与 screwfast 模板生成可审查方案：公司名改为宁海精密注塑模具P3T，行业写注塑模具与精密注塑件/内销与外贸，目标写获取模具开发与批量注塑询盘、内销与出口并行，主按钮用“提交图纸获取报价”。首屏说明用“模具设计、试模到批量注塑在同一厂区完成，内销与出口订单并行”，首屏可用事实用“精密注塑模具与注塑件 P3T-JD5K”。产品清单用资料 5 项替换默认商品：多腔热流道模具、双色注塑模具、精密结构注塑件、透明光学注塑件、金属嵌件注塑件；“按图纸或样品开模”只作为加工方式，不新增为商品。产品规格参数按资料写入，参数名中英双语，参数值只用资料中能找到的数字；资料未提供的字段写“待补充”。关于/优势写入 2008—2024 沿革、模具车间与注塑车间、年产模具约 180 套、注塑机 42 台（90—800 t）、月注塑能力约 600 万件、加工设备、检测设备、质检流程、应用行业，以及 ISO 9001 已有、ISO 14001 已有、IATF 16949 认证中。FAQ 用资料 6 问；联系邮箱 rfq@p3t-sim.test，电话、地址、客户名单、评价等待补充。页面保留首页、产品、联系；“生产与质检”和“常见问题”在当前模板快照无独立 HTML，将作为同模板声明区块呈现，不新开独立 URL，也不会假装已开通独立页面。资料性质、模拟说明和核验记号不写入页面。"
+      },
+      "plannerRecommendations": {
+        "style": null,
+        "colorSet": null
+      },
+      "call": {
+        "pack": "molding",
+        "run": 1,
+        "http": 200,
+        "ms": 15290,
+        "finish": "stop",
+        "usage": {
+          "prompt": 3312,
+          "completion": 2997,
+          "reasoning": 2594
+        },
+        "traceId": "9c388be69d5826e86b3d31c9294dd1b0"
+      }
+    },
+    {
+      "pack": "molding",
+      "run": 2,
+      "at": "2026-10-03T08:33:43.284Z",
+      "http": 200,
+      "status": "clarify",
+      "code": null,
+      "look": {
+        "id": "engineering-industrial",
+        "label": "工程工业",
+        "reason": "结构化资料有5 个产品、2 个产品类别、5 个产品有至少 3 项非空参数（每个 6–7 项）；5 个应用行业、6 项能力、3 项认证，参数和制造/应用条目较多，工程工业更适合承载参数选型与能力证据。"
+      },
+      "colorSet": {
+        "id": "colorSet:warm-orange",
+        "label": "工程暖橙",
+        "reason": "暖橙强调，行动入口醒目。"
+      },
+      "plannerOutput": {
+        "kind": "ready",
+        "summary": "资料已足够形成可审查方案：将按宁海精密注塑模具P3T改写公司名、行业、目标、首屏、关于、产品/服务说明与联系方式；商品清单严格保留多腔热流道模具、双色注塑模具、精密结构注塑件、透明光学注塑件、金属嵌件注塑件 5 项，并将各自规格参数以中英双语字段写入；加工能力、主设备、检测设备、质检流程、应用行业、认证状态按资料落位，IATF 16949 写认证中；FAQ、MOQ、交期、邮箱写入对应区块，电话、地址、客户名单、评价、图片授权等未提供内容写待补充并按无图版处理。保持当前模板与 engineering-industrial 样子不变。页面按当前模板快照支持范围规划：首页、产品、联系优先作为独立页面；生产与质检、常见问题优先作为同一模板上的声明区块/锚点呈现，若模板快照无对应独立 HTML，则明确说明不支持独立页面，不静默当成整站只有首页。"
+      },
+      "plannerRecommendations": {
+        "style": null,
+        "colorSet": null
+      },
+      "call": {
+        "pack": "molding",
+        "run": 2,
+        "http": 200,
+        "ms": 8660,
+        "finish": "stop",
+        "usage": {
+          "prompt": 3312,
+          "completion": 1528,
+          "reasoning": 1286
+        },
+        "traceId": "c6562a5857122dbe79dc2f681cc5cf43"
+      }
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "commit": "d7394f42563ed4db057a7e95c4541b0df6637208",
+  "generatedAt": "2026-10-03T08:33:51.952Z",
+  "results": [
+    {
+      "pack": "industrial",
+      "run": 1,
+      "commit": "d7394f42563ed4db057a7e95c4541b0df6637208",
+      "http": 200,
+      "card": {
+        "look": "engineering-industrial",
+        "colorSet": "colorSet:graphite"
+      },
+      "planner": {
+        "style": {
+          "questionPresent": true,
+          "recommendedPresent": true,
+          "id": "engineering-industrial",
+          "label": "工程工业",
+          "kind": "question"
+        },
+        "colorSet": {
+          "questionPresent": true,
+          "recommendedPresent": true,
+          "id": "colorSet:graphite",
+          "label": "石墨工坊",
+          "kind": "question"
+        }
+      }
+    },
+    {
+      "pack": "industrial",
+      "run": 2,
+      "commit": "d7394f42563ed4db057a7e95c4541b0df6637208",
+      "http": 200,
+      "card": {
+        "look": "engineering-industrial",
+        "colorSet": "colorSet:warm-orange"
+      },
+      "planner": {
+        "style": {
+          "questionPresent": true,
+          "recommendedPresent": true,
+          "id": null,
+          "label": "工程工业（engineering-industrial）",
+          "kind": "question"
+        },
+        "colorSet": {
+          "questionPresent": true,
+          "recommendedPresent": true,
+          "id": null,
+          "label": "石墨工坊（graphite）",
+          "kind": "question"
+        }
+      }
+    },
+    {
+      "pack": "export",
+      "run": 1,
+      "commit": "d7394f42563ed4db057a7e95c4541b0df6637208",
+      "http": 200,
+      "card": {
+        "look": "export-catalog",
+        "colorSet": "colorSet:porcelain"
+      },
+      "planner": {
+        "style": {
+          "questionPresent": true,
+          "recommendedPresent": true,
+          "id": null,
+          "label": "工程工业",
+          "kind": "question"
+        },
+        "colorSet": {
+          "questionPresent": true,
+          "recommendedPresent": true,
+          "id": null,
+          "label": "石墨工坊",
+          "kind": "question"
+        }
+      }
+    },
+    {
+      "pack": "export",
+      "run": 2,
+      "commit": "d7394f42563ed4db057a7e95c4541b0df6637208",
+      "http": 200,
+      "card": {
+        "look": "export-catalog",
+        "colorSet": "colorSet:graphite"
+      },
+      "planner": {
+        "style": {
+          "questionPresent": true,
+          "recommendedPresent": true,
+          "id": "engineering-industrial",
+          "label": "工程工业",
+          "kind": "question"
+        },
+        "colorSet": {
+          "questionPresent": true,
+          "recommendedPresent": true,
+          "id": "colorSet:graphite",
+          "label": "石墨工坊",
+          "kind": "question"
+        }
+      }
+    },
+    {
+      "pack": "molding",
+      "run": 1,
+      "commit": "d7394f42563ed4db057a7e95c4541b0df6637208",
+      "http": 200,
+      "card": {
+        "look": "engineering-industrial",
+        "colorSet": "colorSet:warm-orange"
+      },
+      "planner": {
+        "style": {
+          "questionPresent": false,
+          "recommendedPresent": false,
+          "id": null,
+          "label": null,
+          "kind": "ready"
+        },
+        "colorSet": {
+          "questionPresent": false,
+          "recommendedPresent": false,
+          "id": null,
+          "label": null,
+          "kind": "ready"
+        }
+      }
+    },
+    {
+      "pack": "molding",
+      "run": 2,
+      "commit": "d7394f42563ed4db057a7e95c4541b0df6637208",
+      "http": 200,
+      "card": {
+        "look": "engineering-industrial",
+        "colorSet": "colorSet:warm-orange"
+      },
+      "planner": {
+        "style": {
+          "questionPresent": false,
+          "recommendedPresent": false,
+          "id": null,
+          "label": null,
+          "kind": "ready"
+        },
+        "colorSet": {
+          "questionPresent": false,
+          "recommendedPresent": false,
+          "id": null,
+          "label": null,
+          "kind": "ready"
+        }
+      }
+    }
+  ]
+}

@@ -34,6 +34,8 @@ function card(document: HtmlDocument, sku: string) {
 
 test("product cards break key values and the full spec list only after / + – 、, and the draft keeps its values", () => {
   const draft = packDraft("molding");
+  draft.products[0].specs = draft.products[0].specs!.filter((spec) => ["型腔数", "模具尺寸", "模具钢材", "成型周期"].includes(spec.name.zh));
+  draft.products.find((product) => product.name.zh === "金属嵌件注塑件")!.specs = draft.products.find((product) => product.name.zh === "金属嵌件注塑件")!.specs!.filter((spec) => !["嵌件放置", "尺寸公差", "成型机台"].includes(spec.name.zh));
   draft.products[1].summary = { zh: "PC+TPU/PP 包胶件。", en: "PC+TPU/PP overmolds." };
   const before = structuredClone(draft);
   const document = render("screwfast", draft);
