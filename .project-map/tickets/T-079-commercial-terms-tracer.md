@@ -30,11 +30,12 @@ T-078 的第一条线。用「商业条款」一项打通每一层，页面上�
 
 ## Resolution
 
-2026-10-03 11:00 UTC，最终提交 `d29eb89429a93652dfd6249ee278719da0442960`。
+2026-10-03，Astra NO_GO 后在最终提交 `80556014257cd57d6b851b710faa8039779300e1` 修复：
 
-- 先写测试的红证据：父提交 `9f2bd28c9784e8f0127544562cc24879e1925d63` 上运行 `node --test --experimental-strip-types tests/commercial-terms.test.ts`，5 个行为断言均失败且测试已正常加载；最终同一命令 5/5 通过。
-- 相关聚焦检查：`npm run typecheck` 通过；商业条款、区块库、唯一槽位、事实检查、AI prompt、operation 和三档样式测试通过；`npm run build` 通过。
-- DeepSeek 证据：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T079_PACKS=industrial,export,molding node --experimental-strip-types artifacts/t079/generate.mjs`；`artifacts/t079/summary.json` 记录三份资料均 `applied`，条款值资料/数字核对为 true，未写资料外种类；没有保存资料原文、prompt 或密钥。
-- 发布页证据：`SITECRAFT_BASE=http://127.0.0.1:3037 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node scripts/check-published.mjs --out artifacts/t079/published-check-final3 ...`，中英文 1440/768/375 全部通过，事实缺失为 0。
-- 工作台证据：真实对话把 MOQ 从 20 台改为 30 台并保存，随后撤销恢复 20 台；报告显示已更新/已撤销商业条款，无 missing warning。截图与报告在 `artifacts/t079/workspace-screens-final/`。
-- 完整套件：设置 `CHROME_PATH` 后 `npm test` 为 606 通过、7 失败；7 项是 vendor 子模块未初始化的 fresh/template 资产检查和 T-077 工作台动效锁定测试，已保留日志 `artifacts/t079/npm-test-final.log`，因此该勾选项保持未勾选。
+- `update_commercial_term` 写入前对完整更新数组重新跑 `commercialTermsSchema`；`validateAIOperations` 使用同一约束，重复 kind 被拒绝。
+- 中英文值都提取数字并按规范化数字/范围核对资料；英文 gap 标记也被拒绝。资料原句改写只要求中文条款词和数字等关键事实都在资料中，不接受资料外事实。
+- 结构化抽取提示明确要求写出资料中每个商业条款。最终真实 DeepSeek 原始 operation 保存在 `artifacts/t079/summary.json`：注塑条款包含 `trade_terms`（FOB 宁波、EXW、CIF），证明此前是模型/过滤路径缺少可观测性，修复后已落稿。
+- 四条回归红证据在 755894c 上分别保存于 `artifacts/t079/red-rework-p1-1.txt`、`red-rework-p1-2.txt`、`red-rework-p2-1.txt`、`red-rework-p2-2.txt`；修复后 `tests/commercial-terms.test.ts` 及相关 operation 测试 29/29 通过。
+- 最终 DeepSeek 命令：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T079_PACKS=industrial,export,molding node --experimental-strip-types artifacts/t079/generate.mjs`。三份均 `applied`，资料/数字核对均 true；原始商业条款 operation 只保存 operation，不保存 prompt、资料原文或密钥。
+- `npm run typecheck`、`npm run build` 通过。设置 `CHROME_PATH` 后全量 `npm test` 为 611 通过、6 失败，失败均为未初始化 vendor 子模块的 fresh/template 资产检查，日志为 `artifacts/t079/npm-test-rework.log`，因此全量勾选项仍未勾选。
+- 最终三家 `check-published` 中英文 1440/768/375 通过，事实缺失为 0：`artifacts/t079/published-check-rework/report.json`。
