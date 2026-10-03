@@ -1,4 +1,4 @@
-export const FRONTEND_TONE_RULES_VERSION = "sitecraft-frontend-less-ai-tone@0.3.1";
+export const FRONTEND_TONE_RULES_VERSION = "sitecraft-frontend-less-ai-tone@0.3.2";
 
 /** Runtime-safe subset of the local skill. These rules guide content decisions;
  * template adapters and commitOperations still own every visible write. */
@@ -13,4 +13,9 @@ export const frontendToneRules = [
   "不要把整页模板挖空填词。生成站必须是这家公司的页面；开源模板、区块和样式是素材，不能把未选用的品牌、客户 Logo 墙、SaaS 定价或演示图留在成品上。",
   "当前草稿仍只走白名单目标；找不到或有歧义时报告 missing，不凭元素顺序、正则或相似卡片猜写。missing 不能当成可以把模板品牌留在客户站上。",
   "保留标题层级、列表、表格、引用、链接、数字和判断强度，只改明确命中的问题。",
+  "先识别这一页的主任务和一个主要动作，再选择页面或区块排法；写清用户完成后看到的可观察结果。",
+  "每页只设一个主要按钮或主要入口；其他入口降级并写清点击后会发生什么。",
+  "状态和资料缺口必须用文字、形状或图标表达，颜色只做加强；不要让颜色成为唯一信号。",
+  "选择区块时保留一个记忆点，说明与同族已有布局的结构差异，不加无贡献装饰。",
+  "用户选的是样子和布局，不是外部模板名或提示词；不要把模板身份或提示词写进用户选项或成品。",
 ] as const;

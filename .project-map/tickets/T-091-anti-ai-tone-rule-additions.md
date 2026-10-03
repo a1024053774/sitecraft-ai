@@ -19,8 +19,22 @@ supersedes:
 
 ## Acceptance
 
-- [ ] `lib/frontend-tone.ts` 的测试先写，并在父提交上能加载、在断言处失败：新规则出现在给模型的提示里，且提示里不含数值门槛
-- [ ] 用真实 DeepSeek 对三份模拟资料各生成一次，确认新规则没让页面出现规则原文或数值（报告存 `artifacts/t091/`）
+- [x] `lib/frontend-tone.ts` 的测试先写，并在父提交上能加载、在断言处失败：新规则出现在给模型的提示里，且提示里不含数值门槛
+- [x] 用真实 DeepSeek 对三份模拟资料各生成一次，确认新规则没让页面出现规则原文或数值（报告存 `artifacts/t091/`）
 - [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
+
+2026-10-03（纽约时间），rs-rules。实现提交 `3d215c9`：
+
+- `lib/frontend-tone.ts` 从 `sitecraft-frontend-less-ai-tone@0.3.1` 升到 `@0.3.2`，加入五条不含数值门槛的运行时规则：主任务/可观察结果、单一主要入口、状态和资料缺口的多通道表达、同族区块的记忆点与结构差异、用户选样子/布局而非外部模板名或提示词。
+- `skills/sitecraft-frontend-less-ai-tone/SKILL.md` 同步规则并逐条写来源；`SOURCE.md` 记录 oil-ui MIT（revision `dba584210a02198c07f2c4e22739c0eeb3231570`）和 oiloil-ui-ux-guide Apache-2.0（revision `f32bc2bd210a6693f86841816a531ab511b258b4`）的改写范围与署名；没有复制 Jiro prompt/code。
+- T-073 的 candidate.md 要求补充品类/参照、区块主任务、记忆点、结构差异、主动不做的装饰、资料条件和来源，并写明 oil 许可与 Jiro 限制。
+- 更新 `.cursor` loader、`docs/project/{spec,intent,mainline}.md` 与现有版本断言，保持 living docs 与运行时版本一致。
+
+证据（2026-10-03，纽约时间）：
+
+- 红测：`node --test --experimental-strip-types tests/frontend-tone.test.ts` 在父提交 `fc25b37` 上加载成功、2 项新断言失败；输出 `artifacts/t091/red.txt`。改动后焦点测试 `node --test --experimental-strip-types tests/frontend-tone.test.ts tests/ai-provider-intent.test.ts tests/quality-comparison.test.ts` 为 28/28 通过。
+- 真实模型：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local node --experimental-strip-types artifacts/t091/generate.mjs`；三份模拟资料（industrial/export/molding）均 HTTP 200、`applied`，`ruleTextLeaks=[]`、`numericGateLeaks=[]`；输出 `artifacts/t091/real-generation.json`。脚本只记录脱敏状态，不写 prompt、资料原文或密钥。
+- `npm run typecheck` PASS；`npm run build` PASS，输出 `artifacts/t091/build.txt`。
+- `SITECRAFT_BASE=http://localhost:3053 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`：647/655 通过，8 项失败。7 项是 worktree 缺失的已知 vendor/open-source-template 资产（fresh、powerai、astro-starter）；另 1 项 `t075-prefix-behavior` 的浏览器等待超时，未改动相关代码。完整输出 `artifacts/t091/npm-test.txt`。因此本票总体 **INCOMPLETE**，代码审查和 Claude 验收留空。
