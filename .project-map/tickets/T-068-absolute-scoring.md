@@ -2,7 +2,7 @@
 id: T-068
 title: 绝对评分与成对比较（gpt-6.1-sol high 盲评）
 type: build
-status: open
+status: superseded
 blocked_by: [T-067]
 claimed_by: codex-scorer
 supersedes:

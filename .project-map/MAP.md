@@ -9,7 +9,7 @@
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-049](tickets/T-049-roles-2026-09-29.md)，取代 T-033）：负责人只定方向和需求。Claude 规划、验收、整合推送；Codex（`codex-build` 等）和 Sonnet 5.5 子 agent 执行（Kiro 2026-10-01 起不再使用）；Codex Astra 审代码；Codex gpt-6.1-sol 盲评；Grok 做杂活；云端会话在 `cloud/*` 分支做票。
-- 现状（2026-10-01）：工程工业已迁到 SiteCraft 区块库（T-053）：首屏、产品、询盘可按资料换布局（大标题加参数条、按类别分组、参数对比表、联系条），模型按资料选、条件不够时拒绝并说明；盲评总体明显好于旧 overlay。工作台按原型 B 改版（T-052）。DeepSeek 推理预算和截断提示已修（T-061、T-058）。站点样式已做（T-054）：只在用户提外观要求时写，白名单加三档检查；整站生成不写样式（两轮盲评：自动套方向不如不套）。四个生产样子均已迁到区块库并删掉旧 overlay；产品参数值中英双语（T-060），工程工业长标题和公司名按长度缩字号（T-063），草稿区块顺序（T-062）已接入四个样子，只在用户明说时调整。2026-10-02 负责人定：放开版式自由度之前，先量当前生成页的绝对质量和现有区块库的上限（[T-064](tickets/T-064-quality-baseline-before-freedom.md)，T-065 至 T-068），再修寻址和摘要（T-069、T-070）。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md)，只供追溯。
+- 现状（2026-10-01）：工程工业已迁到 SiteCraft 区块库（T-053）：首屏、产品、询盘可按资料换布局（大标题加参数条、按类别分组、参数对比表、联系条），模型按资料选、条件不够时拒绝并说明；盲评总体明显好于旧 overlay。工作台按原型 B 改版（T-052）。DeepSeek 推理预算和截断提示已修（T-061、T-058）。站点样式已做（T-054）：只在用户提外观要求时写，白名单加三档检查；整站生成不写样式（两轮盲评：自动套方向不如不套）。四个生产样子均已迁到区块库并删掉旧 overlay；产品参数值中英双语（T-060），工程工业长标题和公司名按长度缩字号（T-063），草稿区块顺序（T-062）已接入四个样子，只在用户明说时调整。2026-10-02 负责人定：放开版式自由度之前，先量当前生成页的绝对质量和现有区块库的上限（[T-064](tickets/T-064-quality-baseline-before-freedom.md)，T-065 至 T-068），再修寻址和摘要（T-069、T-070）。T-068 两轮评分评审编造内容、结论互相矛盾，负责人决定不再评（[T-071](tickets/T-071-recommend-per-company-and-block-pool.md)）：样子和色彩集按公司资料推荐（T-072），区块库由 Sonnet 5.5 批量做布局、每个过 AI 味审查后进库（T-073 起）。之前逐轮的记录见 [plan-history.md](../docs/project/plan-history.md)，只供追溯。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 
@@ -36,13 +36,14 @@
 - [T-048 生成站怎么摆脱 4 个固定版式](tickets/T-048-generation-direction-block-library-css.md)：自有区块库 + 设计 token + 模型写受限站点样式（不写 HTML 和文字）；工程工业先迁，其余逐个迁，旧 overlay 盲评通过后删
 - [T-051 区块素材与 CSS 校验调研](tickets/T-051-block-material-and-css-guard-research.md)：结构参考 HyperUI、Meraki UI；站点样式走做法 A（结构化规则，不加依赖）；Preline 不用；第一版不用图标
 - [T-064 放开自由度之前先量什么](tickets/T-064-quality-baseline-before-freedom.md)：先做绝对质量基线和专家对照，按事先写好的规则判读；不按数量扩布局；撤销要能挑着撤；批注契约等评分后写 spec
+- [T-071 评分之后怎么走](tickets/T-071-recommend-per-company-and-block-pool.md)：不再加评分轮次；推荐随公司变；区块布局批量做，每个过 AI 味审查（只看单区块裁切图）才进库；需要新字段的内容区块另写 spec
 - [T-049 2026-09-29 起谁做什么](tickets/T-049-roles-2026-09-29.md)：Claude 规划验收，Codex/Sonnet 执行（Kiro 已停用），Astra 审代码，gpt-6.1-sol 盲评，Grok 杂活，云端做 T-050–T-052
 
 ## Not yet specified
 
 - 新开源素材的准入：需要先定准入流程和第一批候选。
 - 子页面的同族 overlay、`fresh` kit。
-- 厚资料里区块库还放不下的内容：沿革时间线、交期与起订、质检步骤（草稿没有这些字段，等 T-053 后定）。
+- 厚资料里区块库还放不下的内容：沿革时间线、交期 / 起订 / 产能等商业条款、质检步骤（草稿没有这些字段；T-066 专家清单也指向它们；T-071 定为 T-074 之后另写 spec）。
 - 生成站动效、改标题（评审 P0-5、P0-6）。
 - 圈画批注的契约：内容身份与显示位置、批注同时记「当时看到什么」和「现在指向哪里」、锚点失效状态、圈画命中关系、批注 / 修改事务 / 挑着撤的关系（T-064；等 T-068 之后写 spec，不先做界面）。
 
