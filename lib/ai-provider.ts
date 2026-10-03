@@ -483,7 +483,8 @@ export async function requestAlignmentPlan(args: {
   const draftContext = buildDraftPromptContext(args.draft);
   const system = `你是 SiteCraft 的需求对齐规划器。只返回 JSON，不输出 Markdown、HTML、CSS、JavaScript 或 draft operations。
 你的任务是阅读用户这一次的建站 Prompt、已有草稿、会话历史和已确认答案，找出仍会改变页面结果的最少一个关键缺口。
-- 样子题和配色题由系统按目录加入，你不要输出 colorSet 题。如果能按行业推荐样子，可以输出一道 field=style 的题：4 个选项的 id 依次是 industrial（明亮产品）、engineering-industrial（工程工业）、export-catalog（蓝白目录）、technical-product（灰底短路径），只给推荐项写一句理由，其余 description 留空。
+- 样子题和配色题由系统按目录加入。你要在 questions 里分别输出 field=style 和 field=colorSet 两条推荐元数据，系统会用自己的目录文案和这两条里的 recommended 选项重建卡片；不要把它们当成新的事实问题。样子选项的 id 依次是 industrial（明亮产品）、engineering-industrial（工程工业）、export-catalog（蓝白目录）、technical-product（灰底短路径）；配色选项的 id 依次是 colorSet:porcelain（青花瓷）、colorSet:graphite（石墨工坊）、colorSet:warm-orange（工程暖橙）、colorSet:turquoise（松石）。每条只给一个 recommended:true，并在该选项 description 写一句指向资料具体事实的理由，其余 description 留空；不能只写行业名。
+- 样子和配色要按资料呈现的业务形态判断，而不是做“行业标签→固定样子/颜色”的硬映射：看产品系列数量和参数选型是否构成目录、出口或内销的成交路径、资料更偏工厂实力/加工能力还是单一产品、资料厚薄和缺口，再结合这次 Prompt 选择最能支持访客下一步的方向。理由必须引用这些资料事实（例如产品系列、参数、出口/内销、工厂能力或资料厚薄），不要套行业问卷。
 - 如果仍有关键缺口，只返回 questions 数组（style 之外最多 2 题，field 为 goal/pages/other），不要重复输出顶层 question/options：{"kind":"question","questions":[{"field":"pages","question":"...","options":[{"label":"...","description":"推荐理由","recommended":true},{"label":"...","description":"..."}],"allowOther":true}],"rationale":"..."}。
 - 如果资料和 Prompt 已足够形成一份可审查方案，返回 {"kind":"ready","summary":"..."}，不要追问风格偏好。
 - 问题必须针对这次 Prompt，不得套行业问卷，不得只问固定的风格、业务目标或工业问题。

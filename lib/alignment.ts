@@ -314,8 +314,14 @@ export function lookCardColorOptions(briefId: (typeof visualBriefIds)[number]) {
 }
 
 // The round-1 look card: 样子 first, then 色彩集 from the catalog. `recommendation` carries the
-// planner's industry-based pick (T-006); without one the draft's current look is recommended.
-export function styleQuestion(revision: number, recommendation: { briefId?: string | null; reason?: string | null } = {}): CurrentQuestion {
+// planner's picks; without one the draft's current look and that look's default palette stay
+// recommended (the existing catalog behavior).
+export function styleQuestion(revision: number, recommendation: {
+  briefId?: string | null;
+  reason?: string | null;
+  colorSetId?: string | null;
+  colorReason?: string | null;
+} = {}): CurrentQuestion {
   const recommendedBrief = visualBriefCatalog.find((brief) => brief.id === recommendation.briefId)
     ?? visualBriefCatalog.find((brief) => brief.id === "engineering-industrial")
     ?? visualBriefCatalog[0];
@@ -326,6 +332,17 @@ export function styleQuestion(revision: number, recommendation: { briefId?: stri
     description: option.id === recommendedBrief.id && reason ? reason : option.description,
     recommended: option.id === recommendedBrief.id,
   }));
+  const colorOptions = lookCardColorOptions(recommendedBrief.id);
+  const colorSetId = recommendation.colorSetId?.trim() || null;
+  const recommendedColor = colorSetId
+    ? colorOptions.find((option) => option.id === colorSetId)
+    : undefined;
+  const colorReason = recommendation.colorReason?.trim() ? clipAlignmentText(recommendation.colorReason.trim(), 200) : null;
+  const cardColorOptions = colorOptions.map((option) => ({
+    ...option,
+    ...(recommendedColor ? { recommended: option.id === recommendedColor.id } : {}),
+    ...(recommendedColor && option.id === recommendedColor.id ? { description: colorReason ?? "" } : {}),
+  }));
   return {
     questionId: ALIGNMENT_QUESTION_ID,
     questionRevision: Math.max(1, revision),
@@ -335,7 +352,7 @@ export function styleQuestion(revision: number, recommendation: { briefId?: stri
     allowOther: true,
     questions: [
       { field: "style", questionId: ALIGNMENT_QUESTION_ID, prompt: "选择网站的样子", options: styleOptions, allowOther: true },
-      { field: "colorSet", questionId: "color-set", prompt: "选择配色", options: lookCardColorOptions(recommendedBrief.id), allowOther: true },
+      { field: "colorSet", questionId: "color-set", prompt: "选择配色", options: cardColorOptions, allowOther: true },
     ],
   };
 }

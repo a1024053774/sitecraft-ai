@@ -187,8 +187,9 @@ test("an answer cut off at the token budget is reported as truncated after one a
 });
 
 // The alignment planner hit its 1800-token cap in 2 of 6 real runs (2026-09-28), which surfaced as
-// "需求对齐规划没有返回可用的问题卡". The server now builds the look and color questions itself.
-test("the alignment planner has room for a full card and is not asked for color-set options", async () => {
+// "需求对齐规划没有返回可用的问题卡". It now returns bounded look and color recommendations,
+// while the server still builds the actual card from its catalog.
+test("the alignment planner has room for look and color recommendations", async () => {
   const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
   let body: { max_tokens?: number; messages?: Array<{ role: string; content: string }> } = {};
   const original = globalThis.fetch;
@@ -204,8 +205,9 @@ test("the alignment planner has room for a full card and is not asked for color-
   }
   assert.equal(body.max_tokens, 8192);
   const system = body.messages?.find((message) => message.role === "system")?.content ?? "";
-  assert.match(system, /不要输出 colorSet 题/);
-  assert.doesNotMatch(system, /swatches/);
+  assert.match(system, /field=colorSet/);
+  assert.match(system, /业务形态/);
+  assert.match(system, /colorSet:turquoise/);
 });
 
 // The export pack's planner reply failed Schema in 1 of 4 real runs: "summary: Too big: expected

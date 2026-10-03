@@ -1290,7 +1290,7 @@ export default function WorkspacePage() {
       setAlignmentLeaving(false);
     }
   };
-  const questionHint = (question: AlignmentQuestionCard) => question.field === "colorSet" ? "会按所选样子调好" : question.field === "style" ? "单选，推荐按你的行业给出" : "单选";
+  const questionHint = (question: AlignmentQuestionCard) => question.field === "colorSet" ? "会按所选样子调好" : question.field === "style" ? "单选，推荐按资料里的业务形态给出" : "单选";
   const currentPaletteLabel = draft.customPalette ? "自定义品牌色" : paletteCatalogForVisualBrief(draft.visualBrief.id).find((item) => item.id === draft.paletteId)?.label;
   const alignmentOpen = Boolean(alignmentView && (alignmentView.enabled || alignmentView.waitingForUser || alignmentView.prefsOnly || alignmentView.lastResult || alignmentView.answers.length));
   const alignmentDrawer = phoneLayout && Boolean(alignmentView && alignmentView.questions.length >= 1 && (alignmentView.waitingForUser || alignmentView.awaitingConfirmation));

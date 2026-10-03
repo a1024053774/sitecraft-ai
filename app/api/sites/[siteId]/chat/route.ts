@@ -222,7 +222,7 @@ async function planPromptStart(siteId: string, args: {
     };
   }
   // Round 1 on a site that was never generated always settles 样子 and 色彩集 (spec §3.1), and those
-  // two questions are always built from the catalog; the planner may only recommend a look.
+  // two questions are always built from the catalog; the planner only recommends entries in them.
   const needLook = !existing?.alignment.styleOptionId;
   const needColor = !existing?.alignment.paletteId;
   if (plan.kind === "ready" && (current.hasGeneratedContent || (!needLook && !needColor))) {
@@ -234,9 +234,13 @@ async function planPromptStart(siteId: string, args: {
     : [];
   const plannerStyle = plannerQuestions.find((item) => item.field === "style");
   const plannerPick = plannerStyle?.options.find((option) => option.recommended === true && "id" in option && visualBriefCatalog.some((brief) => brief.id === option.id));
+  const plannerColor = plannerQuestions.find((item) => item.field === "colorSet");
+  const plannerColorPick = plannerColor?.options.find((option) => option.recommended === true && "id" in option && typeof option.id === "string");
   const lookCard = styleQuestion(questionRevision, {
     briefId: plannerPick && "id" in plannerPick ? plannerPick.id : current.draft.visualBrief.id,
     reason: plannerPick?.description,
+    colorSetId: plannerColorPick && "id" in plannerColorPick ? plannerColorPick.id : undefined,
+    colorReason: plannerColorPick?.description,
   }).questions ?? [];
   const questions = [
     ...(needLook ? [lookCard[0]] : []),
