@@ -2,7 +2,7 @@
 id: T-072
 title: 需求对齐的样子和色彩集按公司资料推荐
 type: build
-status: open
+status: closed
 blocked_by: [T-070]
 claimed_by: t072-build
 supersedes:
@@ -25,8 +25,8 @@ T-065 的 6 个基线（三家不同的公司）全部是工程工业 + 工程�
 ## Acceptance
 
 - [x] 测试先写、改动前先失败：规划器返回的色彩集推荐和理由出现在卡片上；返回卡片上没有的色彩集时被拒绝并回到默认推荐；理由为空时不显示理由
-- [ ] 真实 DeepSeek：三份模拟资料各走两次需求对齐，记录每次推荐的样子、色彩集和理由（`artifacts/t072/`）；理由都指向资料事实；三家公司的（样子, 色彩集）推荐不全相同。做不到就如实报 INCOMPLETE 并写清模型的实际输出，不靠反复重跑凑结果
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；工作台需求对齐卡片 1440 / 768 / 375 截图看过；代码审查通过；Claude 验收
+- [x] 真实 DeepSeek：三份模拟资料各走两次需求对齐，记录每次推荐的样子、色彩集和理由（`artifacts/t072/`）；理由都指向资料事实；三家公司的（样子, 色彩集）推荐不全相同。做不到就如实报 INCOMPLETE 并写清模型的实际输出，不靠反复重跑凑结果
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；工作台需求对齐卡片 1440 / 768 / 375 截图看过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -61,3 +61,11 @@ T-065 的 6 个基线（三家不同的公司）全部是工程工业 + 工程�
 1. 先做 (c)：在规划器提示里给出 4 个样子各自的具体样子（版式、视觉重点）和适合的业务形态（必须和区块库里实际的 token、默认布局一致），真实 DeepSeek 再跑一轮（三份资料各两次），和第一轮对比。
 2. 如果样子推荐仍无变化，再做 (b)：在代码里从草稿的结构化字段算出资料特征（产品数、类别数、参数齐全程度、认证 / 行业 / 能力条目数等，只用结构化字段，不从正文猜），按写明的规则推荐样子，理由由这些特征生成。这取代本票原来「规则只写在提示里、不写成硬映射」一条；仍然不按行业标签硬映射。
 3. 由专门的执行会话（`t072-build`，Codex gpt-6.1-sol xhigh fast）在独立 worktree 上做，另开专门的验收会话（`t072-check`，Codex gpt-6-astra xhigh）验收；完成后两个会话关闭。
+
+## 验收与关闭（2026-10-03 EDT）
+
+专门执行会话 t072-build（gpt-6.1-sol xhigh fast）在 worktree `../sitecraft-ai-t072`（分支 `t072-recommend`）实现，专门验收会话 t072-check（gpt-6-astra xhigh）五轮验收：(c) NO_GO（没存规划器原始输出、证据记在父提交上）→ 最终 NO_GO（推荐 id 是任意字符串，模型写标签被拒、ready 不带推荐，色彩静默回默认）→ enum NO_GO（样子理由露出「结构化资料」「非空参数」等内部用语）→ reason NO_GO（界面截图是注入的 fixture、AI 不可用、预览与理由不符）→ final2 PASS（`artifacts/t072/acceptance-final2.md`，真实流程截图 `artifacts/t072/round-reason-real/`）。
+
+结果：样子由结构化资料特征按写明的规则推荐，色彩由规划器在枚举内推荐并给资料事实理由；最终真实轮次（`87bc3a7`，6/6 合法枚举）工业 = 工程工业 + 石墨工坊，外贸 = 蓝白目录 + 松石，注塑 = 工程工业 + 石墨工坊，理由都指向资料事实。
+
+合回主线 `66590f5`（分支上的 artifacts 先移出 git 跟踪、证据复制到主工作区 `artifacts/t072/`；合并时误把一份原本已跟踪的 `artifacts/acceptance-summary-20260928.md` 一并移除，已在 `a046a11` 恢复）。合并后 typecheck、build 通过，全量 `npm test` 615/615（`artifacts/merge-66590f5/`）；`check-published` 工业专家站、四个新布局副本站、三家基线站中英文三档 15/15 通过。Claude 验收关闭；按负责人要求关闭两个专门会话（worktree 保留，因其中有生成过程中建的站点数据，按 T-003 不自动删除）。
