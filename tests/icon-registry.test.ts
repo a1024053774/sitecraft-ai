@@ -23,12 +23,16 @@ const expectedIds = [
 ] as const;
 
 const geometryTags = new Set(["path", "line", "polyline", "rect", "circle"]);
+const geometryCommandsAndNumbers = /^[MmZzLlHhVvCcSsQqTtAa0-9.,+\-\s]+$/;
+const numericGeometry = /^[0-9.,+\-\s]+$/;
 
 function assertGeometry(geometry: IconGeometry, id: string) {
   assert.ok(geometryTags.has(geometry.kind), `${id} has an unsupported geometry kind`);
-  if (geometry.kind === "path") {
-    assert.match(geometry.d, /^[MmZzLlHhVvCcSsQqTtAa0-9.,+\-\s]+$/, `${id} path must contain SVG geometry only`);
-    assert.doesNotMatch(geometry.d, /<|>|https?:|url\(|script|[A-Za-z]{2,}/i, `${id} path must not contain markup or text`);
+  for (const [field, value] of Object.entries(geometry)) {
+    if (field === "kind" || typeof value !== "string") continue;
+    assert.match(value, geometryCommandsAndNumbers, `${id}.${field} must contain geometry commands and separators only`);
+    assert.doesNotMatch(value, /<|>|https?:|url\(|script/i, `${id}.${field} must not contain markup, text, or URLs`);
+    if (field === "points") assert.match(value, numericGeometry, `${id}.points must contain numbers and separators only`);
   }
   for (const value of Object.values(geometry)) {
     if (typeof value === "number") assert.equal(Number.isFinite(value), true, `${id} geometry number must be finite`);
@@ -52,7 +56,10 @@ test("every icon carries geometry, source, license, and the 16/20/24 sizing cont
     assert.ok(icon.source.length > 0);
     assert.ok(icon.license.name.length > 0);
     assert.ok(icon.license.attribution.length > 0);
+    assert.ok(icon.license.copyright.length > 0);
+    assert.ok(icon.license.notice.length > 0);
     assert.ok(icon.paths.length > 0);
+    assert.equal(icon.lineCap, "round", `${id} is part of the round-cap first batch`);
     icon.paths.forEach((geometry) => assertGeometry(geometry, id));
   }
 });
@@ -61,7 +68,9 @@ test("Lucide-sourced icons keep the ISC provenance and exact Lucide geometry", (
   const mail = iconDefinitionFor("contact-email");
   assert.equal(mail.source, "lucide-react@0.511.0");
   assert.equal(mail.license.name, "ISC");
-  assert.equal(mail.license.url, "https://github.com/lucide-icons/lucide/blob/main/LICENSE");
+  assert.equal(mail.license.url, "https://raw.githubusercontent.com/lucide-icons/lucide/0.511.0/LICENSE");
+  assert.match(mail.license.copyright.join("\n"), /Cole Bemis 2013-2022 as part of Feather/);
+  assert.match(mail.license.copyright.join("\n"), /Lucide Contributors 2022/);
   assert.deepEqual(mail.paths, [
     { kind: "path", d: "m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7" },
     { kind: "rect", x: 2, y: 4, width: 20, height: 16, rx: 2 },
@@ -91,7 +100,12 @@ test("the icon spec records the Cursor-derived geometry rules", () => {
   assert.deepEqual(ICON_SET_SPEC.allowedSizes, [16, 20, 24]);
   assert.equal(ICON_SET_SPEC.defaultStrokeWidth, 1.75);
   assert.equal(ICON_SET_SPEC.defaultLineCap, "round");
-  assert.equal(ICON_SET_SPEC.engineeringLineCap, "square");
+  assert.equal(ICON_SET_SPEC.futureEngineeringLineCap, "square");
   assert.equal(ICON_SET_SPEC.minOpticalGap, 3);
   assert.equal(ICON_SET_SPEC.oneConceptOneIcon, true);
+});
+
+test("all string geometry fields reject a known bad implementation", () => {
+  assert.throws(() => assertGeometry({ kind: "path", d: "M0 0<script>" }, "bad-path"), /geometry commands|markup/);
+  assert.throws(() => assertGeometry({ kind: "polyline", points: "12 6 12 12 url(https://evil.test)" }, "bad-points"), /geometry commands|markup|numbers/);
 });

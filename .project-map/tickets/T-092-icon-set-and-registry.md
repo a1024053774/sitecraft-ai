@@ -39,3 +39,11 @@ supersedes:
 - alignment-card 逐条核对：当前提交单测复跑通过，证据为 `artifacts/t092/alignment-card-isolated-2.log`；父提交 `fc25b37` 的同一测试也通过，证据为 `artifacts/t092/parent-alignment-card-2.log`。因此全量超时/先前 1px 波动属于测试运行环境/无头浏览器稳定性，不归因于本票；没有修改 `tests/helpers/workspace-browser.ts`，没有手动结束 Chrome。
 - 预览根因是临时渲染器把 24px viewBox 按 32px 单元平移（`x/y - 32 * scale`），并把首行图标中心放在顶部标签附近；已改为按 24px viewBox 居中（`x/y - 12 * scale`）并下移首行，标签不再压图标。注册表的三个自画图标同时扩大到接近 3–22 的光学边界；出口资质重画为明确的文件 + 外箭头，16px 可辨认。
 - 重新生成并打开：[浅色预览](../../artifacts/t092/icon-preview-light.png)、[深色预览](../../artifacts/t092/icon-preview-dark.png)；`node --test --experimental-strip-types tests/icon-registry.test.ts` 6/6 PASS；`npm run typecheck` PASS；`npm run build`（日志 `artifacts/t092/build-2.log`）PASS。独立审核仍未完成，状态保持 open。
+
+2026-10-03 18:29 EDT，按独立审查报告 `T-092-review-1.md` 修复：
+
+- 第一批十个图标统一使用圆端点和统一 1.75px 笔画；`futureEngineeringLineCap: "square"` 只作为以后工程工业变体的规范记录，本票不启用。自画证书、检测报告、出口资质图标继续使用统一圆端点和较疏的几何。
+- Lucide ISC 许可记录补齐 Cole Bemis/Feather 与 Lucide Contributors 两组版权归属，链接固定到 `https://raw.githubusercontent.com/lucide-icons/lucide/0.511.0/LICENSE`；测试断言两组归属、固定链接和 round cap。
+- 几何测试对所有字符串字段统一走命令/数字/分隔符白名单，`polyline.points` 单独收紧为数字分隔符，并加入 path/polyline 坏实现回归断言；定向测试 7/7 PASS。
+- 通过指定命令 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t092 3054 artifacts/t092/npm-test-3.log`：661/661 PASS、0 fail、0 cancelled。`npm run typecheck` PASS；`npm run build` PASS（`artifacts/t092/build-3.log`）。
+- 重出并打开：[浅色预览](../../artifacts/t092/icon-preview-light.png)、[深色预览](../../artifacts/t092/icon-preview-dark.png)；参考图仍只在 `artifacts/t092/reference-smallbits.png`。独立审核和 Claude 验收仍未完成，票保持 open。

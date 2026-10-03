@@ -13,8 +13,8 @@ export const ICON_SET_SPEC = {
   allowedSizes: [16, 20, 24] as const,
   defaultStrokeWidth: 1.75,
   defaultLineCap: "round" as const,
-  /** Engineering industrial may opt into square caps at the block/token layer. */
-  engineeringLineCap: "square" as const,
+  /** Reserved for a future engineering-industrial variant; this ticket ships round caps only. */
+  futureEngineeringLineCap: "square" as const,
   /** Cursor's minimum clear space rule, expressed in 16px grid units. */
   minOpticalGap: 3,
   oneConceptOneIcon: true,
@@ -31,6 +31,8 @@ export type IconLicense = {
   name: "ISC" | "SiteCraft original";
   url: string | null;
   attribution: string;
+  copyright: readonly string[];
+  notice: string;
 };
 
 export type IconId =
@@ -62,14 +64,21 @@ export type IconDefinition = {
 
 const LUCIDE_LICENSE: IconLicense = {
   name: "ISC",
-  url: "https://github.com/lucide-icons/lucide/blob/main/LICENSE",
-  attribution: "Lucide Icons contributors",
+  url: "https://raw.githubusercontent.com/lucide-icons/lucide/0.511.0/LICENSE",
+  attribution: "Cole Bemis / Feather and Lucide Contributors",
+  copyright: [
+    "Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT).",
+    "All other copyright (c) for Lucide are held by Lucide Contributors 2022.",
+  ],
+  notice: "ISC License",
 };
 
 const SITECRAFT_LICENSE: IconLicense = {
   name: "SiteCraft original",
   url: null,
   attribution: "SiteCraft AI",
+  copyright: ["SiteCraft AI"],
+  notice: "Original SiteCraft geometry; no third-party license.",
 };
 
 const lucide = (
@@ -103,7 +112,7 @@ const original = (
   defaultSize: 20,
   allowedSizes: ICON_SET_SPEC.allowedSizes,
   strokeWidth: ICON_SET_SPEC.defaultStrokeWidth,
-  lineCap: ICON_SET_SPEC.engineeringLineCap,
+  lineCap: ICON_SET_SPEC.defaultLineCap,
   lineJoin: "round",
   source: "SiteCraft original",
   license: SITECRAFT_LICENSE,
