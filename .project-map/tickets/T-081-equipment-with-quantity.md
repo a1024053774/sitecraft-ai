@@ -20,6 +20,17 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 测试先写、改动前先失败（行为级）：数量只接受整数或空；资料没有设备时区块不出现；同一事实不在加工能力和设备里重复
-- [ ] 真实 DeepSeek：三份模拟资料各走一次生成，记录写入的设备（`artifacts/t081/`），没有编造数量
+- [x] 测试先写、改动前先失败（行为级）：数量只接受整数或空；资料没有设备时区块不出现；同一事实不在加工能力和设备里重复
+- [x] 真实 DeepSeek：三份模拟资料各走一次生成，记录写入的设备（`artifacts/t081/`），没有编造数量
 - [ ] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+
+## Resolution
+
+2026-10-03，执行提交 `1dc7278` 已完成设备纵向切片，等待 Astra 代码审查与 Claude 关闭票据：
+
+- 先写的行为红证据保存在 `artifacts/t081/red-parent-equipment-focused.txt`：父提交上的测试正常加载并以 1 通过、9 失败；失败来自缺失设备 schema、operation、事实检查和区块。修复后 `node --test --experimental-strip-types tests/equipment.test.ts` 为 11/11，通过数量整数/空值、稳定 id、整组替换、单条更新、删除、撤销、同句核对、能力/设备去重、发布事实和唯一槽位。
+- 实现 `content.equipment`（稳定 id、双语名称、非负整数或 null 数量、可空双语规格），`replace_equipment` / `update_equipment` / `remove_equipment` 走 `commitOperations`，写入与更新前对完整数组 schema 校验，inverse 恢复 `englishReady`。设备事实复用 T-079 的去指令同句分片：名称/规格只能是同句原文连续子串，数量必须紧挨名称；英文只核数字、代码和单位。加工能力工序与设备机器互斥，工业/外贸工序不会冒充设备。
+- 四个样子加入默认「设备」区块；无条目隐藏，数量/规格槽位唯一；`scripts/published-facts.mjs` 覆盖名称、数量、规格；提示、模拟资料、spec、mainline、术语和 migration 同步。
+- 真实 DeepSeek 完整需求对齐生成命令：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local node /tmp/t081-direct.mjs`（进程内只加载 DeepSeek 变量，未复制或打印密钥）。三份原始 operation 与 change set 保存在 `artifacts/t081/real-industrial.json`、`real-export.json`、`real-molding.json`、`summary.json`；工业/外贸设备为空，注塑落稿 8 条设备，未编造数量。
+- 发布页命令：`SITECRAFT_BASE=http://127.0.0.1:3048 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node scripts/check-published.mjs --out artifacts/t081/published-check <三站 id>`；中文/英文 1440、768、375 全部通过，事实缺失为 0，报告和 18 张截图在 `artifacts/t081/published-check/`。
+- `npm run typecheck`、`npm run build` 通过。`SITECRAFT_BASE=http://127.0.0.1:3048 CHROME_PATH=... npm test` 为 645 通过、7 失败；7 项均为未初始化 vendor 快照/字体资产检查，日志保存在 `artifacts/t081/npm-test-final.txt`，与本票无关。

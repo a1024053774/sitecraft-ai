@@ -105,7 +105,7 @@ test("the bridge follows an explicit block order and keeps the paired blocks tog
   draft.sectionOrder = ["certifications", "products", "capabilities", "industries", "services", "faq", "contact"];
   api.applyDeclaredContent(draft, "zh", [], "published");
   const liveOrder = () => [...document.querySelectorAll("main [data-sc-block]")].map((node) => node.getAttribute("data-sc-block"));
-  assert.deepEqual(liveOrder(), ["hero", "certifications", "products", "capabilities", "industries", "services", "faq", "contact", "commercialTerms"]);
+  assert.deepEqual(liveOrder(), ["hero", "certifications", "products", "capabilities", "industries", "services", "faq", "contact", "commercialTerms", "equipment"]);
   const navOrder = [...document.querySelectorAll(".sitecraft-nav-links a")].map((node) => node.getAttribute("data-sitecraft-nav") || node.getAttribute("data-sitecraft-ui"));
   assert.deepEqual(navOrder, ["certifications", "products", "capabilities", "industries", "services", "faq"]);
 });
@@ -119,7 +119,7 @@ test("reordering before switching a block variant keeps the entity and every tem
   api.applyDeclaredContent(draft, "zh", [], "workspace");
   const main = document.querySelector("main");
   assert.ok(main);
-  assert.deepEqual([...main.children].filter((node) => node.getAttribute("data-sc-block")).map((node) => node.getAttribute("data-sc-block")), ["hero", "certifications", "products", "services", "faq", "contact", "commercialTerms"]);
+  assert.deepEqual([...main.children].filter((node) => node.getAttribute("data-sc-block")).map((node) => node.getAttribute("data-sc-block")), ["hero", "certifications", "products", "services", "faq", "contact", "commercialTerms", "equipment"]);
   const product = document.querySelector('[data-sc-block="products"]');
   const productTemplates = [...main.querySelectorAll('template[data-sc-template^="products:"]')];
   assert.equal(product?.getAttribute("data-sc-variant"), "rows");
