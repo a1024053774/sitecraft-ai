@@ -2,7 +2,7 @@
 id: T-075
 title: 撤销 / 重做的对话提示不再叠两层状态前缀
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-build
 supersedes:
@@ -15,7 +15,7 @@ T-070 验收截图（`artifacts/merge-713b5ee/t070-ui/undone-375.png`）里，�
 ## Acceptance
 
 - [x] 测试先写、改动前先失败：撤销、重做、普通应用、拒绝四种情况，对话提示都只有一层状态前缀
-- [ ] 工作台 1440 / 768 / 375 截图看过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 工作台 1440 / 768 / 375 截图看过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -27,3 +27,5 @@ T-070 验收截图（`artifacts/merge-713b5ee/t070-ui/undone-375.png`）里，�
 - `npm run typecheck`、`npm run build` 通过；带指定 Chrome for Testing 路径的全量 `npm test` 为 604 项 603 通过，唯一失败是已确认的既有 workspace motion 时序测试（1440 宽度等待进度步骤），输出见 `artifacts/t075/typecheck-final.txt`、`artifacts/t075/build-final.txt`、`artifacts/t075/npm-test-final.txt`。
 - 三档工作台截图此前已查看：`artifacts/t075/workspace-prefix-1440.png`、`workspace-prefix-768.png`、`workspace-prefix-375.png` 均无「已应用：已撤销/已重做」叠层，报告见 `artifacts/t075/workspace-screenshots.json`。
 - `project_map.py status` 无 stale；本票状态保持 open。代码审查与 Claude 验收留给 supervisor，因此第二项验收框保持未勾选。对应本次返工为新本地提交，未 push。
+
+独立审核与验收（2026-10-03 EDT）：Astra 两轮——首审 NO_GO（红测只是导入新导出失败），复审 PASS（`artifacts/review-astra-t075.md`，`05e3d0f`：行为夹具在 `81ff44a` 上读到「已应用：已撤销：首屏标题」）。全量 603/604，唯一失败是已确认的既有 workspace motion 时序测试。Claude 看过 `artifacts/t075/workspace-prefix-375.png`：「已撤销：首屏标题。」「已重做：首屏标题。」只有一层前缀。Claude 验收关闭。
