@@ -8,6 +8,7 @@ import { checkVariantRequirements } from "../lib/blocks/requirements.ts";
 import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { applySiteOperations, type SiteOperation } from "../lib/site-operations.ts";
+import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
 import { base, openBrowser } from "./helpers/workspace-browser.ts";
@@ -167,26 +168,6 @@ test("型号索引表 has no horizontal overflow at 1440, 768 and 375 on two loo
 // The index table's rules read look tokens with a fallback; every block look must end up with a
 // real value for each (a var() with nothing behind it makes the whole declaration invalid, so the
 // rule silently disappears on that look).
-function rootTokens(html: string) {
-  const root = /:root \{([^}]*)\}/.exec(html);
-  assert.ok(root, "composed page has a :root block");
-  return new Map([...root[1].matchAll(/^\s*(--[\w-]+):\s*(.+);$/gm)].map((match) => [match[1], match[2].trim()] as const));
-}
-
-/** Resolves var(--a, fallback) the way CSS does; null when a reference has no value and no fallback. */
-function resolveVars(value: string, tokens: Map<string, string>, depth = 0): string | null {
-  if (depth > 8) return null;
-  let failed = false;
-  const out = value.replace(/var\((--[\w-]+)(?:,\s*((?:[^()]|\([^()]*\))*))?\)/g, (_all, name: string, fallback?: string) => {
-    const own = tokens.get(name);
-    const next = own ?? fallback;
-    const resolved = next === undefined ? null : resolveVars(next, tokens, depth + 1);
-    if (resolved === null) failed = true;
-    return resolved ?? "";
-  });
-  return failed ? null : out;
-}
-
 test("型号索引表 rule tokens resolve to a real value on every block look", () => {
   const css = blockFragments.products.css;
   const top = /\.sitecraft-index-table \{[^}]*border-top: (var\(--site-index-top[^;]*\));/.exec(css)?.[1];

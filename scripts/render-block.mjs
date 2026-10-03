@@ -9,9 +9,13 @@
 //   crops/<case>-<width>-default.png     the same block with the look's default layout
 //   context/<case>-1440-page.png         the whole page at 1440 with the candidate mounted
 //   scan.json / scan.md                  horizontal overflow, clipped text, text-over-text overlap
-// Cases read drafts from .sitecraft-data/sites/. A case with `borrowProductsFrom` swaps in another
-// draft's products (a stress test for a layout whose materials condition the company's own draft
-// does not meet); a case with `template` + `brief` mounts the draft on another look. The report labels both. Exit 1 when any scan finds overflow or overlap.
+// Cases read drafts from .sitecraft-data/sites/. A case may carry `borrow: { from: <siteId>, paths: ["products"] }`
+// (take those top-level draft fields from another draft: a stress test for a layout whose materials
+// the company's own draft does not meet), `patch: { "content.services.items": [...] }` (set a dotted
+// path to a value), and `template` + `brief` (mount the draft on another look). Borrowed and patched
+// cases are not real configurations: say so in `note` and in the candidate's candidate.md.
+// Pass a JSON array of cases with --cases <file>; --only <caseId> renders one. Use --out to keep a
+// partial re-render from overwriting an earlier scan. Exit 1 when any scan finds overflow or overlap.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -29,14 +33,12 @@ const OUT = path.resolve(option("--out", path.join("artifacts", "blocks-pool", N
 const SITES = path.resolve(".sitecraft-data", "sites");
 const WIDTHS = [1440, 768, 375];
 
-// 工业 / 外贸 / 注塑: each company's last draft (the expert version).
+// 工业 / 外贸 / 注塑: each company's last draft (the expert version), then the molding draft on the
+// two other block-library looks to check the CSS against every look's tokens.
 const DEFAULT_CASES = [
   { id: "industrial", site: "5233c15c-966e-4716-aa6d-7168773df13e", note: "工业（重载减速机）" },
   { id: "export", site: "04d99180-2831-4147-96cf-95eae3913b27", note: "外贸（流体接头）" },
   { id: "molding", site: "82976660-1768-4c3f-8986-509e2a0e45c1", note: "注塑（精密注塑模具）" },
-  { id: "industrial-borrowed", site: "5233c15c-966e-4716-aa6d-7168773df13e", borrowProductsFrom: "82976660-1768-4c3f-8986-509e2a0e45c1", note: "工业，产品借自注塑（压力测试，非真实资料）" },
-  { id: "export-borrowed", site: "04d99180-2831-4147-96cf-95eae3913b27", borrowProductsFrom: "82976660-1768-4c3f-8986-509e2a0e45c1", note: "外贸，产品借自注塑（压力测试，非真实资料）" },
-  // The same molding draft on the two other block-library looks, to check the CSS against every look's tokens.
   { id: "molding-forge", site: "82976660-1768-4c3f-8986-509e2a0e45c1", template: "forge", brief: "industrial", note: "注塑草稿换到 forge 样子（跨样子检查，非真实配置）" },
   { id: "molding-short", site: "82976660-1768-4c3f-8986-509e2a0e45c1", template: "tailwind-landing", brief: "technical-product", note: "注塑草稿换到 tailwind-landing 样子（跨样子检查，非真实配置）" },
 ];
@@ -44,6 +46,10 @@ const casesFile = option("--cases");
 const CASES = casesFile ? JSON.parse(fs.readFileSync(casesFile, "utf8")) : DEFAULT_CASES;
 const only = option("--only");
 
+// Turbopack (dev and build) refuses a node_modules symlink that points outside the worktree.
+if (fs.lstatSync("node_modules", { throwIfNoEntry: false })?.isSymbolicLink()) {
+  console.warn("warning: node_modules is a symlink; Turbopack will not start. Clone it instead: rm node_modules && cp -cR <main>/node_modules node_modules");
+}
 const { blockCatalog } = await import(path.resolve("lib/blocks/catalog.ts"));
 const { blockLookForTemplate } = await import(path.resolve("lib/blocks/looks/index.ts"));
 const { checkVariantRequirements } = await import(path.resolve("lib/blocks/requirements.ts"));
@@ -194,7 +200,16 @@ try {
   for (const item of CASES.filter((c) => !only || c.id === only)) {
     const base = readDraft(item.site);
     const own = { ...base, blockVariants: { ...base.blockVariants } };
-    if (item.borrowProductsFrom) own.products = readDraft(item.borrowProductsFrom).products;
+    if (item.borrow) {
+      const from = readDraft(item.borrow.from);
+      for (const key of item.borrow.paths) own[key] = structuredClone(from[key]);
+    }
+    for (const [dotted, value] of Object.entries(item.patch || {})) {
+      const keys = dotted.split(".");
+      let node = own;
+      for (const key of keys.slice(0, -1)) node = node[key] = Array.isArray(node[key]) ? [...node[key]] : { ...node[key] };
+      node[keys.at(-1)] = structuredClone(value);
+    }
     if (item.template) {
       own.templateId = item.template;
       own.visualBrief = { ...own.visualBrief, templateId: item.template, id: item.brief };
