@@ -69,6 +69,12 @@ globalThis.fetch = async (input, init) => {
         value: "CHAT_SENTINEL_PERSIST_TITLE_8812",
       }],
     };
+  } else if (raw.includes("CHAT_REJECT_SUMMARY_7301")) {
+    payload = {
+      type: "edit",
+      summary: "CHAT_REJECT_MODEL_PROSE_7301 右边预留照片区域",
+      operations: [{ op: "set_block_variant", block: "products", variant: "compare" }],
+    };
   } else if (raw.includes("DYNAMIC_ALIGN_PROMPT_20260923")) {
     payload = {
       kind: "question",
@@ -204,7 +210,7 @@ registerHooks({
 const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
 };
-const { getConversation } = await import("../lib/conversation-store.ts");
+const { getConversation, conversationPromptContext } = await import("../lib/conversation-store.ts");
 const { commitOperations, getSite } = await import("../lib/site-store.ts");
 const { saveSiteImage } = await import("../lib/site-images.ts");
 
@@ -432,6 +438,21 @@ test("chat POST keeps applied result when append fails after a successful commit
   assert.equal(ui.showsConversationWarning, true);
   assert.equal(pageSource.includes("本次没有修改草稿"), false);
   assert.equal(pageSource.includes("已保存的草稿没有变化，可以直接重试。"), true);
+});
+
+test("chat POST rejected edit records the refusal reason, not the provider summary", async () => {
+  const siteId = uniqueSiteId();
+  const before = await getSite(siteId);
+  const result = await postChat(siteId, { baseRevision: before.draft.revision, message: "CHAT_REJECT_SUMMARY_7301 产品改成参数对比表" });
+  assert.equal(result.done?.status, "no_change");
+  assert.doesNotMatch(String(result.done?.summary || ""), /CHAT_REJECT_MODEL_PROSE_7301|照片/);
+  const record = await getConversation(siteId, String(result.done?.conversationId));
+  assert.ok(record);
+  const turn = record.turns.at(-1);
+  assert.ok(turn);
+  assert.doesNotMatch(turn.aiSummary, /CHAT_REJECT_MODEL_PROSE_7301|照片/);
+  assert.match(turn.aiSummary, /参数对比表/);
+  assert.doesNotMatch(conversationPromptContext(record), /CHAT_REJECT_MODEL_PROSE_7301|照片/);
 });
 
 test("chat POST keeps answer when append fails and does not treat it as an error", async () => {
@@ -848,6 +869,13 @@ test("alignment confirm conflicts when the draft revision changes, and cancel do
     questionRevision: Number(proposed.done?.questionRevision),
   });
   assert.equal(conflicted.done?.status, "conflict");
+  const conflictedRecord = await getConversation(siteId, conversationId);
+  assert.ok(conflictedRecord);
+  const conflictTurn = conflictedRecord.turns.at(-1);
+  assert.ok(conflictTurn);
+  assert.equal(conflictTurn.aiSummary, "草稿在 AI 处理期间已被更新，本次操作没有覆盖新版本。");
+  assert.doesNotMatch(conflictTurn.aiSummary, /ALIGN_HITL_BETA_SUMMARY_4401|将修改/);
+  assert.doesNotMatch(conversationPromptContext(conflictedRecord), /ALIGN_HITL_BETA_SUMMARY_4401/);
   const afterConflict = await getSite(siteId);
   assert.equal(afterConflict.draft.content.hero.title.zh, "ALIGN_MANUAL_CONFLICT_4401");
   assert.notEqual(afterConflict.draft.content.hero.subtitle.zh, "ALIGN_HITL_BETA_SUB_4401");

@@ -146,6 +146,23 @@ function safeProviderFailure(code: string) {
   };
 }
 
+const REVISION_CONFLICT_SUMMARY = "草稿在 AI 处理期间已被更新，本次操作没有覆盖新版本。";
+const NO_CHANGE_SUMMARY = "模型没有生成可应用的内容差异，草稿和模板均未修改。";
+
+function uniqueReasonText(reasons: unknown[]) {
+  return [...new Set(reasons.filter((reason): reason is string => typeof reason === "string").map((reason) => reason.trim().replace(/[。.；;]+$/, "")).filter(Boolean))].join("；");
+}
+
+function rejectionSummary(reasons: unknown[]) {
+  const text = uniqueReasonText(reasons);
+  return text ? `${text}。` : NO_CHANGE_SUMMARY;
+}
+
+function rejectionDisplaySummary(reasons: unknown[]) {
+  const text = uniqueReasonText(reasons);
+  return text ? `未修改：${text}` : NO_CHANGE_SUMMARY;
+}
+
 async function planPromptStart(siteId: string, args: {
   message: string;
   baseRevision: number;
@@ -502,21 +519,24 @@ async function commitClaimedProposal(siteId: string, conversationId: string, con
   const effectiveStatus = result.status === "rejected" ? "no_change" : result.status;
   outcome = effectiveStatus;
   if (result.status === "applied") aiSummary = result.changeSet.summary;
-  else if (result.status === "rejected") aiSummary = `未修改：${result.reasons.join("；")}`;
+  else if (result.status === "rejected") aiSummary = rejectionSummary([...proposed.rejected, ...result.reasons]);
   appliedOperationsSummary = result.status === "applied"
     ? summarizeAppliedOperations(result.changeSet.operations, result.changeSet.appliedTargets)
     : `not applied: ${result.status}`;
   const recordedResult = {
     status: effectiveStatus,
     summary: result.status === "conflict"
-      ? "草稿已经更新，已确认的方案未应用。"
+      ? REVISION_CONFLICT_SUMMARY
       : result.status === "rejected"
-        ? `未修改：${result.reasons.join("；")}`
+        ? rejectionDisplaySummary([...proposed.rejected, ...result.reasons])
         : result.status === "applied"
           ? result.changeSet.summary
-          : proposed.summary,
+          : NO_CHANGE_SUMMARY,
     revision: result.status === "applied" ? result.changeSet.revision : result.record.draft.revision,
   };
+  aiSummary = result.status === "rejected"
+    ? rejectionSummary([...proposed.rejected, ...result.reasons])
+    : recordedResult.summary;
   doneEvent = {
     type: "done", status: effectiveStatus, summary: recordedResult.summary,
     conversationId, waitingForUser: false,
@@ -818,15 +838,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
             });
             if (committed.status === "conflict") {
               outcome = "conflict";
-              aiSummary = provider.summary;
+              aiSummary = REVISION_CONFLICT_SUMMARY;
               appliedOperationsSummary = "not applied: conflict";
-              doneEvent = { type: "done", status: "conflict", error: "草稿在 AI 处理期间已被更新，本次操作没有覆盖新版本。", ...snapshot(committed.record) };
+              doneEvent = { type: "done", status: "conflict", error: REVISION_CONFLICT_SUMMARY, ...snapshot(committed.record) };
             } else if (committed.status === "no_change" || committed.status === "rejected") {
               outcome = "no_change";
-              aiSummary = provider.summary;
               appliedOperationsSummary = `not applied: ${committed.status}`;
               const rejected = committed.status === "rejected" ? [...provider.rejected, ...committed.reasons] : provider.rejected;
-              const summary = committed.status === "rejected" ? `未修改：${committed.reasons.join("；")}` : provider.summary;
+              const summary = committed.status === "rejected" ? rejectionDisplaySummary(rejected) : rejected.length ? rejectionSummary(rejected) : NO_CHANGE_SUMMARY;
+              aiSummary = rejected.length ? rejectionSummary(rejected) : NO_CHANGE_SUMMARY;
               doneEvent = { type: "done", status: "no_change", summary, rejected, ...snapshot(committed.record), model: provider.model, latencyMs: provider.latencyMs };
             } else {
               outcome = "applied";
