@@ -1957,8 +1957,9 @@ function englishCommercialCodes(value: string): string[] {
 
 const COMMERCIAL_UNIT_RULES = [
   { key: "ten-thousand-piece", zh: /万件/, en: /\b(?:10[,.]?000|ten thousand|million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b/i },
-  { key: "piece", zh: /件/, en: /\b(?:pcs?|pieces?|parts?)\b/i },
+  { key: "piece", zh: /\d[\d,.]*\s*件/, en: /\b(?:pcs?|pieces?|parts?)\b/i },
   { key: "day", zh: /天/, en: /\bdays?\b/i },
+  { key: "hour", zh: /小时|时/, en: /\bhours?\b|\bhrs?\b|\bh\b/i },
   { key: "week", zh: /周|星期/, en: /\bweeks?\b/i },
   { key: "month", zh: /月/, en: /\bmonths?\b|\bmonthly\b/i },
   { key: "year", zh: /年/, en: /\byears?\b|\byearly\b/i },
@@ -1978,7 +1979,13 @@ function englishCommercialUnits(value: string): string[] {
 
 function commercialUnitsMatch(zh: string, en: string): boolean {
   const expected = chineseCommercialUnits(zh);
-  const actual = englishCommercialUnits(en);
+  let actual = englishCommercialUnits(en);
+  // 「注塑件」「嵌件」use 件 as part of a noun. Treat the English plural in the
+  // corresponding noun phrase as lexical text unless the Chinese side has a
+  // numeric 件 unit; numeric piece facts remain strictly paired.
+  if (!expected.includes("piece") && /件/.test(zh) && actual.includes("piece")) {
+    actual = actual.filter((unit) => unit !== "piece");
+  }
   const compatible = (source: string, target: string) => {
     if (source === target) return true;
     if (source === "equipment" && target === "set") return true;
@@ -2114,6 +2121,7 @@ function qualityProcessEnglishMatches(step: QualityProcessStep, fragment: Qualit
   const zh = `${step.title.zh} ${step.body?.zh ?? ""}`;
   const en = `${step.title.en} ${step.body?.en ?? ""}`;
   if (JSON.stringify(canonicalCommercialNumbers(zh).sort()) !== JSON.stringify(canonicalCommercialNumbers(en).sort())) return false;
+  if (!commercialUnitsMatch(zh, en)) return false;
   const sourceCodes = new Set(englishCommercialCodes(`${fragment.source} ${zh}`).map((code) => code.toUpperCase()));
   return englishCommercialCodes(en).every((code) => sourceCodes.has(code.toUpperCase()));
 }

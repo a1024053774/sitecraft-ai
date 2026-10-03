@@ -963,8 +963,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   function renderQualityProcess(draft, locale, applied, variant) {
     var sectionNode = uniqueNode('[data-sitecraft-section="qualityProcess"]');
+    var entityNode = uniqueNode('[data-sc-block="qualityProcess"]');
     var grid = uniqueNode('[data-sitecraft-quality-process-grid]');
-    if (!sectionNode && !grid) return;
+    if (!sectionNode || !entityNode || !grid || entityNode.getAttribute("data-sc-variant") !== "rows") return;
     var steps = draft && draft.content && Array.isArray(draft.content.qualityProcess) ? draft.content.qualityProcess : [];
     var visible = [];
     for (var i = 0; i < steps.length; i++) {

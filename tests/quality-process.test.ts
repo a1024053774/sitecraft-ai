@@ -65,6 +65,15 @@ test("quality process grounding keeps source order and rejects an invented step 
   assert.ok(duplicate.rejected.some((message) => message.includes("重复") || message.includes("质检")));
 });
 
+test("quality process grounding rejects an English unit mismatch when the number is unchanged", () => {
+  const mismatch = validateAIOperations(materials, [{
+    op: "replace_quality_process",
+    steps: [{ ...steps[2], body: text("每 2 小时抽检", "Sample every 2 days") }],
+  } as never], options.templateIds);
+  assert.equal(mismatch.operations.length, 0, JSON.stringify(mismatch));
+  assert.ok(mismatch.rejected.some((message) => message.includes("过程巡检") || message.includes("同一句")), JSON.stringify(mismatch.rejected));
+});
+
 test("published facts include every quality process title and body", () => {
   const draft = { ...structuredClone(defaultDraft), content: { ...structuredClone(defaultDraft.content), qualityProcess: steps } } as never;
   const facts = expectedFacts(draft);
@@ -93,5 +102,22 @@ test("quality process block hides without entries and exposes one slot per field
       assert.equal(document.querySelectorAll(`[data-sitecraft-slot="qualityProcess.items.${step.id}.title.zh"]`).length, 1);
       assert.equal(document.querySelectorAll(`[data-sitecraft-slot="qualityProcess.items.${step.id}.body.zh"]`).length, 1);
     }
+  }
+});
+
+test("quality process marker without a declared block entity is not rendered", () => {
+  const adapter = getTemplateAdapter("screwfast");
+  assert.ok(adapter);
+  for (const entity of [
+    '<section data-sitecraft-section="qualityProcess"><div data-sitecraft-quality-process-grid></div></section>',
+    '<section data-sitecraft-section="qualityProcess" data-sc-block="qualityProcess" data-sc-variant="unknown"><div data-sitecraft-quality-process-grid></div></section>',
+  ]) {
+    const document = parseHtmlDocument(`<html><body><main>${entity}</main></body></html>`);
+    const globalObject: Record<string, unknown> = { document, parent: { postMessage() {} }, addEventListener() {} };
+    globalObject.window = globalObject;
+    const draft = { ...structuredClone(defaultDraft), templateId: "screwfast", content: { ...structuredClone(defaultDraft.content), qualityProcess: steps } } as never;
+    const report = installPreviewBridge(globalObject, "screwfast", adapter).applyDeclaredContent(draft, "zh", [], "published");
+    assert.equal(document.querySelector("[data-sitecraft-quality-process-grid]")?.children.length, 0);
+    assert.equal(report.appliedSlots.includes("qualityProcess"), false);
   }
 });
