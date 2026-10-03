@@ -1,6 +1,7 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { open, readFile, rm, stat, utimes } from "node:fs/promises";
+import os from "node:os";
 
 // Shared by the workspace browser tests (T-043, T-052). They need the dev server on
 // SITECRAFT_BASE (default http://127.0.0.1:3034) and a Chrome or Chromium binary.
@@ -11,40 +12,73 @@ export const contrastScan = readFileSync(new URL("../../scripts/workspace-contra
 // dev server on 3034. Serialize those browser sessions at their shared-resource boundary instead
 // of letting concurrent Chrome pages compile/serve the workspace against one another. A dead
 // owner is reclaimed so an interrupted test cannot strand later runs.
-const browserLockDir = "/tmp/sitecraft-workspace-browser.lock";
-const browserLockOwner = `${browserLockDir}/owner`;
+const browserLockStaleMs = 5_000;
 
 function processAlive(pid: number) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
+function processStartToken(pid: number) {
+  const result = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8" });
+  const token = result.status === 0 ? result.stdout.trim() : "";
+  return token || null;
+}
+
+function browserLockPath() {
+  let port = "default";
+  try {
+    const url = new URL(base);
+    port = url.port || (url.protocol === "https:" ? "443" : "80");
+  } catch { /* the request itself will report an invalid base URL */ }
+  const key = process.env.SITECRAFT_BROWSER_LOCK_KEY || port;
+  return `${os.tmpdir()}/sitecraft-workspace-browser-${key}.lock`;
+}
+
+async function staleBrowserLock(path: string) {
+  const metadata = await stat(path).catch(() => null);
+  if (!metadata) return true;
+  let record: { pid?: unknown; start?: unknown };
+  try { record = JSON.parse(await readFile(path, "utf8")) as { pid?: unknown; start?: unknown }; } catch {
+    return Date.now() - metadata.mtimeMs > browserLockStaleMs;
+  }
+  if (!Number.isInteger(record.pid) || typeof record.start !== "string") {
+    return Date.now() - metadata.mtimeMs > browserLockStaleMs;
+  }
+  if (!processAlive(record.pid as number)) return true;
+  const start = processStartToken(record.pid as number);
+  return start ? start !== record.start : Date.now() - metadata.mtimeMs > browserLockStaleMs;
+}
+
 async function acquireBrowserLock() {
   while (true) {
     try {
-      await mkdir(browserLockDir);
-      await writeFile(browserLockOwner, `${process.pid}\n`, "utf8");
+      const path = browserLockPath();
+      const handle = await open(path, "wx");
+      await handle.writeFile(JSON.stringify({ pid: process.pid, start: processStartToken(process.pid) ?? `pid:${process.pid}`, acquiredAt: Date.now() }));
+      await handle.close();
+      const heartbeat = setInterval(() => {
+        const now = new Date();
+        void utimes(path, now, now).catch(() => {});
+      }, 1_000);
+      heartbeat.unref?.();
       let released = false;
       return async () => {
         if (released) return;
         released = true;
+        clearInterval(heartbeat);
         try {
-          if ((await readFile(browserLockOwner, "utf8")).trim() === String(process.pid)) {
-            await rm(browserLockDir, { recursive: true, force: true });
+          const record = JSON.parse(await readFile(path, "utf8")) as { pid?: unknown; start?: unknown };
+          if (record.pid === process.pid && record.start === (processStartToken(process.pid) ?? `pid:${process.pid}`)) {
+            await rm(path, { force: true });
           }
         } catch { /* a crashed or already-released owner leaves no work for this process */ }
       };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      let owner = 0;
-      let ownerReady = true;
-      try { owner = Number.parseInt((await readFile(browserLockOwner, "utf8")).trim(), 10); } catch { ownerReady = false; }
-      if (!ownerReady) {
-        await sleep(100);
-        continue;
-      }
-      if (!processAlive(owner)) {
-        await rm(browserLockDir, { recursive: true, force: true }).catch(() => {});
+      const path = browserLockPath();
+      if (await staleBrowserLock(path)) {
+        await rm(path, { force: true }).catch(() => {});
         continue;
       }
       await sleep(100);
@@ -119,7 +153,10 @@ export class Cdp {
 
 export async function openBrowser() {
   const releaseLock = await acquireBrowserLock();
-  const port = 9365 + (process.pid % 200);
+  const configuredPort = Number.parseInt(process.env.SITECRAFT_BROWSER_CDP_PORT || "", 10);
+  const port = Number.isInteger(configuredPort) && configuredPort > 0
+    ? configuredPort
+    : 10_000 + (process.pid % 50_000);
   const probe = () => fetch(`http://127.0.0.1:${port}/json/version`).then((response) => response.json()).catch(() => null) as Promise<{ webSocketDebuggerUrl?: string } | null>;
   try {
     let version = await probe();
