@@ -36,3 +36,10 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 - 真实 DeepSeek 当前提交完整三站结果在 `artifacts/t096/real-industrial.json`、`real-export.json`、`real-molding.json`、`summary.json`（`commit: 264c953`）：工业/外贸无质检步骤；注塑写入 5 步，顺序与资料一致，无资料外数字。模型 schema 失败的完整失败轮次保存在 `artifacts/t096/retry-264c953-failure-1/`，没有静默改写。
 - `SITECRAFT_BASE=http://127.0.0.1:3061 CHROME_PATH=... node scripts/check-published.mjs --out artifacts/t096/published-check-264c953 10c435c2-912d-44d7-a2e4-d65f3d00b4da de79633a-b962-450e-9453-660b34e209ac b256d804-669e-4285-acd2-f09b83dae1f2`：9 个中英文三档组合通过，三站事实缺失均为 0；截图与报告在该目录。
 - `npm run typecheck`、`npm run build` 通过。唯一一轮全量 `npm test` 为 669/670：`tests/workspace-interaction.test.ts` 的 motion 场景在高负载下失败（原始日志 `artifacts/t096/npm-test-final-264c953.txt`）；按协调规则未修改测试，低负载单独重跑为 5/5（`artifacts/t096/workspace-interaction-rerun-264c953.txt`），不能把原全量失败抹掉。
+
+### 验收前复核（2026-10-03）
+
+- 失败轮的用户可见结果已核对：工业和注塑在需求对齐的「选择」请求中收到 `invalid_output`，草稿没有提交；界面显示「模型返回的方案无法安全校验，草稿没有修改。重新提交或缩小需求范围；未经校验的内容不会写进页面。」当前问题卡仍保留，可重新选择/提交。确认请求随后也以 error 结束。
+- 这不是「20台」逐字核对拒绝：当前提交和父提交 `7f0f4b4` 对 `20台` / `20 units` 的 `replace_commercial_terms` 都是 accepted、`rejected=[]`（`artifacts/t096/grounding-current-07827d6.json`、`grounding-parent-7f0f4b4.json`）。失败轮的完整模型 JSON 在整体 Schema 校验阶段被拒绝；过滤后的调用记录只剩商业条款/设备/质检 operation，不能把过滤结果当成拒绝原因。原始字段证据见 `artifacts/t096/repro-schema-fields.txt`。
+- 复现统计：当前 `264c953` 同资料工业/注塑各 3 次，6/6 最终在第二次尝试返回 `edit`，但 6/6 第一次响应都发生整体 Schema 类型错误；父提交 `7f0f4b4` 工业 3/3 最终在第二次尝试成功，注塑 3 次均遇 DeepSeek HTTP 402（余额/额度耗尽，未拿到模型响应）。这说明该失败是主线已有的结构化输出稳定性问题，T-096 没有引入，也没有用质检核对放宽或重试掩盖；暂不改产品路径，待负责人另开 provider/schema 稳定性票。
+- 汇总已重新生成：`artifacts/t096/real-*.json` 和 `summary.json` 现在直接包含 `qualityProcess`；工业/外贸为 `[]`，注塑为 5 步（与持久化草稿和页面一致）。失败分析与复现目录：`artifacts/t096/failure-analysis-264c953.json`、`repro-current-264c953/`、`repro-parent-7f0f4b4/`。
