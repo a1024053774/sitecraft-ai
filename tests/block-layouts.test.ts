@@ -136,7 +136,7 @@ test("按类别分组: one group per category in material order, cards without a
   assert.deepEqual(groups[1].querySelectorAll(".sitecraft-product-card h4").map((node) => text(node)), ["精密结构注塑件", "透明光学注塑件", "金属嵌件注塑件"]);
   assert.equal(products.querySelectorAll(".sitecraft-product-category").length, 0, "the group title already names the category");
   assert.equal(products.querySelectorAll(".sitecraft-product-card h3").length, 0);
-  const structural = products.querySelector('[data-sitecraft-product="precision-structural-parts"]');
+  const structural = products.querySelector(`[data-sitecraft-product="${draft.products.find((product) => product.name.zh === "精密结构注塑件")!.id}"]`);
   assert.ok(structural);
   assert.doesNotMatch(text(structural), /表面处理/, "a spec whose value is a gap is left out");
   assert.match(text(structural), /PA66\+GF\/POM\/PBT\/PC/);

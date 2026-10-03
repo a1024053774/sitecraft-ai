@@ -200,13 +200,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var product = visible[i];
       var productId = stableProductIdentity(product);
       if (!productId) continue;
-      var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
       var productName = localize(product.name, locale) || "";
       var productSummary = localize(product.summary, locale) || "";
       if (isGapMarker(productName) && isGapMarker(productSummary)) continue;
       var card = document.createElement("article");
       card.className = "sitecraft-product-card";
-      card.setAttribute("data-sitecraft-product", sku);
+      card.setAttribute("data-sitecraft-product", productId);
       if (product.image && typeof product.image.url === "string" && product.image.url) {
         var image = document.createElement("img");
         image.className = "sitecraft-product-image";
@@ -302,13 +301,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function renderCatalogCard(grid, product, index, locale, applied, cardSpec) {
     var productId = stableProductIdentity(product);
     if (!productId) return;
-    var sku = typeof product.sku === "string" ? product.sku : "product-" + index;
     var productName = localize(product.name, locale) || "";
     var productSummary = localize(product.summary, locale) || "";
     if (isGapMarker(productName) && isGapMarker(productSummary)) return;
     var card = document.createElement("article");
     card.className = "sitecraft-product-card";
-    card.setAttribute("data-sitecraft-product", sku);
+    card.setAttribute("data-sitecraft-product", productId);
     var hasPhoto = product.image && typeof product.image.url === "string" && product.image.url;
     card.setAttribute("data-sitecraft-product-photo", hasPhoto ? "true" : "false");
     if (hasPhoto) {
@@ -524,7 +522,6 @@ function sitecraftPreviewBridge(templateId, adapter) {
     for (var r = 0; r < rows.length; r++) {
       var product = rows[r].product;
       var id = rows[r].id;
-      var sku = typeof product.sku === "string" ? product.sku : "product-" + rows[r].index;
       var productName = localize(product.name, locale) || "";
       var allSpecs = valuedSpecs(product, locale);
       // One row group per product. It is the single node of the product's specs target: the cells of
@@ -536,7 +533,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         applied.add("products." + id + ".specs");
       }
       var tr = document.createElement("tr");
-      tr.setAttribute("data-sitecraft-product", sku);
+      tr.setAttribute("data-sitecraft-product", id);
       var nameCell = document.createElement("th");
       nameCell.setAttribute("scope", "row");
       nameCell.className = "sitecraft-index-name";
@@ -683,13 +680,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var product = products[i];
       var productId = stableProductIdentity(product);
       if (!productId) continue;
-      var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
       var productName = localize(product.name, locale) || "";
       var productSummary = localize(product.summary, locale) || "";
       names.push({ id: productId, name: productName });
       var card = document.createElement("article");
       card.className = "sitecraft-compare-series-card";
-      card.setAttribute("data-sitecraft-product", sku);
+      card.setAttribute("data-sitecraft-product", productId);
       var productCategory = localize(product.category, locale) || "";
       if (productCategory && !isGapMarker(productCategory) && productCategory !== productName) {
         var category = document.createElement("p");
