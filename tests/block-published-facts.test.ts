@@ -52,6 +52,7 @@ const LAYOUT_SETS: Array<[string, Record<string, string>]> = [
   ["左右条款", { commercialTerms: "side" }],
   ["条款带", { commercialTerms: "strip" }],
   ["数量带", { equipment: "band" }],
+  ["双栏清单", { equipment: "compact" }],
   ["五个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table", commercialTerms: "side" }],
   ["条款带和其余四个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table", commercialTerms: "strip" }],
 ];

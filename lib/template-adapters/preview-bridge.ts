@@ -931,6 +931,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (sectionNode) setSectionHidden(sectionNode, "equipment", shouldHide);
     if (!grid || shouldHide) return;
     grid.textContent = "";
+    grid.setAttribute("data-sitecraft-entry-count", String(visible.length));
     applied.add("equipment");
     // "grouped" layouts keep the items with a count and the items without one apart, so a missing
     // count is never an empty cell: the grouping follows the structured quantity only.

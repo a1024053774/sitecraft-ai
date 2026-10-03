@@ -304,5 +304,6 @@ test("T-095: the layout menu offers 数量带 for equipment and says when to cho
   await ask(packDraft("molding"), "看看现在的页面", { type: "answer", text: "ok" });
   const system = lastMessage("system");
   assert.ok(system.includes("band=数量带"), "the menu names the layout");
-  assert.match(system, /设备：有几样带数量的主力设备、其余只有名称（检测设备等）时用 band，否则 rows/);
+  assert.match(system, /设备：有几样带数量的主力设备、其余只有名称（检测设备等）时用 band；设备 4 条以上、名称短、想紧凑列出时用 compact；否则 rows/);
+  assert.ok(system.includes("compact=双栏清单"), "the menu names the compact layout too");
 });
