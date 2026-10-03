@@ -152,7 +152,7 @@
 
 ### Skill 使用
 
-Impeccable、UI UX Pro Max、Marketing Skills 等仍是候选材料，不是已安装能力。审美主流程的内部实现指定为项目 Skill `sitecraft-frontend-less-ai-tone`（文案层 + 样子层，模型只能写受限的站点样式；规范在 `skills/sitecraft-frontend-less-ai-tone/`，运行时 `sitecraft-frontend-less-ai-tone@0.3.2`）。每次生成只走这一条审美主流程，规范检查按需要调用。运行时规则只用于决定排法和选择，不进入页面文案、摘要、回答或追问；模型输出里的规划元话术在现有 operation 校验路径拒绝。用户选项不出现 Skill 名称。Jiro 免费区提示词可学写法，不得当生产 prompt。
+Impeccable、UI UX Pro Max、Marketing Skills 等仍是候选材料，不是已安装能力。审美主流程的内部实现指定为项目 Skill `sitecraft-frontend-less-ai-tone`（文案层 + 样子层，模型只能写受限的站点样式；规范在 `skills/sitecraft-frontend-less-ai-tone/`，运行时 `sitecraft-frontend-less-ai-tone@0.3.2`）。每次生成只走这一条审美主流程，规范检查按需要调用。运行时规则只用于决定排法和选择，不进入页面文案、摘要、回答或追问；operation 层不做规划元话术关键词黑名单，真实生成抽查覆盖当前可见输出，未来有结构化内部规划字段后再按来源拒绝。用户选项不出现 Skill 名称。Jiro 免费区提示词可学写法，不得当生产 prompt。
 
 运行时必须显式加载经审查且固定版本的规则/工具，并验证输出被使用；不把本地 IDE 安装 Skill 当作 DeepSeek 已自动读取。优先复用已有浏览器能力，不为截图再引入第二套工具。
 
