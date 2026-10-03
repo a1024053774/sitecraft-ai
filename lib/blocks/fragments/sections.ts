@@ -84,6 +84,19 @@ export const certificationsFragment: BlockFragment = {
 .sitecraft-cert-cards .sitecraft-catalog-card { display: block; min-width: 0; padding: 20px; background: var(--site-surface); border: var(--site-rule); border-radius: var(--site-tile-radius); }
 .sitecraft-cert-cards .sitecraft-catalog-card p:not(.sitecraft-cert-status) { display: block; margin-top: 8px; }
 .sitecraft-cert-cards .sitecraft-cert-status { display: inline-block; margin-top: 12px; }
+/* 证书状态表: one ledger row per certificate (name | status | description) between hairlines; the
+   status is plain text in its own column so rows can be compared down the page. */
+.sitecraft-cert-table { border-top: var(--site-index-top, var(--site-rule-strong)); }
+.sitecraft-cert-table .sitecraft-catalog-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 9em) minmax(0, 1.6fr); gap: 0 24px; align-items: baseline; padding: 18px 0; border-radius: 0; border-bottom: var(--site-index-row, var(--site-rule)); }
+.sitecraft-cert-table .sitecraft-catalog-card h3 { grid-column: 1; font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
+.sitecraft-cert-table .sitecraft-cert-status { grid-column: 2; margin: 0; padding: 0; border: 0; font-size: 14px; font-weight: 650; color: var(--site-accent-strong); }
+.sitecraft-cert-table .sitecraft-catalog-card p:not(.sitecraft-cert-status) { grid-column: 3; margin: 0; overflow-wrap: anywhere; }
+`,
+  narrow: `
+.sitecraft-cert-table .sitecraft-catalog-card { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 16px 0; }
+.sitecraft-cert-table .sitecraft-cert-status { grid-column: 2; grid-row: 1; text-align: right; }
+.sitecraft-cert-table .sitecraft-catalog-card h3 { grid-row: 1; }
+.sitecraft-cert-table .sitecraft-catalog-card p:not(.sitecraft-cert-status) { grid-column: 1 / -1; grid-row: 2; }
 `,
   phone: `
 .sitecraft-cert-cards { grid-template-columns: 1fr; }
@@ -96,6 +109,15 @@ export const certificationsFragment: BlockFragment = {
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="certifications-intro" hidden></p>
             </div>
             <div class="sitecraft-catalog-grid sitecraft-cert-grid" data-sitecraft-catalog-grid="certifications" data-sc-part="badges"></div>
+          </div>
+        </section>`,
+    table: `<section id="certifications" class="sitecraft-section" data-sitecraft-section="certifications" data-sc-block="certifications" data-sc-variant="table">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head" data-sc-part="head">
+              <h2 data-sitecraft-benchmark="certifications-title" data-sc-part="title">认证</h2>
+              <p class="sitecraft-section-intro" data-sitecraft-benchmark="certifications-intro" hidden></p>
+            </div>
+            <div class="sitecraft-catalog-grid sitecraft-cert-table" data-sitecraft-catalog-grid="certifications" data-sc-part="list"></div>
           </div>
         </section>`,
     cards: `<section id="certifications" class="sitecraft-section" data-sitecraft-section="certifications" data-sc-block="certifications" data-sc-variant="cards">

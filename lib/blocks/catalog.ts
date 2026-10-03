@@ -284,6 +284,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ['[data-sitecraft-catalog-grid="certifications"]'],
         parts: ["head", "title", "badges"],
       },
+      table: {
+        label: "证书状态表",
+        slots: [benchmark("certifications.title", "certifications-title"), benchmark("certifications.intro", "certifications-intro")],
+        markers: ['[data-sitecraft-catalog-grid="certifications"]'],
+        parts: ["head", "title", "list"],
+      },
       cards: {
         label: "认证卡片",
         slots: [benchmark("certifications.title", "certifications-title"), benchmark("certifications.intro", "certifications-intro")],

@@ -284,3 +284,10 @@ test("T-074: the layout menu offers 目录封面 and says when to choose it", as
   assert.ok(system.includes("cover=目录封面（要至少 2 个产品）"), "the menu names the layout and what it needs");
   assert.match(system, /产品系列本身是卖点（2 个以上系列、没有照片、访客先要看有哪几个系列）的目录型公司可以用 cover/);
 });
+
+test("T-074: the layout menu offers 证书状态表 and says when to choose it", async () => {
+  await ask(packDraft("molding"), "看看现在的页面", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.ok(system.includes("table=证书状态表"), "the menu names the layout");
+  assert.match(system, /认证：几张证书状态不同（有的已有、有的认证中）、访客要对照状态时用 table，否则 badges/);
+});
