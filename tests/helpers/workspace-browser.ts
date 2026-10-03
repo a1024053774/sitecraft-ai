@@ -1,10 +1,56 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 // Shared by the workspace browser tests (T-043, T-052). They need the dev server on
 // SITECRAFT_BASE (default http://127.0.0.1:3034) and a Chrome or Chromium binary.
 export const base = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 export const contrastScan = readFileSync(new URL("../../scripts/workspace-contrast-scan.js", import.meta.url), "utf8");
+
+// The Node test runner starts test files in parallel, while all browser fixtures share the one
+// dev server on 3034. Serialize those browser sessions at their shared-resource boundary instead
+// of letting concurrent Chrome pages compile/serve the workspace against one another. A dead
+// owner is reclaimed so an interrupted test cannot strand later runs.
+const browserLockDir = "/tmp/sitecraft-workspace-browser.lock";
+const browserLockOwner = `${browserLockDir}/owner`;
+
+function processAlive(pid: number) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; } catch { return false; }
+}
+
+async function acquireBrowserLock() {
+  while (true) {
+    try {
+      await mkdir(browserLockDir);
+      await writeFile(browserLockOwner, `${process.pid}\n`, "utf8");
+      let released = false;
+      return async () => {
+        if (released) return;
+        released = true;
+        try {
+          if ((await readFile(browserLockOwner, "utf8")).trim() === String(process.pid)) {
+            await rm(browserLockDir, { recursive: true, force: true });
+          }
+        } catch { /* a crashed or already-released owner leaves no work for this process */ }
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      let owner = 0;
+      let ownerReady = true;
+      try { owner = Number.parseInt((await readFile(browserLockOwner, "utf8")).trim(), 10); } catch { ownerReady = false; }
+      if (!ownerReady) {
+        await sleep(100);
+        continue;
+      }
+      if (!processAlive(owner)) {
+        await rm(browserLockDir, { recursive: true, force: true }).catch(() => {});
+        continue;
+      }
+      await sleep(100);
+    }
+  }
+}
 
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -72,22 +118,29 @@ export class Cdp {
 }
 
 export async function openBrowser() {
+  const releaseLock = await acquireBrowserLock();
   const port = 9365 + (process.pid % 200);
   const probe = () => fetch(`http://127.0.0.1:${port}/json/version`).then((response) => response.json()).catch(() => null) as Promise<{ webSocketDebuggerUrl?: string } | null>;
-  let version = await probe();
-  if (!version) {
-    const args = [`--remote-debugging-port=${port}`, `--user-data-dir=/tmp/sitecraft-workspace-${process.pid}`, "--headless=new", "--no-first-run", "--disable-gpu", "about:blank"];
-    if (process.getuid?.() === 0) args.unshift("--no-sandbox");
-    spawn(chromeBinary(), args, { stdio: "ignore", detached: true }).unref();
-    for (let attempt = 0; attempt < 60 && !version; attempt += 1) {
-      await sleep(250);
-      version = await probe();
+  try {
+    let version = await probe();
+    if (!version) {
+      const args = [`--remote-debugging-port=${port}`, `--user-data-dir=/tmp/sitecraft-workspace-${process.pid}`, "--headless=new", "--no-first-run", "--disable-gpu", "about:blank"];
+      if (process.getuid?.() === 0) args.unshift("--no-sandbox");
+      spawn(chromeBinary(), args, { stdio: "ignore", detached: true }).unref();
+      for (let attempt = 0; attempt < 60 && !version; attempt += 1) {
+        await sleep(250);
+        version = await probe();
+      }
     }
+    if (!version?.webSocketDebuggerUrl) throw new Error("Chrome DevTools endpoint unavailable");
+    const browser = new Cdp(version.webSocketDebuggerUrl);
+    await browser.connect();
+    browser.ws.addEventListener("close", () => { void releaseLock(); }, { once: true });
+    return browser;
+  } catch (error) {
+    await releaseLock();
+    throw error;
   }
-  if (!version?.webSocketDebuggerUrl) throw new Error("Chrome DevTools endpoint unavailable");
-  const browser = new Cdp(version.webSocketDebuggerUrl);
-  await browser.connect();
-  return browser;
 }
 
 export type WorkspacePage = { sessionId: string; targetId: string };
