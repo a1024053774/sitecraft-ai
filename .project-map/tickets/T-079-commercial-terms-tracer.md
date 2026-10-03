@@ -30,10 +30,11 @@ T-078 的第一条线。用「商业条款」一项打通每一层，页面上�
 
 ## Resolution
 
-2026-10-03，Astra 复审 NO_GO 后在最终提交 `749ef0f018e12e3d613436e904838918343e2774` 修复：
+2026-10-03，Astra 第二次复审 NO_GO 后在最终提交 `1c60443fb701ca9e0d7cb681071826f63830a1d6` 修复：
 
-- 商业事实核对先去掉 `wrapCompanyMaterials` 指令，只使用原始资料正文；资料按换行、句号、分号切成事实片段。每个条款值按子句逐片段核对，条款种类相关关键词和数字必须在同一事实片段共现，不能跨片段拼接。
-- 四条跨事实/指令污染回归测试在 `c29e19c` 基线上分别保存于 `artifacts/t079/red-rework2-fob-number.txt`、`red-rework2-fob-place.txt`、`red-rework2-exw-capacity.txt`、`red-rework2-cif-monthly.txt`、`red-rework2-instruction.txt`，均为行为级失败；修复后商业条款测试 15/15 通过，注塑四条真实条款测试通过。
-- 最终真实 DeepSeek 命令：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T079_PACKS=industrial,export,molding node --experimental-strip-types artifacts/t079/generate.mjs`。三份均 `applied`，原始 operation 保存在 `artifacts/t079/summary.json`；注塑 operation 明确包含 `trade_terms`（FOB 宁波、EXW、CIF），数字和资料核对均 true。
-- `npm run typecheck`、`npm run build` 通过；全量 `npm test` 为 617 通过、6 失败，6 项均为未初始化 vendor 子模块的 fresh/template 资产检查，日志为 `artifacts/t079/npm-test-final-rework2.log`。
-- 最终三家 `check-published` 中英文 1440/768/375 通过，事实缺失为 0：`artifacts/t079/published-check-final-rework/report.json`。
+- 商业条款中文值必须是去掉包装指令、去掉行首 `字段名：` 后的同一原始资料行/句连续子串；源片段必须命中可审查的 kind 标签词表。删除 token 集合旁路，精确命中也经过 kind 检查。
+- 英文值只允许翻译；数字按规范化多重集对应（千位分隔、范围符号及万/million 表示可归一化），英文缩写/代码必须出现在中文值或同一源片段。
+- 三个 Astra 例子的红证据在 `c29e19c` 上保存于 `artifacts/t079/red-rework3-english-extra.txt`、`red-rework3-kind-bypass.txt`、`red-rework3-mixed-capacity.txt`，均为行为级失败；修复后商业条款测试 18/18 通过，六条真实资料条款仍能写入。
+- 最终真实 DeepSeek 命令：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T079_PACKS=industrial,export,molding node --experimental-strip-types artifacts/t079/generate.mjs`。三份均 `applied`，原始 operation 在 `artifacts/t079/summary.json`；注塑四条包含 `trade_terms`，资料/数字核对均 true。
+- 最终三家 `check-published` 中英文 1440/768/375 通过，事实缺失为 0：`artifacts/t079/published-check-final-rework3/report.json`。
+- `npm run typecheck`、`npm run build` 通过；全量测试 617 通过、6 项 vendor 资产检查失败，日志为 `artifacts/t079/npm-test-final-rework2.log`。
