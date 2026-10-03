@@ -37,6 +37,20 @@ const stubBase = "https://intent-stub.test.invalid/";
 let lastRequestBody = "";
 let nextPayload: Record<string, unknown> = { type: "answer", text: "unset" };
 
+function withPlannerRecommendation(payload: Record<string, unknown>) {
+  if (payload.recommendation || (payload.kind !== "question" && payload.kind !== "ready")) return payload;
+  if (!(payload.summary || payload.question || payload.questions)) return payload;
+  return {
+    ...payload,
+    recommendation: {
+      styleId: "engineering-industrial",
+      styleReason: "结构化测试资料包含参数和加工能力。",
+      colorSetId: "colorSet:warm-orange",
+      colorSetReason: "结构化测试资料适合工程暖橙。",
+    },
+  };
+}
+
 globalThis.fetch = async (input, init) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   if (url.includes("api.deepseek.com") || !url.startsWith(stubBase)) {
@@ -44,7 +58,7 @@ globalThis.fetch = async (input, init) => {
   }
   lastRequestBody = typeof init?.body === "string" ? init.body : "";
   return new Response(JSON.stringify({
-    choices: [{ finish_reason: "stop", message: { content: JSON.stringify(nextPayload) } }],
+    choices: [{ finish_reason: "stop", message: { content: JSON.stringify(withPlannerRecommendation(nextPayload)) } }],
   }), { status: 200, headers: { "Content-Type": "application/json" } });
 };
 

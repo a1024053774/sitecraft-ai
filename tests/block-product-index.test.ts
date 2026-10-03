@@ -88,7 +88,7 @@ test("型号索引表 renders one row per product with its own first three value
   assert.deepEqual(rows.map((row) => text(row.querySelector("h3"))), draft.products.map((product) => product.name.zh));
   assert.deepEqual(rows.map((row) => text(row.querySelector(".sitecraft-product-category"))), ["注塑模具", "注塑模具", "精密注塑件", "精密注塑件", "精密注塑件"]);
   const labels = (row: (typeof rows)[number]) => row.querySelectorAll(".sitecraft-index-spec-label").map((node) => text(node));
-  assert.deepEqual(labels(rows[0]), ["型腔数", "模具钢材", "成型周期"], "a spec without a value is skipped, the next valued one takes its place");
+  assert.deepEqual(labels(rows[0]), ["型腔数", "模具钢材", "热流道"], "a spec without a value is skipped, the next valued one takes its place");
   assert.deepEqual(labels(rows[1]), ["成型方式", "适配机型", "材料组合"], "rows need not share specs");
   assert.deepEqual(labels(rows[2]), ["适用材料", "单件重量", "尺寸公差"], "the gap-valued 表面处理 is not shown");
   assert.equal(text(rows[0].querySelector(".sitecraft-index-spec-value")), "1–32 腔");

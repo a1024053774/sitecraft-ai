@@ -20,6 +20,12 @@ const originalFetch = globalThis.fetch;
 let lastPlannerSystemPrompt = "";
 let plannerPayload: Record<string, unknown> = {
   kind: "question",
+  recommendation: {
+    styleId: "export-catalog",
+    styleReason: "两个产品系列和 OEM 出口目录决定先按型号筛选。",
+    colorSetId: "colorSet:turquoise",
+    colorSetReason: "洁净流体和不锈钢接头适合冷静的松石强调。",
+  },
   questions: [
     { field: "style", question: "选择网站的样子", options: [
       { id: "export-catalog", label: "蓝白目录", description: "资料里有两个产品系列，且目标是给 OEM 索取样品册。", recommended: true },
@@ -111,35 +117,38 @@ test("planner recommendations for look and color set appear on the same catalog 
   assert.match(lastPlannerSystemPrompt, /业务形态|产品系列|出口|资料厚薄/);
 });
 
-test("an invalid or empty planner color recommendation keeps catalog defaults without a reason", async () => {
+test("an invalid or empty planner recommendation is rejected by the planner schema", async () => {
   plannerPayload = {
     kind: "question",
+    recommendation: {
+      styleId: "export-catalog",
+      styleReason: "目录资料。",
+      colorSetId: "colorSet:invented",
+      colorSetReason: "不应显示",
+    },
     questions: [{ field: "colorSet", question: "选择配色", options: [
       { id: "colorSet:invented", label: "不存在", description: "不应显示", recommended: true },
       { id: "colorSet:graphite", label: "石墨工坊", description: "" },
     ], allowOther: true }],
   };
   const invalid = await postStart(newSiteId(), "参数表为主的重载设备资料。");
-  const invalidQuestions = (invalid.done?.questions ?? []) as Array<{ field?: string; options: Array<{ id: string; description?: string; recommended?: boolean }> }>;
-  const invalidColor = invalidQuestions.find((question) => question.field === "colorSet");
-  assert.ok(invalidColor);
-  assert.equal(invalidColor.options.some((option) => option.id === "colorSet:invented"), false);
-  assert.equal(invalidColor.options.filter((option) => option.recommended).length, 1);
-  assert.equal(invalidColor.options.find((option) => option.recommended)?.id, "colorSet:porcelain");
+  assert.equal(invalid.response.status, 502);
+  assert.equal(invalid.done, undefined);
 
   plannerPayload = {
     kind: "question",
+    recommendation: {
+      styleId: "export-catalog",
+      styleReason: "目录资料。",
+      colorSetId: "colorSet:graphite",
+      colorSetReason: "   ",
+    },
     questions: [{ field: "colorSet", question: "选择配色", options: [
       { id: "colorSet:graphite", label: "石墨工坊", description: "   ", recommended: true },
       { id: "colorSet:porcelain", label: "青花瓷", description: "" },
     ], allowOther: true }],
   };
   const empty = await postStart(newSiteId(), "只有少量资料的工厂网站。");
-  const emptyQuestions = (empty.done?.questions ?? []) as Array<{ field?: string; options: Array<{ id: string; description?: string; recommended?: boolean }> }>;
-  const emptyColor = emptyQuestions.find((question) => question.field === "colorSet");
-  assert.ok(emptyColor);
-  const recommended = emptyColor.options.find((option) => option.recommended);
-  assert.ok(recommended);
-  assert.equal(recommended.id, "colorSet:graphite");
-  assert.equal(recommended.description, "", "an empty planner reason is not rendered");
+  assert.equal(empty.response.status, 502);
+  assert.equal(empty.done, undefined);
 });

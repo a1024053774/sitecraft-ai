@@ -35,6 +35,16 @@ env.DEEPSEEK_BASE_URL = "https://budget-stub.test.invalid";
 const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
 const { defaultDraft } = await import("../lib/site-document.ts");
 
+const plannerRecommendation = {
+  styleId: "engineering-industrial",
+  styleReason: "结构化测试资料包含参数和加工能力。",
+  colorSetId: "colorSet:warm-orange",
+  colorSetReason: "结构化测试资料适合工程暖橙。",
+};
+function withPlannerRecommendation(reply: Record<string, unknown>) {
+  return reply.kind === "question" || reply.kind === "ready" ? { ...reply, recommendation: plannerRecommendation } : reply;
+}
+
 test("structured generation asks for a 65536-token budget by default and leaves thinking at its default", async () => {
   assert.equal(await requestedMaxTokens(undefined), 65536);
   assert.equal(lastBody.thinking, undefined, "thinking mode is not switched off");
@@ -86,7 +96,7 @@ async function attemptTimeouts(reply: Record<string, unknown>, call: () => Promi
 test("a structured-generation attempt may run up to 300 s and a planning attempt up to 90 s", async () => {
   const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
   assert.deepEqual(await attemptTimeouts({ type: "answer", text: "这是工程工业样子的站点。" }, () => requestStructuredOperations({ message: "这个网站是做什么的？", draft: structuredClone(defaultDraft), templateId: defaultDraft.templateId, selectedTarget: null })), [300_000]);
-  assert.deepEqual(await attemptTimeouts({ kind: "ready", summary: "资料足够。" }, () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" })), [90_000]);
+  assert.deepEqual(await attemptTimeouts(withPlannerRecommendation({ kind: "ready", summary: "资料足够。" }), () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" })), [90_000]);
 });
 
 // T-061 rework (Astra, review of 23807c8): a retry after a failed first answer (not JSON, wrong shape,
@@ -107,7 +117,7 @@ async function timedAttempts(firstAttemptMs: number, answers: [unknown, unknown]
   globalThis.fetch = async () => {
     sent += 1;
     if (sent === 1) skew += firstAttemptMs;
-    const content = JSON.stringify(answers[sent === 1 ? 0 : 1]);
+    const content = JSON.stringify(withPlannerRecommendation(answers[sent === 1 ? 0 : 1] as Record<string, unknown>));
     return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   try {
@@ -140,7 +150,7 @@ test("a structured retry only gets what is left of 360 s, and there is none when
 test("a planning retry only gets what is left of 150 s, and there is none when nothing is left", async () => {
   const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
   const wrongShape = { kind: "question" };
-  const ready = { kind: "ready", summary: "资料足够。" };
+  const ready = withPlannerRecommendation({ kind: "ready", summary: "资料足够。" });
   const plan = () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" });
   const retried = await timedAttempts(80_000, [wrongShape, ready], plan);
   assert.equal(retried.sent, 2);
@@ -195,7 +205,7 @@ test("the alignment planner has room for look and color recommendations", async 
   const original = globalThis.fetch;
   globalThis.fetch = async (_input, init) => {
     body = JSON.parse(String(init?.body ?? "{}"));
-    const content = JSON.stringify({ kind: "ready", summary: "资料足够。" });
+    const content = JSON.stringify(withPlannerRecommendation({ kind: "ready", summary: "资料足够。" }));
     return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   try {
@@ -215,11 +225,11 @@ test("the alignment planner has room for look and color recommendations", async 
 test("an over-long planner summary or option description is clipped instead of failing", async () => {
   const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
   const replies = [
-    { kind: "ready", summary: "资料完整。".repeat(150) },
-    { kind: "question", questions: [{ field: "pages", question: "页面重点怎么排？", allowOther: true, options: [
+    withPlannerRecommendation({ kind: "ready", summary: "资料完整。".repeat(150) }),
+    withPlannerRecommendation({ kind: "question", questions: [{ field: "pages", question: "页面重点怎么排？", allowOther: true, options: [
       { label: "产品分类 + 询盘", description: "方便经销商按系列筛选。".repeat(30), recommended: true },
       { label: "只要首页", description: "路径最短。" },
-    ] }] },
+    ] }] }),
   ];
   const original = globalThis.fetch;
   try {

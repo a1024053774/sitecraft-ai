@@ -126,6 +126,7 @@ test("c1: choosing the product comparison table removes the hero parameter strip
 
 test("按类别分组: one group per category in material order, cards without a repeated category, no gap rows", () => {
   const draft = withLayouts(packDraft("molding"), { products: "grouped" });
+  draft.products.find((product) => product.name.zh === "精密结构注塑件")!.specs!.find((spec) => spec.name.zh === "表面处理")!.value = "待补充";
   const { document, report } = render(draft);
   const products = entity(document, "products");
   assert.equal(products.getAttribute("data-sc-variant"), "grouped");

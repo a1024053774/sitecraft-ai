@@ -14,6 +14,7 @@ import {
   type CurrentQuestion,
 } from "@/lib/alignment";
 import { isSiteStyleRequest, requestAlignmentPlan, requestStructuredOperations } from "@/lib/ai-provider";
+import { recommendLookFromDraft } from "@/lib/alignment-recommendation";
 import {
   appendConversationTurn,
   applyConversationAlignmentAction,
@@ -213,7 +214,7 @@ async function planPromptStart(siteId: string, args: {
           : plan.code === "truncated"
             ? "需求对齐规划被截断，原需求没有修改草稿，可以重试。"
           : plan.code === "invalid_output"
-            ? "需求对齐规划没有返回可用的问题卡，原需求没有修改草稿，请重试。"
+            ? "需求对齐规划没有返回可用的问题卡，样子和色彩推荐格式不合规，原需求没有修改草稿，请重试。"
             : plan.code === "timeout"
             ? "需求对齐等待模型超时，原需求没有修改草稿，可以稍后重新提交。"
             : "需求对齐暂时不可用，原需求没有修改草稿，请稍后重试。",
@@ -232,15 +233,12 @@ async function planPromptStart(siteId: string, args: {
   const plannerQuestions = plan.kind === "question"
     ? plan.questions ?? [{ field: "other" as const, question: plan.question ?? "", options: plan.options ?? [], allowOther: plan.allowOther }]
     : [];
-  const plannerStyle = plannerQuestions.find((item) => item.field === "style");
-  const plannerPick = plannerStyle?.options.find((option) => option.recommended === true && "id" in option && visualBriefCatalog.some((brief) => brief.id === option.id));
-  const plannerColor = plannerQuestions.find((item) => item.field === "colorSet");
-  const plannerColorPick = plannerColor?.options.find((option) => option.recommended === true && "id" in option && typeof option.id === "string");
+  const structuredLook = recommendLookFromDraft(current.draft);
   const lookCard = styleQuestion(questionRevision, {
-    briefId: plannerPick && "id" in plannerPick ? plannerPick.id : current.draft.visualBrief.id,
-    reason: plannerPick?.description,
-    colorSetId: plannerColorPick && "id" in plannerColorPick ? plannerColorPick.id : undefined,
-    colorReason: plannerColorPick?.description,
+    briefId: structuredLook?.briefId ?? plan.recommendation.styleId,
+    reason: structuredLook?.reason ?? plan.recommendation.styleReason,
+    colorSetId: plan.recommendation.colorSetId,
+    colorReason: plan.recommendation.colorSetReason,
   }).questions ?? [];
   const questions = [
     ...(needLook ? [lookCard[0]] : []),
