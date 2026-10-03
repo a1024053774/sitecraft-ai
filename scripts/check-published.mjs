@@ -133,6 +133,9 @@ async function attachPreviewFrame(browser) {
 // Finds text a visitor cannot read in full; kept in its own file so a probe runs the same code.
 const TEXT_FIT_SCAN = fs.readFileSync(new URL("./visitor-text-fit-scan.js", import.meta.url), "utf8").trim();
 const HERO_WORD_BREAK_SCAN = fs.readFileSync(new URL("./hero-word-break-scan.js", import.meta.url), "utf8").trim();
+const VISITOR_LAYOUT_SCAN = fs.readFileSync(new URL("./visitor-layout-scan.js", import.meta.url), "utf8")
+  .replace(/export default scanVisitorLayout;?/g, "")
+  .replace(/export function scanVisitorLayout/g, "function scanVisitorLayout");
 // The text a visitor can read, folded spec lists and answers opened; the draft's material facts are
 // looked for in it (scripts/published-facts.mjs).
 const READABLE_TEXT = fs.readFileSync(new URL("./visitor-readable-text.js", import.meta.url), "utf8").trim();
@@ -342,6 +345,7 @@ const INSPECT = `(async () => {
   // Text a visitor cannot read in full: past its cell or card, behind an ellipsis, or clipped.
   const textFit = (${TEXT_FIT_SCAN})(document.body);
   const readable = (${READABLE_TEXT})(document.body);
+  const layout = (() => { ${VISITOR_LAYOUT_SCAN}; return scanVisitorLayout(document); })();
   return {
     editorCursor: editableSlot ? getComputedStyle(editableSlot).cursor : "",
     editorHoverOutline: previewCss.includes("[data-sitecraft-slot]:hover{") && previewCss.includes("outline:"),
@@ -350,6 +354,9 @@ const INSPECT = `(async () => {
     cardOverflow: cardOverflow.length,
     cardOverflowSample: cardOverflow.slice(0, 6),
     textFit: textFit.slice(0, 40),
+    textContrast: layout.textContrast || [],
+    bodyLineLength: layout.bodyLineLength || [],
+    lineLengthExemptions: layout.lineLengthExemptions || [],
     heroOrphan,
     heroTitleWordBreak,
     englishSpecValueHan,
@@ -380,6 +387,14 @@ function judge(report, facts, locale = "zh", expectedOrder = null) {
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
   if (report.horizontalScroll) failures.push("visitor page scrolls horizontally");
   if (report.cardOverflow) failures.push(`card content overflows its card (${report.cardOverflow}: ${(report.cardOverflowSample || []).join(", ")})`);
+  for (const item of report.textContrast || []) {
+    if (!item.checkable) continue;
+    if (item.status === "unmeasured") failures.push(`正文对比度未测（${item.reason || "图片背景"}）：${item.element} "${item.text}"`);
+    else if (typeof item.ratio === "number" && item.ratio < item.threshold) failures.push(`正文对比度不足 ${item.threshold}:1：${item.element} ${item.ratio.toFixed(2)}:1`);
+  }
+  for (const item of report.bodyLineLength || []) {
+    if (item.tooLong) failures.push(`正文行过长（${item.language === "zh" ? "中文" : "英文"} ${item.count} 字符，上限 ${item.max}）：${item.element} "${item.text}"`);
+  }
   for (const [kind, message] of TEXT_FIT_FAILURES) {
     const items = (report.textFit || []).filter((item) => item.kind === kind);
     if (items.length) failures.push(`${message} (${items.length}: ${items.slice(0, 6).map((item) => `${item.element} "${item.text}"`).join(", ")})`);

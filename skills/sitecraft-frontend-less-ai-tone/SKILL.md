@@ -7,7 +7,7 @@ description: SiteCraft overlay on frontend-less-ai-tone. The generated site is t
 
 先读通用规则：`skills/frontend-less-ai-tone/SKILL.md`。
 
-本仓库的生成器不能把那套方向直接写成 CSS。Q22：文案和样子走同一条路径。Q26：开源模板、区块和样式是素材，不是把整页快照挖空填词。运行时子集是 `lib/frontend-tone.ts` 的 `sitecraft-frontend-less-ai-tone@0.3.1`。不要另写一套规则，也不要把 Skill 名称写进用户选项。
+本仓库的生成器不能把那套方向直接写成 CSS。Q22：文案和样子走同一条路径。Q26：开源模板、区块和样式是素材，不是把整页快照挖空填词。运行时子集是 `lib/frontend-tone.ts` 的 `sitecraft-frontend-less-ai-tone@0.3.2`。不要另写一套规则，也不要把 Skill 名称写进用户选项。
 
 模型不输出 CSS。本叠加层不写任意 HTML/CSS/JavaScript，不绕过 `commitOperations`。
 
@@ -33,6 +33,12 @@ description: SiteCraft overlay on frontend-less-ai-tone. The generated site is t
 - 不要把整页模板挖空填词。生成站必须是这家公司的页面；开源模板、区块和样式是素材，不能把未选用的品牌、客户 Logo 墙、SaaS 定价或演示图留在成品上。
 - 当前草稿仍只走白名单目标；找不到或有歧义时报告 missing，不凭元素顺序、正则或相似卡片猜写。missing 不能当成可以把模板品牌留在客户站上。
 - 保留标题层级、列表、表格、引用、链接、数字和判断强度，只改明确命中的问题。
+- 先识别这一页的主任务和一个主要动作，再选择页面或区块排法；写清用户完成后看到的可观察结果。来源：小程序设计 Notion/PDF；T-002。
+- 每页只设一个主要按钮或主要入口；其他入口降级，按钮文字写具体动作，例如「发送询盘」。来源：军规 06；通用规则的主行动原则。
+- 状态和资料缺口必须用文字、形状或图标表达，颜色只做加强；不要让颜色成为唯一信号。来源：军规 15；小程序交付清单；oiloil-ui-ux-guide 的 UX Hard Rules 2/5（Apache-2.0，改写并保留署名见 SOURCE.md）。
+- 选择区块时保留一个记忆点，说明与同族已有布局的结构差异，不加无贡献装饰。来源：oil-ui 的 design-direction/visual-review（MIT，改写并保留署名见 SOURCE.md）；T-071/T-073。
+- 用户选的是样子和布局，不是外部模板名或提示词；不要把模板身份或提示词写进用户选项或成品。来源：AGENTS.md；Jiro 条款 6.2/6.3；SiteCraft 生成路径约束。
+- 这些规则只用于决定排法和选择；不要把规则本身、布局差异、建站过程或「点击后会发生什么」等说明写进页面文案、摘要、回答或追问。来源：T-091 审查边界；AGENTS.md 的成品否决项。
 
 ## 怎么做
 

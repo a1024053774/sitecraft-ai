@@ -131,22 +131,178 @@ export function scanVisitorLayout(root = document) {
   }
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
-  const rgba = color => { ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);return [...ctx.getImageData(0,0,1,1).data].map((v,i)=>i===3?v/255:v); };
-  const over=(fg,bg)=>[0,1,2].map(i=>fg[i]*fg[3]+bg[i]*(1-fg[3]));
-  const luminance=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((v,c,i)=>v+c*[.2126,.7152,.0722][i],0);
-  const contrast = el => {
-    const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
-    let bg=[255,255,255];for(const p of chain)bg=over(rgba(getComputedStyle(p).backgroundColor),bg);
-    const fg=over(rgba(getComputedStyle(el).color),bg),a=luminance(fg),b=luminance(bg);
+  const rgba = color => {
+    if (!ctx || typeof color !== 'string') return null;
+    ctx.clearRect(0,0,1,1);
+    ctx.fillStyle=color;
+    ctx.fillRect(0,0,1,1);
+    return [...ctx.getImageData(0,0,1,1).data].map((v,i)=>i===3?v/255:v);
+  };
+  const withAlpha=(color,alpha)=>[color[0],color[1],color[2],color[3]*Math.max(0,Math.min(1,alpha))];
+  const over=(fg,bg)=>{
+    const alpha=fg[3]+bg[3]*(1-fg[3]);
+    if(alpha<=0) return [0,0,0,0];
+    return [0,1,2].map(i=>(fg[i]*fg[3]+bg[i]*bg[3]*(1-fg[3]))/alpha).concat(alpha);
+  };
+  const luminance=c=>c.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((v,c,i)=>v+c*[.2126,.7152,.0722][i],0);
+  const ratioFor = (fg,bg) => {
+    const a=luminance(fg),b=luminance(bg);
     return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
   };
+  const splitTopLevel = value => {
+    const parts=[];let start=0;let depth=0;
+    for(let index=0;index<value.length;index++){
+      const char=value[index];
+      if(char==='(') depth+=1;
+      else if(char===')') depth=Math.max(0,depth-1);
+      else if(char===','&&depth===0){parts.push(value.slice(start,index).trim());start=index+1;}
+    }
+    parts.push(value.slice(start).trim());
+    return parts.filter(Boolean);
+  };
+  const gradientColors = (image,layerIndex) => {
+    const match=/^(?:linear|radial|conic)-gradient\((.*)\)$/i.exec(image.trim());
+    if(!match) return {error:`背景第${layerIndex+1}层无法解析`};
+    const colors=[];
+    const stops=splitTopLevel(match[1]);
+    for(let stopIndex=0;stopIndex<stops.length;stopIndex++){
+      const stop=stops[stopIndex];
+      const token=/(rgba?\([^)]*\)|#[0-9a-f]{3,8}|transparent)$/i.exec(stop.trim())?.[1]
+        || /(rgba?\([^)]*\)|#[0-9a-f]{3,8}|transparent)/i.exec(stop.trim())?.[1];
+      const prelude=stopIndex===0&&/^(?:to\s+|from\s+|(?:[-+]?\d*\.?\d+)(?:deg|grad|rad|turn)|(?:ellipse|circle)(?:\s+at\s+)?)/i.test(stop.trim());
+      if(!token){
+        if(prelude) continue;
+        return {error:`渐变第${layerIndex+1}层第${stopIndex+1}个色标无法解析`};
+      }
+      const color=rgba(token);
+      if(!color) return {error:`渐变第${layerIndex+1}层第${stopIndex+1}个色标无法解析`};
+      colors.push(color);
+    }
+    return colors.length ? {colors} : {error:`渐变第${layerIndex+1}层没有可解析色标`};
+  };
+  const backgroundLayers = image => {
+    if(!image||image==='none') return {known:true,layers:[]};
+    if(/(?:url\(|image-set\(|cross-fade\()/i.test(image)) return {known:false,reason:'图片背景'};
+    const layers=[];
+    for(const [index,layer] of splitTopLevel(image).entries()){
+      const parsed=gradientColors(layer,index);
+      if(parsed.error) return {known:false,reason:parsed.error};
+      layers.push(parsed.colors);
+    }
+    return {known:true,layers};
+  };
+  const backgroundFor = (el,sampleRect=null) => {
+    const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
+    let backgrounds=[[255,255,255,1]], foregroundOpacity=1;
+    for(const p of chain){
+      const style=getComputedStyle(p);
+      if(style.mixBlendMode&&style.mixBlendMode!=='normal') return {known:false,reason:'混合图层'};
+      const parsedBackground=backgroundLayers(style.backgroundImage);
+      if(!parsedBackground.known) return {known:false,reason:parsedBackground.reason};
+      const layers=parsedBackground.layers;
+      const color=rgba(style.backgroundColor);
+      if(!color) return {known:false,reason:'背景颜色无法解析'};
+      let local=[color];
+      for(let layerIndex=layers.length-1;layerIndex>=0;layerIndex-=1){
+        local=local.flatMap(base=>layers[layerIndex].map(layer=>over(layer,base)));
+      }
+      const opacity=Number.parseFloat(style.opacity);
+      if(!Number.isFinite(opacity)) return {known:false,reason:'透明度无法解析'};
+      backgrounds=local.flatMap(layer=>backgrounds.map(parent=>over(withAlpha(layer,opacity),parent)));
+      foregroundOpacity*=Math.max(0,Math.min(1,opacity));
+    }
+    const rect=sampleRect||el.getBoundingClientRect();
+    if(rect.width>0&&rect.height>0&&typeof document.elementsFromPoint==='function'){
+      const points=[[rect.left+rect.width/2,rect.top+rect.height/2],[rect.left+1,rect.top+1],[rect.right-1,rect.bottom-1]];
+      for(const [x,y] of points){
+        if(x<0||y<0||x>innerWidth||y>innerHeight) continue;
+        const image=document.elementsFromPoint(x,y).find(node=>node.tagName==='IMG'&&!el.contains(node));
+        if(image) return {known:false,reason:'图片背景'};
+      }
+    }
+    return {known:true,colors:backgrounds,foregroundOpacity};
+  };
+  const slotFor = el => el.closest('[data-sitecraft-slot]')?.getAttribute('data-sitecraft-slot') || '';
+  const isParameter = el => {
+    const slot=slotFor(el);
+    return Boolean(el.closest('table') || /(?:spec|sku|model|email|phone|quantity|status)/i.test(slot));
+  };
+  const lineLengthExemption = el => {
+    const slot=slotFor(el);
+    if(el.closest('table')) return '参数表';
+    if(el.closest('button,input,select,textarea,summary,[role=button]')) return '按钮或控件';
+    if(el.closest('nav')) return '导航';
+    if(/(?:spec|sku|model|email|phone|quantity|status)/i.test(slot)) return /email|phone/i.test(slot) ? '邮箱或电话' : '型号或参数';
+    return '';
+  };
+  const paragraphFor = el => el.closest('p');
+  const textContrast=[];
+  const contrastNodes=[];
+  const bodyLineLength=[];
+  const lineLengthExemptions=[];
+  const measureLines = paragraph => {
+    const walker=document.createTreeWalker(paragraph,NodeFilter.SHOW_TEXT);
+    const chars=[];
+    while(walker.nextNode()){
+      const node=walker.currentNode;
+      if(!node.textContent.trim()||!visible(node.parentElement)) continue;
+      for(let index=0;index<node.textContent.length;index++){
+        range.setStart(node,index);range.setEnd(node,index+1);
+        const rect=range.getBoundingClientRect();
+        if(rect.width>.5&&rect.height>.5) chars.push({char:node.textContent[index],top:Math.round(rect.top)});
+      }
+    }
+    const grouped=new Map();
+    for(const item of chars) grouped.set(item.top,[...(grouped.get(item.top)||[]),item.char]);
+    return [...grouped.entries()].sort((a,b)=>a[0]-b[0]).map(([top,parts])=>{
+      const text=parts.join('').trim();
+      const count=Array.from(text.replace(/\s/g,'')).length;
+      const language=/[\u3400-\u9fff]/.test(text)?'zh':'en';
+      const max=language==='zh'?40:75;
+      return {top,text,count,language,max,tooLong:count>max};
+    }).filter(item=>item.text);
+  };
+  const textWalker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT);
+  const measuredParagraphs=new Set();
+  const reportedExemptions=new Set();
+  while(textWalker.nextNode()){
+    const node=textWalker.currentNode,el=node.parentElement;
+    if(!node.textContent.trim()||!visible(el)) continue;
+    const style=getComputedStyle(el),slot=slotFor(el),parameter=isParameter(el),exemption=lineLengthExemption(el);
+    const size=parseFloat(style.fontSize)||16,weight=parseInt(style.fontWeight,10)||((style.fontWeight==='bold')?700:400);
+    const large=size>=24||(size>=18.66&&weight>=700);
+    range.selectNodeContents(node);
+    const textRects=[...range.getClientRects()];
+    const background=backgroundFor(el,textRects[0]||null),foreground=rgba(style.color);
+    const measured=background.known&&foreground ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:background.reason||'前景色无法解析'};
+    const paragraph=paragraphFor(el);
+    const role=el.matches('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!paragraph&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
+    const entry={element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:node.textContent.trim().slice(0,160),slot,block:blockFor(el),role,checkable:role==='body'||role==='heading',large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
+    textContrast.push(entry);
+    contrastNodes.push({el,entry});
+    if(paragraph){
+      const paragraphExemption=lineLengthExemption(paragraph);
+      if(!measuredParagraphs.has(paragraph)){
+        measuredParagraphs.add(paragraph);
+        if(paragraphExemption){
+          lineLengthExemptions.push({element:paragraph.id||paragraph.tagName.toLowerCase(),id:paragraph.id||'',slot:slotFor(paragraph),reason:paragraphExemption,text:paragraph.textContent.trim().slice(0,160)});
+        } else {
+          for(const line of measureLines(paragraph)) bodyLineLength.push({element:paragraph.id||paragraph.tagName.toLowerCase(),id:paragraph.id||'',slot:slotFor(paragraph),block:blockFor(paragraph),...line});
+        }
+      }
+    } else if(exemption&&!reportedExemptions.has(el)){
+      reportedExemptions.add(el);
+      lineLengthExemptions.push({element:el.id||el.tagName.toLowerCase(),id:el.id||'',slot,reason:exemption,text:node.textContent.trim().slice(0,160)});
+    }
+  }
   const slots=[...root.querySelectorAll('[data-sitecraft-slot]')].map(el=>{
     const r=el.getBoundingClientRect();
     const painted=visible(el)&&r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;
-    const textLines=lines.filter(l=>el.contains(l.el));
-    const ratio=painted&&textLines.length?Math.min(...textLines.map(l=>contrast(l.el))):21;
-    return {key:keyFor(el),slot:el.getAttribute('data-sitecraft-slot'),block:blockFor(el),visible:painted,contrast:ratio};
+    const textEntries=contrastNodes.filter(item=>el.contains(item.el)).map(item=>item.entry);
+    const known=textEntries.filter(entry=>entry.status==='measured');
+    const ratio=painted&&textEntries.length?(known.length?Math.min(...known.map(entry=>entry.ratio)):null):21;
+    return {key:keyFor(el),slot:el.getAttribute('data-sitecraft-slot'),block:blockFor(el),visible:painted,contrast:ratio,contrastStatus:painted&&textEntries.length&&!known.length?'unmeasured':'measured'};
   });
-  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
+  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,textContrast,bodyLineLength,lineLengthExemptions,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
 }
 export default scanVisitorLayout;
