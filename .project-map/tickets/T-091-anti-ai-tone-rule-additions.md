@@ -2,7 +2,7 @@
 id: T-091
 title: 去 AI 味规则补主任务、单主按钮、状态不只靠颜色，区块候选说明借 oil-ui 方法
 type: build
-status: open
+status: closed
 blocked_by: [T-084]
 claimed_by: rs-rules
 supersedes:
@@ -21,7 +21,7 @@ supersedes:
 
 - [x] `lib/frontend-tone.ts` 的测试先写，并在父提交上能加载、在断言处失败：新规则出现在给模型的提示里，且提示里不含数值门槛
 - [x] 用真实 DeepSeek 对三份模拟资料各生成一次，确认新规则没让页面出现规则原文或数值（报告存 `artifacts/t091/`）
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -51,3 +51,11 @@ supersedes:
 ### 当前状态
 
 历史的 INCOMPLETE 记录（r1/r2 的长跑资源与 workspace motion 偶发失败）仅供追溯。当前候选修复后的 typecheck、build、单测、无模型 rescan 和 fulltest.sh 全部通过；第四轮 sentinel 8/8 组合通过，三家保存草稿均 0 命中，未调用模型。仍未完成的是独立代码审查与 Claude 验收，票据保持 `status: open`。
+
+### Claude 验收（2026-10-03 19:19 EDT）
+
+- 独立审查五轮：rs-iconfont 第一轮 `REVISE`（候选审查语义混入运行时提示）；rs-ui 第二轮 `REVISE`（operation 层正则黑名单可绕过且误伤，负责人方决定删除，改为提示边界 + 生成抽查 + 已知限制）；exec-t087 第三轮 `REVISE`（证据扫描不全）；rs-color 第四轮 `REVISE`（sentinel 未覆盖 8 个组合），第五轮 `PASS`。报告在 sitecraft-ai 主工作区 `artifacts/research/threads-2026-10-03/reviews/T-091-review-{1..5}.md`。
+- 真实模型证据：最后一次真实生成在 `14096c7`（DeepSeek 余额耗尽前，三家 HTTP 200）；之后余额为负，后续只做无模型复扫，三家已保存草稿 0 命中，8 个 sentinel 组合各命中 1。
+- 全量：`fulltest.sh` 655/655（`artifacts/t091/npm-test-r4.txt`，产品代码自此未变，之后只改票文件）。
+- 并入主线 `d3c8001`（合并提交 `7553c86`）后：相关单测 48/48、`npm run typecheck` 通过、`project_map.py status` 无问题；主线 12 站 `check-published` 36 行 known 16 条、NEW 0 条——known 16 条是 T-089 硬门在既有站点上拦下的行长问题，由 T-101 处理，本结果不是「check-published 通过」。报告 `artifacts/published-check/mainline-12-accept/report.json`。
+- 已知限制保留：同义改写或扫描表未覆盖的规划话术仍可能进入访客页、摘要、回答或追问，计数为 0 不是完备保证；移除条件是将来有可按来源拒绝的结构化内部规划字段。
