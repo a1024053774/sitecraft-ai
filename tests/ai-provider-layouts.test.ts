@@ -291,3 +291,10 @@ test("T-074: the layout menu offers 证书状态表 and says when to choose it",
   assert.ok(system.includes("table=证书状态表"), "the menu names the layout");
   assert.match(system, /认证：几张证书状态不同（有的已有、有的认证中）、访客要对照状态时用 table，否则 badges/);
 });
+
+test("T-080: the layout menu offers 左右条款 and says when to choose it", async () => {
+  await ask(packDraft("molding"), "看看现在的页面", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.ok(system.includes("side=左右条款"), "the menu names the layout");
+  assert.match(system, /商业条款：条款值多为整句话（带范围、周期、数量）或只有一两条时用 side，否则 rows/);
+});
