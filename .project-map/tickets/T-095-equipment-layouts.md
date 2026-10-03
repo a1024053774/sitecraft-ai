@@ -20,10 +20,21 @@ T-081 落地了 `content.equipment`（名称、数量可空、规格可空）和
 - [ ] 渲染扫描溢出 / 重叠 / 资料事实缺失 / 重复目标全为 0；worktree 补齐 vendor 后 `npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过
 - [ ] 代码审查通过；合回主线后注塑设备站 `check-published` 中英文三档通过；Claude 验收
 
-## Resolution（进行中）
+## Resolution
 
-| 候选 | 目录（`artifacts/blocks-pool/`） | 结论 | 进库提交 |
-| --- | --- | --- | --- |
-| 数量带（equipment:band） | `equipment-quantity-band/` | 第一轮 ACCEPT | `92c5d85`；测试先失败 7/7 见 `red-block-equipment-band.txt` |
-| 双栏清单（equipment:compact） | `equipment-compact-list/` | 第一轮 REVISE（≤3 条留空右列；按列灌被读成生产/检测分组） | 修改中，未进库 |
+2026-10-03（纽约时间），sonnet-blocks。两个候选都过了 AI 味审查并进库，**代码审查（Astra）、合回主线后的主工作区 `check-published`、Claude 验收没做，对应验收项留空。**
 
+| 候选 | 目录（`artifacts/blocks-pool/`） | 审查 | 进库提交 | 测试先失败 |
+| --- | --- | --- | --- | --- |
+| 数量带（equipment:band） | `equipment-quantity-band/` | 第一轮 ACCEPT | `92c5d85` | 7/7，`red-block-equipment-band.txt` |
+| 双栏清单（equipment:compact） | `equipment-compact-list/` | 第一轮 REVISE（≤3 条留空右列；按列灌被读成生产/检测分组），修后第二轮 ACCEPT | `9234eac` | 6/6，`red-block-equipment-compact.txt`（在 `e353195` 上） |
+
+- 没有数量的条目不显得残缺、不补占位数字：数量带里按结构化的「数量是否为空」分组，没有数量的在「其他设备」下只列名称；双栏清单里没有数量的条目就是一行名称，且逐行横向填充，不制造资料里没有的「生产/检测」分组。
+- 预览桥的改动：数量改成「标签 / 数字 / 单位」三个行内节点（默认清单的文字不变，仍是「数量：12 台」）、`render.equipment === "grouped"` 分组（只数量带用）、把条数写到容器的 `data-sitecraft-entry-count`（双栏清单按条数分单栏/双栏，默认清单不读）。
+- 模型提示：「设备：有几样带数量的主力设备、其余只有名称（检测设备等）时用 band；设备 4 条以上、名称短、想紧凑列出时用 compact；否则 rows。」
+
+### 整票验证（合并主线 `488a295` 之后，自己的 dev server :3035，所有测试带 `SITECRAFT_BASE`，同一时间只跑一个全量）
+- `npm run typecheck` 通过；`npm run build` 通过（`t095/build.txt`）。
+- 全量 `npm test`：**第一次**（启动时负载 10.75，运行中升到 19–26）679 个里 676 通过，3 个失败全是工作台浏览器测试：`workspace dark/light 1440 did not render`（`workspace-dark-contrast`）、`the action row sits above the chat box …`（`workspace-interaction`）、`undo message does not add an applied prefix`（`t075-prefix-behavior`，等「撤销」按钮超时）；日志 `t095/npm-test-full-run1.txt`。这三个只测工作台页面，与区块无关。**随后在负载 8 时单独重跑这三个文件，7/7 通过**（`t095/rerun-failed-workspace-tests.txt`）。**第二次**完整全量（启动负载 10.65，等负载降到 12 以下后开跑）：**679/679，0 失败**（`t095/npm-test-full.txt`）。没有改任何测试或超时，也没有把第一次的失败算作通过。
+- `check-published`（`t095/check-published.log`）：注塑设备站 `b9074a86` 加它切到数量带、双栏清单的两个副本，3 个站 × 1440/768/375 = 9 行全部 ok（含英文页）。
+- 渲染扫描：数量带 27 行、双栏清单 33 行，溢出 0、重叠 0、资料事实缺失 0/0、重复目标 0/0。
