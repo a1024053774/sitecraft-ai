@@ -50,6 +50,8 @@ T-065 的 6 个基线（三家不同的公司）全部是工程工业 + 工程�
 - schema 枚举补修提交为 `87bc3a7`：`question` 与 `ready` 都必须带 `recommendation.styleId/styleReason/colorSetId/colorSetReason`；styleId 和卡片四套 colorSetId 使用 Zod 枚举，理由非空；路由不再从 questions 文本猜 id。结构化草稿有信号时样子仍由 b 规则覆盖，空草稿使用 planner 的 styleId/理由，色彩始终使用 planner 的 colorSetId/理由。schema 不合格使用现有重试预算，最终返回 HTTP 502 `invalid_output`，用户看到“需求对齐规划没有返回可用的问题卡，样子和色彩推荐格式不合规，原需求没有修改草稿，请重试。”
 - schema 行为红测先在 `7cb234f` 失败（`artifacts/t072/enum-red-7cb.txt`），实现后通过（`round-enum/enum-green.txt`）；相关 76 项测试全通过（`enum-related.txt`）。最终真实轮次在 `87bc3a7` 上运行：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T072_OUTPUT_DIR=artifacts/t072/round-enum node artifacts/t072/round-enum/generate.mjs`（2026-10-03 09:23–09:25 UTC），六次 HTTP 200、六份原始 JSON、0 次枚举失败；SHA 与推荐状态见 `recommendations.json`、`comparison.json`、`diagnosis.md`，代码不重写缺失/非法模型输出。
 - schema 提交后的 `npm run typecheck`、相关测试和 `npm run build` PASS；全量 npm test 为 605 项中 598 通过、7 失败，仍是索引表旧基线溢出与缺失 vendor 资产，输出见 `round-enum/npm-test.txt`。本轮补证提交为 `T-072 record enum recommendation evidence`（最终 SHA 在 handoff 汇报）。
+- 理由文案补修提交为 `d936bc2`：保留同一组结构化计数和确定性规则，只把 `lib/alignment-recommendation.ts` 的理由改成工作台用户语言，例如“资料中有 2 个产品，每个都有 5–6 项参数，并列出 4 个应用行业、4 项加工能力和 3 项认证状态，工程工业适合把选型参数和工厂能力放在一起展示。”；不再显示“结构化资料有”“非空参数”“产品类别”等内部词。红测在 `1f29c8f` 失败，修复后通过，证据见 `artifacts/t072/round-reason/`。
+- 需求对齐卡片使用已有确定性 fixture 在 3036 dev server 捕获并查看 1440 / 768 / 375 三档截图（`reason-card-1440.png`、`reason-card-768.png`、`reason-card-375.png`）；三档均有卡片，截图和可见文本见 `workspace-screenshots.json`。planner schema/输出未变，因此没有重复真实 DeepSeek。
 
 ## 负责人决定（2026-10-03）
 

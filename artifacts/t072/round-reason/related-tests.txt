@@ -1,0 +1,79 @@
+(node:26603) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-look-card.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the look card recommends the given look and its default color set, with catalog ids only (2.399417ms)
+✔ an unknown color option never writes a palette outside the catalog (7.077ms)
+✔ the workspace turns 需求对齐 on by default for a site that was never generated (9.927167ms)
+(node:26604) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-look-prompt-c.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment prompt describes each block-library look before asking the model to recommend one (13.8475ms)
+(node:26605) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-material-recommendation-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment route chooses different looks from structured company shape while retaining planner color (36.387708ms)
+(node:26606) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-multi-question.e2e.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment card exposes 1-4 questions and commits all selections once (2.549959ms)
+✔ submitted single-question card retains recommendation, other note and palette choice in confirmation (4.753833ms)
+✔ choosing 明亮产品 keeps the industrial visual brief id (0.784209ms)
+(node:26607) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-recommendation-schema-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ready recommendation fields reach the catalog card through the chat route (27.509834ms)
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":1,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["recommendation.styleId:invalid_value","recommendation.colorSetId:invalid_value"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":2,"of":2,"category":"schema","status":200,"ms":1,"traceId":null,"finish":"stop","fields":["recommendation.styleId:invalid_value","recommendation.colorSetId:invalid_value"]}
+✔ a label-shaped recommendation id is rejected by the planner schema instead of guessed (3.368833ms)
+(node:26608) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-recommendations-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ planner recommendations for look and color set appear on the same catalog card (30.677916ms)
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":1,"of":2,"category":"schema","status":200,"ms":1,"traceId":null,"finish":"stop","fields":["recommendation.colorSetId:invalid_value"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":2,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["recommendation.colorSetId:invalid_value"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":1,"of":2,"category":"schema","status":200,"ms":1,"traceId":null,"finish":"stop","fields":["recommendation.colorSetReason:too_small"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":2,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["recommendation.colorSetReason:too_small"]}
+✔ an invalid or empty planner recommendation is rejected by the planner schema (6.542166ms)
+(node:26609) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-round-one-look-color.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a new site gets the look and color-set card even when the planner says ready (36.728708ms)
+✔ invented color sets are replaced by catalog sets, and the chosen look and palette reach the draft (27.54625ms)
+✔ a site that was already generated is not re-asked the full card when the planner says ready (6.592ms)
+✔ after the confirmed plan is applied, the next ordinary edit applies without another confirmation (10.935792ms)
+(node:26610) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment tests require the development-file driver (0.457917ms)
+✔ legacy conversation JSON without alignment stays unconfirmed after reread and append (12.039917ms)
+✔ legacy alignment style ids normalize to the visual brief ids (0.188375ms)
+✔ conversation store persists and restores alignment across reread (9.612792ms)
+✔ guided P3I tasks ask for the business outcome before the visual direction (1.020542ms)
+✔ guided industrial flow reuses P3E terms and skips a business question when materials already state the goal (0.236167ms)
+✔ start with a specified missing conversation id does not create it (0.620333ms)
+✔ alignment actions enforce option validity, revision bump, stale confirm, and cancel (2.092ms)
+✔ consecutive clarify questions increment epoch and reject a previous option click (0.28825ms)
+✔ cross-task ids, cancel, provider error retry, and completed confirm stay on the original proposal (0.998292ms)
+(node:26611) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/pack-drafts-materials-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ industrial seed retains the simulated material's catalog entries, statuses and parameters (2.148333ms)
+✔ export seed retains the simulated material's catalog entries, statuses and parameters (0.383458ms)
+✔ molding seed retains the simulated material's catalog entries, statuses and parameters (0.64175ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 538.08125
