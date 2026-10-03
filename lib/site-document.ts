@@ -204,6 +204,19 @@ export const commercialTermsSchema = z.array(commercialTermSchema).max(12).refin
   "Commercial term kinds must be unique",
 );
 
+/** Production or inspection equipment extracted from company materials. */
+export const equipmentItemSchema = z.object({
+  id: stableItemIdSchema,
+  name: localizedTextSchema,
+  quantity: z.number().int().nonnegative().nullable(),
+  spec: localizedTextSchema.nullable(),
+}).strict();
+export type EquipmentItem = z.infer<typeof equipmentItemSchema>;
+export const equipmentSchema = z.array(equipmentItemSchema).max(100).refine(
+  (items) => new Set(items.map((item) => item.id)).size === items.length,
+  "Equipment ids must be unique",
+);
+
 export const siteImageRefSchema = z.object({
   imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/),
   url: z.string().min(1).max(240),
@@ -281,6 +294,7 @@ export type SectionKey = z.infer<typeof sectionKeySchema>;
 export const movableBlockIds = [
   "products",
   "commercialTerms",
+  "equipment",
   "industries",
   "capabilities",
   "services",
@@ -300,6 +314,7 @@ export const familyModuleInventory = {
 export const visibilityKeys = [
   ...sectionKeys,
   "commercialTerms",
+  "equipment",
   "faq",
   "partners",
   "process",
@@ -436,6 +451,8 @@ export const siteDraftSchema = z.object({
     faq: contentSectionSchema,
     /** Optional commercial terms; absent on old drafts means hide. */
     commercialTerms: commercialTermsSchema.default([]),
+    /** Optional production and inspection equipment; absent on old drafts means hide. */
+    equipment: equipmentSchema.default([]),
     /** Optional manufacturer blocks; absent on old drafts means hide. */
     industries: contentSectionSchema.optional(),
     capabilities: contentSectionSchema.optional(),
@@ -532,6 +549,7 @@ export const defaultDraft: SiteDraft = {
       ],
     },
     commercialTerms: [],
+    equipment: [],
   },
   hiddenSections: [],
   blockVariants: {},
