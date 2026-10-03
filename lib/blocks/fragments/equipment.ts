@@ -41,7 +41,6 @@ export const equipmentFragment: BlockFragment = {
 .sitecraft-equipment-compact .sitecraft-equipment-quantity { grid-column: 2; grid-row: 1; font-size: 16px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 .sitecraft-equipment-compact .sitecraft-equipment-quantity-label { display: none; }
 .sitecraft-equipment-compact .sitecraft-equipment-quantity-unit { font-size: 13px; font-weight: 500; color: var(--site-muted); }
-.sitecraft-equipment-compact .sitecraft-equipment-item > span:empty { display: none; }
 .sitecraft-equipment-compact .sitecraft-equipment-item [data-sitecraft-equipment-spec] { grid-column: 1 / -1; font-size: 13px; color: var(--site-muted); }
 `,
   narrow: `

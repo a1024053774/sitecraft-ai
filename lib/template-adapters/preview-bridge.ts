@@ -937,6 +937,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
     // count is never an empty cell: the grouping follows the structured quantity only.
     var layout = blockRender("equipment");
     var grouped = Boolean(layout && layout.equipment === "grouped");
+    // Only the default rows layout has a count column (its three-column grid needs the cell). No other
+    // layout creates a node for a missing count: nothing stands in for it.
+    var equipmentEntity = uniqueNode('[data-sc-block="equipment"]');
+    var equipmentVariant = equipmentEntity && equipmentEntity.getAttribute ? equipmentEntity.getAttribute("data-sc-variant") : "rows";
+    var keepCountCell = equipmentVariant === "rows";
     var countedGroup = null;
     var plainGroup = null;
     if (grouped) {
@@ -972,7 +977,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         quantityNode.setAttribute("data-sitecraft-slot", "equipment.items." + item.id + ".quantity");
         row.appendChild(quantityNode);
         applied.add("equipment.items." + item.id + ".quantity");
-      } else if (!grouped) {
+      } else if (keepCountCell) {
         row.appendChild(document.createElement("span"));
       }
       if (item.spec) {

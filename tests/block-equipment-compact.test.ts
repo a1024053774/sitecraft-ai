@@ -95,6 +95,30 @@ test("双栏清单 lists the items in the materials' order, ungrouped, with the 
   }
 });
 
+test("双栏清单 gives an item without a count no placeholder node of any kind, in every mix", () => {
+  const mixes: Array<[string, Item[]]> = [
+    ["real molding", MOLDING],
+    ["none counted", MOLDING.slice(4)],
+    ["interleaved", [MOLDING[4], MOLDING[0], MOLDING[5], MOLDING[3], MOLDING[6]]],
+  ];
+  for (const [label, items] of mixes) {
+    const { block } = render(withEquipment(items));
+    const rows = block.querySelectorAll(".sitecraft-equipment-compact .sitecraft-equipment-item");
+    assert.equal(rows.length, items.length, label);
+    rows.forEach((row, index) => {
+      if (items[index].quantity !== null) return;
+      assert.equal(row.querySelectorAll(".sitecraft-equipment-quantity").length, 0, `${label}: ${items[index].id} has no count node`);
+      const direct = row.children.map((child) => child.tagName.toLowerCase());
+      assert.deepEqual(direct.filter((tag) => tag === "span"), [], `${label}: ${items[index].id} has no empty span standing in for the count`);
+      assert.deepEqual(direct.filter((tag) => tag !== "h3" && tag !== "p"), [], `${label}: ${items[index].id} holds only its name (and specification)`);
+    });
+  }
+  // The default layout keeps its empty count cell: its three-column grid needs it.
+  const rows = render({ ...withEquipment(MOLDING), blockVariants: { equipment: "rows" } }).block;
+  const plain = rows.querySelectorAll(".sitecraft-equipment-item").filter((row) => row.querySelector("h3")?.textContent === "三坐标测量机")[0];
+  assert.equal(plain.children.filter((child) => child.tagName.toLowerCase() === "span").length, 1, "rows still has its empty count cell");
+});
+
 test("双栏清单 writes the item count for 1 to 3 items too, and the English page says units", () => {
   for (const count of [1, 2, 3, 4]) {
     const { block } = render(withEquipment(MOLDING.slice(0, count)));
