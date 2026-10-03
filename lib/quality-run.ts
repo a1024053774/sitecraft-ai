@@ -75,8 +75,8 @@ async function saveQualityResult(result: QualityCellResult) {
   await writeFile(resultPath(result.cellId), `${JSON.stringify(result, null, 2)}\n`, "utf8");
 }
 
-async function commit(siteId: string, baseRevision: number, operations: SiteOperation[], summary: string, source: "ai" | "template") {
-  return commitOperations({ siteId, baseRevision, operations, summary, source });
+async function commit(siteId: string, baseRevision: number, operations: SiteOperation[], summary: string, source: "ai" | "template", notices: string[] = []) {
+  return commitOperations({ siteId, baseRevision, operations, summary, source, notices });
 }
 
 type CdpResult = { result?: { value?: unknown } };
@@ -379,7 +379,7 @@ export async function runQualityCell(args: {
         return fail(`生成返回 ${provider.type}，没有写入草稿`, { errorCode: "invalid_output" });
       }
       rejected.push(...provider.rejected);
-      const generated = await commit(cell.siteId, current.draft.revision, provider.operations, provider.summary, "ai");
+      const generated = await commit(cell.siteId, current.draft.revision, provider.operations, provider.summary, "ai", provider.rejected);
       if (generated.status === "conflict") {
         steps.push({ name: "generate", status: "fail", detail: "revision conflict" });
         return fail("生成时草稿已被更新", { errorCode: "revision_conflict" });
@@ -458,7 +458,7 @@ export async function runQualityCell(args: {
               steps.push({ name: `fix-${round + 1}`, status: "skip", detail: "no whitelist ops" });
               break;
             }
-            const fixed = await commit(cell.siteId, current.draft.revision, filtered.operations, fixer.summary, "ai");
+            const fixed = await commit(cell.siteId, current.draft.revision, filtered.operations, fixer.summary, "ai", [...fixer.rejected, ...filtered.rejected]);
             if (fixed.status !== "applied") {
               steps.push({ name: `fix-${round + 1}`, status: "skip", detail: fixed.status });
               break;

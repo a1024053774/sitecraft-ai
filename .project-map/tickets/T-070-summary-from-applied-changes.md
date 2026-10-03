@@ -18,12 +18,14 @@ T-053 遗留：模型的修改摘要有时描述页面上没有的东西，例�
 
 - [x] 测试先写、改动前先失败：用上面那个例子（左文右图、没有图片时右侧是参数牌），摘要里不出现图片位一类描述，只说实际换成的布局
 - [x] 换布局、改文字、被拒绝、撤销四种情况的摘要都和实际落点一致
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收（typecheck/build 已通过；串行 `npm test` 为 555/556，唯一失败是既有 `workspace-interaction` 进度列表时序，单独重跑 5/5 通过；代码审查与 Claude 验收待后续）
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过（561/561）
+- [ ] 代码审查通过；Claude 验收
 
 ## Resolution
 
-- 改动：服务端提交 AI change set 后用实际 `appliedTargets` 生成历史与对话摘要；模型摘要只保留明确的目的/原因，过滤布局和不存在元素的描述；拒绝仍只显示拒绝理由；工作台撤销/重做用逆/正操作返回的落点生成「已撤销/已重做」摘要。
-- 测试：先写并运行旧实现红测，失败证据见 `artifacts/t070/red-summary.txt`；误把 3034 不可达当红测的整套日志保留为 `red-summary-invalid-econnrefused.txt`。改后 focused、相关路由/操作/provider/工作台测试通过。
-- 验证（2026-10-03 03:02 UTC）：`npm run typecheck`、`npm run build` 通过；`npm test -- --test-concurrency=1` 为 555 通过、1 个既有 `workspace-interaction` 时序失败（`artifacts/t070/npm-test-3.txt`），该文件单独串行 5/5 通过（`artifacts/t070/workspace-interaction-final.txt`）；站点创建单测单独通过（`artifacts/t070/site-creation-rerun.txt`）。第二次并发套件因 3034 已退出而中断/失败，原日志保留于 `artifacts/t070/npm-test-rerun.txt`。
-- 浏览器证据：Chrome for Testing 以 1440 / 768 / 375 查看并截图：`artifacts/t070/workspace-1440.png`、`workspace-768.png`、`workspace-375.png`。3034 detached server 的可访问性和日志见 `artifacts/t070/dev-server-2.log`。
-- 提交：本地 T-070 commit（不推送；最终 SHA 在交接中报告）。
+- 改动：服务端提交 AI change set 后只用实际 `appliedTargets` 生成历史、改动标记和对话修改摘要；确认卡只用 operation 目标标签生成「将修改：…」；模型 summary 完全不进入用户可见摘要。拒绝保留拒绝理由；工作台撤销/重做用逆/正操作返回的落点生成「已撤销/已重做」摘要。
+- 测试先写红：b99b96f 上的同义词漏放、确认卡原文泄漏和模型原因误删测试失败，见 `artifacts/t070/red-rework-summary.txt`；FS/Postgres 存储测试在 b99b96f 上失败并暴露 ChangeSet.summary 的模型原因，见 `artifacts/t070/red-rework-store-summary.txt`。旧红测与无效 3034 日志仍分别保留在 `red-summary.txt`、`red-summary-invalid-econnrefused.txt`。
+- 改后 focused：T-070 摘要/确认卡 9/9，FS/Postgres 历史回读 1/1，相关 provider/alignment/chat/workspace 测试全绿（`artifacts/t070/rework-related-final.txt`）。
+- 验证（2026-10-03）：`npm run typecheck`、`npm test`（561/561）、`npm run build` 全部通过，证据为 `rework-typecheck.txt`、`rework-npm-test.txt`、`rework-build.txt`。前一提交完整套件的 555/556 与 3034 中断证据仍见 `npm-test-3.txt`、`npm-test-rerun.txt`。
+- 浏览器证据已按本次重构重新截图：Chrome for Testing 1440 / 768 / 375 为 `artifacts/t070/rework-workspace-1440.png`、`rework-workspace-768.png`、`rework-workspace-375.png`；living docs 已同步 `docs/project/spec.md`、`CONTEXT.md`。
+- 提交：本次重构创建新的本地 T-070 commit（不改写 b99b96f，不推送；最终 SHA 在交接中报告）。

@@ -153,7 +153,7 @@ test("requestStructuredOperations returns filtered edit operations", async () =>
   if (!result.ok) throw new Error("expected edit success");
   assert.equal(result.type, "edit");
   if (result.type !== "edit") throw new Error("expected edit type");
-  assert.equal(result.summary, "T3_EDIT_SUMMARY_4409 更新中文首屏标题");
+  assert.equal(result.summary, "将修改：首屏标题");
   assert.equal(result.operations.length, 1);
   assert.equal(result.operations[0].op, "set_text");
   if (result.operations[0].op !== "set_text") throw new Error("expected set_text");

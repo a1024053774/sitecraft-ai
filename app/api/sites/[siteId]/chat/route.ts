@@ -486,7 +486,7 @@ async function commitClaimedProposal(siteId: string, conversationId: string, con
   try {
     result = await commitOperations({
       siteId, baseRevision: proposed.baseRevision, operations: proposed.operations,
-      summary: proposed.summary, source: "ai", changeId: proposed.questionId,
+      summary: proposed.summary, source: "ai", notices: proposed.rejected, changeId: proposed.questionId,
       model: proposed.model ?? undefined, latencyMs: proposed.latencyMs,
     });
   } catch (error) {
@@ -501,6 +501,8 @@ async function commitClaimedProposal(siteId: string, conversationId: string, con
   }
   const effectiveStatus = result.status === "rejected" ? "no_change" : result.status;
   outcome = effectiveStatus;
+  if (result.status === "applied") aiSummary = result.changeSet.summary;
+  else if (result.status === "rejected") aiSummary = `未修改：${result.reasons.join("；")}`;
   appliedOperationsSummary = result.status === "applied"
     ? summarizeAppliedOperations(result.changeSet.operations, result.changeSet.appliedTargets)
     : `not applied: ${result.status}`;
@@ -809,6 +811,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
               baseRevision: parsed.data.baseRevision,
               operations: provider.operations,
               summary: provider.summary,
+              notices: provider.rejected,
               source: "ai",
               model: provider.model,
               latencyMs: provider.latencyMs,
@@ -827,7 +830,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
               doneEvent = { type: "done", status: "no_change", summary, rejected, ...snapshot(committed.record), model: provider.model, latencyMs: provider.latencyMs };
             } else {
               outcome = "applied";
-              aiSummary = provider.summary;
+              aiSummary = committed.changeSet.summary;
               appliedOperationsSummary = summarizeAppliedOperations(committed.changeSet.operations, committed.changeSet.appliedTargets);
               doneEvent = { type: "done", status: "applied", summary: committed.changeSet.summary, rejected: provider.rejected, changeSet: committed.changeSet, ...snapshot(committed.record), model: provider.model, latencyMs: provider.latencyMs };
             }

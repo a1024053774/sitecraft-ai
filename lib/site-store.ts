@@ -110,15 +110,16 @@ async function withSiteLock<T>(siteId: string, task: () => Promise<T>): Promise<
 function createRecord(siteId: string): SiteRecord {
   return { siteId, draft: structuredClone(defaultDraft), history: [], future: [], historySchemaVersion: 3, updatedAt: new Date().toISOString() };
 }
-// A layout put back to its default by this change (T-053) is said in the change's summary, unless
-// the summary already says it (the model path adds it before the commit).
+// A layout put back to its default by this change (T-053) is appended as a system notice. AI change
+// summaries themselves are rebuilt from appliedTargets below.
 function summaryWithNotices(summary: string, notices: string[]) {
   const missing = notices.filter((notice) => !summary.includes(notice));
   return missing.length ? `${summary.replace(/[。.]\s*$/, "")}。${missing.join("")}` : summary;
 }
 function committedSummary(args: CommitArgs, appliedTargets: string[], notices: string[]) {
-  if (args.source !== "ai") return summaryWithNotices(args.summary, notices);
-  return summaryFromAppliedTargets({ appliedTargets, modelSummary: args.summary, notices });
+  const allNotices = [...(args.notices ?? []), ...notices];
+  if (args.source !== "ai") return summaryWithNotices(args.summary, allNotices);
+  return summaryFromAppliedTargets({ appliedTargets, notices: allNotices });
 }
 export function snapshot(record: SiteRecord, isNew?: boolean): SiteSnapshot {
   return {
@@ -160,6 +161,7 @@ type CommitArgs = {
   operations: SiteOperation[];
   summary: string;
   source: ChangeSource;
+  notices?: string[];
   // Alignment proposals use their server-issued confirmation ID as the durable receipt.
   changeId?: string;
   model?: string;

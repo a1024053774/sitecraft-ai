@@ -3,6 +3,7 @@ import { colorSetCatalog, defaultPaletteIdForVisualBrief, paletteCatalogForVisua
 import { templateAdapters } from "./template-adapters/registry.ts";
 import { siteOperationSchema, type SiteOperation } from "./site-operations.ts";
 import { isGuidedIndustrialRequest, needsGuidedBusinessQuestion } from "./guided-flow.ts";
+import { operationSummary } from "./workspace-copy.ts";
 export { isGuidedIndustrialRequest, needsGuidedBusinessQuestion } from "./guided-flow.ts";
 
 export const ALIGNMENT_QUESTION_ID = "style-theme";
@@ -947,7 +948,7 @@ export function applyEditProposal(snapshot: AlignmentSnapshot, args: {
   const epoch = snapshot.epoch + 1;
   const questionId = `confirm-${crypto.randomUUID()}`;
   const questionRevision = epoch;
-  const summary = clipAlignmentText(args.summary, MAX_ALIGNMENT_SUMMARY_CHARS) || "请确认将要应用的修改。";
+  const summary = clipAlignmentText(operationSummary(args.operations), MAX_ALIGNMENT_SUMMARY_CHARS);
   const next: AlignmentSnapshot = {
     ...snapshot,
     enabled: true,
@@ -960,7 +961,7 @@ export function applyEditProposal(snapshot: AlignmentSnapshot, args: {
       questionId,
       questionRevision,
       kind: "confirm_ops",
-      prompt: `请确认将应用：${summary}。${snapshot.answers.map((answer) => {
+      prompt: `${summary}。${snapshot.answers.map((answer) => {
         const field = snapshot.submittedCard?.questions?.find((q) => q.questionId === answer.questionId)?.field;
         const label = field === "colorSet" ? "色彩集" : field === "style" ? "样子" : answer.question;
         return `${label}：${answer.note || answer.label}`;
@@ -971,7 +972,7 @@ export function applyEditProposal(snapshot: AlignmentSnapshot, args: {
     proposedChange: {
       summary,
       operations: args.operations,
-      // The saved proposal keeps the first refusals, each clipped; the summary already says what matters.
+      // The saved proposal keeps the first refusals, each clipped; the summary is target-derived.
       rejected: args.rejected.slice(0, MAX_PROPOSAL_REJECTED).map((item) => clipAlignmentText(item, MAX_PROPOSAL_REJECTED_CHARS)),
       baseRevision: args.baseRevision,
       questionId,

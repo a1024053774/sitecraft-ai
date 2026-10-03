@@ -4,7 +4,7 @@ import { applyAlignmentAction, applyEditProposal, disabledAlignment, normalizeAl
 import { defaultDraft, normalizeDraft, type SiteDraft } from "../lib/site-document.ts";
 import { aiChangeSchema, aiOperationSchema, applySiteOperations, siteOperationSchema, validateAIOperations, type AIOperation, type SiteOperation } from "../lib/site-operations.ts";
 import { simulatedPacks } from "../lib/simulated-packs.ts";
-import { changeTargetLabel, plainSummary } from "../lib/workspace-copy.ts";
+import { changeTargetLabel, operationSummary } from "../lib/workspace-copy.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
 
 // T-053 step 3: the layout a block shows is stored in the draft (blockVariants), changed only by
@@ -195,5 +195,5 @@ test("the workspace names layout changes in page terms", () => {
   assert.equal(changeTargetLabel("blockVariants.products"), "产品布局");
   assert.equal(changeTargetLabel("blockVariants.contact"), "询盘布局");
   // A model summary that talks about variants is replaced by the page parts that changed.
-  assert.equal(plainSummary("把产品变体改成 compare", [setLayout("products", "compare")]), "已更新：产品布局");
+  assert.equal(operationSummary([setLayout("products", "compare")]), "将修改：产品布局");
 });

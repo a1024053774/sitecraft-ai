@@ -6,7 +6,7 @@ import { effectiveBlockOrder } from "@/lib/blocks/order";
 import { blockLookForTemplate } from "@/lib/blocks/looks/index";
 import { declaredFamilySections, getTemplateAdapter } from "@/lib/template-adapters/registry";
 import { FRONTEND_TONE_RULES_VERSION, frontendToneRules } from "@/lib/frontend-tone";
-import { plainSummary } from "@/lib/workspace-copy";
+import { operationSummary } from "@/lib/workspace-copy";
 import { schemaIssueFields } from "@/lib/schema-issue-fields";
 import {
   inspectPreviewScreenshot,
@@ -587,7 +587,7 @@ function successResult(data: AIIntentResponse, args: {
   return {
     ok: true,
     type: "edit",
-    summary: summaryWithNotes(plainSummary(data.summary, validated.operations), validated.notes, validated.operations.length),
+    summary: summaryWithNotes(operationSummary(validated.operations), validated.notes, validated.operations.length),
     operations: validated.operations,
     rejected: validated.rejected,
     model: args.model,
@@ -595,8 +595,8 @@ function successResult(data: AIIntentResponse, args: {
   };
 }
 
-// The summary is what the user reads (workspace message, alignment confirmation, history). Layout
-// refusals and resets are added to it whole; when nothing is left to apply, the reason is the summary.
+// This is an operation-target preview used before commit. The committed user-facing summary is
+// rebuilt from the change set's appliedTargets; layout refusals and resets remain system notices.
 const MAX_EDIT_SUMMARY_CHARS = 400;
 function summaryWithNotes(summary: string, notes: string[], operationCount: number) {
   if (!notes.length) return summary;

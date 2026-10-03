@@ -138,7 +138,7 @@ test("the alignment run plans on the look picked in the card, before that look i
   const layouts = proposal.operations.filter((operation) => operation.op === "set_block_variant");
   assert.deepEqual(layouts, [setLayout("products", "compare"), setLayout("hero", "statement")], "layouts the materials support are kept; the contact band is not");
   assert.deepEqual(proposal.operations[0], { op: "set_visual_brief", briefId: "engineering-industrial" });
-  assert.match(proposal.summary, /联系条要邮箱、电话、地址至少 2 项；现在只有邮箱，询盘仍按左右布局显示。/);
+  assert.equal(proposal.summary, "将修改：样子、公司名、询盘邮箱、产品、产品布局、首屏布局");
 
   const confirmed = await postChat(siteId, {
     action: "confirm", conversationId, questionId: String(planned.done?.questionId),

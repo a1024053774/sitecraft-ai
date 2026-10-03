@@ -68,27 +68,13 @@ export function changeTargetLabels(targets: string[]) {
 type AppliedChangeAction = "applied" | "undo" | "redo";
 const MAX_APPLIED_CHANGE_SUMMARY_CHARS = 400;
 
-function modelReason(summary: string | null | undefined) {
-  if (!summary?.trim()) return "";
-  const text = summary.trim().replace(/[。.；;]+$/, "");
-  const explicit = text.match(/(?:原因|理由)[:：]\s*(.+)$/)?.[1]?.trim()
-    ?? (/^(?:因为|由于|为了|以便|方便|便于)\S/.test(text) ? text : "");
-  if (!explicit) return "";
-  // A reason is allowed to explain purpose, but it must not smuggle the model's guessed layout or
-  // an element that the selected block does not render back into the user-facing change summary.
-  if (/改(?:成|为)|换(?:成|为)|左文右图|右侧|左侧|图片位|图片|布局|标题|文案|区块|模板|HTML|CSS|URL|槽位|字段/i.test(explicit)) return "";
-  return explicit;
-}
-
 /**
  * Builds the user-facing summary from the targets that the operation engine actually wrote.
- * The model summary is retained only as an explicit purpose/reason, never as the source of the
- * changed page parts. This is also used for inverse operations so undo and redo name their real
- *落点 rather than repeating the original model sentence.
+ * This is also used for inverse operations so undo and redo name their real落点 rather than
+ * repeating any model sentence.
  */
 export function summaryFromAppliedTargets(args: {
   appliedTargets: string[];
-  modelSummary?: string | null;
   action?: AppliedChangeAction;
   notices?: string[];
 }) {
@@ -96,8 +82,6 @@ export function summaryFromAppliedTargets(args: {
   const subject = labels.length ? labels.join("、") : "页面内容";
   const prefix = args.action === "undo" ? "已撤销" : args.action === "redo" ? "已重做" : "已更新";
   const parts = [`${prefix}：${subject}`];
-  const reason = modelReason(args.modelSummary);
-  if (reason) parts.push(`原因：${reason}`);
   for (const notice of args.notices ?? []) {
     const clean = notice.trim().replace(/[。.；;]+$/, "");
     if (clean && !parts.includes(clean)) parts.push(clean);
@@ -131,27 +115,30 @@ export function describePreviewGaps(args: {
   };
 }
 
-// Operation names (set_text, replace_cards, …) are internal words too.
-const INTERNAL_WORDS = /HTML|CSS|URL|网址|快照|模板|槽位|槽|字段|声明|slot|operation|schema|变体|variant|\b(?:set|add|update|remove|replace|reorder)_[a-z_]+\b/i;
-
 function operationLabel(operation: { op?: unknown; target?: unknown; section?: unknown; block?: unknown }) {
   if (operation.op === "set_page_plan") return "页面规划";
   if (operation.op === "set_palette" || operation.op === "set_custom_palette") return "配色";
   if (operation.op === "set_visual_brief") return "样子";
+  if (operation.op === "set_site_style") return "页面样式";
+  if (operation.op === "reorder_sections") return "区块顺序";
   if (operation.op === "set_block_variant" && typeof operation.block === "string") return changeTargetLabel(`blockVariants.${operation.block}`);
   if (operation.op === "replace_products" || operation.op === "update_product" || operation.op === "set_product_specs") return "产品";
+  if (operation.op === "set_product_image" || operation.op === "remove_product_image") return "产品图片";
+  if (operation.op === "replace_draft") return "页面内容";
   if (operation.op === "set_catalog_section" && typeof operation.section === "string") return changeTargetLabel(operation.section);
   if (typeof operation.target === "string") return changeTargetLabel(operation.target);
   if (typeof operation.section === "string") return changeTargetLabel(operation.section);
   return "";
 }
 
-// The model's summary is shown to the user. When it talks about templates, snapshots or HTML, show
-// the page parts that changed instead.
-export function plainSummary(summary: string, operations: Array<{ op?: unknown; target?: unknown; section?: unknown; block?: unknown }>) {
-  if (!INTERNAL_WORDS.test(summary)) return summary;
-  const parts = [...new Set(operations.map(operationLabel).filter(Boolean))];
-  return parts.length ? `已更新：${parts.join("、")}` : "已更新页面内容";
+export function operationTargetLabels(operations: Array<{ op?: unknown; target?: unknown; section?: unknown; block?: unknown }>) {
+  return [...new Set(operations.map(operationLabel).filter(Boolean))];
+}
+
+/** Confirmation copy is built from operation targets; model prose never enters the UI. */
+export function operationSummary(operations: Array<{ op?: unknown; target?: unknown; section?: unknown; block?: unknown }>) {
+  const labels = operationTargetLabels(operations);
+  return `将修改：${labels.length ? labels.join("、") : "页面内容"}`;
 }
 
 // A chat turn that changed nothing. When the system refused what the model asked for (a layout the

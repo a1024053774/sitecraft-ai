@@ -653,7 +653,7 @@ test("alignment HITL continues the saved task through clarify, proposal, and con
   });
   assert.equal(answered.done?.status, "alignment");
   assert.equal(answered.done?.awaitingConfirmation, true);
-  assert.match(String(answered.done?.summary || answered.done?.question || ""), /ALIGN_HITL_ALPHA_SUMMARY_4401/);
+  assert.match(String(answered.done?.summary || answered.done?.question || ""), /^将修改：样子、首屏标题$/);
   assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
 
   const restoredConfirm = await postChat(siteId, { action: "state", conversationId });
@@ -937,8 +937,8 @@ test("two unrelated alignment tasks produce corresponding model questions and re
     questionRevision: Number(styleB.done?.questionRevision),
     optionId: asOptionCards(styleB.done)[0].id,
   });
-  assert.match(String(answerA.done?.summary || answerA.done?.question || ""), /ALIGN_HITL_ALPHA_SUMMARY_4401/);
-  assert.match(String(answerB.done?.summary || answerB.done?.question || ""), /ALIGN_HITL_BETA_SUMMARY_4401/);
+  assert.match(String(answerA.done?.summary || answerA.done?.question || ""), /^将修改：样子、首屏标题$/);
+  assert.match(String(answerB.done?.summary || answerB.done?.question || ""), /^将修改：样子、首屏说明$/);
 });
 
 test("alignment recovers a committed proposal after the conversation result write is lost", async () => {

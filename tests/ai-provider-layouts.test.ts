@@ -225,7 +225,7 @@ test("accepted layouts go through; a refusal next to other changes is added to t
   assert.equal(result.ok, true);
   if (!result.ok || result.type !== "edit") throw new Error("expected an edit");
   assert.deepEqual(result.operations.map((operation) => operation.op), ["set_block_variant", "replace_products", "set_text"]);
-  assert.equal(result.summary, "按资料生成首页，产品用参数对比表。联系条要邮箱、电话、地址至少 2 项；现在只有邮箱，询盘仍按左右布局显示。");
+  assert.equal(result.summary, "将修改：产品布局、产品、询盘邮箱。联系条要邮箱、电话、地址至少 2 项；现在只有邮箱，询盘仍按左右布局显示。");
 });
 
 test("a change that leaves the chosen layout short keeps the model's summary and says the layout went back", async () => {
@@ -236,7 +236,7 @@ test("a change that leaves the chosen layout short keeps the model's summary and
   assert.equal(result.ok, true);
   if (!result.ok || result.type !== "edit") throw new Error("expected an edit");
   assert.equal(result.operations.length, 1);
-  assert.equal(result.summary, "精简行星减速机参数。参数对比表要 2–4 个产品共有至少 3 项都有数值的同名参数；现在只共有 2 项（速比范围、额定输出扭矩），产品改回产品卡片。");
+  assert.equal(result.summary, "将修改：产品。参数对比表要 2–4 个产品共有至少 3 项都有数值的同名参数；现在只共有 2 项（速比范围、额定输出扭矩），产品改回产品卡片。");
 });
 
 test("the summary with reasons stays within 400 characters and keeps the reasons whole", async () => {

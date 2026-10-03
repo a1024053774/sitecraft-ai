@@ -74,16 +74,14 @@ test("workspace, error and page-plan copy carries no internal words", async () =
 
 // grok-b's T-038 review: the model's own summary said "当前模板没有独立的认证页和资料下载页，无法单独开通网址"
 // and the upload hint said "校验 magic bytes".
-test("a model summary that talks about internals is replaced by the changed page parts", async () => {
-  const { plainSummary } = await import("../lib/workspace-copy.ts");
-  const summary = plainSummary("当前模板没有独立的认证页和资料下载页，无法单独开通网址：认证改为在同一页显示认证区块，下载资料写进 HTML 快照", [
+test("operation target copy never includes model prose or internal words", async () => {
+  const { operationSummary } = await import("../lib/workspace-copy.ts");
+  const summary = operationSummary([
     { op: "set_page_plan" },
     { op: "set_text", target: "hero.title" },
   ]);
+  assert.equal(summary, "将修改：页面规划、首屏标题");
   assert.doesNotMatch(summary, /HTML|网址|URL|快照|槽位|字段/);
-  assert.match(summary, /页面规划/);
-  assert.match(summary, /首屏标题/);
-  assert.equal(plainSummary("把首屏标题改为「重载减速机，按图定制」", [{ op: "set_text", target: "hero.title" }]), "把首屏标题改为「重载减速机，按图定制」");
 });
 
 test("the upload hint does not mention magic bytes", async () => {

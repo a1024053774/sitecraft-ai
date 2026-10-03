@@ -9,7 +9,7 @@ import { defaultDraft, type SiteDraft } from "../lib/site-document.ts";
 import { applySiteOperations, siteOperationSchema, validateAIOperations, type SiteOperation } from "../lib/site-operations.ts";
 import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
-import { changeTargetLabels, plainSummary } from "../lib/workspace-copy.ts";
+import { changeTargetLabels, operationSummary } from "../lib/workspace-copy.ts";
 import { parseHtmlDocument, visibleText } from "./fixtures/html-dom.ts";
 import { servedHomeHtml } from "./fixtures/look-pages.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
@@ -91,7 +91,7 @@ test("one replace_cards writes the whole FAQ, in both languages, and the page sh
   assert.deepEqual(shownFaq(result.draft), QA.map((item) => item[0]));
   assert.deepEqual(shownFaq(result.draft, "en"), QA.map((item) => item[2]));
   assert.deepEqual(changeTargetLabels(["faq.items.0.title.zh"]), ["常见问题第1项标题"]);
-  assert.equal(plainSummary("用 replace_cards 写入常见问题", [replaceFaq()]), "已更新：常见问题");
+  assert.equal(operationSummary([replaceFaq()]), "将修改：常见问题");
 });
 
 test("undo puts the previous list back exactly, the English flag too", () => {
