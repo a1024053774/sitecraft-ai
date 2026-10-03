@@ -74,6 +74,14 @@ test("quality process grounding rejects an English unit mismatch when the number
   assert.ok(mismatch.rejected.some((message) => message.includes("过程巡检") || message.includes("同一句")), JSON.stringify(mismatch.rejected));
 });
 
+test("quality process grounding rejects lexical 时 and h that are not hour units", () => {
+  const mismatch = validateAIOperations("质检流程：同时检查。", [{
+    op: "replace_quality_process",
+    steps: [{ id: "simultaneous", title: text("同时检查", "Check h"), body: null }],
+  } as never], options.templateIds);
+  assert.equal(mismatch.operations.length, 0, JSON.stringify(mismatch));
+});
+
 test("published facts include every quality process title and body", () => {
   const draft = { ...structuredClone(defaultDraft), content: { ...structuredClone(defaultDraft.content), qualityProcess: steps } } as never;
   const facts = expectedFacts(draft);

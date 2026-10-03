@@ -178,6 +178,14 @@ test("commercial terms reject weeks when the Chinese lead time says days", () =>
   assert.deepEqual(checked.operations, []);
 });
 
+test("commercial terms reject a per-piece packaging unit with no English piece unit", () => {
+  const checked = validateAIOperations("包装：每件单独包装。", [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "packaging", kind: "packaging", value: localized("每件单独包装", "Packed separately") }],
+  } as never], options.templateIds);
+  assert.deepEqual(checked.operations, []);
+});
+
 test("commercial term codes are compared case-insensitively", () => {
   const checked = validateAIOperations(simulatedPacks.molding.body, [{
     op: "replace_commercial_terms",

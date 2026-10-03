@@ -1957,9 +1957,9 @@ function englishCommercialCodes(value: string): string[] {
 
 const COMMERCIAL_UNIT_RULES = [
   { key: "ten-thousand-piece", zh: /万件/, en: /\b(?:10[,.]?000|ten thousand|million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b/i },
-  { key: "piece", zh: /\d[\d,.]*\s*件/, en: /\b(?:pcs?|pieces?|parts?)\b/i },
+  { key: "piece", zh: /(?:\d[\d,.]*\s*件|每件|按件)/, en: /\b(?:pcs?|pieces?|parts?)\b/i },
   { key: "day", zh: /天/, en: /\bdays?\b/i },
-  { key: "hour", zh: /小时|时/, en: /\bhours?\b|\bhrs?\b|\bh\b/i },
+  { key: "hour", zh: /\d[\d,.]*\s*(?:小时|时)/, en: /\b\d[\d,.]*\s*(?:hours?|hrs?|h)\b/i },
   { key: "week", zh: /周|星期/, en: /\bweeks?\b/i },
   { key: "month", zh: /月/, en: /\bmonths?\b|\bmonthly\b/i },
   { key: "year", zh: /年/, en: /\byears?\b|\byearly\b/i },
@@ -1979,11 +1979,12 @@ function englishCommercialUnits(value: string): string[] {
 
 function commercialUnitsMatch(zh: string, en: string): boolean {
   const expected = chineseCommercialUnits(zh);
+  if (/\bh\b/i.test(en) && !/\d[\d,.]*\s*h\b/i.test(en)) return false;
   let actual = englishCommercialUnits(en);
   // 「注塑件」「嵌件」use 件 as part of a noun. Treat the English plural in the
-  // corresponding noun phrase as lexical text unless the Chinese side has a
-  // numeric 件 unit; numeric piece facts remain strictly paired.
-  if (!expected.includes("piece") && /件/.test(zh) && actual.includes("piece")) {
+  // corresponding noun phrase as lexical text, while 每件/按件 and numeric 件
+  // remain real units that must pair with English piece wording.
+  if (!expected.includes("piece") && /(?:注塑件|嵌件)/.test(zh) && actual.includes("piece")) {
     actual = actual.filter((unit) => unit !== "piece");
   }
   const compatible = (source: string, target: string) => {
