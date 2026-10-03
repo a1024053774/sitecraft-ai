@@ -1559,6 +1559,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (tokens.muted) root.dataset.sitecraftTokenMuted = tokens.muted;
       if (tokens.accent) root.dataset.sitecraftTokenAccent = tokens.accent;
       if (tokens.accentStrong) root.dataset.sitecraftTokenAccentStrong = tokens.accentStrong;
+      if (root.dataset) root.dataset.sitecraftTokenAccentText = tokens.accentText || "#ffffff";
       if (tokens.accentSoft) root.dataset.sitecraftTokenAccentSoft = tokens.accentSoft;
       if (tokens.border) root.dataset.sitecraftTokenBorder = tokens.border;
       if (inputToken) root.dataset.sitecraftTokenInput = inputToken;
@@ -1575,6 +1576,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (tokens.muted) root.style.setProperty("--site-muted", tokens.muted);
         if (tokens.accent) root.style.setProperty("--site-accent", tokens.accent);
         if (tokens.accentStrong) root.style.setProperty("--site-accent-strong", tokens.accentStrong);
+        root.style.setProperty("--site-accent-text", tokens.accentText || "#ffffff");
         if (tokens.accentSoft) root.style.setProperty("--site-accent-soft", tokens.accentSoft);
         if (tokens.border) root.style.setProperty("--site-line", tokens.border);
         if (inputToken) root.style.setProperty("--site-input", inputToken);

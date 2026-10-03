@@ -19,6 +19,7 @@ function paletteDeclarations(tokens: TemplateKitTokens): Array<[string, string]>
     ["--site-line", tokens.border],
     ["--site-accent", tokens.accent],
     ["--site-accent-strong", tokens.accentStrong],
+    ["--site-accent-text", tokens.accentText || "#ffffff"],
     ["--site-accent-soft", tokens.accentSoft],
     ["--site-diagram", tokens.diagram],
     ["--site-tint", tokens.tint],

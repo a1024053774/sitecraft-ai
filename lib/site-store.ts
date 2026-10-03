@@ -7,6 +7,7 @@ import { applySiteOperations, migrateSiteHistory, type SiteOperation } from "@/l
 import { bindSiteImageOperations } from "@/lib/site-images";
 import { checkSiteStyle } from "@/lib/site-style-check";
 import { summaryFromAppliedTargets } from "@/lib/workspace-copy";
+import { validateColorPalette } from "@/lib/color-scale";
 
 export type ChangeSource = "ai" | "import" | "manual" | "migration" | "template";
 export type ChangeSet = {
@@ -186,6 +187,15 @@ async function guardSiteStyle(record: SiteRecord, args: CommitArgs): Promise<Sty
   return { operations: kept, rejected: checked.reasons.map((reason) => reason.startsWith("站点样式没有应用：") ? reason : `站点样式没有应用：${reason}`), rejectedOnly: kept.length === 0 };
 }
 
+function validateCustomPaletteOperations(operations: SiteOperation[]) {
+  for (const operation of operations) {
+    if (operation.op !== "set_custom_palette" || !operation.palette) continue;
+    const checked = validateColorPalette(operation.palette);
+    if (!checked.ok) return checked.reason + "：" + checked.failures.join("、");
+  }
+  return null;
+}
+
 async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
   return withSiteLock(args.siteId, async () => {
     const record = (await readRecord(args.siteId)) ?? createRecord(args.siteId);
@@ -197,6 +207,8 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
     const guarded = await guardSiteStyle(record, args);
     if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
     const operations = guarded.operations;
+    const invalidPalette = validateCustomPaletteOperations(operations);
+    if (invalidPalette) return { status: "rejected", record, reasons: [invalidPalette] };
     await bindSiteImageOperations(args.siteId, operations);
     const result = applySiteOperations(record.draft, operations, {
       templateIds,
@@ -363,6 +375,8 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
     const guarded = await guardSiteStyle(record, args);
     if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
     const operations = guarded.operations;
+    const invalidPalette = validateCustomPaletteOperations(operations);
+    if (invalidPalette) return { status: "rejected", record, reasons: [invalidPalette] };
     await bindSiteImageOperations(args.siteId, operations);
     const result = applySiteOperations(record.draft, operations, {
       templateIds,
