@@ -1,0 +1,16 @@
+(node:14319) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-recommendation-schema-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ready recommendation fields reach the catalog card through the chat route (20.026667ms)
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":1,"of":2,"category":"schema","status":200,"ms":1,"traceId":null,"finish":"stop","fields":["recommendation.styleId:invalid_value","recommendation.colorSetId:invalid_value"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":2,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["recommendation.styleId:invalid_value","recommendation.colorSetId:invalid_value"]}
+✔ a label-shaped recommendation id is rejected by the planner schema instead of guessed (3.699958ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 229.817459

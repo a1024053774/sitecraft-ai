@@ -1,0 +1,140 @@
+(node:15427) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/ai-provider-failure-log.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ an HTTP error is logged per attempt with its status and trace id, not the upstream message (19.349125ms)
+✔ a network failure is logged with its cause code (0.734959ms)
+✔ a timeout is logged once (it is not retried) (0.407375ms)
+✔ a body or an answer that is not JSON is logged as parse (2.577ms)
+✔ an answer that fails the schema is logged as schema with the fields it got wrong, not their values (6.0545ms)
+✔ an answer cut off at max_tokens is logged as truncated, with the token usage (0.357416ms)
+✔ a failed attempt followed by a good one logs only the failure; a good call logs nothing (5.048833ms)
+✔ the alignment planning call logs its failures the same way (2.137584ms)
+(node:15428) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/ai-provider-intent.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[sitecraft] DeepSeek call failed {"call":"structured_operations","attempt":1,"of":2,"category":"schema","status":200,"ms":2,"traceId":null,"finish":"stop","fields":["root:unrecognized_keys"]}
+[sitecraft] DeepSeek call failed {"call":"structured_operations","attempt":2,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["root:unrecognized_keys"]}
+✔ requestStructuredOperations returns answer without calling operation validation (12.50375ms)
+✔ requestStructuredOperations returns clarify for an underspecified request (1.844875ms)
+✔ requestStructuredOperations returns filtered edit operations (2.875ms)
+✔ requestStructuredOperations rejects answer payloads that also include operations (2.875042ms)
+✔ large draft prompt keeps metadata, selected section, and sku/name without unrelated sentinels (1.077458ms)
+✔ unresolved selectedTarget keeps overview and catalog without unrelated section bodies (0.794875ms)
+✔ alignment context stays in untrusted user data and is omitted when empty (1.386375ms)
+✔ live system prompt injects frontend-tone@0.3.1 copy and visual rules and forbids CSS/HTML (0.9995ms)
+✔ live system prompt treats company materials as edit facts and does not embed pack nonces (0.942625ms)
+✔ small draft prompt may inject the full document including all section bodies (0.639333ms)
+✔ alignment planner returns a prompt-specific question without operations (3.930792ms)
+✔ alignment planner normalizes a questions-only card instead of returning provider_error (0.559542ms)
+(node:15429) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-look-card.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the look card recommends the given look and its default color set, with catalog ids only (2.608042ms)
+✔ an unknown color option never writes a palette outside the catalog (11.174833ms)
+✔ the workspace turns 需求对齐 on by default for a site that was never generated (5.793208ms)
+(node:15430) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-look-prompt-c.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment prompt describes each block-library look before asking the model to recommend one (23.836833ms)
+(node:15431) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-material-recommendation-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment route chooses different looks from structured company shape while retaining planner color (69.255958ms)
+(node:15432) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-multi-question.e2e.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment card exposes 1-4 questions and commits all selections once (2.250541ms)
+✔ submitted single-question card retains recommendation, other note and palette choice in confirmation (4.392ms)
+✔ choosing 明亮产品 keeps the industrial visual brief id (0.76675ms)
+(node:15433) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-recommendation-schema-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ready recommendation fields reach the catalog card through the chat route (33.703083ms)
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":1,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["recommendation.styleId:invalid_value","recommendation.colorSetId:invalid_value"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":2,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["recommendation.styleId:invalid_value","recommendation.colorSetId:invalid_value"]}
+✔ a label-shaped recommendation id is rejected by the planner schema instead of guessed (6.246333ms)
+(node:15434) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-recommendations-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ planner recommendations for look and color set appear on the same catalog card (35.703917ms)
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":1,"of":2,"category":"schema","status":200,"ms":2,"traceId":null,"finish":"stop","fields":["recommendation.colorSetId:invalid_value"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":2,"of":2,"category":"schema","status":200,"ms":1,"traceId":null,"finish":"stop","fields":["recommendation.colorSetId:invalid_value"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":1,"of":2,"category":"schema","status":200,"ms":1,"traceId":null,"finish":"stop","fields":["recommendation.colorSetReason:too_small"]}
+[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":2,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["recommendation.colorSetReason:too_small"]}
+✔ an invalid or empty planner recommendation is rejected by the planner schema (14.779792ms)
+(node:15435) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-round-one-look-color.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a new site gets the look and color-set card even when the planner says ready (41.304958ms)
+✔ invented color sets are replaced by catalog sets, and the chosen look and palette reach the draft (65.994125ms)
+✔ a site that was already generated is not re-asked the full card when the planner says ready (10.498875ms)
+✔ after the confirmed plan is applied, the next ordinary edit applies without another confirmation (32.805708ms)
+(node:15438) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment tests require the development-file driver (0.408ms)
+✔ legacy conversation JSON without alignment stays unconfirmed after reread and append (5.840542ms)
+✔ legacy alignment style ids normalize to the visual brief ids (0.149459ms)
+✔ conversation store persists and restores alignment across reread (6.535583ms)
+✔ guided P3I tasks ask for the business outcome before the visual direction (1.072833ms)
+✔ guided industrial flow reuses P3E terms and skips a business question when materials already state the goal (0.201291ms)
+✔ start with a specified missing conversation id does not create it (1.171875ms)
+✔ alignment actions enforce option validity, revision bump, stale confirm, and cancel (1.900791ms)
+✔ consecutive clarify questions increment epoch and reject a previous option click (0.255334ms)
+✔ cross-task ids, cancel, provider error retry, and completed confirm stay on the original proposal (0.754333ms)
+(node:15439) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/chat-route-conversation.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ chat POST SSE reuses conversationId across two applied turns (23.554458ms)
+✔ chat POST answer does not commit, emits answer then done, and keeps revision (2.917667ms)
+✔ chat POST clarify does not commit, emits clarify then done, and keeps revision (2.146083ms)
+✔ chat POST keeps applied result when append fails after a successful commit (3.902334ms)
+✔ chat POST no-op edit records a result reason, not the provider summary (2.055125ms)
+✔ alignment rejected confirmation replays a pure reason without a duplicate 未修改 prefix (9.405542ms)
+✔ chat POST keeps answer when append fails and does not treat it as an error (1.876917ms)
+✔ ordinary chat without alignment action does not persist enabled alignment (1.378333ms)
+✔ alignment start returns style options without calling the provider or changing the draft (1.344959ms)
+✔ prompt alignment asks a provider-planned question and persists it without changing the draft (3.666166ms)
+✔ alignment select is idempotent and rejects stale or unknown options without changing the draft (2.719375ms)
+✔ alignment HITL continues the saved task through clarify, proposal, and confirm without a new chat (8.545125ms)
+✔ guided image wait resumes the same saved task after a site upload (6.190584ms)
+✔ P3E complete materials reuse the guided plan, preserve missing facts, and block bypass until confirmation (7.31575ms)
+✔ alignment confirm conflicts when the draft revision changes, and cancel does not replay (10.995834ms)
+✔ two unrelated alignment tasks produce corresponding model questions and results (7.545125ms)
+✔ alignment recovers a committed proposal after the conversation result write is lost (5.114083ms)
+✔ state resumes an already confirmed proposal if the process stopped before its draft commit (6.170959ms)
+✔ recovering a lost confirmation result after undo does not report the undone change as applied (7.171083ms)
+✔ cancel suppresses a late provider answer and preserves the saved cancellation (2.566333ms)
+✔ alignment state restore uses the same POST action and does not create a missing conversation (1.472166ms)
+(node:15440) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/structured-output-budget.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ structured generation asks for a 65536-token budget by default and leaves thinking at its default (12.260167ms)
+✔ a lower configured budget is raised to 65536, a higher one is kept (1.120542ms)
+✔ a structured-generation attempt may run up to 300 s and a planning attempt up to 90 s (1.406042ms)
+✔ a structured retry only gets what is left of 360 s, and there is none when nothing is left (1.098167ms)
+✔ a planning retry only gets what is left of 150 s, and there is none when nothing is left (1ms)
+✔ an answer cut off at the token budget is reported as truncated after one attempt (0.47175ms)
+✔ the alignment planner has room for look and color recommendations (0.247666ms)
+✔ an over-long planner summary or option description is clipped instead of failing (0.634708ms)
+✔ catalog items the model sends without a body are kept with a gap body (1.230041ms)
+ℹ tests 76
+ℹ suites 0
+ℹ pass 76
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 738.137959
