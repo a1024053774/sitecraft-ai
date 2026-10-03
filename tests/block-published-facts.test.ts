@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { expectedFacts, missingFacts } from "../scripts/published-facts.mjs";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-074 (merge check on the molding expert copy, 713b5ee): every material fact a visitor must be
 // able to read (scripts/published-facts.mjs, read the way check-published reads the page: folded
@@ -59,10 +59,7 @@ test("every material fact is on the page with each block-pool layout mounted, in
     await browser.send("Runtime.enable", {}, sessionId);
     for (const templateId of ["screwfast", "landwind"]) {
       await browser.send("Page.navigate", { url: `${base}/api/templates/${templateId}/preview?published-facts=${Date.now()}` }, sessionId);
-      for (let waited = 0; waited < 30000; waited += 100) {
-        if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitForPreviewBridge(browser, sessionId, 30000, 'block-published-facts.test');
       for (const [label, variants] of LAYOUT_SETS) {
         const draft = moldingDraft(variants, templateId);
         for (const locale of ["zh", "en"] as const) {

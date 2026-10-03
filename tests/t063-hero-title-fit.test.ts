@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 import { engineeringLook } from "../lib/blocks/looks/engineering.ts";
 
 const fitSource = readFileSync("scripts/visitor-text-fit-scan.js", "utf8");
@@ -29,10 +29,7 @@ test("run width sizing does not shrink breakable long sentences or couple brand 
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
   try {
     await browser.send("Runtime.enable", {}, sessionId);
-    for (let waited = 0; waited < 15000; waited += 100) {
-      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await waitForPreviewBridge(browser, sessionId, 15000, 't063-hero-title-fit.test');
     const base = packDraft("molding");
     const breakable = structuredClone(base);
     breakable.companyName = "宁海精密注塑模具P3T";
@@ -60,10 +57,7 @@ test("original engineering titles and company name fit in every published viewpo
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
   try {
     await browser.send("Runtime.enable", {}, sessionId);
-    for (let waited = 0; waited < 15000; waited += 100) {
-      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await waitForPreviewBridge(browser, sessionId, 15000, 't063-hero-title-fit.test');
     const draft = packDraft("molding");
     draft.companyName = "宁海精密注塑模具P3T";
     draft.content.hero.title = { zh: "精密注塑模具与注塑件", en: "Precision injection molds and molded parts" };
@@ -85,10 +79,7 @@ test("long engineering brand keeps the readable floor and wraps instead of clipp
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
   try {
     await browser.send("Runtime.enable", {}, sessionId);
-    for (let waited = 0; waited < 15000; waited += 100) {
-      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await waitForPreviewBridge(browser, sessionId, 15000, 't063-hero-title-fit.test');
     const draft = packDraft("molding");
     draft.companyName = "宁海精密注塑模具，海外销售中心，国际订单服务部";
     await browser.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 900, deviceScaleFactor: 1, mobile: true }, sessionId);

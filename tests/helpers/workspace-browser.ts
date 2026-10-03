@@ -421,6 +421,19 @@ export async function waitFor(browser: Cdp, sessionId: string, expression: strin
   return false;
 }
 
+export async function waitForCondition(browser: Cdp, sessionId: string, expression: string, label: string, timeout = 10000) {
+  if (await waitFor(browser, sessionId, expression, timeout)) return;
+  throw new Error(`Timed out waiting for ${label} after ${timeout}ms`);
+}
+
+export async function waitForPreviewBridge(browser: Cdp, sessionId: string, timeout: number, label: string) {
+  await waitForCondition(browser, sessionId, "document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", `${label} preview bridge`, timeout);
+}
+
+export async function waitForSettled(browser: Cdp, sessionId: string, label: string, timeout = 5000) {
+  await waitForCondition(browser, sessionId, "document.getAnimations().every((item) => item.effect?.getTiming?.().iterations === Infinity || item.playState !== 'running')", `${label} animations`, timeout);
+}
+
 export async function closePage(browser: Cdp, page: WorkspacePage) {
   await browser.send("Target.closeTarget", { targetId: page.targetId }).catch(() => {});
 }

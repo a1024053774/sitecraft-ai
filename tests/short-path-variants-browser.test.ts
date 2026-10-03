@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("灰底短路径 mounts its short nav, certification cards, side FAQ, and line footer", async () => {
   const browser = await openBrowser();
@@ -11,10 +11,7 @@ test("灰底短路径 mounts its short nav, certification cards, side FAQ, and l
     await browser.send("Page.enable", {}, sessionId);
     await browser.send("Runtime.enable", {}, sessionId);
     await browser.send("Page.navigate", { url: `${sitecraftBase}/api/templates/tailwind-landing/preview?short-path-variants=${Date.now()}` }, sessionId);
-    for (let waited = 0; waited < 15000; waited += 100) {
-      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await waitForPreviewBridge(browser, sessionId, 15000, 'short-path-variants-browser.test');
     const base = packDraft("export");
     const draft = { ...base, templateId: "tailwind-landing", blockVariants: { nav: "short", certifications: "cards", faq: "side", footer: "line" }, content: { ...base.content, commercialTerms: [{ id: "moq", kind: "moq", value: { zh: "100 件", en: "100 pcs" } }], certifications: { title: { zh: "认证", en: "Certifications" }, intro: { zh: "", en: "" }, items: [{ id: "iso", title: { zh: "ISO 9001", en: "ISO 9001" }, body: { zh: "认证中", en: "In progress" }, status: "认证中" }] } } };
     for (const width of [1440, 768, 375]) {

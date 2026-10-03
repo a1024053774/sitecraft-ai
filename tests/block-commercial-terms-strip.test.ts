@@ -11,7 +11,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-080: 商业条款「条款带」(commercialTerms:strip). One cell per term in a band (name small above,
 // value large below), hairlines between the cells and above/below the band; the columns follow the
@@ -107,10 +107,7 @@ test("条款带 has no horizontal overflow, the right columns, and the same cell
     await browser.send("Runtime.enable", {}, sessionId);
     for (const templateId of ["screwfast", "landwind"]) {
       await browser.send("Page.navigate", { url: `${base}/api/templates/${templateId}/preview?terms-strip=${Date.now()}` }, sessionId);
-      for (let waited = 0; waited < 30000; waited += 100) {
-        if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitForPreviewBridge(browser, sessionId, 30000, 'block-commercial-terms-strip.test');
       for (const count of [1, 2, 3, 4, 5, 6]) {
         const draft = withTerms(terms(count), templateId);
         for (const width of [1440, 768, 375]) {
