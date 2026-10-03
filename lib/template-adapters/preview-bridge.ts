@@ -873,10 +873,24 @@ function sitecraftPreviewBridge(templateId, adapter) {
     packaging: { zh: "包装", en: "Packaging" }
   };
 
+  // The variant a declared block entity shows, or null when the block cannot be rendered into: the
+  // section node, the block entity and the grid must each exist exactly once, and the entity's
+  // data-sc-variant must be one the block declares (every variant's root carries it). A stray grid
+  // marker without them is not a block and is never filled; no variant is guessed.
+  function declaredBlockVariant(block, sectionSelector, gridSelector) {
+    if (!uniqueNode(sectionSelector) || !uniqueNode(gridSelector)) return null;
+    var entity = uniqueNode('[data-sc-block="' + block + '"]');
+    if (!entity || !entity.getAttribute) return null;
+    var variantId = entity.getAttribute("data-sc-variant");
+    var declared = adapter && adapter.blocks && adapter.blocks.variants ? adapter.blocks.variants[block] : null;
+    if (!variantId || !Array.isArray(declared) || declared.indexOf(variantId) === -1) return null;
+    return variantId;
+  }
+
   function renderCommercialTerms(draft, locale, applied, variant) {
+    if (!declaredBlockVariant("commercialTerms", '[data-sitecraft-section="commercialTerms"]', "[data-sitecraft-commercial-terms-grid]")) return;
     var sectionNode = uniqueNode('[data-sitecraft-section="commercialTerms"]');
     var grid = uniqueNode('[data-sitecraft-commercial-terms-grid]');
-    if (!sectionNode && !grid) return;
     var terms = draft && draft.content && Array.isArray(draft.content.commercialTerms) ? draft.content.commercialTerms : [];
     var visible = [];
     for (var i = 0; i < terms.length; i++) {
@@ -913,9 +927,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   function renderEquipment(draft, locale, applied, variant) {
+    var equipmentVariant = declaredBlockVariant("equipment", '[data-sitecraft-section="equipment"]', "[data-sitecraft-equipment-grid]");
+    if (!equipmentVariant) return;
     var sectionNode = uniqueNode('[data-sitecraft-section="equipment"]');
     var grid = uniqueNode('[data-sitecraft-equipment-grid]');
-    if (!sectionNode && !grid) return;
     var equipment = draft && draft.content && Array.isArray(draft.content.equipment) ? draft.content.equipment : [];
     var visible = [];
     for (var i = 0; i < equipment.length; i++) {
@@ -939,8 +954,6 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var grouped = Boolean(layout && layout.equipment === "grouped");
     // Only the default rows layout has a count column (its three-column grid needs the cell). No other
     // layout creates a node for a missing count: nothing stands in for it.
-    var equipmentEntity = uniqueNode('[data-sc-block="equipment"]');
-    var equipmentVariant = equipmentEntity && equipmentEntity.getAttribute ? equipmentEntity.getAttribute("data-sc-variant") : "rows";
     var keepCountCell = equipmentVariant === "rows";
     var countedGroup = null;
     var plainGroup = null;
