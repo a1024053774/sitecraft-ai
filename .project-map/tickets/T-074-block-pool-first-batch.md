@@ -37,4 +37,5 @@ T-073 的流水线跑通后，按同一条线批量做读现有草稿字段的�
 
 - 流水线改动（T-074 开头）：`scripts/render-block.mjs`（从 artifacts 挪出）、`tests/block-fragment-tokens.test.ts`（每个区块 CSS 的 var() 在四个样子上都要有值，28 处旧缺口是 forge 缺线条 token，只能少不能多）、`tests/fixtures/look-tokens.ts`。
 - 跳过：加工能力「设备/工序清单表」。原因：票里的「正文有数量时成列、没有就不显示数量列」要判断正文是不是数量，那是猜内容；不猜的话它就是「名称 | 正文」两栏，和现有 `list`（名称列 + 正文列）只差表头和线条，属于「只差一点」。如果以后草稿有独立的数量字段再做。
+- 进度（2026-10-03）：「认证证书状态表」（certifications:table）候选已渲染，等审查：`certifications-status-table/`，代码未提交（`catalog.ts`、`fragments/sections.ts`），`candidate.md` 与代码一致。还没开始的票内候选：常见问题两栏问答、应用行业带编号行（都可能被判「只差一点」，开工前先在 `candidate.md` 里写清和现有布局的差别）。
 
