@@ -4,7 +4,7 @@ title: 设备（名称 + 数量 + 规格）：草稿字段到页面
 type: build
 status: open
 blocked_by: [T-079]
-claimed_by:
+claimed_by: equip-build
 supersedes:
 ---
 
