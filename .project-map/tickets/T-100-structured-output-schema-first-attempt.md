@@ -30,3 +30,10 @@ T-096 复核时发现（`sitecraft-ai-fields/artifacts/t096/failure-analysis-264
 - 三者原文已逐项对齐：`replace_products` 明确无 SKU 写 `"待补充"`；`set_catalog_section` 明确 title/intro/item title/body 键必须存在且都是双语对象，缺口写 `{zh:"待补充",en:"To be provided"}`，只有整组清空时 value 才能是 null；`replace_equipment` 明确 spec 只能 null 或双语对象，禁止裸字符串。没有放宽 Zod schema、事实核对或解析时改写。
 - 父提交行为级红测：[artifacts/t100/red-parent-structured-output.txt](../../artifacts/t100/red-parent-structured-output.txt)；父提交能加载已存响应，但缺少上述提示契约而失败。修复后 `node --test --experimental-strip-types tests/t100-structured-output.test.ts` 2/2 通过，日志在 `artifacts/t100/t100-focused-pass.txt`；`npm run typecheck` 通过，日志在 `artifacts/t100/typecheck-offline.txt`。
 - 离线原始响应 schema 字段对照：[artifacts/t096/repro-schema-fields.txt](../../artifacts/t096/repro-schema-fields.txt)。未跑真实 3×3、发布检查、全量测试或 build；这些留待负责人充值后重新执行，当前票据 **INCOMPLETE**。
+
+### SKU / preview identity 复核（2026-10-03）
+
+- `productSchema` 不要求 `sku` 唯一；`product.id` 由 T-069 的 `ensureProductIds` / 迁移保证稳定。`data-sitecraft-product` 只有 preview bridge 写入和测试读取，生产编辑寻址使用 `products.<id>.*`。
+- 父提交红测见 `artifacts/t100/red-parent-product-identity.txt`：多个产品的 SKU 都为「待补充」时，cards/rows/grouped/compare/index 五种布局的 `data-sitecraft-product` 重复。修复提交 `156df5c` 将 preview bridge 四处标识统一改为稳定 `product.id`，不再让 SKU 承担 DOM 身份。
+- 新行为测试 `tests/t100-product-identity.test.ts` 覆盖五种布局的唯一标识和发布页正文不出现「待补充」；相关本地测试通过。`sku` 仍可作为资料字段保留，缺失 SKU 不再影响批注/预览寻址。
+- 访客页产品卡、索引行、对比卡只渲染产品名/类别/摘要/参数等内容，不渲染 SKU；`待补充` SKU 因此不会出现在访客正文。此次只改 identity marker，不放宽事实核对。
