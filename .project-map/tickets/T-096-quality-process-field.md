@@ -50,3 +50,9 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 - `renderQualityProcess` 现在只有在 `data-sitecraft-section="qualityProcess"`、唯一的 `data-sc-block="qualityProcess"` 实体、唯一 grid marker 且变体为 `rows` 时才渲染；marker-only/无效变体不写 DOM、不写 `applied`。未改 `renderEquipment` 或 `renderCommercialTerms`。
 - 先写红证据：[red-quality-unit-before-fix.txt](../../artifacts/t096/red-quality-unit-before-fix.txt)、[red-quality-marker-before-fix.txt](../../artifacts/t096/red-quality-marker-before-fix.txt)；修复提交 `46278a5` 后 quality/equipment/commercial-terms **42/42**，quality-process **7/7**，`npm run typecheck` 通过；全量 `npm test` 为 **675/675**，日志 `artifacts/t096/npm-test-t096-p1.txt`。
 - T-096 真实 DeepSeek 生成与失败分析的运行时提交统一绑定为 `264c953`（`summary.json`、`failure-analysis-264c953.json`、本票文字一致）；`4474076`、`07827d6`、`4574089` 仅为后续 T-096 文档记录。注塑父提交对照因 HTTP 402 没拿到响应，待负责人充值后补跑，不把它归类为通过。
+
+### Astra r2 修复（合并主线后，2026-10-03）
+
+- 在 `46278a5` 的行为红证据基础上，提交 `466d480` 修正共享单位规则：小时只接受数字紧邻的「小时/时」，英文 `h` 只接受同一数字上下文；「注塑件/嵌件」只作为词内名词豁免英文复数词，`每件/按件` 和数字件仍必须映射到 `piece(s)`。
+- 新增负例：`同时检查` / `Check h`、`每件单独包装` / `Packed separately`；商业条款保留现有件↔piece 约束，设备保留 t↔kg 拒绝映射。红证据：[red-unit-lexical-before-fix.txt](../../artifacts/t096/red-unit-lexical-before-fix.txt)。
+- 合并主线 `f540ff9` 后全量 `npm test` 为 683/684，唯一 T-099 motion 偶发；低负载单测通过。修复后最终全量 `npm test` **687/687**，日志 `artifacts/t096/npm-test-t096-r2-final.txt`；相关 46/46、typecheck 通过。
