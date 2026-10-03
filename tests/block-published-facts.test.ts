@@ -45,7 +45,9 @@ const LAYOUT_SETS: Array<[string, Record<string, string>]> = [
   ["纵向流程", { services: "vertical" }],
   ["证书状态表", { certifications: "table" }],
   ["左右条款", { commercialTerms: "side" }],
+  ["条款带", { commercialTerms: "strip" }],
   ["五个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table", commercialTerms: "side" }],
+  ["条款带和其余四个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table", commercialTerms: "strip" }],
 ];
 
 test("every material fact is on the page with each block-pool layout mounted, in both languages, at three widths", async () => {

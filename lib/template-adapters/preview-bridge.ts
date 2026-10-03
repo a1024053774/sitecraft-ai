@@ -891,6 +891,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (sectionNode) setSectionHidden(sectionNode, "commercialTerms", shouldHide);
     if (!grid || shouldHide) return;
     grid.textContent = "";
+    // Layouts that arrange the terms in columns follow how many there are.
+    grid.setAttribute("data-sitecraft-entry-count", String(visible.length));
     applied.add("commercialTerms");
     for (var v = 0; v < visible.length; v++) {
       var item = visible[v];
