@@ -932,6 +932,18 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (!grid || shouldHide) return;
     grid.textContent = "";
     applied.add("equipment");
+    // "grouped" layouts keep the items with a count and the items without one apart, so a missing
+    // count is never an empty cell: the grouping follows the structured quantity only.
+    var layout = blockRender("equipment");
+    var grouped = Boolean(layout && layout.equipment === "grouped");
+    var countedGroup = null;
+    var plainGroup = null;
+    if (grouped) {
+      countedGroup = document.createElement("div");
+      countedGroup.className = "sitecraft-equipment-counted";
+      plainGroup = document.createElement("div");
+      plainGroup.className = "sitecraft-equipment-plain";
+    }
     for (var v = 0; v < visible.length; v++) {
       var item = visible[v];
       var row = document.createElement("article");
@@ -944,11 +956,22 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (item.quantity !== null) {
         var quantityNode = document.createElement("p");
         quantityNode.className = "sitecraft-equipment-quantity";
-        quantityNode.textContent = (locale === "en" ? "" : "数量：") + String(item.quantity) + (locale === "en" ? " units" : " 台");
+        var quantityLabel = document.createElement("span");
+        quantityLabel.className = "sitecraft-equipment-quantity-label";
+        quantityLabel.textContent = locale === "en" ? "" : "数量：";
+        var quantityNumber = document.createElement("span");
+        quantityNumber.className = "sitecraft-equipment-quantity-number";
+        quantityNumber.textContent = String(item.quantity);
+        var quantityUnit = document.createElement("span");
+        quantityUnit.className = "sitecraft-equipment-quantity-unit";
+        quantityUnit.textContent = locale === "en" ? " units" : " 台";
+        quantityNode.appendChild(quantityLabel);
+        quantityNode.appendChild(quantityNumber);
+        quantityNode.appendChild(quantityUnit);
         quantityNode.setAttribute("data-sitecraft-slot", "equipment.items." + item.id + ".quantity");
         row.appendChild(quantityNode);
         applied.add("equipment.items." + item.id + ".quantity");
-      } else {
+      } else if (!grouped) {
         row.appendChild(document.createElement("span"));
       }
       if (item.spec) {
@@ -959,8 +982,25 @@ function sitecraftPreviewBridge(templateId, adapter) {
         row.appendChild(specNode);
         applied.add("equipment.items." + item.id + ".spec." + locale);
       }
-      grid.appendChild(row);
+      (grouped ? (item.quantity !== null ? countedGroup : plainGroup) : grid).appendChild(row);
       applied.add("equipment.items." + item.id + ".name." + locale);
+    }
+    if (grouped) {
+      var countedRows = countedGroup.children.length;
+      var plainRows = plainGroup.children.length;
+      if (countedRows) {
+        countedGroup.setAttribute("data-sitecraft-entry-count", String(countedRows));
+        grid.appendChild(countedGroup);
+      }
+      if (plainRows) {
+        if (countedRows) {
+          var groupTitle = document.createElement("p");
+          groupTitle.className = "sitecraft-equipment-group-title";
+          groupTitle.textContent = locale === "en" ? "Other equipment" : "其他设备";
+          grid.appendChild(groupTitle);
+        }
+        grid.appendChild(plainGroup);
+      }
     }
     void variant;
   }

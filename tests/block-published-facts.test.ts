@@ -36,6 +36,11 @@ function moldingDraft(blockVariants: Record<string, string>, templateId: string)
     { id: "lead-time", kind: "lead_time", value: text("模具 25–55 天；批量注塑件在模具确认后 15–20 天", "Moulds 25–55 days; volume parts 15–20 days after approval") },
     { id: "trade", kind: "trade_terms", value: text("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo and EXW; CIF by agreement") },
   ] as typeof draft.content.commercialTerms;
+  draft.content.equipment = [
+    { id: "cnc", name: text("高速 CNC 加工中心", "High-speed CNC machining center"), quantity: 12, spec: null },
+    { id: "injection", name: text("注塑机", "Injection molding machine"), quantity: 42, spec: text("90–800 t", "90–800 t") },
+    { id: "cmm", name: text("三坐标测量机", "Coordinate measuring machine"), quantity: null, spec: null },
+  ] as typeof draft.content.equipment;
   return { ...draft, templateId };
 }
 
@@ -46,6 +51,7 @@ const LAYOUT_SETS: Array<[string, Record<string, string>]> = [
   ["证书状态表", { certifications: "table" }],
   ["左右条款", { commercialTerms: "side" }],
   ["条款带", { commercialTerms: "strip" }],
+  ["数量带", { equipment: "band" }],
   ["五个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table", commercialTerms: "side" }],
   ["条款带和其余四个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table", commercialTerms: "strip" }],
 ];
