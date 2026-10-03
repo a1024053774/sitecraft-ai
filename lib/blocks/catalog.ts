@@ -51,6 +51,8 @@ export type BlockRequirement =
   | { kind: "productGroups"; minGroups: number; minLargest: number }
   /** Comparison: `minProducts`–`maxProducts` products sharing `minShared` specs that all have values. */
   | { kind: "sharedSpecs"; minProducts: number; maxProducts: number; minShared: number }
+  /** Index: at least `min` products a visitor sees. */
+  | { kind: "productCount"; min: number }
   /** Contact band: at least `min` of email, phone and address. */
   | { kind: "contactLines"; min: number };
 
@@ -176,6 +178,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "grid"],
         render: { products: "compare", askHref: "#inquiry" },
         requires: [{ kind: "sharedSpecs", minProducts: 2, maxProducts: 4, minShared: 3 }],
+      },
+      index: {
+        label: "型号索引表",
+        slots: [benchmark("products.title", "products-title"), benchmark("products.intro", "products-intro")],
+        markers: ["[data-sitecraft-product-grid]"],
+        parts: ["head", "title", "grid"],
+        render: { products: "index", keySpecs: 3, askHref: "#inquiry" },
+        requires: [{ kind: "productCount", min: 3 }],
       },
     },
   },

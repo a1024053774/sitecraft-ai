@@ -1,8 +1,9 @@
 import type { BlockFragment } from "./types.ts";
 
-// Three product layouts on one grid marker; the bridge fills [data-sitecraft-product-grid] by the
+// Product layouts on one grid marker; the bridge fills [data-sitecraft-product-grid] by the
 // mounted variant's render mode: cards (key specs on the card, the full list folded away), cards
-// grouped under their category, or series notes above a comparison table.
+// grouped under their category, series notes above a comparison table, or a model index table
+// (one row per product, each row naming its own first specs).
 const section = (variant: string, gridClass: string) => `<section id="products" class="sitecraft-section" data-sitecraft-section="products" data-sc-block="products" data-sc-variant="${variant}">
           <div class="sitecraft-container">
             <div class="sitecraft-section-head" data-sc-part="head">
@@ -86,6 +87,25 @@ export const productsFragment: BlockFragment = {
 .sitecraft-compare-table td + td, .sitecraft-compare-table th + td, .sitecraft-compare-table thead th + th { border-left: var(--site-rule); }
 .sitecraft-compare-table tbody tr:last-child > * { border-bottom: 0; }
 .sitecraft-compare-label { display: none; }
+/* 型号索引表: a ledger, one row per product. Each spec cell names its spec, so rows need not share
+   any. Below 900px every row becomes a block (name, a wrapping run of spec cells, the inquiry link);
+   on phones the spec cells read as name/value lines. */
+.sitecraft-section[data-sc-variant="index"] .sitecraft-section-head { margin-bottom: 20px; }
+.sitecraft-index-table { width: 100%; table-layout: fixed; border-collapse: collapse; border-top: var(--site-index-top, var(--site-rule-strong)); }
+.sitecraft-index-table thead th { padding: 12px 20px 10px 0; border-bottom: var(--site-index-row, var(--site-rule)); font-size: 13px; font-weight: 600; text-align: left; color: var(--site-muted); }
+.sitecraft-index-table thead th[colspan] { padding-left: 16px; }
+.sitecraft-index-name-col { width: 30%; }
+.sitecraft-index-ask-col { width: 14%; }
+.sitecraft-index-table tbody th, .sitecraft-index-table tbody td { padding: 22px 20px 22px 0; border-bottom: var(--site-index-row, var(--site-rule)); text-align: left; vertical-align: top; }
+.sitecraft-index-table tbody tr:last-child > * { border-bottom: 0; }
+.sitecraft-index-name .sitecraft-product-category { margin: 0 0 6px; }
+.sitecraft-index-name h3 { margin: 0; font-size: 20px; line-height: 1.3; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.sitecraft-index-table tbody td.sitecraft-index-spec { padding-left: 16px; border-left: var(--site-rule); }
+.sitecraft-index-spec-label { display: block; margin-bottom: 4px; font-size: 12px; color: var(--site-muted); overflow-wrap: anywhere; }
+.sitecraft-index-spec-value { display: block; font-size: 16px; font-weight: 700; line-height: 1.4; font-variant-numeric: tabular-nums; word-break: keep-all; overflow-wrap: anywhere; }
+.sitecraft-index-table tbody td.sitecraft-index-ask { padding-right: 0; text-align: right; }
+.sitecraft-index-ask .sitecraft-product-ask { white-space: nowrap; }
+.sitecraft-index-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 `,
   narrow: `
 .sitecraft-product-group { grid-template-columns: 1fr; gap: 16px; }
@@ -96,6 +116,17 @@ export const productsFragment: BlockFragment = {
 .sitecraft-look-industrial .sitecraft-product-key dt { min-width: 0; overflow-wrap: anywhere; }
 .sitecraft-look-industrial .sitecraft-product-key dd, .sitecraft-look-industrial .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { margin: 0; flex: 0 0 auto; max-width: 70%; font-size: 16px; text-align: right; }
 .sitecraft-compare-table th, .sitecraft-compare-table td { padding: 13px 14px; }
+.sitecraft-index-table, .sitecraft-index-table tbody { display: block; }
+.sitecraft-index-table thead { display: none; }
+.sitecraft-index-table tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 20px 0; border-bottom: var(--site-index-row, var(--site-rule)); }
+.sitecraft-index-table tbody tr:last-child { border-bottom: 0; }
+.sitecraft-index-table tbody th, .sitecraft-index-table tbody td, .sitecraft-index-table tbody td.sitecraft-index-spec, .sitecraft-index-table tbody td.sitecraft-index-ask { min-width: 0; padding: 0; border: 0; text-align: left; }
+.sitecraft-index-table[data-sc-cols="2"] tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sitecraft-index-table[data-sc-cols="1"] tbody tr { grid-template-columns: minmax(0, 1fr); }
+.sitecraft-index-name { grid-column: 1 / -1; margin-bottom: 14px; }
+.sitecraft-index-table tbody td.sitecraft-index-spec { padding: 10px 20px 0 0; border-top: var(--site-rule); }
+.sitecraft-index-table tbody td.sitecraft-index-spec:empty { display: none; }
+.sitecraft-index-table tbody td.sitecraft-index-ask { grid-column: 1 / -1; margin-top: 14px; }
 `,
   phone: `
 .sitecraft-product-body { padding: 20px; }
@@ -114,6 +145,10 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-groups .sitecraft-product-body { padding: 20px; }
 .sitecraft-product-groups .sitecraft-product-key dd, .sitecraft-product-groups .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { font-size: 16px; }
 .sitecraft-compare-series-card { padding: 18px 18px 16px; }
+.sitecraft-index-table tbody tr, .sitecraft-index-table[data-sc-cols] tbody tr { grid-template-columns: minmax(0, 1fr); padding: 18px 0; }
+.sitecraft-index-table tbody td.sitecraft-index-spec:not(:empty) { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0 8px; }
+.sitecraft-index-spec-label { flex: none; max-width: 45%; margin: 0; font-size: 13px; }
+.sitecraft-index-spec-value { min-width: 0; font-size: 16px; text-align: right; }
 .sitecraft-compare-table, .sitecraft-compare-table tbody, .sitecraft-compare-table tr, .sitecraft-compare-table th, .sitecraft-compare-table td { display: block; width: auto; }
 .sitecraft-compare-table thead { display: none; }
 .sitecraft-compare-table tbody tr { padding: 14px 16px; border-bottom: var(--site-rule); }
@@ -128,5 +163,6 @@ export const productsFragment: BlockFragment = {
     rows: section("rows", "sitecraft-product-rows"),
     grouped: section("grouped", "sitecraft-product-groups"),
     compare: section("compare", "sitecraft-compare"),
+    index: section("index", "sitecraft-index"),
   },
 };

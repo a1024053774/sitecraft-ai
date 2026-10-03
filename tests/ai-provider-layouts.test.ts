@@ -263,3 +263,10 @@ test("when an answer has more than 24 operations the retry asks for 24 at most",
   assert.equal(requestBodies.length, 2);
   assert.match(lastMessage("user"), /删减到 24 条以内/);
 });
+
+test("T-073: the layout menu offers 型号索引表 with its 3-product need and the rule for choosing it", async () => {
+  await ask(packDraft("molding"), "看看现在的页面", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.ok(system.includes("index=型号索引表（要至少 3 个产品）"), "the menu names the layout and what it needs");
+  assert.match(system, /产品 3 个以上、访客主要按型号对照选型的目录型公司可以用 index/);
+});
