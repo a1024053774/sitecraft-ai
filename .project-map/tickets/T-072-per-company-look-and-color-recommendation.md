@@ -52,6 +52,7 @@ T-065 的 6 个基线（三家不同的公司）全部是工程工业 + 工程�
 - schema 提交后的 `npm run typecheck`、相关测试和 `npm run build` PASS；全量 npm test 为 605 项中 598 通过、7 失败，仍是索引表旧基线溢出与缺失 vendor 资产，输出见 `round-enum/npm-test.txt`。本轮补证提交为 `T-072 record enum recommendation evidence`（最终 SHA 在 handoff 汇报）。
 - 理由文案补修提交为 `d936bc2`：保留同一组结构化计数和确定性规则，只把 `lib/alignment-recommendation.ts` 的理由改成工作台用户语言，例如“资料中有 2 个产品，每个都有 5–6 项参数，并列出 4 个应用行业、4 项加工能力和 3 项认证状态，工程工业适合把选型参数和工厂能力放在一起展示。”；不再显示“结构化资料有”“非空参数”“产品类别”等内部词。红测在 `1f29c8f` 失败，修复后通过，证据见 `artifacts/t072/round-reason/`。
 - 需求对齐卡片使用已有确定性 fixture 在 3036 dev server 捕获并查看 1440 / 768 / 375 三档截图（`reason-card-1440.png`、`reason-card-768.png`、`reason-card-375.png`）；三档均有卡片，截图和可见文本见 `workspace-screenshots.json`。planner schema/输出未变，因此没有重复真实 DeepSeek。
+- 真实流程界面补证：旧的手工 fixture 截图已改名为 `*-invalid-fixture.png`。第一次真实 start 因 dev server 未加载模型环境，结果保留为 `*-invalid-server.png`；随后用主工作区 env 重启 3036 server，唯一作为验收证据的真实 start 命令、时间、代码/服务端 SHA、commitOperations 种子内容和可见文本见 `artifacts/t072/round-reason-real/visible-text.md` 与 `workspace-screenshots.json`。站点是 `外高桥流体接头P3E`，预览显示两个产品及 DN/压力/材质参数；1440/768 卡片可选且页头为「AI 已连接」，375 显示可操作逐题抽屉，推荐理由为「资料中有 2 个产品，每个都有 5 项完整参数……」。截图为 `real-card-1440.png`、`real-card-768.png`、`real-card-375.png`。
 
 ## 负责人决定（2026-10-03）
 
