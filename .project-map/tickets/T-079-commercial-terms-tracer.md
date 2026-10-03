@@ -4,7 +4,7 @@ title: 商业条款 tracer：草稿字段 → operation → 模型抽取 → 事
 type: build
 status: open
 blocked_by: [T-078]
-claimed_by:
+claimed_by: terms-build
 supersedes:
 ---
 
