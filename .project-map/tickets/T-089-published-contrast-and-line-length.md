@@ -2,7 +2,7 @@
 id: T-089
 title: 发布页硬门：正文对比度 4.5:1 和正文行长
 type: build
-status: open
+status: closed
 blocked_by: [T-084, T-081]
 claimed_by: exec-t089
 supersedes:
@@ -20,7 +20,7 @@ supersedes:
 
 - [x] 测试先写，并在父提交上能加载、在断言处失败：用固定 HTML 夹具覆盖正文 4.4:1 失败、4.6:1 通过、大字 3.2:1 通过、图片背景报未测、正文过长失败、参数表豁免
 - [x] 三家模拟资料 × 中英文 × 1440 / 768 / 375 跑 `check-published`，报告和截图存 `artifacts/published-check/t089-*`；发现的缺陷已在根因层修好
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -32,3 +32,9 @@ supersedes:
 - 三家模拟资料（industrial/export/molding）中英文 × 1440/768/375：`node scripts/check-published.mjs --out artifacts/published-check/t089-r3 t089-industrial t089-export t089-molding`，9 个视口均通过且每个英文报告存在；报告见 `artifacts/published-check/t089-r3/report.json`，18 张截图同目录。
 - `npm run typecheck`：通过；`bash /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t089 3058 artifacts/t089/npm-test-r3.txt`：666/666 通过；`npm run build`：通过。页面拼图复核见 `artifacts/t089/r2-visual-review.png`。
 - 对应提交：本票提交（最终 SHA 以 `git log -1 --format=%H` 为准）；代码审查与 Claude 验收待后续实例完成。
+
+### 当前状态（2026-10-03 18:50 EDT，Claude 验收）
+
+- 独立审查（rs-ui，未参与实现）三轮：第一轮 `REVISE`（纯色渐变被当图片导致目录样子改设计迁就检查器、opacity 未进合成、嵌套正文行长漏检与豁免过宽）；第二轮 `REVISE`（无法解析的渐变色标被跳过）；第三轮 `PASS`。报告在 sitecraft-ai 主工作区 `artifacts/research/threads-2026-10-03/reviews/T-089-review-{1,2,3}.md`。
+- 修复后的证据：全量 `npm test` 666/666（`artifacts/t089/npm-test-r3.txt`，经 `fulltest.sh`，提交 `0afdb52` 前一分钟运行）；`npm run build` 通过；目录样子首屏渐变已恢复原设计，只把默认 muted token 调深到通过 4.5:1。
+- Claude 验收：并入主线 `e2622d8`（合并提交 `dfa46d2`）后，`npm run typecheck` 通过；`tests/t089-contrast-line-length.test.ts` 与 `tests/site-style-scan.test.ts` 3/3；`check-published` 三家 × 中英 × 1440/768/375 全部通过，报告 `artifacts/published-check/t089-claude-accept/report.json`，抽看外贸站中文 1440 截图正常。历史段落里的 open/未完成描述是当时状态，以本段为准。
