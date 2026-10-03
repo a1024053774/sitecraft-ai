@@ -7,6 +7,10 @@ import { normalizeSiteStyle, siteStyleDirectionSchema, siteStyleRuleSchema, vali
 import { stripGapTalkBilingual } from "./visitor-prose.ts";
 import {
   cloneDraft,
+  commercialTermKindSchema,
+  commercialTermSchema,
+  commercialTermValueSchema,
+  commercialTermsSchema,
   ensureProductIds,
   normalizeDraft,
   blockIdSchema,
@@ -29,9 +33,12 @@ import {
   defaultPaletteIdForVisualBrief,
   paletteCatalogForVisualBrief,
   hasHan,
+  isCommercialTermGap,
   specValueText,
   type CatalogSectionKey,
   type CatalogSectionValue,
+  type CommercialTerm,
+  type CommercialTermKind,
   type EditableCard,
   type Locale,
   type Product,
@@ -115,6 +122,22 @@ const replaceCardsOperationSchema = z.object({
   section: z.enum(["features", "services", "faq"]),
   items: z.array(editableCardSchema).max(12).refine((list) => new Set(list.map((item) => item.id)).size === list.length, "Card ids must be unique"),
   englishReadyBefore: z.boolean().optional(),
+});
+const replaceCommercialTermsOperationSchema = z.object({
+  op: z.literal("replace_commercial_terms"),
+  terms: commercialTermsSchema,
+  englishReadyBefore: z.boolean().optional(),
+});
+const updateCommercialTermOperationSchema = z.object({
+  op: z.literal("update_commercial_term"),
+  termId: z.string().min(1).max(80),
+  kind: commercialTermKindSchema.optional(),
+  value: commercialTermValueSchema.optional(),
+  englishReadyBefore: z.boolean().optional(),
+}).refine((operation) => operation.kind !== undefined || operation.value !== undefined, "Commercial term update requires kind or value");
+const removeCommercialTermOperationSchema = z.object({
+  op: z.literal("remove_commercial_term"),
+  termId: z.string().min(1).max(80),
 });
 const removeCardOperationSchema = z.object({
   op: z.literal("remove_card"),
@@ -234,6 +257,9 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   updateCardOperationSchema,
   addCardOperationSchema,
   replaceCardsOperationSchema,
+  replaceCommercialTermsOperationSchema,
+  updateCommercialTermOperationSchema,
+  removeCommercialTermOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -256,6 +282,9 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   updateCardOperationSchema,
   addCardOperationSchema,
   replaceCardsOperationSchema,
+  replaceCommercialTermsOperationSchema,
+  updateCommercialTermOperationSchema,
+  removeCommercialTermOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -871,6 +900,61 @@ export function applySiteOperations(
       if (!next.length) appliedTargets.push(operation.section);
       continue;
     }
+    if (operation.op === "replace_commercial_terms") {
+      const previous = structuredClone(draft.content.commercialTerms);
+      const next = commercialTermsSchema.parse(structuredClone(operation.terms));
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "replace_commercial_terms", terms: previous, englishReadyBefore: previousEnglishReady });
+      draft.content.commercialTerms = next;
+      if (next.some((term) => !isGapMarker(term.value.en))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      if (next.length) {
+        appliedTargets.push("commercialTerms");
+        for (const term of next) appliedTargets.push(`commercialTerms.items.${term.id}.value.zh`, `commercialTerms.items.${term.id}.value.en`);
+      } else {
+        appliedTargets.push("commercialTerms.visibility");
+      }
+      continue;
+    }
+    if (operation.op === "update_commercial_term") {
+      const index = draft.content.commercialTerms.findIndex((term) => term.id === operation.termId);
+      const previous = index >= 0 ? draft.content.commercialTerms[index] : undefined;
+      if (!previous) throw new Error(`Commercial term ${operation.termId} does not exist`);
+      const next = commercialTermSchema.parse({
+        ...previous,
+        ...(operation.kind !== undefined ? { kind: operation.kind } : {}),
+        ...(operation.value !== undefined ? { value: structuredClone(operation.value) } : {}),
+      });
+      const nextTerms = structuredClone(draft.content.commercialTerms);
+      nextTerms[index] = next;
+      commercialTermsSchema.parse(nextTerms);
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({
+        op: "update_commercial_term",
+        termId: previous.id,
+        kind: previous.kind,
+        value: structuredClone(previous.value),
+        englishReadyBefore: previousEnglishReady,
+      });
+      draft.content.commercialTerms[index] = next;
+      if (!isGapMarker(next.value.en)) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      appliedTargets.push("commercialTerms");
+      if (previous.kind !== next.kind) appliedTargets.push("commercialTerms.visibility");
+      if (!same(previous.value, next.value)) appliedTargets.push(`commercialTerms.items.${next.id}.value.zh`, `commercialTerms.items.${next.id}.value.en`);
+      continue;
+    }
+    if (operation.op === "remove_commercial_term") {
+      const index = draft.content.commercialTerms.findIndex((term) => term.id === operation.termId);
+      if (index < 0) throw new Error(`Commercial term ${operation.termId} does not exist`);
+      const previous = structuredClone(draft.content.commercialTerms);
+      inverseOperations.unshift({ op: "replace_commercial_terms", terms: previous, englishReadyBefore: draft.englishReady });
+      draft.content.commercialTerms.splice(index, 1);
+      appliedTargets.push("commercialTerms.visibility");
+      continue;
+    }
     if (operation.op === "remove_card") {
       const items = draft.content[operation.section].items;
       const index = items.findIndex((item) => item.id === operation.itemId);
@@ -1371,6 +1455,48 @@ export function validateAIOperations(
       accepted.push({ ...operation, value: groundCatalogSection(operation.value, message, rejected) });
       continue;
     }
+    if (operation.op === "replace_commercial_terms") {
+      const terms = groundCommercialTerms(operation.terms, message, rejected);
+      if (terms.length) {
+        accepted.push({ ...operation, terms });
+      } else {
+        rejected.push("没有可写入的商业条款，整组没有修改");
+      }
+      continue;
+    }
+    if (operation.op === "update_commercial_term") {
+      if (!draft) {
+        accepted.push(operation);
+        continue;
+      }
+      const current = draft.content.commercialTerms.find((term) => term.id === operation.termId);
+      if (!current) {
+        rejected.push(`商业条款 ${operation.termId} 不存在`);
+        continue;
+      }
+      const candidate = {
+        ...current,
+        ...(operation.kind !== undefined ? { kind: operation.kind } : {}),
+        ...(operation.value !== undefined ? { value: operation.value } : {}),
+      };
+      const candidateTerms = draft.content.commercialTerms.map((term) => term.id === candidate.id ? candidate : term);
+      const candidateSchema = commercialTermsSchema.safeParse(candidateTerms);
+      if (!candidateSchema.success) {
+        rejected.push("商业条款种类不能重复，未写入这次修改");
+        continue;
+      }
+      const grounded = groundCommercialTerm(candidate, message, rejected);
+      if (grounded) {
+        const nextTerms = draft.content.commercialTerms.map((term) => term.id === grounded.id ? grounded : term);
+        const checkedTerms = commercialTermsSchema.safeParse(nextTerms);
+        if (!checkedTerms.success) {
+          rejected.push("商业条款种类不能重复，未写入这次修改");
+          continue;
+        }
+        accepted.push({ ...operation, kind: grounded.kind, value: grounded.value });
+      }
+      continue;
+    }
     if (operation.op === "replace_products") {
       accepted.push({
         ...operation,
@@ -1454,6 +1580,135 @@ function groundCatalogSection(
       return next;
     }),
   };
+}
+
+function groundCommercialTerms(terms: CommercialTerm[], materials: string, rejected: string[]): CommercialTerm[] {
+  const grounded: CommercialTerm[] = [];
+  for (const term of terms) {
+    const next = groundCommercialTerm(term, materials, rejected);
+    if (next) grounded.push(next);
+  }
+  return grounded;
+}
+
+const COMMERCIAL_NUMBER_RE = /(\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?)(?:\s*(万|亿|million|billion))?/gi;
+const COMMERCIAL_KIND_HINTS: Record<CommercialTermKind, string[]> = {
+  moq: ["moq", "起订量", "minimum order"],
+  lead_time: ["交期", "lead time", "lead-time", "天数"],
+  capacity: ["产能", "年产", "月注塑", "capacity"],
+  trade_terms: ["贸易条款", "trade terms", "fob", "exw", "cif"],
+  payment: ["付款", "payment"],
+  packaging: ["包装", "packaging"],
+};
+
+function canonicalCommercialNumbers(value: string): string[] {
+  return [...value.matchAll(COMMERCIAL_NUMBER_RE)].map((match) => {
+    const multiplier = { 万: 1e4, 亿: 1e8, million: 1e6, billion: 1e9 }[String(match[2] ?? "").toLowerCase()] ?? 1;
+    return match[1].replace(/[\s,]/g, "").replace(/—/g, "–").split("–").map((part) => String(Number(part) * multiplier)).join("–");
+  });
+}
+
+function stripWrappedCommercialInstructions(materials: string): string {
+  const input = materials.trim();
+  if (!input.startsWith("【公司资料】")) return materials;
+  const bodyStart = input.indexOf("资料性质：模拟。");
+  return bodyStart >= 0 ? input.slice(bodyStart) : materials;
+}
+
+type CommercialFactFragment = { text: string; context: string; source: string };
+
+function commercialFactFragments(materials: string): CommercialFactFragment[] {
+  const source = stripWrappedCommercialInstructions(materials);
+  return source.split(/\r?\n/).flatMap((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return [];
+    return trimmed.split(/[。！？!?]/).map((text) => {
+      const sentence = text.trim();
+      const context = Object.entries(COMMERCIAL_KIND_HINTS)
+        .filter(([, hints]) => hints.some((hint) => sentence.toLowerCase().includes(hint.toLowerCase())))
+        .map(([kind]) => kind)
+        .join(" ");
+      let value = sentence;
+      for (let label = 0; label < 3; label += 1) value = value.replace(/^[^：:]{1,32}[：:]\s*/, "");
+      return { text: value, context, source: sentence };
+    }).filter((item) => item.text);
+  });
+}
+
+function englishCommercialCodes(value: string): string[] {
+  const known = /\b(?:EXW|FCA|FAS|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP|MOQ|CNY|RMB|USD|EUR|JPY|GBP|HKD|CAD|AUD|SGD|KRW|INR|CHF|T\/T|L\/C|D\/P|D\/A|O\/A)\b/gi;
+  const uppercase = /\b[A-Z][A-Z0-9/]{1,5}\b/g;
+  return [...(value.match(known) ?? []), ...(value.match(uppercase) ?? [])].map((code) => code.toUpperCase()).filter((code, index, all) => all.indexOf(code) === index);
+}
+
+const COMMERCIAL_UNIT_RULES = [
+  { key: "ten-thousand-piece", zh: /万件/, en: /\b(?:10[,.]?000|ten thousand|million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b/i },
+  { key: "piece", zh: /件/, en: /\b(?:pcs?|pieces?|parts?)\b/i },
+  { key: "day", zh: /天/, en: /\bdays?\b/i },
+  { key: "week", zh: /周|星期/, en: /\bweeks?\b/i },
+  { key: "month", zh: /月/, en: /\bmonths?\b|\bmonthly\b/i },
+  { key: "year", zh: /年/, en: /\byears?\b|\byearly\b/i },
+  { key: "equipment", zh: /台/, en: /\b(?:units?|machines?)\b/i },
+  { key: "set", zh: /套/, en: /\bsets?\b|\b(?:one|a|\d[\d,.]*)\s+(?:molds?|moulds?)\b/i },
+  { key: "ton", zh: /\bt\b/i, en: /\btons?\b|\bt\b/i },
+  { key: "kg", zh: /\bkg\b/i, en: /\bkg\b/i },
+] as const;
+
+function chineseCommercialUnits(value: string): string[] {
+  return COMMERCIAL_UNIT_RULES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key);
+}
+
+function englishCommercialUnits(value: string): string[] {
+  return COMMERCIAL_UNIT_RULES.filter((rule) => rule.en.test(value)).map((rule) => rule.key);
+}
+
+function commercialUnitsMatch(zh: string, en: string): boolean {
+  const expected = chineseCommercialUnits(zh);
+  const actual = englishCommercialUnits(en);
+  const compatible = (source: string, target: string) => {
+    if (source === target) return true;
+    if (source === "equipment" && target === "set") return true;
+    if (source === "set" && target === "equipment") return false;
+    if (source === "ten-thousand-piece" && target === "piece") return true;
+    if (source === "piece" && target === "ten-thousand-piece") return true;
+    return false;
+  };
+  return expected.every((unit) => actual.some((candidate) => compatible(unit, candidate)))
+    && actual.every((unit) => expected.some((candidate) => compatible(candidate, unit)));
+}
+
+function commercialFactFragmentMatches(fragment: CommercialFactFragment, clause: string, kind: CommercialTermKind, englishCodes: string[]): boolean {
+  const hints = COMMERCIAL_KIND_HINTS[kind];
+  const source = fragment.text.toLowerCase();
+  const related = hints.some((hint) => source.includes(hint.toLowerCase())) || fragment.context.includes(kind);
+  if (!related) return false;
+  const sourceClauses = fragment.text.split(/[，,；;]/).map((part) => part.trim()).filter(Boolean);
+  if (!sourceClauses.includes(clause)) return false;
+  const sourceCodes = new Set(englishCommercialCodes(`${clause} ${fragment.source}`).map((code) => code.toUpperCase()));
+  return englishCodes.every((code) => sourceCodes.has(code.toUpperCase()));
+}
+
+function materialContainsCommercialFact(materials: string, value: { zh: string; en: string }, kind: CommercialTermKind): boolean {
+  const clauses = value.zh.split(/[，,；;。！？!?\n]+/).map((clause) => clause.trim()).filter(Boolean);
+  const fragments = commercialFactFragments(materials);
+  const englishCodes = englishCommercialCodes(value.en);
+  return clauses.length > 0 && clauses.every((clause) => fragments.some((fragment) => commercialFactFragmentMatches(fragment, clause, kind, englishCodes)));
+}
+
+function groundCommercialTerm(term: CommercialTerm, materials: string, rejected: string[]): CommercialTerm | null {
+  const zh = term.value.zh.trim();
+  const en = term.value.en.trim();
+  if (!zh || !en || isCommercialTermGap(zh) || isCommercialTermGap(en)) {
+    rejected.push(`商业条款「${term.kind}」的值为空，已忽略`);
+    return null;
+  }
+  const zhNumbers = canonicalCommercialNumbers(zh).sort();
+  const enNumbers = canonicalCommercialNumbers(en).sort();
+  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers) || !commercialUnitsMatch(zh, en) || !materialContainsCommercialFact(materials, { zh, en }, term.kind)) {
+    rejected.push(`商业条款「${term.kind}」的值不在资料中，已忽略`);
+    return null;
+  }
+  return { ...term, value: { zh, en } };
 }
 
 function materialsIncludesFact(materials: string, value: string) {

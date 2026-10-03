@@ -1,6 +1,6 @@
 import { getTemplate, templates, type SiteDraft } from "@/lib/site-model";
 import { z } from "zod";
-import { familyModuleInventory, visibilityKeys, visualBriefCatalog } from "@/lib/site-document";
+import { commercialTermKindCatalog, familyModuleInventory, visibilityKeys, visualBriefCatalog } from "@/lib/site-document";
 import { blockCatalog, layoutBlocks, type BlockLook, type BlockRequirement } from "@/lib/blocks/catalog";
 import { effectiveBlockOrder } from "@/lib/blocks/order";
 import { blockLookForTemplate } from "@/lib/blocks/looks/index";
@@ -279,7 +279,7 @@ function blockOrderInstructions(templateId: string, draft: SiteDraft) {
     .filter((block) => block !== "hero")
     .map((block) => blockCatalog[block].label);
   const current = labels.join("、").replace("应用行业、加工能力", "应用行业+加工能力（并排，一起移动）");
-  return `10. reorder_sections：{"op":"reorder_sections","order":["products","industries","capabilities","services","certifications","faq","contact"]}。order 只写可排区块 products、industries、capabilities、services、certifications、faq、contact，可省略未提到的区块；未知键丢弃，缺少的按当前顺序接在后面，null 表示恢复默认顺序。可排顺序菜单：认证、产品、应用行业、加工能力、合作方式、常见问题、询盘。当前顺序：${current}。应用行业和加工能力是并排组，整组一起移动，组内按顺序排；导航、菜单和页脚导航会跟着页面顺序，导航右侧的询盘按钮不动。只有用户明确提出顺序（明确点名要哪个区块先后）时才使用 reorder_sections；整站生成和需求对齐保持默认顺序，不自行调整。示例：把认证放到产品前面。顺序这一条不占 24 条普通 operation。\n`;
+  return `10. reorder_sections：{"op":"reorder_sections","order":["products","commercialTerms","industries","capabilities","services","certifications","faq","contact"]}。order 只写可排区块 products、commercialTerms、industries、capabilities、services、certifications、faq、contact，可省略未提到的区块；未知键丢弃，缺少的按当前顺序接在后面，null 表示恢复默认顺序。可排顺序菜单：产品、商业条款、认证、应用行业、加工能力、合作方式、常见问题、询盘。当前顺序：${current}。应用行业和加工能力是并排组，整组一起移动，组内按顺序排；导航、菜单和页脚导航会跟着页面顺序，导航右侧的询盘按钮不动。只有用户明确提出顺序（明确点名要哪个区块先后）时才使用 reorder_sections；整站生成和需求对齐保持默认顺序，不自行调整。示例：把认证放到产品前面。顺序这一条不占 24 条普通 operation。\n`;
 }
 
 function operationInstructions(templateId: string, allowSiteStyle: boolean, draft: SiteDraft) {
@@ -291,6 +291,7 @@ function operationInstructions(templateId: string, allowSiteStyle: boolean, draf
 3. add_card: {"op":"add_card","section":"features|services|faq","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
 4. remove_card: {"op":"remove_card","section":"features|services|faq","itemId":"现有id"}
 4b. replace_cards: {"op":"replace_cards","section":"features|services|faq","items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}]}（整组替换这一组卡片：按资料生成或重做整站时，每一组用一条 replace_cards 写完全部条目，不要逐条 add_card / update_card；只改其中某一条时用 update_card）
+4c. replace_commercial_terms: {"op":"replace_commercial_terms","terms":[{"id":"短标识","kind":"moq|lead_time|capacity|trade_terms|payment|packaging","value":{"zh":"资料里的事实","en":"English fact"}}]}；商业条款种类固定为 ${commercialTermKindCatalog.map((item) => `${item.kind}=${item.label.zh}/${item.label.en}`).join("、")}。资料明确出现的每个商业条款都要写出（包括贸易条款），资料没有的种类不写；值必须来自资料，不能编造数字。只改一条时用 update_commercial_term（按 termId），删除用 remove_commercial_term。
 ${faqInstructions(templateId)}5. update_product: {"op":"update_product","productId":"产品稳定 id","name":{"zh":"中文名称","en":"English name"},"summary":{"zh":"中文摘要","en":"English summary"},"category":{"zh":"中文类别","en":"English category"}}
 6. set_product_specs: {"op":"set_product_specs","productId":"产品稳定 id","specs":[{"name":{"zh":"速比范围","en":"Ratio range"},"value":"i=25–100"},{"name":{"zh":"安装方式","en":"Mounting"},"value":{"zh":"底脚/法兰","en":"Foot / flange"}}]}
    只写入资料明确给出的规格参数；参数名中英双语。纯数字、单位和型号值两种语言相同，只写字符串；带中文或中文全角标点的值写成 {zh,en}，英文由你翻译。值必须能在资料正文中找到，找不到写成「待补充」，禁止编造数字。
@@ -416,6 +417,7 @@ export function buildDraftPromptContext(draft: SiteDraft, selectedTarget?: strin
     pagePlan: draft.pagePlan,
     sections: sectionOverview(draft),
     products: draft.products.map((product) => ({ id: product.id, sku: product.sku, name: product.name })),
+    commercialTerms: draft.content.commercialTerms,
   };
   const selected = selectedSectionPayload(draft, selectedTarget);
   if (selected) compact.selectedSection = selected;

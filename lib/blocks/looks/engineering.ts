@@ -128,13 +128,14 @@ export const engineeringLook: BlockLook = {
   },
   layout: {
     top: ["nav"],
-    main: ["hero", "products", ["industries", "capabilities"], "services", "certifications", "faq", "contact"],
+    main: ["hero", "products", "commercialTerms", ["industries", "capabilities"], "services", "certifications", "faq", "contact"],
     bottom: ["footer"],
   },
   defaults: {
     nav: "bar",
     hero: "split",
     products: "cards",
+    commercialTerms: "rows",
     industries: "list",
     capabilities: "list",
     services: "steps",
