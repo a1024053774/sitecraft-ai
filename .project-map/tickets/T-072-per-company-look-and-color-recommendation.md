@@ -37,6 +37,8 @@ T-065 的 6 个基线（三家不同的公司）全部是工程工业 + 工程�
 - 真实模型命令：`node --experimental-strip-types artifacts/t072/generate.mjs`（2026-10-03 06:00–06:02 UTC）。6 次请求均 HTTP 200，推荐记录见 `artifacts/t072/recommendations.json`。工业包两次为工程工业+石墨工坊，外贸包两次为工程工业+工程暖橙，注塑包一次工程工业+工程暖橙、一次工程工业+石墨工坊，因此组合不全相同；但外贸包两次理由退回目录/暖橙通用文案，没有指向资料事实，本项 **INCOMPLETE**，未重复请求凑数。
 - UI 证据：使用 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell` 在 3034 dev server 捕获并查看 `artifacts/t072/workspace-alignment-1440.png`、`workspace-alignment-768.png`、`workspace-alignment-375.png`；三档均加载了需求对齐卡，375 为逐题抽屉。
 - 全量 `CHROME_PATH=… npm test` 为 597/598 通过，既有 `tests/workspace-interaction.test.ts` 动效测试在 375 宽度等待进度步骤失败，输出见 `artifacts/t072/npm-test-chrome.txt`；未改动效范围，故本票全量验收保持 **INCOMPLETE**。第一次未设 Chrome 路径的失败也保留于 `artifacts/t072/npm-test.txt`。对应提交为本票最终本地提交（SHA 由 handoff 报告）。
+- (c) 复跑：在提示加入四个区块库样子的具体版式、token 重点、默认区块和适合业务形态后，运行 `SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T072_OUTPUT_DIR=artifacts/t072/round-c node artifacts/t072/round-c/generate.mjs`（2026-10-03 07:30–07:31 UTC），六次均 HTTP 200；`artifacts/t072/round-c/recommendations.json` 中六次仍是工程工业 + 工程暖橙，样子/色彩理由也六次完全等于目录默认摘要。
+- (c) 诊断：`round-c` 脚本只保存路由重建后的卡片，不保存规划器原始 JSON；临时站点和会话在每次请求后删除，故无法事后读取 raw `questions`。六次颜色理由都等于工程暖橙目录摘要、样子理由都等于工程工业目录摘要；这与没有合法推荐走默认路径相符，也与模型恰好重复默认句相符，现有证据不能区分两者。诊断详见 `artifacts/t072/round-c/diagnosis.md` 和 `comparison.json`。本轮没有为补 raw 而重复请求。
 
 ## 负责人决定（2026-10-03）
 

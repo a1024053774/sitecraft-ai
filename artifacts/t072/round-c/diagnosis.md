@@ -1,0 +1,7 @@
+# T-072 round-c recommendation diagnosis
+
+The round-c runner persisted only the card recommendation after the route rebuilt the card; it did not persist the planner's raw JSON response. No site or conversation records remain because the runner deletes each temporary record after observation, and the provider trace IDs do not expose the response body.
+
+The card output is nevertheless diagnostic of the fallback risk: all six color reasons are exactly the catalog summary for `engineering-warm-orange` (`暖橙强调，行动入口醒目。`). `styleQuestion` replaces a valid planner color pick's description with the planner reason (including an empty reason), so the persisted card is compatible with either no valid `field=colorSet` `recommended:true` option reaching the card or the model repeating that exact catalog sentence. The six style reasons are also exactly the `engineering-industrial` catalog summary (`产品线、工况与询盘路径清楚。`), so the route used the current draft's default look with no observable model-specific reason; a model response that happened to repeat that exact sentence cannot be distinguished from the persisted artifact.
+
+Conclusion: the persisted evidence proves only that round-c delivered a default-looking engineering/warm-orange card; it does not prove whether the planner omitted either recommendation or repeated the defaults. The raw planner JSON was not captured, so the exact cause cannot be proven after the fact. The round-c runner was intentionally non-invasive and was not rerun, per the one-round decision.
