@@ -1,6 +1,0 @@
-(node:87249) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/app/api/sites/route.ts is not specified and it doesn't parse as CommonJS.
-Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
-To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
-(Use `node --trace-warnings ...` to show where the warning was created)
-[sitecraft] DeepSeek call failed {"call":"alignment_plan","attempt":1,"of":2,"category":"schema","status":200,"ms":16206,"traceId":"db0c734dbb61693c9ec78dced774c678","finish":"stop","tokens":{"prompt":2383,"completion":3382,"reasoning":2701},"fields":["questions.0.options.0.label:invalid_type","questions.0.options.1.label:invalid_type","questions.0.options.2.label:invalid_type","questions.0.options.3.label:invalid_type","questions.1.options.0.label:invalid_type","questions.1.options.1.label:invalid_type"]}
-/Users/luckye/Documents/Code/sitecraft-ai-t072/artifacts/t072/round-final/recommendations.json

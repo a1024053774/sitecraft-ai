@@ -1,1 +1,0 @@
-round-enum invariant: PASS (6 raw outputs, 0 enum failures)

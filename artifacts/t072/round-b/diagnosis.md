@@ -1,7 +1,0 @@
-# T-072 round-b evidence
-
-Before implementation, `node --test --experimental-strip-types tests/alignment-material-recommendation-t072.test.ts` failed because the structured recommendation module did not exist (`feature-red.txt`). The implementation then passed the feature and route tests (`feature-green.txt`, `route-green.txt`, `focused.txt`).
-
-The round-b runner seeds each temporary site through `commitOperations` with the structured product and catalog fields from `tests/fixtures/pack-drafts.ts`, then sends the same wrapped simulated materials through the real chat route. It does not infer features from the materials body. The one real DeepSeek round ran six requests at HTTP 200 on 2026-10-03 07:43–07:45 UTC.
-
-The code-selected looks varied by structured shape: industrial was engineering-industrial in both runs (2 products, 2 parameterized products, 2 industry entries); export was export-catalog in both (2 products, 2 parameterized products, no industry/capability/certification entries); molding was engineering-industrial in both (5 products, 5 parameterized products). The color recommendation path remained model-driven and its reason stayed visible: industrial/export included specific material or product facts in one run each, while the other four runs returned the catalog/default warm-orange or porcelain summary. Color reason quality is therefore still mixed; this round confirms the deterministic look selection did not overwrite color selection or its reason.
