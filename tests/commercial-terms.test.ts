@@ -154,6 +154,46 @@ test("a capacity value cannot combine the machine range with the monthly output 
   assert.deepEqual(checked.operations, []);
 });
 
+test("commercial terms reject a truncated negative lead-time clause", () => {
+  const checked = validateAIOperations(simulatedPacks.export.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "truncated-lead", kind: "lead_time", value: localized("具体天数", "specific days") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial terms reject a translated unit that is absent from the Chinese value", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "wrong-unit", kind: "moq", value: localized("注塑件 5000 件起；模具单套起接", "Molded parts from 5,000 kg; molds from one set") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial terms reject weeks when the Chinese lead time says days", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "wrong-week", kind: "lead_time", value: localized("模具 25–55 天；批量注塑件在模具确认后 15–20 天", "Molds 25–55 weeks; volume molded parts 15–20 weeks after mold approval") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial term codes are compared case-insensitively", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "lower-dap", kind: "trade_terms", value: localized("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo, EXW, dap") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("kind context cannot leak from a later sentence on the same source line", () => {
+  const checked = validateAIOperations("产能：100 套。付款方式：T/T", [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "borrowed-context", kind: "payment", value: localized("100 套", "100 sets") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
 test("commercial term validation drops empty and material-invented numeric values", () => {
   const message = "公司资料：MOQ：20 台。交期：询盘后确认，没有具体天数。";
   const checked = validateAIOperations(message, [

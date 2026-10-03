@@ -1479,6 +1479,12 @@ export function validateAIOperations(
         ...(operation.kind !== undefined ? { kind: operation.kind } : {}),
         ...(operation.value !== undefined ? { value: operation.value } : {}),
       };
+      const candidateTerms = draft.content.commercialTerms.map((term) => term.id === candidate.id ? candidate : term);
+      const candidateSchema = commercialTermsSchema.safeParse(candidateTerms);
+      if (!candidateSchema.success) {
+        rejected.push("商业条款种类不能重复，未写入这次修改");
+        continue;
+      }
       const grounded = groundCommercialTerm(candidate, message, rejected);
       if (grounded) {
         const nextTerms = draft.content.commercialTerms.map((term) => term.id === grounded.id ? grounded : term);
@@ -1616,19 +1622,58 @@ function commercialFactFragments(materials: string): CommercialFactFragment[] {
   return source.split(/\r?\n/).flatMap((line) => {
     const trimmed = line.trim();
     if (!trimmed) return [];
-    const context = Object.entries(COMMERCIAL_KIND_HINTS)
-      .filter(([, hints]) => hints.some((hint) => trimmed.toLowerCase().includes(hint.toLowerCase())))
-      .map(([kind]) => kind)
-      .join(" ");
     return trimmed.split(/[。！？!?]/).map((text) => {
-      const value = text.trim().replace(/^[^：:]{1,32}[：:]\s*/, "");
-      return { text: value, context, source: trimmed };
+      const sentence = text.trim();
+      const context = Object.entries(COMMERCIAL_KIND_HINTS)
+        .filter(([, hints]) => hints.some((hint) => sentence.toLowerCase().includes(hint.toLowerCase())))
+        .map(([kind]) => kind)
+        .join(" ");
+      let value = sentence;
+      for (let label = 0; label < 3; label += 1) value = value.replace(/^[^：:]{1,32}[：:]\s*/, "");
+      return { text: value, context, source: sentence };
     }).filter((item) => item.text);
   });
 }
 
 function englishCommercialCodes(value: string): string[] {
-  return value.match(/\b[A-Z]{2,}(?:[/-][A-Z0-9]+)*\b|\b[A-Z]{1,2}\/[A-Z]{1,2}\b/g) ?? [];
+  const known = /\b(?:MOQ|FOB|EXW|CIF|DAP|DDP|FCA|CFR|CPT|USD|EUR)\b|\bT\/T\b/gi;
+  return (value.match(known) ?? []).map((code) => code.toUpperCase());
+}
+
+const COMMERCIAL_UNIT_RULES = [
+  { key: "ten-thousand-piece", zh: /万件/, en: /\b(?:10[,.]?000|ten thousand|million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b/i },
+  { key: "piece", zh: /件/, en: /\b(?:pcs?|pieces?|parts?)\b/i },
+  { key: "day", zh: /天/, en: /\bdays?\b/i },
+  { key: "week", zh: /周|星期/, en: /\bweeks?\b/i },
+  { key: "month", zh: /月/, en: /\bmonths?\b|\bmonthly\b/i },
+  { key: "year", zh: /年/, en: /\byears?\b|\byearly\b/i },
+  { key: "equipment", zh: /台/, en: /\b(?:units?|machines?)\b/i },
+  { key: "set", zh: /套/, en: /\bsets?\b|\b(?:one|a|\d[\d,.]*)\s+(?:molds?|moulds?)\b/i },
+  { key: "ton", zh: /\bt\b/i, en: /\btons?\b|\bt\b/i },
+  { key: "kg", zh: /\bkg\b/i, en: /\bkg\b/i },
+] as const;
+
+function chineseCommercialUnits(value: string): string[] {
+  return COMMERCIAL_UNIT_RULES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key);
+}
+
+function englishCommercialUnits(value: string): string[] {
+  return COMMERCIAL_UNIT_RULES.filter((rule) => rule.en.test(value)).map((rule) => rule.key);
+}
+
+function commercialUnitsMatch(zh: string, en: string): boolean {
+  const expected = chineseCommercialUnits(zh);
+  const actual = englishCommercialUnits(en);
+  const compatible = (source: string, target: string) => {
+    if (source === target) return true;
+    if (source === "equipment" && target === "set") return true;
+    if (source === "set" && target === "equipment") return false;
+    if (source === "ten-thousand-piece" && target === "piece") return true;
+    if (source === "piece" && target === "ten-thousand-piece") return true;
+    return false;
+  };
+  return expected.every((unit) => actual.some((candidate) => compatible(unit, candidate)))
+    && actual.every((unit) => expected.some((candidate) => compatible(candidate, unit)));
 }
 
 function commercialFactFragmentMatches(fragment: CommercialFactFragment, clause: string, kind: CommercialTermKind, englishCodes: string[]): boolean {
@@ -1636,13 +1681,14 @@ function commercialFactFragmentMatches(fragment: CommercialFactFragment, clause:
   const source = fragment.text.toLowerCase();
   const related = hints.some((hint) => source.includes(hint.toLowerCase())) || fragment.context.includes(kind);
   if (!related) return false;
-  if (!fragment.text.includes(clause)) return false;
+  const sourceClauses = fragment.text.split(/[，,；;]/).map((part) => part.trim()).filter(Boolean);
+  if (!sourceClauses.includes(clause)) return false;
   const sourceCodes = new Set(englishCommercialCodes(`${clause} ${fragment.source}`).map((code) => code.toUpperCase()));
   return englishCodes.every((code) => sourceCodes.has(code.toUpperCase()));
 }
 
 function materialContainsCommercialFact(materials: string, value: { zh: string; en: string }, kind: CommercialTermKind): boolean {
-  const clauses = value.zh.split(/[；;。！？!?\n]+/).map((clause) => clause.trim()).filter(Boolean);
+  const clauses = value.zh.split(/[，,；;。！？!?\n]+/).map((clause) => clause.trim()).filter(Boolean);
   const fragments = commercialFactFragments(materials);
   const englishCodes = englishCommercialCodes(value.en);
   return clauses.length > 0 && clauses.every((clause) => fragments.some((fragment) => commercialFactFragmentMatches(fragment, clause, kind, englishCodes)));
@@ -1657,7 +1703,7 @@ function groundCommercialTerm(term: CommercialTerm, materials: string, rejected:
   }
   const zhNumbers = canonicalCommercialNumbers(zh).sort();
   const enNumbers = canonicalCommercialNumbers(en).sort();
-  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers) || !materialContainsCommercialFact(materials, { zh, en }, term.kind)) {
+  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers) || !commercialUnitsMatch(zh, en) || !materialContainsCommercialFact(materials, { zh, en }, term.kind)) {
     rejected.push(`商业条款「${term.kind}」的值不在资料中，已忽略`);
     return null;
   }
