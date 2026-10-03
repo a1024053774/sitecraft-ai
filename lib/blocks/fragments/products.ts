@@ -92,7 +92,7 @@ export const productsFragment: BlockFragment = {
    on phones the spec cells read as name/value lines. */
 .sitecraft-section[data-sc-variant="index"] .sitecraft-section-head { margin-bottom: 20px; }
 .sitecraft-index-table { width: 100%; table-layout: fixed; border-collapse: collapse; border-top: var(--site-index-top, var(--site-rule-strong)); }
-.sitecraft-index-table thead th { padding: 12px 20px 10px 0; border-bottom: var(--site-index-row, var(--site-rule)); font-size: 13px; font-weight: 600; text-align: left; color: var(--site-muted); }
+.sitecraft-index-table thead th, .sitecraft-index-table thead td { padding: 12px 20px 10px 0; border-bottom: var(--site-index-row, var(--site-rule)); font-size: 13px; font-weight: 600; text-align: left; color: var(--site-muted); }
 .sitecraft-index-table thead th[colspan] { padding-left: 16px; }
 .sitecraft-index-name-col { width: 30%; }
 .sitecraft-index-ask-col { width: 14%; }
@@ -105,7 +105,10 @@ export const productsFragment: BlockFragment = {
 .sitecraft-index-spec-value { display: block; font-size: 16px; font-weight: 700; line-height: 1.4; font-variant-numeric: tabular-nums; word-break: keep-all; overflow-wrap: anywhere; }
 .sitecraft-index-table tbody td.sitecraft-index-ask { padding-right: 0; text-align: right; }
 .sitecraft-index-ask .sitecraft-product-ask { white-space: nowrap; }
-.sitecraft-index-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sitecraft-index-more { margin-top: 10px; }
+.sitecraft-index-more .sitecraft-index-summary { margin: 10px 0 0; font-size: 14px; font-weight: 400; line-height: 1.55; color: var(--site-muted); }
+.sitecraft-index-more .sitecraft-product-specs { margin-top: 10px; font-size: 13px; }
+.sitecraft-index-more .sitecraft-product-specs th, .sitecraft-index-more .sitecraft-product-specs td { padding: 6px 0; }
 `,
   narrow: `
 .sitecraft-product-group { grid-template-columns: 1fr; gap: 16px; }

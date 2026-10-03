@@ -8,17 +8,22 @@
 //   crops/<case>-<width>-candidate.png   the block alone with the candidate layout
 //   crops/<case>-<width>-default.png     the same block with the look's default layout
 //   context/<case>-1440-page.png         the whole page at 1440 with the candidate mounted
-//   scan.json / scan.md                  horizontal overflow, clipped text, text-over-text overlap
+//   scan.json / scan.md                  horizontal overflow, clipped text, text-over-text overlap, and the
+//                                        material facts of the draft (scripts/published-facts.mjs) that are
+//                                        missing from the page a visitor reads (folded <details> opened),
+//                                        in Chinese and English; a layout that hides a fact fails here
 // Cases read drafts from .sitecraft-data/sites/. A case may carry `borrow: { from: <siteId>, paths: ["products"] }`
 // (take those top-level draft fields from another draft: a stress test for a layout whose materials
 // the company's own draft does not meet), `patch: { "content.services.items": [...] }` (set a dotted
 // path to a value), and `template` + `brief` (mount the draft on another look). Borrowed and patched
 // cases are not real configurations: say so in `note` and in the candidate's candidate.md.
-// Pass a JSON array of cases with --cases <file>; --only <caseId> renders one. Use --out to keep a
+// --open-details also writes crops/<case>-<width>-candidate-open.png with every <details> in the block
+// opened (the folded spec lists and answers). Pass a JSON array of cases with --cases <file>; --only <caseId> renders one. Use --out to keep a
 // partial re-render from overwriting an earlier scan. Exit 1 when any scan finds overflow or overlap.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { expectedFacts, missingFacts } from "./published-facts.mjs";
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
@@ -45,6 +50,7 @@ const DEFAULT_CASES = [
 const casesFile = option("--cases");
 const CASES = casesFile ? JSON.parse(fs.readFileSync(casesFile, "utf8")) : DEFAULT_CASES;
 const only = option("--only");
+const OPEN_DETAILS = args.includes("--open-details");
 
 // Turbopack (dev and build) refuses a node_modules symlink that points outside the worktree.
 if (fs.lstatSync("node_modules", { throwIfNoEntry: false })?.isSymbolicLink()) {
@@ -55,6 +61,7 @@ const { blockLookForTemplate } = await import(path.resolve("lib/blocks/looks/ind
 const { checkVariantRequirements } = await import(path.resolve("lib/blocks/requirements.ts"));
 if (!blockCatalog[BLOCK]?.variants[VARIANT]) throw new Error(`catalog has no ${BLOCK}:${VARIANT}`);
 
+const readableText = fs.readFileSync(new URL("./visitor-readable-text.js", import.meta.url), "utf8");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const readDraft = (site) => JSON.parse(fs.readFileSync(path.join(SITES, `${site}.json`), "utf8")).draft;
 
@@ -232,7 +239,28 @@ try {
           if (scan.variant !== (kind === "candidate" ? VARIANT : defaultVariant)) throw new Error(`${item.id}/${width}/${kind}: block shows variant ${scan.variant}`);
           const file = path.join("crops", `${item.id}-${width}-${kind}.png`);
           await shoot(browser, tab.sessionId, path.join(OUT, file), scan.box);
+          if (kind === "candidate" && OPEN_DETAILS) {
+            const opened = await browser.eval(`(() => { const block = document.querySelector('[data-sc-block="${BLOCK}"]'); const nodes = [...block.querySelectorAll('details')]; nodes.forEach((node) => { node.open = true; }); const r = block.getBoundingClientRect(); return { count: nodes.length, box: { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height } }; })()`, tab.sessionId);
+            if (opened.count) {
+              await shoot(browser, tab.sessionId, path.join(OUT, "crops", `${item.id}-${width}-candidate-open.png`), opened.box);
+              const scanOpen = await browser.eval(SCAN, tab.sessionId);
+              row.open = { overflow: scanOpen.overflow, overlaps: scanOpen.overlaps };
+            }
+            await browser.eval(`document.querySelectorAll('[data-sc-block="${BLOCK}"] details').forEach((node) => { node.open = false; })`, tab.sessionId);
+          }
           row[kind] = { file, variant: scan.variant, box: scan.box, overflow: scan.overflow, clipped: scan.clipped, overlaps: scan.overlaps, textPieces: scan.textPieces };
+          if (kind === "candidate") {
+            // Material facts: everything the draft says a visitor must be able to read, looked for in the
+            // readable text of the whole page (folded sections opened), zh then en.
+            row.facts = {};
+            for (const locale of ["zh", "en"]) {
+              if (locale === "en") await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "en", [], "published", null, true)`, tab.sessionId);
+              const page = await browser.eval(`(${readableText})()`, tab.sessionId);
+              const facts = expectedFacts(draft, locale);
+              row.facts[locale] = { expected: facts.length, missing: missingFacts(facts, page).map((fact) => `${fact.kind}: ${fact.text.slice(0, 60)}`) };
+            }
+            await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, tab.sessionId);
+          }
           if (kind === "candidate" && width === 1440) {
             const context = path.join("context", `${item.id}-1440-page.png`);
             await shoot(browser, tab.sessionId, path.join(OUT, context), null);
@@ -244,7 +272,7 @@ try {
       }
       rows.push(row);
       const c = row.candidate;
-      console.log(`${item.id} ${width}: ${c.box.width}x${Math.round(c.box.height)} overflow=${c.overflow.length} overlaps=${c.overlaps.length} clipped=${c.clipped.length} requirement=${requirement.ok ? "ok" : "unmet"}`);
+      console.log(`${item.id} ${width}: ${c.box.width}x${Math.round(c.box.height)} overflow=${c.overflow.length} overlaps=${c.overlaps.length} facts-missing=${row.facts.zh.missing.length}/${row.facts.en.missing.length} clipped=${c.clipped.length} requirement=${requirement.ok ? "ok" : "unmet"}`);
     }
   }
 } finally {
@@ -253,10 +281,10 @@ try {
   fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }
 
-const failing = rows.filter((row) => row.candidate.overflow.length || row.candidate.overlaps.length);
+const failing = rows.filter((row) => row.candidate.overflow.length || row.candidate.overlaps.length || row.open?.overflow.length || row.open?.overlaps.length || row.facts.zh.missing.length || row.facts.en.missing.length);
 fs.writeFileSync(path.join(OUT, "scan.json"), JSON.stringify({ block: BLOCK, variant: VARIANT, base: BASE, rows }, null, 2));
-const md = [`# ${NAME}: ${BLOCK}:${VARIANT} scan`, "", "| case | width | products | requirement | overflow | overlaps | clipped (info) |", "| --- | --- | --- | --- | --- | --- | --- |",
-  ...rows.map((r) => `| ${r.case} | ${r.width} | ${r.productCount} | ${r.requirement.ok ? "ok" : "unmet"} | ${r.candidate.overflow.length} | ${r.candidate.overlaps.length} | ${r.candidate.clipped.map((c) => c.kind).join(", ") || "-"} |`), ""].join("\n");
+const md = [`# ${NAME}: ${BLOCK}:${VARIANT} scan`, "", "| case | width | products | requirement | overflow | overlaps | facts missing zh / en | clipped (info) |", "| --- | --- | --- | --- | --- | --- | --- | --- |",
+  ...rows.map((r) => `| ${r.case} | ${r.width} | ${r.productCount} | ${r.requirement.ok ? "ok" : "unmet"} | ${r.candidate.overflow.length} | ${r.candidate.overlaps.length} | ${r.facts.zh.missing.length} / ${r.facts.en.missing.length} (of ${r.facts.zh.expected} / ${r.facts.en.expected}) | ${r.candidate.clipped.map((c) => c.kind).join(", ") || "-"} |`), ""].join("\n");
 fs.writeFileSync(path.join(OUT, "scan.md"), md);
-console.log(`\n${rows.length} rows; ${failing.length} with overflow or overlap`);
+console.log(`\n${rows.length} rows; ${failing.length} with overflow, overlap or missing facts`);
 process.exitCode = failing.length ? 1 : 0;

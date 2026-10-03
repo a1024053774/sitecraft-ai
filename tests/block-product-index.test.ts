@@ -84,7 +84,7 @@ test("型号索引表 renders one row per product with its own first three value
   draft.products[0].specs![1] = { name: { zh: "模具尺寸", en: "Mold size" }, value: "待补充" };
   const { products, report } = render(draft);
   assert.equal(products.getAttribute("data-sc-variant"), "index");
-  const rows = products.querySelectorAll("table.sitecraft-index-table tbody tr");
+  const rows = products.querySelectorAll("tr[data-sitecraft-product]");
   assert.deepEqual(rows.map((row) => text(row.querySelector("h3"))), draft.products.map((product) => product.name.zh));
   assert.deepEqual(rows.map((row) => text(row.querySelector(".sitecraft-product-category"))), ["注塑模具", "注塑模具", "精密注塑件", "精密注塑件", "精密注塑件"]);
   const labels = (row: (typeof rows)[number]) => row.querySelectorAll(".sitecraft-index-spec-label").map((node) => text(node));
@@ -103,24 +103,42 @@ test("型号索引表 renders one row per product with its own first three value
   }
 });
 
-test("型号索引表 does not show the summary: an edit of it is reported missing, not applied", () => {
+test("型号索引表 keeps the summary and every spec behind a folded 全部参数 line under the name, and applies their slots", () => {
   const draft = withLayouts(packDraft("molding"), { products: "index" });
-  const id = draft.products[0].id;
-  const targets = [`products.${id}.name.zh`, `products.${id}.specs`, `products.${id}.summary.zh`];
+  const first = draft.products[0];
+  const targets = [`products.${first.id}.name.zh`, `products.${first.id}.specs`, `products.${first.id}.summary.zh`];
   const index = render(draft, "zh", targets);
-  assert.equal(index.products.querySelectorAll(`[data-sitecraft-slot="products.${id}.summary.zh"]`).length, 0);
-  assert.doesNotMatch(text(index.products), new RegExp(draft.products[0].summary.zh.slice(0, 8)));
-  assert.deepEqual(index.report.missingSlots, [`products.${id}.summary.zh`]);
-  assert.ok(index.report.appliedSlots.includes(`products.${id}.name.zh`));
-  const cards = render(withLayouts(draft, { products: "cards" }), "zh", targets);
-  assert.deepEqual(cards.report.missingSlots, [], "the card layout does show the summary");
+  assert.deepEqual(index.report.missingSlots, [], "name, specs and summary all land on the page");
+  const row = index.products.querySelectorAll("tr[data-sitecraft-product]")[0];
+  const more = row.querySelector("details.sitecraft-index-more");
+  assert.ok(more, "the row has a folded section");
+  assert.equal(more.hasAttribute("open"), false, "folded by default, so the ledger stays tight");
+  assert.equal(text(more.querySelector("summary")), `简介与全部参数（${first.specs!.filter((spec) => spec.value !== "待补充").length} 项）`);
+  assert.equal(text(more.querySelector(".sitecraft-index-summary")), first.summary.zh);
+  assert.equal(more.querySelectorAll(`[data-sitecraft-slot="products.${first.id}.summary.zh"]`).length, 1);
+  const labels = more.querySelectorAll(".sitecraft-product-specs th").map((node) => text(node));
+  assert.deepEqual(labels, ["型腔数", "模具尺寸", "模具钢材", "成型周期", ...labels.slice(4)], "every valued spec is listed, the first three included");
+  assert.ok(labels.length > 3, "the specs beyond the first three are on the page");
+  assert.doesNotMatch(text(index.products), /待补充|To be provided/);
+  // A product with no summary and no more than three specs has nothing to fold.
+  const short = structuredClone(draft);
+  short.products[0].summary = { zh: "待补充", en: "To be provided" };
+  short.products[0].specs = short.products[0].specs!.slice(0, 3);
+  assert.equal(render(short).products.querySelectorAll("tr[data-sitecraft-product]")[0].querySelectorAll("details").length, 0);
+  // Only a summary: the fold is called 简介; the inquiry link names its product for assistive tech.
+  const summaryOnly = structuredClone(draft);
+  summaryOnly.products[0].specs = summaryOnly.products[0].specs!.slice(0, 3);
+  const onlyRow = render(summaryOnly, "en").products.querySelectorAll("tr[data-sitecraft-product]")[0];
+  assert.equal(text(onlyRow.querySelector("details summary")), "Summary");
+  assert.equal(onlyRow.querySelector(".sitecraft-product-ask")?.getAttribute("aria-label"), `Ask about this series: ${first.name.en}`);
+  assert.equal(index.products.querySelectorAll(".sitecraft-index-sr").length, 0, "no visually hidden label that a visibility check would flag");
 });
 
 test("型号索引表 reads the English draft and keeps a product with fewer specs as a short row", () => {
   const draft = withLayouts(packDraft("molding"), { products: "index" });
   draft.products[1].specs = draft.products[1].specs!.slice(0, 1);
   const { products } = render(draft, "en");
-  const rows = products.querySelectorAll("tbody tr");
+  const rows = products.querySelectorAll("tr[data-sitecraft-product]");
   assert.equal(text(rows[0].querySelector("h3")), draft.products[0].name.en);
   assert.deepEqual(rows[0].querySelectorAll(".sitecraft-index-spec-label").map((node) => text(node)), draft.products[0].specs!.slice(0, 3).map((spec) => spec.name.en));
   assert.equal(rows[1].querySelectorAll(".sitecraft-index-spec-label").length, 1);
@@ -149,7 +167,7 @@ test("型号索引表 has no horizontal overflow at 1440, 768 and 375 on two loo
           const block = document.querySelector('[data-sc-block="products"]');
           const vw = window.innerWidth;
           const outside = [...block.querySelectorAll('*')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 1 && (r.right > vw + 1 || r.left < -1); }).map((el) => el.className || el.tagName);
-          return { variant: block.getAttribute('data-sc-variant'), rows: block.querySelectorAll('tbody tr').length, pageWidth: document.documentElement.scrollWidth, viewport: vw, outside };
+          return { variant: block.getAttribute('data-sc-variant'), rows: block.querySelectorAll('tbody tr[data-sitecraft-product]').length, pageWidth: document.documentElement.scrollWidth, viewport: vw, outside };
         })()`, sessionId);
         const where = `${templateId} @${width}`;
         assert.equal(result.variant, "index", where);
@@ -171,7 +189,7 @@ test("型号索引表 has no horizontal overflow at 1440, 768 and 375 on two loo
 test("型号索引表 rule tokens resolve to a real value on every block look", () => {
   const css = blockFragments.products.css;
   const top = /\.sitecraft-index-table \{[^}]*border-top: (var\(--site-index-top[^;]*\));/.exec(css)?.[1];
-  const row = /\.sitecraft-index-table thead th \{[^}]*border-bottom: (var\(--site-index-row[^;]*\));/.exec(css)?.[1];
+  const row = /\.sitecraft-index-table thead th, \.sitecraft-index-table thead td \{[^}]*border-bottom: (var\(--site-index-row[^;]*\));/.exec(css)?.[1];
   assert.ok(top && row, "the index CSS reads --site-index-top and --site-index-row");
   assert.ok(blockLooks.length >= 4);
   for (const look of blockLooks) {
