@@ -4,7 +4,7 @@ title: 发布页硬门：正文对比度 4.5:1 和正文行长
 type: build
 status: open
 blocked_by: [T-084, T-081]
-claimed_by:
+claimed_by: exec-t089
 supersedes:
 ---
 
