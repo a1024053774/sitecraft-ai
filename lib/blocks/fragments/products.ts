@@ -87,6 +87,8 @@ export const productsFragment: BlockFragment = {
 .sitecraft-compare-table td + td, .sitecraft-compare-table th + td, .sitecraft-compare-table thead th + th { border-left: var(--site-rule); }
 .sitecraft-compare-table tbody tr:last-child > * { border-bottom: 0; }
 .sitecraft-compare-label { display: none; }
+.sitecraft-compare-table .sitecraft-compare-extra-row td { font-weight: 400; }
+.sitecraft-compare-table .sitecraft-compare-extra-cell .sitecraft-compare-extra { margin: 8px 0 0; }
 /* 型号索引表: a ledger, one row per product. Each spec cell names its spec, so rows need not share
    any. Below 900px every row becomes a block (name, a wrapping run of spec cells, the inquiry link);
    on phones the spec cells read as name/value lines. */
@@ -184,6 +186,8 @@ export const productsFragment: BlockFragment = {
 .sitecraft-compare-table td, .sitecraft-compare-table td + td, .sitecraft-compare-table th + td { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 6px 0; border: 0; }
 .sitecraft-compare-label { display: block; flex: none; max-width: 45%; color: var(--site-muted); font-weight: 500; }
 .sitecraft-compare-value { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.sitecraft-compare-extra-cell > details { flex: 1 1 auto; min-width: 0; }
+.sitecraft-compare-table td.sitecraft-compare-extra-cell:empty { display: none; }
 `,
   variants: {
     cards: section("cards", "sitecraft-product-grid"),

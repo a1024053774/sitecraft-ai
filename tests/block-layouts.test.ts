@@ -163,12 +163,15 @@ test("参数对比表: series on top, then one row per spec every product has, o
   const table = products.querySelector("table.sitecraft-compare-table");
   assert.ok(table);
   assert.deepEqual(table.querySelectorAll("thead th").map((node) => text(node)), ["参数", "直角减速机", "行星减速机"]);
-  const rows = table.querySelectorAll("tbody tr");
+  const allRows = table.querySelectorAll("tbody tr");
+  const rows = allRows.filter((row) => !row.className.includes("sitecraft-compare-extra-row"));
   assert.deepEqual(rows.map((row) => text(row.querySelector("th"))), ["速比范围", "额定输出扭矩", "输入转速", "安装方式"]);
+  assert.deepEqual(allRows.map((row) => text(row.querySelector("th"))).slice(-1), ["其他参数"], "the specs only one series has are the table's last row");
   assert.deepEqual(rows[0].querySelectorAll("td .sitecraft-compare-value").map((node) => text(node)), ["i=25–100", "i=4–100"]);
   assert.deepEqual(rows[0].querySelectorAll("td .sitecraft-compare-label").map((node) => text(node)), ["直角减速机", "行星减速机"], "each cell names its product for the phone layout");
-  // Specs only one series has stay with that series, folded.
-  assert.deepEqual(series.map((card) => card.querySelectorAll(".sitecraft-compare-extra dt").map((node) => text(node))), [["中心距"], ["机座号", "防护等级"]]);
+  // Specs only one series has sit in the table's last row, in that series' column, folded.
+  assert.deepEqual(allRows[allRows.length - 1].querySelectorAll("td").map((cell) => cell.querySelectorAll(".sitecraft-compare-extra dt").map((node) => text(node))), [["中心距"], ["机座号", "防护等级"]]);
+  assert.equal(series.flatMap((card) => card.querySelectorAll(".sitecraft-compare-extra")).length, 0, "the cards do not repeat them");
   assert.doesNotMatch(text(products), GAP_TEXT);
   assert.ok(report.appliedSlots.includes(`products.${draft.products[0].id}.specs`));
 });
@@ -178,9 +181,9 @@ test("参数对比表 leaves a spec out of the table when one product has no val
   draft.products[1].specs![4] = { name: { zh: "安装方式", en: "Mounting" }, value: "待补充" };
   const { document } = render(draft);
   const products = entity(document, "products");
-  const rows = products.querySelectorAll("tbody tr").map((row) => text(row.querySelector("th")));
-  assert.deepEqual(rows, ["速比范围", "额定输出扭矩", "输入转速"]);
-  assert.deepEqual(products.querySelectorAll(".sitecraft-compare-series-card")[0].querySelectorAll(".sitecraft-compare-extra dt").map((node) => text(node)), ["中心距", "安装方式"]);
+  const allRows = products.querySelectorAll("tbody tr");
+  assert.deepEqual(allRows.filter((row) => !row.className.includes("sitecraft-compare-extra-row")).map((row) => text(row.querySelector("th"))), ["速比范围", "额定输出扭矩", "输入转速"]);
+  assert.deepEqual(allRows[allRows.length - 1].querySelectorAll("td")[0].querySelectorAll(".sitecraft-compare-extra dt").map((node) => text(node)), ["中心距", "安装方式"]);
   assert.doesNotMatch(text(products), GAP_TEXT);
 });
 
@@ -254,7 +257,7 @@ test("renderer and requirement agree on the three packs", () => {
     const named = grouped.querySelectorAll(".sitecraft-product-group").map((group) => group.querySelectorAll(".sitecraft-product-card").length);
     assert.equal(checkVariantRequirements(draft, "products", "grouped").ok, named.length >= 2 && Math.max(...named) >= 2, `${pack} groups ${named}`);
     const compare = entity(render(withLayouts(draft, { products: "compare" })).document, "products");
-    const rows = compare.querySelectorAll("tbody tr").length;
+    const rows = compare.querySelectorAll("tbody tr").filter((row) => !row.className.includes("sitecraft-compare-extra-row")).length;
     const columns = compare.querySelectorAll(".sitecraft-compare-series-card").length;
     assert.equal(checkVariantRequirements(draft, "products", "compare").ok, rows >= compareRequirement.minShared && columns >= compareRequirement.minProducts && columns <= compareRequirement.maxProducts, `${pack} compare ${rows}x${columns}`);
     const band = entity(render(withLayouts(draft, { contact: "band" })).document, "contact");
