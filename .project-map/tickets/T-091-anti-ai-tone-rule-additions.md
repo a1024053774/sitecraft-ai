@@ -25,7 +25,7 @@ supersedes:
 
 ## Resolution
 
-2026-10-03（纽约时间），rs-rules。实现提交 `3d215c9`：
+2026-10-03（纽约时间），rs-rules。实现提交 `ff8978e`：
 
 - `lib/frontend-tone.ts` 从 `sitecraft-frontend-less-ai-tone@0.3.1` 升到 `@0.3.2`，加入五条不含数值门槛的运行时规则：主任务/可观察结果、单一主要入口、状态和资料缺口的多通道表达、同族区块的记忆点与结构差异、用户选样子/布局而非外部模板名或提示词。
 - `skills/sitecraft-frontend-less-ai-tone/SKILL.md` 同步规则并逐条写来源；`SOURCE.md` 记录 oil-ui MIT（revision `dba584210a02198c07f2c4e22739c0eeb3231570`）和 oiloil-ui-ux-guide Apache-2.0（revision `f32bc2bd210a6693f86841816a531ab511b258b4`）的改写范围与署名；没有复制 Jiro prompt/code。
