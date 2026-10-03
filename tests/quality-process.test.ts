@@ -82,6 +82,14 @@ test("quality process grounding rejects lexical 时 and h that are not hour unit
   assert.equal(mismatch.operations.length, 0, JSON.stringify(mismatch));
 });
 
+test("quality process grounding accepts a lexical part noun without treating it as a unit", () => {
+  const accepted = validateAIOperations("质检流程：零件检查。", [{
+    op: "replace_quality_process",
+    steps: [{ id: "parts", title: text("零件检查", "Part inspection"), body: null }],
+  } as never], options.templateIds);
+  assert.equal(accepted.operations.length, 1, JSON.stringify(accepted));
+});
+
 test("published facts include every quality process title and body", () => {
   const draft = { ...structuredClone(defaultDraft), content: { ...structuredClone(defaultDraft.content), qualityProcess: steps } } as never;
   const facts = expectedFacts(draft);
