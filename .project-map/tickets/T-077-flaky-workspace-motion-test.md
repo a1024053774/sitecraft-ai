@@ -2,7 +2,7 @@
 id: T-077
 title: 工作台动效测试在整套运行时不稳定
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-build
 supersedes:
@@ -20,7 +20,7 @@ supersedes:
 
 - [x] 写清根因并有证据（失败时的日志 / 时间线）
 - [x] 修复后全量 `npm test` 连续三次该测试都通过，动效断言没有放宽
-- [ ] 代码审查通过；Claude 验收
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -31,3 +31,5 @@ supersedes:
 - 新增手动行为夹具 `tests/t077-browser-lock-recovery.fixture.ts` / `tests/t077-browser-lock-probe.ts`：在 6cf1015 父版本上两个 stale lock 场景均行为级失败见 `artifacts/t077/red-lock-recovery.txt`，当前提交独立 fixture 2/2 通过。fixture 使用独立 lock namespace/CDP，不加入普通全量测试。
 - 修复后全量 `npm test` 连续三次 exit 0：`artifacts/t077/npm-test-r3-1.txt`、`npm-test-r3-2.txt`、`npm-test-r3-3.txt`；早期锁/端口/fixture 失败日志保留为 `npm-test-lock-bug-*`、`npm-test-r3-*bug-*`。typecheck/build 输出见 `artifacts/t077/typecheck-final2.txt`、`artifacts/t077/build-final2.txt`。
 - 本票状态保持 open；代码审查与 Claude 验收留给 supervisor，第三项验收框未勾选。不 push。
+
+独立审核与验收（2026-10-03 EDT）：Astra 两轮——首审 NO_GO（先 mkdir 后写 owner，崩溃会永久等锁；只靠 PID 判活；锁路径全局），复审 PASS（`artifacts/review-astra-t077.md`，`ab7883e`：单文件原子占用 + heartbeat + 启动标识，按 SITECRAFT_BASE 端口分锁，恢复夹具用隔离锁键）。根因：并行的测试文件里 18 个浏览器测试争同一个 3034 和 Chrome。修复后全量三轮 615/615（`artifacts/t077/npm-test-r3-1..3.txt`），动效断言和超时未改；中途失败日志保留为 `*-bug-*`。合并 T-072 后的主线全量 615/615（`artifacts/merge-66590f5/`）也是同一修复的效果。Claude 验收关闭。
