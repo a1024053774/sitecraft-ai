@@ -2,7 +2,7 @@
 id: T-070
 title: 修改摘要只说实际落到页面上的改动
 type: build
-status: open
+status: closed
 blocked_by: [T-067]
 claimed_by: codex-build
 supersedes:
@@ -19,7 +19,7 @@ T-053 遗留：模型的修改摘要有时描述页面上没有的东西，例�
 - [x] 测试先写、改动前先失败：用上面那个例子（左文右图、没有图片时右侧是参数牌），摘要里不出现图片位一类描述，只说实际换成的布局
 - [x] 换布局、改文字、被拒绝、撤销四种情况的摘要都和实际落点一致
 - [x] `npm run typecheck`、`npm test`、`npm run build` 通过（563/563）
-- [ ] 代码审查通过；Claude 验收
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -35,3 +35,5 @@ T-053 遗留：模型的修改摘要有时描述页面上没有的东西，例�
 - 合并后验证（`713b5ee`，2026-10-03 05:46 UTC）：停 3034、删除 `.next` 后 `npm run typecheck` 通过；重启 3034 后全量 `npm test` 596/596、`npm run build` 通过，证据在 `artifacts/merge-713b5ee/typecheck.txt`、`npm-test.txt`、`build.txt`。用 `commitOperations` 复制注塑专家站并依次提交 `products=index`、`services=vertical`、`hero=cover`、`certifications=table`，站点与提交记录见 `artifacts/merge-713b5ee/site-copy.json`；工业基线 `products=index` 被拒绝并保留原因于 `industrial-index-rejection.json`。三家基线站的中英文三档 `check-published` 全通过；复制站因型号索引表缺少 31/34 项资料事实且 1440 宽有“询价” sr-only 溢出而 NO_GO，完整日志/截图在 `artifacts/merge-713b5ee/check-published/`。
 - 合并后真实界面证据：对通过 `commitOperations` 复制的注塑副本 `merge713-t070-6863dd36-bfc8-4092-8b4f-d1f78cd5bae3` 只发出一次真实 DeepSeek 请求「首屏换成大标题加参数条」，得到「已更新：首屏布局」；随后点击一次撤销得到「已撤销：首屏布局」。1440/768/375 的修改与撤销截图逐张查看，路径为 `artifacts/merge-713b5ee/t070-ui/applied-{1440,768,375}.png`、`undone-{1440,768,375}.png`，交互状态和模型延迟见 `t070-ui/ui-state.json`。
 - 提交：本次重构创建新的本地 T-070 commit（不改写 b99b96f，不推送；最终 SHA 在交接中报告）。
+
+独立审核与验收（2026-10-03 EDT）：Astra（gpt-6-astra）四轮审查，前三轮 NO_GO（模型原因靠关键词黑名单过滤会漏放和误删、确认卡直接显示模型 summary、会话 aiSummary 仍写模型原话、红测只是导入失败、对齐 rejected 重放双前缀），第四轮 PASS（`artifacts/review-astra-t070.md`，候选 `db83fe0`）。合并 `713b5ee` 后全量 596/596、typecheck、build 通过；真实工作台证据 `artifacts/merge-713b5ee/t070-ui/`（真实 DeepSeek 一次，「已更新：首屏布局」、撤销后「已撤销：首屏布局」，三档截图看过）。遗留：撤销/重做那条在工作台显示为「已应用：已撤销：…」，状态前缀叠两层，另开 [T-075](T-075-undo-status-prefix.md)。Claude 验收关闭。
