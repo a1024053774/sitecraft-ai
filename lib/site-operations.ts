@@ -33,6 +33,7 @@ import {
   defaultPaletteIdForVisualBrief,
   paletteCatalogForVisualBrief,
   hasHan,
+  isCommercialTermGap,
   specValueText,
   type CatalogSectionKey,
   type CatalogSectionValue,
@@ -924,6 +925,9 @@ export function applySiteOperations(
         ...(operation.kind !== undefined ? { kind: operation.kind } : {}),
         ...(operation.value !== undefined ? { value: structuredClone(operation.value) } : {}),
       });
+      const nextTerms = structuredClone(draft.content.commercialTerms);
+      nextTerms[index] = next;
+      commercialTermsSchema.parse(nextTerms);
       if (same(previous, next)) continue;
       const previousEnglishReady = draft.englishReady;
       inverseOperations.unshift({
@@ -1475,7 +1479,15 @@ export function validateAIOperations(
         ...(operation.value !== undefined ? { value: operation.value } : {}),
       };
       const grounded = groundCommercialTerm(candidate, message, rejected);
-      if (grounded) accepted.push({ ...operation, kind: grounded.kind, value: grounded.value });
+      if (grounded) {
+        const nextTerms = draft.content.commercialTerms.map((term) => term.id === grounded.id ? grounded : term);
+        const checkedTerms = commercialTermsSchema.safeParse(nextTerms);
+        if (!checkedTerms.success) {
+          rejected.push("商业条款种类不能重复，未写入这次修改");
+          continue;
+        }
+        accepted.push({ ...operation, kind: grounded.kind, value: grounded.value });
+      }
       continue;
     }
     if (operation.op === "replace_products") {
@@ -1572,16 +1584,34 @@ function groundCommercialTerms(terms: CommercialTerm[], materials: string, rejec
   return grounded;
 }
 
+const COMMERCIAL_NUMBER_RE = /\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?/g;
+
+function canonicalCommercialNumbers(value: string): string[] {
+  return [...value.matchAll(COMMERCIAL_NUMBER_RE)].map((match) => match[0].replace(/[\s,]/g, "").replace(/—/g, "–"));
+}
+
+function commercialFactTokens(value: string): string[] {
+  return value.match(/[A-Za-z]+|\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?|[\u3400-\u9fff]+/g) ?? [];
+}
+
+function materialContainsCommercialFact(materials: string, value: string): boolean {
+  if (materialsIncludesFact(materials, value)) return true;
+  const compactMaterials = materials.replace(/\s+/g, "");
+  const tokens = commercialFactTokens(value);
+  return tokens.length > 0 && tokens.every((token) => compactMaterials.includes(token.replace(/\s+/g, "")));
+}
+
 function groundCommercialTerm(term: CommercialTerm, materials: string, rejected: string[]): CommercialTerm | null {
   const zh = term.value.zh.trim();
   const en = term.value.en.trim();
-  if (!zh || !en || isGapMarker(zh)) {
+  if (!zh || !en || isCommercialTermGap(zh) || isCommercialTermGap(en)) {
     rejected.push(`商业条款「${term.kind}」的值为空，已忽略`);
     return null;
   }
-  const numbers = zh.match(/\d+(?:[.,]\d+)?(?:\s*[–-]\s*\d+(?:[.,]\d+)?)?/g) ?? [];
-  const hasOutOfMaterialNumber = numbers.some((number) => !materialsIncludesFact(materials, number));
-  if (hasOutOfMaterialNumber || !materialsIncludesFact(materials, zh)) {
+  const materialNumbers = new Set(canonicalCommercialNumbers(materials));
+  const numbers = [...canonicalCommercialNumbers(zh), ...canonicalCommercialNumbers(en)];
+  const hasOutOfMaterialNumber = numbers.some((number) => !materialNumbers.has(number));
+  if (hasOutOfMaterialNumber || !materialContainsCommercialFact(materials, zh)) {
     rejected.push(`商业条款「${term.kind}」的值不在资料中，已忽略`);
     return null;
   }

@@ -7,6 +7,7 @@ import { composedPageForTemplate } from "../lib/blocks/compose.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
 import { parseHtmlDocument, visibleText } from "./fixtures/html-dom.ts";
+import { simulatedPacks } from "../lib/simulated-packs.ts";
 
 const options = { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing"]), lastChange: "commercial terms" };
 const localized = (zh: string, en: string) => ({ zh, en });
@@ -38,6 +39,43 @@ test("commercial term operations replace, update and remove by stable id and und
   assert.deepEqual((removed.draft as never as { content: { commercialTerms: unknown[] } }).content.commercialTerms.map((item) => (item as { id: string }).id), ["moq-1"]);
   const restored = applySiteOperations(removed.draft, removed.inverseOperations, options);
   assert.deepEqual((restored.draft as never as { content: { commercialTerms: unknown[] } }).content.commercialTerms, (updated.draft as never as { content: { commercialTerms: unknown[] } }).content.commercialTerms);
+});
+
+test("updating a commercial term cannot duplicate an existing kind", () => {
+  const before = applySiteOperations(structuredClone(defaultDraft) as never, [{ op: "replace_commercial_terms", terms: [moq, leadTime] } as never], options).draft;
+  const conflict = { op: "update_commercial_term", termId: "lead-1", kind: "moq", value: leadTime.value } as never;
+  assert.throws(() => applySiteOperations(before, [conflict], options), /unique|kind/i);
+  const checked = validateAIOperations("资料：MOQ 20 台；交期：询盘后确认，没有具体天数。把交期种类改成起订量。", [conflict], options.templateIds, before);
+  assert.deepEqual(checked.operations, []);
+  assert.match(checked.rejected.join(" "), /种类|重复|kind|unique/i);
+});
+
+test("commercial term grounding rejects a material-invented number in either language", () => {
+  const checked = validateAIOperations("公司资料：MOQ：20 台。", [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "moq-1", kind: "moq", value: localized("20 台", "20 units and 999 cartons") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+  assert.match(checked.rejected.join(" "), /资料|数字|商业条款/);
+});
+
+test("commercial term values reject a gap marker in either language", () => {
+  const candidate = withTerms([{ id: "moq-1", kind: "moq", value: localized("20 台", "To be provided") }]);
+  assert.equal(siteDraftSchema.safeParse(candidate).success, false);
+  const checked = validateAIOperations("公司资料：MOQ：20 台。", [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "moq-1", kind: "moq", value: localized("20 台", "To be provided") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("trade terms survive a faithful wording change when the material facts are all present", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "trade-terms", kind: "trade_terms", value: localized("FOB 宁波、EXW、CIF", "FOB Ningbo, EXW, CIF") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.equal(checked.operations.length, 1);
+  assert.deepEqual((checked.operations[0] as never as { terms: Array<{ id: string }> }).terms.map((term) => term.id), ["trade-terms"]);
 });
 
 test("commercial term validation drops empty and material-invented numeric values", () => {

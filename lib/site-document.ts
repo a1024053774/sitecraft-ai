@@ -182,9 +182,13 @@ export const commercialTermKindCatalog = [
   { kind: "packaging", label: { zh: "包装", en: "Packaging" } },
 ] as const satisfies ReadonlyArray<{ kind: CommercialTermKind; label: LocalizedText }>;
 
+export const isCommercialTermGap = (value: string) => {
+  const normalized = value.trim().replace(/[。.!！?？]+$/g, "").toLowerCase();
+  return normalized === "" || normalized === "待补充" || normalized === "to be provided" || normalized === "to be completed";
+};
 export const commercialTermValueSchema = localizedTextSchema.refine(
-  (value) => Boolean(value.zh.trim() && value.en.trim()),
-  "Commercial term values cannot be empty",
+  (value) => !isCommercialTermGap(value.zh) && !isCommercialTermGap(value.en),
+  "Commercial term values cannot be empty or gap markers",
 );
 export const commercialTermSchema = z.object({
   id: stableItemIdSchema,
