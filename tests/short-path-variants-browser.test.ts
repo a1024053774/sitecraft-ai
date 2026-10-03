@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("灰底短路径 mounts its short nav, certification cards, side FAQ, and line footer", async () => {
   const browser = await openBrowser();
@@ -45,7 +45,6 @@ test("灰底短路径 mounts its short nav, certification cards, side FAQ, and l
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });

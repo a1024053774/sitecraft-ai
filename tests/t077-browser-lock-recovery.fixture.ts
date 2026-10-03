@@ -7,7 +7,6 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const LOCK_KEY = `t077-${process.pid}-${Date.now()}`;
-const CDP_PORT = 40000 + (process.pid % 10000);
 const BASE = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 const PORT_LOCK = path.join(os.tmpdir(), `sitecraft-workspace-browser-${LOCK_KEY}.lock`);
 const LEGACY_LOCK = path.join(os.tmpdir(), "sitecraft-workspace-browser.lock");
@@ -20,16 +19,8 @@ async function oldPath(file: string) {
 }
 
 async function runProbe() {
-  const profile = `/tmp/sitecraft-t077-lock-probe-${process.pid}`;
-  const chrome = spawn(CHROME_PATH, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${profile}`, "--headless=new", "--no-first-run", "--no-default-browser-check", "about:blank"], { stdio: "ignore", detached: true });
-  let ready = false;
-  for (let attempt = 0; attempt < 60 && !ready; attempt += 1) {
-    ready = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`).then((response) => response.ok).catch(() => false);
-    if (!ready) await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  assert.equal(ready, true, "probe Chrome must be ready before testing the lock");
   const child = spawn(process.execPath, ["--experimental-strip-types", PROBE], {
-    env: { ...process.env, SITECRAFT_BASE: BASE, SITECRAFT_BROWSER_LOCK_KEY: LOCK_KEY, SITECRAFT_BROWSER_CDP_PORT: String(CDP_PORT), CHROME_PATH },
+    env: { ...process.env, SITECRAFT_BASE: BASE, SITECRAFT_BROWSER_LOCK_KEY: LOCK_KEY, CHROME_PATH },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let output = "";
@@ -42,7 +33,6 @@ async function runProbe() {
     }, 5000);
     child.once("exit", (code) => { clearTimeout(timer); resolve({ code, output }); });
   });
-  chrome.kill();
   return result;
 }
 

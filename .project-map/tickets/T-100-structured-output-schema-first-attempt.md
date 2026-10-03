@@ -21,7 +21,6 @@ T-096 复核时发现（`sitecraft-ai-fields/artifacts/t096/failure-analysis-264
 - [ ] 先写出字段清单：每个失败字段的模型实际形状、schema 期望、提示 / 示例原文（`artifacts/t100/`）；用已保存的原始响应做离线测试，在父提交上行为级失败
 - [ ] 真实 DeepSeek（需账户有余额）：三份资料各 3 次直接结构化生成，统计第一次就过 schema 的比例，修改前后对照，原始响应存档；目标是第一次通过成为常态，达不到就如实写剩下的失败字段
 - [ ] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过；代码审查通过；Claude 验收
-
 ## Resolution
 
 2026-10-03，离线部分完成于提交 `52d2885`，真实 DeepSeek 暂停（账户余额 -0.15 CNY、`is_available=false`，按要求不再请求）：
