@@ -13,6 +13,8 @@ import {
   commercialTermsSchema,
   equipmentItemSchema,
   equipmentSchema,
+  qualityProcessSchema,
+  qualityProcessStepSchema,
   ensureProductIds,
   normalizeDraft,
   blockIdSchema,
@@ -42,6 +44,7 @@ import {
   type CommercialTerm,
   type CommercialTermKind,
   type EquipmentItem,
+  type QualityProcessStep,
   type EditableCard,
   type Locale,
   type Product,
@@ -161,6 +164,29 @@ const updateEquipmentOperationSchema = z.object({
 const removeEquipmentOperationSchema = z.object({
   op: z.literal("remove_equipment"),
   equipmentId: z.string().min(1).max(80),
+});
+const replaceQualityProcessOperationSchema = z.object({
+  op: z.literal("replace_quality_process"),
+  steps: qualityProcessSchema,
+  englishReadyBefore: z.boolean().optional(),
+});
+const updateQualityProcessOperationSchema = z.object({
+  op: z.literal("update_quality_process"),
+  stepId: z.string().min(1).max(80),
+  title: localizedTextSchema.optional(),
+  body: localizedTextSchema.nullable().optional(),
+  englishReadyBefore: z.boolean().optional(),
+}).strict().refine(
+  (operation) => operation.title !== undefined || operation.body !== undefined,
+  "Quality process update requires title or body",
+);
+const removeQualityProcessOperationSchema = z.object({
+  op: z.literal("remove_quality_process"),
+  stepId: z.string().min(1).max(80),
+});
+const reorderQualityProcessOperationSchema = z.object({
+  op: z.literal("reorder_quality_process"),
+  order: z.array(z.string().min(1).max(80)).max(12),
 });
 const removeCardOperationSchema = z.object({
   op: z.literal("remove_card"),
@@ -286,6 +312,9 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   replaceEquipmentOperationSchema,
   updateEquipmentOperationSchema,
   removeEquipmentOperationSchema,
+  replaceQualityProcessOperationSchema,
+  updateQualityProcessOperationSchema,
+  removeQualityProcessOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -314,6 +343,10 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   replaceEquipmentOperationSchema,
   updateEquipmentOperationSchema,
   removeEquipmentOperationSchema,
+  replaceQualityProcessOperationSchema,
+  updateQualityProcessOperationSchema,
+  removeQualityProcessOperationSchema,
+  reorderQualityProcessOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -1048,6 +1081,75 @@ export function applySiteOperations(
       appliedTargets.push("equipment.visibility");
       continue;
     }
+    if (operation.op === "replace_quality_process") {
+      const previous = structuredClone(draft.content.qualityProcess);
+      const next = qualityProcessSchema.parse(structuredClone(operation.steps));
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "replace_quality_process", steps: previous, englishReadyBefore: previousEnglishReady });
+      draft.content.qualityProcess = next;
+      if (next.some((step) => !isGapMarker(step.title.en) || (step.body && !isGapMarker(step.body.en)))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      if (next.length) {
+        appliedTargets.push("qualityProcess");
+        for (const step of next) {
+          appliedTargets.push(`qualityProcess.items.${step.id}.title.zh`, `qualityProcess.items.${step.id}.title.en`);
+          if (step.body && !isGapMarker(step.body.zh)) appliedTargets.push(`qualityProcess.items.${step.id}.body.zh`, `qualityProcess.items.${step.id}.body.en`);
+        }
+      } else {
+        appliedTargets.push("qualityProcess.visibility");
+      }
+      continue;
+    }
+    if (operation.op === "update_quality_process") {
+      const index = draft.content.qualityProcess.findIndex((step) => step.id === operation.stepId);
+      const previous = index >= 0 ? draft.content.qualityProcess[index] : undefined;
+      if (!previous) throw new Error(`Quality process step ${operation.stepId} does not exist`);
+      const next = qualityProcessStepSchema.parse({
+        ...previous,
+        ...(operation.title !== undefined ? { title: structuredClone(operation.title) } : {}),
+        ...(operation.body !== undefined ? { body: structuredClone(operation.body) } : {}),
+      });
+      const nextSteps = structuredClone(draft.content.qualityProcess);
+      nextSteps[index] = next;
+      qualityProcessSchema.parse(nextSteps);
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({
+        op: "update_quality_process",
+        stepId: previous.id,
+        title: structuredClone(previous.title),
+        body: structuredClone(previous.body),
+        englishReadyBefore: previousEnglishReady,
+      });
+      draft.content.qualityProcess[index] = next;
+      if (!isGapMarker(next.title.en) || (next.body && !isGapMarker(next.body.en))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      appliedTargets.push("qualityProcess");
+      if (!same(previous.title, next.title)) appliedTargets.push(`qualityProcess.items.${next.id}.title.zh`, `qualityProcess.items.${next.id}.title.en`);
+      if (!same(previous.body, next.body) && next.body && !isGapMarker(next.body.zh)) appliedTargets.push(`qualityProcess.items.${next.id}.body.zh`, `qualityProcess.items.${next.id}.body.en`);
+      continue;
+    }
+    if (operation.op === "remove_quality_process") {
+      const index = draft.content.qualityProcess.findIndex((step) => step.id === operation.stepId);
+      if (index < 0) throw new Error(`Quality process step ${operation.stepId} does not exist`);
+      const previous = structuredClone(draft.content.qualityProcess);
+      inverseOperations.unshift({ op: "replace_quality_process", steps: previous, englishReadyBefore: draft.englishReady });
+      draft.content.qualityProcess.splice(index, 1);
+      appliedTargets.push("qualityProcess.visibility");
+      continue;
+    }
+    if (operation.op === "reorder_quality_process") {
+      const previous = draft.content.qualityProcess.map((step) => step.id);
+      const order = [...new Set(operation.order)];
+      if (order.length !== previous.length || order.some((id) => !previous.includes(id))) throw new Error("Quality process order must contain every existing step exactly once");
+      if (same(previous, order)) continue;
+      const byId = new Map(draft.content.qualityProcess.map((step) => [step.id, step] as const));
+      inverseOperations.unshift({ op: "reorder_quality_process", order: previous });
+      draft.content.qualityProcess = order.map((id) => structuredClone(byId.get(id)!));
+      appliedTargets.push("qualityProcess.order");
+      continue;
+    }
     if (operation.op === "remove_card") {
       const items = draft.content[operation.section].items;
       const index = items.findIndex((item) => item.id === operation.itemId);
@@ -1379,6 +1481,12 @@ function cleanVisitorProse(operation: AIOperation): AIOperation {
   if (operation.op === "replace_cards") {
     return { ...operation, items: operation.items.map((item) => ({ ...item, body: stripGapTalkBilingual(item.body) as { zh: string; en: string } })) } as AIOperation;
   }
+  if (operation.op === "replace_quality_process") {
+    return { ...operation, steps: operation.steps.map((step) => ({ ...step, body: step.body ? stripGapTalkBilingual(step.body) as { zh: string; en: string } : null })) } as AIOperation;
+  }
+  if (operation.op === "update_quality_process" && operation.body) {
+    return { ...operation, body: stripGapTalkBilingual(operation.body) as { zh: string; en: string } } as AIOperation;
+  }
   if (operation.op === "update_product" && operation.summary) {
     return { ...operation, summary: stripGapTalkBilingual(operation.summary, operation.locale ?? "zh") } as AIOperation;
   }
@@ -1566,6 +1674,15 @@ export function validateAIOperations(
       }
       continue;
     }
+    if (operation.op === "replace_quality_process") {
+      const steps = groundQualityProcess(operation.steps, message, rejected);
+      if (steps.length) {
+        accepted.push({ ...operation, steps });
+      } else {
+        rejected.push("没有可写入的质检流程，整组没有修改");
+      }
+      continue;
+    }
     if (operation.op === "update_equipment") {
       if (!draft) {
         accepted.push(operation);
@@ -1595,6 +1712,30 @@ export function validateAIOperations(
         continue;
       }
       accepted.push({ ...operation, name: grounded.name, quantity: grounded.quantity, spec: grounded.spec });
+      continue;
+    }
+    if (operation.op === "update_quality_process") {
+      if (!draft) {
+        accepted.push(operation);
+        continue;
+      }
+      const current = draft.content.qualityProcess.find((step) => step.id === operation.stepId);
+      if (!current) {
+        rejected.push(`质检步骤 ${operation.stepId} 不存在`);
+        continue;
+      }
+      const candidate = qualityProcessStepSchema.safeParse({
+        ...current,
+        ...(operation.title !== undefined ? { title: operation.title } : {}),
+        ...(operation.body !== undefined ? { body: operation.body } : {}),
+      });
+      if (!candidate.success) {
+        rejected.push("质检步骤修改未通过完整质检流程校验");
+        continue;
+      }
+      const grounded = groundQualityProcess([candidate.data], message, rejected)[0];
+      if (!grounded) continue;
+      accepted.push({ ...operation, title: grounded.title, body: grounded.body });
       continue;
     }
     if (operation.op === "update_commercial_term") {
@@ -1660,7 +1801,31 @@ export function validateAIOperations(
     if (operation.op === "replace_equipment") for (const item of operation.equipment) equipmentNames.add(item.name.zh.trim());
     if (operation.op === "update_equipment" && operation.name) equipmentNames.add(operation.name.zh.trim());
   }
-  const deduped = accepted.map((operation) => {
+  const certificationNames = new Set<string>();
+  if (draft?.content.certifications) for (const item of draft.content.certifications.items) certificationNames.add(item.title.zh.trim());
+  for (const operation of accepted) {
+    if (operation.op === "set_catalog_section" && operation.section === "certifications" && operation.value) {
+      for (const item of operation.value.items) certificationNames.add(item.title.zh.trim());
+    }
+  }
+  const deduped = accepted.map((operation): SiteOperation | null => {
+    if (operation.op === "replace_quality_process") {
+      const steps = operation.steps.filter((step) => {
+        const text = `${step.title.zh} ${step.body?.zh ?? ""}`;
+        const duplicate = [...equipmentNames, ...certificationNames].some((fact) => fact && text.includes(fact));
+        if (duplicate) rejected.push(`质检流程步骤重复设备或认证事实，已忽略「${step.title.zh}」`);
+        return !duplicate;
+      });
+      return steps.length ? { ...operation, steps } : null;
+    }
+    if (operation.op === "update_quality_process") {
+      const text = `${operation.title?.zh ?? ""} ${operation.body?.zh ?? ""}`;
+      const duplicate = [...equipmentNames, ...certificationNames].some((fact) => fact && text.includes(fact));
+      if (duplicate) {
+        rejected.push(`质检流程步骤重复设备或认证事实，已忽略「${operation.title?.zh ?? operation.stepId}」`);
+        return null;
+      }
+    }
     if (operation.op !== "set_catalog_section" || operation.section !== "capabilities" || !operation.value || !equipmentNames.size) return operation;
     const items = operation.value.items.filter((item) => {
       const text = `${item.title.zh} ${item.body.zh}`;
@@ -1669,7 +1834,7 @@ export function validateAIOperations(
       return !duplicate;
     });
     return { ...operation, value: { ...operation.value, items } };
-  });
+  }).filter((operation): operation is SiteOperation => operation !== null);
   const checked = draft ? checkLayoutRequests(deduped, draft, templateIds, rejected, notes) : deduped;
   return { operations: checked, rejected, notes };
 }
@@ -1928,6 +2093,54 @@ function groundEquipment(items: EquipmentItem[], materials: string, rejected: st
   const grounded: EquipmentItem[] = [];
   for (const item of items) {
     const next = groundEquipmentItem(item, materials, rejected);
+    if (next) grounded.push(next);
+  }
+  return grounded;
+}
+
+type QualityProcessFactFragment = { text: string; source: string };
+
+function qualityProcessFactFragments(materials: string): QualityProcessFactFragment[] {
+  const source = stripWrappedCommercialInstructions(materials);
+  return source.split(/\r?\n/).flatMap((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || !/质检流程|quality process/i.test(trimmed)) return [];
+    const value = trimmed.replace(/^[^：:]{1,32}[：:]\s*/, "");
+    return value.split(/[；;]/).map((text) => text.trim()).filter(Boolean).map((text) => ({ text, source: text }));
+  });
+}
+
+function qualityProcessEnglishMatches(step: QualityProcessStep, fragment: QualityProcessFactFragment): boolean {
+  const zh = `${step.title.zh} ${step.body?.zh ?? ""}`;
+  const en = `${step.title.en} ${step.body?.en ?? ""}`;
+  if (JSON.stringify(canonicalCommercialNumbers(zh).sort()) !== JSON.stringify(canonicalCommercialNumbers(en).sort())) return false;
+  const sourceCodes = new Set(englishCommercialCodes(`${fragment.source} ${zh}`).map((code) => code.toUpperCase()));
+  return englishCommercialCodes(en).every((code) => sourceCodes.has(code.toUpperCase()));
+}
+
+function groundQualityProcessStep(step: QualityProcessStep, materials: string, rejected: string[]): QualityProcessStep | null {
+  const titleZh = step.title.zh.trim();
+  const titleEn = step.title.en.trim();
+  if (!titleZh || !titleEn || isGapMarker(titleZh) || isGapMarker(titleEn)) {
+    rejected.push(`质检步骤「${titleZh || titleEn}」标题为空，已忽略`);
+    return null;
+  }
+  const body = step.body && !isGapMarker(step.body.zh) && !isGapMarker(step.body.en)
+    ? { zh: step.body.zh.trim(), en: step.body.en.trim() }
+    : null;
+  const bodySource = body?.zh.replace(/[。.!！?？]+$/g, "");
+  const fragment = qualityProcessFactFragments(materials).find((candidate) => candidate.text.includes(titleZh) && (!bodySource || candidate.text.includes(bodySource)));
+  if (!fragment || !qualityProcessEnglishMatches({ ...step, title: { zh: titleZh, en: titleEn }, body }, fragment)) {
+    rejected.push(`质检步骤「${titleZh}」的标题或说明不在同一句资料中，已忽略`);
+    return null;
+  }
+  return { ...step, title: { zh: titleZh, en: titleEn }, body };
+}
+
+function groundQualityProcess(steps: QualityProcessStep[], materials: string, rejected: string[]): QualityProcessStep[] {
+  const grounded: QualityProcessStep[] = [];
+  for (const step of steps) {
+    const next = groundQualityProcessStep(step, materials, rejected);
     if (next) grounded.push(next);
   }
   return grounded;

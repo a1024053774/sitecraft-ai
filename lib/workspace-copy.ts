@@ -11,6 +11,7 @@ const sectionLabels: Record<string, string> = {
   products: "产品",
   commercialTerms: "商业条款",
   equipment: "设备",
+  qualityProcess: "质检流程",
   industries: "应用行业",
   capabilities: "加工能力",
   certifications: "认证",
@@ -144,6 +145,7 @@ function operationLabel(operation: { op?: unknown; target?: unknown; section?: u
   if (operation.op === "set_block_variant" && typeof operation.block === "string") return changeTargetLabel(`blockVariants.${operation.block}`);
   if (operation.op === "replace_products" || operation.op === "update_product" || operation.op === "set_product_specs") return "产品";
   if (operation.op === "replace_commercial_terms" || operation.op === "update_commercial_term" || operation.op === "remove_commercial_term") return "商业条款";
+  if (operation.op === "replace_quality_process" || operation.op === "update_quality_process" || operation.op === "remove_quality_process" || operation.op === "reorder_quality_process") return "质检流程";
   if (operation.op === "set_product_image" || operation.op === "remove_product_image") return "产品图片";
   if (operation.op === "replace_draft") return "页面内容";
   if (operation.op === "set_catalog_section" && typeof operation.section === "string") return changeTargetLabel(operation.section);

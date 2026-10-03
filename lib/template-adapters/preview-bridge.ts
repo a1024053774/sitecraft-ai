@@ -965,6 +965,48 @@ function sitecraftPreviewBridge(templateId, adapter) {
     void variant;
   }
 
+  function renderQualityProcess(draft, locale, applied, variant) {
+    var sectionNode = uniqueNode('[data-sitecraft-section="qualityProcess"]');
+    var grid = uniqueNode('[data-sitecraft-quality-process-grid]');
+    if (!sectionNode && !grid) return;
+    var steps = draft && draft.content && Array.isArray(draft.content.qualityProcess) ? draft.content.qualityProcess : [];
+    var visible = [];
+    for (var i = 0; i < steps.length; i++) {
+      var step = steps[i];
+      if (!step || !step.id) continue;
+      var title = localize(step.title, locale) || "";
+      var body = localize(step.body, locale) || "";
+      if (isGapMarker(title)) continue;
+      visible.push({ id: step.id, title: title, body: isGapMarker(body) ? "" : body });
+    }
+    var hidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf("qualityProcess") !== -1;
+    var shouldHide = hidden || !visible.length;
+    if (sectionNode) setSectionHidden(sectionNode, "qualityProcess", shouldHide);
+    if (!grid || shouldHide) return;
+    grid.textContent = "";
+    applied.add("qualityProcess");
+    for (var v = 0; v < visible.length; v++) {
+      var item = visible[v];
+      var row = document.createElement("article");
+      row.className = "sitecraft-quality-process-item";
+      row.setAttribute("data-sc-part", "item");
+      var titleNode = document.createElement("h3");
+      titleNode.textContent = adapter && adapter.blocks ? emailBreakPoints(item.title) : item.title;
+      titleNode.setAttribute("data-sitecraft-slot", "qualityProcess.items." + item.id + ".title." + locale);
+      row.appendChild(titleNode);
+      if (item.body) {
+        var bodyNode = document.createElement("p");
+        bodyNode.textContent = adapter && adapter.blocks ? emailBreakPoints(item.body) : item.body;
+        bodyNode.setAttribute("data-sitecraft-slot", "qualityProcess.items." + item.id + ".body." + locale);
+        row.appendChild(bodyNode);
+        applied.add("qualityProcess.items." + item.id + ".body." + locale);
+      }
+      grid.appendChild(row);
+      applied.add("qualityProcess.items." + item.id + ".title." + locale);
+    }
+    void variant;
+  }
+
   function selectUiTarget(slotKey) {
     var base = stripLocale(slotKey);
     if (base === "hero.title") return "heroTitle";
@@ -1523,9 +1565,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function linkBlock(link) {
     var value = link && link.getAttribute ? (link.getAttribute("data-sitecraft-nav") || link.getAttribute("data-sitecraft-ui") || "") : "";
     if (value === "services") return "services";
-    if (["products", "industries", "capabilities", "certifications", "faq", "contact", "equipment"].indexOf(value) >= 0) return value;
+    if (["products", "industries", "capabilities", "certifications", "faq", "contact", "equipment", "qualityProcess"].indexOf(value) >= 0) return value;
     var href = link && link.getAttribute ? link.getAttribute("href") || "" : "";
-    return ({ "#products": "products", "#industries": "industries", "#capabilities": "capabilities", "#equipment": "equipment", "#process": "services", "#certifications": "certifications", "#faq": "faq", "#inquiry": "contact" })[href] || null;
+    return ({ "#products": "products", "#industries": "industries", "#capabilities": "capabilities", "#equipment": "equipment", "#quality-process": "qualityProcess", "#process": "services", "#certifications": "certifications", "#faq": "faq", "#inquiry": "contact" })[href] || null;
   }
 
   function reorderLinks(container, order) {
@@ -1970,6 +2012,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     renderCatalogSections(null, locale, applied, variant);
     renderCommercialTerms(null, locale, applied, variant);
     renderEquipment(null, locale, applied, variant);
+    renderQualityProcess(null, locale, applied, variant);
     hideEmptyProductSection(null, locale, variant);
     var slots = adapter.slots || [];
     for (var s = 0; s < slots.length; s++) {
@@ -2008,8 +2051,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function applyVisitorChrome(locale, draft, variant) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", addressPrefix: "Address", products: "Products", commercialTerms: "Commercial terms", equipment: "Equipment", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", viewProducts: "View product series", menu: "Menu", footerContact: "Contact", footerNav: "Navigate", footerProducts: "Products", localeZh: "中", localeEn: "EN" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", addressPrefix: "地址", products: "产品", commercialTerms: "商业条款", equipment: "设备", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", viewProducts: "看产品系列", menu: "菜单", footerContact: "联系", footerNav: "导航", footerProducts: "产品", localeZh: "中", localeEn: "EN" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", addressPrefix: "Address", products: "Products", commercialTerms: "Commercial terms", equipment: "Equipment", qualityProcess: "Quality process", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", viewProducts: "View product series", menu: "Menu", footerContact: "Contact", footerNav: "Navigate", footerProducts: "Products", localeZh: "中", localeEn: "EN" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", addressPrefix: "地址", products: "产品", commercialTerms: "商业条款", equipment: "设备", qualityProcess: "质检流程", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", viewProducts: "看产品系列", menu: "菜单", footerContact: "联系", footerNav: "导航", footerProducts: "产品", localeZh: "中", localeEn: "EN" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
@@ -2088,6 +2131,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       renderCatalogSections(draft, currentLocale, applied, variant || "preview");
       renderCommercialTerms(draft, currentLocale, applied, variant || "preview");
       renderEquipment(draft, currentLocale, applied, variant || "preview");
+      renderQualityProcess(draft, currentLocale, applied, variant || "preview");
       clearUnprovidedCatalogChrome(draft, variant || "preview");
       hideEmptyProductSection(draft, currentLocale, variant || "preview");
       syncHiddenNavigation((function () {

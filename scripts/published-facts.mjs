@@ -99,6 +99,16 @@ export function expectedFacts(draft, locale = "zh") {
       if (!isGap(spec)) add("equipment specification", spec);
     }
   }
+  if (!hidden.has("qualityProcess")) {
+    for (const step of Array.isArray(content.qualityProcess) ? content.qualityProcess : []) {
+      if (!step) continue;
+      const title = localize(step.title, locale);
+      if (isGap(title)) continue;
+      add("quality process title", title);
+      const body = localize(step.body, locale);
+      if (!isGap(body)) add("quality process body", body);
+    }
+  }
   add("contact email", content.contact?.email);
   add("contact phone", content.contact?.phone);
   return facts;
