@@ -31,6 +31,11 @@ function moldingDraft(blockVariants: Record<string, string>, templateId: string)
       { id: "iatf", title: text("IATF 16949", "IATF 16949"), body: text("汽车行业质量管理体系", "Automotive quality management"), status: "认证中" },
     ],
   } as typeof draft.content.certifications;
+  draft.content.commercialTerms = [
+    { id: "moq", kind: "moq", value: text("注塑件 5000 件起；模具单套起接", "Moulded parts from 5,000 pcs; moulds from one set") },
+    { id: "lead-time", kind: "lead_time", value: text("模具 25–55 天；批量注塑件在模具确认后 15–20 天", "Moulds 25–55 days; volume parts 15–20 days after approval") },
+    { id: "trade", kind: "trade_terms", value: text("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo and EXW; CIF by agreement") },
+  ] as typeof draft.content.commercialTerms;
   return { ...draft, templateId };
 }
 
@@ -39,7 +44,10 @@ const LAYOUT_SETS: Array<[string, Record<string, string>]> = [
   ["目录封面", { hero: "cover" }],
   ["纵向流程", { services: "vertical" }],
   ["证书状态表", { certifications: "table" }],
-  ["四个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table" }],
+  ["左右条款", { commercialTerms: "side" }],
+  ["条款带", { commercialTerms: "strip" }],
+  ["五个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table", commercialTerms: "side" }],
+  ["条款带和其余四个新布局一起", { products: "index", hero: "cover", services: "vertical", certifications: "table", commercialTerms: "strip" }],
 ];
 
 test("every material fact is on the page with each block-pool layout mounted, in both languages, at three widths", async () => {

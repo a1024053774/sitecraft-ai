@@ -217,6 +217,20 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
       },
+      strip: {
+        label: "条款带",
+        slots: [],
+        markers: ["[data-sitecraft-commercial-terms-grid]"],
+        parts: ["head", "title", "list"],
+        renderedParts: ["item"],
+      },
+      side: {
+        label: "左右条款",
+        slots: [],
+        markers: ["[data-sitecraft-commercial-terms-grid]"],
+        parts: ["head", "title", "list"],
+        renderedParts: ["item"],
+      },
     },
   },
   industries: {
