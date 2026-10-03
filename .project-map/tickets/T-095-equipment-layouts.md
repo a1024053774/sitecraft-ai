@@ -38,3 +38,10 @@ T-081 落地了 `content.equipment`（名称、数量可空、规格可空）和
 - 全量 `npm test`：**第一次**（启动时负载 10.75，运行中升到 19–26）679 个里 676 通过，3 个失败全是工作台浏览器测试：`workspace dark/light 1440 did not render`（`workspace-dark-contrast`）、`the action row sits above the chat box …`（`workspace-interaction`）、`undo message does not add an applied prefix`（`t075-prefix-behavior`，等「撤销」按钮超时）；日志 `t095/npm-test-full-run1.txt`。这三个只测工作台页面，与区块无关。**随后在负载 8 时单独重跑这三个文件，7/7 通过**（`t095/rerun-failed-workspace-tests.txt`）。**第二次**完整全量（启动负载 10.65，等负载降到 12 以下后开跑）：**679/679，0 失败**（`t095/npm-test-full.txt`）。没有改任何测试或超时，也没有把第一次的失败算作通过。
 - `check-published`（`t095/check-published.log`）：注塑设备站 `b9074a86` 加它切到数量带、双栏清单的两个副本，3 个站 × 1440/768/375 = 9 行全部 ok（含英文页）。
 - 渲染扫描：数量带 27 行、双栏清单 33 行，溢出 0、重叠 0、资料事实缺失 0/0、重复目标 0/0。
+
+### Astra 代码审查 NO_GO 后的返工（提交 `7c7ec3c`）
+- P1：`renderEquipment` 对无数量条目在除分组布局以外的所有布局都追加一个空 `span`，双栏清单只靠 `span:empty{display:none}` 藏它，违反「没有数量节点、也不补占位」。根因层修：只有默认「设备清单」（`variant === "rows"`，它的三列网格需要这格）才创建这个空格，双栏清单和数量带不再创建任何占位节点，`span:empty` 规则删掉。
+- P2：双栏清单的测试只断言没有 `.sitecraft-equipment-quantity`，漏了直接子节点的空 span。新增断言：真实注塑、全无数量、有无交错三个案例里，每个无数量条目只含名称（和规格）、没有直接子 `span`；同时断言默认清单仍保留它的空数量格。先在 `c603224` 上跑，行为级失败（`equipment-compact-list/red-compact-empty-span.txt`：`cmm has no empty span standing in for the count`）。
+- 外观没变：重渲双栏清单 33 行（溢出 0、重叠 0、事实缺失 0/0、重复目标 0/0），真实 molding 三档、无数量、交错、单条、3 条、24 条、forge 逐张对照之前的图，一致；默认清单 1440 图一致。
+- 验证（负载规则：启动全量时 1 分钟负载 7.13）：`npm test` **680/680，0 失败**（`t095/npm-test-full-rework.txt`）；`check-published` 注塑设备站 `b9074a86` 及其数量带、双栏清单副本，3 站 × 三档 = 9 行 ok（`t095/check-published-rework.log`）；`typecheck`、`build` 通过（`t095/build-rework.txt`）。
+
