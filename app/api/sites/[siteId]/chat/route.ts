@@ -528,7 +528,7 @@ async function commitClaimedProposal(siteId: string, conversationId: string, con
     summary: result.status === "conflict"
       ? REVISION_CONFLICT_SUMMARY
       : result.status === "rejected"
-        ? rejectionDisplaySummary([...proposed.rejected, ...result.reasons])
+        ? rejectionSummary([...proposed.rejected, ...result.reasons])
         : result.status === "applied"
           ? result.changeSet.summary
           : NO_CHANGE_SUMMARY,

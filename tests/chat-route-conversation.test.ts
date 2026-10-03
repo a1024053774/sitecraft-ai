@@ -75,6 +75,18 @@ globalThis.fetch = async (input, init) => {
       summary: "CHAT_REJECT_MODEL_PROSE_7301 右边预留照片区域",
       operations: [{ op: "set_block_variant", block: "products", variant: "compare" }],
     };
+  } else if (raw.includes("CHAT_REJECT_NOOP_7301")) {
+    payload = {
+      type: "edit",
+      summary: "CHAT_REJECT_NOOP_MODEL_PROSE_7301",
+      operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "待补充" }],
+    };
+  } else if (raw.includes("ALIGN_REJECT_STYLE_7301")) {
+    payload = {
+      type: "edit",
+      summary: "ALIGN_REJECT_STYLE_MODEL_PROSE_7301",
+      operations: [{ op: "set_site_style", direction: "catalog-led", rules: [{ block: "hero", part: "title", declarations: { "font-size": "64px" } }] }],
+    };
   } else if (raw.includes("DYNAMIC_ALIGN_PROMPT_20260923")) {
     payload = {
       kind: "question",
@@ -210,7 +222,7 @@ registerHooks({
 const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
 };
-const { getConversation, conversationPromptContext } = await import("../lib/conversation-store.ts");
+const { getConversation, updateConversationAlignment, conversationPromptContext } = await import("../lib/conversation-store.ts");
 const { commitOperations, getSite } = await import("../lib/site-store.ts");
 const { saveSiteImage } = await import("../lib/site-images.ts");
 
@@ -440,19 +452,66 @@ test("chat POST keeps applied result when append fails after a successful commit
   assert.equal(pageSource.includes("已保存的草稿没有变化，可以直接重试。"), true);
 });
 
-test("chat POST rejected edit records the refusal reason, not the provider summary", async () => {
+test("chat POST no-op edit records a result reason, not the provider summary", async () => {
   const siteId = uniqueSiteId();
   const before = await getSite(siteId);
-  const result = await postChat(siteId, { baseRevision: before.draft.revision, message: "CHAT_REJECT_SUMMARY_7301 产品改成参数对比表" });
+  const result = await postChat(siteId, { baseRevision: before.draft.revision, message: "CHAT_REJECT_NOOP_7301 首屏标题保持不变" });
   assert.equal(result.done?.status, "no_change");
-  assert.doesNotMatch(String(result.done?.summary || ""), /CHAT_REJECT_MODEL_PROSE_7301|照片/);
+  assert.doesNotMatch(String(result.done?.summary || ""), /CHAT_REJECT_NOOP_MODEL_PROSE_7301/);
   const record = await getConversation(siteId, String(result.done?.conversationId));
   assert.ok(record);
   const turn = record.turns.at(-1);
   assert.ok(turn);
-  assert.doesNotMatch(turn.aiSummary, /CHAT_REJECT_MODEL_PROSE_7301|照片/);
-  assert.match(turn.aiSummary, /参数对比表/);
-  assert.doesNotMatch(conversationPromptContext(record), /CHAT_REJECT_MODEL_PROSE_7301|照片/);
+  assert.doesNotMatch(turn.aiSummary, /CHAT_REJECT_NOOP_MODEL_PROSE_7301/);
+  assert.match(turn.aiSummary, /没有生成可应用/);
+  assert.doesNotMatch(conversationPromptContext(record), /CHAT_REJECT_NOOP_MODEL_PROSE_7301/);
+});
+
+test("alignment rejected confirmation replays a pure reason without a duplicate 未修改 prefix", async () => {
+  const siteId = uniqueSiteId();
+  const before = await getSite(siteId);
+  const started = await postChat(siteId, { action: "start", message: "ALIGN_REJECT_STYLE_7301", baseRevision: before.draft.revision });
+  const conversationId = String(started.done?.conversationId);
+  const styled = await postChat(siteId, {
+    action: "select", conversationId, questionId: String(started.done?.questionId),
+    questionRevision: Number(started.done?.questionRevision), optionId: "technical-product",
+  });
+  const proposed = styled;
+  assert.equal(proposed.done?.awaitingConfirmation, true);
+  await updateConversationAlignment(siteId, conversationId, (record) => ({
+    ...record,
+    alignment: {
+      ...record.alignment,
+      proposedChange: record.alignment.proposedChange
+        ? {
+          ...record.alignment.proposedChange,
+          operations: [{ op: "set_site_style", direction: "catalog-led", rules: [{ block: "hero", part: "title", declarations: { "font-size": "64px" } }] }],
+        }
+        : null,
+    },
+  }));
+  const previousChrome = process.env.CHROME_PATH;
+  process.env.CHROME_PATH = "/definitely/missing/sitecraft-chrome";
+  let first;
+  let replay;
+  try {
+    first = await postChat(siteId, { action: "confirm", conversationId, questionId: String(proposed.done?.questionId), questionRevision: Number(proposed.done?.questionRevision) });
+    replay = await postChat(siteId, { action: "confirm", conversationId, questionId: String(proposed.done?.questionId), questionRevision: Number(proposed.done?.questionRevision) });
+  } finally {
+    writeEnv("CHROME_PATH", previousChrome);
+  }
+  assert.equal(first.done?.status, "no_change");
+  assert.equal(replay.done?.status, "no_change");
+  assert.doesNotMatch(String(first.done?.summary || ""), /^未修改：/);
+  assert.doesNotMatch(String(first.done?.summary || ""), /^未修改：未修改：/);
+  assert.equal(replay.done?.summary, first.done?.summary);
+  const record = await getConversation(siteId, conversationId);
+  assert.ok(record);
+  const turn = record.turns.at(-1);
+  assert.ok(turn);
+  assert.doesNotMatch(turn.aiSummary, /^未修改：/);
+  assert.doesNotMatch(turn.aiSummary, /^未修改：未修改：/);
+  assert.doesNotMatch(conversationPromptContext(record), /ALIGN_REJECT_STYLE_MODEL_PROSE_7301/);
 });
 
 test("chat POST keeps answer when append fails and does not treat it as an error", async () => {
