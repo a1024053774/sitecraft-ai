@@ -37,13 +37,14 @@
 - [T-051 区块素材与 CSS 校验调研](tickets/T-051-block-material-and-css-guard-research.md)：结构参考 HyperUI、Meraki UI；站点样式走做法 A（结构化规则，不加依赖）；Preline 不用；第一版不用图标
 - [T-064 放开自由度之前先量什么](tickets/T-064-quality-baseline-before-freedom.md)：先做绝对质量基线和专家对照，按事先写好的规则判读；不按数量扩布局；撤销要能挑着撤；批注契约等评分后写 spec
 - [T-071 评分之后怎么走](tickets/T-071-recommend-per-company-and-block-pool.md)：不再加评分轮次；推荐随公司变；区块布局批量做，每个过 AI 味审查（只看单区块裁切图）才进库；需要新字段的内容区块另写 spec
+- [T-078 草稿加新字段](tickets/T-078-new-draft-fields-for-content-blocks.md)：先做商业条款、设备（带数量），结构化字段、模型只按资料抽取、事实检查覆盖；质检流程和沿革第二批
 - [T-049 2026-09-29 起谁做什么](tickets/T-049-roles-2026-09-29.md)：Claude 规划验收，Codex/Sonnet 执行（Kiro 已停用），Astra 审代码，gpt-6.1-sol 盲评，Grok 杂活，云端做 T-050–T-052
 
 ## Not yet specified
 
 - 新开源素材的准入：需要先定准入流程和第一批候选。
 - 子页面的同族 overlay、`fresh` kit。
-- 厚资料里区块库还放不下的内容：沿革时间线、交期 / 起订 / 产能等商业条款、质检步骤（草稿没有这些字段；T-066 专家清单也指向它们；T-071 定为 T-074 之后另写 spec）。
+- 第二批草稿新字段：质检流程、沿革时间线（T-078 定为商业条款和设备落地之后再开票）。
 - 生成站动效、改标题（评审 P0-5、P0-6）。
 - 圈画批注的契约：内容身份与显示位置、批注同时记「当时看到什么」和「现在指向哪里」、锚点失效状态、圈画命中关系、批注 / 修改事务 / 挑着撤的关系（T-064；等 T-068 之后写 spec，不先做界面）。
 

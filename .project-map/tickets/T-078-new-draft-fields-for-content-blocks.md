@@ -2,9 +2,9 @@
 id: T-078
 title: 要不要给草稿加新字段，让区块库放得下商业条款、质检流程、沿革和设备数量
 type: decide
-status: open
+status: closed
 blocked_by: []
-claimed_by:
+claimed_by: claude
 supersedes:
 ---
 
@@ -38,4 +38,9 @@ T-074 第一批做完后，只读现有草稿字段、又和已有布局有明�
 
 ## Resolution
 
-（待负责人决定）
+2026-10-03 负责人同意上面的建议：
+
+- 做。第一批是「商业条款」和「设备（带数量）」；「质检流程」「沿革」放第二批，等第一批落地后再开票。
+- 每项都是结构化草稿字段，模型只按资料抽取，经白名单 operation 写入、可撤销；资料没有的条目不出现，不写「待补充」占位。条款名、字段名这类界面文字来自固定的双语词典，不由模型写。
+- 访客页事实检查（`check-published`）同步加严：新字段里的每条事实都要能在访客页找到。
+- 先用「商业条款」打通草稿 → operation → 模型抽取 → 事实检查 → 预览渲染（一个朴素的默认布局）整条线（[T-079](T-079-commercial-terms-tracer.md)），再由 Sonnet 5.5 按 T-073 流水线做商业条款的布局（[T-080](T-080-commercial-terms-layouts.md)），然后按同一模式做设备（[T-081](T-081-equipment-with-quantity.md)）。
