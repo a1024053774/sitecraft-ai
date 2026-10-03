@@ -270,3 +270,10 @@ test("T-073: the layout menu offers 型号索引表 with its 3-product need and 
   assert.ok(system.includes("index=型号索引表（要至少 3 个产品）"), "the menu names the layout and what it needs");
   assert.match(system, /产品 3 个以上、访客主要按型号对照选型的目录型公司可以用 index/);
 });
+
+test("T-074: the layout menu offers 纵向流程 and says when to choose it", async () => {
+  await ask(packDraft("molding"), "看看现在的页面", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.ok(system.includes("vertical=纵向流程"), "the menu names the layout");
+  assert.match(system, /合作方式：每步说明较长、带周期或交付物时用 vertical，否则 steps/);
+});

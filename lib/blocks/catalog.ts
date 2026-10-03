@@ -244,6 +244,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: [],
         parts: ["head", "title", "steps", "item"],
       },
+      vertical: {
+        label: "纵向流程",
+        slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
+        markers: [],
+        parts: ["head", "title", "steps", "item"],
+      },
       cards: {
         label: "步骤卡片",
         slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
