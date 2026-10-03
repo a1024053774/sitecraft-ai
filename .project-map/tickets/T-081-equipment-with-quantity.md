@@ -26,7 +26,7 @@ supersedes:
 
 ## Resolution
 
-2026-10-03，执行提交 `1dc7278` 已完成设备纵向切片，等待 Astra 代码审查与 Claude 关闭票据：
+2026-10-03，功能提交 `c19486e` 已完成设备纵向切片，等待 Astra 代码审查与 Claude 关闭票据；真实模型运行使用同一代码内容的提交 `1dc7278`。
 
 - 先写的行为红证据保存在 `artifacts/t081/red-parent-equipment-focused.txt`：父提交上的测试正常加载并以 1 通过、9 失败；失败来自缺失设备 schema、operation、事实检查和区块。修复后 `node --test --experimental-strip-types tests/equipment.test.ts` 为 11/11，通过数量整数/空值、稳定 id、整组替换、单条更新、删除、撤销、同句核对、能力/设备去重、发布事实和唯一槽位。
 - 实现 `content.equipment`（稳定 id、双语名称、非负整数或 null 数量、可空双语规格），`replace_equipment` / `update_equipment` / `remove_equipment` 走 `commitOperations`，写入与更新前对完整数组 schema 校验，inverse 恢复 `englishReady`。设备事实复用 T-079 的去指令同句分片：名称/规格只能是同句原文连续子串，数量必须紧挨名称；英文只核数字、代码和单位。加工能力工序与设备机器互斥，工业/外贸工序不会冒充设备。
