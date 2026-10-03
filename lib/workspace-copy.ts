@@ -67,6 +67,24 @@ export function changeTargetLabels(targets: string[]) {
 
 type AppliedChangeAction = "applied" | "undo" | "redo";
 const MAX_APPLIED_CHANGE_SUMMARY_CHARS = 400;
+const CHANGE_PREFIX_RE = /^(?:已应用|已更新|已撤销|已重做|未修改|同步中|注意)：/;
+
+/**
+ * Gives a workspace change marker exactly one status/action prefix. Applied-target summaries
+ * already carry their action (更新/撤销/重做); status-only replies, such as a rejection, get the
+ * one prefix from this formatter instead of having the JSX add another one.
+ */
+export function formatWorkspaceChange(status: string, change: unknown) {
+  const text = typeof change === "string" ? change.trim() : "";
+  if (!text) return "";
+  const prefixed = CHANGE_PREFIX_RE.test(text);
+  const bare = prefixed ? text.replace(CHANGE_PREFIX_RE, "") : text;
+  if (status === "applied") return prefixed ? text : `已应用：${text}`;
+  if (status === "no_change") return prefixed ? text : `未修改：${text}`;
+  if (status === "syncing") return `同步中：${bare}`;
+  if (status === "warning") return `注意：${bare}`;
+  return prefixed ? text : `注意：${text}`;
+}
 
 /**
  * Builds the user-facing summary from the targets that the operation engine actually wrote.

@@ -59,7 +59,7 @@ import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/tem
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
 import { createSiteOnce, resolveWorkspaceEntry, workspaceUrlForSite } from "@/lib/workspace-entry";
-import { alignmentFailureText, changeTargetLabels, describePreviewGaps, noChangeReply, summaryFromAppliedTargets } from "@/lib/workspace-copy";
+import { alignmentFailureText, changeTargetLabels, describePreviewGaps, formatWorkspaceChange, noChangeReply, summaryFromAppliedTargets } from "@/lib/workspace-copy";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
 import { generateCustomPalette } from "@/lib/custom-brand-color";
@@ -1390,7 +1390,7 @@ export default function WorkspacePage() {
                 <div className="change-summary alignment">{message.alignment.selectedLabel}</div>
               ) : null}
               {message.change && message.status === "error" ? <p className="error-note">{message.change}{message.meta ? ` · ${message.meta}` : ""}</p> : null}
-              {message.change && message.status !== "error" && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "warning" ? <AlertCircle size={12} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={12} /> : <Check size={12} />}<span>{message.status === "applied" ? "已应用" : message.status === "syncing" ? "同步中" : message.status === "no_change" ? "未修改" : "注意"}：{message.change}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
+              {message.change && message.status !== "error" && <div className={`change-summary ${message.status ?? ""}`}>{message.status === "warning" ? <AlertCircle size={12} /> : message.status === "syncing" ? <LoaderCircle className="spin" size={12} /> : <Check size={12} />}<span>{formatWorkspaceChange(message.status ?? "", message.change)}{message.meta ? ` · ${message.meta}` : ""}</span></div>}
             </div>
           ))}
           {alignmentView && alignmentOpen ? (
