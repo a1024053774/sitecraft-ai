@@ -181,7 +181,7 @@ test("model reorder output drops unknown blocks, fills the rest, and explains th
     assert.ok(operation && operation.order !== null);
     if (operation && operation.order !== null) {
       assert.equal((operation.order as string[]).includes("unknown"), false);
-      assert.equal(operation.order.length, 8);
+      assert.equal(operation.order.length, 9);
     }
     assert.match(result.summary, /忽略未知项：unknown/);
   }
@@ -298,4 +298,12 @@ test("T-080: the layout menu offers 左右条款 and says when to choose it", as
   assert.ok(system.includes("side=左右条款"), "the menu names the layout");
   assert.match(system, /商业条款：条款值多为整句话（带范围、周期、数量）或只有一条时用 side；条款值短、有 2–4 条时用 strip；否则 rows/);
   assert.ok(system.includes("strip=条款带"), "the menu names the strip layout too");
+});
+
+test("T-095: the layout menu offers 数量带 for equipment and says when to choose it", async () => {
+  await ask(packDraft("molding"), "看看现在的页面", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.ok(system.includes("band=数量带"), "the menu names the layout");
+  assert.match(system, /设备：有几样带数量的主力设备、其余只有名称（检测设备等）时用 band；设备 4 条以上、名称短、想紧凑列出时用 compact；否则 rows/);
+  assert.ok(system.includes("compact=双栏清单"), "the menu names the compact layout too");
 });

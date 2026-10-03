@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("灰底短路径 mounts its short nav, certification cards, side FAQ, and line footer", async () => {
   const browser = await openBrowser();
@@ -34,7 +34,7 @@ test("灰底短路径 mounts its short nav, certification cards, side FAQ, and l
       assert.equal(result.variants.footer, "line");
       // T-079 adds commercialTerms to the short-path skeleton. Check the full declared order and
       // the painted order separately so a hidden empty terms block cannot hide a real certification.
-      assert.deepEqual(result.order.slice(0, 9), ["nav", "hero", "products", "commercialTerms", "industries", "capabilities", "services", "contact", "certifications"]);
+      assert.deepEqual(result.order.slice(0, 10), ["nav", "hero", "products", "commercialTerms", "equipment", "industries", "capabilities", "services", "contact", "certifications"]);
       assert.ok(result.visibleOrder.includes("commercialTerms"), `${width}: commercial terms with source data stay visible`);
       assert.ok(result.visibleOrder.includes("certifications"), `${width}: certifications stay visible after commercial terms are mounted`);
       assert.equal(result.certBody, "认证中");
@@ -45,7 +45,6 @@ test("灰底短路径 mounts its short nav, certification cards, side FAQ, and l
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });

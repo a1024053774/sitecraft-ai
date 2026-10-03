@@ -19,6 +19,7 @@ const UNIQUE_SECTION_PROBES = {
   forge: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
     commercialTerms: { kind: "attr", attr: "data-sitecraft-section", value: "commercialTerms" },
+    equipment: { kind: "attr", attr: "data-sitecraft-section", value: "equipment" },
     industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
     capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
@@ -29,6 +30,7 @@ const UNIQUE_SECTION_PROBES = {
   screwfast: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
     commercialTerms: { kind: "attr", attr: "data-sitecraft-section", value: "commercialTerms" },
+    equipment: { kind: "attr", attr: "data-sitecraft-section", value: "equipment" },
     industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
     capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
@@ -40,6 +42,7 @@ const UNIQUE_SECTION_PROBES = {
   landwind: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
     commercialTerms: { kind: "attr", attr: "data-sitecraft-section", value: "commercialTerms" },
+    equipment: { kind: "attr", attr: "data-sitecraft-section", value: "equipment" },
     industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
     capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
@@ -50,6 +53,7 @@ const UNIQUE_SECTION_PROBES = {
   "tailwind-landing": {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
     commercialTerms: { kind: "attr", attr: "data-sitecraft-section", value: "commercialTerms" },
+    equipment: { kind: "attr", attr: "data-sitecraft-section", value: "equipment" },
     industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
     capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },

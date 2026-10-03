@@ -9,7 +9,7 @@ import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { parseHtmlDocument, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-076: every modify target lands on exactly one node. A target that is on several nodes cannot be
 // selected or written without guessing which one, so no data-sitecraft-slot value may appear twice
@@ -170,7 +170,6 @@ test("a click on any comparison cell selects its product's specs target", async 
     assert.deepEqual(picked, expected, "each click selected the specs target of the cell's own product");
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 import { engineeringLook } from "../lib/blocks/looks/engineering.ts";
 
 const fitSource = readFileSync("scripts/visitor-text-fit-scan.js", "utf8");
@@ -50,7 +50,7 @@ test("run width sizing does not shrink breakable long sentences or couple brand 
     assert.match(longSentence.brandRun, /\d/);
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 
@@ -75,7 +75,7 @@ test("original engineering titles and company name fit in every published viewpo
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 
@@ -100,6 +100,6 @@ test("long engineering brand keeps the readable floor and wraps instead of clipp
     assert.deepEqual(result.failures, [], JSON.stringify(result));
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
