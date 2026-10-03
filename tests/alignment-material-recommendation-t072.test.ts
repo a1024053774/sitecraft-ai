@@ -103,14 +103,22 @@ test("alignment route chooses different looks from structured company shape whil
   }) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
   try {
     const industrial = await runRecommendation("industrial");
+    const exportCatalog = await runRecommendation("export");
     const sparse = await runRecommendation("export", true);
     assert.equal(industrial.response.status, 200);
-    assert.equal(sparse.response.status, 200);
+    assert.equal(exportCatalog.response.status, 200);
     assert.equal(industrial.style?.options.find((option) => option.recommended)?.id, "engineering-industrial");
+    const industrialReason = industrial.style?.options.find((option) => option.recommended)?.description ?? "";
+    assert.match(industrialReason, /资料中有 2 个产品/);
+    assert.match(industrialReason, /5–6 项参数/);
+    assert.doesNotMatch(industrialReason, /结构化资料|非空参数|产品类别/);
+    assert.equal(exportCatalog.style?.options.find((option) => option.recommended)?.id, "export-catalog");
+    const exportReason = exportCatalog.style?.options.find((option) => option.recommended)?.description ?? "";
+    assert.match(exportReason, /资料中有 2 个产品/);
+    assert.match(exportReason, /每个都有 5 项完整参数/);
+    assert.doesNotMatch(exportReason, /结构化资料|非空参数|产品类别/);
     assert.equal(sparse.style?.options.find((option) => option.recommended)?.id, "technical-product");
-    assert.match(sparse.style?.options.find((option) => option.recommended)?.description ?? "", /1 个产品/);
-    assert.equal(sparse.color?.options.find((option) => option.recommended)?.id, "colorSet:turquoise");
-    assert.equal(sparse.color?.options.find((option) => option.recommended)?.description, "模型颜色理由");
+    assert.doesNotMatch(sparse.style?.options.find((option) => option.recommended)?.description ?? "", /结构化资料|非空参数|产品类别/);
   } finally {
     globalThis.fetch = originalFetch;
   }

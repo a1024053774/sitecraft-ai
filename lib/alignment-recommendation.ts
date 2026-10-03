@@ -83,8 +83,25 @@ export type LookRecommendation = {
   features: MaterialFeatures;
 };
 
-function featureSummary(features: MaterialFeatures) {
-  return `${features.productCount} 个产品、${features.categoryCount} 个产品类别、${features.parameterizedProducts} 个产品有至少 3 项非空参数（每个 ${features.minSpecsPerProduct}–${features.maxSpecsPerProduct} 项）；${features.industryCount} 个应用行业、${features.capabilityCount} 项能力、${features.certificationCount} 项认证`;
+function productFactPhrase(features: MaterialFeatures) {
+  const productPhrase = features.productCount > 0 ? `资料中有 ${features.productCount} 个产品` : "资料中暂未列出产品";
+  if (features.productCount === 0) return productPhrase;
+  if (features.minSpecsPerProduct === features.maxSpecsPerProduct && features.minSpecsPerProduct >= 3) {
+    return `${productPhrase}，每个都有 ${features.minSpecsPerProduct} 项完整参数`;
+  }
+  if (features.minSpecsPerProduct >= 3) {
+    return `${productPhrase}，每个都有 ${features.minSpecsPerProduct}–${features.maxSpecsPerProduct} 项参数`;
+  }
+  return `${productPhrase}，参数信息还不完整`;
+}
+
+function supportingFactPhrase(features: MaterialFeatures) {
+  const parts = [
+    features.industryCount ? `${features.industryCount} 个应用行业` : "",
+    features.capabilityCount ? `${features.capabilityCount} 项加工能力` : "",
+    features.certificationCount ? `${features.certificationCount} 项认证状态` : "",
+  ].filter(Boolean);
+  return parts.length ? `，并列出 ${parts.join("、")}` : "";
 }
 
 /**
@@ -98,32 +115,33 @@ function featureSummary(features: MaterialFeatures) {
 export function recommendLookFromDraft(draft: SiteDraft): LookRecommendation | null {
   const features = materialFeaturesFromDraft(draft);
   if (!features.hasSignal) return null;
-  const summary = featureSummary(features);
+  const productFacts = productFactPhrase(features);
+  const supportingFacts = supportingFactPhrase(features);
 
   if (features.productCount <= 1 && features.structuredItemCount <= 4) {
     return {
       briefId: "technical-product",
-      reason: `结构化资料有${summary}，条目较少，灰底短路径更适合快速理解并提交询盘。`,
+      reason: `${productFacts}${supportingFacts}，资料量较少，灰底短路径适合快速理解并提交询盘。`,
       features,
     };
   }
   if (features.productCount >= 2 && features.productCount <= 3 && features.categoryCount <= 1 && features.parameterizedProducts === features.productCount && features.minSpecsPerProduct >= 3 && features.minSpecsPerProduct === features.maxSpecsPerProduct) {
     return {
       briefId: "export-catalog",
-      reason: `结构化资料有${summary}，各产品参数行数一致且完整，蓝白目录更适合按系列浏览和发起询盘。`,
+      reason: `${productFacts}，适合用蓝白目录按系列浏览并发起询盘。`,
       features,
     };
   }
   if (features.productCount >= 4 || features.capabilityCount >= 2 || features.industryCount >= 2 || features.certificationCount >= 2) {
     return {
       briefId: "engineering-industrial",
-      reason: `结构化资料有${summary}，参数和制造/应用条目较多，工程工业更适合承载参数选型与能力证据。`,
+      reason: `${productFacts}${supportingFacts}，工程工业适合把选型参数和工厂能力放在一起展示。`,
       features,
     };
   }
   return {
     briefId: "industrial",
-    reason: `结构化资料有${summary}，以产品条目为主且参数密度较轻，明亮产品更适合先展示产品范围再进入行动入口。`,
+    reason: `${productFacts}${supportingFacts}，明亮产品适合先展示产品范围再进入行动入口。`,
     features,
   };
 }
