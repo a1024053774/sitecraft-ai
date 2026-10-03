@@ -131,22 +131,105 @@ export function scanVisitorLayout(root = document) {
   }
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
-  const rgba = color => { ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);return [...ctx.getImageData(0,0,1,1).data].map((v,i)=>i===3?v/255:v); };
+  const rgba = color => {
+    if (!ctx || typeof color !== 'string') return null;
+    ctx.clearRect(0,0,1,1);
+    ctx.fillStyle=color;
+    ctx.fillRect(0,0,1,1);
+    return [...ctx.getImageData(0,0,1,1).data].map((v,i)=>i===3?v/255:v);
+  };
   const over=(fg,bg)=>[0,1,2].map(i=>fg[i]*fg[3]+bg[i]*(1-fg[3]));
   const luminance=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((v,c,i)=>v+c*[.2126,.7152,.0722][i],0);
-  const contrast = el => {
-    const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
-    let bg=[255,255,255];for(const p of chain)bg=over(rgba(getComputedStyle(p).backgroundColor),bg);
-    const fg=over(rgba(getComputedStyle(el).color),bg),a=luminance(fg),b=luminance(bg);
+  const ratioFor = (fg,bg) => {
+    const a=luminance(fg),b=luminance(bg);
     return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
   };
+  const backgroundFor = (el,sampleRect=null) => {
+    const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
+    let bg=[255,255,255];
+    for(const p of chain){
+      const style=getComputedStyle(p);
+      if(style.backgroundImage && style.backgroundImage!=='none') return {known:false,reason:'图片背景'};
+      if(style.mixBlendMode && style.mixBlendMode!=='normal') return {known:false,reason:'混合图层'};
+      const color=rgba(style.backgroundColor);
+      if(!color) return {known:false,reason:'背景颜色无法解析'};
+      bg=over(color,bg);
+    }
+    const rect=sampleRect||el.getBoundingClientRect();
+    if(rect.width>0&&rect.height>0&&typeof document.elementsFromPoint==='function'){
+      const points=[[rect.left+rect.width/2,rect.top+rect.height/2],[rect.left+1,rect.top+1],[rect.right-1,rect.bottom-1]];
+      for(const [x,y] of points){
+        if(x<0||y<0||x>innerWidth||y>innerHeight) continue;
+        const image=document.elementsFromPoint(x,y).find(node=>node.tagName==='IMG'&&!el.contains(node));
+        if(image) return {known:false,reason:'图片背景'};
+      }
+    }
+    return {known:true,color:bg};
+  };
+  const slotFor = el => el.closest('[data-sitecraft-slot]')?.getAttribute('data-sitecraft-slot') || '';
+  const isParameter = el => {
+    const slot=slotFor(el);
+    return Boolean(el.closest('table,dl') || /(?:spec|sku|model|email|phone|quantity|status)/i.test(slot));
+  };
+  const lineLengthExemption = el => {
+    const slot=slotFor(el);
+    if(el.closest('table,dl')) return '参数表';
+    if(el.closest('button,input,select,textarea,a,nav,header,summary')) return '按钮或导航';
+    if(/(?:spec|sku|model|email|phone|quantity|status)/i.test(slot)) return /email|phone/i.test(slot) ? '邮箱或电话' : '型号或参数';
+    return '';
+  };
+  const isBodyParagraph = el => el.tagName==='P' && !lineLengthExemption(el);
+  const textContrast=[];
+  const contrastNodes=[];
+  const bodyLineLength=[];
+  const lineLengthExemptions=[];
+  const measureLines = (el,node) => {
+    const value=node.textContent||'';
+    const chars=[];
+    for(let index=0;index<value.length;index++){
+      range.setStart(node,index);range.setEnd(node,index+1);
+      const rect=range.getBoundingClientRect();
+      if(rect.width>.5&&rect.height>.5) chars.push({char:value[index],top:Math.round(rect.top)});
+    }
+    const grouped=new Map();
+    for(const item of chars) grouped.set(item.top,[...(grouped.get(item.top)||[]),item.char]);
+    return [...grouped.entries()].sort((a,b)=>a[0]-b[0]).map(([top,parts])=>{
+      const text=parts.join('').trim();
+      const count=Array.from(text.replace(/\s/g,'')).length;
+      const language=/[\u3400-\u9fff]/.test(text)?'zh':'en';
+      const max=language==='zh'?40:75;
+      return {top,text,count,language,max,tooLong:count>max};
+    }).filter(item=>item.text);
+  };
+  const textWalker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT);
+  while(textWalker.nextNode()){
+    const node=textWalker.currentNode,el=node.parentElement;
+    if(!node.textContent.trim()||!visible(el)) continue;
+    const style=getComputedStyle(el),slot=slotFor(el),parameter=isParameter(el),exemption=lineLengthExemption(el);
+    const size=parseFloat(style.fontSize)||16,weight=parseInt(style.fontWeight,10)||((style.fontWeight==='bold')?700:400);
+    const large=size>=24||(size>=18.66&&weight>=700);
+    range.selectNodeContents(node);
+    const textRects=[...range.getClientRects()];
+    const background=backgroundFor(el,textRects[0]||null),foreground=rgba(style.color);
+    const measured=background.known&&foreground ? {status:'measured',ratio:ratioFor(over(foreground,background.color),background.color)} : {status:'unmeasured',ratio:null,reason:background.reason||'前景色无法解析'};
+    const role=el.matches('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':el.closest('nav,header')?'navigation':el.closest('button,a,summary')?'control':'body';
+    const entry={element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:node.textContent.trim().slice(0,160),slot,block:blockFor(el),role,checkable:role==='body'||role==='heading',large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
+    textContrast.push(entry);
+    contrastNodes.push({el,entry});
+    if(isBodyParagraph(el)){
+      for(const line of measureLines(el,node)) bodyLineLength.push({element:el.id||el.tagName.toLowerCase(),id:el.id||'',slot,block:blockFor(el),...line});
+    } else if(exemption){
+      lineLengthExemptions.push({element:el.id||el.tagName.toLowerCase(),id:el.id||'',slot,reason:exemption,text:node.textContent.trim().slice(0,160)});
+    }
+  }
   const slots=[...root.querySelectorAll('[data-sitecraft-slot]')].map(el=>{
     const r=el.getBoundingClientRect();
     const painted=visible(el)&&r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;
-    const textLines=lines.filter(l=>el.contains(l.el));
-    const ratio=painted&&textLines.length?Math.min(...textLines.map(l=>contrast(l.el))):21;
-    return {key:keyFor(el),slot:el.getAttribute('data-sitecraft-slot'),block:blockFor(el),visible:painted,contrast:ratio};
+    const textEntries=contrastNodes.filter(item=>el.contains(item.el)).map(item=>item.entry);
+    const known=textEntries.filter(entry=>entry.status==='measured');
+    const ratio=painted&&textEntries.length?(known.length?Math.min(...known.map(entry=>entry.ratio)):null):21;
+    return {key:keyFor(el),slot:el.getAttribute('data-sitecraft-slot'),block:blockFor(el),visible:painted,contrast:ratio,contrastStatus:painted&&textEntries.length&&!known.length?'unmeasured':'measured'};
   });
-  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
+  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,textContrast,bodyLineLength,lineLengthExemptions,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
 }
 export default scanVisitorLayout;
