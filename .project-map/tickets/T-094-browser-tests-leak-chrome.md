@@ -34,3 +34,9 @@ supersedes:
 - 修复后生命周期夹具 2/2 通过：`artifacts/t094/lifecycle-final4.txt`，夹具等待正常 socket close 清理完成后再退出，3 秒后计数仍为 0（`chrome-count-before-lifecycle-final4.txt` / `chrome-count-after-lifecycle-final4.txt`）。第一次修复运行从 154 个孤儿降到 0（`chrome-count-before-fix.txt` / `chrome-count-after-fix.txt`）；最终 full run 的即时计数为 2 → 0（`chrome-count-before-npm-final2.txt` / `chrome-count-after-npm-final2.txt`），随后观察到 reparent 延迟出现的 6 个孤儿，再由下一次助手运行回收到 0（`chrome-count-before-final-reclaim2.txt` / `chrome-count-after-final-reclaim2.txt`）；最终单子进程正常退出探针在 5 秒后仍为 0（`chrome-count-before-single-normal2.txt` / `chrome-count-after-single-normal2.txt`）。没有手动 pkill。
 - 3056、指定 Chrome for Testing 路径下最终全量 `npm test` 为 658/665，0 个 Chrome 遗留，输出 `artifacts/t094/npm-test-final2.txt`。7 个失败均为已知环境/父提交问题：family-modules 仍包含 equipment，以及 vendor 子模块未初始化造成 fresh/genai/tailcast 快照资产缺失；第一次全量的关闭竞态和 motion 失败原始输出保留在 `npm-test-before-close-race.txt`，没有覆盖。
 - `npm run typecheck` 通过（`artifacts/t094/typecheck-final.txt`），`npm run build` 通过（`artifacts/t094/build-final.txt`）。`docs/project/spec.md` 已记录生命周期和回收契约，MAP living-doc 验证已同步；`project_map.py status --root .` 无 stale。状态保持 open，本地提交未 push。
+
+合并主线后的再验证（2026-10-03，America/New_York）：
+
+- 在本 worktree 合并 `family-kit-assembly` 到 `488a295`（merge commit `d7d78da`），冲突按主线版本处理；从主工作区补齐 ignored `vendor/open-source-templates/fresh/dist`、`genai/dist`、`tailcast/dist`。
+- 开跑时 1 分钟负载为 5.30，且没有另一个全量测试。`SITECRAFT_BASE=http://127.0.0.1:3056`、指定 Chrome for Testing 路径下全量 `npm test` **665/665、0 失败**，见 `artifacts/t094/npm-test-merge-488a295.txt`；workspace motion 通过，没有启动或修改 T-099。Chrome PPID=1 计数 **4 → 0**，停止 dev server 后等待 3 秒仍为 0，见 `chrome-count-before-merge-full.txt` / `chrome-count-after-merge-full.txt`。
+- 合并后 `npm run typecheck` 和 `npm run build` 均通过，见 `artifacts/t094/typecheck-merge-488a295.txt`、`artifacts/t094/build-merge-488a295.txt`。本次 Resolution 更新为本地提交，未 push。
