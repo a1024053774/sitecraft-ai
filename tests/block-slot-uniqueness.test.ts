@@ -35,6 +35,10 @@ function richDraft(pack: "industrial" | "molding", variants: Record<string, stri
     { id: "iatf", title: text("IATF 16949", "IATF 16949"), body: text("汽车行业", "Automotive"), status: "认证中" },
   ] } as typeof draft.content.certifications;
   draft.content.contact = { ...draft.content.contact, phone: "+86 21 5555 0100", address: text("上海市宝山区示例路 1 号", "1 Example Road, Baoshan, Shanghai") } as typeof draft.content.contact;
+  draft.content.commercialTerms = [
+    { id: "moq-1", kind: "moq", value: text("20 台", "20 units") },
+    { id: "lead-1", kind: "lead_time", value: text("询盘后确认", "Confirmed after inquiry") },
+  ];
   return { ...draft, templateId } as SiteDraft;
 }
 

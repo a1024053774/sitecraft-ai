@@ -82,6 +82,12 @@ export function expectedFacts(draft, locale = "zh") {
       if (key !== "certifications" || certificationVariant === "cards" || certificationVariant === "table") add(`${key} body`, body);
     }
   }
+  if (!hidden.has("commercialTerms")) {
+    for (const term of Array.isArray(content.commercialTerms) ? content.commercialTerms : []) {
+      if (!term || !term.value) continue;
+      add("commercial term value", localize(term.value, locale));
+    }
+  }
   add("contact email", content.contact?.email);
   add("contact phone", content.contact?.phone);
   return facts;

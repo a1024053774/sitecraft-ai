@@ -18,6 +18,7 @@ const UNIQUE_SECTION_PROBES = {
   // T-030: the bright-product look now hosts the catalog sections the engineering sample proved out.
   forge: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    commercialTerms: { kind: "attr", attr: "data-sitecraft-section", value: "commercialTerms" },
     industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
     capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
@@ -27,6 +28,7 @@ const UNIQUE_SECTION_PROBES = {
   },
   screwfast: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    commercialTerms: { kind: "attr", attr: "data-sitecraft-section", value: "commercialTerms" },
     industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
     capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
@@ -37,6 +39,7 @@ const UNIQUE_SECTION_PROBES = {
   // T-031: the blue-catalog look hosts the catalog sections as well.
   landwind: {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    commercialTerms: { kind: "attr", attr: "data-sitecraft-section", value: "commercialTerms" },
     industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
     capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },
@@ -46,6 +49,7 @@ const UNIQUE_SECTION_PROBES = {
   },
   "tailwind-landing": {
     products: { kind: "attr", attr: "data-sitecraft-section", value: "products" },
+    commercialTerms: { kind: "attr", attr: "data-sitecraft-section", value: "commercialTerms" },
     industries: { kind: "attr", attr: "data-sitecraft-section", value: "industries" },
     capabilities: { kind: "attr", attr: "data-sitecraft-section", value: "capabilities" },
     services: { kind: "attr", attr: "data-sitecraft-section", value: "services" },

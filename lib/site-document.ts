@@ -168,6 +168,38 @@ export const editableCardSchema = z.object({
 });
 export type EditableCard = z.infer<typeof editableCardSchema>;
 
+/** Commercial terms are facts extracted from company materials, addressed by a stable id. */
+export const commercialTermKinds = ["moq", "lead_time", "capacity", "trade_terms", "payment", "packaging"] as const;
+export const commercialTermKindSchema = z.enum(commercialTermKinds);
+export type CommercialTermKind = z.infer<typeof commercialTermKindSchema>;
+
+export const commercialTermKindCatalog = [
+  { kind: "moq", label: { zh: "起订量", en: "MOQ" } },
+  { kind: "lead_time", label: { zh: "交期", en: "Lead time" } },
+  { kind: "capacity", label: { zh: "产能", en: "Capacity" } },
+  { kind: "trade_terms", label: { zh: "贸易条款", en: "Trade terms" } },
+  { kind: "payment", label: { zh: "付款方式", en: "Payment" } },
+  { kind: "packaging", label: { zh: "包装", en: "Packaging" } },
+] as const satisfies ReadonlyArray<{ kind: CommercialTermKind; label: LocalizedText }>;
+
+export const commercialTermValueSchema = localizedTextSchema.refine(
+  (value) => Boolean(value.zh.trim() && value.en.trim()),
+  "Commercial term values cannot be empty",
+);
+export const commercialTermSchema = z.object({
+  id: stableItemIdSchema,
+  kind: commercialTermKindSchema,
+  value: commercialTermValueSchema,
+});
+export type CommercialTerm = z.infer<typeof commercialTermSchema>;
+export const commercialTermsSchema = z.array(commercialTermSchema).max(12).refine(
+  (terms) => new Set(terms.map((term) => term.id)).size === terms.length,
+  "Commercial term ids must be unique",
+).refine(
+  (terms) => new Set(terms.map((term) => term.kind)).size === terms.length,
+  "Commercial term kinds must be unique",
+);
+
 export const siteImageRefSchema = z.object({
   imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/),
   url: z.string().min(1).max(240),
@@ -244,6 +276,7 @@ export type SectionKey = z.infer<typeof sectionKeySchema>;
 /** Content blocks that can move in the block-library page. Shell and hero blocks stay fixed. */
 export const movableBlockIds = [
   "products",
+  "commercialTerms",
   "industries",
   "capabilities",
   "services",
@@ -262,6 +295,7 @@ export const familyModuleInventory = {
 
 export const visibilityKeys = [
   ...sectionKeys,
+  "commercialTerms",
   "faq",
   "partners",
   "process",
@@ -396,6 +430,8 @@ export const siteDraftSchema = z.object({
       address: localizedTextSchema,
     }),
     faq: contentSectionSchema,
+    /** Optional commercial terms; absent on old drafts means hide. */
+    commercialTerms: commercialTermsSchema.default([]),
     /** Optional manufacturer blocks; absent on old drafts means hide. */
     industries: contentSectionSchema.optional(),
     capabilities: contentSectionSchema.optional(),
@@ -491,6 +527,7 @@ export const defaultDraft: SiteDraft = {
         { id: "faq-6", title: { zh: "待补充", en: "To be provided" }, body: { zh: "待补充", en: "To be provided" } },
       ],
     },
+    commercialTerms: [],
   },
   hiddenSections: [],
   blockVariants: {},

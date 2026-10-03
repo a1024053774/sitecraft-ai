@@ -5,7 +5,7 @@ import { effectiveBlockOrder } from "../lib/blocks/order.ts";
 import { engineeringLook } from "../lib/blocks/looks/engineering.ts";
 import { aiOperationSchema, applySiteOperations, siteOperationSchema, validateAIOperations } from "../lib/site-operations.ts";
 
-const blockOrder = ["certifications", "products", "industries", "capabilities", "services", "faq", "contact"];
+const blockOrder = ["certifications", "products", "commercialTerms", "industries", "capabilities", "services", "faq", "contact"];
 
 test("the retired five-section list is read as no explicit block order", () => {
   const legacy = structuredClone(defaultDraft) as Record<string, unknown>;
@@ -30,9 +30,9 @@ test("reorder_sections uses movable block keys and null restores the default", (
 
 test("effective block order leaves a default draft untouched and appends omitted blocks", () => {
   const defaultOrder = effectiveBlockOrder(defaultDraft, engineeringLook);
-  assert.deepEqual(defaultOrder, ["hero", "products", "industries", "capabilities", "services", "certifications", "faq", "contact"]);
+  assert.deepEqual(defaultOrder, ["hero", "products", "commercialTerms", "industries", "capabilities", "services", "certifications", "faq", "contact"]);
   const partial = { ...defaultDraft, sectionOrder: ["certifications", "products"] as const };
-  assert.deepEqual(effectiveBlockOrder(partial, engineeringLook), ["hero", "certifications", "products", "industries", "capabilities", "services", "faq", "contact"]);
+  assert.deepEqual(effectiveBlockOrder(partial, engineeringLook), ["hero", "certifications", "products", "commercialTerms", "industries", "capabilities", "services", "faq", "contact"]);
 });
 
 test("reorder operation is reversible and null removes the explicit order", () => {
@@ -54,7 +54,7 @@ test("unknown reorder keys are filtered before schema/model validation and missi
     assert.ok(checked.operations[0].order);
     if (checked.operations[0].order) {
       assert.equal((checked.operations[0].order as string[]).includes("unknown"), false);
-      assert.equal(checked.operations[0].order.length, 7);
+      assert.equal(checked.operations[0].order.length, 8);
     }
   }
   assert.match(checked.notes.join(""), /忽略未知项：unknown/);
