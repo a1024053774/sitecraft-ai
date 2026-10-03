@@ -90,6 +90,12 @@ globalThis.fetch = async (input, init) => {
   } else if (raw.includes("DYNAMIC_ALIGN_PROMPT_20260923")) {
     payload = {
       kind: "question",
+      recommendation: {
+        styleId: "export-catalog",
+        styleReason: "出口目录的系列参数适合按型号浏览。",
+        colorSetId: "colorSet:turquoise",
+        colorSetReason: "资料明确服务洁净流体，适合松石强调。",
+      },
       question: "这次出口目录先按什么方式帮助采购商筛选？",
       options: [
         { label: "按型号和接口筛选", description: "先看目录字段和询盘入口。" },

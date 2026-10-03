@@ -173,7 +173,7 @@ test("the alignment planning call logs its failures the same way", async () => {
   const { result, logged } = await run([bad, () => { throw new DOMException("timeout", "TimeoutError"); }], "plan");
   assert.equal(result.ok, false);
   assert.deepEqual(logged.map(({ call, attempt, category, traceId, fields }) => ({ call, attempt, category, traceId, fields })), [
-    { call: "alignment_plan", attempt: 1, category: "schema", traceId: "trace-plan", fields: ["questions:invalid_type", "questions:too_big"] },
+    { call: "alignment_plan", attempt: 1, category: "schema", traceId: "trace-plan", fields: ["recommendation:invalid_type", "questions:invalid_type", "questions:too_big"] },
     { call: "alignment_plan", attempt: 2, category: "timeout", traceId: null, fields: undefined },
   ]);
   const usage = { prompt_tokens: 2445, completion_tokens: 8192, completion_tokens_details: { reasoning_tokens: 8192 } };

@@ -49,6 +49,7 @@ export type AlignmentPlanResult =
   | {
     ok: true;
     kind: "question";
+    recommendation: AlignmentRecommendation;
     question: string;
     options: Array<{ id?: string; label: string; description: string; recommended?: boolean; paletteId?: string; swatches?: string[] }>;
     questions?: Array<{ field?: "goal" | "pages" | "style" | "colorSet" | "other"; question: string; options: Array<{ id?: string; label: string; description: string; recommended?: boolean; paletteId?: string; swatches?: string[] }>; allowOther: boolean }>;
@@ -60,22 +61,34 @@ export type AlignmentPlanResult =
   | {
     ok: true;
     kind: "ready";
+    recommendation: AlignmentRecommendation;
     summary: string;
     model: string;
     latencyMs: number;
   }
   | { ok: false; error: string; code: "not_configured" | "provider_error" | "invalid_output" | "timeout" | "truncated"; model: string | null; latencyMs: number };
 
+const PLANNER_STYLE_IDS = ["industrial", "engineering-industrial", "export-catalog", "technical-product"] as const;
+const PLANNER_COLOR_SET_IDS = ["colorSet:porcelain", "colorSet:graphite", "colorSet:warm-orange", "colorSet:turquoise"] as const;
+const alignmentRecommendationSchema = z.object({
+  styleId: z.enum(PLANNER_STYLE_IDS),
+  styleReason: z.string().trim().min(1).max(200),
+  colorSetId: z.enum(PLANNER_COLOR_SET_IDS),
+  colorSetReason: z.string().trim().min(1).max(200),
+});
+export type AlignmentRecommendation = z.infer<typeof alignmentRecommendationSchema>;
+
 const alignmentPlanSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("question"),
+    recommendation: alignmentRecommendationSchema,
     question: z.string().min(1).max(800).optional(),
     options: z.array(z.object({ id: z.string().min(1).max(80).optional(), label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional(), paletteId: z.string().max(80).optional(), swatches: z.array(z.string().max(30)).max(10).optional() })).min(2).max(4).optional(),
     allowOther: z.boolean().default(true),
     rationale: z.string().max(260).nullable().optional(),
     questions: z.array(z.object({ field: z.enum(["goal", "pages", "style", "colorSet", "other"]).optional(), question: z.string().min(1).max(800), options: z.array(z.object({ id: z.string().min(1).max(80).optional(), label: z.string().min(1).max(80), description: z.string().max(200).default(""), recommended: z.boolean().optional(), paletteId: z.string().max(80).optional(), swatches: z.array(z.string().max(30)).max(10).optional() })).min(2).max(4), allowOther: z.boolean().default(true) })).min(1).max(4).optional(),
   }).refine((value) => Boolean(value.questions?.length || (value.question && value.options?.length)), "question or questions is required"),
-  z.object({ kind: z.literal("ready"), summary: z.string().min(1).max(400) }),
+  z.object({ kind: z.literal("ready"), recommendation: alignmentRecommendationSchema, summary: z.string().min(1).max(400) }),
 ]);
 
 export type PreviewReviewResult =
@@ -430,6 +443,13 @@ function clipPlanProse(raw: unknown): unknown {
     summary: clip(plan.summary, 400),
     question: clip(plan.question, 800),
     rationale: clip(plan.rationale, 260),
+    recommendation: plan.recommendation && typeof plan.recommendation === "object"
+      ? {
+        ...(plan.recommendation as Record<string, unknown>),
+        styleReason: clip((plan.recommendation as { styleReason?: unknown }).styleReason, 200),
+        colorSetReason: clip((plan.recommendation as { colorSetReason?: unknown }).colorSetReason, 200),
+      }
+      : plan.recommendation,
     options: clipOptions(plan.options),
     questions: Array.isArray(plan.questions)
       ? plan.questions.map((item) => item && typeof item === "object"
@@ -484,14 +504,15 @@ export async function requestAlignmentPlan(args: {
   const system = `你是 SiteCraft 的需求对齐规划器。只返回 JSON，不输出 Markdown、HTML、CSS、JavaScript 或 draft operations。
 你的任务是阅读用户这一次的建站 Prompt、已有草稿、会话历史和已确认答案，找出仍会改变页面结果的最少一个关键缺口。
 - 样子题和配色题由系统按目录加入。你要在 questions 里分别输出 field=style 和 field=colorSet 两条推荐元数据，系统会用自己的目录文案和这两条里的 recommended 选项重建卡片；不要把它们当成新的事实问题。样子选项的 id 依次是 industrial（明亮产品）、engineering-industrial（工程工业）、export-catalog（蓝白目录）、technical-product（灰底短路径）；配色选项的 id 依次是 colorSet:porcelain（青花瓷）、colorSet:graphite（石墨工坊）、colorSet:warm-orange（工程暖橙）、colorSet:turquoise（松石）。每条只给一个 recommended:true，并在该选项 description 写一句指向资料具体事实的理由，其余 description 留空；不能只写行业名。
+- 无论 kind 是 question 还是 ready，都必须额外返回一个 recommendation 对象，且只能使用这个结构：{"styleId":"industrial|engineering-industrial|export-catalog|technical-product","styleReason":"基于资料事实的理由","colorSetId":"colorSet:porcelain|colorSet:graphite|colorSet:warm-orange|colorSet:turquoise","colorSetReason":"基于资料事实的理由"}。styleId 和 colorSetId 必须是上面列出的精确 id，不能写中文标签、带括号的标签或自行变形；两个 reason 都不能为空，并且必须指向这家公司资料中的具体事实。question 的 questions 可继续带 field=style/colorSet 展示元数据，但服务端只认 recommendation，不从文字猜 id；ready 也不能省略 recommendation。
 - 四个样子都来自区块库，必须先按下面的实际版式和视觉重点理解，再结合资料的业务形态选择；这些是可组合的形态线索，不是“行业标签→固定样子”的映射：
   - engineering-industrial（工程工业）：1200px 内容宽、48px 外边距、卡片/面板/控件均无圆角；默认是横排导航、首屏左文右图、产品卡片、行业与能力清单、编号步骤、认证徽章、手风琴问答和左右询盘，产品板为深色底配白字，细线和顶部强调线承载参数。适合产品系列多、规格和工况可比较、还要展示加工能力或工厂实力的参数选型与工程询盘。
   - industrial（明亮产品）：1180px 内容宽、84px 区块间距，20px 卡片/24px 媒体/28px 面板圆角和胶囊控件；默认是横排导航、左文右图首屏、产品/行业/能力卡片、步骤卡片、认证徽章、展开问答和面板询盘，产品面为浅色填充带边框。适合需要先讲清产品或品牌范围、让访客轻松浏览多项产品并进入行动入口的展示型业务。
   - export-catalog（蓝白目录）：1180px 内容宽、76px 区块间距；浅色渐变首屏、带边框的内容框、强调色标题线和规格条，默认是横排导航、左文右图首屏、产品目录行、行业与能力清单、步骤卡片、认证徽章、展开问答和面板询盘。适合按系列或型号浏览、需要让经销商/OEM 快速扫目录并发起出口询盘的业务形态。
   - technical-product（灰底短路径）：1180px 内容宽、64px 区块间距，44–78px 大标题、24px 媒体/面板圆角和 9px 控件圆角；默认是短导航、左文右图首屏、产品卡片、行业/能力/合作方式卡片、认证卡片、侧边问答、面板询盘和线性页脚，页面节奏短且首屏标题占主导。适合资料较薄或围绕单一产品/明确用途、希望访客快速理解并沿短路径提交询盘的业务形态。
 - 样子和配色仍要按资料呈现的业务形态判断，而不是做“行业标签→固定样子/颜色”的硬映射：看产品系列数量和参数选型是否构成目录、出口或内销的成交路径、资料更偏工厂实力/加工能力还是单一产品、资料厚薄和缺口，再结合这次 Prompt 选择最能支持访客下一步的方向。理由必须引用这些资料事实（例如产品系列、参数、出口/内销、工厂能力或资料厚薄），不要套行业问卷。
-- 如果仍有关键缺口，只返回 questions 数组（style 之外最多 2 题，field 为 goal/pages/other），不要重复输出顶层 question/options：{"kind":"question","questions":[{"field":"pages","question":"...","options":[{"label":"...","description":"推荐理由","recommended":true},{"label":"...","description":"..."}],"allowOther":true}],"rationale":"..."}。
-- 如果资料和 Prompt 已足够形成一份可审查方案，返回 {"kind":"ready","summary":"..."}，不要追问风格偏好。
+- 如果仍有关键缺口，只返回 questions 数组（style 之外最多 2 题，field 为 goal/pages/other），并带 recommendation；不要重复输出顶层 question/options：{"kind":"question","recommendation":{"styleId":"export-catalog","styleReason":"两个系列的参数行完整，适合目录浏览。","colorSetId":"colorSet:turquoise","colorSetReason":"资料明确服务洁净流体，适合松石强调。"},"questions":[{"field":"pages","question":"...","options":[{"label":"...","description":"推荐理由","recommended":true},{"label":"...","description":"..."}],"allowOther":true}],"rationale":"..."}。
+- 如果资料和 Prompt 已足够形成一份可审查方案，返回 {"kind":"ready","recommendation":{"styleId":"engineering-industrial","styleReason":"资料中的产品参数和加工能力适合工程选型。","colorSetId":"colorSet:graphite","colorSetReason":"资料中的重载工况适合石墨强调。"},"summary":"..."}，不要追问风格偏好，也不能省略 recommendation。
 - 问题必须针对这次 Prompt，不得套行业问卷，不得只问固定的风格、业务目标或工业问题。
 - 已明确的信息不要重复问；每题 2–4 个选项，必须给一个选项 recommended:true 并在 description 写推荐理由，所有问题允许其他（allowOther:true），选项必须是用户能判断的结果差异，描述简短。
 - 认证、参数、客户、产能、图片授权、联系方式等企业事实不能用推荐补造。缺失事实应问用户是否补充，或说明将按“待补充/无图版”继续。
@@ -550,8 +571,8 @@ export async function requestAlignmentPlan(args: {
       }
       const latencyMs = Date.now() - startedAt;
       return parsed.data.kind === "question"
-        ? { ok: true, kind: "question", question: parsed.data.question ?? parsed.data.questions?.[0]?.question ?? "还需要你补充一点信息。", options: parsed.data.options ?? parsed.data.questions?.[0]?.options ?? [], questions: parsed.data.questions, allowOther: parsed.data.allowOther, rationale: parsed.data.rationale ?? null, model, latencyMs }
-        : { ok: true, kind: "ready", summary: parsed.data.summary, model, latencyMs };
+        ? { ok: true, kind: "question", recommendation: parsed.data.recommendation, question: parsed.data.question ?? parsed.data.questions?.[0]?.question ?? "还需要你补充一点信息。", options: parsed.data.options ?? parsed.data.questions?.[0]?.options ?? [], questions: parsed.data.questions, allowOther: parsed.data.allowOther, rationale: parsed.data.rationale ?? null, model, latencyMs }
+        : { ok: true, kind: "ready", recommendation: parsed.data.recommendation, summary: parsed.data.summary, model, latencyMs };
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
       logModelFailure({ call: "alignment_plan", attempt, category: timedOut ? "timeout" : stage === "request" ? "network" : stage === "body" ? "parse" : "schema", startedAt: attemptStartedAt, response, error });

@@ -29,7 +29,10 @@ test("alignment prompt describes each block-library look before asking the model
     const body = JSON.parse(String(init?.body ?? "{}")) as { messages?: Array<{ role?: string; content?: string }> };
     systemPrompt = body.messages?.find((message) => message.role === "system")?.content ?? "";
     return new Response(JSON.stringify({
-      choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ kind: "ready", summary: "资料足够。" }) } }],
+      choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ kind: "ready", summary: "资料足够。", recommendation: {
+        styleId: "engineering-industrial", styleReason: "参数资料适合工程选型。",
+        colorSetId: "colorSet:warm-orange", colorSetReason: "工程资料适合暖橙入口。",
+      } }) } }],
     }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   try {

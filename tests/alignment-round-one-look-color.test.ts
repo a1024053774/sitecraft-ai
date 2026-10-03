@@ -32,6 +32,12 @@ globalThis.fetch = async (input, init) => {
     // The planner invents its own color set, the way DeepSeek did in the 2026-09-28 run.
     payload = {
       kind: "question",
+      recommendation: {
+        styleId: "export-catalog",
+        styleReason: "外贸目录按系列筛选。",
+        colorSetId: "colorSet:turquoise",
+        colorSetReason: "洁净流体和不锈钢接头适合冷静的松石强调。",
+      },
       questions: [
         { field: "style", question: "选择网站的样子", options: [
           { id: "export-catalog", label: "蓝白目录（推荐）", description: "外贸目录按系列筛选。", recommended: true },
@@ -48,7 +54,16 @@ globalThis.fetch = async (input, init) => {
       ],
     };
   } else if (planner) {
-    payload = { kind: "ready", summary: "资料已经足够形成首页方案。" };
+    payload = {
+      kind: "ready",
+      summary: "资料已经足够形成首页方案。",
+      recommendation: {
+        styleId: "engineering-industrial",
+        styleReason: "参数和加工能力适合工程选型。",
+        colorSetId: "colorSet:warm-orange",
+        colorSetReason: "工程资料适合暖橙行动入口。",
+      },
+    };
   } else if (raw.includes("EDIT_AFTER_0928")) {
     payload = { type: "edit", summary: "改首屏标题", operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "重载减速机，按图定制" }] };
   } else {

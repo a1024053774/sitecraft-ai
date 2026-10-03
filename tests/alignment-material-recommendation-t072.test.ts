@@ -84,6 +84,12 @@ test("alignment route chooses different looks from structured company shape whil
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
     kind: "question",
+    recommendation: {
+      styleId: "engineering-industrial",
+      styleReason: "模型样子理由",
+      colorSetId: "colorSet:turquoise",
+      colorSetReason: "模型颜色理由",
+    },
     questions: [
       { field: "style", question: "样子", allowOther: true, options: [
         { id: "engineering-industrial", label: "工程工业", description: "模型样子理由", recommended: true },
