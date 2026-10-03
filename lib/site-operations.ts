@@ -11,6 +11,8 @@ import {
   commercialTermSchema,
   commercialTermValueSchema,
   commercialTermsSchema,
+  equipmentItemSchema,
+  equipmentSchema,
   ensureProductIds,
   normalizeDraft,
   blockIdSchema,
@@ -39,6 +41,7 @@ import {
   type CatalogSectionValue,
   type CommercialTerm,
   type CommercialTermKind,
+  type EquipmentItem,
   type EditableCard,
   type Locale,
   type Product,
@@ -138,6 +141,26 @@ const updateCommercialTermOperationSchema = z.object({
 const removeCommercialTermOperationSchema = z.object({
   op: z.literal("remove_commercial_term"),
   termId: z.string().min(1).max(80),
+});
+const replaceEquipmentOperationSchema = z.object({
+  op: z.literal("replace_equipment"),
+  equipment: equipmentSchema,
+  englishReadyBefore: z.boolean().optional(),
+});
+const updateEquipmentOperationSchema = z.object({
+  op: z.literal("update_equipment"),
+  equipmentId: z.string().min(1).max(80),
+  name: localizedTextSchema.optional(),
+  quantity: z.number().int().nonnegative().nullable().optional(),
+  spec: localizedTextSchema.nullable().optional(),
+  englishReadyBefore: z.boolean().optional(),
+}).strict().refine(
+  (operation) => operation.name !== undefined || operation.quantity !== undefined || operation.spec !== undefined,
+  "Equipment update requires name, quantity or spec",
+);
+const removeEquipmentOperationSchema = z.object({
+  op: z.literal("remove_equipment"),
+  equipmentId: z.string().min(1).max(80),
 });
 const removeCardOperationSchema = z.object({
   op: z.literal("remove_card"),
@@ -260,6 +283,9 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   replaceCommercialTermsOperationSchema,
   updateCommercialTermOperationSchema,
   removeCommercialTermOperationSchema,
+  replaceEquipmentOperationSchema,
+  updateEquipmentOperationSchema,
+  removeEquipmentOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -285,6 +311,9 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   replaceCommercialTermsOperationSchema,
   updateCommercialTermOperationSchema,
   removeCommercialTermOperationSchema,
+  replaceEquipmentOperationSchema,
+  updateEquipmentOperationSchema,
+  removeEquipmentOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -955,6 +984,70 @@ export function applySiteOperations(
       appliedTargets.push("commercialTerms.visibility");
       continue;
     }
+    if (operation.op === "replace_equipment") {
+      const previous = structuredClone(draft.content.equipment);
+      const next = equipmentSchema.parse(structuredClone(operation.equipment));
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "replace_equipment", equipment: previous, englishReadyBefore: previousEnglishReady });
+      draft.content.equipment = next;
+      if (next.some((item) => !isGapMarker(item.name.en) || (item.spec && !isGapMarker(item.spec.en)))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      if (next.length) {
+        appliedTargets.push("equipment");
+        for (const item of next) {
+          appliedTargets.push(`equipment.items.${item.id}.name.zh`, `equipment.items.${item.id}.name.en`);
+          if (item.quantity !== null) appliedTargets.push(`equipment.items.${item.id}.quantity`);
+          if (item.spec && !isGapMarker(item.spec.zh)) appliedTargets.push(`equipment.items.${item.id}.spec.zh`, `equipment.items.${item.id}.spec.en`);
+        }
+      } else {
+        appliedTargets.push("equipment.visibility");
+      }
+      continue;
+    }
+    if (operation.op === "update_equipment") {
+      const index = draft.content.equipment.findIndex((item) => item.id === operation.equipmentId);
+      const previous = index >= 0 ? draft.content.equipment[index] : undefined;
+      if (!previous) throw new Error(`Equipment ${operation.equipmentId} does not exist`);
+      const next = equipmentItemSchema.parse({
+        ...previous,
+        ...(operation.name !== undefined ? { name: structuredClone(operation.name) } : {}),
+        ...(operation.quantity !== undefined ? { quantity: operation.quantity } : {}),
+        ...(operation.spec !== undefined ? { spec: structuredClone(operation.spec) } : {}),
+      });
+      const nextEquipment = structuredClone(draft.content.equipment);
+      nextEquipment[index] = next;
+      equipmentSchema.parse(nextEquipment);
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({
+        op: "update_equipment",
+        equipmentId: previous.id,
+        name: structuredClone(previous.name),
+        quantity: previous.quantity,
+        spec: structuredClone(previous.spec),
+        englishReadyBefore: previousEnglishReady,
+      });
+      draft.content.equipment[index] = next;
+      if (!isGapMarker(next.name.en) || (next.spec && !isGapMarker(next.spec.en))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      appliedTargets.push("equipment");
+      if (!same(previous.name, next.name)) appliedTargets.push(`equipment.items.${next.id}.name.zh`, `equipment.items.${next.id}.name.en`);
+      if (previous.quantity !== next.quantity) appliedTargets.push(`equipment.items.${next.id}.quantity`);
+      if (!same(previous.spec, next.spec)) {
+        if (next.spec && !isGapMarker(next.spec.zh)) appliedTargets.push(`equipment.items.${next.id}.spec.zh`, `equipment.items.${next.id}.spec.en`);
+      }
+      continue;
+    }
+    if (operation.op === "remove_equipment") {
+      const index = draft.content.equipment.findIndex((item) => item.id === operation.equipmentId);
+      if (index < 0) throw new Error(`Equipment ${operation.equipmentId} does not exist`);
+      const previous = structuredClone(draft.content.equipment);
+      inverseOperations.unshift({ op: "replace_equipment", equipment: previous, englishReadyBefore: draft.englishReady });
+      draft.content.equipment.splice(index, 1);
+      appliedTargets.push("equipment.visibility");
+      continue;
+    }
     if (operation.op === "remove_card") {
       const items = draft.content[operation.section].items;
       const index = items.findIndex((item) => item.id === operation.itemId);
@@ -1464,6 +1557,46 @@ export function validateAIOperations(
       }
       continue;
     }
+    if (operation.op === "replace_equipment") {
+      const equipment = groundEquipment(operation.equipment, message, rejected);
+      if (equipment.length) {
+        accepted.push({ ...operation, equipment });
+      } else {
+        rejected.push("没有可写入的设备，整组没有修改");
+      }
+      continue;
+    }
+    if (operation.op === "update_equipment") {
+      if (!draft) {
+        accepted.push(operation);
+        continue;
+      }
+      const current = draft.content.equipment.find((item) => item.id === operation.equipmentId);
+      if (!current) {
+        rejected.push(`设备 ${operation.equipmentId} 不存在`);
+        continue;
+      }
+      const candidate = equipmentItemSchema.safeParse({
+        ...current,
+        ...(operation.name !== undefined ? { name: operation.name } : {}),
+        ...(operation.quantity !== undefined ? { quantity: operation.quantity } : {}),
+        ...(operation.spec !== undefined ? { spec: operation.spec } : {}),
+      });
+      if (!candidate.success) {
+        rejected.push("设备修改未通过完整设备数组校验");
+        continue;
+      }
+      const grounded = groundEquipment([candidate.data], message, rejected)[0];
+      if (!grounded) continue;
+      const nextEquipment = draft.content.equipment.map((item) => item.id === grounded.id ? grounded : item);
+      const checkedEquipment = equipmentSchema.safeParse(nextEquipment);
+      if (!checkedEquipment.success) {
+        rejected.push("设备修改未通过完整设备数组校验");
+        continue;
+      }
+      accepted.push({ ...operation, name: grounded.name, quantity: grounded.quantity, spec: grounded.spec });
+      continue;
+    }
     if (operation.op === "update_commercial_term") {
       if (!draft) {
         accepted.push(operation);
@@ -1521,7 +1654,23 @@ export function validateAIOperations(
     }
     accepted.push(operation);
   }
-  const checked = draft ? checkLayoutRequests(accepted, draft, templateIds, rejected, notes) : accepted;
+  const equipmentNames = new Set<string>();
+  if (draft) for (const item of draft.content.equipment) equipmentNames.add(item.name.zh.trim());
+  for (const operation of accepted) {
+    if (operation.op === "replace_equipment") for (const item of operation.equipment) equipmentNames.add(item.name.zh.trim());
+    if (operation.op === "update_equipment" && operation.name) equipmentNames.add(operation.name.zh.trim());
+  }
+  const deduped = accepted.map((operation) => {
+    if (operation.op !== "set_catalog_section" || operation.section !== "capabilities" || !operation.value || !equipmentNames.size) return operation;
+    const items = operation.value.items.filter((item) => {
+      const text = `${item.title.zh} ${item.body.zh}`;
+      const duplicate = [...equipmentNames].some((name) => name && text.includes(name));
+      if (duplicate) rejected.push(`加工能力条目重复设备事实，已忽略「${item.title.zh}」`);
+      return !duplicate;
+    });
+    return { ...operation, value: { ...operation.value, items } };
+  });
+  const checked = draft ? checkLayoutRequests(deduped, draft, templateIds, rejected, notes) : deduped;
   return { operations: checked, rejected, notes };
 }
 
@@ -1709,6 +1858,79 @@ function groundCommercialTerm(term: CommercialTerm, materials: string, rejected:
     return null;
   }
   return { ...term, value: { zh, en } };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function equipmentSourceHasName(source: string, name: string): boolean {
+  return source.includes(name.trim());
+}
+
+function equipmentQuantityIsAdjacent(source: string, name: string, quantity: number): boolean {
+  const pattern = new RegExp(`${escapeRegExp(name.trim())}\\s*${quantity}(?=\\s*(?:台|套|个|件|units?|machines?|sets?)?\\b|[（(，,；;。.!！?？]|$)`, "i");
+  return pattern.test(source);
+}
+
+function equipmentSourceIsProcessOnly(source: string, name: string, quantity: number | null): boolean {
+  if (!/加工能力\s*\/\s*主设备/.test(source)) return false;
+  return quantity === null || !equipmentQuantityIsAdjacent(source, name, quantity);
+}
+
+function equipmentEnglishMatches(item: EquipmentItem, fragment: CommercialFactFragment): boolean {
+  const zhParts = [item.name.zh, item.spec?.zh ?? ""].join(" ");
+  const enParts = [item.name.en, item.spec?.en ?? ""].join(" ");
+  const zhNumbers = canonicalCommercialNumbers(zhParts).sort();
+  const enNumbers = canonicalCommercialNumbers(enParts).sort();
+  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers)) return false;
+  if (item.spec && !commercialUnitsMatch(item.spec.zh, item.spec.en)) return false;
+  const sourceCodes = new Set(englishCommercialCodes(`${fragment.source} ${item.name.zh} ${item.spec?.zh ?? ""}`).map((code) => code.toUpperCase()));
+  return englishCommercialCodes(enParts).every((code) => sourceCodes.has(code.toUpperCase()));
+}
+
+function groundEquipmentItem(item: EquipmentItem, materials: string, rejected: string[]): EquipmentItem | null {
+  const nameZh = item.name.zh.trim();
+  const nameEn = item.name.en.trim();
+  if (!nameZh || !nameEn || isGapMarker(nameZh) || isGapMarker(nameEn)) {
+    rejected.push(`设备「${nameZh || nameEn}」名称为空，已忽略`);
+    return null;
+  }
+  if (item.quantity !== null && (!Number.isInteger(item.quantity) || item.quantity < 0)) {
+    rejected.push(`设备「${nameZh}」数量必须是非负整数，已忽略`);
+    return null;
+  }
+  const specZh = item.spec?.zh.trim() ?? "";
+  const specEn = item.spec?.en.trim() ?? "";
+  const fragment = commercialFactFragments(materials).find((candidate) => {
+    if (!equipmentSourceHasName(candidate.source, nameZh)) return false;
+    if (equipmentSourceIsProcessOnly(candidate.source, nameZh, item.quantity)) return false;
+    if (specZh && !equipmentSourceHasName(candidate.source, specZh)) return false;
+    if (item.quantity !== null && !equipmentQuantityIsAdjacent(candidate.source, nameZh, item.quantity)) return false;
+    return true;
+  });
+  if (!fragment || !equipmentEnglishMatches(item, fragment)) {
+    rejected.push(`设备「${nameZh}」的名称、数量或规格不在同一句资料中，已忽略`);
+    return null;
+  }
+  if (item.spec && (!specZh || !specEn || isGapMarker(specZh) || isGapMarker(specEn))) {
+    rejected.push(`设备「${nameZh}」的规格为空，已忽略`);
+    return null;
+  }
+  return {
+    ...item,
+    name: { zh: nameZh, en: nameEn },
+    spec: item.spec ? { zh: specZh, en: specEn } : null,
+  };
+}
+
+function groundEquipment(items: EquipmentItem[], materials: string, rejected: string[]): EquipmentItem[] {
+  const grounded: EquipmentItem[] = [];
+  for (const item of items) {
+    const next = groundEquipmentItem(item, materials, rejected);
+    if (next) grounded.push(next);
+  }
+  return grounded;
 }
 
 function materialsIncludesFact(materials: string, value: string) {
