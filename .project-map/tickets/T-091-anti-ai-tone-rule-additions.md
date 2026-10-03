@@ -4,7 +4,7 @@ title: 去 AI 味规则补主任务、单主按钮、状态不只靠颜色，区
 type: build
 status: open
 blocked_by: [T-084]
-claimed_by:
+claimed_by: rs-rules
 supersedes:
 ---
 

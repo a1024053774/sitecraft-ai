@@ -4,7 +4,7 @@ title: 批注契约、批注存储和挑着撤（不碰预览桥）
 type: build
 status: open
 blocked_by: [T-084]
-claimed_by:
+claimed_by: rs-komo
 supersedes:
 ---
 

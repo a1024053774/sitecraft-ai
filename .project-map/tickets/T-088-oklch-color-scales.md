@@ -4,7 +4,7 @@ title: 用 OKLCH 把种子色展开成完整色阶，替换自定义品牌色的
 type: build
 status: open
 blocked_by: [T-084]
-claimed_by:
+claimed_by: rs-color
 supersedes:
 ---
 

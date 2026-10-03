@@ -4,7 +4,7 @@ title: 自制第一批区块图标和图标注册表（联系、认证）
 type: build
 status: open
 blocked_by: [T-084]
-claimed_by:
+claimed_by: rs-iconfont
 supersedes:
 ---
 
