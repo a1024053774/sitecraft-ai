@@ -38,6 +38,7 @@ import {
   type CatalogSectionKey,
   type CatalogSectionValue,
   type CommercialTerm,
+  type CommercialTermKind,
   type EditableCard,
   type Locale,
   type Product,
@@ -1585,6 +1586,14 @@ function groundCommercialTerms(terms: CommercialTerm[], materials: string, rejec
 }
 
 const COMMERCIAL_NUMBER_RE = /\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?/g;
+const COMMERCIAL_KIND_HINTS: Record<CommercialTermKind, string[]> = {
+  moq: ["moq", "起订量", "minimum order"],
+  lead_time: ["交期", "lead time", "lead-time", "天数"],
+  capacity: ["产能", "年产", "月注塑", "capacity"],
+  trade_terms: ["贸易条款", "trade terms", "fob", "exw", "cif"],
+  payment: ["付款", "payment"],
+  packaging: ["包装", "packaging"],
+};
 
 function canonicalCommercialNumbers(value: string): string[] {
   return [...value.matchAll(COMMERCIAL_NUMBER_RE)].map((match) => match[0].replace(/[\s,]/g, "").replace(/—/g, "–"));
@@ -1594,11 +1603,44 @@ function commercialFactTokens(value: string): string[] {
   return value.match(/[A-Za-z]+|\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?|[\u3400-\u9fff]+/g) ?? [];
 }
 
-function materialContainsCommercialFact(materials: string, value: string): boolean {
-  if (materialsIncludesFact(materials, value)) return true;
-  const compactMaterials = materials.replace(/\s+/g, "");
-  const tokens = commercialFactTokens(value);
-  return tokens.length > 0 && tokens.every((token) => compactMaterials.includes(token.replace(/\s+/g, "")));
+function stripWrappedCommercialInstructions(materials: string): string {
+  const input = materials.trim();
+  if (!input.startsWith("【公司资料】")) return materials;
+  const bodyStart = input.indexOf("资料性质：模拟。");
+  return bodyStart >= 0 ? input.slice(bodyStart) : materials;
+}
+
+type CommercialFactFragment = { text: string; context: string };
+
+function commercialFactFragments(materials: string): CommercialFactFragment[] {
+  const source = stripWrappedCommercialInstructions(materials);
+  return source.split(/\r?\n/).flatMap((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return [];
+    const context = Object.entries(COMMERCIAL_KIND_HINTS)
+      .filter(([, hints]) => hints.some((hint) => trimmed.toLowerCase().includes(hint.toLowerCase())))
+      .map(([kind]) => kind)
+      .join(" ");
+    return trimmed.split(/[；;。！？!?]/).map((text) => ({ text: text.trim(), context })).filter((item) => item.text);
+  });
+}
+
+function commercialFactFragmentMatches(fragment: CommercialFactFragment, clause: string, kind: CommercialTermKind): boolean {
+  const hints = COMMERCIAL_KIND_HINTS[kind];
+  const source = fragment.text.toLowerCase();
+  const related = hints.some((hint) => source.includes(hint.toLowerCase())) || fragment.context.includes(kind);
+  if (!related) return false;
+  const fragmentNumbers = new Set(canonicalCommercialNumbers(fragment.text));
+  for (const number of canonicalCommercialNumbers(clause)) if (!fragmentNumbers.has(number)) return false;
+  const compact = source.replace(/\s+/g, "");
+  return commercialFactTokens(clause).every((token) => compact.includes(token.replace(/\s+/g, "").toLowerCase()));
+}
+
+function materialContainsCommercialFact(materials: string, value: string, kind: CommercialTermKind): boolean {
+  if (materialsIncludesFact(stripWrappedCommercialInstructions(materials), value)) return true;
+  const clauses = value.split(/[；;。！？!?\n]+/).map((clause) => clause.trim()).filter(Boolean);
+  const fragments = commercialFactFragments(materials);
+  return clauses.length > 0 && clauses.every((clause) => fragments.some((fragment) => commercialFactFragmentMatches(fragment, clause, kind)));
 }
 
 function groundCommercialTerm(term: CommercialTerm, materials: string, rejected: string[]): CommercialTerm | null {
@@ -1611,7 +1653,7 @@ function groundCommercialTerm(term: CommercialTerm, materials: string, rejected:
   const materialNumbers = new Set(canonicalCommercialNumbers(materials));
   const numbers = [...canonicalCommercialNumbers(zh), ...canonicalCommercialNumbers(en)];
   const hasOutOfMaterialNumber = numbers.some((number) => !materialNumbers.has(number));
-  if (hasOutOfMaterialNumber || !materialContainsCommercialFact(materials, zh)) {
+  if (hasOutOfMaterialNumber || !materialContainsCommercialFact(materials, zh, term.kind)) {
     rejected.push(`商业条款「${term.kind}」的值不在资料中，已忽略`);
     return null;
   }

@@ -7,7 +7,7 @@ import { composedPageForTemplate } from "../lib/blocks/compose.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
 import { parseHtmlDocument, visibleText } from "./fixtures/html-dom.ts";
-import { simulatedPacks } from "../lib/simulated-packs.ts";
+import { simulatedPacks, wrapCompanyMaterials } from "../lib/simulated-packs.ts";
 
 const options = { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing"]), lastChange: "commercial terms" };
 const localized = (zh: string, en: string) => ({ zh, en });
@@ -76,6 +76,58 @@ test("trade terms survive a faithful wording change when the material facts are 
   } as never], options.templateIds, withTerms([]));
   assert.equal(checked.operations.length, 1);
   assert.deepEqual((checked.operations[0] as never as { terms: Array<{ id: string }> }).terms.map((term) => term.id), ["trade-terms"]);
+});
+
+test("the four commercial terms in the molding materials remain grounded", () => {
+  const terms = [
+    { id: "moq", kind: "moq", value: localized("注塑件 5000 件起；模具单套起接", "Molded parts from 5,000 pcs; molds from one set") },
+    { id: "lead", kind: "lead_time", value: localized("模具 25–55 天；批量注塑件在模具确认后 15–20 天", "Molds 25–55 days; volume molded parts 15–20 days after mold approval") },
+    { id: "capacity", kind: "capacity", value: localized("模具年产约 180 套；注塑机 42 台（90–800 t），月注塑能力约 600 万件", "About 180 molds per year; 42 injection machines (90–800 t), about 6 million parts per month") },
+    { id: "trade", kind: "trade_terms", value: localized("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo and EXW are common; CIF by agreement") },
+  ];
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{ op: "replace_commercial_terms", terms } as never], options.templateIds, withTerms([]));
+  assert.equal(checked.operations.length, 1);
+  assert.deepEqual((checked.operations[0] as never as { terms: Array<{ kind: string }> }).terms.map((term) => term.kind), ["moq", "lead_time", "capacity", "trade_terms"]);
+});
+
+test("commercial terms reject cross-fact FOB and MOQ number splicing", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "bad-fob", kind: "trade_terms", value: localized("FOB 5000", "FOB 5,000") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial terms reject a trade term paired with a company-name place", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "bad-place", kind: "trade_terms", value: localized("FOB 宁海", "FOB Ninghai") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial terms reject a trade term paired with capacity numbers", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "bad-capacity", kind: "trade_terms", value: localized("EXW 180 套", "EXW 180 sets") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial terms reject a trade term paired with monthly capacity", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "bad-monthly", kind: "trade_terms", value: localized("CIF 600 万件", "CIF 6 million parts") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial terms ignore wrapper instructions when checking a payment fact", () => {
+  const checked = validateAIOperations(wrapCompanyMaterials(simulatedPacks.molding.body), [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "instruction-payment", kind: "payment", value: localized("付款方式：EXW", "Payment: EXW") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
 });
 
 test("commercial term validation drops empty and material-invented numeric values", () => {
