@@ -30,12 +30,10 @@ T-078 的第一条线。用「商业条款」一项打通每一层，页面上�
 
 ## Resolution
 
-2026-10-03，Astra NO_GO 后在最终提交 `80556014257cd57d6b851b710faa8039779300e1` 修复：
+2026-10-03，Astra 复审 NO_GO 后在最终提交 `749ef0f018e12e3d613436e904838918343e2774` 修复：
 
-- `update_commercial_term` 写入前对完整更新数组重新跑 `commercialTermsSchema`；`validateAIOperations` 使用同一约束，重复 kind 被拒绝。
-- 中英文值都提取数字并按规范化数字/范围核对资料；英文 gap 标记也被拒绝。资料原句改写只要求中文条款词和数字等关键事实都在资料中，不接受资料外事实。
-- 结构化抽取提示明确要求写出资料中每个商业条款。最终真实 DeepSeek 原始 operation 保存在 `artifacts/t079/summary.json`：注塑条款包含 `trade_terms`（FOB 宁波、EXW、CIF），证明此前是模型/过滤路径缺少可观测性，修复后已落稿。
-- 四条回归红证据在 755894c 上分别保存于 `artifacts/t079/red-rework-p1-1.txt`、`red-rework-p1-2.txt`、`red-rework-p2-1.txt`、`red-rework-p2-2.txt`；修复后 `tests/commercial-terms.test.ts` 及相关 operation 测试 29/29 通过。
-- 最终 DeepSeek 命令：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T079_PACKS=industrial,export,molding node --experimental-strip-types artifacts/t079/generate.mjs`。三份均 `applied`，资料/数字核对均 true；原始商业条款 operation 只保存 operation，不保存 prompt、资料原文或密钥。
-- `npm run typecheck`、`npm run build` 通过。设置 `CHROME_PATH` 后全量 `npm test` 为 611 通过、6 失败，失败均为未初始化 vendor 子模块的 fresh/template 资产检查，日志为 `artifacts/t079/npm-test-rework.log`，因此全量勾选项仍未勾选。
-- 最终三家 `check-published` 中英文 1440/768/375 通过，事实缺失为 0：`artifacts/t079/published-check-rework/report.json`。
+- 商业事实核对先去掉 `wrapCompanyMaterials` 指令，只使用原始资料正文；资料按换行、句号、分号切成事实片段。每个条款值按子句逐片段核对，条款种类相关关键词和数字必须在同一事实片段共现，不能跨片段拼接。
+- 四条跨事实/指令污染回归测试在 `c29e19c` 基线上分别保存于 `artifacts/t079/red-rework2-fob-number.txt`、`red-rework2-fob-place.txt`、`red-rework2-exw-capacity.txt`、`red-rework2-cif-monthly.txt`、`red-rework2-instruction.txt`，均为行为级失败；修复后商业条款测试 15/15 通过，注塑四条真实条款测试通过。
+- 最终真实 DeepSeek 命令：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T079_PACKS=industrial,export,molding node --experimental-strip-types artifacts/t079/generate.mjs`。三份均 `applied`，原始 operation 保存在 `artifacts/t079/summary.json`；注塑 operation 明确包含 `trade_terms`（FOB 宁波、EXW、CIF），数字和资料核对均 true。
+- `npm run typecheck`、`npm run build` 通过；全量 `npm test` 为 617 通过、6 失败，6 项均为未初始化 vendor 子模块的 fresh/template 资产检查，日志为 `artifacts/t079/npm-test-final-rework2.log`。
+- 最终三家 `check-published` 中英文 1440/768/375 通过，事实缺失为 0：`artifacts/t079/published-check-final-rework/report.json`。
