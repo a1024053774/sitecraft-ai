@@ -41,3 +41,10 @@ check-published 扩展（2026-10-03）：
 
 - `scripts/check-published.mjs` 的固定等待 inventory 已补入 `artifacts/t099/wall-clock-inventory.md`：Chrome 启动、iframe 目标、CTA smooth-scroll、表单 resize/scroll、lead persistence、整页截图和重启；visitor layout scanner 保持同步取数，不放宽任何事实/行长/溢出/覆盖断言。
 - 高负载（6 个 CPU hog，`artifacts/t099/uptime-check-published-high.txt`）对主工作区 report 中 12 个唯一站点、3 个宽度全部完成，`material facts missing` 为 0，逐站输出 `artifacts/t099/check-published-high.txt`，报告 `check-published-high/report.json`。当前分支 checker 报告 0 条失败；主工作区参考报告的 16 条行长预期仍由 T-101 处理，未扩大本票范围。
+
+主线/T-089 合并后的最终对照（merge `2576213`，结果提交待本次 Resolution commit）：
+
+- 低负载基线使用主工作区 12 个站点 JSON（只读复制到本 worktree ignored store），报告 `artifacts/t099/check-published-low-main-records/report.json`：36 个页面、16 条失败，全部是参考报告中的中文/英文正文行长。
+- 高负载运行前 1 分钟负载记录在 `uptime-check-published-high-merge-2576213.txt`（运行期间超过 20），报告 `artifacts/t099/check-published-high-merge-2576213/report.json`：同样 36 个页面、16 条失败，无 facts missing 或其他新失败。
+- `artifacts/t099/check-published-failure-diff.txt` 逐项比较两份 report，`low=16 high=16 same=True`。
+- 合并后的全量 `npm test` 为 **703/703、0 失败**（`artifacts/t099/npm-test-merge-2576213.txt`），typecheck/build 已在合并代码上通过；T-099 状态保持 open，未启动其他票。
