@@ -228,6 +228,7 @@ try {
           await mount(browser, tab.sessionId, draft);
           const scan = await browser.eval(SCAN, tab.sessionId);
           if (scan.error) throw new Error(`${item.id}/${width}/${kind}: ${scan.error}`);
+          if (!scan.box.width || !scan.box.height) throw new Error(`${item.id}/${width}/${kind}: the block is on the page but not shown (hidden section? box ${JSON.stringify(scan.box)})`);
           if (scan.variant !== (kind === "candidate" ? VARIANT : defaultVariant)) throw new Error(`${item.id}/${width}/${kind}: block shows variant ${scan.variant}`);
           const file = path.join("crops", `${item.id}-${width}-${kind}.png`);
           await shoot(browser, tab.sessionId, path.join(OUT, file), scan.box);
