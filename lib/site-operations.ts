@@ -1306,35 +1306,6 @@ function cleanVisitorProse(operation: AIOperation): AIOperation {
 }
 
 const INTERNAL_REASON = /HTML|CSS|快照|URL|声明|区块|字段|模板|槽|slot|operation/i;
-// T-091: planning/review language is for internal selection, never visitor copy.
-// Keep this list at the root of the operation validator so every text-bearing operation
-// shares the same rejection path; do not add a parallel model API for it.
-const PLANNING_META_TALK = /(?:本(?:区块|页面|模块)[^。！？!?；;]{0,24}(?:亮点|记忆点|主任务|可观察结果)|(?:与|和|比|相比)[^。！？!?；;]{0,12}(?:其他|已有|默认)[^。！？!?；;]{0,12}(?:版式|布局|区块|模板)[^。！？!?；;]{0,12}(?:不同|差异)|(?:点击后|点击这个|点按后)[^。！？!?；;]{0,16}(?:将会|会)[^。！？!?；;]{0,24}(?:发生|打开|进入|跳转|触发)|(?:规则本身|布局差异|建站过程|提示词|模型提示)[^。！？!?；;]{0,16}(?:写|说明|展示|体现))/i;
-
-function operationTextValues(operation: AIOperation): string[] {
-  const values: string[] = [];
-  const add = (value: unknown) => {
-    if (typeof value === "string") values.push(value);
-    else if (value && typeof value === "object" && "zh" in value && "en" in value) {
-      values.push(String(value.zh), String(value.en));
-    }
-  };
-  if (operation.op === "set_text") add(operation.value);
-  if (operation.op === "update_card") { add(operation.title); add(operation.body); }
-  if (operation.op === "add_card") { add(operation.item.title); add(operation.item.body); }
-  if (operation.op === "replace_cards") for (const item of operation.items) { add(item.title); add(item.body); }
-  if (operation.op === "update_product") { add(operation.name); add(operation.summary); add(operation.category); }
-  if (operation.op === "replace_products") for (const product of operation.products) { add(product.name); add(product.summary); add(product.category); }
-  if (operation.op === "set_catalog_section" && operation.value) {
-    add(operation.value.title); add(operation.value.intro);
-    for (const item of operation.value.items) { add(item.title); add(item.body); }
-  }
-  return values;
-}
-
-function hasPlanningMetaTalk(operation: AIOperation) {
-  return operationTextValues(operation).some((value) => PLANNING_META_TALK.test(value));
-}
 
 /**
  * Checks the model's layout requests on the draft its other changes produce (T-053): a layout the
@@ -1394,10 +1365,6 @@ export function validateAIOperations(
   const accepted: SiteOperation[] = [];
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
   for (const rawOperation of operations) {
-    if (hasPlanningMetaTalk(rawOperation)) {
-      rejected.push("页面文案含规划说明，已拒绝");
-      continue;
-    }
     const operation = cleanVisitorProse(rawOperation);
     if (operation.op === "reorder_sections") {
       const rawOrder = operation.order;

@@ -260,19 +260,6 @@ test("generation refuses a model instruction as the FAQ intro and a card whose t
   assert.match(validated.rejected.join("\n"), /标题和正文都缺/);
 });
 
-test("generation rejects planning meta-talk paraphrases from page copy and card bodies", () => {
-  const validated = validateAIOperations("按资料更新首屏和 FAQ", [
-    { op: "set_text", target: "hero.subtitle", locale: "zh", value: "本区块的亮点在于把参数集中展示。" },
-    { op: "update_card", section: "faq", itemId: "faq-1", locale: "zh", body: "与其他版式不同，这一版更适合当前页面。" },
-    { op: "update_card", section: "services", itemId: "service-1", locale: "zh", body: "点击后将会打开询盘表单。" },
-  ], templateIds, defaultDraft);
-  assert.equal(validated.operations.length, 0);
-  assert.match(validated.rejected.join("\n"), /规划说明|页面文案/);
-  const applied = applySiteOperations(defaultDraft, validated.operations, { templateIds, lastChange: "planning-meta" });
-  const draftText = JSON.stringify(applied.draft.content);
-  assert.doesNotMatch(draftText, /本区块的亮点|其他版式不同|点击后将会/);
-});
-
 test("engineering palette changes are named, reversible, and same-family only", () => {
   const options = { templateIds: new Set(["forge", "screwfast"]), lastChange: "palette-compare" };
   const engineering = applySiteOperations(structuredClone(defaultDraft), [
