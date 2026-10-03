@@ -35,7 +35,7 @@ supersedes:
 ### 每一步的命令与证据（路径都在 `artifacts/blocks-pool/product-index-table/`，gitignore）
 1. **制作**：新变体 `products:index`「型号索引表」，要至少 3 个可见产品；改动见提交 `c248775`。参考 HyperUI 的 table 列表结构思路（MIT），类名、token、响应式手写，没复制代码。
 2. **候选渲染**：
-   - 命令：`SITE_STORE=fs PORT=3035 npm run dev` 后 `CHROME_PATH=<chrome-headless-shell> SITECRAFT_BASE=http://127.0.0.1:3035 node artifacts/blocks-pool/render-block.mjs --block products --variant index --name product-index-table`（任意候选换 `--block/--variant/--name`；`--cases <json>` 换案例）。
+   - 命令：`SITE_STORE=fs PORT=3035 npm run dev` 后 `CHROME_PATH=<chrome-headless-shell> SITECRAFT_BASE=http://127.0.0.1:3035 node scripts/render-block.mjs --block products --variant index --name product-index-table`（任意候选换 `--block/--variant/--name`；`--cases <json>` 换案例）。
    - 输出：`crops/`（7 案例 × 1440/768/375 × 候选/默认，共 42 张）、`context/`（1440 整页 7 张）、`scan.md`、`scan.json`、`candidate.md`。
    - 扫描（横向溢出、被裁文字、文字重叠）：21 行全部 0；候选裁切图每张逐张打开看过（两轮渲染都看了）。
 3. **AI 味审查**（codex-taste）：`review-1.md` = REVISE（简介与规格重复；forge 样子无行边界），`review-2.md` = ACCEPT。返工：不显示简介（选 (a)，理由写在 `candidate.md`）、加 `--site-index-row` token。
@@ -50,7 +50,7 @@ supersedes:
 ### 卡住或返工的地方（T-074 批量做之前要改）
 - **worktree 的环境**：`node_modules` 软链指向主工作区会让 Turbopack 的 dev 和 build 都直接报 `Symlink [project]/node_modules is invalid`（`build-turbopack-symlink-failure.txt`）；用 `--webpack` 能跑 dev，但 `next build --webpack` 会在无关页面（leads/published/quality/预览 route）的生成类型上失败（`build-webpack-typegen-failure.txt`）。最后把软链换成 `cp -cR` 的 APFS 克隆（2 秒、不占额外空间）才让 `npm run build` 和 dev 都正常。**建议以后建 blocks-pool 类 worktree 时直接克隆 node_modules。**
 - **`npm run typecheck` 会被 `next dev` 污染**：dev server 生成的 `.next/dev/types` 里 preview route 的 `prepareHtml` 导出让 `tsc` 报错；要在没有 dev server、删掉 `.next` 后跑 typecheck。`next dev` 还会改 `next-env.d.ts`，每次提交前要 `git checkout next-env.d.ts`。
-- **渲染脚本在 gitignore 的 `artifacts/` 里**，合回主线时不会跟着走。T-074 要么挪到 `scripts/`，要么 `git add -f`；挪动前先让负责人定。
+- **渲染脚本在 gitignore 的 `artifacts/` 里**，合回主线时不会跟着走。T-074 要么挪到 `scripts/`，要么 `git add -f`；挪动前先让负责人定。（已在 T-074 开头挪到 `scripts/render-block.mjs`，随代码合并。）
 - **浏览器测试的端口**：现有浏览器测试大多写死 `127.0.0.1:3034`（`short-path-variants-browser` 等），在 worktree 里要靠 `SITECRAFT_BASE` 才能指向自己的 dev server；新测试用共用的 `base`。建议 T-074 起新增测试都用它。
 - **资料条件的设计**：只要求 ≥3 个产品，某产品参数不足 3 项时那行就是空格；工业、外贸两家真实草稿只有 2 个产品，所以这个布局对它们会被拒绝，验证它们的效果只能靠「借产品」的压力测试案例。批量做时每个新布局都要有「能看到它的真实资料」，否则审查看到的是借来的数据。
 - **布局选用提示词和 `ai-provider.ts`**：只在「怎么选」那句话里加了一句（`ai-provider.ts` 两处小改），合并 T-070 时要留意这一行和 `requirementText` 的新分支。
