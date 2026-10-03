@@ -1636,8 +1636,9 @@ function commercialFactFragments(materials: string): CommercialFactFragment[] {
 }
 
 function englishCommercialCodes(value: string): string[] {
-  const known = /\b(?:MOQ|FOB|EXW|CIF|DAP|DDP|FCA|CFR|CPT|USD|EUR)\b|\bT\/T\b/gi;
-  return (value.match(known) ?? []).map((code) => code.toUpperCase());
+  const known = /\b(?:EXW|FCA|FAS|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP|MOQ|CNY|RMB|USD|EUR|JPY|GBP|HKD|CAD|AUD|SGD|KRW|INR|CHF|T\/T|L\/C|D\/P|D\/A|O\/A)\b/gi;
+  const uppercase = /\b[A-Z][A-Z0-9/]{1,5}\b/g;
+  return [...(value.match(known) ?? []), ...(value.match(uppercase) ?? [])].map((code) => code.toUpperCase()).filter((code, index, all) => all.indexOf(code) === index);
 }
 
 const COMMERCIAL_UNIT_RULES = [

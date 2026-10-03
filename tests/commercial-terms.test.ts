@@ -194,6 +194,22 @@ test("kind context cannot leak from a later sentence on the same source line", (
   assert.deepEqual(checked.operations, []);
 });
 
+test("commercial term codes reject an ungrounded uppercase CNY code", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "cny-code", kind: "trade_terms", value: localized("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo, EXW, CNY") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial term codes reject an ungrounded lowercase rmb code", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "rmb-code", kind: "trade_terms", value: localized("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo, EXW, rmb") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
 test("commercial term validation drops empty and material-invented numeric values", () => {
   const message = "公司资料：MOQ：20 台。交期：询盘后确认，没有具体天数。";
   const checked = validateAIOperations(message, [
