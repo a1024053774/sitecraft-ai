@@ -2,7 +2,7 @@
 id: T-094
 title: 浏览器测试不再遗留无头 Chrome
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-build
 supersedes:
@@ -22,7 +22,7 @@ supersedes:
 
 - [x] 测试先写、改动前先失败（行为级）：在子进程里经助手打开浏览器，分别正常结束、抛错结束、被 SIGTERM，之后断言它启动的 Chrome 已不存在；SIGKILL 后再开一次助手，断言上一次的 Chrome 被回收，而另一个调试端口有连接的 Chrome 不被回收
 - [x] 全量 `npm test` 前后各数一次 `sitecraft-workspace-*` 且父进程为 1 的 Chrome，跑完后不增加（第一次运行时下降为 0 或只剩有连接的）；`npm run typecheck`、`npm run build` 通过
-- [ ] 代码审查通过；Claude 验收
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -47,3 +47,5 @@ Astra P1 返工（2026-10-03）：
 - 新增 `tests/t094-cdp-ownership.fixture.ts` / child：在 `686091d` 父 worktree 上用 health stub 模拟旧计算端口已有 foreign Chrome，红测读到 `sameEndpoint:true` 并失败，输出 `artifacts/t094/red-cdp-ownership.txt`；当前助手同一夹具通过，foreign Chrome 保持可用，输出 `artifacts/t094/green-cdp-ownership.txt`。
 - 当前修复后按负载规则（开跑时 1 分钟负载低于 12、没有其他全量）全量 `npm test` **665/665、0 失败**，见 `artifacts/t094/npm-test-cdp-ownership.txt`；Chrome PPID=1 计数 **4 → 0**，停止 3056 dev server 后等待仍为 0，见 `chrome-count-before-cdp-full.txt` / `chrome-count-after-cdp-full.txt`。workspace motion 通过，未启动 T-099。
 - CDP 修复后的 `npm run typecheck`、`npm run build` 通过，见 `artifacts/t094/typecheck-cdp-ownership.txt`、`artifacts/t094/build-cdp-ownership.txt`。本次更新本地提交，未 push。
+
+独立审核与验收（Claude，2026-10-03 EDT）：Astra 首轮 NO_GO（`artifacts/review-astra-t094.md`：计算端口上已有的 CDP 端点被当成自己的浏览器复用，pid 相差 50000 的两个 worktree 会互连），返工 `22ad48f` 后复审 PASS（`artifacts/review-astra-t094-r2.md`）。合并主线 `2acd204`（同时含 T-092）后在主工作区 3034：typecheck、build 通过，全量 672/672；运行前 `sitecraft-workspace-*` 且父进程为 1 的 Chrome 28 个，运行后 0（`artifacts/merge-2acd204/run.txt`）。Claude 验收关闭。
