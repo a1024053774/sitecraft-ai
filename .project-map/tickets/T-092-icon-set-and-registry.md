@@ -2,7 +2,7 @@
 id: T-092
 title: 自制第一批区块图标和图标注册表（联系、认证）
 type: build
-status: open
+status: closed
 blocked_by: [T-084]
 claimed_by: rs-iconfont
 supersedes:
@@ -20,8 +20,8 @@ supersedes:
 ## Acceptance
 
 - [x] 测试先写，并在父提交上能加载、在断言处失败：每个图标有来源和许可字段；注册表拒绝未登记的 id；路径只含 SVG 几何命令，不含文字、外链或脚本
-- [ ] 16 / 20 / 24px 预览图（浅底、深底各一张）存 `artifacts/t092/`，打开看过；独立审核 agent 看过预览图和参考作品，确认风格一致、小尺寸可辨认、自画图标不是参考作品的描摹
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 16 / 20 / 24px 预览图（浅底、深底各一张）存 `artifacts/t092/`，打开看过；独立审核 agent 看过预览图和参考作品，确认风格一致、小尺寸可辨认、自画图标不是参考作品的描摹
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -47,3 +47,9 @@ supersedes:
 - 几何测试对所有字符串字段统一走命令/数字/分隔符白名单，`polyline.points` 单独收紧为数字分隔符，并加入 path/polyline 坏实现回归断言；定向测试 7/7 PASS。
 - 通过指定命令 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t092 3054 artifacts/t092/npm-test-3.log`：661/661 PASS、0 fail、0 cancelled。`npm run typecheck` PASS；`npm run build` PASS（`artifacts/t092/build-3.log`）。
 - 重出并打开：[浅色预览](../../artifacts/t092/icon-preview-light.png)、[深色预览](../../artifacts/t092/icon-preview-dark.png)；参考图仍只在 `artifacts/t092/reference-smallbits.png`。独立审核和 Claude 验收仍未完成，票保持 open。
+
+### 当前状态（2026-10-03 18:39 EDT，Claude 验收）
+
+- 独立审查（rs-ui，未参与实现）：第一轮 `REVISE`（圆/直角端点混用、Lucide ISC 归属不全、几何字段白名单不全），报告 `artifacts/research/threads-2026-10-03/reviews/T-092-review-1.md`（在 sitecraft-ai 主工作区）；第二轮 `PASS`，报告 `reviews/T-092-review-2.md`，含对浅/深预览与 Amicons、Smallbits 公开参考的对照：十个图标笔画一致、16px 可辨认、自画图标不是参考作品的描摹。
+- 证据都在 `db54cf4` 之后重新生成：全量 `npm test` 661/661（`artifacts/t092/npm-test-3.log`，经 `fulltest.sh`），`npm run build` 通过（`artifacts/t092/build-3.log`），浅/深预览 18:25 重出。
+- Claude 验收：并入主线 `2a1fd65`（合并提交 `7d66af8`）后，`tests/icon-registry.test.ts` 7/7、`npm run typecheck` 通过，`project_map.py status` 无问题、无过时 living doc。本票只新增注册表数据，没有改区块 HTML/CSS；接入在 T-093。历史段落里的 open/未完成描述是当时状态，以本段为准。
