@@ -1,0 +1,43 @@
+(node:66030) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///private/tmp/sitecraft-t075-parent/tests/t075-prefix-behavior.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /private/tmp/sitecraft-t075-parent/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"undoSummary":["已应用：已撤销：首屏标题"],"duplicated":true}
+✖ undo message does not add an applied prefix to the action summary (13627.6205ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13888.202875
+
+✖ failing tests:
+
+test at ../../../../../private/tmp/sitecraft-t075-parent/tests/t075-prefix-behavior.test.ts:55:1
+✖ undo message does not add an applied prefix to the action summary (13627.6205ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /已应用：已撤销：首屏标题/. Input:
+
+  'AI 助手\n' +
+    '已载入当前站点。可以先提供公司资料，也可以直接说想怎么改首屏、产品、优势、常见问题或联系方式。\n' +
+    'AI 助手\n' +
+    '也可以在预览里点一块内容，再说改成什么。每次修改都存成新的草稿版本，右上角可以撤销。\n' +
+    'AI 助手\n' +
+    '已撤销这次修改，右侧预览正在同步。\n' +
+    '已应用：已撤销：首屏标题。\n' +
+    'AI 助手\n' +
+    '正在撤销并保存…'
+
+      at TestContext.<anonymous> (file:///private/tmp/sitecraft-t075-parent/tests/t075-prefix-behavior.test.ts:94:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'AI 助手\n已载入当前站点。可以先提供公司资料，也可以直接说想怎么改首屏、产品、优势、常见问题或联系方式。\nAI 助手\n也可以在预览里点一块内容，再说改成什么。每次修改都存成新的草稿版本，右上角可以撤销。\nAI 助手\n已撤销这次修改，右侧预览正在同步。\n已应用：已撤销：首屏标题。\nAI 助手\n正在撤销并保存…',
+    expected: /已应用：已撤销：首屏标题/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+exit=1
