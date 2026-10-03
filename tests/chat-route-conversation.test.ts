@@ -412,7 +412,7 @@ test("chat POST keeps applied result when append fails after a successful commit
   assert.equal(typeof result.done.conversationError, "string");
   assert.match(String(result.done.conversationError), /会话历史没有写入/);
   assert.equal(String(result.done.conversationError).includes("Conversation not found"), false);
-  assert.equal(result.done.summary, "CHAT_SENTINEL_PERSIST_SUMMARY_8812");
+  assert.equal(result.done.summary, "已更新：首屏标题。");
   assert.equal(typeof result.done.conversationId, "string");
   assert.ok(result.done.changeSet);
   assert.ok(result.done.draft);

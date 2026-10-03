@@ -6,6 +6,7 @@ import { defaultDraft, normalizeDraft, templates, type SiteDraft } from "@/lib/s
 import { applySiteOperations, migrateSiteHistory, type SiteOperation } from "@/lib/site-operations";
 import { bindSiteImageOperations } from "@/lib/site-images";
 import { checkSiteStyle } from "@/lib/site-style-check";
+import { summaryFromAppliedTargets } from "@/lib/workspace-copy";
 
 export type ChangeSource = "ai" | "import" | "manual" | "migration" | "template";
 export type ChangeSet = {
@@ -115,6 +116,10 @@ function summaryWithNotices(summary: string, notices: string[]) {
   const missing = notices.filter((notice) => !summary.includes(notice));
   return missing.length ? `${summary.replace(/[。.]\s*$/, "")}。${missing.join("")}` : summary;
 }
+function committedSummary(args: CommitArgs, appliedTargets: string[], notices: string[]) {
+  if (args.source !== "ai") return summaryWithNotices(args.summary, notices);
+  return summaryFromAppliedTargets({ appliedTargets, modelSummary: args.summary, notices });
+}
 export function snapshot(record: SiteRecord, isNew?: boolean): SiteSnapshot {
   return {
     draft: structuredClone(record.draft),
@@ -199,7 +204,7 @@ async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
     if (!result.changed) return { status: "no_change", record };
     const changeSet: ChangeSet = {
       id: args.changeId ?? crypto.randomUUID(), baseRevision: record.draft.revision, revision: result.draft.revision,
-      summary: summaryWithNotices(args.summary, [...guarded.rejected, ...result.notices]), source: args.source, operations: structuredClone(operations),
+      summary: committedSummary(args, result.appliedTargets, [...guarded.rejected, ...result.notices]), source: args.source, operations: structuredClone(operations),
       inverseOperations: result.inverseOperations, appliedTargets: result.appliedTargets,
       ...(args.model ? { model: args.model } : {}),
       ...(args.latencyMs === undefined ? {} : { latencyMs: args.latencyMs }),
@@ -367,7 +372,7 @@ async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult>
       id: args.changeId ?? crypto.randomUUID(),
       baseRevision: record.draft.revision,
       revision: result.draft.revision,
-      summary: summaryWithNotices(args.summary, [...guarded.rejected, ...result.notices]),
+      summary: committedSummary(args, result.appliedTargets, [...guarded.rejected, ...result.notices]),
       source: args.source,
       operations: structuredClone(operations),
       inverseOperations: result.inverseOperations,

@@ -510,7 +510,9 @@ async function commitClaimedProposal(siteId: string, conversationId: string, con
       ? "草稿已经更新，已确认的方案未应用。"
       : result.status === "rejected"
         ? `未修改：${result.reasons.join("；")}`
-        : proposed.summary,
+        : result.status === "applied"
+          ? result.changeSet.summary
+          : proposed.summary,
     revision: result.status === "applied" ? result.changeSet.revision : result.record.draft.revision,
   };
   doneEvent = {
@@ -827,7 +829,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
               outcome = "applied";
               aiSummary = provider.summary;
               appliedOperationsSummary = summarizeAppliedOperations(committed.changeSet.operations, committed.changeSet.appliedTargets);
-              doneEvent = { type: "done", status: "applied", summary: provider.summary, rejected: provider.rejected, changeSet: committed.changeSet, ...snapshot(committed.record), model: provider.model, latencyMs: provider.latencyMs };
+              doneEvent = { type: "done", status: "applied", summary: committed.changeSet.summary, rejected: provider.rejected, changeSet: committed.changeSet, ...snapshot(committed.record), model: provider.model, latencyMs: provider.latencyMs };
             }
           } catch (error) {
             const safeFailure = safeProviderFailure("operation_error");

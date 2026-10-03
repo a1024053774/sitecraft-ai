@@ -59,7 +59,7 @@ import { findSitePage, pagePlanSourceLabel, previewPathForPage } from "@/lib/tem
 import { SiteDeleteDialog } from "@/components/site-delete-panel";
 import { needsGuidedBusinessQuestion } from "@/lib/guided-flow";
 import { createSiteOnce, resolveWorkspaceEntry, workspaceUrlForSite } from "@/lib/workspace-entry";
-import { alignmentFailureText, changeTargetLabels, describePreviewGaps, noChangeReply } from "@/lib/workspace-copy";
+import { alignmentFailureText, changeTargetLabels, describePreviewGaps, noChangeReply, summaryFromAppliedTargets } from "@/lib/workspace-copy";
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
 import { generateCustomPalette } from "@/lib/custom-brand-color";
@@ -961,7 +961,17 @@ export default function WorkspacePage() {
       const result = await response.json() as DraftSnapshot & { status: string; appliedTargets?: string[] };
       if (!response.ok || result.status !== "applied") throw new Error(action === "undo" ? "没有可撤销的修改" : "没有可重做的修改");
       adoptSnapshot(result);
-      setExpectedTargets(slotExpectedTargets(result.appliedTargets ?? []));
+      const appliedTargets = result.appliedTargets ?? [];
+      const expectedTargets = slotExpectedTargets(appliedTargets);
+      setExpectedTargets(expectedTargets);
+      setLastChangedTargets(changeTargetLabels(appliedTargets));
+      setMessages((items) => [...items, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "applied",
+        text: action === "undo" ? "已撤销这次修改，右侧预览正在同步。" : "已重做这次修改，右侧预览正在同步。",
+        change: summaryFromAppliedTargets({ appliedTargets, action }),
+      }]);
       setPreviewState("loading");
     } catch (error) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "历史操作失败") }]);
