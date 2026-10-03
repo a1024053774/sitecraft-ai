@@ -30,11 +30,11 @@ T-078 的第一条线。用「商业条款」一项打通每一层，页面上�
 
 ## Resolution
 
-2026-10-03，Astra 第三次复审 NO_GO 后在最终提交 `1c60443fb701ca9e0d7cb681071826f63830a1d6` 修复：
+2026-10-03，Astra 第三次复审 NO_GO 后在最终提交 `d5d0f96c4d5d6c0d30512d2b002fc480bbcd2fc8` 修复：
 
-- 中文值只允许是去掉指令与行首标签后的同一句完整分句，kind 词表只看该句；英文代码大小写归一后只看中文值或同一句源片段。
-- 英文数字按规范化多重集对应，并按可审查中英单位表核对：天/day、周/week、月/month、年/year、件/pc、台/unit/set/machine、套/set、万件/10,000 pcs、t/ton、kg/kg。英文地名和主体翻译明确留在本票范围外。
-- Astra 三条行为红测在 `0f90d4f` 上保存于 `artifacts/t079/red-rework4-*.txt`；修复后商业条款测试 18/18 通过，六条真实条款仍全部接受。
-- 最终真实 DeepSeek 命令：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T079_PACKS=industrial,export,molding node --experimental-strip-types artifacts/t079/generate.mjs`。三份均 `applied`，原始 operation 在 `artifacts/t079/summary.json`，注塑包含 `trade_terms`。
-- 最终发布页检查：`artifacts/t079/published-check-rework3/report.json`，中英文 1440/768/375 全部通过，事实缺失为 0。
-- typecheck/build 通过；全量测试 617 通过、6 项 vendor 资产检查失败，未出现 T-079 测试失败。
+- 中文值只允许是去掉指令与行首标签后的同一句完整分句；kind 词表和英文代码只看该句，代码大小写归一。
+- 英文数字按规范化多重集对应，单位按中英对照表核对（天/day、周/week、月/month、年/year、件/pc、台/unit/set/machine、套/set、万件/10,000 pcs、t/ton、kg/kg）；英文地名和主体翻译留在本票范围外。
+- 五条 Astra 行为红证据在 `0317e50` 基线上保存于 `artifacts/t079/red-rework4-*.txt`；修复后商业条款测试 23/23 通过，六条真实条款仍全部接受。
+- 最终真实 DeepSeek 原始 operation 保存在 `artifacts/t079/summary.json`，三份均 applied，注塑包含 trade_terms。
+- 三家中英文三档发布检查通过，事实缺失为 0：`artifacts/t079/published-check-rework3/report.json`。
+- `npm run typecheck`、`npm run build` 通过；全量测试 625 通过、6 项 vendor 资产检查失败，日志为 `artifacts/t079/npm-test-final-third.log`。
