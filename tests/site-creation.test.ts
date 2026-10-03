@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-
-const base = process.env.SITECRAFT_BASE || 'http://127.0.0.1:3034';
+import { base } from './helpers/workspace-browser.ts';
 
 test('creating a site applies each requested visual template and neutral names', async () => {
   for (const templateId of ['forge', 'screwfast', 'landwind', 'tailwind-landing']) {

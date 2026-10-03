@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { openBrowser } from "./helpers/workspace-browser.ts";
+import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 import { expectedFacts, missingFacts } from "../scripts/published-facts.mjs";
 
 const closeBrowser = (browser: { ws: WebSocket; id: number }) => {
@@ -16,7 +16,7 @@ test("the Segmenter fallback keeps the authored hero title", () => {
 
 async function preview(draft: unknown, width = 375) {
   const browser = await openBrowser();
-  const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/tailwind-landing/preview?t057=${Date.now()}` }) as { targetId: string };
+  const { targetId } = await browser.send("Target.createTarget", { url: `${sitecraftBase}/api/templates/tailwind-landing/preview?t057=${Date.now()}` }) as { targetId: string };
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
   await browser.send("Page.enable", {}, sessionId);
   await browser.send("Runtime.enable", {}, sessionId);
@@ -64,7 +64,7 @@ test("an engineering title that is not orphaned keeps its original line grouping
   const base = packDraft("industrial");
   const draft = { ...base, templateId: "screwfast", content: { ...base.content, hero: { ...base.content.hero, title: { zh: "按图加工重载减速机 P3I-NX7Q", en: "Heavy-duty gearbox P3I-NX7Q" } } } };
   const browser = await openBrowser();
-  const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/screwfast/preview?t057-title=${Date.now()}` }) as { targetId: string };
+  const { targetId } = await browser.send("Target.createTarget", { url: `${sitecraftBase}/api/templates/screwfast/preview?t057-title=${Date.now()}` }) as { targetId: string };
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
   try {
     await browser.send("Page.enable", {}, sessionId);

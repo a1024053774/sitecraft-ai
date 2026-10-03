@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import test from "node:test";
+import { assertWorkspaceServer, base } from "./helpers/workspace-browser.ts";
 
-const BASE = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 const CHROME_PATH = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -53,13 +53,14 @@ async function waitFor(cdp: Cdp, expression: string, sessionId: string, timeoutM
 }
 
 test("undo message does not add an applied prefix to the action summary", async () => {
-  const created = await fetch(`${BASE}/api/sites`, {
+  await assertWorkspaceServer();
+  const created = await fetch(`${base}/api/sites`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "T-075 behavior fixture", templateId: "screwfast", locales: ["zh", "en"] }),
   }).then((response) => response.json() as Promise<{ id: string }>);
-  const draft = await fetch(`${BASE}/api/sites/${created.id}/draft`).then((response) => response.json() as Promise<{ draft: { revision: number } }>);
-  const saved = await fetch(`${BASE}/api/sites/${created.id}/draft`, {
+  const draft = await fetch(`${base}/api/sites/${created.id}/draft`).then((response) => response.json() as Promise<{ draft: { revision: number } }>);
+  const saved = await fetch(`${base}/api/sites/${created.id}/draft`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -79,7 +80,7 @@ test("undo message does not add an applied prefix to the action summary", async 
   if (!version?.webSocketDebuggerUrl) throw new Error("Chrome DevTools endpoint unavailable");
   const cdp = new Cdp(version.webSocketDebuggerUrl);
   await cdp.connect();
-  const { targetId } = await cdp.send("Target.createTarget", { url: `${BASE}/workspace?site=${created.id}` });
+  const { targetId } = await cdp.send("Target.createTarget", { url: `${base}/workspace?site=${created.id}` });
   const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
   await cdp.send("Page.enable", {}, sessionId);
   await cdp.send("Runtime.enable", {}, sessionId);

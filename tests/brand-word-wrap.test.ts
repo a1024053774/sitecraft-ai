@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
 import { applySiteOperations } from "../lib/site-operations.ts";
-import { openBrowser } from "./helpers/workspace-browser.ts";
+import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("the catalog look keeps the company name together at phone width", async () => {
   const browser = await openBrowser();
@@ -17,7 +17,7 @@ test("the catalog look keeps the company name together at phone width", async ()
     await browser.send("Page.enable", {}, sessionId);
     await browser.send("Runtime.enable", {}, sessionId);
     await browser.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 812, deviceScaleFactor: 1, mobile: true }, sessionId);
-    await browser.send("Page.navigate", { url: `http://127.0.0.1:3034/api/templates/landwind/preview?brand-wrap=${Date.now()}` }, sessionId);
+    await browser.send("Page.navigate", { url: `${sitecraftBase}/api/templates/landwind/preview?brand-wrap=${Date.now()}` }, sessionId);
     for (let waited = 0; waited < 10000; waited += 100) {
       if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
       await new Promise((resolve) => setTimeout(resolve, 100));

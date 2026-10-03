@@ -6,10 +6,9 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const LOCK_PORT = 45000 + (process.pid % 1000);
 const LOCK_KEY = `t077-${process.pid}-${Date.now()}`;
 const CDP_PORT = 40000 + (process.pid % 10000);
-const BASE = `http://127.0.0.1:${LOCK_PORT}`;
+const BASE = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 const PORT_LOCK = path.join(os.tmpdir(), `sitecraft-workspace-browser-${LOCK_KEY}.lock`);
 const LEGACY_LOCK = path.join(os.tmpdir(), "sitecraft-workspace-browser.lock");
 const PROBE = fileURLToPath(new URL("./t077-browser-lock-probe.ts", import.meta.url));
