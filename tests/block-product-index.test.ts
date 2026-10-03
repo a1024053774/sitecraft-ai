@@ -39,7 +39,7 @@ test("型号索引表 is in the catalog with a user-facing name, its own render 
   assert.ok(spec, "products:index missing from the catalog");
   assert.equal(spec.label, "型号索引表");
   assert.deepEqual(spec.render, { products: "index", keySpecs: 3, askHref: "#inquiry" });
-  assert.deepEqual(spec.requires, [{ kind: "productCount", min: 3 }]);
+  assert.deepEqual(spec.requires, [{ kind: "productCount", min: 3, layout: "型号索引表" }]);
   assert.ok(blockFragments.products.variants.index, "products:index has no markup");
   const adapter = getTemplateAdapter("screwfast");
   assert.ok(adapter?.blocks?.variants.products.includes("index"));

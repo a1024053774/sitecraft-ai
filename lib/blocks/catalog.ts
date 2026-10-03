@@ -51,8 +51,8 @@ export type BlockRequirement =
   | { kind: "productGroups"; minGroups: number; minLargest: number }
   /** Comparison: `minProducts`–`maxProducts` products sharing `minShared` specs that all have values. */
   | { kind: "sharedSpecs"; minProducts: number; maxProducts: number; minShared: number }
-  /** Index: at least `min` products a visitor sees. */
-  | { kind: "productCount"; min: number }
+  /** Layouts that list products: at least `min` products a visitor sees; `layout` names it in the reason. */
+  | { kind: "productCount"; min: number; layout: string }
   /** Contact band: at least `min` of email, phone and address. */
   | { kind: "contactLines"; min: number };
 
@@ -140,6 +140,19 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         render: { heroSpecs: "always" },
         requires: [{ kind: "heroFacts", min: 3 }],
       },
+      cover: {
+        label: "目录封面",
+        slots: [
+          benchmark("hero.title", "hero-title"),
+          benchmark("hero.subtitle", "hero-subtitle"),
+          benchmark("hero.cta", "hero-cta"),
+          text("industry", '[data-sitecraft-optional="industry"]'),
+        ],
+        markers: ["[data-sitecraft-hero-index]"],
+        parts: ["band", "copy", "title", "actions", "index"],
+        render: { heroIndex: true },
+        requires: [{ kind: "productCount", min: 2, layout: "目录封面" }],
+      },
     },
   },
   products: {
@@ -185,7 +198,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-product-grid]"],
         parts: ["head", "title", "grid"],
         render: { products: "index", keySpecs: 3, askHref: "#inquiry" },
-        requires: [{ kind: "productCount", min: 3 }],
+        requires: [{ kind: "productCount", min: 3, layout: "型号索引表" }],
       },
     },
   },

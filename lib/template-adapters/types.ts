@@ -121,6 +121,8 @@ export type TemplateBlockRender = {
   askHref?: string;
   /** Hero block: the key-spec strip shows under a product photo only, or whenever there are specs. */
   heroSpecs?: "with-photo" | "always";
+  /** Hero block: the right side lists the product series (category and name, linking to the products block). */
+  heroIndex?: boolean;
 };
 
 /**

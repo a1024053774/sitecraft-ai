@@ -115,7 +115,7 @@ export function checkRequirement(draft: SiteDraft, requirement: BlockRequirement
   }
   if (requirement.kind === "productCount") {
     const count = visibleProducts(draft).length;
-    return result(count >= requirement.min, count, [], `型号索引表要至少 ${requirement.min} 个产品；现在有 ${count} 个。`);
+    return result(count >= requirement.min, count, [], `${requirement.layout}要至少 ${requirement.min} 个产品；现在有 ${count} 个。`);
   }
   const lines = contactLines(draft);
   return result(lines.length >= requirement.min, lines.length, lines,

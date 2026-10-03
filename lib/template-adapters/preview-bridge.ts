@@ -1139,8 +1139,41 @@ function sitecraftPreviewBridge(templateId, adapter) {
   // Hero picture: a product photo when the draft has one; otherwise a nameplate of the key specs;
   // otherwise text only. No drawn stand-in pretends to be a product. The key-spec strip shows under
   // a photo, or, for the statement layout (render heroSpecs "always"), whenever there are specs.
+  // 目录封面: the hero's right side lists the product series (category and name, each a link to the
+  // products block), up to 6. The names carry no edit slot: editing a product stays on its block.
+  function renderHeroIndex(draft, locale) {
+    var nav = uniqueNode("[data-sitecraft-hero-index]");
+    if (!nav || !document || !document.createElement) return;
+    var heading = nav.querySelector("p");
+    var list = nav.querySelector("ul");
+    if (!list) return;
+    if (heading) heading.textContent = locale === "en" ? "Product series" : "产品系列";
+    list.textContent = "";
+    var products = visibleProducts(draft, locale).slice(0, 6);
+    nav.hidden = products.length === 0;
+    for (var i = 0; i < products.length; i++) {
+      var item = document.createElement("li");
+      var link = document.createElement("a");
+      link.setAttribute("href", "#products");
+      var name = document.createElement("span");
+      name.className = "sitecraft-cover-index-name";
+      name.textContent = localize(products[i].name, locale) || "";
+      link.appendChild(name);
+      var category = localize(products[i].category, locale) || "";
+      if (category && !isGapMarker(category) && category !== name.textContent) {
+        var tag = document.createElement("span");
+        tag.className = "sitecraft-cover-index-category";
+        tag.textContent = category;
+        link.appendChild(tag);
+      }
+      item.appendChild(link);
+      list.appendChild(item);
+    }
+  }
+
   function applyHeroVisual(draft, locale, applied) {
     if (!document || !document.querySelector) return;
+    renderHeroIndex(draft, locale);
     var hero = uniqueNode('[data-sitecraft-section="hero"]');
     var visual = uniqueNode("[data-sitecraft-hero-visual]");
     var heroImage = uniqueNode('[data-sitecraft-benchmark="hero-image"]');
