@@ -72,7 +72,7 @@ test("commercial term values reject a gap marker in either language", () => {
 test("trade terms survive a faithful wording change when the material facts are all present", () => {
   const checked = validateAIOperations(simulatedPacks.molding.body, [{
     op: "replace_commercial_terms",
-    terms: [{ id: "trade-terms", kind: "trade_terms", value: localized("FOB 宁波、EXW、CIF", "FOB Ningbo, EXW, CIF") }],
+    terms: [{ id: "trade-terms", kind: "trade_terms", value: localized("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo and EXW are common; CIF by agreement") }],
   } as never], options.templateIds, withTerms([]));
   assert.equal(checked.operations.length, 1);
   assert.deepEqual((checked.operations[0] as never as { terms: Array<{ id: string }> }).terms.map((term) => term.id), ["trade-terms"]);
@@ -126,6 +126,30 @@ test("commercial terms ignore wrapper instructions when checking a payment fact"
   const checked = validateAIOperations(wrapCompanyMaterials(simulatedPacks.molding.body), [{
     op: "replace_commercial_terms",
     terms: [{ id: "instruction-payment", kind: "payment", value: localized("付款方式：EXW", "Payment: EXW") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("commercial terms reject English-only trade and payment additions", () => {
+  const trade = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "trade-en-extra", kind: "trade_terms", value: localized("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo, EXW, DAP and payment T/T") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(trade.operations, []);
+});
+
+test("an exact trade sentence cannot be stored as payment", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "payment-trade", kind: "payment", value: localized("常用 FOB 宁波和 EXW，也可按订单约定 CIF", "FOB Ningbo and EXW are common; CIF by agreement") }],
+  } as never], options.templateIds, withTerms([]));
+  assert.deepEqual(checked.operations, []);
+});
+
+test("a capacity value cannot combine the machine range with the monthly output range", () => {
+  const checked = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_commercial_terms",
+    terms: [{ id: "capacity-mixed", kind: "capacity", value: localized("注塑机 42 台（90–800 t），月注塑能力约 90–800 万件", "42 injection machines (90–800 t), about 90–800 million parts per month") }],
   } as never], options.templateIds, withTerms([]));
   assert.deepEqual(checked.operations, []);
 });

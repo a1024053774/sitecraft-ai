@@ -1585,7 +1585,7 @@ function groundCommercialTerms(terms: CommercialTerm[], materials: string, rejec
   return grounded;
 }
 
-const COMMERCIAL_NUMBER_RE = /\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?/g;
+const COMMERCIAL_NUMBER_RE = /(\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?)(?:\s*(万|亿|million|billion))?/gi;
 const COMMERCIAL_KIND_HINTS: Record<CommercialTermKind, string[]> = {
   moq: ["moq", "起订量", "minimum order"],
   lead_time: ["交期", "lead time", "lead-time", "天数"],
@@ -1596,11 +1596,10 @@ const COMMERCIAL_KIND_HINTS: Record<CommercialTermKind, string[]> = {
 };
 
 function canonicalCommercialNumbers(value: string): string[] {
-  return [...value.matchAll(COMMERCIAL_NUMBER_RE)].map((match) => match[0].replace(/[\s,]/g, "").replace(/—/g, "–"));
-}
-
-function commercialFactTokens(value: string): string[] {
-  return value.match(/[A-Za-z]+|\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?|[\u3400-\u9fff]+/g) ?? [];
+  return [...value.matchAll(COMMERCIAL_NUMBER_RE)].map((match) => {
+    const multiplier = { 万: 1e4, 亿: 1e8, million: 1e6, billion: 1e9 }[String(match[2] ?? "").toLowerCase()] ?? 1;
+    return match[1].replace(/[\s,]/g, "").replace(/—/g, "–").split("–").map((part) => String(Number(part) * multiplier)).join("–");
+  });
 }
 
 function stripWrappedCommercialInstructions(materials: string): string {
@@ -1610,7 +1609,7 @@ function stripWrappedCommercialInstructions(materials: string): string {
   return bodyStart >= 0 ? input.slice(bodyStart) : materials;
 }
 
-type CommercialFactFragment = { text: string; context: string };
+type CommercialFactFragment = { text: string; context: string; source: string };
 
 function commercialFactFragments(materials: string): CommercialFactFragment[] {
   const source = stripWrappedCommercialInstructions(materials);
@@ -1621,26 +1620,32 @@ function commercialFactFragments(materials: string): CommercialFactFragment[] {
       .filter(([, hints]) => hints.some((hint) => trimmed.toLowerCase().includes(hint.toLowerCase())))
       .map(([kind]) => kind)
       .join(" ");
-    return trimmed.split(/[；;。！？!?]/).map((text) => ({ text: text.trim(), context })).filter((item) => item.text);
+    return trimmed.split(/[。！？!?]/).map((text) => {
+      const value = text.trim().replace(/^[^：:]{1,32}[：:]\s*/, "");
+      return { text: value, context, source: trimmed };
+    }).filter((item) => item.text);
   });
 }
 
-function commercialFactFragmentMatches(fragment: CommercialFactFragment, clause: string, kind: CommercialTermKind): boolean {
+function englishCommercialCodes(value: string): string[] {
+  return value.match(/\b[A-Z]{2,}(?:[/-][A-Z0-9]+)*\b|\b[A-Z]{1,2}\/[A-Z]{1,2}\b/g) ?? [];
+}
+
+function commercialFactFragmentMatches(fragment: CommercialFactFragment, clause: string, kind: CommercialTermKind, englishCodes: string[]): boolean {
   const hints = COMMERCIAL_KIND_HINTS[kind];
   const source = fragment.text.toLowerCase();
   const related = hints.some((hint) => source.includes(hint.toLowerCase())) || fragment.context.includes(kind);
   if (!related) return false;
-  const fragmentNumbers = new Set(canonicalCommercialNumbers(fragment.text));
-  for (const number of canonicalCommercialNumbers(clause)) if (!fragmentNumbers.has(number)) return false;
-  const compact = source.replace(/\s+/g, "");
-  return commercialFactTokens(clause).every((token) => compact.includes(token.replace(/\s+/g, "").toLowerCase()));
+  if (!fragment.text.includes(clause)) return false;
+  const sourceCodes = new Set(englishCommercialCodes(`${clause} ${fragment.source}`).map((code) => code.toUpperCase()));
+  return englishCodes.every((code) => sourceCodes.has(code.toUpperCase()));
 }
 
-function materialContainsCommercialFact(materials: string, value: string, kind: CommercialTermKind): boolean {
-  if (materialsIncludesFact(stripWrappedCommercialInstructions(materials), value)) return true;
-  const clauses = value.split(/[；;。！？!?\n]+/).map((clause) => clause.trim()).filter(Boolean);
+function materialContainsCommercialFact(materials: string, value: { zh: string; en: string }, kind: CommercialTermKind): boolean {
+  const clauses = value.zh.split(/[；;。！？!?\n]+/).map((clause) => clause.trim()).filter(Boolean);
   const fragments = commercialFactFragments(materials);
-  return clauses.length > 0 && clauses.every((clause) => fragments.some((fragment) => commercialFactFragmentMatches(fragment, clause, kind)));
+  const englishCodes = englishCommercialCodes(value.en);
+  return clauses.length > 0 && clauses.every((clause) => fragments.some((fragment) => commercialFactFragmentMatches(fragment, clause, kind, englishCodes)));
 }
 
 function groundCommercialTerm(term: CommercialTerm, materials: string, rejected: string[]): CommercialTerm | null {
@@ -1650,10 +1655,9 @@ function groundCommercialTerm(term: CommercialTerm, materials: string, rejected:
     rejected.push(`商业条款「${term.kind}」的值为空，已忽略`);
     return null;
   }
-  const materialNumbers = new Set(canonicalCommercialNumbers(materials));
-  const numbers = [...canonicalCommercialNumbers(zh), ...canonicalCommercialNumbers(en)];
-  const hasOutOfMaterialNumber = numbers.some((number) => !materialNumbers.has(number));
-  if (hasOutOfMaterialNumber || !materialContainsCommercialFact(materials, zh, term.kind)) {
+  const zhNumbers = canonicalCommercialNumbers(zh).sort();
+  const enNumbers = canonicalCommercialNumbers(en).sort();
+  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers) || !materialContainsCommercialFact(materials, { zh, en }, term.kind)) {
     rejected.push(`商业条款「${term.kind}」的值不在资料中，已忽略`);
     return null;
   }
