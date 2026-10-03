@@ -2,7 +2,7 @@
 // draft without asking the renderer: each shown product's name, description and specs (name and
 // value, where the value is not a gap), as many FAQ entries and cooperation steps as the look has room
 // for (the first ones that have a title or a body, in draft order), every industry and capability
-// with its body, every certificate by name (and the body when the cards variant is mounted), and the
+// with its body, every certificate by name (and the body when the cards or table variant is mounted), and the
 // contact email and phone. Badge variants show name and status only. Sections the
 // draft hides are skipped, and so are gaps (待补充 / To be provided). The page is read with folded spec
 // lists and answers opened (scripts/visitor-readable-text.js), so a fact behind 全部参数 or a closed
@@ -17,7 +17,7 @@ export const ENTRY_SLOTS = {
   "tailwind-landing": { faq: 6, services: 6 },
 };
 
-// Certification cards show the material body; badge variants intentionally show only the name and
+// Certification cards and the status table show the material body; badge variants intentionally show only the name and
 // status. Keep the default in this visitor-facts table so a missing card body is observable.
 const DEFAULT_CERTIFICATION_VARIANTS = {
   screwfast: "badges",
@@ -79,7 +79,7 @@ export function expectedFacts(draft, locale = "zh") {
       if (key === "certifications" && item.status === "待补充") continue;
       add(`${key} entry`, title);
       const certificationVariant = draft?.blockVariants?.certifications ?? DEFAULT_CERTIFICATION_VARIANTS[draft?.templateId] ?? "badges";
-      if (key !== "certifications" || certificationVariant === "cards") add(`${key} body`, body);
+      if (key !== "certifications" || certificationVariant === "cards" || certificationVariant === "table") add(`${key} body`, body);
     }
   }
   add("contact email", content.contact?.email);

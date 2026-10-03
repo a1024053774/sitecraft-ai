@@ -45,3 +45,11 @@ T-073 的流水线跑通后，按同一条线批量做读现有草稿字段的�
 - 批量验证（三个进库之后，提交 `bdf4f5c`）：`npm run typecheck` 通过；`npm run build` 通过（`t074/build-after-batch.txt`）；全量 `npm test`（带 dev server、CHROME_PATH）584 个里 578 通过，6 个失败与本票无关，和 T-073 记录的一样、在干净 `18a3538` 上也失败（模板快照资源，`t074/npm-test-full-after-batch.txt`）。
 - 未做：Astra 代码审查、合回 `family-kit-assembly`、主工作区三家 `check-published` 中英文三档、Claude 验收（验收项留空）。
 - 恢复点已不需要（候选做完）；若要继续只剩上面的「新字段 spec」。
+
+### 合并后验证（713b5ee）发现并修复的问题
+- 注塑专家站副本切到四个新布局后 `check-published` 中英文三档失败：资料事实缺失 31/117（英文 34/110），原因是「型号索引表」只显示前 3 项参数、不显示简介；另有 `span.sitecraft-index-sr`「询价」被判溢出。**根因在流水线，不只是这个布局**：候选评审（AI 味审查）只看外观，没有任何一步检查「资料里的每条事实都能在访客页上找到」，而 T-073 里「去掉简介」的取舍恰恰绕过了这条规则。
+- 修复（提交 `98c15dc`）：每行名称下加折叠的「简介与全部参数（N 项）」，去掉 sr-only 文字、询价链接加 aria-label（细节见 `product-index-table/candidate.md` 文末「合并后修正」）。其他三个新布局用同一检查重渲，没有缺失。
+- 流水线改动：①`tests/block-published-facts.test.ts`（用 `scripts/published-facts.mjs` + `visitor-readable-text.js`，新布局单独和一起挂载，中英文三档两个样子；在修复前的代码上先失败，`red-published-facts.txt`）；②`scripts/render-block.mjs` 的扫描现在会做同样的资料事实检查，并有 `--open-details` 把折叠区展开再截图再扫——以后候选在送审前就会暴露这类问题（修复前的代码上对 molding 报 31/34，与 check-published 一致，`red-render-block-facts.txt`）；③`scripts/published-facts.mjs` 里证书状态表和证书卡片一样预期显示说明。
+- 给之后候选的规则：新布局不得藏资料事实——被隐藏、折叠、截断的字段，都要在访客能展开读到的地方出现；「去掉某个字段」的取舍必须先过 `render-block` 的事实检查。
+- 第二次返修（Astra P1 + codex-taste REVISE，提交 `60bce15`）：索引表每个产品改为一个行组（`tbody`），`specs` 目标只落在这一个节点上，展开内容改成主行下面整行宽的详情带，只放简介和第 4 项以后的参数；细节、先失败的证据（`red-p1-unique-specs.txt`）和重渲结果见 `product-index-table/candidate.md` 文末。**给之后候选的规则**：render-block 的扫描还应加一条「整个区块里每个 data-sitecraft-slot 值只出现一次」的检查（目前只写在索引表的测试里）；对比表布局（compare）的每个参数格也都挂着同一个 `specs` 目标，是同类问题，没有改，等你定。
+
