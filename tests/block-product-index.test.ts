@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { blockCatalog } from "../lib/blocks/catalog.ts";
-import { composedPageForTemplate } from "../lib/blocks/compose.ts";
+import { blockLooks } from "../lib/blocks/looks/index.ts";
+import { composeLookDocument, composedPageForTemplate } from "../lib/blocks/compose.ts";
 import { blockFragments } from "../lib/blocks/fragments/index.ts";
 import { checkVariantRequirements } from "../lib/blocks/requirements.ts";
 import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
+import { applySiteOperations, type SiteOperation } from "../lib/site-operations.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
 import { base, openBrowser } from "./helpers/workspace-browser.ts";
@@ -160,4 +162,57 @@ test("型号索引表 has no horizontal overflow at 1440, 768 and 375 on two loo
     try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
     browser.ws.close();
   }
+});
+
+// The index table's rules read look tokens with a fallback; every block look must end up with a
+// real value for each (a var() with nothing behind it makes the whole declaration invalid, so the
+// rule silently disappears on that look).
+function rootTokens(html: string) {
+  const root = /:root \{([^}]*)\}/.exec(html);
+  assert.ok(root, "composed page has a :root block");
+  return new Map([...root[1].matchAll(/^\s*(--[\w-]+):\s*(.+);$/gm)].map((match) => [match[1], match[2].trim()] as const));
+}
+
+/** Resolves var(--a, fallback) the way CSS does; null when a reference has no value and no fallback. */
+function resolveVars(value: string, tokens: Map<string, string>, depth = 0): string | null {
+  if (depth > 8) return null;
+  let failed = false;
+  const out = value.replace(/var\((--[\w-]+)(?:,\s*((?:[^()]|\([^()]*\))*))?\)/g, (_all, name: string, fallback?: string) => {
+    const own = tokens.get(name);
+    const next = own ?? fallback;
+    const resolved = next === undefined ? null : resolveVars(next, tokens, depth + 1);
+    if (resolved === null) failed = true;
+    return resolved ?? "";
+  });
+  return failed ? null : out;
+}
+
+test("型号索引表 rule tokens resolve to a real value on every block look", () => {
+  const css = blockFragments.products.css;
+  const top = /\.sitecraft-index-table \{[^}]*border-top: (var\(--site-index-top[^;]*\));/.exec(css)?.[1];
+  const row = /\.sitecraft-index-table thead th \{[^}]*border-bottom: (var\(--site-index-row[^;]*\));/.exec(css)?.[1];
+  assert.ok(top && row, "the index CSS reads --site-index-top and --site-index-row");
+  assert.ok(blockLooks.length >= 4);
+  for (const look of blockLooks) {
+    const palette = getTemplateAdapter(look.templateId)?.kit?.tokens;
+    assert.ok(palette, `${look.id} has a palette`);
+    const tokens = rootTokens(composeLookDocument(look, palette));
+    assert.notEqual(resolveVars(top, tokens), null, `${look.id}: ${top} has no value, so the table's top rule is invalid`);
+    assert.notEqual(resolveVars(row, tokens), null, `${look.id}: ${row} has no value, so the row rules are invalid`);
+  }
+});
+
+test("a layout request for the index table is refused for a 2-product company and recorded for a 5-product one", () => {
+  const options = { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing", "fresh"]), lastChange: "product-index" };
+  const setIndex = { op: "set_block_variant", block: "products", variant: "index" } as SiteOperation;
+  for (const pack of ["industrial", "export"] as const) {
+    assert.throws(() => applySiteOperations(packDraft(pack), [setIndex], options), (error: Error) => {
+      assert.match(error.message, /型号索引表要至少 3 个产品；现在有 2 个/);
+      assert.doesNotMatch(error.message, /区块|变体|blockVariants|operation/);
+      return true;
+    });
+  }
+  const accepted = applySiteOperations(packDraft("molding"), [setIndex], options);
+  assert.deepEqual(accepted.draft.blockVariants, { products: "index" });
+  assert.deepEqual(accepted.appliedTargets, ["blockVariants.products"]);
 });

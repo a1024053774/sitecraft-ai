@@ -56,3 +56,9 @@ supersedes:
 - **布局选用提示词和 `ai-provider.ts`**：只在「怎么选」那句话里加了一句（`ai-provider.ts` 两处小改），合并 T-070 时要留意这一行和 `requirementText` 的新分支。
 - **简介不显示**的后果：该布局下改简介报「未命中」。批量做的新布局如果不显示某个字段，都要在 `candidate.md` 写明并有对应测试。
 - **审查流程**：REVISE 一轮即过；审查人看的是 `crops/` 全部 42 张，所以每个候选要备齐候选/默认对照，脚本已自动出。
+
+### Astra 代码审查：NO_GO（一条 P2）后的返工
+- P2：bright（forge）样子没有有效的 `--site-index-top`（回落的 `--site-rule-strong` 在 bright 不存在，顶线声明无效）。修法：`lib/blocks/looks/bright.ts` 明确写 `--site-index-top: none`（forge 本来就是无线条的开放版式，外观不变；理由写在 `candidate.md`）；重渲 molding-forge 三档 `product-index-table-p2-forge/`，逐张看过。
+- 新增测试（`tests/block-product-index.test.ts`）：①四个 block looks 生成的 `:root` 里，索引表 CSS 读的 `--site-index-top`、`--site-index-row`（含回落）都解析出值；先在 `c248775` 上失败（`red-p2-tokens.txt`，报 `industrial: var(--site-index-top, var(--site-rule-strong)) has no value`）。②Astra 建议的 `applySiteOperations` 级回归：工业/外贸 2 个产品选 index 被拒并带「型号索引表要至少 3 个产品；现在有 2 个」，注塑 5 个产品被记录；这条在 `c248775` 上本来就通过，是回归保护，不是红灯证据。
+- 相关测试 124 个全过（`block-*`、`ai-provider-layouts`、`bright-*`、`template-preview-bridge`、`site-style-bridge`、`chat-route-block-layouts`，带 dev server），`npm run typecheck`（无 dev server、删 `.next` 后）通过。
+- **给 T-074 的补充**：新布局读的每个 token（含回落）都要对四个 looks 解析出值，这条测试的解析器可复用；新布局的 CSS 里不要假设某个样子有 `--site-rule`/`--site-rule-strong`（bright 没有）。

@@ -95,6 +95,7 @@ export const brightLook: BlockLook = {
     "--site-eyebrow-bg": "transparent",
     "--site-eyebrow-pad": "0",
     "--site-head-rule": "none",
+    "--site-index-top": "none",
     "--site-index-row": "1px solid var(--site-line)",
     "--site-head-pad": "0",
     "--site-value-ink": "var(--site-ink)",
