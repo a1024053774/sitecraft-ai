@@ -633,6 +633,30 @@ function sitecraftPreviewBridge(templateId, adapter) {
     grid.appendChild(table);
   }
 
+  // A folded "other specifications" list: the specs only one series has.
+  function extraSpecs(extras, locale, slot) {
+    var more = document.createElement("details");
+    more.className = "sitecraft-product-more sitecraft-compare-more";
+    var toggle = document.createElement("summary");
+    toggle.textContent = locale === "en" ? "Other specifications (" + extras.length + ")" : "其他参数（" + extras.length + " 项）";
+    var list = document.createElement("dl");
+    list.className = "sitecraft-compare-extra";
+    if (slot) list.setAttribute("data-sitecraft-slot", slot);
+    for (var e = 0; e < extras.length; e++) {
+      var row = document.createElement("div");
+      var dt = document.createElement("dt");
+      dt.textContent = extras[e].name;
+      var dd = document.createElement("dd");
+      setValueText(dd, extras[e].value);
+      row.appendChild(dt);
+      row.appendChild(dd);
+      list.appendChild(row);
+    }
+    more.appendChild(toggle);
+    more.appendChild(list);
+    return more;
+  }
+
   // 参数对比表: a short note per series (name, category, summary, the specs only it has, folded, and
   // an inquiry link), then a table with a row for each spec every series has with a value and a
   // column per series. Each value cell also names its series for the stacked phone layout.
@@ -654,6 +678,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var series = document.createElement("div");
     series.className = "sitecraft-compare-series";
     var names = [];
+    var extrasBySeries = [];
     for (var i = 0; i < products.length; i++) {
       var product = products[i];
       var productId = stableProductIdentity(product);
@@ -688,28 +713,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
         applied.add("products." + productId + ".summary." + locale);
       }
       var extras = specsBySeries[i].filter(function (spec) { return sharedKeys.indexOf(spec.key) === -1; });
-      if (extras.length) {
-        var more = document.createElement("details");
-        more.className = "sitecraft-product-more sitecraft-compare-more";
-        var toggle = document.createElement("summary");
-        toggle.textContent = locale === "en" ? "Other specifications (" + extras.length + ")" : "其他参数（" + extras.length + " 项）";
-        var list = document.createElement("dl");
-        list.className = "sitecraft-compare-extra";
-        list.setAttribute("data-sitecraft-slot", "products." + productId + ".specs");
-        for (var e = 0; e < extras.length; e++) {
-          var row = document.createElement("div");
-          var dt = document.createElement("dt");
-          dt.textContent = extras[e].name;
-          var dd = document.createElement("dd");
-          setValueText(dd, extras[e].value);
-          row.appendChild(dt);
-          row.appendChild(dd);
-          list.appendChild(row);
-        }
-        more.appendChild(toggle);
-        more.appendChild(list);
-        card.appendChild(more);
-      }
+      extrasBySeries.push(extras);
+      // With a table, a product's specs target is its one column header and the other specs sit in
+      // the table's last row; without one (nothing shared) they stay in the card, under the target.
+      if (extras.length && !shared.length) card.appendChild(extraSpecs(extras, locale, "products." + productId + ".specs"));
       if (extras.length || shared.length) applied.add("products." + productId + ".specs");
       card.appendChild(askLink(layout.askHref, locale));
       series.appendChild(card);
@@ -727,7 +734,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
     for (var n = 0; n < names.length; n++) {
       var column = document.createElement("th");
       column.setAttribute("scope", "col");
+      column.id = "sitecraft-compare-" + String(names[n].id).replace(/[^\w-]/g, "-");
+      names[n].headerId = column.id;
       column.textContent = names[n].name;
+      // The one node of this product's specs target; its cells point at it with headers=.
+      column.setAttribute("data-sitecraft-slot", "products." + names[n].id + ".specs");
       headRow.appendChild(column);
     }
     head.appendChild(headRow);
@@ -745,7 +756,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
           if (specsBySeries[s][m].key === shared[r].key) { match = specsBySeries[s][m]; break; }
         }
         var td = document.createElement("td");
-        td.setAttribute("data-sitecraft-slot", "products." + names[s].id + ".specs");
+        td.setAttribute("headers", names[s].headerId);
         var cellLabel = document.createElement("span");
         cellLabel.className = "sitecraft-compare-label";
         cellLabel.textContent = names[s].name;
@@ -757,6 +768,28 @@ function sitecraftPreviewBridge(templateId, adapter) {
         tr.appendChild(td);
       }
       bodyRows.appendChild(tr);
+    }
+    if (extrasBySeries.some(function (list) { return list.length > 0; })) {
+      var extraRow = document.createElement("tr");
+      extraRow.className = "sitecraft-compare-extra-row";
+      var extraHead = document.createElement("th");
+      extraHead.setAttribute("scope", "row");
+      extraHead.textContent = locale === "en" ? "Other specifications" : "其他参数";
+      extraRow.appendChild(extraHead);
+      for (var x = 0; x < names.length; x++) {
+        var extraCell = document.createElement("td");
+        extraCell.className = "sitecraft-compare-extra-cell";
+        extraCell.setAttribute("headers", names[x].headerId);
+        if (extrasBySeries[x] && extrasBySeries[x].length) {
+          var extraLabel = document.createElement("span");
+          extraLabel.className = "sitecraft-compare-label";
+          extraLabel.textContent = names[x].name;
+          extraCell.appendChild(extraLabel);
+          extraCell.appendChild(extraSpecs(extrasBySeries[x], locale, ""));
+        }
+        extraRow.appendChild(extraCell);
+      }
+      bodyRows.appendChild(extraRow);
     }
     table.appendChild(bodyRows);
     grid.appendChild(table);
@@ -2108,6 +2141,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (variant === "published") return;
     if (!rawTarget) return;
     var node = rawTarget && rawTarget.closest ? rawTarget.closest("[data-sitecraft-slot]") : null;
+    if (!node && rawTarget && rawTarget.closest && document.getElementById) {
+      // A table cell answers for the column header named in its headers= (the comparison table: one
+      // header per product carries that product's specs target).
+      var headed = rawTarget.closest("td[headers]");
+      var header = headed ? document.getElementById(headed.getAttribute("headers")) : null;
+      node = header && header.closest ? header.closest("[data-sitecraft-slot]") : null;
+    }
     if (!node) return;
     if (event.preventDefault) event.preventDefault();
     if (event.stopPropagation) event.stopPropagation();

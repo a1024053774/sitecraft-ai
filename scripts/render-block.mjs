@@ -11,7 +11,10 @@
 //   scan.json / scan.md                  horizontal overflow, clipped text, text-over-text overlap, and the
 //                                        material facts of the draft (scripts/published-facts.mjs) that are
 //                                        missing from the page a visitor reads (folded <details> opened),
-//                                        in Chinese and English; a layout that hides a fact fails here
+//                                        in Chinese and English; a layout that hides a fact fails here, and
+//                                        so does a layout that puts one modify target (data-sitecraft-slot) on
+//                                        more nodes than the catalog allows (T-076: one node each, except a
+//                                        field the catalog declares in several blocks, once per block)
 // Cases read drafts from .sitecraft-data/sites/. A case may carry `borrow: { from: <siteId>, paths: ["products"] }`
 // (take those top-level draft fields from another draft: a stress test for a layout whose materials
 // the company's own draft does not meet), `patch: { "content.services.items": [...] }` (set a dotted
@@ -57,6 +60,18 @@ if (fs.lstatSync("node_modules", { throwIfNoEntry: false })?.isSymbolicLink()) {
   console.warn("warning: node_modules is a symlink; Turbopack will not start. Clone it instead: rm node_modules && cp -cR <main>/node_modules node_modules");
 }
 const { blockCatalog } = await import(path.resolve("lib/blocks/catalog.ts"));
+// Targets the catalog declares in more than one block, with how many blocks declare each.
+const declaredIn = new Map();
+for (const spec of Object.values(blockCatalog)) {
+  const seen = new Set();
+  for (const variantSpec of Object.values(spec.variants)) for (const slot of variantSpec.slots) seen.add(slot.target);
+  for (const target of seen) declaredIn.set(target, (declaredIn.get(target) || 0) + 1);
+}
+const repeatedTargets = (values, mirrored = true) => {
+  const counts = new Map();
+  for (const value of values) counts.set(value, (counts.get(value) || 0) + 1);
+  return [...counts].filter(([value, count]) => count > (mirrored ? declaredIn.get(value.replace(/\.(zh|en)$/, "")) || 1 : 1)).map(([value]) => value).sort();
+};
 const { blockLookForTemplate } = await import(path.resolve("lib/blocks/looks/index.ts"));
 const { checkVariantRequirements } = await import(path.resolve("lib/blocks/requirements.ts"));
 if (!blockCatalog[BLOCK]?.variants[VARIANT]) throw new Error(`catalog has no ${BLOCK}:${VARIANT}`);
@@ -258,6 +273,9 @@ try {
               const page = await browser.eval(`(${readableText})()`, tab.sessionId);
               const facts = expectedFacts(draft, locale);
               row.facts[locale] = { expected: facts.length, missing: missingFacts(facts, page).map((fact) => `${fact.kind}: ${fact.text.slice(0, 60)}`) };
+              const slots = await browser.eval(`(() => ({ all: [...document.querySelectorAll('[data-sitecraft-slot]')].map((n) => n.getAttribute('data-sitecraft-slot')), blocks: [...document.querySelectorAll('[data-sc-block]')].map((b) => ({ block: b.getAttribute('data-sc-block') + ':' + b.getAttribute('data-sc-variant'), values: [...b.querySelectorAll('[data-sitecraft-slot]')].map((n) => n.getAttribute('data-sitecraft-slot')) })) }))()`, tab.sessionId);
+              row.slots = row.slots || {};
+              row.slots[locale] = [...repeatedTargets(slots.all), ...slots.blocks.flatMap((entry) => repeatedTargets(entry.values, false).map((value) => `${entry.block} repeats ${value}`))];
             }
             await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, tab.sessionId);
           }
@@ -272,7 +290,7 @@ try {
       }
       rows.push(row);
       const c = row.candidate;
-      console.log(`${item.id} ${width}: ${c.box.width}x${Math.round(c.box.height)} overflow=${c.overflow.length} overlaps=${c.overlaps.length} facts-missing=${row.facts.zh.missing.length}/${row.facts.en.missing.length} clipped=${c.clipped.length} requirement=${requirement.ok ? "ok" : "unmet"}`);
+      console.log(`${item.id} ${width}: ${c.box.width}x${Math.round(c.box.height)} overflow=${c.overflow.length} overlaps=${c.overlaps.length} facts-missing=${row.facts.zh.missing.length}/${row.facts.en.missing.length} slot-repeats=${row.slots.zh.length}/${row.slots.en.length} clipped=${c.clipped.length} requirement=${requirement.ok ? "ok" : "unmet"}`);
     }
   }
 } finally {
@@ -281,10 +299,10 @@ try {
   fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }
 
-const failing = rows.filter((row) => row.candidate.overflow.length || row.candidate.overlaps.length || row.open?.overflow.length || row.open?.overlaps.length || row.facts.zh.missing.length || row.facts.en.missing.length);
+const failing = rows.filter((row) => row.candidate.overflow.length || row.candidate.overlaps.length || row.open?.overflow.length || row.open?.overlaps.length || row.facts.zh.missing.length || row.facts.en.missing.length || row.slots.zh.length || row.slots.en.length);
 fs.writeFileSync(path.join(OUT, "scan.json"), JSON.stringify({ block: BLOCK, variant: VARIANT, base: BASE, rows }, null, 2));
-const md = [`# ${NAME}: ${BLOCK}:${VARIANT} scan`, "", "| case | width | products | requirement | overflow | overlaps | facts missing zh / en | clipped (info) |", "| --- | --- | --- | --- | --- | --- | --- | --- |",
-  ...rows.map((r) => `| ${r.case} | ${r.width} | ${r.productCount} | ${r.requirement.ok ? "ok" : "unmet"} | ${r.candidate.overflow.length} | ${r.candidate.overlaps.length} | ${r.facts.zh.missing.length} / ${r.facts.en.missing.length} (of ${r.facts.zh.expected} / ${r.facts.en.expected}) | ${r.candidate.clipped.map((c) => c.kind).join(", ") || "-"} |`), ""].join("\n");
+const md = [`# ${NAME}: ${BLOCK}:${VARIANT} scan`, "", "| case | width | products | requirement | overflow | overlaps | facts missing zh / en | repeated targets zh / en | clipped (info) |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+  ...rows.map((r) => `| ${r.case} | ${r.width} | ${r.productCount} | ${r.requirement.ok ? "ok" : "unmet"} | ${r.candidate.overflow.length} | ${r.candidate.overlaps.length} | ${r.facts.zh.missing.length} / ${r.facts.en.missing.length} (of ${r.facts.zh.expected} / ${r.facts.en.expected}) | ${r.slots.zh.length} / ${r.slots.en.length} | ${r.candidate.clipped.map((c) => c.kind).join(", ") || "-"} |`), ""].join("\n");
 fs.writeFileSync(path.join(OUT, "scan.md"), md);
-console.log(`\n${rows.length} rows; ${failing.length} with overflow, overlap or missing facts`);
+console.log(`\n${rows.length} rows; ${failing.length} with overflow, overlap, missing facts or a repeated target`);
 process.exitCode = failing.length ? 1 : 0;

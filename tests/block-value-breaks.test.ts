@@ -69,7 +69,7 @@ test("the hero nameplate, the statement strip, grouped cards and the comparison 
   const values = raw(compare.querySelectorAll(".sitecraft-compare-table .sitecraft-compare-value"));
   assert.deepEqual(values, [`i=25–${Z}100`, `i=4–${Z}100`, "8500 N·m", "3200 N·m", "≤1500 r/min", "≤3000 r/min", "Foot / flange", "Flange"]);
   assert.deepEqual(raw(compare.querySelectorAll(".sitecraft-compare-extra dd")), ["200 mm", "F280", "IP65"]);
-  assert.deepEqual(raw(compare.querySelectorAll(".sitecraft-compare-table tbody th")), ["Ratio range", "Rated output torque", "Input speed", "Mounting"]);
+  assert.deepEqual(raw(compare.querySelectorAll(".sitecraft-compare-table tbody th")), ["Ratio range", "Rated output torque", "Input speed", "Mounting", "Other specifications"]);
 });
 
 test("a slash breaks between readable pieces, while units stay whole", () => {
