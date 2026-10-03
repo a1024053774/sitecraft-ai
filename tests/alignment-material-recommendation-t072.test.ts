@@ -1,86 +1,111 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { registerHooks } from "node:module";
+import path from "node:path";
 import test from "node:test";
-import { defaultDraft } from "../lib/site-document.ts";
-import { materialFeaturesFromDraft, recommendLookFromDraft } from "../lib/alignment-recommendation.ts";
+import { pathToFileURL } from "node:url";
 import { packDraft } from "./fixtures/pack-drafts.ts";
+import type { SiteOperation } from "../lib/site-operations.ts";
 
-test("structured draft features count products, categories, parameters and catalog sections", () => {
-  const industrial = materialFeaturesFromDraft(packDraft("industrial"));
-  assert.deepEqual({
-    productCount: industrial.productCount,
-    categoryCount: industrial.categoryCount,
-    parameterizedProducts: industrial.parameterizedProducts,
-    industryCount: industrial.industryCount,
-    capabilityCount: industrial.capabilityCount,
-    certificationCount: industrial.certificationCount,
-  }, {
-    productCount: 2,
-    categoryCount: 1,
-    parameterizedProducts: 2,
-    industryCount: 2,
-    capabilityCount: 0,
-    certificationCount: 0,
+const env = process.env as Record<string, string | undefined>;
+env.NODE_ENV = "test";
+delete env.SITE_STORE;
+env.DEEPSEEK_API_KEY = "sk-test-t072-route-not-real";
+env.DEEPSEEK_MODEL = "test-t072-route-model";
+env.DEEPSEEK_BASE_URL = "https://t072-route.test.invalid";
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (!specifier.startsWith("@/")) return nextResolve(specifier, context);
+    const abs = path.join(process.cwd(), specifier.slice(2));
+    const file = existsSync(`${abs}.ts`) ? `${abs}.ts` : abs;
+    return nextResolve(pathToFileURL(file).href, context);
+  },
+});
+
+const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
+  POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
+};
+const { commitOperations, getSite } = await import("../lib/site-store.ts");
+
+const created: string[] = [];
+
+test.after(async () => {
+  await Promise.all(created.flatMap((siteId) => [
+    rm(path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`), { force: true }),
+    rm(path.join(process.cwd(), ".sitecraft-data", "conversations", siteId), { recursive: true, force: true }),
+  ]));
+});
+
+function seedOperations(packId: "industrial" | "export" | "molding", sparse = false): SiteOperation[] {
+  const draft = packDraft(packId);
+  const operations: SiteOperation[] = [{ op: "replace_products", products: sparse ? draft.products.slice(0, 1) : draft.products }];
+  if (sparse) return operations;
+  for (const section of ["industries", "capabilities", "certifications"] as const) {
+    const value = draft.content[section];
+    if (value?.items.length) operations.push({ op: "set_catalog_section", section, value });
+  }
+  return operations;
+}
+
+async function runRecommendation(packId: "industrial" | "export", sparse = false) {
+  const siteId = `t072-behavior-${packId}-${crypto.randomUUID()}`;
+  created.push(siteId);
+  const before = await getSite(siteId);
+  const imported = await commitOperations({
+    siteId,
+    baseRevision: before.draft.revision,
+    source: "import",
+    summary: `seed ${packId} structured fields`,
+    operations: seedOperations(packId, sparse),
   });
-});
+  assert.equal(imported.status, "applied");
+  const current = await getSite(siteId);
+  const response = await POST(new Request(`http://sitecraft.test/api/sites/${siteId}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "start", message: "根据当前结构化资料规划网站", baseRevision: current.draft.revision }),
+  }), { params: Promise.resolve({ siteId }) });
+  const events = (await response.text()).split("\n\n")
+    .map((chunk) => chunk.trim())
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => JSON.parse(line.slice(5).trim()) as Record<string, any>);
+  const done = events.find((event) => event.type === "done");
+  const questions = done?.questions as Array<{ field?: string; options: Array<{ id: string; description?: string; recommended?: boolean }> }>;
+  return {
+    response,
+    style: questions.find((question) => question.field === "style"),
+    color: questions.find((question) => question.field === "colorSet"),
+  };
+}
 
-test("catalog feature counts ignore gaps and include capabilities and certifications", () => {
-  const draft = packDraft("industrial");
-  draft.content.capabilities = {
-    title: { zh: "加工能力", en: "Capabilities" },
-    intro: { zh: "", en: "" },
-    items: [
-      { id: "gear", title: { zh: "滚齿", en: "Hobbing" }, body: { zh: "", en: "" } },
-      { id: "test", title: { zh: "跑合试验", en: "Run-in testing" }, body: { zh: "", en: "" } },
-      { id: "gap", title: { zh: "待补充", en: "To be provided" }, body: { zh: "", en: "" } },
+test("alignment route chooses different looks from structured company shape while retaining planner color", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
+    kind: "question",
+    questions: [
+      { field: "style", question: "样子", allowOther: true, options: [
+        { id: "engineering-industrial", label: "工程工业", description: "模型样子理由", recommended: true },
+        { id: "export-catalog", label: "蓝白目录", description: "另一种样子" },
+      ] },
+      { field: "colorSet", question: "配色", allowOther: true, options: [
+        { id: "colorSet:turquoise", label: "松石", description: "模型颜色理由", recommended: true },
+        { id: "colorSet:graphite", label: "石墨工坊", description: "另一种配色" },
+      ] },
     ],
-  };
-  draft.content.certifications = {
-    title: { zh: "认证", en: "Certifications" },
-    intro: { zh: "", en: "" },
-    items: [{ id: "iso", title: { zh: "ISO 9001", en: "ISO 9001" }, body: { zh: "", en: "" }, status: "已有" }],
-  };
-  const features = materialFeaturesFromDraft(draft);
-  assert.equal(features.capabilityCount, 2);
-  assert.equal(features.certificationCount, 1);
-});
-
-test("look rules use structured shape rather than an industry label", () => {
-  const industrial = recommendLookFromDraft(packDraft("industrial"));
-  const exportCatalog = recommendLookFromDraft(packDraft("export"));
-  const molding = recommendLookFromDraft(packDraft("molding"));
-  assert.equal(industrial?.briefId, "engineering-industrial");
-  assert.equal(exportCatalog?.briefId, "export-catalog");
-  assert.equal(molding?.briefId, "engineering-industrial");
-  assert.match(industrial?.reason ?? "", /2 个产品|2 项参数化产品|2 个应用行业/);
-  assert.match(exportCatalog?.reason ?? "", /2 个产品|1 个产品类别|目录/);
-  assert.match(molding?.reason ?? "", /5 个产品|参数化产品/);
-});
-
-test("a small structured product set gets the short-path look, while a broad light set gets bright product", () => {
-  const sparse = structuredClone(defaultDraft);
-  sparse.products = [{
-    sku: "one",
-    name: { zh: "单一产品", en: "Single product" },
-    summary: { zh: "用途明确", en: "Clear use" },
-    category: "",
-    status: "published",
-    imageColor: "#e6e1cf",
-    specs: [],
-  }];
-  const broad = structuredClone(defaultDraft);
-  broad.products = Array.from({ length: 3 }, (_, index) => ({
-    sku: `p-${index}`,
-    name: { zh: `产品${index + 1}`, en: `Product ${index + 1}` },
-    summary: { zh: "产品说明", en: "Product" },
-    category: "",
-    status: "published" as const,
-    imageColor: "#e6e1cf",
-    specs: [{ name: { zh: "材质", en: "Material" }, value: "钢" }],
-  }));
-  assert.equal(recommendLookFromDraft(sparse)?.briefId, "technical-product");
-  assert.equal(recommendLookFromDraft(broad)?.briefId, "industrial");
-});
-
-test("an empty new draft leaves the planner recommendation in charge", () => {
-  assert.equal(recommendLookFromDraft(defaultDraft), null);
+  }) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  try {
+    const industrial = await runRecommendation("industrial");
+    const sparse = await runRecommendation("export", true);
+    assert.equal(industrial.response.status, 200);
+    assert.equal(sparse.response.status, 200);
+    assert.equal(industrial.style?.options.find((option) => option.recommended)?.id, "engineering-industrial");
+    assert.equal(sparse.style?.options.find((option) => option.recommended)?.id, "technical-product");
+    assert.match(sparse.style?.options.find((option) => option.recommended)?.description ?? "", /1 个产品/);
+    assert.equal(sparse.color?.options.find((option) => option.recommended)?.id, "colorSet:turquoise");
+    assert.equal(sparse.color?.options.find((option) => option.recommended)?.description, "模型颜色理由");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

@@ -25,6 +25,8 @@ export type MaterialFeatures = {
   categoryCount: number;
   specCount: number;
   parameterizedProducts: number;
+  minSpecsPerProduct: number;
+  maxSpecsPerProduct: number;
   averageSpecsPerProduct: number;
   industryCount: number;
   capabilityCount: number;
@@ -44,9 +46,11 @@ export function materialFeaturesFromDraft(draft: SiteDraft): MaterialFeatures {
   const categories = new Set(products.map((product) => valueKey(product.category)).filter(Boolean));
   let specCount = 0;
   let parameterizedProducts = 0;
+  const specCounts: number[] = [];
   for (const product of products) {
     const count = (product.specs ?? []).filter((spec) => hasValue(spec.name) && hasValue(spec.value)).length;
     specCount += count;
+    specCounts.push(count);
     if (count >= 3) parameterizedProducts += 1;
   }
   const industryCount = sectionItemCount(draft.content.industries);
@@ -60,6 +64,8 @@ export function materialFeaturesFromDraft(draft: SiteDraft): MaterialFeatures {
     categoryCount: categories.size,
     specCount,
     parameterizedProducts,
+    minSpecsPerProduct: specCounts.length ? Math.min(...specCounts) : 0,
+    maxSpecsPerProduct: specCounts.length ? Math.max(...specCounts) : 0,
     averageSpecsPerProduct: products.length ? Number((specCount / products.length).toFixed(1)) : 0,
     industryCount,
     capabilityCount,
@@ -78,15 +84,15 @@ export type LookRecommendation = {
 };
 
 function featureSummary(features: MaterialFeatures) {
-  return `${features.productCount} 个产品、${features.categoryCount} 个产品类别、${features.parameterizedProducts} 个产品有至少 3 项非空参数（平均 ${features.averageSpecsPerProduct} 项）；${features.industryCount} 个应用行业、${features.capabilityCount} 项能力、${features.certificationCount} 项认证`;
+  return `${features.productCount} 个产品、${features.categoryCount} 个产品类别、${features.parameterizedProducts} 个产品有至少 3 项非空参数（每个 ${features.minSpecsPerProduct}–${features.maxSpecsPerProduct} 项）；${features.industryCount} 个应用行业、${features.capabilityCount} 项能力、${features.certificationCount} 项认证`;
 }
 
 /**
  * Deterministic b-step rules. They use shape counts, never an industry-to-look table:
  *
  * - one sparse product or less: short path;
+ * - two or three products with a uniform, complete parameter set: export catalog;
  * - four or more products, or at least two capability/industry/certification entries: engineering;
- * - two or more parameterized products without those factory/catalog-section signals: export catalog;
  * - other populated product sets: bright product.
  */
 export function recommendLookFromDraft(draft: SiteDraft): LookRecommendation | null {
@@ -101,17 +107,17 @@ export function recommendLookFromDraft(draft: SiteDraft): LookRecommendation | n
       features,
     };
   }
+  if (features.productCount >= 2 && features.productCount <= 3 && features.categoryCount <= 1 && features.parameterizedProducts === features.productCount && features.minSpecsPerProduct >= 3 && features.minSpecsPerProduct === features.maxSpecsPerProduct) {
+    return {
+      briefId: "export-catalog",
+      reason: `结构化资料有${summary}，各产品参数行数一致且完整，蓝白目录更适合按系列浏览和发起询盘。`,
+      features,
+    };
+  }
   if (features.productCount >= 4 || features.capabilityCount >= 2 || features.industryCount >= 2 || features.certificationCount >= 2) {
     return {
       briefId: "engineering-industrial",
       reason: `结构化资料有${summary}，参数和制造/应用条目较多，工程工业更适合承载参数选型与能力证据。`,
-      features,
-    };
-  }
-  if (features.productCount >= 2 && features.parameterizedProducts >= 2 && features.capabilityCount === 0 && features.industryCount === 0 && features.certificationCount <= 1) {
-    return {
-      briefId: "export-catalog",
-      reason: `结构化资料有${summary}，产品参数已成目录形态且辅助条目较少，蓝白目录更适合按系列浏览和发起询盘。`,
       features,
     };
   }
