@@ -2,7 +2,7 @@
 id: T-083
 title: 浏览器测试一律用 SITECRAFT_BASE，并确认测的是当前工作区的代码
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-build
 supersedes:
@@ -20,7 +20,7 @@ T-079 合并时发现：12 个浏览器测试文件写死 `127.0.0.1:3034`（`te
 
 - [x] 测试先写、改动前先失败：在 SITECRAFT_BASE 指向另一个工作区的 dev server 时，浏览器测试直接失败并说明原因（而不是通过）
 - [x] `grep` 不到写死的 3034 浏览器地址；主工作区全量 `npm test`、typecheck、build 通过；在一个 worktree 里用自己的端口跑一次全量也通过
-- [ ] 代码审查通过；Claude 验收
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -32,3 +32,5 @@ T-079 合并时发现：12 个浏览器测试文件写死 `127.0.0.1:3034`（`te
 - 主工作区（`SITECRAFT_BASE=http://127.0.0.1:3034`、指定 Chrome for Testing 路径）全量 `npm test` 641/641 通过，输出见 `artifacts/t083/npm-test-main.txt`；`npm run typecheck` 和 `npm run build` 通过，输出见 `artifacts/t083/typecheck.txt`、`artifacts/t083/build.txt`。
 - 在 `../sitecraft-ai-blocks-pool` 先将 `family-kit-assembly` 快进到本票提交 `63e7149`，用 3046 的独立 dev server 跑全量。第一次结果 `artifacts/t083/npm-test-worktree.txt` 为 634/641，7 项是该 worktree 缺少主工作区 ignored 模板 `dist/` 快照（并保留了一次既有 motion 时序失败）；补齐仅供测试读取的 ignored `fresh/genai/tailcast/dist` 后，第二次同端口全量 `artifacts/t083/npm-test-worktree-r2.txt` 为 647/647 通过。worktree 原有及后续出现的区块库/预览桥未提交改动均未触碰。
 - `project_map.py status --root .`：Problems 0，Stale living docs 0。代码、测试和 living docs 已合入同一个本地 commit，未 push。
+
+独立审核与验收（2026-10-03 EDT）：Astra PASS（`artifacts/review-astra-t083.md`，`39495fb`；blocks-pool 上的 `63e7149` 是同一份代码）。浏览器测试统一用 `SITECRAFT_BASE`，开始前比对 `/api/health` 的开发态 `testIdentity.cwd`，不一致直接失败（fail-closed：符号链接或大小写不同会误拒，不会误放）。红测在父提交上行为级失败；主线 641/641、blocks-pool worktree 647/647。已知部署注意事项：NODE_ENV 未设置的开发服务器若暴露到网络，`/api/health` 会返回本机绝对路径——本阶段只做本机 Demo，不构成问题；若以后做部署，部署票要确认 `NODE_ENV=production`。Claude 验收关闭。
