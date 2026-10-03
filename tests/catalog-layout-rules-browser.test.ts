@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SiteDraft } from "../lib/site-document.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { openBrowser } from "./helpers/workspace-browser.ts";
+import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
-const BASE = "http://127.0.0.1:3034";
 const templates = ["screwfast", "forge", "landwind"] as const;
 
 async function render(browser: Awaited<ReturnType<typeof openBrowser>>, templateId: string, draft: unknown, width: number, suffix: string) {
@@ -14,7 +13,7 @@ async function render(browser: Awaited<ReturnType<typeof openBrowser>>, template
     await browser.send("Page.enable", {}, sessionId);
     await browser.send("Runtime.enable", {}, sessionId);
     await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
-    await browser.send("Page.navigate", { url: `${BASE}/api/templates/${templateId}/preview?layout-rules=${suffix}-${width}` }, sessionId);
+    await browser.send("Page.navigate", { url: `${sitecraftBase}/api/templates/${templateId}/preview?layout-rules=${suffix}-${width}` }, sessionId);
     for (let waited = 0; waited < 15000; waited += 100) {
       if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
       await new Promise((resolve) => setTimeout(resolve, 100));

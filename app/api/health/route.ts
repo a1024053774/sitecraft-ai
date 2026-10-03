@@ -19,11 +19,15 @@ export async function GET() {
   }
 
   const ready = ai.configured && (!store.shared || database === "ready");
+  const developmentIdentity = process.env.NODE_ENV === "production"
+    ? {}
+    : { testIdentity: { cwd: process.cwd() } };
   return Response.json(
     {
       status: ready ? "ready" : "not_ready",
       deepseek: { configured: ai.configured, model: ai.model },
       persistence: { driver: store.driver, database },
+      ...developmentIdentity,
     },
     { status: ready ? 200 : 503, headers: { "Cache-Control": "no-store" } },
   );

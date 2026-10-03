@@ -1,12 +1,36 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { open, readFile, rm, stat, utimes } from "node:fs/promises";
+import path from "node:path";
 import os from "node:os";
 
 // Shared by the workspace browser tests (T-043, T-052). They need the dev server on
 // SITECRAFT_BASE (default http://127.0.0.1:3034) and a Chrome or Chromium binary.
 export const base = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 export const contrastScan = readFileSync(new URL("../../scripts/workspace-contrast-scan.js", import.meta.url), "utf8");
+
+let workspaceIdentityChecked = false;
+
+export async function assertWorkspaceServer() {
+  if (workspaceIdentityChecked) return;
+  let response: Response;
+  try {
+    response = await fetch(`${base}/api/health`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "request failed";
+    throw new Error(`SITECRAFT_BASE ${base} is unavailable while checking the development workspace identity: ${detail}`);
+  }
+  const body = await response.json().catch(() => ({})) as { testIdentity?: { cwd?: unknown } };
+  const servedCwd = body.testIdentity?.cwd;
+  if (typeof servedCwd !== "string") {
+    throw new Error(`SITECRAFT_BASE ${base} does not expose a development workspace identity; refusing to test an unknown server`);
+  }
+  const expectedCwd = path.resolve(process.cwd());
+  if (path.resolve(servedCwd) !== expectedCwd) {
+    throw new Error(`SITECRAFT_BASE ${base} serves ${servedCwd}, but tests run from ${expectedCwd}`);
+  }
+  workspaceIdentityChecked = true;
+}
 
 // The Node test runner starts test files in parallel, while all browser fixtures share the one
 // dev server on 3034. Serialize those browser sessions at their shared-resource boundary instead
@@ -152,6 +176,7 @@ export class Cdp {
 }
 
 export async function openBrowser() {
+  await assertWorkspaceServer();
   const releaseLock = await acquireBrowserLock();
   const configuredPort = Number.parseInt(process.env.SITECRAFT_BROWSER_CDP_PORT || "", 10);
   const port = Number.isInteger(configuredPort) && configuredPort > 0
@@ -218,6 +243,7 @@ export async function openWorkspace(browser: Cdp, options: {
   reducedMotion?: boolean;
   height?: number;
 }): Promise<WorkspacePage> {
+  await assertWorkspaceServer();
   await waitForWorkspaceServer();
   const created = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
   const attached = await browser.send("Target.attachToTarget", { targetId: created.targetId, flatten: true }) as { sessionId: string };

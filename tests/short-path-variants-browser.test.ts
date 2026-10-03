@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { openBrowser } from "./helpers/workspace-browser.ts";
+import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("灰底短路径 mounts its short nav, certification cards, side FAQ, and line footer", async () => {
   const browser = await openBrowser();
@@ -10,7 +10,7 @@ test("灰底短路径 mounts its short nav, certification cards, side FAQ, and l
   try {
     await browser.send("Page.enable", {}, sessionId);
     await browser.send("Runtime.enable", {}, sessionId);
-    await browser.send("Page.navigate", { url: `http://127.0.0.1:3034/api/templates/tailwind-landing/preview?short-path-variants=${Date.now()}` }, sessionId);
+    await browser.send("Page.navigate", { url: `${sitecraftBase}/api/templates/tailwind-landing/preview?short-path-variants=${Date.now()}` }, sessionId);
     for (let waited = 0; waited < 15000; waited += 100) {
       if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
       await new Promise((resolve) => setTimeout(resolve, 100));

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { openBrowser } from "./helpers/workspace-browser.ts";
+import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("short-path hero title stays inside the viewport and clear of the visual panel", async () => {
   const browser = await openBrowser();
@@ -13,7 +13,7 @@ test("short-path hero title stays inside the viewport and clear of the visual pa
     const draft = { ...packDraft("molding"), templateId: "tailwind-landing", visualBrief: { ...packDraft("molding").visualBrief, id: "technical-product", templateId: "tailwind-landing" }, blockVariants: { nav: "short", certifications: "cards", faq: "side", footer: "line" } };
     for (const width of [1440, 375]) {
       await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
-      await browser.send("Page.navigate", { url: `http://127.0.0.1:3034/api/templates/tailwind-landing/preview?hero-fit=${Date.now()}-${width}` }, sessionId);
+      await browser.send("Page.navigate", { url: `${sitecraftBase}/api/templates/tailwind-landing/preview?hero-fit=${Date.now()}-${width}` }, sessionId);
       for (let waited = 0; waited < 15000; waited += 100) {
         if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
         await new Promise((resolve) => setTimeout(resolve, 100));

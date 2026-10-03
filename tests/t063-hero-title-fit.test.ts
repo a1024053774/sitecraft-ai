@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { openBrowser } from "./helpers/workspace-browser.ts";
+import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 import { engineeringLook } from "../lib/blocks/looks/engineering.ts";
 
 const fitSource = readFileSync("scripts/visitor-text-fit-scan.js", "utf8");
@@ -25,7 +25,7 @@ test("T-063 uses declared character CSS sizing without a look-specific selector"
 
 test("run width sizing does not shrink breakable long sentences or couple brand size to the title", async () => {
   const browser = await openBrowser();
-  const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/screwfast/preview?t063-run=${Date.now()}` }) as { targetId: string };
+  const { targetId } = await browser.send("Target.createTarget", { url: `${sitecraftBase}/api/templates/screwfast/preview?t063-run=${Date.now()}` }) as { targetId: string };
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
   try {
     await browser.send("Runtime.enable", {}, sessionId);
@@ -56,7 +56,7 @@ test("run width sizing does not shrink breakable long sentences or couple brand 
 
 test("original engineering titles and company name fit in every published viewport", async () => {
   const browser = await openBrowser();
-  const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/screwfast/preview?t063=${Date.now()}` }) as { targetId: string };
+  const { targetId } = await browser.send("Target.createTarget", { url: `${sitecraftBase}/api/templates/screwfast/preview?t063=${Date.now()}` }) as { targetId: string };
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
   try {
     await browser.send("Runtime.enable", {}, sessionId);
@@ -81,7 +81,7 @@ test("original engineering titles and company name fit in every published viewpo
 
 test("long engineering brand keeps the readable floor and wraps instead of clipping at 375px", async () => {
   const browser = await openBrowser();
-  const { targetId } = await browser.send("Target.createTarget", { url: `http://127.0.0.1:3034/api/templates/screwfast/preview?t063-brand-floor=${Date.now()}` }) as { targetId: string };
+  const { targetId } = await browser.send("Target.createTarget", { url: `${sitecraftBase}/api/templates/screwfast/preview?t063-brand-floor=${Date.now()}` }) as { targetId: string };
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
   try {
     await browser.send("Runtime.enable", {}, sessionId);
