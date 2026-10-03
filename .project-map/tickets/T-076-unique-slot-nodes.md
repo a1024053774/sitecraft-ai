@@ -2,7 +2,7 @@
 id: T-076
 title: 每个修改目标只落一个节点：修「参数对比表」并把唯一性检查放进区块扫描
 type: build
-status: open
+status: closed
 blocked_by: [T-074]
 claimed_by: sonnet-blocks
 supersedes:
@@ -19,7 +19,7 @@ T-074 的型号索引表返工时发现：一个产品的 `products.<id>.specs` 
 
 - [x] 测试先写、改动前先失败：参数对比表一个产品的 specs 目标命中数为 1；通用唯一性测试在当前代码上找出参数对比表的重复（见 Resolution）
 - [x] 四个样子 × 全部布局都通过唯一性检查；`npm run typecheck`、`npm test`、`npm run build` 通过；`check-published` 三家中英文三档通过（`npm test` 的 6 个失败是已知的快照资源测试，见 Resolution；`check-published` 是在 blocks-pool 自己的 dev server 上跑的，合回主线后请在主工作区再跑一次）
-- [ ] 代码审查通过；Claude 验收
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -41,3 +41,5 @@ T-074 的型号索引表返工时发现：一个产品的 `products.<id>.specs` 
 - 新布局如果一个目标要分散在多个格子里，目标放在能装下它们的行组/列头上，格子用 `headers=` 指向；不要给每个格子挂同一个目标。
 - 之前的 T-073/T-074 已经按这条改了索引表；目前整套布局（四个样子 × 全部区块布局）通过同一个检查。
 
+### 独立审核与验收（2026-10-03 EDT）
+参数对比表的外观变化过 AI 味审查 ACCEPT（`artifacts/blocks-pool/compare-unique-specs/review-1.md`）；Astra 代码审查 PASS（`artifacts/review-astra-t076.md`：唯一落点、224 种组合的通用检查、红测行为级、改动的断言没有放宽）。合回主线 `7ff71e3` 后 Claude 在主工作区跑 `check-published`：工业专家站（参数对比表）、四个新布局副本站、三家基线站中英文三档全部通过（`artifacts/merge-7ff71e3/check-published/report.json`）；`codex-build` 跑 typecheck、build 通过，全量 608 项 607 通过，唯一失败是既有 workspace motion 时序测试（另开 T-077）。Claude 验收关闭。
