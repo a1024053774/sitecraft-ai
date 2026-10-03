@@ -43,3 +43,10 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 - 这不是「20台」逐字核对拒绝：当前提交和父提交 `7f0f4b4` 对 `20台` / `20 units` 的 `replace_commercial_terms` 都是 accepted、`rejected=[]`（`artifacts/t096/grounding-current-07827d6.json`、`grounding-parent-7f0f4b4.json`）。失败轮的完整模型 JSON 在整体 Schema 校验阶段被拒绝；过滤后的调用记录只剩商业条款/设备/质检 operation，不能把过滤结果当成拒绝原因。原始字段证据见 `artifacts/t096/repro-schema-fields.txt`。
 - 复现统计：当前 `264c953` 同资料工业/注塑各 3 次，6/6 最终在第二次尝试返回 `edit`，但 6/6 第一次响应都发生整体 Schema 类型错误；父提交 `7f0f4b4` 工业 3/3 最终在第二次尝试成功，注塑 3 次均遇 DeepSeek HTTP 402（余额/额度耗尽，未拿到模型响应）。这说明该失败是主线已有的结构化输出稳定性问题，T-096 没有引入，也没有用质检核对放宽或重试掩盖；暂不改产品路径，待负责人另开 provider/schema 稳定性票。
 - 汇总已重新生成：`artifacts/t096/real-*.json` 和 `summary.json` 现在直接包含 `qualityProcess`；工业/外贸为 `[]`，注塑为 5 步（与持久化草稿和页面一致）。失败分析与复现目录：`artifacts/t096/failure-analysis-264c953.json`、`repro-current-264c953/`、`repro-parent-7f0f4b4/`。
+
+### Astra P1/P2 返工（2026-10-03）
+
+- `qualityProcessEnglishMatches` 现在复用 `commercialUnitsMatch`；共享单位表补了资料实际使用的「小时 ↔ hour/hours/hrs/h」，并收紧中文「件」只在数字单位上下文计为 piece，避免「注塑件/嵌件」词内误判。数字相同但「每 2 小时抽检」译成「Sample every 2 days」会拒绝。
+- `renderQualityProcess` 现在只有在 `data-sitecraft-section="qualityProcess"`、唯一的 `data-sc-block="qualityProcess"` 实体、唯一 grid marker 且变体为 `rows` 时才渲染；marker-only/无效变体不写 DOM、不写 `applied`。未改 `renderEquipment` 或 `renderCommercialTerms`。
+- 先写红证据：[red-quality-unit-before-fix.txt](../../artifacts/t096/red-quality-unit-before-fix.txt)、[red-quality-marker-before-fix.txt](../../artifacts/t096/red-quality-marker-before-fix.txt)；修复提交 `46278a5` 后 quality/equipment/commercial-terms **42/42**，quality-process **7/7**，`npm run typecheck` 通过；全量 `npm test` 为 **675/675**，日志 `artifacts/t096/npm-test-t096-p1.txt`。
+- T-096 真实 DeepSeek 生成与失败分析的运行时提交统一绑定为 `264c953`（`summary.json`、`failure-analysis-264c953.json`、本票文字一致）；`4474076`、`07827d6`、`4574089` 仅为后续 T-096 文档记录。注塑父提交对照因 HTTP 402 没拿到响应，待负责人充值后补跑，不把它归类为通过。
