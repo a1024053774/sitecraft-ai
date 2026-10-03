@@ -56,3 +56,9 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 - 在 `46278a5` 的行为红证据基础上，提交 `466d480` 修正共享单位规则：小时只接受数字紧邻的「小时/时」，英文 `h` 只接受同一数字上下文；「注塑件/嵌件」只作为词内名词豁免英文复数词，`每件/按件` 和数字件仍必须映射到 `piece(s)`。
 - 新增负例：`同时检查` / `Check h`、`每件单独包装` / `Packed separately`；商业条款保留现有件↔piece 约束，设备保留 t↔kg 拒绝映射。红证据：[red-unit-lexical-before-fix.txt](../../artifacts/t096/red-unit-lexical-before-fix.txt)。
 - 合并主线 `f540ff9` 后全量 `npm test` 为 683/684，唯一 T-099 motion 偶发；低负载单测通过。修复后最终全量 `npm test` **687/687**，日志 `artifacts/t096/npm-test-t096-r2-final.txt`；相关 46/46、typecheck 通过。
+
+### Astra r3 修复（2026-10-03）
+
+- 父提交 `466d480` 红证据保存在 `artifacts/t096/red-zero-parts-before-fix.txt`：`零件检查` / `Part inspection` 被错误拒绝。
+- 提交 `d03e6b4` 将共享 `commercialUnitsMatch` 改为上下文单位规则：单位只在数字紧邻或 `每`/`按`/`per` 上下文中计入；英文 `part`、`component` 等词内名词不再触发 piece，数字件/每件/按件仍严格映射。小时规则保持数字邻近约束，已有万件、天、周、月、年、台、套、t、kg 映射继续通过。
+- 新增正/负例与共享回归：零件/Part 通过，同时/Check h 拒绝，每件/Packed separately 拒绝，商业条款和设备的既有单位错配仍拒绝；相关测试 **47/47**，typecheck 通过。最终全量 `npm test` **688/688**，日志 `artifacts/t096/npm-test-t096-r3-final.txt`。
