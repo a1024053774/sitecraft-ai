@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { expectedFacts, missingFacts } from "../scripts/published-facts.mjs";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-074 (merge check on the molding expert copy, 713b5ee): every material fact a visitor must be
 // able to read (scripts/published-facts.mjs, read the way check-published reads the page: folded
@@ -80,8 +80,7 @@ test("every material fact is on the page with each block-pool layout mounted, in
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 

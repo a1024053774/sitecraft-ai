@@ -4,7 +4,7 @@ import { applySiteOperations } from "../lib/site-operations.ts";
 import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("bright product cards are one column with name/value rows at 375 and 768", async () => {
   const browser = await openBrowser();
@@ -46,7 +46,6 @@ test("bright product cards are one column with name/value rows at 375 and 768", 
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close", params: {} })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
