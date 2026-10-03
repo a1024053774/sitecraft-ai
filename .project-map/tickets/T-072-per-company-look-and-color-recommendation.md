@@ -4,7 +4,7 @@ title: 需求对齐的样子和色彩集按公司资料推荐
 type: build
 status: open
 blocked_by: [T-070]
-claimed_by: codex-build
+claimed_by: t072-build
 supersedes:
 ---
 
@@ -37,3 +37,11 @@ T-065 的 6 个基线（三家不同的公司）全部是工程工业 + 工程�
 - 真实模型命令：`node --experimental-strip-types artifacts/t072/generate.mjs`（2026-10-03 06:00–06:02 UTC）。6 次请求均 HTTP 200，推荐记录见 `artifacts/t072/recommendations.json`。工业包两次为工程工业+石墨工坊，外贸包两次为工程工业+工程暖橙，注塑包一次工程工业+工程暖橙、一次工程工业+石墨工坊，因此组合不全相同；但外贸包两次理由退回目录/暖橙通用文案，没有指向资料事实，本项 **INCOMPLETE**，未重复请求凑数。
 - UI 证据：使用 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell` 在 3034 dev server 捕获并查看 `artifacts/t072/workspace-alignment-1440.png`、`workspace-alignment-768.png`、`workspace-alignment-375.png`；三档均加载了需求对齐卡，375 为逐题抽屉。
 - 全量 `CHROME_PATH=… npm test` 为 597/598 通过，既有 `tests/workspace-interaction.test.ts` 动效测试在 375 宽度等待进度步骤失败，输出见 `artifacts/t072/npm-test-chrome.txt`；未改动效范围，故本票全量验收保持 **INCOMPLETE**。第一次未设 Chrome 路径的失败也保留于 `artifacts/t072/npm-test.txt`。对应提交为本票最终本地提交（SHA 由 handoff 报告）。
+
+## 负责人决定（2026-10-03）
+
+第一轮真实结果（f0a0483）：色彩集已随公司变化，但样子 6 次全是工程工业，外贸两次和注塑一次的理由是通用文案。代码审查 PASS（`artifacts/review-astra-t072.md`）。负责人定：
+
+1. 先做 (c)：在规划器提示里给出 4 个样子各自的具体样子（版式、视觉重点）和适合的业务形态（必须和区块库里实际的 token、默认布局一致），真实 DeepSeek 再跑一轮（三份资料各两次），和第一轮对比。
+2. 如果样子推荐仍无变化，再做 (b)：在代码里从草稿的结构化字段算出资料特征（产品数、类别数、参数齐全程度、认证 / 行业 / 能力条目数等，只用结构化字段，不从正文猜），按写明的规则推荐样子，理由由这些特征生成。这取代本票原来「规则只写在提示里、不写成硬映射」一条；仍然不按行业标签硬映射。
+3. 由专门的执行会话（`t072-build`，Codex gpt-6.1-sol xhigh fast）在独立 worktree 上做，另开专门的验收会话（`t072-check`，Codex gpt-6-astra xhigh）验收；完成后两个会话关闭。
