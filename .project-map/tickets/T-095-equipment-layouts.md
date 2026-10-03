@@ -45,3 +45,9 @@ T-081 落地了 `content.equipment`（名称、数量可空、规格可空）和
 - 外观没变：重渲双栏清单 33 行（溢出 0、重叠 0、事实缺失 0/0、重复目标 0/0），真实 molding 三档、无数量、交错、单条、3 条、24 条、forge 逐张对照之前的图，一致；默认清单 1440 图一致。
 - 验证（负载规则：启动全量时 1 分钟负载 7.13）：`npm test` **680/680，0 失败**（`t095/npm-test-full-rework.txt`）；`check-published` 注塑设备站 `b9074a86` 及其数量带、双栏清单副本，3 站 × 三档 = 9 行 ok（`t095/check-published-rework.log`）；`typecheck`、`build` 通过（`t095/build-rework.txt`）。
 
+### Astra 复审（r2）NO_GO 后的返工（提交 `2e32733`）
+- P1：`renderEquipment` 只要页面有 `[data-sitecraft-equipment-grid]` 就渲染，即使没有 `data-sitecraft-section` 和 `data-sc-block` 实体，并把变体默认成 rows——孤立 marker 被猜成设备区块。**同一个模式从 T-079 起就在 `renderCommercialTerms` 里（T-081 照抄），这次一起修了。**
+- 根因层修：新增 `declaredBlockVariant(block, sectionSelector, gridSelector)`：section 节点、`data-sc-block` 实体、grid 三者各自唯一存在，且实体的 `data-sc-variant` 是区块声明过的变体（catalog 规则：每个变体的根都带它）才渲染；否则直接返回，不写任何节点，也不报 applied。实体缺 `data-sc-variant` 或变体未声明一律不渲染，不再猜 rows；双栏清单里「保留空数量格」的判断直接用这个有效变体（`=== "rows"`）。
+- P2：`tests/block-orphan-marker.test.ts`，设备和商业条款各 7 个：单独 grid、section+grid 没有实体、实体缺变体、实体变体未声明、重复 grid、重复实体都不被填充且不报该区块的 applied 目标（`<block>.visibility` 是 `adapter.sections` 声明的独立可见性机制，不算区块渲染，测试里单列说明），完整声明的实体仍被填充。先在 `aff1e6a` 上跑，14 个里 10 个行为级失败（`equipment-compact-list/red-orphan-marker.txt`：`the stray grid stays empty`）。
+- 验证（启动全量时 1 分钟负载 9.22）：`npm test` **694/694，0 失败**（`t095/npm-test-full-rework2.txt`）；`check-published`：注塑设备站 `b9074a86` 及其数量带、双栏清单副本 + 商业条款三站 `b1577055`、`827de4c5`、`561a1113`，6 站 × 三档 = 18 行全部 ok（`t095/check-published-rework2.log`）；`typecheck`、`build` 通过（`t095/build-rework2.txt`）。
+
