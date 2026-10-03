@@ -6,6 +6,7 @@ import {
   closeModalExpression,
   closePage,
   contrastScan,
+  closeBrowser,
   createSite,
   openBrowser,
   openWorkspace,
@@ -138,7 +139,7 @@ test("every workspace surface keeps text at 4.5:1 or above in dark and light, at
       }
     }
   } finally {
-    browser.ws.close();
+    await closeBrowser(browser);
     writeFileSync(new URL("contrast-report.json", out), JSON.stringify(report, null, 2));
   }
   assert.deepEqual(failures, []);

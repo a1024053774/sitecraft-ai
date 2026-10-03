@@ -20,6 +20,17 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 测试先写、改动前先失败（行为级）：在子进程里经助手打开浏览器，分别正常结束、抛错结束、被 SIGTERM，之后断言它启动的 Chrome 已不存在；SIGKILL 后再开一次助手，断言上一次的 Chrome 被回收，而另一个调试端口有连接的 Chrome 不被回收
-- [ ] 全量 `npm test` 前后各数一次 `sitecraft-workspace-*` 且父进程为 1 的 Chrome，跑完后不增加（第一次运行时下降为 0 或只剩有连接的）；`npm run typecheck`、`npm run build` 通过
+- [x] 测试先写、改动前先失败（行为级）：在子进程里经助手打开浏览器，分别正常结束、抛错结束、被 SIGTERM，之后断言它启动的 Chrome 已不存在；SIGKILL 后再开一次助手，断言上一次的 Chrome 被回收，而另一个调试端口有连接的 Chrome 不被回收
+- [x] 全量 `npm test` 前后各数一次 `sitecraft-workspace-*` 且父进程为 1 的 Chrome，跑完后不增加（第一次运行时下降为 0 或只剩有连接的）；`npm run typecheck`、`npm run build` 通过
 - [ ] 代码审查通过；Claude 验收
+
+## Resolution
+
+2026-10-03（America/New_York），codex-build：
+
+- 先写行为夹具 `tests/t094-chrome-lifecycle.fixture.ts` 和子进程 `tests/t094-chrome-lifecycle-child.ts`。父提交 `957ceb6` 上的真实红测见 `artifacts/t094/red-lifecycle.txt`：正常退出遗留 Chrome，SIGKILL 后下一次助手无法回收孤儿；启动尚未就绪的首份异常保留在 `red-lifecycle-startup-timeout.txt`，没有覆盖异常证据。
+- `openBrowser()` 现在记录自己 `spawn()` 的 PID、user-data-dir 和调试端口；`Cdp.close()` / `closeBrowser()`、socket close、SIGINT/SIGTERM、进程退出和异常路径都只清理自己持有的 Chrome。下一次打开扫描精确的 `sitecraft-workspace-<数字>` 命令行，仅当目录里的 owner PID 已不存在且 `lsof` 确认调试端口没有 established 连接时 SIGKILL 回收；回收同时结束 detached Chrome 进程组并在有界窗口内重复确认，避免 reparent 延迟留下子进程；PID 仍活着、端口连接状态不确定、命令行或 user-data-dir 不匹配时保留。T-077 的锁和 T-083 的 `SITECRAFT_BASE` 工作区核对未改。
+- 所有使用共享助手的浏览器测试改用 `closeBrowser()`；T-075 的独立 Chrome 夹具继续只结束自己创建的进程。
+- 修复后生命周期夹具 2/2 通过：`artifacts/t094/lifecycle-final4.txt`，夹具等待正常 socket close 清理完成后再退出，3 秒后计数仍为 0（`chrome-count-before-lifecycle-final4.txt` / `chrome-count-after-lifecycle-final4.txt`）。第一次修复运行从 154 个孤儿降到 0（`chrome-count-before-fix.txt` / `chrome-count-after-fix.txt`）；最终 full run 的即时计数为 2 → 0（`chrome-count-before-npm-final2.txt` / `chrome-count-after-npm-final2.txt`），随后观察到 reparent 延迟出现的 6 个孤儿，再由下一次助手运行回收到 0（`chrome-count-before-final-reclaim2.txt` / `chrome-count-after-final-reclaim2.txt`）；最终单子进程正常退出探针在 5 秒后仍为 0（`chrome-count-before-single-normal2.txt` / `chrome-count-after-single-normal2.txt`）。没有手动 pkill。
+- 3056、指定 Chrome for Testing 路径下最终全量 `npm test` 为 658/665，0 个 Chrome 遗留，输出 `artifacts/t094/npm-test-final2.txt`。7 个失败均为已知环境/父提交问题：family-modules 仍包含 equipment，以及 vendor 子模块未初始化造成 fresh/genai/tailcast 快照资产缺失；第一次全量的关闭竞态和 motion 失败原始输出保留在 `npm-test-before-close-race.txt`，没有覆盖。
+- `npm run typecheck` 通过（`artifacts/t094/typecheck-final.txt`），`npm run build` 通过（`artifacts/t094/build-final.txt`）。`docs/project/spec.md` 已记录生命周期和回收契约，MAP living-doc 验证已同步；`project_map.py status --root .` 无 stale。状态保持 open，本地提交未 push。
