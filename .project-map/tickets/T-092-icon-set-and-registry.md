@@ -32,3 +32,10 @@ supersedes:
 - 预览命令从 registry 读取数据生成 `artifacts/t092/icon-preview-light.svg`、`icon-preview-dark.svg` 及 PNG；参考图 `reference-smallbits.png` 只在 artifacts 中，来源 `https://smallbits.design/images/og.png`，未进入仓库。两张 PNG 已打开检查。
 - 预览已由执行者打开检查；独立审核 agent 尚未看过，故该勾选项保持未勾选。
 - `npm run typecheck` PASS；`npm run build` PASS。`SITECRAFT_BASE=http://localhost:3054 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`：649 通过、11 失败，完整日志为 `artifacts/t092/npm-test.log`；失败来自 vendor 快照缺失、模板资产缺失、健康检查超时/503 和既有 workspace motion 检查，未归因于本票 registry 测试。因完整测试未全绿，状态保持 open，代码审查和 Claude 验收未勾选。
+
+2026-10-03 14:35 EDT 复核与修复：
+
+- 在 3054 启动 dev server，`curl http://localhost:3054/` 返回 200；重新执行全量 `npm test`，日志为 `artifacts/t092/npm-test-2.log`：660 tests，658 pass、1 fail、1 cancelled。vendor 快照/资产不再失败；唯一断言失败是 T-077 已知不稳定的 workspace motion，另一个 alignment-card 在全量运行中 180 秒超时。
+- alignment-card 逐条核对：当前提交单测复跑通过，证据为 `artifacts/t092/alignment-card-isolated-2.log`；父提交 `fc25b37` 的同一测试也通过，证据为 `artifacts/t092/parent-alignment-card-2.log`。因此全量超时/先前 1px 波动属于测试运行环境/无头浏览器稳定性，不归因于本票；没有修改 `tests/helpers/workspace-browser.ts`，没有手动结束 Chrome。
+- 预览根因是临时渲染器把 24px viewBox 按 32px 单元平移（`x/y - 32 * scale`），并把首行图标中心放在顶部标签附近；已改为按 24px viewBox 居中（`x/y - 12 * scale`）并下移首行，标签不再压图标。注册表的三个自画图标同时扩大到接近 3–22 的光学边界；出口资质重画为明确的文件 + 外箭头，16px 可辨认。
+- 重新生成并打开：[浅色预览](../../artifacts/t092/icon-preview-light.png)、[深色预览](../../artifacts/t092/icon-preview-dark.png)；`node --test --experimental-strip-types tests/icon-registry.test.ts` 6/6 PASS；`npm run typecheck` PASS；`npm run build`（日志 `artifacts/t092/build-2.log`）PASS。独立审核仍未完成，状态保持 open。

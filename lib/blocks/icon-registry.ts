@@ -129,21 +129,21 @@ export const iconRegistry: Readonly<Record<IconId, IconDefinition>> = {
 
   // Original geometry: a certificate sheet with a ribbon, built from the 24px house grid.
   "cert-certificate": original("cert-certificate", "certificate document", [
-    { kind: "path", d: "M6 3.5h12A1.5 1.5 0 0 1 19.5 5v10A1.5 1.5 0 0 1 18 16.5H6A1.5 1.5 0 0 1 4.5 15V5A1.5 1.5 0 0 1 6 3.5Z" },
-    { kind: "path", d: "M7 7h10M7 10h7M7 13h5" },
-    { kind: "path", d: "M9 16.5v4l3-1.75 3 1.75v-4" },
+    { kind: "path", d: "M5 2.75h14A1.75 1.75 0 0 1 20.75 4.5v11A1.75 1.75 0 0 1 19 17.25H5A1.75 1.75 0 0 1 3.25 15.5v-11A1.75 1.75 0 0 1 5 2.75Z" },
+    { kind: "path", d: "M5.75 6.5h12.5M5.75 10h9.5M5.75 13.5h7" },
+    { kind: "path", d: "M8.25 17.25v4.5L12 19.6l3.75 2.15v-4.5" },
   ]),
   // Original geometry: report sheet plus a separate inspection lens and check.
   "cert-inspection-report": original("cert-inspection-report", "inspection report", [
-    { kind: "path", d: "M6 3.5h8l4 4V16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2Z" },
-    { kind: "path", d: "M14 3.5v4h4M7 10h4M7 13h3" },
-    { kind: "circle", cx: 14.5, cy: 14.5, r: 3.25 },
-    { kind: "path", d: "m17 17 3 3" },
+    { kind: "path", d: "M5 2.75h8.5l5.5 5.5v8.5a2.25 2.25 0 0 1-2.25 2.25H5A2.25 2.25 0 0 1 2.75 16.75V5A2.25 2.25 0 0 1 5 2.75Z" },
+    { kind: "path", d: "M13.5 2.75v5.5H19M5.75 9.5h5.25M5.75 13h4.25" },
+    { kind: "circle", cx: 15, cy: 15, r: 4 },
+    { kind: "path", d: "m17.9 17.9 3.35 3.35" },
   ]),
   // Original geometry: a qualification sheet with an outward export arrow.
   "cert-export-qualification": original("cert-export-qualification", "export qualification", [
-    { kind: "path", d: "M6 3.5h7l4 4v4M13 3.5v4h4M7 11h5M7 14h4" },
-    { kind: "path", d: "M14 17h7M18 14l3 3-3 3" },
+    { kind: "path", d: "M4 2.75h8.5l4.5 4.5v4M12.5 2.75v4.5H17M5.5 11h4.25M5.5 14h3.25M4 2.75v18.5h5" },
+    { kind: "path", d: "M11.5 17h10M17.5 13.5l4 3.5-4 3.5" },
   ]),
   "cert-status-valid": lucide("cert-status-valid", "certification status valid", [
     { kind: "path", d: "M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" },
