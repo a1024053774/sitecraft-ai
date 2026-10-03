@@ -103,35 +103,73 @@ test("型号索引表 renders one row per product with its own first three value
   }
 });
 
-test("型号索引表 keeps the summary and every spec behind a folded 全部参数 line under the name, and applies their slots", () => {
+const slotValues = (root: { querySelectorAll(selector: string): Array<{ getAttribute(name: string): string | null }> }) =>
+  root.querySelectorAll("[data-sitecraft-slot]").map((node) => node.getAttribute("data-sitecraft-slot") as string);
+const valuedCount = (product: { specs?: Array<{ value: unknown }> }) => (product.specs ?? []).filter((spec) => spec.value !== "待补充").length;
+
+test("型号索引表 puts the summary and the specs after the first three in a full-width band under the row, folded", () => {
   const draft = withLayouts(packDraft("molding"), { products: "index" });
   const first = draft.products[0];
+  const rest = valuedCount(first) - 3;
   const targets = [`products.${first.id}.name.zh`, `products.${first.id}.specs`, `products.${first.id}.summary.zh`];
   const index = render(draft, "zh", targets);
   assert.deepEqual(index.report.missingSlots, [], "name, specs and summary all land on the page");
-  const row = index.products.querySelectorAll("tr[data-sitecraft-product]")[0];
-  const more = row.querySelector("details.sitecraft-index-more");
-  assert.ok(more, "the row has a folded section");
+  const item = index.products.querySelectorAll("tbody.sitecraft-index-item")[0];
+  assert.ok(item, "each product is one row group");
+  assert.equal(item.querySelectorAll("tr").length, 2, "the main row and the detail band");
+  const detail = item.querySelector("tr.sitecraft-index-detail");
+  assert.ok(detail);
+  assert.equal(detail.querySelector("td")?.getAttribute("colspan"), String((item.querySelector("tr[data-sitecraft-product]")!.querySelectorAll("th, td").length)), "the band spans the whole row");
+  const more = detail.querySelector("details");
+  assert.ok(more);
   assert.equal(more.hasAttribute("open"), false, "folded by default, so the ledger stays tight");
-  assert.equal(text(more.querySelector("summary")), `简介与全部参数（${first.specs!.filter((spec) => spec.value !== "待补充").length} 项）`);
+  assert.equal(text(more.querySelector("summary")), `简介与其余参数（${rest} 项）`);
   assert.equal(text(more.querySelector(".sitecraft-index-summary")), first.summary.zh);
-  assert.equal(more.querySelectorAll(`[data-sitecraft-slot="products.${first.id}.summary.zh"]`).length, 1);
-  const labels = more.querySelectorAll(".sitecraft-product-specs th").map((node) => text(node));
-  assert.deepEqual(labels, ["型腔数", "模具尺寸", "模具钢材", "成型周期", ...labels.slice(4)], "every valued spec is listed, the first three included");
-  assert.ok(labels.length > 3, "the specs beyond the first three are on the page");
+  const labels = more.querySelectorAll(".sitecraft-index-rest-item dt").map((node) => text(node));
+  assert.deepEqual(labels, first.specs!.filter((spec) => spec.value !== "待补充").slice(3).map((spec) => spec.name.zh), "only the specs after the first three");
+  const mainLabels = item.querySelector("tr[data-sitecraft-product]")!.querySelectorAll(".sitecraft-index-spec-label").map((node) => text(node));
+  assert.equal(mainLabels.filter((label) => labels.includes(label)).length, 0, "no spec appears in both the row and the band");
+  assert.equal(item.querySelector("tr[data-sitecraft-product]")!.querySelector("details"), null, "the main row keeps its columns, no fold in it");
   assert.doesNotMatch(text(index.products), /待补充|To be provided/);
-  // A product with no summary and no more than three specs has nothing to fold.
-  const short = structuredClone(draft);
-  short.products[0].summary = { zh: "待补充", en: "To be provided" };
-  short.products[0].specs = short.products[0].specs!.slice(0, 3);
-  assert.equal(render(short).products.querySelectorAll("tr[data-sitecraft-product]")[0].querySelectorAll("details").length, 0);
-  // Only a summary: the fold is called 简介; the inquiry link names its product for assistive tech.
-  const summaryOnly = structuredClone(draft);
+});
+
+test("型号索引表 variants of the fold: only a summary, only more specs, nothing", () => {
+  const base = withLayouts(packDraft("molding"), { products: "index" });
+  const none = structuredClone(base);
+  none.products[0].summary = { zh: "待补充", en: "To be provided" };
+  none.products[0].specs = none.products[0].specs!.slice(0, 3);
+  assert.equal(render(none).products.querySelectorAll("tbody.sitecraft-index-item")[0].querySelectorAll("details").length, 0, "nothing to fold: no entry");
+  const summaryOnly = structuredClone(base);
   summaryOnly.products[0].specs = summaryOnly.products[0].specs!.slice(0, 3);
+  assert.equal(text(render(summaryOnly).products.querySelectorAll("tbody.sitecraft-index-item")[0].querySelector("details summary")), "简介");
+  assert.equal(text(render(summaryOnly, "en").products.querySelectorAll("tbody.sitecraft-index-item")[0].querySelector("details summary")), "Summary");
+  const specsOnly = structuredClone(base);
+  specsOnly.products[0].summary = { zh: "待补充", en: "To be provided" };
+  const specRow = render(specsOnly).products.querySelectorAll("tbody.sitecraft-index-item")[0];
+  assert.equal(text(specRow.querySelector("details summary")), `其余参数（${valuedCount(specsOnly.products[0]) - 3} 项）`);
+  assert.equal(specRow.querySelectorAll(".sitecraft-index-summary").length, 0);
+  assert.equal(text(render(specsOnly, "en").products.querySelectorAll("tbody.sitecraft-index-item")[0].querySelector("details summary")), `More specifications (${valuedCount(specsOnly.products[0]) - 3})`);
   const onlyRow = render(summaryOnly, "en").products.querySelectorAll("tr[data-sitecraft-product]")[0];
-  assert.equal(text(onlyRow.querySelector("details summary")), "Summary");
-  assert.equal(onlyRow.querySelector(".sitecraft-product-ask")?.getAttribute("aria-label"), `Ask about this series: ${first.name.en}`);
-  assert.equal(index.products.querySelectorAll(".sitecraft-index-sr").length, 0, "no visually hidden label that a visibility check would flag");
+  assert.equal(onlyRow.querySelector(".sitecraft-product-ask")?.getAttribute("aria-label"), `Ask about this series: ${base.products[0].name.en}`);
+  assert.equal(render(base).products.querySelectorAll(".sitecraft-index-sr").length, 0, "no visually hidden label that a visibility check would flag");
+});
+
+test("型号索引表 gives every target one node, and a click on any spec lands on the specs target", () => {
+  const draft = withLayouts(packDraft("molding"), { products: "index" });
+  const { products } = render(draft);
+  const values = slotValues(products);
+  const duplicates = values.filter((value, i) => values.indexOf(value) !== i);
+  assert.deepEqual(duplicates, [], "no target is on more than one node");
+  for (const product of draft.products) {
+    const specsTarget = `products.${product.id}.specs`;
+    assert.equal(values.filter((value) => value === specsTarget).length, 1, `${specsTarget} is on exactly one node`);
+    const item = products.querySelectorAll("tbody.sitecraft-index-item").find((node) => node.getAttribute("data-sitecraft-slot") === specsTarget);
+    assert.ok(item, `${specsTarget} sits on the product's own row group`);
+    const specNodes = [...item.querySelectorAll(".sitecraft-index-spec"), ...item.querySelectorAll(".sitecraft-index-spec-label"), ...item.querySelectorAll(".sitecraft-index-spec-value"), ...item.querySelectorAll(".sitecraft-index-rest-item dt"), ...item.querySelectorAll(".sitecraft-index-rest-item dd")];
+    assert.ok(specNodes.length >= 6, "the row and the band both carry spec cells");
+    for (const node of specNodes) assert.equal(node.closest("[data-sitecraft-slot]")?.getAttribute("data-sitecraft-slot"), specsTarget, "the nearest target of a spec cell is the specs target");
+    assert.equal(item.querySelector("h3")?.closest("[data-sitecraft-slot]")?.getAttribute("data-sitecraft-slot"), `products.${product.id}.name.zh`, "the name keeps its own target");
+  }
 });
 
 test("型号索引表 reads the English draft and keeps a product with fewer specs as a short row", () => {
@@ -174,6 +212,23 @@ test("型号索引表 has no horizontal overflow at 1440, 768 and 375 on two loo
         assert.equal(result.rows, 5, where);
         assert.ok(result.pageWidth <= result.viewport + 1, `${where}: page scrolls sideways (${result.pageWidth} > ${result.viewport})`);
         assert.deepEqual(result.outside, [], `${where}: nodes outside the viewport`);
+        // Opened: the band is as wide as the whole row and nothing runs out of the page.
+        const opened = await browser.eval<{ pageWidth: number; viewport: number; outside: string[]; narrowest: number; tableWidth: number; count: number }>(`(() => {
+          const block = document.querySelector('[data-sc-block="products"]');
+          const nodes = [...block.querySelectorAll('details')];
+          nodes.forEach((node) => { node.open = true; });
+          const vw = window.innerWidth;
+          const table = block.querySelector('table.sitecraft-index-table').getBoundingClientRect();
+          const outside = [...block.querySelectorAll('*')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 1 && (r.right > vw + 1 || r.left < -1); }).map((el) => String(el.className || el.tagName));
+          const narrowest = Math.min(...nodes.map((node) => node.getBoundingClientRect().width));
+          const result = { pageWidth: document.documentElement.scrollWidth, viewport: vw, outside, narrowest, tableWidth: table.width, count: nodes.length };
+          nodes.forEach((node) => { node.open = false; });
+          return result;
+        })()`, sessionId);
+        assert.equal(opened.count, 5, `${where}: every product has a fold`);
+        assert.ok(opened.pageWidth <= opened.viewport + 1, `${where}: opened page scrolls sideways`);
+        assert.deepEqual(opened.outside, [], `${where}: opened nodes outside the viewport`);
+        assert.ok(opened.narrowest >= opened.tableWidth - 2, `${where}: the opened band spans the row (${opened.narrowest} < ${opened.tableWidth})`);
       }
     }
   } finally {

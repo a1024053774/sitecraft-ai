@@ -482,8 +482,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   // 型号索引表: one row per product — name with its category, then that
   // product's own first valued specs (each cell names its spec, so rows need not share any), then
-  // the inquiry link. The summary and every spec sit behind a folded 全部参数 line under the name,
-  // like the product cards, so the ledger stays tight and no material fact is left off the page. On phones each row stacks and the specs read as name/value lines.
+  // the inquiry link. The summary and the specs after those sit in a folded band under the row that
+  // spans its whole width, so the ledger stays tight and no material fact is left off the page. Each
+  // product is one <tbody> that carries the specs target; the row cells and the band are inside it.
+  // On phones each row stacks and the specs read as name/value lines.
   function renderIndex(grid, products, locale, applied, layout) {
     var limit = layout.keySpecs || 3;
     var rows = [];
@@ -519,12 +521,20 @@ function sitecraftPreviewBridge(templateId, adapter) {
     headRow.appendChild(askHead);
     head.appendChild(headRow);
     table.appendChild(head);
-    var body = document.createElement("tbody");
     for (var r = 0; r < rows.length; r++) {
       var product = rows[r].product;
       var id = rows[r].id;
       var sku = typeof product.sku === "string" ? product.sku : "product-" + rows[r].index;
       var productName = localize(product.name, locale) || "";
+      var allSpecs = valuedSpecs(product, locale);
+      // One row group per product. It is the single node of the product's specs target: the cells of
+      // the row and of the detail band sit inside it, so a click on any spec resolves to that target.
+      var item = document.createElement("tbody");
+      item.className = "sitecraft-index-item";
+      if (allSpecs.length) {
+        item.setAttribute("data-sitecraft-slot", "products." + id + ".specs");
+        applied.add("products." + id + ".specs");
+      }
       var tr = document.createElement("tr");
       tr.setAttribute("data-sitecraft-product", sku);
       var nameCell = document.createElement("th");
@@ -544,55 +554,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
       title.setAttribute("data-sitecraft-slot", "products." + id + ".name." + locale);
       nameCell.appendChild(title);
       applied.add("products." + id + ".name." + locale);
-      var productSummary = localize(product.summary, locale) || "";
-      var hasSummary = !isGapMarker(productSummary);
-      var allSpecs = valuedSpecs(product, locale);
-      var hasMoreSpecs = allSpecs.length > rows[r].specs.length;
-      if (hasSummary || hasMoreSpecs) {
-        var more = document.createElement("details");
-        more.className = "sitecraft-product-more sitecraft-index-more";
-        var toggle = document.createElement("summary");
-        var en = locale === "en";
-        toggle.textContent = hasMoreSpecs
-          ? (hasSummary ? (en ? "Summary and all specifications (" : "简介与全部参数（") : (en ? "All specifications (" : "全部参数（")) + allSpecs.length + (en ? ")" : " 项）")
-          : (en ? "Summary" : "简介");
-        more.appendChild(toggle);
-        if (hasSummary) {
-          var summary = document.createElement("p");
-          summary.className = "sitecraft-index-summary";
-          summary.textContent = productSummary;
-          summary.setAttribute("data-sitecraft-slot", "products." + id + ".summary." + locale);
-          more.appendChild(summary);
-          applied.add("products." + id + ".summary." + locale);
-        }
-        if (hasMoreSpecs) {
-          var specTable = document.createElement("table");
-          specTable.className = "sitecraft-product-specs";
-          specTable.setAttribute("data-sitecraft-slot", "products." + id + ".specs");
-          var specBody = document.createElement("tbody");
-          for (var si = 0; si < allSpecs.length; si++) {
-            var specRow = document.createElement("tr");
-            var specName = document.createElement("th");
-            specName.scope = "row";
-            specName.textContent = allSpecs[si].name;
-            var specValue = document.createElement("td");
-            setValueText(specValue, allSpecs[si].value);
-            specRow.appendChild(specName);
-            specRow.appendChild(specValue);
-            specBody.appendChild(specRow);
-          }
-          specTable.appendChild(specBody);
-          more.appendChild(specTable);
-        }
-        nameCell.appendChild(more);
-      }
       tr.appendChild(nameCell);
       for (var c = 0; c < columns; c++) {
         var cell = document.createElement("td");
         cell.className = "sitecraft-index-spec";
         var spec = rows[r].specs[c];
         if (spec) {
-          cell.setAttribute("data-sitecraft-slot", "products." + id + ".specs");
           var label = document.createElement("span");
           label.className = "sitecraft-index-spec-label";
           label.textContent = spec.name;
@@ -604,16 +571,65 @@ function sitecraftPreviewBridge(templateId, adapter) {
         }
         tr.appendChild(cell);
       }
-      if (rows[r].specs.length) applied.add("products." + id + ".specs");
       var askCell = document.createElement("td");
       askCell.className = "sitecraft-index-ask";
       var ask = askLink(layout.askHref, locale);
       ask.setAttribute("aria-label", (locale === "en" ? "Ask about this series: " : "询这款规格：") + productName);
       askCell.appendChild(ask);
       tr.appendChild(askCell);
-      body.appendChild(tr);
+      item.appendChild(tr);
+      // The detail band under the row, folded: the summary and the specs after the ones in the row.
+      var productSummary = localize(product.summary, locale) || "";
+      var hasSummary = !isGapMarker(productSummary);
+      var restSpecs = allSpecs.slice(rows[r].specs.length);
+      if (hasSummary || restSpecs.length) {
+        var en = locale === "en";
+        var detailRow = document.createElement("tr");
+        detailRow.className = "sitecraft-index-detail";
+        var detailCell = document.createElement("td");
+        detailCell.setAttribute("colspan", String(columns + 2));
+        var more = document.createElement("details");
+        more.className = "sitecraft-index-more";
+        var toggle = document.createElement("summary");
+        toggle.textContent = restSpecs.length
+          ? (hasSummary ? (en ? "Summary and more specifications (" : "简介与其余参数（") : (en ? "More specifications (" : "其余参数（")) + restSpecs.length + (en ? ")" : " 项）")
+          : (en ? "Summary" : "简介");
+        more.appendChild(toggle);
+        var bandBody = document.createElement("div");
+        bandBody.className = "sitecraft-index-detail-body";
+        if (hasSummary) {
+          var summary = document.createElement("p");
+          summary.className = "sitecraft-index-summary";
+          summary.textContent = productSummary;
+          summary.setAttribute("data-sitecraft-slot", "products." + id + ".summary." + locale);
+          bandBody.appendChild(summary);
+          applied.add("products." + id + ".summary." + locale);
+        }
+        if (restSpecs.length) {
+          var restList = document.createElement("dl");
+          restList.className = "sitecraft-index-rest";
+          for (var si = 0; si < restSpecs.length; si++) {
+            var restItem = document.createElement("div");
+            restItem.className = "sitecraft-index-rest-item";
+            var restName = document.createElement("dt");
+            restName.className = "sitecraft-index-spec-label";
+            restName.textContent = restSpecs[si].name;
+            var restValue = document.createElement("dd");
+            restValue.className = "sitecraft-index-spec-value";
+            setValueText(restValue, restSpecs[si].value);
+            restItem.appendChild(restName);
+            restItem.appendChild(restValue);
+            restList.appendChild(restItem);
+          }
+          bandBody.appendChild(restList);
+        }
+        more.appendChild(bandBody);
+        detailCell.appendChild(more);
+        detailRow.appendChild(detailCell);
+        item.appendChild(detailRow);
+      }
+      table.appendChild(item);
     }
-    table.appendChild(body);
     grid.appendChild(table);
   }
 
