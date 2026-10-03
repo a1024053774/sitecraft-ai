@@ -1621,6 +1621,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (tokens.diagram) root.dataset.sitecraftTokenDiagram = tokens.diagram;
       if (tokens.tint) root.dataset.sitecraftTokenTint = tokens.tint;
       if (tokens.font) root.dataset.sitecraftTokenFont = tokens.font;
+      if (tokens.headingFont) root.dataset.sitecraftTokenHeadingFont = tokens.headingFont;
+      if (tokens.dataFont) root.dataset.sitecraftTokenDataFont = tokens.dataFont;
       if (tokens.radius) root.dataset.sitecraftTokenRadius = tokens.radius;
       if (root.style && root.style.setProperty) {
         if (tokens.background) root.style.setProperty("--site-bg", tokens.background);
@@ -1637,6 +1639,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (tokens.diagram) root.style.setProperty("--site-diagram", tokens.diagram);
         if (tokens.tint) root.style.setProperty("--site-tint", tokens.tint);
         if (tokens.font) root.style.setProperty("--site-font", tokens.font);
+        if (tokens.headingFont) root.style.setProperty("--site-heading-font", tokens.headingFont);
+        if (tokens.dataFont) root.style.setProperty("--site-data-font", tokens.dataFont);
         if (tokens.radius) root.style.setProperty("--site-radius", tokens.radius);
       }
     }

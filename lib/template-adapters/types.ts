@@ -45,6 +45,10 @@ export type TemplateKitTokens = {
   diagram?: string;
   tint?: string;
   font: string;
+  /** Heading family selected by the kit; the model cannot write this value. */
+  headingFont?: string;
+  /** Data-role family selected by the kit; use only for specs, SKUs and units. */
+  dataFont?: string;
   radius: string;
 };
 
@@ -63,6 +67,10 @@ export type TemplateKitModule = {
  */
 export type TemplateKit = {
   familyId: TemplateFamilyId;
+  /** Stable registry ids for the two self-hosted font roles. */
+  fontFamilyId?: string;
+  headingFontFamilyId?: string;
+  dataFontFamilyId?: string;
   tokens: TemplateKitTokens;
   palettes?: Readonly<Record<string, TemplateKitTokens>>;
   modules: TemplateKitModule[];

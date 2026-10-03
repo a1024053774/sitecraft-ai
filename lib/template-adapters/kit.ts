@@ -18,6 +18,8 @@ export function sameFamilyTokens(left: TemplateKitTokens, right: TemplateKitToke
     left.accent === right.accent &&
     left.border === right.border &&
     left.font === right.font &&
+    left.headingFont === right.headingFont &&
+    left.dataFont === right.dataFont &&
     left.radius === right.radius
   );
 }

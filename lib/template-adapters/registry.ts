@@ -5,6 +5,21 @@ import { brightLook } from "../blocks/looks/bright.ts";
 import { shortPathLook } from "../blocks/looks/short-path.ts";
 import type { SlotApplyReport, TemplateAdapter, TemplateKitModule, TemplateSlot } from "./types.ts";
 
+const CJK_FALLBACK = '"PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif';
+const FONT_STACKS = {
+  geist: `"Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", ${CJK_FALLBACK}`,
+  manrope: `"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", ${CJK_FALLBACK}`,
+  sora: `"Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", ${CJK_FALLBACK}`,
+} as const;
+const DATA_FONT_STACKS = {
+  geistMono: `"Geist Mono", "SFMono-Regular", "Cascadia Code", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", monospace`,
+  jetbrainsMono: `"JetBrains Mono", "SFMono-Regular", "Cascadia Code", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", monospace`,
+} as const;
+const ENGINEERING_FONT_TOKENS = { font: FONT_STACKS.geist, headingFont: FONT_STACKS.geist, dataFont: DATA_FONT_STACKS.geistMono };
+const CATALOG_FONT_TOKENS = { font: FONT_STACKS.manrope, headingFont: FONT_STACKS.manrope, dataFont: DATA_FONT_STACKS.jetbrainsMono };
+const BRIGHT_FONT_TOKENS = { font: FONT_STACKS.manrope, headingFont: FONT_STACKS.sora, dataFont: DATA_FONT_STACKS.jetbrainsMono };
+const SHORT_PATH_FONT_TOKENS = { font: FONT_STACKS.geist, headingFont: FONT_STACKS.geist, dataFont: DATA_FONT_STACKS.geistMono };
+
 const textSlot = (target: string, selector: string): TemplateSlot => ({
   target,
   selector,
@@ -121,6 +136,9 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       ],
     },
     kit: {
+      fontFamilyId: "bright-manrope",
+      headingFontFamilyId: "bright-sora",
+      dataFontFamilyId: "bright-jetbrains-mono",
       familyId: "industrial",
       tokens: {
       background: "#ffffff",
@@ -133,27 +151,27 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       border: "#d8e0e5",
       diagram: "#e8eff2",
       tint: "#f3f6f7",
-      font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+      ...BRIGHT_FONT_TOKENS,
       radius: "1rem",
       },
       palettes: {
         "industrial-porcelain": {
-          background: "#fafbfc", surface: "#ffffff", text: "#141b24", muted: "#525a65", accent: "#1f5aa6", accentStrong: "#153f78", accentSoft: "#e9eff7", border: "#cfd5de", diagram: "#e4e7ec", tint: "#eef0f4", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#fafbfc", surface: "#ffffff", text: "#141b24", muted: "#525a65", accent: "#1f5aa6", accentStrong: "#153f78", accentSoft: "#e9eff7", border: "#cfd5de", diagram: "#e4e7ec", tint: "#eef0f4", ...BRIGHT_FONT_TOKENS, radius: "1rem",
         },
         "industrial-graphite": {
-          background: "#fbfbfb", surface: "#ffffff", text: "#1b1c1e", muted: "#5a5c5e", accent: "#3d4853", accentStrong: "#262e36", accentSoft: "#e9f0f7", border: "#d5d6d8", diagram: "#e7e8e9", tint: "#f0f1f2", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#fbfbfb", surface: "#ffffff", text: "#1b1c1e", muted: "#5a5c5e", accent: "#3d4853", accentStrong: "#262e36", accentSoft: "#e9f0f7", border: "#d5d6d8", diagram: "#e7e8e9", tint: "#f0f1f2", ...BRIGHT_FONT_TOKENS, radius: "1rem",
         },
         "industrial-warm-orange": {
-          background: "#fcfbfb", surface: "#ffffff", text: "#1f1c1a", muted: "#5f5c59", accent: "#c2531c", accentStrong: "#9a3f14", accentSoft: "#f7ede9", border: "#d9d6d4", diagram: "#e9e8e7", tint: "#f2f1f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#fcfbfb", surface: "#ffffff", text: "#1f1c1a", muted: "#5f5c59", accent: "#c2531c", accentStrong: "#9a3f14", accentSoft: "#f7ede9", border: "#d9d6d4", diagram: "#e9e8e7", tint: "#f2f1f0", ...BRIGHT_FONT_TOKENS, radius: "1rem",
         },
         "industrial-patina": {
-          background: "#fbfcfb", surface: "#ffffff", text: "#1a1f1c", muted: "#595f5c", accent: "#2f6e5b", accentStrong: "#1f4f41", accentSoft: "#e9f7f2", border: "#d4d9d6", diagram: "#e7e9e8", tint: "#f0f2f1", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#fbfcfb", surface: "#ffffff", text: "#1a1f1c", muted: "#595f5c", accent: "#2f6e5b", accentStrong: "#1f4f41", accentSoft: "#e9f7f2", border: "#d4d9d6", diagram: "#e7e9e8", tint: "#f0f2f1", ...BRIGHT_FONT_TOKENS, radius: "1rem",
         },
         "industrial-turquoise": {
-          background: "#fafcfc", surface: "#ffffff", text: "#162022", muted: "#556163", accent: "#0d6f7c", accentStrong: "#09525c", accentSoft: "#e9f5f7", border: "#d1dbdc", diagram: "#e5eaeb", tint: "#eff3f3", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#fafcfc", surface: "#ffffff", text: "#162022", muted: "#556163", accent: "#0d6f7c", accentStrong: "#09525c", accentSoft: "#e9f5f7", border: "#d1dbdc", diagram: "#e5eaeb", tint: "#eff3f3", ...BRIGHT_FONT_TOKENS, radius: "1rem",
         },
         "industrial-morandi": {
-          background: "#fcfbfb", surface: "#ffffff", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#fcfbfb", surface: "#ffffff", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", ...BRIGHT_FONT_TOKENS, radius: "1rem",
         },
       },
       modules: [
@@ -245,6 +263,9 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
   screwfast: blockAdapterFor(engineeringLook, {
     alternatives: { ...contactToHeroCta },
     kit: {
+      fontFamilyId: "engineering-geist",
+      headingFontFamilyId: "engineering-geist",
+      dataFontFamilyId: "engineering-geist-mono",
       familyId: "engineering-industrial",
       tokens: {
         background: "#f4f5f3",
@@ -257,27 +278,27 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         border: "#d7ddd8",
         diagram: "#e8ece8",
         tint: "#eef4f0",
-        font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+        ...ENGINEERING_FONT_TOKENS,
         radius: "0.25rem",
       },
       palettes: {
         "engineering-porcelain": {
-          background: "#f2f4f8", surface: "#fcfcfd", text: "#141b24", muted: "#525a65", accent: "#1f5aa6", accentStrong: "#153f78", accentSoft: "#e9eff7", border: "#cfd5de", diagram: "#e4e7ec", tint: "#eef0f4", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
+          background: "#f2f4f8", surface: "#fcfcfd", text: "#141b24", muted: "#525a65", accent: "#1f5aa6", accentStrong: "#153f78", accentSoft: "#e9eff7", border: "#cfd5de", diagram: "#e4e7ec", tint: "#eef0f4", ...ENGINEERING_FONT_TOKENS, radius: "0.25rem",
         },
         "engineering-graphite": {
-          background: "#f4f5f5", surface: "#fcfcfd", text: "#1b1c1e", muted: "#5a5c5e", accent: "#3d4853", accentStrong: "#262e36", accentSoft: "#e9f0f7", border: "#d5d6d8", diagram: "#e7e8e9", tint: "#f0f1f2", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
+          background: "#f4f5f5", surface: "#fcfcfd", text: "#1b1c1e", muted: "#5a5c5e", accent: "#3d4853", accentStrong: "#262e36", accentSoft: "#e9f0f7", border: "#d5d6d8", diagram: "#e7e8e9", tint: "#f0f1f2", ...ENGINEERING_FONT_TOKENS, radius: "0.25rem",
         },
         "engineering-warm-orange": {
-          background: "#f4f5f3", surface: "#ffffff", text: "#151817", muted: "#5e6762", accent: "#d9652b", accentStrong: "#ad451d", accentSoft: "#fff0e8", border: "#d7ddd8", diagram: "#e8ece8", tint: "#eef4f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
+          background: "#f4f5f3", surface: "#ffffff", text: "#151817", muted: "#5e6762", accent: "#d9652b", accentStrong: "#ad451d", accentSoft: "#fff0e8", border: "#d7ddd8", diagram: "#e8ece8", tint: "#eef4f0", ...ENGINEERING_FONT_TOKENS, radius: "0.25rem",
         },
         "engineering-patina": {
-          background: "#f4f6f5", surface: "#fcfdfc", text: "#1a1f1c", muted: "#595f5c", accent: "#2f6e5b", accentStrong: "#1f4f41", accentSoft: "#e9f7f2", border: "#d4d9d6", diagram: "#e7e9e8", tint: "#f0f2f1", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
+          background: "#f4f6f5", surface: "#fcfdfc", text: "#1a1f1c", muted: "#595f5c", accent: "#2f6e5b", accentStrong: "#1f4f41", accentSoft: "#e9f7f2", border: "#d4d9d6", diagram: "#e7e9e8", tint: "#f0f2f1", ...ENGINEERING_FONT_TOKENS, radius: "0.25rem",
         },
         "engineering-turquoise": {
-          background: "#f3f7f7", surface: "#fcfdfd", text: "#162022", muted: "#556163", accent: "#0d6f7c", accentStrong: "#09525c", accentSoft: "#e9f5f7", border: "#d1dbdc", diagram: "#e5eaeb", tint: "#eff3f3", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
+          background: "#f3f7f7", surface: "#fcfdfd", text: "#162022", muted: "#556163", accent: "#0d6f7c", accentStrong: "#09525c", accentSoft: "#e9f5f7", border: "#d1dbdc", diagram: "#e5eaeb", tint: "#eff3f3", ...ENGINEERING_FONT_TOKENS, radius: "0.25rem",
         },
         "engineering-morandi": {
-          background: "#f6f4f4", surface: "#fdfcfc", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.25rem",
+          background: "#f6f4f4", surface: "#fdfcfc", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", ...ENGINEERING_FONT_TOKENS, radius: "0.25rem",
         },
       },
       // Product cards are configured per layout in the block catalog (render parameters).
@@ -348,28 +369,31 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
     ],
     alternatives: { ...contactToHeroCta },
     kit: {
+      fontFamilyId: "short-path-geist",
+      headingFontFamilyId: "short-path-geist",
+      dataFontFamilyId: "short-path-geist-mono",
       familyId: "technical-product",
       tokens: {
-        background: "#f1f3f4", surface: "#ffffff", text: "#1c2933", muted: "#5d6b76", accent: "#466f87", accentStrong: "#2f5166", accentSoft: "#e8f0f4", border: "#d4dde2", diagram: "#dfe8ec", tint: "#f5f7f8", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+        background: "#f1f3f4", surface: "#ffffff", text: "#1c2933", muted: "#5d6b76", accent: "#466f87", accentStrong: "#2f5166", accentSoft: "#e8f0f4", border: "#d4dde2", diagram: "#dfe8ec", tint: "#f5f7f8", ...SHORT_PATH_FONT_TOKENS, radius: "1rem",
       },
       palettes: {
         "technical-porcelain": {
-          background: "#e9eef3", surface: "#f4f6f8", text: "#141b24", muted: "#525a65", accent: "#1f5aa6", accentStrong: "#153f78", accentSoft: "#e9eff7", border: "#cfd5de", diagram: "#e4e7ec", tint: "#eef0f4", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#e9eef3", surface: "#f4f6f8", text: "#141b24", muted: "#525a65", accent: "#1f5aa6", accentStrong: "#153f78", accentSoft: "#e9eff7", border: "#cfd5de", diagram: "#e4e7ec", tint: "#eef0f4", ...SHORT_PATH_FONT_TOKENS, radius: "1rem",
         },
         "technical-graphite": {
-          background: "#edeeef", surface: "#f6f6f6", text: "#1b1c1e", muted: "#5a5c5e", accent: "#3d4853", accentStrong: "#262e36", accentSoft: "#e9f0f7", border: "#d5d6d8", diagram: "#e7e8e9", tint: "#f0f1f2", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#edeeef", surface: "#f6f6f6", text: "#1b1c1e", muted: "#5a5c5e", accent: "#3d4853", accentStrong: "#262e36", accentSoft: "#e9f0f7", border: "#d5d6d8", diagram: "#e7e8e9", tint: "#f0f1f2", ...SHORT_PATH_FONT_TOKENS, radius: "1rem",
         },
         "technical-warm-orange": {
-          background: "#f0eeed", surface: "#f7f6f6", text: "#1f1c1a", muted: "#5f5c59", accent: "#c2531c", accentStrong: "#9a3f14", accentSoft: "#f7ede9", border: "#d9d6d4", diagram: "#e9e8e7", tint: "#f2f1f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#f0eeed", surface: "#f7f6f6", text: "#1f1c1a", muted: "#5f5c59", accent: "#c2531c", accentStrong: "#9a3f14", accentSoft: "#f7ede9", border: "#d9d6d4", diagram: "#e9e8e7", tint: "#f2f1f0", ...SHORT_PATH_FONT_TOKENS, radius: "1rem",
         },
         "technical-patina": {
-          background: "#edf0ee", surface: "#f6f7f6", text: "#1a1f1c", muted: "#595f5c", accent: "#2f6e5b", accentStrong: "#1f4f41", accentSoft: "#e9f7f2", border: "#d4d9d6", diagram: "#e7e9e8", tint: "#f0f2f1", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#edf0ee", surface: "#f6f7f6", text: "#1a1f1c", muted: "#595f5c", accent: "#2f6e5b", accentStrong: "#1f4f41", accentSoft: "#e9f7f2", border: "#d4d9d6", diagram: "#e7e9e8", tint: "#f0f2f1", ...SHORT_PATH_FONT_TOKENS, radius: "1rem",
         },
         "technical-turquoise": {
-          background: "#ebf1f2", surface: "#f5f7f7", text: "#162022", muted: "#556163", accent: "#0d6f7c", accentStrong: "#09525c", accentSoft: "#e9f5f7", border: "#d1dbdc", diagram: "#e5eaeb", tint: "#eff3f3", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#ebf1f2", surface: "#f5f7f7", text: "#162022", muted: "#556163", accent: "#0d6f7c", accentStrong: "#09525c", accentSoft: "#e9f5f7", border: "#d1dbdc", diagram: "#e5eaeb", tint: "#eff3f3", ...SHORT_PATH_FONT_TOKENS, radius: "1rem",
         },
         "technical-morandi": {
-          background: "#f0eeed", surface: "#f7f6f6", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "1rem",
+          background: "#f0eeed", surface: "#f7f6f6", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", ...SHORT_PATH_FONT_TOKENS, radius: "1rem",
         },
       },
       modules: [
@@ -451,6 +475,9 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
       { key: "footer-copyright", selector: '[data-sitecraft-demo="footer-copyright"]' },
     ],
     kit: {
+      fontFamilyId: "catalog-manrope",
+      headingFontFamilyId: "catalog-manrope",
+      dataFontFamilyId: "catalog-jetbrains-mono",
       familyId: "export-catalog",
       tokens: {
         background: "#f6f9fc",
@@ -463,27 +490,27 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         border: "#d8e3ee",
         diagram: "#e3eef7",
         tint: "#eef5fa",
-        font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+        ...CATALOG_FONT_TOKENS,
         radius: "0.875rem",
       },
       palettes: {
         "export-porcelain": {
-          background: "#f6f8fa", surface: "#fdfefe", text: "#141b24", muted: "#525a65", accent: "#1f5aa6", accentStrong: "#153f78", accentSoft: "#e9eff7", border: "#cfd5de", diagram: "#e4e7ec", tint: "#eef0f4", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.875rem",
+          background: "#f6f8fa", surface: "#fdfefe", text: "#141b24", muted: "#525a65", accent: "#1f5aa6", accentStrong: "#153f78", accentSoft: "#e9eff7", border: "#cfd5de", diagram: "#e4e7ec", tint: "#eef0f4", ...CATALOG_FONT_TOKENS, radius: "0.875rem",
         },
         "export-graphite": {
-          background: "#f7f8f8", surface: "#fefefe", text: "#1b1c1e", muted: "#5a5c5e", accent: "#3d4853", accentStrong: "#262e36", accentSoft: "#e9f0f7", border: "#d5d6d8", diagram: "#e7e8e9", tint: "#f0f1f2", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.875rem",
+          background: "#f7f8f8", surface: "#fefefe", text: "#1b1c1e", muted: "#5a5c5e", accent: "#3d4853", accentStrong: "#262e36", accentSoft: "#e9f0f7", border: "#d5d6d8", diagram: "#e7e8e9", tint: "#f0f1f2", ...CATALOG_FONT_TOKENS, radius: "0.875rem",
         },
         "export-warm-orange": {
-          background: "#f9f8f7", surface: "#fefefe", text: "#1f1c1a", muted: "#5f5c59", accent: "#c2531c", accentStrong: "#9a3f14", accentSoft: "#f7ede9", border: "#d9d6d4", diagram: "#e9e8e7", tint: "#f2f1f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.875rem",
+          background: "#f9f8f7", surface: "#fefefe", text: "#1f1c1a", muted: "#5f5c59", accent: "#c2531c", accentStrong: "#9a3f14", accentSoft: "#f7ede9", border: "#d9d6d4", diagram: "#e9e8e7", tint: "#f2f1f0", ...CATALOG_FONT_TOKENS, radius: "0.875rem",
         },
         "export-patina": {
-          background: "#f7f9f8", surface: "#fefefe", text: "#1a1f1c", muted: "#595f5c", accent: "#2f6e5b", accentStrong: "#1f4f41", accentSoft: "#e9f7f2", border: "#d4d9d6", diagram: "#e7e9e8", tint: "#f0f2f1", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.875rem",
+          background: "#f7f9f8", surface: "#fefefe", text: "#1a1f1c", muted: "#595f5c", accent: "#2f6e5b", accentStrong: "#1f4f41", accentSoft: "#e9f7f2", border: "#d4d9d6", diagram: "#e7e9e8", tint: "#f0f2f1", ...CATALOG_FONT_TOKENS, radius: "0.875rem",
         },
         "export-turquoise": {
-          background: "#f6f9f9", surface: "#fefefe", text: "#162022", muted: "#556163", accent: "#0d6f7c", accentStrong: "#09525c", accentSoft: "#e9f5f7", border: "#d1dbdc", diagram: "#e5eaeb", tint: "#eff3f3", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.875rem",
+          background: "#f6f9f9", surface: "#fefefe", text: "#162022", muted: "#556163", accent: "#0d6f7c", accentStrong: "#09525c", accentSoft: "#e9f5f7", border: "#d1dbdc", diagram: "#e5eaeb", tint: "#eff3f3", ...CATALOG_FONT_TOKENS, radius: "0.875rem",
         },
         "export-morandi": {
-          background: "#f9f8f7", surface: "#fefefe", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif', radius: "0.875rem",
+          background: "#f9f8f7", surface: "#fefefe", text: "#1f1b1a", muted: "#5f5b59", accent: "#7a625a", accentStrong: "#5b4841", accentSoft: "#f7ece9", border: "#d9d5d4", diagram: "#e9e8e7", tint: "#f2f1f0", ...CATALOG_FONT_TOKENS, radius: "0.875rem",
         },
       },
       modules: [
