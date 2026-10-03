@@ -2,7 +2,7 @@
 id: T-073
 title: 区块素材流水线 tracer：一个新布局从制作、AI 味审查到进库
 type: build
-status: open
+status: closed
 blocked_by: [T-071]
 claimed_by: sonnet-blocks
 supersedes:
@@ -25,7 +25,7 @@ supersedes:
 
 - [x] 「型号索引表」走完 1–4：候选目录、审查记录（含描述 + 结论）、提交、测试先失败的证据都在（见 Resolution）
 - [x] 渲染脚本一条命令可重渲任意候选，裁切图逐张看过，没有载入态、空白、截断
-- [ ] Astra 代码审查通过；合回主线后三家 `check-published` 中英文三档通过；Claude 验收
+- [x] Astra 代码审查通过；合回主线后三家 `check-published` 中英文三档通过；Claude 验收
 - [x] 流水线里卡住或返工的地方写进 Resolution，作为 T-074 批量做之前要改的地方
 
 ## Resolution
@@ -64,3 +64,4 @@ supersedes:
 - **给 T-074 的补充**：新布局读的每个 token（含回落）都要对四个 looks 解析出值，这条测试的解析器可复用；新布局的 CSS 里不要假设某个样子有 `--site-rule`/`--site-rule-strong`（bright 没有）。
 - 合并后验证（713b5ee）：上面「简介不显示」的取舍违反访客页「资料事实必须能在页面上找到」，已在 T-074 的「合并后验证发现并修复的问题」里改为折叠展示（`98c15dc`），本票里「简介不显示」「summary 报未命中」的说法以那里为准。
 
+独立审核与验收（2026-10-03 EDT）：AI 味审查 codex-taste（gpt-6.1-sol）四轮——review-1 REVISE、review-2 ACCEPT；合并后 check-published 发现型号索引表让简介和第 4 项以后的参数在访客页上找不到（31/117 事实缺失，起因是 supervisor 在 review-1 后建议去掉简介，没考虑访客页事实规则），改成折叠详情带后 review-3 REVISE（展开失衡、前三项重复）、review-4 ACCEPT。Astra（gpt-6-astra）代码审查：首审 NO_GO（P2 forge 顶线 token）→复审 PASS；事实修复审查 NO_GO（P1 specs 槽位一行 4 个节点）→复审 PASS（`artifacts/review-astra-t073.md`、`artifacts/review-astra-t074-facts.md`）。合回主线 `713b5ee`、`81ff44a`；在 `81ff44a` 上 Claude 跑 `check-published`：注塑专家站副本（同时用型号索引表、纵向流程、目录封面、证书状态表）和三家基线站中英文三档全部通过（`artifacts/merge-81ff44a/check-published/report.json`），整页截图看过；`a22d2c8`（含本合并）全量 `npm test` 599/599、typecheck、build 通过。同类问题「参数对比表」重复 specs 目标另开 T-076。Claude 验收关闭。

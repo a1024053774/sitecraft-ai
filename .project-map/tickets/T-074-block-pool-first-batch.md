@@ -2,7 +2,7 @@
 id: T-074
 title: 区块素材第一批：读现有字段的新布局
 type: build
-status: open
+status: closed
 blocked_by: [T-073]
 claimed_by: sonnet-blocks
 supersedes:
@@ -24,11 +24,11 @@ T-073 的流水线跑通后，按同一条线批量做读现有草稿字段的�
 
 ## Acceptance
 
-- [ ] 每个候选都有候选目录和审查记录；ACCEPT / REVISE / REJECT 的数量和原因汇总在 Resolution
-- [ ] 进库的布局各有测试先失败的证据；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] Astra 代码审查通过；合回主线后三家 `check-published` 中英文三档通过；Claude 验收
+- [x] 每个候选都有候选目录和审查记录；ACCEPT / REVISE / REJECT 的数量和原因汇总在 Resolution
+- [x] 进库的布局各有测试先失败的证据；`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] Astra 代码审查通过；合回主线后三家 `check-published` 中英文三档通过；Claude 验收
 
-## Resolution（进行中；每个候选审查后更新）
+## Resolution
 
 | 候选 | 目录（`artifacts/blocks-pool/`） | 结论 | 进库提交 |
 | --- | --- | --- | --- |
@@ -53,3 +53,4 @@ T-073 的流水线跑通后，按同一条线批量做读现有草稿字段的�
 - 给之后候选的规则：新布局不得藏资料事实——被隐藏、折叠、截断的字段，都要在访客能展开读到的地方出现；「去掉某个字段」的取舍必须先过 `render-block` 的事实检查。
 - 第二次返修（Astra P1 + codex-taste REVISE，提交 `60bce15`）：索引表每个产品改为一个行组（`tbody`），`specs` 目标只落在这一个节点上，展开内容改成主行下面整行宽的详情带，只放简介和第 4 项以后的参数；细节、先失败的证据（`red-p1-unique-specs.txt`）和重渲结果见 `product-index-table/candidate.md` 文末。**给之后候选的规则**：render-block 的扫描还应加一条「整个区块里每个 data-sitecraft-slot 值只出现一次」的检查（目前只写在索引表的测试里）；对比表布局（compare）的每个参数格也都挂着同一个 `specs` 目标，是同类问题，没有改，等你定。
 
+独立审核与验收（2026-10-03 EDT）：三个进库布局（纵向流程、目录封面、证书状态表）codex-taste 均一次 ACCEPT；Astra 批量代码审查 PASS（`artifacts/review-astra-t074.md`）；型号索引表的事实与唯一槽位修复见 T-073 记录。跳过的 4 个候选原因已记录。合回主线后 `81ff44a` 上四个新布局同页的 `check-published` 中英文三档通过，`a22d2c8` 全量 599/599、typecheck、build 通过。需要新草稿字段的内容区块（MOQ/交期/产能、质检流程、沿革）另写 spec。Claude 验收关闭。
