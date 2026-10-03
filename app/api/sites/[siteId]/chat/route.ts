@@ -40,6 +40,7 @@ const chatSchema = z.object({
   baseRevision: z.number().int().nonnegative(),
   message: z.string().trim().min(1).max(4000),
   selectedTarget: z.string().max(200).nullable().optional(),
+  annotationId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/).optional(),
   conversationId: z.string().regex(CONVERSATION_ID_PATTERN).nullable().optional(),
 });
 const alignmentSchema = z.object({
@@ -835,6 +836,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
               summary: provider.summary,
               notices: provider.rejected,
               source: "ai",
+              annotationId: parsed.data.annotationId,
               model: provider.model,
               latencyMs: provider.latencyMs,
             });
