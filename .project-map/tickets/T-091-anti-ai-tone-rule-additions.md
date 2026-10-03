@@ -30,6 +30,7 @@ supersedes:
 - `lib/frontend-tone.ts` 从 `sitecraft-frontend-less-ai-tone@0.3.1` 升到 `@0.3.2`，运行时保留主任务/可观察结果、单一主要入口、状态和资料缺口的多通道表达、用户选样子/布局而非外部模板名或提示词，并新增“只用于决定排法和选择、不得写入页面文案/摘要/回答/追问”的边界；候选记忆点/结构差异规则有意留在 skill 与 T-073，不再注入运行时。按钮规则收窄为按钮文字写具体动作，例如「发送询盘」。这是对票面“同步加入对应的短规则”的有意收窄：候选审查语义属于开发侧区块准入，不是生成模型的可见内容规划指令，避免模型把布局差异或规则说明写入成品。
 - `skills/sitecraft-frontend-less-ai-tone/SKILL.md` 同步规则并逐条写来源；`SOURCE.md` 记录 oil-ui MIT（revision `dba584210a02198c07f2c4e22739c0eeb3231570`）和 oiloil-ui-ux-guide Apache-2.0（revision `f32bc2bd210a6693f86841816a531ab511b258b4`）的改写范围与署名；没有复制 Jiro prompt/code。
 - 第二轮按审查决定删除 `lib/site-operations.ts` 的 PLANNING_META_TALK、operationTextValues、hasPlanningMetaTalk、拒绝分支及其测试；不在 operation 层维护关键词黑名单。已知限制写入当前状态：未覆盖的新说法靠提示边界和真实生成抽查发现，未来有结构化内部规划字段后再按来源拒绝。
+- 第三轮只改 gitignore 下的 `artifacts/t091/generate.mjs`：递归收集整个 draft 和 done 事件字符串，记录 JSON path；中文/英文四类同义词表各至少 5 个说法；sentinel 覆盖 products[].specs[].name、pagePlan.pages[].label、siteName 和英文改写。operation 层仍无关键词拦截。
 - T-073 的 candidate.md 要求补充品类/参照、区块主任务、记忆点、结构差异、主动不做的装饰、资料条件和来源，并写明 oil 许可与 Jiro 限制。
 - 更新 `.cursor` loader、`docs/project/{spec,intent,mainline}.md` 与现有版本断言，保持 living docs 与运行时版本一致。
 
@@ -39,12 +40,13 @@ supersedes:
 - 审查补测红灯（历史）：`node --test --experimental-strip-types tests/site-operations.test.ts` 在黑名单实现前新行为断言失败，输出 `artifacts/t091/review-red.txt`；该测试与黑名单按第二轮决定删除。
 - 删除黑名单后单测：`tests/site-operations.test.ts tests/frontend-tone.test.ts tests/ai-provider-intent.test.ts` 为 40/40 通过，输出 `artifacts/t091/review2-green.txt`。
 - `npm run typecheck` PASS；`npm run build` PASS，输出 `artifacts/t091/build.txt`。
-- 审查后重新跑真实 DeepSeek：`artifacts/t091/real-generation.json` 的 commit 为 `14096c7`；industrial/export/molding 均 `applied`，draft 全部可见文字字段以及 summary/answer/clarify 的中英文同义规划元话术与数值门槛扫描均为 0。脚本只写脱敏计数，不写 prompt、资料原文或密钥。
+- 审查后重新跑真实 DeepSeek（历史证据）：`artifacts/t091/real-generation.json` 的 commit 为 `14096c7`；industrial/export/molding 均 `applied`。本轮余额为负未调用模型；改用 `T091_RESCAN=1 node --experimental-strip-types artifacts/t091/generate.mjs` 扫描该报告里的三家已保存站点草稿，输出 `artifacts/t091/real-generation-r4.json`：sentinel 通过；industrial/export 为 0，molding 仅在 `conversation...turns[1].summary|zh` 命中 1 条规则/建站过程词，按路径和语言计数。扫描不写 prompt、资料原文或密钥。
 - vendor 快照补齐后，`SITECRAFT_BASE=http://localhost:3053 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 为 652/655，3 项失败：两项区块浏览器检查在长跑期间无法取得开发服务健康响应，另 1 项既有 workspace motion 进度断言失败；完整输出 `artifacts/t091/npm-test-vendor.txt`。同一 worktree 的逐项重跑为区块 12/12（`targeted-blocks.txt`）和 workspace 5/5（`targeted-motion.txt`）。
 - 为逐条核对无关性，在只读父提交 `fc25b37` 的临时副本（同样复制 vendor 快照）起 3053 服务：区块 + workspace 17/17 通过（`artifacts/t091/parent-targeted.txt`），全量 `npm test` 654/654 通过（`artifacts/t091/parent-npm-test.txt`）。未修改 `tests/helpers/workspace-browser.ts`，未手动终止 Chrome。当前票总体 **INCOMPLETE**，代码审查和 Claude 验收留空。
 - r2：先在带 `.env.local` 的 3053 dev server 上确认 `/api/health` HTTP 200（响应保存在 `artifacts/t091/health-r2.json`），再运行同一完整命令；`npm test` 为 654/655，唯一失败仍是 `workspace-interaction.test.ts:246` 的 motion 进度断言，输出 `artifacts/t091/npm-test-r2.txt`。单独重跑该测试为 5/5 通过，输出 `artifacts/t091/workspace-motion-r2.txt`；未修改浏览器 helper，也未手动终止 Chrome。票据仍为 **INCOMPLETE**，等待 T-094/独立代码审查与 Claude 验收。
 - 审查修复后的全量验收使用 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t091 3053 /Users/luckye/Documents/Code/sitecraft-ai-t091/artifacts/t091/npm-test-r4.txt`；先以 `health-r4.json` 确认 HTTP 200，最终 655/655 通过。未修改 `tests/helpers/workspace-browser.ts`，未手动终止 Chrome。
+- 第三轮后 `npm run typecheck` 和 `npm run build` 仍 PASS，输出 `artifacts/t091/typecheck-r4-final.txt`、`artifacts/t091/build-r4-final.txt`。已知限制：同义改写或扫描表未覆盖的说法可能进入访客页、摘要、回答或追问；计数为 0 不代表完备保证。移除条件是未来出现可按来源拒绝的结构化内部规划字段。
 
 ### 当前状态
 
-历史的 INCOMPLETE 记录（r1/r2 的长跑资源与 workspace motion 偶发失败）仅供追溯；当前候选修复后的 typecheck、build、单测、真实生成和 fulltest.sh 全部通过。仍未完成的是独立代码审查与 Claude 验收，票据保持 `status: open`。
+历史的 INCOMPLETE 记录（r1/r2 的长跑资源与 workspace motion 偶发失败）仅供追溯。当前候选修复后的 typecheck、build、单测、无模型 rescan 和 fulltest.sh 全部通过；第三轮保存站点复扫发现 1 条历史 summary 元话术，已按路径/语言记录，未调用模型。仍未完成的是独立代码审查与 Claude 验收，票据保持 `status: open`。
