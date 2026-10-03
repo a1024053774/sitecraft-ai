@@ -103,7 +103,18 @@ async function render(browser: Cdp, baseUrl: string, templateId: string, draft: 
   await browser.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile }, sessionId);
   await sleep(150);
   if (Date.now() >= deadline) throw new Error("STYLE_CHECK_TIMEOUT");
-  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as { horizontalScroll: boolean; overflowElements: Array<{ block: string; amount: number; key: string }>; textOverlaps: Array<{ block: string; amount: number; key: string }>; heroTitleOrphan?: boolean; heroTitleWordBreak?: boolean; slots: Array<{ key: string; visible: boolean; block: string; contrast: number }>; height: number };
+  const scan = await browser.evaluate(`(() => { ${scanSource}; return scanVisitorLayout(document); })()`, sessionId) as {
+    horizontalScroll: boolean;
+    overflowElements: Array<{ block: string; amount: number; key: string }>;
+    textOverlaps: Array<{ block: string; amount: number; key: string }>;
+    heroTitleOrphan?: boolean;
+    heroTitleWordBreak?: boolean;
+    slots: Array<{ key: string; visible: boolean; block: string; contrast: number | null; contrastStatus?: string }>;
+    textContrast?: Array<{ element: string; block: string; text: string; status: string; reason?: string; ratio: number | null; threshold: number; checkable: boolean }>;
+    bodyLineLength?: Array<{ element: string; block: string; text: string; language: string; count: number; max: number; tooLong: boolean }>;
+    lineLengthExemptions?: Array<{ element: string; reason: string; text: string }>;
+    height: number;
+  };
   if (file) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId) as { data: string };
@@ -156,10 +167,18 @@ async function runSiteStyleCheck(args: { templateId: string; draft: SiteDraft; b
       }
       if (candidate.heroTitleOrphan && !baseline.heroTitleOrphan) reasons.push(`${width} 宽度下「首屏」标题在词中间断开单字。`);
       if (candidate.heroTitleWordBreak && !baseline.heroTitleWordBreak) reasons.push(`${width} 宽度下「首屏」标题在汉字词中间断行。`);
+      for (const item of candidate.textContrast || []) {
+        if (!item.checkable) continue;
+        if (item.status === "unmeasured") reasons.push(`${width} 宽度下「${blockLabel(item.block)}」正文对比度未测（${item.reason || "图片背景"}）。`);
+        else if (typeof item.ratio === "number" && item.ratio < item.threshold) reasons.push(`${width} 宽度下「${blockLabel(item.block)}」正文对比度不足 ${item.threshold}:1。`);
+      }
+      for (const item of candidate.bodyLineLength || []) {
+        if (item.tooLong) reasons.push(`${width} 宽度下「${blockLabel(item.block)}」正文一行过长（${item.count}，上限 ${item.max}）。`);
+      }
       const oldSlots = new Map(baseline.slots.map((slot) => [slot.key, slot]));
       for (const slot of candidate.slots) {
         const old = oldSlots.get(slot.key);
-        if (old?.visible && (!slot.visible || (old.contrast >= 3 && slot.contrast < 3))) reasons.push(`${width} 宽度下「${blockLabel(slot.block)}」文字被遮住或对比度不足 3:1。`);
+        if (old?.visible && (!slot.visible || (typeof old.contrast === "number" && typeof slot.contrast === "number" && old.contrast >= 3 && slot.contrast < 3))) reasons.push(`${width} 宽度下「${blockLabel(slot.block)}」文字被遮住或对比度不足 3:1。`);
       }
     }
   } catch (error) {
