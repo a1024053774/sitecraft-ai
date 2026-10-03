@@ -62,3 +62,5 @@ supersedes:
 - 新增测试（`tests/block-product-index.test.ts`）：①四个 block looks 生成的 `:root` 里，索引表 CSS 读的 `--site-index-top`、`--site-index-row`（含回落）都解析出值；先在 `c248775` 上失败（`red-p2-tokens.txt`，报 `industrial: var(--site-index-top, var(--site-rule-strong)) has no value`）。②Astra 建议的 `applySiteOperations` 级回归：工业/外贸 2 个产品选 index 被拒并带「型号索引表要至少 3 个产品；现在有 2 个」，注塑 5 个产品被记录；这条在 `c248775` 上本来就通过，是回归保护，不是红灯证据。
 - 相关测试 124 个全过（`block-*`、`ai-provider-layouts`、`bright-*`、`template-preview-bridge`、`site-style-bridge`、`chat-route-block-layouts`，带 dev server），`npm run typecheck`（无 dev server、删 `.next` 后）通过。
 - **给 T-074 的补充**：新布局读的每个 token（含回落）都要对四个 looks 解析出值，这条测试的解析器可复用；新布局的 CSS 里不要假设某个样子有 `--site-rule`/`--site-rule-strong`（bright 没有）。
+- 合并后验证（713b5ee）：上面「简介不显示」的取舍违反访客页「资料事实必须能在页面上找到」，已在 T-074 的「合并后验证发现并修复的问题」里改为折叠展示（`98c15dc`），本票里「简介不显示」「summary 报未命中」的说法以那里为准。
+
