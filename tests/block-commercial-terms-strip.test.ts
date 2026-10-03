@@ -11,7 +11,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-080: 商业条款「条款带」(commercialTerms:strip). One cell per term in a band (name small above,
 // value large below), hairlines between the cells and above/below the band; the columns follow the
@@ -153,8 +153,7 @@ test("条款带 has no horizontal overflow, the right columns, and the same cell
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 

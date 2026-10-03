@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SiteDraft } from "../lib/site-document.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 const templates = ["screwfast", "forge", "landwind"] as const;
 
@@ -51,7 +51,7 @@ test("paired industries and capabilities resolve to one layout on every look", {
       }
     }
   } finally {
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 
@@ -90,7 +90,6 @@ test("steps balance four, five, and six entries at desktop and narrow widths", {
       }
     }
   } finally {
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   base,
   clickExpression,
+  closeBrowser,
   closeModalExpression,
   closePage,
   createSite,
@@ -173,7 +174,7 @@ test("the action row sits above the chat box, 需求对齐 is a visible switch, 
       await closePage(browser, page);
     }
   } finally {
-    browser.ws.close();
+    await closeBrowser(browser);
     writeFileSync(new URL("interaction-report.json", out), JSON.stringify(report, null, 2));
   }
 });
@@ -270,7 +271,7 @@ test("workspace motion is 150–300 ms of transform/opacity and stops under pref
       assert.deepEqual(reduced.motion, [], `${width}: nothing moves under prefers-reduced-motion`);
     }
   } finally {
-    browser.ws.close();
+    await closeBrowser(browser);
     writeFileSync(new URL("motion-report.json", out), JSON.stringify(report, null, 2));
   }
 });
@@ -340,7 +341,7 @@ test("look, color, undo and redo still write the draft from the new controls", {
       await closePage(browser, page);
     }
   } finally {
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 
@@ -375,7 +376,7 @@ test("the alignment card opens at its top and choosing an option does not scroll
       await closePage(browser, page);
     }
   } finally {
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 
@@ -397,6 +398,6 @@ test("a failed request shows one error message and one plain retry line, not two
       await closePage(browser, page);
     }
   } finally {
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });

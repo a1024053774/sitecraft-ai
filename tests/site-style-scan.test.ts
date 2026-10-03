@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync } from 'node:fs';
 import test from 'node:test';
-import { Cdp, openBrowser } from './helpers/workspace-browser.ts';
+import { closeBrowser, Cdp, openBrowser } from './helpers/workspace-browser.ts';
 const source = readFileSync('scripts/visitor-layout-scan.js','utf8').replace('export function','function').replace('export default scanVisitorLayout;','');
 const textFitSource = readFileSync('scripts/visitor-text-fit-scan.js','utf8').trim();
 test('layout scanning measures painted text: closed details excluded, 3px overlap within/across blocks detected', async () => {
@@ -26,8 +26,7 @@ test('layout scanning measures painted text: closed details excluded, 3px overla
     // Browser.close commonly closes Chrome before its CDP response reaches the socket. Send it
     // without registering a pending waiter, then close our socket so the test cannot linger on a
     // 45-second response timer when the suite runs beside other browser tests.
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: 'Browser.close', params: {} })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 

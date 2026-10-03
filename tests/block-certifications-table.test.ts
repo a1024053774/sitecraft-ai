@@ -10,7 +10,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-074: 认证「证书状态表」(certifications:table). One ledger row per certificate (name | status |
 // description); the status is the draft's own status field in its own column. Same fields and
@@ -130,8 +130,7 @@ test("证书状态表 has no horizontal overflow with 1 to 6 certificates at 144
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 
