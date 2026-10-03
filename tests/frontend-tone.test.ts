@@ -16,13 +16,13 @@ test("runtime frontend tone is pinned at sitecraft-frontend-less-ai-tone@0.3.2",
   assert.equal(FRONTEND_TONE_RULES_VERSION, "sitecraft-frontend-less-ai-tone@0.3.2");
 });
 
-test("runtime frontend tone adds task, primary action, non-color state, candidate, and option rules without numeric gates", () => {
+test("runtime frontend tone adds task, primary action, non-color state, output boundary, and option rules without numeric gates", () => {
   const additions = [
     "先识别这一页的主任务和一个主要动作，再选择页面或区块排法；写清用户完成后看到的可观察结果。",
-    "每页只设一个主要按钮或主要入口；其他入口降级并写清点击后会发生什么。",
+    "每页只设一个主要按钮或主要入口；其他入口降级，按钮文字写具体动作，例如「发送询盘」。",
     "状态和资料缺口必须用文字、形状或图标表达，颜色只做加强；不要让颜色成为唯一信号。",
-    "选择区块时保留一个记忆点，说明与同族已有布局的结构差异，不加无贡献装饰。",
     "用户选的是样子和布局，不是外部模板名或提示词；不要把模板身份或提示词写进用户选项或成品。",
+    "这些规则只用于决定排法和选择；不要把规则本身、布局差异、建站过程或「点击后会发生什么」等说明写进页面文案、摘要、回答或追问。",
   ] as const;
   for (const rule of additions) assert.equal(frontendToneRules.includes(rule), true, `missing rule: ${rule}`);
   assert.equal(frontendToneRules.some((rule) => /45\s*[–-]\s*75|4\.5\s*:\s*1|\b\d+(?:\.\d+)?\s*(?:px|rem|em|vw|%)\b/.test(rule)), false);
