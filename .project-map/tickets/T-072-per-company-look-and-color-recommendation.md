@@ -39,6 +39,10 @@ T-065 的 6 个基线（三家不同的公司）全部是工程工业 + 工程�
 - 全量 `CHROME_PATH=… npm test` 为 597/598 通过，既有 `tests/workspace-interaction.test.ts` 动效测试在 375 宽度等待进度步骤失败，输出见 `artifacts/t072/npm-test-chrome.txt`；未改动效范围，故本票全量验收保持 **INCOMPLETE**。第一次未设 Chrome 路径的失败也保留于 `artifacts/t072/npm-test.txt`。对应提交为本票最终本地提交（SHA 由 handoff 报告）。
 - (c) 复跑：在提示加入四个区块库样子的具体版式、token 重点、默认区块和适合业务形态后，运行 `SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T072_OUTPUT_DIR=artifacts/t072/round-c node artifacts/t072/round-c/generate.mjs`（2026-10-03 07:30–07:31 UTC），六次均 HTTP 200；`artifacts/t072/round-c/recommendations.json` 中六次仍是工程工业 + 工程暖橙，样子/色彩理由也六次完全等于目录默认摘要。
 - (c) 诊断：`round-c` 脚本只保存路由重建后的卡片，不保存规划器原始 JSON；临时站点和会话在每次请求后删除，故无法事后读取 raw `questions`。六次颜色理由都等于工程暖橙目录摘要、样子理由都等于工程工业目录摘要；这与没有合法推荐走默认路径相符，也与模型恰好重复默认句相符，现有证据不能区分两者。诊断详见 `artifacts/t072/round-c/diagnosis.md` 和 `comparison.json`。本轮没有为补 raw 而重复请求。
+- (b) 先写红测 `node --test --experimental-strip-types tests/alignment-material-recommendation-t072.test.ts`（模块不存在），再加入 `lib/alignment-recommendation.ts`：只从草稿结构化字段统计产品、类别、非空参数、行业/能力/认证/服务/问答条目；空草稿保留模型推荐，有结构化资料时按已写明的形态计数规则选择样子并由计数生成理由。`app/api/sites/[siteId]/chat/route.ts` 只用这个结果覆盖样子推荐，色彩推荐和理由仍走规划器。特征、路由覆盖与四个样子提示测试共 7 项通过，证据见 `artifacts/t072/round-b/focused.txt`。
+- (b) 真实模型命令：`SITECRAFT_ENV_FILE=/Users/luckye/Documents/Code/sitecraft-ai/.env.local T072_OUTPUT_DIR=artifacts/t072/round-b node artifacts/t072/round-b/generate.mjs`（2026-10-03 07:43–07:45 UTC）。脚本用 `commitOperations` 预置三份结构化草稿，再让同一 chat route 发送三份模拟资料各两次；六次 HTTP 200。工业包两次工程工业，外贸包两次蓝白目录，注塑包两次工程工业；样子已不再六次相同。色彩仍由模型选择，理由未被样子覆盖，但只有工业/外贸各一次引用具体事实，其余四次是默认或通用摘要，故色彩理由质量保持 **INCOMPLETE**，未重复请求。
+- 提交前 `npm run typecheck` PASS（`artifacts/t072/round-b/typecheck.txt`），`npm run build` PASS（`artifacts/t072/round-b/build.txt`）。`CHROME_PATH=… npm test` 为 605 项中 598 通过、7 失败（`artifacts/t072/round-b/npm-test.txt`）：型号索引表浏览器溢出，以及 worktree 缺少 `vendor/open-source-templates/fresh/dist/index.html` 和 powerai/astro-starter 资产导致的 6 项快照/资产测试；本票没有改这些区块或 vendor 资产，故全量验收 **INCOMPLETE**。
+- (b) 本阶段实现与证据提交为本地提交 `T-072 recommend look from structured draft data`（未推送，最终 SHA 在 handoff 汇报）；(c) 独立提交为 `e88ce2a`。
 
 ## 负责人决定（2026-10-03）
 

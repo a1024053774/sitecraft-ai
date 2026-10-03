@@ -1,0 +1,1210 @@
+npm notice run ai-site-studio@0.1.0 test
+npm notice run node --test --experimental-strip-types tests/*.test.ts
+(node:65301) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/ai-provider-failure-log.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ an HTTP error is logged per attempt with its status and trace id, not the upstream message (23.914584ms)
+✔ a network failure is logged with its cause code (1.23525ms)
+✔ a timeout is logged once (it is not retried) (0.305083ms)
+✔ a body or an answer that is not JSON is logged as parse (2.300709ms)
+✔ an answer that fails the schema is logged as schema with the fields it got wrong, not their values (5.066417ms)
+✔ an answer cut off at max_tokens is logged as truncated, with the token usage (1.221ms)
+✔ a failed attempt followed by a good one logs only the failure; a good call logs nothing (5.588584ms)
+✔ the alignment planning call logs its failures the same way (2.291042ms)
+(node:65302) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/ai-provider-intent.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[sitecraft] DeepSeek call failed {"call":"structured_operations","attempt":1,"of":2,"category":"schema","status":200,"ms":2,"traceId":null,"finish":"stop","fields":["root:unrecognized_keys"]}
+[sitecraft] DeepSeek call failed {"call":"structured_operations","attempt":2,"of":2,"category":"schema","status":200,"ms":0,"traceId":null,"finish":"stop","fields":["root:unrecognized_keys"]}
+✔ requestStructuredOperations returns answer without calling operation validation (42.849917ms)
+✔ requestStructuredOperations returns clarify for an underspecified request (1.340292ms)
+✔ requestStructuredOperations returns filtered edit operations (3.701292ms)
+✔ requestStructuredOperations rejects answer payloads that also include operations (2.713792ms)
+✔ large draft prompt keeps metadata, selected section, and sku/name without unrelated sentinels (2.343459ms)
+✔ unresolved selectedTarget keeps overview and catalog without unrelated section bodies (0.70425ms)
+✔ alignment context stays in untrusted user data and is omitted when empty (1.813584ms)
+✔ live system prompt injects frontend-tone@0.3.1 copy and visual rules and forbids CSS/HTML (3.43075ms)
+✔ live system prompt treats company materials as edit facts and does not embed pack nonces (1.019875ms)
+✔ small draft prompt may inject the full document including all section bodies (1.082416ms)
+✔ alignment planner returns a prompt-specific question without operations (3.123417ms)
+✔ alignment planner normalizes a questions-only card instead of returning provider_error (3.409833ms)
+(node:65303) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/ai-provider-layouts.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[sitecraft] DeepSeek call failed {"call":"structured_operations","attempt":1,"of":2,"category":"schema","status":200,"ms":2,"traceId":null,"finish":"stop","fields":["operations:too_big"]}
+✔ on the engineering look the model gets the layouts it may pick, what each needs, and a 24-operation limit (45.193083ms)
+✔ the product spec prompt distinguishes shared strings from bilingual values (2.262333ms)
+✔ an appearance edit prompt exposes style directions without a material recommendation (0.932042ms)
+✔ only explicit appearance wording opens the site-style path (0.149ms)
+✔ full-site generation omits style directions, recommendations, and set_site_style output (3.82525ms)
+✔ an appearance edit keeps the direction menu without a material recommendation (1.527083ms)
+✔ section order instructions name the movable blocks and only allow explicit user requests (1.944042ms)
+✔ compact prompt context keeps the effective block order without losing content (2.443833ms)
+✔ model reorder output drops unknown blocks, fills the rest, and explains the drop (2.842666ms)
+✔ catalog look exposes the block layout menu (0.592209ms)
+✔ a refused layout request changes nothing and its reason is the summary (1.523ms)
+✔ accepted layouts go through; a refusal next to other changes is added to the model's summary (13.031917ms)
+✔ a change that leaves the chosen layout short keeps the model's summary and says the layout went back (2.162458ms)
+✔ the summary with reasons stays within 400 characters and keeps the reasons whole (1.078792ms)
+✔ when an answer has more than 24 operations the retry asks for 24 at most (3.824584ms)
+✔ T-073: the layout menu offers 型号索引表 with its 3-product need and the rule for choosing it (0.688292ms)
+✔ T-074: the layout menu offers 纵向流程 and says when to choose it (0.551708ms)
+✔ T-074: the layout menu offers 目录封面 and says when to choose it (0.561709ms)
+✔ T-074: the layout menu offers 证书状态表 and says when to choose it (2.609ms)
+(node:65304) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/ai-provider-vision-failures.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ preview_review: an answer cut off at max_tokens is sent once and returns truncated (45.609041ms)
+✔ preview_review: an HTTP error is logged per attempt with its status and trace id (4.663167ms)
+✔ preview_review: a network failure is logged with its cause code, a timeout once (1.289083ms)
+✔ preview_review: a body or an answer that is not JSON is logged as parse, a wrong shape as schema with its fields (5.756833ms)
+✔ preview_review: a failed attempt followed by a good one logs only the failure; a good call logs nothing (4.984583ms)
+✔ image_facts: an answer cut off at max_tokens is sent once and returns truncated (0.42325ms)
+✔ image_facts: an HTTP error is logged per attempt with its status and trace id (0.29475ms)
+✔ image_facts: a network failure is logged with its cause code, a timeout once (0.214959ms)
+✔ image_facts: a body or an answer that is not JSON is logged as parse, a wrong shape as schema with its fields (2.543958ms)
+✔ image_facts: a failed attempt followed by a good one logs only the failure; a good call logs nothing (0.942583ms)
+✔ the preview-review route shows the error catalog's cut-off copy (9.857083ms)
+✔ the image-analyze route shows the error catalog's cut-off copy (26.974041ms)
+(node:65305) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-look-card.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the look card recommends the given look and its default color set, with catalog ids only (1.717292ms)
+✔ an unknown color option never writes a palette outside the catalog (9.653916ms)
+✔ the workspace turns 需求对齐 on by default for a site that was never generated (3.779125ms)
+(node:65306) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-look-prompt-c.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment prompt describes each block-library look before asking the model to recommend one (30.842584ms)
+(node:65307) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-material-recommendation-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ structured draft features count products, categories, parameters and catalog sections (6.22625ms)
+✔ catalog feature counts ignore gaps and include capabilities and certifications (0.974791ms)
+✔ look rules use structured shape rather than an industry label (3.52975ms)
+✔ a small structured product set gets the short-path look, while a broad light set gets bright product (2.441417ms)
+✔ an empty new draft leaves the planner recommendation in charge (0.10325ms)
+(node:65308) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-material-route-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a populated structured draft overrides the model look pick but keeps its color reason (165.282792ms)
+(node:65309) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-multi-question.e2e.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment card exposes 1-4 questions and commits all selections once (4.7665ms)
+✔ submitted single-question card retains recommendation, other note and palette choice in confirmation (15.759834ms)
+✔ choosing 明亮产品 keeps the industrial visual brief id (0.433917ms)
+(node:65310) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-recommendations-t072.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ planner recommendations for look and color set appear on the same catalog card (92.696875ms)
+✔ an invalid or empty planner color recommendation keeps catalog defaults without a reason (16.145208ms)
+(node:65311) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment-round-one-look-color.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a new site gets the look and color-set card even when the planner says ready (132.10075ms)
+✔ invented color sets are replaced by catalog sets, and the chosen look and palette reach the draft (109.122916ms)
+✔ a site that was already generated is not re-asked the full card when the planner says ready (47.256666ms)
+✔ after the confirmed plan is applied, the next ordinary edit applies without another confirmation (45.488584ms)
+(node:65312) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/alignment.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alignment tests require the development-file driver (0.414875ms)
+✔ legacy conversation JSON without alignment stays unconfirmed after reread and append (13.625375ms)
+✔ legacy alignment style ids normalize to the visual brief ids (0.408833ms)
+✔ conversation store persists and restores alignment across reread (9.514334ms)
+✔ guided P3I tasks ask for the business outcome before the visual direction (1.886333ms)
+✔ guided industrial flow reuses P3E terms and skips a business question when materials already state the goal (0.225958ms)
+✔ start with a specified missing conversation id does not create it (0.716959ms)
+✔ alignment actions enforce option validity, revision bump, stale confirm, and cancel (5.557333ms)
+✔ consecutive clarify questions increment epoch and reject a previous option click (0.766041ms)
+✔ cross-task ids, cancel, provider error retry, and completed confirm stay on the original proposal (1.878375ms)
+(node:65313) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/bilingual-name-industry-status.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a Chinese company name from the materials is kept, not the model's English translation (1.362708ms)
+✔ an English company name written in the materials is kept (0.210167ms)
+✔ a missing company name never replaces the neutral name with To be provided (0.184792ms)
+✔ industry shows Chinese on the Chinese page and English on the English page (10.005875ms)
+✔ a new draft has no industry fact, and an old single-language industry still shows (44.466125ms)
+✔ certification status is shown in the page language (1.347833ms)
+(node:65314) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-bridge.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the engineering page renders a pack draft with one entity per block and every slot on one node (35.378042ms)
+✔ the bridge follows an explicit block order and keeps the paired blocks together (12.384042ms)
+✔ reordering before switching a block variant keeps the entity and every template in one group (89.130916ms)
+✔ the bright product bridge mounts variants and reports section visibility back to navigation (29.633833ms)
+✔ every declared variant has unique live slots on both block-library looks (684.197834ms)
+✔ without a block choice, and on thumbnails without a draft, the default entities stay in place (20.820041ms)
+✔ a block whose entity is gone is mounted again from its template and filled (8.883708ms)
+✔ templates keep their placeholders: slot writes never reach a variant that is not mounted (6.568875ms)
+✔ mounting swaps a block's variant in place, starts from a clean copy and reports unknown choices (1.345667ms)
+✔ pages without block markup are left alone and report nothing about blocks (0.59925ms)
+(node:65315) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-catalog.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the catalog and the fragments list the same blocks and variants, and each root names its block (8.272291ms)
+✔ every declared slot, marker and part hits exactly one node in its variant (19.263167ms)
+✔ styleable titles and repeated entries have named parts (1.335541ms)
+✔ a block's anchor and visibility node are on every variant (2.581375ms)
+✔ slots stay inside the fields their block reads and no two blocks share a selector (1.245584ms)
+✔ fragments carry no scripts, outside resources or demo leftovers (1.039458ms)
+✔ each look shows every block once and has an existing default variant for it (1.75475ms)
+✔ the catalog is plain data (2.634875ms)
+(node:65316) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-certifications-table.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 证书状态表 is in the catalog with a user-facing name, the same slots as 认证徽章 and no extra materials (2.062417ms)
+✔ 证书状态表 declares its slots and marker once each, keeps the anchor and visibility node (3.783875ms)
+✔ 证书状态表 shows a row per certificate with its status in its own cell, and never a gap (64.463083ms)
+✔ 证书状态表 follows the page language (50.622625ms)
+✔ 证书状态表 has no horizontal overflow with 1 to 6 certificates at 1440, 768 and 375 on two looks (1845.956625ms)
+✔ 证书状态表 rule tokens resolve to a real value on every block look (8.002959ms)
+(node:65317) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-compose.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the engineering home page is composed from the block library with one entity per block (12.45875ms)
+✔ the short-path page is composed from the block library (0.866875ms)
+✔ the page root carries the palette and the look tokens; spacing, headings and dividers read them (10.912125ms)
+✔ the composed page declares the block and site-style layers in order (0.819875ms)
+✔ the composed page carries no demo chrome from the old ScrewFast host (0.976458ms)
+✔ the screwfast adapter is built from the catalog and declares no demo chrome (6.052209ms)
+(node:65318) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-email-breaks.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the contact and footer email break only at the @ on block-library pages (137.249ms)
+✔ an email inside a sentence also breaks only at its @ (43.452708ms)
+✔ copying an email from the page gives the address without the break marks (72.637625ms)
+✔ an email part wider than its line still breaks instead of running out (1.667583ms)
+✔ check-published fails a page whose email wraps at a hyphen or inside a name (2.049625ms)
+(node:65319) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-fragment-tokens.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ every var() in every block fragment resolves on every block look (12.253458ms)
+(node:65320) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-hero-cover.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 目录封面 is in the catalog with a user-facing name, a render mode and a 2-product requirement (1.902458ms)
+✔ 目录封面 needs at least 2 visible products and says so in page words (19.343875ms)
+✔ 目录封面 declares its slots and marker once each and names its parts (1.821458ms)
+✔ 目录封面 lists the series in material order with category and a link to the products block (104.653ms)
+✔ 目录封面 lists at most 6 series, follows the page language and leaves out a category that repeats the name (67.603417ms)
+✔ 目录封面 has no horizontal overflow with 2, 5 and 8 products at 1440, 768 and 375 on two looks (1402.548375ms)
+✔ 目录封面 rule tokens resolve to a real value on every block look (3.985791ms)
+(node:65321) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-layouts.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ each block gains its no-photo layout, with a user-facing name, a render mode and a materials requirement (1.9045ms)
+✔ requirements follow the materials of the three packs (14.34225ms)
+✔ 大标题加参数条: full-width statement, the key specs in a strip even without a photo, no photo slot (56.908375ms)
+✔ c1: choosing the product comparison table removes the hero parameter strip (49.853875ms)
+✔ 按类别分组: one group per category in material order, cards without a repeated category, no gap rows (47.097375ms)
+✔ 按类别分组 puts products without a category last under a plain label (10.542416ms)
+✔ 参数对比表: series on top, then one row per spec every product has, one column per product (52.3105ms)
+✔ 参数对比表 leaves a spec out of the table when one product has no value for it (9.865167ms)
+✔ 参数对比表 needs 2–4 products sharing at least 3 specs with values (1.167541ms)
+✔ 联系条: one cell per contact line that has a value, the form below (40.221417ms)
+✔ the new layouts speak English on the English page (57.247334ms)
+✔ renderer and requirement agree on the three packs (418.4725ms)
+✔ switching the product layout rebuilds the block for the new choice and leaves nothing behind (33.640209ms)
+✔ the new layouts' CSS lets values wrap and never touches the default layouts (3.591417ms)
+✔ c1: changing cards to comparison hides an already mounted statement strip (18.488875ms)
+(node:65322) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-order.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the retired five-section list is read as no explicit block order (8.171458ms)
+✔ block order accepts a partial movable-block list and drops old keys (1.34325ms)
+✔ reorder_sections uses movable block keys and null restores the default (1.24025ms)
+✔ effective block order leaves a default draft untouched and appends omitted blocks (0.460083ms)
+✔ reorder operation is reversible and null removes the explicit order (0.789708ms)
+✔ unknown reorder keys are filtered before schema/model validation and missing blocks are resolved (1.035833ms)
+(node:65323) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-product-index.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 型号索引表 is in the catalog with a user-facing name, its own render mode and a 3-product requirement (13.536584ms)
+✔ 型号索引表 needs at least 3 visible products and says so in page words when short (5.426666ms)
+✔ 型号索引表 declares its slots once each and carries no summary node (10.030625ms)
+✔ 型号索引表 renders one row per product with its own first three valued specs and an inquiry link (38.435708ms)
+✔ 型号索引表 does not show the summary: an edit of it is reported missing, not applied (95.436875ms)
+✔ 型号索引表 reads the English draft and keeps a product with fewer specs as a short row (13.316208ms)
+✖ 型号索引表 has no horizontal overflow at 1440, 768 and 375 on two looks (790.930334ms)
+✔ 型号索引表 rule tokens resolve to a real value on every block look (5.705042ms)
+✔ a layout request for the index table is refused for a 2-product company and recorded for a 5-product one (3.235834ms)
+(node:65324) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-services-vertical.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 纵向流程 is in the catalog with a user-facing name, the same slots as 编号步骤 and no extra materials (3.162333ms)
+✔ 纵向流程 declares its slots once each, keeps the anchor and visibility node, and names its parts (8.434041ms)
+✔ 纵向流程 shows each step as a row with its title and description in material order (132.277958ms)
+✔ 纵向流程 shows only the title of a step whose description is a gap, and drops a step that is blank in both (38.98ms)
+✔ 纵向流程 has no horizontal overflow with 1 to 6 steps at 1440, 768 and 375 on two looks (1697.019875ms)
+✔ 纵向流程 rule tokens resolve to a real value on every block look (5.054875ms)
+(node:65326) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-value-breaks.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ product cards break key values and the full spec list only after / + – 、, and the draft keeps its values (163.71ms)
+✔ the bright product cards use the same separator-only value breaks (36.455708ms)
+✔ the hero nameplate, the statement strip, grouped cards and the comparison table use the same break points (44.928958ms)
+✔ a slash breaks between readable pieces, while units stay whole (12.181792ms)
+✔ a separator before a space or at the end of a value, or a full-width one, is left alone (7.12625ms)
+✔ copying from the page gives the value without the break points (15.01975ms)
+✔ value cells keep words and Chinese runs whole and only force a break inside a piece wider than the cell (10.360333ms)
+(node:65328) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-variants.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ set_block_variant is an operation of both schemas; blocks outside the library are refused (2.473458ms)
+✔ drafts carry blockVariants; old drafts read as defaults and unknown entries are dropped (4.524917ms)
+✔ setting a layout records it, reports the change and undoes back to the default (1.492667ms)
+✔ a layout whose materials are short is refused with a reason in page terms (3.289375ms)
+✔ materials and layout in one batch are checked after the whole batch, in either order (1.755459ms)
+✔ a later change that leaves a chosen layout short puts it back to the default in the same batch, and undo restores both (1.353667ms)
+✔ the model's layout requests are checked against the draft after its other changes; refusals and resets are explained (58.516625ms)
+✔ the model may send 24 operations at once; guided proposals keep up to 27 (17.008458ms)
+✔ the workspace names layout changes in page terms (0.116792ms)
+(node:65332) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/brand-word-wrap.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the catalog look keeps the company name together at phone width (703.374833ms)
+(node:65349) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/bridge-entry-order.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ questions added after the empty FAQ entries reach the page, in draft order (140.84275ms)
+✔ a change to a shown entry is confirmed; one to an entry the page has no room for is reported missing (23.28575ms)
+✔ entries with content come first wherever they sit; the slots left over hold placeholders, hidden as before (22.589959ms)
+✔ cooperation steps work the same way, and entries already in order render as before (38.773792ms)
+✔ the looks still on their own overlay show added questions too (46.369875ms)
+(node:65355) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/bright-browser-layout.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ bright product cards are one column with name/value rows at 375 and 768 (1125.944833ms)
+(node:65360) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/bright-look-tokens.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ engineering industrial supplies the shared block-style tokens (1.389541ms)
+(node:65363) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/bright-migration.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the bright-product migration declares its five block-library variants (0.884334ms)
+✔ forge is served by a composed block-library look (2.483125ms)
+✔ bright catalog cards keep the body wide under the title (5.828584ms)
+✔ bright product cards switch to one-column rows on 768px and below, and grouped labels stack above full-width cards (0.637959ms)
+(node:65364) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/catalog-layout-rules-browser.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ paired industries and capabilities resolve to one layout on every look (1366.756125ms)
+✔ steps balance four, five, and six entries at desktop and narrow widths (9900.341375ms)
+(node:65365) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/catalog-sections.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ set_catalog_section writes industries, capabilities and certifications with undo (1.529458ms)
+✔ old drafts without catalog sections open and keep those blocks absent (18.923333ms)
+✔ certification and catalog card facts missing from materials become 待补充 (3.43625ms)
+(node:65366) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/change-markers.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a change that only edits the hero title writes no layout, so its markers name no layout (3.313709ms)
+✔ a layout change names only the block it changed (2.638583ms)
+✔ the bridge reports every mounted block, and that confirms a change without naming it (69.128625ms)
+✔ the workspace builds its change markers from the change set, not from the preview report (0.6285ms)
+(node:65367) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/chat-route-block-layouts.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the alignment run plans on the look picked in the card, before that look is saved (289.27ms)
+✔ a saved change that leaves the chosen layout short says so in the history and undoes back (48.775167ms)
+✔ a chat request for a layout the materials do not support changes nothing and says why (64.669709ms)
+(node:65369) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/chat-route-conversation.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ chat POST SSE reuses conversationId across two applied turns (85.299917ms)
+✔ chat POST answer does not commit, emits answer then done, and keeps revision (13.006125ms)
+✔ chat POST clarify does not commit, emits clarify then done, and keeps revision (8.799292ms)
+✔ chat POST keeps applied result when append fails after a successful commit (14.877291ms)
+✔ chat POST no-op edit records a result reason, not the provider summary (8.269834ms)
+✔ alignment rejected confirmation replays a pure reason without a duplicate 未修改 prefix (89.5225ms)
+✔ chat POST keeps answer when append fails and does not treat it as an error (27.55925ms)
+✔ ordinary chat without alignment action does not persist enabled alignment (41.543333ms)
+✔ alignment start returns style options without calling the provider or changing the draft (8.112125ms)
+✔ prompt alignment asks a provider-planned question and persists it without changing the draft (18.446833ms)
+✔ alignment select is idempotent and rejects stale or unknown options without changing the draft (17.02275ms)
+✔ alignment HITL continues the saved task through clarify, proposal, and confirm without a new chat (49.7905ms)
+✔ guided image wait resumes the same saved task after a site upload (33.958125ms)
+✔ P3E complete materials reuse the guided plan, preserve missing facts, and block bypass until confirmation (137.44125ms)
+✔ alignment confirm conflicts when the draft revision changes, and cancel does not replay (87.304833ms)
+✔ two unrelated alignment tasks produce corresponding model questions and results (103.526833ms)
+✔ alignment recovers a committed proposal after the conversation result write is lost (29.393292ms)
+✔ state resumes an already confirmed proposal if the process stopped before its draft commit (43.466458ms)
+✔ recovering a lost confirmation result after undo does not report the undone change as applied (37.224333ms)
+✔ cancel suppresses a late provider answer and preserves the saved cancellation (19.233875ms)
+✔ alignment state restore uses the same POST action and does not create a missing conversation (6.472917ms)
+(node:65373) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/chat-route-truncated.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a chat edit cut off at the token budget says so, once, and changes nothing (102.65875ms)
+✔ an alignment planning answer cut off at the token budget says so (11.346167ms)
+✔ an alignment generation answer cut off at the token budget says so and keeps the task (25.671333ms)
+(node:65375) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/conversation-store.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ conversation-store tests require the development-file driver (1.099166ms)
+✔ creates a conversation, persists a turn, and rereads the same turns (34.153667ms)
+✔ isolates conversations across site ids (13.813042ms)
+✔ rejects unsafe ids and truncates overlong untrusted fields observably (28.491667ms)
+✔ prompt context keeps five recent turns complete and bounds older history (109.885416ms)
+✔ prompt context includes outcome and does not label non-applied turns as applied (5.199958ms)
+(node:65376) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/custom-brand-color.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ custom brand palettes keep text and white CTA contrast for light, dark, and saturated colors (1.354208ms)
+✔ custom palette operation is reversible and records the adjustment note (3.065ms)
+(node:65378) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/dashboard-cleanup.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dashboard has no hardcoded demo metrics or Forge activity (9.283125ms)
+✔ quality blind mode hides nonce and internal comparison markers (13.224125ms)
+✔ template gallery only mounts local preview frames (2.680209ms)
+(node:65383) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/draft-english.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ default draft does not offer visitor English (1.794958ms)
+✔ authored English that differs from default draft offers visitor English (3.539416ms)
+✔ Chinese-only edits leave default English and still do not offer EN (0.673625ms)
+✔ published client removes SiteCraft chrome bars (1.645458ms)
+✔ sparse legacy draft with only inherited English does not offer visitor English (0.447167ms)
+(node:65384) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/engineering-page-without-snapshot.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ without the vendor snapshot the engineering page is still served and can start a site (42.444417ms)
+✔ the bright product page no longer ships the retired forge overlay (0.353792ms)
+✔ the blue-white catalog page no longer ships the retired landwind overlay (0.212166ms)
+✔ the grey short-path page no longer ships or references an overlay (23.923ms)
+✔ the snapshot's own pages and assets are not served for the engineering look (0.906625ms)
+✔ the old screwfast overlay is gone and nothing refers to it; the submodule and the reference entry stay (12.884667ms)
+(node:65386) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/family-modules.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ plan v0.6 family inventory is KonsTuck and Lozitick module lists (1.607958ms)
+✔ forge screwfast landwind snapshots have unique nodes for listed modules that exist (1.809875ms)
+✔ adapters declare only unique snapshot sections and leave the rest missing (0.327417ms)
+✔ catalog text slots belong to the technical short-path adapter (0.156833ms)
+✔ set_section_visibility hides and shows listed modules through the whitelist op (10.749334ms)
+✔ illegal hide/show keys are rejected and do not rewrite the draft (3.0735ms)
+✔ adapters stay data-only after declaring family sections (0.731084ms)
+(node:65387) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/faq-six-items.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the engineering FAQ has six entries, each declared once (14.38725ms)
+✔ five questions from the materials all reach the page; the sixth, empty entry does not (137.115167ms)
+✔ five questions added after the six empty entries (add_card) show the same way (35.616792ms)
+✔ materials without questions leave no FAQ shell (28.355958ms)
+✔ check-published expects as many FAQ entries as the engineering page shows (2.7975ms)
+✔ the model is told how many FAQ entries the current look shows (39.396625ms)
+(node:65388) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/frontend-tone.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ runtime frontend tone is pinned at sitecraft-frontend-less-ai-tone@0.3.1 (0.872ms)
+✔ user-facing theme cards and alignment options do not expose Skill names (1.943708ms)
+✔ AI intent schema rejects CSS and HTML write operations (2.74975ms)
+✔ project skill keeps the pinned runtime rules and forbids CSS emission (0.771333ms)
+✔ skill source pins upstream revisions and does not claim font licensing (0.348208ms)
+✔ cursor skill loader points at the project skill and does not fork rules (0.346792ms)
+✔ general frontend skill is distinct from the SiteCraft overlay and allows CSS (9.263292ms)
+(node:65389) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/headline-orphans.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ hero titles balance and mobile brand names are not ellipsized (4.464666ms)
+(node:65390) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/hero-statement-design.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the spec panel sits in the title's container, after the button row, not in a band of its own (3.384375ms)
+✔ a light panel: surface colour, 1px border, 2px accent line on top, about 32px under the buttons (0.716375ms)
+✔ small muted labels, bold values that wrap by the break rules (0.149459ms)
+✔ the title is one step smaller than the 76px it had (0.244833ms)
+✔ four specs in a row, two columns by two rows at 768, two columns at 375 (0.120833ms)
+✔ the bridge fills the panel in place: four specs, label and value, inside the title's container (115.786542ms)
+(node:65391) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/image-analyze.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ requestImageFacts rejects 1×1 without calling the provider (1.380916ms)
+✔ analyze route never imports commitOperations and rejects unknown images (29.965334ms)
+(node:65393) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/landwind-products-rows-browser.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ directory rows stay one column and readable with one, two, or five products (3604.8045ms)
+(node:65394) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/landwind-products-rows.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the block catalog declares a directory-row product layout with a real host (0.825ms)
+(node:65396) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/landwind-shared-tokens.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ engineering fills the catalog migration token seams with current values (1.2575ms)
+(node:65398) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/leads.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ lead-store tests require the development-file driver (0.898292ms)
+✔ unknown site keys are not created when an inquiry is refused (4.421292ms)
+✔ a saved inquiry rereads the same payload and stays on its site (62.206542ms)
+✔ public POST persists one inquiry that the inbox GET can read (16.479834ms)
+✔ honeypot receipts are accepted without writing an inbox row (6.833667ms)
+✔ public POST to a missing site does not create a draft file (6.887292ms)
+✔ inbox pages stop advertising fake companies and a live mailbox (9.460709ms)
+(node:65399) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/legacy-look-fallback.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy editorial look is hidden from new choices while old drafts stay readable (22.6555ms)
+(node:65400) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/no-demo-products.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a new draft carries no demo products (4.470125ms)
+✔ forge: visitor page hides the empty product block and its nav link (31.512917ms)
+✔ screwfast: visitor page hides the empty product block and its nav link (2.264209ms)
+✔ landwind: visitor page hides the empty product block and its nav link (1.913167ms)
+✔ tailwind-landing: visitor page hides the empty product block and its nav link (2.624625ms)
+✔ products from materials bring the product block back (5.382542ms)
+(node:65401) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/page-plan.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ default three is home, products and contact and is not a page cap (14.784125ms)
+✔ user extra pages keep a different set and explain unsupported urls (0.39675ms)
+✔ explicit single-page request is not padded back to three (1.92175ms)
+✔ unspecified source uses default three and model plans can differ (0.449875ms)
+✔ landwind cannot host extra urls (0.693792ms)
+✔ v2 drafts missing pagePlan hydrate from the template instead of shrinking to a homepage (13.091417ms)
+✔ stored default plans rehost old independent subpages onto same-page sections (0.746375ms)
+✔ ai edit intent accepts set_page_plan and switching looks rehosts placement (2.194917ms)
+(node:65402) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/palette-catalog.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ every look offers one palette per colour set, in the colour-set names users pick from (1.93325ms)
+✔ all 24 palettes meet WCAG AA for body text, secondary text and white button text (7.501709ms)
+✔ palettes in one look keep font and radius and differ in colour (0.276125ms)
+✔ drafts saved with a retired palette id open on the nearest colour set (27.982ms)
+(node:65403) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/preview-failure.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ template previews expose a bounded failure state and development previews are not cached (1.1985ms)
+✔ preview timeout arms without waiting for onLoad, but thumbnails wait for visibility (3.202208ms)
+(node:65404) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/preview-load-timing.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ non-thumbnail enters error when onLoad never fires (1.463709ms)
+✔ thumbnail does not start the failure timer until it is near the viewport (0.242208ms)
+✔ after onLoad the timer only covers the missing applied acknowledgement (0.267709ms)
+✔ a hidden workspace preview does not enter the error state (0.765959ms)
+✔ upstream English preview reasons map to Chinese without leaking raw status text (0.536459ms)
+(node:65407) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/preview-vision.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ inspectPreviewScreenshot rejects empty and 1×1 PNGs (6.052458ms)
+✔ inspectPreviewScreenshot rejects a 320×200 header that is still a tiny synthetic PNG (0.313292ms)
+✔ preview review schema drops CSS/HTML/operations and does not become an edit intent (5.669125ms)
+✔ parsePreviewReview rejects an edit payload that would rewrite HTML (14.77525ms)
+✔ requestPreviewReview rejects 1×1 without calling the provider (0.811ms)
+✔ requestPreviewReview sends image_url, keeps keys out of the result, and returns no operations (105.504958ms)
+✔ preview-review route never imports commitOperations and rejects 1×1 (21.008792ms)
+(node:65408) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/process-six-steps.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the engineering steps block has six entries, each declared once (15.314ms)
+✔ five steps all reach the page; an empty sixth entry does not (327.492375ms)
+✔ check-published expects the steps the engineering page shows (2.313625ms)
+✔ the model is told how many steps the look shows, and writes at most six (55.450125ms)
+(node:65414) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/product-specs.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ set_product_specs writes localized names and values through applySiteOperations and undoes (55.628125ms)
+✔ old drafts without product specs still normalize and leave specs absent (24.173917ms)
+✔ spec values absent from materials become 待补充 under validateAIOperations (13.769292ms)
+✔ commitOperations persists product specs on a real site record (162.023125ms)
+(node:65415) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/published-facts.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the facts come from the draft: products and their specs, entries the look shows, catalogs and contact (7.721666ms)
+✔ English facts use English spec values and omit missing English values (2.429083ms)
+✔ sections the draft hides are not expected (2.403166ms)
+✔ each look's FAQ and step entries match its adapter (2.112625ms)
+✔ a page that dropped the specs and the FAQ but kept the catalog titles is caught (3.051709ms)
+✔ break marks and line breaks on the page do not hide a fact (0.3375ms)
+✔ check-published reads the page with folded text opened and fails on missing facts (1.392375ms)
+(node:65417) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/published-page-hygiene.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ published pages contain only the site while workspace owns page-plan diagnostics (1.334458ms)
+(node:65418) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/published-text-fit.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ check-published runs the text-fit scan and reports each way text can fail to fit (1.537542ms)
+✔ check-published verifies the visitor block order against the draft (0.240708ms)
+(node:65419) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/quality-comparison.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ P4 freezes current baseline and prepares 12 cells from 3 simulated packs (9.625958ms)
+✔ P4 packs are independently labeled 模拟, use unique nonces, and stay out of the production prompt (4.694958ms)
+✔ group B is a real look-board lock, not a tone-in-prompt label, and C uses a different materials look (1.932125ms)
+✔ D limited fixes drop illegal template, SKU and image writes instead of silently applying them (0.530459ms)
+✔ look vs copy comparison refuses to call a copy-only swap a look change (14.607375ms)
+✔ blind presentation hides group letters and shuffles without dropping cells (3.48275ms)
+✔ quality runner stays on commitOperations and the comparison page is the scoring surface (0.925292ms)
+✔ quality and published first screens wait for iframe apply instead of capturing an empty client shell (5.266667ms)
+(node:65421) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/quality-failure.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ quality failures keep a diagnostic code, map to Chinese, and never render an old draft (1.363166ms)
+(node:65423) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/replace-cards.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ one replace_cards writes the whole FAQ, in both languages, and the page shows all five (408.090458ms)
+✔ undo puts the previous list back exactly, the English flag too (8.357833ms)
+✔ undo and redo through the saved history (235.782166ms)
+✔ the operation takes the draft's own limit: twelve entries, unique ids, only card groups (12.896583ms)
+✔ from the model: at most six FAQ entries, no empty entries, no accidental wipe (21.143584ms)
+✔ from the model: an empty replace_cards list does not wipe an existing group (1.798583ms)
+✔ an inverse can still restore an empty group after a model replacement (9.641333ms)
+✔ the model is told to write a whole card group in one replace_cards, and update_card for one entry (45.610334ms)
+(node:65426) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/schema-issue-fields.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ schema issues become path:code, with made-up keys and odd codes masked (2.646042ms)
+(node:65427) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/service-card-numbers.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cooperation cards and steps show a fresh counter on both looks, excluding gaps (3380.4775ms)
+(node:65430) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/short-path-hero-fit.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ short-path hero title stays inside the viewport and clear of the visual panel (1698.259416ms)
+(node:65431) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/short-path-look.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 灰底短路径 look declares its tokenized layout seams (1.585583ms)
+(node:65432) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/short-path-variants-browser.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 灰底短路径 mounts its short nav, certification cards, side FAQ, and line footer (1576.064042ms)
+(node:65435) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/simulated-packs.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ industrial and export simulated packs are independent, labeled 模拟, and use unique nonces (8.135541ms)
+✔ thick molding pack is a third workspace pack with full facts and only the declared gaps (7.077208ms)
+✔ simulated pack tokens stay out of the production system prompt (0.967458ms)
+✔ workspace materials journey stays on chat/commitOperations and isolates site ids (4.277167ms)
+✔ workspace preview and published page read the same committed draft (1.414125ms)
+✔ commitOperations-compatible ops can write pack facts without guessing undeclared chrome (5.467166ms)
+✔ oversized materials stay within the chat character limit (0.241208ms)
+(node:65437) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-creation.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ creating a site applies each requested visual template and neutral names (526.864125ms)
+(node:65438) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-delete.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ site-delete tests require the development-file driver (1.134209ms)
+✔ a mismatched confirmation leaves the site, conversation and inquiry in place (98.819416ms)
+✔ typing the site id deletes draft, conversation and inquiry without recreating them (141.519375ms)
+✔ DELETE without a matching confirmSiteId does not remove the site file (67.750875ms)
+✔ delete UI requires typed confirmation and does not schedule cleanup (1.725042ms)
+(node:65462) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-images.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ magic bytes reject 1×1, HTML, and GIF; JPEG/PNG headers are enough to read size (4.821708ms)
+✔ template stock URLs cannot masquerade as customer images (2.005667ms)
+✔ saved images are owned by site/workspace and cannot be read across sites (24.438541ms)
+✔ public-material provenance is mandatory before a non-user image can enter a customer site (4.10975ms)
+✔ set_image_slot and set_product_image apply, invert, and reject template stock (6.07625ms)
+✔ bindSiteImageOperations refuses template stock even when imageId exists (3.600708ms)
+✔ set_product_image stores credit on the draft image ref (0.905792ms)
+✔ image facts schema keeps 待补充, drops CSS/HTML/operations, and is not an edit intent (3.643ms)
+(node:65463) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-operations.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ default draft keeps unprovided contact facts as pending (4.774208ms)
+✔ v2 drafts missing only visualBrief retain authored content and revision (13.823541ms)
+✔ switching visual brief keeps authored pack text and only changes the mapped template (2.411167ms)
+✔ theme undo restores the saved template and brief even after catalog remapping (1.983708ms)
+✔ updates only the requested service card and creates a reversible operation (4.25675ms)
+✔ v2 drafts missing faq keep authored hero text and fill six pending FAQ cards (14.098375ms)
+✔ updates only the requested FAQ card and creates a reversible operation (0.78075ms)
+✔ intent union accepts edit, answer, and clarify and rejects operations on answer (3.809583ms)
+✔ rejects an unsolicited template switch (2.126875ms)
+✔ allows a whitelisted template switch only when explicitly requested (3.706042ms)
+✔ does not increment revision for a no-op (0.525542ms)
+✔ replaces imported products as one reversible draft change (0.912375ms)
+✔ applies a user-facing visual brief and its compatible template as one reversible change (0.891417ms)
+✔ confirming the current look clears a retired visual brief and undo restores it (4.079ms)
+✔ generation refuses a model instruction as the FAQ intro and a card whose title and body are both missing (54.192375ms)
+✔ engineering palette changes are named, reversible, and same-family only (3.340833ms)
+✔ one localized text operation writes zh and en together and undo restores both (1.30525ms)
+✔ undoing the only English operation restores englishReady and keeps a different English sentence unavailable (0.489541ms)
+✔ undoing the only bilingual card update restores englishReady (0.774875ms)
+✔ one product operation writes a bilingual category and undo restores it (4.275083ms)
+(node:65465) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-preview.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ shared site preview uses the row gap, a short delay, and tap when hover is unavailable (1.966708ms)
+✔ all-sites and delete lists reuse the shared preview instead of reserving a blank column (2.969291ms)
+(node:65478) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-style-bridge.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the block-library bridge adds, replaces, and removes one site-style node (242.488333ms)
+(node:65482) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-style-check.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a normal site style passes all three browser widths (8804.054ms)
+✔ a legal grid rule that cannot fit on a phone is rejected with width and block (6913.028166ms)
+✔ a white title on its white surface is rejected for contrast (7304.177125ms)
+✔ a style check that exceeds its total deadline is rejected as incomplete (2.854792ms)
+✔ bright product directions pass all three browser widths for all three materials (64630.4875ms)
+✔ catalog directions pass all three browser widths for all three materials (87288.134ms)
+(node:65483) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-style-commit.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ without Chrome a style-only commit is rejected and leaves the draft unchanged (87.451542ms)
+✔ without Chrome a mixed commit keeps ordinary changes and rejects only style (9.688292ms)
+✔ direction-only style must also be checked before saving (7.115958ms)
+(node:65486) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-style-css.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ serialized rules are prefixed, deterministic, and wrapped in the site-style layer (1.689541ms)
+✔ unsafe raw values never reach the serialized stylesheet (0.155334ms)
+✔ later rules remain later so appended rules override direction rules (0.197167ms)
+(node:65488) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-style-directions.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ engineering direction recipes are named, sized, and whitelist-valid (9.124041ms)
+✔ bright product direction recipes are named, sized, and whitelist-valid (0.676542ms)
+✔ short-path direction recipes are named, sized, and whitelist-valid (1.795334ms)
+(node:65490) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-style-operation.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ set_site_style is accepted by both schemas and replaces as one reversible change (160.212834ms)
+✔ normalizeDraft keeps valid site rules and drops unknown or unsafe ones (32.98625ms)
+✔ the style operation does not consume the model's 24 ordinary-operation budget (2.484875ms)
+(node:65491) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-style-rules.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a legal rule uses a named block part and a whitelisted declaration (10.741209ms)
+✔ the style block and part allowlist comes from the block catalog but excludes page chrome (1.248708ms)
+✔ forbidden properties and values are rejected with a useful reason (4.03325ms)
+✔ property values stay inside their numeric and grammar bounds (8.277875ms)
+✔ rule, declaration, and serialized-byte limits are enforced (2.034542ms)
+(node:65493) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/site-style-scan.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ layout scanning measures painted text: closed details excluded, 3px overlap within/across blocks detected (947.126167ms)
+✔ hero title scanning reports known CJK word breaks (1.494916ms)
+(node:65494) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/sites-list.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dashboard 查看全部 goes to the saved-site list instead of a same-page hash (1.434584ms)
+✔ the all-sites page lists existing records and does not create drafts (0.488291ms)
+(node:65498) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/smtp.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ lead notification keeps headers safe and leaves missing company explicit (38.202708ms)
+✔ SMTP delivery completes the local server handshake (140.329334ms)
+✔ SMTP delivery stays stored-only when no recipient is configured (0.825834ms)
+(node:65502) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/spec-values-bilingual.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ localized spec values are accepted and rendered by locale (16.931542ms)
+✔ normalizeDraft preserves old string values and accepts new localized values (4.405208ms)
+✔ model spec values are normalized from materials and explain missing English (2.760333ms)
+✔ set_product_specs opens englishReady and undo restores specs and flag (3.195292ms)
+✔ replace_products normalizes specs, opens englishReady, and undo restores both (0.980583ms)
+(node:65503) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/sse.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SSE parser keeps incomplete frames and does not JSON.parse unfinished chunks (1.720583ms)
+(node:65509) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/stable-item-ids-rework.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Postgres history migration persists only records below schema version 3 (32.718583ms)
+✔ three card sentinels keep the selected middle card after deleting the first (3.819375ms)
+✔ preview selection sends the stable slot and model request receives it as selectedTarget (204.5095ms)
+✔ new and old operation schemas both undo and redo through stable ids (7.892459ms)
+✔ legacy history migrates index and sku operations before undo and redo (77.706ms)
+✔ legacy future migrates its forward operation before redo (75.144917ms)
+✔ a missing product id is reported missing instead of deriving one from SKU or position (57.752959ms)
+✔ v2 dotted SKU history migrates A.B and A.B.C operations, inverse, and targets to the right ids (13.340792ms)
+✔ duplicate SKU in a legacy target reports a migration error instead of choosing the first product (6.276834ms)
+✔ missing SKU in a legacy applied target reports a migration error (9.824708ms)
+✔ legacy add/remove aggregate targets migrate from card indexes to stable ids (7.708708ms)
+✔ legacy dotted item ids fail with a site-specific migration error before defaults can load (10.233542ms)
+✔ replace_draft is also normalized through the one id gateway (7.877958ms)
+✔ stable ids reserve explicit ids, reject duplicates, and stay within target grammar (168.773208ms)
+(node:65510) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/stable-item-ids.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ card selection stays on the selected id after an earlier card is removed (3.934041ms)
+✔ legacy products receive stable ids and remain addressable after their sku changes (78.405209ms)
+(node:65519) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/structured-output-budget.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ structured generation asks for a 65536-token budget by default and leaves thinking at its default (138.520625ms)
+✔ a lower configured budget is raised to 65536, a higher one is kept (8.202458ms)
+✔ a structured-generation attempt may run up to 300 s and a planning attempt up to 90 s (8.575125ms)
+✔ a structured retry only gets what is left of 360 s, and there is none when nothing is left (7.126125ms)
+✔ a planning retry only gets what is left of 150 s, and there is none when nothing is left (6.731709ms)
+✔ an answer cut off at the token budget is reported as truncated after one attempt (3.94275ms)
+✔ the alignment planner has room for look and color recommendations (3.4515ms)
+✔ an over-long planner summary or option description is clipped instead of failing (11.163459ms)
+✔ catalog items the model sends without a body are kept with a gap body (25.044667ms)
+(node:65522) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/t057-rework.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the Segmenter fallback keeps the authored hero title (10.809833ms)
+✔ hero titles use Intl.Segmenter words instead of a hard-coded product list (1322.615917ms)
+✔ a long short-path hero word stays inside a 375px viewport (368.453042ms)
+✔ an engineering title that is not orphaned keeps its original line grouping (299.271959ms)
+✔ short-path word spans are declared, idempotent, and CSS reflows after a viewport change (655.798583ms)
+✔ short-path hero never leaves the conjunction at the end of a line (1458.408708ms)
+✔ the title scanner catches a wrapped word inside a span, including a repeated occurrence (334.8955ms)
+✔ the shared title scan reports an orphan line and allows an overlong word to break (371.464083ms)
+✔ a visible unmarked layer covering link text is reported as covered (216.352167ms)
+✔ coverage follows the painted stacking order and catches pointer-free covers (298.092333ms)
+✔ closed navigation details are not painted, while visible link text remains covered-checkable (304.444375ms)
+✔ certification bodies are expected for cards and omitted for badges (12.225542ms)
+✔ short-path product values stay inside their cards at all published widths (2102.848208ms)
+✔ short-path no-draft pages keep only real shell/form copy and sent inquiry stays green (208.285417ms)
+(node:65525) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/t063-hero-title-fit.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ T-063 uses declared character CSS sizing without a look-specific selector (2.900542ms)
+✔ run width sizing does not shrink breakable long sentences or couple brand size to the title (831.680958ms)
+✔ original engineering titles and company name fit in every published viewport (1310.663542ms)
+✔ long engineering brand keeps the readable floor and wraps instead of clipping at 375px (522.251083ms)
+(node:65526) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/t070-store-summary.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ T-070 FS and Postgres commits persist the same target-only ChangeSet summary (630.10575ms)
+(node:65527) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/t070-summary.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ T-070 layout summary names the applied layout and drops model-only image details (3.9675ms)
+✔ T-070 drops synonymous model descriptions instead of guessing whether they are reasons (0.58725ms)
+✔ T-070 never echoes a model summary, including a legitimate-looking reason (0.25075ms)
+✔ T-070 text summary names the applied text target (0.209708ms)
+✔ T-070 rejected changes keep the rejection reason and do not claim a page change (1.163334ms)
+✔ T-070 undo summary names the inverse operation's applied target (0.280708ms)
+✔ T-070 does not append even an explicit model reason (0.256625ms)
+✔ T-070 confirmation card uses operation target labels instead of model prose (2.722875ms)
+✔ T-070 FS and Postgres committers share the same target-summary constructor and history reads it back (0.785375ms)
+(node:65530) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/technical-desktop-density.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ technical desktop keeps spec type readable and does not leave an empty hero column (1.874958ms)
+(node:65536) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/technical-product-image.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ short-path product photos are cropped inside the composed card (2.901166ms)
+(node:65537) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-adapters.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ adapters are JSON data, not per-template JavaScript source (5.097917ms)
+✔ required templates declare unique hero slots and only exact collection indexes (1.03275ms)
+✔ coverage is locale-exact and does not treat prefix hits as success (2.403792ms)
+✔ templates without homepage contact fields propose an owned alternative (0.612958ms)
+✔ block-library looks expose their declared slots on composed pages (29.474625ms)
+✖ tailwind-landing and fresh snapshots have unique first-screen nodes and leave chrome undeclared (0.712833ms)
+✔ spa-bundle adapters do not claim a local HTML snapshot (0.265958ms)
+✖ declared hero images are unique src slots and leave logos and avatars undeclared (0.730208ms)
+✔ screwfast FAQ nodes are unique and stay declared (1.641ms)
+✔ inquiry forms are unique in MIT snapshots and do not keep web3forms (0.769083ms)
+✔ admitted kits bind looks to one family, copy concrete tokens, and never select demo pricing (14.343708ms)
+✔ same-family compose matches sample B/C and rejects mixed-skin sample A (8.617042ms)
+✔ engineering orange keeps its family signal while using the strong token for readable CTA text (5.239583ms)
+✔ catalog includes extra PR4 templates without renaming shadcn-landing2 as Pro (3.091958ms)
+(node:65539) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-preview-bridge.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ generated bridge source stays callable JavaScript without per-template functions (4.216041ms)
+✔ legacy heuristics fail the sentinel contract that the generated bridge must pass (2.865ms)
+✔ declared-only generated bridge writes unique sentinels and reports exact misses (76.416958ms)
+✔ ambiguous declared selectors and missing adapters write nothing (13.451791ms)
+✔ empty declared values clear old content and unmapped clicks keep navigation (10.553625ms)
+✔ unsupported structural changes remain missing instead of disappearing from the report (4.651291ms)
+✔ local snapshot script stripping removes upstream scripts only (1.377792ms)
+✔ hero lines read industry and navigation follows the draft language (34.227125ms)
+✔ hiding a section also hides its navigation link and renumbers the visible sections (21.043542ms)
+✔ a FAQ entry with no title and no body is hidden, and a sentence gap stays visible (12.55625ms)
+✔ filling FAQ gaps on the same preview document restores entries and the section (72.614584ms)
+✔ fresh first-screen slots follow its independent pack and leave undeclared chrome (19.338958ms)
+✔ in-template page switching marks the active page and hides other planned sections on the same document (89.822625ms)
+✔ unique src slots write owned URLs and leave undeclared imgs unchanged (1.68825ms)
+✔ screwfast FAQ slots write unique accordion text and leave sales chrome (16.154666ms)
+✔ screwfast product grid shows draft image credit under the photo (23.080958ms)
+✔ screwfast benchmark renders only authored product categories into the product grid (17.210625ms)
+✔ screwfast product categories localize on the English preview (18.011333ms)
+✔ inquiry form submit posts payload to parent and does not keep web3forms action (2.011834ms)
+✔ screwfast + industrial pack replaces the placeholder brand in the header and footer (9.642583ms)
+✔ demo chrome unique miss is reported as missing and does not hide a similar heading (1.352208ms)
+✔ engineering-industrial kit applies its family tokens and selects no demo module (11.605667ms)
+✔ engineering-industrial bridge applies the named slate palette without changing family (5.896291ms)
+(node:65546) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-readiness.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ readiness count follows the catalog and never claims a ready asset pack (14.026ms)
+✔ a local page is a usable snapshot or a block-library page, not a generation-ready claim (7.408042ms)
+✔ unknown or missing snapshots cannot enter edit preview (3.881708ms)
+✔ P0 catalog entries stay blocked and never receive empty kits (0.54725ms)
+(node:65548) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-snapshot-assets.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dashboard hero does not hardcode a date or version stamp (175.955042ms)
+✖ powerai stylesheet requested with the GitHub Pages base is the built css (23.110875ms)
+✖ astro-starter css serves fonts from the template asset route (3.804917ms)
+✖ astro-starter stylesheet link is CORS-enabled for the sandboxed preview frame (2.377667ms)
+✔ local preview rewrites every srcset candidate, inline image, and inline font onto the asset route (5.633667ms)
+✖ template asset responses allow sandboxed preview font loads (104.215125ms)
+(node:65553) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-static.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SPA shell, title-only, and commented HTML are not usable snapshots (4.2785ms)
+✔ loader and snapshot script agree on usable-html decisions (0.6795ms)
+✔ isolated fixture: SPA dist shell is rejected by loader; legacy dist-first would accept it (8.780125ms)
+✔ isolated fixture: usable fully rendered dist is recognized for spa-bundle id (5.728125ms)
+✔ isolated fixture: rendered out/index.html is recognized; legacy dist-first misses it (6.30625ms)
+✔ isolated fixture: rendered source HTML is a static snapshot (6.890209ms)
+✔ isolated fixture: spa-bundle without rendered snapshot is not readable (2.951583ms)
+✔ only the root index receives the SiteCraft overlay; independent subpages keep their source (10.298041ms)
+(node:65557) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/thumbnail-without-draft.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ without a draft the engineering page shows no empty entries, contact lines or blocks, and no links to them (632.954333ms)
+✔ with a draft the page keeps its rules, and a draft shows again what the page without a draft hid (752.696ms)
+(node:65561) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/user-errors.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ user error catalog keeps diagnostic codes but returns actionable Chinese copy (2.996042ms)
+✔ unknown errors do not leak raw stack or provider text (0.372125ms)
+✔ known diagnostic codes override raw provider details (0.327625ms)
+✔ a cut-off model answer is described as truncated, with the draft unchanged (2.002583ms)
+(node:65562) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/visitor-default-copy.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ungenerated default draft hides default and meta copy on the visitor page (64.834042ms)
+✔ screwfast hero picks photo, spec nameplate or nothing from products, not industry text (17.492417ms)
+✔ visitor page shows only 已有 and 认证中 certifications (147.950666ms)
+✔ authored copy shows even when it matches old demo text; whole-gap sentences are omitted (71.126791ms)
+(node:65567) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/visitor-editor-chrome.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ editor hover outline is not injected into the shared visitor preview (1.180083ms)
+(node:65569) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/visitor-prose.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gap-only sentences are dropped, a gap inside a fact sentence stays (2.735916ms)
+✔ sentences about building the site or about the materials are dropped (0.290292ms)
+✔ the validator cleans prose the model writes into visitor copy (2.630334ms)
+✔ a catalog card whose body is a gap shows only its title on the visitor page (25.210625ms)
+✔ a certification card does not repeat its status as the body (1.730792ms)
+✔ a service card with a title and a gap body shows only its title on the visitor page (7.420334ms)
+(node:65571) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/visual-brief-looks.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ look board ships snapshot-backed looks with look-language labels, not industry 1:1 (3.690208ms)
+✔ alignment style options reuse the look board labels and never expose template ids as the choice (0.554792ms)
+✔ stored drafts refresh look labels from the catalog and keep authored content (24.167333ms)
+✔ legacy engineering drafts hydrate to the named default palette (2.476375ms)
+✔ set_visual_brief maps each shipped look onto its compatible template in one revision (9.392875ms)
+✔ workspace look cards do not present Skill names or internal template ids as the product choice (7.415958ms)
+(node:65580) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/workspace-chrome-layout.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the change marker sits above the preview frame instead of covering the site header (1.650417ms)
+✔ the selected-template bar paints above the thumbnail grid (0.440709ms)
+✔ the preview frame pauses its load timer while the mobile preview is hidden (12.117541ms)
+(node:65635) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/workspace-copy.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ preview gaps are named by page part, not by field path (2.172916ms)
+✔ the materials wrapper is not shown back to the user (0.298792ms)
+✔ an unsupported page is explained without template internals (0.64575ms)
+✔ model-written unsupported-page reasons reach the user in plain language (333.60825ms)
+✔ workspace, error and page-plan copy carries no internal words (19.136583ms)
+✔ operation target copy never includes model prose or internal words (1.534708ms)
+✔ the upload hint does not mention magic bytes (2.08725ms)
+✔ a refused chat turn says only why nothing changed (1.780792ms)
+✔ the workspace answers a no-change turn with that reply and draws no empty bubble (2.752667ms)
+✔ a restored failed alignment run says the real reason (0.71325ms)
+✔ the workspace restores a failed run with that reason, before the card it shows again (1.921083ms)
+(node:65636) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/workspace-dark-contrast.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ every workspace surface keeps text at 4.5:1 or above in dark and light, at 1440, 768 and 375 (71796.580708ms)
+(node:65639) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/workspace-interaction.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the action row sits above the chat box, 需求对齐 is a visible switch, and no dev labels show (21628.593542ms)
+✔ workspace motion is 150–300 ms of transform/opacity and stops under prefers-reduced-motion (29059.320583ms)
+✔ look, color, undo and redo still write the draft from the new controls (6830.630208ms)
+✔ the alignment card opens at its top and choosing an option does not scroll the chat (4826.62025ms)
+✔ a failed request shows one error message and one plain retry line, not two red boxes (2169.262792ms)
+(node:65641) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/workspace-new-site-entry.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/luckye/Documents/Code/sitecraft-ai-t072/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a template without a site creates a new site (2.417959ms)
+✔ an explicit site always opens that site, even with a template (0.326792ms)
+✔ unknown templates and bad site ids fall back to the default site (0.26525ms)
+✔ after creating, the URL names the new site so a refresh does not create another (0.43275ms)
+✔ the workspace creates the site through POST /api/sites and never rewrites another site's template (6.168083ms)
+✔ two effect runs of one entry share a single creation (0.929916ms)
+✔ a later 新建站点 with the same template creates another site (0.257417ms)
+✔ a failed creation can be retried (0.679416ms)
+✔ a template that is not behind one of the looks is refused, not created or opened (0.22075ms)
+ℹ tests 605
+ℹ suites 0
+ℹ pass 598
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183904.023291
+
+✖ failing tests:
+
+test at tests/block-product-index.test.ts:131:1
+✖ 型号索引表 has no horizontal overflow at 1440, 768 and 375 on two looks (790.930334ms)
+  AssertionError [ERR_ASSERTION]: screwfast @1440
+
+  10 !== 5
+
+      at TestContext.<anonymous> (file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/block-product-index.test.ts:156:16)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 10,
+    expected: 5,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/template-adapters.test.ts:205:1
+✖ tailwind-landing and fresh snapshots have unique first-screen nodes and leave chrome undeclared (0.712833ms)
+  Error: ENOENT: no such file or directory, open '/Users/luckye/Documents/Code/sitecraft-ai-t072/vendor/open-source-templates/fresh/dist/index.html'
+      at readFileSync (node:fs:539:20)
+      at TestContext.<anonymous> (file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-adapters.test.ts:207:18)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/Users/luckye/Documents/Code/sitecraft-ai-t072/vendor/open-source-templates/fresh/dist/index.html'
+  }
+
+test at tests/template-adapters.test.ts:247:1
+✖ declared hero images are unique src slots and leave logos and avatars undeclared (0.730208ms)
+  Error: ENOENT: no such file or directory, open '/Users/luckye/Documents/Code/sitecraft-ai-t072/vendor/open-source-templates/fresh/dist/index.html'
+      at readFileSync (node:fs:539:20)
+      at read (file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-adapters.test.ts:248:30)
+      at TestContext.<anonymous> (file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-adapters.test.ts:259:13)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/Users/luckye/Documents/Code/sitecraft-ai-t072/vendor/open-source-templates/fresh/dist/index.html'
+  }
+
+test at tests/template-snapshot-assets.test.ts:58:1
+✖ powerai stylesheet requested with the GitHub Pages base is the built css (23.110875ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(root)
+
+      at TestContext.<anonymous> (file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-snapshot-assets.test.ts:60:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/template-snapshot-assets.test.ts:72:1
+✖ astro-starter css serves fonts from the template asset route (3.804917ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(root)
+
+      at TestContext.<anonymous> (file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-snapshot-assets.test.ts:74:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/template-snapshot-assets.test.ts:88:1
+✖ astro-starter stylesheet link is CORS-enabled for the sandboxed preview frame (2.377667ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(page)
+
+      at TestContext.<anonymous> (file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-snapshot-assets.test.ts:90:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/template-snapshot-assets.test.ts:137:1
+✖ template asset responses allow sandboxed preview font loads (104.215125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  404 !== 200
+
+      at TestContext.<anonymous> (file:///Users/luckye/Documents/Code/sitecraft-ai-t072/tests/template-snapshot-assets.test.ts:142:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -14,6 +14,7 @@ import {
   type CurrentQuestion,
 } from "@/lib/alignment";
 import { isSiteStyleRequest, requestAlignmentPlan, requestStructuredOperations } from "@/lib/ai-provider";
+import { recommendLookFromDraft } from "@/lib/alignment-recommendation";
 import {
   appendConversationTurn,
   applyConversationAlignmentAction,
@@ -234,11 +235,12 @@ async function planPromptStart(siteId: string, args: {
     : [];
   const plannerStyle = plannerQuestions.find((item) => item.field === "style");
   const plannerPick = plannerStyle?.options.find((option) => option.recommended === true && "id" in option && visualBriefCatalog.some((brief) => brief.id === option.id));
+  const structuredLook = recommendLookFromDraft(current.draft);
   const plannerColor = plannerQuestions.find((item) => item.field === "colorSet");
   const plannerColorPick = plannerColor?.options.find((option) => option.recommended === true && "id" in option && typeof option.id === "string");
   const lookCard = styleQuestion(questionRevision, {
-    briefId: plannerPick && "id" in plannerPick ? plannerPick.id : current.draft.visualBrief.id,
-    reason: plannerPick?.description,
+    briefId: structuredLook?.briefId ?? (plannerPick && "id" in plannerPick ? plannerPick.id : current.draft.visualBrief.id),
+    reason: structuredLook?.reason ?? plannerPick?.description,
     colorSetId: plannerColorPick && "id" in plannerColorPick ? plannerColorPick.id : undefined,
     colorReason: plannerColorPick?.description,
   }).questions ?? [];
