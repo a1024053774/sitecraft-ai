@@ -34,6 +34,7 @@ T-073 的流水线跑通后，按同一条线批量做读现有草稿字段的�
 | --- | --- | --- | --- |
 | 合作方式「纵向流程」（services:vertical） | `services-vertical-process/` | ACCEPT（review-1） | `d081c3f`；测试先失败 6/6 见 `red-block-services-vertical.txt` |
 | 首屏「目录封面」（hero:cover） | `hero-catalog-cover/` | ACCEPT（review-1） | `5a6d9e4`；测试先失败 7/7 见 `red-block-hero-cover.txt` |
+| 认证「证书状态表」（certifications:table） | `certifications-status-table/` | ACCEPT（review-1） | `399a0da`；测试先失败 6/6 见 `red-block-certifications-table.txt` |
 
 - 流水线改动（T-074 开头）：`scripts/render-block.mjs`（从 artifacts 挪出）、`tests/block-fragment-tokens.test.ts`（每个区块 CSS 的 var() 在四个样子上都要有值，28 处旧缺口是 forge 缺线条 token，只能少不能多）、`tests/fixtures/look-tokens.ts`。
 - 跳过：加工能力「设备/工序清单表」。原因：票里的「正文有数量时成列、没有就不显示数量列」要判断正文是不是数量，那是猜内容；不猜的话它就是「名称 | 正文」两栏，和现有 `list`（名称列 + 正文列）只差表头和线条，属于「只差一点」。如果以后草稿有独立的数量字段再做。
