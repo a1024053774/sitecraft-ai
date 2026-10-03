@@ -47,7 +47,6 @@
 - 新开源素材的准入：需要先定准入流程和第一批候选。
 - 子页面的同族 overlay、`fresh` kit。
 - 英文页专有名词（地名、公司名、产品名）的中英对照：T-082 记为已知限制，等英文页成为验收重点时再定。
-- 第二批草稿新字段：质检流程、沿革时间线（T-078 定为商业条款和设备落地之后再开票）。
 - 生成站动效（候选见 T-084：展开、悬停描边、提交成功提示，参考 Transitions.dev 自写 CSS）、改标题（评审 P0-5、P0-6）。
 
 ## Out of scope
@@ -62,7 +61,7 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [AGENTS.md](../AGENTS.md) | `package.json`, `scripts/check-published.mjs`, block-library preview path | d29eb89 |
+| [AGENTS.md](../AGENTS.md) | `package.json`, `scripts/check-published.mjs`, block-library preview path | 04ae4df |
 | [CONTEXT.md](../CONTEXT.md) | `lib/site-document.ts`, `lib/site-operations.ts`, `lib/alignment.ts`, `lib/template-adapters/types.ts`, block-library preview path | bf05c40 |
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**` | |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-00[1-9]-*.md`, `.project-map/tickets/T-01[0-4]-*.md` | |
