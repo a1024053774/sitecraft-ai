@@ -3,7 +3,7 @@ id: T-101
 title: 区块库正文段落守住 T-089 的行长上限
 type: build
 status: open
-blocked_by: [T-095]
+blocked_by: []
 claimed_by: sonnet-blocks
 supersedes:
 ---
