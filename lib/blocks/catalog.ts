@@ -51,6 +51,8 @@ export type BlockRequirement =
   | { kind: "productGroups"; minGroups: number; minLargest: number }
   /** Comparison: `minProducts`–`maxProducts` products sharing `minShared` specs that all have values. */
   | { kind: "sharedSpecs"; minProducts: number; maxProducts: number; minShared: number }
+  /** Layouts that list products: at least `min` products a visitor sees; `layout` names it in the reason. */
+  | { kind: "productCount"; min: number; layout: string }
   /** Contact band: at least `min` of email, phone and address. */
   | { kind: "contactLines"; min: number };
 
@@ -138,6 +140,19 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         render: { heroSpecs: "always" },
         requires: [{ kind: "heroFacts", min: 3 }],
       },
+      cover: {
+        label: "目录封面",
+        slots: [
+          benchmark("hero.title", "hero-title"),
+          benchmark("hero.subtitle", "hero-subtitle"),
+          benchmark("hero.cta", "hero-cta"),
+          text("industry", '[data-sitecraft-optional="industry"]'),
+        ],
+        markers: ["[data-sitecraft-hero-index]"],
+        parts: ["band", "copy", "title", "actions", "index"],
+        render: { heroIndex: true },
+        requires: [{ kind: "productCount", min: 2, layout: "目录封面" }],
+      },
     },
   },
   products: {
@@ -176,6 +191,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "grid"],
         render: { products: "compare", askHref: "#inquiry" },
         requires: [{ kind: "sharedSpecs", minProducts: 2, maxProducts: 4, minShared: 3 }],
+      },
+      index: {
+        label: "型号索引表",
+        slots: [benchmark("products.title", "products-title"), benchmark("products.intro", "products-intro")],
+        markers: ["[data-sitecraft-product-grid]"],
+        parts: ["head", "title", "grid"],
+        render: { products: "index", keySpecs: 3, askHref: "#inquiry" },
+        requires: [{ kind: "productCount", min: 3, layout: "型号索引表" }],
       },
     },
   },
@@ -234,6 +257,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: [],
         parts: ["head", "title", "steps", "item"],
       },
+      vertical: {
+        label: "纵向流程",
+        slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
+        markers: [],
+        parts: ["head", "title", "steps", "item"],
+      },
       cards: {
         label: "步骤卡片",
         slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
@@ -254,6 +283,12 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         slots: [benchmark("certifications.title", "certifications-title"), benchmark("certifications.intro", "certifications-intro")],
         markers: ['[data-sitecraft-catalog-grid="certifications"]'],
         parts: ["head", "title", "badges"],
+      },
+      table: {
+        label: "证书状态表",
+        slots: [benchmark("certifications.title", "certifications-title"), benchmark("certifications.intro", "certifications-intro")],
+        markers: ['[data-sitecraft-catalog-grid="certifications"]'],
+        parts: ["head", "title", "list"],
       },
       cards: {
         label: "认证卡片",

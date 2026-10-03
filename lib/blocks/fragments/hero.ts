@@ -42,6 +42,17 @@ export const heroFragment: BlockFragment = {
 .sitecraft-statement-specs .sitecraft-hero-spec:not(:first-child) { border-left: var(--site-rule); }
 .sitecraft-statement-specs .sitecraft-hero-spec dt { font-size: 12px; line-height: 1.4; color: var(--site-muted); word-break: keep-all; overflow-wrap: anywhere; }
 .sitecraft-statement-specs .sitecraft-hero-spec dd { margin: 8px 0 0; font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -0.015em; color: var(--site-ink); overflow-wrap: anywhere; text-wrap: balance; }
+/* 目录封面: the copy on the left, the product series on the right as a contents list: a small
+   heading, then one link row per series (name, category, arrow) between hairlines. */
+.sitecraft-cover-index { min-width: 0; border-top: var(--site-index-top, var(--site-rule-strong)); }
+.sitecraft-cover-index > p { margin: 0; padding: 14px 0 12px; font-size: 13px; font-weight: 600; color: var(--site-muted); border-bottom: var(--site-index-row, var(--site-rule)); }
+.sitecraft-cover-index ul { margin: 0; padding: 0; list-style: none; }
+.sitecraft-cover-index li { border-bottom: var(--site-index-row, var(--site-rule)); }
+.sitecraft-cover-index a { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 16px; align-items: baseline; padding: 16px 0; }
+.sitecraft-cover-index a::after { content: "→"; color: var(--site-accent-strong); }
+.sitecraft-cover-index a:hover .sitecraft-cover-index-name { color: var(--site-accent-strong); }
+.sitecraft-cover-index-name { font-size: 20px; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.sitecraft-cover-index-category { font-size: 13px; color: var(--site-muted); text-align: right; overflow-wrap: anywhere; }
 `,
   narrow: `
 .sitecraft-hero-grid { grid-template-columns: 1fr; gap: 32px; padding: 40px 0 48px; }
@@ -71,8 +82,28 @@ export const heroFragment: BlockFragment = {
 .sitecraft-statement-specs { margin-top: 24px; }
 .sitecraft-statement-specs .sitecraft-hero-spec { display: block; padding: 12px 14px 14px; }
 .sitecraft-statement-specs .sitecraft-hero-spec dd { margin: 6px 0 0; font-size: 17px; white-space: normal; }
+.sitecraft-cover-index a { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; padding: 14px 0; }
+.sitecraft-cover-index a::after { grid-column: 2; grid-row: 1; }
+.sitecraft-cover-index-name { grid-column: 1; font-size: 18px; }
+.sitecraft-cover-index-category { grid-column: 1; text-align: left; }
 `,
   variants: {
+    cover: `<div data-sc-block="hero" data-sc-variant="cover">
+        <section class="sitecraft-hero" data-sitecraft-section="hero" data-sitecraft-benchmark="hero" data-sc-part="band">
+          <div class="sitecraft-container sitecraft-hero-grid">
+            <div data-sc-part="copy">
+              <p class="sitecraft-eyebrow" data-sitecraft-optional="industry" hidden></p>
+              <h1 data-sitecraft-benchmark="hero-title" data-sc-part="title"></h1>
+              <p class="sitecraft-hero-copy" data-sitecraft-benchmark="hero-subtitle" hidden></p>
+              <div class="sitecraft-hero-actions" data-sc-part="actions">
+                <a class="sitecraft-btn sitecraft-primary" data-sitecraft-benchmark="hero-cta" href="#inquiry">提交询盘</a>
+                <a class="sitecraft-btn sitecraft-secondary" href="#products" data-sitecraft-ui="viewProducts">看产品系列</a>
+              </div>
+            </div>
+            <nav class="sitecraft-cover-index" data-sitecraft-hero-index data-sc-part="index"><p>产品系列</p><ul></ul></nav>
+          </div>
+        </section>
+      </div>`,
     split: `<div data-sc-block="hero" data-sc-variant="split">
         <section class="sitecraft-hero" data-sitecraft-section="hero" data-sitecraft-benchmark="hero" data-sc-part="band">
           <div class="sitecraft-container sitecraft-hero-grid">

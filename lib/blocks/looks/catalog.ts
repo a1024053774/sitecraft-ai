@@ -92,6 +92,7 @@ export const catalogLook: BlockLook = {
     "--site-eyebrow-pad": "5px 10px",
     "--site-head-rule": "2px solid var(--site-accent)",
     "--site-head-pad": "18px",
+    "--site-index-top": "none",
     "--site-value-ink": "var(--site-accent-strong)",
     "--site-keys-border": "1px solid var(--site-line)",
     "--site-card-edge": "4px solid var(--site-accent)",

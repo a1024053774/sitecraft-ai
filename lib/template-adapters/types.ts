@@ -113,14 +113,16 @@ export type TemplateBlocks = {
 
 /** Render parameters of one block variant. Blocks read only the fields that concern them. */
 export type TemplateBlockRender = {
-  /** Product block: cards, directory rows, category groups, or a comparison table. */
-  products?: "cards" | "rows" | "grouped" | "compare";
-  /** Product cards: specs on the card, whether the full list folds away, the inquiry link. */
+  /** Product block: cards, directory rows, category groups, a comparison table, or a model index table. */
+  products?: "cards" | "rows" | "grouped" | "compare" | "index";
+  /** Product cards and the index table: specs per product (the index shows each product's own first ones), whether the full list folds away, the inquiry link. */
   keySpecs?: number;
   collapseSpecs?: boolean;
   askHref?: string;
   /** Hero block: the key-spec strip shows under a product photo only, or whenever there are specs. */
   heroSpecs?: "with-photo" | "always";
+  /** Hero block: the right side lists the product series (category and name, linking to the products block). */
+  heroIndex?: boolean;
 };
 
 /**

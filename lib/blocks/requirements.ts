@@ -113,6 +113,10 @@ export function checkRequirement(draft: SiteDraft, requirement: BlockRequirement
     return result(shared.length >= requirement.minShared, shared.length, shared,
       `${needs}；现在${shared.length ? `只共有 ${shared.length} 项（${list(shared)}）` : "没有共有的参数"}。`);
   }
+  if (requirement.kind === "productCount") {
+    const count = visibleProducts(draft).length;
+    return result(count >= requirement.min, count, [], `${requirement.layout}要至少 ${requirement.min} 个产品；现在有 ${count} 个。`);
+  }
   const lines = contactLines(draft);
   return result(lines.length >= requirement.min, lines.length, lines,
     `联系条要邮箱、电话、地址至少 ${requirement.min} 项；现在${lines.length ? `只有${list(lines)}` : "三项都还没有"}。`);
