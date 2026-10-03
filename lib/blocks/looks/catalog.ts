@@ -84,8 +84,7 @@ export const catalogLook: BlockLook = {
     "--site-footer-head": "var(--site-ink)",
     "--site-footer-top": "3px solid var(--site-accent)",
     "--site-eyebrow": "var(--site-accent-strong)",
-    // Keep hero copy on a measurable surface; the published contrast gate cannot sample a CSS image.
-    "--site-hero-bg": "var(--site-tint)",
+    "--site-hero-bg": "linear-gradient(180deg, var(--site-tint), var(--site-bg))",
     "--site-frame-pad": "10px",
     "--site-frame-bg": "var(--site-surface)",
     "--site-frame-border": "1px solid var(--site-line)",

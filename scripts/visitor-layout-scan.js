@@ -138,22 +138,66 @@ export function scanVisitorLayout(root = document) {
     ctx.fillRect(0,0,1,1);
     return [...ctx.getImageData(0,0,1,1).data].map((v,i)=>i===3?v/255:v);
   };
-  const over=(fg,bg)=>[0,1,2].map(i=>fg[i]*fg[3]+bg[i]*(1-fg[3]));
-  const luminance=c=>c.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((v,c,i)=>v+c*[.2126,.7152,.0722][i],0);
+  const withAlpha=(color,alpha)=>[color[0],color[1],color[2],color[3]*Math.max(0,Math.min(1,alpha))];
+  const over=(fg,bg)=>{
+    const alpha=fg[3]+bg[3]*(1-fg[3]);
+    if(alpha<=0) return [0,0,0,0];
+    return [0,1,2].map(i=>(fg[i]*fg[3]+bg[i]*bg[3]*(1-fg[3]))/alpha).concat(alpha);
+  };
+  const luminance=c=>c.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((v,c,i)=>v+c*[.2126,.7152,.0722][i],0);
   const ratioFor = (fg,bg) => {
     const a=luminance(fg),b=luminance(bg);
     return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
   };
+  const splitTopLevel = value => {
+    const parts=[];let start=0;let depth=0;
+    for(let index=0;index<value.length;index++){
+      const char=value[index];
+      if(char==='(') depth+=1;
+      else if(char===')') depth=Math.max(0,depth-1);
+      else if(char===','&&depth===0){parts.push(value.slice(start,index).trim());start=index+1;}
+    }
+    parts.push(value.slice(start).trim());
+    return parts.filter(Boolean);
+  };
+  const gradientColors = image => {
+    const match=/^(?:linear|radial|conic)-gradient\((.*)\)$/i.exec(image.trim());
+    if(!match) return null;
+    const colors=[];
+    for(const stop of splitTopLevel(match[1])){
+      const token=/(rgba?\([^)]*\)|#[0-9a-f]{3,8}|transparent)$/i.exec(stop.trim())?.[1]
+        || /(rgba?\([^)]*\)|#[0-9a-f]{3,8}|transparent)/i.exec(stop.trim())?.[1];
+      if(!token) continue;
+      const color=rgba(token);
+      if(!color) return null;
+      colors.push(color);
+    }
+    return colors.length ? colors : null;
+  };
+  const backgroundLayers = image => {
+    if(!image||image==='none') return [];
+    if(/(?:url\(|image-set\(|cross-fade\()/i.test(image)) return null;
+    const layers=splitTopLevel(image).map(gradientColors);
+    return layers.every(Boolean) ? layers : null;
+  };
   const backgroundFor = (el,sampleRect=null) => {
     const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
-    let bg=[255,255,255];
+    let backgrounds=[[255,255,255,1]], foregroundOpacity=1;
     for(const p of chain){
       const style=getComputedStyle(p);
-      if(style.backgroundImage && style.backgroundImage!=='none') return {known:false,reason:'图片背景'};
-      if(style.mixBlendMode && style.mixBlendMode!=='normal') return {known:false,reason:'混合图层'};
+      if(style.mixBlendMode&&style.mixBlendMode!=='normal') return {known:false,reason:'混合图层'};
+      const layers=backgroundLayers(style.backgroundImage);
+      if(layers===null) return {known:false,reason:'图片背景'};
       const color=rgba(style.backgroundColor);
       if(!color) return {known:false,reason:'背景颜色无法解析'};
-      bg=over(color,bg);
+      let local=[color];
+      for(let layerIndex=layers.length-1;layerIndex>=0;layerIndex-=1){
+        local=local.flatMap(base=>layers[layerIndex].map(layer=>over(layer,base)));
+      }
+      const opacity=Number.parseFloat(style.opacity);
+      if(!Number.isFinite(opacity)) return {known:false,reason:'透明度无法解析'};
+      backgrounds=local.flatMap(layer=>backgrounds.map(parent=>over(withAlpha(layer,opacity),parent)));
+      foregroundOpacity*=Math.max(0,Math.min(1,opacity));
     }
     const rect=sampleRect||el.getBoundingClientRect();
     if(rect.width>0&&rect.height>0&&typeof document.elementsFromPoint==='function'){
@@ -164,32 +208,37 @@ export function scanVisitorLayout(root = document) {
         if(image) return {known:false,reason:'图片背景'};
       }
     }
-    return {known:true,color:bg};
+    return {known:true,colors:backgrounds,foregroundOpacity};
   };
   const slotFor = el => el.closest('[data-sitecraft-slot]')?.getAttribute('data-sitecraft-slot') || '';
   const isParameter = el => {
     const slot=slotFor(el);
-    return Boolean(el.closest('table,dl') || /(?:spec|sku|model|email|phone|quantity|status)/i.test(slot));
+    return Boolean(el.closest('table') || /(?:spec|sku|model|email|phone|quantity|status)/i.test(slot));
   };
   const lineLengthExemption = el => {
     const slot=slotFor(el);
-    if(el.closest('table,dl')) return '参数表';
-    if(el.closest('button,input,select,textarea,a,nav,header,summary')) return '按钮或导航';
+    if(el.closest('table')) return '参数表';
+    if(el.closest('button,input,select,textarea,summary,[role=button]')) return '按钮或控件';
+    if(el.closest('nav')) return '导航';
     if(/(?:spec|sku|model|email|phone|quantity|status)/i.test(slot)) return /email|phone/i.test(slot) ? '邮箱或电话' : '型号或参数';
     return '';
   };
-  const isBodyParagraph = el => el.tagName==='P' && !lineLengthExemption(el);
+  const paragraphFor = el => el.closest('p');
   const textContrast=[];
   const contrastNodes=[];
   const bodyLineLength=[];
   const lineLengthExemptions=[];
-  const measureLines = (el,node) => {
-    const value=node.textContent||'';
+  const measureLines = paragraph => {
+    const walker=document.createTreeWalker(paragraph,NodeFilter.SHOW_TEXT);
     const chars=[];
-    for(let index=0;index<value.length;index++){
-      range.setStart(node,index);range.setEnd(node,index+1);
-      const rect=range.getBoundingClientRect();
-      if(rect.width>.5&&rect.height>.5) chars.push({char:value[index],top:Math.round(rect.top)});
+    while(walker.nextNode()){
+      const node=walker.currentNode;
+      if(!node.textContent.trim()||!visible(node.parentElement)) continue;
+      for(let index=0;index<node.textContent.length;index++){
+        range.setStart(node,index);range.setEnd(node,index+1);
+        const rect=range.getBoundingClientRect();
+        if(rect.width>.5&&rect.height>.5) chars.push({char:node.textContent[index],top:Math.round(rect.top)});
+      }
     }
     const grouped=new Map();
     for(const item of chars) grouped.set(item.top,[...(grouped.get(item.top)||[]),item.char]);
@@ -202,6 +251,8 @@ export function scanVisitorLayout(root = document) {
     }).filter(item=>item.text);
   };
   const textWalker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT);
+  const measuredParagraphs=new Set();
+  const reportedExemptions=new Set();
   while(textWalker.nextNode()){
     const node=textWalker.currentNode,el=node.parentElement;
     if(!node.textContent.trim()||!visible(el)) continue;
@@ -211,14 +262,24 @@ export function scanVisitorLayout(root = document) {
     range.selectNodeContents(node);
     const textRects=[...range.getClientRects()];
     const background=backgroundFor(el,textRects[0]||null),foreground=rgba(style.color);
-    const measured=background.known&&foreground ? {status:'measured',ratio:ratioFor(over(foreground,background.color),background.color)} : {status:'unmeasured',ratio:null,reason:background.reason||'前景色无法解析'};
-    const role=el.matches('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':el.closest('nav,header')?'navigation':el.closest('button,a,summary')?'control':'body';
+    const measured=background.known&&foreground ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:background.reason||'前景色无法解析'};
+    const paragraph=paragraphFor(el);
+    const role=el.matches('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!paragraph&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
     const entry={element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:node.textContent.trim().slice(0,160),slot,block:blockFor(el),role,checkable:role==='body'||role==='heading',large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
     textContrast.push(entry);
     contrastNodes.push({el,entry});
-    if(isBodyParagraph(el)){
-      for(const line of measureLines(el,node)) bodyLineLength.push({element:el.id||el.tagName.toLowerCase(),id:el.id||'',slot,block:blockFor(el),...line});
-    } else if(exemption){
+    if(paragraph){
+      const paragraphExemption=lineLengthExemption(paragraph);
+      if(!measuredParagraphs.has(paragraph)){
+        measuredParagraphs.add(paragraph);
+        if(paragraphExemption){
+          lineLengthExemptions.push({element:paragraph.id||paragraph.tagName.toLowerCase(),id:paragraph.id||'',slot:slotFor(paragraph),reason:paragraphExemption,text:paragraph.textContent.trim().slice(0,160)});
+        } else {
+          for(const line of measureLines(paragraph)) bodyLineLength.push({element:paragraph.id||paragraph.tagName.toLowerCase(),id:paragraph.id||'',slot:slotFor(paragraph),block:blockFor(paragraph),...line});
+        }
+      }
+    } else if(exemption&&!reportedExemptions.has(el)){
+      reportedExemptions.add(el);
       lineLengthExemptions.push({element:el.id||el.tagName.toLowerCase(),id:el.id||'',slot,reason:exemption,text:node.textContent.trim().slice(0,160)});
     }
   }
