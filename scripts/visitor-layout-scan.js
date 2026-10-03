@@ -160,25 +160,36 @@ export function scanVisitorLayout(root = document) {
     parts.push(value.slice(start).trim());
     return parts.filter(Boolean);
   };
-  const gradientColors = image => {
+  const gradientColors = (image,layerIndex) => {
     const match=/^(?:linear|radial|conic)-gradient\((.*)\)$/i.exec(image.trim());
-    if(!match) return null;
+    if(!match) return {error:`背景第${layerIndex+1}层无法解析`};
     const colors=[];
-    for(const stop of splitTopLevel(match[1])){
+    const stops=splitTopLevel(match[1]);
+    for(let stopIndex=0;stopIndex<stops.length;stopIndex++){
+      const stop=stops[stopIndex];
       const token=/(rgba?\([^)]*\)|#[0-9a-f]{3,8}|transparent)$/i.exec(stop.trim())?.[1]
         || /(rgba?\([^)]*\)|#[0-9a-f]{3,8}|transparent)/i.exec(stop.trim())?.[1];
-      if(!token) continue;
+      const prelude=stopIndex===0&&/^(?:to\s+|from\s+|(?:[-+]?\d*\.?\d+)(?:deg|grad|rad|turn)|(?:ellipse|circle)(?:\s+at\s+)?)/i.test(stop.trim());
+      if(!token){
+        if(prelude) continue;
+        return {error:`渐变第${layerIndex+1}层第${stopIndex+1}个色标无法解析`};
+      }
       const color=rgba(token);
-      if(!color) return null;
+      if(!color) return {error:`渐变第${layerIndex+1}层第${stopIndex+1}个色标无法解析`};
       colors.push(color);
     }
-    return colors.length ? colors : null;
+    return colors.length ? {colors} : {error:`渐变第${layerIndex+1}层没有可解析色标`};
   };
   const backgroundLayers = image => {
-    if(!image||image==='none') return [];
-    if(/(?:url\(|image-set\(|cross-fade\()/i.test(image)) return null;
-    const layers=splitTopLevel(image).map(gradientColors);
-    return layers.every(Boolean) ? layers : null;
+    if(!image||image==='none') return {known:true,layers:[]};
+    if(/(?:url\(|image-set\(|cross-fade\()/i.test(image)) return {known:false,reason:'图片背景'};
+    const layers=[];
+    for(const [index,layer] of splitTopLevel(image).entries()){
+      const parsed=gradientColors(layer,index);
+      if(parsed.error) return {known:false,reason:parsed.error};
+      layers.push(parsed.colors);
+    }
+    return {known:true,layers};
   };
   const backgroundFor = (el,sampleRect=null) => {
     const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
@@ -186,8 +197,9 @@ export function scanVisitorLayout(root = document) {
     for(const p of chain){
       const style=getComputedStyle(p);
       if(style.mixBlendMode&&style.mixBlendMode!=='normal') return {known:false,reason:'混合图层'};
-      const layers=backgroundLayers(style.backgroundImage);
-      if(layers===null) return {known:false,reason:'图片背景'};
+      const parsedBackground=backgroundLayers(style.backgroundImage);
+      if(!parsedBackground.known) return {known:false,reason:parsedBackground.reason};
+      const layers=parsedBackground.layers;
       const color=rgba(style.backgroundColor);
       if(!color) return {known:false,reason:'背景颜色无法解析'};
       let local=[color];

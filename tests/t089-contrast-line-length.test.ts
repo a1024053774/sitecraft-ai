@@ -20,6 +20,7 @@ test("T-089 visitor scan enforces body contrast, image uncertainty, and paragrap
       <p id="large-semibold" style="font-size:18.66px;font-weight:600;color:#8f8f8f">半粗体仍按普通正文门槛</p>
       <div style="background-image:url(data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=)"><p id="photo-text">图片背景上的正文</p></div>
       <div id="gradient" style="background-image:linear-gradient(rgb(255,255,255),rgba(238,238,238,.8))"><p id="gradient-text">纯色渐变背景上的正文</p></div>
+      <div id="gradient-invalid" style="background-image:linear-gradient(rgb(255,255,255),color-mix(in srgb, red 50%, blue))"><p id="gradient-invalid-text">含无法解析色标的渐变正文</p></div>
       <div style="opacity:.5"><p id="opacity-text" style="color:#000">半透明祖先上的正文</p></div>
       <p id="zh-long" style="white-space:nowrap">中文正文一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一</p>
       <p id="en-long" style="white-space:nowrap">This English paragraph intentionally contains more than seventy five characters on one rendered line for the contrast gate fixture.</p>
@@ -35,7 +36,7 @@ test("T-089 visitor scan enforces body contrast, image uncertainty, and paragrap
     const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
     await browser.send("Page.setDocumentContent", { frameId, html }, sessionId);
     const scan = await browser.eval<{
-      textContrast: Array<{ element: string; ratio: number | null; status: string; large: boolean; threshold: number; checkable: boolean }>;
+      textContrast: Array<{ element: string; ratio: number | null; status: string; large: boolean; threshold: number; reason?: string; checkable: boolean }>;
       bodyLineLength: Array<{ id: string; tooLong: boolean; count: number; language: string }>;
       lineLengthExemptions: Array<{ id: string; reason: string }>;
     }>(`(()=>{${scanSource};return scanVisitorLayout(document)})()`, sessionId);
@@ -49,6 +50,8 @@ test("T-089 visitor scan enforces body contrast, image uncertainty, and paragrap
     assert.ok(byId("large-semibold") && !byId("large-semibold")!.large && byId("large-semibold")!.threshold === 4.5, "18.66px semibold text keeps the normal threshold");
     assert.equal(byId("photo-text")?.status, "unmeasured", "text over an image background must be reported as unmeasured");
     assert.equal(byId("gradient-text")?.status, "measured", "a pure-color gradient must be measurable");
+    assert.equal(byId("gradient-invalid-text")?.status, "unmeasured", "a gradient with one unknown stop must be unmeasured");
+    assert.match(byId("gradient-invalid-text")?.reason ?? "", /渐变.*色标|背景/, "unknown gradient stop names the unmeasured layer");
     assert.ok(byId("opacity-text") && byId("opacity-text")!.ratio! < 4.5, "ancestor opacity must lower the effective contrast");
     assert.ok((scan.bodyLineLength ?? []).some((line) => line.id === "zh-long" && line.tooLong), "long Chinese body line must fail");
     assert.ok((scan.bodyLineLength ?? []).some((line) => line.id === "en-long" && line.tooLong), "long English body line must fail");
