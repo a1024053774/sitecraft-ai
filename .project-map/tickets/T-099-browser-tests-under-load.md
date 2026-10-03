@@ -22,7 +22,7 @@ supersedes:
 
 - [x] 先写出依赖墙钟时长的清单和各自的失败方式（`artifacts/t099/`）；能在父提交上复现失败（例如人为加负载或缩短采样窗口），存 red 输出
 - [x] 修改后在高负载下（同时跑另一个全量或人为加负载，记录 `uptime`）`workspace-interaction` 连跑 5 次通过；全量 `npm test` 0 失败、`npm run typecheck`、`npm run build` 通过
-- [ ] `check-published` 在高负载下对主工作区 12 个站点（ID 见 `artifacts/merge-13ae686/check-published/report.json`）的结果与低负载一致：只剩已知的 16 条行长失败，不出现 `material facts missing`；记录 `uptime` 和逐站点输出
+- [x] `check-published` 在高负载下对主工作区 12 个站点（ID 见 `artifacts/merge-13ae686/check-published/report.json`）的结果与低负载一致：只剩已知的 16 条行长失败，不出现 `material facts missing`；记录 `uptime` 和逐站点输出
 - [ ] 断言没有放宽（审查逐条对照）；代码审查通过；Claude 验收
 
 ## Resolution
