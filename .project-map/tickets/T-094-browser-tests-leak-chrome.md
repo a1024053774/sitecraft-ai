@@ -40,3 +40,10 @@ supersedes:
 - 在本 worktree 合并 `family-kit-assembly` 到 `488a295`（merge commit `d7d78da`），冲突按主线版本处理；从主工作区补齐 ignored `vendor/open-source-templates/fresh/dist`、`genai/dist`、`tailcast/dist`。
 - 开跑时 1 分钟负载为 5.30，且没有另一个全量测试。`SITECRAFT_BASE=http://127.0.0.1:3056`、指定 Chrome for Testing 路径下全量 `npm test` **665/665、0 失败**，见 `artifacts/t094/npm-test-merge-488a295.txt`；workspace motion 通过，没有启动或修改 T-099。Chrome PPID=1 计数 **4 → 0**，停止 dev server 后等待 3 秒仍为 0，见 `chrome-count-before-merge-full.txt` / `chrome-count-after-merge-full.txt`。
 - 合并后 `npm run typecheck` 和 `npm run build` 均通过，见 `artifacts/t094/typecheck-merge-488a295.txt`、`artifacts/t094/build-merge-488a295.txt`。本次 Resolution 更新为本地提交，未 push。
+
+Astra P1 返工（2026-10-03）：
+
+- 根因修在 `openBrowser()`：删除 `SITECRAFT_BROWSER_CDP_PORT` 和 `10000 + pid % 50000` 的已有端点 probe。每次都用自己的 `/tmp/sitecraft-workspace-<pid>` 启动 `--remote-debugging-port=0`，从该 profile 的 `DevToolsActivePort` 读取端口和 `/json/version`，因此不会复用其他 worktree 的 CDP；显式端口没有调用方依赖，已删除。T-077 锁仍按 `SITECRAFT_BASE` 端口工作。
+- 新增 `tests/t094-cdp-ownership.fixture.ts` / child：在 `686091d` 父 worktree 上用 health stub 模拟旧计算端口已有 foreign Chrome，红测读到 `sameEndpoint:true` 并失败，输出 `artifacts/t094/red-cdp-ownership.txt`；当前助手同一夹具通过，foreign Chrome 保持可用，输出 `artifacts/t094/green-cdp-ownership.txt`。
+- 当前修复后按负载规则（开跑时 1 分钟负载低于 12、没有其他全量）全量 `npm test` **665/665、0 失败**，见 `artifacts/t094/npm-test-cdp-ownership.txt`；Chrome PPID=1 计数 **4 → 0**，停止 3056 dev server 后等待仍为 0，见 `chrome-count-before-cdp-full.txt` / `chrome-count-after-cdp-full.txt`。workspace motion 通过，未启动 T-099。
+- CDP 修复后的 `npm run typecheck`、`npm run build` 通过，见 `artifacts/t094/typecheck-cdp-ownership.txt`、`artifacts/t094/build-cdp-ownership.txt`。本次更新本地提交，未 push。

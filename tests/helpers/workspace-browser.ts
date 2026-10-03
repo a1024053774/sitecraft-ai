@@ -9,7 +9,7 @@ import os from "node:os";
 export const base = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 export const contrastScan = readFileSync(new URL("../../scripts/workspace-contrast-scan.js", import.meta.url), "utf8");
 
-type ChromeRow = { pid: number; dataDir: string; port: number; command: string };
+type ChromeRow = { pid: number; dataDir: string; port: number | null; command: string };
 type OwnedChrome = { pid: number; dataDir: string; port: number };
 const ownedChromes = new Map<number, OwnedChrome>();
 let lifecycleHooksInstalled = false;
@@ -21,12 +21,23 @@ function chromeRows(): ChromeRow[] | null {
     if (!line.includes("chrome-headless-shell")) return [];
     const pid = Number.parseInt(line.split(/\s+/, 1)[0] ?? "", 10);
     const match = line.match(/--user-data-dir=(\/tmp\/sitecraft-workspace-[0-9]+)(?:\s|$)/);
-    const port = Number.parseInt(line.match(/--remote-debugging-port=(\d+)/)?.[1] ?? "", 10);
-    return Number.isInteger(pid) && match && Number.isInteger(port) ? [{ pid, dataDir: match[1], port, command: line }] : [];
+    const commandPort = Number.parseInt(line.match(/--remote-debugging-port=(\d+)/)?.[1] ?? "", 10);
+    const port = commandPort === 0 && match ? readDevToolsPort(match[1]) : commandPort;
+    return Number.isInteger(pid) && match && Number.isInteger(commandPort) ? [{ pid, dataDir: match[1], port, command: line }] : [];
   });
 }
 
-function establishedDebuggerConnection(pid: number, port: number) {
+function readDevToolsPort(dataDir: string) {
+  try {
+    const port = Number.parseInt(readFileSync(path.join(dataDir, "DevToolsActivePort"), "utf8").split("\n", 1)[0] ?? "", 10);
+    return Number.isInteger(port) && port > 0 ? port : null;
+  } catch {
+    return null;
+  }
+}
+
+function establishedDebuggerConnection(pid: number, port: number | null) {
+  if (!port) return null;
   const result = spawnSync("lsof", ["-nP", "-a", "-p", String(pid), `-iTCP:${port}`, "-sTCP:ESTABLISHED"], { encoding: "utf8" });
   if (result.error) return null;
   if (result.status !== 0 && !result.stdout.trim()) return false;
@@ -288,27 +299,28 @@ export async function openBrowser() {
   await reclaimOrphanedChromes();
   installLifecycleHooks();
   const releaseLock = await acquireBrowserLock();
-  const configuredPort = Number.parseInt(process.env.SITECRAFT_BROWSER_CDP_PORT || "", 10);
-  const port = Number.isInteger(configuredPort) && configuredPort > 0
-    ? configuredPort
-    : 10_000 + (process.pid % 50_000);
-  const probe = () => fetch(`http://127.0.0.1:${port}/json/version`).then((response) => response.json()).catch(() => null) as Promise<{ webSocketDebuggerUrl?: string } | null>;
   let ownedChrome: OwnedChrome | null = null;
   try {
-    let version = await probe();
-    if (!version) {
-      const dataDir = `/tmp/sitecraft-workspace-${process.pid}`;
-      const args = [`--remote-debugging-port=${port}`, `--user-data-dir=${dataDir}`, "--headless=new", "--no-first-run", "--disable-gpu", "about:blank"];
-      if (process.getuid?.() === 0) args.unshift("--no-sandbox");
-      const child = spawn(chromeBinary(), args, { stdio: "ignore", detached: true });
-      if (!child.pid) throw new Error("Chrome process did not provide a PID");
-      ownedChrome = { pid: child.pid, dataDir, port };
-      ownedChromes.set(child.pid, ownedChrome);
-      child.unref();
-      for (let attempt = 0; attempt < 60 && !version; attempt += 1) {
-        await sleep(250);
-        version = await probe();
+    const dataDir = `/tmp/sitecraft-workspace-${process.pid}`;
+    if (chromeRows()?.some((row) => row.dataDir === dataDir)) {
+      throw new Error(`Chrome profile ${dataDir} is already owned by another process; refusing to reuse it`);
+    }
+    await rm(path.join(dataDir, "DevToolsActivePort"), { force: true });
+    const args = ["--remote-debugging-port=0", `--user-data-dir=${dataDir}`, "--headless=new", "--no-first-run", "--disable-gpu", "about:blank"];
+    if (process.getuid?.() === 0) args.unshift("--no-sandbox");
+    const child = spawn(chromeBinary(), args, { stdio: "ignore", detached: true });
+    if (!child.pid) throw new Error("Chrome process did not provide a PID");
+    ownedChrome = { pid: child.pid, dataDir, port: 0 };
+    ownedChromes.set(child.pid, ownedChrome);
+    child.unref();
+    let version: { webSocketDebuggerUrl?: string } | null = null;
+    for (let attempt = 0; attempt < 60 && !version; attempt += 1) {
+      const port = readDevToolsPort(dataDir);
+      if (port) {
+        ownedChrome.port = port;
+        version = await fetch(`http://127.0.0.1:${port}/json/version`).then((response) => response.json()).catch(() => null) as { webSocketDebuggerUrl?: string } | null;
       }
+      if (!version) await sleep(250);
     }
     if (!version?.webSocketDebuggerUrl) throw new Error("Chrome DevTools endpoint unavailable");
     const browser = new Cdp(version.webSocketDebuggerUrl);
