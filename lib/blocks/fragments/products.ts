@@ -17,7 +17,7 @@ const section = (variant: string, gridClass: string) => `<section id="products" 
 export const productsFragment: BlockFragment = {
   css: `
 .sitecraft-product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 24px; }
-.sitecraft-product-card { display: flex; flex-direction: column; background: var(--site-surface); border: var(--site-rule); border-radius: var(--site-card-radius); }
+.sitecraft-product-card { container-type: inline-size; display: flex; flex-direction: column; background: var(--site-surface); border: var(--site-rule); border-radius: var(--site-card-radius); }
 .sitecraft-product-media { aspect-ratio: 16 / 10; background: var(--site-diagram); overflow: hidden; }
 .sitecraft-product-image { width: 100%; height: 100%; object-fit: cover; }
 .sitecraft-product-body { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 26px 28px 24px; }
@@ -29,6 +29,22 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-key dt { font-size: 12px; color: var(--site-muted); }
 .sitecraft-product-key dd { margin: 4px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-wrap: balance; }
 .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { font-size: 22px; }
+/* Body line length (T-089 gate: about 40 Chinese / 75 English characters per line): a product summary
+   is often a run of parameter sentences, so its measure is capped in em (the cap follows the font size
+   and so the number of characters per line stays the same in every look). */
+.sitecraft-product-summary, .sitecraft-index-summary { max-inline-size: 30em; text-wrap: pretty; }
+.sitecraft-compare-summary { max-inline-size: 30em; text-wrap: pretty; }
+/* The summary breaks only at spaces and punctuation, never inside a Chinese word (a run longer than
+   the line still breaks, so a long specification cannot overflow). */
+.sitecraft-product-summary, .sitecraft-index-summary { word-break: keep-all; overflow-wrap: anywhere; }
+.sitecraft-compare-summary { word-break: keep-all; overflow-wrap: anywhere; }
+/* A card wide enough (a one-product grid, a directory row) pairs its parameters with the summary: the
+   parameters and links in the main column, the summary as a 30em column beside them. Narrower cards
+   stack as before. */
+@container (min-width: 860px) {
+  .sitecraft-product-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 30em); column-gap: 56px; align-content: start; }
+  .sitecraft-product-body > .sitecraft-product-summary { grid-column: 2; grid-row: 1 / span 5; align-self: start; }
+}
 .sitecraft-product-summary { margin: 0; color: var(--site-muted); line-height: 1.6; }
 .sitecraft-product-more summary { cursor: pointer; list-style: none; font-size: 14px; font-weight: 600; color: var(--site-accent-strong); }
 .sitecraft-product-more summary::-webkit-details-marker { display: none; }

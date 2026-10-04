@@ -250,6 +250,21 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
       },
+      band: {
+        label: "数量带",
+        slots: [],
+        markers: ["[data-sitecraft-equipment-grid]"],
+        parts: ["head", "title", "list"],
+        renderedParts: ["item"],
+        render: { equipment: "grouped" },
+      },
+      compact: {
+        label: "双栏清单",
+        slots: [],
+        markers: ["[data-sitecraft-equipment-grid]"],
+        parts: ["head", "title", "list"],
+        renderedParts: ["item"],
+      },
     },
   },
   history: {
