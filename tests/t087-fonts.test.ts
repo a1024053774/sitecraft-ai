@@ -76,13 +76,15 @@ test("committed Latin subsets keep required symbols and exclude CJK for every pr
 test("the workspace keeps its original font import while published hosts omit workspace CSS", () => {
   const globalCss = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
   const rootLayout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
-  const workspaceLayout = readFileSync(new URL("../app/(workspace)/layout.tsx", import.meta.url), "utf8");
+  const gate = readFileSync(new URL("../components/workspace-style-gate.tsx", import.meta.url), "utf8");
   const workspaceCss = readFileSync(new URL("../public/workspace.css", import.meta.url), "utf8");
   assert.match(globalCss, /fonts\.googleapis\.com/);
   assert.match(globalCss, /Manrope:wght@400;500;600;700;800/);
   assert.match(globalCss, /Noto\+Sans\+SC/);
   assert.doesNotMatch(rootLayout, /globals\.css/);
-  assert.match(workspaceLayout, /workspace\.css/);
+  assert.match(gate, /published/);
+  assert.match(gate, /templates/);
+  assert.match(gate, /workspace\.css/);
   assert.equal(workspaceCss, globalCss);
 });
 
