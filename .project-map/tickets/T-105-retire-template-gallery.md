@@ -17,6 +17,18 @@ T-104 第 ① 步。侧边栏「AI 建站」现在进 `/templates` 模板画廊�
 
 ## Acceptance
 
-- [ ] 测试先写、改动前先失败（行为级）：点「AI 建站」进入工作台新建流程且出现需求对齐卡；`/templates` 返回 404 或重定向到工作台；预览引擎和访客页不受影响
-- [ ] Chrome 1440 / 768 / 375 截图看过新入口；`npm run typecheck`、`npm test`（0 失败）、`npm run build`、12 站 `check-published` 通过
+- [x] 测试先写、改动前先失败（行为级）：点「AI 建站」进入工作台新建流程且出现需求对齐卡；`/templates` 返回 404 或重定向到工作台；预览引擎和访客页不受影响
+- [ ] Chrome 1440 / 768 / 375 截图看过新入口；`npm run typecheck`、`npm test`（0 失败）、`npm run build`、13 站 `check-published` 通过（13 站报告仍有 3 条已知 T-103 注塑英文页失败）
 - [ ] 代码审查通过；Claude 验收
+
+## Resolution
+
+2026-10-04（America/New_York），codex-build，代码 commits `824a461c87ba68d1f423678217d42f05c85d43dc`、`91d15af59b17be801eafa26e00478b9624356729`：
+
+- 红测先在父提交 `fa1631c3887fcf30fceb0602e3dab7f19ab91c66` 的行为夹具上失败，记录在 `artifacts/t105/red-retire-template-gallery-parent-fa1631c.txt`；失败点是 `?new=1` 仍打开默认站点、画廊入口文件仍存在。删前完整引用清单见 `artifacts/t105/references-before-delete.txt`。
+- 侧边栏、首页新建按钮和快速开始全部进入 `/workspace?new=1`。工作台用 `forge` 作为初始化种子调用显式 `POST /api/sites`，地址换成 `?site=<id>` 后立即启动需求对齐卡，卡片显示样子和 4 套色彩集；刷新恢复同一站点。`?template=<id>` 现在统一拒绝并提示旧入口已下线，不会 POST 建站；对应行为测试已改为拒绝断言。
+- 删除 `components/template-gallery.tsx`、`app/(workspace)/templates/page.tsx`、`app/templates/[templateId]/preview/page.tsx` 及只服务单个预览页的 `tests/visitor-host.test.ts`；`tests/dashboard-cleanup.test.ts` 去掉画廊断言。保留 `/api/templates/[templateId]/preview`、资产路由和 `OpenSourceTemplateFrame`，工作台、发布页、质量页仍走同一预览引擎。
+- `artifacts/t105/browser-entry-ready-91d15af.log` 和 `browser-entry-ready-report.json` 首行/报告绑定 `91d15af`；`/templates` 为 404、预览 API 为 200，三档报告均为 `previewState=ready`、`previewHydrated=true`、连续 5 次高度稳定，截图 `ai-new-ready-1440.png`、`ai-new-ready-768.png`、`ai-new-ready-375.png` 已逐张查看。
+- 相关入口测试 12/12 通过；有效全量测试为 **782/782、0 失败**，见 `npm-test-91d15af.txt`。父提交的 legacy `?template=` 红态见 `red-template-legacy-824a461.txt`。
+- `npm run build`、build 后 `npm run typecheck` 均退出 0，证据为 `build-91d15af.txt`、`typecheck-91d15af.txt`。
+- 13 站 `check-published` 在最终 SHA 上为 39 行、3 个失败，报告 `check-published-91d15af/report.json`、日志 `check-published-91d15af.log`；失败均来自新增 `t097-real-936749b-molding` 的已知 T-103 英文行长、参数卡溢出/截断和页头公司名截断，本票未改动这些区块。
