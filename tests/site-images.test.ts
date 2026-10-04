@@ -199,6 +199,26 @@ test("public-material provenance is mandatory before a non-user image can enter 
   );
 });
 
+test("public image records retain the manifest usage category for the preview bridge", async () => {
+  const saved = await saveSiteImage({
+    siteId: siteB,
+    bytes: jpegWithSize(640, 480, 1200),
+    originalName: "facility.jpg",
+    provenance: {
+      sourceUrl: "https://example.test/facility.jpg",
+      license: "CC BY",
+      licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+      author: "Example Author",
+      attribution: "Example Author / CC BY",
+      usageScope: "current-site-only",
+      usageCategory: "facility",
+      retrievedAt: "2026-10-04T00:00:00.000Z",
+    },
+  });
+  assert.equal(saved.usageCategory, "facility");
+  assert.equal(publicImagePayload(saved).usageCategory, "facility");
+});
+
 test("set_image_slot and set_product_image apply, invert, and reject template stock", () => {
   const imageId = "img_testownedimage0001";
   const url = `/api/sites/${siteA}/images/${imageId}`;

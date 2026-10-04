@@ -129,6 +129,7 @@ async function main() {
     form.set("author", image.author);
     form.set("attribution", image.attribution);
     form.set("usageScope", image.usageScope || "current-site-only");
+    form.set("usageCategory", image.category);
     form.set("retrievedAt", image.downloadedAt);
     const response = await fetch(`${baseUrl}/api/sites/${encodeURIComponent(siteId)}/images`, { method: "POST", body: form });
     const payload = await readJson(response, `上传 ${image.file}`);

@@ -11,6 +11,7 @@ const section = (variant: string, gridClass: string) => `<section id="products" 
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="products-intro" hidden></p>
             </div>
             <div class="${gridClass}" data-sitecraft-product-grid data-sc-part="grid"></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="product" data-sc-part="images" hidden></div>
           </div>
         </section>`;
 
@@ -60,6 +61,11 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-ask:hover { color: var(--site-accent-strong); }
 .sitecraft-product-image-credit { margin: 0; font-size: 12px; color: var(--site-muted); }
 .sitecraft-product-empty { margin: 0; color: var(--site-muted); }
+.sitecraft-image-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 24px; }
+.sitecraft-image-gallery[hidden] { display: none; }
+.sitecraft-image-gallery figure { margin: 0; min-width: 0; }
+.sitecraft-image-gallery img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--site-card-radius); background: var(--site-diagram); }
+.sitecraft-image-gallery figcaption { margin-top: 6px; color: var(--site-muted); font-size: 12px; line-height: 1.45; }
 /* 目录行: one series per row; photos occupy a fixed left column and no-photo rows use the full width. */
 .sitecraft-product-rows { display: grid; gap: 20px; }
 .sitecraft-product-rows .sitecraft-product-card { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); min-width: 0; }

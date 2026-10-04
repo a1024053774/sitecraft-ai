@@ -16,6 +16,8 @@ export const imageLicenses = ["user-provided", "CC0", "Public Domain", "MIT", "A
 export type ImageLicense = (typeof imageLicenses)[number];
 export const imageUsageScopes = ["current-site-only", "generated-sites", "docs-only"] as const;
 export type ImageUsageScope = (typeof imageUsageScopes)[number];
+export const imageUsageCategories = ["product", "equipment", "facility", "inspection"] as const;
+export type ImageUsageCategory = (typeof imageUsageCategories)[number];
 export type ImageSource = "user-upload" | "public-material";
 
 export type SiteImageRecord = {
@@ -34,6 +36,7 @@ export type SiteImageRecord = {
   author: string;
   attribution: string;
   usageScope: ImageUsageScope;
+  usageCategory?: ImageUsageCategory;
   retrievedAt: string;
   sha256: string;
   createdAt: string;
@@ -263,6 +266,9 @@ export function validateImageProvenance(record: SiteImageRecord) {
   if (!record.sourceUrl || !record.author || !record.attribution || !record.retrievedAt || Number.isNaN(Date.parse(record.retrievedAt)) || !/^[a-f0-9]{64}$/i.test(record.sha256)) {
     throw new SiteImageError("forbidden", "图片缺少来源、归属、下载时间或 hash，不能进入客户成品");
   }
+  if (record.usageCategory && !(imageUsageCategories as readonly string[]).includes(record.usageCategory)) {
+    throw new SiteImageError("forbidden", "图片用途类别无效，不能进入客户成品");
+  }
   if (record.license === "user-provided") {
     if (record.source !== "user-upload" || record.usageScope !== "current-site-only") {
       throw new SiteImageError("forbidden", "用户上传图片只能绑定当前站点使用");
@@ -303,6 +309,7 @@ export async function saveSiteImage(args: {
     author?: string;
     attribution?: string;
     usageScope?: ImageUsageScope;
+    usageCategory?: ImageUsageCategory;
     retrievedAt?: string;
   };
 }): Promise<SiteImageRecord> {
@@ -329,6 +336,7 @@ export async function saveSiteImage(args: {
     author: isUserUpload ? (provenance.author?.trim() || "用户提供") : (provenance.author?.trim() || ""),
     attribution: isUserUpload ? (provenance.attribution?.trim() || "用户提供；仅当前站点使用") : (provenance.attribution?.trim() || ""),
     usageScope: provenance.usageScope ?? "current-site-only",
+    ...(provenance.usageCategory ? { usageCategory: provenance.usageCategory } : {}),
     retrievedAt: provenance.retrievedAt?.trim() || createdAt,
     sha256: sha256(args.bytes),
     createdAt,
@@ -360,6 +368,7 @@ export async function readSiteImage(siteId: string, imageId: string): Promise<{ 
     || rawRecord.author === undefined
     || rawRecord.attribution === undefined
     || rawRecord.usageScope === undefined
+    || rawRecord.usageCategory === undefined
     || rawRecord.retrievedAt === undefined
     || rawRecord.sha256 === undefined;
   const record: SiteImageRecord = {
@@ -369,6 +378,7 @@ export async function readSiteImage(siteId: string, imageId: string): Promise<{ 
     author: rawRecord.author ?? "用户提供",
     attribution: rawRecord.attribution ?? "用户提供；仅当前站点使用",
     usageScope: rawRecord.usageScope ?? "current-site-only",
+    ...(rawRecord.usageCategory ? { usageCategory: rawRecord.usageCategory } : {}),
     retrievedAt: rawRecord.retrievedAt ?? rawRecord.createdAt,
     sha256: rawRecord.sha256 ?? sha256(bytes),
   };
@@ -426,6 +436,10 @@ export function publicImagePayload(record: SiteImageRecord) {
     author: record.author,
     attribution: record.attribution,
     usageScope: record.usageScope,
+    usageCategory: record.usageCategory ?? null,
+    ...((record.license === "CC BY" || record.license === "CC BY-SA") && record.attribution
+      ? { credit: { zh: record.attribution, en: record.attribution } }
+      : {}),
     retrievedAt: record.retrievedAt,
     sha256: record.sha256,
     createdAt: record.createdAt,

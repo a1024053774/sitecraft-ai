@@ -1568,7 +1568,48 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
-  function applyHeroVisual(draft, locale, applied) {
+  function imageCategoryList(images, category) {
+    if (!Array.isArray(images)) return [];
+    return images.filter(function (image) {
+      return image && image.usageCategory === category && typeof image.url === "string" && image.url;
+    });
+  }
+
+  function renderImageGallery(images, category, locale, applied) {
+    if (!document || !document.querySelectorAll) return;
+    var galleries = asList(document.querySelectorAll('[data-sitecraft-image-gallery="' + category + '"]'));
+    if (!galleries.length) return;
+    var visible = imageCategoryList(images, category);
+    for (var g = 0; g < galleries.length; g++) {
+      var gallery = galleries[g];
+      gallery.textContent = "";
+      gallery.hidden = visible.length === 0;
+      for (var i = 0; i < visible.length; i++) {
+        var image = visible[i];
+        var figure = document.createElement("figure");
+        figure.setAttribute("data-sitecraft-slot", "images." + category + "." + image.imageId);
+        var node = document.createElement("img");
+        node.src = image.url;
+        node.setAttribute("src", image.url);
+        node.alt = image.originalName || (locale === "en" ? category + " photo" : category + "图片");
+        node.setAttribute("data-sitecraft-slot", "images." + category + "." + image.imageId + ".image");
+        figure.appendChild(node);
+        var creditText = image.credit ? localize(image.credit, locale) || "" : "";
+        if (creditText) {
+          var credit = document.createElement("figcaption");
+          credit.textContent = creditText;
+          credit.setAttribute("data-sitecraft-slot", "images." + category + "." + image.imageId + ".credit");
+          figure.appendChild(credit);
+          applied.add("images." + category + "." + image.imageId + ".credit");
+        }
+        gallery.appendChild(figure);
+        applied.add("images." + category + "." + image.imageId + ".image");
+      }
+    }
+    if (visible.length) applied.add("images." + category);
+  }
+
+  function applyHeroVisual(draft, locale, applied, images) {
     if (!document || !document.querySelector) return;
     renderHeroIndex(draft, locale);
     var hero = uniqueNode('[data-sitecraft-section="hero"]');
@@ -1589,6 +1630,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
         photo = products[i].image;
         break;
       }
+    }
+    if (!photo) {
+      var facilityImages = imageCategoryList(images, "facility");
+      if (facilityImages.length) photo = facilityImages[0];
     }
     var facts = heroFacts(draft, locale);
     var mode = photo ? "photo" : (nameplate && facts.length ? "nameplate" : "none");
@@ -2514,7 +2559,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     emitAnnotationSelection(annotationNodesInRect(frame));
   }
 
-  function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage, offersVisitorEnglish) {
+  function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage, offersVisitorEnglish, images) {
     var applied = new Set();
     var extraMissing = [];
     var currentLocale = locale || "zh";
@@ -2536,7 +2581,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       applyDocumentTitle(draft);
       renderProductGrid(draft, currentLocale, applied, variant || "preview");
       renderFooterProducts(draft, currentLocale);
-      applyHeroVisual(draft, currentLocale, applied);
+      applyHeroVisual(draft, currentLocale, applied, images);
       applyVisitorChrome(currentLocale, draft, variant || "preview");
       applyLocaleSwitch(currentLocale, offersVisitorEnglish === true, variant || "preview");
       var slots = adapter.slots || [];
@@ -2558,6 +2603,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
       renderEquipment(draft, currentLocale, applied, variant || "preview");
       renderHistory(draft, currentLocale, applied, variant || "preview");
       renderQualityProcess(draft, currentLocale, applied, variant || "preview");
+      renderImageGallery(images, "product", currentLocale, applied);
+      renderImageGallery(images, "equipment", currentLocale, applied);
+      renderImageGallery(images, "facility", currentLocale, applied);
+      renderImageGallery(images, "inspection", currentLocale, applied);
       clearUnprovidedCatalogChrome(draft, variant || "preview");
       hideEmptyProductSection(draft, currentLocale, variant || "preview");
       syncHiddenNavigation((function () {
@@ -2617,7 +2666,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
         data.expectedTargets,
         data.variant,
         data.activePage,
-        data.offersVisitorEnglish
+        data.offersVisitorEnglish,
+        data.images
       );
       if (parent && parent.postMessage) {
         parent.postMessage({
@@ -2824,6 +2874,7 @@ export function installPreviewBridge(
       variant?: string,
       activePage?: { id?: string; role?: string; placement?: string; section?: string },
       offersVisitorEnglish?: boolean,
+      images?: Array<{ imageId: string; url: string; originalName?: string; usageCategory?: string | null; credit?: { zh: string; en: string } }>,
     ) => SlotApplyReport;
   };
 }

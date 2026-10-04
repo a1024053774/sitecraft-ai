@@ -13,6 +13,14 @@ type FrameVariant = "thumbnail" | "preview" | "workspace" | "published" | "quali
 type PreviewLoadState = "loading" | "ready" | "error";
 const PREVIEW_MESSAGE_TYPE_VERSION = 1;
 
+export type PreviewImage = {
+  imageId: string;
+  url: string;
+  originalName?: string;
+  usageCategory?: "product" | "equipment" | "facility" | "inspection" | null;
+  credit?: { zh: string; en: string };
+};
+
 export type AnnotationCandidate = {
   pageId: string;
   pagePath: string;
@@ -51,6 +59,7 @@ type OpenSourceTemplateFrameProps = {
   expectedTargets?: string[];
   pagePath?: string;
   offersVisitorEnglish?: boolean;
+  images?: PreviewImage[];
   annotationMode?: boolean;
   annotationTarget?: AnnotationCandidate["target"] | null;
   activePage?: {
@@ -108,6 +117,7 @@ export function OpenSourceTemplateFrame({
   expectedTargets = [],
   pagePath = "",
   offersVisitorEnglish = false,
+  images = [],
   annotationMode = false,
   annotationTarget = null,
   activePage,
@@ -146,6 +156,7 @@ export function OpenSourceTemplateFrame({
     variant,
     activePage,
     offersVisitorEnglish,
+    images,
     annotationMode,
     annotationTarget,
     sessionId: sessionIdRef.current,
@@ -158,6 +169,7 @@ export function OpenSourceTemplateFrame({
     variant,
     activePage,
     offersVisitorEnglish,
+    images,
     annotationMode,
     annotationTarget,
     sessionId: sessionIdRef.current,
@@ -244,7 +256,7 @@ export function OpenSourceTemplateFrame({
       observer?.disconnect();
       clearLoadController();
     };
-  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, annotationMode, annotationTarget, attempt, clearLoadController, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, offersVisitorEnglish, pagePath, reportLoadState, sendAnnotationMode, sendContent, templateId, variant]);
+  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, annotationMode, annotationTarget, attempt, clearLoadController, draft?.revision, expectedTargets.join("|"), handleFrameLoad, images.map((image) => `${image.imageId}:${image.usageCategory ?? ""}`).join("|"), locale, offersVisitorEnglish, pagePath, reportLoadState, sendAnnotationMode, sendContent, templateId, variant]);
 
   useEffect(() => {
     if (variant !== "thumbnail") return;
