@@ -25,10 +25,15 @@ supersedes:
 
 ## Resolution
 
-2026-10-04（America/New_York），`t086-annotation-preview`。实现了预览桥批注捕获与唯一槽位重定位、session/typeVersion iframe 协议、工作台三档批注抽屉、可信边界上的 AI 定位上下文、attached/stale/ambiguous 提交门和选择性撤销 API。产品卡按 `data-sitecraft-product-id` 与 `products.<productId>` 稳定寻址；型号索引表保留 specs 槽位唯一命中。
+2026-10-04（America/New_York），合并复验完成。合并提交为 `37758d84a33749ef20eadfdca8eac8813a94c702`（短 SHA：`37758d8`）；冲突只保留 T-086 批注协议/真实点击修复，并采用主线的 `getExistingSite` 语义。未改 `lib/blocks/catalog.ts` 或 T-108 内容。
 
-证据：`node --test tests/t086-annotation-tracer.test.ts tests/preview-failure.test.ts` 通过；`artifacts/t086/fulltest-r3.txt` 为 774/774；`artifacts/t086/typecheck-r3.txt`、`artifacts/t086/build-r3.txt` 通过；`artifacts/t086/annotation-check-r3.json` 为三档 attached PASS，截图 `annotation-r3-1440/768/375.png` 已打开；`artifacts/t086/real-chain-r2.json` 为三档 `model=ai / undo=applied / manual=applied / conflict=conflict`，冲突目标非空，截图与批注记录在 `artifacts/t086/real-*.png`、`real-sites-r2.json`；`artifacts/t086/modification-real.json` 为真实 DeepSeek `deepseek-flash` applied revision 4；旧的未配置失败和第一轮 no-op 证据分别保留在 `modification.json`、`real-chain.json`。
+本次证据均绑定合并 HEAD `37758d84a33749ef20eadfdca8eac8813a94c702`：
 
-12 站发布检查 `artifacts/t086/mainline-r3.log` / `mainline-r3-incomplete.json` 标为 INCOMPLETE：首两个站点连续等待英文 locale 超过 15 分钟，未生成 `report.json`；仅中断自己的 runner shell，未杀 Chrome。原始 fulltest 773/763/10 仍在 `fulltest.txt`，vendor 补齐后的中间 771/2 在 `fulltest-r2.txt`，对应失败归因为协议源代码断言和可见开发标签，已在 r3 清零。
+- `npm run build` 清理 `.next` 后通过，证据：`/Users/luckye/Documents/Code/sitecraft-ai-t086/artifacts/t086/build-merge-rerun-clean.txt`；首次旧缓存失败证据保留在 `build-merge-rerun.txt`。
+- `npm run typecheck` 通过，证据：`/Users/luckye/Documents/Code/sitecraft-ai-t086/artifacts/t086/typecheck-merge-rerun.txt`。
+- `fulltest.sh` 在隔离端口 3071、`SITECRAFT_BASE=http://127.0.0.1:3071` 下真实退出 0，795/795 通过，首行绑定 HEAD，证据：`/Users/luckye/Documents/Code/sitecraft-ai-t086/artifacts/t086/fulltest-merge-rerun-3071.txt`。
+- 13 站主线复验真实退出 0：`mainline-rerun-3071/report.json` 为 39 rows、13 sites、375/768/1440、0 failures、0 INVALID；证据目录：`/Users/luckye/Documents/Code/sitecraft-ai-t086/artifacts/t086/mainline-rerun-3071/`，运行记录首行绑定 HEAD。
+- 主工作区站点目录已强制复制到 worktree，源/目标均为 7091 个 JSON；复制记录：`/Users/luckye/Documents/Code/sitecraft-ai-t086/artifacts/t086/mainline-rerun-3071/copy.log`。
+- 3070 启动/复验失败证据保留：`/Users/luckye/Documents/Code/sitecraft-ai-t086/artifacts/t086/fulltest-merge-rerun-bootstrap.txt` 与 `dev-3070.log`。失败原因是 3070 server 未持续运行/共享 Next lock；随后改用隔离 3071 完成通过复验。英文 locale 未复现 timeout。
 
-后续根因修正（基于 `829b8d1`）：`sitecraft:locale` 与 `sitecraft:inquiry` 也带 `typeVersion` / `sessionId`，并有 bridge 回归测试；旧的 visitor-error 源码断言改为检查实际错误映射，不泄露内部协议词。验收脚本移入 `scripts/check-t086-annotation.mjs`、`scripts/check-t086-real-chain.mjs`，只用 isolated world 读槽位和矩形，实际点击走 CDP `Input.dispatchMouseEvent`；`artifacts/t086/annotation-check-pointer.json` 三档 PASS，`artifacts/t086/real-chain-pointer-r2.json` 三档均 `model=ai / undo=applied / manual=applied / conflict=conflict`。协议定向测试 44/44、`fulltest-protocol-r1.txt` 775/775、`typecheck-protocol-r2.txt` 和 `build-protocol-r2.txt` 通过。12 站仍沿用 `mainline-r3-incomplete.json` 的 INCOMPLETE 结论，未重新运行。
+未完成项：代码审查、Claude 验收仍待独立执行。
