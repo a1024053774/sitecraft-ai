@@ -1,5 +1,99 @@
 // Browser-only. Compare actual text-line rectangles, never the unused boxes of closed details.
 // Keep this expression in lockstep with scripts/hero-word-break-scan.js and check-published.
+const LAYOUT_DECLARATION_ATTRIBUTES = [
+  "data-sc-layout-declaration",
+  "data-sc-layout-declarations",
+  "data-sc-variant-declaration",
+  "data-sc-variant-declarations",
+];
+// T-090 consumes declarations exposed by the mounted block variant. A declaration contains
+// selector data only; selectors are never inferred from classes, text, or element order. Until a
+// variant exposes this payload, the rule is recorded as 未声明 and no visual check is run.
+const LAYOUT_RULE_KEYS = ["baseline", "spacing", "buttons"];
+const VAGUE_PRIMARY_COPY = new Set([
+  "了解更多", "更多", "查看详情", "详情", "learn more", "view more", "read more", "get started",
+]);
+
+const own = (value, key) => Boolean(value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, key));
+
+function parseLayoutDeclaration(value) {
+  if (typeof value !== "string") return value && typeof value === "object" ? value : null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+function selectorsFromDeclaration(value) {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(selectorsFromDeclaration);
+  if (!value || typeof value !== "object") return [];
+  if (typeof value.selector === "string") return [value.selector];
+  if (Array.isArray(value.selectors)) return value.selectors.flatMap(selectorsFromDeclaration);
+  if (Array.isArray(value.members)) return value.members.flatMap(selectorsFromDeclaration);
+  if (Array.isArray(value.nodes)) return value.nodes.flatMap(selectorsFromDeclaration);
+  return [];
+}
+
+function groupsFromDeclaration(value, prefix) {
+  if (Array.isArray(value)) return value.map((entry, index) => ({
+    id: String(entry?.id || entry?.name || `${prefix}-${index + 1}`),
+    selectors: selectorsFromDeclaration(entry),
+  }));
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value).map(([id, entry]) => ({ id, selectors: selectorsFromDeclaration(entry) }));
+}
+
+function normalizeLayoutDeclaration(raw) {
+  const parsed = parseLayoutDeclaration(raw);
+  if (!parsed || typeof parsed !== "object") return null;
+  const variant = parsed.variant && typeof parsed.variant === "object" ? parsed.variant : parsed;
+  const nested = variant.declarations && typeof variant.declarations === "object" ? variant.declarations : variant;
+  const baselineValue = own(nested, "baselineGroups") ? nested.baselineGroups : (own(nested, "baseline") ? (nested.baseline?.groups ?? nested.baseline) : undefined);
+  const semanticValue = own(nested, "semanticGroups") ? nested.semanticGroups
+    : (own(nested, "spacingGroups") ? nested.spacingGroups : (own(nested, "spacing") ? (nested.spacing?.groups ?? nested.spacing) : undefined));
+  const buttonsValue = own(nested, "buttonRoles") ? nested.buttonRoles
+    : (own(nested, "buttons") ? nested.buttons : (own(nested, "buttonRole") ? nested.buttonRole : undefined));
+  const buttonRoles = { primary: [], secondary: [] };
+  if (Array.isArray(buttonsValue)) {
+    for (const entry of buttonsValue) {
+      const role = entry?.role === "secondary" ? "secondary" : entry?.role === "primary" ? "primary" : null;
+      if (role) buttonRoles[role].push(...selectorsFromDeclaration(entry));
+    }
+  } else if (buttonsValue && typeof buttonsValue === "object") {
+    buttonRoles.primary = selectorsFromDeclaration(buttonsValue.primary);
+    buttonRoles.secondary = selectorsFromDeclaration(buttonsValue.secondary);
+  }
+  const hasBaseline = baselineValue !== undefined;
+  const hasSpacing = semanticValue !== undefined;
+  const hasButtons = buttonsValue !== undefined;
+  if (!hasBaseline && !hasSpacing && !hasButtons) return null;
+  return {
+    baselineGroups: groupsFromDeclaration(baselineValue, "baseline"),
+    semanticGroups: groupsFromDeclaration(semanticValue, "semantic"),
+    buttonRoles,
+    declared: { baseline: hasBaseline, spacing: hasSpacing, buttons: hasButtons },
+  };
+}
+
+function declarationForBlock(block, root) {
+  let raw = null;
+  for (const attribute of LAYOUT_DECLARATION_ATTRIBUTES) {
+    if (block.hasAttribute(attribute)) { raw = block.getAttribute(attribute); break; }
+  }
+  const documentElement = root?.documentElement;
+  const global = root?.defaultView?.__SITECRAFT_VARIANT_DECLARATIONS
+    || documentElement?.__SITECRAFT_VARIANT_DECLARATIONS
+    || parseLayoutDeclaration(documentElement?.getAttribute("data-sc-layout-declarations"));
+  if (raw == null && global && typeof global === "object") {
+    const blockId = block.getAttribute("data-sc-block") || "";
+    const variantId = block.getAttribute("data-sc-variant") || "";
+    raw = global[`${blockId}:${variantId}`] ?? global[blockId]?.[variantId] ?? global[blockId];
+  }
+  const parsed = parseLayoutDeclaration(raw);
+  const variantId = block.getAttribute("data-sc-variant") || "";
+  if (parsed && typeof parsed === "object" && parsed.variants && parsed.variants[variantId]) return normalizeLayoutDeclaration(parsed.variants[variantId]);
+  if (parsed && typeof parsed === "object" && parsed[variantId] && !parsed.baselineGroups && !parsed.semanticGroups && !parsed.buttonRoles) return normalizeLayoutDeclaration(parsed[variantId]);
+  return normalizeLayoutDeclaration(parsed);
+}
+
 const scanHeroTitle = (root) => {
   const title = root?.matches?.("h1") ? root : root?.querySelector?.("h1");
   const result = { heroOrphan: false, heroTitleWordBreak: false };
@@ -306,6 +400,123 @@ export function scanVisitorLayout(root = document) {
   const visibleBlocks=[...root.querySelectorAll('[data-sc-block]')].filter(visible).map(el=>el.getAttribute('data-sc-block')||'未知');
   const measuredBlocks=new Set(textContrast.map(entry=>entry.block).filter(Boolean));
   for(const slot of slots.filter(entry=>entry.visible&&entry.block)) measuredBlocks.add(slot.block);
-  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,textContrast,bodyLineLength,lineLengthExemptions,measurement:{visibleBlocks,measuredBlocks:[...measuredBlocks],textContrastEntries:textContrast.length,bodyParagraphs:measuredParagraphs.size,bodyLineEntries:bodyLineLength.length},height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
+  const baselineAlignments=[];
+  const semanticSpacing=[];
+  const undeclaredVariants=[];
+  const primaryItems=[];
+  const primaryMissing=[];
+  const vaguePrimary=[];
+  const declarationTargets = (block, selectors) => {
+    const nodes=[];
+    const missing=[];
+    const seen=new Set();
+    for(const selector of selectors||[]) {
+      let matches=[];
+      try { matches=[...block.querySelectorAll(selector)]; } catch { matches=[]; }
+      if(!matches.length) missing.push(selector);
+      for(const node of matches) if(!seen.has(node)) { seen.add(node); nodes.push(node); }
+    }
+    return {nodes,missing};
+  };
+  const textRect = node => {
+    try {
+      const textNodes=[];
+      const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);
+      while(walker.nextNode()) if((walker.currentNode.textContent||'').trim()) textNodes.push(walker.currentNode);
+      for(const textNode of textNodes) {
+        const range=document.createRange();
+        range.selectNodeContents(textNode);
+        const rect=[...range.getClientRects()].find(item=>item.width>.5&&item.height>.5);
+        if(rect) return rect;
+      }
+    } catch {}
+    return node.getBoundingClientRect();
+  };
+  const baselineCanvas = document.createElement('canvas');
+  const baselineContext = baselineCanvas.getContext('2d');
+  const baselineFor = node => {
+    const rect=textRect(node);
+    if(!baselineContext) return rect.bottom;
+    const style=getComputedStyle(node);
+    baselineContext.font=style.font || `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    // Measure a common ascender/descender pair so different copy (especially CJK glyphs)
+    // does not change the inferred font baseline.
+    const metrics=baselineContext.measureText('Hg');
+    const descent=Number.isFinite(metrics.actualBoundingBoxDescent) ? metrics.actualBoundingBoxDescent : (parseFloat(style.fontSize)||16)*.2;
+    return rect.bottom-descent;
+  };
+  const boundsFor = nodes => {
+    const rects=nodes.map(node=>node.getBoundingClientRect());
+    if(!rects.length) return null;
+    return {
+      left:Math.min(...rects.map(rect=>rect.left)), top:Math.min(...rects.map(rect=>rect.top)),
+      right:Math.max(...rects.map(rect=>rect.right)), bottom:Math.max(...rects.map(rect=>rect.bottom)),
+    };
+  };
+  const gapOn = (first, second, axis) => {
+    if(axis==='x') return Math.max(0, Math.max(second.left-first.right, first.left-second.right));
+    return Math.max(0, Math.max(second.top-first.bottom, first.top-second.bottom));
+  };
+  const ruleLabels = { baseline:'基线组', spacing:'语义组间距', buttons:'按钮角色' };
+  for(const block of [...root.querySelectorAll('[data-sc-block]')].filter(visible)) {
+    const blockId=block.getAttribute('data-sc-block')||'未知';
+    const variantId=block.getAttribute('data-sc-variant')||'未知';
+    const declaration=declarationForBlock(block,root);
+    if(!declaration) {
+      undeclaredVariants.push({block:blockId,variant:variantId,rules:[...LAYOUT_RULE_KEYS],message:`${blockId}:${variantId} 未声明`});
+      continue;
+    }
+    const missingRules=LAYOUT_RULE_KEYS.filter(rule=>!declaration.declared[rule]);
+    if(missingRules.length) undeclaredVariants.push({block:blockId,variant:variantId,rules:missingRules,message:`${blockId}:${variantId} ${missingRules.map(rule=>ruleLabels[rule]).join('、')}未声明`});
+    if(declaration.declared.baseline) {
+      for(const group of declaration.baselineGroups) {
+        const targets=declarationTargets(block,group.selectors);
+        const visibleNodes=targets.nodes.filter(visible);
+        if(targets.missing.length || visibleNodes.length<2) {
+          baselineAlignments.push({block:blockId,variant:variantId,id:group.id,delta:null,threshold:2,pass:false,status:'missing',missing:targets.missing});
+          continue;
+        }
+        const values=visibleNodes.map(baselineFor);
+        const delta=Number((Math.max(...values)-Math.min(...values)).toFixed(2));
+        baselineAlignments.push({block:blockId,variant:variantId,id:group.id,delta,threshold:2,pass:delta<=2,status:'measured',targets:visibleNodes.length});
+      }
+    }
+    if(declaration.declared.spacing) {
+      const groups=declaration.semanticGroups.map(group=>({ ...group, targets:declarationTargets(block,group.selectors) }));
+      const usable=groups.filter(group=>group.targets.nodes.some(visible));
+      let between=0;
+      for(let first=0;first<usable.length;first++) for(let second=first+1;second<usable.length;second++) {
+        const a=boundsFor(usable[first].targets.nodes.filter(visible));
+        const b=boundsFor(usable[second].targets.nodes.filter(visible));
+        if(!a||!b) continue;
+        between=between===0?Math.max(gapOn(a,b,'x'),gapOn(a,b,'y')):Math.min(between,Math.max(gapOn(a,b,'x'),gapOn(a,b,'y')));
+      }
+      for(const group of groups) {
+        const nodes=group.targets.nodes.filter(visible);
+        const points=nodes.map(node=>node.getBoundingClientRect());
+        const spreadX=points.length>1?Math.max(...points.map(point=>point.left))-Math.min(...points.map(point=>point.left)):0;
+        const spreadY=points.length>1?Math.max(...points.map(point=>point.top))-Math.min(...points.map(point=>point.top)):0;
+        const axis=spreadX>=spreadY?'x':'y';
+        const ordered=[...points].sort((a,b)=>axis==='x'?a.left-b.left:a.top-b.top);
+        let within=0;
+        for(let index=1;index<ordered.length;index++) within=Math.max(within,gapOn(ordered[index-1],ordered[index],axis));
+        const missing=group.targets.missing;
+        semanticSpacing.push({block:blockId,variant:variantId,id:group.id,axis,within:Number(within.toFixed(2)),between:Number(between.toFixed(2)),pass:!missing.length&&within<between,status:missing.length?'missing':'measured',missing});
+      }
+    }
+    if(declaration.declared.buttons) {
+      const targets=declarationTargets(block,declaration.buttonRoles.primary);
+      primaryMissing.push(...targets.missing.map(selector=>({block:blockId,variant:variantId,selector})));
+      for(const node of targets.nodes.filter(visible)) {
+        const text=(node.innerText||node.textContent||'').replace(/\s+/g,' ').trim();
+        const item={block:blockId,variant:variantId,text};
+        primaryItems.push(item);
+        if(VAGUE_PRIMARY_COPY.has(text.toLocaleLowerCase())) vaguePrimary.push(item);
+      }
+    }
+  }
+  const primaryButtons={visibleCount:primaryItems.length,max:1,pass:primaryItems.length<=1,vague:vaguePrimary,items:primaryItems,missing:primaryMissing};
+  const layoutDeclarations={baselineAlignments,semanticSpacing,primaryButtons,undeclaredVariants};
+  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,textContrast,bodyLineLength,lineLengthExemptions,...layoutDeclarations,baseline:baselineAlignments,spacing:semanticSpacing,buttonRoles:primaryButtons,variantDeclarations:undeclaredVariants,measurement:{visibleBlocks,measuredBlocks:[...measuredBlocks],textContrastEntries:textContrast.length,bodyParagraphs:measuredParagraphs.size,bodyLineEntries:bodyLineLength.length},height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
 }
 export default scanVisitorLayout;
