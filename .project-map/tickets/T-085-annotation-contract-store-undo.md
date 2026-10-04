@@ -2,7 +2,7 @@
 id: T-085
 title: 批注契约、批注存储和挑着撤（不碰预览桥）
 type: build
-status: open
+status: closed
 blocked_by: [T-084]
 claimed_by: rs-komo
 supersedes:
@@ -20,7 +20,7 @@ supersedes:
 
 - [x] 测试先写，并在父提交上能加载、在断言处失败（不能靠导入不存在的导出失败）：批注不改草稿 revision；挑着撤只撤该事务、保留后来的无关修改；后来改过同一目标时返回冲突且草稿不变；整组替换类 operation 拒绝挑着撤
 - [x] spec.md、CONTEXT.md 写入批注契约和术语；`project_map.py status` 无过时 living doc
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查（不是执行者本人的 Codex 实例）通过；Claude 验收
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查（不是执行者本人的 Codex 实例）通过；Claude 验收
 
 ## Resolution
 
@@ -64,3 +64,9 @@ npm run build > artifacts/t085/build-final3.txt 2>&1
 主线 12 站发布页检查：`artifacts/t085/mainline-check-r3-all/report.json` 共 36 行（12 站 × 3 档），与 `artifacts/merge-13ae686/check-published/report.json` 比对 `known_failures=0 NEW_failures=0`。原 `check-mainline-sites.sh` 的 zsh 数组展开只传了第一个 key（`artifacts/t085/mainline-check-r3/report.json` 仅 3 行），因此补用同一 `check-published.mjs` 显式传入 12 个 key 完成完整覆盖；未发现 NEW 或 T-101 known 失败。
 
 第三轮审查修复：纠正上一轮把未实现的重复 target 聚合误报为已完成的 Resolution 记录；当前 `buildUndoGuards` 按整个 change set 的 target 聚合，postcondition 取事务结束值，inverse 从首次写入前的值恢复。`update_commercial_term` 移出 allowed set，返回“单条商业条款更新包含条款值和可见性落点，当前不支持挑着撤销；请使用普通撤销”。新增 FS/Postgres 重复 target、混合冲突、add/remove card、replace_products 拒绝、commercial term 拒绝测试；父提交红测为 `artifacts/t085/red-r3.txt`。最终 `fulltest.sh` 输出为 `artifacts/t085/npm-test-r4.txt`（674/674、0 失败），typecheck/build 为 `typecheck-r4-final.txt` / `build-r4.txt`。
+
+### Claude 验收（2026-10-03 23:55 EDT）
+
+- 独立审查四轮：exec-t089 第一轮 `REVISE`（多字段 guard、顶层 target 读成 null、批注归属未校验）、第二轮 `REVISE`（同一事务重复 target）；rev-code 第三轮 `REVISE`——发现上一轮回报的修复没有进代码，并指出 `update_commercial_term` 允许但必拒绝；exec-t089 第四轮 `PASS`。报告在 sitecraft-ai 主工作区 `artifacts/research/threads-2026-10-03/reviews/T-085-review-{1..4}.md`。上一轮不实记录已在本票更正。
+- 并入主线 `09d047c`（合并提交 `5a5b4d3`，自动合并了 `lib/site-operations.ts` 中的设备 operation）后：T-085 与 site-operations 测试 40/40；`npm run typecheck`、`npm run build`（`artifacts/t085/build-claude-accept.txt`）通过；`fulltest.sh` 全量 723/723（`artifacts/t085/npm-test-claude-accept.txt`）；主线 12 站 `check-published`：36 行、known 1 条（T-101 处理中）、NEW 0，不算「check-published 通过」（`artifacts/published-check/mainline-12-accept/`）；`project_map.py status` 无问题。
+- 未实测：真实 PostgreSQL（本机无 Docker 数据库），Postgres 路径只有 query mock 协议测试。
