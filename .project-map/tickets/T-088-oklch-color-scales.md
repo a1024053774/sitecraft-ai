@@ -64,3 +64,6 @@ supersedes:
 - T-088 修复与测试由单一 commit `7ef4742` 承载，未改现有 24 套预设色板。随后将最新主线 `c443a4e` 合并进本分支，合并提交为 `24d9605`；`lib/site-store.ts` 冲突保留 T-085 的批注锁/撤销守卫，并把 T-088 的自定义色板提交边界校验接回本地与 PostgreSQL 两条路径。
 - 预览空白复核：旧证据脚本只看 iframe 的历史 `data-previewHydrated`，没有检查外层 preview shell 的 error overlay，导致 `f4fbff-engineering-industrial-375` 曾把错误覆盖层当成就绪。最终脚本同时检查 shell `ready`、无错误覆盖层、非零且稳定 frame，再截图；`artifacts/t088/workbench-molding-r6/report.json` 为注塑厚资料站三色 × 四样子 × 1440/768/375 共 36 张，逐张及三个 contact sheet（同目录 `f4fbff-contact.png`、`111827-contact.png`、`39ff88-contact.png`）已查看，报告无 bad 项；重点图 `f4fbff-engineering-industrial-375.png` 为已渲染页面。
 - 并入后验证（代码合并提交 `24d9605`；最终 HEAD `00e9867` 仅追加本 Resolution）：`bash .../fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t088 3052 artifacts/t088/npm-test-r6-merged.txt` 通过 732/732；`npm run typecheck` 输出 `artifacts/t088/typecheck-r6-merged.txt`；`npm run build` 输出 `artifacts/t088/build-r6-merged.txt`；`zsh .../check-mainline-sites.sh /Users/luckye/Documents/Code/sitecraft-ai-t088 3052 artifacts/t088/mainline-check-r6-merged` 退出码 0，36 行、0 known、0 NEW，报告和逐行输出在该目录。
+
+### 主控合并复验（Claude，2026-10-04 EDT）
+- 合并主线 `e977567`。主工作区 3034：typecheck、build 通过，全量 732/732；12 站 `check-published` 36 行 0 失败，逐行实测条数不少于基线（`artifacts/merge-e977567/`）。调色板合法性检查在 store 与 `applySiteOperations` 各有一处，属加严、非绕过。
