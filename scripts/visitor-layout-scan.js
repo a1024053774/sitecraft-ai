@@ -303,6 +303,9 @@ export function scanVisitorLayout(root = document) {
     const ratio=painted&&textEntries.length?(known.length?Math.min(...known.map(entry=>entry.ratio)):null):21;
     return {key:keyFor(el),slot:el.getAttribute('data-sitecraft-slot'),block:blockFor(el),visible:painted,contrast:ratio,contrastStatus:painted&&textEntries.length&&!known.length?'unmeasured':'measured'};
   });
-  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,textContrast,bodyLineLength,lineLengthExemptions,height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
+  const visibleBlocks=[...root.querySelectorAll('[data-sc-block]')].filter(visible).map(el=>el.getAttribute('data-sc-block')||'未知');
+  const measuredBlocks=new Set(textContrast.map(entry=>entry.block).filter(Boolean));
+  for(const slot of slots.filter(entry=>entry.visible&&entry.block)) measuredBlocks.add(slot.block);
+  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,textContrast,bodyLineLength,lineLengthExemptions,measurement:{visibleBlocks,measuredBlocks:[...measuredBlocks],textContrastEntries:textContrast.length,bodyParagraphs:measuredParagraphs.size,bodyLineEntries:bodyLineLength.length},height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
 }
 export default scanVisitorLayout;

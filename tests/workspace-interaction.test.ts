@@ -15,6 +15,7 @@ import {
   startAlignmentCard,
   waitFor,
   waitForCondition,
+  previewRefreshCoverHistoryExpression,
   waitForSettled,
   type Cdp,
   type WorkspacePage,
@@ -84,10 +85,12 @@ const recorderExpression = `(() => {
       const properties = animation.transitionProperty ? [animation.transitionProperty] : [...new Set((animation.effect?.getKeyframes?.() || []).flatMap((frame) => Object.keys(frame)).filter((key) => !["offset", "computedOffset", "easing", "composite"].includes(key)))];
       const target = animation.effect?.target;
       const label = String(target?.getAttribute?.("class") || target?.tagName || "").slice(0, 60);
+      const computed = target ? getComputedStyle(target) : null;
+      const cssDuration = computed && animation.transitionProperty ? Number.parseFloat(computed.transitionDuration) * (computed.transitionDuration.includes("ms") ? 1 : 1000) : 0;
       const key = name + "|" + label;
       if (seen.has(key)) continue;
       seen.add(key);
-      window.__motion.push({ kind: animation.constructor.name, name, properties, duration: Number(timing.duration) || 0, infinite: timing.iterations === Infinity, target: label });
+      window.__motion.push({ kind: animation.constructor.name, name, properties, duration: cssDuration || Number(timing.duration) || 0, infinite: timing.iterations === Infinity, target: label });
     }
   };
   clearInterval(window.__motionTimer);
@@ -212,13 +215,25 @@ async function exerciseMotion(browser: Cdp, width: number, reducedMotion: boolea
   // A request that fails (the server's no-model 503, answered here so it does not depend on
   // the machine having a model key), slowed so the progress block is seen.
   if (width <= 600) await showPane(browser, page, "chat");
-  const stopFailing = await failChatRequests(browser, page.sessionId);
+  const stopFailing = await failChatRequests(browser, page.sessionId, 1500);
   await browser.send("Network.enable", {}, page.sessionId);
   await browser.send("Network.emulateNetworkConditions", { offline: false, latency: 1200, downloadThroughput: -1, uploadThroughput: -1 }, page.sessionId);
   await browser.eval(sendChatExpression("首屏标题写成按图加工的重载减速机"), page.sessionId);
   await browser.eval(clickExpression("chat-send", "发送"), page.sessionId);
-  steps.progressShown = await waitFor(browser, page.sessionId, `Boolean(document.querySelector("[data-testid=chat-progress] [data-step-state=current]"))`, 5000);
-  steps.progress = await browser.eval(`[...document.querySelectorAll("[data-testid=chat-progress] [data-step]")].map((item) => item.dataset.stepState + ":" + item.textContent.trim())`, page.sessionId);
+  await waitForCondition(browser, page.sessionId, `Boolean(document.querySelector("[data-testid=chat-progress] [data-step-state=current]"))`, `${width} chat progress current step`, 15000);
+  steps.progressShown = true;
+  steps.progress = await browser.eval<string[]>(`(async () => {
+    const started = performance.now();
+    return await new Promise((resolve, reject) => {
+      const sample = () => {
+        const items = [...document.querySelectorAll("[data-testid=chat-progress] [data-step]")];
+        if (items.length >= 2) return resolve(items.map((item) => item.dataset.stepState + ":" + item.textContent.trim()));
+        if (performance.now() - started >= 10000) return reject(new Error("Timed out waiting for chat progress steps (saw " + items.length + ": " + items.map((item) => item.dataset.stepState + ":" + item.textContent.trim()).join(" | ") + ")"));
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+  })()`, page.sessionId);
   steps.progressClosed = await waitFor(browser, page.sessionId, `!document.querySelector("[data-testid=chat-progress]") && Boolean(document.querySelector(".message.error"))`, 20000);
   await stopFailing();
   await browser.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }, page.sessionId);
@@ -230,9 +245,9 @@ async function exerciseMotion(browser: Cdp, width: number, reducedMotion: boolea
   const revision = await browser.eval<string>(`document.querySelector("[data-testid=workspace-draft-revision]").textContent`, page.sessionId);
   await browser.eval(`document.querySelector(".palette-card:not(.selected)")?.click()`, page.sessionId);
   if (width <= 600) await showPane(browser, page, "preview");
-  await waitForCondition(browser, page.sessionId, `document.querySelector("[data-testid=workspace-draft-revision]").textContent !== ${JSON.stringify(revision)} && document.querySelector("[data-testid=open-source-template-frame]")?.dataset.previewHydrated === "true"`, `${width} preview refresh revision ${revision}`, 10000);
-  const cover = await browser.eval<string | null>(`(() => { const layer = document.querySelector("[data-testid=preview-load-progress]"); if (!layer) return null; const rect = layer.getBoundingClientRect(); const style = getComputedStyle(layer); return rect.height > 8 && (style.backgroundColor !== "rgba(0, 0, 0, 0)" || style.backgroundImage !== "none") ? rect.height + "px " + style.backgroundColor : null; })()`, page.sessionId);
-  steps.previewCovered = cover ? [cover] : [];
+  const sampled = await browser.eval<{ covered: string[]; changed: boolean }>(previewRefreshCoverHistoryExpression(revision), page.sessionId);
+  if (!sampled.changed) throw new Error(`${width}: timed out waiting for preview refresh revision ${revision}`);
+  steps.previewCovered = sampled.covered;
   await waitForSettled(browser, page.sessionId, "preview refresh");
   const motion = await browser.eval<Motion[]>(`window.__motion`, page.sessionId);
   await closePage(browser, page);

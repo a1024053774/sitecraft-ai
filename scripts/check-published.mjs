@@ -357,6 +357,7 @@ const INSPECT = `(async () => {
     textContrast: layout.textContrast || [],
     bodyLineLength: layout.bodyLineLength || [],
     lineLengthExemptions: layout.lineLengthExemptions || [],
+    measurement: layout.measurement || null,
     heroOrphan,
     heroTitleWordBreak,
     englishSpecValueHan,
@@ -382,6 +383,14 @@ const INSPECT = `(async () => {
 
 function judge(report, facts, locale = "zh", expectedOrder = null) {
   const failures = [];
+  const measurement = report.measurement;
+  if (!measurement) failures.push("measurement incomplete: visitor layout scanner returned no measurement metadata");
+  else {
+    const missingBlocks = measurement.visibleBlocks.filter((block) => !measurement.measuredBlocks.includes(block));
+    if (missingBlocks.length) failures.push(`measurement incomplete: visible blocks not measured (${missingBlocks.join(", ")})`);
+    if (measurement.textContrastEntries === 0) failures.push("measurement incomplete: no visible text contrast entries");
+    if (measurement.bodyParagraphs === 0) failures.push("measurement incomplete: no visible body paragraphs");
+  }
   if (expectedOrder && JSON.stringify(report.pageSectionOrder) !== JSON.stringify(expectedOrder)) failures.push(`区块顺序不一致（期望 ${expectedOrder.join("、")}，实际 ${(report.pageSectionOrder || []).join("、")}）`);
   if (report.editorCursor === "pointer") failures.push("visitor slot uses a pointer cursor");
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");

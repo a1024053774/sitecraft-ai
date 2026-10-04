@@ -407,7 +407,13 @@ export async function openWorkspace(browser: Cdp, options: {
   ].join("");
   await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: seed }, sessionId);
   await browser.send("Page.navigate", { url: `${base}/workspace?site=${encodeURIComponent(options.siteId)}` }, sessionId);
-  const ready = await waitFor(browser, sessionId, `(() => { const shell = document.querySelector('.builder-shell'); return Boolean(shell && shell.className.includes('workspace-theme-${options.theme}') && getComputedStyle(shell).display === 'grid' && document.querySelector('[data-testid=open-source-template-frame]')); })()`, 20000);
+  await waitForCondition(browser, sessionId, `(() => { const shell = document.querySelector('.builder-shell'); const frame = document.querySelector('[data-testid=open-source-template-frame]'); return Boolean(shell && shell.className.includes('workspace-theme-${options.theme}') && getComputedStyle(shell).display === 'grid' && frame); })()`, `workspace ${options.theme} ${options.width} shell`, 60000);
+  if (options.width <= 600) {
+    await waitForCondition(browser, sessionId, `Boolean([...document.querySelectorAll('.builder-mobile-tabs button')].find((item) => item.textContent.includes('预览')))`, `workspace ${options.theme} ${options.width} preview tab`, 10000);
+    await browser.eval(`[...document.querySelectorAll('.builder-mobile-tabs button')].find((item) => item.textContent.includes('预览'))?.click()`, sessionId);
+    await waitForCondition(browser, sessionId, `[...document.querySelectorAll('.builder-mobile-tabs button')].some((item) => item.textContent.includes('预览') && item.getAttribute('aria-selected') === 'true')`, `workspace ${options.theme} ${options.width} preview pane`, 10000);
+  }
+  const ready = await waitForCondition(browser, sessionId, `(() => { const frame = document.querySelector('[data-testid=open-source-template-frame]'); return Boolean(frame?.dataset.previewHydrated === 'true' && document.querySelector('[data-preview-state=ready]')); })()`, `workspace ${options.theme} ${options.width} preview hydration`, 60000).then(() => true);
   if (!ready) throw new Error(`workspace ${options.theme} ${options.width} did not render`);
   return { sessionId, targetId: created.targetId };
 }
@@ -432,6 +438,27 @@ export async function waitForPreviewBridge(browser: Cdp, sessionId: string, time
 
 export async function waitForSettled(browser: Cdp, sessionId: string, label: string, timeout = 5000) {
   await waitForCondition(browser, sessionId, "document.getAnimations().every((item) => item.effect?.getTiming?.().iterations === Infinity || item.playState !== 'running')", `${label} animations`, timeout);
+}
+
+export function previewRefreshCoverHistoryExpression(previousRevision: string, timeout = 10000) {
+  return `(async () => {
+    const covered = [];
+    const started = performance.now();
+    return await new Promise((resolve) => {
+      const sample = () => {
+        const layer = document.querySelector("[data-testid=preview-load-progress]");
+        if (layer) {
+          const rect = layer.getBoundingClientRect();
+          const style = getComputedStyle(layer);
+          if (rect.height > 8 && (style.backgroundColor !== "rgba(0, 0, 0, 0)" || style.backgroundImage !== "none")) covered.push(rect.height + "px " + style.backgroundColor);
+        }
+        const changed = document.querySelector("[data-testid=workspace-draft-revision]").textContent !== ${JSON.stringify(previousRevision)} && document.querySelector("[data-testid=open-source-template-frame]")?.dataset.previewHydrated === "true";
+        if (changed || performance.now() - started >= ${timeout}) return resolve({ covered, changed });
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+  })()`;
 }
 
 export async function closePage(browser: Cdp, page: WorkspacePage) {
