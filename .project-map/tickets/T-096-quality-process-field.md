@@ -51,6 +51,13 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 - 先写红证据：[red-quality-unit-before-fix.txt](../../artifacts/t096/red-quality-unit-before-fix.txt)、[red-quality-marker-before-fix.txt](../../artifacts/t096/red-quality-marker-before-fix.txt)；修复提交 `46278a5` 后 quality/equipment/commercial-terms **42/42**，quality-process **7/7**，`npm run typecheck` 通过；全量 `npm test` 为 **675/675**，日志 `artifacts/t096/npm-test-t096-p1.txt`。
 - T-096 真实 DeepSeek 生成与失败分析的运行时提交统一绑定为 `264c953`（`summary.json`、`failure-analysis-264c953.json`、本票文字一致）；`4474076`、`07827d6`、`4574089` 仅为后续 T-096 文档记录。注塑父提交对照因 HTTP 402 没拿到响应，待负责人充值后补跑，不把它归类为通过。
 
+### Astra r4 单位矩阵收口（2026-10-03）
+
+- 单位短语全表：[artifacts/t096/unit-phrases.md](../../artifacts/t096/unit-phrases.md)；覆盖三份模拟资料中实际出现的数字单位、每/按单位和业务短语（年产约 180 套、月注塑能力约 600 万件等），词内名词与编号明确排除。
+- 表驱动矩阵在 `tests/unit-matcher-matrix.test.ts`：每个共享单位覆盖数字邻接、每/按/per、词内用法、裸单位、错位单位，并单列资料业务短语；当前矩阵和相关测试共 49/49 通过。
+- 提交 `5689a8d` 将 `commercialUnitsMatch` 收口为上下文单位规则：去掉词内豁免表和月/年宽窗口；单位只认数字邻接或每/按/per，补 per set、每万件/每吨/每千克及两条模拟资料业务短语。T-079/T-081 的既有商业条款、设备映射仍通过。
+- 父提交 `d03e6b4` 的矩阵红证据：[red-unit-matrix-before-fix.txt](../../artifacts/t096/red-unit-matrix-before-fix.txt)；最终 typecheck 通过，全量 `npm test` **690/690**（`artifacts/t096/npm-test-t096-r4-final.txt`）。
+
 ### Astra r2 修复（合并主线后，2026-10-03）
 
 - 在 `46278a5` 的行为红证据基础上，提交 `466d480` 修正共享单位规则：小时只接受数字紧邻的「小时/时」，英文 `h` 只接受同一数字上下文；「注塑件/嵌件」只作为词内名词豁免英文复数词，`每件/按件` 和数字件仍必须映射到 `piece(s)`。
