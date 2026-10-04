@@ -30,12 +30,12 @@ supersedes:
 
 ## Resolution
 
-2026-10-04（America/New_York），codex-build：
+2026-10-04（America/New_York），codex-build，最终合并 SHA `12562149adde50f62d1044a1aaceec38407163cb`：
 
-- 在 `family-kit-assembly` `2576213` 合并后的代码上完成改动。固定等待逐条清单和失败方式见 `artifacts/t099/wall-clock-inventory.md`、`wall-clock-scan.txt`；T-089 的 visitor hard gates 与本票等待条件同时保留。
-- 浏览器助手统一使用命名条件等待；移动 375 初始隐藏预览先切到预览 pane 再等待 hydration，进度条先等 current step，再在页面内 `requestAnimationFrame` 等至少两个步骤。预览刷新在 revision+hydration 完成前持续采样遮挡历史。断言仍保持 150–300ms、transform/opacity/visibility 白名单、reduced-motion 无动效和 preview 不遮挡。
-- `scripts/check-published.mjs` 的 Chrome、iframe、预览 ready、字体、整页高度、截图和 lead 取数均改为有上限的条件等待；`visitor-layout-scan.js` 返回可见/已测区块、对比度条目、正文段落和行条目元数据，缺少元数据、区块未测或正文测量为空直接失败。父提交缺测行为红测见 `red-check-published-completeness-parent.txt`，当前实现通过见 `green-check-published-completeness.txt`；`red-short-window-parent.txt` 证明父实现会漏掉短时遮挡，`transient-cover-history.txt` 证明当前全程采样能抓到遮挡历史。`red-motion-parent-load.txt` 是通过日志而非红测，未作为失败证据。
-- 主工作区 12 个站点的低/高负载报告为 `check-published-low-completeness/report.json`、`check-published-high-completeness/report.json`，各 36 行；每行都有 11 个可见且已测区块、正文段落/行和对比度条目。`check-published-failure-diff-completeness.txt` 逐行结果为 `low=16 high=16 same=True`，只有既有正文行长失败，无 facts missing。
-- 人为负载（1 个 CPU hog；运行期间 1 分钟负载记录见 `uptime-motion-load-final-r11.txt`）下 motion 连跑 5 次通过，日志为 `motion-load-final-r11-1..5.txt`。错误入口、过高负载和时序缺口日志均保留；最终 focused motion 也通过 `motion-after-progress-delay.txt`。
-- 合并后最终全量 `npm test` **703/703、0 失败**，见 `npm-test-final-t099.txt`；`npm run typecheck` 和 `npm run build` 均退出 0，见 `typecheck-final-t099.txt`、`build-final-t099.txt`。开发服务器已在验证后停止，未启动 T-102。
-- AGENTS.md、`docs/project/spec.md` 已同步发布检查的就绪与测量完整性要求；`project_map.py status --root .` 在提交前复核无 stale。票状态保持 open，等待独立审查与 Claude 验收；不 push。
+- 已合并主线 `family-kit-assembly`（93e4e0e）。固定等待清单、失败方式和两个 equipment 测试已统一到 `artifacts/t099/wall-clock-inventory.md`、`browser-test-files.txt`；冲突保留两边功能。
+- `completeness-merge-1256214.txt` 与 `transient-cover-merge-1256214.txt` 均在最终 SHA 通过；父提交缺测红测、短时遮挡红测和历史采样夹具均保留。`red-motion-parent-load.txt` 明确是通过日志，不作为红测。
+- motion 高负载 5 次通过：`motion-merge-1256214-1..5.txt`，完整 SHA/命令/时间在每份日志首行，负载见 `uptime-motion-merge-1256214.txt`。
+- 12 站低/高负载 check-published 使用 `artifacts/handoff/mainline-12-sites.txt` 的 zsh 数组参数，并在每次运行前强制复制主工作区站点文件。报告 `check-published-low-merge-final-array/report.json` 与 `check-published-high-merge-final-array/report.json` 各 36 行、0 失败；`check-published-merge-failure-diff.txt` 逐行显示两份失败集合相同为空，textContrast/bodyLineLength/facts 条数均不少于 `artifacts/merge-32a4ee9/check-published/report.json` 基线。
+- 旧报告 `check-published-low-merge-2576213` 的 0 条行长根因是预览、整页高度和字体尚未完成时就调用同步 scanner；且当时没有测量完整性元数据，所以无数据被静默当成无失败。当前 checker 在取数前等待这些条件，并对测量缺失直接失败。
+- 合并后第一次全量在机器高负载下的设备数量带失败已保留于 `npm-test-merge-1256214.txt`；低负载最终全量 `npm-test-merge-1256214-final-low.txt` **770/770、0 失败**。`typecheck-merge-1256214-clean.txt`（清除旧 `.next` 后）和 `build-merge-1256214.txt` 均退出 0。
+- `project_map.py status --root .` 无 stale；本票状态保持 open，等待 Astra/Claude 验收。本地提交待本次 Resolution commit，未 push。
