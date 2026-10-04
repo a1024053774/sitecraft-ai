@@ -62,7 +62,7 @@ export const brightLook: BlockLook = {
     "--site-h1-leading": "1.04",
     "--site-h1-tracking": "-0.05em",
     "--site-heading-wrap": "anywhere",
-    "--site-heading-break": "break-all",
+    "--site-heading-break": "normal",
     "--site-heading-max": "100%",
     "--site-heading-text-wrap": "wrap",
     "--site-heading-tracking": "-0.045em",

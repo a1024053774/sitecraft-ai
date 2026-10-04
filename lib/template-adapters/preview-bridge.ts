@@ -53,17 +53,32 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return typeof value === "string" ? value : localize(value, locale) || "";
   }
 
-  function longestRunEm(value) {
+  function longestRunEm(value, referenceNode) {
     var text = String(value || "").trim();
     var runs = text.split(/[\s，、。；：！？]+/).filter(Boolean);
-    var width = function (run) {
+    var fallbackWidth = function (run) {
       return Array.from(run).reduce(function (sum, char) {
         if (/[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(char)) return sum + 1;
         if (/[A-Za-z0-9]/.test(char)) return sum + 0.6;
         return sum + 0.4;
       }, 0);
     };
-    return Math.max(1, ...runs.map(width)).toFixed(2);
+    var measuredWidth = function (run) {
+      if (!referenceNode || !document || !document.body || !document.createElement || !global.getComputedStyle) return fallbackWidth(run);
+      var style = global.getComputedStyle(referenceNode);
+      var fontSize = parseFloat(style.fontSize || "0");
+      if (!fontSize) return fallbackWidth(run);
+      var probe = document.createElement("span");
+      probe.textContent = run;
+      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;"
+        + "font-family:" + style.fontFamily + ";font-size:" + style.fontSize + ";font-weight:" + style.fontWeight + ";"
+        + "font-style:" + style.fontStyle + ";letter-spacing:" + style.letterSpacing + ";font-kerning:" + style.fontKerning + ";";
+      document.body.appendChild(probe);
+      var width = probe.getBoundingClientRect().width / fontSize;
+      probe.remove();
+      return width > 0 ? width : fallbackWidth(run);
+    };
+    return Math.max(1, ...runs.map(measuredWidth)).toFixed(2);
   }
 
   function fitTextEnabled() {
@@ -1021,9 +1036,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-run", longestRunEm(nextValue));
+      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-run", longestRunEm(nextValue, node));
       if (fitTextEnabled() && (slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) {
-        node.style.setProperty("--sitecraft-brand-run", longestRunEm(nextValue));
+        node.style.setProperty("--sitecraft-brand-run", longestRunEm(nextValue, node));
       }
       if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";

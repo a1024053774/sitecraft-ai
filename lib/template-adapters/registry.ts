@@ -551,7 +551,7 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         border: "#d8e3ee",
         diagram: "#e3eef7",
         tint: "#eef5fa",
-        font: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif',
+        font: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
         radius: "0.875rem",
       },
       modules: [

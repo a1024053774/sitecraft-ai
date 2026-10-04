@@ -10,7 +10,7 @@ export const heroFragment: BlockFragment = {
 .sitecraft-hero[data-sitecraft-hero-mode="none"] .sitecraft-hero-grid { grid-template-columns: minmax(0, 1fr); }
 .sitecraft-eyebrow { margin: 0 0 18px; padding: var(--site-eyebrow-pad); background: var(--site-eyebrow-bg); font-size: 13px; color: var(--site-eyebrow); letter-spacing: 0.02em; }
 .sitecraft-hero h1 { margin: 0; max-width: var(--site-heading-max); font-size: var(--site-h1); line-height: var(--site-h1-leading); letter-spacing: var(--site-h1-tracking); font-weight: 750; text-wrap: var(--site-heading-text-wrap); word-break: var(--site-heading-break); overflow-wrap: var(--site-heading-wrap); }
-.sitecraft-hero h1[style*="--sitecraft-title-run"] { font-size: max(var(--site-h1-fit-min, 24px), min(var(--site-h1), calc(100cqw / var(--sitecraft-title-run)))); word-break: keep-all; overflow-wrap: normal; }
+.sitecraft-hero h1[style*="--sitecraft-title-run"] { font-size: max(var(--site-h1-fit-min, 24px), min(var(--site-h1-fit-size, var(--site-h1)), calc(100cqw / var(--sitecraft-title-run)))); word-break: normal; overflow-wrap: normal; text-wrap: balance; }
 .sitecraft-hero-copy { margin: 22px 0 0; max-width: 34em; font-size: 18px; line-height: 1.6; color: var(--site-muted); }
 .sitecraft-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 .sitecraft-hero-visual { margin: 0; }
@@ -75,6 +75,7 @@ export const heroFragment: BlockFragment = {
 `,
   phone: `
 .sitecraft-hero h1 { font-size: var(--site-h1-narrow, var(--site-h1)); }
+.sitecraft-hero h1[style*="--sitecraft-title-run"] { --site-h1-fit-size: var(--site-h1-narrow, var(--site-h1)); }
 /* Series-prefixed labels like「直角减速机 · 额定输出扭矩」need the full width on phones. */
 .sitecraft-hero-specs dl { grid-template-columns: 1fr; }
 .sitecraft-hero-spec { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }

@@ -45,6 +45,7 @@ const capabilityLedRules: SiteStyleRule[] = [
 export const catalogLook: BlockLook = {
   id: "export-catalog",
   templateId: "landwind",
+  fitText: "container",
   documentTitle: "蓝白目录首页",
   tokens: {
     "--site-container": "1180px",
