@@ -137,35 +137,11 @@ function providerConfig() {
   };
 }
 
-// Catalog items sometimes arrive without `title` or `body`; that is the same as an explicit gap,
-// so fill the gap text instead of failing the whole generation.
-function fillMissingCatalogText(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object" || !Array.isArray((raw as { operations?: unknown }).operations)) return raw;
-  const gap = { zh: "待补充", en: "To be provided" };
-  const response = raw as { operations: unknown[] };
-  return {
-    ...response,
-    operations: response.operations.map((operation) => {
-      const op = operation as { op?: unknown; value?: { items?: unknown } } | null;
-      if (!op || op.op !== "set_catalog_section" || !op.value || !Array.isArray(op.value.items)) return operation;
-      return {
-        ...op,
-        value: {
-          ...op.value,
-          items: op.value.items.map((item) => item && typeof item === "object"
-            ? { ...item, title: (item as { title?: unknown }).title ?? gap, body: (item as { body?: unknown }).body ?? gap }
-            : item),
-        },
-      };
-    }),
-  };
-}
-
 function parseModelJson(content: unknown): { data: AIIntentResponse | null; error: string; fields?: string[] } {
   if (typeof content !== "string") return { data: null, error: "message.content 不是字符串" };
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
-    const parsed = aiIntentResponseSchema.safeParse(fillMissingCatalogText(JSON.parse(cleaned)));
+    const parsed = aiIntentResponseSchema.safeParse(JSON.parse(cleaned));
     if (parsed.success) {
       return { data: parsed.data, error: "" };
     }
