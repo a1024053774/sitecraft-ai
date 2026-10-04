@@ -4,6 +4,7 @@ import { contactFragment, footerFragment } from "./contact.ts";
 import { heroFragment } from "./hero.ts";
 import { capabilitiesFragment, industriesFragment } from "./lists.ts";
 import { commercialTermsFragment } from "./commercial-terms.ts";
+import { equipmentFragment } from "./equipment.ts";
 import { navFragment } from "./nav.ts";
 import { productsFragment } from "./products.ts";
 import { certificationsFragment, faqFragment, servicesFragment } from "./sections.ts";
@@ -16,6 +17,7 @@ export const blockFragments: Readonly<Record<BlockId, BlockFragment>> = {
   hero: heroFragment,
   products: productsFragment,
   commercialTerms: commercialTermsFragment,
+  equipment: equipmentFragment,
   industries: industriesFragment,
   capabilities: capabilitiesFragment,
   services: servicesFragment,

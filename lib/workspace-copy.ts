@@ -10,6 +10,7 @@ const sectionLabels: Record<string, string> = {
   services: "服务",
   products: "产品",
   commercialTerms: "商业条款",
+  equipment: "设备",
   industries: "应用行业",
   capabilities: "加工能力",
   certifications: "认证",

@@ -11,7 +11,7 @@ import { applySiteOperations, type SiteOperation } from "../lib/site-operations.
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-073: 产品「型号索引表」(products:index). One row per product: category, name, that product's
 // own first three valued specs (each cell names its spec, so rows need not share any), and the
@@ -233,8 +233,7 @@ test("型号索引表 has no horizontal overflow at 1440, 768 and 375 on two loo
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 
