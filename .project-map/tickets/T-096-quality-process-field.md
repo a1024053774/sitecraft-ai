@@ -2,7 +2,7 @@
 id: T-096
 title: 质检流程（有序步骤）：草稿字段到页面
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: field-build
 supersedes:
@@ -23,7 +23,7 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 
 - [x] 测试先写、改动前先失败（行为级）：步骤顺序保持资料顺序；资料没有质检流程时区块不出现；同一事实不在质检流程和设备 / 认证里重复
 - [x] 真实 DeepSeek：三份模拟资料各走一次生成，记录写入的步骤（`artifacts/t096/`），没有编造步骤或数字
-- [ ] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -69,3 +69,6 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 - 父提交 `466d480` 红证据保存在 `artifacts/t096/red-zero-parts-before-fix.txt`：`零件检查` / `Part inspection` 被错误拒绝。
 - 提交 `d03e6b4` 将共享 `commercialUnitsMatch` 改为上下文单位规则：单位只在数字紧邻或 `每`/`按`/`per` 上下文中计入；英文 `part`、`component` 等词内名词不再触发 piece，数字件/每件/按件仍严格映射。小时规则保持数字邻近约束，已有万件、天、周、月、年、台、套、t、kg 映射继续通过。
 - 新增正/负例与共享回归：零件/Part 通过，同时/Check h 拒绝，每件/Packed separately 拒绝，商业条款和设备的既有单位错配仍拒绝；相关测试 **47/47**，typecheck 通过。最终全量 `npm test` **688/688**，日志 `artifacts/t096/npm-test-t096-r3-final.txt`。
+
+### 合回主线与关闭（Claude，2026-10-04 EDT）
+- Astra 五轮后 PASS（`artifacts/review-astra-t096-r5.md`）。随 fields 分支合入主线 `1b83785`。主工作区 3034：`1b83785`（fields 合并）build、typecheck 通过，12 站 `check-published` 36 行 0 失败且逐行实测条数不少于基线（`artifacts/merge-1b83785/`）；夹具修复后 `3264022` 全量 770/770（`artifacts/merge-3264022/`）。 注塑父提交真实对照由 field-build 补跑，结果追加在 T-100。Claude 验收关闭。
