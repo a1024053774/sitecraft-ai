@@ -135,6 +135,7 @@ const SCAN = `(() => {
   for (const el of block.querySelectorAll("*")) {
     const r = el.getBoundingClientRect();
     if (r.width <= 1 || r.height <= 1) continue; // empty, or a visually hidden label
+    if (el.classList.contains('honeypot')) continue; // the spam trap sits off screen on purpose
     if (r.right > vw + 1 || r.left < -1) result.overflow.push({ kind: "outside-viewport", el: describe(el), left: Math.round(r.left), right: Math.round(r.right) });
     const style = getComputedStyle(el);
     if (el !== block && el.scrollWidth > el.clientWidth + 1 && style.display !== "inline" && style.overflowX !== "visible") result.clipped.push({ kind: "x-clipped", el: describe(el) });

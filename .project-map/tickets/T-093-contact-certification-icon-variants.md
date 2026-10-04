@@ -4,7 +4,7 @@ title: 联系方式和认证区块的图标变体，盲评决定去留
 type: build
 status: open
 blocked_by: [T-092, T-081]
-claimed_by:
+claimed_by: blocks-build
 supersedes:
 ---
 
@@ -23,3 +23,11 @@ supersedes:
 - [ ] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
+
+2026-10-04，盲评结论已落实：保留联系方式 `contact:icons`，删除认证 `certifications:icons`。认证图标变体、对应 catalog 声明、`.sitecraft-cert-icons` CSS/mask 和专属测试均未进入本次提交；认证卡片文字版继续保留。联系方式图标仍由 `lib/blocks/fragments/icon-svg.ts` 读取 T-092 注册表几何，不在区块里手写路径。`scripts/render-block.mjs` 保留 honeypot 的屏幕外扫描豁免。
+
+- 红测复核：先将未提交工作保存到 `stash@{0}`，在 `44ad099` 临时取回 `tests/block-contact-icons.test.ts` 执行 `SITECRAFT_BASE=http://127.0.0.1:3035 CHROME_PATH=... node --test --experimental-strip-types tests/block-contact-icons.test.ts`，6/6 按预期失败；复核日志：`artifacts/t093/red-contact-icons-rechecked.txt`。
+- 合并：`git merge family-kit-assembly` 快进至 `1b83785`，无冲突；随后恢复 stash 并按盲评删去认证变体。
+- 本票相关测试：联系方式图标测试 6/6 PASS；`npm run build` PASS；`npm run typecheck` PASS。
+- 全量：`SITECRAFT_BASE=http://127.0.0.1:3035 CHROME_PATH=... npm test` 为 774 PASS / 1 FAIL（`tests/t100-structured-output.test.ts` 读取缺失的历史证据 `artifacts/t096/repro-current-264c953/industrial-trial-1.json`，与本票无关），日志：`artifacts/t093/npm-test-full-post-merge-3035.log`。第一次误用默认 3034 的失败日志另存为 `artifacts/t093/npm-test-full-post-merge.log`，未覆盖。
+- 证据时间（2026-10-04 EDT）：红测复核日志 04:29:05；`npm run build` 04:36:26；`npm run typecheck` 04:36:38；正确环境全量日志 08:30:03；12 站发布页报告 08:38:37。发布页命令为 `ids=("${(@f)$(cat /Users/luckye/Documents/Code/sitecraft-ai/artifacts/handoff/mainline-12-sites.txt)}"); for id in $ids; do cp -f /Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/sites/$id.json .sitecraft-data/sites/$id.json; done; SITECRAFT_BASE=http://127.0.0.1:3035 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node scripts/check-published.mjs --out artifacts/t093/check-published-12 $ids`；报告 36 行 / 0 failures，对照基线 36 行 / 0 failures。代码提交 SHA：`7876706`。

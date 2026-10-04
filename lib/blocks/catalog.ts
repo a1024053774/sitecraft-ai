@@ -441,6 +441,18 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ['[data-sitecraft-inquiry="true"]'],
         parts: ["copy", "title", "lines", "form"],
       },
+      icons: {
+        label: "图标联系",
+        slots: [
+          benchmark("contact.title", "contact-title"),
+          benchmark("contact.body", "contact-body"),
+          text("contact.email", '[data-sitecraft-contact="email"]'),
+          text("contact.phone", '[data-sitecraft-contact="phone"]'),
+          text("contact.address", '[data-sitecraft-contact="address"]'),
+        ],
+        markers: ['[data-sitecraft-inquiry="true"]'],
+        parts: ["copy", "title", "lines", "form"],
+      },
       panel: {
         label: "面板询盘",
         slots: [benchmark("contact.title", "contact-title"), benchmark("contact.body", "contact-body"), text("contact.email", '[data-sitecraft-contact="email"]'), text("contact.phone", '[data-sitecraft-contact="phone"]')],
