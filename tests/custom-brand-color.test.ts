@@ -50,9 +50,9 @@ test("custom palette operation is reversible and records the adjustment note", (
 });
 
 test("commitOperations rejects an invalid custom palette without changing the draft", async () => {
-  const { commitOperations, deleteSiteRecord, getSite } = await import("../lib/site-store.ts");
+  const { commitOperations, deleteSiteRecord, createSite } = await import("../lib/site-store.ts");
   const siteId = `t088-invalid-palette-${crypto.randomUUID()}`;
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const invalid = { ...generateCustomPalette("#111827", "color").palette, background: "#ffffff", surface: "#ffffff", accent: "#ffffff", accentStrong: "#ffffff", accentText: "#ffffff" };
   const result = await commitOperations({
     siteId,
@@ -62,7 +62,7 @@ test("commitOperations rejects an invalid custom palette without changing the dr
     source: "manual",
   });
   assert.equal(result.status, "rejected");
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.customPalette, null);
   deleteSiteRecord(siteId);
 });

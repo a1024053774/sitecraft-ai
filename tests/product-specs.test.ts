@@ -21,7 +21,7 @@ registerHooks({
   },
 });
 
-const { commitOperations, getSite } = await import("../lib/site-store.ts");
+const { commitOperations, createSite } = await import("../lib/site-store.ts");
 
 const templateIds = new Set(["forge", "screwfast", "kindred"]);
 const options = { templateIds, lastChange: "product-specs" };
@@ -92,7 +92,7 @@ test("spec values absent from materials become 待补充 under validateAIOperati
 
 test("commitOperations persists product specs on a real site record", async () => {
   const siteId = `spec-tracer-${Date.now().toString(36)}`;
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   // New sites carry no products (T-035), so the tracer adds one in the same commit.
   const productId = defaultDraft.products[0].id!;
   const committed = await commitOperations({

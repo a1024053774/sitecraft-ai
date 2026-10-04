@@ -193,7 +193,7 @@ test("quality and published first screens wait for iframe apply instead of captu
   assert.match(clientSource, /quality-preview-cell/);
   assert.match(clientSource, /\/published\/\$\{/);
   assert.equal(publishedPageSource.includes("\"use client\""), false);
-  assert.match(publishedPageSource, /getSite/);
+  assert.match(publishedPageSource, /getExistingSite/);
   assert.match(publishedPageSource, /initialDraft/);
   assert.match(publishedPageSource, /force-dynamic/);
   assert.match(publishedClientSource, /data-preview-hydrated/);

@@ -21,7 +21,7 @@ registerHooks({
     return nextResolve(pathToFileURL(file).href, context);
   },
 });
-const { commitOperations, getSite } = await import("../lib/site-store.ts");
+const { commitOperations, createSite } = await import("../lib/site-store.ts");
 const created = new Set<string>();
 const options = { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing"]), lastChange: "site-style-commit" };
 const style: Extract<SiteOperation, { op: "set_site_style" }> = { op: "set_site_style", direction: null, rules: [{ block: "hero", part: "title", declarations: { "font-size": "64px" } }] };
@@ -39,17 +39,17 @@ function newSite() {
 
 test("without Chrome a style-only commit is rejected and leaves the draft unchanged", async () => {
   const siteId = newSite();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const result = await commitOperations({ siteId, baseRevision: before.draft.revision, source: "manual", summary: "改首屏", operations: [style] });
   assert.equal(result.status, "rejected");
   if (result.status !== "rejected") throw new Error("expected style rejection");
   assert.match(result.reasons.join("；"), /找不到 Chrome/);
-  assert.deepEqual((await getSite(siteId)).draft, before.draft);
+  assert.deepEqual((await createSite(siteId)).draft, before.draft);
 });
 
 test("without Chrome a mixed commit keeps ordinary changes and rejects only style", async () => {
   const siteId = newSite();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const result = await commitOperations({
     siteId,
     baseRevision: before.draft.revision,
@@ -61,14 +61,14 @@ test("without Chrome a mixed commit keeps ordinary changes and rejects only styl
   if (result.status !== "applied") throw new Error("expected ordinary change to apply");
   assert.ok(result.rejected?.some((reason) => /找不到 Chrome/.test(reason)));
   assert.deepEqual(result.changeSet.operations.map((operation) => operation.op), ["set_text"]);
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.content.hero.title.zh, "正常标题");
   assert.equal(after.draft.siteStyle, undefined);
 });
 
 test('direction-only style must also be checked before saving', async () => {
-  const siteId = newSite(); const before=await getSite(siteId);
+  const siteId = newSite(); const before=await createSite(siteId);
   const result=await commitOperations({siteId,baseRevision:before.draft.revision,source:'manual',summary:'direction',operations:[{op:'set_site_style',direction:'catalog-led',rules:[]}]});
   assert.equal(result.status,'rejected');
-  assert.deepEqual((await getSite(siteId)).draft,before.draft);
+  assert.deepEqual((await createSite(siteId)).draft,before.draft);
 });

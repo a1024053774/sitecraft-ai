@@ -62,7 +62,7 @@ registerHooks({
 });
 
 process.env.SITE_STORE = "postgres";
-const { commitOperations, getSite, selectiveUndo } = await import("../lib/site-store.ts");
+const { commitOperations, createSite, selectiveUndo } = await import("../lib/site-store.ts");
 const { createAnnotation } = await import("../lib/annotation-store.ts");
 
 async function makeAnnotation(siteId: string) {
@@ -76,7 +76,7 @@ async function makeAnnotation(siteId: string) {
 
 test("Postgres selective undo partially applies non-conflicting bilingual targets", async () => {
   const siteId = `t085-pg-undo-${crypto.randomUUID()}`;
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const annotationId = await makeAnnotation(siteId);
   const committed = await commitOperations({ siteId, baseRevision: initial.draft.revision, source: "ai", summary: "双语", annotationId, operations: [{ op: "set_text", target: "hero.title", value: { zh: "批注中文", en: "Annotation English" } }] } as Parameters<typeof commitOperations>[0] & { annotationId: string });
   assert.equal(committed.status, "applied");
@@ -85,12 +85,12 @@ test("Postgres selective undo partially applies non-conflicting bilingual target
   const undone = await selectiveUndo(siteId, committed.changeSet.id);
   assert.equal(undone.status, "applied");
   assert.deepEqual(undone.conflictTargets, ["hero.title.zh"]);
-  assert.equal((await getSite(siteId)).draft.content.hero.title.en, initial.draft.content.hero.title.en);
+  assert.equal((await createSite(siteId)).draft.content.hero.title.en, initial.draft.content.hero.title.en);
 });
 
 test("Postgres repeated target in one transaction restores its start value", async () => {
   const siteId = `t085-pg-repeat-${crypto.randomUUID()}`;
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const annotationId = await makeAnnotation(siteId);
   const committed = await commitOperations({ siteId, baseRevision: initial.draft.revision, source: "ai", summary: "重复", annotationId, operations: [
     { op: "set_text", target: "hero.title", locale: "zh", value: "one" },
@@ -100,12 +100,12 @@ test("Postgres repeated target in one transaction restores its start value", asy
   const undone = await selectiveUndo(siteId, committed.changeSet.id);
   assert.equal(undone.status, "applied");
   assert.deepEqual(undone.conflictTargets, []);
-  assert.equal((await getSite(siteId)).draft.content.hero.title.zh, initial.draft.content.hero.title.zh);
+  assert.equal((await createSite(siteId)).draft.content.hero.title.zh, initial.draft.content.hero.title.zh);
 });
 
 test("Postgres repeated target plus later other-target edit only conflicts the later target", async () => {
   const siteId = `t085-pg-repeat-mixed-${crypto.randomUUID()}`;
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const annotationId = await makeAnnotation(siteId);
   const committed = await commitOperations({ siteId, baseRevision: initial.draft.revision, source: "ai", summary: "重复混合", annotationId, operations: [
     { op: "set_text", target: "hero.title", locale: "zh", value: "one" },
@@ -117,38 +117,38 @@ test("Postgres repeated target plus later other-target edit only conflicts the l
   const undone = await selectiveUndo(siteId, committed.changeSet.id);
   assert.equal(undone.status, "applied");
   assert.deepEqual(undone.conflictTargets, ["hero.subtitle.zh"]);
-  const after = (await getSite(siteId)).draft;
+  const after = (await createSite(siteId)).draft;
   assert.equal(after.content.hero.title.zh, initial.draft.content.hero.title.zh);
   assert.equal(after.content.hero.subtitle.zh, "later subtitle");
 });
 
 test("Postgres same-target conflict does not write a new change", async () => {
   const siteId = `t085-pg-conflict-${crypto.randomUUID()}`;
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const annotationId = await makeAnnotation(siteId);
   const committed = await commitOperations({ siteId, baseRevision: initial.draft.revision, source: "ai", summary: "批注", annotationId, operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "批注标题" }] } as Parameters<typeof commitOperations>[0] & { annotationId: string });
   if (committed.status !== "applied") throw new Error("expected applied");
   await commitOperations({ siteId, baseRevision: committed.record.draft.revision, source: "manual", summary: "后来", operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "后来标题" }] });
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const undone = await selectiveUndo(siteId, committed.changeSet.id);
   assert.equal(undone.status, "conflict");
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.deepEqual(after.draft, before.draft);
   assert.equal(after.history.length, before.history.length);
 });
 
 test("Postgres second selective undo of the same transaction is a conflict", async () => {
   const siteId = `t085-pg-second-${crypto.randomUUID()}`;
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const annotationId = await makeAnnotation(siteId);
   const committed = await commitOperations({ siteId, baseRevision: initial.draft.revision, source: "ai", summary: "批注", annotationId, operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "批注标题" }] } as Parameters<typeof commitOperations>[0] & { annotationId: string });
   if (committed.status !== "applied") throw new Error("expected applied");
   const first = await selectiveUndo(siteId, committed.changeSet.id);
   assert.equal(first.status, "applied");
-  const historyLength = (await getSite(siteId)).history.length;
+  const historyLength = (await createSite(siteId)).history.length;
   const second = await selectiveUndo(siteId, committed.changeSet.id);
   assert.equal(second.status, "conflict");
-  assert.equal((await getSite(siteId)).history.length, historyLength);
+  assert.equal((await createSite(siteId)).history.length, historyLength);
 });
 
 test.after(async () => {

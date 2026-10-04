@@ -25,7 +25,7 @@ registerHooks({
 const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
 };
-const { getSite } = await import("../lib/site-store.ts");
+const { createSite } = await import("../lib/site-store.ts");
 
 let plannerPayload: Record<string, unknown>;
 globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(plannerPayload) } }] }), {
@@ -41,7 +41,7 @@ function newSiteId() {
 }
 
 async function start(siteId: string) {
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const response = await POST(new Request(`http://sitecraft.test/api/sites/${siteId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

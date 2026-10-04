@@ -144,7 +144,7 @@ export function snapshot(record: SiteRecord, isNew?: boolean): SiteSnapshot {
     hasGeneratedContent: record.history.some((change) => change.source === "ai"),
   };
 }
-async function getLocalSite(siteId: string) {
+async function createLocalSite(siteId: string) {
   return withSiteLock(siteId, async () => {
     const existing = await readRecord(siteId);
     if (existing) return snapshot(existing, false);
@@ -394,11 +394,16 @@ async function commitLocalOperationsLocked(args: CommitArgs, record: SiteRecord)
 }
 
 async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
-  return withSiteLock(args.siteId, async () => commitLocalOperationsLocked(args, (await readRecord(args.siteId)) ?? createRecord(args.siteId)));
+  return withSiteLock(args.siteId, async () => {
+    const existing = await readRecord(args.siteId);
+    if (!existing) throw new Error(`Site not found: ${args.siteId}`);
+    return commitLocalOperationsLocked(args, existing);
+  });
 }
 async function moveLocalHistory(siteId: string, action: "undo" | "redo") {
   return withSiteLock(siteId, async () => {
-    const record = (await readRecord(siteId)) ?? createRecord(siteId);
+    const record = await readRecord(siteId);
+    if (!record) throw new Error(`Site not found: ${siteId}`);
     const changeSet = action === "undo" ? record.history.at(-1) : record.future[0];
     if (!changeSet) return { status: "empty" as const, record };
     const result = applySiteOperations(record.draft, action === "undo" ? changeSet.inverseOperations : changeSet.operations, {
@@ -464,21 +469,23 @@ export async function migratePostgresRecordIfNeeded(
   return upgraded;
 }
 
-async function lockPostgresRecord(client: PoolClient, siteId: string) {
+async function lockPostgresRecord(client: PoolClient, siteId: string, allowCreate = false) {
   safeSiteId(siteId);
-  const initial = createRecord(siteId);
-  await client.query(
-    `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, history_schema_version, updated_at)
-     VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4, $5)
-     ON CONFLICT (workspace_id, site_id) DO NOTHING`,
-    [workspaceId, siteId, JSON.stringify(initial.draft), 3, initial.updatedAt],
-  );
+  if (allowCreate) {
+    const initial = createRecord(siteId);
+    await client.query(
+      `INSERT INTO sitecraft_sites (workspace_id, site_id, draft, history, future, history_schema_version, updated_at)
+       VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, $4, $5)
+       ON CONFLICT (workspace_id, site_id) DO NOTHING`,
+      [workspaceId, siteId, JSON.stringify(initial.draft), 3, initial.updatedAt],
+    );
+  }
   const result = await client.query<SiteRow>(
     `SELECT site_id, draft, history, future, history_schema_version, updated_at
      FROM sitecraft_sites WHERE workspace_id = $1 AND site_id = $2 FOR UPDATE`,
     [workspaceId, siteId],
   );
-  if (!result.rows[0]) throw new Error("Site record could not be created");
+  if (!result.rows[0]) throw new Error(`Site not found: ${siteId}`);
   const record = rowToRecord(result.rows[0]);
   return migratePostgresRecordIfNeeded(record, (upgraded) => savePostgresRecord(client, upgraded));
 }
@@ -492,7 +499,7 @@ async function savePostgresRecord(client: Pick<PoolClient, "query">, record: Sit
   );
 }
 
-async function getPostgresSite(siteId: string) {
+async function createPostgresSite(siteId: string) {
   safeSiteId(siteId);
   await ensureDatabaseSchema();
   const initial = createRecord(siteId);
@@ -601,8 +608,8 @@ async function movePostgresHistory(siteId: string, action: "undo" | "redo") {
   });
 }
 
-export function getSite(siteId: string) {
-  return usePostgres ? getPostgresSite(siteId) : getLocalSite(siteId);
+export function createSite(siteId: string) {
+  return usePostgres ? createPostgresSite(siteId) : createLocalSite(siteId);
 }
 
 export function getExistingSite(siteId: string) {
@@ -699,7 +706,9 @@ export function moveHistory(siteId: string, action: "undo" | "redo") {
 }
 
 async function readLocalRecordForSelective(siteId: string) {
-  return (await readRecord(siteId)) ?? createRecord(siteId);
+  const record = await readRecord(siteId);
+  if (!record) throw new Error(`Site not found: ${siteId}`);
+  return record;
 }
 
 export async function selectiveUndo(siteId: string, changeId: string): Promise<SelectiveUndoResult> {

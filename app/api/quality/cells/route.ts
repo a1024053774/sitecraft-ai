@@ -5,16 +5,21 @@ import {
   QUALITY_SUPPLEMENTARY,
   compareLookVsCopy,
   lookFingerprint,
+  qualityRecipe,
 } from "@/lib/quality-comparison";
 import { loadQualityMatrix } from "@/lib/quality-matrix";
 import { runQualityCell } from "@/lib/quality-run";
 import { applySiteOperations } from "@/lib/site-operations";
-import { commitOperations, getSite } from "@/lib/site-store";
+import { commitOperations, getExistingSite } from "@/lib/site-store";
 import { templates } from "@/lib/site-model";
 import { userErrorPayload, userFacingError } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+function missingSite(siteId: string) {
+  return Response.json({ ...userErrorPayload({ code: "site_not_found" }), siteId }, { status: 404 });
+}
 
 const runSchema = z.object({
   packId: z.enum(QUALITY_PACK_IDS),
@@ -39,7 +44,13 @@ function decodePng(value: string | undefined) {
 }
 
 export async function GET() {
-  return Response.json(await loadQualityMatrix(), { headers: { "Cache-Control": "no-store" } });
+  try {
+    return Response.json(await loadQualityMatrix(), { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.startsWith("site_not_found:")) return missingSite(message.slice("site_not_found:".length));
+    return Response.json(userErrorPayload({ code: "database_error" }), { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -50,7 +61,8 @@ export async function POST(request: Request) {
     try {
       if (parsed.data.action === "style-switch") {
         const sourceId = parsed.data.sourceSiteId || "p4m-c";
-        const source = await getSite(sourceId);
+        const source = await getExistingSite(sourceId);
+        if (!source) return missingSite(sourceId);
         const templateIds = new Set(templates.map((item) => item.id));
         const brightOps = applySiteOperations(structuredClone(source.draft), [
           { op: "set_visual_brief", briefId: "industrial" },
@@ -58,8 +70,10 @@ export async function POST(request: Request) {
         const engineeringOps = applySiteOperations(structuredClone(source.draft), [
           { op: "set_visual_brief", briefId: "engineering-industrial" },
         ], { templateIds, lastChange: "P4 样式切换工程工业" });
-        const brightSite = await getSite(QUALITY_SUPPLEMENTARY.styleSwitchBrightSiteId);
-        const engSite = await getSite(QUALITY_SUPPLEMENTARY.styleSwitchEngineeringSiteId);
+        const brightSite = await getExistingSite(QUALITY_SUPPLEMENTARY.styleSwitchBrightSiteId);
+        if (!brightSite) return missingSite(QUALITY_SUPPLEMENTARY.styleSwitchBrightSiteId);
+        const engSite = await getExistingSite(QUALITY_SUPPLEMENTARY.styleSwitchEngineeringSiteId);
+        if (!engSite) return missingSite(QUALITY_SUPPLEMENTARY.styleSwitchEngineeringSiteId);
         await commitOperations({
           siteId: QUALITY_SUPPLEMENTARY.styleSwitchBrightSiteId,
           baseRevision: brightSite.draft.revision,
@@ -74,8 +88,10 @@ export async function POST(request: Request) {
           summary: "P4 样式切换：工程工业",
           source: "template",
         });
-        const bright = await getSite(QUALITY_SUPPLEMENTARY.styleSwitchBrightSiteId);
-        const engineering = await getSite(QUALITY_SUPPLEMENTARY.styleSwitchEngineeringSiteId);
+        const bright = await getExistingSite(QUALITY_SUPPLEMENTARY.styleSwitchBrightSiteId);
+        const engineering = await getExistingSite(QUALITY_SUPPLEMENTARY.styleSwitchEngineeringSiteId);
+        if (!bright) return missingSite(QUALITY_SUPPLEMENTARY.styleSwitchBrightSiteId);
+        if (!engineering) return missingSite(QUALITY_SUPPLEMENTARY.styleSwitchEngineeringSiteId);
         return Response.json({
           action: "style-switch",
           lookVs: compareLookVsCopy(bright.draft, engineering.draft),
@@ -84,8 +100,10 @@ export async function POST(request: Request) {
         });
       }
       const sourceId = parsed.data.sourceSiteId || "p4m-c";
-      const source = await getSite(sourceId);
-      const longSite = await getSite(QUALITY_SUPPLEMENTARY.longTitleSiteId);
+      const source = await getExistingSite(sourceId);
+      if (!source) return missingSite(sourceId);
+      const longSite = await getExistingSite(QUALITY_SUPPLEMENTARY.longTitleSiteId);
+      if (!longSite) return missingSite(QUALITY_SUPPLEMENTARY.longTitleSiteId);
       await commitOperations({
         siteId: QUALITY_SUPPLEMENTARY.longTitleSiteId,
         baseRevision: longSite.draft.revision,
@@ -96,7 +114,8 @@ export async function POST(request: Request) {
         summary: "P4 超长标题反例",
         source: "manual",
       });
-      const long = await getSite(QUALITY_SUPPLEMENTARY.longTitleSiteId);
+      const long = await getExistingSite(QUALITY_SUPPLEMENTARY.longTitleSiteId);
+      if (!long) return missingSite(QUALITY_SUPPLEMENTARY.longTitleSiteId);
       return Response.json({
         action: "long-title",
         title: long.draft.content.hero.title.zh,
@@ -110,6 +129,8 @@ export async function POST(request: Request) {
 
   const parsed = runSchema.safeParse(raw);
   if (!parsed.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
+  const cell = qualityRecipe(parsed.data.packId, parsed.data.group).cell;
+  if (!await getExistingSite(cell.siteId)) return missingSite(cell.siteId);
   const result = await runQualityCell({
     packId: parsed.data.packId,
     group: parsed.data.group,

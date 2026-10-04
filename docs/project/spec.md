@@ -74,10 +74,12 @@
 - 规划器输出允许直接返回 `questions` 数组；服务端将首题归一化为兼容字段，不能因缺少重复的顶层单题字段而把有效问题卡判成 provider_error。规划器用顶层 `recommendation` 提供样子、色彩集推荐元数据，另外最多 2 题；服务端在草稿有结构化资料特征时用确定性样子推荐覆盖 `recommendation.styleId/styleReason`，色彩集仍按 `recommendation.colorSetId/colorSetReason` 重建；schema 不合格沿现有重试预算报告 invalid-output，不静默替换。服务端用目录重建这两题，输出长度上限要容得下这张卡。
 - 规划器 invalid_output、回答被截断、超时和连接失败必须明确返回给当前请求并允许重试，不能静默替换成内置样子问题。
 - Chat API 对规划失败返回 `retry_alignment` 与当前错误状态，不创建或替换待回答问题。
+- 对话入口、确认方案提交和普通 SSE 在站点于请求期间消失时都返回 `site_not_found` 与“找不到这个站点”的用户文案；其它 provider/操作错误继续使用原错误目录。
 - 测试夹具中已明确标记的恢复/延迟哨兵走 deterministic alignment 入口，不调用规划器；真实请求仍遵循上一条失败契约。
 - 新建站点请求的模板通过初始化 operation 写入草稿的 `visualBrief`、模板和页面计划；默认站点名与公司名使用中性缺口文字，不使用演示品牌。
 - 创建接口返回的草稿已经包含上述初始化 operation 结果，后续需求对齐以该模板和设计意图为上下文继续。
 - 从模板页进入工作台（`/workspace?template=<id>`，不带 `site`）就是新建站点：工作台调用创建接口，再把地址换成 `?site=<新 id>`，刷新时打开同一个站；不改任何已有站点的模板。只有四个样子背后的模板（forge、screwfast、landwind、tailwind-landing）能这样新建；其他开源模板在模板页只作参考，没有进入按钮，直接打开地址时工作台说明不能生成，不新建也不打开别的站点。
+- 只有 `POST /api/sites` 明确创建站点并写盘；发布页、草稿 GET、质量矩阵、聊天/提交、图片和历史路径读取不存在的站点时返回 `site_not_found`（发布页为 404），使用 `getExistingSite`，不生成默认空草稿、不写站点文件。质量对照缺少固定站点时报告缺失并停止该次操作；commit、history、selective undo 的 store 锁定路径也只接受已存在记录，入口检查后的删除竞态不能重新创建站点。
 - 重复点击/提交不能重复推进或重复 commit；过期问题、多标签页冲突、错误会话 ID 明确拒绝，并展示最新可回答状态。
 - 等待和回答只修改会话资料，不直接修改站点草稿。确认后的站点变更仍走 `commitOperations`，并检查草稿 revision；换模板/已修改草稿会使旧确认失效。
 - 如果已 commit 但流中断，恢复时先读取真实 revision/结果，不再执行同一份生成操作。

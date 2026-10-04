@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { siteDraftSchema } from "@/lib/site-document";
 import { siteOperationSchema } from "@/lib/site-operations";
-import { commitOperations, getSite, snapshot } from "@/lib/site-store";
+import { commitOperations, getExistingSite, snapshot } from "@/lib/site-store";
 import { assertStableItemIds } from "@/lib/site-migration";
 import { describeUserError, userErrorPayload } from "@/lib/user-errors";
 
@@ -17,11 +17,14 @@ const updateSchema = z.object({
 
 export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
-  return Response.json(await getSite(siteId), { headers: { "Cache-Control": "no-store" } });
+  const site = await getExistingSite(siteId);
+  if (!site) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
+  return Response.json(site, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
+  if (!await getExistingSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
   for (const operation of parsed.data.operations) {
@@ -45,6 +48,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ site
       ...snapshot(result.record),
     });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Site not found:")) {
+      return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
+    }
     const description = describeUserError({ code: "operation_error" });
     return Response.json({ error: description.code, userMessage: description.message, recovery: description.recovery }, { status: 422 });
   }
