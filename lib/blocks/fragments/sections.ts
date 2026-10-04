@@ -143,7 +143,7 @@ export const faqFragment: BlockFragment = {
 .sitecraft-faq-item { border-bottom: var(--site-rule); }
 .sitecraft-faq-item summary { cursor: pointer; padding: 16px 0; font-weight: 650; list-style: none; }
 .sitecraft-faq-item summary::-webkit-details-marker { display: none; }
-.sitecraft-faq-answer p { margin: 0 0 16px; color: var(--site-muted); line-height: 1.6; }
+.sitecraft-faq-answer p { margin: 0 0 16px; color: var(--site-muted); line-height: 1.6; max-inline-size: 33em; overflow-wrap: anywhere; text-wrap: pretty; }
 .sitecraft-faq-side { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 56px; }
 .sitecraft-faq-side .sitecraft-section-head { display: block; margin: 0; padding: 0; border: 0; }
 .sitecraft-faq-side .sitecraft-faq-list { border-top: var(--site-rule-strong); }
