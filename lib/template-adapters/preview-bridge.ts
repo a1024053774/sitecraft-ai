@@ -85,6 +85,40 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return Boolean(adapter && adapter.blocks && adapter.blocks.fitText === "container");
   }
 
+  // Font metrics are not stable until the first FontFaceSet load settles. Keep the
+  // measurement separate from slot writes so a late font cannot leave the fit variables
+  // calibrated against the fallback stack.
+  var fitTextFontListenerInstalled = false;
+  function measureFitTextNodes() {
+    if (!fitTextEnabled() || !document || !document.querySelectorAll) return;
+    var nodes = document.querySelectorAll("[data-sitecraft-fit-target]");
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var target = node.getAttribute ? node.getAttribute("data-sitecraft-fit-target") : "";
+      if (!target || !node.style || !node.style.setProperty) continue;
+      var value = node.textContent || "";
+      if (target === "hero.title") node.style.setProperty("--sitecraft-title-run", longestRunEm(value, node));
+      if (target === "companyName" || target === "siteName") node.style.setProperty("--sitecraft-brand-run", longestRunEm(value, node));
+    }
+  }
+
+  function measureFitTextAfterFonts() {
+    var fonts = document && document.fonts;
+    var ready = document && document.fonts && document.fonts.ready;
+    if (ready && typeof ready.then === "function") {
+      ready.then(measureFitTextNodes, measureFitTextNodes);
+    } else {
+      measureFitTextNodes();
+    }
+  }
+
+  function watchFontLoading() {
+    var fonts = document && document.fonts;
+    if (fitTextFontListenerInstalled || !fonts || typeof fonts.addEventListener !== "function") return;
+    fitTextFontListenerInstalled = true;
+    fonts.addEventListener("loadingdone", measureFitTextAfterFonts);
+  }
+
   function readDraftValue(draft, target, locale) {
     if (!draft) return undefined;
     var content = draft.content || {};
@@ -1095,15 +1129,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-run", longestRunEm(nextValue, node));
-      if (fitTextEnabled() && (slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) {
-        node.style.setProperty("--sitecraft-brand-run", longestRunEm(nextValue, node));
-      }
       if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";
         writeHeroTitle(node, nextValue);
       } else {
         node.textContent = adapter && adapter.blocks ? emailBreakPoints(nextValue) : nextValue;
+      }
+      if (fitTextEnabled() && (slot.target === "hero.title" || slot.target === "companyName" || slot.target === "siteName") && node.setAttribute) {
+        node.setAttribute("data-sitecraft-fit-target", slot.target);
       }
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";
@@ -2187,6 +2220,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     } else if (adapter) {
       hideGapsWithoutDraft(currentLocale, variant || "preview", applied);
     }
+    watchFontLoading();
+    measureFitTextAfterFonts();
     return report(applied, expected, adapter, extraMissing);
   }
 

@@ -67,7 +67,10 @@ def main() -> None:
     args = parser.parse_args()
     print(f"fontTools subset command; unicode range={UNICODE_RANGE}; weights={WEIGHTS}")
     for family, (stem, names) in STATIC_FILES.items():
-        for weight, name in zip(WEIGHTS, names, strict=True):
+        # Keep this recipe runnable with the project's minimum Python 3.9; zip(strict=...) arrived in 3.10.
+        if len(WEIGHTS) != len(names):
+            raise ValueError(f"weight/file count mismatch for {family}")
+        for weight, name in zip(WEIGHTS, names):
             subset(args.pyftsubset, args.source / family / name, args.output / family / f"{stem}-{weight}-latin.woff2")
     for family, name in VARIABLE_FILES.items():
         for weight in WEIGHTS:

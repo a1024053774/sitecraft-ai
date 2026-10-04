@@ -62,7 +62,7 @@ test("data roles opt into the mono token without allowing model style overrides"
 test("committed Latin subsets keep required symbols and exclude CJK for every production kit", () => {
   const python = process.env.T087_FONTTOOLS_PYTHON || (existsSync("/opt/miniconda3/bin/python") ? "/opt/miniconda3/bin/python" : "python3");
   const output = execFileSync(python, ["scripts/check-site-fonts.py"], { encoding: "utf8" });
-  const report = JSON.parse(output) as { ok: boolean; kits: Record<string, { files: Array<{ has_cjk: boolean; missing_symbols: string[] }> }> };
+  const report = JSON.parse(output) as { ok: boolean; kits: Record<string, { files: Array<{ file: string; has_cjk: boolean; missing_symbols: string[] }> }> };
   assert.equal(report.ok, true, output);
   for (const templateId of LOOK_TEMPLATES) {
     assert.ok(report.kits[templateId], `${templateId} should have a cmap audit`);
@@ -71,6 +71,12 @@ test("committed Latin subsets keep required symbols and exclude CJK for every pr
       assert.deepEqual(file.missing_symbols, [], `${templateId} subset is missing required symbols`);
     }
   }
+  assert.ok(report.kits.forge.files.some((file) => file.file === "sora/sora-700-latin.woff2"), "forge cmap audit must include its Sora heading subset");
+});
+
+test("font subset recipe stays executable on Python 3.9", () => {
+  const source = readFileSync(new URL("../scripts/subset-site-fonts.py", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /zip\([^\n]+strict\s*=/, "Python 3.9 has no zip(strict=...)");
 });
 
 test("the workspace keeps its original font import while published hosts omit workspace CSS", () => {
