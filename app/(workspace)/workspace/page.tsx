@@ -453,12 +453,12 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     let cancelled = false;
-    // `?site=` opens that site; `?template=` alone is the 新建站点 entry and creates a new site.
+    // `?site=` opens that site; only `?new=1` is the 新建站点 entry.
     async function resolveActiveSiteId() {
       const entry = resolveWorkspaceEntry(window.location.search, templates.map((item) => item.id), visualBriefCatalog.map((brief) => brief.templateId));
       if (entry.kind === "open") return parseWorkspaceSiteId(entry.siteId);
       if (entry.kind === "refuse") {
-        throw new Error(`「${getTemplate(entry.templateId).name.split(" / ")[0]}」只作参考，不能直接生成网站。请回到模板页，从四个样子背后的模板开始。`);
+        throw new Error("旧模板建站入口已下线，请从「AI 建站」进入工作台，在需求对齐卡里选择样子和配色。");
       }
       setNewSiteEntry(true);
       const key = window.location.search;
