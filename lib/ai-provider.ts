@@ -279,7 +279,7 @@ function blockOrderInstructions(templateId: string, draft: SiteDraft) {
     .filter((block) => block !== "hero")
     .map((block) => blockCatalog[block].label);
   const current = labels.join("、").replace("应用行业、加工能力", "应用行业+加工能力（并排，一起移动）");
-  return `10. reorder_sections：{"op":"reorder_sections","order":["products","commercialTerms","equipment","qualityProcess","industries","capabilities","services","certifications","faq","contact"]}。order 只写可排区块 products、commercialTerms、equipment、qualityProcess、industries、capabilities、services、certifications、faq、contact，可省略未提到的区块；未知键丢弃，缺少的按当前顺序接在后面，null 表示恢复默认顺序。可排顺序菜单：产品、商业条款、设备、质检流程、认证、应用行业、加工能力、合作方式、常见问题、询盘。当前顺序：${current}。应用行业和加工能力是并排组，整组一起移动，组内按顺序排；导航、菜单和页脚导航会跟着页面顺序，导航右侧的询盘按钮不动。只有用户明确提出顺序（明确点名要哪个区块先后）时才使用 reorder_sections；整站生成和需求对齐保持默认顺序，不自行调整。示例：把认证放到产品前面。顺序这一条不占 24 条普通 operation。\n`;
+  return `10. reorder_sections：{"op":"reorder_sections","order":["products","commercialTerms","equipment","qualityProcess","history","industries","capabilities","services","certifications","faq","contact"]}。order 只写可排区块 products、commercialTerms、equipment、qualityProcess、history、industries、capabilities、services、certifications、faq、contact，可省略未提到的区块；未知键丢弃，缺少的按当前顺序接在后面，null 表示恢复默认顺序。可排顺序菜单：产品、商业条款、设备、质检流程、沿革、认证、应用行业、加工能力、合作方式、常见问题、询盘。当前顺序：${current}。应用行业和加工能力是并排组，整组一起移动，组内按顺序排；导航、菜单和页脚导航会跟着页面顺序，导航右侧的询盘按钮不动。只有用户明确提出顺序（明确点名要哪个区块先后）时才使用 reorder_sections；整站生成和需求对齐保持默认顺序，不自行调整。示例：把认证放到产品前面。顺序这一条不占 24 条普通 operation。\n`;
 }
 
 function operationInstructions(templateId: string, allowSiteStyle: boolean, draft: SiteDraft) {
@@ -295,6 +295,7 @@ function operationInstructions(templateId: string, allowSiteStyle: boolean, draf
 4d. replace_equipment: {"op":"replace_equipment","equipment":[{"id":"短标识","name":{"zh":"资料里的设备名称","en":"English machine name"},"quantity":12,"spec":{"zh":"资料里的规格","en":"English specification"}}]}；设备是具体生产或检测机器，quantity 只能是资料同一句中紧挨设备名称的非负整数，没有数量写 null；spec 没有时写 null。中文名称和规格必须是去掉指令后资料同一句里的完整分句或原文连续子串，英文只翻译它并遵守数字、代码、单位机械对应；资料中没有设备不要把工序写进设备。加工能力是工序，设备是机器：工业/外贸资料的“加工能力/主设备”行只有工序时归 capabilities，不写 equipment；注塑资料同一行里明确写出的带数量机器归 equipment，不能在 capabilities 重复。只改一条时用 update_equipment（按 equipmentId，字段为 name/quantity/spec），删除用 remove_equipment。
    结构硬约束：equipment[].spec 只能是 null 或完整的 {"zh":"...","en":"..."} 双语对象；即使是纯数字、单位或范围，也不能写裸字符串。
 4e. replace_quality_process: {"op":"replace_quality_process","steps":[{"id":"短标识","title":{"zh":"资料里的步骤标题","en":"English step title"},"body":{"zh":"资料里的同一句说明","en":"English step description"}}]}；只写资料中明确标出的“质检流程”步骤，严格保持资料顺序，不重排、不补步骤。标题和说明都必须是去掉指令后同一质检分句里的完整分句或连续子串；说明没有时写 null。英文只翻译中文，不自行增加中文没有的数字或代码；质检动作不能把设备名称或认证事实重复写进来。只改一条时用 update_quality_process（按 stepId，字段为 title/body），删除用 remove_quality_process。不要自行输出 reorder_quality_process，用户明确要求调整顺序时才由服务端白名单处理。
+4f. replace_history: {"op":"replace_history","history":[{"id":"短标识","year":2008,"event":{"zh":"资料中紧跟年份的事件","en":"English event"}}]}；只写资料明确出现的四位年份和同一句中紧挨它的事件，严格保持资料顺序，不推算、不补“至今”，年份不能从关于正文或别的句子借来。year 必须是 1000–9999 的整数；event 必须是同一沿革分句的连续原文子串，英文只翻译事件，不把年份重复塞进 event。只改一条时用 update_history（按 itemId，字段为 year/event），删除用 remove_history。不要自行输出 reorder_history，用户明确要求调整顺序时才由服务端白名单处理。
 ${faqInstructions(templateId)}5. update_product: {"op":"update_product","productId":"产品稳定 id","name":{"zh":"中文名称","en":"English name"},"summary":{"zh":"中文摘要","en":"English summary"},"category":{"zh":"中文类别","en":"English category"}}
 6. set_product_specs: {"op":"set_product_specs","productId":"产品稳定 id","specs":[{"name":{"zh":"速比范围","en":"Ratio range"},"value":"i=25–100"},{"name":{"zh":"安装方式","en":"Mounting"},"value":{"zh":"底脚/法兰","en":"Foot / flange"}}]}
    只写入资料明确给出的规格参数；参数名中英双语。纯数字、单位和型号值两种语言相同，只写字符串；带中文或中文全角标点的值写成 {zh,en}，英文由你翻译。值必须能在资料正文中找到，找不到写成「待补充」，禁止编造数字。
@@ -425,6 +426,7 @@ export function buildDraftPromptContext(draft: SiteDraft, selectedTarget?: strin
     commercialTerms: draft.content.commercialTerms,
     equipment: draft.content.equipment,
     qualityProcess: draft.content.qualityProcess,
+    history: draft.content.history,
   };
   const selected = selectedSectionPayload(draft, selectedTarget);
   if (selected) compact.selectedSection = selected;

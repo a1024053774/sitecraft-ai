@@ -1004,6 +1004,47 @@ function sitecraftPreviewBridge(templateId, adapter) {
     void variant;
   }
 
+  function renderHistory(draft, locale, applied, variant) {
+    var sectionNode = uniqueNode('[data-sitecraft-section="history"]');
+    var entityNode = uniqueNode('[data-sc-block="history"]');
+    var grid = uniqueNode('[data-sitecraft-history-grid]');
+    if (!sectionNode || !entityNode || !grid || entityNode.getAttribute("data-sc-variant") !== "rows") return;
+    var history = draft && draft.content && Array.isArray(draft.content.history) ? draft.content.history : [];
+    var visible = [];
+    for (var i = 0; i < history.length; i++) {
+      var item = history[i];
+      if (!item || !item.id || !Number.isInteger(item.year) || item.year < 1000 || item.year > 9999) continue;
+      var event = localize(item.event, locale) || "";
+      visible.push({ id: item.id, year: String(item.year), event: isGapMarker(event) ? "" : event });
+    }
+    var hidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf("history") !== -1;
+    var shouldHide = hidden || !visible.length;
+    setSectionHidden(sectionNode, "history", shouldHide);
+    if (shouldHide) return;
+    grid.textContent = "";
+    applied.add("history");
+    for (var v = 0; v < visible.length; v++) {
+      var item = visible[v];
+      var row = document.createElement("article");
+      row.className = "sitecraft-history-item";
+      row.setAttribute("data-sc-part", "item");
+      var yearNode = document.createElement("h3");
+      yearNode.textContent = item.year;
+      yearNode.setAttribute("data-sitecraft-slot", "history.items." + item.id + ".year");
+      row.appendChild(yearNode);
+      applied.add("history.items." + item.id + ".year");
+      if (item.event) {
+        var eventNode = document.createElement("p");
+        eventNode.textContent = adapter && adapter.blocks ? emailBreakPoints(item.event) : item.event;
+        eventNode.setAttribute("data-sitecraft-slot", "history.items." + item.id + ".event." + locale);
+        row.appendChild(eventNode);
+        applied.add("history.items." + item.id + ".event." + locale);
+      }
+      grid.appendChild(row);
+    }
+    void variant;
+  }
+
   function selectUiTarget(slotKey) {
     var base = stripLocale(slotKey);
     if (base === "hero.title") return "heroTitle";
@@ -1017,6 +1058,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (base === "products" || base.indexOf("products.") === 0) return "products";
     if (base === "commercialTerms" || base.indexOf("commercialTerms.") === 0) return "commercialTerms";
     if (base === "equipment" || base.indexOf("equipment.") === 0) return "equipment";
+    if (base === "history" || base.indexOf("history.") === 0) return "history";
     if (base === "contact" || base.indexOf("contact.") === 0) return "contact";
     if (base === "faq" || base.indexOf("faq.") === 0) return "faq";
     if (base === "industries" || base.indexOf("industries.") === 0) return "industries";
@@ -2009,6 +2051,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     renderCatalogSections(null, locale, applied, variant);
     renderCommercialTerms(null, locale, applied, variant);
     renderEquipment(null, locale, applied, variant);
+    renderHistory(null, locale, applied, variant);
     renderQualityProcess(null, locale, applied, variant);
     hideEmptyProductSection(null, locale, variant);
     var slots = adapter.slots || [];
@@ -2048,8 +2091,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function applyVisitorChrome(locale, draft, variant) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", addressPrefix: "Address", products: "Products", commercialTerms: "Commercial terms", equipment: "Equipment", qualityProcess: "Quality process", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", viewProducts: "View product series", menu: "Menu", footerContact: "Contact", footerNav: "Navigate", footerProducts: "Products", localeZh: "中", localeEn: "EN" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", addressPrefix: "地址", products: "产品", commercialTerms: "商业条款", equipment: "设备", qualityProcess: "质检流程", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", viewProducts: "看产品系列", menu: "菜单", footerContact: "联系", footerNav: "导航", footerProducts: "产品", localeZh: "中", localeEn: "EN" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", addressPrefix: "Address", products: "Products", commercialTerms: "Commercial terms", equipment: "Equipment", qualityProcess: "Quality process", history: "History", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", viewProducts: "View product series", menu: "Menu", footerContact: "Contact", footerNav: "Navigate", footerProducts: "Products", localeZh: "中", localeEn: "EN" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", addressPrefix: "地址", products: "产品", commercialTerms: "商业条款", equipment: "设备", qualityProcess: "质检流程", history: "沿革", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", viewProducts: "看产品系列", menu: "菜单", footerContact: "联系", footerNav: "导航", footerProducts: "产品", localeZh: "中", localeEn: "EN" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
@@ -2128,6 +2171,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       renderCatalogSections(draft, currentLocale, applied, variant || "preview");
       renderCommercialTerms(draft, currentLocale, applied, variant || "preview");
       renderEquipment(draft, currentLocale, applied, variant || "preview");
+      renderHistory(draft, currentLocale, applied, variant || "preview");
       renderQualityProcess(draft, currentLocale, applied, variant || "preview");
       clearUnprovidedCatalogChrome(draft, variant || "preview");
       hideEmptyProductSection(draft, currentLocale, variant || "preview");

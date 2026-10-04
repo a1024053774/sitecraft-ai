@@ -109,6 +109,14 @@ export function expectedFacts(draft, locale = "zh") {
       if (!isGap(body)) add("quality process body", body);
     }
   }
+  if (!hidden.has("history")) {
+    for (const item of Array.isArray(content.history) ? content.history : []) {
+      if (!item || !Number.isInteger(item.year) || item.year < 1000 || item.year > 9999) continue;
+      add("history year", String(item.year));
+      const event = localize(item.event, locale);
+      if (!isGap(event)) add("history event", event);
+    }
+  }
   add("contact email", content.contact?.email);
   add("contact phone", content.contact?.phone);
   return facts;

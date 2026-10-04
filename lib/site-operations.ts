@@ -15,6 +15,8 @@ import {
   equipmentSchema,
   qualityProcessSchema,
   qualityProcessStepSchema,
+  historySchema,
+  historyItemSchema,
   ensureProductIds,
   normalizeDraft,
   blockIdSchema,
@@ -45,6 +47,7 @@ import {
   type CommercialTermKind,
   type EquipmentItem,
   type QualityProcessStep,
+  type HistoryItem,
   type EditableCard,
   type Locale,
   type Product,
@@ -188,6 +191,29 @@ const reorderQualityProcessOperationSchema = z.object({
   op: z.literal("reorder_quality_process"),
   order: z.array(z.string().min(1).max(80)).max(12),
 });
+const replaceHistoryOperationSchema = z.object({
+  op: z.literal("replace_history"),
+  history: historySchema,
+  englishReadyBefore: z.boolean().optional(),
+});
+const updateHistoryOperationSchema = z.object({
+  op: z.literal("update_history"),
+  itemId: z.string().min(1).max(80),
+  year: z.number().int().min(1000).max(9999).optional(),
+  event: localizedTextSchema.optional(),
+  englishReadyBefore: z.boolean().optional(),
+}).strict().refine(
+  (operation) => operation.year !== undefined || operation.event !== undefined,
+  "History update requires year or event",
+);
+const removeHistoryOperationSchema = z.object({
+  op: z.literal("remove_history"),
+  itemId: z.string().min(1).max(80),
+});
+const reorderHistoryOperationSchema = z.object({
+  op: z.literal("reorder_history"),
+  order: z.array(z.string().min(1).max(80)).max(12),
+});
 const removeCardOperationSchema = z.object({
   op: z.literal("remove_card"),
   section: z.enum(["features", "services", "faq"]),
@@ -315,6 +341,9 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   replaceQualityProcessOperationSchema,
   updateQualityProcessOperationSchema,
   removeQualityProcessOperationSchema,
+  replaceHistoryOperationSchema,
+  updateHistoryOperationSchema,
+  removeHistoryOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -347,6 +376,10 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   updateQualityProcessOperationSchema,
   removeQualityProcessOperationSchema,
   reorderQualityProcessOperationSchema,
+  replaceHistoryOperationSchema,
+  updateHistoryOperationSchema,
+  removeHistoryOperationSchema,
+  reorderHistoryOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -1150,6 +1183,66 @@ export function applySiteOperations(
       appliedTargets.push("qualityProcess.order");
       continue;
     }
+    if (operation.op === "replace_history") {
+      const previous = structuredClone(draft.content.history);
+      const next = historySchema.parse(structuredClone(operation.history));
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "replace_history", history: previous, englishReadyBefore: previousEnglishReady });
+      draft.content.history = next;
+      if (next.some((item) => !isGapMarker(item.event.en))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      if (next.length) {
+        appliedTargets.push("history");
+        for (const item of next) appliedTargets.push(`history.items.${item.id}.year`, `history.items.${item.id}.event.zh`, `history.items.${item.id}.event.en`);
+      } else {
+        appliedTargets.push("history.visibility");
+      }
+      continue;
+    }
+    if (operation.op === "update_history") {
+      const index = draft.content.history.findIndex((item) => item.id === operation.itemId);
+      const previous = index >= 0 ? draft.content.history[index] : undefined;
+      if (!previous) throw new Error(`History item ${operation.itemId} does not exist`);
+      const next = historyItemSchema.parse({
+        ...previous,
+        ...(operation.year !== undefined ? { year: operation.year } : {}),
+        ...(operation.event !== undefined ? { event: structuredClone(operation.event) } : {}),
+      });
+      const nextHistory = structuredClone(draft.content.history);
+      nextHistory[index] = next;
+      historySchema.parse(nextHistory);
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "update_history", itemId: previous.id, year: previous.year, event: structuredClone(previous.event), englishReadyBefore: previousEnglishReady });
+      draft.content.history[index] = next;
+      if (!isGapMarker(next.event.en)) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      appliedTargets.push("history");
+      if (previous.year !== next.year) appliedTargets.push(`history.items.${next.id}.year`);
+      if (!same(previous.event, next.event)) appliedTargets.push(`history.items.${next.id}.event.zh`, `history.items.${next.id}.event.en`);
+      continue;
+    }
+    if (operation.op === "remove_history") {
+      const index = draft.content.history.findIndex((item) => item.id === operation.itemId);
+      if (index < 0) throw new Error(`History item ${operation.itemId} does not exist`);
+      const previous = structuredClone(draft.content.history);
+      inverseOperations.unshift({ op: "replace_history", history: previous, englishReadyBefore: draft.englishReady });
+      draft.content.history.splice(index, 1);
+      appliedTargets.push("history.visibility");
+      continue;
+    }
+    if (operation.op === "reorder_history") {
+      const previous = draft.content.history.map((item) => item.id);
+      const order = [...new Set(operation.order)];
+      if (order.length !== previous.length || order.some((id) => !previous.includes(id))) throw new Error("History order must contain every existing item exactly once");
+      if (same(previous, order)) continue;
+      const byId = new Map(draft.content.history.map((item) => [item.id, item] as const));
+      inverseOperations.unshift({ op: "reorder_history", order: previous });
+      draft.content.history = order.map((id) => structuredClone(byId.get(id)!));
+      appliedTargets.push("history.order");
+      continue;
+    }
     if (operation.op === "remove_card") {
       const items = draft.content[operation.section].items;
       const index = items.findIndex((item) => item.id === operation.itemId);
@@ -1487,6 +1580,12 @@ function cleanVisitorProse(operation: AIOperation): AIOperation {
   if (operation.op === "update_quality_process" && operation.body) {
     return { ...operation, body: stripGapTalkBilingual(operation.body) as { zh: string; en: string } } as AIOperation;
   }
+  if (operation.op === "replace_history") {
+    return { ...operation, history: operation.history.map((item) => ({ ...item, event: stripGapTalkBilingual(item.event) as { zh: string; en: string } })) } as AIOperation;
+  }
+  if (operation.op === "update_history" && operation.event) {
+    return { ...operation, event: stripGapTalkBilingual(operation.event) as { zh: string; en: string } } as AIOperation;
+  }
   if (operation.op === "update_product" && operation.summary) {
     return { ...operation, summary: stripGapTalkBilingual(operation.summary, operation.locale ?? "zh") } as AIOperation;
   }
@@ -1683,6 +1782,12 @@ export function validateAIOperations(
       }
       continue;
     }
+    if (operation.op === "replace_history") {
+      const items = groundHistory(operation.history, message, rejected);
+      if (items.length) accepted.push({ ...operation, history: items });
+      else rejected.push("没有可写入的沿革，整组没有修改");
+      continue;
+    }
     if (operation.op === "update_equipment") {
       if (!draft) {
         accepted.push(operation);
@@ -1736,6 +1841,30 @@ export function validateAIOperations(
       const grounded = groundQualityProcess([candidate.data], message, rejected)[0];
       if (!grounded) continue;
       accepted.push({ ...operation, title: grounded.title, body: grounded.body });
+      continue;
+    }
+    if (operation.op === "update_history") {
+      if (!draft) {
+        accepted.push(operation);
+        continue;
+      }
+      const current = draft.content.history.find((item) => item.id === operation.itemId);
+      if (!current) {
+        rejected.push(`沿革条目 ${operation.itemId} 不存在`);
+        continue;
+      }
+      const candidate = historyItemSchema.safeParse({
+        ...current,
+        ...(operation.year !== undefined ? { year: operation.year } : {}),
+        ...(operation.event !== undefined ? { event: operation.event } : {}),
+      });
+      if (!candidate.success) {
+        rejected.push("沿革修改未通过完整沿革校验");
+        continue;
+      }
+      const grounded = groundHistory([candidate.data], message, rejected)[0];
+      if (!grounded) continue;
+      accepted.push({ ...operation, year: grounded.year, event: grounded.event });
       continue;
     }
     if (operation.op === "update_commercial_term") {
@@ -2156,6 +2285,52 @@ function groundQualityProcess(steps: QualityProcessStep[], materials: string, re
   const grounded: QualityProcessStep[] = [];
   for (const step of steps) {
     const next = groundQualityProcessStep(step, materials, rejected);
+    if (next) grounded.push(next);
+  }
+  return grounded;
+}
+
+type HistoryFactFragment = { text: string; source: string };
+
+function historyFactFragments(materials: string): HistoryFactFragment[] {
+  const source = stripWrappedCommercialInstructions(materials);
+  return source.split(/\r?\n/).flatMap((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || !/沿革|history/i.test(trimmed)) return [];
+    const value = trimmed.replace(/^[^：:]{1,32}[：:]\s*/, "");
+    return value.split(/[；;]/).map((text) => text.trim()).filter(Boolean).map((text) => ({ text, source: text }));
+  });
+}
+
+function historyEnglishMatches(item: HistoryItem): boolean {
+  const zhNumbers = canonicalCommercialNumbers(`${item.year} ${item.event.zh}`).sort();
+  const enNumbers = canonicalCommercialNumbers(item.event.en).sort();
+  if (enNumbers.length && JSON.stringify(zhNumbers.slice(1).sort()) !== JSON.stringify(enNumbers)) return false;
+  return commercialUnitsMatch(item.event.zh, item.event.en);
+}
+
+function groundHistoryItem(item: HistoryItem, materials: string, rejected: string[]): HistoryItem | null {
+  const eventZh = item.event.zh.trim().replace(/[。.!！?？]+$/g, "");
+  const eventEn = item.event.en.trim();
+  if (!Number.isInteger(item.year) || item.year < 1000 || item.year > 9999 || !eventZh || !eventEn || isGapMarker(eventZh) || isGapMarker(eventEn)) {
+    rejected.push(`沿革条目「${eventZh || eventEn}」年份或事件为空，已忽略`);
+    return null;
+  }
+  const year = String(item.year);
+  const eventPattern = escapeRegExp(eventZh);
+  const fragment = historyFactFragments(materials).find((candidate) => new RegExp(`${year}\\s*年?\\s*${eventPattern}`).test(candidate.text));
+  const grounded = { ...item, year: item.year, event: { zh: eventZh, en: eventEn } };
+  if (!fragment || !historyEnglishMatches(grounded)) {
+    rejected.push(`沿革条目「${eventZh}」的年份或事件不在同一句资料中，已忽略`);
+    return null;
+  }
+  return grounded;
+}
+
+function groundHistory(items: HistoryItem[], materials: string, rejected: string[]): HistoryItem[] {
+  const grounded: HistoryItem[] = [];
+  for (const item of items) {
+    const next = groundHistoryItem(item, materials, rejected);
     if (next) grounded.push(next);
   }
   return grounded;

@@ -183,7 +183,7 @@ test("model reorder output drops unknown blocks, fills the rest, and explains th
     assert.ok(operation && operation.order !== null);
     if (operation && operation.order !== null) {
       assert.equal((operation.order as string[]).includes("unknown"), false);
-      assert.equal(operation.order.length, 10);
+      assert.equal(operation.order.length, 11);
     }
     assert.match(result.summary, /忽略未知项：unknown/);
   }
