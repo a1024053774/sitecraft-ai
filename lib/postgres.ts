@@ -70,6 +70,21 @@ export async function ensureDatabaseSchema() {
           PRIMARY KEY (workspace_id, site_id)
         )
       `))
+      .then(() => getDatabasePool().query(`
+        CREATE TABLE IF NOT EXISTS sitecraft_annotations (
+          workspace_id TEXT NOT NULL,
+          site_id TEXT NOT NULL,
+          annotation_id TEXT NOT NULL,
+          annotation JSONB NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL,
+          PRIMARY KEY (workspace_id, site_id, annotation_id)
+        )
+      `))
+      .then(() => getDatabasePool().query(`
+        CREATE INDEX IF NOT EXISTS sitecraft_annotations_page
+        ON sitecraft_annotations (workspace_id, site_id, updated_at DESC)
+      `))
       .then(() => undefined)
       .catch((error) => {
         globalDatabase.__sitecraftSchemaReady = undefined;
