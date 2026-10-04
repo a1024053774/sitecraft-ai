@@ -18,28 +18,18 @@ supersedes:
 
 ## Acceptance
 
-- [x] 测试先写，并在父提交上能加载、在断言处失败：四个样子的字体栈都含中文回退；发布页没有外部字体请求；数据角色使用等宽字体（红测见 `artifacts/t087-red.txt`、`artifacts/t087-red-en.txt`；最终测试见 `artifacts/t087/fulltest-r2.txt`）
-- [x] 四个样子 × 1440 / 768 / 375 截图（中英文各一套），对比改动前后，存 `artifacts/t087/`，每张打开看过；三家 `check-published` 通过（改动前见 `artifacts/t087/before/`，改动后见 `artifacts/t087/after-r2/` 和 `artifacts/t087/after-r2/contact-sheets/`；发布检查见 `artifacts/t087/published-check-r2-final2/report.json`）
-- [x] `npm run typecheck`、`npm test`（经 `fulltest.sh`）、`npm run build` 通过（`artifacts/t087/fulltest-r2.txt`）
+- [x] 测试先写，并在父提交上能加载、在断言处失败：四个样子的字体栈都含中文回退；发布页没有外部字体请求；数据角色使用等宽字体；字体晚到时序、Python 3.9 子集脚本、forge Sora cmap 和四样子标题矩阵的红绿证据见 `artifacts/t087/red-r3-focused.txt`、`artifacts/t087/cmap-r3-python39.json`、`artifacts/t087/focused-r3-merged.txt`、`artifacts/t087/fulltest-r3-merged.txt`
+- [x] 四个样子 × 1440 / 768 / 375 截图（中英文各一套），改动后存 `artifacts/t087/after-r3/`，联系表在 `artifacts/t087/after-r3/contact-sheets/`，脚本检查 `document.fonts.status`、对应字体 `loaded`、预览就绪和稳定整页高度；三家 `check-published` 见 `artifacts/t087/published-check-r3/report.json`
+- [x] `npm run typecheck`、`npm test`（经 `fulltest.sh`）、`npm run build` 通过（`artifacts/t087/typecheck-r3-merged.txt`、`artifacts/t087/fulltest-r3-merged.txt`、`artifacts/t087/build-r3-merged.txt`）
 - [ ] 独立审核 agent 盲评字体改动前后（不是执行者），结果写进 Resolution
 - [ ] 代码审查通过
 - [ ] Claude 验收
 
 ## Resolution
 
-- 中文回退先独立提交于 `4af51bc`：四个生产样子 token 统一显式包含 `PingFang SC`、`Hiragino Sans GB`、`Noto Sans SC`、`Microsoft YaHei`，中文字体没有自托管。
-- 英文字体在 `804d3f3` 实现并由 `53b0522` 更新 project-map 验证点：工程工业用 Geist/Geist Mono，样本目录用 Manrope/JetBrains Mono，明快样子用 Sora 标题 + Manrope 正文 + JetBrains Mono 数据，灰底短路径用 Geist/Geist Mono。kit 固定 `fontFamilyId` / `headingFontFamilyId` / `dataFontFamilyId`，模型没有 `font-family` 写入路径；规格、型号、单位等数据角色走 `--site-data-font`。
-- 字体源固定到 Vercel Geist 与 Google Fonts 仓库的 commit，生成 Latin-only woff2 实际字重，五个字体目录各带完整 `OFL.txt`、版权/版本/来源 `SOURCE.md`。预览 iframe 的 asset route 提供同源字体；工作台的旧 Google Fonts import 也改为同源字体，三家发布页网络报告只看到 localhost `.woff2` 请求（`artifacts/t087/published-font-requests-final.json`）。
-- 红测命令：`node --test --experimental-strip-types tests/t087-fonts.test.ts` 在父提交 `8c960f0` 失败并保存为 `artifacts/t087-red.txt`；中文提交后英文红测失败保存为 `artifacts/t087-red-en.txt`。最终相关测试 19/19 通过。
-- 最终验证（纽约时间 2026-10-03）：`npm run typecheck`、`npm run build` 通过；`zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t087 3057 /Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/fulltest-final.txt` 输出 `ℹ pass 669`, `ℹ fail 0`, `ℹ cancelled 0`；`SITECRAFT_BASE=http://localhost:3057 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node scripts/check-published.mjs --out artifacts/t087/published-check-final` 三家 × 三档宽度通过。
-- 截图使用父提交 `8c960f0` 的临时 3059 server 与最终 3057 server，四个样子、中英文、1440/768/375 各 24 张；脚本等待预览 bridge、`document.fonts.ready` 和稳定整页高度，并验证目标字体状态为 `loaded`。每张已在 `artifacts/t087/contact-sheets/` 打开检查，中文由 CJK 回退栈正常显示。
-- 独立盲评、代码审查和 Claude 验收尚未完成，票保持 `open`。
-
-### T-087 r2（2026-10-03，纽约时间）
-
-- 代码审查指出工作台 CSS 被根布局带进发布宿主；已在 `a1a1b2d` 恢复起点 `app/globals.css`（Manrope 400–800、DM Mono、Noto Sans SC）并把它复制为 `public/workspace.css`，`components/workspace-style-gate.tsx` 在 `fb94043` 中只向工作台路径挂载该 CSS；发布/模板预览宿主改用无字体的 `public/visitor-host.css`（`dbeac79`），iframe 继续走区块库同源字体。发布 HTML 不再出现 `app_globals`，工作台仍加载 `workspace.css`。
-- `nordic-store` 的无关字体 token 已恢复为起点值；四个生产样子不变。
-- `scripts/subset-site-fonts.py` 固定 FontTools/pyftsubset、Unicode 范围、变量字体实例化字重和输出文件；`scripts/check-site-fonts.py` 通过 fontTools cmap 审计四个 kit 的实际字体，断言无 CJK、含 `© ® ° ± × – — €`，并逐 kit 验证数据字体映射。每个 `SOURCE.md` 记录同一复现命令和工具版本。
-- 标题根因修复在 `dc95f57`：T-063 的字符宽度估算改为用实际加载字体测量最长 run；catalog 开启 `fitText: "container"`，工程工业增加窄屏标题上限 `clamp(30px, 8vw, 34px)`，fit 标题用 `text-wrap: balance` 且保留 keep-all，forge 将 `word-break` 从 `break-all` 改为 `normal`，避免英文词中断。T-063、区块布局和短路径适配测试通过。
-- r2 证据：改动后截图和联系表在 `artifacts/t087/after-r2/`；`check-published` 输出 `artifacts/t087/published-check-r2-final2/report.json`；主线 12 站检查输出 `artifacts/t087/mainline-r2-final2/`（`NEW_failures=0`）；最终 `fulltest.sh` 输出 `artifacts/t087/fulltest-r2.txt`，`671 pass / 0 fail`；最终 build 和 typecheck 通过。
-- 负载高峰期间曾有一次 workspace motion 间歇失败，原始输出保留在 `artifacts/t087/fulltest-r2-failure.txt`；同一测试独立重跑 `workspace-motion-r2-final.txt` 为 5/5，降低负载后 fulltest 重跑为 671/671，未改测试辅助文件。
+- 当前交付由 `ceb57e2`（T-087 第 3 轮修复）和合并 `c443a4e` 后的 `d37e4bc`（未改 `MERGE-REQUESTS.md`）组成。中文仍由 `PingFang SC`、`Hiragino Sans GB`、`Noto Sans SC`、`Microsoft YaHei` 回退，中文字体不自托管；四个生产样子继续使用各自固定的 OFL 拉丁字体和 `--site-data-font` 数据角色。
+- `lib/template-adapters/preview-bridge.ts` 不再在 slot 写入时用回退字体测量标题；先登记 fit 目标，等待 `document.fonts.ready` 后测量，`FontFaceSet` 的 `loadingdone` 再次测量并更新 `--sitecraft-title-run` / `--sitecraft-brand-run`。`tests/t063-hero-title-fit.test.ts` 的延迟 FontFaceSet 夹具在 ready 前无写入、ready 后首次写入、loadingdone 后重写。
+- `scripts/subset-site-fonts.py` 去掉 Python 3.10 专有的 `zip(strict=...)`，保留权重/文件数量校验；项目 Python 3.9.6 可编译。`scripts/check-site-fonts.py` 按 body/heading/data 角色审计四个 kit，forge 明确审计 `sora-700-latin.woff2`；每个文件仍断言无 CJK 且含 `© ® ° ± × – — €`。
+- `tests/t087-look-title-behavior.test.ts` 真实打开四个预览样子，覆盖中文/英文和 1440/768/375，等待字体加载后断言标题有行框、无视口溢出/裁切、无 `break-all`，并检查对应 heading/data 字体可加载。
+- 证据（纽约时间 2026-10-04，验证时 HEAD `d37e4bc`）：红测命令 `node --test --experimental-strip-types tests/t087-fonts.test.ts tests/t063-hero-title-fit.test.ts --test-name-pattern='T-063 uses declared|committed Latin subsets|font subset recipe'` 输出 `artifacts/t087/red-r3-focused.txt`；聚焦绿测命令 `SITECRAFT_BASE=http://localhost:3057 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/t063-hero-title-fit.test.ts tests/t087-fonts.test.ts tests/t087-look-title-behavior.test.ts tests/template-preview-bridge.test.ts` 输出 `artifacts/t087/focused-r3-merged.txt`；`python3 -m py_compile scripts/subset-site-fonts.py scripts/check-site-fonts.py && python3 scripts/check-site-fonts.py` 输出 `artifacts/t087/cmap-r3-python39.json`；`npm run typecheck` 输出 `artifacts/t087/typecheck-r3-merged.txt`；`npm run build` 输出 `artifacts/t087/build-r3-merged.txt`；`zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t087 3057 /Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/fulltest-r3-merged.txt` 为 `734 pass / 0 fail / 0 cancelled`；`zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/check-mainline-sites.sh /Users/luckye/Documents/Code/sitecraft-ai-t087 3057 /Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/mainline-r3-merged` 退出 0，`rows=36 known_failures=0 NEW_failures=0`，报告为 `report.json`；三家 `SITECRAFT_BASE=http://localhost:3057 CHROME_PATH=... node scripts/check-published.mjs --out artifacts/t087/published-check-r3` 为 `report.json`；截图命令 `SITECRAFT_BASE=http://localhost:3057 T087_OUT=/Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/after-r3 T087_PHASE=after-r3 CHROME_PATH=... node /tmp/t087-capture.mjs` 生成 24 张 after-r3 截图和联系表，脚本检查 preview ready、整页高度稳定和字体 `loaded`，每张已打开检查。
+- 独立盲评、代码审查和 Claude 验收仍未完成，票保持 `open`。
