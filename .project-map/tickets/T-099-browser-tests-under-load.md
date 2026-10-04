@@ -2,7 +2,7 @@
 id: T-099
 title: 浏览器测试在机器高负载时不靠固定等待时长
 type: build
-status: open
+status: closed
 blocked_by: [T-094]
 claimed_by: codex-build
 supersedes:
@@ -26,7 +26,7 @@ supersedes:
 - [x] 修改后在高负载下（同时跑另一个全量或人为加负载，记录 `uptime`）`workspace-interaction` 连跑 5 次通过；全量 `npm test` 0 失败、`npm run typecheck`、`npm run build` 通过
 - [x] `check-published` 在高负载下对主工作区 12 个站点（ID 见 `artifacts/merge-13ae686/check-published/report.json`）的结果与低负载一致：只剩已知的 16 条行长失败，不出现 `material facts missing`；记录 `uptime` 和逐站点输出
 - [x] `check-published` 对未渲染或缺少测量结果的报告直接失败；父提交行为红测和当前实现通过证据均在 `artifacts/t099/`，高低负载报告逐行列出测量条数
-- [ ] 断言没有放宽（审查逐条对照）；代码审查通过；Claude 验收
+- [x] 断言没有放宽（审查逐条对照）；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -39,3 +39,6 @@ supersedes:
 - 旧报告 `check-published-low-merge-2576213` 的 0 条行长根因是预览、整页高度和字体尚未完成时就调用同步 scanner；且当时没有测量完整性元数据，所以无数据被静默当成无失败。当前 checker 在取数前等待这些条件，并对测量缺失直接失败。
 - 合并后第一次全量在机器高负载下的设备数量带失败已保留于 `npm-test-merge-1256214.txt`；低负载最终全量 `npm-test-merge-1256214-final-low.txt` **770/770、0 失败**。`typecheck-merge-1256214-clean.txt`（清除旧 `.next` 后）和 `build-merge-1256214.txt` 均退出 0。
 - `project_map.py status --root .` 无 stale；本票状态保持 open，等待 Astra/Claude 验收。本地提交待本次 Resolution commit，未 push。
+
+### 合回主线与关闭（Claude，2026-10-04 EDT）
+- Astra 三轮：r1 NO_GO（预览遮挡改成只看一次、diff 比错报告）、r2 NO_GO（证据未绑定提交、清单遗漏）、r3 PASS（`artifacts/review-astra-t099-r3.md`）。合并主线 `e2e8863`；主工作区 3034：build、typecheck 通过，全量 770/770，12 站 `check-published` 36 行 0 失败且逐行测量条数不少于基线（`artifacts/merge-e2e8863/`）。check-published 现在对未渲染 / 缺测量直接判失败。Claude 验收关闭。
