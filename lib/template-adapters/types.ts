@@ -36,6 +36,7 @@ export type TemplateKitTokens = {
   muted?: string;
   accent: string;
   accentStrong?: string;
+  accentText?: string;
   accentSoft?: string;
   border: string;
   /** Semantic form/control roles; older kits derive these from surface/accentSoft/muted. */
