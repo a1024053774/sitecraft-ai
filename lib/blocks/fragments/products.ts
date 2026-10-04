@@ -11,7 +11,7 @@ const section = (variant: string, gridClass: string) => `<section id="products" 
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="products-intro" hidden></p>
             </div>
             <div class="${gridClass}" data-sitecraft-product-grid data-sc-part="grid"></div>
-            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="product" data-sc-part="images" hidden></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="product" hidden></div>
           </div>
         </section>`;
 

@@ -6,7 +6,7 @@ const list = (key: "industries" | "capabilities", title: string) => `<section id
               <h2 data-sitecraft-benchmark="${key}-title" data-sc-part="title">${title}</h2>
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="${key}-intro" hidden></p>
               <div class="sitecraft-catalog-grid" data-sitecraft-catalog-grid="${key}" data-sc-part="list"></div>
-              <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="inspection" data-sc-part="images" hidden></div>
+              <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="inspection" hidden></div>
             </section>`;
 const cards = (key: "industries" | "capabilities", title: string) => `<section id="${key}" class="sitecraft-section sitecraft-catalog-cards-section" data-sitecraft-section="${key}" data-sc-block="${key}" data-sc-variant="cards">
           <div class="sitecraft-container">
@@ -15,7 +15,7 @@ const cards = (key: "industries" | "capabilities", title: string) => `<section i
               <p class="sitecraft-section-intro" data-sitecraft-benchmark="${key}-intro" hidden></p>
             </div>
             <div class="sitecraft-catalog-grid sitecraft-catalog-cards" data-sitecraft-catalog-grid="${key}" data-sc-part="list"></div>
-            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="inspection" data-sc-part="images" hidden></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="inspection" hidden></div>
           </div>
         </section>`;
 

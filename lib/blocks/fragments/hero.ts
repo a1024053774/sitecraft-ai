@@ -107,7 +107,7 @@ export const heroFragment: BlockFragment = {
               </div>
             </div>
             <nav class="sitecraft-cover-index" data-sitecraft-hero-index data-sc-part="index"><p>产品系列</p><ul></ul></nav>
-            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" data-sc-part="images" hidden></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" hidden></div>
           </div>
         </section>
       </div>`,
@@ -127,7 +127,7 @@ export const heroFragment: BlockFragment = {
               <img class="sitecraft-hero-photo" data-sitecraft-benchmark="hero-image" alt="" hidden>
               <figcaption class="sitecraft-hero-credit" data-sitecraft-hero-credit hidden></figcaption>
               <dl class="sitecraft-nameplate" data-sitecraft-hero-nameplate hidden></dl>
-              <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" data-sc-part="images" hidden></div>
+              <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" hidden></div>
             </figure>
           </div>
         </section>
@@ -146,7 +146,7 @@ export const heroFragment: BlockFragment = {
               </div>
             </div>
             <div class="sitecraft-statement-specs" data-sitecraft-hero-specs hidden data-sc-part="specs"><dl></dl></div>
-            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" data-sc-part="images" hidden></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" hidden></div>
           </div>
         </section>
       </div>`,
