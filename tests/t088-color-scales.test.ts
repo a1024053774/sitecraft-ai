@@ -6,7 +6,7 @@ import { templateAdapters } from "../lib/template-adapters/registry.ts";
 import { blockLookForTemplate } from "../lib/blocks/looks/index.ts";
 import { paletteBaseline } from "./fixtures/t088-palette-baseline.ts";
 
-const seeds = ["#176ba4", "#9d671a", "#192a3a", "#fff4a3", "#39ff88", "#011b3d"];
+const seeds = ["#176ba4", "#9d671a", "#192a3a", "#fff4a3", "#39ff88", "#011b3d", "#121c28", "#0b1220", "#07111f"];
 
 function wcagChannel(value: number) {
   const channel = value / 255;
@@ -90,6 +90,13 @@ test("custom palette adjustment notes use user language instead of implementatio
   assert.equal(dark.accent, "#111827");
   assert.equal(dark.adjusted, false);
   assert.match(dark.adjustmentNote, /保持清晰可读/);
+  for (const seed of ["#121c28", "#0b1220", "#07111f"]) {
+    const deep = generateCustomPalette(seed, "color").palette;
+    assert.equal(deep.accent, seed, `${seed} keeps the dark seed as accent`);
+    assert.equal(deep.adjusted, false, `${seed} is not lightened when white text already passes`);
+    assert.ok(wcagContrast("#ffffff", deep.accent) >= 4.5, `${seed} keeps white text readable`);
+    assert.match(deep.adjustmentNote, /保持清晰可读/);
+  }
   for (const note of [light.adjustmentNote, dark.adjustmentNote, bright.adjustmentNote]) {
     assert.doesNotMatch(note, /OKLCH|sRGB|WCAG/);
   }

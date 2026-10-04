@@ -168,12 +168,16 @@ function oklchDistance(left: Oklch, right: Oklch) {
 function chooseAccent(seed: Oklch, sourceColor: string, primary: string[], textColor: string) {
   const text = hexToOklch(textColor);
   const sourcePasses = contrastRatio("#ffffff", sourceColor) >= 4.5;
+  const sourceIsDark = seed.L <= 0.35;
   const sourceTooCloseToText = oklchDistance(seed, text) < 0.035;
   const candidates = primary
     .map((color, index) => ({ color, index, value: hexToOklch(color) }))
     .filter(({ color }) => contrastRatio("#ffffff", color) >= 4.5);
   if (!candidates.length) return null;
-  if (sourcePasses && !sourceTooCloseToText) {
+  // A dark seed that already supports white text is the user's brand color. Keep it
+  // intact; the nearest lightness candidate is only needed when the seed is too light
+  // or does not meet the button-text contrast requirement.
+  if (sourcePasses && (sourceIsDark || !sourceTooCloseToText)) {
     const nearest = candidates.reduce((best, candidate) => Math.abs(candidate.value.L - seed.L) < Math.abs(best.value.L - seed.L) ? candidate : best);
     return { accent: sourceColor, accentIndex: nearest.index, sourceTooCloseToText };
   }
