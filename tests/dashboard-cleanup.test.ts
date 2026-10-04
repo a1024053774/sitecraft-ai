@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("dashboard has no hardcoded demo metrics or Forge activity", async () => {
-  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(workspace)/page.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, /Forge Industrial/);
   assert.doesNotMatch(source, /<div className="stat-value">24<\/div>/);
   assert.doesNotMatch(source, /<div className="stat-value">18<\/div>/);
@@ -14,7 +14,7 @@ test("dashboard has no hardcoded demo metrics or Forge activity", async () => {
 });
 
 test("quality blind mode hides nonce and internal comparison markers", async () => {
-  const source = await readFile(new URL("../app/quality/quality-client.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(workspace)/quality/quality-client.tsx", import.meta.url), "utf8");
   const matrix = await readFile(new URL("../lib/quality-matrix.ts", import.meta.url), "utf8");
   assert.match(source, /blind \? null/);
   assert.match(source, /blind \? .*内部信息/);

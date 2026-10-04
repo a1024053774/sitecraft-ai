@@ -62,7 +62,7 @@ test("model-written unsupported-page reasons reach the user in plain language", 
 
 test("workspace, error and page-plan copy carries no internal words", async () => {
   const files = {
-    workspace: await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8"),
+    workspace: await readFile(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8"),
     errors: await readFile(new URL("../lib/user-errors.ts", import.meta.url), "utf8"),
     pages: await readFile(new URL("../lib/template-pages.ts", import.meta.url), "utf8"),
   };
@@ -85,7 +85,7 @@ test("operation target copy never includes model prose or internal words", async
 });
 
 test("the upload hint does not mention magic bytes", async () => {
-  const source = await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, /magic bytes/i);
 });
 
@@ -107,7 +107,7 @@ test("a refused chat turn says only why nothing changed", () => {
 });
 
 test("the workspace answers a no-change turn with that reply and draws no empty bubble", async () => {
-  const source = await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
   assert.match(source, /noChangeReply\(done\.summary, done\.rejected\)/);
   assert.ok(!source.includes(NO_DIFFERENCE), "the sentence is written in one place");
   assert.match(source, /\{message\.text \? <div className="message-bubble">\{message\.text\}<\/div> : null\}/);
@@ -124,7 +124,7 @@ test("a restored failed alignment run says the real reason", () => {
 });
 
 test("the workspace restores a failed run with that reason, before the card it shows again", async () => {
-  const source = await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
   const start = source.indexOf("function alignmentMessageText");
   const body = source.slice(start, source.indexOf("\n}\n", start));
   const failed = body.indexOf('if (view.lastResult?.status === "error") return alignmentFailureText(view.lastResult.summary);');

@@ -18,8 +18,18 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 测试先写，并在父提交上能加载、在断言处失败：四个样子的字体栈都含中文回退；发布页没有外部字体请求；数据角色使用等宽字体
-- [ ] 四个样子 × 1440 / 768 / 375 截图（中英文各一套），对比改动前后，存 `artifacts/t087/`，每张打开看过；三家 `check-published` 通过
-- [ ] 独立审核 agent 盲评字体改动前后（不是执行者），结果写进 Resolution；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 测试先写，并在父提交上能加载、在断言处失败：四个样子的字体栈都含中文回退；发布页没有外部字体请求；数据角色使用等宽字体；字体晚到时序、Python 3.9 子集脚本、forge Sora cmap、四样子标题矩阵和 visitor-host 控件样式的红绿证据见 `artifacts/t087/red-r3-focused.txt`、`artifacts/t087/cmap-r3-python39.json`、`artifacts/t087/focused-p1.txt`、`artifacts/t087/visitor-host-red.txt`、`artifacts/t087/fulltest-p1.txt`
+- [x] 四个样子 × 1440 / 768 / 375 截图（中英文各一套），改动后存 `artifacts/t087/after-r3/`，与 `c443a4e` 结构同基线的 evidence-only before-r3 存 `artifacts/t087/before-r3/`，联系表在各自 `contact-sheets/`；脚本检查 `document.fonts.status`、对应字体 `loaded`、预览就绪和稳定整页高度；三家 `check-published` 见 `artifacts/t087/published-check-p1/report.json`
+- [x] `npm run typecheck`、`npm test`（经 `fulltest.sh`）、`npm run build` 通过（`artifacts/t087/typecheck-p1.txt`、`artifacts/t087/fulltest-p1.txt`、`artifacts/t087/build-p1.txt`）
+- [x] 独立审核 agent 盲评字体改动前后（不是执行者），有效结果为 `reviews/T-087-blind-3b.md`（PASS）；旧 `reviews/T-087-blind-3.md` 保留为基线错位失败证据
+- [x] 代码审查通过（`reviews/T-087-review-4.md`，PASS，P0/P1=0）
+- [ ] Claude 验收
 
 ## Resolution
+
+- 当前交付代码为 `ceb57e2`、合并主线 `c443a4e` 的 `d37e4bc`，以及 review-3 P1 修复 `b16bb63`；未改 `MERGE-REQUESTS.md`。中文回退和四个样子的 OFL 拉丁字体、`--site-data-font` 数据角色保持不变。
+- `b16bb63` 在 `public/visitor-host.css` 增加模板预览实际使用的 `.icon-button`、`.primary-button`、`.secondary-button`、`.template-tag` 基础/焦点/悬停样式；`tests/visitor-host.test.ts` 先在缺失定义上红，修复后断言通过。预览宿主仍只静态加载 visitor-host CSS，没有重新加载工作台全局 CSS。
+- review-3 盲评所见的 1440 产品卡右列摘要不是 T-087 字体回归：该 CSS 来自主线 `c4834d3`（T-101），且在 `c443a4e` 中；`git diff c443a4e..HEAD -- lib/blocks/fragments/products.ts` 为空。裸 `c443a4e` 缺少 T-087 自托管字体，故用未入库的 `/tmp/t087-capture-before-c443.mjs` evidence-only 副本跳过 `requiredFaces` 硬门生成 `artifacts/t087/before-r3/`，结构与 after-r3 对齐。
+- `lib/template-adapters/preview-bridge.ts` 的标题测量等待 `document.fonts.ready`，并在 `loadingdone` 重测；`scripts/subset-site-fonts.py` 兼容 Python 3.9；cmap 审计覆盖 forge Sora；四样子矩阵测试覆盖中英文和 1440/768/375。
+- 证据（纽约时间 2026-10-04，验证代码 HEAD `b16bb63`）：红测 `node --test --experimental-strip-types tests/visitor-host.test.ts` 输出 `artifacts/t087/visitor-host-red.txt`；聚焦绿测命令 `SITECRAFT_BASE=http://localhost:3057 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/visitor-host.test.ts tests/t063-hero-title-fit.test.ts tests/t087-fonts.test.ts tests/t087-look-title-behavior.test.ts tests/template-preview-bridge.test.ts` 为 `37 pass / 0 fail`，输出 `artifacts/t087/focused-p1.txt`；`npm run typecheck` 输出 `artifacts/t087/typecheck-p1.txt`；`npm run build` 输出 `artifacts/t087/build-p1.txt`；`zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t087 3057 /Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/fulltest-p1.txt` 为 `735 pass / 0 fail / 0 cancelled`；`zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/check-mainline-sites.sh /Users/luckye/Documents/Code/sitecraft-ai-t087 3057 /Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/mainline-p1` 退出 0，`rows=36 known_failures=0 NEW_failures=0`；三家发布检查 `SITECRAFT_BASE=http://localhost:3057 CHROME_PATH=... node scripts/check-published.mjs --out artifacts/t087/published-check-p1` 为 `report.json`；`artifacts/t087/before-r3/` 为 c443a4e evidence-only 基线，`after-r3/` 为当前字体版本，均为 24 张截图并已打开检查。
+- 独立盲评：`reviews/T-087-blind-3.md` 的 REVISE 结论来自旧 before 快照与 c443a4e 主线结构错位，保留作基线错位证据；使用 c443a4e evidence-only before-r3 后，`reviews/T-087-blind-3b.md` 判定 PASS。代码审查 `reviews/T-087-review-4.md` 判定 PASS，P0/P1=0；Claude 验收仍未完成，票保持 `open`。

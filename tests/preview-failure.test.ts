@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const frameSource = readFileSync(new URL("../components/open-source-template-frame.tsx", import.meta.url), "utf8");
-const qualitySource = readFileSync(new URL("../app/quality/quality-client.tsx", import.meta.url), "utf8");
+const qualitySource = readFileSync(new URL("../app/(workspace)/quality/quality-client.tsx", import.meta.url), "utf8");
 const previewRouteSource = readFileSync(new URL("../app/api/templates/[templateId]/preview/route.ts", import.meta.url), "utf8");
 const timingSource = readFileSync(new URL("../lib/preview-load-timing.ts", import.meta.url), "utf8");
 

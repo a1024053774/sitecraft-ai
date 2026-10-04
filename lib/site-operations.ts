@@ -58,6 +58,7 @@ import {
   type SiteImageRef,
 } from "./site-document.ts";
 import { customPaletteSchema } from "./custom-brand-color.ts";
+import { validateColorPalette } from "./color-scale.ts";
 import { SiteMigrationError, assertStableItemIds } from "./site-migration.ts";
 import { rehostPagePlan, resolvePagePlan } from "./template-pages.ts";
 import { canonicalizeOwnedImageUrl, isTemplateStockUrl } from "./site-images.ts";
@@ -1373,6 +1374,10 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "set_custom_palette") {
+      if (operation.palette) {
+        const checked = validateColorPalette(operation.palette);
+        if (!checked.ok) throw new Error(checked.reason + "：" + checked.failures.join("、"));
+      }
       if (JSON.stringify(draft.customPalette) === JSON.stringify(operation.palette)) continue;
       inverseOperations.unshift({ op: "set_custom_palette", palette: draft.customPalette ? structuredClone(draft.customPalette) : null });
       draft.customPalette = operation.palette ? structuredClone(operation.palette) : null;

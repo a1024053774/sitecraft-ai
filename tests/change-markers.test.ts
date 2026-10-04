@@ -44,7 +44,7 @@ test("the bridge reports every mounted block, and that confirms a change without
 });
 
 test("the workspace builds its change markers from the change set, not from the preview report", () => {
-  const source = readFileSync(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
   const calls = [...source.matchAll(/setLastChangedTargets\(([^;]*)\);/g)].map((match) => match[1]);
   assert.ok(calls.length >= 2);
   for (const call of calls) assert.match(call, /history\?\.\[0\]\?\.appliedTargets|appliedTargets\)$/, call);

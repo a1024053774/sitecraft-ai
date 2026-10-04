@@ -129,8 +129,8 @@ test("DELETE without a matching confirmSiteId does not remove the site file", as
 test("delete UI requires typed confirmation and does not schedule cleanup", () => {
   const panel = readFileSync(new URL("../components/site-delete-panel.tsx", import.meta.url), "utf8");
   const route = readFileSync(new URL("../app/api/sites/[siteId]/route.ts", import.meta.url), "utf8");
-  const workspace = readFileSync(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
-  const settings = readFileSync(new URL("../app/settings/page.tsx", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
+  const settings = readFileSync(new URL("../app/(workspace)/settings/page.tsx", import.meta.url), "utf8");
   assert.match(panel, /confirmSiteId/);
   assert.match(panel, /typed === siteId/);
   assert.match(panel, /workspaceHref/);

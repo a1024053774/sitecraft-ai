@@ -53,21 +53,70 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return typeof value === "string" ? value : localize(value, locale) || "";
   }
 
-  function longestRunEm(value) {
+  function longestRunEm(value, referenceNode) {
     var text = String(value || "").trim();
     var runs = text.split(/[\s，、。；：！？]+/).filter(Boolean);
-    var width = function (run) {
+    var fallbackWidth = function (run) {
       return Array.from(run).reduce(function (sum, char) {
         if (/[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(char)) return sum + 1;
         if (/[A-Za-z0-9]/.test(char)) return sum + 0.6;
         return sum + 0.4;
       }, 0);
     };
-    return Math.max(1, ...runs.map(width)).toFixed(2);
+    var measuredWidth = function (run) {
+      if (!referenceNode || !document || !document.body || !document.createElement || !global.getComputedStyle) return fallbackWidth(run);
+      var style = global.getComputedStyle(referenceNode);
+      var fontSize = parseFloat(style.fontSize || "0");
+      if (!fontSize) return fallbackWidth(run);
+      var probe = document.createElement("span");
+      probe.textContent = run;
+      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;"
+        + "font-family:" + style.fontFamily + ";font-size:" + style.fontSize + ";font-weight:" + style.fontWeight + ";"
+        + "font-style:" + style.fontStyle + ";letter-spacing:" + style.letterSpacing + ";font-kerning:" + style.fontKerning + ";";
+      document.body.appendChild(probe);
+      var width = probe.getBoundingClientRect().width / fontSize;
+      probe.remove();
+      return width > 0 ? width : fallbackWidth(run);
+    };
+    return Math.max(1, ...runs.map(measuredWidth)).toFixed(2);
   }
 
   function fitTextEnabled() {
     return Boolean(adapter && adapter.blocks && adapter.blocks.fitText === "container");
+  }
+
+  // Font metrics are not stable until the first FontFaceSet load settles. Keep the
+  // measurement separate from slot writes so a late font cannot leave the fit variables
+  // calibrated against the fallback stack.
+  var fitTextFontListenerInstalled = false;
+  function measureFitTextNodes() {
+    if (!fitTextEnabled() || !document || !document.querySelectorAll) return;
+    var nodes = document.querySelectorAll("[data-sitecraft-fit-target]");
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var target = node.getAttribute ? node.getAttribute("data-sitecraft-fit-target") : "";
+      if (!target || !node.style || !node.style.setProperty) continue;
+      var value = node.textContent || "";
+      if (target === "hero.title") node.style.setProperty("--sitecraft-title-run", longestRunEm(value, node));
+      if (target === "companyName" || target === "siteName") node.style.setProperty("--sitecraft-brand-run", longestRunEm(value, node));
+    }
+  }
+
+  function measureFitTextAfterFonts() {
+    var fonts = document && document.fonts;
+    var ready = document && document.fonts && document.fonts.ready;
+    if (ready && typeof ready.then === "function") {
+      ready.then(measureFitTextNodes, measureFitTextNodes);
+    } else {
+      measureFitTextNodes();
+    }
+  }
+
+  function watchFontLoading() {
+    var fonts = document && document.fonts;
+    if (fitTextFontListenerInstalled || !fonts || typeof fonts.addEventListener !== "function") return;
+    fitTextFontListenerInstalled = true;
+    fonts.addEventListener("loadingdone", measureFitTextAfterFonts);
   }
 
   function readDraftValue(draft, target, locale) {
@@ -1161,15 +1210,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-run", longestRunEm(nextValue));
-      if (fitTextEnabled() && (slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) {
-        node.style.setProperty("--sitecraft-brand-run", longestRunEm(nextValue));
-      }
       if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";
         writeHeroTitle(node, nextValue);
       } else {
         node.textContent = adapter && adapter.blocks ? emailBreakPoints(nextValue) : nextValue;
+      }
+      if (fitTextEnabled() && (slot.target === "hero.title" || slot.target === "companyName" || slot.target === "siteName") && node.setAttribute) {
+        node.setAttribute("data-sitecraft-fit-target", slot.target);
       }
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";
@@ -1753,6 +1801,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (tokens.muted) root.dataset.sitecraftTokenMuted = tokens.muted;
       if (tokens.accent) root.dataset.sitecraftTokenAccent = tokens.accent;
       if (tokens.accentStrong) root.dataset.sitecraftTokenAccentStrong = tokens.accentStrong;
+      if (root.dataset) root.dataset.sitecraftTokenAccentText = tokens.accentText || "#ffffff";
       if (tokens.accentSoft) root.dataset.sitecraftTokenAccentSoft = tokens.accentSoft;
       if (tokens.border) root.dataset.sitecraftTokenBorder = tokens.border;
       if (inputToken) root.dataset.sitecraftTokenInput = inputToken;
@@ -1761,6 +1810,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (tokens.diagram) root.dataset.sitecraftTokenDiagram = tokens.diagram;
       if (tokens.tint) root.dataset.sitecraftTokenTint = tokens.tint;
       if (tokens.font) root.dataset.sitecraftTokenFont = tokens.font;
+      if (tokens.headingFont) root.dataset.sitecraftTokenHeadingFont = tokens.headingFont;
+      if (tokens.dataFont) root.dataset.sitecraftTokenDataFont = tokens.dataFont;
       if (tokens.radius) root.dataset.sitecraftTokenRadius = tokens.radius;
       if (root.style && root.style.setProperty) {
         if (tokens.background) root.style.setProperty("--site-bg", tokens.background);
@@ -1769,6 +1820,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (tokens.muted) root.style.setProperty("--site-muted", tokens.muted);
         if (tokens.accent) root.style.setProperty("--site-accent", tokens.accent);
         if (tokens.accentStrong) root.style.setProperty("--site-accent-strong", tokens.accentStrong);
+        root.style.setProperty("--site-accent-text", tokens.accentText || "#ffffff");
         if (tokens.accentSoft) root.style.setProperty("--site-accent-soft", tokens.accentSoft);
         if (tokens.border) root.style.setProperty("--site-line", tokens.border);
         if (inputToken) root.style.setProperty("--site-input", inputToken);
@@ -1777,6 +1829,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (tokens.diagram) root.style.setProperty("--site-diagram", tokens.diagram);
         if (tokens.tint) root.style.setProperty("--site-tint", tokens.tint);
         if (tokens.font) root.style.setProperty("--site-font", tokens.font);
+        if (tokens.headingFont) root.style.setProperty("--site-heading-font", tokens.headingFont);
+        if (tokens.dataFont) root.style.setProperty("--site-data-font", tokens.dataFont);
         if (tokens.radius) root.style.setProperty("--site-radius", tokens.radius);
       }
     }
@@ -2253,6 +2307,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     } else if (adapter) {
       hideGapsWithoutDraft(currentLocale, variant || "preview", applied);
     }
+    watchFontLoading();
+    measureFitTextAfterFonts();
     return report(applied, expected, adapter, extraMissing);
   }
 
