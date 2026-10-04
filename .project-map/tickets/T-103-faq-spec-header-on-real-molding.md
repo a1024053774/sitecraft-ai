@@ -25,3 +25,12 @@ T-097 用充值后的真实 DeepSeek 重新生成三站（`936749b`），注塑�
 - [ ] 测试先写、改动前先失败（行为级）：用该站真实草稿，在浏览器里断言常见问题回答单行不超上限、参数格不溢出不截断、375 页头公司名完整（复用 `visitor-layout-scan.js` 计量）
 - [ ] 注塑真实站 + 主线 12 站 `check-published` 中英文三档全部通过、逐行测量条数不少于基线；改动区块重渲后交审美审查确认观感没有变差
 - [ ] `npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过；代码审查通过；Claude 验收
+
+## Resolution
+
+2026-10-04，基于合并主线 `7207ba97ed6dc1dd787b49945840569335bd42a8`（含 T-093 全部代码）完成 T-103。FAQ 回答加 `33em` 正文行长上限并允许自然换行；产品参数 key 在窄屏允许 flex 收缩和规格值换行；导航页头对短公司名保持单行完整，对带 fit 标记的超长公司名保留动态缩放和换行。没有改资料、模型内容、检查门槛或截断文本。
+
+- 红测（改动前，已知坏父提交）：`artifacts/t103/red-7207ba97.log`，首行绑定父提交 SHA、UTC 和命令，真实注塑站 1440/768/375 共 14 项失败。
+- 最终代码提交：`f3158834bdd3c98858f893d128665ed7e2fbb98e`，其后重新生成的证据首行均写完整 SHA、命令和 UTC：`artifacts/t103/build-f315883.log`（PASS）、`artifacts/t103/typecheck-f315883.log`（PASS）、`artifacts/t103/npm-test-f315883.log`（779/779 PASS、0 FAIL）、`artifacts/t103/focused-f315883.log`（T-103 真实站 3/3 PASS）。
+- 真实注塑站 + 主线 12 站：`artifacts/t103/check-published-f315883/run.log` 与 `report.json`，13 站 × 3 宽度共 39 行、0 failures；报告逐行通过，真实注塑站的原始 14 failures 已由同一入口修复后复核。
+- 区块重渲：`artifacts/t103/render-faq-final/`、`artifacts/t103/render-products-final/`、`artifacts/t103/render-nav-final/`，对应 `render-*-final.log` 首行均绑定最终 SHA；1440/768/375 均 0 overflow、0 overlap、0 missing facts。渲染图已准备给独立审美审核，执行者不宣布审美通过。
