@@ -42,9 +42,11 @@
 - [T-049 2026-09-29 起谁做什么](tickets/T-049-roles-2026-09-29.md)：Claude 规划验收，Codex/Sonnet 执行（Kiro 已停用），Astra 审代码，gpt-6.1-sol 盲评，Grok 杂活，云端做 T-050–T-052
 - [T-084 前端收藏调研之后怎么用](tickets/T-084-threads-research-decisions.md)：批注按 komo 交互骨架加稳定 slot 锚点开工；加 OKLCH 色阶不加色彩集；中文回退 + 英文 OFL 自托管；正文 4.5:1 升硬门；联系/认证图标自制试验；付费 UI 库不用
 
+- [T-104 T-084 这批之后做什么](tickets/T-104-after-research-batch.md)：两种盲评（混排猜不出、换公司看不出同模板）；测试真图 + 同风格示意图；vendor 模板只拆区块补 4 个样子；下线模板画廊、入口改工作台；只做静态细节不做动效
+
 ## Not yet specified
 
-- 新开源素材的准入：需要先定准入流程和第一批候选。
+- 新开源素材的准入：T-104 定为 vendor 模板只拆区块进池；外部新仓库的准入流程仍未定。
 - 子页面的同族 overlay、`fresh` kit。
 - 英文页专有名词（地名、公司名、产品名）的中英对照：T-082 记为已知限制，等英文页成为验收重点时再定。
 - 生成站动效（候选见 T-084：展开、悬停描边、提交成功提示，参考 Transitions.dev 自写 CSS）、改标题（评审 P0-5、P0-6）。
@@ -66,5 +68,5 @@
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**` | |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-00[1-9]-*.md`, `.project-map/tickets/T-01[0-4]-*.md` | |
 | [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/types.ts`, `lib/template-adapters/registry.ts`, `lib/frontend-tone.ts`, block-library preview path | 510e46c |
-| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/workspace/**`, `app/api/**`, `tests/helpers/workspace-browser.ts`, block-library preview path | aac666b |
+| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/(workspace)/**`, `app/api/**`, `tests/helpers/workspace-browser.ts`, block-library preview path | aac666b |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | 00a083e |
