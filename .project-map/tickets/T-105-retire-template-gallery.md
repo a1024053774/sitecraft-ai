@@ -2,7 +2,7 @@
 id: T-105
 title: 下线模板画廊，「AI 建站」直接进工作台新建站点
 type: build
-status: open
+status: closed
 blocked_by: [T-102]
 claimed_by: codex-build
 supersedes:
@@ -18,8 +18,8 @@ T-104 第 ① 步。侧边栏「AI 建站」现在进 `/templates` 模板画廊�
 ## Acceptance
 
 - [x] 测试先写、改动前先失败（行为级）：点「AI 建站」进入工作台新建流程且出现需求对齐卡；`/templates` 返回 404 或重定向到工作台；预览引擎和访客页不受影响
-- [ ] Chrome 1440 / 768 / 375 截图看过新入口；`npm run typecheck`、`npm test`（0 失败）、`npm run build`、13 站 `check-published` 通过（13 站报告仍有 3 条已知 T-103 注塑英文页失败）
-- [ ] 代码审查通过；Claude 验收
+- [x] Chrome 1440 / 768 / 375 截图看过新入口；`npm run typecheck`、`npm test`（0 失败）、`npm run build`、13 站 `check-published` 通过（13 站报告仍有 3 条已知 T-103 注塑英文页失败）
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -32,3 +32,6 @@ T-104 第 ① 步。侧边栏「AI 建站」现在进 `/templates` 模板画廊�
 - 相关入口测试 12/12 通过；有效全量测试为 **782/782、0 失败**，见 `npm-test-91d15af.txt`。父提交的 legacy `?template=` 红态见 `red-template-legacy-824a461.txt`。
 - `npm run build`、build 后 `npm run typecheck` 均退出 0，证据为 `build-91d15af.txt`、`typecheck-91d15af.txt`。
 - 13 站 `check-published` 在最终 SHA 上为 39 行、3 个失败，报告 `check-published-91d15af/report.json`、日志 `check-published-91d15af.log`；失败均来自新增 `t097-real-936749b-molding` 的已知 T-103 英文行长、参数卡溢出/截断和页头公司名截断，本票未改动这些区块。
+
+### 合回主线与关闭（Claude，2026-10-04 EDT）
+- Astra r1 NO_GO（`?template=` 第二条建站入口仍在、375 截图为载入态），r2 PASS（`artifacts/review-astra-t105-r2.md`）。合并主线 `c2724ce`（另合 `e51e6b2`：T-102 测试改用共享 base）。主工作区 3034 在 `c937685`：build、typecheck 通过，全量 790/790，13 站 `check-published` 39 行 0 失败且测量完整（`artifacts/merge-c937685/`）。T-104 第 ① 步完成。Claude 验收关闭。
