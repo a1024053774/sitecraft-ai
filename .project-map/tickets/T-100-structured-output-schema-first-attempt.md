@@ -30,6 +30,13 @@ T-096 复核时发现（`sitecraft-ai-fields/artifacts/t096/failure-analysis-264
 - 父提交行为级红测：[artifacts/t100/red-parent-structured-output.txt](../../artifacts/t100/red-parent-structured-output.txt)；父提交能加载已存响应，但缺少上述提示契约而失败。修复后 `node --test --experimental-strip-types tests/t100-structured-output.test.ts` 2/2 通过，日志在 `artifacts/t100/t100-focused-pass.txt`；`npm run typecheck` 通过，日志在 `artifacts/t100/typecheck-offline.txt`。
 - 离线原始响应 schema 字段对照：[artifacts/t096/repro-schema-fields.txt](../../artifacts/t096/repro-schema-fields.txt)。未跑真实 3×3、发布检查、全量测试或 build；这些留待负责人充值后重新执行，当前票据 **INCOMPLETE**。
 
+2026-10-04，沿用同一条 schema-first 契约的解析修复提交为 `a1a5210`：
+
+- 删除 `lib/ai-provider.ts` 中 `fillMissingCatalogText` 预处理，`parseModelJson` 现在直接对模型原始 JSON 做 `aiIntentResponseSchema.safeParse`。缺失或 `null` 的目录 `title` / `body` 不再被改写成 gap；按既有一次重试后仍以 `invalid_output` 返回，调用方不会提交 operation。
+- 新行为测试 `tests/t100-catalog-schema-no-rewrite.test.ts` 用 stub 返回缺 body 与 null title，并实际走提交条件：两项都验证结构化请求失败、修订号和 change history 不变。父实现红测保存在 [artifacts/t100/red-catalog-schema-no-rewrite.txt](../../artifacts/t100/red-catalog-schema-no-rewrite.txt)，修复后通过日志为 [artifacts/t100/t100-focused-pass-r3.txt](../../artifacts/t100/t100-focused-pass-r3.txt)。既有 `structured-output-budget` 夹具也改为验证 invalid-output 重试，不再期待静默补值。
+- 删除预处理后，第一次 schema 通过率可能下降；当前账户欠费，没有用重试或真实调用掩盖这一变化。真实 DeepSeek 三份资料各 3 次首次通过率对照仍待充值后补跑，原始响应与三家发布检查也未生成。
+- `npm run typecheck` 通过（[artifacts/t100/typecheck-r2-final.txt](../../artifacts/t100/typecheck-r2-final.txt)）；`SITECRAFT_BASE=http://127.0.0.1:3061 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 697/697 通过（[artifacts/t100/npm-test-r2-final.txt](../../artifacts/t100/npm-test-r2-final.txt)）。票据仍 **INCOMPLETE**，等待真实 3×3、check-published、build、Astra/Claude 验收。
+
 ### SKU / preview identity 复核（2026-10-03）
 
 - `productSchema` 不要求 `sku` 唯一；`product.id` 由 T-069 的 `ensureProductIds` / 迁移保证稳定。`data-sitecraft-product` 只有 preview bridge 写入和测试读取，生产编辑寻址使用 `products.<id>.*`。
