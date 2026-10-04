@@ -17,6 +17,17 @@ T-104 第 ① 步。侧边栏「AI 建站」现在进 `/templates` 模板画廊�
 
 ## Acceptance
 
-- [ ] 测试先写、改动前先失败（行为级）：点「AI 建站」进入工作台新建流程且出现需求对齐卡；`/templates` 返回 404 或重定向到工作台；预览引擎和访客页不受影响
-- [ ] Chrome 1440 / 768 / 375 截图看过新入口；`npm run typecheck`、`npm test`（0 失败）、`npm run build`、12 站 `check-published` 通过
+- [x] 测试先写、改动前先失败（行为级）：点「AI 建站」进入工作台新建流程且出现需求对齐卡；`/templates` 返回 404 或重定向到工作台；预览引擎和访客页不受影响
+- [x] Chrome 1440 / 768 / 375 截图看过新入口；`npm run typecheck`、`npm test`（0 失败）、`npm run build`、12 站 `check-published` 通过
 - [ ] 代码审查通过；Claude 验收
+
+## Resolution
+
+2026-10-04（America/New_York），codex-build，代码 commit `824a461c87ba68d1f423678217d42f05c85d43dc`：
+
+- 红测先在父提交 `fa1631c3887fcf30fceb0602e3dab7f19ab91c66` 的行为夹具上失败，记录在 `artifacts/t105/red-retire-template-gallery-parent-fa1631c.txt`；失败点是 `?new=1` 仍打开默认站点、画廊入口文件仍存在。删前完整引用清单见 `artifacts/t105/references-before-delete.txt`。
+- 侧边栏、首页新建按钮和快速开始全部进入 `/workspace?new=1`。工作台用 `forge` 作为初始化种子调用显式 `POST /api/sites`，地址换成 `?site=<id>` 后立即启动需求对齐卡，卡片显示样子和 4 套色彩集；刷新恢复同一站点。`resolveWorkspaceEntry` 保留旧 `?template=<id>` 兼容入口。
+- 删除 `components/template-gallery.tsx`、`app/(workspace)/templates/page.tsx`、`app/templates/[templateId]/preview/page.tsx` 及只服务单个预览页的 `tests/visitor-host.test.ts`；`tests/dashboard-cleanup.test.ts` 去掉画廊断言。保留 `/api/templates/[templateId]/preview`、资产路由和 `OpenSourceTemplateFrame`，工作台、发布页、质量页仍走同一预览引擎。
+- `artifacts/t105/browser-entry-824a461.log` 首行绑定该 SHA；报告确认 `/templates` 为 404、预览 API 为 200，1440 / 768 / 375 均出现需求对齐卡，截图为 `ai-new-1440.png`、`ai-new-768.png`、`ai-new-375.png`，已逐张查看。
+- 相关测试 46/46 通过（`related-tests-824a461.txt`）；有效全量测试为 **781/781、0 失败**（`npm-test-824a461-3070-vendor.txt`）。第一次默认访问主工作区 3034 的 722/781 记录在 `npm-test-824a461.txt`，因工作区身份核对拒绝，不计入有效结果。
+- `npm run typecheck`、`npm run build` 均退出 0，证据分别为 `typecheck-824a461.txt`、`build-824a461.txt`；12 站 `check-published` 为 36 行、0 失败，日志首行绑定该 SHA，报告在 `check-published-824a461/`。
