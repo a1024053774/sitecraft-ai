@@ -14,7 +14,9 @@ supersedes:
 
 - 访客页 `app/published/[siteKey]/page.tsx`（两处）：打开一个不存在或打错的发布地址，不返回 404，而是写出一个默认空站点文件，并给访客渲染「未命名企业」的空模板页。
 - `GET /api/sites/[siteId]/draft`：读草稿时站点不存在也会新建。
-- `app/api/quality/cells/route.ts`：按固定 id 读质量对照站点，缺失时写出默认空站点（2026-10-03 另一个 worktree 里 `566fcfc1` 被替换成 19:07 生成的 7KB 空草稿，随后 12 站 `check-published` 测的是空站，正是这条路径的后果）。
+- `app/api/quality/cells/route.ts`：按固定 id（`p4-sw-bright`、`p4-long` 等）读质量对照站点，缺失时同样写出默认空站点。
+
+实例：2026-10-03 另一个 worktree 里 `566fcfc1` 在站点文件复制进来之前被访问（多半是 `check-published` 打开了它的发布页），于是写出 19:07 的 7KB 空草稿；之后复制脚本因「文件已存在」跳过，12 站 `check-published` 测的是空站。
 
 后果：访客看到演示壳（违反成品否决项）、磁盘上累积用户没有建过的站点（本项目不做自动清理）、检查工具在站点缺失时静默测空页。
 
