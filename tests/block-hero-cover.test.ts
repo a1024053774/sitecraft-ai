@@ -10,7 +10,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-074: 首屏「目录封面」(hero:cover). The hero copy on the left, the product series on the right
 // as a contents list (category and name, each a link to the products block), at most 6 rows. It
@@ -124,10 +124,7 @@ test("目录封面 has no horizontal overflow with 2, 5 and 8 products at 1440, 
     await browser.send("Runtime.enable", {}, sessionId);
     for (const templateId of ["screwfast", "landwind"]) {
       await browser.send("Page.navigate", { url: `${base}/api/templates/${templateId}/preview?hero-cover=${Date.now()}` }, sessionId);
-      for (let waited = 0; waited < 30000; waited += 100) {
-        if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitForPreviewBridge(browser, sessionId, 30000, 'block-hero-cover.test');
       for (const count of [2, 5, 8]) {
         const draft = withProducts(count, templateId);
         draft.products[0].name = { zh: "多腔热流道精密注塑模具（含针阀式浇口与模温机）", en: "Multi-cavity hot runner precision injection mold with valve gates" };

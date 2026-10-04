@@ -225,11 +225,13 @@ registerHooks({
   },
 });
 
-const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
+const { POST, actionStream } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
+  actionStream: (siteId: string, conversationId: string, action: string, applied: any) => ReadableStream<Uint8Array>;
 };
+const { publicAlignmentView } = await import("../lib/alignment.ts");
 const { getConversation, updateConversationAlignment, conversationPromptContext } = await import("../lib/conversation-store.ts");
-const { commitOperations, getSite } = await import("../lib/site-store.ts");
+const { commitOperations, createSite } = await import("../lib/site-store.ts");
 const { saveSiteImage } = await import("../lib/site-images.ts");
 
 const createdSiteIds = new Set<string>();
@@ -273,6 +275,8 @@ function parseSseEvents(payload: string) {
 }
 
 async function postChat(siteId: string, body: Record<string, unknown>) {
+  // T-102: tests create their site explicitly; the chat route must not create a missing site.
+  await createSite(siteId);
   const response = await POST(
     new Request(`http://sitecraft.test/api/sites/${siteId}/chat`, {
       method: "POST",
@@ -361,9 +365,58 @@ test("chat POST SSE reuses conversationId across two applied turns", async () =>
   assert.equal(record.turns.some((turn) => turn.userMessage === secondMessage), true);
 });
 
+test("a long chat request that loses its site reports site_not_found", async () => {
+  const siteId = uniqueSiteId();
+  await createSite(siteId);
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await rm(path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`), { force: true });
+    return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ type: "edit", summary: "CHAT_SITE_DISAPPEARS_SUMMARY", operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "CHAT_SITE_DISAPPEARS_TITLE" }] }) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const result = await postChat(siteId, { baseRevision: 1, message: "CHAT_SITE_DISAPPEARS_DURING_REQUEST" });
+    assert.ok(result.done);
+    assert.equal(result.done.code, "site_not_found");
+    assert.match(String(result.done.userMessage), /找不到这个站点/);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("confirming an alignment plan after the site disappears reports site_not_found", async () => {
+  const siteId = uniqueSiteId();
+  const started = await postChat(siteId, { action: "start", message: "CLAIM_BEFORE_COMMIT_5927", baseRevision: 1 });
+  const conversationId = String(started.done?.conversationId);
+  await postChat(siteId, {
+    action: "select", conversationId, questionId: started.done?.questionId,
+    questionRevision: started.done?.questionRevision, optionId: "industrial",
+  });
+  const record = await getConversation(siteId, conversationId);
+  assert.ok(record?.alignment.proposedChange);
+  record!.alignment.confirmClaimed = true;
+  await writeFile(path.join(conversationDir(siteId), `${conversationId}.json`), JSON.stringify(record), "utf8");
+  await rm(path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`), { force: true });
+  const stream = actionStream(siteId, conversationId, "confirm", {
+    record,
+    view: publicAlignmentView(record!.alignment),
+    result: { ok: true, shouldCommit: true },
+  });
+  const reader = stream.getReader();
+  let payload = "";
+  for (;;) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    payload += new TextDecoder().decode(chunk.value);
+  }
+  const done = parseSseEvents(payload).find((event) => event.type === "done");
+  assert.equal(done?.code, "site_not_found");
+  assert.match(String(done?.userMessage), /找不到这个站点/);
+});
+
 test("chat POST answer does not commit, emits answer then done, and keeps revision", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const message = "CHAT_SENTINEL_ANSWER_7730 这个网站的公司名称是什么？";
   const result = await postChat(siteId, { baseRevision: before.draft.revision, message });
 
@@ -381,7 +434,7 @@ test("chat POST answer does not commit, emits answer then done, and keeps revisi
   assert.equal(result.done.model, "test-chat-model");
   assert.equal(typeof result.done.latencyMs, "number");
 
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.revision, before.draft.revision);
   assert.deepEqual(after.draft, before.draft);
   assert.equal(after.history.length, 0);
@@ -396,7 +449,7 @@ test("chat POST answer does not commit, emits answer then done, and keeps revisi
 
 test("chat POST clarify does not commit, emits clarify then done, and keeps revision", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const message = "CHAT_SENTINEL_CLARIFY_7730 把网站改好看点";
   const result = await postChat(siteId, { baseRevision: before.draft.revision, message });
 
@@ -412,7 +465,7 @@ test("chat POST clarify does not commit, emits clarify then done, and keeps revi
   assert.equal("changeSet" in result.done, false);
   assert.equal(result.done.changeSet, undefined);
 
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.revision, before.draft.revision);
   assert.equal(after.history.length, 0);
 
@@ -424,7 +477,7 @@ test("chat POST clarify does not commit, emits clarify then done, and keeps revi
 
 test("chat POST keeps applied result when append fails after a successful commit", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const message = "CHAT_SENTINEL_PERSIST_8812 shorten the hero title after persist fault";
   const result = await withConversationRemovedDuringModelFetch(siteId, () => (
     postChat(siteId, { baseRevision: before.draft.revision, message })
@@ -441,7 +494,7 @@ test("chat POST keeps applied result when append fails after a successful commit
   assert.ok(result.done.changeSet);
   assert.ok(result.done.draft);
 
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.ok(after.draft.revision > before.draft.revision);
   assert.equal(after.draft.content.hero.title.zh, "CHAT_SENTINEL_PERSIST_TITLE_8812");
   assert.equal((result.done.draft as { revision?: unknown }).revision, after.draft.revision);
@@ -460,7 +513,7 @@ test("chat POST keeps applied result when append fails after a successful commit
 
 test("chat POST no-op edit records a result reason, not the provider summary", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const result = await postChat(siteId, { baseRevision: before.draft.revision, message: "CHAT_REJECT_NOOP_7301 首屏标题保持不变" });
   assert.equal(result.done?.status, "no_change");
   assert.doesNotMatch(String(result.done?.summary || ""), /CHAT_REJECT_NOOP_MODEL_PROSE_7301/);
@@ -475,7 +528,7 @@ test("chat POST no-op edit records a result reason, not the provider summary", a
 
 test("alignment rejected confirmation replays a pure reason without a duplicate 未修改 prefix", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const started = await postChat(siteId, { action: "start", message: "ALIGN_REJECT_STYLE_7301", baseRevision: before.draft.revision });
   const conversationId = String(started.done?.conversationId);
   const styled = await postChat(siteId, {
@@ -522,7 +575,7 @@ test("alignment rejected confirmation replays a pure reason without a duplicate 
 
 test("chat POST keeps answer when append fails and does not treat it as an error", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const message = "CHAT_SENTINEL_ANSWER_7730 这个网站的公司名称是什么？";
   const result = await withConversationRemovedDuringModelFetch(siteId, () => (
     postChat(siteId, { baseRevision: before.draft.revision, message })
@@ -536,7 +589,7 @@ test("chat POST keeps answer when append fails and does not treat it as an error
   assert.equal(String(result.done.conversationError).includes("Conversation not found"), false);
   assert.equal("changeSet" in result.done, false);
 
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.revision, before.draft.revision);
 
   const pageSource = await readFile(path.join(process.cwd(), "app/(workspace)/workspace/page.tsx"), "utf8");
@@ -580,7 +633,7 @@ test("ordinary chat without alignment action does not persist enabled alignment"
 
 test("alignment start returns style options without calling the provider or changing the draft", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const beforeFetch = providerFetchCount;
   const result = await postChat(siteId, { action: "start" });
 
@@ -606,7 +659,7 @@ test("alignment start returns style options without calling the provider or chan
   assert.equal(typeof result.done.conversationId, "string");
   assert.equal("changeSet" in result.done, false);
 
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.revision, before.draft.revision);
   assert.deepEqual(after.draft, before.draft);
 
@@ -618,7 +671,7 @@ test("alignment start returns style options without calling the provider or chan
 
 test("prompt alignment asks a provider-planned question and persists it without changing the draft", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const result = await postChat(siteId, {
     action: "start",
     message: "DYNAMIC_ALIGN_PROMPT_20260923 我们做流体接头出口目录，采购商要找产品。",
@@ -630,7 +683,7 @@ test("prompt alignment asks a provider-planned question and persists it without 
   const prompts = ((result.done?.questions ?? []) as Array<{ prompt: string }>).map((item) => item.prompt);
   assert.ok(prompts.some((prompt) => /出口目录|筛选/.test(prompt)), `planner question missing from ${prompts.join(" | ")}`);
   assert.equal(String(result.done?.question).includes("请选择网站的样子"), false);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
   const record = await getConversation(siteId, String(result.done?.conversationId));
   assert.equal(record?.alignment.state, "awaiting_user");
   assert.equal(record?.alignment.currentQuestion?.kind, "clarify");
@@ -638,7 +691,7 @@ test("prompt alignment asks a provider-planned question and persists it without 
 
 test("alignment select is idempotent and rejects stale or unknown options without changing the draft", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const started = await postChat(siteId, { action: "start" });
   const conversationId = String(started.done?.conversationId);
   const questionId = String(started.done?.questionId);
@@ -689,13 +742,13 @@ test("alignment select is idempotent and rejects stale or unknown options withou
   assert.equal(again.done?.saved, true);
   assert.equal(again.done?.prefsOnly, true);
 
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.revision, before.draft.revision);
 });
 
 test("alignment HITL continues the saved task through clarify, proposal, and confirm without a new chat", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const task = "ALIGN_HITL_ALPHA_4401 把首屏改成工厂目录风格";
   const started = await postChat(siteId, {
     action: "start",
@@ -723,7 +776,7 @@ test("alignment HITL continues the saved task through clarify, proposal, and con
   const clarifyOptions = asOptionCards(styled.done);
   assert.ok(clarifyOptions[0]?.id.startsWith("opt-"));
   assert.equal(styled.done?.pendingMessage, task);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 
   const restoredQuestion = await postChat(siteId, { action: "state", conversationId });
   assert.equal(restoredQuestion.done?.pendingMessage, task);
@@ -740,7 +793,7 @@ test("alignment HITL continues the saved task through clarify, proposal, and con
   assert.equal(answered.done?.status, "alignment");
   assert.equal(answered.done?.awaitingConfirmation, true);
   assert.match(String(answered.done?.summary || answered.done?.question || ""), /^将修改：样子、首屏标题$/);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 
   const restoredConfirm = await postChat(siteId, { action: "state", conversationId });
   assert.equal(restoredConfirm.done?.awaitingConfirmation, true);
@@ -754,7 +807,7 @@ test("alignment HITL continues the saved task through clarify, proposal, and con
   });
   assert.equal(bypass.response.status, 409);
   assert.equal(bypass.json?.error, "alignment_pending");
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 
   const staleConfirm = await postChat(siteId, {
     action: "confirm",
@@ -764,7 +817,7 @@ test("alignment HITL continues the saved task through clarify, proposal, and con
   });
   assert.equal(staleConfirm.response.status, 409);
   assert.equal(staleConfirm.json?.error, "stale_question");
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 
   const confirmed = await postChat(siteId, {
     action: "confirm",
@@ -787,14 +840,14 @@ test("alignment HITL continues the saved task through clarify, proposal, and con
   assert.ok(duplicate.done?.changeSet, "replayed applied response must include the changeSet consumed by workspace UI");
   assert.equal(Number((duplicate.done?.draft as { revision?: number } | undefined)?.revision), appliedRevision);
 
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.revision, appliedRevision);
   assert.equal(after.draft.content.hero.title.zh, "ALIGN_HITL_ALPHA_TITLE_4401");
 });
 
 test("guided image wait resumes the same saved task after a site upload", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const image = await saveSiteImage({
     siteId,
     bytes: pngWithSize(128, 96),
@@ -817,7 +870,7 @@ test("guided image wait resumes the same saved task after a site upload", async 
   });
   assert.equal(waiting.done?.questionId, "image-upload");
   assert.equal(waiting.done?.waitingForUser, true);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
   const restored = await postChat(siteId, { action: "state", conversationId });
   assert.equal(restored.done?.questionId, "image-upload");
   assert.equal(restored.done?.waitingForUser, true);
@@ -832,12 +885,12 @@ test("guided image wait resumes the same saved task after a site upload", async 
     (operation.op === "set_product_image" || (operation.op === "set_image_slot" && operation.target === "hero.image"))
     && operation.imageId === image.imageId
   )), true);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 });
 
 test("P3E complete materials reuse the guided plan, preserve missing facts, and block bypass until confirmation", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const materials = [
     "P3E_FLOW_MW4R_4401 ALIGN_GUIDED_P3E_FIXTURE_4401",
     "【公司资料】资料性质：模拟。不可当作真实企业。",
@@ -850,7 +903,7 @@ test("P3E complete materials reuse the guided plan, preserve missing facts, and 
   const started = await postChat(siteId, { action: "start", message: materials, baseRevision: before.draft.revision });
   const conversationId = String(started.done?.conversationId);
   assert.equal(started.done?.questionId, "style-theme", "complete materials should prefill business goal");
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 
   const restored = await postChat(siteId, { action: "state", conversationId });
   assert.equal(restored.done?.questionId, "style-theme");
@@ -868,7 +921,7 @@ test("P3E complete materials reuse the guided plan, preserve missing facts, and 
     questionRevision: Number(style.done?.questionRevision), optionId: "no-image",
   });
   assert.equal(planned.done?.awaitingConfirmation, true);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
   const plannedRecord = await getConversation(siteId, conversationId);
   const proposed = plannedRecord?.alignment.proposedChange;
   assert.ok(proposed);
@@ -878,14 +931,14 @@ test("P3E complete materials reuse the guided plan, preserve missing facts, and 
 
   const bypass = await postChat(siteId, { baseRevision: before.draft.revision, message: "直接生成 P3E_FLOW_BYPASS", conversationId });
   assert.equal(bypass.response.status, 409);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 
   const confirmed = await postChat(siteId, {
     action: "confirm", conversationId, questionId: String(planned.done?.questionId),
     questionRevision: Number(planned.done?.questionRevision),
   });
   assert.equal(confirmed.done?.status, "applied");
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.companyName, "外高桥流体接头P3E");
   assert.equal(after.draft.products.map((product) => product.name.zh).join("、"), "快换接头、卡套接头");
   // T-045: the gap-only sentence "具体交期待补充" does not reach visitor prose, and no lead time is invented.
@@ -896,7 +949,7 @@ test("P3E complete materials reuse the guided plan, preserve missing facts, and 
 
 test("alignment confirm conflicts when the draft revision changes, and cancel does not replay", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const started = await postChat(siteId, {
     action: "start",
     message: "ALIGN_HITL_BETA_4401 改联系区说明",
@@ -941,12 +994,12 @@ test("alignment confirm conflicts when the draft revision changes, and cancel do
   assert.equal(conflictTurn.aiSummary, "草稿在 AI 处理期间已被更新，本次操作没有覆盖新版本。");
   assert.doesNotMatch(conflictTurn.aiSummary, /ALIGN_HITL_BETA_SUMMARY_4401|将修改/);
   assert.doesNotMatch(conversationPromptContext(conflictedRecord), /ALIGN_HITL_BETA_SUMMARY_4401/);
-  const afterConflict = await getSite(siteId);
+  const afterConflict = await createSite(siteId);
   assert.equal(afterConflict.draft.content.hero.title.zh, "ALIGN_MANUAL_CONFLICT_4401");
   assert.notEqual(afterConflict.draft.content.hero.subtitle.zh, "ALIGN_HITL_BETA_SUB_4401");
 
   const otherSite = uniqueSiteId();
-  const otherBefore = await getSite(otherSite);
+  const otherBefore = await createSite(otherSite);
   const otherStart = await postChat(otherSite, {
     action: "start",
     message: "ALIGN_HITL_BETA_4401 第二个任务",
@@ -977,14 +1030,14 @@ test("alignment confirm conflicts when the draft revision changes, and cancel do
   });
   assert.equal(afterCancel.done?.status, "answer");
   assert.equal(lastChatFetchBody.includes("专业顾问"), false);
-  assert.equal((await getSite(otherSite)).draft.revision, otherBefore.draft.revision);
+  assert.equal((await createSite(otherSite)).draft.revision, otherBefore.draft.revision);
 });
 
 test("two unrelated alignment tasks produce corresponding model questions and results", async () => {
   const siteA = uniqueSiteId();
   const siteB = uniqueSiteId();
-  const beforeA = await getSite(siteA);
-  const beforeB = await getSite(siteB);
+  const beforeA = await createSite(siteA);
+  const beforeB = await createSite(siteB);
   hitlCallCounts.clear();
 
   const startA = await postChat(siteA, {
@@ -1057,8 +1110,8 @@ test("alignment recovers a committed proposal after the conversation result writ
   const view = restored.done?.alignment as { lastResult?: { status?: string }; waitingForUser?: boolean };
   assert.equal(view.lastResult?.status, "applied", "state restore must use the saved draft receipt, not leave confirmation stuck");
   assert.equal(view.waitingForUser, false);
-  assert.equal((await getSite(siteId)).draft.revision, 2);
-  assert.equal((await getSite(siteId)).history.length, 1);
+  assert.equal((await createSite(siteId)).draft.revision, 2);
+  assert.equal((await createSite(siteId)).history.length, 1);
 });
 
 test("state resumes an already confirmed proposal if the process stopped before its draft commit", async () => {
@@ -1073,8 +1126,8 @@ test("state resumes an already confirmed proposal if the process stopped before 
   await writeFile(path.join(conversationDir(siteId), `${conversationId}.json`), JSON.stringify(record), "utf8");
   const states = await Promise.all(Array.from({ length: 4 }, () => postChat(siteId, { action: "state", conversationId })));
   assert.ok(states.every((item) => item.done?.status !== "conflict"), "recovery cannot overwrite applied with conflict");
-  assert.equal((await getSite(siteId)).draft.revision, 2, "an authorized but interrupted commit must finish");
-  assert.equal((await getSite(siteId)).history.length, 1);
+  assert.equal((await createSite(siteId)).draft.revision, 2, "an authorized but interrupted commit must finish");
+  assert.equal((await createSite(siteId)).history.length, 1);
   assert.equal((await getConversation(siteId, conversationId))?.alignment.lastResult?.status, "applied");
 });
 
@@ -1091,13 +1144,13 @@ test("recovering a lost confirmation result after undo does not report the undon
   assert.equal(applied.done?.status, "applied");
   const { moveHistory } = await import("../lib/site-store.ts");
   await moveHistory(siteId, "undo");
-  const undone = await getSite(siteId);
+  const undone = await createSite(siteId);
   claimed.alignment.confirmClaimed = true;
   await writeFile(path.join(conversationDir(siteId), `${conversationId}.json`), JSON.stringify(claimed), "utf8");
   const recovered = await postChat(siteId, { action: "state", conversationId });
   assert.equal(recovered.done?.status, "conflict", "an undone receipt must not be reported as currently applied");
   assert.equal((recovered.done?.draft as { revision?: number })?.revision, undone.draft.revision);
-  assert.equal((await getSite(siteId)).draft.content.hero.title.zh, undone.draft.content.hero.title.zh);
+  assert.equal((await createSite(siteId)).draft.content.hero.title.zh, undone.draft.content.hero.title.zh);
 });
 
 test("cancel suppresses a late provider answer and preserves the saved cancellation", async () => {
@@ -1126,7 +1179,7 @@ test("cancel suppresses a late provider answer and preserves the saved cancellat
     const late = await selecting;
     assert.equal(late.events.some((item) => item.type === "answer"), false, "cancelled provider output must not reach the UI");
     assert.equal((await getConversation(siteId, conversationId))?.turns.length, 0);
-    assert.equal((await getSite(siteId)).draft.revision, 1);
+    assert.equal((await createSite(siteId)).draft.revision, 1);
   } finally {
     release();
     globalThis.fetch = previousFetch;

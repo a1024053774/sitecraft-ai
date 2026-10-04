@@ -17,7 +17,7 @@ registerHooks({
   },
 });
 
-const { commitOperations, getSite, selectiveUndo } = await import("../lib/site-store.ts");
+const { commitOperations, createSite, selectiveUndo } = await import("../lib/site-store.ts");
 const { createAnnotation, listAnnotations, replyAnnotation, resolveAnnotation } = await import("../lib/annotation-store.ts");
 const annotationsRoute = await import("../app/api/sites/[siteId]/annotations/route.ts");
 const annotationRoute = await import("../app/api/sites/[siteId]/annotations/[annotationId]/route.ts");
@@ -61,15 +61,15 @@ test.after(async () => {
 
 test("annotation CRUD is independent from draft revision", async () => {
   const siteId = newSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const created = await createAnnotation(annotationInput(siteId));
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
   assert.equal((await listAnnotations(siteId)).length, 1);
   const replied = await replyAnnotation(siteId, created.id, { body: "已补充说明", author: { id: "reviewer", name: "审核者" } });
   assert.equal(replied.comments.length, 2);
   const resolved = await resolveAnnotation(siteId, created.id, true);
   assert.equal(resolved.status, "resolved");
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 });
 
 test("annotation contract rejects an unowned primary slot and accepts stale state", () => {
@@ -98,7 +98,7 @@ test("annotation API creates, filters, replies, resolves, and deletes explicitly
 
 test("selective undo keeps a later unrelated target", async () => {
   const siteId = newSiteId();
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const annotationId = (await createAnnotation(annotationInput(siteId))).id;
   const committed = await commitOperations({
     siteId,
@@ -124,7 +124,7 @@ test("selective undo keeps a later unrelated target", async () => {
   assert.equal(later.status, "applied");
   const undone = await selectiveUndo(siteId, committed.changeSet.id);
   assert.equal(undone.status, "applied");
-  const current = (await getSite(siteId)).draft;
+  const current = (await createSite(siteId)).draft;
   assert.equal(current.content.hero.title.zh, defaultDraft.content.hero.title.zh);
   assert.equal(current.content.hero.subtitle.zh, defaultDraft.content.hero.subtitle.zh);
   assert.equal(current.content.contact.body.zh, "后来内容");
@@ -132,7 +132,7 @@ test("selective undo keeps a later unrelated target", async () => {
 
 test("selective undo reports a conflict and leaves a later same-target edit intact", async () => {
   const siteId = newSiteId();
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const annotationId = (await createAnnotation(annotationInput(siteId))).id;
   const committed = await commitOperations({
     siteId,
@@ -156,12 +156,12 @@ test("selective undo reports a conflict and leaves a later same-target edit inta
   const undone = await selectiveUndo(siteId, committed.changeSet.id);
   assert.equal(undone.status, "conflict");
   assert.deepEqual(undone.conflictTargets, ["hero.title.zh"]);
-  assert.equal((await getSite(siteId)).draft.content.hero.title.zh, "后来标题");
+  assert.equal((await createSite(siteId)).draft.content.hero.title.zh, "后来标题");
 });
 
 test("selective undo rejects a transaction containing replace_cards", async () => {
   const siteId = newSiteId();
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const annotationId = (await createAnnotation(annotationInput(siteId))).id;
   const committed = await commitOperations({
     siteId,

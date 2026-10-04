@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { commitOperations, getSite, listExistingSites, snapshot } from "@/lib/site-store";
+import { commitOperations, createSite, listExistingSites, snapshot } from "@/lib/site-store";
 import { templates } from "@/lib/site-model";
 import { visualBriefCatalog } from "@/lib/site-document";
 import { userErrorPayload } from "@/lib/user-errors";
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const parsed = createSiteSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
   const id = crypto.randomUUID();
-  const initial = await getSite(id);
+  const initial = await createSite(id);
   const brief = visualBriefCatalog.find((item) => item.templateId === parsed.data.templateId);
   if (!brief) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
   const seeded = await commitOperations({

@@ -80,7 +80,7 @@ export default async function Dashboard() {
             <button className="icon-button" aria-label="通知">
               <Clock3 size={15} />
             </button>
-            <Link href="/templates" className="primary-button">
+            <Link href="/workspace?new=1" className="primary-button">
               <Plus size={15} />
               新建站点
             </Link>
@@ -96,7 +96,7 @@ export default async function Dashboard() {
               </h1>
               <p>用一段对话开始。选择一个方向，剩下的交给 AI。</p>
             </div>
-            <Link href="/templates" className="primary-button new-site-button">
+            <Link href="/workspace?new=1" className="primary-button new-site-button">
               <WandSparkles size={15} />
               开始一个新项目 <ArrowUpRight size={14} />
             </Link>
@@ -188,7 +188,7 @@ export default async function Dashboard() {
                 <h2>快速开始</h2>
               </div>
               <div className="quick-list">
-                <Link href="/templates" className="quick-item">
+                <Link href="/workspace?new=1" className="quick-item">
                   <WandSparkles size={14} />
                   从模板开始一个站点
                   <ArrowUpRight size={12} style={{ marginLeft: "auto" }} />

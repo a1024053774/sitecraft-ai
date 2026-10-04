@@ -24,10 +24,10 @@ export const productsFragment: BlockFragment = {
 .sitecraft-product-category { margin: 0; font-size: 13px; font-weight: 600; color: var(--site-accent-strong); }
 .sitecraft-product-card h3 { margin: 0; font-size: 24px; letter-spacing: -0.01em; }
 .sitecraft-product-keys { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--site-key-gap); background: var(--site-key-bg); border-top: var(--site-keys-border); border-bottom: var(--site-keys-border); }
-.sitecraft-product-key { padding: 14px 12px 14px 0; }
+.sitecraft-product-key { min-width: 0; padding: 14px 12px 14px 0; }
 .sitecraft-product-key + .sitecraft-product-key { padding-left: 14px; border-left: var(--site-rule); }
 .sitecraft-product-key dt { font-size: 12px; color: var(--site-muted); }
-.sitecraft-product-key dd { margin: 4px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-wrap: balance; }
+.sitecraft-product-key dd { min-width: 0; margin: 4px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: normal; word-break: normal; overflow-wrap: anywhere; text-wrap: balance; }
 .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { font-size: 22px; }
 /* Body line length (T-089 gate: about 40 Chinese / 75 English characters per line): a product summary
    is often a run of parameter sentences, so its measure is capped in em (the cap follows the font size
@@ -146,7 +146,7 @@ export const productsFragment: BlockFragment = {
 .sitecraft-look-industrial .sitecraft-product-key, .sitecraft-look-industrial .sitecraft-product-key + .sitecraft-product-key { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-left: 0; }
 .sitecraft-look-industrial .sitecraft-product-key + .sitecraft-product-key { border-top: var(--site-rule); }
 .sitecraft-look-industrial .sitecraft-product-key dt { min-width: 0; overflow-wrap: anywhere; }
-.sitecraft-look-industrial .sitecraft-product-key dd, .sitecraft-look-industrial .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { margin: 0; flex: 0 0 auto; max-width: 70%; font-size: 16px; text-align: right; }
+.sitecraft-look-industrial .sitecraft-product-key dd, .sitecraft-look-industrial .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { margin: 0; flex: 1 1 0; min-width: 0; max-width: none; font-size: 16px; text-align: right; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
 .sitecraft-compare-table th, .sitecraft-compare-table td { padding: 13px 14px; }
 .sitecraft-index-table, .sitecraft-index-table tbody { display: block; }
 .sitecraft-index-table thead { display: none; }
@@ -183,8 +183,8 @@ export const productsFragment: BlockFragment = {
 /* Default cards on phones: the value keeps its line and the label wraps, unless the value needs
    more than most of the row. */
 .sitecraft-product-grid .sitecraft-product-key dt { min-width: 0; overflow-wrap: anywhere; }
-.sitecraft-product-grid .sitecraft-product-key dd { flex: 0 0 auto; max-width: 70%; text-align: right; }
-.sitecraft-look-technical-product .sitecraft-product-grid .sitecraft-product-key dd { flex: 1 1 auto; min-width: 0; max-width: 70%; white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
+.sitecraft-product-grid .sitecraft-product-key dd { flex: 1 1 0; min-width: 0; max-width: none; text-align: right; }
+.sitecraft-look-technical-product .sitecraft-product-grid .sitecraft-product-key dd { flex: 1 1 auto; min-width: 0; max-width: none; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
 .sitecraft-product-groups .sitecraft-product-body { padding: 20px; }
 .sitecraft-product-groups .sitecraft-product-key dd, .sitecraft-product-groups .sitecraft-product-card[data-sitecraft-product-photo="false"] .sitecraft-product-key dd { font-size: 16px; }
 .sitecraft-compare-series-card { padding: 18px 18px 16px; }

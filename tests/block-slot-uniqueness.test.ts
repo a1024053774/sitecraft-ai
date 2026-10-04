@@ -9,7 +9,7 @@ import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { parseHtmlDocument, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, waitForSettled, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-076: every modify target lands on exactly one node. A target that is on several nodes cannot be
 // selected or written without guessing which one, so no data-sitecraft-slot value may appear twice
@@ -145,10 +145,7 @@ test("a click on any comparison cell selects its product's specs target", async 
     await browser.send("Page.enable", {}, sessionId);
     await browser.send("Runtime.enable", {}, sessionId);
     await browser.send("Page.navigate", { url: `${base}/api/templates/screwfast/preview?slot-click=${Date.now()}` }, sessionId);
-    for (let waited = 0; waited < 30000; waited += 100) {
-      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await waitForPreviewBridge(browser, sessionId, 30000, 'block-slot-uniqueness.test');
     const draft = richDraft("industrial", { products: "compare" }, "screwfast");
     await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "workspace", null, false)`, sessionId);
     const expected = await browser.eval<string[]>(`(() => {
@@ -164,7 +161,7 @@ test("a click on any comparison cell selects its product's specs target", async 
       });
       return wanted;
     })()`, sessionId);
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForSettled(browser, sessionId, "slot uniqueness");
     const picked = await browser.eval<string[]>("window.__picks", sessionId);
     assert.ok(expected.length >= 8, "the table has cells to click");
     assert.deepEqual(picked, expected, "each click selected the specs target of the cell's own product");

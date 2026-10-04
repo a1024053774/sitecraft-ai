@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SiteDraft } from "../lib/site-document.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, waitForSettled, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 const templates = ["screwfast", "forge", "landwind"] as const;
 
@@ -14,12 +14,9 @@ async function render(browser: Awaited<ReturnType<typeof openBrowser>>, template
     await browser.send("Runtime.enable", {}, sessionId);
     await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
     await browser.send("Page.navigate", { url: `${sitecraftBase}/api/templates/${templateId}/preview?layout-rules=${suffix}-${width}` }, sessionId);
-    for (let waited = 0; waited < 15000; waited += 100) {
-      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await waitForPreviewBridge(browser, sessionId, 15000, 'catalog-layout-rules-browser.test');
     await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
-    await new Promise((resolve) => setTimeout(resolve, 80));
+    await waitForSettled(browser, sessionId, "catalog layout rules");
     return { sessionId, targetId };
   } catch (error) {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});

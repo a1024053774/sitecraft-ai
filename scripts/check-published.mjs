@@ -94,10 +94,7 @@ async function connectChrome() {
   let version = await fetch(versionUrl).then((r) => r.json()).catch(() => null);
   if (!version) {
     spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${PROFILE}`, "--headless=new", "--no-first-run", "--no-default-browser-check", "--site-per-process", "--enable-features=IsolateSandboxedIframes", "about:blank"], { stdio: "ignore", detached: true }).unref();
-    for (let i = 0; i < 60 && !version; i++) {
-      await sleep(250);
-      version = await fetch(versionUrl).then((r) => r.json()).catch(() => null);
-    }
+    version = await waitFor(() => fetch(versionUrl).then((r) => r.json()).catch(() => null), "Chrome DevTools endpoint", 30000);
   }
   if (!version?.webSocketDebuggerUrl) throw new Error("Chrome DevTools endpoint not available");
   const browser = new Cdp(version.webSocketDebuggerUrl);
@@ -221,11 +218,16 @@ const INSPECT = `(async () => {
   if (cta && form) {
     cta.click();
     // Smooth scrolling takes a variable time; poll for up to 5 s instead of guessing.
-    for (let waited = 0; waited < 5000 && !ctaLandsOnForm; waited += 200) {
-      await new Promise((done) => setTimeout(done, 200));
-      const rect = form.getBoundingClientRect();
-      ctaLandsOnForm = rect.top < innerHeight && rect.bottom > 0;
-    }
+    await new Promise((resolve) => {
+      const started = performance.now();
+      const sample = () => {
+        const rect = form.getBoundingClientRect();
+        ctaLandsOnForm = rect.top < innerHeight && rect.bottom > 0;
+        if (ctaLandsOnForm || performance.now() - started >= 5000) return resolve();
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
     scrollTo({ top: 0, behavior: "instant" });
   }
   // Nothing may sit on top of a real hero photo (decorative rings, cards, labels).
@@ -355,6 +357,7 @@ const INSPECT = `(async () => {
     textContrast: layout.textContrast || [],
     bodyLineLength: layout.bodyLineLength || [],
     lineLengthExemptions: layout.lineLengthExemptions || [],
+    measurement: layout.measurement || null,
     heroOrphan,
     heroTitleWordBreak,
     englishSpecValueHan,
@@ -380,6 +383,14 @@ const INSPECT = `(async () => {
 
 function judge(report, facts, locale = "zh", expectedOrder = null) {
   const failures = [];
+  const measurement = report.measurement;
+  if (!measurement) failures.push("measurement incomplete: visitor layout scanner returned no measurement metadata");
+  else {
+    const missingBlocks = measurement.visibleBlocks.filter((block) => !measurement.measuredBlocks.includes(block));
+    if (missingBlocks.length) failures.push(`measurement incomplete: visible blocks not measured (${missingBlocks.join(", ")})`);
+    if (measurement.textContrastEntries === 0) failures.push("measurement incomplete: no visible text contrast entries");
+    if (measurement.bodyParagraphs === 0) failures.push("measurement incomplete: no visible body paragraphs");
+  }
   if (expectedOrder && JSON.stringify(report.pageSectionOrder) !== JSON.stringify(expectedOrder)) failures.push(`区块顺序不一致（期望 ${expectedOrder.join("、")}，实际 ${(report.pageSectionOrder || []).join("、")}）`);
   if (report.editorCursor === "pointer") failures.push("visitor slot uses a pointer cursor");
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
@@ -457,7 +468,7 @@ async function shootForm(browser, sessionId, frame, width, file) {
       el.style.minHeight = height;
     }
   })()`, sessionId);
-  await sleep(200);
+  await waitFor(async () => browser.evaluate(`document.fonts?.status === "loaded" && document.documentElement.scrollHeight >= ${docHeight}`, sessionId), `${file} page height after form resize`, 10000);
   const localTop = await browser.evaluate(`(() => { const rect = ${FORM}.closest("section").getBoundingClientRect(); return rect.top + scrollY; })()`, frame);
   const page = await browser.evaluate(`(() => { const node = document.querySelector("iframe.open-source-template-frame"); const rect = node.getBoundingClientRect(); return { frameTop: rect.top + scrollY, pageHeight: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) }; })()`, sessionId);
   const y = Math.max(0, Math.round(page.frameTop + localTop - 16));
@@ -469,7 +480,7 @@ async function shootForm(browser, sessionId, frame, width, file) {
   fs.rmSync(full, { force: true });
   await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 1000, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
   await browser.evaluate(`scrollTo(0, ${y})`, sessionId);
-  await sleep(800);
+  await waitFor(async () => browser.evaluate(`document.fonts?.status === "loaded" && document.querySelector("iframe.open-source-template-frame")?.getBoundingClientRect().height >= ${docHeight}`, sessionId), `${file} form scroll settle`, 10000);
   const view = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, sessionId);
   const viewed = `${file}.view.png`;
   fs.writeFileSync(viewed, Buffer.from(view.data, "base64"));
@@ -500,8 +511,10 @@ async function checkSubmission(browser, sessionId, frame, siteKey, width) {
     if (!sent.statusText) failures.push("inquiry success has no visible status text");
     if (sent.message) failures.push("form was not cleared after success");
   }
-  await sleep(800);
-  const count = await leadCount(siteKey, marker);
+  const count = await waitFor(async () => {
+    const value = await leadCount(siteKey, marker);
+    return value === 1 ? value : null;
+  }, `${siteKey} stored inquiry`, 10000).catch(() => leadCount(siteKey, marker));
   if (count !== 1) failures.push(`expected 1 stored lead for this submission, found ${count}`);
   // Failure path: a message longer than the server accepts is rejected by the real API (the
   // browser's maxlength does not apply to values set by script). The visitor must see why and keep
@@ -559,7 +572,7 @@ async function checkOne(browser, siteKey, width) {
           el.style.height = "${captured.height}px"; el.style.minHeight = "${captured.height}px"; el.style.overflow = "visible";
         }
       })()`, sessionId);
-      await sleep(600);
+      await waitFor(async () => browser.evaluate(`document.fonts?.status === "loaded" && document.documentElement.scrollHeight >= ${captured.height}`, sessionId), `${siteKey} ${locale} screenshot layout`, 10000);
       const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: captured.height, scale: 1 } }, sessionId);
       const file = path.join(outDir, `${siteKey}-${locale}-${width}.png`);
       fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
@@ -601,7 +614,6 @@ async function checkOne(browser, siteKey, width) {
 async function restartChrome(browser) {
   try { browser.ws.close(); } catch {}
   spawn("pkill", ["-f", `user-data-dir=${PROFILE}`]);
-  await sleep(1500);
   return connectChrome();
 }
 

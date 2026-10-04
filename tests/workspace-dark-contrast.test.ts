@@ -15,6 +15,8 @@ import {
   sleep,
   startAlignmentCard,
   waitFor,
+  waitForCondition,
+  waitForSettled,
   type Cdp,
   type WorkspacePage,
   failChatRequests,
@@ -48,12 +50,8 @@ const previewSteps: Step[] = [
   { name: "delete", action: clickExpression("toolbar-delete-site"), ready: `Boolean(document.querySelector("[data-testid=site-delete-dialog]"))`, after: closeModalExpression },
 ];
 
-// Measure settled screens: wait for finite animations and transitions to finish (spinners loop).
-const settled = `document.getAnimations().every((item) => item.effect?.getTiming?.().iterations === Infinity || item.playState !== "running")`;
-
 async function scan(browser: Cdp, page: WorkspacePage, label: string, report: unknown[]) {
-  await sleep(150);
-  await waitFor(browser, page.sessionId, settled, 5000);
+  await waitForSettled(browser, page.sessionId, `contrast ${label}`);
   const measured = await browser.eval<Scan>(`(${contrastScan})(".builder-shell")`, page.sessionId);
   report.push({ label, checked: measured.checked, lowCount: measured.lowCount, low: measured.low, unmeasured: measured.unmeasured });
   return measured;
@@ -79,12 +77,12 @@ async function runSteps(browser: Cdp, page: WorkspacePage, prefix: string, steps
     if (step.shot) writeFileSync(new URL(`workspace-${prefix.replace(/ /g, "-")}-${step.name}.png`, out), await screenshot(browser, page.sessionId));
     if (step.after && step.name !== "error") {
       await browser.eval(step.after, page.sessionId);
-      await sleep(300);
+      await waitForSettled(browser, page.sessionId, `${prefix} ${step.name} after`);
     }
     // Panels toggle; close them again so the next step starts from the chat.
     if (step.name === "look" || step.name === "color" || step.name === "history") {
       await browser.eval(step.action!, page.sessionId);
-      await sleep(300);
+      await waitForSettled(browser, page.sessionId, `${prefix} ${step.name} toggle`);
     }
   }
 }
@@ -92,7 +90,7 @@ async function runSteps(browser: Cdp, page: WorkspacePage, prefix: string, steps
 async function showPane(browser: Cdp, page: WorkspacePage, pane: "chat" | "preview") {
   const label = pane === "chat" ? "对话" : "预览";
   await browser.eval(`[...document.querySelectorAll(".builder-mobile-tabs button")].find((item) => item.textContent.includes(${JSON.stringify(label)}))?.click()`, page.sessionId);
-  await sleep(400);
+  await waitForCondition(browser, page.sessionId, `[...document.querySelectorAll(".builder-mobile-tabs button")].some((item) => item.textContent.includes(${JSON.stringify(label)}) && item.getAttribute("aria-selected") === "true")`, `${label} pane`, 5000);
 }
 
 test("every workspace surface keeps text at 4.5:1 or above in dark and light, at 1440, 768 and 375", { timeout: 600000 }, async () => {

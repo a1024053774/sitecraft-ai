@@ -30,7 +30,7 @@ registerHooks({
 });
 
 const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
-const { commitOperations, getSite, deleteSiteRecord } = await import("../lib/site-store.ts");
+const { commitOperations, createSite, deleteSiteRecord } = await import("../lib/site-store.ts");
 
 const originalFetch = globalThis.fetch;
 const createdSites = new Set<string>();
@@ -65,7 +65,7 @@ async function assertMalformedCatalogDoesNotCommit(item: Record<string, unknown>
   };
   const siteId = `t100-no-rewrite-${crypto.randomUUID().replaceAll("-", "")}`;
   createdSites.add(siteId);
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const provider = await requestStructuredOperations({
     message: "请根据资料更新应用行业目录",
     draft: structuredClone(defaultDraft),
@@ -82,7 +82,7 @@ async function assertMalformedCatalogDoesNotCommit(item: Record<string, unknown>
     });
     committed = result.status === "applied";
   }
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(provider.ok, false, "missing/null catalog text must be an invalid model response");
   assert.equal(committed, false, "an invalid structured response must never be submitted");
   assert.equal(after.draft.revision, before.draft.revision, "the draft revision must remain unchanged");
