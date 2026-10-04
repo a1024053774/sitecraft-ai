@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { applySiteOperations } from "../lib/site-operations.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("directory rows stay one column and readable with one, two, or five products", async () => {
   const browser = await openBrowser();
@@ -39,7 +39,6 @@ test("directory rows stay one column and readable with one, two, or five product
       } finally { await browser.send("Target.closeTarget", { targetId }).catch(() => {}); }
     }
   } finally {
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });

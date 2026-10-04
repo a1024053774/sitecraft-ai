@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
 import { applySiteOperations } from "../lib/site-operations.ts";
-import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("the catalog look keeps the company name together at phone width", async () => {
   const browser = await openBrowser();
@@ -38,7 +38,6 @@ test("the catalog look keeps the company name together at phone width", async ()
     assert.equal(style.wordBreak, "keep-all", "公司名使用整词断行规则");
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });

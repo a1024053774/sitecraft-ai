@@ -4,7 +4,7 @@ title: 字体：补中文回退栈，英文按样子用自托管的 OFL 字体
 type: build
 status: open
 blocked_by: [T-084, T-081]
-claimed_by:
+claimed_by: exec-t087
 supersedes:
 ---
 

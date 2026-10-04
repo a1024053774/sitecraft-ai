@@ -483,7 +483,9 @@ export const templateAdapters: Readonly<Record<string, TemplateAdapter>> = {
         background: "#f6f9fc",
         surface: "#ffffff",
         text: "#10233d",
-        muted: "#5d7188",
+        // The export catalog's capability panels use --site-accent-soft as their surface;
+        // keep body copy above the published 4.5:1 threshold on that tint.
+        muted: "#4c6178",
         accent: "#1e5f91",
         accentStrong: "#174b73",
         accentSoft: "#e8f2fa",

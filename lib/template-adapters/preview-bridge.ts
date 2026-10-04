@@ -888,10 +888,24 @@ function sitecraftPreviewBridge(templateId, adapter) {
     packaging: { zh: "包装", en: "Packaging" }
   };
 
+  // The variant a declared block entity shows, or null when the block cannot be rendered into: the
+  // section node, the block entity and the grid must each exist exactly once, and the entity's
+  // data-sc-variant must be one the block declares (every variant's root carries it). A stray grid
+  // marker without them is not a block and is never filled; no variant is guessed.
+  function declaredBlockVariant(block, sectionSelector, gridSelector) {
+    if (!uniqueNode(sectionSelector) || !uniqueNode(gridSelector)) return null;
+    var entity = uniqueNode('[data-sc-block="' + block + '"]');
+    if (!entity || !entity.getAttribute) return null;
+    var variantId = entity.getAttribute("data-sc-variant");
+    var declared = adapter && adapter.blocks && adapter.blocks.variants ? adapter.blocks.variants[block] : null;
+    if (!variantId || !Array.isArray(declared) || declared.indexOf(variantId) === -1) return null;
+    return variantId;
+  }
+
   function renderCommercialTerms(draft, locale, applied, variant) {
+    if (!declaredBlockVariant("commercialTerms", '[data-sitecraft-section="commercialTerms"]', "[data-sitecraft-commercial-terms-grid]")) return;
     var sectionNode = uniqueNode('[data-sitecraft-section="commercialTerms"]');
     var grid = uniqueNode('[data-sitecraft-commercial-terms-grid]');
-    if (!sectionNode && !grid) return;
     var terms = draft && draft.content && Array.isArray(draft.content.commercialTerms) ? draft.content.commercialTerms : [];
     var visible = [];
     for (var i = 0; i < terms.length; i++) {
@@ -928,9 +942,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
   }
 
   function renderEquipment(draft, locale, applied, variant) {
+    var equipmentVariant = declaredBlockVariant("equipment", '[data-sitecraft-section="equipment"]', "[data-sitecraft-equipment-grid]");
+    if (!equipmentVariant) return;
     var sectionNode = uniqueNode('[data-sitecraft-section="equipment"]');
     var grid = uniqueNode('[data-sitecraft-equipment-grid]');
-    if (!sectionNode && !grid) return;
     var equipment = draft && draft.content && Array.isArray(draft.content.equipment) ? draft.content.equipment : [];
     var visible = [];
     for (var i = 0; i < equipment.length; i++) {
@@ -946,7 +961,23 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (sectionNode) setSectionHidden(sectionNode, "equipment", shouldHide);
     if (!grid || shouldHide) return;
     grid.textContent = "";
+    grid.setAttribute("data-sitecraft-entry-count", String(visible.length));
     applied.add("equipment");
+    // "grouped" layouts keep the items with a count and the items without one apart, so a missing
+    // count is never an empty cell: the grouping follows the structured quantity only.
+    var layout = blockRender("equipment");
+    var grouped = Boolean(layout && layout.equipment === "grouped");
+    // Only the default rows layout has a count column (its three-column grid needs the cell). No other
+    // layout creates a node for a missing count: nothing stands in for it.
+    var keepCountCell = equipmentVariant === "rows";
+    var countedGroup = null;
+    var plainGroup = null;
+    if (grouped) {
+      countedGroup = document.createElement("div");
+      countedGroup.className = "sitecraft-equipment-counted";
+      plainGroup = document.createElement("div");
+      plainGroup.className = "sitecraft-equipment-plain";
+    }
     for (var v = 0; v < visible.length; v++) {
       var item = visible[v];
       var row = document.createElement("article");
@@ -959,11 +990,22 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (item.quantity !== null) {
         var quantityNode = document.createElement("p");
         quantityNode.className = "sitecraft-equipment-quantity";
-        quantityNode.textContent = (locale === "en" ? "" : "数量：") + String(item.quantity) + (locale === "en" ? " units" : " 台");
+        var quantityLabel = document.createElement("span");
+        quantityLabel.className = "sitecraft-equipment-quantity-label";
+        quantityLabel.textContent = locale === "en" ? "" : "数量：";
+        var quantityNumber = document.createElement("span");
+        quantityNumber.className = "sitecraft-equipment-quantity-number";
+        quantityNumber.textContent = String(item.quantity);
+        var quantityUnit = document.createElement("span");
+        quantityUnit.className = "sitecraft-equipment-quantity-unit";
+        quantityUnit.textContent = locale === "en" ? " units" : " 台";
+        quantityNode.appendChild(quantityLabel);
+        quantityNode.appendChild(quantityNumber);
+        quantityNode.appendChild(quantityUnit);
         quantityNode.setAttribute("data-sitecraft-slot", "equipment.items." + item.id + ".quantity");
         row.appendChild(quantityNode);
         applied.add("equipment.items." + item.id + ".quantity");
-      } else {
+      } else if (keepCountCell) {
         row.appendChild(document.createElement("span"));
       }
       if (item.spec) {
@@ -974,8 +1016,25 @@ function sitecraftPreviewBridge(templateId, adapter) {
         row.appendChild(specNode);
         applied.add("equipment.items." + item.id + ".spec." + locale);
       }
-      grid.appendChild(row);
+      (grouped ? (item.quantity !== null ? countedGroup : plainGroup) : grid).appendChild(row);
       applied.add("equipment.items." + item.id + ".name." + locale);
+    }
+    if (grouped) {
+      var countedRows = countedGroup.children.length;
+      var plainRows = plainGroup.children.length;
+      if (countedRows) {
+        countedGroup.setAttribute("data-sitecraft-entry-count", String(countedRows));
+        grid.appendChild(countedGroup);
+      }
+      if (plainRows) {
+        if (countedRows) {
+          var groupTitle = document.createElement("p");
+          groupTitle.className = "sitecraft-equipment-group-title";
+          groupTitle.textContent = locale === "en" ? "Other equipment" : "其他设备";
+          grid.appendChild(groupTitle);
+        }
+        grid.appendChild(plainGroup);
+      }
     }
     void variant;
   }
