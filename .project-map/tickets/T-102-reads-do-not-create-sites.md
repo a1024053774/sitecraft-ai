@@ -30,11 +30,11 @@ supersedes:
 
 ## Resolution
 
-2026-10-04（America/New_York），codex-build，最终代码 SHA `d85e37d34c1009615fa15ed0d2dfb881c5b6deb7`：
+2026-10-04（America/New_York），codex-build，最终代码 SHA `93ffbfc3acab10e9879d2362d67a823d12d6f02d`：
 
 - P1 根因收口已在代码 commit `8a4a35b` 完成：生产代码只保留 POST `/api/sites` 的 `createSite`；FS/Postgres commit、history、selective undo、chat 和 quality-run 缺站均拒绝，不再用 `createRecord`/INSERT 补空站。P2-a 在本次最终 commit `d85e37d` 将 actionStream、普通 SSE 和 commit 内层 catch 的 `Site not found:` 映射为 `site_not_found` 与“找不到这个站点”用户文案；长请求期间站点消失行为测试已通过。
 - 入口/竞态行为测试最终 28/28 通过，聊天回归 22/22 通过，证据 `behavior-final-271c3e3.txt`、`chat-route-conversation-p2.txt`。父实现红测 `red-reads-parent.txt` 保留。
-- `npm test` 最终 **779/779、0 失败**，见 `npm-test-final-d85e37d.txt`；build → typecheck → build 均退出 0，见 `build-final-d85e37d.txt`、`typecheck-final-d85e37d.txt`、`build-final2-d85e37d.txt`。
+- `npm test` 最终 **779/779、0 失败**，见 `npm-test-final-93ffbfc.txt`；build → typecheck → build 均退出 0，见 `build-final-93ffbfc.txt`、`typecheck-final-93ffbfc.txt`、`build-final2-93ffbfc.txt`。
 - 12 站 check-published 对照沿用主工作区 handoff ID、强制复制站点和 zsh 数组参数；低/高负载均 36 行、0 失败，textContrast/bodyLineLength/facts 条数不低于 `artifacts/merge-32a4ee9/check-published/report.json` 基线，逐行对照见 `artifacts/t099/check-published-merge-failure-diff.txt`。
 - `readRecord` 对已有 `historySchemaVersion < 3` 记录仍会迁移并写回，这是既有的历史迁移契约；本票不把读取宣称为绝对无写。缺站不会触发该迁移。
 - project-map status 无 stale；本地文档 commit 待提交，未 push。票状态保持 open，等待 Astra/Claude 验收。
