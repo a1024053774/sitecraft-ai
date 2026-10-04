@@ -23,5 +23,7 @@ T-104 第 ② 步的素材部分。为工业、外贸、注塑三份模拟资料
 - [x] 上传脚本在 dev server 上把三份资料包的图片传进三个新建站点，接口返回成功、`/api/sites/[id]/images` 能列出；证据首行写 SHA、命令、时间
 - [x] 代码审查通过；Claude 验收
 
+## Resolution
+
 ### 合回主线与关闭（Claude，2026-10-04 EDT）
 - Astra r1 NO_GO（8 张带水印 / 人脸 / 第三方标识、1 张许可写成公有领域），r2 逐张复核 PASS（`artifacts/review-astra-t106-r2.md`）：工业 8、外贸 7、注塑 6 张，四类齐全。合并主线 `7c29758`；主工作区 build、typecheck 通过，全量 790/790（`artifacts/merge-7c29758/`；本票不改产品代码，未跑 12 站）。注意：r1 被拒的 8 张图仍在分支提交 `c57871f` 的 git 历史里（许可允许分发，被拒原因是不适合作公司素材）；按「不 force-push」不改写历史。Claude 验收关闭。
