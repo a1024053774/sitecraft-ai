@@ -36,7 +36,7 @@ registerHooks({
 });
 
 const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
-const raw = JSON.parse(readFileSync("artifacts/t096/repro-current-264c953/industrial-trial-1.json", "utf8")) as { rawCalls: Array<{ content?: string | null }> };
+const raw = JSON.parse(readFileSync(new URL("./fixtures/t100-structured-output-raw-calls.json", import.meta.url), "utf8")) as { rawCalls: Array<{ content?: string | null }> };
 
 test.after(() => {
   globalThis.fetch = originalFetch;
