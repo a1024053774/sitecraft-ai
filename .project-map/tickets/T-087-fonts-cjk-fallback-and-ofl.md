@@ -42,3 +42,4 @@ supersedes:
 - `scripts/subset-site-fonts.py` 固定 FontTools/pyftsubset、Unicode 范围、变量字体实例化字重和输出文件；`scripts/check-site-fonts.py` 通过 fontTools cmap 审计四个 kit 的实际字体，断言无 CJK、含 `© ® ° ± × – — €`，并逐 kit 验证数据字体映射。每个 `SOURCE.md` 记录同一复现命令和工具版本。
 - 标题根因修复在 `dc95f57`：T-063 的字符宽度估算改为用实际加载字体测量最长 run；catalog 开启 `fitText: "container"`，工程工业增加窄屏标题上限 `clamp(30px, 8vw, 34px)`，fit 标题用 `text-wrap: balance` 且保留 keep-all，forge 将 `word-break` 从 `break-all` 改为 `normal`，避免英文词中断。T-063、区块布局和短路径适配测试通过。
 - r2 证据：改动后截图和联系表在 `artifacts/t087/after-r2/`；`check-published` 输出 `artifacts/t087/published-check-r2-final2/report.json`；主线 12 站检查输出 `artifacts/t087/mainline-r2-final2/`（`NEW_failures=0`）；最终 `fulltest.sh` 输出 `artifacts/t087/fulltest-r2.txt`，`671 pass / 0 fail`；最终 build 和 typecheck 通过。
+- 负载高峰期间曾有一次 workspace motion 间歇失败，原始输出保留在 `artifacts/t087/fulltest-r2-failure.txt`；同一测试独立重跑 `workspace-motion-r2-final.txt` 为 5/5，降低负载后 fulltest 重跑为 671/671，未改测试辅助文件。
