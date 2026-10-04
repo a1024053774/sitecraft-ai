@@ -116,7 +116,7 @@ export const brightLook: BlockLook = {
   },
   layout: {
     top: ["nav"],
-    main: ["hero", "products", "commercialTerms", "equipment", "industries", "capabilities", "services", "certifications", "faq", "contact"],
+    main: ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", "industries", "capabilities", "services", "certifications", "faq", "contact"],
     bottom: ["footer"],
   },
   defaults: {
@@ -125,6 +125,8 @@ export const brightLook: BlockLook = {
     products: "cards",
     commercialTerms: "rows",
     equipment: "rows",
+    qualityProcess: "rows",
+    history: "rows",
     industries: "cards",
     capabilities: "cards",
     services: "cards",

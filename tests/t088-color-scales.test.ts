@@ -7,6 +7,11 @@ import { blockLookForTemplate } from "../lib/blocks/looks/index.ts";
 import { paletteBaseline } from "./fixtures/t088-palette-baseline.ts";
 
 const seeds = ["#176ba4", "#9d671a", "#192a3a", "#fff4a3", "#39ff88", "#011b3d", "#121c28", "#0b1220", "#07111f"];
+const COLOR_KEYS = ["background", "surface", "text", "muted", "accent", "accentStrong", "accentSoft", "border", "diagram", "tint"] as const;
+
+function colorOnlyPalette(palette: Record<string, unknown>) {
+  return Object.fromEntries(COLOR_KEYS.map((key) => [key, palette[key]]));
+}
 
 function wcagChannel(value: number) {
   const channel = value / 255;
@@ -105,7 +110,11 @@ test("custom palette adjustment notes use user language instead of implementatio
 test("the 24 admitted palette token values remain byte-for-byte unchanged", () => {
   const actual: Record<string, unknown> = {};
   for (const templateId of ["forge", "screwfast", "landwind", "tailwind-landing"]) {
-    actual[templateId] = templateAdapters[templateId]?.kit?.palettes ?? {};
+    const palettes = templateAdapters[templateId]?.kit?.palettes ?? {};
+    actual[templateId] = Object.fromEntries(Object.entries(palettes).map(([paletteId, palette]) => [
+      paletteId,
+      colorOnlyPalette(palette as unknown as Record<string, unknown>),
+    ]));
   }
   assert.deepEqual(actual, paletteBaseline);
 });

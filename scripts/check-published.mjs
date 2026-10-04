@@ -153,10 +153,10 @@ const TEXT_FIT_FAILURES = [
 ];
 
 const DEFAULT_BLOCK_ORDER = {
-  forge: ["hero", "products", "commercialTerms", "equipment", "industries", "capabilities", "services", "certifications", "faq", "contact"],
-  screwfast: ["hero", "products", "commercialTerms", "equipment", "industries", "capabilities", "services", "certifications", "faq", "contact"],
-  landwind: ["hero", "products", "commercialTerms", "equipment", "industries", "capabilities", "services", "certifications", "faq", "contact"],
-  "tailwind-landing": ["hero", "products", "commercialTerms", "equipment", "industries", "capabilities", "services", "contact", "certifications", "faq"],
+  forge: ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", "industries", "capabilities", "services", "certifications", "faq", "contact"],
+  screwfast: ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", "industries", "capabilities", "services", "certifications", "faq", "contact"],
+  landwind: ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", "industries", "capabilities", "services", "certifications", "faq", "contact"],
+  "tailwind-landing": ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", "industries", "capabilities", "services", "contact", "certifications", "faq"],
 };
 const BLOCK_GROUPS = {
   forge: [],

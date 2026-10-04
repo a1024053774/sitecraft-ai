@@ -84,6 +84,8 @@ test("on the engineering look the model gets the layouts it may pick, what each 
     assert.ok(system.includes(rule), `the menu says what a layout needs: ${rule}`);
   }
   assert.match(system, /系统会按资料检查/);
+  assert.match(system, /replace_quality_process/);
+  assert.match(system, /保持资料顺序，不重排、不补步骤/);
   assert.match(system, /按资料生成或重做整站时，为上面每一块各输出一条 set_block_variant（选默认布局也写出来/, "a full-site generation decides every switchable block");
   assert.match(system, /最多 24 条/);
   assert.equal(system.includes("最多 20 条"), false);
@@ -181,7 +183,7 @@ test("model reorder output drops unknown blocks, fills the rest, and explains th
     assert.ok(operation && operation.order !== null);
     if (operation && operation.order !== null) {
       assert.equal((operation.order as string[]).includes("unknown"), false);
-      assert.equal(operation.order.length, 9);
+      assert.equal(operation.order.length, 11);
     }
     assert.match(result.summary, /忽略未知项：unknown/);
   }

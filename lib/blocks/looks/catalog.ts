@@ -113,8 +113,8 @@ export const catalogLook: BlockLook = {
     "--site-rule": "1px solid var(--site-line)",
     "--site-rule-strong": "2px solid var(--site-accent)",
   },
-  layout: { top: ["nav"], main: ["hero", "products", "commercialTerms", "equipment", ["industries", "capabilities"], "services", "certifications", "faq", "contact"], bottom: ["footer"] },
-  defaults: { nav: "bar", hero: "split", products: "rows", commercialTerms: "rows", equipment: "rows", industries: "list", capabilities: "list", services: "cards", certifications: "badges", faq: "open", contact: "panel", footer: "columns" },
+  layout: { top: ["nav"], main: ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", ["industries", "capabilities"], "services", "certifications", "faq", "contact"], bottom: ["footer"] },
+  defaults: { nav: "bar", hero: "split", products: "rows", commercialTerms: "rows", equipment: "rows", qualityProcess: "rows", history: "rows", industries: "list", capabilities: "list", services: "cards", certifications: "badges", faq: "open", contact: "panel", footer: "columns" },
   styleDirections: {
     "spec-led": { label: "规格为主", summary: "更紧凑的参数目录和分线节奏。", rules: specLedRules },
     "catalog-led": { label: "目录为主", summary: "收紧目录行距，突出产品索引。", rules: catalogLedRules },

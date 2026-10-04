@@ -217,6 +217,30 @@ export const equipmentSchema = z.array(equipmentItemSchema).max(100).refine(
   "Equipment ids must be unique",
 );
 
+/** Ordered inspection actions extracted from company materials. */
+export const qualityProcessStepSchema = z.object({
+  id: stableItemIdSchema,
+  title: localizedTextSchema,
+  body: localizedTextSchema.nullable(),
+}).strict();
+export type QualityProcessStep = z.infer<typeof qualityProcessStepSchema>;
+export const qualityProcessSchema = z.array(qualityProcessStepSchema).max(12).refine(
+  (steps) => new Set(steps.map((step) => step.id)).size === steps.length,
+  "Quality process step ids must be unique",
+);
+
+/** Ordered company history entries extracted from source materials. */
+export const historyItemSchema = z.object({
+  id: stableItemIdSchema,
+  year: z.number().int().min(1000).max(9999),
+  event: localizedTextSchema,
+}).strict();
+export type HistoryItem = z.infer<typeof historyItemSchema>;
+export const historySchema = z.array(historyItemSchema).max(12).refine(
+  (items) => new Set(items.map((item) => item.id)).size === items.length,
+  "History ids must be unique",
+);
+
 export const siteImageRefSchema = z.object({
   imageId: z.string().regex(/^img_[a-z0-9]{16,40}$/),
   url: z.string().min(1).max(240),
@@ -295,6 +319,8 @@ export const movableBlockIds = [
   "products",
   "commercialTerms",
   "equipment",
+  "qualityProcess",
+  "history",
   "industries",
   "capabilities",
   "services",
@@ -315,6 +341,8 @@ export const visibilityKeys = [
   ...sectionKeys,
   "commercialTerms",
   "equipment",
+  "qualityProcess",
+  "history",
   "faq",
   "partners",
   "process",
@@ -453,6 +481,10 @@ export const siteDraftSchema = z.object({
     commercialTerms: commercialTermsSchema.default([]),
     /** Optional production and inspection equipment; absent on old drafts means hide. */
     equipment: equipmentSchema.default([]),
+    /** Optional ordered quality-control process; absent on old drafts means hide. */
+    qualityProcess: qualityProcessSchema.default([]),
+    /** Optional ordered company history; absent on old drafts means hide. */
+    history: historySchema.default([]),
     /** Optional manufacturer blocks; absent on old drafts means hide. */
     industries: contentSectionSchema.optional(),
     capabilities: contentSectionSchema.optional(),
@@ -550,6 +582,8 @@ export const defaultDraft: SiteDraft = {
     },
     commercialTerms: [],
     equipment: [],
+    qualityProcess: [],
+    history: [],
   },
   hiddenSections: [],
   blockVariants: {},

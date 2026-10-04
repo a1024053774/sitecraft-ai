@@ -6,7 +6,7 @@ test("灰底短路径 look declares its tokenized layout seams", () => {
   const look = shortPathLook;
   assert.equal(look.id, "technical-product");
   assert.equal(look.templateId, "tailwind-landing");
-  assert.equal(look.layout.main.join(","), "hero,products,commercialTerms,equipment,industries,capabilities,services,contact,certifications,faq");
+  assert.equal(look.layout.main.join(","), "hero,products,commercialTerms,equipment,qualityProcess,history,industries,capabilities,services,contact,certifications,faq");
   for (const token of [
     "--site-head-dash",
     "--site-h1-leading",
