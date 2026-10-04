@@ -35,8 +35,8 @@ export const navFragment: BlockFragment = {
 .sitecraft-brand-name[style*="--sitecraft-brand-run"] { display: inline-block; max-width: 100%; font-size: max(var(--site-brand-fit-min, 8px), min(var(--site-brand-size, 17px), calc((100cqw - var(--sitecraft-brand-mark-width) - var(--sitecraft-brand-gap)) / var(--sitecraft-brand-run)))); white-space: normal; word-break: normal; overflow-wrap: anywhere; }
 `,
   phone: `
-.sitecraft-brand-name { font-size: var(--site-brand-fit-min, 11px); white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
-.sitecraft-brand-name[style*="--sitecraft-brand-run"] { display: inline-block; max-width: 100%; font-size: max(var(--site-brand-fit-min, 8px), min(var(--site-brand-size, 17px), calc((100cqw - var(--sitecraft-brand-mark-width) - var(--sitecraft-brand-gap) - 4px) / var(--sitecraft-brand-run)))); white-space: normal; word-break: keep-all; overflow-wrap: normal; }
+.sitecraft-brand-name { font-size: var(--site-brand-fit-min, 11px); white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+.sitecraft-brand-name[style*="--sitecraft-brand-run"] { display: inline-block; max-width: 100%; font-size: max(var(--site-brand-fit-min, 8px), min(var(--site-brand-size, 17px), calc((100cqw - var(--sitecraft-brand-mark-width) - var(--sitecraft-brand-gap) - 4px) / var(--sitecraft-brand-run)))); white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
 `,
   variants: {
     bar: `<div data-sc-block="nav" data-sc-variant="bar">
