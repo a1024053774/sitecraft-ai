@@ -30,11 +30,10 @@ supersedes:
 
 ## Resolution
 
-2026-10-04（America/New_York），codex-build：
+2026-10-04（America/New_York），codex-build，生产代码 commit `8a4a35b06f04bb0fee09b17009ca0856ef760354`：
 
-- 先行夹具修复已单独提交 `2f4a00a`：父提交在干净 worktree 上的 `tests/t100-structured-output.test.ts` 以 `ENOENT` 失败，证据 `artifacts/t102/t100-fixture-red-parent.txt`；提交 `tests/fixtures/t100-structured-output-raw-calls.json` 后两项通过。grep 显示 tests 中唯一读取 `artifacts/` 输入的测试就是该文件，其余命中均为输出目录或注释。
-- T-102 行为红测先于代码失败，见 `artifacts/t102/red-reads-parent.txt`：草稿 GET、发布页、质量矩阵和聊天缺站均未返回缺失错误。实现改为读路径使用 `getExistingSite`；POST 创建仍显式初始化，草稿 PUT、聊天、图片、历史和质量路径的缺站请求均返回 `site_not_found`，不写站点文件。工作台显式 POST 新建后可重新读取草稿。
-- 当前行为测试 `tests/t102-reads-do-not-create-sites.test.ts` 6/6 通过，日志 `artifacts/t102/green-reads-t102-final.txt`。
-- 最终全量首次在高负载下只剩已知 workspace motion 失败（776 项中 775 通过，见 `artifacts/t102/npm-test-rerun.txt` 和 `uptime-npm-test-rerun.txt`）；低负载 focused motion 通过，随后全量 **776/776、0 失败**，见 `npm-test-rerun2.txt`。typecheck/build 均退出 0，见 `typecheck-final.txt`、`build-final.txt`。
-- 12 站 check-published 使用主工作区只读复制的站点 JSON和正确的 zsh 数组传参，36 行、0 失败。`artifacts/t102/check-published-diff.txt` 对照 `artifacts/merge-32a4ee9/check-published/report.json`：当前各行 `textContrast`、`bodyLineLength`、`facts` 条数均不少于基线，失败集合相同为空；报告在 `artifacts/t102/check-published-final-array/report.json`。
-- 本地 dev server 3062 已停止；project-map status 复核无 stale。T-102 代码、测试和 Resolution 待本次提交，未 push。
+- 根因层收口：`getSite` 已删除，改为显式 `createSite` 与只读 `getExistingSite`。只有 `POST /api/sites` 调用 `createSite`；FS/Postgres 的 commit、history、selective undo 锁定路径在缺记录时直接拒绝，不再用 `createRecord`/INSERT 补空站。聊天、质量运行、草稿 PUT、图片、历史和质量矩阵的缺站行为分别为 404 或带 `site_not_found` 的拒绝。
+- 行为红测在父实现上真实失败，保留于 `artifacts/t102/red-reads-parent.txt`；最终 `tests/t102-reads-do-not-create-sites.test.ts` 与 chat conversation 显式创建 setup 共 28/28 通过，最终行为日志首行绑定 SHA、命令和时间。
+- 最终 SHA 全量 `npm test` **777/777、0 失败**，见 `artifacts/t102/npm-test-final2-8a4a35b.txt`；最终 build → typecheck → build 均退出 0，见 `build-final-8a4a35b.txt`、`typecheck-final-8a4a35b.txt`、`build-final2-8a4a35b.txt`。
+- 12 站 check-published 在最终 SHA 上使用主工作区 handoff ID、强制复制站点和 zsh 数组参数；低/高负载均 36 行、0 失败，逐行 `textContrast`、`bodyLineLength`、`facts` 条数不低于 `artifacts/merge-32a4ee9/check-published/report.json`，对照见 `artifacts/t099/check-published-merge-failure-diff.txt`。
+- 第一次全量的高负载 motion/设备失败日志保留，没有用重跑覆盖；低负载最终结果为 777/777。project-map status 无 stale；本地 docs commit 待提交，不 push。
