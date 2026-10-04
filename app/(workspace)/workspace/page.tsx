@@ -402,6 +402,7 @@ export default function WorkspacePage() {
   const [mobilePane, setMobilePane] = useState<"chat" | "preview">("chat");
   const [selectedTarget, setSelectedTarget] = useState<{ key: string; label: string } | null>(null);
   const [draftReady, setDraftReady] = useState(false);
+  const [newSiteEntry, setNewSiteEntry] = useState(false);
   const [expectedTargets, setExpectedTargets] = useState<string[]>([]);
   const [lastChangedTargets, setLastChangedTargets] = useState<string[]>([]);
   const [previewState, setPreviewState] = useState<"loading" | "synced" | "warning">("loading");
@@ -459,6 +460,7 @@ export default function WorkspacePage() {
       if (entry.kind === "refuse") {
         throw new Error(`「${getTemplate(entry.templateId).name.split(" / ")[0]}」只作参考，不能直接生成网站。请回到模板页，从四个样子背后的模板开始。`);
       }
+      setNewSiteEntry(true);
       const key = window.location.search;
       // Effects run twice in development; both runs share the one POST that is still in flight.
       const createdId = await createSiteOnce(key, () => createSiteForTemplate(entry.templateId));
@@ -772,6 +774,14 @@ export default function WorkspacePage() {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!draftReady || !newSiteEntry || conversationId || busy || alignmentView) return;
+    setNewSiteEntry(false);
+    // The direct AI 建站 entry opens the first card immediately. It contains the look and
+    // colour-set choices; no materials or model call is needed to show those catalog options.
+    void runAlignment({ action: "start" });
+  }, [alignmentView, busy, conversationId, draftReady, newSiteEntry]);
 
   const restoreStartedRef = useRef<number | null>(null);
   useEffect(() => {

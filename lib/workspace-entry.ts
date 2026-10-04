@@ -5,18 +5,23 @@ export type WorkspaceEntry =
   | { kind: "create"; templateId: string }
   | { kind: "refuse"; templateId: string };
 
-// `/workspace?site=<id>` opens that site. `/workspace?template=<id>` without a site is the
-// "新建站点" entry: it creates a new site with that template instead of reusing the shared
-// demo site. A known template that is not behind one of the looks is refused (T-044); anything
-// else opens the default site.
+// `/workspace?site=<id>` opens that site. `/workspace?new=1` is the public "AI 建站" entry:
+// it creates a new site with the first look as the seed, then the alignment card can set the
+// user's look and colour set. `/workspace?template=<id>` remains the internal entry used by
+// old links and creates a new site with that look. A known template that is not behind one of
+// the looks is refused (T-044); anything else opens the default site.
 export function resolveWorkspaceEntry(
   search: string | URLSearchParams,
   knownTemplateIds: readonly string[],
   lookTemplateIds: readonly string[] = knownTemplateIds,
+  newSiteTemplateId = lookTemplateIds[0],
 ): WorkspaceEntry {
   const params = typeof search === "string" ? new URLSearchParams(search) : search;
   const site = params.get("site")?.trim() ?? "";
   if (WORKSPACE_SITE_ID_PATTERN.test(site)) return { kind: "open", siteId: site };
+  if (params.get("new") === "1" && newSiteTemplateId && lookTemplateIds.includes(newSiteTemplateId)) {
+    return { kind: "create", templateId: newSiteTemplateId };
+  }
   const template = params.get("template")?.trim() ?? "";
   if (template && lookTemplateIds.includes(template)) return { kind: "create", templateId: template };
   if (template && knownTemplateIds.includes(template)) return { kind: "refuse", templateId: template };
