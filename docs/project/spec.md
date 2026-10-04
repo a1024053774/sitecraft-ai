@@ -74,6 +74,7 @@
 - 规划器输出允许直接返回 `questions` 数组；服务端将首题归一化为兼容字段，不能因缺少重复的顶层单题字段而把有效问题卡判成 provider_error。规划器用顶层 `recommendation` 提供样子、色彩集推荐元数据，另外最多 2 题；服务端在草稿有结构化资料特征时用确定性样子推荐覆盖 `recommendation.styleId/styleReason`，色彩集仍按 `recommendation.colorSetId/colorSetReason` 重建；schema 不合格沿现有重试预算报告 invalid-output，不静默替换。服务端用目录重建这两题，输出长度上限要容得下这张卡。
 - 规划器 invalid_output、回答被截断、超时和连接失败必须明确返回给当前请求并允许重试，不能静默替换成内置样子问题。
 - Chat API 对规划失败返回 `retry_alignment` 与当前错误状态，不创建或替换待回答问题。
+- 对话入口、确认方案提交和普通 SSE 在站点于请求期间消失时都返回 `site_not_found` 与“找不到这个站点”的用户文案；其它 provider/操作错误继续使用原错误目录。
 - 测试夹具中已明确标记的恢复/延迟哨兵走 deterministic alignment 入口，不调用规划器；真实请求仍遵循上一条失败契约。
 - 新建站点请求的模板通过初始化 operation 写入草稿的 `visualBrief`、模板和页面计划；默认站点名与公司名使用中性缺口文字，不使用演示品牌。
 - 创建接口返回的草稿已经包含上述初始化 operation 结果，后续需求对齐以该模板和设计意图为上下文继续。

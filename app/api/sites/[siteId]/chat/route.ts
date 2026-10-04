@@ -529,12 +529,13 @@ async function commitClaimedProposal(siteId: string, conversationId: string, con
       model: proposed.model ?? undefined, latencyMs: proposed.latencyMs,
     });
   } catch (error) {
-    const safeFailure = safeProviderFailure("operation_error");
+    const missingSite = isMissingSiteError(error);
+    const safeFailure = missingSite ? safeMissingSiteFailure() : safeProviderFailure("operation_error");
     aiSummary = safeFailure.summary;
     const failed = await updateConversationAlignment(siteId, conversationId, (record) => ({
       ...record, alignment: applyCommittedResult(record.alignment, { status: "error", summary: aiSummary }),
     }));
-    event(controller, { type: "done", status: "error", code: "operation_error", error: aiSummary, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery,
+    event(controller, { type: "done", status: "error", code: missingSite ? "site_not_found" : "operation_error", error: aiSummary, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery,
       conversationId, alignment: publicAlignmentView(failed.alignment) });
     return;
   }
@@ -588,7 +589,7 @@ async function commitClaimedProposal(siteId: string, conversationId: string, con
   event(controller, doneEvent);
 }
 
-function actionStream(siteId: string, conversationId: string, action: string, applied: AlignmentApplied) {
+export function actionStream(siteId: string, conversationId: string, action: string, applied: AlignmentApplied) {
   let disconnected = false;
   return new ReadableStream<Uint8Array>({
     cancel() { disconnected = true; },

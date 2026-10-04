@@ -225,9 +225,11 @@ registerHooks({
   },
 });
 
-const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
+const { POST, actionStream } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
+  actionStream: (siteId: string, conversationId: string, action: string, applied: any) => ReadableStream<Uint8Array>;
 };
+const { publicAlignmentView } = await import("../lib/alignment.ts");
 const { getConversation, updateConversationAlignment, conversationPromptContext } = await import("../lib/conversation-store.ts");
 const { commitOperations, createSite } = await import("../lib/site-store.ts");
 const { saveSiteImage } = await import("../lib/site-images.ts");
@@ -380,6 +382,36 @@ test("a long chat request that loses its site reports site_not_found", async () 
   } finally {
     globalThis.fetch = previousFetch;
   }
+});
+
+test("confirming an alignment plan after the site disappears reports site_not_found", async () => {
+  const siteId = uniqueSiteId();
+  const started = await postChat(siteId, { action: "start", message: "CLAIM_BEFORE_COMMIT_5927", baseRevision: 1 });
+  const conversationId = String(started.done?.conversationId);
+  await postChat(siteId, {
+    action: "select", conversationId, questionId: started.done?.questionId,
+    questionRevision: started.done?.questionRevision, optionId: "industrial",
+  });
+  const record = await getConversation(siteId, conversationId);
+  assert.ok(record?.alignment.proposedChange);
+  record!.alignment.confirmClaimed = true;
+  await writeFile(path.join(conversationDir(siteId), `${conversationId}.json`), JSON.stringify(record), "utf8");
+  await rm(path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`), { force: true });
+  const stream = actionStream(siteId, conversationId, "confirm", {
+    record,
+    view: publicAlignmentView(record!.alignment),
+    result: { ok: true, shouldCommit: true },
+  });
+  const reader = stream.getReader();
+  let payload = "";
+  for (;;) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    payload += new TextDecoder().decode(chunk.value);
+  }
+  const done = parseSseEvents(payload).find((event) => event.type === "done");
+  assert.equal(done?.code, "site_not_found");
+  assert.match(String(done?.userMessage), /找不到这个站点/);
 });
 
 test("chat POST answer does not commit, emits answer then done, and keeps revision", async () => {
