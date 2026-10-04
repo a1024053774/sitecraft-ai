@@ -57,3 +57,10 @@ supersedes:
 - 根因修复：新增可选 `accentText` 语义 token；四个样子的 `--site-plate-ink` 统一读取 `var(--site-accent-text)`，compose 与 preview bridge 都映射自定义色板的按钮文字色，预设色板缺省为白色。新增红测先在旧实现以 `#111827/forge` 失败，修复后四样子 × 六类种子全通过。
 - 注塑厚资料站点重截在 `artifacts/t088/workbench-molding-r4/report.json`，三色 × 四样子 × 1440/768/375 共 36 张，按钮和次按钮已放大查看；contact sheet 为同目录三个 `*-contact.png`，三色 adjustment 记录在 `adjustment-notes.json`。
 - `fulltest.sh` 输出 `artifacts/t088/npm-test-r5.txt`：660/660 PASS；typecheck/build 输出为 `artifacts/t088/typecheck-r5.txt`、`artifacts/t088/build-r5.txt`。
+
+2026-10-04，rs-color，T-088 第四轮返工在并入最新主线后收口：
+
+- 深色种子根因修复在 `lib/color-scale.ts`：白字对比度已达 4.5:1 且 OKLCH 明度属于深色的种子直接保留为 accent，sourceTooCloseToText 不再把它调浅。`tests/t088-color-scales.test.ts` 加入 `#121c28`、`#0b1220`、`#07111f` 的 adjusted=false / seed preserved 哨兵；先在旧实现上运行同一 focused signal，`#121c28` 在断言处得到 `#2b343f`，红测输出为 `artifacts/t088/deep-dark-sentinels-red.txt`，修复后定向测试 10/10 通过（`artifacts/t088/targeted-r6.txt`）。
+- T-088 修复与测试由单一 commit `7ef4742` 承载，未改现有 24 套预设色板。随后将最新主线 `c443a4e` 合并进本分支，合并提交为 `24d9605`；`lib/site-store.ts` 冲突保留 T-085 的批注锁/撤销守卫，并把 T-088 的自定义色板提交边界校验接回本地与 PostgreSQL 两条路径。
+- 预览空白复核：旧证据脚本只看 iframe 的历史 `data-previewHydrated`，没有检查外层 preview shell 的 error overlay，导致 `f4fbff-engineering-industrial-375` 曾把错误覆盖层当成就绪。最终脚本同时检查 shell `ready`、无错误覆盖层、非零且稳定 frame，再截图；`artifacts/t088/workbench-molding-r6/report.json` 为注塑厚资料站三色 × 四样子 × 1440/768/375 共 36 张，逐张及三个 contact sheet（同目录 `f4fbff-contact.png`、`111827-contact.png`、`39ff88-contact.png`）已查看，报告无 bad 项；重点图 `f4fbff-engineering-industrial-375.png` 为已渲染页面。
+- 并入后验证（代码合并提交 `24d9605`；最终 HEAD `00e9867` 仅追加本 Resolution）：`bash .../fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t088 3052 artifacts/t088/npm-test-r6-merged.txt` 通过 732/732；`npm run typecheck` 输出 `artifacts/t088/typecheck-r6-merged.txt`；`npm run build` 输出 `artifacts/t088/build-r6-merged.txt`；`zsh .../check-mainline-sites.sh /Users/luckye/Documents/Code/sitecraft-ai-t088 3052 artifacts/t088/mainline-check-r6-merged` 退出码 0，36 行、0 known、0 NEW，报告和逐行输出在该目录。
