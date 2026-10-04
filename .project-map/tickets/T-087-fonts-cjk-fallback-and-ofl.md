@@ -37,7 +37,7 @@ supersedes:
 
 ### T-087 r2（2026-10-03，纽约时间）
 
-- 代码审查指出工作台 CSS 被根布局带进发布宿主；已在 `a1a1b2d` 恢复起点 `app/globals.css`（Manrope 400–800、DM Mono、Noto Sans SC）并把它复制为 `public/workspace.css`，`components/workspace-style-gate.tsx` 只在工作台路径挂载该 CSS；发布/模板预览宿主改用无字体的 `public/visitor-host.css`（`dbeac79`），iframe 继续走区块库同源字体。发布 HTML 不再出现 `app_globals`，工作台仍加载 `workspace.css`。
+- 代码审查指出工作台 CSS 被根布局带进发布宿主；已在 `a1a1b2d` 恢复起点 `app/globals.css`（Manrope 400–800、DM Mono、Noto Sans SC）并把它复制为 `public/workspace.css`，`components/workspace-style-gate.tsx` 在 `fb94043` 中只向工作台路径挂载该 CSS；发布/模板预览宿主改用无字体的 `public/visitor-host.css`（`dbeac79`），iframe 继续走区块库同源字体。发布 HTML 不再出现 `app_globals`，工作台仍加载 `workspace.css`。
 - `nordic-store` 的无关字体 token 已恢复为起点值；四个生产样子不变。
 - `scripts/subset-site-fonts.py` 固定 FontTools/pyftsubset、Unicode 范围、变量字体实例化字重和输出文件；`scripts/check-site-fonts.py` 通过 fontTools cmap 审计四个 kit 的实际字体，断言无 CJK、含 `© ® ° ± × – — €`，并逐 kit 验证数据字体映射。每个 `SOURCE.md` 记录同一复现命令和工具版本。
 - 标题根因修复在 `dc95f57`：T-063 的字符宽度估算改为用实际加载字体测量最长 run；catalog 开启 `fitText: "container"`，工程工业增加窄屏标题上限 `clamp(30px, 8vw, 34px)`，fit 标题用 `text-wrap: balance` 且保留 keep-all，forge 将 `word-break` 从 `break-all` 改为 `normal`，避免英文词中断。T-063、区块布局和短路径适配测试通过。
