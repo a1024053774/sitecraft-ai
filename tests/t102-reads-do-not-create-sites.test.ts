@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { registerHooks } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
+
+const repoRoot = process.cwd();
 
 function sitePath(siteId: string) {
   return path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
@@ -13,7 +17,7 @@ function sitePath(siteId: string) {
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (!specifier.startsWith("@/")) return nextResolve(specifier, context);
-    const abs = path.join(process.cwd(), specifier.slice(2));
+    const abs = path.join(repoRoot, specifier.slice(2));
     const file = existsSync(`${abs}.ts`) ? `${abs}.ts` : path.join(abs, "index.ts");
     return nextResolve(pathToFileURL(file).href, context);
   },
@@ -21,24 +25,18 @@ registerHooks({
 
 const draftRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/draft/route.ts")).href);
 const chatRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href);
-const qualityRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/quality/cells/route.ts")).href);
-const sitesRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/route.ts")).href);
+const sitesRoute = await import(pathToFileURL(path.join(repoRoot, "app/api/sites/route.ts")).href);
 const siteStore = await import("../lib/site-store.ts");
 const base = process.env.SITECRAFT_BASE || "http://127.0.0.1:3062";
 
-const missingIds = [
-  `t102-missing-${crypto.randomUUID().slice(0, 8)}`,
-  "p4-sw-bright",
-  "p4-sw-eng",
-  "p4-long",
-];
+const missingSiteId = `t102-missing-${crypto.randomUUID().slice(0, 8)}`;
 
 test.after(async () => {
-  await Promise.all(missingIds.map((siteId) => rm(sitePath(siteId), { force: true })));
+  await rm(sitePath(missingSiteId), { force: true });
 });
 
 test("GET draft for a missing site returns 404 without creating a record", async () => {
-  const siteId = missingIds[0];
+  const siteId = missingSiteId;
   const response = await draftRoute.GET(new Request(`http://sitecraft.test/api/sites/${siteId}/draft`), { params: Promise.resolve({ siteId }) });
   assert.equal(response.status, 404);
   assert.equal(existsSync(sitePath(siteId)), false);
@@ -77,10 +75,33 @@ test("a missing published site is a 404 without a default empty draft", async ()
 });
 
 test("quality matrix reports a missing fixed site instead of creating it", async () => {
-  await Promise.all(["p4-sw-bright", "p4-sw-eng", "p4-long"].map((siteId) => rm(sitePath(siteId), { force: true })));
-  const response = await qualityRoute.GET();
-  assert.equal(response.status, 404);
-  for (const siteId of ["p4-sw-bright", "p4-sw-eng", "p4-long"]) assert.equal(existsSync(sitePath(siteId)), false);
+  const mainMatrixSite = path.join(repoRoot, ".sitecraft-data", "sites", "p4m-a.json");
+  const mainMatrixSiteExisted = existsSync(mainMatrixSite);
+  const dataRoot = await mkdtemp(path.join(os.tmpdir(), "sitecraft-t102-quality-"));
+  try {
+    await mkdir(path.join(dataRoot, "scripts"), { recursive: true });
+    await copyFile(path.join(repoRoot, "scripts/visitor-layout-scan.js"), path.join(dataRoot, "scripts/visitor-layout-scan.js"));
+    const fixture = path.join(repoRoot, "tests/fixtures/t102-quality-missing-site.ts");
+    const result = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
+      const child = spawn(process.execPath, ["--experimental-strip-types", fixture], {
+        cwd: dataRoot,
+        env: { ...process.env, SITE_STORE: "fs", T102_REPO_ROOT: repoRoot },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+      child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      child.on("error", reject);
+      child.on("close", (code) => resolve({ code, stdout, stderr }));
+    });
+    assert.equal(result.code, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /status=404/);
+    assert.equal(existsSync(path.join(dataRoot, ".sitecraft-data", "sites", "p4m-a.json")), false);
+    assert.equal(existsSync(mainMatrixSite), mainMatrixSiteExisted, "the quality missing-site check must not delete the worktree's real matrix site");
+  } finally {
+    await rm(dataRoot, { recursive: true, force: true });
+  }
 });
 
 test("chat on a missing site returns site_not_found without creating it", async () => {

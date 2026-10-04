@@ -37,5 +37,7 @@ supersedes:
 - `npm test` 最终 **779/779、0 失败**，见 `npm-test-final-93ffbfc.txt`；build → typecheck → build 均退出 0，见 `build-final-93ffbfc.txt`、`typecheck-final-93ffbfc.txt`、`build-final2-93ffbfc.txt`。
 - 12 站 check-published 对照沿用主工作区 handoff ID、强制复制站点和 zsh 数组参数；低/高负载均 36 行、0 失败，textContrast/bodyLineLength/facts 条数不低于 `artifacts/merge-32a4ee9/check-published/report.json` 基线，逐行对照见 `artifacts/t099/check-published-merge-failure-diff.txt`。
 - 在最终代码 SHA `93ffbfc3acab10e9879d2362d67a823d12d6f02d` 上重新运行了本票要求的 12 站证据：`artifacts/t102/check-published-93ffbfc/report.json` 共 36 行、0 失败；日志 `artifacts/t102/check-published-93ffbfc.log` 首行是 `SHA=93ffbfc3acab10e9879d2362d67a823d12d6f02d UTC=2026-10-04T18:07:56Z COMMAND=check-published 12 sites`。
+- 合并主线 `fa1631c` 后，质量矩阵红态由测试依赖主工作区资料暴露：`p4m-a` 等真实矩阵站点仍会被读取，旧 history 记录迁移时因 `productTarget=intro` 无唯一 SKU 匹配抛 `SiteMigrationError`，所以接口是 500；原测试只删 `p4-sw-*` 补充站点，既没有命中实际矩阵缺站，也可能删掉主工作区的真实文件。红态与堆栈分别保留在 `artifacts/t102/red-quality-matrix-500-fa1631c.txt`、`artifacts/t102/root-cause-quality-migration-fa1631c.txt`。
+- 质量矩阵缺站行为测试改为在独立 `mkdtemp` 工作目录的子进程中加载真实路由，复制唯一需要的 scanner 脚本，断言空矩阵返回 404，并核对主工作区 `p4m-a.json` 的存在状态不变；绿色证据见 `artifacts/t102/green-quality-isolated-final.txt`，首行绑定最终提交 SHA。
 - `readRecord` 对已有 `historySchemaVersion < 3` 记录仍会迁移并写回，这是既有的历史迁移契约；本票不把读取宣称为绝对无写。缺站不会触发该迁移。
 - project-map status 无 stale；本次 Resolution 单独本地提交，未 push。票状态保持 open，等待 Astra/Claude 验收。
