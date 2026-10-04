@@ -70,3 +70,7 @@ npm run build > artifacts/t085/build-final3.txt 2>&1
 - 独立审查四轮：exec-t089 第一轮 `REVISE`（多字段 guard、顶层 target 读成 null、批注归属未校验）、第二轮 `REVISE`（同一事务重复 target）；rev-code 第三轮 `REVISE`——发现上一轮回报的修复没有进代码，并指出 `update_commercial_term` 允许但必拒绝；exec-t089 第四轮 `PASS`。报告在 sitecraft-ai 主工作区 `artifacts/research/threads-2026-10-03/reviews/T-085-review-{1..4}.md`。上一轮不实记录已在本票更正。
 - 并入主线 `09d047c`（合并提交 `5a5b4d3`，自动合并了 `lib/site-operations.ts` 中的设备 operation）后：T-085 与 site-operations 测试 40/40；`npm run typecheck`、`npm run build`（`artifacts/t085/build-claude-accept.txt`）通过；`fulltest.sh` 全量 723/723（`artifacts/t085/npm-test-claude-accept.txt`）；主线 12 站 `check-published`：36 行、known 1 条（T-101 处理中）、NEW 0，不算「check-published 通过」（`artifacts/published-check/mainline-12-accept/`）；`project_map.py status` 无问题。
 - 未实测：真实 PostgreSQL（本机无 Docker 数据库），Postgres 路径只有 query mock 协议测试。
+
+### 验收证据更正（2026-10-04 EDT）
+
+上一段「主线 12 站 check-published：known 1、NEW 0」来自一次无效运行：worktree 里 11 个主线站点已被 `getSite` 读缺失时写出的默认空草稿替换（见 T-102），页面没有正文，check-published 静默报 0 失败（见 T-099）。该结论作废。重新验证：分支并入 `68fb434`（合并提交 `eb2538d`），每次强制从主工作区复制 12 个站点并检查每行实测条数后——`fulltest.sh` 725/725（`artifacts/t085/npm-test-claude-accept2.txt`）；12 站 check-published 36 行、对照 `merge-32a4ee9` 基线 0 失败、无实测不足（`artifacts/published-check/mainline-12-accept4/`）；`npm run build` 通过（`artifacts/t085/build-claude-accept2.txt`）。
