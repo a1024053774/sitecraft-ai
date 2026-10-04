@@ -363,6 +363,25 @@ test("chat POST SSE reuses conversationId across two applied turns", async () =>
   assert.equal(record.turns.some((turn) => turn.userMessage === secondMessage), true);
 });
 
+test("a long chat request that loses its site reports site_not_found", async () => {
+  const siteId = uniqueSiteId();
+  await createSite(siteId);
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await rm(path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`), { force: true });
+    return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ type: "edit", summary: "CHAT_SITE_DISAPPEARS_SUMMARY", operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "CHAT_SITE_DISAPPEARS_TITLE" }] }) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const result = await postChat(siteId, { baseRevision: 1, message: "CHAT_SITE_DISAPPEARS_DURING_REQUEST" });
+    assert.ok(result.done);
+    assert.equal(result.done.code, "site_not_found");
+    assert.match(String(result.done.userMessage), /找不到这个站点/);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test("chat POST answer does not commit, emits answer then done, and keeps revision", async () => {
   const siteId = uniqueSiteId();
   const before = await createSite(siteId);

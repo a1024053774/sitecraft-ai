@@ -151,6 +151,19 @@ function safeProviderFailure(code: string) {
   };
 }
 
+function isMissingSiteError(error: unknown) {
+  return error instanceof Error && error.message.startsWith("Site not found:");
+}
+
+function safeMissingSiteFailure() {
+  const description = describeUserError({ code: "site_not_found" });
+  return {
+    summary: description.message,
+    userMessage: `${description.message} ${description.nextStep}`,
+    recovery: description.recovery,
+  };
+}
+
 const REVISION_CONFLICT_SUMMARY = "草稿在 AI 处理期间已被更新，本次操作没有覆盖新版本。";
 const NO_CHANGE_SUMMARY = "模型没有生成可应用的内容差异，草稿和模板均未修改。";
 
@@ -600,7 +613,8 @@ function actionStream(siteId: string, conversationId: string, action: string, ap
         event(controller, { type, ...payload });
         event(controller, { type: "done", status: waitingClarify ? "clarify" : "alignment", ...payload });
       } catch (error) {
-        const safeFailure = safeProviderFailure("operation_error");
+        const missingSite = isMissingSiteError(error);
+        const safeFailure = missingSite ? safeMissingSiteFailure() : safeProviderFailure("operation_error");
         const message = safeFailure.summary;
         let view = applied.view;
         let conversationPersisted = true;
@@ -615,7 +629,7 @@ function actionStream(siteId: string, conversationId: string, action: string, ap
           }
         }
         event(controller, {
-          type: "done", status: "error", conversationId, error: message, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery, code: "operation_error", alignment: view,
+          type: "done", status: "error", conversationId, error: message, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery, code: missingSite ? "site_not_found" : "operation_error", alignment: view,
           ...(!conversationPersisted ? { conversationPersisted: false, conversationError: "任务状态保存失败，请读取服务器状态。" } : {}),
         });
       } finally {
@@ -866,10 +880,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
               doneEvent = { type: "done", status: "applied", summary: committed.changeSet.summary, rejected: provider.rejected, changeSet: committed.changeSet, ...snapshot(committed.record), model: provider.model, latencyMs: provider.latencyMs };
             }
           } catch (error) {
-            const safeFailure = safeProviderFailure("operation_error");
+            const missingSite = isMissingSiteError(error);
+            const safeFailure = missingSite ? safeMissingSiteFailure() : safeProviderFailure("operation_error");
             aiSummary = safeFailure.summary;
             appliedOperationsSummary = "not applied: operation_error";
-            doneEvent = { type: "done", status: "error", code: "operation_error", error: aiSummary, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery };
+            doneEvent = { type: "done", status: "error", code: missingSite ? "site_not_found" : "operation_error", error: aiSummary, userMessage: safeFailure.userMessage, recovery: safeFailure.recovery };
           }
         }
 
@@ -892,11 +907,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         }
         emitDone(doneEvent);
       } catch (error) {
-        const safeFailure = safeProviderFailure("network_error");
+        const missingSite = isMissingSiteError(error);
+        const safeFailure = missingSite ? safeMissingSiteFailure() : safeProviderFailure("network_error");
         emitDone({
           type: "done",
           status: "error",
-          code: "network_error",
+          code: missingSite ? "site_not_found" : "network_error",
           error: safeFailure.summary,
           userMessage: safeFailure.userMessage,
           recovery: safeFailure.recovery,
