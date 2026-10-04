@@ -2700,6 +2700,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (parent && parent.postMessage) {
       parent.postMessage({
         type: "sitecraft:inquiry",
+        typeVersion: PREVIEW_MESSAGE_TYPE_VERSION,
+        sessionId: annotationSessionId,
         templateId: templateId,
         payload: {
           name: fieldValue(form, "name"),
@@ -2720,7 +2722,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if ((nextLocale === "zh" || nextLocale === "en") && parent && parent.postMessage) {
         if (event.preventDefault) event.preventDefault();
         if (event.stopPropagation) event.stopPropagation();
-        parent.postMessage({ type: "sitecraft:locale", templateId: templateId, locale: nextLocale }, "*");
+        parent.postMessage({ type: "sitecraft:locale", typeVersion: PREVIEW_MESSAGE_TYPE_VERSION, sessionId: annotationSessionId, templateId: templateId, locale: nextLocale }, "*");
       }
       return;
     }

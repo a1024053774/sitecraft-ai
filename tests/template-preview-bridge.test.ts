@@ -1385,6 +1385,8 @@ test("inquiry form submit posts payload to parent and does not keep web3forms ac
   });
   assert.equal(prevented, true);
   const inquiry = messages.find((item) => item.type === "sitecraft:inquiry") as {
+    typeVersion?: number;
+    sessionId?: string | null;
     payload?: { name?: string; email?: string; company?: string; message?: string; honeypot?: string };
   } | undefined;
   assert.ok(inquiry);
@@ -1393,6 +1395,23 @@ test("inquiry form submit posts payload to parent and does not keep web3forms ac
   assert.equal(inquiry.payload?.company, "North Pier");
   assert.equal(inquiry.payload?.message, "Need a quote for PN-90.");
   assert.equal(inquiry.payload?.honeypot, "");
+  assert.equal(inquiry.typeVersion, 1);
+  assert.equal("sessionId" in inquiry, true);
+});
+
+test("locale messages use the same versioned session envelope as inquiry messages", () => {
+  const { document } = createDocument();
+  const localeButton = createNode("button");
+  localeButton.setAttribute("data-sitecraft-locale", "en");
+  document.body.appendChild(localeButton);
+  const { messages } = installOn(document, getTemplateAdapter("landwind") ?? null);
+  const click = document.listeners.find((listener) => listener.type === "click");
+  assert.ok(click);
+  click.fn({ target: localeButton, preventDefault() {}, stopPropagation() {} });
+  const locale = messages.find((item) => item.type === "sitecraft:locale");
+  assert.ok(locale);
+  assert.equal(locale?.typeVersion, 1);
+  assert.equal("sessionId" in (locale ?? {}), true);
 });
 
 // Zero-width spaces (line-break points the bridge adds to spec values) are not seen, so they are dropped.

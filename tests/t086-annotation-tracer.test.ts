@@ -29,4 +29,6 @@ test("annotation iframe messages are session-bound and versioned", () => {
   assert.match(frameSource, /PREVIEW_MESSAGE_TYPE_VERSION = 1/);
   assert.match(frameSource, /data\.sessionId !== sessionIdRef\.current/);
   assert.match(frameSource, /sendAnnotationMode\(\)/);
+  assert.match(bridgeSource, /type: "sitecraft:locale", typeVersion: PREVIEW_MESSAGE_TYPE_VERSION, sessionId: annotationSessionId/);
+  assert.match(bridgeSource, /type: "sitecraft:inquiry",[\s\S]{0,120}typeVersion: PREVIEW_MESSAGE_TYPE_VERSION,[\s\S]{0,120}sessionId: annotationSessionId/);
 });
