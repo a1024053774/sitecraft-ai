@@ -4,7 +4,7 @@ title: 沿革（年份 + 事件）：草稿字段到页面
 type: build
 status: open
 blocked_by: [T-096]
-claimed_by:
+claimed_by: field-build
 supersedes:
 ---
 
