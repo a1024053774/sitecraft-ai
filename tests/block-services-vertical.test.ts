@@ -10,7 +10,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText, type HtmlElement } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-074: 合作方式「纵向流程」(services:vertical). One full-width row per step: number | title |
 // description, read top to bottom. It reads the same fields as 编号步骤 and needs nothing extra.
@@ -103,10 +103,7 @@ test("纵向流程 has no horizontal overflow with 1 to 6 steps at 1440, 768 and
     await browser.send("Runtime.enable", {}, sessionId);
     for (const templateId of ["screwfast", "landwind"]) {
       await browser.send("Page.navigate", { url: `${base}/api/templates/${templateId}/preview?services-vertical=${Date.now()}` }, sessionId);
-      for (let waited = 0; waited < 30000; waited += 100) {
-        if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitForPreviewBridge(browser, sessionId, 30000, 'block-services-vertical.test');
       for (const count of [1, 2, 3, 4, 5, 6]) {
         const draft = withServices(count, templateId, Array.from({ length: count }, () => long));
         for (const width of [1440, 768, 375]) {

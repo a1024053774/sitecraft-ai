@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { base as sitecraftBase, closeBrowser, openBrowser } from "./helpers/workspace-browser.ts";
+import { base as sitecraftBase, closeBrowser, waitForPreviewBridge, waitForSettled, openBrowser } from "./helpers/workspace-browser.ts";
 import { expectedFacts, missingFacts } from "../scripts/published-facts.mjs";
 
 
@@ -18,10 +18,7 @@ async function preview(draft: unknown, width = 375) {
   await browser.send("Page.enable", {}, sessionId);
   await browser.send("Runtime.enable", {}, sessionId);
   await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
-  for (let waited = 0; waited < 15000; waited += 100) {
-    if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
+  await waitForPreviewBridge(browser, sessionId, 15000, 't057-rework.test');
   await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
   return { browser, targetId, sessionId };
 }
@@ -67,10 +64,7 @@ test("an engineering title that is not orphaned keeps its original line grouping
     await browser.send("Page.enable", {}, sessionId);
     await browser.send("Runtime.enable", {}, sessionId);
     await browser.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
-    for (let waited = 0; waited < 15000; waited += 100) {
-      if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await waitForPreviewBridge(browser, sessionId, 15000, 't057-rework.test');
     await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
     const lines = await browser.eval<string[]>(`(() => { const h=document.querySelector('[data-sc-block="hero"] h1'); const r=document.createRange(); const rows=new Map(); const w=document.createTreeWalker(h,NodeFilter.SHOW_TEXT); while(w.nextNode()){const n=w.currentNode; for(let i=0;i<n.textContent.length;i++){r.setStart(n,i);r.setEnd(n,i+1);const q=r.getBoundingClientRect();if(q.width>.5){const k=Math.round(q.top);rows.set(k,(rows.get(k)||"")+n.textContent[i]);}}} return [...rows.entries()].sort((a,b)=>a[0]-b[0]).map(([,text])=>text); })()`, sessionId);
     assert.ok(lines.some((line) => line.includes("重载减速机")), JSON.stringify(lines));
@@ -91,7 +85,7 @@ test("short-path word spans are declared, idempotent, and CSS reflows after a vi
     await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
     assert.equal(await browser.eval<string>(`document.querySelector('[data-sc-block="hero"] h1').innerHTML`, sessionId), first.html);
     await browser.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 900, deviceScaleFactor: 1, mobile: true }, sessionId);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await waitForSettled(browser, sessionId, "t057 preview");
     const narrow = await browser.eval<{ orphan: boolean; wordBreak: boolean }>(`(() => { ${readFileSync("scripts/visitor-layout-scan.js", "utf8").replace("export function", "function").replace("export default scanVisitorLayout;", "")}; const r=scanVisitorLayout(document); return { orphan:r.heroTitleOrphan, wordBreak:r.heroTitleWordBreak }; })()`, sessionId);
     assert.equal(narrow.orphan, false);
     assert.equal(narrow.wordBreak, false);
