@@ -29,12 +29,12 @@ import { applySiteOperations } from "../lib/site-operations.ts";
 const providerSource = readFileSync(new URL("../lib/ai-provider.ts", import.meta.url), "utf8");
 const runSource = readFileSync(new URL("../lib/quality-run.ts", import.meta.url), "utf8");
 const matrixSource = readFileSync(new URL("../lib/quality-matrix.ts", import.meta.url), "utf8");
-const pageSource = readFileSync(new URL("../app/quality/page.tsx", import.meta.url), "utf8");
-const clientSource = readFileSync(new URL("../app/quality/quality-client.tsx", import.meta.url), "utf8");
+const pageSource = readFileSync(new URL("../app/(workspace)/quality/page.tsx", import.meta.url), "utf8");
+const clientSource = readFileSync(new URL("../app/(workspace)/quality/quality-client.tsx", import.meta.url), "utf8");
 const frameSource = readFileSync(new URL("../components/open-source-template-frame.tsx", import.meta.url), "utf8");
 const publishedPageSource = readFileSync(new URL("../app/published/[siteKey]/page.tsx", import.meta.url), "utf8");
 const publishedClientUrl = new URL("../app/published/[siteKey]/published-client.tsx", import.meta.url);
-const workspaceSource = readFileSync(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+const workspaceSource = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
 const p3Source = readFileSync(new URL("../lib/simulated-packs.ts", import.meta.url), "utf8");
 const nextConfigSource = readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
 

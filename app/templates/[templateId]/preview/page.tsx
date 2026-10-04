@@ -21,7 +21,9 @@ export default async function TemplatePreviewPage({
   const readiness = getTemplateReadiness(template.id);
 
   return (
-    <main className="template-preview-page">
+    <>
+      <link rel="stylesheet" href="/visitor-host.css" />
+      <main className="template-preview-page">
       <header className="template-preview-toolbar">
         <div className="template-preview-toolbar-title">
           <Link href="/templates" className="icon-button" aria-label="返回模板列表">
@@ -55,6 +57,7 @@ export default async function TemplatePreviewPage({
       <div className="template-preview-canvas">
         <OpenSourceTemplateFrame templateId={template.id} variant="preview" />
       </div>
-    </main>
+      </main>
+    </>
   );
 }

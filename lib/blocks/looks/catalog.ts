@@ -45,6 +45,7 @@ const capabilityLedRules: SiteStyleRule[] = [
 export const catalogLook: BlockLook = {
   id: "export-catalog",
   templateId: "landwind",
+  fitText: "container",
   documentTitle: "蓝白目录首页",
   tokens: {
     "--site-container": "1180px",
@@ -59,6 +60,7 @@ export const catalogLook: BlockLook = {
     "--site-h1-tracking": "-0.035em",
     "--site-heading-wrap": "anywhere",
     "--site-heading-break": "keep-all",
+    "--site-fit-heading-break": "keep-all",
     "--site-heading-max": "16em",
     "--site-heading-text-wrap": "balance",
     "--site-heading-tracking": "-0.03em",

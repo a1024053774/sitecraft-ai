@@ -32,7 +32,7 @@ test("after creating, the URL names the new site so a refresh does not create an
 });
 
 test("the workspace creates the site through POST /api/sites and never rewrites another site's template", async () => {
-  const source = await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
   assert.match(source, /resolveWorkspaceEntry\(/);
   assert.match(source, /fetch\("\/api\/sites",\s*\{\s*method:\s*"POST"/);
   assert.match(source, /history\.replaceState\([^)]*workspaceUrlForSite\(/);

@@ -7,6 +7,7 @@ export const baseFragment: Omit<BlockFragment, "variants"> = {
   css: `
 * { box-sizing: border-box; }
 html { background: var(--site-bg); color: var(--site-ink); font-family: var(--site-font); overflow-x: hidden; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+:where(h1, h2, h3, h4, h5, h6) { font-family: var(--site-heading-font, var(--site-font)); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body { margin: 0; min-width: 320px; background: var(--site-bg); color: var(--site-ink); overflow-x: hidden; }
 a { color: inherit; text-decoration: none; }
@@ -39,6 +40,9 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px soli
    running out of it. The layouts that add values opt in with their own class. */
 .sitecraft-nameplate-cell dd, .sitecraft-hero-spec dd, .sitecraft-product-key dd, .sitecraft-product-specs td { word-break: keep-all; overflow-wrap: anywhere; }
 .sitecraft-compare-value, .sitecraft-compare-extra dd { word-break: keep-all; overflow-wrap: anywhere; }
+.sitecraft-nameplate-cell dd, .sitecraft-hero-spec dd, .sitecraft-index-spec-value, .sitecraft-equipment-quantity { font-family: var(--site-data-font, var(--site-font)); }
+.sitecraft-product-key dd, .sitecraft-product-specs td { font-family: var(--site-data-font, var(--site-font)); }
+.sitecraft-compare-value, .sitecraft-compare-extra dd, .sitecraft-band-line dd { font-family: var(--site-data-font, var(--site-font)); }
 `,
   narrow: `
 .sitecraft-container { width: min(100% - var(--site-gutter-narrow), var(--site-container)); }

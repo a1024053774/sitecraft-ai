@@ -78,6 +78,7 @@ export function PublishedSiteClient({
       data-offers-english={offersEnglish ? "true" : "false"}
       data-testid="published-template-shell"
     >
+      <link rel="stylesheet" href="/visitor-host.css" />
       <div className="published-template-stage">
         <OpenSourceTemplateFrame
           templateId={draft.templateId}

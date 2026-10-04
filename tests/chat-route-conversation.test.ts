@@ -447,7 +447,7 @@ test("chat POST keeps applied result when append fails after a successful commit
   assert.equal((result.done.draft as { revision?: unknown }).revision, after.draft.revision);
   assert.equal(await getConversation(siteId, String(result.done.conversationId)), null);
 
-  const pageSource = await readFile(path.join(process.cwd(), "app/workspace/page.tsx"), "utf8");
+  const pageSource = await readFile(path.join(process.cwd(), "app/(workspace)/workspace/page.tsx"), "utf8");
   const ui = workspaceUiForDoneEvent(result.done, pageSource);
   assert.equal(ui.persistFailed, true);
   assert.equal(ui.treatsDraftAsSaved, true);
@@ -539,7 +539,7 @@ test("chat POST keeps answer when append fails and does not treat it as an error
   const after = await getSite(siteId);
   assert.equal(after.draft.revision, before.draft.revision);
 
-  const pageSource = await readFile(path.join(process.cwd(), "app/workspace/page.tsx"), "utf8");
+  const pageSource = await readFile(path.join(process.cwd(), "app/(workspace)/workspace/page.tsx"), "utf8");
   const ui = workspaceUiForDoneEvent(result.done, pageSource);
   assert.equal(ui.claimsNoDraftChange, false);
   assert.equal(ui.answerBranchSwallowsResult, false);
@@ -1156,7 +1156,7 @@ test("alignment state restore uses the same POST action and does not create a mi
   assert.equal(missingSelect.response.status, 400);
   assert.equal(missingSelect.json?.error, "conversation_id_required");
 
-  const pageSource = await readFile(path.join(process.cwd(), "app/workspace/page.tsx"), "utf8");
+  const pageSource = await readFile(path.join(process.cwd(), "app/(workspace)/workspace/page.tsx"), "utf8");
   assert.match(pageSource, /需求对齐/);
   assert.match(pageSource, /action:\s*"state"/);
   assert.match(pageSource, /等待你选择/);
