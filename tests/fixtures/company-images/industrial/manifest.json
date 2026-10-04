@@ -15,13 +15,23 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Yuexin indonesia",
-      "attribution": "Yuexin indonesia — CC BY-SA 4.0; Wikimedia Commons",
+      "attribution": "Yuexin indonesia — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 1175,
       "bytes": 289813,
-      "sha256": "41790f61c3007f32dcdb4585f2e09fe76db5ccd2bbf2fd7f27b43f5c27cd803a"
+      "sha256": "41790f61c3007f32dcdb4585f2e09fe76db5ccd2bbf2fd7f27b43f5c27cd803a",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "industrial-gearbox-reducer-2",
@@ -34,13 +44,23 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Yuexin indonesia",
-      "attribution": "Yuexin indonesia — CC BY-SA 4.0; Wikimedia Commons",
+      "attribution": "Yuexin indonesia — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 1200,
       "bytes": 297372,
-      "sha256": "2c74328922333fdd79118fdfecc8ad2ef78b7378b3c47f6c49f5e74b389ee5a6"
+      "sha256": "2c74328922333fdd79118fdfecc8ad2ef78b7378b3c47f6c49f5e74b389ee5a6",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "industrial-gear-shaping-machine",
@@ -53,13 +73,23 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Laurens Sanders",
-      "attribution": "Laurens Sanders — CC BY-SA 4.0; Wikimedia Commons",
+      "attribution": "Laurens Sanders — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 682,
       "height": 998,
       "bytes": 86408,
-      "sha256": "0b428e27a05ab1a1fdaf2b91d8fc50b8a8f4185a59885812a70a408283c378a1"
+      "sha256": "0b428e27a05ab1a1fdaf2b91d8fc50b8a8f4185a59885812a70a408283c378a1",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "industrial-heat-treatment",
@@ -72,13 +102,23 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Laurens Sanders",
-      "attribution": "Laurens Sanders — CC BY-SA 4.0; Wikimedia Commons",
+      "attribution": "Laurens Sanders — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 934,
       "bytes": 289409,
-      "sha256": "96895e30e18e4e3f0ab34fc07bad42a1aa418ecd2da23417ab00b01aaa001e6c"
+      "sha256": "96895e30e18e4e3f0ab34fc07bad42a1aa418ecd2da23417ab00b01aaa001e6c",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "industrial-gear-shaper-plant",
@@ -91,32 +131,52 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
       "author": "HopsonRoad",
-      "attribution": "HopsonRoad — CC BY-SA 3.0; Wikimedia Commons",
+      "attribution": "HopsonRoad — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 452,
       "bytes": 195534,
-      "sha256": "f0232f147eb8c3423878eedc677678fd6a1a398b5e051e6b0e7161b03300ddfe"
+      "sha256": "f0232f147eb8c3423878eedc677678fd6a1a398b5e051e6b0e7161b03300ddfe",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "industrial-machine-shop",
       "file": "facility-machine-shop.jpg",
       "category": "facility",
-      "caption": "精密机加工车间",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Machine_Shop_Men_GPN-2000-000364.jpg",
-      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Machine_Shop_Men_GPN-2000-000364.jpg/1920px-Machine_Shop_Men_GPN-2000-000364.jpg",
+      "caption": "机加工车间",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Machine_Shop_interior,_Puget_Sound_Machinery_Depot,_Seattle,_Washington,_ca_1922_(INDOCC_41).jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Machine_Shop_interior%2C_Puget_Sound_Machinery_Depot%2C_Seattle%2C_Washington%2C_ca_1922_%28INDOCC_41%29.jpg",
       "license": "Public Domain",
       "apiLicense": "Public Domain",
       "licenseUrl": "https://commons.wikimedia.org/wiki/Commons:Public_domain",
-      "author": "NASA Headquarters — GReatest Images of NASA",
-      "attribution": "NASA Headquarters — GReatest Images of NASA — Public Domain; Wikimedia Commons",
+      "author": "Unknown photographer; Puget Sound Machinery Depot archive",
+      "attribution": "Unknown photographer; Puget Sound Machinery Depot archive — Public Domain; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 1600,
-      "height": 1280,
-      "bytes": 294394,
-      "sha256": "e142031916329fb516261334d93d03182d8f4820e9163a93ddedf17ca0071fdd"
+      "downloadedAt": "2026-10-04T20:16:20Z",
+      "width": 768,
+      "height": 601,
+      "bytes": 125312,
+      "sha256": "13b0a75c44d56747635935ab47514c4718feabfd5e212d28a04cc31c44d6015e",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "industrial-gear-testing",
@@ -135,7 +195,17 @@
       "width": 1600,
       "height": 1099,
       "bytes": 290524,
-      "sha256": "392b63c49e5d49ea3eef855ffbfc83ad00e38831cb05b5d053614f36b804fc75"
+      "sha256": "392b63c49e5d49ea3eef855ffbfc83ad00e38831cb05b5d053614f36b804fc75",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "industrial-cmm",
@@ -148,13 +218,29 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Kergeo",
-      "attribution": "Kergeo — CC BY-SA 4.0; Wikimedia Commons",
+      "attribution": "Kergeo — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1008,
       "height": 1512,
       "bytes": 168054,
-      "sha256": "56c1e09f30a07b385b022bf4f01d208e47881c0e0091cd996ff0d5cc8a1f87cf"
+      "sha256": "56c1e09f30a07b385b022bf4f01d208e47881c0e0091cd996ff0d5cc8a1f87cf",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     }
-  ]
+  ],
+  "derivativeNotice": "Every stored file is a JPEG derivative: resized to long edge ≤1600px and JPEG re-encoded. CC BY / CC BY-SA attribution explicitly states this modification and retains author, source page, and license URL.",
+  "sourceVerification": {
+    "checkedAt": "2026-10-04T20:16:20Z",
+    "method": "Fetched every sourceUrl and licenseUrl with the Wikimedia Commons file page / license page; HTTP 200 required.",
+    "allUrlsStatus": 200
+  }
 }

@@ -8,20 +8,30 @@
       "id": "molding-injection-products",
       "file": "product-injection-molded-parts.jpg",
       "category": "product",
-      "caption": "注塑成型件样品",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Allproducts1.jpg",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/0/03/Allproducts1.jpg",
-      "license": "CC BY-SA 3.0",
-      "apiLicense": "CC BY-SA",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-      "author": "Nadeem Qureshi",
-      "attribution": "Nadeem Qureshi — CC BY-SA 3.0; Wikimedia Commons",
+      "caption": "透明注塑件与瓶胚样品",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Plastic_bottles_before_processing.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Plastic_bottles_before_processing.jpg/1920px-Plastic_bottles_before_processing.jpg",
+      "license": "CC BY 2.0",
+      "apiLicense": "CC BY",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+      "author": "dierk schaefer",
+      "attribution": "dierk schaefer — CC BY 2.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 640,
-      "height": 489,
-      "bytes": 54285,
-      "sha256": "4eb7a30a8a6357d73b54c4eef63e25448f9dfc43ac836ace54b0374997b109c2"
+      "downloadedAt": "2026-10-04T20:16:20Z",
+      "width": 1600,
+      "height": 1200,
+      "bytes": 299359,
+      "sha256": "76b8bb0300b15055521c976650b4fedbde7abcb5c0719c1f087c5cff7e727ebb",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "molding-injection-mold",
@@ -34,13 +44,23 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
       "author": "MobiusDaXter",
-      "attribution": "MobiusDaXter — CC BY-SA 3.0; Wikimedia Commons",
+      "attribution": "MobiusDaXter — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 1372,
       "bytes": 288461,
-      "sha256": "a6897e6106137e65870da558a4b91ea668e9ed6a21b6ab9368ad73bfcb94d906"
+      "sha256": "a6897e6106137e65870da558a4b91ea668e9ed6a21b6ab9368ad73bfcb94d906",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "molding-bi-material-machine",
@@ -53,13 +73,23 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
       "author": "Cjp24",
-      "attribution": "Cjp24 — CC BY-SA 3.0; Wikimedia Commons",
+      "attribution": "Cjp24 — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 894,
       "bytes": 245528,
-      "sha256": "cf04bc83994e6387f176340235296638adc99947c08a1803c370676af921a4b0"
+      "sha256": "cf04bc83994e6387f176340235296638adc99947c08a1803c370676af921a4b0",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "molding-1300-ton-machine",
@@ -72,70 +102,52 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
       "author": "Blue tooth7",
-      "attribution": "Blue tooth7 — CC BY-SA 3.0; Wikimedia Commons",
+      "attribution": "Blue tooth7 — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 882,
       "height": 669,
       "bytes": 96817,
-      "sha256": "3b6e93a6875ea639c6b43993c3c2ad79be72bc2c7a5c63524ebd37064f719f2b"
+      "sha256": "3b6e93a6875ea639c6b43993c3c2ad79be72bc2c7a5c63524ebd37064f719f2b",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "molding-injection-facility",
       "file": "facility-injection-molding.jpg",
       "category": "facility",
-      "caption": "注塑生产车间",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Proto-Labs-Manufacturing-Injection-Molding.jpg",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Proto-Labs-Manufacturing-Injection-Molding.jpg",
+      "caption": "注塑工厂厂区",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fabrik,_Kisgy%C3%A1rstrasse,_2026_Hal%C3%A1sztelek.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Fabrik%2C_Kisgy%C3%A1rstrasse%2C_2026_Hal%C3%A1sztelek.jpg/1920px-Fabrik%2C_Kisgy%C3%A1rstrasse%2C_2026_Hal%C3%A1sztelek.jpg",
       "license": "CC BY-SA 4.0",
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-      "author": "Mahart922",
-      "attribution": "Mahart922 — CC BY-SA 4.0; Wikimedia Commons",
-      "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 1024,
-      "height": 512,
-      "bytes": 199033,
-      "sha256": "3fa3c4226588f120c0a3a1f3f678e9c4d9d8cadfb425582dffdc644914f7b083"
-    },
-    {
-      "id": "molding-factory-exterior",
-      "file": "facility-factory-exterior.jpg",
-      "category": "facility",
-      "caption": "注塑工厂外景",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Szigetszentmikl%C3%B3s_als%C3%B3_meg%C3%A1ll%C3%B3hely_%C3%A9s_a_Fam%C5%B1_Kft._gy%C3%A1ra,_2019_Szigetszentmikl%C3%B3s.jpg",
-      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Szigetszentmikl%C3%B3s_als%C3%B3_meg%C3%A1ll%C3%B3hely_%C3%A9s_a_Fam%C5%B1_Kft._gy%C3%A1ra%2C_2019_Szigetszentmikl%C3%B3s.jpg/1920px-Szigetszentmikl%C3%B3s_als%C3%B3_meg%C3%A1ll%C3%B3hely_%C3%A9s_a_Fam%C5%B1_Kft._gy%C3%A1ra%2C_2019_Szigetszentmikl%C3%B3s.jpg",
-      "license": "CC BY-SA 3.0",
-      "apiLicense": "CC BY-SA",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
       "author": "Globetrotter19",
-      "attribution": "Globetrotter19 — CC BY-SA 3.0; Wikimedia Commons",
+      "attribution": "Globetrotter19 — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
+      "downloadedAt": "2026-10-04T20:16:20Z",
       "width": 1600,
       "height": 1200,
-      "bytes": 290950,
-      "sha256": "c527c397d8e0b948627683ce4ca0b286f4fe7437a9e1e1873626970c23726587"
-    },
-    {
-      "id": "molding-cmm",
-      "file": "inspection-cmm.jpg",
-      "category": "inspection",
-      "caption": "三坐标测量设备",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coordinate_Measuring_Machines_(5885465714).jpg",
-      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Coordinate_Measuring_Machines_%285885465714%29.jpg/1920px-Coordinate_Measuring_Machines_%285885465714%29.jpg",
-      "license": "Public Domain",
-      "apiLicense": "Public Domain",
-      "licenseUrl": "https://commons.wikimedia.org/wiki/Commons:Public_domain",
-      "author": "National Institute of Standards and Technology",
-      "attribution": "National Institute of Standards and Technology — Public Domain; Wikimedia Commons",
-      "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 1600,
-      "height": 1600,
-      "bytes": 286495,
-      "sha256": "c15c8301985df38250a656961e981a6ef55ab38296c6329d6cfde564bf72021b"
+      "bytes": 288160,
+      "sha256": "49facbf15ec40830b2929b80b45321d3a27b530e50b1332b021c63d3a4957444",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "molding-microscope-defect",
@@ -148,13 +160,29 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
       "author": "Andreas Ginschel",
-      "attribution": "Andreas Ginschel — CC BY-SA 3.0; Wikimedia Commons",
+      "attribution": "Andreas Ginschel — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 1200,
       "bytes": 154444,
-      "sha256": "d19b6d63d07febc9c5bd5445e5ef9d0b73fb36f9bee6ec4aa3cd5ada61f4f964"
+      "sha256": "d19b6d63d07febc9c5bd5445e5ef9d0b73fb36f9bee6ec4aa3cd5ada61f4f964",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     }
-  ]
+  ],
+  "derivativeNotice": "Every stored file is a JPEG derivative: resized to long edge ≤1600px and JPEG re-encoded. CC BY / CC BY-SA attribution explicitly states this modification and retains author, source page, and license URL.",
+  "sourceVerification": {
+    "checkedAt": "2026-10-04T20:16:20Z",
+    "method": "Fetched every sourceUrl and licenseUrl with the Wikimedia Commons file page / license page; HTTP 200 required.",
+    "allUrlsStatus": 200
+  }
 }

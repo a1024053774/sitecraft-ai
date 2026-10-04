@@ -8,20 +8,30 @@
       "id": "export-gas-fittings",
       "file": "product-gas-fittings.jpg",
       "category": "product",
-      "caption": "管路端部与密封件",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gas_pipe_fittings.jpg",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d6/Gas_pipe_fittings.jpg",
-      "license": "CC BY-SA 4.0",
-      "apiLicense": "CC BY-SA",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-      "author": "Ghasemimoshref",
-      "attribution": "Ghasemimoshref — CC BY-SA 4.0; Wikimedia Commons",
+      "caption": "压缩接头与阀件",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Compression_fitting_isolating_valve_15mm_screwdriver_turn.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Compression_fitting_isolating_valve_15mm_screwdriver_turn.jpg/1920px-Compression_fitting_isolating_valve_15mm_screwdriver_turn.jpg",
+      "license": "Public Domain",
+      "apiLicense": "Public Domain",
+      "licenseUrl": "https://commons.wikimedia.org/wiki/Commons:Public_domain",
+      "author": "Mike1024",
+      "attribution": "Mike1024 — Public Domain; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 957,
-      "height": 864,
-      "bytes": 66054,
-      "sha256": "8546ebe2dead3fe47eae30e4a64c9e1fb084f86443658701fc34ce349be6e97b"
+      "downloadedAt": "2026-10-04T20:16:20Z",
+      "width": 1600,
+      "height": 998,
+      "bytes": 184556,
+      "sha256": "b2b6a94cf0c31f0e5517bb688b3dd65c2e28e89bfd0dc87ab1e862aafc386415",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "export-plumbing-fittings",
@@ -34,70 +44,81 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Ghasemimoshref",
-      "attribution": "Ghasemimoshref — CC BY-SA 4.0; Wikimedia Commons",
+      "attribution": "Ghasemimoshref — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1200,
       "height": 1600,
       "bytes": 289011,
-      "sha256": "6064b7311a4f3f7d154798ca68e0ee5c61c7a34f5e94e464e50c0231f0d1f079"
+      "sha256": "6064b7311a4f3f7d154798ca68e0ee5c61c7a34f5e94e464e50c0231f0d1f079",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "export-cnc-turning-center",
       "file": "equipment-cnc-turning-center.jpg",
       "category": "equipment",
-      "caption": "数控车削中心",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Small_CNC_Turning_Center.jpg",
-      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Small_CNC_Turning_Center.jpg/1920px-Small_CNC_Turning_Center.jpg",
+      "caption": "大型车削加工设备",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Francis_Runner_InWorkshop_300.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Francis_Runner_InWorkshop_300.jpg/1920px-Francis_Runner_InWorkshop_300.jpg",
       "license": "CC BY-SA 3.0",
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-      "author": "Nathaniel C. Sheetz",
-      "attribution": "Nathaniel C. Sheetz — CC BY-SA 3.0; Wikimedia Commons",
+      "author": "Voith Siemens Hydro Power Generation",
+      "attribution": "Voith Siemens Hydro Power Generation — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
+      "downloadedAt": "2026-10-04T20:16:20Z",
       "width": 1600,
-      "height": 1200,
-      "bytes": 293399,
-      "sha256": "ba74eeedece6893cb6b84a6d448c3fc02f4fae922aacae628ad0949c84b0f548"
+      "height": 1141,
+      "bytes": 293113,
+      "sha256": "1cbdf6cf25ed153b5c9b31a1069bf028ce13c09704a57b9e3b109402fa4afe65",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "export-pipe-threading-lathe",
       "file": "equipment-pipe-threading-lathe.jpg",
       "category": "equipment",
-      "caption": "管螺纹数控车床",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Big_bore_14%22-_Hollow_spindle_-_CNC_oil_field_lathe_-_Oil_country_Lathe_-_Pipe_Threading_Lathe.jpg",
-      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Big_bore_14%22-_Hollow_spindle_-_CNC_oil_field_lathe_-_Oil_country_Lathe_-_Pipe_Threading_Lathe.jpg/1920px-Big_bore_14%22-_Hollow_spindle_-_CNC_oil_field_lathe_-_Oil_country_Lathe_-_Pipe_Threading_Lathe.jpg",
-      "license": "CC BY-SA 3.0",
+      "caption": "金属车削设备",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Metal_lathe_used_to_produce_flywheels.JPG",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Metal_lathe_used_to_produce_flywheels.JPG/1920px-Metal_lathe_used_to_produce_flywheels.JPG",
+      "license": "CC BY-SA 4.0",
       "apiLicense": "CC BY-SA",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-      "author": "Peter",
-      "attribution": "Peter — CC BY-SA 3.0; Wikimedia Commons",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Work With Sounds",
+      "attribution": "Work With Sounds — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
+      "downloadedAt": "2026-10-04T20:16:20Z",
       "width": 1600,
-      "height": 1200,
-      "bytes": 292136,
-      "sha256": "c699ccab06c374d7f0090a3116a5464f90aa6b1d44855cd94c684e774415f7eb"
-    },
-    {
-      "id": "export-pipe-fitting-plant",
-      "file": "facility-pipe-fitting-plant.jpg",
-      "category": "facility",
-      "caption": "不锈钢流体工艺车间",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:MC763-01-01-Extraktion.JPG",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/5/59/MC763-01-01-Extraktion.JPG",
-      "license": "CC0 1.0 Universal",
-      "apiLicense": "CC0",
-      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-      "author": "Jü",
-      "attribution": "Jü — CC0 1.0 Universal; Wikimedia Commons",
-      "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:49:35Z",
-      "width": 1600,
-      "height": 1600,
-      "bytes": 298571,
-      "sha256": "27cd6e832025842c3cd16f6a2110616a783cce81549fbf7485d618e8377d5a74"
+      "height": 1067,
+      "bytes": 289620,
+      "sha256": "df194d5e8129cca9338ec8f2ed9a6d6de84beea87e2338f4dc0a7cdd8e8b63b2",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "export-metalwork-shop",
@@ -106,36 +127,57 @@
       "caption": "金属加工车间",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Metal_workers_in_Tampere_workshop_1955.jpg",
       "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Metal_workers_in_Tampere_workshop_1955.jpg/1920px-Metal_workers_in_Tampere_workshop_1955.jpg",
-      "license": "Public Domain",
-      "apiLicense": "Public Domain",
-      "licenseUrl": "https://commons.wikimedia.org/wiki/Commons:Public_domain",
+      "license": "CC BY-SA 4.0",
+      "apiLicense": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Reino Kalevi Lehtonen",
-      "attribution": "Reino Kalevi Lehtonen — Public Domain; Wikimedia Commons",
+      "attribution": "Reino Kalevi Lehtonen — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 1147,
       "bytes": 294062,
-      "sha256": "9f6a0380d3d79c5bf5643844edade7d40bd32be87e8197d03224240e77ecb064"
+      "sha256": "9f6a0380d3d79c5bf5643844edade7d40bd32be87e8197d03224240e77ecb064",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "licenseEvidenceNote": "The Commons source page is recorded as CC BY-SA 4.0; this manifest intentionally follows the CC BY-SA 4.0 attribution path."
     },
     {
       "id": "export-pressure-calibration",
       "file": "inspection-pressure-calibration.jpg",
       "category": "inspection",
-      "caption": "压力表校准检测",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:US_Navy_040829-N-7884F-006_Machinist_Mate_2nd_Class_Frank_Cundiff_completes_calibration_testing_on_pressure_gauges_using_the_3666C_auto_pressure_calibrator.jpg",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1c/US_Navy_040829-N-7884F-006_Machinist_Mate_2nd_Class_Frank_Cundiff_completes_calibration_testing_on_pressure_gauges_using_the_3666C_auto_pressure_calibrator.jpg",
+      "caption": "压力表与传感器检测",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:PRESSURE_GAUGES,_DIABLO_HAWK_-_DPLA_-_c7710ce4047096279c709f01b5d35ce6.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/PRESSURE_GAUGES%2C_DIABLO_HAWK_-_DPLA_-_c7710ce4047096279c709f01b5d35ce6.jpg/1920px-PRESSURE_GAUGES%2C_DIABLO_HAWK_-_DPLA_-_c7710ce4047096279c709f01b5d35ce6.jpg",
       "license": "Public Domain",
       "apiLicense": "Public Domain",
       "licenseUrl": "https://commons.wikimedia.org/wiki/Commons:Public_domain",
-      "author": "U.S. Navy photo by Brandon Fox",
-      "attribution": "U.S. Navy photo by Brandon Fox — Public Domain; Wikimedia Commons",
+      "author": "Department of Energy. National Nuclear Security Administration; Sandia National Laboratories",
+      "attribution": "Department of Energy. National Nuclear Security Administration; Sandia National Laboratories — Public Domain; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
+      "downloadedAt": "2026-10-04T20:16:20Z",
       "width": 1600,
-      "height": 1063,
-      "bytes": 259283,
-      "sha256": "3315e470a58c8c30f2136b518b331506a306bb228641191176422393a7c98ce3"
+      "height": 1288,
+      "bytes": 277185,
+      "sha256": "d719bcc26a707bd09a7521e0a3b3759e969c589a667959706233525b496746fd",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     },
     {
       "id": "export-caliper",
@@ -154,7 +196,23 @@
       "width": 1508,
       "height": 1600,
       "bytes": 287798,
-      "sha256": "a5d541083d1d8ef80c44614ee9ceb85e05d762c41c818e65ed11ad0b26fe3e0a"
+      "sha256": "a5d541083d1d8ef80c44614ee9ceb85e05d762c41c818e65ed11ad0b26fe3e0a",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
     }
-  ]
+  ],
+  "derivativeNotice": "Every stored file is a JPEG derivative: resized to long edge ≤1600px and JPEG re-encoded. CC BY / CC BY-SA attribution explicitly states this modification and retains author, source page, and license URL.",
+  "sourceVerification": {
+    "checkedAt": "2026-10-04T20:16:20Z",
+    "method": "Fetched every sourceUrl and licenseUrl with the Wikimedia Commons file page / license page; HTTP 200 required.",
+    "allUrlsStatus": 200
+  }
 }
