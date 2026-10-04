@@ -2290,26 +2290,32 @@ function groundQualityProcess(steps: QualityProcessStep[], materials: string, re
   return grounded;
 }
 
-type HistoryFactFragment = { text: string; source: string };
+type HistoryFactFragment = { text: string; source: string; sourceIndex: number };
 
 function historyFactFragments(materials: string): HistoryFactFragment[] {
   const source = stripWrappedCommercialInstructions(materials);
+  let sourceIndex = 0;
   return source.split(/\r?\n/).flatMap((line) => {
     const trimmed = line.trim();
     if (!trimmed || !/沿革|history/i.test(trimmed)) return [];
     const value = trimmed.replace(/^[^：:]{1,32}[：:]\s*/, "");
-    return value.split(/[；;]/).map((text) => text.trim()).filter(Boolean).map((text) => ({ text, source: text }));
+    return value.split(/[；;]/).map((text) => text.trim()).filter(Boolean).map((text) => ({ text, source: text, sourceIndex: sourceIndex++ }));
   });
 }
 
-function historyEnglishMatches(item: HistoryItem): boolean {
+function historyEnglishMatches(item: HistoryItem, fragment: HistoryFactFragment): boolean {
   const zhNumbers = canonicalCommercialNumbers(`${item.year} ${item.event.zh}`).sort();
   const enNumbers = canonicalCommercialNumbers(item.event.en).sort();
-  if (enNumbers.length && JSON.stringify(zhNumbers.slice(1).sort()) !== JSON.stringify(enNumbers)) return false;
-  return commercialUnitsMatch(item.event.zh, item.event.en);
+  const yearIndex = zhNumbers.indexOf(String(item.year));
+  if (yearIndex < 0) return false;
+  zhNumbers.splice(yearIndex, 1);
+  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers)) return false;
+  if (!commercialUnitsMatch(item.event.zh, item.event.en)) return false;
+  const sourceCodes = new Set(englishCommercialCodes(`${fragment.source} ${item.event.zh}`).map((code) => code.toUpperCase()));
+  return englishCommercialCodes(item.event.en).every((code) => sourceCodes.has(code.toUpperCase()));
 }
 
-function groundHistoryItem(item: HistoryItem, materials: string, rejected: string[]): HistoryItem | null {
+function groundHistoryItem(item: HistoryItem, materials: string, rejected: string[]): { item: HistoryItem; sourceIndex: number } | null {
   const eventZh = item.event.zh.trim().replace(/[。.!！?？]+$/g, "");
   const eventEn = item.event.en.trim();
   if (!Number.isInteger(item.year) || item.year < 1000 || item.year > 9999 || !eventZh || !eventEn || isGapMarker(eventZh) || isGapMarker(eventEn)) {
@@ -2320,18 +2326,25 @@ function groundHistoryItem(item: HistoryItem, materials: string, rejected: strin
   const eventPattern = escapeRegExp(eventZh);
   const fragment = historyFactFragments(materials).find((candidate) => new RegExp(`${year}\\s*年?\\s*${eventPattern}`).test(candidate.text));
   const grounded = { ...item, year: item.year, event: { zh: eventZh, en: eventEn } };
-  if (!fragment || !historyEnglishMatches(grounded)) {
+  if (!fragment || !historyEnglishMatches(grounded, fragment)) {
     rejected.push(`沿革条目「${eventZh}」的年份或事件不在同一句资料中，已忽略`);
     return null;
   }
-  return grounded;
+  return { item: grounded, sourceIndex: fragment.sourceIndex };
 }
 
 function groundHistory(items: HistoryItem[], materials: string, rejected: string[]): HistoryItem[] {
   const grounded: HistoryItem[] = [];
+  let previousSourceIndex = -1;
   for (const item of items) {
     const next = groundHistoryItem(item, materials, rejected);
-    if (next) grounded.push(next);
+    if (!next) continue;
+    if (next.sourceIndex <= previousSourceIndex) {
+      rejected.push("沿革条目的资料顺序与输入顺序不一致，整组没有写入");
+      return [];
+    }
+    previousSourceIndex = next.sourceIndex;
+    grounded.push(next.item);
   }
   return grounded;
 }

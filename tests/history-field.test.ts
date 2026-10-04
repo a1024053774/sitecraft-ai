@@ -14,7 +14,7 @@ const history = [
   { id: "injection", year: 2013, event: text("注塑车间投产", "The injection shop started production") },
   { id: "export", year: 2017, event: text("开始承接出口订单", "Started taking export orders") },
   { id: "workshop", year: 2021, event: text("新增恒温精密模具车间", "Added a temperature-controlled precision mold shop") },
-  { id: "metrology", year: 2024, event: text("建成三坐标与影像测量室", "Completed a CMM and vision measuring room") },
+  { id: "metrology", year: 2024, event: text("建成三坐标与影像测量室", "Completed a coordinate measuring and vision inspection room") },
 ];
 const materials = "沿革：2008 年 建厂，从模具维修和小型模具起步；2013 年 注塑车间投产；2017 年 开始承接出口订单；2021 年 新增恒温精密模具车间；2024 年 建成三坐标与影像测量室。";
 const options = { templateIds: new Set(["forge", "screwfast", "landwind", "tailwind-landing"]), lastChange: "history-test" };
@@ -51,6 +51,30 @@ test("history grounding keeps source order and rejects inferred or non-adjacent 
 
   const wrongYear = validateAIOperations(materials, [{ op: "replace_history", history: [{ ...history[0], year: 2013 }] } as never], options.templateIds);
   assert.deepEqual(wrongYear.operations, []);
+});
+
+test("history grounding rejects a reverse or shuffled source order instead of reordering it", () => {
+  const checked = validateAIOperations(materials, [{ op: "replace_history", history: [history[1], history[0]] } as never], options.templateIds);
+  assert.deepEqual(checked.operations, []);
+  assert.ok(checked.rejected.some((message) => message.includes("资料顺序")));
+});
+
+test("history English uppercase codes must come from the same source fragment", () => {
+  const checked = validateAIOperations("沿革：2008 年 建厂。", [{ op: "replace_history", history: [{ ...history[0], event: text("建厂", "Founded ABC") }] } as never], options.templateIds);
+  assert.deepEqual(checked.operations, []);
+  assert.ok(checked.rejected.some((message) => message.includes("同一句资料")));
+});
+
+test("history English numbers remove the exact year and preserve event numbers", () => {
+  const checked = validateAIOperations("沿革：2008 年 建立第2车间。", [{ op: "replace_history", history: [{ id: "workshop-2", year: 2008, event: text("建立第2车间", "Established workshop 2") }] } as never], options.templateIds);
+  assert.equal(checked.operations.length, 1);
+});
+
+test("history grounding rejects non-integer, three-digit and five-digit years", () => {
+  for (const year of [2008.5, 999, 10000]) {
+    const checked = validateAIOperations(materials, [{ op: "replace_history", history: [{ ...history[0], year }] } as never], options.templateIds);
+    assert.deepEqual(checked.operations, [], `year ${year} must be rejected`);
+  }
 });
 
 test("published facts include history year and event and report missing entries", () => {
