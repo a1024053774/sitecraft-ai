@@ -11,8 +11,6 @@ export const paletteBaseline = {
       "border": "#cfd5de",
       "diagram": "#e4e7ec",
       "tint": "#eef0f4",
-      "font": "ui-sans-serif,system-ui,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\",Segoe UI Symbol,\"Noto Color Emoji\"",
-      "radius": "1rem"
     },
     "industrial-graphite": {
       "background": "#fbfbfb",
@@ -25,8 +23,6 @@ export const paletteBaseline = {
       "border": "#d5d6d8",
       "diagram": "#e7e8e9",
       "tint": "#f0f1f2",
-      "font": "ui-sans-serif,system-ui,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\",Segoe UI Symbol,\"Noto Color Emoji\"",
-      "radius": "1rem"
     },
     "industrial-warm-orange": {
       "background": "#fcfbfb",
@@ -39,8 +35,6 @@ export const paletteBaseline = {
       "border": "#d9d6d4",
       "diagram": "#e9e8e7",
       "tint": "#f2f1f0",
-      "font": "ui-sans-serif,system-ui,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\",Segoe UI Symbol,\"Noto Color Emoji\"",
-      "radius": "1rem"
     },
     "industrial-patina": {
       "background": "#fbfcfb",
@@ -53,8 +47,6 @@ export const paletteBaseline = {
       "border": "#d4d9d6",
       "diagram": "#e7e9e8",
       "tint": "#f0f2f1",
-      "font": "ui-sans-serif,system-ui,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\",Segoe UI Symbol,\"Noto Color Emoji\"",
-      "radius": "1rem"
     },
     "industrial-turquoise": {
       "background": "#fafcfc",
@@ -67,8 +59,6 @@ export const paletteBaseline = {
       "border": "#d1dbdc",
       "diagram": "#e5eaeb",
       "tint": "#eff3f3",
-      "font": "ui-sans-serif,system-ui,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\",Segoe UI Symbol,\"Noto Color Emoji\"",
-      "radius": "1rem"
     },
     "industrial-morandi": {
       "background": "#fcfbfb",
@@ -81,8 +71,6 @@ export const paletteBaseline = {
       "border": "#d9d5d4",
       "diagram": "#e9e8e7",
       "tint": "#f2f1f0",
-      "font": "ui-sans-serif,system-ui,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\",Segoe UI Symbol,\"Noto Color Emoji\"",
-      "radius": "1rem"
     }
   },
   "screwfast": {
@@ -97,8 +85,6 @@ export const paletteBaseline = {
       "border": "#cfd5de",
       "diagram": "#e4e7ec",
       "tint": "#eef0f4",
-      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif",
-      "radius": "0.25rem"
     },
     "engineering-graphite": {
       "background": "#f4f5f5",
@@ -111,8 +97,6 @@ export const paletteBaseline = {
       "border": "#d5d6d8",
       "diagram": "#e7e8e9",
       "tint": "#f0f1f2",
-      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif",
-      "radius": "0.25rem"
     },
     "engineering-warm-orange": {
       "background": "#f4f5f3",
@@ -125,8 +109,6 @@ export const paletteBaseline = {
       "border": "#d7ddd8",
       "diagram": "#e8ece8",
       "tint": "#eef4f0",
-      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif",
-      "radius": "0.25rem"
     },
     "engineering-patina": {
       "background": "#f4f6f5",
@@ -139,8 +121,6 @@ export const paletteBaseline = {
       "border": "#d4d9d6",
       "diagram": "#e7e9e8",
       "tint": "#f0f2f1",
-      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif",
-      "radius": "0.25rem"
     },
     "engineering-turquoise": {
       "background": "#f3f7f7",
@@ -153,8 +133,6 @@ export const paletteBaseline = {
       "border": "#d1dbdc",
       "diagram": "#e5eaeb",
       "tint": "#eff3f3",
-      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif",
-      "radius": "0.25rem"
     },
     "engineering-morandi": {
       "background": "#f6f4f4",
@@ -167,8 +145,6 @@ export const paletteBaseline = {
       "border": "#d9d5d4",
       "diagram": "#e9e8e7",
       "tint": "#f2f1f0",
-      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif",
-      "radius": "0.25rem"
     }
   },
   "landwind": {
@@ -183,8 +159,6 @@ export const paletteBaseline = {
       "border": "#cfd5de",
       "diagram": "#e4e7ec",
       "tint": "#eef0f4",
-      "font": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif",
-      "radius": "0.875rem"
     },
     "export-graphite": {
       "background": "#f7f8f8",
@@ -197,8 +171,6 @@ export const paletteBaseline = {
       "border": "#d5d6d8",
       "diagram": "#e7e8e9",
       "tint": "#f0f1f2",
-      "font": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif",
-      "radius": "0.875rem"
     },
     "export-warm-orange": {
       "background": "#f9f8f7",
@@ -211,8 +183,6 @@ export const paletteBaseline = {
       "border": "#d9d6d4",
       "diagram": "#e9e8e7",
       "tint": "#f2f1f0",
-      "font": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif",
-      "radius": "0.875rem"
     },
     "export-patina": {
       "background": "#f7f9f8",
@@ -225,8 +195,6 @@ export const paletteBaseline = {
       "border": "#d4d9d6",
       "diagram": "#e7e9e8",
       "tint": "#f0f2f1",
-      "font": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif",
-      "radius": "0.875rem"
     },
     "export-turquoise": {
       "background": "#f6f9f9",
@@ -239,8 +207,6 @@ export const paletteBaseline = {
       "border": "#d1dbdc",
       "diagram": "#e5eaeb",
       "tint": "#eff3f3",
-      "font": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif",
-      "radius": "0.875rem"
     },
     "export-morandi": {
       "background": "#f9f8f7",
@@ -253,8 +219,6 @@ export const paletteBaseline = {
       "border": "#d9d5d4",
       "diagram": "#e9e8e7",
       "tint": "#f2f1f0",
-      "font": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif",
-      "radius": "0.875rem"
     }
   },
   "tailwind-landing": {
@@ -269,8 +233,6 @@ export const paletteBaseline = {
       "border": "#cfd5de",
       "diagram": "#e4e7ec",
       "tint": "#eef0f4",
-      "font": "ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif",
-      "radius": "1rem"
     },
     "technical-graphite": {
       "background": "#edeeef",
@@ -283,8 +245,6 @@ export const paletteBaseline = {
       "border": "#d5d6d8",
       "diagram": "#e7e8e9",
       "tint": "#f0f1f2",
-      "font": "ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif",
-      "radius": "1rem"
     },
     "technical-warm-orange": {
       "background": "#f0eeed",
@@ -297,8 +257,6 @@ export const paletteBaseline = {
       "border": "#d9d6d4",
       "diagram": "#e9e8e7",
       "tint": "#f2f1f0",
-      "font": "ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif",
-      "radius": "1rem"
     },
     "technical-patina": {
       "background": "#edf0ee",
@@ -311,8 +269,6 @@ export const paletteBaseline = {
       "border": "#d4d9d6",
       "diagram": "#e7e9e8",
       "tint": "#f0f2f1",
-      "font": "ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif",
-      "radius": "1rem"
     },
     "technical-turquoise": {
       "background": "#ebf1f2",
@@ -325,8 +281,6 @@ export const paletteBaseline = {
       "border": "#d1dbdc",
       "diagram": "#e5eaeb",
       "tint": "#eff3f3",
-      "font": "ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif",
-      "radius": "1rem"
     },
     "technical-morandi": {
       "background": "#f0eeed",
@@ -339,8 +293,6 @@ export const paletteBaseline = {
       "border": "#d9d5d4",
       "diagram": "#e9e8e7",
       "tint": "#f2f1f0",
-      "font": "ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif",
-      "radius": "1rem"
     }
   }
 } as const;
