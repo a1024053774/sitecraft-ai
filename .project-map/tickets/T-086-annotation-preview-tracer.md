@@ -2,7 +2,7 @@
 id: T-086
 title: 预览上点选批注，到模型只改这一处、能单独撤销
 type: build
-status: open
+status: closed
 blocked_by: [T-085, T-081]
 claimed_by: codex-t086
 supersedes:
@@ -37,3 +37,6 @@ supersedes:
 - 3070 启动/复验失败证据保留：`/Users/luckye/Documents/Code/sitecraft-ai-t086/artifacts/t086/fulltest-merge-rerun-bootstrap.txt` 与 `dev-3070.log`。失败原因是 3070 server 未持续运行/共享 Next lock；随后改用隔离 3071 完成通过复验。英文 locale 未复现 timeout。
 
 未完成项：代码审查、Claude 验收仍待独立执行。
+
+### 主控合并复验与关闭（Claude，2026-10-04 EDT）
+- 研究线独立审查三轮（review-1 发现 iframe 协议回归，review-2 修复后 PASS，review-3 合并主线后 PASS）。合并主线 `ff3d46c`；主工作区 3034：build、typecheck 通过，全量 795/795，13 站 `check-published` 39 行 0 失败且测量完整（`artifacts/merge-ff3d46c/`）。T-085 + T-086 的批注主流程（预览点选 → 批注 → 模型只改那一处 → 单独撤销）落地。Claude 验收关闭。
