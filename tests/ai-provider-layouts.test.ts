@@ -107,6 +107,15 @@ test("the product spec prompt distinguishes shared strings from bilingual values
   assert.match(system, /Foot \/ flange/);
 });
 
+test("the equipment prompt forbids source-external English abbreviations and digits", async () => {
+  await ask(packDraft("molding"), "根据资料生成设备清单", { type: "answer", text: "ok" });
+  const system = lastMessage("system");
+  assert.match(system, /英文名称和规格不能自行添加中文没有的缩写或数字/);
+  assert.match(system, /wire-cut machine/);
+  assert.match(system, /spark machine/);
+  assert.match(system, /two-dimensional image measuring instrument/);
+});
+
 test("an appearance edit prompt exposes style directions without a material recommendation", async () => {
   await ask(packDraft("molding"), "按加工能力、产能、工艺和检测来做一个工厂实力网站", { type: "answer", text: "ok" }, true);
   const system = lastMessage("system");

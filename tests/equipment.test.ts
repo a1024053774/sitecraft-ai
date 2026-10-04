@@ -99,6 +99,27 @@ test("equipment grounding requires Chinese name and spec to be source substrings
   assert.deepEqual(badEnglish.operations, []);
 });
 
+test("equipment English names use complete source-faithful words while EDM and 2D remain rejected", () => {
+  const accepted = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_equipment",
+    equipment: [
+      { id: "wire", name: localized("精密慢走丝线切割", "Precision slow-wire wire-cut machine"), quantity: 6, spec: null },
+      { id: "spark", name: localized("镜面电火花", "Mirror-finish spark machine"), quantity: 8, spec: null },
+      { id: "image", name: localized("二次元影像测量仪", "Two-dimensional image measuring instrument"), quantity: null, spec: null },
+    ],
+  } as never], options.templateIds, withEquipment([]));
+  assert.deepEqual((accepted.operations[0] as never as { equipment: Array<{ id: string }> }).equipment.map((item) => item.id), ["wire", "spark", "image"]);
+
+  const forbidden = validateAIOperations(simulatedPacks.molding.body, [{
+    op: "replace_equipment",
+    equipment: [
+      { id: "wire", name: localized("精密慢走丝线切割", "EDM wire-cut machine"), quantity: 6, spec: null },
+      { id: "image", name: localized("二次元影像测量仪", "2D image measuring instrument"), quantity: null, spec: null },
+    ],
+  } as never], options.templateIds, withEquipment([]));
+  assert.deepEqual(forbidden.operations, []);
+});
+
 test("equipment unit mapping still rejects a ton range translated as kilograms", () => {
   const checked = validateAIOperations("设备：注塑机 42 台（90–800 t）。", [{
     op: "replace_equipment",
