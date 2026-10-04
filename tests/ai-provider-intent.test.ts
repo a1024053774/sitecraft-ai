@@ -269,7 +269,7 @@ test("large draft prompt keeps metadata, selected section, and sku/name without 
   assert.match(userPrompt, /T4_PRODUCT_NAME_9183/);
   assert.match(userPrompt, /"visualBrief":\{"version":1,"id":"industrial","label":"明亮产品"/);
   const system = (JSON.parse(lastRequestBody) as { messages?: Array<{ role?: string; content?: string }> }).messages?.find((item) => item.role === "system");
-  assert.match(String(system?.content ?? ""), /sitecraft-frontend-less-ai-tone@0\.3\.1/);
+  assert.match(String(system?.content ?? ""), /sitecraft-frontend-less-ai-tone@0\.3\.2/);
   assert.equal(userPrompt.includes("T4_ABOUT_LONG_SENTINEL_9183"), false);
   assert.equal(userPrompt.includes("T4_PRODUCT_SUMMARY_SENTINEL_9183"), false);
   assert.equal(userPrompt.includes("T4_SERVICES_FULL_SENTINEL_9183"), false);
@@ -349,8 +349,8 @@ test("alignment context stays in untrusted user data and is omitted when empty",
   assert.equal(unconfirmedPrompt.includes("已确认方向"), false);
 });
 
-test("live system prompt injects frontend-tone@0.3.1 copy and visual rules and forbids CSS/HTML", async () => {
-  assert.equal(FRONTEND_TONE_RULES_VERSION, "sitecraft-frontend-less-ai-tone@0.3.1");
+test("live system prompt injects frontend-tone@0.3.2 copy and visual rules and forbids CSS/HTML", async () => {
+  assert.equal(FRONTEND_TONE_RULES_VERSION, "sitecraft-frontend-less-ai-tone@0.3.2");
   nextPayload = { type: "answer", text: "TONE_PROMPT_ACK_0210" };
   const result = await requestStructuredOperations({
     message: "TONE_PROMPT_USER_0210 当前站点名称是什么？",
@@ -359,8 +359,8 @@ test("live system prompt injects frontend-tone@0.3.1 copy and visual rules and f
   });
   assert.equal(result.ok, true);
   const system = systemPromptFromLastRequest();
-  assert.match(system, /sitecraft-frontend-less-ai-tone@0\.3\.1/);
-  assert.match(system, /前端表达约束（sitecraft-frontend-less-ai-tone@0\.3\.1）/);
+  assert.match(system, /sitecraft-frontend-less-ai-tone@0\.3\.2/);
+  assert.match(system, /前端表达约束（sitecraft-frontend-less-ai-tone@0\.3\.2）/);
   assert.match(system, /只返回 JSON，不输出 Markdown、HTML、CSS 或 JavaScript/);
   assert.match(system, /不生成或改写 HTML、CSS、JavaScript/);
   assert.match(system, /不要为了填满版面自动增加卡片、编号步骤、客户 Logo、统计数字、评价、价格或博客条目/);
