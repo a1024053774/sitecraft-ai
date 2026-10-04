@@ -11,7 +11,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-080: 商业条款「左右条款」(commercialTerms:side). The block title in a left column, the terms
 // stacked in the right one (name small above, value below, a hairline between). Same field and
@@ -138,8 +138,7 @@ test("左右条款 has no horizontal overflow with 1 to 6 terms at 1440, 768 and
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 

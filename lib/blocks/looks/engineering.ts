@@ -129,7 +129,7 @@ export const engineeringLook: BlockLook = {
   },
   layout: {
     top: ["nav"],
-    main: ["hero", "products", "commercialTerms", ["industries", "capabilities"], "services", "certifications", "faq", "contact"],
+    main: ["hero", "products", "commercialTerms", "equipment", ["industries", "capabilities"], "services", "certifications", "faq", "contact"],
     bottom: ["footer"],
   },
   defaults: {
@@ -137,6 +137,7 @@ export const engineeringLook: BlockLook = {
     hero: "split",
     products: "cards",
     commercialTerms: "rows",
+    equipment: "rows",
     industries: "list",
     capabilities: "list",
     services: "steps",

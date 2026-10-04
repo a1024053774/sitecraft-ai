@@ -130,7 +130,7 @@ export const shortPathLook: BlockLook = {
   },
   layout: {
     top: ["nav"],
-    main: ["hero", "products", "commercialTerms", "industries", "capabilities", "services", "contact", "certifications", "faq"],
+    main: ["hero", "products", "commercialTerms", "equipment", "industries", "capabilities", "services", "contact", "certifications", "faq"],
     bottom: ["footer"],
   },
   defaults: {
@@ -138,6 +138,7 @@ export const shortPathLook: BlockLook = {
     hero: "split",
     products: "cards",
     commercialTerms: "rows",
+    equipment: "rows",
     industries: "cards",
     capabilities: "cards",
     services: "cards",

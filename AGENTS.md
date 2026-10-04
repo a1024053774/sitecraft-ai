@@ -71,6 +71,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；
 2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`。发布页用 `node scripts/check-published.mjs --out artifacts/published-check/<标签>`（需 3034 端口的 dev server；每次运行自带独立的 Chrome，多个 agent 可以同时跑，不要手动 pkill 别人的浏览器）检查访客页规则并截图；改动询盘链路时加 `--submit`（会往样板收件箱写入带 `check-published` 标记的测试询盘）；新增访客页规则（包括英文开关）时把断言加进这个脚本。截图前确认预览已就绪、整页高度已稳定，每张都打开看过；载入态、空白或截断的截图不算证据；
+   发布页正文硬门由 `scripts/visitor-layout-scan.js` 提供：实际合成色正文至少 4.5:1，大号文字至少 3:1；图片背景或无法合成的文字报告「未测」并失败。正文段落单行中文最多约 40 字、英文最多约 75 字；参数表、按钮、型号、邮箱、导航在报告中列为豁免。`lib/site-style-check.ts` 对用户提交的站点样式使用同一门槛。
    负责人这台 Mac 上的普通 Google Chrome 以无头方式启动后约 20–40 秒会被自动更新程序带着退出，浏览器测试和 `check-published` 都要先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（Chrome for Testing 的 headless shell，2026-09-29 负责人同意下载）；换机器或版本更新后按实际路径改。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
 4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；

@@ -6,7 +6,7 @@ import { buildPreviewBridgeScript } from "../lib/template-adapters/preview-bridg
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { applySiteOperations } from "../lib/site-operations.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, openBrowser } from "./helpers/workspace-browser.ts";
 
 // Failure modes: cards hide their pseudo-element, suppress/reset the counter incorrectly,
 // or empty entries still occupy numbered boxes. Exercise actual compose + bridge + browser CSS.
@@ -53,7 +53,6 @@ test("cooperation cards and steps show a fresh counter on both looks, excluding 
       }
     }
   } finally {
-    browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" }));
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });

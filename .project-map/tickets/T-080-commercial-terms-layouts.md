@@ -2,7 +2,7 @@
 id: T-080
 title: 商业条款的区块布局（区块素材流水线）
 type: build
-status: open
+status: closed
 blocked_by: [T-079]
 claimed_by: sonnet-blocks
 supersedes:
@@ -16,9 +16,9 @@ T-079 落地后，按 T-073 的流水线为「商业条款」区块做 2–3 个
 
 ## Acceptance
 
-- [ ] 每个候选都有候选目录和审查记录；进库的布局各有测试先失败的证据（父提交上行为级失败）
-- [ ] 渲染扫描溢出 / 重叠 / 资料事实缺失 / 重复目标全为 0；`npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查通过；合回主线后三家 `check-published` 中英文三档通过；Claude 验收
+- [x] 每个候选都有候选目录和审查记录；进库的布局各有测试先失败的证据（父提交上行为级失败）
+- [x] 渲染扫描溢出 / 重叠 / 资料事实缺失 / 重复目标全为 0；`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 代码审查通过；合回主线后三家 `check-published` 中英文三档通过；Claude 验收
 
 ## Resolution
 
@@ -39,3 +39,8 @@ T-079 落地后，按 T-073 的流水线为「商业条款」区块做 2–3 个
 - 全量 `npm test`：654 个里 653 通过，1 个失败是 `workspace motion is 150–300 ms …`（`tests/workspace-interaction.test.ts`，约 100 秒，工作台页首次编译慢，断言「1440: the progress lists its steps」没等到）；单独重跑 5/5 通过，判为负载造成的偶发，没有改超时也没有放宽检查（`t080/npm-test-full.txt`）。之前的 6 个快照资源测试这次没有再失败。
 - `check-published`（`t080/check-published.log`）：三家商业条款站（工业 `b1577055`、外贸 `827de4c5`、注塑 `561a1113`，从主工作区复制进来）加它们各自切到条款带和左右条款的副本，共 9 个站 × 1440/768/375 = 27 行全部 ok（含英文页的规则）。
 - 渲染扫描：两个候选各 27 行（9 案例 × 三档）溢出 0、重叠 0、资料事实缺失 0/0、重复目标 0/0（`scan.md`）。
+
+### 合回主线与验收（Claude，2026-10-03 EDT）
+- Astra PASS（`artifacts/review-astra-t080.md`）：两个布局无资料条件、槽位唯一、只用 `--site-*`、预览桥只加条款数、红测行为级；全量唯一失败 `workspace motion` 与本票无因果。
+- 合并 `a02a310`，随后与 T-081 一起在主工作区 3034 验证：`04ae4df` 上 `check-published` 12 站（本票 9 站 + T-081 3 站）× 1440/768/375 共 36 行 0 失败、事实缺失 0（`artifacts/merge-04ae4df/`，typecheck、build 通过）；`31125df` 上 typecheck 通过、全量 665/665（`artifacts/merge-31125df/`）。
+- 过程记录：合并后第一次 `check-published` 我把 9 个站点 id 当成一个参数传入（zsh 不拆分变量），3 行失败全是参数错误，我在重跑前删了那次的输出目录，违反了保留失败证据的规则；第二次因 3034 dev server 已停而挂起，停掉后重启 server 再跑。Claude 验收关闭。

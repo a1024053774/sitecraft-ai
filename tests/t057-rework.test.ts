@@ -2,12 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { base as sitecraftBase, closeBrowser, openBrowser } from "./helpers/workspace-browser.ts";
 import { expectedFacts, missingFacts } from "../scripts/published-facts.mjs";
 
-const closeBrowser = (browser: { ws: WebSocket; id: number }) => {
-  browser.ws.close();
-};
 
 test("the Segmenter fallback keeps the authored hero title", () => {
   const source = readFileSync("lib/template-adapters/preview-bridge.ts", "utf8");
@@ -41,7 +38,7 @@ test("hero titles use Intl.Segmenter words instead of a hard-coded product list"
     assert.equal(Array.isArray(result.spans), true);
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -56,7 +53,7 @@ test("a long short-path hero word stays inside a 375px viewport", async () => {
     assert.ok(result.wordRight <= result.right + 1, JSON.stringify(result));
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -81,7 +78,7 @@ test("an engineering title that is not orphaned keeps its original line grouping
     assert.equal(await browser.eval<string>(`document.querySelector('[data-sc-block="hero"] h1').style.textWrap`, sessionId), "");
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -100,7 +97,7 @@ test("short-path word spans are declared, idempotent, and CSS reflows after a vi
     assert.equal(narrow.wordBreak, false);
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -116,7 +113,7 @@ test("short-path hero never leaves the conjunction at the end of a line", async 
       assert.equal(result.wordBreak, false, `${width}: ${JSON.stringify(result)}`);
     } finally {
       await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-      closeBrowser(browser);
+      await closeBrowser(browser);
     }
   }
 });
@@ -135,7 +132,7 @@ test("the title scanner catches a wrapped word inside a span, including a repeat
     assert.equal(result.heroTitleWordBreak, true);
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -161,7 +158,7 @@ test("the shared title scan reports an orphan line and allows an overlong word t
     assert.equal(overlong.heroTitleWordBreak, false);
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -179,7 +176,7 @@ test("a visible unmarked layer covering link text is reported as covered", async
     assert.ok(result.some((item) => item.kind === "covered"), JSON.stringify(result));
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -205,7 +202,7 @@ test("coverage follows the painted stacking order and catches pointer-free cover
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -224,7 +221,7 @@ test("closed navigation details are not painted, while visible link text remains
     assert.ok(!result.some((item) => item.text === "隐藏导航"), JSON.stringify(result));
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });
 
@@ -257,7 +254,7 @@ test("short-path product values stay inside their cards at all published widths"
       }
     } finally {
       await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-      closeBrowser(browser);
+      await closeBrowser(browser);
     }
   }
 });
@@ -279,6 +276,6 @@ test("short-path no-draft pages keep only real shell/form copy and sent inquiry 
     assert.notEqual(result.sentColor, result.errorColor);
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    closeBrowser(browser);
+    await closeBrowser(browser);
   }
 });

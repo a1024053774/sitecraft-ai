@@ -52,4 +52,15 @@ export function assertStableItemIds(raw: unknown, siteId?: string | null) {
       }
     });
   }
+  const equipment = Array.isArray(content.equipment) ? content.equipment : [];
+  const equipmentIds = new Set<string>();
+  equipment.forEach((item, index) => {
+    if (!item || typeof item !== "object") return;
+    const id = (item as Record<string, unknown>).id;
+    checkId(id, `draft.content.equipment[${index}].id`, siteId);
+    if (typeof id === "string") {
+      if (equipmentIds.has(id)) throw new SiteMigrationError({ siteId, field: `draft.content.equipment[${index}].id`, value: id, reason: "显式设备 id 重复" });
+      equipmentIds.add(id);
+    }
+  });
 }

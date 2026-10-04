@@ -88,6 +88,17 @@ export function expectedFacts(draft, locale = "zh") {
       add("commercial term value", localize(term.value, locale));
     }
   }
+  if (!hidden.has("equipment")) {
+    for (const item of Array.isArray(content.equipment) ? content.equipment : []) {
+      if (!item) continue;
+      const name = localize(item.name, locale);
+      if (isGap(name)) continue;
+      add("equipment name", name);
+      if (Number.isInteger(item.quantity) && item.quantity >= 0) add("equipment quantity", String(item.quantity));
+      const spec = localize(item.spec, locale);
+      if (!isGap(spec)) add("equipment specification", spec);
+    }
+  }
   add("contact email", content.contact?.email);
   add("contact phone", content.contact?.phone);
   return facts;

@@ -10,7 +10,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText, type HtmlElement } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-074: 合作方式「纵向流程」(services:vertical). One full-width row per step: number | title |
 // description, read top to bottom. It reads the same fields as 编号步骤 and needs nothing extra.
@@ -129,8 +129,7 @@ test("纵向流程 has no horizontal overflow with 1 to 6 steps at 1440, 768 and
     }
   } finally {
     await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close" })); } catch {}
-    browser.ws.close();
+    await closeBrowser(browser);
   }
 });
 

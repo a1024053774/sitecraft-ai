@@ -124,6 +124,8 @@ export type TemplateBlockRender = {
   heroSpecs?: "with-photo" | "always";
   /** Hero block: the right side lists the product series (category and name, linking to the products block). */
   heroIndex?: boolean;
+  /** Equipment block: "grouped" puts the items with a count and the items without one in two groups. */
+  equipment?: "grouped";
 };
 
 /**
