@@ -2,7 +2,7 @@
 id: T-096
 title: 质检流程（有序步骤）：草稿字段到页面
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: field-build
 supersedes:
@@ -23,7 +23,7 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 
 - [x] 测试先写、改动前先失败（行为级）：步骤顺序保持资料顺序；资料没有质检流程时区块不出现；同一事实不在质检流程和设备 / 认证里重复
 - [x] 真实 DeepSeek：三份模拟资料各走一次生成，记录写入的步骤（`artifacts/t096/`），没有编造步骤或数字
-- [ ] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -49,7 +49,7 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 - `qualityProcessEnglishMatches` 现在复用 `commercialUnitsMatch`；共享单位表补了资料实际使用的「小时 ↔ hour/hours/hrs/h」，并收紧中文「件」只在数字单位上下文计为 piece，避免「注塑件/嵌件」词内误判。数字相同但「每 2 小时抽检」译成「Sample every 2 days」会拒绝。
 - `renderQualityProcess` 现在只有在 `data-sitecraft-section="qualityProcess"`、唯一的 `data-sc-block="qualityProcess"` 实体、唯一 grid marker 且变体为 `rows` 时才渲染；marker-only/无效变体不写 DOM、不写 `applied`。未改 `renderEquipment` 或 `renderCommercialTerms`。
 - 先写红证据：[red-quality-unit-before-fix.txt](../../artifacts/t096/red-quality-unit-before-fix.txt)、[red-quality-marker-before-fix.txt](../../artifacts/t096/red-quality-marker-before-fix.txt)；修复提交 `46278a5` 后 quality/equipment/commercial-terms **42/42**，quality-process **7/7**，`npm run typecheck` 通过；全量 `npm test` 为 **675/675**，日志 `artifacts/t096/npm-test-t096-p1.txt`。
-- T-096 真实 DeepSeek 生成与失败分析的运行时提交统一绑定为 `264c953`（`summary.json`、`failure-analysis-264c953.json`、本票文字一致）；`4474076`、`07827d6`、`4574089` 仅为后续 T-096 文档记录。注塑父提交对照因 HTTP 402 没拿到响应，待负责人充值后补跑，不把它归类为通过。
+- T-096 真实 DeepSeek 生成与失败分析的运行时提交统一绑定为 `264c953`（`summary.json`、`failure-analysis-264c953.json`、本票文字一致）；`4474076`、`07827d6`、`4574089` 仅为后续 T-096 文档记录。注塑父提交对照已在充值后补跑，见下方 `7f0f4b4` 证据。
 
 ### Astra r4 单位矩阵收口（2026-10-03）
 
@@ -69,3 +69,11 @@ T-078 第二批。按 T-079 / T-081 打通的同一模式做「质检流程」�
 - 父提交 `466d480` 红证据保存在 `artifacts/t096/red-zero-parts-before-fix.txt`：`零件检查` / `Part inspection` 被错误拒绝。
 - 提交 `d03e6b4` 将共享 `commercialUnitsMatch` 改为上下文单位规则：单位只在数字紧邻或 `每`/`按`/`per` 上下文中计入；英文 `part`、`component` 等词内名词不再触发 piece，数字件/每件/按件仍严格映射。小时规则保持数字邻近约束，已有万件、天、周、月、年、台、套、t、kg 映射继续通过。
 - 新增正/负例与共享回归：零件/Part 通过，同时/Check h 拒绝，每件/Packed separately 拒绝，商业条款和设备的既有单位错配仍拒绝；相关测试 **47/47**，typecheck 通过。最终全量 `npm test` **688/688**，日志 `artifacts/t096/npm-test-t096-r3-final.txt`。
+
+### 充值后的父提交对照（2026-10-04）
+
+- 在主线父提交 `7f0f4b4` 的临时 detached worktree 上，对注塑资料直接结构化生成 3 次；命令、提交 SHA、密钥处理、每个 attempt 的原始请求/响应和 Schema 判定在 [artifacts/t096/real-parent-7f0f4b4/](../../artifacts/t096/real-parent-7f0f4b4/)。三次 HTTP 均为 200，第一次 Schema 通过 1/3；一次第二次尝试通过，另一次两次均失败并向用户返回 `invalid_output`。
+- 失败字段与离线结论一致：`products[*].sku`、目录 `intro`、设备 `spec` 的形状错误；不是质检事实核对或单位核对拒绝。没有修改代码、没有新增重试；该父提交对照已完成但显示主线旧版第一次通过不稳定，票据总验收仍 **INCOMPLETE**。
+
+### 合回主线与关闭（Claude，2026-10-04 EDT）
+- Astra 五轮后 PASS（`artifacts/review-astra-t096-r5.md`）。随 fields 分支合入主线 `1b83785`。主工作区 3034：`1b83785`（fields 合并）build、typecheck 通过，12 站 `check-published` 36 行 0 失败且逐行实测条数不少于基线（`artifacts/merge-1b83785/`）；夹具修复后 `3264022` 全量 770/770（`artifacts/merge-3264022/`）。 注塑父提交真实对照由 field-build 补跑，结果追加在 T-100。Claude 验收关闭。

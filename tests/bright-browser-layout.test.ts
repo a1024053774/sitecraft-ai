@@ -4,7 +4,7 @@ import { applySiteOperations } from "../lib/site-operations.ts";
 import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
 import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("bright product cards are one column with name/value rows at 375 and 768", async () => {
   const browser = await openBrowser();
@@ -23,10 +23,7 @@ test("bright product cards are one column with name/value rows at 375 and 768", 
     for (const width of [375, 768, 1440]) {
       await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
       await browser.send("Page.navigate", { url: `${sitecraftBase}/api/templates/forge/preview?bright-layout=${Date.now()}-${width}` }, sessionId);
-      for (let waited = 0; waited < 10000; waited += 100) {
-        if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitForPreviewBridge(browser, sessionId, 10000, 'bright-browser-layout.test');
       await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
       const result = await browser.eval<{ columns: number; rowStyle: string; rowCount: number; cards: number }>(`(() => {
         const grid = document.querySelector("[data-sitecraft-product-grid]");

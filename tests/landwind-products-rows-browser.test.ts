@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { applySiteOperations } from "../lib/site-operations.ts";
 import { packDraft } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 
 test("directory rows stay one column and readable with one, two, or five products", async () => {
   const browser = await openBrowser();
@@ -21,10 +21,7 @@ test("directory rows stay one column and readable with one, two, or five product
         await browser.send("Runtime.enable", {}, sessionId);
         await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
         await browser.send("Page.navigate", { url: `${sitecraftBase}/api/templates/screwfast/preview?rows=${count}-${width}` }, sessionId);
-        for (let waited = 0; waited < 10000; waited += 100) {
-          if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
+        await waitForPreviewBridge(browser, sessionId, 10000, 'landwind-products-rows-browser.test');
         await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
         const result = await browser.eval<{ cards: number; columns: number; overflow: boolean; image: boolean }>(`(() => {
           const cards = [...document.querySelectorAll('.sitecraft-product-rows > .sitecraft-product-card')];

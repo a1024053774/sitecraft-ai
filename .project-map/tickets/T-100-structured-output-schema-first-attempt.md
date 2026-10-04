@@ -18,8 +18,8 @@ T-096 复核时发现（`sitecraft-ai-fields/artifacts/t096/failure-analysis-264
 
 ## Acceptance
 
-- [ ] 先写出字段清单：每个失败字段的模型实际形状、schema 期望、提示 / 示例原文（`artifacts/t100/`）；用已保存的原始响应做离线测试，在父提交上行为级失败
-- [ ] 真实 DeepSeek（需账户有余额）：三份资料各 3 次直接结构化生成，统计第一次就过 schema 的比例，修改前后对照，原始响应存档；目标是第一次通过成为常态，达不到就如实写剩下的失败字段
+- [x] 先写出字段清单：每个失败字段的模型实际形状、schema 期望、提示 / 示例原文（`artifacts/t100/`）；用已保存的原始响应做离线测试，在父提交上行为级失败
+- [x] 真实 DeepSeek（需账户有余额）：三份资料各 3 次直接结构化生成，统计第一次就过 schema 的比例，修改前后对照，原始响应存档；目标是第一次通过成为常态，达不到就如实写剩下的失败字段
 - [ ] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过；代码审查通过；Claude 验收
 ## Resolution
 
@@ -37,6 +37,12 @@ T-096 复核时发现（`sitecraft-ai-fields/artifacts/t096/failure-analysis-264
 - 删除预处理后，第一次 schema 通过率可能下降；当前账户欠费，没有用重试或真实调用掩盖这一变化。真实 DeepSeek 三份资料各 3 次首次通过率对照仍待充值后补跑，原始响应与三家发布检查也未生成。
 - `npm run typecheck` 通过（[artifacts/t100/typecheck-r2-final.txt](../../artifacts/t100/typecheck-r2-final.txt)）；`SITECRAFT_BASE=http://127.0.0.1:3061 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 697/697 通过（[artifacts/t100/npm-test-r2-final.txt](../../artifacts/t100/npm-test-r2-final.txt)）。票据仍 **INCOMPLETE**，等待真实 3×3、check-published、build、Astra/Claude 验收。
 - 已知项（本轮不改）：`parseAlignmentPlan` 的 `clipPlanProse` 会在 alignment schema 校验前截断 summary、question 和选项 description。这是既有对齐卡片文案行为，不写入草稿，也不属于本票结构化 operation 解析修复；待另票处理。
+
+2026-10-04，充值后在字段分支提交 `08a0a2d4350c686914bc48ec4a291bcecf17bf4a` 上完成真实 3×3 直接 structured generation：
+
+- 原始请求体和响应体（请求头未保存，密钥未写入）及每次 Schema 判定在 [artifacts/t100/real-structured-08a0a2d4350c686914bc48ec4a291bcecf17bf4a/](../../artifacts/t100/real-structured-08a0a2d4350c686914bc48ec4a291bcecf17bf4a/)；汇总为 `summary.json`，命令和密钥处理说明也写在汇总中。
+- 工业、外贸、注塑各 3 次共 9 次，HTTP 均为 200，第一次全部 `schema-pass`（9/9），每次均只发出 1 个请求、没有 provider retry；最终均返回 `edit`。旧数据 `artifacts/t096/repro-current-264c953/summary.json` 记录 6/6 首次 Schema 失败，本轮首次通过率从 0/6 提升到 9/9；没有剩余失败字段可报告。
+- 此真实运行未改变代码，也未因 capacity 或其他错误追加重试；票据的 check-published、代码审查和 Claude 验收仍按总验收项保持 **INCOMPLETE**。
 
 ### SKU / preview identity 复核（2026-10-03）
 

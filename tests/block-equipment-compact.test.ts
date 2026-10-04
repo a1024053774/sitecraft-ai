@@ -11,7 +11,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { base, openBrowser, waitForPreviewBridge } from "./helpers/workspace-browser.ts";
 
 // T-095: 设备「双栏清单」(equipment:compact). Name left, count right (small unit), specification under
 // the name; an item without a count is just its name. Two columns filled ROW BY ROW (item 1 left,
@@ -143,10 +143,7 @@ test("双栏清单 is one full-width column up to 3 items, two columns filled ro
     await browser.send("Runtime.enable", {}, sessionId);
     for (const templateId of ["screwfast", "landwind"]) {
       await browser.send("Page.navigate", { url: `${base}/api/templates/${templateId}/preview?equipment-compact=${Date.now()}` }, sessionId);
-      for (let waited = 0; waited < 30000; waited += 100) {
-        if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitForPreviewBridge(browser, sessionId, 30000, "equipment compact");
       for (const [label, items] of mixes) {
         const draft = withEquipment(items, templateId);
         for (const width of [1440, 768, 375]) {

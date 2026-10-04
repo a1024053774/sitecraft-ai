@@ -10,7 +10,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { closeBrowser, base, openBrowser } from "./helpers/workspace-browser.ts";
+import { closeBrowser, waitForPreviewBridge, base, openBrowser } from "./helpers/workspace-browser.ts";
 
 // T-074: 认证「证书状态表」(certifications:table). One ledger row per certificate (name | status |
 // description); the status is the draft's own status field in its own column. Same fields and
@@ -104,10 +104,7 @@ test("证书状态表 has no horizontal overflow with 1 to 6 certificates at 144
     await browser.send("Runtime.enable", {}, sessionId);
     for (const templateId of ["screwfast", "landwind"]) {
       await browser.send("Page.navigate", { url: `${base}/api/templates/${templateId}/preview?cert-table=${Date.now()}` }, sessionId);
-      for (let waited = 0; waited < 30000; waited += 100) {
-        if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitForPreviewBridge(browser, sessionId, 30000, 'block-certifications-table.test');
       for (const count of [1, 2, 3, 4, 5, 6]) {
         const items = Array.from({ length: count }, (_, i) => cert(`c${i}`, `ISO 9001:2015 质量管理体系认证（含设计开发与模具制造范围）${i + 1}`, "覆盖模具设计开发与精密注塑件制造，证书编号 CN-2026-QMS-000123/000124/000125，每年监督审核一次并随货附检测报告。", statuses[i]));
         const draft = withCerts(items, templateId);

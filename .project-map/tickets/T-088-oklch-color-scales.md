@@ -2,7 +2,7 @@
 id: T-088
 title: 用 OKLCH 把种子色展开成完整色阶，替换自定义品牌色的 HSL 算法
 type: build
-status: open
+status: closed
 blocked_by: [T-084]
 claimed_by: rs-color
 supersedes:
@@ -20,7 +20,7 @@ supersedes:
 
 - [x] 测试先写，并在父提交上能加载、在断言处失败：用 R2 的 S007、S021、C16 和 3 个难色（很浅的黄、很亮的绿、接近黑的蓝）当输入，正文 ≥ 4.5:1、白字按钮 ≥ 4.5:1；无法达标时返回拒绝原因而不是静默改色；现有 24 套色板不变
 - [x] 工作台输入 3 个自定义品牌色，四个样子 × 1440 / 768 / 375 截图存 `artifacts/t088/`，每张打开看过；三家 `check-published` 通过
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -67,3 +67,6 @@ supersedes:
 
 ### 主控合并复验（Claude，2026-10-04 EDT）
 - 合并主线 `e977567`。主工作区 3034：typecheck、build 通过，全量 732/732；12 站 `check-published` 36 行 0 失败，逐行实测条数不少于基线（`artifacts/merge-e977567/`）。调色板合法性检查在 store 与 `applySiteOperations` 各有一处，属加严、非绕过。
+
+### 关闭（Claude，2026-10-04 EDT）
+- `e977567` 复验见上；与 T-087 合并后的夹具冲突由 `510e46c` 修复（只比 10 个颜色键，颜色变异仍失败）。主工作区 3034：`1b83785`（fields 合并）build、typecheck 通过，12 站 `check-published` 36 行 0 失败且逐行实测条数不少于基线（`artifacts/merge-1b83785/`）；夹具修复后 `3264022` 全量 770/770（`artifacts/merge-3264022/`）。 Claude 验收关闭。

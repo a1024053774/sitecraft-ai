@@ -2,7 +2,7 @@
 id: T-087
 title: 字体：补中文回退栈，英文按样子用自托管的 OFL 字体
 type: build
-status: open
+status: closed
 blocked_by: [T-084, T-081]
 claimed_by: exec-t087
 supersedes:
@@ -23,7 +23,7 @@ supersedes:
 - [x] `npm run typecheck`、`npm test`（经 `fulltest.sh`）、`npm run build` 通过（`artifacts/t087/typecheck-p1.txt`、`artifacts/t087/fulltest-p1.txt`、`artifacts/t087/build-p1.txt`）
 - [x] 独立审核 agent 盲评字体改动前后（不是执行者），有效结果为 `reviews/T-087-blind-3b.md`（PASS）；旧 `reviews/T-087-blind-3.md` 保留为基线错位失败证据
 - [x] 代码审查通过（`reviews/T-087-review-4.md`，PASS，P0/P1=0）
-- [ ] Claude 验收
+- [x] Claude 验收
 
 ## Resolution
 
@@ -33,3 +33,6 @@ supersedes:
 - `lib/template-adapters/preview-bridge.ts` 的标题测量等待 `document.fonts.ready`，并在 `loadingdone` 重测；`scripts/subset-site-fonts.py` 兼容 Python 3.9；cmap 审计覆盖 forge Sora；四样子矩阵测试覆盖中英文和 1440/768/375。
 - 证据（纽约时间 2026-10-04，验证代码 HEAD `b16bb63`）：红测 `node --test --experimental-strip-types tests/visitor-host.test.ts` 输出 `artifacts/t087/visitor-host-red.txt`；聚焦绿测命令 `SITECRAFT_BASE=http://localhost:3057 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/visitor-host.test.ts tests/t063-hero-title-fit.test.ts tests/t087-fonts.test.ts tests/t087-look-title-behavior.test.ts tests/template-preview-bridge.test.ts` 为 `37 pass / 0 fail`，输出 `artifacts/t087/focused-p1.txt`；`npm run typecheck` 输出 `artifacts/t087/typecheck-p1.txt`；`npm run build` 输出 `artifacts/t087/build-p1.txt`；`zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t087 3057 /Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/fulltest-p1.txt` 为 `735 pass / 0 fail / 0 cancelled`；`zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/check-mainline-sites.sh /Users/luckye/Documents/Code/sitecraft-ai-t087 3057 /Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/mainline-p1` 退出 0，`rows=36 known_failures=0 NEW_failures=0`；三家发布检查 `SITECRAFT_BASE=http://localhost:3057 CHROME_PATH=... node scripts/check-published.mjs --out artifacts/t087/published-check-p1` 为 `report.json`；`artifacts/t087/before-r3/` 为 c443a4e evidence-only 基线，`after-r3/` 为当前字体版本，均为 24 张截图并已打开检查。
 - 独立盲评：`reviews/T-087-blind-3.md` 的 REVISE 结论来自旧 before 快照与 c443a4e 主线结构错位，保留作基线错位证据；使用 c443a4e evidence-only before-r3 后，`reviews/T-087-blind-3b.md` 判定 PASS。代码审查 `reviews/T-087-review-4.md` 判定 PASS，P0/P1=0；Claude 验收仍未完成，票保持 `open`。
+
+### 主控合并复验与关闭（Claude，2026-10-04 EDT）
+- 合并主线 `222da66`；与 T-088 的色板夹具语义冲突由 `510e46c` 修复（Astra PASS，`artifacts/review-astra-t088-fixture.md`）。路由移入 `app/(workspace)/` 后 MAP 的 spec 监视路径已改。字体许可：5 款均 OFL 1.1、无保留字体名，来源钉到上游提交。主工作区 3034：`1b83785`（fields 合并）build、typecheck 通过，12 站 `check-published` 36 行 0 失败且逐行实测条数不少于基线（`artifacts/merge-1b83785/`）；夹具修复后 `3264022` 全量 770/770（`artifacts/merge-3264022/`）。 Claude 验收关闭。

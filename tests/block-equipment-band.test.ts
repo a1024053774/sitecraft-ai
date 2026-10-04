@@ -11,7 +11,7 @@ import { getTemplateAdapter } from "../lib/template-adapters/registry.ts";
 import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 import { parseHtmlDocument, parseHtmlFragment, visibleText } from "./fixtures/html-dom.ts";
 import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
-import { base, openBrowser } from "./helpers/workspace-browser.ts";
+import { base, openBrowser, waitForPreviewBridge } from "./helpers/workspace-browser.ts";
 
 // T-095: 设备「数量带」(equipment:band). The items with a count form a band (the count big, the name
 // under it, the specification under that); the items without one go in a name list under a small
@@ -142,10 +142,7 @@ test("数量带 has no horizontal overflow with every mix of counted items at 14
     await browser.send("Runtime.enable", {}, sessionId);
     for (const templateId of ["screwfast", "landwind"]) {
       await browser.send("Page.navigate", { url: `${base}/api/templates/${templateId}/preview?equipment-band=${Date.now()}` }, sessionId);
-      for (let waited = 0; waited < 30000; waited += 100) {
-        if (await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false)) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitForPreviewBridge(browser, sessionId, 30000, "equipment band");
       for (const [label, items] of mixes) {
         const draft = withEquipment(items, "band", templateId);
         for (const width of [1440, 768, 375]) {
