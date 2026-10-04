@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { WorkspaceStyleGate } from "@/components/workspace-style-gate";
 
 export const viewport = {
   width: 'device-width',
@@ -19,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body><WorkspaceStyleGate />{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

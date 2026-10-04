@@ -17,7 +17,7 @@ test("shared site preview uses the row gap, a short delay, and tap when hover is
 
 test("all-sites and delete lists reuse the shared preview instead of reserving a blank column", () => {
   const table = readFileSync(new URL("../components/sites-table.tsx", import.meta.url), "utf8");
-  const page = readFileSync(new URL("../app/sites/page.tsx", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../app/(workspace)/sites/page.tsx", import.meta.url), "utf8");
   const panel = readFileSync(new URL("../components/site-delete-panel.tsx", import.meta.url), "utf8");
   assert.match(page, /listExistingSites/);
   assert.equal(page.includes("getSite("), false);
