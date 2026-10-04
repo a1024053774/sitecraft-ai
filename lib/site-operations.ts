@@ -1956,21 +1956,32 @@ function englishCommercialCodes(value: string): string[] {
 }
 
 const COMMERCIAL_UNIT_RULES = [
-  { key: "ten-thousand-piece", zh: /\d[\d,.]*\s*万件/, en: /\b(?:10[,.]?000|ten thousand|\d[\d,.]*\s*million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b/i },
+  { key: "ten-thousand-piece", zh: /(?:\d[\d,.]*\s*万件|每万件|按万件)/, en: /\b(?:10[,.]?000|ten thousand|\d[\d,.]*\s*million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b|\bper\s+ten thousand\s+(?:pcs?|pieces?|parts?)\b/i },
   { key: "piece", zh: /(?:\d[\d,.]*\s*件|每件|按件)/, en: /(?:\d[\d,.]*\s*(?:pcs?|pieces?|parts?)|\bper\s+(?:piece|part)s?)\b/i },
   { key: "day", zh: /(?:\d[\d,.]*\s*天|每天|按天)/, en: /(?:\d[\d,.]*\s*days?|\bper\s+days?)\b/i },
   { key: "hour", zh: /(?:\d[\d,.]*\s*(?:小时|时)|每小时|按小时)/, en: /(?:\d[\d,.]*\s*(?:hours?|hrs?|h)|\bper\s+hours?)\b/i },
   { key: "week", zh: /(?:\d[\d,.]*\s*(?:周|星期)|每周|按周)/, en: /(?:\d[\d,.]*\s*weeks?|\bper\s+weeks?)\b/i },
-  { key: "month", zh: /(?:\d[\d,.]*\s*月|每月|按月|月[^\d]{0,8}\d)/, en: /(?:\d[\d,.]*\s*months?|\bper\s+months?)\b/i },
-  { key: "year", zh: /(?:\d[\d,.]*\s*年|每年|按年|年[^\d]{0,8}\d)/, en: /(?:\d[\d,.]*\s*years?|\bper\s+years?)\b/i },
-  { key: "equipment", zh: /(?:\d[\d,.]*\s*台|每台|按台)/, en: /(?:\d[\d,.]*\s*(?:units?|machines?)|\bper\s+(?:unit|machine)s?)\b/i },
-  { key: "set", zh: /(?:\d[\d,.]*\s*套|每套|按套|单套)/, en: /(?:\d[\d,.]*|one|a)\s+(?:sets?|molds?|moulds?)\b/i },
-  { key: "ton", zh: /\d[\d,.]*\s*t\b/i, en: /\d[\d,.]*\s*(?:tons?|t)\b/i },
-  { key: "kg", zh: /\d[\d,.]*\s*kg\b/i, en: /\d[\d,.]*\s*kg\b/i },
+  { key: "month", zh: /(?:\d[\d,.]*\s*月|每月|按月)/, en: /(?:\d[\d,.]*\s*months?|\bper\s+months?)\b/i },
+  { key: "year", zh: /(?:\d[\d,.]*\s*年|每年|按年)/, en: /(?:\d[\d,.]*\s*years?|\bper\s+years?)\b/i },
+  { key: "equipment", zh: /(?:\d[\d,.]*\s*台|每台|按台)/, en: /(?:\d[\d,.]*(?:\s+[A-Za-z-]+){0,2}\s+(?:units?|machines?)|\bper\s+(?:unit|machine)s?)\b/i },
+  { key: "set", zh: /(?:\d[\d,.]*\s*套|每套|按套|单套)/, en: /(?:\d[\d,.]*|one|a)\s+(?:sets?|molds?|moulds?)\b|\bper\s+sets?\b/i },
+  { key: "ton", zh: /(?:\d[\d,.]*\s*t\b|每吨|按吨)/i, en: /(?:\d[\d,.]*\s*(?:tons?|t)|\bper\s+tons?)\b/i },
+  { key: "kg", zh: /(?:\d[\d,.]*\s*kg\b|每(?:千克|kg)|按(?:千克|kg))/i, en: /(?:\d[\d,.]*\s*kg|\bper\s+kg)\b/i },
 ] as const;
 
+// These are the only source phrases in the simulated packs where Chinese puts the
+// business unit before the number. They are explicit source facts, not a generic
+// window or a lexical-word exception.
+const BUSINESS_UNIT_PHRASES = [
+  { key: "year", zh: /年产(?:约|大约)?\s*\d[\d,.]*/ },
+  { key: "month", zh: /月注塑能力(?:约|大约)?\s*\d[\d,.]*/ },
+] as const;
+
+const BARE_ZH_UNIT = /^(?:万件|件|天|小时|时|周|星期|月|年|台|套|吨|t|kg)$/i;
+const BARE_EN_UNIT = /^(?:pcs?|pieces?|parts?|days?|hours?|hrs?|h|weeks?|months?|years?|units?|machines?|sets?|tons?|t|kg)$/i;
+
 function chineseCommercialUnits(value: string): string[] {
-  return COMMERCIAL_UNIT_RULES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key);
+  return [...COMMERCIAL_UNIT_RULES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key), ...BUSINESS_UNIT_PHRASES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key)].filter((key, index, all) => all.indexOf(key) === index);
 }
 
 function englishCommercialUnits(value: string): string[] {
@@ -1979,6 +1990,7 @@ function englishCommercialUnits(value: string): string[] {
 
 function commercialUnitsMatch(zh: string, en: string): boolean {
   const expected = chineseCommercialUnits(zh);
+  if (BARE_ZH_UNIT.test(zh.trim()) || BARE_EN_UNIT.test(en.trim())) return false;
   if (/\bh\b/i.test(en) && !/\d[\d,.]*\s*h\b/i.test(en)) return false;
   const actual = englishCommercialUnits(en);
   const compatible = (source: string, target: string) => {
