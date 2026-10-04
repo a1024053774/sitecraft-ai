@@ -2,7 +2,7 @@
 id: T-100
 title: 模型第一次结构化输出几乎每次都过不了 schema
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: field-build
 supersedes:
@@ -20,7 +20,7 @@ T-096 复核时发现（`sitecraft-ai-fields/artifacts/t096/failure-analysis-264
 
 - [x] 先写出字段清单：每个失败字段的模型实际形状、schema 期望、提示 / 示例原文（`artifacts/t100/`）；用已保存的原始响应做离线测试，在父提交上行为级失败
 - [x] 真实 DeepSeek（需账户有余额）：三份资料各 3 次直接结构化生成，统计第一次就过 schema 的比例，修改前后对照，原始响应存档；目标是第一次通过成为常态，达不到就如实写剩下的失败字段
-- [ ] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过；代码审查通过；Claude 验收
 ## Resolution
 
 2026-10-03，离线部分完成于提交 `52d2885`，真实 DeepSeek 暂停（账户余额 -0.15 CNY、`is_available=false`，按要求不再请求）：
@@ -50,3 +50,6 @@ T-096 复核时发现（`sitecraft-ai-fields/artifacts/t096/failure-analysis-264
 - 父提交红测见 `artifacts/t100/red-parent-product-identity.txt`：多个产品的 SKU 都为「待补充」时，cards/rows/grouped/compare/index 五种布局的 `data-sitecraft-product` 重复。修复提交 `156df5c` 将 preview bridge 四处标识统一改为稳定 `product.id`，不再让 SKU 承担 DOM 身份。
 - 新行为测试 `tests/t100-product-identity.test.ts` 覆盖五种布局的唯一标识和发布页正文不出现「待补充」；相关本地测试通过。`sku` 仍可作为资料字段保留，缺失 SKU 不再影响批注/预览寻址。
 - 访客页产品卡、索引行、对比卡只渲染产品名/类别/摘要/参数等内容，不渲染 SKU；`待补充` SKU 因此不会出现在访客正文。此次只改 identity marker，不放宽事实核对。
+
+### 关闭（Claude，2026-10-04 EDT）
+- 真实 DeepSeek 9/9 首次 schema 通过（修改前 0/6，`936749b`）；离线两轮 Astra（r2 PASS）。三家发布检查随 T-103 修复后通过。主工作区 3034 在 `104982b`：build、typecheck 通过，全量 789/789；主线 12 站 + 真实注塑站 `t097-real-936749b-molding` 共 13 站 `check-published` 39 行 0 失败，逐行测量不少于基线（`artifacts/merge-104982b/`）。 已知项：对齐卡 `clipPlanProse` 截断（只影响卡片文案）。Claude 验收关闭。

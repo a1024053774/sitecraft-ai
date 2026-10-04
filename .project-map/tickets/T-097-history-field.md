@@ -2,7 +2,7 @@
 id: T-097
 title: 沿革（年份 + 事件）：草稿字段到页面
 type: build
-status: open
+status: closed
 blocked_by: [T-096]
 claimed_by: field-build
 supersedes:
@@ -19,9 +19,9 @@ T-078 第二批。按 T-096 的同一模式做「沿革」：`content.history` �
 
 ## Acceptance
 
-- [ ] 测试先写、改动前先失败（行为级）：年份只接受资料里的四位整数；资料没有沿革时区块不出现；条目按年份顺序
+- [x] 测试先写、改动前先失败（行为级）：年份只接受资料里的四位整数；资料没有沿革时区块不出现；条目按年份顺序
 - [x] 真实 DeepSeek：三份模拟资料各走一次生成，记录写入的条目（`artifacts/t097/`），没有编造年份或事件
-- [ ] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 三家 `check-published` 中英文三档通过；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -38,3 +38,6 @@ T-078 第二批。按 T-096 的同一模式做「沿革」：`content.history` �
 
 - 原始 DeepSeek 请求/响应按 call 保存于 [artifacts/t097/real-alignment-936749b524225d40870b337ea5ac86e5b657d912/](../../artifacts/t097/real-alignment-936749b524225d40870b337ea5ac86e5b657d912/)，汇总为 `summary.json`。工业 `t097-real-936749b-industrial` 和外贸 `t097-real-936749b-export` 的 `content.history` 均为 `[]`；注塑 `t097-real-936749b-molding` 为 5 条，年份与中文事件逐字对应资料：2008 建厂、2013 注塑车间投产、2017 开始承接出口订单、2021 新增恒温精密模具车间、2024 建成三坐标与影像测量室。
 - 三站中英文三档命令和报告在 `artifacts/t097/real-published-936749b.log` 与 `real-published-936749b/report.json`。工业和外贸 6 个站点/语言/宽度组合全通过；注塑三档英文页共 14 项失败（正文行长超过 75 字符、卡片溢出或文本截断），未改代码或用重试掩盖，当前总验收仍 **INCOMPLETE**。
+
+### 关闭（Claude，2026-10-04 EDT）
+- 真实运行（`1b6ba31`）注塑写入 5 条沿革、工业 / 外贸 0 条；注塑英文页剩余失败由 T-103 修复。主工作区 3034 在 `104982b`：build、typecheck 通过，全量 789/789；主线 12 站 + 真实注塑站 `t097-real-936749b-molding` 共 13 站 `check-published` 39 行 0 失败，逐行测量不少于基线（`artifacts/merge-104982b/`）。 Claude 验收关闭。
