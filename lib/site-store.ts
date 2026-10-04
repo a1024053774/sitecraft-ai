@@ -3,12 +3,18 @@ import path from "node:path";
 import type { PoolClient } from "pg";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "@/lib/postgres";
 import { defaultDraft, normalizeDraft, templates, type SiteDraft } from "@/lib/site-model";
-import { applySiteOperations, migrateSiteHistory, type SiteOperation } from "@/lib/site-operations";
+import { applySiteOperations, migrateSiteHistory, readText, textTargets, type SiteOperation, type TextTarget } from "@/lib/site-operations";
 import { bindSiteImageOperations } from "@/lib/site-images";
 import { checkSiteStyle } from "@/lib/site-style-check";
 import { summaryFromAppliedTargets } from "@/lib/workspace-copy";
+import { getAnnotation } from "@/lib/annotation-store";
 
 export type ChangeSource = "ai" | "import" | "manual" | "migration" | "template";
+export type UndoGuard = {
+  targets: string[];
+  expected: Record<string, unknown>;
+  inverseOperations: SiteOperation[];
+};
 export type ChangeSet = {
   id: string;
   baseRevision: number;
@@ -18,6 +24,9 @@ export type ChangeSet = {
   operations: SiteOperation[];
   inverseOperations: SiteOperation[];
   appliedTargets: string[];
+  annotationId?: string;
+  undoGuards?: UndoGuard[];
+  selectiveUndoUnsupported?: string;
   model?: string;
   latencyMs?: number;
   createdAt: string;
@@ -32,7 +41,7 @@ export type SiteRecord = {
 };
 export type SiteSnapshot = {
   draft: SiteDraft;
-  history: Array<Pick<ChangeSet, "id" | "revision" | "summary" | "source" | "appliedTargets" | "model" | "latencyMs" | "createdAt">>;
+  history: Array<Pick<ChangeSet, "id" | "revision" | "summary" | "source" | "appliedTargets" | "annotationId" | "model" | "latencyMs" | "createdAt">>;
   canUndo: boolean;
   canRedo: boolean;
   updatedAt: string;
@@ -124,8 +133,8 @@ function committedSummary(args: CommitArgs, appliedTargets: string[], notices: s
 export function snapshot(record: SiteRecord, isNew?: boolean): SiteSnapshot {
   return {
     draft: structuredClone(record.draft),
-    history: record.history.slice(-30).reverse().map(({ id, revision, summary, source, appliedTargets, model, latencyMs, createdAt }) => ({
-      id, revision, summary, source, appliedTargets, model, latencyMs, createdAt,
+    history: record.history.slice(-30).reverse().map(({ id, revision, summary, source, appliedTargets, annotationId, model, latencyMs, createdAt }) => ({
+      id, revision, summary, source, appliedTargets, ...(annotationId ? { annotationId } : {}), model, latencyMs, createdAt,
     })),
     canUndo: record.history.length > 0,
     canRedo: record.future.length > 0,
@@ -166,9 +175,158 @@ type CommitArgs = {
   changeId?: string;
   model?: string;
   latencyMs?: number;
+  annotationId?: string;
 };
 
 type StyleGuardResult = { operations: SiteOperation[]; rejected: string[]; rejectedOnly: boolean };
+
+const selectiveUndoAllowed = new Set<SiteOperation["op"]>([
+  "set_text",
+  "update_card",
+  "add_card",
+  "remove_card",
+  "update_product",
+  "set_product_specs",
+  "set_section_visibility",
+  "set_block_variant",
+  "set_image_slot",
+  "remove_image_slot",
+  "set_product_image",
+  "remove_product_image",
+]);
+
+function selectiveUndoReason(operation: SiteOperation) {
+  if (operation.op === "replace_cards") return "整组替换 operation（replace_cards）不支持挑着撤销。";
+  if (operation.op === "replace_products") return "整组替换 operation（replace_products）不支持挑着撤销。";
+  if (operation.op === "replace_commercial_terms") return "整组替换 operation（replace_commercial_terms）不支持挑着撤销。";
+  if (operation.op === "replace_draft") return "整份草稿替换 operation（replace_draft）不支持挑着撤销。";
+  if (operation.op === "update_commercial_term") return "单条商业条款更新包含条款值和可见性落点，当前不支持挑着撤销；请使用普通撤销。";
+  return `${operation.op} 不支持挑着撤销。`;
+}
+
+type UndoTargetRead = { known: true; value: unknown } | { known: false };
+
+function readUndoTarget(draft: SiteDraft, target: string): UndoTargetRead {
+  if (target === "draft") return { known: true, value: draft };
+  if (target === "template") return { known: true, value: draft.templateId };
+  if (target === "visualBrief") return { known: true, value: draft.visualBrief };
+  if (target === "pagePlan") return { known: true, value: draft.pagePlan };
+  if (target === "palette") return { known: true, value: draft.paletteId };
+  if (target === "siteStyle") return { known: true, value: draft.siteStyle ?? null };
+  if (target === "sectionOrder") return { known: true, value: draft.sectionOrder ?? null };
+  if (target === "products") return { known: true, value: draft.products };
+  if (target === "commercialTerms") return { known: true, value: draft.content.commercialTerms };
+  const parts = target.split(".");
+  const localized = /^(.*)\.(zh|en)$/.exec(target);
+  if (localized && (textTargets as readonly string[]).includes(localized[1])) {
+    return { known: true, value: readText(draft, localized[1] as TextTarget, localized[2] as "zh" | "en") };
+  }
+  if (parts[0] === "products" && parts.length >= 3) {
+    const product = draft.products.find((item) => item.id === parts[1]);
+    if (!product) return { known: true, value: null };
+    return { known: true, value: parts.slice(2).reduce<unknown>((value, part) => value && typeof value === "object" ? (value as Record<string, unknown>)[part] : undefined, product) ?? null };
+  }
+  if (parts.length >= 3 && parts[1] === "items") {
+    const section = draft.content[parts[0] as keyof SiteDraft["content"]] as { items?: Array<Record<string, unknown>> } | undefined;
+    const item = section?.items?.find((candidate) => candidate.id === parts[2]);
+    if (!item) return { known: true, value: null };
+    return { known: true, value: parts.slice(3).reduce<unknown>((value, part) => value && typeof value === "object" ? (value as Record<string, unknown>)[part] : undefined, item) ?? null };
+  }
+  if (parts[0] === "blockVariants" && parts[1]) return { known: true, value: draft.blockVariants[parts[1] as keyof typeof draft.blockVariants] ?? null };
+  if (parts[0] === "content" && parts[1]) return { known: true, value: draft.content[parts[1] as keyof typeof draft.content] ?? null };
+  if (parts.length === 2 && parts[1] === "visibility") return { known: true, value: !new Set(draft.hiddenSections as string[]).has(parts[0]) };
+  if (parts[0] && parts.length >= 2 && parts[0] in draft.content) {
+    const section = draft.content[parts[0] as keyof typeof draft.content];
+    return { known: true, value: parts.slice(1).reduce<unknown>((value, part) => value && typeof value === "object" ? (value as Record<string, unknown>)[part] : undefined, section) ?? null };
+  }
+  return { known: false };
+}
+
+function sameUndoValue(a: unknown, b: unknown) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+const nonLocalizedTextTargets = new Set(["siteName", "companyName", "industry", "goal", "contact.email", "contact.phone"]);
+
+function inverseForTarget(operation: SiteOperation, target: string, before: SiteDraft, inverseOperations: SiteOperation[], appliedTargetCount: number): SiteOperation[] | null {
+  if (appliedTargetCount === 1) return structuredClone(inverseOperations);
+  const localized = /^(.*)\.(zh|en)$/.exec(target);
+  if (operation.op === "set_text" && localized) {
+    const base = localized[1];
+    if (nonLocalizedTextTargets.has(base) && localized[2] === "en") return null;
+    if ((textTargets as readonly string[]).includes(base)) {
+      const value = readText(before, base as TextTarget, localized[2] as "zh" | "en");
+      const previousEnglishReady = inverseOperations.find((item) => item.op === "set_text") as Extract<SiteOperation, { op: "set_text" }> | undefined;
+      return [{ op: "set_text", target: base as TextTarget, locale: localized[2] as "zh" | "en", value, ...(previousEnglishReady?.englishReadyBefore === undefined ? {} : { englishReadyBefore: previousEnglishReady.englishReadyBefore }) } as SiteOperation];
+    }
+  }
+  const card = /^(features|services|faq)\.items\.([A-Za-z0-9_-]+)\.(title|body)\.(zh|en)$/.exec(target);
+  if (operation.op === "update_card" && card) {
+    const item = before.content[card[1] as "features" | "services" | "faq"].items.find((candidate) => candidate.id === card[2]);
+    if (!item) return null;
+    const previousEnglishReady = inverseOperations.find((item) => item.op === "update_card") as Extract<SiteOperation, { op: "update_card" }> | undefined;
+    const inverse: SiteOperation = { op: "update_card", section: card[1] as "features" | "services" | "faq", itemId: card[2], locale: card[4] as "zh" | "en", [card[3]]: item[card[3] as "title" | "body"][card[4] as "zh" | "en"], ...(previousEnglishReady?.englishReadyBefore === undefined ? {} : { englishReadyBefore: previousEnglishReady.englishReadyBefore }) } as SiteOperation;
+    return [inverse];
+  }
+  const product = /^products\.([A-Za-z0-9_-]+)\.(name|summary|category)\.(zh|en)$/.exec(target);
+  if (operation.op === "update_product" && product) {
+    const item = before.products.find((candidate) => candidate.id === product[1]);
+    if (!item) return null;
+    const previousEnglishReady = inverseOperations.find((entry) => entry.op === "update_product") as Extract<SiteOperation, { op: "update_product" }> | undefined;
+    const value = (item[product[2] as "name" | "summary" | "category"] as { zh: string; en: string })[product[3] as "zh" | "en"];
+    const inverse: SiteOperation = { op: "update_product", productId: product[1], locale: product[3] as "zh" | "en", [product[2]]: value, ...(previousEnglishReady?.englishReadyBefore === undefined ? {} : { englishReadyBefore: previousEnglishReady.englishReadyBefore }) } as SiteOperation;
+    return [inverse];
+  }
+  return null;
+}
+
+function buildUndoGuards(before: SiteDraft, operations: SiteOperation[], siteId: string) {
+  let current = before;
+  const firstWrites = new Map<string, { before: SiteDraft; operation: SiteOperation; inverseOperations: SiteOperation[]; appliedTargetCount: number }>();
+  let unsupported: string | undefined;
+  for (const operation of operations) {
+    const beforeOperation = current;
+    const applied = applySiteOperations(current, [operation], {
+      templateIds,
+      lastChange: "草稿已保存",
+      siteId,
+    });
+    current = applied.draft;
+    if (!applied.changed) continue;
+    const reason = selectiveUndoAllowed.has(operation.op) ? undefined : selectiveUndoReason(operation);
+    unsupported ??= reason;
+    if (reason) continue;
+    if (!applied.appliedTargets.length || !applied.inverseOperations.length) {
+      unsupported ??= `${operation.op} 的落点无法建立可核对的 postcondition。`;
+      continue;
+    }
+    for (const target of applied.appliedTargets) {
+      if (!firstWrites.has(target)) firstWrites.set(target, { before: beforeOperation, operation, inverseOperations: applied.inverseOperations, appliedTargetCount: applied.appliedTargets.length });
+    }
+  }
+  const guards: UndoGuard[] = [];
+  for (const [target, first] of firstWrites) {
+    const read = readUndoTarget(current, target);
+    if (!read.known) {
+      unsupported ??= `${target} 没有可核对的 target 读取映射，不能挑着撤。`;
+      continue;
+    }
+    const inverse = inverseForTarget(first.operation, target, first.before, first.inverseOperations, first.appliedTargetCount);
+    if (!inverse) {
+      const nonLocalizedDuplicate = first.operation.op === "set_text" && /^(siteName|companyName|industry|goal|contact\.email|contact\.phone)\.en$/.test(target);
+      if (!nonLocalizedDuplicate) unsupported ??= `${first.operation.op} 的 ${target} 不能拆成单目标 inverse。`;
+      continue;
+    }
+    guards.push({ targets: [target], expected: { [target]: structuredClone(read.value) }, inverseOperations: inverse });
+  }
+  return { guards, unsupported };
+}
+
+type SelectiveUndoResult =
+  | { status: "applied"; record: SiteRecord; changeSet: ChangeSet; conflictTargets: string[] }
+  | { status: "conflict"; record: SiteRecord; conflictTargets: string[] }
+  | { status: "rejected"; record: SiteRecord; reason: string; conflictTargets: string[] }
+  | { status: "not_found"; record: SiteRecord; reason: string; conflictTargets: string[] };
 
 async function guardSiteStyle(record: SiteRecord, args: CommitArgs): Promise<StyleGuardResult> {
   const styleOperations = args.operations.filter((operation) => operation.op === "set_site_style" && (operation.rules.length > 0 || operation.direction));
@@ -186,39 +344,45 @@ async function guardSiteStyle(record: SiteRecord, args: CommitArgs): Promise<Sty
   return { operations: kept, rejected: checked.reasons.map((reason) => reason.startsWith("站点样式没有应用：") ? reason : `站点样式没有应用：${reason}`), rejectedOnly: kept.length === 0 };
 }
 
-async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
-  return withSiteLock(args.siteId, async () => {
-    const record = (await readRecord(args.siteId)) ?? createRecord(args.siteId);
-    const previous = args.changeId ? [...record.history, ...record.future].find((change) => change.id === args.changeId) : undefined;
-    if (previous) return previous.revision === record.draft.revision
-      ? { status: "applied", record, changeSet: previous }
-      : { status: "conflict", record };
-    if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
-    const guarded = await guardSiteStyle(record, args);
-    if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
-    const operations = guarded.operations;
-    await bindSiteImageOperations(args.siteId, operations);
-    const result = applySiteOperations(record.draft, operations, {
-      templateIds,
-      lastChange: args.source === "ai" ? "刚刚通过 AI 保存" : "草稿已保存",
-      siteId: args.siteId,
-    });
-    if (!result.changed) return { status: "no_change", record };
-    const changeSet: ChangeSet = {
-      id: args.changeId ?? crypto.randomUUID(), baseRevision: record.draft.revision, revision: result.draft.revision,
-      summary: committedSummary(args, result.appliedTargets, [...guarded.rejected, ...result.notices]), source: args.source, operations: structuredClone(operations),
-      inverseOperations: result.inverseOperations, appliedTargets: result.appliedTargets,
-      ...(args.model ? { model: args.model } : {}),
-      ...(args.latencyMs === undefined ? {} : { latencyMs: args.latencyMs }),
-      createdAt: new Date().toISOString(),
-    };
-    record.draft = result.draft;
-    record.history = [...record.history, changeSet].slice(-50);
-    record.future = [];
-    record.updatedAt = new Date().toISOString();
-    await writeRecord(record);
-    return { status: "applied", record, changeSet, ...(guarded.rejected.length ? { rejected: guarded.rejected } : {}) };
+async function commitLocalOperationsLocked(args: CommitArgs, record: SiteRecord): Promise<CommitResult> {
+  const previous = args.changeId ? [...record.history, ...record.future].find((change) => change.id === args.changeId) : undefined;
+  if (previous) return previous.revision === record.draft.revision
+    ? { status: "applied", record, changeSet: previous }
+    : { status: "conflict", record };
+  if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
+  if (args.annotationId) await getAnnotation(args.siteId, args.annotationId);
+  const guarded = await guardSiteStyle(record, args);
+  if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
+  const operations = guarded.operations;
+  await bindSiteImageOperations(args.siteId, operations);
+  const result = applySiteOperations(record.draft, operations, {
+    templateIds,
+    lastChange: args.source === "ai" ? "刚刚通过 AI 保存" : "草稿已保存",
+    siteId: args.siteId,
   });
+  if (!result.changed) return { status: "no_change", record };
+  const undo = buildUndoGuards(record.draft, operations, args.siteId);
+  const changeSet: ChangeSet = {
+    id: args.changeId ?? crypto.randomUUID(), baseRevision: record.draft.revision, revision: result.draft.revision,
+    summary: committedSummary(args, result.appliedTargets, [...guarded.rejected, ...result.notices]), source: args.source, operations: structuredClone(operations),
+    inverseOperations: result.inverseOperations, appliedTargets: result.appliedTargets,
+    ...(args.annotationId ? { annotationId: args.annotationId } : {}),
+    ...(undo.guards.length ? { undoGuards: undo.guards } : {}),
+    ...(undo.unsupported ? { selectiveUndoUnsupported: undo.unsupported } : {}),
+    ...(args.model ? { model: args.model } : {}),
+    ...(args.latencyMs === undefined ? {} : { latencyMs: args.latencyMs }),
+    createdAt: new Date().toISOString(),
+  };
+  record.draft = result.draft;
+  record.history = [...record.history, changeSet].slice(-50);
+  record.future = [];
+  record.updatedAt = new Date().toISOString();
+  await writeRecord(record);
+  return { status: "applied", record, changeSet, ...(guarded.rejected.length ? { rejected: guarded.rejected } : {}) };
+}
+
+async function commitLocalOperations(args: CommitArgs): Promise<CommitResult> {
+  return withSiteLock(args.siteId, async () => commitLocalOperationsLocked(args, (await readRecord(args.siteId)) ?? createRecord(args.siteId)));
 }
 async function moveLocalHistory(siteId: string, action: "undo" | "redo") {
   return withSiteLock(siteId, async () => {
@@ -352,44 +516,50 @@ async function peekPostgresSite(siteId: string) {
   return snapshot(migrated, false);
 }
 
-async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult> {
-  return withDatabaseTransaction(async (client) => {
-    const record = await lockPostgresRecord(client, args.siteId);
-    const previous = args.changeId ? [...record.history, ...record.future].find((change) => change.id === args.changeId) : undefined;
-    if (previous) return previous.revision === record.draft.revision
-      ? { status: "applied", record, changeSet: previous }
-      : { status: "conflict", record };
-    if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
-    const guarded = await guardSiteStyle(record, args);
-    if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
-    const operations = guarded.operations;
-    await bindSiteImageOperations(args.siteId, operations);
-    const result = applySiteOperations(record.draft, operations, {
-      templateIds,
-      lastChange: args.source === "ai" ? "刚刚通过 DeepSeek 保存" : "草稿已保存",
-      siteId: args.siteId,
-    });
-    if (!result.changed) return { status: "no_change", record };
-    const changeSet: ChangeSet = {
-      id: args.changeId ?? crypto.randomUUID(),
-      baseRevision: record.draft.revision,
-      revision: result.draft.revision,
-      summary: committedSummary(args, result.appliedTargets, [...guarded.rejected, ...result.notices]),
-      source: args.source,
-      operations: structuredClone(operations),
-      inverseOperations: result.inverseOperations,
-      appliedTargets: result.appliedTargets,
-      ...(args.model ? { model: args.model } : {}),
-      ...(args.latencyMs === undefined ? {} : { latencyMs: args.latencyMs }),
-      createdAt: new Date().toISOString(),
-    };
-    record.draft = result.draft;
-    record.history = [...record.history, changeSet].slice(-50);
-    record.future = [];
-    record.updatedAt = new Date().toISOString();
-    await savePostgresRecord(client, record);
-    return { status: "applied", record, changeSet, ...(guarded.rejected.length ? { rejected: guarded.rejected } : {}) };
+async function commitPostgresOperationsLocked(args: CommitArgs, client: PoolClient, record: SiteRecord): Promise<CommitResult> {
+  const previous = args.changeId ? [...record.history, ...record.future].find((change) => change.id === args.changeId) : undefined;
+  if (previous) return previous.revision === record.draft.revision
+    ? { status: "applied", record, changeSet: previous }
+    : { status: "conflict", record };
+  if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
+  if (args.annotationId) await getAnnotation(args.siteId, args.annotationId, client);
+  const guarded = await guardSiteStyle(record, args);
+  if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
+  const operations = guarded.operations;
+  await bindSiteImageOperations(args.siteId, operations);
+  const result = applySiteOperations(record.draft, operations, {
+    templateIds,
+    lastChange: args.source === "ai" ? "刚刚通过 DeepSeek 保存" : "草稿已保存",
+    siteId: args.siteId,
   });
+  if (!result.changed) return { status: "no_change", record };
+  const undo = buildUndoGuards(record.draft, operations, args.siteId);
+  const changeSet: ChangeSet = {
+    id: args.changeId ?? crypto.randomUUID(),
+    baseRevision: record.draft.revision,
+    revision: result.draft.revision,
+    summary: committedSummary(args, result.appliedTargets, [...guarded.rejected, ...result.notices]),
+    source: args.source,
+    operations: structuredClone(operations),
+    inverseOperations: result.inverseOperations,
+    appliedTargets: result.appliedTargets,
+    ...(args.annotationId ? { annotationId: args.annotationId } : {}),
+    ...(undo.guards.length ? { undoGuards: undo.guards } : {}),
+    ...(undo.unsupported ? { selectiveUndoUnsupported: undo.unsupported } : {}),
+    ...(args.model ? { model: args.model } : {}),
+    ...(args.latencyMs === undefined ? {} : { latencyMs: args.latencyMs }),
+    createdAt: new Date().toISOString(),
+  };
+  record.draft = result.draft;
+  record.history = [...record.history, changeSet].slice(-50);
+  record.future = [];
+  record.updatedAt = new Date().toISOString();
+  await savePostgresRecord(client, record);
+  return { status: "applied", record, changeSet, ...(guarded.rejected.length ? { rejected: guarded.rejected } : {}) };
+}
+
+async function commitPostgresOperations(args: CommitArgs): Promise<CommitResult> {
+  return withDatabaseTransaction(async (client) => commitPostgresOperationsLocked(args, client, await lockPostgresRecord(client, args.siteId)));
 }
 
 async function movePostgresHistory(siteId: string, action: "undo" | "redo") {
@@ -512,6 +682,60 @@ export function commitOperations(args: CommitArgs): Promise<CommitResult> {
 
 export function moveHistory(siteId: string, action: "undo" | "redo") {
   return usePostgres ? movePostgresHistory(siteId, action) : moveLocalHistory(siteId, action);
+}
+
+async function readLocalRecordForSelective(siteId: string) {
+  return (await readRecord(siteId)) ?? createRecord(siteId);
+}
+
+export async function selectiveUndo(siteId: string, changeId: string): Promise<SelectiveUndoResult> {
+  if (usePostgres) {
+    return withDatabaseTransaction(async (client) => {
+      const record = await lockPostgresRecord(client, siteId);
+      return selectiveUndoLocked(siteId, changeId, record, (args) => commitPostgresOperationsLocked(args, client, record));
+    });
+  }
+  return withSiteLock(siteId, async () => {
+    const record = await readLocalRecordForSelective(siteId);
+    return selectiveUndoLocked(siteId, changeId, record, (args) => commitLocalOperationsLocked(args, record));
+  });
+}
+
+async function selectiveUndoLocked(
+  siteId: string,
+  changeId: string,
+  record: SiteRecord,
+  commit: (args: CommitArgs) => Promise<CommitResult>,
+): Promise<SelectiveUndoResult> {
+  const change = record.history.find((item) => item.id === changeId);
+  if (!change) return { status: "not_found", record, reason: "找不到这条批注修改。", conflictTargets: [] };
+  if (!change.annotationId) return { status: "rejected", record, reason: "这条修改不是批注事务，不能按批注挑着撤。", conflictTargets: [] };
+  if (change.selectiveUndoUnsupported) return { status: "rejected", record, reason: change.selectiveUndoUnsupported, conflictTargets: [] };
+  if (!change.undoGuards?.length) return { status: "rejected", record, reason: "这条历史没有可核对的修改后值，不能安全挑着撤。", conflictTargets: [] };
+
+  const safeOperations: SiteOperation[] = [];
+  const conflictTargets: string[] = [];
+  for (const guard of change.undoGuards) {
+    const reads = guard.targets.map((target) => readUndoTarget(record.draft, target));
+    if (reads.some((read) => !read.known)) return { status: "rejected", record, reason: "历史 target 没有可核对的读取映射，不能安全挑着撤。", conflictTargets: [] };
+    const matches = guard.targets.every((target, index) => sameUndoValue((reads[index] as { known: true; value: unknown }).value, guard.expected[target]));
+    if (matches) safeOperations.push(...structuredClone(guard.inverseOperations));
+    else conflictTargets.push(...guard.targets);
+  }
+  if (!safeOperations.length) return { status: "conflict", record, conflictTargets };
+
+  const committed = await commit({
+    siteId,
+    baseRevision: record.draft.revision,
+    operations: safeOperations,
+    source: "manual",
+    summary: "撤销批注修改",
+    annotationId: change.annotationId,
+  });
+  if (committed.status === "applied") return { status: "applied", record: committed.record, changeSet: committed.changeSet, conflictTargets };
+  if (committed.status === "rejected") return { status: "rejected", record: committed.record, reason: committed.reasons.join("；"), conflictTargets };
+  if (committed.status === "conflict") return { status: "conflict", record: committed.record, conflictTargets };
+  return { status: "conflict", record: committed.record, conflictTargets };
 }
 
 export function getSiteStoreStatus() {
