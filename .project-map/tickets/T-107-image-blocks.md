@@ -4,7 +4,7 @@ title: 资料图片进区块：首屏、产品、设备、厂区配图位
 type: build
 status: open
 blocked_by: [T-106, T-103, T-086]
-claimed_by:
+claimed_by: codex-build
 supersedes:
 ---
 
