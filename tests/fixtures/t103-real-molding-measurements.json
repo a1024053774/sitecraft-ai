@@ -1,0 +1,55 @@
+{
+  "source": {
+    "codeSha": "7207ba97ed6dc1dd787b49945840569335bd42a8",
+    "report": "artifacts/t103/red-current/report.json",
+    "siteId": "t097-real-936749b-molding",
+    "description": "修复前真实发布页报告的测量条数；修复后不得减少。"
+  },
+  "rows": [
+    {
+      "width": 1440,
+      "locales": {
+        "zh": {
+          "textContrast": 179,
+          "bodyLineLength": 33,
+          "lineLengthExemptions": 28
+        },
+        "en": {
+          "textContrast": 175,
+          "bodyLineLength": 41,
+          "lineLengthExemptions": 28
+        }
+      }
+    },
+    {
+      "width": 768,
+      "locales": {
+        "zh": {
+          "textContrast": 174,
+          "bodyLineLength": 36,
+          "lineLengthExemptions": 24
+        },
+        "en": {
+          "textContrast": 170,
+          "bodyLineLength": 49,
+          "lineLengthExemptions": 24
+        }
+      }
+    },
+    {
+      "width": 375,
+      "locales": {
+        "zh": {
+          "textContrast": 174,
+          "bodyLineLength": 45,
+          "lineLengthExemptions": 24
+        },
+        "en": {
+          "textContrast": 170,
+          "bodyLineLength": 65,
+          "lineLengthExemptions": 24
+        }
+      }
+    }
+  ]
+}

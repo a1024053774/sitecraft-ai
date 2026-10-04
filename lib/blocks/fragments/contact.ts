@@ -1,3 +1,4 @@
+import { iconSvg } from "./icon-svg.ts";
 import type { BlockFragment } from "./types.ts";
 
 // Inquiry: its own tinted band, contact lines once, a short form.
@@ -24,6 +25,13 @@ export const contactFragment: BlockFragment = {
 [data-sitecraft-inquiry-state="sent"] .sitecraft-inquiry-status { color: #1f6f43; background: rgba(31, 111, 67, 0.08); }
 [data-sitecraft-inquiry-state="error"] .sitecraft-inquiry-status { color: #9a3412; background: rgba(154, 52, 18, 0.08); }
 [data-sitecraft-inquiry-state="sending"] [type="submit"] { opacity: 0.6; cursor: progress; }
+/* 图标联系: a low-contrast icon in front of each contact line and on the send button; the text beside
+   it carries the meaning, and a line that has no value is hidden with its icon. */
+.sitecraft-icon { flex: none; width: 20px; height: 20px; color: var(--site-muted); }
+.sitecraft-inquiry-lines li > .sitecraft-icon { margin-top: 1px; }
+.sitecraft-inquiry-icons .sitecraft-inquiry-lines li > span:first-of-type { min-width: 3em; }
+.sitecraft-inquiry-form button .sitecraft-icon { width: 18px; height: 18px; color: currentColor; }
+.sitecraft-inquiry-form button { display: inline-flex; align-items: center; gap: 8px; }
 /* When every contact line is a gap, drop the empty list. */
 .sitecraft-inquiry-lines:not(:has(> li:not([hidden]))) { display: none; }
 /* 联系条: heading and note on one line, the contact details in a dark strip (only the ones that have
@@ -116,6 +124,19 @@ export const contactFragment: BlockFragment = {
         </section>`,
   },
 };
+
+// 图标联系: the split layout with an icon in front of the email, phone and address lines and on the
+// send button. Built from the split markup so the form and the targets stay identical.
+const lineIcon = (concept: "email" | "phone" | "address", label: string, prefix: string) => `<li data-sitecraft-line>${iconSvg(`contact-${concept}`)}<span data-sitecraft-ui="${prefix}Prefix">${label}</span><span data-sitecraft-contact="${concept}"></span></li>`;
+contactFragment.variants.icons = contactFragment.variants.split
+  .replace('data-sc-variant="split"', 'data-sc-variant="icons"')
+  .replace('class="sitecraft-section sitecraft-inquiry"', 'class="sitecraft-section sitecraft-inquiry sitecraft-inquiry-icons"')
+  .replace(/<ul class="sitecraft-inquiry-lines" data-sc-part="lines">[\s\S]*?<\/ul>/, `<ul class="sitecraft-inquiry-lines" data-sc-part="lines">
+                ${lineIcon("email", "邮箱", "email")}
+                ${lineIcon("phone", "电话", "phone")}
+                ${lineIcon("address", "地址", "address")}
+              </ul>`)
+  .replace('<button class="sitecraft-btn sitecraft-primary" type="submit" data-sitecraft-ui="submit">发送询盘</button>', `<button class="sitecraft-btn sitecraft-primary" type="submit">${iconSvg("contact-submit", 16)}<span data-sitecraft-ui="submit">发送询盘</span></button>`);
 
 export const footerFragment: BlockFragment = {
   css: `
