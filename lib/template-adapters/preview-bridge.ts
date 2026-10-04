@@ -14,6 +14,16 @@ function sitecraftPreviewBridge(templateId, adapter) {
   var document = global.document;
   var parent = global.parent || global;
   var siteStyleCss = ${SITE_STYLE_CSS_SOURCE};
+  var PREVIEW_MESSAGE_TYPE_VERSION = 1;
+  var annotationMode = false;
+  var annotationSessionId = null;
+  var annotationRevision = 0;
+  var annotationLocale = "zh";
+  var annotationTarget = null;
+  var annotationCaptureLayer = null;
+  var annotationHoverNode = null;
+  var annotationDrag = null;
+  var annotationPointerHandled = false;
 
   function asList(result) {
     return Array.prototype.slice.call(result || []);
@@ -255,6 +265,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var card = document.createElement("article");
       card.className = "sitecraft-product-card";
       card.setAttribute("data-sitecraft-product", productId);
+      card.setAttribute("data-sitecraft-product-id", productId);
+      card.setAttribute("data-sitecraft-slot", "products." + productId);
       if (product.image && typeof product.image.url === "string" && product.image.url) {
         var image = document.createElement("img");
         image.className = "sitecraft-product-image";
@@ -356,6 +368,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var card = document.createElement("article");
     card.className = "sitecraft-product-card";
     card.setAttribute("data-sitecraft-product", productId);
+    card.setAttribute("data-sitecraft-product-id", productId);
+    card.setAttribute("data-sitecraft-slot", "products." + productId);
     var hasPhoto = product.image && typeof product.image.url === "string" && product.image.url;
     card.setAttribute("data-sitecraft-product-photo", hasPhoto ? "true" : "false");
     if (hasPhoto) {
@@ -577,6 +591,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       // the row and of the detail band sit inside it, so a click on any spec resolves to that target.
       var item = document.createElement("tbody");
       item.className = "sitecraft-index-item";
+      item.setAttribute("data-sitecraft-product-id", id);
       if (allSpecs.length) {
         item.setAttribute("data-sitecraft-slot", "products." + id + ".specs");
         applied.add("products." + id + ".specs");
@@ -735,6 +750,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var card = document.createElement("article");
       card.className = "sitecraft-compare-series-card";
       card.setAttribute("data-sitecraft-product", productId);
+      card.setAttribute("data-sitecraft-product-id", productId);
+      card.setAttribute("data-sitecraft-slot", "products." + productId);
       var productCategory = localize(product.category, locale) || "";
       if (productCategory && !isGapMarker(productCategory) && productCategory !== productName) {
         var category = document.createElement("p");
@@ -2244,10 +2261,265 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
   }
 
+  function annotationPostMessage(payload) {
+    if (!parent || !parent.postMessage || !annotationSessionId) return;
+    parent.postMessage(Object.assign({
+      typeVersion: PREVIEW_MESSAGE_TYPE_VERSION,
+      sessionId: annotationSessionId,
+      templateId: templateId,
+    }, payload), "*");
+  }
+
+  function annotationRect(node) {
+    if (!node || typeof node.getBoundingClientRect !== "function") return null;
+    var rect = node.getBoundingClientRect();
+    var width = Number(global.innerWidth) || (document && document.documentElement && document.documentElement.clientWidth) || 0;
+    var height = Number(global.innerHeight) || (document && document.documentElement && document.documentElement.clientHeight) || 0;
+    return {
+      x: Math.max(0, Number(rect.left) || 0), y: Math.max(0, Number(rect.top) || 0),
+      width: Math.max(0, Number(rect.width) || 0), height: Math.max(0, Number(rect.height) || 0),
+      space: "iframe-viewport", viewportWidth: width, viewportHeight: height,
+    };
+  }
+
+  function annotationSlot(node) {
+    if (!node || !node.getAttribute) return "";
+    return node.getAttribute("data-sitecraft-slot") || "";
+  }
+
+  function annotationNode(rawTarget) {
+    if (!rawTarget || !rawTarget.closest) return null;
+    // Product cards are the stable unit users see. Their child slots remain useful
+    // for text edits, but a card click must carry the product's stable id.
+    return rawTarget.closest("[data-sitecraft-product-id]") || rawTarget.closest("[data-sitecraft-slot]");
+  }
+
+  function annotationProductId(node) {
+    if (!node || !node.getAttribute) return undefined;
+    var product = node.getAttribute("data-sitecraft-product-id") || node.getAttribute("data-sitecraft-product");
+    return product || undefined;
+  }
+
+  function annotationTargetForNode(node) {
+    var slot = annotationSlot(node);
+    if (!slot) return null;
+    var parts = slot.split(".");
+    var target = { kind: "slot", slot: slot, section: parts[0] || "" };
+    var productId = annotationProductId(node);
+    if (productId) target.productId = productId;
+    var itemMatch = /^(features|services|faq|commercialTerms|equipment|qualityProcess|history)\.items\.([^.]+)/.exec(slot);
+    if (itemMatch) target.itemId = itemMatch[2];
+    if (annotationLocale === "zh" || annotationLocale === "en") target.locale = annotationLocale;
+    return target;
+  }
+
+  function annotationSnapshot(node) {
+    var text = String(node && node.textContent || "").replace(/\s+/g, " ").trim();
+    if (text.length > 1000) text = text.slice(0, 997) + "…";
+    return {
+      text: text,
+      label: node && node.getAttribute ? (node.getAttribute("aria-label") || node.getAttribute("title") || undefined) : undefined,
+      tag: node && node.tagName ? String(node.tagName).toLowerCase() : undefined,
+      slotLabel: annotationSlot(node) || undefined,
+    };
+  }
+
+  function annotationCandidate(node) {
+    var target = annotationTargetForNode(node);
+    var rect = annotationRect(node);
+    if (!target || !rect) return null;
+    return {
+      pageId: (document && document.documentElement && document.documentElement.dataset && document.documentElement.dataset.sitecraftActivePage) || "home",
+      pagePath: (document && document.documentElement && document.documentElement.dataset && document.documentElement.dataset.sitecraftPagePath) || "/",
+      templateId: templateId,
+      revision: annotationRevision,
+      locale: annotationLocale,
+      viewport: { width: rect.viewportWidth || 1, height: rect.viewportHeight || 1, device: (rect.viewportWidth || 1440) <= 600 ? "mobile" : (rect.viewportWidth || 1440) <= 900 ? "tablet" : "desktop" },
+      scroll: { x: Number(global.scrollX) || 0, y: Number(global.scrollY) || 0 },
+      target: target,
+      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height, space: rect.space },
+      snapshot: annotationSnapshot(node),
+      capturedAt: new Date().toISOString(),
+    };
+  }
+
+  function setAnnotationHover(node) {
+    if (annotationHoverNode && annotationHoverNode !== node && annotationHoverNode.removeAttribute) annotationHoverNode.removeAttribute("data-sitecraft-annotation-hover");
+    annotationHoverNode = node || null;
+    if (annotationHoverNode && annotationHoverNode.setAttribute) annotationHoverNode.setAttribute("data-sitecraft-annotation-hover", "true");
+  }
+
+  function ensureAnnotationCaptureLayer() {
+    if (annotationCaptureLayer || !document || !document.createElement || !document.body) return annotationCaptureLayer;
+    annotationCaptureLayer = document.createElement("div");
+    annotationCaptureLayer.setAttribute("data-sitecraft-annotation-capture", "true");
+    annotationCaptureLayer.setAttribute("aria-hidden", "true");
+    if (annotationCaptureLayer.style) {
+      annotationCaptureLayer.style.position = "fixed";
+      annotationCaptureLayer.style.inset = "0";
+      annotationCaptureLayer.style.pointerEvents = "none";
+      annotationCaptureLayer.style.zIndex = "2147483000";
+      annotationCaptureLayer.style.background = "transparent";
+    }
+    var annotationStyle = document.createElement("style");
+    annotationStyle.textContent = "[data-sitecraft-annotation-hover]{outline:2px solid #1f5aa6!important;outline-offset:2px;cursor:crosshair!important}[data-sitecraft-annotation-capture][data-sitecraft-annotation-mode=\"true\"]{display:block!important}";
+    document.body.appendChild(annotationStyle);
+    document.body.appendChild(annotationCaptureLayer);
+    return annotationCaptureLayer;
+  }
+
+  function drawAnnotationDrag(rect) {
+    var layer = ensureAnnotationCaptureLayer();
+    if (!layer || !document || !document.createElement) return;
+    var box = layer.querySelector ? layer.querySelector("[data-sitecraft-annotation-drag]") : null;
+    if (!box) {
+      box = document.createElement("div");
+      box.setAttribute("data-sitecraft-annotation-drag", "true");
+      if (box.style) {
+        box.style.position = "fixed";
+        box.style.pointerEvents = "none";
+        box.style.border = "1px solid currentColor";
+        box.style.background = "rgba(31, 90, 166, .08)";
+      }
+      layer.appendChild(box);
+    }
+    if (box.style) {
+      box.style.left = rect.x + "px"; box.style.top = rect.y + "px";
+      box.style.width = rect.width + "px"; box.style.height = rect.height + "px";
+    }
+  }
+
+  function clearAnnotationDrag() {
+    if (!annotationCaptureLayer || !annotationCaptureLayer.querySelector) return;
+    var box = annotationCaptureLayer.querySelector("[data-sitecraft-annotation-drag]");
+    if (box && box.remove) box.remove();
+  }
+
+  function fullyInside(rect, frame) {
+    return rect && rect.x >= frame.x && rect.y >= frame.y
+      && rect.x + rect.width <= frame.x + frame.width + 0.5
+      && rect.y + rect.height <= frame.y + frame.height + 0.5;
+  }
+
+  function annotationNodesInRect(frame) {
+    var nodes = document && document.querySelectorAll ? asList(document.querySelectorAll("[data-sitecraft-slot]")) : [];
+    var seen = {};
+    var result = [];
+    for (var i = 0; i < nodes.length; i++) {
+      var slot = annotationSlot(nodes[i]);
+      var rect = annotationRect(nodes[i]);
+      if (!slot || seen[slot] || !fullyInside(rect, frame)) continue;
+      seen[slot] = true;
+      result.push(nodes[i]);
+    }
+    return result;
+  }
+
+  function emitAnnotationSelection(nodes) {
+    if (!nodes || !nodes.length) return;
+    var candidates = nodes.map(annotationCandidate).filter(Boolean);
+    if (!candidates.length) return;
+    if (candidates.length === 1) {
+      annotationTarget = candidates[0].target;
+      annotationPostMessage({ type: "sitecraft:annotation-candidate", candidate: candidates[0] });
+      return;
+    }
+    var slots = candidates.map(function (candidate) { return candidate.target.slot; });
+    // A region deliberately has no primarySlot until the user names one. The
+    // host must clarify this ambiguous target before it can reach commitOperations.
+    annotationTarget = { kind: "region", slots: slots, primarySlot: undefined };
+    annotationPostMessage({
+      type: "sitecraft:annotation-candidate",
+      candidate: Object.assign({}, candidates[0], { target: { kind: "region", slots: slots, primarySlot: undefined } }),
+    });
+  }
+
+  function emitAnnotationState(state, node, reason) {
+    var rect = node ? annotationRect(node) : null;
+    annotationPostMessage({
+      type: "sitecraft:annotation-state", state: state, reason: reason || undefined,
+      target: annotationTarget || undefined,
+      rect: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height, space: rect.space } : undefined,
+      revision: annotationRevision,
+    });
+  }
+
+  function findAnnotationMatches(target) {
+    if (!target || !target.slot || !document || !document.querySelectorAll) return [];
+    var nodes = asList(document.querySelectorAll("[data-sitecraft-slot]"));
+    return nodes.filter(function (node) {
+      if (annotationSlot(node) !== target.slot) return false;
+      if (target.productId && annotationProductId(node) !== target.productId) return false;
+      if (target.itemId && target.slot.indexOf("." + target.itemId + ".") < 0) return false;
+      return true;
+    });
+  }
+
+  function resolveAnnotationTarget(target) {
+    annotationTarget = target || null;
+    if (target && target.kind === "region" && (!target.primarySlot || !Array.isArray(target.slots) || target.slots.length !== 1)) {
+      emitAnnotationState("ambiguous", null, "圈选目标没有明确的 primarySlot，请重新点选主目标并澄清后再修改。");
+      return;
+    }
+    if (target && target.kind === "region" && target.primarySlot) target = { kind: "slot", slot: target.primarySlot, section: String(target.primarySlot).split(".")[0] };
+    var matches = findAnnotationMatches(target);
+    if (matches.length === 1) emitAnnotationState("attached", matches[0]);
+    else if (!matches.length) emitAnnotationState("stale", null, "页面上找不到这个批注目标，请重新点选。");
+    else emitAnnotationState("ambiguous", null, "页面上有多个同名批注目标，请重新点选主目标并澄清后再修改。");
+  }
+
+  function setAnnotationMode(enabled, sessionId) {
+    annotationMode = enabled === true;
+    if (typeof sessionId === "string" && sessionId) annotationSessionId = sessionId;
+    var layer = annotationMode ? ensureAnnotationCaptureLayer() : annotationCaptureLayer;
+    if (layer && layer.setAttribute) layer.setAttribute("data-sitecraft-annotation-mode", annotationMode ? "true" : "false");
+    if (!annotationMode) {
+      setAnnotationHover(null);
+      clearAnnotationDrag();
+      annotationDrag = null;
+    }
+    if (annotationMode && annotationTarget) resolveAnnotationTarget(annotationTarget);
+  }
+
+  function onAnnotationPointerMove(event) {
+    if (!annotationMode || !event) return;
+    if (annotationDrag) {
+      var x = Math.min(annotationDrag.x, Number(event.clientX) || 0);
+      var y = Math.min(annotationDrag.y, Number(event.clientY) || 0);
+      drawAnnotationDrag({ x: x, y: y, width: Math.abs((Number(event.clientX) || 0) - annotationDrag.x), height: Math.abs((Number(event.clientY) || 0) - annotationDrag.y) });
+      return;
+    }
+    setAnnotationHover(annotationNode(event.target));
+  }
+
+  function onAnnotationPointerDown(event) {
+    if (!annotationMode || !event || event.button !== undefined && event.button !== 0) return;
+    annotationDrag = { x: Number(event.clientX) || 0, y: Number(event.clientY) || 0 };
+  }
+
+  function onAnnotationPointerUp(event) {
+    if (!annotationMode || !annotationDrag) return;
+    var start = annotationDrag;
+    annotationDrag = null;
+    clearAnnotationDrag();
+    var endX = Number(event && event.clientX) || start.x;
+    var endY = Number(event && event.clientY) || start.y;
+    var frame = { x: Math.min(start.x, endX), y: Math.min(start.y, endY), width: Math.abs(endX - start.x), height: Math.abs(endY - start.y) };
+    if (frame.width < 8 && frame.height < 8) {
+      var node = annotationNode(event && event.target);
+      if (node) { annotationPointerHandled = true; emitAnnotationSelection([node]); }
+      return;
+    }
+    annotationPointerHandled = true;
+    emitAnnotationSelection(annotationNodesInRect(frame));
+  }
+
   function applyDeclaredContent(draft, locale, expectedTargets, variant, activePage, offersVisitorEnglish) {
     var applied = new Set();
     var extraMissing = [];
     var currentLocale = locale || "zh";
+    annotationRevision = draft && typeof draft.revision === "number" ? draft.revision : annotationRevision;
+    annotationLocale = currentLocale;
     var expected = Array.isArray(expectedTargets) ? expectedTargets.filter(isRequestedTarget) : [];
     if (document && document.documentElement) {
       document.documentElement.lang = currentLocale;
@@ -2309,17 +2581,35 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
     watchFontLoading();
     measureFitTextAfterFonts();
+    if (annotationMode && annotationTarget) resolveAnnotationTarget(annotationTarget);
     return report(applied, expected, adapter, extraMissing);
   }
 
   function onMessage(event) {
     var data = event && event.data;
     if (event && event.source && event.source !== parent) return;
+    if (!data || data.typeVersion !== PREVIEW_MESSAGE_TYPE_VERSION) return;
+    if (data.sessionId && annotationSessionId && data.sessionId !== annotationSessionId) return;
+    if (data && data.type === "sitecraft:annotation-mode" && data.templateId === templateId) {
+      setAnnotationMode(data.enabled === true, data.sessionId);
+      if (data.target) resolveAnnotationTarget(data.target);
+      return;
+    }
+    if (data && data.type === "sitecraft:annotation-resolve" && data.templateId === templateId) {
+      if (data.target) resolveAnnotationTarget(data.target);
+      return;
+    }
     if (data && data.type === "sitecraft:inquiry-result" && data.templateId === templateId) {
       showInquiryResult(data.ok === true, typeof data.message === "string" ? data.message : "");
       return;
     }
-    if (!data || data.type !== "sitecraft:content" || data.templateId !== templateId) return;
+    if (data.type !== "sitecraft:content" || data.templateId !== templateId) return;
+    annotationSessionId = data.sessionId || annotationSessionId;
+    setAnnotationMode(data.annotationMode === true, data.sessionId);
+    if (data.annotationTarget) annotationTarget = data.annotationTarget;
+    if (document && document.documentElement && document.documentElement.dataset) {
+      document.documentElement.dataset.sitecraftPagePath = data.pagePath || "/";
+    }
     var run = function () {
       var reportPayload = applyDeclaredContent(
         data.draft,
@@ -2332,6 +2622,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (parent && parent.postMessage) {
         parent.postMessage({
           type: "sitecraft:applied",
+          typeVersion: PREVIEW_MESSAGE_TYPE_VERSION,
+          sessionId: annotationSessionId,
           templateId: templateId,
           revision: data.draft && data.draft.revision,
           appliedSlots: reportPayload.appliedSlots,
@@ -2408,6 +2700,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (parent && parent.postMessage) {
       parent.postMessage({
         type: "sitecraft:inquiry",
+        typeVersion: PREVIEW_MESSAGE_TYPE_VERSION,
+        sessionId: annotationSessionId,
         templateId: templateId,
         payload: {
           name: fieldValue(form, "name"),
@@ -2428,7 +2722,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if ((nextLocale === "zh" || nextLocale === "en") && parent && parent.postMessage) {
         if (event.preventDefault) event.preventDefault();
         if (event.stopPropagation) event.stopPropagation();
-        parent.postMessage({ type: "sitecraft:locale", templateId: templateId, locale: nextLocale }, "*");
+        parent.postMessage({ type: "sitecraft:locale", typeVersion: PREVIEW_MESSAGE_TYPE_VERSION, sessionId: annotationSessionId, templateId: templateId, locale: nextLocale }, "*");
       }
       return;
     }
@@ -2446,6 +2740,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
       ? document.documentElement.dataset.sitecraftVariant
       : "";
     if (variant === "published") return;
+    if (annotationMode) {
+      if (annotationPointerHandled) { annotationPointerHandled = false; return; }
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopPropagation) event.stopPropagation();
+      var annotationNodeTarget = annotationNode(rawTarget);
+      if (annotationNodeTarget) emitAnnotationSelection([annotationNodeTarget]);
+      return;
+    }
     if (!rawTarget) return;
     var node = rawTarget && rawTarget.closest ? rawTarget.closest("[data-sitecraft-slot]") : null;
     if (!node && rawTarget && rawTarget.closest && document.getElementById) {
@@ -2462,7 +2764,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var uiTarget = selectUiTarget(slot);
     if (!uiTarget) return;
     if (parent && parent.postMessage) {
-      parent.postMessage({ type: "sitecraft:select", target: uiTarget, slot: slot }, "*");
+      parent.postMessage({ type: "sitecraft:select", typeVersion: PREVIEW_MESSAGE_TYPE_VERSION, sessionId: annotationSessionId, target: uiTarget, slot: slot }, "*");
     }
   }
 
@@ -2479,10 +2781,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
   if (global.addEventListener) global.addEventListener("message", onMessage);
   if (document && document.addEventListener) {
     document.addEventListener("click", onClick, true);
+    document.addEventListener("pointermove", onAnnotationPointerMove, true);
+    document.addEventListener("pointerdown", onAnnotationPointerDown, true);
+    document.addEventListener("pointerup", onAnnotationPointerUp, true);
     document.addEventListener("submit", onInquirySubmit, true);
     document.addEventListener("copy", onCopy, true);
   }
-  if (parent && parent.postMessage) parent.postMessage({ type: "sitecraft:ready", templateId: templateId }, "*");
+  if (parent && parent.postMessage) parent.postMessage({ type: "sitecraft:ready", typeVersion: PREVIEW_MESSAGE_TYPE_VERSION, sessionId: annotationSessionId, templateId: templateId }, "*");
   global.__sitecraftApplyDeclared = applyDeclaredContent;
   return { applyDeclaredContent: applyDeclaredContent };
 }

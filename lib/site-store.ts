@@ -360,7 +360,13 @@ async function commitLocalOperationsLocked(args: CommitArgs, record: SiteRecord)
     ? { status: "applied", record, changeSet: previous }
     : { status: "conflict", record };
   if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
-  if (args.annotationId) await getAnnotation(args.siteId, args.annotationId);
+  if (args.annotationId) {
+    const annotation = await getAnnotation(args.siteId, args.annotationId);
+    if (annotation.current.state !== "attached" || (annotation.anchor.target.kind === "region" && !annotation.anchor.target.primarySlot)) {
+      const state = annotation.current.state === "attached" ? "ambiguous" : annotation.current.state;
+      throw new Error(`批注目标 ${state}，请重新点选后再修改。`);
+    }
+  }
   const guarded = await guardSiteStyle(record, args);
   if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
   const operations = guarded.operations;
@@ -541,7 +547,13 @@ async function commitPostgresOperationsLocked(args: CommitArgs, client: PoolClie
     ? { status: "applied", record, changeSet: previous }
     : { status: "conflict", record };
   if (record.draft.revision !== args.baseRevision) return { status: "conflict", record };
-  if (args.annotationId) await getAnnotation(args.siteId, args.annotationId, client);
+  if (args.annotationId) {
+    const annotation = await getAnnotation(args.siteId, args.annotationId, client);
+    if (annotation.current.state !== "attached" || (annotation.anchor.target.kind === "region" && !annotation.anchor.target.primarySlot)) {
+      const state = annotation.current.state === "attached" ? "ambiguous" : annotation.current.state;
+      throw new Error(`批注目标 ${state}，请重新点选后再修改。`);
+    }
+  }
   const guarded = await guardSiteStyle(record, args);
   if (guarded.rejectedOnly) return { status: "rejected", record, reasons: guarded.rejected };
   const operations = guarded.operations;

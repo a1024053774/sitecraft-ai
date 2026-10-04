@@ -11,6 +11,37 @@ import {
 
 type FrameVariant = "thumbnail" | "preview" | "workspace" | "published" | "quality";
 type PreviewLoadState = "loading" | "ready" | "error";
+const PREVIEW_MESSAGE_TYPE_VERSION = 1;
+
+export type AnnotationCandidate = {
+  pageId: string;
+  pagePath: string;
+  templateId: string;
+  revision: number;
+  locale: Locale;
+  viewport: { width: number; height: number; device: "desktop" | "tablet" | "mobile" };
+  scroll: { x: number; y: number };
+  target: {
+    kind: "slot" | "region";
+    slot?: string;
+    section?: string;
+    itemId?: string;
+    productId?: string;
+    locale?: Locale;
+    slots?: string[];
+    primarySlot?: string;
+  };
+  rect: { x: number; y: number; width: number; height: number; space: "target-ratio" | "iframe-viewport" };
+  snapshot: { text?: string; label?: string; tag?: string; slotLabel?: string };
+  capturedAt: string;
+};
+export type AnnotationStateMessage = {
+  state: "attached" | "stale" | "ambiguous";
+  revision: number;
+  reason?: string;
+  rect?: AnnotationCandidate["rect"];
+  target?: AnnotationCandidate["target"];
+};
 
 type OpenSourceTemplateFrameProps = {
   templateId: string;
@@ -20,6 +51,8 @@ type OpenSourceTemplateFrameProps = {
   expectedTargets?: string[];
   pagePath?: string;
   offersVisitorEnglish?: boolean;
+  annotationMode?: boolean;
+  annotationTarget?: AnnotationCandidate["target"] | null;
   activePage?: {
     id: string;
     role: string;
@@ -36,6 +69,8 @@ type OpenSourceTemplateFrameProps = {
   }) => Promise<{ ok: boolean; message: string }>;
   onLocaleChange?: (locale: Locale) => void;
   onSelectTarget?: (target: string, label: string, prompt: string, slot?: string) => void;
+  onAnnotationCandidate?: (candidate: AnnotationCandidate) => void;
+  onAnnotationState?: (state: AnnotationStateMessage) => void;
   onApplyReport?: (report: {
     revision: number;
     appliedSlots: string[];
@@ -73,10 +108,14 @@ export function OpenSourceTemplateFrame({
   expectedTargets = [],
   pagePath = "",
   offersVisitorEnglish = false,
+  annotationMode = false,
+  annotationTarget = null,
   activePage,
   onInquiry,
   onLocaleChange,
   onSelectTarget,
+  onAnnotationCandidate,
+  onAnnotationState,
   onApplyReport,
   onLoadState,
 }: OpenSourceTemplateFrameProps) {
@@ -93,6 +132,11 @@ export function OpenSourceTemplateFrame({
   // The document that has already shown content. New content for it is a refresh: the page
   // stays visible under a thin bar instead of being covered while the bridge rewrites it.
   const shownFrameRef = useRef<string | null>(null);
+  const sessionIdRef = useRef(
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `preview-${Math.random().toString(36).slice(2)}`,
+  );
   const frameKey = [templateId, pagePath || "index", attempt].join(":");
   const contentRef = useRef({
     templateId,
@@ -102,6 +146,9 @@ export function OpenSourceTemplateFrame({
     variant,
     activePage,
     offersVisitorEnglish,
+    annotationMode,
+    annotationTarget,
+    sessionId: sessionIdRef.current,
   });
   contentRef.current = {
     templateId,
@@ -111,6 +158,9 @@ export function OpenSourceTemplateFrame({
     variant,
     activePage,
     offersVisitorEnglish,
+    annotationMode,
+    annotationTarget,
+    sessionId: sessionIdRef.current,
   };
 
   const clearBridgeWaiters = useCallback(() => {
@@ -134,18 +184,30 @@ export function OpenSourceTemplateFrame({
   const sendContent = useCallback(() => {
     const content = contentRef.current;
     frameRef.current?.contentWindow?.postMessage(
-      { type: "sitecraft:content", typeVersion: 1, ...content },
+      { type: "sitecraft:content", typeVersion: PREVIEW_MESSAGE_TYPE_VERSION, ...content },
       "*",
     );
   }, []);
 
+  const sendAnnotationMode = useCallback(() => {
+    frameRef.current?.contentWindow?.postMessage({
+      type: "sitecraft:annotation-mode",
+      typeVersion: PREVIEW_MESSAGE_TYPE_VERSION,
+      sessionId: sessionIdRef.current,
+      templateId,
+      enabled: contentRef.current.annotationMode === true,
+      target: contentRef.current.annotationTarget ?? undefined,
+    }, "*");
+  }, [templateId]);
+
   const handleFrameLoad = useCallback(() => {
     if (frameRef.current) frameRef.current.dataset.documentLoaded = "true";
     sendContent();
+    sendAnnotationMode();
     clearBridgeWaiters();
-    bridgeWaitersRef.current = [500, 1500, 3500, 6000].map((delay) => window.setTimeout(sendContent, delay));
+    bridgeWaitersRef.current = [500, 1500, 3500, 6000].map((delay) => window.setTimeout(() => { sendContent(); sendAnnotationMode(); }, delay));
     loadControllerRef.current?.markDocumentLoaded();
-  }, [clearBridgeWaiters, sendContent]);
+  }, [clearBridgeWaiters, sendAnnotationMode, sendContent]);
 
   useEffect(() => {
     setHydrated(false);
@@ -182,7 +244,7 @@ export function OpenSourceTemplateFrame({
       observer?.disconnect();
       clearLoadController();
     };
-  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, attempt, clearLoadController, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, offersVisitorEnglish, pagePath, reportLoadState, sendContent, templateId, variant]);
+  }, [activePage?.id, activePage?.placement, activePage?.route, activePage?.section, annotationMode, annotationTarget, attempt, clearLoadController, draft?.revision, expectedTargets.join("|"), handleFrameLoad, locale, offersVisitorEnglish, pagePath, reportLoadState, sendAnnotationMode, sendContent, templateId, variant]);
 
   useEffect(() => {
     if (variant !== "thumbnail") return;
@@ -214,8 +276,10 @@ export function OpenSourceTemplateFrame({
       if (event.source !== frameRef.current?.contentWindow) return;
       const data = event.data as {
         type?: string;
+        typeVersion?: number;
+        sessionId?: string;
         templateId?: string;
-        target?: string;
+        target?: string | AnnotationCandidate["target"];
         slot?: string;
         locale?: Locale;
         payload?: {
@@ -231,7 +295,12 @@ export function OpenSourceTemplateFrame({
         fallbackMatched?: string[];
         proposedAlternatives?: Array<{ requested: string; proposed: string }>;
         reason?: string;
+        candidate?: AnnotationCandidate;
+        state?: "attached" | "stale" | "ambiguous";
+        rect?: AnnotationCandidate["rect"];
       };
+      if (data?.typeVersion !== PREVIEW_MESSAGE_TYPE_VERSION) return;
+      if (data?.sessionId && data.sessionId !== sessionIdRef.current) return;
       if (data?.type === "sitecraft:error") {
         const raw = typeof data.reason === "string" && data.reason.trim() ? data.reason.trim() : "预览没有载入。";
         const reason = mapPreviewUpstreamReason(raw);
@@ -240,15 +309,24 @@ export function OpenSourceTemplateFrame({
       }
       if (data?.type === "sitecraft:ready" && data.templateId === templateId) {
         sendContent();
+        sendAnnotationMode();
         return;
       }
       if (data?.type === "sitecraft:locale" && data.templateId === templateId && onLocaleChange) {
         if (data.locale === "zh" || data.locale === "en") onLocaleChange(data.locale);
         return;
       }
-      if (data?.type === "sitecraft:select" && data.target && onSelectTarget) {
+      if (data?.type === "sitecraft:select" && typeof data.target === "string" && onSelectTarget) {
         const target = targetPrompts[data.target];
         if (target) onSelectTarget(data.target, target.label, target.prompt, data.slot);
+      }
+      if (data?.type === "sitecraft:annotation-candidate" && data.candidate && onAnnotationCandidate) {
+        onAnnotationCandidate(data.candidate);
+        return;
+      }
+      if (data?.type === "sitecraft:annotation-state" && data.state && onAnnotationState) {
+        onAnnotationState({ state: data.state, revision: data.revision ?? 0, reason: data.reason, rect: data.rect, target: typeof data.target === "object" ? data.target : undefined });
+        return;
       }
       if (data?.type === "sitecraft:inquiry" && data.templateId === templateId && onInquiry) {
         // The result goes back into the page so the visitor sees it next to the form.
@@ -259,7 +337,7 @@ export function OpenSourceTemplateFrame({
           message: data.payload?.message ?? "",
           honeypot: data.payload?.honeypot ?? "",
         }).then((result) => {
-          frameRef.current?.contentWindow?.postMessage({ type: "sitecraft:inquiry-result", templateId, ...result }, "*");
+          frameRef.current?.contentWindow?.postMessage({ type: "sitecraft:inquiry-result", typeVersion: PREVIEW_MESSAGE_TYPE_VERSION, sessionId: sessionIdRef.current, templateId, ...result }, "*");
         });
       }
       if (data?.type === "sitecraft:applied" && data.templateId === templateId) {
@@ -279,7 +357,7 @@ export function OpenSourceTemplateFrame({
     };
     window.addEventListener("message", receiveMessage);
     return () => window.removeEventListener("message", receiveMessage);
-  }, [draft?.revision, frameKey, onApplyReport, onInquiry, onLocaleChange, onSelectTarget, reportLoadState, sendContent, templateId]);
+  }, [draft?.revision, frameKey, onAnnotationCandidate, onAnnotationState, onApplyReport, onInquiry, onLocaleChange, onSelectTarget, reportLoadState, sendAnnotationMode, sendContent, templateId]);
 
   const previewQuery = new URLSearchParams({ v: PREVIEW_ASSET_REVISION });
   if (pagePath) previewQuery.set("pagePath", pagePath);
