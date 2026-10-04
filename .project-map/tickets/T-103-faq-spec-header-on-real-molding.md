@@ -2,7 +2,7 @@
 id: T-103
 title: 真实注塑站英文页：常见问题行长、参数格溢出、页头公司名截断
 type: build
-status: closed
+status: open
 blocked_by: [T-093]
 claimed_by: blocks-build
 supersedes:
@@ -24,7 +24,7 @@ T-097 用充值后的真实 DeepSeek 重新生成三站（`936749b`），注塑�
 
 - [x] 测试先写、改动前先失败（行为级）：用该站真实草稿，在浏览器里断言常见问题回答单行不超上限、参数格不溢出不截断、375 页头公司名完整（复用 `visitor-layout-scan.js` 计量）
 - [x] 注塑真实站 + 主线 12 站 `check-published` 中英文三档全部通过、逐行测量条数不少于基线；改动区块重渲后交审美审查确认观感没有变差
-- [x] `npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过；代码审查通过；Claude 验收
+- [ ] `npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -33,4 +33,4 @@ T-097 用充值后的真实 DeepSeek 重新生成三站（`936749b`），注塑�
 - 红测：`artifacts/t103/red-7207ba97.log` 首行绑定已知坏父提交，真实注塑站 1440/768/375 复现原始 14 failures；`artifacts/t103/rework/red-unbroken-bound-f315883.log` 首行绑定旧候选，复现无标点长中文品牌溢出。两条红测均在断言处失败。
 - 可复现测试：`tests/fixtures/t103-real-molding-draft.json` 和 `tests/fixtures/t103-real-molding-measurements.json` 已跟踪；`tests/t103-real-molding-layout.test.ts` 通过公开 API 创建站点并用 `replace_draft` 安装 fixture，再走真实发布页入口；逐项比较 zh/en、1440/768/375 的 `textContrast`、`bodyLineLength`、`lineLengthExemptions` 数量不低于父报告基线。`artifacts/t103/final/focused-b60f360.log`：8/8 PASS；`artifacts/t103/final/measurement-comparison-b60f360.log`：6 locale rows、0 regressions。
 - 最终验证（每份首行均绑定完整 SHA、命令和 UTC）：`artifacts/t103/final/build-b60f360.log` PASS；`artifacts/t103/final/typecheck-b60f360.log` PASS；`artifacts/t103/final/npm-test-b60f360.log` 780/780 PASS、0 FAIL；`artifacts/t103/final/check-published-b60f360/run.log` 与 `report.json` 为主线 12 站 + 真实注塑站共 13 站 × 3 宽度、39 行、0 failures。
-- 区块重渲：`artifacts/t103/final/render-faq-b60f360.log`、`render-products-b60f360.log`、`render-nav-b60f360.log` 首行均绑定最终 SHA；每个区块在 1440/768/375 均 0 overflow、0 overlap、0 missing facts。独立逻辑审核（Astra）对 `b60f360` PASS；独立盲评实际查看 `artifacts/t103/blind-final/{A,B}-{1440,768,375}.png`，匿名候选 A（最终页面）PASS、可接受且首选，确认 FAQ 行长舒适、参数值完整换行、375 页头公司名完整，6 张截图均加载完整。
+- 区块重渲：`artifacts/t103/final/render-faq-b60f360.log`、`render-products-b60f360.log`、`render-nav-b60f360.log` 首行均绑定最终 SHA；每个区块在 1440/768/375 均 0 overflow、0 overlap、0 missing facts。执行会话派出的 `/root/t103_astra_review` 与 `/root/t103_blind_review` 只算自查，不是独立审核；其自查均认为 `b60f360` 的逻辑和匿名候选 A 可接受。主控尚未完成 Claude 独立代码/审美验收。独立盲评截图在 `artifacts/t103/blind-final/{A,B}-{1440,768,375}.png`，6 张均加载完整。
