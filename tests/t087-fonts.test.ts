@@ -60,7 +60,7 @@ test("data roles opt into the mono token without allowing model style overrides"
 });
 
 test("committed Latin subsets keep required symbols and exclude CJK for every production kit", () => {
-  const python = "/opt/miniconda3/bin/python";
+  const python = process.env.T087_FONTTOOLS_PYTHON || (existsSync("/opt/miniconda3/bin/python") ? "/opt/miniconda3/bin/python" : "python3");
   const output = execFileSync(python, ["scripts/check-site-fonts.py"], { encoding: "utf8" });
   const report = JSON.parse(output) as { ok: boolean; kits: Record<string, { files: Array<{ has_cjk: boolean; missing_symbols: string[] }> }> };
   assert.equal(report.ok, true, output);
