@@ -2,7 +2,7 @@
 id: T-095
 title: 设备的区块布局（区块素材流水线）
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: sonnet-blocks
 supersedes:
@@ -18,7 +18,7 @@ T-081 落地了 `content.equipment`（名称、数量可空、规格可空）和
 
 - [x] 每个候选都有候选目录和审查记录；进库的布局各有测试先失败的证据（父提交上行为级失败）
 - [x] 渲染扫描溢出 / 重叠 / 资料事实缺失 / 重复目标全为 0；worktree 补齐 vendor 后 `npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过
-- [ ] 代码审查通过；合回主线后注塑设备站 `check-published` 中英文三档通过；Claude 验收
+- [x] 代码审查通过；合回主线后注塑设备站 `check-published` 中英文三档通过；Claude 验收
 
 ## Resolution
 
@@ -54,3 +54,6 @@ T-081 落地了 `content.equipment`（名称、数量可空、规格可空）和
 ### 合回主线（Claude，2026-10-03 EDT）
 - Astra 三轮：r1 NO_GO（双栏清单为无数量条目插空 span）、r2 NO_GO（只有 grid marker 的页面也被渲染并默认成 rows；同一模式 T-079 商业条款起就有）、r3 PASS（`artifacts/review-astra-t095-r3.md`：设备和商业条款都改为声明的 section + 唯一实体 + grid + 有效变体才渲染）。
 - 已合并主线 `fb3f1e2`。**最后一项未完成**：T-089 行长硬门合入后，注塑设备站 `b9074a86` 在主线上仍有产品摘要（中文）和商业条款产能值（英文）的行长失败，不在设备区块，由 T-101 处理；T-101 合并后在主工作区重跑 `check-published` 通过再关闭本票。
+
+### 关闭（Claude，2026-10-04 EDT）
+- T-101 合入后，主工作区 3034 在 `32a4ee9`（含 T-089、T-091、T-095、T-101）验证：typecheck、build 通过，全量 705/705；12 个已有站点 `check-published` 中英文三档 36 行 0 失败，行长 / 对比度逐行实测条数与 T-101 分支运行完全一致（中文页行长共 839 条、对比度 4062 条，没有空计量），T-089 硬门暴露的 16 条行长失败已清零（`artifacts/merge-32a4ee9/`）。 注塑设备站 `b9074a86` 三档通过。Claude 验收关闭。

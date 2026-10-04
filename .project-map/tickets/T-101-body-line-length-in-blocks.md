@@ -2,7 +2,7 @@
 id: T-101
 title: 区块库正文段落守住 T-089 的行长上限
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: sonnet-blocks
 supersedes:
@@ -36,3 +36,5 @@ T-089 把发布页正文行长（中文约 40 字、英文约 75 字单行）升
   - `typecheck`、`build` 通过（`t101/build.txt`）。
 - 文档：`spec.md` 加了「正文行长」一条（上限、并排、断行规则），MAP 里 spec 的 Verified 改为 `c4834d3`。`mainline.md`、`CONTEXT.md` 不涉及。
 
+### 合回主线与验收（Claude，2026-10-04 EDT）
+- 审美两轮 REVISE → ACCEPT（`t101/review-1.md`、`review-2.md`）；Astra PASS（`artifacts/review-astra-t101.md`，并核对报告里行长实测 1924 条、对比度 8061 条，确认不是空扫描）。合并主线 `32a4ee9`。主工作区 3034 在 `32a4ee9`（含 T-089、T-091、T-095、T-101）验证：typecheck、build 通过，全量 705/705；12 个已有站点 `check-published` 中英文三档 36 行 0 失败，行长 / 对比度逐行实测条数与 T-101 分支运行完全一致（中文页行长共 839 条、对比度 4062 条，没有空计量），T-089 硬门暴露的 16 条行长失败已清零（`artifacts/merge-32a4ee9/`）。 Claude 验收关闭。
