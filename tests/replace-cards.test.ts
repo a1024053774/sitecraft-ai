@@ -51,7 +51,7 @@ registerHooks({
   },
 });
 const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
-const { commitOperations, getSite, moveHistory } = await import("../lib/site-store.ts");
+const { commitOperations, createSite, moveHistory } = await import("../lib/site-store.ts");
 const sites = new Set<string>();
 test.after(async () => {
   globalThis.fetch = originalFetch;
@@ -108,16 +108,16 @@ test("undo puts the previous list back exactly, the English flag too", () => {
 test("undo and redo through the saved history", async () => {
   const siteId = `t059cards-${crypto.randomUUID()}`;
   sites.add(siteId);
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   await commitOperations({ siteId, baseRevision: initial.draft.revision, source: "manual", summary: "注塑资料", operations: [{ op: "replace_draft", draft: { ...packDraft("molding"), revision: initial.draft.revision } }] });
-  const seeded = await getSite(siteId);
+  const seeded = await createSite(siteId);
   const committed = await commitOperations({ siteId, baseRevision: seeded.draft.revision, source: "ai", summary: "写入常见问题", operations: [replaceFaq()] });
   assert.equal(committed.status, "applied");
-  assert.equal((await getSite(siteId)).draft.content.faq.items.length, 5);
+  assert.equal((await createSite(siteId)).draft.content.faq.items.length, 5);
   assert.equal((await moveHistory(siteId, "undo")).status, "applied");
-  assert.deepEqual((await getSite(siteId)).draft.content.faq.items, seeded.draft.content.faq.items);
+  assert.deepEqual((await createSite(siteId)).draft.content.faq.items, seeded.draft.content.faq.items);
   assert.equal((await moveHistory(siteId, "redo")).status, "applied");
-  assert.deepEqual((await getSite(siteId)).draft.content.faq.items, items());
+  assert.deepEqual((await createSite(siteId)).draft.content.faq.items, items());
 });
 
 test("the operation takes the draft's own limit: twelve entries, unique ids, only card groups", () => {

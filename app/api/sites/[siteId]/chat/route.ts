@@ -26,7 +26,7 @@ import {
   type ConversationRecord,
   type ConversationTurnOutcome,
 } from "@/lib/conversation-store";
-import { commitOperations, getExistingSite, getSite, snapshot } from "@/lib/site-store";
+import { commitOperations, getExistingSite, snapshot } from "@/lib/site-store";
 import { ensureProductIds, visualBriefCatalog, type PaletteId } from "@/lib/site-document";
 import { templates } from "@/lib/site-model";
 import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
@@ -116,6 +116,9 @@ function alignmentError(error: unknown) {
     }, { status: error.status });
   }
   const message = error instanceof Error ? error.message : "需求对齐失败";
+  if (message.startsWith("Site not found:")) {
+    return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
+  }
   if (message === "Conversation not found") {
     const description = describeUserError({ code: "conversation_not_found" });
     return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery }, { status: 404 });
@@ -178,8 +181,10 @@ async function planPromptStart(siteId: string, args: {
   if (process.env.NODE_ENV === "test" && /\b(?:ALIGN|RECOVERY|CLAIM|UNDONE|LATE)_[A-Z0-9_]+\b/.test(args.message)) {
     return { ok: true as const, startQuestion: undefined as CurrentQuestion | null | undefined };
   }
-  let current;
-  current = await getSite(siteId);
+  const current = await getExistingSite(siteId);
+  if (!current) {
+    return { ok: false as const, response: Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 }) };
+  }
   if (current.draft.revision !== args.baseRevision) {
     return {
       ok: false as const,
@@ -297,8 +302,8 @@ async function continueSavedTask(siteId: string, conversationId: string, runId: 
     event(controller, { type: "done", status: "alignment", ...payload });
     return;
   }
-  let current;
-  current = await getSite(siteId);
+  const current = await getExistingSite(siteId);
+  if (!current) throw new Error(`Site not found: ${siteId}`);
   const uploadedImage = pending?.imageId ? await readSiteImage(siteId, pending.imageId) : null;
   if (pending?.imageId && !uploadedImage) throw new Error("待继续的产品图不存在，请重新上传后再试。");
   // Plan on the look and colour set picked in the card, applied in memory only: the model then gets
@@ -415,8 +420,8 @@ async function recoverCommittedProposal(siteId: string, conversation: Conversati
   const alignment = conversation.alignment;
   const proposal = alignment.proposedChange;
   if (!alignment.confirmClaimed || alignment.lastResult || !proposal) return conversation;
-  let current;
-  current = await getSite(siteId);
+  const current = await getExistingSite(siteId);
+  if (!current) throw new Error(`Site not found: ${siteId}`);
   const receipt = current.history.find((change) => change.id === proposal.questionId);
   if (!receipt) return conversation;
   return updateConversationAlignment(siteId, conversation.conversationId, (record) => {
@@ -440,7 +445,8 @@ async function emitRecordedResult(siteId: string, conversationId: string, record
     return;
   }
   if (result.status === "applied" || result.status === "no_change" || result.status === "conflict") {
-    const current = await getSite(siteId);
+    const current = await getExistingSite(siteId);
+    if (!current) throw new Error(`Site not found: ${siteId}`);
     event(controller, {
       type: "done",
       status: result.status,
@@ -686,8 +692,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     const description = describeUserError({ code: "invalid_payload" });
     return Response.json({ error: description.code, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery, details: parsed.error.flatten() }, { status: 400 });
   }
-  let current;
-  current = await getSite(siteId);
+  const current = await getExistingSite(siteId);
+  if (!current) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
   if (current.draft.revision !== parsed.data.baseRevision) {
     const description = describeUserError({ code: "revision_conflict" });
     return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery, ...current }, { status: 409 });

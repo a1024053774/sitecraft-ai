@@ -23,6 +23,7 @@ const draftRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/
 const chatRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href);
 const qualityRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/quality/cells/route.ts")).href);
 const sitesRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/route.ts")).href);
+const siteStore = await import("../lib/site-store.ts");
 const base = process.env.SITECRAFT_BASE || "http://127.0.0.1:3062";
 
 const missingIds = [
@@ -51,6 +52,20 @@ test("PUT draft for a missing site returns 404 without creating a record", async
     body: JSON.stringify({ baseRevision: 1, operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "T102" }], summary: "T102 missing", source: "manual" }),
   }), { params: Promise.resolve({ siteId }) });
   assert.equal(response.status, 404);
+  assert.equal(existsSync(sitePath(siteId)), false);
+});
+
+test("store commit and history paths reject a missing site instead of creating it", async () => {
+  const siteId = `t102-store-${crypto.randomUUID().slice(0, 8)}`;
+  await assert.rejects(() => siteStore.commitOperations({
+    siteId,
+    baseRevision: 1,
+    operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "T102" }],
+    summary: "T102 missing store",
+    source: "manual",
+  }), /Site not found/);
+  await assert.rejects(() => siteStore.moveHistory(siteId, "undo"), /Site not found/);
+  assert.equal(await siteStore.getExistingSite(siteId), null);
   assert.equal(existsSync(sitePath(siteId)), false);
 });
 

@@ -56,7 +56,7 @@ async function assertStoreSummary(mode: "fs" | "postgres", suffix: string) {
   const store = await import(`${storePath}?t070-${mode}-${suffix}`) as typeof import("../lib/site-store.ts");
   const siteId = `t070-${mode}-${crypto.randomUUID()}`;
   siteIds.push(siteId);
-  const before = await store.getSite(siteId);
+  const before = await store.createSite(siteId);
   const committed = await store.commitOperations({
     siteId,
     baseRevision: before.draft.revision,
@@ -67,7 +67,7 @@ async function assertStoreSummary(mode: "fs" | "postgres", suffix: string) {
   assert.equal(committed.status, "applied");
   if (committed.status !== "applied") throw new Error("expected applied change");
   assert.equal(committed.changeSet.summary, "已更新：首屏标题。");
-  const reread = await store.getSite(siteId);
+  const reread = await store.createSite(siteId);
   assert.equal(reread.history[0]?.summary, committed.changeSet.summary);
   summaries.add(reread.history[0]?.summary ?? "");
 }

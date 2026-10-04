@@ -27,7 +27,7 @@ registerHooks({
 const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
 };
-const { commitOperations, getSite } = await import("../lib/site-store.ts");
+const { commitOperations, createSite } = await import("../lib/site-store.ts");
 
 const created: string[] = [];
 
@@ -52,7 +52,7 @@ function seedOperations(packId: "industrial" | "export" | "molding", sparse = fa
 async function runRecommendation(packId: "industrial" | "export", sparse = false) {
   const siteId = `t072-behavior-${packId}-${crypto.randomUUID()}`;
   created.push(siteId);
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const imported = await commitOperations({
     siteId,
     baseRevision: before.draft.revision,
@@ -61,7 +61,7 @@ async function runRecommendation(packId: "industrial" | "export", sparse = false
     operations: seedOperations(packId, sparse),
   });
   assert.equal(imported.status, "applied");
-  const current = await getSite(siteId);
+  const current = await createSite(siteId);
   const response = await POST(new Request(`http://sitecraft.test/api/sites/${siteId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

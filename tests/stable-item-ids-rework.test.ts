@@ -23,7 +23,7 @@ registerHooks({
 });
 
 const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
-const { getSite, migratePostgresRecordIfNeeded, moveHistory } = await import("../lib/site-store.ts");
+const { createSite, migratePostgresRecordIfNeeded, moveHistory } = await import("../lib/site-store.ts");
 
 const options = { templateIds: new Set(["forge", "screwfast"]), lastChange: "T-069 rework" };
 const text = (value: string) => ({ zh: value, en: value });
@@ -156,7 +156,7 @@ test("legacy history migrates index and sku operations before undo and redo", as
   await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
   await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
   try {
-    const before = await getSite(siteId);
+    const before = await createSite(siteId);
     const undone = await moveHistory(siteId, "undo");
     assert.equal(undone.status, "applied");
     assert.equal(undone.record.draft.content.services.items[1].title.zh, "第二张");
@@ -252,7 +252,7 @@ test("v2 dotted SKU history migrates A.B and A.B.C operations, inverse, and targ
   await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
   await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
   try {
-    const loaded = await getSite(siteId);
+    const loaded = await createSite(siteId);
     assert.equal(loaded.draft.products[0].id, "product-a");
     const persisted = JSON.parse(await (await import("node:fs/promises")).readFile(recordPath, "utf8"));
     assert.equal(persisted.historySchemaVersion, 3);
@@ -280,7 +280,7 @@ test("duplicate SKU in a legacy target reports a migration error instead of choo
   await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
   await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
   try {
-    await assert.rejects(() => getSite(siteId), new RegExp(`site=${siteId}.*DUP`));
+    await assert.rejects(() => createSite(siteId), new RegExp(`site=${siteId}.*DUP`));
   } finally {
     await unlink(recordPath).catch(() => {});
   }
@@ -299,7 +299,7 @@ test("missing SKU in a legacy applied target reports a migration error", async (
   await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
   await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
   try {
-    await assert.rejects(() => getSite(siteId), new RegExp(`site=${siteId}.*MISSING`));
+    await assert.rejects(() => createSite(siteId), new RegExp(`site=${siteId}.*MISSING`));
   } finally {
     await unlink(recordPath).catch(() => {});
   }
@@ -348,7 +348,7 @@ test("legacy add/remove aggregate targets migrate from card indexes to stable id
   await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
   await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
   try {
-    await getSite(siteId);
+    await createSite(siteId);
     const persisted = JSON.parse(await (await import("node:fs/promises")).readFile(recordPath, "utf8"));
     assert.deepEqual(persisted.history.map((change: { appliedTargets: string[] }) => change.appliedTargets), [
       ["services.items.aggregate-added"],
@@ -368,7 +368,7 @@ test("legacy dotted item ids fail with a site-specific migration error before de
   await (await import("node:fs/promises")).mkdir(path.dirname(recordPath), { recursive: true });
   await (await import("node:fs/promises")).writeFile(recordPath, JSON.stringify(raw), "utf8");
   try {
-    await assert.rejects(() => getSite(siteId), new RegExp(`site=${siteId}.*legacy\\.dot`));
+    await assert.rejects(() => createSite(siteId), new RegExp(`site=${siteId}.*legacy\\.dot`));
   } finally {
     await unlink(recordPath).catch(() => {});
   }

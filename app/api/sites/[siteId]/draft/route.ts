@@ -48,6 +48,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ site
       ...snapshot(result.record),
     });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Site not found:")) {
+      return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
+    }
     const description = describeUserError({ code: "operation_error" });
     return Response.json({ error: description.code, userMessage: description.message, recovery: description.recovery }, { status: 422 });
   }

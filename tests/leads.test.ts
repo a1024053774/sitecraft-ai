@@ -33,7 +33,7 @@ registerHooks({
 });
 
 const { createLead, LeadStoreError, listLeads } = await import("../lib/lead-store.ts") as typeof import("../lib/lead-store.ts");
-const { getExistingSite, getSite } = await import("../lib/site-store.ts") as typeof import("../lib/site-store.ts");
+const { getExistingSite, createSite } = await import("../lib/site-store.ts") as typeof import("../lib/site-store.ts");
 const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/public/[siteKey]/leads/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteKey: string }> }) => Promise<Response>;
 };
@@ -73,8 +73,8 @@ test("unknown site keys are not created when an inquiry is refused", async () =>
 test("a saved inquiry rereads the same payload and stays on its site", async () => {
   const siteA = uniqueSiteId();
   const siteB = uniqueSiteId();
-  await getSite(siteA);
-  await getSite(siteB);
+  await createSite(siteA);
+  await createSite(siteB);
   const message = "P5LEAD-STORE-HX7K 只要这一条原文";
   const saved = await createLead({
     siteId: siteA,
@@ -101,7 +101,7 @@ test("a saved inquiry rereads the same payload and stays on its site", async () 
 
 test("public POST persists one inquiry that the inbox GET can read", async () => {
   const siteId = uniqueSiteId();
-  await getSite(siteId);
+  await createSite(siteId);
   const message = "P5LEAD-ROUTE-HX7K 发布页发出去必须能读到";
   const created = await POST(new Request(`http://sitecraft.test/api/public/${siteId}/leads`, {
     method: "POST",
@@ -129,7 +129,7 @@ test("public POST persists one inquiry that the inbox GET can read", async () =>
 
 test("honeypot receipts are accepted without writing an inbox row", async () => {
   const siteId = uniqueSiteId();
-  await getSite(siteId);
+  await createSite(siteId);
   const created = await POST(new Request(`http://sitecraft.test/api/public/${siteId}/leads`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { requestPreviewReview, requestStructuredOperations } from "./ai-provider.ts";
 import { defaultDraft } from "./site-document.ts";
-import { commitOperations, getSite } from "./site-store.ts";
+import { commitOperations, getExistingSite } from "./site-store.ts";
 import { inspectPreviewScreenshot, type PreviewReview } from "./preview-vision.ts";
 import type { SiteOperation } from "./site-operations.ts";
 import { userFacingError } from "./user-errors.ts";
@@ -60,6 +60,12 @@ export type QualityCellResult = {
 
 function resultPath(cellId: string) {
   return path.join(resultRoot, `${cellId}.json`);
+}
+
+async function requireQualitySite(siteId: string) {
+  const site = await getExistingSite(siteId);
+  if (!site) throw new Error(`site_not_found:${siteId}`);
+  return site;
 }
 
 export async function readQualityResult(cellId: string): Promise<QualityCellResult | null> {
@@ -312,7 +318,7 @@ export async function runQualityCell(args: {
   let error: string | undefined;
 
   const fail = async (message: string, extra?: Partial<QualityCellResult>): Promise<QualityCellResult> => {
-    const snapshot = await getSite(cell.siteId);
+    const snapshot = await requireQualitySite(cell.siteId);
     const errorCode = extra?.errorCode;
     const result: QualityCellResult = {
       cellId: cell.cellId,
@@ -344,7 +350,7 @@ export async function runQualityCell(args: {
   };
 
   try {
-    let current = await getSite(cell.siteId);
+    let current = await requireQualitySite(cell.siteId);
     if (!args.reviewOnly) {
       const resetOps: SiteOperation[] = [
         { op: "replace_draft", draft: structuredClone(defaultDraft) },
@@ -355,7 +361,7 @@ export async function runQualityCell(args: {
         steps.push({ name: "reset", status: "fail", detail: "revision conflict" });
         return fail("草稿版本冲突，未覆盖已有结果", { errorCode: "revision_conflict" });
       }
-      current = await getSite(cell.siteId);
+      current = await requireQualitySite(cell.siteId);
       steps.push({
         name: "reset",
         status: "ok",
@@ -384,7 +390,7 @@ export async function runQualityCell(args: {
         steps.push({ name: "generate", status: "fail", detail: "revision conflict" });
         return fail("生成时草稿已被更新", { errorCode: "revision_conflict" });
       }
-      current = await getSite(cell.siteId);
+      current = await requireQualitySite(cell.siteId);
       steps.push({
         name: "generate",
         status: generated.status === "applied" ? "ok" : "fail",
@@ -394,7 +400,7 @@ export async function runQualityCell(args: {
       });
       if (generated.status !== "applied") return fail("生成没有产生可保存的草稿修改", { errorCode: "operation_error" });
     } else {
-      current = await getSite(cell.siteId);
+      current = await requireQualitySite(cell.siteId);
       if (!draftShowsPackNonce(current.draft, pack)) {
         steps.push({ name: "generate", status: "fail", detail: "missing nonce" });
         return fail("还没有生成结果，不能只审查", { errorCode: "operation_error" });
@@ -463,7 +469,7 @@ export async function runQualityCell(args: {
               steps.push({ name: `fix-${round + 1}`, status: "skip", detail: fixed.status });
               break;
             }
-            current = await getSite(cell.siteId);
+            current = await requireQualitySite(cell.siteId);
             fixRounds += 1;
             model = fixer.model;
             steps.push({ name: `fix-${round + 1}`, status: "ok", detail: `targets=${fixed.changeSet.appliedTargets.join(",")}` });
@@ -475,7 +481,7 @@ export async function runQualityCell(args: {
       steps.push({ name: "review", status: "skip", detail: `${cell.group} 不审查` });
     }
 
-    const snapshot = await getSite(cell.siteId);
+    const snapshot = await requireQualitySite(cell.siteId);
     const nonceVisible = draftShowsPackNonce(snapshot.draft, pack);
     const result: QualityCellResult = {
       cellId: cell.cellId,

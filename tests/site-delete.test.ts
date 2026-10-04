@@ -42,7 +42,7 @@ registerHooks({
 
 const { createLead } = await import("../lib/lead-store.ts") as typeof import("../lib/lead-store.ts");
 const { createConversation } = await import("../lib/conversation-store.ts") as typeof import("../lib/conversation-store.ts");
-const { getExistingSite, getSite } = await import("../lib/site-store.ts") as typeof import("../lib/site-store.ts");
+const { getExistingSite, createSite } = await import("../lib/site-store.ts") as typeof import("../lib/site-store.ts");
 const { deleteSiteByUserChoice, SiteDeleteError } = await import("../lib/site-delete.ts") as typeof import("../lib/site-delete.ts");
 const { DELETE } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/route.ts")).href) as {
   DELETE: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
@@ -64,7 +64,7 @@ test("site-delete tests require the development-file driver", () => {
 
 test("a mismatched confirmation leaves the site, conversation and inquiry in place", async () => {
   const siteId = uniqueSiteId();
-  await getSite(siteId);
+  await createSite(siteId);
   await createConversation(siteId);
   await createLead({
     siteId,
@@ -88,7 +88,7 @@ test("a mismatched confirmation leaves the site, conversation and inquiry in pla
 
 test("typing the site id deletes draft, conversation and inquiry without recreating them", async () => {
   const siteId = uniqueSiteId();
-  await getSite(siteId);
+  await createSite(siteId);
   await createConversation(siteId);
   await createLead({
     siteId,
@@ -106,7 +106,7 @@ test("typing the site id deletes draft, conversation and inquiry without recreat
 
 test("DELETE without a matching confirmSiteId does not remove the site file", async () => {
   const siteId = uniqueSiteId();
-  await getSite(siteId);
+  await createSite(siteId);
   const refused = await DELETE(new Request(`http://sitecraft.test/api/sites/${siteId}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },

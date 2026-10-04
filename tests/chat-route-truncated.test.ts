@@ -55,7 +55,7 @@ registerHooks({
 const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
 };
-const { commitOperations, getSite } = await import("../lib/site-store.ts");
+const { commitOperations, createSite } = await import("../lib/site-store.ts");
 
 const created = new Set<string>();
 function uniqueSiteId() {
@@ -88,13 +88,13 @@ async function postChat(siteId: string, body: Record<string, unknown>) {
 
 async function generatedSite() {
   const siteId = uniqueSiteId();
-  const initial = await getSite(siteId);
+  const initial = await createSite(siteId);
   const seeded = await commitOperations({
     siteId, baseRevision: initial.draft.revision, source: "manual", summary: "P3I 资料",
     operations: [{ op: "replace_draft", draft: { ...packDraft("industrial"), revision: initial.draft.revision } }],
   });
   assert.equal(seeded.status, "applied");
-  return { siteId, draft: (await getSite(siteId)).draft };
+  return { siteId, draft: (await createSite(siteId)).draft };
 }
 
 test("a chat edit cut off at the token budget says so, once, and changes nothing", async () => {
@@ -106,24 +106,24 @@ test("a chat edit cut off at the token budget says so, once, and changes nothing
   assert.equal(result.done?.code, "truncated");
   assert.equal(result.done?.error, "这次生成被截断，没有改动草稿。");
   assert.match(String(result.done?.userMessage), /^这次生成被截断，没有改动草稿。.*重试/);
-  assert.equal((await getSite(siteId)).draft.revision, draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, draft.revision);
 });
 
 test("an alignment planning answer cut off at the token budget says so", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   requests = 0;
   const result = await postChat(siteId, { action: "start", message: "我们做重载减速机，想做官网", baseRevision: before.draft.revision });
   assert.equal(requests, 1, "the cut-off planning answer is not retried");
   assert.equal(result.response.status, 502);
   assert.equal(result.done?.error, "truncated");
   assert.equal(result.done?.userMessage, "需求对齐规划被截断，原需求没有修改草稿，可以重试。");
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 });
 
 test("an alignment generation answer cut off at the token budget says so and keeps the task", async () => {
   const siteId = uniqueSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   // ALIGN_ skips the planner (test fixtures drive the later stages with the stubbed provider).
   const started = await postChat(siteId, { action: "start", message: `ALIGN_TRUNCATED_6101\n${simulatedPacks.industrial.body}`, baseRevision: before.draft.revision });
   const conversationId = String(started.done?.conversationId);
@@ -142,5 +142,5 @@ test("an alignment generation answer cut off at the token budget says so and kee
   assert.equal(generated.done?.status, "error", JSON.stringify(generated.done).slice(0, 300));
   assert.equal(generated.done?.code, "truncated");
   assert.match(String(generated.done?.userMessage), /^这次生成被截断，没有改动草稿。/);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
 });

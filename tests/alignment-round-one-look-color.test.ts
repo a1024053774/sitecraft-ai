@@ -91,7 +91,7 @@ registerHooks({
 const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
 };
-const { commitOperations, getSite } = await import("../lib/site-store.ts");
+const { commitOperations, createSite } = await import("../lib/site-store.ts");
 const { colorSetCatalog, paletteIds } = await import("../lib/site-document.ts");
 
 const created: string[] = [];
@@ -129,7 +129,7 @@ test.after(async () => {
 
 test("a new site gets the look and color-set card even when the planner says ready", async () => {
   const siteId = newSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   assert.equal(before.hasGeneratedContent, false);
   const started = await postChat(siteId, { action: "start", message: `${READY} 我们做重载减速机，想做官网。`, baseRevision: before.draft.revision });
   const questions = (started.done?.questions ?? []) as CardQuestion[];
@@ -137,12 +137,12 @@ test("a new site gets the look and color-set card even when the planner says rea
   const color = questions.find((item) => item.field === "colorSet")!;
   assert.ok(color.options.length >= 2 && color.options.length <= 4);
   for (const option of color.options) assert.ok(catalogOptionIds.has(option.id), `color option ${option.id} is not a catalog color set`);
-  assert.equal((await getSite(siteId)).draft.revision, before.draft.revision, "asking must not change the draft");
+  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision, "asking must not change the draft");
 });
 
 test("invented color sets are replaced by catalog sets, and the chosen look and palette reach the draft", async () => {
   const siteId = newSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const started = await postChat(siteId, { action: "start", message: `${INVENTED} 我们做液压快换接头的外贸 B2B。`, baseRevision: before.draft.revision });
   const conversationId = String(started.done?.conversationId);
   const questions = (started.done?.questions ?? []) as CardQuestion[];
@@ -173,7 +173,7 @@ test("invented color sets are replaced by catalog sets, and the chosen look and 
     questionRevision: Number(restored.done?.questionRevision),
   });
   assert.equal(confirmed.response.status, 200);
-  const after = await getSite(siteId);
+  const after = await createSite(siteId);
   assert.equal(after.draft.visualBrief.id, "export-catalog");
   assert.equal(after.draft.paletteId, "export-graphite");
   assert.ok((paletteIds as readonly string[]).includes(after.draft.paletteId));
@@ -181,12 +181,12 @@ test("invented color sets are replaced by catalog sets, and the chosen look and 
 
 test("a site that was already generated is not re-asked the full card when the planner says ready", async () => {
   const siteId = newSiteId();
-  const first = await getSite(siteId);
+  const first = await createSite(siteId);
   await commitOperations({
     siteId, baseRevision: first.draft.revision, summary: "earlier generation", source: "ai",
     operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "已生成的首屏" }],
   });
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   assert.equal(before.hasGeneratedContent, true);
   const started = await postChat(siteId, { action: "start", message: `${READY} 把首屏标题改短一点。`, baseRevision: before.draft.revision });
   const questions = (started.done?.questions ?? []) as CardQuestion[];
@@ -195,14 +195,14 @@ test("a site that was already generated is not re-asked the full card when the p
 
 test("after the confirmed plan is applied, the next ordinary edit applies without another confirmation", async () => {
   const siteId = newSiteId();
-  const before = await getSite(siteId);
+  const before = await createSite(siteId);
   const started = await postChat(siteId, { action: "start", message: `${READY} 我们做重载减速机，想做官网。`, baseRevision: before.draft.revision });
   const conversationId = String(started.done?.conversationId);
   const questions = (started.done?.questions ?? []) as CardQuestion[];
   const selections = questions.map((item) => ({ questionId: item.questionId, optionId: item.field === "style" ? "engineering-industrial" : "colorSet:graphite" }));
   const submitted = await postChat(siteId, { action: "select", conversationId, questionId: String(started.done?.questionId), questionRevision: Number(started.done?.questionRevision), selections });
   await postChat(siteId, { action: "confirm", conversationId, questionId: String(submitted.done?.questionId), questionRevision: Number(submitted.done?.questionRevision) });
-  const generated = await getSite(siteId);
+  const generated = await createSite(siteId);
   assert.equal(generated.hasGeneratedContent, true);
   const restored = await postChat(siteId, { action: "state", conversationId });
   assert.equal(restored.done?.alignment?.enabled, false, "the full interview ends once its plan is applied");
@@ -211,5 +211,5 @@ test("after the confirmed plan is applied, the next ordinary edit applies withou
   // The workspace sends ordinary edits through the normal chat entry once alignment is off.
   const edit = await postChat(siteId, { message: "EDIT_AFTER_0928 把首屏标题改成：重载减速机，按图定制", baseRevision: generated.draft.revision, conversationId });
   assert.equal(edit.done?.status, "applied");
-  assert.equal((await getSite(siteId)).draft.revision, generated.draft.revision + 1);
+  assert.equal((await createSite(siteId)).draft.revision, generated.draft.revision + 1);
 });
