@@ -449,7 +449,7 @@ function localizedValue(draft: SiteDraft, target: TextTarget) {
   return values[target];
 }
 
-function readText(draft: SiteDraft, target: TextTarget, locale: Locale) {
+export function readText(draft: SiteDraft, target: TextTarget, locale: Locale) {
   if (target === "siteName") return draft.siteName;
   if (target === "companyName") return draft.companyName;
   if (target === "industry") return typeof draft.industry === "string" ? draft.industry : draft.industry[locale];
@@ -459,7 +459,7 @@ function readText(draft: SiteDraft, target: TextTarget, locale: Locale) {
   return localizedValue(draft, target)?.[locale] ?? "";
 }
 
-function writeText(draft: SiteDraft, target: TextTarget, locale: Locale, value: string) {
+export function writeText(draft: SiteDraft, target: TextTarget, locale: Locale, value: string) {
   if (target === "siteName") draft.siteName = value;
   else if (target === "companyName") draft.companyName = value;
   else if (target === "industry") {

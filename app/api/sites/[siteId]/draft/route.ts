@@ -12,6 +12,7 @@ const updateSchema = z.object({
   operations: z.array(siteOperationSchema).min(1).max(25),
   summary: z.string().min(1).max(500),
   source: z.enum(["import", "manual", "migration", "template"]),
+  annotationId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/).optional(),
 });
 
 export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
