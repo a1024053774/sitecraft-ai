@@ -4,7 +4,7 @@ title: 预览上点选批注，到模型只改这一处、能单独撤销
 type: build
 status: open
 blocked_by: [T-085, T-081]
-claimed_by:
+claimed_by: codex-t086
 supersedes:
 ---
 
@@ -19,8 +19,14 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 测试先写，并在父提交上能加载、在断言处失败：点中的产品卡在其他产品删除或重排后仍指向原产品；目标消失时显示 stale 且模型不提交；圈中多个目标时未指定主目标不允许修改
-- [ ] 端到端（真实 DeepSeek，工作区自己的 dev 端口和 `SITECRAFT_BASE`）：1440 / 768 / 375 各走一次「点产品卡 → 写一句批注 → 模型只改这张卡 → 单独撤销 → 后续改同一处后再撤显示冲突」，截图和批注、修改记录 JSON 存 `artifacts/t086/`，每张截图打开看过
-- [ ] spec.md、CONTEXT.md 与实现一致；`npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 测试先写，并在父提交上能加载、在断言处失败：点中的产品卡在其他产品删除或重排后仍指向原产品；目标消失时显示 stale 且模型不提交；圈中多个目标时未指定主目标不允许修改
+- [x] 端到端（真实 DeepSeek，工作区自己的 dev 端口和 `SITECRAFT_BASE`）：1440 / 768 / 375 各走一次「点产品卡 → 写一句批注 → 模型只改这张卡 → 单独撤销 → 后续改同一处后再撤显示冲突」，截图和批注、修改记录 JSON 存 `artifacts/t086/`，每张截图打开看过
+- [x] spec.md、CONTEXT.md 与实现一致；`npm run typecheck`、`npm test`、`npm run build` 通过；[ ] 代码审查；[ ] Claude 验收
 
 ## Resolution
+
+2026-10-04（America/New_York），`t086-annotation-preview`。实现了预览桥批注捕获与唯一槽位重定位、session/typeVersion iframe 协议、工作台三档批注抽屉、可信边界上的 AI 定位上下文、attached/stale/ambiguous 提交门和选择性撤销 API。产品卡按 `data-sitecraft-product-id` 与 `products.<productId>` 稳定寻址；型号索引表保留 specs 槽位唯一命中。
+
+证据：`node --test tests/t086-annotation-tracer.test.ts tests/preview-failure.test.ts` 通过；`artifacts/t086/fulltest-r3.txt` 为 774/774；`artifacts/t086/typecheck-r3.txt`、`artifacts/t086/build-r3.txt` 通过；`artifacts/t086/annotation-check-r3.json` 为三档 attached PASS，截图 `annotation-r3-1440/768/375.png` 已打开；`artifacts/t086/real-chain-r2.json` 为三档 `model=ai / undo=applied / manual=applied / conflict=conflict`，冲突目标非空，截图与批注记录在 `artifacts/t086/real-*.png`、`real-sites-r2.json`；`artifacts/t086/modification-real.json` 为真实 DeepSeek `deepseek-flash` applied revision 4；旧的未配置失败和第一轮 no-op 证据分别保留在 `modification.json`、`real-chain.json`。
+
+12 站发布检查 `artifacts/t086/mainline-r3.log` / `mainline-r3-incomplete.json` 标为 INCOMPLETE：首两个站点连续等待英文 locale 超过 15 分钟，未生成 `report.json`；仅中断自己的 runner shell，未杀 Chrome。原始 fulltest 773/763/10 仍在 `fulltest.txt`，vendor 补齐后的中间 771/2 在 `fulltest-r2.txt`，对应失败归因为协议源代码断言和可见开发标签，已在 r3 清零。

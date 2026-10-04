@@ -55,6 +55,7 @@
 - **卡片稳定寻址**：features、services、faq 等卡片用草稿里的 `id` 作为预览槽位和选中目标的一部分（`<section>.items.<id>.<title|body>`）；卡片的插入位置仍可作为 `add_card` 的布局参数，但修改、删除、撤销不按位置寻找卡片。
 - **历史迁移**：旧 history/future 中的卡片序号和产品 SKU 只在文件读入时按当时草稿状态迁移成 `itemId` / `productId`，同时迁移 inverse 和 appliedTargets，并把 v1/v2 一次性升级到 `historySchemaVersion: 3` 后持久化；undo/redo 运行时只接受稳定 id operation。旧数据无法安全迁移时抛带站点、字段和旧值的 `SiteMigrationError`，让请求失败并保留原记录，走已有通用错误路径。预览桥遇到缺 id 只报告 missing，不自行推导地址。
 - **批注**：独立于草稿的站点线程，记录页面、语言、草稿 revision、视口、文字快照和当前指向；状态只有 `open` / `resolved`。锚点只认 `data-sitecraft-slot` 与 T-069 的稳定 `itemId` / `productId`，单目标是 slot，圈选可记录多个 slot 和用户指定的 `primarySlot`，不能按文字、序号或 selector 猜写。当前指向明确为 `attached`、`stale` 或 `ambiguous`；快照是不可信上下文，截图只由用户主动保存。批注存于 `.sitecraft-data/annotations/<siteId>.json` 或同契约的 Postgres 表，不改草稿 revision；删除只响应用户明确操作。
+- **批注消息会话**：预览 iframe 与宿主消息带 `typeVersion` 和当前 `sessionId`；iframe 重载后宿主重新发送内容与批注模式。桥接只报告声明槽位，产品卡的槽位和 `productId` 稳定；工作台只把 `attached` 且有明确 `primarySlot` 的批注交给白名单 operation。
 - **批注事务撤销**：带 `annotationId` 的 change set 为单字段 operation 保存修改后的 postcondition。选择性撤销逐个核对当前值，未被后来修改的目标生成逆 operation 并再次走 `commitOperations`，后来改过的目标保留并返回冲突目标；`replace_cards`、`replace_products`、`replace_commercial_terms`、`replace_draft` 等整组替换明确不支持挑着撤。
 - **设计意图（visualBrief）**：草稿里记录所选样子和设计取向的结构化数据。设计选择必须体现在这里、adapter 或 operation 上，只改提示词不算。
 
