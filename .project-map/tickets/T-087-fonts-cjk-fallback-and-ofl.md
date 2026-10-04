@@ -18,9 +18,9 @@ supersedes:
 
 ## Acceptance
 
-- [x] 测试先写，并在父提交上能加载、在断言处失败：四个样子的字体栈都含中文回退；发布页没有外部字体请求；数据角色使用等宽字体（红测见 `artifacts/t087-red.txt`、`artifacts/t087-red-en.txt`；最终测试见 `artifacts/t087/fulltest-final.txt`）
-- [x] 四个样子 × 1440 / 768 / 375 截图（中英文各一套），对比改动前后，存 `artifacts/t087/`，每张打开看过；三家 `check-published` 通过（截图见 `artifacts/t087/before/`、`artifacts/t087/after/` 和 `artifacts/t087/contact-sheets/`；发布检查见 `artifacts/t087/published-check-final/report.json`）
-- [x] `npm run typecheck`、`npm test`（经 `fulltest.sh`）、`npm run build` 通过（`artifacts/t087/fulltest-final.txt`）
+- [x] 测试先写，并在父提交上能加载、在断言处失败：四个样子的字体栈都含中文回退；发布页没有外部字体请求；数据角色使用等宽字体（红测见 `artifacts/t087-red.txt`、`artifacts/t087-red-en.txt`；最终测试见 `artifacts/t087/fulltest-r2.txt`）
+- [x] 四个样子 × 1440 / 768 / 375 截图（中英文各一套），对比改动前后，存 `artifacts/t087/`，每张打开看过；三家 `check-published` 通过（改动前见 `artifacts/t087/before/`，改动后见 `artifacts/t087/after-r2/` 和 `artifacts/t087/after-r2/contact-sheets/`；发布检查见 `artifacts/t087/published-check-r2-final2/report.json`）
+- [x] `npm run typecheck`、`npm test`（经 `fulltest.sh`）、`npm run build` 通过（`artifacts/t087/fulltest-r2.txt`）
 - [ ] 独立审核 agent 盲评字体改动前后（不是执行者），结果写进 Resolution
 - [ ] 代码审查通过
 - [ ] Claude 验收
@@ -34,3 +34,11 @@ supersedes:
 - 最终验证（纽约时间 2026-10-03）：`npm run typecheck`、`npm run build` 通过；`zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t087 3057 /Users/luckye/Documents/Code/sitecraft-ai-t087/artifacts/t087/fulltest-final.txt` 输出 `ℹ pass 669`, `ℹ fail 0`, `ℹ cancelled 0`；`SITECRAFT_BASE=http://localhost:3057 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node scripts/check-published.mjs --out artifacts/t087/published-check-final` 三家 × 三档宽度通过。
 - 截图使用父提交 `8c960f0` 的临时 3059 server 与最终 3057 server，四个样子、中英文、1440/768/375 各 24 张；脚本等待预览 bridge、`document.fonts.ready` 和稳定整页高度，并验证目标字体状态为 `loaded`。每张已在 `artifacts/t087/contact-sheets/` 打开检查，中文由 CJK 回退栈正常显示。
 - 独立盲评、代码审查和 Claude 验收尚未完成，票保持 `open`。
+
+### T-087 r2（2026-10-03，纽约时间）
+
+- 代码审查指出工作台 CSS 被根布局带进发布宿主；已在 `a1a1b2d` 恢复起点 `app/globals.css`（Manrope 400–800、DM Mono、Noto Sans SC）并把它复制为 `public/workspace.css`，`components/workspace-style-gate.tsx` 只在工作台路径挂载该 CSS；发布/模板预览宿主改用无字体的 `public/visitor-host.css`（`dbeac79`），iframe 继续走区块库同源字体。发布 HTML 不再出现 `app_globals`，工作台仍加载 `workspace.css`。
+- `nordic-store` 的无关字体 token 已恢复为起点值；四个生产样子不变。
+- `scripts/subset-site-fonts.py` 固定 FontTools/pyftsubset、Unicode 范围、变量字体实例化字重和输出文件；`scripts/check-site-fonts.py` 通过 fontTools cmap 审计四个 kit 的实际字体，断言无 CJK、含 `© ® ° ± × – — €`，并逐 kit 验证数据字体映射。每个 `SOURCE.md` 记录同一复现命令和工具版本。
+- 标题根因修复在 `dc95f57`：T-063 的字符宽度估算改为用实际加载字体测量最长 run；catalog 开启 `fitText: "container"`，工程工业增加窄屏标题上限 `clamp(30px, 8vw, 34px)`，fit 标题用 `text-wrap: balance` 且保留 keep-all，forge 将 `word-break` 从 `break-all` 改为 `normal`，避免英文词中断。T-063、区块布局和短路径适配测试通过。
+- r2 证据：改动后截图和联系表在 `artifacts/t087/after-r2/`；`check-published` 输出 `artifacts/t087/published-check-r2-final2/report.json`；主线 12 站检查输出 `artifacts/t087/mainline-r2-final2/`（`NEW_failures=0`）；最终 `fulltest.sh` 输出 `artifacts/t087/fulltest-r2.txt`，`671 pass / 0 fail`；最终 build 和 typecheck 通过。
