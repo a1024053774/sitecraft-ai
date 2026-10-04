@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "pack": "molding",
+  "packLabel": "注塑模具",
+  "sourcePolicy": "真实照片；来源页逐张核对；仅收 CC0、公有领域、CC BY、CC BY-SA；图片已压缩到长边 ≤1600px 且 ≤300KB。",
+  "images": [
+    {
+      "id": "molding-injection-products",
+      "file": "product-injection-molded-parts.jpg",
+      "category": "product",
+      "caption": "透明注塑件与瓶胚样品",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Plastic_bottles_before_processing.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Plastic_bottles_before_processing.jpg/1920px-Plastic_bottles_before_processing.jpg",
+      "license": "CC BY 2.0",
+      "apiLicense": "CC BY",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+      "author": "dierk schaefer",
+      "attribution": "dierk schaefer — CC BY 2.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "usageScope": "current-site-only",
+      "downloadedAt": "2026-10-04T20:16:20Z",
+      "width": 1600,
+      "height": 1200,
+      "bytes": 299359,
+      "sha256": "76b8bb0300b15055521c976650b4fedbde7abcb5c0719c1f087c5cff7e727ebb",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
+    },
+    {
+      "id": "molding-injection-mold",
+      "file": "product-injection-mold.jpg",
+      "category": "product",
+      "caption": "聚合物注塑模具",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:HTS_main_frame_polymer_injection_mold.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/HTS_main_frame_polymer_injection_mold.jpg/1920px-HTS_main_frame_polymer_injection_mold.jpg",
+      "license": "CC BY-SA 3.0",
+      "apiLicense": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "author": "MobiusDaXter",
+      "attribution": "MobiusDaXter — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "usageScope": "current-site-only",
+      "downloadedAt": "2026-10-04T17:43:51Z",
+      "width": 1600,
+      "height": 1372,
+      "bytes": 288461,
+      "sha256": "a6897e6106137e65870da558a4b91ea668e9ed6a21b6ab9368ad73bfcb94d906",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
+    },
+    {
+      "id": "molding-bi-material-machine",
+      "file": "equipment-bi-material-machine.jpg",
+      "category": "equipment",
+      "caption": "双色注塑机",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bi_material_molding_machine.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Bi_material_molding_machine.jpg/1920px-Bi_material_molding_machine.jpg",
+      "license": "CC BY-SA 3.0",
+      "apiLicense": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "author": "Cjp24",
+      "attribution": "Cjp24 — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "usageScope": "current-site-only",
+      "downloadedAt": "2026-10-04T17:43:51Z",
+      "width": 1600,
+      "height": 894,
+      "bytes": 245528,
+      "sha256": "cf04bc83994e6387f176340235296638adc99947c08a1803c370676af921a4b0",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
+    },
+    {
+      "id": "molding-1300-ton-machine",
+      "file": "equipment-1300-ton-machine.jpg",
+      "category": "equipment",
+      "caption": "带机械手的注塑机",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Injectionmachine1300ton.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a0/Injectionmachine1300ton.jpg",
+      "license": "CC BY-SA 3.0",
+      "apiLicense": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "author": "Blue tooth7",
+      "attribution": "Blue tooth7 — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "usageScope": "current-site-only",
+      "downloadedAt": "2026-10-04T17:43:51Z",
+      "width": 882,
+      "height": 669,
+      "bytes": 96817,
+      "sha256": "3b6e93a6875ea639c6b43993c3c2ad79be72bc2c7a5c63524ebd37064f719f2b",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
+    },
+    {
+      "id": "molding-injection-facility",
+      "file": "facility-injection-molding.jpg",
+      "category": "facility",
+      "caption": "注塑工厂厂区",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fabrik,_Kisgy%C3%A1rstrasse,_2026_Hal%C3%A1sztelek.jpg",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Fabrik%2C_Kisgy%C3%A1rstrasse%2C_2026_Hal%C3%A1sztelek.jpg/1920px-Fabrik%2C_Kisgy%C3%A1rstrasse%2C_2026_Hal%C3%A1sztelek.jpg",
+      "license": "CC BY-SA 4.0",
+      "apiLicense": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Globetrotter19",
+      "attribution": "Globetrotter19 — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "usageScope": "current-site-only",
+      "downloadedAt": "2026-10-04T20:16:20Z",
+      "width": 1600,
+      "height": 1200,
+      "bytes": 288160,
+      "sha256": "49facbf15ec40830b2929b80b45321d3a27b530e50b1332b021c63d3a4957444",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
+    },
+    {
+      "id": "molding-microscope-defect",
+      "file": "inspection-microscope-defect.jpg",
+      "category": "inspection",
+      "caption": "显微镜下的注塑表面缺陷",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stippe.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/9/97/Stippe.jpg",
+      "license": "CC BY-SA 3.0",
+      "apiLicense": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "author": "Andreas Ginschel",
+      "attribution": "Andreas Ginschel — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "usageScope": "current-site-only",
+      "downloadedAt": "2026-10-04T17:43:51Z",
+      "width": 1600,
+      "height": 1200,
+      "bytes": 154444,
+      "sha256": "d19b6d63d07febc9c5bd5445e5ef9d0b73fb36f9bee6ec4aa3cd5ada61f4f964",
+      "modifications": [
+        "resized to max 1600px",
+        "JPEG re-encoded"
+      ],
+      "verification": {
+        "checkedAt": "2026-10-04T20:16:20Z",
+        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      }
+    }
+  ],
+  "derivativeNotice": "Every stored file is a JPEG derivative: resized to long edge ≤1600px and JPEG re-encoded. CC BY / CC BY-SA attribution explicitly states this modification and retains author, source page, and license URL.",
+  "sourceVerification": {
+    "checkedAt": "2026-10-04T20:16:20Z",
+    "method": "Fetched every sourceUrl and licenseUrl with the Wikimedia Commons file page / license page; HTTP 200 required.",
+    "allUrlsStatus": 200
+  }
+}
