@@ -2,7 +2,7 @@
 id: T-102
 title: 只读路径不再顺手创建空站点
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-build
 supersedes:
@@ -26,7 +26,7 @@ supersedes:
 
 - [x] 测试先写、改动前先失败（行为级）：访问不存在的发布地址返回 404 且不产生站点文件；GET 不存在站点的草稿返回 404 且不写盘；质量对照缺站时报告缺失且不写盘；工作台新建 → 生成 → 刷新恢复的主流程仍通过
 - [x] `npm run typecheck`、`npm test`（0 失败）、`npm run build` 通过；12 站 `check-published` 通过（基线 `artifacts/merge-32a4ee9/check-published/report.json`，逐行实测条数不少于基线）
-- [ ] 代码审查通过；Claude 验收
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -41,3 +41,6 @@ supersedes:
 - 质量矩阵缺站行为测试改为在独立 `mkdtemp` 工作目录的子进程中加载真实路由，复制唯一需要的 scanner 脚本，断言空矩阵返回 404，并核对主工作区 `p4m-a.json` 的存在状态不变；绿色证据见 `artifacts/t102/green-quality-isolated-final.txt`，首行绑定最终提交 SHA。
 - `readRecord` 对已有 `historySchemaVersion < 3` 记录仍会迁移并写回，这是既有的历史迁移契约；本票不把读取宣称为绝对无写。缺站不会触发该迁移。
 - project-map status 无 stale；本次 Resolution 单独本地提交，未 push。票状态保持 open，等待 Astra/Claude 验收。
+
+### 合回主线与关闭（Claude，2026-10-04 EDT）
+- Astra 四轮（r1–r3 NO_GO：第二条隐式建站路径、SSE 缺站错误泛化、证据未绑定提交；r4 只剩 Resolution 引用旧证据，已改为引用 `npm-test-final-93ffbfc.txt` 第 447–448 行，主控核对）。合并主线 `fa1631c` 后质量矩阵缺站测试在主工作区失败（主工作区旧站点 `p4m-a` 迁移报错致 500，且旧测试会删真实数据目录的 `p4-*` 文件），`7e36ad9` 改为独立临时 cwd 子进程。主工作区 3034 在 `7e36ad9`：build、typecheck 通过，全量 781/781，12 站 `check-published` 36 行 0 失败且测量完整（`artifacts/merge-7e36ad9/`）。已知：测试默认端口写成 3062，另行修正；主工作区 `p4m-a` 迁移失败使内部质量页 500，优先级 3，未排票。Claude 验收关闭。
