@@ -49,7 +49,7 @@ function findSnapshotFile(root: string, filename: string) {
 }
 
 test("dashboard hero does not hardcode a date or version stamp", async () => {
-  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(workspace)/page.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, /08\.21/);
   assert.doesNotMatch(source, /Site studio/);
   assert.doesNotMatch(source, /\b\d{2}\.\d{2}\b/);

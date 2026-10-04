@@ -6,7 +6,9 @@ export const commercialTermsFragment: BlockFragment = {
 .sitecraft-commercial-terms-list { border-top: 2px solid var(--site-line); }
 .sitecraft-commercial-term { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--site-line); }
 .sitecraft-commercial-term h3 { margin: 0; font-size: 15px; font-weight: 650; }
-.sitecraft-commercial-term p { margin: 0; color: var(--site-value-ink, var(--site-ink)); line-height: 1.55; overflow-wrap: anywhere; }
+.sitecraft-commercial-term p { margin: 0; color: var(--site-value-ink, var(--site-ink)); line-height: 1.55; overflow-wrap: anywhere; max-inline-size: 33em; text-wrap: pretty; }
+/* Every term value is capped at 33em (T-089 body line length: about 40 Chinese / 75 English characters
+   per line); the cap is in em so it follows the value's own font size. */
 /* 条款带: one cell per term in a band (name small above, value large below), a hairline between
    cells and above/below the band. The columns follow the term count (the bridge writes it). */
 .sitecraft-terms-strip { display: grid; grid-template-columns: minmax(0, 1fr); border-top: var(--site-index-top, var(--site-rule-strong)); border-bottom: var(--site-index-row, var(--site-rule)); }

@@ -41,7 +41,7 @@ test("an unknown color option never writes a palette outside the catalog", () =>
 });
 
 test("the workspace turns 需求对齐 on by default for a site that was never generated", async () => {
-  const source = await readFile(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
   assert.match(source, /hasGeneratedContent/);
   assert.match(source, /if \(!snapshot\.hasGeneratedContent\) setAlignmentEnabled\(true\)/);
   // Card color chips need the sized class; a bare <i> renders at 0×0 and the colors never show.

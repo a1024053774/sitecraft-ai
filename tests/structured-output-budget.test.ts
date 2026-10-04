@@ -246,9 +246,9 @@ test("an over-long planner summary or option description is clipped instead of f
 });
 
 // A real export-pack generation failed Schema twice because catalog items came without `body`
-// ("operations.15.value.items.0.body: expected object, received undefined"). A missing title or
-// body is the same as an explicit gap.
-test("catalog items the model sends without a body are kept with a gap body", async () => {
+// ("operations.15.value.items.0.body: expected object, received undefined"). The parser must keep
+// the original shape and let the existing invalid-output retry/failure path handle it.
+test("catalog items the model sends without a body remain an invalid structured response", async () => {
   const { requestStructuredOperations } = await import("../lib/ai-provider.ts");
   const content = JSON.stringify({ type: "edit", summary: "写入应用行业", operations: [{
     op: "set_catalog_section",
@@ -263,14 +263,18 @@ test("catalog items the model sends without a body are kept with a gap body", as
     },
   }] });
   const original = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
   try {
     const result = await requestStructuredOperations({ message: "应用行业：液压系统；船舶（船用液压管路）", draft: structuredClone(defaultDraft), templateId: defaultDraft.templateId, selectedTarget: null });
-    assert.equal(result.ok, true, JSON.stringify(result).slice(0, 300));
-    if (!result.ok || result.type !== "edit") return;
-    const op = result.operations.find((item) => item.op === "set_catalog_section") as { value: { items: Array<{ body: { zh: string; en: string } }> } } | undefined;
-    assert.deepEqual(op?.value.items[0].body, { zh: "待补充", en: "To be provided" });
-    assert.equal(op?.value.items[1].body.zh, "船用液压管路。");
+    assert.equal(calls, 2, "the existing one retry remains in place");
+    assert.equal(result.ok, false, JSON.stringify(result).slice(0, 300));
+    if (result.ok) throw new Error("expected invalid structured output");
+    assert.equal(result.code, "invalid_output");
+    assert.match(result.error, /items\.0\.body/);
   } finally {
     globalThis.fetch = original;
   }

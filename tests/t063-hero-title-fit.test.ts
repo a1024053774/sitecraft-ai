@@ -4,6 +4,9 @@ import test from "node:test";
 import { packDraft } from "./fixtures/pack-drafts.ts";
 import { closeBrowser, waitForPreviewBridge, base as sitecraftBase, openBrowser } from "./helpers/workspace-browser.ts";
 import { engineeringLook } from "../lib/blocks/looks/engineering.ts";
+import { installPreviewBridge } from "../lib/template-adapters/preview-bridge.ts";
+import type { TemplateAdapter } from "../lib/template-adapters/types.ts";
+import { createDocument, createNode } from "./fixtures/fake-dom.ts";
 
 const fitSource = readFileSync("scripts/visitor-text-fit-scan.js", "utf8");
 
@@ -15,12 +18,60 @@ test("T-063 uses declared character CSS sizing without a look-specific selector"
   assert.match(bridge, /longestRunEm/);
   assert.match(bridge, /--sitecraft-title-run/);
   assert.match(bridge, /--sitecraft-brand-run/);
+  assert.match(bridge, /document\.fonts\.ready/);
+  assert.match(bridge, /loadingdone/);
   assert.match(hero, /container-type:\s*inline-size/);
   assert.match(hero, /100cqw/);
   assert.match(nav, /100cqw/);
   assert.doesNotMatch(nav, /80px/);
   assert.doesNotMatch(hero, /sitecraft-look-engineering/);
   assert.doesNotMatch(nav, /sitecraft-look-engineering/);
+});
+
+test("title metrics wait for fonts.ready and rerun on a late loadingdone event", async () => {
+  const { document, body } = createDocument();
+  const title = createNode("h1");
+  title.setAttribute("id", "font-timing-title");
+  body.appendChild(title);
+  let writes = 0;
+  const setProperty = title.style.setProperty;
+  title.style.setProperty = (name, value, priority) => {
+    if (name === "--sitecraft-title-run") writes += 1;
+    setProperty(name, value, priority);
+  };
+  let resolveFonts!: () => void;
+  const ready = new Promise<void>((resolve) => { resolveFonts = resolve; });
+  const fontListeners: Array<() => void> = [];
+  (document as typeof document & { fonts: unknown }).fonts = {
+    ready,
+    addEventListener(type: string, listener: () => void) {
+      if (type === "loadingdone") fontListeners.push(listener);
+    },
+  };
+  const adapter = {
+    templateId: "font-timing",
+    runtime: "static-html",
+    slots: [{ target: "hero.title", selector: "#font-timing-title", attr: "text" }],
+    blocks: { fitText: "container" },
+  } as unknown as TemplateAdapter;
+  const globalObject = {
+    document,
+    parent: { postMessage() {} },
+    addEventListener() {},
+    window: undefined as unknown,
+  } as Record<string, unknown>;
+  globalObject.window = globalObject;
+  const api = installPreviewBridge(globalObject, "font-timing", adapter);
+  api.applyDeclaredContent({ content: { hero: { title: { zh: "迟到的字体标题", en: "Late font title" } } } }, "zh", [], "published");
+  assert.equal(writes, 0, "fallback metrics must not be captured before document.fonts.ready");
+  resolveFonts();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(writes, 1, "ready settles the first measurement");
+  fontListeners.forEach((listener) => listener());
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(writes, 2, "loadingdone reruns the measurement");
 });
 
 test("run width sizing does not shrink breakable long sentences or couple brand size to the title", async () => {

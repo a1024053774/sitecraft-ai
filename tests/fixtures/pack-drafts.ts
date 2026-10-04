@@ -188,6 +188,13 @@ const packs: Record<PackDraftId, { operations: SiteOperation[] }> = {
         ["injection", "注塑机", "Injection machines", "注塑机 42 台（90–800 t）。", "42 injection machines (90–800 t)."],
         ["two-shot", "双色注塑机", "Two-shot injection machines", "双色注塑机 3 台。", "3 two-shot injection machines."],
       ]) } },
+      { op: "replace_quality_process", steps: [
+        { id: "incoming", title: { zh: "来料检验", en: "Incoming inspection" }, body: { zh: "树脂批次与嵌件尺寸", en: "Resin batches and insert dimensions" } },
+        { id: "first-article", title: { zh: "试模后首件全尺寸检测", en: "First article full-dimensional inspection" }, body: { zh: "试模后首件全尺寸检测", en: "First article full-dimensional inspection" } },
+        { id: "patrol", title: { zh: "过程巡检", en: "In-process patrol inspection" }, body: { zh: "每 2 小时抽检", en: "Sample every 2 hours" } },
+        { id: "functional", title: { zh: "外观与功能全检", en: "Full appearance and functional inspection" }, body: { zh: "外观与功能全检", en: "Full appearance and functional inspection" } },
+        { id: "shipping", title: { zh: "出货抽检", en: "Pre-shipment sampling inspection" }, body: { zh: "出货抽检并附检测报告", en: "Sample before shipment and attach an inspection report" } },
+      ] },
       { op: "set_catalog_section", section: "certifications", value: { title: { zh: "认证状态", en: "Certifications" }, intro: gap, items: certs([
         ["iso-9001", "ISO 9001", "ISO 9001", "已有"],
         ["iso-14001", "ISO 14001", "ISO 14001", "已有"],

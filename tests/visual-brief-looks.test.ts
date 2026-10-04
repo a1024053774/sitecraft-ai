@@ -116,7 +116,7 @@ test("set_visual_brief maps each shipped look onto its compatible template in on
 });
 
 test("workspace look cards do not present Skill names or internal template ids as the product choice", () => {
-  const source = readFileSync(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
   assert.equal(source.includes("先选网站的样子"), true);
   assert.equal(source.includes("行业仍来自公司资料"), true);
   assert.equal(source.includes("工业专业"), false);

@@ -75,7 +75,8 @@ export const shortPathLook: BlockLook = {
     "--site-primary-bg": "var(--site-accent)",
     "--site-primary-hover": "var(--site-accent-strong)",
     "--site-plate-bg": "var(--site-surface)",
-    "--site-plate-ink": "var(--site-ink)",
+    "--site-plate-ink": "var(--site-accent-text)",
+    "--site-plate-copy": "var(--site-ink)",
     "--site-plate-muted": "var(--site-muted)",
     "--site-plate-border": "var(--site-line)",
     "--site-specs-top": "none",
@@ -129,7 +130,7 @@ export const shortPathLook: BlockLook = {
   },
   layout: {
     top: ["nav"],
-    main: ["hero", "products", "commercialTerms", "equipment", "industries", "capabilities", "services", "contact", "certifications", "faq"],
+    main: ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", "industries", "capabilities", "services", "contact", "certifications", "faq"],
     bottom: ["footer"],
   },
   defaults: {
@@ -138,6 +139,8 @@ export const shortPathLook: BlockLook = {
     products: "cards",
     commercialTerms: "rows",
     equipment: "rows",
+    qualityProcess: "rows",
+    history: "rows",
     industries: "cards",
     capabilities: "cards",
     services: "cards",

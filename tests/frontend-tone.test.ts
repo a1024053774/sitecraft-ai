@@ -33,9 +33,9 @@ test("user-facing theme cards and alignment options do not expose Skill names", 
     ...visualBriefCatalog.map((item) => [item.label, item.summary, item.audience, item.primaryAction].join("\n")),
     ...STYLE_OPTIONS.map((item) => [item.label, item.description].join("\n")),
     ...UTILITY_OPTIONS.map((item) => [item.label, item.description].join("\n")),
-    readFileSync(new URL("../app/workspace/page.tsx", import.meta.url), "utf8"),
-    readFileSync(new URL("../app/quality/page.tsx", import.meta.url), "utf8"),
-    readFileSync(new URL("../app/quality/quality-client.tsx", import.meta.url), "utf8"),
+    readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8"),
+    readFileSync(new URL("../app/(workspace)/quality/page.tsx", import.meta.url), "utf8"),
+    readFileSync(new URL("../app/(workspace)/quality/quality-client.tsx", import.meta.url), "utf8"),
   ];
   for (const surface of surfaces) {
     for (const needle of SKILL_NAME_LEAKS) {

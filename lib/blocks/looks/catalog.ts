@@ -45,6 +45,7 @@ const capabilityLedRules: SiteStyleRule[] = [
 export const catalogLook: BlockLook = {
   id: "export-catalog",
   templateId: "landwind",
+  fitText: "container",
   documentTitle: "蓝白目录首页",
   tokens: {
     "--site-container": "1180px",
@@ -59,6 +60,7 @@ export const catalogLook: BlockLook = {
     "--site-h1-tracking": "-0.035em",
     "--site-heading-wrap": "anywhere",
     "--site-heading-break": "keep-all",
+    "--site-fit-heading-break": "keep-all",
     "--site-heading-max": "16em",
     "--site-heading-text-wrap": "balance",
     "--site-heading-tracking": "-0.03em",
@@ -70,7 +72,8 @@ export const catalogLook: BlockLook = {
     "--site-primary-bg": "var(--site-accent)",
     "--site-primary-hover": "var(--site-accent-strong)",
     "--site-plate-bg": "var(--site-surface)",
-    "--site-plate-ink": "var(--site-ink)",
+    "--site-plate-ink": "var(--site-accent-text)",
+    "--site-plate-copy": "var(--site-ink)",
     "--site-plate-muted": "var(--site-muted)",
     "--site-plate-border": "none",
     "--site-specs-top": "3px solid var(--site-accent)",
@@ -110,8 +113,8 @@ export const catalogLook: BlockLook = {
     "--site-rule": "1px solid var(--site-line)",
     "--site-rule-strong": "2px solid var(--site-accent)",
   },
-  layout: { top: ["nav"], main: ["hero", "products", "commercialTerms", "equipment", ["industries", "capabilities"], "services", "certifications", "faq", "contact"], bottom: ["footer"] },
-  defaults: { nav: "bar", hero: "split", products: "rows", commercialTerms: "rows", equipment: "rows", industries: "list", capabilities: "list", services: "cards", certifications: "badges", faq: "open", contact: "panel", footer: "columns" },
+  layout: { top: ["nav"], main: ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", ["industries", "capabilities"], "services", "certifications", "faq", "contact"], bottom: ["footer"] },
+  defaults: { nav: "bar", hero: "split", products: "rows", commercialTerms: "rows", equipment: "rows", qualityProcess: "rows", history: "rows", industries: "list", capabilities: "list", services: "cards", certifications: "badges", faq: "open", contact: "panel", footer: "columns" },
   styleDirections: {
     "spec-led": { label: "规格为主", summary: "更紧凑的参数目录和分线节奏。", rules: specLedRules },
     "catalog-led": { label: "目录为主", summary: "收紧目录行距，突出产品索引。", rules: catalogLedRules },

@@ -166,8 +166,8 @@ test("public POST to a missing site does not create a draft file", async () => {
 
 test("inbox pages stop advertising fake companies and a live mailbox", () => {
   const publicRoute = readFileSync(new URL("../app/api/public/[siteKey]/leads/route.ts", import.meta.url), "utf8");
-  const leadsPage = readFileSync(new URL("../app/leads/page.tsx", import.meta.url), "utf8");
-  const settingsPage = readFileSync(new URL("../app/settings/page.tsx", import.meta.url), "utf8");
+  const leadsPage = readFileSync(new URL("../app/(workspace)/leads/page.tsx", import.meta.url), "utf8");
+  const settingsPage = readFileSync(new URL("../app/(workspace)/settings/page.tsx", import.meta.url), "utf8");
   const publishedClient = readFileSync(new URL("../app/published/[siteKey]/published-client.tsx", import.meta.url), "utf8");
   const sidebar = readFileSync(new URL("../components/app-sidebar.tsx", import.meta.url), "utf8");
   assert.match(publicRoute, /createLead/);

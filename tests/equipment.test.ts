@@ -99,6 +99,14 @@ test("equipment grounding requires Chinese name and spec to be source substrings
   assert.deepEqual(badEnglish.operations, []);
 });
 
+test("equipment unit mapping still rejects a ton range translated as kilograms", () => {
+  const checked = validateAIOperations("设备：注塑机 42 台（90–800 t）。", [{
+    op: "replace_equipment",
+    equipment: [{ id: "injection", name: localized("注塑机", "Injection machine"), quantity: 42, spec: localized("90–800 t", "90–800 kg") }],
+  } as never], options.templateIds);
+  assert.deepEqual(checked.operations, []);
+});
+
 test("industrial and export materials do not create an equipment block from capability processes", () => {
   for (const pack of [simulatedPacks.industrial, simulatedPacks.export]) {
     const checked = validateAIOperations(pack.body, [{

@@ -5,7 +5,7 @@ import { STYLE_OPTIONS } from "../lib/alignment.ts";
 import { qualityPacks } from "../lib/quality-comparison.ts";
 import { defaultDraft, normalizeDraft, visualBriefCatalog } from "../lib/site-document.ts";
 
-const workspaceSource = readFileSync(new URL("../app/workspace/page.tsx", import.meta.url), "utf8");
+const workspaceSource = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
 
 test("legacy editorial look is hidden from new choices while old drafts stay readable", () => {
   assert.equal(visualBriefCatalog.some((brief) => brief.id === "editorial-service"), false);

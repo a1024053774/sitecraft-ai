@@ -13,6 +13,10 @@ import {
   commercialTermsSchema,
   equipmentItemSchema,
   equipmentSchema,
+  qualityProcessSchema,
+  qualityProcessStepSchema,
+  historySchema,
+  historyItemSchema,
   ensureProductIds,
   normalizeDraft,
   blockIdSchema,
@@ -42,6 +46,8 @@ import {
   type CommercialTerm,
   type CommercialTermKind,
   type EquipmentItem,
+  type QualityProcessStep,
+  type HistoryItem,
   type EditableCard,
   type Locale,
   type Product,
@@ -52,6 +58,7 @@ import {
   type SiteImageRef,
 } from "./site-document.ts";
 import { customPaletteSchema } from "./custom-brand-color.ts";
+import { validateColorPalette } from "./color-scale.ts";
 import { SiteMigrationError, assertStableItemIds } from "./site-migration.ts";
 import { rehostPagePlan, resolvePagePlan } from "./template-pages.ts";
 import { canonicalizeOwnedImageUrl, isTemplateStockUrl } from "./site-images.ts";
@@ -161,6 +168,52 @@ const updateEquipmentOperationSchema = z.object({
 const removeEquipmentOperationSchema = z.object({
   op: z.literal("remove_equipment"),
   equipmentId: z.string().min(1).max(80),
+});
+const replaceQualityProcessOperationSchema = z.object({
+  op: z.literal("replace_quality_process"),
+  steps: qualityProcessSchema,
+  englishReadyBefore: z.boolean().optional(),
+});
+const updateQualityProcessOperationSchema = z.object({
+  op: z.literal("update_quality_process"),
+  stepId: z.string().min(1).max(80),
+  title: localizedTextSchema.optional(),
+  body: localizedTextSchema.nullable().optional(),
+  englishReadyBefore: z.boolean().optional(),
+}).strict().refine(
+  (operation) => operation.title !== undefined || operation.body !== undefined,
+  "Quality process update requires title or body",
+);
+const removeQualityProcessOperationSchema = z.object({
+  op: z.literal("remove_quality_process"),
+  stepId: z.string().min(1).max(80),
+});
+const reorderQualityProcessOperationSchema = z.object({
+  op: z.literal("reorder_quality_process"),
+  order: z.array(z.string().min(1).max(80)).max(12),
+});
+const replaceHistoryOperationSchema = z.object({
+  op: z.literal("replace_history"),
+  history: historySchema,
+  englishReadyBefore: z.boolean().optional(),
+});
+const updateHistoryOperationSchema = z.object({
+  op: z.literal("update_history"),
+  itemId: z.string().min(1).max(80),
+  year: z.number().int().min(1000).max(9999).optional(),
+  event: localizedTextSchema.optional(),
+  englishReadyBefore: z.boolean().optional(),
+}).strict().refine(
+  (operation) => operation.year !== undefined || operation.event !== undefined,
+  "History update requires year or event",
+);
+const removeHistoryOperationSchema = z.object({
+  op: z.literal("remove_history"),
+  itemId: z.string().min(1).max(80),
+});
+const reorderHistoryOperationSchema = z.object({
+  op: z.literal("reorder_history"),
+  order: z.array(z.string().min(1).max(80)).max(12),
 });
 const removeCardOperationSchema = z.object({
   op: z.literal("remove_card"),
@@ -286,6 +339,12 @@ export const aiOperationSchema = z.discriminatedUnion("op", [
   replaceEquipmentOperationSchema,
   updateEquipmentOperationSchema,
   removeEquipmentOperationSchema,
+  replaceQualityProcessOperationSchema,
+  updateQualityProcessOperationSchema,
+  removeQualityProcessOperationSchema,
+  replaceHistoryOperationSchema,
+  updateHistoryOperationSchema,
+  removeHistoryOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -314,6 +373,14 @@ export const siteOperationSchema = z.discriminatedUnion("op", [
   replaceEquipmentOperationSchema,
   updateEquipmentOperationSchema,
   removeEquipmentOperationSchema,
+  replaceQualityProcessOperationSchema,
+  updateQualityProcessOperationSchema,
+  removeQualityProcessOperationSchema,
+  reorderQualityProcessOperationSchema,
+  replaceHistoryOperationSchema,
+  updateHistoryOperationSchema,
+  removeHistoryOperationSchema,
+  reorderHistoryOperationSchema,
   removeCardOperationSchema,
   updateProductOperationSchema,
   setProductSpecsOperationSchema,
@@ -449,7 +516,7 @@ function localizedValue(draft: SiteDraft, target: TextTarget) {
   return values[target];
 }
 
-function readText(draft: SiteDraft, target: TextTarget, locale: Locale) {
+export function readText(draft: SiteDraft, target: TextTarget, locale: Locale) {
   if (target === "siteName") return draft.siteName;
   if (target === "companyName") return draft.companyName;
   if (target === "industry") return typeof draft.industry === "string" ? draft.industry : draft.industry[locale];
@@ -459,7 +526,7 @@ function readText(draft: SiteDraft, target: TextTarget, locale: Locale) {
   return localizedValue(draft, target)?.[locale] ?? "";
 }
 
-function writeText(draft: SiteDraft, target: TextTarget, locale: Locale, value: string) {
+export function writeText(draft: SiteDraft, target: TextTarget, locale: Locale, value: string) {
   if (target === "siteName") draft.siteName = value;
   else if (target === "companyName") draft.companyName = value;
   else if (target === "industry") {
@@ -1048,6 +1115,135 @@ export function applySiteOperations(
       appliedTargets.push("equipment.visibility");
       continue;
     }
+    if (operation.op === "replace_quality_process") {
+      const previous = structuredClone(draft.content.qualityProcess);
+      const next = qualityProcessSchema.parse(structuredClone(operation.steps));
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "replace_quality_process", steps: previous, englishReadyBefore: previousEnglishReady });
+      draft.content.qualityProcess = next;
+      if (next.some((step) => !isGapMarker(step.title.en) || (step.body && !isGapMarker(step.body.en)))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      if (next.length) {
+        appliedTargets.push("qualityProcess");
+        for (const step of next) {
+          appliedTargets.push(`qualityProcess.items.${step.id}.title.zh`, `qualityProcess.items.${step.id}.title.en`);
+          if (step.body && !isGapMarker(step.body.zh)) appliedTargets.push(`qualityProcess.items.${step.id}.body.zh`, `qualityProcess.items.${step.id}.body.en`);
+        }
+      } else {
+        appliedTargets.push("qualityProcess.visibility");
+      }
+      continue;
+    }
+    if (operation.op === "update_quality_process") {
+      const index = draft.content.qualityProcess.findIndex((step) => step.id === operation.stepId);
+      const previous = index >= 0 ? draft.content.qualityProcess[index] : undefined;
+      if (!previous) throw new Error(`Quality process step ${operation.stepId} does not exist`);
+      const next = qualityProcessStepSchema.parse({
+        ...previous,
+        ...(operation.title !== undefined ? { title: structuredClone(operation.title) } : {}),
+        ...(operation.body !== undefined ? { body: structuredClone(operation.body) } : {}),
+      });
+      const nextSteps = structuredClone(draft.content.qualityProcess);
+      nextSteps[index] = next;
+      qualityProcessSchema.parse(nextSteps);
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({
+        op: "update_quality_process",
+        stepId: previous.id,
+        title: structuredClone(previous.title),
+        body: structuredClone(previous.body),
+        englishReadyBefore: previousEnglishReady,
+      });
+      draft.content.qualityProcess[index] = next;
+      if (!isGapMarker(next.title.en) || (next.body && !isGapMarker(next.body.en))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      appliedTargets.push("qualityProcess");
+      if (!same(previous.title, next.title)) appliedTargets.push(`qualityProcess.items.${next.id}.title.zh`, `qualityProcess.items.${next.id}.title.en`);
+      if (!same(previous.body, next.body) && next.body && !isGapMarker(next.body.zh)) appliedTargets.push(`qualityProcess.items.${next.id}.body.zh`, `qualityProcess.items.${next.id}.body.en`);
+      continue;
+    }
+    if (operation.op === "remove_quality_process") {
+      const index = draft.content.qualityProcess.findIndex((step) => step.id === operation.stepId);
+      if (index < 0) throw new Error(`Quality process step ${operation.stepId} does not exist`);
+      const previous = structuredClone(draft.content.qualityProcess);
+      inverseOperations.unshift({ op: "replace_quality_process", steps: previous, englishReadyBefore: draft.englishReady });
+      draft.content.qualityProcess.splice(index, 1);
+      appliedTargets.push("qualityProcess.visibility");
+      continue;
+    }
+    if (operation.op === "reorder_quality_process") {
+      const previous = draft.content.qualityProcess.map((step) => step.id);
+      const order = [...new Set(operation.order)];
+      if (order.length !== previous.length || order.some((id) => !previous.includes(id))) throw new Error("Quality process order must contain every existing step exactly once");
+      if (same(previous, order)) continue;
+      const byId = new Map(draft.content.qualityProcess.map((step) => [step.id, step] as const));
+      inverseOperations.unshift({ op: "reorder_quality_process", order: previous });
+      draft.content.qualityProcess = order.map((id) => structuredClone(byId.get(id)!));
+      appliedTargets.push("qualityProcess.order");
+      continue;
+    }
+    if (operation.op === "replace_history") {
+      const previous = structuredClone(draft.content.history);
+      const next = historySchema.parse(structuredClone(operation.history));
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "replace_history", history: previous, englishReadyBefore: previousEnglishReady });
+      draft.content.history = next;
+      if (next.some((item) => !isGapMarker(item.event.en))) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      if (next.length) {
+        appliedTargets.push("history");
+        for (const item of next) appliedTargets.push(`history.items.${item.id}.year`, `history.items.${item.id}.event.zh`, `history.items.${item.id}.event.en`);
+      } else {
+        appliedTargets.push("history.visibility");
+      }
+      continue;
+    }
+    if (operation.op === "update_history") {
+      const index = draft.content.history.findIndex((item) => item.id === operation.itemId);
+      const previous = index >= 0 ? draft.content.history[index] : undefined;
+      if (!previous) throw new Error(`History item ${operation.itemId} does not exist`);
+      const next = historyItemSchema.parse({
+        ...previous,
+        ...(operation.year !== undefined ? { year: operation.year } : {}),
+        ...(operation.event !== undefined ? { event: structuredClone(operation.event) } : {}),
+      });
+      const nextHistory = structuredClone(draft.content.history);
+      nextHistory[index] = next;
+      historySchema.parse(nextHistory);
+      if (same(previous, next)) continue;
+      const previousEnglishReady = draft.englishReady;
+      inverseOperations.unshift({ op: "update_history", itemId: previous.id, year: previous.year, event: structuredClone(previous.event), englishReadyBefore: previousEnglishReady });
+      draft.content.history[index] = next;
+      if (!isGapMarker(next.event.en)) draft.englishReady = true;
+      if (typeof operation.englishReadyBefore === "boolean") draft.englishReady = operation.englishReadyBefore;
+      appliedTargets.push("history");
+      if (previous.year !== next.year) appliedTargets.push(`history.items.${next.id}.year`);
+      if (!same(previous.event, next.event)) appliedTargets.push(`history.items.${next.id}.event.zh`, `history.items.${next.id}.event.en`);
+      continue;
+    }
+    if (operation.op === "remove_history") {
+      const index = draft.content.history.findIndex((item) => item.id === operation.itemId);
+      if (index < 0) throw new Error(`History item ${operation.itemId} does not exist`);
+      const previous = structuredClone(draft.content.history);
+      inverseOperations.unshift({ op: "replace_history", history: previous, englishReadyBefore: draft.englishReady });
+      draft.content.history.splice(index, 1);
+      appliedTargets.push("history.visibility");
+      continue;
+    }
+    if (operation.op === "reorder_history") {
+      const previous = draft.content.history.map((item) => item.id);
+      const order = [...new Set(operation.order)];
+      if (order.length !== previous.length || order.some((id) => !previous.includes(id))) throw new Error("History order must contain every existing item exactly once");
+      if (same(previous, order)) continue;
+      const byId = new Map(draft.content.history.map((item) => [item.id, item] as const));
+      inverseOperations.unshift({ op: "reorder_history", order: previous });
+      draft.content.history = order.map((id) => structuredClone(byId.get(id)!));
+      appliedTargets.push("history.order");
+      continue;
+    }
     if (operation.op === "remove_card") {
       const items = draft.content[operation.section].items;
       const index = items.findIndex((item) => item.id === operation.itemId);
@@ -1178,6 +1374,10 @@ export function applySiteOperations(
       continue;
     }
     if (operation.op === "set_custom_palette") {
+      if (operation.palette) {
+        const checked = validateColorPalette(operation.palette);
+        if (!checked.ok) throw new Error(checked.reason + "：" + checked.failures.join("、"));
+      }
       if (JSON.stringify(draft.customPalette) === JSON.stringify(operation.palette)) continue;
       inverseOperations.unshift({ op: "set_custom_palette", palette: draft.customPalette ? structuredClone(draft.customPalette) : null });
       draft.customPalette = operation.palette ? structuredClone(operation.palette) : null;
@@ -1379,6 +1579,18 @@ function cleanVisitorProse(operation: AIOperation): AIOperation {
   if (operation.op === "replace_cards") {
     return { ...operation, items: operation.items.map((item) => ({ ...item, body: stripGapTalkBilingual(item.body) as { zh: string; en: string } })) } as AIOperation;
   }
+  if (operation.op === "replace_quality_process") {
+    return { ...operation, steps: operation.steps.map((step) => ({ ...step, body: step.body ? stripGapTalkBilingual(step.body) as { zh: string; en: string } : null })) } as AIOperation;
+  }
+  if (operation.op === "update_quality_process" && operation.body) {
+    return { ...operation, body: stripGapTalkBilingual(operation.body) as { zh: string; en: string } } as AIOperation;
+  }
+  if (operation.op === "replace_history") {
+    return { ...operation, history: operation.history.map((item) => ({ ...item, event: stripGapTalkBilingual(item.event) as { zh: string; en: string } })) } as AIOperation;
+  }
+  if (operation.op === "update_history" && operation.event) {
+    return { ...operation, event: stripGapTalkBilingual(operation.event) as { zh: string; en: string } } as AIOperation;
+  }
   if (operation.op === "update_product" && operation.summary) {
     return { ...operation, summary: stripGapTalkBilingual(operation.summary, operation.locale ?? "zh") } as AIOperation;
   }
@@ -1566,6 +1778,21 @@ export function validateAIOperations(
       }
       continue;
     }
+    if (operation.op === "replace_quality_process") {
+      const steps = groundQualityProcess(operation.steps, message, rejected);
+      if (steps.length) {
+        accepted.push({ ...operation, steps });
+      } else {
+        rejected.push("没有可写入的质检流程，整组没有修改");
+      }
+      continue;
+    }
+    if (operation.op === "replace_history") {
+      const items = groundHistory(operation.history, message, rejected);
+      if (items.length) accepted.push({ ...operation, history: items });
+      else rejected.push("没有可写入的沿革，整组没有修改");
+      continue;
+    }
     if (operation.op === "update_equipment") {
       if (!draft) {
         accepted.push(operation);
@@ -1595,6 +1822,54 @@ export function validateAIOperations(
         continue;
       }
       accepted.push({ ...operation, name: grounded.name, quantity: grounded.quantity, spec: grounded.spec });
+      continue;
+    }
+    if (operation.op === "update_quality_process") {
+      if (!draft) {
+        accepted.push(operation);
+        continue;
+      }
+      const current = draft.content.qualityProcess.find((step) => step.id === operation.stepId);
+      if (!current) {
+        rejected.push(`质检步骤 ${operation.stepId} 不存在`);
+        continue;
+      }
+      const candidate = qualityProcessStepSchema.safeParse({
+        ...current,
+        ...(operation.title !== undefined ? { title: operation.title } : {}),
+        ...(operation.body !== undefined ? { body: operation.body } : {}),
+      });
+      if (!candidate.success) {
+        rejected.push("质检步骤修改未通过完整质检流程校验");
+        continue;
+      }
+      const grounded = groundQualityProcess([candidate.data], message, rejected)[0];
+      if (!grounded) continue;
+      accepted.push({ ...operation, title: grounded.title, body: grounded.body });
+      continue;
+    }
+    if (operation.op === "update_history") {
+      if (!draft) {
+        accepted.push(operation);
+        continue;
+      }
+      const current = draft.content.history.find((item) => item.id === operation.itemId);
+      if (!current) {
+        rejected.push(`沿革条目 ${operation.itemId} 不存在`);
+        continue;
+      }
+      const candidate = historyItemSchema.safeParse({
+        ...current,
+        ...(operation.year !== undefined ? { year: operation.year } : {}),
+        ...(operation.event !== undefined ? { event: operation.event } : {}),
+      });
+      if (!candidate.success) {
+        rejected.push("沿革修改未通过完整沿革校验");
+        continue;
+      }
+      const grounded = groundHistory([candidate.data], message, rejected)[0];
+      if (!grounded) continue;
+      accepted.push({ ...operation, year: grounded.year, event: grounded.event });
       continue;
     }
     if (operation.op === "update_commercial_term") {
@@ -1660,7 +1935,31 @@ export function validateAIOperations(
     if (operation.op === "replace_equipment") for (const item of operation.equipment) equipmentNames.add(item.name.zh.trim());
     if (operation.op === "update_equipment" && operation.name) equipmentNames.add(operation.name.zh.trim());
   }
-  const deduped = accepted.map((operation) => {
+  const certificationNames = new Set<string>();
+  if (draft?.content.certifications) for (const item of draft.content.certifications.items) certificationNames.add(item.title.zh.trim());
+  for (const operation of accepted) {
+    if (operation.op === "set_catalog_section" && operation.section === "certifications" && operation.value) {
+      for (const item of operation.value.items) certificationNames.add(item.title.zh.trim());
+    }
+  }
+  const deduped = accepted.map((operation): SiteOperation | null => {
+    if (operation.op === "replace_quality_process") {
+      const steps = operation.steps.filter((step) => {
+        const text = `${step.title.zh} ${step.body?.zh ?? ""}`;
+        const duplicate = [...equipmentNames, ...certificationNames].some((fact) => fact && text.includes(fact));
+        if (duplicate) rejected.push(`质检流程步骤重复设备或认证事实，已忽略「${step.title.zh}」`);
+        return !duplicate;
+      });
+      return steps.length ? { ...operation, steps } : null;
+    }
+    if (operation.op === "update_quality_process") {
+      const text = `${operation.title?.zh ?? ""} ${operation.body?.zh ?? ""}`;
+      const duplicate = [...equipmentNames, ...certificationNames].some((fact) => fact && text.includes(fact));
+      if (duplicate) {
+        rejected.push(`质检流程步骤重复设备或认证事实，已忽略「${operation.title?.zh ?? operation.stepId}」`);
+        return null;
+      }
+    }
     if (operation.op !== "set_catalog_section" || operation.section !== "capabilities" || !operation.value || !equipmentNames.size) return operation;
     const items = operation.value.items.filter((item) => {
       const text = `${item.title.zh} ${item.body.zh}`;
@@ -1669,7 +1968,7 @@ export function validateAIOperations(
       return !duplicate;
     });
     return { ...operation, value: { ...operation.value, items } };
-  });
+  }).filter((operation): operation is SiteOperation => operation !== null);
   const checked = draft ? checkLayoutRequests(deduped, draft, templateIds, rejected, notes) : deduped;
   return { operations: checked, rejected, notes };
 }
@@ -1791,20 +2090,32 @@ function englishCommercialCodes(value: string): string[] {
 }
 
 const COMMERCIAL_UNIT_RULES = [
-  { key: "ten-thousand-piece", zh: /万件/, en: /\b(?:10[,.]?000|ten thousand|million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b/i },
-  { key: "piece", zh: /件/, en: /\b(?:pcs?|pieces?|parts?)\b/i },
-  { key: "day", zh: /天/, en: /\bdays?\b/i },
-  { key: "week", zh: /周|星期/, en: /\bweeks?\b/i },
-  { key: "month", zh: /月/, en: /\bmonths?\b|\bmonthly\b/i },
-  { key: "year", zh: /年/, en: /\byears?\b|\byearly\b/i },
-  { key: "equipment", zh: /台/, en: /\b(?:units?|machines?)\b/i },
-  { key: "set", zh: /套/, en: /\bsets?\b|\b(?:one|a|\d[\d,.]*)\s+(?:molds?|moulds?)\b/i },
-  { key: "ton", zh: /\bt\b/i, en: /\btons?\b|\bt\b/i },
-  { key: "kg", zh: /\bkg\b/i, en: /\bkg\b/i },
+  { key: "ten-thousand-piece", zh: /(?:\d[\d,.]*\s*万件|每万件|按万件)/, en: /\b(?:10[,.]?000|ten thousand|\d[\d,.]*\s*million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b|\bper\s+ten thousand\s+(?:pcs?|pieces?|parts?)\b/i },
+  { key: "piece", zh: /(?:\d[\d,.]*\s*件|每件|按件)/, en: /(?:\d[\d,.]*\s*(?:pcs?|pieces?|parts?)|\bper\s+(?:piece|part)s?)\b/i },
+  { key: "day", zh: /(?:\d[\d,.]*\s*天|每天|按天)/, en: /(?:\d[\d,.]*\s*days?|\bper\s+days?)\b/i },
+  { key: "hour", zh: /(?:\d[\d,.]*\s*(?:小时|时)|每小时|按小时)/, en: /(?:\d[\d,.]*\s*(?:hours?|hrs?|h)|\bper\s+hours?)\b/i },
+  { key: "week", zh: /(?:\d[\d,.]*\s*(?:周|星期)|每周|按周)/, en: /(?:\d[\d,.]*\s*weeks?|\bper\s+weeks?)\b/i },
+  { key: "month", zh: /(?:\d[\d,.]*\s*月|每月|按月)/, en: /(?:\d[\d,.]*\s*months?|\bper\s+months?)\b/i },
+  { key: "year", zh: /(?:\d[\d,.]*\s*年|每年|按年)/, en: /(?:\d[\d,.]*\s*years?|\bper\s+years?)\b/i },
+  { key: "equipment", zh: /(?:\d[\d,.]*\s*台|每台|按台)/, en: /(?:\d[\d,.]*(?:\s+[A-Za-z-]+){0,2}\s+(?:units?|machines?)|\bper\s+(?:unit|machine)s?)\b/i },
+  { key: "set", zh: /(?:\d[\d,.]*\s*套|每套|按套|单套)/, en: /(?:\d[\d,.]*|one|a)\s+(?:sets?|molds?|moulds?)\b|\bper\s+sets?\b/i },
+  { key: "ton", zh: /(?:\d[\d,.]*\s*t\b|每吨|按吨)/i, en: /(?:\d[\d,.]*\s*(?:tons?|t)|\bper\s+tons?)\b/i },
+  { key: "kg", zh: /(?:\d[\d,.]*\s*kg\b|每(?:千克|kg)|按(?:千克|kg))/i, en: /(?:\d[\d,.]*\s*kg|\bper\s+kg)\b/i },
 ] as const;
 
+// These are the only source phrases in the simulated packs where Chinese puts the
+// business unit before the number. They are explicit source facts, not a generic
+// window or a lexical-word exception.
+const BUSINESS_UNIT_PHRASES = [
+  { key: "year", zh: /年产(?:约|大约)?\s*\d[\d,.]*/ },
+  { key: "month", zh: /月注塑能力(?:约|大约)?\s*\d[\d,.]*/ },
+] as const;
+
+const BARE_ZH_UNIT = /^(?:万件|件|天|小时|时|周|星期|月|年|台|套|吨|t|kg)$/i;
+const BARE_EN_UNIT = /^(?:pcs?|pieces?|parts?|days?|hours?|hrs?|h|weeks?|months?|years?|units?|machines?|sets?|tons?|t|kg)$/i;
+
 function chineseCommercialUnits(value: string): string[] {
-  return COMMERCIAL_UNIT_RULES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key);
+  return [...COMMERCIAL_UNIT_RULES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key), ...BUSINESS_UNIT_PHRASES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key)].filter((key, index, all) => all.indexOf(key) === index);
 }
 
 function englishCommercialUnits(value: string): string[] {
@@ -1813,6 +2124,8 @@ function englishCommercialUnits(value: string): string[] {
 
 function commercialUnitsMatch(zh: string, en: string): boolean {
   const expected = chineseCommercialUnits(zh);
+  if (BARE_ZH_UNIT.test(zh.trim()) || BARE_EN_UNIT.test(en.trim())) return false;
+  if (/\bh\b/i.test(en) && !/\d[\d,.]*\s*h\b/i.test(en)) return false;
   const actual = englishCommercialUnits(en);
   const compatible = (source: string, target: string) => {
     if (source === target) return true;
@@ -1929,6 +2242,114 @@ function groundEquipment(items: EquipmentItem[], materials: string, rejected: st
   for (const item of items) {
     const next = groundEquipmentItem(item, materials, rejected);
     if (next) grounded.push(next);
+  }
+  return grounded;
+}
+
+type QualityProcessFactFragment = { text: string; source: string };
+
+function qualityProcessFactFragments(materials: string): QualityProcessFactFragment[] {
+  const source = stripWrappedCommercialInstructions(materials);
+  return source.split(/\r?\n/).flatMap((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || !/质检流程|quality process/i.test(trimmed)) return [];
+    const value = trimmed.replace(/^[^：:]{1,32}[：:]\s*/, "");
+    return value.split(/[；;]/).map((text) => text.trim()).filter(Boolean).map((text) => ({ text, source: text }));
+  });
+}
+
+function qualityProcessEnglishMatches(step: QualityProcessStep, fragment: QualityProcessFactFragment): boolean {
+  const zh = `${step.title.zh} ${step.body?.zh ?? ""}`;
+  const en = `${step.title.en} ${step.body?.en ?? ""}`;
+  if (JSON.stringify(canonicalCommercialNumbers(zh).sort()) !== JSON.stringify(canonicalCommercialNumbers(en).sort())) return false;
+  if (!commercialUnitsMatch(zh, en)) return false;
+  const sourceCodes = new Set(englishCommercialCodes(`${fragment.source} ${zh}`).map((code) => code.toUpperCase()));
+  return englishCommercialCodes(en).every((code) => sourceCodes.has(code.toUpperCase()));
+}
+
+function groundQualityProcessStep(step: QualityProcessStep, materials: string, rejected: string[]): QualityProcessStep | null {
+  const titleZh = step.title.zh.trim();
+  const titleEn = step.title.en.trim();
+  if (!titleZh || !titleEn || isGapMarker(titleZh) || isGapMarker(titleEn)) {
+    rejected.push(`质检步骤「${titleZh || titleEn}」标题为空，已忽略`);
+    return null;
+  }
+  const body = step.body && !isGapMarker(step.body.zh) && !isGapMarker(step.body.en)
+    ? { zh: step.body.zh.trim(), en: step.body.en.trim() }
+    : null;
+  const bodySource = body?.zh.replace(/[。.!！?？]+$/g, "");
+  const fragment = qualityProcessFactFragments(materials).find((candidate) => candidate.text.includes(titleZh) && (!bodySource || candidate.text.includes(bodySource)));
+  if (!fragment || !qualityProcessEnglishMatches({ ...step, title: { zh: titleZh, en: titleEn }, body }, fragment)) {
+    rejected.push(`质检步骤「${titleZh}」的标题或说明不在同一句资料中，已忽略`);
+    return null;
+  }
+  return { ...step, title: { zh: titleZh, en: titleEn }, body };
+}
+
+function groundQualityProcess(steps: QualityProcessStep[], materials: string, rejected: string[]): QualityProcessStep[] {
+  const grounded: QualityProcessStep[] = [];
+  for (const step of steps) {
+    const next = groundQualityProcessStep(step, materials, rejected);
+    if (next) grounded.push(next);
+  }
+  return grounded;
+}
+
+type HistoryFactFragment = { text: string; source: string; sourceIndex: number };
+
+function historyFactFragments(materials: string): HistoryFactFragment[] {
+  const source = stripWrappedCommercialInstructions(materials);
+  let sourceIndex = 0;
+  return source.split(/\r?\n/).flatMap((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || !/沿革|history/i.test(trimmed)) return [];
+    const value = trimmed.replace(/^[^：:]{1,32}[：:]\s*/, "");
+    return value.split(/[；;]/).map((text) => text.trim()).filter(Boolean).map((text) => ({ text, source: text, sourceIndex: sourceIndex++ }));
+  });
+}
+
+function historyEnglishMatches(item: HistoryItem, fragment: HistoryFactFragment): boolean {
+  const zhNumbers = canonicalCommercialNumbers(`${item.year} ${item.event.zh}`).sort();
+  const enNumbers = canonicalCommercialNumbers(item.event.en).sort();
+  const yearIndex = zhNumbers.indexOf(String(item.year));
+  if (yearIndex < 0) return false;
+  zhNumbers.splice(yearIndex, 1);
+  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers)) return false;
+  if (!commercialUnitsMatch(item.event.zh, item.event.en)) return false;
+  const sourceCodes = new Set(englishCommercialCodes(`${fragment.source} ${item.event.zh}`).map((code) => code.toUpperCase()));
+  return englishCommercialCodes(item.event.en).every((code) => sourceCodes.has(code.toUpperCase()));
+}
+
+function groundHistoryItem(item: HistoryItem, materials: string, rejected: string[]): { item: HistoryItem; sourceIndex: number } | null {
+  const eventZh = item.event.zh.trim().replace(/[。.!！?？]+$/g, "");
+  const eventEn = item.event.en.trim();
+  if (!Number.isInteger(item.year) || item.year < 1000 || item.year > 9999 || !eventZh || !eventEn || isGapMarker(eventZh) || isGapMarker(eventEn)) {
+    rejected.push(`沿革条目「${eventZh || eventEn}」年份或事件为空，已忽略`);
+    return null;
+  }
+  const year = String(item.year);
+  const eventPattern = escapeRegExp(eventZh);
+  const fragment = historyFactFragments(materials).find((candidate) => new RegExp(`${year}\\s*年?\\s*${eventPattern}`).test(candidate.text));
+  const grounded = { ...item, year: item.year, event: { zh: eventZh, en: eventEn } };
+  if (!fragment || !historyEnglishMatches(grounded, fragment)) {
+    rejected.push(`沿革条目「${eventZh}」的年份或事件不在同一句资料中，已忽略`);
+    return null;
+  }
+  return { item: grounded, sourceIndex: fragment.sourceIndex };
+}
+
+function groundHistory(items: HistoryItem[], materials: string, rejected: string[]): HistoryItem[] {
+  const grounded: HistoryItem[] = [];
+  let previousSourceIndex = -1;
+  for (const item of items) {
+    const next = groundHistoryItem(item, materials, rejected);
+    if (!next) continue;
+    if (next.sourceIndex <= previousSourceIndex) {
+      rejected.push("沿革条目的资料顺序与输入顺序不一致，整组没有写入");
+      return [];
+    }
+    previousSourceIndex = next.sourceIndex;
+    grounded.push(next.item);
   }
   return grounded;
 }

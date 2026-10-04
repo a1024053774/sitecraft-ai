@@ -53,21 +53,70 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return typeof value === "string" ? value : localize(value, locale) || "";
   }
 
-  function longestRunEm(value) {
+  function longestRunEm(value, referenceNode) {
     var text = String(value || "").trim();
     var runs = text.split(/[\s，、。；：！？]+/).filter(Boolean);
-    var width = function (run) {
+    var fallbackWidth = function (run) {
       return Array.from(run).reduce(function (sum, char) {
         if (/[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/.test(char)) return sum + 1;
         if (/[A-Za-z0-9]/.test(char)) return sum + 0.6;
         return sum + 0.4;
       }, 0);
     };
-    return Math.max(1, ...runs.map(width)).toFixed(2);
+    var measuredWidth = function (run) {
+      if (!referenceNode || !document || !document.body || !document.createElement || !global.getComputedStyle) return fallbackWidth(run);
+      var style = global.getComputedStyle(referenceNode);
+      var fontSize = parseFloat(style.fontSize || "0");
+      if (!fontSize) return fallbackWidth(run);
+      var probe = document.createElement("span");
+      probe.textContent = run;
+      probe.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;white-space:nowrap;"
+        + "font-family:" + style.fontFamily + ";font-size:" + style.fontSize + ";font-weight:" + style.fontWeight + ";"
+        + "font-style:" + style.fontStyle + ";letter-spacing:" + style.letterSpacing + ";font-kerning:" + style.fontKerning + ";";
+      document.body.appendChild(probe);
+      var width = probe.getBoundingClientRect().width / fontSize;
+      probe.remove();
+      return width > 0 ? width : fallbackWidth(run);
+    };
+    return Math.max(1, ...runs.map(measuredWidth)).toFixed(2);
   }
 
   function fitTextEnabled() {
     return Boolean(adapter && adapter.blocks && adapter.blocks.fitText === "container");
+  }
+
+  // Font metrics are not stable until the first FontFaceSet load settles. Keep the
+  // measurement separate from slot writes so a late font cannot leave the fit variables
+  // calibrated against the fallback stack.
+  var fitTextFontListenerInstalled = false;
+  function measureFitTextNodes() {
+    if (!fitTextEnabled() || !document || !document.querySelectorAll) return;
+    var nodes = document.querySelectorAll("[data-sitecraft-fit-target]");
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var target = node.getAttribute ? node.getAttribute("data-sitecraft-fit-target") : "";
+      if (!target || !node.style || !node.style.setProperty) continue;
+      var value = node.textContent || "";
+      if (target === "hero.title") node.style.setProperty("--sitecraft-title-run", longestRunEm(value, node));
+      if (target === "companyName" || target === "siteName") node.style.setProperty("--sitecraft-brand-run", longestRunEm(value, node));
+    }
+  }
+
+  function measureFitTextAfterFonts() {
+    var fonts = document && document.fonts;
+    var ready = document && document.fonts && document.fonts.ready;
+    if (ready && typeof ready.then === "function") {
+      ready.then(measureFitTextNodes, measureFitTextNodes);
+    } else {
+      measureFitTextNodes();
+    }
+  }
+
+  function watchFontLoading() {
+    var fonts = document && document.fonts;
+    if (fitTextFontListenerInstalled || !fonts || typeof fonts.addEventListener !== "function") return;
+    fitTextFontListenerInstalled = true;
+    fonts.addEventListener("loadingdone", measureFitTextAfterFonts);
   }
 
   function readDraftValue(draft, target, locale) {
@@ -200,13 +249,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var product = visible[i];
       var productId = stableProductIdentity(product);
       if (!productId) continue;
-      var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
       var productName = localize(product.name, locale) || "";
       var productSummary = localize(product.summary, locale) || "";
       if (isGapMarker(productName) && isGapMarker(productSummary)) continue;
       var card = document.createElement("article");
       card.className = "sitecraft-product-card";
-      card.setAttribute("data-sitecraft-product", sku);
+      card.setAttribute("data-sitecraft-product", productId);
       if (product.image && typeof product.image.url === "string" && product.image.url) {
         var image = document.createElement("img");
         image.className = "sitecraft-product-image";
@@ -302,13 +350,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function renderCatalogCard(grid, product, index, locale, applied, cardSpec) {
     var productId = stableProductIdentity(product);
     if (!productId) return;
-    var sku = typeof product.sku === "string" ? product.sku : "product-" + index;
     var productName = localize(product.name, locale) || "";
     var productSummary = localize(product.summary, locale) || "";
     if (isGapMarker(productName) && isGapMarker(productSummary)) return;
     var card = document.createElement("article");
     card.className = "sitecraft-product-card";
-    card.setAttribute("data-sitecraft-product", sku);
+    card.setAttribute("data-sitecraft-product", productId);
     var hasPhoto = product.image && typeof product.image.url === "string" && product.image.url;
     card.setAttribute("data-sitecraft-product-photo", hasPhoto ? "true" : "false");
     if (hasPhoto) {
@@ -524,7 +571,6 @@ function sitecraftPreviewBridge(templateId, adapter) {
     for (var r = 0; r < rows.length; r++) {
       var product = rows[r].product;
       var id = rows[r].id;
-      var sku = typeof product.sku === "string" ? product.sku : "product-" + rows[r].index;
       var productName = localize(product.name, locale) || "";
       var allSpecs = valuedSpecs(product, locale);
       // One row group per product. It is the single node of the product's specs target: the cells of
@@ -536,7 +582,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         applied.add("products." + id + ".specs");
       }
       var tr = document.createElement("tr");
-      tr.setAttribute("data-sitecraft-product", sku);
+      tr.setAttribute("data-sitecraft-product", id);
       var nameCell = document.createElement("th");
       nameCell.setAttribute("scope", "row");
       nameCell.className = "sitecraft-index-name";
@@ -683,13 +729,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var product = products[i];
       var productId = stableProductIdentity(product);
       if (!productId) continue;
-      var sku = typeof product.sku === "string" ? product.sku : "product-" + i;
       var productName = localize(product.name, locale) || "";
       var productSummary = localize(product.summary, locale) || "";
       names.push({ id: productId, name: productName });
       var card = document.createElement("article");
       card.className = "sitecraft-compare-series-card";
-      card.setAttribute("data-sitecraft-product", sku);
+      card.setAttribute("data-sitecraft-product", productId);
       var productCategory = localize(product.category, locale) || "";
       if (productCategory && !isGapMarker(productCategory) && productCategory !== productName) {
         var category = document.createElement("p");
@@ -1024,6 +1069,90 @@ function sitecraftPreviewBridge(templateId, adapter) {
     void variant;
   }
 
+  function renderQualityProcess(draft, locale, applied, variant) {
+    var qualityVariant = declaredBlockVariant("qualityProcess", '[data-sitecraft-section="qualityProcess"]', "[data-sitecraft-quality-process-grid]");
+    if (!qualityVariant) return;
+    var sectionNode = uniqueNode('[data-sitecraft-section="qualityProcess"]');
+    var grid = uniqueNode('[data-sitecraft-quality-process-grid]');
+    var steps = draft && draft.content && Array.isArray(draft.content.qualityProcess) ? draft.content.qualityProcess : [];
+    var visible = [];
+    for (var i = 0; i < steps.length; i++) {
+      var step = steps[i];
+      if (!step || !step.id) continue;
+      var title = localize(step.title, locale) || "";
+      var body = localize(step.body, locale) || "";
+      if (isGapMarker(title)) continue;
+      visible.push({ id: step.id, title: title, body: isGapMarker(body) ? "" : body });
+    }
+    var hidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf("qualityProcess") !== -1;
+    var shouldHide = hidden || !visible.length;
+    if (sectionNode) setSectionHidden(sectionNode, "qualityProcess", shouldHide);
+    if (!grid || shouldHide) return;
+    grid.textContent = "";
+    applied.add("qualityProcess");
+    for (var v = 0; v < visible.length; v++) {
+      var item = visible[v];
+      var row = document.createElement("article");
+      row.className = "sitecraft-quality-process-item";
+      row.setAttribute("data-sc-part", "item");
+      var titleNode = document.createElement("h3");
+      titleNode.textContent = adapter && adapter.blocks ? emailBreakPoints(item.title) : item.title;
+      titleNode.setAttribute("data-sitecraft-slot", "qualityProcess.items." + item.id + ".title." + locale);
+      row.appendChild(titleNode);
+      if (item.body) {
+        var bodyNode = document.createElement("p");
+        bodyNode.textContent = adapter && adapter.blocks ? emailBreakPoints(item.body) : item.body;
+        bodyNode.setAttribute("data-sitecraft-slot", "qualityProcess.items." + item.id + ".body." + locale);
+        row.appendChild(bodyNode);
+        applied.add("qualityProcess.items." + item.id + ".body." + locale);
+      }
+      grid.appendChild(row);
+      applied.add("qualityProcess.items." + item.id + ".title." + locale);
+    }
+    void variant;
+  }
+
+  function renderHistory(draft, locale, applied, variant) {
+    var historyVariant = declaredBlockVariant("history", '[data-sitecraft-section="history"]', "[data-sitecraft-history-grid]");
+    if (!historyVariant) return;
+    var sectionNode = uniqueNode('[data-sitecraft-section="history"]');
+    var grid = uniqueNode('[data-sitecraft-history-grid]');
+    var history = draft && draft.content && Array.isArray(draft.content.history) ? draft.content.history : [];
+    var visible = [];
+    for (var i = 0; i < history.length; i++) {
+      var item = history[i];
+      if (!item || !item.id || !Number.isInteger(item.year) || item.year < 1000 || item.year > 9999) continue;
+      var event = localize(item.event, locale) || "";
+      visible.push({ id: item.id, year: String(item.year), event: isGapMarker(event) ? "" : event });
+    }
+    var hidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf("history") !== -1;
+    var shouldHide = hidden || !visible.length;
+    setSectionHidden(sectionNode, "history", shouldHide);
+    if (shouldHide) return;
+    grid.textContent = "";
+    applied.add("history");
+    for (var v = 0; v < visible.length; v++) {
+      var item = visible[v];
+      var row = document.createElement("article");
+      row.className = "sitecraft-history-item";
+      row.setAttribute("data-sc-part", "item");
+      var yearNode = document.createElement("h3");
+      yearNode.textContent = item.year;
+      yearNode.setAttribute("data-sitecraft-slot", "history.items." + item.id + ".year");
+      row.appendChild(yearNode);
+      applied.add("history.items." + item.id + ".year");
+      if (item.event) {
+        var eventNode = document.createElement("p");
+        eventNode.textContent = adapter && adapter.blocks ? emailBreakPoints(item.event) : item.event;
+        eventNode.setAttribute("data-sitecraft-slot", "history.items." + item.id + ".event." + locale);
+        row.appendChild(eventNode);
+        applied.add("history.items." + item.id + ".event." + locale);
+      }
+      grid.appendChild(row);
+    }
+    void variant;
+  }
+
   function selectUiTarget(slotKey) {
     var base = stripLocale(slotKey);
     if (base === "hero.title") return "heroTitle";
@@ -1037,6 +1166,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (base === "products" || base.indexOf("products.") === 0) return "products";
     if (base === "commercialTerms" || base.indexOf("commercialTerms.") === 0) return "commercialTerms";
     if (base === "equipment" || base.indexOf("equipment.") === 0) return "equipment";
+    if (base === "history" || base.indexOf("history.") === 0) return "history";
     if (base === "contact" || base.indexOf("contact.") === 0) return "contact";
     if (base === "faq" || base.indexOf("faq.") === 0) return "faq";
     if (base === "industries" || base.indexOf("industries.") === 0) return "industries";
@@ -1080,15 +1210,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
         return false;
       }
       if (optional) node.hidden = false;
-      if (fitTextEnabled() && slot.target === "hero.title" && node.style && node.style.setProperty) node.style.setProperty("--sitecraft-title-run", longestRunEm(nextValue));
-      if (fitTextEnabled() && (slot.target === "companyName" || slot.target === "siteName") && node.style && node.style.setProperty) {
-        node.style.setProperty("--sitecraft-brand-run", longestRunEm(nextValue));
-      }
       if (adapter && adapter.blocks && adapter.blocks.heroTitle === "words" && slot.target === "hero.title") {
         node.textContent = "";
         writeHeroTitle(node, nextValue);
       } else {
         node.textContent = adapter && adapter.blocks ? emailBreakPoints(nextValue) : nextValue;
+      }
+      if (fitTextEnabled() && (slot.target === "hero.title" || slot.target === "companyName" || slot.target === "siteName") && node.setAttribute) {
+        node.setAttribute("data-sitecraft-fit-target", slot.target);
       }
       if (slot.target === "contact.email" && node.getAttribute && node.setAttribute) {
         var href = node.getAttribute("href") || "";
@@ -1582,9 +1711,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function linkBlock(link) {
     var value = link && link.getAttribute ? (link.getAttribute("data-sitecraft-nav") || link.getAttribute("data-sitecraft-ui") || "") : "";
     if (value === "services") return "services";
-    if (["products", "industries", "capabilities", "certifications", "faq", "contact", "equipment"].indexOf(value) >= 0) return value;
+    if (["products", "industries", "capabilities", "certifications", "faq", "contact", "equipment", "qualityProcess"].indexOf(value) >= 0) return value;
     var href = link && link.getAttribute ? link.getAttribute("href") || "" : "";
-    return ({ "#products": "products", "#industries": "industries", "#capabilities": "capabilities", "#equipment": "equipment", "#process": "services", "#certifications": "certifications", "#faq": "faq", "#inquiry": "contact" })[href] || null;
+    return ({ "#products": "products", "#industries": "industries", "#capabilities": "capabilities", "#equipment": "equipment", "#quality-process": "qualityProcess", "#process": "services", "#certifications": "certifications", "#faq": "faq", "#inquiry": "contact" })[href] || null;
   }
 
   function reorderLinks(container, order) {
@@ -1672,6 +1801,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (tokens.muted) root.dataset.sitecraftTokenMuted = tokens.muted;
       if (tokens.accent) root.dataset.sitecraftTokenAccent = tokens.accent;
       if (tokens.accentStrong) root.dataset.sitecraftTokenAccentStrong = tokens.accentStrong;
+      if (root.dataset) root.dataset.sitecraftTokenAccentText = tokens.accentText || "#ffffff";
       if (tokens.accentSoft) root.dataset.sitecraftTokenAccentSoft = tokens.accentSoft;
       if (tokens.border) root.dataset.sitecraftTokenBorder = tokens.border;
       if (inputToken) root.dataset.sitecraftTokenInput = inputToken;
@@ -1680,6 +1810,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (tokens.diagram) root.dataset.sitecraftTokenDiagram = tokens.diagram;
       if (tokens.tint) root.dataset.sitecraftTokenTint = tokens.tint;
       if (tokens.font) root.dataset.sitecraftTokenFont = tokens.font;
+      if (tokens.headingFont) root.dataset.sitecraftTokenHeadingFont = tokens.headingFont;
+      if (tokens.dataFont) root.dataset.sitecraftTokenDataFont = tokens.dataFont;
       if (tokens.radius) root.dataset.sitecraftTokenRadius = tokens.radius;
       if (root.style && root.style.setProperty) {
         if (tokens.background) root.style.setProperty("--site-bg", tokens.background);
@@ -1688,6 +1820,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (tokens.muted) root.style.setProperty("--site-muted", tokens.muted);
         if (tokens.accent) root.style.setProperty("--site-accent", tokens.accent);
         if (tokens.accentStrong) root.style.setProperty("--site-accent-strong", tokens.accentStrong);
+        root.style.setProperty("--site-accent-text", tokens.accentText || "#ffffff");
         if (tokens.accentSoft) root.style.setProperty("--site-accent-soft", tokens.accentSoft);
         if (tokens.border) root.style.setProperty("--site-line", tokens.border);
         if (inputToken) root.style.setProperty("--site-input", inputToken);
@@ -1696,6 +1829,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (tokens.diagram) root.style.setProperty("--site-diagram", tokens.diagram);
         if (tokens.tint) root.style.setProperty("--site-tint", tokens.tint);
         if (tokens.font) root.style.setProperty("--site-font", tokens.font);
+        if (tokens.headingFont) root.style.setProperty("--site-heading-font", tokens.headingFont);
+        if (tokens.dataFont) root.style.setProperty("--site-data-font", tokens.dataFont);
         if (tokens.radius) root.style.setProperty("--site-radius", tokens.radius);
       }
     }
@@ -2029,6 +2164,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     renderCatalogSections(null, locale, applied, variant);
     renderCommercialTerms(null, locale, applied, variant);
     renderEquipment(null, locale, applied, variant);
+    renderHistory(null, locale, applied, variant);
+    renderQualityProcess(null, locale, applied, variant);
     hideEmptyProductSection(null, locale, variant);
     var slots = adapter.slots || [];
     for (var s = 0; s < slots.length; s++) {
@@ -2067,8 +2204,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
   function applyVisitorChrome(locale, draft, variant) {
     if (!document || !document.querySelectorAll) return;
     var copy = locale === "en"
-      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", addressPrefix: "Address", products: "Products", commercialTerms: "Commercial terms", equipment: "Equipment", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", viewProducts: "View product series", menu: "Menu", footerContact: "Contact", footerNav: "Navigate", footerProducts: "Products", localeZh: "中", localeEn: "EN" }
-      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", addressPrefix: "地址", products: "产品", commercialTerms: "商业条款", equipment: "设备", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", viewProducts: "看产品系列", menu: "菜单", footerContact: "联系", footerNav: "导航", footerProducts: "产品", localeZh: "中", localeEn: "EN" };
+      ? { name: "Name", email: "Email", company: "Company", message: "Request", emailPrefix: "Email", phonePrefix: "Phone", addressPrefix: "Address", products: "Products", commercialTerms: "Commercial terms", equipment: "Equipment", qualityProcess: "Quality process", history: "History", services: "How we work", contact: "Inquiry", faq: "Questions", industries: "Industries", capabilities: "Capabilities", certifications: "Certifications", submit: "Send inquiry", viewProducts: "View product series", menu: "Menu", footerContact: "Contact", footerNav: "Navigate", footerProducts: "Products", localeZh: "中", localeEn: "EN" }
+      : { name: "姓名", email: "邮箱", company: "公司", message: "需求", emailPrefix: "邮箱", phonePrefix: "电话", addressPrefix: "地址", products: "产品", commercialTerms: "商业条款", equipment: "设备", qualityProcess: "质检流程", history: "沿革", services: "合作方式", contact: "询盘", faq: "常见问题", industries: "应用行业", capabilities: "加工能力", certifications: "认证状态", submit: "发送询盘", viewProducts: "看产品系列", menu: "菜单", footerContact: "联系", footerNav: "导航", footerProducts: "产品", localeZh: "中", localeEn: "EN" };
     var labels = document.querySelectorAll("[data-sitecraft-inquiry-label],[data-sitecraft-ui]");
     for (var i = 0; i < labels.length; i++) {
       var node = labels[i];
@@ -2147,6 +2284,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       renderCatalogSections(draft, currentLocale, applied, variant || "preview");
       renderCommercialTerms(draft, currentLocale, applied, variant || "preview");
       renderEquipment(draft, currentLocale, applied, variant || "preview");
+      renderHistory(draft, currentLocale, applied, variant || "preview");
+      renderQualityProcess(draft, currentLocale, applied, variant || "preview");
       clearUnprovidedCatalogChrome(draft, variant || "preview");
       hideEmptyProductSection(draft, currentLocale, variant || "preview");
       syncHiddenNavigation((function () {
@@ -2168,6 +2307,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
     } else if (adapter) {
       hideGapsWithoutDraft(currentLocale, variant || "preview", applied);
     }
+    watchFontLoading();
+    measureFitTextAfterFonts();
     return report(applied, expected, adapter, extraMissing);
   }
 

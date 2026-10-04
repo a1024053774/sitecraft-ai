@@ -121,6 +121,22 @@ export function getTemplateStaticRoot(templateId: string) {
 }
 
 export async function readTemplateStaticFile(templateId: string, segments: string[]) {
+  // Block-library previews rewrite root-relative font URLs through this asset route because their
+  // iframe base points at the template asset namespace. Keep the first-party font files available
+  // there while retaining the public URL for the app shell.
+  if (segments[0] === "fonts" && segments[1] === "sitecraft") {
+    const publicRoot = path.resolve(/* turbopackIgnore: true */ process.cwd(), "public");
+    const target = await existingSnapshotTarget(publicRoot, segments);
+    if (target) {
+      try {
+        const body = await readFile(/* turbopackIgnore: true */ target);
+        const extension = path.extname(target).toLowerCase();
+        return { body, contentType: contentTypes[extension] ?? "application/octet-stream" };
+      } catch {
+        return null;
+      }
+    }
+  }
   // A look on the block library (T-053) serves one page, composed from lib/blocks, and nothing from
   // the vendor snapshot: not its pages, not its files (the composed page uses none), and it does not
   // need the snapshot to be built.
