@@ -273,6 +273,8 @@ function parseSseEvents(payload: string) {
 }
 
 async function postChat(siteId: string, body: Record<string, unknown>) {
+  // T-102: tests create their site explicitly; the chat route must not create a missing site.
+  await getSite(siteId);
   const response = await POST(
     new Request(`http://sitecraft.test/api/sites/${siteId}/chat`, {
       method: "POST",

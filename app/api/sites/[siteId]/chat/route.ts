@@ -26,7 +26,7 @@ import {
   type ConversationRecord,
   type ConversationTurnOutcome,
 } from "@/lib/conversation-store";
-import { commitOperations, getSite, snapshot } from "@/lib/site-store";
+import { commitOperations, getExistingSite, getSite, snapshot } from "@/lib/site-store";
 import { ensureProductIds, visualBriefCatalog, type PaletteId } from "@/lib/site-document";
 import { templates } from "@/lib/site-model";
 import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
@@ -677,6 +677,7 @@ async function handleAlignmentAction(siteId: string, raw: unknown) {
 export async function POST(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const raw = await request.json().catch(() => null);
   const { siteId } = await params;
+  if (!await getExistingSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
   if (raw && typeof raw === "object" && "action" in raw && typeof (raw as { action?: unknown }).action === "string") {
     return handleAlignmentAction(siteId, raw);
   }

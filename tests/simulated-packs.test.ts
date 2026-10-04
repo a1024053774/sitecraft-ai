@@ -192,7 +192,7 @@ test("workspace preview and published page read the same committed draft", () =>
   const draftRoute = readFileSync(new URL("../app/api/sites/[siteId]/draft/route.ts", import.meta.url), "utf8");
   assert.match(workspaceSource, /fetch\(`\/api\/sites\/\$\{(?:activeSiteId|siteId)\}\/draft`/);
   assert.match(workspaceSource, /variant="workspace"/);
-  assert.match(publishedPage, /getSite\(siteKey\)/);
+  assert.match(publishedPage, /getExistingSite\(siteKey\)/);
   assert.match(publishedPage, /initialDraft/);
   assert.match(publishedClient, /variant="published"/);
   assert.match(publishedClient, /OpenSourceTemplateFrame/);

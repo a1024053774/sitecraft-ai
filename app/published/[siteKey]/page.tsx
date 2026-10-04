@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getSite } from "@/lib/site-store";
+import { notFound } from "next/navigation";
+import { getExistingSite } from "@/lib/site-store";
 import { normalizeDraft } from "@/lib/site-model";
 import { findSitePage } from "@/lib/template-pages";
 import { PublishedSiteClient } from "./published-client";
@@ -30,7 +31,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { siteKey } = await params;
   try {
-    const site = await getSite(siteKey);
+    const site = await getExistingSite(siteKey);
+    if (!site) return { title: siteKey };
     const draft = normalizeDraft(site.draft);
     const title = (draft.companyName || draft.siteName || siteKey).trim() || siteKey;
     const description = localizeText(draft.content?.hero?.subtitle)
@@ -56,7 +58,8 @@ export default async function PublishedSitePage({
   const query = searchParams && typeof searchParams === "object" && "then" in searchParams
     ? await searchParams
     : searchParams ?? {};
-  const site = await getSite(siteKey);
+  const site = await getExistingSite(siteKey);
+  if (!site) notFound();
   const initialDraft = normalizeDraft(site.draft);
   const requestedPage = firstQuery(query.page);
   const page = findSitePage(initialDraft.pagePlan, requestedPage);

@@ -18,7 +18,7 @@ import {
   type QualityPackId,
 } from "./quality-comparison.ts";
 import { defaultDraft } from "./site-document.ts";
-import { getSite } from "./site-store.ts";
+import { getExistingSite } from "./site-store.ts";
 import { normalizeDraft, type SiteDraft } from "./site-model.ts";
 
 export type QualityCellDraftView = {
@@ -90,7 +90,8 @@ async function readSavedResult(cellId: string) {
 export async function cellSnapshot(packId: QualityPackId, group: QualityGroupId): Promise<QualityCellView> {
   const recipe = qualityRecipe(packId, group);
   const saved = await readSavedResult(recipe.cell.cellId);
-  const site = await getSite(recipe.cell.siteId);
+  const site = await getExistingSite(recipe.cell.siteId);
+  if (!site) throw new Error(`site_not_found:${recipe.cell.siteId}`);
   const draft = normalizeDraft(site.draft);
   return {
     ...recipe.cell,
