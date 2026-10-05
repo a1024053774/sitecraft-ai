@@ -42,6 +42,8 @@ export type BlockVariantSpec = {
   render?: TemplateBlockRender;
   /** What the materials must hold before this variant can be picked; defaults need nothing. */
   requires?: BlockRequirement[];
+  /** Selector-backed layout checks for this mounted variant (T-090). */
+  declarations: BlockLayoutDeclarations;
 };
 
 /**
@@ -59,6 +61,17 @@ export type BlockRequirement =
   | { kind: "productCount"; min: number; layout: string }
   /** Contact band: at least `min` of email, phone and address. */
   | { kind: "contactLines"; min: number };
+
+export type LayoutDeclarationGroup = {
+  id: string;
+  selectors: string[];
+};
+
+export type BlockLayoutDeclarations = {
+  baselineGroups: LayoutDeclarationGroup[];
+  semanticGroups: LayoutDeclarationGroup[];
+  buttonRoles: { primary: string[]; secondary: string[] };
+};
 
 export type BlockSpec = {
   label: string;
@@ -98,6 +111,15 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ["[data-sitecraft-locale-switch]"],
         parts: ["rule", "bar", "brand", "links", "tools"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "brand", selectors: ['[data-sc-part="brand"]'] },
+            { id: "links", selectors: ['[data-sc-part="links"]'] },
+            { id: "tools", selectors: ['[data-sc-part="tools"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sitecraft-nav="contact"]'] },
+        },
       },
       short: {
         label: "短导航",
@@ -108,6 +130,15 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ["[data-sitecraft-locale-switch]"],
         parts: ["rule", "bar", "brand", "links", "tools"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "brand", selectors: ['[data-sc-part="brand"]'] },
+            { id: "links", selectors: ['[data-sc-part="links"]'] },
+            { id: "tools", selectors: ['[data-sc-part="tools"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sitecraft-nav="contact"]'] },
+        },
       },
     },
   },
@@ -129,6 +160,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["band", "copy", "title", "actions", "visual", "specs"],
         renderedParts: ["spec", "spec-label", "spec-value"],
         render: { heroSpecs: "with-photo" },
+        declarations: {
+          baselineGroups: [{ id: "hero-actions", selectors: ['[data-sitecraft-benchmark="hero-cta"]', '[data-sitecraft-ui="viewProducts"]'] }],
+          semanticGroups: [],
+          buttonRoles: {
+            primary: ['[data-sitecraft-benchmark="hero-cta"]'],
+            secondary: ['[data-sitecraft-ui="viewProducts"]'],
+          },
+        },
       },
       statement: {
         label: "大标题加参数条",
@@ -143,6 +182,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         renderedParts: ["spec", "spec-label", "spec-value"],
         render: { heroSpecs: "always" },
         requires: [{ kind: "heroFacts", min: 3 }],
+        declarations: {
+          baselineGroups: [{ id: "hero-actions", selectors: ['[data-sitecraft-benchmark="hero-cta"]', '[data-sitecraft-ui="viewProducts"]'] }],
+          semanticGroups: [],
+          buttonRoles: {
+            primary: ['[data-sitecraft-benchmark="hero-cta"]'],
+            secondary: ['[data-sitecraft-ui="viewProducts"]'],
+          },
+        },
       },
       cover: {
         label: "目录封面",
@@ -156,6 +203,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["band", "copy", "title", "actions", "index"],
         render: { heroIndex: true },
         requires: [{ kind: "productCount", min: 2, layout: "目录封面" }],
+        declarations: {
+          baselineGroups: [{ id: "hero-actions", selectors: ['[data-sitecraft-benchmark="hero-cta"]', '[data-sitecraft-ui="viewProducts"]'] }],
+          semanticGroups: [],
+          buttonRoles: {
+            primary: ['[data-sitecraft-benchmark="hero-cta"]'],
+            secondary: ['[data-sitecraft-ui="viewProducts"]'],
+          },
+        },
       },
     },
   },
@@ -172,6 +227,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-product-grid]"],
         parts: ["head", "title", "grid"],
         render: { products: "cards", keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "grid", selectors: ['[data-sc-part="grid"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="grid"] .sitecraft-product-ask'] },
+        },
       },
       rows: {
         label: "目录行",
@@ -179,6 +242,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-product-grid]"],
         parts: ["head", "title", "grid"],
         render: { products: "rows", keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "grid", selectors: ['[data-sc-part="grid"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="grid"] .sitecraft-product-ask'] },
+        },
       },
       grouped: {
         label: "按类别分组",
@@ -187,6 +258,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "grid"],
         render: { products: "grouped", keySpecs: 3, collapseSpecs: true, askHref: "#inquiry" },
         requires: [{ kind: "productGroups", minGroups: 2, minLargest: 2 }],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "grid", selectors: ['[data-sc-part="grid"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="grid"] .sitecraft-product-ask'] },
+        },
       },
       compare: {
         label: "参数对比表",
@@ -195,6 +274,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "grid"],
         render: { products: "compare", askHref: "#inquiry" },
         requires: [{ kind: "sharedSpecs", minProducts: 2, maxProducts: 4, minShared: 3 }],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "grid", selectors: ['[data-sc-part="grid"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="grid"] .sitecraft-product-ask'] },
+        },
       },
       index: {
         label: "型号索引表",
@@ -203,6 +290,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "grid"],
         render: { products: "index", keySpecs: 3, askHref: "#inquiry" },
         requires: [{ kind: "productCount", min: 3, layout: "型号索引表" }],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "grid", selectors: ['[data-sc-part="grid"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="grid"] .sitecraft-product-ask'] },
+        },
       },
     },
   },
@@ -219,6 +314,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-commercial-terms-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       strip: {
         label: "条款带",
@@ -226,6 +329,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-commercial-terms-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       side: {
         label: "左右条款",
@@ -233,6 +344,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-commercial-terms-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -249,6 +368,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-equipment-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       band: {
         label: "数量带",
@@ -257,6 +384,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
         render: { equipment: "grouped" },
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       compact: {
         label: "双栏清单",
@@ -264,6 +399,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-equipment-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -280,6 +423,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-history-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       timeline: {
         label: "沿革时间线",
@@ -287,6 +438,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-history-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       alternating: {
         label: "交替时间线",
@@ -294,6 +453,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-history-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -310,6 +477,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-quality-process-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       checklist: {
         label: "质检清单",
@@ -317,6 +492,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-quality-process-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       flow: {
         label: "动作流程",
@@ -324,6 +507,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ["[data-sitecraft-quality-process-grid]"],
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -339,12 +530,28 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         slots: [benchmark("industries.title", "industries-title"), benchmark("industries.intro", "industries-intro")],
         markers: ['[data-sitecraft-catalog-grid="industries"]'],
         parts: ["title", "list"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "title", selectors: ['[data-sc-part="title"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       cards: {
         label: "行业卡片",
         slots: [benchmark("industries.title", "industries-title"), benchmark("industries.intro", "industries-intro")],
         markers: ['[data-sitecraft-catalog-grid="industries"]'],
         parts: ["head", "title", "list"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -360,12 +567,28 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         slots: [benchmark("capabilities.title", "capabilities-title"), benchmark("capabilities.intro", "capabilities-intro")],
         markers: ['[data-sitecraft-catalog-grid="capabilities"]'],
         parts: ["title", "list"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "title", selectors: ['[data-sc-part="title"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       cards: {
         label: "能力卡片",
         slots: [benchmark("capabilities.title", "capabilities-title"), benchmark("capabilities.intro", "capabilities-intro")],
         markers: ['[data-sitecraft-catalog-grid="capabilities"]'],
         parts: ["head", "title", "list"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -381,18 +604,42 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
         markers: [],
         parts: ["head", "title", "steps", "item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "steps", selectors: ['[data-sc-part="steps"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       vertical: {
         label: "纵向流程",
         slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
         markers: [],
         parts: ["head", "title", "steps", "item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "steps", selectors: ['[data-sc-part="steps"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       cards: {
         label: "步骤卡片",
         slots: [benchmark("services.title", "services-title"), benchmark("services.intro", "services-intro"), ...itemSlots("services", 6)],
         markers: [],
         parts: ["head", "title", "steps", "item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "steps", selectors: ['[data-sc-part="steps"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -408,18 +655,42 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         slots: [benchmark("certifications.title", "certifications-title"), benchmark("certifications.intro", "certifications-intro")],
         markers: ['[data-sitecraft-catalog-grid="certifications"]'],
         parts: ["head", "title", "badges"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "badges", selectors: ['[data-sc-part="badges"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       table: {
         label: "证书状态表",
         slots: [benchmark("certifications.title", "certifications-title"), benchmark("certifications.intro", "certifications-intro")],
         markers: ['[data-sitecraft-catalog-grid="certifications"]'],
         parts: ["head", "title", "list"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       cards: {
         label: "认证卡片",
         slots: [benchmark("certifications.title", "certifications-title"), benchmark("certifications.intro", "certifications-intro")],
         markers: ['[data-sitecraft-catalog-grid="certifications"]'],
         parts: ["head", "title", "list"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -436,18 +707,42 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         slots: [benchmark("faq.title", "faq-title"), benchmark("faq.intro", "faq-intro"), ...itemSlots("faq", 6)],
         markers: [],
         parts: ["head", "title", "list", "item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       open: {
         label: "展开问答",
         slots: [benchmark("faq.title", "faq-title"), benchmark("faq.intro", "faq-intro"), ...itemSlots("faq", 6)],
         markers: [],
         parts: ["head", "title", "list", "item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       side: {
         label: "旁注问答",
         slots: [benchmark("faq.title", "faq-title"), benchmark("faq.intro", "faq-intro"), ...itemSlots("faq", 6)],
         markers: [],
         parts: ["head", "title", "list", "item"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "head", selectors: ['[data-sc-part="head"]'] },
+            { id: "list", selectors: ['[data-sc-part="list"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
@@ -468,6 +763,14 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ['[data-sitecraft-inquiry="true"]'],
         parts: ["copy", "title", "lines", "form"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "copy", selectors: ['[data-sc-part="copy"]'] },
+            { id: "form", selectors: ['[data-sc-part="form"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="form"] button.sitecraft-primary'] },
+        },
       },
       icons: {
         label: "图标联系",
@@ -480,12 +783,28 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ['[data-sitecraft-inquiry="true"]'],
         parts: ["copy", "title", "lines", "form"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "copy", selectors: ['[data-sc-part="copy"]'] },
+            { id: "form", selectors: ['[data-sc-part="form"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="form"] button.sitecraft-primary'] },
+        },
       },
       panel: {
         label: "面板询盘",
         slots: [benchmark("contact.title", "contact-title"), benchmark("contact.body", "contact-body"), text("contact.email", '[data-sitecraft-contact="email"]'), text("contact.phone", '[data-sitecraft-contact="phone"]')],
         markers: ['[data-sitecraft-inquiry="true"]'],
         parts: ["copy", "title", "lines", "form"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "copy", selectors: ['[data-sc-part="copy"]'] },
+            { id: "form", selectors: ['[data-sc-part="form"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="form"] button.sitecraft-primary'] },
+        },
       },
       band: {
         label: "联系条",
@@ -499,6 +818,15 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: ['[data-sitecraft-inquiry="true"]'],
         parts: ["copy", "title", "lines", "form"],
         requires: [{ kind: "contactLines", min: 2 }],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [
+            { id: "copy", selectors: ['[data-sc-part="copy"]'] },
+            { id: "lines", selectors: ['[data-sc-part="lines"]'] },
+            { id: "form", selectors: ['[data-sc-part="form"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: ['[data-sc-part="form"] button.sitecraft-primary'] },
+        },
       },
     },
   },
@@ -516,12 +844,25 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         ],
         markers: ["[data-sitecraft-footer-products]"],
         parts: ["columns", "about"],
+        declarations: {
+          baselineGroups: [],
+          semanticGroups: [{ id: "columns", selectors: ['[data-sc-part="columns"]'] }],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
       line: {
         label: "一行页脚",
         slots: [text("companyName", '[data-sitecraft-brand="footer"]'), text("contact.email", '[data-sitecraft-contact="footer-email"]'), text("contact.phone", '[data-sitecraft-contact="footer-phone"]')],
         markers: [],
         parts: ["line", "brand", "contact"],
+        declarations: {
+          baselineGroups: [{ id: "footer-contact", selectors: ['[data-sc-part="brand"]', '[data-sc-part="contact"]'] }],
+          semanticGroups: [
+            { id: "brand", selectors: ['[data-sc-part="brand"]'] },
+            { id: "contact", selectors: ['[data-sc-part="contact"]'] },
+          ],
+          buttonRoles: { primary: [], secondary: [] },
+        },
       },
     },
   },
