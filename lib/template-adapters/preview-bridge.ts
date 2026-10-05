@@ -1637,9 +1637,29 @@ function sitecraftPreviewBridge(templateId, adapter) {
       var credit = image && image.credit ? localize(image.credit, locale) || "" : "";
       if (!credit || seen[credit]) continue;
       seen[credit] = true;
-      credits.push(credit);
+      credits.push({ text: credit, author: image.author || "", license: image.license || "", sourceUrl: image.sourceUrl || "" });
     }
-    host.textContent = credits.length ? ((locale === "en" ? "Image sources: " : "图片来源：") + credits.join(" · ")) : "";
+    host.textContent = "";
+    if (credits.length) {
+      var label = document.createElement("span");
+      label.textContent = locale === "en" ? "Image sources: " : "图片来源：";
+      host.appendChild(label);
+      for (var c = 0; c < credits.length; c++) {
+        if (c) host.appendChild(document.createTextNode(" · "));
+        var item = credits[c];
+        var short = document.createElement("span");
+        short.textContent = item.author && item.license ? item.author + " / " + item.license + " / " : item.text;
+        host.appendChild(short);
+        if (item.sourceUrl) {
+          var link = document.createElement("a");
+          link.href = item.sourceUrl;
+          link.target = "_blank";
+          link.rel = "noreferrer";
+          link.textContent = locale === "en" ? "source" : "来源";
+          host.appendChild(link);
+        }
+      }
+    }
     host.hidden = credits.length === 0;
     if (credits.length) applied.add("images.credits");
   }
