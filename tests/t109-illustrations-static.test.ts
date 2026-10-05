@@ -28,7 +28,9 @@ type PreviewResult = {
   equipmentColor: string;
   equipmentBackgroundColor: string;
   equipmentRuleToken: string;
+  equipmentStrokeToken: string;
   equipmentBorderTopWidth: string;
+  equipmentStrokeWidth: string;
   equipmentSvgWidth: number;
   equipmentGalleryHidden: boolean;
   equipmentImageCount: number;
@@ -92,7 +94,9 @@ test("T-109 localizes equipment schematics and switches to supplied equipment im
                 equipmentColor: schematic ? getComputedStyle(schematic).color : "",
                 equipmentBackgroundColor: schematic ? getComputedStyle(schematic).backgroundColor : "",
                 equipmentRuleToken: schematic ? getComputedStyle(schematic).getPropertyValue("--site-rule").trim() : "",
+                equipmentStrokeToken: schematic ? getComputedStyle(schematic).getPropertyValue("--site-diagram-stroke").trim() : "",
                 equipmentBorderTopWidth: schematic ? getComputedStyle(schematic).borderTopWidth : "0px",
+                equipmentStrokeWidth: schematic?.querySelector('svg') ? getComputedStyle(schematic.querySelector('svg')).strokeWidth : "0px",
                 equipmentSvgWidth: schematic?.querySelector('svg')?.getBoundingClientRect().width || 0,
                 equipmentGalleryHidden: gallery?.hasAttribute("hidden") ?? true,
                 equipmentImageCount: gallery?.querySelectorAll('img').length || 0,
@@ -126,7 +130,10 @@ test("T-109 localizes equipment schematics and switches to supplied equipment im
               assert.notEqual(result.equipmentColor, "rgba(0, 0, 0, 0)", `${where}: schematic line color comes from the look token`);
               assert.notEqual(result.equipmentBackgroundColor, "rgba(0, 0, 0, 0)", `${where}: schematic surface comes from the look token`);
               assert.notEqual(result.equipmentRuleToken, "", `${where}: schematic surface border has a declared --site-rule token`);
+              assert.notEqual(result.equipmentStrokeToken, "", `${where}: schematic has a declared stroke-width token`);
               assert.notEqual(result.equipmentBorderTopWidth, "0px", `${where}: schematic surface keeps the look rule`);
+              assert.ok(Number.parseFloat(result.equipmentStrokeWidth) > 0, `${where}: SVG uses a positive computed stroke width`);
+              assert.equal(Number.parseFloat(result.equipmentStrokeWidth), Number.parseFloat(result.equipmentStrokeToken), `${where}: SVG stroke width follows the look token`);
               assert.ok(result.equipmentSvgWidth > 0, `${where}: schematic has visible SVG geometry`);
             }
           }

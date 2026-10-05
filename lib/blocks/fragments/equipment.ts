@@ -11,7 +11,7 @@ export const equipmentFragment: BlockFragment = {
 .sitecraft-equipment-item p { color: var(--site-value-ink, var(--site-ink)); line-height: 1.55; overflow-wrap: anywhere; }
 .sitecraft-equipment-schematic { display: none; margin-top: 24px; padding: 12px; color: var(--site-diagram); background-color: var(--site-surface); border: var(--site-rule); }
 .sitecraft-equipment-schematic-label { display: block; margin-bottom: 6px; color: var(--site-muted); font-size: 11px; letter-spacing: .08em; text-align: right; }
-.sitecraft-equipment-schematic-svg { display: block; width: min(70%, 320px); min-height: 150px; height: auto; margin: 0 auto; }
+.sitecraft-equipment-schematic-svg { display: block; width: min(70%, 320px); min-height: 150px; height: auto; margin: 0 auto; stroke-width: var(--site-diagram-stroke); }
 .sitecraft-section#equipment .sitecraft-container:has([data-sitecraft-image-gallery="equipment"][hidden]) .sitecraft-equipment-schematic { display: block; }
 .sitecraft-equipment-quantity { white-space: nowrap; }
 /* 数量带: the items with a count as a band (the count big, the name under it, the specification

@@ -127,6 +127,7 @@ export const shortPathLook: BlockLook = {
     "--site-group-columns": "1fr",
     "--site-rule": "1px solid var(--site-line)",
     "--site-rule-strong": "1px solid var(--site-line)",
+    "--site-diagram-stroke": "1px",
   },
   layout: {
     top: ["nav"],
