@@ -9,7 +9,7 @@ export const equipmentFragment: BlockFragment = {
 .sitecraft-equipment-item h3, .sitecraft-equipment-item p { margin: 0; }
 .sitecraft-equipment-item h3 { font-size: 15px; font-weight: 650; }
 .sitecraft-equipment-item p { color: var(--site-value-ink, var(--site-ink)); line-height: 1.55; overflow-wrap: anywhere; }
-.sitecraft-equipment-schematic { display: none; margin-top: 24px; padding: 12px; color: var(--site-diagram); background-color: var(--site-surface); border: var(--site-rule, 1px solid var(--site-line)); }
+.sitecraft-equipment-schematic { display: none; margin-top: 24px; padding: 12px; color: var(--site-diagram); background-color: var(--site-surface); border: var(--site-rule); }
 .sitecraft-equipment-schematic-label { display: block; margin-bottom: 6px; color: var(--site-muted); font-size: 11px; letter-spacing: .08em; text-align: right; }
 .sitecraft-equipment-schematic-svg { display: block; width: min(70%, 320px); min-height: 150px; height: auto; margin: 0 auto; }
 .sitecraft-section#equipment .sitecraft-container:has([data-sitecraft-image-gallery="equipment"][hidden]) .sitecraft-equipment-schematic { display: block; }

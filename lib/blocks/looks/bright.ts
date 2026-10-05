@@ -113,6 +113,8 @@ export const brightLook: BlockLook = {
     "--site-panel-copy-bg": "transparent",
     "--site-form-card": "var(--site-surface)",
     "--site-group-columns": "1fr",
+    "--site-rule": "1px solid var(--site-line)",
+    "--site-rule-strong": "2px solid var(--site-accent)",
   },
   layout: {
     top: ["nav"],

@@ -27,6 +27,7 @@ type PreviewResult = {
   equipmentAriaLabel: string | null;
   equipmentColor: string;
   equipmentBackgroundColor: string;
+  equipmentRuleToken: string;
   equipmentBorderTopWidth: string;
   equipmentSvgWidth: number;
   equipmentGalleryHidden: boolean;
@@ -90,6 +91,7 @@ test("T-109 localizes equipment schematics and switches to supplied equipment im
                 equipmentAriaLabel: schematic?.getAttribute("aria-label") ?? null,
                 equipmentColor: schematic ? getComputedStyle(schematic).color : "",
                 equipmentBackgroundColor: schematic ? getComputedStyle(schematic).backgroundColor : "",
+                equipmentRuleToken: schematic ? getComputedStyle(schematic).getPropertyValue("--site-rule").trim() : "",
                 equipmentBorderTopWidth: schematic ? getComputedStyle(schematic).borderTopWidth : "0px",
                 equipmentSvgWidth: schematic?.querySelector('svg')?.getBoundingClientRect().width || 0,
                 equipmentGalleryHidden: gallery?.hasAttribute("hidden") ?? true,
@@ -123,6 +125,7 @@ test("T-109 localizes equipment schematics and switches to supplied equipment im
               assert.equal(result.equipmentAriaLabel, schematicCopy[locale], `${where}: schematic aria-label follows locale`);
               assert.notEqual(result.equipmentColor, "rgba(0, 0, 0, 0)", `${where}: schematic line color comes from the look token`);
               assert.notEqual(result.equipmentBackgroundColor, "rgba(0, 0, 0, 0)", `${where}: schematic surface comes from the look token`);
+              assert.notEqual(result.equipmentRuleToken, "", `${where}: schematic surface border has a declared --site-rule token`);
               assert.notEqual(result.equipmentBorderTopWidth, "0px", `${where}: schematic surface keeps the look rule`);
               assert.ok(result.equipmentSvgWidth > 0, `${where}: schematic has visible SVG geometry`);
             }
