@@ -66,6 +66,7 @@ export const productsFragment: BlockFragment = {
 .sitecraft-image-gallery figure { margin: 0; min-width: 0; }
 .sitecraft-image-gallery img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--site-card-radius); background: var(--site-diagram); }
 .sitecraft-image-gallery figcaption { margin-top: 6px; color: var(--site-muted); font-size: 12px; line-height: 1.45; }
+.sitecraft-product-card { box-shadow: 0 1px 0 var(--site-line); }
 /* 目录行: one series per row; photos occupy a fixed left column and no-photo rows use the full width. */
 .sitecraft-product-rows { display: grid; gap: 20px; }
 .sitecraft-product-rows .sitecraft-product-card { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); min-width: 0; }

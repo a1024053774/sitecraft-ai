@@ -1,3 +1,4 @@
+import { equipmentSchematic } from "./illustrations.ts";
 import type { BlockFragment } from "./types.ts";
 
 /** Equipment: machine names with an optional count and source-backed specification. */
@@ -8,6 +9,10 @@ export const equipmentFragment: BlockFragment = {
 .sitecraft-equipment-item h3, .sitecraft-equipment-item p { margin: 0; }
 .sitecraft-equipment-item h3 { font-size: 15px; font-weight: 650; }
 .sitecraft-equipment-item p { color: var(--site-value-ink, var(--site-ink)); line-height: 1.55; overflow-wrap: anywhere; }
+.sitecraft-equipment-schematic { display: none; margin-top: 24px; color: var(--site-diagram); }
+.sitecraft-equipment-schematic-label { display: block; margin-bottom: 6px; color: var(--site-muted); font-size: 11px; letter-spacing: .08em; text-align: right; }
+.sitecraft-equipment-schematic-svg { display: block; width: min(70%, 320px); min-height: 150px; height: auto; margin: 0 auto; }
+.sitecraft-section#equipment .sitecraft-container:has([data-sitecraft-image-gallery="equipment"][hidden]) .sitecraft-equipment-schematic { display: block; }
 .sitecraft-equipment-quantity { white-space: nowrap; }
 /* 数量带: the items with a count as a band (the count big, the name under it, the specification
    under that, a rule above each), the items without one in a compact name list under a small title.
@@ -75,6 +80,7 @@ export const equipmentFragment: BlockFragment = {
             </div>
             <div class="sitecraft-equipment-band" data-sitecraft-equipment-grid data-sc-part="list"></div>
             <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="equipment" hidden></div>
+            <div class="sitecraft-equipment-schematic" data-sitecraft-equipment-schematic aria-label="示意"><span class="sitecraft-equipment-schematic-label">示意</span>${equipmentSchematic}</div>
           </div>
         </section>`,
     compact: `<section id="equipment" class="sitecraft-section" data-sitecraft-section="equipment" data-sc-block="equipment" data-sc-variant="compact">
@@ -84,6 +90,7 @@ export const equipmentFragment: BlockFragment = {
             </div>
             <div class="sitecraft-equipment-compact" data-sitecraft-equipment-grid data-sc-part="list"></div>
             <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="equipment" hidden></div>
+            <div class="sitecraft-equipment-schematic" data-sitecraft-equipment-schematic aria-label="示意"><span class="sitecraft-equipment-schematic-label">示意</span>${equipmentSchematic}</div>
           </div>
         </section>`,
     rows: `<section id="equipment" class="sitecraft-section" data-sitecraft-section="equipment" data-sc-block="equipment" data-sc-variant="rows">
@@ -93,6 +100,7 @@ export const equipmentFragment: BlockFragment = {
             </div>
             <div class="sitecraft-equipment-list" data-sitecraft-equipment-grid data-sc-part="list"></div>
             <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="equipment" hidden></div>
+            <div class="sitecraft-equipment-schematic" data-sitecraft-equipment-schematic aria-label="示意"><span class="sitecraft-equipment-schematic-label">示意</span>${equipmentSchematic}</div>
           </div>
         </section>`,
   },
