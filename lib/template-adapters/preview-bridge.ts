@@ -1594,19 +1594,28 @@ function sitecraftPreviewBridge(templateId, adapter) {
         node.alt = image.originalName || (locale === "en" ? category + " photo" : category + "图片");
         node.setAttribute("data-sitecraft-slot", "images." + category + "." + image.imageId + ".image");
         figure.appendChild(node);
-        var creditText = image.credit ? localize(image.credit, locale) || "" : "";
-        if (creditText) {
-          var credit = document.createElement("figcaption");
-          credit.textContent = creditText;
-          credit.setAttribute("data-sitecraft-slot", "images." + category + "." + image.imageId + ".credit");
-          figure.appendChild(credit);
-          applied.add("images." + category + "." + image.imageId + ".credit");
-        }
         gallery.appendChild(figure);
         applied.add("images." + category + "." + image.imageId + ".image");
       }
     }
     if (visible.length) applied.add("images." + category);
+  }
+
+  function renderImageCredits(images, locale, applied) {
+    var host = uniqueNode("[data-sitecraft-image-credits]");
+    if (!host) return;
+    var credits = [];
+    var seen = {};
+    for (var i = 0; i < (Array.isArray(images) ? images.length : 0); i++) {
+      var image = images[i];
+      var credit = image && image.credit ? localize(image.credit, locale) || "" : "";
+      if (!credit || seen[credit]) continue;
+      seen[credit] = true;
+      credits.push(credit);
+    }
+    host.textContent = credits.length ? ((locale === "en" ? "Image sources: " : "图片来源：") + credits.join(" · ")) : "";
+    host.hidden = credits.length === 0;
+    if (credits.length) applied.add("images.credits");
   }
 
   function applyHeroVisual(draft, locale, applied, images) {
@@ -2607,6 +2616,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       renderImageGallery(images, "equipment", currentLocale, applied);
       renderImageGallery(images, "facility", currentLocale, applied);
       renderImageGallery(images, "inspection", currentLocale, applied);
+      renderImageCredits(images, currentLocale, applied);
       clearUnprovidedCatalogChrome(draft, variant || "preview");
       hideEmptyProductSection(draft, currentLocale, variant || "preview");
       syncHiddenNavigation((function () {

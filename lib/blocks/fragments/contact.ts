@@ -149,6 +149,7 @@ export const footerFragment: BlockFragment = {
 .sitecraft-footer-line-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 32px; }
 .sitecraft-footer-line .sitecraft-footer-brand { margin: 0; }
 .sitecraft-footer-line .sitecraft-footer-contact { display: flex; flex-wrap: wrap; gap: 18px; }
+.sitecraft-image-credits { margin: 28px 0 0; color: var(--site-footer-muted, var(--site-muted)); font-size: 11px; line-height: 1.45; }
 /* When every contact line is a gap, drop the footer contact column. */
 .sitecraft-footer-inner > div:has(.sitecraft-footer-contact):not(:has([data-sitecraft-line]:not([hidden]))) { display: none; }
 `,
@@ -177,6 +178,7 @@ export const footerFragment: BlockFragment = {
               <a href="#certifications" data-sitecraft-ui="certifications">认证</a>
               <a href="#inquiry" data-sitecraft-ui="contact">询盘</a>
             </div>
+            <p class="sitecraft-image-credits" data-sitecraft-image-credits hidden></p>
           </div>
           <div>
             <span class="sitecraft-footer-label" data-sitecraft-ui="footerContact">联系</span>
@@ -194,6 +196,7 @@ export const footerFragment: BlockFragment = {
             <span data-sitecraft-line><span data-sitecraft-ui="emailPrefix">邮箱</span>：<span data-sitecraft-contact="footer-email"></span></span>
             <span data-sitecraft-line><span data-sitecraft-ui="phonePrefix">电话</span>：<span data-sitecraft-contact="footer-phone"></span></span>
           </div>
+          <p class="sitecraft-image-credits" data-sitecraft-image-credits hidden></p>
         </div>
       </footer>`,
   },

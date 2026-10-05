@@ -33,16 +33,20 @@ test("usage categories route uploaded images to declared section galleries and s
     { imageId: "img_inspection_107", url: "/api/sites/site/images/img_inspection_107", usageCategory: "inspection", license: "Public Domain" },
   ]);
   for (const category of ["product", "equipment", "facility", "inspection"]) {
+    assert.equal(document.querySelectorAll(`[data-sitecraft-image-gallery="${category}"]`).length, 1, `${category} has one gallery node`);
     const gallery = document.querySelector(`[data-sitecraft-image-gallery="${category}"]`);
     assert.ok(gallery, `${category} gallery is declared`);
     assert.equal(gallery?.querySelectorAll("img").length, 1, `${category} image is mounted by category`);
   }
   assert.match(visibleText(document.documentElement), /作者乙 \/ CC BY-SA/);
+  assert.equal(document.querySelectorAll("[data-sitecraft-image-gallery] figcaption").length, 0, "credits are not repeated under every thumbnail");
+  assert.equal(document.querySelectorAll("[data-sitecraft-image-credits]").length, 1, "credits use one footer source note");
 });
 
 test("without uploaded images, image galleries stay hidden and do not leave empty frames", () => {
   const document = render([]);
   for (const category of ["product", "equipment", "facility", "inspection"]) {
+    assert.equal(document.querySelectorAll(`[data-sitecraft-image-gallery="${category}"]`).length, 1, `${category} has one gallery node`);
     const gallery = document.querySelector(`[data-sitecraft-image-gallery="${category}"]`);
     assert.ok(gallery, `${category} gallery is declared`);
     assert.equal(gallery?.hidden, true, `${category} gallery is hidden without images`);
