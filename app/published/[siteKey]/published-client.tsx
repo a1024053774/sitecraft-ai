@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
+import { OpenSourceTemplateFrame, type PreviewImage } from "@/components/open-source-template-frame";
 import { draftOffersVisitorEnglish } from "@/lib/draft-english";
 import {
   normalizeDraft,
@@ -15,10 +15,12 @@ export function PublishedSiteClient({
   siteKey,
   initialDraft,
   initialPageId,
+  initialImages,
 }: {
   siteKey: string;
   initialDraft: SiteDraft;
   initialPageId: string;
+  initialImages: PreviewImage[];
 }) {
   const draft = normalizeDraft(initialDraft);
   const offersEnglish = draftOffersVisitorEnglish(draft);
@@ -83,6 +85,7 @@ export function PublishedSiteClient({
         <OpenSourceTemplateFrame
           templateId={draft.templateId}
           draft={draft}
+          images={initialImages}
           locale={locale}
           variant="published"
           offersVisitorEnglish={offersEnglish}

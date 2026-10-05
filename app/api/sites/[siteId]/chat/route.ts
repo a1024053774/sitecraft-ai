@@ -27,6 +27,7 @@ import {
   type ConversationTurnOutcome,
 } from "@/lib/conversation-store";
 import { commitOperations, getExistingSite, snapshot } from "@/lib/site-store";
+import { getAnnotation } from "@/lib/annotation-store";
 import { ensureProductIds, visualBriefCatalog, type PaletteId } from "@/lib/site-document";
 import { templates } from "@/lib/site-model";
 import { applySiteOperations, type SiteOperation } from "@/lib/site-operations";
@@ -714,6 +715,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     return Response.json({ error: description.code, message: description.message, userMessage: `${description.message} ${description.nextStep}`, recovery: description.recovery, ...current }, { status: 409 });
   }
 
+  let annotationContext = "";
+  if (parsed.data.annotationId) {
+    try {
+      const annotation = await getAnnotation(siteId, parsed.data.annotationId);
+      if (annotation.current.state !== "attached" || (annotation.anchor.target.kind === "region" && !annotation.anchor.target.primarySlot)) {
+        const state = annotation.current.state === "attached" ? "ambiguous" : annotation.current.state;
+        return Response.json({
+          error: "annotation_not_attached",
+          userMessage: `批注目标 ${state}，请重新点选后再修改。`,
+          recovery: "回到预览重新点选目标，再发送这条批注。",
+          annotation,
+          ...current,
+        }, { status: 409 });
+      }
+      annotationContext = JSON.stringify({
+        annotationId: annotation.id,
+        pageId: annotation.pageId,
+        pagePath: annotation.pagePath,
+        anchor: annotation.anchor,
+        current: annotation.current,
+      });
+    } catch {
+      return Response.json({ error: "annotation_not_found", userMessage: "找不到这条批注，请重新点选目标。", recovery: "回到预览重新点选目标。" }, { status: 422 });
+    }
+  }
+
   let conversation: ConversationRecord;
   try {
     if (parsed.data.conversationId) {
@@ -812,6 +839,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
           selectedTarget: parsed.data.selectedTarget,
           conversationContext: conversationPromptContext(conversation),
           alignmentContext: conversation.alignment.enabled ? alignmentPromptContext(conversation.alignment) : "",
+          annotationContext,
           allowSiteStyle: isSiteStyleRequest(parsed.data.message),
         });
 

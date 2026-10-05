@@ -54,6 +54,11 @@ export const equipmentFragment: BlockFragment = {
   phone: `
 .sitecraft-equipment-item { grid-template-columns: 1fr; gap: 5px; padding: 14px 0; }
 .sitecraft-equipment-item [data-sitecraft-equipment-spec] { grid-column: auto; }
+.sitecraft-image-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 24px; }
+.sitecraft-image-gallery[hidden] { display: none; }
+.sitecraft-image-gallery figure { margin: 0; min-width: 0; }
+.sitecraft-image-gallery img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--site-card-radius); background: var(--site-diagram); }
+.sitecraft-image-gallery figcaption { margin-top: 6px; color: var(--site-muted); font-size: 12px; line-height: 1.45; }
 .sitecraft-equipment-quantity { white-space: normal; }
 .sitecraft-equipment-band .sitecraft-equipment-counted, .sitecraft-equipment-band .sitecraft-equipment-counted[data-sitecraft-entry-count] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 20px; }
 .sitecraft-equipment-band .sitecraft-equipment-counted[data-sitecraft-entry-count="1"] { grid-template-columns: minmax(0, 1fr); }
@@ -69,6 +74,7 @@ export const equipmentFragment: BlockFragment = {
               <h2 data-sitecraft-ui="equipment" data-sc-part="title">设备</h2>
             </div>
             <div class="sitecraft-equipment-band" data-sitecraft-equipment-grid data-sc-part="list"></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="equipment" hidden></div>
           </div>
         </section>`,
     compact: `<section id="equipment" class="sitecraft-section" data-sitecraft-section="equipment" data-sc-block="equipment" data-sc-variant="compact">
@@ -77,6 +83,7 @@ export const equipmentFragment: BlockFragment = {
               <h2 data-sitecraft-ui="equipment" data-sc-part="title">设备</h2>
             </div>
             <div class="sitecraft-equipment-compact" data-sitecraft-equipment-grid data-sc-part="list"></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="equipment" hidden></div>
           </div>
         </section>`,
     rows: `<section id="equipment" class="sitecraft-section" data-sitecraft-section="equipment" data-sc-block="equipment" data-sc-variant="rows">
@@ -85,6 +92,7 @@ export const equipmentFragment: BlockFragment = {
               <h2 data-sitecraft-ui="equipment" data-sc-part="title">设备</h2>
             </div>
             <div class="sitecraft-equipment-list" data-sitecraft-equipment-grid data-sc-part="list"></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="equipment" hidden></div>
           </div>
         </section>`,
   },

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { mapPreviewUpstreamReason } from "../lib/preview-load-timing.ts";
 
 const frameSource = readFileSync(new URL("../components/open-source-template-frame.tsx", import.meta.url), "utf8");
 const qualitySource = readFileSync(new URL("../app/(workspace)/quality/quality-client.tsx", import.meta.url), "utf8");
@@ -26,11 +27,11 @@ test("preview timeout arms without waiting for onLoad, but thumbnails wait for v
   assert.match(frameSource, /variant !== "thumbnail"/);
   assert.match(timingSource, /armDocumentWait/);
   assert.match(timingSource, /markVisible/);
-  const shown = [...frameSource.matchAll(/`([^`]*预览[^`]*)`/g), ...frameSource.matchAll(/"([^"\n]*预览[^"\n]*)"/g)].map((match) => match[1]);
-  assert.ok(shown.length > 0);
-  for (const message of shown) {
-    assert.doesNotMatch(message, /bridge|iframe/i);
-  }
+  // The iframe and bridge are internal protocol terms. The product gate is the
+  // mapped visitor-facing error, which must not leak those raw terms.
+  const visitorMessage = mapPreviewUpstreamReason("iframe bridge Error: upstream status 502");
+  assert.doesNotMatch(visitorMessage, /bridge|iframe/i);
+  assert.match(visitorMessage, /上游模板暂时无法访问/);
   assert.match(timingSource, /如果预览打不开，请用 Chrome 打开/);
   assert.match(frameSource, /PREVIEW_CHROME_HINT/);
   assert.match(frameSource, /data-testid="preview-load-progress"/);

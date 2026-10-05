@@ -60,12 +60,14 @@ function jpegWithSize(width: number, height: number, byteLength = 32) {
 const ownedId = "img_testownedimage0001";
 const siteA = "p3img-a";
 const siteB = "p3img-b";
+const siteD = "p3img-dedupe";
 const templateIds = new Set(["forge", "landwind", "screwfast"]);
 
 test.after(async () => {
   await Promise.all([
     rm(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteA), { recursive: true, force: true }),
     rm(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteB), { recursive: true, force: true }),
+    rm(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteD), { recursive: true, force: true }),
   ]);
 });
 
@@ -165,7 +167,7 @@ test("public-material provenance is mandatory before a non-user image can enter 
   assert.throws(() => validateImageProvenance(incomplete), /来源|licenseUrl|署名/);
   const saved = await saveSiteImage({
     siteId: siteA,
-    bytes: pngWithSize(128, 96, 400),
+    bytes: pngWithSize(128, 96, 401),
     originalName: "cc0-product.png",
     provenance: {
       sourceUrl: "https://assets.example.test/cc0-product.png",
@@ -183,7 +185,7 @@ test("public-material provenance is mandatory before a non-user image can enter 
   await assert.rejects(
     () => saveSiteImage({
       siteId: siteA,
-      bytes: pngWithSize(128, 96, 400),
+      bytes: pngWithSize(128, 96, 402),
       originalName: "code-license.png",
       provenance: {
         sourceUrl: "https://assets.example.test/code-license.png",
@@ -197,6 +199,39 @@ test("public-material provenance is mandatory before a non-user image can enter 
     }),
     /SVG/
   );
+});
+
+test("public image records retain the manifest usage category for the preview bridge", async () => {
+  const saved = await saveSiteImage({
+    siteId: siteB,
+    bytes: jpegWithSize(640, 480, 1200),
+    originalName: "facility.jpg",
+    provenance: {
+      sourceUrl: "https://example.test/facility.jpg",
+      license: "CC BY",
+      licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+      author: "Example Author",
+      attribution: "Example Author / CC BY",
+      usageScope: "current-site-only",
+      usageCategory: "facility",
+      retrievedAt: "2026-10-04T00:00:00.000Z",
+    },
+  });
+  assert.equal(saved.usageCategory, "facility");
+  assert.equal(publicImagePayload(saved).usageCategory, "facility");
+});
+
+test("same-content uploads reuse the image id and update the latest usage category", async () => {
+  const bytes = jpegWithSize(640, 480, 1200);
+  const first = await saveSiteImage({ siteId: siteD, bytes, originalName: "facility.jpg", provenance: {
+    sourceUrl: "https://example.test/facility.jpg", license: "CC0", licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/", author: "Example", attribution: "Example / CC0", usageScope: "current-site-only", usageCategory: "facility", retrievedAt: "2026-10-04T00:00:00.000Z",
+  } });
+  const second = await saveSiteImage({ siteId: siteD, bytes, originalName: "product.jpg", provenance: {
+    sourceUrl: "https://example.test/product.jpg", license: "CC0", licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/", author: "Example", attribution: "Example / CC0", usageScope: "current-site-only", usageCategory: "product", retrievedAt: "2026-10-04T00:00:01.000Z",
+  } });
+  assert.equal(second.imageId, first.imageId);
+  assert.equal(second.usageCategory, "product");
+  assert.equal((await listSiteImages(siteD)).length, 1);
 });
 
 test("set_image_slot and set_product_image apply, invert, and reject template stock", () => {

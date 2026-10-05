@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getExistingSite } from "@/lib/site-store";
+import { listSiteImages, publicImagePayload } from "@/lib/site-images";
 import { normalizeDraft } from "@/lib/site-model";
 import { findSitePage } from "@/lib/template-pages";
 import { PublishedSiteClient } from "./published-client";
@@ -63,11 +64,13 @@ export default async function PublishedSitePage({
   const initialDraft = normalizeDraft(site.draft);
   const requestedPage = firstQuery(query.page);
   const page = findSitePage(initialDraft.pagePlan, requestedPage);
+  const images = (await listSiteImages(siteKey)).map(publicImagePayload);
   return (
     <PublishedSiteClient
       siteKey={siteKey}
       initialDraft={initialDraft}
       initialPageId={page?.id ?? "home"}
+      initialImages={images}
     />
   );
 }

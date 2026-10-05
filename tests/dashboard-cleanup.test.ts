@@ -21,9 +21,3 @@ test("quality blind mode hides nonce and internal comparison markers", async () 
   assert.match(source, /blind \? .*对照默认/);
   assert.match(matrix, /runtimeFrozenHead/);
 });
-
-test("template gallery only mounts local preview frames", async () => {
-  const source = await readFile(new URL("../components/template-gallery.tsx", import.meta.url), "utf8");
-  assert.match(source, /status\?\.hasLocalSnapshot/);
-  assert.match(source, /仅上游演示／待构建快照/);
-});

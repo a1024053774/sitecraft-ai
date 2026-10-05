@@ -20,14 +20,14 @@ if (!version) { spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chr
 if (!version) throw new Error("Chrome unavailable");
 const browser = new Cdp(version.webSocketDebuggerUrl); await browser.connect();
 const report = { ticket: "T-026", base, pages: [] };
-for (const path of ["/", "/templates", "/quality?blind=1"]) {
+for (const path of ["/", "/workspace?new=1", "/quality?blind=1"]) {
   const { targetId } = await browser.send("Target.createTarget", { url: `${base}${path}` });
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true });
   await browser.send("Page.enable", {}, sessionId); await browser.send("Runtime.enable", {}, sessionId); await browser.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false }, sessionId); await sleep(2500);
-  const view = await browser.eval(`(()=>{const text=document.body.innerText;return {text,frames:document.querySelectorAll('.template-cover .open-source-template-frame').length,unavailable:document.querySelectorAll('.template-cover-unavailable').length,activities:document.querySelectorAll('.activity-row').length}})()`, sessionId);
+  const view = await browser.eval(`(()=>{const text=document.body.innerText;return {text,frames:document.querySelectorAll('[data-testid=\"open-source-template-frame\"]').length,unavailable:document.querySelectorAll('.template-cover-unavailable').length,alignment:Boolean(document.querySelector('[aria-label=\"需求对齐\"]')),activities:document.querySelectorAll('.activity-row').length}})()`, sessionId);
   if (path === "/") { assert.equal(view.text.includes("Forge Industrial"), false); }
-  if (path === "/templates") { assert.equal(view.frames > 0, true); assert.equal(view.unavailable > 0, true); }
+  if (path.startsWith("/workspace")) { assert.equal(view.alignment, true); }
   if (path.startsWith("/quality")) { assert.match(view.text, /盲评模式/); assert.equal(view.text.includes("核验记号"), false); assert.equal(view.text.includes("冻结 HEAD"), false); }
-  const screenshot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId); const screenshotPath = `${out}/${path === "/" ? "dashboard" : path.startsWith("/templates") ? "templates" : "quality-blind"}.png`; fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, "base64")); report.pages.push({ path, view: { frames: view.frames, unavailable: view.unavailable, activities: view.activities }, screenshot: screenshotPath }); await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+  const screenshot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, sessionId); const screenshotPath = `${out}/${path === "/" ? "dashboard" : path.startsWith("/workspace") ? "workspace-new" : "quality-blind"}.png`; fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, "base64")); report.pages.push({ path, view: { frames: view.frames, unavailable: view.unavailable, activities: view.activities }, screenshot: screenshotPath }); await browser.send("Target.closeTarget", { targetId }).catch(() => {});
 }
 report.result = "PASS"; fs.writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 2)); console.log(JSON.stringify({ result: report.result, artifact: `${out}/report.json` })); browser.ws.close();

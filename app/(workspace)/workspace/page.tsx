@@ -30,7 +30,7 @@ import {
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Papa from "papaparse";
 import readXlsxFile from "read-excel-file";
-import { OpenSourceTemplateFrame } from "@/components/open-source-template-frame";
+import { OpenSourceTemplateFrame, type AnnotationCandidate, type AnnotationStateMessage } from "@/components/open-source-template-frame";
 import {
   defaultDraft,
   colorSetCatalog,
@@ -176,6 +176,16 @@ type DraftSnapshot = {
   hasGeneratedContent?: boolean;
 };
 type ProviderStatus = { mode: "deepseek" | "unconfigured"; model: string | null };
+type WorkspaceAnnotation = {
+  id: string;
+  pageId: string;
+  pagePath: string;
+  status: "open" | "resolved";
+  anchor: AnnotationCandidate;
+  current: AnnotationStateMessage;
+  comments: Array<{ body: string; createdAt: string }>;
+  changeSetId?: string;
+};
 type SiteImageItem = {
   imageId: string;
   siteId: string;
@@ -192,6 +202,7 @@ type SiteImageItem = {
   author: string;
   attribution: string;
   usageScope: string;
+  usageCategory?: "product" | "equipment" | "facility" | "inspection" | null;
   retrievedAt: string;
   sha256: string;
   createdAt: string;
@@ -378,6 +389,20 @@ export default function WorkspacePage() {
     setWorkspaceTheme(storedTheme === "dark" || (!storedTheme && prefersDark) ? "dark" : "light");
     if (storedAccent && colorSetCatalog.some((item) => item.id === storedAccent)) setWorkspaceAccent(storedAccent);
   }, []);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAnnotations() {
+      try {
+        const response = await fetch(`/api/sites/${siteId}/annotations?pageId=home`, { cache: "no-store" });
+        const payload = await response.json().catch(() => ({})) as { annotations?: WorkspaceAnnotation[] };
+        if (!cancelled && response.ok) setAnnotations(payload.annotations ?? []);
+      } catch {
+        // Annotations are supplementary workspace state; the draft remains usable when the list is unavailable.
+      }
+    }
+    void loadAnnotations();
+    return () => { cancelled = true; };
+  }, [siteId]);
   const toggleWorkspaceTheme = () => setWorkspaceTheme((theme) => { const next = theme === "light" ? "dark" : "light"; window.localStorage.setItem("sitecraft-workspace-theme", next); return next; });
   const chooseWorkspaceAccent = (accent: string) => { setWorkspaceAccent(accent); window.localStorage.setItem("sitecraft-workspace-accent", accent); };
   const [device, setDevice] = useState<Device>("desktop");
@@ -401,7 +426,15 @@ export default function WorkspacePage() {
   const jobRef = useRef<{ id: number; steps: JobStep[]; current: number }>({ id: 0, steps: [], current: 0 });
   const [mobilePane, setMobilePane] = useState<"chat" | "preview">("chat");
   const [selectedTarget, setSelectedTarget] = useState<{ key: string; label: string } | null>(null);
+  const [annotationMode, setAnnotationMode] = useState(true);
+  const [annotationCandidate, setAnnotationCandidate] = useState<AnnotationCandidate | null>(null);
+  const [annotationState, setAnnotationState] = useState<AnnotationStateMessage>({ state: "attached", revision: 0 });
+  const [annotationBody, setAnnotationBody] = useState("");
+  const [annotationId, setAnnotationId] = useState<string | null>(null);
+  const [annotations, setAnnotations] = useState<WorkspaceAnnotation[]>([]);
+  const [annotationNotice, setAnnotationNotice] = useState<string | null>(null);
   const [draftReady, setDraftReady] = useState(false);
+  const [newSiteEntry, setNewSiteEntry] = useState(false);
   const [expectedTargets, setExpectedTargets] = useState<string[]>([]);
   const [lastChangedTargets, setLastChangedTargets] = useState<string[]>([]);
   const [previewState, setPreviewState] = useState<"loading" | "synced" | "warning">("loading");
@@ -452,13 +485,14 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     let cancelled = false;
-    // `?site=` opens that site; `?template=` alone is the 新建站点 entry and creates a new site.
+    // `?site=` opens that site; only `?new=1` is the 新建站点 entry.
     async function resolveActiveSiteId() {
       const entry = resolveWorkspaceEntry(window.location.search, templates.map((item) => item.id), visualBriefCatalog.map((brief) => brief.templateId));
       if (entry.kind === "open") return parseWorkspaceSiteId(entry.siteId);
       if (entry.kind === "refuse") {
-        throw new Error(`「${getTemplate(entry.templateId).name.split(" / ")[0]}」只作参考，不能直接生成网站。请回到模板页，从四个样子背后的模板开始。`);
+        throw new Error("旧模板建站入口已下线，请从「AI 建站」进入工作台，在需求对齐卡里选择样子和配色。");
       }
+      setNewSiteEntry(true);
       const key = window.location.search;
       // Effects run twice in development; both runs share the one POST that is still in flight.
       const createdId = await createSiteOnce(key, () => createSiteForTemplate(entry.templateId));
@@ -652,6 +686,85 @@ export default function WorkspacePage() {
     window.requestAnimationFrame(() => inputRef.current?.focus());
   };
 
+  const selectAnnotationCandidate = (candidate: AnnotationCandidate) => {
+    const target = candidate.target;
+    const ambiguous = target.kind === "region" && (!target.primarySlot || (target.slots?.length ?? 0) > 1);
+    setAnnotationCandidate(candidate);
+    setAnnotationId(null);
+    setAnnotationBody("");
+    setSelectedTarget(target.kind === "slot" && target.slot ? { key: target.slot, label: candidate.snapshot.label || candidate.snapshot.text || target.slot } : null);
+    setAnnotationState({ state: ambiguous ? "ambiguous" : "attached", revision: candidate.revision, target });
+    setAnnotationNotice(ambiguous ? "圈选了多个位置，请重新点选一张产品卡，或明确要改哪一个位置。" : null);
+    setAnnotationMode(true);
+    setMobilePane("chat");
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const handleAnnotationState = (state: AnnotationStateMessage) => {
+    setAnnotationState(state);
+    if (state.state === "attached") setAnnotationNotice(null);
+    else setAnnotationNotice(state.reason || (state.state === "stale" ? "这个批注目标已从当前页面消失，请重新点选。" : "这个批注命中了多个位置，请重新点选主目标。"));
+    if (annotationId) {
+      void fetch(`/api/sites/${siteId}/annotations/${annotationId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current: { state: state.state, revision: state.revision, ...(state.rect ? { rect: state.rect } : {}), ...(state.reason ? { reason: state.reason } : {}) } }),
+      }).then((response) => response.ok ? response.json() : null).then((payload: { annotation?: WorkspaceAnnotation } | null) => {
+        if (payload?.annotation) setAnnotations((items) => items.map((item) => item.id === annotationId ? payload.annotation! : item));
+      }).catch(() => undefined);
+    }
+  };
+
+  async function createAnnotationForCandidate(body: string) {
+    if (!annotationCandidate) return null;
+    const target = annotationCandidate.target;
+    if (annotationState.state !== "attached" || target.kind !== "slot" || !target.slot) {
+      throw new Error(annotationNotice || "批注目标已脱离当前页面，请重新点选后再发送。");
+    }
+    const response = await fetch(`/api/sites/${siteId}/annotations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pageId: annotationCandidate.pageId,
+        pagePath: annotationCandidate.pagePath,
+        anchor: annotationCandidate,
+        body,
+        author: { id: "workspace-user", name: "你" },
+      }),
+    });
+    const payload = await response.json().catch(() => ({})) as { annotation?: WorkspaceAnnotation; error?: string };
+    if (!response.ok || !payload.annotation) throw new Error(payload.error || "批注保存失败");
+    setAnnotations((items) => [payload.annotation!, ...items.filter((item) => item.id !== payload.annotation!.id)]);
+    setAnnotationId(payload.annotation.id);
+    return payload.annotation.id;
+  }
+
+  const updateAnnotationChangeSet = async (id: string, changeSetId: string) => {
+    const response = await fetch(`/api/sites/${siteId}/annotations/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ changeSetId }),
+    });
+    if (!response.ok) return;
+    const payload = await response.json().catch(() => ({})) as { annotation?: WorkspaceAnnotation };
+    if (payload.annotation) setAnnotations((items) => items.map((item) => item.id === id ? payload.annotation! : item));
+  };
+
+  const undoAnnotation = async (annotation: WorkspaceAnnotation) => {
+    if (!annotation.changeSetId || busy) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/sites/${siteId}/history/change/${annotation.changeSetId}/undo`, { method: "POST" });
+      const payload = await response.json().catch(() => ({})) as DraftSnapshot & { status?: string; reason?: string; conflictTargets?: string[] };
+      if (!response.ok || payload.status !== "applied") throw new Error(payload.reason || (payload.conflictTargets?.length ? `撤销冲突：${payload.conflictTargets.join("、")}` : "这条批注无法撤销"));
+      adoptSnapshot(payload);
+      setAnnotationNotice("已单独撤销这条批注修改。");
+      setPreviewState("loading");
+    } catch (error) {
+      setAnnotationNotice(readableWorkspaceError(error, "批注撤销失败"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const applyDoneEvent = (done: Record<string, unknown>) => {
     if (typeof done.conversationId === "string") {
       setConversationId(done.conversationId);
@@ -773,6 +886,14 @@ export default function WorkspacePage() {
     }
   };
 
+  useEffect(() => {
+    if (!draftReady || !newSiteEntry || conversationId || busy || alignmentView) return;
+    setNewSiteEntry(false);
+    // The direct AI 建站 entry opens the first card immediately. It contains the look and
+    // colour-set choices; no materials or model call is needed to show those catalog options.
+    void runAlignment({ action: "start" });
+  }, [alignmentView, busy, conversationId, draftReady, newSiteEntry]);
+
   const restoreStartedRef = useRef<number | null>(null);
   useEffect(() => {
     if (!alignmentView?.processing || !conversationId) {
@@ -819,7 +940,14 @@ export default function WorkspacePage() {
 
   const sendChat = async (value: string) => {
     if (!value || busy || !draftReady) return false;
-    if (alignmentEnabled) {
+    let activeAnnotationId = annotationId;
+    try {
+      if (annotationCandidate && !activeAnnotationId) activeAnnotationId = await createAnnotationForCandidate(value);
+    } catch (error) {
+      setAnnotationNotice(readableWorkspaceError(error, "批注保存失败"));
+      return false;
+    }
+    if (alignmentEnabled && !annotationCandidate) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: stripMaterialsInstruction(value) }]);
       setAlignmentEnabled(true);
       await runAlignment({
@@ -830,7 +958,7 @@ export default function WorkspacePage() {
       });
       return true;
     }
-    if (shouldGuideBusinessRequest(value)) {
+    if (shouldGuideBusinessRequest(value) && !annotationCandidate) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "user", text: stripMaterialsInstruction(value) }]);
       setAlignmentEnabled(true);
       await runAlignment({
@@ -851,6 +979,7 @@ export default function WorkspacePage() {
           baseRevision: draft.revision,
           message: value,
           selectedTarget: selectedTarget?.key ?? null,
+          ...(activeAnnotationId ? { annotationId: activeAnnotationId } : {}),
           conversationId,
         }),
       });
@@ -865,6 +994,8 @@ export default function WorkspacePage() {
       }
       const doneEvent = await readSseDone(response, reportStatus);
       applyDoneEvent(doneEvent);
+      const changeSet = doneEvent.changeSet as { id?: string } | undefined;
+      if (activeAnnotationId && changeSet?.id) await updateAnnotationChangeSet(activeAnnotationId, changeSet.id);
       return true;
     } catch (error) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", status: "error", text: readableWorkspaceError(error, "AI 修改失败"), change: "已保存的草稿没有变化，可以直接重试。" }]);
@@ -876,9 +1007,10 @@ export default function WorkspacePage() {
 
   const submitChat = async (event?: FormEvent) => {
     event?.preventDefault();
-    const value = input.trim();
+    const value = (annotationCandidate ? annotationBody : input).trim();
     if (!value || busy || !draftReady) return;
-    setInput("");
+    if (annotationCandidate) setAnnotationBody("");
+    else setInput("");
     const sent = await sendChat(value);
     if (!sent) setInput(value);
   };
@@ -1148,6 +1280,11 @@ export default function WorkspacePage() {
     return images;
   };
 
+  useEffect(() => {
+    if (!draftReady) return;
+    void loadSiteImages().catch(() => {});
+  }, [draftReady, siteId]);
+
   const openImageLibrary = async () => {
     setShowImages(true);
     setImageNote(null);
@@ -1356,7 +1493,7 @@ export default function WorkspacePage() {
         </div>
         <div className="preview-stage">
           {lastChangedTargets.length ? <div className="preview-change-markers" data-testid="preview-change-markers">本次修改：{lastChangedTargets.slice(0, 5).join("、")}</div> : null}
-          <div className={`browser-frame ${device}`}>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} onSelectTarget={selectPreviewTarget} onApplyReport={handlePreviewReport} />}</div>
+          <div className={`browser-frame ${device}`}>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} images={siteImages} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} annotationMode={annotationMode} annotationTarget={annotationCandidate?.target ?? null} onSelectTarget={selectPreviewTarget} onAnnotationCandidate={selectAnnotationCandidate} onAnnotationState={handleAnnotationState} onApplyReport={handlePreviewReport} />}</div>
         </div>
       </main>
       <aside className={`builder-chat ${mobilePane !== "chat" ? "mobile-hidden" : ""}`} aria-label="对话">
@@ -1380,6 +1517,28 @@ export default function WorkspacePage() {
             {history.length ? history.map((item) => <div className="history-row" key={item.id}><span>v{item.revision}</span><div><strong>{item.summary}</strong><small>{new Date(item.createdAt).toLocaleString("zh-CN")} · {historySourceNames[item.source] ?? "修改"}</small></div></div>) : <div className="history-empty">还没有修改记录。改动保存后会列在这里，可以撤销。</div>}
           </div>
         )}
+        <section className="annotation-panel" aria-label="预览批注" data-testid="annotation-panel">
+          <div className="annotation-panel-head">
+            <div><strong>预览批注</strong><span>{annotationMode ? "点选已开启" : "点选已关闭"}</span></div>
+            <button className={annotationMode ? "annotation-toggle active" : "annotation-toggle"} type="button" aria-pressed={annotationMode} data-testid="annotation-mode-toggle" onClick={() => setAnnotationMode((value) => !value)}>{annotationMode ? "退出点选" : "开始点选"}</button>
+          </div>
+          {annotationCandidate ? (
+            <div className={`annotation-current ${annotationState.state}`} data-testid="annotation-current">
+              <div className="annotation-current-mark" aria-hidden="true" />
+              <div><strong>{annotationCandidate.snapshot.label || annotationCandidate.snapshot.text || annotationCandidate.target.slot || "圈选区域"}</strong><span>{annotationState.state === "attached" ? "已附着到当前页面" : annotationNotice}</span></div>
+              <button type="button" aria-label="清除当前批注目标" onClick={() => { setAnnotationCandidate(null); setAnnotationId(null); setAnnotationNotice(null); setAnnotationBody(""); }}>清除</button>
+            </div>
+          ) : <p className="annotation-empty">在右侧预览点产品卡，批注会跟着稳定产品编号走。</p>}
+          {annotationNotice ? <p className="annotation-notice" role="status">{annotationNotice}</p> : null}
+          {annotations.length ? <div className="annotation-list" aria-label="当前页批注列表">{annotations.slice(0, 8).map((annotation) => {
+            const label = annotation.anchor.snapshot.label || annotation.anchor.snapshot.text || annotation.anchor.target.slot || "圈选区域";
+            return <div className={`annotation-row ${annotation.current.state}`} key={annotation.id}>
+              <span className="annotation-pin" aria-hidden="true" />
+              <div><strong>{label}</strong><small>{annotation.current.state === "attached" ? "已附着" : annotation.current.state === "stale" ? "已脱离" : "目标不明确"}{annotation.changeSetId ? " · 可单独撤销" : ""}</small></div>
+              {annotation.changeSetId ? <button type="button" className="annotation-undo" onClick={() => void undoAnnotation(annotation)}>撤销</button> : null}
+            </div>;
+          })}</div> : null}
+        </section>
         <div className="chat-messages" ref={chatMessagesRef}>
           {messages.map((message) => (
             <div className={`message ${message.role} ${message.status ?? ""}`} key={message.id}>
@@ -1519,6 +1678,7 @@ export default function WorkspacePage() {
         </div>
         <div className="chat-input-wrap">
           {selectedTarget && <div className="chat-target"><span>正在修改：{selectedTarget.label}</span><button aria-label="清除修改目标" onClick={() => setSelectedTarget(null)} type="button"><X size={13} /></button></div>}
+          {annotationCandidate ? <label className="annotation-input-label" htmlFor="annotation-body">这次要改什么</label> : null}
           {lookPanel === "look" ? (
             <section className="visual-brief-panel" aria-label="网站样子">
               <div className="visual-brief-head">
@@ -1633,8 +1793,8 @@ export default function WorkspacePage() {
             </div>
           </div>
           <form className="chat-input" onSubmit={submitChat}>
-            <textarea ref={inputRef} aria-label="给 AI 的消息" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder={alignmentEnabled ? "告诉我公司资料，或想改哪里" : "告诉 AI 你想怎么改…"} rows={2} />
-            <button className="send-button" type="submit" data-testid="chat-send" disabled={!input.trim() || busy || !draftReady} aria-label="发送"><Send size={15} /></button>
+            <textarea ref={inputRef} id={annotationCandidate ? "annotation-body" : undefined} aria-label={annotationCandidate ? "批注内容" : "给 AI 的消息"} value={annotationCandidate ? annotationBody : input} onChange={(event) => annotationCandidate ? setAnnotationBody(event.target.value) : setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitChat(); } }} placeholder={annotationCandidate ? "例如：只把这张产品卡的标题改成更短的中文" : alignmentEnabled ? "告诉我公司资料，或想改哪里" : "告诉 AI 你想怎么改…"} rows={2} />
+            <button className="send-button" type="submit" data-testid="chat-send" disabled={!(annotationCandidate ? annotationBody.trim() : input.trim()) || busy || !draftReady || Boolean(annotationCandidate && annotationState.state !== "attached")} aria-label="发送"><Send size={15} /></button>
           </form>
         </div>
       </aside>

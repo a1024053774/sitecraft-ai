@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
+import { base } from "./helpers/workspace-browser.ts";
 
 const repoRoot = process.cwd();
 
@@ -27,7 +28,6 @@ const draftRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/
 const chatRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/chat/route.ts")).href);
 const sitesRoute = await import(pathToFileURL(path.join(repoRoot, "app/api/sites/route.ts")).href);
 const siteStore = await import("../lib/site-store.ts");
-const base = process.env.SITECRAFT_BASE || "http://127.0.0.1:3062";
 
 const missingSiteId = `t102-missing-${crypto.randomUUID().slice(0, 8)}`;
 

@@ -4,7 +4,7 @@ title: 同风格示意图与静态细节质感
 type: build
 status: open
 blocked_by: [T-107, T-108]
-claimed_by:
+claimed_by: blocks-build
 supersedes:
 ---
 
