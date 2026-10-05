@@ -20,16 +20,9 @@ T-104 第 ④ 步。资料没图而版式需要图的位置，用 Codex 按样�
 ## Resolution
 
 - 盲评结论：`artifacts/blocks-pool/t109-equipment-line-art/review-1.md` 的设备线稿 ACCEPT；`artifacts/blocks-pool/t109-product-line-art/review-2.md` 的产品卡底部细线 ACCEPT；`artifacts/blocks-pool/t109-hero-r4/review-3.md` 首屏线稿 REJECT；检测线稿、通用图片占位和产品线稿按 T-104 删除。最终只保留设备无图位的同族内联 SVG 示意（旁标「示意」）与产品卡底部细线，首屏恢复默认铭牌/照片逻辑。
-- 红测：在合并 T-090 的父提交 `3ac64c27bde3c32aa8387e7aa66181bd48419aac` 上，`tests/t109-illustrations-static.test.ts` 行为级失败（无图设备没有示意），证据首行绑定 SHA、命令和 UTC 时间：`artifacts/t109/red-t109-parent-3ac64c2.log`。修复后同一测试在最终 SHA 通过，并纳入全量。
-- 主线：先快进合并 `family-kit-assembly`（`3ac64c27bde3c32aa8387e7aa66181bd48419aac`，含 T-090），功能提交为 `65ba3d517a2e1b6761d4b1a23b2d823dbb7854cb`。同步规则写入 `docs/project/mainline.md` 与 `docs/project/spec.md`；没有修改 `preview-bridge.ts`。
-- 最终 SHA 证据（每份文件首行均写完整 SHA、命令、UTC 时间）：
-  - build：`artifacts/t109/build-65ba3d5.log`，`npm run build`，PASS。
-  - typecheck：`artifacts/t109/typecheck-65ba3d5.log`，`npm run typecheck`，PASS。
-  - 全量：`artifacts/t109/npm-test-full-65ba3d5.log`，3035/headless-shell 环境下 `npm test`，810/810，PASS；同一时段只运行这一条全量。
-  - 13 站：`artifacts/t109/check-published-65ba3d5.log` 与 `artifacts/t109/check-published-65ba3d5/report.json`，从主工作区清单逐站复制后运行，39/39 viewport rows、0 failures，PASS。基线逐行比较：`artifacts/t109/check-published-65ba3d5/compare-baseline.txt` 对 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-104982b/check-published/report.json`，body-line 测量 955 对 955，逐行不少于基线。
-  - 带图/无图对照：`artifacts/t109/hero-final-65ba3d5.log` 及其 crops（首屏无图为默认铭牌、带图为资料图，6/6 扫描通过）；`artifacts/t109/equipment-image-compare-65ba3d5.log` 及其截图（设备无图 `schematic=block`、带图 `schematic=none`，三档均通过）；设备区块扫描另见 `artifacts/t109/equipment-final-65ba3d5.log`。
-- 状态保持 `open`，`claimed_by` 保持 `blocks-build`；不勾选最后一项，等待独立代码审查与 Claude 验收。
-
-- 主线整合复核（2026-10-05 17:08:45 UTC）：在 `family-kit-assembly` 从 `3ac64c27bde3c32aa8387e7aa66181bd48419aac` 依次 cherry-pick 功能提交 `65ba3d517a2e1b6761d4b1a23b2d823dbb7854cb` 和证据提交 `461165124ad6d29eff5beb7008e69abcd73517d2`，最终 SHA `b9acfafe8cfae6112462a347c287f1cad4ef946c`。主线未改动已有未跟踪 `.claude/`；blocks-pool 工作树的 `next-env.d.ts` 改动未被触碰。
-- 同一最终 SHA 的复核命令与结果：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/t109-illustrations-static.test.ts`（1/1，PASS）；`npm run typecheck`（PASS）；`npm run build`（PASS，保留既有 Turbopack 动态路径 warning）；`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`（810/810，PASS，单次完整运行）。
-- 本次仅记录整合证据；状态仍为 `open`，`claimed_by` 仍为 `blocks-build`，独立代码审查与 Claude 验收复选框保持未勾选。
+- 红测：在已知坏 parent `3ac64c27bde3c32aa8387e7aa66181bd48419aac` 的独立 worktree 上，用当前 focused 测试真实失败（无图设备示意为 `display: none`）；完整日志（SHA、UTC、命令、退出码 1）为 `artifacts/t109/red-t109-parent-3ac64c2.log`。
+- 修复提交：`d27d0818951ee06f2577ec172c526ab1fa759be1`。`lib/template-adapters/preview-bridge.ts` 在唯一渲染路径按 locale 更新设备示意的可见 label 和 `aria-label`；`equipment.ts` 仅接入已有 `--site-diagram`、`--site-surface`、`--site-rule` token，保留既有 SVG 的 4px 固定线宽。当前 token 没有独立线宽语义，因此“线宽随样子 token”仍是 P2 未证明项，没有凭空新增 token。
+- 同一 focused 测试在修复提交通过：`artifacts/t109/green-t109-d27d0818951ee06f2577ec172c526ab1fa759be1.log`，三档宽度 × 四个生产样子（screwfast、forge、landwind、tailwind-landing）× zh/en 无图，以及同一第七参数 `images` 的带图分支；带图显示资料图并隐藏示意，无图显示对应 locale 的「示意」/`Schematic` 与 aria-label，横向溢出断言通过。
+- 同一修复提交的 broader checks（每份日志首行绑定完整 SHA、命令和 UTC）：`artifacts/t109/typecheck-d27d0818951ee06f2577ec172c526ab1fa759be1.log`（`npm run typecheck`，PASS）、`artifacts/t109/build-d27d0818951ee06f2577ec172c526ab1fa759be1.log`（`npm run build`，PASS；保留既有 Turbopack 动态路径 warning）、`artifacts/t109/npm-test-full-d27d0818951ee06f2577ec172c526ab1fa759be1.log`（`npm test`，810/810，PASS）。
+- 发布边界仍为 INCOMPLETE：`artifacts/t109/check-published-incomplete-d27d0818951ee06f2577ec172c526ab1fa759be1.log` 记录真实 `check-published.mjs` 对带图站 `overlay-p3i-thick-20260925` 的尝试。开发服务返回 HTTP 500，随后预览 iframe 和 Chrome DevTools 等待超时，未生成 report；没有改脚本绕过。四样子/无图与带图渲染由上述 focused 浏览器测试证明，真实发布页规则尚未证明。
+- 状态保持 `open`，`claimed_by` 保持 `blocks-build`；未勾选最后验收框，等待独立代码审查与 Claude 验收。当前没有使用旧的 `equipmentMask` 日志冒充本次测试。
