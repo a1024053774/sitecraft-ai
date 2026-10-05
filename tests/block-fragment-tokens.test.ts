@@ -12,16 +12,12 @@ import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 // :root of every block look. Declarations that read the bridge's run-time --sitecraft-* variables
 // (set on elements, not on :root) are skipped.
 //
-// KNOWN_GAPS is a ratchet, not a licence: the forge look ("industrial") still has no
-// --site-keys-border for the product key strip. The list may only shrink: a new gap fails, and a
-// listed gap that now resolves fails too (delete it). New layouts must resolve their tokens on all
-// four looks (give a fallback or a token on each look, as 型号索引表 does with --site-index-top /
-// --site-index-row).
+// KNOWN_GAPS is a ratchet, not a licence. All current fragment tokens resolve on all four looks;
+// a new gap fails, and a listed gap that now resolves fails too (delete it). New layouts must
+// resolve their tokens on all four looks (give a fallback or a token on each look, as 型号索引表
+// does with --site-index-top / --site-index-row).
 
-const KNOWN_GAPS: string[] = [
-  'industrial / products: border-bottom: var(--site-keys-border)',
-  'industrial / products: border-top: var(--site-keys-border)',
-];
+const KNOWN_GAPS: string[] = [];
 
 function declarations(css: string) {
   const found: Array<{ property: string; value: string }> = [];
