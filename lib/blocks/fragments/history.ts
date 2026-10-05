@@ -8,12 +8,21 @@ export const historyFragment: BlockFragment = {
 .sitecraft-history-item h3, .sitecraft-history-item p { margin: 0; }
 .sitecraft-history-item h3 { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .sitecraft-history-item p { color: var(--site-value-ink, var(--site-ink)); line-height: 1.55; overflow-wrap: anywhere; }
+.sitecraft-history-timeline { position: relative; border-top: 0; padding-left: 32px; }
+.sitecraft-history-timeline::before { content: ""; position: absolute; inset: 0 auto 0 7px; width: 1px; background: var(--site-line); }
+.sitecraft-history-timeline .sitecraft-history-item { position: relative; grid-template-columns: minmax(5em, .35fr) minmax(0, 1.65fr); gap: 20px; padding: 20px 0; border-bottom: 0; }
+.sitecraft-history-timeline .sitecraft-history-item::before { content: ""; position: absolute; left: -29px; top: 25px; width: 9px; height: 9px; border: 2px solid var(--site-accent); border-radius: 50%; background: var(--site-bg); }
+.sitecraft-history-timeline .sitecraft-history-item h3 { color: var(--site-accent-strong); }
 `,
   narrow: `
 .sitecraft-history-item { grid-template-columns: minmax(4em, .45fr) minmax(0, 1.55fr); gap: 12px; }
+.sitecraft-history-timeline { padding-left: 28px; }
+.sitecraft-history-timeline .sitecraft-history-item { grid-template-columns: minmax(4em, .45fr) minmax(0, 1.55fr); gap: 12px; }
 `,
   phone: `
 .sitecraft-history-item { grid-template-columns: 1fr; gap: 5px; padding: 14px 0; }
+.sitecraft-history-timeline { padding-left: 24px; }
+.sitecraft-history-timeline .sitecraft-history-item { grid-template-columns: 1fr; gap: 5px; padding: 16px 0; }
 `,
   variants: {
     rows: `<section id="history" class="sitecraft-section" data-sitecraft-section="history" data-sc-block="history" data-sc-variant="rows">
@@ -22,6 +31,14 @@ export const historyFragment: BlockFragment = {
               <h2 data-sitecraft-ui="history" data-sc-part="title">沿革</h2>
             </div>
             <div class="sitecraft-history-list" data-sitecraft-history-grid data-sc-part="list"></div>
+          </div>
+        </section>`,
+    timeline: `<section id="history" class="sitecraft-section" data-sitecraft-section="history" data-sc-block="history" data-sc-variant="timeline">
+          <div class="sitecraft-container">
+            <div class="sitecraft-section-head" data-sc-part="head">
+              <h2 data-sitecraft-ui="history" data-sc-part="title">沿革</h2>
+            </div>
+            <div class="sitecraft-history-list sitecraft-history-timeline" data-sitecraft-history-grid data-sc-part="list"></div>
           </div>
         </section>`,
   },
