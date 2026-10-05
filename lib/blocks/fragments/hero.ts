@@ -84,7 +84,7 @@ export const heroFragment: BlockFragment = {
 /* Series-prefixed labels like「直角减速机 · 额定输出扭矩」need the full width on phones. */
 .sitecraft-hero-specs dl { grid-template-columns: 1fr; }
 .sitecraft-hero-spec { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.sitecraft-hero-spec dd { margin: 0; white-space: nowrap; }
+.sitecraft-hero-spec dd { margin: 0; white-space: normal; overflow-wrap: anywhere; }
 .sitecraft-statement-specs { margin-top: 24px; }
 .sitecraft-statement-specs .sitecraft-hero-spec { display: block; padding: 12px 14px 14px; }
 .sitecraft-statement-specs .sitecraft-hero-spec dd { margin: 6px 0 0; font-size: 17px; white-space: normal; }

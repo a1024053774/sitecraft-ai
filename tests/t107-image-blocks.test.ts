@@ -49,3 +49,11 @@ test("without uploaded images, image galleries stay hidden and do not leave empt
     assert.equal(gallery?.querySelectorAll("img").length, 0);
   }
 });
+
+test("a facility image activates the photo hero without forcing narrow spec values onto one line", () => {
+  const document = render([
+    { imageId: "img_facility_hero_107", url: "/api/sites/site/images/img_facility_hero_107", usageCategory: "facility", license: "CC0" },
+  ]);
+  assert.equal(document.querySelector('[data-sitecraft-section="hero"]')?.getAttribute("data-sitecraft-hero-mode"), "photo");
+  assert.match(document.querySelector('[data-sitecraft-benchmark="hero-image"]')?.getAttribute("src") ?? "", /img_facility_hero_107/);
+});
