@@ -24,14 +24,12 @@ supersedes:
 
 ## Resolution
 
-实现已限于 `scripts/visitor-layout-scan.js`、`scripts/check-published.mjs` 和 `tests/t090-layout-declarations.test.ts`；没有改 `lib/blocks/catalog.ts` 或任何区块声明、HTML、CSS。扫描器只读取挂载变体显式提供的 selector 声明，按声明测量基线（≤2px）、语义组间距（组内 < 组间）和 primary 按钮（每页 ≤1 且文案具体）；未提供声明的变体只写入 `undeclaredVariants`，不猜测 DOM。
+2026-10-05（纽约时间），代码提交 `e84a53e997813a8d564305bb7cce645845b19973` 在合入 `family-kit-assembly` 的 `59fcd0fe14b1a1e8bb2a174f9ad5e95fe2f9728a`（合并头 `31ffc95`）后完成本轮范围：`lib/blocks/catalog.ts` 为全部 41 个已进库变体增加 `declarations`，只引用现有 slot、`data-sc-part` 或其下的实际 DOM selector；没有改布局值、HTML 或 CSS。上一轮 review-1 P1 红证据保留在 `artifacts/t090/red.txt`。
 
-证据（2026-10-04，纽约时间）：
+- 聚焦测试：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell SITECRAFT_BASE=http://127.0.0.1:3059 node --test --experimental-strip-types tests/t090-layout-declarations.test.ts`，2 pass，见 `artifacts/t090/focused-catalog-final.txt`。
+- `npm run build` 和随后 `npm run typecheck` 均通过，见 `artifacts/t090/build-catalog-final.txt`、`artifacts/t090/typecheck-catalog-final.txt`。
+- brief 全量命令首轮结果原样保留在 `artifacts/t090/fulltest-catalog-final.txt`（806 pass、1 timeout、1 cancelled）；低负载重跑 `artifacts/t090/fulltest-catalog-r2.txt` 为 808 pass / 0 fail / 0 cancelled。
+- 13 站检查使用绝对清单 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/handoff/mainline-12-sites.txt`（原样 13 行），每次前强制复制主工作区 `.sitecraft-data/sites`；命令输出 `artifacts/t090/mainline-catalog-final/run.log`，报告 `artifacts/t090/mainline-catalog-final/report.json`，39/39 行、真实退出码 0、failures 0。与 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-104982b/check-published/report.json` 的 39 行 baseline 对照，正文行长和对比度测量均不少于基线。
+- 当前 scanner 报告仍列出 `undeclaredVariants` 信息项（本次报告共 411 条），因为它只读取已挂载的 DOM/global declaration payload；本票按授权只补 catalog 数据，没有扩展 T-109 或旁路改运行时注入，也没有把该信息静默改成通过。
 
-- 父提交 `ed65aecd7abd2c33731ec8ed157d7364ca1b11e9` 的红测命令及断言级失败：`artifacts/t090/red.txt`。
-- 修复后的聚焦测试：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell SITECRAFT_BASE=http://127.0.0.1:3059 node --test --experimental-strip-types tests/t090-layout-declarations.test.ts`，2 pass，见 `artifacts/t090/focused-final.txt`。
-- `npm run build` 通过，见 `artifacts/t090/build-final.txt`；随后 `npm run typecheck` 通过，见 `artifacts/t090/typecheck-final.txt`。
-- brief 要求的全量命令 `zsh /Users/luckye/Documents/Code/sitecraft-ai/artifacts/research/threads-2026-10-03/briefs/fulltest.sh /Users/luckye/Documents/Code/sitecraft-ai-t090 3059 artifacts/t090/fulltest-final.txt` 通过：791 pass / 0 fail。
-- 13 站主线回归为 `INCOMPLETE`：`artifacts/handoff/mainline-12-sites.txt` 与 `artifacts/merge-104982b/check-published/report.json` 在共享 filesystem 全路径检索不到，见 `artifacts/t090/mainline-13-incomplete.txt`；未用替代报告冒充基线，也未把 INVALID/timeout 当通过。
-
-对应提交：本票唯一提交（最终 SHA 以该提交的 `git log -1` 为准，未推送）。
+文档更新另提交，未推送；全部证据首行绑定最终提交 SHA。
