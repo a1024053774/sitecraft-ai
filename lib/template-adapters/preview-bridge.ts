@@ -1575,19 +1575,27 @@ function sitecraftPreviewBridge(templateId, adapter) {
     });
   }
 
-  function uniqueImageRecords(images) {
+  function uniqueImageRecords(images, extraMissing) {
     if (!Array.isArray(images)) return [];
     var seen = {};
+    var duplicate = {};
     var result = [];
     for (var i = 0; i < images.length; i++) {
       var image = images[i];
       if (!image || typeof image.url !== "string" || !image.url) continue;
       var key = typeof image.sha256 === "string" && image.sha256 ? "sha256:" + image.sha256 : "id:" + String(image.imageId || image.url);
-      if (seen[key]) continue;
+      if (seen[key]) {
+        duplicate[key] = true;
+        continue;
+      }
       seen[key] = true;
       result.push(image);
     }
-    return result;
+    if (extraMissing) for (var conflict in duplicate) extraMissing.push("images.conflict." + conflict.replace(/^sha256:/, ""));
+    return result.filter(function (image) {
+      var key = typeof image.sha256 === "string" && image.sha256 ? "sha256:" + image.sha256 : "id:" + String(image.imageId || image.url);
+      return !duplicate[key];
+    });
   }
 
   function imageUsed(image, used) {
@@ -2620,7 +2628,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var applied = new Set();
     var extraMissing = [];
     var currentLocale = locale || "zh";
-    var normalizedImages = uniqueImageRecords(images);
+    var normalizedImages = uniqueImageRecords(images, extraMissing);
     var usedImages = {};
     var refs = [];
     if (draft && draft.content && draft.content.hero && draft.content.hero.image) refs.push(draft.content.hero.image);

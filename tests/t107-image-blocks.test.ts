@@ -22,7 +22,8 @@ function render(images: ImageView[]) {
   const globalObject: Record<string, unknown> = { document, parent: { postMessage() {} }, addEventListener() {} };
   globalObject.window = globalObject;
   const api = installPreviewBridge(globalObject, "screwfast", adapter);
-  api.applyDeclaredContent(packDraft("industrial"), "zh", [], "published", undefined, false, images);
+  const report = api.applyDeclaredContent(packDraft("industrial"), "zh", [], "published", undefined, false, images);
+  (document as unknown as { __t107Report?: unknown }).__t107Report = report;
   return document;
 }
 
@@ -69,6 +70,11 @@ test("duplicate uploaded records with the same sha256 render one image across th
     { imageId: "img_same_b", url: "/api/sites/site/images/img_same_b", usageCategory: "product", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
   ]);
   const images = [...document.querySelectorAll("[data-sitecraft-image-gallery] img")];
-  assert.equal(images.length, 1, "same content must not be repeated in multiple category galleries");
-  assert.equal(new Set(images.map((image) => image.getAttribute("src"))).size, 1);
+  assert.equal(images.length, 0, "conflicting same-content records are not guessed by input order");
+  const reportDocument = render([
+    { imageId: "img_same_a", url: "/api/sites/site/images/img_same_a", usageCategory: "facility", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
+    { imageId: "img_same_b", url: "/api/sites/site/images/img_same_b", usageCategory: "product", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
+  ]);
+  const report = (reportDocument as unknown as { __t107Report?: { missingSlots?: string[] } }).__t107Report;
+  assert.ok(report?.missingSlots?.some((slot) => slot.startsWith("images.conflict.same-image-hash")), "same-content conflict is explicit");
 });

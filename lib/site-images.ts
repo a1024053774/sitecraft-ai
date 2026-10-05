@@ -314,10 +314,19 @@ export async function saveSiteImage(args: {
   };
 }): Promise<SiteImageRecord> {
   const info = inspectSiteImage(args.bytes, "upload");
-  const imageId = `img_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
   const createdAt = new Date().toISOString();
   const site = safeSiteId(args.siteId);
   const provenance = args.provenance ?? {};
+  const contentHash = sha256(args.bytes);
+  const existing = (await listSiteImages(site)).find((item) => item.sha256 === contentHash);
+  if (existing) {
+    const updated = provenance.usageCategory && provenance.usageCategory !== existing.usageCategory
+      ? { ...existing, usageCategory: provenance.usageCategory }
+      : existing;
+    if (updated !== existing) await writeAtomic(metaPath(site, existing.imageId), JSON.stringify(updated, null, 2));
+    return updated;
+  }
+  const imageId = `img_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
   const license = provenance.license ?? "user-provided";
   const isUserUpload = license === "user-provided";
   const record: SiteImageRecord = {
@@ -338,7 +347,7 @@ export async function saveSiteImage(args: {
     usageScope: provenance.usageScope ?? "current-site-only",
     ...(provenance.usageCategory ? { usageCategory: provenance.usageCategory } : {}),
     retrievedAt: provenance.retrievedAt?.trim() || createdAt,
-    sha256: sha256(args.bytes),
+    sha256: contentHash,
     createdAt,
   };
   validateImageProvenance(record);
