@@ -12,41 +12,15 @@ import { resolveVars, rootTokens } from "./fixtures/look-tokens.ts";
 // :root of every block look. Declarations that read the bridge's run-time --sitecraft-* variables
 // (set on elements, not on :root) are skipped.
 //
-// KNOWN_GAPS is a ratchet, not a licence: the forge look ("industrial") has never defined
-// --site-rule, --site-rule-strong, --site-keys-border or --site-footer-top, so older blocks draw no
-// rule there. The list may only shrink: a new gap fails, and a listed gap that now resolves fails
-// too (delete it). New layouts must resolve their tokens on all four looks (give a fallback or a
-// token on each look, as 型号索引表 does with --site-index-top / --site-index-row).
+// KNOWN_GAPS is a ratchet, not a licence: the forge look ("industrial") still has no
+// --site-keys-border for the product key strip. The list may only shrink: a new gap fails, and a
+// listed gap that now resolves fails too (delete it). New layouts must resolve their tokens on all
+// four looks (give a fallback or a token on each look, as 型号索引表 does with --site-index-top /
+// --site-index-row).
 
 const KNOWN_GAPS: string[] = [
-  'industrial / base: border-bottom: var(--site-rule)',
-  'industrial / base: border-top: var(--site-rule-strong)',
-  'industrial / capabilities: border: var(--site-rule)',
-  'industrial / certifications: border: var(--site-rule)',
-  'industrial / contact: border-bottom: var(--site-rule)',
-  'industrial / contact: border-top: var(--site-rule)',
-  'industrial / contact: border: var(--site-rule)',
-  'industrial / faq: border-bottom: var(--site-rule)',
-  'industrial / faq: border-top: var(--site-rule-strong)',
-  'industrial / footer: border-top: var(--site-footer-top)',
-  'industrial / hero: border-bottom: var(--site-rule)',
-  'industrial / hero: border-left: var(--site-rule)',
-  'industrial / hero: border-top: var(--site-rule)',
-  'industrial / hero: border: var(--site-rule)',
-  'industrial / industries: border: var(--site-rule)',
-  'industrial / nav: border-bottom: var(--site-rule)',
   'industrial / products: border-bottom: var(--site-keys-border)',
-  'industrial / products: border-bottom: var(--site-rule)',
-  'industrial / products: border-bottom: var(--site-rule-strong)',
-  'industrial / products: border-left: var(--site-rule)',
   'industrial / products: border-top: var(--site-keys-border)',
-  'industrial / products: border-top: var(--site-rule)',
-  'industrial / products: border-top: var(--site-rule-strong)',
-  'industrial / products: border: var(--site-keys-border)',
-  'industrial / products: border: var(--site-rule)',
-  'industrial / services: border-bottom: var(--site-rule)',
-  'industrial / services: border-top: var(--site-rule-strong)',
-  'industrial / services: border: var(--site-rule)',
 ];
 
 function declarations(css: string) {
