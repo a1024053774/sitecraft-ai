@@ -64,17 +64,20 @@ test("a facility image activates the photo hero without forcing narrow spec valu
   assert.match(document.querySelector('[data-sitecraft-image-gallery="facility"] img')?.getAttribute("src") ?? "", /img_facility_hero_107/);
 });
 
-test("duplicate uploaded records with the same sha256 render one image across the page", () => {
-  const document = render([
-    { imageId: "img_same_a", url: "/api/sites/site/images/img_same_a", usageCategory: "facility", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
-    { imageId: "img_same_b", url: "/api/sites/site/images/img_same_b", usageCategory: "product", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
-  ]);
-  const images = [...document.querySelectorAll("[data-sitecraft-image-gallery] img")];
-  assert.equal(images.length, 0, "conflicting same-content records are not guessed by input order");
-  const reportDocument = render([
-    { imageId: "img_same_a", url: "/api/sites/site/images/img_same_a", usageCategory: "facility", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
-    { imageId: "img_same_b", url: "/api/sites/site/images/img_same_b", usageCategory: "product", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
-  ]);
-  const report = (reportDocument as unknown as { __t107Report?: { missingSlots?: string[] } }).__t107Report;
-  assert.ok(report?.missingSlots?.some((slot) => slot.startsWith("images.conflict.same-image-hash")), "same-content conflict is explicit");
-});
+for (const [label, images] of Object.entries({
+  "facility then product": [
+    { imageId: "img_same_a", url: "/api/sites/site/images/img_same_a", usageCategory: "facility" as const, license: "CC BY", sha256: "same-image-hash" },
+    { imageId: "img_same_b", url: "/api/sites/site/images/img_same_b", usageCategory: "product" as const, license: "CC BY", sha256: "same-image-hash" },
+  ],
+  "product then facility": [
+    { imageId: "img_same_b", url: "/api/sites/site/images/img_same_b", usageCategory: "product" as const, license: "CC BY", sha256: "same-image-hash" },
+    { imageId: "img_same_a", url: "/api/sites/site/images/img_same_a", usageCategory: "facility" as const, license: "CC BY", sha256: "same-image-hash" },
+  ],
+})) {
+  test(`duplicate uploaded records report a conflict (${label})`, () => {
+    const document = render(images);
+    assert.equal(document.querySelectorAll("[data-sitecraft-image-gallery] img").length, 0, "conflicting same-content records are not guessed by input order");
+    const report = (document as unknown as { __t107Report?: { missingSlots?: string[] } }).__t107Report;
+    assert.ok(report?.missingSlots?.some((slot) => slot.startsWith("images.conflict.same-image-hash")), "same-content conflict is explicit");
+  });
+}
