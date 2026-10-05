@@ -1,4 +1,5 @@
 import type { VisibilityKey } from "../site-document.ts";
+import type { BlockLayoutDeclarations } from "../blocks/catalog.ts";
 import type { SiteStyleDirectionId, SiteStyleRule } from "../blocks/site-style.ts";
 
 export type TemplateSlotAttr = "text" | "src";
@@ -115,6 +116,8 @@ export type TemplateBlocks = {
   /** Paired content blocks move as one visual unit. */
   groups?: string[][];
   variants: Record<string, string[]>;
+  /** T-090 selector-backed layout declarations, keyed by block and variant. */
+  declarations?: Record<string, Record<string, BlockLayoutDeclarations>>;
   /** How the bridge fills a mounted variant, from the block catalog: block -> variant -> params. */
   render?: Record<string, Record<string, TemplateBlockRender>>;
   styleDirections?: Readonly<Record<SiteStyleDirectionId, { label: string; summary: string; rules: readonly SiteStyleRule[] }>>;

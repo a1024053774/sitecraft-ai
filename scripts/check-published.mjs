@@ -357,6 +357,10 @@ const INSPECT = `(async () => {
     textContrast: layout.textContrast || [],
     bodyLineLength: layout.bodyLineLength || [],
     lineLengthExemptions: layout.lineLengthExemptions || [],
+    baselineAlignments: layout.baselineAlignments || [],
+    semanticSpacing: layout.semanticSpacing || [],
+    primaryButtons: layout.primaryButtons || null,
+    undeclaredVariants: layout.undeclaredVariants || [],
     measurement: layout.measurement || null,
     heroOrphan,
     heroTitleWordBreak,
@@ -396,6 +400,19 @@ function judge(report, facts, locale = "zh", expectedOrder = null) {
   if (report.editorHoverOutline) failures.push("visitor slot shows an editor hover outline");
   if (report.horizontalScroll) failures.push("visitor page scrolls horizontally");
   if (report.cardOverflow) failures.push(`card content overflows its card (${report.cardOverflow}: ${(report.cardOverflowSample || []).join(", ")})`);
+  for (const item of report.baselineAlignments || []) {
+    if (item.status === "missing") failures.push(`基线声明落点缺失（${item.block}:${item.variant} ${item.id}）`);
+    else if (item.pass === false) failures.push(`基线对齐失败（${item.block}:${item.variant} ${item.id}，差 ${item.delta}px，上限 ${item.threshold || 2}px）`);
+  }
+  for (const item of report.semanticSpacing || []) {
+    if (item.status === "missing") failures.push(`语义组间距声明落点缺失（${item.block}:${item.variant} ${item.id}）`);
+    else if (item.pass === false) failures.push(`组内间距不小于组间距（${item.block}:${item.variant} ${item.id}，组内 ${item.within}px，组间 ${item.between}px）`);
+  }
+  if (report.primaryButtons) {
+    if (report.primaryButtons.missing?.length) failures.push(`primary 按钮声明落点缺失（${report.primaryButtons.missing.slice(0, 4).map((item) => `${item.block}:${item.variant} ${item.selector}`).join(", ")}）`);
+    if (report.primaryButtons.visibleCount > (report.primaryButtons.max || 1)) failures.push(`每页可见 primary 按钮超过一个（${report.primaryButtons.visibleCount}）`);
+    for (const item of report.primaryButtons.vague || []) failures.push(`primary 按钮文案空泛（${item.block}:${item.variant} "${item.text}"）`);
+  }
   for (const item of report.textContrast || []) {
     if (!item.checkable) continue;
     if (item.status === "unmeasured") failures.push(`正文对比度未测（${item.reason || "图片背景"}）：${item.element} "${item.text}"`);
