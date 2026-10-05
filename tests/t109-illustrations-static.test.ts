@@ -15,6 +15,13 @@ const equipmentImage = {
 
 type PreviewResult = {
   width: number;
+  heroMode: string | null;
+  heroNameplateDisplay: string;
+  heroNameplateHidden: boolean;
+  heroBefore: string;
+  heroAfter: string;
+  productCardCount: number;
+  productShadow: string;
   equipmentDisplay: string;
   equipmentLabel: string;
   equipmentAriaLabel: string | null;
@@ -60,12 +67,24 @@ test("T-109 localizes equipment schematics and switches to supplied equipment im
             );
             await browser.eval("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))", sessionId);
             const result = await browser.eval<PreviewResult>(`(() => {
+              const hero = document.querySelector('[data-sitecraft-section="hero"]');
+              const heroVisual = hero?.querySelector('[data-sitecraft-hero-visual]');
+              const heroNameplate = hero?.querySelector('[data-sitecraft-hero-nameplate]');
+              const productCards = document.querySelectorAll('[data-sc-block="products"] .sitecraft-product-card');
+              const product = productCards[0];
               const equipment = document.querySelector('[data-sitecraft-section="equipment"]');
               const schematic = equipment?.querySelector('[data-sitecraft-equipment-schematic]');
               const gallery = equipment?.querySelector('[data-sitecraft-image-gallery="equipment"]');
               const image = gallery?.querySelector('img');
               return {
                 width: window.innerWidth,
+                heroMode: hero?.getAttribute('data-sitecraft-hero-mode') ?? null,
+                heroNameplateDisplay: heroNameplate ? getComputedStyle(heroNameplate).display : "none",
+                heroNameplateHidden: Boolean(heroNameplate?.hidden),
+                heroBefore: heroVisual ? getComputedStyle(heroVisual, '::before').content : 'none',
+                heroAfter: heroVisual ? getComputedStyle(heroVisual, '::after').content : 'none',
+                productCardCount: productCards.length,
+                productShadow: product ? getComputedStyle(product).boxShadow : "none",
                 equipmentDisplay: schematic ? getComputedStyle(schematic).display : "none",
                 equipmentLabel: schematic?.querySelector('.sitecraft-equipment-schematic-label')?.textContent?.trim() || "",
                 equipmentAriaLabel: schematic?.getAttribute("aria-label") ?? null,
@@ -84,6 +103,13 @@ test("T-109 localizes equipment schematics and switches to supplied equipment im
             assert.equal(result.width, width, where);
             assert.equal(result.equipmentSectionHidden, false, `${where}: equipment content stays visible`);
             assert.ok(result.horizontalOverflow <= 1, `${where}: page overflows horizontally by ${result.horizontalOverflow}px`);
+            assert.equal(result.heroMode, "nameplate", `${where}: equipment media must not replace the default hero nameplate`);
+            assert.notEqual(result.heroNameplateDisplay, "none", `${where}: default hero nameplate remains visible`);
+            assert.equal(result.heroNameplateHidden, false, `${where}: default hero nameplate is not hidden`);
+            assert.equal(result.heroBefore, "none", `${where}: no hero schematic label or decoration is present`);
+            assert.equal(result.heroAfter, "none", `${where}: no hero schematic pseudo-element is present`);
+            assert.ok(result.productCardCount > 0, `${where}: product cards are rendered`);
+            assert.notEqual(result.productShadow, "none", `${where}: product cards keep the accepted bottom rule`);
             if (withImage) {
               assert.equal(result.equipmentGalleryHidden, false, `${where}: supplied image gallery is visible`);
               assert.equal(result.equipmentImageCount, 1, `${where}: supplied equipment image is rendered`);
