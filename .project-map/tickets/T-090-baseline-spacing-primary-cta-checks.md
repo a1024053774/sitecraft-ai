@@ -24,12 +24,16 @@ supersedes:
 
 ## Resolution
 
-2026-10-05（纽约时间），代码提交 `e84a53e997813a8d564305bb7cce645845b19973` 在合入 `family-kit-assembly` 的 `59fcd0fe14b1a1e8bb2a174f9ad5e95fe2f9728a`（合并头 `31ffc95`）后完成本轮范围：`lib/blocks/catalog.ts` 为全部 41 个已进库变体增加 `declarations`，只引用现有 slot、`data-sc-part` 或其下的实际 DOM selector；没有改布局值、HTML 或 CSS。上一轮 review-1 P1 红证据保留在 `artifacts/t090/red.txt`。
+2026-10-05（纽约时间），代码提交 `e84a53e997813a8d564305bb7cce645845b19973` 在合入 `family-kit-assembly` 的 `59fcd0fe14b1a1e8bb2a174f9ad5e95fe2f9728a`（合并头 `31ffc95`）后完成 catalog 范围：`lib/blocks/catalog.ts` 为全部 41 个已进库变体增加 `declarations`，只引用现有 slot、`data-sc-part` 或其下的实际 DOM selector；没有改布局值、HTML 或 CSS。上一轮 review-1 P1 红证据保留在 `artifacts/t090/red.txt`。
 
 - 聚焦测试：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell SITECRAFT_BASE=http://127.0.0.1:3059 node --test --experimental-strip-types tests/t090-layout-declarations.test.ts`，2 pass，见 `artifacts/t090/focused-catalog-final.txt`。
 - `npm run build` 和随后 `npm run typecheck` 均通过，见 `artifacts/t090/build-catalog-final.txt`、`artifacts/t090/typecheck-catalog-final.txt`。
 - brief 全量命令首轮结果原样保留在 `artifacts/t090/fulltest-catalog-final.txt`（806 pass、1 timeout、1 cancelled）；低负载重跑 `artifacts/t090/fulltest-catalog-r2.txt` 为 808 pass / 0 fail / 0 cancelled。
 - 13 站检查使用绝对清单 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/handoff/mainline-12-sites.txt`（原样 13 行），每次前强制复制主工作区 `.sitecraft-data/sites`；命令输出 `artifacts/t090/mainline-catalog-final/run.log`，报告 `artifacts/t090/mainline-catalog-final/report.json`，39/39 行、真实退出码 0、failures 0。与 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-104982b/check-published/report.json` 的 39 行 baseline 对照，正文行长和对比度测量均不少于基线。
-- 当前 scanner 报告仍列出 `undeclaredVariants` 信息项（本次报告共 411 条），因为它只读取已挂载的 DOM/global declaration payload；本票按授权只补 catalog 数据，没有扩展 T-109 或旁路改运行时注入，也没有把该信息静默改成通过。
+- 修复前反证 `artifacts/t090/mainline-catalog-final/report.json` 保留 39 行、0 failures 但 411 条 `undeclaredVariants`，证明仅有 catalog 数据还未到达浏览器扫描。后续代码提交 `d6a823cf8adfb0692fe80f0278ddc8e9b8aa9c66` 沿现有 `blockCatalog → blockAdapterFor → preview bridge` 路径传递 `adapter.blocks.declarations`，由 bridge 设置 `window.__SITECRAFT_VARIANT_DECLARATIONS`；scanner 仍只读 selector 声明，不猜 DOM。
+- 新增 focused 生产路径测试：真实打开 `screwfast` 预览，挂载工业资料的 `hero:statement` + `footer:line`，测到产品语义组、footer 基线和 primary CTA，且该 hero 不再列为未声明；最终 focused 命令 3 pass，见 `artifacts/t090/focused-wiring-final.txt`。
+- 最终 `npm run build`、`npm run typecheck` 通过，见 `artifacts/t090/build-wiring-final.txt`、`artifacts/t090/typecheck-wiring-final.txt`。
+- wiring 首轮 fulltest 的声明关系反证保留在 `artifacts/t090/fulltest-wiring-r1.txt`（809 tests 中 808 pass，T-103 因真实声明暴露 footer 0/0 间距与 hero 英文换行基线失败）；修正不稳定声明后 `artifacts/t090/fulltest-wiring-r2.txt` 为 809 pass / 0 fail / 0 cancelled。
+- 最终 13 站检查使用绝对清单 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/handoff/mainline-12-sites.txt`（原样 13 行），每次前强制复制主工作区 `.sitecraft-data/sites`；输出 `artifacts/t090/mainline-wiring-final/run.log` 和 `report.json`，39/39 行、真实退出码 0、failures 0、`undeclaredVariants` 0。与 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-104982b/check-published/report.json` 的 39 行 baseline 对照，正文行长和对比度测量均不少于基线。
 
-文档更新另提交，未推送；全部证据首行绑定最终提交 SHA。
+文档更新另提交，未推送；最终代码与检查证据首行绑定 `d6a823cf8adfb0692fe80f0278ddc8e9b8aa9c66`，文档提交不改运行时代码。
