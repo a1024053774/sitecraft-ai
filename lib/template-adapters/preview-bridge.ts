@@ -996,6 +996,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (!equipmentVariant) return;
     var sectionNode = uniqueNode('[data-sitecraft-section="equipment"]');
     var grid = uniqueNode('[data-sitecraft-equipment-grid]');
+    var schematic = sectionNode && sectionNode.querySelector ? sectionNode.querySelector('[data-sitecraft-equipment-schematic]') : null;
+    if (schematic) {
+      var schematicLabel = locale === "en" ? "Schematic" : "示意";
+      schematic.setAttribute("aria-label", schematicLabel);
+      var schematicLabelNode = schematic.querySelector ? schematic.querySelector(".sitecraft-equipment-schematic-label") : null;
+      if (schematicLabelNode) schematicLabelNode.textContent = schematicLabel;
+    }
     var equipment = draft && draft.content && Array.isArray(draft.content.equipment) ? draft.content.equipment : [];
     var visible = [];
     for (var i = 0; i < equipment.length; i++) {
