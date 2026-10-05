@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { closeBrowser, openBrowser } from "./helpers/workspace-browser.ts";
+import { packDraft, withLayouts } from "./fixtures/pack-drafts.ts";
 
 const scanSource = readFileSync(process.env.T090_SCAN_SOURCE || new URL("../scripts/visitor-layout-scan.js", import.meta.url), "utf8")
   .replace("export function", "function")
@@ -107,4 +108,34 @@ test("T-090 check-published judge reports declared failures and leaves undeclare
   assert.ok(failures.some((failure) => failure.includes("primary 按钮")), failures.join("；"));
   assert.ok(failures.some((failure) => failure.includes("文案空泛")), failures.join("；"));
   assert.ok(!failures.some((failure) => failure.includes("unknown:future")), failures.join("；"));
+});
+
+test("T-090 real production variant reaches the browser layout scanner", async () => {
+  const browser = await openBrowser();
+  const { targetId } = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
+  const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
+  try {
+    await browser.send("Runtime.enable", {}, sessionId);
+    await browser.send("Page.enable", {}, sessionId);
+    await browser.send("Page.navigate", { url: `${process.env.SITECRAFT_BASE || "http://127.0.0.1:3034"}/api/templates/screwfast/preview` }, sessionId);
+    for (let attempt = 0; attempt < 150; attempt += 1) {
+      const ready = await browser.eval<boolean>("document.readyState === 'complete' && typeof window.__sitecraftApplyDeclared === 'function'", sessionId).catch(() => false);
+      if (ready) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const draft = withLayouts(packDraft("industrial"), { hero: "statement", footer: "line" });
+    await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
+    await browser.eval("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))", sessionId);
+    const scan = await browser.eval<{
+      baselineAlignments: Array<{ block: string; variant: string; status: string; id: string }>;
+      semanticSpacing: Array<{ block: string; variant: string; status: string; id: string }>;
+      undeclaredVariants: Array<{ block: string; variant: string }>;
+    }>(`(()=>{${scanSource};return scanVisitorLayout(document)})()`, sessionId);
+    assert.ok(scan.baselineAlignments.some((entry) => entry.block === "footer" && entry.variant === "line" && entry.status === "measured"), JSON.stringify(scan));
+    assert.ok(scan.semanticSpacing.some((entry) => entry.block === "products" && entry.variant === "cards" && entry.status === "measured"), JSON.stringify(scan));
+    assert.equal(scan.undeclaredVariants.some((entry) => entry.block === "hero" && entry.variant === "statement"), false, JSON.stringify(scan.undeclaredVariants));
+  } finally {
+    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    await closeBrowser(browser);
+  }
 });

@@ -12,6 +12,9 @@ export const PREVIEW_BRIDGE_SOURCE = String.raw`
 function sitecraftPreviewBridge(templateId, adapter) {
   var global = this || (typeof window !== "undefined" ? window : globalThis);
   var document = global.document;
+  if (global && adapter && adapter.blocks && adapter.blocks.declarations) {
+    global.__SITECRAFT_VARIANT_DECLARATIONS = adapter.blocks.declarations;
+  }
   var parent = global.parent || global;
   var siteStyleCss = ${SITE_STYLE_CSS_SOURCE};
   var PREVIEW_MESSAGE_TYPE_VERSION = 1;

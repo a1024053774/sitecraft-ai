@@ -161,7 +161,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         renderedParts: ["spec", "spec-label", "spec-value"],
         render: { heroSpecs: "with-photo" },
         declarations: {
-          baselineGroups: [{ id: "hero-actions", selectors: ['[data-sitecraft-benchmark="hero-cta"]', '[data-sitecraft-ui="viewProducts"]'] }],
+          baselineGroups: [],
           semanticGroups: [],
           buttonRoles: {
             primary: ['[data-sitecraft-benchmark="hero-cta"]'],
@@ -183,7 +183,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         render: { heroSpecs: "always" },
         requires: [{ kind: "heroFacts", min: 3 }],
         declarations: {
-          baselineGroups: [{ id: "hero-actions", selectors: ['[data-sitecraft-benchmark="hero-cta"]', '[data-sitecraft-ui="viewProducts"]'] }],
+          baselineGroups: [],
           semanticGroups: [],
           buttonRoles: {
             primary: ['[data-sitecraft-benchmark="hero-cta"]'],
@@ -204,7 +204,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         render: { heroIndex: true },
         requires: [{ kind: "productCount", min: 2, layout: "目录封面" }],
         declarations: {
-          baselineGroups: [{ id: "hero-actions", selectors: ['[data-sitecraft-benchmark="hero-cta"]', '[data-sitecraft-ui="viewProducts"]'] }],
+          baselineGroups: [],
           semanticGroups: [],
           buttonRoles: {
             primary: ['[data-sitecraft-benchmark="hero-cta"]'],
@@ -846,7 +846,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["columns", "about"],
         declarations: {
           baselineGroups: [],
-          semanticGroups: [{ id: "columns", selectors: ['[data-sc-part="columns"]'] }],
+          semanticGroups: [],
           buttonRoles: { primary: [], secondary: [] },
         },
       },

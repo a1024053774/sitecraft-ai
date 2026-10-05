@@ -1,4 +1,4 @@
-import { blockCatalog, layoutBlocks, type BlockId, type BlockLook } from "./catalog.ts";
+import { blockCatalog, layoutBlocks, type BlockId, type BlockLayoutDeclarations, type BlockLook } from "./catalog.ts";
 import type { TemplateAdapter, TemplateBlockRender, TemplateKit, TemplateKitModule, TemplateSection, TemplateSlot } from "../template-adapters/types.ts";
 
 /**
@@ -15,11 +15,14 @@ export function blockAdapterFor(
   const sections: TemplateSection[] = [];
   const modules: TemplateKitModule[] = [];
   const variants: Record<string, string[]> = {};
+  const declarations: Record<string, Record<string, BlockLayoutDeclarations>> = {};
   const render: Record<string, Record<string, TemplateBlockRender>> = {};
   for (const block of order) {
     const spec = blockCatalog[block];
     variants[block] = Object.keys(spec.variants);
+    declarations[block] = {};
     for (const [variantId, variant] of Object.entries(spec.variants)) {
+      declarations[block][variantId] = variant.declarations;
       for (const slot of variant.slots) {
         if (!slots.some((item) => item.target === slot.target && item.selector === slot.selector)) slots.push({ ...slot });
       }
@@ -40,6 +43,6 @@ export function blockAdapterFor(
     sections,
     ...(options.alternatives ? { alternatives: { ...options.alternatives } } : {}),
     kit: { ...options.kit, modules },
-    blocks: { order, main, groups, defaults: { ...look.defaults }, ...(look.heroTitle ? { heroTitle: look.heroTitle } : {}), ...(look.fitText ? { fitText: look.fitText } : {}), variants, render, ...(look.styleDirections ? { styleDirections: look.styleDirections } : {}) },
+    blocks: { order, main, groups, defaults: { ...look.defaults }, ...(look.heroTitle ? { heroTitle: look.heroTitle } : {}), ...(look.fitText ? { fitText: look.fitText } : {}), variants, declarations, render, ...(look.styleDirections ? { styleDirections: look.styleDirections } : {}) },
   };
 }
