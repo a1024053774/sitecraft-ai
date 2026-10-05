@@ -28,6 +28,10 @@ test("T-108 registers two new history and quality-process layouts with unique ma
 test("T-108 new layouts keep their facts on the same bridge-owned slots", () => {
   for (const item of cases) {
     const baseSlots = blockCatalog[item.block].variants.rows.slots;
-    for (const variant of item.variants) assert.deepEqual(blockCatalog[item.block].variants[variant].slots, baseSlots, `${item.block}:${variant} slot contract`);
+    for (const variant of item.variants) {
+      const variantSpec = blockCatalog[item.block].variants[variant];
+      assert.ok(variantSpec, `${item.block}:${variant} is in the catalog`);
+      assert.deepEqual(variantSpec.slots, baseSlots, `${item.block}:${variant} slot contract`);
+    }
   }
 });
