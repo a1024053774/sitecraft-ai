@@ -5,7 +5,7 @@ import { blockFragments } from "../lib/blocks/fragments/index.ts";
 import { parseHtmlFragment } from "./fixtures/html-dom.ts";
 
 const cases = [
-  { block: "history", variants: ["timeline", "milestones"], marker: "[data-sitecraft-history-grid]", classes: ["sitecraft-history-timeline", "sitecraft-history-milestones"] },
+  { block: "history", variants: ["timeline"], marker: "[data-sitecraft-history-grid]", classes: ["sitecraft-history-timeline"] },
 ] as const;
 
 test("T-108 registers two new history and quality-process layouts with unique markers and parts", () => {

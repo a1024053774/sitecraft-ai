@@ -304,13 +304,6 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         parts: ["head", "title", "list"],
         renderedParts: ["item"],
       },
-      steps: {
-        label: "质检步骤卡",
-        slots: [],
-        markers: ["[data-sitecraft-quality-process-grid]"],
-        parts: ["head", "title", "list"],
-        renderedParts: ["item"],
-      },
       checklist: {
         label: "质检清单",
         slots: [],
