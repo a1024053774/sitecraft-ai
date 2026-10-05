@@ -149,7 +149,7 @@ export const footerFragment: BlockFragment = {
 .sitecraft-footer-line-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 32px; }
 .sitecraft-footer-line .sitecraft-footer-brand { margin: 0; }
 .sitecraft-footer-line .sitecraft-footer-contact { display: flex; flex-wrap: wrap; gap: 18px; }
-.sitecraft-image-credits { margin: 28px 0 0; color: var(--site-footer-muted, var(--site-muted)); font-size: 11px; line-height: 1.45; }
+.sitecraft-image-credits { margin: 28px 0 0; color: var(--site-footer-ink); font-size: 11px; line-height: 1.45; }
 /* When every contact line is a gap, drop the footer contact column. */
 .sitecraft-footer-inner > div:has(.sitecraft-footer-contact):not(:has([data-sitecraft-line]:not([hidden]))) { display: none; }
 `,
