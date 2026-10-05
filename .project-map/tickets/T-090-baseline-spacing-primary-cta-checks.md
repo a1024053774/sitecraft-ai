@@ -34,4 +34,4 @@ supersedes:
 - 最终 13 站检查使用绝对清单 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/handoff/mainline-12-sites.txt`（原样 13 行），每次前强制复制主工作区 `.sitecraft-data/sites`；`artifacts/t090/mainline-wiring-final/run.log` 的真实退出码为 0，`report.json` 为 39/39 行、failures 0、`undeclaredVariants` 0。与 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-104982b/check-published/report.json` 对照，正文行长和对比度测量均不少于基线。
 - 修复前的 39 行、0 failures、411 条 `undeclaredVariants` 报告保留在 `artifacts/t090/mainline-catalog-final/`，作为本次 plumbing 的 P1 反证。
 
-最终运行时代码为 `d6a823cf8adfb0692fe80f0278ddc8e9b8aa9c66`；`6c0d747`、`0615d4a` 只更新证据与 living-doc 校验，未推送。最终证据首行绑定 `0615d4a`。
+最终运行时代码为 `d6a823cf8adfb0692fe80f0278ddc8e9b8aa9c66`；后续文档提交只更新证据与 living-doc 校验，未推送。最终证据首行绑定最终 HEAD。
