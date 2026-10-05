@@ -202,6 +202,7 @@ type SiteImageItem = {
   author: string;
   attribution: string;
   usageScope: string;
+  usageCategory?: "product" | "equipment" | "facility" | "inspection" | null;
   retrievedAt: string;
   sha256: string;
   createdAt: string;
@@ -1279,6 +1280,11 @@ export default function WorkspacePage() {
     return images;
   };
 
+  useEffect(() => {
+    if (!draftReady) return;
+    void loadSiteImages().catch(() => {});
+  }, [draftReady, siteId]);
+
   const openImageLibrary = async () => {
     setShowImages(true);
     setImageNote(null);
@@ -1487,7 +1493,7 @@ export default function WorkspacePage() {
         </div>
         <div className="preview-stage">
           {lastChangedTargets.length ? <div className="preview-change-markers" data-testid="preview-change-markers">本次修改：{lastChangedTargets.slice(0, 5).join("、")}</div> : null}
-          <div className={`browser-frame ${device}`}>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} annotationMode={annotationMode} annotationTarget={annotationCandidate?.target ?? null} onSelectTarget={selectPreviewTarget} onAnnotationCandidate={selectAnnotationCandidate} onAnnotationState={handleAnnotationState} onApplyReport={handlePreviewReport} />}</div>
+          <div className={`browser-frame ${device}`}>{draftReady && <OpenSourceTemplateFrame templateId={draft.templateId} draft={draft} images={siteImages} locale={locale} variant="workspace" expectedTargets={expectedTargets} pagePath={previewPagePath} activePage={activePage} annotationMode={annotationMode} annotationTarget={annotationCandidate?.target ?? null} onSelectTarget={selectPreviewTarget} onAnnotationCandidate={selectAnnotationCandidate} onAnnotationState={handleAnnotationState} onApplyReport={handlePreviewReport} />}</div>
         </div>
       </main>
       <aside className={`builder-chat ${mobilePane !== "chat" ? "mobile-hidden" : ""}`} aria-label="对话">

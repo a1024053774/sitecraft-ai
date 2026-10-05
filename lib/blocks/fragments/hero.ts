@@ -16,6 +16,11 @@ export const heroFragment: BlockFragment = {
 .sitecraft-hero-visual { margin: 0; }
 .sitecraft-hero-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--site-diagram); }
 .sitecraft-hero-credit { margin: 8px 0 0; font-size: 12px; color: var(--site-muted); }
+.sitecraft-image-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 18px; }
+.sitecraft-image-gallery[hidden] { display: none; }
+.sitecraft-image-gallery figure { margin: 0; min-width: 0; }
+.sitecraft-image-gallery img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--site-media-radius); background: var(--site-diagram); }
+.sitecraft-image-gallery figcaption { margin-top: 5px; color: var(--site-muted); font-size: 12px; line-height: 1.4; }
 .sitecraft-nameplate { margin: 0; padding: 32px 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px 28px; border-radius: var(--site-media-radius); background: var(--site-plate-bg); color: var(--site-plate-copy); }
 .sitecraft-nameplate-cell dt { font-size: 13px; color: var(--site-plate-muted); }
 .sitecraft-nameplate-cell dd { margin: 6px 0 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
@@ -79,7 +84,7 @@ export const heroFragment: BlockFragment = {
 /* Series-prefixed labels like「直角减速机 · 额定输出扭矩」need the full width on phones. */
 .sitecraft-hero-specs dl { grid-template-columns: 1fr; }
 .sitecraft-hero-spec { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.sitecraft-hero-spec dd { margin: 0; white-space: nowrap; }
+.sitecraft-hero-spec dd { margin: 0; white-space: normal; overflow-wrap: anywhere; }
 .sitecraft-statement-specs { margin-top: 24px; }
 .sitecraft-statement-specs .sitecraft-hero-spec { display: block; padding: 12px 14px 14px; }
 .sitecraft-statement-specs .sitecraft-hero-spec dd { margin: 6px 0 0; font-size: 17px; white-space: normal; }
@@ -102,6 +107,7 @@ export const heroFragment: BlockFragment = {
               </div>
             </div>
             <nav class="sitecraft-cover-index" data-sitecraft-hero-index data-sc-part="index"><p>产品系列</p><ul></ul></nav>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" hidden></div>
           </div>
         </section>
       </div>`,
@@ -121,6 +127,7 @@ export const heroFragment: BlockFragment = {
               <img class="sitecraft-hero-photo" data-sitecraft-benchmark="hero-image" alt="" hidden>
               <figcaption class="sitecraft-hero-credit" data-sitecraft-hero-credit hidden></figcaption>
               <dl class="sitecraft-nameplate" data-sitecraft-hero-nameplate hidden></dl>
+              <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" hidden></div>
             </figure>
           </div>
         </section>
@@ -139,6 +146,7 @@ export const heroFragment: BlockFragment = {
               </div>
             </div>
             <div class="sitecraft-statement-specs" data-sitecraft-hero-specs hidden data-sc-part="specs"><dl></dl></div>
+            <div class="sitecraft-image-gallery" data-sitecraft-image-gallery="facility" hidden></div>
           </div>
         </section>
       </div>`,

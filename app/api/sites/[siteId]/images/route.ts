@@ -1,4 +1,4 @@
-import { imageLicenses, imageUsageScopes, listSiteImages, publicImagePayload, saveSiteImage, SiteImageError, type ImageLicense, type ImageUsageScope } from "@/lib/site-images";
+import { imageLicenses, imageUsageCategories, imageUsageScopes, listSiteImages, publicImagePayload, saveSiteImage, SiteImageError, type ImageLicense, type ImageUsageCategory, type ImageUsageScope } from "@/lib/site-images";
 import { getExistingSite } from "@/lib/site-store";
 import { userErrorPayload } from "@/lib/user-errors";
 
@@ -50,14 +50,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     };
     const requestedLicense = textField("license");
     const requestedScope = textField("usageScope");
+    const requestedCategory = textField("usageCategory");
     const license = requestedLicense && (imageLicenses as readonly string[]).includes(requestedLicense)
       ? requestedLicense as ImageLicense
       : undefined;
     const usageScope = requestedScope && (imageUsageScopes as readonly string[]).includes(requestedScope)
       ? requestedScope as ImageUsageScope
       : undefined;
+    const usageCategory = requestedCategory && (imageUsageCategories as readonly string[]).includes(requestedCategory)
+      ? requestedCategory as ImageUsageCategory
+      : undefined;
     if (requestedLicense && !license) return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 400 });
     if (requestedScope && !usageScope) return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 400 });
+    if (requestedCategory && !usageCategory) return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 400 });
     const record = await saveSiteImage({
       siteId,
       bytes,
@@ -69,6 +74,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
         author: textField("author"),
         attribution: textField("attribution"),
         usageScope,
+        usageCategory,
         retrievedAt: textField("retrievedAt"),
       } : undefined,
     });
