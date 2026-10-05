@@ -86,6 +86,8 @@ test("on the engineering look the model gets the layouts it may pick, what each 
   assert.match(system, /系统会按资料检查/);
   assert.match(system, /replace_quality_process/);
   assert.match(system, /保持资料顺序，不重排、不补步骤/);
+  assert.match(system, /沿革：资料较厚、需要沿时间轴阅读时用 timeline；希望桌面端左右交替强调年份与事件时用 alternating；资料较薄或只需紧凑列年表时用 rows，三者只选一个/);
+  assert.match(system, /质检流程：需要桌面端横向表达动作先后时用 flow；希望两列扫读检查动作、没有完成状态语义时用 checklist；资料较少或只需朴素顺序时用 rows，三者只选一个/);
   assert.match(system, /按资料生成或重做整站时，为上面每一块各输出一条 set_block_variant（选默认布局也写出来/, "a full-site generation decides every switchable block");
   assert.match(system, /最多 24 条/);
   assert.equal(system.includes("最多 20 条"), false);
