@@ -2,7 +2,7 @@
 id: T-107
 title: 资料图片进区块：首屏、产品、设备、厂区配图位
 type: build
-status: open
+status: closed
 blocked_by: [T-106, T-103, T-086]
 claimed_by: codex-build
 supersedes:
@@ -19,7 +19,7 @@ blocked_by T-103（同改产品区块）和 T-086（同改 `preview-bridge.ts`�
 - [x] 测试先写、改动前先失败：类别图库唯一节点、同 hash 重复记录去重、空图隐藏、facility photo hero 和署名行为均有父提交红测/绿测；四样子 × 三档截图仍待独立审美审查
 - [x] 13 站 + 三份带图资料站 `check-published` 中英文三档通过；改动区块交审美审查
 - [x] `npm run typecheck`、`npm test`、`npm run build` 通过
-- [ ] 代码审查通过；Claude 验收
+- [x] 代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -33,3 +33,6 @@ blocked_by T-103（同改产品区块）和 T-086（同改 `preview-bridge.ts`�
 - 三份资料图片上传回读通过，最终 SHA 证据：`upload-industrial-1193c48.log`、`upload-export-1193c48.log`、`upload-molding-1193c48.log`；带资料三站最终 9/9 通过，报告 `image-sites-1193c48/`，截图已准备。
 - 主线 13 站 `check-published` 最终为 39 行、0 失败，日志/报告首行绑定 `1193c48`：`check-published-mainline-1193c48.log`、`check-published-mainline-1193c48/report.json`。
 - 同 hash 两种上传顺序的回归测试均通过，证据 `t107-image-blocks-359b2ef.txt` 首行绑定新 SHA；最终全量 **802/802、0 失败**，证据 `npm-test-359b2ef.txt` 首行绑定新 SHA。build/typecheck 仍以 `build-1193c48.txt`、`typecheck-1193c48.txt` 为代码验证，四样子 × 三档和区块审美仍待独立审查，故本票状态保持 open。
+
+### 合回主线与关闭（Claude，2026-10-05 EDT）
+- 审美 taste-review 三轮（同一照片多区块重复、图库感、署名打扰 → 第 3 轮 ACCEPT）；Astra 四轮（inspection 双落点、重复记录未去重、同 hash 不同用途按顺序决定 → 改为上传时按 sha256 复用记录并报冲突，r4 只剩交换顺序测试，`359b2ef` 补齐、主控核对）。合并主线 `143922a`；主工作区 3034：build、typecheck 通过，全量 802/802，13 站 `check-published` 39 行 0 失败（`artifacts/merge-143922a/`）；三份带图站 9/9 证据在 t107 worktree `artifacts/t107/image-sites-*`。T-104 第 ② 步完成。Claude 验收关闭。
