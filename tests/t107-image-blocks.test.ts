@@ -11,6 +11,7 @@ type ImageView = {
   url: string;
   usageCategory: "product" | "equipment" | "facility" | "inspection";
   license: string;
+  sha256?: string;
   credit?: { zh: string; en: string };
 };
 
@@ -59,5 +60,15 @@ test("a facility image activates the photo hero without forcing narrow spec valu
     { imageId: "img_facility_hero_107", url: "/api/sites/site/images/img_facility_hero_107", usageCategory: "facility", license: "CC0" },
   ]);
   assert.equal(document.querySelector('[data-sitecraft-section="hero"]')?.getAttribute("data-sitecraft-hero-mode"), "photo");
-  assert.match(document.querySelector('[data-sitecraft-benchmark="hero-image"]')?.getAttribute("src") ?? "", /img_facility_hero_107/);
+  assert.match(document.querySelector('[data-sitecraft-image-gallery="facility"] img')?.getAttribute("src") ?? "", /img_facility_hero_107/);
+});
+
+test("duplicate uploaded records with the same sha256 render one image across the page", () => {
+  const document = render([
+    { imageId: "img_same_a", url: "/api/sites/site/images/img_same_a", usageCategory: "facility", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
+    { imageId: "img_same_b", url: "/api/sites/site/images/img_same_b", usageCategory: "product", license: "CC BY", credit: { zh: "作者 / CC BY", en: "Author / CC BY" }, sha256: "same-image-hash" },
+  ]);
+  const images = [...document.querySelectorAll("[data-sitecraft-image-gallery] img")];
+  assert.equal(images.length, 1, "same content must not be repeated in multiple category galleries");
+  assert.equal(new Set(images.map((image) => image.getAttribute("src"))).size, 1);
 });

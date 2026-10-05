@@ -437,8 +437,8 @@ export function publicImagePayload(record: SiteImageRecord) {
     attribution: record.attribution,
     usageScope: record.usageScope,
     usageCategory: record.usageCategory ?? null,
-    ...((record.license === "CC BY" || record.license === "CC BY-SA") && record.attribution
-      ? { credit: { zh: record.attribution, en: record.attribution } }
+    ...((record.license === "CC BY" || record.license === "CC BY-SA") && record.author && record.sourceUrl
+      ? { credit: { zh: `${record.author} / ${record.license} / ${record.sourceUrl}`, en: `${record.author} / ${record.license} / ${record.sourceUrl}` } }
       : {}),
     retrievedAt: record.retrievedAt,
     sha256: record.sha256,

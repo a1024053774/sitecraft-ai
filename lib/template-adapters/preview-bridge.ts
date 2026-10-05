@@ -1575,11 +1575,36 @@ function sitecraftPreviewBridge(templateId, adapter) {
     });
   }
 
-  function renderImageGallery(images, category, locale, applied) {
+  function uniqueImageRecords(images) {
+    if (!Array.isArray(images)) return [];
+    var seen = {};
+    var result = [];
+    for (var i = 0; i < images.length; i++) {
+      var image = images[i];
+      if (!image || typeof image.url !== "string" || !image.url) continue;
+      var key = typeof image.sha256 === "string" && image.sha256 ? "sha256:" + image.sha256 : "id:" + String(image.imageId || image.url);
+      if (seen[key]) continue;
+      seen[key] = true;
+      result.push(image);
+    }
+    return result;
+  }
+
+  function imageUsed(image, used) {
+    return Boolean(image && (used["id:" + image.imageId] || (image.sha256 && used["sha256:" + image.sha256])));
+  }
+
+  function markImageUsed(image, used) {
+    if (!image) return;
+    used["id:" + image.imageId] = true;
+    if (image.sha256) used["sha256:" + image.sha256] = true;
+  }
+
+  function renderImageGallery(images, category, locale, applied, used) {
     if (!document || !document.querySelectorAll) return;
     var galleries = asList(document.querySelectorAll('[data-sitecraft-image-gallery="' + category + '"]'));
     if (!galleries.length) return;
-    var visible = imageCategoryList(images, category);
+    var visible = imageCategoryList(images, category).filter(function (image) { return !imageUsed(image, used); });
     for (var g = 0; g < galleries.length; g++) {
       var gallery = galleries[g];
       gallery.textContent = "";
@@ -1596,6 +1621,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         figure.appendChild(node);
         gallery.appendChild(figure);
         applied.add("images." + category + "." + image.imageId + ".image");
+        markImageUsed(image, used);
       }
     }
     if (visible.length) applied.add("images." + category);
@@ -1618,7 +1644,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     if (credits.length) applied.add("images.credits");
   }
 
-  function applyHeroVisual(draft, locale, applied, images) {
+  function applyHeroVisual(draft, locale, applied, images, used) {
     if (!document || !document.querySelector) return;
     renderHeroIndex(draft, locale);
     var hero = uniqueNode('[data-sitecraft-section="hero"]');
@@ -1642,10 +1668,12 @@ function sitecraftPreviewBridge(templateId, adapter) {
     }
     if (!photo) {
       var facilityImages = imageCategoryList(images, "facility");
-      if (facilityImages.length) photo = facilityImages[0];
+      var hasFacilityGallery = facilityImages.some(function (image) { return !imageUsed(image, used); });
+    } else {
+      var hasFacilityGallery = false;
     }
     var facts = heroFacts(draft, locale);
-    var mode = photo ? "photo" : (nameplate && facts.length ? "nameplate" : "none");
+    var mode = photo || hasFacilityGallery ? "photo" : (nameplate && facts.length ? "nameplate" : "none");
     if (hero && hero.setAttribute) hero.setAttribute("data-sitecraft-hero-mode", mode);
     if (visual && visual.setAttribute) {
       visual.setAttribute("data-sitecraft-hero-mode", mode);
@@ -2572,6 +2600,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
     var applied = new Set();
     var extraMissing = [];
     var currentLocale = locale || "zh";
+    var normalizedImages = uniqueImageRecords(images);
+    var usedImages = {};
+    var refs = [];
+    if (draft && draft.content && draft.content.hero && draft.content.hero.image) refs.push(draft.content.hero.image);
+    if (draft && Array.isArray(draft.products)) for (var ri = 0; ri < draft.products.length; ri++) if (draft.products[ri] && draft.products[ri].image) refs.push(draft.products[ri].image);
+    for (var r = 0; r < refs.length; r++) {
+      var ref = refs[r];
+      for (var imageIndex = 0; imageIndex < normalizedImages.length; imageIndex++) if (normalizedImages[imageIndex].imageId === ref.imageId) markImageUsed(normalizedImages[imageIndex], usedImages);
+    }
     annotationRevision = draft && typeof draft.revision === "number" ? draft.revision : annotationRevision;
     annotationLocale = currentLocale;
     var expected = Array.isArray(expectedTargets) ? expectedTargets.filter(isRequestedTarget) : [];
@@ -2590,7 +2627,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       applyDocumentTitle(draft);
       renderProductGrid(draft, currentLocale, applied, variant || "preview");
       renderFooterProducts(draft, currentLocale);
-      applyHeroVisual(draft, currentLocale, applied, images);
+      applyHeroVisual(draft, currentLocale, applied, normalizedImages, usedImages);
       applyVisitorChrome(currentLocale, draft, variant || "preview");
       applyLocaleSwitch(currentLocale, offersVisitorEnglish === true, variant || "preview");
       var slots = adapter.slots || [];
@@ -2612,11 +2649,11 @@ function sitecraftPreviewBridge(templateId, adapter) {
       renderEquipment(draft, currentLocale, applied, variant || "preview");
       renderHistory(draft, currentLocale, applied, variant || "preview");
       renderQualityProcess(draft, currentLocale, applied, variant || "preview");
-      renderImageGallery(images, "product", currentLocale, applied);
-      renderImageGallery(images, "equipment", currentLocale, applied);
-      renderImageGallery(images, "facility", currentLocale, applied);
-      renderImageGallery(images, "inspection", currentLocale, applied);
-      renderImageCredits(images, currentLocale, applied);
+      renderImageGallery(normalizedImages, "product", currentLocale, applied, usedImages);
+      renderImageGallery(normalizedImages, "equipment", currentLocale, applied, usedImages);
+      renderImageGallery(normalizedImages, "facility", currentLocale, applied, usedImages);
+      renderImageGallery(normalizedImages, "inspection", currentLocale, applied, usedImages);
+      renderImageCredits(normalizedImages, currentLocale, applied);
       clearUnprovidedCatalogChrome(draft, variant || "preview");
       hideEmptyProductSection(draft, currentLocale, variant || "preview");
       syncHiddenNavigation((function () {

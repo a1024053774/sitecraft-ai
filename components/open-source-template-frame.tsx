@@ -17,6 +17,10 @@ export type PreviewImage = {
   imageId: string;
   url: string;
   originalName?: string;
+  sha256?: string;
+  author?: string;
+  license?: string;
+  sourceUrl?: string;
   usageCategory?: "product" | "equipment" | "facility" | "inspection" | null;
   credit?: { zh: string; en: string };
 };
