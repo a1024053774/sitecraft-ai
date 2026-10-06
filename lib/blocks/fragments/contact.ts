@@ -147,8 +147,8 @@ export const footerFragment: BlockFragment = {
 .sitecraft-footer-links a:hover { color: #fff; }
 .sitecraft-footer-contact { display: grid; gap: 8px; overflow-wrap: anywhere; }
 .sitecraft-footer-line-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 32px; }
-.sitecraft-footer-line .sitecraft-footer-brand { margin: 0; }
-.sitecraft-footer-line .sitecraft-footer-contact { display: flex; flex-wrap: wrap; gap: 18px; }
+.sitecraft-footer-line .sitecraft-footer-brand { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.sitecraft-footer-line .sitecraft-footer-contact { display: flex; flex-wrap: wrap; gap: 18px; min-width: 0; }
 .sitecraft-image-credits { margin: 28px 0 0; color: var(--site-footer-ink); font-size: 11px; line-height: 1.45; }
 /* When every contact line is a gap, drop the footer contact column. */
 .sitecraft-footer-inner > div:has(.sitecraft-footer-contact):not(:has([data-sitecraft-line]:not([hidden]))) { display: none; }
@@ -156,7 +156,7 @@ export const footerFragment: BlockFragment = {
   phone: `
 .sitecraft-footer-inner { grid-template-columns: 1fr 1fr; }
 .sitecraft-footer-about { grid-column: 1 / -1; }
-.sitecraft-footer-line-inner { align-items: flex-start; flex-direction: column; gap: 12px; }
+.sitecraft-footer-line-inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: baseline; gap: 16px; }
 .sitecraft-footer-line .sitecraft-footer-contact { gap: 8px 16px; }
 `,
   variants: {

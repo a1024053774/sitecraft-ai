@@ -14,7 +14,9 @@
 //                                        in Chinese and English; a layout that hides a fact fails here, and
 //                                        so does a layout that puts one modify target (data-sitecraft-slot) on
 //                                        more nodes than the catalog allows (T-076: one node each, except a
-//                                        field the catalog declares in several blocks, once per block)
+//                                        field the catalog declares in several blocks, once per block).
+//                                        Declared baseline/spacing rules and page primary buttons use
+//                                        scripts/visitor-layout-scan.js in both languages (T-090).
 // Cases read drafts from .sitecraft-data/sites/. A case may carry `borrow: { from: <siteId>, paths: ["products"] }`
 // (take those top-level draft fields from another draft: a stress test for a layout whose materials
 // the company's own draft does not meet), `patch: { "content.services.items": [...] }` (set a dotted
@@ -22,7 +24,8 @@
 // cases are not real configurations: say so in `note` and in the candidate's candidate.md.
 // --open-details also writes crops/<case>-<width>-candidate-open.png with every <details> in the block
 // opened (the folded spec lists and answers). Pass a JSON array of cases with --cases <file>; --only <caseId> renders one. Use --out to keep a
-// partial re-render from overwriting an earlier scan. Exit 1 when any scan finds overflow or overlap.
+// partial re-render from overwriting an earlier scan. Exit 1 on geometry, facts, targets or declared
+// layout failures. Undeclared variants are reported as 未声明 without running their absent rules.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -77,6 +80,9 @@ const { checkVariantRequirements } = await import(path.resolve("lib/blocks/requi
 if (!blockCatalog[BLOCK]?.variants[VARIANT]) throw new Error(`catalog has no ${BLOCK}:${VARIANT}`);
 
 const readableText = fs.readFileSync(new URL("./visitor-readable-text.js", import.meta.url), "utf8");
+const visitorLayoutScan = fs.readFileSync(new URL("./visitor-layout-scan.js", import.meta.url), "utf8")
+  .replace(/export default scanVisitorLayout;?/g, "")
+  .replace(/export function scanVisitorLayout/g, "function scanVisitorLayout");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const readDraft = (site) => JSON.parse(fs.readFileSync(path.join(SITES, `${site}.json`), "utf8")).draft;
 
@@ -175,6 +181,12 @@ const SCAN = `(() => {
     if (w > 2 && h > 3) result.overlaps.push({ a: a.text, b: c.text, w: Math.round(w), h: Math.round(h) });
   }
   result.textPieces = pieces.length;
+  const layout = (() => { ${visitorLayoutScan}; return scanVisitorLayout(document); })();
+  result.baselineAlignments = layout.baselineAlignments.filter((entry) => entry.block === "${BLOCK}");
+  result.semanticSpacing = layout.semanticSpacing.filter((entry) => entry.block === "${BLOCK}");
+  result.primaryButtons = layout.primaryButtons;
+  result.undeclaredVariants = layout.undeclaredVariants;
+  result.measurement = layout.measurement;
   return result;
 })()`;
 
@@ -192,17 +204,21 @@ async function openCase(browser, draft, width) {
   return { targetId, sessionId };
 }
 
-async function mount(browser, sessionId, draft) {
-  await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, sessionId);
-  await browser.eval("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))", sessionId);
-  // Wait for the page height to stop changing (fonts, images) before measuring.
-  let last = -1;
-  for (let i = 0; i < 30; i++) {
-    const height = await browser.eval("document.documentElement.scrollHeight", sessionId);
-    if (height === last) break;
-    last = height;
-    await sleep(150);
-  }
+async function mount(browser, sessionId, draft, locale = "zh") {
+  await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, ${JSON.stringify(locale)}, [], "published", null, false)`, sessionId);
+  await browser.eval(`(async () => {
+    await document.fonts.ready;
+    let last = "", stable = 0;
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const box = document.querySelector('[data-sc-block="${BLOCK}"]')?.getBoundingClientRect();
+      const current = JSON.stringify([document.documentElement.scrollHeight, box?.x, box?.y, box?.width, box?.height]);
+      stable = current === last ? stable + 1 : 0;
+      last = current;
+      if (box?.width > 0 && box?.height > 0 && stable >= 4) return;
+    }
+    throw new Error("Timed out waiting for visible ${BLOCK} and stable page/block dimensions after fonts loaded");
+  })()`, sessionId);
 }
 
 async function shoot(browser, sessionId, file, clip) {
@@ -260,17 +276,20 @@ try {
             if (opened.count) {
               await shoot(browser, tab.sessionId, path.join(OUT, "crops", `${item.id}-${width}-candidate-open.png`), opened.box);
               const scanOpen = await browser.eval(SCAN, tab.sessionId);
-              row.open = { overflow: scanOpen.overflow, overlaps: scanOpen.overlaps };
+              row.open = scanOpen;
             }
             await browser.eval(`document.querySelectorAll('[data-sc-block="${BLOCK}"] details').forEach((node) => { node.open = false; })`, tab.sessionId);
           }
-          row[kind] = { file, variant: scan.variant, box: scan.box, overflow: scan.overflow, clipped: scan.clipped, overlaps: scan.overlaps, textPieces: scan.textPieces };
+          row[kind] = { file, ...scan };
           if (kind === "candidate") {
             // Material facts: everything the draft says a visitor must be able to read, looked for in the
             // readable text of the whole page (folded sections opened), zh then en.
             row.facts = {};
             for (const locale of ["zh", "en"]) {
-              if (locale === "en") await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "en", [], "published", null, true)`, tab.sessionId);
+              if (locale === "en") {
+                await mount(browser, tab.sessionId, draft, "en");
+                row.english = await browser.eval(SCAN, tab.sessionId);
+              }
               const page = await browser.eval(`(${readableText})()`, tab.sessionId);
               const facts = expectedFacts(draft, locale);
               row.facts[locale] = { expected: facts.length, missing: missingFacts(facts, page).map((fact) => `${fact.kind}: ${fact.text.slice(0, 60)}`) };
@@ -278,7 +297,7 @@ try {
               row.slots = row.slots || {};
               row.slots[locale] = [...repeatedTargets(slots.all), ...slots.blocks.flatMap((entry) => repeatedTargets(entry.values, false).map((value) => `${entry.block} repeats ${value}`))];
             }
-            await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)}, "zh", [], "published", null, false)`, tab.sessionId);
+            await mount(browser, tab.sessionId, draft);
           }
           if (kind === "candidate" && width === 1440) {
             const context = path.join("context", `${item.id}-1440-page.png`);
@@ -295,15 +314,35 @@ try {
     }
   }
 } finally {
-  browser.send("Browser.close").catch(() => {});
+  await browser.send("Browser.close").catch(() => {});
+  browser.ws.close();
   chrome.kill();
   fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }
 
-const failing = rows.filter((row) => row.candidate.overflow.length || row.candidate.overlaps.length || row.open?.overflow.length || row.open?.overlaps.length || row.facts.zh.missing.length || row.facts.en.missing.length || row.slots.zh.length || row.slots.en.length);
+function declaredFailures(scan) {
+  return [
+    ...scan.baselineAlignments.filter((entry) => !entry.pass).map((entry) => `baselineAlignments ${entry.id}: ${entry.status} (delta=${entry.delta}, threshold=${entry.threshold})`),
+    ...scan.semanticSpacing.filter((entry) => !entry.pass).map((entry) => `semanticSpacing ${entry.id}: ${entry.status} (within=${entry.within}, between=${entry.between})`),
+    ...(!scan.primaryButtons.pass ? [`primaryButtons: ${scan.primaryButtons.visibleCount} visible (max=${scan.primaryButtons.max})`] : []),
+    ...scan.primaryButtons.missing.map((entry) => `primaryButtons missing: ${entry.block}:${entry.variant} ${entry.selector}`),
+    ...scan.primaryButtons.vague.map((entry) => `primaryButtons vague: ${entry.block}:${entry.variant} ${entry.text}`),
+  ];
+}
+for (const row of rows) {
+  row.layoutFailures = { zh: declaredFailures(row.candidate), en: declaredFailures(row.english), ...(row.open ? { open: declaredFailures(row.open) } : {}) };
+}
+const failing = rows.filter((row) => [row.candidate, row.english, row.open].filter(Boolean).some((scan) => scan.overflow.length || scan.overlaps.length)
+  || Object.values(row.layoutFailures).some((failures) => failures.length)
+  || row.facts.zh.missing.length || row.facts.en.missing.length || row.slots.zh.length || row.slots.en.length);
 fs.writeFileSync(path.join(OUT, "scan.json"), JSON.stringify({ block: BLOCK, variant: VARIANT, base: BASE, rows }, null, 2));
-const md = [`# ${NAME}: ${BLOCK}:${VARIANT} scan`, "", "| case | width | products | requirement | overflow | overlaps | facts missing zh / en | repeated targets zh / en | clipped (info) |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-  ...rows.map((r) => `| ${r.case} | ${r.width} | ${r.productCount} | ${r.requirement.ok ? "ok" : "unmet"} | ${r.candidate.overflow.length} | ${r.candidate.overlaps.length} | ${r.facts.zh.missing.length} / ${r.facts.en.missing.length} (of ${r.facts.zh.expected} / ${r.facts.en.expected}) | ${r.slots.zh.length} / ${r.slots.en.length} | ${r.candidate.clipped.map((c) => c.kind).join(", ") || "-"} |`), ""].join("\n");
+const md = [`# ${NAME}: ${BLOCK}:${VARIANT} scan`, "", "| case | width | products | requirement | overflow zh / en | overlaps zh / en | facts missing zh / en | repeated targets zh / en | declared failures zh / en | undeclared zh / en | clipped (info) |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+  ...rows.map((r) => `| ${r.case} | ${r.width} | ${r.productCount} | ${r.requirement.ok ? "ok" : "unmet"} | ${r.candidate.overflow.length} / ${r.english.overflow.length} | ${r.candidate.overlaps.length} / ${r.english.overlaps.length} | ${r.facts.zh.missing.length} / ${r.facts.en.missing.length} (of ${r.facts.zh.expected} / ${r.facts.en.expected}) | ${r.slots.zh.length} / ${r.slots.en.length} | ${r.layoutFailures.zh.length} / ${r.layoutFailures.en.length} | ${r.candidate.undeclaredVariants.length} / ${r.english.undeclaredVariants.length} | ${r.candidate.clipped.map((c) => c.kind).join(", ") || "-"} |`), "",
+  ...rows.flatMap((row) => [["zh", row.candidate], ["en", row.english], ...(row.open ? [["open", row.open]] : [])].flatMap(([locale, scan]) => {
+    const { baselineAlignments, semanticSpacing, primaryButtons, undeclaredVariants, measurement } = scan;
+    const failures = row.layoutFailures[locale];
+    return [`## ${row.case} / ${row.width} / ${locale}`, "", `Declared rules: ${failures.length ? "FAIL" : undeclaredVariants.length ? "未声明（详见 undeclaredVariants）" : "PASS"}`, "", "```json", JSON.stringify({ baselineAlignments, semanticSpacing, primaryButtons, undeclaredVariants, measurement, failures }, null, 2), "```", ""];
+  })), ""].join("\n");
 fs.writeFileSync(path.join(OUT, "scan.md"), md);
-console.log(`\n${rows.length} rows; ${failing.length} with overflow, overlap, missing facts or a repeated target`);
+console.log(`\n${rows.length} rows; ${failing.length} with overflow, overlap, missing facts, a repeated target or declared layout failures`);
 process.exitCode = failing.length ? 1 : 0;

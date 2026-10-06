@@ -484,12 +484,13 @@ export function scanVisitorLayout(root = document) {
     if(declaration.declared.spacing) {
       const groups=declaration.semanticGroups.map(group=>({ ...group, targets:declarationTargets(block,group.selectors) }));
       const usable=groups.filter(group=>group.targets.nodes.some(visible));
-      let between=0;
+      let between=null;
       for(let first=0;first<usable.length;first++) for(let second=first+1;second<usable.length;second++) {
         const a=boundsFor(usable[first].targets.nodes.filter(visible));
         const b=boundsFor(usable[second].targets.nodes.filter(visible));
         if(!a||!b) continue;
-        between=between===0?Math.max(gapOn(a,b,'x'),gapOn(a,b,'y')):Math.min(between,Math.max(gapOn(a,b,'x'),gapOn(a,b,'y')));
+        const gap=Math.max(gapOn(a,b,'x'),gapOn(a,b,'y'));
+        between=between===null?gap:Math.min(between,gap);
       }
       for(const group of groups) {
         const nodes=group.targets.nodes.filter(visible);
@@ -501,7 +502,7 @@ export function scanVisitorLayout(root = document) {
         let within=0;
         for(let index=1;index<ordered.length;index++) within=Math.max(within,gapOn(ordered[index-1],ordered[index],axis));
         const missing=group.targets.missing;
-        semanticSpacing.push({block:blockId,variant:variantId,id:group.id,axis,within:Number(within.toFixed(2)),between:Number(between.toFixed(2)),pass:!missing.length&&within<between,status:missing.length?'missing':'measured',missing});
+        semanticSpacing.push({block:blockId,variant:variantId,id:group.id,axis,within:Number(within.toFixed(2)),between:Number((between??0).toFixed(2)),pass:!missing.length&&between!==null&&within<between,status:missing.length?'missing':'measured',missing});
       }
     }
     if(declaration.declared.buttons) {
