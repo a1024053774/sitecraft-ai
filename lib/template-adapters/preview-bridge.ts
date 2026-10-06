@@ -2328,11 +2328,14 @@ function sitecraftPreviewBridge(templateId, adapter) {
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
       var section = draft && draft.content ? draft.content[key] : null;
-      if (section || (key === "capabilities" && imageCategoryList(images, "inspection").length)) continue;
+      if (section) continue;
       var intro = uniqueNode('[data-sitecraft-benchmark="' + key + '-intro"]');
       var title = uniqueNode('[data-sitecraft-benchmark="' + key + '-title"]');
-      if (intro) intro.textContent = "";
-      if (title) title.textContent = "";
+      if (intro) {
+        intro.textContent = "";
+        intro.hidden = true;
+      }
+      if (title && !(key === "capabilities" && imageCategoryList(images, "inspection").length)) title.textContent = "";
     }
   }
 

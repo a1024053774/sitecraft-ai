@@ -225,15 +225,23 @@ const INSPECT = `(async (uploadedImages, draft) => {
   }));
   const hidden = new Set(draft?.hiddenSections || []);
   const destinations = { product: "products", equipment: "equipment", facility: "hero", inspection: "capabilities" };
+  const missingProductText = (value) => {
+    const text = String(typeof value === "string" ? value : value?.[document.documentElement.lang] || "").trim();
+    return ["", "待补充", "To be provided", "To be completed"].includes(text);
+  };
+  const offeredProducts = (draft?.products || []).filter(product => product && product.status !== "archived" && !(missingProductText(product.name) && missingProductText(product.summary)));
+  const heroProduct = offeredProducts.find(product => typeof product.image?.url === "string" && product.image.url);
+  const heroReference = draft?.content?.hero?.image || heroProduct?.image;
   const imageCoverage = {
     expectedCount: uploadedImages.length,
     inspectedCount: uploadedImages.length,
     images: uploadedImages.map((record) => {
       const sections = new Set();
       if (destinations[record.usageCategory]) sections.add(destinations[record.usageCategory]);
-      if (draft?.content?.hero?.image?.imageId === record.imageId) sections.add("hero");
-      const productRef = (draft?.products || []).some(product => product.image?.imageId === record.imageId);
-      if (productRef) { sections.add("products"); sections.add("hero"); }
+      const heroRef = heroReference?.imageId === record.imageId;
+      if (heroRef) sections.add("hero");
+      const productRef = offeredProducts.some(product => product.image?.imageId === record.imageId);
+      if (productRef) sections.add("products");
       const expectedSections = [...sections];
       const exempt = expectedSections.length > 0 && expectedSections.every(section => hidden.has(section));
       const matches = [...document.images].filter(image => image.src === new URL(record.url, location.href).href).map(image => ({
@@ -242,7 +250,7 @@ const INSPECT = `(async (uploadedImages, draft) => {
         section: image.closest('[data-sitecraft-section]')?.getAttribute('data-sitecraft-section') || null,
         category: image.closest('[data-sitecraft-image-gallery]')?.getAttribute('data-sitecraft-image-gallery') || null,
         slot: image.getAttribute('data-sitecraft-slot'),
-        explicitReference: (draft?.content?.hero?.image?.imageId === record.imageId && image.matches('[data-sitecraft-benchmark="hero-image"]')) || (productRef && !image.closest('[data-sitecraft-image-gallery]')),
+        explicitReference: (heroRef && image.matches('[data-sitecraft-benchmark="hero-image"]')) || (productRef && image.closest('[data-sitecraft-section="products"]') && !image.closest('[data-sitecraft-image-gallery]')),
       }));
       return {
         imageId: record.imageId, originalName: record.originalName, url: record.url,
