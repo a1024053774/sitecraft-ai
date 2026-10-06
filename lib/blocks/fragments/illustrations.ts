@@ -1,3 +1,0 @@
-// SiteCraft-authored line illustration for the equipment empty-media position (T-109). It is
-// inline SVG so the visitor page has no external image, font, template path, or CSS resource URL.
-export const equipmentSchematic = `<svg class="sitecraft-equipment-schematic-svg" viewBox="0 0 240 160" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M28 128h184M42 128V76h52v52M52 76V54h32v22M108 128V94h38v34M164 128V66h42v62M174 66V46h22v20M112 94l15-16 15 16"/><circle cx="126" cy="51" r="12"/><path d="M126 39v24M114 51h24"/></svg>`;

@@ -112,7 +112,6 @@ export const catalogLook: BlockLook = {
     "--site-group-columns": "1fr",
     "--site-rule": "1px solid var(--site-line)",
     "--site-rule-strong": "2px solid var(--site-accent)",
-    "--site-diagram-stroke": "2px",
   },
   layout: { top: ["nav"], main: ["hero", "products", "commercialTerms", "equipment", "qualityProcess", "history", ["industries", "capabilities"], "services", "certifications", "faq", "contact"], bottom: ["footer"] },
   defaults: { nav: "bar", hero: "split", products: "rows", commercialTerms: "rows", equipment: "rows", qualityProcess: "rows", history: "rows", industries: "list", capabilities: "list", services: "cards", certifications: "badges", faq: "open", contact: "panel", footer: "columns" },

@@ -115,7 +115,6 @@ export const brightLook: BlockLook = {
     "--site-group-columns": "1fr",
     "--site-rule": "1px solid var(--site-line)",
     "--site-rule-strong": "2px solid var(--site-accent)",
-    "--site-diagram-stroke": "1px",
   },
   layout: {
     top: ["nav"],

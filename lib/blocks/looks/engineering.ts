@@ -127,7 +127,6 @@ export const engineeringLook: BlockLook = {
     "--site-group-columns": "minmax(0, 12em) minmax(0, 1fr)",
     "--site-rule": "1px solid var(--site-line)",
     "--site-rule-strong": "2px solid var(--site-ink)",
-    "--site-diagram-stroke": "2px",
   },
   layout: {
     top: ["nav"],
