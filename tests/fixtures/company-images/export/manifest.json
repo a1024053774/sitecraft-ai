@@ -7,45 +7,53 @@
   "sourcePolicy": "授权行业照片仅用于已约定模拟资料测试；许可限CC0/PD/CC BY/CC BY-SA；按真实类别使用，保留来源署名/已知处理链；素材准入不代表已发布页验收。",
   "images": [
     {
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Co-Optima_project_at_NTRC_(50013357021),_T-fitting.jpg",
+      "id": "export-compression-union",
+      "file": "product-compression-union.jpg",
+      "category": "product",
+      "caption": "卡套直通接头",
+      "captionEn": "Compression union fitting",
+      "sourceUrl": "https://www.flickr.com/photos/80365963@N00/7178664334",
+      "downloadUrl": "https://live.staticflickr.com/8146/7178664334_2066ef2709_o.jpg",
       "license": "CC BY 2.0",
+      "apiLicense": "CC BY",
       "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
-      "author": "Oak Ridge National Laboratory",
-      "attribution": "Co-Optima project at NTRC (50013357021), T-fitting.jpg — Oak Ridge National Laboratory; https://commons.wikimedia.org/wiki/File:Co-Optima_project_at_NTRC_(50013357021),_T-fitting.jpg; CC BY 2.0 (https://creativecommons.org/licenses/by/2.0/); official source thumbnail. Existing Commons crop of Co-Optima project at NTRC (50013357021).",
-      "id": "export-e02",
-      "candidateId": "E02",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Co-Optima_project_at_NTRC_%2850013357021%29%2C_T-fitting.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-      "downloadedAt": "2026-10-06T06:01:27.504964+00:00",
-      "downloadTimeBasis": "Preserved candidate file timestamp (original receipt did not record a separate download time)",
-      "accessedAt": "2026-10-06T06:00:41.921053+00:00",
-      "accessDate": "2026-10-06",
-      "modifications": [
-        "Existing Commons crop of the original Oak Ridge National Laboratory photograph; current Commons small JPEG downloaded unchanged; no T-112 local crop/retouch."
-      ],
+      "author": "Jason Woodhead",
+      "attribution": "Swagelok fitting — Jason Woodhead; https://www.flickr.com/photos/80365963@N00/7178664334; CC BY 2.0 (https://creativecommons.org/licenses/by/2.0/); derivative: full-frame downsample and JPEG re-encoding by photo-clarity, 2026-10-06; no content edits.",
       "usageScope": "current-site-only",
-      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/candidates/E02.jpg",
-      "sourceTitle": "Co-Optima project at NTRC (50013357021), T-fitting.jpg",
-      "sourcePageSnapshot": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/sources/File_Co-Optima_project_at_NTRC__50013357021___T-fitting.jpg.html",
-      "originSourceUrl": "https://www.flickr.com/photos/oakridgelab/50013357021/",
-      "businessFitReason": "Commons描述为卡套接头；三通、压紧螺母及管路连接清楚，照片可见316刻字，适合评估卡套连接题材。",
-      "limitations": "不把可见刻字当材质证书；来源未给管径、压力或模拟公司的型号；不是快换接头。源图是实验研究装置的局部裁切。",
+      "downloadedAt": "2026-10-06T07:44:27.467337+00:00",
+      "downloadTimeBasis": "Preserved original-source download receipt; admitted fixed reviewed derivative without reprocessing.",
+      "width": 1600,
+      "height": 1200,
+      "bytes": 267775,
+      "modifications": [
+        "Source original is preserved byte-for-byte as downloaded in originals; source author did not enumerate image-editing steps.",
+        "Source EXIF software: 5.1",
+        "Full 4:3 frame; Lanczos downsample to 1600x1200; JPEG quality=85,optimize=True,subsampling=1 (4:2:2); preserve EXIF and ICC when present. No crop, rotation, sharpening, contrast change, painting, masking, retouch, AI generation or upsampling.",
+        "Retained camera EXIF describes the source capture; natural output dimensions are measured from JPEG decode."
+      ],
       "review": {
         "status": "PASS",
-        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
-        "conditions": "Apply only the independently reviewed category/caption; retain source facts and attribution."
+        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-review/review.md",
+        "conditions": "Small compression union image only; not tee, quick connector, valve or general pipe-thread fitting. Material/model association is an inference from the same photo, not a certificate or new company fact. Independently approved at 1200x900 and 721x540.75 CSS px, DPR=1. Final new published site not checked.",
+        "limits": "Only the independently reviewed purpose/crop/scale; preserve exact license, source, author and derivative notice.",
+        "licenseVerificationBasis": "Fixed first-party Flickr responses from 2026-10-06; independent reviewer online Flickr request failed once, no current online claim."
       },
+      "candidateId": "C-C1",
+      "sourceRecord": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/candidate-records.json",
+      "priorFixtureFile": "product-compression-tee.jpg",
+      "sourceTitle": "Swagelok fitting",
+      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/candidates/export-compression-union.jpg",
+      "sourcePageSnapshot": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/sources/fitting-2012.html",
+      "accessDate": "2026-10-06",
+      "draftReviewCheckedAt": "2026-10-06T08:06:11.192990+00:00",
+      "admittedAt": "2026-10-06T08:21:37.962693+00:00",
+      "businessFitReason": "原作者说明为卡套直通；照片包装SS-1210-6与厂商不锈钢管接头定义作同框推断核对，不作为材质证书或新增公司规格。",
+      "limitations": "仅小型卡套直通/通用卡套接头配图；不是三通、快换或阀；不新增公司316证书、产品型号、尺寸、压力、经销商身份或品牌背书。",
+      "originSourceUrl": "https://www.flickr.com/photos/80365963@N00/7178664334",
       "originSourcePageSnapshots": [
-        "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/sources/E02-original-page.html",
-        "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/sources/E02-flickr.html"
-      ],
-      "file": "product-compression-tee.jpg",
-      "category": "product",
-      "caption": "卡套三通连接结构",
-      "captionEn": "Compression tee connection",
-      "width": 594,
-      "height": 408,
-      "bytes": 66968,
-      "apiLicense": "CC BY"
+        "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/sources/fitting-2012.html",
+        "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/sources/fitting-2012-size.html"
+      ]
     },
     {
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tsugami_CNC_Lathe.jpg",
@@ -239,12 +247,13 @@
       "apiLicense": "CC BY"
     }
   ],
-  "derivativeNotice": "Retained T-106 JPEG derivatives preserve prior resize/re-encoding notices. New images are official source previews; existing source-author processing is retained. T-112 only copies bytes and changes metadata/category/caption in this artifact draft.",
+  "derivativeNotice": "Unchanged retained images preserve their prior processing notices. B-C1/C-C1 use independently reviewed full-frame downsampled JPEG derivatives; source originals, exact license and complete processing chain remain traceable in their entries. No new processing occurred during admission.",
   "sourceVerification": {
     "independentReports": [
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-01-062605Z/review.md",
-      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-02-063149Z/review.md"
+      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-02-063149Z/review.md",
+      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-review/review.md"
     ],
     "status": "PASS_FOR_AUTHORIZED_USES",
     "finalPublishedPlacement": "Not checked yet; requires joint freeze and actual 1440/768/375 verification. F03 remains conditional on paired facility placement."

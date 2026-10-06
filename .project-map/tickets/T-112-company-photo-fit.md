@@ -22,16 +22,13 @@ supersedes:
 
 ## Resolution
 
-**INCOMPLETE：T-112整体。** 数据准备及 `0ad88aa0cb232e5d439dadae0d062e527bd2302a` 的三包实际发布功能检查通过；最终成品配图审核为NO_GO，仅剩工业插齿机图与外贸三通图在大屏展示时清晰度不足。两张素材交给新窗口 `photo-clarity` 处理，其他素材与全部旧站、原始证据保持不变。
+**PASS：两张清晰候选准入及本轮数据准备；INCOMPLETE：T-112整体。** photo-clarity，2026-10-06；运行HEAD `a0a1128596e15e196efb078ac80203547cb71866`（负责人确认渲染/检查源码仍同 `0ad88aa0cb232e5d439dadae0d062e527bd2302a`），数据于 `2026-10-06T08:23:55.298748+00:00` 冻结。未commit/push、未运行最终check/截图或全量/build，票保持open；等待主控统一提交绑定后的最终信号。
 
-- 最终原版CLI三包各运行一次、均exit0，18张截图已自查；108条逐图观察的唯一落点、用途、可见性、decode及署名/许可/来源通过，F01+F03在六个工业视图中为双图，输入前后不变。真实命令、完整SHA、UTC、stdout及setup错误原件在 `artifacts/t112/final-0ad88aa/README.md`。功能通过不等于照片清晰度通过。
-- 新独立实例逐张查看18图及原尺寸局部后，注塑PASS；工业 `equipment-gear-shaping-machine.jpg`（`img_82a18c979c014cfaa664b09d`，自然682×998、1440图框594×445.5）在1440模糊；外贸 `product-compression-tee.jpg`（E02）在1440/768模糊。其他图片未见该范围内的否决项。原NO_GO、原截图和局部图保存在 `artifacts/acceptance/20261006-photo-layout-0ad88aa/frozen-review/review.md`。
-
-- 固定交接：`artifacts/t112/20261006-data-preparation/README.md`；`verification.json`、`new-sites.json`、逐请求/响应、每图HTTP取证、原值比对及fixture-before/fixture-admitted均保留。首批、补搜、草案、独立报告和原失败截图不覆盖。
-- 工业6图：原减速机产品、箱体加工（equipment，“齿轮箱箱体加工”）、插齿机、B01、F01+F03。外贸6图：E02/E01/E14/E12/F02/E07。两包四类齐全；所有旧JPEG保留原字节，未覆盖。B02/B03/E13排除活动manifest。
-- 来源/用途独立结论保留在 `artifacts/t112/independent-20261006/20261006T061547Z/review.md`、`incremental-01-062605Z/review.md`、`incremental-02-063149Z/review.md`。F03只限与F01形成现有双图facility图库，不能唯一大首屏或显式hero/product单图；限制记录在manifest/LICENSES，最终三档实际组合仍待确认。E12只作零件清洁行业素材；原公司能力仍为“钝化与清洁包装”，未增加超声波等事实。
-- 独立交接核验 `artifacts/t112/independent-20261006/handoff-065005Z/review.md` 为PASS：12/12文件及API图片响应与已审图片字节一致，作者、精确许可、来源、修改链及使用限制未丢失；未以散列代替实际比对。这个结论不代替最终整页与F03实际组合验收。
-- 仅经真实API读取两份原草稿，POST创建新站后PUT/replace_draft经commitOperations导入。工业新站 `51b104d3-19a1-4aa2-bd67-a1be38e57566`，来自 `80f53a96-b2d4-4368-ac7d-5d2ed613ffef`；外贸新站 `7b2ba653-8112-4f8e-96d6-3871ade54b8a`，来自 `8142e99f-55be-406f-87a3-cf26308eef76`。除明确的T112站名与提交元数据，草稿字段逐值相同；两份原草稿均无imageId引用，映射为空，没有跨站图片引用。
-- 原 `scripts/upload-company-images.mjs --base-url http://127.0.0.1:3034 --pack <pack> --site-id <newId>` 各上传6张；artifact预加载器只捕获原fetch请求/响应，未修改上传入口。12次POST均201；GET逐字段及逐imageId二进制回读均200并匹配fixture。完整作者/机构credit、精确许可URL、来源、attribution和原修改链已保留。原上传器未传图注，不宣称页面已呈现图注。
-- 复核命令 `python3 artifacts/t112/20261006-data-preparation/verify-preparation.py` 通过，保存新的verification-02，原站草稿/上传均未改变。最初核验器把source预设成external的错误保留于 `verification-attempt-01-failure.json`，已按现有public-material契约修正，不当产品红、不重复上传。
-- 本轮显式改动限工业/外贸各manifest/LICENSES和10个新增JPEG（12活动图中2张既有JPEG沿用）；另只更新本票Resolution。源码、renderer、脚本、tests配置、molding、旧站及原上传不改。fixture/新站输入和票的外部证据保持冻结；实际最终发布截图/三档验收未执行，验收整体不关闭。
+- 两张固定候选的独立许可/业务/指定实框清晰度复核为PASS：`artifacts/t112/clarity-review/review.md`。工业限通用CNC equipment题材；外贸限小型卡套直通，316/型号与包装仍是同框推断，不新增公司材质证书、型号或尺寸事实。外贸许可核对依据保存的Flickr一手响应，审核者在线访问失败一次，未写成在线成功。原大屏原图NO_GO不改写。
+- 活动manifest仅工业第3张从`equipment-gear-shaping-machine.jpg`替为`equipment-multitasking-cnc.jpg`（B-C1，1600×1200/269168字节，Whoisjohngalt，CC BY-SA 4.0），外贸第1张从`product-compression-tee.jpg`替为`product-compression-union.jpg`（C-C1，1600×1200/267775字节，Jason Woodhead，CC BY 2.0）；使用准确新身份/题名。已审JPEG直接拷贝并逐字节核对，不重新处理。完整作者、精确许可、来源及处理链随fixture/API保留。
+- 其余十个active条目、照片和顺序逐值/逐字节不变，两包各6张、四用途。全部旧JPEG、旧许可和原失败证据保留；F01+F03双facility受限组合、E12不新增超声波工艺边界不变。manifest根部仅校正衍生件说明并加新独立报告引用。显式改动为两张新增JPEG、两包manifest/LICENSES及本Resolution；无源码/renderer/测试/配置/T115改动。
+- 真实API分别由原失败站`51b104d3-19a1-4aa2-bd67-a1be38e57566`和`7b2ba653-8112-4f8e-96d6-3871ade54b8a`新建复验副本：工业`7eee7add-e46b-4194-aa14-2d4b5e029e8d`（T112 20261006 clarity industrial），外贸`224e7c90-2268-4a3c-a6b5-02bc28b28fdc`（T112 20261006 clarity export）。POST201→PUT/replace_draft/commitOperations applied→GET逐值比较；实际差异仅新站siteName，文字/产品/样子/样式/行业名称及说明全部相同，未写草稿文件或跨站图片引用。
+- 原`node scripts/upload-company-images.mjs --base-url http://127.0.0.1:3034 --pack <pack> --site-id <newId>`各运行一次：工业UTC `2026-10-06T08:19:00.091Z`、外贸`2026-10-06T08:21:55.041Z`，均exit0、各6 POST201。`python3 artifacts/t112/clarity-admission/verify-pack.py industrial`（UTC `08:21:04.602850`）和`... export`（UTC `08:21:55.390585`）均exit0：逐对象作者、URL、精确许可、attribution/credit、用途、尺寸/字节及POST/GET核对通过，12新图JPEG、12原失败站JPEG直接比对通过，两张候选另与独立已审原字节相同，未新增散列。
+- 原失败站草稿/图片对象及原二进制保持不变；新草稿上传后不变。最终8次GET200在冻结目录再次与已验证原值匹配。交接及完整命令/UTC/输入比较、逐POST/GET、准入前后包快照、新站映射、冻结输入在`artifacts/t112/clarity-admission/README.md`、`verification.json`、`frozen-inputs.json`、`new-sites.json`。
+- 工业首次artifact工具误要求成功响应必有`rejected: []`，真实PUT已applied而该字段按既有契约在无拒绝时省略；原响应、exit1错误及原脚本保留。修正工具后仅补GET核验既有副本，无重复POST/PUT/导入/上传、无换站掩盖。详细原因见新交接；未改产品源码或旧结果。
+- 原素材成品NO_GO保留于`artifacts/acceptance/20261006-photo-layout-0ad88aa/frozen-review/review.md`；原三包18图及108条功能观察保留于`artifacts/t112/final-0ad88aa/`。早前12图准入及API链原件仍在`artifacts/t112/20261006-data-preparation/`和`independent-20261006/`，不删除、不覆盖。这些旧结果不代替本轮新站的最终发布验收。

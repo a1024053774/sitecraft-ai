@@ -77,39 +77,48 @@
       "captionEn": "Gearbox housing machining"
     },
     {
-      "id": "industrial-gear-shaping-machine",
-      "file": "equipment-gear-shaping-machine.jpg",
+      "id": "industrial-multitasking-cnc",
+      "file": "equipment-multitasking-cnc.jpg",
       "category": "equipment",
-      "caption": "齿轮插齿机",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lorenz_gear_shaping_machine_IGW.jpg",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Lorenz_gear_shaping_machine_IGW.jpg",
+      "caption": "多任务数控机床",
+      "captionEn": "Multi-tasking CNC machine",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Okuma_MULTUS_U3000_multi-tasking_machine_with_automatic_tool_changer.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/b/bf/Okuma_MULTUS_U3000_multi-tasking_machine_with_automatic_tool_changer.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
       "license": "CC BY-SA 4.0",
       "apiLicense": "CC BY-SA",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-      "author": "Laurens Sanders",
-      "attribution": "Lorenz gear shaping machine IGW.jpg — Laurens Sanders; https://commons.wikimedia.org/wiki/File:Lorenz_gear_shaping_machine_IGW.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); T-106 derivative resized and JPEG re-encoded; T-112 bytes unchanged.",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "author": "Whoisjohngalt",
+      "attribution": "Okuma MULTUS U3000 multi-tasking machine with automatic tool changer.jpg — Whoisjohngalt; https://commons.wikimedia.org/wiki/File:Okuma_MULTUS_U3000_multi-tasking_machine_with_automatic_tool_changer.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/); derivative: full-frame downsample and JPEG re-encoding by photo-clarity, 2026-10-06; no content edits.",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 682,
-      "height": 998,
-      "bytes": 86408,
+      "downloadedAt": "2026-10-06T07:39:39.502947+00:00",
+      "downloadTimeBasis": "Preserved original-source download receipt; admitted fixed reviewed derivative without reprocessing.",
+      "width": 1600,
+      "height": 1200,
+      "bytes": 269168,
       "modifications": [
-        "resized to max 1600px",
-        "JPEG re-encoded"
+        "Source original is preserved byte-for-byte as downloaded in originals; source author did not enumerate image-editing steps.",
+        "Source EXIF software: river_amz-user 9 PPOS29.114-16-7-2 42129 release-keys",
+        "Full 4:3 frame; Lanczos downsample to 1600x1200; JPEG quality=85,optimize=True,subsampling=1 (4:2:2); preserve EXIF and ICC when present. No crop, rotation, sharpening, contrast change, painting, masking, retouch, AI generation or upsampling.",
+        "Retained camera EXIF describes the source capture; natural output dimensions are measured from JPEG decode."
       ],
       "review": {
         "status": "PASS",
-        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
-        "conditions": "Use the independently reviewed category and caption; no new company capability or model/spec claims."
+        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-review/review.md",
+        "conditions": "Industrial equipment image only; generic CNC machining, not gear shaping or proof of housing machining; no additional company facts. Independently approved at 594x445.5 CSS px, DPR=1. Final new published site not checked.",
+        "limits": "Only the independently reviewed purpose/crop/scale; preserve exact license, source, author and derivative notice.",
+        "licenseVerificationBasis": "Live Commons primary response and fixed source/derivative chain."
       },
-      "candidateId": "old:industrial-gear-shaping-machine",
-      "sourceRecord": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/baseline/industrial/manifest.json",
+      "candidateId": "B-C1",
+      "sourceRecord": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/candidate-records.json",
       "priorFixtureFile": "equipment-gear-shaping-machine.jpg",
-      "sourceTitle": "Lorenz gear shaping machine IGW.jpg",
-      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/baseline/industrial/equipment-gear-shaping-machine.jpg",
+      "sourceTitle": "Okuma MULTUS U3000 multi-tasking machine with automatic tool changer.jpg",
+      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/candidates/industrial-cnc-e14.jpg",
+      "sourcePageSnapshot": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/sources/e14.html",
       "accessDate": "2026-10-06",
-      "draftReviewCheckedAt": "2026-10-06T06:30:31.169418+00:00",
-      "captionEn": "Gear shaping machine"
+      "draftReviewCheckedAt": "2026-10-06T08:06:11.192990+00:00",
+      "admittedAt": "2026-10-06T08:16:23.325520+00:00",
+      "businessFitReason": "通用数控机加工设备题材；原工业资料已有箱体数控镗铣。独立复核批准工业equipment用途，不将原题名中的型号或自动换刀变成公司事实。",
+      "limitations": "仅通用CNC设备配图；不是插齿机或箱体加工实况；不新增机床型号、自动换刀、车削、精度、产能或所有权事实。"
     },
     {
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Milling_machines_in_the_Xcentric_Ripper_Int._factory.jpg",
@@ -220,12 +229,13 @@
       "apiLicense": "CC BY-SA"
     }
   ],
-  "derivativeNotice": "Retained T-106 JPEG derivatives preserve prior resize/re-encoding notices. New images are official source previews; existing source-author processing is retained. T-112 only copies bytes and changes metadata/category/caption in this artifact draft.",
+  "derivativeNotice": "Unchanged retained images preserve their prior processing notices. B-C1/C-C1 use independently reviewed full-frame downsampled JPEG derivatives; source originals, exact license and complete processing chain remain traceable in their entries. No new processing occurred during admission.",
   "sourceVerification": {
     "independentReports": [
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-01-062605Z/review.md",
-      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-02-063149Z/review.md"
+      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-02-063149Z/review.md",
+      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-review/review.md"
     ],
     "status": "PASS_FOR_AUTHORIZED_USES",
     "finalPublishedPlacement": "Not checked yet; requires joint freeze and actual 1440/768/375 verification. F03 remains conditional on paired facility placement."
