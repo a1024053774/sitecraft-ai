@@ -2,7 +2,7 @@
 id: T-090
 title: 按区块声明检查基线对齐、组间距和每页一个主按钮
 type: build
-status: open
+status: closed
 blocked_by: [T-089]
 claimed_by: t090-fix
 supersedes:
@@ -19,15 +19,16 @@ supersedes:
 ## Acceptance
 
 - [x] 测试先写，并在父提交上能加载、在断言处失败：基线错 4px 失败、组内间距大于组间距失败、一页两个 primary 失败、空泛按钮文案失败、未声明的变体报「未声明」而不是通过
-- [ ] 全部已进库变体三档跑区块进库检查、三家 `check-published` 中英文三档通过，报告存 `artifacts/t090/`
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
+- [x] 全部已进库变体三档跑区块进库检查、三家 `check-published` 中英文三档通过，报告存 `artifacts/t090/`
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
-**INCOMPLETE。** 区块进库检查、字形重叠测量的修复已提交并通过独立代码复审；375px 双列的独立视觉否决尚待 T-113 按负责人选择的 T-114 单列方案处理，暂不关票。
+**PASS，2026-10-06 主控验收关闭。** 最终运行时代码为 `0ad88aa0cb232e5d439dadae0d062e527bd2302a`。手机口径由负责人在T-114明确选择；本票不包含T-112照片清晰度或T-115行业说明取舍。
 
-- `c464084` 把共享声明扫描器接入真实 `render-block.mjs` CLI，违规输出非空测量并退出非零；修正最小组间距 0 被覆盖。父版的漏接、32.16px 基线差与间距反例保留在 `artifacts/t090/20261006-accept/`、`artifacts/t090/20261006-fix/red-verified.log` 和 `red-footer.log`。旧固定13站基线测量为0的绿报不能代替变体覆盖。
-- `89a0ae5` 改为按实际字形墨迹测文字重叠，保留同节点压缩与不同节点叠放检查。2026-10-06 在 `f53dc1eaf3466ee499f2ae95e3f2f8df4676a286` 下，全部41变体逐一运行原版 `node scripts/render-block.mjs`，三档中英文共246组合全部通过；原始完整命令、输入和报告在 `artifacts/t090/20261006-fix/admission-f53dc1e/`。旧11变体误报保留在同级 `admission-e422fc7/`，未换 case。
-- 独立 Astra 进一步发现 CSS uppercase 与原始小写测量不一致，原反例保留在 `artifacts/t090/20261006-review-geometry/`。`ff615e30a1066f092d7d4cb90b6e09461e9e62cc` 修复后 focused 24/24；2026-10-06 06:02:54Z 完成的独立相关测试9/9、退出0，报告 `artifacts/t090/20261006-review-uppercase/review.md`。命令为指定 Chrome 路径下的 `node --test --experimental-strip-types --test-name-pattern='T-090 real render-block geometry measures' tests/t090-root-causes.test.ts`；压缩反例退出1，正常行距退出0。
-- 集成基线 `f53dc1e` 的 `npm test` 839/839、typecheck、build以及固定13站原版发布检查39/39（每行含中英文）均通过；完整命令、UTC和原始日志在 `artifacts/integration/20261006-f53dc1e/`。这些不冒充后续 T-113 候选的全量结果。
-- 独立视觉报告 `artifacts/acceptance/20261006-visual-f53dc1e/review-output/review-with-product-scope.md` 指出375px长文本双列拥挤；T-114已定手机单列、平板和桌面保留≤2px同基线。最终按响应式声明重新检查、独立复审和视觉验收后再勾选。
+- 真实区块CLI复用共享声明扫描器，声明违规必须有实际失败测量且退出非零；最小组间距0不再被当初始化值。字体重叠按真实绘制字形测量，CSS uppercase与字面大写等价，压缩同节点和不同节点叠放仍拒绝。原漏接、32.16px基线差、间距0及字形误报/漏报证据保留于 `artifacts/t090/20261006-accept/`、`20261006-fix/` 与 `20261006-review-geometry/`，未覆盖。
+- 最终41个已进库变体逐一执行 `node scripts/render-block.mjs --block <block> --variant <variant> --cases <cases.json> --out <render>`，1440/768/375中英文共246组合全部exit0。沿用原f53输入；完整逐条命令、UTC、退出码、声明与非空测量在 `artifacts/t090/20261006-fix/admission-0ad88aa/report.json`。4项适用基线实测、2项375页脚明确不适用、462项语义组间距和246项主按钮测量；没有把不适用当测量PASS。批次命令为设定Chrome路径及3034后运行 `node --experimental-strip-types artifacts/t090/20261006-fix/admission-0ad88aa/run.mjs`。
+- 源图自查完成：246个PNG包含125个不同画面，全部不同画面逐张打开，121个逐像素相同文件记录复用关系；未见空白、载入态、误截、丢底或文字覆盖。逐文件记录在 `admission-0ad88aa/visual-selfcheck/results.json`，07:36:52Z完成。短尾行/孤立句号等观察如实保留，这不是新的审美评分。
+- 固定13站发布检查39/39（每行含英文）和三包带图18视图通过；分别见 `artifacts/integration/20261006-0ad88aa/published-13/` 与 `artifacts/t112/final-0ad88aa/`。78张固定站原图的全部原尺寸区域已查看，完整性自查在前者 `visual-selfcheck/`；三包原版图也已自查。
+- 同一SHA的 `npm run build`、`npm run typecheck`、`npm test` **887/887**通过，测试于07:15:08Z结束；完整命令/UTC/退出码在 `artifacts/integration/20261006-0ad88aa/`。独立Astra对uppercase的先前结论在 `artifacts/t090/20261006-review-uppercase/review.md`；本轮对响应式缺目标的真实CLI反例、有效N/A、桌面≤2px及有关增量复审PASS在 `artifacts/t113/independent-0ad88aa/review-result.json`。
+- 独立视觉已确认D压力页脚三档可读，375单列、768/1440同排符合已确认要求；报告 `artifacts/acceptance/20261006-reading-ce7df9d/frozen-review/review.md`。0ad对该视觉候选只改检查器和测试，页脚绘制代码未变。报告的行业语义重复总体NO_GO保持原样，由T-115处理，未冒充整页审美通过。

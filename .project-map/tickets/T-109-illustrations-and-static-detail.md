@@ -4,7 +4,7 @@ title: 同风格示意图与静态细节质感
 type: build
 status: open
 blocked_by: [T-107, T-108, T-112, T-113, T-115]
-claimed_by: t109-photos
+claimed_by: codex-control
 supersedes:
 ---
 
@@ -19,7 +19,7 @@ T-104 第 ④ 步。资料没图而版式需要图的位置，用 Codex 按样�
 
 ## Resolution
 
-**INCOMPLETE。** 照片显隐与逐图检查的代码修复通过，`f53dc1e` 三包真实发布检查通过。T-112 已换入两包各6张合适素材并完成新站数据准备，等待最终发布检查；T-113 的手机单列、署名和精确去重已获范围内视觉通过，验收脚本修订等待完整复验。整体阅读仍为NO_GO，新增的行业说明语义重复交 T-115 等负责人决定，原文未改。相关票与最终独立验收完成前不关票。
+**INCOMPLETE。** 最终代码 `0ad88aa0cb232e5d439dadae0d062e527bd2302a` 已通过887/887全量、build、typecheck、41变体246组合、固定13站39行含中英文及三包18视图检查，T-090/T-113和机械闭环T-111已关闭。T-112的新素材在实际成品中仍有两张大屏清晰度NO_GO，交新窗口修正；行业说明的语义重复交T-115等负责人决定，原文未改。T-110混排盲评尚未开始，本票不关闭。
 
 - `97b1734b14dd66e6dba54c981b98abefbdf76e19` 实现设备无图时的双语标注线稿，有图时隐藏线稿，四样子线宽2/1/2/1px。旧区块盲评保留于 `/Users/luckye/Documents/Code/sitecraft-ai-blocks-pool/artifacts/blocks-pool/t109-*/`，不替代当前整页验收。
 - 原注塑 Tracer bullet 上传前无图通过，上传6图后只有5图可见：检测图已加载但被空 capabilities 隐藏。原始接口、stdout、红测与截图在 `artifacts/t109/20261006-photos/run-ebc97b3-01/`，`result.md`为索引。首次工作树green的runtimeSha元数据误指基线，异常原样保留并说明。

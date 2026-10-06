@@ -4,7 +4,7 @@ title: 纠正工业与外贸模拟资料照片的业务错配
 type: build
 status: open
 blocked_by: []
-claimed_by: photo-fit
+claimed_by: photo-clarity
 supersedes:
 ---
 
@@ -22,7 +22,10 @@ supersedes:
 
 ## Resolution
 
-**PASS：本轮数据准备；INCOMPLETE：T-112整体。** photo-fit，2026-10-06；上传及核验观察HEAD `ce7df9d6e287f1c60ec5cef07dda3b1d7d1c1484`。主控已授权12图组合和fixture落盘，现已完成并冻结；等待统一源码/输入候选后的实际发布页验收，不commit/push。
+**INCOMPLETE：T-112整体。** 数据准备及 `0ad88aa0cb232e5d439dadae0d062e527bd2302a` 的三包实际发布功能检查通过；最终成品配图审核为NO_GO，仅剩工业插齿机图与外贸三通图在大屏展示时清晰度不足。两张素材交给新窗口 `photo-clarity` 处理，其他素材与全部旧站、原始证据保持不变。
+
+- 最终原版CLI三包各运行一次、均exit0，18张截图已自查；108条逐图观察的唯一落点、用途、可见性、decode及署名/许可/来源通过，F01+F03在六个工业视图中为双图，输入前后不变。真实命令、完整SHA、UTC、stdout及setup错误原件在 `artifacts/t112/final-0ad88aa/README.md`。功能通过不等于照片清晰度通过。
+- 新独立实例逐张查看18图及原尺寸局部后，注塑PASS；工业 `equipment-gear-shaping-machine.jpg`（`img_82a18c979c014cfaa664b09d`，自然682×998、1440图框594×445.5）在1440模糊；外贸 `product-compression-tee.jpg`（E02）在1440/768模糊。其他图片未见该范围内的否决项。原NO_GO、原截图和局部图保存在 `artifacts/acceptance/20261006-photo-layout-0ad88aa/frozen-review/review.md`。
 
 - 固定交接：`artifacts/t112/20261006-data-preparation/README.md`；`verification.json`、`new-sites.json`、逐请求/响应、每图HTTP取证、原值比对及fixture-before/fixture-admitted均保留。首批、补搜、草案、独立报告和原失败截图不覆盖。
 - 工业6图：原减速机产品、箱体加工（equipment，“齿轮箱箱体加工”）、插齿机、B01、F01+F03。外贸6图：E02/E01/E14/E12/F02/E07。两包四类齐全；所有旧JPEG保留原字节，未覆盖。B02/B03/E13排除活动manifest。

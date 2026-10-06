@@ -45,6 +45,8 @@
 - [T-104 T-084 这批之后做什么](tickets/T-104-after-research-batch.md)：两种盲评（混排猜不出、换公司看不出同模板）；测试真图 + 同风格示意图；vendor 模板只拆区块补 4 个样子；下线模板画廊、入口改工作台；只做静态细节不做动效
 - [T-114 手机页脚怎么排](tickets/T-114-mobile-footer-layout.md)：375px 单列；768/1440px 保留同基线，手机检查间距、断行和溢出
 
+- [T-111 验收入口必须拒绝漏测](tickets/T-111-acceptance-observed-coverage.md)：真实CLI、逐图可见与decode、实际DOM和slot覆盖均有独立红绿证据
+
 ## Not yet specified
 
 - 新开源素材的准入：T-104 定为 vendor 模板只拆区块进池；外部新仓库的准入流程仍未定。
