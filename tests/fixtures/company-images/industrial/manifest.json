@@ -2,65 +2,79 @@
   "schemaVersion": 1,
   "pack": "industrial",
   "packLabel": "工业重载减速机",
-  "sourcePolicy": "真实照片；来源页逐张核对；仅收 CC0、公有领域、CC BY、CC BY-SA；图片已压缩到长边 ≤1600px 且 ≤300KB。",
+  "admissionStatus": "CONTROLLER_AUTHORIZED_DATA_PREPARATION_ONLY",
+  "preparedAt": "2026-10-06T06:30:31.169418+00:00",
+  "sourcePolicy": "授权行业照片仅用于已约定模拟资料测试；许可限CC0/PD/CC BY/CC BY-SA；按真实类别使用，保留来源署名/已知处理链；素材准入不代表已发布页验收。",
   "images": [
     {
       "id": "industrial-gearbox-reducer",
       "file": "product-gearbox-reducer.jpg",
       "category": "product",
-      "caption": "工业减速机外壳与输出轴",
+      "caption": "工业齿轮箱减速机",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Manufactures_of_industrial_gearbox.jpg",
       "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Manufactures_of_industrial_gearbox.jpg/1920px-Manufactures_of_industrial_gearbox.jpg",
       "license": "CC BY-SA 4.0",
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Yuexin indonesia",
-      "attribution": "Yuexin indonesia — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "attribution": "Manufactures of industrial gearbox.jpg — Yuexin indonesia; https://commons.wikimedia.org/wiki/File:Manufactures_of_industrial_gearbox.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); T-106 derivative resized and JPEG re-encoded; T-112 bytes unchanged.",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 1175,
       "bytes": 289813,
-      "sha256": "41790f61c3007f32dcdb4585f2e09fe76db5ccd2bbf2fd7f27b43f5c27cd803a",
       "modifications": [
         "resized to max 1600px",
         "JPEG re-encoded"
       ],
-      "verification": {
-        "checkedAt": "2026-10-04T20:16:20Z",
-        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
-        "sourcePageStatus": 200,
-        "licensePageStatus": 200
-      }
+      "review": {
+        "status": "PASS",
+        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
+        "conditions": "Use the independently reviewed category and caption; no new company capability or model/spec claims."
+      },
+      "candidateId": "old:industrial-gearbox-reducer",
+      "sourceRecord": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/baseline/industrial/manifest.json",
+      "priorFixtureFile": "product-gearbox-reducer.jpg",
+      "sourceTitle": "Manufactures of industrial gearbox.jpg",
+      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/baseline/industrial/product-gearbox-reducer.jpg",
+      "accessDate": "2026-10-06",
+      "draftReviewCheckedAt": "2026-10-06T06:30:31.169418+00:00",
+      "captionEn": "Industrial gearbox reducer"
     },
     {
       "id": "industrial-gearbox-reducer-2",
-      "file": "product-gearbox-reducer-2.jpg",
-      "category": "product",
-      "caption": "齿轮箱减速机成品",
+      "file": "equipment-gearbox-housing-machining.jpg",
+      "category": "equipment",
+      "caption": "齿轮箱箱体加工",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Manufactures_of_gearbox_reducer.jpg",
       "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/Manufactures_of_gearbox_reducer.jpg/1920px-Manufactures_of_gearbox_reducer.jpg",
       "license": "CC BY-SA 4.0",
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Yuexin indonesia",
-      "attribution": "Yuexin indonesia — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "attribution": "Manufactures of gearbox reducer.jpg — Yuexin indonesia; https://commons.wikimedia.org/wiki/File:Manufactures_of_gearbox_reducer.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); T-106 derivative resized and JPEG re-encoded; T-112 bytes unchanged.",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 1600,
       "height": 1200,
       "bytes": 297372,
-      "sha256": "2c74328922333fdd79118fdfecc8ad2ef78b7378b3c47f6c49f5e74b389ee5a6",
       "modifications": [
         "resized to max 1600px",
         "JPEG re-encoded"
       ],
-      "verification": {
-        "checkedAt": "2026-10-04T20:16:20Z",
-        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
-        "sourcePageStatus": 200,
-        "licensePageStatus": 200
-      }
+      "review": {
+        "status": "PASS",
+        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
+        "conditions": "Use the independently reviewed category and caption; no new company capability or model/spec claims."
+      },
+      "candidateId": "old:industrial-gearbox-reducer-2",
+      "sourceRecord": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/baseline/industrial/manifest.json",
+      "priorFixtureFile": "product-gearbox-reducer-2.jpg",
+      "sourceTitle": "Manufactures of gearbox reducer.jpg",
+      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/baseline/industrial/product-gearbox-reducer-2.jpg",
+      "accessDate": "2026-10-06",
+      "draftReviewCheckedAt": "2026-10-06T06:30:31.169418+00:00",
+      "captionEn": "Gearbox housing machining"
     },
     {
       "id": "industrial-gear-shaping-machine",
@@ -73,174 +87,148 @@
       "apiLicense": "CC BY-SA",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
       "author": "Laurens Sanders",
-      "attribution": "Laurens Sanders — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
+      "attribution": "Lorenz gear shaping machine IGW.jpg — Laurens Sanders; https://commons.wikimedia.org/wiki/File:Lorenz_gear_shaping_machine_IGW.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); T-106 derivative resized and JPEG re-encoded; T-112 bytes unchanged.",
       "usageScope": "current-site-only",
       "downloadedAt": "2026-10-04T17:43:51Z",
       "width": 682,
       "height": 998,
       "bytes": 86408,
-      "sha256": "0b428e27a05ab1a1fdaf2b91d8fc50b8a8f4185a59885812a70a408283c378a1",
       "modifications": [
         "resized to max 1600px",
         "JPEG re-encoded"
       ],
-      "verification": {
-        "checkedAt": "2026-10-04T20:16:20Z",
-        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
-        "sourcePageStatus": 200,
-        "licensePageStatus": 200
-      }
+      "review": {
+        "status": "PASS",
+        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
+        "conditions": "Use the independently reviewed category and caption; no new company capability or model/spec claims."
+      },
+      "candidateId": "old:industrial-gear-shaping-machine",
+      "sourceRecord": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/baseline/industrial/manifest.json",
+      "priorFixtureFile": "equipment-gear-shaping-machine.jpg",
+      "sourceTitle": "Lorenz gear shaping machine IGW.jpg",
+      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/baseline/industrial/equipment-gear-shaping-machine.jpg",
+      "accessDate": "2026-10-06",
+      "draftReviewCheckedAt": "2026-10-06T06:30:31.169418+00:00",
+      "captionEn": "Gear shaping machine"
     },
     {
-      "id": "industrial-heat-treatment",
-      "file": "equipment-heat-treatment.jpg",
-      "category": "equipment",
-      "caption": "齿轮热处理工序",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Heat_treatment_IGW.jpg",
-      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Heat_treatment_IGW.jpg/1920px-Heat_treatment_IGW.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Milling_machines_in_the_Xcentric_Ripper_Int._factory.jpg",
       "license": "CC BY-SA 4.0",
-      "apiLicense": "CC BY-SA",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-      "author": "Laurens Sanders",
-      "attribution": "Laurens Sanders — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
-      "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 1600,
-      "height": 934,
-      "bytes": 289409,
-      "sha256": "96895e30e18e4e3f0ab34fc07bad42a1aa418ecd2da23417ab00b01aaa001e6c",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "author": "Ana 2016",
+      "attribution": "Milling machines in the Xcentric Ripper Int. factory.jpg — Ana 2016; https://commons.wikimedia.org/wiki/File:Milling_machines_in_the_Xcentric_Ripper_Int._factory.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/); official 1280px thumbnail; preserve source modifications, no local image edits.",
+      "id": "industrial-f01",
+      "candidateId": "F01",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Milling_machines_in_the_Xcentric_Ripper_Int._factory.jpg/1280px-Milling_machines_in_the_Xcentric_Ripper_Int._factory.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=thumbnail",
+      "downloadedAt": "2026-10-06T06:20:48.443943+00:00",
+      "downloadTimeBasis": "Recorded download receipt",
+      "accessedAt": "2026-10-06T06:20:05.065292+00:00",
+      "accessDate": "2026-10-06",
       "modifications": [
-        "resized to max 1600px",
-        "JPEG re-encoded"
+        "原来源相机为Canon EOS 600D；文件历史单次作者上传。官方缩略图缩放/编码，未作本地内容编辑。"
       ],
-      "verification": {
-        "checkedAt": "2026-10-04T20:16:20Z",
-        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
-        "sourcePageStatus": 200,
-        "licensePageStatus": 200
-      }
+      "usageScope": "current-site-only",
+      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit-export-b02/candidates/F01-1280.jpg",
+      "sourceTitle": "Milling machines in the Xcentric Ripper Int. factory.jpg",
+      "sourcePageSnapshot": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit-export-b02/sources/F01.html",
+      "businessFitReason": "原图来源明确是工厂车间中的铣床，现场可见控制台、成组机床与厂房；对应工业资料的箱体加工制造环境，没有历史档案框或巨大成品叶轮。",
+      "limitations": "来源是Xcentric Ripper工厂，不能写成减速机成品厂房归属证明，也不追加机型、加工精度或产能。普通设备标识保留。",
+      "review": {
+        "status": "PASS",
+        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-02-063149Z/review.md",
+        "conditions": "Industrial facility; ordinary gallery or single hero use independently approved. Actual final combined site checks pending."
+      },
+      "file": "facility-milling-workshop.jpg",
+      "category": "facility",
+      "caption": "铣削加工车间",
+      "captionEn": "Milling workshop",
+      "width": 1280,
+      "height": 853,
+      "bytes": 220884,
+      "apiLicense": "CC BY-SA"
     },
     {
-      "id": "industrial-gear-shaper-plant",
-      "file": "facility-gear-shaper-plant.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:CNC_Machine_Facility.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "author": "Antoniusaw",
+      "attribution": "CNC Machine Facility.jpg — Antoniusaw; https://commons.wikimedia.org/wiki/File:CNC_Machine_Facility.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/); official 1280px thumbnail; preserve source modifications, no local image edits. Published source panorama has Photoshop CS6 metadata and dimensions 4032x1600 (camera EXIF 4032x3024); exact source editing steps unspecified.",
+      "id": "industrial-f03",
+      "candidateId": "F03",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/CNC_Machine_Facility.jpg/1280px-CNC_Machine_Facility.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=thumbnail",
+      "downloadedAt": "2026-10-06T06:20:54.214477+00:00",
+      "downloadTimeBasis": "Recorded download receipt",
+      "accessedAt": "2026-10-06T06:20:11.869221+00:00",
+      "accessDate": "2026-10-06",
+      "modifications": [
+        "源文件4032×1600，嵌入相机EXIF4032×3024，记录Photoshop CS6；原作者具体编辑链未单列，不推测为本地处理。Commons自id.wikipedia转入；本地只下载官方1280px版本，未改内容。"
+      ],
+      "usageScope": "current-site-only",
+      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit-export-b02/candidates/F03-1280.jpg",
+      "sourceTitle": "CNC Machine Facility.jpg",
+      "sourcePageSnapshot": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit-export-b02/sources/F03.html",
+      "businessFitReason": "来源明确为PT Metindo Erasakti的CNC生产设施，照片为成排机床与工作人员的完整厂房环境；可作工业facility备选。",
+      "limitations": "Industrial generic CNC machining environment only, paired with F01 in the existing dual-image facility gallery; never sole large hero or explicit hero/product image. Do not name foreground objects as reducer housings or specific molds. No company model/precision/capacity facts added.",
+      "review": {
+        "status": "PASS_CONDITIONAL",
+        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-02-063149Z/review.md",
+        "conditions": "Only industrial facility paired with F01 in the existing two-image facility gallery. NO_GO as sole large hero, single facility photo, or explicit hero/product image. Confirm actual 1440/768/375 placement after combined freeze. This is a project-use condition, not a copyright-license restriction."
+      },
+      "file": "facility-cnc-production-workshop.jpg",
       "category": "facility",
-      "caption": "齿轮加工厂房外景",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fellows_Gear_Shaper_Plant.jpg",
-      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Fellows_Gear_Shaper_Plant.jpg/1920px-Fellows_Gear_Shaper_Plant.jpg",
+      "caption": "数控加工车间",
+      "captionEn": "CNC machining workshop",
+      "width": 1280,
+      "height": 508,
+      "bytes": 239794,
+      "apiLicense": "CC BY-SA"
+    },
+    {
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Beyond_CrystaC.jpg",
       "license": "CC BY-SA 3.0",
-      "apiLicense": "CC BY-SA",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-      "author": "HopsonRoad",
-      "attribution": "HopsonRoad — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
-      "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 1600,
-      "height": 452,
-      "bytes": 195534,
-      "sha256": "f0232f147eb8c3423878eedc677678fd6a1a398b5e051e6b0e7161b03300ddfe",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "author": "Blue tooth7",
+      "attribution": "Beyond CrystaC.jpg — Blue tooth7; https://commons.wikimedia.org/wiki/File:Beyond_CrystaC.jpg; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/); official source thumbnail.",
+      "id": "industrial-b01",
+      "candidateId": "B01",
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Beyond_CrystaC.jpg/960px-Beyond_CrystaC.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=thumbnail",
+      "downloadedAt": "2026-10-06T06:05:25.895710+00:00",
+      "downloadTimeBasis": "Preserved candidate file timestamp (original receipt did not record a separate download time)",
+      "accessedAt": "2026-10-06T06:05:25.909343+00:00",
+      "accessDate": "2026-10-06",
       "modifications": [
-        "resized to max 1600px",
-        "JPEG re-encoded"
+        "Official source thumbnail; no local crop, retouch, masking, or re-encoding."
       ],
-      "verification": {
-        "checkedAt": "2026-10-04T20:16:20Z",
-        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
-        "sourcePageStatus": 200,
-        "licensePageStatus": 200
-      }
-    },
-    {
-      "id": "industrial-machine-shop",
-      "file": "facility-machine-shop.jpg",
-      "category": "facility",
-      "caption": "机加工车间",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Machine_Shop_interior,_Puget_Sound_Machinery_Depot,_Seattle,_Washington,_ca_1922_(INDOCC_41).jpg",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Machine_Shop_interior%2C_Puget_Sound_Machinery_Depot%2C_Seattle%2C_Washington%2C_ca_1922_%28INDOCC_41%29.jpg",
-      "license": "Public Domain",
-      "apiLicense": "Public Domain",
-      "licenseUrl": "https://commons.wikimedia.org/wiki/Commons:Public_domain",
-      "author": "Unknown photographer; Puget Sound Machinery Depot archive",
-      "attribution": "Unknown photographer; Puget Sound Machinery Depot archive — Public Domain; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
       "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T20:16:20Z",
-      "width": 768,
-      "height": 601,
-      "bytes": 125312,
-      "sha256": "13b0a75c44d56747635935ab47514c4718feabfd5e212d28a04cc31c44d6015e",
-      "modifications": [
-        "resized to max 1600px",
-        "JPEG re-encoded"
-      ],
-      "verification": {
-        "checkedAt": "2026-10-04T20:16:20Z",
-        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
-        "sourcePageStatus": 200,
-        "licensePageStatus": 200
-      }
-    },
-    {
-      "id": "industrial-gear-testing",
-      "file": "inspection-gear-testing.jpg",
-      "category": "inspection",
-      "caption": "变速箱传动部件检测工位",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Motor_Vehicles_-_Motor_Trucks_-_Manufacturers_-_Manufacture_of_Class_%22B%22_Quartermaster_Truck_at_Warner_Gear_Co.,_Muncie,_Indiana._Inspection_of_transmissions_plant_No._1_-_DPLA_-_ac51e803fcb5dc1836ad3278b2433179.jpg",
-      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Motor_Vehicles_-_Motor_Trucks_-_Manufacturers_-_Manufacture_of_Class_%22B%22_Quartermaster_Truck_at_Warner_Gear_Co.%2C_Muncie%2C_Indiana._Inspection_of_transmissions_plant_No._1_-_DPLA_-_ac51e803fcb5dc1836ad3278b2433179.jpg/1920px-thumbnail.jpg",
-      "license": "Public Domain",
-      "apiLicense": "Public Domain",
-      "licenseUrl": "https://commons.wikimedia.org/wiki/Commons:Public_domain",
-      "author": "War Department. 1789–9/18/1947 (photographer: Sellers)",
-      "attribution": "War Department. 1789–9/18/1947 (photographer: Sellers) — Public Domain; Wikimedia Commons",
-      "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:51:34Z",
-      "width": 1600,
-      "height": 1099,
-      "bytes": 290524,
-      "sha256": "392b63c49e5d49ea3eef855ffbfc83ad00e38831cb05b5d053614f36b804fc75",
-      "modifications": [
-        "resized to max 1600px",
-        "JPEG re-encoded"
-      ],
-      "verification": {
-        "checkedAt": "2026-10-04T20:16:20Z",
-        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
-        "sourcePageStatus": 200,
-        "licensePageStatus": 200
-      }
-    },
-    {
-      "id": "industrial-cmm",
-      "file": "inspection-coordinate-measuring.jpg",
+      "copiedFrom": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/candidates/B01-large.jpg",
+      "sourceTitle": "Beyond CrystaC.jpg",
+      "sourcePageSnapshot": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/20261006-photo-fit/sources/B01.html",
+      "businessFitReason": "对应装配与出厂检验中的尺寸测量题材；无人脸和灰色遮挡。",
+      "limitations": "不是本公司设备或减速机实测证明；来源摄于2011年，不能写成新购设备。",
+      "review": {
+        "status": "PASS",
+        "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
+        "conditions": "Apply only the independently reviewed category/caption; retain source facts and attribution."
+      },
+      "file": "inspection-coordinate-measuring-t112.jpg",
       "category": "inspection",
       "caption": "三坐标测量机",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:MMT_G-90C.jpg",
-      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/7/77/MMT_G-90C.jpg",
-      "license": "CC BY-SA 4.0",
-      "apiLicense": "CC BY-SA",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-      "author": "Kergeo",
-      "attribution": "Kergeo — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).",
-      "usageScope": "current-site-only",
-      "downloadedAt": "2026-10-04T17:43:51Z",
-      "width": 1008,
-      "height": 1512,
-      "bytes": 168054,
-      "sha256": "56c1e09f30a07b385b022bf4f01d208e47881c0e0091cd996ff0d5cc8a1f87cf",
-      "modifications": [
-        "resized to max 1600px",
-        "JPEG re-encoded"
-      ],
-      "verification": {
-        "checkedAt": "2026-10-04T20:16:20Z",
-        "method": "Wikimedia Commons file page + API imageinfo/extmetadata",
-        "sourcePageStatus": 200,
-        "licensePageStatus": 200
-      }
+      "captionEn": "Coordinate measuring machine",
+      "width": 960,
+      "height": 1211,
+      "bytes": 145658,
+      "apiLicense": "CC BY-SA"
     }
   ],
-  "derivativeNotice": "Every stored file is a JPEG derivative: resized to long edge ≤1600px and JPEG re-encoded. CC BY / CC BY-SA attribution explicitly states this modification and retains author, source page, and license URL.",
+  "derivativeNotice": "Retained T-106 JPEG derivatives preserve prior resize/re-encoding notices. New images are official source previews; existing source-author processing is retained. T-112 only copies bytes and changes metadata/category/caption in this artifact draft.",
   "sourceVerification": {
-    "checkedAt": "2026-10-04T20:16:20Z",
-    "method": "Fetched every sourceUrl and licenseUrl with the Wikimedia Commons file page / license page; HTTP 200 required.",
-    "allUrlsStatus": 200
-  }
+    "independentReports": [
+      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
+      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-01-062605Z/review.md",
+      "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/incremental-02-063149Z/review.md"
+    ],
+    "status": "PASS_FOR_AUTHORIZED_USES",
+    "finalPublishedPlacement": "Not checked yet; requires joint freeze and actual 1440/768/375 verification. F03 remains conditional on paired facility placement."
+  },
+  "admittedAt": "2026-10-06T06:43:37.393274+00:00"
 }
