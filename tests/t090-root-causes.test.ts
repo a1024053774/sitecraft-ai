@@ -183,3 +183,54 @@ test("T-090 footer line keeps long company name and email readable on one baseli
     }
   });
 });
+
+test("T-090 real render-block geometry accepts the original clear multiline hero", async () => {
+  const cases = path.join(repo, "tests/fixtures/t090-hero-case.json");
+  const reportOut = path.join(out, "geometry-real-hero");
+  const result = await run([process.env.T090_RENDER_BLOCK || path.join(repo, "scripts/render-block.mjs"), "--block", "hero", "--variant", "split", "--cases", cases, "--out", reportOut]);
+  writeFileSync(path.join(out, "geometry-real-hero-run.json"), JSON.stringify(result, null, 2));
+  const report = JSON.parse(readFileSync(path.join(reportOut, "scan.json"), "utf8")) as { rows: Array<{ width: number; candidate: { overlaps: unknown[] }; english: { overlaps: unknown[] } }> };
+  assert.deepEqual(report.rows.map((row) => row.width), [1440, 768, 375]);
+  for (const row of report.rows) {
+    assert.deepEqual(row.candidate.overlaps, []);
+    assert.deepEqual(row.english.overlaps, [], `${row.width}/en: independent audit screenshots show clear glyphs; overlapping font boxes must not fail`);
+  }
+  assert.equal(result.code, 0, result.output);
+});
+
+test("T-090 real render-block geometry measures glyphs while rejecting compressed lines and overlaid text", async (t) => {
+  const { cwd, cases } = await fixtureStore();
+  const response = await fetch(`${base}/api/templates/screwfast/preview`);
+  assert.equal(response.status, 200);
+  const preview = await response.text();
+  const scenarios = [
+    { id: "compressed-same-node", lineHeight: 14, body: "<p>Agjp Agjp Agjp Agjp Agjp Agjp Agjp Agjp</p>", expectedExit: 1 },
+    { id: "overlaid-different-nodes", lineHeight: 33, body: '<div style="position:relative;height:80px"><p style="position:absolute;top:0;left:0">Agjp Agjp</p><p style="position:absolute;top:0;left:0">Tyqg Tyqg</p></div>', expectedExit: 1 },
+  ];
+  let html = "";
+  const server = createServer((request, reply) => {
+    if (request.url?.includes("/api/templates/")) { reply.setHeader("Content-Type", "text/html"); reply.end(html); }
+    else { reply.statusCode = 404; reply.end(); }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address() as { port: number };
+    for (const scenario of scenarios) await t.test(scenario.id, async () => {
+      // Intentional glyph collisions exercise same-node line compression and different-node
+      // overlays independently of the captured real-page positive case.
+      html = preview
+        .replace("</head>", `<style>.t090-geometry{width:200px;margin:16px}.t090-geometry p{margin:0;font:700 30px/${scenario.lineHeight}px Geist,sans-serif}</style></head>`)
+        .replaceAll("</footer>", `<div class="t090-geometry">${scenario.body}</div></footer>`);
+      const reportOut = path.join(out, `geometry-${scenario.id}`);
+      const result = await run([process.env.T090_RENDER_BLOCK || path.join(repo, "scripts/render-block.mjs"), "--block", "footer", "--variant", "line", "--cases", cases, "--out", reportOut], cwd, { ...process.env, SITECRAFT_BASE: `http://127.0.0.1:${address.port}` });
+      writeFileSync(path.join(out, `geometry-${scenario.id}-run.json`), JSON.stringify(result, null, 2));
+      const report = JSON.parse(readFileSync(path.join(reportOut, "scan.json"), "utf8")) as { rows: Array<{ width: number; candidate: { overlaps: Array<{ a: string; b: string; w: number; h: number }> }; english: { overlaps: Array<{ a: string; b: string; w: number; h: number }> }; layoutFailures: { zh: string[]; en: string[] } }> };
+      assert.equal(report.rows.length, 3);
+      for (const row of report.rows) for (const [locale, layout] of [["zh", row.candidate], ["en", row.english]] as const) {
+        assert.equal(row.layoutFailures[locale].length, 0, "geometry fixture must not fail another declaration gate");
+        assert.ok(layout.overlaps.some((entry) => entry.a.includes("Agjp") && (scenario.id === "compressed-same-node" ? entry.b.includes("Agjp") : entry.b.includes("Tyqg")) && entry.w > 2 && entry.h > 3), `${row.width}/${locale}: visible glyph collisions must still fail`);
+      }
+      assert.equal(result.code, scenario.expectedExit, result.output);
+    });
+  } finally { await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); }
+});

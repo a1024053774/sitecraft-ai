@@ -147,7 +147,9 @@ const SCAN = `(() => {
     if (el !== block && el.scrollWidth > el.clientWidth + 1 && style.display !== "inline" && style.overflowX !== "visible") result.clipped.push({ kind: "x-clipped", el: describe(el) });
     if (style.webkitLineClamp && style.webkitLineClamp !== "none" && el.scrollHeight > el.clientHeight + 1) result.clipped.push({ kind: "line-clamp", el: describe(el), lines: style.webkitLineClamp });
   }
-  // Text-over-text: client rects of text nodes, clipped by overflow:hidden ancestors, compared pairwise.
+  // Range rectangles contain the font's ascent/descent box, which can overlap adjacent
+  // lines even when their glyphs are clear. Locate each line with character Ranges, then
+  // use Canvas TextMetrics (as in the shared scanner's baseline measurement) for its ink.
   const clipOf = (node) => {
     let clip = null;
     for (let el = node.parentElement; el && el !== block.parentElement; el = el.parentElement) {
@@ -160,25 +162,50 @@ const SCAN = `(() => {
     return clip;
   };
   const pieces = [];
+  const inkContext = document.createElement("canvas").getContext("2d");
+  if (!inkContext) throw new Error("Text ink measurement unavailable: Canvas 2D context missing");
   const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+  let nodeId = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    nodeId++;
     if (!node.textContent.trim()) continue;
     const parent = node.parentElement;
     if (!parent || parent.closest("[hidden],details:not([open]) > :not(summary)") || getComputedStyle(parent).visibility === "hidden") continue;
     const clip = clipOf(node);
     const range = document.createRange();
-    range.selectNodeContents(node);
-    for (const rect of range.getClientRects()) {
-      let l = rect.left, t = rect.top, r = rect.right, b = rect.bottom;
+    const lines = new Map();
+    for (let offset = 0; offset < node.textContent.length;) {
+      const char = String.fromCodePoint(node.textContent.codePointAt(offset));
+      range.setStart(node, offset); range.setEnd(node, offset + char.length);
+      offset += char.length;
+      for (const rect of range.getClientRects()) {
+        if (rect.width < .5 || rect.height < .5) continue;
+        const key = rect.top.toFixed(2) + ":" + rect.bottom.toFixed(2);
+        const line = lines.get(key);
+        if (line) { line.left = Math.min(line.left, rect.left); line.right = Math.max(line.right, rect.right); line.text += char; }
+        else lines.set(key, { left: rect.left, right: rect.right, top: rect.top, height: rect.height, text: char });
+      }
+    }
+    const style = getComputedStyle(parent);
+    inkContext.font = style.font || style.fontWeight + " " + style.fontSize + " " + style.fontFamily;
+    for (const line of lines.values()) {
+      const metrics = inkContext.measureText(line.text);
+      const fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+      if (![fontHeight, metrics.actualBoundingBoxAscent, metrics.actualBoundingBoxDescent].every(Number.isFinite) || fontHeight <= 0) throw new Error("Text ink measurement unavailable: invalid font metrics");
+      if (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent <= 0) continue; // whitespace has no ink
+      const scale = line.height / fontHeight;
+      const baseline = line.top + metrics.fontBoundingBoxAscent * scale;
+      let l = line.left, t = baseline - metrics.actualBoundingBoxAscent * scale;
+      let r = line.right, b = baseline + metrics.actualBoundingBoxDescent * scale;
       if (clip) { l = Math.max(l, clip.l); t = Math.max(t, clip.t); r = Math.min(r, clip.r); b = Math.min(b, clip.b); }
       if (r - l < 1 || b - t < 1) continue;
-      pieces.push({ l, t, r, b, text: node.textContent.trim().slice(0, 24) });
+      pieces.push({ l, t, r, b, nodeId, text: line.text.trim().slice(0, 24) });
     }
   }
   for (let i = 0; i < pieces.length; i++) for (let j = i + 1; j < pieces.length; j++) {
     const a = pieces[i], c = pieces[j];
     const w = Math.min(a.r, c.r) - Math.max(a.l, c.l), h = Math.min(a.b, c.b) - Math.max(a.t, c.t);
-    if (w > 2 && h > 3) result.overlaps.push({ a: a.text, b: c.text, w: Math.round(w), h: Math.round(h) });
+    if (w > 2 && h > 3) result.overlaps.push({ a: a.text, b: c.text, w: Math.round(w), h: Math.round(h), sameNode: a.nodeId === c.nodeId });
   }
   result.textPieces = pieces.length;
   const layout = (() => { ${visitorLayoutScan}; return scanVisitorLayout(document); })();
