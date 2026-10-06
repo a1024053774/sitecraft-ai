@@ -352,7 +352,7 @@ try {
 
 function declaredFailures(scan) {
   return [
-    ...scan.baselineAlignments.filter((entry) => !entry.pass).map((entry) => `baselineAlignments ${entry.id}: ${entry.status} (delta=${entry.delta}, threshold=${entry.threshold})`),
+    ...scan.baselineAlignments.filter((entry) => entry.status !== "not-applicable" && !entry.pass).map((entry) => `baselineAlignments ${entry.id}: ${entry.status} (delta=${entry.delta}, threshold=${entry.threshold})`),
     ...scan.semanticSpacing.filter((entry) => !entry.pass).map((entry) => `semanticSpacing ${entry.id}: ${entry.status} (within=${entry.within}, between=${entry.between})`),
     ...(!scan.primaryButtons.pass ? [`primaryButtons: ${scan.primaryButtons.visibleCount} visible (max=${scan.primaryButtons.max})`] : []),
     ...scan.primaryButtons.missing.map((entry) => `primaryButtons missing: ${entry.block}:${entry.variant} ${entry.selector}`),

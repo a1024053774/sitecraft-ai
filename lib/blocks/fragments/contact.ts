@@ -149,15 +149,22 @@ export const footerFragment: BlockFragment = {
 .sitecraft-footer-line-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 32px; }
 .sitecraft-footer-line .sitecraft-footer-brand { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .sitecraft-footer-line .sitecraft-footer-contact { display: flex; flex-wrap: wrap; gap: 18px; min-width: 0; }
-.sitecraft-image-credits { margin: 28px 0 0; color: var(--site-footer-ink); font-size: 11px; line-height: 1.45; }
+.sitecraft-image-credits { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--site-line); color: var(--site-footer-ink); font-size: 13px; line-height: 1.6; }
+.sitecraft-image-credits-label { margin: 0 0 12px; color: var(--site-footer-head); font-size: 14px; font-weight: 650; }
+.sitecraft-image-credits-list { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.sitecraft-image-credits-list li { display: grid; gap: 4px; }
+.sitecraft-image-credits-list span { min-width: 0; overflow-wrap: anywhere; }
+.sitecraft-image-credit-links { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.sitecraft-image-credits-list a { text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 /* When every contact line is a gap, drop the footer contact column. */
 .sitecraft-footer-inner > div:has(.sitecraft-footer-contact):not(:has([data-sitecraft-line]:not([hidden]))) { display: none; }
 `,
   phone: `
 .sitecraft-footer-inner { grid-template-columns: 1fr 1fr; }
 .sitecraft-footer-about { grid-column: 1 / -1; }
-.sitecraft-footer-line-inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: baseline; gap: 16px; }
-.sitecraft-footer-line .sitecraft-footer-contact { gap: 8px 16px; }
+.sitecraft-footer-line-inner { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 16px; }
+.sitecraft-footer-line .sitecraft-footer-contact { display: grid; gap: 8px; }
+.sitecraft-footer-line [data-sitecraft-line]:has([data-sitecraft-contact="footer-phone"]) { white-space: nowrap; }
 `,
   variants: {
     columns: `<footer class="sitecraft-footer" data-sitecraft-section="footer" data-sc-block="footer" data-sc-variant="columns">
@@ -178,7 +185,6 @@ export const footerFragment: BlockFragment = {
               <a href="#certifications" data-sitecraft-ui="certifications">认证</a>
               <a href="#inquiry" data-sitecraft-ui="contact">询盘</a>
             </div>
-            <p class="sitecraft-image-credits" data-sitecraft-image-credits hidden></p>
           </div>
           <div>
             <span class="sitecraft-footer-label" data-sitecraft-ui="footerContact">联系</span>
@@ -188,6 +194,9 @@ export const footerFragment: BlockFragment = {
             </div>
           </div>
         </div>
+        <div class="sitecraft-container">
+          <div class="sitecraft-image-credits" data-sitecraft-image-credits hidden></div>
+        </div>
       </footer>`,
     line: `<footer class="sitecraft-footer sitecraft-footer-line" data-sitecraft-section="footer" data-sc-block="footer" data-sc-variant="line">
         <div class="sitecraft-container sitecraft-footer-line-inner" data-sc-part="line">
@@ -196,7 +205,9 @@ export const footerFragment: BlockFragment = {
             <span data-sitecraft-line><span data-sitecraft-ui="emailPrefix">邮箱</span>：<span data-sitecraft-contact="footer-email"></span></span>
             <span data-sitecraft-line><span data-sitecraft-ui="phonePrefix">电话</span>：<span data-sitecraft-contact="footer-phone"></span></span>
           </div>
-          <p class="sitecraft-image-credits" data-sitecraft-image-credits hidden></p>
+        </div>
+        <div class="sitecraft-container">
+          <div class="sitecraft-image-credits" data-sitecraft-image-credits hidden></div>
         </div>
       </footer>`,
   },

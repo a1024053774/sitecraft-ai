@@ -66,6 +66,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
     return typeof value === "string" ? value : localize(value, locale) || "";
   }
 
+  // Match only the same text with at most one terminal Chinese/English full stop. Case, internal
+  // whitespace, numbers and punctuation inside the text remain meaningful.
+  function bodyRepeatsTitle(title, body) {
+    var normalize = function (value) { return String(value || "").trim().replace(/[。.]$/, ""); };
+    return Boolean(normalize(title)) && normalize(title) === normalize(body);
+  }
+
   function longestRunEm(value, referenceNode) {
     var text = String(value || "").trim();
     var runs = text.split(/[\s，、。；：！？]+/).filter(Boolean);
@@ -912,7 +919,17 @@ function sitecraftPreviewBridge(templateId, adapter) {
         // Visitors see no "待补充" body, and a certification body that only repeats its status is dropped.
         var repeatsStatus = key === "certifications" && visible.status && (visible.body === visible.status || visible.body === certificationStatusLabel(visible.status, locale));
         var bodyIsGap = isGapMarker(visible.body);
-        if (!((bodyIsGap || repeatsStatus) && variant !== "workspace")) {
+        var repeatsTitle = !bodyIsGap && bodyRepeatsTitle(visible.title, visible.body);
+        if (repeatsTitle) {
+          // Both fields have one visible landing. A later body edit still addresses its slot;
+          // the next render restores a separate paragraph when the explanation is different.
+          var sharedBody = document.createElement("span");
+          sharedBody.textContent = heading.textContent;
+          sharedBody.setAttribute("data-sitecraft-slot", key + ".items." + itemTarget + ".body." + locale);
+          heading.textContent = "";
+          heading.appendChild(sharedBody);
+          heading.style.setProperty("grid-column", "1 / -1");
+        } else if (!((bodyIsGap || repeatsStatus) && variant !== "workspace")) {
           copy = document.createElement("p");
           copy.textContent = visible.body ? (adapter && adapter.blocks ? emailBreakPoints(visible.body) : visible.body) : (locale === "en" ? "To be provided" : "待补充");
           copy.setAttribute("data-sitecraft-slot", key + ".items." + itemTarget + ".body." + locale);
@@ -1131,7 +1148,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
       titleNode.textContent = adapter && adapter.blocks ? emailBreakPoints(item.title) : item.title;
       titleNode.setAttribute("data-sitecraft-slot", "qualityProcess.items." + item.id + ".title." + locale);
       row.appendChild(titleNode);
-      if (item.body) {
+      if (item.body && bodyRepeatsTitle(item.title, item.body)) {
+        var sharedBody = document.createElement("span");
+        sharedBody.textContent = titleNode.textContent;
+        sharedBody.setAttribute("data-sitecraft-slot", "qualityProcess.items." + item.id + ".body." + locale);
+        titleNode.textContent = "";
+        titleNode.appendChild(sharedBody);
+        titleNode.style.setProperty("grid-column", "1 / -1");
+        applied.add("qualityProcess.items." + item.id + ".body." + locale);
+      } else if (item.body) {
         var bodyNode = document.createElement("p");
         bodyNode.textContent = adapter && adapter.blocks ? emailBreakPoints(item.body) : item.body;
         bodyNode.setAttribute("data-sitecraft-slot", "qualityProcess.items." + item.id + ".body." + locale);
@@ -1658,29 +1683,55 @@ function sitecraftPreviewBridge(templateId, adapter) {
     for (var i = 0; i < (Array.isArray(images) ? images.length : 0); i++) {
       var image = images[i];
       var credit = image && image.credit ? localize(image.credit, locale) || "" : "";
-      if (!credit || seen[credit]) continue;
-      seen[credit] = true;
-      credits.push({ text: credit, author: image.author || "", license: image.license || "", sourceUrl: image.sourceUrl || "" });
+      var attribution = image && typeof image.attribution === "string" ? image.attribution : "";
+      var licenseUrl = image && typeof image.licenseUrl === "string" ? image.licenseUrl : "";
+      var creditKey = JSON.stringify([credit, attribution, licenseUrl, image && image.sourceUrl || ""]);
+      if ((!credit && !attribution) || seen[creditKey]) continue;
+      seen[creditKey] = true;
+      credits.push({ text: credit, attribution: attribution, licenseUrl: licenseUrl, sourceUrl: image.sourceUrl || "" });
     }
     host.textContent = "";
     if (credits.length) {
-      var label = document.createElement("span");
-      label.textContent = locale === "en" ? "Image sources: " : "图片来源：";
+      var label = document.createElement("p");
+      label.className = "sitecraft-image-credits-label";
+      label.textContent = locale === "en" ? "Image sources" : "图片来源";
       host.appendChild(label);
+      var list = document.createElement("ul");
+      list.className = "sitecraft-image-credits-list";
+      host.appendChild(list);
       for (var c = 0; c < credits.length; c++) {
-        if (c) host.appendChild(document.createTextNode(" · "));
         var item = credits[c];
-        var short = document.createElement("span");
-        short.textContent = item.author && item.license ? item.author + " / " + item.license + " / " : item.text;
-        host.appendChild(short);
+        var row = document.createElement("li");
+        if (item.text) {
+          var fullCredit = document.createElement("span");
+          fullCredit.textContent = item.text;
+          row.appendChild(fullCredit);
+        }
+        if (item.attribution && item.text.indexOf(item.attribution) === -1) {
+          var attributionNode = document.createElement("span");
+          attributionNode.textContent = item.attribution;
+          row.appendChild(attributionNode);
+        }
+        var links = document.createElement("div");
+        links.className = "sitecraft-image-credit-links";
+        if (item.licenseUrl) {
+          var licenseLink = document.createElement("a");
+          licenseLink.href = item.licenseUrl;
+          licenseLink.target = "_blank";
+          licenseLink.rel = "noreferrer";
+          licenseLink.textContent = locale === "en" ? "Licence" : "许可";
+          links.appendChild(licenseLink);
+        }
         if (item.sourceUrl) {
           var link = document.createElement("a");
           link.href = item.sourceUrl;
           link.target = "_blank";
           link.rel = "noreferrer";
-          link.textContent = locale === "en" ? "source" : "来源";
-          host.appendChild(link);
+          link.textContent = locale === "en" ? "Original source" : "原始来源";
+          links.appendChild(link);
         }
+        if (links.children.length) row.appendChild(links);
+        list.appendChild(row);
       }
     }
     host.hidden = credits.length === 0;

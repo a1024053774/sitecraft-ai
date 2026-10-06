@@ -395,7 +395,26 @@ const INSPECT = `(async (uploadedImages, draft) => {
   const textFit = (${TEXT_FIT_SCAN})(document.body);
   const readable = (${READABLE_TEXT})(document.body);
   const layout = (() => { ${VISITOR_LAYOUT_SCAN}; return scanVisitorLayout(document); })();
+  const duplicateBodyRows = [...document.querySelectorAll('.sitecraft-catalog-card, .sitecraft-quality-process-item')].filter(row => {
+    const title = row.querySelector('h3'), body = row.querySelector('p:not(.sitecraft-cert-status)');
+    const trim = value => String(value || '').trim().replace(/[。.]$/, '');
+    return visible(row) && visible(body) && title && trim(title.textContent) && trim(title.textContent) === trim(body.textContent);
+  }).map(row => row.innerText);
+  const hosts = [...document.querySelectorAll('[data-sitecraft-image-credits]')];
+  const credits = hosts.length === 1 ? hosts[0] : null;
+  const creditItems = credits ? [...credits.querySelectorAll('li')] : [];
+  const requiredCredits = uploadedImages.filter(image => image.credit?.[document.documentElement.lang] || image.attribution);
+  const creditRecords = requiredCredits.map(image => {
+    const credit = image.credit?.[document.documentElement.lang] || '', attribution = image.attribution || '';
+    const item = creditItems.find(item => visible(item) && (!credit || item.innerText.includes(credit)) && (!attribution || item.innerText.includes(attribution)));
+    const hasLink = url => !url || Boolean(item && [...item.querySelectorAll('a')].some(link => link.getAttribute('href') === url && visible(link)));
+    return { imageId: image.imageId, credit, attribution, licenseUrl: image.licenseUrl || '', sourceUrl: image.sourceUrl || '', completeTextVisible: Boolean(item), licenseLinkVisible: hasLink(image.licenseUrl), sourceLinkVisible: hasLink(image.sourceUrl) };
+  });
+  const missingCredits = creditRecords.filter(record => !record.completeTextVisible || !record.licenseLinkVisible || !record.sourceLinkVisible).map(record => record.imageId);
+  const imageCredits = { hostCount: hosts.length, required: requiredCredits.length, records: creditRecords, missing: missingCredits, independent: credits?.parentElement?.classList.contains('sitecraft-container') === true, width: credits?.getBoundingClientRect().width || 0, containerWidth: credits?.closest('.sitecraft-container')?.getBoundingClientRect().width || 0 };
   return {
+    duplicateBodyRows,
+    imageCredits,
     editorCursor: editableSlot ? getComputedStyle(editableSlot).cursor : "",
     editorHoverOutline: previewCss.includes("[data-sitecraft-slot]:hover{") && previewCss.includes("outline:"),
     horizontalScroll: document.documentElement.scrollWidth > innerWidth + 1,
@@ -436,7 +455,14 @@ const INSPECT = `(async (uploadedImages, draft) => {
 })`;
 
 function judge(report, facts, locale = "zh", expectedOrder = null) {
-  const failures = [];
+  const failures = [...(report.captureFailures || [])];
+  if (report.duplicateBodyRows?.length) failures.push(`repeated title/body copy visible (${report.duplicateBodyRows.length})`);
+  if (report.imageCredits) {
+    const credits = report.imageCredits;
+    if (credits.hostCount !== 1) failures.push("image credits have no unique declared host");
+    if (credits.required && (!credits.independent || credits.width < credits.containerWidth - 1)) failures.push("image credits are squeezed into a footer column");
+    if (credits.missing.length) failures.push(`image author, licence or original source missing (${credits.missing.join(", ")})`);
+  }
   const coverage = report.imageCoverage;
   if (!coverage || !Array.isArray(coverage.images) || coverage.expectedCount !== coverage.images.length || coverage.inspectedCount !== coverage.expectedCount) failures.push("image coverage incomplete: uploaded-image inventory was not fully inspected");
   else for (const image of coverage.images) {
@@ -540,6 +566,16 @@ function screenshotInk(file) {
   const probe = spawnSync("python3", ["-c", "from PIL import Image\nimport sys\nim=Image.open(sys.argv[1]).convert('L')\nvals=list(im.resize((48,48)).getdata())\nprint(sum(1 for v in vals if v < 245))\n", file], { encoding: "utf8" });
   const ink = Number((probe.stdout || "").trim());
   return Number.isFinite(ink) ? ink : 0;
+}
+
+function screenshotFailures(geometry) {
+  const failures = [];
+  const dimensions = ["width", "pageHeight", "frameTop", "frameHeight", "frameDocumentHeight", "footerBottom", "pngWidth", "pngHeight"];
+  if (!geometry || dimensions.some(key => !Number.isFinite(geometry[key])) || geometry.footerBottom <= 0) return ["screenshot incomplete: page, iframe or footer geometry was not measured"];
+  if (geometry.pngWidth !== geometry.width || geometry.pngHeight < geometry.pageHeight || geometry.pngHeight + 1 < geometry.frameTop + geometry.footerBottom) failures.push("screenshot incomplete: the bitmap clips the page or footer");
+  if (geometry.frameHeight + 1 < geometry.frameDocumentHeight || geometry.frameHeight + 1 < geometry.footerBottom) failures.push("screenshot incomplete: the iframe clips its document or footer");
+  if (geometry.devIndicatorVisible) failures.push("development indicator visible in visitor screenshot");
+  return failures;
 }
 
 async function shootForm(browser, sessionId, frame, width, file) {
@@ -653,18 +689,50 @@ async function checkOne(browser, siteKey, width) {
         last = h;
         return stable >= 4;
       }, `${siteKey} ${locale} height to settle`);
-      const captured = await browser.evaluate(`${INSPECT}(${JSON.stringify(imagePayload.images)}, ${JSON.stringify(draft)})`, frame);
+      let captured = await browser.evaluate(`${INSPECT}(${JSON.stringify(imagePayload.images)}, ${JSON.stringify(draft)})`, frame);
       await browser.send("Emulation.setDeviceMetricsOverride", { width, height: captured.height, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
-      await browser.evaluate(`(() => {
-        for (const el of document.querySelectorAll(".published-template-shell, .published-template-stage, .open-source-template-frame-shell, iframe.open-source-template-frame")) {
-          el.style.height = "${captured.height}px"; el.style.minHeight = "${captured.height}px"; el.style.overflow = "visible";
+      let frameHeight = captured.height;
+      let previous = null;
+      let stableLayout = 0;
+      // The out-of-process iframe acknowledges a resize asynchronously. Its new width can
+      // rewrap text and grow the document; an outer scrollHeight check alone captures too soon.
+      await waitFor(async () => {
+        await browser.evaluate(`(() => {
+          for (const el of document.querySelectorAll(".published-template-shell, .published-template-stage, .open-source-template-frame-shell, iframe.open-source-template-frame")) {
+            el.style.height = "${frameHeight}px"; el.style.minHeight = "${frameHeight}px"; el.style.overflow = "visible";
+          }
+        })()`, sessionId);
+        const layout = await browser.evaluate(`(() => {
+          const footer = document.querySelector('footer');
+          return { height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight), viewport: innerHeight, width: innerWidth, footerBottom: footer ? footer.getBoundingClientRect().bottom + scrollY : null, fontsReady: document.fonts?.status === "loaded" };
+        })()`, frame);
+        if (!layout.fontsReady || layout.viewport < frameHeight - 1) return false;
+        const requiredHeight = Math.ceil(Math.max(layout.height, layout.footerBottom || 0));
+        if (requiredHeight > frameHeight) {
+          frameHeight = requiredHeight;
+          await browser.send("Emulation.setDeviceMetricsOverride", { width, height: frameHeight, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
+          previous = null;
+          stableLayout = 0;
+          return false;
         }
+        stableLayout = previous && layout.height === previous.height && layout.width === previous.width && layout.footerBottom === previous.footerBottom ? stableLayout + 1 : 0;
+        previous = layout;
+        return stableLayout >= 3;
+      }, `${siteKey} ${locale} iframe resize, fonts and footer layout to settle`, 30000);
+      captured = await browser.evaluate(`${INSPECT}(${JSON.stringify(imagePayload.images)}, ${JSON.stringify(draft)})`, frame);
+      const geometry = await browser.evaluate(`(() => {
+        const rect = document.querySelector('iframe.open-source-template-frame').getBoundingClientRect();
+        const portals = [...document.querySelectorAll('nextjs-portal')];
+        const devIndicatorVisible = portals.some(portal => [...(portal.shadowRoot?.querySelectorAll('button') || [])].some(button => /dev tools/i.test(button.getAttribute('aria-label') || '') && button.getBoundingClientRect().height > 0));
+        return { pageHeight: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight), frameTop: rect.top + scrollY, frameHeight: rect.height, devIndicatorVisible };
       })()`, sessionId);
-      await waitFor(async () => browser.evaluate(`document.fonts?.status === "loaded" && document.documentElement.scrollHeight >= ${captured.height}`, sessionId), `${siteKey} ${locale} screenshot layout`, 10000);
-      const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: captured.height, scale: 1 } }, sessionId);
+      const footerBottom = await browser.evaluate(`document.querySelector('footer')?.getBoundingClientRect().bottom + scrollY`, frame);
+      const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: geometry.pageHeight, scale: 1 } }, sessionId);
       const file = path.join(outDir, `${siteKey}-${locale}-${width}.png`);
-      fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
-      return { ...captured, screenshot: file };
+      const bitmap = Buffer.from(shot.data, "base64");
+      fs.writeFileSync(file, bitmap);
+      const screenshotGeometry = { ...geometry, width, frameDocumentHeight: captured.height, footerBottom, pngWidth: bitmap.readUInt32BE(16), pngHeight: bitmap.readUInt32BE(20) };
+      return { ...captured, screenshot: file, screenshotGeometry, captureFailures: screenshotFailures(screenshotGeometry) };
     };
     const expectedOrder = expectedBlockOrder(draft, draft?.templateId);
     const report = await capture("zh");

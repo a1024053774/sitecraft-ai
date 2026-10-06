@@ -50,7 +50,7 @@ async function withChrome(task: (browser: Cdp, sessionId: string) => Promise<voi
 }
 
 type Layout = {
-  baselineAlignments: Array<{ id: string; delta: number | null; threshold: number; pass: boolean; status: string; missing?: string[] }>;
+  baselineAlignments: Array<{ id: string; delta: number | null; threshold: number; pass: boolean | null; status: string; missing?: string[]; reason?: string; applicability?: { minViewportWidth: number; viewportWidth: number } }>;
   semanticSpacing: Array<{ id: string; within: number; between: number; pass: boolean; status: string }>;
   primaryButtons: { visibleCount: number; vague: unknown[]; missing: unknown[] };
   undeclaredVariants: Array<{ message: string }>;
@@ -150,8 +150,8 @@ test("T-090 real render-block CLI rejects each declared defect independently and
   } finally { await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); }
 });
 
-test("T-090 footer line keeps long company name and email readable on one baseline at three widths in both languages", async () => {
-  const { cwd } = await fixtureStore();
+test("T-113 footer line stacks on phones and keeps the real tablet/desktop baseline in both languages", async () => {
+  const { cwd, cases } = await fixtureStore();
   const draft = JSON.parse(readFileSync(path.join(cwd, ".sitecraft-data/sites/t090-footer.json"), "utf8")).draft;
   await withChrome(async (browser, sessionId) => {
     await browser.send("Page.navigate", { url: `${base}/api/templates/screwfast/preview` }, sessionId);
@@ -167,19 +167,87 @@ test("T-090 footer line keeps long company name and email readable on one baseli
       await browser.eval(`window.__sitecraftApplyDeclared(${JSON.stringify(draft)},${JSON.stringify(locale)},[],"published",null,false)`, sessionId);
       await browser.eval("(async()=>{await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()", sessionId);
       const scan = await browser.eval<Layout>(`(()=>{${scanSource};return scanVisitorLayout(document)})()`, sessionId);
-      const rendered = await browser.eval<{ company: string; email: string; minFont: number; overflow: boolean; box: { x: number; y: number; width: number; height: number } }>(`(()=>{const footer=document.querySelector('[data-sc-block="footer"]');const brand=footer.querySelector('[data-sc-part="brand"]');const contact=footer.querySelector('[data-sc-part="contact"]');const r=footer.getBoundingClientRect();return {company:brand.innerText,email:contact.innerText,minFont:Math.min(parseFloat(getComputedStyle(brand).fontSize),parseFloat(getComputedStyle(contact).fontSize)),overflow:[footer,...footer.querySelectorAll('*')].some(n=>{const r=n.getBoundingClientRect();return r.width>0&&(r.left<0||r.right>innerWidth+1)}),box:{x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height}}})()`, sessionId);
+      const rendered = await browser.eval<{ company: string; email: string; minFont: number; overflow: boolean; gap: number; brandLines: string[]; emailLines: string[]; emailLineWidth: number; emailSegmentWidths: number[]; phoneLines: string[]; box: { x: number; y: number; width: number; height: number } }>(`(()=>{
+        const footer=document.querySelector('[data-sc-block="footer"]');const brand=footer.querySelector('[data-sc-part="brand"]');const contact=footer.querySelector('[data-sc-part="contact"]');const r=footer.getBoundingClientRect();
+        const lines=node=>{const result=[];const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);let text;while(text=walker.nextNode()){for(let i=0;i<text.textContent.length;i++){const char=text.textContent[i];if(/[\\u200b\\u2060]/.test(char))continue;const range=document.createRange();range.setStart(text,i);range.setEnd(text,i+1);const b=range.getBoundingClientRect();if(!b.width)continue;let line=result.find(l=>Math.abs(l.top-b.top)<1);if(!line){line={top:b.top,text:''};result.push(line)}line.text+=char}}return result.map(l=>l.text)};
+        const email=contact.querySelector('[data-sitecraft-contact="footer-email"]');const context=document.createElement('canvas').getContext('2d');context.font=getComputedStyle(email).font;const segments=email.textContent.replace(/[\\u200b\\u2060]/g,'').split('@');
+        return {company:brand.innerText,email:contact.innerText,minFont:Math.min(parseFloat(getComputedStyle(brand).fontSize),parseFloat(getComputedStyle(contact).fontSize)),gap:contact.getBoundingClientRect().top-brand.getBoundingClientRect().bottom,brandLines:lines(brand),emailLines:lines(email),emailLineWidth:email.closest('[data-sitecraft-line]').getBoundingClientRect().width,emailSegmentWidths:segments.map(segment=>context.measureText(segment).width),phoneLines:lines(contact.querySelector('[data-sitecraft-contact="footer-phone"]').closest('[data-sitecraft-line]')),overflow:[footer,...footer.querySelectorAll('*')].some(n=>{const r=n.getBoundingClientRect();return r.width>0&&(r.left<0||r.right>innerWidth+1)}),box:{x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height}};
+      })()`, sessionId);
       const file = `footer-${width}-${locale}.png`;
       const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { ...rendered.box, scale: 1 } }, sessionId) as { data: string };
       writeFileSync(path.join(out, file), Buffer.from(shot.data, "base64"));
       rows.push({ width, locale, rendered, baselineAlignments: scan.baselineAlignments.filter((entry) => entry.id === "footer-contact"), file });
     }
     writeFileSync(path.join(out, "footer-responsive.json"), JSON.stringify(rows, null, 2));
-    assert.ok(rows.every((row) => row.baselineAlignments.length > 0 && row.baselineAlignments.every((entry) => entry.status === "measured" && entry.pass && entry.delta! <= 2)), JSON.stringify(rows));
     for (const row of rows) {
+      assert.equal(row.baselineAlignments.length, 1, "the baseline declaration remains observable at every width");
+      const baseline = row.baselineAlignments[0];
+      if (row.width === 375) {
+        assert.equal(baseline.status, "not-applicable", "phone stacking has no horizontal baseline to measure");
+        assert.equal(baseline.delta, null);
+        assert.equal(baseline.pass, null, "not applicable must not be called a measured PASS");
+        assert.deepEqual(baseline.applicability, { minViewportWidth: 481, viewportWidth: 375 });
+        assert.ok(baseline.reason?.includes("481"), "the report must state its breakpoint basis");
+        assert.ok(row.rendered.gap >= 16, "company is above contact with the existing 16px group gap");
+        assert.ok(row.rendered.brandLines.every(line => line.length > 1 && line.length <= 40), "no one-character company-name orphan or excessive line length");
+        for (let i = 1; i < row.rendered.emailLines.length; i++) {
+          if (row.rendered.emailLines[i - 1].endsWith("@") || row.rendered.emailLines[i].startsWith("@")) continue;
+          const offset = row.rendered.emailLines.slice(0, i).join("").length;
+          const segment = offset < draft.content.contact.email.indexOf("@") ? 0 : 1;
+          assert.ok(row.rendered.emailSegmentWidths[segment] > row.rendered.emailLineWidth, `a forced break requires that entire segment to exceed the entire line: ${JSON.stringify(row.rendered)}`);
+        }
+        assert.equal(row.rendered.phoneLines.length, 1, "the phone and its label remain on one line");
+      } else {
+        assert.equal(baseline.status, "measured");
+        assert.equal(baseline.pass, true);
+        assert.ok(baseline.delta! <= 2, "tablet and desktop keep the actual <=2px baseline");
+      }
       assert.equal(row.rendered.company, draft.companyName);
       assert.ok(row.rendered.email.replace(/[\u200b\u2060]/g, "").includes(draft.content.contact.email));
       assert.ok(row.rendered.minFont >= 14, "footer must not shrink its text to fit");
       assert.equal(row.rendered.overflow, false, JSON.stringify(row));
+    }
+  });
+  const reportOut = path.join(out, "footer-A-cli");
+  const result = await run([process.env.T090_RENDER_BLOCK || path.join(repo, "scripts/render-block.mjs"), "--block", "footer", "--variant", "line", "--cases", cases, "--out", reportOut], cwd, { ...process.env, SITECRAFT_BASE: base });
+  writeFileSync(path.join(out, "footer-A-cli-run.json"), JSON.stringify(result, null, 2));
+  const report = JSON.parse(readFileSync(path.join(reportOut, "scan.json"), "utf8")) as { rows: Array<{ width: number; candidate: Layout; english: Layout; layoutFailures: { zh: string[]; en: string[] } }> };
+  assert.equal(report.rows.length, 3);
+  for (const row of report.rows) for (const [locale, scan] of [["zh", row.candidate], ["en", row.english]] as const) {
+    const group = scan.baselineAlignments.find(entry => entry.id === "footer-contact");
+    assert.ok(group, "the real CLI preserves the declaration at every width");
+    assert.equal(group.status, row.width === 375 ? "not-applicable" : "measured");
+    assert.deepEqual(row.layoutFailures[locale], [], "explicitly inapplicable phone baseline must not become a layout failure");
+  }
+  assert.equal(result.code, 0, result.output);
+});
+
+test("T-113 baseline applicability obeys the 480/481 boundary and rejects a malformed threshold", async () => {
+  await withChrome(async (browser, sessionId) => {
+    const rows = [];
+    for (const width of [480, 481]) for (const minViewportWidth of [481, "481"]) {
+      await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+      const declaration = { baselineGroups: [{ id: "boundary", selectors: ["#a", "#b"], minViewportWidth }], semanticGroups: [], buttonRoles: { primary: [], secondary: [] } };
+      const html = `<!doctype html><style>body{margin:0}section{display:flex;align-items:baseline}span{font:16px/24px sans-serif}#b{transform:translateY(4px)}</style><section data-sc-block="sentinel" data-sc-variant="boundary" data-sc-layout-declaration='${JSON.stringify(declaration)}'><span id="a">Alpha</span><span id="b">Bravo</span></section>`;
+      const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
+      await browser.send("Page.setDocumentContent", { frameId, html }, sessionId);
+      const scan = await browser.eval<Layout>(`(()=>{${scanSource};return scanVisitorLayout(document)})()`, sessionId);
+      rows.push({ width, minViewportWidth, entry: scan.baselineAlignments[0] });
+    }
+    writeFileSync(path.join(out, "baseline-applicability.json"), JSON.stringify(rows, null, 2));
+    for (const row of rows) {
+      if (typeof row.minViewportWidth !== "number") {
+        assert.equal(row.entry.status, "invalid");
+        assert.equal(row.entry.pass, false, "malformed applicability must fail, not skip a rule");
+      } else if (row.width === 480) {
+        assert.equal(row.entry.status, "not-applicable");
+        assert.equal(row.entry.pass, null);
+        assert.equal(row.entry.delta, null);
+      } else {
+        assert.equal(row.entry.status, "measured");
+        assert.equal(row.entry.delta, 4);
+        assert.equal(row.entry.pass, false, "a 4px error at the first applicable width still fails");
+      }
     }
   });
 });

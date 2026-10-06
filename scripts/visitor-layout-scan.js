@@ -36,9 +36,10 @@ function groupsFromDeclaration(value, prefix) {
   if (Array.isArray(value)) return value.map((entry, index) => ({
     id: String(entry?.id || entry?.name || `${prefix}-${index + 1}`),
     selectors: selectorsFromDeclaration(entry),
+    ...(own(entry, "minViewportWidth") ? { minViewportWidth: entry.minViewportWidth } : {}),
   }));
   if (!value || typeof value !== "object") return [];
-  return Object.entries(value).map(([id, entry]) => ({ id, selectors: selectorsFromDeclaration(entry) }));
+  return Object.entries(value).map(([id, entry]) => ({ id, selectors: selectorsFromDeclaration(entry), ...(own(entry, "minViewportWidth") ? { minViewportWidth: entry.minViewportWidth } : {}) }));
 }
 
 function normalizeLayoutDeclaration(raw) {
@@ -470,6 +471,16 @@ export function scanVisitorLayout(root = document) {
     if(missingRules.length) undeclaredVariants.push({block:blockId,variant:variantId,rules:missingRules,message:`${blockId}:${variantId} ${missingRules.map(rule=>ruleLabels[rule]).join('、')}未声明`});
     if(declaration.declared.baseline) {
       for(const group of declaration.baselineGroups) {
+        if(own(group,'minViewportWidth')) {
+          if(!Number.isInteger(group.minViewportWidth)||group.minViewportWidth<=0) {
+            baselineAlignments.push({block:blockId,variant:variantId,id:group.id,delta:null,threshold:2,pass:false,status:'invalid',reason:'minViewportWidth must be a positive integer'});
+            continue;
+          }
+          if(innerWidth<group.minViewportWidth) {
+            baselineAlignments.push({block:blockId,variant:variantId,id:group.id,delta:null,threshold:2,pass:null,status:'not-applicable',applicability:{minViewportWidth:group.minViewportWidth,viewportWidth:innerWidth},reason:`Viewport ${innerWidth}px is below declared minViewportWidth ${group.minViewportWidth}px.`});
+            continue;
+          }
+        }
         const targets=declarationTargets(block,group.selectors);
         const visibleNodes=targets.nodes.filter(visible);
         if(targets.missing.length || visibleNodes.length<2) {

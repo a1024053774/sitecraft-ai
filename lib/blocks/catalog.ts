@@ -68,7 +68,8 @@ export type LayoutDeclarationGroup = {
 };
 
 export type BlockLayoutDeclarations = {
-  baselineGroups: LayoutDeclarationGroup[];
+  /** A horizontal baseline can be inapplicable below the variant's stacking breakpoint. */
+  baselineGroups: Array<LayoutDeclarationGroup & { minViewportWidth?: number }>;
   semanticGroups: LayoutDeclarationGroup[];
   buttonRoles: { primary: string[]; secondary: string[] };
 };
@@ -856,7 +857,7 @@ export const blockCatalog: Readonly<Record<BlockId, BlockSpec>> = {
         markers: [],
         parts: ["line", "brand", "contact"],
         declarations: {
-          baselineGroups: [{ id: "footer-contact", selectors: ['[data-sc-part="brand"]', '[data-sc-part="contact"]'] }],
+          baselineGroups: [{ id: "footer-contact", selectors: ['[data-sc-part="brand"]', '[data-sc-part="contact"]'], minViewportWidth: 481 }],
           semanticGroups: [
             { id: "brand", selectors: ['[data-sc-part="brand"]'] },
             { id: "contact", selectors: ['[data-sc-part="contact"]'] },

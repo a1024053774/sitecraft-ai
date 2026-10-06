@@ -43,6 +43,7 @@
 - [T-084 前端收藏调研之后怎么用](tickets/T-084-threads-research-decisions.md)：批注按 komo 交互骨架加稳定 slot 锚点开工；加 OKLCH 色阶不加色彩集；中文回退 + 英文 OFL 自托管；正文 4.5:1 升硬门；联系/认证图标自制试验；付费 UI 库不用
 
 - [T-104 T-084 这批之后做什么](tickets/T-104-after-research-batch.md)：两种盲评（混排猜不出、换公司看不出同模板）；测试真图 + 同风格示意图；vendor 模板只拆区块补 4 个样子；下线模板画廊、入口改工作台；只做静态细节不做动效
+- [T-114 手机页脚怎么排](tickets/T-114-mobile-footer-layout.md)：375px 单列；768/1440px 保留同基线，手机检查间距、断行和溢出
 
 ## Not yet specified
 

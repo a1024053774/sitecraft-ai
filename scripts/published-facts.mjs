@@ -37,9 +37,17 @@ export function normalizeReadable(text) {
 
 export function expectedFacts(draft, locale = "zh") {
   const facts = [];
-  const add = (kind, value) => {
+  const add = (kind, value, equivalentText) => {
     const text = normalizeReadable(value);
-    if (!isGap(text)) facts.push({ kind, text });
+    if (!isGap(text)) facts.push({ kind, text, ...(equivalentText && normalizeReadable(equivalentText) !== text ? { equivalentText: normalizeReadable(equivalentText) } : {}) });
+  };
+  // Keep both source obligations. Only an exactly repeated title/body pair can be proved by
+  // its shared visible title; other fact text keeps the existing exact matching rule.
+  const addBody = (kind, title, body) => {
+    const titleText = String(title ?? "").trim();
+    const bodyText = String(body ?? "").trim();
+    const repeated = titleText && titleText.replace(/[。.]$/, "") === bodyText.replace(/[。.]$/, "");
+    add(kind, body, repeated ? title : undefined);
   };
   const hidden = new Set(Array.isArray(draft?.hiddenSections) ? draft.hiddenSections : []);
   const content = draft?.content ?? {};
@@ -79,7 +87,7 @@ export function expectedFacts(draft, locale = "zh") {
       if (key === "certifications" && item.status === "待补充") continue;
       add(`${key} entry`, title);
       const certificationVariant = draft?.blockVariants?.certifications ?? DEFAULT_CERTIFICATION_VARIANTS[draft?.templateId] ?? "badges";
-      if (key !== "certifications" || certificationVariant === "cards" || certificationVariant === "table") add(`${key} body`, body);
+      if (key !== "certifications" || certificationVariant === "cards" || certificationVariant === "table") addBody(`${key} body`, title, body);
     }
   }
   if (!hidden.has("commercialTerms")) {
@@ -106,7 +114,7 @@ export function expectedFacts(draft, locale = "zh") {
       if (isGap(title)) continue;
       add("quality process title", title);
       const body = localize(step.body, locale);
-      if (!isGap(body)) add("quality process body", body);
+      if (!isGap(body)) addBody("quality process body", title, body);
     }
   }
   if (!hidden.has("history")) {
@@ -125,5 +133,5 @@ export function expectedFacts(draft, locale = "zh") {
 // The facts the page text does not contain, in draft order.
 export function missingFacts(facts, readable) {
   const page = normalizeReadable(readable);
-  return facts.filter((fact) => !page.includes(normalizeReadable(fact.text)));
+  return facts.filter((fact) => !page.includes(normalizeReadable(fact.text)) && !(fact.equivalentText && page.includes(normalizeReadable(fact.equivalentText))));
 }
