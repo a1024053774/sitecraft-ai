@@ -34,9 +34,10 @@
       "review": {
         "status": "PASS",
         "evidence": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-review/review.md",
-        "conditions": "Small compression union image only; not tee, quick connector, valve or general pipe-thread fitting. Material/model association is an inference from the same photo, not a certificate or new company fact. Independently approved at 1200x900 and 721x540.75 CSS px, DPR=1. Final new published site not checked.",
+        "conditions": "Small compression union image only; not tee, quick connector, valve or general pipe-thread fitting. Material/model association is an inference from the same photo, not a certificate or new company fact. Independently approved at 1200x900 and 721x540.75 CSS px, DPR=1. Final published placement and clarity verified in both languages at 1440/768/375; the stated use limits remain.",
         "limits": "Only the independently reviewed purpose/crop/scale; preserve exact license, source, author and derivative notice.",
-        "licenseVerificationBasis": "Fixed first-party Flickr responses from 2026-10-06; independent reviewer online Flickr request failed once, no current online claim."
+        "licenseVerificationBasis": "Fixed first-party Flickr responses from 2026-10-06; independent reviewer online Flickr request failed once, no current online claim.",
+        "finalPublishedEvidence": "artifacts/t112/clarity-final-visual-c4438b1/review/review.md"
       },
       "candidateId": "C-C1",
       "sourceRecord": "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-fix/candidate-records.json",
@@ -256,7 +257,7 @@
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-review/review.md"
     ],
     "status": "PASS_FOR_AUTHORIZED_USES",
-    "finalPublishedPlacement": "Not checked yet; requires joint freeze and actual 1440/768/375 verification. F03 remains conditional on paired facility placement."
+    "finalPublishedPlacement": "PASS for authorized uses at material commit c4438b1f3fc9c5e729eeec2ca8ef49e7aa41f5c3, site 224e7c90-2268-4a3c-a6b5-02bc28b28fdc, zh/en at 1440/768/375. Functional evidence: artifacts/t112/clarity-final-c4438b1/verification-summary.json; changed-photo visual evidence: artifacts/t112/clarity-final-visual-c4438b1/review/review.md. F03 remains paired with F01, with no sole hero/product binding. This does not cover overall page quality or T115."
   },
   "admittedAt": "2026-10-06T06:43:37.422940+00:00"
 }

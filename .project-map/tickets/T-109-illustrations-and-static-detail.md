@@ -19,7 +19,7 @@ T-104 第 ④ 步。资料没图而版式需要图的位置，用 Codex 按样�
 
 ## Resolution
 
-**INCOMPLETE。** 最终代码 `0ad88aa0cb232e5d439dadae0d062e527bd2302a` 已通过887/887全量、build、typecheck、41变体246组合、固定13站39行含中英文及三包18视图检查，T-090/T-113和机械闭环T-111已关闭。T-112的新素材在实际成品中仍有两张大屏清晰度NO_GO，交新窗口修正；行业说明的语义重复交T-115等负责人决定，原文未改。T-110混排盲评尚未开始，本票不关闭。
+**INCOMPLETE。** 最终代码 `0ad88aa0cb232e5d439dadae0d062e527bd2302a` 已通过887/887全量、build、typecheck、41变体246组合、固定13站39行含中英文及三包18视图检查，T-090/T-113和机械闭环T-111已关闭。T-112的两张大屏清晰度问题已换用合适素材并通过独立真实成品复核，T-112已关闭；行业说明的语义重复仍交T-115等负责人决定，原文未改。T-110混排盲评尚未开始，本票不关闭。最新图片及发布证据以素材提交c4438b1和 `artifacts/t112/clarity-final-c4438b1/` 为准。
 
 - `97b1734b14dd66e6dba54c981b98abefbdf76e19` 实现设备无图时的双语标注线稿，有图时隐藏线稿，四样子线宽2/1/2/1px。旧区块盲评保留于 `/Users/luckye/Documents/Code/sitecraft-ai-blocks-pool/artifacts/blocks-pool/t109-*/`，不替代当前整页验收。
 - 原注塑 Tracer bullet 上传前无图通过，上传6图后只有5图可见：检测图已加载但被空 capabilities 隐藏。原始接口、stdout、红测与截图在 `artifacts/t109/20261006-photos/run-ebc97b3-01/`，`result.md`为索引。首次工作树green的runtimeSha元数据误指基线，异常原样保留并说明。
