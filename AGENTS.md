@@ -74,6 +74,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
    发布页正文硬门由 `scripts/visitor-layout-scan.js` 提供：实际合成色正文至少 4.5:1，大号文字至少 3:1；图片背景或无法合成的文字报告「未测」并失败。正文段落单行中文最多约 40 字、英文最多约 75 字；参数表、按钮、型号、邮箱、导航在报告中列为豁免。`lib/site-style-check.ts` 对用户提交的站点样式使用同一门槛.
    负责人这台 Mac 上的普通 Google Chrome 以无头方式启动后约 20–40 秒会被自动更新程序带着退出，浏览器测试和 `check-published` 都要先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（Chrome for Testing 的 headless shell，2026-09-29 负责人同意下载）；换机器或版本更新后按实际路径改。
    上传图片还须从图片接口逐 imageId 核对实际引用对应的类别落点、可见性和 decode；显式隐藏须单列豁免且不得泄露，不能以 photoCount 总数代替逐图检查（`tests/t109-published-image-coverage.test.ts`）。截图须核对 iframe、页脚与 PNG 的实际尺寸，截断或有开发标记遮挡时失败；图片完整署名和来源链接在独立区域显示，同文署名须联合核对该条的来源和精确许可链接。区块进库 CLI 的声明违规必须产生非空失败测量并退出非零（`tests/t090-root-causes.test.ts`；见 T-111）；响应式不适用仅豁免基线比较，选择器和必需节点仍须有效，报告须记录断点依据。条形页脚按 T-114 在375px单列、768/1440px保留≤2px同基线。目标唯一性按真实 DOM 检查，正文测量按输入的稳定 slot 和完整文本核对，不能用源码出现次数或换行数量代替覆盖（`tests/template-adapters.test.ts`、`tests/t103-real-molding-layout.test.ts`）。
+   截图检查须绑定当前宿主与所属 iframe，在最终完整视口中检查并捕获；逐帧观测与最终比较使用同一捕获状态边界。捕获期间的视口、滚动、宿主 iframe 屏幕位置/变换、可见 DOM 文字位置或页脚变化，以及观测丢失，都须报告失败。PNG 尺寸和 DOM 就绪不等于实际内容已绘制；按可见文字区域核对 PNG 绘制证据，保留原始坏图并拒绝空白或无法验证的捕获，不自动重试取一个成功结果。绘制采样不构成 OCR、完整语义或图片内容证明，仍须逐张打开查看（T-117）。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
 4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；
 5. 对应票的验收勾选项都有证据，票已关闭；`project_map.py status` 里没有过时的 living doc。

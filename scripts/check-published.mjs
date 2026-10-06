@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { expectedFacts, missingFacts } from "./published-facts.mjs";
+import { capturePublishedPage } from "./published-capture.mjs";
 
 const BASE = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
 // Each run gets its own Chrome (port and profile), so parallel runs by different agents never
@@ -120,10 +121,10 @@ async function waitFor(check, what, timeoutMs = 90000) {
   throw new Error(`timeout waiting for ${what}`);
 }
 
-async function attachPreviewFrame(browser) {
+async function attachPreviewFrame(browser, hostTargetId) {
   const target = await waitFor(async () => {
     const { targetInfos } = await browser.send("Target.getTargets");
-    return targetInfos.find((t) => t.type === "iframe" && t.url.includes("/api/templates/"));
+    return targetInfos.find((t) => t.type === "iframe" && t.parentId === hostTargetId && t.url.includes("/api/templates/"));
   }, "preview iframe target");
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId: target.targetId, flatten: true });
   await browser.send("Runtime.enable", {}, sessionId);
@@ -674,7 +675,7 @@ async function checkOne(browser, siteKey, width) {
       if (state === "error") throw new Error("preview reported error state");
       return state === "ready";
     }, `${siteKey} preview ready`);
-    const frame = await attachPreviewFrame(browser);
+    const frame = await attachPreviewFrame(browser, targetId);
     const { draft, facts } = await draftFacts(siteKey, "zh");
     const imageResponse = await fetch(`${BASE}/api/sites/${siteKey}/images`);
     if (!imageResponse.ok) throw new Error(`uploaded-image inventory HTTP ${imageResponse.status}`);
@@ -689,50 +690,15 @@ async function checkOne(browser, siteKey, width) {
         last = h;
         return stable >= 4;
       }, `${siteKey} ${locale} height to settle`);
-      let captured = await browser.evaluate(`${INSPECT}(${JSON.stringify(imagePayload.images)}, ${JSON.stringify(draft)})`, frame);
-      await browser.send("Emulation.setDeviceMetricsOverride", { width, height: captured.height, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
-      let frameHeight = captured.height;
-      let previous = null;
-      let stableLayout = 0;
-      // The out-of-process iframe acknowledges a resize asynchronously. Its new width can
-      // rewrap text and grow the document; an outer scrollHeight check alone captures too soon.
-      await waitFor(async () => {
-        await browser.evaluate(`(() => {
-          for (const el of document.querySelectorAll(".published-template-shell, .published-template-stage, .open-source-template-frame-shell, iframe.open-source-template-frame")) {
-            el.style.height = "${frameHeight}px"; el.style.minHeight = "${frameHeight}px"; el.style.overflow = "visible";
-          }
-        })()`, sessionId);
-        const layout = await browser.evaluate(`(() => {
-          const footer = document.querySelector('footer');
-          return { height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight), viewport: innerHeight, width: innerWidth, footerBottom: footer ? footer.getBoundingClientRect().bottom + scrollY : null, fontsReady: document.fonts?.status === "loaded" };
-        })()`, frame);
-        if (!layout.fontsReady || layout.viewport < frameHeight - 1) return false;
-        const requiredHeight = Math.ceil(Math.max(layout.height, layout.footerBottom || 0));
-        if (requiredHeight > frameHeight) {
-          frameHeight = requiredHeight;
-          await browser.send("Emulation.setDeviceMetricsOverride", { width, height: frameHeight, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
-          previous = null;
-          stableLayout = 0;
-          return false;
-        }
-        stableLayout = previous && layout.height === previous.height && layout.width === previous.width && layout.footerBottom === previous.footerBottom ? stableLayout + 1 : 0;
-        previous = layout;
-        return stableLayout >= 3;
-      }, `${siteKey} ${locale} iframe resize, fonts and footer layout to settle`, 30000);
-      captured = await browser.evaluate(`${INSPECT}(${JSON.stringify(imagePayload.images)}, ${JSON.stringify(draft)})`, frame);
-      const geometry = await browser.evaluate(`(() => {
-        const rect = document.querySelector('iframe.open-source-template-frame').getBoundingClientRect();
-        const portals = [...document.querySelectorAll('nextjs-portal')];
-        const devIndicatorVisible = portals.some(portal => [...(portal.shadowRoot?.querySelectorAll('button') || [])].some(button => /dev tools/i.test(button.getAttribute('aria-label') || '') && button.getBoundingClientRect().height > 0));
-        return { pageHeight: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight), frameTop: rect.top + scrollY, frameHeight: rect.height, devIndicatorVisible };
-      })()`, sessionId);
-      const footerBottom = await browser.evaluate(`document.querySelector('footer')?.getBoundingClientRect().bottom + scrollY`, frame);
-      const shot = await browser.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: geometry.pageHeight, scale: 1 } }, sessionId);
+      // Decode images and exercise visitor interactions before preparing the final viewport.
+      await browser.evaluate(`${INSPECT}(${JSON.stringify(imagePayload.images)}, ${JSON.stringify(draft)})`, frame);
       const file = path.join(outDir, `${siteKey}-${locale}-${width}.png`);
-      const bitmap = Buffer.from(shot.data, "base64");
-      fs.writeFileSync(file, bitmap);
-      const screenshotGeometry = { ...geometry, width, frameDocumentHeight: captured.height, footerBottom, pngWidth: bitmap.readUInt32BE(16), pngHeight: bitmap.readUInt32BE(20) };
-      return { ...captured, screenshot: file, screenshotGeometry, captureFailures: screenshotFailures(screenshotGeometry) };
+      const captured = await capturePublishedPage(browser, sessionId, frame, {
+        width, file,
+        inspect: () => browser.evaluate(`${INSPECT}(${JSON.stringify(imagePayload.images)}, ${JSON.stringify(draft)})`, frame),
+      });
+      captured.captureFailures.push(...screenshotFailures(captured.screenshotGeometry));
+      return captured;
     };
     const expectedOrder = expectedBlockOrder(draft, draft?.templateId);
     const report = await capture("zh");
@@ -764,24 +730,11 @@ async function checkOne(browser, siteKey, width) {
   }
 }
 
-// Headless Chrome occasionally stops answering DevTools after a long run; restart it once per
-// crashed page instead of reporting a page failure that is really a browser hang.
-async function restartChrome(browser) {
-  try { browser.ws.close(); } catch {}
-  spawn("pkill", ["-f", `user-data-dir=${PROFILE}`]);
-  return connectChrome();
-}
-
 let browser = await connectChrome();
 const results = [];
 for (const siteKey of siteKeys) {
   for (const width of WIDTHS) {
-    let result = await checkOne(browser, siteKey, width).catch((error) => ({ crashed: error }));
-    if (result.crashed) {
-      console.log(`     (browser stopped responding: ${result.crashed.message}; restarting Chrome and retrying)`);
-      browser = await restartChrome(browser);
-      result = await checkOne(browser, siteKey, width).catch((error) => ({ siteKey, width, failures: [`check crashed: ${error.message}`] }));
-    }
+    const result = await checkOne(browser, siteKey, width).catch((error) => ({ siteKey, width, failures: [`check failed: ${error.message}`] }));
     results.push(result);
     console.log(`${result.failures.length ? "FAIL" : "ok  "} ${siteKey} @${width}${result.failures.map((f) => `\n     - ${f}`).join("")}`);
   }
