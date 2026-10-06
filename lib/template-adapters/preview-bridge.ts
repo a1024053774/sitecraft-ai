@@ -881,7 +881,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
         var item = items[i];
         if (!item) continue;
         var title = localize(item.title, locale) || "";
-        var body = localize(item.body, locale) || "";
+        var localizedBody = localize(item.body, locale);
+        var bodyIsOmitted = key === "industries" && typeof localizedBody === "string" && localizedBody.trim() === "";
+        var body = localizedBody || "";
         if (isGapMarker(title) && isGapMarker(body)) continue;
         var status = typeof item.status === "string" ? item.status : "";
         if (key === "certifications" && variant === "published" && status === "待补充") continue;
@@ -890,6 +892,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
           id: item.id,
           title: title,
           body: body,
+          bodyIsOmitted: bodyIsOmitted,
           status: status,
         });
       }
@@ -929,7 +932,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
           heading.textContent = "";
           heading.appendChild(sharedBody);
           heading.style.setProperty("grid-column", "1 / -1");
-        } else if (!((bodyIsGap || repeatsStatus) && variant !== "workspace")) {
+        } else if (!visible.bodyIsOmitted && !((bodyIsGap || repeatsStatus) && variant !== "workspace")) {
           copy = document.createElement("p");
           copy.textContent = visible.body ? (adapter && adapter.blocks ? emailBreakPoints(visible.body) : visible.body) : (locale === "en" ? "To be provided" : "待补充");
           copy.setAttribute("data-sitecraft-slot", key + ".items." + itemTarget + ".body." + locale);
@@ -945,7 +948,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
         if (copy) card.appendChild(copy);
         grid.appendChild(card);
         applied.add(key + ".items." + itemTarget + ".title." + locale);
-        applied.add(key + ".items." + itemTarget + ".body." + locale);
+        if (!visible.bodyIsOmitted) applied.add(key + ".items." + itemTarget + ".body." + locale);
         if (key === "certifications" && visible.status) applied.add(key + ".items." + itemTarget + ".status");
       }
     }

@@ -277,7 +277,8 @@ ${faqInstructions(templateId)}5. update_product: {"op":"update_product","product
    只写入资料明确给出的规格参数；参数名中英双语。纯数字、单位和型号值两种语言相同，只写字符串；带中文或中文全角标点的值写成 {zh,en}，英文由你翻译。值必须能在资料正文中找到，找不到写成「待补充」，禁止编造数字。
 7. set_catalog_section: {"op":"set_catalog_section","section":"industries|capabilities|certifications","value":{"title":{"zh":"...","en":"..."},"intro":{"zh":"...","en":"..."},"items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."},"status":"已有|认证中|待补充"}]} }
    industries=应用行业卡片；capabilities=加工能力或主设备卡片；certifications=认证状态（status 为 已有/认证中/待补充；访客页只展示 已有 与 认证中）。value 可为 null 清空整块。条目事实必须出自资料，资料外数字改为「待补充」。
-   结构硬约束：value.title、value.intro、每个 item.title 和 item.body 必须始终是同时含 zh/en 的双语对象；body 和 intro 不得省略，缺口也写 {"zh":"待补充","en":"To be provided"}，不能写 null 或字符串。只有整组清空时 value 才能是 null。
+   应用行业说明只有新增事实才写：资料只有行业名称，或说明只是复述行业名称、把既有产品名称与“用于该行业”拼成一句时，保留行业名，body 写 {"zh":"","en":""}。有额外工况、用途区别、材质、参数、标准、数量、数字、单位或代码时保留这些事实；不确定是否有新增信息时保留说明。中英文遵循同一内容判断，不能按标题子串、大小写或关键词删正文。这是应用行业说明的专门规则，不适用于其他区块；无额外事实是可省略说明，不是待补充缺口。
+   结构硬约束：value.title、value.intro、每个 item.title 和 item.body 必须始终是同时含 zh/en 的双语对象；body 和 intro 不得省略，不能写 null 或字符串。应用行业无额外事实的 body 使用上述双语空值；实际缺口及其他字段的缺口仍写 {"zh":"待补充","en":"To be provided"}。只有整组清空时 value 才能是 null。
 8. replace_products: {"op":"replace_products","products":[{"id":"已有产品的稳定 id","sku":"已有或资料确认的SKU","name":{"zh":"...","en":"..."},"summary":{"zh":"...","en":"..."},"category":{"zh":"中文类别","en":"English category"},"status":"published|draft","imageColor":"#...","specs":[{"name":{"zh":"...","en":"..."},"value":"8500 N·m"},{"name":{"zh":"安装方式","en":"Mounting"},"value":{"zh":"底脚/法兰","en":"Foot / flange"}}]}]}
    只有公司资料明确给出完整产品清单时才使用；只保留资料确认的产品类别。加工方式、询盘条件和服务步骤不是商品，不要把“按图加工”单独生成一张商品卡。资料没有确认的商品不要用默认商品补齐。specs 可选，规则同 set_product_specs。
    结构硬约束：每个 product.sku 必须是非空字符串；资料没有 SKU 时写 "待补充"，不能省略、写 null 或数字。

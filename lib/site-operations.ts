@@ -1603,7 +1603,17 @@ function cleanVisitorProse(operation: AIOperation): AIOperation {
       value: {
         ...operation.value,
         intro: stripGapTalkBilingual(operation.value.intro) as { zh: string; en: string },
-        items: operation.value.items.map((item) => ({ ...item, body: stripGapTalkBilingual(item.body) as { zh: string; en: string } })),
+        items: operation.value.items.map((item) => {
+          const body = stripGapTalkBilingual(item.body) as { zh: string; en: string };
+          // Industry explanations are optional. Schema validation has already required both
+          // language properties; only explicitly blank strings represent intentional omission.
+          if (operation.section === "industries") {
+            for (const locale of ["zh", "en"] as const) {
+              if (typeof item.body[locale] === "string" && item.body[locale].trim() === "") body[locale] = "";
+            }
+          }
+          return { ...item, body };
+        }),
       },
     } as AIOperation;
   }

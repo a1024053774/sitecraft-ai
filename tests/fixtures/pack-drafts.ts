@@ -55,10 +55,10 @@ const packs: Record<PackDraftId, { operations: SiteOperation[] }> = {
         ],
       },
       { op: "set_catalog_section", section: "industries", value: { title: { zh: "应用行业", en: "Industries" }, intro: gap, items: items([
-        ["mining", "矿山输送", "Mining conveyors", "重载减速机用于矿山输送。", "Heavy-duty gearboxes for mining conveyors."],
-        ["metallurgy", "冶金辊道", "Metallurgy rollers", "重载减速机用于冶金辊道。", "Heavy-duty gearboxes for metallurgy rollers."],
-        ["port", "港口起重", "Port cranes", "重载减速机用于港口起重。", "Heavy-duty gearboxes for port cranes."],
-        ["cement", "水泥窑传动", "Cement kiln drives", "重载减速机用于水泥窑传动。", "Heavy-duty gearboxes for cement kiln drives."],
+        ["mining", "矿山输送", "Mining conveyors", "", ""],
+        ["metallurgy", "冶金辊道", "Metallurgy rollers", "", ""],
+        ["port", "港口起重", "Port cranes", "", ""],
+        ["cement", "水泥窑传动", "Cement kiln drives", "", ""],
       ]) } },
       { op: "set_catalog_section", section: "capabilities", value: { title: { zh: "加工能力", en: "Capabilities" }, intro: gap, items: items([
         ["hobbing", "滚齿与磨齿", "Hobbing and grinding", "滚齿与磨齿。", "Hobbing and grinding."],
@@ -101,10 +101,10 @@ const packs: Record<PackDraftId, { operations: SiteOperation[] }> = {
         ],
       },
       { op: "set_catalog_section", section: "industries", value: { title: { zh: "应用行业", en: "Industries" }, intro: gap, items: items([
-        ["food", "食品饮料灌装", "Food and beverage filling", "洁净流体接头用于食品饮料灌装。", "Fluid fittings for food and beverage filling."],
+        ["food", "食品饮料灌装", "Food and beverage filling", "", ""],
         ["pharma", "制药洁净流体", "Pharmaceutical clean fluids", "洁净流体接头用于制药回路。", "Fluid fittings for pharmaceutical circuits."],
-        ["chemical", "化工取样", "Chemical sampling", "流体接头用于化工取样。", "Fluid fittings for chemical sampling."],
-        ["semiconductor", "半导体超纯水辅助回路", "Semiconductor ultrapure water", "流体接头用于半导体超纯水辅助回路。", "Fluid fittings for semiconductor ultrapure water."],
+        ["chemical", "化工取样", "Chemical sampling", "", ""],
+        ["semiconductor", "半导体超纯水辅助回路", "Semiconductor ultrapure water", "", ""],
       ]) } },
       { op: "set_catalog_section", section: "capabilities", value: { title: { zh: "加工能力", en: "Capabilities" }, intro: gap, items: items([
         ["turning", "数控车削", "CNC turning", "数控车削。", "CNC turning."],

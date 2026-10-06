@@ -47,6 +47,8 @@
 
 - [T-111 验收入口必须拒绝漏测](tickets/T-111-acceptance-observed-coverage.md)：真实CLI、逐图可见与decode、实际DOM和slot覆盖均有独立红绿证据
 
+- [T-115 行业说明如何去冗余](tickets/T-115-industry-description-redundancy.md)：省略无新增事实的复述，保留有效说明，中英文一致且可撤销
+
 ## Not yet specified
 
 - 新开源素材的准入：T-104 定为 vendor 模板只拆区块进池；外部新仓库的准入流程仍未定。
