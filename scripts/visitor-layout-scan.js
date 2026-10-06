@@ -410,14 +410,16 @@ export function scanVisitorLayout(root = document) {
   const declarationTargets = (block, selectors) => {
     const nodes=[];
     const missing=[];
+    const invisible=[];
     const seen=new Set();
     for(const selector of selectors||[]) {
       let matches=[];
       try { matches=[...block.querySelectorAll(selector)]; } catch { matches=[]; }
       if(!matches.length) missing.push(selector);
+      else if(!matches.some(visible)) invisible.push(selector);
       for(const node of matches) if(!seen.has(node)) { seen.add(node); nodes.push(node); }
     }
-    return {nodes,missing};
+    return {nodes,missing,invisible};
   };
   const textRect = node => {
     try {
@@ -471,6 +473,12 @@ export function scanVisitorLayout(root = document) {
     if(missingRules.length) undeclaredVariants.push({block:blockId,variant:variantId,rules:missingRules,message:`${blockId}:${variantId} ${missingRules.map(rule=>ruleLabels[rule]).join('、')}未声明`});
     if(declaration.declared.baseline) {
       for(const group of declaration.baselineGroups) {
+        const targets=declarationTargets(block,group.selectors);
+        const visibleNodes=targets.nodes.filter(visible);
+        if(targets.missing.length || targets.invisible.length || visibleNodes.length<2) {
+          baselineAlignments.push({block:blockId,variant:variantId,id:group.id,delta:null,threshold:2,pass:false,status:'missing',missing:targets.missing,invisible:targets.invisible});
+          continue;
+        }
         if(own(group,'minViewportWidth')) {
           if(!Number.isInteger(group.minViewportWidth)||group.minViewportWidth<=0) {
             baselineAlignments.push({block:blockId,variant:variantId,id:group.id,delta:null,threshold:2,pass:false,status:'invalid',reason:'minViewportWidth must be a positive integer'});
@@ -480,12 +488,6 @@ export function scanVisitorLayout(root = document) {
             baselineAlignments.push({block:blockId,variant:variantId,id:group.id,delta:null,threshold:2,pass:null,status:'not-applicable',applicability:{minViewportWidth:group.minViewportWidth,viewportWidth:innerWidth},reason:`Viewport ${innerWidth}px is below declared minViewportWidth ${group.minViewportWidth}px.`});
             continue;
           }
-        }
-        const targets=declarationTargets(block,group.selectors);
-        const visibleNodes=targets.nodes.filter(visible);
-        if(targets.missing.length || visibleNodes.length<2) {
-          baselineAlignments.push({block:blockId,variant:variantId,id:group.id,delta:null,threshold:2,pass:false,status:'missing',missing:targets.missing});
-          continue;
         }
         const values=visibleNodes.map(baselineFor);
         const delta=Number((Math.max(...values)-Math.min(...values)).toFixed(2));

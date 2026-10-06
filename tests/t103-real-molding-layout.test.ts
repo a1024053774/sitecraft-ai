@@ -3,15 +3,11 @@ import { readFileSync, mkdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
+import { assertT103MeasurementCoverage, type PageReport } from "./helpers/t103-measurement-coverage.ts";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/t103-real-molding-draft.json", import.meta.url), "utf8"));
-const baseline = JSON.parse(readFileSync(new URL("./fixtures/t103-real-molding-measurements.json", import.meta.url), "utf8")) as {
-  rows: Array<{ width: number; locales: Record<string, Record<string, number>> }>;
-};
-type Measurement = { failures: string[]; textContrast: unknown[]; bodyLineLength: unknown[]; lineLengthExemptions: unknown[] };
-type PageReport = Measurement & { siteKey: string; width: number; english: Measurement };
 
-test("T-103 real molding pages keep FAQ lines, product specs, and the narrow header intact", async () => {
+test("T-103 real molding pages keep FAQ lines, product specs, and the narrow header intact", async (t) => {
   const base = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
   const createdResponse = await fetch(`${base}/api/sites`, {
     method: "POST",
@@ -43,14 +39,51 @@ test("T-103 real molding pages keep FAQ lines, product specs, and the narrow hea
   const report = JSON.parse(readFileSync(path.join(out, "report.json"), "utf8")) as PageReport[];
   const failures = report.flatMap((row) => row.failures);
   assert.deepEqual(report.map((row) => row.width), [1440, 768, 375], "all acceptance viewports are measured");
+  // Counterexamples use real scanner output as input, never as the expected coverage.
+  // Keep total counts unchanged so unrelated measurements cannot hide a missing target.
+  for (const [field, slot] of [
+    ["bodyLineLength", "faq.items.faq-sample-mold.body.zh"],
+    ["bodyLineLength", "products.mold-two-shot.summary.zh"],
+    ["textContrast", "faq.items.faq-sample-mold.body.zh"],
+    ["textContrast", "products.mold-two-shot.summary.zh"],
+    ["lineLengthExemptions", "faq.items.faq-sample-mold.title.zh"],
+  ] as const) {
+    for (const row of report) for (const [locale, measured] of [["zh", row], ["en", row.english]] as const) {
+      const localizedSlot = slot.replace(/\.zh$/, `.${locale}`);
+      await t.test(`${row.width} ${locale}: coverage rejects missing ${field} for ${localizedSlot} despite unchanged totals`, () => {
+        const missing = structuredClone(measured);
+        assert.ok(missing[field].some((entry) => entry.slot === localizedSlot), "the counterexample removes a measured real target");
+        missing[field] = missing[field].map((entry) => entry.slot === localizedSlot ? { ...structuredClone(missing[field][0]), slot: "counterexample.unrelated" } : entry);
+        assert.throws(() => assertT103MeasurementCoverage(missing, row.width, locale), new RegExp(`${field}.*${localizedSlot.replaceAll(".", "\\.")}`));
+      });
+    }
+  }
+  await t.test("coverage rejects an incomplete wrapped paragraph even when its slot is still measured", () => {
+    const missing = structuredClone(report.find((row) => row.width === 375)!.english);
+    const slot = "products.mold-two-shot.summary.en";
+    const lines = missing.bodyLineLength.filter((entry) => entry.slot === slot);
+    assert.ok(lines.length > 1, "the real product explanation spans multiple lines");
+    missing.bodyLineLength.splice(missing.bodyLineLength.findIndex((entry) => entry === lines[0]), 1);
+    assert.throws(() => assertT103MeasurementCoverage(missing, 375, "en"), /bodyLineLength.*products\.mold-two-shot\.summary\.en/);
+  });
+  await t.test("coverage accepts fewer lines after a legal rewrap of the complete input paragraph", () => {
+    const rewrapped = structuredClone(report.find((row) => row.width === 768)!);
+    const slot = "products.mold-two-shot.summary.zh";
+    const text = fixture.draft.products.find((product: { id: string }) => product.id === "mold-two-shot").summary.zh;
+    const count = Array.from(text.replace(/\s/g, "")).length;
+    assert.ok(count <= 40, "the complete input fits the declared Chinese line-length limit");
+    const lines = rewrapped.bodyLineLength.filter((entry) => entry.slot === slot);
+    assert.ok(lines.length > 1, "the real paragraph provides a wrapping counterexample");
+    rewrapped.bodyLineLength = rewrapped.bodyLineLength.filter((entry) => entry.slot !== slot);
+    const line = { ...lines[0], text, count, language: "zh", max: 40, tooLong: false };
+    rewrapped.bodyLineLength.push(line);
+    assertT103MeasurementCoverage(rewrapped, 768, "zh");
+  });
   for (const row of report) {
     assert.equal(row.siteKey, created.id, "measure the independently provisioned site");
-    const expected = baseline.rows.find((entry) => entry.width === row.width)!;
     for (const [locale, measured] of [["zh", row], ["en", row.english]] as const) {
       assert.ok(measured, `${row.width} ${locale}: locale must be present`);
-      for (const field of ["textContrast", "bodyLineLength", "lineLengthExemptions"] as const) {
-        assert.ok(Array.isArray(measured[field]) && measured[field].length >= expected.locales[locale][field], `${row.width} ${locale} ${field}: measurements must not be fewer than the known-bad baseline`);
-      }
+      assertT103MeasurementCoverage(measured, row.width, locale);
     }
   }
   assert.equal(result.status, 0, failures.join("\n"));

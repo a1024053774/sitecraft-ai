@@ -406,9 +406,9 @@ const INSPECT = `(async (uploadedImages, draft) => {
   const requiredCredits = uploadedImages.filter(image => image.credit?.[document.documentElement.lang] || image.attribution);
   const creditRecords = requiredCredits.map(image => {
     const credit = image.credit?.[document.documentElement.lang] || '', attribution = image.attribution || '';
-    const item = creditItems.find(item => visible(item) && (!credit || item.innerText.includes(credit)) && (!attribution || item.innerText.includes(attribution)));
-    const hasLink = url => !url || Boolean(item && [...item.querySelectorAll('a')].some(link => link.getAttribute('href') === url && visible(link)));
-    return { imageId: image.imageId, credit, attribution, licenseUrl: image.licenseUrl || '', sourceUrl: image.sourceUrl || '', completeTextVisible: Boolean(item), licenseLinkVisible: hasLink(image.licenseUrl), sourceLinkVisible: hasLink(image.sourceUrl) };
+    const hasLink = (item, url) => !url || Boolean(item && [...item.querySelectorAll('a')].some(link => link.getAttribute('href') === url && visible(link)));
+    const item = creditItems.find(item => visible(item) && (!credit || item.innerText.includes(credit)) && (!attribution || item.innerText.includes(attribution)) && hasLink(item, image.sourceUrl) && hasLink(item, image.licenseUrl));
+    return { imageId: image.imageId, credit, attribution, licenseUrl: image.licenseUrl || '', sourceUrl: image.sourceUrl || '', completeTextVisible: Boolean(item), licenseLinkVisible: hasLink(item, image.licenseUrl), sourceLinkVisible: hasLink(item, image.sourceUrl) };
   });
   const missingCredits = creditRecords.filter(record => !record.completeTextVisible || !record.licenseLinkVisible || !record.sourceLinkVisible).map(record => record.imageId);
   const imageCredits = { hostCount: hosts.length, required: requiredCredits.length, records: creditRecords, missing: missingCredits, independent: credits?.parentElement?.classList.contains('sitecraft-container') === true, width: credits?.getBoundingClientRect().width || 0, containerWidth: credits?.closest('.sitecraft-container')?.getBoundingClientRect().width || 0 };

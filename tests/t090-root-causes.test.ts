@@ -252,6 +252,87 @@ test("T-113 baseline applicability obeys the 480/481 boundary and rejects a malf
   });
 });
 
+test("T-113 phone applicability never exempts missing, invalid or invisible required targets", async () => {
+  await withChrome(async (browser, sessionId) => {
+    const rows = [];
+    for (const width of [375, 480, 481, 768, 1440]) for (const state of ["valid", "missing", "invalid", "hidden"]) {
+      await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+      const last = state === "missing" ? "#absent" : state === "invalid" ? "[" : "#c";
+      const declaration = { baselineGroups: [{ id: "required", selectors: ["#a", "#b", last], minViewportWidth: 481 }], semanticGroups: [], buttonRoles: { primary: [], secondary: [] } };
+      const html = `<!doctype html><style>body{margin:0}section{display:flex;align-items:baseline}span{font:16px/24px sans-serif}#b{transform:translateY(4px)}${state === "hidden" ? "#c{display:none}" : ""}</style><section data-sc-block="sentinel" data-sc-variant="required" data-sc-layout-declaration='${JSON.stringify(declaration)}'><span id="a">Alpha</span><span id="b">Bravo</span><span id="c">Charlie</span></section>`;
+      const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
+      await browser.send("Page.setDocumentContent", { frameId, html }, sessionId);
+      const scan = await browser.eval<Layout>(`(()=>{${scanSource};return scanVisitorLayout(document)})()`, sessionId);
+      rows.push({ width, state, entry: scan.baselineAlignments[0] });
+    }
+    writeFileSync(path.join(out, "required-target-applicability.json"), JSON.stringify(rows, null, 2));
+    for (const row of rows) {
+      if (row.state !== "valid") {
+        assert.equal(row.entry.status, "missing", `${row.width}/${row.state}: validate required targets before N/A`);
+        assert.equal(row.entry.pass, false);
+        assert.equal(row.entry.delta, null);
+      } else if (row.width < 481) {
+        assert.equal(row.entry.status, "not-applicable");
+        assert.equal(row.entry.pass, null);
+      } else {
+        assert.equal(row.entry.status, "measured");
+        assert.equal(row.entry.delta, 4);
+        assert.equal(row.entry.pass, false);
+      }
+    }
+  });
+});
+
+test("T-113 real CLI rejects a baseline target removed only on phones", async () => {
+  const { cwd, cases } = await fixtureStore();
+  const response = await fetch(`${base}/api/templates/screwfast/preview`);
+  assert.equal(response.status, 200);
+  const declaration = { baselineGroups: [{ id: "phone-target", selectors: ['[data-sc-part="brand"]', '[data-t113-baseline-contact]'], minViewportWidth: 481 }], semanticGroups: [], buttonRoles: { primary: [], secondary: [] } };
+  const html = (await response.text())
+    .replaceAll('data-sc-block="footer" data-sc-variant="line"', `data-sc-block="footer" data-sc-variant="line" data-sc-layout-declaration='${JSON.stringify(declaration)}'`)
+    .replaceAll('data-sc-part="contact"', 'data-sc-part="contact" data-t113-baseline-contact')
+    .replace("</body>", `<script>const apply=window.__sitecraftApplyDeclared;window.__sitecraftApplyDeclared=function(...args){const result=apply(...args);if(innerWidth<481)document.querySelector('[data-t113-baseline-contact]')?.removeAttribute('data-t113-baseline-contact');return result}</script></body>`);
+  const server = createServer((_request, reply) => { reply.setHeader("Content-Type", "text/html"); reply.end(html); });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address() as { port: number };
+    const reportOut = path.join(out, "cli-phone-target");
+    const result = await run([process.env.T090_RENDER_BLOCK || path.join(repo, "scripts/render-block.mjs"), "--block", "footer", "--variant", "line", "--cases", cases, "--out", reportOut], cwd, { ...process.env, SITECRAFT_BASE: `http://127.0.0.1:${address.port}` });
+    writeFileSync(path.join(out, "cli-phone-target-run.json"), JSON.stringify(result, null, 2));
+    const report = JSON.parse(readFileSync(path.join(reportOut, "scan.json"), "utf8")) as { rows: Array<{ width: number; candidate: Layout; english: Layout; layoutFailures: { zh: string[]; en: string[] } }> };
+    assert.equal(result.code, 1, "a missing required phone target must make the real CLI fail");
+    for (const row of report.rows) for (const [locale, scan] of [["zh", row.candidate], ["en", row.english]] as const) {
+      const entry = scan.baselineAlignments.find(entry => entry.id === "phone-target");
+      assert.ok(entry);
+      assert.equal(entry.status, row.width === 375 ? "missing" : "measured");
+      assert.equal(row.layoutFailures[locale].length > 0, row.width === 375);
+    }
+  } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
+});
+
+test("T-113 real credit collector selects a row by its complete text and exact source/licence pair", async () => {
+  const source = readFileSync("scripts/check-published.mjs", "utf8");
+  const scans = ["visitor-text-fit-scan.js", "hero-word-break-scan.js", "visitor-layout-scan.js", "visitor-readable-text.js"].map(file => readFileSync(`scripts/${file}`, "utf8").replace(/export default scanVisitorLayout;?/g, "").replace(/export function scanVisitorLayout/g, "function scanVisitorLayout"));
+  const inspect = new Function("TEXT_FIT_SCAN", "HERO_WORD_BREAK_SCAN", "VISITOR_LAYOUT_SCAN", "READABLE_TEXT", source.slice(source.indexOf("const INSPECT ="), source.indexOf("\nfunction judge(")) + ";return INSPECT;")(...scans);
+  await withChrome(async (browser, sessionId) => {
+    const observations = [];
+    for (const locale of ["zh", "en"]) for (const kind of ["sources", "licences", "full-credit", "split-links"]) {
+      const records = [1, 2].map(index => ({ imageId: `same-attribution-${index}`, credit: kind === "full-credit" ? { zh: "完整署名；JPEG re-encoded/resized", en: "Full credit; JPEG re-encoded/resized" } : undefined, attribution: "用户提供；仅当前站点使用", sourceUrl: `https://materials.example.test/${kind === "licences" ? "same" : index}.jpg`, licenseUrl: kind === "sources" ? null : `https://materials.example.test/licence-${index}` }));
+      const rows = records.map((record, index) => `<li>${record.credit ? `<span>${record.credit[locale as "zh" | "en"]}</span>` : ""}<span>${record.attribution}</span>${kind === "split-links" && index === 1 ? "" : `<a href="${record.sourceUrl}">Source</a>`}${kind === "split-links" && index === 0 ? `<a href="${records[1].sourceUrl}">Second source without its licence</a>` : ""}${record.licenseUrl ? `<a href="${record.licenseUrl}">Licence</a>` : ""}</li>`).join("");
+      const html = `<!doctype html><html lang="${locale}"><style>body{margin:0}.sitecraft-container{width:100%}</style><body><footer data-sc-block="footer" data-sc-variant="line"><div class="sitecraft-container"><div data-sitecraft-image-credits><ul>${rows}</ul></div></div></footer></body></html>`;
+      const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
+      await browser.send("Page.setDocumentContent", { frameId, html }, sessionId);
+      const report = await browser.eval<{ imageCredits: { missing: string[]; records: Array<{ completeTextVisible: boolean; licenseLinkVisible: boolean; sourceLinkVisible: boolean }> } }>(`${inspect}(${JSON.stringify(records)}, {})`, sessionId);
+      observations.push({ locale, kind, input: records, imageCredits: report.imageCredits });
+    }
+    writeFileSync(path.join(out, "credit-joint-row-match.json"), JSON.stringify(observations, null, 2));
+    for (const row of observations) {
+      assert.deepEqual(row.imageCredits.missing, row.kind === "split-links" ? ["same-attribution-2"] : [], `${row.locale}/${row.kind}: match all supplied facts in the same row`);
+      if (row.kind !== "split-links") assert.ok(row.imageCredits.records.every(record => record.completeTextVisible && record.licenseLinkVisible && record.sourceLinkVisible));
+    }
+  });
+});
+
 test("T-090 real render-block geometry accepts the original clear multiline hero", async () => {
   const cases = path.join(repo, "tests/fixtures/t090-hero-case.json");
   const reportOut = path.join(out, "geometry-real-hero");

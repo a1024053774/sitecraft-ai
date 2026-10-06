@@ -11,6 +11,7 @@ import {
   templateAdapters,
 } from "../lib/template-adapters/index.ts";
 import { servedHomeHtml, withoutTemplates } from "./fixtures/look-pages.ts";
+import { parseHtmlDocument } from "./fixtures/html-dom.ts";
 
 test("adapters are JSON data, not per-template JavaScript source", () => {
   for (const adapter of Object.values(templateAdapters)) {
@@ -118,18 +119,30 @@ test("templates without homepage contact fields propose an owned alternative", (
   assert.equal(landing?.slots.some((slot) => slot.target === "companyName"), true);
 });
 
+function assertComposedSlotUniqueness(html: string, slots: Array<{ target: string; selector: string }>, id: string) {
+  const document = parseHtmlDocument(html);
+  for (const slot of slots.filter((item) => item.selector.startsWith("[data-sitecraft-"))) {
+    const count = document.querySelectorAll(slot.selector).length;
+    if (count === 0) continue; // mounted default may not expose another variant's slots
+    assert.equal(count, 1, `${id} declared ${slot.target} must hit one composed node`);
+  }
+}
+
 test("block-library looks expose their declared slots on composed pages", () => {
   for (const id of ["screwfast", "forge", "landwind", "tailwind-landing"] as const) {
     const html = withoutTemplates(servedHomeHtml(id));
     const adapter = getTemplateAdapter(id);
     assert.ok(adapter?.blocks, `${id} must use the block library`);
-    for (const slot of adapter.slots.filter((item) => item.selector.startsWith("[data-sitecraft-"))) {
-      const attr = slot.selector.slice(1, -1);
-      const count = (html.match(new RegExp(attr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length;
-      if (count === 0 && adapter.blocks) continue; // mounted default may not expose another variant's slots
-      assert.equal(count, 1, `${id} declared ${slot.target} must hit one composed node`);
-    }
+    assertComposedSlotUniqueness(html, adapter.slots, id);
   }
+});
+
+test("composed slot uniqueness ignores CSS mentions and rejects a second real DOM target", () => {
+  const slots = [{ target: "contact.phone", selector: '[data-sitecraft-contact="footer-phone"]' }];
+  const node = '<span data-sitecraft-contact="footer-phone">000-0000-0090</span>';
+  const css = '<style>[data-sitecraft-contact="footer-phone"]{white-space:nowrap}</style>';
+  assert.doesNotThrow(() => assertComposedSlotUniqueness(`<html><head>${css}</head><body>${node}</body></html>`, slots, "one-node"));
+  assert.throws(() => assertComposedSlotUniqueness(`<html><body>${node}${node}</body></html>`, slots, "two-nodes"), /must hit one composed node/);
 });
 
 const FIRST_SCREEN_PACK_TOKENS = ["澄海传动件K07", "甬江密封件M52"] as const;
