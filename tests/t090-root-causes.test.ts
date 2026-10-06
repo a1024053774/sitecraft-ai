@@ -206,7 +206,13 @@ test("T-090 real render-block geometry measures glyphs while rejecting compresse
   const scenarios = [
     { id: "compressed-same-node", lineHeight: 14, body: "<p>Agjp Agjp Agjp Agjp Agjp Agjp Agjp Agjp</p>", expectedExit: 1 },
     { id: "overlaid-different-nodes", lineHeight: 33, body: '<div style="position:relative;height:80px"><p style="position:absolute;top:0;left:0">Agjp Agjp</p><p style="position:absolute;top:0;left:0">Tyqg Tyqg</p></div>', expectedExit: 1 },
+    { id: "css-uppercase-compressed", lineHeight: 22, body: "<p>xxx xxx xxx xxx</p>", expectedExit: 1, width: 100, font: "400 40px/22px Arial,sans-serif", transform: "uppercase" },
+    { id: "literal-uppercase-compressed", lineHeight: 22, body: "<p>XXX XXX XXX XXX</p>", expectedExit: 1, width: 100, font: "400 40px/22px Arial,sans-serif", transform: "none" },
+    { id: "css-uppercase-normal", lineHeight: 48, body: "<p>xxx xxx xxx xxx</p>", expectedExit: 0, width: 100, font: "400 40px/48px Arial,sans-serif", transform: "uppercase" },
+    { id: "literal-uppercase-normal", lineHeight: 48, body: "<p>XXX XXX XXX XXX</p>", expectedExit: 0, width: 100, font: "400 40px/48px Arial,sans-serif", transform: "none" },
   ];
+  type GeometryRow = { width: number; candidate: { file: string; overlaps: Array<{ a: string; b: string; w: number; h: number }> }; english: { overlaps: Array<{ a: string; b: string; w: number; h: number }> }; layoutFailures: { zh: string[]; en: string[] } };
+  const rendered = new Map<string, { dir: string; rows: GeometryRow[] }>();
   let html = "";
   const server = createServer((request, reply) => {
     if (request.url?.includes("/api/templates/")) { reply.setHeader("Content-Type", "text/html"); reply.end(html); }
@@ -218,19 +224,35 @@ test("T-090 real render-block geometry measures glyphs while rejecting compresse
     for (const scenario of scenarios) await t.test(scenario.id, async () => {
       // Intentional glyph collisions exercise same-node line compression and different-node
       // overlays independently of the captured real-page positive case.
+      const font = scenario.font || `700 30px/${scenario.lineHeight}px Geist,sans-serif`;
       html = preview
-        .replace("</head>", `<style>.t090-geometry{width:200px;margin:16px}.t090-geometry p{margin:0;font:700 30px/${scenario.lineHeight}px Geist,sans-serif}</style></head>`)
+        .replace("</head>", `<style>.t090-geometry{width:${scenario.width || 200}px;margin:16px}.t090-geometry p{margin:0;font:${font};text-transform:${scenario.transform || "none"}}</style></head>`)
         .replaceAll("</footer>", `<div class="t090-geometry">${scenario.body}</div></footer>`);
       const reportOut = path.join(out, `geometry-${scenario.id}`);
       const result = await run([process.env.T090_RENDER_BLOCK || path.join(repo, "scripts/render-block.mjs"), "--block", "footer", "--variant", "line", "--cases", cases, "--out", reportOut], cwd, { ...process.env, SITECRAFT_BASE: `http://127.0.0.1:${address.port}` });
       writeFileSync(path.join(out, `geometry-${scenario.id}-run.json`), JSON.stringify(result, null, 2));
-      const report = JSON.parse(readFileSync(path.join(reportOut, "scan.json"), "utf8")) as { rows: Array<{ width: number; candidate: { overlaps: Array<{ a: string; b: string; w: number; h: number }> }; english: { overlaps: Array<{ a: string; b: string; w: number; h: number }> }; layoutFailures: { zh: string[]; en: string[] } }> };
+      const report = JSON.parse(readFileSync(path.join(reportOut, "scan.json"), "utf8")) as { rows: GeometryRow[] };
+      rendered.set(scenario.id, { dir: reportOut, rows: report.rows });
       assert.equal(report.rows.length, 3);
       for (const row of report.rows) for (const [locale, layout] of [["zh", row.candidate], ["en", row.english]] as const) {
         assert.equal(row.layoutFailures[locale].length, 0, "geometry fixture must not fail another declaration gate");
-        assert.ok(layout.overlaps.some((entry) => entry.a.includes("Agjp") && (scenario.id === "compressed-same-node" ? entry.b.includes("Agjp") : entry.b.includes("Tyqg")) && entry.w > 2 && entry.h > 3), `${row.width}/${locale}: visible glyph collisions must still fail`);
+        if (scenario.expectedExit === 0) assert.deepEqual(layout.overlaps, [], `${row.width}/${locale}: normal line spacing must pass`);
+        else if (scenario.id.includes("uppercase")) assert.ok(layout.overlaps.length > 0 && layout.overlaps.every((entry) => entry.w > 2 && entry.h > 3), `${row.width}/${locale}: compressed painted capitals must fail`);
+        else assert.ok(layout.overlaps.some((entry) => entry.a.includes("Agjp") && (scenario.id === "compressed-same-node" ? entry.b.includes("Agjp") : entry.b.includes("Tyqg")) && entry.w > 2 && entry.h > 3), `${row.width}/${locale}: visible glyph collisions must still fail`);
       }
       assert.equal(result.code, scenario.expectedExit, result.output);
+    });
+    for (const spacing of ["compressed", "normal"]) await t.test(`uppercase paint equivalence: ${spacing}`, () => {
+      const css = rendered.get(`css-uppercase-${spacing}`)!;
+      const literal = rendered.get(`literal-uppercase-${spacing}`)!;
+      for (let index = 0; index < 3; index++) {
+        const a = css.rows[index], b = literal.rows[index];
+        assert.equal(a.width, b.width);
+        // Browser screenshot pixels establish equivalence independently of the geometry verdict.
+        assert.ok(readFileSync(path.join(css.dir, a.candidate.file)).equals(readFileSync(path.join(literal.dir, b.candidate.file))), `${a.width}: CSS uppercase and literal capitals must paint the same picture`);
+        assert.deepEqual(a.candidate.overlaps, b.candidate.overlaps, `${a.width}/zh: equivalent paint must produce the same measurement`);
+        assert.deepEqual(a.english.overlaps, b.english.overlaps, `${a.width}/en: equivalent paint must produce the same measurement`);
+      }
     });
   } finally { await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); }
 });

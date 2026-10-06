@@ -188,8 +188,11 @@ const SCAN = `(() => {
     }
     const style = getComputedStyle(parent);
     inkContext.font = style.font || style.fontWeight + " " + style.fontSize + " " + style.fontFamily;
+    const language = parent.closest("[lang]")?.getAttribute("lang") || undefined;
     for (const line of lines.values()) {
-      const metrics = inkContext.measureText(line.text);
+      // Ranges already use painted capitals; measure the same glyphs instead of the source case.
+      const drawnText = style.textTransform === "uppercase" ? line.text.toLocaleUpperCase(language) : line.text;
+      const metrics = inkContext.measureText(drawnText);
       const fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
       if (![fontHeight, metrics.actualBoundingBoxAscent, metrics.actualBoundingBoxDescent].every(Number.isFinite) || fontHeight <= 0) throw new Error("Text ink measurement unavailable: invalid font metrics");
       if (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent <= 0) continue; // whitespace has no ink
@@ -199,7 +202,7 @@ const SCAN = `(() => {
       let r = line.right, b = baseline + metrics.actualBoundingBoxDescent * scale;
       if (clip) { l = Math.max(l, clip.l); t = Math.max(t, clip.t); r = Math.min(r, clip.r); b = Math.min(b, clip.b); }
       if (r - l < 1 || b - t < 1) continue;
-      pieces.push({ l, t, r, b, nodeId, text: line.text.trim().slice(0, 24) });
+      pieces.push({ l, t, r, b, nodeId, text: drawnText.trim().slice(0, 24) });
     }
   }
   for (let i = 0; i < pieces.length; i++) for (let j = i + 1; j < pieces.length; j++) {
