@@ -42,6 +42,8 @@ npm test
 npm run build
 ```
 
+`next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
+
 用真实 DeepSeek 生成并复核三个双语测试站点：
 
 ```bash

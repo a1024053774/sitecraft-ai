@@ -267,7 +267,7 @@ function operationInstructions(templateId: string, allowSiteStyle: boolean, draf
 3. add_card: {"op":"add_card","section":"features|services|faq","index":可选,"item":{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}}
 4. remove_card: {"op":"remove_card","section":"features|services|faq","itemId":"现有id"}
 4b. replace_cards: {"op":"replace_cards","section":"features|services|faq","items":[{"id":"短标识","title":{"zh":"...","en":"..."},"body":{"zh":"...","en":"..."}}]}（整组替换这一组卡片：按资料生成或重做整站时，每一组用一条 replace_cards 写完全部条目，不要逐条 add_card / update_card；只改其中某一条时用 update_card）
-4c. replace_commercial_terms: {"op":"replace_commercial_terms","terms":[{"id":"短标识","kind":"moq|lead_time|capacity|trade_terms|payment|packaging","value":{"zh":"资料里的事实","en":"English fact"}}]}；商业条款种类固定为 ${commercialTermKindCatalog.map((item) => `${item.kind}=${item.label.zh}/${item.label.en}`).join("、")}。资料明确出现的每个商业条款都要写出（包括贸易条款），资料没有的种类不写；值必须来自资料，不能编造数字。只改一条时用 update_commercial_term（按 termId），删除用 remove_commercial_term。
+4c. replace_commercial_terms: {"op":"replace_commercial_terms","terms":[{"id":"短标识","kind":"moq|lead_time|capacity|trade_terms|payment|packaging","value":{"zh":"资料里的事实","en":"English fact"}}]}；商业条款种类固定为 ${commercialTermKindCatalog.map((item) => `${item.kind}=${item.label.zh}/${item.label.en}`).join("、")}。资料明确出现的每个商业条款都要写出（包括贸易条款），资料没有的种类不写。值只从去掉包裹指令后的资料正文抽取：中文 value.zh 必须是同一句中的一个或多个完整分句，可以组合，不得在分句内部截取或改写；产能允许不改变内容的空格整理。英文 value.en 只翻译中文已有事实，数字、代码和单位须与中文及同一句来源对应；产能的每个已有数量须保持与其产出单位、周期及数值限定（约、范围、至少、不超过等）的关联，不得互换或丢失，不推算年/月换算。量化产能按有限完整片段语法核验：英文中性骨架使用 output/capacity/production 与 mold/mould/injection/molding，周期使用 annual/yearly/monthly 等或数量后的 per year/month 等；设备数量后的机器描述使用 injection/molding machines，括号规格独立核对。未知量化主体、限定或未消费残余会明确拒绝，不得为通过核验删除原资料主体、限定或括号内容。资料未量化、未给单位或周期时，保留可核原话，不擅补数字、单位或周期，也不因缺少这些维度省略条款。设备存量/规格不能借周期或换产出单位冒充产量；产能行内原样设备说明不能代替资料中的产出事实。只改一条时用 update_commercial_term（按 termId），删除用 remove_commercial_term。
 4d. replace_equipment: {"op":"replace_equipment","equipment":[{"id":"短标识","name":{"zh":"资料里的设备名称","en":"English machine name"},"quantity":12,"spec":{"zh":"资料里的规格","en":"English specification"}}]}；设备是具体生产或检测机器，quantity 只能是资料同一句中紧挨设备名称的非负整数，没有数量写 null；spec 没有时写 null。中文名称和规格必须是去掉指令后资料同一句里的完整分句或原文连续子串，英文只翻译它并遵守数字、代码、单位机械对应；英文名称和规格不能自行添加中文没有的缩写或数字（例如中文没有 EDM 就写完整的 wire-cut machine 或 spark machine，中文没有 2D 就写 two-dimensional image measuring instrument）；资料中没有设备不要把工序写进设备。加工能力是工序，设备是机器：工业/外贸资料的“加工能力/主设备”行只有工序时归 capabilities，不写 equipment；注塑资料同一行里明确写出的带数量机器归 equipment，不能在 capabilities 重复。只改一条时用 update_equipment（按 equipmentId，字段为 name/quantity/spec），删除用 remove_equipment。
    结构硬约束：equipment[].spec 只能是 null 或完整的 {"zh":"...","en":"..."} 双语对象；即使是纯数字、单位或范围，也不能写裸字符串。
 4e. replace_quality_process: {"op":"replace_quality_process","steps":[{"id":"短标识","title":{"zh":"资料里的步骤标题","en":"English step title"},"body":{"zh":"资料里的同一句说明","en":"English step description"}}]}；只写资料中明确标出的“质检流程”步骤，严格保持资料顺序，不重排、不补步骤。标题和说明都必须是去掉指令后同一质检分句里的完整分句或连续子串；说明没有时写 null。英文只翻译中文，不自行增加中文没有的数字或代码；质检动作不能把设备名称或认证事实重复写进来。只改一条时用 update_quality_process（按 stepId，字段为 title/body），删除用 remove_quality_process。不要自行输出 reorder_quality_process，用户明确要求调整顺序时才由服务端白名单处理。
@@ -584,6 +584,7 @@ function successResult(data: AIIntentResponse, args: {
   model: string;
   latencyMs: number;
   allowSiteStyle: boolean;
+  traceId: string | null;
 }): ProviderResult {
   if (data.type === "answer") {
     return { ok: true, type: "answer", text: data.text, model: args.model, latencyMs: args.latencyMs };
@@ -600,6 +601,15 @@ function successResult(data: AIIntentResponse, args: {
   }
   const operations = args.allowSiteStyle ? data.operations : data.operations.filter((operation) => operation.op !== "set_site_style");
   const validated = validateAIOperations(args.message, operations, args.templateIds, args.draft);
+  if (validated.commercialTermRejections?.length) {
+    // Existing server diagnostic boundary, not company materials or product output.
+    // Only refused structured capacity values and bounded source-match evidence;
+    // never request headers, prompts, summaries or reasoning_content.
+    console.warn(`[sitecraft] Commercial term validation refused ${JSON.stringify({
+      call: "structured_operations", utc: new Date().toISOString(), traceId: args.traceId,
+      rejections: validated.commercialTermRejections,
+    })}`);
+  }
   return {
     ok: true,
     type: "edit",
@@ -752,6 +762,8 @@ ${templateContext}`,
         model,
         latencyMs: Date.now() - startedAt,
         allowSiteStyle: args.allowSiteStyle === true,
+        traceId: /^[\w.:-]{1,120}$/.test(response.headers.get("x-ds-trace-id") ?? response.headers.get("x-request-id") ?? "")
+          ? response.headers.get("x-ds-trace-id") ?? response.headers.get("x-request-id") : null,
       });
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");

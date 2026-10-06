@@ -5,6 +5,7 @@ import { blockLookForTemplate } from "./blocks/looks/index.ts";
 import { checkVariantRequirements } from "./blocks/requirements.ts";
 import { normalizeSiteStyle, siteStyleDirectionSchema, siteStyleRuleSchema, validateSiteStyleRules } from "./blocks/site-style.ts";
 import { stripGapTalkBilingual } from "./visitor-prose.ts";
+import { wrapCompanyMaterials } from "./simulated-packs.ts";
 import {
   cloneDraft,
   commercialTermKindSchema,
@@ -1566,7 +1567,16 @@ function sourceWrittenName(value: string | { zh: string; en: string }, message: 
 // Visitor prose drops gap-only and build-talk sentences before it reaches the draft (T-045).
 const VISITOR_PROSE_TARGETS = new Set<TextTarget>(["hero.subtitle", "about.body", "features.intro", "services.intro", "products.intro", "contact.body", "faq.intro"]);
 
-function cleanVisitorProse(operation: AIOperation): AIOperation {
+function cleanVisitorProse(operation: AIOperation, rejected: string[]): AIOperation | null {
+  // Fact text must pass numeric admission before prose cleanup can discard
+  // punctuation. Invalid raw spellings are rejected, never cleaned into facts.
+  const cleanFact = (value: { zh: string; en: string }, label: string) => {
+    if (canonicalCommercialNumbers(value.zh) === null || canonicalCommercialNumbers(value.en) === null) {
+      rejected.push(`${label}中有暂不支持的数值写法，未写入`);
+      return null;
+    }
+    return stripGapTalkBilingual(value) as { zh: string; en: string };
+  };
   if (operation.op === "set_text" && VISITOR_PROSE_TARGETS.has(operation.target)) {
     return { ...operation, value: stripGapTalkBilingual(operation.value, operation.locale ?? "zh") } as AIOperation;
   }
@@ -1580,16 +1590,24 @@ function cleanVisitorProse(operation: AIOperation): AIOperation {
     return { ...operation, items: operation.items.map((item) => ({ ...item, body: stripGapTalkBilingual(item.body) as { zh: string; en: string } })) } as AIOperation;
   }
   if (operation.op === "replace_quality_process") {
-    return { ...operation, steps: operation.steps.map((step) => ({ ...step, body: step.body ? stripGapTalkBilingual(step.body) as { zh: string; en: string } : null })) } as AIOperation;
+    return { ...operation, steps: operation.steps.flatMap((step) => {
+      const body = step.body ? cleanFact(step.body, "质检步骤") : null;
+      return step.body && !body ? [] : [{ ...step, body }];
+    }) } as AIOperation;
   }
   if (operation.op === "update_quality_process" && operation.body) {
-    return { ...operation, body: stripGapTalkBilingual(operation.body) as { zh: string; en: string } } as AIOperation;
+    const body = cleanFact(operation.body, "质检步骤");
+    return body ? { ...operation, body } as AIOperation : null;
   }
   if (operation.op === "replace_history") {
-    return { ...operation, history: operation.history.map((item) => ({ ...item, event: stripGapTalkBilingual(item.event) as { zh: string; en: string } })) } as AIOperation;
+    return { ...operation, history: operation.history.flatMap((item) => {
+      const event = cleanFact(item.event, "沿革条目");
+      return event ? [{ ...item, event }] : [];
+    }) } as AIOperation;
   }
   if (operation.op === "update_history" && operation.event) {
-    return { ...operation, event: stripGapTalkBilingual(operation.event) as { zh: string; en: string } } as AIOperation;
+    const event = cleanFact(operation.event, "沿革条目");
+    return event ? { ...operation, event } as AIOperation : null;
   }
   if (operation.op === "update_product" && operation.summary) {
     return { ...operation, summary: stripGapTalkBilingual(operation.summary, operation.locale ?? "zh") } as AIOperation;
@@ -1674,13 +1692,15 @@ export function validateAIOperations(
   operations: AIOperation[],
   templateIds: Set<string>,
   draft?: SiteDraft,
-): { operations: SiteOperation[]; rejected: string[]; notes: string[] } {
+): { operations: SiteOperation[]; rejected: string[]; notes: string[]; commercialTermRejections?: CommercialTermRejection[] } {
   const rejected: string[] = [];
   const notes: string[] = [];
+  const commercialTermRejections: CommercialTermRejection[] = [];
   const accepted: SiteOperation[] = [];
   const explicitTemplateSwitch = /(?:换|切换|改用|使用|选择|更换).{0,10}(?:模板|版式)|(?:template).{0,20}(?:switch|change|use)/i.test(message);
-  for (const rawOperation of operations) {
-    const operation = cleanVisitorProse(rawOperation);
+  for (const [operationIndex, rawOperation] of operations.entries()) {
+    const operation = cleanVisitorProse(rawOperation, rejected);
+    if (!operation) continue;
     if (operation.op === "reorder_sections") {
       const rawOrder = operation.order;
       const dropped = rawOrder === null ? [] : rawOrder.filter((item) => !(movableBlockIds as readonly string[]).includes(item));
@@ -1771,7 +1791,7 @@ export function validateAIOperations(
       continue;
     }
     if (operation.op === "replace_commercial_terms") {
-      const terms = groundCommercialTerms(operation.terms, message, rejected);
+      const terms = groundCommercialTerms(operation.terms, message, rejected, { operationIndex, operation: operation.op, rejections: commercialTermRejections });
       if (terms.length) {
         accepted.push({ ...operation, terms });
       } else {
@@ -1903,7 +1923,7 @@ export function validateAIOperations(
         rejected.push("商业条款种类不能重复，未写入这次修改");
         continue;
       }
-      const grounded = groundCommercialTerm(candidate, message, rejected);
+      const grounded = groundCommercialTerm(candidate, message, rejected, { operationIndex, operation: operation.op, rejections: commercialTermRejections });
       if (grounded) {
         const nextTerms = draft.content.commercialTerms.map((term) => term.id === grounded.id ? grounded : term);
         const checkedTerms = commercialTermsSchema.safeParse(nextTerms);
@@ -1980,7 +2000,7 @@ export function validateAIOperations(
     return { ...operation, value: { ...operation.value, items } };
   }).filter((operation): operation is SiteOperation => operation !== null);
   const checked = draft ? checkLayoutRequests(deduped, draft, templateIds, rejected, notes) : deduped;
-  return { operations: checked, rejected, notes };
+  return { operations: checked, rejected, notes, ...(commercialTermRejections.length ? { commercialTermRejections } : {}) };
 }
 
 function groundProductSpecs(
@@ -2040,42 +2060,124 @@ function groundCatalogSection(
   };
 }
 
-function groundCommercialTerms(terms: CommercialTerm[], materials: string, rejected: string[]): CommercialTerm[] {
+function groundCommercialTerms(terms: CommercialTerm[], materials: string, rejected: string[], audit: CommercialTermAuditContext): CommercialTerm[] {
   const grounded: CommercialTerm[] = [];
   for (const term of terms) {
-    const next = groundCommercialTerm(term, materials, rejected);
+    const next = groundCommercialTerm(term, materials, rejected, audit);
     if (next) grounded.push(next);
   }
   return grounded;
 }
 
-const COMMERCIAL_NUMBER_RE = /(\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?)(?:\s*(万|亿|million|billion))?/gi;
+// Extract the declared unsigned decimal/range spelling. Admission below must
+// first prove its leading context is a text/code or neutral delimiter boundary;
+// an unknown attached symbol is not a boundary and cannot be skipped.
+const COMMERCIAL_NUMBER_RE = /(\d+(?:(?:\s*[,.–—-])+\s*\d+)*)(?:\s*(万|亿|million|billion))?/gi;
+// Consume the whole context between numeric tokens. Only plain letter words,
+// letter-to-letter hyphens and the existing neutral separators prove a boundary;
+// an isolated mark cannot stand in for a word or hide an earlier symbol.
+const COMMERCIAL_NUMBER_CONTEXT_RE = /^(?:\p{Letter}|(?<=\p{Letter})[-–—](?=\p{Letter})|[\s:：,，;；、()（）\[\]【】{}"'“”‘’/=<>≤≥。！？!?]|\.(?=\s))*$/u;
+// A complete ASCII alphanumeric code owns its internal hyphen/slash. Signs,
+// spaces, marks and partial code prefixes cannot become a code boundary.
+const COMMERCIAL_CODE_RE = /(?<![A-Za-z0-9/.-])(?:[A-Za-z][A-Za-z0-9]*(?:[-/][A-Za-z0-9]+)*|\d+(?:[-/][A-Za-z][A-Za-z0-9]*)+)(?![A-Za-z0-9/-]|\.(?=\S))/g;
 const COMMERCIAL_KIND_HINTS: Record<CommercialTermKind, string[]> = {
-  moq: ["moq", "起订量", "minimum order"],
+  moq: ["moq", "起订量", "起订", "起接", "minimum order"],
   lead_time: ["交期", "lead time", "lead-time", "天数"],
-  capacity: ["产能", "年产", "月注塑", "capacity"],
+  capacity: ["产能", "年产", "月产", "月注塑", "capacity"],
   trade_terms: ["贸易条款", "trade terms", "fob", "exw", "cif"],
   payment: ["付款", "payment"],
   packaging: ["包装", "packaging"],
 };
 
-function canonicalCommercialNumbers(value: string): string[] {
-  return [...value.matchAll(COMMERCIAL_NUMBER_RE)].map((match) => {
-    const multiplier = { 万: 1e4, 亿: 1e8, million: 1e6, billion: 1e9 }[String(match[2] ?? "").toLowerCase()] ?? 1;
-    return match[1].replace(/[\s,]/g, "").replace(/—/g, "–").split("–").map((part) => String(Number(part) * multiplier)).join("–");
-  });
+type CommercialNumberToken = { value: string; start: number; end: number; code: boolean };
+
+function canonicalCommercialNumbers(value: string, tokens?: CommercialNumberToken[]): string[] | null {
+  // Unsupported Unicode numeric characters are quantities, not an absence of
+  // quantities. Reject their representation without inventing a conversion.
+  if (/(?![0-9])\p{Number}/u.test(value)) return null;
+  const codes = [...value.matchAll(COMMERCIAL_CODE_RE)].filter((match) => /\d/.test(match[0]));
+  const numbers: string[] = [];
+  let previousEnd = 0;
+  let previousNumeric = false;
+  const scanner = new RegExp(COMMERCIAL_NUMBER_RE.source, COMMERCIAL_NUMBER_RE.flags);
+  let match: RegExpExecArray | null;
+  while ((match = scanner.exec(value))) {
+    const start = match.index;
+    const code = codes.find((token) => token.index <= start && start < token.index + token[0].length);
+    const context = value.slice(previousEnd, code?.index ?? match.index);
+    // Two uncoded numbers need a real token boundary. A glued Latin continuation
+    // or numeric division is one unsupported notation, not neutral prose from
+    // which scanning may restart (1e3 and 1/2 must not become scalar lists).
+    if (previousNumeric && !code && (/^[A-Za-z]+$/.test(context) || /^\s*[/／]\s*$/.test(context))) return null;
+    // Percent suffixes and digit-to-letter code hyphens belong to the preceding
+    // admitted number; they are not permissible signs before a new number.
+    const leading = previousEnd ? context.replace(/^(?:[%％]|[-–—](?=\p{Letter}))/u, "") : context;
+    if (!COMMERCIAL_NUMBER_CONTEXT_RE.test(leading)) return null;
+    if (code) {
+      // Keep the full code identity, not only its numeric substring. This also
+      // prevents R-17 -> S-17 / R17 / 17 from passing number correspondence.
+      numbers.push(`code:${code[0].toUpperCase()}`);
+      tokens?.push({ value: `code:${code[0].toUpperCase()}`, start: code.index, end: code.index + code[0].length, code: true });
+      previousEnd = code.index + code[0].length;
+      // A greedy numeric match can cross the code's last digit and a comma
+      // into a separate quantity. Resume at the code end, not that match end.
+      scanner.lastIndex = previousEnd;
+      previousNumeric = false;
+      continue;
+    }
+    const shift = { 万: 4, 亿: 8, million: 6, billion: 9 }[String(match[2] ?? "").toLowerCase()] ?? 0;
+    const parts = match[1].replace(/\s*([–—-])\s*/g, "$1").replace(/[—-]/g, "–").split("–");
+    if (parts.length > 2) return null;
+    const normalized: string[] = [];
+    for (const part of parts) {
+      // Decimal identity is exact: validate grouping, then move the decimal
+      // point by a power of ten. No binary float or safe-integer coercion.
+      if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(part)) return null;
+      const [integer, fraction = ""] = part.replace(/,/g, "").split(".");
+      const digits = integer + fraction;
+      const point = integer.length + shift;
+      const whole = digits.slice(0, point).padEnd(point, "0").replace(/^0+(?=\d)/, "");
+      const decimal = digits.slice(point).replace(/0+$/, "");
+      normalized.push(decimal ? `${whole}.${decimal}` : whole);
+    }
+    numbers.push(normalized.join("–"));
+    tokens?.push({ value: normalized.join("–"), start: match.index, end: match.index + match[0].length, code: false });
+    previousEnd = match.index + match[0].length;
+    previousNumeric = true;
+  }
+  if (numbers.length) {
+    const tail = value.slice(previousEnd).replace(/^(?:[%％]|[-–—](?=\p{Letter}))/u, "").replace(/\.$/, ". ");
+    if (!COMMERCIAL_NUMBER_CONTEXT_RE.test(tail)) return null;
+  }
+  return numbers;
 }
+
+// Derive the existing writer's exact prefix with a one-character body. The
+// prefix includes its body delimiter; no instruction or optional body marker
+// is used as company material, and direct undecorated input remains unchanged.
+const COMPANY_MATERIALS_PREFIX = wrapCompanyMaterials("\u0000").slice(0, -1);
 
 function stripWrappedCommercialInstructions(materials: string): string {
   const input = materials.trim();
-  if (!input.startsWith("【公司资料】")) return materials;
-  const bodyStart = input.indexOf("资料性质：模拟。");
-  return bodyStart >= 0 ? input.slice(bodyStart) : materials;
+  return input.startsWith(COMPANY_MATERIALS_PREFIX) ? input.slice(COMPANY_MATERIALS_PREFIX.length) : materials;
 }
 
 type CommercialFactFragment = { text: string; context: string; source: string };
 
-function commercialFactFragments(materials: string): CommercialFactFragment[] {
+// A removable field label must retain its meaning in the requested kind. Known
+// materials/answer wrappers carry no quantity facts. Quantity verbs (年产/月产),
+// subjects, limits and another kind's field label remain in the source clause.
+const COMMERCIAL_WRAPPER_LABEL = /^(?:公司资料|资料|答)\s*[：:]\s*/;
+const COMMERCIAL_FIELD_LABELS: Record<CommercialTermKind, RegExp> = {
+  moq: /^(?:起订量|起订|起接|MOQ|minimum order)\s*[：:]\s*/i,
+  lead_time: /^(?:交期|lead[ -]time)\s*[：:]\s*/i,
+  capacity: /^(?:产能|capacity)\s*[：:]\s*/i,
+  trade_terms: /^(?:贸易条款|trade terms)\s*[：:]\s*/i,
+  payment: /^(?:付款方式|付款|payment)\s*[：:]\s*/i,
+  packaging: /^(?:包装|packaging)\s*[：:]\s*/i,
+};
+
+function commercialFactFragments(materials: string, kind?: CommercialTermKind): CommercialFactFragment[] {
   const source = stripWrappedCommercialInstructions(materials);
   return source.split(/\r?\n/).flatMap((line) => {
     const trimmed = line.trim();
@@ -2087,31 +2189,66 @@ function commercialFactFragments(materials: string): CommercialFactFragment[] {
         .map(([kind]) => kind)
         .join(" ");
       let value = sentence;
-      for (let label = 0; label < 3; label += 1) value = value.replace(/^[^：:]{1,32}[：:]\s*/, "");
+      let label = value.match(COMMERCIAL_WRAPPER_LABEL) ?? (kind ? value.match(COMMERCIAL_FIELD_LABELS[kind]) : null);
+      while (label) {
+        value = value.slice(label[0].length);
+        label = value.match(COMMERCIAL_WRAPPER_LABEL) ?? (kind ? value.match(COMMERCIAL_FIELD_LABELS[kind]) : null);
+      }
       return { text: value, context, source: sentence };
     }).filter((item) => item.text);
   });
 }
 
+const COMMERCIAL_KNOWN_CODES = /\b(?:EXW|FCA|FAS|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP|MOQ|CNY|RMB|USD|EUR|JPY|GBP|HKD|CAD|AUD|SGD|KRW|INR|CHF|T\/T|L\/C|D\/P|D\/A|O\/A)\b/gi;
+
 function englishCommercialCodes(value: string): string[] {
-  const known = /\b(?:EXW|FCA|FAS|FOB|CFR|CIF|CPT|CIP|DAP|DPU|DDP|MOQ|CNY|RMB|USD|EUR|JPY|GBP|HKD|CAD|AUD|SGD|KRW|INR|CHF|T\/T|L\/C|D\/P|D\/A|O\/A)\b/gi;
   const uppercase = /\b[A-Z][A-Z0-9/]{1,5}\b/g;
-  return [...(value.match(known) ?? []), ...(value.match(uppercase) ?? [])].map((code) => code.toUpperCase()).filter((code, index, all) => all.indexOf(code) === index);
+  return [...(value.match(COMMERCIAL_KNOWN_CODES) ?? []), ...(value.match(uppercase) ?? [])].map((code) => code.toUpperCase()).filter((code, index, all) => all.indexOf(code) === index);
 }
 
-const COMMERCIAL_UNIT_RULES = [
-  { key: "ten-thousand-piece", zh: /(?:\d[\d,.]*\s*万件|每万件|按万件)/, en: /\b(?:10[,.]?000|ten thousand|\d[\d,.]*\s*million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b|\bper\s+ten thousand\s+(?:pcs?|pieces?|parts?)\b/i },
-  { key: "piece", zh: /(?:\d[\d,.]*\s*件|每件|按件)/, en: /(?:\d[\d,.]*\s*(?:pcs?|pieces?|parts?)|\bper\s+(?:piece|part)s?)\b/i },
-  { key: "day", zh: /(?:\d[\d,.]*\s*天|每天|按天)/, en: /(?:\d[\d,.]*\s*days?|\bper\s+days?)\b/i },
-  { key: "hour", zh: /(?:\d[\d,.]*\s*(?:小时|时)|每小时|按小时)/, en: /(?:\d[\d,.]*\s*(?:hours?|hrs?|h)|\bper\s+hours?)\b/i },
-  { key: "week", zh: /(?:\d[\d,.]*\s*(?:周|星期)|每周|按周)/, en: /(?:\d[\d,.]*\s*weeks?|\bper\s+weeks?)\b/i },
-  { key: "month", zh: /(?:\d[\d,.]*\s*月|每月|按月)/, en: /(?:\d[\d,.]*\s*months?|\bper\s+months?)\b/i },
-  { key: "year", zh: /(?:\d[\d,.]*\s*年|每年|按年)/, en: /(?:\d[\d,.]*\s*years?|\bper\s+years?)\b/i },
-  { key: "equipment", zh: /(?:\d[\d,.]*\s*台|每台|按台)/, en: /(?:\d[\d,.]*(?:\s+[A-Za-z-]+){0,2}\s+(?:units?|machines?)|\bper\s+(?:unit|machine)s?)\b/i },
-  { key: "set", zh: /(?:\d[\d,.]*\s*套|每套|按套|单套)/, en: /(?:\d[\d,.]*|one|a)\s+(?:sets?|molds?|moulds?)\b|\bper\s+sets?\b/i },
-  { key: "ton", zh: /(?:\d[\d,.]*\s*t\b|每吨|按吨)/i, en: /(?:\d[\d,.]*\s*(?:tons?|t)|\bper\s+tons?)\b/i },
-  { key: "kg", zh: /(?:\d[\d,.]*\s*kg\b|每(?:千克|kg)|按(?:千克|kg))/i, en: /(?:\d[\d,.]*\s*kg|\bper\s+kg)\b/i },
-] as const;
+const CAPACITY_PERIODS: Record<string, string> = {
+  年: "year", 月: "month", 周: "week", 日: "day", 天: "day", 小时: "hour",
+  annual: "year", annually: "year", yearly: "year", monthly: "month", weekly: "week", daily: "day", hourly: "hour",
+};
+const CAPACITY_EN_PERIOD_PATTERN = String.raw`(?:(?:\bper|\beach|\bevery|\ba|\ban)\s+|\/\s*)(year|month|week|day|hour)s?\b|\b(annually|yearly|monthly|weekly|daily|hourly)\b`;
+
+const COMMERCIAL_UNIT_RULES = ([
+  { key: "ten-thousand-piece", zhUnit: "万件", enUnit: "ten thousand (?:pcs?|pieces?|parts?)", en: /\b(?:10[,.]?000|ten thousand|\d[\d,.]*\s*million)\s+(?:[A-Za-z]+\s+)?(?:pcs?|pieces?|parts?)\b/i },
+  { key: "piece", zhUnit: "件", enUnit: "(?:pcs?|pieces?|parts?)", en: /\d[\d,.]*\s*(?:pcs?|pieces?|parts?)\b/i },
+  { key: "day", zhUnit: "天", enUnit: "days?", en: /\d[\d,.]*\s*days?\b/i },
+  { key: "hour", zhUnit: "(?:小时|时)", enUnit: "(?:hours?|hrs?|h)", en: /\d[\d,.]*\s*(?:hours?|hrs?|h)\b/i },
+  { key: "week", zhUnit: "(?:周|星期)", enUnit: "weeks?", en: /\d[\d,.]*\s*weeks?\b/i },
+  { key: "month", zhUnit: "月", enUnit: "months?", en: /\d[\d,.]*\s*months?\b/i },
+  { key: "year", zhUnit: "年", enUnit: "years?", en: /\d[\d,.]*\s*years?\b/i },
+  { key: "equipment", zhUnit: "台", enUnit: "(?:units?|machines?)", en: /\d[\d,.]*(?:\s+[A-Za-z-]+){0,2}\s+(?:units?|machines?)\b/i },
+  { key: "set", zhUnit: "套", enUnit: "sets?", zh: /单套/, en: /(?:\d[\d,.]*|\bone|\ba)\s+(?:sets?|molds?|moulds?)\b/i },
+  { key: "ton", zhUnit: "(?:吨|t\\b)", enUnit: "(?:tons?|t)", en: /\d[\d,.]*\s*(?:tons?|t)\b/i },
+  { key: "kg", zhUnit: "(?:千克|kg\\b)", enUnit: "kg", en: /\d[\d,.]*\s*kg\b/i },
+] as const).map((rule) => ({ ...rule,
+  zh: new RegExp(`(?:${COMMERCIAL_NUMBER_RE.source})\\s*(?:${rule.zhUnit})${"zh" in rule ? `|${rule.zh.source}` : ""}`, "i"),
+  en: new RegExp(rule.en.source.replaceAll(String.raw`\d[\d,.]*`, `(?:${COMMERCIAL_NUMBER_RE.source})`), "i"),
+}));
+const COMMERCIAL_DECLARED_UNIT_RULES = COMMERCIAL_UNIT_RULES.map((rule) => {
+  // Latin unit tokens keep their boundary inside Han text. A Han unit needs
+  // its own token boundary or an explicit unit declaration; characters inside
+  // 文件/台账/周边/套管 are not standalone unit identities.
+  const latin = rule.key === "ton" || rule.key === "kg";
+  const boundary = latin ? "A-Za-z0-9/-" : "\\p{Letter}\\p{Number}";
+  const codeSuffix = "\\s+code\\b|编号|型";
+  const unitNoun = ({ piece: "零件", day: "天数", year: "年份" } as Record<string, string>)[rule.key];
+  const zhIdentity = `(?:${rule.zhUnit}${unitNoun ? `|${unitNoun}` : ""})`;
+  const enIdentity = `(?:${rule.enUnit})`;
+  return {
+    key: rule.key,
+    zh: new RegExp(`(?:每|按)(?:${rule.zhUnit})`, "i"),
+    en: new RegExp(`\\b(?:in|per)\\s+(?:${rule.enUnit})\\b`, "i"),
+    unquantifiedZh: new RegExp(`(?<![${boundary}])(?:${rule.zhUnit})(?![${boundary}]${latin ? `|${codeSuffix}` : ""})${unitNoun ? `|${unitNoun}` : ""}`, "iu"),
+    unquantifiedEn: new RegExp(`(?<![A-Za-z0-9/-])(?:${rule.enUnit})(?![A-Za-z0-9-]|(?!${CAPACITY_EN_PERIOD_PATTERN})/|${codeSuffix})`, "i"),
+    identityZh: new RegExp(`^${zhIdentity}$`, "iu"),
+    identityEn: new RegExp(`^${enIdentity}$`, "i"),
+    enDeclarationStart: new RegExp(`^${enIdentity}(?![A-Za-z0-9])`, "i"),
+  };
+});
 
 // These are the only source phrases in the simulated packs where Chinese puts the
 // business unit before the number. They are explicit source facts, not a generic
@@ -2121,22 +2258,141 @@ const BUSINESS_UNIT_PHRASES = [
   { key: "month", zh: /月注塑能力(?:约|大约)?\s*\d[\d,.]*/ },
 ] as const;
 
-const BARE_ZH_UNIT = /^(?:万件|件|天|小时|时|周|星期|月|年|台|套|吨|t|kg)$/i;
-const BARE_EN_UNIT = /^(?:pcs?|pieces?|parts?|days?|hours?|hrs?|h|weeks?|months?|years?|units?|machines?|sets?|tons?|t|kg)$/i;
+const BARE_ZH_UNIT = new RegExp(`^(?:${COMMERCIAL_UNIT_RULES.map((rule) => rule.zhUnit).join("|")})$`, "i");
+const BARE_EN_UNIT = new RegExp(`^(?:${COMMERCIAL_UNIT_RULES.map((rule) => rule.enUnit).join("|")})$`, "i");
 
-function chineseCommercialUnits(value: string): string[] {
-  return [...COMMERCIAL_UNIT_RULES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key), ...BUSINESS_UNIT_PHRASES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key)].filter((key, index, all) => all.indexOf(key) === index);
+function commercialUnitIdentities(value: string, capacity = false, equipmentName = false): { identities: string[]; quantified: Array<{ quantity: string; unit: string }>; ratios: Array<{ numerator: string; denominator: string; explicit: boolean }> } | null {
+  const numberTokens: CommercialNumberToken[] = [];
+  const numbers = canonicalCommercialNumbers(value, numberTokens);
+  if (!numbers) return null;
+  const declarations: Array<{ keys: string[]; start: number; end: number }> = [];
+  const ratios: Array<{ numerator: string; denominator: string; explicit: boolean }> = [];
+  for (const range of capacityClauseRanges(value)) {
+    const rawClause = value.slice(range.start, range.end).trim();
+    const clause = rawClause.replace(/\.$/, "");
+    const chineseDeclaration = /单位/.test(clause);
+    const marked = chineseDeclaration || /\b(?:measurement\s+)?units?\s*(?:(?:is|are)\s+|[:=]\s*)|\bas\s+(?:(?:a|the)\s+)?(?:measurement\s+)?units?\b/i.test(clause);
+    const statement = marked ? clause.match(chineseDeclaration
+      ? /^(?:计量)?单位\s*(?:为|是|[:：=])?\s*(.+)$|^(?:(?:以|按|每)\s*)?(.+?)\s*(?:为|作为|是)?\s*单位$/u
+      : /^(?:measurement\s+)?units?\s*(?:(?:is|are)\s+|[:=]\s*)(.+)$|^(.+?)\s+as\s+(?:(?:a|the)\s+)?(?:measurement\s+)?units?$/i) : null;
+    // Existing English "in <unit>" can carry the translated declaration.
+    // Ordinary uses of "in" do not become new declarations.
+    const inUnits = !marked ? clause.match(/\bin\s+(.+)$/i) : null;
+    const bareParts = clause.split(/\s*[/／]\s*|\s+per\s+/i);
+    const wholeCode = [...clause.matchAll(COMMERCIAL_CODE_RE)].some((code) => code[0].includes("/")
+      && (/\d/.test(code[0]) || (code[0].match(COMMERCIAL_KNOWN_CODES) ?? []).some((known) => known.length === code[0].length)));
+    // A whole ratio of existing unit atoms supplies its own relation marker.
+    // Exact known codes retain their ownership; surrounding prose is not guessed
+    // into a ratio. Partial/extra operands in a unit expression refuse below.
+    const bareRatio = !marked && !inUnits && !wholeCode && bareParts.length > 1
+      && bareParts.some((part) => COMMERCIAL_DECLARED_UNIT_RULES.some((rule) => rule.identityZh.test(part.trim()) || rule.identityEn.test(part.trim())))
+      && (/[/／]/.test(clause) && bareParts.every((part) => /^\p{Letter}+$/u.test(part.trim()))
+        || COMMERCIAL_DECLARED_UNIT_RULES.some((rule) => rule.identityZh.test(bareParts[0].trim()) || rule.identityEn.test(bareParts[0].trim())));
+    if (!marked && !bareRatio && (!inUnits || !COMMERCIAL_DECLARED_UNIT_RULES.some((rule) => rule.enDeclarationStart.test(inUnits[1])))) continue;
+    if (marked && !statement) return null;
+    const expression = (statement?.[1] ?? statement?.[2] ?? (bareRatio ? clause : inUnits![1])).trim();
+    // Consume the entire declared scalar or single ratio. Unknown atoms,
+    // extra operators and residual prose are not evidence of absent units.
+    const parts = expression.split(chineseDeclaration ? /\s*[/／]\s*/u : /\s*\/\s*|\s+per\s+/i);
+    if (parts.length > 2 || parts.some((part) => !part)) return null;
+    const keys: string[] = [];
+    for (const part of parts) {
+      const rule = COMMERCIAL_DECLARED_UNIT_RULES.find((rule) => rule.identityZh.test(part.trim()) || rule.identityEn.test(part.trim()));
+      if (!rule) return null;
+      keys.push(rule.key);
+    }
+    // Ordered ratio identity prevents kg/件 from passing as 件/kg or as two
+    // independent units. The ordinary raw-token gate remains unchanged.
+    if (keys.length === 2) ratios.push({ numerator: keys[0], denominator: keys[1], explicit: marked || bareRatio });
+    // Only the declaration owns these tokens; an earlier "Pieces output" is
+    // still ordinary raw text and must remain visible to the unit gate.
+    const start = range.start + value.slice(range.start, range.end).indexOf(rawClause) + (inUnits?.index ?? 0);
+    declarations.push({ keys, start, end: range.end });
+  }
+  // A complete code owns its digits. Resume after that owner if a unit pattern
+  // starts inside it; neither a classifier nor a later quantity belongs to it.
+  const codes = [...value.matchAll(COMMERCIAL_CODE_RE)].filter((match) => /\d|[-/]/.test(match[0]));
+  const quantified = COMMERCIAL_UNIT_RULES.flatMap((rule) => [rule.zh, rule.en].flatMap((pattern) => {
+    const scanner = new RegExp(pattern.source, `${pattern.flags}g`);
+    const parts: Array<{ key: string; start: number; end: number }> = [];
+    let match: RegExpExecArray | null;
+    while ((match = scanner.exec(value))) {
+      const start = match.index;
+      const end = scanner.lastIndex;
+      const code = codes.find((code) => start < code.index + code[0].length && end > code.index);
+      if (code) {
+        scanner.lastIndex = code.index + code[0].length;
+        continue;
+      }
+      parts.push({ key: rule.key, start, end });
+    }
+    return parts;
+  }));
+  const unitContexts = COMMERCIAL_DECLARED_UNIT_RULES.flatMap((rule) => [rule.zh, rule.en].flatMap((pattern) =>
+    [...value.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))].map((match) => ({ start: match.index, end: match.index + match[0].length }))));
+  // A declared/per-unit atom owns its spelling (including "ten thousand
+  // pieces"); it is not an independently supplied output quantity.
+  const quantities = quantified.filter((part) => ![...declarations, ...unitContexts].some((owner) => owner.start <= part.start && owner.end >= part.end));
+  const measurements = quantities.filter((part) => part.key !== "equipment"
+    || !quantities.some((other) => other.key !== "equipment" && other.start === part.start && other.end < part.end));
+  const relations: Array<{ quantity: string; unit: string }> = [];
+  const observed = new Set<string>();
+  for (const part of measurements) {
+    // A suffix match must bind to the entire original number: 3–25 天 owns
+    // "3–25", never the matched suffix "25". Codes cannot supply its digits.
+    const token = numberTokens.find((token) => !token.code && token.start <= part.start && part.start < token.end && token.end <= part.end);
+    const quantity = token?.value ?? (part.key === "set" ? "1" : part.key === "ten-thousand-piece" ? "10000" : null);
+    if (!quantity) return null;
+    // 万/million already belongs to the exact numerical identity. Its output
+    // dimension is pieces; two regex views of one landing point are one claim.
+    const unit = part.key === "ten-thousand-piece" ? "piece" : part.key;
+    const landing = `${token?.start ?? part.start}:${unit}`;
+    if (observed.has(landing)) continue;
+    observed.add(landing);
+    relations.push({ quantity, unit });
+  }
+  const clauses = capacityClauseRanges(value);
+  const identities: string[] = [
+    ...declarations.flatMap((part) => part.keys),
+    ...measurements.map((part) => part.key),
+    ...COMMERCIAL_DECLARED_UNIT_RULES.filter((rule) => {
+      // Field language is not a token identity: Chinese company materials can
+      // contain existing Han/Latin units with or without quantities.
+      if (rule.zh.test(value) || rule.en.test(value)) return true;
+      // In a device name, bare machine/unit words are the name's classifier.
+      // Quantities, per-unit wording and declarations still prove this identity;
+      // no assertion about translation of the device's proper name is made.
+      if (equipmentName && rule.key === "equipment") return false;
+      // A declaration owns its full span, including the word "units". That
+      // marker cannot also invent an equipment identity in "hours as units".
+      return [rule.unquantifiedZh, rule.unquantifiedEn].some((pattern) =>
+        [...value.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))].some((match) =>
+          !declarations.some((part) => part.start <= match.index && part.end >= match.index + match[0].length)
+          // A production noun before an actual measurement is its business
+          // subject ("molded parts 15 days"), not another quantity unit. Per-unit
+          // wording/declarations above and standalone units remain accountable.
+          && !(["piece", "set", "equipment"].includes(rule.key) && measurements.some((part) =>
+            part.start >= match.index + match[0].length && clauses.some((clause) => clause.start <= match.index && part.end <= clause.end)))));
+    }).map((rule) => rule.key),
+    ...BUSINESS_UNIT_PHRASES.filter((rule) => rule.zh.test(value)).map((rule) => rule.key),
+  ];
+  // Read units/declarations from the original tokens first. Period aliases add
+  // identities without rewriting pcs/day into pcsper day or erasing code edges.
+  if (capacity) {
+    for (const match of value.matchAll(/(小时|年|月|周|日|天)(?=产(?:量|能)?|[\p{Script=Han}]{0,12}能力)/gu)) identities.push(CAPACITY_PERIODS[match[1]]);
+    for (const match of value.matchAll(new RegExp(CAPACITY_EN_PERIOD_PATTERN, "gi"))) identities.push(match[1]?.toLowerCase() ?? CAPACITY_PERIODS[match[2].toLowerCase()]);
+    for (const match of value.matchAll(new RegExp(`\\b(?:${Object.keys(CAPACITY_PERIODS).filter((word) => /^[a-z]+$/.test(word)).join("|")})\\b`, "gi"))) identities.push(CAPACITY_PERIODS[match[0].toLowerCase()]);
+  }
+  return { identities: identities.filter((key, index, all) => all.indexOf(key) === index), quantified: relations, ratios };
 }
 
-function englishCommercialUnits(value: string): string[] {
-  return COMMERCIAL_UNIT_RULES.filter((rule) => rule.en.test(value)).map((rule) => rule.key);
-}
-
-function commercialUnitsMatch(zh: string, en: string): boolean {
-  const expected = chineseCommercialUnits(zh);
+function commercialUnitsMatch(zh: string, en: string, capacity = false, equipmentName = false): boolean {
+  const expected = commercialUnitIdentities(zh, capacity, equipmentName);
+  if (!expected) return false;
   if (BARE_ZH_UNIT.test(zh.trim()) || BARE_EN_UNIT.test(en.trim())) return false;
-  if (/\bh\b/i.test(en) && !/\d[\d,.]*\s*h\b/i.test(en)) return false;
-  const actual = englishCommercialUnits(en);
+  if (canonicalCommercialNumbers(en)?.length && /\bh\b/i.test(en) && !/(?:\d[\d,.]*\s*|\b(?:in|per)\s+)h\b/i.test(en)) return false;
+  const actual = commercialUnitIdentities(en, capacity, equipmentName);
+  if (!actual) return false;
   const compatible = (source: string, target: string) => {
     if (source === target) return true;
     if (source === "equipment" && target === "set") return true;
@@ -2145,8 +2401,29 @@ function commercialUnitsMatch(zh: string, en: string): boolean {
     if (source === "piece" && target === "ten-thousand-piece") return true;
     return false;
   };
-  return expected.every((unit) => actual.some((candidate) => compatible(unit, candidate)))
-    && actual.every((unit) => expected.some((candidate) => compatible(candidate, unit)));
+  // A supplied number-unit production needs a number-unit counterpart; a bare
+  // noun elsewhere ("pieces: 5000") cannot replace that proven landing point.
+  const unmatched = [...actual.quantified];
+  // Reserve exact set matches before the directional 台 -> set alias. Consume
+  // each occurrence once; independent number/unit bags cannot prove a claim.
+  const ordered = [...expected.quantified].sort((a, b) => Number(a.unit === "equipment") - Number(b.unit === "equipment"));
+  for (const source of ordered) {
+    const index = unmatched.findIndex((target) => source.quantity === target.quantity && compatible(source.unit, target.unit));
+    if (index < 0) return false;
+    unmatched.splice(index, 1);
+  }
+  if (unmatched.length) return false;
+  // Explicit ratios need an ordered counterpart. Ordinary unquantified rates
+  // retain the existing period gate (e.g. 按kg每月供货 -> in kg per month).
+  const requireRatios = [...expected.ratios, ...actual.ratios].some((ratio) => ratio.explicit || !Object.values(CAPACITY_PERIODS).includes(ratio.denominator));
+  if (requireRatios) {
+    const ratioMatches = (source: typeof expected.ratios[number], target: typeof actual.ratios[number]) =>
+      compatible(source.numerator, target.numerator) && compatible(source.denominator, target.denominator);
+    if (!expected.ratios.every((ratio) => actual.ratios.some((candidate) => ratioMatches(ratio, candidate)))
+      || !actual.ratios.every((ratio) => expected.ratios.some((candidate) => ratioMatches(candidate, ratio)))) return false;
+  }
+  return expected.identities.every((unit) => actual.identities.some((candidate) => compatible(unit, candidate)))
+    && actual.identities.every((unit) => expected.identities.some((candidate) => compatible(candidate, unit)));
 }
 
 function commercialFactFragmentMatches(fragment: CommercialFactFragment, clause: string, kind: CommercialTermKind, englishCodes: string[]): boolean {
@@ -2154,29 +2431,411 @@ function commercialFactFragmentMatches(fragment: CommercialFactFragment, clause:
   const source = fragment.text.toLowerCase();
   const related = hints.some((hint) => source.includes(hint.toLowerCase())) || fragment.context.includes(kind);
   if (!related) return false;
-  const sourceClauses = fragment.text.split(/[，,；;]/).map((part) => part.trim()).filter(Boolean);
+  if (canonicalCommercialNumbers(fragment.source) === null) return false;
+  const sourceClauses = capacityClauses(fragment.text);
   if (!sourceClauses.includes(clause)) return false;
   const sourceCodes = new Set(englishCommercialCodes(`${clause} ${fragment.source}`).map((code) => code.toUpperCase()));
   return englishCodes.every((code) => sourceCodes.has(code.toUpperCase()));
 }
 
 function materialContainsCommercialFact(materials: string, value: { zh: string; en: string }, kind: CommercialTermKind): boolean {
-  const clauses = value.zh.split(/[，,；;。！？!?\n]+/).map((clause) => clause.trim()).filter(Boolean);
-  const fragments = commercialFactFragments(materials);
+  const clauses = capacityClauses(value.zh);
+  const fragments = commercialFactFragments(materials, kind);
   const englishCodes = englishCommercialCodes(value.en);
-  return clauses.length > 0 && clauses.every((clause) => fragments.some((fragment) => commercialFactFragmentMatches(fragment, clause, kind, englishCodes)));
+  return clauses.length > 0 && fragments.some((fragment) => clauses.every((clause) => commercialFactFragmentMatches(fragment, clause, kind, englishCodes)));
 }
 
-function groundCommercialTerm(term: CommercialTerm, materials: string, rejected: string[]): CommercialTerm | null {
+type CapacityRelation = { quantity: string; unit: string | null; period: string | null; qualifiers: string[] };
+type CapacityClaim = CapacityRelation & { equipmentParent?: CapacityRelation };
+
+function capacityRelationMatches(source: CapacityRelation, target: CapacityRelation): boolean {
+  return source.quantity === target.quantity && source.period === target.period
+    && JSON.stringify(source.qualifiers) === JSON.stringify(target.qualifiers)
+    && (source.unit === target.unit || (source.unit === "equipment" && target.unit === "set"));
+}
+type CommercialTermRejection = {
+  operationIndex: number;
+  operation: "replace_commercial_terms" | "update_commercial_term";
+  term: CommercialTerm;
+  termTruncated: boolean;
+  failedChecks: string[];
+  chineseClaims: CapacityClaim[] | null;
+  englishClaims: CapacityClaim[] | null;
+  sourceMatches: boolean;
+  parseEvidence: { zh: ReturnType<typeof capacityParseEvidence>; en: ReturnType<typeof capacityParseEvidence> };
+  claimsTruncated: boolean;
+  sourceFragmentCount: number;
+  sourceFragments: Array<{ fragmentIndex: number; source: string; truncated: boolean; matchedClauses: string[]; matchedClauseCount: number; matchedClausesTruncated: boolean; parseEvidence: ReturnType<typeof capacityParseEvidence> & { coordinateSpace: "source"; offsetUnit: "utf16"; sourceLength: number } }>;
+};
+type CommercialTermAuditContext = { operationIndex: number; operation: CommercialTermRejection["operation"]; rejections: CommercialTermRejection[] };
+
+// Quantified capacity uses complete, finite productions. There is no word-skipping
+// branch: unknown subjects and modifiers are unsupported, including source words.
+// Unquantified wording retains the existing T-079/T-082 mechanical checks.
+type CapacityBound = "minimum" | "maximum" | "greater_than" | "less_than";
+type CapacityModifierError = "negation_scope" | "comparison_scope" | "unsupported_syntax";
+type CapacitySpan = { start: number; end: number; depth: number; kind: string };
+type CapacityResidual = { start: number; end: number; depth: number; text: string; reason: string };
+type CapacityParse = {
+  claims: CapacityClaim[] | null;
+  status: "complete" | "unsupported";
+  spans: CapacitySpan[];
+  residuals: CapacityResidual[];
+  error?: CapacityModifierError;
+};
+
+// These patterns classify a refusal only. They never authorize unconsumed text.
+const ENGLISH_CAPACITY_NEGATION = /\b(?:no|not|never|without|neither|nor|cannot)\b|\b[A-Za-z]+n['’]t\b/i;
+const ENGLISH_CAPACITY_COMPARISON = /\b(?:more|greater|less|fewer|over|under|above|below|least|most|minimum|maximum|than|equal|equals|exactly|about|around|approximately|approx|roughly)\b|[<>≥≤]/i;
+
+// Preserve raw positions while applying the same semantic-space rule as source
+// matching. ASCII numbers/codes keep separators; Chinese words may close spaces.
+function capacityInput(value: string, locale: "zh" | "en"): { text: string; offsets: number[] } {
+  let text = "";
+  const offsets: number[] = [];
+  for (let i = 0; i < value.length;) {
+    const space = value.slice(i).match(/^\s+/)?.[0];
+    if (space && locale === "zh") {
+      // Keep clause delimiters before normalization; joining two complete
+      // newline-separated quantities would erase their ownership boundary.
+      if (/[\r\n]/.test(space)) {
+        text += space;
+        for (let j = 0; j < space.length; j += 1) offsets.push(i + j);
+      } else if (/[A-Za-z0-9.]/.test(value[i - 1] ?? "") && /[A-Za-z0-9.]/.test(value[i + space.length] ?? "")) {
+        text += " "; offsets.push(i);
+      }
+      i += space.length;
+    } else {
+      text += value[i]; offsets.push(i); i += 1;
+    }
+  }
+  return { text, offsets };
+}
+
+function normalizeCapacityChinese(value: string): string {
+  return capacityInput(value, "zh").text;
+}
+
+// A delimiter inside a parenthesis is part of that substructure, never a new
+// production clause. Malformed/nested parentheses remain visible to the parser.
+function capacityClauseRanges(value: string): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = [];
+  let start = 0;
+  let depth = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i];
+    if (char === "(" || char === "（") depth += 1;
+    else if (char === ")" || char === "）") depth = Math.max(0, depth - 1);
+    const delimiter = /[，；;。！？!?\n]/.test(char) || (char === "," && !(/\d/.test(value[i - 1] ?? "") && /\d/.test(value[i + 1] ?? "")));
+    if (depth === 0 && delimiter) { ranges.push({ start, end: i }); start = i + 1; }
+  }
+  ranges.push({ start, end: value.length });
+  return ranges.filter((range) => value.slice(range.start, range.end).trim());
+}
+
+function capacityClauses(value: string): string[] {
+  return capacityClauseRanges(value).map(({ start, end }) => value.slice(start, end).trim());
+}
+
+const CAPACITY_EN_PERIOD_SUFFIX = new RegExp(`^(?:${CAPACITY_EN_PERIOD_PATTERN})`, "i");
+const CAPACITY_SIMPLE_UNIT_RULES = COMMERCIAL_UNIT_RULES.filter((rule) => !["ten-thousand-piece", "piece", "equipment", "set"].includes(rule.key));
+const CAPACITY_ZH_UNIT = new RegExp(`^(套(?:模具)?|件(?:注塑件)?|台(?:注塑机)?|${CAPACITY_SIMPLE_UNIT_RULES.map((rule) => rule.zhUnit).join("|")})`, "i");
+const CAPACITY_EN_UNIT = new RegExp(`^(?:(?:injection(?:\\s+molding)?|molding)\\s+)?(machines?|units?)\\b|^(?:(?:mold|mould)\\s+)?(sets?|moulds?|molds?)\\b|^(?:(?:injection\\s+molded|molded|injection)\\s+)?(pcs?|pieces?|parts?)\\b|^(${CAPACITY_SIMPLE_UNIT_RULES.map((rule) => rule.enUnit).join("|")})\\b`, "i");
+const CAPACITY_BOUND_COMPLEMENT: Record<CapacityBound, CapacityBound> = {
+  greater_than: "maximum", less_than: "minimum", minimum: "less_than", maximum: "greater_than",
+};
+const CAPACITY_BOUND_WORDS: Record<string, CapacityBound> = {
+  more: "greater_than", greater: "greater_than", over: "greater_than", above: "greater_than", ">": "greater_than",
+  less: "less_than", fewer: "less_than", under: "less_than", below: "less_than", "<": "less_than",
+  least: "minimum", minimum: "minimum", ">=": "minimum", "≥": "minimum",
+  most: "maximum", maximum: "maximum", up: "maximum", "<=": "maximum", "≤": "maximum",
+  不少于: "minimum", 不低于: "minimum", 至少: "minimum", 以上: "minimum",
+  不超过: "maximum", 最多: "maximum", 最高: "maximum", 至多: "maximum", 以下: "maximum", 以内: "maximum",
+  不足: "less_than", 少于: "less_than", 低于: "less_than", 小于: "less_than",
+  超过: "greater_than", 多于: "greater_than", 大于: "greater_than",
+};
+const CAPACITY_NUMBER = /^(\d+(?:[,.]\d+)*(?:\s*[–—-]\s*\d+(?:[,.]\d+)*)?)(?:\s*(万|亿|million|billion))?/i;
+const CAPACITY_EN_MODIFIER = /^(?:(no|not)\s+)?((?:more|greater|less|fewer)\s+than(?:\s+or\s+equal\s+to)?|over|above|under|below|at\s+(?:least|most)|up\s+to|minimum|maximum)(?![A-Za-z])|^(?:(no|not)\s*)?(>=|<=|≥|≤|>|<)|^(about|around|approximately|approx\.?|roughly)(?![A-Za-z])/i;
+const CAPACITY_ZH_MODIFIER = /^(大约|约为|约|左右|不少于|不低于|至少|不超过|最多|最高|至多|不足|少于|低于|小于|超过|多于|大于|以上|以下|以内|>=|<=|≥|≤|>|<)/;
+
+function capacityClaims(raw: string, locale: "zh" | "en"): CapacityParse {
+  const input = capacityInput(raw, locale);
+  const { text, offsets } = input;
+  const claims: CapacityClaim[] = [];
+  const spans: CapacitySpan[] = [];
+  const residuals: CapacityResidual[] = [];
+  const rawStart = (position: number) => offsets[position] ?? raw.length;
+  const rawEnd = (position: number) => position > 0 ? (offsets[position - 1] ?? raw.length - 1) + 1 : rawStart(position);
+  const span = (kind: string, start: number, end: number, depth = 0) => spans.push({ kind, start: rawStart(start), end: rawEnd(end), depth });
+  const unsupported = (start: number, end: number, depth: number, reason: string, contextStart = start): CapacityParse => {
+    const remaining = text.slice(contextStart, end);
+    const error: CapacityModifierError = (locale === "en" ? ENGLISH_CAPACITY_NEGATION.test(remaining) : /不|未|非|无|没有/.test(remaining)) ? "negation_scope"
+      : (locale === "en" ? ENGLISH_CAPACITY_COMPARISON.test(remaining) : /约|以上|以下|以内|左右|[<>≥≤]/.test(remaining)) ? "comparison_scope" : "unsupported_syntax";
+    residuals.push({ start: rawStart(start), end: rawEnd(end), depth, text: raw.slice(rawStart(start), rawEnd(end)), reason });
+    return { claims: null, status: "unsupported", spans, residuals, error };
+  };
+  // Validate numeric lexemes before clause boundaries can split malformed ones.
+  if (canonicalCommercialNumbers(raw) === null) return unsupported(0, text.length, 0, "invalid_numeric_lexeme");
+  // No numerical relationships are asserted here. Source/code/unit/cycle gates
+  // still run below, so this does not invent absent dimensions or prove completeness.
+  if (!/\p{Number}/u.test(text)) {
+    if (text.trim()) span("unquantified", 0, text.length);
+    return { claims, status: "complete", spans, residuals };
+  }
+  for (const range of capacityClauseRanges(text)) {
+    let cursor = range.start;
+    const skipSpace = () => { cursor += text.slice(cursor, range.end).match(/^\s*/)?.[0].length ?? 0; };
+    const consume = (pattern: RegExp, kind: string, depth = 0): RegExpMatchArray | null => {
+      skipSpace();
+      const match = text.slice(cursor, range.end).match(pattern);
+      if (!match) return null;
+      span(kind, cursor, cursor + match[0].length, depth);
+      cursor += match[0].length;
+      return match;
+    };
+    let period: string | null = null;
+    let approximate = false;
+    let bound: CapacityBound | null = null;
+    let qualifierConflict = false;
+    const modifier = (position: "prefix" | "postfix"): boolean => {
+      skipSpace();
+      const start = cursor;
+      // Post-number 'or fewer' is an inclusive bound, not a unit descriptor.
+      const inclusive = locale === "en" && position === "postfix" ? consume(/^or\s+(fewer|less|more|greater)(?![A-Za-z])/i, "qualifier") : null;
+      if (!inclusive && position === "postfix" && !(locale === "zh"
+        ? /^(?:以上|以下|以内|左右)/.test(text.slice(cursor, range.end))
+        : /^(?:at\s+(?:least|most)|minimum|maximum|about|around|approximately|approx\.?|roughly)(?![A-Za-z])/i.test(text.slice(cursor, range.end)))) return false;
+      const match = inclusive ? null : consume(locale === "zh" ? CAPACITY_ZH_MODIFIER : CAPACITY_EN_MODIFIER, "qualifier");
+      if (!inclusive && !match) return false;
+      let nextBound: CapacityBound | null = null;
+      if (inclusive) nextBound = /^(?:fewer|less)$/i.test(inclusive[1]) ? "maximum" : "minimum";
+      else if (locale === "zh") {
+        if (/^(?:大约|约为|约|左右)$/.test(match![1])) {
+          if (approximate) qualifierConflict = true;
+          approximate = true;
+        } else nextBound = CAPACITY_BOUND_WORDS[match![1]];
+      } else if (match![5]) {
+        if (approximate) qualifierConflict = true;
+        approximate = true;
+      } else {
+        const comparison = (match![2] ?? match![4]).toLowerCase().replace(/\s+/g, " ");
+        nextBound = CAPACITY_BOUND_WORDS[comparison.replace(/^at /, "").split(" ")[0]];
+        if (comparison.endsWith(" or equal to")) nextBound = nextBound === "greater_than" ? "minimum" : "maximum";
+        if (match![1] || match![3]) {
+          if (/^(?:up to|minimum|maximum)$/.test(comparison)) qualifierConflict = true;
+          else nextBound = CAPACITY_BOUND_COMPLEMENT[nextBound];
+        }
+      }
+      if (nextBound) {
+        if (bound) qualifierConflict = true;
+        bound = nextBound;
+      }
+      // Chinese equality exclusion is attached to this bound, never free prose.
+      if (locale === "zh" && /^(?:以上|以下)$/.test(match![1])) {
+        skipSpace();
+        const exclusion = text.slice(cursor, range.end).match(/^(（不含）|\(不含\))/);
+        if (exclusion) {
+          span("parenthesis", cursor, cursor + 1);
+          span("qualifier", cursor + 1, cursor + exclusion[0].length - 1, 1);
+          span("parenthesis", cursor + exclusion[0].length - 1, cursor + exclusion[0].length);
+          cursor += exclusion[0].length;
+          bound = bound === "minimum" ? "greater_than" : "less_than";
+        }
+      }
+      if (cursor === start) throw new Error("Capacity modifier did not consume text");
+      return true;
+    };
+    // Finite neutral skeleton: [subject] [cycle + production predicate], or the
+    // English [cycle adjective] [business subject + output/capacity predicate].
+    // These domain categories do not authorize arbitrary company/product names.
+    if (locale === "zh") {
+      consume(/^(?:注塑机|注塑件|模具)/, "subject");
+      const cycle = consume(/^(?:(?:每|按)(小时|年|月|周|日|天)(?:生产|产(?:量|能)?)?|(小时|年|月|周|日|天)(?:注塑能力|产(?:量|能)?))/, "period");
+      if (cycle) period = CAPACITY_PERIODS[cycle[1] ?? cycle[2]];
+      else consume(/^(?:生产|产能|产量|注塑能力)/, "predicate");
+    } else {
+      const cycle = consume(/^(annual(?:ly)?|yearly|monthly|weekly|daily|hourly)\b/i, "period");
+      if (cycle) period = CAPACITY_PERIODS[cycle[1].toLowerCase()];
+      consume(/^(?:(?:mold|mould|injection(?:\s+molding)?|molding)\s+)?(?:output|capacity|production)\b/i, "predicate");
+    }
+    // At most one approximate and one bound node may precede the quantity.
+    for (let count = 0; count < 2 && modifier("prefix"); count += 1) { /* consume */ }
+    skipSpace();
+    const quantityStart = cursor;
+    const number = consume(CAPACITY_NUMBER, "quantity");
+    if (!number) return unsupported(cursor, range.end, 0, "expected_quantity_or_unknown_prefix", range.start);
+    const quantity = canonicalCommercialNumbers(number[0])?.[0];
+    if (!quantity) return unsupported(quantityStart, cursor, 0, "invalid_quantity");
+    modifier("postfix");
+    const unitMatch = consume(locale === "zh" ? CAPACITY_ZH_UNIT : CAPACITY_EN_UNIT, "unit");
+    const unitWord = unitMatch ? (locale === "zh" ? unitMatch[1].replace(/模具|注塑件|注塑机/g, "") : unitMatch[1] ?? unitMatch[2] ?? unitMatch[3] ?? unitMatch[4]).toLowerCase() : null;
+    const unit = !unitWord ? null : locale === "en" && unitMatch?.[1] ? "equipment"
+      : locale === "en" && unitMatch?.[2] ? "set" : locale === "en" && unitMatch?.[3] ? "piece"
+        : COMMERCIAL_UNIT_RULES.find((rule) => new RegExp(`^(?:${locale === "zh" ? rule.zhUnit : rule.enUnit})$`, "i").test(unitWord))?.key;
+    for (let count = 0; count < 2 && modifier("postfix"); count += 1) { /* consume */ }
+    const suffixCycle = consume(locale === "zh" ? /^(?:[/／]|每|按)(小时|年|月|周|日|天)/
+      : CAPACITY_EN_PERIOD_SUFFIX, "period");
+    if (suffixCycle) {
+      if (period) return unsupported(quantityStart, cursor, 0, "multiple_cycles_for_quantity");
+      const word = (suffixCycle[1] ?? suffixCycle[2]).toLowerCase();
+      period = CAPACITY_PERIODS[word] ?? word;
+    }
+    // Only self-contained modifiers may follow a period. A relational phrase
+    // requiring a later amount cannot bind back across the clause boundary.
+    if (locale === "en") {
+      for (let count = 0; count < 2; count += 1) {
+        skipSpace();
+        if (!/^(?:at\s+(?:least|most)|minimum|maximum|about|around|approximately|approx\.?|roughly)(?![A-Za-z])/i.test(text.slice(cursor, range.end))) break;
+        modifier("postfix");
+      }
+    }
+    if (qualifierConflict) return unsupported(range.start, cursor, 0, "ambiguous_or_duplicate_qualifier");
+    const claim: CapacityClaim = { quantity, unit: unit ?? null, period, qualifiers: [...(approximate ? ["approximate"] : []), ...(bound ? [bound] : [])] };
+    claims.push(claim);
+    skipSpace();
+    if (text[cursor] === "(" || text[cursor] === "（") {
+      const close = text[cursor] === "(" ? ")" : "）";
+      consume(/^[（(]/, "parenthesis");
+      skipSpace();
+      const childStart = cursor;
+      // Equipment specifications are independent quantities. They cannot inherit
+      // a production cycle, and their attachment is retained for relation matching.
+      const specification = (unit === "equipment" || unit === "set") ? consume(CAPACITY_NUMBER, "quantity", 1) : null;
+      if (!specification) return unsupported(childStart, range.end, 1, "unsupported_parenthetical_structure");
+      const specUnit = consume(/^(t|tons?|kg|吨|千克)(?![A-Za-z])/i, "unit", 1);
+      if (!specUnit) return unsupported(cursor, range.end, 1, "expected_equipment_specification_unit");
+      skipSpace();
+      if (text[cursor] !== close) return unsupported(cursor, range.end, 1, "unconsumed_equipment_specification");
+      consume(close === ")" ? /^\)/ : /^）/, "parenthesis");
+      const specWord = specUnit[1].toLowerCase();
+      const specQuantity = canonicalCommercialNumbers(specification[0])?.[0];
+      if (!specQuantity) return unsupported(childStart, cursor, 1, "invalid_quantity");
+      claims.push({ quantity: specQuantity, unit: /^(?:kg|千克)$/.test(specWord) ? "kg" : "ton", period: null, qualifiers: [], equipmentParent: claim });
+    }
+    skipSpace();
+    // One terminal English full stop is punctuation, not a wildcard tail.
+    if (locale === "en") consume(/^\.(?=\s*$)/, "punctuation");
+    skipSpace();
+    if (cursor !== range.end) return unsupported(cursor, range.end, 0, "unconsumed_clause");
+  }
+  return { claims, status: "complete", spans, residuals };
+}
+
+function capacityParseEvidence(parsed: CapacityParse, offset = 0) {
+  return {
+    status: parsed.status,
+    spans: parsed.spans.slice(0, 48).map((part) => ({ ...part, start: part.start + offset, end: part.end + offset })),
+    residuals: parsed.residuals.slice(0, 4).map((part) => ({ ...part, start: part.start + offset, end: part.end + offset, text: part.text.slice(0, 160) })),
+    truncated: parsed.spans.length > 48 || parsed.residuals.length > 4 || parsed.residuals.some((part) => part.text.length > 160),
+  };
+}
+
+function groundCommercialTerm(term: CommercialTerm, materials: string, rejected: string[], audit: CommercialTermAuditContext): CommercialTerm | null {
   const zh = term.value.zh.trim();
   const en = term.value.en.trim();
+  if (term.kind === "capacity") {
+    const clauses = capacityClauses(zh);
+    const compact = normalizeCapacityChinese;
+    const codes = englishCommercialCodes(en);
+    const fragments = commercialFactFragments(materials, term.kind).map((fragment, fragmentIndex) => ({ ...fragment, fragmentIndex }))
+      .filter((fragment) => fragment.context.includes("capacity"))
+      .map((fragment) => ({ ...fragment, sourceParse: capacityClaims(fragment.text, "zh") }));
+    const matchingFragments = fragments.filter((fragment) => {
+      const sourceClauses = capacityClauses(fragment.text).map(compact);
+      return clauses.length > 0 && clauses.every((clause) => sourceClauses.includes(compact(clause)));
+    });
+    // A quantity clause can be selected only from a completely parsed source
+    // sentence. Unknown neighboring context may restrict that quantity; it is
+    // not an independently omittable fact. Fully parsed numeric facts/specs can
+    // still be selected or combined without requiring the whole source to copy.
+    const independentFragments = matchingFragments.filter((fragment) => fragment.sourceParse.status === "complete");
+    const sourceMatches = independentFragments.some((fragment) => codes.every((code) => englishCommercialCodes(fragment.source).includes(code)));
+    const expectedParse = capacityClaims(term.value.zh, "zh");
+    const expected = expectedParse.claims;
+    const actualParse = capacityClaims(term.value.en, "en");
+    const actual = actualParse.claims;
+    // Complete quantitative claims carry the unit/cycle contract checked below.
+    // Unquantified unit identity uses raw token boundaries. The compact form
+    // above proves clause correspondence, but must not erase a source/candidate
+    // boundary before the textual unit/cycle gate.
+    const failedChecks: string[] = [];
+    if (!zh || !en || isCommercialTermGap(zh) || isCommercialTermGap(en)) failedChecks.push("empty_value");
+    if (!matchingFragments.length) failedChecks.push("source_clause");
+    else if (!independentFragments.length) failedChecks.push("source_capacity_parse");
+    else if (!sourceMatches) failedChecks.push("english_code");
+    if (!expected) failedChecks.push("chinese_capacity_parse");
+    if (expectedParse.error) failedChecks.push(`chinese_${expectedParse.error}`);
+    if (!actual) failedChecks.push("english_capacity_parse");
+    if (actualParse.error) failedChecks.push(`english_${actualParse.error}`);
+    if (expected?.length === 0 && actual?.length === 0) {
+      const sourceUnitsMatch = independentFragments.some((fragment) => {
+        if (!codes.every((code) => englishCommercialCodes(fragment.source).includes(code))) return false;
+        const selectedSourceClauses = capacityClauses(fragment.text).filter((source) => clauses.some((clause) => compact(source) === compact(clause)));
+        return commercialUnitsMatch(selectedSourceClauses.join("; "), en, true);
+      });
+      if (!commercialUnitsMatch(zh, en, true) || (sourceMatches && !sourceUnitsMatch)) failedChecks.push("capacity_units");
+    }
+    if (expected && actual) {
+      const unmatched = [...actual];
+      // Preserve T-082's directional 台 -> set alias for both a quantity and its
+      // parent. Reserve set-only matches before quantities with the equipment alias.
+      const ordered = [...expected].sort((a, b) => Number(a.unit === "equipment" || a.equipmentParent?.unit === "equipment")
+        - Number(b.unit === "equipment" || b.equipmentParent?.unit === "equipment"));
+      const relationsMatch = ordered.every((source) => {
+        const index = unmatched.findIndex((target) => capacityRelationMatches(source, target)
+          && (source.equipmentParent
+            ? target.equipmentParent && capacityRelationMatches(source.equipmentParent, target.equipmentParent)
+            : !target.equipmentParent));
+        if (index < 0) return false;
+        unmatched.splice(index, 1);
+        return true;
+      });
+      if (!relationsMatch || unmatched.length) failedChecks.push("capacity_relation");
+    }
+    if (failedChecks.length) {
+      const modifierError = expectedParse.error ?? actualParse.error;
+      const language = expectedParse.error ? "中文" : "英文";
+      rejected.push(modifierError === "negation_scope" ? `${language}产能里的否定限定无法核实，已忽略`
+        : modifierError === "comparison_scope" ? `${language}产能里的比较限定无法核实，已忽略`
+          : failedChecks.includes("source_capacity_parse") ? "资料里的产能中有暂不支持的表达，未写入"
+          : modifierError === "unsupported_syntax" ? `${language}产能中有暂不支持的表达，未写入`
+            : "产能的数量、产出单位、周期或限定与资料不一致，已忽略");
+      // Schema-valid model values are <=1000 chars per language. Explicit limits
+      // also bound direct validation calls; truncation is declared, never hidden.
+      if (audit.rejections.length < MAX_AI_OPERATIONS) audit.rejections.push({
+        operationIndex: audit.operationIndex, operation: audit.operation,
+        term: { id: term.id.slice(0, 80), kind: term.kind, value: { zh: term.value.zh.slice(0, 1000), en: term.value.en.slice(0, 1000) } },
+        termTruncated: term.id.length > 80 || term.value.zh.length > 1000 || term.value.en.length > 1000,
+        failedChecks, chineseClaims: expected?.slice(0, 24) ?? null, englishClaims: actual?.slice(0, 24) ?? null, sourceMatches,
+        parseEvidence: { zh: capacityParseEvidence(expectedParse), en: capacityParseEvidence(actualParse) },
+        claimsTruncated: (expected?.length ?? 0) > 24 || (actual?.length ?? 0) > 24,
+        sourceFragmentCount: fragments.length,
+        sourceFragments: fragments.map((fragment) => {
+          const matched = clauses.filter((clause) => capacityClauses(fragment.text).some((source) => compact(source) === compact(clause)));
+          return {
+            fragmentIndex: fragment.fragmentIndex, source: fragment.source.slice(0, 1000), truncated: fragment.source.length > 1000,
+            matchedClauses: matched.slice(0, 12).map((clause) => clause.slice(0, 1000)),
+            matchedClauseCount: matched.length, matchedClausesTruncated: matched.length > 12 || matched.some((clause) => clause.length > 1000),
+            parseEvidence: {
+              // Field-label removal only cuts a prefix. Project actual parse
+              // positions onto the original, possibly clipped source string.
+              ...capacityParseEvidence(fragment.sourceParse, fragment.source.length - fragment.text.length),
+              coordinateSpace: "source" as const, offsetUnit: "utf16" as const, sourceLength: fragment.source.length,
+            },
+          };
+        }).sort((a, b) => b.matchedClauses.length - a.matchedClauses.length).slice(0, 4),
+      });
+      return null;
+    }
+    return { ...term, value: { zh, en } };
+  }
   if (!zh || !en || isCommercialTermGap(zh) || isCommercialTermGap(en)) {
     rejected.push(`商业条款「${term.kind}」的值为空，已忽略`);
     return null;
   }
-  const zhNumbers = canonicalCommercialNumbers(zh).sort();
-  const enNumbers = canonicalCommercialNumbers(en).sort();
-  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers) || !commercialUnitsMatch(zh, en) || !materialContainsCommercialFact(materials, { zh, en }, term.kind)) {
+  const zhNumbers = canonicalCommercialNumbers(zh);
+  const enNumbers = canonicalCommercialNumbers(en);
+  if (!zhNumbers || !enNumbers || JSON.stringify(zhNumbers.sort()) !== JSON.stringify(enNumbers.sort()) || !commercialUnitsMatch(zh, en) || !materialContainsCommercialFact(materials, { zh, en }, term.kind)) {
     rejected.push(`商业条款「${term.kind}」的值不在资料中，已忽略`);
     return null;
   }
@@ -2187,29 +2846,44 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function equipmentSourceHasName(source: string, name: string): boolean {
-  return source.includes(name.trim());
+function commercialFactSourceSpan(source: string, pattern: RegExp): { start: number; end: number } | null {
+  const tokens: CommercialNumberToken[] = [];
+  if (canonicalCommercialNumbers(source, tokens) === null) return null;
+  // Reuse the complete numeric/code owners, including the existing codes that
+  // have no digits. Ordinary prose is still eligible for substring extraction.
+  const owners = [...tokens, ...[...source.matchAll(COMMERCIAL_CODE_RE)]
+    .filter((code) => englishCommercialCodes(code[0]).includes(code[0].toUpperCase()))
+    .map((code) => ({ start: code.index, end: code.index + code[0].length }))];
+  for (const match of source.matchAll(pattern)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (!owners.some((token) => token.start < start && start < token.end || token.start < end && end < token.end)) return { start, end };
+  }
+  return null;
 }
 
-function equipmentQuantityIsAdjacent(source: string, name: string, quantity: number): boolean {
-  const pattern = new RegExp(`${escapeRegExp(name.trim())}\\s*${quantity}(?=\\s*(?:台|套|个|件|units?|machines?|sets?)?\\b|[（(，,；;。.!！?？]|$)`, "i");
-  return pattern.test(source);
+function equipmentQuantitySourceSpan(source: string, name: string, quantity: number): { start: number; end: number } | null {
+  const pattern = new RegExp(`${escapeRegExp(name.trim())}\\s*${quantity}(?=\\s*(?:台|套|个|件|units?|machines?|sets?)?\\b|[（(，,；;。.!！?？]|$)`, "g");
+  return commercialFactSourceSpan(source, pattern);
 }
 
 function equipmentSourceIsProcessOnly(source: string, name: string, quantity: number | null): boolean {
   if (!/加工能力\s*\/\s*主设备/.test(source)) return false;
-  return quantity === null || !equipmentQuantityIsAdjacent(source, name, quantity);
+  return quantity === null || !equipmentQuantitySourceSpan(source, name, quantity);
 }
 
 function equipmentEnglishMatches(item: EquipmentItem, fragment: CommercialFactFragment): boolean {
-  const zhParts = [item.name.zh, item.spec?.zh ?? ""].join(" ");
-  const enParts = [item.name.en, item.spec?.en ?? ""].join(" ");
-  const zhNumbers = canonicalCommercialNumbers(zhParts).sort();
-  const enNumbers = canonicalCommercialNumbers(enParts).sort();
-  if (JSON.stringify(zhNumbers) !== JSON.stringify(enNumbers)) return false;
+  if (canonicalCommercialNumbers(fragment.source) === null) return false;
+  for (const field of [item.name, ...(item.spec ? [item.spec] : [])]) {
+    const zhNumbers = canonicalCommercialNumbers(field.zh);
+    const enNumbers = canonicalCommercialNumbers(field.en);
+    if (!zhNumbers || !enNumbers || JSON.stringify(zhNumbers.sort()) !== JSON.stringify(enNumbers.sort())) return false;
+    const sourceCodes = new Set(englishCommercialCodes(field.zh));
+    if (!englishCommercialCodes(field.en).every((code) => sourceCodes.has(code))) return false;
+  }
+  if (!commercialUnitsMatch(item.name.zh, item.name.en, false, true)) return false;
   if (item.spec && !commercialUnitsMatch(item.spec.zh, item.spec.en)) return false;
-  const sourceCodes = new Set(englishCommercialCodes(`${fragment.source} ${item.name.zh} ${item.spec?.zh ?? ""}`).map((code) => code.toUpperCase()));
-  return englishCommercialCodes(enParts).every((code) => sourceCodes.has(code.toUpperCase()));
+  return true;
 }
 
 function groundEquipmentItem(item: EquipmentItem, materials: string, rejected: string[]): EquipmentItem | null {
@@ -2226,13 +2900,20 @@ function groundEquipmentItem(item: EquipmentItem, materials: string, rejected: s
   const specZh = item.spec?.zh.trim() ?? "";
   const specEn = item.spec?.en.trim() ?? "";
   const fragment = commercialFactFragments(materials).find((candidate) => {
-    if (!equipmentSourceHasName(candidate.source, nameZh)) return false;
+    const name = item.quantity === null
+      ? commercialFactSourceSpan(candidate.source, new RegExp(escapeRegExp(nameZh), "g"))
+      : equipmentQuantitySourceSpan(candidate.source, nameZh, item.quantity);
+    if (!name) return false;
     if (equipmentSourceIsProcessOnly(candidate.source, nameZh, item.quantity)) return false;
-    if (specZh && !equipmentSourceHasName(candidate.source, specZh)) return false;
-    if (item.quantity !== null && !equipmentQuantityIsAdjacent(candidate.source, nameZh, item.quantity)) return false;
-    return true;
+    const spec = specZh ? commercialFactSourceSpan(candidate.source, new RegExp(escapeRegExp(specZh), "g")) : null;
+    if (specZh && !spec) return false;
+    return equipmentEnglishMatches({
+      ...item,
+      name: { zh: candidate.source.slice(name.start, name.start + nameZh.length), en: nameEn },
+      spec: item.spec ? { zh: spec ? candidate.source.slice(spec.start, spec.end) : "", en: specEn } : null,
+    }, candidate);
   });
-  if (!fragment || !equipmentEnglishMatches(item, fragment)) {
+  if (!fragment) {
     rejected.push(`设备「${nameZh}」的名称、数量或规格不在同一句资料中，已忽略`);
     return null;
   }
@@ -2269,9 +2950,12 @@ function qualityProcessFactFragments(materials: string): QualityProcessFactFragm
 }
 
 function qualityProcessEnglishMatches(step: QualityProcessStep, fragment: QualityProcessFactFragment): boolean {
+  if (canonicalCommercialNumbers(fragment.source) === null) return false;
   const zh = `${step.title.zh} ${step.body?.zh ?? ""}`;
   const en = `${step.title.en} ${step.body?.en ?? ""}`;
-  if (JSON.stringify(canonicalCommercialNumbers(zh).sort()) !== JSON.stringify(canonicalCommercialNumbers(en).sort())) return false;
+  const zhNumbers = canonicalCommercialNumbers(zh);
+  const enNumbers = canonicalCommercialNumbers(en);
+  if (!zhNumbers || !enNumbers || JSON.stringify(zhNumbers.sort()) !== JSON.stringify(enNumbers.sort())) return false;
   if (!commercialUnitsMatch(zh, en)) return false;
   const sourceCodes = new Set(englishCommercialCodes(`${fragment.source} ${zh}`).map((code) => code.toUpperCase()));
   return englishCommercialCodes(en).every((code) => sourceCodes.has(code.toUpperCase()));
@@ -2288,8 +2972,17 @@ function groundQualityProcessStep(step: QualityProcessStep, materials: string, r
     ? { zh: step.body.zh.trim(), en: step.body.en.trim() }
     : null;
   const bodySource = body?.zh.replace(/[。.!！?？]+$/g, "");
-  const fragment = qualityProcessFactFragments(materials).find((candidate) => candidate.text.includes(titleZh) && (!bodySource || candidate.text.includes(bodySource)));
-  if (!fragment || !qualityProcessEnglishMatches({ ...step, title: { zh: titleZh, en: titleEn }, body }, fragment)) {
+  const fragment = qualityProcessFactFragments(materials).find((candidate) => {
+    const title = commercialFactSourceSpan(candidate.text, new RegExp(escapeRegExp(titleZh), "g"));
+    const description = bodySource ? commercialFactSourceSpan(candidate.text, new RegExp(escapeRegExp(bodySource), "g")) : null;
+    if (!title || bodySource && !description) return false;
+    return qualityProcessEnglishMatches({
+      ...step,
+      title: { zh: candidate.text.slice(title.start, title.end), en: titleEn },
+      body: body ? { zh: description ? candidate.text.slice(description.start, description.end) : "", en: body.en } : null,
+    }, candidate);
+  });
+  if (!fragment) {
     rejected.push(`质检步骤「${titleZh}」的标题或说明不在同一句资料中，已忽略`);
     return null;
   }
@@ -2319,8 +3012,12 @@ function historyFactFragments(materials: string): HistoryFactFragment[] {
 }
 
 function historyEnglishMatches(item: HistoryItem, fragment: HistoryFactFragment): boolean {
-  const zhNumbers = canonicalCommercialNumbers(`${item.year} ${item.event.zh}`).sort();
-  const enNumbers = canonicalCommercialNumbers(item.event.en).sort();
+  if (canonicalCommercialNumbers(fragment.source) === null) return false;
+  const zhNumbers = canonicalCommercialNumbers(`${item.year} ${item.event.zh}`);
+  const enNumbers = canonicalCommercialNumbers(item.event.en);
+  if (!zhNumbers || !enNumbers) return false;
+  zhNumbers.sort();
+  enNumbers.sort();
   const yearIndex = zhNumbers.indexOf(String(item.year));
   if (yearIndex < 0) return false;
   zhNumbers.splice(yearIndex, 1);
@@ -2339,9 +3036,14 @@ function groundHistoryItem(item: HistoryItem, materials: string, rejected: strin
   }
   const year = String(item.year);
   const eventPattern = escapeRegExp(eventZh);
-  const fragment = historyFactFragments(materials).find((candidate) => new RegExp(`${year}\\s*年?\\s*${eventPattern}`).test(candidate.text));
   const grounded = { ...item, year: item.year, event: { zh: eventZh, en: eventEn } };
-  if (!fragment || !historyEnglishMatches(grounded, fragment)) {
+  const fragment = historyFactFragments(materials).find((candidate) => {
+    const event = commercialFactSourceSpan(candidate.text, new RegExp(`${year}\\s*年?\\s*${eventPattern}`, "g"));
+    return event !== null && historyEnglishMatches({
+      ...grounded, event: { zh: candidate.text.slice(event.end - eventZh.length, event.end), en: eventEn },
+    }, candidate);
+  });
+  if (!fragment) {
     rejected.push(`沿革条目「${eventZh}」的年份或事件不在同一句资料中，已忽略`);
     return null;
   }
