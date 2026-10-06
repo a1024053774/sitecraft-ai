@@ -190,7 +190,7 @@ function expectedBlockOrder(draft, templateId) {
 }
 
 // Runs inside the preview document and reports what a visitor would see.
-const INSPECT = `(async () => {
+const INSPECT = `(async (uploadedImages, draft) => {
   const visible = (el) => {
     if (!el) return false;
     const style = getComputedStyle(el);
@@ -208,8 +208,49 @@ const INSPECT = `(async () => {
     img.addEventListener("error", done, { once: true });
     setTimeout(done, 10000);
   });
-  await Promise.all([...document.images].filter(visible).map(settle));
-  const images = [...document.images].filter(visible);
+  const photoVisible = (image) => {
+    if (!visible(image)) return false;
+    for (let node = image; node; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (node.hidden || style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+    }
+    return true;
+  };
+  await Promise.all([...document.images].filter(photoVisible).map(settle));
+  const images = [...document.images].filter(photoVisible);
+  const decoded = new Map();
+  await Promise.all(images.map(async (image) => {
+    try { await image.decode(); decoded.set(image, image.naturalWidth > 0 && image.naturalHeight > 0); }
+    catch { decoded.set(image, false); }
+  }));
+  const hidden = new Set(draft?.hiddenSections || []);
+  const destinations = { product: "products", equipment: "equipment", facility: "hero", inspection: "capabilities" };
+  const imageCoverage = {
+    expectedCount: uploadedImages.length,
+    inspectedCount: uploadedImages.length,
+    images: uploadedImages.map((record) => {
+      const sections = new Set();
+      if (destinations[record.usageCategory]) sections.add(destinations[record.usageCategory]);
+      if (draft?.content?.hero?.image?.imageId === record.imageId) sections.add("hero");
+      const productRef = (draft?.products || []).some(product => product.image?.imageId === record.imageId);
+      if (productRef) { sections.add("products"); sections.add("hero"); }
+      const expectedSections = [...sections];
+      const exempt = expectedSections.length > 0 && expectedSections.every(section => hidden.has(section));
+      const matches = [...document.images].filter(image => image.src === new URL(record.url, location.href).href).map(image => ({
+        visible: photoVisible(image), decoded: decoded.get(image) === true,
+        complete: image.complete, naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+        section: image.closest('[data-sitecraft-section]')?.getAttribute('data-sitecraft-section') || null,
+        category: image.closest('[data-sitecraft-image-gallery]')?.getAttribute('data-sitecraft-image-gallery') || null,
+        slot: image.getAttribute('data-sitecraft-slot'),
+        explicitReference: (draft?.content?.hero?.image?.imageId === record.imageId && image.matches('[data-sitecraft-benchmark="hero-image"]')) || (productRef && !image.closest('[data-sitecraft-image-gallery]')),
+      }));
+      return {
+        imageId: record.imageId, originalName: record.originalName, url: record.url,
+        category: record.usageCategory, expectedSections, exempt,
+        exemptionReason: exempt ? 'hiddenSections:' + expectedSections.join(',') : null, matches,
+      };
+    }),
+  };
   const broken = images.filter((img) => !img.getAttribute("src") || !img.complete || img.naturalWidth === 0).map((img) => img.outerHTML.slice(0, 160));
   // Every loaded <img> is a photo; schematics are drawn with CSS and labelled 示意.
   const photos = images.filter((img) => img.naturalWidth > 0);
@@ -378,15 +419,32 @@ const INSPECT = `(async () => {
     ctaTargetVisible: visible(ctaTarget),
     ctaLandsOnForm,
     broken,
+    imageCoverage,
     photoCount: photos.length,
     saysSchematicOnly: text.includes("非实拍"),
     text,
     readable,
   };
-})()`;
+})`;
 
 function judge(report, facts, locale = "zh", expectedOrder = null) {
   const failures = [];
+  const coverage = report.imageCoverage;
+  if (!coverage || !Array.isArray(coverage.images) || coverage.expectedCount !== coverage.images.length || coverage.inspectedCount !== coverage.expectedCount) failures.push("image coverage incomplete: uploaded-image inventory was not fully inspected");
+  else for (const image of coverage.images) {
+    const visibleMatches = image.matches.filter(match => match.visible);
+    if (image.exempt) {
+      if (!image.exemptionReason?.startsWith("hiddenSections:")) failures.push(`image coverage incomplete: ${image.imageId} has no explicit hide reason`);
+      if (visibleMatches.length) failures.push(`explicitly hidden image is visible: ${image.imageId} (${image.originalName})`);
+      continue;
+    }
+    if (!image.expectedSections.length) failures.push(`image has no declared category or draft image reference: ${image.imageId} (${image.originalName})`);
+    if (!visibleMatches.length) failures.push(`uploaded image is not visible: ${image.imageId} (${image.originalName})`);
+    for (const match of visibleMatches) {
+      if (!match.decoded) failures.push(`visible image did not decode: ${image.imageId} (${image.originalName})`);
+      if (!image.expectedSections.includes(match.section) || (match.category !== image.category && !match.explicitReference)) failures.push(`image is in the wrong category destination: ${image.imageId} (${image.originalName})`);
+    }
+  }
   const measurement = report.measurement;
   if (!measurement) failures.push("measurement incomplete: visitor layout scanner returned no measurement metadata");
   else {
@@ -573,6 +631,11 @@ async function checkOne(browser, siteKey, width) {
       return state === "ready";
     }, `${siteKey} preview ready`);
     const frame = await attachPreviewFrame(browser);
+    const { draft, facts } = await draftFacts(siteKey, "zh");
+    const imageResponse = await fetch(`${BASE}/api/sites/${siteKey}/images`);
+    if (!imageResponse.ok) throw new Error(`uploaded-image inventory HTTP ${imageResponse.status}`);
+    const imagePayload = await imageResponse.json();
+    if (!Array.isArray(imagePayload.images)) throw new Error("uploaded-image inventory has no images list");
     const capture = async (locale) => {
       let last = 0;
       let stable = 0;
@@ -582,7 +645,7 @@ async function checkOne(browser, siteKey, width) {
         last = h;
         return stable >= 4;
       }, `${siteKey} ${locale} height to settle`);
-      const captured = await browser.evaluate(INSPECT, frame);
+      const captured = await browser.evaluate(`${INSPECT}(${JSON.stringify(imagePayload.images)}, ${JSON.stringify(draft)})`, frame);
       await browser.send("Emulation.setDeviceMetricsOverride", { width, height: captured.height, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
       await browser.evaluate(`(() => {
         for (const el of document.querySelectorAll(".published-template-shell, .published-template-stage, .open-source-template-frame-shell, iframe.open-source-template-frame")) {
@@ -595,7 +658,6 @@ async function checkOne(browser, siteKey, width) {
       fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
       return { ...captured, screenshot: file };
     };
-    const { draft, facts } = await draftFacts(siteKey, "zh");
     const expectedOrder = expectedBlockOrder(draft, draft?.templateId);
     const report = await capture("zh");
     const failures = judge(report, facts, "zh", expectedOrder);

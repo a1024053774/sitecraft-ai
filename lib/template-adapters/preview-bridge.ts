@@ -860,7 +860,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     grid.appendChild(table);
   }
 
-  function renderCatalogSections(draft, locale, applied, variant) {
+  function renderCatalogSections(draft, locale, applied, variant, images) {
     var keys = ["industries", "capabilities", "certifications"];
     for (var k = 0; k < keys.length; k++) {
       var key = keys[k];
@@ -887,10 +887,15 @@ function sitecraftPreviewBridge(templateId, adapter) {
         });
       }
       var draftHidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf(key) !== -1;
-      var shouldHide = draftHidden || !section || !visibleItems.length;
+      var hasInspectionPhotos = key === "capabilities" && imageCategoryList(images, "inspection").length > 0;
+      var shouldHide = draftHidden || (!visibleItems.length && !hasInspectionPhotos);
       if (sectionNode) setSectionHidden(sectionNode, key, shouldHide);
+      if (grid) grid.textContent = "";
       if (!grid || shouldHide) continue;
-      grid.textContent = "";
+      if (hasInspectionPhotos && !visibleItems.length) {
+        var photoOnlyTitle = uniqueNode('[data-sitecraft-benchmark="capabilities-title"]');
+        if (photoOnlyTitle) photoOnlyTitle.textContent = locale === "en" ? "Inspection" : "检测";
+      }
       applied.add(key);
       for (var v = 0; v < visibleItems.length; v++) {
         var visible = visibleItems[v];
@@ -991,7 +996,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
     void variant;
   }
 
-  function renderEquipment(draft, locale, applied, variant) {
+  function renderEquipment(draft, locale, applied, variant, images) {
     var equipmentVariant = declaredBlockVariant("equipment", '[data-sitecraft-section="equipment"]', "[data-sitecraft-equipment-grid]");
     if (!equipmentVariant) return;
     var sectionNode = uniqueNode('[data-sitecraft-section="equipment"]');
@@ -1014,10 +1019,10 @@ function sitecraftPreviewBridge(templateId, adapter) {
       visible.push({ id: item.id, name: name, quantity: Number.isInteger(item.quantity) && item.quantity >= 0 ? item.quantity : null, spec: isGapMarker(spec) ? "" : spec });
     }
     var hidden = draft && Array.isArray(draft.hiddenSections) && draft.hiddenSections.indexOf("equipment") !== -1;
-    var shouldHide = hidden || !visible.length;
+    var shouldHide = hidden || (!visible.length && !imageCategoryList(images, "equipment").length);
     if (sectionNode) setSectionHidden(sectionNode, "equipment", shouldHide);
+    if (grid) grid.textContent = "";
     if (!grid || shouldHide) return;
-    grid.textContent = "";
     grid.setAttribute("data-sitecraft-entry-count", String(visible.length));
     applied.add("equipment");
     // "grouped" layouts keep the items with a count and the items without one apart, so a missing
@@ -2280,7 +2285,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
 
   // Gap rule for the product block: with no visible product, visitors see no product section at all.
   // Runs after applySectionVisibility so the draft's own hiddenSections cannot re-show it.
-  function hideEmptyProductSection(draft, locale, variant) {
+  function hideEmptyProductSection(draft, locale, variant, images) {
     if (variant === "workspace") return;
     var section = uniqueNode('[data-sitecraft-section="products"]');
     if (!section) return;
@@ -2289,7 +2294,7 @@ function sitecraftPreviewBridge(templateId, adapter) {
       if (!product || product.status === "archived") return false;
       return !(isGapMarker(localize(product.name, locale) || "") && isGapMarker(localize(product.summary, locale) || ""));
     });
-    if (!anyVisible) setSectionHidden(section, "products", true);
+    if (!anyVisible && !imageCategoryList(images, "product").length) setSectionHidden(section, "products", true);
   }
 
   // Without a draft (the template gallery thumbnail and the template preview page), a block-library
@@ -2317,13 +2322,13 @@ function sitecraftPreviewBridge(templateId, adapter) {
     collapseUnprovidedEntries(null, locale, variant);
   }
 
-  function clearUnprovidedCatalogChrome(draft, variant) {
+  function clearUnprovidedCatalogChrome(draft, variant, images) {
     if (variant !== "published" || !document) return;
     var keys = ["industries", "capabilities", "certifications"];
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
       var section = draft && draft.content ? draft.content[key] : null;
-      if (section) continue;
+      if (section || (key === "capabilities" && imageCategoryList(images, "inspection").length)) continue;
       var intro = uniqueNode('[data-sitecraft-benchmark="' + key + '-intro"]');
       var title = uniqueNode('[data-sitecraft-benchmark="' + key + '-title"]');
       if (intro) intro.textContent = "";
@@ -2682,9 +2687,9 @@ function sitecraftPreviewBridge(templateId, adapter) {
       applyDocumentTitle(draft);
       applySectionVisibility(draft, applied);
       collapseUnprovidedEntries(draft, currentLocale, variant || "preview");
-      renderCatalogSections(draft, currentLocale, applied, variant || "preview");
+      renderCatalogSections(draft, currentLocale, applied, variant || "preview", normalizedImages);
       renderCommercialTerms(draft, currentLocale, applied, variant || "preview");
-      renderEquipment(draft, currentLocale, applied, variant || "preview");
+      renderEquipment(draft, currentLocale, applied, variant || "preview", normalizedImages);
       renderHistory(draft, currentLocale, applied, variant || "preview");
       renderQualityProcess(draft, currentLocale, applied, variant || "preview");
       renderImageGallery(normalizedImages, "product", currentLocale, applied, usedImages);
@@ -2692,8 +2697,8 @@ function sitecraftPreviewBridge(templateId, adapter) {
       renderImageGallery(normalizedImages, "facility", currentLocale, applied, usedImages);
       renderImageGallery(normalizedImages, "inspection", currentLocale, applied, usedImages);
       renderImageCredits(normalizedImages, currentLocale, applied);
-      clearUnprovidedCatalogChrome(draft, variant || "preview");
-      hideEmptyProductSection(draft, currentLocale, variant || "preview");
+      clearUnprovidedCatalogChrome(draft, variant || "preview", normalizedImages);
+      hideEmptyProductSection(draft, currentLocale, variant || "preview", normalizedImages);
       syncHiddenNavigation((function () {
         var hiddenKeys = [];
         var hiddenNodes = document.querySelectorAll("[data-sitecraft-section-hidden='true']");
