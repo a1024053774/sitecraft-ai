@@ -4,7 +4,7 @@ title: 产能事实保留来源关系，拒绝记录可定位
 type: build
 status: open
 blocked_by: []
-claimed_by: t118-units-resume
+claimed_by: t118-live-capacity
 supersedes:
 ---
 
@@ -30,16 +30,14 @@ T110真实注塑/工程工业Tracer站`d0d1ebf1-7e17-4cb4-9e2f-f2962a0c68c6`首�
 
 ## Resolution
 
-**INCOMPLETE：冻结00aba7b已获独立软件PASS / LIMITED_GO，完整工程检查与原站恢复尚未完成。** 报告 `artifacts/t118/astra-00aba7b/REVIEW.md` 对 `00aba7bec2fd0055ec4a510b9296fe13c886ab45` 给出147项有效独立检查通过（L1 109、loopback真实chat导出/HTTP/SSE/非空FS读回撤销32、诊断6），父事实门模块检出62项业务失败；首尾368项与Git直接字节一致，无有效产品反例。setup和无效夹具失败单列保留。LIMITED_GO仅覆盖有限机械合同与隔离提交链路，不证明外部模型、Next路由或原站。已派干净交付员工在 `artifacts/t118/validation-00aba7b/` 先build、受控绑定3034至冻结源码后跑全量；不改源码或原站，不据软件PASS关闭票。
+**INCOMPLETE：真实原站恢复被拒后的连字符等价修复已冻结，等待新独立Astra审核。** 当前改动仅将既有产能修饰语 `injection molded` 接受为 `injection-molded` 的ASCII连字符拼写，单位身份、数量/周期/限定关系及完整残余拒绝沿原路径；不全局删除连字符，不新增词库、NLP、schema或API。
 
-本轮基线 `23dc505058557725ac89a06ef07b49b712e4516b` 的独立失败见 `artifacts/t118/astra-23dc505/REPORT.txt`：117→17及AX-731B→AX-731的来源截短可落盘。旧测试逐字节保留；直接有效红18项，最终46例冻结旧模块回放20项业务红。最终聚焦46/46、六文件1604/1604、typecheck exit0，2026-10-07 07:50:27Z冻结；命令、UTC、exit、源码、patch及初次种子/夹具失败见 `artifacts/t118/unit-identity-resume/23dc505/HANDOFF.json`。初次装配精确开始UTC未捕获，仅保留已知区间，不补造。合成loopback实际chat/SSE→commitOperations→隔离非空FS共92/92请求通过，非法拒绝有原因且revision/history/字节不变，合法保存与undo-redo通过；不证明外部模型、Next路由或原站。
+真实失败证据 `artifacts/t118/original-site-recovery/44053fd-once/audit-result.json`：在 `44053fdb0e6c65be8970c5bbc50a048dcde7acb9` 上于2026-10-07 09:44:30–09:44:36Z执行唯一chat POST，HTTP200但SSE no_change，恢复0/2。来源匹配成功，保存的capacity候选英文为“Approximately 180 mold sets per year; approximately 6 million injection-molded pieces per month”，失败为english_capacity_parse/english_unsupported_syntax，trace `5ae4feb27dcea5f9607a17547e422540`。原站仍revision3，完整草稿/history/future、三旧条款及六照片/metadata逐字节未变，会话仅新增no_change。实际模型尝试/重试UNKNOWN；这份新诊断不能倒推旧T110首次拒绝的未知原因。没有第二POST或手工补稿。
 
-主控将三个source/test文件与作者冻结、最终四项检查前后快照，以及HTTP七文件首尾作41项直接字节核对，全部相等；绑定在 `artifacts/integration/20261007-source-token-spans/source-binding.json`。CONTEXT/spec窄同步来源命中区间及完整词元边界；作者证据不替代新独立审核。原基线NO_GO、所有中间红与setup失败保留，不用局部绿关闭本票。
+执行证据 `artifacts/t118/live-capacity-hyphen/44053fd/HANDOFF.json` 于09:54:53Z冻结：原227个测试文件旧字节保留，T118新增内容只追加；最终相同回归在未改44053fd上有两项有效业务红（纯校验和实际chat导出），不是聚合父测试失败计数。修后 `node --test --experimental-strip-types --test-name-pattern=T118 live hyphen tests/t118-capacity-grounding.test.ts` 于09:52:49–09:52:50Z为13/13；指定六文件于09:53:06–09:53:12Z为1617/1617；`npm run typecheck` 于09:53:16–09:53:20Z exit0。合成loopback provider→真实chat导出→commitOperations→隔离非空FS核两事实、三旧terms保留、拒绝不写和undo；只有capacity来自已保存诊断，其他terms来自before，不声称恢复完整模型原响应。初次运行器路径setup及过细诊断断言混合红均保留。
 
-此前额度停工的终端、工作树diff与断点快照保存在 `artifacts/handoff/20261007-herdr-quota/`，旧窗口已清理。2026-10-07 02:39Z已确认新实例实际working；所有旧候选、源、patch、异常与独立NO_GO原样保留。
+主控对最终green/related/typecheck前后及frozen-source作80项直接字节核对，全部相等，见 `artifacts/integration/20261007-live-capacity-hyphen/binding.json`；CONTEXT/spec只补此拼写等价。新候选full/build、运行绑定、原站再次验证尚未执行，不能承接上一生产字节版本的完整通过。源码审查通过后才安排这些检查及同原站受控复验。
 
-工程检查：00aba7b的build于2026-10-07 08:10:57–08:11:28Z单次exit0、源码前后字节相同。随后受控启动3034时，Next自动把next-env.d.ts的类型引用改为.next/dev/types，旧冻结门正确报漂移，完整测试未启动；证据 `artifacts/t118/validation-00aba7b/` 保留原/现字节。按安装版本Next 16.3.1随包指南，将该生成文件从Git索引移除并忽略，磁盘文件保留，运行时另存字节绑定；不手动改回、不抹去失败。边界记录 `artifacts/integration/20261007-generated-next-env/boundary.json`。新冻结后重绑服务、typecheck及全量待完成；应用源码未变，已通过build承接直接字节证据。
+先前共享事实门在 `00aba7bec2fd0055ec4a510b9296fe13c886ab45` 获独立软件PASS/LIMITED_GO（147有效检查，父模块62业务红），证据 `artifacts/t118/astra-00aba7b/REVIEW.md`。`44053fd` 的有效工程结果为：00aba7b的build于08:10:57–08:11:28Z exit0并按生产字节一致承接；440 typecheck于09:15:25–09:15:27Z exit0；修正运行器输出目录后09:31:01–09:37:52Z完整npm test为2453/2453、0skip/cancel，见 `artifacts/t118/validation-44053fd-harness-corrected/REPORT.md`。前轮909项的T118模块ENOENT是运行器setup失败，旧报告未改写。
 
-新冻结 `732972d00733b8b26a27073be457bb835ea61c85` 的390项应用/测试文件与00aba7b直接字节一致；3034受控重绑listener43191/父43188，next-env及10个生成类型文件稳定，08:19:15–08:19:17Z typecheck单次exit0。08:19:35–08:27:37Z完整npm test单次exit1：2452通过、1失败、0跳过，源码及生成文件无漂移。T117 host/ancestor WAAPI测试中静态1440zh对照的products/contact/footer文字像素被判缺失。最终报告与RESULT确认08:29:49Z服务身份保留，59个原站既有文件及.claude字节未变；早先通知的测试仍运行说法为exec会话回收时序误判，reconciliation保留。原始证据 `artifacts/t118/validation-732972d/` 和其中 `suite-t117/` 保留；只读诊断 `artifacts/t117/full-failure-732972d/diagnosis.md` 确认失败图顶部150行与控制相同、下方全白，DOM/几何一致，断言有效；夹具漏两个生产published高度类是确定差异，但尚未证实因果。有界experiment-01两条真实CLI均绿，实测初始高度A150/B900，但六对PNG相同，未复现原截断，不能证明collector修复。夹具候选仅在tests/t117-published-capture-content.test.ts宿主一行增加两个生产高度类80字节，断言/采集器/注入器未改；08:54:18–08:55:31Z原T117文件单次13/13通过，六静态控制及两项原生位移证明保留。冻结定义 `artifacts/t117/full-failure-732972d/fixture-parity-fix/frozen-review-target.json` 已获独立Astra PASS / LIMITED_GO，报告 `artifacts/t117/full-failure-732972d/astra-fixture-parity/review.txt`：生产SSR/CSS与候选三档初始高度一致，去类对照均150px；原测试定向4/4及always-success mutant检出成立。仅接受夹具合同修正，原截断红与collector未定因限制保留；新冻结完整测试待运行。工程门仍INCOMPLETE。
-
-原站两项产能仍未恢复，首次被拒模型值及因果未知；原站资料、照片未改。只读恢复输入在 `artifacts/t118/original-site-recovery/732972d-prep/` 就绪，尚未发执行信号；工程检查通过后才安排同一原站的一次真实对话恢复及回读/撤销重做/刷新/双语发布门。T110及正式盲评仍未完成，本票保持open、未推送。
+已保留的验收限制：732972d原全量2452/2453中，T117静态1440zh图顶部150px以下全白；夹具补两个生产高度类获独立scoped PASS/LIMITED_GO并单独提交44053fd，但原collector/compositor因果与触发频率仍未知，不宣称永久可靠。证据根 `artifacts/t117/full-failure-732972d/`。Next自动生成next-env.d.ts已按安装版官方指南停止Git跟踪，运行时仍单独字节绑定，旧冻结漂移在 `artifacts/t118/validation-00aba7b/` 保留。所有旧候选、失败、setup、原图和额度断点证据不覆盖。整票及T110正式盲评未完成，原站产能仍缺失，本票open、未推送。

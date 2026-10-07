@@ -2100,3 +2100,169 @@ test("T118 provider refusal audit retains the raw structured value, failure and 
   assert.deepEqual((await getExistingSite("t118-provider-audit"))?.draft.content.commercialTerms, []);
   assert.ok(!(await readFile(path.join(isolatedRoot, ".sitecraft-data", "sites", "t118-provider-audit.json"), "utf8")).includes(raw.value.en), "refusal is not a trusted draft fact");
 });
+
+
+// 44053fd live refusal regression: literals from the saved original materials,
+// capacity-only diagnostic and before record. Not the unknown first T110 value.
+// Failure modes: equivalent spelling refused; year/month ownership swapped;
+// approximation dropped; unknown modifier/tail consumed. The source facts and
+// finite grammar contract supply the expected verdicts, not parser output.
+const liveHyphenMaterials = "资料性质：模拟。不可当作真实企业。核验记号：P3T-JD5K。\n公司名：宁海精密注塑模具P3T\n行业：注塑模具与精密注塑件 / 内销与外贸\n目标：获取模具开发与批量注塑询盘，内销与出口并行\n首屏可用事实：精密注塑模具与注塑件 P3T-JD5K。\n首屏说明：模具设计、试模到批量注塑在同一厂区完成，内销与出口订单并行。\n主按钮：提交图纸获取报价\n公司简介：宁海精密注塑模具P3T 从事塑料注塑模具设计制造与精密注塑件生产。工厂有模具车间和注塑车间，按图纸或样品开模，并承接批量注塑。内销与出口订单并行，出口以欧洲和东南亚为主。\n沿革：2008 年 建厂，从模具维修和小型模具起步；2013 年 注塑车间投产；2017 年 开始承接出口订单；2021 年 新增恒温精密模具车间；2024 年 建成三坐标与影像测量室。\n产品：多腔热流道模具；双色注塑模具；精密结构注塑件；透明光学注塑件；金属嵌件注塑件。\n多腔热流道模具规格参数：型腔数 1–32 腔；模具尺寸 最大 900×1200 mm；模具钢材 S136/H13/NAK80；热流道 开放式/针阀式；成型周期 12–40 s；模具寿命 50–100 万模次；型腔公差 ±0.01 mm。\n双色注塑模具规格参数：成型方式 旋转式/机械手转移；适配机型 双色注塑机 120–650 t；材料组合 PC+TPU/PP+TPE/ABS+PC；包胶厚度 ≥0.8 mm；配合公差 ±0.02 mm；模具寿命 30–50 万模次。\n精密结构注塑件规格参数：适用材料 PA66+GF/POM/PBT/PC；单件重量 0.5–350 g；尺寸公差 ±0.02 mm；平面度 ≤0.05 mm；表面处理 咬花/喷砂/高光；成型机台 90–800 t。\n透明光学注塑件规格参数：适用材料 PMMA/PC/COC；透光率 ≥90%（PMMA 2 mm 厚）；壁厚 0.8–6 mm；表面粗糙度 Ra ≤0.02 μm；成型环境 十万级洁净车间；尺寸公差 ±0.03 mm。\n金属嵌件注塑件规格参数：嵌件类型 铜螺母/冲压端子/不锈钢轴；嵌件放置 机械手/人工；适用材料 PBT+GF/PA6/LCP；定位精度 ±0.05 mm；尺寸公差 ±0.03 mm；成型机台 立式 55–250 t。\n产能：模具年产约 180 套；注塑机 42 台（90–800 t），月注塑能力约 600 万件。\n加工能力/主设备：高速 CNC 加工中心 12 台；精密慢走丝线切割 6 台；镜面电火花 8 台；精密平面磨床 4 台；注塑机 42 台（90–800 t）；双色注塑机 3 台。\n检测设备：三坐标测量机；二次元影像测量仪；色差仪；拉力试验机；恒温恒湿箱。\n质检流程：来料检验（树脂批次与嵌件尺寸）；试模后首件全尺寸检测；过程巡检每 2 小时抽检；外观与功能全检；出货抽检并附检测报告。\n应用行业：家电外壳与结构件；汽车内饰件与连接器；医疗器械耗材外壳；照明透镜与灯罩；电动工具壳体。\n认证状态：ISO 9001 已有；ISO 14001 已有；IATF 16949 认证中。\n问：没有图纸只有样品能开模吗？答：可以，先做 3D 扫描和逆向建模，图纸确认后再开模。\n问：开模周期多久？答：单腔模具约 25–35 天，多腔热流道和双色模具约 40–55 天，从图纸确认开始计。\n问：试模样品怎么提供？答：T1 试模后 3 天内寄出样品和全尺寸检测报告，每套模具含 3 次试模。\n问：模具归谁所有？答：模具费付清后模具归买方所有，可存放在本厂用于批量生产。\n问：出口订单用什么贸易条款？答：常用 FOB 宁波和 EXW，也可按订单约定 CIF。\nMOQ：注塑件 5000 件起；模具单套起接。\n交期：模具 25–55 天；批量注塑件在模具确认后 15–20 天。\n邮箱：rfq@p3t-sim.test\n客户名单、评价：资料未提供。\n页面：首页、产品、生产与质检、常见问题、联系；当前模板不支持的独立页面须说明，不得假装已经开通。";
+const liveHyphenMessage = "只恢复当前原站缺失的两条产能事实，并同时写入准确的中英文：模具年产约 180 套（approximately 180 mold sets per year）；月注塑能力约 600 万件（approximately 6 million injection-molded pieces per month）。保留约数含义、原有精度、单位和年/月周期，不补其他事实。只在商业条款末尾新增产能条款承载这两条事实，不把注塑机数量或规格再写成产能。保留全部原条款的 IDs、kind、顺序和所有已有中英文值，逐字不改；保留其余全部资料、产品、设备、质检、沿革、联系方式、页面、样子、配色、布局、样式及六张已有照片与引用，不重生成、不换站、不换样子、不改写其他文案。下方是未经改写的完整原公司资料，本轮也作为原条款的事实来源；资料中的其他事实仅供核验，不重复更新已保留的字段。资料性质和核验记号不新增到页面。\n\n【完整原资料】\n资料性质：模拟。不可当作真实企业。核验记号：P3T-JD5K。\n公司名：宁海精密注塑模具P3T\n行业：注塑模具与精密注塑件 / 内销与外贸\n目标：获取模具开发与批量注塑询盘，内销与出口并行\n首屏可用事实：精密注塑模具与注塑件 P3T-JD5K。\n首屏说明：模具设计、试模到批量注塑在同一厂区完成，内销与出口订单并行。\n主按钮：提交图纸获取报价\n公司简介：宁海精密注塑模具P3T 从事塑料注塑模具设计制造与精密注塑件生产。工厂有模具车间和注塑车间，按图纸或样品开模，并承接批量注塑。内销与出口订单并行，出口以欧洲和东南亚为主。\n沿革：2008 年 建厂，从模具维修和小型模具起步；2013 年 注塑车间投产；2017 年 开始承接出口订单；2021 年 新增恒温精密模具车间；2024 年 建成三坐标与影像测量室。\n产品：多腔热流道模具；双色注塑模具；精密结构注塑件；透明光学注塑件；金属嵌件注塑件。\n多腔热流道模具规格参数：型腔数 1–32 腔；模具尺寸 最大 900×1200 mm；模具钢材 S136/H13/NAK80；热流道 开放式/针阀式；成型周期 12–40 s；模具寿命 50–100 万模次；型腔公差 ±0.01 mm。\n双色注塑模具规格参数：成型方式 旋转式/机械手转移；适配机型 双色注塑机 120–650 t；材料组合 PC+TPU/PP+TPE/ABS+PC；包胶厚度 ≥0.8 mm；配合公差 ±0.02 mm；模具寿命 30–50 万模次。\n精密结构注塑件规格参数：适用材料 PA66+GF/POM/PBT/PC；单件重量 0.5–350 g；尺寸公差 ±0.02 mm；平面度 ≤0.05 mm；表面处理 咬花/喷砂/高光；成型机台 90–800 t。\n透明光学注塑件规格参数：适用材料 PMMA/PC/COC；透光率 ≥90%（PMMA 2 mm 厚）；壁厚 0.8–6 mm；表面粗糙度 Ra ≤0.02 μm；成型环境 十万级洁净车间；尺寸公差 ±0.03 mm。\n金属嵌件注塑件规格参数：嵌件类型 铜螺母/冲压端子/不锈钢轴；嵌件放置 机械手/人工；适用材料 PBT+GF/PA6/LCP；定位精度 ±0.05 mm；尺寸公差 ±0.03 mm；成型机台 立式 55–250 t。\n产能：模具年产约 180 套；注塑机 42 台（90–800 t），月注塑能力约 600 万件。\n加工能力/主设备：高速 CNC 加工中心 12 台；精密慢走丝线切割 6 台；镜面电火花 8 台；精密平面磨床 4 台；注塑机 42 台（90–800 t）；双色注塑机 3 台。\n检测设备：三坐标测量机；二次元影像测量仪；色差仪；拉力试验机；恒温恒湿箱。\n质检流程：来料检验（树脂批次与嵌件尺寸）；试模后首件全尺寸检测；过程巡检每 2 小时抽检；外观与功能全检；出货抽检并附检测报告。\n应用行业：家电外壳与结构件；汽车内饰件与连接器；医疗器械耗材外壳；照明透镜与灯罩；电动工具壳体。\n认证状态：ISO 9001 已有；ISO 14001 已有；IATF 16949 认证中。\n问：没有图纸只有样品能开模吗？答：可以，先做 3D 扫描和逆向建模，图纸确认后再开模。\n问：开模周期多久？答：单腔模具约 25–35 天，多腔热流道和双色模具约 40–55 天，从图纸确认开始计。\n问：试模样品怎么提供？答：T1 试模后 3 天内寄出样品和全尺寸检测报告，每套模具含 3 次试模。\n问：模具归谁所有？答：模具费付清后模具归买方所有，可存放在本厂用于批量生产。\n问：出口订单用什么贸易条款？答：常用 FOB 宁波和 EXW，也可按订单约定 CIF。\nMOQ：注塑件 5000 件起；模具单套起接。\n交期：模具 25–55 天；批量注塑件在模具确认后 15–20 天。\n邮箱：rfq@p3t-sim.test\n客户名单、评价：资料未提供。\n页面：首页、产品、生产与质检、常见问题、联系；当前模板不支持的独立页面须说明，不得假装已经开通。";
+const liveHyphenCandidate: CommercialTerm = {
+  "id": "capacity",
+  "kind": "capacity",
+  "value": {
+    "zh": "模具年产约 180 套；月注塑能力约 600 万件",
+    "en": "Approximately 180 mold sets per year; approximately 6 million injection-molded pieces per month"
+  }
+};
+// The diagnostic saved only capacity. These three terms are from the before
+// record; the assembled synthetic payload is NOT the complete model response.
+const liveHyphenOldTerms: CommercialTerm[] = [
+  {
+    "id": "moq",
+    "kind": "moq",
+    "value": {
+      "zh": "注塑件 5000 件起；模具单套起接",
+      "en": "Molded parts from 5,000 pcs; molds from one set"
+    }
+  },
+  {
+    "id": "lead-time",
+    "kind": "lead_time",
+    "value": {
+      "zh": "模具 25–55 天；批量注塑件在模具确认后 15–20 天",
+      "en": "Molds 25–55 days; volume molded parts 15–20 days after mold approval"
+    }
+  },
+  {
+    "id": "trade-terms",
+    "kind": "trade_terms",
+    "value": {
+      "zh": "常用 FOB 宁波和 EXW，也可按订单约定 CIF",
+      "en": "Usually FOB Ningbo and EXW, CIF by order agreement"
+    }
+  }
+];
+const liveHyphenCases = [
+  { id: "space", en: "Approximately 180 mold sets per year; approximately 6 million injection molded pieces per month", accept: true },
+  { id: "saved-hyphen", en: liveHyphenCandidate.value.en, accept: true },
+  { id: "cycles-swapped", en: "Approximately 180 mold sets per month; approximately 6 million injection-molded pieces per year", accept: false },
+  { id: "approximation-dropped", en: "Approximately 180 mold sets per year; 6 million injection-molded pieces per month", accept: false },
+  { id: "unknown-modifier", en: "Approximately 180 mold sets per year; approximately 6 million precision injection-molded pieces per month", accept: false },
+  { id: "unknown-tail", en: "Approximately 180 mold sets per year; approximately 6 million injection-molded pieces per month guaranteed", accept: false },
+] as const;
+
+for (const input of liveHyphenCases) {
+  test(`T118 live hyphen ${input.id}: source-derived ${input.accept ? "accept" : "refuse"}`, async () => {
+    const candidate = { ...liveHyphenCandidate, value: { zh: liveHyphenCandidate.value.zh, en: input.en } };
+    const operations = [{ op: "replace_commercial_terms" as const, terms: [candidate] }];
+    const checked = validateAIOperations(liveHyphenMaterials, operations, templates, structuredClone(defaultDraft));
+    if (evidenceRoot) await writeFile(path.join(evidenceRoot, `live-hyphen-${input.id}.json`), JSON.stringify({ input, materials: liveHyphenMaterials, operations, checked }, null, 2), { encoding: "utf8", flag: "wx" });
+    assert.deepEqual(checked.operations, input.accept ? operations : [], `${input.id}: ${checked.rejected.join("; ")}`);
+    if (!input.accept) {
+      assert.ok(checked.rejected.length);
+      const diagnostic = checked.commercialTermRejections![0];
+      assert.deepEqual(diagnostic.term, candidate);
+      assert.equal(diagnostic.sourceMatches, true);
+      assert.ok(diagnostic.failedChecks.length, "explicit failure conditions accompany every refusal");
+      if (input.id.startsWith("unknown-")) assert.ok(diagnostic.failedChecks.includes("english_capacity_parse"));
+      if (input.id.startsWith("unknown-")) assert.ok(diagnostic.parseEvidence.en.residuals.length, "unknown words remain unconsumed");
+    }
+  });
+}
+
+test("T118 live hyphen synthetic loopback provider → real chat export → nonempty FS and undo", async (t) => {
+  const { createServer } = await import("node:http");
+  const { POST } = await import("../app/api/sites/[siteId]/chat/route.ts");
+  let payload: unknown;
+  let calls = 0;
+  const server = createServer(async (request, response) => {
+    for await (const _chunk of request) { /* drain the local provider request */ }
+    assert.equal(request.url, "/chat/completions");
+    assert.equal(request.method, "POST");
+    calls += 1;
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(payload) } }] }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  process.env.DEEPSEEK_API_KEY = "t118-loopback-only-synthetic";
+  process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`;
+  process.env.DEEPSEEK_MODEL = "t118-synthetic";
+  for (const key of ["AI_API_KEY", "AI_BASE_URL", "AI_MODEL"]) delete process.env[key];
+  const realFetch = globalThis.fetch;
+  // Refuse any outbound URL before network I/O. No original-site API is used.
+  globalThis.fetch = (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    assert.equal(url, `${process.env.DEEPSEEK_BASE_URL}/chat/completions`);
+    return realFetch(input, init);
+  };
+  const previousWarn = console.warn;
+  const audits: string[] = [];
+  console.warn = (...args: unknown[]) => { audits.push(args.map(String).join(" ")); };
+  try {
+    for (const input of liveHyphenCases) await t.test(input.id, async () => {
+      const siteId = `t118-live-hyphen-${input.id}`;
+      const initial = await createSite(siteId);
+      const seed = validateAIOperations(liveHyphenMaterials, [{ op: "replace_commercial_terms", terms: liveHyphenOldTerms }], templates, initial.draft);
+      assert.deepEqual(seed.operations, [{ op: "replace_commercial_terms", terms: liveHyphenOldTerms }], "original before terms must validate without modifying source");
+      const seeded = await commitOperations({ siteId, baseRevision: initial.draft.revision, operations: seed.operations, summary: "Isolated original-term seed", source: "ai" });
+      assert.equal(seeded.status, "applied");
+      const before = (await getExistingSite(siteId))!;
+      const file = path.join(isolatedRoot, ".sitecraft-data", "sites", `${siteId}.json`);
+      const beforeBytes = await readFile(file, "utf8");
+      const candidate = { ...liveHyphenCandidate, value: { zh: liveHyphenCandidate.value.zh, en: input.en } };
+      payload = { type: "edit", summary: "Synthetic capacity-only recovery", operations: [{ op: "replace_commercial_terms", terms: [...liveHyphenOldTerms, candidate] }] };
+      const callsBefore = calls;
+      const auditsBefore = audits.length;
+      const response = await POST(new Request(`http://127.0.0.1/isolated/${siteId}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ baseRevision: before.draft.revision, message: liveHyphenMessage }) }), { params: Promise.resolve({ siteId }) });
+      const raw = await response.text();
+      const events = raw.split("\n\n").filter((line) => line.startsWith("data: ")).map((line) => JSON.parse(line.slice(6)));
+      const done = events.at(-1);
+      const after = (await getExistingSite(siteId))!;
+      const afterBytes = await readFile(file, "utf8");
+      const undo = done?.status === "applied" ? await moveHistory(siteId, "undo") : null;
+      const undone = await getExistingSite(siteId);
+      const undoBytes = await readFile(file, "utf8");
+      if (evidenceRoot) {
+        await writeFile(path.join(evidenceRoot, `live-hyphen-chat-${input.id}.response.raw`), raw, { encoding: "utf8", flag: "wx" });
+        await writeFile(path.join(evidenceRoot, `live-hyphen-chat-${input.id}.json`), JSON.stringify({ scope: "Synthetic loopback provider and direct real POST export, not Next HTTP hosting or external model", input, payload, message: liveHyphenMessage, httpStatus: response.status, contentType: response.headers.get("content-type"), events, before, beforeBytes, after, afterBytes, undo, undone, undoBytes, providerCalls: calls - callsBefore, audits: audits.slice(auditsBefore) }, null, 2), { encoding: "utf8", flag: "wx" });
+      }
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("content-type")!, /^text\/event-stream/);
+      assert.equal(calls - callsBefore, 1, "one synthetic provider call, no retries");
+      assert.equal(events[0].type, "status");
+      assert.equal(events.filter((event) => event.type === "done").length, 1);
+      assert.equal(done.status, input.accept ? "applied" : "no_change");
+      assert.deepEqual(JSON.parse(afterBytes).draft, after.draft);
+      assert.deepEqual(after.draft.content.commercialTerms, input.accept ? [...liveHyphenOldTerms, candidate] : liveHyphenOldTerms);
+      assert.deepEqual({ ...after.draft.content, commercialTerms: liveHyphenOldTerms }, before.draft.content, "other content stays unchanged");
+      if (input.accept) {
+        assert.equal(after.draft.revision, before.draft.revision + 1);
+        assert.equal(after.history.length, before.history.length + 1);
+        assert.ok(done.changeSet.appliedTargets.length);
+        assert.equal(undo?.status, "applied");
+        assert.deepEqual(undone?.draft.content, before.draft.content);
+        assert.equal(undone?.draft.englishReady, before.draft.englishReady);
+        assert.deepEqual(undone?.history, before.history);
+        assert.deepEqual(JSON.parse(undoBytes).draft, undone?.draft);
+        assert.deepEqual(audits.slice(auditsBefore), []);
+      } else {
+        assert.ok(done.rejected.length);
+        assert.equal(afterBytes, beforeBytes, "refusal preserves nonempty FS record byte for byte");
+        assert.deepEqual(after, before);
+        assert.equal(audits.length - auditsBefore, 1);
+        const audit = JSON.parse(audits.at(-1)!.slice(audits.at(-1)!.indexOf("{")));
+        assert.deepEqual(audit.rejections[0].term, candidate);
+        assert.equal(audit.rejections[0].sourceMatches, true);
+      }
+    });
+  } finally {
+    globalThis.fetch = realFetch;
+    console.warn = previousWarn;
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});

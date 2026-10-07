@@ -2540,7 +2540,7 @@ function capacityClauses(value: string): string[] {
 const CAPACITY_EN_PERIOD_SUFFIX = new RegExp(`^(?:${CAPACITY_EN_PERIOD_PATTERN})`, "i");
 const CAPACITY_SIMPLE_UNIT_RULES = COMMERCIAL_UNIT_RULES.filter((rule) => !["ten-thousand-piece", "piece", "equipment", "set"].includes(rule.key));
 const CAPACITY_ZH_UNIT = new RegExp(`^(套(?:模具)?|件(?:注塑件)?|台(?:注塑机)?|${CAPACITY_SIMPLE_UNIT_RULES.map((rule) => rule.zhUnit).join("|")})`, "i");
-const CAPACITY_EN_UNIT = new RegExp(`^(?:(?:injection(?:\\s+molding)?|molding)\\s+)?(machines?|units?)\\b|^(?:(?:mold|mould)\\s+)?(sets?|moulds?|molds?)\\b|^(?:(?:injection\\s+molded|molded|injection)\\s+)?(pcs?|pieces?|parts?)\\b|^(${CAPACITY_SIMPLE_UNIT_RULES.map((rule) => rule.enUnit).join("|")})\\b`, "i");
+const CAPACITY_EN_UNIT = new RegExp(`^(?:(?:injection(?:\\s+molding)?|molding)\\s+)?(machines?|units?)\\b|^(?:(?:mold|mould)\\s+)?(sets?|moulds?|molds?)\\b|^(?:(?:injection(?:\\s+|-)molded|molded|injection)\\s+)?(pcs?|pieces?|parts?)\\b|^(${CAPACITY_SIMPLE_UNIT_RULES.map((rule) => rule.enUnit).join("|")})\\b`, "i");
 const CAPACITY_BOUND_COMPLEMENT: Record<CapacityBound, CapacityBound> = {
   greater_than: "maximum", less_than: "minimum", minimum: "less_than", maximum: "greater_than",
 };
