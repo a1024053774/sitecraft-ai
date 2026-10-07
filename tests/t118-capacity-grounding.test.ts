@@ -1805,6 +1805,45 @@ const cases = [
   { id: "lost-cycle-unquantified", source: "产能：每月按订单确认。", zh: "每月按订单确认", en: "Capacity is confirmed per order", accept: false },
 ] as const;
 
+// T-122 Astra recovered this exact DeepSeek output. British spelling must not
+// change acceptance, while quantities/units/cycles/qualifiers and equipment
+// specifications must remain attached to their source claim.
+const t122BritishOriginal = "About 180 mould sets per year; 42 injection moulding machines (90–800 t), monthly moulding capacity about 6 million pieces.";
+const t122SpellingCases = [
+  { id: "original", en: t122BritishOriginal, accept: true },
+  { id: "equipment-only", en: t122BritishOriginal.replace("monthly moulding", "monthly molding"), accept: true },
+  { id: "predicate-only", en: t122BritishOriginal.replace("injection moulding", "injection molding"), accept: true },
+  { id: "american", en: t122BritishOriginal.replaceAll("mould", "mold"), accept: true },
+  { id: "wrong-quantity", en: t122BritishOriginal.replace("180", "181"), accept: false },
+  { id: "swapped-units", en: "About 180 pieces per year; 42 injection moulding machines (90–800 t), monthly moulding capacity about 6 million mould sets.", accept: false },
+  { id: "swapped-cycles", en: t122BritishOriginal.replace("per year", "per month").replace("monthly", "annual"), accept: false },
+  { id: "approximation-lost", en: t122BritishOriginal.replace("About ", "").replace("about ", ""), accept: false },
+  { id: "equipment-borrows-cycle", en: t122BritishOriginal.replace("machines (", "machines per month ("), accept: false },
+] as const;
+
+for (const input of t122SpellingCases) {
+  test(`T122 British capacity ${input.id}: ${input.accept ? "accept" : "refuse"} through commit and readback`, async () => {
+    const siteId = `t122-british-${input.id}`;
+    const before = await createSite(siteId);
+    const candidate = term(WITH_EQUIPMENT, input.en);
+    const operations = [{ op: "replace_commercial_terms" as const, terms: [candidate] }];
+    const checked = validateAIOperations(wrapCompanyMaterials(SOURCE), operations, templates, before.draft);
+    const committed = await commitOperations({ siteId, baseRevision: before.draft.revision, operations: checked.operations, summary: "T122 British spelling regression", source: "ai" });
+    const saved = (await getExistingSite(siteId))!;
+    assert.equal(committed.status, input.accept ? "applied" : "no_change", `${input.id}: ${checked.rejected.join("; ")}`);
+    assert.deepEqual(saved.draft.content.commercialTerms, input.accept ? [candidate] : []);
+    if (input.accept) {
+      assert.deepEqual(checked.rejected, []);
+      assert.equal((await moveHistory(siteId, "undo")).status, "applied");
+      assert.deepEqual((await getExistingSite(siteId))?.draft.content.commercialTerms, []);
+    } else {
+      assert.ok(checked.rejected.length > 0);
+      assert.deepEqual(saved.draft, before.draft);
+      assert.deepEqual(saved.history, before.history);
+    }
+  });
+}
+
 if (evidenceRoot) {
   await mkdir(evidenceRoot, { recursive: true });
   await writeFile(path.join(evidenceRoot, "independent-inputs.json"), JSON.stringify({ origin: "synthetic controls, not recovered model output", source: SOURCE, cases }, null, 2), "utf8");
