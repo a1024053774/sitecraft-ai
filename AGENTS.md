@@ -44,20 +44,18 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 生成路径的硬约束
 
-这些是用户多轮决定后的结论，改动前须负责人重新确认：
+2026-10-07 负责人决定换路线（T-127，取代 T-048 的拼页路线）。改动前须负责人重新确认：
 
-- **样子 → SiteCraft 区块库 + 这个样子的 token → 这家公司的完整页面**（T-048，细则见 `mainline.md`）。开源模板、区块、样式是移植进区块库的素材；不得把整页快照挖空填词当成品，不得把未经移植的外部区块直接拼进页面。
-- **一个预览引擎**：`lib/template-adapters/preview-bridge.ts` + SiteCraft 区块库。四个生产样子都由区块库拼页，不保留旧 overlay 兼容层。不另起渲染器，本阶段不做原生 React/shadcn 拼装。
-- **运行时模型不输出 HTML 和文字，可以写受限的站点样式**（T-048）。模型理解需求、产生受控意图和白名单 operation；它能写的 CSS 只作用于站点区块，加不进文字、外部资源和固定定位，有大小上限，作为一个 operation 走 `commitOperations`、可单独撤销；提交前按 375 / 768 / 1440 渲染检查横向溢出和文字重叠，不过就拒绝并告诉用户原因，不静默回退。开发侧可以自由改区块库的 HTML/CSS、组件和布局。
-- **所有草稿修改走 `commitOperations`**。Skill、模型、测试夹具不得旁路写草稿。
-- **adapter 是可审查数据**（选择器、目标、属性、集合映射），不存每模板可执行 JS。写入须唯一命中声明节点；未命中报告 `missing`，不按标题正则、元素顺序或卡片形状猜写。`covered/applied` 只来自实际落点。
-- **成品否决项**：事实只能来自用户资料或「待补充」；不得残留未选用的模板品牌、客户 Logo 墙、SaaS 定价、演示图、假评价/数字、空链接。`missing` 是落点失败，不是保留演示壳的理由。
+- **模型直接写站点代码**：每页一份 HTML，加公共页头页脚和一份 CSS；版式、结构、文案由模型按资料和所选风格决定。引导靠 skill（核心规范每次加载 + 用户选的风格），不靠白名单 operation 和固定区块。流程固定、内容放开：读资料 → 页面大纲 → 写页面 → 检查修正 → 截图打磨 → 存版本。
+- **所有修改走同一个提交入口**：生成、对话、批注、手改、恢复都经过它：清理（去掉脚本和外部资源）→ 底线检查 → 存成一个完整版本。撤销就是恢复到旧版本，恢复本身也是新版本；刷新从当前版本恢复。Skill、模型、测试夹具不得旁路写站点。
+- **底线检查在提交入口做，不靠限制模型**：事实只能来自用户资料或「待补充」；不得有脚本、外部资源、未授权图片、空链接、客户 Logo 墙、假评价/数字；375 / 768 / 1440 不横向溢出、不重叠，正文对比度达标。不过就交回模型修（最多两轮），仍不过如实告诉用户，不静默放过、不静默回退。
+- **功能部件由系统提供**：图片按编号引用、署名由系统汇总；询盘表单、图标由系统给。模型只负责摆放和样式。
 - 页面规划：用户点名的页面 → 模型按业务规划 → 实在无法确定时首页/产品服务/联系。默认三页不是上限；做不到的页面要明确说明，不静默缩成首页。
-- 需求对齐：选项通过结构化请求保存，同一会话继续，刷新可恢复；不要求用户复制输出或手打「继续」；不靠挂起的 HTTP 请求等用户。用户选的是样子/主题/行业方向，不是内部 Skill 名。
-- 设计选择必须落到 `visualBrief`、token、区块编排、站点样式或白名单 operation；只改 prompt 文案而页面看不出变化不算完成。
-- 删除只由用户明确选择；系统不自动清理对话、草稿、上传或站点，不做定时清理或清理开关。
-- 前端改动遵循 `skills/frontend-less-ai-tone/`；生成或改 SiteCraft 站点文案/样子时叠加 `skills/sitecraft-frontend-less-ai-tone/`（运行时子集 `lib/frontend-tone.ts`）。
-- 不为未来功能预置平行 API、兼容层、空 schema 或推测性抽象。
+- 需求对齐：选项通过结构化请求保存，同一会话继续，刷新可恢复；不靠挂起的 HTTP 请求等用户。用户选的是风格（主风格单选 + 版式/密度两个滑杆 + 默认「帮我选」），不是内部 Skill 名。
+- 英文版不和中文一起生成：用户对中文站满意后，再问是否生成英文版；英文版沿用同一结构，只翻译文字。
+- 删除只由用户明确选择；系统不自动清理对话、版本、上传或站点，不做定时清理或清理开关。
+- 前端改动遵循 `skills/frontend-less-ai-tone/`；它和 `skills/sitecraft-frontend-less-ai-tone/` 并入运行时核心规范。
+- 不为未来功能预置平行 API、兼容层、空 schema 或推测性抽象。新路线跑通后，旧的区块库拼页、adapter、白名单 operation 整套删除，不留兼容层；旧站点一次性转成静态页面存为第一个版本。
 
 ## 素材与许可
 
@@ -70,9 +68,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 一个功能算完成：
 
 1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；
-2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`。发布页用 `node scripts/check-published.mjs --out artifacts/published-check/<标签>`（需 3034 端口的 dev server；每次运行自带独立的 Chrome，多个 agent 可以同时跑，不要手动 pkill 别人的浏览器）检查访客页规则并截图；改动询盘链路时加 `--submit`（会往样板收件箱写入带 `check-published` 标记的测试询盘）；新增访客页规则（包括英文开关）时把断言加进这个脚本。截图前确认预览已就绪、整页高度已稳定，每张都打开看过；载入态、空白或截断的截图不算证据；发布页脚本应等待预览、iframe、整页高度和字体/布局条件成立并在超时时说明等待目标，不用固定 sleep 代替就绪条件；结果必须验证可见区块与文字测量元数据完整，测量为空或明显不足时失败；默认区块顺序还必须覆盖质量流程和沿革区块，顺序错位直接失败；
-   发布页正文硬门由 `scripts/visitor-layout-scan.js` 提供：实际合成色正文至少 4.5:1，大号文字至少 3:1；图片背景或无法合成的文字报告「未测」并失败。正文段落单行中文最多约 40 字、英文最多约 75 字；参数表、按钮、型号、邮箱、导航在报告中列为豁免。`lib/site-style-check.ts` 对用户提交的站点样式使用同一门槛.
-   负责人这台 Mac 上的普通 Google Chrome 以无头方式启动后约 20–40 秒会被自动更新程序带着退出，浏览器测试和 `check-published` 都要先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（Chrome for Testing 的 headless shell，2026-09-29 负责人同意下载）；换机器或版本更新后按实际路径改。
+2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`，每张都打开看过；载入态、空白或截断的截图不算证据。生成站的底线检查（事实、外部资源、溢出、重叠、对比度、行长）由提交入口和评估集自动跑，验收引用它们本次的结果。旧路线站点在删除前仍用 `node scripts/check-published.mjs`（需 3034 端口 dev server）检查。
+   浏览器测试先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（负责人这台 Mac 的普通 Chrome 无头启动后会被自动更新带着退出）；换机器或版本更新后按实际路径改。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
 4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；
 5. 对应票的验收勾选项都有证据，票已关闭；`project_map.py status` 里没有过时的 living doc。

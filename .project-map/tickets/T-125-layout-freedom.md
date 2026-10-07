@@ -2,7 +2,7 @@
 id: T-125
 title: 放开版式自由度（涉及 T-048 硬约束，待负责人确认）
 type: decide
-status: open
+status: superseded
 blocked_by: [T-124]
 claimed_by:
 supersedes:
@@ -11,3 +11,5 @@ supersedes:
 ## Question
 
 负责人 2026-10-07 选择探索「放开版式自由度」（T-121 方向 3）。这会改动 T-048 的硬约束（模型不写 HTML、区块库拼页）。需要先和负责人定：放开到什么程度（模型自由编排区块组合 / 引入整页级版式 / 其他）、约束保留哪些（事实只来自资料、走 commitOperations、发布硬门），以及先做多小的试验。T-123、T-124 的结果出来后再定，避免和它们撞同一处。
+
+由 T-127 决定（取代）。

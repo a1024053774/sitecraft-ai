@@ -2,7 +2,7 @@
 id: T-126
 title: T-123、T-124 之后重跑盲评
 type: build
-status: open
+status: superseded
 blocked_by: [T-124]
 claimed_by:
 supersedes: T-110
@@ -15,3 +15,5 @@ supersedes: T-110
 ## Acceptance
 
 - [ ] 两种盲评按口径计算，原始判断与对照表存档；不过关如实记录并开后续票，不改口径
+
+被 T-127 取代：2026-10-07 负责人决定换路线（模型直接写站点代码），本票不再做。

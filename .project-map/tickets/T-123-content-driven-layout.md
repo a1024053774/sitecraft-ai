@@ -2,9 +2,9 @@
 id: T-123
 title: 按内容决定排版：稀疏字段合并、图文同卡、照片按用途定尺寸
 type: build
-status: open
+status: superseded
 blocked_by: [T-122]
-claimed_by: t123-build
+claimed_by:
 supersedes:
 ---
 
@@ -22,3 +22,5 @@ T-121 方向 1。T-110 评审认出生成页的主要原因是「按固定字段
 - [ ] 各条有行为测试（先在父提交上失败），用三份资料 × 四个样子的真实草稿验证
 - [ ] 改动区块重渲后交独立审美审查
 - [ ] `npm run typecheck`、`npm test`、`npm run build`、13 站 `check-published` 通过；代码审查通过；Claude 验收
+
+被 T-127 取代：2026-10-07 负责人决定换路线（模型直接写站点代码），本票不再做。

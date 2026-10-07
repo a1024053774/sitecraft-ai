@@ -2,7 +2,7 @@
 id: T-124
 title: 每家公司骨架不同：区块顺序、首屏结构、询盘位置、页脚按公司选
 type: build
-status: open
+status: superseded
 blocked_by: [T-123]
 claimed_by:
 supersedes:
@@ -19,3 +19,5 @@ T-121 方向 2。T-110 换公司盲评 10/10 判同一模板：导航、区块�
 
 - [ ] 测试先写、父提交失败：三份资料在同一样子下得到不同骨架，规则可解释
 - [ ] 改动后独立审美审查；`npm run typecheck`、`npm test`、`npm run build`、13 站 `check-published` 通过；代码审查通过；Claude 验收
+
+被 T-127 取代：2026-10-07 负责人决定换路线（模型直接写站点代码），本票不再做。
