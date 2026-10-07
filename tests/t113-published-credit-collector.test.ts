@@ -29,10 +29,13 @@ test("T-113 real published collector keeps full GET attribution, supplied credit
   child.stderr.on("data", data => { output += data; });
   const code = await new Promise<number | null>((resolve, reject) => { child.on("error", reject); child.on("close", resolve); });
   writeFileSync(path.join(out, "run.json"), JSON.stringify({ args, at, finishedAt: new Date().toISOString(), base, chrome: process.env.CHROME_PATH, head: spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim(), code, output }, null, 2) + "\n", { flag: "wx" });
+  assert.equal(code, 0, `published collector failed before credit assertions:\n${output}`);
   const rows = JSON.parse(readFileSync(path.join(out, "published/report.json"), "utf8"));
   assert.equal(rows.length, 9, "three original sites at three widths");
+  for (const row of rows) assert.deepEqual(row.failures, [], `${row.siteKey}/${row.width}: collector failures must be reported before credit assertions`);
   for (const row of rows) for (const [locale, report] of [["zh", row], ["en", row.english]] as const) {
     assert.ok(report, "both original locales are inspected");
+    assert.ok(report.imageCredits, `${row.siteKey}/${locale}/${row.width}: image credits measurement is missing`);
     const inventory = inventories.get(row.siteKey)!;
     const expected = inventory.filter(image => image.credit?.[locale] || image.attribution);
     assert.equal(report.imageCredits.required, expected.length);

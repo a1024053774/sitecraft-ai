@@ -17,15 +17,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:net";
 import { expectedFacts, missingFacts } from "./published-facts.mjs";
 import { capturePublishedPage } from "./published-capture.mjs";
 
 const BASE = process.env.SITECRAFT_BASE || "http://127.0.0.1:3034";
-// Each run gets its own Chrome (port and profile), so parallel runs by different agents never
-// share a browser and a restart here cannot kill someone else's.
-const CDP_PORT = process.env.CDP_PORT || String(9400 + (process.pid % 500));
+// Connect only to the endpoint emitted by the Chrome process launched by this run.
+const CDP_PORT = process.env.CDP_PORT ?? "0";
 const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const PROFILE = `/tmp/sitecraft-published-check-${process.pid}`;
 const WIDTHS = [1440, 768, 375];
 const DEFAULT_SITES = ["overlay-p3i-thick-20260925", "overlay-p3e-thick-20260925", "overlay-sparse-20260924"];
 
@@ -47,18 +46,38 @@ const siteKeys = sites.length ? sites : DEFAULT_SITES;
 fs.mkdirSync(outDir, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const lifecycle = (event, detail = {}) => fs.appendFileSync(path.join(outDir, "browser-lifecycle.ndjson"), JSON.stringify({ at: new Date().toISOString(), event, ...detail }) + "\n");
 
 class Cdp {
-  constructor(url) { this.url = url; this.nextId = 1; this.pending = new Map(); }
+  constructor(url) { this.url = url; this.nextId = 1; this.pending = new Map(); this.failure = null; }
+  terminate(error) {
+    if (!this.failure) this.failure = error;
+    for (const waiter of this.pending.values()) waiter.reject(this.failure);
+    this.pending.clear();
+    return this.failure;
+  }
   async connect() {
     this.ws = new WebSocket(this.url);
-    await new Promise((resolve, reject) => {
-      this.ws.addEventListener("open", resolve, { once: true });
-      this.ws.addEventListener("error", reject, { once: true });
+    this.ws.addEventListener("close", (event) => {
+      lifecycle("cdp-close", { code: event.code, reason: event.reason });
+      this.terminate(new Error(`DevTools connection closed (${event.code}${event.reason ? `: ${event.reason}` : ""})`));
     });
-    this.ws.addEventListener("close", () => {
-      for (const waiter of this.pending.values()) waiter.reject(new Error("DevTools connection closed"));
-      this.pending.clear();
+    this.ws.addEventListener("error", () => {
+      lifecycle("cdp-error");
+      this.terminate(new Error("DevTools connection error"));
+    });
+    await new Promise((resolve, reject) => {
+      const done = (error) => {
+        this.ws.removeEventListener("open", opened);
+        this.ws.removeEventListener("error", failed);
+        this.ws.removeEventListener("close", failed);
+        error ? reject(error) : resolve();
+      };
+      const opened = () => done(this.failure);
+      const failed = () => done(this.failure);
+      this.ws.addEventListener("open", opened, { once: true });
+      this.ws.addEventListener("error", failed, { once: true });
+      this.ws.addEventListener("close", failed, { once: true });
     });
     this.ws.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
@@ -70,8 +89,9 @@ class Cdp {
     });
   }
   send(method, params = {}, sessionId) {
+    if (this.failure) return Promise.reject(this.failure);
+    if (this.ws?.readyState !== WebSocket.OPEN) return Promise.reject(this.terminate(new Error(`DevTools connection not open (state ${this.ws?.readyState})`)));
     const id = this.nextId++;
-    this.ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
@@ -81,6 +101,8 @@ class Cdp {
         resolve: (value) => { clearTimeout(timer); resolve(value); },
         reject: (error) => { clearTimeout(timer); reject(error); },
       });
+      try { this.ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })); }
+      catch (error) { this.terminate(error); }
     });
   }
   async evaluate(expression, sessionId) {
@@ -90,25 +112,83 @@ class Cdp {
   }
 }
 
-async function connectChrome() {
-  const versionUrl = `http://127.0.0.1:${CDP_PORT}/json/version`;
-  let version = await fetch(versionUrl).then((r) => r.json()).catch(() => null);
-  if (!version) {
-    spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${PROFILE}`, "--headless=new", "--no-first-run", "--no-default-browser-check", "--site-per-process", "--enable-features=IsolateSandboxedIframes", "about:blank"], { stdio: "ignore", detached: true }).unref();
-    version = await waitFor(() => fetch(versionUrl).then((r) => r.json()).catch(() => null), "Chrome DevTools endpoint", 30000);
-  }
-  if (!version?.webSocketDebuggerUrl) throw new Error("Chrome DevTools endpoint not available");
-  const browser = new Cdp(version.webSocketDebuggerUrl);
-  await browser.connect();
-  return browser;
+async function requireAvailablePort(port) {
+  if (!port) return;
+  const probe = createServer();
+  await new Promise((resolve, reject) => {
+    probe.once("error", (error) => reject(new Error(`Chrome port ${port} unavailable${error.code === "EADDRINUSE" ? " (occupied)" : ""}: ${error.message}`)));
+    probe.listen({ port, host: "127.0.0.1", exclusive: true }, resolve);
+  });
+  await new Promise((resolve, reject) => probe.close((error) => error ? reject(error) : resolve()));
 }
 
-async function openPage(browser) {
-  const { targetId } = await browser.send("Target.createTarget", { url: "about:blank" });
-  const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true });
-  await browser.send("Page.enable", {}, sessionId);
-  await browser.send("Runtime.enable", {}, sessionId);
-  return { targetId, sessionId };
+async function startChrome() {
+  if (!/^\d+$/.test(CDP_PORT) || Number(CDP_PORT) > 65535) throw new Error(`Invalid CDP_PORT: ${CDP_PORT}`);
+  const port = Number(CDP_PORT);
+  await requireAvailablePort(port);
+  const profile = fs.mkdtempSync(path.join(path.resolve(outDir), "chrome-profile-"));
+  const child = spawn(CHROME, [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--headless=new", "--no-first-run", "--no-default-browser-check", "--site-per-process", "--enable-features=IsolateSandboxedIframes", "about:blank"], { stdio: ["ignore", "ignore", "pipe"], detached: true });
+  lifecycle("chrome-start", { pid: child.pid, profile, requestedPort: port });
+  let browser = null;
+  const closed = new Promise((resolve) => child.once("close", (code, signal) => {
+    lifecycle("chrome-close", { pid: child.pid, code, signal });
+    resolve();
+  }));
+  const endpoint = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout waiting for owned Chrome DevTools endpoint")), 30000);
+    let stderr = "", settled = false;
+    const finish = (error, url) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      error ? reject(error) : resolve(url);
+    };
+    child.once("error", (error) => { lifecycle("chrome-error", { error: error.message }); finish(error); });
+    child.once("exit", (code, signal) => {
+      lifecycle("chrome-exit", { pid: child.pid, code, signal });
+      const error = new Error(`Owned Chrome exited (${code}/${signal})`);
+      browser?.terminate(error);
+      finish(error);
+    });
+    child.stderr.on("data", (bytes) => {
+      fs.appendFileSync(path.join(outDir, "chrome.stderr.raw"), bytes);
+      stderr += bytes.toString();
+      // A competing listener may win after preflight. Never discover its endpoint.
+      if (/bind\(\) failed|Cannot start http server for devtools/i.test(stderr)) finish(new Error(`Owned Chrome could not bind port ${port}; port occupied or startup competition (see chrome.stderr.raw)`));
+      const match = stderr.match(/DevTools listening on (ws:\/\/\S+)/);
+      if (match) finish(null, match[1]);
+    });
+  });
+  return {
+    async connect() {
+      const url = new URL(await endpoint);
+      if (url.hostname !== "127.0.0.1" || !/^\/devtools\/browser\/[^/]+$/.test(url.pathname) || !Number(url.port) || (port && Number(url.port) !== port)) throw new Error("Owned Chrome emitted an invalid DevTools endpoint");
+      if (child.exitCode !== null || child.signalCode !== null) throw new Error("Owned Chrome exited before connection");
+      if (!port) {
+        const [activePort, browserPath] = fs.readFileSync(path.join(profile, "DevToolsActivePort"), "utf8").trim().split("\n");
+        if (activePort !== url.port || browserPath !== url.pathname) throw new Error("Owned Chrome profile and emitted endpoint disagree");
+      }
+      lifecycle("chrome-endpoint", { pid: child.pid, profile, port: Number(url.port), browserId: url.pathname.split("/").at(-1), endpoint: url.href });
+      browser = new Cdp(url.href);
+      await browser.connect();
+      return browser;
+    },
+    async cleanup() {
+      browser?.ws?.close();
+      if (child.pid && child.exitCode === null && child.signalCode === null) {
+        lifecycle("chrome-cleanup", { pid: child.pid, signal: "SIGTERM" });
+        child.kill("SIGTERM");
+        // Escalate only this still-live, detached child group if graceful shutdown stalls.
+        const timer = setTimeout(() => {
+          if (child.exitCode !== null || child.signalCode !== null) return;
+          lifecycle("chrome-cleanup", { pid: child.pid, signal: "SIGKILL" });
+          try { process.kill(-child.pid, "SIGKILL"); }
+          catch (error) { if (error.code !== "ESRCH") throw error; } // The owned group can exit between the check and signal.
+        }, 5000);
+        try { await closed; } finally { clearTimeout(timer); }
+      } else await closed;
+    },
+  };
 }
 
 async function waitFor(check, what, timeoutMs = 90000) {
@@ -666,8 +746,12 @@ async function draftFacts(siteKey, locale = "zh") {
 }
 
 async function checkOne(browser, siteKey, width) {
-  const { targetId, sessionId } = await openPage(browser);
+  let targetId;
   try {
+    ({ targetId } = await browser.send("Target.createTarget", { url: "about:blank" }));
+    const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true });
+    await browser.send("Page.enable", {}, sessionId);
+    await browser.send("Runtime.enable", {}, sessionId);
     await browser.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 500 }, sessionId);
     await browser.send("Page.navigate", { url: `${BASE}/published/${siteKey}` }, sessionId);
     await waitFor(async () => {
@@ -726,21 +810,33 @@ async function checkOne(browser, siteKey, width) {
     delete report.readable;
     return { siteKey, width, screenshot: report.screenshot, failures, ...report, english };
   } finally {
-    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
+    if (targetId && !browser.failure) await browser.send("Target.closeTarget", { targetId });
   }
 }
 
-let browser = await connectChrome();
 const results = [];
-for (const siteKey of siteKeys) {
-  for (const width of WIDTHS) {
-    const result = await checkOne(browser, siteKey, width).catch((error) => ({ siteKey, width, failures: [`check failed: ${error.message}`] }));
-    results.push(result);
-    console.log(`${result.failures.length ? "FAIL" : "ok  "} ${siteKey} @${width}${result.failures.map((f) => `\n     - ${f}`).join("")}`);
+let owner, browser, startupFailure;
+try {
+  owner = await startChrome();
+  browser = await owner.connect();
+} catch (error) {
+  startupFailure = error;
+  console.error(`Chrome startup failed: ${error.message}`);
+}
+try {
+  for (const siteKey of siteKeys) {
+    for (const width of WIDTHS) {
+      const stopped = startupFailure || browser.failure;
+      const result = stopped
+        ? { siteKey, width, status: "not_run", failures: [`not run: ${stopped.message}`] }
+        : await checkOne(browser, siteKey, width).catch((error) => ({ siteKey, width, status: "failed", failures: [`check failed: ${error.message}`] }));
+      results.push(result);
+      console.log(`${result.failures.length ? "FAIL" : "ok  "} ${siteKey} @${width}${result.failures.map((f) => `\n     - ${f}`).join("")}`);
+    }
   }
+} finally {
+  await owner?.cleanup();
 }
 fs.writeFileSync(path.join(outDir, "report.json"), JSON.stringify(results, null, 2));
 console.log(`report: ${path.join(outDir, "report.json")}`);
-browser.ws.close();
-spawnSync("pkill", ["-f", `user-data-dir=${PROFILE}`]);
-process.exit(results.some((r) => r.failures.length) ? 1 : 0);
+process.exitCode = results.some((r) => r.failures.length) ? 1 : 0;
