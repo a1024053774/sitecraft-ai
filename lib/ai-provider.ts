@@ -469,13 +469,13 @@ function parseAlignmentPlan(content: unknown): { data: z.infer<typeof alignmentP
  * or a readiness summary, never draft operations or HTML/CSS.
  */
 // deepseek-flash thinks by default and its reasoning tokens count against max_tokens (T-061): a
-// planning answer is 2.6K–3.2K completion tokens, 2.1K–2.8K of them reasoning, in 13–16 s; a 3000-token
-// cap cut off 3 of 5 real attempts, some with no content at all. The budget and the per-attempt timeout
-// leave room for that (about 200 tokens/s).
-const ALIGNMENT_PLAN_MAX_TOKENS = 8192;
-const ALIGNMENT_PLAN_TIMEOUT_MS = 90_000;
-// Both attempts together (T-061): a retry after a failed first answer only gets what is left.
-const ALIGNMENT_PLAN_TOTAL_MS = 150_000;
+// short-path × molding plan exhausted 8192 tokens on reasoning alone (T-110: 3757 prompt tokens,
+// HTTP 200, finish=length). Give planning the same headroom and time as structured generation;
+// truncation still fails after one request, with no retry or silent downgrade.
+const ALIGNMENT_PLAN_MAX_TOKENS = 65536;
+const ALIGNMENT_PLAN_TIMEOUT_MS = 300_000;
+// Both existing attempts together: a retry after an invalid answer only gets what is left.
+const ALIGNMENT_PLAN_TOTAL_MS = 360_000;
 
 export async function requestAlignmentPlan(args: {
   message: string;

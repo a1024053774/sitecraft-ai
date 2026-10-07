@@ -28,7 +28,7 @@ export const heroFragment: BlockFragment = {
 .sitecraft-hero-specs dl { margin: 0 auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .sitecraft-hero-spec { padding: 18px 22px; background: var(--site-spec-cell-bg); border-left: 1px solid rgba(255, 255, 255, 0.14); }
 .sitecraft-hero-spec:last-child { border-right: 1px solid rgba(255, 255, 255, 0.14); }
-.sitecraft-hero-spec dt { font-size: 12px; color: rgba(255, 255, 255, 0.62); }
+.sitecraft-hero-spec dt { font-size: 12px; color: var(--site-plate-muted); }
 .sitecraft-hero-spec dd { margin: 5px 0 0; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* 大标题加参数条: title, button row and key specs are one group in the content container. The specs
    are a light panel about 32px under the buttons, left-aligned with the title (surface colour, 1px
