@@ -2,9 +2,9 @@
 id: T-110
 title: 两种盲评验收：混排猜不出、换公司看不出同模板
 type: build
-status: open
+status: superseded
 blocked_by: [T-109, T-118]
-claimed_by: t110-run
+claimed_by: 
 supersedes:
 ---
 
