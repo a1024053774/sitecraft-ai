@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion } from './code-site.ts';
@@ -18,6 +18,10 @@ async function locked<T>(id: string, task: () => Promise<T>): Promise<T> {
 export async function getCodeSite(id: string): Promise<CodeSiteRecord | null> {
   try { return JSON.parse(await readFile(path.join(root, `${safeSiteId(id)}.json`), 'utf8')); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
+}
+export async function deleteCodeSite(id: string) {
+  // Wait for any checked commit; removing the single record removes versions, materials and runs.
+  return locked(id, () => rm(path.join(root, `${safeSiteId(id)}.json`), { force: true }));
 }
 async function write(site: CodeSiteRecord) {
   await mkdir(root, { recursive: true });

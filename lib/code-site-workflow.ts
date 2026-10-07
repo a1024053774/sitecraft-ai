@@ -6,6 +6,7 @@ import { planSiteCode, writeSiteCode } from './code-site-model.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
 import { AlignmentActionError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
+import { getExistingSite } from './site-store.ts';
 
 const requestSchema = z.object({
   action: z.enum(['start', 'select', 'confirm', 'state', 'cancel']).optional(), message: z.string().trim().min(1).max(4000).optional(),
@@ -46,6 +47,8 @@ function schedule(site: CodeSiteRecord) {
   after(async () => {
     try { await execute(site.siteId, run.id); }
     catch (error) {
+      // An explicitly deleted site has no workspace or records to receive a failed run.
+      if (!await getExistingSite(site.siteId)) return;
       const message = error instanceof Error ? error.message : '本次任务失败，未保存版本。';
       await runStep(site.siteId, run.id, { status: 'error', step: message });
       await updateConversationAlignment(site.siteId, site.conversationId, record => ({ ...record, alignment: applyCommittedResult(record.alignment, { status: 'error', summary: message }) }));

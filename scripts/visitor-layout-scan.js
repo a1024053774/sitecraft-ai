@@ -219,9 +219,15 @@ export function scanVisitorLayout(root = document) {
   const textOverlaps=[];
   for(let i=0;i<lines.length;i++) for(let j=i+1;j<lines.length;j++) {
     const a=lines[i], b=lines[j];
-    if(a.el===b.el) continue;
+    // Fragments on one line may repeat; distinct lines in the same element can overlap.
+    if(a.el===b.el&&Math.abs(a.rect.top-b.rect.top)<1&&Math.abs(a.rect.bottom-b.rect.bottom)<1) continue;
     const x=Math.min(a.rect.right,b.rect.right)-Math.max(a.rect.left,b.rect.left);
-    const y=Math.min(a.rect.bottom,b.rect.bottom)-Math.max(a.rect.top,b.rect.top);
+    // CJK fallback font metrics can extend beyond the em, even with normal leading.
+    // Compare line positions using the em height for the same element; a 20px font
+    // on a 4px line still intersects, while font-metric padding is not painted text.
+    const y=a.el===b.el
+      ? Math.min(a.rect.height,b.rect.height,parseFloat(getComputedStyle(a.el).fontSize))-Math.abs(a.rect.top-b.rect.top)
+      : Math.min(a.rect.bottom,b.rect.bottom)-Math.max(a.rect.top,b.rect.top);
     if(x>2&&y>2) textOverlaps.push({block:blockFor(a.el),amount:Math.min(x,y),key:[a.key,b.key].sort().join('::')});
   }
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
@@ -368,8 +374,13 @@ export function scanVisitorLayout(root = document) {
     const large=size>=24||(size>=18.66&&weight>=700);
     range.selectNodeContents(node);
     const textRects=[...range.getClientRects()];
-    const background=backgroundFor(el,textRects[0]||null),foreground=rgba(style.color);
-    const measured=background.known&&foreground ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:background.reason||'前景色无法解析'};
+    const background=backgroundFor(el,textRects[0]||null),foreground=rgba(style.webkitTextFillColor||style.color);
+    let paintReason=foreground?.[3]===0?'透明文字填充无法测量':'';
+    for(let ancestor=el;ancestor;ancestor=ancestor.parentElement){
+      const paint=getComputedStyle(ancestor);
+      if(/\btext\b/.test(paint.backgroundClip||paint.webkitBackgroundClip||'')) paintReason='背景裁切文字无法测量';
+    }
+    const measured=background.known&&foreground&&!paintReason ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:paintReason||background.reason||'前景色无法解析'};
     const paragraph=paragraphFor(el);
     const role=el.matches('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!paragraph&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
     const entry={element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:node.textContent.trim().slice(0,160),slot,block:blockFor(el),role,checkable:role==='body'||role==='heading',large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};

@@ -152,16 +152,33 @@ try {
     await captureWorkspace(packId, 'undo');
     await openWorkspace(id); assert.equal((await readSite(id)).currentVersionId, site.versions[2].id);
     await pause(1500); await captureWorkspace(packId, 'refresh');
-    // A forged fact enters through the actual manual commit API, never the store.
-    const forged = structuredClone(first.code); forged.pages[0].html += '<p>年产量 99999999 台。</p><script src="https://invalid.example/x.js"></script>';
-    const negative = await fetch(`${base}/api/sites/${id}/draft`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ baseRevision: 3, summary: '反例：伪造数字与脚本', code: forged }) });
-    const negativeBody = await negative.json();
-    assert.equal(negative.status, 422); assert.equal(negativeBody.status, 'rejected');
-    assert.ok(negativeBody.checks.issues.some((issue: string) => issue.includes('99999999')));
-    assert.equal((await readSite(id)).versions.length, 3);
+    const negatives = [];
+    for (const [kind, pattern] of [['script', /script/], ['external', /CSS/], ['fact', /99999999/]] as const) {
+      const forged = structuredClone(first.code);
+      if (kind === 'script') forged.pages[0].html += '<script>window.bad=true</script>';
+      if (kind === 'external') forged.css += 'main{background-image:url(https://invalid.example/image.png)}';
+      if (kind === 'fact') forged.pages[0].html += '<p>年产量 99999999 台。</p>';
+      const negative = await fetch(`${base}/api/sites/${id}/draft`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ baseRevision: 3, summary: `独立反例：${kind}`, code: forged }) });
+      const payload = await negative.json();
+      assert.equal(negative.status, 422); assert.equal(payload.status, 'rejected');
+      assert.ok(payload.checks.issues.some((issue: string) => pattern.test(issue)));
+      if (kind !== 'fact') assert.ok(payload.checks.cleaned.length, 'unsafe input must be cleaned');
+      else assert.equal(payload.checks.cleaned.length, 0, 'unsupported facts must be reported, not silently erased');
+      assert.equal((await readSite(id)).versions.length, 3);
+      negatives.push({ kind, status: negative.status, checks: payload.checks, versionsUnchanged: true });
+    }
+    const stale = [];
+    for (const [endpoint, method, body] of [
+      ['draft', 'PUT', { code: first.code, baseRevision: 2, summary: '过期手改' }],
+      ['history/undo', 'POST', { baseRevision: 2 }],
+    ] as const) {
+      const response = await fetch(`${base}/api/sites/${id}/${endpoint}`, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      assert.equal(response.status, 409); assert.equal((await readSite(id)).versions.length, 3);
+      stale.push({ endpoint, status: response.status, versionsUnchanged: true });
+    }
     const report = { packId, siteId: id, status: 'PASS', background, checkedAt: new Date().toISOString(),
       versions: site.versions.map(({ code, ...receipt }) => receipt), runs: site.runs.map(({ attempts, ...run }) => ({ ...run, attempts: attempts.map(a => a.checks) })),
-      negative: { status: negative.status, checks: negativeBody.checks }, restored: true,
+      negatives, stale, restored: true,
       urls: { workspace: `${base}/workspace?site=${id}`, preview: `${base}/api/sites/${id}/code-preview?page=home` } };
     await writeFile(path.join(directory, `${packId}-report.json`), JSON.stringify(report, null, 2));
     reports.push(report); console.log(`${packId}: PASS generation/edit/undo/refresh/negative`);

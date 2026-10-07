@@ -24,28 +24,43 @@ supersedes:
 
 ## Resolution
 
-执行者：t128-build。交付状态：INCOMPLETE（独立盲评与 Astra 审查由 Claude 安排；票保持 open，未推送）。实现与本文同一个本地提交，提交定位：`git log -1 --format=%H --grep='^feat: implement T-128 model-written site route$'`。
+执行者：t128-build。本次修复执行验收 PASS；T-128 总体验收 INCOMPLETE，保持 open，未推送。9e0042b 的 Astra 结论为 NO_GO，下面六项已修复，最终候选的独立盲评和 Astra 复审由 Claude 安排。实现、测试和文档另做一个本地提交，定位：`git log -1 --format=%H --grep='^fix: address T-128 review safety failures$'`。
 
-### 实现
+### 修复与证据
 
-新建工作台站点保存站点代码记录，复用资料/表格读取、图片上传与许可记录、会话及结构化选项校验、DeepSeek 配置。运行时加载核心规范与精密工程/现场实拍风格。大纲确认后直接写每页 HTML、共用页头页脚和 CSS；后台步骤持久化，刷新观察同一个运行。所有存版与恢复经 `commitSiteCode`，先清理资源，再检查图片编号、链接、事实数字、三档布局与对比度、正文行长及企业事实。拒绝交回模型最多两轮，失败保留候选与检查结果、明确显示，不回退。完整版本记录作者、摘要、请求、检查结果；撤销生成新版本。
+| 审查项 | 根因修复 | 本次证据（artifacts/t128/ 下） |
+| --- | --- | --- |
+| CSS 可见文案 | 清理字符串/变量列表标记、symbols()、非空 content（含 attr）；清理问题拒绝存版，文案放 HTML。Chrome 丢弃的 symbols() 也显式报告 | astra-red-confirmed.txt；mutations-final/mutant-css-*-red.txt；astra-green-measured.txt 的六类独立 CSS 反例 |
+| 重叠与不可见正文 | 同元素不同文字行纳入测量；按实际 -webkit-text-fill-color 算对比度；透明填充、背景裁切文字明确拒绝。Range 行位置/横向范围配字体 em 高度，避免把 CJK 字体度量留白当成重叠 | mutations-final/mutant-same-element-lines-red.txt、mutant-actual-fill-red.txt、mutant-transparent-fill-red.txt、mutant-clipped-text-red.txt；normal-lines-confirmed-red.txt；当前 19 项检查见 astra-npm-test-identity.txt |
+| 撤销 baseRevision | 客户端发送所见 revision；接口要求非负整数并原样交给提交入口的锁，过期 409、不存版，缺失 400 | mutations-final/mutant-stale-undo-red.txt、mutant-stale-commit-red.txt；两家公司 report 的 stale 区 |
+| 删除残留 | 既有输入站点编号确认的删除流程一并删除 code-sites 完整记录（代码版本、资料、运行记录），与提交共用锁；预览同时要求主站点记录存在；已删除的待执行任务不重建资料或对话 | mutations-final/mutant-confirmed-delete-red.txt、mutant-orphan-preview-red.txt、mutant-deleted-job-red.txt；当前 handler 回归检查 |
+| 独立反例及上限 | 脚本、外部 CSS 资源、虚构数字分别验证清理与禁止存版；事实必须报告，不能静默擦掉。初稿加两份修正版，第三次失败后 error、版本数 0、对话如实说明 | mutations-final/mutant-script-clean-red.txt、mutant-resource-clean-red.txt、mutant-fact-check-red.txt、mutant-fact-erasure-red.txt、mutant-repair-budget-red.txt；两个 report 的 negatives 区，各自 422、版本数不增加 |
+| 最终候选两家闭环 | 同一真实工作台入口，新建 → 资料/图片 → 风格与大纲确认 → 三页 → 对话修改 → 撤销成新版本 → 刷新。没有恢复失败运行、替换资料或静默回退 | astra-export-identity/export-report.json；astra-molding-identity/molding-report.json；两目录下共 69 张截图，逐张打开记录 viewed-identity.json |
 
-图片由系统解析编号与署名，询盘表单和图标由系统提供，预览双重 CSP/iframe 沙盒禁脚本与同源权限。用户明确补充的事实进入有效请求链；恢复同时恢复资料链，后续修改不重新采用已撤销的事实。旧区块库、adapter、operation 与 commitOperations 未修改或删除；API 仅增加新路线分流。未添加依赖。
+复用 visitor-layout-scan 的测量根因已修正；旧区块库、adapter、operation、commitOperations 和旧测试未改，没有新增兼容层或依赖。核心规范增加缺失信息用自然客户口吻或「待补充」的引导，避免「资料未提供」「资料未给」；只改引导，没有加入文案硬过滤。
 
-### 验收证据（2026-10-07，UTC；本次工作树）
+### 最终候选运行（2026-10-07，UTC）
 
-运行环境：开发服务 `http://127.0.0.1:3138`、SITE_STORE=fs、模型 deepseek-flash。密钥仅由原工作树 `.env.local` 加载进服务进程。浏览器为用户指定的 chrome-headless-shell 154.0.8037.92，独立临时 profile，只停止本次自有进程。
+环境：SITE_STORE=fs；真实服务 http://127.0.0.1:3138，health 的 cwd 为本工作树，模型 deepseek-flash。密钥只由原工作树 .env.local 加载进服务进程。以下 CHROME_PATH 为负责人指定的 `/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`；独立临时 profile，只关闭自有进程。
 
-- 创建入口先红后绿：`SITECRAFT_BASE=http://127.0.0.1:3138 node scripts/check-new-route.mjs`；`artifacts/t128/contract-red.txt` 在实现前因缺少 codeSite.route 失败，`contract-green.txt` 通过；首次服务未就绪的连接失败另存 `contract-before.txt`，不当契约反例。
-- export 的早期完整闭环：站点 `c6c53af6-c040-4aa3-9b96-38cadb15a304`，无图/精密工程。生成阶段见 `artifacts/t128/real-flow-4/`；修复截图脚本在禁脚本文档中等待 requestAnimationFrame 的错误后，继续同一已存版站点，未重新生成或替换卡片。命令 `SITECRAFT_BASE=http://127.0.0.1:3138 T128_RESUME_SITE=c6c53af6-c040-4aa3-9b96-38cadb15a304 T128_ARTIFACTS=artifacts/t128/export-continued CHROME_PATH=<上述指定路径> node --experimental-strip-types scripts/check-new-route-flow.ts export`。`export-continued/export-report.json` 在 19:44:25Z 记录三页、真实修改、撤销、刷新及反例全部通过；版本 1/2/3 依次为助手/助手/用户，版本 3 的整份代码与版本 1 完全一致。此回执早于最后的事实提示与资料链补齐，只作历史行为证据。
-- molding 完整闭环：站点 `fc0306f3-e13d-4cce-b888-699d32b95003`，现场实拍，上传两张已准入产品照片。命令 `SITECRAFT_BASE=http://127.0.0.1:3138 T128_WITH_IMAGES=1 T128_ARTIFACTS=artifacts/t128/molding-final CHROME_PATH=<上述指定路径> node --experimental-strip-types scripts/check-new-route-flow.ts molding`。`molding-final/molding-report.json` 在 20:10:26Z 记录三页、修改、撤销、刷新及反例通过，三版分别有 9 个页面/宽度检查，溢出/重叠/对比度/行长问题均为 0。全部截图在该目录；每张打开看过。生成/修改/撤销/刷新各有 1440/768/375，另有三页全文截图。
-- 最新资料链实测：`node artifacts/t128/check-fact-edit.mjs`，输出 `artifacts/t128/fact-edit.log`、`fact-edit-report.json`。真实对话把邮箱更新为 trace-proof@p3t-sim.test，保存版本 4；撤销恢复版本 3 的完整代码；再次仅改样式未复活已撤销邮箱；再次撤销恢复相同代码，当前版本 7。直接读取回执见 `final-site-readback.txt`。
-- 数字/脚本反例：两份 report 的 negative 区记录真实 `PUT /api/sites/<id>/draft`，在候选附加年产量 99999999 与外链脚本；HTTP 422，脚本清除并报告、数字没有来源，版本数不增加。夹具没有旁路写新站点。
-- 条件/对象反例：早期 molding 的首版曾漏判“图纸确认周期”和将产品尺寸上限当全厂范围，恢复时拒绝（`molding-flow/failure.png`、原站点 `4d16895a-4ae0-44f0-a026-b34bfe7b6391`），没有恢复或静默放过。加强事实名/角色、对象、单位、范围与起算条件核对后，读取同一旧首版经真实 PUT 提交，19:57:46Z（`known-bad-facts-after.txt` 的 checkedAt），HTTP 422、版本数仍 2；该输出给出原资料与具体错配。模型事实校对不是完备性证明，仍需独立审核。
-- 失败未覆盖：`real-flow-1` 是截图脚本错误；`real-flow-2/3` 保留清理拒绝及 JSON 模式参数错误，调用边界显式加入 json 指令后修正；`real-flow-5` 带图 export 两轮后仍编出“认证中所以不能提供报告”，没有存版；`export-final` 两轮后仍编出询盘处理流程，没有存版。最后修复规划与修正提示之间“不能删内容”的冲突，允许删除无来源承诺、保留有来源信息；最后一次运行 `SITECRAFT_BASE=http://127.0.0.1:3138 T128_ARTIFACTS=artifacts/t128/export-delivery CHROME_PATH=<上述指定路径> node --experimental-strip-types scripts/check-new-route-flow.ts export` 已通过；站点 `ee87cb60-6f3e-4277-8b76-3027aff7d1fe`，`export-delivery/export-report.json` 的 checkedAt 为 2026-10-07T20:44:56.512Z，三页、修改、撤销、刷新、数字/脚本反例全部通过，各版 9 个页面/宽度检查均无问题。版本 3 整份代码完全恢复版本 1。该次材料与风格不变，规划/修正提示修复后按相同入口重新运行；早期拒绝站点没有被写成成功。
-- `npm run typecheck`、`npm run build` 输出见 `typecheck-ready.txt`、`build-ready.txt`（2026-10-07 20:39 后，本次最终候选）；`SITECRAFT_BASE=http://127.0.0.1:3138 CHROME_PATH=<上述指定路径> npm test` 输出见 `npm-test-delivery.txt`，2501/2501 通过、fail/cancelled/skipped 均 0。此前 `npm-test-final.txt` / `npm-test-latest.txt` 均为 2501/2501，通过后发生的源码改动已安排本次重跑，不引用旧结果作为最终通过。
-- 旧测试初次因载入框架和 next/server 原生导入失败；代码根因已修，未改旧测试做兼容。其余两项缺失固定旧夹具，通过原 commitOperations 与图片上传入口准备原工作树已有数据（只读原数据，不复制源码/依赖/构建目录），命令 `node --experimental-strip-types artifacts/t128/prepare-legacy-fixtures.ts`，输出 `legacy-fixture-setup.txt`。旧 `check-published` 已由 T-113 原测试在同一 3138 服务运行。
+- export：`SITECRAFT_BASE=http://127.0.0.1:3138 T128_ARTIFACTS=artifacts/t128/astra-export-identity CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types scripts/check-new-route-flow.ts export`；日志 astra-export-identity.log，回执时间 21:55:47.734Z，站点 15a34d20-1b7f-480d-b59b-95a4ce751849，无图、精密工程。
+- molding：`SITECRAFT_BASE=http://127.0.0.1:3138 T128_WITH_IMAGES=1 T128_ARTIFACTS=artifacts/t128/astra-molding-identity CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types scripts/check-new-route-flow.ts molding`；日志 astra-molding-identity.log，回执时间 21:56:04.018Z，站点 4a85a769-0f13-4b27-a66f-49bca3e285cf，现场实拍风格，真实上传两张已准入行业照片。
+- 两家都是助手 v1、助手 v2、用户 v3。v2 的实际首屏背景为 rgb(23, 33, 43)；v3 完整内容恢复 v1，restoredFrom 指向 v1，刷新保持 v3。各版本 9 个页面/宽度检查全部通过（共 54 个），溢出、重叠、对比度、行长问题均 0。每家三个独立反例各返回 422，手改与撤销过期请求各返回 409，版本数仍 3。
+- `npm run typecheck` → astra-typecheck-identity.txt，exit 0；`SITECRAFT_BASE=http://127.0.0.1:3138 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` → astra-npm-test-identity.txt，2520/2520 通过，失败/取消/跳过均 0；`npm run build` → astra-build-identity.txt，exit 0。这些在最终源码与规范改动之后重跑；旧输出不作当前通过证据。
+- 新增 `tests/t128-code-boundary.test.ts` 的失败方式先列后测：CSS 漏清、压缩行距、正常中文字体误判、填充色错算/不可测、过期写入、删除残留与修正超限。测试走真实 API handler Request/Response、文件存储和 Chrome；仅隔离 Next 延后执行调度与模型 HTTP 回复，以确定性证明最多两轮修正。当前共 19 项，通过上述 npm test。
+- 坏实现验证：`python3 artifacts/t128/prove-mutations.py`；mutations-final/mutation-results.json 和 mutation-summary-final.txt 记录 16 个定向变异各 exit 1，另有 deleted-job 和 fact-erasure 的独立变异输出，共 18 个定向坏实现；正常中文行距的确认红证据另见 normal-lines-confirmed-red.txt。临时变异后恢复源码，再跑当前绿结果。没有削弱断言或修改旧路线测试。
+- 六类 CSS 反例同时变异：mutations-final/mutant-css-all-red.txt 的六项各自失败（exit 1），随后恢复源码跑 astra-green-identity.txt，19/19 通过。
+
+### 失败保留与历史证据
+
+- 检查器曾从 JSON 健康接口建立文档，候选 HTML 被当纯文本。现从禁载应用脚本的 HTML 文档建立同源检查环境，渲染后验证候选页面实际挂载；坏实现见 mutations-final/mutant-html-measurement-red.txt。
+- 实测 molding 大纲超过既有 outline 800 字上限：astra-molding-final/failure.txt、failure.png 与对应日志。现将既有大纲字段长度合同交给模型，不截断、不放宽 schema、不自动重试。
+- 同元素测量最初把 PingFang 留白误判为重叠：astra-molding-bounded/failed-layout.json、failed-candidate-375.png，原标题 25px、行距 33.5px 却报告 2.5px 重叠。正常行距的红/绿与 20px/4px 必拒绝同时验证；较早默认字体未复现的 normal-lines-red.txt 不当红证据。
+- 事实校对曾要求补回被核心规范禁止的核验记号（audit-metadata-conflict-red.json），astra-export-measured 因矛盾反馈两轮后仍失败、未存版；现明确元信息必须省略，不因其缺失报告企业事实缺失。astra-molding-release/failure.txt、failure.png 保留完整公司名被缩短的失败；引导和校对现保留企业名称/型号，只去除明示核验记号的完整值，原验收断言未放宽。
+- astra-export-bounded/failure.png 保留恢复被事实检查拒绝的用户提示；脚本等待撤销完成超时，版本仍为 2，不是成功闭环。旧首版在恢复时被指出改换“加工能力/主设备”的事实标签及交期表述，未绕过检查或强行恢复。
+- astra-red.txt 的早期模型测试桩格式错误不是回归红证据；astra-red-confirmed.txt 才复现审查问题。第一次透明绘制测试只断言“拒绝”时变异存活，mutation-summary.txt 保留原结果；现断言无法测量的未知结果，对应变异失败。后续所有失败产物保留。
+- 旧 molding-final/molding-report.json（fc0306f3-e13d-4cce-b888-699d32b95003，20:10:26Z）及 fact-edit 回执明确为 9e0042b 时期历史证据；旧 export-delivery（ee87cb60-6f3e-4277-8b76-3027aff7d1fe，20:44:56Z）、real-flow、export-continued 和本次较早的 astra-*-final/bounded/measured/release 也仅保留历史或失败证据，不替代最终 identity 回执。
 
 ### 尚未完成与限制
 
-独立新旧首页盲比和 Astra 审查均未安排、未通过；不得把执行者看图算审美通过。本次执行检查完成；没有用既有抽屉滑动中截断的额外聊天截图作为稳定布局证据，最新 export 截图在等待既有 240ms 过渡结束后采集。外部邮件送达与生产 PostgreSQL 未实测，不作为本票阻塞项。没有版本面板、风格卡、批注、快捷按钮、截图打磨、模板味检测、英文或旧路径删除。
+独立盲评与 Astra 复审未通过，执行者看图不等于审美通过。自查 molding 375 页头导航换行较碎（molding-home-375.png），已如实回报，未做本票禁止的截图打磨。事实校对是模型判断，实际通过结果不代表完备性证明，仍需独立验收。外部邮件送达与生产 PostgreSQL 未实测，不作为本票阻塞项。没有加入版本面板、风格卡、批注、快捷按钮、截图打磨、模板味检测、英文或旧路线删除。

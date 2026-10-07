@@ -13,7 +13,8 @@ function cleanCandidate(code: SiteCode, permitted: string[]) {
     for (const name of [...style]) {
       const value = style.getPropertyValue(name);
       if (/url\s*\(|image-set\s*\(|cross-fade\s*\(|expression\s*\(|\\|[<>]/i.test(value) || /^(behavior|-moz-binding)$/i.test(name)
-        || (name === 'content' && !['""', "''", 'none', 'normal', 'attr(data-label)'].includes(value))) {
+        || (name === 'content' && !['""', "''", 'none', 'normal'].includes(value))
+        || (/^list-style(?:-type)?$/.test(name) && !/^(?:(?:none|disc|circle|square|inside|outside)\s*)+$/.test(value))) {
         issues.push(`CSS ${name} 含资源、动态内容或不安全语法`); style.removeProperty(name);
       }
     }
@@ -21,6 +22,8 @@ function cleanCandidate(code: SiteCode, permitted: string[]) {
   };
   const cleanCss = (css: string) => {
     if (/[<\\]/.test(css) || /@import|@font-face/i.test(css)) issues.push('CSS 含外部资源、反斜杠或 HTML 起始符号');
+    // Some Chrome versions discard symbols() before CSSOM traversal. Refuse it explicitly.
+    if (/\bsymbols\s*\(/i.test(css)) issues.push('CSS symbols() 生成文字未获准');
     const sheet = new CSSStyleSheet(); sheet.replaceSync(css.replace(/[<\\]/g, ''));
     const walk = (rules: CSSRuleList): string => [...rules].map(rule => {
       if (rule instanceof CSSStyleRule) return `${rule.selectorText}{${safeCss(rule.style)}}`;
@@ -89,9 +92,12 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
   try {
     const base = process.env.SITECRAFT_BASE || `http://127.0.0.1:${process.env.PORT || '3000'}`;
-    await browser.send('Page.navigate', { url: `${base}/api/health` });
-    await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);
+    // setDocumentContent retains the document MIME type: a JSON health document
+    // renders candidate HTML as plain text. Establish an HTML origin without app scripts.
     await browser.send('Network.enable');
+    await browser.send('Network.setBlockedURLs', { urls: ['*/_next/*'] });
+    await browser.send('Page.navigate', { url: `${base}/` });
+    await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}&&document.readyState==='complete'?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
     const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)})`);
@@ -112,6 +118,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       for (const width of [375, 768, 1440]) {
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
+        await browser.evaluate(`(() => {if(document.contentType!=='text/html'||!document.querySelector('main h1'))throw new Error('底线检查未载入候选网页，本次未保存版本。')})()`);
         await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
         const imageErrors = await browser.evaluate<string[]>(`Promise.all([...document.images].map(async image => {try{await image.decode();return ''}catch{return image.getAttribute('data-image-id')||'图片'}})).then(items=>items.filter(Boolean))`);
         if (imageErrors.length) checks.issues.push(`${page.id}/${width} 图片无法显示：${imageErrors.join('、')}`);

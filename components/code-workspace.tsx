@@ -65,7 +65,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   async function undo() {
     setSending(true); setError('');
     try {
-      const response = await fetch(`/api/sites/${siteId}/history/undo`, { method: 'POST' }); const payload = await response.json();
+      const response = await fetch(`/api/sites/${siteId}/history/undo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ baseRevision: version?.revision ?? 0 }) }); const payload = await response.json();
       if (!response.ok) throw new Error(payload.userMessage || '撤销失败。'); setState(payload);
     } catch (error) { setError(error instanceof Error ? error.message : '撤销失败。'); }
     finally { setSending(false); }
