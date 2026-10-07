@@ -192,7 +192,12 @@ export function scanVisitorLayout(root = document) {
     if(!n.textContent.trim()||!visible(el)) continue;
     range.selectNodeContents(n);
     const key=`${keyFor(el)}:${[...el.childNodes].indexOf(n)}:${n.textContent.trim()}`;
-    for(const rect of range.getClientRects()) if(rect.width>.5&&rect.height>.5) lines.push({el,rect,key});
+    const fontSize=parseFloat(getComputedStyle(el).fontSize);
+    for(const rect of range.getClientRects()) if(rect.width>.5&&rect.height>.5) {
+      // Use the same em box for every text fragment, including inline descendants.
+      const height=Math.min(rect.height,fontSize),top=rect.top+(rect.height-height)/2;
+      lines.push({el,rect:{left:rect.left,right:rect.right,top,bottom:top+height},key});
+    }
   }
   const heroTitle = root.querySelector('[data-sc-block="hero"] h1');
   let heroTitleOrphan = false;
@@ -222,12 +227,7 @@ export function scanVisitorLayout(root = document) {
     // Fragments on one line may repeat; distinct lines in the same element can overlap.
     if(a.el===b.el&&Math.abs(a.rect.top-b.rect.top)<1&&Math.abs(a.rect.bottom-b.rect.bottom)<1) continue;
     const x=Math.min(a.rect.right,b.rect.right)-Math.max(a.rect.left,b.rect.left);
-    // CJK fallback font metrics can extend beyond the em, even with normal leading.
-    // Compare line positions using the em height for the same element; a 20px font
-    // on a 4px line still intersects, while font-metric padding is not painted text.
-    const y=a.el===b.el
-      ? Math.min(a.rect.height,b.rect.height,parseFloat(getComputedStyle(a.el).fontSize))-Math.abs(a.rect.top-b.rect.top)
-      : Math.min(a.rect.bottom,b.rect.bottom)-Math.max(a.rect.top,b.rect.top);
+    const y=Math.min(a.rect.bottom,b.rect.bottom)-Math.max(a.rect.top,b.rect.top);
     if(x>2&&y>2) textOverlaps.push({block:blockFor(a.el),amount:Math.min(x,y),key:[a.key,b.key].sort().join('::')});
   }
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
@@ -330,23 +330,31 @@ export function scanVisitorLayout(root = document) {
   };
   const lineLengthExemption = el => {
     const slot=slotFor(el);
+    if(el.closest('h1,h2,h3,h4,h5,h6')) return '标题';
+    if(el.closest('[data-sitecraft-image-credits],[data-sitecraft-hero-credit],.sitecraft-product-image-credit,.sc-image-credits')) return '图片署名与许可';
     if(el.closest('table')) return '参数表';
     if(el.closest('button,input,select,textarea,summary,[role=button]')) return '按钮或控件';
     if(el.closest('nav')) return '导航';
+    if(el.closest('a[href^="mailto:"],a[href^="tel:"]')) return '邮箱或电话';
     if(/(?:spec|sku|model|email|phone|quantity|status)/i.test(slot)) return /email|phone/i.test(slot) ? '邮箱或电话' : '型号或参数';
     return '';
   };
-  const paragraphFor = el => el.closest('p');
+  const bodyBlockFor = el => {
+    for(let block=el;block;block=block.parentElement) {
+      if(/^(block|flow-root|list-item|flex|grid|table-cell|table-caption)$/.test(getComputedStyle(block).display)) return block;
+    }
+    return root.body||root;
+  };
   const textContrast=[];
   const contrastNodes=[];
   const bodyLineLength=[];
   const lineLengthExemptions=[];
-  const measureLines = paragraph => {
-    const walker=document.createTreeWalker(paragraph,NodeFilter.SHOW_TEXT);
+  const measureLines = block => {
+    const walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);
     const chars=[];
     while(walker.nextNode()){
       const node=walker.currentNode;
-      if(!node.textContent.trim()||!visible(node.parentElement)) continue;
+      if(!node.textContent.trim()||!visible(node.parentElement)||bodyBlockFor(node.parentElement)!==block||lineLengthExemption(node.parentElement)) continue;
       for(let index=0;index<node.textContent.length;index++){
         range.setStart(node,index);range.setEnd(node,index+1);
         const rect=range.getBoundingClientRect();
@@ -364,7 +372,7 @@ export function scanVisitorLayout(root = document) {
     }).filter(item=>item.text);
   };
   const textWalker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT);
-  const measuredParagraphs=new Set();
+  const measuredBodyBlocks=new Set();
   const reportedExemptions=new Set();
   while(textWalker.nextNode()){
     const node=textWalker.currentNode,el=node.parentElement;
@@ -381,24 +389,19 @@ export function scanVisitorLayout(root = document) {
       if(/\btext\b/.test(paint.backgroundClip||paint.webkitBackgroundClip||'')) paintReason='背景裁切文字无法测量';
     }
     const measured=background.known&&foreground&&!paintReason ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:paintReason||background.reason||'前景色无法解析'};
-    const paragraph=paragraphFor(el);
-    const role=el.matches('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!paragraph&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
+    const role=el.closest('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!el.closest('p')&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
     const entry={element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:node.textContent.trim().slice(0,160),slot,block:blockFor(el),role,checkable:role==='body'||role==='heading',large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
     textContrast.push(entry);
     contrastNodes.push({el,entry});
-    if(paragraph){
-      const paragraphExemption=lineLengthExemption(paragraph);
-      if(!measuredParagraphs.has(paragraph)){
-        measuredParagraphs.add(paragraph);
-        if(paragraphExemption){
-          lineLengthExemptions.push({element:paragraph.id||paragraph.tagName.toLowerCase(),id:paragraph.id||'',slot:slotFor(paragraph),reason:paragraphExemption,text:paragraph.textContent.trim().slice(0,160)});
-        } else {
-          for(const line of measureLines(paragraph)) bodyLineLength.push({element:paragraph.id||paragraph.tagName.toLowerCase(),id:paragraph.id||'',slot:slotFor(paragraph),block:blockFor(paragraph),...line});
-        }
-      }
-    } else if(exemption&&!reportedExemptions.has(el)){
-      reportedExemptions.add(el);
-      lineLengthExemptions.push({element:el.id||el.tagName.toLowerCase(),id:el.id||'',slot,reason:exemption,text:node.textContent.trim().slice(0,160)});
+    const block=bodyBlockFor(el),blockExemption=lineLengthExemption(block);
+    const exempt=blockExemption?block:el;
+    if(exemption&&!reportedExemptions.has(exempt)){
+      reportedExemptions.add(exempt);
+      lineLengthExemptions.push({element:exempt.id||exempt.tagName.toLowerCase(),id:exempt.id||'',slot:slotFor(exempt),reason:exemption,text:exempt.textContent.trim().slice(0,160)});
+    }
+    if(!measuredBodyBlocks.has(block)){
+      measuredBodyBlocks.add(block);
+      for(const line of measureLines(block)) bodyLineLength.push({element:block.id||block.tagName.toLowerCase(),id:block.id||'',slot:slotFor(block),block:blockFor(block),...line});
     }
   }
   const slots=[...root.querySelectorAll('[data-sitecraft-slot]')].map(el=>{
@@ -542,6 +545,6 @@ export function scanVisitorLayout(root = document) {
   }
   const primaryButtons={visibleCount:primaryItems.length,max:1,pass:primaryItems.length<=1,vague:vaguePrimary,items:primaryItems,missing:primaryMissing};
   const layoutDeclarations={baselineAlignments,semanticSpacing,primaryButtons,undeclaredVariants};
-  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,textContrast,bodyLineLength,lineLengthExemptions,...layoutDeclarations,baseline:baselineAlignments,spacing:semanticSpacing,buttonRoles:primaryButtons,variantDeclarations:undeclaredVariants,measurement:{visibleBlocks,measuredBlocks:[...measuredBlocks],textContrastEntries:textContrast.length,bodyParagraphs:measuredParagraphs.size,bodyLineEntries:bodyLineLength.length},height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
+  return {horizontalScroll:document.documentElement.scrollWidth>innerWidth+1,overflowElements,textOverlaps,heroTitleOrphan,heroTitleWordBreak,slots,textContrast,bodyLineLength,lineLengthExemptions,...layoutDeclarations,baseline:baselineAlignments,spacing:semanticSpacing,buttonRoles:primaryButtons,variantDeclarations:undeclaredVariants,measurement:{visibleBlocks,measuredBlocks:[...measuredBlocks],textContrastEntries:textContrast.length,bodyParagraphs:measuredBodyBlocks.size,bodyLineEntries:bodyLineLength.length},height:Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)};
 }
 export default scanVisitorLayout;

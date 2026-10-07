@@ -9,12 +9,15 @@ import type { SiteImageRecord } from './site-images.ts';
 function cleanCandidate(code: SiteCode, permitted: string[]) {
   const issues: string[] = [], cleaned: string[] = [];
   const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
+  const markerTextVariables = new Set<string>();
+  const variableRefs = (value: string) => [...value.matchAll(/var\s*\(\s*(--[\w-]+)/g)].map(match => match[1]);
+  const literalMarkerText = (value: string) => /["']|\bsymbols\s*\(/i.test(value);
   const safeCss = (style: CSSStyleDeclaration) => {
     for (const name of [...style]) {
       const value = style.getPropertyValue(name);
       if (/url\s*\(|image-set\s*\(|cross-fade\s*\(|expression\s*\(|\\|[<>]/i.test(value) || /^(behavior|-moz-binding)$/i.test(name)
         || (name === 'content' && !['""', "''", 'none', 'normal'].includes(value))
-        || (/^list-style(?:-type)?$/.test(name) && !/^(?:(?:none|disc|circle|square|inside|outside)\s*)+$/.test(value))) {
+        || (/^list-style(?:-type)?$/.test(name) && (literalMarkerText(value) || variableRefs(value).some(ref => markerTextVariables.has(ref))))) {
         issues.push(`CSS ${name} 含资源、动态内容或不安全语法`); style.removeProperty(name);
       }
     }
@@ -25,8 +28,34 @@ function cleanCandidate(code: SiteCode, permitted: string[]) {
     // Some Chrome versions discard symbols() before CSSOM traversal. Refuse it explicitly.
     if (/\bsymbols\s*\(/i.test(css)) issues.push('CSS symbols() 生成文字未获准');
     const sheet = new CSSStyleSheet(); sheet.replaceSync(css.replace(/[<\\]/g, ''));
+    // Structural marker keywords (including variables containing them) are ordinary CSS.
+    // Only variables that carry arbitrary marker strings need the same cleaning as literals.
+    const declarations: CSSStyleDeclaration[] = [];
+    const collect = (rules: CSSRuleList) => {
+      for (const rule of rules) {
+        if (rule instanceof CSSStyleRule || rule instanceof CSSNestedDeclarations) declarations.push(rule.style);
+        if (rule instanceof CSSGroupingRule) collect(rule.cssRules);
+      }
+    };
+    collect(sheet.cssRules);
+    for (const html of [code.header, code.footer, ...code.pages.map(p => p.html)]) {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      for (const el of doc.querySelectorAll<HTMLElement>('[style]')) declarations.push(el.style);
+    }
+    const variables = new Map<string, string[]>();
+    for (const style of declarations) for (const name of [...style]) if (name.startsWith('--')) {
+      variables.set(name, [...(variables.get(name) ?? []), style.getPropertyValue(name)]);
+    }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [name, values] of variables) if (!markerTextVariables.has(name) && values.some(value => literalMarkerText(value) || variableRefs(value).some(ref => markerTextVariables.has(ref)))) {
+        markerTextVariables.add(name); changed = true;
+      }
+    }
     const walk = (rules: CSSRuleList): string => [...rules].map(rule => {
-      if (rule instanceof CSSStyleRule) return `${rule.selectorText}{${safeCss(rule.style)}}`;
+      if (rule instanceof CSSStyleRule) return `${rule.selectorText}{${safeCss(rule.style)}${walk(rule.cssRules)}}`;
+      if (rule instanceof CSSNestedDeclarations) return safeCss(rule.style);
       if (rule instanceof CSSMediaRule) return `@media ${rule.conditionText}{${walk(rule.cssRules)}}`;
       if (rule instanceof CSSSupportsRule) return `@supports ${rule.conditionText}{${walk(rule.cssRules)}}`;
       issues.push('CSS 使用未支持的资源规则'); return '';

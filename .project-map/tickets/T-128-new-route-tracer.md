@@ -24,43 +24,43 @@ supersedes:
 
 ## Resolution
 
-执行者：t128-build。本次修复执行验收 PASS；T-128 总体验收 INCOMPLETE，保持 open，未推送。9e0042b 的 Astra 结论为 NO_GO，下面六项已修复，最终候选的独立盲评和 Astra 复审由 Claude 安排。实现、测试和文档另做一个本地提交，定位：`git log -1 --format=%H --grep='^fix: address T-128 review safety failures$'`。
+执行者：t128-build。本次修复执行验收 PASS；本次针对 Astra 对 094734d 的复审 NO_GO 修复主控要求的五项；T-128 总体验收仍 INCOMPLETE，独立盲评与 Astra 再审由 Claude 安排，保持 open、不推送。实现、测试和当前文档同一个本地提交，定位：`git log -1 --format=%H --grep='^fix: reduce T-128 normal-page false rejections$'`。
 
-### 修复与证据
+### 当前实现
 
-| 审查项 | 根因修复 | 本次证据（artifacts/t128/ 下） |
+新路线仍是模型写每页 HTML、公共页头页脚和一份 CSS，经同一提交入口清理、底线检查、完整存版；两轮修正上限、baseRevision 冲突 409、确认删除及预览 404 等上一轮修复保留。本批未改生成提示、核心 skill 或存版逻辑，没有加兼容层、双写、依赖或平行 API。
+
+| 本次审查项 | 根因修复 | 当前红/绿证据（artifacts/t128/ 下） |
 | --- | --- | --- |
-| CSS 可见文案 | 清理字符串/变量列表标记、symbols()、非空 content（含 attr）；清理问题拒绝存版，文案放 HTML。Chrome 丢弃的 symbols() 也显式报告 | astra-red-confirmed.txt；mutations-final/mutant-css-*-red.txt；astra-green-measured.txt 的六类独立 CSS 反例 |
-| 重叠与不可见正文 | 同元素不同文字行纳入测量；按实际 -webkit-text-fill-color 算对比度；透明填充、背景裁切文字明确拒绝。Range 行位置/横向范围配字体 em 高度，避免把 CJK 字体度量留白当成重叠 | mutations-final/mutant-same-element-lines-red.txt、mutant-actual-fill-red.txt、mutant-transparent-fill-red.txt、mutant-clipped-text-red.txt；normal-lines-confirmed-red.txt；当前 19 项检查见 astra-npm-test-identity.txt |
-| 撤销 baseRevision | 客户端发送所见 revision；接口要求非负整数并原样交给提交入口的锁，过期 409、不存版，缺失 400 | mutations-final/mutant-stale-undo-red.txt、mutant-stale-commit-red.txt；两家公司 report 的 stale 区 |
-| 删除残留 | 既有输入站点编号确认的删除流程一并删除 code-sites 完整记录（代码版本、资料、运行记录），与提交共用锁；预览同时要求主站点记录存在；已删除的待执行任务不重建资料或对话 | mutations-final/mutant-confirmed-delete-red.txt、mutant-orphan-preview-red.txt、mutant-deleted-job-red.txt；当前 handler 回归检查 |
-| 独立反例及上限 | 脚本、外部 CSS 资源、虚构数字分别验证清理与禁止存版；事实必须报告，不能静默擦掉。初稿加两份修正版，第三次失败后 error、版本数 0、对话如实说明 | mutations-final/mutant-script-clean-red.txt、mutant-resource-clean-red.txt、mutant-fact-check-red.txt、mutant-fact-erasure-red.txt、mutant-repair-budget-red.txt；两个 report 的 negatives 区，各自 422、版本数不增加 |
-| 最终候选两家闭环 | 同一真实工作台入口，新建 → 资料/图片 → 风格与大纲确认 → 三页 → 对话修改 → 撤销成新版本 → 刷新。没有恢复失败运行、替换资料或静默回退 | astra-export-identity/export-report.json；astra-molding-identity/molding-report.json；两目录下共 69 张截图，逐张打开记录 viewed-identity.json |
+| P2-3 span 改变结论 | 同元素和跨元素文本片段统一使用字体 em 矩形；标题语义从最近 h1–h6 祖先识别，门槛仍按实际文字字号/字重决定 | review2-red.txt 的正常 span 行/标题失败；review2-mutants/span-metrics-red.txt、heading-role-red.txt；当前 34 项绿输出 |
+| P2-4 有序列表误拦 | decimal、decimal-leading-zero、罗马/字母序号等标准结构序号放行，普通变量引用也保留；只清理字符串、symbols()、content 等任意文案 | review2-red.txt 的标准序号和普通变量失败；review2-mutants/ordered-list-red.txt、marker-variable-red.txt；标准序号保留与任意字符串拒绝成对检查 |
+| P2-5 嵌套 CSS 静默删除 | 递归清理并保留 CSSStyleRule 子规则、media/supports 与 CSSNestedDeclarations，保持声明顺序；无法处理则明确拒绝，不默默存 main{} | review2-mutants/nested-style-red.txt、nested-declarations-red.txt、unsupported-nesting-red.txt；正常嵌套与嵌套低对比度成对检查 |
+| P2-6 只测 p 行长 | 按承载文本的块测实际文字行，覆盖 div、li、dd、figcaption、blockquote；嵌套块分别测、不重复算父块；显式豁免标题、导航、参数表、按钮/控件、邮箱/电话、声明的型号/参数字段、系统图片署名/许可信息，普通图片说明仍检查 | review2-red.txt 的五类长正文被放过；review2-mutants/body-lines-red.txt、body-exemptions-red.txt、credits-exemption-red.txt；每类长行拒绝与合理折行通过成对检查 |
+| P2-7 列表名称/时间 | 在共用 listExistingSites 读取代码站点 name、updatedAt，并据此排序；API、全部站点页与删除列表共用同一读取，旧站仍读旧记录，不双写 | review2-mutants/list-name-red.txt、list-updated-red.txt；列表改名、固定时间、旧记录不变及旧站保留成对检查；review2-list-ui/report.json 和三档截图 |
 
-复用 visitor-layout-scan 的测量根因已修正；旧区块库、adapter、operation、commitOperations 和旧测试未改，没有新增兼容层或依赖。核心规范增加缺失信息用自然客户口吻或「待补充」的引导，避免「资料未提供」「资料未给」；只改引导，没有加入文案硬过滤。
+CSS 嵌套的规则与尾部声明分别保留，语义依据 [CSS Nesting 的 CSSOM 与嵌套声明规则](https://drafts.csswg.org/css-nesting-1/#cssom)，并由本机 Chrome 实际解析/渲染验证。
 
-### 最终候选运行（2026-10-07，UTC）
+### 本次验证
 
-环境：SITE_STORE=fs；真实服务 http://127.0.0.1:3138，health 的 cwd 为本工作树，模型 deepseek-flash。密钥只由原工作树 .env.local 加载进服务进程。以下 CHROME_PATH 为负责人指定的 `/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`；独立临时 profile，只关闭自有进程。
+环境：SITE_STORE=fs，真实应用服务 http://127.0.0.1:3138；health 的 cwd 对应本工作树。CHROME_PATH 使用 `/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`，只关闭自有浏览器进程。
 
-- export：`SITECRAFT_BASE=http://127.0.0.1:3138 T128_ARTIFACTS=artifacts/t128/astra-export-identity CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types scripts/check-new-route-flow.ts export`；日志 astra-export-identity.log，回执时间 21:55:47.734Z，站点 15a34d20-1b7f-480d-b59b-95a4ce751849，无图、精密工程。
-- molding：`SITECRAFT_BASE=http://127.0.0.1:3138 T128_WITH_IMAGES=1 T128_ARTIFACTS=artifacts/t128/astra-molding-identity CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types scripts/check-new-route-flow.ts molding`；日志 astra-molding-identity.log，回执时间 21:56:04.018Z，站点 4a85a769-0f13-4b27-a66f-49bca3e285cf，现场实拍风格，真实上传两张已准入行业照片。
-- 两家都是助手 v1、助手 v2、用户 v3。v2 的实际首屏背景为 rgb(23, 33, 43)；v3 完整内容恢复 v1，restoredFrom 指向 v1，刷新保持 v3。各版本 9 个页面/宽度检查全部通过（共 54 个），溢出、重叠、对比度、行长问题均 0。每家三个独立反例各返回 422，手改与撤销过期请求各返回 409，版本数仍 3。
-- `npm run typecheck` → astra-typecheck-identity.txt，exit 0；`SITECRAFT_BASE=http://127.0.0.1:3138 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` → astra-npm-test-identity.txt，2520/2520 通过，失败/取消/跳过均 0；`npm run build` → astra-build-identity.txt，exit 0。这些在最终源码与规范改动之后重跑；旧输出不作当前通过证据。
-- 新增 `tests/t128-code-boundary.test.ts` 的失败方式先列后测：CSS 漏清、压缩行距、正常中文字体误判、填充色错算/不可测、过期写入、删除残留与修正超限。测试走真实 API handler Request/Response、文件存储和 Chrome；仅隔离 Next 延后执行调度与模型 HTTP 回复，以确定性证明最多两轮修正。当前共 19 项，通过上述 npm test。
-- 坏实现验证：`python3 artifacts/t128/prove-mutations.py`；mutations-final/mutation-results.json 和 mutation-summary-final.txt 记录 16 个定向变异各 exit 1，另有 deleted-job 和 fact-erasure 的独立变异输出，共 18 个定向坏实现；正常中文行距的确认红证据另见 normal-lines-confirmed-red.txt。临时变异后恢复源码，再跑当前绿结果。没有削弱断言或修改旧路线测试。
-- 六类 CSS 反例同时变异：mutations-final/mutant-css-all-red.txt 的六项各自失败（exit 1），随后恢复源码跑 astra-green-identity.txt，19/19 通过。
+- 失败方式先写在 tests/t128-code-boundary.test.ts：合法 span 误拦、标准序号被删、嵌套声明消失、正文换标签漏测、列表读旧种子或双写。原 19 项与本批成对用例共 34 项，走真实 API handler、文件存储和 Chrome；模型 HTTP 与 Next 延后调度仍只在测试进程隔离。
+- 红命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types --test-name-pattern=review2 tests/t128-code-boundary.test.ts` → review2-red.txt，094734d 上 12 个正常页面/列表行为失败；保留原输出。
+- 坏实现命令：`python3 artifacts/t128/review2-mutations.py` → review2-mutation-summary.txt、review2-mutants/result.json，10 个定向变异全部 exit 1；尾部嵌套声明与图片署名豁免另各有一个独立变异，共 12 个。逐项 AssertionError/失败原因保留，恢复源码后跑绿。
+- 当前相关绿命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/t128-code-boundary.test.ts` → review2-green-delivery.txt，34/34 通过，失败/取消/跳过均 0。
+- 实际列表入口：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t128/review2-list-ui.mjs`。真实 POST 新建代码站点、POST chat 提交公司资料改名、GET 列表、打开 /sites；不确认生成，模型调用为 0。站点 e8c24d03-d1b5-4224-89a7-7e6b16c4355b 显示「复审列表·代码站点」，代码更新时间 2026-10-07T22:57:05.705Z，旧草稿名称/公司名/时间未变。输出 review2-list-ui.log、report.json；sites-1440.png、sites-768.png、sites-375.png 都已打开看过。
+- 全套命令：`SITECRAFT_BASE=http://127.0.0.1:3138 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` → review2-npm-test-delivery.txt，2535/2535 通过，失败/取消/跳过均 0、exit 0；`npm run build` → review2-build-delivery.txt，exit 0，随后顺序执行 `npm run typecheck` → review2-typecheck-delivery.txt，exit 0。
 
-### 失败保留与历史证据
+输出完成时间（UTC）：review2-red.txt 2026-10-07T22:48:01.762457+00:00；review2-green-delivery.txt 2026-10-07T23:08:57.531111+00:00；review2-npm-test-delivery.txt 2026-10-07T23:12:07.937420+00:00；review2-build-delivery.txt 2026-10-07T23:09:35.116067+00:00；review2-typecheck-delivery.txt 2026-10-07T23:09:35.700873+00:00。
 
-- 检查器曾从 JSON 健康接口建立文档，候选 HTML 被当纯文本。现从禁载应用脚本的 HTML 文档建立同源检查环境，渲染后验证候选页面实际挂载；坏实现见 mutations-final/mutant-html-measurement-red.txt。
-- 实测 molding 大纲超过既有 outline 800 字上限：astra-molding-final/failure.txt、failure.png 与对应日志。现将既有大纲字段长度合同交给模型，不截断、不放宽 schema、不自动重试。
-- 同元素测量最初把 PingFang 留白误判为重叠：astra-molding-bounded/failed-layout.json、failed-candidate-375.png，原标题 25px、行距 33.5px 却报告 2.5px 重叠。正常行距的红/绿与 20px/4px 必拒绝同时验证；较早默认字体未复现的 normal-lines-red.txt 不当红证据。
-- 事实校对曾要求补回被核心规范禁止的核验记号（audit-metadata-conflict-red.json），astra-export-measured 因矛盾反馈两轮后仍失败、未存版；现明确元信息必须省略，不因其缺失报告企业事实缺失。astra-molding-release/failure.txt、failure.png 保留完整公司名被缩短的失败；引导和校对现保留企业名称/型号，只去除明示核验记号的完整值，原验收断言未放宽。
-- astra-export-bounded/failure.png 保留恢复被事实检查拒绝的用户提示；脚本等待撤销完成超时，版本仍为 2，不是成功闭环。旧首版在恢复时被指出改换“加工能力/主设备”的事实标签及交期表述，未绕过检查或强行恢复。
-- astra-red.txt 的早期模型测试桩格式错误不是回归红证据；astra-red-confirmed.txt 才复现审查问题。第一次透明绘制测试只断言“拒绝”时变异存活，mutation-summary.txt 保留原结果；现断言无法测量的未知结果，对应变异失败。后续所有失败产物保留。
-- 旧 molding-final/molding-report.json（fc0306f3-e13d-4cce-b888-699d32b95003，20:10:26Z）及 fact-edit 回执明确为 9e0042b 时期历史证据；旧 export-delivery（ee87cb60-6f3e-4277-8b76-3027aff7d1fe，20:44:56Z）、real-flow、export-continued 和本次较早的 astra-*-final/bounded/measured/release 也仅保留历史或失败证据，不替代最终 identity 回执。
+### 保留的失败与历史
 
-### 尚未完成与限制
+首轮完整 npm test 已完整结束，2534 项中 3 项失败（review2-npm-test.txt）：系统图片署名和许可证 URL 被当正文误拦；在扫描根因层加语义豁免，未改 T-113/T-117 旧测试。第二轮启动时署名新夹具尚未补上系统实际使用的小字号/长 URL 折行，运行进程读到旧夹具，因此仅该新用例失败（review2-npm-test-final.txt）；修正夹具后，去掉豁免的坏实现仍失败，当前相关检查 34/34 通过。相关失败全部保留，不作绿证据。初次 typecheck 与 build 并行导致 Next 生成类型被清理的竞争，输出 review2-typecheck.txt 保留；改为 build 完成后顺序 typecheck，未改配置或修验证工具。
 
-独立盲评与 Astra 复审未通过，执行者看图不等于审美通过。自查 molding 375 页头导航换行较碎（molding-home-375.png），已如实回报，未做本票禁止的截图打磨。事实校对是模型判断，实际通过结果不代表完备性证明，仍需独立验收。外部邮件送达与生产 PostgreSQL 未实测，不作为本票阻塞项。没有加入版本面板、风格卡、批注、快捷按钮、截图打磨、模板味检测、英文或旧路线删除。
+9e0042b、094734d 及此前各阶段完整闭环与失败证据均保留为历史。最近真实 DeepSeek 两公司闭环是 094734d 的 astra-export-identity/export-report.json（15a34d20-1b7f-480d-b59b-95a4ce751849，21:55:47.734Z）与 astra-molding-identity/molding-report.json（4a85a769-0f13-4b27-a66f-49bca3e285cf，21:56:04.018Z），69 张截图逐张查看记录为 viewed-identity.json；旧 molding-final 回执明确为历史证据。本批只修误拦和列表读取，按主控明确要求不重新跑真实 DeepSeek 全流程，不把历史回执说成本批重跑。
+
+### 已知限制与待验收
+
+主控明确不修 line-height:0 的完全重叠及 filter:opacity 等滤镜后的对比度：它们属于刻意构造的极端写法，本阶段以避免误拦模型正常页面、限制验证工具范围为先，由 T-130 评估集截图与独立盲评兜底，Claude 安排评估和盲评。
+
+独立盲评与 Astra 再审待 Claude 安排，执行者不宣布审美通过、不自行派评审、不关票；此前已记录 molding 375 页头导航换行较碎，未做本票禁止的截图打磨。外部邮件送达与生产 PostgreSQL 未实测，不作为本票阻塞项。未加入版本面板、风格卡、批注、快捷按钮、模板味检测、英文或旧路线删除。

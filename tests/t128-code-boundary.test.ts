@@ -44,7 +44,7 @@ const address = server.address(); assert.ok(address && typeof address === 'objec
 const base = `http://127.0.0.1:${address.port}`;
 process.env.SITE_STORE = 'fs'; process.env.SITECRAFT_BASE = base;
 process.env.DEEPSEEK_BASE_URL = base; process.env.DEEPSEEK_API_KEY = 'local-test-only'; process.env.DEEPSEEK_MODEL = 'local-test-only';
-const { POST: create } = await import('../app/api/sites/route.ts');
+const { POST: create, GET: list } = await import('../app/api/sites/route.ts');
 const { POST: chat } = await import('../app/api/sites/[siteId]/chat/route.ts');
 const { PUT } = await import('../app/api/sites/[siteId]/draft/route.ts');
 const { POST: undo } = await import('../app/api/sites/[siteId]/history/[action]/route.ts');
@@ -183,4 +183,102 @@ test('two repair rounds stop visibly with three failed attempts and no version',
   assert.equal(result.run!.repairRound, 2); assert.equal(result.run!.attempts.length, 3);
   assert.match(result.run!.step, /两轮修正后仍未通过/);
   assert.match((await getConversation(id, record.conversationId))!.turns.at(-1)!.aiSummary, /未保存版本/);
+});
+
+// Review 2 failure modes: harmless span wrappers change overlap/heading decisions;
+// ordinary list ordinals are removed; nested styles or trailing declarations vanish;
+// div/li/dd/caption prose evades line measurement; list metadata uses the legacy seed
+// or is copied into both records instead of reading the authoritative code record.
+test('review2: normal span-wrapped Chinese lines pass; compressed lines still refuse', async () => {
+  const code = { ...good, css: good.css + 'h1{font-family:"PingFang SC",system-ui,sans-serif;font-size:25px;line-height:1.34;max-width:12em}',
+    pages: [{ ...good.pages[0], html: '<main><h1><span>边界机械 精密零件加工。</span><br><span>边界机械 精密零件加工。</span></h1><p>精密零件加工。</p></main>' }] };
+  assert.equal((await put(await site(), code)).status, 200);
+  await refused({ ...code, css: code.css + 'h1{line-height:4px}' }, /文字重叠/);
+});
+test('review2: heading descendants share title semantics; small title text needs body contrast', async () => {
+  for (const text of ['边界机械', '<span><em>边界机械</em></span>']) {
+    const code = { ...good, css: good.css + 'h1{font-size:30px;color:#888;line-height:1.6}',
+      pages: [{ ...good.pages[0], html: `<main><h1>${text}</h1><p>精密零件加工。</p></main>` }] };
+    assert.equal((await put(await site(), code)).status, 200, 'large title at 3–4.5:1 must pass with or without spans');
+  }
+  await refused({ ...good, pages: [{ ...good.pages[0], html: '<main><h1><span style="font-size:16px;font-weight:400;color:#888">边界机械</span></h1><p>精密零件加工。</p></main>' }] }, /对比度/);
+});
+test('review2: standard ordered-list markers survive cleaning; arbitrary strings refuse', async () => {
+  for (const value of ['decimal', 'decimal-leading-zero', 'lower-roman', 'upper-alpha']) {
+    const id = await site();
+    const code = { ...good, css: good.css + `ol{list-style:${value} outside}`,
+      pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><ol><li>精密零件加工。</li><li>边界机械</li></ol></main>' }] };
+    assert.equal((await put(id, code)).status, 200, value);
+    assert.match((await getCodeSite(id))!.versions[0].code.css, new RegExp(`list-style(?:-type)?:[^;]*${value}`));
+  }
+  await refused({ ...good, css: good.css + 'li{list-style-type:"年产量 99999999 台"}',
+    pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><ol><li>精密零件加工。</li></ol></main>' }] }, /CSS/);
+});
+test('review2: standard marker variables pass; string marker variables refuse', async () => {
+  const code = { ...good, css: good.css + ':root{--marker:decimal}ol{list-style-type:var(--marker)}',
+    pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><ol><li>精密零件加工。</li></ol></main>' }] };
+  assert.equal((await put(await site(), code)).status, 200);
+  await refused({ ...code, css: good.css + ':root{--marker:"年产量 99999999 台"}ol{list-style-type:var(--marker)}' }, /CSS/);
+});
+test('review2: nested styles and trailing declarations survive; nested bad contrast refuses', async () => {
+  const id = await site();
+  const code = { ...good, css: good.css + 'main{ & p{max-width:20em;} @media(min-width:600px){ & h1{font-size:30px;} } letter-spacing:0.1px; }' };
+  assert.equal((await put(id, code)).status, 200);
+  const saved = (await getCodeSite(id))!.versions[0].code.css;
+  assert.match(saved, /& p\s*\{[^}]*max-width:\s*20em/);
+  assert.match(saved, /@media[^]*& h1\s*\{[^}]*font-size:\s*30px/);
+  assert.match(saved, /letter-spacing:\s*0\.1px/);
+  await refused({ ...good, css: good.css + 'main{ & p{color:#fff;} }' }, /对比度/);
+});
+test('review2: unsupported nested rules refuse explicitly instead of disappearing', async () => {
+  await refused({ ...good, css: good.css + 'main{ @font-face{font-family:bad;src:url(https://invalid.example/font.woff2)} }' }, /CSS/);
+});
+const longProse = '精密零件加工。'.repeat(8);
+for (const [tag, wrapper] of [['div', ''], ['li', 'ul'], ['dd', 'dl'], ['figcaption', 'figure'], ['blockquote', '']] as const) {
+  test(`review2: ${tag} prose uses body lines; readable wrapping passes`, async () => {
+    const inner = `<${tag} class="prose">${longProse}</${tag}>`;
+    const code = { ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1>${wrapper ? `<${wrapper}>${inner}</${wrapper}>` : inner}</main>` }] };
+    await refused(code, /正文行长超标/);
+    assert.equal((await put(await site(), { ...code, css: code.css + '.prose{max-width:20em}' })).status, 200);
+  });
+}
+test('review2: structural title, navigation and parameter text have explicit line exemptions', async () => {
+  const code = { ...good, css: good.css + 'h1{font-size:16px}table{width:100%;table-layout:fixed}td{overflow-wrap:anywhere}',
+    pages: [{ ...good.pages[0], html: `<main><h1>${longProse}</h1><nav>${longProse}</nav><table><tbody><tr><td>${longProse}</td></tr></tbody></table></main>` }] };
+  assert.equal((await put(await site(), code)).status, 200);
+});
+test('review2: image attribution metadata is exempt while ordinary captions remain prose', async () => {
+  const credits = 'Author — https://commons.wikimedia.org/wiki/File:Licensed_industrial_photo_reference.jpg; Creative Commons Attribution ShareAlike';
+  const code = { ...good, css: good.css + '[data-sitecraft-image-credits]{font-size:12px;overflow-wrap:anywhere}',
+    pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><p>精密零件加工。</p><div data-sitecraft-image-credits><span>${credits}</span></div></main>` }] };
+  const response = await put(await site(), code);
+  assert.equal(response.status, 200, JSON.stringify(await response.json()));
+  await refused({ ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><figure><figcaption>${longProse}</figcaption></figure></main>` }] }, /正文行长超标/);
+});
+test('review2: site list reads code names, retains legacy names, and never dual-writes', async () => {
+  const { getExistingSite } = await import('../lib/site-store.ts');
+  const response = await create(request('/api/sites', 'POST', { name: '复审列表初名', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const { id } = await response.json();
+  const before = (await getExistingSite(id))!;
+  const initial = (await (await list()).json()).sites.find((item: { siteId: string }) => item.siteId === id);
+  assert.equal(initial.siteName, '复审列表初名');
+  const start = await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '公司名：复审列表改名\n精密零件加工。', baseRevision: 0 }), context(id));
+  assert.equal(start.status, 200);
+  const changed = (await (await list()).json()).sites.find((item: { siteId: string }) => item.siteId === id);
+  assert.equal(changed.siteName, '复审列表改名'); assert.equal(changed.companyName, '复审列表改名');
+  const after = (await getExistingSite(id))!;
+  assert.equal(after.draft.siteName, before.draft.siteName); assert.equal(after.draft.companyName, before.draft.companyName);
+  assert.equal(after.updatedAt, before.updatedAt, 'code metadata must not be copied into the legacy record');
+  const legacy = await create(request('/api/sites', 'POST', { name: '复审旧站', templateId: 'forge', locales: ['zh'] }));
+  const legacyId = (await legacy.json()).id; const source = (await getExistingSite(legacyId))!;
+  const item = (await (await list()).json()).sites.find((entry: { siteId: string }) => entry.siteId === legacyId);
+  assert.equal(item.siteName, source.draft.siteName); assert.equal(item.updatedAt, source.updatedAt);
+});
+test('review2: list update time comes from code metadata, not the original seed', async t => {
+  const response = await create(request('/api/sites', 'POST', { name: '复审列表时间', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const { id } = await response.json();
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2031-02-03T04:05:06.000Z') });
+  assert.equal((await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '公司名：复审列表时间\n精密零件加工。', baseRevision: 0 }), context(id))).status, 200);
+  const item = (await (await list()).json()).sites.find((entry: { siteId: string }) => entry.siteId === id);
+  assert.equal(item.updatedAt, '2031-02-03T04:05:06.000Z');
 });

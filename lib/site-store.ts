@@ -9,6 +9,7 @@ import { checkSiteStyle } from "@/lib/site-style-check";
 import { summaryFromAppliedTargets } from "@/lib/workspace-copy";
 import { getAnnotation } from "@/lib/annotation-store";
 import { validateColorPalette } from "@/lib/color-scale";
+import { getCodeSite } from './code-site-store.ts';
 
 export type ChangeSource = "ai" | "import" | "manual" | "migration" | "template";
 export type UndoGuard = {
@@ -701,8 +702,13 @@ async function deletePostgresSiteRecord(siteId: string) {
   return (result.rowCount ?? 0) > 0;
 }
 
-export function listExistingSites() {
-  return usePostgres ? listPostgresSites() : listLocalSites();
+export async function listExistingSites() {
+  const existing = await (usePostgres ? listPostgresSites() : listLocalSites());
+  const items = await Promise.all(existing.map(async item => {
+    const code = await getCodeSite(item.siteId);
+    return code ? { ...item, siteName: code.name, companyName: code.name, updatedAt: code.updatedAt } : item;
+  }));
+  return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }
 
 export function deleteSiteRecord(siteId: string) {
