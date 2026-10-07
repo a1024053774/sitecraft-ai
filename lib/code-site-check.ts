@@ -9,15 +9,10 @@ import type { SiteImageRecord } from './site-images.ts';
 function cleanCandidate(code: SiteCode, permitted: string[]) {
   const issues: string[] = [], cleaned: string[] = [];
   const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
-  const markerTextVariables = new Set<string>();
-  const variableRefs = (value: string) => [...value.matchAll(/var\s*\(\s*(--[\w-]+)/g)].map(match => match[1]);
-  const literalMarkerText = (value: string) => /["']|\bsymbols\s*\(/i.test(value);
   const safeCss = (style: CSSStyleDeclaration) => {
     for (const name of [...style]) {
       const value = style.getPropertyValue(name);
-      if (/url\s*\(|image-set\s*\(|cross-fade\s*\(|expression\s*\(|\\|[<>]/i.test(value) || /^(behavior|-moz-binding)$/i.test(name)
-        || (name === 'content' && !['""', "''", 'none', 'normal'].includes(value))
-        || (/^list-style(?:-type)?$/.test(name) && (literalMarkerText(value) || variableRefs(value).some(ref => markerTextVariables.has(ref))))) {
+      if (/url\s*\(|image-set\s*\(|cross-fade\s*\(|expression\s*\(|\\|[<>]/i.test(value) || /^(behavior|-moz-binding)$/i.test(name)) {
         issues.push(`CSS ${name} 含资源、动态内容或不安全语法`); style.removeProperty(name);
       }
     }
@@ -25,34 +20,7 @@ function cleanCandidate(code: SiteCode, permitted: string[]) {
   };
   const cleanCss = (css: string) => {
     if (/[<\\]/.test(css) || /@import|@font-face/i.test(css)) issues.push('CSS 含外部资源、反斜杠或 HTML 起始符号');
-    // Some Chrome versions discard symbols() before CSSOM traversal. Refuse it explicitly.
-    if (/\bsymbols\s*\(/i.test(css)) issues.push('CSS symbols() 生成文字未获准');
     const sheet = new CSSStyleSheet(); sheet.replaceSync(css.replace(/[<\\]/g, ''));
-    // Structural marker keywords (including variables containing them) are ordinary CSS.
-    // Only variables that carry arbitrary marker strings need the same cleaning as literals.
-    const declarations: CSSStyleDeclaration[] = [];
-    const collect = (rules: CSSRuleList) => {
-      for (const rule of rules) {
-        if (rule instanceof CSSStyleRule || rule instanceof CSSNestedDeclarations) declarations.push(rule.style);
-        if (rule instanceof CSSGroupingRule) collect(rule.cssRules);
-      }
-    };
-    collect(sheet.cssRules);
-    for (const html of [code.header, code.footer, ...code.pages.map(p => p.html)]) {
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      for (const el of doc.querySelectorAll<HTMLElement>('[style]')) declarations.push(el.style);
-    }
-    const variables = new Map<string, string[]>();
-    for (const style of declarations) for (const name of [...style]) if (name.startsWith('--')) {
-      variables.set(name, [...(variables.get(name) ?? []), style.getPropertyValue(name)]);
-    }
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const [name, values] of variables) if (!markerTextVariables.has(name) && values.some(value => literalMarkerText(value) || variableRefs(value).some(ref => markerTextVariables.has(ref)))) {
-        markerTextVariables.add(name); changed = true;
-      }
-    }
     const walk = (rules: CSSRuleList): string => [...rules].map(rule => {
       if (rule instanceof CSSStyleRule) return `${rule.selectorText}{${safeCss(rule.style)}${walk(rule.cssRules)}}`;
       if (rule instanceof CSSNestedDeclarations) return safeCss(rule.style);
@@ -112,6 +80,22 @@ function cleanCandidate(code: SiteCode, permitted: string[]) {
   const text = safe.pages.map(p => p.title).join('\n') + '\n' + [...documents.values()].map(doc => `${doc.body.textContent || ''}\n${[...doc.querySelectorAll('[data-label],[alt],[title],[aria-label]')].flatMap(node => ['data-label', 'alt', 'title', 'aria-label'].map(name => node.getAttribute(name) || '')).join(' ')}`).join('\n');
   return { code: safe, issues: [...new Set(issues)], cleaned, text, contacts };
 }
+// Browser computed values have already resolved variables, shorthand and nesting.
+function readGeneratedText() {
+  const texts = new Set<string>();
+  const strings = (value: string) => [...value.matchAll(/"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g)]
+    .map(match => (match[1] ?? match[2]).replace(/\\([0-9a-f]{1,6})\s?|\\(.)/gi, (_escape, hex, char) => hex ? String.fromCodePoint(parseInt(hex, 16)) : char)).join('');
+  for (const el of document.querySelectorAll('*')) {
+    const style = getComputedStyle(el);
+    if (style.display === 'list-item') {
+      const text = strings(style.listStyleType); if (text) texts.add(text);
+    }
+    for (const pseudo of ['::before', '::after', '::marker']) {
+      const text = strings(getComputedStyle(el, pseudo).content); if (text) texts.add(text);
+    }
+  }
+  return [...texts];
+}
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
@@ -131,11 +115,6 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
     const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)})`);
     checks.issues.push(...clean.issues); checks.cleaned = clean.cleaned;
-    const numbers = (s: string) => s.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
-    const allowedNumbers = new Set(numbers(args.materials));
-    for (const number of new Set(numbers(clean.text))) if (!allowedNumbers.has(number)) checks.issues.push(`资料没有的数字：${number}`);
-    const marker = args.materials.match(/核验记号[：:]\s*([^。\n\s]+)/)?.[1];
-    if (marker && clean.text.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     for (const contact of new Set(clean.contacts)) if (!args.materials.includes(contact.replace(/^(mailto|tel):/, ''))) checks.issues.push(`联系方式没有资料来源：${contact}`);
     if (checks.issues.length) return { code: clean.code, checks };
     await browser.send('Network.setBlockedURLs', { urls: [] });
@@ -143,6 +122,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
     const used = new Set((clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).match(/img_[a-z0-9]{16,40}/g));
     const credits = [...new Set(args.images.filter(i => used.has(i.imageId) && i.attribution).map(i => i.attribution))];
+    const generatedText = new Set<string>();
     for (const page of clean.code.pages) {
       for (const width of [375, 768, 1440]) {
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -151,7 +131,8 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
         const imageErrors = await browser.evaluate<string[]>(`Promise.all([...document.images].map(async image => {try{await image.decode();return ''}catch{return image.getAttribute('data-image-id')||'图片'}})).then(items=>items.filter(Boolean))`);
         if (imageErrors.length) checks.issues.push(`${page.id}/${width} 图片无法显示：${imageErrors.join('、')}`);
-        const layout = await browser.evaluate<LayoutReport>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return scanVisitorLayout(document);})()`);
+        const layout = await browser.evaluate<LayoutReport & { generatedText: string[] }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document),generatedText:(${readGeneratedText.toString()})()};})()`);
+        for (const text of layout.generatedText) generatedText.add(text);
         const contrast = layout.textContrast.map(t => ({ ...t, threshold: t.role === 'heading' ? t.threshold : 4.5 })).filter(t => t.status !== 'measured' || t.ratio === null || t.ratio < t.threshold);
         const long = layout.bodyLineLength.filter(l => l.tooLong);
         checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length });
@@ -162,8 +143,14 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         for (const line of long.slice(0, 5)) checks.issues.push(`${page.id}/${width} 正文行长超标：${line.text}`);
       }
     }
+    const readable = `${clean.text}\n${[...generatedText].join('\n')}`;
+    const numbers = (s: string) => s.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
+    const allowedNumbers = new Set(numbers(args.materials));
+    for (const number of new Set(numbers(readable))) if (!allowedNumbers.has(number)) checks.issues.push(`资料没有的数字：${number}`);
+    const marker = args.materials.match(/核验记号[：:]\s*([^。\n\s]+)/)?.[1];
+    if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
-    if (!checks.issues.length) checks.issues.push(...await auditCodeFacts(args.materials, clean.text));
+    if (!checks.issues.length) checks.issues.push(...await auditCodeFacts(args.materials, readable));
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
   } finally { await browser.close(); }

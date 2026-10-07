@@ -26,6 +26,7 @@ const good: SiteCode = { header: '<header>边界机械</header>', footer: '<foot
   css: 'body{margin:0;color:#111;background:#fff;font:16px/1.6 sans-serif}main,header,footer{padding:24px}p{max-width:32em}',
   pages: [{ id: 'home', title: '边界机械', html: '<main><h1>边界机械</h1><p>精密零件加工。</p></main>' }] };
 let writerCalls = 0;
+let auditedText = '';
 const server = createServer(async (req, res) => {
   if (req.url === '/') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
   res.setHeader('content-type', 'application/json');
@@ -34,7 +35,10 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw);
   const system = body.messages[0].content as string;
   let reply: unknown;
-  if (system.includes('事实校对员')) reply = { issues: [] };
+  if (system.includes('事实校对员')) {
+    auditedText = body.messages[1].content;
+    reply = { issues: auditedText.includes('终身保修') ? ['资料没有终身保修承诺。'] : [] };
+  }
   else if (body.messages[1].content.includes('先给页面大纲')) reply = { summary: '首页介绍加工与联系。', style: 'precision', styleReason: '加工资料', pages: [{ id: 'home', title: '首页', outline: '公司与加工' }] };
   else { writerCalls++; reply = { ...good, pages: [{ ...good.pages[0], html: good.pages[0].html.replace('</main>', '<p>年产量 99999999 台。</p></main>') }] }; }
   res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(reply) } }] }));
@@ -79,15 +83,25 @@ test.after(async () => { await new Promise<void>(resolve => server.close(() => r
 
 for (const [name, css] of [
   ['string marker', 'li{list-style-type:"年产量 99999999 台"}'],
-  ['symbols marker', 'li{list-style-type:symbols(cyclic "年产量 99999999 台")}'],
   ['shorthand marker', 'li{list-style:"年产量 99999999 台" inside}'],
-  ['pseudo content', 'li::before{content:"年产量 99999999 台"}'],
-  ['attribute content', 'li::before{content:attr(data-label)}'],
+  ['before content', 'li::before{content:"年产量 99999999 台"}'],
+  ['after content', 'li::after{content:"年产量 99999999 台"}'],
+  ['marker content', 'li::marker{content:"年产量 99999999 台"}'],
   ['variable marker', ':root{--claim:"年产量 99999999 台"}li{list-style-type:var(--claim)}'],
 ]) test(`CSS generated copy: ${name}`, async () => {
-  await refused({ ...good, css: good.css + css, pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><ul><li>精密零件加工。</li></ul></main>' }] }, /CSS/, clean => {
-    assert.doesNotMatch(clean.css, /(?:list-style(?:-type)?|content)\s*:/);
-  });
+  await refused({ ...good, css: good.css + css, pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><ul><li>精密零件加工。</li></ul></main>' }] }, /99999999/);
+});
+test('review3: rendered generated words reach fact audit; supported source text passes', async () => {
+  auditedText = '';
+  await refused({ ...good, css: good.css + 'p::before{content:"终身保修"}' }, /终身保修/);
+  assert.ok(auditedText.includes('终身保修'), 'the fact auditor must receive generated text, not just HTML');
+  assert.equal((await put(await site(), { ...good, css: good.css + 'p::before{content:"精密零件加工。"}' })).status, 200);
+});
+test('review3: computed attr text is inspected; unused pseudo declarations do not invent text', async () => {
+  const code = { ...good, css: good.css + 'p::before{content:attr(data-label)}',
+    pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><p data-label="精密零件加工。">精密零件加工。</p></main>' }] };
+  assert.equal((await put(await site(), code)).status, 200);
+  assert.equal((await put(await site(), { ...good, css: good.css + 'p::before{content:attr(data-label)}' })).status, 200);
 });
 test('script alone is cleaned and cannot save', async () => {
   await refused({ ...good, pages: [{ ...good.pages[0], html: good.pages[0].html + '<script>window.bad=true</script>' }] }, /script/, clean => assert.doesNotMatch(clean.pages[0].html, /script|window.bad/));
@@ -212,13 +226,13 @@ test('review2: standard ordered-list markers survive cleaning; arbitrary strings
     assert.match((await getCodeSite(id))!.versions[0].code.css, new RegExp(`list-style(?:-type)?:[^;]*${value}`));
   }
   await refused({ ...good, css: good.css + 'li{list-style-type:"年产量 99999999 台"}',
-    pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><ol><li>精密零件加工。</li></ol></main>' }] }, /CSS/);
+    pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><ol><li>精密零件加工。</li></ol></main>' }] }, /99999999/);
 });
 test('review2: standard marker variables pass; string marker variables refuse', async () => {
   const code = { ...good, css: good.css + ':root{--marker:decimal}ol{list-style-type:var(--marker)}',
     pages: [{ ...good.pages[0], html: '<main><h1>边界机械</h1><ol><li>精密零件加工。</li></ol></main>' }] };
   assert.equal((await put(await site(), code)).status, 200);
-  await refused({ ...code, css: good.css + ':root{--marker:"年产量 99999999 台"}ol{list-style-type:var(--marker)}' }, /CSS/);
+  await refused({ ...code, css: good.css + ':root{--marker:"年产量 99999999 台"}ol{list-style-type:var(--marker)}' }, /99999999/);
 });
 test('review2: nested styles and trailing declarations survive; nested bad contrast refuses', async () => {
   const id = await site();
@@ -281,4 +295,27 @@ test('review2: list update time comes from code metadata, not the original seed'
   assert.equal((await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '公司名：复审列表时间\n精密零件加工。', baseRevision: 0 }), context(id))).status, 200);
   const item = (await (await list()).json()).sites.find((entry: { siteId: string }) => entry.siteId === id);
   assert.equal(item.updatedAt, '2031-02-03T04:05:06.000Z');
+});
+
+// Review 3 failure modes: side-by-side independent boxes get merged into one body
+// line; CSS shorthand/nesting hides generated facts from declaration inspection.
+// The normal oracle is three separate 18-character lines, not one 54-character line.
+const cardText = '精密零件加工资料'.repeat(2) + '工艺';
+for (const display of ['inline-block', 'inline-flex', 'grid', 'flex']) {
+  test(`review3: three parallel ${display} cards pass; long single prose refuses`, async () => {
+    const layout = ['grid', 'flex'].includes(display) ? `.cards{display:${display};grid-template-columns:repeat(3,1fr)}` : `.card{display:${display};width:33.333%}`;
+    const code = { ...good, css: good.css + '.card{font-size:10px;line-height:1.6}.cards{font-size:0}' + layout,
+      pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><div class="cards">${[1,2,3].map(() => `<span class="card">${cardText}</span>`).join('')}</div></main>` }] };
+    const response = await put(await site(), code);
+    assert.equal(response.status, 200, JSON.stringify(await response.json()));
+    await refused({ ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><div>${cardText.repeat(3)}</div></main>` }] }, /正文行长超标/);
+  });
+}
+for (const [name, css] of [
+  ['shorthand', ':root{--x:"产能 840271 台"}ol{list-style:var(--x) inside}'],
+  ['nested', 'main{ol{--x:"产能 840271 台";list-style-type:var(--x)}}'],
+]) test(`review3: rendered ${name} marker fact refuses; decimal passes`, async () => {
+  const html = '<main><h1>边界机械</h1><ol><li>精密零件加工。</li></ol></main>';
+  await refused({ ...good, css: good.css + css, pages: [{ ...good.pages[0], html }] }, /840271/);
+  assert.equal((await put(await site(), { ...good, css: good.css + 'ol{list-style:decimal inside}', pages: [{ ...good.pages[0], html }] })).status, 200);
 });

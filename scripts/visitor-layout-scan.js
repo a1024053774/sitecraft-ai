@@ -341,7 +341,9 @@ export function scanVisitorLayout(root = document) {
   };
   const bodyBlockFor = el => {
     for(let block=el;block;block=block.parentElement) {
-      if(/^(block|flow-root|list-item|flex|grid|table-cell|table-caption)$/.test(getComputedStyle(block).display)) return block;
+      const display=getComputedStyle(block).display,parentDisplay=block.parentElement?getComputedStyle(block.parentElement).display:'';
+      if(/^(block|flow-root|list-item|inline-block|inline-flex|inline-grid|flex|grid|table-cell|table-caption)$/.test(display)
+        || /^(inline-)?(flex|grid)$/.test(parentDisplay)) return block;
     }
     return root.body||root;
   };
@@ -357,18 +359,18 @@ export function scanVisitorLayout(root = document) {
       if(!node.textContent.trim()||!visible(node.parentElement)||bodyBlockFor(node.parentElement)!==block||lineLengthExemption(node.parentElement)) continue;
       for(let index=0;index<node.textContent.length;index++){
         range.setStart(node,index);range.setEnd(node,index+1);
-        const rect=range.getBoundingClientRect();
-        if(rect.width>.5&&rect.height>.5) chars.push({char:node.textContent[index],top:Math.round(rect.top)});
+        const rect=[...range.getClientRects()].find(rect=>rect.width>.5&&rect.height>.5);
+        if(rect) chars.push({char:node.textContent[index],top:Math.round(rect.top),left:rect.left,right:rect.right});
       }
     }
     const grouped=new Map();
-    for(const item of chars) grouped.set(item.top,[...(grouped.get(item.top)||[]),item.char]);
+    for(const item of chars) grouped.set(item.top,[...(grouped.get(item.top)||[]),item]);
     return [...grouped.entries()].sort((a,b)=>a[0]-b[0]).map(([top,parts])=>{
-      const text=parts.join('').trim();
+      const text=parts.map(part=>part.char).join('').trim();
       const count=Array.from(text.replace(/\s/g,'')).length;
       const language=/[\u3400-\u9fff]/.test(text)?'zh':'en';
       const max=language==='zh'?40:75;
-      return {top,text,count,language,max,tooLong:count>max};
+      return {top,width:Math.max(...parts.map(part=>part.right))-Math.min(...parts.map(part=>part.left)),text,count,language,max,tooLong:count>max};
     }).filter(item=>item.text);
   };
   const textWalker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT);
