@@ -93,10 +93,10 @@ async function attemptTimeouts(reply: Record<string, unknown>, call: () => Promi
   return seen;
 }
 
-test("a structured-generation attempt may run up to 300 s and a planning attempt up to 90 s", async () => {
+test("structured-generation and planning attempts may run up to 300 s", async () => {
   const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
   assert.deepEqual(await attemptTimeouts({ type: "answer", text: "这是工程工业样子的站点。" }, () => requestStructuredOperations({ message: "这个网站是做什么的？", draft: structuredClone(defaultDraft), templateId: defaultDraft.templateId, selectedTarget: null })), [300_000]);
-  assert.deepEqual(await attemptTimeouts(withPlannerRecommendation({ kind: "ready", summary: "资料足够。" }), () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" })), [90_000]);
+  assert.deepEqual(await attemptTimeouts(withPlannerRecommendation({ kind: "ready", summary: "资料足够。" }), () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" })), [300_000]);
 });
 
 // T-061 rework (Astra, review of 23807c8): a retry after a failed first answer (not JSON, wrong shape,
@@ -147,19 +147,19 @@ test("a structured retry only gets what is left of 360 s, and there is none when
   assert.equal(spent.result.code, "invalid_output", "the first attempt's failure is what the user is told");
 });
 
-test("a planning retry only gets what is left of 150 s, and there is none when nothing is left", async () => {
+test("a planning retry only gets what is left of 360 s, and there is none when nothing is left", async () => {
   const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
   const wrongShape = { kind: "question" };
   const ready = withPlannerRecommendation({ kind: "ready", summary: "资料足够。" });
   const plan = () => requestAlignmentPlan({ message: "我们做重载减速机，想做官网", draft: structuredClone(defaultDraft), conversationContext: "", alignmentContext: "" });
-  const retried = await timedAttempts(80_000, [wrongShape, ready], plan);
+  const retried = await timedAttempts(250_000, [wrongShape, ready], plan);
   assert.equal(retried.sent, 2);
   assert.equal(retried.result.ok, true);
-  assert.equal(retried.seen[0], 90_000);
-  assert.ok(retried.seen[1] <= 70_000 && retried.seen[1] >= 69_000, `second attempt timeout ${retried.seen[1]}`);
-  const spent = await timedAttempts(150_000, [wrongShape, ready], plan);
-  assert.equal(spent.sent, 1, "no second request once 150 s are used");
-  assert.deepEqual(spent.seen, [90_000]);
+  assert.equal(retried.seen[0], 300_000);
+  assert.ok(retried.seen[1] <= 110_000 && retried.seen[1] >= 109_000, `second attempt timeout ${retried.seen[1]}`);
+  const spent = await timedAttempts(360_000, [wrongShape, ready], plan);
+  assert.equal(spent.sent, 1, "no second request once 360 s are used");
+  assert.deepEqual(spent.seen, [300_000]);
   assert.equal(spent.result.ok, false);
   assert.equal(spent.result.code, "invalid_output");
 });
@@ -213,11 +213,41 @@ test("the alignment planner has room for look and color recommendations", async 
   } finally {
     globalThis.fetch = original;
   }
-  assert.equal(body.max_tokens, 8192);
+  assert.equal(body.max_tokens, 65536);
   const system = body.messages?.find((message) => message.role === "system")?.content ?? "";
   assert.match(system, /field=colorSet/);
   assert.match(system, /业务形态/);
   assert.match(system, /colorSet:turquoise/);
+});
+
+// T-110 upstream log: short-path × molding spent all 8192 completion tokens on reasoning
+// (3757 prompt tokens, HTTP 200, finish=length). Replay that boundary with room for a
+// small JSON answer after the observed reasoning, independently of the production budget.
+test("T-122 short-path molding planning can finish after 8192 reasoning tokens in one request", async () => {
+  const { requestAlignmentPlan } = await import("../lib/ai-provider.ts");
+  const { simulatedPacks, buildMaterialsChatMessage } = await import("../lib/simulated-packs.ts");
+  const original = globalThis.fetch;
+  let requests = 0;
+  globalThis.fetch = async (_input, init) => {
+    requests += 1;
+    const body = JSON.parse(String(init?.body)) as { max_tokens: number; thinking?: unknown; messages: Array<{ content: string }> };
+    assert.equal(body.thinking, undefined, "keep the model's default thinking mode");
+    assert.ok(body.messages.some(({ content }) => content.includes("双色注塑模具")), "the real molding materials reach planning");
+    const fits = body.max_tokens >= 8192 + 512;
+    return Response.json({
+      choices: [{ finish_reason: fits ? "stop" : "length", message: { content: fits ? JSON.stringify(withPlannerRecommendation({ kind: "ready", summary: "五类模具和注塑件，生产与质检、FAQ、联系入口已明确。" })) : "" } }],
+      usage: { prompt_tokens: 3757, completion_tokens: fits ? 8704 : body.max_tokens, completion_tokens_details: { reasoning_tokens: 8192 } },
+    });
+  };
+  try {
+    const draft = { ...structuredClone(defaultDraft), templateId: "tailwind-landing" };
+    const planned = await requestAlignmentPlan({ message: buildMaterialsChatMessage(simulatedPacks.molding), draft });
+    assert.equal(requests, 1, "budget exhaustion must not trigger a retry");
+    assert.equal(planned.ok, true, JSON.stringify(planned));
+    if (planned.ok) assert.equal(planned.kind, "ready");
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 // The export pack's planner reply failed Schema in 1 of 4 real runs: "summary: Too big: expected
