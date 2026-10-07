@@ -2,9 +2,9 @@
 id: T-119
 title: 发布检查只控制自有浏览器并明确拒绝终止连接
 type: build
-status: open
+status: superseded
 blocked_by: []
-claimed_by: t113-cdp-triage
+claimed_by: 
 supersedes:
 ---
 
@@ -33,3 +33,6 @@ INCOMPLETE：候选已冻结，待新独立Astra及主控完整检查。仅改sc
 10:55:20–10:55:24Z typecheck单次exit0；10:55:20–10:56:26Z原隔离T117文件单次13/13。主控把3文件与candidate/green-2-source逐字节核对，绑定 `artifacts/integration/20261007-t119-browser-ownership/binding.json`，AGENTS已同步实际归属规则和自动回归入口。14张T119原生PNG作者自查不作独立审美PASS。
 
 原497秒/8次createTarget超时因果仍UNKNOWN，原红不改写。T113原三站复验、新独立审核、必要full/build与本票关闭尚未完成，未推送；原站恢复仍由T118在后续工程门通过后单独安排。
+
+### 冻结关闭（Claude，2026-10-07 EDT）
+- 负责人决定冻结验收工具链（T-120），本票不再继续；未提交的半成品已存 `git stash`（frozen-2026-10-07），未合入。已提交到主线的部分保留。

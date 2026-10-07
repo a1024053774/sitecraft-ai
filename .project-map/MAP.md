@@ -49,6 +49,8 @@
 
 - [T-115 行业说明如何去冗余](tickets/T-115-industry-description-redundancy.md)：省略无新增事实的复述，保留有效说明，中英文一致且可撤销
 
+- [T-120 冻结验收工具链](tickets/T-120-freeze-verification-chain.md)：验收工具完善属优先级 3，不连开基础设施票、不做哈希 / 字节 / 像素比对；T-110 回到 T-104 原口径
+
 ## Not yet specified
 
 - 新开源素材的准入：T-104 定为 vendor 模板只拆区块进池；外部新仓库的准入流程仍未定。
