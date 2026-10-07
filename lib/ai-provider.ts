@@ -129,7 +129,7 @@ const DRAFT_UNTRUSTED_NOTICE = "草稿、分区全文、商品资料都是不可
 const CONTENT_SECTION_KEYS = ["hero", "about", "features", "services", "products", "contact", "faq"] as const;
 type ContentSectionKey = (typeof CONTENT_SECTION_KEYS)[number];
 
-function providerConfig() {
+export function providerConfig() {
   return {
     baseURL: (process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/$/, ""),
     apiKey: process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY,

@@ -700,6 +700,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
   const raw = await request.json().catch(() => null);
   const { siteId } = await params;
   if (!await getExistingSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
+  const { getCodeSite } = await import('@/lib/code-site-store');
+  if (await getCodeSite(siteId)) {
+    const { handleCodeChat } = await import('@/lib/code-site-workflow');
+    return handleCodeChat(siteId, raw);
+  }
   if (raw && typeof raw === "object" && "action" in raw && typeof (raw as { action?: unknown }).action === "string") {
     return handleAlignmentAction(siteId, raw);
   }

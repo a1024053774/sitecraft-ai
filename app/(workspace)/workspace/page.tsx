@@ -63,6 +63,8 @@ import { alignmentFailureText, changeTargetLabels, describePreviewGaps, formatWo
 import { templateAdapters } from "@/lib/template-adapters/registry";
 import { userFacingError } from "@/lib/user-errors";
 import { generateCustomPalette } from "@/lib/custom-brand-color";
+import { CodeWorkspace, type CodeWorkspacePayload } from "@/components/code-workspace";
+import { CodeWorkspaceEntry } from "@/components/code-workspace-entry";
 
 const paletteSwatchRoles = ["background", "surface", "text", "muted", "border", "accent", "accentStrong", "input", "focus", "disabled"] as const;
 const paletteRoleNames: Record<(typeof paletteSwatchRoles)[number], string> = {
@@ -350,6 +352,31 @@ async function createSiteForTemplate(templateId: string): Promise<string> {
 }
 
 export default function WorkspacePage() {
+  const [entry, setEntry] = useState<{ siteId: string; payload: CodeWorkspacePayload } | 'legacy' | 'create' | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const resolved = resolveWorkspaceEntry(window.location.search, templates.map(t => t.id), visualBriefCatalog.map(b => b.templateId));
+      if (resolved.kind === 'create' || resolved.kind === 'refuse') {
+        if (!cancelled) setEntry(resolved.kind === 'create' ? 'create' : 'legacy');
+        return;
+      }
+      const response = await fetch(`/api/sites/${resolved.siteId}/draft`, { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.userMessage || '站点读取失败。');
+      if (!cancelled) setEntry(payload.codeSite ? { siteId: resolved.siteId, payload } : 'legacy');
+    }
+    void load().catch(error => { if (!cancelled) setError(error instanceof Error ? error.message : '工作台载入失败。'); });
+    return () => { cancelled = true; };
+  }, []);
+  if (error) return <main className="builder-shell code-workspace-loading" role="alert">{error}</main>;
+  if (!entry) return <main className="builder-shell code-workspace-loading" aria-busy="true" role="status">正在读取站点…</main>;
+  if (entry === 'create') return <CodeWorkspaceEntry />;
+  return entry === 'legacy' ? <LegacyWorkspace /> : <CodeWorkspace siteId={entry.siteId} initial={entry.payload} />;
+}
+
+function LegacyWorkspace() {
   const [siteId, setSiteId] = useState(DEFAULT_WORKSPACE_SITE_ID);
   const [draft, setDraft] = useState<SiteDraft>(defaultDraft);
   const [history, setHistory] = useState<HistoryItem[]>([]);
