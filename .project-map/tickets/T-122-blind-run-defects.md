@@ -2,7 +2,7 @@
 id: T-122
 title: 修 T-110 暴露的两个缺陷：参数标签看不见、短路径注塑规划截断
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t122-build
 supersedes:
@@ -17,9 +17,9 @@ supersedes:
 ## Acceptance
 
 - [x] 两处各有行为测试，先在父提交上失败
-- [ ] short-path × 注塑用真实 DeepSeek 重新走一次需求对齐 + 生成成功；三个样子的生成站发布检查不再报 `dt` 对比度
+- [x] short-path × 注塑用真实 DeepSeek 重新走一次需求对齐 + 生成成功；三个样子的生成站发布检查不再报 `dt` 对比度
 - [x] 追加英式拼写回归在 `0909f29` 上失败，修后等价表达接受、错数量/单位/周期/约数与设备周期仍拒绝；真实 DeepSeek 两条源产能中英落稿
-- [ ] `npm run typecheck`、`npm test`、`npm run build`、13 站 `check-published` 通过；代码审查通过；Claude 验收
+- [x] `npm run typecheck`、`npm test`、`npm run build`、13 站 `check-published` 通过；代码审查通过；Claude 验收
 
 ## Resolution
 
@@ -43,3 +43,6 @@ supersedes:
 - 追加全量：负载曾高于 12，未启动；`2026-10-07T14:30:34Z` 负载 9.19 时启动 `npm test`，`14:33:55Z` 结束：2501/2501 PASS、零跳过、exit 0，日志 `artifacts/t122/british-full-test.log`。旧固定产物保留在 `artifacts/t122/before-british-full/`，本次 T-103 输出为 `artifacts/t122/british-full-t103`。
 - 追加访客渲染检查：`2026-10-07T14:33:10Z`，`SITECRAFT_BASE=http://127.0.0.1:3065 CHROME_PATH=<AGENTS 指定的 headless shell> node scripts/check-published.mjs --out artifacts/t122/british-published 17a08199-30f9-4e8c-866a-d1fcfecb0e71`，三档中英通过，六图逐张打开至页脚完整；证据 `artifacts/t122/british-published.log`、`british-published/report.json`。该检查以已落稿事实为基准，不抵销质检缺失。
 - 追加 Astra 窄范围复审：冻结候选 `cedc1d89344aacc81732c0a7fd6213899decfcb6`，PASS；独立输入 217 套/年、31 台（100–750 t）、830 万件/月的英美拼写均接受，六种错误关系拒绝；`14:34:57Z` 由真实 GET 再核对两条中英产能与设备规格。报告 `artifacts/t122/british-independent-review.txt`；候选源码与较早工作树的时间/身份绑定记录在 `british-candidate-binding.log`。审查明确保留整站生成 INCOMPLETE。此后仅更新票据记录，未改源码。
+
+### 合回主线与关闭（Claude，2026-10-07 EDT）
+- 独立 Astra：对比度（`--site-plate-muted`，四样子六色板 ≥4.5:1）与规划预算（推理耗尽输出预算，8192→65536，无重试）PASS；继承的英式 `moulding` 产能误拒由 `c3e7431` 修复（`mou?lding`，成组核对未放宽），主控核对改动。合并主线 `993808a`；全量 2501/2501、build、typecheck、13 站 `check-published` 通过（`artifacts/merge-993808a/`）。遗留：真实注塑生成质检流程 5 步落稿 4 步，另记后续。Claude 验收关闭。

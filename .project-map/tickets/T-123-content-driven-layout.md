@@ -4,7 +4,7 @@ title: 按内容决定排版：稀疏字段合并、图文同卡、照片按用�
 type: build
 status: open
 blocked_by: [T-122]
-claimed_by:
+claimed_by: t123-build
 supersedes:
 ---
 
