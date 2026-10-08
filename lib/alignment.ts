@@ -427,12 +427,24 @@ function cardQuestions(question: CurrentQuestion | null): AlignmentCardQuestion[
   return [{ questionId: question.questionId, prompt: question.prompt, options: question.options, allowOther: question.allowOther }];
 }
 
+export class AlignmentTextTooLongError extends Error {
+  constructor() {
+    super('会话说明过长，此会话暂时不可用。已保存的网站和版本仍可查看，完整检查问题仍保留；请联系维护者处理会话记录。');
+    this.name = 'AlignmentTextTooLongError';
+  }
+}
+
 export function normalizeAlignmentSnapshot(raw: unknown): AlignmentSnapshot {
   if (raw == null || (typeof raw === "object" && !Array.isArray(raw) && Object.keys(raw as object).length === 0)) {
     return disabledAlignment();
   }
   const parsed = alignmentSnapshotSchema.safeParse(raw);
-  if (!parsed.success) throw new Error("Invalid alignment snapshot");
+  if (!parsed.success) {
+    if (parsed.error.issues.every(issue => issue.code === 'too_big' && issue.origin === 'string')) {
+      throw new AlignmentTextTooLongError();
+    }
+    throw new Error("Invalid alignment snapshot");
+  }
   const value = parsed.data;
   return {
     enabled: value.enabled,
@@ -1031,6 +1043,8 @@ export function applyRunError(snapshot: AlignmentSnapshot, args: { runId: string
 }
 
 export function applyCommittedResult(snapshot: AlignmentSnapshot, result: RecordedResult): AlignmentSnapshot {
+  const recorded = { ...result, ...(typeof result.summary === 'string'
+    ? { summary: clipAlignmentText(result.summary, MAX_ALIGNMENT_SUMMARY_CHARS) } : {}) };
   return {
     ...snapshot,
     // Once the confirmed plan is on the draft the full interview is over; later edits go through
@@ -1042,8 +1056,8 @@ export function applyCommittedResult(snapshot: AlignmentSnapshot, result: Record
     pendingRequest: null,
     confirmClaimed: true,
     inflightRunId: null,
-    lastResult: result,
-    history: pushHistory(snapshot, { action: "committed", summary: result.summary }),
+    lastResult: recorded,
+    history: pushHistory(snapshot, { action: "committed", summary: recorded.summary }),
   };
 }
 

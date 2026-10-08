@@ -5,7 +5,7 @@ import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecor
 import { planSiteCode, selectCodeReferences, writeSiteCode, codeModelCalls } from './code-site-model.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
-import { AlignmentActionError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
+import { AlignmentActionError, AlignmentTextTooLongError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
 import { getExistingSite } from './site-store.ts';
 
 const requestSchema = z.object({
@@ -16,9 +16,17 @@ const requestSchema = z.object({
 });
 const active = (globalThis as typeof globalThis & { __codeRuns?: Set<string> }).__codeRuns ??= new Set<string>();
 export async function codeWorkspaceState(site: CodeSiteRecord) {
-  const conversation = await getConversation(site.siteId, site.conversationId);
-  return { codeSite: site, conversationId: site.conversationId,
-    alignment: conversation ? publicAlignmentView(conversation.alignment) : null, turns: conversation?.turns ?? [] };
+  try {
+    const conversation = await getConversation(site.siteId, site.conversationId);
+    return { codeSite: site, conversationId: site.conversationId,
+      alignment: conversation ? publicAlignmentView(conversation.alignment) : null, turns: conversation?.turns ?? [] };
+  } catch (error) {
+    if (!(error instanceof AlignmentTextTooLongError)) throw error;
+    // The existing conversation remains untouched and unavailable. Materials,
+    // runs and checked versions belong to the site and can still be viewed.
+    return { codeSite: site, conversationId: site.conversationId,
+      alignment: null, turns: [], conversationError: error.message };
+  }
 }
 function styleQuestion(epoch: number): CurrentQuestion {
   return { questionId: `code-style-${crypto.randomUUID()}`, questionRevision: epoch + 1, kind: 'style',
@@ -108,7 +116,9 @@ async function execute(siteId: string, runId: string) {
       await runStep(siteId, runId, { status: 'complete', step: summary, versionId: committed.version.id });
       return;
     }
-    if (round === 2) throw new Error(`两轮修正后仍未通过：${committed.checks.issues.join('；')}。本次未保存版本。`);
+    // Full issues and all candidates were persisted above. Conversation copy
+    // is a short explanation, not another archive of the entire refusal.
+    if (round === 2) throw new Error('两轮修正后仍未通过底线检查，未保存版本。请查看完整问题，补充资料或调整要求后重试。');
     await runStep(siteId, runId, { step: `底线检查未过，交回模型修正（${round + 1}/2）`, repairRound: round + 1 });
     result = await writeSiteCode({ materials, preferences: site.preferences, plan: site.plan, images,
       request: run.request, current: committed.code, issues: committed.checks.issues, references });
@@ -120,6 +130,8 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
   let site = (await getCodeSite(siteId))!; const input = parsed.data;
   try {
     if (input.action === 'state') {
+      const state = await codeWorkspaceState(site);
+      if (state.conversationError) return Response.json(state);
       // Refreshes observe the existing job. A stopped process is reported; it never repeats a model call.
       if (site.run?.status === 'running' && !active.has(site.run.id)) {
         site = await runStep(siteId, site.run.id, { status: 'error', step: '生成进程已中断，本次未完成；请重新提交要求。' });
