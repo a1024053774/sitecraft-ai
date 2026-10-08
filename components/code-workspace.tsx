@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, FileText, Image as ImageIcon, LoaderCircle, RotateCcw, Send } from 'lucide-react';
+import { ArrowLeft, Check, FileText, History, Image as ImageIcon, LoaderCircle, RotateCcw, Send } from 'lucide-react';
 import Papa from 'papaparse';
 import readXlsxFile from 'read-excel-file';
 import type { CodeSiteRecord, CodePreferences } from '@/lib/code-site';
 import type { AlignmentPublicView } from '@/lib/alignment';
 import type { ConversationTurn } from '@/lib/conversation-store';
 import { simulatedPackList } from '@/lib/simulated-packs';
+import { CodeVersionHistory } from './code-version-history';
 
 export type CodeWorkspacePayload = { codeSite: CodeSiteRecord; alignment: AlignmentPublicView | null; turns: ConversationTurn[] };
 export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: CodeWorkspacePayload }) {
@@ -20,6 +21,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [category, setCategory] = useState('product'), [license, setLicense] = useState('user-provided');
   const [sourceUrl, setSourceUrl] = useState(''), [licenseUrl, setLicenseUrl] = useState(''), [author, setAuthor] = useState(''), [attribution, setAttribution] = useState('');
   const [previewReady, setPreviewReady] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const stage = useRef<HTMLDivElement>(null), [availableWidth, setAvailableWidth] = useState(1000);
   useEffect(() => {
     if (!stage.current) return;
@@ -98,7 +100,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const alignment = state.alignment;
   return <div className={`builder-shell workspace-theme-light workspace-accent-porcelain code-workspace pane-${pane}`} data-testid="code-workspace">
     <header className="preview-toolbar workspace-topbar">
-      <div className="preview-toolbar-left"><Link href="/" className="topbar-back" aria-label="返回站点"><ArrowLeft size={17} /></Link><strong className="project-name">{site.name}</strong><span className="save-status">{running ? <LoaderCircle size={12} className="spin" /> : <Check size={12} />}{version ? `版本 ${version.revision}` : '尚未生成'}</span></div>
+      <div className="preview-toolbar-left"><Link href="/" className="topbar-back" aria-label="返回站点"><ArrowLeft size={17} /></Link><strong className="project-name">{site.name}</strong><span className="save-status">{running ? <LoaderCircle size={12} className="spin" /> : <Check size={12} />}{version ? `版本 ${version.revision}` : '尚未生成'}</span><button className="icon-button" aria-label="版本历史" title="版本历史" onClick={() => setHistoryOpen(true)} data-testid="open-version-history"><History size={17} /></button></div>
       <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">{['chat', 'preview'].map(p => <button key={p} role="tab" aria-selected={pane === p} className={pane === p ? 'active' : ''} onClick={() => setPane(p)}>{p === 'chat' ? '对话' : '预览'}</button>)}</div>
       <div className="topbar-tools"><div className="device-toggle" aria-label="预览宽度">{[1440, 768, 375].map(w => <button key={w} aria-pressed={width === w} className={width === w ? 'active' : ''} onClick={() => setWidth(w)}>{w}</button>)}</div><button className="icon-button" aria-label="撤销" disabled={busy || site.versions.length < 2} onClick={() => void undo()}><RotateCcw size={16} /></button></div>
     </header>
@@ -131,5 +133,6 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         <form className="code-chat-form" onSubmit={e => void submit(e)}><label className="sr-only" htmlFor="code-message">公司资料或修改要求</label><textarea id="code-message" data-testid="code-message" value={input} maxLength={4000} onChange={e => setInput(e.target.value)} placeholder={version ? '例如：首屏换成深色，保留其他内容' : '粘贴公司资料，说明希望访客做什么'} disabled={busy} rows={4} /><button className="primary-button" type="submit" disabled={busy || !input.trim()}><Send size={14} />{version ? '发送修改' : '发送资料'}</button></form>
       </div>
     </aside>
+    {historyOpen && <CodeVersionHistory site={site} busy={!!busy} onUpdate={setState} onClose={() => setHistoryOpen(false)} />}
   </div>;
 }

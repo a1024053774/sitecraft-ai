@@ -51,6 +51,16 @@ export async function updateCodeSite(id: string, update: (site: Readonly<CodeSit
     await write(site); return site;
   });
 }
+export async function nameCodeVersion(siteId: string, versionId: string, name: string) {
+  return locked(siteId, async () => {
+    const site = await getCodeSite(siteId);
+    const version = site?.versions.find(version => version.id === versionId);
+    if (!site || !version) return null;
+    // The snapshot, revision, request and checks remain immutable; only its label changes.
+    if (name) version.name = name; else delete version.name;
+    await write(site); return site;
+  });
+}
 export async function commitSiteCode(args: {
   siteId: string; baseRevision: number; code?: SiteCode; restoreVersionId?: string;
   author: CodeVersion['author']; summary: string; request: string; model?: string;
