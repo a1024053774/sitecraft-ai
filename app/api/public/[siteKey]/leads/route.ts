@@ -2,6 +2,8 @@ import { z } from "zod";
 import { createLead, LeadStoreError } from "@/lib/lead-store";
 import { deliverLeadNotification } from "@/lib/smtp";
 import { userErrorPayload } from "@/lib/user-errors";
+import { getCodeSite } from '@/lib/code-site-store';
+import { escapeCodeText } from '@/lib/code-site';
 
 export const runtime = "nodejs";
 
@@ -27,7 +29,10 @@ export async function POST(
   { params }: { params: Promise<{ siteKey: string }> },
 ) {
   const { siteKey } = await params;
-  const parsed = leadSchema.safeParse(await request.json().catch(() => null));
+  const htmlForm = request.headers.get('content-type')?.includes('application/x-www-form-urlencoded') === true;
+  if (htmlForm && !await getCodeSite(siteKey)) return Response.json(userErrorPayload({ code: 'lead_invalid' }), { status: 400 });
+  const input = htmlForm ? Object.fromEntries(await request.formData()) : await request.json().catch(() => null);
+  const parsed = leadSchema.safeParse(input);
   if (!parsed.success) {
     return Response.json(userErrorPayload({ code: "lead_invalid" }), { status: 400 });
   }
@@ -49,6 +54,7 @@ export async function POST(
       company: lead.company,
       message: lead.message,
     });
+    if (htmlForm) return new Response(`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>询盘已保存</title><body><main><h1>询盘已保存</h1><p>${delivery.status === 'sent' ? '询盘已发送。' : '留言已写入收件箱。'}</p><a href="/api/sites/${escapeCodeText(siteKey)}/code-preview?page=contact">返回联系页</a></main></body></html>`, { status: 201, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; script-src 'none'", 'Cache-Control': 'no-store' } });
     return Response.json(
       {
         id: lead.id,

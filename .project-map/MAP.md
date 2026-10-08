@@ -9,7 +9,7 @@
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-049](tickets/T-049-roles-2026-09-29.md)，取代 T-033）：负责人只定方向和需求。Claude 规划、验收、整合推送；Codex（`codex-build` 等）和 Sonnet 5.5 子 agent 执行（Kiro 2026-10-01 起不再使用）；Codex Astra 审代码；Codex gpt-6.1-sol 盲评；Grok 做杂活；云端会话在 `cloud/*` 分支做票。
-- 现状（2026-10-07）：旧路线（区块库 + adapter + 白名单 operation，T-048 起）仍在代码里运行，盲评两种口径都未过（T-110）。负责人决定换路线（T-127），第一批票 T-128（最小闭环）→ T-129（版本面板）∥ T-130（评估集）。旧路线逐轮记录见 [plan-history.md](../docs/project/plan-history.md)，只供追溯。
+- 现状（2026-10-07）：新建站点已有 T-128 新路线实现候选，执行证据与未完成验收见该票；旧站点仍走区块库 + adapter + 白名单 operation，盲评两种口径都未过（T-110）。负责人决定换路线（T-127），第一批票 T-128（最小闭环）→ T-129（版本面板）∥ T-130（评估集）。旧路线逐轮记录见 [plan-history.md](../docs/project/plan-history.md)，只供追溯。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 
@@ -72,9 +72,9 @@
 | Doc | Covers | Verified |
 | --- | --- | --- |
 | [AGENTS.md](../AGENTS.md) | `package.json`, `scripts/check-published.mjs`, `scripts/published-capture.mjs`, block-library preview path | 6c0d747 |
-| [CONTEXT.md](../CONTEXT.md) | `lib/site-document.ts`, `lib/site-operations.ts`, `lib/alignment.ts`, `lib/template-adapters/types.ts`, block-library preview path, history/quality block variants | 6c0d747 |
+| [CONTEXT.md](../CONTEXT.md) | `lib/site-document.ts`, `lib/site-operations.ts`, `lib/alignment.ts`, `lib/template-adapters/types.ts`, `lib/code-site*.ts`, block-library preview path, history/quality block variants | 6c0d747 |
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**` | |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-00[1-9]-*.md`, `.project-map/tickets/T-01[0-4]-*.md` | |
-| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/types.ts`, `lib/template-adapters/registry.ts`, `lib/frontend-tone.ts`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | 65ba3d5 |
-| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/(workspace)/**`, `app/api/**`, `tests/helpers/workspace-browser.ts`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | 65ba3d5 |
+| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/types.ts`, `lib/template-adapters/registry.ts`, `lib/frontend-tone.ts`, `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | 65ba3d5 |
+| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `tests/helpers/workspace-browser.ts`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | 65ba3d5 |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | 00a083e |

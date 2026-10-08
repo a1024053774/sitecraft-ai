@@ -1188,3 +1188,35 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 720px) {
   .quality-grid { grid-template-columns: 1fr; }
 }
+/* T-128 uses the existing workbench surface, with a script-free site-code preview. */
+.code-workspace-loading { padding: 48px; font-size: 16px; }
+.code-workspace .code-preview-stage { padding: 12px; }
+.code-preview-canvas { position: relative; flex-shrink: 0; background: #fff; border: 1px solid var(--ws-line); }
+.code-preview-canvas iframe { display: block; border: 0; transform-origin: top left; }
+.code-preview-loading { position: absolute; inset: 0; display: grid; place-items: center; background: #fff; color: #333; }
+.code-empty { padding: 32px; color: #333; }
+.code-empty p { max-width: 30em; line-height: 1.7; }
+.code-workspace .message-bubble { overflow-wrap: anywhere; white-space: pre-wrap; }
+.code-workspace .message.user .message-bubble { max-height: 180px; overflow: auto; }
+.code-workspace .alignment-panel { flex-shrink: 0; }
+.code-workspace .alignment-panel ol { padding-left: 20px; }
+.code-workspace .alignment-panel p { line-height: 1.65; }
+.code-style-options { display: grid; gap: 10px; margin: 16px 0; }
+.code-style-options label { display: flex; gap: 8px; align-items: start; }
+.code-style-options small { display: block; color: var(--ws-muted); margin-top: 3px; }
+.code-slider { display: block; margin: 16px 0; font-size: 13px; }
+.code-slider input { display: block; width: 100%; accent-color: var(--ws-accent); }
+.code-slider output { float: right; }
+.code-material-tools { display: flex; gap: 8px; margin-bottom: 8px; }
+.code-material-tools button, .code-pack-list button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid var(--ws-line); background: var(--ws-raised); font-size: 12px; border-radius: 4px; }
+.code-pack-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.code-upload-panel { max-height: 280px; overflow: auto; padding: 12px; border: 1px solid var(--ws-line); margin-bottom: 12px; font-size: 12px; }
+.code-upload-panel label { display: block; margin-bottom: 10px; }
+.code-upload-panel input, .code-upload-panel select { display: block; width: 100%; min-width: 0; margin-top: 5px; padding: 6px; border: 1px solid var(--ws-line); background: var(--ws-sunken); }
+.code-upload-panel p { overflow-wrap: anywhere; }
+.code-chat-form { display: grid; gap: 8px; }
+.code-chat-form textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 10px; font: inherit; font-size: 14px; min-height: 96px; border: 1px solid var(--ws-line); border-radius: 4px; background: var(--ws-sunken); }
+.code-chat-form .primary-button { justify-self: end; }
+.code-error { color: var(--ws-error-text); background: var(--ws-error-bg); padding: 10px; white-space: pre-wrap; }
+.code-check-receipt { font-size: 12px; line-height: 1.7; color: var(--ws-muted); overflow-wrap: anywhere; }
+@media (max-width: 600px) { .code-chat-form textarea, .code-upload-panel input, .code-upload-panel select { font-size: 16px; } .code-workspace .topbar-tools { gap: 4px; } .code-empty { padding: 16px; } }

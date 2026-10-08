@@ -3,11 +3,14 @@ import { commitOperations, createSite, listExistingSites, snapshot } from "@/lib
 import { templates } from "@/lib/site-model";
 import { visualBriefCatalog } from "@/lib/site-document";
 import { userErrorPayload } from "@/lib/user-errors";
+import { createCodeSite } from "@/lib/code-site-store";
+import { createConversation } from "@/lib/conversation-store";
 
 const createSiteSchema = z.object({
   name: z.string().min(1).max(100),
   templateId: z.string().refine((id) => templates.some((template) => template.id === id)),
   locales: z.array(z.enum(["zh", "en"])).min(1),
+  generationRoute: z.literal('code').optional(),
 });
 
 export async function POST(request: Request) {
@@ -15,6 +18,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
   const id = crypto.randomUUID();
   const initial = await createSite(id);
+  if (parsed.data.generationRoute === 'code') {
+    const conversation = await createConversation(id);
+    const codeSite = await createCodeSite(id, parsed.data.name, conversation.conversationId);
+    return Response.json({ id, ...initial, codeSite, conversationId: conversation.conversationId }, { status: 201 });
+  }
   const brief = visualBriefCatalog.find((item) => item.templateId === parsed.data.templateId);
   if (!brief) return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 400 });
   const seeded = await commitOperations({
