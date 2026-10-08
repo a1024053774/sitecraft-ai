@@ -16,7 +16,7 @@
 
 2026-10-07 起（[T-127](../../.project-map/tickets/T-127-route-model-writes-site.md)）：**流程固定，内容放开。**
 
-已合并的 [T-128](../../.project-map/tickets/T-128-new-route-tracer.md) 提供中文站点代码、底线检查、完整版本、对话修改与撤销、刷新恢复。[T-129](../../.project-map/tickets/T-129-version-history-panel.md) 实现版本面板、命名、指定版本恢复和对话旧版上下文，真实模型验收受 HTTP 402 阻塞，独立审查待主控安排。截图打磨、模板味检测、批注与英文版仍是后续范围；实现细节见 [spec.md](./spec.md) 第 4 节。
+已合并的 [T-128](../../.project-map/tickets/T-128-new-route-tracer.md) 提供中文站点代码、底线检查、完整版本、对话修改与撤销、刷新恢复。[T-129](../../.project-map/tickets/T-129-version-history-panel.md) 的版本面板、命名、指定版本恢复与模型结构化参考路径已合并，Astra 复审通过；真实恢复已按主控明确的范围验收通过：用户未限定页面的“产品区”包括首页产品入口，产品区外保持。点名页面时仅该页的指定区域可改。截图打磨、模板味检测、批注与英文版仍是后续范围；实现细节见 [spec.md](./spec.md) 第 4 节。
 
 1. **生成层**：模型直接写站点代码：每页一份 HTML、公共页头页脚、一份 CSS。版式、结构、文案按资料和风格决定。
    - **核心规范**每次加载：读懂公司和访客、事实只来自资料、版式不重复、图片跟内容走、色彩字体纪律、文案口吻、技术底线。来源：taste-skill（MIT）、Impeccable 的 craft floor（Apache-2.0）、本项目两份去 AI 味 skill、历次盲评的反面清单。

@@ -39,7 +39,7 @@ function promptData<T>(prompt: string, marker: string): T | null {
   return at < 0 ? null : JSON.parse(prompt.slice(at + marker.length).split('\n')[0]);
 }
 let writerInputs: string[] = [], selectorInputs: Array<{ request: string; currentRevision: number; versions: Array<Record<string, unknown>> }> = [];
-let selection: number[] = [], rejectAudit = false, repairOnce = false;
+let selection: unknown[] = [], rejectAudit = false, repairOnce = false;
 const server = createServer(async (req, res) => {
   if (req.url === '/') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
@@ -244,4 +244,21 @@ test('a nonexistent model-declared reference fails visibly before writing or com
   assert.deepEqual(after.versions, before.versions);
   const { turns } = await (await import('../lib/code-site-workflow.ts')).codeWorkspaceState(after);
   assert.equal(turns.at(-1)!.outcome, 'error'); assert.match(turns.at(-1)!.aiSummary, /999.*不存在/);
+});
+test('illegal model reference numbers fail with a short Chinese message and never reach writing', async () => {
+  for (const invalid of [0, -1, 1.5, '3']) {
+    const before = (await getCodeSite(id))!; selection = [invalid]; selectorInputs = []; writerInputs = []; repairOnce = false;
+    const response = await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '把产品区改回第 3 版那样', baseRevision: before.versions.length }), context(id));
+    assert.equal(response.status, 202); await scheduled.shift()!();
+    const after = (await getCodeSite(id))!;
+    assert.equal(after.run!.status, 'error');
+    assert.match(after.run!.step, /参考版本编号.*无效/);
+    assert.match(after.run!.step, /未保存版本/);
+    assert.ok(after.run!.step.length <= 60, 'the user sees one short explanation');
+    assert.doesNotMatch(after.run!.step, /referenceRevisions|invalid_type|too_small|expected|\n/i);
+    assert.equal(selectorInputs.length, 1); assert.equal(writerInputs.length, 0);
+    assert.equal(after.currentVersionId, before.currentVersionId); assert.deepEqual(after.versions, before.versions);
+    const { turns } = await (await import('../lib/code-site-workflow.ts')).codeWorkspaceState(after);
+    assert.equal(turns.at(-1)!.outcome, 'error'); assert.equal(turns.at(-1)!.aiSummary, after.run!.step);
+  }
 });

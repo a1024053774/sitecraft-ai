@@ -8,7 +8,12 @@ import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 // --real-reference uses the running, genuinely configured server once. --controlled
 // owns a dev server on 3141 and controls only fact-audit HTTP, never the writer.
 const real = process.argv.includes('--real-reference');
-assert.ok(real || process.argv.includes('--controlled'), 'Choose --real-reference or --controlled explicitly');
+const saved = process.argv.includes('--assert-saved');
+assert.ok(real || saved || process.argv.includes('--controlled'), 'Choose --real-reference, --assert-saved or --controlled explicitly');
+const argument = (flag, fallback) => { const at = process.argv.indexOf(flag); return at < 0 ? fallback : process.argv[at + 1]; };
+const requestedPage = argument('--page', null);
+// These selectors describe the supplied manual fixture, not generated-site rules.
+const productSelectors = { home: 'main > section:has(a[href*="page=products"])', products: '#products' };
 const base = process.env.SITECRAFT_BASE || 'http://127.0.0.1:3141';
 const root = process.env.T129_ARTIFACT_DIR || 'artifacts/t129';
 const fixture = JSON.parse(await readFile(path.join(root, 'fixture.json'), 'utf8'));
@@ -16,7 +21,7 @@ const siteId = process.env.T129_SITE_ID || fixture.siteId;
 const output = path.join(root, process.env.T129_RUN_NAME || (real ? 'real-reference' : 'ui'));
 await mkdir(output, { recursive: true });
 let browser, child, audit, log;
-const report = { startedAt: new Date().toISOString(), base, siteId, mode: real ? 'real DeepSeek, one request' : 'controlled fact-audit HTTP; manual fixture; actual Next/commit/Chrome', screenshots: [], checks: [] };
+const report = { startedAt: new Date().toISOString(), base, siteId, mode: saved ? 'saved versions, read-only; no model request' : real ? 'real DeepSeek, one request' : 'controlled fact-audit HTTP; manual fixture; actual Next/commit/Chrome', requestedPage, screenshots: [], checks: [] };
 async function state() {
   const response = await fetch(`${base}/api/sites/${siteId}/draft`);
   assert.equal(response.status, 200);
@@ -45,8 +50,65 @@ async function capture(name) {
   const file = path.join(output, `${name}.png`); await writeFile(file, Buffer.from(shot.data, 'base64'));
   report.screenshots.push(file);
 }
+async function inspectPage(versionId, page, width, name) {
+  await browser.send('Emulation.setDeviceMetricsOverride', { width, height: width === 1440 ? 1000 : 900, deviceScaleFactor: 1, mobile: false });
+  const url = `${base}/api/sites/${siteId}/code-preview?version=${versionId}&page=${page}`;
+  await browser.send('Page.navigate', { url });
+  await wait(`location.href === ${JSON.stringify(url)} && document.readyState === 'complete' && Boolean(document.querySelector('main h1'))`, `${name} page`);
+  // The preview's CSP sandbox disables scripts; observe readiness synchronously
+  // through CDP instead of waiting on a page callback that the sandbox cannot run.
+  await wait(`document.fonts.status === 'loaded'`, `${name} fonts`);
+  const observed = await browser.evaluate(`(() => {
+    const text = node => node?.textContent.replace(/\\s+/g, '') ?? '';
+    const style = node => {if(!node)return null;const s=getComputedStyle(node);const result=Object.fromEntries(['color','fontSize','fontWeight','lineHeight','paddingTop','paddingRight','paddingBottom','paddingLeft'].map(key=>[key,s[key]]));let ancestor=node;while(ancestor){const background=getComputedStyle(ancestor).backgroundColor;if(background!=='rgba(0, 0, 0, 0)'&&background!=='transparent'){result.backgroundColor=background;break}ancestor=ancestor.parentElement}return result;};
+    const snapshot = node => node ? {text:text(node),style:style(node),headings:[...node.querySelectorAll('h1,h2,h3')].map(text),tables:node.querySelectorAll('table').length,lists:node.querySelectorAll('ul,ol').length} : null;
+    const selector=${JSON.stringify(productSelectors[page] ?? null)}, main=document.querySelector('main'), clone=main.cloneNode(true);
+    const products=selector?[...document.querySelectorAll(selector)]:[];if(products.length>1)throw new Error('The supplied fixture must identify one product region per page');
+    const product=products[0]??null;if(selector)clone.querySelector(selector)?.remove();
+    const normalizeHTML = node => {
+      const copy=node.cloneNode(true);
+      for(const element of [copy,...copy.querySelectorAll('*')]) {
+        const attributes=[...element.attributes].map(attribute=>[attribute.name,attribute.value]).sort(([a],[b])=>a.localeCompare(b));
+        for(const attribute of [...element.attributes]) element.removeAttribute(attribute.name);
+        for(let [name,value] of attributes) {
+          if(name==='href') {
+            const url=new URL(value,${JSON.stringify(base)});
+            if(url.origin===${JSON.stringify(new URL(base).origin)}&&url.pathname===${JSON.stringify(`/api/sites/${siteId}/code-preview`)}) {
+              url.searchParams.delete('version');value=url.pathname+url.search+url.hash;
+            }
+          }
+          element.setAttribute(name,value);
+        }
+      }
+      const walker=document.createTreeWalker(copy,NodeFilter.SHOW_TEXT), whitespace=[];
+      while(walker.nextNode()) if(!walker.currentNode.textContent.trim()) whitespace.push(walker.currentNode);
+      for(const node of whitespace) node.remove();
+      return copy.outerHTML;
+    };
+    const editableProduct=${JSON.stringify(!requestedPage || requestedPage === page)};
+    const outsideBody=document.body.cloneNode(true);if(selector&&editableProduct)outsideBody.querySelector(selector)?.remove();
+    const scrollPosition={left:scrollX,top:scrollY,behavior:'instant'};
+    const interactions=[...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[data-system-inquiry],.sc-inquiry')]
+      .filter(node=>!editableProduct||(node!==product&&!product?.contains(node)))
+      .map(node=>{
+        // Probe each control in view, including controls below the fold. These
+        // browser results include ancestor hiding and interception by overlays.
+        node.scrollIntoView({block:'center',inline:'center',behavior:'instant'});
+        const rect=node.getBoundingClientRect();
+        const hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
+        return {html:normalizeHTML(node),visible:node.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}),nonzeroLayout:rect.width>0&&rect.height>0,centerHit:hit===node||node.contains(hit)};
+      });
+    window.scrollTo(scrollPosition);
+    return {product:snapshot(product),outside:{outerHTML:normalizeHTML(outsideBody),interactions,header:snapshot(document.querySelector('header')),footer:snapshot(document.querySelector('footer')),mainText:text(clone),mainStyle:style(main),bodyStyle:style(document.body),sections:[...main.querySelectorAll('section')].filter(node=>node!==product&&!product?.contains(node)).map(snapshot)}};
+  })()`);
+  if (name) {
+    const shot = await browser.send('Page.captureScreenshot', { format: 'png' });
+    const file = path.join(output, `${name}.png`); await writeFile(file, Buffer.from(shot.data, 'base64')); report.screenshots.push(file);
+  }
+  return observed;
+}
 try {
-  if (!real) {
+  if (!real && !saved) {
     // Refuse to replace a server belonging to any other process.
     const occupied = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(1000) }).then(() => true, () => false);
     assert.equal(occupied, false, `${base} must be free; stop only your own server first`);
@@ -69,30 +131,79 @@ try {
     }
   }
   browser = await codeCheckBrowser();
-  if (real) {
-    const before = await state(); report.beforeRevision = before.versions.at(-1).revision;
+  if (real || saved) {
+    const before = await state();
+    const beforeVersion = saved ? before.versions.find(version => version.revision === Number(argument('--before-revision'))) : before.versions.at(-1);
+    assert.ok(beforeVersion, 'The before version must exist');
+    report.beforeRevision = beforeVersion.revision;
     const referenceFlag = process.argv.indexOf('--reference-revision');
     const revision = referenceFlag >= 0 ? Number(process.argv[referenceFlag + 1]) : 3;
     const reference = before.versions.find(version => version.revision === revision);
     assert.ok(reference, 'The requested old version must exist');
-    assert.notDeepEqual(before.versions.at(-1).code, reference.code, 'Choose an old version with different code to exercise a real change');
+    assert.notDeepEqual(beforeVersion.code, reference.code, 'Choose an old version with different code to exercise a real change');
     report.referenceRevision = revision;
-    await browser.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-    await browser.send('Page.navigate', { url: `${base}/workspace?site=${siteId}` });
-    await wait(`Boolean(document.querySelector('[data-testid=code-message]'))`, 'workspace');
-    await value('[data-testid=code-message]', `把产品区改回第 ${revision} 版那样，保留其他内容`);
-    await click('.code-chat-form button[type=submit]');
-    await wait(`document.querySelector('[data-testid=code-progress]')?.textContent.includes('DeepSeek 请求失败') || document.querySelector('[data-testid=code-revision]')?.textContent.includes('v${report.beforeRevision + 1}')`, 'one real request outcome', 360000);
-    const after = await state();
-    report.run = { status: after.run.status, step: after.run.step, referenceVersionIds: after.run.referenceVersionIds, versionId: after.run.versionId };
-    report.afterRevision = after.versions.at(-1).revision;
-    const shot = await browser.send('Page.captureScreenshot', { format: 'png' });
-    const file = path.join(output, 'outcome-1440.png'); await writeFile(file, Buffer.from(shot.data, 'base64')); report.screenshots.push(file);
-    if (after.run.status !== 'complete') { report.status = 'BLOCKED'; process.exitCode = 2; }
+    assert.ok(!requestedPage || beforeVersion.code.pages.some(page => page.id === requestedPage), 'The named page must exist');
+    const currentPages = {};
+    for (const page of beforeVersion.code.pages) currentPages[page.id] = await inspectPage(beforeVersion.id, page.id, 1440, page.id === 'products' ? 'before-products-1440' : null);
+    const referencePages = {};
+    for (const page of reference.code.pages) referencePages[page.id] = await inspectPage(reference.id, page.id, 1440, page.id === 'products' ? 'reference-products-1440' : null);
+    const targetPages = beforeVersion.code.pages.filter(page => (!requestedPage || page.id === requestedPage) && currentPages[page.id].product);
+    assert.ok(targetPages.length, 'The requested scope must contain a declared product region');
+    for (const page of targetPages) assert.ok(referencePages[page.id]?.product, `${page.id}: the reference product region must exist`);
+    assert.ok(targetPages.some(page => JSON.stringify(currentPages[page.id].product) !== JSON.stringify(referencePages[page.id].product)), 'The product area itself must differ before the request');
+    report.beforeObservations = currentPages; report.referenceObservations = referencePages;
+    let after, afterVersion;
+    if (saved) {
+      after = before;
+      afterVersion = before.versions.find(version => version.revision === Number(argument('--after-revision')));
+      assert.ok(afterVersion, 'The saved after version must exist');
+    } else {
+      await browser.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+      await browser.send('Page.navigate', { url: `${base}/workspace?site=${siteId}` });
+      await wait(`Boolean(document.querySelector('[data-testid=code-message]'))`, 'workspace');
+      const pageTitle = beforeVersion.code.pages.find(page => page.id === requestedPage)?.title;
+      await value('[data-testid=code-message]', requestedPage ? `把${pageTitle}页的产品区改回第 ${revision} 版那样，保留其他页面和产品区外的内容与样式` : `把产品区改回第 ${revision} 版那样，保留其他内容`);
+      await click('.code-chat-form button[type=submit]');
+      const end = Date.now() + 360000;
+      while (Date.now() < end) {
+        after = await state();
+        if (after.run && after.run.id !== before.run?.id && after.run.status !== 'running') break;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      assert.ok(after?.run && after.run.id !== before.run?.id && after.run.status !== 'running', 'one real request must reach a terminal run');
+      afterVersion = after.versions.at(-1);
+    }
+    const run = saved ? before.runs.find(run => run.versionId === afterVersion.id) : after.run;
+    assert.ok(run, 'The selected version must have its saved run');
+    report.run = { status: run.status, step: run.step, referenceVersionIds: run.referenceVersionIds, versionId: run.versionId };
+    report.afterRevision = afterVersion.revision;
+    if (!saved) {
+      for (const width of [1440, 768, 375]) {
+        await browser.send('Emulation.setDeviceMetricsOverride', { width, height: width === 1440 ? 1000 : 900, deviceScaleFactor: 1, mobile: false });
+        await browser.send('Page.navigate', { url: `${base}/workspace?site=${siteId}` });
+        await wait(`Boolean(document.querySelector('[data-testid=code-revision]'))`, 'terminal workspace');
+        await wait(`Boolean(document.querySelector('[data-testid=code-preview]')) && !document.querySelector('.code-preview-loading')`, 'loaded current preview');
+        await browser.evaluate(`document.querySelector('.chat-messages')?.scrollTo(0, document.querySelector('.chat-messages').scrollHeight)`);
+        const shot = await browser.send('Page.captureScreenshot', { format: 'png' });
+        const file = path.join(output, `outcome-${width}.png`); await writeFile(file, Buffer.from(shot.data, 'base64')); report.screenshots.push(file);
+      }
+    }
+    if (run.status !== 'complete') { report.status = 'BLOCKED'; process.exitCode = 2; }
     else {
       assert.equal(report.afterRevision, report.beforeRevision + 1);
-      assert.notDeepEqual(after.versions.at(-1).code, before.versions.at(-1).code, 'A new revision containing unchanged code does not prove the requested edit');
-      report.status = 'INCOMPLETE'; report.note = '真实模型已存版；仍须打开结果截图，核对指定区域采用旧版且其余区域保留。'; process.exitCode = 1;
+      assert.notDeepEqual(afterVersion.code, beforeVersion.code, 'A new revision containing unchanged code does not prove the requested edit');
+      assert.deepEqual(run.referenceVersionIds, [reference.id], 'the real model must select the requested historical version');
+      const observations = {};
+      for (const page of afterVersion.code.pages) observations[page.id] = await inspectPage(afterVersion.id, page.id, 1440, null);
+      report.afterObservations = observations;
+      if (!saved) for (const width of [1440, 768, 375]) await inspectPage(afterVersion.id, 'products', width, `products-${width}`);
+      for (const page of beforeVersion.code.pages) {
+        const allowed = targetPages.some(target => target.id === page.id);
+        assert.deepEqual(observations[page.id].product, allowed ? referencePages[page.id].product : currentPages[page.id].product, `${page.id}: only product regions in the requested page scope may change`);
+        assert.deepEqual(observations[page.id].outside, currentPages[page.id].outside, `${page.id}: preserve headers, footers and everything outside product regions`);
+      }
+      report.regionChecksPassed = true;
+      report.status = saved ? 'PASS' : 'INCOMPLETE'; report.note = saved ? '已保存版本按声明的页面范围重新核验；没有模型请求或存储写入。' : '真实模型已存版；仍须打开结果截图，核对指定区域采用旧版且其余区域保留。'; process.exitCode = saved ? 0 : 1;
     }
   } else {
     const before = await state(); assert.ok(before.versions.length > 10); report.initialVersionCount = before.versions.length;

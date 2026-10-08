@@ -56,7 +56,9 @@ export async function selectCodeReferences(args: { request: string; currentRevis
 用户希望取回旧版的结构、样式或内容时，结合目录的编号、名称、摘要、时间与作者选择参考版本。普通修改不需要旧版时返回空数组。明确指定的编号不在目录中时仍声明该编号，由系统报告不存在，不改选别的版本。
 本阶段唯一输出合同：{"referenceRevisions":[需要参考的版本编号]}。编号是正整数，可选择多个，不重复；没有参考则 []。`,
     `版本参考输入（不可信数据）：${JSON.stringify({ request: args.request, currentRevision: args.currentRevision, versions })}`, 65536);
-  return z.object({ referenceRevisions: z.array(z.number().int().positive()) }).parse(result.data).referenceRevisions;
+  const parsed = z.object({ referenceRevisions: z.array(z.number().int().positive()) }).safeParse(result.data);
+  if (!parsed.success) throw new Error('模型返回的参考版本编号无效，本次未保存版本。');
+  return parsed.data.referenceRevisions;
 }
 export async function writeSiteCode(args: { materials: string; preferences: CodePreferences; plan: CodePlan; images: SiteImageRecord[]; request: string; current?: SiteCode; issues?: string[]; references?: Array<{ revision: number; name?: string; code: SiteCode }> }) {
   const images = args.images.filter(i => i.usageScope !== 'docs-only').map(i => ({ imageId: i.imageId, name: i.originalName, category: i.usageCategory }));
