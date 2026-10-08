@@ -17,7 +17,7 @@ supersedes:
 - [x] 在有 10 个以上版本的站点上：分组切换、预览切换、命名、恢复都在 1440/768/375 截图里看得到并逐张看过
 - [x] 恢复后版本数加一，被恢复内容与旧版本一致，之后的版本仍在列表里
 - [ ] 对话「把某区改回某版本那样」用真实 DeepSeek 跑通一次，结果截图
-- [ ] Astra 代码审查通过；typecheck、test、build 通过
+- [x] Astra 代码审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -59,3 +59,9 @@ supersedes:
 负责人补足 DeepSeek 余额，按原要求 source 主工作区 `.env.local`，在 3141 启动真实配置服务后，运行 `SITECRAFT_BASE=http://127.0.0.1:3141 T129_RUN_NAME=real-funded CHROME_PATH=<指定路径> node --experimental-strip-types scripts/check-version-history.mjs --real-reference --reference-revision 11`，再逐张查看结果，核对产品区采用旧版、其余区域保留。使用第 11 版是因为当前验收站已经完整恢复到第 3 版，第 11 版与当前内容有差异；脚本拒绝相同代码作为有效修改场景。真实存版也只说明调用完成，脚本仍标 INCOMPLETE，直到区域正确性得到实际核对。新输出目录保留原 402 失败证据。Astra 与独立视觉审核由 Claude 安排；本执行者未宣布审美通过。
 
 T-128 已知的 line-height:0 完全重叠与 filter 后对比度限制保持原样，本票未扩大底线检查范围。
+
+### 合并验收（Claude）
+
+Astra：f0035fb NO_GO（正则把型号 V20 当第 20 版，普通修改 400；主控要求改为模型按版本目录结构化声明参考版本）→ 4459c81 收窄复核 PASS（新实例 t129-astra2，2026-10-07 23:42 EDT；独立反例 18/18）。非阻断建议：`lib/code-site-model.ts:59` 模型返回非法编号时 Zod 英文错误直接显示给用户，应转成简短中文——随真实 DeepSeek 补跑一并处理。合并为 52c0df6，主工作区 3034：`npm run typecheck`、`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<指定路径> npm test` 2554/2554、`npm run build` 通过（输出 gitignore 的 `artifacts/merge-52c0df6/`）。
+
+仍未完成：真实 DeepSeek「改回某版」一项因 DeepSeek 返回 HTTP 402（余额不足）未跑；负责人充值后在主工作区运行 Resolution 中的 `scripts/check-version-history.mjs --real-reference` 命令，截图逐张看过后关票。
