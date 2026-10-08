@@ -3,9 +3,9 @@
 内部技术 Demo：用标明为模拟的工业、设备、零部件、外贸 B2B 公司资料，生成**看起来像那家公司自己建的**网站，并能在对话里修改、在预览里看到。
 
 - 工作台（`/workspace`）：资料或一句话需求 → 需求对齐 → 确认方案 → 生成 → 对话修改 / 撤销，预览随时可见。
-- 四个视觉族（明亮产品、工程工业、蓝白目录、灰底短路径）各有色板，由同一个预览引擎渲染；工程工业的页面由 SiteCraft 区块库（`lib/blocks/`）拼出，其余三个用 SiteCraft 自己写的首页 overlay。
+- 新路线先提供精密工程和现场实拍两个风格。旧路线的四个视觉族仍由 SiteCraft 区块库（`lib/blocks/`）渲染。
 - 发布页（`/published/<siteKey>`）与工作台预览用同一份草稿，访客可以提交询盘，询盘进入 `/leads` 收件箱。
-- 运行时模型是 DeepSeek `deepseek-flash`，只产出受控修改（白名单 operation），不写 HTML/CSS。
+- 新路线由 DeepSeek `deepseek-flash` 直接写每页 HTML、公共页头页脚和 CSS，经唯一提交入口检查后存完整版本；工作台支持对话修改、撤销和刷新恢复。旧的区块库/operation 路径仍在，待后续票删除。
 
 项目方向、决定和待办见 [.project-map/MAP.md](./.project-map/MAP.md)，术语见 [CONTEXT.md](./CONTEXT.md)，协作规则见 [AGENTS.md](./AGENTS.md)。
 
@@ -44,7 +44,15 @@ npm run build
 
 `next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
 
-用真实 DeepSeek 生成并复核三个双语测试站点：
+新路线评估集（四家模拟公司 × 两种风格，中文整站）在已配置 DeepSeek、`SITE_STORE=fs` 的本机服务上运行：
+
+```bash
+CHROME_PATH=/path/to/chrome-headless-shell SITECRAFT_BASE=http://127.0.0.1:3142 npm run eval:new-route
+```
+
+输出在 `artifacts/t130/round-<时间>/`：`command.sh` 是可重跑的命令，`private/` 保存底线检查、逐轮拒收率、耗时、用量和匿名映射，`review/mixed/` 与 `review/company/` 是两个互不引用的盲评包，分别交给不同的新评审实例；跨轮比较另在 `comparison-review/`，也单独评阅。每个包都有自己的提示词。不要把其他包、`private/` 或命令一起交给评审。默认和最近同资料轮次比较，亦可加 `-- --previous <上一轮目录>`。失败轮次保留；上游报错不重试，不用假模型替代。`-- --prepare-only` 只准备公开官网对照截图和提示词，不能用作生成验收。本地开发使用默认 Turbopack，例如 `npm run dev -- --hostname 127.0.0.1 --port 3142`。
+
+旧路线的三个双语测试站点命令仍保留：
 
 ```bash
 npm run test:three-sites

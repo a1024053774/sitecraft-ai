@@ -2,7 +2,7 @@ export const WORKSPACE_SITE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 export const DEFAULT_WORKSPACE_SITE_ID = "demo";
 export const MATERIALS_CHAT_LIMIT = 4000;
 
-export type SimulatedPackId = "industrial" | "export" | "molding";
+export type SimulatedPackId = "industrial" | "export" | "molding" | "packaging";
 
 export type SimulatedPack = {
   id: SimulatedPackId;
@@ -151,9 +151,39 @@ export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
       "页面：首页、产品、生产与质检、常见问题、联系；当前模板不支持的独立页面须说明，不得假装已经开通。",
     ].join("\n"),
   },
+  packaging: {
+    id: "packaging", siteId: "p3-packaging", label: "模拟纸包装包", nonce: "P3B-QH6Z",
+    companyName: "青禾纸包装P3B", industry: "纸包装 / 食品与日用品品牌采购",
+    goal: "让采购说明包装尺寸、装载物和订单数量后询价", heroTitle: "纸盒与纸托按装载物设计 P3B-QH6Z",
+    heroSubtitle: "先确认结构和打样，再安排批量印刷。", heroCta: "咨询包装打样", email: "sample@p3b-sim.test",
+    missingFacts: ["客户名单", "认证", "电话", "地址"], extraPagesNote: "首页、包装产品、打样与订购、联系四个独立页面。",
+    body: [
+      "资料性质：模拟。不可当作真实企业。核验记号：P3B-QH6Z。",
+      "公司名：青禾纸包装P3B",
+      "行业：纸包装 / 食品与日用品品牌采购",
+      "公司简介：我们做纸盒和纸浆模塑内托，主要接烘焙、茶叶礼盒和日用品的包装订单。请把纸盒和内托分开介绍，它们的起订量与交期不同；我们没有食品直接接触许可，不接直接接触裸装食品的包装。",
+      "目标：让采购说明包装尺寸、装载物和订单数量后询价。首屏不要写环保认证或食品级。",
+      "首屏可用事实：纸盒与纸托按装载物设计 P3B-QH6Z。",
+      "首屏说明：先确认结构和打样，再安排批量印刷。主按钮：咨询包装打样。",
+      "产品：折叠彩盒；瓦楞运输盒；纸浆模塑内托。",
+      "折叠彩盒规格参数：纸张 白卡纸 250–400 g/m²；印刷 四色胶印；表面处理 水性上光/压纹；结构 插口盒/抽屉盒；用途 已有独立内袋的烘焙礼盒、茶叶礼盒。",
+      "瓦楞运输盒规格参数：楞型 E楞/B楞；印刷 单色/双色水性印刷；结构 飞机盒/对口箱；用途 日用品运输与电商配送。尺寸按装载物确认，没有现成通用尺寸表。",
+      "纸浆模塑内托规格参数：材料 再生纸浆；颜色 本色；用途 玻璃瓶与日用品定位缓冲。只能做内托，不承诺防水或跌落等级。",
+      "加工能力：结构设计；白样打样；胶印；模切；糊盒。设备：四色胶印机 1 台；自动模切机 2 台；糊盒机 1 台。",
+      "订购流程：提供装载物尺寸和数量；确认结构白样；确认印刷文件；生产并检查成品。白样不含印刷颜色，需提供实际装载物或尺寸图。",
+      "MOQ：折叠彩盒 3000 个；瓦楞运输盒 1000 个；纸浆模塑内托 5000 个。",
+      "交期：折叠彩盒和瓦楞运输盒在印刷文件及白样确认后 12–18 天；纸浆模塑内托在模具确认后 20–25 天。白样打样 3–5 天，不包含寄送时间。",
+      "问：已有刀线图能直接生产吗？答：先核对装载物尺寸，确认白样和印刷文件后生产。",
+      "问：能做直接装食品的盒子吗？答：只承接已有独立内袋的食品外包装，不做直接接触裸装食品的包装。",
+      "邮箱：sample@p3b-sim.test",
+      "认证、客户名单、评价、电话、地址：资料未提供。没有授权照片，可以用标明示意的结构图。",
+      "页面：首页、包装产品、打样与订购、联系，四个独立页面。只做中文，英文之后再定。",
+    ].join("\n"),
+  },
+
 };
 
-export const simulatedPackList: SimulatedPack[] = [simulatedPacks.industrial, simulatedPacks.export, simulatedPacks.molding];
+export const simulatedPackList: SimulatedPack[] = [simulatedPacks.industrial, simulatedPacks.export, simulatedPacks.molding, simulatedPacks.packaging];
 
 export function parseWorkspaceSiteId(value: string | null | undefined): string {
   const site = value?.trim() ?? "";

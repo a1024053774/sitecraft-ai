@@ -21,11 +21,16 @@ export type CodeVersion = {
   id: string; revision: number; author: 'assistant' | 'user'; summary: string; request: string; createdAt: string;
   code: SiteCode; checks: CodeCheck; model?: string; restoredFrom?: string; name?: string;
 };
+export type CodeModelCall = {
+  purpose: 'plan' | 'select' | 'write' | 'facts'; model: string; startedAt: string; latencyMs: number; httpStatus: number | null;
+  usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null;
+};
 export type CodeRun = {
   id: string; kind: 'plan' | 'generate' | 'edit'; status: 'running' | 'complete' | 'error';
   step: string; request: string; baseRevision: number; startedAt: string; updatedAt: string;
   repairRound: number; issues: string[]; versionId?: string; referenceVersionIds?: string[];
   attempts: Array<{ code: SiteCode; checks: CodeCheck }>;
+  modelCalls?: CodeModelCall[];
 };
 export type CodeSiteRecord = {
   route: 'code'; siteId: string; name: string; conversationId: string; materials: string;
