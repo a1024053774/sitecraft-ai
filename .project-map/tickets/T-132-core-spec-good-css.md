@@ -2,7 +2,7 @@
 id: T-132
 title: 核心规范吸纳 good-css 并针对基线盲评的「生成感」调整，用评估集成对比较
 type: build
-status: open
+status: out-of-scope
 blocked_by: [T-133]
 claimed_by:
 supersedes:
