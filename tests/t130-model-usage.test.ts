@@ -21,8 +21,11 @@ const server = createServer(async (req, res) => {
   if (content.includes('FAILNET')) { req.socket.destroy(); return; }
   if (content.includes('FAIL402')) { res.writeHead(402); res.end('{}'); return; }
   const payload = content.includes('INVALID') ? 'not json' : body.messages[0].content.includes('事实校对员') ? { issues: [] }
-    : { summary: '首页介绍服务', style: 'precision', styleReason: '服务资料', pages: [{ id: 'home', title: '首页', outline: '公司和服务' }] };
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: typeof payload === 'string' ? payload : JSON.stringify(payload) } }],
+    : { summary: '首页介绍服务', style: 'precision', styleReason: '服务资料', skeletonId: 'compact-profile', skeletonReason: '简短服务资料。', pages: [{ id: 'home', title: '首页', outline: ['公司和服务'] }] };
+  const planCall = !!body.tools, text = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+    ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: text } }] }
+    : { content: text } }],
     ...(!content.includes('NOUSAGE') ? { usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 } } : {}) }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
