@@ -2,7 +2,7 @@
 id: T-136
 title: 生成失败的拒因摘要过长会写坏会话，之后草稿接口持续 500
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t134-build
 supersedes:
@@ -20,7 +20,7 @@ T-134 整轮评估（`sitecraft-ai-t134/artifacts/t134/alignment-failure-observe
 
 - [x] 用 T-134 那一站的真实失败拒因做夹具，真实入口复现 500（父实现失败），修后同一路径刷新可打开站点、显示简短失败说明，完整拒因可在运行记录中查到
 - [x] 读取已写坏的旧会话不再整站 500，有测试
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -62,3 +62,7 @@ T-134 整轮评估（`sitecraft-ai-t134/artifacts/t134/alignment-failure-observe
 - `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3148 DEEPSEEK_BASE_URL=http://127.0.0.1:9 DEEPSEEK_API_KEY=<本地夹具值> DEEPSEEK_MODEL=t136-fixture CHROME_PATH=<指定路径> npm test -- --test-concurrency=1` → `npm-test.log`，20:17:52 UTC，2589/2591、exit1，取消/跳过 0。仅 T-090 固定旧站点 `geometry-real-hero/scan.json` 缺失、T-113 固定旧图片 GET404；与此前 worktree 记录相同，未复制旧数据、跳过检查或改弱断言。
 - `npm run build`（默认 Turbopack）→ `build.log`，20:20:57 UTC，exit0；随后 `npm run typecheck` → `typecheck-final.log`，20:22:40 UTC，exit0。`git diff --check`、UTF-8 回读与 project-map status 无问题/无过时 living doc。没有新增依赖、重试或平行站点 API。
 - 本票不自动迁移已经损坏的用户会话；人工修复前该会话的对话不可用，站点其余记录保持可读。PostgreSQL 更新也加入同一写前校验，但未实测外部数据库，本票验收使用 fs。Astra 与主控最终验收待安排，不关闭票、不推送。
+
+### 合并验收（Claude，2026-10-08）
+
+Astra（t136-astra，16:30 EDT）审 a3c90db..605ae9c：PASS（写入层与存储层都在写前校验，非法快照不覆盖原记录；完整拒因保留在运行记录与 attempts；旧会话只读降级，JSON 损坏、EACCES 等照常抛出；五种坏实现均被检出）。合并为 6654566；主工作区 3034：`npm run typecheck`、`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<指定路径> npm test` 2591/2591、`npm run build` 通过（输出 gitignore 的 `artifacts/merge-6654566/`）。PostgreSQL 未实测。
