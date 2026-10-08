@@ -32,6 +32,7 @@ function formatUpdatedAt(value: string) {
 }
 
 function SiteThumb({ site }: { site: SiteListItem }) {
+  if (site.readError) return <div className="site-thumb site-thumb-unavailable">{site.status}</div>;
   const template = getTemplate(site.templateId);
   const brand = site.siteName.split(/\s+/)[0] || site.siteName;
   return (
@@ -62,7 +63,7 @@ export default async function Dashboard() {
   const [sites, leads] = await Promise.all([listExistingSites(), listLeads()]);
   const recent = sites.slice(0, 3);
   const activities = [
-    ...sites.map((site) => ({ kind: "site" as const, at: site.updatedAt, title: `已更新 ${site.siteName}`, detail: `打开${getTemplate(site.templateId).name}工作台继续修改`, icon: "sparkles" as const })),
+    ...sites.map((site) => ({ kind: "site" as const, at: site.updatedAt, title: `${site.readError ? "无法打开" : "已更新"} ${site.siteName}`, detail: site.readError || `打开${getTemplate(site.templateId).name}工作台继续修改`, icon: "sparkles" as const })),
     ...leads.map((lead: PublicLead) => ({ kind: "lead" as const, at: lead.receivedAt, title: "收到新的询盘", detail: [lead.company, lead.name].filter(Boolean).join(" · ") || "访客询盘", icon: "message" as const })),
   ].sort((left, right) => right.at.localeCompare(left.at)).slice(0, 3);
 
@@ -149,13 +150,14 @@ export default async function Dashboard() {
                   <div className="site-card-body">
                     <div className="site-title">
                       <strong>{site.siteName}</strong>
-                      <span className="site-status">● {template.name}</span>
+                      <span className="site-status">{site.status || `● ${template.name}`}</span>
                     </div>
                     <div className="site-meta">{site.siteId} · {template.category}</div>
+                    {site.readError && <p className="site-read-error" role="status">{site.readError}</p>}
                     <div className="site-card-footer">
                       <span>最后编辑 {formatUpdatedAt(site.updatedAt)}</span>
                       <span className="tiny-action">
-                        打开工作台{" "}
+                        {site.readError ? "查看原因" : "打开工作台"}{" "}
                         <ArrowUpRight
                           size={11}
                           style={{ verticalAlign: "middle" }}

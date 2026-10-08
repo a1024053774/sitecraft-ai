@@ -10,6 +10,7 @@ import { summaryFromAppliedTargets } from "@/lib/workspace-copy";
 import { getAnnotation } from "@/lib/annotation-store";
 import { validateColorPalette } from "@/lib/color-scale";
 import { getCodeSite } from './code-site-store.ts';
+import { SiteMigrationError } from './site-migration.ts';
 
 export type ChangeSource = "ai" | "import" | "manual" | "migration" | "template";
 export type UndoGuard = {
@@ -635,6 +636,8 @@ export type SiteListItem = {
   companyName: string;
   templateId: string;
   updatedAt: string;
+  status?: "旧记录无法打开";
+  readError?: string;
 };
 
 function toListItem(siteId: string, item: SiteSnapshot): SiteListItem {
@@ -647,6 +650,19 @@ function toListItem(siteId: string, item: SiteSnapshot): SiteListItem {
   };
 }
 
+function unreadableListItem(siteId: string, raw: { draft?: unknown; updatedAt?: unknown }, error: SiteMigrationError): SiteListItem {
+  const draft = raw.draft && typeof raw.draft === "object" ? raw.draft as Record<string, unknown> : {};
+  return {
+    siteId,
+    siteName: typeof draft.siteName === "string" ? draft.siteName : siteId,
+    companyName: typeof draft.companyName === "string" ? draft.companyName : "",
+    templateId: typeof draft.templateId === "string" ? draft.templateId : "",
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : "",
+    status: "旧记录无法打开",
+    readError: error.userMessage,
+  };
+}
+
 async function listLocalSites(): Promise<SiteListItem[]> {
   await mkdir(storageRoot, { recursive: true });
   const names = await readdir(storageRoot);
@@ -655,8 +671,14 @@ async function listLocalSites(): Promise<SiteListItem[]> {
     if (!name.endsWith(".json")) continue;
     const siteId = name.slice(0, -5);
     if (!/^[a-z0-9][a-z0-9_-]{0,79}$/i.test(siteId)) continue;
-    const record = await readRecord(siteId);
-    if (record) items.push(toListItem(siteId, snapshot(record, false)));
+    try {
+      const record = await readRecord(siteId);
+      if (record) items.push(toListItem(siteId, snapshot(record, false)));
+    } catch (error) {
+      if (!(error instanceof SiteMigrationError)) throw error;
+      const raw = JSON.parse(await readFile(recordPath(siteId), "utf8")) as Partial<SiteRecord>;
+      items.push(unreadableListItem(siteId, raw, error));
+    }
   }
   return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }
@@ -669,16 +691,14 @@ async function listPostgresSites(): Promise<SiteListItem[]> {
   );
   const items: SiteListItem[] = [];
   for (const row of result.rows) {
-    const record = rowToRecord({
-      site_id: row.site_id,
-      draft: row.draft,
-      history: row.history,
-      future: row.future,
-      history_schema_version: row.history_schema_version,
-      updated_at: row.updated_at,
-    });
-    const migrated = await migratePostgresRecordIfNeeded(record, (upgraded) => savePostgresRecord(getDatabasePool(), upgraded));
-    items.push(toListItem(row.site_id, snapshot(migrated, false)));
+    try {
+      const record = rowToRecord(row);
+      const migrated = await migratePostgresRecordIfNeeded(record, (upgraded) => savePostgresRecord(getDatabasePool(), upgraded));
+      items.push(toListItem(row.site_id, snapshot(migrated, false)));
+    } catch (error) {
+      if (!(error instanceof SiteMigrationError)) throw error;
+      items.push(unreadableListItem(row.site_id, { draft: row.draft, updatedAt: row.updated_at.toISOString() }, error));
+    }
   }
   return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }
@@ -705,6 +725,7 @@ async function deletePostgresSiteRecord(siteId: string) {
 export async function listExistingSites() {
   const existing = await (usePostgres ? listPostgresSites() : listLocalSites());
   const items = await Promise.all(existing.map(async item => {
+    if (item.readError) return item;
     const code = await getCodeSite(item.siteId);
     return code ? { ...item, siteName: code.name, companyName: code.name, updatedAt: code.updatedAt } : item;
   }));

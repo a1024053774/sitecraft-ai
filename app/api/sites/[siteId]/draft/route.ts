@@ -2,7 +2,7 @@ import { z } from "zod";
 import { siteDraftSchema } from "@/lib/site-document";
 import { siteOperationSchema } from "@/lib/site-operations";
 import { commitOperations, getExistingSite, snapshot } from "@/lib/site-store";
-import { assertStableItemIds } from "@/lib/site-migration";
+import { assertStableItemIds, SiteMigrationError } from "@/lib/site-migration";
 import { describeUserError, userErrorPayload } from "@/lib/user-errors";
 import { getCodeSite, commitSiteCode } from '@/lib/code-site-store';
 import { codeSiteSchema } from '@/lib/code-site';
@@ -20,10 +20,15 @@ const updateSchema = z.object({
 
 export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
-  const site = await getExistingSite(siteId);
-  if (!site) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
-  const codeSite = await getCodeSite(siteId);
-  return Response.json({ ...site, ...(codeSite ? await codeWorkspaceState(codeSite) : {}) }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const site = await getExistingSite(siteId);
+    if (!site) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
+    const codeSite = await getCodeSite(siteId);
+    return Response.json({ ...site, ...(codeSite ? await codeWorkspaceState(codeSite) : {}) }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (!(error instanceof SiteMigrationError)) throw error;
+    return Response.json({ error: "site_migration_failed", userMessage: error.userMessage }, { status: 422, headers: { "Cache-Control": "no-store" } });
+  }
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
