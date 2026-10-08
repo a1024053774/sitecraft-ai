@@ -9,7 +9,7 @@
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-049](tickets/T-049-roles-2026-09-29.md)，取代 T-033）：负责人只定方向和需求。Claude 规划、验收、整合推送；Codex（`codex-build` 等）和 Sonnet 5.5 子 agent 执行（Kiro 2026-10-01 起不再使用）；Codex Astra 审代码；Codex gpt-6.1-sol 盲评；Grok 做杂活；云端会话在 `cloud/*` 分支做票。
-- 现状（2026-10-07）：新建站点走新路线（T-128 已合并：模型写三页 → 提交入口底线检查 → 版本 → 对话修改 → 撤销；盲比两家公司新路线均胜出）；T-129 版本面板已实现，已修正 Astra 的 V20 误判并改由模型结构化选择旧版，默认 Turbopack 的 typecheck/build 与 50 项相关检查通过；真实模型验收受 HTTP 402 阻塞，独立复审与合并后全量测试由主控安排，票未关闭。旧站点仍走区块库 + adapter + 白名单 operation，盲评两种口径都未过（T-110）。第一批票 T-128（最小闭环）→ T-129（版本面板）∥ T-130（评估集）。旧路线逐轮记录见 [plan-history.md](../docs/project/plan-history.md)，只供追溯。
+- 现状（2026-10-08）：T-128 / T-129 已合并，Astra 复审通过，工作台走站点代码与完整版本；T-129 followup 的中文提示及 51 项检查通过。真实 DeepSeek 选中第 11 版并存第 27 版；主控确认未限定页面的“产品区”含首页产品入口，按该范围重放 v26/v27 通过，真实项已勾选，合并与关票由主控安排。旧路线仍保留，T-110 两种盲评未过；T-130 做评估集。历史见 [plan-history.md](../docs/project/plan-history.md)。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 

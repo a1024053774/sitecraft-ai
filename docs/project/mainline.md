@@ -16,7 +16,7 @@
 
 2026-10-07 起（[T-127](../../.project-map/tickets/T-127-route-model-writes-site.md)）：**流程固定，内容放开。**
 
-已合并的 [T-128](../../.project-map/tickets/T-128-new-route-tracer.md) 提供中文站点代码、底线检查、完整版本、对话修改与撤销、刷新恢复。[T-129](../../.project-map/tickets/T-129-version-history-panel.md) 提供版本面板、命名、指定版本恢复和对话旧版上下文。截图打磨、模板味检测、批注与英文版仍是后续范围；实现细节见 [spec.md](./spec.md) 第 4 节。
+已合并的 [T-128](../../.project-map/tickets/T-128-new-route-tracer.md) 提供中文站点代码、底线检查、完整版本、对话修改与撤销、刷新恢复。[T-129](../../.project-map/tickets/T-129-version-history-panel.md) 提供版本面板、命名、指定版本恢复和对话「改回某版」：模型按版本目录声明参考版本；用户未限定页面时「产品区」包括首页产品入口，点名页面时只改该页。截图打磨、模板味检测、批注与英文版仍是后续范围；实现细节见 [spec.md](./spec.md) 第 4 节。
 
 [T-130](../../.project-map/tickets/T-130-eval-set.md) 提供 `npm run eval:new-route`：四家模拟公司 × 两种风格经真实入口生成整站，保留每轮拒收原因、截图与用量，产出两种 T-104 盲评任务及跨轮成对比较。真实运行及第一轮独立盲评是否完成，以票的 Resolution 为准；拒收和外部阻塞不能写成页面质量通过。
 
