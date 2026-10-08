@@ -2,7 +2,7 @@
 id: T-129
 title: 版本历史面板（Notion 式）：左侧按时间分组，右侧预览，可恢复、可命名
 type: build
-status: open
+status: closed
 blocked_by: [T-128]
 claimed_by: t129-build
 supersedes:
@@ -80,3 +80,7 @@ T-128 已知的 line-height:0 完全重叠与 filter 后对比度限制保持原
 Astra：f0035fb NO_GO（正则把型号 V20 当第 20 版，普通修改 400；主控要求改为模型按版本目录结构化声明参考版本）→ 4459c81 收窄复核 PASS（新实例 t129-astra2，2026-10-07 23:42 EDT；独立反例 18/18）。非阻断建议：`lib/code-site-model.ts:59` 模型返回非法编号时 Zod 英文错误直接显示给用户，应转成简短中文——随真实 DeepSeek 补跑一并处理。合并为 52c0df6，主工作区 3034：`npm run typecheck`、`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<指定路径> npm test` 2554/2554、`npm run build` 通过（输出 gitignore 的 `artifacts/merge-52c0df6/`）。
 
 合并时未完成的真实项，充值后的 followup 与主控范围判定下的保存版本重放已通过，依据与证据见上；原 402 和旧范围断言失败保留为历史。
+
+### 后续合并（Claude，2026-10-08）
+
+t129-followup：中文非法编号提示经 Astra（t129f-astra）确认无阻断；验收脚本范围断言经三轮收窄复核，补齐 href、交互状态、祖先隐藏与实际可见性。最后一轮（t129f3-astra，07:54 EDT）只剩「不透明遮罩加 pointer-events:none 完全盖住导航」仍判通过：属刻意构造的验收脚本极端写法，模型执行「改回某版」不会产生，按 AGENTS（验收工具完善属优先级 3，不对同一候选反复审查）记为已知限制，不再修。合并为 69f6514；主工作区 3034（重启后重新拉起）`npm test` 2572/2572、`npm run typecheck`、`npm run build` 通过（输出 gitignore 的 `artifacts/merge-69f6514/`；第一次全量因 3034 服务未运行失败 70 项，另存 `npm-test.txt`）。
