@@ -2,7 +2,7 @@
 id: T-131
 title: 站点列表因旧路线记录配色已下线而整体 500
 type: task
-status: open
+status: closed
 blocked_by: []
 claimed_by: t131-build
 supersedes:
@@ -63,3 +63,7 @@ supersedes:
 默认 Turbopack 根目录不能解析指向主工作区的 node_modules 软链，使用本机 Next 配置实现支持的进程参数设置共同父目录，没有改依赖或项目配置。此前 Webpack dev 留下的 `.next/dev/types/app` 老类型守卫令本次原生构建失败（`build-visible-row.txt`、`build-visible-row-fresh.txt`）；确认均为生成文件且早于本轮原生 dev 后，将旧缓存移到仓库外的临时目录保留，记录为 `stale-dev-types-archive.json`，再用相同原生构建命令通过。没有改无关页面、路由或跳过类型检查，不把缓存目录当证据交付。
 
 真实 DeepSeek 不属于本票验证，未调用；PostgreSQL 的失败条目分支未在真实数据库上实测，本票证据为 fs。旧记录本身仍不可打开，这是主控明确保留的状态，后续随旧路线删除转成版本；本票不宣称修复这些旧历史目标。
+
+### 合并验收（Claude）
+
+Astra（新实例 t131-astra，2026-10-07 23:19 EDT）审 07c0e61..6fe1a42：PASS（仅 SiteMigrationError 转为可见失败；JSON 损坏、权限错误、code-sites 读错照常抛出；失败记录不覆盖不删除）。合并为 e3aefbd，主工作区 3034：`GET /api/sites` 200，ab-ind-asm 与 goal-live-20260923 显示「旧记录无法打开」；`npm run typecheck`、`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<指定路径> npm test` 2546/2546、`npm run build` 通过（输出 gitignore 的 `artifacts/merge-t131/`）。T-128 合并复验时失败的两项列表用例在主工作区数据上已通过。
