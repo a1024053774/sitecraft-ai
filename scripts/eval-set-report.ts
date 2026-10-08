@@ -2,7 +2,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, utimes, writeFile } from 'node:fs/promises';
 import { crc32 } from 'node:zlib';
 import path from 'node:path';
-import type { CodeCheck, CodeModelCall } from '../lib/code-site.ts';
+import type { CodeCheck, CodeModelCall, CodeSiteRecord } from '../lib/code-site.ts';
 import type { SimulatedPackId } from '../lib/simulated-packs.ts';
 
 export function requireWholeSitePlan(pack: SimulatedPackId, pageCount: number) {
@@ -21,6 +21,12 @@ export type Control = { pack: string; url: string; framing?: 'fold'; screenshots
 export type EvalRound = { schemaVersion: 1; startedAt: string; command: string; commit: string; dirty: boolean; base: string;
   status: string; cases: EvalCase[]; controls: Control[]; errors: string[]; previous?: string };
 
+// This private snapshot contains raw candidates, including every refused round,
+// and cleaned saved versions. It does not depend on the worktree's live store.
+export async function saveCandidateEvidence(folder: string, site: CodeSiteRecord) {
+  await writeFile(path.join(folder, 'code-site.json'), JSON.stringify(site, null, 2), 'utf8');
+}
+
 export function tokenUsage(calls: CodeModelCall[]) {
   const known = calls.filter(c => c.usage !== null);
   return { calls: calls.length, unknownCalls: calls.length - known.length,
@@ -33,7 +39,7 @@ function reasonKind(issue: string) {
   if (issue.includes('正文行长')) return 'body-line-length';
   if (issue.includes('溢出')) return 'overflow';
   if (issue.includes('重叠')) return 'overlap';
-  if (/对比度|正文/.test(issue)) return 'contrast-or-measurement';
+  if (/对比度不足或无法测量|无可测量正文/.test(issue)) return 'contrast-or-measurement';
   if (/图片/.test(issue)) return 'image';
   if (/链接/.test(issue)) return 'link';
   if (/script|CSS|资源|事件/.test(issue)) return 'unsafe-resource';
@@ -46,9 +52,13 @@ export function summarize(cases: EvalCase[]) {
   const firstRejected = checked.filter(c => !c.attempts[0].checks.passed).length;
   const finalRejected = cases.filter(c => c.outcome === 'rejected').length;
   const reasons: Record<string, { attempts: number; sites: number; occurrences: number }> = {};
+  const lineFeedback = { attempts: 0, sites: 0, occurrences: 0 };
   for (const c of checked) {
     const siteKinds = new Set<string>();
+    let siteHasLongLines = false;
     for (const a of c.attempts) {
+      const longLines = a.checks.viewports.reduce((sum, viewport) => sum + viewport.longLines, 0);
+      if (longLines) { lineFeedback.attempts++; lineFeedback.occurrences += longLines; siteHasLongLines = true; }
       const attemptKinds = new Set<string>();
       for (const issue of a.checks.issues) {
         const kind = reasonKind(issue); reasons[kind] ??= { attempts: 0, sites: 0, occurrences: 0 };
@@ -57,6 +67,7 @@ export function summarize(cases: EvalCase[]) {
       for (const kind of attemptKinds) reasons[kind].attempts++;
     }
     for (const kind of siteKinds) reasons[kind].sites++;
+    if (siteHasLongLines) lineFeedback.sites++;
   }
   return { planned: cases.length, generated: cases.filter(c => c.outcome === 'generated').length,
     checkedSites: checked.length, checkedAttempts: attempts.length, rejectedAttempts: refused.length,
@@ -64,7 +75,8 @@ export function summarize(cases: EvalCase[]) {
     finalRejections: finalRejected, finalRejectionRate: checked.length ? finalRejected / checked.length : null,
     attemptRejectionRate: attempts.length ? refused.length / attempts.length : null,
     blocked: cases.filter(c => c.outcome === 'blocked').length, notRun: cases.filter(c => c.outcome === 'not-run').length,
-    errors: cases.filter(c => c.outcome === 'error').length, reasons, usage: tokenUsage(cases.flatMap(c => c.modelCalls)) };
+    errors: cases.filter(c => c.outcome === 'error').length, reasons,
+    qualityFeedback: { 'body-line-length': lineFeedback }, usage: tokenUsage(cases.flatMap(c => c.modelCalls)) };
 }
 export function compareRounds(current: EvalRound, previous: EvalRound) {
   if (current.cases.length !== previous.cases.length || current.cases.some(c => {
@@ -139,7 +151,7 @@ async function uniformTimes(root: string, time: Date) {
 }
 
 export async function buildBlindPackage(round: EvalRound, directory: string, previous?: { round: EvalRound; directory: string }) {
-  const mapping: Record<string, unknown> = {}, missing: string[] = [];
+  const mapping: Record<string, unknown> = {}, missing: string[] = [], comparisonMissing: string[] = [];
   const jobs: Record<'mixed' | 'company' | 'paired', Job[]> = { mixed: [], company: [], paired: [] };
   const mixed: Candidate[] = [], company: Pair[] = [], paired: Pair[] = [];
   // Descriptors, identity ordering and task ordering are complete before any write.
@@ -180,7 +192,7 @@ export async function buildBlindPackage(round: EvalRound, directory: string, pre
   }
   if (previous) for (const c of round.cases) {
     const before = previous.round.cases.find(b => b.key === c.key);
-    if (c.outcome !== 'generated' || before?.outcome !== 'generated') { missing.push(`${c.key}: 两轮题缺图`); continue; }
+    if (c.outcome !== 'generated' || before?.outcome !== 'generated') { comparisonMissing.push(`${c.key}: 两轮题缺图`); continue; }
     const id = opaque(); paired.push({ id, candidates: shuffle([
       candidate('paired', directory, c.pages, { key: c.key, round: 'current' }),
       candidate('paired', previous.directory, before.pages, { key: c.key, round: 'previous' }),
@@ -210,5 +222,8 @@ export async function buildBlindPackage(round: EvalRound, directory: string, pre
   const normalizedTime = new Date();
   await uniformTimes(path.join(directory, 'review'), normalizedTime);
   await uniformTimes(roots.paired, normalizedTime);
-  return { mixed: mixed.length, company: company.length, paired: paired.length, complete: missing.length === 0, missing };
+  return { mixed: mixed.length, company: company.length, paired: paired.length,
+    complete: missing.length === 0 && comparisonMissing.length === 0, missing: [...missing, ...comparisonMissing],
+    review: { complete: missing.length === 0, missing },
+    comparison: { requested: !!previous, complete: comparisonMissing.length === 0, missing: comparisonMissing } };
 }

@@ -77,7 +77,9 @@ function cleanCandidate(code: SiteCode, permitted: string[]) {
     }
   }
   const contacts = [...documents.values()].flatMap(doc => [...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)));
-  const text = safe.pages.map(p => p.title).join('\n') + '\n' + [...documents.values()].map(doc => `${doc.body.textContent || ''}\n${[...doc.querySelectorAll('[data-label],[alt],[title],[aria-label]')].flatMap(node => ['data-label', 'alt', 'title', 'aria-label'].map(name => node.getAttribute(name) || '')).join(' ')}`).join('\n');
+  // Auxiliary copy and handwritten numbers share the same factual boundary.
+  const auxiliaryText = [...documents.values()].map(doc => [...doc.querySelectorAll('[data-label],[alt],[title],[aria-label]')].flatMap(node => ['data-label', 'alt', 'title', 'aria-label'].map(name => node.getAttribute(name) || '')).join(' ')).join('\n');
+  const text = safe.pages.map(p => p.title).join('\n') + '\n' + [...documents.values()].map(doc => doc.body.textContent || '').join('\n') + '\n' + auxiliaryText;
   return { code: safe, issues: [...new Set(issues)], cleaned, text, contacts };
 }
 // Browser computed values have already resolved variables, shorthand and nesting.
@@ -140,7 +142,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         if (layout.horizontalScroll || layout.overflowElements.length) checks.issues.push(`${page.id}/${width} 横向溢出`);
         if (layout.textOverlaps.length) checks.issues.push(`${page.id}/${width} 文字重叠`);
         for (const text of contrast.slice(0, 8)) checks.issues.push(`${page.id}/${width} 对比度不足或无法测量：${text.text}（${text.ratio?.toFixed(2) ?? '未知'}，需 ${text.threshold}）`);
-        for (const line of long.slice(0, 5)) checks.issues.push(`${page.id}/${width} 正文行长超标：${line.text}`);
+        // Line length remains in viewport quality feedback; it never triggers repair.
       }
     }
     const readable = `${clean.text}\n${[...generatedText].join('\n')}`;

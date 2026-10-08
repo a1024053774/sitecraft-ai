@@ -34,6 +34,13 @@ test('reported tokens remain partial when a provider omits usage', () => {
     { calls: 2, unknownCalls: 1, complete: false, reported: { promptTokens: 17, completionTokens: 9, totalTokens: 26 } });
   assert.equal(tokenUsage([]).complete, false);
 });
+test('T133 actual fact refusal mentioning paragraph text is not a contrast failure', () => {
+  const issue = '包装产品页“折叠彩盒用于礼盒外包装”：资料原句“用途 已有独立内袋的烘焙礼盒、茶叶礼盒”；页面正文省略“已有独立内袋”及烘焙/茶叶范围限定，扩大了折叠彩盒用途。';
+  // Verbatim baseline case-7 R0, interpreted from its material boundary.
+  const result = summarize([item('packaging/precision', 'rejected', [[issue]])]);
+  assert.deepEqual(result.reasons['fact-or-other'], { attempts: 1, sites: 1, occurrences: 1 });
+  assert.equal(result.reasons['contrast-or-measurement'], undefined);
+});
 test('fourth pack describes a distinct business and keeps full client facts', () => {
   const pack = simulatedPacks.packaging;
   assert.match(pack.body, /^资料性质：模拟/); assert.match(pack.industry, /纸包装/);

@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 // Failure modes: run accounting vanishes at the commit lock; only final refusal
-// survives; successful fact-audit tokens are lost. Only the provider and Next's
+// survives; advisory lines trigger repair; successful fact-audit tokens are lost. Only the provider and Next's
 // deferred scheduling are fixtures. API handlers, Chrome and submission are real.
 const scheduled: Array<() => Promise<void>> = [];
 (globalThis as typeof globalThis & { __t130After?: typeof scheduled }).__t130After = scheduled;
@@ -24,8 +24,8 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw), user = body.messages[1].content, system = body.messages[0].content;
   const content = system.includes('事实校对员') ? { issues: [] } : user.includes('先给页面大纲')
     ? { summary: '首页与联系', style: 'precision', styleReason: '机械业务', pages: [{ id: 'home', title: '首页', outline: '机械与联系' }] }
-    : { header: '<header>检查机械</header>', footer: '<footer>检查机械</footer>', css: 'body{margin:0;color:#111;background:#fff;font:16px/1.6 sans-serif}main,header,footer{padding:24px}p{max-width:100em}',
-      pages: [{ id: 'home', title: '检查机械', html: `<main><h1>检查机械</h1><p>${reject ? '请在询盘里写清零件用途以及需要的规格以便确认供货范围。'.repeat(3) : '精密零件加工。'}</p><div data-system-inquiry=""></div></main>` }] };
+    : { header: '<header>检查机械</header>', footer: '<footer>检查机械</footer>', css: `body{margin:0;color:#111;background:#fff;font:16px/1.6 sans-serif}main,header,footer{padding:24px}p{max-width:100em;color:${reject ? '#aaa' : '#111'}}`,
+      pages: [{ id: 'home', title: '检查机械', html: `<main><h1>检查机械</h1><p>${'请在询盘里写清零件用途以及需要的规格以便确认供货范围。'.repeat(3)}</p><div data-system-inquiry=""></div></main>` }] };
   res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 }, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -38,7 +38,7 @@ const { POST: chat } = await import('../app/api/sites/[siteId]/chat/route.ts');
 const { getCodeSite } = await import('../lib/code-site-store.ts');
 const request = (url: string, body: unknown) => new Request(base + url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
-test('real submission keeps every form-line refusal and run-scoped provider usage', async () => {
+test('real submission keeps every contrast refusal, advisory lines and run-scoped provider usage', async () => {
   const records = [];
   for (const bad of [true, false]) {
     reject = bad;
@@ -63,7 +63,11 @@ test('real submission keeps every form-line refusal and run-scoped provider usag
     assert.ok(run.modelCalls!.every(c => c.usage?.totalTokens === 26));
     assert.equal(site.versions.length, bad ? 0 : 1);
     if (bad) for (const attempt of run.attempts) {
-      assert.equal(attempt.checks.passed, false); assert.match(attempt.checks.issues.join('\n'), /正文行长超标/);
+      assert.equal(attempt.checks.passed, false); assert.match(attempt.checks.issues.join('\n'), /对比度/);
+    }
+    else {
+      assert.ok(site.versions[0].checks.viewports.some(viewport => viewport.longLines > 0));
+      assert.equal(run.repairRound, 0, 'advisory lines must not trigger repair');
     }
     records.push({ id, status: run.status, modelCalls: run.modelCalls, attempts: run.attempts.map(a => a.checks) });
   }

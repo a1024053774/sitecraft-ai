@@ -1,0 +1,287 @@
+[
+  {
+    "source": "T133 baseline 2026-10-08T07-59-10-005Z / case-7 R0 raw candidate",
+    "case": 7,
+    "materials": "资料性质：模拟。不可当作真实企业。\n公司名：青禾纸包装\n行业：纸包装 / 食品与日用品品牌采购\n公司简介：我们做纸盒和纸浆模塑内托，主要接烘焙、茶叶礼盒和日用品的包装订单。请把纸盒和内托分开介绍，它们的起订量与交期不同；我们没有食品直接接触许可，不接直接接触裸装食品的包装。\n目标：让采购说明包装尺寸、装载物和订单数量后询价。首屏不要写环保认证或食品级。\n首屏可用事实：纸盒与纸托按装载物设计 。\n首屏说明：先确认结构和打样，再安排批量印刷。主按钮：咨询包装打样。\n产品：折叠彩盒；瓦楞运输盒；纸浆模塑内托。\n折叠彩盒规格参数：纸张 白卡纸 250–400 g/m²；印刷 四色胶印；表面处理 水性上光/压纹；结构 插口盒/抽屉盒；用途 已有独立内袋的烘焙礼盒、茶叶礼盒。\n瓦楞运输盒规格参数：楞型 E楞/B楞；印刷 单色/双色水性印刷；结构 飞机盒/对口箱；用途 日用品运输与电商配送。尺寸按装载物确认，没有现成通用尺寸表。\n纸浆模塑内托规格参数：材料 再生纸浆；颜色 本色；用途 玻璃瓶与日用品定位缓冲。只能做内托，不承诺防水或跌落等级。\n加工能力：结构设计；白样打样；胶印；模切；糊盒。设备：四色胶印机 1 台；自动模切机 2 台；糊盒机 1 台。\n订购流程：提供装载物尺寸和数量；确认结构白样；确认印刷文件；生产并检查成品。白样不含印刷颜色，需提供实际装载物或尺寸图。\nMOQ：折叠彩盒 3000 个；瓦楞运输盒 1000 个；纸浆模塑内托 5000 个。\n交期：折叠彩盒和瓦楞运输盒在印刷文件及白样确认后 12–18 天；纸浆模塑内托在模具确认后 20–25 天。白样打样 3–5 天，不包含寄送时间。\n问：已有刀线图能直接生产吗？答：先核对装载物尺寸，确认白样和印刷文件后生产。\n问：能做直接装食品的盒子吗？答：只承接已有独立内袋的食品外包装，不做直接接触裸装食品的包装。\n邮箱：sample@qinghe-pack.example\n认证、客户名单、评价、电话、地址：资料未提供。没有授权照片，可以用标明示意的结构图。\n\n页面要求：首页、包装产品、打样与订购、联系四个独立页面。只做中文。没有授权照片时采用无图或标明示意的CSS图。",
+    "code": {
+      "header": "<header class=\"site-header\">\n  <div class=\"wrap\">\n    <a class=\"brand\" href=\"/home\"><span class=\"brand-mark\" aria-hidden=\"true\"></span>青禾纸包装</a>\n    <nav class=\"site-nav\" aria-label=\"主导航\">\n      <ul>\n        <li><a href=\"/home\">首页</a></li>\n        <li><a href=\"/products\">包装产品</a></li>\n        <li><a href=\"/sampling\">打样与订购</a></li>\n        <li><a href=\"/contact\">联系</a></li>\n      </ul>\n    </nav>\n  </div>\n</header>",
+      "footer": "<footer class=\"site-footer\">\n  <div class=\"wrap footer-grid\">\n    <div>\n      <p class=\"footer-brand\">青禾纸包装</p>\n      <p class=\"footer-line\">纸盒与纸浆模塑内托，按装载物设计。</p>\n    </div>\n    <nav class=\"footer-nav\" aria-label=\"页脚导航\">\n      <ul>\n        <li><a href=\"/home\">首页</a></li>\n        <li><a href=\"/products\">包装产品</a></li>\n        <li><a href=\"/sampling\">打样与订购</a></li>\n        <li><a href=\"/contact\">联系</a></li>\n      </ul>\n    </nav>\n    <div class=\"footer-contact\">\n      <p class=\"footer-key\">邮箱</p>\n      <p class=\"footer-value\"><span data-system-icon=\"mail\"></span> sample@qinghe-pack.example</p>\n      <p class=\"footer-value\">电话、地址：待补充</p>\n    </div>\n  </div>\n</footer>",
+      "css": "*{box-sizing:border-box}\nbody{margin:0;background:#f4f6f8;color:#1e2226;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif;font-size:16px;line-height:1.7}\na{color:#1b4fa0;text-decoration:none}\na:hover{text-decoration:underline}\na:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #1b4fa0;outline-offset:2px}\nh1,h2,h3{font-weight:600;color:#1e2226}\nh1{font-size:32px;line-height:1.35;margin:0;letter-spacing:-0.01em}\nh2{font-size:22px;line-height:1.4;margin:0 0 10px}\nh3{font-size:17px;margin:0 0 14px}\np{margin:0 0 14px}\nul,ol{margin:0;padding:0}\n.wrap{max-width:1120px;margin:0 auto;padding:0 24px}\n[data-system-icon]{display:inline-block;width:1em;height:1em;vertical-align:-0.12em}\n.site-header{background:#fff;border-bottom:1px solid #d7dde2}\n.site-header .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 24px;min-height:64px;padding-top:8px;padding-bottom:8px}\n.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;color:#1e2226;letter-spacing:.01em}\n.brand:hover{text-decoration:none}\n.brand-mark{display:inline-block;width:10px;height:10px;background:#1b4fa0}\n.site-nav ul{display:flex;flex-wrap:wrap;gap:4px 22px;list-style:none}\n.site-nav a{display:inline-block;padding:6px 0;font-size:15px;color:#3a444c;border-bottom:1px solid transparent}\n.site-nav a:hover{color:#1b4fa0;text-decoration:none;border-bottom-color:#1b4fa0}\n.btn{display:inline-flex;align-items:center;gap:8px;background:#1b4fa0;color:#fff;border:1px solid #1b4fa0;border-radius:2px;padding:11px 22px;font-size:15px;font-weight:600;line-height:1.4}\n.btn:hover{background:#123a78;border-color:#123a78;color:#fff;text-decoration:none}\n.btn-on-dark{background:#fff;color:#123a78;border-color:#fff}\n.btn-on-dark:hover{background:#dbe5f5;border-color:#dbe5f5;color:#123a78}\n.link-plain{font-size:15px;color:#1b4fa0}\n.hero{background:#fff;padding:52px 0 48px}\n.hero-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr);gap:44px;align-items:start}\n.eyebrow{margin:0 0 16px;font-size:13px;letter-spacing:.1em;color:#4a545c}\n.lede{font-size:17px;color:#33383d;max-width:34em;margin:0 0 18px}\n.hero-note{font-size:15px;color:#4a545c;max-width:32em;margin:0 0 26px}\n.hero-actions{margin:0 0 14px}\n.hero-link{margin:0}\n.hero-side{border-top:2px solid #1e2226;padding-top:16px}\n.side-title{margin:0 0 10px;font-size:14px;letter-spacing:.08em;color:#4a545c}\n.page-head{background:#fff;padding:48px 0 36px}\n.page-head h1{margin-bottom:14px}\n.page-head .lede{margin:0}\n.section{border-top:1px solid #d7dde2;padding:44px 0}\n.section-head{margin-bottom:24px}\n.section-head p{margin:0;color:#4a545c;max-width:38em}\n.two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:44px;align-items:start}\n.spec{margin:0}\n.spec-row{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;padding:11px 0;border-bottom:1px solid #d7dde2;font-variant-numeric:tabular-nums}\n.spec-row dt{font-size:15px;color:#4a545c}\n.spec-row dd{margin:0;font-size:15px}\n.spec-row-key dd{font-weight:600}\n.spec-col h3{margin:0;padding-bottom:10px;border-bottom:1px solid #b6c0c8}\n.table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}\n.table th,.table td{text-align:left;vertical-align:top;padding:12px 18px 12px 0;border-bottom:1px solid #d7dde2}\n.table th:last-child,.table td:last-child{padding-right:0}\n.table thead th{border-bottom:1px solid #b6c0c8;color:#4a545c;font-weight:600}\n.table tbody th{font-weight:600}\n.table-plain tbody th{width:42%;font-weight:400;color:#4a545c}\n.table-plain tbody td{font-weight:600}\n.line-list{list-style:none;border-top:1px solid #b6c0c8;margin:0}\n.line-list li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:12px 0;border-bottom:1px solid #d7dde2;font-size:15px;font-variant-numeric:tabular-nums}\n.line-list .k{font-weight:600}\n.line-list .v{color:#4a545c}\n.note{font-size:14px;color:#4a545c;max-width:38em}\n.after-note{margin:20px 0 0}\n.bounds{background:#fff;border-left:3px solid #1b4fa0;padding:26px 30px}\n.bounds h2{margin-bottom:14px}\n.bounds-list{margin:0;padding-left:20px}\n.bounds-list li{margin-bottom:8px;max-width:38em}\n.bounds-list li:last-child{margin-bottom:0}\n.section-end{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin-top:28px}\n.section-end p{margin:0}\n.section-end-text{color:#4a545c;font-size:15px}\n.fig-row{display:flex;flex-wrap:wrap;gap:28px;margin-top:28px}\n.fig{margin:0}\n.fig figcaption{margin-top:10px;font-size:13px;color:#4a545c}\n.fig-col{display:flex;flex-direction:column;gap:6px}\n.draw{position:relative;width:76px;height:56px}\n.d-body,.d-flap,.d-outer,.d-inner,.d-shell,.d-slot{position:absolute;display:block;border:1.5px solid #4a545c}\n.draw-tuck .d-body{left:0;bottom:0;width:76px;height:38px}\n.draw-tuck .d-flap{left:13px;top:0;width:50px;height:16px;border-bottom:0}\n.draw-drawer .d-outer{left:0;top:0;width:54px;height:56px}\n.draw-drawer .d-inner{left:26px;top:16px;width:50px;height:26px}\n.draw-tray .d-shell{left:0;top:0;width:76px;height:56px}\n.draw-tray .d-slot{width:14px;height:14px;border-radius:50%}\n.draw-tray .d-slot-1{left:10px;top:20px}\n.draw-tray .d-slot-2{left:31px;top:20px}\n.draw-tray .d-slot-3{left:52px;top:20px}\n.steps{list-style:none;border-top:1px solid #b6c0c8;max-width:44em}\n.steps li{display:grid;grid-template-columns:32px minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid #d7dde2}\n.step-num{font-size:14px;font-weight:600;color:#1b4fa0;font-variant-numeric:tabular-nums}\n.step-k{margin:0;font-weight:600}\n.faq{border-top:1px solid #b6c0c8}\n.faq-item{padding:16px 0;border-bottom:1px solid #d7dde2;max-width:38em}\n.faq-item .q{margin:0 0 6px;font-weight:600}\n.faq-item .a{margin:0;color:#33383d}\n.cta-band{background:#123a78;padding:40px 0}\n.cta-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px}\n.cta-line{margin:0;font-size:19px;font-weight:600;color:#fff;max-width:30em}\n.cta-action{margin:0}\n.contact-grid{display:grid;grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr);gap:44px;align-items:start}\n.mail-line{font-size:16px;color:#1e2226;font-variant-numeric:tabular-nums}\n.site-footer{background:#eef1f3;border-top:1px solid #d7dde2}\n.footer-grid{display:grid;grid-template-columns:1.2fr 1fr 1.3fr;gap:28px;padding-top:36px;padding-bottom:36px}\n.footer-brand{margin:0 0 8px;font-size:16px;font-weight:600;color:#33383d}\n.footer-line{margin:0;font-size:14px;color:#4a545c;max-width:26em}\n.footer-nav ul{display:flex;flex-wrap:wrap;gap:8px 20px;list-style:none}\n.footer-nav a{font-size:15px;color:#1b4fa0}\n.footer-key{margin:0 0 6px;font-size:13px;letter-spacing:.08em;color:#4a545c}\n.footer-value{margin:0 0 6px;font-size:15px;color:#33383d;font-variant-numeric:tabular-nums}\n@media (max-width:900px){\n.hero-grid{grid-template-columns:minmax(0,1fr);gap:32px}\n.two-col{grid-template-columns:minmax(0,1fr);gap:32px}\n.contact-grid{grid-template-columns:minmax(0,1fr);gap:30px}\n.footer-grid{grid-template-columns:minmax(0,1fr);gap:22px}\n}\n@media (max-width:768px){\n.wrap{padding:0 18px}\nh1{font-size:26px}\nh2{font-size:20px}\n.hero{padding:36px 0 32px}\n.page-head{padding:36px 0 28px}\n.section{padding:34px 0}\n.spec-row{grid-template-columns:84px minmax(0,1fr);gap:10px}\n.bounds{padding:22px 20px}\n}\n@media (max-width:480px){\n.site-nav ul{gap:4px 16px}\nh1{font-size:24px}\n.spec-row{grid-template-columns:76px minmax(0,1fr);gap:8px}\n.table th,.table td{padding:10px 12px 10px 0}\n.fig-row{gap:22px}\n}",
+      "pages": [
+        {
+          "id": "home",
+          "title": "首页",
+          "html": "<main id=\"main\">\n  <section class=\"hero\">\n    <div class=\"wrap hero-grid\">\n      <div>\n        <p class=\"eyebrow\">纸盒 · 纸浆模塑内托</p>\n        <h1>纸盒与纸托按装载物设计</h1>\n        <p class=\"lede\">先确认结构和打样，再安排批量印刷。</p>\n        <p class=\"hero-note\">我们做纸盒和纸浆模塑内托，主要接烘焙、茶叶礼盒和日用品的包装订单。</p>\n        <p class=\"hero-actions\"><a class=\"btn\" href=\"/contact\">咨询包装打样</a></p>\n        <p class=\"hero-link\"><a class=\"link-plain\" href=\"/products\">查看规格与起订量 <span data-system-icon=\"arrow\"></span></a></p>\n      </div>\n      <div class=\"hero-side\">\n        <h2 class=\"side-title\">按用途分三类</h2>\n        <dl class=\"spec\">\n          <div class=\"spec-row\"><dt>折叠彩盒</dt><dd>已有独立内袋的烘焙礼盒、茶叶礼盒</dd></div>\n          <div class=\"spec-row\"><dt>瓦楞运输盒</dt><dd>日用品运输与电商配送</dd></div>\n          <div class=\"spec-row\"><dt>纸浆模塑内托</dt><dd>玻璃瓶与日用品定位缓冲</dd></div>\n        </dl>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <div class=\"section-head\">\n        <h2>纸盒与内托的起订量、交期分开算</h2>\n        <p>纸盒按印刷文件与白样确认后排产，内托按模具确认后排产，两类分别报价。</p>\n      </div>\n      <table class=\"table\">\n        <thead>\n          <tr><th scope=\"col\">品类</th><th scope=\"col\">起订量</th><th scope=\"col\">交期</th></tr>\n        </thead>\n        <tbody>\n          <tr><th scope=\"row\">折叠彩盒</th><td>3000 个</td><td>印刷文件及白样确认后 12–18 天</td></tr>\n          <tr><th scope=\"row\">瓦楞运输盒</th><td>1000 个</td><td>印刷文件及白样确认后 12–18 天</td></tr>\n          <tr><th scope=\"row\">纸浆模塑内托</th><td>5000 个</td><td>模具确认后 20–25 天</td></tr>\n        </tbody>\n      </table>\n      <p class=\"after-note\"><a class=\"link-plain\" href=\"/sampling\">白样与订购流程 <span data-system-icon=\"arrow\"></span></a></p>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap two-col\">\n      <div>\n        <h2>加工环节</h2>\n        <ul class=\"line-list\">\n          <li><span class=\"k\">结构设计</span></li>\n          <li><span class=\"k\">白样打样</span><span class=\"v\">3–5 天，不含寄送</span></li>\n          <li><span class=\"k\">胶印</span></li>\n          <li><span class=\"k\">模切</span></li>\n          <li><span class=\"k\">糊盒</span></li>\n        </ul>\n      </div>\n      <div>\n        <h2>主要设备</h2>\n        <table class=\"table table-plain\">\n          <tbody>\n            <tr><th scope=\"row\">四色胶印机</th><td>1 台</td></tr>\n            <tr><th scope=\"row\">自动模切机</th><td>2 台</td></tr>\n            <tr><th scope=\"row\">糊盒机</th><td>1 台</td></tr>\n          </tbody>\n        </table>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <div class=\"bounds\">\n        <h2>承接边界</h2>\n        <ul class=\"bounds-list\">\n          <li>只承接已有独立内袋的食品外包装，不做直接接触裸装食品的包装。</li>\n          <li>纸浆模塑内托只做定位缓冲，不承诺防水或跌落等级。</li>\n        </ul>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"cta-band\">\n    <div class=\"wrap cta-inner\">\n      <p class=\"cta-line\">先确认结构和打样，再安排批量印刷。</p>\n      <p class=\"cta-action\"><a class=\"btn btn-on-dark\" href=\"/contact\">咨询包装打样</a></p>\n    </div>\n  </section>\n</main>"
+        },
+        {
+          "id": "products",
+          "title": "包装产品",
+          "html": "<main id=\"main\">\n  <section class=\"page-head\">\n    <div class=\"wrap\">\n      <h1>包装产品</h1>\n      <p class=\"lede\">纸盒和纸浆模塑内托的起订量与交期不同，这里分开列出；两类分别报价。</p>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <div class=\"section-head\">\n        <h2>纸盒</h2>\n        <p>折叠彩盒用于礼盒外包装，瓦楞运输盒用于日用品的运输与电商配送，两类都在印刷文件及白样确认后 12–18 天交货。</p>\n      </div>\n      <div class=\"two-col\">\n        <div class=\"spec-col\">\n          <h3>折叠彩盒</h3>\n          <dl class=\"spec\">\n            <div class=\"spec-row\"><dt>纸张</dt><dd>白卡纸 250–400 g/m²</dd></div>\n            <div class=\"spec-row\"><dt>印刷</dt><dd>四色胶印</dd></div>\n            <div class=\"spec-row\"><dt>表面处理</dt><dd>水性上光、压纹</dd></div>\n            <div class=\"spec-row\"><dt>结构</dt><dd>插口盒、抽屉盒</dd></div>\n            <div class=\"spec-row\"><dt>用途</dt><dd>已有独立内袋的烘焙礼盒、茶叶礼盒</dd></div>\n            <div class=\"spec-row spec-row-key\"><dt>起订量</dt><dd>3000 个</dd></div>\n            <div class=\"spec-row spec-row-key\"><dt>交期</dt><dd>印刷文件及白样确认后 12–18 天</dd></div>\n          </dl>\n        </div>\n        <div class=\"spec-col\">\n          <h3>瓦楞运输盒</h3>\n          <dl class=\"spec\">\n            <div class=\"spec-row\"><dt>楞型</dt><dd>E 楞、B 楞</dd></div>\n            <div class=\"spec-row\"><dt>印刷</dt><dd>单色、双色水性印刷</dd></div>\n            <div class=\"spec-row\"><dt>结构</dt><dd>飞机盒、对口箱</dd></div>\n            <div class=\"spec-row\"><dt>用途</dt><dd>日用品运输与电商配送</dd></div>\n            <div class=\"spec-row spec-row-key\"><dt>起订量</dt><dd>1000 个</dd></div>\n            <div class=\"spec-row spec-row-key\"><dt>交期</dt><dd>印刷文件及白样确认后 12–18 天</dd></div>\n          </dl>\n        </div>\n      </div>\n      <p class=\"note after-note\">瓦楞运输盒尺寸按装载物确认，没有现成通用尺寸表。</p>\n      <div class=\"fig-row\">\n        <figure class=\"fig\">\n          <div class=\"draw draw-tuck\"><span class=\"d-flap\"></span><span class=\"d-body\"></span></div>\n          <figcaption>插口盒结构示意</figcaption>\n        </figure>\n        <figure class=\"fig\">\n          <div class=\"draw draw-drawer\"><span class=\"d-outer\"></span><span class=\"d-inner\"></span></div>\n          <figcaption>抽屉盒结构示意</figcaption>\n        </figure>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <div class=\"section-head\">\n        <h2>纸浆模塑内托</h2>\n        <p>用于玻璃瓶与日用品的定位缓冲，材料为本色再生纸浆，模具确认后 20–25 天交货。</p>\n      </div>\n      <div class=\"two-col\">\n        <table class=\"table table-plain\">\n          <tbody>\n            <tr><th scope=\"row\">材料</th><td>再生纸浆</td></tr>\n            <tr><th scope=\"row\">颜色</th><td>本色</td></tr>\n            <tr><th scope=\"row\">用途</th><td>玻璃瓶与日用品定位缓冲</td></tr>\n            <tr><th scope=\"row\">起订量</th><td>5000 个</td></tr>\n            <tr><th scope=\"row\">交期</th><td>模具确认后 20–25 天</td></tr>\n          </tbody>\n        </table>\n        <div class=\"fig-col\">\n          <figure class=\"fig\">\n            <div class=\"draw draw-tray\"><span class=\"d-shell\"></span><span class=\"d-slot d-slot-1\"></span><span class=\"d-slot d-slot-2\"></span><span class=\"d-slot d-slot-3\"></span></div>\n            <figcaption>内托定位缓冲示意</figcaption>\n          </figure>\n          <p class=\"note\">只做内托，不承诺防水或跌落等级。</p>\n        </div>\n      </div>\n      <div class=\"section-end\">\n        <p class=\"section-end-text\">提供装载物尺寸与数量后才能确认结构。</p>\n        <p><a class=\"btn\" href=\"/contact\">咨询包装打样</a></p>\n        <p><a class=\"link-plain\" href=\"/sampling\">打样与订购 <span data-system-icon=\"arrow\"></span></a></p>\n      </div>\n    </div>\n  </section>\n</main>"
+        },
+        {
+          "id": "sampling",
+          "title": "打样与订购",
+          "html": "<main id=\"main\">\n  <section class=\"page-head\">\n    <div class=\"wrap\">\n      <h1>打样与订购</h1>\n      <p class=\"lede\">提供装载物尺寸和数量，确认结构白样与印刷文件后安排生产。</p>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <div class=\"section-head\">\n        <h2>订购流程</h2>\n      </div>\n      <ol class=\"steps\">\n        <li><span class=\"step-num\">1</span><p class=\"step-k\">提供装载物尺寸和数量</p></li>\n        <li><span class=\"step-num\">2</span><p class=\"step-k\">确认结构白样</p></li>\n        <li><span class=\"step-num\">3</span><p class=\"step-k\">确认印刷文件</p></li>\n        <li><span class=\"step-num\">4</span><p class=\"step-k\">生产并检查成品</p></li>\n      </ol>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap two-col\">\n      <div>\n        <h2>白样说明</h2>\n        <dl class=\"spec\">\n          <div class=\"spec-row\"><dt>时间</dt><dd>3–5 天，不包含寄送时间</dd></div>\n          <div class=\"spec-row\"><dt>颜色</dt><dd>白样不含印刷颜色</dd></div>\n          <div class=\"spec-row\"><dt>需提供</dt><dd>实际装载物或尺寸图</dd></div>\n        </dl>\n      </div>\n      <div>\n        <h2>交期</h2>\n        <table class=\"table table-plain\">\n          <tbody>\n            <tr><th scope=\"row\">折叠彩盒、瓦楞运输盒</th><td>印刷文件及白样确认后 12–18 天</td></tr>\n            <tr><th scope=\"row\">纸浆模塑内托</th><td>模具确认后 20–25 天</td></tr>\n          </tbody>\n        </table>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>加工能力与设备</h2>\n      <p class=\"lede\">加工环节：结构设计、白样打样、胶印、模切、糊盒。</p>\n      <table class=\"table table-plain\">\n        <tbody>\n          <tr><th scope=\"row\">四色胶印机</th><td>1 台</td></tr>\n          <tr><th scope=\"row\">自动模切机</th><td>2 台</td></tr>\n          <tr><th scope=\"row\">糊盒机</th><td>1 台</td></tr>\n        </tbody>\n      </table>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>常见问题</h2>\n      <div class=\"faq\">\n        <div class=\"faq-item\">\n          <p class=\"q\">已有刀线图能直接生产吗？</p>\n          <p class=\"a\">先核对装载物尺寸，确认白样和印刷文件后生产。</p>\n        </div>\n        <div class=\"faq-item\">\n          <p class=\"q\">能做直接装食品的盒子吗？</p>\n          <p class=\"a\">只承接已有独立内袋的食品外包装，不做直接接触裸装食品的包装。</p>\n        </div>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"cta-band\">\n    <div class=\"wrap cta-inner\">\n      <p class=\"cta-line\">把装载物尺寸、数量和用途写清，便于确认结构。</p>\n      <p class=\"cta-action\"><a class=\"btn btn-on-dark\" href=\"/contact\">咨询包装打样</a></p>\n    </div>\n  </section>\n</main>"
+        },
+        {
+          "id": "contact",
+          "title": "联系",
+          "html": "<main id=\"main\">\n  <section class=\"page-head\">\n    <div class=\"wrap\">\n      <h1>联系</h1>\n      <p class=\"lede\">询价时请说明装载物尺寸、订单数量和包装用途或结构想法。</p>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap contact-grid\">\n      <div>\n        <h2>邮箱</h2>\n        <p class=\"mail-line\"><span data-system-icon=\"mail\"></span> sample@qinghe-pack.example</p>\n        <p class=\"note\">电话、地址与认证信息：待补充。</p>\n      </div>\n      <div>\n        <h2>询盘</h2>\n        <div data-system-inquiry></div>\n      </div>\n    </div>\n  </section>\n</main>"
+        }
+      ]
+    },
+    "originalChecks": {
+      "passed": false,
+      "issues": [
+        "首页/包装产品页“两类分别报价”：资料原句“请把纸盒和内托分开介绍，它们的起订量与交期不同”；资料未说明是否分别报价，页面额外承诺“两类分别报价”。",
+        "包装产品页“折叠彩盒用于礼盒外包装”：资料原句“用途 已有独立内袋的烘焙礼盒、茶叶礼盒”；页面正文省略“已有独立内袋”及烘焙/茶叶范围限定，扩大了折叠彩盒用途。"
+      ],
+      "cleaned": [],
+      "checkedAt": "2026-10-08T08:20:22.625Z",
+      "viewports": [
+        {
+          "pageId": "home",
+          "width": 375,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "home",
+          "width": 768,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "home",
+          "width": 1440,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "products",
+          "width": 375,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "products",
+          "width": 768,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "products",
+          "width": 1440,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "sampling",
+          "width": 375,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "sampling",
+          "width": 768,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "sampling",
+          "width": 1440,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "contact",
+          "width": 375,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "contact",
+          "width": 768,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "contact",
+          "width": 1440,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        }
+      ]
+    },
+    "expectedRefusedClaims": [
+      "两类分别报价"
+    ],
+    "expectationSource": "Astra review of a7bcd12: quoted pricing arrangements have no statement in supplied materials; each original candidate must refuse."
+  },
+  {
+    "source": "T133 baseline 2026-10-08T07-59-10-005Z / case-8 R0 raw candidate",
+    "case": 8,
+    "materials": "资料性质：模拟。不可当作真实企业。\n公司名：青禾纸包装\n行业：纸包装 / 食品与日用品品牌采购\n公司简介：我们做纸盒和纸浆模塑内托，主要接烘焙、茶叶礼盒和日用品的包装订单。请把纸盒和内托分开介绍，它们的起订量与交期不同；我们没有食品直接接触许可，不接直接接触裸装食品的包装。\n目标：让采购说明包装尺寸、装载物和订单数量后询价。首屏不要写环保认证或食品级。\n首屏可用事实：纸盒与纸托按装载物设计 。\n首屏说明：先确认结构和打样，再安排批量印刷。主按钮：咨询包装打样。\n产品：折叠彩盒；瓦楞运输盒；纸浆模塑内托。\n折叠彩盒规格参数：纸张 白卡纸 250–400 g/m²；印刷 四色胶印；表面处理 水性上光/压纹；结构 插口盒/抽屉盒；用途 已有独立内袋的烘焙礼盒、茶叶礼盒。\n瓦楞运输盒规格参数：楞型 E楞/B楞；印刷 单色/双色水性印刷；结构 飞机盒/对口箱；用途 日用品运输与电商配送。尺寸按装载物确认，没有现成通用尺寸表。\n纸浆模塑内托规格参数：材料 再生纸浆；颜色 本色；用途 玻璃瓶与日用品定位缓冲。只能做内托，不承诺防水或跌落等级。\n加工能力：结构设计；白样打样；胶印；模切；糊盒。设备：四色胶印机 1 台；自动模切机 2 台；糊盒机 1 台。\n订购流程：提供装载物尺寸和数量；确认结构白样；确认印刷文件；生产并检查成品。白样不含印刷颜色，需提供实际装载物或尺寸图。\nMOQ：折叠彩盒 3000 个；瓦楞运输盒 1000 个；纸浆模塑内托 5000 个。\n交期：折叠彩盒和瓦楞运输盒在印刷文件及白样确认后 12–18 天；纸浆模塑内托在模具确认后 20–25 天。白样打样 3–5 天，不包含寄送时间。\n问：已有刀线图能直接生产吗？答：先核对装载物尺寸，确认白样和印刷文件后生产。\n问：能做直接装食品的盒子吗？答：只承接已有独立内袋的食品外包装，不做直接接触裸装食品的包装。\n邮箱：sample@qinghe-pack.example\n认证、客户名单、评价、电话、地址：资料未提供。没有授权照片，可以用标明示意的结构图。\n\n页面要求：首页、包装产品、打样与订购、联系四个独立页面。只做中文。没有授权照片时采用无图或标明示意的CSS图。",
+    "code": {
+      "header": "<header class=\"site-header\"><div class=\"site-header__inner\"><a class=\"brand\" href=\"/home\">青禾纸包装</a><nav class=\"nav\"><a href=\"/home\">首页</a><a href=\"/products\">包装产品</a><a href=\"/quote\">打样与订购</a><a href=\"/contact\">联系</a></nav><a class=\"btn btn--primary btn--sm\" href=\"/contact\">咨询包装打样<span data-system-icon=\"arrow\"></span></a></div></header>",
+      "footer": "<footer class=\"site-footer\"><div class=\"wrap site-footer__cols\"><div><p class=\"site-footer__name\">青禾纸包装</p><p>纸盒与纸浆模塑内托，按装载物设计。只承接已有独立内袋的食品外包装，不做直接接触裸装食品的包装。</p></div><div><h2>询价</h2><p>sample@qinghe-pack.example</p><p>请写明装载物尺寸、订单数量和用途。</p></div><div><h2>页面</h2><ul><li><a href=\"/home\">首页</a></li><li><a href=\"/products\">包装产品</a></li><li><a href=\"/quote\">打样与订购</a></li><li><a href=\"/contact\">联系</a></li></ul></div><div><h2>其他</h2><p>电话、地址、认证与客户名单：待补充。</p></div></div></footer>",
+      "css": ":root{--paper:#f5f2ea;--paper-2:#eae5d8;--paper-3:#fbf9f3;--ink:#23211d;--ink-2:#55524a;--line:#d5cebd;--line-dark:#4b463d;--accent:#a83b1c;--accent-dark:#8c3116;--dark:#26241f;--dark-ink:#f2efe6;--dark-ink-2:#cfc9bb;--r:2px;--wrap:1120px}\n*,*::before,*::after{box-sizing:border-box}\nhtml{-webkit-text-size-adjust:100%}\nbody{margin:0;background:var(--paper);color:var(--ink);font-family:\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",\"Source Han Sans SC\",\"Noto Sans CJK SC\",sans-serif;font-size:17px;line-height:1.75}\nh1,h2,h3{margin:0;font-weight:700;line-height:1.35}\np{margin:0}\nul,ol,dl,dd{margin:0;padding:0}\nul,ol{list-style:none}\na{color:inherit;text-decoration:none}\n:focus-visible{outline:2px solid var(--accent);outline-offset:3px}\n.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}\n.section{padding:66px 0}\n.section--tight{padding:44px 0}\n.section--edge{border-top:1px solid var(--line)}\n.section--paper2{background:var(--paper-2)}\n.section--dark{background:var(--dark);color:var(--dark-ink)}\n.section h2{font-size:clamp(23px,2.5vw,32px)}\n.section__lead{margin-top:14px;max-width:44em;color:var(--ink-2);font-size:17.5px}\n.section__note{margin-top:20px;max-width:46em;color:var(--ink-2);font-size:15.5px}\n.section--dark .section__lead,.section--dark .section__note{color:var(--dark-ink-2)}\n.site-header{background:var(--paper);border-bottom:1px solid var(--line)}\n.site-header__inner{display:flex;align-items:center;flex-wrap:wrap;gap:28px;min-height:68px;max-width:var(--wrap);margin:0 auto;padding:0 24px}\n.brand{font-size:19px;font-weight:700;letter-spacing:.02em;white-space:nowrap}\n.nav{display:flex;flex-wrap:wrap;gap:26px;margin-left:auto}\n.nav a{font-size:15.5px;color:var(--ink-2);padding:4px 0;border-bottom:2px solid transparent}\n.nav a:hover{color:var(--ink);border-bottom-color:var(--accent)}\n.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border:1px solid transparent;border-radius:var(--r);font-size:16px;font-weight:600;line-height:1.3}\n.btn--primary{background:var(--accent);color:#fff}\n.btn--primary:hover{background:var(--accent-dark)}\n.btn--ghost{border-color:var(--ink);color:var(--ink)}\n.btn--ghost:hover{background:var(--paper-2)}\n.btn--sm{padding:9px 16px;font-size:15px}\n.hero{padding:72px 0 64px}\n.hero__grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:56px;align-items:center}\n.hero h1{font-size:clamp(30px,4.2vw,50px);letter-spacing:-.01em;margin-bottom:22px}\n.mark{font-style:normal;border-bottom:4px solid var(--accent);padding-bottom:2px}\n.hero__lead{font-size:18px;color:var(--ink-2);max-width:30em;margin-bottom:30px}\n.hero__actions{display:flex;flex-wrap:wrap;align-items:center;gap:18px}\n.schematic{margin:0}\n.schematic__frame{border:1px solid var(--ink);background:var(--paper-3);padding:16px;display:flex;min-height:230px}\n.schematic__frame--carton .panel{flex:1;border-right:1px dashed var(--ink-2)}\n.schematic__frame--carton .panel:last-child{border-right:0}\n.schematic__frame--mailer{flex-direction:column;gap:12px;padding:14px}\n.schematic__frame--mailer .flap{flex:0 0 24%;border:1px dashed var(--ink-2)}\n.schematic__frame--mailer .body{flex:1 1 auto;border:1px solid var(--ink-2)}\n.schematic__frame--tray{gap:12px}\n.schematic__frame--tray .cavity{flex:1;border:1px solid var(--ink-2);border-radius:48% 48% 34% 34% / 34% 34% 26% 26%;background:var(--paper-2)}\n.schematic figcaption{margin-top:12px;font-size:14.5px;color:var(--ink-2)}\n.lines{margin:32px 0 0;border-top:1px solid var(--line)}\n.lines__row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr) minmax(0,1.5fr);gap:8px 32px;padding:20px 0;border-bottom:1px solid var(--line);align-items:baseline}\n.lines__row dt{font-size:18px;font-weight:600}\n.lines__row dd{margin:0;font-size:16.5px;font-variant-numeric:tabular-nums}\n.section--dark .lines{border-top-color:var(--line-dark)}\n.section--dark .lines__row{border-bottom-color:var(--line-dark)}\n.section--dark .lines__row dd{color:var(--dark-ink-2)}\n.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 56px;margin-top:30px}\n.steps__item{padding:22px 0;border-top:1px solid var(--line)}\n.steps__label{font-size:14px;letter-spacing:.06em;color:var(--ink-2);margin-bottom:6px}\n.steps__item h3{font-size:18px;margin-bottom:6px}\n.steps__item p:last-child{color:var(--ink-2);font-size:16px}\n.boundary{border-left:4px solid var(--accent);padding-left:28px;max-width:52em}\n.boundary h2{font-size:clamp(22px,2.3vw,28px)}\n.boundary p{margin-top:14px;color:var(--ink-2)}\n.cta-row{display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap}\n.cta-row__text{font-size:19px;max-width:30em}\n.page-head{padding:56px 0 40px}\n.page-head h1{font-size:clamp(28px,3.4vw,42px)}\n.page-head p{margin-top:16px;max-width:40em;color:var(--ink-2)}\n.product{margin-top:32px}\n.product h3{font-size:21px;margin-bottom:14px}\n.product--split{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:48px;align-items:start}\n.product--reverse{grid-template-columns:minmax(0,.85fr) minmax(0,1.4fr)}\n.spec{display:grid;grid-template-columns:8em minmax(0,1fr)}\n.spec dt{padding:12px 0;border-bottom:1px solid var(--line);color:var(--ink-2);font-size:15px}\n.spec dd{padding:12px 0;border-bottom:1px solid var(--line);font-size:16.5px;font-variant-numeric:tabular-nums}\n.spec-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 48px;margin-top:8px}\n.caps{display:flex;flex-wrap:wrap;gap:10px 34px;margin-top:24px;font-size:17.5px}\n.equip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;margin-top:32px;padding-top:24px;border-top:1px solid var(--line)}\n.equip dt{font-size:15px;color:var(--ink-2)}\n.equip dd{margin-top:4px;font-size:27px;font-weight:700;line-height:1.3;font-variant-numeric:tabular-nums}\n.equip dd span{margin-left:5px;font-size:15px;font-weight:400;color:var(--ink-2)}\n.flow{margin:30px 0 0}\n.flow__item{display:grid;grid-template-columns:56px minmax(0,1fr);gap:24px;padding:22px 0;border-top:1px solid var(--line);align-items:start}\n.flow__no{font-size:22px;font-weight:700;line-height:1.5;color:var(--accent);font-variant-numeric:tabular-nums}\n.flow__body h3{font-size:18px;margin-bottom:6px}\n.flow__body p{color:var(--ink-2);max-width:42em}\n.proof{display:grid;grid-template-columns:minmax(0,.55fr) minmax(0,1.45fr);gap:48px;margin-top:32px;align-items:start}\n.proof__value{font-size:clamp(42px,6vw,64px);font-weight:700;line-height:1.05;color:var(--accent);font-variant-numeric:tabular-nums}\n.proof__value span{margin-left:6px;font-size:17px;font-weight:400;color:var(--ink-2)}\n.proof__label{margin-top:10px;font-size:15.5px;color:var(--ink-2)}\n.proof__notes p{color:var(--ink-2)}\n.leadtime{margin-top:24px}\n.leadtime div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:4px 24px;padding:14px 0;border-top:1px solid var(--line)}\n.leadtime dt{font-weight:600}\n.leadtime dd{color:var(--ink-2);font-variant-numeric:tabular-nums}\n.faq{margin-top:28px;max-width:46em}\n.faq dt{padding-top:22px;border-top:1px solid var(--line);font-size:18px;font-weight:700}\n.faq dd{padding:8px 0 22px;color:var(--ink-2)}\n.contact{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:56px;align-items:start}\n.contact__mail{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:19px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}\n.contact__hint{margin-top:18px;max-width:30em;color:var(--ink-2)}\n.contact__meta{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);font-size:15.5px;color:var(--ink-2)}\n.contact__form{border:1px solid var(--line);background:var(--paper-3);padding:28px;border-radius:var(--r)}\n.site-footer{background:var(--dark);color:var(--dark-ink-2);padding:56px 0 44px}\n.site-footer__cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr);gap:40px}\n.site-footer__name{font-size:19px;font-weight:700;color:var(--dark-ink);margin-bottom:12px}\n.site-footer h2{font-size:14.5px;font-weight:600;color:var(--dark-ink);margin-bottom:12px}\n.site-footer p{font-size:15px;line-height:1.8}\n.site-footer li{margin-bottom:8px}\n.site-footer li a{font-size:15px;color:var(--dark-ink-2);border-bottom:1px solid transparent}\n.site-footer li a:hover{color:var(--dark-ink);border-bottom-color:var(--dark-ink-2)}\n.site-footer a:focus-visible{outline-color:var(--dark-ink)}\n@media (max-width:900px){.hero__grid{grid-template-columns:1fr;gap:40px}.product--split,.product--reverse{grid-template-columns:1fr;gap:32px}.contact{grid-template-columns:1fr;gap:36px}}\n@media (max-width:768px){.site-header__inner{flex-direction:column;align-items:flex-start;gap:12px;padding:14px 24px}.nav{margin-left:0;gap:20px}.section{padding:52px 0}.steps{grid-template-columns:1fr;gap:0}.lines__row{grid-template-columns:1fr;gap:4px 0}.equip{grid-template-columns:1fr;gap:16px}.spec-cols{grid-template-columns:1fr;gap:0}.proof{grid-template-columns:1fr;gap:28px}.leadtime div{grid-template-columns:1fr;gap:2px 0}.flow__item{grid-template-columns:44px minmax(0,1fr);gap:16px}.cta-row{flex-direction:column;align-items:flex-start}.site-footer__cols{grid-template-columns:1fr 1fr;gap:32px}}\n@media (max-width:520px){.wrap{padding:0 20px}.contact__form{padding:20px}.boundary{padding-left:18px}}\n@media (max-width:480px){.spec{grid-template-columns:1fr}.spec dt{padding-bottom:0;border-bottom:0}.spec dd{padding-top:2px}.site-footer__cols{grid-template-columns:1fr}}",
+      "pages": [
+        {
+          "id": "home",
+          "title": "首页",
+          "html": "<main><section class=\"hero\"><div class=\"wrap hero__grid\"><div><h1>纸盒与纸托，<em class=\"mark\">按装载物设计</em></h1><p class=\"hero__lead\">先确认结构和打样，再安排批量印刷。折叠彩盒、瓦楞运输盒与纸浆模塑内托分开报价，起订量与交期各自计算。</p><div class=\"hero__actions\"><a class=\"btn btn--primary\" href=\"/contact\">咨询包装打样<span data-system-icon=\"arrow\"></span></a><a class=\"btn btn--ghost\" href=\"/products\">查看包装产品</a></div></div><figure class=\"schematic\"><div class=\"schematic__frame schematic__frame--tray\"><span class=\"cavity\"></span><span class=\"cavity\"></span><span class=\"cavity\"></span></div><figcaption>结构示意：玻璃瓶内托的定位凹槽，非实物照片</figcaption></figure></div></section><section class=\"section section--dark\"><div class=\"wrap\"><h2>纸盒与内托，起订量和交期分开算</h2><p class=\"section__lead\">纸盒走印刷、模切与糊盒，内托走纸浆成型。两条线的起订量与交期不通用，报价也分开算。</p><dl class=\"lines\"><div class=\"lines__row\"><dt>折叠彩盒</dt><dd>起订量 3000 个</dd><dd>印刷文件及白样确认后 12–18 天</dd></div><div class=\"lines__row\"><dt>瓦楞运输盒</dt><dd>起订量 1000 个</dd><dd>印刷文件及白样确认后 12–18 天</dd></div><div class=\"lines__row\"><dt>纸浆模塑内托</dt><dd>起订量 5000 个</dd><dd>模具确认后 20–25 天</dd></div></dl><p class=\"section__note\">瓦楞运输盒尺寸按装载物确认，没有现成通用尺寸表；纸浆模塑内托只做内托，不承诺防水或跌落等级。</p></div></section><section class=\"section\"><div class=\"wrap\"><h2>下单顺序：先白样，再印刷</h2><ol class=\"steps\"><li class=\"steps__item\"><p class=\"steps__label\">第一步</p><h3>提供装载物尺寸和数量</h3><p>写清装载物尺寸、订单数量和用途，据此判断盒型或内托结构。</p></li><li class=\"steps__item\"><p class=\"steps__label\">第二步</p><h3>确认结构白样</h3><p>白样打样 3–5 天，不含寄送时间。白样不含印刷颜色，需要提供实际装载物或尺寸图。</p></li><li class=\"steps__item\"><p class=\"steps__label\">第三步</p><h3>确认印刷文件</h3><p>印刷方式与表面处理按产品确认，文件确认后安排批量印刷。</p></li><li class=\"steps__item\"><p class=\"steps__label\">第四步</p><h3>生产并检查成品</h3><p>按确认的白样与印刷文件生产，并检查成品。</p></li></ol></div></section><section class=\"section section--paper2\"><div class=\"wrap\"><div class=\"boundary\"><h2>承接边界</h2><p>只承接已有独立内袋的食品外包装，不做直接接触裸装食品的包装。</p><p>已有刀线图也需要先核对装载物尺寸，确认白样和印刷文件后生产。</p></div></div></section><section class=\"section section--tight\"><div class=\"wrap cta-row\"><p class=\"cta-row__text\">带上装载物尺寸、数量和用途，我们按结构安排打样。</p><a class=\"btn btn--primary\" href=\"/contact\">咨询包装打样<span data-system-icon=\"arrow\"></span></a></div></section></main>"
+        },
+        {
+          "id": "products",
+          "title": "包装产品",
+          "html": "<main><div class=\"wrap page-head\"><h1>包装产品</h1><p>纸盒与纸浆模塑内托分两条线：纸盒走印刷、模切与糊盒，内托走纸浆成型。尺寸一律按装载物确认，规格与起订量分开列出。</p></div><section class=\"section section--edge\"><div class=\"wrap\"><h2>纸盒</h2><p class=\"section__lead\">礼盒用折叠彩盒，运输与电商配送用瓦楞运输盒。两者的印刷方式与起订量不同。</p><article class=\"product product--split\"><div><h3>折叠彩盒</h3><dl class=\"spec\"><dt>纸张</dt><dd>白卡纸 250–400 g/m²</dd><dt>印刷</dt><dd>四色胶印</dd><dt>表面处理</dt><dd>水性上光 / 压纹</dd><dt>结构</dt><dd>插口盒 / 抽屉盒</dd><dt>用途</dt><dd>已有独立内袋的烘焙礼盒、茶叶礼盒</dd><dt>起订量</dt><dd>3000 个</dd><dt>交期</dt><dd>印刷文件及白样确认后 12–18 天</dd></dl></div><figure class=\"schematic\"><div class=\"schematic__frame schematic__frame--carton\"><span class=\"panel\"></span><span class=\"panel\"></span><span class=\"panel\"></span></div><figcaption>结构示意：插口盒与抽屉盒的盒面分割，非实物照片</figcaption></figure></article><article class=\"product product--wide\"><h3>瓦楞运输盒</h3><div class=\"spec-cols\"><dl class=\"spec\"><dt>楞型</dt><dd>E 楞 / B 楞</dd><dt>印刷</dt><dd>单色 / 双色水性印刷</dd><dt>结构</dt><dd>飞机盒 / 对口箱</dd><dt>用途</dt><dd>日用品运输与电商配送</dd></dl><dl class=\"spec\"><dt>尺寸</dt><dd>按装载物确认，没有现成通用尺寸表</dd><dt>起订量</dt><dd>1000 个</dd><dt>交期</dt><dd>印刷文件及白样确认后 12–18 天</dd></dl></div></article></div></section><section class=\"section section--paper2\"><div class=\"wrap\"><h2>纸浆模塑内托</h2><p class=\"section__lead\">用再生纸浆成型，做玻璃瓶与日用品的定位缓冲。只做内托，不承诺防水或跌落等级。</p><article class=\"product product--reverse\"><figure class=\"schematic\"><div class=\"schematic__frame schematic__frame--tray\"><span class=\"cavity\"></span><span class=\"cavity\"></span><span class=\"cavity\"></span></div><figcaption>结构示意：瓶位凹槽的排布，非实物照片</figcaption></figure><div><dl class=\"spec\"><dt>材料</dt><dd>再生纸浆</dd><dt>颜色</dt><dd>本色</dd><dt>用途</dt><dd>玻璃瓶与日用品定位缓冲</dd><dt>边界</dt><dd>只能做内托，不承诺防水或跌落等级</dd><dt>起订量</dt><dd>5000 个</dd><dt>交期</dt><dd>模具确认后 20–25 天</dd></dl></div></article></div></section><section class=\"section section--tight\"><div class=\"wrap cta-row\"><p class=\"cta-row__text\">先确认装载物尺寸和起订量，再按结构安排白样。</p><a class=\"btn btn--primary\" href=\"/contact\">咨询包装打样<span data-system-icon=\"arrow\"></span></a></div></section></main>"
+        },
+        {
+          "id": "quote",
+          "title": "打样与订购",
+          "html": "<main><div class=\"wrap page-head\"><h1>打样与订购</h1><p>结构设计、白样、胶印、模切、糊盒在同一个厂里完成。下单前先做白样，确认结构后再安排批量印刷。</p></div><section class=\"section section--edge\"><div class=\"wrap\"><h2>加工能力与设备</h2><ul class=\"caps\"><li>结构设计</li><li>白样打样</li><li>胶印</li><li>模切</li><li>糊盒</li></ul><dl class=\"equip\"><div><dt>四色胶印机</dt><dd>1<span>台</span></dd></div><div><dt>自动模切机</dt><dd>2<span>台</span></dd></div><div><dt>糊盒机</dt><dd>1<span>台</span></dd></div></dl></div></section><section class=\"section\"><div class=\"wrap\"><h2>订购流程</h2><ol class=\"flow\"><li class=\"flow__item\"><span class=\"flow__no\">1</span><div class=\"flow__body\"><h3>提供装载物尺寸和数量</h3><p>已有刀线图也先核对装载物尺寸，再确认盒型或内托结构。</p></div></li><li class=\"flow__item\"><span class=\"flow__no\">2</span><div class=\"flow__body\"><h3>确认结构白样</h3><p>白样打样 3–5 天，不含寄送时间。需要提供实际装载物或尺寸图。</p></div></li><li class=\"flow__item\"><span class=\"flow__no\">3</span><div class=\"flow__body\"><h3>确认印刷文件</h3><p>印刷方式与表面处理按产品确认，文件确认后安排批量印刷。</p></div></li><li class=\"flow__item\"><span class=\"flow__no\">4</span><div class=\"flow__body\"><h3>生产并检查成品</h3><p>按确认的白样与印刷文件生产，并检查成品。</p></div></li></ol></div></section><section class=\"section section--paper2\"><div class=\"wrap\"><h2>白样与交期</h2><div class=\"proof\"><div><p class=\"proof__value\">3–5<span>天</span></p><p class=\"proof__label\">白样打样，不含寄送时间</p></div><div class=\"proof__notes\"><p>白样不含印刷颜色，用来确认结构与装配，需要提供实际装载物或尺寸图。</p><dl class=\"leadtime\"><div><dt>折叠彩盒 / 瓦楞运输盒</dt><dd>印刷文件及白样确认后 12–18 天</dd></div><div><dt>纸浆模塑内托</dt><dd>模具确认后 20–25 天</dd></div></dl></div></div></div></section><section class=\"section section--edge\"><div class=\"wrap\"><h2>常见问题</h2><dl class=\"faq\"><dt>已有刀线图能直接生产吗？</dt><dd>先核对装载物尺寸，确认白样和印刷文件后生产。</dd><dt>能做直接装食品的盒子吗？</dt><dd>只承接已有独立内袋的食品外包装，不做直接接触裸装食品的包装。</dd></dl></div></section><section class=\"section section--tight\"><div class=\"wrap cta-row\"><p class=\"cta-row__text\">白样确认后再安排批量印刷。把装载物尺寸、数量和用途发给我们。</p><a class=\"btn btn--primary\" href=\"/contact\">咨询包装打样<span data-system-icon=\"arrow\"></span></a></div></section></main>"
+        },
+        {
+          "id": "contact",
+          "title": "联系",
+          "html": "<main><div class=\"wrap page-head\"><h1>联系</h1><p>把装载物尺寸、订单数量和用途写清楚，方便判断结构、起订量与交期。</p></div><section class=\"section section--edge\"><div class=\"wrap contact\"><div><h2>询价邮箱</h2><p class=\"contact__mail\"><span data-system-icon=\"mail\"></span>sample@qinghe-pack.example</p><p class=\"contact__hint\">报价按产品分开算：折叠彩盒与瓦楞运输盒、纸浆模塑内托的起订量和交期各不相同。</p><p class=\"contact__meta\">电话、地址、认证与客户名单：待补充。</p></div><div class=\"contact__form\"><div data-system-inquiry></div></div></div></section></main>"
+        }
+      ]
+    },
+    "originalChecks": {
+      "passed": true,
+      "issues": [],
+      "cleaned": [],
+      "checkedAt": "2026-10-08T08:26:35.914Z",
+      "viewports": [
+        {
+          "pageId": "home",
+          "width": 375,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "home",
+          "width": 768,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 1
+        },
+        {
+          "pageId": "home",
+          "width": 1440,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 2
+        },
+        {
+          "pageId": "products",
+          "width": 375,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "products",
+          "width": 768,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "products",
+          "width": 1440,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "quote",
+          "width": 375,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "quote",
+          "width": 768,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "quote",
+          "width": 1440,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "contact",
+          "width": 375,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "contact",
+          "width": 768,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        },
+        {
+          "pageId": "contact",
+          "width": 1440,
+          "overflow": 0,
+          "overlaps": 0,
+          "contrastIssues": 0,
+          "longLines": 0
+        }
+      ]
+    },
+    "expectedRefusedClaims": [
+      "分开报价",
+      "报价也分开算",
+      "报价按产品分开算"
+    ],
+    "expectationSource": "Astra review of a7bcd12: quoted pricing arrangements have no statement in supplied materials; each original candidate must refuse."
+  }
+]
