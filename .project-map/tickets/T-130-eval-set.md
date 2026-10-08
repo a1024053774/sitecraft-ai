@@ -99,3 +99,9 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 - `artifacts/t130/round-2026-10-08T05-11-25-013Z/review/company/`：0对题目。
 
 `private/blind-coverage.json`明确complete=false及每个缺图项；`private/mapping.json`只由主控保管，不给评审。没有匹配到可比较的上一轮，`comparison-review/`为0对。完整包齐备后由Claude交不同的新评审实例分别评阅两个口径，执行者不做盲评。还缺生成站截图、有效盲评包与两种首轮独立盲评、Astra结论，以及主控合并后在主工作区跑的全量npm test；源码未变，本轮不重复typecheck/相关测试/build。此前HTTP402失败仍保留在 `artifacts/t130/round-2026-10-08T02-23-23-602Z/`，不与充值后的证据混用。
+
+### 合并验收（Claude）
+
+Astra：a15ca3b NO_GO（文件时间暴露组别；mixed 重复官网可推答案）→ aa2b3fc 收窄复核 PASS（新实例 t130-astra2，2026-10-08 01:14 EDT；按 PNG 补齐块还原原始大小猜分组 10/16 为非阻断保留意见）。f888516 仅更新本票。合并为 14c34e0（与 T-129 在 `lib/code-site-model.ts`、`lib/code-site-workflow.ts`、`docs/project/mainline.md` 冲突，由主控合并：保留旧版参考选择与用量记录两边，选择阶段计为 `select` 用途）。主工作区 3034：typecheck、T-128/129/130 测试 61/61、`npm run build` 通过；全量 `npm test` 2564/2565，唯一失败 `tests/t117-published-capture-content.test.ts`（旧路线截图采样「footer companyName.zh 缺失」），同机单独重跑 13/13 通过，属并发负载下的已知误报（输出 gitignore 的 `artifacts/merge-14c34e0/`）。
+
+首轮评估的拒收大多指向检查器误拦与截图超时，转 T-133 修；首轮独立盲评用 T-133 修后的那一轮，本票剩余勾选项随之完成。
