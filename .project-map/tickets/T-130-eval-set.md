@@ -2,7 +2,7 @@
 id: T-130
 title: 评估集与盲评命令：固定公司 × 风格一条命令生成，交独立评审对比
 type: build
-status: open
+status: closed
 blocked_by: [T-128]
 claimed_by: t130-build
 supersedes:
@@ -14,10 +14,10 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 一条命令跑完整个评估集，输出目录里有每站的截图、底线检查结果、耗时和用量，以及命令本身
-- [ ] 盲评包里不暴露路线、风格或组别信息
-- [ ] 第一轮独立盲评结果（两种口径）写进 Resolution，作为后续比较的基线
-- [ ] Astra 代码审查通过；typecheck、test、build 通过
+- [x] 一条命令跑完整个评估集，输出目录里有每站的截图、底线检查结果、耗时和用量，以及命令本身
+- [x] 盲评包里不暴露路线、风格或组别信息
+- [x] 第一轮独立盲评结果（两种口径）写进 Resolution，作为后续比较的基线
+- [x] Astra 代码审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -105,3 +105,8 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 Astra：a15ca3b NO_GO（文件时间暴露组别；mixed 重复官网可推答案）→ aa2b3fc 收窄复核 PASS（新实例 t130-astra2，2026-10-08 01:14 EDT；按 PNG 补齐块还原原始大小猜分组 10/16 为非阻断保留意见）。f888516 仅更新本票。合并为 14c34e0（与 T-129 在 `lib/code-site-model.ts`、`lib/code-site-workflow.ts`、`docs/project/mainline.md` 冲突，由主控合并：保留旧版参考选择与用量记录两边，选择阶段计为 `select` 用途）。主工作区 3034：typecheck、T-128/129/130 测试 61/61、`npm run build` 通过；全量 `npm test` 2564/2565，唯一失败 `tests/t117-published-capture-content.test.ts`（旧路线截图采样「footer companyName.zh 缺失」），同机单独重跑 13/13 通过，属并发负载下的已知误报（输出 gitignore 的 `artifacts/merge-14c34e0/`）。
 
 首轮评估的拒收大多指向检查器误拦与截图超时，转 T-133 修；首轮独立盲评用 T-133 修后的那一轮，本票剩余勾选项随之完成。
+
+### 关闭（Claude，2026-10-08）
+
+命令经 T-133 修正后的基线轮 `artifacts/t130/round-2026-10-08T07-59-10-005Z/`（T-133 worktree）8/8 存版并有截图、每站检查结果、耗时、用量与命令齐全；交接包 `handoff-2026-10-08T11-31-41-332Z` 的 review/ 经 Astra（t130-astra2）与评审隔离复制核对，不含映射。第一轮独立盲评（两种口径，新 gpt-6.1-sol 实例 blind133-m、blind133-c，07:44–07:46 EDT）：mixed 生成页识别 8/8、真实官网误判 0/8；company 判同模板 0/12。作为后续比较基线，解盲摘要 `artifacts/blind-baseline-2026-10-08/summary.md`。
+

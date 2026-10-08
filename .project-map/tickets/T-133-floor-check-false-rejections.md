@@ -2,7 +2,7 @@
 id: T-133
 title: 首轮评估暴露的底线检查误拦与截图超时：图片显示、行长、编号数字、待补充
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t133-build
 supersedes:
@@ -30,10 +30,10 @@ T-130 首轮真实评估（2026-10-08，`artifacts/t130/round-2026-10-08T05-11-2
 
 ## Acceptance
 
-- [ ] 每类问题先有能复现的失败用例（取首轮真实拒收的页面片段做夹具），修后通过；坏实现（恢复原判定）应失败
+- [x] 每类问题先有能复现的失败用例（取首轮真实拒收的页面片段做夹具），修后通过；坏实现（恢复原判定）应失败
 - [x] 在机器空闲时用同一评估命令重跑一轮：成功存版并有截图的组合数、首稿/逐轮/最终拒收率与首轮对照写进 Resolution；事实类真实改写仍被拦下
 - [x] 产出完整盲评包（mixed 有生成页、company 有成对题目），交主控安排首轮盲评
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -181,3 +181,10 @@ P2 夹具 `tests/fixtures/t133/pricing-candidates.json` 保存基线 case-7 R0�
 4. T-128 已知 line-height:0 极端重叠和 filter 后对比度限制保留，不借本票放宽阈值。跨轮审美比较没有可用旧图；本轮审美与 Astra 都待主控派独立实例，执行者不宣布通过。
 
 第一项和第四项验收保留未勾选。CONTEXT、mainline、spec 已同步当前实现；项目地图 status 无问题、无过时 living doc。外部邮件与生产数据库未测，不作为本票完成条件。
+
+### 合并验收（Claude，2026-10-08）
+
+Astra：a7bcd12 NO_GO（序号豁免过宽；case-8「分开报价」漏检）→ 30cb48c NO_GO（序号豁免仍可绕过；主控决定删除豁免、改由规范引导原生 ol / CSS counter）→ 8c68f33 收窄复核 PASS（t133-astra3，09:39 EDT）。主控验收第一项：行长、序号、待补充、承诺、截图链路均有真实候选夹具与坏实现失败证据；首轮「图片无法显示」因首轮候选随 t130 worktree 数据被主控误删而无法复现，两轮空闲评估均未再现，正常图通过、404 拒收已证——按已复现部分验收，图片项残留风险由后续评估轮统计继续观察。已知限制：模型事实校对对次要表述不稳定（同一候选三次中偶有检出差异），承诺类目标句 6/6 拒收。合并为 cec1913；主工作区 3034：`npm run typecheck`、`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<指定路径> npm test` 2587/2587、`npm run build` 通过（输出 gitignore 的 `artifacts/merge-cec1913/`）。
+
+基线盲评（主控安排，评审 blind133-m / blind133-c，新 gpt-6.1-sol 实例，各只读隔离副本；解盲见 `artifacts/blind-baseline-2026-10-08/summary.md`）：mixed 生成页识别 8/8（未达 ≤50%），company 判同模板 0/12（通过）。改进转 T-132。
+
