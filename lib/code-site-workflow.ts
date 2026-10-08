@@ -2,7 +2,7 @@ import { after } from 'next/server.js';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
-import { planSiteCode, writeSiteCode } from './code-site-model.ts';
+import { planSiteCode, writeSiteCode, codeModelCalls } from './code-site-model.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
 import { AlignmentActionError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
@@ -30,7 +30,7 @@ function styleQuestion(epoch: number): CurrentQuestion {
 async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
   return updateCodeSite(siteId, site => {
     if (site.run?.id !== runId) throw new Error('任务已经更新');
-    return { run: { ...site.run, ...patch, updatedAt: new Date().toISOString() } };
+    return { run: { ...site.run, ...patch, ...(codeModelCalls.getStore() ? { modelCalls: codeModelCalls.getStore() } : {}), updatedAt: new Date().toISOString() } };
   });
 }
 async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number) {
@@ -44,7 +44,7 @@ async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, 
 }
 function schedule(site: CodeSiteRecord) {
   const run = site.run!; active.add(run.id);
-  after(async () => {
+  after(() => codeModelCalls.run([], async () => {
     try { await execute(site.siteId, run.id); }
     catch (error) {
       // An explicitly deleted site has no workspace or records to receive a failed run.
@@ -54,7 +54,7 @@ function schedule(site: CodeSiteRecord) {
       await updateConversationAlignment(site.siteId, site.conversationId, record => ({ ...record, alignment: applyCommittedResult(record.alignment, { status: 'error', summary: message }) }));
       await appendConversationTurn({ siteId: site.siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: message, appliedOperationsSummary: '未保存版本', outcome: 'error' });
     } finally { active.delete(run.id); }
-  });
+  }));
 }
 async function execute(siteId: string, runId: string) {
   let site = (await getCodeSite(siteId))!; const run = site.run!;

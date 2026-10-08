@@ -25,7 +25,7 @@ const providerSource = readFileSync(new URL("../lib/ai-provider.ts", import.meta
 const workspaceSource = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
 
 test("industrial and export simulated packs are independent, labeled 模拟, and use unique nonces", () => {
-  assert.equal(simulatedPackList.length, 3);
+  assert.equal(simulatedPackList.length, 4);
   assert.equal(simulatedPacks.industrial.siteId, "p3-industrial");
   assert.equal(simulatedPacks.export.siteId, "p3-export");
   assert.notEqual(simulatedPacks.industrial.siteId, simulatedPacks.export.siteId);

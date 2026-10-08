@@ -8,6 +8,7 @@
     "start": "next start",
     "migrate:drafts": "node --experimental-strip-types scripts/migrate-file-drafts.ts",
     "test:three-sites": "node scripts/generate-three-ai-sites.mjs",
+    "eval:new-route": "node --experimental-strip-types scripts/eval-new-route.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types tests/*.test.ts"
   },
