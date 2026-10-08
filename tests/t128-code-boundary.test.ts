@@ -79,6 +79,13 @@ async function refused(code: SiteCode, pattern: RegExp, removed?: (cleaned: Site
     assert.equal(result.checks.passed, false); assert.ok(result.checks.cleaned.length); removed(result.code);
   }
 }
+async function lineFeedback(code: SiteCode) {
+  const id = await site();
+  assert.equal((await put(id, code)).status, 200, 'line length is quality feedback');
+  const saved = (await getCodeSite(id))!.versions[0];
+  assert.equal(saved.checks.issues.length, 0);
+  assert.ok(saved.checks.viewports.some(viewport => viewport.longLines > 0));
+}
 test.after(async () => { await new Promise<void>(resolve => server.close(() => resolve())); });
 
 for (const [name, css] of [
@@ -252,7 +259,7 @@ for (const [tag, wrapper] of [['div', ''], ['li', 'ul'], ['dd', 'dl'], ['figcapt
   test(`review2: ${tag} prose uses body lines; readable wrapping passes`, async () => {
     const inner = `<${tag} class="prose">${longProse}</${tag}>`;
     const code = { ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1>${wrapper ? `<${wrapper}>${inner}</${wrapper}>` : inner}</main>` }] };
-    await refused(code, /正文行长超标/);
+    await lineFeedback(code);
     assert.equal((await put(await site(), { ...code, css: code.css + '.prose{max-width:20em}' })).status, 200);
   });
 }
@@ -267,7 +274,7 @@ test('review2: image attribution metadata is exempt while ordinary captions rema
     pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><p>精密零件加工。</p><div data-sitecraft-image-credits><span>${credits}</span></div></main>` }] };
   const response = await put(await site(), code);
   assert.equal(response.status, 200, JSON.stringify(await response.json()));
-  await refused({ ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><figure><figcaption>${longProse}</figcaption></figure></main>` }] }, /正文行长超标/);
+  await lineFeedback({ ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><figure><figcaption>${longProse}</figcaption></figure></main>` }] });
 });
 test('review2: site list reads code names, retains legacy names, and never dual-writes', async () => {
   const { getExistingSite } = await import('../lib/site-store.ts');
@@ -302,13 +309,13 @@ test('review2: list update time comes from code metadata, not the original seed'
 // The normal oracle is three separate 18-character lines, not one 54-character line.
 const cardText = '精密零件加工资料'.repeat(2) + '工艺';
 for (const display of ['inline-block', 'inline-flex', 'grid', 'flex']) {
-  test(`review3: three parallel ${display} cards pass; long single prose refuses`, async () => {
+  test(`review3: three parallel ${display} cards pass; long single prose has quality feedback`, async () => {
     const layout = ['grid', 'flex'].includes(display) ? `.cards{display:${display};grid-template-columns:repeat(3,1fr)}` : `.card{display:${display};width:33.333%}`;
     const code = { ...good, css: good.css + '.card{font-size:10px;line-height:1.6}.cards{font-size:0}' + layout,
       pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><div class="cards">${[1,2,3].map(() => `<span class="card">${cardText}</span>`).join('')}</div></main>` }] };
     const response = await put(await site(), code);
     assert.equal(response.status, 200, JSON.stringify(await response.json()));
-    await refused({ ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><div>${cardText.repeat(3)}</div></main>` }] }, /正文行长超标/);
+    await lineFeedback({ ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><div>${cardText.repeat(3)}</div></main>` }] });
   });
 }
 for (const [name, css] of [

@@ -55,6 +55,25 @@ async function packet(name: string) {
   await buildBlindPackage(current, out, { directory: root, round: previous });
   return out;
 }
+test('T133 complete current review remains distinguishable from unavailable historical comparison', async () => {
+  const old = round(current.cases.map(c => ({ ...c, outcome: 'error', pages: [], mixedScreenshot: undefined })));
+  for (const missingCurrent of [false, true]) {
+    const now = structuredClone(current);
+    if (missingCurrent) now.cases[0].outcome = 'error';
+    const out = path.join(root, `scope-${missingCurrent}`); await mkdir(path.join(out, 'private'), { recursive: true });
+    const coverage = await buildBlindPackage(now, out, { directory: root, round: old });
+    assert.equal(coverage.complete, false, 'missing requested history must remain incomplete');
+    assert.ok(coverage.review, 'the report must state current-package readiness separately');
+    assert.equal(coverage.review.complete, !missingCurrent);
+    assert.equal(coverage.comparison.requested, true);
+    assert.equal(coverage.comparison.complete, false);
+    assert.equal(coverage.comparison.missing.length, 8);
+    if (!missingCurrent) {
+      assert.equal(coverage.mixed, 16); assert.equal(coverage.company, 12);
+      assert.deepEqual(coverage.review.missing, []);
+    } else assert.ok(coverage.review.missing.some(issue => issue.includes('mixed 缺生成截图')));
+  }
+});
 async function inventory(root: string): Promise<Array<{ file: string; birth: number; modified: number; accessed: number; size: number; directory: boolean }>> {
   const s = await stat(root); const entry = { file: root, birth: s.birthtimeMs, modified: s.mtimeMs, accessed: s.atimeMs, size: s.size, directory: s.isDirectory() };
   const children = s.isDirectory() ? (await Promise.all((await readdir(root)).map(name => inventory(path.join(root, name))))).flat() : [];

@@ -4,9 +4,10 @@ import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
+import { captureEvalPage } from './eval-site-capture.ts';
 import { simulatedPacks, MATERIALS_CHAT_LIMIT, type SimulatedPackId } from '../lib/simulated-packs.ts';
 import type { CodeSiteRecord } from '../lib/code-site.ts';
-import { buildBlindPackage, compareRounds, summarize, tokenUsage, requireWholeSitePlan, type EvalRound, type EvalCase } from './eval-set-report.ts';
+import { buildBlindPackage, compareRounds, summarize, tokenUsage, requireWholeSitePlan, saveCandidateEvidence, type EvalRound, type EvalCase } from './eval-set-report.ts';
 
 const { values } = parseArgs({ options: {
   base: { type: 'string', default: process.env.SITECRAFT_BASE || 'http://127.0.0.1:3142' },
@@ -85,10 +86,12 @@ async function json<T>(endpoint: string, body?: unknown): Promise<T> {
   return response.json();
 }
 async function readSite(id: string) { return (await json<{ codeSite: CodeSiteRecord }>(`/api/sites/${id}/draft`)).codeSite; }
-async function waitRun(id: string) {
+async function waitRun(id: string, folder: string) {
   const deadline = Date.now() + 1800000;
   while (Date.now() < deadline) {
-    const state = await readSite(id); if (state.run?.status !== 'running') return state;
+    const state = await readSite(id);
+    await saveCandidateEvidence(path.join(directory, folder), state);
+    if (state.run?.status !== 'running') return state;
     await pause(1500);
   }
   throw new Error('后台任务30分钟未结束；本命令没有重试或重发');
@@ -102,32 +105,10 @@ async function capture(url: string, prefix: string, company?: string, widths = [
   browser ??= await codeCheckBrowser();
   const screenshots: Record<string, string> = {};
   for (const width of widths) {
-    await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-    const navigation = await browser.send<{ errorText?: string; loaderId?: string }>('Page.navigate', { url });
-    if (navigation.errorText) throw new Error(`页面导航失败：${navigation.errorText}`);
-    const deadline = Date.now() + 25000;
-    let ready = false;
-    while (Date.now() < deadline) {
-      const frame = await browser.send<{ frameTree: { frame: { loaderId: string } } }>('Page.getFrameTree');
-      ready = (!navigation.loaderId || frame.frameTree.frame.loaderId === navigation.loaderId) && await browser.evaluate<boolean>(`location.href !== 'about:blank' && document.readyState === 'complete' && document.body.innerText.trim().length > 30`);
-      if (ready) break; await pause(200);
-    }
-    assert.ok(ready, `页面未载入或为空：${url}`);
-    await browser.evaluate('document.fonts.ready');
-    // Trigger below-fold lazy images before the full-page capture.
-    if (full) await browser.evaluate(`(async()=>{for(let y=0;y<document.documentElement.scrollHeight;y+=800){scrollTo(0,y);await new Promise(r=>setTimeout(r,80))}scrollTo(0,0)})()`);
-    const observed: { text: string; images: number; failedImages: number } = await browser.evaluate(`({text:document.body.innerText,images:document.images.length,failedImages:[...document.images].filter(i=>i.currentSrc&&(!i.complete||!i.naturalWidth)).length})`);
-    if (company) assert.ok(observed.text.includes(company), '截图必须显示对应公司');
-    assert.equal(observed.failedImages, 0, `截图含未加载图片：${url}`);
-    assert.doesNotMatch(observed.text, /This site can.t be reached|ERR_[A-Z_]+|Access Denied|Just a moment|Checking your browser/i, '不能把错误或验证页当官网');
-    await pause(800);
-    const metrics = await browser.send<{ cssContentSize: { width: number; height: number } }>('Page.getLayoutMetrics');
-    assert.ok(metrics.cssContentSize.height > 100, '不能截空页面');
-    const image = await browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true,
-      clip: { x: 0, y: 0, width, height: full ? metrics.cssContentSize.height : 1000, scale: 1 } });
+    const data = await captureEvalPage(browser, url, width, company, full);
     const file = `${prefix}-${width}.png`;
     await mkdir(path.dirname(path.join(directory, file)), { recursive: true });
-    await writeFile(path.join(directory, file), Buffer.from(image.data, 'base64'));
+    await writeFile(path.join(directory, file), Buffer.from(data, 'base64'));
     screenshots[String(width)] = file;
   }
   return screenshots;
@@ -143,28 +124,37 @@ try {
       const c = cases[index], start = Date.now(), folder = path.join('private', `case-${index + 1}`);
       await mkdir(path.join(directory, folder));
       await writeFile(path.join(directory, folder, 'materials.txt'), c.materials, 'utf8');
+      const uploads: Array<{ file: string; submitted: Record<string, string>; receipt: unknown }> = [];
+      await writeFile(path.join(directory, folder, 'uploads.json'), '[]\n', 'utf8');
       try {
         const created = await json<{ id: string }>('/api/sites', { name: simulatedPacks[c.pack as SimulatedPackId].companyName.replace(/P3[A-Z]$/, ''), templateId: 'forge', locales: ['zh'], generationRoute: 'code' });
         c.siteId = created.id;
         for (const photo of photos[c.pack as SimulatedPackId] || []) {
           const form = new FormData();
-          form.set('file', new Blob([await readFile(path.join('tests/fixtures/company-images', c.pack, photo.file))], { type: 'image/jpeg' }), photo.file);
-          for (const [key, value] of Object.entries({ license: photo.apiLicense, sourceUrl: photo.sourceUrl, licenseUrl: photo.licenseUrl,
-            author: photo.author, attribution: photo.attribution, usageScope: 'current-site-only', usageCategory: photo.category, retrievedAt: photo.downloadedAt })) form.set(key, value);
+          const bytes = await readFile(path.join('tests/fixtures/company-images', c.pack, photo.file));
+          await mkdir(path.join(directory, folder, 'uploads'), { recursive: true });
+          await writeFile(path.join(directory, folder, 'uploads', photo.file), bytes);
+          form.set('file', new Blob([bytes], { type: 'image/jpeg' }), photo.file);
+          const submitted = { license: photo.apiLicense, sourceUrl: photo.sourceUrl, licenseUrl: photo.licenseUrl,
+            author: photo.author, attribution: photo.attribution, usageScope: 'current-site-only', usageCategory: photo.category, retrievedAt: photo.downloadedAt };
+          for (const [key, value] of Object.entries(submitted)) form.set(key, value);
           const uploaded = await fetch(`${base}/api/sites/${created.id}/images`, { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
+          const receipt = await uploaded.json();
+          uploads.push({ file: `uploads/${photo.file}`, submitted, receipt });
+          await writeFile(path.join(directory, folder, 'uploads.json'), JSON.stringify(uploads, null, 2), 'utf8');
           assert.equal(uploaded.status, 201, `上传${photo.file}失败`);
-          const receipt = await uploaded.json(); assert.ok(receipt.image?.imageId);
+          assert.ok(receipt.image?.imageId);
         }
         let state = await json<{ alignment: { questionId: string; questionRevision: number } }>(`/api/sites/${created.id}/chat`, { message: c.materials, baseRevision: 0 });
         await json(`/api/sites/${created.id}/chat`, { action: 'select', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, optionId: c.style,
           preferences: { style: c.style, layout: 5, density: 6 }, baseRevision: 0 });
-        let site = await waitRun(created.id); collect(c, site);
+        let site = await waitRun(created.id, folder); collect(c, site);
         if (site.run?.status === 'error') throw new Error(site.run.step);
         assert.equal(site.plan?.style, c.style);
         requireWholeSitePlan(c.pack as SimulatedPackId, site.plan!.pages.length);
         state = await json(`/api/sites/${created.id}/chat`, { action: 'state' });
         await json(`/api/sites/${created.id}/chat`, { action: 'confirm', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, baseRevision: 0 });
-        site = await waitRun(created.id); collect(c, site);
+        site = await waitRun(created.id, folder); collect(c, site);
         if (site.run?.status === 'error') throw new Error(site.run.step);
         const version = site.versions.find(v => v.id === site.currentVersionId); assert.ok(version);
         assert.equal(version.checks.passed, true); assert.equal(site.versions.length, 1);
@@ -175,7 +165,11 @@ try {
         c.mixedScreenshot = (await capture(`${base}/api/sites/${created.id}/code-preview?page=home&version=${version.id}`, `${folder}/home-fold`, undefined, [1440], false))['1440'];
         c.outcome = 'generated';
       } catch (error) {
-        if (c.siteId) collect(c, await readSite(c.siteId));
+        if (c.siteId) {
+          const site = await readSite(c.siteId);
+          await saveCandidateEvidence(path.join(directory, folder), site);
+          collect(c, site);
+        }
         c.error = error instanceof Error ? error.message : String(error);
         const providerFailed = c.modelCalls.some(call => call.httpStatus === null || call.httpStatus >= 400);
         c.outcome = providerFailed ? 'blocked' : c.attempts.length === 3 && c.attempts.every(a => !a.checks.passed) ? 'rejected' : 'error';
@@ -219,5 +213,6 @@ const blind = await buildBlindPackage(round, directory, previous);
 await writeFile(path.join(directory, 'private', 'blind-coverage.json'), JSON.stringify(blind, null, 2), 'utf8');
 round.status = cases.some(c => c.outcome === 'blocked') ? 'BLOCKED' : cases.every(c => c.outcome === 'generated') && blind.complete && !round.errors.length ? 'PASS' : 'INCOMPLETE';
 await save();
+console.log(`本轮 mixed/company 审包：${blind.review.complete ? '齐备可交评审' : 'INCOMPLETE'}；跨轮比较：${!blind.comparison.requested ? '未请求' : blind.comparison.complete ? '齐备可交比较' : `INCOMPLETE（${blind.comparison.missing.length} 项缺图）`}`);
 console.log(`${round.status}: ${directory}\n不同新评审实例分别收 ${path.join(directory, 'review/mixed')} 与 ${path.join(directory, 'review/company')}；跨轮比较单独收 ${path.join(directory, 'comparison-review')}`);
 if (round.status !== 'PASS') process.exitCode = 1;
