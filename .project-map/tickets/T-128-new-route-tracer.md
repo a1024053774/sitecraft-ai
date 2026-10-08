@@ -2,7 +2,7 @@
 id: T-128
 title: 新路线最小闭环：模型写三页 → 底线检查 → 版本 → 对话修改 → 撤销
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t128-build
 supersedes:
@@ -19,12 +19,18 @@ supersedes:
 - [x] 用真实 DeepSeek 在工作台跑通 export 和 molding 两家模拟公司：生成三页、对话改一句、撤销、刷新，全程截图（1440/768/375）并逐张看过
 - [x] 底线检查有一个反例证据：人为让一页带外链脚本或资料里没有的数字，提交入口拦下并交回模型修，或如实告诉用户
 - [x] 版本记录可读：每个版本有作者、一句话摘要、检查结果；撤销后上一版内容完全恢复
-- [ ] 独立评审（gpt-6.1-sol 新实例）把两家公司新旧路线的首页放在一起盲比，结论写进 Resolution
-- [ ] Astra 代码审查通过；`npm run typecheck`、`npm test`、`npm run build` 通过
+- [x] 独立评审（gpt-6.1-sol 新实例）把两家公司新旧路线的首页放在一起盲比，结论写进 Resolution
+- [x] Astra 代码审查通过；`npm run typecheck`、`npm test`、`npm run build` 通过
 
 ## Resolution
 
-执行者：t128-build。本次三项修复执行验收 PASS；对应 Astra 对 e30d905 的收窄复核 NO_GO，原 3/4/5/7 用例已通过，但并排卡片误拦、shorthand 与嵌套变量生成文字漏检尚需修复。T-128 总体验收仍 INCOMPLETE，独立盲评与 Astra 再审由 Claude 安排，保持 open、不推送。实现、测试和当前文档同一个本地提交，定位：`git log -1 --format=%H --grep='^fix: measure T-128 rendered text by layout context$'`。
+执行者：t128-build。验收人：Claude（主控）。2026-10-07 合并为 5b8257b（实现 9e0042b、修复 094734d / e30d905 / d5623eb）。
+
+### 独立评审与合并验收
+
+- 盲比（gpt-6.1-sol 新实例 t128-blind，2026-10-07 16:53 EDT，基于 9e0042b 的真实生成首页，匿名 X/Y，记录 `artifacts/t128/blind-review-1.md`）：外高桥流体接头 新 7 / 旧 6（小胜，新版规格集中，辨识度偏弱，出现「资料未给具体天数」整理口吻——已在核心规范加引导）；宁海注塑模具 新 8 / 旧 5（明显胜出）。四个候选均未见虚构客户、评价、认证或数字。最该改：首页信息主次，留给截图打磨与评估集。
+- Astra：9e0042b NO_GO（6 项）→ 094734d NO_GO（7 项，其中 line-height:0 叠字与 filter 后对比度由主控定为已知限制：刻意构造的极端写法，模型正常不会写，由评估集截图与盲评兜底）→ e30d905 收窄复核 NO_GO（并排卡片误拦、变量生成文字漏检）→ d5623eb 收窄复核 PASS（新实例 t128-astra4，2026-10-07 21:45 EDT）。
+- 主工作区合并后复验（5b8257b，2026-10-07 22:00–22:15 EDT，主工作区 3034 dev server，输出在 gitignore 的 `artifacts/merge-5b8257b/`）：`npm run typecheck` 通过；`npm run build` 通过；`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<指定路径> npm test` 2541/2543，失败 2 项均为 `GET /api/sites` 读到主工作区本地两条 9 月旧路线记录（ab-ind-asm、goal-live-20260923，配色 industrial-minimal-gray 已下线）时迁移抛错返回 500；该接口与迁移代码本票未改，合并前即存在，worktree 无此数据故通过，另开 T-131。真实 DeepSeek export 闭环在主工作区启动（站点 de16927c-76ca-4047-adf5-3b054390083e），第 2 轮修正时 DeepSeek 返回 HTTP 402（余额不足），未存版、如实报错；主工作区真实闭环未完成，以 worktree 上 094734d 之后的两家真实闭环为准（之后的提交只改检查器与列表，不改提示与存版）。
 
 ### 当前实现
 
