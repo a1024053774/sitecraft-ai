@@ -3,7 +3,7 @@ id: T-132
 title: 核心规范吸纳 good-css 的 CSS 原则，并用评估集成对比较
 type: build
 status: open
-blocked_by: [T-130]
+blocked_by: [T-133]
 claimed_by:
 supersedes:
 ---
@@ -17,5 +17,5 @@ supersedes:
 ## Acceptance
 
 - [ ] 核心规范增量合入，SOURCE.md 记录来源、revision 与 MIT 全文；不复制原站示例代码
-- [ ] 用 T-130 的同一命令在改动前后各跑一轮（基线可复用 T-130 首轮），成对盲评结论写进 Resolution：改动后不差于基线，并说明哪些组合变好或变差；底线检查拒收率不上升
+- [ ] 用 T-130 的同一命令在改动前后各跑一轮（基线用 T-133 修正检查器后的那一轮），成对盲评结论写进 Resolution：改动后不差于基线，并说明哪些组合变好或变差；底线检查拒收率不上升
 - [ ] Astra 审查通过；typecheck、test、build 通过
