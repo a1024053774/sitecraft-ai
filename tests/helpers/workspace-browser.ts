@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { open, readFile, rm, stat, utimes } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -67,17 +67,22 @@ function killOwnedChrome(chrome: OwnedChrome, signal: NodeJS.Signals) {
 async function stopOwnedChrome(chrome: OwnedChrome) {
   killOwnedChrome(chrome, "SIGKILL");
   for (let attempt = 0; attempt < 80; attempt += 1) {
-    if (!chromeRows()?.some((row) => row.dataDir === chrome.dataDir)) return;
+    if (!chromeRows()?.some((row) => row.dataDir === chrome.dataDir)) break;
     await sleep(25);
   }
   killOwnedChrome(chrome, "SIGKILL");
+  // The per-process profile is only scratch; leaving it behind piled up ~9 GB of /tmp (2026-10-08).
+  if (!chromeRows()?.some((row) => row.dataDir === chrome.dataDir)) await rm(chrome.dataDir, { recursive: true, force: true });
 }
 
 function installLifecycleHooks() {
   if (lifecycleHooksInstalled) return;
   lifecycleHooksInstalled = true;
   process.on("exit", () => {
-    for (const chrome of ownedChromes.values()) killOwnedChrome(chrome, "SIGKILL");
+    for (const chrome of ownedChromes.values()) {
+      killOwnedChrome(chrome, "SIGKILL");
+      rmSync(chrome.dataDir, { recursive: true, force: true });
+    }
   });
   const stopOnSignal = (signal: "SIGINT" | "SIGTERM") => {
     for (const chrome of ownedChromes.values()) killOwnedChrome(chrome, "SIGKILL");
