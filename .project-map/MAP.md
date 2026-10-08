@@ -77,5 +77,5 @@
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**` | |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-00[1-9]-*.md`, `.project-map/tickets/T-01[0-4]-*.md` | |
 | [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/types.ts`, `lib/template-adapters/registry.ts`, `lib/frontend-tone.ts`, `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | 65ba3d5 |
-| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `tests/helpers/workspace-browser.ts`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | 65ba3d5 |
+| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `tests/helpers/workspace-browser.ts`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | b881f9a |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | 00a083e |

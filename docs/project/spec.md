@@ -211,7 +211,7 @@ A 当前默认流程；B 增加单一审美指导；C 增加资料驱动的模�
 - 浏览器在 375/768/1440 CSS 像素及拥挤断点检查，覆盖菜单、焦点、表单错误和结果；表单成功提示不是收件证据。
 - 浏览器测试统一使用 `SITECRAFT_BASE`（缺省 `http://127.0.0.1:3034`）。开发环境的 `/api/health` 响应额外带 `testIdentity.cwd`，测试启动时把它和当前工作区路径核对；路径不一致或服务没有开发标识就直接失败，避免 worktree 测到另一份代码。`NODE_ENV=production` 时不返回该字段，因此生产路径不暴露测试标识。
 - 发布页检查先等预览 ready、iframe 目标、整页高度稳定和字体/布局条件成立，再取 visitor facts 与版面结果；条件都有明确上限和失败说明，不用固定 sleep 代替就绪条件。取数结果必须带可见区块、对比度条目和正文段落的完整性元数据，未测到内容直接失败，不得静默通过。
-- 浏览器测试助手只结束自己启动的无头 Chrome：正常关闭、异常、SIGINT/SIGTERM 和进程退出都清理所持有的 PID；被 SIGKILL 留下的 `sitecraft-workspace-<pid>` 只在 owner PID 已不存在且调试端口没有 established 连接时由下一次 `openBrowser()` 回收，判断不确定则保留。其他 user-data-dir 和仍有调试连接的 Chrome 不碰。
+- 浏览器测试助手只结束自己启动的无头 Chrome：正常关闭、异常、SIGINT/SIGTERM 和进程退出都清理所持有的 PID，并删除自己的 `sitecraft-workspace-<pid>` 配置目录；被 SIGKILL 留下的 `sitecraft-workspace-<pid>` 只在 owner PID 已不存在且调试端口没有 established 连接时由下一次 `openBrowser()` 回收，判断不确定则保留。其他 user-data-dir 和仍有调试连接的 Chrome 不碰。
 - 浏览器助手不复用已有 CDP 端点，也不接受显式调试端口覆盖；Chrome 使用自选端口，端口只从本次 user-data-dir 的 `DevToolsActivePort` 读取，避免 worktree 之间按 PID 推导端口发生碰撞。
 - 独立审核 agent（不是做这项工作的 agent）隐藏分组、打乱展示，评价品牌差异、行业适配、可读性、图文一致和行动清晰；负责人不做盲评。做工作的 agent 自评是探索证据，不能外推客户满意度或转化率；评分阈值先校准。
 - 盲评界面隐藏流程组、核验记号、默认对照和冻结版本等内部标记；质量基线的冻结 HEAD 由服务端运行时读取，不在界面写死。
