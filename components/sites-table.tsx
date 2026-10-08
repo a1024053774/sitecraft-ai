@@ -44,18 +44,19 @@ export function SitesTable({ sites }: { sites: SiteListItem[] }) {
               key={site.siteId}
               data-testid="site-row"
               data-site-id={site.siteId}
-              {...rowProps(site)}
+              {...(site.readError ? {} : rowProps(site))}
             >
               <div data-preview-label="">
                 <strong>{site.siteName}</strong>
                 <small>{site.siteId}</small>
+                {site.readError && <small className="site-read-error" role="status">{site.readError}</small>}
               </div>
               <span>{site.companyName || "—"}</span>
               <span>{template.name}</span>
               <span>{formatUpdatedAt(site.updatedAt)}</span>
               <div className="site-row-actions" data-preview-actions="">
-                <Link className="section-link" href={workspaceHref(site.siteId)}>工作台</Link>
-                <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>
+                <Link className="section-link" href={workspaceHref(site.siteId)}>{site.readError ? "查看原因" : "工作台"}</Link>
+                {!site.readError && <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>}
               </div>
             </article>
           );

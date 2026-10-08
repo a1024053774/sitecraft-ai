@@ -20,6 +20,7 @@ import {
   historyItemSchema,
   ensureProductIds,
   normalizeDraft,
+  migrateRetiredPaletteId,
   blockIdSchema,
   editableCardSchema,
   locales,
@@ -723,6 +724,9 @@ function productIdForSku(draft: SiteDraft, sku: string, context: { siteId?: stri
 function migrateHistoricalOperation(raw: unknown, draft: SiteDraft, context: { siteId?: string | null; changeId?: string }): SiteOperation {
   if (!raw || typeof raw !== "object") throw new Error("Cannot migrate malformed historical operation");
   const operation = raw as Record<string, unknown>;
+  if (operation.op === "set_palette" && typeof operation.paletteId === "string") {
+    return { ...operation, paletteId: migrateRetiredPaletteId(operation.paletteId) } as SiteOperation;
+  }
   if (operation.op === "update_card" && typeof operation.index === "number" && typeof operation.itemId !== "string") {
     const { index: _index, ...rest } = operation;
     return { ...rest, itemId: cardIdAt(draft, operation.section as "features" | "services" | "faq", operation.index, context) } as SiteOperation;

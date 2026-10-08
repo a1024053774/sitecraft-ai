@@ -2,6 +2,7 @@ export class SiteMigrationError extends Error {
   readonly siteId: string | null;
   readonly field: string;
   readonly value: string;
+  readonly reason: string;
 
   constructor(args: { siteId?: string | null; field: string; value: string; reason: string }) {
     super(`旧站点数据无法迁移：site=${args.siteId ?? "unknown"} field=${args.field} id=${args.value} reason=${args.reason}`);
@@ -9,6 +10,11 @@ export class SiteMigrationError extends Error {
     this.siteId = args.siteId ?? null;
     this.field = args.field;
     this.value = args.value;
+    this.reason = args.reason;
+  }
+
+  get userMessage() {
+    return `旧记录无法打开：${this.reason}。`;
   }
 }
 

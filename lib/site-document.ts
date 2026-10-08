@@ -78,9 +78,9 @@ export type PaletteId = z.infer<typeof paletteIdSchema>;
 export type PaletteCatalogEntry = { id: PaletteId; colorSet: ColorSetId; label: string; summary: string };
 
 /**
- * Palette ids before colour sets (2026-09-27). Stored drafts still carry them, so they are renamed
- * on read to the nearest colour set. Remove once every stored draft has been rewritten with a
- * current id (for example by a save through commitOperations after this change).
+ * Palette ids before colour sets (2026-09-27). Stored drafts and history/future operations still
+ * carry them, so they are renamed on read to the nearest colour set (42eef85). Remove with the
+ * old route once its stored records have been converted to static versions (T-127).
  */
 const retiredPaletteIds: Record<string, PaletteId> = {
   "industrial-white": "industrial-porcelain",
@@ -630,11 +630,16 @@ function pagePlanForLegacy(legacy: Record<string, unknown>): PagePlan {
   return parsed.success ? parsed.data : defaultPagePlanFor(templateId);
 }
 
+export function migrateRetiredPaletteId(paletteId: string): string {
+  return Object.hasOwn(retiredPaletteIds, paletteId) ? retiredPaletteIds[paletteId] : paletteId;
+}
+
 function renameRetiredPalette(input: unknown): unknown {
   if (!input || typeof input !== "object") return input;
   const paletteId = (input as { paletteId?: unknown }).paletteId;
-  if (typeof paletteId !== "string" || !Object.hasOwn(retiredPaletteIds, paletteId)) return input;
-  return { ...(input as Record<string, unknown>), paletteId: retiredPaletteIds[paletteId] };
+  if (typeof paletteId !== "string") return input;
+  const migrated = migrateRetiredPaletteId(paletteId);
+  return migrated === paletteId ? input : { ...(input as Record<string, unknown>), paletteId: migrated };
 }
 
 // A stored layout for a block or a variant the library does not have (any more) is dropped on

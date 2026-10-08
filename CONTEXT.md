@@ -46,7 +46,7 @@
 - **英文已生成标记**：草稿由双语 operation 写入非缺口英文后设置的 `englishReady` 数据标记；发布页只按这个标记提供 EN，不比较文案句子。
 - **商品类别**：商品资料的类别也是双语字段；新 operation 写入 `{zh,en}`，预览按当前语言读取，旧草稿的单语字符串继续作为兼容读法。
 - **产品参数值**：参数名称是双语字段；值可以是两种语言相同的字符串（数字、单位、型号）或 `{zh,en}`。带中文的值由服务端按资料规范化，英文缺口在英文页不显示；旧草稿的单语字符串原样读取，不自动翻译。
-- **产品稳定 id**：每个产品有独立的稳定 `id`，只允许字母、数字、下划线和连字符，最长 80 个字符；产品型号 `sku` 仍是访客看到、可以修改的资料字段。预览槽位、选中目标、产品 operation 和撤销都按 `id` 定位，改 SKU 不会改变目标。旧草稿和旧历史读入时按原产品顺序和 SKU 确定性补/迁移 id，迁移后持久化；已有安全的显式 id 保持不变。重复显式 id、含点号等不安全旧 id 或无法唯一解析的旧 SKU 属于不支持的旧数据形态，会抛带 siteId、字段和旧值的 `SiteMigrationError` 让请求失败，不会改写、丢弃或回退到默认草稿；2026-10-02 扫描本机 4814 条记录均为 0 条命中。
+- **产品稳定 id**：每个产品有独立的稳定 `id`，只允许字母、数字、下划线和连字符，最长 80 个字符；产品型号 `sku` 仍是访客看到、可以修改的资料字段。预览槽位、选中目标、产品 operation 和撤销都按 `id` 定位，改 SKU 不会改变目标。旧草稿和旧历史读入时按原产品顺序和 SKU 确定性补/迁移 id，迁移后持久化；已有安全的显式 id 保持不变。重复显式 id、含点号等不安全旧 id 或无法唯一解析的旧 SKU 属于不支持的旧数据形态，会抛带 siteId、字段和旧值的 `SiteMigrationError` 不会改写、丢弃或回退到默认草稿；列表与工作台的错误显示见「历史迁移」。2026-10-02 扫描本机 4814 条记录均为 0 条命中。
 - **行业**：双语字段，中文页显示中文、英文页显示英文；旧草稿的单语字符串两种语言都显示，第一次写入时拆成两种语言。新草稿的行业是缺口，不显示。
 - **应用行业说明**：应用行业条目中，行业名之外的补充事实，例如具体工况、用途区别或参数。只复述行业名、只说既有产品用于该行业的句子可以省略，不作为待补充缺口；有新增信息或不能确定是否重复时保留（T-115）。它不是公司的所属行业字段。
 - **公司名 / 站名**：只有一种写法，取资料里的原文，不由模型翻译；资料没有时保留「未命名企业 / 未命名站点」，不写成缺口文字。
@@ -54,7 +54,7 @@
 - **新建站点初始草稿**：创建接口按请求模板写入对应的样子、模板和页面计划；没有用户资料时站点名和公司名使用中性缺口文字。
 - **operation**：白名单里的一种受控修改。模型只能产出 operation，不能产出 HTML 和文字；CSS 只能以站点样式 operation 写入。所有修改都通过 `commitOperations` 写进草稿。
 - **卡片稳定寻址**：features、services、faq 等卡片用草稿里的 `id` 作为预览槽位和选中目标的一部分（`<section>.items.<id>.<title|body>`）；卡片的插入位置仍可作为 `add_card` 的布局参数，但修改、删除、撤销不按位置寻找卡片。
-- **历史迁移**：旧 history/future 中的卡片序号和产品 SKU 只在文件读入时按当时草稿状态迁移成 `itemId` / `productId`，同时迁移 inverse 和 appliedTargets，并把 v1/v2 一次性升级到 `historySchemaVersion: 3` 后持久化；undo/redo 运行时只接受稳定 id operation。旧数据无法安全迁移时抛带站点、字段和旧值的 `SiteMigrationError`，让请求失败并保留原记录，走已有通用错误路径。预览桥遇到缺 id 只报告 missing，不自行推导地址。
+- **历史迁移**：旧 history/future 中的卡片序号和产品 SKU 只在文件读入时按当时草稿状态迁移成 `itemId` / `productId`，同时迁移 inverse 和 appliedTargets；其中 `set_palette` 的旧色板 ID 与草稿共用下线时登记的色彩集映射，正向、逆向 operation 都在回放前迁移。v1/v2 一次性升级到 `historySchemaVersion: 3` 后持久化；undo/redo 运行时只接受稳定 id operation。旧数据无法安全迁移时抛带站点、字段和旧值的 `SiteMigrationError` 并保留原记录；列表把该条显示为「旧记录无法打开」，名称和更新时间来自原始记录，不影响其他站点，工作台草稿读取返回明确的 422 错误并显示与列表相同的原因，不替换成默认草稿。预览桥遇到缺 id 只报告 missing，不自行推导地址。
 - **批注**：独立于草稿的站点线程，记录页面、语言、草稿 revision、视口、文字快照和当前指向；状态只有 `open` / `resolved`。锚点只认 `data-sitecraft-slot` 与 T-069 的稳定 `itemId` / `productId`，单目标是 slot，圈选可记录多个 slot 和用户指定的 `primarySlot`，不能按文字、序号或 selector 猜写。当前指向明确为 `attached`、`stale` 或 `ambiguous`；快照是不可信上下文，截图只由用户主动保存。批注存于 `.sitecraft-data/annotations/<siteId>.json` 或同契约的 Postgres 表，不改草稿 revision；删除只响应用户明确操作。
 - **批注消息会话**：预览 iframe 与宿主消息带 `typeVersion` 和当前 `sessionId`；iframe 重载后宿主重新发送内容与批注模式。桥接只报告声明槽位，产品卡的槽位和 `productId` 稳定；工作台只把 `attached` 且有明确 `primarySlot` 的批注交给白名单 operation。
 - **批注事务撤销**：带 `annotationId` 的 change set 为单字段 operation 保存修改后的 postcondition。选择性撤销逐个核对当前值，未被后来修改的目标生成逆 operation 并再次走 `commitOperations`，后来改过的目标保留并返回冲突目标；`replace_cards`、`replace_products`、`replace_commercial_terms`、`replace_draft` 等整组替换明确不支持挑着撤。
