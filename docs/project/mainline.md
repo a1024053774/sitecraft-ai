@@ -18,6 +18,8 @@
 
 已合并的 [T-128](../../.project-map/tickets/T-128-new-route-tracer.md) 提供中文站点代码、底线检查、完整版本、对话修改与撤销、刷新恢复。[T-129](../../.project-map/tickets/T-129-version-history-panel.md) 提供版本面板、命名、指定版本恢复和对话「改回某版」：模型按版本目录声明参考版本；用户未限定页面时「产品区」包括首页产品入口，点名页面时只改该页。截图打磨、模板味检测、批注与英文版仍是后续范围；实现细节见 [spec.md](./spec.md) 第 4 节。
 
+[T-136](../../.project-map/tickets/T-136-long-rejection-breaks-session.md) 修正长拒因破坏会话的问题：新失败给简短说明，完整拒因保留在运行记录；会话写入先校验快照，旧超长字段只读报会话警告，不自动迁移，站点版本仍可查看。
+
 [T-130](../../.project-map/tickets/T-130-eval-set.md) 提供 `npm run eval:new-route`：四家模拟公司 × 两种风格经真实入口生成整站，保留每轮拒收原因、截图与用量，产出两种 T-104 盲评任务及跨轮成对比较。真实运行及第一轮独立盲评是否完成，以票的 Resolution 为准；拒收和外部阻塞不能写成页面质量通过。
 
 [T-133](../../.project-map/tickets/T-133-floor-check-false-rejections.md) 将每轮候选代码（含被拒的）及图片上传证据保存在评估轮次的 `private/case-N/`，不依赖 worktree 数据。手写数字全部按事实来源检查；核心规范引导步骤和列表用原生 `ol` 或标准 CSS counter 编号。「待补充」占位不当新事实，真实数量、条件、范围、对象与承诺政策仍须有资料依据。

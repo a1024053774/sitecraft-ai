@@ -169,6 +169,9 @@ async function readLocalRecord(siteId: string, conversationId: string): Promise<
 }
 
 async function writeLocalRecord(record: ConversationRecord) {
+  // Validate before replacing the existing record; never persist a snapshot
+  // that the same store cannot read. Validation does not rewrite old records.
+  normalizeAlignmentSnapshot(record.alignment);
   const target = recordPath(record.siteId, record.conversationId);
   await mkdir(path.dirname(target), { recursive: true });
   const temp = `${target}.${process.pid}.${crypto.randomUUID()}.tmp`;
@@ -265,6 +268,7 @@ async function lockPostgresConversation(client: PoolClient, siteId: string, conv
 }
 
 async function savePostgresRecord(client: PoolClient, record: ConversationRecord) {
+  normalizeAlignmentSnapshot(record.alignment);
   await client.query(
     `UPDATE sitecraft_conversations
      SET turns = $4::jsonb, alignment = $6::jsonb, updated_at = $5
