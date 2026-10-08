@@ -2,7 +2,7 @@ import { after } from 'next/server.js';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
-import { planSiteCode, writeSiteCode } from './code-site-model.ts';
+import { planSiteCode, selectCodeReferences, writeSiteCode } from './code-site-model.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
 import { AlignmentActionError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
@@ -38,7 +38,7 @@ async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, 
     if (site.run?.status === 'running') throw new Error('当前任务还在进行，请等待完成。');
     if ((currentCodeVersion(site)?.revision ?? 0) !== baseRevision) throw new Error('版本已经更新，请刷新后再试。');
     const now = new Date().toISOString();
-    return { run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'plan' ? '读资料，规划页面大纲' : '按方案写站点代码',
+    return { run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'plan' ? '读资料，规划页面大纲' : kind === 'edit' ? '理解修改要求，查阅版本目录' : '按方案写站点代码',
       request, baseRevision, startedAt: now, updatedAt: now, repairRound: 0, issues: [], attempts: [] } };
   });
 }
@@ -75,7 +75,20 @@ async function execute(siteId: string, runId: string) {
   if (!site.plan) throw new Error('缺少已确认的页面大纲。');
   const images = await listSiteImages(siteId);
   const materials = codeFactMaterials(site, run.request);
+  const references = [];
+  if (run.kind === 'edit') {
+    const revisions = await selectCodeReferences({ request: run.request, currentRevision: currentCodeVersion(site)!.revision,
+      versions: site.versions, preferences: { ...site.preferences, style: site.plan.style } });
+    const selected = revisions.map(revision => {
+      const version = site.versions.find(version => version.revision === revision);
+      if (!version) throw new Error(`模型指定的第 ${revision} 版不存在，本次未保存版本。`);
+      return version;
+    });
+    await runStep(siteId, runId, { referenceVersionIds: selected.map(version => version.id), step: '按修改要求写站点代码' });
+    for (const version of selected) references.push({ revision: version.revision, name: version.name, code: version.code });
+  }
   let result = await writeSiteCode({ materials, preferences: site.preferences, plan: site.plan, images, request: run.request,
+    references,
     ...(run.kind === 'edit' ? { current: currentCodeVersion(site)!.code } : {}) });
   for (let round = 0; round <= 2; round++) {
     await runStep(siteId, runId, { step: '清理资源，检查事实与三档页面布局', repairRound: round });
@@ -98,7 +111,7 @@ async function execute(siteId: string, runId: string) {
     if (round === 2) throw new Error(`两轮修正后仍未通过：${committed.checks.issues.join('；')}。本次未保存版本。`);
     await runStep(siteId, runId, { step: `底线检查未过，交回模型修正（${round + 1}/2）`, repairRound: round + 1 });
     result = await writeSiteCode({ materials, preferences: site.preferences, plan: site.plan, images,
-      request: run.request, current: committed.code, issues: committed.checks.issues });
+      request: run.request, current: committed.code, issues: committed.checks.issues, references });
   }
 }
 export async function handleCodeChat(siteId: string, raw: unknown) {

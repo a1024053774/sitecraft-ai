@@ -19,12 +19,12 @@ export type CodeCheck = {
 };
 export type CodeVersion = {
   id: string; revision: number; author: 'assistant' | 'user'; summary: string; request: string; createdAt: string;
-  code: SiteCode; checks: CodeCheck; model?: string; restoredFrom?: string;
+  code: SiteCode; checks: CodeCheck; model?: string; restoredFrom?: string; name?: string;
 };
 export type CodeRun = {
   id: string; kind: 'plan' | 'generate' | 'edit'; status: 'running' | 'complete' | 'error';
   step: string; request: string; baseRevision: number; startedAt: string; updatedAt: string;
-  repairRound: number; issues: string[]; versionId?: string;
+  repairRound: number; issues: string[]; versionId?: string; referenceVersionIds?: string[];
   attempts: Array<{ code: SiteCode; checks: CodeCheck }>;
 };
 export type CodeSiteRecord = {
