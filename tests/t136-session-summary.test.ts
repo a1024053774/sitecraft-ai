@@ -28,7 +28,9 @@ const server = createServer(async (req, res) => {
   if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body>local fixture origin</body></html>'); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), user = body.messages[1].content, system = body.messages[0].content;
-  const content = system.includes('事实校对员') ? { issues: reject ? fixture.issues : [] }
+  const repairInput = system.includes('修正输出合同') ? JSON.parse(user.slice(0, user.lastIndexOf('\n请以 json'))) : null;
+  const content = repairInput ? (writerCalls++, { replacements: [{ fragmentId: repairInput.fragments[0].id, after: repairInput.fragments[0].before }] })
+    : system.includes('事实校对员') ? { issues: reject ? fixture.issues : [] }
     : user.includes('先给页面大纲') ? fixture.plan : (writerCalls++, fixture.candidate);
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }));

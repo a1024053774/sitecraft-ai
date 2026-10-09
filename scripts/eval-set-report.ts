@@ -5,7 +5,11 @@ import path from 'node:path';
 import type { CodeCheck, CodeModelCall, CodeSiteRecord } from '../lib/code-site.ts';
 import type { SimulatedPackId } from '../lib/simulated-packs.ts';
 
-export function requireWholeSitePlan(pack: SimulatedPackId, pageCount: number) {
+export function requireWholeSitePlan(pack: SimulatedPackId, pageCount: number, profile: 'full' | 'quick' = 'full') {
+  if (profile === 'quick') {
+    if (pageCount !== 2) throw new Error(`快速档大纲需要首页和产品两个页面，实际 ${pageCount} 页；本次不确认生成。`);
+    return;
+  }
   const requested = { industrial: 3, export: 5, molding: 5, packaging: 4 }[pack];
   if (pageCount < requested) throw new Error(`大纲缩减了用户点名的页面：${pack} 至少 ${requested} 页，实际 ${pageCount} 页；本次不确认生成。`);
 }
@@ -19,7 +23,7 @@ export type EvalCase = {
 };
 export type Control = { pack: string; url: string; framing?: 'fold'; screenshots: Record<string, string> };
 export type EvalRound = { schemaVersion: 1; startedAt: string; command: string; commit: string; dirty: boolean; base: string;
-  status: string; cases: EvalCase[]; controls: Control[]; errors: string[]; previous?: string };
+  status: string; cases: EvalCase[]; controls: Control[]; errors: string[]; previous?: string; profile?: 'full' | 'quick' };
 
 // This private snapshot contains raw candidates, including every refused round,
 // and cleaned saved versions. It does not depend on the worktree's live store.
@@ -34,6 +38,16 @@ export function tokenUsage(calls: CodeModelCall[]) {
     reported: known.reduce((sum, c) => ({ promptTokens: sum.promptTokens + c.usage!.promptTokens,
       completionTokens: sum.completionTokens + c.usage!.completionTokens, totalTokens: sum.totalTokens + c.usage!.totalTokens }),
     { promptTokens: 0, completionTokens: 0, totalTokens: 0 }) };
+}
+export function usageBreakdown(calls: CodeModelCall[]) {
+  const known = calls.filter(c => c.usage?.reasoningTokens !== undefined);
+  const reasoningTokens = known.reduce((sum, c) => sum + c.usage!.reasoningTokens!, 0);
+  const completionTokens = known.reduce((sum, c) => sum + c.usage!.completionTokens, 0);
+  return {
+    byPurpose: Object.fromEntries([...new Set(calls.map(c => c.purpose))].map(purpose => [purpose, tokenUsage(calls.filter(c => c.purpose === purpose))])),
+    reasoning: { knownCalls: known.length, unknownCalls: calls.length - known.length, reportedTokens: reasoningTokens,
+      shareOfKnownCompletion: completionTokens ? reasoningTokens / completionTokens : null },
+  };
 }
 function reasonKind(issue: string) {
   if (issue.includes('正文行长')) return 'body-line-length';
@@ -76,10 +90,11 @@ export function summarize(cases: EvalCase[]) {
     attemptRejectionRate: attempts.length ? refused.length / attempts.length : null,
     blocked: cases.filter(c => c.outcome === 'blocked').length, notRun: cases.filter(c => c.outcome === 'not-run').length,
     errors: cases.filter(c => c.outcome === 'error').length, reasons,
-    qualityFeedback: { 'body-line-length': lineFeedback }, usage: tokenUsage(cases.flatMap(c => c.modelCalls)) };
+    qualityFeedback: { 'body-line-length': lineFeedback }, usage: tokenUsage(cases.flatMap(c => c.modelCalls)),
+    usageBreakdown: usageBreakdown(cases.flatMap(c => c.modelCalls)) };
 }
 export function compareRounds(current: EvalRound, previous: EvalRound) {
-  if (current.cases.length !== previous.cases.length || current.cases.some(c => {
+  if ((current.profile ?? 'full') !== (previous.profile ?? 'full') || current.cases.length !== previous.cases.length || current.cases.some(c => {
     const before = previous.cases.find(p => p.key === c.key); return !before || before.materials !== c.materials;
   })) throw new Error('评估资料或组合已变化，不能把两轮当成成对比较。');
   return current.cases.map(c => {
@@ -180,7 +195,7 @@ export async function buildBlindPackage(round: EvalRound, directory: string, pre
     controlScreens.add(source);
     mixed.push(candidate('mixed', directory, [{ id: 'home', screenshots: control.screenshots }], { kind: 'control', url: control.url }, ['1440']));
   }
-  if (round.controls.length !== round.cases.length) missing.push('mixed 池需要每站一份独立真实官网，共八份；来源不能重复');
+  if (round.controls.length !== round.cases.length) missing.push(`mixed 池需要每站一份独立真实官网，共${round.cases.length}份；来源不能重复`);
   for (const style of [...new Set(round.cases.map(c => c.style))]) {
     const cases = round.cases.filter(c => c.style === style), references = new Map<string, Candidate>();
     for (const c of cases) if (c.outcome === 'generated') references.set(c.key, candidate('company', directory, c.pages.filter(p => p.id === 'home'), { key: c.key, style }));

@@ -12,9 +12,10 @@ import { buildBlindPackage, compareRounds, summarize, tokenUsage, requireWholeSi
 const { values } = parseArgs({ options: {
   base: { type: 'string', default: process.env.SITECRAFT_BASE || 'http://127.0.0.1:3142' },
   out: { type: 'string' }, previous: { type: 'string' }, 'prepare-only': { type: 'boolean', default: false }, help: { type: 'boolean' },
+  quick: { type: 'boolean', default: false },
 } });
 if (values.help) {
-  console.log('npm run eval:new-route -- [--base http://127.0.0.1:3142] [--out artifacts/t130/round-...] [--previous <round>] [--prepare-only]\n默认生成4家公司×precision/documentary整站，自动匹配上一轮。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
+  console.log('npm run eval:new-route -- [--base http://127.0.0.1:3142] [--out artifacts/t130/round-...] [--previous <round>] [--quick] [--prepare-only]\n默认生成4家公司×precision/documentary整站；--quick为日常快速档，4组合（每家公司一种风格），只生成首页和产品页。仅匹配同档、同资料的上一轮，快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
   process.exit(0);
 }
 const base = values.base!.replace(/\/$/, '');
@@ -47,12 +48,14 @@ const cases: EvalCase[] = [];
 for (const packId of ['industrial', 'export', 'molding', 'packaging'] as const) {
   const pack = simulatedPacks[packId];
   const companyName = pack.companyName.replace(/P3[A-Z]$/, '');
-  const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.email, `${pack.email.split('@')[0]}@${emailDomains[packId]}.example`).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n页面要求：${requests[packId]}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
+  const pageRequest = values.quick ? '只生成首页（home）、产品（products）两个独立页面。其他资料按需安排在这两页，不新增页面。' : requests[packId];
+  const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.email, `${pack.email.split('@')[0]}@${emailDomains[packId]}.example`).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n页面要求：${pageRequest}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
   assert.ok(materials.length <= MATERIALS_CHAT_LIMIT, `${packId}资料不能截断`);
-  for (const style of ['precision', 'documentary']) cases.push({ key: `${packId}/${style}`, pack: packId, style, materials,
+  const styles = values.quick ? [packId === 'industrial' || packId === 'molding' ? 'precision' : 'documentary'] : ['precision', 'documentary'];
+  for (const style of styles) cases.push({ key: `${packId}/${style}`, pack: packId, style, materials,
     outcome: 'not-run', elapsedMs: 0, attempts: [], modelCalls: [], pages: [] });
 }
-const round: EvalRound = { schemaVersion: 1, startedAt: new Date().toISOString(), command,
+const round: EvalRound = { schemaVersion: 1, profile: values.quick ? 'quick' : 'full', startedAt: new Date().toISOString(), command,
   commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   dirty: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(), base, status: 'INCOMPLETE', cases, controls: [], errors: [] };
 await writeFile(path.join(directory, 'command.sh'), command + '\n', 'utf8');
@@ -72,7 +75,7 @@ async function previousRound() {
   for (const entry of entries) if (entry.isDirectory() && entry.name.startsWith('round-') && path.join(root, entry.name) !== directory) {
     const folder = path.join(root, entry.name);
     const candidate: EvalRound = JSON.parse(await readFile(path.join(folder, 'private', 'round.json'), 'utf8'));
-    if (candidate.cases.some(c => c.outcome !== 'not-run') && candidate.cases.length === cases.length && candidate.cases.every(c => cases.some(n => n.key === c.key && n.materials === c.materials))) rounds.push({ round: candidate, directory: folder });
+    if ((candidate.profile ?? 'full') === round.profile && candidate.cases.some(c => c.outcome !== 'not-run') && candidate.cases.length === cases.length && candidate.cases.every(c => cases.some(n => n.key === c.key && n.materials === c.materials))) rounds.push({ round: candidate, directory: folder });
   }
   return rounds.sort((a, b) => b.round.startedAt.localeCompare(a.round.startedAt))[0];
 }
@@ -151,7 +154,8 @@ try {
         let site = await waitRun(created.id, folder); collect(c, site);
         if (site.run?.status === 'error') throw new Error(site.run.step);
         assert.equal(site.plan?.style, c.style);
-        requireWholeSitePlan(c.pack as SimulatedPackId, site.plan!.pages.length);
+        requireWholeSitePlan(c.pack as SimulatedPackId, site.plan!.pages.length, values.quick ? 'quick' : 'full');
+        if (values.quick) assert.deepEqual(site.plan!.pages.map(p => p.id).sort(), ['home', 'products'], '快速档只确认首页与产品页');
         state = await json(`/api/sites/${created.id}/chat`, { action: 'state' });
         await json(`/api/sites/${created.id}/chat`, { action: 'confirm', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, baseRevision: 0 });
         site = await waitRun(created.id, folder); collect(c, site);
@@ -159,6 +163,7 @@ try {
         const version = site.versions.find(v => v.id === site.currentVersionId); assert.ok(version);
         assert.equal(version.checks.passed, true); assert.equal(site.versions.length, 1);
         assert.ok(site.plan?.pages.every(p => version.code.pages.some(v => v.id === p.id)), '整站不能静默缺页');
+        if (values.quick) assert.deepEqual(version.code.pages.map(p => p.id).sort(), ['home', 'products'], '快速档候选必须仅有首页与产品页');
         c.versionId = version.id;
         for (const page of version.code.pages) c.pages.push({ id: page.id, screenshots: await capture(
           `${base}/api/sites/${created.id}/code-preview?page=${page.id}&version=${version.id}`, `${folder}/${page.id}`, simulatedPacks[c.pack as SimulatedPackId].companyName.replace(/P3[A-Z]$/, '')) });
@@ -187,7 +192,7 @@ try {
     molding: ['https://www.fzmould.com/', 'https://www.saihao.com/'],
     packaging: ['https://cn.szyuto.com/', 'https://www.jinjia.com/index.aspx'],
   };
-  for (const [pack, urls] of Object.entries(sources)) for (let i = 0; i < urls.length; i++) {
+  for (const [pack, urls] of Object.entries(sources)) for (let i = 0; i < (values.quick ? 1 : urls.length); i++) {
     try {
       const before = previous?.round.controls.find(c => c.pack === pack && c.url === urls[i]);
       if (before?.framing === 'fold') {
