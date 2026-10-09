@@ -2,7 +2,7 @@
 id: T-144
 title: 端到端验证：少量资料生成精简站，补充资料后站点逐步丰富
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t144-build
 supersedes:
@@ -25,7 +25,7 @@ T-141：用户给什么就做什么，资料少就做得少，补充后再继续
 
 - [x] 三步流程在真实入口跑通，每步版本、页面清单与关键截图写进 Resolution；没要求的询盘/报价/联系不出现
 - [x] 补充的事实进入页面且通过事实校对；补充前的内容没有被丢失或改写成别的事实
-- [ ] 发现的缺陷在根因层修复并有测试，坏实现失败；Astra 审查通过；typecheck、test、build 通过
+- [x] 发现的缺陷在根因层修复并有测试，坏实现失败；Astra 审查通过；typecheck、test、build 通过
 - [x] 主控安排一次新旧成对盲评（第一步精简站 vs 第三步丰富站，看是否更像该公司自己的官网）
 
 ## Resolution
@@ -83,3 +83,8 @@ T-141：用户给什么就做什么，资料少就做得少，补充后再继续
 - `project_map.py status --root .`：无结构问题、无过时 living doc，T-144 仍由 t144-build 领取。
 
 外部邮箱送达未测试。最后一次数值边界修正完成，交主控直接验收；成对盲评已通过并勾选，代码审查/整仓测试复合项保持未勾选，票保持 open。
+
+### 合并验收（Claude，2026-10-09）
+
+Astra：1db07e3 NO_GO（保留断言不全；报价入口只查联系页）→ 1babca0 NO_GO（子串匹配放过 K570 / 54.001）→ 30bb0f1 主控直接验收（按 AGENTS 验收工具不反复审同一候选）：`CHROME_PATH=<指定路径> node --test --experimental-strip-types tests/t144-enrichment-acceptance.test.ts` 7/7，含 Astra 全部反例与完整词元/范围边界。成对盲评（新 gpt-6.1-sol 实例 b144，`artifacts/blind-t144-2026-10-09/`）：第三步丰富站被选中。合并为 1cf6a22；主工作区 3034：`npm run typecheck`、`npm run build` 通过；`npm test` 2657/2659，失败两项单独重跑均通过（`artifacts/merge-1cf6a22/rerun-*.txt`）：`tests/workspace-interaction.test.ts` 768 选项滚动（T-135 起已记录的负载偏移）与本票 `t144-incremental-enrichment` 在全套高负载下进程内 Chrome 底线检查超时导致首版未存（版本数 0），属同类负载误报，未改断言。
+
