@@ -22,7 +22,7 @@ supersedes:
 
 - [x] 调研记录（gitignore 的 `artifacts/t135/research.md`）列出样本网址、观察日期、每站骨架摘要；版式卡不含原站文案、代码或品牌元素
 - [ ] 一轮真实评估中 8 个组合的所选骨架分布写进 Resolution（至少用到 4 种）；交主控安排三种口径独立盲评，跨轮对照 T-133 基线
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -135,3 +135,9 @@ Chrome 已关闭；补采完成后只停止本工作树的 3147（PID 11609，cw
 ### 保留的首轮失败
 
 首轮 `132dee0` 在 17:38:29–18:00:08 UTC 的 `artifacts/t130/round-2026-10-08T17-38-28-984Z/` 原样保留：6/8 存版、26 页，注塑精密工程与纸包装精密工程 JSON 错误；有效骨架 product-atlas 5、capability-led 1。首稿 4/6、逐稿 5/11、最终 0/6；30 次 HTTP200，输入 201,635 / 输出 335,025 / 总 536,660。完整八组合理由、拒因、包缺项、截图清单及当时回执在 `eval-results.json`、`eval-viewed.json` 和 `handoff-before-plan-repair.json`，不覆盖、不拼入本轮结果。包含首轮、修复阶段及本轮，本票已知模型用量累计 **1,178,808** tokens，另有本轮一次 402 用量未知。
+
+### 合并验收（Claude，2026-10-09）
+
+Astra：132dee0 PASS；a84324e 复审 PASS（t135-astra2，提示 product-atlas 门槛有对八份资料过拟合风险）。合并为 6f069ee，随 321e956 在主工作区 2637/2637、typecheck、build 通过。合并后快速档（主控，2026-10-09 03:04–03:22 EDT，主线 321e956，3034，`npm run eval:new-route -- --quick`，目录 `artifacts/t130/round-2026-10-09T07-04-36-535Z/`）：4/4 存版，首稿拒收 2/4、最终 0/4；用量 407,178 token（plan 45,884 / write 185,388 / facts 140,550 / repair 35,356），单站平均 101,794（工业 119,703、外贸 75,061、注塑 76,623、纸包装 135,791）。骨架：capability-led 2、two-businesses 2。独立盲评（新 gpt-6.1-sol 实例 bq-m / bq-c，结果 `artifacts/blind-quick-2026-10-09/`）：mixed 生成页识别 4/4、真实官网误判 0/4；company 判同模板 0/2。评审理由：页面直接显示「待补充」、`.example` 占位邮箱、全站同一纸飞机图标、页头与首屏重复询盘按钮、对称分栏细线参数行。
+
+第二项未完成：快速档只有 4 组合、用到 2 种骨架，不是 8 组合整轮；整轮因用量限制暂不跑，待负责人决定。

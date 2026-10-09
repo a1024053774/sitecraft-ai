@@ -25,7 +25,7 @@ supersedes:
 
 - [ ] Resolution 有改前用量拆分（来自已有记录）和改后快速档一轮的用量拆分，单站平均 token 至少下降三分之一，最终拒收率不上升
 - [x] 修正轮的局部修改不绕过提交入口和底线检查；有测试，坏实现（整站重写或跳过检查）失败
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -109,3 +109,9 @@ SITECRAFT_BASE="$SITECRAFT_BASE" npm run eval:new-route -- --quick
 ```
 
 服务密钥仅用 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 加载到进程；`SITE_STORE=fs`，默认 Turbopack。此候选尚未真实测 DeepSeek 修正、省量与拒收率；不宣称审美通过。
+
+### 合并验收（Claude，2026-10-09）
+
+Astra：fc11345 NO_GO（`<!--` 吞正文）→ 0cb64dd NO_GO（同节点交错修正偏移错）→ b8174f0 PASS（t138-astra3）；与主线冲突由执行者合并为 7191b42，主控合并为 321e956，主工作区 2637/2637、typecheck、build 通过。合并后快速档（主控，2026-10-09 03:04–03:22 EDT，主线 321e956，3034，`npm run eval:new-route -- --quick`，目录 `artifacts/t130/round-2026-10-09T07-04-36-535Z/`）：4/4 存版，首稿拒收 2/4、最终 0/4；用量 407,178 token（plan 45,884 / write 185,388 / facts 140,550 / repair 35,356），单站平均 101,794（工业 119,703、外贸 75,061、注塑 76,623、纸包装 135,791）。骨架：capability-led 2、two-businesses 2。独立盲评（新 gpt-6.1-sol 实例 bq-m / bq-c，结果 `artifacts/blind-quick-2026-10-09/`）：mixed 生成页识别 4/4、真实官网误判 0/4；company 判同模板 0/2。评审理由：页面直接显示「待补充」、`.example` 占位邮箱、全站同一纸飞机图标、页头与首屏重复询盘按钮、对称分栏细线参数行。
+
+**第一项未达标**：单站平均 101,794，高于目标约 50k，也高于 T-133 整站平均；只生成两页但资料加厚后输入变长，且写页输出以推理为主（工业站 119,703 中输出 81,676）。最终拒收未上升（0/4）。票保持 open，下一步见主控对负责人的建议。

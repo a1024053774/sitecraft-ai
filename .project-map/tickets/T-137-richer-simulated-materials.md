@@ -2,7 +2,7 @@
 id: T-137
 title: 加厚四家模拟公司资料，接近真实中小厂官网的内容量
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t137-build
 supersedes:
@@ -24,7 +24,7 @@ supersedes:
 
 - [x] 四家资料各自的事实条目与授权图片数写进 Resolution，与改前对照；每张新图有 manifest 来源与许可记录
 - [x] 资料中没有真实企业名称、真实联系方式或虚假评价；缺口用「待补充」
-- [ ] 相关测试、typecheck、build 通过；本票不跑真实评估（评估与 T-138、T-135 合并成一轮由主控安排）
+- [x] 相关测试、typecheck、build 通过；本票不跑真实评估（评估与 T-138、T-135 合并成一轮由主控安排）
 
 ## Resolution
 
@@ -62,3 +62,7 @@ INCOMPLETE（本次三项修正及指定检查 PASS；完整验收待主控）�
 本次没有重跑完整 `npm test`。此前 `41052c6` 的全套结果为 2595/2599；其中本票相关 T-109 两图场景已修复并单测 5/5 通过。T-075 等待工作台元素超时、T-090 缺本地历史站点、T-113 固定历史站点返回 404 尚未复验；该旧结果不能当作 amended 提交的全套通过证据，第三项验收保持未勾选。旧失败与初次误用 3034 的日志均保留，不作为本次通过证据。
 
 DeepSeek 0 次。真实 `eval:new-route` 生成、生成站底线检查和独立盲评均未运行，按负责人要求留到合并评估轮；未派再审，票保持 open，交主控复验。
+
+### 合并验收（Claude，2026-10-09）
+
+Astra：41052c6 NO_GO（模切图权利冲突、两张图品牌主体、评估只传 2/2/2/0 张）→ aa461c7 收窄复核 PASS（t137-astra2）。合并为 85f635e；随 321e956 在主工作区 `npm run typecheck`、`npm test` 2637/2637、`npm run build` 通过（`artifacts/merge-321e956/`）。合并后快速档（主控，2026-10-09 03:04–03:22 EDT，主线 321e956，3034，`npm run eval:new-route -- --quick`，目录 `artifacts/t130/round-2026-10-09T07-04-36-535Z/`）：4/4 存版，首稿拒收 2/4、最终 0/4；用量 407,178 token（plan 45,884 / write 185,388 / facts 140,550 / repair 35,356），单站平均 101,794（工业 119,703、外贸 75,061、注塑 76,623、纸包装 135,791）。骨架：capability-led 2、two-businesses 2。独立盲评（新 gpt-6.1-sol 实例 bq-m / bq-c，结果 `artifacts/blind-quick-2026-10-09/`）：mixed 生成页识别 4/4、真实官网误判 0/4；company 判同模板 0/2。评审理由：页面直接显示「待补充」、`.example` 占位邮箱、全站同一纸飞机图标、页头与首屏重复询盘按钮、对称分栏细线参数行。
