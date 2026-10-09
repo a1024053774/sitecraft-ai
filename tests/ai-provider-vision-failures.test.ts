@@ -49,9 +49,8 @@ registerHooks({
     return nextResolve(pathToFileURL(file).href, context);
   },
 });
-const { requestImageFacts, requestPreviewReview } = await import("../lib/ai-provider.ts");
+const { requestImageFacts } = await import("../lib/ai-provider.ts");
 const { deleteImagesForSite, saveSiteImage } = await import("../lib/site-images.ts");
-const previewRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/ai/preview-review/route.ts")).href) as { POST: (request: Request) => Promise<Response> };
 const analyzeRoute = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/images/[imageId]/analyze/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteId: string; imageId: string }> }) => Promise<Response>;
 };
@@ -92,11 +91,6 @@ const cut = (trace: string) => () => json({
 }, { trace });
 
 const calls = {
-  preview_review: {
-    request: () => requestPreviewReview({ imageBytes: screenshot, claimedTemplateId: "screwfast" }),
-    good: JSON.stringify({ type: "preview_review", visibleText: ["外高桥流体接头P3E"], nonce: null, templateFit: { looksLikeClaimedTemplate: true, notes: "工程工业首屏" }, imageTextMismatches: [] }),
-    prompt: "你是预览截图审查助手",
-  },
   image_facts: {
     request: () => requestImageFacts({ imageBytes: photo, originalName: `gearbox-${SENTINEL}.png` }),
     good: JSON.stringify({ type: "image_facts", visibleText: [], name: { zh: "直角减速机", en: "Right-angle gearbox" }, sellingPoints: { zh: [], en: [] }, category: "减速机", alt: { zh: "直角减速机", en: "Right-angle gearbox" }, missingFacts: [] }),
@@ -168,7 +162,7 @@ for (const call of Object.keys(calls) as CallName[]) {
       { attempt: 1, category: "parse", finish: "stop", fields: undefined },
       { attempt: 2, category: "parse", finish: "stop", fields: undefined },
     ]);
-    const type = call === "preview_review" ? "preview_review" : "image_facts";
+    const type = "image_facts";
     const shape = () => answer(JSON.stringify({ type, visibleText: `bad ${SENTINEL}` }));
     const wrong = await run(call, [shape, shape]);
     assert.equal(!wrong.result.ok && wrong.result.code, "invalid_output");
@@ -190,21 +184,6 @@ const cutOffCopy = (() => {
   const description = describeUserError({ code: "truncated" });
   return `${description.message} ${description.nextStep}`;
 })();
-
-test("the preview-review route shows the error catalog's cut-off copy", async () => {
-  steps = [cut("trace-route")];
-  requests = 0;
-  const form = new FormData();
-  form.set("screenshot", new Blob([screenshot], { type: "image/png" }), "preview.png");
-  form.set("claimedTemplateId", "screwfast");
-  const response = await previewRoute.POST(new Request("http://sitecraft.test/api/ai/preview-review", { method: "POST", body: form }));
-  const payload = await response.json() as Record<string, unknown>;
-  assert.equal(requests, 1);
-  assert.equal(response.status, 502);
-  assert.equal(payload.ok, false);
-  assert.equal(payload.code, "truncated");
-  assert.equal(payload.userMessage, cutOffCopy);
-});
 
 test("the image-analyze route shows the error catalog's cut-off copy", async () => {
   const siteId = `t061vision-${crypto.randomUUID().slice(0, 8)}`;

@@ -1,5 +1,4 @@
 export const WORKSPACE_SITE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
-export const DEFAULT_WORKSPACE_SITE_ID = "demo";
 export const MATERIALS_CHAT_LIMIT = 4000;
 
 export type SimulatedPackId = "industrial" | "export" | "molding" | "packaging";
@@ -21,19 +20,7 @@ export type SimulatedPack = {
   body: string;
 };
 
-const MATERIALS_INSTRUCTION = [
-  "【公司资料】以下内容明确标记为模拟测试资料，仅供内部 Demo。",
-  "请根据资料改写当前草稿的公司名、行业、目标、首屏、关于、产品或服务说明和联系方式。",
-  "只使用资料中的事实；资料没有写明的认证、产能、客户、评价、电话、地址写成「待补充」。",
-  "产品规格参数、应用行业、加工能力/主设备、认证状态写入对应字段；参数名用中英双语，参数值与能力正文必须能在资料中找到，找不到写成「待补充」，禁止编造数字。应用行业说明只有新增事实才写；只有行业名称或把既有产品与‘用于该行业’复述成一句时，保留行业名，说明写双语空值 {zh:'',en:''}。额外工况、用途区别、材质、参数、标准、数量、数字、单位和代码必须保留；不确定是否有新增信息时保留说明。实际缺口仍用待补充，不按标题子串、大小写或关键词删正文。",
-  "商业条款（起订量、交期、产能、贸易条款、付款方式、包装）只写资料明确出现的条目，用 replace_commercial_terms；资料没有的条目不要补齐，交期等没有具体天数时保留资料原话。",
-  "设备只写资料明确出现的生产或检测机器，用 replace_equipment；数量必须是同一句里紧挨设备名称的非负整数，没有数量写 null，规格没有时写 null。加工能力是工序，设备是机器：工业和外贸资料的加工能力/主设备行若只有工序归加工能力；注塑资料同一行明确写出的带数量机器归设备，不在加工能力重复。",
-  "质检流程只写资料明确标出的有先后步骤，用 replace_quality_process；严格保持原顺序，不重排、不补步骤。标题和说明必须来自同一质检分句，说明没有时写 null；不要把设备或认证事实重复写进质检流程。",
-  "沿革只写资料明确出现的四位年份和同一句中紧跟年份的事件，用 replace_history；严格保持资料顺序，不推算、不补至今，资料没有沿革时不要写 history。",
-  "产品类别与加工方式必须分开：只有资料明确列出的产品进入商品清单；“按图加工”等是加工方式，不是第三个商品。资料给出完整清单时用 replace_products 保留确认的产品，不要用默认商品或空卡补齐。",
-  "资料性质、模拟说明和核验记号只说明这份资料本身，不写进页面；区块说明写这家公司做什么，不写「资料中」「仅列」「资料给出」这类描述资料的话。",
-  "不要更换模板或样子。额外独立 URL 只有当前模板快照里已有对应 HTML 才会开通；否则在同一模板上切换声明区块。若资料要求的页面无法支持，必须在结果里说明，不要把整站静默当成只有首页已完成。",
-].join("\n");
+const MATERIALS_INSTRUCTION = '【公司资料】以下为内部模拟测试资料。按用户提供的内容规划中文网站；不编造企业事实，资料缺口保留待补充，不默认增加询盘或独立联系页。';
 
 export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
   industrial: {
@@ -245,11 +232,6 @@ export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
 
 export const simulatedPackList: SimulatedPack[] = [simulatedPacks.industrial, simulatedPacks.export, simulatedPacks.molding, simulatedPacks.packaging];
 
-export function parseWorkspaceSiteId(value: string | null | undefined): string {
-  const site = value?.trim() ?? "";
-  return WORKSPACE_SITE_ID_PATTERN.test(site) ? site : DEFAULT_WORKSPACE_SITE_ID;
-}
-
 export function wrapCompanyMaterials(body: string): string {
   const trimmed = body.trim();
   if (!trimmed) return "";
@@ -262,11 +244,4 @@ export function wrapCompanyMaterials(body: string): string {
 
 export function buildMaterialsChatMessage(pack: SimulatedPack): string {
   return wrapCompanyMaterials(pack.body);
-}
-
-// The generation instruction wrapped around pasted materials is for the model only; the chat shows
-// the user what they pasted.
-export function stripMaterialsInstruction(message: string): string {
-  const prefix = `${MATERIALS_INSTRUCTION}\n\n`;
-  return message.startsWith(prefix) ? message.slice(prefix.length) : message;
 }

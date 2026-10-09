@@ -6,7 +6,6 @@ import { rm } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { annotationCurrentSchema, annotationTargetSchema } from "../lib/annotations.ts";
-import { defaultDraft } from "../lib/site-document.ts";
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -17,8 +16,10 @@ registerHooks({
   },
 });
 
-const { commitOperations, createSite, selectiveUndo } = await import("../lib/site-store.ts");
+
 const { createAnnotation, listAnnotations, replyAnnotation, resolveAnnotation } = await import("../lib/annotation-store.ts");
+const {createCodeSite,getCodeSite}=await import('../lib/code-site-store.ts');
+const createSite=(id:string)=>createCodeSite(id,id,crypto.randomUUID());
 const annotationsRoute = await import("../app/api/sites/[siteId]/annotations/route.ts");
 const annotationRoute = await import("../app/api/sites/[siteId]/annotations/[annotationId]/route.ts");
 const repliesRoute = await import("../app/api/sites/[siteId]/annotations/[annotationId]/replies/route.ts");
@@ -55,7 +56,7 @@ function annotationInput(siteId: string) {
 }
 
 test.after(async () => {
-  await Promise.all([...createdSites].map((siteId) => rm(`${process.cwd()}/.sitecraft-data/sites/${siteId}.json`, { force: true })));
+  await Promise.all([...createdSites].map((siteId) => rm(`${process.cwd()}/.sitecraft-data/code-sites/${siteId}.json`, { force: true })));
   await Promise.all([...createdSites].map((siteId) => rm(`${process.cwd()}/.sitecraft-data/annotations/${siteId}.json`, { force: true })));
 });
 
@@ -63,13 +64,13 @@ test("annotation CRUD is independent from draft revision", async () => {
   const siteId = newSiteId();
   const before = await createSite(siteId);
   const created = await createAnnotation(annotationInput(siteId));
-  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await getCodeSite(siteId))!.versions.length, before.versions.length);
   assert.equal((await listAnnotations(siteId)).length, 1);
   const replied = await replyAnnotation(siteId, created.id, { body: "已补充说明", author: { id: "reviewer", name: "审核者" } });
   assert.equal(replied.comments.length, 2);
   const resolved = await resolveAnnotation(siteId, created.id, true);
   assert.equal(resolved.status, "resolved");
-  assert.equal((await createSite(siteId)).draft.revision, before.draft.revision);
+  assert.equal((await getCodeSite(siteId))!.versions.length, before.versions.length);
 });
 
 test("annotation contract rejects an unowned primary slot and accepts stale state", () => {
@@ -94,86 +95,4 @@ test("annotation API creates, filters, replies, resolves, and deletes explicitly
   const deleteResponse = await annotationRoute.DELETE(new Request("http://sitecraft.test", { method: "DELETE" }), { params: Promise.resolve({ siteId, annotationId: created.id }) });
   assert.equal(deleteResponse.status, 200);
   assert.equal((await listAnnotations(siteId)).length, 0);
-});
-
-test("selective undo keeps a later unrelated target", async () => {
-  const siteId = newSiteId();
-  const initial = await createSite(siteId);
-  const annotationId = (await createAnnotation(annotationInput(siteId))).id;
-  const committed = await commitOperations({
-    siteId,
-    baseRevision: initial.draft.revision,
-    source: "ai",
-    summary: "批注修改两个字段",
-    annotationId,
-    operations: [
-      { op: "set_text", target: "hero.title", locale: "zh", value: "批注标题" },
-      { op: "set_text", target: "hero.subtitle", locale: "zh", value: "批注说明" },
-    ],
-  } as Parameters<typeof commitOperations>[0] & { annotationId: string });
-  assert.equal(committed.status, "applied");
-  if (committed.status !== "applied") throw new Error("expected committed change");
-  assert.equal(committed.changeSet.annotationId, annotationId);
-  const later = await commitOperations({
-    siteId,
-    baseRevision: committed.record.draft.revision,
-    source: "manual",
-    summary: "后来修改无关目标",
-    operations: [{ op: "set_text", target: "contact.body", locale: "zh", value: "后来内容" }],
-  });
-  assert.equal(later.status, "applied");
-  const undone = await selectiveUndo(siteId, committed.changeSet.id);
-  assert.equal(undone.status, "applied");
-  const current = (await createSite(siteId)).draft;
-  assert.equal(current.content.hero.title.zh, defaultDraft.content.hero.title.zh);
-  assert.equal(current.content.hero.subtitle.zh, defaultDraft.content.hero.subtitle.zh);
-  assert.equal(current.content.contact.body.zh, "后来内容");
-});
-
-test("selective undo reports a conflict and leaves a later same-target edit intact", async () => {
-  const siteId = newSiteId();
-  const initial = await createSite(siteId);
-  const annotationId = (await createAnnotation(annotationInput(siteId))).id;
-  const committed = await commitOperations({
-    siteId,
-    baseRevision: initial.draft.revision,
-    source: "ai",
-    summary: "批注修改标题",
-    annotationId,
-    operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "批注标题" }],
-  } as Parameters<typeof commitOperations>[0] & { annotationId: string });
-  assert.equal(committed.status, "applied");
-  if (committed.status !== "applied") throw new Error("expected committed change");
-  assert.equal(committed.changeSet.annotationId, annotationId);
-  const later = await commitOperations({
-    siteId,
-    baseRevision: committed.record.draft.revision,
-    source: "manual",
-    summary: "后来修改同一目标",
-    operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "后来标题" }],
-  });
-  assert.equal(later.status, "applied");
-  const undone = await selectiveUndo(siteId, committed.changeSet.id);
-  assert.equal(undone.status, "conflict");
-  assert.deepEqual(undone.conflictTargets, ["hero.title.zh"]);
-  assert.equal((await createSite(siteId)).draft.content.hero.title.zh, "后来标题");
-});
-
-test("selective undo rejects a transaction containing replace_cards", async () => {
-  const siteId = newSiteId();
-  const initial = await createSite(siteId);
-  const annotationId = (await createAnnotation(annotationInput(siteId))).id;
-  const committed = await commitOperations({
-    siteId,
-    baseRevision: initial.draft.revision,
-    source: "ai",
-    summary: "批注替换卡片组",
-    annotationId,
-    operations: [{ op: "replace_cards", section: "faq", items: [{ ...initial.draft.content.faq.items[0], title: { zh: "批注替换", en: "Annotation replacement" } }, ...initial.draft.content.faq.items.slice(1)] }],
-  } as Parameters<typeof commitOperations>[0] & { annotationId: string });
-  assert.equal(committed.status, "applied");
-  if (committed.status !== "applied") throw new Error("expected committed change");
-  const rejected = await selectiveUndo(siteId, committed.changeSet.id);
-  assert.equal(rejected.status, "rejected");
-  assert.match(rejected.reason, /整组|replace_cards/);
 });

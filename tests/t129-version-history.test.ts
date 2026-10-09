@@ -96,7 +96,7 @@ const request = (url: string, method: string, body: unknown) => new Request(base
 const context = (siteId: string) => ({ params: Promise.resolve({ siteId }) });
 let id: string, fixture: CodeSiteRecord;
 test.before(async () => {
-  const made = await create(request('/api/sites', 'POST', { name: '临港机械 · 手改验收站', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const made = await create(request('/api/sites', 'POST', { name: '临港机械 · 手改验收站' }));
   assert.equal(made.status, 201); id = (await made.json()).id;
   await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '公司名：临港机械\n精密零件加工、按图加工，产品为轴套与接头，产品型号 LG-A。', baseRevision: 0 }), context(id));
   const { getConversation } = await import('../lib/conversation-store.ts');

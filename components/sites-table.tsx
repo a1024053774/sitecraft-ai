@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { getTemplate } from "@/lib/site-model";
-import type { SiteListItem } from "@/lib/site-store";
+import type { CodeSiteListItem as SiteListItem } from "@/lib/code-site-store";
 import {
   FloatingSitePreview,
   previewHint,
@@ -32,19 +31,18 @@ export function SitesTable({ sites }: { sites: SiteListItem[] }) {
         <div className="data-row data-row-sites data-row-head">
           <span>站点</span>
           <span>公司</span>
-          <span>模板</span>
+          <span>状态</span>
           <span>更新</span>
           <span>打开</span>
         </div>
         {sites.map((site) => {
-          const template = getTemplate(site.templateId);
           return (
             <article
               className="data-row data-row-sites"
               key={site.siteId}
               data-testid="site-row"
               data-site-id={site.siteId}
-              {...(site.readError ? {} : rowProps(site))}
+              {...(site.readError || !site.hasVersion ? {} : rowProps(site))}
             >
               <div data-preview-label="">
                 <strong>{site.siteName}</strong>
@@ -52,11 +50,11 @@ export function SitesTable({ sites }: { sites: SiteListItem[] }) {
                 {site.readError && <small className="site-read-error" role="status">{site.readError}</small>}
               </div>
               <span>{site.companyName || "—"}</span>
-              <span>{template.name}</span>
+              <span>{site.status || "已保存"}</span>
               <span>{formatUpdatedAt(site.updatedAt)}</span>
               <div className="site-row-actions" data-preview-actions="">
                 <Link className="section-link" href={workspaceHref(site.siteId)}>{site.readError ? "查看原因" : "工作台"}</Link>
-                {!site.readError && <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>}
+                {!site.readError && site.hasVersion && <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>}
               </div>
             </article>
           );

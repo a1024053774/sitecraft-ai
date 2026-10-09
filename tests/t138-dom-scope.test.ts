@@ -75,7 +75,7 @@ test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 async function generate(label: string) {
   repairs = 0;
   const source = makeCode();
-  const created = await create(request('/api/sites', { name: '边界机械', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const created = await create(request('/api/sites', { name: '边界机械' }));
   const id = (await created.json()).id, ctx = { params: Promise.resolve({ siteId: id }) };
   let state = await (await chat(request(`/api/sites/${id}/chat`, { message: materials, baseRevision: 0 }), ctx)).json();
   assert.equal((await chat(request(`/api/sites/${id}/chat`, { action: 'select', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, optionId: 'precision' }), ctx)).status, 202);

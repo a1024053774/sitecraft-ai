@@ -15,7 +15,7 @@ import {
   type UpdateAnnotationInput,
 } from "@/lib/annotations";
 
-const storageRoot = path.join(process.cwd(), ".sitecraft-data", "annotations");
+const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "annotations");
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const globalStore = globalThis as typeof globalThis & { __sitecraftAnnotationLocks?: Map<string, Promise<void>> };

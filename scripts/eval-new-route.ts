@@ -135,7 +135,7 @@ try {
       const uploads: Array<{ file: string; submitted: Record<string, string>; receipt: unknown }> = [];
       await writeFile(path.join(directory, folder, 'uploads.json'), '[]\n', 'utf8');
       try {
-        const created = await json<{ id: string }>('/api/sites', { name: simulatedPacks[c.pack as SimulatedPackId].companyName.replace(/P3[A-Z]$/, ''), templateId: 'forge', locales: ['zh'], generationRoute: 'code' });
+        const created = await json<{ id: string }>('/api/sites', { name: simulatedPacks[c.pack as SimulatedPackId].companyName.replace(/P3[A-Z]$/, '') });
         c.siteId = created.id;
         for (const photo of photos[c.pack as SimulatedPackId]!) {
           const form = new FormData();

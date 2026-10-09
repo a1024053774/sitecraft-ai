@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 const base = process.env.SITECRAFT_BASE || 'http://127.0.0.1:3138';
 const response = await fetch(`${base}/api/sites`, {
   method: 'POST', headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ name: 'T128 contract', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }),
+  body: JSON.stringify({ name: 'T128 contract' }),
 });
 assert.equal(response.status, 201);
 const site = await response.json();

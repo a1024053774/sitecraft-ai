@@ -56,7 +56,7 @@ test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 
 test('thin user material stays a one-page site; the same conversation can later request contact and an inquiry form', async () => {
   const out = path.resolve('artifacts/t142', `flow-${crypto.randomUUID()}`); await mkdir(out, { recursive: true });
-  const created = await create(request('/api/sites', { name: company, templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const created = await create(request('/api/sites', { name: company }));
   assert.equal(created.status, 201); const { id } = await created.json(); const context = { params: Promise.resolve({ siteId: id }) };
   const started = await (await chat(request(`/api/sites/${id}/chat`, { message: source, baseRevision: 0 }), context)).json();
   assert.equal((await chat(request(`/api/sites/${id}/chat`, { action: 'select', questionId: started.alignment.questionId, questionRevision: started.alignment.questionRevision, optionId: 'precision' }), context)).status, 202);

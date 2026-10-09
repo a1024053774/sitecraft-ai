@@ -13,8 +13,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { getTemplate } from "@/lib/site-model";
-import { listExistingSites, type SiteListItem } from "@/lib/site-store";
+import { listCodeSites, type CodeSiteListItem as SiteListItem } from "@/lib/code-site-store";
 import { listLeads, type PublicLead } from "@/lib/lead-store";
 
 export const dynamic = "force-dynamic";
@@ -32,38 +31,15 @@ function formatUpdatedAt(value: string) {
 }
 
 function SiteThumb({ site }: { site: SiteListItem }) {
-  if (site.readError) return <div className="site-thumb site-thumb-unavailable">{site.status}</div>;
-  const template = getTemplate(site.templateId);
-  const brand = site.siteName.split(/\s+/)[0] || site.siteName;
-  return (
-    <div
-      className="site-thumb"
-      style={{
-        background: `linear-gradient(135deg, ${template.colors.primary}, ${template.colors.primary}dd)`,
-      }}
-    >
-      <div className="thumb-grid">
-        <div className="thumb-nav">
-          <span>◼ {brand}</span>
-          <span>ABOUT&nbsp;&nbsp; WORK&nbsp;&nbsp; CONTACT</span>
-        </div>
-        <div className="thumb-title">
-          <span style={{ display: "block" }}>{site.siteName}</span>
-        </div>
-        <div className="thumb-lines">
-          <span />
-          <span />
-        </div>
-      </div>
-    </div>
-  );
+  if (site.readError || !site.hasVersion) return <div className="site-thumb site-thumb-unavailable">{site.status}</div>;
+  return <div className="site-thumb"><iframe title={`${site.siteName}缩略预览`} src={`/published/${encodeURIComponent(site.siteId)}`} loading="lazy" sandbox="" style={{width:1440,height:1000,border:0,transform:'scale(.25)',transformOrigin:'top left',pointerEvents:'none'}} /></div>;
 }
 
 export default async function Dashboard() {
-  const [sites, leads] = await Promise.all([listExistingSites(), listLeads()]);
+  const [sites, leads] = await Promise.all([listCodeSites(), listLeads()]);
   const recent = sites.slice(0, 3);
   const activities = [
-    ...sites.map((site) => ({ kind: "site" as const, at: site.updatedAt, title: `${site.readError ? "无法打开" : "已更新"} ${site.siteName}`, detail: site.readError || `打开${getTemplate(site.templateId).name}工作台继续修改`, icon: "sparkles" as const })),
+    ...sites.map((site) => ({ kind: "site" as const, at: site.updatedAt, title: `${site.readError ? "无法打开" : "已更新"} ${site.siteName}`, detail: site.readError || "打开工作台继续修改", icon: "sparkles" as const })),
     ...leads.map((lead: PublicLead) => ({ kind: "lead" as const, at: lead.receivedAt, title: "收到新的询盘", detail: [lead.company, lead.name].filter(Boolean).join(" · ") || "访客询盘", icon: "message" as const })),
   ].sort((left, right) => right.at.localeCompare(left.at)).slice(0, 3);
 
@@ -137,10 +113,9 @@ export default async function Dashboard() {
           </div>
           <div className="site-grid">
             {recent.length === 0 ? (
-              <p className="leads-empty recent-sites-empty">还没有已保存站点。打开工作台会新建草稿，这里不会先放演示站。</p>
+              <p className="leads-empty recent-sites-empty">还没有已保存站点。点击新建站点开始建站，这里不会先放演示站。</p>
             ) : recent.map((site) => {
-              const template = getTemplate(site.templateId);
-              return (
+                          return (
                 <Link
                   href={`/workspace?site=${encodeURIComponent(site.siteId)}` as Route}
                   className="site-card"
@@ -150,9 +125,9 @@ export default async function Dashboard() {
                   <div className="site-card-body">
                     <div className="site-title">
                       <strong>{site.siteName}</strong>
-                      <span className="site-status">{site.status || `● ${template.name}`}</span>
+                      <span className="site-status">{site.status || "● 已保存"}</span>
                     </div>
-                    <div className="site-meta">{site.siteId} · {template.category}</div>
+                    <div className="site-meta">{site.siteId}</div>
                     {site.readError && <p className="site-read-error" role="status">{site.readError}</p>}
                     <div className="site-card-footer">
                       <span>最后编辑 {formatUpdatedAt(site.updatedAt)}</span>

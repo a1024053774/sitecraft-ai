@@ -16,8 +16,10 @@ type SiteListItem = {
   siteId: string;
   siteName: string;
   companyName: string;
-  templateId: string;
   updatedAt: string;
+  hasVersion: boolean;
+  status?: string;
+  readError?: string;
 };
 
 async function requestDelete(siteId: string, confirmSiteId: string) {
@@ -37,11 +39,13 @@ export function SiteDeleteDialog({
   open,
   onClose,
   onDeleted,
+  hasVersion = false,
 }: {
   siteId: string;
   open: boolean;
   onClose: () => void;
   onDeleted?: (siteId: string) => void;
+  hasVersion?: boolean;
 }) {
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
@@ -70,12 +74,12 @@ export function SiteDeleteDialog({
           <button className="icon-button" type="button" onClick={onClose} aria-label="关闭删除"><X size={15} /></button>
         </div>
         <p className="modal-copy">
-          只有你确认后才会删。会去掉这份草稿、对话、上传图片和该站询盘。系统不会定时清理，也不会替你删别的站。输入站点编号后才能删除。
+          只有你确认后才会删。会去掉站点版本、资料、对话、上传图片和该站询盘。系统不会定时清理，也不会替你删别的站。输入站点编号后才能删除。
         </p>
-        {siteId ? <SitePeek siteId={siteId} /> : null}
+        {siteId && hasVersion ? <SitePeek siteId={siteId} /> : null}
         <div className="delete-site-actions">
           <Link className="section-link" href={workspaceHref(siteId)}>先去工作台</Link>
-          <Link className="section-link" href={publishedHref(siteId)} target="_blank" rel="noreferrer">打开发布页</Link>
+          {hasVersion && <Link className="section-link" href={publishedHref(siteId)} target="_blank" rel="noreferrer">打开发布页</Link>}
         </div>
         <label className="materials-label" htmlFor="confirm-site-id">站点编号</label>
         <input
@@ -140,18 +144,18 @@ export function SiteDeleteSettings() {
         <p>删除须由你输入站点编号确认。系统不会自动清对话、草稿、上传或已发布站点。每行可回工作台或发布页。{previewHint(hoverable)}</p>
       </div>
       {sites.length === 0 ? (
-        <p className="delete-empty" data-testid="site-delete-empty">当前没有已保存站点。打开工作台会新建草稿，不会在这里预先列一份假名单。</p>
+        <p className="delete-empty" data-testid="site-delete-empty">当前没有已保存站点。点击新建站点开始建站，不会在这里预先列一份假名单。</p>
       ) : (
         <ul className="delete-site-list" data-testid="site-delete-list">
           {sites.map((site) => (
-            <li key={site.siteId} tabIndex={0} {...rowProps(site)}>
+            <li key={site.siteId} tabIndex={0} {...(site.readError || !site.hasVersion ? {} : rowProps(site))}>
               <div data-preview-label="">
                 <strong>{site.siteName}</strong>
-                <small>{site.siteId} · {site.templateId}{site.companyName ? ` · ${site.companyName}` : ""}</small>
+                <small>{site.siteId}{site.companyName ? ` · ${site.companyName}` : ""}</small>
               </div>
               <div className="delete-site-actions" data-preview-actions="">
                 <Link className="section-link" href={workspaceHref(site.siteId)}>工作台</Link>
-                <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>
+                {!site.readError && site.hasVersion && <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>}
                 <button
                   className="danger-button"
                   type="button"
@@ -170,6 +174,7 @@ export function SiteDeleteSettings() {
       <FloatingSitePreview preview={preview} onKeep={keepPreview} onRelease={releasePreview} />
       <SiteDeleteDialog
         siteId={pendingId ?? ""}
+        hasVersion={sites.find(site => site.siteId === pendingId)?.hasVersion ?? false}
         open={Boolean(pendingId)}
         onClose={() => setPendingId(null)}
         onDeleted={(siteId) => {

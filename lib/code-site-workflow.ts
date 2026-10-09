@@ -7,7 +7,7 @@ import { CodeRepairError } from './code-site-repair.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
 import { AlignmentActionError, AlignmentTextTooLongError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
-import { getExistingSite } from './site-store.ts';
+
 
 const requestSchema = z.object({
   action: z.enum(['start', 'select', 'confirm', 'state', 'cancel']).optional(), message: z.string().trim().min(1).max(4000).optional(),
@@ -57,7 +57,7 @@ function schedule(site: CodeSiteRecord) {
     try { await execute(site.siteId, run.id); }
     catch (error) {
       // An explicitly deleted site has no workspace or records to receive a failed run.
-      if (!await getExistingSite(site.siteId)) return;
+      if (!await getCodeSite(site.siteId)) return;
       const message = error instanceof Error ? error.message : '本次任务失败，未保存版本。';
       await runStep(site.siteId, run.id, { status: 'error', step: message,
         ...(error instanceof CodeRepairError ? { repairFailure: { reason: message, response: error.response } } : {}) });
@@ -77,7 +77,7 @@ async function execute(siteId: string, runId: string) {
       const summary = result.plan.summary;
       return { ...record, alignment: { ...record.alignment, state: 'awaiting_confirmation', epoch, inflightRunId: null, confirmClaimed: false,
         currentQuestion: { questionId, questionRevision: epoch, kind: 'confirm_ops', prompt: summary, options: [{ id: 'approve', label: '确认并生成', description: '按下面的大纲写网站' }], allowOther: false },
-        proposedChange: { questionId, questionRevision: epoch, summary, operations: [], rejected: [], baseRevision: run.baseRevision, model: result.model, latencyMs: 0 } } };
+        proposedChange: { questionId, questionRevision: epoch, summary, rejected: [], baseRevision: run.baseRevision, model: result.model, latencyMs: 0 } } };
     });
     await runStep(siteId, runId, { status: 'complete', step: '页面大纲已保存，等待确认' });
     return;

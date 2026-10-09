@@ -2,13 +2,13 @@ import Link from "next/link";
 import { ChevronRight, LayoutTemplate } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SitesTable } from "@/components/sites-table";
-import { listExistingSites } from "@/lib/site-store";
+import { listCodeSites } from "@/lib/code-site-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export default async function SitesPage() {
-  const sites = await listExistingSites();
+  const sites = await listCodeSites();
 
   return (
     <div className="app-shell">

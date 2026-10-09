@@ -62,7 +62,7 @@ test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 
 test('plan-only: actual alignment and reload retain the choice and request order without generating pages', async () => {
   nextPlan = plan;
-  const response = await create(request('/api/sites', { name: '双路机械', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const response = await create(request('/api/sites', { name: '双路机械' }));
   assert.equal(response.status, 201); const { id } = await response.json();
   const ctx = { params: Promise.resolve({ siteId: id }) };
   const started = await chat(request(`/api/sites/${id}/chat`, { message: '公司名：双路机械\n从事标准轴套供应与来图车削加工。', baseRevision: 0 }), ctx);
@@ -81,7 +81,7 @@ test('skeleton choice survives alignment, confirmation, checked submission and r
   nextPlan = plan;
   let siteId: string | undefined;
   try {
-    const response = await create(request('/api/sites', { name: '双路机械', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+    const response = await create(request('/api/sites', { name: '双路机械' }));
     assert.equal(response.status, 201); siteId = (await response.json()).id;
     const ctx = { params: Promise.resolve({ siteId: siteId! }) };
     const started = await chat(request(`/api/sites/${siteId}/chat`, { message: '公司名：双路机械\n从事标准轴套供应与来图车削加工。标准轴套材质为不锈钢。加工范围以图纸确认为准。邮箱 sales@dual.example', baseRevision: 0 }), ctx);

@@ -16,7 +16,7 @@ function uniqueSiteId() {
 }
 
 function siteRecordPath(siteId: string) {
-  return path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
+  return path.join(process.cwd(), ".sitecraft-data", "code-sites", `${siteId}.json`);
 }
 
 function leadRecordPath(siteId: string) {
@@ -33,7 +33,8 @@ registerHooks({
 });
 
 const { createLead, LeadStoreError, listLeads } = await import("../lib/lead-store.ts") as typeof import("../lib/lead-store.ts");
-const { getExistingSite, createSite } = await import("../lib/site-store.ts") as typeof import("../lib/site-store.ts");
+const { getCodeSite, createCodeSite } = await import("../lib/code-site-store.ts");
+const createSite = (siteId:string)=>createCodeSite(siteId,siteId,crypto.randomUUID());
 const { POST } = await import(pathToFileURL(path.join(process.cwd(), "app/api/public/[siteKey]/leads/route.ts")).href) as {
   POST: (request: Request, context: { params: Promise<{ siteKey: string }> }) => Promise<Response>;
 };
@@ -67,7 +68,7 @@ test("unknown site keys are not created when an inquiry is refused", async () =>
   });
   assert.equal(existsSync(siteRecordPath(siteId)), false);
   assert.equal(existsSync(leadRecordPath(siteId)), false);
-  assert.equal(await getExistingSite(siteId), null);
+  assert.equal(await getCodeSite(siteId), null);
 });
 
 test("a saved inquiry rereads the same payload and stays on its site", async () => {
@@ -168,7 +169,7 @@ test("inbox pages stop advertising fake companies and a live mailbox", () => {
   const publicRoute = readFileSync(new URL("../app/api/public/[siteKey]/leads/route.ts", import.meta.url), "utf8");
   const leadsPage = readFileSync(new URL("../app/(workspace)/leads/page.tsx", import.meta.url), "utf8");
   const settingsPage = readFileSync(new URL("../app/(workspace)/settings/page.tsx", import.meta.url), "utf8");
-  const publishedClient = readFileSync(new URL("../app/published/[siteKey]/published-client.tsx", import.meta.url), "utf8");
+  const publishedClient = readFileSync(new URL("../app/published/[siteKey]/route.ts", import.meta.url), "utf8");
   const sidebar = readFileSync(new URL("../components/app-sidebar.tsx", import.meta.url), "utf8");
   assert.match(publicRoute, /createLead/);
   assert.equal(publicRoute.includes("getSite("), false);
@@ -177,8 +178,7 @@ test("inbox pages stop advertising fake companies and a live mailbox", () => {
   assert.equal(leadsPage.includes("Nordic Process"), false);
   assert.match(settingsPage, /询盘收件/);
   assert.equal(settingsPage.includes("lydia@sitecraft.ai"), false);
-  assert.match(publishedClient, /\/api\/public\/\$\{encodeURIComponent\(siteKey\)\}\/leads/);
-  assert.match(publishedClient, /onInquiry/);
+  assert.match(publishedClient, /renderSiteCode/);
   assert.equal(publishedClient.includes("published-inquiry-form"), false);
   assert.equal(publishedClient.includes("published-chrome-bar"), false);
   assert.equal(/count:\s*4/.test(sidebar), false);

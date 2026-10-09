@@ -1,12 +1,10 @@
 import { getCodeSite } from '@/lib/code-site-store';
 import { currentCodeVersion, renderSiteCode } from '@/lib/code-site';
 import { listSiteImages } from '@/lib/site-images';
-import { getExistingSite } from '@/lib/site-store';
 
 export const runtime = 'nodejs';
 export async function GET(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
-  if (!await getExistingSite(siteId)) return new Response('找不到这个站点', { status: 404 });
   const site = await getCodeSite(siteId);
   if (!site) return new Response('找不到这个站点', { status: 404 });
   const query = new URL(request.url).searchParams;

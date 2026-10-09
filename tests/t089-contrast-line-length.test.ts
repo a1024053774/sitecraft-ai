@@ -1,16 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import test from "node:test";
-import { Cdp, openBrowser } from "./helpers/workspace-browser.ts";
+import { codeCheckBrowser } from "../lib/code-site-browser.ts";
 
 const scanSource = readFileSync(new URL("../scripts/visitor-layout-scan.js", import.meta.url), "utf8")
   .replace("export function", "function")
   .replace("export default scanVisitorLayout;", "");
 
 test("T-089 visitor scan enforces body contrast, image uncertainty, and paragraph line length", async () => {
-  const browser = await openBrowser();
-  const { targetId } = await browser.send("Target.createTarget", { url: "about:blank" }) as { targetId: string };
-  const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true }) as { sessionId: string };
+  const browser = await codeCheckBrowser();
   const html = `<!doctype html><html><body style="margin:0;background:#fff;color:#767676">
     <main data-sc-block="content">
       <p id="fail" style="color:#777">普通正文对比度四点四比一</p>
@@ -31,15 +29,15 @@ test("T-089 visitor scan enforces body contrast, image uncertainty, and paragrap
     </main>
   </body></html>`;
   try {
-    await browser.send("Runtime.enable", {}, sessionId);
-    await browser.send("Page.enable", {}, sessionId);
-    const frameId = (await browser.send("Page.getFrameTree", {}, sessionId) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
-    await browser.send("Page.setDocumentContent", { frameId, html }, sessionId);
-    const scan = await browser.eval<{
+    await browser.send("Runtime.enable", {});
+    await browser.send("Page.enable", {});
+    const frameId = (await browser.send("Page.getFrameTree", {}) as { frameTree: { frame: { id: string } } }).frameTree.frame.id;
+    await browser.send("Page.setDocumentContent", { frameId, html });
+    const scan = await browser.evaluate<{
       textContrast: Array<{ element: string; ratio: number | null; status: string; large: boolean; threshold: number; reason?: string; checkable: boolean }>;
       bodyLineLength: Array<{ id: string; tooLong: boolean; count: number; language: string }>;
       lineLengthExemptions: Array<{ id: string; reason: string }>;
-    }>(`(()=>{${scanSource};return scanVisitorLayout(document)})()`, sessionId);
+    }>(`(()=>{${scanSource};return scanVisitorLayout(document)})()`);
     mkdirSync("artifacts/t089", { recursive: true });
     writeFileSync("artifacts/t089/contrast-line-length-fixture.json", JSON.stringify(scan, null, 2));
     const byId = (id: string) => (scan.textContrast ?? []).find((entry) => entry.element === id);
@@ -60,9 +58,5 @@ test("T-089 visitor scan enforces body contrast, image uncertainty, and paragrap
     assert.ok((scan.bodyLineLength ?? []).some((line) => line.id === "link-long" && line.tooLong), "ordinary paragraph link must remain body copy");
     assert.ok((scan.lineLengthExemptions ?? []).some((entry) => entry.id === "table-long"), "parameter table text is exempt and listed");
     assert.ok(!(scan.lineLengthExemptions ?? []).some((entry) => ["span-long", "header-long", "link-long"].includes(entry.id)), "ordinary body paragraphs are not exempt");
-  } finally {
-    await browser.send("Target.closeTarget", { targetId }).catch(() => {});
-    try { browser.ws.send(JSON.stringify({ id: browser.id++, method: "Browser.close", params: {} })); } catch {}
-    browser.ws.close();
-  }
+  } finally { await browser.close(); }
 });

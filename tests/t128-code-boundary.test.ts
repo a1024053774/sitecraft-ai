@@ -66,12 +66,12 @@ const { POST: undo } = await import('../app/api/sites/[siteId]/history/[action]/
 const { DELETE } = await import('../app/api/sites/[siteId]/route.ts');
 const { GET: preview } = await import('../app/api/sites/[siteId]/code-preview/route.ts');
 const { getCodeSite } = await import('../lib/code-site-store.ts');
-const { deleteSiteRecord } = await import('../lib/site-store.ts');
+const { deleteCodeSite } = await import('../lib/code-site-store.ts');
 const { checkSiteCode } = await import('../lib/code-site-check.ts');
 const request = (url: string, method: string, body: unknown) => new Request(base + url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const context = (siteId: string) => ({ params: Promise.resolve({ siteId }) });
 async function site() {
-  const response = await create(request('/api/sites', 'POST', { name: '边界机械', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const response = await create(request('/api/sites', 'POST', { name: '边界机械' }));
   assert.equal(response.status, 201); const { id } = await response.json();
   const start = await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '公司名：边界机械\n精密零件加工。', baseRevision: 0 }), context(id));
   assert.equal(start.status, 200); return id as string;
@@ -180,12 +180,7 @@ test('confirmed deletion removes code versions, materials and runs; previews can
   assert.equal(existsSync(path.join(process.cwd(), '.sitecraft-data/code-sites', `${id}.json`)), false);
   assert.equal((await preview(new Request(`${base}/api/sites/${id}/code-preview`), context(id))).status, 404);
 });
-test('preview requires the site record even when orphan code remains', async () => {
-  const id = await site(); assert.equal((await put(id, good)).status, 200);
-  await deleteSiteRecord(id); // Deliberate orphan models an interrupted delete or historic residue.
-  assert.ok(await getCodeSite(id));
-  assert.equal((await preview(new Request(`${base}/api/sites/${id}/code-preview`), context(id))).status, 404);
-});
+
 test('a deleted pending run cannot recreate code or conversations', async () => {
   const id = await site(); const record = (await getCodeSite(id))!;
   const { getConversation } = await import('../lib/conversation-store.ts');
@@ -287,27 +282,17 @@ test('review2: image attribution metadata is exempt while ordinary captions rema
   assert.equal(response.status, 200, JSON.stringify(await response.json()));
   await lineFeedback({ ...good, pages: [{ ...good.pages[0], html: `<main><h1>边界机械</h1><figure><figcaption>${longProse}</figcaption></figure></main>` }] });
 });
-test('review2: site list reads code names, retains legacy names, and never dual-writes', async () => {
-  const { getExistingSite } = await import('../lib/site-store.ts');
-  const response = await create(request('/api/sites', 'POST', { name: '复审列表初名', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+test('review2: site list reads code names without a legacy shadow', async () => {
+  const response = await create(request('/api/sites', 'POST', { name: '复审列表初名' }));
   const { id } = await response.json();
-  const before = (await getExistingSite(id))!;
-  const initial = (await (await list()).json()).sites.find((item: { siteId: string }) => item.siteId === id);
-  assert.equal(initial.siteName, '复审列表初名');
-  const start = await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '公司名：复审列表改名\n精密零件加工。', baseRevision: 0 }), context(id));
-  assert.equal(start.status, 200);
-  const changed = (await (await list()).json()).sites.find((item: { siteId: string }) => item.siteId === id);
-  assert.equal(changed.siteName, '复审列表改名'); assert.equal(changed.companyName, '复审列表改名');
-  const after = (await getExistingSite(id))!;
-  assert.equal(after.draft.siteName, before.draft.siteName); assert.equal(after.draft.companyName, before.draft.companyName);
-  assert.equal(after.updatedAt, before.updatedAt, 'code metadata must not be copied into the legacy record');
-  const legacy = await create(request('/api/sites', 'POST', { name: '复审旧站', templateId: 'forge', locales: ['zh'] }));
-  const legacyId = (await legacy.json()).id; const source = (await getExistingSite(legacyId))!;
-  const item = (await (await list()).json()).sites.find((entry: { siteId: string }) => entry.siteId === legacyId);
-  assert.equal(item.siteName, source.draft.siteName); assert.equal(item.updatedAt, source.updatedAt);
+  assert.equal((await (await list()).json()).sites.find((item: {siteId:string})=>item.siteId===id).siteName,'复审列表初名');
+  assert.equal((await chat(request(`/api/sites/${id}/chat`,'POST',{message:'公司名：复审列表改名\n精密零件加工。',baseRevision:0}),context(id))).status,200);
+  const changed=(await (await list()).json()).sites.find((item:{siteId:string})=>item.siteId===id);
+  assert.equal(changed.siteName,'复审列表改名');assert.equal(changed.companyName,'复审列表改名');
+  assert.equal(existsSync(path.join(process.cwd(),'.sitecraft-data/sites',`${id}.json`)),false);
 });
 test('review2: list update time comes from code metadata, not the original seed', async t => {
-  const response = await create(request('/api/sites', 'POST', { name: '复审列表时间', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const response = await create(request('/api/sites', 'POST', { name: '复审列表时间' }));
   const { id } = await response.json();
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2031-02-03T04:05:06.000Z') });
   assert.equal((await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '公司名：复审列表时间\n精密零件加工。', baseRevision: 0 }), context(id))).status, 200);

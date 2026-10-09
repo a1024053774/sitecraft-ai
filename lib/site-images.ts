@@ -53,7 +53,7 @@ export class SiteImageError extends Error {
 }
 
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
-const storageRoot = path.join(process.cwd(), ".sitecraft-data", "uploads");
+const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "uploads");
 
 export function safeSiteId(siteId: string) {
   if (!SITE_ID_PATTERN.test(siteId)) throw new SiteImageError("forbidden", "Invalid site id");
@@ -453,20 +453,4 @@ export function publicImagePayload(record: SiteImageRecord) {
     sha256: record.sha256,
     createdAt: record.createdAt,
   };
-}
-
-export async function bindSiteImageOperations(
-  siteId: string,
-  operations: Array<{ op: string; imageId?: string; url?: string }>,
-) {
-  for (const operation of operations) {
-    if (operation.op !== "set_image_slot" && operation.op !== "set_product_image") continue;
-    if (!operation.imageId) throw new SiteImageError("forbidden", "缺少 imageId");
-    if (operation.url && isTemplateStockUrl(operation.url)) {
-      throw new SiteImageError("forbidden", "模板演示图没有客户授权，不能写入生成站点");
-    }
-    const loaded = await readSiteImage(siteId, operation.imageId);
-    if (!loaded) throw new SiteImageError("not_found", `图片 ${operation.imageId} 不属于当前站点`);
-    operation.url = siteImagePublicPath(siteId, operation.imageId);
-  }
 }

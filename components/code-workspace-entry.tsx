@@ -13,7 +13,7 @@ export function CodeWorkspaceEntry() {
       const search = window.location.search;
       const siteId = await createSiteOnce(search, async () => {
         const response = await fetch('/api/sites', { method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ name: '未命名站点', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }) });
+          body: JSON.stringify({ name: '未命名站点' }) });
         const payload = await response.json();
         if (!response.ok || !payload.id) throw new Error(payload.userMessage || '新站点没有建成。');
         return payload.id as string;

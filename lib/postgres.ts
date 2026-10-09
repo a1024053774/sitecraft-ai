@@ -30,18 +30,6 @@ export async function ensureDatabaseSchema() {
   if (!globalDatabase.__sitecraftSchemaReady) {
     globalDatabase.__sitecraftSchemaReady = getDatabasePool()
       .query(`
-        CREATE TABLE IF NOT EXISTS sitecraft_sites (
-          workspace_id TEXT NOT NULL,
-          site_id TEXT NOT NULL,
-          draft JSONB NOT NULL,
-          history JSONB NOT NULL DEFAULT '[]'::jsonb,
-          future JSONB NOT NULL DEFAULT '[]'::jsonb,
-          history_schema_version INTEGER NOT NULL DEFAULT 1,
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          PRIMARY KEY (workspace_id, site_id)
-        )
-      `)
-      .then(() => getDatabasePool().query(`
         CREATE TABLE IF NOT EXISTS sitecraft_conversations (
           workspace_id TEXT NOT NULL,
           site_id TEXT NOT NULL,
@@ -52,11 +40,7 @@ export async function ensureDatabaseSchema() {
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (workspace_id, site_id, conversation_id)
         )
-      `))
-      .then(() => getDatabasePool().query(`
-        ALTER TABLE sitecraft_sites
-        ADD COLUMN IF NOT EXISTS history_schema_version INTEGER NOT NULL DEFAULT 1
-      `))
+      `)
       .then(() => getDatabasePool().query(`
         ALTER TABLE sitecraft_conversations
         ADD COLUMN IF NOT EXISTS alignment JSONB NOT NULL DEFAULT '{}'::jsonb

@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
-import { getExistingSite } from "./site-store.ts";
+import { getCodeSite } from "./code-site-store.ts";
 
 export const LEAD_ID_PATTERN = /^lead_[a-z0-9]{16,40}$/;
 export const SITE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
@@ -49,7 +49,7 @@ type SiteLeadFile = {
   updatedAt: string;
 };
 
-const storageRoot = path.join(process.cwd(), ".sitecraft-data", "leads");
+const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "leads");
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const globalStore = globalThis as typeof globalThis & { __sitecraftLeadLocks?: Map<string, Promise<void>> };
@@ -179,7 +179,7 @@ async function writeLocalFile(file: SiteLeadFile) {
 }
 
 async function requireExistingSite(siteId: string) {
-  const site = await getExistingSite(siteId);
+  const site = await getCodeSite(siteId);
   if (!site) throw new LeadStoreError("not_found", "站点不存在，询盘未保存");
   return site;
 }

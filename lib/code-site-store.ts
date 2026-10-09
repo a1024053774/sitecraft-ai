@@ -1,10 +1,11 @@
-import { mkdir, readFile, rename, writeFile, rm } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion } from './code-site.ts';
+import { currentCodeVersion, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { checkSiteCode } from './code-site-check.ts';
+import { getOrCreateConversation } from './conversation-store.ts';
 
-const root = path.join(process.cwd(), '.sitecraft-data', 'code-sites');
+const root = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'code-sites');
 const shared = globalThis as typeof globalThis & { __codeSiteLocks?: Map<string, Promise<void>> };
 const locks = shared.__codeSiteLocks ??= new Map();
 async function locked<T>(id: string, task: () => Promise<T>): Promise<T> {
@@ -15,26 +16,57 @@ async function locked<T>(id: string, task: () => Promise<T>): Promise<T> {
   const queued = before.then(() => next); locks.set(id, queued); await before;
   try { return await task(); } finally { release(); if (locks.get(id) === queued) locks.delete(id); }
 }
-export async function getCodeSite(id: string): Promise<CodeSiteRecord | null> {
+async function readStored(id: string): Promise<CodeSiteRecord | UnavailableCodeSite | null> {
   try { return JSON.parse(await readFile(path.join(root, `${safeSiteId(id)}.json`), 'utf8')); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
+}
+export class CodeSiteUnavailableError extends Error {
+  readonly record: UnavailableCodeSite;
+  constructor(record: UnavailableCodeSite) { super(record.readError); this.name = 'CodeSiteUnavailableError'; this.record = record; }
+}
+export async function getCodeSite(id: string): Promise<CodeSiteRecord | null> {
+  const record = await readStored(id);
+  if (record?.route === 'unavailable') throw new CodeSiteUnavailableError(record);
+  return record;
+}
+export type CodeSiteListItem = { siteId: string; siteName: string; companyName: string; updatedAt: string; hasVersion: boolean; status?: string; readError?: string };
+export async function listCodeSites(): Promise<CodeSiteListItem[]> {
+  let names: string[];
+  try { names = await readdir(root); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; }
+  const items: CodeSiteListItem[] = [];
+  for (const name of names) {
+    if (!name.endsWith('.json')) continue;
+    const record = await readStored(name.slice(0, -5));
+    if (!record) continue;
+    const hasVersion = record.route === 'code' && !!currentCodeVersion(record);
+    items.push({ siteId: record.siteId, siteName: record.name, companyName: record.name, updatedAt: record.updatedAt, hasVersion,
+      ...(record.route === 'unavailable' ? { status: record.status, readError: record.readError } : hasVersion ? {} : {status:'尚未生成'}) });
+  }
+  return items.sort((a,b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }
 export async function deleteCodeSite(id: string) {
   // Wait for any checked commit; removing the single record removes versions, materials and runs.
   return locked(id, () => rm(path.join(root, `${safeSiteId(id)}.json`), { force: true }));
 }
-async function write(site: CodeSiteRecord) {
+async function write(site: CodeSiteRecord | UnavailableCodeSite, insert = false) {
   await mkdir(root, { recursive: true });
   const file = path.join(root, `${safeSiteId(site.siteId)}.json`), temp = `${file}.${crypto.randomUUID()}.tmp`;
-  site.updatedAt = new Date().toISOString();
-  await writeFile(temp, JSON.stringify(site, null, 2), 'utf8'); await rename(temp, file);
+  if (site.route === 'code' || !site.updatedAt) site.updatedAt = new Date().toISOString();
+  await writeFile(temp, JSON.stringify(site, null, 2), 'utf8');
+  if (!insert) { await rename(temp, file); return true; }
+  // Publish the complete first record without replacing a file created by another
+  // process during the browser check. This links only our own temporary output.
+  try { await link(temp, file); return true; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false; throw error; }
+  finally { await rm(temp, { force: true }); }
 }
 export async function createCodeSite(siteId: string, name: string, conversationId: string) {
   return locked(siteId, async () => {
-    if (await getCodeSite(siteId)) throw new Error('站点已存在');
+    if (await readStored(siteId)) throw new Error('站点已存在');
     const site: CodeSiteRecord = { route: 'code', siteId, name, conversationId, materials: '',
       preferences: { style: 'auto', layout: 5, density: 6 }, plan: null, versions: [], currentVersionId: null, run: null, runs: [], updatedAt: '' };
-    await write(site); return site;
+    if (!await write(site, true)) throw new Error('站点已存在'); return site;
   });
 }
 // Only workflow metadata is editable here. Site code is written by commitSiteCode alone.
@@ -61,11 +93,70 @@ export async function nameCodeVersion(siteId: string, versionId: string, name: s
     await write(site); return site;
   });
 }
-export async function commitSiteCode(args: {
+type CodeCommit = {
   siteId: string; baseRevision: number; code?: SiteCode; restoreVersionId?: string;
-  author: CodeVersion['author']; summary: string; request: string; model?: string;
-}) {
+  author: 'assistant' | 'user'; summary: string; request: string; model?: string;
+};
+type CodeCommitResult = { status: 'conflict'; site: CodeSiteRecord }
+  | { status: 'rejected'; site: CodeSiteRecord; code: SiteCode; checks: CodeCheck }
+  | { status: 'applied'; site: CodeSiteRecord; version: CodeVersion };
+// This input is constructed only by the offline CLI. Public routes parse their own
+// normal submission schemas and never forward this field from request JSON.
+export type LegacyImportCommit = { siteId: string; legacyImport: {
+  name: string; source: { revision: number; updatedAt: string };
+} & ({ kind: 'protected' } | { kind: 'failed'; reason: string } | { kind: 'convert'; materials: string; code: SiteCode; exportIssues: string[] }) };
+type LegacyImportResult = { status: 'existing'; record: CodeSiteRecord | UnavailableCodeSite }
+  | { status: 'unavailable'; record: UnavailableCodeSite }
+  | { status: 'applied'; site: CodeSiteRecord; version: CodeVersion };
+export function commitSiteCode(args: CodeCommit): Promise<CodeCommitResult>;
+export function commitSiteCode(args: LegacyImportCommit): Promise<LegacyImportResult>;
+export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Promise<CodeCommitResult | LegacyImportResult> {
   return locked(args.siteId, async () => {
+    if ('legacyImport' in args) {
+      const existing = await readStored(args.siteId);
+      if (existing) return { status: 'existing' as const, record: existing };
+      const imported = args.legacyImport;
+      if (imported.kind === 'protected' || imported.kind === 'failed') {
+        const status = imported.kind === 'protected' ? '旧站点未转换，含用户上传，已保留' : '旧站转换失败';
+        const record: UnavailableCodeSite = { route: 'unavailable', siteId: args.siteId, name: imported.name, updatedAt: imported.source.updatedAt,
+          status, readError: imported.kind === 'failed' ? `${status}：${imported.reason}` : status, legacySource: imported.source };
+        if (!await write(record, true)) {
+          const record = await readStored(args.siteId); if (!record) throw new Error('站点在导入期间已改变，请重新核对。');
+          return { status: 'existing' as const, record };
+        }
+        return { status: 'unavailable' as const, record };
+      }
+      // Unlike ordinary edits this reads supplied legacy materials, not a new
+      // model audit. The cleaning and all deterministic checks are identical.
+      const checked = await checkSiteCode({ siteId: args.siteId, code: imported.code, materials: imported.materials,
+        images: await listSiteImages(args.siteId), legacyImport: true });
+      checked.checks.issues.push(...imported.exportIssues);
+      checked.checks.passed = checked.checks.issues.length === 0;
+      if (!checked.checks.passed) {
+        const record: UnavailableCodeSite = { route: 'unavailable', siteId: args.siteId, name: imported.name, updatedAt: imported.source.updatedAt,
+          status: '旧站转换失败', readError: `旧站转换失败：${checked.checks.issues.join('；')}`, checks: checked.checks, legacySource: imported.source };
+        if (!await write(record, true)) {
+          const record = await readStored(args.siteId); if (!record) throw new Error('站点在导入期间已改变，请重新核对。');
+          return { status: 'existing' as const, record };
+        }
+        return { status: 'unavailable' as const, record };
+      }
+      // One site-scoped import conversation also makes interrupted or concurrent
+      // offline invocations reuse the same metadata rather than creating orphans.
+      const conversation = await getOrCreateConversation(args.siteId, 'legacy-import');
+      const plan: CodePlan = { summary: '沿用旧站的中文内容与区块顺序。', style: 'precision', styleReason: '沿用旧站静态样式，未重新选风格。',
+        pages: checked.code.pages.map(page => ({ id: page.id, title: page.title, outline: '保留旧站已有内容与顺序。' })) };
+      const version: CodeVersion = { id: crypto.randomUUID(), revision: 1, author: 'legacy-import', summary: '旧站转换',
+        request: '', createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks };
+      const site: CodeSiteRecord = { route: 'code', siteId: args.siteId, name: imported.name, conversationId: conversation.conversationId,
+        materials: imported.materials, preferences: { style: 'auto', layout: 5, density: 6 }, plan, versions: [version], currentVersionId: version.id,
+        run: null, runs: [], updatedAt: '', legacySource: imported.source };
+      if (!await write(site, true)) {
+        const record = await readStored(args.siteId); if (!record) throw new Error('站点在导入期间已改变，请重新核对。');
+        return { status: 'existing' as const, record };
+      }
+      return { status: 'applied' as const, site, version };
+    }
     const site = await getCodeSite(args.siteId); if (!site) throw new Error('找不到这个站点');
     const revision = currentCodeVersion(site)?.revision ?? 0;
     if (revision !== args.baseRevision) return { status: 'conflict' as const, site };

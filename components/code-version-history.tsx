@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { X } from 'lucide-react';
-import type { CodeSiteRecord } from '@/lib/code-site';
+import { codeCheckLabel, codeVersionAuthor, type CodeSiteRecord } from '@/lib/code-site';
 import { groupCodeVersions, type VersionGrouping } from '@/lib/code-site-history';
 import type { CodeWorkspacePayload } from './code-workspace';
 import styles from './code-version-history.module.css';
@@ -64,16 +64,16 @@ export function CodeVersionHistory({ site, busy, onUpdate, onClose }: {
             <span className={styles.versionTop}><strong>第 {version.revision} 版</strong>{version.id === site.currentVersionId && <em>当前版本</em>}</span>
             {version.name && <strong className={styles.versionName}>{version.name}</strong>}
             <span className={styles.summary}>{version.summary}</span>
-            <span className={styles.meta}><time dateTime={version.createdAt}>{new Date(version.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time> · {version.author === 'user' ? '你' : '助手'} · {version.checks.passed ? '检查通过' : '检查未过'}</span>
+            <span className={styles.meta}><time dateTime={version.createdAt}>{new Date(version.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time> · {codeVersionAuthor(version.author)} · {codeCheckLabel(version.checks)}</span>
           </button>)}</section>)}
         </div>
       </aside>
       <section className={styles.detail} aria-label="版本预览">
         {selected ? <>
-          <div className={styles.detailHead}><div><h3>{selected.name || `第 ${selected.revision} 版`}{selected.id === site.currentVersionId && <small>当前版本</small>}</h3><p>{time(new Date(selected.createdAt))} · {selected.author === 'user' ? '你' : '助手'} · {selected.summary}</p></div><button className="primary-button" disabled={disabled || selected.id === site.currentVersionId} onClick={() => void mutate('restore')} data-testid="restore-version">{saving ? '正在保存…' : '恢复到这个版本'}</button></div>
+          <div className={styles.detailHead}><div><h3>{selected.name || `第 ${selected.revision} 版`}{selected.id === site.currentVersionId && <small>当前版本</small>}</h3><p>{time(new Date(selected.createdAt))} · {codeVersionAuthor(selected.author)} · {selected.summary}</p></div><button className="primary-button" disabled={disabled || selected.id === site.currentVersionId} onClick={() => void mutate('restore')} data-testid="restore-version">{saving ? '正在保存…' : '恢复到这个版本'}</button></div>
           <form className={styles.naming} onSubmit={event => void mutate('name', event)}><label htmlFor="version-name">版本名称</label><input id="version-name" aria-label="版本名称" placeholder="例如：产品目录确认版" value={name} maxLength={80} onChange={event => setName(event.target.value)} disabled={disabled} /><button className="secondary-button" disabled={disabled || name.trim() === (selected.name ?? '')} type="submit">保存名称</button></form>
           {error && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
-          <div className={styles.previewTools}><select aria-label="版本页面" value={activePage} onChange={event => setPage(event.target.value)}>{selected.code.pages.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select><div className="device-toggle" aria-label="版本预览宽度">{[1440, 768, 375].map(value => <button key={value} className={width === value ? 'active' : ''} aria-pressed={width === value} onClick={() => setWidth(value)}>{value}</button>)}</div><span>{selected.checks.passed ? '底线检查通过' : '底线检查未过'}</span></div>
+          <div className={styles.previewTools}><select aria-label="版本页面" value={activePage} onChange={event => setPage(event.target.value)}>{selected.code.pages.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select><div className="device-toggle" aria-label="版本预览宽度">{[1440, 768, 375].map(value => <button key={value} className={width === value ? 'active' : ''} aria-pressed={width === value} onClick={() => setWidth(value)}>{value}</button>)}</div><span>{codeCheckLabel(selected.checks)}</span></div>
           <div ref={stage} className={styles.stage}><div className={styles.canvas} style={{ width: width * scale, height: 900 * scale }}>
             <iframe key={previewUrl} src={previewUrl} title={`第 ${selected.revision} 版 · ${selected.code.pages.find(item => item.id === activePage)?.title}预览`} sandbox="allow-forms" style={{ width, height: 900, transform: `scale(${scale})` }} onLoad={() => setReadyUrl(previewUrl)} data-testid="version-preview" />
             {readyUrl !== previewUrl && <div className={styles.loading} role="status" data-testid="version-preview-loading">正在载入第 {selected.revision} 版…</div>}

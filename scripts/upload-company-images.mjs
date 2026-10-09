@@ -19,7 +19,6 @@ function usage(message) {
     "选项：",
     "  --base-url <url>       默认 http://127.0.0.1:3071",
     "  --site-id <id>         上传到已经存在的站点，不创建新站点",
-    "  --template-id <id>     新建站点使用的样子，默认 screwfast",
     "  --name <name>          新建站点的名称",
     "  --help",
   ].join("\n"));
@@ -27,15 +26,15 @@ function usage(message) {
 }
 
 function parseArgs(argv) {
-  const args = { baseUrl: "http://127.0.0.1:3071", templateId: "screwfast" };
+  const args = { baseUrl: "http://127.0.0.1:3071" };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--help") usage();
-    if (arg === "--pack" || arg === "--base-url" || arg === "--site-id" || arg === "--template-id" || arg === "--name") {
+    if (arg === "--pack" || arg === "--base-url" || arg === "--site-id" || arg === "--name") {
       const value = argv[index + 1];
       if (!value || value.startsWith("--")) usage(`${arg} 缺少值`);
       const key = arg.slice(2).replaceAll("-", "");
-      args[key === "baseurl" ? "baseUrl" : key === "siteid" ? "siteId" : key === "templateid" ? "templateId" : key] = value;
+      args[key === "baseurl" ? "baseUrl" : key === "siteid" ? "siteId" : key] = value;
       index += 1;
       continue;
     }
@@ -108,12 +107,12 @@ async function main() {
     const response = await fetch(`${baseUrl}/api/sites`, {
       method: "POST",
       headers: jsonHeaders(),
-      body: JSON.stringify({ name, templateId: args.templateId, locales: ["zh", "en"] }),
+      body: JSON.stringify({ name }),
     });
     const payload = await readJson(response, "创建站点");
     siteId = payload.id;
     created = true;
-    console.log(`SITE_CREATED id=${siteId} name=${JSON.stringify(name)} template=${args.templateId}`);
+    console.log(`SITE_CREATED id=${siteId} name=${JSON.stringify(name)}`);
   } else {
     console.log(`SITE_REUSED id=${siteId}`);
   }

@@ -42,7 +42,7 @@ const code: SiteCode = { header: '<header>曜石零件</header>', footer: '<foot
 test('all semantic icons save through the commit entry and render distinct accessible SVG at three widths', async () => {
   await mkdir(out, { recursive: true });
   const created = await createSite(new Request(base + '/api/sites', { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name: '曜石零件', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }) }));
+    body: JSON.stringify({ name: '曜石零件' }) }));
   assert.equal(created.status, 201);
   const { id } = await created.json();
   await updateCodeSite(id, () => ({ materials: `公司名：曜石零件。精密零件加工。电话、地址、联系方式：待补充。${labels.join('；')}。` }));

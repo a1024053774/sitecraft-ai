@@ -64,7 +64,7 @@ const { getCodeSite } = await import('../lib/code-site-store.ts');
 const request = (url: string, body: unknown) => new Request(base + url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 test('two local repairs preserve products and re-enter the real checked commit boundary', async () => {
-  const created = await create(request('/api/sites', { name: '边界机械', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const created = await create(request('/api/sites', { name: '边界机械' }));
   id = (await created.json()).id;
   const context = { params: Promise.resolve({ siteId: id }) };
   let response = await chat(request(`/api/sites/${id}/chat`, { message: '公司名：边界机械\n产品：精密零件。精密零件加工。加工对象为精密零件，材质与检验要求按图纸标注记录。\n页面要求：首页、产品两个独立页面。', baseRevision: 0 }), context);
