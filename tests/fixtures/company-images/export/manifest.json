@@ -246,9 +246,73 @@
       "height": 577,
       "bytes": 177568,
       "apiLicense": "CC BY"
+    },
+    {
+      "sourceTitle": "2020 Suwmiarka cyfrowa.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:2020_Suwmiarka_cyfrowa.jpg",
+      "sourceRevision": 761612752,
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/2020_Suwmiarka_cyfrowa.jpg/1920px-2020_Suwmiarka_cyfrowa.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Jacek Halicki",
+      "downloadedAt": "2026-10-09T04:43:54.574333+00:00",
+      "width": 1600,
+      "height": 667,
+      "bytes": 133718,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1600px; JPEG re-encoded at quality 88; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:43:54.574333+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "export-inspection-digital-caliper",
+      "file": "inspection-digital-caliper.jpg",
+      "category": "inspection",
+      "caption": "数显卡尺（通用量具配图）",
+      "captionEn": "Digital caliper",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "2020 Suwmiarka cyfrowa.jpg — Jacek Halicki; https://commons.wikimedia.org/wiki/File:2020_Suwmiarka_cyfrowa.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不把显示读数当作产品尺寸、量具精度或检测结果。"
+    },
+    {
+      "sourceTitle": "ThreadingGauges.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:ThreadingGauges.jpg",
+      "sourceRevision": 1248537671,
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/ThreadingGauges.jpg/1920px-ThreadingGauges.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "author": "Glenn McKechnie (Graibeard)",
+      "downloadedAt": "2026-10-09T04:47:55.885397+00:00",
+      "width": 1280,
+      "height": 960,
+      "bytes": 256019,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1280px; JPEG re-encoded at quality 88; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:47:55.885397+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "export-inspection-thread-pitch-gauges",
+      "file": "inspection-thread-pitch-gauges.jpg",
+      "category": "inspection",
+      "caption": "螺距规（通用量具配图）",
+      "captionEn": "Thread pitch gauges",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "ThreadingGauges.jpg — Glenn McKechnie (Graibeard); https://commons.wikimedia.org/wiki/File:ThreadingGauges.jpg; CC BY-SA 2.0 (https://creativecommons.org/licenses/by-sa/2.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不是螺纹通止规或压力检测图，不据图增加螺纹制式、品牌代理关系或检测能力。"
     }
   ],
-  "derivativeNotice": "Unchanged retained images preserve their prior processing notices. B-C1/C-C1 use independently reviewed full-frame downsampled JPEG derivatives; source originals, exact license and complete processing chain remain traceable in their entries. No new processing occurred during admission.",
+  "derivativeNotice": "Existing T-112 entries retain their original processing notices and reviewed derivatives. T-137 additions retain the full frame and are JPEG re-encoded, with resizing limits and orientation handling recorded per entry. Source revision, exact license and attribution are retained. No existing image was reprocessed; BY-SA derivatives retain their source license.",
   "sourceVerification": {
     "independentReports": [
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
@@ -257,7 +321,8 @@
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-review/review.md"
     ],
     "status": "PASS_FOR_AUTHORIZED_USES",
-    "finalPublishedPlacement": "PASS for authorized uses at material commit c4438b1f3fc9c5e729eeec2ca8ef49e7aa41f5c3, site 224e7c90-2268-4a3c-a6b5-02bc28b28fdc, zh/en at 1440/768/375. Functional evidence: artifacts/t112/clarity-final-c4438b1/verification-summary.json; changed-photo visual evidence: artifacts/t112/clarity-final-visual-c4438b1/review/review.md. F03 remains paired with F01, with no sole hero/product binding. This does not cover overall page quality or T115."
+    "finalPublishedPlacement": "PASS for authorized uses at material commit c4438b1f3fc9c5e729eeec2ca8ef49e7aa41f5c3, site 224e7c90-2268-4a3c-a6b5-02bc28b28fdc, zh/en at 1440/768/375. Functional evidence: artifacts/t112/clarity-final-c4438b1/verification-summary.json; changed-photo visual evidence: artifacts/t112/clarity-final-visual-c4438b1/review/review.md. F03 remains paired with F01, with no sole hero/product binding. This does not cover overall page quality or T115.",
+    "scope": "Existing six T-112 entries only. T-137 additions carry their own verification and have not had independent page-quality review."
   },
   "admittedAt": "2026-10-06T06:43:37.422940+00:00"
 }
