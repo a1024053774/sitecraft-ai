@@ -2,7 +2,7 @@
 id: T-134
 title: 截图打磨：生成后模型看 1440/375 截图自查一轮，经提交入口存版
 type: build
-status: open
+status: out-of-scope
 blocked_by: []
 claimed_by:
 supersedes:
@@ -22,3 +22,8 @@ T-127 批准的流程是「读资料 → 大纲 → 写页面 → 检查修正 �
 - [ ] 失败路径：打磨后候选底线不过两轮时保留打磨前版本并如实显示，有测试且坏实现（静默存版或丢弃打磨前版本）失败
 - [ ] 用 `npm run eval:new-route -- --previous <T-133 基线轮>` 在机器空闲时跑一整轮，交主控安排三种口径独立盲评；Resolution 写拒收率、用量与基线对照
 - [ ] Astra 审查通过；typecheck、test、build 通过
+
+### 结项（Claude，2026-10-09）
+
+分支 `t134-polish`（5056e9d）未合并。整轮只完成 4 站打磨，盲评（`artifacts/blind-t134-2026-10-08/`）mixed 4/4、company 0/2、打磨前后成对 2/4 持平；单轮用量约为基线 2 倍。按 T-143 与预算不采纳，分支保留作记录。
+

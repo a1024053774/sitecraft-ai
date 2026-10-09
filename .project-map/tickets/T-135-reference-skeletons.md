@@ -2,7 +2,7 @@
 id: T-135
 title: 从优秀工业官网反推页面骨架，做成可选的版式卡供模型挑选
 type: build
-status: open
+status: out-of-scope
 blocked_by: []
 claimed_by: t135-build
 supersedes:
@@ -141,3 +141,8 @@ Chrome 已关闭；补采完成后只停止本工作树的 3147（PID 11609，cw
 Astra：132dee0 PASS；a84324e 复审 PASS（t135-astra2，提示 product-atlas 门槛有对八份资料过拟合风险）。合并为 6f069ee，随 321e956 在主工作区 2637/2637、typecheck、build 通过。合并后快速档（主控，2026-10-09 03:04–03:22 EDT，主线 321e956，3034，`npm run eval:new-route -- --quick`，目录 `artifacts/t130/round-2026-10-09T07-04-36-535Z/`）：4/4 存版，首稿拒收 2/4、最终 0/4；用量 407,178 token（plan 45,884 / write 185,388 / facts 140,550 / repair 35,356），单站平均 101,794（工业 119,703、外贸 75,061、注塑 76,623、纸包装 135,791）。骨架：capability-led 2、two-businesses 2。独立盲评（新 gpt-6.1-sol 实例 bq-m / bq-c，结果 `artifacts/blind-quick-2026-10-09/`）：mixed 生成页识别 4/4、真实官网误判 0/4；company 判同模板 0/2。评审理由：页面直接显示「待补充」、`.example` 占位邮箱、全站同一纸飞机图标、页头与首屏重复询盘按钮、对称分栏细线参数行。
 
 第二项未完成：快速档只有 4 组合、用到 2 种骨架，不是 8 组合整轮；整轮因用量限制暂不跑，待负责人决定。
+
+### 结项（Claude，2026-10-09）
+
+T-142 合并后快速档（`artifacts/t130/round-2026-10-09T10-14-09-315Z/`，主线 194b31e）：4/4 存版，首稿拒收 1/4、最终 0/4；单站平均 91,318 token（plan 46,097 / write 192,803 / facts 117,056 / repair 9,317），骨架 capability-led 1、two-businesses 2、product-atlas 1。盲评（新实例 bq2-m / bq2-c，`artifacts/blind-quick2-2026-10-09/`）：mixed 4/4 被认出、company 0/2。按 T-143 调整衡量标准后结项，代码已在主线；未达成的验收项如实保留未勾选。
+

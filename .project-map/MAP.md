@@ -2,7 +2,7 @@
 
 ## Destination
 
-2026-10-07 换路线（[T-127](tickets/T-127-route-model-writes-site.md)）：模型直接写站点代码，harness 管版本、提交入口、底线检查和评估。完成标志：新路线在工作台跑通「资料 → 风格 → 生成 → 对话修改 → 版本恢复」，评估集的独立盲评在 T-104 两种口径下都不再被认出是模板，旧区块库路线已删除。需求见 [intent.md](../docs/project/intent.md)，主线见 [mainline.md](../docs/project/mainline.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
+2026-10-07 换路线（[T-127](tickets/T-127-route-model-writes-site.md)）：模型直接写站点代码，harness 管版本、提交入口、底线检查和评估。完成标志：新路线在工作台跑通「资料 → 风格 → 生成 → 对话修改 → 版本恢复」，换公司的独立盲评不再判为同一模板、新旧成对盲评选新版（T-143；混排只作参考），用户补充资料后站点能逐步丰富，旧区块库路线已删除。需求见 [intent.md](../docs/project/intent.md)，主线见 [mainline.md](../docs/project/mainline.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
 
 ## Notes
 
@@ -57,6 +57,7 @@
 - [T-131 站点列表因旧记录读不出而整体 500](tickets/T-131-site-list-legacy-palette-500.md)：不再逐个修旧迁移；读不出的旧记录在列表里明确标「旧记录无法打开」，其余照常
 - [T-139 待补充与模拟邮箱](tickets/T-139-placeholders-and-sim-domain.md)：「待补充」照常展示、盲评不计入破绽；模拟邮箱用 luckye.online
 - [T-141 用户给什么就做什么](tickets/T-141-build-from-what-user-gives.md)：不默认加询盘、报价、邮箱联系和联系页；资料少就做得少，用户补充后再丰富
+- [T-143 衡量标准](tickets/T-143-quality-metric.md)：以换公司不像同模板、新旧成对选新为准；混排只作参考
 
 ## Not yet specified
 
@@ -65,6 +66,9 @@
 
 ## Out of scope
 
+- [T-134](tickets/T-134-screenshot-polish.md) 截图打磨：成对 2/4 持平、用量约 2 倍，不合并（2026-10-09）
+- [T-138](tickets/T-138-cut-deepseek-tokens.md) 单站降三分之一不可达：写页关思考盲评 2/2 变差、事实校对关思考 6/6 漏拦；已合并 repair 非思考与快速档，T-142 后快速档单站 91k（-10%）（2026-10-09）
+- [T-135](tickets/T-135-reference-skeletons.md) 骨架卡已合并可用；8 组合整轮验收按 T-143 与预算不再跑，快速档用到 2–3 种骨架（2026-10-09）
 - [T-132](tickets/T-132-core-spec-good-css.md) 只改规范文字（good-css + 生成感引导）：三种盲评无可测改善，不合并（2026-10-08）
 - 公网部署、临时隧道、实机测试：本阶段只做内部 Demo，浏览器设备模式就够了。
 - 修本机网络、Docker Registry、外部邮箱送达、生产数据库运维：不影响页面质量。
