@@ -30,12 +30,23 @@ async function planningCards() {
 }
 // One call, one observable result. Provider errors and truncated output never trigger a retry.
 export const codeModelCalls = new AsyncLocalStorage<CodeModelCall[]>();
+// T-138: blind pairs preferred thinking writes; all six non-thinking pricing
+// audits missed the target claims. Only local repair defaults to non-thinking.
+export function codeContentThinkingMode(purpose: 'write' | 'repair' | 'facts'): 'enabled' | 'disabled' {
+  if (purpose === 'write') return 'enabled';
+  const name = purpose === 'facts' ? 'SITE_CODE_FACTS_THINKING' : 'SITE_CODE_REPAIR_THINKING';
+  const parsed = z.enum(['enabled', 'disabled']).safeParse(process.env[name] ?? (purpose === 'facts' ? 'enabled' : 'disabled'));
+  if (!parsed.success) throw new Error(`${name} 必须为 enabled 或 disabled。`);
+  return parsed.data;
+}
 async function modelJson(purpose: CodeModelCall['purpose'], system: string, user: string, maxTokens: number,
   planOutput?: { skeletonOrder: string[]; parameters: Record<string, unknown> }) {
   const { baseURL, apiKey, model } = providerConfig();
   if (!apiKey || !model) throw new Error('尚未配置 DeepSeek，无法生成站点。');
+  const thinking = planOutput ? 'enabled' : purpose === 'write' || purpose === 'repair' || purpose === 'facts' ? codeContentThinkingMode(purpose) : undefined;
   const started = Date.now();
-  const call: CodeModelCall = { purpose, model, startedAt: new Date(started).toISOString(), latencyMs: 0, httpStatus: null, usage: null,
+  const call: CodeModelCall & { thinking?: 'enabled' | 'disabled' } = { purpose, model, startedAt: new Date(started).toISOString(), latencyMs: 0, httpStatus: null, usage: null,
+    ...(thinking ? { thinking } : {}),
     ...(planOutput ? { skeletonOrder: planOutput.skeletonOrder } : {}) };
   try {
     const response = await fetch(`${baseURL}${planOutput ? '/beta' : ''}/chat/completions`, {
@@ -44,7 +55,7 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
         ...(planOutput ? { thinking: { type: 'enabled' },
           tools: [{ type: 'function', function: { name: 'submit_page_plan', description: '返回页面大纲，只提交规划数据，不写代码或执行操作。', strict: true, parameters: planOutput.parameters } }],
           tool_choice: 'auto' }
-          : { response_format: { type: 'json_object' } }),
+          : { ...(thinking ? { thinking: { type: thinking } } : {}), response_format: { type: 'json_object' } }),
         messages: [{ role: 'system', content: system }, { role: 'user', content: user + (planOutput
           ? '\n最终必须调用 submit_page_plan 一次，通过函数参数提交完整页面大纲。不输出自然语言正文或直接输出 JSON 文本。'
           : '\n请以 json 格式输出完整对象，正确转义 HTML/CSS 字符串。') }] }),

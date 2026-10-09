@@ -13,9 +13,10 @@ const { values } = parseArgs({ options: {
   base: { type: 'string', default: process.env.SITECRAFT_BASE || 'http://127.0.0.1:3142' },
   out: { type: 'string' }, previous: { type: 'string' }, 'prepare-only': { type: 'boolean', default: false }, help: { type: 'boolean' },
   quick: { type: 'boolean', default: false },
+  only: { type: 'string' },
 } });
 if (values.help) {
-  console.log('npm run eval:new-route -- [--base http://127.0.0.1:3142] [--out artifacts/t130/round-...] [--previous <round>] [--quick] [--prepare-only]\n默认生成4家公司×precision/documentary整站；--quick为日常快速档，4组合（每家公司一种风格），只生成首页和产品页。仅匹配同档、同资料的上一轮，快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
+  console.log('npm run eval:new-route -- [--base http://127.0.0.1:3142] [--out artifacts/t130/round-...] [--previous <round>] [--quick] [--only industrial/precision,packaging/documentary] [--prepare-only]\n默认生成4家公司×precision/documentary整站；--quick为日常快速档，4组合（每家公司一种风格），只生成首页和产品页。--only按组合key筛选，不改变资料、档位或比较规则。仅匹配同档、同资料的上一轮，快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
   process.exit(0);
 }
 const base = values.base!.replace(/\/$/, '');
@@ -44,7 +45,7 @@ for (const pack of ['industrial', 'export', 'molding', 'packaging'] as const) {
   photos[pack] = manifest.images;
 }
 const emailDomains = { industrial: 'xinzhou-drive', export: 'waigaoqiao-fluid', molding: 'ninghai-mould', packaging: 'qinghe-pack' };
-const cases: EvalCase[] = [];
+let cases: EvalCase[] = [];
 for (const packId of ['industrial', 'export', 'molding', 'packaging'] as const) {
   const pack = simulatedPacks[packId];
   const companyName = pack.companyName.replace(/P3[A-Z]$/, '');
@@ -54,6 +55,11 @@ for (const packId of ['industrial', 'export', 'molding', 'packaging'] as const) 
   const styles = values.quick ? [packId === 'industrial' || packId === 'molding' ? 'precision' : 'documentary'] : ['precision', 'documentary'];
   for (const style of styles) cases.push({ key: `${packId}/${style}`, pack: packId, style, materials,
     outcome: 'not-run', elapsedMs: 0, attempts: [], modelCalls: [], pages: [] });
+}
+if (values.only !== undefined) {
+  const keys = values.only.split(',');
+  assert.ok(new Set(keys).size === keys.length && keys.every(key => cases.some(c => c.key === key)), '--only必须是不重复的当前档位组合key');
+  cases = cases.filter(c => keys.includes(c.key));
 }
 const round: EvalRound = { schemaVersion: 1, profile: values.quick ? 'quick' : 'full', startedAt: new Date().toISOString(), command,
   commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
@@ -192,7 +198,7 @@ try {
     molding: ['https://www.fzmould.com/', 'https://www.saihao.com/'],
     packaging: ['https://cn.szyuto.com/', 'https://www.jinjia.com/index.aspx'],
   };
-  for (const [pack, urls] of Object.entries(sources)) for (let i = 0; i < (values.quick ? 1 : urls.length); i++) {
+  for (const [pack, urls] of Object.entries(sources).filter(([pack]) => cases.some(c => c.pack === pack))) for (let i = 0; i < (values.quick ? 1 : urls.length); i++) {
     try {
       const before = previous?.round.controls.find(c => c.pack === pack && c.url === urls[i]);
       if (before?.framing === 'fold') {
