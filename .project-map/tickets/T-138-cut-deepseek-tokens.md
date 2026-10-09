@@ -29,7 +29,7 @@ supersedes:
 
 ## Resolution
 
-INCOMPLETE（真实联合评估未运行）：Astra 已对 `b8174f0` 复核 PASS。按主控要求，本执行分支合并本地 `family-kit-assembly` 的 `6f069ee`，冲突与集成验证 PASS；合并提交留在 `t138-tokens`，不推送、不关票、不派审查，保持当前模型。真实 DeepSeek 调用仍为 0，快速档不运行，由主控在本地主线做唯一一次联合用量与质量验证。本次合并 SHA、两父提交和验证命令/时间在 `artifacts/t138/merge-family/verification.json`。
+INCOMPLETE（整票省量目标未完成）：两站全内容非思考快速档虽省67.0%，独立盲评两站均选思考版本，写页非思考NO_GO；T-133原始报价候选的非思考facts校对6/6漏拦，facts非思考也NO_GO。按主控条件，write/facts默认思考，repair默认非思考，plan保持原思考+strict。当前策略尚无完整生成省量对照，不能沿用全非思考的67.0%宣称达标。本次事实实验合格6坏+2干净样本20,034 token，加上两次无效控制尝试，实际10次调用共26,379；所有失败保留。不派审查、不关票、不推送，T-140提示词、图标与邮箱不修改。
 
 ### 改前用量（只读已有记录）
 
@@ -72,6 +72,101 @@ node --experimental-strip-types scripts/analyze-code-usage.ts \
 T-134 原 `round.json`/`report.json` 只有 1,091,963 token，最后一站只登记 plan；候选快照另有 115,663 token。票原有“122.5万”是历史概要，现有调用记录只能核实上述 120.8 万，不补造缺失用量，也不把 running 算成功。生成阶段修正 265,515，打磨后修正 200,689；首轮打磨与随后的事实校对不算修正轮。
 
 T-133/T-132/T-134 的 34/46/55 次调用都没有推理用量记录。T-135 的 15 次有记录调用报告推理 110,764，占这些调用输出 155,289 的 71.3%；另1次失败调用未知。规划/事实校对无非思考模式或低上限的同输入成对证据，因此保留思考模式与 65536 上限；不以重放旧回答代替模型能力对比。新增记录只保存上游推理 token 数，不保存思考文字。
+
+### 内容非思考对照与用途决策（t138b-thinking）
+
+REALITY GATE：参数、只读用量和真实省量证据PASS，全内容非思考质量NO_GO。目标是降低内容调用的推理成本；不改模型、资料、提示词、图标、输出上限或规划strict协议。合并后四站都存版、首稿拒收2/4；只按主控放行跑两站真实快速档一次，失败/402一次即停，保留所有拒因和用量。执行者只做技术自查、不派盲评；独立盲评与定向事实实验已否决非思考write/facts，不能以存版或空issues外推质量。
+
+源目录只读：`/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t130/round-2026-10-09T07-04-36-535Z/private`，轮次提交 `321e956`。命令 `node --experimental-strip-types scripts/analyze-code-usage.ts <该轮目录>`，本次结果 `artifacts/t138b/baseline-usage.json`、`thinking-breakdown.json`；汇总与候选快照无差异，16/16调用均报告推理用量。推理是输出的子集，不额外加进 total。
+
+| 用途 | 调用 | 输入 | 输出 | 推理 | 推理/输出 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| plan | 4 | 34,889 | 10,995 | 8,141 | 74.0% |
+| write | 4 | 42,395 | 142,993 | 111,797 | 78.2% |
+| facts | 6 | 38,328 | 102,222 | 101,778 | 99.6% |
+| repair | 2 | 16,729 | 18,627 | 18,363 | 98.6% |
+| 合计 | 16 | 132,341 | 274,837 | 240,079 | 87.4% |
+
+推理占总407,178的59.0%。拟对照的工业/precision：总119,703，输出81,676、推理72,319（输出88.5%）；纸包装/documentary：总135,791，输出93,870、推理85,090（输出90.6%）。两站总255,494、平均127,747；首稿各拒收一次，最终均存版。工业拒因是把“铭牌照片”改成“铭牌”；纸包装两条拒因把纸盒的白样/印刷确认流程套到内托，修正后均消除。完整文字保留在 `thinking-breakdown.json`，对照须按站核对首稿/最终拒收、事实拒因和新增/漏检事实问题。
+
+2026-10-09核对 [DeepSeek 官方 API](https://api-docs.deepseek.com/api/create-chat-completion/)：`thinking: {type: "disabled"}` 关闭思考，默认enabled；显式 `max_tokens` 可保留65536，JSON模式仍要明确指示JSON。下列两站对照使用的共用开关 `SITE_CODE_CONTENT_THINKING` 已删除，当前按用途决定：write固定enabled，facts默认enabled（显式诊断可用 `SITE_CODE_FACTS_THINKING=disabled`），repair默认disabled（可用 `SITE_CODE_REPAIR_THINKING=enabled`）；plan永远enabled和beta strict，select保持现状。用途开关非法值在该调用付费前拒绝，不静默回退。调用记录实际请求模式，健康接口 `deepseek.codeContentThinking` 返回write/facts/repair的模式映射，不再返回共用模式。
+
+本地协议测试 `CHROME_PATH=<AGENTS指定路径> node --test --experimental-strip-types tests/t138-thinking-mode.test.ts`：旧实现两项失败（缺thinking参数、非法配置仍调用）；修改后通过，并确认 strict规划不变、write/repair/facts使用disabled、原JSON/65536预算保留、402只调用一次。日志 `artifacts/t138b/mode-{red,green}.log`。T-128/T-129/T-130/T-133/T-135/T-136/T-137/T-138相关135项通过、0跳过（`related-first.log`），typecheck/build通过（`typecheck-first.log`、`build-first.log`）。本地夹具证明协议，不证明非思考模式质量。
+
+跑前估算两站合计约7–10万 token：按旧首稿路径不变、扣除内容推理约72,910；若重复旧修正次数，约102,571。不是硬预算，输出/修正轮变化可能超过；最多14次调用、每次上限65536，仅输出硬上限917,504，另加输入。主控放行工业/precision、纸包装/documentary两组合、首页+产品页一次，与旧两站的同资料/风格/滑杆严格配对；旧记录不改。新增 `--only` 只筛选组合及对应官网对照，默认矩阵、资料、提示词与比较规则不变。`only-red.log` 在未支持该参数的实现上失败，`only-green.log` 两项通过（含空值、重复和档位不匹配拒绝）。只读旧记录导出到 `artifacts/t138b/thinking-baseline-pair`，只缩减cases/controls，不改原case内容；本地 `--prepare-only` 核对两份资料逐字符一致、两个官网对照复用、模型调用0，生成未运行故结果如实为INCOMPLETE。3150健康接口确认本工作树、development-file、deepseek-flash、内容模式disabled；记录 `health-disabled.json`。此估算不代替下列实测。
+
+2026-10-09 08:59:35～09:01:44 UTC，代码提交 `2ed0fc8`（本提交amend前；实测后仅更新文档），真实命令如下，结果在 `artifacts/t130/round-2026-10-09T08-59-35-620Z`，日志 `artifacts/t138b/real-pair.log`。3150服务使用规定的source方式加载密钥，`SITE_STORE=fs SITE_CODE_CONTENT_THINKING=disabled`，默认Turbopack。运行记录dirty=false；全部7次调用HTTP 200，无重跑或重试；两个规划仍enabled/strict，5次内容调用均disabled。旧官网对照截图复用，没有另调思考站。
+
+```bash
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell \
+SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3150 \
+node --experimental-strip-types scripts/eval-new-route.ts --base http://127.0.0.1:3150 \
+  --quick --only industrial/precision,packaging/documentary \
+  --previous artifacts/t138b/thinking-baseline-pair \
+  --out artifacts/t130/round-2026-10-09T08-59-35-620Z
+```
+
+| 同资料两站 | 思考总token | 非思考总token | 下降 | 首稿拒收（前→后） | 最终拒收（前→后） |
+| --- | ---: | ---: | ---: | --- | --- |
+| 工业/precision | 119,703 | 37,198 | 68.9% | 1→0 | 0→0 |
+| 纸包装/documentary | 135,791 | 47,166 | 65.3% | 1→1 | 0→0 |
+| 两站合计/率 | 255,494 | 84,364 | 67.0% | 2/2→1/2 | 0/2→0/2 |
+
+| 本次用途 | 次数 | 输入 | 输出 | 合计 |
+| --- | ---: | ---: | ---: | ---: |
+| plan（思考） | 2 | 17,141 | 5,117 | 22,258 |
+| write（非思考） | 2 | 20,727 | 19,295 | 40,022 |
+| facts（非思考） | 2 | 13,193 | 10 | 13,203 |
+| repair（非思考） | 1 | 8,728 | 153 | 8,881 |
+| 合计 | 7 | 59,789 | 24,575 | 84,364 |
+
+本次规划报告推理3,629；非思考响应未提供reasoning用量，记录为未知，不补造实测0。逐站成对数据、相同资料/滑杆核验、拒因和截图路径在 `artifacts/t138b/paired-result.json`；两站骨架也分别沿用 capability-led / two-businesses（规划卡顺序仍按既有逻辑随机，不固定模型答案）。`nonthinking-usage.json` 来自 `node --experimental-strip-types scripts/analyze-code-usage.ts <本轮目录>`。
+
+事实拒因对照：旧工业要求“铭牌照片”被省成“铭牌”，本次首页/产品询价段保留“铭牌照片”；旧纸包装把纸盒白样/印刷确认扩至内托，并错误比较两线白样内容，本次把纸盒白样/印刷与内托模具/样品分别列明。非思考两次事实校对均返回空issues（各5输出token），本次报告事实拒因0；纸包装首稿因home/products链接目标 `/contact` 不存在被拒，未进入首稿事实校对，局部修正后才校对通过。空issues不能证明没有漏检；上述仅针对旧拒因的文字抽查，不是完整独立事实评审。
+
+四张首页截图均已打开：本轮 `private/case-1/home-{1440,375}.png` 为工业，`private/case-2/home-{1440,375}.png` 为纸包装；没有空白、未加载图片、可见截断或明显溢出。两页×375/768/1440的最终入口检查，溢出/重叠/对比度问题均0。行长属于建议：工业跨页/视口计数0→4，纸包装29→11；因此不把“存版”当成质量不下降。评审包和成对比较包齐备，未派审查，company因每种风格仅一站没有换公司题。
+
+两站对照时的 `npm run typecheck`、`npm run build` 均PASS（`typecheck-pair.log`、`build-pair.log`），T-128/T-129/T-130/T-133/T-135/T-136/T-137/T-138相关136/136、0跳过（`related-pair.log`）。只停本执行者3150进程，保留原失败与预检产物。下述独立比较否决非思考写页，定向事实实验否决非思考校对。
+
+主控提供的独立盲评：新gpt-6.1-sol实例，结果 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/blind-thinking-2026-10-09/result.json`；解盲key同目录 `bthink-key.txt`。工业选Y=思考，理由是图片与内容更丰富、层级更清楚；纸包装选X=思考，理由是首屏关键条件和信息顺序更清楚。执行者不另派盲评、不重跑生成；据此write固定保持思考。
+
+主控授权facts实验跑前估算2～3万token（原六次思考输入17,715、合计62,009；非思考预计较短输出，另加两个干净输入）。只读 `tests/fixtures/t133/pricing-candidates.json`，其来源为T-133基线case-7/8 R0；六次坏候选完整原码不改。预期来自Astra及原资料：case-7“两类分别报价”，case-8“分开报价”“报价也分开算”“报价按产品分开算”，每次全部目标须拒收，不用别的拒因充数，目标不传给模型。
+
+先用现有完整检查入口做本地预检：case-7因原码数字4被当前手写数字检查拦住，facts未调用、费用0，保留 `artifacts/t138b/facts-nonthinking-2026-10-09/`；不把数字拒因当报价成功。本次指定的是事实校对能力，因此直接调用生产 `auditCodeFacts`：浏览器提取完整各页正文/标题、页头页脚一次、辅助属性与三档CSS生成文案，连同未改的原资料输入。不存在删句、关键词硬拦、模型夹具或提交存版；结果只证明事实校对，不能冒充完整提交验收。
+
+2026-10-09，代码基于 `cfdb56e`（干净原模式实现，设disabled），分别运行：
+
+```bash
+set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a
+SITE_STORE=fs SITE_CODE_CONTENT_THINKING=disabled CHROME_PATH=<AGENTS指定路径> \
+  node --experimental-strip-types artifacts/t138b/check-nonthinking-facts-direct.mjs \
+  artifacts/t138b/facts-nonthinking-2026-10-09-direct
+SITE_STORE=fs SITE_CODE_CONTENT_THINKING=disabled CHROME_PATH=<AGENTS指定路径> \
+  node --experimental-strip-types artifacts/t138b/check-nonthinking-facts-case8.mjs \
+  artifacts/t138b/facts-nonthinking-2026-10-09-case8
+```
+
+case-7原定三次完成后，最初控制候选返回拒因超长（schema max500），保留格式错误，未重跑这次回答；case-8仅继续剩余四个预定样本，不重跑case-7。两次初始控制都复制了内部“首屏可用事实”字段标签，不是合格干净样本；另一次还错误要求“待补充”必须改为“资料未提供”。保留两次尝试及其6,345 token，不以它们证明干净候选行为。纠正控制夹具，只去掉内部字段标签、保留其余原资料引用及缺口占位，再各运行一次，额外估算4,000 token并已在运行前汇报；不是重试同一模型请求。纠正后的完整四页无新企业事实，两个cases资料相同，故使用相同干净候选：
+
+```bash
+SITE_STORE=fs SITE_CODE_FACTS_THINKING=disabled CHROME_PATH=<AGENTS指定路径> \
+  node --experimental-strip-types artifacts/t138b/check-nonthinking-facts-clean.mjs \
+  artifacts/t138b/facts-nonthinking-2026-10-09-clean
+```
+
+| 样本 | 调用数 | 目标句拒收/干净通过 | 输入 | 输出 | 总token |
+| --- | ---: | --- | ---: | ---: | ---: |
+| case-7原始坏候选 | 3 | 0/3，均issues=[] | 8,184 | 15 | 8,199 |
+| case-8原始坏候选 | 3 | 0/3，三条目标均漏，issues=[] | 7,938 | 15 | 7,953 |
+| case-7合格干净候选 | 1 | 1/1通过，issues=[] | 1,936 | 5 | 1,941 |
+| case-8合格干净候选 | 1 | 1/1通过，issues=[] | 1,936 | 5 | 1,941 |
+| 合格8次样本合计 | 8 | 非思考facts NO_GO | 19,994 | 40 | 20,034 |
+| 两次无效控制（保留） | 2 | 不作合格干净证据 | 3,882 | 2,463 | 6,345 |
+| 实际总用量 | 10 | 全部HTTP200，无模型重试 | 23,876 | 2,503 | 26,379 |
+
+逐次时间、原句覆盖、完整返回拒因/格式错误及调用用量在上述目录的case文件和summary；整合 `artifacts/t138b/facts-purpose-result.json`。全部实际调用均facts/disabled，未报告推理数，不补造0。定向六次全漏即足以否决默认非思考，不外推其他事实可靠性；按主控条件保留facts默认思考，只设repair默认非思考，不再追加真实调用。
+
+用途模式回归在改生产代码前的 `cfdb56e` 上三项均失败：repair默认仍enabled、分用途开关不起效、非法分用途配置仍调用（`purpose-mode-red.log`）。修后协议与完整提交相关集137/137、0跳过（`related-purpose.log`），涵盖write始终思考、facts默认思考/显式诊断、repair默认非思考/显式开启、strict规划不变、非法值付费前拒绝、402只调用一次。`npm run build`、`npm run typecheck` PASS（`build-purpose.log`、`typecheck-purpose.log`）；生产facts提示原文及输出预算未改，没有用强化提示或降阈值掩盖漏拦。本次不重跑生成质量评估，最终默认矩阵及提交记在 `verification-purpose.json`。
 
 ### 改动与本地证据
 

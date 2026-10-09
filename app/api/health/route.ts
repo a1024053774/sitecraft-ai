@@ -1,6 +1,7 @@
 import { getAIProviderStatus } from "@/lib/ai-provider";
 import { checkDatabaseConnection } from "@/lib/postgres";
 import { getSiteStoreStatus } from "@/lib/site-store";
+import { codeContentThinkingMode } from "@/lib/code-site-model";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,9 @@ export async function GET() {
   return Response.json(
     {
       status: ready ? "ready" : "not_ready",
-      deepseek: { configured: ai.configured, model: ai.model },
+      deepseek: { configured: ai.configured, model: ai.model, codeContentThinking: {
+        write: codeContentThinkingMode('write'), facts: codeContentThinkingMode('facts'), repair: codeContentThinkingMode('repair'),
+      } },
       persistence: { driver: store.driver, database },
       ...developmentIdentity,
     },
