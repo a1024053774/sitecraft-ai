@@ -10,7 +10,7 @@ export function requireWholeSitePlan(pack: SimulatedPackId, pageCount: number, p
     if (pageCount !== 2) throw new Error(`快速档大纲需要首页和产品两个页面，实际 ${pageCount} 页；本次不确认生成。`);
     return;
   }
-  const requested = { industrial: 3, export: 5, molding: 5, packaging: 4 }[pack];
+  const requested = { industrial: 2, export: 3, molding: 4, packaging: 3 }[pack];
   if (pageCount < requested) throw new Error(`大纲缩减了用户点名的页面：${pack} 至少 ${requested} 页，实际 ${pageCount} 页；本次不确认生成。`);
 }
 

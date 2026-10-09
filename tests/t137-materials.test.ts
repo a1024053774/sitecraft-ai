@@ -8,7 +8,7 @@ import { simulatedPackList, buildMaterialsChatMessage } from '../lib/simulated-p
 // leave the generator without usable client facts or authorized imagery.
 for (const pack of simulatedPackList) {
   test(`${pack.id}: client materials cover history, cases, production, selection and procurement without truncation`, () => {
-    for (const section of ['公司简介', '沿革', '加工流程', '质检流程', '交付与包装', '询盘要求']) {
+    for (const section of ['公司简介', '沿革', '加工流程', '质检流程', '交付与包装', '选型资料']) {
       assert.match(pack.body, new RegExp(`^${section}：.+`, 'm'), `${pack.id}缺少${section}`);
     }
     const history = pack.body.split('\n').find(line => line.startsWith('沿革：'))!;

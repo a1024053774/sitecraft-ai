@@ -125,7 +125,7 @@ test("an alignment generation answer cut off at the token budget says so and kee
   const siteId = uniqueSiteId();
   const before = await createSite(siteId);
   // ALIGN_ skips the planner (test fixtures drive the later stages with the stubbed provider).
-  const started = await postChat(siteId, { action: "start", message: `ALIGN_TRUNCATED_6101\n${simulatedPacks.industrial.body}`, baseRevision: before.draft.revision });
+  const started = await postChat(siteId, { action: "start", message: `ALIGN_TRUNCATED_6101\n${simulatedPacks.industrial.body}\n目标：展示减速机产品。`, baseRevision: before.draft.revision });
   const conversationId = String(started.done?.conversationId);
   assert.equal(started.done?.questionId, "style-theme");
   const style = await postChat(siteId, {

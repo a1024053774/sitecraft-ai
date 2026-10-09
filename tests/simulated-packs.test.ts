@@ -56,7 +56,7 @@ test("industrial and export simulated packs are independent, labeled 模拟, and
 
   assert.equal(simulatedPacks.industrial.body.includes(simulatedPacks.export.nonce), false);
   assert.equal(simulatedPacks.export.body.includes(simulatedPacks.industrial.nonce), false);
-  assert.match(simulatedPacks.export.extraPagesNote, /独立认证/);
+  assert.match(simulatedPacks.export.extraPagesNote, /认证与材料追溯/);
 });
 
 function bodyLine(body: string, label: string): string {

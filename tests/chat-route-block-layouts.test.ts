@@ -114,7 +114,7 @@ test("the alignment run plans on the look picked in the card, before that look i
   const siteId = uniqueSiteId();
   const before = await createSite(siteId);
   assert.equal(before.draft.templateId, "forge", "a new site starts on the bright-product look");
-  const message = `ALIGN_LAYOUT_LOOK_7302\n${simulatedPacks.industrial.body}`;
+  const message = `ALIGN_LAYOUT_LOOK_7302\n${simulatedPacks.industrial.body}\n目标：展示减速机产品。`;
   const started = await postChat(siteId, { action: "start", message, baseRevision: before.draft.revision });
   const conversationId = String(started.done?.conversationId);
   assert.equal(started.done?.questionId, "style-theme");
