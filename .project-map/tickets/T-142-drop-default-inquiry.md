@@ -2,7 +2,7 @@
 id: T-142
 title: 落实 T-141：规划、写页与模拟资料不再默认带询盘、报价、邮箱联系和联系页
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t137-build
 supersedes:
@@ -21,7 +21,7 @@ supersedes:
 
 - [x] 提示词、规范、骨架卡、模拟资料与评估要求中不再默认引导询盘/报价/联系；有测试，坏实现（恢复默认询盘）失败
 - [x] 用户明确要求询盘表单或联系方式时仍可生成，有测试
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -47,3 +47,8 @@ INCOMPLETE（本票改动与相关验证已完成；全套历史夹具问题、A
 - UTF-8/LF、无 BOM/替换字符、`git diff --check` 通过；CONTEXT/mainline/spec 已同步，project-map 无 Problems、无 stale living docs。
 
 真实 DeepSeek 调用 0 次。3152 检查服务的模型地址禁用，单测使用本机 HTTP 响应；没有邮箱发送、真实生成或盲评。第三项验收未勾选；票保持 open，交主控验收、Astra 审查。
+
+### 合并验收（Claude，2026-10-09）
+
+Astra（t142-astra，06:08 EDT）审 9b123ff..0997b9b：PASS（默认询盘/报价/联系页引导已移除、无关键词硬拦；同会话补充要求后联系页、邮箱与系统询盘可存版；承诺/政策事实核对保留）。合并为 194b31e；主工作区 3034：`npm run typecheck`、`npm test` 2651/2651、`npm run build` 通过（`artifacts/merge-194b31e/`）。
+
