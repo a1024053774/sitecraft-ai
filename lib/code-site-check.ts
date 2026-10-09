@@ -4,9 +4,10 @@ import { codeCheckBrowser } from './code-site-browser.ts';
 import { codeSiteSchema, renderSiteCode, type SiteCode, type CodeCheck } from './code-site.ts';
 import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
+import { systemIconIds } from './code-site-icons.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
-function cleanCandidate(code: SiteCode, permitted: string[]) {
+function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[]) {
   const issues: string[] = [], cleaned: string[] = [];
   const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
   const safeCss = (style: CSSStyleDeclaration) => {
@@ -51,7 +52,7 @@ function cleanCandidate(code: SiteCode, permitted: string[]) {
         else if (!node.getAttribute('alt')?.trim()) issues.push(`图片 ${id} 缺少说明`);
       }
       if (node.hasAttribute('data-system-icon')) {
-        if (node.tagName !== 'SPAN' || !['arrow', 'mail'].includes(node.getAttribute('data-system-icon')!)) issues.push('系统图标编号无效');
+        if (node.tagName !== 'SPAN' || !iconIds.includes(node.getAttribute('data-system-icon')!)) issues.push('系统图标编号无效');
         else node.replaceChildren();
       }
       if (node.hasAttribute('data-system-inquiry')) {
@@ -121,7 +122,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}&&document.readyState==='complete'?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
-    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)})`);
+    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)})`);
     checks.issues.push(...clean.issues); checks.cleaned = clean.cleaned;
     for (const contact of new Set(clean.contacts)) if (!args.materials.includes(contact.replace(/^(mailto|tel):/, ''))) checks.issues.push(`联系方式没有资料来源：${contact}`);
     if (checks.issues.length) return { code: clean.code, checks };
