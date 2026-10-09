@@ -56,6 +56,7 @@
 - [T-127 换路线](tickets/T-127-route-model-writes-site.md)：模型直接写站点代码；核心规范 + 用户选风格；Notion 式版本库、唯一提交入口、四层评估；英文在用户满意后再问；旧区块库路线跑通后删除
 - [T-131 站点列表因旧记录读不出而整体 500](tickets/T-131-site-list-legacy-palette-500.md)：不再逐个修旧迁移；读不出的旧记录在列表里明确标「旧记录无法打开」，其余照常
 - [T-139 待补充与模拟邮箱](tickets/T-139-placeholders-and-sim-domain.md)：「待补充」照常展示、盲评不计入破绽；模拟邮箱用 luckye.online
+- [T-141 用户给什么就做什么](tickets/T-141-build-from-what-user-gives.md)：不默认加询盘、报价、邮箱联系和联系页；资料少就做得少，用户补充后再丰富
 
 ## Not yet specified
 
