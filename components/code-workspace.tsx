@@ -80,7 +80,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     try {
       const text = /\.xlsx$/i.test(file.name) ? (await readXlsxFile(file)).map(row => row.join('\t')).join('\n')
         : /\.csv$/i.test(file.name) ? Papa.parse<string[]>(await file.text()).data.map(row => row.join('\t')).join('\n') : await file.text();
-      if (text.length > 4000) throw new Error('这份资料超过 4000 字，请先保留公司、产品参数、能力和联系方式。');
+      if (text.length > 4000) throw new Error('这份资料超过 4000 字，请先保留公司业务、产品参数和已有资料。');
       setInput(text); setPanel(null); setError('');
     } catch (error) { setError(error instanceof Error ? error.message : '资料读取失败。'); }
     event.target.value = '';
@@ -110,7 +110,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`}>
       <div className="site-page-chrome"><nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => setPage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
-        {version ? <><iframe key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms" data-testid="code-preview" onLoad={() => setPreviewReady(true)} />{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>提供产品规格、加工能力和联系方式。选好风格、确认页面大纲后，预览会出现在这里。</p></div>}
+        {version ? <><iframe key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms" data-testid="code-preview" onLoad={() => setPreviewReady(true)} />{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
       </div></div>
     </main>
     <aside className={`builder-chat ${pane !== 'chat' ? 'mobile-hidden' : ''}`} aria-label="对话">

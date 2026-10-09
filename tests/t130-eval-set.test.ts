@@ -45,10 +45,10 @@ test('fourth pack describes a distinct business and keeps full client facts', ()
   const pack = simulatedPacks.packaging;
   assert.match(pack.body, /^资料性质：模拟/); assert.match(pack.industry, /纸包装/);
   assert.match(pack.body, /不接直接接触裸装食品/); assert.match(pack.body, /12–18 天/); assert.match(pack.body, /20–25 天/);
-  assert.match(pack.body, /四个独立页面/); assert.ok(pack.body.length < 4000);
+  assert.match(pack.body, /三个独立页面/); assert.ok(pack.body.length < 4000);
 });
 test('explicit whole-site page requests cannot silently become a home-only plan', () => {
-  for (const [pack, count] of [['industrial', 3], ['export', 5], ['molding', 5], ['packaging', 4]] as const) {
+  for (const [pack, count] of [['industrial', 2], ['export', 3], ['molding', 4], ['packaging', 3]] as const) {
     assert.throws(() => requireWholeSitePlan(pack, 1), /大纲缩减/);
     assert.throws(() => requireWholeSitePlan(pack, count - 1), /大纲缩减/);
     assert.doesNotThrow(() => requireWholeSitePlan(pack, count));

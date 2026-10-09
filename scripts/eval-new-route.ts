@@ -31,8 +31,8 @@ const command = ['CHROME_PATH=' + quote(process.env.CHROME_PATH || ''), 'SITECRA
   'node --experimental-strip-types scripts/eval-new-route.ts', ...process.argv.slice(2).map(quote)].join(' ');
 // Old fixture page notes are replaced as explicit user page requests; facts are unchanged.
 const requests: Record<SimulatedPackId, string> = {
-  industrial: '首页、产品、联系三个独立页面。', export: '首页、产品、认证与材料追溯、资料索取、联系五个独立页面。资料索取用询盘表单，不伪造下载链接。',
-  molding: '首页、产品、生产与质检、常见问题、联系五个独立页面。', packaging: '首页、包装产品、打样与订购、联系四个独立页面。',
+  industrial: '首页、产品两个独立页面。', export: '首页、产品、认证与材料追溯三个独立页面。',
+  molding: '首页、产品、生产与质检、常见问题四个独立页面。', packaging: '首页、包装产品、打样与订购三个独立页面。',
 };
 type Photo = { file: string; category: string; apiLicense: string; sourceUrl: string; licenseUrl: string; author: string; attribution: string; downloadedAt: string; caption: string; limitations?: string };
 const photos: Partial<Record<SimulatedPackId, Photo[]>> = {};
