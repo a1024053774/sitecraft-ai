@@ -1,0 +1,27 @@
+{
+  "source": "artifacts/t144/route-875043a7-ac61-4451-9b5e-80be5af1c57f/report.json",
+  "capturedAt": "2026-10-09T11:25:42.302Z",
+  "reviewedCandidate": "1db07e3",
+  "code": {
+    "header": "<header>澄川传动<nav><a href=\"/home\">首页</a><a href=\"/products\">产品</a><a href=\"/contact\">联系</a></nav></header>",
+    "footer": "<footer>澄川传动</footer>",
+    "css": "body{margin: 0px; background: rgb(255, 255, 255); color: rgb(34, 34, 34); font: 16px / 1.6 sans-serif;}\nheader, main, footer{padding: 24px;}\nh1{font-size: 32px;}\nh2{font-size: 24px;}\np{max-width: 30em;}\nnav{display: flex; gap: 20px; flex-wrap: wrap;}\na{color: rgb(34, 34, 34);}\nfigure{margin: 24px 0px; max-width: 600px;}\nimg{width: 100%; height: auto;}\nsection{margin-top: 32px;}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "首页",
+        "html": "<main><h1>工业齿轮减速机</h1><p>澄川传动生产工业齿轮减速机。</p><h2>R 系列斜齿轮减速机</h2><p>型号 R47，额定输出扭矩 244 N·m，减速比 3.83–54.00，输入功率 0.12–4 kW。</p><h2>K 系列锥齿轮减速机</h2><p>型号 K57，额定输出扭矩 400 N·m，减速比 10.43–59.82，输入功率 0.12–5.5 kW。</p><figure><img data-image-id=\"img_02d0dbb0f8dc4980bf1ad0b6\" alt=\"行业配图\"><figcaption>行业配图</figcaption></figure><figure><img data-image-id=\"img_7b224a884840460da92a95b7\" alt=\"行业配图\"><figcaption>行业配图</figcaption></figure><section><h2>沿革</h2><p>2016 年开始生产工业齿轮减速机；2021 年增加 K 系列锥齿轮减速机。</p><h2>供货案例</h2><p>2024 年为华岭输送设备提供 R47 减速机，用于输送线驱动；数量与运行效果待补充。</p></section></main>"
+      },
+      {
+        "id": "products",
+        "title": "产品",
+        "html": "<main><h1>产品</h1><h2>R 系列斜齿轮减速机</h2><p>型号 R47，额定输出扭矩 244 N·m，减速比 3.83–54.00，输入功率 0.12–4 kW。</p><h2>K 系列锥齿轮减速机</h2><p>型号 K57，额定输出扭矩 400 N·m，减速比 10.43–59.82，输入功率 0.12–5.5 kW。</p><figure><img data-image-id=\"img_02d0dbb0f8dc4980bf1ad0b6\" alt=\"行业配图\"><figcaption>行业配图</figcaption></figure><figure><img data-image-id=\"img_7b224a884840460da92a95b7\" alt=\"行业配图\"><figcaption>行业配图</figcaption></figure><p><a href=\"/contact\">索取报价</a></p></main>"
+      },
+      {
+        "id": "contact",
+        "title": "联系",
+        "html": "<main><h1>联系澄川传动</h1><p><a href=\"mailto:chengchuan-sales@luckye.online\">chengchuan-sales@luckye.online</a></p><div data-system-inquiry=\"\"></div></main>"
+      }
+    ]
+  }
+}
