@@ -61,7 +61,7 @@
 
 ## Not yet specified
 
-- T-128 之后的新路线批次（等第一批做完再切票）：风格卡与 skill 库（taste-skill / Impeccable 提炼、4 个样子改写成风格）；模板味检测（Impeccable 检测规则）；预览批注点改与快捷按钮；用户满意后生成英文版；Hairline 式线稿示意图；oil-ui 式多方向挑选；删除旧区块库路线并把旧站点转成版本。
+- T-128 之后的新路线批次（等第一批做完再切票）：风格卡与 skill 库（taste-skill / Impeccable 提炼、4 个样子改写成风格）；模板味检测（Impeccable 检测规则）；预览批注点改与快捷按钮；用户满意后生成英文版；Hairline 式线稿示意图；oil-ui 式多方向挑选；
 - 生成用模型：先用 deepseek-flash；评估集显示到顶时再由负责人决定是否换。
 
 ## Out of scope
