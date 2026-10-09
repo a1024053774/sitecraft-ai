@@ -2,7 +2,8 @@ import { after } from 'next/server.js';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
-import { planSiteCode, selectCodeReferences, writeSiteCode, codeModelCalls } from './code-site-model.ts';
+import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, codeModelCalls } from './code-site-model.ts';
+import { CodeRepairError } from './code-site-repair.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
 import { AlignmentActionError, AlignmentTextTooLongError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
@@ -58,7 +59,8 @@ function schedule(site: CodeSiteRecord) {
       // An explicitly deleted site has no workspace or records to receive a failed run.
       if (!await getExistingSite(site.siteId)) return;
       const message = error instanceof Error ? error.message : '本次任务失败，未保存版本。';
-      await runStep(site.siteId, run.id, { status: 'error', step: message });
+      await runStep(site.siteId, run.id, { status: 'error', step: message,
+        ...(error instanceof CodeRepairError ? { repairFailure: { reason: message, response: error.response } } : {}) });
       await updateConversationAlignment(site.siteId, site.conversationId, record => ({ ...record, alignment: applyCommittedResult(record.alignment, { status: 'error', summary: message }) }));
       await appendConversationTurn({ siteId: site.siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: message, appliedOperationsSummary: '未保存版本', outcome: 'error' });
     } finally { active.delete(run.id); }
@@ -120,8 +122,8 @@ async function execute(siteId: string, runId: string) {
     // is a short explanation, not another archive of the entire refusal.
     if (round === 2) throw new Error('两轮修正后仍未通过底线检查，未保存版本。请查看完整问题，补充资料或调整要求后重试。');
     await runStep(siteId, runId, { step: `底线检查未过，交回模型修正（${round + 1}/2）`, repairRound: round + 1 });
-    result = await writeSiteCode({ materials, preferences: site.preferences, plan: site.plan, images,
-      request: run.request, current: committed.code, issues: committed.checks.issues, references });
+    result = await repairSiteCode({ materials, preferences: { ...site.preferences, style: site.plan.style },
+      current: committed.code, issues: committed.checks.issues, cleaned: committed.checks.cleaned });
   }
 }
 export async function handleCodeChat(siteId: string, raw: unknown) {

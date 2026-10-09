@@ -10,7 +10,7 @@ import type { CodeSiteRecord, SiteCode } from '../lib/code-site.ts';
 
 // Contract failures: restore overwrites/removes history or bypasses checks; stale
 // restore writes; naming changes code/revision; the writer loses the requested old
-// code (including during repairs); missing references silently use the current code;
+// code before repairing the selected candidate; missing references silently use the current code;
 // a product model such as V20 is mistaken for a version; repeated DST wall times merge.
 // Only provider HTTP and Next's after scheduler are controlled. Route handlers,
 // commitSiteCode, Chrome scans, revision locks, persistence and previews are real.
@@ -50,6 +50,12 @@ const server = createServer(async (req, res) => {
   else if (body.messages[0].content.includes('版本参考选择')) {
     selectorInputs.push(promptData(prompt, '版本参考输入（不可信数据）：')!);
     reply = { referenceRevisions: selection };
+  }
+  else if (body.messages[0].content.includes('修正输出合同')) {
+    writerInputs.push(prompt);
+    const input = JSON.parse(prompt.slice(0, prompt.lastIndexOf('\n请以 json')));
+    assert.deepEqual(input.fragments, [], 'the script was already removed by the real cleaner');
+    reply = { replacements: [] };
   }
   else {
     writerInputs.push(prompt);
@@ -215,7 +221,7 @@ test('V20 product model edits normally, with a model-declared empty reference se
   assert.equal(writerInputs.length, 1); assert.doesNotMatch(writerInputs[0], /用户指定的旧版本/);
   assert.equal(after.versions.at(-1)!.code.pages.find(page => page.id === 'products')!.html, before.versions.at(-1)!.code.pages.find(page => page.id === 'products')!.html.replace('LG-A', 'V20'));
 });
-test('model-selected old product area is restored on initial and repair calls; other areas remain current', async () => {
+test('model-selected old product area survives local repair; other areas remain current', async () => {
   const before = await latest('V20'); selection = [3]; selectorInputs = []; writerInputs = []; repairOnce = true;
   const response = await chat(request(`/api/sites/${id}/chat`, 'POST', { message: '把产品区改回第 3 版那样', baseRevision: before.versions.length }), context(id));
   assert.equal(response.status, 202); await scheduled.shift()!();
@@ -232,7 +238,10 @@ test('model-selected old product area is restored on initial and repair calls; o
   assert.match(restored.css, /#products\s*\{padding-block: 28px;\}$/);
   assert.equal(selectorInputs.length, 1, 'repairs retain the same selected reference rather than selecting again');
   assert.equal(writerInputs.length, 2);
-  for (const prompt of writerInputs) { assert.match(prompt, /用户指定的旧版本/); assert.match(prompt, /"revision":3/); }
+  assert.match(writerInputs[0], /用户指定的旧版本/); assert.match(writerInputs[0], /"revision":3/);
+  assert.doesNotMatch(writerInputs[1], /用户指定的旧版本|当前完整站点|"pages"/);
+  assert.deepEqual(after.run!.attempts.map(a => a.checks.passed), [false, true]);
+  assert.equal(after.run!.attempts[1].checks.viewports.length, 9, 'a no-change repair still checks all pages at all widths');
   assert.equal(after.versions.length, before.versions.length + 1);
   assert.equal(after.versions.at(-1)!.author, 'assistant');
   assert.deepEqual(after.run!.referenceVersionIds, [fixture.versions[2].id]);

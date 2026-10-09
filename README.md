@@ -50,6 +50,8 @@ npm run build
 CHROME_PATH=/path/to/chrome-headless-shell SITECRAFT_BASE=http://127.0.0.1:3142 npm run eval:new-route
 ```
 
+日常验证加 `-- --quick`：工业/精密工程、外贸/现场实拍、注塑/精密工程、纸包装/现场实拍四个组合，仅生成首页和产品页。整轮仍用于质量决策；快速档只和同档、同资料的轮次比较，不把页数变化带来的用量下降当作成对质量证据。可用 `node --experimental-strip-types scripts/analyze-code-usage.ts <轮次目录>` 只读拆分各阶段的输入、输出和已报告的推理用量，不调用模型。真实运行前先估算用量并取得主控放行。
+
 输出在 `artifacts/t130/round-<时间>/`：`command.sh` 是可重跑的命令，`private/` 保存底线检查、逐轮拒收率、耗时、用量和匿名映射，`review/mixed/` 与 `review/company/` 是两个互不引用的盲评包，分别交给不同的新评审实例；跨轮比较另在 `comparison-review/`，也单独评阅。每个包都有自己的提示词。不要把其他包、`private/` 或命令一起交给评审。默认和最近同资料轮次比较，亦可加 `-- --previous <上一轮目录>`。失败轮次保留；上游报错不重试，不用假模型替代。`-- --prepare-only` 只准备公开官网对照截图和提示词，不能用作生成验收。本地开发使用默认 Turbopack，例如 `npm run dev -- --hostname 127.0.0.1 --port 3142`。
 
 旧路线的三个双语测试站点命令仍保留：

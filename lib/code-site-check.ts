@@ -78,8 +78,14 @@ function cleanCandidate(code: SiteCode, permitted: string[]) {
   }
   const contacts = [...documents.values()].flatMap(doc => [...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)));
   // Auxiliary copy and handwritten numbers share the same factual boundary.
-  const auxiliaryText = [...documents.values()].map(doc => [...doc.querySelectorAll('[data-label],[alt],[title],[aria-label]')].flatMap(node => ['data-label', 'alt', 'title', 'aria-label'].map(name => node.getAttribute(name) || '')).join(' ')).join('\n');
-  const text = safe.pages.map(p => p.title).join('\n') + '\n' + [...documents.values()].map(doc => doc.body.textContent || '').join('\n') + '\n' + auxiliaryText;
+  const readableFragment = (html: string) => {
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    const auxiliary = [...doc.querySelectorAll('[data-label],[alt],[title],[aria-label]')].flatMap(node => ['data-label', 'alt', 'title', 'aria-label'].map(name => node.getAttribute(name) || '')).join(' ');
+    return `${doc.body.textContent || ''}\n辅助文案：${auxiliary}`;
+  };
+  // Shared fragments are identical on every page. Audit them once, while
+  // keeping each page's own copy and auxiliary attributes in its own context.
+  const text = `公共页头：\n${readableFragment(safe.header)}\n${safe.pages.map(p => `页面标题：${p.title}\n页面正文：\n${readableFragment(p.html)}`).join('\n')}\n公共页脚：\n${readableFragment(safe.footer)}`;
   return { code: safe, issues: [...new Set(issues)], cleaned, text, contacts };
 }
 // Browser computed values have already resolved variables, shorthand and nesting.

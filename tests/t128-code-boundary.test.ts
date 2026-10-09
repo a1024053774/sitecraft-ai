@@ -40,6 +40,14 @@ const server = createServer(async (req, res) => {
     reply = { issues: auditedText.includes('终身保修') ? ['资料没有终身保修承诺。'] : [] };
   }
   else if (body.messages[1].content.includes('先给页面大纲')) reply = { summary: '首页介绍加工与联系。', style: 'precision', styleReason: '加工资料', skeletonId: 'compact-profile', skeletonReason: '资料只有加工与联系。', pages: [{ id: 'home', title: '首页', outline: ['公司与加工'] }] };
+  else if (system.includes('修正输出合同')) {
+    writerCalls++;
+    const user = body.messages[1].content as string;
+    const input = JSON.parse(user.slice(0, user.lastIndexOf('\n请以 json')));
+    // Deliberately preserve the unsupported number: the real boundary must
+    // reject both repairs and stop with all three failed attempts intact.
+    reply = { replacements: input.fragments.filter((f: { before: string }) => f.before.includes('99999999')).map((f: { id: number; before: string }) => ({ fragmentId: f.id, after: f.before })) };
+  }
   else { writerCalls++; reply = { ...good, pages: [{ ...good.pages[0], html: good.pages[0].html.replace('</main>', '<p>年产量 99999999 台。</p></main>') }] }; }
   const planCall = !!body.tools;
   res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall

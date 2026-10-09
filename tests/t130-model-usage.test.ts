@@ -26,7 +26,8 @@ const server = createServer(async (req, res) => {
   res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
     ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: text } }] }
     : { content: text } }],
-    ...(!content.includes('NOUSAGE') ? { usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 } } : {}) }));
+    ...(!content.includes('NOUSAGE') ? { usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26,
+      ...(content.includes('REASONING') ? { completion_tokens_details: { reasoning_tokens: 7 } } : {}) } } : {}) }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
@@ -55,4 +56,11 @@ test('model accounting preserves paid, failed, missing and concurrent usage', as
   assert.equal(other.length, 1); assert.equal(other[0].usage, null);
   assert.ok(calls.every(c => c.latencyMs >= 0));
   assert.doesNotMatch(JSON.stringify(calls), /accounting-fixture-secret|Bearer|INVALID|FAIL402|NOUSAGE/);
+});
+test('provider reasoning tokens are recorded only when reported, without the reasoning text', async () => {
+  const calls: import('../lib/code-site.ts').CodeModelCall[] = [];
+  await model.codeModelCalls.run(calls, () => model.auditCodeFacts('REASONING', '公司服务'));
+  assert.equal(calls[0].usage?.reasoningTokens, 7);
+  assert.equal(calls[0].response?.reasoningTokens, 7);
+  assert.equal(calls[0].usage?.completionTokens, 9, 'reasoning is a subset, not extra paid tokens');
 });

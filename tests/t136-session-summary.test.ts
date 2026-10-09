@@ -28,10 +28,15 @@ const server = createServer(async (req, res) => {
   if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body>local fixture origin</body></html>'); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), user = body.messages[1].content, system = body.messages[0].content;
-  const content = system.includes('事实校对员') ? { issues: reject ? fixture.issues : [] }
-    : user.includes('先给页面大纲') ? fixture.plan : (writerCalls++, fixture.candidate);
+  const repairInput = system.includes('修正输出合同') ? JSON.parse(user.slice(0, user.lastIndexOf('\n请以 json'))) : null;
+  const content = repairInput ? (writerCalls++, { replacements: [{ fragmentId: repairInput.fragments[0].id, after: repairInput.fragments[0].before }] })
+    : system.includes('事实校对员') ? { issues: reject ? fixture.issues : [] }
+    : user.includes('先给页面大纲') ? { ...fixture.plan, skeletonId: 'compact-profile', skeletonReason: '先说明纸包装类型与交付边界。', pages: fixture.plan.pages.map((p: { id: string; title: string; outline: string }) => ({ ...p, outline: p.outline.match(/[\s\S]{1,120}/g)! })) } : (writerCalls++, fixture.candidate);
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }));
+  const planCall = !!body.tools;
+  res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+    ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(content) } }] }
+    : { content: JSON.stringify(content) } }] }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
