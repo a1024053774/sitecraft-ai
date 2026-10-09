@@ -42,7 +42,7 @@ test("industrial and export simulated packs are independent, labeled 模拟, and
     assert.match(pack.body.split("\n")[0], /^资料性质：模拟/);
     assert.equal(pack.body.split("\n").slice(1).some((line) => line.includes("模拟")), false);
     assert.match(pack.body, /规格参数|应用行业|加工能力|认证状态/);
-    assert.ok(pack.email.endsWith("-sim.test"));
+    assert.ok(pack.email.endsWith(".luckye.online"));
     const message = buildMaterialsChatMessage(pack);
     assert.ok(message.length <= MATERIALS_CHAT_LIMIT);
     assert.match(message, /模拟/);
@@ -81,7 +81,7 @@ test("thick molding pack is a third workspace pack with full facts and only the 
   assert.match(pack.companyName, /P3T/);
   assert.match(pack.label, /模拟/);
   assert.match(pack.industry, /注塑/);
-  assert.match(pack.email, /^[a-z0-9.-]+@[a-z0-9-]+\.test$/);
+  assert.match(pack.email, /^[a-z0-9.-]+@[a-z0-9.-]+\.luckye\.online$/);
   assert.equal(pack.body.includes(pack.email), true);
   assert.equal(pack.body.includes(`核验记号：${pack.nonce}`), true);
   assert.equal(pack.body.includes(simulatedPacks.industrial.nonce), false);

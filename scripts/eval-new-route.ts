@@ -43,13 +43,12 @@ for (const pack of ['industrial', 'export', 'molding', 'packaging'] as const) {
   }
   photos[pack] = manifest.images;
 }
-const emailDomains = { industrial: 'xinzhou-drive', export: 'waigaoqiao-fluid', molding: 'ninghai-mould', packaging: 'qinghe-pack' };
 const cases: EvalCase[] = [];
 for (const packId of ['industrial', 'export', 'molding', 'packaging'] as const) {
   const pack = simulatedPacks[packId];
   const companyName = pack.companyName.replace(/P3[A-Z]$/, '');
   const pageRequest = values.quick ? '只生成首页（home）、产品（products）两个独立页面。其他资料按需安排在这两页，不新增页面。' : requests[packId];
-  const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.email, `${pack.email.split('@')[0]}@${emailDomains[packId]}.example`).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n页面要求：${pageRequest}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
+  const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n页面要求：${pageRequest}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
   assert.ok(materials.length <= MATERIALS_CHAT_LIMIT, `${packId}资料不能截断`);
   const styles = values.quick ? [packId === 'industrial' || packId === 'molding' ? 'precision' : 'documentary'] : ['precision', 'documentary'];
   for (const style of styles) cases.push({ key: `${packId}/${style}`, pack: packId, style, materials,

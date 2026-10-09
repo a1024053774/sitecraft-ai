@@ -33,7 +33,7 @@ const shownEmails = (document: HtmlDocument) => document.querySelectorAll(EMAIL_
 
 test("the contact and footer email break only at the @ on block-library pages", () => {
   const draft = packDraft("industrial");
-  const expected = `inquiry${Z}@${Z}p3i-${J}sim.test`;
+  const expected = `inquiry${Z}@${Z}xinzhou-${J}drive.luckye.online`;
   assert.deepEqual(shownEmails(render("screwfast", draft)), [expected, expected]);
   assert.deepEqual(shownEmails(render("screwfast", draft, "en")), [expected, expected]);
   assert.deepEqual(shownEmails(render("screwfast", withLayouts(draft, { contact: "band" }))), [expected, expected]);
@@ -41,7 +41,7 @@ test("the contact and footer email break only at the @ on block-library pages", 
   other.content.contact.email = "sales-cn@xin-zhou.example.com";
   const otherShown = `sales-${J}cn${Z}@${Z}xin-${J}zhou.example.com`;
   assert.deepEqual(shownEmails(render("screwfast", other)), [otherShown, otherShown]);
-  assert.equal(draft.content.contact.email, "inquiry@p3i-sim.test", "the draft keeps the address as written");
+  assert.equal(draft.content.contact.email, "inquiry@xinzhou-drive.luckye.online", "the draft keeps the address as written");
 });
 
 // The model often writes the address into a sentence ("规格发到 catalog@p3e-sim.test，…"); it wraps

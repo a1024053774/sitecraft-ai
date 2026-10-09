@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { iconSvg } from './blocks/fragments/icon-svg.ts';
+import { systemIconSvg, systemIconLicense } from './code-site-icons.ts';
 
 export const codeSiteSchema = z.object({
   header: z.string().max(30000), footer: z.string().max(30000), css: z.string().max(100000),
@@ -71,11 +71,15 @@ export function renderSiteCode(siteId: string, code: SiteCode, pageId: string, v
   const page = code.pages.find(p => p.id === pageId);
   if (!page) throw new Error('找不到这个页面');
   const prefix = `/api/sites/${encodeURIComponent(siteId)}/code-preview`;
+  let usesIcons = false;
   const links = (html: string) => html.replace(/href="\/([a-z][a-z0-9-]*)(#[^"]*)?"/g, (all, id: string, hash = '') => code.pages.some(p => p.id === id)
     ? `href="${prefix}?page=${id}${versionId ? `&amp;version=${encodeURIComponent(versionId)}` : ''}${hash}"` : all)
     .replace(/<img\b([^>]*?)data-image-id="(img_[a-z0-9]{16,40})"([^>]*)>/g, (_all, before: string, id: string, after: string) => `<img${before}data-image-id="${id}"${after} src="/api/sites/${encodeURIComponent(siteId)}/images/${id}">`)
-    .replace(/<span\b([^>]*?)data-system-icon="(arrow|mail)"([^>]*)><\/span>/g, (_all, before: string, name: string, after: string) => `<span${before}${after}>${iconSvg(name === 'mail' ? 'contact-email' : 'contact-submit')}</span>`)
+    .replace(/<span\b([^>]*?)data-system-icon="([^"]*)"([^>]*)><\/span>/g, (_all, before: string, name: string, after: string) => {
+      usesIcons = true;
+      return `<span${before}${after}>${systemIconSvg(name)}</span>`;
+    })
     .replace(/<div\b([^>]*?)data-system-inquiry=""([^>]*)><\/div>/g, (_all, before: string, after: string) => `<div${before}${after}><form class="sc-inquiry" action="/api/public/${encodeURIComponent(siteId)}/leads" method="post"><label>姓名<input name="name" required maxlength="80" autocomplete="name"></label><label>邮箱<input name="email" type="email" required maxlength="160" autocomplete="email"></label><label>公司<input name="company" maxlength="120" autocomplete="organization"></label><label>询盘内容<textarea name="message" required maxlength="4000" rows="5"></textarea></label><button type="submit">发送询盘</button></form></div>`);
   const credits = imageCredits.length ? `<details class="sc-image-credits"><summary>图片来源与许可</summary>${imageCredits.map(credit => `<p>${escapeCodeText(credit)}</p>`).join('')}</details>` : '';
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; base-uri 'none'; script-src 'none'"><title>${escapeCodeText(page.title)}</title><style>${code.css}</style><style>.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere} .sc-inquiry label{display:block;margin:12px 0}.sc-inquiry input,.sc-inquiry textarea{display:block;box-sizing:border-box;width:100%;max-width:100%;font:inherit;padding:10px;color:#222;background:#fff;border:1px solid #777}.sc-inquiry button{font:inherit;padding:12px 20px;color:#fff;background:#222;border:0}.sc-inquiry{max-width:40em}</style></head><body>${links(code.header)}${links(page.html)}${links(code.footer)}${credits}</body></html>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; base-uri 'none'; script-src 'none'"><title>${escapeCodeText(page.title)}</title><style>${code.css}</style><style>.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere} .sc-inquiry label{display:block;margin:12px 0}.sc-inquiry input,.sc-inquiry textarea{display:block;box-sizing:border-box;width:100%;max-width:100%;font:inherit;padding:10px;color:#222;background:#fff;border:1px solid #777}.sc-inquiry button{font:inherit;padding:12px 20px;color:#fff;background:#222;border:0}.sc-inquiry{max-width:40em}</style></head><body>${links(code.header)}${links(page.html)}${links(code.footer)}${credits}${usesIcons ? systemIconLicense : ''}</body></html>`;
 }

@@ -29,7 +29,7 @@ for (const pack of simulatedPackList) {
     assert.match(pack.body, /客户名单、评价：待补充/);
     const emails = pack.body.match(/[\w.+-]+@[\w.-]+/g) || [];
     assert.deepEqual([...new Set(emails)], [pack.email]);
-    assert.match(pack.email, /-sim\.test$/);
+    assert.match(pack.email, /\.luckye\.online$/);
     assert.doesNotMatch(pack.body, /https?:\/\/|\b1[3-9]\d{9}\b|好评|五星|满意率|客户评价：[^待]/);
     const message = buildMaterialsChatMessage(pack);
     assert.ok(message.endsWith(pack.body), '工作台资料入口必须完整保留正文');

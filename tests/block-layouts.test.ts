@@ -209,7 +209,7 @@ test("联系条: one cell per contact line that has a value, the form below", ()
   assert.equal(contact.getAttribute("data-sc-variant"), "band");
   const lines = contact.querySelectorAll(".sitecraft-band-line").filter((line) => !line.hidden);
   assert.deepEqual(lines.map((line) => text(line.querySelector("dt"))), ["邮箱"]);
-  assert.deepEqual(lines.map((line) => text(line.querySelector("dd"))), ["inquiry@p3i-sim.test"]);
+  assert.deepEqual(lines.map((line) => text(line.querySelector("dd"))), ["inquiry@xinzhou-drive.luckye.online"]);
   assert.equal(contact.querySelectorAll('[data-sitecraft-inquiry="true"]').length, 1);
 
   const sparse = entity(render(withLayouts(packDraft("molding"), { contact: "band" })).document, "contact");

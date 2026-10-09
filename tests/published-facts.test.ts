@@ -62,7 +62,7 @@ test("the facts come from the draft: products and their specs, entries the look 
     ["step title", "发送图纸"], ["step body", "附图纸与规格要求。"],
     ["industries entry", "矿山输送"], ["capabilities entry", "滚齿与磨齿"], ["capabilities body", "齿轮滚齿后磨齿，出厂前跑合。"], ["capabilities entry", "箱体数控镗铣"],
     ["certifications entry", "ISO 9001"],
-    ["contact email", "inquiry@p3i-sim.test"],
+    ["contact email", "inquiry@xinzhou-drive.luckye.online"],
   ]) assert.ok(has(facts, kind, value), `expected ${kind} "${value}"`);
   const texts = facts.map((fact) => fact.text);
   for (const absent of ["待补充", "To be provided", "润滑方式", "停产系列", "第七条问答", "超出这个样子的问答条数，不显示。", "认证中", "CE", "资料待补"]) {
