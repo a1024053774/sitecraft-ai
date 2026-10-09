@@ -1,6 +1,6 @@
 # 外贸不锈钢流体接头图片许可记录
 
-本包6张已获主控按独立报告授权，仅供已约定模拟资料测试；不冒充真实客户实拍或把来源设备参数变成公司事实。真实上传/发布页证据另行验收。
+原6张已获主控按独立报告授权，仅供已约定模拟资料测试；不冒充真实客户实拍或把来源设备参数变成公司事实。真实上传/发布页证据另行验收。
 
 | 文件 / 类别 | 来源 / 作者 | 精确图片许可 | 访问 / 原下载时间 | 实际尺寸 / 字节 | 图注 |
 | --- | --- | --- | --- | --- | --- |
@@ -34,7 +34,7 @@ F02保留`NOIRLab/NSF/AURA/T. Slovinský`完整署名；机构原图页及许可
 
 ## 旧文件与旧许可保留
 
-替换前完整manifest与LICENSES原文保存在`artifacts/t112/20261006-data-preparation/fixture-before/export/`；最初档案同时保留在`artifacts/t112/20261006-photo-fit/baseline/export/`。本轮准入前完整manifest/LICENSES和全部JPEG另存于`artifacts/t112/clarity-admission/fixture-before/export/`；原JPEG全部留在此pack，活动上传器只读本manifest列出的6张。
+替换前完整manifest与LICENSES原文保存在`artifacts/t112/20261006-data-preparation/fixture-before/export/`；最初档案同时保留在`artifacts/t112/20261006-photo-fit/baseline/export/`。本轮准入前完整manifest/LICENSES和全部JPEG另存于`artifacts/t112/clarity-admission/fixture-before/export/`；原JPEG全部留在此pack，活动上传器只读本manifest列出的图片。
 
 | 旧文件 | 原作者 | 原图片许可 | 原来源 |
 | --- | --- | --- | --- |
@@ -50,3 +50,12 @@ F02保留`NOIRLab/NSF/AURA/T. Slovinský`完整署名；机构原图页及许可
 旧三通的完整原署名与修改链保存在本轮准入前快照 `artifacts/t112/clarity-admission/fixture-before/export/manifest.json`；原JPEG不删除，保留原清晰度反例。
 
 两图清晰度独立复核：`artifacts/t112/clarity-review/review.md`。工业依据Commons当前一手响应；外贸CC BY 2.0依据固定Flickr一手响应，独立复核在线访问失败一次，未写成在线许可成功。该复核仅支持指定DPR=1本地实框；新站实际发布现场尚待主控信号后验收。
+
+## T-137 授权行业图片
+
+以下新增图片于 2026-10-09 逐张核对 Commons 文件页、API imageinfo/extmetadata 和许可证页面，并打开本地文件检查题材。来源修订号、HTTP 200、核验时间、下载地址与实际尺寸在 manifest 中；这不是独立页面质量审核。全幅保留，只按条目记录应用方向、缩放和 JPEG 编码；BY-SA 衍生图保留原许可。`current-site-only` 是本次上传用途，不限制原许可允许的再分发。行业图均非本厂实拍，不从图中补公司事实。
+
+| 文件 / 类别 | 来源 / 作者 | 图片许可 | 核验日期 | 实际尺寸 / 字节 | 使用边界 |
+| --- | --- | --- | --- | --- | --- |
+| `inspection-digital-caliper.jpg` / inspection | [来源](https://commons.wikimedia.org/wiki/File:2020_Suwmiarka_cyfrowa.jpg)；Jacek Halicki | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | 2026-10-09T04:43:54.574333+00:00 | 1600×667 / 133718 | 授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不把显示读数当作产品尺寸、量具精度或检测结果。 |
+| `inspection-thread-pitch-gauges.jpg` / inspection | [来源](https://commons.wikimedia.org/wiki/File:ThreadingGauges.jpg)；Glenn McKechnie (Graibeard) | [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0) | 2026-10-09T04:47:55.885397+00:00 | 1280×960 / 256019 | 授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不是螺纹通止规或压力检测图，不据图增加螺纹制式、品牌代理关系或检测能力。 |

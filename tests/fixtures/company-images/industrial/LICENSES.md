@@ -1,6 +1,6 @@
 # 工业重载减速机图片许可记录
 
-本包6张已获主控按独立报告授权，仅供已约定模拟资料测试；不冒充真实客户实拍或把来源设备参数变成公司事实。真实上传/发布页证据另行验收。
+原6张已获主控按独立报告授权，仅供已约定模拟资料测试；不冒充真实客户实拍或把来源设备参数变成公司事实。真实上传/发布页证据另行验收。
 
 | 文件 / 类别 | 来源 / 作者 | 精确图片许可 | 访问 / 原下载时间 | 实际尺寸 / 字节 | 图注 |
 | --- | --- | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ F03（`facility-cnc-production-workshop.jpg`）只与F01（`facility-milling-wor
 
 ## 旧文件与旧许可保留
 
-替换前完整manifest与LICENSES原文保存在`artifacts/t112/20261006-data-preparation/fixture-before/industrial/`；最初档案同时保留在`artifacts/t112/20261006-photo-fit/baseline/industrial/`。本轮准入前完整manifest/LICENSES和全部JPEG另存于`artifacts/t112/clarity-admission/fixture-before/industrial/`；原JPEG全部留在此pack，活动上传器只读本manifest列出的6张。
+替换前完整manifest与LICENSES原文保存在`artifacts/t112/20261006-data-preparation/fixture-before/industrial/`；最初档案同时保留在`artifacts/t112/20261006-photo-fit/baseline/industrial/`。本轮准入前完整manifest/LICENSES和全部JPEG另存于`artifacts/t112/clarity-admission/fixture-before/industrial/`；原JPEG全部留在此pack，活动上传器只读本manifest列出的图片。
 
 | 旧文件 | 原作者 | 原图片许可 | 原来源 |
 | --- | --- | --- | --- |
@@ -44,3 +44,12 @@ F03（`facility-cnc-production-workshop.jpg`）只与F01（`facility-milling-wor
 | `inspection-coordinate-measuring.jpg` | Kergeo | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [原来源](https://commons.wikimedia.org/wiki/File:MMT_G-90C.jpg) |
 
 两图清晰度独立复核：`artifacts/t112/clarity-review/review.md`。工业依据Commons当前一手响应；外贸CC BY 2.0依据固定Flickr一手响应，独立复核在线访问失败一次，未写成在线许可成功。该复核仅支持指定DPR=1本地实框；新站实际发布现场尚待主控信号后验收。
+
+## T-137 授权行业图片
+
+以下新增图片于 2026-10-09 逐张核对 Commons 文件页、API imageinfo/extmetadata 和许可证页面，并打开本地文件检查题材。来源修订号、HTTP 200、核验时间、下载地址与实际尺寸在 manifest 中；这不是独立页面质量审核。全幅保留，只按条目记录应用方向、缩放和 JPEG 编码；BY-SA 衍生图保留原许可。`current-site-only` 是本次上传用途，不限制原许可允许的再分发。行业图均非本厂实拍，不从图中补公司事实。
+
+| 文件 / 类别 | 来源 / 作者 | 图片许可 | 核验日期 | 实际尺寸 / 字节 | 使用边界 |
+| --- | --- | --- | --- | --- | --- |
+| `equipment-gear-hobbing.jpg` / equipment | [来源](https://commons.wikimedia.org/wiki/File:Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg)；Affoltergroup | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | 2026-10-09T04:46:27.038651+00:00 | 1280×853 / 195050 | 授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不新增模数、机床品牌或加工精度。 |
+| `equipment-hob-and-workpiece.jpg` / equipment | [来源](https://commons.wikimedia.org/wiki/File:W%C3%A4lzfr%C3%A4ser_und_gefr%C3%A4ste_Verzahnung.JPG)；Dirk Gräfe | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0) | 2026-10-09T04:48:06.322495+00:00 | 1280×853 / 228883 | 授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不称为本公司的减速机成品，不从图中推导材质、模数或产能。 |
