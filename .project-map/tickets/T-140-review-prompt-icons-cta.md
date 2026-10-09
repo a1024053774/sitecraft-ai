@@ -2,7 +2,7 @@
 id: T-140
 title: 盲评提示与模拟邮箱按 T-139 更新；扩充系统图标；减少页头与首屏重复入口
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t137-build
 supersedes:
@@ -23,7 +23,7 @@ supersedes:
 
 - [x] 三类评审提示词包含「待补充」不计入判断的说明；资料与评估邮箱均为 luckye.online；有测试
 - [x] 新图标经提交入口渲染、未知图标仍被拒；坏实现失败
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -48,3 +48,8 @@ T-139 已落实到实际输出：mixed、company、comparison 三种评审包共
 - `git diff --check`、UTF-8/LF/无 BOM/无替换字符检查通过；project-map 无 Problems、无 stale living docs。
 
 DeepSeek 真实调用 0 次。3151 检查服务的模型配置指向本机禁用端口，模型相关单测使用本地 HTTP 夹具；没有外部模型探测、邮箱发送或真实评估。执行者只做技术自查，不宣布独立审美或 Astra 审查通过；第三项验收保持未勾选，票保持 open。
+
+### 合并验收（Claude，2026-10-09）
+
+Astra（t140-astra，05:20 EDT）审 de6d763..2d5ed98：PASS（提示词只新增「待补充」说明、无答案泄露；邮箱均为 luckye.online；14 个 lucide-react 图标经提交入口、未知名称仍拒；CTA 与图标为引导非硬拦）。合并为 4cfbaf5；主工作区 3034：`npm run typecheck`、`npm test` 2643/2643、`npm run build` 通过（`artifacts/merge-4cfbaf5/`）。
+
