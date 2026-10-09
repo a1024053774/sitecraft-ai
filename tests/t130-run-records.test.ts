@@ -25,10 +25,13 @@ const server = createServer(async (req, res) => {
   const repairInput = system.includes('修正输出合同') ? JSON.parse(user.slice(0, user.lastIndexOf('\n请以 json'))) : null;
   const content = repairInput ? { replacements: repairInput.fragments.filter((f: { field: string }) => f.field === 'css').map((f: { id: number; before: string }) => ({ fragmentId: f.id, after: f.before })) }
     : system.includes('事实校对员') ? { issues: [] } : user.includes('先给页面大纲')
-    ? { summary: '首页与联系', style: 'precision', styleReason: '机械业务', pages: [{ id: 'home', title: '首页', outline: '机械与联系' }] }
+    ? { summary: '首页与联系', style: 'precision', styleReason: '机械业务', skeletonId: 'compact-profile', skeletonReason: '只有机械业务与联系资料。', pages: [{ id: 'home', title: '首页', outline: ['机械与联系'] }] }
     : { header: '<header>检查机械</header>', footer: '<footer>检查机械</footer>', css: `body{margin:0;color:#111;background:#fff;font:16px/1.6 sans-serif}main,header,footer{padding:24px}p{max-width:100em;color:${reject ? '#aaa' : '#111'}}`,
       pages: [{ id: 'home', title: '检查机械', html: `<main><h1>检查机械</h1><p>${'请在询盘里写清零件用途以及需要的规格以便确认供货范围。'.repeat(3)}</p><div data-system-inquiry=""></div></main>` }] };
-  res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 }, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }));
+  const planCall = !!body.tools;
+  res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 }, choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+    ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(content) } }] }
+    : { content: JSON.stringify(content) } }] }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

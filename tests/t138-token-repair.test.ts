@@ -37,7 +37,7 @@ const server = createServer(async (req, res) => {
   const [system, user] = body.messages.map((m: { content: string }) => m.content);
   let reply: unknown;
   if (system.includes('事实校对员')) reply = { issues: ['终身保修。', '即时免费报价。'].filter(text => user.includes(text)).map(text => `页面原句：${text}；资料未提供该承诺或政策。`) };
-  else if (user.includes('先给页面大纲')) reply = { summary: '公司与产品', style: 'precision', styleReason: '加工资料', pages: [{ id: 'home', title: '首页', outline: '公司介绍' }, { id: 'products', title: '产品', outline: '产品介绍' }] };
+  else if (user.includes('先给页面大纲')) reply = { summary: '公司与产品', style: 'precision', styleReason: '加工资料', skeletonId: 'compact-profile', skeletonReason: '加工资料与产品边界先列明。', pages: [{ id: 'home', title: '首页', outline: ['公司介绍'] }, { id: 'products', title: '产品', outline: ['产品介绍'] }] };
   else if (system.includes('修正输出合同')) {
     repairs++;
     const state = (await getCodeSite(id))!;
@@ -48,7 +48,10 @@ const server = createServer(async (req, res) => {
     reply = { replacements: input.fragments.filter((f: { before: string }) => /终身保修|即时免费报价/.test(f.before)).map((f: { id: number }) => ({ fragmentId: f.id, after: repairs === 1 ? '即时免费报价。' : '' })) };
   } else { writes++; reply = code; }
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(reply) } }], usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 } }));
+  const planCall = !!body.tools;
+  res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+    ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(reply) } }] }
+    : { content: JSON.stringify(reply) } }], usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 } }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
@@ -86,6 +89,14 @@ test('two local repairs preserve products and re-enter the real checked commit b
   assert.equal(firstAudit.messages[1].content.match(/终身保修/g)?.length, 2, 'audit the home promise and shared footer once each, without repeating the footer per page');
   assert.equal(result.versions[0].code.pages[1].html, code.pages[1].html);
   assert.equal(result.versions[0].checks.viewports.length, 6, 'all pages at all three widths must be checked');
+  assert.deepEqual(result.plan!.skeleton, { id: 'compact-profile', reason: '加工资料与产品边界先列明。' });
+  const planCall = result.runs.find(run => run.kind === 'plan')!.modelCalls![0];
+  assert.deepEqual(planCall.skeletonOrder, result.plan!.skeletonOrder);
+  assert.equal(planCall.skeletonOrder!.length, 8);
+  assert.equal(planCall.response!.finishReason, 'tool_calls');
+  assert.ok(planCall.response!.answerChars! > 0);
+  assert.deepEqual(result.run!.modelCalls!.map(call => call.purpose), ['write', 'facts', 'repair', 'facts', 'repair', 'facts']);
+  assert.ok(result.run!.modelCalls!.every(call => call.response!.finishReason === 'stop' && call.response!.answerChars! > 0));
   const repairBodies = bodies.filter(b => b.messages[0].content.includes('修正输出合同'));
   assert.ok(repairBodies.every(b => !b.messages[1].content.includes(code.pages[1].html) && !b.messages[1].content.includes('当前完整站点')));
 });

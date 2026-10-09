@@ -35,13 +35,13 @@ const requests: Record<SimulatedPackId, string> = {
 };
 type Photo = { file: string; category: string; apiLicense: string; sourceUrl: string; licenseUrl: string; author: string; attribution: string; downloadedAt: string; caption: string; limitations?: string };
 const photos: Partial<Record<SimulatedPackId, Photo[]>> = {};
-for (const pack of ['industrial', 'export', 'molding'] as const) {
+for (const pack of ['industrial', 'export', 'molding', 'packaging'] as const) {
   const manifest = JSON.parse(await readFile(path.join('tests/fixtures/company-images', pack, 'manifest.json'), 'utf8'));
-  photos[pack] = ['product', 'equipment'].map(category => {
-    const photo = manifest.images.find((p: Photo) => p.category === category);
-    assert.ok(photo?.apiLicense && photo?.licenseUrl && photo?.sourceUrl && photo?.attribution, `${pack}/${category}缺少许可`);
-    return photo;
-  });
+  assert.ok(Array.isArray(manifest.images) && manifest.images.length > 0, `${pack}缺少准入图片`);
+  for (const photo of manifest.images as Photo[]) {
+    assert.ok(photo.apiLicense && photo.licenseUrl && photo.sourceUrl && photo.author && photo.attribution, `${pack}/${photo.file}缺少许可`);
+  }
+  photos[pack] = manifest.images;
 }
 const emailDomains = { industrial: 'xinzhou-drive', export: 'waigaoqiao-fluid', molding: 'ninghai-mould', packaging: 'qinghe-pack' };
 const cases: EvalCase[] = [];
@@ -132,7 +132,7 @@ try {
       try {
         const created = await json<{ id: string }>('/api/sites', { name: simulatedPacks[c.pack as SimulatedPackId].companyName.replace(/P3[A-Z]$/, ''), templateId: 'forge', locales: ['zh'], generationRoute: 'code' });
         c.siteId = created.id;
-        for (const photo of photos[c.pack as SimulatedPackId] || []) {
+        for (const photo of photos[c.pack as SimulatedPackId]!) {
           const form = new FormData();
           const bytes = await readFile(path.join('tests/fixtures/company-images', c.pack, photo.file));
           await mkdir(path.join(directory, folder, 'uploads'), { recursive: true });

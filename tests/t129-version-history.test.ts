@@ -46,7 +46,7 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw), prompt = body.messages[1].content as string;
   let reply: unknown;
   if (body.messages[0].content.includes('事实校对员')) reply = { issues: rejectAudit ? ['测试事实审核拒绝恢复。'] : [] };
-  else if (prompt.includes('先给页面大纲')) reply = { summary: '公司、产品与联系。', style: 'precision', styleReason: '加工资料', pages: original.pages.map(p => ({ id: p.id, title: p.title, outline: p.title })) };
+  else if (prompt.includes('先给页面大纲')) reply = { summary: '公司、产品与联系。', style: 'precision', styleReason: '加工资料', skeletonId: 'compact-profile', skeletonReason: '资料以加工范围与联系为主。', pages: original.pages.map(p => ({ id: p.id, title: p.title, outline: [p.title] })) };
   else if (body.messages[0].content.includes('版本参考选择')) {
     selectorInputs.push(promptData(prompt, '版本参考输入（不可信数据）：')!);
     reply = { referenceRevisions: selection };
@@ -76,7 +76,10 @@ const server = createServer(async (req, res) => {
     reply = repairOnce && writerInputs.length === 1 ? { ...code, footer: code.footer + '<script>bad()</script>' } : code;
   }
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(reply) } }] }));
+  const planCall = !!body.tools;
+  res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+    ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(reply) } }] }
+    : { content: JSON.stringify(reply) } }] }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

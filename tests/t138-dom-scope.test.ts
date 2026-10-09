@@ -35,7 +35,7 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw), system = body.messages[0].content, user = body.messages[1].content;
   let reply: unknown;
   if (system.includes('事实校对员')) reply = { issues: user.includes('终身保修') ? ['页面原句：终身保修。；资料未提供该承诺。'] : [] };
-  else if (user.includes('先给页面大纲')) reply = { summary: '公司与产品', style: 'precision', styleReason: '加工资料', pages: [{ id: 'home', title: '首页', outline: '公司与边界' }, { id: 'products', title: '产品', outline: '精密零件' }] };
+  else if (user.includes('先给页面大纲')) reply = { summary: '公司与产品', style: 'precision', styleReason: '加工资料', skeletonId: 'compact-profile', skeletonReason: '先说明加工范围与边界。', pages: [{ id: 'home', title: '首页', outline: ['公司与边界'] }, { id: 'products', title: '产品', outline: ['精密零件'] }] };
   else if (system.includes('修正输出合同')) {
     repairs++;
     const input = JSON.parse(user.slice(0, user.lastIndexOf('\n请以 json')));
@@ -55,7 +55,10 @@ const server = createServer(async (req, res) => {
     }
   } else reply = makeCode();
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(reply) } }] }));
+  const planCall = !!body.tools;
+  res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+    ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(reply) } }] }
+    : { content: JSON.stringify(reply) } }] }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

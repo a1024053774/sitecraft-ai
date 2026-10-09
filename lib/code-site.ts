@@ -12,7 +12,9 @@ export const codeSiteSchema = z.object({
 });
 export type SiteCode = z.infer<typeof codeSiteSchema>;
 export type CodePreferences = { style: 'auto' | 'precision' | 'documentary'; layout: number; density: number };
-export type CodePlan = { summary: string; style: 'precision' | 'documentary'; styleReason: string; pages: Array<{ id: string; title: string; outline: string }> };
+export type CodePlan = { summary: string; style: 'precision' | 'documentary'; styleReason: string;
+  // Saved outlines from before T-135 have no skeleton; new model plans require it.
+  skeleton?: { id: string; reason: string }; skeletonOrder?: string[]; pages: Array<{ id: string; title: string; outline: string }> };
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
   viewports: Array<{ pageId: string; width: number; overflow: number; overlaps: number; contrastIssues: number; longLines: number }>;
@@ -24,6 +26,8 @@ export type CodeVersion = {
 export type CodeModelCall = {
   purpose: 'plan' | 'select' | 'write' | 'repair' | 'facts'; model: string; startedAt: string; latencyMs: number; httpStatus: number | null;
   usage: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens?: number } | null;
+  skeletonOrder?: string[];
+  response?: { finishReason: string | null; answerChars: number | null; reasoningTokens: number | null };
 };
 export type CodeRun = {
   id: string; kind: 'plan' | 'generate' | 'edit'; status: 'running' | 'complete' | 'error';

@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "pack": "packaging",
+  "packLabel": "纸包装",
+  "sourcePolicy": "授权行业图片仅用于模拟资料测试；逐张核对文件页与具体图片许可，仅收CC0/公有领域/CC BY/CC BY-SA；保留作者、来源与修改链，非本厂实拍。",
+  "images": [
+    {
+      "sourceTitle": "Corrboxes16.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Corrboxes16.jpg",
+      "sourceRevision": 868655352,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/8/81/Corrboxes16.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Excel23",
+      "downloadedAt": "2026-10-09T04:45:30.613547+00:00",
+      "width": 901,
+      "height": 775,
+      "bytes": 74700,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1280px; JPEG re-encoded at quality 88; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:45:30.613547+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "packaging-product-corrugated-boxes",
+      "file": "product-corrugated-boxes.jpg",
+      "category": "product",
+      "caption": "瓦楞纸箱结构（行业配图）",
+      "captionEn": "Corrugated boxes",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Corrboxes16.jpg — Excel23; https://commons.wikimedia.org/wiki/File:Corrboxes16.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。只对应瓦楞运输盒，照片上包装标记不作客户Logo、许可或抗压等级证明。"
+    },
+    {
+      "sourceTitle": "Molded pulp, faucet.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Molded_pulp,_faucet.jpg",
+      "sourceRevision": 1275648051,
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Molded_pulp%2C_faucet.jpg/1920px-Molded_pulp%2C_faucet.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "author": "Rlsheehan",
+      "downloadedAt": "2026-10-09T04:46:40.338099+00:00",
+      "width": 1280,
+      "height": 960,
+      "bytes": 244559,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1280px; JPEG re-encoded at quality 76; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:46:40.338099+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "packaging-product-molded-pulp-insert",
+      "file": "product-molded-pulp-insert.jpg",
+      "category": "product",
+      "caption": "纸浆模塑内托应用（行业配图）",
+      "captionEn": "Molded pulp insert",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Molded pulp, faucet.jpg — Rlsheehan; https://commons.wikimedia.org/wiki/File:Molded_pulp,_faucet.jpg; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。来源装载物为水龙头，只展示内托定位题材，不新增本公司客户、装载物品类、材质认证或跌落等级。"
+    },
+    {
+      "sourceTitle": "Flat die cut.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Flat_die_cut.jpg",
+      "sourceRevision": 1254417253,
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Flat_die_cut.jpg/1920px-Flat_die_cut.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "SimónK",
+      "downloadedAt": "2026-10-09T04:46:04.779009+00:00",
+      "width": 1280,
+      "height": 852,
+      "bytes": 241786,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1280px; JPEG re-encoded at quality 82; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:46:04.779009+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "packaging-equipment-flat-die-cutting",
+      "file": "equipment-flat-die-cutting.jpg",
+      "category": "equipment",
+      "caption": "平压平模切工位（行业配图）",
+      "captionEn": "Flat-bed die-cutting station",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Flat die cut.jpg — SimónK; https://commons.wikimedia.org/wiki/File:Flat_die_cut.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不把来源车间、人员或设备厂牌说成本公司所有，不新增机型、尺寸或节拍。"
+    },
+    {
+      "sourceTitle": "Paper cutting machine with two-handed safety switches.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Paper_cutting_machine_with_two-handed_safety_switches.jpg",
+      "sourceRevision": 1029883646,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Paper_cutting_machine_with_two-handed_safety_switches.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Arielinson",
+      "downloadedAt": "2026-10-09T05:17:01.135356+00:00",
+      "width": 960,
+      "height": 1280,
+      "bytes": 262340,
+      "modifications": [
+        "Source photo already contains circular hand-button annotations and a blurred label; these are source-author edits, not local retouching.",
+        "Full source frame retained; EXIF orientation applied; resized to long edge ≤1280px.",
+        "JPEG re-encoded at quality 88; source EXIF not copied; no content edits."
+      ],
+      "rightsVerification": {
+        "pageAuthor": "Arielinson",
+        "sourceExifRights": {},
+        "conclusion": "No conflicting creator or copyright-holder assertion in file page, Commons API metadata or source JPEG EXIF.",
+        "sourceIptcRights": {},
+        "sourceXmpRights": {}
+      },
+      "verification": {
+        "checkedAt": "2026-10-09T05:17:01.135412+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata/metadata + source JPEG EXIF + linked license page; local full-frame derivative visually inspected",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "packaging-equipment-paper-cutting-machine",
+      "file": "equipment-paper-cutting-machine.jpg",
+      "category": "equipment",
+      "caption": "切纸机（行业配图）",
+      "captionEn": "Paper cutting machine",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Paper cutting machine with two-handed safety switches.jpg — Arielinson; https://commons.wikimedia.org/wiki/File:Paper_cutting_machine_with_two-handed_safety_switches.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized and JPEG re-encoded; source EXIF not copied; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为客户关系、设备所有权或新事实的证明。仅作切纸题材，设备原图含按钮标记和标签模糊，不是本厂实拍；不声明机型、品牌代理、操作规程或安全认证。"
+    },
+    {
+      "sourceTitle": "Corrugated Cardboard.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Corrugated_Cardboard.JPG",
+      "sourceRevision": 1253940939,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b6/Corrugated_Cardboard.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "author": "Richard Wheeler ( Zephyris )",
+      "downloadedAt": "2026-10-09T05:16:46.478153+00:00",
+      "width": 1280,
+      "height": 960,
+      "bytes": 156984,
+      "modifications": [
+        "Full source frame retained; EXIF orientation applied; resized to long edge ≤1280px.",
+        "JPEG re-encoded at quality 88; source EXIF not copied; no content edits."
+      ],
+      "rightsVerification": {
+        "pageAuthor": "Richard Wheeler ( Zephyris )",
+        "sourceExifRights": {},
+        "conclusion": "No conflicting creator or copyright-holder assertion in file page, Commons API metadata or source JPEG EXIF.",
+        "sourceIptcRights": {},
+        "sourceXmpRights": {}
+      },
+      "verification": {
+        "checkedAt": "2026-10-09T05:16:46.478212+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata/metadata + source JPEG EXIF + linked license page; local full-frame derivative visually inspected",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "packaging-product-corrugated-board-profile",
+      "file": "product-corrugated-board-profile.jpg",
+      "category": "product",
+      "caption": "瓦楞纸板截面（行业配图）",
+      "captionEn": "Corrugated cardboard profile",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Corrugated Cardboard.JPG — Richard Wheeler ( Zephyris ); https://commons.wikimedia.org/wiki/File:Corrugated_Cardboard.JPG; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/); full-frame resized and JPEG re-encoded; source EXIF not copied; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为客户关系、设备所有权或新事实的证明。不从截面推导本公司楞型、层数、纸张克重、抗压强度或测试等级。"
+    },
+    {
+      "sourceTitle": "2020 Suwmiarka cyfrowa.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:2020_Suwmiarka_cyfrowa.jpg",
+      "sourceRevision": 761612752,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5c/2020_Suwmiarka_cyfrowa.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Jacek Halicki",
+      "downloadedAt": "2026-10-09T05:16:35.379989+00:00",
+      "width": 1280,
+      "height": 533,
+      "bytes": 69289,
+      "modifications": [
+        "Full source frame retained; EXIF orientation applied; resized to long edge ≤1280px.",
+        "JPEG re-encoded at quality 88; source EXIF not copied; no content edits."
+      ],
+      "rightsVerification": {
+        "pageAuthor": "Jacek Halicki",
+        "sourceExifRights": {
+          "315": "Jacek Halicki"
+        },
+        "conclusion": "No conflicting creator or copyright-holder assertion in file page, Commons API metadata or source JPEG EXIF.",
+        "sourceIptcByline": "Jacek Halicki",
+        "sourceXmpCreator": "Jacek Halicki"
+      },
+      "verification": {
+        "checkedAt": "2026-10-09T05:16:35.380041+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata/metadata + source JPEG EXIF + linked license page; local full-frame derivative visually inspected",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "packaging-inspection-dimensional-caliper",
+      "file": "inspection-dimensional-caliper.jpg",
+      "category": "inspection",
+      "caption": "尺寸核对量具（行业配图）",
+      "captionEn": "Dimensional inspection caliper",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "2020 Suwmiarka cyfrowa.jpg — Jacek Halicki; https://commons.wikimedia.org/wiki/File:2020_Suwmiarka_cyfrowa.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized and JPEG re-encoded; source EXIF not copied; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为客户关系、设备所有权或新事实的证明。通用尺寸测量题材，不据图声明厚度测量方式、量具品牌或精度；显示读数不是本公司产品尺寸或检测结果。"
+    }
+  ],
+  "derivativeNotice": "Stored derivatives retain full frame and source attribution; only orientation, resizing and JPEG re-encoding. BY-SA derivatives retain the source license."
+}

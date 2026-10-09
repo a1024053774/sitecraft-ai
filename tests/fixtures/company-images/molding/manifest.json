@@ -177,6 +177,70 @@
         "sourcePageStatus": 200,
         "licensePageStatus": 200
       }
+    },
+    {
+      "sourceTitle": "Piece plastique moulee par injection02.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Piece_plastique_moulee_par_injection02.jpg",
+      "sourceRevision": 1244511065,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/9/95/Piece_plastique_moulee_par_injection02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "author": "Jean-Jacques MILAN",
+      "downloadedAt": "2026-10-09T04:46:51.360953+00:00",
+      "width": 640,
+      "height": 480,
+      "bytes": 38072,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1280px; JPEG re-encoded at quality 88; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:50:40.215839+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "molding-product-molded-structural-part",
+      "file": "product-molded-structural-part.jpg",
+      "category": "product",
+      "caption": "注塑结构件样例（行业配图）",
+      "captionEn": "Injection-molded structural part",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Piece plastique moulee par injection02.jpg — Jean-Jacques MILAN; https://commons.wikimedia.org/wiki/File:Piece_plastique_moulee_par_injection02.jpg; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。原图640×480，仅作小幅配图（建议≤320 CSS px），不作大首屏；不推导材料、尺寸、公差或客户关系。"
+    },
+    {
+      "sourceTitle": "Spritzguss teile.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Spritzguss_teile.jpg",
+      "sourceRevision": 1232177978,
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e6/Spritzguss_teile.jpg/1920px-Spritzguss_teile.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Gmhofmann",
+      "downloadedAt": "2026-10-09T04:47:44.929344+00:00",
+      "width": 1280,
+      "height": 664,
+      "bytes": 108972,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1280px; JPEG re-encoded at quality 88; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:47:44.929344+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "molding-product-parts-and-runners",
+      "file": "product-parts-and-runners.jpg",
+      "category": "product",
+      "caption": "注塑件与分离后的流道（行业配图）",
+      "captionEn": "Molded parts and runners",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Spritzguss teile.jpg — Gmhofmann; https://commons.wikimedia.org/wiki/File:Spritzguss_teile.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不把流道形态当作公司模具或制品参数，不推导材料、重量、型腔数或成型周期。"
     }
   ],
   "derivativeNotice": "Every stored file is a JPEG derivative: resized to long edge ≤1600px and JPEG re-encoded. CC BY / CC BY-SA attribution explicitly states this modification and retains author, source page, and license URL.",

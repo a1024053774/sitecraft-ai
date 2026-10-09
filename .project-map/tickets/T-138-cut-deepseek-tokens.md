@@ -29,7 +29,7 @@ supersedes:
 
 ## Resolution
 
-INCOMPLETE / READY_FOR_REVIEW：Astra 对 `0cb64dd` 的同节点交错区间 P1 已在本地修复并验证，待复审。t138-build 不关票、不派审查、不推送，保持当前模型。真实 DeepSeek 调用仍为 0，快速档不运行；按主控指示，待 T-137/T-135/T-138 审过、一起合入主线后只跑一次联合快速档。单个提交基于 `42563e9`，本次 amend SHA 随执行交接报告，并记录在 `artifacts/t138/verification-p2.json`。
+INCOMPLETE（真实联合评估未运行）：Astra 已对 `b8174f0` 复核 PASS。按主控要求，本执行分支合并本地 `family-kit-assembly` 的 `6f069ee`，冲突与集成验证 PASS；合并提交留在 `t138-tokens`，不推送、不关票、不派审查，保持当前模型。真实 DeepSeek 调用仍为 0，快速档不运行，由主控在本地主线做唯一一次联合用量与质量验证。本次合并 SHA、两父提交和验证命令/时间在 `artifacts/t138/merge-family/verification.json`。
 
 ### 改前用量（只读已有记录）
 
@@ -74,6 +74,10 @@ T-134 原 `round.json`/`report.json` 只有 1,091,963 token，最后一站只登
 T-133/T-132/T-134 的 34/46/55 次调用都没有推理用量记录。T-135 的 15 次有记录调用报告推理 110,764，占这些调用输出 155,289 的 71.3%；另1次失败调用未知。规划/事实校对无非思考模式或低上限的同输入成对证据，因此保留思考模式与 65536 上限；不以重放旧回答代替模型能力对比。新增记录只保存上游推理 token 数，不保存思考文字。
 
 ### 改动与本地证据
+
+本地合并：`git merge --no-commit family-kit-assembly`，两父提交为 T-138 `b8174f0` 与本地主线 `6f069ee`。四处冲突均按行为合并：`lib/code-site.ts` 同时保留 skeleton/skeletonOrder、response 结束原因/回答长度/推理元数据及 repair 用途、usage.reasoningTokens、repairFailure；T-128/T-130 的 provider 夹具同时支持 strict `submit_page_plan` 与局部修正 JSON，并保留原计数、拒收、版本、用量断言。T-136/T-138 规划夹具适配同一 strict 协议，T-136 历史长纲完整拆为每项不超过120字的数组，不截断、不放宽生产 schema。T-129 保留原区域与版本断言：初稿携历史参考，repair 不再重传整站。自动合入的生产模型代码保持唯一调用入口：规划走 beta strict 函数输出，其余 JSON 调用保留首稿事实红线与 DOM/字符区间修正。资料/全部图片、事实去重、快速档及分用途统计均保留。
+
+合并后运行 `CHROME_PATH=<AGENTS指定路径> SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3150 node --test --experimental-strip-types tests/t128-*.test.ts tests/t129-*.test.ts tests/t130-*.test.ts tests/t133-*.test.ts tests/t135-*.test.ts tests/t136-*.test.ts tests/t137-*.test.ts tests/t138-*.test.ts`，133/133、0跳过（`merge-family/related-final.log`）。联合断言核对 skeleton 保存/8张卡顺序/strict tool_calls 元数据与 write→facts→repair 的用量记录；两种推理元数据均保留。用 TypeScript AST 检查 T-138 原断言及 T-135/T-137 相对共同基点新增的断言，缺失0（`branch-assertion-preservation.json`）。另跑资料包与图片覆盖两文件，12/12（`dependencies-with-server.log`）；第一次附加检查被本执行者提前停3150做build而中断，失败日志保留，恢复同一服务/场景后重新检查，没有换输入或放宽断言。`npm run typecheck`、`npm run build` 通过（`typecheck-final.log`、`build.log`）。所有日志位于 `artifacts/t138/merge-family/`，记录时间见 `verification.json`。真实模型、真实快速档与全仓测试本次均未运行。
 
 首稿提示显著禁止无来源的承诺、报价、交期、付款、售后和认证说法。修正调用使用 `repair` 用途，只发送资料、拒因和对应 DOM 节点：text/title 是纯文字，Text 节点按文字区间写入、由 DOM 转义；element 是原层级的一个完整元素，标签须闭合；style 是一个完整、无属性的 style 元素，CSS 须闭合。布局只发送叶子元素和公共样式，避免祖先重复带整页。模型输出不得按 HTML 字符位置拼接。未知编号、重复编号、重叠/变化的节点、整站 JSON 和定位不到的拒因明确失败。只有拒因全部属于入口已完成的清理、没有剩余节点时，允许模型明确返回空替换；未知拒因不能借这个分支通过。
 

@@ -68,7 +68,13 @@ test("T-109 real published collector exempts only actual hidden product placemen
       : await request("/api/sites", "POST", { name: "T-109 real collector product references", templateId: "screwfast", locales: ["zh", "en"] });
     const siteId = created.id;
     const manifest = JSON.parse(readFileSync("tests/fixtures/company-images/molding/manifest.json", "utf8"));
-    const photos = manifest.images.filter((image: { category: string }) => image.category === "product");
+    // This scenario uses the original two photos to distinguish hero and product
+    // placements; a growing materials catalog must not add scenario inputs.
+    const photos = ["product-injection-molded-parts.jpg", "product-injection-mold.jpg"].map(file => {
+      const photo = manifest.images.find((image: { file: string }) => image.file === file);
+      assert.ok(photo, `missing collector scenario photo: ${file}`);
+      return photo;
+    });
     const images: Array<{ imageId: string; url: string; originalName: string; credit?: { zh: string; en: string } }> = reuseId ? (await request(`/api/sites/${siteId}/images`, "GET")).images.sort((a: { originalName: string }, b: { originalName: string }) => photos.findIndex((photo: { file: string }) => photo.file === a.originalName) - photos.findIndex((photo: { file: string }) => photo.file === b.originalName)) : [];
     for (const photo of reuseId ? [] : photos) {
       const form = new FormData();

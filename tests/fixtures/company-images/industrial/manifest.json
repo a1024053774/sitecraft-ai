@@ -228,9 +228,73 @@
       "height": 1211,
       "bytes": 145658,
       "apiLicense": "CC BY-SA"
+    },
+    {
+      "sourceTitle": "Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg",
+      "sourceRevision": 1119850872,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/a/ae/Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Affoltergroup",
+      "downloadedAt": "2026-10-09T04:46:27.038651+00:00",
+      "width": 1280,
+      "height": 853,
+      "bytes": 195050,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1280px; JPEG re-encoded at quality 88; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:46:27.038651+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "industrial-equipment-gear-hobbing",
+      "file": "equipment-gear-hobbing.jpg",
+      "category": "equipment",
+      "caption": "滚齿加工（行业配图）",
+      "captionEn": "Gear hobbing",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg — Affoltergroup; https://commons.wikimedia.org/wiki/File:Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不新增模数、机床品牌或加工精度。"
+    },
+    {
+      "sourceTitle": "Wälzfräser und gefräste Verzahnung.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:W%C3%A4lzfr%C3%A4ser_und_gefr%C3%A4ste_Verzahnung.JPG",
+      "sourceRevision": 1273681203,
+      "downloadUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/W%C3%A4lzfr%C3%A4ser_und_gefr%C3%A4ste_Verzahnung.JPG/1920px-W%C3%A4lzfr%C3%A4ser_und_gefr%C3%A4ste_Verzahnung.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "author": "Dirk Gräfe",
+      "downloadedAt": "2026-10-09T04:48:06.322495+00:00",
+      "width": 1280,
+      "height": 853,
+      "bytes": 228883,
+      "modifications": [
+        "Official Wikimedia preview used when available; full frame retained.",
+        "EXIF orientation applied; long edge at most 1280px; JPEG re-encoded at quality 88; no content edits."
+      ],
+      "verification": {
+        "checkedAt": "2026-10-09T04:48:06.322495+00:00",
+        "method": "Commons file page + API imageinfo/extmetadata + linked license page; decoded and visually inspected local derivative",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200
+      },
+      "id": "industrial-equipment-hob-and-workpiece",
+      "file": "equipment-hob-and-workpiece.jpg",
+      "category": "equipment",
+      "caption": "滚刀与加工中的齿形（行业配图）",
+      "captionEn": "Hob and machined teeth",
+      "usageScope": "current-site-only",
+      "apiLicense": "CC BY-SA",
+      "attribution": "Wälzfräser und gefräste Verzahnung.JPG — Dirk Gräfe; https://commons.wikimedia.org/wiki/File:W%C3%A4lzfr%C3%A4ser_und_gefr%C3%A4ste_Verzahnung.JPG; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "limitations": "授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不称为本公司的减速机成品，不从图中推导材质、模数或产能。"
     }
   ],
-  "derivativeNotice": "Unchanged retained images preserve their prior processing notices. B-C1/C-C1 use independently reviewed full-frame downsampled JPEG derivatives; source originals, exact license and complete processing chain remain traceable in their entries. No new processing occurred during admission.",
+  "derivativeNotice": "Existing T-112 entries retain their original processing notices and reviewed derivatives. T-137 additions retain the full frame and are JPEG re-encoded, with resizing limits and orientation handling recorded per entry. Source revision, exact license and attribution are retained. No existing image was reprocessed; BY-SA derivatives retain their source license.",
   "sourceVerification": {
     "independentReports": [
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/independent-20261006/20261006T061547Z/review.md",
@@ -239,7 +303,8 @@
       "/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t112/clarity-review/review.md"
     ],
     "status": "PASS_FOR_AUTHORIZED_USES",
-    "finalPublishedPlacement": "PASS for authorized uses at material commit c4438b1f3fc9c5e729eeec2ca8ef49e7aa41f5c3, site 7eee7add-e46b-4194-aa14-2d4b5e029e8d, zh/en at 1440/768/375. Functional evidence: artifacts/t112/clarity-final-c4438b1/verification-summary.json; changed-photo visual evidence: artifacts/t112/clarity-final-visual-c4438b1/review/review.md. F03 remains paired with F01, with no sole hero/product binding. This does not cover overall page quality or T115."
+    "finalPublishedPlacement": "PASS for authorized uses at material commit c4438b1f3fc9c5e729eeec2ca8ef49e7aa41f5c3, site 7eee7add-e46b-4194-aa14-2d4b5e029e8d, zh/en at 1440/768/375. Functional evidence: artifacts/t112/clarity-final-c4438b1/verification-summary.json; changed-photo visual evidence: artifacts/t112/clarity-final-visual-c4438b1/review/review.md. F03 remains paired with F01, with no sole hero/product binding. This does not cover overall page quality or T115.",
+    "scope": "Existing six T-112 entries only. T-137 additions carry their own verification and have not had independent page-quality review."
   },
   "admittedAt": "2026-10-06T06:43:37.393274+00:00"
 }
