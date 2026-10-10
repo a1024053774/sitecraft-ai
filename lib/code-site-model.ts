@@ -8,13 +8,16 @@ import { codeSiteSchema, explicitEnglishCompanyName, type CodePreferences, type 
 import type { SiteImageRecord } from './site-images.ts';
 import { codeRepairFragments, applyCodeRepair } from './code-site-repair.ts';
 import { englishText } from './code-site-english.ts';
+import { systemBackdrops } from './code-site-backdrops.ts';
 
 async function rules(prefs: CodePreferences, skeletonRules?: string) {
   const files = ['site-code-core/SKILL.md', 'frontend-less-ai-tone/SKILL.md', ...(prefs.style === 'auto'
     ? ['site-code-precision/SKILL.md', 'site-code-documentary/SKILL.md'] : [prefs.style === 'documentary' ? 'site-code-documentary/SKILL.md' : 'site-code-precision/SKILL.md'])];
   const content = await Promise.all(files.map(file => readFile(path.join(process.cwd(), 'skills', file), 'utf8')));
   const cards = skeletonRules ?? await readFile(path.join(process.cwd(), 'skills/site-code-core/SKELETONS.md'), 'utf8');
-  return `${content[0]}\n\n${cards}\n\n${content.slice(1).join('\n\n')}\n用户滑杆：版式 ${prefs.layout}/10（规整到大胆），信息 ${prefs.density}/10（疏朗到紧凑）。只做中文。`;
+  const backdrops = Object.entries(systemBackdrops).filter(([, entry]) => prefs.style === 'auto' || entry.style === prefs.style)
+    .map(([id, entry]) => ({ id, label: entry.label, textColor: entry.text }));
+  return `${content[0]}\n\n${cards}\n\n${content.slice(1).join('\n\n')}\n可选系统抽象底图（按需使用，不默认添加）：${JSON.stringify(backdrops)}\n用户滑杆：版式 ${prefs.layout}/10（规整到大胆），信息 ${prefs.density}/10（疏朗到紧凑）。只做中文。`;
 }
 async function planningCards() {
   const text = await readFile(path.join(process.cwd(), 'skills/site-code-core/SKELETONS.md'), 'utf8');

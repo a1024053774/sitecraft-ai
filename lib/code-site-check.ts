@@ -6,15 +6,20 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
+import { systemBackdrops } from './code-site-backdrops.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
-function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], legacyImport = false) {
+function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], legacyImport = false) {
   const issues: string[] = [], cleaned: string[] = [];
   const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
   const safeCss = (style: CSSStyleDeclaration) => {
     for (const name of [...style]) {
       const value = style.getPropertyValue(name);
-      if (/url\s*\(|image-set\s*\(|cross-fade\s*\(|expression\s*\(|\\|[<>]/i.test(value) || /^(behavior|-moz-binding)$/i.test(name)) {
+      const urls = [...value.matchAll(/url\(\s*["']?([^"')\s]+)["']?\s*\)/gi)].map(match => match[1]);
+      const hasUrl = /url\s*\(/i.test(value);
+      const registeredBackground = /^(background|background-image)$/.test(name) && urls.length > 0
+        && urls.length === (value.match(/url\s*\(/gi)?.length || 0) && urls.every(url => backdropUrls.includes(url));
+      if ((hasUrl && !registeredBackground) || /image-set\s*\(|cross-fade\s*\(|expression\s*\(|\\|[<>]/i.test(value) || /^(behavior|-moz-binding)$/i.test(name)) {
         issues.push(`CSS ${name} 含资源、动态内容或不安全语法`); style.removeProperty(name);
       }
     }
@@ -44,6 +49,11 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
       }
       if (!node.isConnected) continue;
       if (!allowed.has(node.tagName.toLowerCase())) { issues.push(`已去掉禁止元素 ${node.tagName.toLowerCase()}`); node.remove(); continue; }
+      if (node.hasAttribute('data-system-backdrop')) {
+        const id = node.getAttribute('data-system-backdrop')!;
+        if (!backdropIds.includes(id)) issues.push(`系统底图编号无效：${id}`);
+        if (node.closest('img,figure,figcaption,[role="img"],[data-image-id]')) issues.push('系统底图只能用作容器背景，不能当产品、设备或现场图');
+      }
       for (const attr of [...node.attributes]) {
         const name = attr.name, value = attr.value;
         if (name === 'style') { const el = node as HTMLElement; node.setAttribute('style', safeCss(el.style)); continue; }
@@ -122,6 +132,44 @@ function readGeneratedText() {
     }
   }
   return texts;
+}
+// Decode only registered local WebPs. Their full RGB bounds conservatively
+// cover every crop/repeat/position; CSS opacity and overlay colors compose in
+// the same contrast scanner. Never trust palette metadata as the pixel oracle.
+async function prepareSystemBackdrops(allowedUrls: string[]) {
+  const colors: Record<string, number[][]> = {}, issues: string[] = [], used = new Set<string>();
+  for (const node of document.querySelectorAll('*')) for (const pseudo of [null, '::before', '::after']) {
+    const style = getComputedStyle(node, pseudo);
+    for (const match of style.backgroundImage.matchAll(/url\("([^"]+)"\)/g)) {
+      const url = new URL(match[1], location.href);
+      if (url.origin !== location.origin || !allowedUrls.includes(url.pathname) || url.search || url.hash) {
+        issues.push('背景图片不是已登记的系统底图'); continue;
+      }
+      if (pseudo) issues.push('系统底图放在容器背景，伪元素背景无法核对实际叠底');
+      if (node.closest('img,figure,figcaption,[role="img"],[data-image-id]')) issues.push('系统底图只能用作容器背景，不能当产品、设备或现场图');
+      used.add(url.href);
+    }
+  }
+  for (const url of used) {
+    const image = new Image(); image.src = url;
+    try { await image.decode(); }
+    catch { issues.push(`系统底图无法显示：${new URL(url).pathname}`); continue; }
+    const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('系统底图像素无法解码，本次未保存版本。');
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const low = [255, 255, 255, 1], high = [0, 0, 0, 1];
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index + 3] !== 255) throw new Error('系统底图必须是已核对的不透明 WebP，本次未保存版本。');
+      for (let channel = 0; channel < 3; channel++) {
+        low[channel] = Math.min(low[channel], pixels[index + channel]);
+        high[channel] = Math.max(high[channel], pixels[index + channel]);
+      }
+    }
+    colors[url] = [low, high];
+  }
+  return { colors, issues: [...new Set(issues)] };
 }
 // Browser-only diagnostics. None of these findings enter checks.issues or repair decisions.
 function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[]): CodeQualityFeedback {
@@ -313,7 +361,8 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}&&document.readyState==='complete'?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
-    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${!!args.legacyImport})`);
+    const backdropIds = Object.keys(systemBackdrops), backdropUrls = Object.values(systemBackdrops).flatMap(entry => Object.values(entry.urls));
+    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${JSON.stringify(backdropIds)},${JSON.stringify(backdropUrls)},${!!args.legacyImport})`);
     checks.issues.push(...clean.issues); checks.cleaned = clean.cleaned;
     if (args.translationSource) checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)})`));
     for (const contact of new Set(clean.contacts)) if (!args.materials.includes(contact.replace(/^(mailto|tel):/, ''))) checks.issues.push(`联系方式没有资料来源：${contact}`);
@@ -349,7 +398,9 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
         const imageErrors = await browser.evaluate<string[]>(`Promise.all([...document.images].map(async image => {try{await image.decode();return ''}catch{return image.getAttribute('data-image-id')||'图片'}})).then(items=>items.filter(Boolean))`);
         if (imageErrors.length) checks.issues.push(`${page.id}/${width} 图片无法显示：${imageErrors.join('、')}`);
-        const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document),generatedText:(${readGeneratedText.toString()})()};})()`);
+        const backdrops = await browser.evaluate<Awaited<ReturnType<typeof prepareSystemBackdrops>>>(`(${prepareSystemBackdrops.toString()})(${JSON.stringify(backdropUrls)})`);
+        checks.issues.push(...backdrops.issues.map(issue => `${page.id}/${width} ${issue}`));
+        const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:(${readGeneratedText.toString()})()};})()`);
         for (const entry of layout.generatedText) generatedText.add(entry.text);
         if (args.translationSource) {
           const before = new Map(originalGenerated.map(entry => [entry.key, entry.text]));

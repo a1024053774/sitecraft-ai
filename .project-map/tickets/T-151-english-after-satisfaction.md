@@ -27,7 +27,7 @@ supersedes:
 - [x] 主控确定的含数字记号、多重集合、确定等价归一与记录公司名规则，各用保存的真实回复建立红绿测试；提交入口也验证通过
 - [ ] 真实入口端到端：一站中文版 → 点生成英文版 → 预览切换 → 发布页英文路径可打开 → 改中文后显示英文落后 → 重新翻译 → 撤销；1440/768/375 中英截图看过。真实 DeepSeek 只跑这一站，Resolution 写 token 用量
 - [ ] 英文页交一个新的 gpt-6.1-sol 实例独立看：是否像同一家公司自己的英文站、有没有机翻腔或漏译（只这一站，不跑整轮 eval）
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过（主控确认 788959c PASS）；合并后 typecheck、test、build 通过
 
 ## Failure modes
 
@@ -35,9 +35,18 @@ supersedes:
 
 ## Resolution
 
-本轮公司名标点保护、完整单位别名修复及 v6 新检查 PASS；整票 INCOMPLETE（2026-10-10，待主控复核）。Astra 最后两项已先红后绿：记录公司名/资料英文名子串在标点转换中原样保留，已登记完整单位别名按最长匹配先读取，再识别时间比率。年/月互换及旧四个反例仍拒收，v6 的 375/768/1440 底线拒因均为 0。sol 内容基本可接受，新候选不自动视为独立审核通过。本轮不调用真实模型，用量 **0**。前次同一站唯一真实初译消耗 **7,629 / 10,000 token**；原回复已经唯一提交入口存为 **v6，基于中文 v3**。本轮只读复检不替换存储中的旧检查、不重写译文、不存新版、不改 CSS、不静默回退。全部改动 amend 同一 T-151 本地提交，父提交 d1d60e3；最终 SHA 见交付回复。不推送、不关票、不自行安排审核。
+本轮合并 PASS（2026-10-10）。主控已确认 Astra PASS **788959c**；以该已审提交为第一父提交，merge 最新 family-kit-assembly **84895cb**，保留 T-151 与 T-148 的行为。不 rebase、不 amend 788959c，创建单独合并提交，SHA 见交付回复。票保持 open，未推送、未关闭，不自行安排审核。本轮没有真实模型调用，用量 **0**；前次同一站真实初译 7,629 token 和已存 v6 保持不变，没有重翻或写入既有站点。
 
-最新证据根为 `artifacts/t151/final-astra-2026-10-10/`：
+合并证据根为 `artifacts/t151/merge-84895cb/`：
+
+- 实际冲突三个文件：`lib/code-site-model.ts` 合并 englishText 与 systemBackdrops 导入，保留严格英文函数调用/用量记录和主线按风格提供可选底图的规则；`lib/code-site.ts` 同时保留中英版本类型、路径/语言切换、询盘文本和三档底图 CSS/许可，底图的系统说明提供英文；`lib/code-site-check.ts` 同时保留英文逐段/同 DOM 位置 CSS 文案核对，以及底图登记清理、解码 RGB 色域和实际背景对比度扫描。扫描传入 backdrops.colors，generatedText 仍为带位置 key 的记录，未把任一侧整文件覆盖。
+- `tests/t151-backdrop-merge.test.ts` 的组合场景 3/3 通过（integration.log）：英文控件/署名和三档底图同渲染；加入原文没有的 100 mm 被保真拒收；浅色实际底图上的白字不能借深色 CSS 占位通过。parent-english-red.log 在 788959c 的旧渲染器中缺底图资产而失败，parent-backdrop-red.log 在 84895cb 的旧渲染器中根语言为中文而失败。父源码仅在内存读取，不复制源码作证据。
+- 合并源码固定后，`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3161 SITECRAFT_DATA_ROOT=.sitecraft-data CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 为 **339/339**（20:42:17–20:44:00 UTC，npm-test.log）；同环境 `npm run typecheck` 通过（20:42:18，typecheck.log）。`npm run build` 用本 worktree 的绝对数据根，通过（20:51:02–20:51:08，build.log）。3161 服务使用同一绝对根；测试内部 HTTP 替身仅服务自己的夹具，不连 3034。不读取主数据或主 .env.local。
+- `capture-ui.mjs` 在 3161 只读渲染组合样例，不存站、不调模型。ui-final/ 的中英 1440/768/375 六图逐张打开，实际背景地址分别为对应宽度 WebP，英文为 Send inquiry 与英文底图说明，无横向溢出。全量生成的 artifacts/t148/boundary-ba098e16-f127-4681-9e54-b4c64166fee3/site-{1440,768,375}.png 三图也逐张打开。首次 ui/ 与 ui.log 的 URL 正则转义失败保留，修截图脚本后另存 ui-final，不修改产品代码或替换失败记录。这些是合并技术样例，不作为新公司站的独立审美通过。
+
+已审 788959c 的证据根为 `artifacts/t151/final-astra-2026-10-10/`（保留历史结果，不代替合并后检查）：
+
+已审英文实现的公司名标点保护和完整单位别名行为保持不变：
 
 - `red-b86ce7c.log`（20:24:14–20:24:15 UTC）：两条公司名用例在真实 translateSiteCode 入口配本地 HTTP 模型替身中失败，记录名“华星（苏州）机械有限公司”和资料名 Huaxing（Suzhou）Machinery 都被改成 ASCII 括号；rpm/rps/psi 三个已有多词别名也被误拒。年产→per month 负例在旧实现已拒收，没有拿环境错误作红态。
 - 标点写回接收记录名称及资料独立英文名字段的受保护名称，按最长原样子串分隔，只转换其余文案。模型入口显式传入这些元数据；页面标题、正文、title/aria-label 都有独立字符串断言，修后再跑同一保真检查通过。不从正文猜公司名，不加公司例外名单。

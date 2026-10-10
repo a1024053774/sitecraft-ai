@@ -67,4 +67,12 @@ CHROME_PATH=/path/to/chrome-headless-shell SITE_STORE=fs SITECRAFT_BASE=http://1
 
 图片、字体、图标、商标分别核验许可，无授权图片用无图版。模拟照片和系统图标的许可记录保留，代码许可不能替代素材许可。本项目自身暂未声明开源许可证。
 
+T-148 提供可选的系统抽象底图：`bd_` 编号只作背景，不能当产品或现场照片；提交入口核对登记、用途、加载与叠底对比度。72 张三档 WebP 与登记表已静态入库，预览和发布不加载 shader 库。`shaders@4.0.4` 只在 devDependencies，来源、参数、主控选用与排除理由见 [SOURCE.md](resources/shader-backdrops/SOURCE.md)。重新离线渲染用空闲的 3158 和一个新输出目录：
+
+```bash
+CHROME_PATH=/path/to/assigned/chrome-headless-shell node scripts/render-shader-backdrops.mjs artifacts/t148/new-render --install
+```
+
+仅主控已选定的配置可入库；脚本用硬件 WebGPU 定格导出，单张上限 200KB，失败不会换渲染路径，已有证据目录不会覆盖。`--install` 同时更新 `public/system-backdrops/` 静态素材和 `lib/code-site-backdrops.ts` 登记表。浏览器测试需指定 CHROME_PATH 与本工作区的 SITECRAFT_BASE，事实模型使用本地夹具的测试不代表真实模型能力。
+
 `deploy/` 里的 Kubernetes 清单是多实例部署示例；本阶段不做公网部署。

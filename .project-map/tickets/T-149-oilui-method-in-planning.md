@@ -2,7 +2,7 @@
 id: T-149
 title: 把 Oil UI 的方向方法提炼进「帮我选」和风格规划
 type: build
-status: open
+status: out-of-scope
 blocked_by: []
 claimed_by:
 supersedes:
@@ -30,3 +30,8 @@ T-146：生成站的「生成感」主要来自骨架和节奏都一样（T-132 
 - [ ] 和 T-148 合用一轮 `npm run eval:new-route`，独立盲评：换公司判同模板 ≤50%；新旧成对比较选新版不少于基线（T-143）；同一公司在不同风格之间能看出差别；单站 token 用量变化写进 Resolution
 - [ ] 结果不好就不合并，Resolution 写清楚原因，像 T-132 那样处理
 - [ ] Astra 审查通过；typecheck、test、build 通过；mainline 同步
+
+### 结项（Claude，2026-10-10）
+
+分支 `t149-oilui-planning`（7a96878）未合并。与 T-148 合用一轮快速评估（`e148-149-eval` 2b4f586，`npm run eval:new-route -- --quick --previous artifacts/t130/round-2026-10-09T10-14-09-315Z`，产物在该 worktree 的 artifacts/e148/round-quick/，盲评结果在其 blind-results/）：4 站中 molding/precision 规划被设计方向校验拒收（数组条数在 DeepSeek strict 模式下不受约束；分支 7a96878 已改为固定命名字段，未再实测）；其余 3 站生成，共 29.2 万 token，单站 7.7–11.4 万，与基线相近。三个独立 sol 实例盲评：新旧成对比较选新版 1/3（输的理由为手机端沿革四列挤压、选型资料成段枚举、参数标签层次弱）；换公司只凑出 1 对，判不同模板；mixed 3/3 认出（仅参考）。规划记录确实给出具体出发点与 1–2 处记忆点，但按本票「结果不好就不合并」处理，同 T-132。T-148 的底图在 3 站中均未被使用，本轮对 T-148 无结论。
+
