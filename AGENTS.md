@@ -91,6 +91,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - 以 fork `a1024053774/sitecraft-ai` 为主线（`origin`）；绝不推 `upstream`，不 force-push。
 - 一个功能一个 commit，文档更新并入同一个 commit。只 add 本功能的显式路径，不 `git add -A` 混入用户工作。
 - 推送后核对远端 SHA；推送失败保留本地 commit 并报告，不绕过认证。
+- 不用的工作树和缓存及时清理（2026-10-10 负责人要求）：票合并、判为不合并或关闭后，主控在收尾时删掉它的工作树（`git worktree remove`，不加 `--force`），并停掉它的 dev server。删除前先看工作树里的 `.sitecraft-data/` 和 `artifacts/`：未关闭的票还要用的证据，先移到主工作区 gitignore 的 `artifacts/<票号>/` 再删。未合并的分支保留，作为记录。缓存（`.next`、工作树里的 `node_modules`、测试临时目录）随工作树一起删掉；主工作区的 `.next` 超过 1GB 就删。主工作区的 `.sitecraft-data/` 是用户数据，按 T-003 只由用户决定是否删除。每次开工看一眼 `git worktree list`，发现无主的工作树就按上面的规则清理。
 
 ## 密钥与环境
 
