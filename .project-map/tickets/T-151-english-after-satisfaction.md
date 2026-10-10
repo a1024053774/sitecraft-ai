@@ -2,7 +2,7 @@
 id: T-151
 title: 中文站满意后生成英文版：沿用同一结构，只翻译文字
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t151-english)
 supersedes:
@@ -25,8 +25,8 @@ supersedes:
 - [x] 先列出失效方式（漏译、改结构、数字被改、新增事实、英文溢出、中文改后英文没提示落后、重复点击重复扣 token），再写红绿测试，测试在已知坏实现上失败
 - [x] 使用 15:18 保存的真实坏编号原始函数回复建立夹具；旧实现红、短编号与定向补译实现绿；原文保留，协议适配明确标注
 - [x] 主控确定的含数字记号、多重集合、确定等价归一与记录公司名规则，各用保存的真实回复建立红绿测试；提交入口也验证通过
-- [ ] 真实入口端到端：一站中文版 → 点生成英文版 → 预览切换 → 发布页英文路径可打开 → 改中文后显示英文落后 → 重新翻译 → 撤销；1440/768/375 中英截图看过。真实 DeepSeek 只跑这一站，Resolution 写 token 用量
-- [ ] 英文页交一个新的 gpt-6.1-sol 实例独立看：是否像同一家公司自己的英文站、有没有机翻腔或漏译（只这一站，不跑整轮 eval）
+- [x] 真实入口端到端：一站中文版 → 点生成英文版 → 预览切换 → 发布页英文路径可打开 → 改中文后显示英文落后 → 重新翻译 → 撤销；1440/768/375 中英截图看过。真实 DeepSeek 只跑这一站，Resolution 写 token 用量
+- [x] 英文页交一个新的 gpt-6.1-sol 实例独立看：是否像同一家公司自己的英文站、有没有机翻腔或漏译（只这一站，不跑整轮 eval）
 - [x] Astra 审查通过（主控确认 788959c PASS）；合并后 typecheck、test、build 通过
 
 ## Failure modes
@@ -123,3 +123,12 @@ sol 改动只在翻译提示和系统文案：面向海外采购的 B2B 美式�
 - 最终执行时间（UTC）：test 2026-10-10 19:06:22–19:07:36；typecheck 19:06:23；build 19:08:49–19:08:54。
 - 前次全量：`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3161 SITECRAFT_DATA_ROOT=.sitecraft-data CHROME_PATH=<上述路径> npm test` 为 **305/305**，npm-test-acceptance.log；同环境 `npm run typecheck` 通过（typecheck-acceptance.log），`npm run build` 通过（build-acceptance.log）。这是 5dce2af 的旧证据，不证明本次改动通过。应用测试服务固定 3161，显式使用本 worktree 的 /Users/luckye/Documents/Code/sitecraft-ai-t151/.sitecraft-data；子进程相对根均在 worktree 内解析。失败与中间检查日志保留。
 - 通用计次短语红绿：tests/fixtures/t151-trial-runs-real-response.json 保存本次真实 rawMessage（未改动），trial-runs-red.log 在原解析器中拒绝实际 3 trial molding runs；trial-runs-green.log 为 19/19，随后纳入最终全量。42 次→42 或 42 inspections、42→43 仍失败；物理单位不会被后来句子的 runs 覆盖。Scope 未改共享 CSS、未加入企业词表，审核仍由主控安排。
+
+## 主控合并验证（2026-10-10）
+
+- 独立评审：gpt-6.1-sol 首评 ACCEPT_WITH_FIXES，复评后剩余意见由主控裁定：「全检」译 full inspection 可接受（保真检查禁止新增 100%）；无英文公司名时沿用中文名并在工作台提示，不杜撰；「慢走丝」漏译与共享 CSS 版面（1440 能力标题换行、窄屏规格多行、页脚邮箱断行）记为已知反馈，不在本票重译或改 CSS。
+- Astra：98381c2、5dce2af、b86ce7c 三轮 NO_GO 均在保真检查根因层修复；788959c PASS；合并提交 76d4c5f（与 T-148 底图冲突解决）补审 PASS。
+- 主线合并后 t151-english 入口测试写死 3161，主线 3034 下 321/322 失败；4d8301f 改为读 SITECRAFT_BASE 并沿用 T-145 的数据根隔离。
+- 主线 4d8301f（2026-10-10，纽约时间）：`npm ci` 通过；`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` 339/339，`npm run typecheck` 通过，`SITE_STORE=fs npm run build` 通过；日志在 `artifacts/merge-4d8301f/`，首次失败日志保留在 `artifacts/merge-76d4c5f/`。
+- 本票真实 DeepSeek 累计约 6.8 万 token（含早期失败运行）。
+
