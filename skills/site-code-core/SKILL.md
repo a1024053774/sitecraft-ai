@@ -21,12 +21,14 @@ description: 新路线生成和修改站点代码的核心规范；每次模型�
 
 首屏导航桌面一行，高度不超过 72px。标题尽量两行，主行动窄屏仍可见。每个多列布局写清 768px 以下如何折叠；375、768、1440 不溢出、不重叠；正文对比度至少 4.5:1、大字至少 3:1，正文每行中文尽量不超过 40 字，行长是可读性建议。正文、页脚和浅底标签的文字色留出对比度余量：白色或近白底用 #333 或更深，深底用近白文字，不用降低文字 opacity 制造浅灰；按实际前景与背景核对，不把 4.5:1 当作配色目标。焦点清晰，图片 alt 描述内容。无动效。不要 overflow-x:hidden 掩盖横向溢出。
 
-技术合同：只输出约定 JSON；站点代码是 header、footer、css 和 pages（每页 id、title、html），HTML 是语义片段，页面片段包括 main，不含 html/head/body/style/script。全站 CSS 只写 css 字段。导航 href 只指向已规划的 /<页面id>，如 /home、/products；锚点必须存在，不许空链接、href="#"、外部链接、外部资源、iframe、脚本或事件处理器。CSS 不许 url、@import、@font-face。禁止生成 SVG 图，图标用 <span data-system-icon="编号"></span>，由系统解析。图标按含义选择，不要每个链接都加图标；文字已说明含义时可以不用。允许编号："arrow"（前往）、"mail"（邮箱）、"phone"（电话）、"map-pin"（位置）、"download"（下载）、"file-text"（文档）、"certificate"（证书）、"factory"（工厂）、"cog"（加工）、"inspection"（检测）、"package"（包装）、"truck"（物流）、"clock"（交期）、"wrench"（维修）。不提供外部链接图标，不由图标暗示资料没有的认证或服务。
+技术合同：只输出约定 JSON；站点代码是 header、footer、css 和 pages（每页 id、title、html），HTML 是语义片段，页面片段包括 main，不含 html/head/body/style/script。全站 CSS 只写 css 字段。导航 href 只指向已规划的 /<页面id>，如 /home、/products；锚点必须存在，不许空链接、href="#"、外部链接、外部资源、iframe、脚本或事件处理器。CSS 不许外部 url、@import、@font-face；只有已登记系统底图地址可用于 background-image。禁止生成 SVG 图，图标用 <span data-system-icon="编号"></span>，由系统解析。图标按含义选择，不要每个链接都加图标；文字已说明含义时可以不用。允许编号："arrow"（前往）、"mail"（邮箱）、"phone"（电话）、"map-pin"（位置）、"download"（下载）、"file-text"（文档）、"certificate"（证书）、"factory"（工厂）、"cog"（加工）、"inspection"（检测）、"package"（包装）、"truck"（物流）、"clock"（交期）、"wrench"（维修）。不提供外部链接图标，不由图标暗示资料没有的认证或服务。
 
 缺失信息对客户写成自然说法或「待补充」，不要把「资料未提供」「资料未给」这类整理资料的内部措辞写进页面。
 
 可见事实文案写在 HTML 中，不用 CSS content 字符串、字符串列表标记或 symbols() 生成事实数字和文案；移动端参数名也写在 HTML 中。步骤和列表序号用 <ol> 原生编号或 CSS counter（decimal 等标准计数器），不要手写 01/02。CSS 不写反斜杠转义。资料的模拟标记与核验记号不出现在页面，包括首屏可用事实中的核验后缀。
 
 图片只能写 <img data-image-id="已提供的图片编号" alt="具体内容">，不写 src/srcset；系统解析路径与许可并汇总署名。产品图挨着对应产品、设备图挨着加工能力、检测图挨着质量。没有图不留占位框，不用假照片。用户资料或要求中明确提出询盘表单时，才放 <div data-system-inquiry></div>；没有要求就不放。表单和提交由系统提供，模型只配样式。
+
+系统抽象底图是可选背景，按风格从提供的 `bd_` 编号选择，用 `<section data-system-backdrop="编号">正文</section>` 并配 background-size/position；不默认每站都用，不放在 img、figure 或 role=img 中，不冒充产品、设备或现场照片。系统选择三档静态 WebP、汇总署名与许可；正文仍核对实际叠底对比度，不使用 shader 脚本、伪元素底图、独立遮罩、滤镜、内阴影或背景混合来改变底图。
 
 本规范改编自 2026-10-07 route-probe 的 guide.md，合并本仓库 frontend-less-ai-tone 和 sitecraft-frontend-less-ai-tone 的事实、文案、层级、同族与成品规则。站点代码遵守本规范的 HTML/CSS 与提交契约。来源许可沿用各原 skill 的 SOURCE.md；没有引入模板或外部视觉资产。

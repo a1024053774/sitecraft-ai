@@ -155,7 +155,7 @@ const scanHeroTitle = (root) => {
   return result;
 };
 
-export function scanVisitorLayout(root = document) {
+export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const blockFor = el => el.closest('[data-sc-block]')?.getAttribute('data-sc-block') || '页面';
   const visible = el => {
     if (!el || el.closest('script,style,template,noscript,[aria-hidden="true"]')) return false;
@@ -282,21 +282,37 @@ export function scanVisitorLayout(root = document) {
   };
   const backgroundLayers = image => {
     if(!image||image==='none') return {known:true,layers:[]};
-    if(/(?:url\(|image-set\(|cross-fade\()/i.test(image)) return {known:false,reason:'图片背景'};
     const layers=[];
     for(const [index,layer] of splitTopLevel(image).entries()){
+      const url=/^url\("([^"]+)"\)$/.exec(layer)?.[1];
+      if(url){
+        const colors=systemBackdropColors[url];
+        if(!colors) return {known:false,reason:'图片背景无法核对'};
+        layers.push(colors);continue;
+      }
       const parsed=gradientColors(layer,index);
       if(parsed.error) return {known:false,reason:parsed.error};
       layers.push(parsed.colors);
     }
     return {known:true,layers};
   };
-  const backgroundFor = (el,sampleRect=null) => {
+  const backgroundFor = (el,sampleRects=null) => {
     const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
+    const hasBackdrop=chain.some(p=>/url\(/i.test(getComputedStyle(p).backgroundImage));
     let backgrounds=[[255,255,255,1]], foregroundOpacity=1;
     for(const p of chain){
       const style=getComputedStyle(p);
       if(style.mixBlendMode&&style.mixBlendMode!=='normal') return {known:false,reason:'混合图层'};
+      if(hasBackdrop&&style.filter&&style.filter!=='none') return {known:false,reason:'滤镜无法核对实际叠底'};
+      if(hasBackdrop&&/\binset\b/.test(style.boxShadow)) return {known:false,reason:'内阴影无法核对实际底图'};
+      if(hasBackdrop&&style.maskImage&&style.maskImage!=='none') return {known:false,reason:'遮罩无法核对实际底图'};
+      if(hasBackdrop&&style.backgroundBlendMode.split(',').some(mode=>mode.trim()!=='normal')) return {known:false,reason:'背景混合无法核对实际叠底'};
+      if(hasBackdrop) for(const pseudo of ['::before','::after']){
+        const paint=getComputedStyle(p,pseudo);
+        if(paint.content!=='none'&&paint.display!=='none'&&Number(paint.opacity)!==0
+          && (paint.backgroundImage!=='none'||rgba(paint.backgroundColor)?.[3]>0||paint.boxShadow!=='none'))
+          return {known:false,reason:'伪元素叠层无法核对实际底图'};
+      }
       const parsedBackground=backgroundLayers(style.backgroundImage);
       if(!parsedBackground.known) return {known:false,reason:parsedBackground.reason};
       const layers=parsedBackground.layers;
@@ -311,7 +327,17 @@ export function scanVisitorLayout(root = document) {
       backgrounds=local.flatMap(layer=>backgrounds.map(parent=>over(withAlpha(layer,opacity),parent)));
       foregroundOpacity*=Math.max(0,Math.min(1,opacity));
     }
-    const rect=sampleRect||el.getBoundingClientRect();
+    const rects=sampleRects?.length?sampleRects:[el.getBoundingClientRect()];
+    if(hasBackdrop) for(const node of root.querySelectorAll('*')){
+      if(node===el||node.contains(el)||!visible(node)) continue;
+      const r=node.getBoundingClientRect();
+      if(!rects.some(rect=>Math.min(r.right,rect.right)-Math.max(r.left,rect.left)>.5
+        && Math.min(r.bottom,rect.bottom)-Math.max(r.top,rect.top)>.5)) continue;
+      const paint=getComputedStyle(node);
+      if(node.tagName==='IMG'||paint.backgroundImage!=='none'||rgba(paint.backgroundColor)?.[3]>0||paint.boxShadow!=='none')
+        return {known:false,reason:'独立叠层无法核对实际底图'};
+    }
+    const rect=rects[0];
     if(rect.width>0&&rect.height>0&&typeof document.elementsFromPoint==='function'){
       const points=[[rect.left+rect.width/2,rect.top+rect.height/2],[rect.left+1,rect.top+1],[rect.right-1,rect.bottom-1]];
       for(const [x,y] of points){
@@ -383,7 +409,7 @@ export function scanVisitorLayout(root = document) {
     const large=size>=24||(size>=18.66&&weight>=700);
     range.selectNodeContents(node);
     const textRects=[...range.getClientRects()];
-    const background=backgroundFor(el,textRects[0]||null),foreground=rgba(style.webkitTextFillColor||style.color);
+    const background=backgroundFor(el,textRects),foreground=rgba(style.webkitTextFillColor||style.color);
     let paintReason=foreground?.[3]===0?'透明文字填充无法测量':'';
     for(let ancestor=el;ancestor;ancestor=ancestor.parentElement){
       const paint=getComputedStyle(ancestor);

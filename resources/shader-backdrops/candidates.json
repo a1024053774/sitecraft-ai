@@ -1,0 +1,261 @@
+{
+  "source": {
+    "package": "shaders",
+    "version": "4.0.4",
+    "repository": "https://github.com/shader-effects-inc/shaders",
+    "tarball": "https://registry.npmjs.org/shaders/-/shaders-4.0.4.tgz",
+    "license": "MIT",
+    "verified": "2026-10-10",
+    "status": "controller-selected"
+  },
+  "sizes": [
+    {
+      "width": 1440,
+      "height": 720
+    },
+    {
+      "width": 768,
+      "height": 480
+    },
+    {
+      "width": 375,
+      "height": 520
+    }
+  ],
+  "palettes": [
+    {
+      "id": "precision-steel",
+      "style": "precision",
+      "label": "精密 · 钢灰",
+      "base": "#f1f4f6",
+      "shade": "#dce4e8",
+      "text": "#20262a",
+      "accent": "#235b9d"
+    },
+    {
+      "id": "precision-sage",
+      "style": "precision",
+      "label": "精密 · 浅工业绿",
+      "base": "#eff4f1",
+      "shade": "#dce7df",
+      "text": "#232824",
+      "accent": "#2f654b"
+    },
+    {
+      "id": "documentary-paper",
+      "style": "documentary",
+      "label": "纪实 · 原纸",
+      "base": "#f4f0e8",
+      "shade": "#dfd6c6",
+      "text": "#292721",
+      "accent": "#a3462c"
+    },
+    {
+      "id": "documentary-graphite",
+      "style": "documentary",
+      "label": "纪实 · 车间石墨",
+      "base": "#242829",
+      "shade": "#323838",
+      "text": "#f2efe8",
+      "accent": "#d97345"
+    }
+  ],
+  "effects": [
+    {
+      "id": "grid",
+      "type": "Grid",
+      "label": "细线坐标",
+      "props": {
+        "cells": 18,
+        "thickness": 1.2,
+        "softness": 0,
+        "rotation": 0,
+        "variation": 0
+      },
+      "reason": "主控保留：只留清晰的细线坐标，关闭柔化，去除中心小方块观感；WebP quality 95。",
+      "quality": 95
+    },
+    {
+      "id": "dot-grid",
+      "type": "DotGrid",
+      "label": "疏点阵",
+      "props": {
+        "density": 24,
+        "dotSize": 0.11,
+        "offset": 0,
+        "speed": 0,
+        "speedVariance": 0,
+        "twinkle": 0
+      },
+      "reason": "主控保留：稀疏小点提供定位感，比实线更轻；关闭漂移与闪烁，避免星空科技感。",
+      "quality": 82
+    },
+    {
+      "id": "linear-field",
+      "type": "LinearGradient",
+      "label": "单向色场",
+      "props": {
+        "angle": 18
+      },
+      "reason": "主控保留：单轴的同色明暗变化给首屏留出层次，不用彩虹、光晕或网状渐变。最朴素的一档供主控对照。",
+      "quality": 95,
+      "dither": {
+        "bias": 0,
+        "animated": false
+      },
+      "ditherStrengths": {
+        "precision-steel": 0.015,
+        "precision-sage": 0.015,
+        "documentary-paper": 0.015,
+        "documentary-graphite": 0.015
+      }
+    },
+    {
+      "id": "radial-field",
+      "type": "RadialGradient",
+      "label": "偏心明暗",
+      "props": {
+        "center": {
+          "x": 0.82,
+          "y": 0.7
+        },
+        "radius": 1.6,
+        "repeat": 1,
+        "aspect": 1
+      },
+      "reason": "主控保留：大半径、偏向右侧的低反差场，把变化放在文字区外；不做小光球或高亮中心。",
+      "quality": 97,
+      "dither": {
+        "bias": 0,
+        "animated": false
+      },
+      "ditherStrengths": {
+        "precision-steel": 0.1,
+        "precision-sage": 0.1,
+        "documentary-paper": 0.1,
+        "documentary-graphite": 0.015
+      }
+    },
+    {
+      "id": "blue-grain",
+      "type": "BlueNoise",
+      "label": "细颗粒",
+      "props": {
+        "grain": 1,
+        "contrast": -0.35,
+        "balance": 0,
+        "seed": 17
+      },
+      "reason": "主控保留：静态细颗粒削弱大色块的塑料感，没有具象材质承诺；须看 WebP 压缩后是否仍自然。",
+      "quality": 82
+    },
+    {
+      "id": "paper-grain",
+      "type": "Paper",
+      "label": "微纸纹",
+      "props": {
+        "roughness": 0.045,
+        "grainScale": 1.8,
+        "displacement": 0,
+        "seed": 17
+      },
+      "reason": "主控保留：对单向色场加细微纸纹，适合资料册和包装资料；关闭位移，不冒充客户纸样实拍。",
+      "quality": 82
+    }
+  ],
+  "excluded": [
+    {
+      "types": [
+        "SimplexNoise"
+      ],
+      "reason": "主控排除：1440 原图的不规则云斑像污渍或 AI 网格渐变；Fractal 的纸色版另有明显同心色带。"
+    },
+    {
+      "types": [
+        "FractalNoise"
+      ],
+      "reason": "主控排除：1440 原图的不规则云斑像污渍或 AI 网格渐变；Fractal 的纸色版另有明显同心色带。"
+    },
+    {
+      "types": [
+        "WaveletNoise"
+      ],
+      "reason": "主控排除：1440 原图的不规则云斑像污渍或 AI 网格渐变；Fractal 的纸色版另有明显同心色带。"
+    },
+    {
+      "types": [
+        "Stone"
+      ],
+      "reason": "主控排除：与 Paper 难区分，不保留重复的哑光颗粒。"
+    },
+    {
+      "types": [
+        "BrushedMetal"
+      ],
+      "reason": "包内默认是带环境光的球体（Shape Effects），不是平面拉丝材质；容易看成产品或金属实物示意，不为凑材质改写其实现。"
+    },
+    {
+      "types": [
+        "Chrome",
+        "PolishedMirror",
+        "Prism"
+      ],
+      "reason": "镜面反射、光谱和色散会夺走正文的主次，容易落入通用科技风；不纳入本轮背景候选。"
+    },
+    {
+      "types": [
+        "Neon",
+        "Aurora",
+        "Glow",
+        "Beam",
+        "Plasma"
+      ],
+      "reason": "发光、高饱和和明显光效不符合工业资料背景的克制要求。"
+    },
+    {
+      "types": [
+        "MeshGradient",
+        "MultiPointGradient",
+        "FlowingGradient"
+      ],
+      "reason": "多点彩色渐变与流体场容易形成默认 AI 背景；本轮用单轴、偏心同色色场覆盖该需求。"
+    },
+    {
+      "types": [
+        "PerlinNoise"
+      ],
+      "reason": "已核包内定义；与 SimplexNoise 的宽尺度静态色场用途重合，本轮优先少而可区分的效果。"
+    },
+    {
+      "types": [
+        "GaborNoise",
+        "WorleyNoise"
+      ],
+      "reason": "已核包内定义；定向波纹和明显胞状纹理较有存在感，本轮不作为通用正文底。"
+    },
+    {
+      "types": [
+        "StudioBackground",
+        "VolumetricFog",
+        "Smoke"
+      ],
+      "reason": "摄影棚、空间雾与烟会暗示现场布景；无授权照片时不以抽象底图替代真实场景。"
+    },
+    {
+      "types": [
+        "GradientNoise",
+        "Crosshatch"
+      ],
+      "reason": "4.0.4 的 exports 列出子路径，但安装包对应入口文件缺失，实际 import 失败；不补入口、不换路径使用。"
+    },
+    {
+      "types": [
+        "ImageTexture",
+        "VideoTexture",
+        "WebcamTexture",
+        "Text"
+      ],
+      "reason": "不是本轮自包含抽象底图，涉及外部输入或具象信息；不引入照片、字体、媒体或摄像头。"
+    }
+  ]
+}
