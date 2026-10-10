@@ -2,7 +2,7 @@
 id: T-147
 title: good-css 可机判条目做成提交入口的质量反馈检查
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex T-147
 supersedes:
@@ -84,3 +84,8 @@ T-146：good-css 只写进规范文字没有效果（T-132）。改用提交入�
 **本票不升级；当前证据不支持立即把任一新项升硬门。** 优先候选是明确型号/参数的实际丢字，其次是实际被页头遮挡的锚点标题：结果直接伤害采购核对与导航，但本次真实样本零触发，须有真实问题与独立盲评对应后再决定。点击区可优先讨论导航/主要入口范围；须先处理系统 summary 的责任和高触发率，不能把所有小独立链接直接变成模型修正负担。hover 缺门控本次机械误报低，但缺实际触屏后果与盲评对应证据，继续反馈。产品图几何裁切有明显语义误报风险，只保留人工核对提示。
 
 已有 T-132 独立盲评 `artifacts/blind-t132-2026-10-08/x-result.json`（主工作区研究 artifacts）强调参数值/单位完整和手机页头排版，同时明确未验证导航、滚动与交互。本票的截断/点击/锚点方向与这些关注相关，**不等于五项已与该轮具体破绽逐一对应**；没有新增审美盲评，也不宣布审美通过。mainline 的评估四层、spec、CONTEXT 和 AGENTS 的现行检查语义已同步；`project_map.py status` 为 Problems 0、Stale living docs 0。
+
+## 合并验收（Claude，2026-10-10）
+
+合并为 7bceb3c。主控采纳建议：五项全部保持质量反馈，本票不升底线。另记：375 点击区偏小有 16 处来自系统图片署名 summary，属系统部件，后续另行处理，不交模型修。主工作区 `npm run typecheck` 退出 0；`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<AGENTS 指定路径> npm test` 248/248；`SITE_STORE=fs npm run build` 退出 0，输出在 artifacts/merge-7bceb3c/。
+
