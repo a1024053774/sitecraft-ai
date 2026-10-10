@@ -1,0 +1,97 @@
+{
+  "startedAt": "2026-10-10T03:53:33.663698+00:00",
+  "codeCommit": "89feb29d935860b355c2a27bf52246223a201550",
+  "plan": "artifacts/t145/main-data-plan.json",
+  "sourceRoot": "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data",
+  "cli": [
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "scripts/import-legacy-site-code.ts",
+        "--input",
+        "artifacts/t145/exports-batch/candidates.json",
+        "--out",
+        "/Users/luckye/Documents/Code/sitecraft-ai-t145/artifacts/t145/main-apply/import-demos.json"
+      ],
+      "exitCode": 0,
+      "report": "/Users/luckye/Documents/Code/sitecraft-ai-t145/artifacts/t145/main-apply/import-demos.json"
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "scripts/import-legacy-site-code.ts",
+        "--input",
+        "artifacts/t145/protected-input.json",
+        "--out",
+        "/Users/luckye/Documents/Code/sitecraft-ai-t145/artifacts/t145/main-apply/import-protected.json"
+      ],
+      "exitCode": 0,
+      "report": "/Users/luckye/Documents/Code/sitecraft-ai-t145/artifacts/t145/main-apply/import-protected.json"
+    }
+  ],
+  "deletedCounts": {
+    "sites": 9430,
+    "conversations": 2639,
+    "annotations": 0,
+    "leads": 12,
+    "uploads": 153,
+    "quality": 12,
+    "site-style-check": 209
+  },
+  "skipped": [],
+  "failures": [],
+  "completedAt": "2026-10-10T03:54:03.118463+00:00",
+  "preservation": {
+    "existingCodeSitesChecked": 1079,
+    "existingCodeSitesUnchanged": true,
+    "demoSourcesChecked": 13,
+    "demoSourcesUnchanged": true,
+    "retainedFilesChecked": 2302,
+    "changedOrMissingRetainedFiles": [],
+    "unexpectedAddedFiles": [],
+    "protectedSiteIds": [
+      "blind-p3i-20260920-withimage",
+      "p3-img-hx4k",
+      "t2chat-633e10c2-1abf-48b4-bf7c-4ff0a956f6c6",
+      "t2chat-d7a11220-c726-4d5a-ab21-10eacb541c7b"
+    ]
+  },
+  "writtenPaths": [
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/561a1113-4dab-49b6-81dc-ab7e3eb712a5.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/566fcfc1-3506-4075-95e9-9f18979614bc.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/662d5c97-56b4-40c9-b77c-54d71dc9e027.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/827de4c5-a7ad-44e0-9987-38892486e2a7.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/89f55641-6e28-45c4-a9f9-440a94171d3c.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/b1577055-1586-44bd-a9fc-59f1fe51646e.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/b9074a86-b348-4fd5-9885-cda33db06c59.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/blind-p3i-20260920-withimage.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/ca40d752-3e02-41ac-81ce-4d5b7dbf101c.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/d2814a68-2a04-460f-9641-309e31c72ee1.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/d33df027-d691-4be4-ac9f-5f64c1293b37.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/f51d4cd3-78ad-42db-a5f5-5afac2f1e967.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/f9f7f2d9-191d-475d-8511-a8d58353b6bd.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/p3-img-hx4k.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/t097-real-936749b-molding.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/t2chat-633e10c2-1abf-48b4-bf7c-4ff0a956f6c6.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/code-sites/t2chat-d7a11220-c726-4d5a-ab21-10eacb541c7b.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/561a1113-4dab-49b6-81dc-ab7e3eb712a5/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/566fcfc1-3506-4075-95e9-9f18979614bc/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/662d5c97-56b4-40c9-b77c-54d71dc9e027/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/827de4c5-a7ad-44e0-9987-38892486e2a7/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/89f55641-6e28-45c4-a9f9-440a94171d3c/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/b1577055-1586-44bd-a9fc-59f1fe51646e/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/b9074a86-b348-4fd5-9885-cda33db06c59/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/ca40d752-3e02-41ac-81ce-4d5b7dbf101c/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/d2814a68-2a04-460f-9641-309e31c72ee1/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/d33df027-d691-4be4-ac9f-5f64c1293b37/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/f51d4cd3-78ad-42db-a5f5-5afac2f1e967/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/f9f7f2d9-191d-475d-8511-a8d58353b6bd/legacy-import.json",
+    "/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data/conversations/t097-real-936749b-molding/legacy-import.json"
+  ],
+  "writtenCount": 30,
+  "existingWritesPreserved": [],
+  "deletedCount": 12455,
+  "status": "PASS"
+}

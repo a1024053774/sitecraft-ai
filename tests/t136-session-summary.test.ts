@@ -55,7 +55,7 @@ const request = (url: string, method: string, body?: unknown) => new Request(bas
   ...(body ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}) });
 const conversationPath = (id: string, conversationId: string) => path.join('.sitecraft-data/conversations', id, `${conversationId}.json`);
 async function makeSite() {
-  const response = await create(request('/api/sites', 'POST', { name: '青禾纸包装', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+  const response = await create(request('/api/sites', 'POST', { name: '青禾纸包装' }));
   assert.equal(response.status, 201); const { id } = await response.json();
   const start = await chat(request(`/api/sites/${id}/chat`, 'POST', { message: fixture.materials, baseRevision: 0 }), ctx(id));
   assert.equal(start.status, 200); return { id: id as string, state: await start.json() };

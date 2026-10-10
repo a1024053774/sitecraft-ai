@@ -40,7 +40,7 @@ test('同一会话保留补充事实、正常上传图片、三个版本与恢�
   const snapshots: CodeSiteRecord[] = [];
   const browser = await codeCheckBrowser();
   try {
-    const created = await create(post('/api/sites', { name: enrichmentCompany, templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+    const created = await create(post('/api/sites', { name: enrichmentCompany }));
     assert.equal(created.status, 201); const { id } = await created.json(), context = { params: Promise.resolve({ siteId: id }) };
     const read = async () => (await (await draft(new Request(`${base}/api/sites/${id}/draft`), context)).json()).codeSite as CodeSiteRecord;
     const started = await (await chat(post(`/api/sites/${id}/chat`, { message: enrichmentSteps[0], baseRevision: 0 }), context)).json();

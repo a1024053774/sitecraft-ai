@@ -18,7 +18,6 @@ import { useState } from "react";
 export type SidebarSection =
   | "sites"
   | "builder"
-  | "quality"
   | "leads"
   | "content"
   | "team"
@@ -27,7 +26,6 @@ export type SidebarSection =
 const workspaceItems = [
   { id: "sites", href: "/", label: "我的站点", icon: LayoutTemplate },
   { id: "builder", href: "/workspace?new=1", label: "AI 建站", icon: Sparkles },
-  { id: "quality", href: "/quality", label: "12组对照", icon: Columns3 },
   {
     id: "leads",
     href: "/leads",

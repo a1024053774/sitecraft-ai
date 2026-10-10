@@ -29,4 +29,4 @@ description: 新路线生成和修改站点代码的核心规范；每次模型�
 
 图片只能写 <img data-image-id="已提供的图片编号" alt="具体内容">，不写 src/srcset；系统解析路径与许可并汇总署名。产品图挨着对应产品、设备图挨着加工能力、检测图挨着质量。没有图不留占位框，不用假照片。用户资料或要求中明确提出询盘表单时，才放 <div data-system-inquiry></div>；没有要求就不放。表单和提交由系统提供，模型只配样式。
 
-本规范改编自 2026-10-07 route-probe 的 guide.md，合并本仓库 frontend-less-ai-tone 和 sitecraft-frontend-less-ai-tone 的事实、文案、层级、同族与成品规则。旧路线的 operation、adapter、禁止 CSS 约束不适用于 T-127 的站点代码。来源许可沿用各原 skill 的 SOURCE.md；没有引入模板或外部视觉资产。
+本规范改编自 2026-10-07 route-probe 的 guide.md，合并本仓库 frontend-less-ai-tone 和 sitecraft-frontend-less-ai-tone 的事实、文案、层级、同族与成品规则。站点代码遵守本规范的 HTML/CSS 与提交契约。来源许可沿用各原 skill 的 SOURCE.md；没有引入模板或外部视觉资产。

@@ -17,10 +17,11 @@ export type CodePlan = { summary: string; style: 'precision' | 'documentary'; st
   skeleton?: { id: string; reason: string }; skeletonOrder?: string[]; pages: Array<{ id: string; title: string; outline: string }> };
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
+  factReview?: 'legacy-unreviewed';
   viewports: Array<{ pageId: string; width: number; overflow: number; overlaps: number; contrastIssues: number; longLines: number }>;
 };
 export type CodeVersion = {
-  id: string; revision: number; author: 'assistant' | 'user'; summary: string; request: string; createdAt: string;
+  id: string; revision: number; author: 'assistant' | 'user' | 'legacy-import'; summary: string; request: string; createdAt: string;
   code: SiteCode; checks: CodeCheck; model?: string; restoredFrom?: string; name?: string;
 };
 export type CodeModelCall = {
@@ -41,7 +42,21 @@ export type CodeSiteRecord = {
   route: 'code'; siteId: string; name: string; conversationId: string; materials: string;
   preferences: CodePreferences; plan: CodePlan | null; versions: CodeVersion[]; currentVersionId: string | null;
   run: CodeRun | null; runs: CodeRun[]; updatedAt: string;
+  legacySource?: { revision: number; updatedAt: string };
 };
+export type UnavailableCodeSite = {
+  route: 'unavailable'; siteId: string; name: string; updatedAt: string;
+  status: '旧站转换失败' | '旧站点未转换，含用户上传，已保留'; readError: string;
+  checks?: CodeCheck; legacySource?: { revision: number; updatedAt: string };
+};
+export function codeCheckLabel(checks: CodeCheck) {
+  return checks.factReview === 'legacy-unreviewed'
+    ? `${checks.passed ? '确定性检查通过' : '确定性检查未过'} · 旧站转换未做模型校对`
+    : checks.passed ? '底线检查通过' : '底线检查未过';
+}
+export function codeVersionAuthor(author: CodeVersion['author']) {
+  return author === 'legacy-import' ? '旧站转换' : author === 'user' ? '你' : '助手';
+}
 export function currentCodeVersion(site: CodeSiteRecord) {
   return site.versions.find(v => v.id === site.currentVersionId) ?? null;
 }
@@ -67,10 +82,10 @@ export function escapeCodeText(value: string) {
 }
 
 // Model links use /<page id>. The system alone resolves them to a versioned preview URL.
-export function renderSiteCode(siteId: string, code: SiteCode, pageId: string, versionId = '', imageCredits: string[] = []) {
+export function renderSiteCode(siteId: string, code: SiteCode, pageId: string, versionId = '', imageCredits: string[] = [], basePath?: string) {
   const page = code.pages.find(p => p.id === pageId);
   if (!page) throw new Error('找不到这个页面');
-  const prefix = `/api/sites/${encodeURIComponent(siteId)}/code-preview`;
+  const prefix = basePath ?? `/api/sites/${encodeURIComponent(siteId)}/code-preview`;
   let usesIcons = false;
   const links = (html: string) => html.replace(/href="\/([a-z][a-z0-9-]*)(#[^"]*)?"/g, (all, id: string, hash = '') => code.pages.some(p => p.id === id)
     ? `href="${prefix}?page=${id}${versionId ? `&amp;version=${encodeURIComponent(versionId)}` : ''}${hash}"` : all)
@@ -81,5 +96,5 @@ export function renderSiteCode(siteId: string, code: SiteCode, pageId: string, v
     })
     .replace(/<div\b([^>]*?)data-system-inquiry=""([^>]*)><\/div>/g, (_all, before: string, after: string) => `<div${before}${after}><form class="sc-inquiry" action="/api/public/${encodeURIComponent(siteId)}/leads" method="post"><label>姓名<input name="name" required maxlength="80" autocomplete="name"></label><label>邮箱<input name="email" type="email" required maxlength="160" autocomplete="email"></label><label>公司<input name="company" maxlength="120" autocomplete="organization"></label><label>询盘内容<textarea name="message" required maxlength="4000" rows="5"></textarea></label><button type="submit">发送询盘</button></form></div>`);
   const credits = imageCredits.length ? `<details class="sc-image-credits"><summary>图片来源与许可</summary>${imageCredits.map(credit => `<p>${escapeCodeText(credit)}</p>`).join('')}</details>` : '';
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; base-uri 'none'; script-src 'none'"><title>${escapeCodeText(page.title)}</title><style>${code.css}</style><style>.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere} .sc-inquiry label{display:block;margin:12px 0}.sc-inquiry input,.sc-inquiry textarea{display:block;box-sizing:border-box;width:100%;max-width:100%;font:inherit;padding:10px;color:#222;background:#fff;border:1px solid #777}.sc-inquiry button{font:inherit;padding:12px 20px;color:#fff;background:#222;border:0}.sc-inquiry{max-width:40em}</style></head><body>${links(code.header)}${links(page.html)}${links(code.footer)}${credits}${usesIcons ? systemIconLicense : ''}</body></html>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; base-uri 'none'; script-src 'none'"><title>${escapeCodeText(page.title)}</title><style>${code.css}</style><style>.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere} .sc-inquiry label{display:block;margin:12px 0}.sc-inquiry input,.sc-inquiry textarea{display:block;box-sizing:border-box;width:100%;max-width:100%;font:inherit;padding:10px;color:#222;background:#fff;border:1px solid #777}.sc-inquiry button{font:inherit;padding:12px 20px;color:#fff;background:#222;border:0}.sc-inquiry{max-width:40em;min-width:0;grid-column:1/-1;width:100%}</style></head><body>${links(code.header)}${links(page.html)}${links(code.footer)}${credits}${usesIcons ? systemIconLicense : ''}</body></html>`;
 }

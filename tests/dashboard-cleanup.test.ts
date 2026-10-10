@@ -12,12 +12,3 @@ test("dashboard has no hardcoded demo metrics or Forge activity", async () => {
   const sidebar = await readFile(new URL("../components/app-sidebar.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(sidebar, /34%|3 \/ 10|Lydia Yang|lydia@sitecraft/);
 });
-
-test("quality blind mode hides nonce and internal comparison markers", async () => {
-  const source = await readFile(new URL("../app/(workspace)/quality/quality-client.tsx", import.meta.url), "utf8");
-  const matrix = await readFile(new URL("../lib/quality-matrix.ts", import.meta.url), "utf8");
-  assert.match(source, /blind \? null/);
-  assert.match(source, /blind \? .*内部信息/);
-  assert.match(source, /blind \? .*对照默认/);
-  assert.match(matrix, /runtimeFrozenHead/);
-});

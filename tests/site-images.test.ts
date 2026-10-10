@@ -7,7 +7,6 @@ import {
   inspectSiteImage,
   isOwnedSiteImageUrl,
   isTemplateStockUrl,
-  bindSiteImageOperations,
   listSiteImages,
   publicImagePayload,
   readSiteImage,
@@ -16,8 +15,6 @@ import {
   validateImageProvenance,
 } from "../lib/site-images.ts";
 import { imageFactsSchema, MISSING_FACT, parseImageFacts } from "../lib/image-facts.ts";
-import { draftWithFixtureProducts as defaultDraft } from "./fixtures/draft-with-products.ts";
-import { aiIntentResponseSchema, applySiteOperations } from "../lib/site-operations.ts";
 
 const ONE_BY_ONE_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=",
@@ -234,94 +231,6 @@ test("same-content uploads reuse the image id and update the latest usage catego
   assert.equal((await listSiteImages(siteD)).length, 1);
 });
 
-test("set_image_slot and set_product_image apply, invert, and reject template stock", () => {
-  const imageId = "img_testownedimage0001";
-  const url = `/api/sites/${siteA}/images/${imageId}`;
-  const options = { templateIds, lastChange: "image", siteId: siteA };
-  const applied = applySiteOperations(structuredClone(defaultDraft), [{
-    op: "set_image_slot",
-    target: "hero.image",
-    imageId,
-    url,
-    alt: { zh: "减速机实物", en: "Gearbox photo" },
-  }, {
-    op: "set_product_image",
-    productId: defaultDraft.products[0].id!,
-    imageId,
-    url,
-  }], options);
-  assert.equal(applied.changed, true);
-  assert.equal(applied.draft.content.hero.image?.imageId, imageId);
-  assert.equal(applied.draft.content.hero.image?.url, url);
-  assert.equal(applied.draft.products[0].image?.imageId, imageId);
-  assert.ok(applied.appliedTargets.includes("hero.image"));
-  assert.ok(applied.appliedTargets.includes(`products.${defaultDraft.products[0].id}.image`));
-
-  const restored = applySiteOperations(applied.draft, applied.inverseOperations, options);
-  assert.equal(restored.draft.content.hero.image, undefined);
-  assert.equal(restored.draft.products[0].image, undefined);
-
-  assert.throws(() => applySiteOperations(structuredClone(defaultDraft), [{
-    op: "set_image_slot",
-    target: "hero.image",
-    imageId,
-    url: "./images/hero.png",
-  }], options), /模板演示图|客户授权/);
-
-  assert.equal(aiIntentResponseSchema.safeParse({
-    type: "edit",
-    summary: "写入模板图",
-    operations: [{ op: "set_image_slot", target: "hero.image", imageId, url: "/api/templates/landwind/assets/images/hero.png" }],
-  }).success, true);
-  assert.throws(() => applySiteOperations(structuredClone(defaultDraft), [{
-    op: "set_image_slot",
-    target: "hero.image",
-    imageId,
-    url: "/api/templates/landwind/assets/images/hero.png",
-  }], options), /模板演示图|客户授权/);
-});
-
-test("bindSiteImageOperations refuses template stock even when imageId exists", async () => {
-  const saved = await saveSiteImage({
-    siteId: siteA,
-    bytes: pngWithSize(160, 160, 400),
-    originalName: "owned.png",
-  });
-  const operations = [{
-    op: "set_image_slot",
-    imageId: saved.imageId,
-    url: "./images/hero.png",
-  }];
-  await assert.rejects(
-    () => bindSiteImageOperations(siteA, operations),
-    (error: unknown) => {
-      assert.equal(error instanceof SiteImageError, true);
-      assert.equal(error instanceof Error && /模板演示图|客户授权/.test(error.message), true);
-      return true;
-    },
-  );
-  assert.equal(operations[0].url, "./images/hero.png");
-});
-
-test("set_product_image stores credit on the draft image ref", () => {
-  const imageId = "img_testownedimage0002";
-  const url = `/api/sites/${siteA}/images/${imageId}`;
-  const options = { templateIds, lastChange: "image-credit", siteId: siteA };
-  const applied = applySiteOperations(structuredClone(defaultDraft), [{
-    op: "set_product_image",
-    productId: defaultDraft.products[0].id!,
-    imageId,
-    url,
-    alt: { zh: "直角减速机实物", en: "Right-angle gearbox photo" },
-    credit: { zh: "图片：Whoisjohngalt / CC BY-SA 4.0", en: "Photo: Whoisjohngalt / CC BY-SA 4.0" },
-  }], options);
-  assert.equal(applied.changed, true);
-  assert.equal(applied.draft.products[0].image?.credit?.zh, "图片：Whoisjohngalt / CC BY-SA 4.0");
-  assert.equal(applied.draft.products[0].image?.credit?.en, "Photo: Whoisjohngalt / CC BY-SA 4.0");
-  const restored = applySiteOperations(applied.draft, applied.inverseOperations, options);
-  assert.equal(restored.draft.products[0].image, undefined);
-});
-
 test("image facts schema keeps 待补充, drops CSS/HTML/operations, and is not an edit intent", () => {
   const parsed = imageFactsSchema.safeParse({
     type: "image_facts",
@@ -340,7 +249,6 @@ test("image facts schema keeps 待补充, drops CSS/HTML/operations, and is not 
   assert.deepEqual(parsed.data.missingFacts, ["价格", "认证", "产能"]);
   assert.equal("operations" in parsed.data, false);
   assert.equal("css" in parsed.data, false);
-  assert.equal(aiIntentResponseSchema.safeParse(parsed.data).success, false);
   assert.equal(parseImageFacts(JSON.stringify({
     type: "edit",
     summary: "改草稿",

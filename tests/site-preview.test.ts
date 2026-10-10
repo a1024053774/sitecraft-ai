@@ -19,7 +19,7 @@ test("all-sites and delete lists reuse the shared preview instead of reserving a
   const table = readFileSync(new URL("../components/sites-table.tsx", import.meta.url), "utf8");
   const page = readFileSync(new URL("../app/(workspace)/sites/page.tsx", import.meta.url), "utf8");
   const panel = readFileSync(new URL("../components/site-delete-panel.tsx", import.meta.url), "utf8");
-  assert.match(page, /listExistingSites/);
+  assert.match(page, /listCodeSites/);
   assert.equal(page.includes("getSite("), false);
   assert.match(page, /SitesTable/);
   assert.match(table, /useSitePreview/);

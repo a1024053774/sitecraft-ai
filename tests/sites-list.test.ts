@@ -11,6 +11,6 @@ test("dashboard 查看全部 goes to the saved-site list instead of a same-page 
 
 test("the all-sites page lists existing records and does not create drafts", () => {
   const page = readFileSync(new URL("../app/(workspace)/sites/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /listExistingSites/);
+  assert.match(page, /listCodeSites/);
   assert.equal(page.includes("getSite("), false);
 });

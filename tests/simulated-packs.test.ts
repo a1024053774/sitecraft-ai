@@ -1,13 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { defaultDraft, visualBriefCatalog } from "../lib/site-document.ts";
-import { applySiteOperations } from "../lib/site-operations.ts";
 import {
   MATERIALS_CHAT_LIMIT,
   WORKSPACE_SITE_ID_PATTERN,
   buildMaterialsChatMessage,
-  parseWorkspaceSiteId,
   simulatedPackList,
   simulatedPacks,
   wrapCompanyMaterials,
@@ -144,88 +141,7 @@ test("simulated pack tokens stay out of the production system prompt", () => {
   for (const token of COLLIDING_TOKENS) {
     assert.equal(providerSource.includes(token), false, `prompt leaked colliding token ${token}`);
   }
-  assert.match(providerSource, /set_page_plan/);
-  assert.match(providerSource, /默认三项不是上限/);
-  assert.match(providerSource, /不能假装开通|不得把整站静默缩成只有首页/);
-});
-
-test("workspace materials journey stays on chat/commitOperations and isolates site ids", () => {
-  assert.equal(parseWorkspaceSiteId(null), "demo");
-  assert.equal(parseWorkspaceSiteId("p3-industrial"), "p3-industrial");
-  assert.equal(parseWorkspaceSiteId("../etc/passwd"), "demo");
-  assert.match(workspaceSource, /parseWorkspaceSiteId/);
-  assert.match(workspaceSource, /提供公司资料/);
-  assert.match(workspaceSource, /data-testid="site-page-nav"/);
-  assert.match(workspaceSource, /data-testid="open-materials"/);
-  assert.match(workspaceSource, /data-testid="simulated-pack"/);
-  assert.match(workspaceSource, /data-testid="submit-materials"/);
-  assert.match(workspaceSource, /data-testid="visual-brief-card"/);
-  assert.match(workspaceSource, /data-testid="workspace-draft-revision"/);
-  assert.match(workspaceSource, /模拟工业包|pack\.label/);
-  assert.match(workspaceSource, /buildMaterialsChatMessage|wrapCompanyMaterials/);
-  assert.match(workspaceSource, /\/api\/sites\/\$\{siteId\}\/chat/);
-  assert.match(workspaceSource, /\/published\/\$\{encodeURIComponent\(siteId\)\}/);
-  assert.match(workspaceSource, /\/api\/sites\/\$\{siteId\}\/images/);
-  assert.match(workspaceSource, /上传产品图/);
-  assert.match(workspaceSource, /data-testid="upload-product-photo"/);
-  assert.match(workspaceSource, /set_image_slot/);
-  assert.equal(workspaceSource.includes("sitecraft-frontend-less-ai-tone"), false);
-  assert.equal(/\bSkill\b/.test(workspaceSource), false);
-});
-
-test("workspace preview and published page read the same committed draft", () => {
-  const publishedPage = readFileSync(new URL("../app/published/[siteKey]/page.tsx", import.meta.url), "utf8");
-  const publishedClient = readFileSync(new URL("../app/published/[siteKey]/published-client.tsx", import.meta.url), "utf8");
-  const chatRoute = readFileSync(new URL("../app/api/sites/[siteId]/chat/route.ts", import.meta.url), "utf8");
-  const draftRoute = readFileSync(new URL("../app/api/sites/[siteId]/draft/route.ts", import.meta.url), "utf8");
-  assert.match(workspaceSource, /fetch\(`\/api\/sites\/\$\{(?:activeSiteId|siteId)\}\/draft`/);
-  assert.match(workspaceSource, /variant="workspace"/);
-  assert.match(publishedPage, /getExistingSite\(siteKey\)/);
-  assert.match(publishedPage, /initialDraft/);
-  assert.match(publishedClient, /variant="published"/);
-  assert.match(publishedClient, /OpenSourceTemplateFrame/);
-  assert.match(draftRoute, /commitOperations/);
-  assert.match(chatRoute, /requestStructuredOperations/);
-  assert.match(chatRoute, /commitOperations/);
-  const packLoader = workspaceSource.slice(
-    workspaceSource.indexOf("const loadSimulatedPack"),
-    workspaceSource.indexOf("const submitMaterials"),
-  );
-  assert.equal(packLoader.includes("set_visual_brief"), false, "pack buttons must not skip look-first");
-  assert.equal(packLoader.includes("set_template"), false);
-});
-
-test("commitOperations-compatible ops can write pack facts without guessing undeclared chrome", () => {
-  const templateIds = new Set(visualBriefCatalog.map((item) => item.templateId));
-  const industrial = applySiteOperations(structuredClone(defaultDraft), [
-    { op: "set_visual_brief", briefId: "engineering-industrial" },
-    { op: "set_text", target: "companyName", value: simulatedPacks.industrial.companyName },
-    { op: "set_text", target: "hero.title", locale: "zh", value: simulatedPacks.industrial.heroTitle },
-    { op: "set_text", target: "hero.subtitle", locale: "zh", value: simulatedPacks.industrial.heroSubtitle },
-    { op: "set_text", target: "hero.cta", locale: "zh", value: simulatedPacks.industrial.heroCta },
-    { op: "set_text", target: "contact.email", value: simulatedPacks.industrial.email },
-    { op: "set_text", target: "contact.phone", value: "待补充" },
-  ], { templateIds, lastChange: "pack-apply" });
-  assert.equal(industrial.changed, true);
-  assert.equal(industrial.draft.templateId, "screwfast");
-  assert.equal(industrial.draft.visualBrief.label, "工程工业");
-  assert.equal(industrial.draft.companyName, simulatedPacks.industrial.companyName);
-  assert.equal(industrial.draft.content.hero.title.zh.includes(simulatedPacks.industrial.nonce), true);
-  assert.equal(industrial.draft.content.contact.phone, "待补充");
-  assert.equal(industrial.draft.content.hero.title.zh.includes(simulatedPacks.export.nonce), false);
-
-  const exported = applySiteOperations(structuredClone(defaultDraft), [
-    { op: "set_visual_brief", briefId: "export-catalog" },
-    { op: "set_text", target: "companyName", value: simulatedPacks.export.companyName },
-    { op: "set_text", target: "hero.title", locale: "zh", value: simulatedPacks.export.heroTitle },
-    { op: "set_text", target: "hero.subtitle", locale: "zh", value: simulatedPacks.export.heroSubtitle },
-    { op: "set_text", target: "hero.cta", locale: "zh", value: simulatedPacks.export.heroCta },
-    { op: "set_text", target: "contact.email", value: simulatedPacks.export.email },
-  ], { templateIds, lastChange: "pack-apply" });
-  assert.equal(exported.draft.templateId, "landwind");
-  assert.equal(exported.draft.visualBrief.label, "蓝白目录");
-  assert.equal(exported.draft.content.hero.title.zh.includes(simulatedPacks.export.nonce), true);
-  assert.equal(exported.draft.companyName.includes(simulatedPacks.industrial.nonce.slice(0, 3)), false);
+  assert.doesNotMatch(providerSource, /set_page_plan|commitOperations/);
 });
 
 test("oversized materials stay within the chat character limit", () => {

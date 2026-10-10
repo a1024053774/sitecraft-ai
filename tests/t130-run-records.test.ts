@@ -47,7 +47,7 @@ test('real submission keeps every contrast refusal, advisory lines and run-scope
   const records = [];
   for (const bad of [true, false]) {
     reject = bad;
-    const created = await create(request('/api/sites', { name: '检查机械', templateId: 'forge', locales: ['zh'], generationRoute: 'code' }));
+    const created = await create(request('/api/sites', { name: '检查机械' }));
     assert.equal(created.status, 201); const { id } = await created.json(), ctx = { params: Promise.resolve({ siteId: id }) };
     const start = await chat(request(`/api/sites/${id}/chat`, { message: '公司名：检查机械\n精密零件加工。', baseRevision: 0 }), ctx);
     const state = await start.json();

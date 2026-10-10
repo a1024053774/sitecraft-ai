@@ -1,4 +1,10 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-const base=process.env.SITECRAFT_BASE||'http://127.0.0.1:3034'; const out=process.argv[2]||'artifacts/t028-site-creation'; const templates=['forge','screwfast','landwind','tailwind-landing']; const report={ticket:'T-028',command:`node scripts/verify-site-creation.mjs ${out}`,steps:[]};
-for(const templateId of templates){const input={name:`T028 ${templateId}`,templateId,locales:['zh','en']};const response=await fetch(`${base}/api/sites`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)});const payload=await response.json(); const published=await fetch(`${base}/published/${payload.id}`).then(r=>r.text()); report.steps.push({input,status:response.status,readback:{siteId:payload.id,templateId:payload.draft?.templateId,visualBriefTemplateId:payload.draft?.visualBrief?.templateId,siteName:payload.draft?.siteName,companyName:payload.draft?.companyName,visitorHasForge:published.includes('Forge Industrial')}});}
-report.result=report.steps.every(s=>s.status===201&&s.readback.templateId===s.input.templateId&&s.readback.visualBriefTemplateId===s.input.templateId&&s.readback.siteName==='未命名站点'&&s.readback.companyName==='未命名企业'&&!s.readback.visitorHasForge)?'PASS':'FAIL'; await mkdir(out,{recursive:true});await writeFile(`${out}/report.json`,JSON.stringify(report,null,2));console.log(JSON.stringify({result:report.result,artifact:`${out}/report.json`}));if(report.result!=='PASS')process.exitCode=1;
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+const base=process.env.SITECRAFT_BASE||'http://127.0.0.1:3034',out=process.argv[2]||`artifacts/site-creation-${Date.now()}`;
+await mkdir(out,{recursive:true});
+const created=await fetch(base+'/api/sites',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'未命名站点'})});
+assert.equal(created.status,201);const state=await created.json();
+const reread=await fetch(`${base}/api/sites/${state.id}/draft`).then(r=>r.json());
+assert.equal(reread.codeSite.siteId,state.id);assert.equal(reread.codeSite.versions.length,0);assert.equal('draft' in reread,false);
+await writeFile(out+'/report.json',JSON.stringify({at:new Date().toISOString(),siteId:state.id,result:'PASS',versions:0},null,2)+'\n');
+console.log('Code-only creation and refresh PASS: '+out+'/report.json');

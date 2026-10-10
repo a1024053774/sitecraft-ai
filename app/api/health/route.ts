@@ -1,13 +1,12 @@
 import { getAIProviderStatus } from "@/lib/ai-provider";
 import { checkDatabaseConnection } from "@/lib/postgres";
-import { getSiteStoreStatus } from "@/lib/site-store";
 import { codeContentThinkingMode } from "@/lib/code-site-model";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   const ai = getAIProviderStatus();
-  const store = getSiteStoreStatus();
+  const store = {driver:"development-file",shared:process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production"};
   let database = store.shared ? "checking" : "development-file";
 
   if (store.shared) {

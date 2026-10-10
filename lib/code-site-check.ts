@@ -7,7 +7,7 @@ import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
-function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[]) {
+function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], legacyImport = false) {
   const issues: string[] = [], cleaned: string[] = [];
   const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
   const safeCss = (style: CSSStyleDeclaration) => {
@@ -27,6 +27,7 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[]) 
       if (rule instanceof CSSNestedDeclarations) return safeCss(rule.style);
       if (rule instanceof CSSMediaRule) return `@media ${rule.conditionText}{${walk(rule.cssRules)}}`;
       if (rule instanceof CSSSupportsRule) return `@supports ${rule.conditionText}{${walk(rule.cssRules)}}`;
+      if (rule instanceof CSSContainerRule) return `@container ${rule.conditionText}{${walk(rule.cssRules)}}`;
       issues.push('CSS 使用未支持的资源规则'); return '';
     }).join('\n');
     return walk(sheet.cssRules);
@@ -35,6 +36,12 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[]) 
     const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
     for (const node of [...doc.querySelectorAll('*')]) {
       if (['HTML', 'HEAD', 'BODY'].includes(node.tagName)) continue;
+      if (legacyImport && node.tagName === 'FORM' && node.hasAttribute('data-sitecraft-inquiry')) {
+        const placeholder = doc.createElement('div');
+        placeholder.className = node.className; placeholder.setAttribute('data-system-inquiry', '');
+        node.replaceWith(placeholder); cleaned.push('旧询盘表单转换为系统部件'); continue;
+      }
+      if (!node.isConnected) continue;
       if (!allowed.has(node.tagName.toLowerCase())) { issues.push(`已去掉禁止元素 ${node.tagName.toLowerCase()}`); node.remove(); continue; }
       for (const attr of [...node.attributes]) {
         const name = attr.name, value = attr.value;
@@ -43,7 +50,7 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[]) 
           if (name === 'href' && (/^\/[a-z][a-z0-9-]*(?:#[a-zA-Z0-9_-]+)?$/.test(value) || /^#[a-zA-Z0-9_-]+$/.test(value) || /^(mailto|tel):[^\s<>]+$/.test(value))) continue;
           issues.push(`已去掉资源或空链接 ${name}=${value.slice(0,100)}`); node.removeAttribute(name); continue;
         }
-        if (/^(class|id|alt|title|role|lang|width|height|colspan|rowspan|scope|open|datetime)$/.test(name) || /^aria-[a-z-]+$/.test(name) || /^data-[a-z-]+$/.test(name)) continue;
+        if (/^(class|id|alt|title|role|lang|width|height|colspan|rowspan|scope|headers|open|datetime)$/.test(name) || /^aria-[a-z-]+$/.test(name) || /^data-[a-z-]+$/.test(name)) continue;
         issues.push(`已去掉属性 ${name}`); node.removeAttribute(name);
       }
       if (node.tagName === 'IMG') {
@@ -82,7 +89,17 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[]) 
   const readableFragment = (html: string) => {
     const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
     const auxiliary = [...doc.querySelectorAll('[data-label],[alt],[title],[aria-label]')].flatMap(node => ['data-label', 'alt', 'title', 'aria-label'].map(name => node.getAttribute(name) || '')).join(' ');
-    return `${doc.body.textContent || ''}\n辅助文案：${auxiliary}`;
+    // textContent concatenates independent cells and blocks (NAK80 + 1 becomes
+    // NAK801). Keep inline text continuous, but separate semantic text containers.
+    const boundaries = new Set('BODY HEADER FOOTER MAIN SECTION ARTICLE ASIDE NAV DIV P H1 H2 H3 H4 H5 H6 LI DT DD TR TH TD FIGURE FIGCAPTION BLOCKQUOTE ADDRESS'.split(' '));
+    const read = (node: Node): string => {
+      if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+      if (!(node instanceof Element)) return '';
+      if (node.tagName === 'BR') return '\n';
+      const text = [...node.childNodes].map(read).join('');
+      return boundaries.has(node.tagName) ? `\n${text}\n` : text;
+    };
+    return `${read(doc.body).replace(/[\u200b\u2060]/g, '')}\n辅助文案：${auxiliary}`;
   };
   // Shared fragments are identical on every page. Audit them once, while
   // keeping each page's own copy and auxiliary attributes in its own context.
@@ -108,10 +125,11 @@ function readGeneratedText() {
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[] }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true }) {
   const code = codeSiteSchema.parse(args.code);
   const browser = await codeCheckBrowser();
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
+  if (args.legacyImport) checks.factReview = 'legacy-unreviewed';
   try {
     const base = process.env.SITECRAFT_BASE || `http://127.0.0.1:${process.env.PORT || '3000'}`;
     // setDocumentContent retains the document MIME type: a JSON health document
@@ -122,10 +140,10 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}&&document.readyState==='complete'?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
-    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)})`);
+    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${!!args.legacyImport})`);
     checks.issues.push(...clean.issues); checks.cleaned = clean.cleaned;
     for (const contact of new Set(clean.contacts)) if (!args.materials.includes(contact.replace(/^(mailto|tel):/, ''))) checks.issues.push(`联系方式没有资料来源：${contact}`);
-    if (checks.issues.length) return { code: clean.code, checks };
+    if (checks.issues.length && !args.legacyImport) return { code: clean.code, checks };
     await browser.send('Network.setBlockedURLs', { urls: [] });
     const scan = (await readFile(path.join(process.cwd(), 'scripts/visitor-layout-scan.js'), 'utf8')).replace(/export default scanVisitorLayout;?/g, '').replace(/export function scanVisitorLayout/g, 'function scanVisitorLayout');
     const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
@@ -136,7 +154,15 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       for (const width of [375, 768, 1440]) {
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
-        await browser.evaluate(`(() => {if(document.contentType!=='text/html'||!document.querySelector('main h1'))throw new Error('底线检查未载入候选网页，本次未保存版本。')})()`);
+        const structure = await browser.evaluate<{ contentType: string; hasMainHeading: boolean }>(`({contentType:document.contentType,hasMainHeading:!!document.querySelector('main h1')})`);
+        if (structure.contentType !== 'text/html') throw new Error('底线检查未载入候选网页，本次未保存版本。');
+        // Missing candidate structure is a rejection, not a browser failure.
+        // Offline imports persist this result and continue with the next site.
+        if (!structure.hasMainHeading) {
+          const issue = `${page.id} 缺少 main 或 h1`;
+          if (!checks.issues.includes(issue)) checks.issues.push(issue);
+          return { code: clean.code, checks };
+        }
         await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
         const imageErrors = await browser.evaluate<string[]>(`Promise.all([...document.images].map(async image => {try{await image.decode();return ''}catch{return image.getAttribute('data-image-id')||'图片'}})).then(items=>items.filter(Boolean))`);
         if (imageErrors.length) checks.issues.push(`${page.id}/${width} 图片无法显示：${imageErrors.join('、')}`);
@@ -159,7 +185,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const marker = args.materials.match(/核验记号[：:]\s*([^。\n\s]+)/)?.[1];
     if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
-    if (!checks.issues.length) checks.issues.push(...await auditCodeFacts(args.materials, readable));
+    if (!checks.issues.length && !args.legacyImport) checks.issues.push(...await auditCodeFacts(args.materials, readable));
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
   } finally { await browser.close(); }

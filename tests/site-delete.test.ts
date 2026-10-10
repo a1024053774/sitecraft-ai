@@ -16,7 +16,7 @@ function uniqueSiteId() {
 }
 
 function siteRecordPath(siteId: string) {
-  return path.join(process.cwd(), ".sitecraft-data", "sites", `${siteId}.json`);
+  return path.join(process.cwd(), ".sitecraft-data", "code-sites", `${siteId}.json`);
 }
 
 function conversationDir(siteId: string) {
@@ -42,7 +42,8 @@ registerHooks({
 
 const { createLead } = await import("../lib/lead-store.ts") as typeof import("../lib/lead-store.ts");
 const { createConversation } = await import("../lib/conversation-store.ts") as typeof import("../lib/conversation-store.ts");
-const { getExistingSite, createSite } = await import("../lib/site-store.ts") as typeof import("../lib/site-store.ts");
+const { getCodeSite, createCodeSite } = await import("../lib/code-site-store.ts");
+const createSite = (siteId:string)=>createCodeSite(siteId,siteId,crypto.randomUUID());
 const { deleteSiteByUserChoice, SiteDeleteError } = await import("../lib/site-delete.ts") as typeof import("../lib/site-delete.ts");
 const { DELETE } = await import(pathToFileURL(path.join(process.cwd(), "app/api/sites/[siteId]/route.ts")).href) as {
   DELETE: (request: Request, context: { params: Promise<{ siteId: string }> }) => Promise<Response>;
@@ -83,7 +84,7 @@ test("a mismatched confirmation leaves the site, conversation and inquiry in pla
   assert.equal(existsSync(siteRecordPath(siteId)), true);
   assert.equal(existsSync(conversationDir(siteId)), true);
   assert.equal(existsSync(leadRecordPath(siteId)), true);
-  assert.equal(Boolean(await getExistingSite(siteId)), true);
+  assert.equal(Boolean(await getCodeSite(siteId)), true);
 });
 
 test("typing the site id deletes draft, conversation and inquiry without recreating them", async () => {
@@ -101,7 +102,7 @@ test("typing the site id deletes draft, conversation and inquiry without recreat
   assert.equal(existsSync(siteRecordPath(siteId)), false);
   assert.equal(existsSync(conversationDir(siteId)), false);
   assert.equal(existsSync(leadRecordPath(siteId)), false);
-  assert.equal(await getExistingSite(siteId), null);
+  assert.equal(await getCodeSite(siteId), null);
 });
 
 test("DELETE without a matching confirmSiteId does not remove the site file", async () => {
@@ -129,7 +130,7 @@ test("DELETE without a matching confirmSiteId does not remove the site file", as
 test("delete UI requires typed confirmation and does not schedule cleanup", () => {
   const panel = readFileSync(new URL("../components/site-delete-panel.tsx", import.meta.url), "utf8");
   const route = readFileSync(new URL("../app/api/sites/[siteId]/route.ts", import.meta.url), "utf8");
-  const workspace = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../components/code-workspace.tsx", import.meta.url), "utf8");
   const settings = readFileSync(new URL("../app/(workspace)/settings/page.tsx", import.meta.url), "utf8");
   assert.match(panel, /confirmSiteId/);
   assert.match(panel, /typed === siteId/);

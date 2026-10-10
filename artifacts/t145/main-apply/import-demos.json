@@ -1,0 +1,540 @@
+{
+  "at": "2026-10-10T03:53:47.763Z",
+  "input": "artifacts/t145/exports-batch/candidates.json",
+  "cwd": "/Users/luckye/Documents/Code/sitecraft-ai-t145",
+  "results": [
+    {
+      "siteId": "561a1113-4dab-49b6-81dc-ab7e3eb712a5",
+      "status": "applied",
+      "versionId": "b9bd5321-bfdf-432c-aacf-dd757afb9c65",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:34.244Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "566fcfc1-3506-4075-95e9-9f18979614bc",
+      "status": "applied",
+      "versionId": "9b7d8593-d542-4a6f-bcd9-27c88a359476",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:35.413Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "662d5c97-56b4-40c9-b77c-54d71dc9e027",
+      "status": "applied",
+      "versionId": "aff569f9-c6a8-4e16-9ef5-9ad2091661ca",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:36.468Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "827de4c5-a7ad-44e0-9987-38892486e2a7",
+      "status": "applied",
+      "versionId": "c34dbedc-f8a5-4990-812d-c920dc5e92d3",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:37.555Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "89f55641-6e28-45c4-a9f9-440a94171d3c",
+      "status": "applied",
+      "versionId": "ad72d6d8-022b-41db-8dcc-c71f0bfeb0f5",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:38.659Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "b1577055-1586-44bd-a9fc-59f1fe51646e",
+      "status": "applied",
+      "versionId": "300e5c26-971b-4c26-b837-7570eb383d2c",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:39.649Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "b9074a86-b348-4fd5-9885-cda33db06c59",
+      "status": "applied",
+      "versionId": "2470f75a-0daf-48a5-b113-65f0af3e679c",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:40.632Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "ca40d752-3e02-41ac-81ce-4d5b7dbf101c",
+      "status": "applied",
+      "versionId": "ca203741-6250-4b90-ad09-83e7d6180ceb",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:41.708Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "d2814a68-2a04-460f-9641-309e31c72ee1",
+      "status": "applied",
+      "versionId": "f057a1ce-66ae-436c-9bb8-b1a3e684c079",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:42.690Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "d33df027-d691-4be4-ac9f-5f64c1293b37",
+      "status": "applied",
+      "versionId": "2c63c2f0-571e-4692-b635-8242caf64384",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:43.829Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "f51d4cd3-78ad-42db-a5f5-5afac2f1e967",
+      "status": "applied",
+      "versionId": "b00d093b-2322-42fa-9d52-2f4699034079",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:44.833Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "f9f7f2d9-191d-475d-8511-a8d58353b6bd",
+      "status": "applied",
+      "versionId": "5de7d2bb-4f78-40cf-82d6-b8af5a728eef",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:45.827Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    },
+    {
+      "siteId": "t097-real-936749b-molding",
+      "status": "applied",
+      "versionId": "4cf03203-02aa-4021-9407-52b9d98db715",
+      "revision": 1,
+      "checks": {
+        "passed": true,
+        "issues": [],
+        "cleaned": [
+          "旧询盘表单转换为系统部件"
+        ],
+        "checkedAt": "2026-10-10T03:53:46.842Z",
+        "viewports": [
+          {
+            "pageId": "home",
+            "width": 375,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 768,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          },
+          {
+            "pageId": "home",
+            "width": 1440,
+            "overflow": 0,
+            "overlaps": 0,
+            "contrastIssues": 0,
+            "longLines": 0
+          }
+        ],
+        "factReview": "legacy-unreviewed"
+      }
+    }
+  ]
+}

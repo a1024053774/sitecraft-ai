@@ -1,5 +1,5 @@
 import { imageLicenses, imageUsageCategories, imageUsageScopes, listSiteImages, publicImagePayload, saveSiteImage, SiteImageError, type ImageLicense, type ImageUsageCategory, type ImageUsageScope } from "@/lib/site-images";
-import { getExistingSite } from "@/lib/site-store";
+import { getCodeSite } from "@/lib/code-site-store";
 import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
@@ -21,7 +21,7 @@ function imageErrorPayload(error: unknown) {
 export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   try {
-    if (!await getExistingSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
+    if (!await getCodeSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
     const records = await listSiteImages(siteId);
     return Response.json({
       siteId,
@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
 export async function POST(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   try {
-    if (!await getExistingSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
+    if (!await getCodeSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
     const form = await request.formData().catch(() => null);
     if (!form) return Response.json(userErrorPayload({ code: "image_invalid" }), { status: 400 });
     const file = form.get("file") ?? form.get("image");

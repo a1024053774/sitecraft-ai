@@ -57,7 +57,7 @@ export type AppendConversationTurnArgs = {
   outcome: ConversationTurnOutcome;
 };
 
-const storageRoot = path.join(process.cwd(), ".sitecraft-data", "conversations");
+const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "conversations");
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const outcomes = new Set<ConversationTurnOutcome>(["applied", "no_change", "conflict", "error"]);
@@ -428,7 +428,6 @@ export type ApplyConversationAlignmentArgs = {
   optionId?: string;
   selections?: Array<{ questionId: string; optionId: string; note?: string }>;
   note?: string;
-  imageId?: string;
   pendingRequest?: { message: string; baseRevision: number; selectedTarget: string | null } | null;
   startQuestion?: CurrentQuestion | null;
 };
@@ -441,7 +440,6 @@ function toAlignmentInput(args: ApplyConversationAlignmentArgs): AlignmentAction
     optionId: args.optionId,
     selections: args.selections,
     note: args.note,
-    imageId: args.imageId,
     pendingRequest: args.pendingRequest,
     startQuestion: args.startQuestion,
   };

@@ -9,7 +9,7 @@
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-049](tickets/T-049-roles-2026-09-29.md)，取代 T-033）：负责人只定方向和需求。Claude 规划、验收、整合推送；Codex（`codex-build` 等）和 Sonnet 5.5 子 agent 执行（Kiro 2026-10-01 起不再使用）；Codex Astra 审代码；Codex gpt-6.1-sol 盲评；Grok 做杂活；云端会话在 `cloud/*` 分支做票。
-- 现状（2026-10-08）：新路线已合并 T-128（站点代码、提交入口、版本、对话修改、撤销）、T-129（版本历史面板与「改回某版」）、T-130（评估集）、T-133（检查器误拦修正，基线轮 8/8 存版、最终拒收 0）。基线盲评：换公司判同模板 0/12（通过）；混排生成页被认出 8/8（未过）。T-132 只改规范文字未改善、不合并；T-134/T-135 分别做截图打磨和页面骨架，质量仍待评估。旧路线仍保留，待新路线达标后删除。历史见 [plan-history.md](../docs/project/plan-history.md)。
+- 现状（2026-10-10）：站点代码路线提供生成、对话修改、完整版本与恢复，评估入口为 eval:new-route。T-145 已移除旧运行路径和 vendor，主数据 13 站转换与批准的残留清理已完成；Astra NO_GO 的结构失败与查询导航问题修复后等待复审。当前页面质量按 T-143 的换公司与成对比较标准判断；历史见 [plan-history.md](../docs/project/plan-history.md)。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 
@@ -80,10 +80,10 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [AGENTS.md](../AGENTS.md) | `package.json`, `scripts/check-published.mjs`, `scripts/published-capture.mjs`, block-library preview path | 6c0d747 |
-| [CONTEXT.md](../CONTEXT.md) | `lib/site-document.ts`, `lib/site-operations.ts`, `lib/alignment.ts`, `lib/template-adapters/types.ts`, `lib/code-site*.ts`, block-library preview path, history/quality block variants | 6c0d747 |
-| [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**` | |
-| [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-00[1-9]-*.md`, `.project-map/tickets/T-01[0-4]-*.md` | |
-| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/template-adapters/types.ts`, `lib/template-adapters/registry.ts`, `lib/frontend-tone.ts`, `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | 65ba3d5 |
-| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/site-document.ts`, `lib/site-operations.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, `tests/helpers/workspace-browser.ts`, block-library preview path, history/quality block variants, T-109 equipment no-image rule | b881f9a |
+| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `app/api/**` | 94b64bf |
+| [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/code-site*.ts`, `lib/annotations.ts` | 94b64bf |
+| [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**`, `lib/code-site-store.ts`, `scripts/import-legacy-site-code.ts` | 94b64bf |
+| [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-127-*.md`, `.project-map/tickets/T-141-*.md`, `.project-map/tickets/T-145-*.md` | c31f76c |
+| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, `scripts/import-legacy-site-code.ts` | 94b64bf |
+| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/conversation-store.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `scripts/import-legacy-site-code.ts` | 94b64bf |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | 00a083e |

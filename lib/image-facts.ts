@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { schemaIssueFields } from "./schema-issue-fields.ts";
-import { localizedTextSchema } from "./site-document.ts";
+const localizedTextSchema = z.object({
+  zh: z.string().max(1000),
+  en: z.string().max(1000),
+});
 
 export const MISSING_FACT = "待补充";
 

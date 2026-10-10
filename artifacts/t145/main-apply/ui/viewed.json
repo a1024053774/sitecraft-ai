@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-10T03:56:18.552937+00:00",
+  "status": "PASS",
+  "viewed": [
+    "artifacts/t145/main-apply/ui/list-561a1113-4dab-49b6-81dc-ab7e3eb712a5.png",
+    "artifacts/t145/main-apply/ui/workspace-561a1113-4dab-49b6-81dc-ab7e3eb712a5.png",
+    "artifacts/t145/main-apply/ui/preview-561a1113-4dab-49b6-81dc-ab7e3eb712a5-375.png",
+    "artifacts/t145/main-apply/ui/list-89f55641-6e28-45c4-a9f9-440a94171d3c.png",
+    "artifacts/t145/main-apply/ui/workspace-89f55641-6e28-45c4-a9f9-440a94171d3c.png",
+    "artifacts/t145/main-apply/ui/preview-89f55641-6e28-45c4-a9f9-440a94171d3c-375.png",
+    "artifacts/t145/main-apply/ui/list-blind-p3i-20260920-withimage.png",
+    "artifacts/t145/main-apply/ui/protected-blind-p3i-20260920-withimage.png"
+  ],
+  "count": 8,
+  "observations": [
+    "Two list rows and workbench previews visibly show version 1 and their source companies.",
+    "Phone previews show all five molding products and both gearbox products.",
+    "Protected list and open view show the exact retained-upload reason; no default preview."
+  ],
+  "scope": "Executor visual inspection only; no independent aesthetic verdict."
+}
