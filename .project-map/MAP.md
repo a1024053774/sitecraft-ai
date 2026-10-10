@@ -68,6 +68,8 @@
 ## Out of scope
 
 - [T-134](tickets/T-134-screenshot-polish.md) 截图打磨：成对 2/4 持平、用量约 2 倍，不合并（2026-10-09）
+- [T-149](tickets/T-149-oilui-method-in-planning.md) Oil UI 出发点进规划：联合快速评估新旧成对选新版 1/3，未合并，分支保留（2026-10-10）
+- [T-150](tickets/T-150-multi-direction-pick.md) 多方向挑选：依赖 T-149 无效果，按约定关闭（2026-10-10）
 - [T-138](tickets/T-138-cut-deepseek-tokens.md) 单站降三分之一不可达：写页关思考盲评 2/2 变差、事实校对关思考 6/6 漏拦；已合并 repair 非思考与快速档，T-142 后快速档单站 91k（-10%）（2026-10-09）
 - [T-135](tickets/T-135-reference-skeletons.md) 骨架卡已合并可用；8 组合整轮验收按 T-143 与预算不再跑，快速档用到 2–3 种骨架（2026-10-09）
 - [T-132](tickets/T-132-core-spec-good-css.md) 只改规范文字（good-css + 生成感引导）：三种盲评无可测改善，不合并（2026-10-08）

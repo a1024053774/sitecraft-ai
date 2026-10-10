@@ -2,7 +2,7 @@
 id: T-150
 title: oil-ui 式多方向挑选：生成整站前先出 2–3 个首屏方向供用户挑
 type: build
-status: open
+status: out-of-scope
 blocked_by: [T-149, T-145]
 claimed_by:
 supersedes:
@@ -22,3 +22,8 @@ T-146：用户在一个抽象的风格名和两个滑杆之间做选择，很难
 - [ ] 方向差异由独立盲评判定：同一公司的 2–3 个方向不应被认为是同一模板；挑中方向生成的整站与不挑直接生成的整站做成对比较（T-143 口径）
 - [ ] 每次挑选增加的 token 写进 Resolution
 - [ ] Astra 审查通过；typecheck、test、build 通过；spec、intent、CONTEXT 同步
+
+### 结项（Claude，2026-10-10）
+
+按 T-146 交接约定「T-149 盲评没效果就关掉」：T-149 联合评估新旧成对比较新版 1/3，未合并（见 T-149 结项），本票不做。
+
