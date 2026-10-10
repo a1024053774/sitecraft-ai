@@ -2,7 +2,7 @@ import { after } from 'next/server.js';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
-import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, codeModelCalls } from './code-site-model.ts';
+import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, translateSiteCode, codeModelCalls } from './code-site-model.ts';
 import { CodeRepairError } from './code-site-repair.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
@@ -10,12 +10,13 @@ import { AlignmentActionError, AlignmentTextTooLongError, applyCommittedResult, 
 
 
 const requestSchema = z.object({
-  action: z.enum(['start', 'select', 'confirm', 'state', 'cancel']).optional(), message: z.string().trim().min(1).max(4000).optional(),
+  action: z.enum(['start', 'select', 'confirm', 'state', 'cancel', 'translate']).optional(), message: z.string().trim().min(1).max(4000).optional(),
   baseRevision: z.number().int().nonnegative().optional(), questionId: z.string().max(100).optional(),
   questionRevision: z.number().int().nonnegative().optional(), optionId: z.string().max(80).optional(),
   preferences: z.object({ style: z.enum(['auto', 'precision', 'documentary']), layout: z.number().int().min(1).max(10), density: z.number().int().min(1).max(10) }).optional(),
 });
 const active = (globalThis as typeof globalThis & { __codeRuns?: Set<string> }).__codeRuns ??= new Set<string>();
+class CodeRunConflictError extends Error {}
 export async function codeWorkspaceState(site: CodeSiteRecord) {
   try {
     const conversation = await getConversation(site.siteId, site.conversationId);
@@ -44,10 +45,10 @@ async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
 }
 async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number) {
   return updateCodeSite(siteId, site => {
-    if (site.run?.status === 'running') throw new Error('当前任务还在进行，请等待完成。');
-    if ((currentCodeVersion(site)?.revision ?? 0) !== baseRevision) throw new Error('版本已经更新，请刷新后再试。');
+    if (site.run?.status === 'running') throw new CodeRunConflictError('当前任务还在进行，请等待完成。');
+    if ((currentCodeVersion(site)?.revision ?? 0) !== baseRevision) throw new CodeRunConflictError('版本已经更新，请刷新后再试。');
     const now = new Date().toISOString();
-    return { run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'plan' ? '读资料，规划页面大纲' : kind === 'edit' ? '理解修改要求，查阅版本目录' : '按方案写站点代码',
+    return { run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'translate' ? '按当前中文版逐页翻译英文' : kind === 'plan' ? '读资料，规划页面大纲' : kind === 'edit' ? '理解修改要求，查阅版本目录' : '按方案写站点代码',
       request, baseRevision, startedAt: now, updatedAt: now, repairRound: 0, issues: [], attempts: [] } };
   });
 }
@@ -60,6 +61,7 @@ function schedule(site: CodeSiteRecord) {
       if (!await getCodeSite(site.siteId)) return;
       const message = error instanceof Error ? error.message : '本次任务失败，未保存版本。';
       await runStep(site.siteId, run.id, { status: 'error', step: message,
+        ...(run.kind === 'translate' ? { repairRound: Math.max(0, ...(codeModelCalls.getStore() ?? []).map(call => call.translationInput?.correctionRound ?? 0)) } : {}),
         ...(error instanceof CodeRepairError ? { repairFailure: { reason: message, response: error.response } } : {}) });
       await updateConversationAlignment(site.siteId, site.conversationId, record => ({ ...record, alignment: applyCommittedResult(record.alignment, { status: 'error', summary: message }) }));
       await appendConversationTurn({ siteId: site.siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: message, appliedOperationsSummary: '未保存版本', outcome: 'error' });
@@ -69,6 +71,32 @@ function schedule(site: CodeSiteRecord) {
 async function execute(siteId: string, runId: string) {
   let site = (await getCodeSite(siteId))!; const run = site.run!;
   if (run.id !== runId) throw new Error('任务已经更新');
+  if (run.kind === 'translate') {
+    const source = currentCodeVersion(site);
+    if (!source?.checks.passed) throw new Error('请先完成中文版的底线检查。');
+    let result = await translateSiteCode(source.code, site.name, [], 2, undefined, codeFactMaterials(site));
+    let round = result.correctionRounds;
+    while (round <= 2) {
+      await runStep(siteId, runId, { step: '检查英文文字保真与三档页面布局', repairRound: round });
+      const committed = await commitSiteCode({ siteId, baseRevision: run.baseRevision, englishCode: result.code, author: 'assistant',
+        summary: source.english ? '按当前中文版重新翻译英文版' : '生成英文版', request: run.request, model: result.model });
+      if (committed.status === 'conflict') throw new Error('中文版已经更新，本次没有覆盖当前站点。');
+      const check = committed.status === 'applied' ? committed.version.english!.checks : committed.checks;
+      await runStep(siteId, runId, { issues: check.issues, attempts: [...(await getCodeSite(siteId))!.run!.attempts, { code: result.code, checks: check }] });
+      if (committed.status === 'applied') {
+        const summary = `英文版已保存为版本 ${committed.version.revision}，基于中文第 ${committed.version.english!.sourceRevision} 版。`;
+        await appendConversationTurn({ siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: summary, appliedOperationsSummary: committed.version.summary, outcome: 'applied' });
+        await runStep(siteId, runId, { status: 'complete', step: summary, versionId: committed.version.id });
+        return;
+      }
+      if (round === 2) throw new Error('两轮翻译修正后仍未通过检查，未保存英文版。请查看完整问题后调整中文版或重试。');
+      await runStep(siteId, runId, { step: `英文版未过，修正译文（${round + 1}/2）`, repairRound: round + 1 });
+      round++;
+      result = await translateSiteCode(source.code, site.name, committed.checks.issues, 2 - round, result.code, codeFactMaterials(site));
+      round += result.correctionRounds;
+    }
+    return;
+  }
   if (run.kind === 'plan') {
     const result = await planSiteCode(site.materials, site.preferences, run.request);
     site = await updateCodeSite(siteId, () => ({ plan: result.plan }));
@@ -144,7 +172,11 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
     if (site.run?.status === 'running') return Response.json({ userMessage: '当前任务还在进行，请等待完成。' }, { status: 409 });
     if (input.baseRevision !== undefined && input.baseRevision !== (currentCodeVersion(site)?.revision ?? 0)) return Response.json({ userMessage: '版本已经更新，请刷新后再试。' }, { status: 409 });
     const conversation = (await getConversation(siteId, site.conversationId))!;
-    if (input.action === 'cancel') {
+    if (input.action === 'translate') {
+      if (input.baseRevision === undefined) return Response.json({ userMessage: '请提供当前版本编号。' }, { status: 400 });
+      if (!currentCodeVersion(site)?.checks.passed) return Response.json({ userMessage: '请先生成并检查中文版。' }, { status: 422 });
+      site = await claimRun(siteId, 'translate', currentCodeVersion(site)!.english ? '按当前中文版重新翻译英文版' : '生成英文版', input.baseRevision); schedule(site);
+    } else if (input.action === 'cancel') {
       await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'cancel' });
     } else if (input.action === 'select') {
       if (conversation.alignment.currentQuestion?.kind !== 'style') return Response.json({ userMessage: '当前不是风格选择，请使用当前卡片。' }, { status: 409 });
@@ -166,7 +198,7 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
       } else {
         if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
         if (conversation.alignment.styleOptionId) await updateConversationAlignment(siteId, site.conversationId, record => ({ ...record, alignment: { ...record.alignment, styleOptionId: null, confirmClaimed: false, lastResult: null } }));
-        const company = input.message.match(/公司名[：:]\s*([^\n]+)/)?.[1]?.trim();
+        const company = input.message.match(/^[ \t]*公司名[：:][ \t]*([^\n]+)/m)?.[1]?.trim();
         site = await updateCodeSite(siteId, () => ({ materials: input.message!, ...(company ? { name: company.slice(0, 100) } : {}) }));
         await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'start',
           pendingRequest: { message: input.message, baseRevision: 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
@@ -174,6 +206,6 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
     } else return Response.json({ userMessage: '请提供公司资料或选择当前方案。' }, { status: 400 });
     return Response.json(await codeWorkspaceState((await getCodeSite(siteId))!), { status: site.run?.status === 'running' ? 202 : 200 });
   } catch (error) {
-    return Response.json({ userMessage: error instanceof Error ? error.message : '请求失败，未保存版本。' }, { status: error instanceof AlignmentActionError ? error.status : 422 });
+    return Response.json({ userMessage: error instanceof Error ? error.message : '请求失败，未保存版本。' }, { status: error instanceof CodeRunConflictError ? 409 : error instanceof AlignmentActionError ? error.status : 422 });
   }
 }

@@ -21,9 +21,12 @@ export function CodeVersionHistory({ site, busy, onUpdate, onClose }: {
   const [width, setWidth] = useState(1440), [available, setAvailable] = useState(800), [page, setPage] = useState('home');
   const [name, setName] = useState(''), [saving, setSaving] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [readyUrl, setReadyUrl] = useState('');
+  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
   const selected = site.versions.find(version => version.id === selectedId);
-  const activePage = selected?.code.pages.some(item => item.id === page) ? page : 'home';
-  const previewUrl = selected ? `/api/sites/${site.siteId}/code-preview?version=${selected.id}&page=${activePage}` : '';
+  const activeLanguage = selected?.english && language === 'en' ? 'en' : 'zh';
+  const pages = activeLanguage === 'en' ? selected!.english!.pages : selected?.code.pages ?? [];
+  const activePage = pages.some(item => item.id === page) ? page : 'home';
+  const previewUrl = selected ? `/api/sites/${site.siteId}/code-preview?version=${selected.id}&page=${activePage}${activeLanguage === 'en' ? '&language=en' : ''}` : '';
   const scale = Math.min(1, available / width), disabled = busy || saving;
   useEffect(() => { setReadyUrl(''); }, [previewUrl]);
   useEffect(() => { const node = dialog.current!; node.showModal(); return () => node.close(); }, []);
@@ -73,7 +76,7 @@ export function CodeVersionHistory({ site, busy, onUpdate, onClose }: {
           <div className={styles.detailHead}><div><h3>{selected.name || `第 ${selected.revision} 版`}{selected.id === site.currentVersionId && <small>当前版本</small>}</h3><p>{time(new Date(selected.createdAt))} · {codeVersionAuthor(selected.author)} · {selected.summary}</p></div><button className="primary-button" disabled={disabled || selected.id === site.currentVersionId} onClick={() => void mutate('restore')} data-testid="restore-version">{saving ? '正在保存…' : '恢复到这个版本'}</button></div>
           <form className={styles.naming} onSubmit={event => void mutate('name', event)}><label htmlFor="version-name">版本名称</label><input id="version-name" aria-label="版本名称" placeholder="例如：产品目录确认版" value={name} maxLength={80} onChange={event => setName(event.target.value)} disabled={disabled} /><button className="secondary-button" disabled={disabled || name.trim() === (selected.name ?? '')} type="submit">保存名称</button></form>
           {error && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
-          <div className={styles.previewTools}><select aria-label="版本页面" value={activePage} onChange={event => setPage(event.target.value)}>{selected.code.pages.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select><div className="device-toggle" aria-label="版本预览宽度">{[1440, 768, 375].map(value => <button key={value} className={width === value ? 'active' : ''} aria-pressed={width === value} onClick={() => setWidth(value)}>{value}</button>)}</div><span>{codeCheckLabel(selected.checks)}</span></div>
+          <div className={styles.previewTools}>{selected.english && <select aria-label="版本语言" value={activeLanguage} onChange={event => setLanguage(event.target.value as 'zh' | 'en')}><option value="zh">中文</option><option value="en">English</option></select>}<select aria-label="版本页面" value={activePage} onChange={event => setPage(event.target.value)}>{pages.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select><div className="device-toggle" aria-label="版本预览宽度">{[1440, 768, 375].map(value => <button key={value} className={width === value ? 'active' : ''} aria-pressed={width === value} onClick={() => setWidth(value)}>{value}</button>)}</div><span>{activeLanguage === 'en' ? `英文版 · 基于中文第 ${selected.english!.sourceRevision} 版 · ${codeCheckLabel(selected.english!.checks)}` : codeCheckLabel(selected.checks)}</span></div>
           <div ref={stage} className={styles.stage}><div className={styles.canvas} style={{ width: width * scale, height: 900 * scale }}>
             <iframe key={previewUrl} src={previewUrl} title={`第 ${selected.revision} 版 · ${selected.code.pages.find(item => item.id === activePage)?.title}预览`} sandbox="allow-forms" style={{ width, height: 900, transform: `scale(${scale})` }} onLoad={() => setReadyUrl(previewUrl)} data-testid="version-preview" />
             {readyUrl !== previewUrl && <div className={styles.loading} role="status" data-testid="version-preview-loading">正在载入第 {selected.revision} 版…</div>}

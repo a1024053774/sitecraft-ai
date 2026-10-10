@@ -6,7 +6,7 @@ import { ArrowLeft, Check, FileText, History, Image as ImageIcon, LoaderCircle, 
 import Papa from 'papaparse';
 import readXlsxFile from 'read-excel-file';
 import type { CodeSiteRecord, CodePreferences } from '@/lib/code-site';
-import { codeCheckLabel, codeVersionAuthor } from '@/lib/code-site';
+import { codeCheckLabel, codeVersionAuthor, chineseCodeRevision, codeFactMaterials, explicitEnglishCompanyName } from '@/lib/code-site';
 import type { AlignmentPublicView } from '@/lib/alignment';
 import type { ConversationTurn } from '@/lib/conversation-store';
 import { simulatedPackList } from '@/lib/simulated-packs';
@@ -23,6 +23,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [category, setCategory] = useState('product'), [license, setLicense] = useState('user-provided');
   const [sourceUrl, setSourceUrl] = useState(''), [licenseUrl, setLicenseUrl] = useState(''), [author, setAuthor] = useState(''), [attribution, setAttribution] = useState('');
   const [previewReady, setPreviewReady] = useState(false);
+  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const stage = useRef<HTMLDivElement>(null), [availableWidth, setAvailableWidth] = useState(1000);
@@ -37,9 +38,11 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const running = site.run?.status === 'running' && !conversationUnavailable, busy = sending || running;
   const progressText = conversationUnavailable && site.run?.status === 'error'
     ? '上次任务未完成，完整检查问题仍保留。' : site.run?.step;
-  const pages = version?.code.pages ?? site.plan?.pages ?? [];
+  const english = version?.english;
+  const activeLanguage = language === 'en' && english ? 'en' : 'zh';
+  const pages = activeLanguage === 'en' ? english!.pages : version?.code.pages ?? site.plan?.pages ?? [];
   const activePage = pages.some(p => p.id === page) ? page : 'home';
-  const previewUrl = version ? `/api/sites/${siteId}/code-preview?page=${activePage}&version=${version.id}` : '';
+  const previewUrl = version ? `/api/sites/${siteId}/code-preview?page=${activePage}&version=${version.id}${activeLanguage === 'en' ? '&language=en' : ''}` : '';
   useEffect(() => { setPreviewReady(false); }, [previewUrl]);
   async function request(body: Record<string, unknown>) {
     const response = await fetch(`/api/sites/${siteId}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -111,13 +114,13 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="topbar-tools"><div className="device-toggle" aria-label="预览宽度">{[1440, 768, 375].map(w => <button key={w} aria-pressed={width === w} className={width === w ? 'active' : ''} onClick={() => setWidth(w)}>{w}</button>)}</div><button className="icon-button" aria-label="撤销" disabled={busy || site.versions.length < 2} onClick={() => void undo()}><RotateCcw size={16} /></button><button className="icon-button" aria-label="删除站点" data-testid="toolbar-delete-site" disabled={busy} onClick={() => setDeleteOpen(true)}><Trash2 size={16} /></button></div>
     </header>
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`}>
-      <div className="site-page-chrome"><nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => setPage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
+      <div className="site-page-chrome">{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => setPage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
         {version ? <><iframe key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms" data-testid="code-preview" onLoad={() => setPreviewReady(true)} />{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
       </div></div>
     </main>
     <aside className={`builder-chat ${pane !== 'chat' ? 'mobile-hidden' : ''}`} aria-label="对话">
-      <div className="builder-chat-head"><strong data-testid="code-revision">{version ? `当前版本 · v${version.revision}` : '公司资料与需求'}</strong><small>中文网站</small></div>
+      <div className="builder-chat-head"><strong data-testid="code-revision">{version ? `当前版本 · v${version.revision}` : '公司资料与需求'}</strong><small>{english ? '中英文网站' : '中文网站'}</small></div>
       <div className="chat-messages">
         {state.conversationError && <p className="code-error" role="alert" data-testid="code-conversation-error">{state.conversationError}</p>}
         {!state.turns.length && !conversationUnavailable && <div className="message assistant"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
@@ -131,6 +134,11 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {alignment?.awaitingConfirmation && !busy && site.plan && <section className="alignment-panel" aria-label="确认页面大纲" data-testid="code-plan"><strong>{site.plan.summary}</strong><ol>{site.plan.pages.map(p => <li key={p.id}><strong>{p.title}</strong><p>{p.outline}</p></li>)}</ol><button className="primary-button" onClick={() => void perform({ action: 'confirm', questionId: alignment.questionId, questionRevision: alignment.questionRevision })}>确认并生成</button></section>}
         {site.run && (running || site.run.issues.length > 0 || state.turns.at(-1)?.aiSummary !== progressText) && <div className={`message assistant ${site.run.status}`}><div className="message-bubble" role="status" data-testid="code-progress">{running && <LoaderCircle className="spin" size={14} />} {progressText}{site.run.issues.length > 0 && <details data-testid="code-run-issues"><summary>查看完整检查问题（{site.run.issues.length} 项）</summary><ul>{site.run.issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul></details>}</div></div>}
         {version && <p className="code-check-receipt" data-testid="code-check-receipt">版本 {version.revision} · {codeVersionAuthor(version.author)} · {version.summary} · {codeCheckLabel(version.checks)}</p>}
+        {version?.checks.passed && !conversationUnavailable && <section className="alignment-panel code-english-panel" aria-label="英文版">
+          <p data-testid="english-status">{english ? `英文版基于中文第 ${english.sourceRevision} 版${english.sourceRevision !== chineseCodeRevision(version) ? '，已落后于当前中文版。' : '。'}` : '中文版满意了吗？可以沿用当前页面生成英文版。'}</p>
+          {english && !explicitEnglishCompanyName(codeFactMaterials(site)) && <p data-testid="english-company-name-notice">资料里没有英文公司名，英文版沿用中文名；补充后可重新翻译。</p>}
+          <button className="secondary-button" data-testid="generate-english" disabled={busy} onClick={() => void perform({ action: 'translate', baseRevision: version.revision })}>{running && site.run?.kind === 'translate' ? '正在翻译…' : english ? '按当前中文版重新翻译' : '生成英文版'}</button>
+        </section>}
         {error && <p className="code-error" role="alert">{error}</p>}
       </div>
       <div className="chat-input-wrap">

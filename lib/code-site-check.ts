@@ -5,6 +5,7 @@ import { codeSiteSchema, renderSiteCode, type SiteCode, type CodeCheck, type Cod
 import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
+import { englishFidelity } from './code-site-english.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
 function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], legacyImport = false) {
@@ -108,19 +109,19 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
 }
 // Browser computed values have already resolved variables, shorthand and nesting.
 function readGeneratedText() {
-  const texts = new Set<string>();
+  const texts: Array<{ key: string; text: string }> = [];
   const strings = (value: string) => [...value.matchAll(/"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g)]
     .map(match => (match[1] ?? match[2]).replace(/\\([0-9a-f]{1,6})\s?|\\(.)/gi, (_escape, hex, char) => hex ? String.fromCodePoint(parseInt(hex, 16)) : char)).join('');
-  for (const el of document.querySelectorAll('*')) {
+  for (const [index, el] of [...document.querySelectorAll('*')].entries()) {
     const style = getComputedStyle(el);
     if (style.display === 'list-item') {
-      const text = strings(style.listStyleType); if (text) texts.add(text);
+      const text = strings(style.listStyleType); if (text) texts.push({ key: `${index}:list-style`, text });
     }
     for (const pseudo of ['::before', '::after', '::marker']) {
-      const text = strings(getComputedStyle(el, pseudo).content); if (text) texts.add(text);
+      const text = strings(getComputedStyle(el, pseudo).content); if (text) texts.push({ key: `${index}:${pseudo}`, text });
     }
   }
-  return [...texts];
+  return texts;
 }
 // Browser-only diagnostics. None of these findings enter checks.issues or repair decisions.
 function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[]): CodeQualityFeedback {
@@ -297,7 +298,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string }) {
   const code = codeSiteSchema.parse(args.code);
   const browser = await codeCheckBrowser();
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
@@ -314,6 +315,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
     const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${!!args.legacyImport})`);
     checks.issues.push(...clean.issues); checks.cleaned = clean.cleaned;
+    if (args.translationSource) checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)})`));
     for (const contact of new Set(clean.contacts)) if (!args.materials.includes(contact.replace(/^(mailto|tel):/, ''))) checks.issues.push(`联系方式没有资料来源：${contact}`);
     if (checks.issues.length && !args.legacyImport) return { code: clean.code, checks };
     await browser.send('Network.setBlockedURLs', { urls: [] });
@@ -325,7 +327,16 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     for (const page of clean.code.pages) {
       for (const width of [375, 768, 1440]) {
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-        await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
+        const languageLinks = { zh: `/published/${args.siteId}?page=${page.id}`, en: `/published/${args.siteId}/en?page=${page.id}` };
+        let originalGenerated: ReturnType<typeof readGeneratedText> = [];
+        if (args.translationSource) {
+          // Match pseudo content at the same rendered DOM position and width.
+          // Both documents include the system language links and components.
+          await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, args.translationSource, page.id, '', credits, undefined, { language: 'zh', languageLinks }) });
+          await browser.evaluate('document.fonts.ready');
+          originalGenerated = await browser.evaluate(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readGeneratedText.toString()})()})()`);
+        }
+        await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits, undefined, args.translationSource ? { language: 'en', languageLinks } : {}) });
         const structure = await browser.evaluate<{ contentType: string; hasMainHeading: boolean }>(`({contentType:document.contentType,hasMainHeading:!!document.querySelector('main h1')})`);
         if (structure.contentType !== 'text/html') throw new Error('底线检查未载入候选网页，本次未保存版本。');
         // Missing candidate structure is a rejection, not a browser failure.
@@ -338,8 +349,14 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
         const imageErrors = await browser.evaluate<string[]>(`Promise.all([...document.images].map(async image => {try{await image.decode();return ''}catch{return image.getAttribute('data-image-id')||'图片'}})).then(items=>items.filter(Boolean))`);
         if (imageErrors.length) checks.issues.push(`${page.id}/${width} 图片无法显示：${imageErrors.join('、')}`);
-        const layout = await browser.evaluate<LayoutReport & { generatedText: string[] }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document),generatedText:(${readGeneratedText.toString()})()};})()`);
-        for (const text of layout.generatedText) generatedText.add(text);
+        const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document),generatedText:(${readGeneratedText.toString()})()};})()`);
+        for (const entry of layout.generatedText) generatedText.add(entry.text);
+        if (args.translationSource) {
+          const before = new Map(originalGenerated.map(entry => [entry.key, entry.text]));
+          const after = new Map(layout.generatedText.map(entry => [entry.key, entry.text]));
+          const pairs = [...new Set([...before.keys(), ...after.keys()])].map(key => ({ field: `${page.id}/${width} CSS/${key}`, before: before.get(key) ?? '', after: after.get(key) ?? '' }));
+          checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)},${JSON.stringify(pairs)})`));
+        }
         const contrast = layout.textContrast.map(t => ({ ...t, threshold: t.role === 'heading' ? t.threshold : 4.5 })).filter(t => t.status !== 'measured' || t.ratio === null || t.ratio < t.threshold);
         const long = layout.bodyLineLength.filter(l => l.tooLong);
         const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
@@ -354,13 +371,16 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       }
     }
     const readable = `${clean.text}\n${[...generatedText].join('\n')}`;
+    if (args.translationSource && checks.issues.some(issue => issue.includes(' CSS/') && issue.includes('仍含中文文字'))) checks.issues.push('英文版仍含 CSS 生成的中文文字；请先把中文版这些文字改为 HTML 文字节点。');
     const numbers = (s: string) => s.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
     const allowedNumbers = new Set(numbers(args.materials));
-    for (const number of new Set(numbers(readable))) if (!allowedNumbers.has(number)) checks.issues.push(`资料没有的数字：${number}`);
+    // English already compares equivalent values in each source paragraph; a raw
+    // material-number pass would reject grouping and magnitude spelling changes.
+    if (!args.translationSource) for (const number of new Set(numbers(readable))) if (!allowedNumbers.has(number)) checks.issues.push(`资料没有的数字：${number}`);
     const marker = args.materials.match(/核验记号[：:]\s*([^。\n\s]+)/)?.[1];
     if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
-    if (!checks.issues.length && !args.legacyImport) checks.issues.push(...await auditCodeFacts(args.materials, readable));
+    if (!checks.issues.length && !args.legacyImport && !args.translationSource) checks.issues.push(...await auditCodeFacts(args.materials, readable));
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
   } finally { await browser.close(); }

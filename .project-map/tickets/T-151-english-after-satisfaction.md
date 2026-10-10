@@ -4,7 +4,7 @@ title: 中文站满意后生成英文版：沿用同一结构，只翻译文字
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Codex (t151-english)
 supersedes:
 ---
 
@@ -15,14 +15,93 @@ supersedes:
 ## What to build
 
 1. **入口**：工作台在当前中文版本通过底线检查后显示一句询问和一个「生成英文版」按钮（用户点了才生成，不自动生成，不在生成中文时顺带生成）。英文版已存在时按钮改为「按当前中文版重新翻译」，并标明英文版基于中文第几版；中文改过之后提示英文版已落后，不自动重译。
-2. **翻译**：对当前中文版本逐页只翻译文字节点和可见属性（alt、title、aria-label、placeholder 等），HTML 结构、class、CSS、图片编号、系统部件原样保留；由代码把译文写回原 DOM，模型不重写 HTML。「待补充」统一译为固定英文占位，系统署名与图标许可用系统自带英文文本。用非思考模式、按页分批，控制 token；Resolution 写单站用量。
+2. **翻译**：对当前中文版本逐页只翻译文字节点和可见属性（alt、title、aria-label、placeholder 等），HTML 结构、class、CSS、图片编号、系统部件原样保留；由代码把译文写回原 DOM，模型不重写 HTML。「待补充」统一译为固定英文占位，系统署名与图标许可用系统自带英文文本。用非思考模式、按页分批，模型只见 s1…sN，代码保存 DOM 映射，函数 enum 列出本批合法编号；只补缺失段落，与底线修正共用两轮额度。控制 token，Resolution 写单站用量。
 3. **检查**：英文版走唯一提交入口，存成同一站点的新版本（版本里带英文页面，与中文共用 CSS 和结构），不旁路写站点。确定性检查：数字、型号、单位、邮箱电话等原样保留且不新增；结构与中文一致（同样的节点树，只是文字不同）；375/768/1440 溢出、重叠、对比度照常跑（英文变长更容易溢出）。不过按现有最多两轮修正，修正只改译文；仍不过如实告诉用户。不另跑一次模型事实校对（事实来源是已校对的中文版本，靠确定性比对保证不新增事实）。
 4. **预览与发布**：工作台预览可切换中文 / 英文；发布站点英文页用独立路径并 `lang="en"`，页头由系统加语言切换链接（只在英文版存在时出现）。撤销、恢复、刷新沿用现有版本机制。
 5. 同步 `intent.md`、`spec.md`、`mainline.md`、`CONTEXT.md`（新术语只用一个名字）。
 
 ## Acceptance
 
-- [ ] 先列出失效方式（漏译、改结构、数字被改、新增事实、英文溢出、中文改后英文没提示落后、重复点击重复扣 token），再写红绿测试，测试在已知坏实现上失败
+- [x] 先列出失效方式（漏译、改结构、数字被改、新增事实、英文溢出、中文改后英文没提示落后、重复点击重复扣 token），再写红绿测试，测试在已知坏实现上失败
+- [x] 使用 15:18 保存的真实坏编号原始函数回复建立夹具；旧实现红、短编号与定向补译实现绿；原文保留，协议适配明确标注
+- [x] 主控确定的含数字记号、多重集合、确定等价归一与记录公司名规则，各用保存的真实回复建立红绿测试；提交入口也验证通过
 - [ ] 真实入口端到端：一站中文版 → 点生成英文版 → 预览切换 → 发布页英文路径可打开 → 改中文后显示英文落后 → 重新翻译 → 撤销；1440/768/375 中英截图看过。真实 DeepSeek 只跑这一站，Resolution 写 token 用量
 - [ ] 英文页交一个新的 gpt-6.1-sol 实例独立看：是否像同一家公司自己的英文站、有没有机翻腔或漏译（只这一站，不跑整轮 eval）
 - [ ] Astra 审查通过；typecheck、test、build 通过
+
+## Failure modes
+
+漏译文字或可见属性；模型改节点树、class、CSS、图片编号或系统部件；原数字、型号、单位、邮箱、电话丢失或新增；英文变长导致溢出、重叠或对比度失败；中文更新后未提示英文版落后；重复点击重复调用模型；翻译中中文已变更仍提交旧结果；修正轮越界改结构；预览、发布、恢复读到不同语言或不同版本。
+
+## Resolution
+
+本轮公司名标点保护、完整单位别名修复及 v6 新检查 PASS；整票 INCOMPLETE（2026-10-10，待主控复核）。Astra 最后两项已先红后绿：记录公司名/资料英文名子串在标点转换中原样保留，已登记完整单位别名按最长匹配先读取，再识别时间比率。年/月互换及旧四个反例仍拒收，v6 的 375/768/1440 底线拒因均为 0。sol 内容基本可接受，新候选不自动视为独立审核通过。本轮不调用真实模型，用量 **0**。前次同一站唯一真实初译消耗 **7,629 / 10,000 token**；原回复已经唯一提交入口存为 **v6，基于中文 v3**。本轮只读复检不替换存储中的旧检查、不重写译文、不存新版、不改 CSS、不静默回退。全部改动 amend 同一 T-151 本地提交，父提交 d1d60e3；最终 SHA 见交付回复。不推送、不关票、不自行安排审核。
+
+最新证据根为 `artifacts/t151/final-astra-2026-10-10/`：
+
+- `red-b86ce7c.log`（20:24:14–20:24:15 UTC）：两条公司名用例在真实 translateSiteCode 入口配本地 HTTP 模型替身中失败，记录名“华星（苏州）机械有限公司”和资料名 Huaxing（Suzhou）Machinery 都被改成 ASCII 括号；rpm/rps/psi 三个已有多词别名也被误拒。年产→per month 负例在旧实现已拒收，没有拿环境错误作红态。
+- 标点写回接收记录名称及资料独立英文名字段的受保护名称，按最长原样子串分隔，只转换其余文案。模型入口显式传入这些元数据；页面标题、正文、title/aria-label 都有独立字符串断言，修后再跑同一保真检查通过。不从正文猜公司名，不加公司例外名单。
+- 单位登记表已有的多词别名按长度降序完整匹配；revolutions per minute→rpm、revolutions per second→rps、pounds per square inch→psi 在比率分词前归一，内部 per 不被拆走。单词单位仍完整读取，未知单位仍保持原记号；没有加短语补丁、重试或单位制换算。`focused-green.log` 为 52/52，最终全量还包含公司名的保真检查断言；年/月互换、物理单位改变和原 Astra 反例仍拒收。
+- 20:27:05–20:27:23 UTC，`node --experimental-strip-types artifacts/t151/final-astra-2026-10-10/recheck-v6.mjs` 在同一 3161 和自有注塑站根只读复检，`v6-recheck.json/log` 为 PASS：v6 / 中文 v3，375/768/1440 的溢出、重叠、对比度拒因全为 0；站点、任务、原始回复与旧检查前后不变，真实调用/用量为 0。
+- 固定最终源码后，本次 `npm test` **327/327**（20:27:05–20:28:37 UTC，npm-test.log）、`npm run typecheck` 通过（20:27:05，typecheck.log），`npm run build` 通过（20:29:46–20:29:51，build.log）。全部显式使用 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3161 SITECRAFT_DATA_ROOT=<自有根> CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`；test/typecheck 的相对根 `.sitecraft-data` 位于本 worktree，服务/build 用其绝对路径，v6 复检用已批准复制的站点根。不读取主数据或主 .env.local，不连 3034。最终 SHA 见交付回复。
+
+主控的时间比率决定按显式表实现：年/月/日/时/分各一类，不跨类换算。中文年产/月产/日产、每周期与斜杠分母，对应英文 per、斜杠、a year/month/day 及 annually/monthly/daily/hourly。周期前缀按同一生产语法允许产能名词修饰语（v6 的“月注塑能力”）；比率绑定本段同一子句对应数量，不能只把全段周期和数量分别排序，放过年产/月产互换。计数量词、数值、范围与物理单位继续独立核对。无数量的复合比率仍保留分子原记号，不把未知单位丢成普通词。
+
+前轮时间比率修复证据根为 `artifacts/t151/time-rate-2026-10-10/`，其 36/36 与 322/322 不作为本次源码证据：
+
+- `tests/fixtures/t151-time-rate-v6.json` 原样摘录 v6 年产能段及其已保存真实函数回复 s120，并核对 source v3 / v6 的 DOM 段落。`red-2c46e4f.log` 在修前拒收真实等价译文，五类正例也失败；“年产 180 套→180 sets per month”的负例在旧实现已拒收。`period-collapse-mutant-red.log` 把五类错误合并时，该负例的保真断言失败，证明测试能识别跨类放宽。
+- `focused-final.log` 为 36/36：真实年产能段、全部批准的周期写法、前后置副词、周期/数量关联均通过相应断言；年/月互换、丢周期、物理单位变化及原 Astra 反例仍拒收。`unbound-unit-red.log` 保留最初未忽略分子与 per 之间空白导致的错误拒收；词法修复后未知分子 custom 在 custom/min 与 custom per minute 中仍相同，改成 other 仍拒收。失败与中间 green 日志全部保留。
+- 同一 3161/自有注塑站数据根，`node --experimental-strip-types artifacts/t151/time-rate-2026-10-10/recheck-v6.mjs v6-recheck-final` 的 `v6-recheck-final.json/log` 为 PASS：v6 / 中文 v3，三档底线全通过，站点记录、任务、原始回复及旧检查前后完全相同，真实调用/用量为 0。新结果单独保存，不覆盖前轮拒收记录。
+- 本轮命令全部显式设 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3161 SITECRAFT_DATA_ROOT=<本 worktree 自有根> CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。固定最终源码后：`npm test` **322/322**（2026-10-10 20:12:06–20:13:37 UTC，npm-test-final.log），`npm run typecheck` 通过（20:12:06，typecheck-final.log），`npm run build` 通过（20:14:46–20:14:51，build.log）；v6 最终复检为 20:12:06–20:12:24。test/typecheck 用本 worktree 内的相对 `.sitecraft-data`，3161 服务和 build 用其绝对路径；v6 只读复检用已批准复制的注塑站自有根。前一轮 321/321 和全部失败日志保留，不能代替最终源码证据。project-map 为 0 problems / 0 stale living docs，提交 SHA 见交付回复。不接触 3034、主数据或主 .env.local。
+
+前轮分词修复的证据根为 `artifacts/t151/tokenizer-fix-2026-10-10/`。先独立抽取含数字型号和单位运算符记号，再解析量值与完整单位；计数归一仅允许纯字母且不含运算符、不属于显式英文单位词表的后续词。rpm、psi、bar、Hz、min、h、s 及常见全称不能被计次数修饰词吞掉；未知单位保持原记号，不能降为无单位。译词的并列斜杠不当量纲，含已登记单位组件的复合记号独立核对；本轮批准的时间比率改按上述五类确定归一。全角 ASCII 标点及中文句号、顿号在英文槽位写回时确定转换，不做整段 NFKC，不改型号或单位字符。
+
+- `red-5dce2af.log`：四个指定反例（42 X900 machines、42 furlongs/min、3 trial runs-per-hour、3 rpm trial runs）与全角标点测试均在修前失败。`independent-operator-red-final-5dce2af.log` 补证没有计数数字时新增 furlongs/min 同样被旧实现放过；源代码仅在内存从指定提交读取，没有复制源码作证据。
+- `compact-quantity-red.log` 保留本次独立扫描最初误把 30L/min 当型号的失败；通过量值/已映射单位的词法分类修复，30 升/分钟→30L/min 通过，四个拒收反例继续拒收。`plural-unit-red.log` 另证 years 曾被计次修饰语吞掉，单位词表改为在全部已有单位登记后生成；仍不含纯计数量词。词表顺序收紧前的 `focused-final-2.log` 为 26/26，最终证据以本次全量 verified 日志为准。无企业或短语例外名单。
+- 前轮 `v6-recheck-verified.json/log`：同一 3161、自有注塑站数据根，执行只读 `node --experimental-strip-types artifacts/t151/tokenizer-fix-2026-10-10/recheck-v6.mjs v6-recheck-verified`。v6 / 中文 v3 当时在 `home/1/3/5/1/3/2/1/0` 拒收：原文“年产约 180 套”，译文含独立 per year，当时未登记确定等价。该检查在布局扫描前停止；站点与旧检查未改。这是本轮修复的失败依据，不是当前结果，旧 JSON/log 保留。
+- 前轮分词修复的命令同样显式使用 3161、自有数据根与指定 CHROME_PATH：`npm test` **313/313**（2026-10-10 19:58:26–20:00:02 UTC，npm-test-verified.log）；`npm run typecheck` 通过（typecheck-verified.log）；`npm run build` 通过（build-verified.log）。这是 2c46e4f 的旧证据，不证明本轮时间比率源码通过；313/313、中间 303/310 失败与旧 v6 拒收记录均保留。
+
+主控裁定保留：“全检”译 full inspection 可接受，新增 100% 仍拒收；公司无明确英文名时沿用中文名加工作台提示。“慢走丝”漏译与共享 CSS 的 1440 标题挤压、窄屏规格换行、页脚邮箱断行是已知反馈，本票不改 CSS、不再真实重译。本轮不新增截图；前次 v6 的中英 1440/768/375 图已经逐张打开，属于此前候选证据，不能代替本轮新检查。
+
+- A1：含数字型号先独立保留，完整量值/单位另外核对；不把复合单位的已知前缀当成全部单位，带数字未知单位还必须与其量值正确关联。复合组件按明确映射归一，未知记号保留完整原文，不转成无单位。30 L/min→30 L/h、20 bar→20 psi、42 次→42 均拒收；另补 Ω、点号单位和两种含数字未知单位互换数值的反例。源纯计数量词的规则保留；普通英文计数名词只有满足上述纯字母/无单位运算符/非单位词条件才归一，已登记的物理/时间单位不因此放宽。次→times/run(s)/occurrence(s)（仍为非空计次单位）、腔→cavities、模次→molding cycles/cycles、级→Class/Grade 都是通用单位/等级写法，没有企业例外名单、公司词表或单位制换算。
+- A2：.05 按完整小数解析，不能从 05 中间截出 5；.05 mm→5 mm 拒收，.5 mm→0.5 mm 通过。数字边界也保护 Unicode 型号前缀，不能把 Ω20 中的 20 单独抽走。十进制归一仍用字符串位移，不用浮点近似。
+- A3：CSS 生成文字按源中文与英文的实际渲染分别收集；同宽度、同 DOM 位置、同伪元素对应核对。两边都展开 details、解除 aria-hidden，并保留相同系统语言链接/部件结构。::before/::after/::marker 和自定义列表字符串进入相同数字、单位、公司名、占位与漏译规则，不再整段跳过；英文专属新增/消失文字也拒收，不能借其他位置的数字。中文检查继续收集相同文字，没有改 T-148 的底图实现。CSS 的明确公司名称也遵守同一身份规则，不能另外用全局 Han 检查误拒合法中文公司名；其他残留中文仍拒收并提示先改为 HTML 文字。
+- A4：三台、十台等单字中文数字加计数量词可识别。三台设备→3 machines 通过，→Machines 拒收；千瓦等单位名称的千不当成新数量，600 万件的万也不被拆成第二个整数。公司名称先按记录名/明确英文名的完整身份与出现次数核对，不把名字内的“三台”或 P3T 当测量数量；没有声明的改名、名称之外的数字/单位变化仍拒收。
+- A5：发布语言测试另建自己的中文 v1、英文 v2，显式确认两次提交成功及版本数，不依赖并发/失败用例留下的共享站点。断言根 `<html lang>`、正文与历史英文预览；不会被语言切换链接上的 `lang="en"` 欺骗。把英文发布路径定向改为中文的 mutant，失败发生在根语言断言，前置创建/存版通过；随后已恢复生产路径并转绿。
+
+红绿产物统一在 `artifacts/t151/review-fix-2026-10-10/`，测试环境统一为 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3161 SITECRAFT_DATA_ROOT=<本 worktree 自有根> CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。测试全部用本地替身。唯一真实初译按批准方式 set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a 只载入转发器进程；不打印、不复制、不软链，不读取主数据。
+
+- 17:28:09–17:28:13 UTC，`node --test --experimental-strip-types tests/t151-fidelity-rules.test.ts tests/t151-generated-fidelity.test.ts` 的 astra-red.log 中，八个单位/小数/中文数字反例在基线实现上失败。最初三个 CSS 用例误用了未清理源 CSS，命中 CSS 序列化差异，不作为漏洞红态证据；错误日志保留。
+- 17:28:56–17:29:03 UTC，`node --test --experimental-strip-types tests/t151-generated-fidelity.test.ts`，generated-red-source-checked.log 三项有效红态：源中文先经过真实检查通过，旧实现仍接受英文新增数字、复合单位变化和新增无数字承诺。非法导入私有清理函数的 generated-red-valid.log 也保留，但不当作证据。
+- 17:38:47–17:38:53 UTC，`node --test --experimental-strip-types --test-name-pattern='published languages' tests/t151-english.test.ts`，published-root-lang-mutant-red.log 定向语言 mutant 在根 `<html lang="en">` 断言失败，前置有效。较早 published-language-mutant-red.log 在正文失败，已据此把语言断言收紧到根元素。
+- 未知 Unicode 单位、点号记号、公司名数字误分类、CSS 中文公司身份和带数字单位关联分别有 unknown-unicode-unit-red.log、unknown-dotted-unit-red.log、company-numeric-alias-red.log、css-company-red.log、unit-marker-order-red.log。坏行为均发生在对应保真断言，不用设置错误充当红态。
+- 17:37:18–17:37:48 UTC，六个 T-151 专项文件的 focused-green.log 为 49/49；后续新增边界包含在最终全量中。所有失败、诊断和修复后产物保留，没有替换原始真实夹具、削弱单位要求或增加协议重试。
+
+前次真实回复还暴露了一处同根因误报：3 trial molding runs 的单位 head 是 runs，trial molding 是修饰语。已用未改动真实返回 tests/fixtures/t151-trial-runs-real-response.json 先红后绿，补通用后置计次数语法；本次进一步确保所有已登记物理/时间单位不被计次修饰语吞掉，42 次→42、42 次→42 inspections、次数变 43 仍拒收。不按公司、原句或段落编号加例外。
+
+sol 改动只在翻译提示和系统文案：面向海外采购的 B2B 美式英语，避免逐字直译；不能具体化未说明材质、添加等级/认证、把寄出加强成送达。只给少量通用例子，不做企业词表。公司英文名只从明确资料字段传入，缺少时沿用记录中文名；工作台已显示「资料里没有英文公司名，英文版沿用中文名；补充后可重新翻译」。系统表单改为 Inquiry / Send inquiry，系统英文固定文案使用半角标点与美式 licenses，自定义许可原文保留。
+
+| sol 指出位置 | 修前存量 v5 | 前次真实初译、v6 实际结果 |
+| --- | --- | --- |
+| 铜螺母 | Brass nuts / Brass nut | Copper nuts / Copper nut |
+| 开放式/针阀式 | Open/needle valve | Open/valve-gate |
+| 逆向建模 | reverse modeling | reverse engineering |
+| 十万级洁净车间 | Class 100,000 clean workshop | Class 100,000 cleanroom |
+| 已有 / 认证中 | Obtained / In certification | Certified / Certification in progress |
+| 三天内寄出 | sent out within 3 days | dispatched within 3 days；3 trial molding runs 保留计次数 |
+| 系统表单 | 原 Enquiry / Send enquiry | 运行时已实见 Inquiry / Send inquiry |
+
+`sol-comparison.json` 是修前存量记录；`sol-before-after.json` 汇合了同一原文的修前和实际新回复，`one-real-raw.json` 保存原始响应。表中修后均为真实初译内容，不是人工目标文案。按新规则重新对照存量 v5 的英文，另有四处拒因：两处模次译成未登记的 shots、两处次数译成 trials。旧版本和旧检查不可变，未手改旧英文或新回复，未静默回退；原真实回复由同一 commitSiteCode 再检查后存新版本，不能引用旧 passed 字段证明通过。T-082 的语义、否定、对象与条件检查局限仍存在，提示协议测试不代替真实模型或独立看页。
+
+预算门：17:38:12 UTC，`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3161 SITECRAFT_DATA_ROOT=/Users/luckye/Documents/Code/sitecraft-ai-t151/artifacts/t151/injection-five-2026-10-10T15-08-40Z/store CHROME_PATH=<上述路径> node --experimental-strip-types artifacts/t151/review-fix-2026-10-10/estimate.mjs` 只向本地 HTTP 替身构造首批请求，不存版本。estimate-original.json 为 191 段、1,718 源字符、englishCompanyName=null、max_tokens=5,810，完整请求输入保守预留 5,382，合计 11,192。估算不是计费 tokenizer；虽此前实测输入约 4.4k、输出约 3–3.7k，首次默认输出上限的计划停在 10k 门前；随后调整单次输出参数，完整输入保持不变，使新的完整预留满足原授权。最初门前停下的记录保留在 estimate-original.json；最终真实请求为 deepseek-flash、非思考、HTTP 200、finish_reason=tool_calls，191/191、缺失/未知/重复均 0，max_tokens=4500，未截断，输入 4658、输出 2971、合计 7629。没有 402；已知历史累计 68,011。one-real-raw.json 保存完整上游响应，真实任务 report 在 artifacts/t151/real-2026-10-10T18-54-19-817Z/。随后按同一已批准 10k 总额度设置 SITE_CODE_TRANSLATION_OUTPUT_LIMIT=4500（高于此前实测输出 3016/3648），不缩减 191 段输入，不改检查；完整请求预留降为 5382+4500=9882，满足原预算。输出上限的已知坏红态 output-cap-red.log 与修后 output-cap-green.log 证明实际 HTTP max_tokens 和调用记录一致，没有降低总预算守卫。
+
+早期 current-ui 图只展示存量 v5，不作为最终候选；最终 final-real-ui 是新存 v6 的中英发布与工作台图。`capture-current.mjs` 保留早期 v5 图；最终 `capture-final.mjs` 在 3161、自有注塑站根运行，记录前后站点/任务/版本一致、无模型调用，companyNameNotice 与 systemEnglish 为实际 DOM 读值。中英发布页 1440/768/375 和工作台提示/预览均逐张打开；最新图与最终检查见交付记录。资料与上传元数据仅使用之前批准的自有复制，没有重新访问主数据或 3034；主 .env.local 仅在获批真实调用进程载入。共享 CSS 没改：1440 标题挤压、窄屏规格换行、页脚邮箱断行登记为已知版面反馈，不在本票修。
+
+最终 test/typecheck/build 与 project-map 状态见本次交付记录。原 JSON 未捕获、长编号失败、旧单位/100% 拒因和既有真实回复/截图全部保留；不补造原始返回，不拿旧证据宣布新候选 PASS。票保持 open，主控负责新候选的复核安排。
+
+- 真实命令（18:54:19–18:54:35 UTC）：`set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a; SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3161 SITECRAFT_DATA_ROOT=/Users/luckye/Documents/Code/sitecraft-ai-t151/artifacts/t151/injection-five-2026-10-10T15-08-40Z/store SITE_CODE_TRANSLATION_TOKEN_LIMIT=10000 SITE_CODE_TRANSLATION_OUTPUT_LIMIT=4500 CHROME_PATH=<上述路径> node --experimental-strip-types artifacts/t151/review-fix-2026-10-10/one-real.mjs`。转发器只放行一次非思考严格函数请求，下一修正请求在本地被 409 阻止；DeepSeek 实际只返回一次 HTTP 200。one-real-summary.json 与 one-real-raw.json 记录唯一真实账单、完整回复和被阻止次数。
+- 19:04:50–19:04:52 UTC，同一 3161/自有根/CHROME_PATH、本地无模型配置，`node --experimental-strip-types artifacts/t151/review-fix-2026-10-10/recheck-and-store.mjs` 根据记录的 slotMap 与真实函数返回重建全部译文，断言与原失败 attempt 的 code 完全相同；经唯一 commitSiteCode 清理、全部保真与三档布局检查后存 v6，中文 code 与 v5 相同，英文 sourceRevision=3。原失败 attempt 和全部 modelCalls 原样保留，只追加成功检查；运行状态和对话明确说明重新检查，没有新增模型调用。不是 replay 收费、手改译文、旁路写站或额外真实修正。
+- 19:05:42–19:05:52 UTC，同一环境 `node --experimental-strip-types artifacts/t151/review-fix-2026-10-10/capture-final.mjs` 只读 PASS。final-real-ui/report.json 记录版本/任务前后不变；v6 中英发布全页 zh/en-{1440,768,375}.png 与 status/preview-en 三档，共 12 张均逐张打开。早期 current-ui 的 12 张也打开过，但它们不充当 v6 成功证据。最终预览已等待动画结束，实际 iframe 宽度分别 1440/768/375；公司名提示和 Inquiry / Send inquiry 为 DOM 实读。英文发布 `/published/561a1113-4dab-49b6-81dc-ab7e3eb712a5/en` 正常显示 v6。recheck-and-store.json 中三档溢出、重叠、对比度拒因均 0，质量反馈仍保留。
+- 最终执行时间（UTC）：test 2026-10-10 19:06:22–19:07:36；typecheck 19:06:23；build 19:08:49–19:08:54。
+- 前次全量：`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3161 SITECRAFT_DATA_ROOT=.sitecraft-data CHROME_PATH=<上述路径> npm test` 为 **305/305**，npm-test-acceptance.log；同环境 `npm run typecheck` 通过（typecheck-acceptance.log），`npm run build` 通过（build-acceptance.log）。这是 5dce2af 的旧证据，不证明本次改动通过。应用测试服务固定 3161，显式使用本 worktree 的 /Users/luckye/Documents/Code/sitecraft-ai-t151/.sitecraft-data；子进程相对根均在 worktree 内解析。失败与中间检查日志保留。
+- 通用计次短语红绿：tests/fixtures/t151-trial-runs-real-response.json 保存本次真实 rawMessage（未改动），trial-runs-red.log 在原解析器中拒绝实际 3 trial molding runs；trial-runs-green.log 为 19/19，随后纳入最终全量。42 次→42 或 42 inspections、42→43 仍失败；物理单位不会被后来句子的 runs 覆盖。Scope 未改共享 CSS、未加入企业词表，审核仍由主控安排。

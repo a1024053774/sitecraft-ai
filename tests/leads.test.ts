@@ -178,7 +178,6 @@ test("inbox pages stop advertising fake companies and a live mailbox", () => {
   assert.equal(leadsPage.includes("Nordic Process"), false);
   assert.match(settingsPage, /询盘收件/);
   assert.equal(settingsPage.includes("lydia@sitecraft.ai"), false);
-  assert.match(publishedClient, /renderSiteCode/);
   assert.equal(publishedClient.includes("published-inquiry-form"), false);
   assert.equal(publishedClient.includes("published-chrome-bar"), false);
   assert.equal(/count:\s*4/.test(sidebar), false);

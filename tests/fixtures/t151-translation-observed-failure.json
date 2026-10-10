@@ -1,0 +1,64 @@
+{
+  "provenance": {
+    "kind": "immutable source from the real run and recorded response metadata",
+    "sourceReport": "artifacts/t151/real-2026-10-10T05-18-02-985Z/report.json",
+    "rawResponseAvailable": false,
+    "note": "Original assistant content/tool calls were not persisted. Null means unavailable, never reconstructed.",
+    "inputCounts": "Reconstructed from Chinese v5 with the unchanged splitter and budget formula at ad48561; original HTTP requests were not captured."
+  },
+  "companyName": "临港机械",
+  "sourceCode": {
+    "header": "<header><a href=\"/home\">临港机械</a><nav aria-label=\"主导航\"><a href=\"/home\">首页</a><a href=\"/products\">产品</a></nav></header>",
+    "footer": "<footer><p>临港机械 · 精密零件加工</p><a href=\"mailto:parts@example.com\">parts@example.com</a></footer>",
+    "css": "body{margin: 0px; background: rgb(255, 255, 255); color: rgb(32, 40, 34); font: 16px / 1.7 sans-serif;}\nheader, footer{padding: 24px; border-bottom: 1px solid rgb(204, 204, 204);}\nnav{display: flex; flex-wrap: wrap; gap: 24px;}\na{color: rgb(36, 83, 76);}\nmain{padding: 32px; max-width: 960px; margin: auto;}\np{max-width: 32em;}\nh1{font-size: 32px; line-height: 1.3;}\nsection{padding: 24px 0px; border-top: 1px solid rgb(204, 204, 204);}\ntable{width: 100%; border-collapse: collapse;}\nth, td{text-align: left; padding: 12px; border-bottom: 1px solid rgb(204, 204, 204);}\nmain, td{overflow-wrap: anywhere;}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "首页",
+        "html": "<main><h1>精密零件加工</h1><p>按图加工轴套与接头。</p><section><h2>产品与加工</h2><p>产品型号 LG-A，尺寸 20 mm。</p><a href=\"/products\" title=\"产品目录\">查看产品</a></section><p>认证状态：待补充</p></main>"
+      },
+      {
+        "id": "products",
+        "title": "产品",
+        "html": "<main><h1>轴套与接头</h1><p>按图加工。</p><table><thead><tr><th>产品型号</th><th>尺寸</th></tr></thead><tbody><tr><td>LG-A</td><td>20 mm</td></tr></tbody></table><section><h2>资料要求</h2><p>图纸要求：待补充</p></section></main>"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "pageId": null,
+      "maxTokens": 600,
+      "slotCount": 5,
+      "sourceChars": 24,
+      "usage": {
+        "promptTokens": 376,
+        "completionTokens": 80,
+        "totalTokens": 456
+      },
+      "finishReason": "stop",
+      "answerChars": 278,
+      "rawMessage": null
+    },
+    {
+      "pageId": "home",
+      "maxTokens": 600,
+      "slotCount": 8,
+      "sourceChars": 58,
+      "usage": {
+        "promptTokens": 461,
+        "completionTokens": 147,
+        "totalTokens": 608
+      },
+      "finishReason": "stop",
+      "answerChars": 501,
+      "rawMessage": null
+    }
+  ],
+  "unusedPage": {
+    "pageId": "products",
+    "slotCount": 7,
+    "sourceChars": 30,
+    "maxTokens": 600
+  },
+  "failure": "DeepSeek 回答不是完整 JSON，本次未保存版本。"
+}

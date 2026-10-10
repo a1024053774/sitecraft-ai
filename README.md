@@ -6,6 +6,7 @@
 - 提供精密工程和现场实拍两个风格，默认可选「帮我选」。
 - 发布页（`/published/<siteKey>`）与工作台预览渲染同一完整代码版本。用户明确要求的询盘表单由系统提供，留言进入 `/leads` 收件箱。
 - DeepSeek `deepseek-flash` 直接写每页 HTML、公共页头页脚和 CSS，经唯一提交入口检查后存完整版本；工作台支持对话修改、撤销和刷新恢复。
+- 中文版满意后主动点「生成英文版」，只翻译文字并沿用结构与 CSS。预览与版本历史可切中英文，英文发布路径为 `/published/<siteKey>/en`；中文修改后提示英文版落后，由用户选择重新翻译。
 
 项目方向、决定和待办见 [.project-map/MAP.md](./.project-map/MAP.md)，术语见 [CONTEXT.md](./CONTEXT.md)，协作规则见 [AGENTS.md](./AGENTS.md)。
 
@@ -41,6 +42,8 @@ npm run build
 ```
 
 `next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
+
+英文版的本地 HTTP 模型替身全链检查：`CHROME_PATH=/path/to/chrome-headless-shell node --experimental-strip-types scripts/check-english.mjs`。它独占 3161、使用独立的 artifacts 数据目录，运行后保留报告与截图，不调用真实模型。真实英文质量与独立审核的状态见 T-151。
 
 新路线评估集（四家模拟公司 × 两种风格，中文整站）在已配置 DeepSeek、`SITE_STORE=fs` 的本机服务上运行：
 

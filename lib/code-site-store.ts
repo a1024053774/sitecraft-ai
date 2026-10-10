@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
+import { currentCodeVersion, chineseCodeRevision, englishSiteCode, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
 
@@ -94,7 +94,7 @@ export async function nameCodeVersion(siteId: string, versionId: string, name: s
   });
 }
 type CodeCommit = {
-  siteId: string; baseRevision: number; code?: SiteCode; restoreVersionId?: string;
+  siteId: string; baseRevision: number; code?: SiteCode; restoreVersionId?: string; englishCode?: SiteCode;
   author: 'assistant' | 'user'; summary: string; request: string; model?: string;
 };
 type CodeCommitResult = { status: 'conflict'; site: CodeSiteRecord }
@@ -158,18 +158,38 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       return { status: 'applied' as const, site, version };
     }
     const site = await getCodeSite(args.siteId); if (!site) throw new Error('找不到这个站点');
-    const revision = currentCodeVersion(site)?.revision ?? 0;
+    const current = currentCodeVersion(site), revision = current?.revision ?? 0;
     if (revision !== args.baseRevision) return { status: 'conflict' as const, site };
+    const images = await listSiteImages(args.siteId);
+    if (args.englishCode) {
+      if (!current?.checks.passed) throw new Error('请先完成中文版的底线检查。');
+      const checked = await checkSiteCode({ siteId: args.siteId, code: args.englishCode, materials: codeFactMaterials(site), images, translationSource: current.code, companyName: site.name });
+      if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
+      const version: CodeVersion = { id: crypto.randomUUID(), revision: revision + 1, author: args.author, summary: args.summary, request: args.request,
+        createdAt: new Date().toISOString(), code: current.code, checks: current.checks, chineseRevision: chineseCodeRevision(current),
+        english: { sourceRevision: chineseCodeRevision(current), header: checked.code.header, footer: checked.code.footer, pages: checked.code.pages, checks: checked.checks },
+        ...(args.model ? { model: args.model } : {}) };
+      site.versions.push(version); site.currentVersionId = version.id;
+      await write(site); return { status: 'applied' as const, site, version };
+    }
     const restore = args.restoreVersionId ? site.versions.find(v => v.id === args.restoreVersionId) : null;
     if (args.restoreVersionId && !restore) throw new Error('找不到要恢复的版本');
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request);
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images: await listSiteImages(args.siteId) });
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
+    let english = restore ? restore.english : current?.english;
+    if (restore?.english) {
+      const source = site.versions.find(version => version.revision === restore.english!.sourceRevision);
+      if (!source) throw new Error('找不到英文版对应的中文版本。');
+      const checkedEnglish = await checkSiteCode({ siteId: args.siteId, code: englishSiteCode(site, restore)!, materials: codeFactMaterials(site, undefined, source.id), images, translationSource: source.code, companyName: site.name });
+      if (!checkedEnglish.checks.passed) return { status: 'rejected' as const, site, ...checkedEnglish };
+      english = { ...restore.english, checks: checkedEnglish.checks };
+    }
     const version: CodeVersion = { id: crypto.randomUUID(), revision: revision + 1, author: args.author,
       summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks,
-      ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id } : {}) };
+      ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };
     site.versions.push(version); site.currentVersionId = version.id;
     await write(site); return { status: 'applied' as const, site, version };
   });

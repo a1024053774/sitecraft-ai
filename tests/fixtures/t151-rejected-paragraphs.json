@@ -1,0 +1,803 @@
+{
+  "provenance": {
+    "sourceReport": "artifacts/t151/real-2026-10-10T16-17-46-027Z/report.json",
+    "rawMessageUnchanged": true
+  },
+  "companyName": "宁海精密注塑模具P3T",
+  "rawMessage": {
+    "content": "",
+    "tool_calls": [
+      {
+        "index": 0,
+        "id": "call_00_VOvjx1VJBkhs96FiBEn13981",
+        "type": "function",
+        "function": {
+          "name": "submit_english_translation",
+          "arguments": "{\"translations\": [{\"id\": \"s1\", \"text\": \"宁海精密注塑模具P3T\"}, {\"id\": \"s2\", \"text\": \"Home\"}, {\"id\": \"s3\", \"text\": \"宁海精密注塑模具P3T\"}, {\"id\": \"s4\", \"text\": \"Main navigation\"}, {\"id\": \"s5\", \"text\": \"Products\"}, {\"id\": \"s6\", \"text\": \"Industries\"}, {\"id\": \"s7\", \"text\": \"Manufacturing Capabilities\"}, {\"id\": \"s8\", \"text\": \"How We Work\"}, {\"id\": \"s9\", \"text\": \"Certification Status\"}, {\"id\": \"s10\", \"text\": \"FAQ\"}, {\"id\": \"s11\", \"text\": \"Contact\"}, {\"id\": \"s12\", \"text\": \"Injection Molds and Precision Injection-Molded Parts\"}, {\"id\": \"s13\", \"text\": \"Precision Injection Molds and Injection-Molded Parts\"}, {\"id\": \"s14\", \"text\": \"Mold design, mold trials and volume injection molding are completed in the same plant, with domestic and export orders running in parallel.\"}, {\"id\": \"s15\", \"text\": \"Submit Drawings for a Quote\"}, {\"id\": \"s16\", \"text\": \"View Product Series\"}, {\"id\": \"s17\", \"text\": \"Multi-Cavity Hot Runner Molds · Number of Cavities\"}, {\"id\": \"s18\", \"text\": \"1–32 cavities\"}, {\"id\": \"s19\", \"text\": \"Multi-Cavity Hot Runner Molds · Mold Size\"}, {\"id\": \"s20\", \"text\": \"Up to 900×1200 mm\"}, {\"id\": \"s21\", \"text\": \"Two-Color Injection Molds · Molding Method\"}, {\"id\": \"s22\", \"text\": \"Rotary/robot transfer\"}, {\"id\": \"s23\", \"text\": \"Two-Color Injection Molds · Compatible Machines\"}, {\"id\": \"s24\", \"text\": \"Two-color injection molding machines 120–650 t\"}, {\"id\": \"s25\", \"text\": \"Products\"}, {\"id\": \"s26\", \"text\": \"Injection Molds\"}, {\"id\": \"s27\", \"text\": \"Multi-Cavity Hot Runner Molds\"}, {\"id\": \"s28\", \"text\": \"Number of Cavities\"}, {\"id\": \"s29\", \"text\": \"1–32 cavities\"}, {\"id\": \"s30\", \"text\": \"Mold Size\"}, {\"id\": \"s31\", \"text\": \"Up to 900×1200 mm\"}, {\"id\": \"s32\", \"text\": \"Mold Steel\"}, {\"id\": \"s33\", \"text\": \"Multi-cavity hot runner molds with 1–32 cavities and a maximum mold size of 900×1200 mm.\"}, {\"id\": \"s34\", \"text\": \"All specifications (7 items)\"}, {\"id\": \"s35\", \"text\": \"Number of Cavities\"}, {\"id\": \"s36\", \"text\": \"1–32 cavities\"}, {\"id\": \"s37\", \"text\": \"Mold Size\"}, {\"id\": \"s38\", \"text\": \"Up to 900×1200 mm\"}, {\"id\": \"s39\", \"text\": \"Mold Steel\"}, {\"id\": \"s40\", \"text\": \"Hot Runner\"}, {\"id\": \"s41\", \"text\": \"Open/needle valve\"}, {\"id\": \"s42\", \"text\": \"Molding Cycle\"}, {\"id\": \"s43\", \"text\": \"Mold Life\"}, {\"id\": \"s44\", \"text\": \"500,000–1,000,000 molding cycles\"}, {\"id\": \"s45\", \"text\": \"Cavity Tolerance\"}, {\"id\": \"s46\", \"text\": \"Inquire About This Specification\"}, {\"id\": \"s47\", \"text\": \"Two-Color Injection Molds\"}, {\"id\": \"s48\", \"text\": \"Molding Method\"}, {\"id\": \"s49\", \"text\": \"Rotary/robot transfer\"}, {\"id\": \"s50\", \"text\": \"Compatible Machines\"}, {\"id\": \"s51\", \"text\": \"Two-color injection molding machines 120–650 t\"}, {\"id\": \"s52\", \"text\": \"Material Combinations\"}, {\"id\": \"s53\", \"text\": \"Rotary or robot-transfer two-color molds compatible with 120–650 t two-color injection molding machines.\"}, {\"id\": \"s54\", \"text\": \"All specifications (6 items)\"}, {\"id\": \"s55\", \"text\": \"Molding Method\"}, {\"id\": \"s56\", \"text\": \"Rotary/robot transfer\"}, {\"id\": \"s57\", \"text\": \"Compatible Machines\"}, {\"id\": \"s58\", \"text\": \"Two-color injection molding machines 120–650 t\"}, {\"id\": \"s59\", \"text\": \"Material Combinations\"}, {\"id\": \"s60\", \"text\": \"Overmolding Thickness\"}, {\"id\": \"s61\", \"text\": \"Mating Tolerance\"}, {\"id\": \"s62\", \"text\": \"Mold Life\"}, {\"id\": \"s63\", \"text\": \"300,000–500,000 molding cycles\"}, {\"id\": \"s64\", \"text\": \"Inquire About This Specification\"}, {\"id\": \"s65\", \"text\": \"Precision Injection-Molded Parts\"}, {\"id\": \"s66\", \"text\": \"Precision Structural Injection-Molded Parts\"}, {\"id\": \"s67\", \"text\": \"Applicable Materials\"}, {\"id\": \"s68\", \"text\": \"Weight per Part\"}, {\"id\": \"s69\", \"text\": \"Dimensional Tolerance\"}, {\"id\": \"s70\", \"text\": \"Suitable for PA66+GF/POM/PBT/PC, with a weight per part of 0.5–350 g.\"}, {\"id\": \"s71\", \"text\": \"All specifications (6 items)\"}, {\"id\": \"s72\", \"text\": \"Applicable Materials\"}, {\"id\": \"s73\", \"text\": \"Weight per Part\"}, {\"id\": \"s74\", \"text\": \"Dimensional Tolerance\"}, {\"id\": \"s75\", \"text\": \"Flatness\"}, {\"id\": \"s76\", \"text\": \"Surface Finish\"}, {\"id\": \"s77\", \"text\": \"Texture/sandblasting/high gloss\"}, {\"id\": \"s78\", \"text\": \"Molding Machines\"}, {\"id\": \"s79\", \"text\": \"Inquire About This Specification\"}, {\"id\": \"s80\", \"text\": \"Transparent Optical Injection-Molded Parts\"}, {\"id\": \"s81\", \"text\": \"Applicable Materials\"}, {\"id\": \"s82\", \"text\": \"Light Transmittance\"}, {\"id\": \"s83\", \"text\": \"≥90% (PMMA 2 mm thick)\"}, {\"id\": \"s84\", \"text\": \"Wall Thickness\"}, {\"id\": \"s85\", \"text\": \"PMMA/PC/COC transparent parts, with light transmittance ≥90% for PMMA 2 mm thick.\"}, {\"id\": \"s86\", \"text\": \"All specifications (6 items)\"}, {\"id\": \"s87\", \"text\": \"Applicable Materials\"}, {\"id\": \"s88\", \"text\": \"Light Transmittance\"}, {\"id\": \"s89\", \"text\": \"≥90% (PMMA 2 mm thick)\"}, {\"id\": \"s90\", \"text\": \"Wall Thickness\"}, {\"id\": \"s91\", \"text\": \"Surface Roughness\"}, {\"id\": \"s92\", \"text\": \"Molding Environment\"}, {\"id\": \"s93\", \"text\": \"Class 100,000 cleanroom\"}, {\"id\": \"s94\", \"text\": \"Dimensional Tolerance\"}, {\"id\": \"s95\", \"text\": \"Inquire About This Specification\"}, {\"id\": \"s96\", \"text\": \"Metal Insert Injection-Molded Parts\"}, {\"id\": \"s97\", \"text\": \"Insert Types\"}, {\"id\": \"s98\", \"text\": \"Brass nuts/stamped terminals/stainless steel shafts\"}, {\"id\": \"s99\", \"text\": \"Insert Placement\"}, {\"id\": \"s100\", \"text\": \"Robot/manual\"}, {\"id\": \"s101\", \"text\": \"Applicable Materials\"}, {\"id\": \"s102\", \"text\": \"Brass nut, stamped terminal and stainless steel shaft inserts, molded on vertical 55–250 t machines.\"}, {\"id\": \"s103\", \"text\": \"All specifications (6 items)\"}, {\"id\": \"s104\", \"text\": \"Insert Types\"}, {\"id\": \"s105\", \"text\": \"Brass nuts/stamped terminals/stainless steel shafts\"}, {\"id\": \"s106\", \"text\": \"Insert Placement\"}, {\"id\": \"s107\", \"text\": \"Robot/manual\"}, {\"id\": \"s108\", \"text\": \"Applicable Materials\"}, {\"id\": \"s109\", \"text\": \"Positioning Accuracy\"}, {\"id\": \"s110\", \"text\": \"Dimensional Tolerance\"}, {\"id\": \"s111\", \"text\": \"Molding Machines\"}, {\"id\": \"s112\", \"text\": \"Vertical 55–250 t\"}, {\"id\": \"s113\", \"text\": \"Inquire About This Specification\"}, {\"id\": \"s114\", \"text\": \"Commercial Terms\"}, {\"id\": \"s115\", \"text\": \"Minimum Order Quantity\"}, {\"id\": \"s116\", \"text\": \"Injection-molded parts from 5,000 pieces; molds from one set\"}, {\"id\": \"s117\", \"text\": \"Lead Time\"}, {\"id\": \"s118\", \"text\": \"Molds 25–55 days; volume injection-molded parts 15–20 days after mold approval\"}, {\"id\": \"s119\", \"text\": \"Capacity\"}, {\"id\": \"s120\", \"text\": \"Approximately 180 sets of molds per year; 42 injection molding machines (90–800 t), with a monthly injection molding capacity of approximately 6 million pieces\"}, {\"id\": \"s121\", \"text\": \"Trade Terms\"}, {\"id\": \"s122\", \"text\": \"Commonly FOB Ningbo and EXW; CIF can also be arranged as agreed per order\"}, {\"id\": \"s123\", \"text\": \"Industries\"}, {\"id\": \"s124\", \"text\": \"Injection molds and precision injection-molded parts for the home appliance, automotive, medical, lighting and power tool industries.\"}, {\"id\": \"s125\", \"text\": \"Home Appliance Housings and Structural Parts\"}, {\"id\": \"s126\", \"text\": \"Automotive Interior Parts and Connectors\"}, {\"id\": \"s127\", \"text\": \"Medical Device Consumable Housings\"}, {\"id\": \"s128\", \"text\": \"Lighting Lenses and Lamp Covers\"}, {\"id\": \"s129\", \"text\": \"Power Tool Housings\"}, {\"id\": \"s130\", \"text\": \"Manufacturing Capabilities and Equipment\"}, {\"id\": \"s131\", \"text\": \"The mold shop, injection molding shop and inspection equipment operate in the same plant.\"}, {\"id\": \"s132\", \"text\": \"High-Speed CNC Machining Centers\"}, {\"id\": \"s133\", \"text\": \"12 units\"}, {\"id\": \"s134\", \"text\": \"Precision Slow-Wire EDM Machines\"}, {\"id\": \"s135\", \"text\": \"6 units\"}, {\"id\": \"s136\", \"text\": \"Mirror EDM Machines\"}, {\"id\": \"s137\", \"text\": \"8 units\"}, {\"id\": \"s138\", \"text\": \"Precision Surface Grinders\"}, {\"id\": \"s139\", \"text\": \"4 units\"}, {\"id\": \"s140\", \"text\": \"Injection Molding Machines\"}, {\"id\": \"s141\", \"text\": \"42 units (90–800 t)\"}, {\"id\": \"s142\", \"text\": \"Two-Color Injection Molding Machines\"}, {\"id\": \"s143\", \"text\": \"3 units\"}, {\"id\": \"s144\", \"text\": \"Coordinate Measuring Machines\"}, {\"id\": \"s145\", \"text\": \"2D Vision Measuring Machines\"}, {\"id\": \"s146\", \"text\": \"Colorimeters\"}, {\"id\": \"s147\", \"text\": \"Tensile Testing Machines\"}, {\"id\": \"s148\", \"text\": \"Constant Temperature and Humidity Chambers\"}, {\"id\": \"s149\", \"text\": \"How We Work\"}, {\"id\": \"s150\", \"text\": \"Drawing or Sample Confirmation\"}, {\"id\": \"s151\", \"text\": \"Molds are made according to drawings or samples; if only a sample is available, 3D scanning and reverse modeling are performed first, and mold making starts after the drawing is confirmed.\"}, {\"id\": \"s152\", \"text\": \"Mold Making and Mold Trials\"}, {\"id\": \"s153\", \"text\": \"Samples and a full-dimensional inspection report are sent out within 3 days after the T1 mold trial; each mold includes 3 mold trials.\"}, {\"id\": \"s154\", \"text\": \"Volume Injection Molding\"}, {\"id\": \"s155\", \"text\": \"Volume injection-molded parts are delivered 15–20 days after mold approval.\"}, {\"id\": \"s156\", \"text\": \"Shipment Inspection\"}, {\"id\": \"s157\", \"text\": \"100% inspection of appearance and function, with sampling inspection before shipment and an inspection report attached.\"}, {\"id\": \"s158\", \"text\": \"Certification Status\"}, {\"id\": \"s159\", \"text\": \"System certification status for the mold and injection-molded parts business.\"}, {\"id\": \"s160\", \"text\": \"Obtained\"}, {\"id\": \"s161\", \"text\": \"Obtained\"}, {\"id\": \"s162\", \"text\": \"In certification\"}, {\"id\": \"s163\", \"text\": \"FAQ\"}, {\"id\": \"s164\", \"text\": \"Can a mold be made if there is only a sample and no drawing?\"}, {\"id\": \"s165\", \"text\": \"Yes. 3D scanning and reverse modeling are performed first, and mold making starts after the drawing is confirmed.\"}, {\"id\": \"s166\", \"text\": \"How long does mold making take?\"}, {\"id\": \"s167\", \"text\": \"Single-cavity molds take about 25–35 days, and multi-cavity hot runner and two-color molds take about 40–55 days, counted from drawing confirmation.\"}, {\"id\": \"s168\", \"text\": \"How are mold trial samples provided?\"}, {\"id\": \"s169\", \"text\": \"Samples and a full-dimensional inspection report are sent out within 3 days after the T1 mold trial; each mold includes 3 mold trials.\"}, {\"id\": \"s170\", \"text\": \"Who owns the mold?\"}, {\"id\": \"s171\", \"text\": \"After the mold fee is paid in full, the mold is owned by the buyer and can be stored at our plant for volume production.\"}, {\"id\": \"s172\", \"text\": \"What trade terms are used for export orders?\"}, {\"id\": \"s173\", \"text\": \"Commonly FOB Ningbo and EXW; CIF can also be arranged as agreed per order.\"}, {\"id\": \"s174\", \"text\": \"Inquiry\"}, {\"id\": \"s175\", \"text\": \"Send your drawing or sample requirements to our email; we make molds according to drawings or samples and also handle volume injection molding.\"}, {\"id\": \"s176\", \"text\": \"Email\"}, {\"id\": \"s177\", \"text\": \"宁海精密注塑模具P3T\"}, {\"id\": \"s178\", \"text\": \"Products\"}, {\"id\": \"s179\", \"text\": \"Multi-Cavity Hot Runner Molds\"}, {\"id\": \"s180\", \"text\": \"Two-Color Injection Molds\"}, {\"id\": \"s181\", \"text\": \"Precision Structural Injection-Molded Parts\"}, {\"id\": \"s182\", \"text\": \"Transparent Optical Injection-Molded Parts\"}, {\"id\": \"s183\", \"text\": \"Metal Insert Injection-Molded Parts\"}, {\"id\": \"s184\", \"text\": \"Navigation\"}, {\"id\": \"s185\", \"text\": \"Industries\"}, {\"id\": \"s186\", \"text\": \"Manufacturing Capabilities\"}, {\"id\": \"s187\", \"text\": \"How We Work\"}, {\"id\": \"s188\", \"text\": \"Certification Status\"}, {\"id\": \"s189\", \"text\": \"Inquiry\"}, {\"id\": \"s190\", \"text\": \"Contact\"}, {\"id\": \"s191\", \"text\": \"Email\"}]}"
+        }
+      }
+    ]
+  },
+  "slotMap": [
+    {
+      "id": "s1",
+      "domId": "page:home:title"
+    },
+    {
+      "id": "s2",
+      "domId": "page:home:12:aria-label"
+    },
+    {
+      "id": "s3",
+      "domId": "page:home:17:text"
+    },
+    {
+      "id": "s4",
+      "domId": "page:home:20:aria-label"
+    },
+    {
+      "id": "s5",
+      "domId": "page:home:23:text"
+    },
+    {
+      "id": "s6",
+      "domId": "page:home:26:text"
+    },
+    {
+      "id": "s7",
+      "domId": "page:home:29:text"
+    },
+    {
+      "id": "s8",
+      "domId": "page:home:32:text"
+    },
+    {
+      "id": "s9",
+      "domId": "page:home:35:text"
+    },
+    {
+      "id": "s10",
+      "domId": "page:home:38:text"
+    },
+    {
+      "id": "s11",
+      "domId": "page:home:44:text"
+    },
+    {
+      "id": "s12",
+      "domId": "page:home:61:text"
+    },
+    {
+      "id": "s13",
+      "domId": "page:home:64:text"
+    },
+    {
+      "id": "s14",
+      "domId": "page:home:67:text"
+    },
+    {
+      "id": "s15",
+      "domId": "page:home:72:text"
+    },
+    {
+      "id": "s16",
+      "domId": "page:home:75:text"
+    },
+    {
+      "id": "s17",
+      "domId": "page:home:84:text"
+    },
+    {
+      "id": "s18",
+      "domId": "page:home:86:text"
+    },
+    {
+      "id": "s19",
+      "domId": "page:home:89:text"
+    },
+    {
+      "id": "s20",
+      "domId": "page:home:91:text"
+    },
+    {
+      "id": "s21",
+      "domId": "page:home:94:text"
+    },
+    {
+      "id": "s22",
+      "domId": "page:home:96:text"
+    },
+    {
+      "id": "s23",
+      "domId": "page:home:99:text"
+    },
+    {
+      "id": "s24",
+      "domId": "page:home:101:text"
+    },
+    {
+      "id": "s25",
+      "domId": "page:home:114:text"
+    },
+    {
+      "id": "s26",
+      "domId": "page:home:120:text"
+    },
+    {
+      "id": "s27",
+      "domId": "page:home:125:text"
+    },
+    {
+      "id": "s28",
+      "domId": "page:home:129:text"
+    },
+    {
+      "id": "s29",
+      "domId": "page:home:131:text"
+    },
+    {
+      "id": "s30",
+      "domId": "page:home:134:text"
+    },
+    {
+      "id": "s31",
+      "domId": "page:home:136:text"
+    },
+    {
+      "id": "s32",
+      "domId": "page:home:139:text"
+    },
+    {
+      "id": "s33",
+      "domId": "page:home:143:text"
+    },
+    {
+      "id": "s34",
+      "domId": "page:home:146:text"
+    },
+    {
+      "id": "s35",
+      "domId": "page:home:151:text"
+    },
+    {
+      "id": "s36",
+      "domId": "page:home:153:text"
+    },
+    {
+      "id": "s37",
+      "domId": "page:home:156:text"
+    },
+    {
+      "id": "s38",
+      "domId": "page:home:158:text"
+    },
+    {
+      "id": "s39",
+      "domId": "page:home:161:text"
+    },
+    {
+      "id": "s40",
+      "domId": "page:home:166:text"
+    },
+    {
+      "id": "s41",
+      "domId": "page:home:168:text"
+    },
+    {
+      "id": "s42",
+      "domId": "page:home:171:text"
+    },
+    {
+      "id": "s43",
+      "domId": "page:home:176:text"
+    },
+    {
+      "id": "s44",
+      "domId": "page:home:178:text"
+    },
+    {
+      "id": "s45",
+      "domId": "page:home:181:text"
+    },
+    {
+      "id": "s46",
+      "domId": "page:home:186:text"
+    },
+    {
+      "id": "s47",
+      "domId": "page:home:190:text"
+    },
+    {
+      "id": "s48",
+      "domId": "page:home:194:text"
+    },
+    {
+      "id": "s49",
+      "domId": "page:home:196:text"
+    },
+    {
+      "id": "s50",
+      "domId": "page:home:199:text"
+    },
+    {
+      "id": "s51",
+      "domId": "page:home:201:text"
+    },
+    {
+      "id": "s52",
+      "domId": "page:home:204:text"
+    },
+    {
+      "id": "s53",
+      "domId": "page:home:208:text"
+    },
+    {
+      "id": "s54",
+      "domId": "page:home:211:text"
+    },
+    {
+      "id": "s55",
+      "domId": "page:home:216:text"
+    },
+    {
+      "id": "s56",
+      "domId": "page:home:218:text"
+    },
+    {
+      "id": "s57",
+      "domId": "page:home:221:text"
+    },
+    {
+      "id": "s58",
+      "domId": "page:home:223:text"
+    },
+    {
+      "id": "s59",
+      "domId": "page:home:226:text"
+    },
+    {
+      "id": "s60",
+      "domId": "page:home:231:text"
+    },
+    {
+      "id": "s61",
+      "domId": "page:home:236:text"
+    },
+    {
+      "id": "s62",
+      "domId": "page:home:241:text"
+    },
+    {
+      "id": "s63",
+      "domId": "page:home:243:text"
+    },
+    {
+      "id": "s64",
+      "domId": "page:home:246:text"
+    },
+    {
+      "id": "s65",
+      "domId": "page:home:249:text"
+    },
+    {
+      "id": "s66",
+      "domId": "page:home:254:text"
+    },
+    {
+      "id": "s67",
+      "domId": "page:home:258:text"
+    },
+    {
+      "id": "s68",
+      "domId": "page:home:263:text"
+    },
+    {
+      "id": "s69",
+      "domId": "page:home:268:text"
+    },
+    {
+      "id": "s70",
+      "domId": "page:home:272:text"
+    },
+    {
+      "id": "s71",
+      "domId": "page:home:275:text"
+    },
+    {
+      "id": "s72",
+      "domId": "page:home:280:text"
+    },
+    {
+      "id": "s73",
+      "domId": "page:home:285:text"
+    },
+    {
+      "id": "s74",
+      "domId": "page:home:290:text"
+    },
+    {
+      "id": "s75",
+      "domId": "page:home:295:text"
+    },
+    {
+      "id": "s76",
+      "domId": "page:home:300:text"
+    },
+    {
+      "id": "s77",
+      "domId": "page:home:302:text"
+    },
+    {
+      "id": "s78",
+      "domId": "page:home:305:text"
+    },
+    {
+      "id": "s79",
+      "domId": "page:home:310:text"
+    },
+    {
+      "id": "s80",
+      "domId": "page:home:314:text"
+    },
+    {
+      "id": "s81",
+      "domId": "page:home:318:text"
+    },
+    {
+      "id": "s82",
+      "domId": "page:home:323:text"
+    },
+    {
+      "id": "s83",
+      "domId": "page:home:325:text"
+    },
+    {
+      "id": "s84",
+      "domId": "page:home:328:text"
+    },
+    {
+      "id": "s85",
+      "domId": "page:home:332:text"
+    },
+    {
+      "id": "s86",
+      "domId": "page:home:335:text"
+    },
+    {
+      "id": "s87",
+      "domId": "page:home:340:text"
+    },
+    {
+      "id": "s88",
+      "domId": "page:home:345:text"
+    },
+    {
+      "id": "s89",
+      "domId": "page:home:347:text"
+    },
+    {
+      "id": "s90",
+      "domId": "page:home:350:text"
+    },
+    {
+      "id": "s91",
+      "domId": "page:home:355:text"
+    },
+    {
+      "id": "s92",
+      "domId": "page:home:360:text"
+    },
+    {
+      "id": "s93",
+      "domId": "page:home:362:text"
+    },
+    {
+      "id": "s94",
+      "domId": "page:home:365:text"
+    },
+    {
+      "id": "s95",
+      "domId": "page:home:370:text"
+    },
+    {
+      "id": "s96",
+      "domId": "page:home:374:text"
+    },
+    {
+      "id": "s97",
+      "domId": "page:home:378:text"
+    },
+    {
+      "id": "s98",
+      "domId": "page:home:380:text"
+    },
+    {
+      "id": "s99",
+      "domId": "page:home:383:text"
+    },
+    {
+      "id": "s100",
+      "domId": "page:home:385:text"
+    },
+    {
+      "id": "s101",
+      "domId": "page:home:388:text"
+    },
+    {
+      "id": "s102",
+      "domId": "page:home:392:text"
+    },
+    {
+      "id": "s103",
+      "domId": "page:home:395:text"
+    },
+    {
+      "id": "s104",
+      "domId": "page:home:400:text"
+    },
+    {
+      "id": "s105",
+      "domId": "page:home:402:text"
+    },
+    {
+      "id": "s106",
+      "domId": "page:home:405:text"
+    },
+    {
+      "id": "s107",
+      "domId": "page:home:407:text"
+    },
+    {
+      "id": "s108",
+      "domId": "page:home:410:text"
+    },
+    {
+      "id": "s109",
+      "domId": "page:home:415:text"
+    },
+    {
+      "id": "s110",
+      "domId": "page:home:420:text"
+    },
+    {
+      "id": "s111",
+      "domId": "page:home:425:text"
+    },
+    {
+      "id": "s112",
+      "domId": "page:home:427:text"
+    },
+    {
+      "id": "s113",
+      "domId": "page:home:430:text"
+    },
+    {
+      "id": "s114",
+      "domId": "page:home:441:text"
+    },
+    {
+      "id": "s115",
+      "domId": "page:home:447:text"
+    },
+    {
+      "id": "s116",
+      "domId": "page:home:449:text"
+    },
+    {
+      "id": "s117",
+      "domId": "page:home:452:text"
+    },
+    {
+      "id": "s118",
+      "domId": "page:home:454:text"
+    },
+    {
+      "id": "s119",
+      "domId": "page:home:457:text"
+    },
+    {
+      "id": "s120",
+      "domId": "page:home:459:text"
+    },
+    {
+      "id": "s121",
+      "domId": "page:home:462:text"
+    },
+    {
+      "id": "s122",
+      "domId": "page:home:464:text"
+    },
+    {
+      "id": "s123",
+      "domId": "page:home:479:text"
+    },
+    {
+      "id": "s124",
+      "domId": "page:home:482:text"
+    },
+    {
+      "id": "s125",
+      "domId": "page:home:488:text"
+    },
+    {
+      "id": "s126",
+      "domId": "page:home:491:text"
+    },
+    {
+      "id": "s127",
+      "domId": "page:home:494:text"
+    },
+    {
+      "id": "s128",
+      "domId": "page:home:497:text"
+    },
+    {
+      "id": "s129",
+      "domId": "page:home:500:text"
+    },
+    {
+      "id": "s130",
+      "domId": "page:home:511:text"
+    },
+    {
+      "id": "s131",
+      "domId": "page:home:514:text"
+    },
+    {
+      "id": "s132",
+      "domId": "page:home:520:text"
+    },
+    {
+      "id": "s133",
+      "domId": "page:home:522:text"
+    },
+    {
+      "id": "s134",
+      "domId": "page:home:525:text"
+    },
+    {
+      "id": "s135",
+      "domId": "page:home:527:text"
+    },
+    {
+      "id": "s136",
+      "domId": "page:home:530:text"
+    },
+    {
+      "id": "s137",
+      "domId": "page:home:532:text"
+    },
+    {
+      "id": "s138",
+      "domId": "page:home:535:text"
+    },
+    {
+      "id": "s139",
+      "domId": "page:home:537:text"
+    },
+    {
+      "id": "s140",
+      "domId": "page:home:540:text"
+    },
+    {
+      "id": "s141",
+      "domId": "page:home:542:text"
+    },
+    {
+      "id": "s142",
+      "domId": "page:home:545:text"
+    },
+    {
+      "id": "s143",
+      "domId": "page:home:547:text"
+    },
+    {
+      "id": "s144",
+      "domId": "page:home:550:text"
+    },
+    {
+      "id": "s145",
+      "domId": "page:home:553:text"
+    },
+    {
+      "id": "s146",
+      "domId": "page:home:556:text"
+    },
+    {
+      "id": "s147",
+      "domId": "page:home:559:text"
+    },
+    {
+      "id": "s148",
+      "domId": "page:home:562:text"
+    },
+    {
+      "id": "s149",
+      "domId": "page:home:575:text"
+    },
+    {
+      "id": "s150",
+      "domId": "page:home:582:text"
+    },
+    {
+      "id": "s151",
+      "domId": "page:home:584:text"
+    },
+    {
+      "id": "s152",
+      "domId": "page:home:588:text"
+    },
+    {
+      "id": "s153",
+      "domId": "page:home:590:text"
+    },
+    {
+      "id": "s154",
+      "domId": "page:home:594:text"
+    },
+    {
+      "id": "s155",
+      "domId": "page:home:596:text"
+    },
+    {
+      "id": "s156",
+      "domId": "page:home:600:text"
+    },
+    {
+      "id": "s157",
+      "domId": "page:home:602:text"
+    },
+    {
+      "id": "s158",
+      "domId": "page:home:614:text"
+    },
+    {
+      "id": "s159",
+      "domId": "page:home:617:text"
+    },
+    {
+      "id": "s160",
+      "domId": "page:home:625:text"
+    },
+    {
+      "id": "s161",
+      "domId": "page:home:630:text"
+    },
+    {
+      "id": "s162",
+      "domId": "page:home:635:text"
+    },
+    {
+      "id": "s163",
+      "domId": "page:home:646:text"
+    },
+    {
+      "id": "s164",
+      "domId": "page:home:654:text"
+    },
+    {
+      "id": "s165",
+      "domId": "page:home:657:text"
+    },
+    {
+      "id": "s166",
+      "domId": "page:home:662:text"
+    },
+    {
+      "id": "s167",
+      "domId": "page:home:665:text"
+    },
+    {
+      "id": "s168",
+      "domId": "page:home:670:text"
+    },
+    {
+      "id": "s169",
+      "domId": "page:home:673:text"
+    },
+    {
+      "id": "s170",
+      "domId": "page:home:678:text"
+    },
+    {
+      "id": "s171",
+      "domId": "page:home:681:text"
+    },
+    {
+      "id": "s172",
+      "domId": "page:home:686:text"
+    },
+    {
+      "id": "s173",
+      "domId": "page:home:689:text"
+    },
+    {
+      "id": "s174",
+      "domId": "page:home:701:text"
+    },
+    {
+      "id": "s175",
+      "domId": "page:home:704:text"
+    },
+    {
+      "id": "s176",
+      "domId": "page:home:710:text"
+    },
+    {
+      "id": "s177",
+      "domId": "page:home:728:text"
+    },
+    {
+      "id": "s178",
+      "domId": "page:home:734:text"
+    },
+    {
+      "id": "s179",
+      "domId": "page:home:738:text"
+    },
+    {
+      "id": "s180",
+      "domId": "page:home:740:text"
+    },
+    {
+      "id": "s181",
+      "domId": "page:home:742:text"
+    },
+    {
+      "id": "s182",
+      "domId": "page:home:744:text"
+    },
+    {
+      "id": "s183",
+      "domId": "page:home:746:text"
+    },
+    {
+      "id": "s184",
+      "domId": "page:home:752:text"
+    },
+    {
+      "id": "s185",
+      "domId": "page:home:757:text"
+    },
+    {
+      "id": "s186",
+      "domId": "page:home:760:text"
+    },
+    {
+      "id": "s187",
+      "domId": "page:home:763:text"
+    },
+    {
+      "id": "s188",
+      "domId": "page:home:766:text"
+    },
+    {
+      "id": "s189",
+      "domId": "page:home:769:text"
+    },
+    {
+      "id": "s190",
+      "domId": "page:home:776:text"
+    },
+    {
+      "id": "s191",
+      "domId": "page:home:782:text"
+    }
+  ],
+  "issues": [
+    "home/1/3/5/1/3/2/1/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/1/3/9/1/3/7/1/0 保真：含数字记号、数值与单位、邮箱或网址不一致"
+  ],
+  "pairs": [
+    {
+      "issue": "home/1/3/5/1/3/2/1/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+      "before": "模具年产约 180 套；注塑机 42 台（90–800 t），月注塑能力约 600 万件",
+      "after": "Approximately 180 sets of molds per year; 42 injection molding machines (90–800 t), with a monthly injection molding capacity of approximately 6 million pieces"
+    },
+    {
+      "issue": "home/1/3/9/1/3/7/1/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+      "before": "外观与功能全检，出货抽检并附检测报告。",
+      "after": "100% inspection of appearance and function, with sampling inspection before shipment and an inspection report attached."
+    }
+  ]
+}
