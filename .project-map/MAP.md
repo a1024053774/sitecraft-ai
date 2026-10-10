@@ -58,10 +58,11 @@
 - [T-139 待补充与模拟邮箱](tickets/T-139-placeholders-and-sim-domain.md)：「待补充」照常展示、盲评不计入破绽；模拟邮箱用 luckye.online
 - [T-141 用户给什么就做什么](tickets/T-141-build-from-what-user-gives.md)：不默认加询盘、报价、邮箱联系和联系页；资料少就做得少，用户补充后再丰富
 - [T-143 衡量标准](tickets/T-143-quality-metric.md)：以换公司不像同模板、新旧成对选新为准；混排只作参考
+- [T-146 Shaders、good-css、Oil UI 怎么接](tickets/T-146-shaders-goodcss-oilui.md)：shader 只做系统渲染的静态底图；good-css 做成提交入口的机械反馈检查；Oil UI 的方法进规划，验证有效后再做多方向挑选
 
 ## Not yet specified
 
-- T-128 之后的新路线批次（等第一批做完再切票）：风格卡与 skill 库（taste-skill / Impeccable 提炼、4 个样子改写成风格）；模板味检测（Impeccable 检测规则）；预览批注点改与快捷按钮；用户满意后生成英文版；Hairline 式线稿示意图；oil-ui 式多方向挑选；
+- T-128 之后的新路线批次（等第一批做完再切票）：风格卡与 skill 库（taste-skill / Impeccable 提炼、4 个样子改写成风格）；模板味检测（Impeccable 检测规则）；预览批注点改与快捷按钮；用户满意后生成英文版；Hairline 式线稿示意图；
 - 生成用模型：先用 deepseek-flash；评估集显示到顶时再由负责人决定是否换。
 
 ## Out of scope
