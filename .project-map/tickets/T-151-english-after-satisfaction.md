@@ -35,7 +35,16 @@ supersedes:
 
 ## Resolution
 
-本轮合并 PASS（2026-10-10）。主控已确认 Astra PASS **788959c**；以该已审提交为第一父提交，merge 最新 family-kit-assembly **84895cb**，保留 T-151 与 T-148 的行为。不 rebase、不 amend 788959c，创建单独合并提交，SHA 见交付回复。票保持 open，未推送、未关闭，不自行安排审核。本轮没有真实模型调用，用量 **0**；前次同一站真实初译 7,629 token 和已存 v6 保持不变，没有重翻或写入既有站点。
+本轮入口测试配置修复 PASS（2026-10-10）：tests/t151-english.test.ts 按 SITECRAFT_BASE 运行，不再断言端口为 3161；3161 与 3163 各 18/18。同仓库工作台入口约定，未配置时默认 3034；本轮执行均显式使用自有服务，没有连接主服务 3034。新建普通提交，不 amend 已审 788959c 或合并 76d4c5f；SHA 见交付回复。票保持 open，未推送、未关闭，本轮真实模型调用及用量为 **0**。
+
+本轮证据根为 `artifacts/t151/port-isolation-2026-10-10/`：
+
+- `red-76d4c5f-3162.log` 在原实现上明确失败于 base 的 3162/3161 严格相等断言，不是服务不可用。修后读取 SITECRAFT_BASE，默认地址与 tests/helpers/workspace-browser.ts 一致，并赋回检查器环境变量，不依赖具体端口。
+- 此文件直接在 Node 进程调用创建、聊天、提交、发布等路由处理器，含失败候选、并发和版本恢复，不能让其文件存储继承工作中服务的数据根。因此保留独立根，沿用 tests/t145-import-cli.test.ts 已有的 artifacts/UUID + SITECRAFT_DATA_ROOT 机制，在存储模块导入前设置 SITE_STORE=fs 和独立根。UUID 也避免同毫秒运行碰撞；不切换 cwd，仍从当前仓库读取技能和布局检查脚本。服务地址只用作浏览器 HTML 文档来源，路由写入在测试进程的独立目录内完成。
+- 两次正式命令均为 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:<3161或3163> SITECRAFT_DATA_ROOT=/Users/luckye/Documents/Code/sitecraft-ai-t151/artifacts/t151/port-isolation-2026-10-10/server-store CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --test --experimental-strip-types tests/t151-english.test.ts`，green-3161.log / green-3163.log 各 **18/18**（2026-10-10 UTC：3161 为 20:58:50–20:59:01，3163 为 21:02:27–21:02:38）；同环境 `npm run typecheck` 通过（21:03:05，typecheck.log）。红态为 20:58:49，发生在修前 76d4c5f。本轮只改测试配置，不改生产源码，未重跑全仓 test/build，旧合并结果不当本次证据；新提交 SHA 见交付回复。
+- `root-audit.json` 记录每次运行各用不同 contracts-UUID 根，正式两次各保存 6 个测试文件，服务根文件数为 0。没有把夹具写入主 .sitecraft-data，没有复制/读取主数据或主 .env.local。3162 原有服务占用，启动本服务失败及该端口试跑日志保留；没有停止既有服务，第二次正式验证选空闲 3163，自起服务后完成。本轮服务均已停止。
+
+前次合并 76d4c5f：主控确认 Astra PASS **788959c** 后，以该已审提交为第一父提交，merge family-kit-assembly **84895cb**，保留 T-151 与 T-148 的行为；原提交与 v6 保持不变。以下保留合并证据，不代替本次端口验证。
 
 合并证据根为 `artifacts/t151/merge-84895cb/`：
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -21,7 +22,10 @@ registerHooks({ resolve(specifier, context, next) {
   return next(pathToFileURL(existsSync(`${file}.ts`) ? `${file}.ts` : file).href, context);
 } });
 process.env.SITE_STORE = 'fs';
-process.env.SITECRAFT_DATA_ROOT = path.resolve('artifacts/t151', `contracts-${Date.now()}`);
+// Handlers execute in this process, so their stores must be isolated before
+// import. Reuse the artifacts/UUID + SITECRAFT_DATA_ROOT convention from T-145;
+// the configured HTTP server supplies only the browser's document origin.
+process.env.SITECRAFT_DATA_ROOT = path.resolve('artifacts/t151', `contracts-${randomUUID()}`);
 await mkdir(process.env.SITECRAFT_DATA_ROOT, { recursive: true });
 let translationCalls = 0, factCalls = 0, fault = '', missingInjected = false;
 const dictionary: Record<string, string> = { '边界机械': '边界机械', '主导航': 'Main navigation', '产品': 'Products', '首页': 'Home', '轴套': 'Bushings',
@@ -49,7 +53,8 @@ const provider = createServer(async (request, response) => {
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');
-const base = process.env.SITECRAFT_BASE!; assert.equal(base, 'http://127.0.0.1:3161');
+const base = process.env.SITECRAFT_BASE || 'http://127.0.0.1:3034';
+process.env.SITECRAFT_BASE = base;
 process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`; process.env.DEEPSEEK_API_KEY = 'local-test'; process.env.DEEPSEEK_MODEL = 'local-test';
 const { POST: create } = await import('../app/api/sites/route.ts');
 const { POST: chat } = await import('../app/api/sites/[siteId]/chat/route.ts');
