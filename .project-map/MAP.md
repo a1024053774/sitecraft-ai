@@ -9,7 +9,7 @@
 - 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-049](tickets/T-049-roles-2026-09-29.md)，取代 T-033）：负责人只定方向和需求。Claude 规划、验收、整合推送；Codex（`codex-build` 等）和 Sonnet 5.5 子 agent 执行（Kiro 2026-10-01 起不再使用）；Codex Astra 审代码；Codex gpt-6.1-sol 盲评；Grok 做杂活；云端会话在 `cloud/*` 分支做票。
-- 现状（2026-10-10）：站点代码路线提供生成、对话修改、完整版本与恢复，评估入口为 eval:new-route。T-145 已移除旧运行路径和 vendor，主数据 13 站转换与批准的残留清理已完成；Astra NO_GO 的结构失败与查询导航问题修复后等待复审。当前页面质量按 T-143 的换公司与成对比较标准判断；历史见 [plan-history.md](../docs/project/plan-history.md)。
+- 现状（2026-10-10）：站点代码路线提供生成、对话修改、完整版本与恢复，评估入口为 eval:new-route。T-145 已移除旧运行路径和 vendor，主数据 13 站转换与批准的残留清理已完成（2ec5e14）。当前页面质量按 T-143 的换公司与成对比较标准判断；历史见 [plan-history.md](../docs/project/plan-history.md)。
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 

@@ -2,7 +2,7 @@
 id: T-145
 title: 删除旧区块库路线，旧站点一次性转成新路线的第一个版本
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: t145-build
 supersedes:
@@ -22,9 +22,9 @@ T-127 定下：新路线跑通后，旧的区块库拼页、adapter、白名单 
 ## Acceptance
 
 - [x] 盘点清单与主控确认的删除范围写进 Resolution
-- [ ] 本机旧站点转换结果统计（成功、检查有问题、无法读取）写进 Resolution；抽查若干转换后的站点在工作台能打开、预览、对话修改、恢复版本，1440/375 截图看过；旧 JSON 未被改动
+- [x] 本机旧站点转换结果统计（成功、检查有问题、无法读取）写进 Resolution；抽查若干转换后的站点在工作台能打开、预览、对话修改、恢复版本，1440/375 截图看过；旧 JSON 未被改动
 - [x] 旧路线代码、测试、文档已删除，`rg` 找不到残留引用；全套测试不再依赖本机旧站点数据
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## 负责人决定（2026-10-09）
 
@@ -115,3 +115,8 @@ Tracer bullet 为 561a1113-4dab-49b6-81dc-ab7e3eb712a5 的 5 产品注塑制造�
 - `npm run typecheck` → typecheck-final.txt，退出 0；`SITE_STORE=fs SITECRAFT_DATA_ROOT= DEEPSEEK_API_KEY= AI_API_KEY= npm run build` → build-final.txt，退出 0。UTF-8 回读、git diff --check 和 project-map status 通过，Problems 0、stale living docs 0。
 
 本轮修复与测试技术 PASS，不代表 Astra 复审或独立审美通过。主数据和一次性执行产物保持不动，不推送、不关票。
+
+## 合并验收（Claude，2026-10-10）
+
+Astra 首审 89feb29 NO_GO（P1 两项为一次性数据脚本，主控执行前实时核对通过；P2 两项、P3 两项在 8c1c0db 修复），复审 c31f76c..8c1c0db PASS。合并为 2ec5e14；主工作区删除未跟踪的 vendor/ 与 .git/modules/vendor（负责人决定整体移除）。主工作区 npm ci 后重启 3034：`npm run typecheck` 退出 0；`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<AGENTS 指定路径> npm test` 234/234；`SITE_STORE=fs npm run build` 退出 0，输出在 artifacts/merge-2ec5e14/。主控查看了 561a1113 转换站工作台截图（第 1 版、旧站转换未做模型校对）。
+
