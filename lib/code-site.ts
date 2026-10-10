@@ -16,10 +16,16 @@ export type CodePreferences = { style: 'auto' | 'precision' | 'documentary'; lay
 export type CodePlan = { summary: string; style: 'precision' | 'documentary'; styleReason: string;
   // Saved outlines from before T-135 have no skeleton; new model plans require it.
   skeleton?: { id: string; reason: string }; skeletonOrder?: string[]; pages: Array<{ id: string; title: string; outline: string }> };
+export type CodeQualityKind = 'truncatedText' | 'ungatedHover' | 'smallTargets' | 'coveredAnchors' | 'croppedProductImages';
+export type CodeQualityFeedback = Record<CodeQualityKind, number> & {
+  details: Array<{ kind: CodeQualityKind; target: string; text: string; detail: string }>;
+};
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
   factReview?: 'legacy-unreviewed';
-  viewports: Array<{ pageId: string; width: number; overflow: number; overlaps: number; contrastIssues: number; longLines: number }>;
+  viewports: Array<{ pageId: string; width: number; overflow: number; overlaps: number; contrastIssues: number; longLines: number;
+    // Absent on versions checked before T-147; absence is not zero findings.
+    qualityFeedback?: CodeQualityFeedback }>;
 };
 export type CodeVersion = {
   id: string; revision: number; author: 'assistant' | 'user' | 'legacy-import'; summary: string; request: string; createdAt: string;

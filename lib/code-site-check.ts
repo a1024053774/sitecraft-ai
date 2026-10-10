@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
-import { codeSiteSchema, renderSiteCode, type SiteCode, type CodeCheck } from './code-site.ts';
+import { codeSiteSchema, renderSiteCode, type SiteCode, type CodeCheck, type CodeQualityFeedback, type CodeQualityKind } from './code-site.ts';
 import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
@@ -170,6 +170,178 @@ async function prepareSystemBackdrops(allowedUrls: string[]) {
   }
   return { colors, issues: [...new Set(issues)] };
 }
+// Browser-only diagnostics. None of these findings enter checks.issues or repair decisions.
+function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[]): CodeQualityFeedback {
+  const feedback: CodeQualityFeedback = { truncatedText: 0, ungatedHover: 0, smallTargets: 0, coveredAnchors: 0, croppedProductImages: 0, details: [] };
+  const targetFor = (el: Element): string => {
+    if (el === document.documentElement) return 'html';
+    if (el === document.body) return 'body';
+    if (el.id) return `#${CSS.escape(el.id)}`;
+    const parts: string[] = [];
+    for (let node: Element | null = el; node && node !== document.body; node = node.parentElement) {
+      parts.unshift(`${node.tagName.toLowerCase()}:nth-of-type(${[...node.parentElement!.children].filter(n => n.tagName === node!.tagName).indexOf(node) + 1})`);
+    }
+    return `body > ${parts.join(' > ')}`;
+  };
+  const visible = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  };
+  const add = (kind: CodeQualityKind, el: Element, detail: string) => {
+    feedback[kind]++;
+    feedback.details.push({ kind, target: targetFor(el), text: (el.textContent || el.getAttribute('alt') || '').trim().slice(0, 100), detail });
+  };
+  // A Range exposes text lost behind a clipping ancestor, including hidden clamp lines.
+  // Restrict to explicit specification semantics; ordinary summaries have no completeness contract.
+  const specNodes = [...document.querySelectorAll('td,th,dt,dd,[data-sitecraft-slot],[data-spec],[data-model],[data-sku],[data-parameter]')]
+    .filter(el => /^(TD|TH|DT|DD)$/.test(el.tagName) || el.matches('[data-spec],[data-model],[data-sku],[data-parameter]') || /spec|sku|model|parameter/.test(el.getAttribute('data-sitecraft-slot') || ''));
+  const truncated = new Set<Element>();
+  for (const el of specNodes) {
+    if (!visible(el)) continue;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), range = document.createRange();
+    let lost = false;
+    while (!lost && walker.nextNode()) {
+      const node = walker.currentNode, parent = node.parentElement!;
+      if (!visible(parent)) continue;
+      const clips: Array<{ rect: DOMRect; x: boolean; y: boolean }> = [];
+      for (let ancestor: Element | null = parent; ancestor && ancestor !== document.documentElement; ancestor = ancestor.parentElement) {
+        const s = getComputedStyle(ancestor), r = ancestor.getBoundingClientRect();
+        const x = /hidden|clip/.test(s.overflowX), y = /hidden|clip/.test(s.overflowY);
+        if (x || y) clips.push({ rect: new DOMRect(r.left + ancestor.clientLeft, r.top + ancestor.clientTop, ancestor.clientWidth, ancestor.clientHeight), x, y });
+      }
+      if (!clips.length) continue;
+      const text = node.textContent || '';
+      for (let i = 0; i < text.length && !lost; i++) {
+        if (!text[i].trim()) continue;
+        range.setStart(node, i); range.setEnd(node, i + 1);
+        for (const r of range.getClientRects()) if (r.width > 0 && r.height > 0 && clips.some(c =>
+          (c.x && (r.left < c.rect.left - 2 || r.right > c.rect.right + 2)) || (c.y && (r.top < c.rect.top - 2 || r.bottom > c.rect.bottom + 2)))) { lost = true; break; }
+      }
+    }
+    if (lost && ![...truncated].some(node => node.contains(el))) { truncated.add(el); add('truncatedText', el, '规格文字超出 hidden/clip 裁剪区；请完整显示型号与参数。'); }
+  }
+  // Read CSSOM, including nested rules. A capability gate must exclude every coarse/no-hover branch.
+  // Only positive conjunctions establish the gate; ambiguous OR/not expressions remain feedback.
+  const hoverTargets = new Map<Element, string[]>();
+  // Hover is an ancestor chain, not a single boolean shared by a selector.
+  // Query an inert clone with one chain marked at a time. The browser handles
+  // :not/:is/:has semantics, including mixed ancestor/descendant states.
+  const hoverDocument = document.cloneNode(true) as Document;
+  const sourceNodes = [...document.querySelectorAll('*')], hoverNodes = [...hoverDocument.querySelectorAll('*')];
+  const sourceFor = new Map(hoverNodes.map((node, index) => [node, sourceNodes[index]]));
+  const hoverAttribute = 'data-sc-quality-hover';
+  for (const node of hoverNodes) node.removeAttribute(hoverAttribute);
+  const hoverOwners = hoverNodes.filter(node => visible(sourceFor.get(node)!));
+  // CSS selector lists can contain commas inside :is(), attributes and strings.
+  const selectorBranches = (selector: string) => {
+    const branches: string[] = [];
+    let start = 0, depth = 0, quote = '';
+    for (let i = 0; i < selector.length; i++) {
+      const c = selector[i];
+      if (c === '\\') { i++; continue; }
+      if (quote) { if (c === quote) quote = ''; continue; }
+      if (c === '"' || c === "'") quote = c;
+      else if (c === '(' || c === '[') depth++;
+      else if (c === ')' || c === ']') depth--;
+      else if (c === ',' && depth === 0) { branches.push(selector.slice(start, i)); start = i + 1; }
+    }
+    return [...branches, selector.slice(start)];
+  };
+  const collectHover = (selector: string, hoverGate: boolean, pointerGate: boolean) => {
+    if ((hoverGate && pointerGate) || !/:hover\b/.test(selector)) return;
+    for (const branch of selectorBranches(selector)) {
+      if (!/:hover\b/.test(branch)) continue;
+      const targets = new Set<Element>();
+      const passive = branch.replace(/:hover\b/g, `[${hoverAttribute}]`).replace(/::[\w-]+(?:\([^)]*\))?/g, '');
+      for (const owner of hoverOwners) {
+        const chain: Element[] = [];
+        for (let node: Element | null = owner; node; node = node.parentElement) { node.setAttribute(hoverAttribute, ''); chain.push(node); }
+        for (const clone of hoverDocument.querySelectorAll(passive)) {
+          const el = sourceFor.get(clone)!;
+          if (visible(el)) targets.add(el);
+        }
+        for (const node of chain) node.removeAttribute(hoverAttribute);
+      }
+      for (const el of targets) hoverTargets.set(el, [...(hoverTargets.get(el) || []), branch.trim()]);
+    }
+  };
+  const walkRules = (rules: CSSRuleList, parent = '', hoverGate = false, pointerGate = false) => {
+    for (const rule of rules) {
+      if (rule instanceof CSSMediaRule) {
+        const condition = rule.conditionText;
+        const conjunctive = !/\bnot\b|\bor\b|,/i.test(condition);
+        walkRules(rule.cssRules, parent, hoverGate || (conjunctive && /\(\s*hover\s*:\s*hover\s*\)/i.test(condition)), pointerGate || (conjunctive && /\(\s*pointer\s*:\s*fine\s*\)/i.test(condition)));
+      } else if (rule instanceof CSSStyleRule) {
+        const current = parent ? (rule.selectorText.includes('&') ? rule.selectorText.replaceAll('&', `:is(${parent})`) : `:is(${parent}) :is(${rule.selectorText})`) : rule.selectorText;
+        if (rule.style.length) collectHover(current, hoverGate, pointerGate);
+        walkRules(rule.cssRules, current, hoverGate, pointerGate);
+      } else if (rule instanceof CSSNestedDeclarations && rule.style.length) collectHover(parent, hoverGate, pointerGate);
+      else if (rule instanceof CSSSupportsRule) {
+        if (CSS.supports(rule.conditionText)) walkRules(rule.cssRules, parent, hoverGate, pointerGate);
+      } else if (rule instanceof CSSContainerRule) walkRules(rule.cssRules, parent, hoverGate, pointerGate);
+    }
+  };
+  for (const sheet of document.styleSheets) walkRules(sheet.cssRules);
+  for (const [el, selectors] of hoverTargets) add('ungatedHover', el, `悬停规则缺少 hover:hover 与 pointer:fine 联合门控：${[...new Set(selectors)].join('、')}`);
+
+  const initialX = scrollX, initialY = scrollY;
+  try {
+    if (width === 375) for (const el of document.querySelectorAll('a[href],summary,button,input:not([type=hidden]),textarea,select,[role=button]')) {
+      if (!visible(el) || el.matches(':disabled')) continue;
+      // Inline links in a prose sentence are exempt, not solitary calls to action in a p.
+      const prose = el.closest('p,li,dd,figcaption');
+      if (el.tagName === 'A' && getComputedStyle(el).display === 'inline' && prose && !el.closest('nav') && (prose.textContent || '').replace(el.textContent || '', '').trim()) continue;
+      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+      const r = el.getBoundingClientRect();
+      const hit = (x: number, y: number) => { const node = document.elementFromPoint(x, y); return node === el || (!!node && el.contains(node)); };
+      // Probe actual hit areas rather than the element box: this includes ::before/::after,
+      // excludes clipped expansion and rejects a neighbour owning part of the candidate square.
+      let usable = false;
+      for (const dx of [0, -11, 11, -22, 22]) {
+        for (const dy of [0, -11, 11, -22, 22]) {
+          const cx = r.left + r.width / 2 + dx, cy = r.top + r.height / 2 + dy;
+          if (cx - 22 < 0 || cx + 22 > innerWidth || cy - 22 < 0 || cy + 22 > innerHeight) continue;
+          let complete = true;
+          for (let x = -21.9; x <= 22 && complete; x += 5.475) for (let y = -21.9; y <= 22; y += 5.475) if (!hit(cx + x, cy + y)) { complete = false; break; }
+          if (complete) { usable = true; break; }
+        }
+        if (usable) break;
+      }
+      if (!usable) add('smallTargets', el, `未找到可独立命中的 44×44 点击区（元素框 ${r.width.toFixed(1)}×${r.height.toFixed(1)}）；含伪元素与相邻目标命中抽样。`);
+    }
+    for (const image of document.querySelectorAll<HTMLImageElement>('img[data-image-id]')) {
+      if (!visible(image) || !productIds.includes(image.dataset.imageId || '') || getComputedStyle(image).objectFit !== 'cover' || !image.naturalWidth || !image.naturalHeight) continue;
+      const style = getComputedStyle(image);
+      const w = image.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), h = image.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+      if (w > 0 && h > 0 && (image.naturalWidth * scale > w + 1 || image.naturalHeight * scale > h + 1)) add('croppedProductImages', image, '已登记 product 图片的 cover 实际裁切原图；是否丢失主体须人工核对，DOM 不能判定主体边界。');
+    }
+    const anchors = new Set(incomingAnchors);
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('a[href]')) {
+      const url = new URL(link.href);
+      if (url.hash && (!url.searchParams.get('page') || url.searchParams.get('page') === pageId)) anchors.add(decodeURIComponent(url.hash.slice(1)));
+    }
+    const headers = [...document.querySelectorAll('header,[role=banner]')].filter(el => !el.closest('main') && /fixed|sticky/.test(getComputedStyle(el).position));
+    for (const id of anchors) {
+      const target = document.getElementById(id);
+      if (!target || !visible(target)) continue;
+      target.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+      const title = target.matches('h1,h2,h3,h4,h5,h6') ? target : target.querySelector('h1,h2,h3,h4,h5,h6') || target;
+      const r = title.getBoundingClientRect();
+      const blocked = headers.some(header => {
+        if (header.contains(target) || !visible(header)) return false;
+        const h = header.getBoundingClientRect();
+        if (h.bottom <= r.top + 2 || h.top >= r.bottom - 2 || h.right <= r.left || h.left >= r.right) return false;
+        const x = Math.max(h.left, r.left) + Math.min(h.right - Math.max(h.left, r.left), r.right - Math.max(h.left, r.left)) / 2;
+        const y = Math.max(0, h.top, r.top) + 2;
+        const hit = document.elementFromPoint(x, y);
+        return !!hit && header.contains(hit);
+      });
+      if (blocked) add('coveredAnchors', title, `锚点 #${id} 滚动后标题被 fixed/sticky 页头遮挡；按实际页头留 scroll-margin 或 scroll-padding。`);
+    }
+  } finally { scrollTo({ left: initialX, top: initialY, behavior: 'instant' }); }
+  return feedback;
+}
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
@@ -221,7 +393,10 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         for (const text of layout.generatedText) generatedText.add(text);
         const contrast = layout.textContrast.map(t => ({ ...t, threshold: t.role === 'heading' ? t.threshold : 4.5 })).filter(t => t.status !== 'measured' || t.ratio === null || t.ratio < t.threshold);
         const long = layout.bodyLineLength.filter(l => l.tooLong);
-        checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length });
+        const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
+        const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
+        const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)})`);
+        checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length, qualityFeedback });
         if (!layout.measurement.textContrastEntries) checks.issues.push(`${page.id}/${width} 无可测量正文`);
         if (layout.horizontalScroll || layout.overflowElements.length) checks.issues.push(`${page.id}/${width} 横向溢出`);
         if (layout.textOverlaps.length) checks.issues.push(`${page.id}/${width} 文字重叠`);

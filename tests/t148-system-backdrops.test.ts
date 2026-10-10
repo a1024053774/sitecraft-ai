@@ -69,6 +69,9 @@ test('registered marker and CSS backgrounds save, render at three widths and res
   assert.equal(result.status, 'applied', 'registered local background URLs must pass the real commit entry');
   assert.equal(result.version.checks.viewports.length, 6);
   assert.ok(result.version.checks.viewports.every(v => v.overflow === 0 && v.overlaps === 0 && v.contrastIssues === 0));
+  assert.ok(result.version.checks.viewports.every(v => v.qualityFeedback), 'a backdrop version must also retain T-147 quality feedback for each viewport');
+  assert.ok(result.version.checks.viewports.some(v => v.width === 375 && v.qualityFeedback!.smallTargets > 0), 'the fixture has small standalone navigation targets; feedback must run without rejecting its legal backdrop');
+  assert.deepEqual(result.version.checks.issues, [], 'quality feedback must stay advisory while backdrop floor checks pass');
   const rendered = renderSiteCode(siteId, result.version.code, 'home');
   assert.match(rendered, /\/system-backdrops\/bd_grid_precision-steel--1440\.webp/);
   assert.match(rendered, /Shader Effects Inc\./);

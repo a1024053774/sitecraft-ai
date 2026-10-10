@@ -28,7 +28,7 @@ T-146：没有授权实拍照片的站点只能做无图或 CSS 示意版，首�
 
 ## Resolution
 
-**PASS（本轮授权的素材修正与第 1–4 步实现）；INCOMPLETE（整票联合质量评估）。** 主控已批准六类素材并授权接入；status 保持 open，不关票、不推送。本轮唯一功能提交为 `feat: add static WebGPU system backdrops (T-148)`，父提交 `a598f42fde7bd033dfda1880f463d55195f1686d`；验证对应这份本地提交的候选源码，最终 SHA 见最终汇报与 `artifacts/t148/final-verification.json`。T-147 的 `5d4ff22` 未搬入本分支；主控先合并 T-147，再处理共同文件冲突。
+**PASS（素材实现及与 family-kit-assembly 的合并交付）；INCOMPLETE（整票联合质量评估）。** 主控已批准六类素材并授权接入；status 保持 open，不关票、不推送。原功能提交为 `0fc7ec7`，父提交 `a598f42fde7bd033dfda1880f463d55195f1686d`。主控合并 T-147 后，本 worktree 按新派工执行 `git merge --no-commit --no-ff family-kit-assembly`，引入其快照 `d1d60e30dcd279e68040c533a1d1a181e81e4876`（含 `5d4ff22` / `7bceb3c` / `9fdb2d9`），没有 rebase。当前验证对应本次双父合并提交的候选源码；最终合并 SHA 见最终报告及 `artifacts/t148/merge-family-kit/verification.json`。
 
 - 主控素材决定：保留 grid、dot-grid、linear-field、radial-field、paper-grain、blue-grain；排除 simplex/fractal/wavelet（云斑像污渍或 AI 网格渐变，fractal 纸色 1440 有明显同心色带）与 stone（和纸纹难区分）。来源、版本、许可、选用／排除理由及全部参数写在 `resources/shader-backdrops/`，旧候选与失败证据保留。
 - 实际入库：shaders@4.0.4/MIT 仅 devDependencies；六类 × 精密／纪实各两配色 = 24 个 `bd_` 编号、72 张静态 WebP。`lib/code-site-backdrops.ts` 与 `public/system-backdrops/` 不加载 shader JS，模型收到按风格过滤的可选编号，核心规范明确底图可选、不默认每站使用，不当产品／设备／现场图。CONTEXT、mainline、spec、README、AGENTS 已同步。
@@ -40,6 +40,10 @@ T-146：没有授权实拍照片的站点只能做无图或 CSS 示意版，首�
 - Astra 独立技术审核：完整冻结候选审核发现上述一个 P1，FAIL 原报告在 `astra-final-before.txt`；根因层修正后，独立真实 Chrome 在 05:10:28 / 05:10:33 UTC 核对容器和文字元素自身内阴影，三个视口均 passed:false/contrastIssues:1，定向复核 **PASS**（`astra-final-after.txt`），无该范围遗留问题。未新增回退、旁路或异常吞掉的成功结果。
 - 最终检查：`npm run build` **PASS**（05:10:03 UTC，`build-inset-fixed.log`）；`CHROME_PATH=<上述指定路径> SITECRAFT_BASE=http://127.0.0.1:3158 SITE_STORE=fs npm test` **243/243 PASS，无跳过**（05:10:37 UTC，`test-inset-fixed.log`）；build 完成后顺序 `npm run typecheck` **PASS**（05:12:05 UTC，`typecheck-inset-fixed.log`）。曾同时跑 build/typecheck 导致 Next 重建 `.next/types` 时 TS6053，日志 `typecheck-complete.log` 保留；没有改配置绕过检查，改为顺序运行。
 - 实际 HTTP 页面：`CHROME_PATH=<上述指定路径> node --experimental-strip-types .artifact-work/t148-http-final.mjs`，05:12:08 UTC，在本 worktree 的3158打开 code-preview 与 published，各1440/768/375共六张截图；确认对应静态文件、可见正文、署名、无脚本／横溢出，刷新保持恢复版本，全部截图已打开（`artifacts/t148/http-final/`）。这是 localhost 发布路由检查，不是外部部署。
-- `project_map.py status`：0结构问题、0 stale living docs；中文文件 UTF-8 窄改，git diff --check 通过。未读写主工作区 .sitecraft-data、未载入密钥、未调用 DeepSeek、未运行 eval:new-route。
+- 合并根因处理：`lib/code-site-check.ts` 保留完整的 prepareSystemBackdrops 与 readCodeQuality 两个函数和各自闭合；同一视口流水线先解码底图并做硬检查，再收集 T-147 的五项质量反馈。底图问题仍进入 issues 并拒收，qualityFeedback 只随视口结果存储、不触发拒收或修正轮。CONTEXT 与 mainline 同时保留两项当前语义，自动合入的类型与评估统计保留。没有新入口、旁路或兼容分支。
+- 合并联合契约：在现有 T-148 的合法背景存版测试中断言六个视口都有 qualityFeedback、375 有小点击区反馈且 issues 为空；临时用第一父检查器运行后由 finally 原样恢复合并源码，按预期在缺少质量反馈的业务断言失败（`merge-family-kit/red-missing-quality.log`），没有把源码副本当证据。相关命令 `CHROME_PATH=<上述指定路径> node --test --experimental-strip-types tests/t147-code-quality.test.ts tests/t148-system-backdrops.test.ts`，2026-10-10 **05:20:14 UTC，23/23 PASS**，`related-tests.log`。其中 T-148 三档新截图已打开（`artifacts/t148/boundary-e00424a4-3542-4ebf-b81e-4779f62c2f90/`）。
+- 本次合并后重新验证：`CHROME_PATH=<上述指定路径> SITECRAFT_BASE=http://127.0.0.1:3158 SITE_STORE=fs npm test`，**257/257 PASS，无跳过**（05:21:30 UTC，`merge-family-kit/full-test.log`）；`npm run build` **PASS**（05:21:17 UTC，`build.log`）；build 完成后顺序 `npm run typecheck` **PASS**（05:22:08 UTC，`typecheck.log`）。health 身份确认是本 worktree，未调用 DeepSeek 或 eval。
+- 独立 Astra 合并验收 **PASS**（`merge-family-kit/astra-review.txt`）：对照两个父版本核对函数、管线及文档；用未见的精密浅绿底图做节点级配对，导航从小尺寸改为96×48后其反馈消失，仍通过；正文改白后三档均拒收且仍有质量反馈。新增测试的聚合 smallTargets 断言单独不能区分导航与系统许可 summary，独立节点级配对补足了该证据。审核只读、不存版、不调用模型，不代表审美或联合 eval 通过。
+- `project_map.py status`：0结构问题、0 stale living docs；中文文件 UTF-8 窄改，人工解决文件无冲突标记或空白问题。合并源 T-147 票尾有已存在的空行告警，保持其正文，不做无关格式化。未读写主工作区 .sitecraft-data、未载入密钥、未调用 DeepSeek、未运行 eval:new-route。
 
-剩余：主控合并 T-147 后整合本提交；与 T-149 的联合 eval、真实模型使用效果、拒收率和整站质量比较按本轮授权延期，未检查项保持未勾选，不把整票写成完成。
+剩余：主控验收本地合并提交后整合到主线；与 T-149 的联合 eval、真实模型使用效果、拒收率和整站质量比较按本轮授权延期，未检查项保持未勾选，不把整票写成完成。
