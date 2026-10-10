@@ -380,7 +380,6 @@ a { color: inherit; text-decoration: none; }
 .palette-swatch-role { width: 11px; height: 11px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.14); }
 .custom-color-input { display: inline-flex; align-items: center; gap: 6px; color: var(--ws-muted); font-size: 12px; }
 .custom-color-input input { width: 36px; height: 36px; padding: 2px; border: 1px solid var(--ws-line); border-radius: 8px; background: var(--ws-raised); }
-.legacy-look-warning { margin: 0; padding: 8px 10px; border: 1px solid var(--ws-warn-line); border-radius: 8px; background: var(--ws-warn-bg); color: var(--ws-warn-text); font-size: 12px; line-height: 1.45; }
 
 /* Dialogs opened from the workspace. */
 .builder-shell .modal-backdrop { background: var(--ws-scrim); animation: ws-fade-in .18s var(--ws-ease); }

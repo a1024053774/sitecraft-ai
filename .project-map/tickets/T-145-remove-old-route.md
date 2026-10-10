@@ -34,9 +34,9 @@ T-127 定下：新路线跑通后，旧的区块库拼页、adapter、白名单 
 
 ## Resolution
 
-### INCOMPLETE / MAIN_DATA_APPLIED
+### INCOMPLETE / READY_FOR_ASTRA_REVIEW
 
-执行者 t145-build。代码、worktree 与主数据执行的技术验证 PASS；主控另派的独立审核尚未完成，票保持 open，不派审查、不关票、不推送。初始 HEAD 56c6cef，按主控指令 fast-forward 到 94b64bf；代码、测试与文档提交为 89feb29。主控随后明确批准主数据精确清单，并要求另做一个只含 Resolution 与 artifacts 的本地提交。本轮没有改动 Astra 正在只读审查的代码。
+执行者 t145-build。89feb29 的 Astra 审查为 NO_GO；按主控授权修复两项 P2、清除两项 P3 残留并同步文档，本轮技术验证 PASS，新的独立复审尚未进行。票保持 open，不派审查、不关票、不推送。初始 HEAD 56c6cef，按主控指令 fast-forward 到 94b64bf；原代码提交 89feb29，已批准的主数据执行记录提交 c31f76c。本轮修复另做一个本地提交，最终 SHA 见 artifacts/t145/astra-fixes/delivery.json。主工作区数据已经执行完毕，本轮不再读取、写入或清理它。
 
 第一段盘点和第二段删除范围由主控在本会话明确确认，见「负责人决定」。转换只覆盖主线清单 13 个站，活跃版本仅中文 home；旧英文归档。失败不存版本，只保留可见失败元数据。主控已核对 artifacts/t145/main-data-plan.json，负责人明确同意新增 30 路径、清理 12,455 路径，最后确认门已通过。
 
@@ -62,7 +62,7 @@ Tracer bullet 为 561a1113-4dab-49b6-81dc-ab7e3eb712a5 的 5 产品注塑制造�
 
 最终候选在全新隔离目录 artifacts/t145/final-data 重跑：13/13 应用，确定性失败 0、无法读取 0；39 个页面/视口结果均无溢出、重叠或对比度问题。各站首版作者为旧站转换，事实状态为未做模型校对。重复 CLI 返回 13 个 existing，不新增版本。4 个上传保护站只建未转换状态元数据，未读取或改写其图片/原站数据；列表/打开原因一致。
 
-### 本次证据
+### 原实现证据（89feb29）
 
 命令均在本票实现之后运行；各产物的 UTC 完成时间见 artifacts/t145/verification-summary.json。最终生产实现对应 89feb29；下面产物含时间、命令或可复现脚本。worktree 浏览器验证使用 AGENTS 指定的 chrome-headless-shell 154，Turbopack、3154、SITE_STORE=fs。没有真实 DeepSeek、外部邮件、PG、部署或实机验证；对话链使用明确标记的本地 HTTP 模型替身，只证明协议与真实提交边界，不证明真实模型生成质量。
 
@@ -97,4 +97,21 @@ Tracer bullet 为 561a1113-4dab-49b6-81dc-ab7e3eb712a5 的 5 产品注塑制造�
 - postcheck.json 核对删除日志与批准清单的路径集合一致：12,455 条均已删除，无重复、无名单外路径，30 个批准新增文件均存在，失败项为空。
 - 本分支以 `SITE_STORE=fs SITECRAFT_DATA_ROOT=/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data SITECRAFT_BASE=http://127.0.0.1:3155 npm run dev -- --port 3155` 启动 Turbopack；CHROME_PATH 为 AGENTS 指定路径，模型密钥环境变量为空。`CHROME_PATH=<指定路径> node --experimental-strip-types artifacts/t145/main-apply/inspect-main.ts` → ui/report.json，2026-10-10T03:55:32Z 完成。从实际列表链接打开 561a1113-4dab-49b6-81dc-ab7e3eb712a5 与 89f55641-6e28-45c4-a9f9-440a94171d3c：draft/预览均 200，工作台显示第 1 版及未模型校对标记，375 预览分别保留源资料的 5、2 个产品。保护站 blind-p3i-20260920-withimage 在列表与打开页都显示「旧站点未转换，含用户上传，已保留」，draft 返回 422 且无默认预览。8 张截图全部打开，见 ui/viewed.json；17 个新增记录在抽查前后未变。
 
-3155 临时服务已停止；3034 未操作。未改动任何生产代码，未调用 DeepSeek，未推送、未关票。本轮 project-map status 返回 Problems 0、stale living docs 1：intent.md 覆盖 T-145，脚本将本次 Resolution 改动标为待复核；按只改 Resolution 与 artifacts 的授权，未编辑 intent.md。此处 PASS 只指已授权的主数据执行与技术抽查；独立 Astra/审美验收仍由主控处理。
+主控已在执行前实时核对：删除清单中的会话与 code-site 同编号为 0 条，153 个上传目录的 290 张图片均有元数据，因此本次数据执行安全；一次性 prepare-main-data-plan.py 不修改、不重跑。3155 临时服务已停止；3034 未操作。主数据执行阶段未改生产代码，未调用 DeepSeek、未推送、未关票。此处 PASS 只指已授权的主数据执行与技术抽查。
+
+### 审查修复与当前证据
+
+本轮只修复主控转交的 89feb29 审查项，不扩展导入范围、存储或功能。Tracer bullet 为离线 CLI 的混合批次：三个结构错误候选 → 提交入口 → 失败条目；后续有效候选 → 确定性检查 → 第一个版本。Deep modules：检查器区分候选结构失败与浏览器执行故障，提交入口继续负责保存元数据，CLI 无新兼容分支或捕获全部异常的后备路径。Ubiquitous language：仍使用转换失败条目、完整版本、新建站点。
+
+- P2 结构失败：实际渲染文档缺少 main 内的 h1 时返回检查失败，由 commitSiteCode 存「旧站转换失败：原因」，没有版本。非 HTML 的浏览器文档仍作为执行故障报错。新测试经真实 CLI 与 Chrome 处理缺 main、缺 h1、h1 在 main 外三个 schema 合法候选，逐一核对磁盘失败元数据；后续有效站正常存首版，整批仍退出 1。
+- P2 查询导航：工作台通过 Next 的 useSearchParams 响应查询变化，重新加载时清除上一入口状态/错误；按站点编号重建工作台状态。按当前 Next 16.3.1 随包指南添加 Suspense，生产构建通过。新测试用 Chrome 的 Input.dispatchMouseEvent 点击实际「新建站点」链接，验证当前文档保持、URL 换为新 ID、真实 draft 可读、刷新保持 ID；三档各自创建不同站点。测试先核对开发服务 cwd，拒绝写其他工作区。
+- P3：删除 visitor-layout-scan.js 对已删 hero-word-break-scan.js / check-published 的同步说明，以及 globals.css 的无调用 legacy-look-warning。实际 AGENTS 验收第 2 条在 89feb29 已无旧 check-published 句子；本轮核对其缺席并补上结构检查。intent.md 与 MAP 写入已完成的主数据现状，解除 intent.md 复核提示；CONTEXT、mainline、spec 同步结构失败和查询导航的当前契约。
+
+以下检查均在本轮修复后运行，生产实现对应包含本节的本地修复提交（父提交 c31f76c）；UTC 时间、命令、退出码和产物路径见 artifacts/t145/astra-fixes/verification.json。测试数据只在本 worktree 的 .sitecraft-data 或 artifacts 隔离目录，开发服务为 3154 / Turbopack / SITE_STORE=fs，CHROME_PATH 使用 AGENTS 指定的 chrome-headless-shell；未启动指向主数据的服务，没有 DeepSeek 请求。
+
+- 修复前红：`node --test --experimental-strip-types tests/t145-import-cli.test.ts tests/t145-workspace-navigation.test.ts` → regression-red.txt，退出 1。新 CLI 用例因 missing-main 没有失败记录而失败，report 只有 executionError；导航用例真实点击后 URL 为 ?new=1、仍显示「打开一个站点」，documentRetained=true。失败目录为 cli-structure-24ec6e57-33f3-4601-b250-e864a34586c0、workspace-navigation-3c4431e5-5572-4330-b947-af5c781a8d2e，失败截图已打开。
+- 修复后相关：同两文件加 `tests/t145-legacy-import.test.ts tests/workspace-new-site-entry.test.ts` → regression-green.txt，13/13，退出 0；无模型导入、普通 PUT 的事实校对、幂等与上传保护既有行为仍通过。
+- 最终全量：`CHROME_PATH=<指定路径> SITE_STORE=fs SITECRAFT_DATA_ROOT= SITECRAFT_BASE=http://127.0.0.1:3154 DEEPSEEK_API_KEY= AI_API_KEY= npm test` → npm-test-final.txt，234/234、失败/取消/跳过均 0。CLI 结构批次完整结果在 cli-structure-a2cda5e8-3337-43b0-8424-4bf07e23e5b8；Chrome 导航报告在 workspace-navigation-a68c0e07-13fd-4c00-9f91-d1e660844cca，1440/768/375 三张截图全部打开。此前全量的 768 图在预览切换动画中保存，产物保留，不作为有效截图；测试补上预览状态与动画结束等待后重跑得到最终三图。
+- `npm run typecheck` → typecheck-final.txt，退出 0；`SITE_STORE=fs SITECRAFT_DATA_ROOT= DEEPSEEK_API_KEY= AI_API_KEY= npm run build` → build-final.txt，退出 0。UTF-8 回读、git diff --check 和 project-map status 通过，Problems 0、stale living docs 0。
+
+本轮修复与测试技术 PASS，不代表 Astra 复审或独立审美通过。主数据和一次性执行产物保持不动，不推送、不关票。

@@ -68,7 +68,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 一个功能算完成：
 
 1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；
-2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`，每张都打开看过；载入态、空白或截断的截图不算证据。生成站的底线检查（事实、外部资源、溢出、重叠、对比度、行长）由提交入口和评估集自动跑，验收引用它们本次的结果。发布与预览都读代码版本并用同一静态渲染器。
+2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`，每张都打开看过；载入态、空白或截断的截图不算证据。生成站的底线检查（结构、事实、外部资源、溢出、重叠、对比度、行长）由提交入口和评估集自动跑，验收引用它们本次的结果。发布与预览都读代码版本并用同一静态渲染器。
    浏览器测试先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（负责人这台 Mac 的普通 Chrome 无头启动后会被自动更新带着退出）；换机器或版本更新后按实际路径改。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
 4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；

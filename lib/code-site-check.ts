@@ -154,7 +154,15 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       for (const width of [375, 768, 1440]) {
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
-        await browser.evaluate(`(() => {if(document.contentType!=='text/html'||!document.querySelector('main h1'))throw new Error('底线检查未载入候选网页，本次未保存版本。')})()`);
+        const structure = await browser.evaluate<{ contentType: string; hasMainHeading: boolean }>(`({contentType:document.contentType,hasMainHeading:!!document.querySelector('main h1')})`);
+        if (structure.contentType !== 'text/html') throw new Error('底线检查未载入候选网页，本次未保存版本。');
+        // Missing candidate structure is a rejection, not a browser failure.
+        // Offline imports persist this result and continue with the next site.
+        if (!structure.hasMainHeading) {
+          const issue = `${page.id} 缺少 main 或 h1`;
+          if (!checks.issues.includes(issue)) checks.issues.push(issue);
+          return { code: clean.code, checks };
+        }
         await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
         const imageErrors = await browser.evaluate<string[]>(`Promise.all([...document.images].map(async image => {try{await image.decode();return ''}catch{return image.getAttribute('data-image-id')||'图片'}})).then(items=>items.filter(Boolean))`);
         if (imageErrors.length) checks.issues.push(`${page.id}/${width} 图片无法显示：${imageErrors.join('、')}`);

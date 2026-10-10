@@ -1,5 +1,4 @@
 // Browser-only. Compare actual text-line rectangles, never the unused boxes of closed details.
-// Keep this expression in lockstep with scripts/hero-word-break-scan.js and check-published.
 const LAYOUT_DECLARATION_ATTRIBUTES = [
   "data-sc-layout-declaration",
   "data-sc-layout-declarations",
