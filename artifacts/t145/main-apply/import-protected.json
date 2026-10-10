@@ -1,0 +1,71 @@
+{
+  "at": "2026-10-10T03:53:47.916Z",
+  "input": "artifacts/t145/protected-input.json",
+  "cwd": "/Users/luckye/Documents/Code/sitecraft-ai-t145",
+  "results": [
+    {
+      "siteId": "blind-p3i-20260920-withimage",
+      "status": "unavailable",
+      "record": {
+        "route": "unavailable",
+        "siteId": "blind-p3i-20260920-withimage",
+        "name": "忻州重载减速机P3I",
+        "updatedAt": "2026-09-20T14:39:31.423Z",
+        "status": "旧站点未转换，含用户上传，已保留",
+        "readError": "旧站点未转换，含用户上传，已保留",
+        "legacySource": {
+          "revision": 2,
+          "updatedAt": "2026-09-20T14:39:31.423Z"
+        }
+      }
+    },
+    {
+      "siteId": "p3-img-hx4k",
+      "status": "unavailable",
+      "record": {
+        "route": "unavailable",
+        "siteId": "p3-img-hx4k",
+        "name": "Forge Industrial",
+        "updatedAt": "2026-09-17T17:27:39.723Z",
+        "status": "旧站点未转换，含用户上传，已保留",
+        "readError": "旧站点未转换，含用户上传，已保留",
+        "legacySource": {
+          "revision": 4,
+          "updatedAt": "2026-09-17T17:27:39.723Z"
+        }
+      }
+    },
+    {
+      "siteId": "t2chat-633e10c2-1abf-48b4-bf7c-4ff0a956f6c6",
+      "status": "unavailable",
+      "record": {
+        "route": "unavailable",
+        "siteId": "t2chat-633e10c2-1abf-48b4-bf7c-4ff0a956f6c6",
+        "name": "未命名站点",
+        "updatedAt": "2026-09-27T02:27:48.243Z",
+        "status": "旧站点未转换，含用户上传，已保留",
+        "readError": "旧站点未转换，含用户上传，已保留",
+        "legacySource": {
+          "revision": 1,
+          "updatedAt": "2026-09-27T02:27:48.243Z"
+        }
+      }
+    },
+    {
+      "siteId": "t2chat-d7a11220-c726-4d5a-ab21-10eacb541c7b",
+      "status": "unavailable",
+      "record": {
+        "route": "unavailable",
+        "siteId": "t2chat-d7a11220-c726-4d5a-ab21-10eacb541c7b",
+        "name": "未命名站点",
+        "updatedAt": "2026-09-27T03:09:03.420Z",
+        "status": "旧站点未转换，含用户上传，已保留",
+        "readError": "旧站点未转换，含用户上传，已保留",
+        "legacySource": {
+          "revision": 1,
+          "updatedAt": "2026-09-27T03:09:03.420Z"
+        }
+      }
+    }
+  ]
+}

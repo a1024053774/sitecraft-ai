@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-10T03:53:21.904055+00:00",
+  "plan": "artifacts/t145/main-data-plan.json",
+  "writeCount": 30,
+  "deleteCounts": {
+    "sites": 9430,
+    "conversations": 2639,
+    "annotations": 0,
+    "leads": 12,
+    "uploads": 153,
+    "quality": 12,
+    "site-style-check": 209
+  },
+  "existingWritePaths": [],
+  "protectedUploadIds": [
+    "blind-p3i-20260920-withimage",
+    "p3-img-hx4k",
+    "t2chat-633e10c2-1abf-48b4-bf7c-4ff0a956f6c6",
+    "t2chat-d7a11220-c726-4d5a-ab21-10eacb541c7b"
+  ],
+  "uploadProtectionReasons": [
+    {
+      "siteId": "blind-p3i-20260920-withimage",
+      "reason": "user upload or mismatched ownership"
+    },
+    {
+      "siteId": "p3-img-hx4k",
+      "reason": "user upload or mismatched ownership"
+    },
+    {
+      "siteId": "t2chat-633e10c2-1abf-48b4-bf7c-4ff0a956f6c6",
+      "reason": "user upload or mismatched ownership"
+    },
+    {
+      "siteId": "t2chat-d7a11220-c726-4d5a-ab21-10eacb541c7b",
+      "reason": "user upload or mismatched ownership"
+    }
+  ],
+  "existingCodeSiteCount": 1079,
+  "activeProfiles": [],
+  "skippedDeletePaths": [],
+  "demoSourcesUnchanged": true
+}

@@ -34,11 +34,11 @@ T-127 定下：新路线跑通后，旧的区块库拼页、adapter、白名单 
 
 ## Resolution
 
-### INCOMPLETE / READY_FOR_MAIN_DATA
+### INCOMPLETE / MAIN_DATA_APPLIED
 
-执行者 t145-build。代码与 worktree 技术验证 PASS；主工作区正式数据新增、清理，以及主控另派的独立审核尚未执行。票保持 open，不派审查、不关票、不推送。初始 HEAD 56c6cef，按主控指令 fast-forward 到 94b64bf；本票代码、测试与文档合并为一个本地提交，最终 SHA 写入 gitignore 的 artifacts/t145/delivery.json。
+执行者 t145-build。代码、worktree 与主数据执行的技术验证 PASS；主控另派的独立审核尚未完成，票保持 open，不派审查、不关票、不推送。初始 HEAD 56c6cef，按主控指令 fast-forward 到 94b64bf；代码、测试与文档提交为 89feb29。主控随后明确批准主数据精确清单，并要求另做一个只含 Resolution 与 artifacts 的本地提交。本轮没有改动 Astra 正在只读审查的代码。
 
-第一段盘点和第二段删除范围由主控在本会话明确确认，见「负责人决定」。转换只覆盖主线清单 13 个站，活跃版本仅中文 home；旧英文归档。失败不存版本，只保留可见失败元数据。主数据最后确认门来自主控第 6 项指令，不能以已批准删除范围替代实际路径确认。
+第一段盘点和第二段删除范围由主控在本会话明确确认，见「负责人决定」。转换只覆盖主线清单 13 个站，活跃版本仅中文 home；旧英文归档。失败不存版本，只保留可见失败元数据。主控已核对 artifacts/t145/main-data-plan.json，负责人明确同意新增 30 路径、清理 12,455 路径，最后确认门已通过。
 
 ### 最终实现与已批准范围
 
@@ -64,7 +64,7 @@ Tracer bullet 为 561a1113-4dab-49b6-81dc-ab7e3eb712a5 的 5 产品注塑制造�
 
 ### 本次证据
 
-命令均在本票实现之后运行；各产物的 UTC 完成时间见 artifacts/t145/verification-summary.json。最终生产实现对应本票唯一提交；下面产物含时间、命令或可复现脚本。浏览器使用 AGENTS 指定的 chrome-headless-shell 154，Turbopack、3154、SITE_STORE=fs。没有真实 DeepSeek、外部邮件、PG、部署或实机验证；对话链使用明确标记的本地 HTTP 模型替身，只证明协议与真实提交边界，不证明真实模型生成质量。
+命令均在本票实现之后运行；各产物的 UTC 完成时间见 artifacts/t145/verification-summary.json。最终生产实现对应 89feb29；下面产物含时间、命令或可复现脚本。worktree 浏览器验证使用 AGENTS 指定的 chrome-headless-shell 154，Turbopack、3154、SITE_STORE=fs。没有真实 DeepSeek、外部邮件、PG、部署或实机验证；对话链使用明确标记的本地 HTTP 模型替身，只证明协议与真实提交边界，不证明真实模型生成质量。
 
 - 创建契约红：node --test --experimental-strip-types tests/t145-code-only-entry.test.ts → entry-contract-red.txt，旧接口仅 name 返回 400，而要求 201；最终同用例通过。entry-red.txt 是最初 cwd/scan 设置失败，未算契约红。
 - 数字边界红/绿：CHROME_PATH=<指定路径> node --test --experimental-strip-types tests/t145-legacy-import.test.ts → cell-boundary-red.txt / cell-boundary-green.txt；来源 NAK80 与 1 独立，旧读取误造 801。边界修正后同检查通过。
@@ -76,17 +76,25 @@ Tracer bullet 为 561a1113-4dab-49b6-81dc-ab7e3eb712a5 的 5 产品注塑制造�
 - 全量：CHROME_PATH=<指定路径> SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3154 npm test → npm-test-final-toolbar.txt，232/232、失败/取消/跳过均 0；typecheck → typecheck-last.txt；SITE_STORE=fs npm run build → build-delivery.txt。首轮及隔离数据服务与 handler 数据根不一致的运行失败保留，不引用旧通过产物替代最终结果。
 - retired-reference-last.txt：限定 lib/app/components/scripts/tests 的旧模块引用扫描 0 行；没有保留旧运行开关。历史研究/票不为零命中改写。原资料照片、系统图标、规范来源许可保留。UTF-8 回读、git diff --check、project-map status 通过；没有 hashes 或字节/像素比较。
 
-### 正式主数据：等待最后确认
+### 正式主数据：PASS
 
-[精确路径清单](../../artifacts/t145/main-data-plan.json) preparedAt 2026-10-09T15:41:21Z，状态 AWAITING_CONTROLLER_APPROVAL：
+[精确路径清单](../../artifacts/t145/main-data-plan.json) preparedAt 2026-10-09T15:41:21Z，保留原准备产物不改写。主控核对并批准后，于 2026-10-10T03:53:33Z–03:54:03Z 正式执行，生产代码仍为 89feb29。执行前与导入后重新核对上传、新路线归属和活动 profile；30 个新增目标均不存在，4 个保护站仍排除，1,079 个已有代码记录没有归属冲突，209 个 profile 无活动使用者。
 
-| 操作 | 路径类别与数量 |
+| 操作 | 实际结果 |
 | --- | --- |
-| 新增 | code-sites/<13 演示 ID>.json、code-sites/<4 保护 ID>.json，共 17 个记录；conversations/<13 演示 ID>/legacy-import.json，共 13 个会话；合计 30 路径 |
-| 清理旧记录 | sites 下 9,430 个 JSON（8,372 残留 + 1,058 shadow） |
-| 清理会话 | 2,639 个目录（2,632 关联 + 7 无归属） |
-| 其他清理 | leads 12 文件、public-material uploads 153 目录、quality/p4 12 文件、site-style-check 209 目录 |
+| 新增代码记录 | 13 个转换首版 + 4 个保护元数据，共 17 个文件；没有覆盖已有文件 |
+| 新增导入会话 | conversations/<13 演示 ID>/legacy-import.json，共 13 个文件 |
+| 删除旧记录 | sites 9,430 个 JSON（8,372 残留 + 1,058 shadow） |
+| 删除旧会话 | 2,639 个目录（2,632 关联 + 7 无归属） |
+| 删除其他残留 | leads 12 文件、public-material uploads 153 目录、quality/p4 12 文件、site-style-check 209 目录；annotations 0 |
+| 合计 | 新增 30、删除 12,455、跳过 0、失败 0；清单外操作 0 |
 
-拟清理合计 12,455 个顶层精确路径；没有 code-sites 删除路径。准备时所有目标仍存在、没有新增保护/新代码冲突导致跳过，没有进程使用旧 profile；主数据 1,079 个既有新路线记录全部保留。13 个主源 JSON 与只读副本按数据内容核对未变化，4 个上传保护站的全部数据排除。正式执行前重新查保护关系、现有代码记录与活动 profile，名单外新数据保留，不做前缀通配符删除。
+13/13 转换通过完整确定性检查，失败 0、无法读取 0；39 个页面/视口检查无溢出、重叠或对比度问题。每站只有中文 home 和第 1 版，作者为旧站转换、事实状态为旧站转换未做模型校对。4 个保护站只新增未转换元数据，不生成版本。1,079 个既有新路线 JSON 按数据内容核对未变，13 个原演示 JSON 与只读副本仍一致；对清单外 2,302 个既有文件核对路径及文件元数据，没有消失或改动，没有意外新增文件。4 个保护站原数据、同 ID 新路线会话与上传全部保留。主数据现有 code-sites 1,096 个，旧 sites 只余 13 个演示源与 4 个保护源。
 
-本段只准备清单，没有正式写入或删除主工作区任何用户数据。等待主控确认这份精确清单后才执行；独立 Astra/审美验收由主控安排，执行者不派、不关票、不推送。
+正式命令与证据：
+
+- `python3 artifacts/t145/main-apply/apply-main-data.py --preflight` → preflight.json；`--apply` → [执行汇总](../../artifacts/t145/main-apply/application.json)。脚本只按已批准绝对路径执行，通过现有 `scripts/import-legacy-site-code.ts` / commitSiteCode 导入；没有直接复制验证版本。CLI 命令、退出码与结果见 import-demos.json、import-protected.json，均退出 0。删除逐项记录在 deletions.ndjson，每个目标检查当前归属，上传目录及 profile 在删除前再查保护/活动状态，不停止他人进程、不做前缀通配符删除。
+- postcheck.json 核对删除日志与批准清单的路径集合一致：12,455 条均已删除，无重复、无名单外路径，30 个批准新增文件均存在，失败项为空。
+- 本分支以 `SITE_STORE=fs SITECRAFT_DATA_ROOT=/Users/luckye/Documents/Code/sitecraft-ai/.sitecraft-data SITECRAFT_BASE=http://127.0.0.1:3155 npm run dev -- --port 3155` 启动 Turbopack；CHROME_PATH 为 AGENTS 指定路径，模型密钥环境变量为空。`CHROME_PATH=<指定路径> node --experimental-strip-types artifacts/t145/main-apply/inspect-main.ts` → ui/report.json，2026-10-10T03:55:32Z 完成。从实际列表链接打开 561a1113-4dab-49b6-81dc-ab7e3eb712a5 与 89f55641-6e28-45c4-a9f9-440a94171d3c：draft/预览均 200，工作台显示第 1 版及未模型校对标记，375 预览分别保留源资料的 5、2 个产品。保护站 blind-p3i-20260920-withimage 在列表与打开页都显示「旧站点未转换，含用户上传，已保留」，draft 返回 422 且无默认预览。8 张截图全部打开，见 ui/viewed.json；17 个新增记录在抽查前后未变。
+
+3155 临时服务已停止；3034 未操作。未改动任何生产代码，未调用 DeepSeek，未推送、未关票。本轮 project-map status 返回 Problems 0、stale living docs 1：intent.md 覆盖 T-145，脚本将本次 Resolution 改动标为待复核；按只改 Resolution 与 artifacts 的授权，未编辑 intent.md。此处 PASS 只指已授权的主数据执行与技术抽查；独立 Astra/审美验收仍由主控处理。
