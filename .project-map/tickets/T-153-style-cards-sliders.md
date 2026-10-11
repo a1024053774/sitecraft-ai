@@ -2,7 +2,7 @@
 id: T-153
 title: 风格卡用真实缩略图、增加风格，并让两个滑杆在成品上看得出差别
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t153-style-cards)
 supersedes:
@@ -147,3 +147,10 @@ supersedes:
 本轮最终检查：2026-10-11，在显式 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3170 SITECRAFT_FIXTURE_BASE=http://127.0.0.1:3172` 下顺序运行 `npm run typecheck`、`npm test`（上述 CHROME_PATH）、`npm run build`，三个命令通过 `&&` 连接，工具报告退出 0。日志为 `artifacts/t153/port-config/typecheck.log`、`test.log`、`build.log`；376/376 测试通过、0 失败、0 跳过。独立 Astra 实例 `t153_port_review` 对父提交 `d593708` 上的冻结候选复核，结论 **PASS / LIMITED_GO**：端口配置 NO_GO 已修复，无确认问题；独立重跑配置逻辑与扫描 2/2 通过，核对四次 E2E 报告与两组三档截图。此结论限本轮修复，不代替主控合并验证。
 
 执行侧 Acceptance 已全部勾选；盲评结论来自主控转达，代码配置结论来自新 Astra 复核，主控在合并时补最终验证。真实预算入口只做地址迁移和静态检查，本轮未执行；没有新增真实模型费用，累计仍为 226,474。对应本轮新提交（父提交 `d593708`，最终 SHA 见交付回复）；不推送、不关票。`project_map.py status` 为 0 问题、0 过时 living doc，`git diff --check` 与 UTF-8 回读通过。
+
+## 主控合并验证（2026-10-11，纽约时间）
+
+- 盲评由主控在隔离目录各开新 gpt-6-astra 实例：风格包判「不同方向」，更像公司选原现场实拍版；滑杆包（A=5/6、B=2/2）判 A 更大胆、更紧凑，方向正确。
+- Astra：d593708 NO_GO（E2E 与替身脚本写死端口）；d804a1d PASS，用 3173/3174 实跑两个 E2E，含键盘、刷新与旧 industrial 偏好重新选择。
+- 主线 d804a1d：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` 376/376，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-d804a1d/`。真实 DeepSeek 本票 226,474 token（批准上限 30 万）。
+
