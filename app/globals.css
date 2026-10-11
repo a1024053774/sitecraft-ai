@@ -652,3 +652,23 @@ a { color: inherit; text-decoration: none; }
 .code-check-receipt { font-size: 12px; line-height: 1.7; color: var(--ws-muted); overflow-wrap: anywhere; }
 @media (max-width: 600px) { .code-chat-form textarea, .code-upload-panel input, .code-upload-panel select { font-size: 16px; } .code-workspace .topbar-tools { gap: 4px; } .code-empty { padding: 16px; } }
 @media (max-width: 600px) { .code-workspace .topbar-tools { grid-column: 1 / -1; justify-content: space-between; } .code-workspace.pane-chat .topbar-tools { display: none; } }
+
+/* T-152: the selection outline lives outside the generated document. */
+.code-selection-outline { position: absolute; pointer-events: none; border: 2px solid #a24623; outline: 2px solid #fff; z-index: 2; box-sizing: border-box; }
+.code-pick-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.code-pick-toolbar small { color: var(--ws-muted); }
+.code-pick-toolbar button[aria-pressed="true"] { background: #f6e8de; border-color: #a24623; }
+.code-selected-target { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-left: 3px solid #a24623; padding: 8px 10px; background: #faf5f0; margin-bottom: 10px; }
+.code-selected-target strong { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.code-selected-target small, .code-selected-target label { flex-basis: 100%; font-size: 12px; }
+.code-selected-target button, .code-quick-edits button, .code-annotation-threads button { border: 1px solid var(--ws-line); background: #fff; border-radius: 4px; padding: 8px 10px; font: inherit; cursor: pointer; }
+.code-quick-edits { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.code-quick-edits button { font-size: 12px; }
+.code-quick-edits button:disabled { opacity: .5; cursor: wait; }
+.code-quick-scope { color: var(--ws-muted); display: block; margin-bottom: 8px; }
+.code-annotation-threads { font-size: 12px; margin: 8px 0; }
+.code-annotation-threads summary { cursor: pointer; padding: 6px 0; }
+.code-annotation-threads article { border-top: 1px solid var(--ws-line); padding: 10px 0; }
+.code-annotation-threads article small { display: block; color: var(--ws-muted); }
+.code-annotation-threads p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.code-annotation-threads[open] { max-height: 200px; overflow: auto; }

@@ -1,3 +1,4 @@
+import type { AnnotationTarget } from './annotations.ts';
 import { z } from 'zod';
 import { systemIconSvg, systemIconLicense } from './code-site-icons.ts';
 import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
@@ -34,7 +35,7 @@ export type CodeVersion = {
   english?: { sourceRevision: number; header: string; footer: string; pages: SiteCode['pages']; checks: CodeCheck };
 };
 export type CodeModelCall = {
-  purpose: 'plan' | 'select' | 'write' | 'repair' | 'facts' | 'translate'; model: string; startedAt: string; latencyMs: number; httpStatus: number | null;
+  purpose: 'plan' | 'select' | 'write' | 'repair' | 'facts' | 'translate' | 'local-edit'; model: string; startedAt: string; latencyMs: number; httpStatus: number | null;
   usage: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens?: number } | null;
   skeletonOrder?: string[];
   translationInput?: { pageId: string | null; slotCount: number; sourceChars: number; maxTokens: number;
@@ -47,6 +48,8 @@ export type CodeModelCall = {
 export type CodeRun = {
   id: string; kind: 'plan' | 'generate' | 'edit' | 'translate'; status: 'running' | 'complete' | 'error';
   step: string; request: string; baseRevision: number; startedAt: string; updatedAt: string;
+  selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string;
+  localResponses?: Array<{ response: unknown; issues: string[] }>;
   repairRound: number; issues: string[]; versionId?: string; referenceVersionIds?: string[];
   attempts: Array<{ code: SiteCode; checks: CodeCheck }>;
   modelCalls?: CodeModelCall[];

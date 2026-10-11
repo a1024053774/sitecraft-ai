@@ -8,27 +8,14 @@ const pagePathSchema = z.string().min(1).max(2000).refine(
 );
 const localizedLocaleSchema = z.enum(["zh", "en"]);
 
-const slotTargetSchema = z.object({
-  kind: z.literal("slot"),
-  slot: z.string().min(1).max(200),
-  section: z.string().min(1).max(80),
-  itemId: idSchema.optional(),
-  productId: idSchema.optional(),
-  locale: localizedLocaleSchema.optional(),
+// DOM paths are element-child indices below the page's single main element.
+// A version and text snapshot prevent an old path from silently moving to new copy.
+export const annotationTargetSchema = z.object({
+  kind: z.literal('dom'), pageId: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/),
+  versionId: z.string().min(1).max(120),
+  path: z.array(z.number().int().nonnegative().max(10000)).min(1).max(40),
+  text: z.string().min(1).max(1000), label: z.string().min(1).max(200),
 }).strict();
-
-const regionTargetSchema = z.object({
-  kind: z.literal("region"),
-  slots: z.array(z.string().min(1).max(200)).min(1).max(80),
-  primarySlot: z.string().min(1).max(200).optional(),
-}).strict().superRefine((value, context) => {
-  if (new Set(value.slots).size !== value.slots.length)
-    context.addIssue({ code: "custom", message: "圈选目标不能重复", path: ["slots"] });
-  if (value.primarySlot && !value.slots.includes(value.primarySlot))
-    context.addIssue({ code: "custom", message: "主目标必须来自圈选目标", path: ["primarySlot"] });
-});
-
-export const annotationTargetSchema = z.union([slotTargetSchema, regionTargetSchema]);
 
 const rectSchema = z.object({
   x: z.number().finite().nonnegative(),
@@ -48,19 +35,17 @@ const snapshotSchema = z.object({
   text: z.string().max(1000).optional(),
   label: z.string().max(200).optional(),
   tag: z.string().max(32).optional(),
-  slotLabel: z.string().max(200).optional(),
 }).strict();
 
 export const annotationCaptureSchema = z.object({
   pageId: idSchema,
   pagePath: pagePathSchema,
-  templateId: z.string().min(1).max(80),
   revision: z.number().int().nonnegative(),
   locale: localizedLocaleSchema,
-  viewport: viewportSchema,
-  scroll: z.object({ x: z.number().finite().nonnegative(), y: z.number().finite().nonnegative() }).strict(),
+  viewport: viewportSchema.optional(),
+  scroll: z.object({ x: z.number().finite().nonnegative(), y: z.number().finite().nonnegative() }).strict().optional(),
   target: annotationTargetSchema,
-  rect: rectSchema,
+  rect: rectSchema.optional(),
   snapshot: snapshotSchema,
   capturedAt: z.string().min(1).max(80),
 }).strict();
@@ -86,7 +71,9 @@ export const annotationThreadSchema = z.object({
   pageId: idSchema,
   pagePath: pagePathSchema,
   status: z.enum(["open", "resolved"]),
-  anchor: annotationCaptureSchema,
+  // Stored anchors are opaque records. Only new writes require the current DOM
+  // contract; unknown old anchors remain intact and are never used for selection.
+  anchor: z.record(z.string(), z.unknown()),
   current: annotationCurrentSchema,
   comments: z.array(annotationCommentSchema).min(1).max(200),
   changeSetId: idSchema.optional(),
@@ -102,6 +89,7 @@ export const createAnnotationSchema = z.object({
   body: z.string().trim().min(1).max(4000),
   author: z.object({ id: z.string().min(1).max(120), name: z.string().min(1).max(80) }).strict(),
 }).strict().superRefine((value, context) => {
+  if (value.anchor.target.pageId !== value.pageId) context.addIssue({ code: "custom", message: "批注目标与页面不一致", path: ["anchor", "target", "pageId"] });
   if (value.anchor.pageId !== value.pageId) context.addIssue({ code: "custom", message: "批注页面与锚点页面不一致", path: ["anchor", "pageId"] });
   if (value.anchor.pagePath !== value.pagePath) context.addIssue({ code: "custom", message: "批注路径与锚点路径不一致", path: ["anchor", "pagePath"] });
 });

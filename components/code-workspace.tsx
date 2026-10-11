@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, FileText, History, Image as ImageIcon, LoaderCircle, RotateCcw, Send, Trash2 } from 'lucide-react';
 import Papa from 'papaparse';
@@ -11,6 +11,8 @@ import type { AlignmentPublicView } from '@/lib/alignment';
 import type { ConversationTurn } from '@/lib/conversation-store';
 import { simulatedPackList } from '@/lib/simulated-packs';
 import { CodeVersionHistory } from './code-version-history';
+import { annotationTargetSchema, annotationCaptureSchema, type AnnotationTarget, type AnnotationThread } from '@/lib/annotations';
+import { CodePreviewSelection } from './code-preview-selection';
 import { SiteDeleteDialog } from './site-delete-panel';
 
 export type CodeWorkspacePayload = { codeSite: CodeSiteRecord; alignment: AlignmentPublicView | null; turns: ConversationTurn[]; conversationError?: string };
@@ -26,6 +28,10 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [language, setLanguage] = useState<'zh' | 'en'>('zh');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const frame = useRef<HTMLIFrameElement>(null), sendLock = useRef(false);
+  const [picking, setPicking] = useState(false), [selectedTarget, setSelectedTarget] = useState<AnnotationTarget | null>(null);
+  const [saveAnnotation, setSaveAnnotation] = useState(false), [threads, setThreads] = useState<AnnotationThread[]>([]);
+  const [threadsOpen, setThreadsOpen] = useState(false), [selectionLoaded, setSelectionLoaded] = useState(false);
   const stage = useRef<HTMLDivElement>(null), [availableWidth, setAvailableWidth] = useState(1000);
   useEffect(() => {
     if (!stage.current) return;
@@ -44,6 +50,31 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const activePage = pages.some(p => p.id === page) ? page : 'home';
   const previewUrl = version ? `/api/sites/${siteId}/code-preview?page=${activePage}&version=${version.id}${activeLanguage === 'en' ? '&language=en' : ''}` : '';
   useEffect(() => { setPreviewReady(false); }, [previewUrl]);
+  const selected = activeLanguage === 'zh' && selectedTarget?.versionId === version?.id && selectedTarget?.pageId === activePage ? selectedTarget : null;
+  useEffect(() => {
+    const saved = localStorage.getItem(`sitecraft-selection:${siteId}`);
+    if (saved) {
+      try { const parsed = annotationTargetSchema.safeParse(JSON.parse(saved));
+        if (parsed.success && parsed.data.versionId === initial.codeSite.currentVersionId) { setSelectedTarget(parsed.data); setPage(parsed.data.pageId); }
+      } catch { setError('上次点选记录无法读取，请重新点选。'); }
+    }
+    setSelectionLoaded(true);
+  }, [siteId, initial.codeSite.currentVersionId]);
+  useEffect(() => {
+    if (!selectionLoaded) return;
+    const valid = selectedTarget?.versionId === version?.id;
+    if (valid && selectedTarget) localStorage.setItem(`sitecraft-selection:${siteId}`, JSON.stringify(selectedTarget));
+    else { localStorage.removeItem(`sitecraft-selection:${siteId}`); if (selectedTarget) setSelectedTarget(null); }
+  }, [selectedTarget, version?.id, selectionLoaded, siteId]);
+  useEffect(() => { if (activeLanguage !== 'zh' || busy) setPicking(false); }, [activeLanguage, busy]);
+  const selectBlock = useCallback((target: AnnotationTarget) => { setSelectedTarget(target); setPicking(false); setPane('chat'); }, []);
+  const changePage = useCallback((id: string) => { setPage(id); setSelectedTarget(null); }, []);
+  useEffect(() => {
+    if (!threadsOpen) return;
+    void fetch(`/api/sites/${siteId}/annotations`, { cache: 'no-store' }).then(async response => {
+      const data = await response.json(); if (!response.ok) throw new Error(data.userMessage || '批注读取失败。'); setThreads(data.annotations);
+    }).catch(error => setError(error.message));
+  }, [threadsOpen, siteId, site.run?.status]);
   async function request(body: Record<string, unknown>) {
     const response = await fetch(`/api/sites/${siteId}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const payload = await response.json();
@@ -65,14 +96,16 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     try { await request(body); } catch (error) { setError(error instanceof Error ? error.message : '本次请求失败。'); }
     finally { setSending(false); }
   }
-  async function submit(event: FormEvent) {
-    event.preventDefault(); if (!input.trim() || busy || conversationUnavailable) return;
-    const message = input.trim();
-    setSending(true); setError('');
-    try { await request({ message, baseRevision: version?.revision ?? 0 }); setInput(''); setPanel(null); }
+  async function sendEdit(message: string, quick = false) {
+    if (!message.trim() || busy || conversationUnavailable || sendLock.current) return;
+    sendLock.current = true; setSending(true); setError('');
+    try { await request({ message, baseRevision: version?.revision ?? 0,
+      ...(selected ? { selectedTarget: selected, saveAnnotation } : {}),
+      ...(version && quick && !selected ? { pageId: activePage } : {}) }); setInput(''); setPanel(null); }
     catch (error) { setError(error instanceof Error ? error.message : '本次请求失败。'); }
-    finally { setSending(false); }
+    finally { sendLock.current = false; setSending(false); }
   }
+  async function submit(event: FormEvent) { event.preventDefault(); await sendEdit(input.trim()); }
   async function undo() {
     setSending(true); setError('');
     try {
@@ -114,9 +147,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="topbar-tools"><div className="device-toggle" aria-label="预览宽度">{[1440, 768, 375].map(w => <button key={w} aria-pressed={width === w} className={width === w ? 'active' : ''} onClick={() => setWidth(w)}>{w}</button>)}</div><button className="icon-button" aria-label="撤销" disabled={busy || site.versions.length < 2} onClick={() => void undo()}><RotateCcw size={16} /></button><button className="icon-button" aria-label="删除站点" data-testid="toolbar-delete-site" disabled={busy} onClick={() => setDeleteOpen(true)}><Trash2 size={16} /></button></div>
     </header>
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`}>
-      <div className="site-page-chrome">{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => setPage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
+      <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={busy} data-testid="pick-block" onClick={() => setPicking(!picking)}>{picking ? '结束点选' : '点选区块'}</button><small>{picking ? '点击正文区块，再写修改意见' : selected ? `已选：${selected.label}` : '点选后只修改这一块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
-        {version ? <><iframe key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms" data-testid="code-preview" onLoad={() => setPreviewReady(true)} />{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
+        {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms allow-same-origin" data-testid="code-preview" onLoad={() => setPreviewReady(true)} />{activeLanguage === 'zh' && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && !busy} selected={selected} pageId={activePage} versionId={version.id} html={version.code.pages.find(p => p.id === activePage)!.html} scale={scale} onSelect={selectBlock} onPage={changePage} />}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
       </div></div>
     </main>
     <aside className={`builder-chat ${pane !== 'chat' ? 'mobile-hidden' : ''}`} aria-label="对话">
@@ -142,10 +175,20 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {error && <p className="code-error" role="alert">{error}</p>}
       </div>
       <div className="chat-input-wrap">
+        {version && activeLanguage === 'zh' && <>
+          {selected && <div className="code-selected-target" data-testid="selected-target"><strong>已选：{selected.label}</strong><button type="button" onClick={() => setSelectedTarget(null)} disabled={busy}>取消</button><small>{pages.find(p => p.id === activePage)?.title} · 只改这一块</small><label><input type="checkbox" checked={saveAnnotation} onChange={e => setSaveAnnotation(e.target.checked)} disabled={busy} />保存为批注线程</label></div>}
+          <div className="code-quick-edits" aria-label={selected ? '选中区块快捷修改' : '当前页快捷修改'}>{['更大胆', '更克制', '精简文字', '换个版式'].map(text => <button key={text} type="button" disabled={busy || conversationUnavailable} onClick={() => void sendEdit(text, true)}>{text}</button>)}</div>
+          {!selected && <small className="code-quick-scope">快捷按钮作用于「{pages.find(p => p.id === activePage)?.title}」</small>}
+          {selected && site.run?.status === 'error' && site.run.selectedTarget && <button className="secondary-button" disabled={busy} onClick={() => { setSelectedTarget(null); setInput(site.run!.request); }}>改整页</button>}
+        </>}
+        <details open={threadsOpen} onToggle={event => setThreadsOpen(event.currentTarget.open)} className="code-annotation-threads"><summary>批注线程</summary>{threads.length ? threads.map(thread => {
+          const capture = annotationCaptureSchema.safeParse(thread.anchor);
+          return <article key={thread.id}><strong>{capture.success ? capture.data.target.label : '旧批注，无法定位'}</strong><small>{thread.status === 'resolved' ? '已处理' : '待处理'}{capture.success && capture.data.target.versionId !== version?.id ? ' · 来自旧版本，请重新点选' : ''}</small>{thread.comments.map(comment => <p key={comment.id}>{comment.author.name}：{comment.body}</p>)}{capture.success && capture.data.target.versionId === version?.id && <button type="button" disabled={busy} onClick={() => { setPage(capture.data.target.pageId); setSelectedTarget(capture.data.target); setLanguage('zh'); }}>定位区块</button>}</article>;
+        }) : <p>还没有保存的批注。</p>}</details>
         <div className="code-material-tools"><button disabled={busy} onClick={() => setPanel(panel === 'materials' ? null : 'materials')}><FileText size={14} />资料</button><button disabled={busy} onClick={() => { setPanel(panel === 'images' ? null : 'images'); void loadImages().catch(e => setError(e.message)); }}><ImageIcon size={14} />图片</button></div>
         {panel === 'materials' && <section className="code-upload-panel" aria-label="公司资料"><label>上传文本或表格<input type="file" accept=".txt,.md,.csv,.xlsx" onChange={e => void loadMaterial(e)} /></label><div className="code-pack-list">{simulatedPackList.map(pack => <button key={pack.id} data-pack-id={pack.id} onClick={() => { setInput(pack.body); setPanel(null); }}>{pack.label}</button>)}</div><p>资料载入后可先编辑，再发送。</p></section>}
         {panel === 'images' && <section className="code-upload-panel" aria-label="站点图片"><label>用途<select value={category} onChange={e => setCategory(e.target.value)}><option value="product">产品</option><option value="equipment">设备</option><option value="facility">厂房</option><option value="inspection">检测</option></select></label><label>许可<select value={license} onChange={e => setLicense(e.target.value)}>{['user-provided', 'CC0', 'Public Domain', 'CC BY', 'CC BY-SA'].map(l => <option key={l} value={l}>{l === 'user-provided' ? '我有权用于本站' : l}</option>)}</select></label><label>来源地址<input value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} /></label>{license !== 'user-provided' && <label>许可证地址<input value={licenseUrl} onChange={e => setLicenseUrl(e.target.value)} /></label>}<label>作者<input value={author} onChange={e => setAuthor(e.target.value)} /></label><label>署名文字<input value={attribution} onChange={e => setAttribution(e.target.value)} /></label><input aria-label="上传图片" disabled={busy} type="file" accept="image/png,image/jpeg,image/webp" onChange={e => void uploadImage(e)} />{images.map(image => <p key={image.imageId}>{image.originalName} · {image.imageId}</p>)}</section>}
-        <form className="code-chat-form" onSubmit={e => void submit(e)}><label className="sr-only" htmlFor="code-message">公司资料或修改要求</label><textarea id="code-message" data-testid="code-message" value={input} maxLength={4000} onChange={e => setInput(e.target.value)} placeholder={version ? '例如：首屏换成深色，保留其他内容' : '粘贴公司资料，说明希望访客做什么'} disabled={busy || conversationUnavailable} rows={4} /><button className="primary-button" type="submit" disabled={busy || conversationUnavailable || !input.trim()}><Send size={14} />{version ? '发送修改' : '发送资料'}</button></form>
+        <form className="code-chat-form" onSubmit={e => void submit(e)}><label className="sr-only" htmlFor="code-message">公司资料或修改要求</label><textarea id="code-message" data-testid="code-message" value={input} maxLength={4000} onChange={e => setInput(e.target.value)} placeholder={selected ? `想怎样修改「${selected.label}」？` : version ? '例如：首屏换成深色，保留其他内容' : '粘贴公司资料，说明希望访客做什么'} disabled={busy || conversationUnavailable} rows={4} /><button className="primary-button" type="submit" disabled={busy || conversationUnavailable || !input.trim()}><Send size={14} />{version ? '发送修改' : '发送资料'}</button></form>
       </div>
     </aside>
     {historyOpen && <CodeVersionHistory site={site} busy={!!busy} onUpdate={setState} onClose={() => setHistoryOpen(false)} />}

@@ -1,3 +1,4 @@
+import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
@@ -94,7 +95,7 @@ export async function nameCodeVersion(siteId: string, versionId: string, name: s
   });
 }
 type CodeCommit = {
-  siteId: string; baseRevision: number; code?: SiteCode; restoreVersionId?: string; englishCode?: SiteCode;
+  siteId: string; baseRevision: number; code?: SiteCode; selectedTarget?: AnnotationTarget; restoreVersionId?: string; englishCode?: SiteCode;
   author: 'assistant' | 'user'; summary: string; request: string; model?: string;
 };
 type CodeCommitResult = { status: 'conflict'; site: CodeSiteRecord }
@@ -177,8 +178,11 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request);
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images });
+    if (args.selectedTarget && (!current || args.selectedTarget.versionId !== current.id || restore)) throw new Error('锚点版本已改变，请重新点选。');
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images,
+      ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
+    if (args.selectedTarget && current?.checks.factReview) checked.checks.factReview = current.checks.factReview;
     let english = restore ? restore.english : current?.english;
     if (restore?.english) {
       const source = site.versions.find(version => version.revision === restore.english!.sourceRevision);

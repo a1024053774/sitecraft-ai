@@ -2,7 +2,10 @@ import { after } from 'next/server.js';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
-import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, translateSiteCode, codeModelCalls } from './code-site-model.ts';
+import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, translateSiteCode, writeLocalEdit, codeModelCalls } from './code-site-model.ts';
+import { annotationTargetSchema, type AnnotationTarget } from './annotations.ts';
+import { localEditContext, applyLocalEdit } from './code-site-local-edit.ts';
+import { createAnnotation, replyAnnotation } from './annotation-store.ts';
 import { CodeRepairError } from './code-site-repair.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
@@ -13,6 +16,7 @@ const requestSchema = z.object({
   action: z.enum(['start', 'select', 'confirm', 'state', 'cancel', 'translate']).optional(), message: z.string().trim().min(1).max(4000).optional(),
   baseRevision: z.number().int().nonnegative().optional(), questionId: z.string().max(100).optional(),
   questionRevision: z.number().int().nonnegative().optional(), optionId: z.string().max(80).optional(),
+  selectedTarget: annotationTargetSchema.optional(), pageId: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(), saveAnnotation: z.boolean().optional(),
   preferences: z.object({ style: z.enum(['auto', 'precision', 'documentary']), layout: z.number().int().min(1).max(10), density: z.number().int().min(1).max(10) }).optional(),
 });
 const active = (globalThis as typeof globalThis & { __codeRuns?: Set<string> }).__codeRuns ??= new Set<string>();
@@ -43,13 +47,14 @@ async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
     return { run: { ...site.run, ...patch, ...(codeModelCalls.getStore() ? { modelCalls: codeModelCalls.getStore() } : {}), updatedAt: new Date().toISOString() } };
   });
 }
-async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number) {
+async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: { selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean } = {}) {
   return updateCodeSite(siteId, site => {
     if (site.run?.status === 'running') throw new CodeRunConflictError('当前任务还在进行，请等待完成。');
     if ((currentCodeVersion(site)?.revision ?? 0) !== baseRevision) throw new CodeRunConflictError('版本已经更新，请刷新后再试。');
+    if (edit.selectedTarget && currentCodeVersion(site)?.id !== edit.selectedTarget.versionId) throw new CodeRunConflictError('锚点版本已改变，请重新点选。');
     const now = new Date().toISOString();
     return { run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'translate' ? '按当前中文版逐页翻译英文' : kind === 'plan' ? '读资料，规划页面大纲' : kind === 'edit' ? '理解修改要求，查阅版本目录' : '按方案写站点代码',
-      request, baseRevision, startedAt: now, updatedAt: now, repairRound: 0, issues: [], attempts: [] } };
+      ...edit, request, baseRevision, startedAt: now, updatedAt: now, repairRound: 0, issues: [], attempts: [] } };
   });
 }
 function schedule(site: CodeSiteRecord) {
@@ -64,9 +69,65 @@ function schedule(site: CodeSiteRecord) {
         ...(run.kind === 'translate' ? { repairRound: Math.max(0, ...(codeModelCalls.getStore() ?? []).map(call => call.translationInput?.correctionRound ?? 0)) } : {}),
         ...(error instanceof CodeRepairError ? { repairFailure: { reason: message, response: error.response } } : {}) });
       await updateConversationAlignment(site.siteId, site.conversationId, record => ({ ...record, alignment: applyCommittedResult(record.alignment, { status: 'error', summary: message }) }));
+      const failed = await getCodeSite(site.siteId);
+      if (failed?.run?.annotationId) await replyAnnotation(site.siteId, failed.run.annotationId, { body: message, author: { id: 'assistant', name: '助手' } });
       await appendConversationTurn({ siteId: site.siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: message, appliedOperationsSummary: '未保存版本', outcome: 'error' });
     } finally { active.delete(run.id); }
   }));
+}
+async function executeLocalEdit(site: CodeSiteRecord, run: CodeRun) {
+  const target = run.selectedTarget!, source = currentCodeVersion(site)!;
+  const materials = codeFactMaterials(site, run.request);
+  let issues: string[] = [], annotationId = run.annotationId;
+  if (run.saveAnnotation && !annotationId) {
+    const created = await createAnnotation({ siteId: site.siteId, pageId: target.pageId, pagePath: `/${target.pageId}`,
+      anchor: { pageId: target.pageId, pagePath: `/${target.pageId}`, revision: source.revision, locale: 'zh', target,
+        snapshot: { text: target.text, label: target.label }, capturedAt: run.startedAt },
+      body: run.request, author: { id: 'workspace', name: '你' } });
+    annotationId = created.id; await runStep(site.siteId, run.id, { annotationId });
+  }
+  for (let round = 0; round <= 2; round++) {
+    await runStep(site.siteId, run.id, { step: round ? `修正选中区块（${round}/2）` : `修改「${target.label}」`, repairRound: round });
+    const result = await writeLocalEdit({ materials, preferences: site.preferences, plan: site.plan!, request: run.request,
+      current: source.code, target, issues });
+    // Preserve the reply before parsing or invoking the fact provider. A later
+    // provider failure must not discard the unsaved candidate that caused it.
+    await runStep(site.siteId, run.id, { localResponses: [...((await getCodeSite(site.siteId))!.run!.localResponses ?? []), { response: result.response, issues: [] }] });
+    const unavailable = z.object({ cannotEdit: z.string().min(1).max(500) }).strict().safeParse(result.response);
+    if (unavailable.success) throw new Error(`${unavailable.data.cannotEdit}；未保存版本。可取消点选后选择「改整页」。`);
+    const parsed = z.object({ html: z.string().min(1).max(100000), css: z.string().max(30000) }).strict().safeParse(result.response);
+    issues = [];
+    let code;
+    if (!parsed.success) issues = ['局部修改必须返回一个区块的 html 和 css，不能返回整页或整站。'];
+    else {
+      // Only boundary errors are correction feedback; infrastructure/provider
+      // failures stop the task instead of being retried as model mistakes.
+      if (/<\/?(?:html|body|head|main)\b/i.test(parsed.data.html)) issues = ['局部修改必须返回一个区块，不能返回整页。'];
+      else try { code = await applyLocalEdit(source.code, target, parsed.data.html, parsed.data.css); }
+      catch (error) { if (!(error instanceof CodeRepairError)) throw error; issues = [error.message]; }
+    }
+    if (code) {
+      await runStep(site.siteId, run.id, { step: '检查修改范围、区块事实与三档布局' });
+      const committed = await commitSiteCode({ siteId: site.siteId, baseRevision: run.baseRevision, code, selectedTarget: target,
+        author: 'assistant', summary: `${site.plan!.pages.find(page => page.id === target.pageId)?.title || target.pageId} · ${target.label}：${run.request}`.slice(0, 200), request: run.request, model: result.model });
+      if (committed.status === 'conflict') throw new Error('版本已经更新，本次没有覆盖当前站点。');
+      const checks = committed.status === 'applied' ? committed.version.checks : committed.checks;
+      await runStep(site.siteId, run.id, { issues: checks.issues, attempts: [...(await getCodeSite(site.siteId))!.run!.attempts, { code, checks }] });
+      if (committed.status === 'applied') {
+        const summary = `已修改「${target.label}」，保存为版本 ${committed.version.revision}。`;
+        if (annotationId) await replyAnnotation(site.siteId, annotationId, { body: summary, author: { id: 'assistant', name: '助手' } });
+        await updateConversationAlignment(site.siteId, site.conversationId, record => ({ ...record, alignment: applyCommittedResult(record.alignment, { status: 'applied', summary, revision: committed.version.revision }) }));
+        await appendConversationTurn({ siteId: site.siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: summary, appliedOperationsSummary: committed.version.summary, outcome: 'applied' });
+        await runStep(site.siteId, run.id, { status: 'complete', step: summary, versionId: committed.version.id });
+        return;
+      }
+      issues = checks.issues;
+    }
+    const responses = (await getCodeSite(site.siteId))!.run!.localResponses!;
+    responses[responses.length - 1].issues = issues;
+    await runStep(site.siteId, run.id, { issues, localResponses: responses });
+  }
+  throw new Error('两轮局部修正后仍未通过检查，未保存版本。可以重新点选并调整意见，或取消点选后选择「改整页」。');
 }
 async function execute(siteId: string, runId: string) {
   let site = (await getCodeSite(siteId))!; const run = site.run!;
@@ -111,6 +172,7 @@ async function execute(siteId: string, runId: string) {
     return;
   }
   if (!site.plan) throw new Error('缺少已确认的页面大纲。');
+  if (run.selectedTarget) return executeLocalEdit(site, run);
   const images = await listSiteImages(siteId);
   const materials = codeFactMaterials(site, run.request);
   const references = [];
@@ -125,7 +187,7 @@ async function execute(siteId: string, runId: string) {
     await runStep(siteId, runId, { referenceVersionIds: selected.map(version => version.id), step: '按修改要求写站点代码' });
     for (const version of selected) references.push({ revision: version.revision, name: version.name, code: version.code });
   }
-  let result = await writeSiteCode({ materials, preferences: site.preferences, plan: site.plan, images, request: run.request,
+  let result = await writeSiteCode({ materials, preferences: site.preferences, plan: site.plan, images, request: run.pageId ? `只修改当前页 ${run.pageId}，其他页面、公共页头页脚及其样式保持。${run.request}` : run.request,
     references,
     ...(run.kind === 'edit' ? { current: currentCodeVersion(site)!.code } : {}) });
   for (let round = 0; round <= 2; round++) {
@@ -194,8 +256,15 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
       }
     } else if (input.message) {
       if (currentCodeVersion(site)) {
-        site = await claimRun(siteId, 'edit', input.message, currentCodeVersion(site)!.revision); schedule(site);
+        if (input.selectedTarget) {
+          if (input.baseRevision === undefined || input.selectedTarget.versionId !== currentCodeVersion(site)!.id) throw new CodeRunConflictError('锚点版本已改变，请重新点选。');
+          await localEditContext(currentCodeVersion(site)!.code, input.selectedTarget);
+        }
+        if (input.pageId && !currentCodeVersion(site)!.code.pages.some(page => page.id === input.pageId)) throw new Error('当前页面不存在，请重新选择。');
+        site = await claimRun(siteId, 'edit', input.message, currentCodeVersion(site)!.revision,
+          { selectedTarget: input.selectedTarget, pageId: input.pageId, saveAnnotation: input.saveAnnotation }); schedule(site);
       } else {
+        if (input.selectedTarget) throw new Error('请先生成中文版，再点选区块。');
         if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
         if (conversation.alignment.styleOptionId) await updateConversationAlignment(siteId, site.conversationId, record => ({ ...record, alignment: { ...record.alignment, styleOptionId: null, confirmClaimed: false, lastResult: null } }));
         const company = input.message.match(/^[ \t]*公司名[：:][ \t]*([^\n]+)/m)?.[1]?.trim();

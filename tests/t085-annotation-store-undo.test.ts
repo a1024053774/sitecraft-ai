@@ -40,12 +40,12 @@ function annotationInput(siteId: string) {
     anchor: {
       pageId: "home",
       pagePath: "/",
-      templateId: "screwfast",
+
       revision: 0,
       locale: "zh" as const,
       viewport: { width: 1440, height: 900, device: "desktop" as const },
       scroll: { x: 0, y: 120 },
-      target: { kind: "slot" as const, slot: "products.product-a.name.zh", section: "products", productId: "product-a", locale: "zh" as const },
+      target: { kind: "dom" as const, pageId: "home", versionId: "version-1", path: [0], text: "标题", label: "标题" },
       rect: { x: 0.1, y: 0.2, width: 0.4, height: 0.1, space: "target-ratio" as const },
       snapshot: { text: "产品 A", label: "产品名称", tag: "h3" },
       capturedAt: new Date().toISOString(),

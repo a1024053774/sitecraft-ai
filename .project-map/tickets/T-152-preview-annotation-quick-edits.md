@@ -4,7 +4,7 @@ title: 预览里点选区块批注修改与快捷按钮，只改选中的那一�
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Codex (t152-annotation-edits)
 supersedes:
 ---
 
@@ -32,7 +32,28 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 先列出失效方式，再写红绿测试，测试在已知坏的实现上失败（至少：越界改共享 CSS 被拒、模型返回整页被拒、写回位置正确、旧批注数据不丢）
+- [x] 先列出失效方式，再写红绿测试，测试在已知坏的实现上失败（至少：越界改共享 CSS 被拒、模型返回整页被拒、写回位置正确、旧批注数据不丢）
 - [ ] 真实入口端到端（只一站，用现有评估站复制样本）：点选首屏 → 写意见改 → 撤销 → 点选另一块 → 点「精简文字」→ 刷新恢复；1440/768/375 截图看过；真实 DeepSeek 用量写进 Resolution，单次局部修改目标 ≤1.5 万 token，整轮上限 5 万，超了先停
 - [ ] 改动前后成对截图交一个新的盲评实例：改动是否只发生在选中区块、结果是否比原来好（只这一站，不跑整轮 eval）
 - [ ] Astra 审查通过；typecheck、test、build 通过
+
+## Resolution
+
+**INCOMPLETE（2026-10-10 EDT / 2026-10-11 UTC）**。执行候选为 `t152-annotation-edits` 上与本 Resolution 同一个本地提交，基线 `b9f8db0`；不推送、不关票。点选、局部写回、提交入口范围检查、四个快捷按钮、同版本点选刷新恢复和可选批注线程已实现。旧锚点拒绝新建、既有数据原样保留并显示无法定位。独立盲评及 Astra 审查由主控安排，以下技术通过不代表审美通过。
+
+所有运行均在本 worktree，显式 `SITECRAFT_BASE=http://127.0.0.1:3164`，浏览器使用 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。样本只读复制主工作区的青禾纸包装 `fefa658d-7ce3-499a-8026-431f33313731`（首页、产品页及许可图片），主数据未写入。最终本地数据在 `artifacts/t152/final-data/`，真实失败数据保留在 `artifacts/t152/real-data/`。
+
+技术证据（以下时间为 UTC，均对应本候选最后的代码改动之后）：
+
+- `SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<上述路径> node --test --experimental-strip-types tests/t152-local-edits.test.ts`：01:26:44，9/9 通过，`artifacts/t152/green-contract-delivery.log`。父实现错误接受共享 CSS 的红态在 `red-contract.log`；整页回复、错误写回、丢弃旧锚点的反事实红态分别在 `red-mutant-whole-page-v2.log`、`red-mutant-wrong-position-v2.log`、`red-mutant-old-anchor.log`。新增行内计数器、事实输出额度红态在 `red-inline-counter.log`、`red-fact-output-cap.log`。早期非预期原因的失败产物保留，不用作反事实证据。
+- 本地模型替身：`SITECRAFT_BASE=http://127.0.0.1:3164 node --experimental-strip-types scripts/t152-model-fixture.ts`（3165）。开发服务用 `SITE_STORE=fs SITECRAFT_DATA_ROOT=<本工作树数据目录> SITECRAFT_BASE=http://127.0.0.1:3164 DEEPSEEK_BASE_URL=http://127.0.0.1:3165 DEEPSEEK_API_KEY=local-fixture DEEPSEEK_MODEL=local-fixture CHROME_PATH=<上述路径> npm run dev -- --port 3164`。
+- `SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<上述路径> node --experimental-strip-types scripts/t152-chat-boundaries.ts`：01:26:48，通过真实 chat 验证过期锚点、并发请求仅一次认领、整页/共享 CSS 最多两轮修正且不存版、未点选走原写作路线，以及事实提供方截断后候选仍保留。报告 `artifacts/t152/chat-boundaries-1791681999431/report.json`；候选丢失红态 `red-candidate-on-provider-failure.log`。
+- `SITECRAFT_BASE=http://127.0.0.1:3164 SITE_STORE=fs CHROME_PATH=<上述路径> npm test`：01:28:00，348/348 通过，`npm-test-delivery.log`。`SITECRAFT_BASE=http://127.0.0.1:3164 npm run typecheck`：01:27:06 通过；同环境 `npm run build`：01:27:32 通过；日志为 `typecheck-delivery.log`、`build-delivery.log`。最初另设数据根造成旧测试固定路径读取失败，已用本 worktree 既有路径重跑；未改弱这些测试。
+- `SITECRAFT_BASE=http://127.0.0.1:3164 T152_RUN_LABEL=local-delivery CHROME_PATH=<上述路径> node --experimental-strip-types scripts/t152-preview-e2e.ts`：01:28:17–01:28:32，通过「点首屏 → 意见修改 v2 → 撤销 v3 → 点另一块精简 v4 → 刷新」。断言精简后选中段落确实变短。三个新版本均经同一提交入口，2 页 × 3 档的溢出、重叠、对比度拒因均为 0。`artifacts/t152/local-delivery/report.json` 与 13 张截图均保留、逐张打开查看；这些是替身技术证据，不能代替真实模型或盲评。
+
+真实尝试及未完成项：
+
+- 01:23:12 开始获准的真实调用，使用 `scripts/t152-real-budget.ts` 在每次调用前预留输入估算与输出上限，整轮 50,000 token。密钥仅用指定的 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入该进程，未打印、复制或软链。真实服务指向 3166 预算代理及本 worktree 的 `artifacts/t152/real-data`。
+- `SITECRAFT_BASE=http://127.0.0.1:3164 T152_RUN_LABEL=real-acceptance-ready CHROME_PATH=<上述路径> node --experimental-strip-types scripts/t152-preview-e2e.ts` 在首屏修改的事实校对处停止，没有新版本。写作 12,651 token（输入 9,330 / 输出 3,321）；事实校对 8,858（输入 4,763 / 输出 4,095，输出全为思考、正文为空、finish=length）。合计 **21,509 token**，超过单次 15,000 目标，低于整轮上限；没有重试。用量与预估在 `artifacts/t152/real-budget-1791681740918/usage.json`，任务与失败截图在 `artifacts/t152/real-acceptance-ready/`。更早一次点选时机错误尚未发出模型调用，产物在 `real-acceptance/`。
+- 根因之一是本次曾把局部事实输出上限降为 4096；最终候选已恢复既有事实校对输出额度，没有关闭思考。真实失败当时只保留调用元数据，未保留写作候选正文；最终候选已改为先保存 `localResponses`，并有上述红绿证据。**这两项修复只做了本地验证，没有再调用真实模型，不能把真实验收写成通过，也未证明用量目标已达到。**
+- 因真实修改没有存版，尚无合格的真实改动成对盲评包。主控需决定后续用量优化及是否重新授权一次真实验收，再安排独立盲评与 Astra 审查。票保持 open。

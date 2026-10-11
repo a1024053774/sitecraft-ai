@@ -15,6 +15,8 @@ export async function serveCodePage(site: CodeSiteRecord, version: CodeVersion |
   return new Response(renderSiteCode(site.siteId, code, pageId, published ? '' : version.id, credits, published ? prefix + (language === 'en' ? '/en' : '') : undefined,
     { language, ...(version.english ? { languageLinks: published ? { zh: `${prefix}?page=${zhPage}`, en: `${prefix}/en?page=${enPage}` } : { zh: preview.replace(`page=${encodeURIComponent(pageId)}`, `page=${encodeURIComponent(zhPage)}`), en: `${preview.replace(`page=${encodeURIComponent(pageId)}`, `page=${encodeURIComponent(enPage)}`)}&language=en` } } : {}) }), {
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
-      'Content-Security-Policy': "sandbox allow-forms; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; base-uri 'none'" },
+      // The workspace reads its own preview DOM to select a block. Scripts stay
+      // forbidden by both CSP and the iframe sandbox; published pages stay opaque.
+      'Content-Security-Policy': `sandbox allow-forms${published ? '' : ' allow-same-origin'}; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; base-uri 'none'` },
   });
 }

@@ -6,10 +6,12 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
+import { localEditDom, localScopeClass, checkLocalSelectors } from './code-site-local-edit.ts';
+import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
-function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], legacyImport = false) {
+function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], legacyImport = false, selectedTarget?: AnnotationTarget) {
   const issues: string[] = [], cleaned: string[] = [];
   const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
   const safeCss = (style: CSSStyleDeclaration) => {
@@ -95,7 +97,7 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
       if (!targetDoc || (anchor && !targetDoc.getElementById(anchor))) issues.push(`${id} 链接目标不存在：${href}`);
     }
   }
-  const contacts = [...documents.values()].flatMap(doc => [...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)));
+  let contacts = [...documents.values()].flatMap(doc => [...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)));
   // Auxiliary copy and handwritten numbers share the same factual boundary.
   const readableFragment = (html: string) => {
     const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
@@ -114,15 +116,26 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
   };
   // Shared fragments are identical on every page. Audit them once, while
   // keeping each page's own copy and auxiliary attributes in its own context.
-  const text = `公共页头：\n${readableFragment(safe.header)}\n${safe.pages.map(p => `页面标题：${p.title}\n页面正文：\n${readableFragment(p.html)}`).join('\n')}\n公共页脚：\n${readableFragment(safe.footer)}`;
+  let text = `公共页头：\n${readableFragment(safe.header)}\n${safe.pages.map(p => `页面标题：${p.title}\n页面正文：\n${readableFragment(p.html)}`).join('\n')}\n公共页脚：\n${readableFragment(safe.footer)}`;
+  if (selectedTarget) {
+    const doc = documents.get(selectedTarget.pageId);
+    let node: Element | undefined = doc?.querySelector('main') ?? undefined;
+    for (const index of selectedTarget.path) node = node?.children[index];
+    if (!node) issues.push('局部修改的区块无法定位');
+    text = node ? readableFragment(node.outerHTML) : '';
+    contacts = node ? [...node.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)) : [];
+  }
   return { code: safe, issues: [...new Set(issues)], cleaned, text, contacts };
 }
 // Browser computed values have already resolved variables, shorthand and nesting.
-function readGeneratedText() {
+function readGeneratedText(targetPath?: number[]) {
   const texts: Array<{ key: string; text: string }> = [];
   const strings = (value: string) => [...value.matchAll(/"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g)]
     .map(match => (match[1] ?? match[2]).replace(/\\([0-9a-f]{1,6})\s?|\\(.)/gi, (_escape, hex, char) => hex ? String.fromCodePoint(parseInt(hex, 16)) : char)).join('');
+  let selected: Element | undefined = document.querySelector('main') ?? undefined;
+  if (targetPath) for (const index of targetPath) selected = selected?.children[index];
   for (const [index, el] of [...document.querySelectorAll('*')].entries()) {
+    if (targetPath && !selected?.contains(el)) continue;
     const style = getComputedStyle(el);
     if (style.display === 'list-item') {
       const text = strings(style.listStyleType); if (text) texts.push({ key: `${index}:list-style`, text });
@@ -346,7 +359,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget } }) {
   const code = codeSiteSchema.parse(args.code);
   const browser = await codeCheckBrowser();
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
@@ -362,8 +375,17 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
     const backdropIds = Object.keys(systemBackdrops), backdropUrls = Object.values(systemBackdrops).flatMap(entry => Object.values(entry.urls));
-    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${JSON.stringify(backdropIds)},${JSON.stringify(backdropUrls)},${!!args.legacyImport})`);
+    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${JSON.stringify(backdropIds)},${JSON.stringify(backdropUrls)},${!!args.legacyImport},${JSON.stringify(args.localEdit?.target)})`);
     checks.issues.push(...clean.issues); checks.cleaned = clean.cleaned;
+    let localSelectors: string[] = [];
+    if (args.localEdit) {
+      // Check both raw and cleaned candidates: sanitizing an escape must not make
+      // it look as though the model respected the requested scope.
+      for (const candidate of [code, clean.code]) {
+        const range = await browser.evaluate<ReturnType<typeof localEditDom>>(`(${localEditDom.toString()})(${JSON.stringify(args.localEdit.source)},${JSON.stringify(args.localEdit.target)},${JSON.stringify(localScopeClass(args.localEdit.target))},${JSON.stringify(candidate)})`);
+        checks.issues.push(...range.issues); localSelectors = range.selectors;
+      }
+    }
     if (args.translationSource) checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)})`));
     for (const contact of new Set(clean.contacts)) if (!args.materials.includes(contact.replace(/^(mailto|tel):/, ''))) checks.issues.push(`联系方式没有资料来源：${contact}`);
     if (checks.issues.length && !args.legacyImport) return { code: clean.code, checks };
@@ -386,6 +408,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           originalGenerated = await browser.evaluate(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readGeneratedText.toString()})()})()`);
         }
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits, undefined, args.translationSource ? { language: 'en', languageLinks } : {}) });
+        if (args.localEdit) checks.issues.push(...await browser.evaluate<string[]>(`(${checkLocalSelectors.toString()})(${JSON.stringify(args.localEdit.target)},${JSON.stringify(page.id)},${JSON.stringify(localSelectors)})`));
         const structure = await browser.evaluate<{ contentType: string; hasMainHeading: boolean }>(`({contentType:document.contentType,hasMainHeading:!!document.querySelector('main h1')})`);
         if (structure.contentType !== 'text/html') throw new Error('底线检查未载入候选网页，本次未保存版本。');
         // Missing candidate structure is a rejection, not a browser failure.
@@ -400,8 +423,8 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         if (imageErrors.length) checks.issues.push(`${page.id}/${width} 图片无法显示：${imageErrors.join('、')}`);
         const backdrops = await browser.evaluate<Awaited<ReturnType<typeof prepareSystemBackdrops>>>(`(${prepareSystemBackdrops.toString()})(${JSON.stringify(backdropUrls)})`);
         checks.issues.push(...backdrops.issues.map(issue => `${page.id}/${width} ${issue}`));
-        const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:(${readGeneratedText.toString()})()};})()`);
-        for (const entry of layout.generatedText) generatedText.add(entry.text);
+        const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:(${readGeneratedText.toString()})(${JSON.stringify(args.localEdit?.target.path)})};})()`);
+        if (!args.localEdit || args.localEdit.target.pageId === page.id) for (const entry of layout.generatedText) generatedText.add(entry.text);
         if (args.translationSource) {
           const before = new Map(originalGenerated.map(entry => [entry.key, entry.text]));
           const after = new Map(layout.generatedText.map(entry => [entry.key, entry.text]));
@@ -431,7 +454,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const marker = args.materials.match(/核验记号[：:]\s*([^。\n\s]+)/)?.[1];
     if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
-    if (!checks.issues.length && !args.legacyImport && !args.translationSource) checks.issues.push(...await auditCodeFacts(args.materials, readable));
+    if (!checks.issues.length && !args.legacyImport && !args.translationSource) checks.issues.push(...await auditCodeFacts(args.materials, readable, !!args.localEdit));
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
   } finally { await browser.close(); }

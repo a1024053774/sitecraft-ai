@@ -56,12 +56,12 @@ const store = await import("../lib/annotation-store.ts");
 const anchor = {
   pageId: "home",
   pagePath: "/",
-  templateId: "screwfast",
+
   revision: 0,
   locale: "zh" as const,
   viewport: { width: 1440, height: 900, device: "desktop" as const },
   scroll: { x: 0, y: 0 },
-  target: { kind: "slot" as const, slot: "hero.title", section: "hero", locale: "zh" as const },
+  target: { kind: "dom" as const, pageId: "home", versionId: "version-1", path: [0], text: "标题", label: "标题" },
   rect: { x: 0, y: 0, width: 1, height: 1, space: "target-ratio" as const },
   snapshot: { text: "标题" },
   capturedAt: new Date().toISOString(),
