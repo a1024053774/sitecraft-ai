@@ -1,3 +1,4 @@
+import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
@@ -22,7 +23,7 @@ const server = createServer(async (req, res) => {
   if (content.includes('FAIL402')) { res.writeHead(402); res.end('{}'); return; }
   const payload = content.includes('INVALID') ? 'not json' : body.messages[0].content.includes('事实校对员') ? { issues: [] }
     : { summary: '首页介绍服务', style: 'precision', styleReason: '服务资料', skeletonId: 'compact-profile', skeletonReason: '简短服务资料。', pages: [{ id: 'home', title: '首页', outline: ['公司和服务'] }] };
-  const planCall = !!body.tools, text = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  const planCall = !!body.tools, text = typeof payload === 'string' ? payload : JSON.stringify(factAuditReply(body, payload));
   res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
     ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: text } }] }
     : { content: text } }],

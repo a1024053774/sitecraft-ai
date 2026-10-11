@@ -1,3 +1,4 @@
+import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
@@ -12,7 +13,7 @@ const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); requests.push(body);
   res.setHeader('content-type','application/json');
-  res.end(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(body.messages[0].content.includes('事实校对员')?{issues:[]}:{html:'<section><h1>测试段</h1></section>',css:''})}}],usage:{prompt_tokens:100,completion_tokens:20,total_tokens:120}}));
+  res.end(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(body.messages[0].content.includes('事实校对员')?factAuditReply(body,{issues:[]}):{html:'<section><h1>测试段</h1></section>',css:''})}}],usage:{prompt_tokens:100,completion_tokens:20,total_tokens:120}}));
 });
 await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
 const address=server.address();assert.ok(address&&typeof address==='object');

@@ -1,3 +1,4 @@
+import type { CodeFactReview } from './code-site-fact-segments.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import { z } from 'zod';
@@ -25,6 +26,7 @@ export type CodeQualityFeedback = Record<CodeQualityKind, number> & {
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
   factReview?: 'legacy-unreviewed';
+  factSegments?: CodeFactReview;
   factReviewFrom?: { versionId: string; revision: number; checkedAt: string };
   viewports: Array<{ pageId: string; width: number; overflow: number; overlaps: number; contrastIssues: number; longLines: number;
     // Absent on versions checked before T-147; absence is not zero findings.

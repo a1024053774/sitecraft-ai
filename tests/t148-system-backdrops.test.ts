@@ -1,3 +1,4 @@
+import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -23,8 +24,9 @@ await mkdir(out, { recursive: true });
 let missingAsset = false, modelCalls = 0;
 const server = createServer(async (request, response) => {
   if (request.method === 'POST') {
+    let raw = ''; for await (const chunk of request) raw += chunk;
     modelCalls++; response.setHeader('Content-Type', 'application/json');
-    response.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"issues":[]}' } }] })); return;
+    response.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(JSON.parse(raw), { issues: [] })) } }] })); return;
   }
   if (request.url?.startsWith('/system-backdrops/')) {
     const file = path.basename(request.url);

@@ -1,3 +1,4 @@
+import { factAuditReply } from './fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import type { SiteCode } from '../../lib/code-site.ts';
@@ -54,7 +55,7 @@ export async function enrichmentProviderFixture() {
       }
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 }, choices: [{ finish_reason: purpose === 'plan' ? 'tool_calls' : 'stop', message: purpose === 'plan'
-        ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(data) } }] } : { content: JSON.stringify(data) } }] }));
+        ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(factAuditReply(body, data)) } }] } : { content: JSON.stringify(factAuditReply(body, data)) } }] }));
     } catch (error) { failures.push(String(error)); res.writeHead(422); res.end(JSON.stringify({ error: { message: String(error) } })); }
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
