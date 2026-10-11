@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 
 const base = process.env.SITECRAFT_BASE;
@@ -39,10 +39,18 @@ async function pick(path: number[]) {
   await wait(`document.querySelector('[data-testid="selected-target"]')`);
 }
 try {
-  const start = await state(); evidence.before = start.codeSite;
+  const start = await state();
+  const resumed = process.env.T152_RESUME_REPORT ? JSON.parse(await readFile(process.env.T152_RESUME_REPORT, 'utf8')) : null;
+  if (resumed) {
+    assert.equal(start.codeSite.currentVersionId, resumed.edited.currentVersionId, 'continue only the already saved first edit');
+    assert.equal(start.codeSite.siteId, resumed.siteId);
+    evidence.before = resumed.before; evidence.resumeFrom = process.env.T152_RESUME_REPORT;
+  } else evidence.before = start.codeSite;
   await browser.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await browser.send('Page.navigate', { url: `${base}/workspace?site=${id}` });
   await wait(`document.querySelector('[data-testid="code-preview"]')?.contentDocument?.querySelector('main h1')`);
+  let edited;
+  if (resumed) { edited = start; console.log('continue saved first edit'); } else {
   console.log('select hero'); await pick([0]);
   assert.match(await browser.evaluate<string>(`document.querySelector('[data-testid="selected-target"]').textContent`), /青禾/);
   await shot('selected-hero-1440');
@@ -53,9 +61,12 @@ try {
   await wait(`!document.querySelector('.code-chat-form button').disabled`);
   await browser.evaluate(`document.querySelector('.code-selected-target input').click()`);
   await click('.code-chat-form button');
-  console.log('wait first edit'); const edited = await runDone(start.codeSite.run?.id); evidence.edited = edited.codeSite;
+  console.log('wait first edit'); edited = await runDone(start.codeSite.run?.id);
+  }
+  evidence.edited = edited.codeSite;
   const current = edited.codeSite.versions.find((v: any) => v.id === edited.codeSite.currentVersionId);
-  const before = start.codeSite.versions.find((v: any) => v.id === start.codeSite.currentVersionId);
+  const beforeSite = resumed?.before ?? start.codeSite;
+  const before = beforeSite.versions.find((v: any) => v.id === beforeSite.currentVersionId);
   const calls = edited.codeSite.run.modelCalls;
   assert.ok(calls?.length && calls.every((call: any) => call.usage), 'missing usage must stop the paid round');
   evidence.firstEditTokens = calls.reduce((sum: number, call: any) => sum + call.usage.totalTokens, 0);
@@ -63,15 +74,39 @@ try {
   assert.equal(current.revision, before.revision + 1);
   assert.equal(current.code.pages[1].html, before.code.pages[1].html);
   await wait(`document.querySelector('[data-testid="code-revision"]')?.textContent.includes('v${current.revision}')`);
+  const budgetBeforeUndo = process.env.T152_BUDGET_REPORT ? JSON.parse(await readFile(process.env.T152_BUDGET_REPORT, 'utf8')) : null;
+  if (resumed && budgetBeforeUndo) { assert.equal(budgetBeforeUndo.limit, 15000); assert.equal(budgetBeforeUndo.spent, 0); assert.equal(budgetBeforeUndo.calls.length, 0); }
+  await wait(`!document.querySelector('button[aria-label="撤销"]').disabled`);
   await click('button[aria-label="撤销"]');
   await wait(`document.querySelector('[data-testid="code-revision"]')?.textContent.includes('v${current.revision + 1}')`, 90000);
   console.log('undo complete'); const undone = await state(); evidence.undone = undone.codeSite;
   const restored = undone.codeSite.versions.find((v: any) => v.id === undone.codeSite.currentVersionId);
   assert.deepEqual(restored.code, before.code);
+  if (resumed) {
+    assert.equal(restored.checks.factReviewFrom?.versionId, before.id);
+    assert.ok(await browser.evaluate<boolean>(`document.querySelector('[data-testid="code-check-receipt"]').textContent.includes('沿用 v${before.revision} 的事实核对')`));
+  }
+  if (budgetBeforeUndo) {
+    const budgetAfterUndo = JSON.parse(await readFile(process.env.T152_BUDGET_REPORT!, 'utf8'));
+    evidence.undoTokens = budgetAfterUndo.spent - budgetBeforeUndo.spent;
+    evidence.undoProviderRequests = budgetAfterUndo.calls.length - budgetBeforeUndo.calls.length;
+    assert.equal(evidence.undoTokens, 0); assert.equal(evidence.undoProviderRequests, 0);
+  }
+  await wait(`!document.querySelector('.code-preview-loading') && document.querySelector('[data-testid="code-preview"]')?.contentDocument?.querySelector('main h1')`);
+  await browser.evaluate(`document.querySelector('[data-testid="code-check-receipt"]')?.scrollIntoView({block:'center'})`);
+  await shot('restored-facts-1440');
   await wait(`document.querySelector('[data-testid="code-preview"]')?.contentDocument?.querySelector('main h1')`);
   await pick([2]);
   await browser.evaluate(`([...document.querySelectorAll('.code-quick-edits button')].find(el=>el.textContent==='精简文字')).click()`);
   const simplified = await runDone(undone.codeSite.run?.id); evidence.simplified = simplified.codeSite;
+  evidence.secondEditTokens = simplified.codeSite.run.modelCalls.reduce((sum: number, call: any) => sum + call.usage.totalTokens, 0);
+  if (resumed && process.env.T152_BUDGET_REPORT) {
+    const budget = JSON.parse(await readFile(process.env.T152_BUDGET_REPORT, 'utf8'));
+    evidence.continuationTokens = budget.spent;
+    assert.equal(budget.spent, evidence.secondEditTokens);
+    assert.equal(budget.calls.length, simplified.codeSite.run.modelCalls.length);
+    assert.ok(budget.spent <= 15000);
+  }
   const simplifiedVersion = simplified.codeSite.versions.find((v: any) => v.id === simplified.codeSite.currentVersionId);
   const textLengths = await browser.evaluate<number[]>(`[${JSON.stringify(restored.code.pages[0].html)},${JSON.stringify(simplifiedVersion.code.pages[0].html)}].map(html=>new DOMParser().parseFromString(html,'text/html').querySelector('main').children[2].textContent.replace(/\\s+/g,' ').trim().length)`);
   assert.ok(textLengths[1] < textLengths[0], '精简文字 must actually shorten the selected copy');

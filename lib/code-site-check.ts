@@ -359,11 +359,12 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget } }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget }; restoredFactReview?: CodeCheck['factReviewFrom'] }) {
   const code = codeSiteSchema.parse(args.code);
   const browser = await codeCheckBrowser();
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
   if (args.legacyImport) checks.factReview = 'legacy-unreviewed';
+  if (args.restoredFactReview) checks.factReviewFrom = args.restoredFactReview;
   try {
     const base = process.env.SITECRAFT_BASE || `http://127.0.0.1:${process.env.PORT || '3000'}`;
     // setDocumentContent retains the document MIME type: a JSON health document
@@ -454,7 +455,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const marker = args.materials.match(/核验记号[：:]\s*([^。\n\s]+)/)?.[1];
     if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
-    if (!checks.issues.length && !args.legacyImport && !args.translationSource) checks.issues.push(...await auditCodeFacts(args.materials, readable, !!args.localEdit));
+    if (!checks.issues.length && !args.legacyImport && !args.translationSource && !args.restoredFactReview) checks.issues.push(...await auditCodeFacts(args.materials, readable, !!args.localEdit));
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
   } finally { await browser.close(); }

@@ -14,6 +14,7 @@ const folder = `artifacts/t152/real-budget-${Date.now()}`;
 await mkdir(folder, { recursive: true });
 let spent = 0, stopped = false, running = false;
 const calls: Array<Record<string, unknown>> = [];
+await writeFile(`${folder}/usage.json`, JSON.stringify({ limit:15000, spent, stopped, calls }, null, 2));
 const server = createServer(async (req, res) => {
   if (req.method !== 'POST' || req.url !== '/chat/completions' || stopped || running) { res.writeHead(409); res.end('{"error":{"message":"Acceptance round stopped or busy"}}'); return; }
   running = true;
@@ -31,7 +32,7 @@ const server = createServer(async (req, res) => {
     const inputEstimate = Math.ceil(rawEstimate * 0.70 + 300);
     const reserve = inputEstimate + body.max_tokens;
     Object.assign(call, { rawEstimate, inputEstimate, outputLimit: body.max_tokens, reserve, thinking: body.thinking?.type, purpose: body.messages[0].content.includes('局部事实校对员') ? 'local-facts' : body.messages[0].content.includes('事实校对员') ? 'facts' : 'local-edit' });
-    if (spent + reserve > 25000) { stopped = true; throw new Error('Estimated round usage would exceed 25000 tokens'); }
+    if (spent + reserve > 15000) { stopped = true; throw new Error('Estimated round usage would exceed 15000 tokens'); }
     console.log(JSON.stringify({ beforeCall: calls.length + 1, spent, rawEstimate, inputEstimate, outputLimit: body.max_tokens, reserve }));
     const response = await fetch(`${provider.baseURL}/chat/completions`, { method:'POST', headers:{'content-type':'application/json',authorization:`Bearer ${provider.apiKey}`},body:JSON.stringify(body),signal:AbortSignal.timeout(300000) });
     call.httpStatus = response.status;
@@ -39,11 +40,11 @@ const server = createServer(async (req, res) => {
     const usage = payload.usage?.total_tokens;
     if (response.ok && Number.isSafeInteger(usage) && usage >= 0) { spent += usage; Object.assign(call, { usage: payload.usage, spentAfter: spent }); }
     else stopped = true;
-    if (!response.ok || payload.choices?.[0]?.finish_reason === 'length' || spent > 25000) stopped = true;
+    if (!response.ok || payload.choices?.[0]?.finish_reason === 'length' || spent > 15000) stopped = true;
     res.writeHead(response.status, { 'content-type':'application/json' }); res.end(JSON.stringify(payload));
   } catch (error) {
     stopped = true; call.error = error instanceof Error ? error.message : 'Acceptance round failed';
     res.writeHead(502, { 'content-type':'application/json' }); res.end(JSON.stringify({ error: { message: call.error } }));
-  } finally { running = false; calls.push(call); await writeFile(`${folder}/usage.json`, JSON.stringify({ limit:25000, spent, stopped, calls }, null, 2)); }
+  } finally { running = false; calls.push(call); await writeFile(`${folder}/usage.json`, JSON.stringify({ limit:15000, spent, stopped, calls }, null, 2)); }
 });
 server.listen(3166,'127.0.0.1',()=>console.log(`Approved T-152 acceptance budget: ${folder}`));

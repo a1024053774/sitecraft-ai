@@ -2,7 +2,7 @@ import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, chineseCodeRevision, englishSiteCode, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
+import { currentCodeVersion, reviewedMaterialSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
 
@@ -169,6 +169,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       const version: CodeVersion = { id: crypto.randomUUID(), revision: revision + 1, author: args.author, summary: args.summary, request: args.request,
         createdAt: new Date().toISOString(), code: current.code, checks: current.checks, chineseRevision: chineseCodeRevision(current),
         english: { sourceRevision: chineseCodeRevision(current), header: checked.code.header, footer: checked.code.footer, pages: checked.code.pages, checks: checked.checks },
+        ...(reviewedMaterialSnapshot(site, current) !== undefined ? { materialSnapshot: reviewedMaterialSnapshot(site, current) } : {}),
         ...(args.model ? { model: args.model } : {}) };
       site.versions.push(version); site.currentVersionId = version.id;
       await write(site); return { status: 'applied' as const, site, version };
@@ -179,7 +180,10 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (!candidate) throw new Error('没有可提交的站点代码');
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, !!args.selectedTarget);
     if (args.selectedTarget && (!current || args.selectedTarget.versionId !== current.id || restore)) throw new Error('锚点版本已改变，请重新点选。');
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images,
+    const targetMaterials = restore ? reviewedMaterialSnapshot(site, restore) : undefined;
+    const restoredFactReview = restore && targetMaterials !== undefined && targetMaterials === site.materials
+      ? { versionId: restore.id, revision: restore.revision, checkedAt: restore.checks.factReviewFrom?.checkedAt ?? restore.checks.checkedAt } : undefined;
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, restoredFactReview,
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
     if (args.selectedTarget && current?.checks.factReview) checked.checks.factReview = current.checks.factReview;
@@ -193,6 +197,10 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     }
     const version: CodeVersion = { id: crypto.randomUUID(), revision: revision + 1, author: args.author,
       summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks,
+      // A local audit covers its fragment; unchanged portions require a known
+      // parent review on the same base materials before we record a reusable basis.
+      ...(!args.selectedTarget || (current && reviewedMaterialSnapshot(site, current) === site.materials)
+        ? { materialSnapshot: site.materials } : {}),
       ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };
     site.versions.push(version); site.currentVersionId = version.id;
     await write(site); return { status: 'applied' as const, site, version };

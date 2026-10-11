@@ -91,7 +91,7 @@ const { POST: chat } = await import('../app/api/sites/[siteId]/chat/route.ts');
 const { PUT } = await import('../app/api/sites/[siteId]/draft/route.ts');
 const { POST: history } = await import('../app/api/sites/[siteId]/history/[action]/route.ts');
 const { GET: preview } = await import('../app/api/sites/[siteId]/code-preview/route.ts');
-const { getCodeSite } = await import('../lib/code-site-store.ts');
+const { getCodeSite, updateCodeSite } = await import('../lib/code-site-store.ts');
 const request = (url: string, method: string, body: unknown) => new Request(base + url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const context = (siteId: string) => ({ params: Promise.resolve({ siteId }) });
 let id: string, fixture: CodeSiteRecord;
@@ -136,7 +136,8 @@ test('restore adds a checked complete version, retains all eleven originals, sta
   const incomplete = await history(request(`/api/sites/${id}/history/restore`, 'POST', { versionId: fixture.versions[0].id }), { params: Promise.resolve({ siteId: id, action: 'restore' }) });
   assert.equal(incomplete.status, 400);
 });
-test('restore runs the same fact check and refuses without adding a version', async () => {
+test('restore with changed materials runs fact review and refuses without adding a version', async () => {
+  await updateCodeSite(id, site => ({ materials: site.materials + '\n资料已更新。' }));
   const before = (await getCodeSite(id))!; rejectAudit = true;
   try {
     const response = await history(request(`/api/sites/${id}/history/restore`, 'POST', { baseRevision: before.versions.length, versionId: fixture.versions[0].id }), { params: Promise.resolve({ siteId: id, action: 'restore' }) });

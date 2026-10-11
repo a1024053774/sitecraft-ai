@@ -24,6 +24,7 @@ export type CodeQualityFeedback = Record<CodeQualityKind, number> & {
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
   factReview?: 'legacy-unreviewed';
+  factReviewFrom?: { versionId: string; revision: number; checkedAt: string };
   viewports: Array<{ pageId: string; width: number; overflow: number; overlaps: number; contrastIssues: number; longLines: number;
     // Absent on versions checked before T-147; absence is not zero findings.
     qualityFeedback?: CodeQualityFeedback }>;
@@ -31,6 +32,9 @@ export type CodeCheck = {
 export type CodeVersion = {
   id: string; revision: number; author: 'assistant' | 'user' | 'legacy-import'; summary: string; request: string; createdAt: string;
   code: SiteCode; checks: CodeCheck; model?: string; restoredFrom?: string; name?: string;
+  // Raw site materials at the fact review; version requests remain immutable
+  // and are restored through codeFactMaterials with the target version.
+  materialSnapshot?: string;
   chineseRevision?: number;
   english?: { sourceRevision: number; header: string; footer: string; pages: SiteCode['pages']; checks: CodeCheck };
 };
@@ -69,7 +73,18 @@ export type UnavailableCodeSite = {
 export function codeCheckLabel(checks: CodeCheck) {
   return checks.factReview === 'legacy-unreviewed'
     ? `${checks.passed ? '确定性检查通过' : '确定性检查未过'} · 旧站转换未做模型校对`
-    : checks.passed ? '底线检查通过' : '底线检查未过';
+    : `${checks.passed ? '底线检查通过' : '底线检查未过'}${checks.factReviewFrom ? ` · 沿用 v${checks.factReviewFrom.revision} 的事实核对` : ''}`;
+}
+// A missing snapshot is unknown, unless an initial generation run proves its
+// complete original source. Never infer historical sources from current text.
+export function reviewedMaterialSnapshot(site: CodeSiteRecord, version: CodeVersion): string | undefined {
+  if (!version.checks.passed || version.checks.factReview === 'legacy-unreviewed') return undefined;
+  if (typeof version.materialSnapshot === 'string') return version.materialSnapshot;
+  if (version.revision !== 1 || version.author !== 'assistant' || version.restoredFrom) return undefined;
+  const generation = site.runs.find(run => run.kind === 'generate' && run.status === 'complete'
+    && run.baseRevision === 0 && run.versionId === version.id && run.request === version.request
+    && run.modelCalls?.some(call => call.purpose === 'facts' && call.httpStatus === 200 && call.response?.finishReason === 'stop'));
+  return generation?.request;
 }
 export function codeVersionAuthor(author: CodeVersion['author']) {
   return author === 'legacy-import' ? '旧站转换' : author === 'user' ? '你' : '助手';
