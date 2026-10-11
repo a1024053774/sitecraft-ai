@@ -19,8 +19,10 @@ export type CodePreferences = { style: 'auto' | CodeStyleId; layout: number; den
 export type CodePlan = { summary: string; style: CodeStyleId; styleReason: string;
   // Saved outlines from before T-135 have no skeleton; new model plans require it.
   skeleton?: { id: string; reason: string }; skeletonOrder?: string[]; pages: Array<{ id: string; title: string; outline: string }> };
-export type CodeQualityKind = 'truncatedText' | 'ungatedHover' | 'smallTargets' | 'coveredAnchors' | 'croppedProductImages';
-export type CodeQualityFeedback = Record<CodeQualityKind, number> & {
+export type CodeQualityKind = 'truncatedText' | 'ungatedHover' | 'smallTargets' | 'coveredAnchors' | 'croppedProductImages' | 'narrowColumns';
+export type CodeQualityFeedback = Record<Exclude<CodeQualityKind, 'narrowColumns'>, number> & {
+  // Absent on historical checks before T-160; absence means unmeasured.
+  narrowColumns?: number;
   details: Array<{ kind: CodeQualityKind; target: string; text: string; detail: string }>;
 };
 export type CodeCheck = {

@@ -67,7 +67,7 @@ export function summarize(cases: EvalCase[]) {
   const finalRejected = cases.filter(c => c.outcome === 'rejected').length;
   const reasons: Record<string, { attempts: number; sites: number; occurrences: number }> = {};
   const lineFeedback = { attempts: 0, sites: 0, occurrences: 0 };
-  const qualityKinds = ['truncatedText', 'ungatedHover', 'smallTargets', 'coveredAnchors', 'croppedProductImages'] as const;
+  const qualityKinds = ['truncatedText', 'ungatedHover', 'smallTargets', 'coveredAnchors', 'croppedProductImages', 'narrowColumns'] as const;
   const qualityFeedback = Object.fromEntries(qualityKinds.map(kind => [kind, { attempts: 0, sites: 0, occurrences: 0, measuredAttempts: 0, measuredSites: 0 }]));
   for (const c of checked) {
     const siteKinds = new Set<string>();
@@ -77,10 +77,10 @@ export function summarize(cases: EvalCase[]) {
       const longLines = a.checks.viewports.reduce((sum, viewport) => sum + viewport.longLines, 0);
       if (longLines) { lineFeedback.attempts++; lineFeedback.occurrences += longLines; siteHasLongLines = true; }
       for (const kind of qualityKinds) {
-        const measured = a.checks.viewports.filter(v => v.qualityFeedback && (kind !== 'smallTargets' || v.width === 375));
+        const measured = a.checks.viewports.filter(v => typeof v.qualityFeedback?.[kind] === 'number' && (kind !== 'smallTargets' || v.width === 375));
         if (!measured.length) continue;
         qualityFeedback[kind].measuredAttempts++; measuredSiteKinds.add(kind);
-        const count = measured.reduce((sum, v) => sum + v.qualityFeedback![kind], 0);
+        const count = measured.reduce((sum, v) => sum + v.qualityFeedback![kind]!, 0);
         if (count) { qualityFeedback[kind].attempts++; qualityFeedback[kind].occurrences += count; qualitySiteKinds.add(kind); }
       }
       const attemptKinds = new Set<string>();

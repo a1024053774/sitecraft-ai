@@ -187,7 +187,7 @@ async function prepareSystemBackdrops(allowedUrls: string[]) {
 }
 // Browser-only diagnostics. None of these findings enter checks.issues or repair decisions.
 function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[]): CodeQualityFeedback {
-  const feedback: CodeQualityFeedback = { truncatedText: 0, ungatedHover: 0, smallTargets: 0, coveredAnchors: 0, croppedProductImages: 0, details: [] };
+  const feedback: CodeQualityFeedback = { truncatedText: 0, ungatedHover: 0, smallTargets: 0, coveredAnchors: 0, croppedProductImages: 0, narrowColumns: 0, details: [] };
   const targetFor = (el: Element): string => {
     if (el === document.documentElement) return 'html';
     if (el === document.body) return 'body';
@@ -203,9 +203,67 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
     return r.width > 0 && r.height > 0 && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
   };
   const add = (kind: CodeQualityKind, el: Element, detail: string) => {
-    feedback[kind]++;
+    feedback[kind] = feedback[kind]! + 1;
     feedback.details.push({ kind, target: targetFor(el), text: (el.textContent || el.getAttribute('alt') || '').trim().slice(0, 100), detail });
   };
+  // Keep caption prose and descriptive dd text; only cells and field labels are exempt.
+  // Measure the nearest independent text container so adjacent grid/flex columns never merge.
+  const proseBlock = (el: Element): Element => {
+    for (let block: Element | null = el; block; block = block.parentElement) {
+      const display = getComputedStyle(block).display;
+      const parentDisplay = block.parentElement ? getComputedStyle(block.parentElement).display : '';
+      if (/^(block|flow-root|list-item|inline-block|inline-flex|inline-grid|flex|grid|table-caption)$/.test(display)
+        || /^(inline-)?(flex|grid)$/.test(parentDisplay)) return block;
+    }
+    return document.body;
+  };
+  const prose = new Map<Element, Array<Text | HTMLBRElement>>();
+  const proseWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  while (proseWalker.nextNode()) {
+    const node = proseWalker.currentNode;
+    if (!(node instanceof Text) && !(node instanceof HTMLBRElement)) continue;
+    const el = node.parentElement!;
+    if (!visible(el)) continue;
+    if (el.closest('h1,h2,h3,h4,h5,h6,td,th,dt,nav,button,input,select,textarea,label,summary,[role=button],[role=navigation],[role=cell],[role=columnheader],[role=rowheader],[data-spec],[data-model],[data-sku],[data-parameter],[data-price],[data-fee],a[href^="mailto:"],a[href^="tel:"],[data-sitecraft-image-credits],[data-sitecraft-hero-credit],.sitecraft-product-image-credit,.sc-image-credits')) continue;
+    const slot = el.closest('[data-sitecraft-slot]')?.getAttribute('data-sitecraft-slot') || '';
+    if (/(?:spec|sku|model|email|phone|quantity|status)/i.test(slot) || /(?:^|[._-])(?:price|fee)(?:[._-]|$)/i.test(slot)) continue;
+    const block = proseBlock(el);
+    if (block.matches('a') || !visible(block)) continue;
+    prose.set(block, [...(prose.get(block) || []), node]);
+  }
+  const textRange = document.createRange();
+  for (const [block, nodes] of prose) {
+    const text = nodes.map(node => node instanceof Text ? node.data : '\n').join('');
+    const han = text.match(/\p{Script=Han}/gu)?.length || 0;
+    const words = text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length || 0;
+    if ((han || words) < 8) continue;
+    // Han establishes prose eligibility; numbers/punctuation still occupy its lines.
+    // Match the existing Chinese line-length character unit to avoid sparse Han in time/price text.
+    const count = han ? Array.from(text.replace(/\s/g, '')).length : words;
+    const lines: Array<{ top: number; bottom: number }> = [];
+    for (const node of nodes.filter((node): node is Text => node instanceof Text)) for (let index = 0; index < node.data.length;) {
+      const char = String.fromCodePoint(node.data.codePointAt(index)!);
+      const end = index + char.length;
+      if (char.trim()) {
+        textRange.setStart(node, index); textRange.setEnd(node, end);
+        for (const rect of textRange.getClientRects()) {
+          if (rect.width <= 0 || rect.height <= 0) continue;
+          // Inline emphasis can change glyph height without creating another line.
+          const line = lines.find(line => Math.min(line.bottom, rect.bottom) - Math.max(line.top, rect.top)
+            > Math.min(line.bottom - line.top, rect.height) / 2);
+          if (!line) lines.push({ top: rect.top, bottom: rect.bottom });
+        }
+      }
+      index = end;
+    }
+    const average = count / lines.length, minimum = han ? 6 : 3;
+    if (lines.length >= 3 && average < minimum) add('narrowColumns', block,
+      `过窄文字列：${count} ${han ? '字' : '词'} / ${lines.length} 行，平均 ${average.toFixed(2)} ${han ? '字' : '词'}/行（少于 ${minimum}）；请给正文留足列宽或在窄屏改为单列。`);
+  }
+  // The remaining completeness checks deliberately expand hidden disclosure content.
+  // Narrow-column feedback above observes only the original visible page.
+  for (const detail of document.querySelectorAll('details')) detail.open = true;
+  for (const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');
   // A Range exposes text lost behind a clipping ancestor, including hidden clamp lines.
   // Restrict to explicit specification semantics; ordinary summaries have no completeness contract.
   const specNodes = [...document.querySelectorAll('td,th,dt,dd,[data-sitecraft-slot],[data-spec],[data-model],[data-sku],[data-parameter]')]
@@ -440,6 +498,9 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         if (imageErrors.length) checks.issues.push(`${page.id}/${width} 图片无法显示：${imageErrors.join('、')}`);
         const backdrops = await browser.evaluate<Awaited<ReturnType<typeof prepareSystemBackdrops>>>(`(${prepareSystemBackdrops.toString()})(${JSON.stringify(backdropUrls)})`);
         checks.issues.push(...backdrops.issues.map(issue => `${page.id}/${width} ${issue}`));
+        const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
+        const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
+        const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)})`);
         const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:(${readGeneratedText.toString()})(${JSON.stringify(args.localEdit?.target.path)})};})()`);
         if (!args.localEdit || args.localEdit.target.pageId === page.id) for (const entry of layout.generatedText) generatedText.add(entry.text);
         if (!args.localEdit && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
@@ -454,9 +515,6 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         }
         const contrast = layout.textContrast.map(t => ({ ...t, threshold: t.role === 'heading' ? t.threshold : 4.5 })).filter(t => t.status !== 'measured' || t.ratio === null || t.ratio < t.threshold);
         const long = layout.bodyLineLength.filter(l => l.tooLong);
-        const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
-        const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
-        const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)})`);
         checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length, qualityFeedback });
         if (!layout.measurement.textContrastEntries) checks.issues.push(`${page.id}/${width} 无可测量正文`);
         if (layout.horizontalScroll || layout.overflowElements.length) checks.issues.push(`${page.id}/${width} 横向溢出`);
