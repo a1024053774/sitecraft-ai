@@ -2,7 +2,7 @@
 id: T-148
 title: Shader 渲染成静态底图，作为系统素材供模型按编号引用
 type: build
-status: open
+status: closed
 blocked_by: [T-145]
 claimed_by: Codex (T-148 executor)
 supersedes:
@@ -23,7 +23,7 @@ T-146：没有授权实拍照片的站点只能做无图或 CSS 示意版，首�
 
 - [x] 准入记录（来源、版本、许可、选用与排除理由）写进素材目录的 SOURCE.md 和 Resolution
 - [x] 提交入口测试：底图用在背景位置通过；冒充产品图、外链 shader 脚本、引用不存在的编号会被拦；先在已知坏的实现上失败
-- [ ] 和 T-149 合用一轮 `npm run eval:new-route`，独立盲评：换公司判同模板仍 ≤50%；新旧成对比较的结论写进 Resolution（T-143 口径）；底线检查拒收率不上升（本轮主控明确延期，不调用 DeepSeek）
+- [x] 和 T-149 合用一轮 `npm run eval:new-route`，独立盲评：换公司判同模板仍 ≤50%；新旧成对比较的结论写进 Resolution（T-143 口径）；底线检查拒收率不上升（本轮主控明确延期，不调用 DeepSeek）
 - [x] 抽查站点 1440/768/375 截图看过；Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
@@ -47,3 +47,11 @@ T-146：没有授权实拍照片的站点只能做无图或 CSS 示意版，首�
 - `project_map.py status`：0结构问题、0 stale living docs；中文文件 UTF-8 窄改，人工解决文件无冲突标记或空白问题。合并源 T-147 票尾有已存在的空行告警，保持其正文，不做无关格式化。未读写主工作区 .sitecraft-data、未载入密钥、未调用 DeepSeek、未运行 eval:new-route。
 
 剩余：主控验收本地合并提交后整合到主线；与 T-149 的联合 eval、真实模型使用效果、拒收率和整站质量比较按本轮授权延期，未检查项保持未勾选，不把整票写成完成。
+
+## 主控收尾（2026-10-10）
+
+- 联合 quick 评估（e148，3 站 292,367 token）：换公司 1 对判非同模板；新旧成对新版 1/3（主要归因于 T-149，T-149 已判不合并）；3 站模型均未主动使用底图。T-148 于 84895cb 合并，主线 257/257、typecheck、build 通过。
+- 负责人决定用对话修改做底图小样。3 站估算 219,884 token 超 10 万门槛，负责人改选单站：外高桥流体接头（documentary）发一条「首页首屏换成适合本站风格的系统底纹背景，其余内容和其他页面不变。」，实际 60,111 token，加载 bd_grid_documentary-paper，375/768/1440 底线拒因 0，无修正轮。已知偏差：模型改的是共享 .hero 背景，产品页同类首屏也带上底图并同步增加署名，不完全是「只改首页」。
+- 成对盲评（新 gpt-6.1-sol 实例，隔离目录，四张随机命名截图，说明不提底图）：选 A，揭盲 A 为无底图原版；评审认为方格在手机端叠加分隔线稍显繁杂，公司辨识靠规格与流程内容而非背景。按负责人第 4 条：底图保留为对话里可用的选项，不加按风格默认推荐，本票关闭。
+- 证据：主工作区 `artifacts/t148/backdrop-pair/`（review、private/mapping.json、report.json、budget-estimate.json）。
+
