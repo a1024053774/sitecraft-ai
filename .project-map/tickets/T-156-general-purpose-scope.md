@@ -1,7 +1,7 @@
 ---
 id: T-156
 title: 决定：从工业 B2B 扩到通用建站的范围
-type: decision
+type: decide
 status: open
 blocked_by: []
 claimed_by:
