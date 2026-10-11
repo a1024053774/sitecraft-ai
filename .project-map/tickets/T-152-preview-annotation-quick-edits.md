@@ -2,7 +2,7 @@
 id: T-152
 title: 预览里点选区块批注修改与快捷按钮，只改选中的那一段
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t152-annotation-edits)
 supersedes:
@@ -41,7 +41,7 @@ supersedes:
 - [x] 先列出失效方式，再写红绿测试，测试在已知坏的实现上失败（至少：越界改共享 CSS 被拒、模型返回整页被拒、写回位置正确、旧批注数据不丢）
 - [x] 真实入口端到端（只一站，用现有评估站复制样本）：点选首屏 → 写意见改 → 撤销 → 点选另一块 → 点「精简文字」→ 刷新恢复；1440/768/375 截图看过；真实 DeepSeek 用量写进 Resolution，单次局部修改目标 ≤1.5 万 token，整轮上限 5 万，超了先停
 - [x] 改动前后成对截图交一个新的盲评实例：改动是否只发生在选中区块、结果是否比原来好（只这一站，不跑整轮 eval）
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -72,3 +72,11 @@ supersedes:
 本次真实模型调用 **0 次，0 token**。此前同块 v4 → v5 共 7,532 token，报告 `artifacts/t152/astra-simplify-real/report.json`；本票已知累计仍为 **46,222**，原 50,000 剩余 **3,778**，不视为新增调用授权。
 
 已获盲评略好的是 v5 `7c53d31c-294d-4404-adfe-8585486b4e07`；原版 v3 / 新结果 v5 的 1440/375 随机 A/B 包仍为 **`artifacts/t152/review-pack-1791685708511/review/`**，映射在同包 `private/` 由主控保管。既有截图和失败记录保留。本次只修范围检查及测试环境，不更新生成站内容，不自审美。主控下一步只需安排 Astra 对本提交最终复核。
+
+## 主控合并验证（2026-10-10，纽约时间）
+
+- 盲评（新 gpt-6-astra 实例，隔离目录）：首轮首屏修改组持平、「精简文字」组判原版更好（改后生硬、丢了先后衔接；且两组改前均在前，顺序未随机）。改快捷提示后同块重跑，随机 A/B，新精简版胜（用词更直接、原意保留）；两轮均判变化只在选中段。
+- Astra：648dbfe NO_GO（原有相邻/:has 规则经 DOM 改动影响外部、未点选快捷按钮无当前页提交约束、预览锚点与语言链接被拦、选择器按逗号误拆）；5970a14 NO_GO（focus-visible/focus-within 伪类被正则改坏）；3b1cd58 PASS。测试写死端口已改读 SITECRAFT_BASE。
+- 真实 DeepSeek 本票累计 46,222 token（含首次失败 21,509）；改进后单次局部修改 7–10k，撤销 0。
+- 主线 3b1cd58：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` 367/367，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-3b1cd58/`。
+
