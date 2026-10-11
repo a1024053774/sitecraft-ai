@@ -4,8 +4,8 @@ import { useEffect, useState, type RefObject } from 'react';
 import type { AnnotationTarget } from '@/lib/annotations';
 
 type Props = { frame: RefObject<HTMLIFrameElement | null>; ready: boolean; picking: boolean; selected: AnnotationTarget | null;
-  pageId: string; versionId: string; html: string; scale: number; onSelect: (target: AnnotationTarget) => void; onPage: (pageId: string) => void };
-export function CodePreviewSelection({ frame, ready, picking, selected, pageId, versionId, html, scale, onSelect, onPage }: Props) {
+  pageId: string; versionId: string; html: string; scale: number; onSelect: (target: AnnotationTarget) => void };
+export function CodePreviewSelection({ frame, ready, picking, selected, pageId, versionId, html, scale, onSelect }: Props) {
   const [rect, setRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   useEffect(() => {
     const doc = ready ? frame.current?.contentDocument : null;
@@ -41,15 +41,11 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
         const result = capture(event); if (result) { hovered = result.block; onSelect(result.target); refresh(); }
         return;
       }
-      const link = (event.target as Element | null)?.closest?.('a');
-      if (link) { const url = new URL(link.href, window.location.origin); const id = url.searchParams.get('page');
-        if (id && url.pathname === frame.current?.contentWindow?.location.pathname) { event.preventDefault(); onPage(id); }
-      }
     };
     doc.addEventListener('pointermove', move); doc.addEventListener('click', click, true); doc.addEventListener('scroll', refresh, true);
     const observer = new ResizeObserver(refresh); if (main) observer.observe(main);
     refresh();
     return () => { doc.removeEventListener('pointermove', move); doc.removeEventListener('click', click, true); doc.removeEventListener('scroll', refresh, true); observer.disconnect(); };
-  }, [frame, ready, picking, selected, pageId, versionId, html, onSelect, onPage]);
+  }, [frame, ready, picking, selected, pageId, versionId, html, onSelect]);
   return rect && (picking || selected) ? <div className="code-selection-outline" aria-hidden="true" style={{ left: rect.x * scale, top: rect.y * scale, width: rect.width * scale, height: rect.height * scale }} /> : null;
 }

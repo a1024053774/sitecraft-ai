@@ -11,7 +11,7 @@ assert.ok(runDir, 'Pass a real E2E directory');
 const report = JSON.parse(await readFile(path.join(runDir, 'report.json'), 'utf8'));
 if (!completedOnly) assert.equal(report.status, 'PASS');
 assert.ok(Number(report.firstEditTokens) <= 15000);
-const jobs = [{ source: report.before, result: report.edited }];
+const jobs = [{ source: report.reviewBefore ?? report.before, result: report.edited }];
 if (report.simplified) jobs.push({ source: report.undone, result: report.simplified });
 // Failed or fixture candidates cannot become a real-model comparison. A partial
 // package contains only completed edits and keeps the unfinished workflow explicit.
@@ -27,15 +27,20 @@ const folder = `artifacts/t152/review-pack-${Date.now()}`;
 await mkdir(path.join(folder, 'review'), { recursive: true });
 await mkdir(path.join(folder, 'private/source-shots'), { recursive: true });
 const mapping = [], sections = [];
+const draws: Array<{ pair: string; afterFirst: boolean }> = [];
 const browser = await codeCheckBrowser();
 try {
   for (const job of jobs) {
     const pair = randomUUID().slice(0, 8);
     const entries = [{ role: 'before', site: job.source }, { role: 'after', site: job.result }];
-    if (randomInt(2)) entries.reverse();
-    const names = [];
+    const afterFirst = randomInt(2) === 1;
+    draws.push({ pair, afterFirst });
+    if (afterFirst) entries.reverse();
+    const names: string[] = [];
     for (const entry of entries) {
-      const name = randomUUID().slice(0, 8); names.push(name);
+      // A/B identify the randomized display position; filenames and the README
+      // agree even when the reviewer sorts filenames rather than opening order.
+      const name = `${names.length === 0 ? 'A' : 'B'}-${randomUUID().slice(0, 8)}`; names.push(name);
       for (const width of [1440, 375]) {
         const version = entry.site.currentVersionId;
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -60,5 +65,5 @@ try {
   }
 } finally { await browser.close(); }
 await writeFile(path.join(folder,'review','README.md'),`请只查看本目录的截图，逐组回答两个问题：\n\n1. 哪版更好？可以回答持平或各有优劣。\n2. 两版差在哪里？请说明具体位置与观察依据。\n\n${sections.join('\n\n')}\n`,'utf8');
-await writeFile(path.join(folder,'private','mapping.json'),JSON.stringify({runDir,workflowStatus:report.status,completedOnly,pairCount:jobs.length,createdAt:new Date().toISOString(),mapping},null,2));
+await writeFile(path.join(folder,'private','mapping.json'),JSON.stringify({runDir,workflowStatus:report.status,completedOnly,pairCount:jobs.length,actualInputVersion:report.before.currentVersionId,draws,createdAt:new Date().toISOString(),mapping},null,2));
 console.log(folder);

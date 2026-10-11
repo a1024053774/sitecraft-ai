@@ -95,7 +95,7 @@ export async function nameCodeVersion(siteId: string, versionId: string, name: s
   });
 }
 type CodeCommit = {
-  siteId: string; baseRevision: number; code?: SiteCode; selectedTarget?: AnnotationTarget; restoreVersionId?: string; englishCode?: SiteCode;
+  siteId: string; baseRevision: number; code?: SiteCode; selectedTarget?: AnnotationTarget; pageId?: string; restoreVersionId?: string; englishCode?: SiteCode;
   author: 'assistant' | 'user'; summary: string; request: string; model?: string;
 };
 type CodeCommitResult = { status: 'conflict'; site: CodeSiteRecord }
@@ -180,10 +180,12 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (!candidate) throw new Error('没有可提交的站点代码');
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, !!args.selectedTarget);
     if (args.selectedTarget && (!current || args.selectedTarget.versionId !== current.id || restore)) throw new Error('锚点版本已改变，请重新点选。');
+    if (args.pageId && (!current?.code.pages.some(page => page.id === args.pageId) || restore)) throw new Error('当前页面不存在，请重新选择。');
     const targetMaterials = restore ? reviewedMaterialSnapshot(site, restore) : undefined;
     const restoredFactReview = restore && targetMaterials !== undefined && targetMaterials === site.materials
       ? { versionId: restore.id, revision: restore.revision, checkedAt: restore.checks.factReviewFrom?.checkedAt ?? restore.checks.checkedAt } : undefined;
     const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, restoredFactReview,
+      ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
     if (args.selectedTarget && current?.checks.factReview) checked.checks.factReview = current.checks.factReview;

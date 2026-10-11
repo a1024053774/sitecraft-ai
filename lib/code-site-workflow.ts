@@ -195,7 +195,7 @@ async function execute(siteId: string, runId: string) {
     // A plan cannot be silently reduced by the writer, including during repairs.
     const missing = site.plan.pages.filter(p => !result.code.pages.some(page => page.id === p.id));
     if (missing.length) throw new Error(`模型未完成这些页面：${missing.map(p => p.title).join('、')}；没有保存版本。`);
-    const committed = await commitSiteCode({ siteId, baseRevision: run.baseRevision, code: result.code,
+    const committed = await commitSiteCode({ siteId, baseRevision: run.baseRevision, code: result.code, pageId: run.pageId,
       author: 'assistant', summary: run.kind === 'edit' ? run.request.slice(0, 100) : `生成${site.plan.pages.map(p => p.title).join('、')}`,
       request: run.request, model: result.model });
     if (committed.status === 'conflict') throw new Error('版本已经更新，本次没有覆盖当前站点。');

@@ -26,6 +26,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [sourceUrl, setSourceUrl] = useState(''), [licenseUrl, setLicenseUrl] = useState(''), [author, setAuthor] = useState(''), [attribution, setAttribution] = useState('');
   const [previewReady, setPreviewReady] = useState(false);
   const [language, setLanguage] = useState<'zh' | 'en'>('zh');
+  const [previewHash, setPreviewHash] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null), sendLock = useRef(false);
@@ -48,7 +49,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const activeLanguage = language === 'en' && english ? 'en' : 'zh';
   const pages = activeLanguage === 'en' ? english!.pages : version?.code.pages ?? site.plan?.pages ?? [];
   const activePage = pages.some(p => p.id === page) ? page : 'home';
-  const previewUrl = version ? `/api/sites/${siteId}/code-preview?page=${activePage}&version=${version.id}${activeLanguage === 'en' ? '&language=en' : ''}` : '';
+  const previewUrl = version ? `/api/sites/${siteId}/code-preview?page=${activePage}&version=${version.id}${activeLanguage === 'en' ? '&language=en' : ''}${previewHash}` : '';
   useEffect(() => { setPreviewReady(false); }, [previewUrl]);
   const selected = activeLanguage === 'zh' && selectedTarget?.versionId === version?.id && selectedTarget?.pageId === activePage ? selectedTarget : null;
   useEffect(() => {
@@ -68,7 +69,18 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   }, [selectedTarget, version?.id, selectionLoaded, siteId]);
   useEffect(() => { if (activeLanguage !== 'zh' || busy) setPicking(false); }, [activeLanguage, busy]);
   const selectBlock = useCallback((target: AnnotationTarget) => { setSelectedTarget(target); setPicking(false); setPane('chat'); }, []);
-  const changePage = useCallback((id: string) => { setPage(id); setSelectedTarget(null); }, []);
+  const changePage = useCallback((id: string) => { setPage(id); setPreviewHash(''); setSelectedTarget(null); }, []);
+  function previewLoaded() {
+    const location = frame.current?.contentWindow?.location;
+    if (location) {
+      const url = new URL(location.href), loadedPage = url.searchParams.get('page');
+      if (loadedPage && pages.some(page => page.id === loadedPage)) {
+        if (loadedPage !== activePage) setSelectedTarget(null);
+        setPage(loadedPage); setLanguage(url.searchParams.get('language') === 'en' ? 'en' : 'zh'); setPreviewHash(url.hash);
+      }
+    }
+    setPreviewReady(true);
+  }
   useEffect(() => {
     if (!threadsOpen) return;
     void fetch(`/api/sites/${siteId}/annotations`, { cache: 'no-store' }).then(async response => {
@@ -149,7 +161,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`}>
       <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={busy} data-testid="pick-block" onClick={() => setPicking(!picking)}>{picking ? '结束点选' : '点选区块'}</button><small>{picking ? '点击正文区块，再写修改意见' : selected ? `已选：${selected.label}` : '点选后只修改这一块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
-        {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms allow-same-origin" data-testid="code-preview" onLoad={() => setPreviewReady(true)} />{activeLanguage === 'zh' && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && !busy} selected={selected} pageId={activePage} versionId={version.id} html={version.code.pages.find(p => p.id === activePage)!.html} scale={scale} onSelect={selectBlock} onPage={changePage} />}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
+        {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && !busy} selected={selected} pageId={activePage} versionId={version.id} html={version.code.pages.find(p => p.id === activePage)!.html} scale={scale} onSelect={selectBlock} />}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
       </div></div>
     </main>
     <aside className={`builder-chat ${pane !== 'chat' ? 'mobile-hidden' : ''}`} aria-label="对话">
@@ -177,7 +189,12 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="chat-input-wrap">
         {version && activeLanguage === 'zh' && <>
           {selected && <div className="code-selected-target" data-testid="selected-target"><strong>已选：{selected.label}</strong><button type="button" onClick={() => setSelectedTarget(null)} disabled={busy}>取消</button><small>{pages.find(p => p.id === activePage)?.title} · 只改这一块</small><label><input type="checkbox" checked={saveAnnotation} onChange={e => setSaveAnnotation(e.target.checked)} disabled={busy} />保存为批注线程</label></div>}
-          <div className="code-quick-edits" aria-label={selected ? '选中区块快捷修改' : '当前页快捷修改'}>{['更大胆', '更克制', '精简文字', '换个版式'].map(text => <button key={text} type="button" disabled={busy || conversationUnavailable} onClick={() => void sendEdit(text, true)}>{text}</button>)}</div>
+          <div className="code-quick-edits" aria-label={selected ? '选中区块快捷修改' : '当前页快捷修改'}>{[
+            ['更大胆', '更大胆：保留全部事实、文案含义、操作顺序和已有功能入口；加强标题层级、字号对比和留白节奏，让重点更突出，保持正文易读。'],
+            ['更克制', '更克制：保留全部事实、文案含义、操作顺序和已有功能入口；减少装饰与过强的色彩和字号对比，收拢视觉层级，仍让重点清楚、正文易读。'],
+            ['精简文字', '精简文字：删掉重复和空话，保留事实与操作顺序，包括“先…再…”等衔接；句子保持自然、口语化的商务中文，不压成电报体。保留必要的解释、限制条件和已有功能入口。'],
+            ['换个版式', '换个版式：保留全部事实、文案含义、操作顺序、已有功能入口和当前风格；调整图文位置、列数与留白组织，让阅读顺序更清楚，兼顾窄屏。'],
+          ].map(([text, prompt]) => <button key={text} type="button" disabled={busy || conversationUnavailable} onClick={() => void sendEdit(prompt, true)}>{text}</button>)}</div>
           {!selected && <small className="code-quick-scope">快捷按钮作用于「{pages.find(p => p.id === activePage)?.title}」</small>}
           {selected && site.run?.status === 'error' && site.run.selectedTarget && <button className="secondary-button" disabled={busy} onClick={() => { setSelectedTarget(null); setInput(site.run!.request); }}>改整页</button>}
         </>}

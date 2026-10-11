@@ -6,7 +6,7 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
-import { localEditDom, localScopeClass, checkLocalSelectors } from './code-site-local-edit.ts';
+import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications } from './code-site-local-edit.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 
@@ -359,7 +359,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget }; restoredFactReview?: CodeCheck['factReviewFrom'] }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom'] }) {
   const code = codeSiteSchema.parse(args.code);
   const browser = await codeCheckBrowser();
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
@@ -385,6 +385,20 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       for (const candidate of [code, clean.code]) {
         const range = await browser.evaluate<ReturnType<typeof localEditDom>>(`(${localEditDom.toString()})(${JSON.stringify(args.localEdit.source)},${JSON.stringify(args.localEdit.target)},${JSON.stringify(localScopeClass(args.localEdit.target))},${JSON.stringify(candidate)})`);
         checks.issues.push(...range.issues); localSelectors = range.selectors;
+      }
+    }
+    const edit = args.localEdit ? { source: args.localEdit.source, pageId: args.localEdit.target.pageId, path: args.localEdit.target.path } : args.pageEdit;
+    if (edit) {
+      for (const candidate of [code, clean.code]) {
+        if (candidate.header !== edit.source.header || candidate.footer !== edit.source.footer || candidate.pages.length !== edit.source.pages.length || edit.source.pages.some((page, i) => candidate.pages[i]?.id !== page.id || candidate.pages[i]?.title !== page.title || (page.id !== edit.pageId && candidate.pages[i]?.html !== page.html))) checks.issues.push('修改越界：其他页面、页面标题或公共页头页脚改变');
+        for (const page of edit.source.pages) {
+          const scope = page.id === edit.pageId ? { path: 'path' in edit ? edit.path : undefined } : undefined;
+          const evidence = [];
+          for (const value of [edit.source, candidate]) {
+            evidence.push(await browser.evaluate<ReturnType<typeof outsideCssApplications>>(`(${outsideCssApplications.toString()})(${JSON.stringify(renderSiteCode(args.siteId, value, page.id))},${JSON.stringify(value.css)},${JSON.stringify(scope)})`));
+          }
+          if (JSON.stringify(evidence[0]) !== JSON.stringify(evidence[1])) checks.issues.push(`修改越界：${page.id} 范围外元素的 CSS 规则或匹配改变`);
+        }
       }
     }
     if (args.translationSource) checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)})`));

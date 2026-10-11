@@ -79,7 +79,21 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
     if (rule instanceof CSSStyleRule) {
       // An anchored descendant-only selector also contains its interactive states.
       // Reject sibling escapes, nesting and relational selectors before matching.
-      for (const selector of rule.selectorText.split(',')) {
+      // CSSOM has already parsed the rule. Only commas outside functions,
+      // attribute selectors and strings separate selector-list entries.
+      const parts: string[] = []; let start = 0, depth = 0, quote = '', escaped = false;
+      for (let i = 0; i < rule.selectorText.length; i++) {
+        const char = rule.selectorText[i];
+        if (escaped) { escaped = false; continue; }
+        if (char === '\\') { escaped = true; continue; }
+        if (quote) { if (char === quote) quote = ''; continue; }
+        if (char === '"' || char === "'") quote = char;
+        else if (char === '(' || char === '[') depth++;
+        else if (char === ')' || char === ']') depth--;
+        else if (char === ',' && depth === 0) { parts.push(rule.selectorText.slice(start, i)); start = i + 1; }
+      }
+      parts.push(rule.selectorText.slice(start));
+      for (const selector of parts) {
         const value = selector.trim();
         if (!value.startsWith(`.${scope}`) || !/^[\s.#[:>]|^$/.test(value.slice(scope.length + 1)) || /[+~&]|:has\(/.test(value) || rule.cssRules.length) issues.push('局部修改越界：CSS 必须以区块专属类名为作用域，不能影响区块外');
         selectors.push(value.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus|focus-visible|focus-within|visited)\b/g, ''));
@@ -90,6 +104,34 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
   } };
   inspect(newRules.slice(oldRules.length));
   return { fragment, html: before, css: '', issues, selectors };
+}
+
+// Compare rule applications, not just changed CSS text: an unchanged :has() or
+// sibling rule can acquire/lose outside matches when the selected DOM changes.
+// Rendered documents include system components. All media/supports conditions
+// are inspected, including currently inactive ones and interactive states.
+export function outsideCssApplications(html: string, css: string, scope?: { path?: number[] }) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  let selected: Element | undefined = scope ? doc.querySelector('main') ?? undefined : undefined;
+  for (const index of scope?.path ?? []) selected = selected?.children[index];
+  const sheet = new CSSStyleSheet(); sheet.replaceSync(css);
+  const applications: Array<{ rule: string; matches: number[][] }> = [];
+  const visit = (rules: CSSRule[], parents: string[]) => { for (const rule of rules) {
+    if (rule instanceof CSSStyleRule) {
+      if (rule.cssRules.length) throw new Error('范围检查无法核对嵌套 CSS，请展开规则后再修改。');
+      const selector = rule.selectorText.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus|focus-visible|focus-within|visited)\b/g, '');
+      const matches = [...doc.querySelectorAll(selector)].filter(node => !selected?.contains(node)).map(node => {
+        const path: number[] = [];
+        for (let child: Element | null = node; child?.parentElement; child = child.parentElement) path.unshift([...child.parentElement.children].indexOf(child));
+        return path;
+      });
+      if (matches.length) applications.push({ rule: [...parents, rule.cssText].join('\n'), matches });
+    } else if (rule instanceof CSSMediaRule || rule instanceof CSSSupportsRule || rule instanceof CSSContainerRule || rule instanceof CSSLayerBlockRule) {
+      visit([...rule.cssRules], [...parents, rule.cssText.slice(0, rule.cssText.indexOf('{')).trim()]);
+    } else applications.push({ rule: [...parents, rule.cssText].join('\n'), matches: [] });
+  } };
+  visit([...sheet.cssRules], []);
+  return applications;
 }
 
 // Invoked on every rendered page by the submission boundary. Media conditions

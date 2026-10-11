@@ -30,9 +30,11 @@ supersedes:
 
 点到装饰层或系统部件；同一区块在 375 下 DOM 不同导致定位漂移；刷新后选中状态丢失或指向旧版本；模型返回整页而不是一段；模型改了共享选择器，其他页或区块外跟着变；写回位置错（重复 id、相似结构）；局部改出新增事实；快捷按钮重复点击重复扣 token；中文改后英文版落后提示没出现；旧批注数据被删或报错；没有选中区块时误走局部路线。
 
-## 主控决定：用量与恢复
+## 主控决定：范围、文案与用量
 
-2026-10-10 EDT 主控确认：局部事实校对固定非思考，整站生成和对话修改不变；局部写作只发选中 HTML、匹配 CSS、大纲、风格要点和资料原文。恢复目标当初已通过事实核对且资料文本未变时，沿用原结论并标明来源版本，只重新执行确定性底线检查；资料变更或依据不明仍调模型。通过直接比较文本或资料记录判断，不用哈希。本次从已存首屏修改 v2 续跑「撤销（0 token）→ 另一块精简文字 → 刷新」，独立上限 15,000 token，超额停止；不重做首屏，不推送、不关票。补齐两组 1440/375 成对包，随机名称与顺序，只问哪版更好、差异在哪里，映射归 private。此前阶段的决定与失败证据保留在 `325c308` 及其引用产物中。
+局部事实校对固定非思考，只发选中 HTML、匹配 CSS、大纲、风格要点与资料原文。恢复已核对目标且资料原文未变时沿用事实结论，仍跑确定性检查；资料变化或依据不明重核。前次已完成首屏修改、0 token 撤销和另一块精简，决定及证据见 `648dbfe`。
+
+2026-10-10 EDT 主控转交 Astra NO_GO：旧 CSS 可因 DOM 变化影响外部；未点选快捷修改缺提交范围；预览拦截 hash/语言链接；逗号分隔误拆函数选择器。盲评首屏持平、精简原版更好，后者丢失先后衔接且缩句生硬；两组变化均只在选中处。要求四项先红后绿、四个按钮仅改通用提示，保留事实、操作顺序和自然商务中文，不加样本例外。授权同站同块再点一次精简，上限 10,000 token；成对包重新随机 A/B。新本地提交，不推送、不关票；独立复审由主控安排。
 
 ## Acceptance
 
@@ -43,51 +45,48 @@ supersedes:
 
 ## Resolution
 
-**执行验证 PASS；独立审美与 Astra 审查待主控，票保持 open。** 2026-10-10 EDT / 2026-10-11 UTC，基线 `325c308`，当前候选是本 Resolution 与代码所在的新本地提交；不推送、不关票。前次已保存的首屏 v2 没有重做；真实续跑完成 v2 → 撤销 v3 → 精简 v4 → 刷新恢复。
+**执行验证 PASS；整票 INCOMPLETE，等待新一轮 Astra 与盲评。** 当前候选为本 Resolution 同一提交（父提交 `648dbfe`）。主控转交的上一轮 NO_GO 与盲评结果保留，不以技术测试代替审美结论。票保持 open，不推送。
 
-### 实现与边界
+### 修复
 
-- 新版本保存原始资料文本快照；目标通过事实核对且快照与当前原始资料完全相同时，恢复只略过模型事实调用。有效用户补充仍按目标版本请求链恢复，不改生成、对话修改或资料链语义。
-- 旧版本缺快照时，只有完整的初次生成记录（首版、baseRevision=0、成功生成任务、版本关联和请求原文一致、成功 facts 调用）才可还原依据。未核对的导入、资料变化、证据缺失继续调模型；不回填、修改历史版本，不用哈希。
-- 清理、资源与链接、数字来源和三档布局等确定性检查每次执行；失败不存版。`checks.factReviewFrom` 保存目标 ID、修订号及原核对时间，工作台与版本历史显示「沿用 vX 的事实核对」。英文版保留其中文核对依据；再恢复已沿用过的版本保留原核对时间。
-- 续跑脚本读取前次报告、验证当前版本正是已存 v2，再开始撤销；账本在调用前后同时核对请求数和 token，防止把未计入账本的调用算作 0。
+- 提交入口比较修改前后 CSS 规则的范围外匹配、声明与顺序；不是只检查新增 CSS。选中 DOM 导致旧 `+`、`:has()` 等规则增减外部命中也拒收。比较来自 Chrome 对静态渲染器文档的 DOM/CSSOM 查询，不用哈希、字节或像素比对。媒体和支持条件无论当前是否生效都检查；无法核对的嵌套 CSS 明确拒绝，不放过。
+- 未点选快捷按钮的 `pageId` 经现有 chat、任务、每次候选及修正传入同一提交入口，其他页 HTML、公共片段及作用于其他页的 CSS 不得改变。合法的当前页 DOM 和仅当前页命中的 CSS 仍能存版。
+- 未开点选时不取消链接默认动作，保留 hash 和语言切换。载入后同步工作台页面/语言，避免下一次点选或快捷修改使用旧范围。
+- 选择器仅按顶层逗号拆分，保留嵌套函数、属性引号与转义；真正的顶层越界选择器仍拒收。
+- 四按钮仅改通用预设意见。精简删除重复与空话，保留事实、先后衔接、解释和限制条件，不压成电报体；其余按钮分别说明保留内容、功能与顺序，改变层级/装饰/图文布局。没有公司或样本文字例外。
 
 ### 红绿与检查
 
-所有命令显式使用 `SITECRAFT_BASE=http://127.0.0.1:3164`。浏览器统一为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（下文 `<Chrome>`）。资料和版本只读写本工作树；真实站继续使用 `artifacts/t152/usage-revision/real-data`，主工作区数据未写入。
+以下证据均在 2026-10-11 UTC 生成，对应本候选代码。所有命令显式设 `SITECRAFT_BASE=http://127.0.0.1:3164`；`<Chrome>` 为 `/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。全量测试的服务和测试进程都使用本工作树 `.sitecraft-data`；真实流程只用本工作树 `artifacts/t152/usage-revision/real-data`，没有访问主数据。
 
-- 红态：`SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<Chrome> node --test --experimental-strip-types tests/t152-restore-facts.test.ts`，`artifacts/t152/restore-reuse/red-restore.log` 记录旧实现恢复时模型调用数从 2 增至 3，违反 0 次要求。
-- 绿态：相同命令，2026-10-11 01:55:22 UTC，6/6 通过，`green-after-mutants.log`。相关版本历史用例与此文件合跑 15/15 通过，`green-contracts.log`。去掉资料比较、过度信任未知旧记录、跳过确定性检查三个坏实现分别触发预期断言失败，红态在 `red-mutant-changed-materials.log`、`red-mutant-unknown-proof.log`、`red-mutant-skip-deterministic.log`。
-- `SITECRAFT_BASE=http://127.0.0.1:3164 SITE_STORE=fs CHROME_PATH=<Chrome> npm test`：2026-10-11 01:57:16 UTC，**357/357 通过**，`npm-test.log`。测试服务与进程均指向本工作树 `.sitecraft-data`。
-- `SITECRAFT_BASE=http://127.0.0.1:3164 npm run typecheck`：02:06:17 UTC 通过；同环境 `npm run build`：02:06:20 UTC 通过。日志为 `typecheck-delivery.log`、`build-delivery.log`，对应本候选代码。
-- 本地替身先验证同一续跑入口，报告 `artifacts/t152/restore-resume-local/report.json` 为 PASS。原始失败、旧版截图和前次半程包都保留，不替换或删除。
+- 新回归命令：`SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<Chrome> node --test --experimental-strip-types tests/t152-scope-regressions.test.ts`。依据主控给的 Astra 四项复现摘要，旧实现中兄弟与 :has 用例错误存版，pageId 两用例错误 complete，函数/属性逗号错误拒收；Chrome 中 hash、语言链接均被 preventDefault。红态保存在 `artifacts/t152/astra-fixes/red.log`、`red-navigation.log`。初次语言用例选错属性的夹具错误单独保留，修正选择器后再取得预期红态。
+- 相同回归首轮 **7/7**，见 `green-first.log`；全量运行同时覆盖补充的当前页合法修改用例。主控补充具体内存复现后，把锚点放到首屏外，并验证跨页与同页 hash 的实际滚动距离、目标可见性；暂换回 `648dbfe` 的两个预览组件得到预期红态 `red-navigation-scroll-fixed-fixture.log`，恢复候选后 **2/2** 通过，`green-navigation-scroll.log`。首次补充夹具缺少首页同名锚点的错误也保留，不计红态。只替换 provider HTTP 与 Next after 调度；chat、提交、文件存储、静态预览、Chrome 原生点击均真实执行。
+- `SITECRAFT_BASE=http://127.0.0.1:3164 SITE_STORE=fs CHROME_PATH=<Chrome> npm test`：**364/364**；补充滚动断言后再跑全量，日志 `artifacts/t152/astra-fixes/npm-test-final.log`，初次全量日志保留。
+- `SITECRAFT_BASE=http://127.0.0.1:3164 npm run typecheck` 与同环境 `npm run build`：均通过，补充断言后日志 `typecheck-scroll.log`、`build-scroll.log`。之前 review-pack 的数组类型推断错误日志保留，已补显式类型。
+- `SITECRAFT_BASE=http://127.0.0.1:3164 T152_RUN_LABEL=astra-simplify-local CHROME_PATH=<Chrome> node --experimental-strip-types scripts/t152-simplify-e2e.ts`：本地替身先跑通同一按钮、同块写入和刷新，`artifacts/t152/astra-simplify-local/report.json` 为 PASS。4 张本地工作台截图已打开。
 
-### 真实续跑与用量
+### 真实验证与额度
 
-授权凭据仍只用 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入预算代理进程。代理命令 `SITECRAFT_BASE=http://127.0.0.1:3164 DEEPSEEK_MODEL=deepseek-flash node --experimental-strip-types scripts/t152-real-budget.ts`，监听 3166，本次限额 15,000，启动即保存零用量账本。开发服务使用 `SITE_STORE=fs SITECRAFT_DATA_ROOT=<本工作树>/artifacts/t152/usage-revision/real-data SITECRAFT_BASE=http://127.0.0.1:3164 DEEPSEEK_BASE_URL=http://127.0.0.1:3166 DEEPSEEK_API_KEY=local-budget-proxy DEEPSEEK_MODEL=deepseek-flash CHROME_PATH=<Chrome> npm run dev -- --port 3164`。
+本次只从已存 v4 的首页第三块点一次「精简文字」，没有撤销、重做首屏或第二次用户调用。2026-10-11 **02:28:06–02:28:21 UTC** 存 v5 `7c53d31c-294d-4404-adfe-8585486b4e07`，刷新仍为该版本；home/products × 375/768/1440 底线通过，无溢出、文字重叠或对比度拒因。无修正轮、重试、402。新段恢复「先给……再确认……」与「外尺寸不能当作可用空间」；这里只确认实际输出，不判文案优胜。
 
-续跑命令：`SITECRAFT_BASE=http://127.0.0.1:3164 T152_RESUME_REPORT=artifacts/t152/usage-revision-real/report.json T152_BUDGET_REPORT=artifacts/t152/real-budget-1791684110816/usage.json T152_RUN_LABEL=restore-resume-real CHROME_PATH=<Chrome> node --experimental-strip-types scripts/t152-preview-e2e.ts`。
+凭据仅按规定 source 到预算代理进程。代理为 `SITECRAFT_BASE=http://127.0.0.1:3164 DEEPSEEK_MODEL=deepseek-flash node --experimental-strip-types scripts/t152-real-budget.ts`，每次请求前估算输入；写作输出最多 4096，事实核对按剩余额度封顶。生产局部事实请求额度仍为 4096，本次预算代理把实际第二次上限收紧至 1269；两次都正常 stop。用完即停代理，不继续消耗剩余授权。
 
-2026-10-11 **02:02:30–02:02:52 UTC** 完成，`artifacts/t152/restore-resume-real/report.json` 为 PASS：
+开发服务：`SITECRAFT_BASE=http://127.0.0.1:3164 SITE_STORE=fs SITECRAFT_DATA_ROOT=<本工作树>/artifacts/t152/usage-revision/real-data CHROME_PATH=<Chrome> DEEPSEEK_BASE_URL=http://127.0.0.1:3166 DEEPSEEK_API_KEY=local-budget-proxy DEEPSEEK_MODEL=deepseek-flash npm run dev -- --port 3164`。
 
-| 阶段 | 输入 | 输出 | 合计 |
-| --- | ---: | ---: | ---: |
-| 撤销 v2 → v3 | 0 | 0 | **0** |
-| 精简选中区块写作 | 3,614 | 1,595（推理 1,176，已包含） | **5,209** |
-| 局部事实核对（disabled） | 2,222 | 5 | **2,227** |
-| 本次续跑 | | | **7,436** |
+真实命令：`SITECRAFT_BASE=http://127.0.0.1:3164 T152_RUN_LABEL=astra-simplify-real T152_BUDGET_REPORT=artifacts/t152/real-budget-1791685674100/usage.json CHROME_PATH=<Chrome> node --experimental-strip-types scripts/t152-simplify-e2e.ts`。
 
-- 撤销前后账本新增请求数 **0**、新增 token **0**。v3 完整记录沿用 v1 的结论和 `2026-10-09T10:29:21.419Z` 原核对时间；没有伪造本次模型结论。
-- 精简首次通过，无修正轮、无重试、无 402。选中段落文本确实缩短，E楞/B楞、按实物打样、外尺寸不作可用空间等内容保留。v3 与 v4 均重新通过 home/products × 375/768/1440 的确定性检查，溢出、重叠和对比度拒因均为 0；刷新仍为 v4。
-- 本次实际 **7,436 < 15,000**。两次成功局部修改分别为前次 9,745、本次 7,436，完成流程合计 **17,181**；加上最初失败的 21,509，本票已知真实调用累计 **38,690**，原 50,000 额度剩余 **11,310**，不视为新调用授权。
-- 完整逐调用预估和上游用量在 `artifacts/t152/real-budget-1791684110816/usage.json`；恢复及精简的新完整版本仍在本工作树 real-data。所有三档截图均已打开查看；本次没有改写或掩盖之前的失败记录。
+| 调用 | 输入预估 | 实际输入 | 实际输出 | 合计 |
+| --- | ---: | ---: | ---: | ---: |
+| 局部写作（enabled） | 4,664 | 3,901 | 1,349（含推理 912） | 5,250 |
+| 局部事实（disabled） | 3,481 | 2,277 | 5 | 2,282 |
+| 本次 | | 6,178 | 1,354 | **7,532** |
 
-### 盲评包与交接
+报告为 `artifacts/t152/astra-simplify-real/report.json`，预算账本为 `artifacts/t152/real-budget-1791685674100/usage.json`。本次 **7,532 < 10,000**；此前 38,690，本票累计 **46,222**，原 50,000 剩 **3,778**，不视为额外调用授权。真实工作台 1440/768/375 和选中态共 4 张已打开；历史失败对话仍保留。
 
-命令：`SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<Chrome> node --experimental-strip-types scripts/t152-review-pack.ts artifacts/t152/restore-resume-real`。
+### 盲评交接
 
-完整包为 `artifacts/t152/review-pack-1791684250873/`：
+命令：`SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<Chrome> node --experimental-strip-types scripts/t152-review-pack.ts artifacts/t152/astra-simplify-real`。
 
-- **交盲评者：`review/`**，首屏修改、精简文字各一组，改前/改后 × 1440/375，共 **8 张**。名称与顺序随机，说明只问哪版更好、两版差异，不说明修改方式。8 张均已打开检查，没有载入态或缺图。
-- **主控保管：`private/`**，含映射及源截图；映射记录 `workflowStatus: PASS`、`pairCount: 2`、`completedOnly: false`，勿交给盲评实例。之前单组半程包保留，当前完整包取代它作为交接入口。
-- 执行者仅确认功能与截图有效，不自判审美。独立盲评、Astra 审查和最终关票仍由主控安排。
+- 只交 **`artifacts/t152/review-pack-1791685708511/review/`** 给新盲评实例：原版 v3 与新结果 v5，同页 1440/375，共 4 张，全都打开看过，无载入态或缺图。评审说明只问哪版更好、差在哪里，不透露修改方式。
+- **`private/` 由主控保管**：记录实际按钮输入 v4、对照基线 v3、结果 v5、随机抽签结果及 A/B 映射。本次只打包精简组；上一轮首屏持平的包和失败证据保留。上一包两组恰都呈现改前在先；本次明确 A/B 为随机展示位置，文件排序与说明顺序一致，随机位单独留在 private，未按结果重抽。
+- 主控下一步：安排 Astra 对本提交复审、将新 review 目录交独立盲评。执行者不自审美、不关票。
