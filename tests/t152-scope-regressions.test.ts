@@ -1,3 +1,4 @@
+import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -31,7 +32,7 @@ const server = createServer(async (req, res) => {
   const reply = system.includes('事实校对员') ? { issues: [] } : system.includes('版本参考选择') ? { referenceRevisions: [] }
     : system.includes('修正输出合同') ? { replacements: [] } : replyCode;
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(reply) } }] }));
+  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, reply)) } }] }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

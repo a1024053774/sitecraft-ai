@@ -8,6 +8,8 @@ import type { CodeSiteRecord } from '../lib/code-site.ts';
 
 const base = localEndpoint('SITECRAFT_BASE').origin;
 const budgetBase = localEndpoint('SITECRAFT_BUDGET_BASE').origin;
+const approvedTokenLimit = Number(process.env.SITECRAFT_TOKEN_LIMIT);
+assert.ok(Number.isSafeInteger(approvedTokenLimit) && approvedTokenLimit > 0, 'SITECRAFT_TOKEN_LIMIT must be the explicit approved token authorization');
 const [phase, folder, source] = process.argv.slice(2);
 assert.ok(folder && path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts/t153/')));
 const root = path.join(folder, 'private');
@@ -60,9 +62,9 @@ if (phase === 'prepare') {
   if (phase === 'low') assert.equal(record.phases.default?.status, 'PASS');
   if (phase === 'high') assert.equal(record.phases.low?.status, 'PASS');
   const budget = await (await fetch(`${budgetBase}/status`)).json();
-  assert.equal(budget.limit, 300000); assert.equal(budget.stopped, false);
-  console.log(JSON.stringify({ beforeGeneration: phase, estimatedTokens: selected.estimate, spent: budget.spent, projected: budget.spent + selected.estimate, limit: 300000 }));
-  assert.ok(budget.spent + selected.estimate <= 300000, 'Stop before the next generation: estimate exceeds approved cumulative budget');
+  assert.equal(budget.limit, approvedTokenLimit); assert.equal(budget.stopped, false);
+  console.log(JSON.stringify({ beforeGeneration: phase, estimatedTokens: selected.estimate, spent: budget.spent, projected: budget.spent + selected.estimate, limit: approvedTokenLimit }));
+  assert.ok(budget.spent + selected.estimate <= approvedTokenLimit, 'Stop before the next generation: estimate exceeds approved cumulative budget');
   const phaseFolder = path.join(root, phase); await mkdir(phaseFolder);
   const item: Record<string, any> = record.phases[phase] = { preferences: { style: 'editorial', layout: selected.layout, density: selected.density }, estimate: selected.estimate, spentBefore: budget.spent, status: 'INCOMPLETE', startedAt: new Date().toISOString() };
   const save = () => writeFile(stateFile, JSON.stringify(record, null, 2));

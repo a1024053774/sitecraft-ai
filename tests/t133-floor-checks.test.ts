@@ -1,3 +1,4 @@
+import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
@@ -22,9 +23,10 @@ let auditReadable = '';
 const server = createServer(async (req, res) => {
   if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<html><body>fixture origin</body></html>'); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
-  auditReadable = JSON.parse(raw).messages[1].content.split('网页可见文字与辅助文案：\n')[1];
+  const body = JSON.parse(raw);
+  auditReadable = JSON.parse(body.messages[1].content.split('\n')[0]).segments.map((segment: { text: string }) => segment.text).join('\n');
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"issues":[]}' } }] }));
+  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, { issues: [] })) } }] }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

@@ -178,16 +178,24 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (args.restoreVersionId && !restore) throw new Error('找不到要恢复的版本');
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
-    const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, !!args.selectedTarget);
+    const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, true);
     if (args.selectedTarget && (!current || args.selectedTarget.versionId !== current.id || restore)) throw new Error('锚点版本已改变，请重新点选。');
     if (args.pageId && (!current?.code.pages.some(page => page.id === args.pageId) || restore)) throw new Error('当前页面不存在，请重新选择。');
     const targetMaterials = restore ? reviewedMaterialSnapshot(site, restore) : undefined;
     const restoredFactReview = restore && targetMaterials !== undefined && targetMaterials === site.materials
       ? { versionId: restore.id, revision: restore.revision, checkedAt: restore.checks.factReviewFrom?.checkedAt ?? restore.checks.checkedAt } : undefined;
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, restoredFactReview,
+    // Only the current version and attempts of this exact active task supply
+    // receipts. No HTTP-supplied exemption or arbitrary historical candidate.
+    const task = site.run;
+    const attempts = task?.status === 'running' && task.baseRevision === revision && task.request === args.request
+      && !task.selectedTarget && (task.kind === 'generate' || task.kind === 'edit') ? task.attempts : [];
+    const factReviews = !restore && !args.selectedTarget ? [current?.checks.factSegments, ...attempts.map(attempt => attempt.checks.factSegments)]
+      .filter((review): review is NonNullable<typeof review> => !!review) : [];
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: site.materials,
       ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
+    if (restoredFactReview && restore?.checks.factSegments) checked.checks.factSegments = { ...restore.checks.factSegments, audited: 0, reused: restore.checks.factSegments.segments.length };
     if (args.selectedTarget && current?.checks.factReview) checked.checks.factReview = current.checks.factReview;
     let english = restore ? restore.english : current?.english;
     if (restore?.english) {

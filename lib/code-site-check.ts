@@ -1,3 +1,4 @@
+import { readCodeFactSegments, pendingCodeFactSegments, type CodeFactReview, type CodeFactSegment } from './code-site-fact-segments.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
@@ -359,7 +360,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom'] }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: string }) {
   const code = codeSiteSchema.parse(args.code);
   const browser = await codeCheckBrowser();
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
@@ -410,6 +411,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const used = new Set((clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).match(/img_[a-z0-9]{16,40}/g));
     const credits = [...new Set(args.images.filter(i => used.has(i.imageId) && i.attribution).map(i => i.attribution))];
     const generatedText = new Set<string>();
+    const factSegments = new Map<string, CodeFactSegment>();
     for (const page of clean.code.pages) {
       for (const width of [375, 768, 1440]) {
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -440,6 +442,10 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         checks.issues.push(...backdrops.issues.map(issue => `${page.id}/${width} ${issue}`));
         const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:(${readGeneratedText.toString()})(${JSON.stringify(args.localEdit?.target.path)})};})()`);
         if (!args.localEdit || args.localEdit.target.pageId === page.id) for (const entry of layout.generatedText) generatedText.add(entry.text);
+        if (!args.localEdit && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
+          const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)})`);
+          for (const segment of segments) factSegments.set(JSON.stringify([segment.group, segment.text]), segment);
+        }
         if (args.translationSource) {
           const before = new Map(originalGenerated.map(entry => [entry.key, entry.text]));
           const after = new Map(layout.generatedText.map(entry => [entry.key, entry.text]));
@@ -469,7 +475,22 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const marker = args.materials.match(/核验记号[：:]\s*([^。\n\s]+)/)?.[1];
     if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
-    if (!checks.issues.length && !args.legacyImport && !args.translationSource && !args.restoredFactReview) checks.issues.push(...await auditCodeFacts(args.materials, readable, !!args.localEdit));
+    if (!checks.issues.length && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
+      if (args.localEdit) checks.issues.push(...await auditCodeFacts(args.materials, readable, true));
+      else {
+        // Deleting the last full company name changes a site-wide obligation,
+        // even when every remaining content segment was previously accepted.
+        if (args.companyName) {
+          const text = `站点公司名检查（系统观察）：记录公司名「${args.companyName}」，完整名称${readable.includes(args.companyName) ? '已出现' : '未出现'}。`;
+          factSegments.set(text, { text, group: text, context: { pageId: 'site', outline: [], headings: [] } });
+        }
+        const { pending, reused } = pendingCodeFactSegments([...factSegments.values()], args.materials, args.factReviews ?? [], args.factSourceMaterials ?? args.materials);
+        const reviewed = pending.length ? await auditCodeFacts(args.materials, pending) : [];
+        checks.factSegments = { format: 2, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? args.materials, audited: pending.length, reused: reused.length,
+          segments: [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [] }))] };
+        checks.issues.push(...new Set(reviewed.flatMap(segment => segment.issues)));
+      }
+    }
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
   } finally { await browser.close(); }

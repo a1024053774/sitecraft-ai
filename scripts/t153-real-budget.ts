@@ -6,11 +6,11 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { providerConfig } from '../lib/ai-provider.ts';
 
-export const approvedTokenLimit = 300000;
 // Reserve one token per UTF-8 byte of the complete JSON request plus ample
 // framing overhead. This is a conservative byte-level tokenizer bound, not the
 // billed input estimate. A single output cap includes reasoning and visible text.
-export function reserveRequest(body: Record<string, any>, spent: number) {
+export function reserveRequest(body: Record<string, any>, spent: number, approvedTokenLimit: number) {
+  assert.ok(Number.isSafeInteger(approvedTokenLimit) && approvedTokenLimit > 0, 'An explicit positive token authorization limit is required');
   assert.ok(Number.isSafeInteger(spent) && spent >= 0 && spent <= approvedTokenLimit);
   assert.ok(Number.isSafeInteger(body.max_tokens) && body.max_tokens > 0);
   const inputUpper = Buffer.byteLength(JSON.stringify(body), 'utf8') + 8192;
@@ -22,6 +22,8 @@ export function reserveRequest(body: Record<string, any>, spent: number) {
 async function serve() {
   localEndpoint('SITECRAFT_BASE');
   const budget = localEndpoint('SITECRAFT_BUDGET_BASE');
+  const approvedTokenLimit = Number(process.env.SITECRAFT_TOKEN_LIMIT);
+  assert.ok(Number.isSafeInteger(approvedTokenLimit) && approvedTokenLimit > 0, 'SITECRAFT_TOKEN_LIMIT must be the explicit approved token authorization');
   const folder = process.env.T153_BUDGET_DIR;
   assert.ok(folder && path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts/t153/')));
   const provider = providerConfig();
@@ -61,9 +63,10 @@ async function serve() {
       assert.ok(req.url === '/chat/completions' || req.url === '/beta/chat/completions');
       assert.ok(ledger.rounds.length, 'Start an estimated generation before any upstream call');
       body.model = provider.model;
-      const reservation = reserveRequest(body, ledger.spent);
+      const reservation = reserveRequest(body, ledger.spent, approvedTokenLimit);
       body.max_tokens = reservation.outputLimit;
-      call = { index: ledger.calls.length + 1, round: ledger.rounds.at(-1).label, startedAt: new Date().toISOString(), state: 'in-flight', spentBefore: ledger.spent,
+      const factInput = body.messages[0].content.includes('事实校对员') && body.messages[1].content.startsWith('{') ? JSON.parse(body.messages[1].content.split('\n')[0]) : null;
+      call = { inputSegmentCount: Array.isArray(factInput?.segments) ? factInput.segments.length : null, index: ledger.calls.length + 1, round: ledger.rounds.at(-1).label, startedAt: new Date().toISOString(), state: 'in-flight', spentBefore: ledger.spent,
         ...reservation, thinking: body.thinking?.type, purpose: body.tools?.[0]?.function?.name || (body.messages[0].content.includes('事实校对员') ? 'facts' : 'write-or-repair') };
       ledger.calls.push(call); await save();
       console.log(JSON.stringify({ beforeCall: call.index, round: call.round, spent: ledger.spent, ...reservation }));
@@ -89,6 +92,6 @@ async function serve() {
       await save(); res.writeHead(502); res.end(JSON.stringify({ error: { message } }));
     } finally { running = false; }
   });
-  server.listen(budget.port, budget.hostname, () => console.log(`T-153 approved cumulative budget 300000; ${file}`));
+  server.listen(budget.port, budget.hostname, () => console.log(`T-153 approved cumulative budget ${approvedTokenLimit}; ${file}`));
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await serve();

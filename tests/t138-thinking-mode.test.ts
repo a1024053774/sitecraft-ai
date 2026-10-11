@@ -1,3 +1,4 @@
+import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
@@ -25,7 +26,7 @@ const server=createServer(async(req,res)=>{
  const user=body.messages[1].content,system=body.messages[0].content;
  const reply=body.tools?{summary:'加工与边界',style:'precision',styleReason:'加工资料',skeletonId:'compact-profile',skeletonReason:'资料以加工边界为主。',pages:[{id:'home',title:'首页',outline:['加工与联系']}]}
  :system.includes('事实校对员')?{issues:[]}:system.includes('修正输出合同')?{replacements:JSON.parse(user.slice(0,user.lastIndexOf('\n请以 json'))).fragments.map((f:{id:number})=>({fragmentId:f.id,after:'待补充。'}))}:code;
- const text=JSON.stringify(reply),thinking=body.thinking?.type!=='disabled';
+ const text=JSON.stringify(factAuditReply(body, reply)),thinking=body.thinking?.type!=='disabled';
  res.end(JSON.stringify({choices:[{finish_reason:body.tools?'tool_calls':'stop',message:body.tools?{content:null,tool_calls:[{type:'function',function:{name:'submit_page_plan',arguments:text}}]}:{content:text}}],usage:{prompt_tokens:17,completion_tokens:9,total_tokens:26,completion_tokens_details:{reasoning_tokens:thinking?7:0}}}));
 });
 await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));

@@ -1,3 +1,4 @@
+import { factAuditReply } from '../tests/fixtures/fact-audit-reply.ts';
 import { localEndpoint } from './local-endpoint.ts';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -30,6 +31,6 @@ const server = createServer(async (req, res) => {
   await mkdir(folder, { recursive: true });
   await writeFile(`${folder}/requests.json`, JSON.stringify(requests, null, 2));
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 } }));
+  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, answer)) } }], usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 } }));
 });
 server.listen(fixture.port, fixture.hostname, () => console.log(`Local-only provider at ${fixture.origin}; ${folder}`));

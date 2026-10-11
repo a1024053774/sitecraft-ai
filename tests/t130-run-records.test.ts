@@ -1,3 +1,4 @@
+import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -30,8 +31,8 @@ const server = createServer(async (req, res) => {
       pages: [{ id: 'home', title: '检查机械', html: `<main><h1>检查机械</h1><p>${'请在询盘里写清零件用途以及需要的规格以便确认供货范围。'.repeat(3)}</p><div data-system-inquiry=""></div></main>` }] };
   const planCall = !!body.tools;
   res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 }, choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
-    ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(content) } }] }
-    : { content: JSON.stringify(content) } }] }));
+    ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(factAuditReply(body, content)) } }] }
+    : { content: JSON.stringify(factAuditReply(body, content)) } }] }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

@@ -1,3 +1,4 @@
+import { factAuditReply } from '../tests/fixtures/fact-audit-reply.ts';
 import { localEndpoint } from './local-endpoint.ts';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -30,7 +31,7 @@ const server = createServer(async (req, res) => {
   else { res.writeHead(422); res.end(JSON.stringify({ error: { message: 'Unexpected fixture request' } })); return; }
   requests.push({ purpose, body });
   await writeFile(`${folder}/requests.json`, JSON.stringify(requests, null, 2));
-  const message = purpose === 'plan' ? { content: null, tool_calls: [{ id: 'local-plan', type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
+  const message = purpose === 'plan' ? { content: null, tool_calls: [{ id: 'local-plan', type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(factAuditReply(body, answer)) } }] } : { content: JSON.stringify(factAuditReply(body, answer)) };
   res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: purpose === 'plan' ? 'tool_calls' : 'stop', message }] }));
 });
 server.listen(fixture.port, fixture.hostname, () => console.log(`Local-only provider at ${fixture.origin}; ${folder}`));
