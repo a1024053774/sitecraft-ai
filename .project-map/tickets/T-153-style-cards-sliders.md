@@ -32,58 +32,68 @@ supersedes:
 - [x] 开发阶段一律用本地模型替身；真实 DeepSeek 只在主控按负责人批准的预算运行，每次生成前估算，超了停
 - [ ] 区分度盲评（新盲评实例，随机命名）：同一家公司资料分别用新风格和现有风格生成，评审能否分出两种不同方向并描述差别；同一站滑杆两端（如 2/2 与 9/9）的首屏与产品页，评审能否正确指出哪版更大胆、哪版更紧凑。分不出就按 mainline 删掉该风格或重写滑杆规则，如实记录
 - [x] 工作台风格卡与滑杆 1440/768/375 截图看过
-- [x] Astra 审查通过；typecheck、test、build 通过
+- [ ] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
-2026-10-10，Codex 执行无付费阶段；票保持 open，真实生成与盲评等待预算。
+2026-10-11，负责人批准方案 1：只验证品牌画册，同一资料生成 5/6、2/2、9/9 各一次；真实总预算硬上限 300,000 token，每次生成前重新估算。工业铭牌从风格目录、工作台和运行时 skill 删除，不上线。票保持 open；本次为 `1daede8` 之后的新本地提交，不推送、不关票。
 
-候选方向（先定义可见区别，再实现）：
+当前结果：**INCOMPLETE**。品牌画册 5/6 与 2/2 都通过同一提交入口并保存；累计 226,474 token。9/9 估算 100,000，预计累计 326,474，执行前预算检查拒绝，未启动规划或写页。不能组成滑杆两端的有效盲评包，也不能宣称完整区分度或审美通过。
 
-| 方向 | 版式骨架 | 字体与色彩 | 图片用法与现有风格的区别 |
+### 风格与界面
+
+唯一目录仍为 `lib/code-site-styles.ts`。当前只提供精密工程、现场实拍、品牌画册；三种均有真实生成首屏。品牌画册使用本次默认 5/6 的 v1，站点 `ed6bfbe4-8141-4edb-86f9-d65a91f67eff`，版本 `fecaa36c-2aaf-44ee-bdc0-8e38102f84b0`。原图 1440×1000 等比转 576×400 WebP，来源与照片许可在 `public/style-previews/SOURCE.md`，不润饰页面。
+
+历史会话可能保存过已删除选项：工作台按当前目录过滤，下线偏好明确要求重新选择，不静默改成另一风格，不删除旧站或会话。三档滑杆、键盘与刷新恢复沿用前一提交的流程。
+
+设计说明保留如下，工业铭牌仅供以后单独验证：
+
+| 方向 | 版式骨架 | 字体与色彩 | 图片用法与区别 |
 | --- | --- | --- | --- |
-| 品牌画册 editorial | 画册扉页式引言，窄栏说明与宽栏产品交替，跨栏标题；不整页复用细线网格 | 系统宋体/衬线标题、黑体正文，暖白底、墨棕字、一处陶土色 | 授权图保留完整比例，穿插正文；区别于精密工程的冷色参数目录、现场实拍的整宽照片与大字 |
-| 工业铭牌 industrial | 深底产品索引，型号与规格成连续横向条目，一条窄强调色带；不依赖照片撑满首屏 | 系统粗黑体标题、等宽型号，深墨底、米白字、安全黄作点缀并核对对比度 | 产品图用 contain 与对应条目并排；区别于精密工程的浅底细线、现场实拍的图像主导与深浅区块交替 |
+| 品牌画册 editorial | 画册扉页式引言，窄栏说明与宽栏产品交替、跨栏标题；不整页复用细线网格 | 系统宋体/衬线标题、黑体正文，暖白底、墨棕字、一处陶土色 | 授权图保留完整比例、穿插正文；区别于精密工程的冷色参数目录和现场实拍的整宽照片、大字 |
+| 工业铭牌 industrial（未验证，不提供选择） | 深底产品索引，型号与规格成连续横向条目，一条窄强调色带；不依赖照片撑满首屏 | 系统粗黑体标题、等宽型号，深墨底、米白字、安全黄点缀并核对对比度 | 产品图 contain 与对应条目并排；区别于精密工程浅底细线及现场实拍的图像主导、深浅交替。没有型号或规格时只排已有业务内容，不编数据填表；全站无动效 |
 
-两者为候选，尚无真实生成效果或区分度结论；不沿用 T-149 未合并的规划字段或多方向流程。参考 resources 的「去同质化来自内容优先级与版式」原则、T-146/T-149 已核许可的具体出发点方法；good-css 继续承担机械反馈，不向核心重复堆检查清单。
+### 样本、用量与底线
 
-测试失效方式：风格目录与类型/校验/模型 enum/界面各自漂移；未登记风格偷偷回到精密工程；缩略图没有真实版本或图片许可来源；滑杆分档边界错误或仅传数字；密度改变事实内容；未提交选择刷新丢失或旧问题覆盖新问题；375 卡片挤压、键盘不可达；重选偏好绕过大纲确认或提交入口。
+只读旧评估 `artifacts/t130/round-2026-10-09T10-14-09-315Z/private/case-2`：外高桥流体接头，现场实拍，两页站，原版本 `bef0d4df-2bfc-4740-890e-f5cd19496adc`。复制原始 2724 字资料与 8 张已有许可图片到本工作树，通过当前站点创建、上传、需求对齐与确认入口生成；未读写主工作区 `.sitecraft-data`。密钥仅按授权 source 主 `.env.local` 进入独立预算进程，没有打印、复制或软链。
 
-红态：父提交 a914d90，`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3170 node --test --experimental-strip-types tests/t153-style-preferences.test.ts`，4 项预期失败（日志 `artifacts/t153/red-contract.log`）。
+| 生成项 | 启动前估算 | 启动前已用 | 本次实际 | 累计 | 结果 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 品牌画册 5/6 | 91,000 | 0 | 144,698 | 144,698 | v1，2 轮事实修正后通过 |
+| 同站 2/2 | 89,000 | 144,698 | 81,776 | 226,474 | v2，1 轮事实修正后通过；版本 `87b49816-327f-4180-9cb1-9c4c81eeb114` |
+| 同站 9/9 | 100,000 | 226,474 | 0 | 226,474 | 预计 326,474 超限，未启动 |
 
+共 12 次上游请求，全部 HTTP 200；输入 91,198、输出 135,276（含推理），合计 226,474，未遇 402。剩余 73,526；没有为满足预算下调 9/9 估算。网关在每次调用前预留完整请求 UTF-8 字节数加 8192 的保守输入界限，并用余额限制 `max_tokens`；用量未知、HTTP 错误、截断即停止。显式恢复预算进程校验并沿用同一账本，不能将已用额度清零。默认站完成后曾暂停核算，随后按“每次生成前”条件继续预算内的 2/2；账本第 8 次调用的 spentBefore 仍为 144,698。
 
-无付费阶段实现：风格、用户标签、skill 路径、预览来源与模型 enum 由 `lib/code-site-styles.ts` 一处登记；规划、整站写作、修正与局部修改共用滑杆三档指令。新增两份原创短 skill。现有两种真实首屏已转 WebP，来源和图片许可见 `public/style-previews/SOURCE.md`；新候选保留「待生成」。对话区可重新选风格，仍须规划、确认，再走同一提交入口。未提交草稿按站点和问题保存；旧问题不能覆盖新问题。375 选卡期间扩大面板、收起对话输入，返回对话仍可补资料。
+5/6 的两个拒因分别是认证区新增“需要按订单确认”，以及把气密试验台归为加工工艺；2/2 新增“目录供货与按图加工共用同一批设备与质检流程”。均由既有局部修正处理，没有手改产物、跳过检查或换样本。每轮拒收候选与完整检查保留在各 phase 的 `code-site.json`。
 
-真实验收预算估算（尚未调用；单位为千 token，输入与输出合计，含推理）：固定使用「外高桥流体接头」同一资料、首页与产品页；可复用旧评估 case-2 的现场实拍版本作为比较基线。每个新风格在同一测试站先生成一次 5/6，再分别生成 2/2 与 9/9；每次完整经过规划、写页与事实核对，不用对话局部改版冒充整站生成。
+两个已保存版本均覆盖首页/产品页 × 375/768/1440，最终溢出、重叠、对比度问题均为 0。质量反馈不拒收：5/6 的正文长行 13、悬停未门控 27、375 点击区偏小 12；2/2 分别为 9、27、15（均为跨页/视口累计触发次数，非唯一元素数）。两版文字裁剪、锚点遮挡、产品图 cover 裁切反馈均为 0；技术通过不等于审美或资料完整性已独立通过。
 
-| 候选 | 生成项 | 规划 | 写页 | 事实核对 | 预计合计 | 修正预留 | 建议单项预算 |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 品牌画册 | 首站 5/6 | 12 | 52 | 27 | 91 | 30 | 121 |
-| 品牌画册 | 同站疏朗规整 2/2 | 12 | 50 | 27 | 89 | 30 | 119 |
-| 品牌画册 | 同站大胆紧凑 9/9 | 12 | 58 | 30 | 100 | 30 | 130 |
-| 工业铭牌 | 首站 5/6 | 12 | 52 | 27 | 91 | 30 | 121 |
-| 工业铭牌 | 同站疏朗规整 2/2 | 12 | 50 | 27 | 89 | 30 | 119 |
-| 工业铭牌 | 同站大胆紧凑 9/9 | 12 | 58 | 30 | 100 | 30 | 130 |
-| 合计 | 6 次整站生成 | 72 | 320 | 168 | 560 | 180 | 740 |
+### 盲评交付
 
-估算依据：只读旧评估 `artifacts/t130/round-2026-10-09T10-14-09-315Z/private/case-{1..4}/code-site.json` 的真实用量，规划 10.8–12.1k、写页 42.5–52.5k、首轮事实 17.0–35.2k；case-4 一轮修正加再次事实约 27k。新风格尚无真实用量，给较复杂版式留余量；这不是准确预测，也不是授权。建议主控申请总预算 740k（预计 560k，预留 180k），逐项批准前再估算，达到任一项上限或遇到 402 即停；剩余不足以下一次调用时不启动。未包含额外新旧基线生成、截图打磨、英文翻译或重做落败方向；若需要须另行申请。现有 eval:new-route 默认两种风格的历史比较范围不自动扩大，避免默认翻倍花费。
+根目录 `artifacts/t153/approved/real-2026-10-11T03-58/`：
 
-待主控处理：转达负责人是否批准两个候选及上述真实验收预算；真实生成后补新风格缩略图，交独立新盲评实例比较方向及滑杆两端的首页/产品页；分不出按票删风格或重写规则。未调用 DeepSeek，未触碰主工作区 `.sitecraft-data`、密钥或公网；没有独立审美通过结论。
+- 风格区分包：`review/9f02006d/`。同公司旧现场实拍 vs 本次默认品牌画册，首页和产品页各 1440/375，共 8 张；随机命名、随机顺序，均已打开检查。说明只问不同设计方向、各自特点、哪版更像该公司的官网，不透露风格名、参数或生成来源。
+- 滑杆包：**未生成**。2/2 截图在 `private/low/`，9/9 没有生成；不拿默认版或替身凑对比。
+- 映射和缺项原因：`private/blind-mapping.json`；资料、授权上传记录、完整代码版本及失败候选、用量分别在 `private/materials.txt`、`private/uploads.json`、`private/{default,low}/code-site.json`、`private/budget/usage.json`；总状态在 `private/generation.json`。只把匿名 review 子目录交盲评，private 不交评审。
 
+### 验证与复现
 
-离线验证与交付：**PASS（离线范围）/ INCOMPLETE（整票）**。对应 `t153-style-cards` 本票唯一交付提交（父提交 `a914d90`；最终 SHA 见交付回复与 `git log -1`）。2026-10-11 03:00–03:10 UTC（纽约 2026-10-10）在本 worktree 验证；以下命令均显式使用 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3170`，浏览器另设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。
+本次变更先列失效方式：下线风格仍可选、旧问题复活旧选项、旧偏好静默改选、真实缩略图漏来源、预算忽略已用量、恢复账本清零、缺少 9/9 却打包成完整滑杆对比。红绿证据均保留在 `artifacts/t153/approved/`。
 
-| 验证 | 命令与本次证据 | 结果 |
+所有命令显式设置 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3170`；浏览器命令另设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。本轮真实调用时间 2026-10-11 03:58 UTC 起，时间与每个请求用量以账本为准；对应本次新提交（父提交 `1daede8`，最终 SHA 见交付回复）。
+
+| 检查 | 命令 / 证据 | 结果 |
 | --- | --- | --- |
-| 契约红绿 | `node --test --experimental-strip-types tests/t153-style-preferences.test.ts`；`artifacts/t153/red-contract.log`、`green-contract-final.log` | 父版本 4 项预期红；候选 4/4 绿；包含 1/3/4/7/8/10 边界、2/9 与 9/2 交叉档位 |
-| 反例 | `red-independent-sliders-mutant.log`、`red-draft-mutant.log` | 密度串用版式值、去掉未提交草稿保存，分别在实际提示和刷新后的用户可见状态上失败；已恢复实现 |
-| 长资料 | `node --experimental-strip-types scripts/t153-long-materials.ts`；`red-long-materials.log`、`green-long-materials-verified.log`、`materials-1791688003496/report.json` | 2250 字资料旧重选路径 422；改为待答记录只存短要求后，同入口通过，原资料全文保留 |
-| 本地替身 E2E | `node --experimental-strip-types scripts/t153-style-e2e.ts`；`e2e-acceptance.log`、`e2e-1791688123942/report.json` | 两页站工业铭牌 9/9 → 品牌画册 2/2；v1/v2 走提交入口，各有六条视口检查记录；确认前不存版、非法/过期选择拒绝、键盘与刷新恢复通过 |
-| 工作台 | 上述最终 E2E 目录的 `cards-{1440,768,375}.png` 与 `sliders-{1440,768,375}.png` | 六张均已打开检查，无横向挤压；当前问题、档位提示与提交入口可见；真实 WebP 解码成功 |
-| 类型/全测/构建 | `npm run typecheck`、`npm test`、`npm run build`；`typecheck-verified.log`、`test-verified.log`、`build-verified.log` | 退出码均 0，371 项通过、0 失败、0 跳过 |
-| 独立审核 | 新实例 Codex GPT-6 Astra，任务 `t153_independent_review`，只读冻结候选，独立重跑 4 项契约测试并打开截图 | PASS / LIMITED_GO，仅离线交付；未确认提交旁路、静默成功或兼容分支；真实效果不在通过结论内 |
-| 文档 | `project_map.py status --root .`、`git diff --check`、UTF-8 回读 | 0 问题、0 stale living docs；差异与中文编码检查通过；票保持 open |
+| 风格目录及真图 | `node --test --experimental-strip-types tests/t153-style-preferences.test.ts`；`red-retire-industrial.log` → `green-retire-industrial.log`、`red-editorial-preview.log` → `green-editorial-preview.log` | 父候选保留工业铭牌、品牌画册仍为 pending 时拒绝；当前 5 项通过 |
+| 历史问题 | `node --experimental-strip-types scripts/t153-retired-style-e2e.ts`；`red-retired-ui.log` → `green-retired-ui.log` | 原工作台显示已删除选项而失败；当前隐藏并要求重新选，选择合法风格后可提交；只造会话/偏好元数据，不旁路写版本 |
+| 预算 | `node --test --experimental-strip-types tests/t153-budget.test.ts`；`budget-red-mutant.log` → `budget-green.log` | 去掉累计额度对输出的限制时断言失败；当前通过；真实续进程账本保留累计费用 |
+| 真实入口 | `node --experimental-strip-types scripts/t153-real-generation.ts <prepare/default/low/high> <根目录>`；`prepare-real.log`、`default-real.log`、`low-real.log`、`high-budget-stop.log` | 前两项通过；high 在估算关口预期退出 1，没有第 13 次付费请求 |
+| 匿名包 | `node --experimental-strip-types scripts/t153-blind-packs.ts <根目录> --available-style-pair`；`pack-result.log` | 只打包已完成的风格对比，整体 INCOMPLETE；没有伪造第二包 |
+| 替身 E2E 与截图 | `node --experimental-strip-types scripts/t153-style-e2e.ts`；`e2e-final.log`、`artifacts/t153/e2e-1791691582215/report.json` | 通过，1440/768/375 的卡片与滑杆截图均已打开；真实调用停止期间使用本地替身 |
+| 类型/全测/构建 | `npm run typecheck`、`npm test`、`npm run build` | PASS；373/373、0 跳过。三项通过 `&&` 顺序执行，工具报告整条命令退出 0；日志为 `typecheck-verified.log`、`test-final.log`、`build-verified.log`，退出结果收据为 `checks.json` |
+| 独立审核 | 新 Codex GPT-6 Astra 实例 `t153_paid_stage_review`，冻结父提交 `1daede8` 上的本轮 diff；独立单测 6/6，通过三档 UI 截图及预算/版本/来源核对 | INCOMPLETE：未确认新增代码缺陷；缺少 9/9 与滑杆包，不能将完整任务记 PASS；本审核已读映射，不兼任页面盲评 |
 
-复现服务：先 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3170 node --experimental-strip-types scripts/t153-model-fixture.ts`（3171），另一个进程使用相同 SITE_STORE/SITECRAFT_BASE，加 `SITECRAFT_DATA_ROOT=/Users/luckye/Documents/Code/sitecraft-ai-t153/.sitecraft-data DEEPSEEK_BASE_URL=http://127.0.0.1:3171 DEEPSEEK_API_KEY=local-only-fixture DEEPSEEK_MODEL=local-only-fixture` 及上述 CHROME_PATH，运行 `npm run dev -- --port 3170`。这些仅是本地替身配置，不载入真实密钥。端到端/长资料脚本保留每次独立输出目录。
+此前无付费阶段在 `1daede8` 交付，旧红态、失败和用量估算仍可从该提交及 gitignore 的 artifacts 查阅，不把旧证据当成本次通过结果。待主控决定 9/9 后续预算并组织独立盲评；本次不要求负责人亲自审核，不声明审美通过。
 
-证据限制与保留失败：替身固定站点代码、事实返回空问题，只证明参数传递、流程和确定性检查，不能证明真实生成的风格区分或内容完整性。首轮替身请求标记不匹配导致 422 的日志、长资料测试末尾换行预期错误、并发验证时 UI 等待超时及被终止的重复测试日志均保留，未计为通过；最终验证记录如上。`quick_validate.py` 因系统 Python 缺少 PyYAML 未运行，未安装依赖；两份短 skill 的 frontmatter、名字、内容与 UTF-8 已人工核对。原图来源与许可依项目已有准入记录核查，未重新联网核验外部页面。没有模型费用、真实审美 PASS 或整票关闭。
+审核限制：402 不重试、网关并发互斥及中断恢复本次只做静态检查，没有故障注入；类型和构建的文本日志不含内嵌退出码，退出码来自实际工具执行结果。使用本次完成版本与真实用量，未将替身测试或未执行的高档生成视为审美证据。

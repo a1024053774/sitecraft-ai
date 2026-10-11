@@ -31,11 +31,11 @@ process.env.DEEPSEEK_API_KEY = 'local-fixture'; process.env.DEEPSEEK_MODEL = 'lo
 const { planSiteCode } = await import('../lib/code-site-model.ts');
 test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 
-test('the planning contract offers all four registered directions and loads the selected short skill', async () => {
+test('the planning contract offers only the three approved directions and loads the selected short skill', async () => {
   style = 'precision';
   await planSiteCode('齿轮资料', { style: 'auto', layout: 5, density: 6 }, '规划');
-  assert.deepEqual(wires.at(-1).tools[0].function.parameters.properties.style.enum, ['precision', 'documentary', 'editorial', 'industrial']);
-  for (const chosen of ['editorial', 'industrial']) {
+  assert.deepEqual(wires.at(-1).tools[0].function.parameters.properties.style.enum, ['precision', 'documentary', 'editorial']);
+  for (const chosen of ['editorial']) {
     style = chosen;
     const result = await planSiteCode('齿轮资料', { style: chosen as any, layout: 5, density: 6 }, '规划');
     assert.equal(result.plan.style, chosen);
@@ -72,11 +72,11 @@ test('unknown preferences are rejected before the provider and unregistered auto
   await assert.rejects(planSiteCode('齿轮资料', { style: 'auto', layout: 5, density: 6 }, '规划'), /大纲格式/);
 });
 
-test('existing directions have registered real WebP previews; new candidates explicitly await generation', async () => {
+test('all offered directions have registered real WebP previews', async () => {
   assert.ok(existsSync('lib/code-site-styles.ts'), 'one style catalog must exist');
   const { codeStyles } = await import('../lib/code-site-styles.ts');
-  assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial', 'industrial']);
-  for (const id of ['precision', 'documentary'] as const) {
+  assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial']);
+  for (const id of ['precision', 'documentary', 'editorial'] as const) {
     const preview = codeStyles[id].preview;
     assert.equal(preview.status, 'ready');
     if (preview.status !== 'ready') throw new Error('missing preview');
@@ -84,5 +84,11 @@ test('existing directions have registered real WebP previews; new candidates exp
     assert.ok(preview.revision > 0);
     assert.ok((await readFile(`public${preview.src}`)).length > 0);
   }
-  for (const id of ['editorial', 'industrial'] as const) assert.equal(codeStyles[id].preview.status, 'pending');
+});
+
+test('the deferred industrial candidate has no selectable option, accepted input or runtime skill', async () => {
+  const { codeStyleOptions, codePreferencesSchema } = await import('../lib/code-site-styles.ts');
+  assert.equal(codeStyleOptions.some(option => option.id === 'industrial'), false);
+  assert.equal(codePreferencesSchema.safeParse({ style: 'industrial', layout: 5, density: 6 }).success, false);
+  assert.equal(existsSync('skills/site-code-industrial/SKILL.md'), false);
 });

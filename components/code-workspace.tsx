@@ -19,6 +19,7 @@ import { codeStyles, codeStyleSchema, codePreferencesSchema, codeSliderBand } fr
 function CodeStyleChoice({ siteId, alignment, initial, busy, onSelect, onCancel }: { siteId: string; alignment: AlignmentPublicView;
   initial: CodePreferences; busy: boolean; onSelect: (preferences: CodePreferences) => void; onCancel: () => void }) {
   const [preferences, setPreferences] = useState(initial), [draftError, setDraftError] = useState('');
+  const validPreference = codePreferencesSchema.safeParse(preferences).success;
   const draftKey = `sitecraft-style:${siteId}:${alignment.questionId}`;
   useEffect(() => {
     const saved = localStorage.getItem(draftKey);
@@ -32,7 +33,7 @@ function CodeStyleChoice({ siteId, alignment, initial, busy, onSelect, onCancel 
   }
   return <section className="alignment-panel" aria-label="需求对齐" data-testid="code-style-question">
     <strong>{alignment.question}</strong>
-    <fieldset className="code-style-options" disabled={busy}><legend className="sr-only">网站风格</legend>{alignment.options.map(option => {
+    <fieldset className="code-style-options" disabled={busy}><legend className="sr-only">网站风格</legend>{alignment.options.filter(option => option.id === 'auto' || codeStyleSchema.safeParse(option.id).success).map(option => {
       const id = codeStyleSchema.safeParse(option.id);
       const preview = id.success ? codeStyles[id.data].preview : null;
       return <label key={option.id} className={`code-style-card${option.id === 'auto' ? ' code-style-auto' : ''}`}>
@@ -51,7 +52,8 @@ function CodeStyleChoice({ siteId, alignment, initial, busy, onSelect, onCancel 
       </label>;
     })}
     {draftError && <p role="alert">{draftError}</p>}
-    <button className="primary-button" disabled={busy} onClick={() => onSelect(preferences)}>保存选择，规划页面</button>
+    {!validPreference && <p role="alert">上次选择的风格已下线，请重新选择。</p>}
+    <button className="primary-button" disabled={busy || !validPreference} onClick={() => onSelect(preferences)}>保存选择，规划页面</button>
     <button className="code-alignment-cancel" disabled={busy} onClick={onCancel}>返回对话</button>
   </section>;
 }

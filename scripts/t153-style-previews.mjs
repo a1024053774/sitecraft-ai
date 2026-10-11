@@ -11,3 +11,8 @@ for (const [style, number] of [['precision', 1], ['documentary', 2]]) {
   await sharp(path.join(source, `private/case-${number}/home-fold-1440.png`))
     .resize(576, 400).webp({ quality: 88 }).toFile(`public/style-previews/${style}.webp`);
 }
+// The optional second source is a completed T-153 real-generation phase folder.
+if (process.argv[3]) {
+  await sharp(path.join(process.argv[3], 'home-fold-1440.png'))
+    .resize(576, 400).webp({ quality: 88 }).toFile('public/style-previews/editorial.webp');
+}

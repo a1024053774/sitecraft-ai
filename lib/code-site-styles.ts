@@ -11,8 +11,9 @@ export const codeStyles = {
   documentary: { label: '现场实拍', description: '照片与大字，突出现场和加工能力', skill: 'site-code-documentary/SKILL.md',
     preview: { status: 'ready', src: '/style-previews/documentary.webp', siteId: '478da526-cf67-4c74-851b-8cd320bb1ef8', versionId: 'bef0d4df-2bfc-4740-890e-f5cd19496adc', revision: 1,
       source: 't130/round-2026-10-09T10-14-09-315Z/private/case-2/home-fold-1440.png', license: '/style-previews/SOURCE.md' } },
-  editorial: { label: '品牌画册', description: '暖白纸色、衬线标题，像翻阅产品画册', skill: 'site-code-editorial/SKILL.md', preview: { status: 'pending' } },
-  industrial: { label: '工业铭牌', description: '深墨底、醒目型号，规格逐行展开', skill: 'site-code-industrial/SKILL.md', preview: { status: 'pending' } },
+  editorial: { label: '品牌画册', description: '暖白纸色、衬线标题，像翻阅产品画册', skill: 'site-code-editorial/SKILL.md',
+    preview: { status: 'ready', src: '/style-previews/editorial.webp', siteId: 'ed6bfbe4-8141-4edb-86f9-d65a91f67eff', versionId: 'fecaa36c-2aaf-44ee-bdc0-8e38102f84b0', revision: 1,
+      source: 't153/approved/real-2026-10-11T03-58/private/default/home-fold-1440.png', license: '/style-previews/SOURCE.md' } },
 } satisfies Record<string, CodeStyle>;
 export type CodeStyleId = keyof typeof codeStyles;
 export const codeStyleIds = Object.keys(codeStyles) as [CodeStyleId, ...CodeStyleId[]];

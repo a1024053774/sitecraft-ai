@@ -41,21 +41,21 @@ try {
   const chat = `/api/sites/${id}/chat`;
   const materials = '公司名：恒川传动\n按图加工齿轮与传动轴。齿轮 G8，合金钢，直径 80 mm，不适用腐蚀工况。传动轴 S2，按图加工，长度待补充。齿轮热处理由外协完成，入厂复检后再精加工。不提供现场安装。请做首页和产品页。';
   const question = await api(chat, { message: materials });
-  assert.deepEqual(question.alignment.options.map((o: any) => o.id), ['auto', 'precision', 'documentary', 'editorial', 'industrial']);
+  assert.deepEqual(question.alignment.options.map((o: any) => o.id), ['auto', 'precision', 'documentary', 'editorial']);
   await browser.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await browser.send('Page.navigate', { url: `${base}/workspace?site=${id}` });
-  await wait(`document.querySelectorAll('input[name="code-style"]').length===5 && [...document.querySelectorAll('.code-style-preview')].every(i=>i.complete && i.naturalWidth===576)`);
-  assert.equal(await browser.evaluate(`document.querySelectorAll('.code-style-pending').length`), 2);
+  await wait(`document.querySelectorAll('input[name="code-style"]').length===4 && [...document.querySelectorAll('.code-style-preview')].every(i=>i.complete && i.naturalWidth===576)`);
+  assert.equal(await browser.evaluate(`document.querySelectorAll('.code-style-pending').length`), 0);
   // A real keyboard arrow selects a new radio, and native range keys cross both bands.
-  await browser.evaluate(`document.querySelector('input[value="editorial"]').focus()`);
+  await browser.evaluate(`document.querySelector('input[value="auto"]').focus()`);
   await key('ArrowRight', 'ArrowRight', 39);
-  await wait(`document.querySelector('input[value="industrial"]').checked`);
+  await wait(`document.querySelector('input[value="precision"]').checked`);
   for (const label of ['版式', '信息密度']) {
     await browser.evaluate(`document.querySelector('input[aria-label="${label}"]').focus()`);
     await key('End', 'End', 35); await key('ArrowLeft', 'ArrowLeft', 37);
   }
   await browser.send('Page.reload');
-  await wait(`document.querySelector('input[value="industrial"]')?.checked && document.querySelector('input[aria-label="版式"]').value==='9' && document.querySelector('input[aria-label="信息密度"]').value==='9'`);
+  await wait(`document.querySelector('input[value="precision"]')?.checked && document.querySelector('input[aria-label="版式"]').value==='9' && document.querySelector('input[aria-label="信息密度"]').value==='9'`);
   report.draftReload = true;
   for (const width of [1440, 768, 375]) {
     await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1100, deviceScaleFactor: 1, mobile: false });
@@ -74,7 +74,7 @@ try {
     await click('[data-testid="code-style-question"] .primary-button');
     await wait(`document.querySelector('[data-testid="code-plan"]')`);
     let state = await api(chat, { action: 'state' });
-    assert.deepEqual(state.codeSite.preferences, { style: 'industrial', layout: 9, density: 9 });
+    assert.deepEqual(state.codeSite.preferences, { style: 'precision', layout: 9, density: 9 });
     assert.equal(state.codeSite.versions.length, 0);
     await browser.send('Page.reload'); await wait(`document.querySelector('[data-testid="code-plan"]')`);
     await click('[data-testid="code-plan"] .primary-button');
@@ -86,14 +86,14 @@ try {
     assert.deepEqual(version.code.pages.map((p: any) => p.id), ['home', 'products']);
     report.firstVersion = version;
     await click('.code-restyle'); await wait(`document.querySelector('[data-testid="code-style-question"]')`);
-    assert.equal(await browser.evaluate(`document.querySelector('input[value="industrial"]').checked`), true);
+    assert.equal(await browser.evaluate(`document.querySelector('input[value="precision"]').checked`), true);
     await click('input[value="editorial"]');
     for (const label of ['版式', '信息密度']) {
       await browser.evaluate(`document.querySelector('input[aria-label="${label}"]').focus()`);
       await key('Home', 'Home', 36); await key('ArrowRight', 'ArrowRight', 39);
     }
     const newer = await api(chat, { action: 'state' });
-    await api(chat, { action: 'select', questionId: question.alignment.questionId, questionRevision: question.alignment.questionRevision, optionId: 'industrial', preferences: { style: 'industrial', layout: 9, density: 9 } }, 409);
+    await api(chat, { action: 'select', questionId: question.alignment.questionId, questionRevision: question.alignment.questionRevision, optionId: 'precision', preferences: { style: 'precision', layout: 9, density: 9 } }, 409);
     assert.equal((await api(chat, { action: 'state' })).alignment.questionId, newer.alignment.questionId);
     await click('[data-testid="code-style-question"] .primary-button'); await wait(`document.querySelector('[data-testid="code-plan"]')`);
     assert.equal((await api(chat, { action: 'state' })).codeSite.currentVersionId, version.id, 'replanning must not store a version');
