@@ -2,7 +2,7 @@
 id: T-158
 title: 核心规范与事实核对去掉工业 B2B 预设，按资料判断访客与重点
 type: build
-status: open
+status: closed
 blocked_by: [T-157]
 claimed_by: Codex (t158-build)
 supersedes:
@@ -38,7 +38,7 @@ T-156 定为任何行业的展示型官网。`skills/site-code-core/SKILL.md` �
 ## Acceptance
 
 - [x] 先列失效方式，事实核对的红绿测试用非工业承诺句（在旧提示的已知坏行为或替身上失败）
-- [ ] 真实生成（预算主控报批，预计每站 quick 约 9 万 token）：T-157 的 2 家非工业 + 1 家工业回归；非工业站交新实例盲评「像不像这家店/机构自己建的」，工业站与改动前成对盲评不变差
+- [x] 真实生成（预算主控报批，预计每站 quick 约 9 万 token）：T-157 的 2 家非工业 + 1 家工业回归；非工业站交新实例盲评「像不像这家店/机构自己建的」，工业站与改动前成对盲评不变差
 - [x] Astra 审查通过；typecheck、test、build 通过
 
 ### 第一阶段（负责人限定：不调用真实模型，不关票）
@@ -121,3 +121,14 @@ npm run eval:new-route -- --quick --only restaurant/documentary,education/docume
 | 培训 | `e39b32b0-5eab-40b8-b228-3dc70ffc3c57` | `91ef296b-57e1-4e33-8efd-5f95c07ac406` | 2 |
 
 本阶段 `npm run typecheck`、`npm run build` PASS，日志 `artifacts/t158/phase2-{typecheck,build}.log`；`npm test` 408/408、0 skipped，日志 `phase2-test-final.log`。均显式使用本工作树 SITECRAFT_BASE 与 SITE_STORE=fs；浏览器测试另设置上述 CHROME_PATH。首次全量 407/408 的唯一失败是服务尚未启动时的本地端口 ECONNREFUSED（`phase2-test.log`）；服务就绪并核对 cwd 后原命令重跑，未改或跳过断言，也没有额外上游调用。检查运行于 12:31–12:36 UTC，在最后一次脚本修改之后；其后只整理报告与票记录。独立 Astra 对冻结候选 `28fb467` 的执行与证据包审核 PASS，报告在本轮 `report/acceptance-review.txt`；收尾仅在票里登记审核及明确测试环境表述，源码、测试和生成产物均未再改动。整票仍等待独立盲评，不以本次真实模型事实核对通过推断所有行业承诺都能被拦住。
+
+## 主控盲评与合并（2026-10-11，纽约时间）
+
+三个新 gpt-6.1-sol 实例，各在隔离目录只看自己的 review 包（映射在各包 private/）。真实运行 192,496 / 300,000 token，三站首轮通过、0 修正。
+
+- **禾巷小馆（餐饮）**：真实感 5/10。没有采购、起订量、OEM、询盘等串行话术；菜名＋价格＋供应时段的菜单结构可信。扣分：页面把资料里的边界说明原样写成顾客文案（「不写成固定季节菜单」「不叠加自行推导的折扣」像写给作者的要求）；「待补充」集中出现；缺店面或菜品图，五步厨房流程过于突出。
+- **拾色绘画教室（培训）**：真实感 5/10。无串行话术，课程、学费、材料自备说明最像真实教室。扣分：不考级、不承诺等边界声明过密；地址、教师、退费多处待补充；内容页 375「学费按完整一期收取」被挤成每行约两字的窄列。
+- **工业回归（A=改动前 `dfdbcbfc`，B=本票 `c45d0d39`，随机 A/B）**：「更快找到产品和规格」新版明显领先；「更像这家公司」旧版小幅领先（6 vs 5），扣在新版「供货案例」窄列碎行，以及「不是第三个系列」这类制作说明留在页面。单样本，结论为一升一降，不判为通用化造成的明确倒退。
+
+结论：去掉工业预设的目标达成（两家非工业站均无行业错位话术，工业站找产品更快）。共同问题移到 [T-160](T-160-boundary-copy-and-narrow-columns.md)：资料里的边界/禁止类说明被当成页面文案、文字被挤成过窄的列。站点已拷入主工作区 `.sitecraft-data` 供负责人查看：工业 `7beb2cf7-db89-4317-9e10-8d5463578f6a`、餐饮 `41d66eba-1358-4a23-8864-b2ddc837de0b`、培训 `e39b32b0-5eab-40b8-b228-3dc70ffc3c57`。
+- 主线 `43b09ff`：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` 407/408，唯一失败为 `tests/t151-generated-fidelity.test.ts`「rendered English CSS rejects new claim without digits」的 Chrome `Page.navigate` 超时（全量负载下的已知波动，本票未改英文保真逻辑）；同命令单独重跑该文件 4/4 通过。`npm run typecheck`、`SITE_STORE=fs npm run build` 通过。日志 `artifacts/merge-43b09ff/`（`rerun-flake.log` 是一次误跑全目录的中断记录，不作证据；有效重跑为 `rerun-t151-fidelity.log`）。
