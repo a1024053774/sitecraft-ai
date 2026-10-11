@@ -38,4 +38,4 @@ INCOMPLETE（执行交接，票保持 open）。已移除扉页式引言开场�
 - 本次技术检查全部 PASS（05:12–05:17 UTC）：`npm run typecheck`、`env -u SITECRAFT_DATA_ROOT npm test`（376/376，0 skipped）、`env -u SITECRAFT_DATA_ROOT npm run build`。各命令显式设 `SITECRAFT_BASE=http://127.0.0.1:3178`、`SITE_STORE=fs`、上述 CHROME_PATH，模型环境仅指向本地替身。日志为 `artifacts/t155/typecheck.log`、`test-correct-env.log`、`build.log`；开发服务和替身已停止。
 - `project_map.py status --root .`：stale living docs 为 0；现有 T-156 的 `type: decision` 不被脚本识别，未改无关票。
 
-主控后续：与 T-154 合跑同一外高桥资料的真实品牌画册生成，再与 T-153 品牌画册版随机命名、交新实例成对盲评；本执行者不调用真实模型、不作审美通过结论、不关票、不推送。
+与 T-154 的一次真实合跑已在负责人批准的 120,000 token 上限内完成；两档首页均在首屏展示快换接头、卡套接头及规格入口，完整用量和位置测量见 T-154 Resolution 与 `artifacts/t154/joint-real/report.json`。成对盲评包为 `artifacts/t154/joint-real/review/`，身份映射仅在 private。主控后续：交新实例完成两题成对盲评，再决定全票验收；本票保持 open，不把制包或位置检查当成审美通过。

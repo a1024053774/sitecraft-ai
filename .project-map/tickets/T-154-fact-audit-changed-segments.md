@@ -28,28 +28,40 @@ supersedes:
 
 - [x] 先列失效方式再写红绿测试，在已知坏实现上失败（至少：表头改了值没改要重核、资料改了要全核、段文字一字之差要重核、编号错乱拒收）
 - [x] 用 T-153 保存的真实候选与核对记录（`artifacts/t153/approved/real-2026-10-11T03-58/private/`）离线重放：在不调用模型的前提下算出新方案在同样两轮修正下要发多少段、估算 token，对比当时的 42,034
-- [ ] 真实验证与 T-155 合跑一次品牌画册生成（主控按负责人批准的预算），Resolution 写各次核对的段数与 token
+- [x] 真实验证与 T-155 合跑一次品牌画册生成（主控按负责人批准的预算），Resolution 写各次核对的段数与 token
 - [ ] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
-状态：INCOMPLETE（本轮复审修复、红绿测试和离线重放已完成，修后独立复审与真实验证待主控）。按派工新增本地提交，不关闭票、不推送。父提交 `81c976b`；本轮代码、测试与文档同提交，最终 SHA 见交付报告。
+本次真实合跑与盲评制包 PASS；票保持 open，不推送、不宣称全票或审美验收通过。模型写站、提交入口和 T-155 画册规范来自 `af94ce3`；本次只把 T-153 预算脚本改为显式读取已批准上限，并记录核对请求段数。脚本、测试与本文同一本地提交，最终 SHA 见交付报告和 `artifacts/t154/joint-real/report.json`。
 
-当前实现：段必须归属于完整有序内容一致、且在同一次核对中全部通过的组才能沿用；任何成员增删改、重排或被拒都会让整组进入请求。嵌套 section 仍绑定外层列表/dl/带标题小节；模型用短 groupId 识别共同条件，组快照只保存在代码核对记录中。`factSegments.format=2` 不采用缺少组依据的旧格式记录。片段按 body 上下文解析，按元素顺序映射真实 DOM，文本读取清理后的源片段，避免前导空白被丢弃和交界文本合并造成计数错位。未调用真实模型；局部、英文、恢复规则保持。
+实现仍为：资料与完整有序组都不变，且同一次核对整组通过才可沿用；同组增删改、重排或部分被拒均整组重核，旧格式记录不作为复用依据。前导/尾随空白与交界文本按 body 上下文、元素顺序定位。前次红绿、独立审查反例与修复证据保留在 `artifacts/t154/review-followup-*.log`、`review-followup-independent-evidence.json`；不以本次没有修正轮替代那些复用回归。
 
-2026-10-11 UTC 本次证据（本 worktree 的 `artifacts/t154/`；旧失败和旧估算文件均保留）：
+2026-10-11 09:00:13.997–09:03:12.262 UTC，只生成一次，默认滑杆 5/6、品牌画册；没有追加生成或对话修改。资料和八张授权图只读自 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t130/round-2026-10-09T10-14-09-315Z/private/case-2`，生成数据写本 worktree 的文件存储。没有读取主工作区 `.sitecraft-data`。
 
-- `review-followup-red.log`：在 `81c976b` 上，10 项新回归中 8 项按预期失败，2 项尾随空白原本通过。覆盖删条件行、删列表项、新增行、重排行，以及前导/尾随/全部交界空白、相邻原始文案。命令：`node --test --experimental-strip-types --test-name-pattern='whole group|fragment boundaries' tests/t154-fact-segments.test.ts`。可用 `T154_MUTANT=review-base node --experimental-strip-types --import ./tests/fixtures/t154-counterfactual.ts --test --test-name-pattern='whole group|fragment boundaries' tests/t154-fact-segments.test.ts` 在测试进程内加载旧实现重现，不改工作树。
-- 独立 Astra 确认删除条件、嵌套 dl/ol 及空白边界通过，但发现同组部分通过时仍会省略已通过条件，结论 FAIL；原始请求与结果保留为 `review-followup-independent-evidence.json`。按独立反例加入“同组拒一行、再次检查仍带条件、不能拼接多轮部分通过”的回归，`review-followup-partial-red.log` 先红；随后改为整组在同一次核对中全部通过才可沿用。该追加修复未再自称独立审查通过。
-- 最终定向结果、全量 test/typecheck/build 见本节交付检查结果。所有检查显式设置 `SITE_STORE=fs`、`SITECRAFT_BASE=http://127.0.0.1:3176`；Chrome 为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。模型回复来自隔离本地 HTTP 替身。
-- 最新离线重放命令：上述环境下运行 `node --experimental-strip-types scripts/t154-replay-fact-segments.ts /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t153/approved/real-2026-10-11T03-58/private/default/code-site.json`。输出 `review-followup-complete-group-replay.log` 及其指向的 `replay.json`，三候选均重新按三档渲染提取，无模型调用。历史各轮拒因对应的组未被当作通过，避免通过漏核制造省量。
+预算硬上限为负责人批准的 120,000 total token。`scripts/t153-real-budget.ts` 与 `scripts/t153-real-generation.ts` 必须显式设置 `SITECRAFT_TOKEN_LIMIT`；每次上游调用前用完整输入的保守上界预留额度，再收紧输出上限，剩余额度不足即停；账本保留累计用量、402/网络错误不重试。测试 `tests/t153-budget.test.ts` 在旧实现上先红（120,000 被错误按 300,000 预留），修后 2/2 通过，日志位于 `artifacts/t154/joint-real/private/budget-red.log`、`budget-green.log`。真实网关状态确认 `limit=120000`，只有三次上游调用，均 HTTP 200、无截断。流程结束后网关已停，未用额度不再调用。
 
-| 核对轮次 | 全部核对段 | 新核 | 沿用 | 输入 token 估算 | 输出按文字量缩减的总 token 情景 | 输出保持历史用量的总 token 情景 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 首轮 | 28 | 28 | 0 | 11,906 | 31,379 | 31,379 |
-| 修正一 | 28 | 2 | 26 | 5,714 | 7,790 | 25,956 |
-| 修正二 | 28 | 1 | 27 | 5,309 | 5,737 | 16,206 |
+| 阶段 | 调用次数 | Prompt token | Completion token | Total token |
+| --- | ---: | ---: | ---: | ---: |
+| 规划 | 1 | 9,149 | 3,296 | 12,445 |
+| 写页 | 1 | 10,839 | 41,433 | 52,272 |
+| 事实核对 | 1 | 9,624 | 3,370 | 12,994 |
+| 修正 | 0 | 0 | 0 | 0 |
+| 合计 | 3 | 29,612 | 48,099 | **77,711** |
 
-两次修正估算情景合计 13,527 / 42,162 token，对照历史实测 42,034；这份样本的改动没有扩及其他组，因此本次段数不变。输入使用“汉字×1.5 + 其他字符÷3 + 固定提示预算 1,800”，不是 tokenizer 或账单；思考输出未知，不承诺真实省量。主控与 T-155 合跑时仍须记录各轮段数、模型 token 和是否漏核。
+唯一一次事实核对：**新核 32 段、沿用 0 段、12,994 token**，其中 reasoning 3,076 token；首次候选通过并保存 v1。两页 × 375/768/1440 的确定性检查溢出、重叠、对比度、正文长行均为 0。机械质量反馈仍保留在报告及版本检查中，不按这些非拒收项重跑。没有真实修正轮，因此本次没有观察到段沿用，不能把总 token 变化归因为复用省量。
 
-交付检查结果（2026-10-11 05:36–05:39 UTC，最终代码）：定向 `node --test --experimental-strip-types tests/t154-fact-segments.test.ts` 23/23 PASS，`npm test` 399/399 PASS，`npm run typecheck` PASS，`npm run build` PASS。输出分别为 `review-followup-complete-group-green.log`、`review-followup-complete-group-test.log`、`review-followup-complete-group-typecheck.log`、`review-followup-complete-group-build.log`。旧版本进程内回放 `review-followup-base-replay-red.log` 再次得到同样 8 红、2 绿，证实反事实可重复。主控待办：最终候选的独立复审、与 T-155 的真实联跑，再决定全票验收与合并。本票无 UI/预览渲染改动，不声明审美通过；project-map 的 T-156 `type: decision` 既存校验问题不在本次修复范围。
+入口事实检查：Chrome 视口高 1000；1440 宽时两类接头入口 y=382.875–445.797，「查看产品与规格」按钮底边 y=525.641；375 宽时两个入口分别 y=361.422–448.625、468.625–531.547，按钮底边 y=611.391，均在首屏。首屏文字同时说明接单前核对管径/螺纹/密封材料、样品确认后再定批量版本。首页、产品页的 1440/375 全页图和首屏图均打开看过，无载入态、空白或错误截图；只确认内容与位置，不自评审美。测量与首屏图在 `artifacts/t154/joint-real/private/entry-measurements.json`、`home-fold-1440.png`、`home-fold-375.png`。
+
+成对盲评包：`artifacts/t154/joint-real/review/`，仅八张首页/产品页截图和中性 `questions.md`；A/B 分配与查看顺序分别随机。旧版明确使用 `fecaa36c-2aaf-44ee-bdc0-8e38102f84b0`，只读复用 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t153/approved/real-2026-10-11T03-58/private/default/` 的真实截图，未重生成。映射、版本 ID、原始用量与完整站点记录保存在 `artifacts/t154/joint-real/private/`；未执行成对审美评判，后续评审实例只可读取 review 包。
+
+可复核命令（在本 worktree 执行，均显式配置本地端点）：
+
+- 网关先按授权方式 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 只把密钥载入进程，再设置 `SITECRAFT_BASE=http://127.0.0.1:3176 SITECRAFT_BUDGET_BASE=http://127.0.0.1:3177 SITECRAFT_TOKEN_LIMIT=120000 T153_BUDGET_DIR=artifacts/t153/joint-t154-t155-20261011/private/budget DEEPSEEK_BASE_URL=https://api.deepseek.com DEEPSEEK_MODEL=deepseek-flash`，运行 `node --experimental-strip-types scripts/t153-real-budget.ts`。应用用 `SITE_STORE=fs`、3176 端口、DeepSeek 地址指向本网关，应用只持本地占位 key；真实 key 未打印、复制或软链。
+- 相同 BASE/BUDGET_BASE/TOKEN_LIMIT 及 CHROME_PATH 环境下：`node --experimental-strip-types scripts/t153-real-generation.ts prepare artifacts/t153/joint-t154-t155-20261011 /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t130/round-2026-10-09T10-14-09-315Z/private/case-2`，随后只运行一次 `node --experimental-strip-types scripts/t153-real-generation.ts default artifacts/t153/joint-t154-t155-20261011`。已有账本与阶段记录不可重置；这些命令记录本次过程，不授权重跑。
+- 不调用模型的报告/制包过程：`SITECRAFT_BASE=http://127.0.0.1:3176 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t154/joint-real/private/finalize.mjs`。总报告 `artifacts/t154/joint-real/report.json`；原始生成记录 `artifacts/t153/joint-t154-t155-20261011/private/`。
+- 本次 09:03–09:08 UTC 的 `npm run typecheck`、`npm test`（400/400，0 skipped）、`npm run build` 均 PASS；全部设置 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3176`，浏览器测试使用上述 CHROME_PATH，未设置全局 SITECRAFT_DATA_ROOT。日志在 `artifacts/t154/joint-real/private/{typecheck,test,build}.log`。运行全量测试前已停止真实网关。
+
+独立 Astra 对本次冻结的预算脚本与联合运行证据给出技术 PASS：核验三次调用、77,711 token、32/0 段数、入口截图和包内信息隔离；独立预算测试 2/2 通过。该核验不代替审美盲评，也不把未触发的真实复用或 402/网络停止场景写成实测。
+
+主控后续：把 review 包交新实例做两题成对盲评，再结合最终代码审查决定 T-154/T-155 的全票验收。现有 T-156 `type: decision` 校验问题未改；本次不关票、不推送。
