@@ -2,7 +2,7 @@
 id: T-157
 title: 加 2–3 家非工业模拟公司资料，进入评估集
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t157-build)
 supersedes:
@@ -52,3 +52,9 @@ export CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell
 失败证据保留：首轮全量 400/402 见 `test-run-1.log`，图片上传合同仍假定全评估只有四家，已用显式 `--only` 保留其四家/八组合图片检查；T-145 隔离 cwd 被运行命令中的全局数据根覆盖，移除该覆盖后原测试通过，未改 T-145。验证脚本初次字段名错误见 `typecheck-final.log`，修正为记录实际的 `materials` 字段。
 
 独立 behavioral-acceptance-review（新的 Codex GPT-6 Astra 实例）对冻结行为候选给出 PASS，无范围内阻断发现；独立经 API 核对 cwd、版本、页面与资料事实。记录见 `artifacts/t157/acceptance-review.txt`。本票证据只证明本地替身流程、完整资料传递和提交存版；替身事实校对返回空问题，不证明真实模型理解、事实语义、审美或发布质量。主控后续做正式代码审核与整合，T-158/T-159 的真实模型和风格验证仍按各自预算执行。
+
+## 主控合并验证（2026-10-11，纽约时间）
+
+- 主控读过资料与 eval 改动：三家资料厚度与工业样本相当、缺口保留、无询盘/预约要求；工业四家未改。独立行为验收由执行者另开的 Astra 实例 PASS（`artifacts/t157/acceptance-review.txt`）。
+- 注意：`eval:new-route` 默认从 4 家变 7 家，快速档 7 组合（约 63 万 token），整轮 14 站；真实运行一律用 `--only` 并单独报批。新三家快速档暂用 documentary（现场实拍）风格，但都无图，是否合适由 T-158/T-159 判断。
+- 主线 `ebab7a6`：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` 403/403，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-ebab7a6/`。
