@@ -1,4 +1,5 @@
 import { after } from 'next/server.js';
+import { codePreferencesSchema, codePreferenceStyleSchema, codeStyleOptions } from './code-site-styles.ts';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
@@ -17,7 +18,7 @@ const requestSchema = z.object({
   baseRevision: z.number().int().nonnegative().optional(), questionId: z.string().max(100).optional(),
   questionRevision: z.number().int().nonnegative().optional(), optionId: z.string().max(80).optional(),
   selectedTarget: annotationTargetSchema.optional(), pageId: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(), saveAnnotation: z.boolean().optional(),
-  preferences: z.object({ style: z.enum(['auto', 'precision', 'documentary']), layout: z.number().int().min(1).max(10), density: z.number().int().min(1).max(10) }).optional(),
+  preferences: codePreferencesSchema.optional(),
 });
 const active = (globalThis as typeof globalThis & { __codeRuns?: Set<string> }).__codeRuns ??= new Set<string>();
 class CodeRunConflictError extends Error {}
@@ -37,9 +38,7 @@ export async function codeWorkspaceState(site: CodeSiteRecord) {
 function styleQuestion(epoch: number): CurrentQuestion {
   return { questionId: `code-style-${crypto.randomUUID()}`, questionRevision: epoch + 1, kind: 'style',
     prompt: '网站用哪种风格？版式与信息密度一起保存。', allowOther: false,
-    options: [{ id: 'auto', label: '帮我选', description: '按公司资料安排视觉重点' },
-      { id: 'precision', label: '精密工程', description: '细线、规整网格、参数目录' },
-      { id: 'documentary', label: '现场实拍', description: '照片与大字，尺度更鲜明' }] };
+    options: codeStyleOptions };
 }
 async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
   return updateCodeSite(siteId, site => {
@@ -159,7 +158,7 @@ async function execute(siteId: string, runId: string) {
     return;
   }
   if (run.kind === 'plan') {
-    const result = await planSiteCode(site.materials, site.preferences, run.request);
+    const result = await planSiteCode(currentCodeVersion(site) ? codeFactMaterials(site) : site.materials, site.preferences, run.request);
     site = await updateCodeSite(siteId, () => ({ plan: result.plan }));
     await updateConversationAlignment(siteId, site.conversationId, record => {
       const epoch = record.alignment.epoch + 1, questionId = `code-confirm-${crypto.randomUUID()}`;
@@ -240,19 +239,24 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
       site = await claimRun(siteId, 'translate', currentCodeVersion(site)!.english ? '按当前中文版重新翻译英文版' : '生成英文版', input.baseRevision); schedule(site);
     } else if (input.action === 'cancel') {
       await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'cancel' });
+    } else if (input.action === 'start') {
+      if (!site.materials) return Response.json({ userMessage: '请先提供公司资料。' }, { status: 422 });
+      if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
+      await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'start',
+        pendingRequest: { message: '调整风格与疏密，保留有效资料与已有功能入口。', baseRevision: currentCodeVersion(site)?.revision ?? 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
     } else if (input.action === 'select') {
       if (conversation.alignment.currentQuestion?.kind !== 'style') return Response.json({ userMessage: '当前不是风格选择，请使用当前卡片。' }, { status: 409 });
       if (input.preferences && input.preferences.style !== input.optionId) return Response.json({ userMessage: '风格与选项不一致。' }, { status: 400 });
       const selected = await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'select', questionId: input.questionId, questionRevision: input.questionRevision, optionId: input.optionId });
-      const style = z.enum(['auto', 'precision', 'documentary']).parse(selected.record.alignment.styleOptionId);
+      const style = codePreferenceStyleSchema.parse(selected.record.alignment.styleOptionId);
       site = await updateCodeSite(siteId, () => ({ preferences: input.preferences ?? { ...site.preferences, style } }));
       if (selected.result.ok && selected.result.shouldContinue) {
-        site = await claimRun(siteId, 'plan', site.materials, currentCodeVersion(site)?.revision ?? 0); schedule(site);
+        site = await claimRun(siteId, 'plan', currentCodeVersion(site) ? '调整风格与疏密，保留有效资料与已有功能入口。' : site.materials, currentCodeVersion(site)?.revision ?? 0); schedule(site);
       }
     } else if (input.action === 'confirm') {
       const confirmed = await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'confirm', questionId: input.questionId, questionRevision: input.questionRevision });
       if (confirmed.result.ok && confirmed.result.shouldCommit) {
-        site = await claimRun(siteId, 'generate', site.materials, currentCodeVersion(site)?.revision ?? 0); schedule(site);
+        site = await claimRun(siteId, 'generate', currentCodeVersion(site) ? '按确认的风格、版式与信息密度重新生成，保留有效资料与已有功能入口。' : site.materials, currentCodeVersion(site)?.revision ?? 0); schedule(site);
       }
     } else if (input.message) {
       if (currentCodeVersion(site)) {

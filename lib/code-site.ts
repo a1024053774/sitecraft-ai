@@ -1,4 +1,5 @@
 import type { AnnotationTarget } from './annotations.ts';
+import type { CodeStyleId } from './code-site-styles.ts';
 import { z } from 'zod';
 import { systemIconSvg, systemIconLicense } from './code-site-icons.ts';
 import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
@@ -13,8 +14,8 @@ export const codeSiteSchema = z.object({
   if (!site.pages.some(p => p.id === 'home')) ctx.addIssue({ code: 'custom', message: '缺少首页' });
 });
 export type SiteCode = z.infer<typeof codeSiteSchema>;
-export type CodePreferences = { style: 'auto' | 'precision' | 'documentary'; layout: number; density: number };
-export type CodePlan = { summary: string; style: 'precision' | 'documentary'; styleReason: string;
+export type CodePreferences = { style: 'auto' | CodeStyleId; layout: number; density: number };
+export type CodePlan = { summary: string; style: CodeStyleId; styleReason: string;
   // Saved outlines from before T-135 have no skeleton; new model plans require it.
   skeleton?: { id: string; reason: string }; skeletonOrder?: string[]; pages: Array<{ id: string; title: string; outline: string }> };
 export type CodeQualityKind = 'truncatedText' | 'ungatedHover' | 'smallTargets' | 'coveredAnchors' | 'croppedProductImages';

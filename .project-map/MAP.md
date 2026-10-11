@@ -62,7 +62,7 @@
 
 ## Not yet specified
 
-- T-128 之后的新路线批次（等第一批做完再切票）：风格卡与 skill 库（taste-skill / Impeccable 提炼、4 个样子改写成风格）；模板味检测（Impeccable 检测规则）；Hairline 式线稿示意图；
+- T-128 之后的新路线批次（等第一批做完再切票）：风格卡与候选 skill 库见 T-153（真实区分度与滑杆盲评待批准预算）；模板味检测（Impeccable 检测规则）；Hairline 式线稿示意图；
 - 生成用模型：先用 deepseek-flash；评估集显示到顶时再由负责人决定是否换。
 
 ## Out of scope

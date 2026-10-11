@@ -14,12 +14,52 @@ import { CodeVersionHistory } from './code-version-history';
 import { annotationTargetSchema, annotationCaptureSchema, type AnnotationTarget, type AnnotationThread } from '@/lib/annotations';
 import { CodePreviewSelection } from './code-preview-selection';
 import { SiteDeleteDialog } from './site-delete-panel';
+import { codeStyles, codeStyleSchema, codePreferencesSchema, codeSliderBand } from '@/lib/code-site-styles';
+
+function CodeStyleChoice({ siteId, alignment, initial, busy, onSelect, onCancel }: { siteId: string; alignment: AlignmentPublicView;
+  initial: CodePreferences; busy: boolean; onSelect: (preferences: CodePreferences) => void; onCancel: () => void }) {
+  const [preferences, setPreferences] = useState(initial), [draftError, setDraftError] = useState('');
+  const draftKey = `sitecraft-style:${siteId}:${alignment.questionId}`;
+  useEffect(() => {
+    const saved = localStorage.getItem(draftKey);
+    if (!saved) return;
+    try { setPreferences(codePreferencesSchema.parse(JSON.parse(saved))); }
+    catch { setDraftError('上次未提交的风格选择无法读取，请重新选择。'); }
+  }, [draftKey]);
+  function change(patch: Partial<CodePreferences>) {
+    const next = { ...preferences, ...patch };
+    setPreferences(next); localStorage.setItem(draftKey, JSON.stringify(next)); setDraftError('');
+  }
+  return <section className="alignment-panel" aria-label="需求对齐" data-testid="code-style-question">
+    <strong>{alignment.question}</strong>
+    <fieldset className="code-style-options" disabled={busy}><legend className="sr-only">网站风格</legend>{alignment.options.map(option => {
+      const id = codeStyleSchema.safeParse(option.id);
+      const preview = id.success ? codeStyles[id.data].preview : null;
+      return <label key={option.id} className={`code-style-card${option.id === 'auto' ? ' code-style-auto' : ''}`}>
+        <input type="radio" name="code-style" value={option.id} checked={preferences.style === option.id} onChange={() => change({ style: option.id as CodePreferences['style'] })} />
+        {preview && (preview.status === 'ready' ? <img className="code-style-preview" src={preview.src} alt={`${option.label}：真实生成站点首屏示例`} width="576" height="400" />
+          : <span className="code-style-pending">待生成<small>新风格，示例待补</small></span>)}
+        <span className="code-style-copy"><strong>{option.label}</strong><small>{option.description}</small></span>
+      </label>;
+    })}</fieldset>
+    <p className="code-style-caption">缩略图来自已生成站点，具体排法随资料变化。<a href="/style-previews/SOURCE.md" target="_blank" rel="noreferrer">示例来源</a></p>
+    {(['layout', 'density'] as const).map(kind => {
+      const band = codeSliderBand(kind, preferences[kind]);
+      return <label className="code-slider" key={kind}>{kind === 'layout' ? '版式：规整 ↔ 大胆' : '信息：疏朗 ↔ 紧凑'} <output>{band.label} · {preferences[kind]}</output>
+        <input aria-label={kind === 'layout' ? '版式' : '信息密度'} aria-valuetext={`${band.label}，${preferences[kind]}/10`} type="range" min="1" max="10" disabled={busy} value={preferences[kind]} onChange={e => change({ [kind]: Number(e.target.value) })} />
+        <small>{band.hint}</small>
+      </label>;
+    })}
+    {draftError && <p role="alert">{draftError}</p>}
+    <button className="primary-button" disabled={busy} onClick={() => onSelect(preferences)}>保存选择，规划页面</button>
+    <button className="code-alignment-cancel" disabled={busy} onClick={onCancel}>返回对话</button>
+  </section>;
+}
 
 export type CodeWorkspacePayload = { codeSite: CodeSiteRecord; alignment: AlignmentPublicView | null; turns: ConversationTurn[]; conversationError?: string };
 export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: CodeWorkspacePayload }) {
   const [state, setState] = useState(initial), [input, setInput] = useState(''), [error, setError] = useState('');
   const [sending, setSending] = useState(false), [panel, setPanel] = useState<'materials' | 'images' | null>(null);
-  const [preferences, setPreferences] = useState<CodePreferences>(initial.codeSite.preferences);
   const [width, setWidth] = useState(1440), [page, setPage] = useState('home'), [pane, setPane] = useState('chat');
   const [images, setImages] = useState<Array<{ imageId: string; originalName: string }>>([]);
   const [category, setCategory] = useState('product'), [license, setLicense] = useState('user-provided');
@@ -152,7 +192,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     finally { setSending(false); event.target.value = ''; }
   }
   const alignment = state.alignment;
-  return <div className={`builder-shell workspace-theme-light workspace-accent-porcelain code-workspace pane-${pane}`} data-testid="code-workspace">
+  return <div className={`builder-shell workspace-theme-light workspace-accent-porcelain code-workspace pane-${pane}${alignment?.waitingForUser || alignment?.awaitingConfirmation ? ' code-aligning' : ''}`} data-testid="code-workspace">
     <header className="preview-toolbar workspace-topbar">
       <div className="preview-toolbar-left"><Link href="/" className="topbar-back" aria-label="返回站点"><ArrowLeft size={17} /></Link><strong className="project-name">{site.name}</strong><span className="save-status">{running ? <LoaderCircle size={12} className="spin" /> : <Check size={12} />}{version ? `版本 ${version.revision}` : '尚未生成'}</span><button className="icon-button" aria-label="版本历史" title="版本历史" onClick={() => setHistoryOpen(true)} data-testid="open-version-history"><History size={17} /></button></div>
       <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">{['chat', 'preview'].map(p => <button key={p} role="tab" aria-selected={pane === p} className={pane === p ? 'active' : ''} onClick={() => setPane(p)}>{p === 'chat' ? '对话' : '预览'}</button>)}</div>
@@ -170,13 +210,10 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {state.conversationError && <p className="code-error" role="alert" data-testid="code-conversation-error">{state.conversationError}</p>}
         {!state.turns.length && !conversationUnavailable && <div className="message assistant"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
         {state.turns.map((turn, index) => <div key={`${turn.createdAt}-${index}`}><div className="message user"><div className="message-label">你</div><div className="message-bubble">{turn.userMessage}</div></div><div className={`message assistant ${turn.outcome}`}><div className="message-label">AI 助手</div><div className="message-bubble">{turn.aiSummary}</div></div></div>)}
-        {alignment?.waitingForUser && !alignment.awaitingConfirmation && <section className="alignment-panel" aria-label="需求对齐" data-testid="code-style-question">
-          <strong>{alignment.question}</strong><div className="code-style-options">{alignment.options.map(option => <label key={option.id}><input type="radio" name="code-style" value={option.id} checked={preferences.style === option.id} onChange={() => setPreferences(p => ({ ...p, style: option.id as CodePreferences['style'] }))} /><span><strong>{option.label}</strong><small>{option.description}</small></span></label>)}</div>
-          <label className="code-slider">版式：规整 ↔ 大胆 <output>{preferences.layout}</output><input aria-label="版式" type="range" min="1" max="10" value={preferences.layout} onChange={e => setPreferences(p => ({ ...p, layout: Number(e.target.value) }))} /></label>
-          <label className="code-slider">信息：疏朗 ↔ 紧凑 <output>{preferences.density}</output><input aria-label="信息密度" type="range" min="1" max="10" value={preferences.density} onChange={e => setPreferences(p => ({ ...p, density: Number(e.target.value) }))} /></label>
-          <button className="primary-button" disabled={busy} onClick={() => void perform({ action: 'select', questionId: alignment.questionId, questionRevision: alignment.questionRevision, optionId: preferences.style, preferences })}>保存选择，规划页面</button>
-        </section>}
-        {alignment?.awaitingConfirmation && !busy && site.plan && <section className="alignment-panel" aria-label="确认页面大纲" data-testid="code-plan"><strong>{site.plan.summary}</strong><ol>{site.plan.pages.map(p => <li key={p.id}><strong>{p.title}</strong><p>{p.outline}</p></li>)}</ol><button className="primary-button" onClick={() => void perform({ action: 'confirm', questionId: alignment.questionId, questionRevision: alignment.questionRevision })}>确认并生成</button></section>}
+        {alignment?.waitingForUser && !alignment.awaitingConfirmation && <CodeStyleChoice key={alignment.questionId} siteId={siteId} alignment={alignment} initial={site.preferences} busy={busy}
+          onSelect={preferences => void perform({ action: 'select', questionId: alignment.questionId, questionRevision: alignment.questionRevision, optionId: preferences.style, preferences })} onCancel={() => void perform({ action: 'cancel' })} />}
+        {version && !conversationUnavailable && !alignment?.waitingForUser && !alignment?.awaitingConfirmation && <button className="code-restyle" disabled={busy} onClick={() => void perform({ action: 'start', baseRevision: version.revision })}>调整风格与疏密</button>}
+        {alignment?.awaitingConfirmation && !busy && site.plan && <section className="alignment-panel" aria-label="确认页面大纲" data-testid="code-plan"><strong>{site.plan.summary}</strong><ol>{site.plan.pages.map(p => <li key={p.id}><strong>{p.title}</strong><p>{p.outline}</p></li>)}</ol><button className="primary-button" onClick={() => void perform({ action: 'confirm', questionId: alignment.questionId, questionRevision: alignment.questionRevision })}>确认并生成</button><button className="code-alignment-cancel" onClick={() => void perform({ action: 'cancel' })}>返回对话</button></section>}
         {site.run && (running || site.run.issues.length > 0 || state.turns.at(-1)?.aiSummary !== progressText) && <div className={`message assistant ${site.run.status}`}><div className="message-bubble" role="status" data-testid="code-progress">{running && <LoaderCircle className="spin" size={14} />} {progressText}{site.run.issues.length > 0 && <details data-testid="code-run-issues"><summary>查看完整检查问题（{site.run.issues.length} 项）</summary><ul>{site.run.issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul></details>}</div></div>}
         {version && <p className="code-check-receipt" data-testid="code-check-receipt">版本 {version.revision} · {codeVersionAuthor(version.author)} · {version.summary} · {codeCheckLabel(version.checks)}</p>}
         {version?.checks.passed && !conversationUnavailable && <section className="alignment-panel code-english-panel" aria-label="英文版">
