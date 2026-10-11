@@ -68,10 +68,10 @@ test('independent grid, flex and inline-block prose is not merged; hidden text a
     <table><tr><td class="narrow"><p>${zh}</p></td><th class="narrow">${zh}</th></tr></table>
     <h2 class="narrow">${zh}</h2><nav class="narrow">${zh}</nav><div role="button" class="narrow">${zh}</div>
     <p class="narrow" data-spec>${zh}</p><p class="narrow">1280 元/期</p><span class="narrow" style="display:block">收费说明</span>
-    <p data-sitecraft-slot="price" class="narrow">课程学费每期一千二百八十元整</p>
-    <p data-sitecraft-slot="course.fee" class="narrow">课程学费每期一千二百八十元整</p>
-    <p data-price class="narrow">课程学费每期一千二百八十元整</p>
-    <p data-fee class="narrow">课程学费每期一千二百八十元整</p>
+    <p data-sitecraft-slot="price" class="narrow">人民币壹仟贰佰捌拾元整</p>
+    <p data-sitecraft-slot="course.fee" class="narrow">人民币壹仟贰佰捌拾元整</p>
+    <p data-price class="narrow">人民币壹仟贰佰捌拾元整</p>
+    <p data-fee class="narrow">人民币壹仟贰佰捌拾元整</p>
     <p class="narrow" style="display:none">${zh}</p><p class="narrow" style="visibility:hidden">${zh}</p>
     <div style="opacity:0"><p class="narrow">${zh}</p></div>
     <details><summary>折叠说明</summary><p class="narrow">${zh}</p></details>
@@ -81,6 +81,50 @@ test('independent grid, flex and inline-block prose is not merged; hidden text a
     assert.equal(narrow(checks, width).count, 3);
     assert.deepEqual(narrow(checks, width).details.map(d => d.target).sort(), ['#definition', '#flex', '#inline']);
   }
+});
+
+test('price values are exempt, but mixed fee paragraphs and prose inside price containers remain measurable', async () => {
+  const checks = await run(make(`
+    <p data-price class="narrow"><strong>人民币</strong>壹仟贰佰捌拾元整</p>
+    <p id="fee-paragraph" data-sitecraft-slot="course.fee" class="narrow">课程学费1280元，${zh}</p>
+    <section data-fee><span>1280元/期</span><p id="fee-descendant" class="narrow">${zh}</p></section>
+    <section data-sitecraft-slot="price"><p id="price-descendant" class="narrow">${zh}</p></section>
+    <p id="price-inline" class="narrow"><span data-price>1280元/期</span>，${zh}</p>
+    <p id="price-condition" data-price class="narrow">人民币壹仟贰佰捌拾元整/另收材料费</p>
+    <p id="labelled-fee" data-fee class="narrow">课程学费每期一千二百八十元整</p>`));
+  for (const width of [375, 768, 1440]) {
+    assert.deepEqual(narrow(checks, width).details.map(d => d.target).sort(),
+      ['#fee-descendant', '#fee-paragraph', '#labelled-fee', '#price-condition', '#price-descendant', '#price-inline']);
+  }
+  assert.equal(checks.passed, true); assert.deepEqual(checks.issues, []);
+});
+
+test('display contents preserves visible text in blocks and flex items, while true hidden text stays excluded', async () => {
+  const checks = await run(make(`
+    <div id="contents-container" class="narrow"><span style="display:contents">${zh}</span></div>
+    <div style="display:flex"><span style="display:contents"><p id="contents-flex" class="narrow">${zh}</p></span></div>
+    <div style="display:contents"><span style="display:contents"><p id="nested-contents" class="narrow">${zh}</p></span></div>
+    <p id="contents-wide"><span style="display:contents">${zh}</span></p>
+    <div style="display:none"><span style="display:contents">${zh}</span></div>
+    <div style="opacity:0"><p class="narrow"><span style="display:contents">${zh}</span></p></div>
+    <p class="narrow" style="visibility:hidden"><span style="display:contents">${zh}</span></p>
+    <details><summary>说明</summary><p class="narrow"><span style="display:contents">${zh}</span></p></details>`));
+  for (const width of [375, 768, 1440]) assert.deepEqual(narrow(checks, width).details.map(d => d.target).sort(),
+    ['#contents-container', '#contents-flex', '#nested-contents']);
+});
+
+test('CSS column fragments are separate lines, including inherited columns and column-width; normal prose stays whole', async () => {
+  const repeated = zh.repeat(3);
+  const checks = await run(make(`
+    <p id="columns" style="width:9em;column-count:2;column-gap:1em">${repeated}</p>
+    <div style="width:9em;column-count:2;column-gap:1em"><p id="inherited-columns">${repeated}</p></div>
+    <p id="column-width" style="width:9em;column-width:4em;column-gap:1em">${repeated}</p>
+    <p id="rtl-columns" style="width:9em;column-count:2;column-gap:1em;direction:rtl">${repeated}</p>
+    <p id="single" style="width:9em">${repeated}</p>
+    <div style="width:18em;column-count:2;column-gap:1em"><p id="spanning" style="column-span:all">${repeated}</p></div>`));
+  for (const width of [375, 768, 1440]) assert.deepEqual(narrow(checks, width).details.map(d => d.target).sort(),
+    ['#column-width', '#columns', '#inherited-columns', '#rtl-columns']);
+  assert.equal(checks.passed, true); assert.deepEqual(checks.issues, []);
 });
 
 test('the only commit entry stores narrow feedback without rejection, model calls or a repair run', async () => {

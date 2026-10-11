@@ -211,36 +211,70 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
   const proseBlock = (el: Element): Element => {
     for (let block: Element | null = el; block; block = block.parentElement) {
       const display = getComputedStyle(block).display;
+      if (display === 'contents') continue;
       const parentDisplay = block.parentElement ? getComputedStyle(block.parentElement).display : '';
       if (/^(block|flow-root|list-item|inline-block|inline-flex|inline-grid|flex|grid|table-caption)$/.test(display)
         || /^(inline-)?(flex|grid)$/.test(parentDisplay)) return block;
     }
     return document.body;
   };
+  const textRange = document.createRange();
+  const textVisible = (node: Text | HTMLBRElement) => {
+    const el = node.parentElement!;
+    if (getComputedStyle(el).visibility !== 'visible') return false;
+    for (let ancestor: Element | null = el; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor);
+      if (style.display === 'none' || style.contentVisibility === 'hidden' || Number(style.opacity) === 0) return false;
+      if (ancestor instanceof HTMLDetailsElement && !ancestor.open && !ancestor.querySelector(':scope > summary')?.contains(el)) return false;
+    }
+    // display:contents has no box; only the text Range establishes painted geometry.
+    textRange.selectNode(node);
+    return [...textRange.getClientRects()].some(r => r.height > 0 && (r.width > 0 || node instanceof HTMLBRElement));
+  };
+  // Only a complete monetary value is exempt, regardless of a price/fee marker.
+  // Labels, conditions and mixed price/prose paragraphs stay in the prose measurement.
+  const amount = '(?:[0-9][0-9,.]*|[零〇一二两三四五六七八九十百千万亿壹贰叁肆伍陆柒捌玖拾佰仟萬億]+)';
+  const currency = '(?:\\p{Sc}|[A-Z]{3}|人民币|元|圆|圓)';
+  const priceValue = new RegExp(`^(?:${currency}\\s*${amount}(?:\\s*${currency})?|${amount}\\s*${currency})(?:整|正)?$`, 'u');
   const prose = new Map<Element, Array<Text | HTMLBRElement>>();
   const proseWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   while (proseWalker.nextNode()) {
     const node = proseWalker.currentNode;
     if (!(node instanceof Text) && !(node instanceof HTMLBRElement)) continue;
     const el = node.parentElement!;
-    if (!visible(el)) continue;
-    if (el.closest('h1,h2,h3,h4,h5,h6,td,th,dt,nav,button,input,select,textarea,label,summary,[role=button],[role=navigation],[role=cell],[role=columnheader],[role=rowheader],[data-spec],[data-model],[data-sku],[data-parameter],[data-price],[data-fee],a[href^="mailto:"],a[href^="tel:"],[data-sitecraft-image-credits],[data-sitecraft-hero-credit],.sitecraft-product-image-credit,.sc-image-credits')) continue;
+    if (!textVisible(node)) continue;
+    if (el.closest('h1,h2,h3,h4,h5,h6,td,th,dt,nav,button,input,select,textarea,label,summary,[role=button],[role=navigation],[role=cell],[role=columnheader],[role=rowheader],[data-spec],[data-model],[data-sku],[data-parameter],a[href^="mailto:"],a[href^="tel:"],[data-sitecraft-image-credits],[data-sitecraft-hero-credit],.sitecraft-product-image-credit,.sc-image-credits')) continue;
     const slot = el.closest('[data-sitecraft-slot]')?.getAttribute('data-sitecraft-slot') || '';
-    if (/(?:spec|sku|model|email|phone|quantity|status)/i.test(slot) || /(?:^|[._-])(?:price|fee)(?:[._-]|$)/i.test(slot)) continue;
+    if (/(?:spec|sku|model|email|phone|quantity|status)/i.test(slot)) continue;
     const block = proseBlock(el);
-    if (block.matches('a') || !visible(block)) continue;
+    if (block.matches('a')) continue;
     prose.set(block, [...(prose.get(block) || []), node]);
   }
-  const textRange = document.createRange();
   for (const [block, nodes] of prose) {
     const text = nodes.map(node => node instanceof Text ? node.data : '\n').join('');
+    if (priceValue.test(text.trim().normalize('NFKC'))) continue;
     const han = text.match(/\p{Script=Han}/gu)?.length || 0;
     const words = text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length || 0;
     if ((han || words) < 8) continue;
     // Han establishes prose eligibility; numbers/punctuation still occupy its lines.
     // Match the existing Chinese line-length character unit to avoid sparse Han in time/price text.
     const count = han ? Array.from(text.replace(/\s/g, '')).length : words;
-    const lines: Array<{ top: number; bottom: number }> = [];
+    // A multicolumn owner can be this paragraph or an ancestor. Resolve its used
+    // column stride before merging line boxes; equal y coordinates do not imply one line.
+    let columns: { left: number; stride: number } | undefined;
+    for (let owner: Element | null = block; owner; owner = owner.parentElement) {
+      const style = getComputedStyle(owner);
+      if (style.columnSpan === 'all') break;
+      const specifiedCount = parseInt(style.columnCount, 10), specifiedWidth = parseFloat(style.columnWidth);
+      if (!(specifiedCount > 1 || specifiedWidth > 0)) continue;
+      const gap = style.columnGap === 'normal' ? parseFloat(style.fontSize) : parseFloat(style.columnGap);
+      const width = owner.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const fitting = specifiedWidth > 0 ? Math.max(1, Math.floor((width + gap) / (specifiedWidth + gap))) : specifiedCount;
+      const count = specifiedCount > 0 ? Math.min(specifiedCount, fitting) : fitting;
+      if (count > 1) columns = { left: owner.getBoundingClientRect().left + owner.clientLeft + parseFloat(style.paddingLeft), stride: (width + gap) / count };
+      break;
+    }
+    const lines: Array<{ top: number; bottom: number; column: number }> = [];
     for (const node of nodes.filter((node): node is Text => node instanceof Text)) for (let index = 0; index < node.data.length;) {
       const char = String.fromCodePoint(node.data.codePointAt(index)!);
       const end = index + char.length;
@@ -249,9 +283,10 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
         for (const rect of textRange.getClientRects()) {
           if (rect.width <= 0 || rect.height <= 0) continue;
           // Inline emphasis can change glyph height without creating another line.
-          const line = lines.find(line => Math.min(line.bottom, rect.bottom) - Math.max(line.top, rect.top)
+          const column = columns ? Math.floor(((rect.left + rect.right) / 2 - columns.left) / columns.stride) : 0;
+          const line = lines.find(line => line.column === column && Math.min(line.bottom, rect.bottom) - Math.max(line.top, rect.top)
             > Math.min(line.bottom - line.top, rect.height) / 2);
-          if (!line) lines.push({ top: rect.top, bottom: rect.bottom });
+          if (!line) lines.push({ top: rect.top, bottom: rect.bottom, column });
         }
       }
       index = end;

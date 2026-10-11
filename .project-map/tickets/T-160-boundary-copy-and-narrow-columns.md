@@ -33,6 +33,8 @@ T-158 三站盲评（餐饮、培训、工业各一，真实感 5–6/10）共�
 
 ## 离线验收合同（实现前固定）
 
+主控转达 Astra 对 `66a3054` 的 NO_GO 后，本次仍由 Codex (t160-build) 处理三类 P2；先在该提交复现，再做一个新的本地提交，不关票。新增失效方式：价格语义不能豁免容器/混合段落的说明正文，纯价格值仍豁免；`display:contents` 无盒不等于文字不可见，真正隐藏/折叠仍排除；CSS 多栏的分栏片段不能因纵坐标相同合成一行。保持原中英文阈值与质量反馈口径。配对用例通过真实 `checkSiteCode`，并直接重跑 Astra 交付的 `reproduce.mjs`；本次不改资料、核心规范、生成流程或阈值。
+
 目标是减少写作约束混入事实，以及记录碎行正文；不改生成路线、存版门槛、待补充政策，也不调用真实模型。**Ubiquitous language**：统一称「过窄文字列」，字段 `narrowColumns`。**Tracer bullet**：真实 Chrome → 提交入口 → 已保存版本 → 评估统计先贯通。**Deep modules**：沿用现有质量反馈入口，不增设平行检查 API。
 
 失效方式与阈值：
@@ -48,7 +50,7 @@ T-158 三站盲评（餐饮、培训、工业各一，真实感 5–6/10）共�
 
 ## Resolution
 
-2026-10-11，Codex (t160-build)：**PASS（本次授权的离线范围）**。整票保持 open；真实重生成、用量与成对盲评仍为 NOT_RUN，须主控另行批准预算。本次没有载入 `.env.local` 或调用真实模型，没有读写主工作区 `.sitecraft-data`；只读取 T-158 `artifacts/t158/real-20261011T123145Z/private/case-{1,2,3}/` 的快照和登记图片，副本在本 worktree `.sitecraft-data`。一张票一个本地提交、不推送；对应最终提交号与命令退出状态见 gitignore 的 `artifacts/t160/verification.json`。
+2026-10-11，Codex (t160-build)：**PASS（本次授权的离线范围）**。整票保持 open；真实重生成、用量与成对盲评仍为 NOT_RUN，须主控另行批准预算。本次没有载入 `.env.local` 或调用真实模型，没有读写主工作区 `.sitecraft-data`；只读取 T-158 `artifacts/t158/real-20261011T123145Z/private/case-{1,2,3}/` 的快照和登记图片，副本在本 worktree `.sitecraft-data`。一张票一个本地提交、不推送；对应本次新提交号与命令退出状态见 gitignore 的 `artifacts/t160/astra-fix/verification.json`。
 
 ### 资料拆分对照
 
@@ -70,16 +72,23 @@ T-158 三站盲评（餐饮、培训、工业各一，真实感 5–6/10）共�
 
 核心规范替换同义旧句为：「资料里的边界与否定用于约束不写什么；对访客有用的限制用公司口吻在相关位置说一次，不逐条罗列，不把页面要求、建站指令与图片使用要求写进页面。」没有新增行业例外。mainline、spec、CONTEXT 及 AGENTS 的质量反馈清单同步。
 
-`narrowColumns` 复用提交入口的质量反馈，保存数量、文字、DOM 定位和平均字/词数，评估按项统计触发和已测分母。正文按最近块级/独立排版容器分别计算，不把相邻列合并；caption 与 dd 保留，表格单元格、标题、控件、导航、声明参数及短文案等排除。为避免底线检查展开内容后把隐藏正文计入，新反馈先测实际可见内容，再执行原有展开核对。阈值见上面的离线合同。独立验收实例另外发现长价格字段未豁免（P2），且原短价格样本不能证明该分支；`price-red.log` 用外部反例复现 7≠3 后，增加 price/fee 槽位及 data-price/data-fee 的显式语义豁免，相关 31/31 通过。原审查 FAIL 保留在 `acceptance-review.txt`，修复后未再次独立审查，交主控复核。无新拒因或修正轮；旧记录无新字段表示未测。
+`narrowColumns` 复用提交入口的质量反馈，保存数量、文字、DOM 定位和平均字/词数，评估按项统计触发和已测分母；阈值保持不变。`66a3054` 的独立 Astra 结论为 NO_GO，原复现及失败日志保留在 `artifacts/t160-review-20261011/`；本次按三类 P2 一起修复：
+
+- **价格范围**：取消 price/fee 及 data-price/data-fee 的祖先豁免。只在独立正文块的完整文字匹配金额格式时豁免纯价格值；带标签、条件、说明或正文后代的价格容器照常测量。纯价格（含内联强调）、同段价格加说明、容器后代正文、价格后附收费条件均有配对反例；旧测试把「课程学费每期…」当价格值的预期已按主控标准修正。
+- **文字可见性**：按实际文字 Range 的矩形和祖先 display/opacity/content-visibility/折叠状态判定，保留 visibility 的实际继承结果；`display:contents` 没有盒子不会再丢弃文字，也不充当独立排版容器。嵌套 contents、flex 内 contents、正常宽度和真正隐藏内容成对测试。
+- **多栏行计量**：找到正文自身或祖先的 CSS 多栏容器，按 column-count/column-width、内边距和列间距区分分栏片段，再在各列内合并同一行。覆盖直接多栏、祖先多栏、column-width、RTL，以及单栏和 column-span:all 对照，不再仅用相同纵坐标合行。
+
+正文仍按最近块级/独立排版容器分组；caption 与 dd 保留，表格单元格、标题、控件、导航、声明参数及短文案等排除。测量先于底线核对展开隐藏内容；没有新增拒因、修正轮或存版旁路。`tests/t160-narrow-columns.test.ts` 已进入默认 `npm test`，AGENTS 登记三类自动回归检查，防止再次用短价格或单一布局样本证明整类豁免。mainline、spec、CONTEXT 同步当前规则。
 
 ### 本次证据
 
-所有命令在此 worktree，公共环境为 `SITECRAFT_BASE=http://127.0.0.1:3188 SITE_STORE=fs CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。以下 UTC 时间均为 2026-10-11。本地提交前候选以父提交 `2c4bb92` 加本票 diff 标识；最终 SHA 写入上述 verification 文件，未在检查后改变产品代码。
+所有命令在此 worktree，公共环境为 `SITECRAFT_BASE=http://127.0.0.1:3188 SITE_STORE=fs CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。以下 UTC 时间均为 2026-10-11；本次日志统一在 `artifacts/t160/astra-fix/`，最终 SHA 写入同目录 verification 文件。`66a3054` 是本次已知坏父提交，不是修复后的验收版本。
 
-- 15:58:32：`node --test --experimental-strip-types tests/t160-materials.test.ts tests/t160-narrow-columns.test.ts` 对父提交四个行为文件执行，**6/6 预期失败**，退出 1；失败为资料指令仍混入事实、新反馈及汇总不存在。只在内存保存本票文件后临时读取父版本，结束即还原；`parent-price-final-red.log` 保留结果。`mixed-text-red-2.log` 和 `hidden-red.log` 分别保留混合数字/inline 空格、隐藏折叠内容的修复前反例。
-- 15:58:21：`node --test --experimental-strip-types tests/t160-*.test.ts tests/t147-code-quality.test.ts tests/simulated-packs.test.ts tests/t157-*.test.ts tests/t158-general-prompts.test.ts`，**31/31 PASS**（`focused-price-green.log`）。父版本反证后恢复相同产品代码，再跑以下全量验证。
-- 15:58–16:01：`npm run typecheck`、`npm test`、`npm run build` 均退出 0；**414/414 测试通过，无跳过**。日志分别为 `typecheck-final.log`、`test-final.log`、`build-final.log`。UTF-8/LF、无替换字符与 `git diff --check` 检查通过；project-map status 无问题、无过时 living doc。
-- 15:58：`node --experimental-strip-types artifacts/t160/replay.ts artifacts/t160/offline-price-final --checks-only`：价格豁免修复后 3 站 × 2 页 × 3 视口重新走 `checkSiteCode`，**18/18 已测，硬拒因 0，模型调用 0**。最终结果与统计在 `offline-price-final/`。原快照只读重测，不存版本、不修页面；脚本对培训指定句和工业需求/边界做直接断言。15:52 对同一批不可变快照用 `node --experimental-strip-types artifacts/t160/replay.ts artifacts/t160/offline-final-3` 调用既有 `captureEvalPage`，完整截图及索引在 `offline-final-3/`；9 张三档截图逐张打开，内容已载入，静态渲染器和快照代码未改。早期区域截图不作为完整页面证据，`offline-final-2.log` 的预览 CSP 帧回调超时保留，不作为产品通过证据。
+- 16:10：不改 Astra 的输入或脚本，执行 `node --experimental-strip-types artifacts/t160-review-20261011/reproduce.mjs`，**预期退出 1**；375/768/1440 均遗漏 fee-paragraph、fee-descendant、contents-container、columns（`reproduction-red.log`）。16:16 对最终实现执行同一命令，**退出 0，三档 missing 均为空**（`reproduction-final-green.log`）；脚本生成的 JSON 仍硬编码 candidate=66a3054，真实候选由本票 diff 和 verification 文件标识。
+- 16:14:38：`node --test --experimental-strip-types tests/t160-narrow-columns.test.ts` 对 `66a3054` 的 `lib/code-site-check.ts` 执行，**5 PASS / 新增三类测试全部 FAIL**，退出 1（`parent-final-red.log`）；只在内存保留本票文件、临时读取父版本，结束即还原。当前实现已通过同一测试。`price-condition-red.log` 另保留金额后附条件的中间红灯，修法为只匹配完整金额，不泛接受斜杠后的任意文案。
+- 16:14:11：`node --test --experimental-strip-types tests/t160-*.test.ts tests/t147-code-quality.test.ts`，**23/23 PASS**（`focused-final.log`），包含资料拆分、价格/可见性/多栏配对、真实存版仍通过且无拒因/修正、评估未测分母及 T-147 原有五项反馈。
+- 16:15–16:17：最终 `npm run typecheck`、`npm test`、`npm run build` 均退出 0；**417/417 测试通过，无跳过**。日志为 `typecheck-final.log`、`test.log`、`build.log`，退出状态与最终提交号写入 verification 文件。UTF-8/LF、无替换字符与 `git diff --check` 检查通过；project-map status 无问题、无过时 living doc。
+- 16:15：`node --experimental-strip-types artifacts/t160/replay.ts artifacts/t160/astra-fix/offline-final --checks-only` 对最终代码重跑三站，**18/18 已测、硬拒因 0、模型调用 0**。结果与统计在 `offline-final/`。本次 `node --experimental-strip-types artifacts/t160/replay.ts artifacts/t160/astra-fix/offline` 另保存 9 张整页截图，均逐张打开、内容完整载入，静态渲染器和快照代码未改。原复现脚本本次生成的图片也已打开；16:12 的中间空白截图保留但不作证据，最终 16:15 复现截图正常。旧证据保持原样，没有改写或覆盖。
 
 | 站点 | 375 | 768 | 1440 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -87,4 +96,4 @@ T-158 三站盲评（餐饮、培训、工业各一，真实感 5–6/10）共�
 | 培训课程页 | 1 | 1 | 0 | 「学费按完整一期收取，不按单次课拆售。」18 个非空白字符 / 9 行 = 2 字/行；首页三档均 0 |
 | 餐饮首页与菜单 | 0 | 0 | 0 | 首轮营业时间误报已以通用混合数字规则修复；原结果 `offline-1/` 保留 |
 
-合计 2/3 站触发、19 个页面/视口实例；未对新生成页面或审美作通过判断。主控后续只需决定何时批准真实重生成和成对盲评预算，本次不请求或消耗预算。
+本次重新运行仍为 2/3 站触发、19 个页面/视口实例，与 66a3054 的三站结果相同；不是沿用旧结果。三条 Astra 反例已红绿验证，修复后的代码待主控独立复核；真实重生成和成对盲评预算仍由主控决定，本次不请求或消耗预算，也不宣布审美通过。
