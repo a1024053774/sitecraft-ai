@@ -6,11 +6,13 @@ import path from 'node:path';
 // Load known-bad code in this test process only. The working tree and concurrent
 // checks remain untouched, and every mutant must fail the unchanged contract.
 const mode = process.env.T154_MUTANT;
-if (!['parent', 'headers', 'materials', 'ids'].includes(mode ?? '')) throw new Error('Set T154_MUTANT to a named counterfactual');
+if (!['parent', 'review-base', 'headers', 'materials', 'ids'].includes(mode ?? '')) throw new Error('Set T154_MUTANT to a named counterfactual');
 registerHooks({ load(url, context, next) {
   const loaded = next(url, context);
   if (!url.startsWith('file:')) return loaded;
   const file = path.relative(process.cwd(), fileURLToPath(url));
+  if (mode === 'review-base' && ['lib/code-site-check.ts', 'lib/code-site-model.ts', 'lib/code-site-fact-segments.ts'].includes(file))
+    return { ...loaded, source: execFileSync('git', ['show', `81c976b:${file}`], { encoding: 'utf8' }) };
   if (mode === 'parent' && ['lib/code-site-check.ts', 'lib/code-site-model.ts', 'lib/code-site-store.ts', 'lib/code-site.ts'].includes(file))
     return { ...loaded, source: execFileSync('git', ['show', `2bccc24:${file}`], { encoding: 'utf8' }) };
   if (file !== 'lib/code-site-fact-segments.ts' && file !== 'lib/code-site-model.ts') return loaded;

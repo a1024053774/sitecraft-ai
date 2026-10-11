@@ -182,3 +182,92 @@ test('merged-cell changes invalidate table semantics even when all words are unc
   assert.equal(requests.length, before + 1, 'different header association must not use a text-only receipt');
   assert.ok(input().segments.some((s: any) => s.text.includes('12 天')));
 });
+
+// Follow-up Astra findings: deleting a sibling condition must invalidate the
+// surviving facts; additions/reordering invalidate the same complete group.
+// Source-only whitespace must not shift live node mapping or hide boundary text.
+const conditionRow = '<tr><th>起算条件</th><td>样品确认后</td></tr>';
+const deliveryRow = '<tr><th>交期</th><td>12 天</td></tr>';
+const groupCode = (body: string): SiteCode => ({ ...code, pages: [{ id: 'home', title: '纸品', html: `<main><h1>同源纸品</h1><section><h2>普通纸盒</h2>${body}</section><section><h2>纸袋</h2><p title="纸袋说明">纸袋</p></section></main>` }] });
+for (const [name, nextRows] of [
+  ['deleting a condition row', deliveryRow],
+  ['adding a row', deliveryRow + conditionRow + '<tr><th>起订量</th><td>12 件</td></tr>'],
+  ['reordering rows', conditionRow + deliveryRow],
+] as const) test(`whole group is re-audited after ${name}`, async () => {
+  const id = await setup();
+  applied(await commit(id, 0, groupCode(`<table><tbody>${deliveryRow + conditionRow}</tbody></table>`)));
+  const before = requests.length;
+  const second = applied(await commit(id, 1, groupCode(`<table><tbody>${nextRows}</tbody></table>`)));
+  assert.equal(requests.length, before + 1, 'the surviving delivery claim must be audited again');
+  const texts: string[] = input().segments.map((s: any) => s.text);
+  assert.ok(texts.some(text => text.includes('12 天')), 'unchanged delivery row is part of the changed group');
+  if (nextRows.includes('样品确认后')) assert.ok(texts.some(text => text.includes('样品确认后')));
+  assert.ok(texts.some(text => text.includes('普通纸盒') && !text.includes('12 天')), 'the section heading also belongs to the changed group');
+  assert.ok(!texts.some(text => text.includes('纸袋说明')), 'the independent section stays reusable');
+  assert.ok(second.checks.factSegments.reused > 0);
+});
+
+test('whole group is re-audited after deleting a list item containing its own subsection', async () => {
+  const firstItem = '<li><section><h3>交期</h3><p>12 天</p></section></li>';
+  const conditionItem = '<li><section><h3>起算条件</h3><p>样品确认后</p></section></li>';
+  const id = await setup();
+  applied(await commit(id, 0, groupCode(`<ul>${firstItem + conditionItem}</ul>`)));
+  const before = requests.length;
+  applied(await commit(id, 1, groupCode(`<ul>${firstItem}</ul>`)));
+  assert.equal(requests.length, before + 1);
+  assert.ok(input().segments.some((s: any) => s.text.includes('12 天')), 'remaining list item must be re-audited');
+  assert.ok(!input().segments.some((s: any) => s.text.includes('纸袋说明')));
+});
+
+for (const location of ['page-leading', 'page-trailing', 'footer-leading', 'footer-trailing', 'all-boundaries', 'adjacent-text'] as const)
+  test(`fragment boundaries preserve ${location} whitespace and authored copy`, async () => {
+    const id = await setup();
+    const base: SiteCode = { ...code, header: '<header>同源纸品</header>', footer: '<footer>纸盒与纸袋</footer>' };
+    const first = applied(await commit(id, 0, base));
+    const next = structuredClone(base);
+    if (location === 'page-leading' || location === 'all-boundaries') next.pages[0].html = '\n \t' + next.pages[0].html;
+    if (location === 'page-trailing' || location === 'all-boundaries') next.pages[0].html += '\n \t';
+    if (location === 'footer-leading' || location === 'all-boundaries') next.footer = '\n \t' + next.footer;
+    if (location === 'footer-trailing' || location === 'all-boundaries') next.footer += '\n \t';
+    if (location === 'all-boundaries') next.header = '\n \t' + next.header + '\n \t';
+    if (location === 'adjacent-text') {
+      next.header += '页头尾文案'; next.pages[0].html = '页面前文案' + next.pages[0].html + '页面尾文案';
+      next.footer = '页脚前文案' + next.footer;
+    }
+    const before = requests.length, second = applied(await commit(id, 1, next));
+    assert.deepEqual(second.checks.viewports.map((v: any) => v.width), [375, 768, 1440]);
+    if (location === 'adjacent-text') {
+      const text = input().segments.map((s: any) => s.text).join('\n');
+      for (const copy of ['页头尾文案', '页面前文案', '页面尾文案', '页脚前文案']) assert.ok(text.includes(copy), copy);
+    } else {
+      assert.equal(requests.length, before, 'boundary whitespace leaves the readable groups unchanged');
+      assert.equal(second.checks.factSegments.reused, first.checks.factSegments.segments.length);
+    }
+  });
+
+test('partially accepted groups retain all conditions and cannot combine partial passes across attempts', async () => {
+  const id = await setup(), now = new Date().toISOString();
+  const candidate = groupCode(`<table><tbody>${deliveryRow + conditionRow}</tbody></table>`);
+  await updateCodeSite(id, () => ({ run: { id: 'group-repair-test', kind: 'generate', status: 'running', request: '', baseRevision: 0, startedAt: now, updatedAt: now, step: '检查', repairRound: 0, issues: [], attempts: [] } }));
+  try {
+    rejectText = '12 天';
+    const first = await commit(id, 0, candidate);
+    assert.equal(first.status, 'rejected'); if (first.status !== 'rejected') throw new Error('Expected rejection');
+    await updateCodeSite(id, site => ({ run: { ...site.run!, attempts: [{ code: candidate, checks: first.checks }] } }));
+    const second = await commit(id, 0, candidate);
+    assert.equal(second.status, 'rejected');
+    assert.ok(input().segments.some((s: any) => s.text.includes('样品确认后')), 'page conditions must remain in the re-audit input, not only in source materials');
+    const groupId = input().segments.find((s: any) => s.text.includes('12 天')).groupId;
+    assert.equal(input().segments.find((s: any) => s.text.includes('样品确认后')).groupId, groupId);
+    rejectText = '样品确认后';
+    const complementary = await commit(id, 0, candidate);
+    assert.equal(complementary.status, 'rejected'); if (complementary.status !== 'rejected') throw new Error('Expected rejection');
+    await updateCodeSite(id, site => ({ run: { ...site.run!, attempts: [...site.run!.attempts, { code: candidate, checks: complementary.checks }] } }));
+    rejectText = '';
+    const before = requests.length;
+    applied(await commit(id, 0, candidate));
+    assert.equal(requests.length, before + 1, 'no single prior attempt passed this complete group');
+    assert.ok(input().segments.some((s: any) => s.text.includes('12 天')));
+    assert.ok(input().segments.some((s: any) => s.text.includes('样品确认后')));
+  } finally { rejectText = ''; }
+});

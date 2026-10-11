@@ -1,18 +1,18 @@
 import type { SiteCode } from './code-site.ts';
 
-export type CodeFactSegment = { text: string; context: { pageId: string; outline: string[]; headings: string[] } };
+export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] } };
 export type CodeFactReview = {
-  format: 1; materials: string; sourceMaterials: string; audited: number; reused: number;
-  segments: Array<{ text: string; issues: string[] }>;
+  format: 2; materials: string; sourceMaterials: string; audited: number; reused: number;
+  segments: Array<{ text: string; group: string; issues: string[] }>;
 };
 
 // Runs in the rendered candidate at each checked width. Segment identity is
 // readable text plus its semantic conditions, never DOM offsets or a digest.
 export function readCodeFactSegments(code: SiteCode, pageId: string): CodeFactSegment[] {
   const page = code.pages.find(page => page.id === pageId)!;
-  const fragment = (html: string) => new DOMParser().parseFromString(html, 'text/html').body;
+  const fragment = (html: string) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
   const parts = [fragment(code.header), fragment(page.html), fragment(code.footer)];
-  const nodes = [...document.body.childNodes];
+  const nodes = [...document.body.children];
   let offset = 0;
   const result: CodeFactSegment[] = [];
   const strings = (value: string) => [...value.matchAll(/"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g)]
@@ -46,10 +46,15 @@ export function readCodeFactSegments(code: SiteCode, pageId: string): CodeFactSe
   };
   const documentConditions = [own(document.documentElement), own(document.body)].filter(Boolean).join('\n');
   for (const [index, part] of parts.entries()) {
-    const roots = nodes.slice(offset, offset + part.childNodes.length); offset += part.childNodes.length;
-    // Rendering expands only the inside of system components. Top-level source
-    // nodes must still correspond; an uncertain mapping is never reusable.
-    if (roots.length !== part.childNodes.length || roots.some((node, i) => node.nodeName !== part.childNodes[i].nodeName)) throw new Error('核对段无法定位页面内容，本次未保存版本。');
+    // Body-context parsing preserves leading text. Adjacent text nodes may
+    // merge across fragments in the live DOM, so match elements in order and
+    // read text nodes from their cleaned source fragment, never count whitespace.
+    const roots = [...part.childNodes].map(node => {
+      if (!(node instanceof Element)) return node;
+      const live = nodes[offset++];
+      if (!live || live.nodeName !== node.nodeName) throw new Error('核对段无法定位页面内容，本次未保存版本。');
+      return live;
+    });
     const elements = roots.flatMap(node => node instanceof Element ? [node, ...node.querySelectorAll('*')] : []);
     const scope = index === 0 ? '公共页头' : index === 2 ? '公共页脚' : `页面 ${pageId}：${page.title}`;
     const outline = elements.filter(el => el.matches(heading)).map(el => read(el).trim());
@@ -62,6 +67,19 @@ export function readCodeFactSegments(code: SiteCode, pageId: string): CodeFactSe
       return parent && elements.includes(parent) ? parent : null;
     };
     const prose = (group: Element | null) => (group ? [group] : roots).map(node => read(node, el => el !== group && (el.matches(containers) || el.matches(atomic)))).join('').trim();
+    const groupText = (node: Element | null) => {
+      // Nested sections inside a list/dl or headed section share the outer
+      // group's ordered content. Deleting a sibling must change every receipt.
+      let whole = node;
+      for (let parent = node?.parentElement; parent && elements.includes(parent); parent = parent.parentElement) {
+        if (parent.matches('section,article,ul,ol,dl,table')) whole = parent;
+      }
+      const parents: Element[] = [];
+      for (let parent = whole ? owner(whole) : null; parent; parent = owner(parent)) parents.unshift(parent);
+      const body = (whole ? [whole] : roots).map(root => read(root,
+        el => (whole === null || whole.tagName === 'MAIN') && el !== whole && el.matches(containers))).join('').trim();
+      return [scope, documentConditions, ...(whole ? [prose(null), ...parents.map(prose)] : []), body].filter(Boolean).join('\n');
+    };
     for (const group of groups) {
       const ancestors: Element[] = [];
       for (let p = group ? owner(group) : null; p; p = owner(p)) ancestors.unshift(p);
@@ -69,28 +87,36 @@ export function readCodeFactSegments(code: SiteCode, pageId: string): CodeFactSe
       const conditions = prose(group);
       const nearby = (group ? [group, ...group.querySelectorAll(heading)] : elements.filter(el => el.matches(heading)))
         .filter(el => el.matches(heading)).map(el => read(el).trim());
-      const add = (body: string) => { if (body.trim()) result.push({ text: `${prefix}\n${body}`, context: { pageId: index === 1 ? pageId : scope, outline, headings: nearby } }); };
+      const add = (body: string, container = group) => { if (body.trim()) result.push({ text: `${prefix}\n${body}`, group: groupText(container), context: { pageId: index === 1 ? pageId : scope, outline, headings: nearby } }); };
       if (conditions) add(conditions);
       for (const structure of elements.filter(el => el.matches(atomic) && owner(el) === group && !el.parentElement?.closest(atomic))) {
         if (structure.querySelector('[rowspan],[colspan]')) {
-          add([conditions, read(structure).trim()].filter(Boolean).join('\n')); continue;
+          add([conditions, read(structure).trim()].filter(Boolean).join('\n'), structure); continue;
         }
         // A simple table is read by row with all column headings/caption.
         // Spanned tables above stay whole rather than guessing associations.
         const headers = [...structure.querySelectorAll('caption,thead,tr')].filter(el => el.tagName !== 'TR' || (!el.closest('thead') && !el.querySelector('td')));
         const labels = [read(structure, el => el !== structure && el.tagName === 'TR').trim(), ...new Set(headers.map(el => read(el).trim()))].filter(Boolean).join('\n');
         const rows = [...structure.querySelectorAll('tr')].filter(el => el.querySelector('td'));
-        if (!rows.length) add([conditions, read(structure).trim()].filter(Boolean).join('\n'));
-        else for (const row of rows) add([conditions, own(structure), labels, read(row).trim()].filter(Boolean).join('\n'));
+        if (!rows.length) add([conditions, read(structure).trim()].filter(Boolean).join('\n'), structure);
+        else for (const row of rows) add([conditions, own(structure), labels, read(row).trim()].filter(Boolean).join('\n'), structure);
       }
     }
-    if (index === 1) result.push({ text: `${scope}\n页面标题：${page.title}`, context: { pageId, outline, headings: [] } });
+    if (index === 1) result.push({ text: `${scope}\n页面标题：${page.title}`, group: `${scope}\n页面标题：${page.title}`, context: { pageId, outline, headings: [] } });
   }
   return result;
 }
 
 export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: string, reviews: CodeFactReview[], sourceMaterials = materials) {
-  const accepted = new Set(reviews.filter(review => review.format === 1 && review.materials === materials && review.sourceMaterials === sourceMaterials)
-    .flatMap(review => review.segments.filter(segment => !segment.issues.length).map(segment => segment.text)));
-  return { pending: segments.filter(segment => !accepted.has(segment.text)), reused: segments.filter(segment => accepted.has(segment.text)) };
+  const eligible = reviews.filter(review => review.format === 2 && review.materials === materials && review.sourceMaterials === sourceMaterials);
+  const groups = new Map<string, CodeFactSegment[]>();
+  for (const segment of segments) groups.set(segment.group, [...(groups.get(segment.group) ?? []), segment]);
+  const accepted = new Set([...groups].filter(([group, members]) => eligible.some(review => {
+    const before = review.segments.filter(segment => segment.group === group);
+    // One complete successful review must cover the group. Mixing partial
+    // passes across attempts can suppress a condition that another row needs.
+    return before.length === members.length && before.every(segment => !segment.issues.length)
+      && members.every(segment => before.some(previous => previous.text === segment.text));
+  })).map(([group]) => group));
+  return { pending: segments.filter(segment => !accepted.has(segment.group)), reused: segments.filter(segment => accepted.has(segment.group)) };
 }

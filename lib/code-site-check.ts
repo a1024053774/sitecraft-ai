@@ -444,7 +444,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         if (!args.localEdit || args.localEdit.target.pageId === page.id) for (const entry of layout.generatedText) generatedText.add(entry.text);
         if (!args.localEdit && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
           const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)})`);
-          for (const segment of segments) factSegments.set(segment.text, segment);
+          for (const segment of segments) factSegments.set(JSON.stringify([segment.group, segment.text]), segment);
         }
         if (args.translationSource) {
           const before = new Map(originalGenerated.map(entry => [entry.key, entry.text]));
@@ -482,12 +482,12 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         // even when every remaining content segment was previously accepted.
         if (args.companyName) {
           const text = `站点公司名检查（系统观察）：记录公司名「${args.companyName}」，完整名称${readable.includes(args.companyName) ? '已出现' : '未出现'}。`;
-          factSegments.set(text, { text, context: { pageId: 'site', outline: [], headings: [] } });
+          factSegments.set(text, { text, group: text, context: { pageId: 'site', outline: [], headings: [] } });
         }
         const { pending, reused } = pendingCodeFactSegments([...factSegments.values()], args.materials, args.factReviews ?? [], args.factSourceMaterials ?? args.materials);
         const reviewed = pending.length ? await auditCodeFacts(args.materials, pending) : [];
-        checks.factSegments = { format: 1, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? args.materials, audited: pending.length, reused: reused.length,
-          segments: [...reviewed, ...reused.map(segment => ({ text: segment.text, issues: [] }))] };
+        checks.factSegments = { format: 2, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? args.materials, audited: pending.length, reused: reused.length,
+          segments: [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [] }))] };
         checks.issues.push(...new Set(reviewed.flatMap(segment => segment.issues)));
       }
     }
