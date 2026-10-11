@@ -58,9 +58,9 @@ test('local provider propagates unseen company and tail facts through its HTTP e
       child.on('exit', code => { clearTimeout(timeout); reject(new Error(`Local provider exited: ${code}`)); });
     });
     const receipts: unknown[] = [];
-    for (const name of ['杏里小馆', '柳岸画室']) {
+    for (const [name, title, pageId] of [['杏里小馆', '菜单', 'menu'], ['柳岸画室', '课程', 'courses'], ['青石精密', '产品', 'products']]) {
       const sentinel = `尾部-${crypto.randomUUID()}<保留边界>`;
-      const material = `资料性质：模拟。\n公司名：${name}\n公司简介：按资料展示业务。\n沿革：只陈述已有资料。\n尾部事实：${sentinel}\n页面要求：只生成首页（home）、菜单（menu）两个独立页面。`;
+      const material = `资料性质：模拟。\n公司名：${name}\n公司简介：按资料展示业务。\n沿革：只陈述已有资料。\n尾部事实：${sentinel}\n页面要求：只生成首页（home）、${title}（${pageId}）两个独立页面。`;
       const request = async (body: unknown) => {
         const response = await fetch(endpoint + '/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
         assert.equal(response.status, 200);
@@ -69,7 +69,7 @@ test('local provider propagates unseen company and tail facts through its HTTP e
       const planning = await request({ tools: [{ function: { name: 'submit_page_plan' } }], messages: [{ content: '规划合同' }, { content: `${material}\nstyle 必须填 documentary` }] });
       const plan = JSON.parse(planning.choices[0].message.tool_calls[0].function.arguments);
       assert.ok(plan.summary.includes(name));
-      assert.deepEqual(plan.pages.map((page: { id: string }) => page.id), ['home', 'menu']);
+      assert.deepEqual(plan.pages.map((page: { id: string }) => page.id), ['home', pageId]);
       const writing = await request({ messages: [{ content: '写页合同' }, { content: `${material}\n已确认页面大纲（不能作为新增事实来源，冲突时以资料为准）：${JSON.stringify(plan)}\n本次要求：保留资料` }] });
       const code = JSON.parse(writing.choices[0].message.content);
       assert.ok(code.header.includes(name));

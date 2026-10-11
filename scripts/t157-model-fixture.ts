@@ -29,9 +29,9 @@ const server = createServer(async (req, res) => {
     let purpose: string, answer: unknown;
     if (body.tools?.[0]?.function.name === 'submit_page_plan') {
       purpose = 'plan';
-      const pages = [...user.matchAll(/(首页|菜单|课程|作品)（([a-z]+)）/g)].slice(0, 2).map(match => ({ id: match[2], title: match[1], outline: ['按所提供的资料安排内容并保留缺口'] }));
+      const pages = [...user.matchAll(/(首页|产品|菜单|课程|作品)（([a-z]+)）/g)].slice(0, 2).map(match => ({ id: match[2], title: match[1], outline: ['按所提供的资料安排内容并保留缺口'] }));
       assert.equal(pages.length, 2, 'The fixture requires an explicit two-page request');
-      answer = { summary: `展示${company}的现有资料与服务边界。`, style: user.match(/style 必须填 ([a-z]+)/)?.[1], styleReason: '沿用用户已选择的风格。', skeletonId: 'custom', skeletonReason: '先介绍机构，再整理菜单、课程或作品记录；不采用参数目录顺序。', pages };
+      answer = { summary: `展示${company}的现有资料与服务边界。`, style: user.match(/style 必须填 ([a-z]+)/)?.[1], styleReason: '沿用用户已选择的风格。', skeletonId: 'custom', skeletonReason: '先介绍机构，再按资料整理业务内容。', pages };
     } else if (system.includes('事实校对员')) {
       purpose = 'facts'; answer = { issues: [] }; // Protocol only; no semantic audit claim.
     } else if (user.includes('已确认页面大纲（不能作为新增事实来源')) {
