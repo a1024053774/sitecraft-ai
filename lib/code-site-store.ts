@@ -177,7 +177,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (args.restoreVersionId && !restore) throw new Error('找不到要恢复的版本');
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
-    const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request);
+    const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, !!args.selectedTarget);
     if (args.selectedTarget && (!current || args.selectedTarget.versionId !== current.id || restore)) throw new Error('锚点版本已改变，请重新点选。');
     const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images,
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget } } : {}) });

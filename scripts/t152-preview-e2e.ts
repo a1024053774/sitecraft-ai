@@ -6,7 +6,8 @@ const base = process.env.SITECRAFT_BASE;
 assert.equal(base, 'http://127.0.0.1:3164', 'T-152 must only use its assigned workspace');
 const id = process.env.T152_SITE_ID || 'fefa658d-7ce3-499a-8026-431f33313731';
 const dir = `artifacts/t152/${process.env.T152_RUN_LABEL || `local-${Date.now()}`}`;
-await mkdir(dir, { recursive: true });
+await mkdir('artifacts/t152', { recursive: true });
+await mkdir(dir); // A named rerun must not replace earlier evidence.
 const browser = await codeCheckBrowser();
 const evidence: Record<string, unknown> = { startedAt: new Date().toISOString(), base, siteId: id };
 const state = async () => { const res = await fetch(`${base}/api/sites/${id}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"action":"state"}' }); assert.equal(res.status, 200); return res.json(); };
@@ -55,6 +56,10 @@ try {
   console.log('wait first edit'); const edited = await runDone(start.codeSite.run?.id); evidence.edited = edited.codeSite;
   const current = edited.codeSite.versions.find((v: any) => v.id === edited.codeSite.currentVersionId);
   const before = start.codeSite.versions.find((v: any) => v.id === start.codeSite.currentVersionId);
+  const calls = edited.codeSite.run.modelCalls;
+  assert.ok(calls?.length && calls.every((call: any) => call.usage), 'missing usage must stop the paid round');
+  evidence.firstEditTokens = calls.reduce((sum: number, call: any) => sum + call.usage.totalTokens, 0);
+  assert.ok(Number(evidence.firstEditTokens) <= 15000, `First local edit used ${evidence.firstEditTokens} tokens; stop before undo or a second edit`);
   assert.equal(current.revision, before.revision + 1);
   assert.equal(current.code.pages[1].html, before.code.pages[1].html);
   await wait(`document.querySelector('[data-testid="code-revision"]')?.textContent.includes('v${current.revision}')`);
@@ -81,10 +86,12 @@ try {
     await new Promise(resolve => setTimeout(resolve, 300));
     await pick([0]);
     if (width <= 768) await browser.evaluate(`([...document.querySelectorAll('[role="tab"]')].find(el=>el.textContent==='预览'))?.click()`);
+    // The tablet chat drawer hides after its 240 ms transition.
+    if (width <= 768) await wait(`getComputedStyle(document.querySelector('.builder-chat')).visibility === 'hidden' || getComputedStyle(document.querySelector('.builder-chat')).display === 'none'`);
     await shot(`workspace-${width}`);
   }
   const final = simplified.codeSite.versions.find((v: any) => v.id === simplified.codeSite.currentVersionId);
-  for (const [name, version] of [['before', before], ['hero-after', current], ['simplified', final]] as const) for (const width of [1440, 768, 375]) {
+  for (const [name, version] of [['before', before], ['hero-after', current], ['before-simplify', restored], ['simplified', final]] as const) for (const width of [1440, 768, 375]) {
     await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
     await browser.send('Page.navigate', { url: `${base}/api/sites/${id}/code-preview?page=home&version=${version.id}` });
     await wait(`document.querySelector('main h1') && [...document.images].every(img=>img.complete && img.naturalWidth>0)`);

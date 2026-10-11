@@ -77,7 +77,7 @@ function schedule(site: CodeSiteRecord) {
 }
 async function executeLocalEdit(site: CodeSiteRecord, run: CodeRun) {
   const target = run.selectedTarget!, source = currentCodeVersion(site)!;
-  const materials = codeFactMaterials(site, run.request);
+  const materials = codeFactMaterials(site, run.request, site.currentVersionId, true);
   let issues: string[] = [], annotationId = run.annotationId;
   if (run.saveAnnotation && !annotationId) {
     const created = await createAnnotation({ siteId: site.siteId, pageId: target.pageId, pagePath: `/${target.pageId}`,

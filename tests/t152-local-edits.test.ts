@@ -22,7 +22,7 @@ const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const request = JSON.parse(raw); audit = request.messages[1].content;
   // Observed 2026-10-11: 4095 reasoning tokens, zero answer characters, length.
-  if (replayTruncation && request.max_tokens <= 4096) { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '' } }], usage: { prompt_tokens: 4763, completion_tokens: 4095, total_tokens: 8858, completion_tokens_details: { reasoning_tokens: 4095 } } })); return; }
+  if (replayTruncation && request.thinking?.type !== 'disabled' && request.max_tokens <= 4096) { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '' } }], usage: { prompt_tokens: 4763, completion_tokens: 4095, total_tokens: 8858, completion_tokens_details: { reasoning_tokens: 4095 } } })); return; }
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"issues":[]}' } }], usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 } }));
 });
@@ -124,7 +124,7 @@ test('inline styles cannot change counters consumed outside the selected block',
   assert.equal(result.status, 'rejected');
 });
 
-test('local fact review does not cap output at the observed reasoning-only truncation', async () => {
+test('local non-thinking fact review avoids the observed reasoning-only truncation', async () => {
   replayTruncation = true;
   try { assert.deepEqual(await auditCodeFacts(materials, '纸箱与纸袋', true), []); }
   finally { replayTruncation = false; }

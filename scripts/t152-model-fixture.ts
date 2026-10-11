@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 // Development-only HTTP provider. The application still uses its actual chat,
 // workflow, checker and version store. It never contacts a real model.
 const requests: unknown[] = [];
+const folder = `artifacts/t152/model-fixture-${Date.now()}`;
 const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw);
@@ -23,8 +24,8 @@ const server = createServer(async (req, res) => {
   else if (body.messages[0].content.includes('版本参考选择')) answer = { referenceRevisions: [] };
   else { res.writeHead(422); res.end(JSON.stringify({ error: { message: 'Fixture received unexpected model request' } })); return; }
   requests.push({ purpose: body.messages[0].content.includes('事实校对员') ? 'facts' : 'local-edit', input: prompt, answer });
-  await mkdir('artifacts/t152', { recursive: true });
-  await writeFile('artifacts/t152/fixture-requests.json', JSON.stringify(requests, null, 2));
+  await mkdir(folder, { recursive: true });
+  await writeFile(`${folder}/requests.json`, JSON.stringify(requests, null, 2));
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 } }));
 });

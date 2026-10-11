@@ -35,7 +35,7 @@ export type CodeVersion = {
   english?: { sourceRevision: number; header: string; footer: string; pages: SiteCode['pages']; checks: CodeCheck };
 };
 export type CodeModelCall = {
-  purpose: 'plan' | 'select' | 'write' | 'repair' | 'facts' | 'translate' | 'local-edit'; model: string; startedAt: string; latencyMs: number; httpStatus: number | null;
+  purpose: 'plan' | 'select' | 'write' | 'repair' | 'facts' | 'translate' | 'local-edit' | 'local-facts'; model: string; startedAt: string; latencyMs: number; httpStatus: number | null;
   usage: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens?: number } | null;
   skeletonOrder?: string[];
   translationInput?: { pageId: string | null; slotCount: number; sourceChars: number; maxTokens: number;
@@ -86,7 +86,7 @@ export function englishSiteCode(site: CodeSiteRecord, version: CodeVersion): Sit
 }
 // Requests are user-supplied data. Restore the effective request chain together with the code;
 // a later edit must not revive facts from a change that the user has already undone.
-export function codeFactMaterials(site: CodeSiteRecord, request?: string, versionId = site.currentVersionId) {
+export function codeFactMaterials(site: CodeSiteRecord, request?: string, versionId = site.currentVersionId, compact = false) {
   const chains = new Map<string, string[]>();
   let chain: string[] = [];
   for (const version of site.versions) {
@@ -99,6 +99,12 @@ export function codeFactMaterials(site: CodeSiteRecord, request?: string, versio
   }
   const effective = versionId ? chains.get(versionId) : [];
   if (!effective) throw new Error('找不到当前版本的资料来源。');
+  if (compact) {
+    // Exact duplicate messages can be omitted, but keep their last occurrence:
+    // later source updates must retain their ordering. No source is paraphrased.
+    const originals = [site.materials, ...(effective ?? []), ...(request ? [request] : [])];
+    return `资料原文与有效版本用户补充（按最后出现顺序）：\n${originals.filter((text, index) => text && !originals.slice(index + 1).includes(text)).join('\n\n')}\n只把用户明确提供的企业信息作为事实；设计要求不是企业事实，字段更新采用最后一次声明。`;
+  }
   return `${site.materials}\n\n已采用版本的用户资料和补充（按顺序）：\n${effective.join('\n\n')}\n\n${request ? `本次用户补充与要求：\n${request}` : ''}\n只把用户明确提供或更新的企业信息作为事实；设计要求不是企业事实。字段有明确更新时采用最后一次声明。`;
 }
 export function escapeCodeText(value: string) {
