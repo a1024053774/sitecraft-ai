@@ -6,7 +6,9 @@ import { simulatedPackList, buildMaterialsChatMessage } from '../lib/simulated-p
 // T-137 contract: missing subject matter, truncated input, invented contact
 // details, missing image files, or untraceable licenses can each
 // leave the generator without usable client facts or authorized imagery.
-for (const pack of simulatedPackList) {
+// T-137's production/procurement and licensed-JPEG contract belongs to the
+// four industrial packs. T-157 separately covers the text-only service packs.
+for (const pack of simulatedPackList.filter(pack => ['industrial', 'export', 'molding', 'packaging'].includes(pack.id))) {
   test(`${pack.id}: client materials cover history, cases, production, selection and procurement without truncation`, () => {
     for (const section of ['公司简介', '沿革', '加工流程', '质检流程', '交付与包装', '选型资料']) {
       assert.match(pack.body, new RegExp(`^${section}：.+`, 'm'), `${pack.id}缺少${section}`);

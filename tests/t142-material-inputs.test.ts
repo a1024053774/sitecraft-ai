@@ -5,7 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { simulatedPackList } from '../lib/simulated-packs.ts';
 
-test('simulated inputs describe products without sales goals or mandatory contact pages', () => {
+test('simulated inputs describe the business without sales goals or mandatory contact pages', () => {
   for (const pack of simulatedPackList) {
     assert.doesNotMatch(pack.goal + pack.heroCta + pack.heroSubtitle, /询盘|询价|报价|索取|咨询/);
     assert.doesNotMatch(pack.body, /^目标：|主按钮：|^询盘要求：/m);
@@ -13,7 +13,7 @@ test('simulated inputs describe products without sales goals or mandatory contac
     assert.doesNotMatch(pages + pack.extraPagesNote, /联系|询盘|资料索取|资料下载/);
     assert.ok(pack.body.includes(pack.email), 'existing contact facts are preserved');
     assert.match(pack.email, /\.luckye\.online$/);
-    assert.match(pack.body, /规格参数|质检流程/);
+    assert.match(pack.body, /规格参数|质检流程|菜单|课程|服务/);
   }
 });
 
@@ -28,7 +28,7 @@ test('full and quick evaluation materials do not request inquiry or contact page
     await writeFile(path.join(out, `command-${quick}.json`), JSON.stringify({ command, status: result.status, stdout: result.stdout, stderr: result.stderr }, null, 2));
     assert.equal(result.status, 1, 'incompatible previous corpus stops before models and controls');
     const round = JSON.parse(await readFile(path.join(directory, 'private/round.json'), 'utf8'));
-    assert.equal(round.cases.length, quick ? 4 : 8);
+    assert.equal(round.cases.length, quick ? 7 : 14);
     for (const item of round.cases) {
       const requested = item.materials.split('\n').find((line: string) => line.startsWith('页面要求：'));
       assert.doesNotMatch(requested, /联系|询盘|报价|资料索取/);

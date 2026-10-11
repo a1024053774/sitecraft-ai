@@ -7,20 +7,21 @@ import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import { captureEvalPage } from './eval-site-capture.ts';
 import { simulatedPacks, MATERIALS_CHAT_LIMIT, type SimulatedPackId } from '../lib/simulated-packs.ts';
 import type { CodeSiteRecord } from '../lib/code-site.ts';
+import { localEndpoint } from './local-endpoint.ts';
 import { buildBlindPackage, compareRounds, summarize, tokenUsage, requireWholeSitePlan, saveCandidateEvidence, type EvalRound, type EvalCase } from './eval-set-report.ts';
 
 const { values } = parseArgs({ options: {
-  base: { type: 'string', default: process.env.SITECRAFT_BASE || 'http://127.0.0.1:3142' },
+  base: { type: 'string' },
   out: { type: 'string' }, previous: { type: 'string' }, 'prepare-only': { type: 'boolean', default: false }, help: { type: 'boolean' },
   quick: { type: 'boolean', default: false },
   only: { type: 'string' },
 } });
 if (values.help) {
-  console.log('npm run eval:new-route -- [--base http://127.0.0.1:3142] [--out artifacts/t130/round-...] [--previous <round>] [--quick] [--only industrial/precision,packaging/documentary] [--prepare-only]\n默认生成4家公司×precision/documentary整站；--quick为日常快速档，4组合（每家公司一种风格），只生成首页和产品页。--only按组合key筛选，不改变资料、档位或比较规则。仅匹配同档、同资料的上一轮，快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
+  console.log('设置 SITECRAFT_BASE 后运行 npm run eval:new-route -- [--base <本机HTTP origin>] [--out artifacts/t130/round-...] [--previous <round>] [--quick] [--only restaurant/documentary,education/documentary,design/documentary] [--prepare-only]\n默认生成7家公司×precision/documentary整站；--quick为日常快速档，7组合（每家公司一种风格），只生成首页和产品/菜单/课程/作品页。--only按组合key筛选，不改变资料、档位或比较规则。仅匹配同档、同资料的上一轮，快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
   process.exit(0);
 }
-const base = values.base!.replace(/\/$/, '');
-assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname), '评估只连接本机开发服务');
+if (values.base !== undefined) process.env.SITECRAFT_BASE = values.base;
+const base = localEndpoint('SITECRAFT_BASE').origin;
 const root = path.resolve('artifacts/t130');
 await mkdir(root, { recursive: true });
 const directory = path.resolve(values.out || path.join(root, `round-${new Date().toISOString().replace(/[:.]/g, '-')}`));
@@ -33,22 +34,30 @@ const command = ['CHROME_PATH=' + quote(process.env.CHROME_PATH || ''), 'SITECRA
 const requests: Record<SimulatedPackId, string> = {
   industrial: '首页、产品两个独立页面。', export: '首页、产品、认证与材料追溯三个独立页面。',
   molding: '首页、产品、生产与质检、常见问题四个独立页面。', packaging: '首页、包装产品、打样与订购三个独立页面。',
+  restaurant: '首页、菜单、到店须知三个独立页面。', education: '首页、课程、学习须知三个独立页面。',
+  design: '首页、服务、作品记录三个独立页面。',
 };
+const quickContent: Partial<Record<SimulatedPackId, { id: string; title: string }>> = {
+  restaurant: { id: 'menu', title: '菜单' }, education: { id: 'courses', title: '课程' }, design: { id: 'work', title: '作品' },
+};
+const packIds = Object.keys(simulatedPacks) as SimulatedPackId[];
 type Photo = { file: string; category: string; apiLicense: string; sourceUrl: string; licenseUrl: string; author: string; attribution: string; downloadedAt: string; caption: string; limitations?: string };
 const photos: Partial<Record<SimulatedPackId, Photo[]>> = {};
-for (const pack of ['industrial', 'export', 'molding', 'packaging'] as const) {
-  const manifest = JSON.parse(await readFile(path.join('tests/fixtures/company-images', pack, 'manifest.json'), 'utf8'));
-  assert.ok(Array.isArray(manifest.images) && manifest.images.length > 0, `${pack}缺少准入图片`);
+for (const pack of packIds) {
+  const noPhotos = pack in quickContent;
+  const manifest = JSON.parse(await readFile(path.join(noPhotos ? 'fixtures/simulated-packs' : 'tests/fixtures/company-images', pack, 'manifest.json'), 'utf8'));
+  assert.ok(Array.isArray(manifest.images) && (noPhotos || manifest.images.length > 0), `${pack}缺少图片准入登记`);
   for (const photo of manifest.images as Photo[]) {
     assert.ok(photo.apiLicense && photo.licenseUrl && photo.sourceUrl && photo.author && photo.attribution, `${pack}/${photo.file}缺少许可`);
   }
   photos[pack] = manifest.images;
 }
 let cases: EvalCase[] = [];
-for (const packId of ['industrial', 'export', 'molding', 'packaging'] as const) {
+for (const packId of packIds) {
   const pack = simulatedPacks[packId];
   const companyName = pack.companyName.replace(/P3[A-Z]$/, '');
-  const pageRequest = values.quick ? '只生成首页（home）、产品（products）两个独立页面。其他资料按需安排在这两页，不新增页面。' : requests[packId];
+  const content = quickContent[packId] || { id: 'products', title: '产品' };
+  const pageRequest = values.quick ? `只生成首页（home）、${content.title}（${content.id}）两个独立页面。其他资料按需安排在这两页，不新增页面。` : requests[packId];
   const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n页面要求：${pageRequest}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
   assert.ok(materials.length <= MATERIALS_CHAT_LIMIT, `${packId}资料不能截断`);
   const styles = values.quick ? [packId === 'industrial' || packId === 'molding' ? 'precision' : 'documentary'] : ['precision', 'documentary'];
@@ -109,7 +118,7 @@ function collect(c: EvalCase, site: CodeSiteRecord) {
   c.attempts = site.runs.filter(run => run.kind === 'generate').flatMap(run => run.attempts.map((attempt, round) => ({ round, checks: attempt.checks })));
 }
 let browser: Awaited<ReturnType<typeof codeCheckBrowser>> | undefined;
-async function capture(url: string, prefix: string, company?: string, widths = [1440, 375], full = true) {
+async function capture(url: string, prefix: string, company?: string, widths = [1440, 768, 375], full = true) {
   browser ??= await codeCheckBrowser();
   const screenshots: Record<string, string> = {};
   for (const width of widths) {
@@ -160,7 +169,8 @@ try {
         if (site.run?.status === 'error') throw new Error(site.run.step);
         assert.equal(site.plan?.style, c.style);
         requireWholeSitePlan(c.pack as SimulatedPackId, site.plan!.pages.length, values.quick ? 'quick' : 'full');
-        if (values.quick) assert.deepEqual(site.plan!.pages.map(p => p.id).sort(), ['home', 'products'], '快速档只确认首页与产品页');
+        const quickIds = ['home', quickContent[c.pack as SimulatedPackId]?.id || 'products'].sort();
+        if (values.quick) assert.deepEqual(site.plan!.pages.map(p => p.id).sort(), quickIds, '快速档只确认资料要求的两个页面');
         state = await json(`/api/sites/${created.id}/chat`, { action: 'state' });
         await json(`/api/sites/${created.id}/chat`, { action: 'confirm', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, baseRevision: 0 });
         site = await waitRun(created.id, folder); collect(c, site);
@@ -168,7 +178,7 @@ try {
         const version = site.versions.find(v => v.id === site.currentVersionId); assert.ok(version);
         assert.equal(version.checks.passed, true); assert.equal(site.versions.length, 1);
         assert.ok(site.plan?.pages.every(p => version.code.pages.some(v => v.id === p.id)), '整站不能静默缺页');
-        if (values.quick) assert.deepEqual(version.code.pages.map(p => p.id).sort(), ['home', 'products'], '快速档候选必须仅有首页与产品页');
+        if (values.quick) assert.deepEqual(version.code.pages.map(p => p.id).sort(), quickIds, '快速档候选必须仅有资料要求的两个页面');
         c.versionId = version.id;
         for (const page of version.code.pages) c.pages.push({ id: page.id, screenshots: await capture(
           `${base}/api/sites/${created.id}/code-preview?page=${page.id}&version=${version.id}`, `${folder}/${page.id}`, simulatedPacks[c.pack as SimulatedPackId].companyName.replace(/P3[A-Z]$/, '')) });
@@ -196,6 +206,9 @@ try {
     export: ['https://www.fitok.com/zh/index.htm', 'https://www.swagelok.com.cn/zh'],
     molding: ['https://www.fzmould.com/', 'https://www.saihao.com/'],
     packaging: ['https://cn.szyuto.com/', 'https://www.jinjia.com/index.aspx'],
+    restaurant: ['https://www.wagas.com.cn/', 'https://www.bluefrog.com.cn/'],
+    education: ['https://www.neworiental.org/', 'https://www.citylit.ac.uk/'],
+    design: ['https://www.pentagram.com/', 'https://studiomuti.co.za/'],
   };
   for (const [pack, urls] of Object.entries(sources).filter(([pack]) => cases.some(c => c.pack === pack))) for (let i = 0; i < (values.quick ? 1 : urls.length); i++) {
     try {

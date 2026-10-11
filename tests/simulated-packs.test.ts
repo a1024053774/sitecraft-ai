@@ -21,7 +21,7 @@ const providerSource = readFileSync(new URL("../lib/ai-provider.ts", import.meta
 const workspaceSource = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
 
 test("industrial and export simulated packs are independent, labeled 模拟, and use unique nonces", () => {
-  assert.equal(simulatedPackList.length, 4);
+  assert.equal(simulatedPackList.length, 7);
   assert.equal(simulatedPacks.industrial.siteId, "p3-industrial");
   assert.equal(simulatedPacks.export.siteId, "p3-export");
   assert.notEqual(simulatedPacks.industrial.siteId, simulatedPacks.export.siteId);
@@ -38,7 +38,7 @@ test("industrial and export simulated packs are independent, labeled 模拟, and
     // The pack declares itself simulated once, up front; fact lines carry no labels the model could copy onto the page.
     assert.match(pack.body.split("\n")[0], /^资料性质：模拟/);
     assert.equal(pack.body.split("\n").slice(1).some((line) => line.includes("模拟")), false);
-    assert.match(pack.body, /规格参数|应用行业|加工能力|认证状态/);
+    assert.match(pack.body, /规格参数|应用行业|加工能力|认证状态|资质状态/);
     assert.ok(pack.email.endsWith(".luckye.online"));
     const message = buildMaterialsChatMessage(pack);
     assert.ok(message.length <= MATERIALS_CHAT_LIMIT);
