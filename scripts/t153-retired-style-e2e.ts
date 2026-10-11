@@ -1,3 +1,4 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -8,9 +9,9 @@ import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 
 // An old, persisted question must not revive a removed option. Seed only
 // alignment/preferences metadata, never site code or a version.
-assert.equal(process.env.SITECRAFT_BASE, 'http://127.0.0.1:3170');
+const base = localEndpoint('SITECRAFT_BASE').origin;
 assert.equal(process.env.SITE_STORE, 'fs');
-process.env.SITECRAFT_DATA_ROOT = path.join(process.cwd(), '.sitecraft-data');
+process.env.SITECRAFT_DATA_ROOT ??= path.join(process.cwd(), '.sitecraft-data');
 registerHooks({ resolve(specifier, context, next) {
   if (!specifier.startsWith('@/')) return next(specifier, context);
   const file = path.join(process.cwd(), specifier.slice(2));
@@ -18,13 +19,14 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 const { updateConversationAlignment } = await import('../lib/conversation-store.ts');
 const { updateCodeSite } = await import('../lib/code-site-store.ts');
-const base = process.env.SITECRAFT_BASE;
 const post = async (route: string, body: unknown) => {
   const res = await fetch(base + route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   assert.ok(res.ok); return res.json();
 };
-const report: Record<string, any> = { startedAt: new Date().toISOString(), status: 'INCOMPLETE' };
+const report: Record<string, any> = { startedAt: new Date().toISOString(), base, status: 'INCOMPLETE' };
 const folder = `artifacts/t153/approved/retired-style-${Date.now()}`; await mkdir(folder, { recursive: true });
+const health = await (await fetch(`${base}/api/health`)).json();
+assert.equal(health.testIdentity?.cwd, process.cwd(), 'The application must serve this worktree');
 const created = await post('/api/sites', { name: '旧风格问题检查' }); report.siteId = created.id;
 const state = await post(`/api/sites/${created.id}/chat`, { message: '公司名：旧风格问题检查\n齿轮加工。' });
 await updateConversationAlignment(created.id, state.conversationId, record => ({ ...record, alignment: { ...record.alignment,

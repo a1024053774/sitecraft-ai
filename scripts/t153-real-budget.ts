@@ -1,3 +1,4 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -19,7 +20,8 @@ export function reserveRequest(body: Record<string, any>, spent: number) {
 }
 
 async function serve() {
-  assert.equal(process.env.SITECRAFT_BASE, 'http://127.0.0.1:3170');
+  localEndpoint('SITECRAFT_BASE');
+  const budget = localEndpoint('SITECRAFT_BUDGET_BASE');
   const folder = process.env.T153_BUDGET_DIR;
   assert.ok(folder && path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts/t153/')));
   const provider = providerConfig();
@@ -87,6 +89,6 @@ async function serve() {
       await save(); res.writeHead(502); res.end(JSON.stringify({ error: { message } }));
     } finally { running = false; }
   });
-  server.listen(3171, '127.0.0.1', () => console.log(`T-153 approved cumulative budget 300000; ${file}`));
+  server.listen(budget.port, budget.hostname, () => console.log(`T-153 approved cumulative budget 300000; ${file}`));
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await serve();

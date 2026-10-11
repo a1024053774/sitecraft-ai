@@ -1,5 +1,8 @@
+import { localEndpoint } from './local-endpoint.ts';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
+localEndpoint('SITECRAFT_BASE');
+const fixture = localEndpoint('SITECRAFT_FIXTURE_BASE');
 // Development-only HTTP provider. The application still uses its actual chat,
 // workflow, checker and version store. It never contacts a real model.
 const requests: unknown[] = [];
@@ -29,4 +32,4 @@ const server = createServer(async (req, res) => {
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 } }));
 });
-server.listen(3165, '127.0.0.1', () => console.log('T-152 local model fixture on 3165'));
+server.listen(fixture.port, fixture.hostname, () => console.log(`Local-only provider at ${fixture.origin}; ${folder}`));

@@ -1,9 +1,9 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 
-const base = process.env.SITECRAFT_BASE;
-assert.equal(base, 'http://127.0.0.1:3164');
+const base = localEndpoint('SITECRAFT_BASE').origin;
 const id = 'fefa658d-7ce3-499a-8026-431f33313731';
 const folder = `artifacts/t152/chat-boundaries-${Date.now()}`;
 await mkdir(folder, {recursive:true});

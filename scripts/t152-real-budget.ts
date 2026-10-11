@@ -1,3 +1,4 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -6,7 +7,8 @@ import { providerConfig } from '../lib/ai-provider.ts';
 // T-152's one approved real-model acceptance round. This development harness
 // limits the upstream output and reserves estimated input plus that output cap
 // before every request, for the approved single simplify action, without retry.
-assert.equal(process.env.SITECRAFT_BASE, 'http://127.0.0.1:3164');
+localEndpoint('SITECRAFT_BASE');
+const budget = localEndpoint('SITECRAFT_BUDGET_BASE');
 const provider = providerConfig();
 assert.ok(provider.apiKey && provider.model);
 assert.equal(new URL(provider.baseURL).hostname, 'api.deepseek.com');
@@ -51,4 +53,4 @@ const server = createServer(async (req, res) => {
     res.writeHead(502, { 'content-type':'application/json' }); res.end(JSON.stringify({ error: { message: call.error } }));
   } finally { running = false; calls.push(call); await writeFile(`${folder}/usage.json`, JSON.stringify({ limit, spent, stopped, calls }, null, 2)); }
 });
-server.listen(3166,'127.0.0.1',()=>console.log(`Approved T-152 acceptance budget: ${folder}`));
+server.listen(budget.port, budget.hostname,()=>console.log(`Approved T-152 acceptance budget: ${folder}`));

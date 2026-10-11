@@ -1,3 +1,4 @@
+import { localEndpoint } from '../scripts/local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -8,6 +9,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import type { SiteCode } from '../lib/code-site.ts';
+
+const base = localEndpoint('SITECRAFT_BASE').origin;
 
 // Boundary failures: added/lost/moved nodes, changed fixed attributes/CSS/images/components;
 // lost/added facts or units, omitted accessible copy, wrong gap, malformed slot replies;
@@ -53,7 +56,6 @@ const provider = createServer(async (request, response) => {
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');
-const base = process.env.SITECRAFT_BASE || 'http://127.0.0.1:3034';
 process.env.SITECRAFT_BASE = base;
 process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`; process.env.DEEPSEEK_API_KEY = 'local-test'; process.env.DEEPSEEK_MODEL = 'local-test';
 const { POST: create } = await import('../app/api/sites/route.ts');

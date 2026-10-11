@@ -1,11 +1,11 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { randomInt, randomUUID } from 'node:crypto';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 
-const base = process.env.SITECRAFT_BASE;
-assert.equal(base, 'http://127.0.0.1:3164');
+const base = localEndpoint('SITECRAFT_BASE').origin;
 const runDir = process.argv[2], completedOnly = process.argv[3] === '--completed-only';
 assert.ok(runDir, 'Pass a real E2E directory');
 const report = JSON.parse(await readFile(path.join(runDir, 'report.json'), 'utf8'));

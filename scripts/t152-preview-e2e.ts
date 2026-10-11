@@ -1,9 +1,9 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 
-const base = process.env.SITECRAFT_BASE;
-assert.equal(base, 'http://127.0.0.1:3164', 'T-152 must only use its assigned workspace');
+const base = localEndpoint('SITECRAFT_BASE').origin;
 const id = process.env.T152_SITE_ID || 'fefa658d-7ce3-499a-8026-431f33313731';
 const dir = `artifacts/t152/${process.env.T152_RUN_LABEL || `local-${Date.now()}`}`;
 await mkdir('artifacts/t152', { recursive: true });

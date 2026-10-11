@@ -1,9 +1,9 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 
-const base = process.env.SITECRAFT_BASE;
-assert.equal(base, 'http://127.0.0.1:3164');
+const base = localEndpoint('SITECRAFT_BASE').origin;
 const id = 'fefa658d-7ce3-499a-8026-431f33313731';
 const expectedInput = '5d66128d-b397-4196-9631-b483b8329040';
 const reviewBaseline = 'ff213376-6e98-4c9b-be01-f2e0670d38cf';

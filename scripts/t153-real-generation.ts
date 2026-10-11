@@ -1,3 +1,4 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -5,8 +6,8 @@ import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import { captureEvalPage } from './eval-site-capture.ts';
 import type { CodeSiteRecord } from '../lib/code-site.ts';
 
-const base = process.env.SITECRAFT_BASE;
-assert.equal(base, 'http://127.0.0.1:3170');
+const base = localEndpoint('SITECRAFT_BASE').origin;
+const budgetBase = localEndpoint('SITECRAFT_BUDGET_BASE').origin;
 const [phase, folder, source] = process.argv.slice(2);
 assert.ok(folder && path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts/t153/')));
 const root = path.join(folder, 'private');
@@ -58,7 +59,7 @@ if (phase === 'prepare') {
   assert.ok(!record.phases[phase], 'Do not repeat a generation, including a failed one');
   if (phase === 'low') assert.equal(record.phases.default?.status, 'PASS');
   if (phase === 'high') assert.equal(record.phases.low?.status, 'PASS');
-  const budget = await (await fetch('http://127.0.0.1:3171/status')).json();
+  const budget = await (await fetch(`${budgetBase}/status`)).json();
   assert.equal(budget.limit, 300000); assert.equal(budget.stopped, false);
   console.log(JSON.stringify({ beforeGeneration: phase, estimatedTokens: selected.estimate, spent: budget.spent, projected: budget.spent + selected.estimate, limit: 300000 }));
   assert.ok(budget.spent + selected.estimate <= 300000, 'Stop before the next generation: estimate exceeds approved cumulative budget');
@@ -67,7 +68,7 @@ if (phase === 'prepare') {
   const save = () => writeFile(stateFile, JSON.stringify(record, null, 2));
   await save();
   try {
-    const arm = await fetch('http://127.0.0.1:3171/round', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label: phase, estimate: selected.estimate }) });
+    const arm = await fetch(`${budgetBase}/round`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label: phase, estimate: selected.estimate }) });
     assert.ok(arm.ok, await arm.text());
     let state = await api(`/api/sites/${record.siteId}/chat`, { action: 'state' });
     const revision = state.codeSite.versions.length;
@@ -107,7 +108,7 @@ if (phase === 'prepare') {
     item.status = 'PASS';
   } catch (error) { item.error = error instanceof Error ? error.message : String(error); throw error; }
   finally {
-    const usage = await (await fetch('http://127.0.0.1:3171/status')).json();
+    const usage = await (await fetch(`${budgetBase}/status`)).json();
     item.spentAfter = usage.spent; item.actualTokens = usage.spent - item.spentBefore; item.finishedAt = new Date().toISOString();
     await save(); console.log(JSON.stringify(item));
   }

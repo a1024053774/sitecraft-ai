@@ -1,9 +1,10 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { randomInt, randomUUID } from 'node:crypto';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-assert.equal(process.env.SITECRAFT_BASE, 'http://127.0.0.1:3170');
+localEndpoint('SITECRAFT_BASE');
 const folder = process.argv[2], styleOnly = process.argv[3] === '--available-style-pair';
 assert.ok(folder && path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts/t153/')));
 const record = JSON.parse(await readFile(path.join(folder, 'private/generation.json'), 'utf8'));

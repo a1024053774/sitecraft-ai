@@ -1,3 +1,4 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
@@ -5,11 +6,11 @@ import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 // Failure modes: missing/false previews, keyboard-inaccessible choices, lost
 // drafts, stale questions overwriting preferences, slider values not on the wire,
 // regeneration without confirmation, and commits bypassing viewport checks.
-const base = process.env.SITECRAFT_BASE;
-assert.equal(base, 'http://127.0.0.1:3170');
+const base = localEndpoint('SITECRAFT_BASE').origin;
+const fixtureBase = localEndpoint('SITECRAFT_FIXTURE_BASE').origin;
 const dir = `artifacts/t153/e2e-${Date.now()}`;
 await mkdir(dir, { recursive: true });
-const report: Record<string, any> = { startedAt: new Date().toISOString(), base, status: 'INCOMPLETE' };
+const report: Record<string, any> = { startedAt: new Date().toISOString(), base, fixtureBase, status: 'INCOMPLETE' };
 const browser = await codeCheckBrowser();
 const api = async (url: string, body: unknown, expected = 200) => {
   const res = await fetch(`${base}${url}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -36,6 +37,11 @@ const key = async (key: string, code: string, windowsVirtualKeyCode: number) => 
   await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode });
 };
 try {
+  const health = await (await fetch(`${base}/api/health`)).json();
+  assert.equal(health.testIdentity?.cwd, process.cwd(), 'The application must serve this worktree');
+  const initialWires = await (await fetch(`${fixtureBase}/requests`)).json();
+  assert.ok(Array.isArray(initialWires), 'The configured fixture must expose its request records');
+  report.fixtureCallsBefore = initialWires.length;
   const created = await api('/api/sites', { name: '恒川传动' }, 201), id = created.id;
   report.siteId = id;
   const chat = `/api/sites/${id}/chat`;
@@ -103,8 +109,9 @@ try {
     state = await api(chat, { action: 'state' });
     assert.deepEqual(state.codeSite.preferences, { style: 'editorial', layout: 2, density: 2 });
     report.finalState = state;
-    const wires = await (await fetch('http://127.0.0.1:3171/requests')).json();
-    const recent = wires.slice(-6);
+    const wires = await (await fetch(`${fixtureBase}/requests`)).json();
+    report.fixtureCallsAfter = wires.length;
+    const recent = wires.slice(initialWires.length);
     assert.deepEqual(recent.map((w: any) => w.purpose), ['plan', 'write', 'facts', 'plan', 'write', 'facts']);
     for (const [offset, phrase] of [[0, '紧凑表格'], [3, '每组只突出一个']] as const) for (const index of [offset, offset + 1]) assert.ok(recent[index].body.messages[0].content.includes(phrase));
     report.providerPurposes = recent.map((w: any) => w.purpose); report.status = 'PASS';

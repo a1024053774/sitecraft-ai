@@ -1,7 +1,8 @@
-import assert from 'node:assert/strict';
+import { localEndpoint } from './local-endpoint.ts';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
-assert.equal(process.env.SITECRAFT_BASE, 'http://127.0.0.1:3170');
+localEndpoint('SITECRAFT_BASE');
+const fixture = localEndpoint('SITECRAFT_FIXTURE_BASE');
 const folder = `artifacts/t153/provider-${Date.now()}`;
 await mkdir(folder, { recursive: true });
 const requests: unknown[] = [];
@@ -32,4 +33,4 @@ const server = createServer(async (req, res) => {
   const message = purpose === 'plan' ? { content: null, tool_calls: [{ id: 'local-plan', type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
   res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: purpose === 'plan' ? 'tool_calls' : 'stop', message }] }));
 });
-server.listen(3171, '127.0.0.1', () => console.log(`Local-only provider on 3171; ${folder}`));
+server.listen(fixture.port, fixture.hostname, () => console.log(`Local-only provider at ${fixture.origin}; ${folder}`));

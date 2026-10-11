@@ -1,7 +1,7 @@
+import { localEndpoint } from './local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-const base = process.env.SITECRAFT_BASE;
-assert.equal(base, 'http://127.0.0.1:3170');
+const base = localEndpoint('SITECRAFT_BASE').origin;
 const folder = `artifacts/t153/materials-${Date.now()}`;
 await mkdir(folder, { recursive: true });
 const report: Record<string, any> = { status: 'INCOMPLETE' };

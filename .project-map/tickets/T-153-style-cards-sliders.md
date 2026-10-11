@@ -30,15 +30,15 @@ supersedes:
 
 - [x] 先列失效方式再写红绿测试，测试在已知坏实现上失败（风格目录登记、缩略图存在且登记来源、滑杆档位进入提示、未登记风格被拒）
 - [x] 开发阶段一律用本地模型替身；真实 DeepSeek 只在主控按负责人批准的预算运行，每次生成前估算，超了停
-- [ ] 区分度盲评（新盲评实例，随机命名）：同一家公司资料分别用新风格和现有风格生成，评审能否分出两种不同方向并描述差别；同一站按主控本轮指定的 2/2 与 5/6 对比首屏与产品页，评审能否正确指出哪版更大胆、哪版更紧凑。分不出就按 mainline 删掉该风格或重写滑杆规则，如实记录
+- [x] 区分度盲评（新盲评实例，随机命名）：同一家公司资料分别用新风格和现有风格生成，评审能否分出两种不同方向并描述差别；同一站按主控本轮指定的 2/2 与 5/6 对比首屏与产品页，评审能否正确指出哪版更大胆、哪版更紧凑。分不出就按 mainline 删掉该风格或重写滑杆规则，如实记录
 - [x] 工作台风格卡与滑杆 1440/768/375 截图看过
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
-2026-10-11，负责人批准方案 1，仅验证品牌画册，真实总预算硬上限 300,000 token。已完成同资料的 5/6 与 2/2；主控最新决定先不跑 9/9，改用已生成的 low（2/2）与 default（5/6）做差距更小的严格盲评，不再调用真实模型。工业铭牌不在运行时提供选择，设计说明保留。票保持 open，不推送、不关票。
+2026-10-11，负责人批准方案 1，仅验证品牌画册，真实总预算硬上限 300,000 token。已完成同资料的 5/6 与 2/2；主控指定用已生成的 low（2/2）与 default（5/6）做差距更小的严格盲评，现已转达通过结论，不再跑 9/9、不再调用真实模型。工业铭牌不在运行时提供选择，设计说明保留。票保持 open，不推送、不关票。
 
-当前结果：**PASS（本次匿名包准备与用量说明）/ INCOMPLETE（整票待盲评）**。品牌画册 5/6 与 2/2 都通过同一提交入口并保存；累计仍为 226,474 token。本次新增模型调用为 0。此前 9/9 在预计累计 326,474 时被预算检查拦住，现按主控决定不运行；本轮验收对为 2/2 与 5/6，两个匿名包均已备好，尚无独立区分度或审美结论。
+当前结果：**PASS（本轮修复与执行侧验收，待主控合并验证）**。风格区分与滑杆盲评已由主控转达通过；保留品牌画册，9/9 不再运行。品牌画册 5/6 与 2/2 都经同一提交入口保存，真实累计仍为 226,474 token。本轮只修复 Astra 提出的脚本地址配置问题并做本地替身验证，新增真实模型调用为 0；主控在合并时补最终验证，票保持 open。
 
 ### 风格与界面
 
@@ -91,6 +91,13 @@ supersedes:
 - 滑杆包：`review/67f1a975/`。按主控指定，将同一品牌画册站的 low（2/2，v2）与 default（5/6，v1）作为本轮验收对；首页和产品页各 1440/375，共 8 张。重新随机命名与顺序，8 张均打开检查；说明只问“哪版版式更大胆（不规整）”“哪版信息更紧凑”，不提滑杆、档位、风格或预期答案。
 - 映射：风格包沿用 `private/blind-mapping.json`；本轮滑杆包单独保存为 `private/blind-layout-density-67f1a975.json`，包含真实版本与档位，不交评审。旧付费阶段关于 9/9 缺项的记录保留为当时结果；资料、授权上传记录、完整代码版本及失败候选、用量分别在 `private/materials.txt`、`private/uploads.json`、`private/{default,low}/code-site.json`、`private/budget/usage.json`；总状态在 `private/generation.json`。只把匿名 review 子目录交盲评，private 不交评审。
 
+### 主控转达的独立盲评结论
+
+2026-10-11，主控在当前任务中转达结果，作为本票验收依据；不由实施者另作审美评分：
+
+- **风格区分通过，保留品牌画册**：`review/9f02006d/` 被判为不同设计方向。“哪版更像公司自己的网站”选原风格；已知反馈是原版采购路径更直接，画册产品入口靠后。此偏好未胜出如实保留，不写成画册全面更好；本轮不改生成产物或扩展修复范围。
+- **滑杆有效，不再跑 9/9**：`review/67f1a975/` 中 default（5/6）被正确判为比 low（2/2）更大胆、更紧凑。本轮按主控批准的这组更小差距完成验证。
+
 ### 验证与复现
 
 本次变更先列失效方式：下线风格仍可选、旧问题复活旧选项、旧偏好静默改选、真实缩略图漏来源、预算忽略已用量、恢复账本清零、未获批准就替换对比档位，或把未生成的 9/9 写成已完成。红绿证据均保留在 `artifacts/t153/approved/`。
@@ -108,8 +115,35 @@ supersedes:
 | 类型/全测/构建 | `npm run typecheck`、`npm test`、`npm run build` | PASS；373/373、0 跳过。三项通过 `&&` 顺序执行，工具报告整条命令退出 0；日志为 `typecheck-verified.log`、`test-final.log`、`build-verified.log`，退出结果收据为 `checks.json` |
 | 上次实现审核 | 新 Codex GPT-6 Astra 实例 `t153_paid_stage_review`，冻结父提交 `1daede8` 上的本轮 diff；独立单测 6/6，通过三档 UI 截图及预算/版本/来源核对 | INCOMPLETE：未确认新增代码缺陷；缺少 9/9 与滑杆包，不能将完整任务记 PASS；本审核已读映射，不兼任页面盲评 |
 
-此前无付费阶段在 `1daede8` 交付，旧红态、失败和用量估算仍可从该提交及 gitignore 的 artifacts 查阅，不把旧证据当成本次通过结果。下一步按主控最新指定的配对组织独立盲评，风格包与滑杆包交不同的新实例。9/9 本轮先不运行；不要求负责人亲自审核，不声明审美通过。
+此前无付费阶段在 `1daede8` 交付，旧红态、失败和用量估算仍可从该提交及 gitignore 的 artifacts 查阅，不把旧证据当成本次通过结果。两包的独立盲评结论以主控本轮转达为准，见上文。9/9 不再运行；主控在合并时补最终验证。
 
 审核限制：402 不重试、网关并发互斥及中断恢复本次只做静态检查，没有故障注入；类型和构建的文本日志不含内嵌退出码，退出码来自实际工具执行结果。使用本次完成版本与真实用量，未将替身测试或未执行的高档生成视为审美证据。
 
-本次打包复现（无网络或模型调用）：`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3170 node artifacts/t153/approved/real-2026-10-11T03-58/private/package-low-default.mjs`。命令退出 0；日志 `artifacts/t153/approved/pack-low-default.log`。打包前核对两版同站、同资料、同风格、不同真实版本、正确档位与已通过的检查；按两个页面和两种宽度核对 PNG 元数据、8 张文件及两个不泄题的问题，逐图查看。当前程序代码未改，未重跑上个提交的 typecheck/test/build；本次执行包核对、UTF-8 回读、diff 和 project-map 检查。对应本次文档提交（父提交 `4fa88c3`），整票仍待独立盲评。
+本次打包复现（无网络或模型调用）：`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3170 node artifacts/t153/approved/real-2026-10-11T03-58/private/package-low-default.mjs`。命令退出 0；日志 `artifacts/t153/approved/pack-low-default.log`。打包前核对两版同站、同资料、同风格、不同真实版本、正确档位与已通过的检查；按两个页面和两种宽度核对 PNG 元数据、8 张文件及两个不泄题的问题，逐图查看。当前程序代码未改，未重跑上个提交的 typecheck/test/build；本次执行包核对、UTF-8 回读、diff 和 project-map 检查。对应文档提交 `d593708`（父提交 `4fa88c3`）；此处记录打包时的验证范围，后续盲评结论见上文。
+
+
+### Astra 地址配置问题修复
+
+主控转达的 NO_GO：T-153 两个 E2E 锁定 3170，读取替身请求及替身监听锁定 3171。失效方式：换工作树端口即拒绝、误连原工作树、只改应用地址却仍访问旧替身、外部或通配地址被接受、默认回退主工作区 3034。
+
+统一由 `scripts/local-endpoint.ts` 读取与校验显式本地 HTTP origin：应用 `SITECRAFT_BASE`，替身 `SITECRAFT_FIXTURE_BASE`，预算网关 `SITECRAFT_BUDGET_BASE`；不提供默认地址，只接受 127.0.0.1、localhost、[::1]，拒绝凭据、路径、query、fragment、外部地址与通配绑定。替身监听和请求记录读取使用同一配置。预算脚本只迁移本地入口地址配置，本轮未执行真实预算脚本。
+
+同类修复覆盖全部已追踪 `scripts/t15*` 中的固定本地地址/监听端口，并移除 `tests/t151-english.test.ts` 默认回退 3034；单元替身的系统动态分配端口保留。两个 T-153 E2E 在建站前校验服务的工作树身份；历史选项 E2E 尊重显式 `SITECRAFT_DATA_ROOT`，不再覆盖调用者的数据目录。风格 E2E 按本次请求增量核对配置替身的调用，不能用之前的六条记录代替。
+
+红绿证据在 `artifacts/t153/port-config/`：父提交 `d593708` 上两个脚本设置 3173 都因期待 3170 失败（`red-style-3173.log`、`red-retired-3173.log`）；同类固定端口扫描失败见 `red-scan.log`。放行外部地址的 mutant 和忽略监听端口的 mutant 分别在 `red-local-validation-mutant.log`、`red-fixture-port-mutant.log` 失败；恢复后 `green-config.log` 三项通过。机械检查为 `tests/t153-local-endpoints.test.ts`，覆盖配置验证与两个替身 CLI 的实际 HTTP 响应，防止同类错误再出现。
+
+本轮四次真实浏览器 E2E（均为本地模型替身，退出 0）：
+
+| 应用 / 替身 | 脚本 | 本次报告 |
+| --- | --- | --- |
+| 3170 / 3172 | `scripts/t153-style-e2e.ts` | `artifacts/t153/e2e-1791693112918/report.json`，PASS，本次替身调用 0 → 6 |
+| 3170 / 3172 | `scripts/t153-retired-style-e2e.ts` | `artifacts/t153/approved/retired-style-1791693127619/report.json`，PASS |
+| 3173 / 3174 | `scripts/t153-style-e2e.ts` | `artifacts/t153/e2e-1791693181001/report.json`，PASS，本次替身调用 0 → 6 |
+| 3173 / 3174 | `scripts/t153-retired-style-e2e.ts` | `artifacts/t153/approved/retired-style-1791693196864/report.json`，PASS |
+
+复现时显式设 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:<应用端口> SITECRAFT_FIXTURE_BASE=http://127.0.0.1:<替身端口>`，以及上文 CHROME_PATH；替身运行 `node --experimental-strip-types scripts/t153-model-fixture.ts`，开发服务 `npm run dev -- --port <应用端口>`，开发服务的 `DEEPSEEK_BASE_URL` 取同一替身地址，密钥与模型均使用 `local-only-fixture`。两种 E2E 分别运行 `node --experimental-strip-types scripts/t153-style-e2e.ts`、`node --experimental-strip-types scripts/t153-retired-style-e2e.ts`。3170 使用本工作树 `.sitecraft-data`；3173 的服务和脚本同时设置 `SITECRAFT_DATA_ROOT=/Users/luckye/Documents/Code/sitecraft-ai-t153/artifacts/t153/port-config/data-3173`。两组工作台截图均在各自 E2E 目录，已逐张打开。
+
+
+本轮最终检查：2026-10-11，在显式 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:3170 SITECRAFT_FIXTURE_BASE=http://127.0.0.1:3172` 下顺序运行 `npm run typecheck`、`npm test`（上述 CHROME_PATH）、`npm run build`，三个命令通过 `&&` 连接，工具报告退出 0。日志为 `artifacts/t153/port-config/typecheck.log`、`test.log`、`build.log`；376/376 测试通过、0 失败、0 跳过。独立 Astra 实例 `t153_port_review` 对父提交 `d593708` 上的冻结候选复核，结论 **PASS / LIMITED_GO**：端口配置 NO_GO 已修复，无确认问题；独立重跑配置逻辑与扫描 2/2 通过，核对四次 E2E 报告与两组三档截图。此结论限本轮修复，不代替主控合并验证。
+
+执行侧 Acceptance 已全部勾选；盲评结论来自主控转达，代码配置结论来自新 Astra 复核，主控在合并时补最终验证。真实预算入口只做地址迁移和静态检查，本轮未执行；没有新增真实模型费用，累计仍为 226,474。对应本轮新提交（父提交 `d593708`，最终 SHA 见交付回复）；不推送、不关票。`project_map.py status` 为 0 问题、0 过时 living doc，`git diff --check` 与 UTF-8 回读通过。
