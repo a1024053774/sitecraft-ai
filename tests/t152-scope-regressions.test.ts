@@ -5,14 +5,17 @@ import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import type { SiteCode } from '../lib/code-site.ts';
+import { renderSiteCode, type SiteCode } from '../lib/code-site.ts';
 
 // Astra reproductions: unchanged sibling/:has rules react to a selected DOM edit;
 // pageId is prompt-only; native hash/language links are cancelled; commas inside
 // :is(), :not() or quoted attributes are incorrectly treated as selector lists.
 // Provider and scheduling are controlled; chat, commit, CSS matching, storage,
 // preview links and Chrome are the production entry points.
-assert.equal(process.env.SITECRAFT_BASE, 'http://127.0.0.1:3164');
+// Focus regression: focus-visible/focus-within must not become tag-name suffixes;
+// inactive external focus styles must reject, and selected focus rules must reach
+// the writer and remain valid at commit. The origin is supplied by the caller.
+assert.ok(process.env.SITECRAFT_BASE, 'Set SITECRAFT_BASE to the test server URL');
 const scheduled: Array<() => Promise<void>> = [];
 (globalThis as any).__t152ScopeAfter = scheduled;
 registerHooks({ resolve(specifier, context, next) {
@@ -43,7 +46,7 @@ test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 const source: SiteCode = {
   header: '<header>Paper Works <a href="/products#specs">Products</a></header>', footer: '<footer>Paper Works</footer>',
   css: 'body{margin:0;color:#111;background:#fff;font:16px/1.6 sans-serif}main,header,footer{padding:24px}a{color:#123}section{padding:24px}h1,h2{margin:0 0 16px}',
-  pages: [{ id: 'home', title: 'Home', html: '<main><section class="selected"><h1>Paper Works</h1><p data-note="a,b">Paper boxes</p></section><section class="outside"><h2>Materials</h2><p>Paper bags</p></section></main>' },
+  pages: [{ id: 'home', title: 'Home', html: '<main><section class="selected"><h1>Paper Works</h1><p data-note="a,b"><a href="/products">Paper boxes</a></p></section><section class="outside"><h2>Materials</h2><p>Paper bags</p></section></main>' },
     { id: 'products', title: 'Products', html: '<main><section id="specs"><h1>Paper boxes</h1><p>Paper bags</p></section></main>' }],
 };
 async function setup(css = '', scrollTarget = false) {
@@ -102,6 +105,39 @@ test('A4: nested and quoted commas stay in a scoped selector, while a top-level 
   const escaped = await setup(), other = await localEditContext(escaped.version.code, escaped.target);
   const bad = await applyLocalEdit(escaped.version.code, escaped.target, other.html, `.${other.scope} :is(h1,p), .outside{border-left:2px solid #123}`);
   assert.equal((await commitSiteCode({ siteId: escaped.id, baseRevision: 1, code: bad, selectedTarget: escaped.target, author: 'assistant', summary: 'Escape', request: '' })).status, 'rejected');
+});
+for (const pseudo of ['focus-visible', 'focus-within']) test(`external ${pseudo} styles reject at the current-page commit boundary`, async () => {
+  const { id, version } = await setup('a{outline:2px solid #123}');
+  const code = { ...version.code, css: version.code.css + `a:${pseudo}{outline-width:8px}` };
+  // Independent browser evidence: the proposed CSS really changes the other
+  // page's focused link. The submission checker must reject it even unfocused.
+  const browser = await codeCheckBrowser();
+  try {
+    const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+    const widths = [];
+    for (const candidate of [version.code, code]) {
+      await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(id, candidate, 'products') });
+      await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+      await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+      const focused = await browser.evaluate<{ matches: boolean; width: string }>(`(()=>{const link=document.querySelector('a');return {matches:document.activeElement===link&&link.matches(':${pseudo}'),width:getComputedStyle(link).outlineWidth}})()`);
+      assert.equal(focused.matches, true, 'the external link must be in the actual keyboard focus state');
+      widths.push(focused.width);
+    }
+    assert.deepEqual(widths, ['2px', '8px']);
+  } finally { await browser.close(); }
+  const result = await commitSiteCode({ siteId: id, baseRevision: 1, pageId: 'home', code, author: 'assistant', summary: 'Current page only', request: '更大胆，只改首页' });
+  assert.equal(result.status, 'rejected', 'focus CSS that changes products must not save a homepage edit');
+  if (result.status === 'rejected') assert.match(result.checks.issues.join('\n'), /products.*越界|越界.*products/);
+  assert.equal((await getCodeSite(id))!.versions.length, 1);
+});
+test('selected focus rules reach local writing context and remain valid in a scoped edit', async () => {
+  const { id, version, target } = await setup('.selected a:focus-visible{outline-width:6px}.selected:focus-within{outline-offset:4px}');
+  const context = await localEditContext(version.code, target);
+  assert.match(context.css, /\.selected a:focus-visible/);
+  assert.match(context.css, /\.selected:focus-within/);
+  const code = await applyLocalEdit(version.code, target, context.html, `.${context.scope} a:focus-visible{outline-width:8px}.${context.scope}:focus-within{outline-offset:6px}`);
+  const result = await commitSiteCode({ siteId: id, baseRevision: 1, selectedTarget: target, code, author: 'assistant', summary: 'Selected focus style', request: 'Only change this block' });
+  assert.equal(result.status, 'applied', result.status === 'rejected' ? result.checks.issues.join('\n') : '');
 });
 for (const kind of ['hash', 'language'] as const) test(`A3: preview retains native ${kind} navigation with picking off`, async () => {
   const { id, version } = await setup('', true);

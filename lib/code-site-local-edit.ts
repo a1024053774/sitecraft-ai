@@ -39,7 +39,7 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
     const related = (items: CSSRule[]): string => items.map(rule => {
       if (rule instanceof CSSStyleRule) {
         try {
-          const selector = rule.selectorText.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus|focus-visible|focus-within|visited)\b/g, '');
+          const selector = rule.selectorText.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus(?:-visible|-within)?|visited)(?![\w-])/gi, '');
           const nodes = [...document.querySelectorAll(selector)];
           return nodes.some(el => live!.contains(el) || el.contains(live!)) ? rule.cssText : '';
         } catch { throw new Error('相关 CSS 无法定位，请改整页。'); }
@@ -96,7 +96,7 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
       for (const selector of parts) {
         const value = selector.trim();
         if (!value.startsWith(`.${scope}`) || !/^[\s.#[:>]|^$/.test(value.slice(scope.length + 1)) || /[+~&]|:has\(/.test(value) || rule.cssRules.length) issues.push('局部修改越界：CSS 必须以区块专属类名为作用域，不能影响区块外');
-        selectors.push(value.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus|focus-visible|focus-within|visited)\b/g, ''));
+        selectors.push(value.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus(?:-visible|-within)?|visited)(?![\w-])/gi, ''));
       }
       for (const property of [...rule.style]) if (/^counter-(reset|set|increment)$/.test(property)) issues.push('局部修改不能改变跨区块计数器');
     } else if (rule instanceof CSSMediaRule || rule instanceof CSSSupportsRule || rule instanceof CSSContainerRule) inspect([...rule.cssRules]);
@@ -119,7 +119,7 @@ export function outsideCssApplications(html: string, css: string, scope?: { path
   const visit = (rules: CSSRule[], parents: string[]) => { for (const rule of rules) {
     if (rule instanceof CSSStyleRule) {
       if (rule.cssRules.length) throw new Error('范围检查无法核对嵌套 CSS，请展开规则后再修改。');
-      const selector = rule.selectorText.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus|focus-visible|focus-within|visited)\b/g, '');
+      const selector = rule.selectorText.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus(?:-visible|-within)?|visited)(?![\w-])/gi, '');
       const matches = [...doc.querySelectorAll(selector)].filter(node => !selected?.contains(node)).map(node => {
         const path: number[] = [];
         for (let child: Element | null = node; child?.parentElement; child = child.parentElement) path.unshift([...child.parentElement.children].indexOf(child));

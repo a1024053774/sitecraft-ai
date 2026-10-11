@@ -34,59 +34,41 @@ supersedes:
 
 局部事实校对固定非思考，只发选中 HTML、匹配 CSS、大纲、风格要点与资料原文。恢复已核对目标且资料原文未变时沿用事实结论，仍跑确定性检查；资料变化或依据不明重核。前次已完成首屏修改、0 token 撤销和另一块精简，决定及证据见 `648dbfe`。
 
-2026-10-10 EDT 主控转交 Astra NO_GO：旧 CSS 可因 DOM 变化影响外部；未点选快捷修改缺提交范围；预览拦截 hash/语言链接；逗号分隔误拆函数选择器。盲评首屏持平、精简原版更好，后者丢失先后衔接且缩句生硬；两组变化均只在选中处。要求四项先红后绿、四个按钮仅改通用提示，保留事实、操作顺序和自然商务中文，不加样本例外。授权同站同块再点一次精简，上限 10,000 token；成对包重新随机 A/B。新本地提交，不推送、不关票；独立复审由主控安排。
+2026-10-10 EDT 主控复审：新「精简文字」版获盲评略好，原意保留、用词更直接，变化只在选中段；首屏组此前持平。Astra 对 `5970a14` 仍有一项 NO_GO：伪类正则先截取 focus，遗漏 focus-visible/focus-within 对外部页面的影响。要求三处同类处理一起修复，先补外部焦点状态红测试；新测试改读 SITECRAFT_BASE，不绑定端口，在 3164 和另一端口各跑一次。此次不调用真实模型，新本地提交，不推送、不关票，最终 Astra 复核由主控安排。
 
 ## Acceptance
 
 - [x] 先列出失效方式，再写红绿测试，测试在已知坏的实现上失败（至少：越界改共享 CSS 被拒、模型返回整页被拒、写回位置正确、旧批注数据不丢）
 - [x] 真实入口端到端（只一站，用现有评估站复制样本）：点选首屏 → 写意见改 → 撤销 → 点选另一块 → 点「精简文字」→ 刷新恢复；1440/768/375 截图看过；真实 DeepSeek 用量写进 Resolution，单次局部修改目标 ≤1.5 万 token，整轮上限 5 万，超了先停
-- [ ] 改动前后成对截图交一个新的盲评实例：改动是否只发生在选中区块、结果是否比原来好（只这一站，不跑整轮 eval）
+- [x] 改动前后成对截图交一个新的盲评实例：改动是否只发生在选中区块、结果是否比原来好（只这一站，不跑整轮 eval）
 - [ ] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
-**执行验证 PASS；整票 INCOMPLETE，等待新一轮 Astra 与盲评。** 当前候选为本 Resolution 同一提交（父提交 `648dbfe`）。主控转交的上一轮 NO_GO 与盲评结果保留，不以技术测试代替审美结论。票保持 open，不推送。
+**执行验证 PASS；整票 INCOMPLETE，等待最终 Astra 复核。独立盲评已由主控反馈通过。** 本候选是本 Resolution 同一提交（父提交 `5970a14`），票保持 open，不推送。此前四项修复及真实验证记录保留在父提交与其产物中，不重复调用模型或重做盲评包。
 
-### 修复
+### 修复与回归
 
-- 提交入口比较修改前后 CSS 规则的范围外匹配、声明与顺序；不是只检查新增 CSS。选中 DOM 导致旧 `+`、`:has()` 等规则增减外部命中也拒收。比较来自 Chrome 对静态渲染器文档的 DOM/CSSOM 查询，不用哈希、字节或像素比对。媒体和支持条件无论当前是否生效都检查；无法核对的嵌套 CSS 明确拒绝，不放过。
-- 未点选快捷按钮的 `pageId` 经现有 chat、任务、每次候选及修正传入同一提交入口，其他页 HTML、公共片段及作用于其他页的 CSS 不得改变。合法的当前页 DOM 和仅当前页命中的 CSS 仍能存版。
-- 未开点选时不取消链接默认动作，保留 hash 和语言切换。载入后同步工作台页面/语言，避免下一次点选或快捷修改使用旧范围。
-- 选择器仅按顶层逗号拆分，保留嵌套函数、属性引号与转义；真正的顶层越界选择器仍拒收。
-- 四按钮仅改通用预设意见。精简删除重复与空话，保留事实、先后衔接、解释和限制条件，不压成电报体；其余按钮分别说明保留内容、功能与顺序，改变层级/装饰/图文布局。没有公司或样本文字例外。
+- 三处交互态选择器处理（相关 CSS 提取、新 CSS 选择器、范围外规则匹配）都按完整名称消费 `focus`、`focus-visible`、`focus-within`，用 CSS 名称边界代替允许连字符后缀被截开的单词边界；大小写同样识别。没有新增接口、模型提示或样本例外。
+- 外部状态测试先用 Chrome 的真实 Tab 键让产品页链接进入键盘焦点，分别确认 `a:focus-visible` 和 `a:focus-within` 的候选把外框从 2px 改为 8px，再要求 `pageId: home` 的提交拒收且不增版本。读取的是原生匹配与计算样式，不比截图像素。
+- 局部正例验证选中链接/祖先的焦点 CSS 会进入写作上下文，合法的区块专属焦点样式仍可提交；防止通过一概拒绝焦点样式掩盖漏检。
+- `tests/t152-scope-regressions.test.ts` 只要求显式设置 SITECRAFT_BASE，所有 URL 继续读取该值；不固定主机或端口，也不在缺值时回落到主工作区。
 
-### 红绿与检查
+### 本次证据
 
-以下证据均在 2026-10-11 UTC 生成，对应本候选代码。所有命令显式设 `SITECRAFT_BASE=http://127.0.0.1:3164`；`<Chrome>` 为 `/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。全量测试的服务和测试进程都使用本工作树 `.sitecraft-data`；真实流程只用本工作树 `artifacts/t152/usage-revision/real-data`，没有访问主数据。
+日期：2026-10-11 UTC / 2026-10-10 EDT。证据目录 **`artifacts/t152/focus-review/`**。所有服务与数据均在本 worktree，使用 `SITE_STORE=fs` 和本工作树 `.sitecraft-data`；主数据、真实样本站和密钥均未访问。`<Chrome>` 为 `/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。
 
-- 新回归命令：`SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<Chrome> node --test --experimental-strip-types tests/t152-scope-regressions.test.ts`。依据主控给的 Astra 四项复现摘要，旧实现中兄弟与 :has 用例错误存版，pageId 两用例错误 complete，函数/属性逗号错误拒收；Chrome 中 hash、语言链接均被 preventDefault。红态保存在 `artifacts/t152/astra-fixes/red.log`、`red-navigation.log`。初次语言用例选错属性的夹具错误单独保留，修正选择器后再取得预期红态。
-- 相同回归首轮 **7/7**，见 `green-first.log`；全量运行同时覆盖补充的当前页合法修改用例。主控补充具体内存复现后，把锚点放到首屏外，并验证跨页与同页 hash 的实际滚动距离、目标可见性；暂换回 `648dbfe` 的两个预览组件得到预期红态 `red-navigation-scroll-fixed-fixture.log`，恢复候选后 **2/2** 通过，`green-navigation-scroll.log`。首次补充夹具缺少首页同名锚点的错误也保留，不计红态。只替换 provider HTTP 与 Next after 调度；chat、提交、文件存储、静态预览、Chrome 原生点击均真实执行。
-- `SITECRAFT_BASE=http://127.0.0.1:3164 SITE_STORE=fs CHROME_PATH=<Chrome> npm test`：**364/364**；补充滚动断言后再跑全量，日志 `artifacts/t152/astra-fixes/npm-test-final.log`，初次全量日志保留。
-- `SITECRAFT_BASE=http://127.0.0.1:3164 npm run typecheck` 与同环境 `npm run build`：均通过，补充断言后日志 `typecheck-scroll.log`、`build-scroll.log`。之前 review-pack 的数组类型推断错误日志保留，已补显式类型。
-- `SITECRAFT_BASE=http://127.0.0.1:3164 T152_RUN_LABEL=astra-simplify-local CHROME_PATH=<Chrome> node --experimental-strip-types scripts/t152-simplify-e2e.ts`：本地替身先跑通同一按钮、同块写入和刷新，`artifacts/t152/astra-simplify-local/report.json` 为 PASS。4 张本地工作台截图已打开。
+- 红态：`SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<Chrome> node --test --experimental-strip-types --test-name-pattern='focus' tests/t152-scope-regressions.test.ts`。旧实现三个用例全部失败：外部两种焦点 CSS 都错误 applied，写作上下文漏掉焦点规则。`red-focus.log` 保留原始断言；Chrome 的真实焦点和 2px/8px 断言先通过，故不是夹具失败。
+- 端口红态：`SITECRAFT_BASE=http://127.0.0.1:3167 CHROME_PATH=<Chrome> node --test --experimental-strip-types tests/t152-scope-regressions.test.ts`。旧端口断言在测试入口拒绝 3167，`red-port-3167.log`。
+- 3164 绿态：`SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<Chrome> node --test --experimental-strip-types tests/t152-scope-regressions.test.ts`，**10/10** 通过，`green-3164.log`。覆盖焦点、旧规则间接影响、当前页边界、选择器逗号和原生导航实际滚动。
+- 3167 绿态：`SITECRAFT_BASE=http://127.0.0.1:3167 CHROME_PATH=<Chrome> node --test --experimental-strip-types tests/t152-scope-regressions.test.ts`，**10/10** 通过，`green-3167.log`。将本 worktree 开发服务由 3164 停止后，以 `SITECRAFT_BASE=http://127.0.0.1:3167 SITE_STORE=fs CHROME_PATH=<Chrome> DEEPSEEK_BASE_URL=http://127.0.0.1:3165 DEEPSEEK_API_KEY=local-only DEEPSEEK_MODEL=local-only npm run dev -- --port 3167` 启动；测试源码完全相同，没有内存替换端口。
+- 全量：`SITECRAFT_BASE=http://127.0.0.1:3164 SITE_STORE=fs CHROME_PATH=<Chrome> npm test`，**367/367** 通过，日志 `npm-test.log`。
+- `SITECRAFT_BASE=http://127.0.0.1:3164 npm run typecheck` 与同环境 `npm run build` 均通过，`typecheck.log`、`build.log`。测试仅使用受控本地 provider，提交入口、持久化与 Chrome 检查真实执行。
 
-### 真实验证与额度
+本次日志完成时间（UTC）：red-focus.log 02:44:17；red-port-3167.log 02:44:10；green-3164.log 02:45:31；green-3167.log 02:48:20；npm-test.log 02:47:29；typecheck.log 02:45:26；build.log 02:45:32。全量测试生成的浏览器截图已逐张打开查看；本次未改变生成页面内容，不重做真实截图。
 
-本次只从已存 v4 的首页第三块点一次「精简文字」，没有撤销、重做首屏或第二次用户调用。2026-10-11 **02:28:06–02:28:21 UTC** 存 v5 `7c53d31c-294d-4404-adfe-8585486b4e07`，刷新仍为该版本；home/products × 375/768/1440 底线通过，无溢出、文字重叠或对比度拒因。无修正轮、重试、402。新段恢复「先给……再确认……」与「外尺寸不能当作可用空间」；这里只确认实际输出，不判文案优胜。
+### 既有真实验证与交接
 
-凭据仅按规定 source 到预算代理进程。代理为 `SITECRAFT_BASE=http://127.0.0.1:3164 DEEPSEEK_MODEL=deepseek-flash node --experimental-strip-types scripts/t152-real-budget.ts`，每次请求前估算输入；写作输出最多 4096，事实核对按剩余额度封顶。生产局部事实请求额度仍为 4096，本次预算代理把实际第二次上限收紧至 1269；两次都正常 stop。用完即停代理，不继续消耗剩余授权。
+本次真实模型调用 **0 次，0 token**。此前同块 v4 → v5 共 7,532 token，报告 `artifacts/t152/astra-simplify-real/report.json`；本票已知累计仍为 **46,222**，原 50,000 剩余 **3,778**，不视为新增调用授权。
 
-开发服务：`SITECRAFT_BASE=http://127.0.0.1:3164 SITE_STORE=fs SITECRAFT_DATA_ROOT=<本工作树>/artifacts/t152/usage-revision/real-data CHROME_PATH=<Chrome> DEEPSEEK_BASE_URL=http://127.0.0.1:3166 DEEPSEEK_API_KEY=local-budget-proxy DEEPSEEK_MODEL=deepseek-flash npm run dev -- --port 3164`。
-
-真实命令：`SITECRAFT_BASE=http://127.0.0.1:3164 T152_RUN_LABEL=astra-simplify-real T152_BUDGET_REPORT=artifacts/t152/real-budget-1791685674100/usage.json CHROME_PATH=<Chrome> node --experimental-strip-types scripts/t152-simplify-e2e.ts`。
-
-| 调用 | 输入预估 | 实际输入 | 实际输出 | 合计 |
-| --- | ---: | ---: | ---: | ---: |
-| 局部写作（enabled） | 4,664 | 3,901 | 1,349（含推理 912） | 5,250 |
-| 局部事实（disabled） | 3,481 | 2,277 | 5 | 2,282 |
-| 本次 | | 6,178 | 1,354 | **7,532** |
-
-报告为 `artifacts/t152/astra-simplify-real/report.json`，预算账本为 `artifacts/t152/real-budget-1791685674100/usage.json`。本次 **7,532 < 10,000**；此前 38,690，本票累计 **46,222**，原 50,000 剩 **3,778**，不视为额外调用授权。真实工作台 1440/768/375 和选中态共 4 张已打开；历史失败对话仍保留。
-
-### 盲评交接
-
-命令：`SITECRAFT_BASE=http://127.0.0.1:3164 CHROME_PATH=<Chrome> node --experimental-strip-types scripts/t152-review-pack.ts artifacts/t152/astra-simplify-real`。
-
-- 只交 **`artifacts/t152/review-pack-1791685708511/review/`** 给新盲评实例：原版 v3 与新结果 v5，同页 1440/375，共 4 张，全都打开看过，无载入态或缺图。评审说明只问哪版更好、差在哪里，不透露修改方式。
-- **`private/` 由主控保管**：记录实际按钮输入 v4、对照基线 v3、结果 v5、随机抽签结果及 A/B 映射。本次只打包精简组；上一轮首屏持平的包和失败证据保留。上一包两组恰都呈现改前在先；本次明确 A/B 为随机展示位置，文件排序与说明顺序一致，随机位单独留在 private，未按结果重抽。
-- 主控下一步：安排 Astra 对本提交复审、将新 review 目录交独立盲评。执行者不自审美、不关票。
+已获盲评略好的是 v5 `7c53d31c-294d-4404-adfe-8585486b4e07`；原版 v3 / 新结果 v5 的 1440/375 随机 A/B 包仍为 **`artifacts/t152/review-pack-1791685708511/review/`**，映射在同包 `private/` 由主控保管。既有截图和失败记录保留。本次只修范围检查及测试环境，不更新生成站内容，不自审美。主控下一步只需安排 Astra 对本提交最终复核。
