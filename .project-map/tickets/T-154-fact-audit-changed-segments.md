@@ -2,7 +2,7 @@
 id: T-154
 title: 事实核对只核改动过的段落，修正轮与整页对话修改不再重核整站
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t154-fact-segments)
 supersedes:
@@ -29,7 +29,7 @@ supersedes:
 - [x] 先列失效方式再写红绿测试，在已知坏实现上失败（至少：表头改了值没改要重核、资料改了要全核、段文字一字之差要重核、编号错乱拒收）
 - [x] 用 T-153 保存的真实候选与核对记录（`artifacts/t153/approved/real-2026-10-11T03-58/private/`）离线重放：在不调用模型的前提下算出新方案在同样两轮修正下要发多少段、估算 token，对比当时的 42,034
 - [x] 真实验证与 T-155 合跑一次品牌画册生成（主控按负责人批准的预算），Resolution 写各次核对的段数与 token
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## Resolution
 
@@ -65,3 +65,9 @@ supersedes:
 独立 Astra 对本次冻结的预算脚本与联合运行证据给出技术 PASS：核验三次调用、77,711 token、32/0 段数、入口截图和包内信息隔离；独立预算测试 2/2 通过。该核验不代替审美盲评，也不把未触发的真实复用或 402/网络停止场景写成实测。
 
 主控后续：把 review 包交新实例做两题成对盲评，再结合最终代码审查决定 T-154/T-155 的全票验收。现有 T-156 `type: decision` 校验问题未改；本次不关票、不推送。
+
+## 主控合并验证（2026-10-11，纽约时间）
+
+- Astra：`81c976b` NO_GO（删除同组限定行仍沿用；前导空白导致写回失败）；`efd377f` 整组重核修复后复核 PASS。`ef75c3a` 只把预算上限改为显式 `SITECRAFT_TOKEN_LIMIT` 并记录段数，主控已读 diff。
+- 真实合跑 77,711 token（批准上限 120,000）：一次核对新核 32 段、沿用 0、12,994 token；无修正轮，所以真实复用省量未观察到，省量依据仍是离线重放（T-153 两轮修正下复核估计 13,527–42,162 对比实际 42,034）。
+- 主线 `5ab9946`：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` 400/400，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-5ab9946/`。
