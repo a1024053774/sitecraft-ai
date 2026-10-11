@@ -106,7 +106,9 @@ test('actual CLI only-selects non-industrial quick/full cases without losing mat
         assert.ok(material.includes(line.replaceAll(pack.companyName, pack.companyName.replace(/P3[A-Z]$/, ''))), `${item.id}: missing ${line}`);
       }
       assert.match(material, /没有授权照片时采用无图/);
-      const requested = material.split('\n').find(line => line.startsWith('页面要求：'))!;
+      // Author constraints precede the eval's final page-list override (T-160).
+      for (const line of pack.body.split('\n').filter(line => line.startsWith('页面要求：'))) assert.ok(material.includes(line));
+      const requested = material.split('\n').filter(line => line.startsWith('页面要求：')).at(-1)!;
       assert.doesNotMatch(requested, /产品|询盘|预约|联系页/);
       if (quick) assert.ok(requested.includes(`${item.title}（${item.page}）`));
       const id = item.id as Parameters<typeof requireWholeSitePlan>[0];

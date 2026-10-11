@@ -72,7 +72,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；
 2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`，每张都打开看过；载入态、空白或截断的截图不算证据。生成站的底线检查（结构、事实、外部资源、溢出、重叠、对比度、行长）由提交入口和评估集自动跑，验收引用它们本次的结果。发布与预览都读代码版本并用同一静态渲染器。
-   中文和英文发布与预览使用同一静态渲染器。正文行长与 T-147 的五项机械检查是版本检查和评估统计中的质量反馈，不拒收或触发修正轮；产品图反馈仅确认原图裁切，主体是否丢失须人工核对。
+   中文和英文发布与预览使用同一静态渲染器。正文行长、T-160 的过窄文字列与 T-147 的五项机械检查是版本检查和评估统计中的质量反馈，不拒收或触发修正轮；产品图反馈仅确认原图裁切，主体是否丢失须人工核对。
+   `tests/t160-narrow-columns.test.ts` 用真实浏览器拦截价格豁免扩散到说明正文、display:contents 可见文字漏测和 CSS 多栏跨列合行；纯价格/正文、可见/隐藏、多栏/单栏均成对验证。
    浏览器测试先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（负责人这台 Mac 的普通 Chrome 无头启动后会被自动更新带着退出）；换机器或版本更新后按实际路径改。
    `scripts/t15*` 的应用地址显式用 `SITECRAFT_BASE`，替身用 `SITECRAFT_FIXTURE_BASE`，预算网关用 `SITECRAFT_BUDGET_BASE`；均校验本地 HTTP origin，不锁端口、不默认回退主工作区。真实生成与预算网关必须显式设置 `SITECRAFT_TOKEN_LIMIT` 为本次获批上限，不沿用历史默认预算。`tests/t153-local-endpoints.test.ts` 拦截固定本地端口和默认应用地址，并验证替身实际监听配置（T-153）。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；

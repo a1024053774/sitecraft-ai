@@ -9,10 +9,12 @@ import { listSiteImages } from '../lib/site-images.ts';
 import { summarize, type EvalCase } from './eval-set-report.ts';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import { captureEvalPage } from './eval-site-capture.ts';
+import { localEndpoint } from './local-endpoint.ts';
 
 // Read copied snapshots only. No model call, commit, version write or import is made.
 // Existing deterministic entry checks run with the explicit offline fact-review status.
 const { values } = parseArgs({ options: { manifest: { type: 'string' }, samples: { type: 'string' }, out: { type: 'string' } } });
+const base = localEndpoint('SITECRAFT_BASE').origin;
 assert.ok(values.manifest && values.samples && values.out, 'use --manifest <selected site IDs> --samples <copied code-sites> --out <new artifact directory>');
 const samples = path.resolve(values.samples), out = path.resolve(values.out);
 assert.ok(samples.startsWith(process.cwd() + path.sep), 'samples must be copied into this worktree first');
@@ -46,7 +48,7 @@ await writeFile(path.join(out, 'summary.json'), JSON.stringify({ ...meta, comple
 assert.equal(results.filter(r => r.error).length, 0, 'replay errors remain in results.json and cannot count as passes');
 assert.equal(summary.checkedSites, manifest.length);
 assert.ok(results.every(r => r.checks?.viewports.length), 'every selected version needs measured viewports');
-const kinds = ['truncatedText', 'ungatedHover', 'smallTargets', 'coveredAnchors', 'croppedProductImages'] as const;
+const kinds = ['truncatedText', 'ungatedHover', 'smallTargets', 'coveredAnchors', 'croppedProductImages', 'narrowColumns'] as const;
 const ranked = kinds.map(kind => ({ kind, sites: results.filter(r => r.checks?.viewports.some(v => (v.qualityFeedback?.[kind] || 0) > 0)).length })).sort((a, b) => b.sites - a.sites);
 const screenshots: Array<{ kind: string; siteId: string; pageId: string; width: number; file: string }> = [];
 const browser = await codeCheckBrowser();
@@ -56,7 +58,6 @@ try {
     if (!result) continue;
     const page = result.checks!.viewports.find(v => (v.qualityFeedback?.[kind] || 0) > 0)!.pageId;
     for (const width of [1440, 768, 375]) {
-      const base = process.env.SITECRAFT_BASE || 'http://127.0.0.1:3157';
       const data = await captureEvalPage(browser, `${base}/api/sites/${result.siteId}/code-preview?page=${page}&version=${result.versionId}`, width, result.name);
       const file = `${kind}-${result.siteId}-${page}-${width}.png`;
       await writeFile(path.join(out, file), Buffer.from(data, 'base64'));
