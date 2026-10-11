@@ -98,5 +98,6 @@ test('thin user material stays a one-page site; the same conversation can later 
   assert.doesNotMatch(contact, /报价|响应时效/);
   assert.deepEqual(after.versions[0].code, before.versions[0].code, 'refresh and later enrichment preserve the earlier no-contact version');
   const facts = calls.filter(call => call.system.includes('事实校对员'));
-  assert.ok(facts.length >= 2); assert.ok(facts.every(call => call.system.includes('承诺与政策核对清单：报价方式与收费')));
+  assert.ok(facts.length >= 2);
+  for (const call of facts) for (const term of ['价格', '收费', '时间', '资质', '承诺', '效果', '客户', '评价']) assert.ok(call.system.includes(term), `Missing general fact category: ${term}`);
 });

@@ -78,7 +78,8 @@ test('translation uses one strict named non-thinking function per real source ba
     assert.match(body.messages[0].content, /不得.*具体化|不把.*具体化/);
     assert.match(body.messages[0].content, /copper/);
     assert.match(body.messages[0].content, /dispatch/);
-    assert.match(body.messages[0].content, /海外采购.*B2B|B2B.*海外采购/);
+    assert.match(body.messages[0].content, /行业.*常规商务英语/);
+    assert.doesNotMatch(body.messages[0].content, /海外采购|B2B/);
   }
   assert.equal(result.code.css, fixture.sourceCode.css);
   assert.match(result.code.pages[0].html, /Certification status: To be provided/);
