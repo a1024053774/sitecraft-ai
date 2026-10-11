@@ -102,3 +102,4 @@ T-158 三站盲评（餐饮、培训、工业各一，真实感 5–6/10）共�
 
 - Astra 对 `66a3054` NO_GO（价格豁免扩散、display:contents 跳过、多栏合行），`e324f3f` 已红绿修复。复核仍 NO_GO，三条更偏的边界：中文大写金额（「人民币壹仟贰佰捌拾元整/期」）在 4em 宽字段被误报；`display:contents` 叠加 `content-visibility:hidden` 的祖先导致漏测；外层 `transform: scale()` 的多栏仍跨列合行。复现在 `artifacts/t160-review-e324f3f/`。
 - 主控决定不再迭代：该项只是质量反馈，不拒收、不触发修正（与 T-147 行长同类），按 T-120 不为验收工具的边角写法连续修补。以上三条作为已知限制保留；若真实生成站里出现对应误报/漏报再开票。
+- 离线部分已合并主线 `cce4992`：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` 417/417，typecheck、build 通过，日志 `artifacts/merge-cce4992/`。票保持 open，等真实验证预算。
