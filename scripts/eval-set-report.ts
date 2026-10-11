@@ -7,10 +7,10 @@ import type { SimulatedPackId } from '../lib/simulated-packs.ts';
 
 export function requireWholeSitePlan(pack: SimulatedPackId, pageCount: number, profile: 'full' | 'quick' = 'full') {
   if (profile === 'quick') {
-    if (pageCount !== 2) throw new Error(`快速档大纲需要首页和产品两个页面，实际 ${pageCount} 页；本次不确认生成。`);
+    if (pageCount !== 2) throw new Error(`快速档大纲需要资料要求的两个页面，实际 ${pageCount} 页；本次不确认生成。`);
     return;
   }
-  const requested = { industrial: 2, export: 3, molding: 4, packaging: 3 }[pack];
+  const requested = { industrial: 2, export: 3, molding: 4, packaging: 3, restaurant: 3, education: 3, design: 3 }[pack];
   if (pageCount < requested) throw new Error(`大纲缩减了用户点名的页面：${pack} 至少 ${requested} 页，实际 ${pageCount} 页；本次不确认生成。`);
 }
 

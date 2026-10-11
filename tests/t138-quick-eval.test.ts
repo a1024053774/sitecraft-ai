@@ -5,9 +5,9 @@ import path from 'node:path';
 import test from 'node:test';
 
 // Exercise the CLI, stopping at an incompatible previous corpus before any
-// network operation. A missing flag, eight cases, stale full-page instructions
+// network operation. A missing flag, full-matrix cases, stale full-page instructions
 // or silent pairing with full runs must fail this contract.
-test('quick CLI constructs four two-page cases and refuses full-run pairing', async () => {
+test('quick CLI constructs seven two-page cases and refuses full-run pairing', async () => {
   const directory = path.resolve('artifacts/t138', `quick-${crypto.randomUUID()}`), before = path.join(directory, 'before'), after = path.join(directory, 'after');
   await mkdir(path.join(before, 'private'), { recursive: true });
   await writeFile(path.join(before, 'private/round.json'), JSON.stringify({ cases: [] }), 'utf8');
@@ -18,8 +18,8 @@ test('quick CLI constructs four two-page cases and refuses full-run pairing', as
   const round = JSON.parse(await readFile(path.join(after, 'private/round.json'), 'utf8'));
   assert.equal(result.status, 1);
   assert.equal(round.profile, 'quick');
-  assert.deepEqual(round.cases.map((c: { key: string }) => c.key), ['industrial/precision', 'export/documentary', 'molding/precision', 'packaging/documentary']);
-  assert.ok(round.cases.every((c: { materials: string; outcome: string }) => c.outcome === 'not-run' && c.materials.includes('首页（home）、产品（products）两个独立页面') && !/页面要求：.*[三四五]个独立页面/.test(c.materials)));
+  assert.deepEqual(round.cases.map((c: { key: string }) => c.key), ['industrial/precision', 'export/documentary', 'molding/precision', 'packaging/documentary', 'restaurant/documentary', 'education/documentary', 'design/documentary']);
+  assert.ok(round.cases.every((c: { materials: string; outcome: string }) => c.outcome === 'not-run' && /首页（home）、(?:产品（products）|菜单（menu）|课程（courses）|作品（work）)两个独立页面/.test(c.materials) && !/页面要求：.*[三四五]个独立页面/.test(c.materials)));
   assert.ok(round.errors.some((e: string) => e.includes('资料或组合已变化')));
   assert.equal(round.controls.length, 0);
 });

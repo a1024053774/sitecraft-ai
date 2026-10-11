@@ -35,7 +35,8 @@ test('evaluation uploads every admitted image for both styles of all four compan
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-  const command = [process.execPath, '--experimental-strip-types', 'scripts/eval-new-route.ts', '--base', base, '--out', path.join(out, 'round')];
+  const only = packs.flatMap(pack => [`${pack}/precision`, `${pack}/documentary`]).join(',');
+  const command = [process.execPath, '--experimental-strip-types', 'scripts/eval-new-route.ts', '--base', base, '--only', only, '--out', path.join(out, 'round')];
   const child = spawn(command[0], command.slice(1), { env: { ...process.env, CHROME_PATH: '', SITE_STORE: 'fs' }, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = ''; child.stdout.on('data', data => { output += data; }); child.stderr.on('data', data => { output += data; });
   try {

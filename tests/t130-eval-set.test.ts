@@ -75,7 +75,7 @@ test('CLI refuses an incompatible previous corpus and preserves the reason in it
   assert.equal(result.status, 1);
   const output = JSON.parse(await readFile(path.join(after, 'private/round.json'), 'utf8'));
   assert.ok(output.errors.some((error: string) => error.includes('资料或组合已变化')), 'the refusal must be saved, not just printed');
-  assert.equal(output.cases.length, 8); assert.ok(output.cases.every((c: EvalCase) => c.outcome === 'not-run'));
+  assert.equal(output.cases.length, 14); assert.ok(output.cases.every((c: EvalCase) => c.outcome === 'not-run'));
   assert.equal(output.controls.length, 0, 'an invalid comparison must stop before any provider or website calls');
   assert.ok((await readFile(path.join(after, 'review/mixed/prompt.txt'), 'utf8')).includes('独立页面盲评者'));
 });

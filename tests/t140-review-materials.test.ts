@@ -29,7 +29,7 @@ test('workspace packs use the owner domain and retain their simulation and factu
     assert.match(pack.email, /@(?:[a-z0-9-]+\.)?luckye\.online$/);
     assert.ok(pack.body.includes(pack.email));
     assert.match(pack.body, /^资料性质：模拟/);
-    assert.match(pack.body, /电话、地址：待补充/);
+    assert.match(pack.body, /电话(?:、地址：|：)?待补充/);
     assert.doesNotMatch(pack.body, /@[\w.-]+\.(?:test|example)\b/);
   }
 });
@@ -44,7 +44,7 @@ test('the real evaluation CLI preserves owner-domain addresses in every case', a
   await writeFile(path.join(root, 'evaluation-command.json'), JSON.stringify({ command, status: result.status, stdout: result.stdout, stderr: result.stderr }, null, 2));
   assert.equal(result.status, 1);
   const report = JSON.parse(await readFile(path.join(after, 'private/round.json'), 'utf8'));
-  assert.equal(report.cases.length, 8);
+  assert.equal(report.cases.length, 14);
   assert.ok(report.errors.some((error: string) => error.includes('资料或组合已变化')));
   for (const item of report.cases) {
     const emails = item.materials.match(/[\w.+-]+@[\w.-]+/g) || [];
