@@ -59,10 +59,11 @@
 - [T-141 用户给什么就做什么](tickets/T-141-build-from-what-user-gives.md)：不默认加询盘、报价、邮箱联系和联系页；资料少就做得少，用户补充后再丰富
 - [T-143 衡量标准](tickets/T-143-quality-metric.md)：以换公司不像同模板、新旧成对选新为准；混排只作参考
 - [T-146 Shaders、good-css、Oil UI 怎么接](tickets/T-146-shaders-goodcss-oilui.md)：shader 只做系统渲染的静态底图；good-css 做成提交入口的机械反馈检查；Oil UI 的方法进规划，验证有效后再做多方向挑选
+- [T-156 通用建站的范围](tickets/T-156-general-purpose-scope.md)：任何行业的中小企业与机构展示型官网；不做电商、预约、会员和个人/活动页；拆为 T-157 非工业样本 → T-158 规范通用化 → T-159 非工业风格
 
 ## Not yet specified
 
-- T-128 之后的新路线批次（等第一批做完再切票）：风格卡与品牌画册见 T-153（主控已转达风格区分与 2/2 对 5/6 滑杆盲评通过；保留画册，待合并验证，不再跑 9/9）；模板味检测（Impeccable 检测规则）；Hairline 式线稿示意图；
+- T-128 之后的新路线批次（等第一批做完再切票）：模板味检测（Impeccable 检测规则）；Hairline 式线稿示意图；
 - 生成用模型：先用 deepseek-flash；评估集显示到顶时再由负责人决定是否换。
 
 ## Out of scope
