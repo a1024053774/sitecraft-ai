@@ -25,7 +25,7 @@ async function serve() {
   const approvedTokenLimit = Number(process.env.SITECRAFT_TOKEN_LIMIT);
   assert.ok(Number.isSafeInteger(approvedTokenLimit) && approvedTokenLimit > 0, 'SITECRAFT_TOKEN_LIMIT must be the explicit approved token authorization');
   const folder = process.env.T153_BUDGET_DIR;
-  assert.ok(folder && ['t153', 't158'].some(ticket => path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts', ticket) + path.sep)));
+  assert.ok(folder && ['t153', 't158', 't160'].some(ticket => path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts', ticket) + path.sep)));
   const provider = providerConfig();
   assert.ok(provider.apiKey); assert.equal(provider.model, 'deepseek-flash');
   assert.equal(new URL(provider.baseURL).origin, 'https://api.deepseek.com');

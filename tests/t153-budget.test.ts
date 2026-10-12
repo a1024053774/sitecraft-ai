@@ -29,16 +29,16 @@ test('the explicit 120000 authorization cannot borrow the historical 300000 budg
   assert.throws(() => reserve(0), /authorization|limit/i);
 });
 
-test('the real gateway starts in a T-158 artifact folder and stops an over-budget round before any upstream call', async () => {
+for (const [ticket, limit] of [['t158', 300000], ['t160', 150000]] as const) test(`the real gateway starts in ${ticket} and stops an over-budget round before any upstream call`, async () => {
   assert.ok(process.env.SITECRAFT_BASE);
   const probe = createServer();
   await new Promise<void>(resolve => probe.listen(0, '127.0.0.1', resolve));
   const endpoint = `http://127.0.0.1:${(probe.address() as { port: number }).port}`;
   await new Promise<void>(resolve => probe.close(() => resolve()));
-  const folder = path.resolve('artifacts/t158', `budget-contract-${crypto.randomUUID()}`);
+  const folder = path.resolve('artifacts', ticket, `budget-contract-${crypto.randomUUID()}`);
   await mkdir(folder, { recursive: true });
   const child = spawn(process.execPath, ['--experimental-strip-types', 'scripts/t153-real-budget.ts'], {
-    env: { ...process.env, SITECRAFT_BUDGET_BASE: endpoint, SITECRAFT_TOKEN_LIMIT: '300000', T153_BUDGET_DIR: folder,
+    env: { ...process.env, SITECRAFT_BUDGET_BASE: endpoint, SITECRAFT_TOKEN_LIMIT: String(limit), T153_BUDGET_DIR: folder,
       DEEPSEEK_BASE_URL: 'https://api.deepseek.com', DEEPSEEK_MODEL: 'deepseek-flash', DEEPSEEK_API_KEY: 'not-a-real-key' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -53,9 +53,9 @@ test('the real gateway starts in a T-158 artifact folder and stops an over-budge
       child.once('exit', () => { clearTimeout(timer); reject(new Error(output)); });
     });
     const initial = await (await fetch(`${endpoint}/status`)).json();
-    assert.equal(initial.limit, 300000); assert.equal(initial.spent, 0);
+    assert.equal(initial.limit, limit); assert.equal(initial.spent, 0);
     // This request cannot reach the provider. Its estimate exceeds the approval.
-    const denied = await fetch(`${endpoint}/round`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label: 'default', estimate: 300001 }) });
+    const denied = await fetch(`${endpoint}/round`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label: 'default', estimate: limit + 1 }) });
     assert.equal(denied.status, 502);
     const ledger = JSON.parse(await readFile(path.join(folder, 'usage.json'), 'utf8'));
     assert.equal(ledger.stopped, true); assert.equal(ledger.spent, 0);
