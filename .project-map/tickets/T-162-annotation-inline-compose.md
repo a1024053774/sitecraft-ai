@@ -48,28 +48,30 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 10. 点选记录存储被拒不能破坏工作台：分别拒绝 getItem、setItem、removeItem 及全部存储，页面仍可点选/输入，有可见降级说明；读、写、删除保护分别回退后取得红态。
 11. 手机定位不能被意见面板挡住：完成一次修改、切产品页、从线程定位回首页旧版本；375×1000、预览宽度 375 下，目标标题、正文和链接必须在实际可见区域且不被意见面板遮挡，真实滚轮仍能查看目标。
 12. 收起回看面板不能丢上下文：收起后高亮与原意见摘要仍可见，展开恢复同一线程与目标；375 的遮挡和收起丢失分别在当前 `55cf192` 上取得红态，1440/768 作为对照。
+13. 目标滚出视野不能带走意见面板：1440/768/375 点选首屏标题并输入意见，以真实 CDP mouseWheel 滚到目标完全离屏；面板、textarea 和操作按钮仍完整位于视口内，原意见保留，真实指针继续输入及添加可用。在 `1825142` 上取得 1440/768 顶部截断红态，375 为不回退对照。
 
 以上为新行为合同的预期红态，不宣称父版本已有缺陷。真实模型、独立试用与 Astra 审查由主控另行安排。
 
 ## Resolution
 
-2026-10-13 独立试用对 `55cf192` 的 NO_GO 已按本轮授权整改；原记录 `artifacts/t162/trial-20261013T181241Z/试用记录.md` 与卡点截图原样保留。**本轮修复与本地确定性验证 PASS；整票验收 INCOMPLETE，等待主控复试、Astra 复审和真实模型验证**。不推送、不关票，不调用真实 DeepSeek，不自行开启审核实例，不打开 BaoCut 参考目录或复制/改写其源码。
+2026-10-13 Astra 对 `1825142` 的增量审查确认 375 定位修复有效，历史回看/焦点/存储无回归，但给出浮层顶部截断的 NO_GO；记录 `artifacts/t162/astra-scroll-edge-1825142-1791918096283/` 原样保留。**本轮修复与本地确定性验证 PASS；整票验收 INCOMPLETE，等待主控复试、Astra 复审和真实模型验证**。不推送、不关票，不调用真实 DeepSeek，不自行开启审核实例，不打开 BaoCut 参考目录或复制/改写其源码。
 
-375 的预览按意见面板实际高度预留空间，线程定位同时滚动 iframe 和工作台预览区域，使目标标题、正文、底部链接可见。线程「关闭」改为「收起」，保留同一意见摘要、锚点与高亮，展开恢复原线程；Esc 回看时收起，写意见时仍取消。1440/768 的浮层下方放不下时移到目标上方，避免原底部钳位覆盖链接。改动只在工作台，不修改生成站代码、模型合同或版本提交入口。spec、CONTEXT 与 AGENTS 已同步。
+修复只在 `code-preview-selection.tsx` 的浮层位置计算：先沿用目标下方/上方的避让选择，再统一把最终 top 限制在视口内。目标滚出视野后，面板、输入框和操作按钮完整可见，已输入意见保留，可继续输入和添加。375 的面板留白、定位及收起摘要沿用父版本；不修改生成站代码、模型合同或版本提交入口。spec 与 AGENTS 的机械回归指针已同步。
 
-本轮父版本为 `55cf1926f5f611cb3f7113b4059f60381d24a71d`，本票与修复同一提交；最终 SHA 与检查命令/时间见 `artifacts/t162/mobile-receipt.json`。共同进程环境：`SITE_STORE=fs`、显式 `SITECRAFT_BASE=http://127.0.0.1:3192`、替身 `DEEPSEEK_BASE_URL=http://127.0.0.1:3193`、`DEEPSEEK_MODEL=local-only` 及 AGENTS 指定 CHROME_PATH。认证占位仅在进程环境，不载入 `.env.local`，全量不设置全局 SITECRAFT_DATA_ROOT。应用与替身启动命令为 `npm run dev -- --hostname 127.0.0.1 --port 3192` 和 `SITECRAFT_FIXTURE_BASE=http://127.0.0.1:3193 node --experimental-strip-types scripts/t162-model-fixture.ts`。
+本轮父版本为 `182514243db55364ba38255a78a452842b5a77f6`，本票与修复同一提交；最终 SHA、命令和时间见 `artifacts/t162/edge-receipt.json`。共同进程环境：`SITE_STORE=fs`、显式 `SITECRAFT_BASE=http://127.0.0.1:3192`、替身 `DEEPSEEK_BASE_URL=http://127.0.0.1:3193`、`DEEPSEEK_MODEL=local-only` 及 AGENTS 指定 CHROME_PATH。认证占位仅在进程环境，不载入 `.env.local`，全量不设置全局 SITECRAFT_DATA_ROOT。验证时应用启动命令为 `npm run dev -- --hostname 127.0.0.1 --port 3192`，本地替身为 `SITECRAFT_FIXTURE_BASE=http://127.0.0.1:3193 node --experimental-strip-types scripts/t162-model-fixture.ts`；交付前两者均已停止。
 
 | 本次证据 | 命令、完成时间（UTC，2026-10-13） | 结果 |
 | --- | --- | --- |
-| 当前坏版红态 | `T162_LABEL=mobile-red node --test --experimental-strip-types tests/t162-mobile-reveal.test.ts`；18:39:26；`mobile-red.log` | 3 项失败：375 遮挡、关闭后丢高亮、1440 浮层覆盖底部链接；均已到达实际状态分支 |
-| 修复后绿态 | `T162_LABEL=mobile-green node --test --experimental-strip-types tests/t162-mobile-reveal.test.ts`；18:44:57；`mobile-green.log` | 3/3，通过；定位、真实滚轮、收起/展开及 1440/768 对照 |
-| Chrome 前置检查 | `mobile-full-preflight.txt`；18:49:53 | 其他 Chrome/测试进程为 0，随后运行全量 |
-| 全量测试 | `T162_LABEL=mobile-final npm test`；18:52:23；`mobile-full-test.log` | 430/430，通过；0 跳过，含本次 3 项回归、此前 Astra 三项回归及 T-152 范围检查 |
-| 类型检查 | `npm run typecheck`；18:49:54；`mobile-typecheck-final.log` | 通过 |
-| 构建 | `npm run build`；18:53:11；`mobile-build.log` | 通过 |
+| 当前坏版红态 | `T162_LABEL=edge-red node --test --experimental-strip-types tests/t162-scroll-edge.test.ts`；19:05:49；`edge-red.log` | 1440/768 两项顶部截断失败，top 为 −71.14/−162.30px；375 对照通过 |
+| 同信号绿态 | `T162_LABEL=edge-green node --test --experimental-strip-types tests/t162-scroll-edge.test.ts`；19:07:01；`edge-green.log` | 3/3，通过；真实滚轮后保留意见、指针继续输入和添加可用 |
+| Chrome 前置检查 | `edge-full-preflight.json`；19:07:36 | 其他 Chrome/测试进程为 0，随后运行全量 |
+| 全量测试 | `T162_LABEL=edge-final npm test`；19:10:14；`edge-full-test.log` | 433/433，通过；0 跳过，含本次 3 项、375 定位/收起、此前 Astra 三项回归及 T-152 范围检查 |
+| 类型检查 | `npm run typecheck`；19:07:38；`edge-typecheck.log` | 通过 |
+| 构建 | `npm run build`；19:10:49；`edge-build.log` | 通过 |
+| 服务收尾 | 核对两进程 cwd 后 `kill -TERM 90829 16980`；19:11:05；`edge-cleanup.json` | 3192/3193 无监听，本工作树无残留 dev/替身进程，Next dev 锁不存在 |
 
-新测试按试用原路径执行：本地替身完成一次单条修改 → 切产品页 → 打开线程 → 定位回原版本首页。375×1000 且预览宽度 375，检查标题/正文/链接与真实预览裁切边界、面板范围和宿主指针命中，不只检查 iframe 内矩形；真实 CDP 滚轮后再次检查。收起须保留原意见摘要和高亮，展开须恢复同一范围与意见，版本数保持 2。期望来自试用要求，红态没有停在入口文案、设置或超时。
+新测试的预期来自本次复现和可操作合同：三档各点选首屏标题、输入意见，在 iframe 上发送 CDP mouseWheel，让原区块完全滚出视野，再检查面板和三个控件的四边及真实指针命中。随后不把输入框滚回视野，直接在实测坐标点入、继续写意见、添加草稿，确认内容完整且版本仍为 1。红态到达真实滚动后的截断分支，未停在入口或设置；绿态沿用同一断言。
 
-最终截图三包共 26 张，全部逐张打开：`mobile-final-1791917448871/` 为本次手机定位、滚轮、收起/展开与 1440/768 对照（6 张）；`mobile-final-1791917448412/` 为原单条流程、刷新恢复及越界/模型/传输失败保留（10 张）；`mobile-final-1791917448977/` 为三档历史拦截、连续点选与四种存储拒绝（10 张）。本次红态 `mobile-red-1791916725489/` 的 4 张及聚焦绿态 `mobile-green-1791917059336/` 的 6 张也逐张打开；JSON 保留对应观察。截图检查不代替独立体验或审美判断。
+最终截图四包共 35 张，全部逐张打开：`edge-final-1791918504135/` 为三档滚动前/后及继续输入（9 张）；`edge-final-1791918498509/` 为 375 定位、滚轮、收起/展开及 1440/768 对照（6 张）；`edge-final-1791918497872/` 为原流程、刷新恢复及失败保留（10 张）；`edge-final-1791918498864/` 为历史拦截、连续点选和存储拒绝（10 张）。本次红态 `edge-red-1791918329890/` 的 7 张、聚焦绿态 `edge-green-1791918402718/` 的 9 张也逐张打开；JSON 保留对应观察。截图检查不代替独立体验或审美判断。
 
-此前 `a47c036` 的 Astra NO_GO 三项修复保留于父提交，本次全量再次通过；旧 `receipt.json`、`review-receipt.json`、修复回退日志和试用记录不改写成本轮证据。主控待办：独立复试、Astra 复审、真实单条修改预算报批及执行；这些仍未执行，整票与审美不标 PASS。
+此前修复、独立试用记录、红态与修复回退证据全部保留，旧 receipt 不改写成本轮证据。主控待办仍为独立复试、Astra 复审、真实单条修改预算报批及执行；这些未由本实施实例执行，整票与审美不标 PASS。

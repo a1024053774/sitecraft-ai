@@ -93,8 +93,9 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
     if (!rect || !frame.current || !panel.current) return;
     const f = frame.current.getBoundingClientRect(), p = panel.current.getBoundingClientRect();
     const below = f.y + (rect.y + rect.height) * scale + 8, above = f.y + rect.y * scale - p.height - 8;
+    const preferredTop = below + p.height <= window.innerHeight - 8 ? below : above >= 8 ? above : below;
     setPosition({ left: Math.max(8, Math.min(f.x + rect.x * scale, window.innerWidth - p.width - 8)),
-      top: below + p.height <= window.innerHeight - 8 ? below : above >= 8 ? above : Math.max(8, Math.min(below, window.innerHeight - p.height - 8)) });
+      top: Math.max(8, Math.min(preferredTop, window.innerHeight - p.height - 8)) });
   }, [rect, scale, frame, children]);
   const top = Math.max(0, rect?.y ?? 0), bottom = Math.min(1000, (rect?.y ?? 0) + (rect?.height ?? 0));
   return <>
