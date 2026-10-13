@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { writeFile } from 'node:fs/promises';
-import { base, output, state, fixture, session, commitSiteCode } from './helpers/t162-browser.ts';
+import { base, workflowBase, output, state, fixture, session, commitSiteCode } from './helpers/t162-browser.ts';
 
 // Independent acceptance: history is read-only; successive picks remain writable;
 // browser storage refusal cannot crash the workspace. Each case reaches the state
@@ -15,7 +15,7 @@ async function historicalSite() {
       target: { kind: 'dom', pageId: 'home', versionId: second.version.id, path: [2, 0, 1], text: '深层纸袋区块相同说明底部产品链接', label: '深层纸袋区块' }, snapshot: { label: '深层纸袋区块' } },
     body: '只修改纸袋区块', author: { id: 'review-test', name: '测试者' } }) });
   assert.equal(response.status, 201);
-  const restored = await fetch(`${base}/api/sites/${id}/history/undo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"baseRevision":2}' });
+  const restored = await fetch(`${workflowBase}/api/sites/${id}/history/undo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"baseRevision":2}' });
   assert.equal(restored.status, 200); assert.equal((await state(id)).codeSite.versions.length, 3);
   return id;
 }

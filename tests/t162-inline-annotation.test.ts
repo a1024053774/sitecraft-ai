@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { writeFile } from 'node:fs/promises';
-import { base, output, state, fixture, session } from './helpers/t162-browser.ts';
+import { base, workflowBase, output, state, fixture, session } from './helpers/t162-browser.ts';
 
 for (const width of [1440, 768, 375]) test(`真实指针与键盘：${width} 就地输入、编号、刷新和离屏定位`, { timeout: 120000 }, async () => {
   let s: Awaited<ReturnType<typeof session>> | undefined;
@@ -104,7 +104,7 @@ test('单条发送冻结、成功归档、线程回看、失败保留及版本�
     await wait(`document.querySelector('[data-testid="annotation-draft"]')?.textContent.includes('未保存版本')`);
     await browser.send('Page.reload'); await wait(`document.querySelector('[data-testid="annotation-draft"]')?.textContent.includes('越界修改共享样式')`);
     await shot('rejected');
-    const response=await fetch(`${base}/api/sites/${id}/history/undo`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({baseRevision:2})});assert.equal(response.status,200);
+    const response=await fetch(`${workflowBase}/api/sites/${id}/history/undo`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({baseRevision:2})});assert.equal(response.status,200);
     await browser.send('Page.reload');await wait(`document.querySelector('[data-testid="annotation-draft"]')?.textContent.includes('来自 v2，请重新点选')`);
     assert.equal(await browser.evaluate(`document.querySelector('[data-testid="annotation-send"]').disabled`),true);
     await shot('stale');
@@ -119,7 +119,7 @@ test('单条发送冻结、成功归档、线程回看、失败保留及版本�
     await wait(`document.querySelector('[data-testid="annotation-draft"]')?.textContent.includes('未保存版本')`);await shot('provider-failed');
     await click('[data-testid="annotation-reveal"]');await wait(`document.querySelector('#annotation-message')`);
     await key('a',4);await browser.send('Input.insertText',{text:'请求失败也要保留意见'});await click('[data-testid="annotation-add"]');
-    await browser.send('Network.enable');await browser.send('Network.setBlockedURLs',{urls:[`${base}/api/sites/${id}/chat`]});
+    await browser.send('Network.enable');await browser.send('Network.setBlockedURLs',{urls:[`${workflowBase}/api/sites/${id}/chat`]});
     await click('[data-testid="annotation-send"]');await wait(`document.querySelector('[data-testid="annotation-check"]')`);
     assert.match(await browser.evaluate<string>(`document.querySelector('[data-testid="annotation-draft"]').textContent`),/请求失败也要保留意见/);
     await browser.send('Network.setBlockedURLs',{urls:[]});await click('[data-testid="annotation-check"]');
