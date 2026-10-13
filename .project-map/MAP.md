@@ -60,6 +60,7 @@
 - [T-143 衡量标准](tickets/T-143-quality-metric.md)：以换公司不像同模板、新旧成对选新为准；混排只作参考
 - [T-146 Shaders、good-css、Oil UI 怎么接](tickets/T-146-shaders-goodcss-oilui.md)：shader 只做系统渲染的静态底图；good-css 做成提交入口的机械反馈检查；Oil UI 的方法进规划，验证有效后再做多方向挑选
 - [T-156 通用建站的范围](tickets/T-156-general-purpose-scope.md)：任何行业的中小企业与机构展示型官网；不做电商、预约、会员和个人/活动页；拆为 T-157 非工业样本 → T-158 规范通用化 → T-159 非工业风格
+- [T-161 预览批注参照 BaoCut](tickets/T-161-baocut-annotation-plan.md)：就地写批注、圈选与多条草稿、多条一次修改，拆为 T-162 → T-163 → T-164；只按交互说明独立实现，不读 BaoCut 源码；T-164 改单区块合同，开工前负责人确认
 
 ## Not yet specified
 
