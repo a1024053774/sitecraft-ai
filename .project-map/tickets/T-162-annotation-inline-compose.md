@@ -49,29 +49,37 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 11. 手机定位不能被意见面板挡住：完成一次修改、切产品页、从线程定位回首页旧版本；375×1000、预览宽度 375 下，目标标题、正文和链接必须在实际可见区域且不被意见面板遮挡，真实滚轮仍能查看目标。
 12. 收起回看面板不能丢上下文：收起后高亮与原意见摘要仍可见，展开恢复同一线程与目标；375 的遮挡和收起丢失分别在当前 `55cf192` 上取得红态，1440/768 作为对照。
 13. 目标滚出视野不能带走意见面板：1440/768/375 点选首屏标题并输入意见，以真实 CDP mouseWheel 滚到目标完全离屏；面板、textarea 和操作按钮仍完整位于视口内，原意见保留，真实指针继续输入及添加可用。在 `1825142` 上取得 1440/768 顶部截断红态，375 为不回退对照。
+14. 标准测试不能依赖外部模型环境：普通同目录 dev server 与测试进程均无 DEEPSEEK_*，只设 SITECRAFT_BASE/CHROME_PATH 跑全量；测试内自建随机端口替身，夹具和批注发送仍经过生产提交入口。503 health 仍须核对同目录身份，不跨工作树写数据；临时服务和任务在测试结束时关闭。父 `88b40d6` 的全量已取得 13 项缺模型配置红态。
 
 以上为新行为合同的预期红态，不宣称父版本已有缺陷。真实模型、独立试用与 Astra 审查由主控另行安排。
 
 ## Resolution
 
-2026-10-13 Astra 对 `1825142` 的增量审查确认 375 定位修复有效，历史回看/焦点/存储无回归，但给出浮层顶部截断的 NO_GO；记录 `artifacts/t162/astra-scroll-edge-1825142-1791918096283/` 原样保留。**本轮修复与本地确定性验证 PASS；整票验收 INCOMPLETE，等待主控复试、Astra 复审和真实模型验证**。不推送、不关票，不调用真实 DeepSeek，不自行开启审核实例，不打开 BaoCut 参考目录或复制/改写其源码。
+2026-10-13 主控在 merge `1389c55` 的标准命令中发现 T-162 依赖预先设置的替身环境；原日志 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-1389c55/test.log` 保留。**本轮测试自足修复与本地验证 PASS；整票验收 INCOMPLETE，实际 Next after 集成、独立复试、Astra 复审和真实模型验证由主控决定/安排**。不推送、不关票，不调用真实 DeepSeek，不开审核实例，不读取 BaoCut 参考目录。
 
-修复只在 `code-preview-selection.tsx` 的浮层位置计算：先沿用目标下方/上方的避让选择，再统一把最终 top 限制在视口内。目标滚出视野后，面板、输入框和操作按钮完整可见，已输入意见保留，可继续输入和添加。375 的面板留白、定位及收起摘要沿用父版本；不修改生成站代码、模型合同或版本提交入口。spec 与 AGENTS 的机械回归指针已同步。
+本轮父版本 `88b40d6733ceb31933be1b6c71fb4aa0b5c99c99`，最终 SHA 与命令/时间见 `artifacts/t162/self-contained-receipt.json`。本次仅改测试、替身共用实现和文档，产品代码与提交入口不变。helper 自建两个随机端口的本地服务：模型替身，以及调用生产 chat/history POST 的 HTTP 服务。浏览器只把这些模型相关请求交给后者，保留原 body 和真实 HTTP 响应；调度沿用 T-152 的受控 after，执行原任务、事实核对、范围检查、唯一提交入口和存储。不伪造任务/版本、不跳过用例，不把环境依赖藏成成功。阻断传输的回归仍阻断实际请求地址。
 
-本轮父版本为 `182514243db55364ba38255a78a452842b5a77f6`，本票与修复同一提交；最终 SHA、命令和时间见 `artifacts/t162/edge-receipt.json`。共同进程环境：`SITE_STORE=fs`、显式 `SITECRAFT_BASE=http://127.0.0.1:3192`、替身 `DEEPSEEK_BASE_URL=http://127.0.0.1:3193`、`DEEPSEEK_MODEL=local-only` 及 AGENTS 指定 CHROME_PATH。认证占位仅在进程环境，不载入 `.env.local`，全量不设置全局 SITECRAFT_DATA_ROOT。验证时应用启动命令为 `npm run dev -- --hostname 127.0.0.1 --port 3192`，本地替身为 `SITECRAFT_FIXTURE_BASE=http://127.0.0.1:3193 node --experimental-strip-types scripts/t162-model-fixture.ts`；交付前两者均已停止。
+普通 dev server 提供界面、预览、站点创建、批注读写和版本读回；测试进程的本地模型设置不会改变它的环境。health 的 testIdentity 取决于开发模式，模型未配置时虽返回 503，cwd 仍须等于当前运行目录；跨树仍拒绝写入。每次夹具提交后，普通服务的 draft GET 须读到相同版本。本树验证前后 health 都是 503/configured=false；本次只读主目录 3034 的 health 得到正确主目录 cwd，但当前 configured=true，所以无模型标准验证使用本树 3192。记录分别为 `self-contained-health.json`、`self-contained-health-after.json`、`self-contained-main-health.json`。
+
+验证前清除启动进程中的 DEEPSEEK_*、AI_*、SITE_STORE、SITECRAFT_DATA_ROOT 和 T162_LABEL，不载入 `.env.local`；dev server 与 npm test 只设置 `SITECRAFT_BASE=http://127.0.0.1:3192` 和 AGENTS 指定 CHROME_PATH。开发服务命令 `npm run dev -- --hostname 127.0.0.1 --port 3192`。替身认证占位只在测试进程环境，不使用真实密钥。
 
 | 本次证据 | 命令、完成时间（UTC，2026-10-13） | 结果 |
 | --- | --- | --- |
-| 当前坏版红态 | `T162_LABEL=edge-red node --test --experimental-strip-types tests/t162-scroll-edge.test.ts`；19:05:49；`edge-red.log` | 1440/768 两项顶部截断失败，top 为 −71.14/−162.30px；375 对照通过 |
-| 同信号绿态 | `T162_LABEL=edge-green node --test --experimental-strip-types tests/t162-scroll-edge.test.ts`；19:07:01；`edge-green.log` | 3/3，通过；真实滚轮后保留意见、指针继续输入和添加可用 |
-| Chrome 前置检查 | `edge-full-preflight.json`；19:07:36 | 其他 Chrome/测试进程为 0，随后运行全量 |
-| 全量测试 | `T162_LABEL=edge-final npm test`；19:10:14；`edge-full-test.log` | 433/433，通过；0 跳过，含本次 3 项、375 定位/收起、此前 Astra 三项回归及 T-152 范围检查 |
-| 类型检查 | `npm run typecheck`；19:07:38；`edge-typecheck.log` | 通过 |
-| 构建 | `npm run build`；19:10:49；`edge-build.log` | 通过 |
-| 服务收尾 | 核对两进程 cwd 后 `kill -TERM 90829 16980`；19:11:05；`edge-cleanup.json` | 3192/3193 无监听，本工作树无残留 dev/替身进程，Next dev 锁不存在 |
+| 父版本标准全量红态 | `SITECRAFT_BASE=… CHROME_PATH=… npm test`；19:40:18；`self-contained-red.log` | 433 项，420 通过/13 失败；13 项均为夹具提交时缺模型配置，0 跳过 |
+| 首次修复验证 | `node --test --experimental-strip-types tests/t162-inline-annotation.test.ts tests/t162-mobile-reveal.test.ts tests/t162-review-regressions.test.ts tests/t162-scroll-edge.test.ts`；19:42:57；`self-contained-focused.log` | 11/13；两个撤销仍走无模型普通服务，422；日志和失败截图保留，随后在生产 history POST 层补齐测试内模型环境 |
+| 全量前置检查 | `self-contained-green-preflight.json` | 无其他 Chrome/测试进程 |
+| 标准全量绿态 | `SITECRAFT_BASE=… CHROME_PATH=… npm test`；19:48:18；`self-contained-green.log` | 433/433，0 失败/0 跳过；T-162 全部 13 项浏览器用例通过 |
+| 类型检查 | `npm run typecheck`；19:45:00；`self-contained-typecheck.log` | 通过 |
+| 构建 | `npm run build`；19:48:45；`self-contained-build.log` | 通过 |
+| 收尾 | 核对 cwd 后 `kill -TERM 5908`；19:50:38；`self-contained-cleanup.json` | 临时服务和测试进程已结束，本树无残留 dev server，3192/3193 无监听，Next dev 锁已释放 |
 
-新测试的预期来自本次复现和可操作合同：三档各点选首屏标题、输入意见，在 iframe 上发送 CDP mouseWheel，让原区块完全滚出视野，再检查面板和三个控件的四边及真实指针命中。随后不把输入框滚回视野，直接在实测坐标点入、继续写意见、添加草稿，确认内容完整且版本仍为 1。红态到达真实滚动后的截断分支，未停在入口或设置；绿态沿用同一断言。
+最终三档截图四包共 35 张，全部逐张打开：`self-contained-1791920742183/`（输入、恢复、发送及失败保留 10 张）、`self-contained-1791920742932/`（手机定位/收起及对照 6 张）、`self-contained-1791920747502/`（历史/焦点/存储 10 张）、`self-contained-1791920757740/`（三档真实滚轮 9 张）。首次修复验证四包 `self-contained-1791920527659/`、`…27662/`、`…27666/`、`…27667/` 共 30 张也逐张打开；成功片段不冒充整次通过。原失败、旧 receipt 和此前修复证据均保留。
 
-最终截图四包共 35 张，全部逐张打开：`edge-final-1791918504135/` 为三档滚动前/后及继续输入（9 张）；`edge-final-1791918498509/` 为 375 定位、滚轮、收起/展开及 1440/768 对照（6 张）；`edge-final-1791918497872/` 为原流程、刷新恢复及失败保留（10 张）；`edge-final-1791918498864/` 为历史拦截、连续点选和存储拒绝（10 张）。本次红态 `edge-red-1791918329890/` 的 7 张、聚焦绿态 `edge-green-1791918402718/` 的 9 张也逐张打开；JSON 保留对应观察。截图检查不代替独立体验或审美判断。
+实际 Next after/服务端模型出口的边界未由本次入口测试证明。若主控要补这部分，应另起隔离服务并配置本地替身，在全新 Chrome 页中直接操作，不加载 helper 的 fetch 转发；普通主服务保持不变。前置条件：SITECRAFT_BASE、SITECRAFT_FIXTURE_BASE 分别为已选本地 HTTP origin，SITECRAFT_PORT 为对应应用端口，CHROME_PATH 按 AGENTS 设置，SITECRAFT_FIXTURE_AUTH 仅在终端提供无秘密的替身认证占位。可复现命令（两个终端共享这些进程变量）：
 
-此前修复、独立试用记录、红态与修复回退证据全部保留，旧 receipt 不改写成本轮证据。主控待办仍为独立复试、Astra 复审、真实单条修改预算报批及执行；这些未由本实施实例执行，整票与审美不标 PASS。
+```sh
+node --experimental-strip-types scripts/t162-model-fixture.ts
+SITE_STORE=fs DEEPSEEK_BASE_URL="$SITECRAFT_FIXTURE_BASE" DEEPSEEK_API_KEY="$SITECRAFT_FIXTURE_AUTH" DEEPSEEK_MODEL=local-only npm run dev -- --hostname 127.0.0.1 --port "$SITECRAFT_PORT"
+```
+
+随后直接打开 `$SITECRAFT_BASE/workspace?site=<本次 send.json 中的合法夹具 id>`，点选区块 → 写一条意见 → 添加 → 发送，检查新版本及批注线程；不要用未点选整页写作（替身明确拒绝）。此项命令/前置条件交主控决定，本轮未执行。真实 DeepSeek 单条修改仍须主控另行报批；独立试用与审美不标 PASS。
