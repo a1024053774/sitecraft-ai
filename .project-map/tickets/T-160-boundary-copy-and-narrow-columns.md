@@ -4,7 +4,7 @@ title: 边界说明不再原样写成页面文案，文字不被挤成过窄的�
 type: build
 status: open
 blocked_by: []
-claimed_by: Codex (t160-build)
+claimed_by: Codex (t160-education-rerun)
 supersedes:
 ---
 
@@ -157,3 +157,58 @@ T-158 图直接复用主工作区 `artifacts/t158/real-20261011T123145Z/private/
 
 - Astra 对 `66a3054` NO_GO（价格豁免扩散、display:contents 跳过、多栏合行），`e324f3f` 已红绿修复。复核仍 NO_GO，三条更偏的边界：中文大写金额（「人民币壹仟贰佰捌拾元整/期」）在 4em 宽字段被误报；`display:contents` 叠加 `content-visibility:hidden` 的祖先导致漏测；外层 `transform: scale()` 的多栏仍跨列合行。复现在 `artifacts/t160-review-e324f3f/`。
 - 主控决定不再迭代：该项只是质量反馈，不拒收、不触发修正（与 T-147 行长同类），按 T-120 不为验收工具的边角写法连续修补。以上三条作为已知限制保留；若真实生成站里出现对应误报/漏报再开票。
+
+### 培训单站补跑（2026-10-13，UTC / 纽约时间）：PASS
+
+Codex (t160-education-rerun)：按负责人本次批准的 **100,000 total token 硬上限**，只重新生成拾色绘画教室一站一次。开工只读主工作区票中的「主控验收（2026-10-13）」及指定 T-158 站点；没有修改网关、资料、核心规范或生成代码，没有再次消费上轮额度，没有重跑掩盖失败。此前失败候选与账本保留。本节是补跑交付结果，票仍 open，真实验证勾选留给 Claude 主控整合；不推送。
+
+**命令与时间**：代码候选为本工作树分支 `t160-boundary-copy` 的 `80cae11e5f7e1f62d6d8babb1dfd974c648d39d1`，运行时唯一未提交差异是本票 claimed_by。2026-10-13 **15:07:02.805 UTC / 11:07:02.805 纽约时间**启动：
+
+`npm run eval:new-route -- --quick --only education/documentary --out artifacts/t160/real-edu-20261013T150614Z`
+
+公共环境为 `SITECRAFT_BASE=http://127.0.0.1:3188 SITECRAFT_BUDGET_BASE=http://127.0.0.1:3189 SITECRAFT_TOKEN_LIMIT=100000 SITE_STORE=fs`，CHROME_PATH 为 AGENTS 指定 chrome-headless-shell；应用数据根为本工作树 `.sitecraft-data`。预算命令为 `node --experimental-strip-types scripts/t153-real-budget.ts`，新账本目录 `T153_BUDGET_DIR=artifacts/t160/budget-edu-20261013T150614Z`，只登记一次 `/round default/100000`。密钥仅通过负责人指定的 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入网关进程，应用只用占位凭据和预算网关地址。启动前 health 确认 cwd、文件存储与 deepseek-flash；本次无 402、网络错误或本地预算拦停，网关完成三次调用后已主动停止。
+
+**用量与提交入口**：三次上游调用均 HTTP 200、正常结束，应用用量与网关逐次一致，无未知用量。累计 **53,886 / 100,000 total token**；输出已包含思考 token，不能重复相加。
+
+| 阶段 | 输入 token | 输出 token（含思考） | 其中思考 | total token |
+| --- | ---: | ---: | ---: | ---: |
+| 规划 | 8,955 | 1,539 | 774 | 10,494 |
+| 写页 | 10,225 | 22,666 | 15,674 | 32,891 |
+| 事实核对 | 6,508 | 3,993 | 3,771 | 10,501 |
+| 修正 | 0 | 0 | 0 | 0 |
+
+2026-10-13 15:09:14.050 UTC 保存完整 v1：新核 **24 段**、沿用 **0 段**，repairRound=0、实际模型修正 **0 次**，首稿底线 PASS、拒因为空。首页和课程页各 375/768/1440 共 **6/6 已测**：溢出、重叠、对比度拒因与**过窄文字列均为 0**。其它非拒收反馈如实保留：首页未门控悬停每档 3，课程页每档 2；375 两页点击区偏小各 4；课程页正文长行在 768 为 1、1440 为 2。完整检查与核对段见本轮 `report/education.json`，不是把全部质量反馈写成零。
+
+**作者指令句统计**：先复用并冻结上轮培训资料「页面要求」中的 10 个分句；逐字匹配仅去空白和标点，完整分句与从首个「不」起的短语分开计，同一指令跨三个宽度去重，不做同义推断。默认可见 innerText 与 CSS 生成文字均采集，没有未解析 CSS 生成内容。T-158 指定站 v1 的完整分句 **1 → 0**，指令短语 **2 → 0**；旧命中为首页「不写成成功率或考级成绩」及课程页「不把所有课程写为零基础皆可」。原句、各页各宽度与可见全文见 `report/instruction-comparison.json`，摘要见 `report/report.txt`；零命中只证明这 10 条逐字要求未上页，不替代作者口吻的盲评。
+
+**重复限制统计**：生成结果出现前，从原资料冻结 20 组业务限制。每页独立展示位置计 1，同句近义表述不重复计；公共页脚在两页出现计 2，三个视口不叠加。以 1440 为主计数，三档计数一致。以下均为 **T-158 → 本次**：
+
+| 同类限制声明 | 次数 |
+| --- | --- |
+| 不做考级、艺考或升学培训 | 3 → 2 |
+| 不颁证／没有考试证书 | 4 → 6 |
+| 不承诺统一进度、期限内水平或完成课即专业水平 | 3 → 4 |
+| 教具仅供课堂、不能带走 | 3 → 2 |
+| 示范作品不是学员成果 | 1 → 2 |
+| 未授权不公开学员资料 | 1 → 2 |
+| 开放时间不是课程课表 | 4 → 2 |
+| 不提供单独补课承诺 | 2 → 2 |
+
+20 组总出现 **36 → 34** 处，重复组数 **9 → 8**，每组首次之外的重复出现 **16 → 14** 处。再按相同原句拆细：「不颁发学历、考级或职业资格证书」**1 → 3**（新版 FAQ 加两页公共页脚）；「不给所有人统一进度承诺」**1 → 2**（新版首页与课程页均出现）；「不做考级与升学培训」**1 → 1**。因此没有宣称「同一限制只说一次」已满足。20 组及每处摘录见 `report/restriction-comparison.json`／`.md`，同句计数见 `report/exact-statement-comparison.json`；这些是已登记限制的计数，不是所有否定词或全部业务边界的穷尽统计。
+
+**成对包与独立盲评**：`artifacts/t160/real-edu-20261013T150614Z/packages/004bc796/review/`。包名、A/B 归属与查看顺序分别用 randomBytes/randomInt 随机；每版首页＋课程页 × 1440/375 共 8 张图，questions.md 沿用负责人指定两问并允许持平，来源与归属只在同包 `private/mapping.json`。旧图复用主工作区 `artifacts/t158/real-20261011T123145Z/private/case-3/`；新图从已保存版本预览采集。新版两页三档、首屏、官网对照共 8 张及包内 8 张均逐张打开，已完整载入。
+
+新的独立 Codex gpt-6.1-sol 实例只收到该 review/，没有提供映射、统计、代码或历史；选择 **B 更像这家机构自己建的网站**，认为课程信息更便于选课，A 的 375 收费说明过窄，A 的限制提醒更显密集。主控映射 B 为本次 v1。原始意见在 `report/blind-review.md`：评审「两版都未见明显写给作者的指令」的观感与旧版逐字命中 2 条分别保留，未按统计改写或再评；「待补充」是既定规则，不作为本票拒因。执行者只核对截图完整性，没有自行宣布审美通过。
+
+**数据保留**：siteId=`8bf7cb44-2059-4786-9496-54e7b419ae97`，versionId=`a3c38741-0637-44f5-b10c-29079fe352c2`，conversationId=`be45c8b8-9b55-486e-9c7e-90f69aee330d`。通过 draft API 再读取核对当前版本。实际文件共 2 个，均在本工作树；绝对路径与分类按前轮格式写入 `report/data-files.json`：
+
+- `.sitecraft-data/code-sites/8bf7cb44-2059-4786-9496-54e7b419ae97.json`
+- `.sitecraft-data/conversations/8bf7cb44-2059-4786-9496-54e7b419ae97/be45c8b8-9b55-486e-9c7e-90f69aee330d.json`
+
+没有上传、annotations 或 leads 文件，不清理站点，不写主工作区数据。T-158 对照固定为 siteId=`e39b32b0-5eab-40b8-b228-3dc70ffc3c57` 的 v1，versionId=`91ef296b-57e1-4e33-8efd-5f95c07ac406`。
+
+**检查与复现材料**：上述公共环境下 `npm run typecheck`、`npm test`、`npm run build` 均退出 0，2026-10-13 UTC 日志最后写入时间分别为 15:07:48、15:10:14、15:08:15；**418/418、0 fail、0 skipped**，日志在本轮 `report/{typecheck,test,build}.log`。生成入口的精确命令保存在 `command.sh`，一次性统计／配包命令为 `node --experimental-strip-types artifacts/t160/report-edu-20261013T150614Z.mjs artifacts/t160/real-edu-20261013T150614Z artifacts/t160/budget-edu-20261013T150614Z`（显式 SITECRAFT_BASE、SITECRAFT_TOKEN_LIMIT=100000、CHROME_PATH）；重复声明统计命令为 `node --experimental-strip-types artifacts/t160/restrictions-edu-20261013T150614Z.mjs artifacts/t160/real-edu-20261013T150614Z`，均不调用模型。授权、原始预算账本、运行日志、脚本和结果完整保留，没有覆盖旧证据。
+
+本次实测 DeepSeek 与评估集的新东方官网对照；PostgreSQL/Mailpit、部署和外部邮件未测，均不属于本次范围。UTF-8、差异检查、project-map status 与本节所在的最终本地提交 SHA 记录在本轮 `report/verification.json`；生成及测试对应代码提交仍为 `80cae11`，本次只提交本票追加结果，不推送、不关票。
+
+独立 Codex GPT-6 Astra 按 behavioral-acceptance-review 做只读证据审计，结论 **PASS（仅本次单站补跑与交付）**；逐次用量、draft 持久版、20 组统计、随机化脚本与完整检查日志均核对一致，未重复调用模型、测试或审美评审。原文在 `report/acceptance-review.txt`，不外推为跨样本或产品发布结论。
