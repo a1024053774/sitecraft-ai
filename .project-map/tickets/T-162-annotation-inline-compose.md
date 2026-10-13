@@ -43,29 +43,33 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 5. 发送快照：双击及任务中刷新不能重复发送；发送冻结版本、区块和具体元素提示。成功只归档这条；HTTP 失败、模型失败及确定性拒收均保留意见与可见拒因，不自动重试。
 6. 修改范围：真实 chat 加本地替身只改选中区块；范围外 DOM、其他页面、公共片段及 CSS 应用不变。具体元素提示须在选中区块内且快照一致，不能用它扩大范围。
 7. 三档界面：1440/768/375 经 CDP 真实指针与键盘完成，375 留在预览用底部面板；截图逐张打开。线程状态区分「已修改」与「已处理」，旧锚点只读。
+8. 历史回看不能落到当前页修改：v3 回看 v2 线程期间，四个快捷按钮停用，手写修改也不发送 chat；提示回到当前版本并重新点选。测试须观察实际发送边界，并分别回退发送保护与按钮停用以取得红态。
+9. 连续点选不能丢输入焦点：意见框保持打开，先点首屏、再点深层区块，真实 CDP 输入须进入第二个目标的 textarea；单独回退目标切换聚焦即失败。
+10. 点选记录存储被拒不能破坏工作台：分别拒绝 getItem、setItem、removeItem 及全部存储，页面仍可点选/输入，有可见降级说明；读、写、删除保护分别回退后取得红态。
 
 以上为新行为合同的预期红态，不宣称父版本已有缺陷。真实模型、独立试用与 Astra 审查由主控另行安排。
 
 ## Resolution
 
-2026-10-13 执行交付：**本阶段技术 PASS；整票验收 INCOMPLETE**。按主控授权完成 What to build 1–7 和范围检查的确定性部分，不调用真实 DeepSeek，不自行开审核实例，不关票、不推送。只读本项目票与代码，没有打开 BaoCut 参考目录或复制/改写其源码。
+2026-10-13 Astra 对 `a47c036` 的 NO_GO 已按本轮授权整改，复现记录 `artifacts/t162/astra-*` 原样保留。**本轮修复与确定性验证 PASS；整票验收 INCOMPLETE，等待主控安排复审和真实模型验证**。不推送、不关票，不调用真实 DeepSeek，不自行开启审核实例，不打开 BaoCut 参考目录或复制/改写其源码。
 
-实现：批注模式、就地意见框/手机底部面板、编号与单条浏览器草稿、刷新恢复、具体元素提示、冻结发送及任务标识、成功归档、失败保留、原版本线程定位与显式处理状态。模型只见所选段、相关 CSS 与区块内提示；范围仍由原提交入口检查。spec、CONTEXT、mainline 和 AGENTS 已同步。
+三项修复都在工作台层：历史回看时四个快捷按钮停用，sendEdit 拦住当前版本编辑并提示回到当前版本重新点选；目标切换后通过 textarea ref 显式聚焦；点选记录的 localStorage 读、写、删除均捕获拒绝，保留内存点选及可见提示，状态清理不依赖存储成功。spec、CONTEXT 与 AGENTS 已同步。原局部提交入口、范围检查和事实合同保持。
 
-本次提交与证据：本票和实现同一个 T-162 功能提交（父版本 `416bd84a4b0e6a981a7e654b394444e5f55e4158`）；最终 SHA、检查完成时间与命令见 `artifacts/t162/receipt.json`。本次命令的共同进程环境为 `SITE_STORE=fs`、显式 `SITECRAFT_BASE=http://127.0.0.1:3192`、替身 `DEEPSEEK_BASE_URL=http://127.0.0.1:3193`、`DEEPSEEK_MODEL=local-only` 与本机 AGENTS 指定的 CHROME_PATH；替身认证占位只在进程环境，不载入 `.env.local`。全量测试不全局设置 SITECRAFT_DATA_ROOT。替身启动为 `SITECRAFT_FIXTURE_BASE=http://127.0.0.1:3193 node --experimental-strip-types scripts/t162-model-fixture.ts`，应用启动为 `npm run dev -- --hostname 127.0.0.1 --port 3192`。
+本轮父版本为 `a47c036a067a39aaca3c2e14abd1cfa585cc5715`，本票与修复同一提交；最终 SHA 与检查时间见 `artifacts/t162/review-receipt.json`。共同进程环境：`SITE_STORE=fs`、显式 `SITECRAFT_BASE=http://127.0.0.1:3192`、替身 `DEEPSEEK_BASE_URL=http://127.0.0.1:3193`、`DEEPSEEK_MODEL=local-only` 及本机 CHROME_PATH。认证占位只在进程环境，不载入 `.env.local`，全量不设置全局 SITECRAFT_DATA_ROOT。应用与替身启动命令仍为 `npm run dev -- --hostname 127.0.0.1 --port 3192` 和 `SITECRAFT_FIXTURE_BASE=http://127.0.0.1:3193 node --experimental-strip-types scripts/t162-model-fixture.ts`。
 
-| 证据 | 命令与时间（UTC，2026-10-13） | 结果 |
+| 本次证据 | 命令、完成时间（UTC，2026-10-13） | 结果 |
 | --- | --- | --- |
-| 父版本预期红态 `artifacts/t162/parent-contract-red.log` | `node --test --experimental-strip-types tests/t162-inline-annotation.test.ts tests/t162-element-hint.test.ts`，结束 15:12:26 | 6/6 失败：4 个浏览器入口缺失，元素提示不被接受/未校验；实施前取得 |
-| 最终浏览器与替身 `artifacts/t162/settled-delivery.log` | 同上，`T162_LABEL=settled-delivery`，结束 15:37:31 | 6/6 通过；4 个真实 Chrome 场景、2 个模型输入合同 |
-| 全量 `artifacts/t162/full-test-delivery.log` | `npm test`，结束 15:35:41 | 424/424 通过，0 跳过；包含 T-152 范围与交互 CSS 回归 |
-| `artifacts/t162/typecheck-delivery-2.log` | `npm run typecheck`，结束 15:33:29 | 通过 |
-| `artifacts/t162/build.log` | `npm run build`，结束 15:38:39 | 通过 |
+| 三项行为红态 | `node --test --experimental-strip-types tests/t162-review-regressions.test.ts`；`review-baseline-red.log` 的 P1/P3 和 `review-focus-red.log` 的 P2 | 实际出现当前 v3 编辑请求、第二目标输入为空/焦点留在 iframe、存储拒绝崩溃；不是入口文案失败 |
+| 独立修复回退 | `node --experimental-strip-types scripts/t162-review-counterfactual.ts`；16:18:23；`review-counterfactual-final.log` | 六个窄变异分别红态，结束即恢复修复；逐项日志及命令在 `review-counterfactual-1791908252854/` |
+| Chrome 进程前置检查 | `review-chrome-preflight.txt`；16:19:57 | 其他 Chrome/测试进程为 0，随后运行全量 |
+| 全量测试 | `T162_LABEL=review-final npm test`；16:22:12；`review-full-test.log` | 427/427，通过；0 跳过，含三项新增回归及 T-152 范围检查 |
+| 类型检查 | `npm run typecheck`；16:19:58；`review-typecheck-final.log` | 通过 |
+| 构建 | `npm run build`；16:24:12；`review-build.log` | 通过 |
 
-最终截图：`artifacts/t162/settled-delivery-1791905790250/` 内 `composer-1440/768/375-*.png`、`reveal-1440/768/375-*.png`、`rejected-1440-*.png`、`stale-1440-*.png`、`provider-failed-1440-*.png`、`request-failed-1440-*.png`，共 10 张，全部逐张打开。截图等字体与有限过渡结束后保存；不是审美通过结论。同目录 `interaction-*.json`、`send.json` 保存本次站点、检查与版本结果，后者记录合法局部改动、三次越界拒收且未存版、HTTP 503 仅一次调用及传输失败未重发。
+修复回退按责任分别验证：`history-send` 去掉发送保护后观测到真实 chat 请求；`history-buttons` 只去掉四按钮停用后断言失败；`focus` 只去掉目标切换聚焦后真实输入进不了意见框；`selection-read`、`selection-setItem`、`selection-removeItem` 分别去掉存储保护后出现未捕获错误。注入器记录被拒的方法，避免把 Chrome 仅显示「Uncaught」当作完整拒因；回退脚本核对各项失败原因，不把设置/超时错误算作红态。恢复后原断言在全量中全绿，三个新用例覆盖三档历史回看、三档连续点选、四种存储拒绝。
 
-失效方式红绿：离屏/跨页和重复文字按路径回看；三档真实指针命中缩放 iframe；C/IME、Enter/快捷提交、Esc 返回焦点；草稿刷新与跨站隔离、损坏记录保护；双击、认领前刷新和相同发送标识不重复执行；换版本保留旧意见，重新点选再确认；模型 HTTP 503、请求阻断和 CSS 越界均保留意见与拒因。合法修改区块外 DOM、其他页、公共片段与共享 CSS 保持，提交入口三档共 6 个页面/宽度检查通过。
+本次截图分两包，共 20 张，全部逐张打开：`review-final-1791908438075/` 是原单条流程的三档输入/恢复、越界/模型/传输失败保留；`review-final-1791908438512/` 是三档历史拦截、三档连续点选及 getItem/setItem/removeItem/全部存储拒绝。两包中的 JSON 为对应本次观察与提交检查，合法局部修改仍有三档共 6 个页面/宽度检查通过。截图检查不代替独立体验或审美判断。
 
-失败证据均保留在 `artifacts/t162/`：首次夹具链接/模型配置失败不算合同红态；`implementation.log`/`corrected.log` 记录替身协议修正与认领前刷新锁定问题；`expanded.log`/`loaded-reveal.log` 记录目标载入与输入焦点问题，已在显示及挂载层修正；首次全量 `full-test.log` 为 415/424，8 项由全局数据目录导致读写路径不一致，1 项是抽屉过渡中旧坐标未命中。撤掉全局覆盖并等待真实命中后，原断言通过；没有换样本、放宽范围或自动重试模型来掩盖失败。
+旧产物和本轮失败均保留，旧 `receipt.json` 不改写成本轮证据。`review-baseline-red.log` 的初次 P2 停在离屏旧外框，随后 `review-focus-red.log` 才取得有效焦点红态；`review-fixes-green.log` 的 768 指针在滚动更新前被浮层挡住，等待滚动定位完成后仍用真实指针命中；首次 `review-counterfactual-run.log` 的存储阶段因失败截图检查阻断清理及拒因缺失而不计有效红态，修正测试清理及外部故障记录后才得到完整六项回退证据。没有放宽行为断言、换公司或自动重试模型。
 
-主控待办：真实单条修改预算报批及执行、独立实例试用、Astra 审查。以上未执行，合并/审美/整票验收不标 PASS。
+主控待办：Astra 复审、新实例试用、真实单条修改预算报批及执行；这些仍未执行，整票与审美不标 PASS。

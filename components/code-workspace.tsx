@@ -78,6 +78,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [drafts, setDrafts] = useState<AnnotationDraft[]>([]), [draftsLoaded, setDraftsLoaded] = useState(false);
   const [draftStorageError, setDraftStorageError] = useState(false);
   const [composer, setComposer] = useState<{ target: AnnotationTarget; draftId?: string; thread?: AnnotationThread } | null>(null);
+  const annotationInput = useRef<HTMLTextAreaElement>(null);
   const [opinion, setOpinion] = useState(''), [reveal, setReveal] = useState(0), [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
   const draftKey = `sitecraft-annotation-drafts:${siteId}`;
   const pendingDraft = drafts.find(d => d.status !== 'archived');
@@ -102,19 +103,22 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   useEffect(() => { setPreviewReady(false); }, [previewUrl]);
   const selected = activeLanguage === 'zh' && selectedTarget?.versionId === version?.id && selectedTarget?.pageId === activePage ? selectedTarget : null;
   useEffect(() => {
-    const saved = localStorage.getItem(`sitecraft-selection:${siteId}`);
-    if (saved) {
-      try { const parsed = annotationTargetSchema.safeParse(JSON.parse(saved));
+    try {
+      const saved = localStorage.getItem(`sitecraft-selection:${siteId}`);
+      if (saved) { const parsed = annotationTargetSchema.safeParse(JSON.parse(saved));
         if (parsed.success && parsed.data.versionId === initial.codeSite.currentVersionId) { setSelectedTarget(parsed.data); setPage(parsed.data.pageId); }
-      } catch { setError('上次点选记录无法读取，请重新点选。'); }
-    }
+      }
+    } catch { setError('浏览器无法读取点选记录，请重新点选；当前操作仍可继续。'); }
     setSelectionLoaded(true);
   }, [siteId, initial.codeSite.currentVersionId]);
   useEffect(() => {
     if (!selectionLoaded) return;
     const valid = selectedTarget?.versionId === version?.id;
-    if (valid && selectedTarget) localStorage.setItem(`sitecraft-selection:${siteId}`, JSON.stringify(selectedTarget));
-    else { localStorage.removeItem(`sitecraft-selection:${siteId}`); if (selectedTarget) setSelectedTarget(null); }
+    try {
+      if (valid && selectedTarget) localStorage.setItem(`sitecraft-selection:${siteId}`, JSON.stringify(selectedTarget));
+      else localStorage.removeItem(`sitecraft-selection:${siteId}`);
+    } catch { setError('浏览器无法保存点选记录，当前点选仍可使用；刷新后请重新点选。'); }
+    if (!valid && selectedTarget) setSelectedTarget(null);
   }, [selectedTarget, version?.id, selectionLoaded, siteId]);
   useEffect(() => { if (activeLanguage !== 'zh' || busy) setPicking(false); }, [activeLanguage, busy]);
   const saveDrafts = useCallback((next: AnnotationDraft[]) => {
@@ -140,6 +144,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     if (changed) saveDrafts(next);
   }, [draftsLoaded, drafts, site.runs, saveDrafts]);
   const cancelComposer = useCallback(() => { setComposer(null); frame.current?.focus(); }, []);
+  useEffect(() => {
+    if (composer && !composer.thread) annotationInput.current?.focus();
+  }, [composer]);
   const annotationKey = useCallback((event: KeyboardEvent) => {
     if (event.isComposing || event.keyCode === 229) return;
     if (event.key === 'Escape') {
@@ -248,6 +255,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     finally { setSending(false); }
   }
   async function sendEdit(message: string, quick = false) {
+    if (previewVersionId) { setError('正在回看历史版本，请回到当前版本并重新点选后再修改。'); return; }
     if (!message.trim() || busy || conversationUnavailable || sendLock.current) return;
     sendLock.current = true; setSending(true); setError('');
     try { await request({ message, baseRevision: version?.revision ?? 0,
@@ -311,7 +319,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
             <p data-testid="annotation-scope">修改范围：{pages.find(p => p.id === composer.target.pageId)?.title} · {composer.target.label}</p>
             {composer.target.element && <small>指向：{composer.target.element.tag === 'img' ? '图片' : /^h[1-6]$/.test(composer.target.element.tag) ? '标题' : '内容'} · {composer.target.element.text || '无文字'}</small>}
             {composer.thread ? <div className="code-thread-comments">{composer.thread.comments.map(comment => <p key={comment.id}>{comment.author.name}：{comment.body}</p>)}</div>
-              : <><label htmlFor="annotation-message">修改意见</label><textarea autoFocus id="annotation-message" value={opinion} maxLength={4000} rows={4}
+              : <><label htmlFor="annotation-message">修改意见</label><textarea ref={annotationInput} autoFocus id="annotation-message" value={opinion} maxLength={4000} rows={4}
                 onChange={event => setOpinion(event.target.value)} onKeyDown={event => { if (!event.nativeEvent.isComposing && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); addAnnotation(); } }} />
                 <small>Enter 换行 · ⌘/Ctrl+Enter 添加</small></>}
             <div className="code-annotation-actions"><button type="button" autoFocus={!!composer.thread} onClick={cancelComposer}>{composer.thread ? '关闭' : '取消'}</button>
@@ -359,8 +367,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
             ['更克制', '更克制：保留全部事实、文案含义、操作顺序和已有功能入口；减少装饰与过强的色彩和字号对比，收拢视觉层级，仍让重点清楚、正文易读。'],
             ['精简文字', '精简文字：删掉重复和空话，保留事实与操作顺序，包括“先…再…”等衔接；句子保持自然、口语化的商务中文，不压成电报体。保留必要的解释、限制条件和已有功能入口。'],
             ['换个版式', '换个版式：保留全部事实、文案含义、操作顺序、已有功能入口和当前风格；调整图文位置、列数与留白组织，让阅读顺序更清楚，兼顾窄屏。'],
-          ].map(([text, prompt]) => <button key={text} type="button" disabled={busy || conversationUnavailable} onClick={() => { if (selected) { setComposer({ target: selected, ...(pendingDraft ? { draftId: pendingDraft.id } : {}) }); setOpinion(prompt); setPane('preview'); } else void sendEdit(prompt, true); }}>{text}</button>)}</div>
-          {!selected && <small className="code-quick-scope">快捷按钮作用于「{pages.find(p => p.id === activePage)?.title}」</small>}
+          ].map(([text, prompt]) => <button key={text} type="button" disabled={busy || conversationUnavailable || !!previewVersionId} onClick={() => { if (selected) { setComposer({ target: selected, ...(pendingDraft ? { draftId: pendingDraft.id } : {}) }); setOpinion(prompt); setPane('preview'); } else void sendEdit(prompt, true); }}>{text}</button>)}</div>
+          {previewVersionId ? <small className="code-quick-scope" role="status">正在回看历史版本，请回到当前版本并重新点选后再修改。</small>
+            : !selected && <small className="code-quick-scope">快捷按钮作用于「{pages.find(p => p.id === activePage)?.title}」</small>}
           {selected && site.run?.status === 'error' && site.run.selectedTarget && <button className="secondary-button" disabled={busy} onClick={() => { setSelectedTarget(null); setInput(site.run!.request); }}>改整页</button>}
         </>}
         <details open={threadsOpen} onToggle={event => setThreadsOpen(event.currentTarget.open)} className="code-annotation-threads"><summary>批注线程</summary>{threads.length ? threads.map(thread => {
