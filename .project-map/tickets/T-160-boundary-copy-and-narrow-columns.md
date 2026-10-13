@@ -158,3 +158,18 @@ T-158 图直接复用主工作区 `artifacts/t158/real-20261011T123145Z/private/
 - Astra 对 `66a3054` NO_GO（价格豁免扩散、display:contents 跳过、多栏合行），`e324f3f` 已红绿修复。复核仍 NO_GO，三条更偏的边界：中文大写金额（「人民币壹仟贰佰捌拾元整/期」）在 4em 宽字段被误报；`display:contents` 叠加 `content-visibility:hidden` 的祖先导致漏测；外层 `transform: scale()` 的多栏仍跨列合行。复现在 `artifacts/t160-review-e324f3f/`。
 - 主控决定不再迭代：该项只是质量反馈，不拒收、不触发修正（与 T-147 行长同类），按 T-120 不为验收工具的边角写法连续修补。以上三条作为已知限制保留；若真实生成站里出现对应误报/漏报再开票。
 - 离线部分已合并主线 `cce4992`：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` 417/417，typecheck、build 通过，日志 `artifacts/merge-cce4992/`。票保持 open，等真实验证预算。
+
+## 主控验收（2026-10-13，纽约时间）：INCOMPLETE
+
+**培训站进入修正轮却没修的根因**：不是产品缺陷，是本次的预算网关在本地拒绝了修正请求。账本 `artifacts/t160/real-20261012014829Z/private/budget/usage.json`：前 5 次调用累计 98,490；第 6 次（修正）按 `scripts/t153-real-budget.ts` 的保守预留（完整请求 UTF-8 字节数 + 8192 作为输入上界，再留可用输出额度）需要的额度超过剩余 51,510，`stopReason` 为 "Remaining authorization cannot reserve this request and a usable output allowance"，网关返回 502，DeepSeek 未被调用。应用如实记录「DeepSeek 请求失败（HTTP 502），本次未保存版本」，初稿的三条拒因（首页 375/768/1440 一处对比度 4.21，需 4.5）保留，没有静默通过或回退，提交入口行为正确。按字节预留对中文约高估 2–3 倍，在剩余额度约一个站时会提前拦停；本次不改网关，也不重跑掩盖。
+
+**盲评**（两个新 gpt-6.1-sol 实例，各只看自己的包，A/B 与查看顺序随机，映射在各包 private/）：
+
+- 餐饮（`91ac2b17`，A=本票 `60cde704`，B=T-158 版）：**新版略好，6 vs 5**。旧版菜单里「不写成固定季节菜单」「不叠加自行推导的折扣」「不能按严格纯素或无麸质菜品宣传」等被判为写给作者的口吻；新版删去了这些，菜单目录和午市组合更像店家。共同扣分：无菜品或店面图，地址电话待补充，首页紧接首屏的深色「承接范围」偏事务。
+- 培训（`a05a4d94`，A=T-158 版，B=本票被拒初稿，仅作视觉比较）：**持平，6 vs 6**。写作指令口吻消失（旧版首页两次「边界」标注、「课程不是旅游活动」），旧版内容页 375 的逐字窄列也没有再出现；但新版「不考级、不承诺进度、不颁发证书」在首屏、目录、流程、页脚和 FAQ 反复出现，限制声明仍偏密。
+- 机械统计：页面里资料「页面要求」中的写作指令句，餐饮 3→0，培训 2→0（`report/report.txt`）。
+
+**验收勾选**：资料拆分、窄列反馈红绿与离线标出、typecheck/test/build 已完成。真实验证只完成餐饮一站；培训站没有存版，「不变差」只有一份被拒初稿的视觉比较，不能算通过。剩余工作：在新的批准额度下单独重跑培训一站（约 6–8 万 token），交新实例与 T-158 版成对盲评；「同一限制只说一次」是否需要再收紧核心规范，看那次结果再定。
+
+- 主线 `fed2d1e`：首次全量 410/418、复跑 392/418，失败全部是 Chrome `Page.navigate` 超时；原因是机器重启后 3034 开发服务已不存在。重启 3034 后同命令 `SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=<本机 chrome-headless-shell> npm test` **418/418**，`SITE_STORE=fs npm run build` 通过（日志 `artifacts/merge-fed2d1e/test-rerun2.log`、`build.log`；`npm run typecheck` 见 `typecheck.log`）。前两次失败日志保留。
+- 新生成的餐饮站 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b` 已拷入主工作区 `.sitecraft-data`，可在 3034 打开；培训候选 `8ccff20c-094b-451e-b9b7-cdbf630f8a17` 只有失败运行记录，没有版本。
