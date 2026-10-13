@@ -58,6 +58,7 @@ export type CodeRun = {
   id: string; kind: 'plan' | 'generate' | 'edit' | 'translate'; status: 'running' | 'complete' | 'error';
   step: string; request: string; baseRevision: number; startedAt: string; updatedAt: string;
   selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string;
+  annotationSubmissionId?: string;
   localResponses?: Array<{ response: unknown; issues: string[] }>;
   repairRound: number; issues: string[]; versionId?: string; referenceVersionIds?: string[];
   attempts: Array<{ code: SiteCode; checks: CodeCheck }>;

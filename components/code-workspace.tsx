@@ -11,7 +11,7 @@ import type { AlignmentPublicView } from '@/lib/alignment';
 import type { ConversationTurn } from '@/lib/conversation-store';
 import { simulatedPackList } from '@/lib/simulated-packs';
 import { CodeVersionHistory } from './code-version-history';
-import { annotationTargetSchema, annotationCaptureSchema, type AnnotationTarget, type AnnotationThread } from '@/lib/annotations';
+import { annotationTargetSchema, annotationCaptureSchema, annotationDraftSchema, type AnnotationDraft, type AnnotationTarget, type AnnotationThread } from '@/lib/annotations';
 import { CodePreviewSelection } from './code-preview-selection';
 import { SiteDeleteDialog } from './site-delete-panel';
 import { codeStyles, codeStyleSchema, codePreferencesSchema, codeSliderBand } from '@/lib/code-site-styles';
@@ -75,6 +75,12 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [picking, setPicking] = useState(false), [selectedTarget, setSelectedTarget] = useState<AnnotationTarget | null>(null);
   const [saveAnnotation, setSaveAnnotation] = useState(false), [threads, setThreads] = useState<AnnotationThread[]>([]);
   const [threadsOpen, setThreadsOpen] = useState(false), [selectionLoaded, setSelectionLoaded] = useState(false);
+  const [drafts, setDrafts] = useState<AnnotationDraft[]>([]), [draftsLoaded, setDraftsLoaded] = useState(false);
+  const [draftStorageError, setDraftStorageError] = useState(false);
+  const [composer, setComposer] = useState<{ target: AnnotationTarget; draftId?: string; thread?: AnnotationThread } | null>(null);
+  const [opinion, setOpinion] = useState(''), [reveal, setReveal] = useState(0), [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
+  const draftKey = `sitecraft-annotation-drafts:${siteId}`;
+  const pendingDraft = drafts.find(d => d.status !== 'archived');
   const stage = useRef<HTMLDivElement>(null), [availableWidth, setAvailableWidth] = useState(1000);
   useEffect(() => {
     if (!stage.current) return;
@@ -83,15 +89,16 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   }, []);
   const scale = Math.min(1, availableWidth / width);
   const site = state.codeSite, version = site.versions.find(v => v.id === site.currentVersionId);
+  const previewVersion = site.versions.find(v => v.id === previewVersionId) ?? version;
   const conversationUnavailable = !!state.conversationError;
-  const running = site.run?.status === 'running' && !conversationUnavailable, busy = sending || running;
+  const running = site.run?.status === 'running' && !conversationUnavailable, busy = sending || running || pendingDraft?.status === 'sending';
   const progressText = conversationUnavailable && site.run?.status === 'error'
     ? '上次任务未完成，完整检查问题仍保留。' : site.run?.step;
   const english = version?.english;
   const activeLanguage = language === 'en' && english ? 'en' : 'zh';
-  const pages = activeLanguage === 'en' ? english!.pages : version?.code.pages ?? site.plan?.pages ?? [];
+  const pages = activeLanguage === 'en' ? english!.pages : previewVersion?.code.pages ?? site.plan?.pages ?? [];
   const activePage = pages.some(p => p.id === page) ? page : 'home';
-  const previewUrl = version ? `/api/sites/${siteId}/code-preview?page=${activePage}&version=${version.id}${activeLanguage === 'en' ? '&language=en' : ''}${previewHash}` : '';
+  const previewUrl = previewVersion ? `/api/sites/${siteId}/code-preview?page=${activePage}&version=${previewVersion.id}${activeLanguage === 'en' ? '&language=en' : ''}${previewHash}` : '';
   useEffect(() => { setPreviewReady(false); }, [previewUrl]);
   const selected = activeLanguage === 'zh' && selectedTarget?.versionId === version?.id && selectedTarget?.pageId === activePage ? selectedTarget : null;
   useEffect(() => {
@@ -110,14 +117,67 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     else { localStorage.removeItem(`sitecraft-selection:${siteId}`); if (selectedTarget) setSelectedTarget(null); }
   }, [selectedTarget, version?.id, selectionLoaded, siteId]);
   useEffect(() => { if (activeLanguage !== 'zh' || busy) setPicking(false); }, [activeLanguage, busy]);
-  const selectBlock = useCallback((target: AnnotationTarget) => { setSelectedTarget(target); setPicking(false); setPane('chat'); }, []);
-  const changePage = useCallback((id: string) => { setPage(id); setPreviewHash(''); setSelectedTarget(null); }, []);
+  const saveDrafts = useCallback((next: AnnotationDraft[]) => {
+    try { localStorage.setItem(draftKey, JSON.stringify(next)); setDrafts(next); return true; }
+    catch { setError('批注草稿未能保存到浏览器，请检查存储空间后再添加或发送。'); return false; }
+  }, [draftKey]);
+  useEffect(() => {
+    try { const saved = localStorage.getItem(draftKey); if (saved) setDrafts(annotationDraftSchema.array().parse(JSON.parse(saved))); }
+    catch { setDraftStorageError(true); setError('批注草稿无法读取，原记录已保留。请先处理浏览器中的草稿记录。'); }
+    setDraftsLoaded(true);
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftsLoaded) return;
+    let changed = false;
+    const next = drafts.map(draft => {
+      if (draft.status !== 'sending' || !draft.submissionId) return draft;
+      const run = site.runs.find(run => run.annotationSubmissionId === draft.submissionId);
+      if (!run || run.status === 'running') return draft;
+      changed = true;
+      return { ...draft, status: run.status === 'complete' ? 'archived' as const : 'draft' as const,
+        error: run.status === 'error' ? [run.step, ...run.issues].join('\n') : undefined };
+    });
+    if (changed) saveDrafts(next);
+  }, [draftsLoaded, drafts, site.runs, saveDrafts]);
+  const cancelComposer = useCallback(() => { setComposer(null); frame.current?.focus(); }, []);
+  const annotationKey = useCallback((event: KeyboardEvent) => {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Escape') {
+      if (composer) { event.preventDefault(); cancelComposer(); }
+      else if (picking) { event.preventDefault(); setPicking(false); setSelectedTarget(null); frame.current?.focus(); }
+      return;
+    }
+    const input = event.target as HTMLElement | null;
+    if (input?.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])') || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key.toLowerCase() === 'c' && version && activeLanguage === 'zh' && !busy && !conversationUnavailable && !previewVersionId) {
+      event.preventDefault(); setPane('preview'); setPicking(value => !value); setSelectedTarget(null);
+    }
+  }, [composer, cancelComposer, picking, version, activeLanguage, busy, conversationUnavailable, previewVersionId]);
+  useEffect(() => { document.addEventListener('keydown', annotationKey); return () => document.removeEventListener('keydown', annotationKey); }, [annotationKey]);
+  const selectBlock = useCallback((target: AnnotationTarget) => {
+    if (pendingDraft && !composer?.draftId) { setError('一次处理一条批注，请先发送或移除待发送批注。'); return; }
+    setSelectedTarget(target); setComposer({ target, ...(composer?.draftId ? { draftId: composer.draftId } : {}) });
+    if (!composer?.draftId) setOpinion('');
+  }, [pendingDraft, composer?.draftId]);
+  const changePage = useCallback((id: string) => { setPage(id); setPreviewHash(''); setSelectedTarget(null); setComposer(null); setPicking(false); }, []);
+  function revealAnnotation(target: AnnotationTarget, detail: { draftId?: string; thread?: AnnotationThread }, body: string) {
+    setPreviewVersionId(target.versionId === version?.id ? null : target.versionId);
+    setPage(target.pageId); setPreviewHash(''); setLanguage('zh'); setPane('preview'); setPicking(false);
+    setSelectedTarget(target); setComposer({ target, ...detail }); setOpinion(body); setReveal(value => value + 1);
+  }
+  function addAnnotation() {
+    if (!composer || composer.thread || !opinion.trim() || composer.target.versionId !== version?.id || busy || draftStorageError) return;
+    const draft: AnnotationDraft = { id: composer.draftId ?? crypto.randomUUID(), target: composer.target,
+      revision: version.revision, body: opinion.trim(), status: 'draft' };
+    if (!saveDrafts([...drafts.filter(d => d.id !== draft.id), draft])) return;
+    setComposer(null); setPicking(false); frame.current?.focus();
+  }
   function previewLoaded() {
     const location = frame.current?.contentWindow?.location;
     if (location) {
       const url = new URL(location.href), loadedPage = url.searchParams.get('page');
       if (loadedPage && pages.some(page => page.id === loadedPage)) {
-        if (loadedPage !== activePage) setSelectedTarget(null);
+        if (loadedPage !== activePage) { setSelectedTarget(null); setComposer(null); }
         setPage(loadedPage); setLanguage(url.searchParams.get('language') === 'en' ? 'en' : 'zh'); setPreviewHash(url.hash);
       }
     }
@@ -135,8 +195,45 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     if (!response.ok) throw new Error(payload.userMessage || '本次请求失败。');
     setState(payload); return payload as CodeWorkspacePayload;
   }
+  // On refresh, reconcile an in-flight draft with the persistent task. Never resend it.
   useEffect(() => {
-    if (!running) return;
+    const saved = drafts.find(d => d.status === 'sending');
+    if (!draftsLoaded || !saved || site.runs.some(run => run.annotationSubmissionId === saved.submissionId)) return;
+    let cancelled = false;
+    void request({ action: 'state' }).then(payload => {
+      if (!cancelled && !payload.codeSite.runs.some(run => run.annotationSubmissionId === saved.submissionId))
+        setError('正在确认批注发送状态，意见与范围已保留。');
+    }).catch(error => { if (!cancelled) setError(error.message); });
+    return () => { cancelled = true; };
+  }, [draftsLoaded]);
+  async function sendAnnotation() {
+    const draft = pendingDraft;
+    if (!draft || draft.status === 'sending' || draft.target.versionId !== version?.id || busy || sendLock.current || conversationUnavailable) return;
+    sendLock.current = true; setSending(true); setError('');
+    const frozen = { ...draft, status: 'sending' as const,
+      submissionId: draft.submissionId && !site.runs.some(run => run.annotationSubmissionId === draft.submissionId) ? draft.submissionId : crypto.randomUUID(), error: undefined };
+    if (!saveDrafts(drafts.map(d => d.id === draft.id ? frozen : d))) { sendLock.current = false; setSending(false); return; }
+    setComposer(null); setPicking(false);
+    try { await request({ message: frozen.body, baseRevision: frozen.revision, selectedTarget: frozen.target,
+      saveAnnotation: true, annotationSubmissionId: frozen.submissionId }); }
+    catch (error) {
+      const message = error instanceof Error ? error.message : '批注发送失败。';
+      // A lost HTTP reply may already own a task. Read its state once before releasing the draft.
+      try { const payload = await request({ action: 'state' });
+        if (!payload.codeSite.runs.some(run => run.annotationSubmissionId === frozen.submissionId))
+          saveDrafts(drafts.map(d => d.id === draft.id ? { ...frozen, status: 'draft', error: message } : d));
+      } catch { setError(`${message} 无法确认任务状态，意见已保留；刷新后查看。`); }
+    } finally { sendLock.current = false; setSending(false); }
+  }
+  async function checkAnnotationSubmission() {
+    if (!pendingDraft || pendingDraft.status !== 'sending') return;
+    try { const payload = await request({ action: 'state' });
+      if (!payload.codeSite.runs.some(run => run.annotationSubmissionId === pendingDraft.submissionId))
+        saveDrafts(drafts.map(d => d.id === pendingDraft.id ? { ...d, status: 'draft', error: '未找到发送任务，意见已保留。可以重新发送。' } : d));
+    } catch (error) { setError(error instanceof Error ? error.message : '无法读取发送状态，意见已保留。'); }
+  }
+  useEffect(() => {
+    if (!running && pendingDraft?.status !== 'sending') return;
     let cancelled = false;
     const timer = setInterval(() => {
       void fetch(`/api/sites/${siteId}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'state' }) })
@@ -144,7 +241,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         .catch(error => { if (!cancelled) setError(error instanceof Error ? error.message : '读取进度失败。'); });
     }, 2000);
     return () => { cancelled = true; clearInterval(timer); };
-  }, [running, siteId]);
+  }, [running, pendingDraft?.status, siteId]);
   async function perform(body: Record<string, unknown>) {
     setSending(true); setError('');
     try { await request(body); } catch (error) { setError(error instanceof Error ? error.message : '本次请求失败。'); }
@@ -201,9 +298,26 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="topbar-tools"><div className="device-toggle" aria-label="预览宽度">{[1440, 768, 375].map(w => <button key={w} aria-pressed={width === w} className={width === w ? 'active' : ''} onClick={() => setWidth(w)}>{w}</button>)}</div><button className="icon-button" aria-label="撤销" disabled={busy || site.versions.length < 2} onClick={() => void undo()}><RotateCcw size={16} /></button><button className="icon-button" aria-label="删除站点" data-testid="toolbar-delete-site" disabled={busy} onClick={() => setDeleteOpen(true)}><Trash2 size={16} /></button></div>
     </header>
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`}>
-      <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={busy} data-testid="pick-block" onClick={() => setPicking(!picking)}>{picking ? '结束点选' : '点选区块'}</button><small>{picking ? '点击正文区块，再写修改意见' : selected ? `已选：${selected.label}` : '点选后只修改这一块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
+      <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={busy || conversationUnavailable || !!previewVersionId} data-testid="pick-block" onClick={() => { setPicking(!picking); setSelectedTarget(null); setComposer(null); }}>{picking ? '退出批注' : '批注'}</button><small>{picking ? '点击位置，就地写批注 · Esc 退出' : selected ? `已选：${selected.label}` : 'C 进入批注 · 只修改选中区块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
+      {previewVersionId && <p className="code-preview-version">正在回看 v{previewVersion?.revision} 的批注 <button onClick={() => { setPreviewVersionId(null); setComposer(null); setSelectedTarget(null); }}>回到当前版本</button></p>}
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
-        {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && !busy} selected={selected} pageId={activePage} versionId={version.id} html={version.code.pages.find(p => p.id === activePage)!.html} scale={scale} onSelect={selectBlock} />}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
+        {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && previewVersion && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && !busy}
+          selected={composer?.target ?? selected} pageId={activePage} versionId={previewVersion.id} html={previewVersion.code.pages.find(p => p.id === activePage)!.html}
+          scale={scale} onSelect={selectBlock} onKey={annotationKey} reveal={reveal}
+          numbered={pendingDraft?.target.versionId === previewVersion.id ? pendingDraft.target : null}
+          onReveal={() => { if (pendingDraft) revealAnnotation(pendingDraft.target, { draftId: pendingDraft.id }, pendingDraft.body); }}>
+          {composer && <section className="code-annotation-composer" data-testid="annotation-composer" role="dialog" aria-label="批注意见">
+            <strong>{composer.thread ? '批注线程 · 1' : '批注 · 1'}</strong>
+            <p data-testid="annotation-scope">修改范围：{pages.find(p => p.id === composer.target.pageId)?.title} · {composer.target.label}</p>
+            {composer.target.element && <small>指向：{composer.target.element.tag === 'img' ? '图片' : /^h[1-6]$/.test(composer.target.element.tag) ? '标题' : '内容'} · {composer.target.element.text || '无文字'}</small>}
+            {composer.thread ? <div className="code-thread-comments">{composer.thread.comments.map(comment => <p key={comment.id}>{comment.author.name}：{comment.body}</p>)}</div>
+              : <><label htmlFor="annotation-message">修改意见</label><textarea autoFocus id="annotation-message" value={opinion} maxLength={4000} rows={4}
+                onChange={event => setOpinion(event.target.value)} onKeyDown={event => { if (!event.nativeEvent.isComposing && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); addAnnotation(); } }} />
+                <small>Enter 换行 · ⌘/Ctrl+Enter 添加</small></>}
+            <div className="code-annotation-actions"><button type="button" autoFocus={!!composer.thread} onClick={cancelComposer}>{composer.thread ? '关闭' : '取消'}</button>
+              {!composer.thread && <button type="button" className="primary-button" data-testid="annotation-add" disabled={!opinion.trim() || busy || draftStorageError || composer.target.versionId !== version?.id || pendingDraft?.status === 'sending'} onClick={addAnnotation}>{composer.draftId ? '保存批注' : '添加批注'}</button>}</div>
+          </section>}
+        </CodePreviewSelection>}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
       </div></div>
     </main>
     <aside className={`builder-chat ${pane !== 'chat' ? 'mobile-hidden' : ''}`} aria-label="对话">
@@ -226,6 +340,18 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {error && <p className="code-error" role="alert">{error}</p>}
       </div>
       <div className="chat-input-wrap">
+        {pendingDraft && <section className="code-annotation-draft" data-testid="annotation-draft" aria-label="待发送批注">
+          <strong>待发送批注 · 1 条</strong><small>1 · {site.versions.find(v => v.id === pendingDraft.target.versionId)?.code.pages.find(p => p.id === pendingDraft.target.pageId)?.title} · {pendingDraft.target.label}</small>
+          <p>{pendingDraft.body}</p>
+          {pendingDraft.target.versionId !== version?.id && <p role="status">来自 v{pendingDraft.revision}，请重新点选</p>}
+          {pendingDraft.status === 'sending' && <p role="status">正在修改，意见与范围已冻结。</p>}
+          {pendingDraft.status === 'sending' && !site.runs.some(run => run.annotationSubmissionId === pendingDraft.submissionId) && <button type="button" data-testid="annotation-check" onClick={() => void checkAnnotationSubmission()}>核对发送状态</button>}
+          {pendingDraft.error && <p className="code-error" role="alert">{pendingDraft.error}</p>}
+          <div className="code-annotation-actions"><button type="button" data-testid="annotation-reveal" disabled={pendingDraft.status === 'sending'} onClick={() => revealAnnotation(pendingDraft.target, { draftId: pendingDraft.id }, pendingDraft.body)}>回看位置</button>
+            {pendingDraft.target.versionId !== version?.id && <button type="button" data-testid="annotation-reselect" disabled={busy} onClick={() => { setPreviewVersionId(null); setLanguage('zh'); setPane('preview'); setComposer({ target: pendingDraft.target, draftId: pendingDraft.id }); setOpinion(pendingDraft.body); setSelectedTarget(null); setPicking(true); }}>重新点选</button>}
+            <button type="button" disabled={busy || pendingDraft.status === 'sending'} onClick={() => { if (saveDrafts(drafts.filter(d => d.id !== pendingDraft.id))) { setComposer(null); setSelectedTarget(null); } }}>移除</button>
+            <button type="button" className="primary-button" data-testid="annotation-send" disabled={busy || conversationUnavailable || pendingDraft.status === 'sending' || pendingDraft.target.versionId !== version?.id} onClick={() => void sendAnnotation()}>发送这条批注</button></div>
+        </section>}
         {version && activeLanguage === 'zh' && <>
           {selected && <div className="code-selected-target" data-testid="selected-target"><strong>已选：{selected.label}</strong><button type="button" onClick={() => setSelectedTarget(null)} disabled={busy}>取消</button><small>{pages.find(p => p.id === activePage)?.title} · 只改这一块</small><label><input type="checkbox" checked={saveAnnotation} onChange={e => setSaveAnnotation(e.target.checked)} disabled={busy} />保存为批注线程</label></div>}
           <div className="code-quick-edits" aria-label={selected ? '选中区块快捷修改' : '当前页快捷修改'}>{[
@@ -233,13 +359,17 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
             ['更克制', '更克制：保留全部事实、文案含义、操作顺序和已有功能入口；减少装饰与过强的色彩和字号对比，收拢视觉层级，仍让重点清楚、正文易读。'],
             ['精简文字', '精简文字：删掉重复和空话，保留事实与操作顺序，包括“先…再…”等衔接；句子保持自然、口语化的商务中文，不压成电报体。保留必要的解释、限制条件和已有功能入口。'],
             ['换个版式', '换个版式：保留全部事实、文案含义、操作顺序、已有功能入口和当前风格；调整图文位置、列数与留白组织，让阅读顺序更清楚，兼顾窄屏。'],
-          ].map(([text, prompt]) => <button key={text} type="button" disabled={busy || conversationUnavailable} onClick={() => void sendEdit(prompt, true)}>{text}</button>)}</div>
+          ].map(([text, prompt]) => <button key={text} type="button" disabled={busy || conversationUnavailable} onClick={() => { if (selected) { setComposer({ target: selected, ...(pendingDraft ? { draftId: pendingDraft.id } : {}) }); setOpinion(prompt); setPane('preview'); } else void sendEdit(prompt, true); }}>{text}</button>)}</div>
           {!selected && <small className="code-quick-scope">快捷按钮作用于「{pages.find(p => p.id === activePage)?.title}」</small>}
           {selected && site.run?.status === 'error' && site.run.selectedTarget && <button className="secondary-button" disabled={busy} onClick={() => { setSelectedTarget(null); setInput(site.run!.request); }}>改整页</button>}
         </>}
         <details open={threadsOpen} onToggle={event => setThreadsOpen(event.currentTarget.open)} className="code-annotation-threads"><summary>批注线程</summary>{threads.length ? threads.map(thread => {
           const capture = annotationCaptureSchema.safeParse(thread.anchor);
-          return <article key={thread.id}><strong>{capture.success ? capture.data.target.label : '旧批注，无法定位'}</strong><small>{thread.status === 'resolved' ? '已处理' : '待处理'}{capture.success && capture.data.target.versionId !== version?.id ? ' · 来自旧版本，请重新点选' : ''}</small>{thread.comments.map(comment => <p key={comment.id}>{comment.author.name}：{comment.body}</p>)}{capture.success && capture.data.target.versionId === version?.id && <button type="button" disabled={busy} onClick={() => { setPage(capture.data.target.pageId); setSelectedTarget(capture.data.target); setLanguage('zh'); }}>定位区块</button>}</article>;
+          return <article key={thread.id}><strong>{capture.success ? capture.data.target.label : '旧批注，无法定位'}</strong><small>{thread.status === 'resolved' ? '已处理' : thread.comments.some(comment => comment.author.id === 'assistant' && comment.body.startsWith('已修改')) ? '已修改，待确认' : '待处理'}{capture.success && capture.data.target.versionId !== version?.id ? ' · 来自旧版本，请重新点选' : ''}</small>{thread.comments.map(comment => <p key={comment.id}>{comment.author.name}：{comment.body}</p>)}{capture.success && site.versions.some(v => v.id === capture.data.target.versionId) && <button type="button" data-testid="thread-reveal" disabled={busy} onClick={() => revealAnnotation(capture.data.target, { thread }, thread.comments[0].body)}>定位区块</button>}<button type="button" disabled={busy} onClick={async () => {
+            try { const response = await fetch(`/api/sites/${siteId}/annotations/${thread.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: thread.status === 'open' ? 'resolved' : 'open' }) });
+              const payload = await response.json(); if (!response.ok) throw new Error(payload.error || '批注状态保存失败。'); setThreads(items => items.map(item => item.id === thread.id ? payload.annotation : item)); }
+            catch (error) { setError(error instanceof Error ? error.message : '批注状态保存失败。'); }
+          }}>{thread.status === 'open' ? '标为已处理' : '重新打开'}</button></article>;
         }) : <p>还没有保存的批注。</p>}</details>
         <div className="code-material-tools"><button disabled={busy} onClick={() => setPanel(panel === 'materials' ? null : 'materials')}><FileText size={14} />资料</button><button disabled={busy} onClick={() => { setPanel(panel === 'images' ? null : 'images'); void loadImages().catch(e => setError(e.message)); }}><ImageIcon size={14} />图片</button></div>
         {panel === 'materials' && <section className="code-upload-panel" aria-label="公司资料"><label>上传文本或表格<input type="file" accept=".txt,.md,.csv,.xlsx" onChange={e => void loadMaterial(e)} /></label><div className="code-pack-list">{simulatedPackList.map(pack => <button key={pack.id} data-pack-id={pack.id} onClick={() => { setInput(pack.body); setPanel(null); }}>{pack.label}</button>)}</div><p>资料载入后可先编辑，再发送。</p></section>}

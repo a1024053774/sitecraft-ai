@@ -22,6 +22,14 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
   if (!/^(SECTION|ARTICLE|DIV|HEADER|ASIDE|FOOTER)$/.test(node.tagName) || node.closest('[data-system-inquiry],[data-system-icon],.sc-image-credits')) throw new Error('请选择正文区块，系统部件不能单独修改。');
   const text = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
   if (text !== target.text) throw new Error('锚点文字已改变，请重新点选。');
+  if (target.element) {
+    let pointed: Element | undefined = node;
+    for (const index of target.element.path) pointed = pointed?.children[index];
+    const snapshot = pointed?.tagName === 'IMG' ? pointed.getAttribute('alt') || '' : pointed?.textContent || '';
+    if (!pointed || pointed.tagName.toLowerCase() !== target.element.tag
+      || snapshot.replace(/\s+/g, ' ').trim().slice(0, 1000) !== target.element.text)
+      throw new Error('点中元素已改变，请重新点选。');
+  }
   const path: number[] = []; let child: Node = node;
   while (child !== doc.body) {
     const parent = child.parentNode; if (!parent) throw new Error('锚点不在页面正文中。');
