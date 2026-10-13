@@ -58,6 +58,8 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 
 2026-10-13 主控在主目录 `ed11848` 的全量中取得 431/433：发送用例 95.10s 报「任务未结束」，历史回看 120s 超时；原日志 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-ed11848/test.log` 与单独 7/7 的 `t162-rerun.log` 保留。**本轮负载等待修复与本地验证 PASS；整票 INCOMPLETE，实际 Next after 集成、独立复试、Astra 复审和真实模型验证由主控决定/安排**。不推送、不关票，不调用真实 DeepSeek，不开审核实例，不读取 BaoCut 参考目录。
 
+2026-10-13 17:15 前后（纽约时间）Astra 审查增量 4475410..200cb82 PASS（夹具复用不使断言恒真、冻结闸门、事件等待、六项回退均可检出）。主控合并为 `faad031`，在无其他 Chrome 测试时跑标准命令：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` 433/433，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-faad031/`。剩余验收：真实单条批注修改，待负责人批准预算。
+
 本轮父版本 `4475410e7cc25e279ea2f02e2b7e61b8bbce0bc5`；最终 SHA、精确命令和完成时间见 `artifacts/t162/load-receipt.json`，分段计时汇总见 `load-benchmark.json`。仅改 T-162 测试 helper、两个测试文件、模型替身和文档，产品代码与提交检查不变。测试内自建随机端口替身与调用生产 chat/history POST 的 HTTP 服务，普通同目录 dev server 提供界面、创建、预览和版本读回；health 即使 503 仍须核对 cwd。本次各 health.json 均 configured=false，没有改变普通服务模型配置。
 
 根因证据：改前负载组两个 worker 的初版提交共 17 次，累计 144.86s；历史 v2 提交 3 次累计 31.45s，撤销存版 3 次累计 35.96s；Chrome 启动 14 次共 2.82s，状态请求自身远低于 1s。提交的浏览器检查与重复夹具是主要开销。原 settle 固定 180 次、每次间隔 300ms，会在合法后台任务仍运行时用尽次数；UI 每 100ms 跨 CDP 轮询，替身每次局部写作固定等待 1.2s。阶段累计跨 worker，fixture.build 包含 commit.initial，after.task 也包含提交检查，不能把阶段相加当作墙钟时间。
