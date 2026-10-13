@@ -4,7 +4,7 @@ import { factAuditReply } from './fact-audit-reply.ts';
 
 // The browser tests and the explicit Next-server integration CLI use the same
 // provider contract. It accepts local edits/facts and never writes site data.
-export function createT162ModelFixture(directory: string) {
+export function createT162ModelFixture(directory: string, beforeLocalReply?: () => Promise<void>) {
   const requests: unknown[] = [];
   return createServer(async (req, res) => {
     if (req.method === 'GET') { res.end('本地替身'); return; }
@@ -17,7 +17,7 @@ export function createT162ModelFixture(directory: string) {
     await writeFile(`${directory}/requests.json`, JSON.stringify(requests, null, 2));
     if (input?.request.includes('服务失败')) { res.writeHead(503); res.end(JSON.stringify({ error: { message: '本地替身明确失败' } })); return; }
     const answer = local ? { html: input.html, css: input.request.includes('越界') ? '.spacer{padding:60px}' : `.${input.scope} h3{letter-spacing:.06em}` } : { issues: [] };
-    if (local) await new Promise(resolve => setTimeout(resolve, 1200));
+    if (local) await beforeLocalReply?.();
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, answer)) } }], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
   });
