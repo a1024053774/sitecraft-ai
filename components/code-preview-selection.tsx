@@ -5,8 +5,9 @@ import type { AnnotationTarget } from '@/lib/annotations';
 
 type Props = { frame: RefObject<HTMLIFrameElement | null>; ready: boolean; picking: boolean; selected: AnnotationTarget | null;
   pageId: string; versionId: string; html: string; scale: number; onSelect: (target: AnnotationTarget) => void;
-  onKey: (event: KeyboardEvent) => void; reveal: number; numbered: AnnotationTarget | null; onReveal: () => void; children?: ReactNode };
-export function CodePreviewSelection({ frame, ready, picking, selected, pageId, versionId, html, scale, onSelect, onKey, reveal, numbered, onReveal, children }: Props) {
+  onKey: (event: KeyboardEvent) => void; reveal: number; numbered: AnnotationTarget | null; onReveal: () => void;
+  bottomSpace: number; onBottomSpace: (height: number) => void; children?: ReactNode };
+export function CodePreviewSelection({ frame, ready, picking, selected, pageId, versionId, html, scale, onSelect, onKey, reveal, numbered, onReveal, bottomSpace, onBottomSpace, children }: Props) {
   const [rect, setRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [numberRect, setNumberRect] = useState<{ x: number; y: number } | null>(null);
   const [position, setPosition] = useState({ left: 8, top: 8 });
@@ -55,11 +56,22 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
       event.preventDefault(); event.stopPropagation();
       const result = capture(event); if (result) { hovered = result.block; onSelect(result.target); }
     };
-    const revealIdentity = `${versionId}:${pageId}:${reveal}`;
+    const revealIdentity = `${versionId}:${pageId}:${reveal}:${bottomSpace}`;
     if (reveal && selected && lastReveal.current !== revealIdentity) {
       const target = locate(selected);
       const snapshot = target?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 1000);
-      if (snapshot === selected.text) { target?.scrollIntoView({ block: 'center' }); frame.current?.scrollIntoView({ block: 'nearest' }); lastReveal.current = revealIdentity; }
+      if (snapshot === selected.text) {
+        target?.scrollIntoView({ block: 'center' }); frame.current?.scrollIntoView({ block: 'nearest' });
+        // The phone sheet reduces the host's visible stage, not the generated
+        // document. Scroll that stage as well, including targets near page end.
+        const stage = frame.current?.closest('.code-preview-stage');
+        if (bottomSpace && target && frame.current && stage) {
+          const r = target.getBoundingClientRect(), f = frame.current.getBoundingClientRect(), visible = stage.getBoundingClientRect();
+          const center = f.top + (r.top + r.height / 2) * scale;
+          stage.scrollBy({ top: center - (visible.top + visible.bottom) / 2 });
+        }
+        lastReveal.current = revealIdentity;
+      }
     }
     doc.addEventListener('pointermove', move); doc.addEventListener('click', click, true); doc.addEventListener('scroll', refresh, true);
     doc.addEventListener('keydown', onKey); window.addEventListener('resize', refresh); window.addEventListener('scroll', refresh, true);
@@ -67,12 +79,22 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
     refresh();
     return () => { doc.removeEventListener('pointermove', move); doc.removeEventListener('click', click, true); doc.removeEventListener('scroll', refresh, true);
       doc.removeEventListener('keydown', onKey); window.removeEventListener('resize', refresh); window.removeEventListener('scroll', refresh, true); observer.disconnect(); };
-  }, [frame, ready, picking, selected, pageId, versionId, html, onSelect, onKey, reveal, numbered, scale, children]);
+  }, [frame, ready, picking, selected, pageId, versionId, html, onSelect, onKey, reveal, numbered, scale, children, bottomSpace]);
+  useLayoutEffect(() => {
+    const wrapper = panel.current;
+    const measure = () => onBottomSpace(wrapper && getComputedStyle(wrapper).getPropertyValue('--code-annotation-reserve').trim() === '1'
+      ? Math.ceil(wrapper.getBoundingClientRect().height) + 16 : 0);
+    const observer = new ResizeObserver(measure); if (wrapper) observer.observe(wrapper);
+    window.addEventListener('resize', measure); measure();
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
+  }, [ready, rect, children, onBottomSpace]);
+  useEffect(() => () => onBottomSpace(0), [onBottomSpace]);
   useLayoutEffect(() => {
     if (!rect || !frame.current || !panel.current) return;
     const f = frame.current.getBoundingClientRect(), p = panel.current.getBoundingClientRect();
+    const below = f.y + (rect.y + rect.height) * scale + 8, above = f.y + rect.y * scale - p.height - 8;
     setPosition({ left: Math.max(8, Math.min(f.x + rect.x * scale, window.innerWidth - p.width - 8)),
-      top: Math.max(8, Math.min(f.y + (rect.y + rect.height) * scale + 8, window.innerHeight - p.height - 8)) });
+      top: below + p.height <= window.innerHeight - 8 ? below : above >= 8 ? above : Math.max(8, Math.min(below, window.innerHeight - p.height - 8)) });
   }, [rect, scale, frame, children]);
   const top = Math.max(0, rect?.y ?? 0), bottom = Math.min(1000, (rect?.y ?? 0) + (rect?.height ?? 0));
   return <>

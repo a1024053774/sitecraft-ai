@@ -78,6 +78,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [drafts, setDrafts] = useState<AnnotationDraft[]>([]), [draftsLoaded, setDraftsLoaded] = useState(false);
   const [draftStorageError, setDraftStorageError] = useState(false);
   const [composer, setComposer] = useState<{ target: AnnotationTarget; draftId?: string; thread?: AnnotationThread } | null>(null);
+  const [composerCollapsed, setComposerCollapsed] = useState(false), [annotationBottomSpace, setAnnotationBottomSpace] = useState(0);
   const annotationInput = useRef<HTMLTextAreaElement>(null);
   const [opinion, setOpinion] = useState(''), [reveal, setReveal] = useState(0), [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
   const draftKey = `sitecraft-annotation-drafts:${siteId}`;
@@ -143,7 +144,8 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     });
     if (changed) saveDrafts(next);
   }, [draftsLoaded, drafts, site.runs, saveDrafts]);
-  const cancelComposer = useCallback(() => { setComposer(null); frame.current?.focus(); }, []);
+  const cancelComposer = useCallback(() => { if (composer?.thread) setComposerCollapsed(true); else setComposer(null); frame.current?.focus(); }, [composer]);
+  useEffect(() => { setComposerCollapsed(false); }, [composer]);
   useEffect(() => {
     if (composer && !composer.thread) annotationInput.current?.focus();
   }, [composer]);
@@ -305,16 +307,17 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">{['chat', 'preview'].map(p => <button key={p} role="tab" aria-selected={pane === p} className={pane === p ? 'active' : ''} onClick={() => setPane(p)}>{p === 'chat' ? '对话' : '预览'}</button>)}</div>
       <div className="topbar-tools"><div className="device-toggle" aria-label="预览宽度">{[1440, 768, 375].map(w => <button key={w} aria-pressed={width === w} className={width === w ? 'active' : ''} onClick={() => setWidth(w)}>{w}</button>)}</div><button className="icon-button" aria-label="撤销" disabled={busy || site.versions.length < 2} onClick={() => void undo()}><RotateCcw size={16} /></button><button className="icon-button" aria-label="删除站点" data-testid="toolbar-delete-site" disabled={busy} onClick={() => setDeleteOpen(true)}><Trash2 size={16} /></button></div>
     </header>
-    <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`}>
+    <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`} style={{ paddingBottom: annotationBottomSpace }}>
       <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={busy || conversationUnavailable || !!previewVersionId} data-testid="pick-block" onClick={() => { setPicking(!picking); setSelectedTarget(null); setComposer(null); }}>{picking ? '退出批注' : '批注'}</button><small>{picking ? '点击位置，就地写批注 · Esc 退出' : selected ? `已选：${selected.label}` : 'C 进入批注 · 只修改选中区块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       {previewVersionId && <p className="code-preview-version">正在回看 v{previewVersion?.revision} 的批注 <button onClick={() => { setPreviewVersionId(null); setComposer(null); setSelectedTarget(null); }}>回到当前版本</button></p>}
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
         {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && previewVersion && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && !busy}
           selected={composer?.target ?? selected} pageId={activePage} versionId={previewVersion.id} html={previewVersion.code.pages.find(p => p.id === activePage)!.html}
-          scale={scale} onSelect={selectBlock} onKey={annotationKey} reveal={reveal}
+          scale={scale} onSelect={selectBlock} onKey={annotationKey} reveal={reveal} bottomSpace={annotationBottomSpace} onBottomSpace={setAnnotationBottomSpace}
           numbered={pendingDraft?.target.versionId === previewVersion.id ? pendingDraft.target : null}
           onReveal={() => { if (pendingDraft) revealAnnotation(pendingDraft.target, { draftId: pendingDraft.id }, pendingDraft.body); }}>
           {composer && <section className="code-annotation-composer" data-testid="annotation-composer" role="dialog" aria-label="批注意见">
+            {composerCollapsed ? <div className="code-annotation-summary"><span aria-hidden="true">1</span><p title={composer.thread?.comments[0].body ?? opinion}>{composer.thread?.comments[0].body ?? opinion}</p><button type="button" data-testid="annotation-expand" onClick={() => setComposerCollapsed(false)}>展开意见</button></div> : <>
             <strong>{composer.thread ? '批注线程 · 1' : '批注 · 1'}</strong>
             <p data-testid="annotation-scope">修改范围：{pages.find(p => p.id === composer.target.pageId)?.title} · {composer.target.label}</p>
             {composer.target.element && <small>指向：{composer.target.element.tag === 'img' ? '图片' : /^h[1-6]$/.test(composer.target.element.tag) ? '标题' : '内容'} · {composer.target.element.text || '无文字'}</small>}
@@ -322,8 +325,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
               : <><label htmlFor="annotation-message">修改意见</label><textarea ref={annotationInput} autoFocus id="annotation-message" value={opinion} maxLength={4000} rows={4}
                 onChange={event => setOpinion(event.target.value)} onKeyDown={event => { if (!event.nativeEvent.isComposing && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); addAnnotation(); } }} />
                 <small>Enter 换行 · ⌘/Ctrl+Enter 添加</small></>}
-            <div className="code-annotation-actions"><button type="button" autoFocus={!!composer.thread} onClick={cancelComposer}>{composer.thread ? '关闭' : '取消'}</button>
+            <div className="code-annotation-actions"><button type="button" autoFocus={!!composer.thread} onClick={cancelComposer}>{composer.thread ? '收起' : '取消'}</button>
               {!composer.thread && <button type="button" className="primary-button" data-testid="annotation-add" disabled={!opinion.trim() || busy || draftStorageError || composer.target.versionId !== version?.id || pendingDraft?.status === 'sending'} onClick={addAnnotation}>{composer.draftId ? '保存批注' : '添加批注'}</button>}</div>
+            </>}
           </section>}
         </CodePreviewSelection>}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
       </div></div>

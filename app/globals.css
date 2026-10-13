@@ -708,8 +708,12 @@ a { color: inherit; text-decoration: none; }
 .code-thread-comments { max-height: 250px; overflow: auto; white-space: pre-wrap; }
 .code-thread-comments p + p { margin-top: 8px; }
 .code-preview-version { font-size: 12px; color: var(--ws-muted); margin: 8px 16px; }
+.code-annotation-summary { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.code-annotation-summary span { color: var(--ws-accent); font-weight: 600; }
+.code-annotation-summary p { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-annotation-summary button { flex: 0 0 auto; min-height: 36px; padding: 6px; border: 1px solid var(--ws-line); border-radius: 4px; background: var(--ws-raised); color: var(--ws-text); font: inherit; }
 @media (max-width: 600px) {
-  .code-annotation-position { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; }
+  .code-annotation-position { --code-annotation-reserve: 1; left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; }
   .code-annotation-composer { max-height: min(65dvh, 480px); padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
   .code-annotation-composer textarea { font-size: 16px; }
   .code-annotation-actions button { min-height: 44px; }
