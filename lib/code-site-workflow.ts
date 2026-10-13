@@ -19,6 +19,7 @@ const requestSchema = z.object({
   questionRevision: z.number().int().nonnegative().optional(), optionId: z.string().max(80).optional(),
   selectedTarget: annotationTargetSchema.optional(), pageId: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(), saveAnnotation: z.boolean().optional(),
   preferences: codePreferencesSchema.optional(),
+  annotationSubmissionId: z.string().uuid().optional(),
 });
 const active = (globalThis as typeof globalThis & { __codeRuns?: Set<string> }).__codeRuns ??= new Set<string>();
 class CodeRunConflictError extends Error {}
@@ -46,8 +47,10 @@ async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
     return { run: { ...site.run, ...patch, ...(codeModelCalls.getStore() ? { modelCalls: codeModelCalls.getStore() } : {}), updatedAt: new Date().toISOString() } };
   });
 }
-async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: { selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean } = {}) {
+async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: { selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationSubmissionId?: string } = {}) {
   return updateCodeSite(siteId, site => {
+    if (edit.annotationSubmissionId && site.runs.some(run => run.annotationSubmissionId === edit.annotationSubmissionId))
+      throw new CodeRunConflictError('这条批注已发送，请查看原任务状态。');
     if (site.run?.status === 'running') throw new CodeRunConflictError('当前任务还在进行，请等待完成。');
     if ((currentCodeVersion(site)?.revision ?? 0) !== baseRevision) throw new CodeRunConflictError('版本已经更新，请刷新后再试。');
     if (edit.selectedTarget && currentCodeVersion(site)?.id !== edit.selectedTarget.versionId) throw new CodeRunConflictError('锚点版本已改变，请重新点选。');
@@ -230,6 +233,13 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
       }
       return Response.json(await codeWorkspaceState(site));
     }
+    if (input.annotationSubmissionId) {
+      if (!input.message || !input.selectedTarget || !input.saveAnnotation || input.action)
+        return Response.json({ userMessage: '批注发送须提供意见与选中区块。' }, { status: 400 });
+      // A refresh or a lost response observes this submission; it never repeats it.
+      if (site.runs.some(run => run.annotationSubmissionId === input.annotationSubmissionId))
+        return Response.json(await codeWorkspaceState(site));
+    }
     if (site.run?.status === 'running') return Response.json({ userMessage: '当前任务还在进行，请等待完成。' }, { status: 409 });
     if (input.baseRevision !== undefined && input.baseRevision !== (currentCodeVersion(site)?.revision ?? 0)) return Response.json({ userMessage: '版本已经更新，请刷新后再试。' }, { status: 409 });
     const conversation = (await getConversation(siteId, site.conversationId))!;
@@ -266,7 +276,8 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         }
         if (input.pageId && !currentCodeVersion(site)!.code.pages.some(page => page.id === input.pageId)) throw new Error('当前页面不存在，请重新选择。');
         site = await claimRun(siteId, 'edit', input.message, currentCodeVersion(site)!.revision,
-          { selectedTarget: input.selectedTarget, pageId: input.pageId, saveAnnotation: input.saveAnnotation }); schedule(site);
+          { selectedTarget: input.selectedTarget, pageId: input.pageId, saveAnnotation: input.saveAnnotation,
+            ...(input.annotationSubmissionId ? { annotationSubmissionId: input.annotationSubmissionId } : {}) }); schedule(site);
       } else {
         if (input.selectedTarget) throw new Error('请先生成中文版，再点选区块。');
         if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });

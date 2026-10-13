@@ -15,7 +15,17 @@ export const annotationTargetSchema = z.object({
   versionId: z.string().min(1).max(120),
   path: z.array(z.number().int().nonnegative().max(10000)).min(1).max(40),
   text: z.string().min(1).max(1000), label: z.string().min(1).max(200),
+  element: z.object({ path: z.array(z.number().int().nonnegative().max(10000)).max(40),
+    tag: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/), text: z.string().max(1000) }).strict().optional(),
 }).strict();
+
+// Drafts stay in the browser; sent threads use the existing server store.
+export const annotationDraftSchema = z.object({
+  id: idSchema, target: annotationTargetSchema, revision: z.number().int().positive(),
+  body: z.string().trim().min(1).max(4000), status: z.enum(['draft', 'sending', 'archived']),
+  submissionId: z.string().uuid().optional(), error: z.string().optional(),
+}).strict().refine(draft => draft.status !== 'sending' || !!draft.submissionId, '发送中的草稿必须绑定发送标识');
+export type AnnotationDraft = z.infer<typeof annotationDraftSchema>;
 
 const rectSchema = z.object({
   x: z.number().finite().nonnegative(),

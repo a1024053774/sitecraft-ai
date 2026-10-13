@@ -672,14 +672,14 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 600px) { .code-workspace .topbar-tools { grid-column: 1 / -1; justify-content: space-between; } .code-workspace.pane-chat .topbar-tools { display: none; } }
 
 /* T-152: the selection outline lives outside the generated document. */
-.code-selection-outline { position: absolute; pointer-events: none; border: 2px solid #a24623; outline: 2px solid #fff; z-index: 2; box-sizing: border-box; }
+.code-selection-outline { position: absolute; pointer-events: none; border: 2px solid var(--ws-accent); outline: 2px solid var(--ws-surface); z-index: 2; box-sizing: border-box; }
 .code-pick-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .code-pick-toolbar small { color: var(--ws-muted); }
-.code-pick-toolbar button[aria-pressed="true"] { background: #f6e8de; border-color: #a24623; }
-.code-selected-target { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-left: 3px solid #a24623; padding: 8px 10px; background: #faf5f0; margin-bottom: 10px; }
+.code-pick-toolbar button[aria-pressed="true"] { background: var(--ws-accent-soft); border-color: var(--ws-accent); }
+.code-selected-target { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-left: 3px solid var(--ws-accent); padding: 8px 10px; background: var(--ws-accent-soft); margin-bottom: 10px; }
 .code-selected-target strong { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
 .code-selected-target small, .code-selected-target label { flex-basis: 100%; font-size: 12px; }
-.code-selected-target button, .code-quick-edits button, .code-annotation-threads button { border: 1px solid var(--ws-line); background: #fff; border-radius: 4px; padding: 8px 10px; font: inherit; cursor: pointer; }
+.code-selected-target button, .code-quick-edits button, .code-annotation-threads button { border: 1px solid var(--ws-line); background: var(--ws-raised); border-radius: 4px; padding: 8px 10px; font: inherit; cursor: pointer; }
 .code-quick-edits { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .code-quick-edits button { font-size: 12px; }
 .code-quick-edits button:disabled { opacity: .5; cursor: wait; }
@@ -690,3 +690,31 @@ a { color: inherit; text-decoration: none; }
 .code-annotation-threads article small { display: block; color: var(--ws-muted); }
 .code-annotation-threads p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .code-annotation-threads[open] { max-height: 200px; overflow: auto; }
+
+/* T-162: a numbered note beside the preview, in the workbench's own materials. */
+.code-annotation-position { position: fixed; z-index: 40; width: min(320px, calc(100vw - 16px)); }
+.code-annotation-composer { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--ws-line-strong); border-radius: 4px; background: var(--ws-surface); color: var(--ws-text); box-shadow: var(--ws-shadow); max-height: calc(100dvh - 16px); overflow: auto; font-size: 13px; }
+.code-annotation-composer p { margin: 0; overflow-wrap: anywhere; }
+.code-annotation-composer small, .code-annotation-draft small { display: block; color: var(--ws-muted); overflow-wrap: anywhere; }
+.code-annotation-composer textarea { width: 100%; min-height: 100px; padding: 8px; resize: vertical; border: 1px solid var(--ws-line); border-radius: 4px; background: var(--ws-sunken); color: var(--ws-text); font: inherit; }
+.code-annotation-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.code-annotation-actions button, .code-preview-version button { min-height: 36px; padding: 8px 10px; border: 1px solid var(--ws-line); border-radius: 4px; background: var(--ws-raised); color: var(--ws-text); font: inherit; }
+.code-annotation-actions .primary-button { background: var(--ws-accent); color: var(--ws-accent-ink); }
+.code-annotation-actions button:disabled { opacity: .55; cursor: default; }
+.code-annotation-composer :focus-visible, .code-annotation-draft :focus-visible, .code-annotation-number:focus-visible { outline: 2px solid var(--ws-accent); outline-offset: 2px; }
+.code-annotation-number { position: absolute; z-index: 3; width: 28px; height: 28px; border: 1px solid var(--ws-accent); border-radius: 4px; background: var(--ws-accent); color: var(--ws-accent-ink); font: inherit; font-weight: 600; }
+.code-annotation-draft { border-left: 3px solid var(--ws-accent); padding: 10px; margin-bottom: 10px; background: var(--ws-accent-soft); font-size: 13px; }
+.code-annotation-draft p { max-height: 120px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
+.code-thread-comments { max-height: 250px; overflow: auto; white-space: pre-wrap; }
+.code-thread-comments p + p { margin-top: 8px; }
+.code-preview-version { font-size: 12px; color: var(--ws-muted); margin: 8px 16px; }
+.code-annotation-summary { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.code-annotation-summary span { color: var(--ws-accent); font-weight: 600; }
+.code-annotation-summary p { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-annotation-summary button { flex: 0 0 auto; min-height: 36px; padding: 6px; border: 1px solid var(--ws-line); border-radius: 4px; background: var(--ws-raised); color: var(--ws-text); font: inherit; }
+@media (max-width: 600px) {
+  .code-annotation-position { --code-annotation-reserve: 1; left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; }
+  .code-annotation-composer { max-height: min(65dvh, 480px); padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .code-annotation-composer textarea { font-size: 16px; }
+  .code-annotation-actions button { min-height: 44px; }
+}
