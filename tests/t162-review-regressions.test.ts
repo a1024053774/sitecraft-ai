@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { writeFile } from 'node:fs/promises';
-import { base, workflowBase, output, state, fixture, session, commitSiteCode } from './helpers/t162-browser.ts';
+import { base, workflowBase, output, state, fixture, session, commitSiteCode, measured } from './helpers/t162-browser.ts';
 
 // Independent acceptance: history is read-only; successive picks remain writable;
 // browser storage refusal cannot crash the workspace. Each case reaches the state
 // reported by Astra, rather than stopping at the name of the annotation button.
 async function historicalSite() {
   const id = await fixture(), first = (await state(id)).codeSite.versions[0];
-  const second = await commitSiteCode({ siteId: id, baseRevision: 1, code: { ...first.code, css: first.code.css + '\nh3{letter-spacing:.02em}' }, author: 'user', summary: '历史批注版本', request: '调整纸袋标题字距，保留文字' });
+  const second = await measured('commit.revision', () => commitSiteCode({ siteId: id, baseRevision: 1, code: { ...first.code, css: first.code.css + '\nh3{letter-spacing:.02em}' }, author: 'user', summary: '历史批注版本', request: '调整纸袋标题字距，保留文字' }));
   assert.equal(second.status, 'applied'); if (second.status !== 'applied') throw new Error('历史夹具未存版');
   const response = await fetch(`${base}/api/sites/${id}/annotations`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ siteId: id, pageId: 'home', pagePath: '/home',
     anchor: { pageId: 'home', pagePath: '/home', revision: 2, locale: 'zh', capturedAt: new Date().toISOString(),
@@ -21,8 +21,8 @@ async function historicalSite() {
 }
 
 test('Astra P1：回看 v2 时不得提交当前 v3 修改，四个快捷按钮停用', { timeout: 120000 }, async () => {
+  const id = await historicalSite();
   for (const width of [1440, 768, 375]) {
-    const id = await historicalSite();
     const s = await session(width, { siteId: id, beforeNavigate: async browser => {
       await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__t162EditRequests=[];const originalFetch=window.fetch;window.fetch=function(input,init){if(String(input).endsWith('/chat')&&init?.body){const body=JSON.parse(init.body);if(body.message)window.__t162EditRequests.push(body)}return originalFetch.apply(this,arguments)}` });
     } });
@@ -50,8 +50,9 @@ test('Astra P1：回看 v2 时不得提交当前 v3 修改，四个快捷按钮�
 });
 
 test('Astra P2：意见框连续点选另一块后，真实输入进入第二个目标', { timeout: 120000 }, async () => {
+  const id = await fixture();
   for (const width of [1440, 768, 375]) {
-    const s = await session(width);
+    const s = await session(width, { siteId: id });
     try {
       // Use a scaled desktop preview at every width so both selected targets can
       // remain reachable beside the open composer, including the phone sheet.
@@ -72,9 +73,10 @@ test('Astra P2：意见框连续点选另一块后，真实输入进入第二个
 
 test('Astra P3：点选存储读写删除被拒时降级，工作台仍可操作', { timeout: 120000 }, async () => {
   const cases = ['getItem', 'setItem', 'removeItem', 'all'];
+  const id = await fixture();
   if (process.env.T162_STORAGE_CASE) assert.ok(cases.includes(process.env.T162_STORAGE_CASE), '不支持的存储拒绝场景');
   for (const method of process.env.T162_STORAGE_CASE ? [process.env.T162_STORAGE_CASE] : cases) {
-    const s = await session(1440, { beforeNavigate: async browser => {
+    const s = await session(1440, { siteId: id, beforeNavigate: async browser => {
       await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__t162ReviewErrors=[];window.__t162StorageDenied=[];window.addEventListener('error',e=>window.__t162ReviewErrors.push((e.error?.message||e.message)+'; 存储拒绝：'+window.__t162StorageDenied.at(-1)));for(const name of ${JSON.stringify(method === 'all' ? ['getItem', 'setItem', 'removeItem'] : [method])}){const original=Storage.prototype[name];Storage.prototype[name]=function(key,...args){if(${JSON.stringify(method)}==='all'||String(key).startsWith('sitecraft-selection:')){window.__t162StorageDenied.push(name);throw new DOMException('Storage denied: '+name,'SecurityError')};return original.call(this,key,...args)}}` });
     } });
     try {

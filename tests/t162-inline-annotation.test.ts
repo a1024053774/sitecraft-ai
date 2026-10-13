@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { writeFile } from 'node:fs/promises';
-import { base, workflowBase, output, state, fixture, session } from './helpers/t162-browser.ts';
+import { base, workflowBase, output, state, fixture, session, holdNextLocalReply } from './helpers/t162-browser.ts';
 
+let browsingSites: [string, string] | undefined;
 for (const width of [1440, 768, 375]) test(`真实指针与键盘：${width} 就地输入、编号、刷新和离屏定位`, { timeout: 120000 }, async () => {
   let s: Awaited<ReturnType<typeof session>> | undefined;
   try {
-    s = await session(width); const { browser, key, click, wait, pick, shot, id } = s;
+    browsingSites ??= [await fixture(), await fixture()];
+    s = await session(width, { siteId: browsingSites[0] }); const { browser, key, click, wait, pick, shot, id } = s;
     // Normal browsing keeps native scrolling, text selection and bottom-link navigation.
     const fpoint = await browser.evaluate<any>(`(()=>{const f=document.querySelector('[data-testid="code-preview"]'),r=f.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+Math.min(100,r.height/2)}})()`);
     await browser.send('Input.dispatchMouseEvent',{type:'mouseWheel',deltaX:0,deltaY:500,...fpoint});
@@ -54,7 +56,7 @@ for (const width of [1440, 768, 375]) test(`真实指针与键盘：${width} 就
     await click('[data-testid="annotation-reveal"]'); await wait(`document.querySelector('[data-testid="annotation-composer"]') && document.querySelector('[data-testid="code-preview"]')?.contentDocument?.querySelector('article')`);
     const visible = await browser.evaluate<boolean>(`(()=>{const f=document.querySelector('[data-testid="code-preview"]'),r=f.contentDocument.querySelector('article').getBoundingClientRect();return r.top>=0&&r.top<1000})()`);
     assert.equal(visible, true); await shot('reveal');
-    const another = await fixture();
+    const another = browsingSites[1];
     await browser.send('Page.navigate', { url: `${base}/workspace?site=${another}` });
     await wait(`document.querySelector('[data-testid="code-preview"]')?.contentDocument?.querySelector('h1')`);
     assert.equal(await browser.evaluate(`!!document.querySelector('[data-testid="annotation-draft"]')`), false, '草稿不能串到另一个站点');
@@ -69,16 +71,20 @@ for (const width of [1440, 768, 375]) test(`真实指针与键盘：${width} 就
 
 test('单条发送冻结、成功归档、线程回看、失败保留及版本失效', { timeout: 180000 }, async () => {
   let s: Awaited<ReturnType<typeof session>> | undefined;
+  let releaseLocal: (() => void) | undefined;
   try {
     s = await session(1440); const {id,browser,pick,key,click,wait,settle,shot}=s;
     await pick(); await browser.send('Input.insertText',{text:'保留纸袋说明，只调整标题字距。'}); await key('Enter',2);
     await wait(`document.querySelector('[data-testid="annotation-draft"]')`);
     const before=(await state(id)).codeSite;
+    const held = holdNextLocalReply(); releaseLocal = held.release;
     const sendPoint=await browser.evaluate<any>(`(()=>{const r=document.querySelector('[data-testid="annotation-send"]').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`);
     for(let n=0;n<2;n++){await browser.send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:n+1,...sendPoint});await browser.send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:n+1,...sendPoint});}
+    await held.requested();
     await wait(`document.querySelector('[data-testid="annotation-send"]').disabled`);
     await browser.send('Page.reload'); await wait(`document.querySelector('[data-testid="annotation-draft"]')`);
     assert.equal(await browser.evaluate(`document.querySelector('[data-testid="annotation-send"]').disabled`),true);
+    held.release(); releaseLocal = undefined;
     const done=await settle(); assert.equal(done.codeSite.run.status,'complete');
     assert.equal(done.codeSite.runs.length,1); assert.equal(done.codeSite.versions.length,2);
     const replay=await fetch(`${base}/api/sites/${id}/chat`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({message:done.codeSite.run.request,selectedTarget:done.codeSite.run.selectedTarget,baseRevision:1,saveAnnotation:true,annotationSubmissionId:done.codeSite.run.annotationSubmissionId})});
@@ -126,5 +132,5 @@ test('单条发送冻结、成功归档、线程回看、失败保留及版本�
     await wait(`!document.querySelector('[data-testid="annotation-send"]').disabled`);assert.equal((await state(id)).codeSite.runs.length,3,'传输失败不自动重发');await shot('request-failed');
 
     await writeFile(`${output}/send.json`,JSON.stringify({status:'PASS',id,before,done:done.codeSite,rejected:rejected.codeSite,providerFailed:failed.codeSite,transportFailureRuns:(await state(id)).codeSite.runs.length,at:new Date().toISOString()},null,2));
-  } catch(error) { if(s)await s.shot('failure-send');throw error; } finally {await s?.browser.close();}
+  } catch(error) { if(s)await s.shot('failure-send');throw error; } finally {releaseLocal?.();await s?.browser.close();}
 });

@@ -50,30 +50,40 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 12. 收起回看面板不能丢上下文：收起后高亮与原意见摘要仍可见，展开恢复同一线程与目标；375 的遮挡和收起丢失分别在当前 `55cf192` 上取得红态，1440/768 作为对照。
 13. 目标滚出视野不能带走意见面板：1440/768/375 点选首屏标题并输入意见，以真实 CDP mouseWheel 滚到目标完全离屏；面板、textarea 和操作按钮仍完整位于视口内，原意见保留，真实指针继续输入及添加可用。在 `1825142` 上取得 1440/768 顶部截断红态，375 为不回退对照。
 14. 标准测试不能依赖外部模型环境：普通同目录 dev server 与测试进程均无 DEEPSEEK_*，只设 SITECRAFT_BASE/CHROME_PATH 跑全量；测试内自建随机端口替身，夹具和批注发送仍经过生产提交入口。503 health 仍须核对同目录身份，不跨工作树写数据；临时服务和任务在测试结束时关闭。父 `88b40d6` 的全量已取得 13 项缺模型配置红态。
+15. 全量负载不能耗尽轮询次数或重复夹具预算：记录提交、Chrome 启动、after 任务、UI 等待与状态请求耗时；任务按实际完成事件等待，冻结窗口由明确闸门控制，三档只读历史验证复用同一合法站点。两个文件给出改前/改后单独耗时，并与全量同时执行；180s/120s 用例上限不扩大，不跳过。
 
 以上为新行为合同的预期红态，不宣称父版本已有缺陷。真实模型、独立试用与 Astra 审查由主控另行安排。
 
 ## Resolution
 
-2026-10-13 主控在 merge `1389c55` 的标准命令中发现 T-162 依赖预先设置的替身环境；原日志 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-1389c55/test.log` 保留。**本轮测试自足修复与本地验证 PASS；整票验收 INCOMPLETE，实际 Next after 集成、独立复试、Astra 复审和真实模型验证由主控决定/安排**。不推送、不关票，不调用真实 DeepSeek，不开审核实例，不读取 BaoCut 参考目录。
+2026-10-13 主控在主目录 `ed11848` 的全量中取得 431/433：发送用例 95.10s 报「任务未结束」，历史回看 120s 超时；原日志 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-ed11848/test.log` 与单独 7/7 的 `t162-rerun.log` 保留。**本轮负载等待修复与本地验证 PASS；整票 INCOMPLETE，实际 Next after 集成、独立复试、Astra 复审和真实模型验证由主控决定/安排**。不推送、不关票，不调用真实 DeepSeek，不开审核实例，不读取 BaoCut 参考目录。
 
-本轮父版本 `88b40d6733ceb31933be1b6c71fb4aa0b5c99c99`，最终 SHA 与命令/时间见 `artifacts/t162/self-contained-receipt.json`。本次仅改测试、替身共用实现和文档，产品代码与提交入口不变。helper 自建两个随机端口的本地服务：模型替身，以及调用生产 chat/history POST 的 HTTP 服务。浏览器只把这些模型相关请求交给后者，保留原 body 和真实 HTTP 响应；调度沿用 T-152 的受控 after，执行原任务、事实核对、范围检查、唯一提交入口和存储。不伪造任务/版本、不跳过用例，不把环境依赖藏成成功。阻断传输的回归仍阻断实际请求地址。
+本轮父版本 `4475410e7cc25e279ea2f02e2b7e61b8bbce0bc5`；最终 SHA、精确命令和完成时间见 `artifacts/t162/load-receipt.json`，分段计时汇总见 `load-benchmark.json`。仅改 T-162 测试 helper、两个测试文件、模型替身和文档，产品代码与提交检查不变。测试内自建随机端口替身与调用生产 chat/history POST 的 HTTP 服务，普通同目录 dev server 提供界面、创建、预览和版本读回；health 即使 503 仍须核对 cwd。本次各 health.json 均 configured=false，没有改变普通服务模型配置。
 
-普通 dev server 提供界面、预览、站点创建、批注读写和版本读回；测试进程的本地模型设置不会改变它的环境。health 的 testIdentity 取决于开发模式，模型未配置时虽返回 503，cwd 仍须等于当前运行目录；跨树仍拒绝写入。每次夹具提交后，普通服务的 draft GET 须读到相同版本。本树验证前后 health 都是 503/configured=false；本次只读主目录 3034 的 health 得到正确主目录 cwd，但当前 configured=true，所以无模型标准验证使用本树 3192。记录分别为 `self-contained-health.json`、`self-contained-health-after.json`、`self-contained-main-health.json`。
+根因证据：改前负载组两个 worker 的初版提交共 17 次，累计 144.86s；历史 v2 提交 3 次累计 31.45s，撤销存版 3 次累计 35.96s；Chrome 启动 14 次共 2.82s，状态请求自身远低于 1s。提交的浏览器检查与重复夹具是主要开销。原 settle 固定 180 次、每次间隔 300ms，会在合法后台任务仍运行时用尽次数；UI 每 100ms 跨 CDP 轮询，替身每次局部写作固定等待 1.2s。阶段累计跨 worker，fixture.build 包含 commit.initial，after.task 也包含提交检查，不能把阶段相加当作墙钟时间。
 
-验证前清除启动进程中的 DEEPSEEK_*、AI_*、SITE_STORE、SITECRAFT_DATA_ROOT 和 T162_LABEL，不载入 `.env.local`；dev server 与 npm test 只设置 `SITECRAFT_BASE=http://127.0.0.1:3192` 和 AGENTS 指定 CHROME_PATH。开发服务命令 `npm run dev -- --hostname 127.0.0.1 --port 3192`。替身认证占位只在测试进程环境，不使用真实密钥。
+修复：after 队列按 HTTP 请求隔离，记录该请求的运行标识及实际完成 Promise；settle 等这项任务完成后读取终态，整体测试取消信号仍有效。UI 等待改用 DOM 变化、iframe 载入、滚动、动画完成事件；首条发送用显式响应闸门，双击和刷新冻结检查完成才释放，不依靠人为 sleep。只读场景复用合法站点：初版 17→6 次、历史 v2 提交及撤销各 3→1 次；各宽度和存储拒绝仍用独立 Chrome 配置，发送修改保持独立站点，所有原断言和提交检查保留。180s/120s 用例上限及 20s UI 等待上限不扩大，0 跳过。
 
-| 本次证据 | 命令、完成时间（UTC，2026-10-13） | 结果 |
+改前本树只加入计时，没有改等待/夹具行为；单独和并发都通过，历史回看在并发中到 115.28s，接近 120s。未重现主控原失败，不能把本树通过写成红态，也未反复运行直到撞出失败。主控失败与本树所有中间结果均原样保留。中间 `load-final-loaded-1791924202500/` 两 worker 同毫秒用了同一产物目录，计时/请求文件不完整，汇总标记不可用；最终目录加 PID，使用以下完整证据。
+
+| 场景 | 发送 / 历史回看（秒） | 结果及完成时间（UTC，2026-10-13） |
 | --- | --- | --- |
-| 父版本标准全量红态 | `SITECRAFT_BASE=… CHROME_PATH=… npm test`；19:40:18；`self-contained-red.log` | 433 项，420 通过/13 失败；13 项均为夹具提交时缺模型配置，0 跳过 |
-| 首次修复验证 | `node --test --experimental-strip-types tests/t162-inline-annotation.test.ts tests/t162-mobile-reveal.test.ts tests/t162-review-regressions.test.ts tests/t162-scroll-edge.test.ts`；19:42:57；`self-contained-focused.log` | 11/13；两个撤销仍走无模型普通服务，422；日志和失败截图保留，随后在生产 history POST 层补齐测试内模型环境 |
-| 全量前置检查 | `self-contained-green-preflight.json` | 无其他 Chrome/测试进程 |
-| 标准全量绿态 | `SITECRAFT_BASE=… CHROME_PATH=… npm test`；19:48:18；`self-contained-green.log` | 433/433，0 失败/0 跳过；T-162 全部 13 项浏览器用例通过 |
-| 类型检查 | `npm run typecheck`；19:45:00；`self-contained-typecheck.log` | 通过 |
-| 构建 | `npm run build`；19:48:45；`self-contained-build.log` | 通过 |
-| 收尾 | 核对 cwd 后 `kill -TERM 5908`；19:50:38；`self-contained-cleanup.json` | 临时服务和测试进程已结束，本树无残留 dev server，3192/3193 无监听，Next dev 锁已释放 |
+| 改前单独两文件 | 21.66 / 37.99 | 7/7；20:11:47；load-before-isolated.log |
+| 最终单独两文件 | 18.67 / 22.02 | 7/7；20:51:16；load-delivery-isolated.log |
+| 改前与全量并发的两文件 | 68.04 / 115.28 | 7/7；20:17:50；load-before-loaded.log |
+| 最终与全量并发的两文件 | 90.88 / 67.89 | 7/7；20:54:09；load-delivery-loaded.log |
+| 最终并发全量 | 91.51 / 55.87 | 433/433，0 失败/取消/跳过；20:56:37；load-delivery-full.log |
+| 类型检查 | npm run typecheck | 通过；20:50:04；load-delivery-typecheck.log |
+| 构建 | npm run build | 通过；20:57:03；load-delivery-build.log |
+| 收尾 | 核对 cwd 后 kill -TERM 36825 | dev exit 0，3192/3193 无监听，无 Chrome/测试/替身残留，Next dev 锁释放；20:58:18；load-delivery-cleanup.json |
 
-最终三档截图四包共 35 张，全部逐张打开：`self-contained-1791920742183/`（输入、恢复、发送及失败保留 10 张）、`self-contained-1791920742932/`（手机定位/收起及对照 6 张）、`self-contained-1791920747502/`（历史/焦点/存储 10 张）、`self-contained-1791920757740/`（三档真实滚轮 9 张）。首次修复验证四包 `self-contained-1791920527659/`、`…27662/`、`…27666/`、`…27667/` 共 30 张也逐张打开；成功片段不冒充整次通过。原失败、旧 receipt 和此前修复证据均保留。
+单独改前一分钟 load 采样均值约 3，最终单独约 3.7–3.9。最终并发两文件的采样均值约 9.9/11.1、峰值约 14；全量内两个目标 worker 均值约 8.4/9.3，均覆盖主控约 7 的负载。最终并发组发送耗时没有比改前更短，如实保留；确定性完成等待消除了固定次数提前退出，历史用例减少重复提交。系统外部负载未完全控制，不把本次计时写成任意负载下的固定保证。
+
+运行命令：开发服务清除 DEEPSEEK_*、AI_*、SITE_STORE、SITECRAFT_DATA_ROOT 后，仅以 SITECRAFT_BASE/CHROME_PATH 启动 `npm run dev -- --hostname 127.0.0.1 --port 3192`，本树无 `.env.local`。测试同样只需这两个变量（本次另用可选 T162_LABEL 区分证据目录）；SITECRAFT_BASE 为 `http://127.0.0.1:3192`，CHROME_PATH 按 AGENTS。全量 `npm test` 与 `node --test --experimental-strip-types tests/t162-inline-annotation.test.ts tests/t162-review-regressions.test.ts` 同时运行，启动前确认无其他 Chrome 测试，记录在 `load-delivery-preflight.json`。随机端口替身仅在测试进程设置本地认证占位，未使用真实密钥。
+
+最终 1440/768/375 截图共 75 张，均逐张打开：`load-delivery-isolated-1791924603432-41981/`、`…-41982/` 各 10 张；并发全量 `load-delivery-full-1791924743450-45174/`（10）、`…1791924744149-45202/`（6）、`…1791924776836-45582/`（10）、`…1791924792594-45757/`（9）；并发两文件 `load-delivery-loaded-1791924700635-42607/`、`…1791924700634-42608/` 各 10 张。其余本轮改前/中间 205 张也逐张打开，清单在 receipt。只核对技术状态，不自评审美。
+
+原父版本入口文案红态、历史发送/按钮、连续点选聚焦、存储保护的回退红态，以及 375 遮挡/收起和 1440/768 滚轮边缘红态均保留在旧 receipt 和相应 artifacts；本轮未改产品行为，不将原测试的早期失败冒充后续分支检错。上一轮标准环境自足的 13 项缺模型红态、两个 history 前置失败和最终 433/433 见 `self-contained-receipt.json`。首次类型检查的重载包装失败日志 `load-typecheck-first.log` 也保留，随后导出原函数并在调用点计时，最终类型检查通过。
 
 实际 Next after/服务端模型出口的边界未由本次入口测试证明。若主控要补这部分，应另起隔离服务并配置本地替身，在全新 Chrome 页中直接操作，不加载 helper 的 fetch 转发；普通主服务保持不变。前置条件：SITECRAFT_BASE、SITECRAFT_FIXTURE_BASE 分别为已选本地 HTTP origin，SITECRAFT_PORT 为对应应用端口，CHROME_PATH 按 AGENTS 设置，SITECRAFT_FIXTURE_AUTH 仅在终端提供无秘密的替身认证占位。可复现命令（两个终端共享这些进程变量）：
 
