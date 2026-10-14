@@ -8,6 +8,7 @@ import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { localEndpoint } from '../../scripts/local-endpoint.ts';
+import { factAuditReply } from './fact-audit-reply.ts';
 
 const requestBase = localEndpoint('SITECRAFT_BASE').origin;
 const folder = process.env.T159_ENTRY_OUT!;
@@ -30,6 +31,9 @@ const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); modelRequests.push(body);
   res.setHeader('content-type', 'application/json');
+  if (!body.tools && process.env.T159_RESTYLE_MODE) {
+    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, { issues: [] })) } }] })); return;
+  }
   if (!body.tools) { res.writeHead(503); res.end('{"error":{"message":"selection contract stops before writing"}}'); return; }
   const plan = { summary: '呈现菜单及到店信息。', style: 'neighborly', styleReason: '已有菜目与营业时段便于并置。', skeletonId: 'custom', skeletonReason: '先呈现菜目，不采用图片开场；资料没有授权照片。',
     pages: [{ id: 'home', title: '首页', outline: ['菜目与到店信息'] }, { id: 'menu', title: '菜单', outline: ['菜目价格与供应时段'] }] };
@@ -80,12 +84,18 @@ if (process.env.T159_RESTYLE_MODE) {
   let evidence: unknown;
   if (process.env.T159_RESTYLE_MODE === 'prepare') {
     const { updateCodeSite, commitSiteCode } = await import('../../lib/code-site-store.ts');
-    const id = (await post('/api/sites', { name: '风格任务准入样本' })).payload.id;
     const code = { header: '', footer: '', css: 'body{color:#111;background:#fff}', pages: [{ id: 'home', title: '首页', html: '<main><h1>风格任务准入样本</h1><p>已有业务与边界。</p></main>' }] };
+    const unknown = process.env.T159_RESTYLE_ACTION === 'undo-unknown';
+    const id = unknown ? crypto.randomUUID() : (await post('/api/sites', { name: '风格任务准入样本' })).payload.id;
+    if (unknown) {
+      const imported = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '风格任务准入样本',
+        materials: '风格任务准入样本提供既有业务，地址待补充。', code, source: { revision: 1, updatedAt: new Date().toISOString() }, exportIssues: [] } });
+      if (imported.status !== 'applied') throw new Error('未核事实的历史版本夹具导入失败');
+    }
     await updateCodeSite(id, () => ({ materials: '风格任务准入样本提供既有业务，地址待补充。', preferences: { style: 'precision', layout: 5, density: 6 },
       plan: { style: 'precision', summary: '既有精密工程版本', styleReason: '已有版本', pages: [{ id: 'home', title: '首页', outline: '既有业务与边界' }] } }));
-    for (let revision = 0; revision < 2; revision++) {
-      const saved = await commitSiteCode({ siteId: id, baseRevision: revision, code, author: 'user', summary: '已有版本协议夹具', request: '' });
+    for (let revision = unknown ? 1 : 0; revision < 2; revision++) {
+      const saved = await commitSiteCode({ siteId: id, baseRevision: revision, code, author: 'user', summary: '已有版本协议夹具', request: '手改提交' });
       if (saved.status !== 'applied') throw new Error('已有版本协议夹具提交失败');
     }
     const initial = await get(id), start = await post(`/api/sites/${id}/chat`, { action: 'start', baseRevision: 2 });
@@ -93,25 +103,34 @@ if (process.env.T159_RESTYLE_MODE) {
     const selected = await post(`/api/sites/${id}/chat`, { action: 'select', questionId: a.questionId, questionRevision: a.questionRevision, optionId: 'neighborly',
       preferences: { style: 'neighborly', layout: 5, density: 6 }, baseRevision: 2 });
     await Promise.all(tasks);
-    evidence = { siteId: id, initial, selected, saved: await get(id), localPlanRequests: modelRequests.length };
+    evidence = { siteId: id, initial, selected, saved: await get(id), localPlanRequests: modelRequests.filter(body => body.tools).length,
+      bootstrapFactRequests: modelRequests.filter(body => !body.tools).length };
   } else {
+    const action = process.env.T159_RESTYLE_ACTION!;
+    const { updateCodeSite } = await import('../../lib/code-site-store.ts');
+    if (action.endsWith('-source') || action.endsWith('-changed') && !action.startsWith('manual'))
+      await updateCodeSite(process.env.T159_RESTYLE_SITE!, site => ({ materials: site.materials + '资料已更新。' }));
     const id = process.env.T159_RESTYLE_SITE!, before = await get(id), revision = before.codeSite.versions.at(-1).revision;
     const a = before.alignment;
     const confirm = process.env.SITECRAFT_EVAL_STYLES ? null : await post(`/api/sites/${id}/chat`, { action: 'confirm', questionId: a.questionId, questionRevision: a.questionRevision, baseRevision: revision });
     const queuedBefore = queuedAfter, checksBefore = (globalThis as any).__t159CheckCalls;
-    const action = process.env.T159_RESTYLE_ACTION;
     let result;
-    if (action === 'restore' || action === 'undo') result = await post(`/api/sites/${id}/history/${action}`, { baseRevision: revision, ...(action === 'restore' ? { versionId: before.codeSite.versions[0].id } : {}) });
-    else if (action === 'manual') result = await post(`/api/sites/${id}/draft`, { baseRevision: revision, code: before.codeSite.versions.at(-1).code, summary: '手改提交' }, 'PUT');
+    if (action.startsWith('restore') || action.startsWith('undo')) result = await post(`/api/sites/${id}/history/${action.split('-')[0]}`, { baseRevision: revision, ...(action.startsWith('restore') ? { versionId: before.codeSite.versions[0].id } : {}) });
+    else if (action.startsWith('manual')) {
+      const code = structuredClone(before.codeSite.versions.at(-1).code); code.css += 'main{padding:24px}';
+      if (action === 'manual-changed') code.pages[0].html = code.pages[0].html.replace('已有业务与边界。', '已有业务与新增说明。');
+      result = await post(`/api/sites/${id}/draft`, { baseRevision: revision, code, summary: '手改提交' }, 'PUT');
+    }
     else if (action === 'replan') {
       await post(`/api/sites/${id}/chat`, { action: 'cancel', baseRevision: revision });
       const next = (await post(`/api/sites/${id}/chat`, { action: 'start', baseRevision: revision })).payload.alignment;
       result = await post(`/api/sites/${id}/chat`, { action: 'select', questionId: next.questionId, questionRevision: next.questionRevision, optionId: 'precision', preferences: { style: 'precision', layout: 5, density: 6 }, baseRevision: revision });
     } else result = await post(`/api/sites/${id}/chat`, { baseRevision: revision, ...(action === 'translate' ? { action: 'translate' } :
       { message: action === 'dialog' ? '把已有业务说明改得更清楚，保留事实。' : '换个版式：保留全部事实与当前风格。', ...(action === 'page' ? { pageId: 'home' } : {}) }) });
-    evidence = { before, confirm, result, after: await get(id), queuedBefore, queuedAfter, modelRequests: modelRequests.length, checksBefore, checksAfter: (globalThis as any).__t159CheckCalls };
+    evidence = { before, confirm, result, after: await get(id), queuedBefore, queuedAfter, modelRequests: modelRequests.length,
+      checksBefore, checksAfter: (globalThis as any).__t159CheckCalls, closedChecks: (globalThis as any).__t159ClosedChecks };
   }
-  await writeFile(path.join(folder, 'restyle.json'), JSON.stringify({ evidence, limitation: '已有版本仅经提交入口的协议检查替身建立，不作底线质量证据；后续 after 不执行，无模型或 Chrome 调用。' }, null, 2), 'utf8');
+  await writeFile(path.join(folder, 'restyle.json'), JSON.stringify({ evidence, limitation: '真实提交/检查器/事实复用与本地 HTTP 核对协议，CDP 观察由替身提供；after 不执行，不证明真实 Chrome、模型事实能力或页面质量。' }, null, 2), 'utf8');
   await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
   process.exit(0);
 }

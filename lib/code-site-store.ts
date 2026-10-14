@@ -5,7 +5,6 @@ import { safeSiteId, listSiteImages } from './site-images.ts';
 import { currentCodeVersion, reviewedMaterialSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
-import { requireModelTaskAdmission } from './code-site-eval-styles.ts';
 
 const root = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'code-sites');
 const shared = globalThis as typeof globalThis & { __codeSiteLocks?: Map<string, Promise<void>> };
@@ -162,7 +161,6 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const site = await getCodeSite(args.siteId); if (!site) throw new Error('找不到这个站点');
     const current = currentCodeVersion(site), revision = current?.revision ?? 0;
     if (revision !== args.baseRevision) return { status: 'conflict' as const, site };
-    requireModelTaskAdmission(site.plan?.style);
     const images = await listSiteImages(args.siteId);
     if (args.englishCode) {
       if (!current?.checks.passed) throw new Error('请先完成中文版的底线检查。');
@@ -193,7 +191,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       && !task.selectedTarget && (task.kind === 'generate' || task.kind === 'edit') ? task.attempts : [];
     const factReviews = !restore && !args.selectedTarget ? [current?.checks.factSegments, ...attempts.map(attempt => attempt.checks.factSegments)]
       .filter((review): review is NonNullable<typeof review> => !!review) : [];
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: site.materials,
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: site.materials, style: site.plan?.style,
       ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };

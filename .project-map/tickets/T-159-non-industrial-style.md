@@ -22,34 +22,45 @@ T-156 定为任何行业的展示型官网。现有精密工程、现场实拍�
 
 - [x] 风格区分盲评：新风格与最接近的现有风格在同一非工业资料上可辨（新实例，随机命名）
 - [x] 「像这家店/机构」成对盲评不差于现有风格；真实预算主控报批
-- [x] typecheck、test、build 通过（最新任务准入修复聚焦 23/23、全量 484/484、typecheck/build；均为本次修改后证据）
+- [ ] typecheck、test、build 通过（当前修复聚焦 28/28、typecheck 通过；build/全量按主控要求未跑，交整合验收；旧 484/484 与 build 仅对应 672e7d4）
 
 ## Resolution
 
 执行者 Codex，claimed_by 保持；本票 open，交主控关票，不推送。**真实生成、风格区分与同店成对盲评均 PASS**，主控已揭盲并批准 neighborly 转为 ready；缩略图来自本次真实版本，不另发模型请求。**第二个风格不做**：负责人只批准这一轮生成，本次唯一真实授权已经执行。
 
-**当前任务准入 P2 根因修复。** 主控复审 `86fdb23` 的 NO_GO 指出快捷修改绕过确认早拒，原文证据 `artifacts/t159/review-restyle-gate-dcba8efa-fbc5-4dd2-91a9-04c1c32fced3/phase-quick.json`。已保存大纲是业务数据，不是当前进程的模型任务许可。统一判定在 `lib/code-site-eval-styles.ts` 的 `requireModelTaskAdmission`，由聊天任务领取 `claimRun` 和唯一提交入口 `commitSiteCode` 在锁内调用；HTTP 各入口没有分别加条件。规划领取检查本次 preferences.style，后续领取和提交检查当前 plan.style，未选定方向的首次手改不借用候选大纲。confirm 的早拒复用同一判定，避免消耗确认；拒绝不改风格/大纲、不创建 run/after 或进入提交检查。
+**当前准入修复（672e7d4 复审 NO_GO 后）。** 主控指出上一版把 pending 大纲存在本身当成提交禁令，导致事实已核对且资料未变的恢复/撤销也在检查前被 422 拦住；旧测试把恢复、撤销和手改的拒绝写成了错误预期。现在以“本次是否实际调用模型”为界：保留 claimRun 的统一任务领取门禁和 confirm 早拒，移除 commitSiteCode 的无条件拒绝。提交入口把当前大纲 style 传给真实检查器，只有进入 auditCodeFacts 才调用同一个 requireModelTaskAdmission；事实复用、确定性检查、版本保存都不旁路，不静默换风格。
 
 入口核对清单：
 
-| 入口 | 已核对的实际路径与准入点 |
+| 入口 | 当前行为与验证边界 |
 | --- | --- |
-| 资料后的选择/重新规划 | chat select → claimRun(plan)，按本次偏好检查；旧 pending 大纲不阻止改选 ready 或 auto 后重新规划 |
-| 确认生成/重新生成 | chat confirm → 共用早拒 → claimRun(generate) → schedule；领取锁内再次按当前大纲检查 |
-| 四个快捷提示、普通对话、指定页修改 | 都是 chat message → claimRun(edit)，不能借已有版本或 pageId 绕过当前 pending 大纲 |
-| 点选/批注修改 | 同一 message 的 selectedTarget → claimRun(edit) → executeLocalEdit；模型前经过同一领取判定，旧锚点/版本校验仍保留。pending 准入的点选反例仅源码核对；普通局部修改及批注的真实 Chrome 路径已由本次全量跑过 |
-| 英文生成/重翻译 | chat translate → claimRun(translate)；中文版必须先过底线，再复核当前风格准入 |
-| 错误后重发/重试 | 无独立 retry API；重新发消息或点英文按钮仍进上述领取点。state 仅观察/标记中断，不重新调度 |
-| 同任务的修正循环 | generate/edit/local/translate 的修正在已领取任务内执行，不创建平行任务；每次存版仍经同一提交准入，运行时其他编辑入口的 409 仍有效 |
-| 历史恢复/撤销 | history restore/undo → commitSiteCode，在核事实或沿用事实前经过同一准入判定；当前未准入 pending 大纲时不能借旧精密版本进入提交 |
-| 手工代码 PUT | draft PUT → commitSiteCode，同一判定，不会进入浏览器/事实检查或存新版 |
-| 可信离线旧站导入、版本命名/读取/删除、图片分析 | 核对无 pending 大纲模型任务：离线导入固定 precision 且不调模型；其余不消费大纲风格，不形成上述任务入口 |
+| select/重新规划 | claimRun(plan) 按本次偏好检查；改选 ready/auto 不被旧 pending 大纲误拦 |
+| confirm/生成/重新生成 | confirm 共用早拒，claimRun(generate) 在锁内复核；未准入不创建 run 或 after |
+| 四条快捷提示、对话、指定页、重发/重试 | 同一 claimRun(edit)，仍明确拒绝；无独立 retry API，state 只观察或标记中断，不重新调度 |
+| 点选/批注 | 同一 claimRun(edit)；局部事实核对也经 auditCodeFacts 的共用判定。pending 点选反例本轮仅源码核对，没有启动真实 DOM/Chrome |
+| 英文生成/重翻译 | claimRun(translate) 门禁保留；英文提交的机械保真检查本身不调用模型 |
+| 任务内修正 | 在已领取任务内执行；提交中的实际事实调用再次核对准入 |
+| restore/undo | 目标已通过核对且资料快照未变时，沿用事实核对，模型 0 次，确定性检查后保存新版并保留 factReviewFrom；资料变化或旧站未核事实时，实际模型核对前拒绝未准入进程 |
+| draft PUT 手改 | 有效资料与整组内容均不变的 CSS 改动复用核对段，模型 0 次并存版；正文/资料变化需模型时拒绝。确定性检查失败仍拒绝，保留原拒因 |
+| 可信离线旧站导入、命名/读取/删除、图片分析 | 旧站导入经同一提交入口且标明未做模型事实核对；其余不消费该大纲风格，不新增模型任务入口 |
 
-新反例在父版 `86fdb23`、生产源码未改时先跑 `SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH= node --test --experimental-strip-types tests/t159-task-admission.test.ts`：**0/8，exit=1**，快捷/对话/重发/指定页/翻译仍 202，恢复/撤销/手改仍 200，均为预期失败。准备两个精密版本只经提交入口的协议检查替身建立，不构造真实底线/审美结论；随后由原 start/select/workflow 的本地规划替身保存 pending 大纲，普通新进程先见 confirm=400，再发待测请求。修复后八类拒绝，生成任务类 400、提交类沿用 422，after/model/检查调用均 0、版本与风格不变；每类有已准入进程允许的正向对照，另证普通进程重新选 precision 仍可领取 plan，不被旧大纲误拦。所有生成/翻译 after 队列不执行，无真实模型或 Chrome 调用。
+**Tracer bullet** 通过生产 HTTP handler → commitSiteCode → 真实 checkSiteCode → 原事实复用判断 → 本地事实 HTTP 替身或零调用 → 新版本。原来整段替换检查器的夹具已删除，只替换 CDP 观察并记录参数；旧站未知依据由原 legacyImport 提交入口建立，不能用元数据接口写版本。本轮不证明真实 Chrome 布局、模型事实能力或页面审美。13 个场景覆盖五类模型任务、三类无模型提交、四类需要事实模型的提交及一个确定性失败；均有已准入进程的正向对照。
 
-证据在 `artifacts/t159/task-admission-20261014T055710Z/`：parent-86fdb23-red.log 保留父版红；focused-controls-green.log **23/23、0 skipped**，命令为 `SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH= node --test --experimental-strip-types tests/t159-task-admission.test.ts tests/t159-confirm-gate.test.ts tests/t159-eval-entry.test.ts tests/t159-ready-style.test.ts tests/t159-http-diagnostics.test.ts tests/t153-style-preferences.test.ts tests/t159-style-eval.test.ts`；`SITECRAFT_BASE=http://127.0.0.1:63446 npm run typecheck` 与 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:63446 npm run build` 均 PASS，见 typecheck-controls.log、build.log。生产修改在这些检查前完成，之后只补正向测试和文档。
+同一修订后的测试在两个指定版本上的含义：
 
-主控释放 Chrome 后已先报告，再执行 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`：**484/484、0 skipped、exit=0**，日志 full-test.log，运行于 **2026-10-14 06:27:51–06:30:06 UTC（纽约 02:27:51–02:30:06 EDT）**。health 核对 cwd 为本工作树、文件存储；普通 dev server 模型地址仅指向本地替身，未读 .env.local。全量产出的 56 张站点/工作台截图及 T-130 的 24 张原始照片抓取图已逐张打开，清单 browser-screenshots.json；匿名包复制件引用原始抓取图，不做图像比对、不作审美判断。结束后无遗留 Chrome/node --test，已停本工作树 dev server。当前不合主控暂停的 dfb9d5e 主线，不自开审查；新增真实调用/token 0。原始 task-contract 快照、命令时间与本次提交 SHA 关联于 delivery.json，仍交主控复审。
+| 版本 | 无模型恢复/撤销/手改 | 模型任务与需要新事实核对的提交 | 总结果 |
+| --- | --- | --- | --- |
+| 86fdb23 | 三项均 200，确定性检查执行，模型 0 次；这些绿才符合合同 | 五类任务仍 202/排队；四类需要模型的提交仍 200 并调用本地事实替身，暴露原漏口 | 4/13 通过（含确定性拒因对照），9 项预期失败 |
+| 672e7d4 | 三项 422、检查 0，复现误拦 | 五类任务拒绝正确；需要核对的提交被提前拒绝，检查 0，不能证明按实际模型调用分流；确定性拒因也被风格错误遮住 | 5/13 通过，8 项预期失败 |
+| 本次修复 | 三项 200、新版、检查执行、模型 0 次 | 未准入任务或实际事实调用均被拒；已准入事实调用成功，确定性失败仍不存版 | 13/13 通过 |
+
+证据目录 `artifacts/t159/model-use-admission-20261014T124924Z/`。反事实通过测试进程的内存 load hook 读取指定版本五个相关生产模块，不 checkout、不复制源码到证据目录、不改主目录数据；命令均显式 `SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH=`：
+
+- `T159_SOURCE_REVISION=86fdb23 node --test --experimental-strip-types tests/t159-task-admission.test.ts`，见 parent-86fdb23-final-contract.log，exit=1；2026-10-14 12:55:14 UTC（纽约 08:55:14 EDT）结束。
+- `T159_SOURCE_REVISION=672e7d4 node --test --experimental-strip-types tests/t159-task-admission.test.ts`，见 parent-672e7d4-final-contract-red.log，exit=1；12:53:31 UTC（纽约 08:53:31 EDT）结束。
+- `node --test --experimental-strip-types tests/t159-task-admission.test.ts tests/t159-confirm-gate.test.ts tests/t159-eval-entry.test.ts tests/t159-ready-style.test.ts tests/t159-http-diagnostics.test.ts tests/t153-style-preferences.test.ts tests/t159-style-eval.test.ts`，见 focused-final-green.log，**28/28、0 skipped、exit=0**；12:55:44 UTC（纽约 08:55:44 EDT）结束。`npm run typecheck` 通过，见 typecheck.log。
+
+前序失败全部保留：parent-672e7d4-red.log 的 manual-invalid 把拒因注入错误地带入准备阶段，不把该项当反例证明；focused-green.log 为 27/28，undo-unknown 夹具误用元数据接口，版本字段被正确忽略。修正为原旧站导入入口后重新运行上述两版合同与当前聚焦；未修改生产版本数据接口或削弱断言，原快照、日志与最终 SHA 由 delivery.json 关联。此前“恢复/撤销/手改应拒绝”的三项旧红绿结论撤回，原日志不删除。旧 484/484 和 build 仅对应 672e7d4，不代表当前修复；本轮按主控要求不跑 build、全量或 Chrome，不调真实模型、不读 .env.local、不合主线、不推送、不自开审查。票保持 open，交主控整合与复审。
 
 **此前确认准入 P2 修复（2026-10-14 UTC）。** 主控转达新 sol 对 `ee4007a` 的 NO_GO：普通进程可以确认评估进程已保存的 pending 大纲，原证据 `artifacts/t159/review-process-gate-faf2444e-5625-4bf6-9568-ea38235d24da/phase-confirm.json`。在同一父版先运行 `SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH= node --test --experimental-strip-types tests/t159-confirm-gate.test.ts`，预期红 **0/1，exit=1**：跨进程的生产 HTTP 普通确认返回 202 而非 400；该次进入 generate/running 且排入 after，证据 `artifacts/t159/confirm-gate-20261014T053610Z/parent-ee4007a-red.log` 及其 confirm-contract 子目录原始 before/after。准备阶段通过原 select 和 workflow 保存本地替身大纲，CLI 在首个确认前止步；跨进程共享该隔离数据。确认阶段只记录 after 队列，不执行生成，不调用模型或 Chrome。
 
