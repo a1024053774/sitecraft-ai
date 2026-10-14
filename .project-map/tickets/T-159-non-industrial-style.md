@@ -2,7 +2,7 @@
 id: T-159
 title: 补 1–2 个非工业风格，风格卡带真实缩略图
 type: build
-status: open
+status: closed
 blocked_by: [T-157, T-158]
 claimed_by: Codex (t159-nonindustrial-style)
 supersedes:
@@ -22,7 +22,7 @@ T-156 定为任何行业的展示型官网。现有精密工程、现场实拍�
 
 - [x] 风格区分盲评：新风格与最接近的现有风格在同一非工业资料上可辨（新实例，随机命名）
 - [x] 「像这家店/机构」成对盲评不差于现有风格；真实预算主控报批
-- [ ] typecheck、test、build 通过（本轮 typecheck、标准入口 T-159 定向 23/23 通过；全量/build 由主控整合验收，本工作树未重跑）
+- [x] typecheck、test、build 通过（本轮 typecheck、标准入口 T-159 定向 23/23 通过；全量/build 由主控整合验收，本工作树未重跑）
 
 ## Resolution
 
@@ -137,3 +137,7 @@ SITECRAFT_BASE=http://127.0.0.1:63453 SITECRAFT_TOKEN_LIMIT=130000 CHROME_PATH=/
 缩略图 `complete/private/fixture-neighborly-preview.webp` 来自此次已存版本首屏；标准 mixed/company 包与两个随机命名的风格区分、同店成对流程包齐备，后两包复用同资料 T-160 餐厅截图，身份映射只在 `complete/private/fixture-packaging.json`。本轮 31 张图含复制包与缩略图均逐张打开核对载入和完整性。替身只证明协议与流程，事实返回空问题不是语义事实核对，所有包仅供主控核对流程，不作盲评或审美证据，不登记用户缩略图、候选仍 pending，未开审查实例。本次源码定向测试 1/1、`SITECRAFT_BASE=<上述本地 origin> npm run typecheck`、`SITE_STORE=fs SITECRAFT_BASE=<上述本地 origin> CHROME_PATH=<票中固定路径> npm test` **440/440、0 skipped**、`SITE_STORE=fs SITECRAFT_BASE=<上述本地 origin> npm run build` 均 PASS，日志分别为 diagnostics-final-green/typecheck/full-test/build.log；检查在本次源码修改之后、2026-10-14 UTC 完成，提交 SHA 与本次产物关联于同目录 delivery.json。project-map Problems 0、Stale living docs 0，应用与替身已手动停，本票保持 open。
 
 **未知用量核查。** 已查原网关账本/日志、应用站点和会话 run、dev server 日志/Next trace、eval 快照/终态/报告及只读主目录 artifacts/t159，来源清单在 `unknown-facts-investigation.json`。应用开始 `2026-10-14T02:35:22.962Z`；网关开始 **2026-10-14 02:35:22.987 UTC / 2026-10-13 22:35:22.987 EDT**；模型 deepseek-flash，本地 runId `84eef7d8-318a-495e-a502-3a76cb7c6d53`、账本第 3 条，DeepSeek 上游 request id 未保存。请求 JSON 正文 **20,803 UTF-8 字节**由当时公式 inputUpper−8192 逆算；模型名称相同、max_tokens 从 65536 改 61337 位数相同，序列化正文大小不变；不是 HTTP 包大小或原正文实收记录。实际 usage 无法从本地恢复，需负责人在 DeepSeek 控制台按上述时间和模型查，不猜测、不修改原账本。
+
+### 关票（主控）
+
+独立盲评（主控隔离两份包，各一个新 sol 实例）：风格区分 PASS（邻里日常与现场实拍可辨为不同方向）；「更像禾巷小馆自己建的」邻里日常略胜。代码审查（新 sol 实例）：ee4007a NO_GO（confirm 未复核准入）→ 86fdb23 NO_GO（快捷修改绕过）→ 672e7d4 NO_GO（误拦不调模型的恢复/撤销）→ 9aa1868 PASS。合入主线后 17 项 T-159 测试被 T-167 存储守卫拒绝，a179cbd 改为使用本轮已核对数据根的子目录（未改守卫与断言）。2026-10-14 10:40 前后（纽约时间）主控在主线 `a179cbd` 串行运行：入口回归通过；`CHROME_PATH=… npm test` **493/493**；`npm run typecheck` 通过；清空 `.next` 后 `SITE_STORE=fs npm run build` 通过；主目录 code-sites 4373→4373。日志 `artifacts/merge-a179cbd/`。真实用量 76,128（含未知上界累计 284,237/360,000）。真实生成站点 `20d7d9ae-8272-4880-81cd-eb2aec872557`（邻里日常 v1）及失败那次的 `4c13530a-af1d-454a-a8e6-6f7a7801b950`（无版本）已复制进主目录数据。
