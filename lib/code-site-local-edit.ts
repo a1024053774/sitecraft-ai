@@ -22,12 +22,12 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
   if (!/^(SECTION|ARTICLE|DIV|HEADER|ASIDE|FOOTER)$/.test(node.tagName) || node.closest('[data-system-inquiry],[data-system-icon],.sc-image-credits')) throw new Error('请选择正文区块，系统部件不能单独修改。');
   const text = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
   if (text !== target.text) throw new Error('锚点文字已改变，请重新点选。');
-  if (target.element) {
+  for (const hint of [...(target.element ? [target.element] : []), ...(target.elements ?? [])]) {
     let pointed: Element | undefined = node;
-    for (const index of target.element.path) pointed = pointed?.children[index];
+    for (const index of hint.path) pointed = pointed?.children[index];
     const snapshot = pointed?.tagName === 'IMG' ? pointed.getAttribute('alt') || '' : pointed?.textContent || '';
-    if (!pointed || pointed.tagName.toLowerCase() !== target.element.tag
-      || snapshot.replace(/\s+/g, ' ').trim().slice(0, 1000) !== target.element.text)
+    if (!pointed || pointed.tagName.toLowerCase() !== hint.tag
+      || snapshot.replace(/\s+/g, ' ').trim().slice(0, 1000) !== hint.text)
       throw new Error('点中元素已改变，请重新点选。');
   }
   const path: number[] = []; let child: Node = node;

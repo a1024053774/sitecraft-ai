@@ -1,21 +1,26 @@
 'use client';
 
+// 拖框阈值、矩形归一化与取消生命周期改编自 BaoCut（JimLiu/baocut@7aa049e8），BaoCut Community License。
+// 仅画板批注，无缩放手柄；DOM 范围仍由 SiteCraft 单区块合同核对。见 resources/baocut-annotation/SOURCE.md。
+
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { AnnotationTarget } from '@/lib/annotations';
 
 type Props = { frame: RefObject<HTMLIFrameElement | null>; ready: boolean; picking: boolean; selected: AnnotationTarget | null;
   pageId: string; versionId: string; html: string; scale: number; onSelect: (target: AnnotationTarget) => void;
-  onKey: (event: KeyboardEvent) => void; reveal: number; numbered: AnnotationTarget | null; onReveal: () => void;
+  onKey: (event: KeyboardEvent) => void; reveal: number; numbered: Array<{ id: string; target: AnnotationTarget; number: number }>; onReveal: (id: string) => void;
+  onArea: (targets: AnnotationTarget[]) => void; areaChoosing: boolean;
   bottomSpace: number; onBottomSpace: (height: number) => void; children?: ReactNode };
-export function CodePreviewSelection({ frame, ready, picking, selected, pageId, versionId, html, scale, onSelect, onKey, reveal, numbered, onReveal, bottomSpace, onBottomSpace, children }: Props) {
+export function CodePreviewSelection({ frame, ready, picking, selected, pageId, versionId, html, scale, onSelect, onArea, areaChoosing, onKey, reveal, numbered, onReveal, bottomSpace, onBottomSpace, children }: Props) {
   const [rect, setRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [numberRect, setNumberRect] = useState<{ x: number; y: number } | null>(null);
+  const [numberRects, setNumberRects] = useState<Array<{id: string; number: number; x: number; y: number}>>([]);
+  const [areaRect, setAreaRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [position, setPosition] = useState({ left: 8, top: 8 });
   const panel = useRef<HTMLDivElement>(null);
   const lastReveal = useRef('');
   useEffect(() => {
     const doc = ready ? frame.current?.contentDocument : null;
-    if (!doc) { setRect(null); setNumberRect(null); return; }
+    if (!doc) { setRect(null); setNumberRects([]); setAreaRect(null); return; }
     const source = new DOMParser().parseFromString(html, 'text/html').querySelector('main');
     const main = doc.querySelector('main');
     let hovered: Element | null = null;
@@ -26,11 +31,16 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
     const refresh = () => {
       const r = (locate(selected) || hovered)?.getBoundingClientRect();
       setRect(r && r.width && r.height ? { x: r.x, y: r.y, width: r.width, height: r.height } : null);
-      const pin = locate(numbered)?.getBoundingClientRect();
-      setNumberRect(pin && pin.bottom > 0 && pin.top < 1000 ? { x: Math.max(0, pin.x), y: Math.max(0, pin.y) } : null);
+      const offsets = new Map<string, number>();
+      setNumberRects(numbered.flatMap(item => {
+        const pin = locate(item.target)?.getBoundingClientRect();
+        if (!pin || pin.bottom <= 0 || pin.top >= 1000) return [];
+        const key = item.target.path.join('-'), offset = offsets.get(key) ?? 0; offsets.set(key, offset + 1);
+        return [{id: item.id, number: item.number, x: Math.max(0, pin.x) + (offset % Math.max(1, Math.floor(pin.width * scale / 32))) * 32 / scale,
+          y: Math.max(0, pin.y) + Math.floor(offset / Math.max(1, Math.floor(pin.width * scale / 32))) * 32 / scale}];
+      }));
     };
-    const capture = (event: Event) => {
-      const hit = event.target as Element | null;
+    const capture = (hit: Element | null) => {
       if (!main || !source || !hit?.closest || !main.contains(hit) || hit.closest('.sc-inquiry,.sc-image-credits,svg,[data-system-icon]')) return null;
       let block = hit.closest('section,article');
       if (!block || !main.contains(block)) { block = hit; while (block.parentElement && block.parentElement !== main) block = block.parentElement; }
@@ -50,11 +60,65 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
       return { block, target: { kind: 'dom' as const, pageId, versionId, path, text, label,
         element: { path: elementPath, tag: element.tagName.toLowerCase(), text: snapshot.replace(/\s+/g, ' ').trim().slice(0, 1000) } } };
     };
-    const move = (event: Event) => { if (!picking || locate(selected)) return; hovered = capture(event)?.block ?? null; refresh(); };
+    let drag: { id: number; x: number; y: number; moved: boolean; viewportWidth: number; viewportHeight: number; frameWidth: number } | null = null;
+    const geometryChanged = () => !!drag && (window.innerWidth !== drag.viewportWidth || window.innerHeight !== drag.viewportHeight
+      || frame.current?.getBoundingClientRect().width !== drag.frameWidth);
+    const cancel = () => {
+      const active = drag; drag = null; setAreaRect(null);
+      if (active && doc.documentElement.hasPointerCapture(active.id)) doc.documentElement.releasePointerCapture(active.id);
+    };
+    const bounds = (x: number, y: number) => ({ x: Math.min(drag!.x,x), y: Math.min(drag!.y,y), width: Math.abs(x-drag!.x), height: Math.abs(y-drag!.y) });
+    const down = (event: PointerEvent) => {
+      if (!picking || event.button !== 0) return;
+      event.preventDefault(); cancel();
+      drag = {id:event.pointerId,x:event.clientX,y:event.clientY,moved:false,viewportWidth:window.innerWidth,viewportHeight:window.innerHeight,frameWidth:frame.current!.getBoundingClientRect().width};
+      doc.documentElement.setPointerCapture(event.pointerId);
+    };
+    const move = (event: PointerEvent) => {
+      if (!picking) return;
+      if (drag) {
+        if (event.pointerId !== drag.id) return;
+        if (geometryChanged()) { cancel(); return; }
+        if (!(event.buttons & 1)) { cancel(); return; }
+        if (Math.hypot((event.clientX-drag.x)*scale,(event.clientY-drag.y)*scale) > 6) drag.moved = true;
+        if (drag.moved) setAreaRect(bounds(event.clientX,event.clientY));
+        return;
+      }
+      if (locate(selected)) return; hovered = capture(event.target as Element | null)?.block ?? null; refresh();
+    };
+    const up = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      if (geometryChanged()) { cancel(); return; }
+      const drawn = bounds(event.clientX,event.clientY), moved = drag.moved;
+      cancel();
+      if (!moved) { const result = capture(doc.elementFromPoint(event.clientX,event.clientY)); if (result) onSelect(result.target); return; }
+      // Group actual intersecting content by its nearest editable block. An
+      // ancestor's box must not turn one nested article into multiple ranges.
+      const groups = new Map<Element, AnnotationTarget>();
+      const textBlocks = 'h1,h2,h3,h4,h5,h6,p,li,dt,dd,td,th,figcaption,label,blockquote,address';
+      for (const hit of main?.querySelectorAll('*') ?? []) {
+        const ownText = [...hit.childNodes].some(node => node.nodeType === 3 && node.textContent?.trim());
+        if (!ownText && hit.tagName !== 'IMG' && !hit.matches(textBlocks)) continue;
+        if (hit.parentElement?.closest(textBlocks)) continue;
+        if (!hit.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) continue;
+        if (![...hit.getClientRects()].some(r => r.width && r.height && r.right > drawn.x && r.left < drawn.x+drawn.width && r.bottom > drawn.y && r.top < drawn.y+drawn.height)) continue;
+        const result = capture(hit); if (!result?.target.element) continue;
+        const existing = groups.get(result.block);
+        if (existing) existing.elements!.push(result.target.element);
+        else { const {element,...target} = result.target; groups.set(result.block,{...target,elements:[element]}); }
+      }
+      setAreaRect(drawn); onArea([...groups.values()]);
+    };
+    const interrupted = () => { cancel(); refresh(); };
+    const blur = () => cancel();
+    const key = (event: KeyboardEvent) => {
+      if (drag && event.key === 'Escape' && !event.isComposing) { event.preventDefault(); event.stopPropagation(); cancel(); return; }
+      onKey(event);
+    };
+    const hostKey = (event: KeyboardEvent) => { if (drag && event.key === 'Escape' && !event.isComposing) key(event); };
     const click = (event: Event) => {
       if (!picking) return;
       event.preventDefault(); event.stopPropagation();
-      const result = capture(event); if (result) { hovered = result.block; onSelect(result.target); }
     };
     const revealIdentity = `${versionId}:${pageId}:${reveal}:${bottomSpace}`;
     if (reveal && selected && lastReveal.current !== revealIdentity) {
@@ -73,13 +137,20 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
         lastReveal.current = revealIdentity;
       }
     }
-    doc.addEventListener('pointermove', move); doc.addEventListener('click', click, true); doc.addEventListener('scroll', refresh, true);
-    doc.addEventListener('keydown', onKey); window.addEventListener('resize', refresh); window.addEventListener('scroll', refresh, true);
+    const previousTouchAction = doc.documentElement.style.touchAction;
+    if (picking) doc.documentElement.style.touchAction = 'none';
+    doc.addEventListener('pointerdown', down, true); doc.addEventListener('pointermove', move); doc.addEventListener('pointerup', up, true);
+    doc.addEventListener('pointercancel', cancel, true); doc.addEventListener('click', click, true); doc.addEventListener('scroll', interrupted, true); doc.addEventListener('wheel', cancel, true);
+    doc.addEventListener('keydown', key, true); window.addEventListener('keydown', hostKey, true); window.addEventListener('resize', interrupted); window.addEventListener('scroll', interrupted, true);
+    window.addEventListener('blur', blur); doc.defaultView?.addEventListener('blur', blur);
     const observer = new ResizeObserver(refresh); if (main) observer.observe(main); if (panel.current) observer.observe(panel.current);
     refresh();
-    return () => { doc.removeEventListener('pointermove', move); doc.removeEventListener('click', click, true); doc.removeEventListener('scroll', refresh, true);
-      doc.removeEventListener('keydown', onKey); window.removeEventListener('resize', refresh); window.removeEventListener('scroll', refresh, true); observer.disconnect(); };
-  }, [frame, ready, picking, selected, pageId, versionId, html, onSelect, onKey, reveal, numbered, scale, children, bottomSpace]);
+    return () => { cancel(); doc.documentElement.style.touchAction = previousTouchAction;
+      doc.removeEventListener('pointerdown', down, true); doc.removeEventListener('pointermove', move); doc.removeEventListener('pointerup', up, true);
+      doc.removeEventListener('pointercancel', cancel, true); doc.removeEventListener('click', click, true); doc.removeEventListener('scroll', interrupted, true); doc.removeEventListener('wheel', cancel, true);
+      doc.removeEventListener('keydown', key, true); window.removeEventListener('keydown', hostKey, true); window.removeEventListener('resize', interrupted); window.removeEventListener('scroll', interrupted, true);
+      window.removeEventListener('blur', blur); doc.defaultView?.removeEventListener('blur', blur); observer.disconnect(); };
+  }, [frame, ready, picking, selected, pageId, versionId, html, onSelect, onArea, onKey, reveal, numbered, scale, bottomSpace]);
   useLayoutEffect(() => {
     const wrapper = panel.current;
     const measure = () => onBottomSpace(wrapper && getComputedStyle(wrapper).getPropertyValue('--code-annotation-reserve').trim() === '1'
@@ -90,17 +161,19 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
   }, [ready, rect, children, onBottomSpace]);
   useEffect(() => () => onBottomSpace(0), [onBottomSpace]);
   useLayoutEffect(() => {
-    if (!rect || !frame.current || !panel.current) return;
+    const anchor = rect ?? areaRect;
+    if (!anchor || !frame.current || !panel.current) return;
     const f = frame.current.getBoundingClientRect(), p = panel.current.getBoundingClientRect();
-    const below = f.y + (rect.y + rect.height) * scale + 8, above = f.y + rect.y * scale - p.height - 8;
+    const below = f.y + (anchor.y + anchor.height) * scale + 8, above = f.y + anchor.y * scale - p.height - 8;
     const preferredTop = below + p.height <= window.innerHeight - 8 ? below : above >= 8 ? above : below;
-    setPosition({ left: Math.max(8, Math.min(f.x + rect.x * scale, window.innerWidth - p.width - 8)),
+    setPosition({ left: Math.max(8, Math.min(f.x + anchor.x * scale, window.innerWidth - p.width - 8)),
       top: Math.max(8, Math.min(preferredTop, window.innerHeight - p.height - 8)) });
-  }, [rect, scale, frame, children]);
+  }, [rect, areaRect, scale, frame, children]);
   const top = Math.max(0, rect?.y ?? 0), bottom = Math.min(1000, (rect?.y ?? 0) + (rect?.height ?? 0));
   return <>
     {rect && bottom > top && (picking || selected) && <div className="code-selection-outline" aria-hidden="true" style={{ left: rect.x * scale, top: top * scale, width: rect.width * scale, height: (bottom - top) * scale }} />}
-    {numberRect && <button className="code-annotation-number" data-testid="annotation-number" aria-label="回看批注 1" style={{ left: numberRect.x * scale, top: numberRect.y * scale }} onClick={onReveal}>1</button>}
-    {ready && rect && selected?.versionId === versionId && selected.pageId === pageId && children && <div ref={panel} className="code-annotation-position" style={position}>{children}</div>}
+    {areaRect && picking && <div className="code-annotation-area" data-testid="annotation-area-outline" aria-hidden="true" style={{left:areaRect.x*scale,top:areaRect.y*scale,width:areaRect.width*scale,height:areaRect.height*scale}} />}
+    {numberRects.map(pin => <button key={pin.id} className="code-annotation-number" data-testid="annotation-number" aria-label={`回看批注 ${pin.number}`} style={{left:pin.x*scale,top:pin.y*scale}} onClick={() => onReveal(pin.id)}>{pin.number}</button>)}
+    {ready && (areaChoosing || (rect && selected?.versionId === versionId && selected.pageId === pageId)) && children && <div ref={panel} className="code-annotation-position" style={position}>{children}</div>}
   </>;
 }
