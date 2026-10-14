@@ -2,7 +2,7 @@
 id: T-162
 title: 预览里就地写一条批注并完成局部修改
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t162-build)
 supersedes:
@@ -29,8 +29,8 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 - [x] 先列出失效方式（离屏目标、iframe 缩放后坐标、IME、Esc 焦点、刷新恢复、发送中重复点击、版本变化），按清单写测试，测试先在父版本上失败
 - [x] 真实 Chrome 用真实指针和键盘操作，不只 dispatchEvent：双页长页面，含重复文案、深层区块和底部链接，1440/768/375 截图逐张看过
 - [x] 局部修改的范围检查与 T-152 一致：区块外 DOM、其他页面和外部 CSS 都不变；真实模型跑一次单条批注修改（本次获批预留上限 35000，实际 3253 token）
-- [ ] 未参与实现的新审核实例按任务脚本试用（点选、写意见、回看定位、窄屏完成、失败后意见保留），结论写进 Resolution
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] 未参与实现的新审核实例按任务脚本试用（点选、写意见、回看定位、窄屏完成、失败后意见保留），结论写进 Resolution
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## 失效方式与测试合同
 
@@ -80,3 +80,7 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 `SITE_STORE=fs npm run build` 通过（`build.log`）。真实服务、网关和普通测试服务都已停止，两端口无监听，Next dev 锁释放；用量仍为 3253、调用仍为 2（`cleanup.json`）。四项改动文件的 UTF-8、diff 与 project-map 状态收尾核对见 receipt。全量未通过，最后一项整体验收不勾选；独立试用/本次改动审查仍交主控安排。
 
 此前交互、父版本/变异红态、标准环境自足及负载修复证据仍保留，见 `artifacts/t162/self-contained-receipt.json`、`load-receipt.json` 和相应旧 artifacts；原 15000 预检拒绝见 `real-2026-10-14T01-24-08-766Z/` 与 `real-small-2026-10-14T01-32-21-834Z/`。主控已记录 4475410..200cb82 的 Astra 增量 PASS 及 faad031 的全量 433/433；它们不冒充本次全量通过。
+
+### 关票（主控）
+
+独立试用：新 sol 实例 t162-trial 按任务脚本试用，首轮 375 NO_GO（定位被面板遮挡）经 1825142/88b40d6 修复后复试通过；其「展开历史线程不能续写」一条按本票合同（旧版本线程只读，Astra P1）判为设计如此。代码审查：Astra 对 55cf192、88b40d6、200cb82 增量均 PASS。真实单条批注：3,253 token（见上），站点 `4f5ec1c4-36c0-48cc-91c5-5a47f6eb9f7e` 已复制进主目录。早先主线 5d69145 三次全量 356–379/434 的根因为检查器打开站点列表首页，由 T-166 修复。2026-10-14 00:35 前后（纽约时间）主控在主线 `58f2827`（含 T-162/T-165/T-166 合并）无其他 Chrome 测试时运行 `SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` **465/465**（119 s），`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-58f2827/`。

@@ -2,7 +2,7 @@
 id: T-166
 title: 提交检查不再打开站点列表首页
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t166-check-origin)
 supersedes:
@@ -22,8 +22,8 @@ supersedes:
 
 - [x] 测试证明检查器不再请求站点列表首页（例如用本地 HTTP 源记录请求路径），并且首页很慢时检查仍在时限内完成；先在父版本上失败
 - [x] Dockerfile runtime 复制完整 public；静态页缺失或无效明确失败，新增测试先在 abca092 上失败
-- [ ] 主线标准全量 `npm test`、typecheck、build 通过
-- [ ] 独立 sol 实例代码审查通过
+- [x] 主线标准全量 `npm test`、typecheck、build 通过
+- [x] 独立 sol 实例代码审查通过
 
 ## Resolution
 
@@ -44,3 +44,7 @@ supersedes:
 此前失败证据继续保留：`artifacts/t166/red-parent-ab6cd1c.log`；abca092 前两轮全量均 435/436，分别为漏适配的 T-145 路径断言与 T-162 完成后状态被覆为中断，日志 `artifacts/t166/npm-test.log`、`artifacts/t166/npm-test-final.log`。T-162 的 `artifacts/t162/self-contained-1791951236401-36892/` 保留时序和已打开的失败截图；本次不扩改 workflow，不以聚焦通过覆盖旧全量失败。
 
 未推送、未调用真实 DeepSeek、未载入 `.env.local`、未清理任何 `.sitecraft-data`。`git diff --check` 通过，中文 UTF-8 回读正常；`project_map.py status --root .` 的 Problems 和 Stale living docs 均为 0。主线全量与独立复审由主控安排。
+
+### 关票（主控）
+
+独立 sol 实例 t166-review：abca092 NO_GO（镜像漏复制 public、404 被当检查源），efef2f8 复审 PASS。2026-10-14 00:35 前后（纽约时间）主控在主线 `58f2827`（含 T-162/T-165/T-166 合并）无其他 Chrome 测试时运行 `SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` **465/465**（119 s），`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-58f2827/`。 全量耗时由约 8 分钟降至 2 分钟。

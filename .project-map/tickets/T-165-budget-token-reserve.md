@@ -2,7 +2,7 @@
 id: T-165
 title: 预算网关按 token 估算预留
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t165-token-reserve)
 supersedes:
@@ -22,7 +22,7 @@ supersedes:
 
 - [x] 红绿：用 T-160 被拦的修正请求和 T-162 青禾纸品两次调用的真实请求体做测试，旧规则下判为放不进、新规则下放得进；测试先在父版本上失败
 - [x] 不放松安全：用真实账本里每次调用的请求体，断言新估算 ≥ 实际 prompt_tokens；官方 tokenizer 对抗样本先在 c243f10 失败，再被新估算覆盖；构造超支场景（剩余额度不足）仍被拦
-- [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 sol 实例代码审查通过
+- [x] 不调用 DeepSeek；typecheck、test、build 通过；独立 sol 实例代码审查通过
 
 ## Resolution
 
@@ -85,3 +85,7 @@ T-162 预检事实输入按布局候选构造，不能当成实际响应。本�
 前一提交的 `npm run typecheck`、`npm run build` 与全量日志均保留为历史证据，不用于本次修复验收。其中首轮 **426/440 通过、14 失败**（`test.{log,json}`），由执行者额外 data-root 与测试路径冲突及浏览器等待超时组成；纠正启动配置后 **440/440 通过**（`test-standard.{log,json}`），没有放大超时或改断言。原文件不删不覆盖。本次 typecheck/build/npm test 仍待主控浏览器独占结束后的通知，未运行、不写成已完成。
 
 未载入 .env.local、未调用 DeepSeek；无本票 UI 改动或浏览器验收要求。为复原已有修正片段/事实上下文，沿用现存 DOM 确定性 helper；全量既有测试也会使用指定 CHROME_PATH，未把这些运行当成本票页面质量或审美验收。
+
+### 关票（主控）
+
+独立 sol 实例 t165-review：c243f10 NO_GO（ASCII/生僻字低估），a06e8e1 复审 PASS（固定版本官方 tokenizer 独立重生成样本一致）。2026-10-14 00:35 前后（纽约时间）主控在主线 `58f2827`（含 T-162/T-165/T-166 合并）无其他 Chrome 测试时运行 `SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` **465/465**（119 s），`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-58f2827/`。
