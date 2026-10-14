@@ -2,7 +2,7 @@
 id: T-167
 title: 全量测试使用独立的临时数据目录
 type: build
-status: open
+status: closed
 blocked_by: [T-166]
 claimed_by: Codex
 supersedes:
@@ -29,7 +29,7 @@ supersedes:
 - [x] 主目录既有 artifacts 结构下构建不 panic（dfb9d5e 红灯、带修复绿灯）
 - [x] 全量 test、typecheck、build 通过
 - [x] .next-test 同时被 Docker 构建上下文与 Git 排除（9b62be0 红灯）
-- [ ] 独立 sol 实例代码审查通过
+- [x] 独立 sol 实例代码审查通过
 
 ## Resolution
 
@@ -57,3 +57,7 @@ NFT 证据缺口：没有与 58f2827 在同目录、同环境下的追踪数量�
 原始隔离数量红灯（6e0ccfe，本工作树对照 0→151）、P1 原始 Node 写入红灯（e7cee62，6/1 个 JSON）及 P2 零用例红灯（e7cee62）分别保存在 artifacts/t167/parent-red-1791952824542/、t167-p1-e7cee62-red.log、t167-p2-e7cee62-red.log。最终全量继续覆盖 P1；入口 4 项回归继续覆盖 P2。早先 CLI 夹具隔离根被守卫拒绝的全量失败也保留在 t167-review-full.log，未跳过断言。
 
 浏览器前按 ps 核对并使用主控窗口，构建与全量串行。未调用 DeepSeek；测试 NODE_ENV=test 不加载 .env.local，主目录诊断 build 按本轮明确授权由 Next 正常读取其构建环境，未读取或打印密钥。标准命令、术语、mainline、spec 和 living-doc 覆盖路径已同步；独立审核由主控安排。
+
+### 关票（主控）
+
+独立 sol 审查：e7cee62 NO_GO（两项 P1：原始 node --test 写默认目录、继承 NODE_TEST_CONTEXT 零用例假通过），19a99bb PASS；合入主线 dfb9d5e 后暴露测试入口与同目录 next dev 冲突、主目录 build Turbopack NFT panic，9b62be0 修复后复审 NO_GO（P2：.dockerignore 漏 .next-test），0f10e99 复审 PASS。与 58f2827 的 NFT 精确数量对照缺失，如上所记。2026-10-14 09:40 前后（纽约时间）主控在主线 `64204dc` 串行运行：`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 通过；`CHROME_PATH=… npm test` **469/469**（119 s）；`npm run typecheck` 通过；清空 `.next` 后 `SITE_STORE=fs npm run build` 通过；主目录 code-sites 4373→4373。日志 `artifacts/merge-64204dc/`。
