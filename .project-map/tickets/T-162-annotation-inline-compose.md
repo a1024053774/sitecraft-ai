@@ -56,17 +56,22 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 
 ## Resolution
 
-2026-10-13 21:24（纽约时间；UTC 2026-10-14 01:24）负责人已批准真实单条批注，累计上限 15000 token。**本次真实验收 BLOCKED，尚未发送模型请求，范围与真实 Next after 验收项保持未勾选**。已执行 `git merge --ff-only family-kit-assembly`，快进到 `84ad844`，包含 `ef92be9`，无冲突；领取人仍为 Codex (t162-build)。本次文档提交 SHA 见 `artifacts/t162/real-2026-10-14T01-24-08-766Z/receipt.json`，不推送、不关票，不读取 BaoCut 参考目录。
+2026-10-13 21:32（纽约时间；UTC 2026-10-14 01:32）主控指定改用 `tests/fixtures/t162-inline-site.ts` 的青禾纸品，先离线预检；累计上限 15000 和网关预留规则保持不变。**本次真实验收 BLOCKED，真实调用 0 次、实际用量 0；真实范围验收项保持未勾选**。本树已包含 `84ad844`/`ef92be9`，领取人仍为 Codex (t162-build)。本次文档提交 SHA 见 `artifacts/t162/real-small-2026-10-14T01-32-21-834Z/receipt.json`，不推送、不关票，不读取 BaoCut 参考目录。
 
-只读原餐厅 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b` 的当前版本 `60cde704-7364-461c-a236-9af8933c5b4c`。拟提交意见为「保留营业时段和停止点菜时间，把这块的说明排得更清楚，方便客人快速查看。」以生产 `codeFactMaterials` 构造资料，仅把这些资料放入最小请求，再调用现有 `scripts/t153-real-budget.ts` 的 `reserveRequest`：资料请求的保守输入预留 13903，网关要求可用输出至少 4096，最低合计 17999；在上限 15000 下输出仅余 1097，抛出 `Remaining authorization cannot reserve this request and a usable output allowance`。真实请求还必须包含局部合同、选中 HTML、相关 CSS 和大纲，因此这个下界已经足以阻止调用，并不代表实际计费会用 17999。未改预留算法、白名单或上限，未删减资料绕过预算。
+预检用生产 `writeLocalEdit` 构造完整写作请求：夹具经生产清理函数获得预期 v1 代码，使用与 `fixture()` 相同的资料、precision 偏好和双页大纲；选择首页深层纸袋区块 `[2,0,1]`，点中元素为段落 `[1]`，版本编号用等长预检 UUID，未伪造已保存的版本。意见为「保留这块全部文字与链接，只调整标题字距，让标题更清楚。」局部合同、风格要点、区块 HTML、匹配 CSS、大纲及具体元素提示均进入完整序列化请求。随后用生产 `auditCodeFacts(..., true)` 构造事实请求，正文和辅助文案由生产清理函数读取原区块；这是保留原文的布局候选，尚无真实模型输出。两次模型出口都在当前进程截留，返回明确的离线 503 以停止调用，不发网络请求，不作为真实修改通过证据。
 
-证据 `artifacts/t162/real-2026-10-14T01-24-08-766Z/budget-preflight.json`；原执行为 `node --experimental-strip-types --input-type=module -` 的标准输入脚本，副本保存在同目录 `preflight.mjs`。从本工作树复现：
+| 调用 | 网关输入预留 | 输出与累计预留 | 结果 |
+| --- | ---: | --- | --- |
+| 局部修改 | 12502 | 原请求输出 6144；15000 下只能余 2498，低于网关最低 4096；最低合计 16598 | 第一次已拒绝 |
+| 随后事实核对 | 9960 | 输出 4096，独立预留 14056；第一次按完整输出的保守用量 18646 扣除后，累计需 32702 | 累计不满足 |
+| 第一次只计最低输出的对照 | 12502 + 4096 | 加第二次 14056，累计仍需 30654 | 仍不满足 |
 
-```sh
-node --experimental-strip-types --input-type=module - < artifacts/t162/real-2026-10-14T01-24-08-766Z/preflight.mjs
-```
+调用现有 `reserveRequest`，未改算法、白名单、请求合同或授权上限，也未删减资料来放行。现有规则每次含 8192 的预留开销，并要求至少 4096 输出，因此两次即使不计任何请求正文也至少需 24576；这个约束独立于夹具资料大小。上述数字为保守预留，不是实际计费预测；第二次零消耗的独立计算只展示请求大小，没有被用作发送许可。
 
-该预检不访问模型、应用服务或预算服务；预算计数沿用网关的保守算法，不做文件字节比对。按负责人「一次调用可能超 15000 就先停」的指示停止：真实调用 0 次，用量 0；未载入 `.env.local`，未创建新站（无新 siteId）、未启动 dev server/网关，也未生成 usage.json 或截图。首版复制、真实 Chrome 批注、版本范围读回均未执行；本次只更新票，未重跑 typecheck/test/build，旧通过证据不冒充本次真实验收。
+证据目录 `artifacts/t162/real-small-2026-10-14T01-32-21-834Z/`：`requests.json` 是两项生产函数实际序列化的 body（无请求头或认证信息），`budget-preflight.json`/`budget-summary.json` 记录首项拒因及第二项累计计算，`preflight.log` 保留输出。原命令和标准输入脚本分别在 `command.txt`、`preflight.mjs`：以随机未监听的本地 origin 设置 SITECRAFT_BASE，显式 SITECRAFT_TOKEN_LIMIT=15000 和 AGENTS 的 CHROME_PATH，运行 `node --experimental-strip-types --input-type=module -`；未设置预算服务地址，未启动服务。另从已保存的第二项 body 调用 `reserveRequest(body, 0, 15000)`，核对其独立预留为 14056，不重复构造写作请求或进行模型调用。全部原产物保留；脚本使用 wx 保护原证据，重现须使用新的证据目录。
+
+餐厅预检证据仍保留于 `artifacts/t162/real-2026-10-14T01-24-08-766Z/`，本次未再读主目录站点数据。按「两次都放得进才启动」的停止条件，未载入 .env.local，未 POST 新站或调用 commitSiteCode（无新 siteId），未启动 dev server/网关；离线解析使用的隔离 Chrome 已关闭，无残留。本次没有 usage.json 或截图，实际 Next 批注、版本范围核对和真实线程状态均未执行。本次仅更新票，未重跑 typecheck/test/build，旧通过证据不冒充本次真实验收。
+
 
 2026-10-13 17:15 前后（纽约时间）Astra 审查增量 4475410..200cb82 PASS（夹具复用不使断言恒真、冻结闸门、事件等待、六项回退均可检出）。主控合并为 `faad031`，在无其他 Chrome 测试时跑标准命令：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` 433/433，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-faad031/`。真实单条批注修改已有 15000 token 授权，当前在上述预算预检处阻塞。
 
