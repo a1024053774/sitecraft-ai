@@ -31,11 +31,15 @@ process.env.DEEPSEEK_API_KEY = 'local-fixture'; process.env.DEEPSEEK_MODEL = 'lo
 const { planSiteCode } = await import('../lib/code-site-model.ts');
 test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 
-test('the planning contract offers only the three approved directions and loads the selected short skill', async () => {
+test('the planning contract offers the four approved directions and loads the selected short skill', async () => {
   style = 'precision';
   await planSiteCode('齿轮资料', { style: 'auto', layout: 5, density: 6 }, '规划');
-  assert.deepEqual(wires.at(-1).tools[0].function.parameters.properties.style.enum, ['precision', 'documentary', 'editorial']);
-  for (const chosen of ['editorial']) {
+  assert.deepEqual(wires.at(-1).tools[0].function.parameters.properties.style.enum, ['precision', 'documentary', 'editorial', 'neighborly']);
+  assert.match(wires.at(-1).messages[1].content, /按资料.*不固定按行业套风格/);
+  style = 'neighborly';
+  const automatic = await planSiteCode('齿轮产品的参数与使用边界。', { style: 'auto', layout: 5, density: 6 }, '规划');
+  assert.equal(automatic.plan.style, 'neighborly', 'auto 接受模型按资料返回的已登记风格，不按行业强制改写');
+  for (const chosen of ['editorial', 'neighborly']) {
     style = chosen;
     const result = await planSiteCode('齿轮资料', { style: chosen as any, layout: 5, density: 6 }, '规划');
     assert.equal(result.plan.style, chosen);
@@ -74,9 +78,10 @@ test('unknown preferences are rejected before the provider and unregistered auto
 
 test('all offered directions have registered real WebP previews', async () => {
   assert.ok(existsSync('lib/code-site-styles.ts'), 'one style catalog must exist');
-  const { codeStyles } = await import('../lib/code-site-styles.ts');
-  assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial']);
-  for (const id of ['precision', 'documentary', 'editorial'] as const) {
+  const { codeStyles, codeStyleOptions } = await import('../lib/code-site-styles.ts');
+  assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial', 'neighborly']);
+  assert.deepEqual(codeStyleOptions.map(option => option.id), ['auto', 'precision', 'documentary', 'editorial', 'neighborly'], '盲评通过的邻里日常成为普通用户选项');
+  for (const id of ['precision', 'documentary', 'editorial', 'neighborly'] as const) {
     const preview = codeStyles[id].preview;
     assert.equal(preview.status, 'ready');
     if (preview.status !== 'ready') throw new Error('missing preview');

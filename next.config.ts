@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import './lib/code-site-eval-styles.ts'
 
 const nextConfig: NextConfig = {
   // T-167: the test server must not share an ordinary dev server's .next lock.

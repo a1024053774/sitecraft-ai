@@ -11,17 +11,26 @@ import { factAuditReply } from '../tests/fixtures/fact-audit-reply.ts';
 // It does not import the production packs or write the site store.
 localEndpoint('SITECRAFT_BASE');
 const endpoint = localEndpoint('SITECRAFT_FIXTURE_BASE');
-const { values } = parseArgs({ options: { out: { type: 'string' } } });
+const { values } = parseArgs({ options: { out: { type: 'string' }, 'hold-facts': { type: 'boolean', default: false } } });
 assert.ok(values.out, 'Set --out to a new artifact directory');
 const folder = path.resolve(values.out);
 await mkdir(folder); // Preserve earlier runs, including failed ones.
 type Input = { messages: Array<{ content: string }>; tools?: Array<{ function: { name: string } }> };
 const requests: Array<{ purpose: string; company: string; body: Input }> = [];
+let activeRequests = 0;
+const heldFacts: Array<() => void> = [];
 const escape = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const server = createServer(async (req, res) => {
+  if (req.method === 'GET' && req.url === '/status') {
+    res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ fixtureOnly: true, activeRequests, heldFacts: heldFacts.length, calls: requests.map(item => item.purpose) })); return;
+  }
+  if (req.method === 'POST' && req.url === '/release') {
+    for (const release of heldFacts.splice(0)) release(); res.end('{}'); return;
+  }
   if (req.method === 'GET' && req.url === '/requests') {
     res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(requests)); return;
   }
+  activeRequests++;
   try {
     let raw = ''; for await (const chunk of req) raw += chunk;
     const body: Input = JSON.parse(raw), system = body.messages[0].content, user = body.messages[1].content;
@@ -53,12 +62,13 @@ const server = createServer(async (req, res) => {
     } else throw new Error('The fixture received an unsupported request');
     requests.push({ purpose, company, body });
     await writeFile(path.join(folder, 'requests.json'), JSON.stringify(requests, null, 2), 'utf8');
+    if (purpose === 'facts' && values['hold-facts']) await new Promise<void>(resolve => heldFacts.push(resolve));
     const message = purpose === 'plan' ? { content: null, tool_calls: [{ id: 'local-plan', type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(factAuditReply(body, answer)) };
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ choices: [{ finish_reason: purpose === 'plan' ? 'tool_calls' : 'stop', message }] }));
   } catch (error) {
     res.writeHead(422, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: { message: error instanceof Error ? error.message : String(error) } }));
-  }
+  } finally { activeRequests--; }
 });
 server.listen(endpoint.port, endpoint.hostname, () => console.log(`Local fixture: ${endpoint.origin}; requests: ${folder}`));

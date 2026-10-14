@@ -197,7 +197,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       && !task.selectedTarget && (task.kind === 'generate' || task.kind === 'edit') ? task.attempts : [];
     const factReviews = !restore && !args.selectedTarget ? [current?.checks.factSegments, ...attempts.map(attempt => attempt.checks.factSegments)]
       .filter((review): review is NonNullable<typeof review> => !!review) : [];
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: site.materials,
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: site.materials, style: site.plan?.style,
       ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
