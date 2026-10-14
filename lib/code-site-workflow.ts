@@ -1,5 +1,6 @@
 import { after } from 'next/server.js';
-import { codePreferencesSchema, codePreferenceStyleSchema, codeStyleOptions } from './code-site-styles.ts';
+import { codePreferencesSchema, codePreferenceStyleSchema } from './code-site-styles.ts';
+import { serverCodeStyleOptions } from './code-site-eval-styles.ts';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
@@ -26,8 +27,10 @@ class CodeRunConflictError extends Error {}
 export async function codeWorkspaceState(site: CodeSiteRecord) {
   try {
     const conversation = await getConversation(site.siteId, site.conversationId);
+    const alignment = conversation ? publicAlignmentView(conversation.alignment) : null;
+    if (alignment?.questionKind === 'style') alignment.options = alignment.options.filter(option => serverCodeStyleOptions.some(current => current.id === option.id));
     return { codeSite: site, conversationId: site.conversationId,
-      alignment: conversation ? publicAlignmentView(conversation.alignment) : null, turns: conversation?.turns ?? [] };
+      alignment, turns: conversation?.turns ?? [] };
   } catch (error) {
     if (!(error instanceof AlignmentTextTooLongError)) throw error;
     // The existing conversation remains untouched and unavailable. Materials,
@@ -39,7 +42,7 @@ export async function codeWorkspaceState(site: CodeSiteRecord) {
 function styleQuestion(epoch: number): CurrentQuestion {
   return { questionId: `code-style-${crypto.randomUUID()}`, questionRevision: epoch + 1, kind: 'style',
     prompt: '网站用哪种风格？版式与信息密度一起保存。', allowOther: false,
-    options: codeStyleOptions };
+    options: serverCodeStyleOptions };
 }
 async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
   return updateCodeSite(siteId, site => {
@@ -256,6 +259,9 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         pendingRequest: { message: '调整风格与疏密，保留有效资料与已有功能入口。', baseRevision: currentCodeVersion(site)?.revision ?? 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
     } else if (input.action === 'select') {
       if (conversation.alignment.currentQuestion?.kind !== 'style') return Response.json({ userMessage: '当前不是风格选择，请使用当前卡片。' }, { status: 409 });
+      // A question saved by an evaluation process cannot keep authorizing a
+      // pending candidate when reopened in an ordinary process.
+      if (!serverCodeStyleOptions.some(option => option.id === input.optionId)) return Response.json({ userMessage: '未知的选项。' }, { status: 400 });
       if (input.preferences && input.preferences.style !== input.optionId) return Response.json({ userMessage: '风格与选项不一致。' }, { status: 400 });
       const selected = await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'select', questionId: input.questionId, questionRevision: input.questionRevision, optionId: input.optionId });
       const style = codePreferenceStyleSchema.parse(selected.record.alignment.styleOptionId);

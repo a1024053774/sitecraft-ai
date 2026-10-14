@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import './lib/code-site-eval-styles.ts'
 
 const nextConfig: NextConfig = {
   typedRoutes: true,

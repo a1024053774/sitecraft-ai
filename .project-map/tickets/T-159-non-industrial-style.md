@@ -26,39 +26,42 @@ T-156 定为任何行业的展示型官网。现有精密工程、现场实拍�
 
 ## Resolution
 
-执行者 Codex，父提交 `84ad844`，2026-10-13。本票保持 open，不推送；负责人已批准累计 260,000 token，单次 70,000，上限不追加。
+执行者 Codex，claimed_by 保持；本票 open，不推送、不关票。2026-10-13 纽约时间主控已确认下述准入与预算，第二风格等第一次盲评结果。
 
-**新增判断：先验证一个候选。** 已只读主工作区 T-158、T-160 及 t160-review-*：T-158 两家非工业的独立盲评均为 5/10；T-160 餐饮、培训升至 6/10，餐饮首页紧接首屏的深色「承接范围」被判偏事务，培训仍有重复限制声明。现有现场实拍强调整宽照片、大字与深浅交替，品牌画册强调暖纸和衬线阅读节奏，精密工程强调细线业务目录；不能据这些结果宣布现有方向已充分适配。指定目录没有设计工作室的真实生成和盲评，t160-review-* 是窄列机械反例，不能当审美结论。餐饮 home-1440/menu-375 与最新培训 home-375/courses-1440 已打开核对位置。
+**新增判断。** 只读主目录 T-158、T-160、t160-review-* 后，现有非工业盲评由 5/10 提升至 6/10，仍指出餐饮事务区过重、培训限制重复；未找到设计工作室真实生成/盲评，窄列反例不能作审美依据。先验证一个「邻里日常」候选：黑体招牌、柔和色面、店内价目与告示；不是固定行业模板，不增加功能或事实。T-160 餐厅实际「现场实拍」版本已经是暖浅底、黑体、菜单价目，是该资料最接近的现有方向；其 `private/case-1/materials.txt` 与当前 restaurant quick 资料完全一致，直接复用站点 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b` / 版本 `60cde704-7364-461c-a236-9af8933c5b4c`，不另跑对照。
 
-先做「邻里日常」：店内价目与告示的排法、系统黑体、柔和色面，让已有项目与相应价格/时间靠在一起；与最接近的「品牌画册」用完全相同的 restaurant quick 资料、版式 5/密度 6 成对验证。采用 **Tracer bullet** 经正常需求对齐、确认和提交入口生成两页；保持 **Deep modules** 的单一风格登记与现有入口，不另设生成 API；**Ubiquitous language** 沿用风格、页面大纲、提交入口和盲评包。范围不含资料修订、核心事实/修正合同、新图片或第二风格；视觉收益必须由主控另开实例判断。资料缺口和重复声明是已知限制，新增风格不保证解决它们。
+**当前准入合同。** 服务端 `SITECRAFT_EVAL_STYLES` 用逗号列出已登记 pending 编号；Next 配置加载时校验，未知或 ready 编号在未收到首个 HTTP 请求时使启动失败。styleQuestion 在该进程增加候选，chat select 仍核对持久化问题、问题版本和原有门禁；普通进程不给候选选项并返回 400，旧评估问题也不能继续授权候选，客户端字段不能启用。auto 的资料选择合同、枚举与 skill 加载始终只含已验证风格。变量没有客户端读取，也没有新 API。**Tracer bullet** 经真实 CLI→HTTP→生产 chat select→规划；**Deep modules** 保持同一登记、同一提交入口；**Ubiquitous language** 沿用风格、页面大纲与盲评包。
 
-新增测试在父代码运行为 7/11 PASS、4 个预期失败（未登记候选、CLI 不接受 editorial、预算目录拒绝 t159），原日志 `artifacts/t159/parent-red.log`；最小改动后同组加既有 quick CLI 为 13/13 PASS，`focused-green.log`。真实评估暂在本隔离工作树的普通选择合同登记候选，未伪造缩略图；最终 pending 候选已从用户选择和「帮我选」移除，盲评通过后再由主控开放。正常 chat 入口以新的教育资料回读四个公开选项（含 auto），没有候选，见 `artifacts/t159/selection-gate.json`。
+**准入证据（2026-10-14 UTC）。** 在父版本 `dcf8c0e`，`SITECRAFT_BASE=http://127.0.0.1:3199 node --test --experimental-strip-types tests/t159-eval-entry.test.ts` 4/4 预期失败：on 仍 400；三个非法配置仍启动，原日志 `artifacts/t159/entry-parent-dcf8c0e-red.log`。修复后同一 CLI→HTTP 入口 off=400/0 次规划、on=202/1 次规划；旧评估会话在普通进程拒绝客户端启用字段。模型与 after 用替身，写页故意 503 止于该边界，不证明真实模型或实际 Next after 集成。实际 Next start 的三种错误配置无首个请求即自然 exit=1，日志在各 startup-contract 目录；不是只验证 parser 或只读组合文件。
 
-**真实生成 INCOMPLETE，已停下。** 2026-10-14 01:26–01:27 UTC（纽约 2026-10-13），在父提交 `84ad844` 加本票工作树改动上运行一次：
+本版本 Next 的 Ready 日志早于配置加载，首次启动测试错误地据此终止进程（`entry-green.log`）；改为等待无首个请求时自然退出后，instrumentation 路线仍因懒初始化失败（`entry-green-startup.log`）。两份失败保留；已删该路径，校验只在 Next 配置加载和服务端工作流导入执行。最终定向 `tests/t159-eval-entry.test.ts tests/t159-style-eval.test.ts tests/t153-style-preferences.test.ts` **10/10 PASS**，`entry-config-green.log`；typecheck 和 build 通过（`entry-typecheck-final.log`、`entry-build-config.log`）。新的独立 Astra 对冻结 `5dc7849` 的准入审查 PASS（只准入门槛），原文 `artifacts/t159/gate-review-5dc7849.txt`；另有冻结提交 4/4 用例，绑定 SHA 与 dirty=false。父版启动红日志使用不同断言，不单独作为当前自然退出断言的反事实证明；实际无首个请求即 exit=1 是直接证据。
+
+**预算与保留的失败。** 总上限仍 **260,000**，已花 **30,770**；本轮获批生成 neighborly 一次，新账本单次 `SITECRAFT_TOKEN_LIMIT=130000`，不改保守请求预留规则；开始前按已花额加单次最大额核对总限。原账本 `artifacts/t159/budget-neighborly-20261014T012608Z/usage.json` 保留且 stopped=true：规划 15,786，写页 14,984；单次 70,000 在写页前只留下 5,401 输出额度，全部用于思考，HTTP 200/length，没有 HTML/CSS、事实核对、底线检查或已存版本。按主控决定，这次是单次预算设小导致的截断，不算模型质量问题。站点 `4c13530a-af1d-454a-a8e6-6f7a7801b950` 及其会话完整保留；原报告、账本、两张已打开的官网对照图在 `real-neighborly-20261014T012608Z/`，blind-coverage=false，不能交审。首次服务退出造成的 360/435 失败和修复后 435/435 通过均留在原日志，不引用为本次代码的全量证据。
+
+此前 Astra 对 `918cfa6` 的 P1（最终选择门禁拒绝候选）和 P2（CLI 测试只证明组合构造）原文保留在 `artifacts/t159/acceptance-review.txt`；本次在主控明确合同后修复，评审是另一个新实例。拿到版本后制作真实缩略图、随机风格区分包和同店成对包，private 映射/来源/用量不交盲评。候选仍 pending，独立页面盲评由主控另开实例，执行者不选胜者或宣布审美通过。
+
+**当前真实结果 INCOMPLETE。** 准入审查通过后，在 `5dc7849`（源码干净）运行一次：
 
 ```sh
-SITECRAFT_BASE=http://127.0.0.1:54474 SITECRAFT_BUDGET_BASE=http://127.0.0.1:54475 SITECRAFT_TOKEN_LIMIT=70000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --quick --only restaurant/neighborly --out artifacts/t159/real-neighborly-20261014T012608Z
+SITECRAFT_BASE=http://127.0.0.1:63453 SITECRAFT_TOKEN_LIMIT=130000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --quick --only restaurant/neighborly --out artifacts/t159/approved-neighborly-20261014T015431Z
 ```
 
-端口由 `artifacts/t159/run-real.mjs` 分配并显式传入，没有默认地址。启动前 ps 未见其他 Chrome/测试；应用 health 的 cwd 与本工作树一致，数据只在本工作树 `.sitecraft-data`。密钥仅在预算网关子进程按负责人指定命令 source 主目录 `.env.local`，没有复制或写入文件；应用只拿非密钥占位值。网关目录唯一改动为白名单加 t159，预留、累计账本和停止规则未变。账本 `artifacts/t159/budget-neighborly-20261014T012608Z/usage.json` 与应用两次调用的 HTTP、finish_reason 和 total token 逐项相等。
+本次 2026-10-14 01:55–01:57 UTC，账本 `artifacts/t159/approved-budget-20261014T015431Z/usage.json`：规划 11,434，写页 35,905，合计 **47,339**；两次 HTTP 200、回复完整，网关 stopped=false，随后关闭。计入旧 30,770，累计 **78,109 / 260,000**，剩余 **181,891**。执行者启动应用进程时遗漏 CHROME_PATH，仅给评估进程设置，应用报「底线检查需要 CHROME_PATH；本次未保存版本」。这是执行环境遗漏，不是预算、模型质量或底线拒收。事实核对、浏览器底线与修正没有运行，版本数 0；不冒充生成通过。
 
-| 阶段 | 输入 | 输出（含思考） | 思考 | total | 上游结果 |
-| --- | ---: | ---: | ---: | ---: | --- |
-| 规划 | 8,398 | 7,388 | 6,613 | 15,786 | HTTP 200，tool_calls，保存大纲 |
-| 写页 | 9,583 | 5,401 | 5,401 | 14,984 | HTTP 200，length，无可见正文 |
+新站点 `f513a199-cfa2-4c7e-bd4d-edea7fde084f`、会话及运行完整留在本工作树；用量逐次与账本对齐，路径在本轮 `report/data-files.json`，失败细表在 `report/summary.json`。只产出两张官网对照图，均已打开；无可交盲评的生成图、缩略图或成对包，配包脚本未执行。没有换资料、伪造生成页或绕提交入口存版，主目录数据未改。
 
-累计 **30,770 / 260,000**，剩余 **229,230** 未用。写页前累计 15,786；网关输入保守预留 48,813，在单次 70,000 内只留下 **5,401** 输出额度，全部用于思考，回复截断。网关 stopped=true，应用如实报「DeepSeek 回答被截断，本次未保存版本」。事实核对、确定性底线与修正均未运行；没有 HTML/CSS 候选或已存版本。没有 402 或网络错误，不能把截断写成模型质量或底线不通过。
+启动配置已修正：`artifacts/t159/start-approved-app.mjs` 要求显式且可执行的 CHROME_PATH，并传入应用子进程；实际启动记录 `app-bootstrap-2026-10-14T02-02-18-055Z.json`，cwd 与本工作树一致。本轮授权只包含一次真实生成，执行者已向主控申请追加一次、新账本、单次 130,000、累计仍不超 260,000；主控已认可 859ae9f 的准入审查并明确批准再跑一次、先做零成本预检；见下文最新结果。第二风格未开始。
 
-站点 `4c13530a-af1d-454a-a8e6-6f7a7801b950` 的版本数为 0；大纲、会话及失败运行留在本工作树。详细用量与实际文件路径在本轮 `report/summary.json`、`report/data-files.json`，由 `node artifacts/t159/report.mjs` 回读生成。评估只产出官网对照图，两张文件均打开且载入完整；`private/blind-coverage.json` 明确 complete=false。没有可交盲评的生成页、缩略图或成对包，不能把只含对照的 review/mixed 发给评审。未调用 editorial，也未开始第二风格，不补跑、不调整网关、不花剩余额度掩盖失败。
+最终技术检查：`npm run typecheck`（gate-typecheck-final.log）、`SITE_STORE=fs npm run build`（entry-build-config.log）PASS；`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:63453 SITECRAFT_TOKEN_LIMIT=130000 CHROME_PATH=<上述路径> npm test` **439/439、0 skipped**（gate-full-test.log，02:03–02:07 UTC）。普通进程三档工作台图 `gate-selection-complete-{1440,768,375}.png` 已逐张打开、完整载入，候选隐藏；它们只证明选项准入，不是生成站或审美证据。复现截图命令：`SITECRAFT_BASE=http://127.0.0.1:63453 CHROME_PATH=<上述路径> T159_SELECTION_GATE=artifacts/t159/gate-selection.json T159_CAPTURE_PREFIX=gate-selection-complete node artifacts/t159/capture-selection.mjs`。project-map Problems 0、Stale living docs 0；最新提交与原审查目标由 `artifacts/t159/gate-delivery.json` 关联，审查后代码、测试不再改，只更新本票真实结果。本票保持 open，不推送、不关票。
 
-下一次真实运行需要主控先解决单次 70,000 与保守请求预留的冲突并重新确认授权；本票不改变预算算法。之后仍须同资料的邻里日常/品牌画册两版经提交入口存版、制作真实缩略图与随机盲评包，再决定是否开放及是否做第二风格。
+**最新获批运行 INCOMPLETE（2026-10-14 UTC）。** 主控已认可 `859ae9f` 准入审查，不再另审，并批准单次 130,000、累计含 78,109 不超 260,000 的一次生成。此后未开任何审查实例。
 
-**技术检查与已知限制。** 2026-10-14 01:27–01:35 UTC，在最终源码改动后 `npm run typecheck`、`SITE_STORE=fs npm run build` 通过，日志 `artifacts/t159/typecheck-final.log`、`build.log`。短规范的 YAML 与 UTF-8 经 Ruby YAML 解析通过；skill-creator 的 Python validator 因缺 PyYAML 未运行成功，未为此加依赖。第一次全量检查 360/435、75 失败（`test-final.log`）：真实运行脚本结束时 dev 子进程退出，端口 ECONNREFUSED；原失败保留。后续将同地址服务改为独立前台进程，核对 cwd，预算网关仍关闭；没有通过更换模型/资料、扩大用例超时或删断言规避失败。
+零成本预检全部 PASS，证据 `artifacts/t159/final-20261014T023002Z/preflight.json`：实际 /api/health cwd 为本工作树，文件存储、deepseek-flash 与整站思考配置正确；选择性 Node 启动记录分别观察应用 CLI 与实际 Next worker 的 CHROME_PATH、SITECRAFT_EVAL_STYLES、SITE_STORE 和数据根目录。实际应用 select 返回 202，本地替身收到原 submit_page_plan、neighborly 枚举与短 skill；替身故意 503 止于输出前，真实请求 0。替身关闭后保留同一应用 worker，`before-real.json` 再核对 health 与 PID、ps 无其他 Chrome/测试。没有只看调用者环境或替身 health。
 
-最终 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:54474 SITECRAFT_TOKEN_LIMIT=70000 CHROME_PATH=<上述路径> npm test` **435/435、0 skipped**，`artifacts/t159/test-service-fixed.log`。三档工作台（1440/768/375）截图由 `SITECRAFT_BASE=http://127.0.0.1:54474 CHROME_PATH=<上述路径> node artifacts/t159/capture-selection.mjs` 生成，最终证据为 `selection-complete-{1440,768,375}.png`，逐张打开，风格、滑杆与提交按钮完整可见，候选未露出。最初 1000px 高的 `selection-{1440,768,375}.png` 也保留并打开；1440 的提交区超出截面，不引用它作为完整卡片证据。这些是工作台选项隐藏检查，不能当生成站或风格审美验收。
+真实命令：`SITECRAFT_BASE=http://127.0.0.1:55052 SITECRAFT_TOKEN_LIMIT=130000 CHROME_PATH=<票中固定路径> npm run eval:new-route -- --quick --only restaurant/neighborly --out artifacts/t159/final-20261014T023002Z/eval`。密钥仍仅在网关子进程 source 主目录 .env.local；网关新账本在同轮 budget/，预留规则未改。源码为干净的 `859ae9f`。
 
-`project_map.py status --root .` 为 Problems 0、Stale living docs 0。本地候选的精确提交及运行时间由 `artifacts/t159/delivery.json` 关联；独立技术审查记录单独交接，不自审或冒充页面盲评。本票整体 **INCOMPLETE**，两个盲评验收项未完成，保持 open 与 claimed_by，不推送、不关票。
+02:33:21–02:35:29：规划 10,782、写页 28,886，两次 HTTP 200，已知本次 **39,668**。事实校对请求 02:35:22 已发出时，本地 draft 读取出现 fetch failed；原评估快照中的 generate 仍 running。评估器退出后，执行者的收尾脚本立即关闭仍有进行中请求的网关，应用随后事实调用也报 fetch failed，版本数 0。首次本地读取失败底层原因未留栈，不能归因模型、预算或其他工作树；过早关网关是明确的收尾错误。没有重发请求、重跑生成或重置账本。
 
-**独立技术审查未通过。** 新 Astra 实例按 behavioral-acceptance-review 只读审查冻结候选 `918cfa6`，原文在 `artifacts/t159/acceptance-review.txt`，没有调用模型或再次审美评审。审查复现 P1：最终候选的正常 styleQuestion 已排除 pending，CLI 虽构造 `restaurant/neighborly`，chat select 会返回 400 invalid_option，无法开始规划；P2：新增 CLI 测试提前停在旧轮次不匹配，只证明组合构造，不能拦住选择门禁冲突。因此 435/435 不构成候选完整评估入口通过。此前真实调用发生在本隔离工作树临时提供候选的状态，不能作为最终隐藏状态的入口证据。
+事实调用未收到 usage，原 ledger.calls[2] 保持 in-flight，spentBefore=39,668、inputUpper=28,995、outputLimit=61,337、reserved=90,332。已知累计 **117,777**，精确累计 **未知**；本次最大额 130,000、累计预留上界 **208,109 / 260,000**。不能把原 result.json 的 cumulative=117777 当精确累计或据此再授权；不修改原账本补齐虚构用量。下一步需主控处理未知用量，并让收集器等待实际任务和已发请求结束后再关网关；本轮停止真实调用。
 
-主控需先确认受控内评如何选择 pending 候选、仍保持普通用户与 auto 隐藏并共用提交入口；再加实际 CLI→chat 边界反例，修复后验证。该准入合同尚未确认，本次不扩大 API 或临时公开候选继续跑。预算预留冲突也仍需主控处理，真实生成与盲评没有完成。收尾只将审查原文登记进票，代码、测试及生成产物未再改；不将未通过审查的候选宣称可合并。
+站点 `ce55589c-3d98-4510-b428-43a73e2e854a` 的终态与真实文件路径在 `eval/report/terminal-site.json`、`summary.json`、`data-files.json`；原 `private/case-1/code-site.json` 保留 running 快照，未覆盖来掩盖退出时机。已有浏览器/事实步骤开始，但完整检查未落盘，不能列机械检查通过。只产出两张官网对照图，均已打开；blind-coverage=false，未制作缩略图或伪盲评包。T-160 对照仍可按此前同资料核对复用，但没有新版可配对。源代码、测试未改，之前 439/439、typecheck、build 仍对应同一源码；这不替代真实生成失败。应用和网关收尾停止，主数据不改，票保持 open。最新提交与证据关联于 `artifacts/t159/final-20261014T023002Z/delivery.json`。
