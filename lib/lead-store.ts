@@ -1,3 +1,4 @@
+import { storageDirectory } from './storage-directory.ts';
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
@@ -49,7 +50,7 @@ type SiteLeadFile = {
   updatedAt: string;
 };
 
-const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "leads");
+const storageRoot = storageDirectory("leads");
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const globalStore = globalThis as typeof globalThis & { __sitecraftLeadLocks?: Map<string, Promise<void>> };
@@ -132,7 +133,7 @@ function newLead(input: ReturnType<typeof validateInput>): LeadRecord {
 }
 
 function recordPath(siteId: string) {
-  return path.join(storageRoot, workspaceId, `${safeSiteId(siteId)}.json`);
+  return path.join(storageRoot(), workspaceId, `${safeSiteId(siteId)}.json`);
 }
 
 async function withLeadLock<T>(siteId: string, task: () => Promise<T>): Promise<T> {
@@ -206,8 +207,8 @@ async function listLocalLeads(siteId?: string) {
     const file = await readLocalFile(siteId);
     return sortNewest(file.leads);
   }
-  await mkdir(path.join(storageRoot, workspaceId), { recursive: true });
-  const names = await readdir(path.join(storageRoot, workspaceId)).catch((error: NodeJS.ErrnoException) => {
+  await mkdir(path.join(storageRoot(), workspaceId), { recursive: true });
+  const names = await readdir(path.join(storageRoot(), workspaceId)).catch((error: NodeJS.ErrnoException) => {
     if (error.code === "ENOENT") return [];
     throw error;
   });

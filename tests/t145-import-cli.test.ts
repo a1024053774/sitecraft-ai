@@ -10,17 +10,19 @@ import test from 'node:test';
 // code is discarded without a visible entry. Each run uses its own data root.
 test('offline CLI retains structural failures and reruns still return failure',async()=>{
   const root=path.resolve('artifacts/t145',`cli-${crypto.randomUUID()}`);await mkdir(root,{recursive:true});
+  const dataRoot=path.join(process.env.SITECRAFT_DATA_ROOT!, `t145-cli-${crypto.randomUUID()}`);
+  await writeFile(path.join(root,'data-root.txt'),dataRoot,'utf8');
   const input=path.join(root,'input.json'),record={siteId:'known-failure',name:'失败原名',source:{revision:3,updatedAt:'2026-10-03T00:00:00Z'},materials:'失败原名',exportIssues:[],code:{header:'',footer:'',css:'',pages:[]}};
   await writeFile(input,JSON.stringify(record));
   for(const run of ['first','repeat']){
     const out=path.join(root,run+'.json');
-    const child=spawnSync(process.execPath,['--experimental-strip-types','scripts/import-legacy-site-code.ts','--input',input,'--out',out],{encoding:'utf8',env:{...process.env,SITE_STORE:'fs',SITECRAFT_DATA_ROOT:path.join(root,'data')}});
+    const child=spawnSync(process.execPath,['--experimental-strip-types','scripts/import-legacy-site-code.ts','--input',input,'--out',out],{encoding:'utf8',env:{...process.env,SITE_STORE:'fs',SITECRAFT_DATA_ROOT:dataRoot}});
     await writeFile(path.join(root,run+'.txt'),child.stdout+child.stderr);
     assert.equal(child.status,1,'a stored conversion failure cannot become CLI success');
     const report=JSON.parse(await readFile(out,'utf8'));assert.equal(report.results[0].record.status,'旧站转换失败');assert.equal('versions' in report.results[0].record,false);
     if(run==='repeat')assert.equal(report.results[0].status,'existing');
   }
-  const stored=JSON.parse(await readFile(path.join(root,'data/code-sites/known-failure.json'),'utf8'));
+  const stored=JSON.parse(await readFile(path.join(dataRoot,'code-sites/known-failure.json'),'utf8'));
   assert.match(stored.readError,/旧代码结构校验未通过/);assert.equal('versions' in stored,false);
 });
 
@@ -28,6 +30,8 @@ test('offline CLI retains structural failures and reruns still return failure',a
 // Those candidate failures must be saved, and cannot abort the following site.
 test('offline CLI saves missing main/h1 failures and continues the batch',{timeout:120000},async(t)=>{
   const root=path.resolve('artifacts/t145',`cli-structure-${crypto.randomUUID()}`);await mkdir(root,{recursive:true});
+  const dataRoot=path.join(process.env.SITECRAFT_DATA_ROOT!, `t145-cli-structure-${crypto.randomUUID()}`);
+  await writeFile(path.join(root,'data-root.txt'),dataRoot,'utf8');
   t.diagnostic(`Failure evidence and CLI output: ${root}`);
   let unexpectedRequests=0;
   const server=createServer((request,response)=>{
@@ -46,7 +50,7 @@ test('offline CLI saves missing main/h1 failures and continues the batch',{timeo
   try{
     const out=path.join(root,'report.json');
     const child=spawn(process.execPath,['--experimental-strip-types','scripts/import-legacy-site-code.ts','--input',input,'--out',out],{
-      env:{...process.env,SITE_STORE:'fs',SITECRAFT_DATA_ROOT:path.join(root,'data'),SITECRAFT_BASE:`http://127.0.0.1:${address.port}`,DEEPSEEK_API_KEY:'',AI_API_KEY:''},stdio:['ignore','pipe','pipe']});
+      env:{...process.env,SITE_STORE:'fs',SITECRAFT_DATA_ROOT:dataRoot,SITECRAFT_BASE:`http://127.0.0.1:${address.port}`,DEEPSEEK_API_KEY:'',AI_API_KEY:''},stdio:['ignore','pipe','pipe']});
     let output='';child.stdout.on('data',chunk=>output+=String(chunk));child.stderr.on('data',chunk=>output+=String(chunk));
     const status=await new Promise<number|null>((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve)});
     await writeFile(path.join(root,'cli.txt'),output);
@@ -58,7 +62,7 @@ test('offline CLI saves missing main/h1 failures and continues the batch',{timeo
       assert.equal(result.status,'unavailable');assert.equal(result.record.status,'旧站转换失败');
       assert.match(result.record.readError,/^旧站转换失败：.*缺少 main 或 h1/);
       assert.equal('versions' in result.record,false);assert.equal(result.record.checks.passed,false);
-      const stored=JSON.parse(await readFile(path.join(root,'data/code-sites',id+'.json'),'utf8'));
+      const stored=JSON.parse(await readFile(path.join(dataRoot,'code-sites',id+'.json'),'utf8'));
       assert.deepEqual(stored,result.record);
     }
     assert.equal(report.results.length,4,'deterministic structure failures do not terminate the CLI batch');

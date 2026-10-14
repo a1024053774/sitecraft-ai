@@ -29,7 +29,7 @@ await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
 assert.ok(process.env.SITECRAFT_BASE, 'Set the worktree application origin explicitly');
 process.env.SITE_STORE = 'fs';
-process.env.SITECRAFT_DATA_ROOT = path.resolve(`artifacts/t154/tests-${Date.now()}/data`);
+process.env.SITECRAFT_DATA_ROOT = path.join(process.env.SITECRAFT_DATA_ROOT!, `t154-${Date.now()}`);
 process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`;
 process.env.DEEPSEEK_API_KEY = 'local-fixture'; process.env.DEEPSEEK_MODEL = 'local-fixture';
 const { commitSiteCode, createCodeSite, updateCodeSite, getCodeSite } = await import('../lib/code-site-store.ts');

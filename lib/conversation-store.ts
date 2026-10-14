@@ -1,3 +1,4 @@
+import { storageDirectory } from './storage-directory.ts';
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
@@ -57,7 +58,7 @@ export type AppendConversationTurnArgs = {
   outcome: ConversationTurnOutcome;
 };
 
-const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "conversations");
+const storageRoot = storageDirectory("conversations");
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const outcomes = new Set<ConversationTurnOutcome>(["applied", "no_change", "conflict", "error"]);
@@ -154,7 +155,7 @@ function buildTurn(args: AppendConversationTurnArgs, createdAt = new Date().toIS
 }
 
 function recordPath(siteId: string, conversationId: string) {
-  return path.join(storageRoot, safeSiteId(siteId), `${safeConversationId(conversationId)}.json`);
+  return path.join(storageRoot(), safeSiteId(siteId), `${safeConversationId(conversationId)}.json`);
 }
 
 async function readLocalRecord(siteId: string, conversationId: string): Promise<ConversationRecord | null> {
@@ -403,7 +404,7 @@ export function appendConversationTurn(args: AppendConversationTurnArgs) {
 
 async function deleteLocalConversations(siteId: string) {
   safeSiteId(siteId);
-  await rm(path.join(storageRoot, siteId), { recursive: true, force: true });
+  await rm(path.join(storageRoot(), siteId), { recursive: true, force: true });
 }
 
 async function deletePostgresConversations(siteId: string) {

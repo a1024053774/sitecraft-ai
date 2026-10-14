@@ -30,7 +30,7 @@ process.env.SITE_STORE = 'fs';
 // Handlers execute in this process, so their stores must be isolated before
 // import. Reuse the artifacts/UUID + SITECRAFT_DATA_ROOT convention from T-145;
 // the configured HTTP server supplies only the browser's document origin.
-process.env.SITECRAFT_DATA_ROOT = path.resolve('artifacts/t151', `contracts-${randomUUID()}`);
+process.env.SITECRAFT_DATA_ROOT = path.join(process.env.SITECRAFT_DATA_ROOT!, `t151-${randomUUID()}`);
 await mkdir(process.env.SITECRAFT_DATA_ROOT, { recursive: true });
 let translationCalls = 0, factCalls = 0, fault = '', missingInjected = false;
 const dictionary: Record<string, string> = { '边界机械': '边界机械', '主导航': 'Main navigation', '产品': 'Products', '首页': 'Home', '轴套': 'Bushings',

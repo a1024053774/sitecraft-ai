@@ -1,3 +1,4 @@
+import { storageDirectory } from './storage-directory.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
@@ -6,7 +7,7 @@ import { currentCodeVersion, reviewedMaterialSnapshot, chineseCodeRevision, engl
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
 
-const root = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'code-sites');
+const root = storageDirectory('code-sites');
 const shared = globalThis as typeof globalThis & { __codeSiteLocks?: Map<string, Promise<void>> };
 const locks = shared.__codeSiteLocks ??= new Map();
 async function locked<T>(id: string, task: () => Promise<T>): Promise<T> {
@@ -18,7 +19,7 @@ async function locked<T>(id: string, task: () => Promise<T>): Promise<T> {
   try { return await task(); } finally { release(); if (locks.get(id) === queued) locks.delete(id); }
 }
 async function readStored(id: string): Promise<CodeSiteRecord | UnavailableCodeSite | null> {
-  try { return JSON.parse(await readFile(path.join(root, `${safeSiteId(id)}.json`), 'utf8')); }
+  try { return JSON.parse(await readFile(path.join(root(), `${safeSiteId(id)}.json`), 'utf8')); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
 }
 export class CodeSiteUnavailableError extends Error {
@@ -33,7 +34,7 @@ export async function getCodeSite(id: string): Promise<CodeSiteRecord | null> {
 export type CodeSiteListItem = { siteId: string; siteName: string; companyName: string; updatedAt: string; hasVersion: boolean; status?: string; readError?: string };
 export async function listCodeSites(): Promise<CodeSiteListItem[]> {
   let names: string[];
-  try { names = await readdir(root); }
+  try { names = await readdir(root()); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; }
   const items: CodeSiteListItem[] = [];
   for (const name of names) {
@@ -48,11 +49,11 @@ export async function listCodeSites(): Promise<CodeSiteListItem[]> {
 }
 export async function deleteCodeSite(id: string) {
   // Wait for any checked commit; removing the single record removes versions, materials and runs.
-  return locked(id, () => rm(path.join(root, `${safeSiteId(id)}.json`), { force: true }));
+  return locked(id, () => rm(path.join(root(), `${safeSiteId(id)}.json`), { force: true }));
 }
 async function write(site: CodeSiteRecord | UnavailableCodeSite, insert = false) {
-  await mkdir(root, { recursive: true });
-  const file = path.join(root, `${safeSiteId(site.siteId)}.json`), temp = `${file}.${crypto.randomUUID()}.tmp`;
+  await mkdir(root(), { recursive: true });
+  const file = path.join(root(), `${safeSiteId(site.siteId)}.json`), temp = `${file}.${crypto.randomUUID()}.tmp`;
   if (site.route === 'code' || !site.updatedAt) site.updatedAt = new Date().toISOString();
   await writeFile(temp, JSON.stringify(site, null, 2), 'utf8');
   if (!insert) { await rename(temp, file); return true; }
