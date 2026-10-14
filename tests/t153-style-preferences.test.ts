@@ -35,7 +35,7 @@ test('the planning contract offers only the three approved directions and loads 
   style = 'precision';
   await planSiteCode('齿轮资料', { style: 'auto', layout: 5, density: 6 }, '规划');
   assert.deepEqual(wires.at(-1).tools[0].function.parameters.properties.style.enum, ['precision', 'documentary', 'editorial']);
-  for (const chosen of ['editorial']) {
+  for (const chosen of ['editorial', 'neighborly']) {
     style = chosen;
     const result = await planSiteCode('齿轮资料', { style: chosen as any, layout: 5, density: 6 }, '规划');
     assert.equal(result.plan.style, chosen);
@@ -74,8 +74,9 @@ test('unknown preferences are rejected before the provider and unregistered auto
 
 test('all offered directions have registered real WebP previews', async () => {
   assert.ok(existsSync('lib/code-site-styles.ts'), 'one style catalog must exist');
-  const { codeStyles } = await import('../lib/code-site-styles.ts');
-  assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial']);
+  const { codeStyles, codeStyleOptions } = await import('../lib/code-site-styles.ts');
+  assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial', 'neighborly']);
+  assert.deepEqual(codeStyleOptions.map(option => option.id), ['auto', 'precision', 'documentary', 'editorial'], '未验证候选不能出现在用户风格选项');
   for (const id of ['precision', 'documentary', 'editorial'] as const) {
     const preview = codeStyles[id].preview;
     assert.equal(preview.status, 'ready');

@@ -88,7 +88,7 @@ T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事�
    `scripts/t15*` 的应用地址显式用 `SITECRAFT_BASE`，替身用 `SITECRAFT_FIXTURE_BASE`，预算网关用 `SITECRAFT_BUDGET_BASE`；均校验本地 HTTP origin，不锁端口、不默认回退主工作区。真实生成与预算网关必须显式设置 `SITECRAFT_TOKEN_LIMIT` 为本次获批上限，不沿用历史默认预算。`tests/t153-local-endpoints.test.ts` 拦截固定本地端口和默认应用地址，并验证替身实际监听配置（T-153）。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
 4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；
-   新路线评估命令为 `npm run eval:new-route`：把 `review/mixed/` 和 `review/company/` 分别交不同的新盲评实例，跨轮比较单独交 `comparison-review/`，各实例不得读取其他包；`private/` 的映射、来源、用量和跨轮身份由主控保管；技术运行通过不等于独立审美通过。
+   新路线评估命令为 `npm run eval:new-route`：`--only` 可显式选择已登记风格，默认矩阵不扩张；把 `review/mixed/` 和 `review/company/` 分别交不同的新盲评实例，跨轮比较单独交 `comparison-review/`，各实例不得读取其他包；`private/` 的映射、来源、用量和跨轮身份由主控保管；技术运行通过不等于独立审美通过。
 5. 对应票的验收勾选项都有证据，票已关闭；`project_map.py status` 里没有过时的 living doc。
 6. 证据必须是本次改动之后重新跑出来的：Resolution 写明运行的命令、时间和对应提交，不能引用改动之前留下的产物。遇到失败时不能换一条路径绕过去（换一张内置卡片、跳过调用、用重试掩盖、把失败改成静默成功），要么在根因层修好，要么如实报 INCOMPLETE 并写清卡在哪里。（2026-09-27 起；同类问题已在 T-019 出现两次。）
 
