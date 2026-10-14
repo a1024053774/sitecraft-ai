@@ -22,6 +22,7 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 process.env.SITE_STORE = 'fs';
 process.env.SITECRAFT_DATA_ROOT = process.env.T159_ENTRY_DATA_ROOT || path.join(folder, 'data');
+if (process.env.T159_PENDING_CATALOG === '1') await import('./t159-pending-catalog.ts');
 const modelRequests: any[] = [], routes: any[] = [], tasks: Promise<void>[] = [];
 const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
@@ -58,7 +59,9 @@ const bridge = createServer(async (req, res) => {
 await new Promise<void>(resolve => bridge.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${(bridge.address() as any).port}`;
 await mkdir(folder, { recursive: true });
-const args = ['--experimental-strip-types', '--import', './tests/fixtures/t159-browser-guard.ts', 'scripts/eval-new-route.ts', '--quick', '--only', 'restaurant/neighborly', '--out', path.join(folder, 'eval')];
+const args = ['--experimental-strip-types', '--import', './tests/fixtures/t159-browser-guard.ts',
+  ...(process.env.T159_PENDING_CATALOG === '1' ? ['--import', './tests/fixtures/t159-pending-catalog.ts'] : []),
+  'scripts/eval-new-route.ts', '--quick', '--only', 'restaurant/neighborly', '--out', path.join(folder, 'eval')];
 const cli = spawn(process.execPath, args, { env: { ...process.env, SITECRAFT_BASE: base }, stdio: ['ignore', 'pipe', 'pipe'] });
 let stdout = '', stderr = '';
 cli.stdout.on('data', data => { stdout += data; }); cli.stderr.on('data', data => { stderr += data; });

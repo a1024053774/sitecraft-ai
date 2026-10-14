@@ -9,14 +9,14 @@ import { localEndpoint } from '../scripts/local-endpoint.ts';
 // Failure modes: registered pending IDs never reach select; a client enables
 // candidates; the server flag enables ready/unknown IDs; invalid config waits
 // until the first request instead of stopping actual Next startup.
-test('真实 CLI→HTTP→chat：未设变量拒绝候选，服务端变量允许 select 并进入规划', async () => {
+test('真实 CLI→HTTP→chat：隔离的 pending 目录样本继续由服务端变量控制准入', async () => {
   localEndpoint('SITECRAFT_BASE');
   const folder = path.resolve('artifacts/t159', `entry-contract-${crypto.randomUUID()}`);
   await mkdir(folder, { recursive: true });
   let savedStyleSite = '';
   for (const mode of ['off', 'on', 'reopened']) {
     const out = path.join(folder, mode);
-    const env: NodeJS.ProcessEnv = { ...process.env, T159_ENTRY_OUT: out };
+    const env: NodeJS.ProcessEnv = { ...process.env, T159_ENTRY_OUT: out, T159_PENDING_CATALOG: '1' };
     if (mode === 'on') env.SITECRAFT_EVAL_STYLES = 'neighborly'; else delete env.SITECRAFT_EVAL_STYLES;
     if (mode === 'reopened') { env.T159_ENTRY_DATA_ROOT = path.join(folder, 'on/data'); env.T159_ENTRY_EXISTING_SITE = savedStyleSite; }
     const run = spawnSync(process.execPath, ['--experimental-strip-types', 'tests/fixtures/t159-entry.ts'], { env, encoding: 'utf8', timeout: 30000 });
@@ -41,7 +41,7 @@ test('真实 CLI→HTTP→chat：未设变量拒绝候选，服务端变量允�
   }
 });
 
-for (const id of ['not_registered', 'neighborly,not_registered', 'precision']) test(`实际 Next 启动拒绝非 pending 配置：${id}`, async () => {
+for (const id of ['not_registered', 'neighborly,not_registered', 'precision', 'neighborly']) test(`实际 Next 启动拒绝非 pending 配置：${id}`, async () => {
   localEndpoint('SITECRAFT_BASE');
   const folder = path.resolve('artifacts/t159', `startup-contract-${crypto.randomUUID()}`);
   await mkdir(folder, { recursive: true });

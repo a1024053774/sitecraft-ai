@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 type StylePreview = { status: 'pending' } | { status: 'ready'; src: string; siteId: string; versionId: string; revision: number; source: string; license: string };
-type CodeStyle = { label: string; description: string; skill: string; preview: StylePreview };
+export type CodeStyle = { label: string; description: string; skill: string; preview: StylePreview };
 // The only registration point: UI, preference validation and model contracts
 // derive their choices here. Provenance is kept out of model instructions.
 export const codeStyles = {
@@ -15,7 +15,8 @@ export const codeStyles = {
     preview: { status: 'ready', src: '/style-previews/editorial.webp', siteId: 'ed6bfbe4-8141-4edb-86f9-d65a91f67eff', versionId: 'fecaa36c-2aaf-44ee-bdc0-8e38102f84b0', revision: 1,
       source: 't153/approved/real-2026-10-11T03-58/private/default/home-fold-1440.png', license: '/style-previews/SOURCE.md' } },
   neighborly: { label: '邻里日常', description: '柔和色块、黑体招牌，像店内价目与告示', skill: 'site-code-neighborly/SKILL.md',
-    preview: { status: 'pending' } },
+    preview: { status: 'ready', src: '/style-previews/neighborly.webp', siteId: '20d7d9ae-8272-4880-81cd-eb2aec872557', versionId: '7be34b12-ec78-4d75-bcd5-c12a4b7e210d', revision: 1,
+      source: 't159/authorized-20261014T043816Z/eval/private/case-1/home-fold-1440.png', license: '/style-previews/SOURCE.md' } },
 } satisfies Record<string, CodeStyle>;
 export type CodeStyleId = keyof typeof codeStyles;
 export const codeStyleIds = Object.keys(codeStyles) as [CodeStyleId, ...CodeStyleId[]];

@@ -13,7 +13,7 @@ test('标准评估 CLI 保存断开的状态读取端点、阶段及 socket 错�
   const folder = path.resolve('artifacts/t159', `http-contract-${crypto.randomUUID()}`); await mkdir(folder, { recursive: true });
   const args = ['--experimental-strip-types', 'tests/fixtures/t159-entry.ts'];
   const result = spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 30000,
-    env: { ...process.env, SITECRAFT_EVAL_STYLES: 'neighborly', T159_ENTRY_OUT: folder, T159_DROP_READ: '1' } });
+    env: { ...process.env, SITECRAFT_EVAL_STYLES: 'neighborly', T159_PENDING_CATALOG: '1', T159_ENTRY_OUT: folder, T159_DROP_READ: '1' } });
   await writeFile(path.join(folder, 'process.json'), JSON.stringify({ args, status: result.status, stdout: result.stdout, stderr: result.stderr }, null, 2), 'utf8');
   assert.equal(result.status, 0, result.stderr);
   const wire = JSON.parse(await readFile(path.join(folder, 'entry.json'), 'utf8'));

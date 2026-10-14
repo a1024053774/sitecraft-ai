@@ -20,13 +20,19 @@ T-156 定为任何行业的展示型官网。现有精密工程、现场实拍�
 
 ## Acceptance
 
-- [ ] 风格区分盲评：新风格与最接近的现有风格在同一非工业资料上可辨（新实例，随机命名）
-- [ ] 「像这家店/机构」成对盲评不差于现有风格；真实预算主控报批
-- [x] typecheck、test、build 通过
+- [x] 风格区分盲评：新风格与最接近的现有风格在同一非工业资料上可辨（新实例，随机命名）
+- [x] 「像这家店/机构」成对盲评不差于现有风格；真实预算主控报批
+- [x] typecheck、test、build 通过（收尾聚焦 14/14、全量 475/475，三档普通选项截图已打开）
 
 ## Resolution
 
-执行者 Codex，claimed_by 保持；本票 open，不推送、不关票。**当前真实生成与配包 PASS，独立盲评仍 INCOMPLETE**；候选保持 pending，不公开缩略图，第二风格等第一次盲评结果。本次唯一真实生成授权已执行，不自行再发请求。
+执行者 Codex，claimed_by 保持；本票 open，交主控关票，不推送。**真实生成、风格区分与同店成对盲评均 PASS**，主控已揭盲并批准 neighborly 转为 ready；缩略图来自本次真实版本，不另发模型请求。**第二个风格不做**：负责人只批准这一轮生成，本次唯一真实授权已经执行。
+
+**正式准入与盲评结论。** 2026-10-14 主控转述两份独立盲评：风格区分 PASS，邻里日常与现场实拍可辨为不同方向，字体相近，区别在色面、区块组织与信息重点，不只换色；「更像禾巷小馆自己建的」成对题，邻里日常略胜，门店气质与文案口吻占优，现场实拍首页直接列菜价、菜单速查有长处。执行者只引用主控结论，不重评审美。原文由主控保管于 `/private/tmp/claude-501/-Users-luckye-Documents-Code-sitecraft-ai/a94ba246-5f01-45e5-b06b-4024882c4ff2/scratchpad/blind-t159-style-9290/` 与 `blind-t159-company-13483/`；题包仍为下述两个随机 review 目录，private 映射不交审核实例。
+
+收尾先合并最新 `family-kit-assembly`：主线仍为已包含的 `6e0ccfe`，git merge 返回 Already up to date。唯一风格登记把 neighborly 改为 ready，`public/style-previews/neighborly.webp` 直接取已生成的 576×400 缩略图，已打开；源站点 `20d7d9ae-8272-4880-81cd-eb2aec872557`、版本 `7be34b12-ec78-4d75-bcd5-c12a4b7e210d`、修订 1、原始首屏路径与 `SOURCE.md` 的 CC BY-SA 4.0 整体截图许可齐备，无照片/外部图片或字体文件再分发。普通 chat 选项与 auto 的枚举/skill 都从 ready 登记派生；既有 prompt 要求按资料挑，不固定行业，运行逻辑未加映射。评估开关保留原 pending 门禁；当前没有 pending 条目时，仅以共享 CodeStyle 类型保留联合类型校验，未知与 ready 配置仍启动拒绝。
+
+收尾红绿证据在 `artifacts/t159/ready-20261014T050921Z/`。父版 `cbaad77` 运行 `SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH= node --test --experimental-strip-types tests/t159-ready-style.test.ts tests/t153-style-preferences.test.ts`，**3/7 通过、4/7 预期失败**：普通 select=400 而非 202、auto 枚举缺邻里日常、普通选项缺邻里日常、预览 pending 而非 ready（parent-red.log）。父版单独启动配置 neighborly 未自然拒绝，15 秒终止后 exit=143 而非 1（parent-startup-ready-red.log）；正式准入后同一配置在没有首个请求时自然 exit=1。门禁测试用隔离的目录元数据把一条登记设为 pending，只替换输入目录状态，生产门禁、HTTP handler 与 CLI 均未模拟响应；继续证明无变量拒绝/有变量进入规划/旧会话不能绕门禁。最终 `tests/t159-ready-style.test.ts tests/t153-style-preferences.test.ts tests/t159-eval-entry.test.ts tests/t159-http-diagnostics.test.ts tests/t159-style-eval.test.ts` 非浏览器聚焦 **14/14、0 skipped**（focused-final-green.log），typecheck/build 通过（typecheck-fixed.log、build.log）。初次 typecheck 的空 pending 集合联合类型与夹具读取类型错误保留在 typecheck.log；未删除失败。已先向主控报告全量验收安排，并于 05:18:26 UTC 用 ps 核对无其他 Chrome/node --test（before-full-processes.json），运行 `SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH=<固定路径> npm test`，**475/475、0 failed、0 skipped**（full-test.log）。结束后串行运行 `SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH=<固定路径> T159_SELECTION_GATE=artifacts/t159/ready-20261014T050921Z/selection.json T159_CAPTURE_PREFIX=ready-20261014T050921Z/selection node --experimental-strip-types artifacts/t159/ready-20261014T050921Z/capture-ready.mjs`；1440/768/375 普通进程风格卡及缩略图完整载入，每张已打开（selection-{1440,768,375}.png），未提交规划，after-capture.json 确认模型调用 0。均在本次源码改动后运行，交付 SHA 与时间在同目录 delivery.json；未推送、未自开审查。
 
 **当前交付（2026-10-14 UTC）。** 主控批准先 abort 未完成的合并，再合并最新 `family-kit-assembly` 的 `6e0ccfe`（已含 T-165 关票与 T-166 检查器修复）；预算目录白名单、测试矩阵均取 t159/t162 并集，合并提交 `d7433e4f9e45fa375e8087a5d5797c3963510ce9`。本轮总限 **360,000**、单次 **130,000**；原已知 117,777 与未知事实调用按旧预留上界 90,332 计，开跑前占额 208,109，加本次最大额为 338,109，不超新总限。以下 260,000 的段落仅保留此前授权与失败证据。
 
