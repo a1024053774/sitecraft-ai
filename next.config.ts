@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // T-167: the test server must not share an ordinary dev server's .next lock.
+  distDir: process.env.SITECRAFT_TEST_DIST_DIR || '.next',
   typedRoutes: true,
   devIndicators: false,
   // Local capture and /quality click-tests use 127.0.0.1:3034; Next otherwise 403s dev chunks.
