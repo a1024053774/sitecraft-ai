@@ -5,22 +5,24 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { providerConfig } from '../lib/ai-provider.ts';
+import { singleTokenHanCharacters } from './t165-single-token-han.ts';
 
-// T-165: count the complete request, including tool schemas. Han * 1.5 and
-// ASCII * 0.5 cover all 34 recorded T-153/T-158/T-160/T-162 prompt counts even
-// without the 256-token framing allowance (fixtures/t165; provenance in T-165).
-// Other code points use 4, retaining a conservative allowance for uncommon
-// scripts, punctuation and emoji. This is an empirical estimate, not a tokenizer
-// bound; reported overruns still stop the gateway. Output includes reasoning.
+const singleTokenHan = new Set(singleTokenHanCharacters);
+// Count the complete request, including escapes and tool schemas. ASCII needs
+// one token per character: base64, literal escapes and short strings are not
+// prose. Only offline-verified single-token Han receives the 1.5 allowance;
+// rare Han and other code points use 4. Official full-prompt oracles include
+// framing (31 tokens for the two-message text cases); reserve another 128.
+// This remains an estimate; reported overruns stop the gateway. Output includes reasoning.
 export function reserveRequest(body: Record<string, any>, spent: number, approvedTokenLimit: number) {
   assert.ok(Number.isSafeInteger(approvedTokenLimit) && approvedTokenLimit > 0, 'An explicit positive token authorization limit is required');
   assert.ok(Number.isSafeInteger(spent) && spent >= 0 && spent <= approvedTokenLimit);
   assert.ok(Number.isSafeInteger(body.max_tokens) && body.max_tokens > 0);
   let inputEstimate = 0;
   for (const character of JSON.stringify(body)) {
-    inputEstimate += /\p{Script=Han}/u.test(character) ? 1.5 : character.codePointAt(0)! <= 0x7f ? 0.5 : 4;
+    inputEstimate += character.codePointAt(0)! <= 0x7f ? 1 : singleTokenHan.has(character) ? 1.5 : 4;
   }
-  const inputUpper = Math.ceil(inputEstimate) + 256;
+  const inputUpper = Math.ceil(inputEstimate) + 128;
   const outputLimit = Math.min(body.max_tokens, approvedTokenLimit - spent - inputUpper);
   assert.ok(outputLimit >= 4096, 'Remaining authorization cannot reserve this request and a usable output allowance');
   return { inputUpper, outputLimit, reserved: inputUpper + outputLimit };
