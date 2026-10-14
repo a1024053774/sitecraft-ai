@@ -2,7 +2,7 @@
 id: T-162
 title: 预览里就地写一条批注并完成局部修改
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t162-build)
 supersedes:
@@ -28,9 +28,9 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 
 - [x] 先列出失效方式（离屏目标、iframe 缩放后坐标、IME、Esc 焦点、刷新恢复、发送中重复点击、版本变化），按清单写测试，测试先在父版本上失败
 - [x] 真实 Chrome 用真实指针和键盘操作，不只 dispatchEvent：双页长页面，含重复文案、深层区块和底部链接，1440/768/375 截图逐张看过
-- [ ] 局部修改的范围检查与 T-152 一致：区块外 DOM、其他页面和外部 CSS 都不变；真实模型跑一次单条批注修改（上限由主控报批，预计远小于 1 万 token）
-- [ ] 未参与实现的新审核实例按任务脚本试用（点选、写意见、回看定位、窄屏完成、失败后意见保留），结论写进 Resolution
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] 局部修改的范围检查与 T-152 一致：区块外 DOM、其他页面和外部 CSS 都不变；真实模型跑一次单条批注修改（本次获批预留上限 35000，实际 3253 token）
+- [x] 未参与实现的新审核实例按任务脚本试用（点选、写意见、回看定位、窄屏完成、失败后意见保留），结论写进 Resolution
+- [x] Astra 审查通过；typecheck、test、build 通过
 
 ## 失效方式与测试合同
 
@@ -51,47 +51,36 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 13. 目标滚出视野不能带走意见面板：1440/768/375 点选首屏标题并输入意见，以真实 CDP mouseWheel 滚到目标完全离屏；面板、textarea 和操作按钮仍完整位于视口内，原意见保留，真实指针继续输入及添加可用。在 `1825142` 上取得 1440/768 顶部截断红态，375 为不回退对照。
 14. 标准测试不能依赖外部模型环境：普通同目录 dev server 与测试进程均无 DEEPSEEK_*，只设 SITECRAFT_BASE/CHROME_PATH 跑全量；测试内自建随机端口替身，夹具和批注发送仍经过生产提交入口。503 health 仍须核对同目录身份，不跨工作树写数据；临时服务和任务在测试结束时关闭。父 `88b40d6` 的全量已取得 13 项缺模型配置红态。
 15. 全量负载不能耗尽轮询次数或重复夹具预算：记录提交、Chrome 启动、after 任务、UI 等待与状态请求耗时；任务按实际完成事件等待，冻结窗口由明确闸门控制，三档只读历史验证复用同一合法站点。两个文件给出改前/改后单独耗时，并与全量同时执行；180s/120s 用例上限不扩大，不跳过。
+16. 真实批注不能漏计预算或旁路 Next：35000 授权下先核对两项生产请求及累计预留；t162 证据目录须能创建新账本，超预算仍在上游前拒绝。首版只用本地夹具事实替身，经 POST 新站及提交入口保存；真实批注仅发送一次实际 Next 请求，拒收不再发送。终态后独立核对范围外 DOM、其他页面、公共片段和外部 CSS 应用，保留线程与用量。
 
 以上为新行为合同的预期红态，不宣称父版本已有缺陷。真实模型、独立试用与 Astra 审查由主控另行安排。
 
 ## Resolution
 
-2026-10-13 主控在主目录 `ed11848` 的全量中取得 431/433：发送用例 95.10s 报「任务未结束」，历史回看 120s 超时；原日志 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-ed11848/test.log` 与单独 7/7 的 `t162-rerun.log` 保留。**本轮负载等待修复与本地验证 PASS；整票 INCOMPLETE，实际 Next after 集成、独立复试、Astra 复审和真实模型验证由主控决定/安排**。不推送、不关票，不调用真实 DeepSeek，不开审核实例，不读取 BaoCut 参考目录。
+2026-10-13 22:25（纽约时间；UTC 2026-10-14 02:25）按负责人批准的 `SITECRAFT_TOKEN_LIMIT=35000`，青禾纸品完成一次真实单条批注。**真实修改与范围验收 PASS；整体验收 INCOMPLETE，隔离全量 356/434、78 项失败（0 跳过），主要为 Chrome 导航/脚本等待超时，具体原因未证实。票保持 open，由主控后续验收关闭。** 本次提交 SHA、所有命令与完成时间见 `artifacts/t162/real-35000-2026-10-14T02-19-31-094Z/receipt.json`。领取人仍为 Codex (t162-build)，不推送、不关票，不新开审核实例，不读取 BaoCut 参考目录。
 
-2026-10-13 17:15 前后（纽约时间）Astra 审查增量 4475410..200cb82 PASS（夹具复用不使断言恒真、冻结闸门、事件等待、六项回退均可检出）。主控合并为 `faad031`，在无其他 Chrome 测试时跑标准命令：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` 433/433，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-faad031/`。剩余验收：真实单条批注修改，待负责人批准预算。
+本次代码只在 `scripts/t153-real-budget.ts` 的目录白名单同一行加入 t162，原因是将获批的 T-162 真实调用账本留在本票证据目录；预留算法不变，上限仅由本次进程环境传入。新预算测试先在父 `1e1c56a` 的网关上失败（t162 目录被拒，`budget-red.log`，02:19:31 UTC）；改后 5/5 通过（`budget-green.log`，02:20:00 UTC），仍验证超预算轮次在上游前拒绝。失效方式第 16 条在改动前列定。
 
-本轮父版本 `4475410e7cc25e279ea2f02e2b7e61b8bbce0bc5`；最终 SHA、精确命令和完成时间见 `artifacts/t162/load-receipt.json`，分段计时汇总见 `load-benchmark.json`。仅改 T-162 测试 helper、两个测试文件、模型替身和文档，产品代码与提交检查不变。测试内自建随机端口替身与调用生产 chat/history POST 的 HTTP 服务，普通同目录 dev server 提供界面、创建、预览和版本读回；health 即使 503 仍须核对 cwd。本次各 health.json 均 configured=false，没有改变普通服务模型配置。
+两项完整生产请求的离线预检及真实点选后复核均为：局部写作预留 18646（输入上界 12502 + 输出 6144），扣除该保守用量后事实核对预留 14056（9960 + 4096），累计 32702，低于 35000。证据 `preflight-35000.json`、`actual-target-preflight.json`。原 15000 下的餐厅与青禾预检拒绝均原样保留，未删资料、换预留规则或伪装已用量放行。
 
-根因证据：改前负载组两个 worker 的初版提交共 17 次，累计 144.86s；历史 v2 提交 3 次累计 31.45s，撤销存版 3 次累计 35.96s；Chrome 启动 14 次共 2.82s，状态请求自身远低于 1s。提交的浏览器检查与重复夹具是主要开销。原 settle 固定 180 次、每次间隔 300ms，会在合法后台任务仍运行时用尽次数；UI 每 100ms 跨 CDP 轮询，替身每次局部写作固定等待 1.2s。阶段累计跨 worker，fixture.build 包含 commit.initial，after.task 也包含提交检查，不能把阶段相加当作墙钟时间。
+新站 `4f5ec1c4-36c0-48cc-91c5-5a47f6eb9f7e`，v1 `0f339b37-92f0-4ad2-9e57-82ce04b1cd76`，v2 `f9b73ea3-3d75-4257-9547-f845a20ed0c5`。使用 `inlineSite`/`inlineMaterials`，经实际 Next 的 `POST /api/sites` 新建，再以 `commitSiteCode` 存 v1，随后保存与 `fixture()` 相同的 precision 偏好和双页大纲；首版事实检查用本地 T-162 替身，明确只作准备，不计真实模型用量，不宣称首次整站真实生成。未读写主目录站点数据。
 
-修复：after 队列按 HTTP 请求隔离，记录该请求的运行标识及实际完成 Promise；settle 等这项任务完成后读取终态，整体测试取消信号仍有效。UI 等待改用 DOM 变化、iframe 载入、滚动、动画完成事件；首条发送用显式响应闸门，双击和刷新冻结检查完成才释放，不依靠人为 sleep。只读场景复用合法站点：初版 17→6 次、历史 v2 提交及撤销各 3→1 次；各宽度和存储拒绝仍用独立 Chrome 配置，发送修改保持独立站点，所有原断言和提交检查保留。180s/120s 用例上限及 20s UI 等待上限不扩大，0 跳过。
+实际应用 origin 为 `http://127.0.0.1:53377`，预算 origin 为 `http://127.0.0.1:53378`，均由随机空闲端口分配，脚本读取 SITECRAFT_BASE/SITECRAFT_BUDGET_BASE。只在真实服务的进程中执行 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a`；应用显式 SITE_STORE=fs、SITECRAFT_DATA_ROOT 指向本工作树、DEEPSEEK_BASE_URL 指向网关，CHROME_PATH 按 AGENTS。网关使用新账本 `artifacts/t162/real-35000-2026-10-14T02-19-31-094Z/budget/usage.json`，T153_BUDGET_DIR 指向该目录，显式上限 35000。真实模型密钥没有写入文件、日志或提交。启动命令及环境名记录在 receipt，不记录密钥值。
 
-改前本树只加入计时，没有改等待/夹具行为；单独和并发都通过，历史回看在并发中到 115.28s，接近 120s。未重现主控原失败，不能把本树通过写成红态，也未反复运行直到撞出失败。主控失败与本树所有中间结果均原样保留。中间 `load-final-loaded-1791924202500/` 两 worker 同毫秒用了同一产物目录，计时/请求文件不完整，汇总标记不可用；最终目录加 PID，使用以下完整证据。
+`interact.mjs` 经实际 Next dev server/after 完成 Chrome 1440×1000：真实鼠标滚轮滚入首页深层纸袋区块 `[2,0,1]`，真实指针点中段落 `[1]`，Input.insertText 写「保留这块全部文字与链接，只调整标题字距，让标题更清楚。」，Ctrl+Enter 添加，再真实指针点击发送。浏览器的 fetch 只记录并原样调用原函数，未转发到测试桥接或替身。实际仅一次 `/api/sites/4f5ec1c4-36c0-48cc-91c5-5a47f6eb9f7e/chat` 修改请求，冻结 v1 的目标；记录 `native-inputs.json`、`draft.json`、`actual-next-request.json`、`transitions.json`。任务 complete，repairRound=0、attempts=1、版本数 2、运行数 1，线程显示「已修改，待确认」（`thread-ui.json`），不自动标为已处理。
 
-| 场景 | 发送 / 历史回看（秒） | 结果及完成时间（UTC，2026-10-13） |
-| --- | --- | --- |
-| 改前单独两文件 | 21.66 / 37.99 | 7/7；20:11:47；load-before-isolated.log |
-| 最终单独两文件 | 18.67 / 22.02 | 7/7；20:51:16；load-delivery-isolated.log |
-| 改前与全量并发的两文件 | 68.04 / 115.28 | 7/7；20:17:50；load-before-loaded.log |
-| 最终与全量并发的两文件 | 90.88 / 67.89 | 7/7；20:54:09；load-delivery-loaded.log |
-| 最终并发全量 | 91.51 / 55.87 | 433/433，0 失败/取消/跳过；20:56:37；load-delivery-full.log |
-| 类型检查 | npm run typecheck | 通过；20:50:04；load-delivery-typecheck.log |
-| 构建 | npm run build | 通过；20:57:03；load-delivery-build.log |
-| 收尾 | 核对 cwd 后 kill -TERM 36825 | dev exit 0，3192/3193 无监听，无 Chrome/测试/替身残留，Next dev 锁释放；20:58:18；load-delivery-cleanup.json |
+网关进程额外限制本次出口为一次局部写作和一次局部事实核对，若工作流内部再写作也会在上游前拒绝；它不改 Next 调度、提交检查或模型回复。本次 `gateway-guard.json` 仅两次 allowed=true，没有额外调用。实际账本两次 HTTP 200、finishReason=stop：局部写作 thinking enabled，用量 2898（输入 1132、输出 1766，含思考 1628）；局部事实核对 thinking disabled，用量 355（输入 350、输出 5）；合计 **3253 token**。未发送第二条修改请求，未调用修正轮。
 
-单独改前一分钟 load 采样均值约 3，最终单独约 3.7–3.9。最终并发两文件的采样均值约 9.9/11.1、峰值约 14；全量内两个目标 worker 均值约 8.4/9.3，均覆盖主控约 7 的负载。最终并发组发送耗时没有比改前更短，如实保留；确定性完成等待消除了固定次数提前退出，历史用例减少重复提交。系统外部负载未完全控制，不把本次计时写成任意负载下的固定保证。
+提交入口通过，6 个页面/视口记录中溢出、重叠、对比度拒因均为 0。独立经实际 draft GET 读回两版，用 Chrome DOMParser/isEqualNode 核对页头、页脚、产品页、页面编号/标题，以及以占位节点替换选中子树后的范围外 DOM，均不变；所选文字及链接保留。另行解析 CSSOM，按完整伪类名称处理并比对外部元素的规则、声明及节点匹配路径，home/products × 375/768/1440 共 6 组均一致，每组外部规则 8 条。标题字距从 normal 变为 0.936px，新规则只匹配区块内 h3；没有哈希、文件字节或像素比对。证据 `independent-readback.json`、`scope-report.json` 及 `scope-report-nav-ready.json`。
 
-运行命令：开发服务清除 DEEPSEEK_*、AI_*、SITE_STORE、SITECRAFT_DATA_ROOT 后，仅以 SITECRAFT_BASE/CHROME_PATH 启动 `npm run dev -- --hostname 127.0.0.1 --port 3192`，本树无 `.env.local`。测试同样只需这两个变量（本次另用可选 T162_LABEL 区分证据目录）；SITECRAFT_BASE 为 `http://127.0.0.1:3192`，CHROME_PATH 按 AGENTS。全量 `npm test` 与 `node --test --experimental-strip-types tests/t162-inline-annotation.test.ts tests/t162-review-regressions.test.ts` 同时运行，启动前确认无其他 Chrome 测试，记录在 `load-delivery-preflight.json`。随机端口替身仅在测试进程设置本地认证占位，未使用真实密钥。
+真实流程 4 张截图与两版实际 Next 预览 2 张截图全部逐张打开：`01-workspace-1440.png`、`02-opinion-1440.png`、`03-draft-1440.png`、`04-terminal-thread-1440.png`、`05-v1-preview-1440.png`、`06-v2-preview-1440.png`。只核对技术状态，不自评审美。独立范围脚本在报告保存后的附加截图阶段两次 Runtime.evaluate 超时，`scope.log`/`scope-nav-ready.log` 和原脚本均保留，不能把这两个整次运行写成通过；改为直接等待文档地址、字体和目标可见状态的 `capture-state.mjs` 后，两版截图完成（`preview-capture-state.log`），没有重发模型或重复修改。
 
-最终 1440/768/375 截图共 75 张，均逐张打开：`load-delivery-isolated-1791924603432-41981/`、`…-41982/` 各 10 张；并发全量 `load-delivery-full-1791924743450-45174/`（10）、`…1791924744149-45202/`（6）、`…1791924776836-45582/`（10）、`…1791924792594-45757/`（9）；并发两文件 `load-delivery-loaded-1791924700635-42607/`、`…1791924700634-42608/` 各 10 张。其余本轮改前/中间 205 张也逐张打开，清单在 receipt。只核对技术状态，不自评审美。
+`npm run typecheck` 通过（02:22:26 UTC，`typecheck.log`）。首次全量前发现 t165 正在跑 Chrome，却错误地继续启动；随后仅终止本次误启动及其子进程，未操作 t165，保留 `full-test.log` 和 `full-preflight-failed.json`，不用于验收。等另一组结束、确认全局无 Chrome 测试后，以模型未配置的普通同目录服务运行标准 `SITECRAFT_BASE=… CHROME_PATH=… npm test`，结果 **356/434，78 失败、0 取消、0 跳过**（`full-isolated.log`，退出码 1），不使用单独重跑或清数据掩盖。失败涉及既有整站/英文/局部范围及 T-162 浏览器检查，多项 Page.navigate/Runtime.evaluate 约 30s 超时；负载时普通服务 GET / 同样约 30s，结束后只读计时 GET /api/sites 1.72s、GET / 3.16s。该工作树 1917 条站点记录保留；这些现象不构成已证实的最终根因，未扩改首页或底线浏览器工具。
 
-原父版本入口文案红态、历史发送/按钮、连续点选聚焦、存储保护的回退红态，以及 375 遮挡/收起和 1440/768 滚轮边缘红态均保留在旧 receipt 和相应 artifacts；本轮未改产品行为，不将原测试的早期失败冒充后续分支检错。上一轮标准环境自足的 13 项缺模型红态、两个 history 前置失败和最终 433/433 见 `self-contained-receipt.json`。首次类型检查的重载包装失败日志 `load-typecheck-first.log` 也保留，随后导出原函数并在调用点计时，最终类型检查通过。
+`SITE_STORE=fs npm run build` 通过（`build.log`）。真实服务、网关和普通测试服务都已停止，两端口无监听，Next dev 锁释放；用量仍为 3253、调用仍为 2（`cleanup.json`）。四项改动文件的 UTF-8、diff 与 project-map 状态收尾核对见 receipt。全量未通过，最后一项整体验收不勾选；独立试用/本次改动审查仍交主控安排。
 
-实际 Next after/服务端模型出口的边界未由本次入口测试证明。若主控要补这部分，应另起隔离服务并配置本地替身，在全新 Chrome 页中直接操作，不加载 helper 的 fetch 转发；普通主服务保持不变。前置条件：SITECRAFT_BASE、SITECRAFT_FIXTURE_BASE 分别为已选本地 HTTP origin，SITECRAFT_PORT 为对应应用端口，CHROME_PATH 按 AGENTS 设置，SITECRAFT_FIXTURE_AUTH 仅在终端提供无秘密的替身认证占位。可复现命令（两个终端共享这些进程变量）：
+此前交互、父版本/变异红态、标准环境自足及负载修复证据仍保留，见 `artifacts/t162/self-contained-receipt.json`、`load-receipt.json` 和相应旧 artifacts；原 15000 预检拒绝见 `real-2026-10-14T01-24-08-766Z/` 与 `real-small-2026-10-14T01-32-21-834Z/`。主控已记录 4475410..200cb82 的 Astra 增量 PASS 及 faad031 的全量 433/433；它们不冒充本次全量通过。
 
-```sh
-node --experimental-strip-types scripts/t162-model-fixture.ts
-SITE_STORE=fs DEEPSEEK_BASE_URL="$SITECRAFT_FIXTURE_BASE" DEEPSEEK_API_KEY="$SITECRAFT_FIXTURE_AUTH" DEEPSEEK_MODEL=local-only npm run dev -- --hostname 127.0.0.1 --port "$SITECRAFT_PORT"
-```
+### 关票（主控）
 
-随后直接打开 `$SITECRAFT_BASE/workspace?site=<本次 send.json 中的合法夹具 id>`，点选区块 → 写一条意见 → 添加 → 发送，检查新版本及批注线程；不要用未点选整页写作（替身明确拒绝）。此项命令/前置条件交主控决定，本轮未执行。真实 DeepSeek 单条修改仍须主控另行报批；独立试用与审美不标 PASS。
+独立试用：新 sol 实例 t162-trial 按任务脚本试用，首轮 375 NO_GO（定位被面板遮挡）经 1825142/88b40d6 修复后复试通过；其「展开历史线程不能续写」一条按本票合同（旧版本线程只读，Astra P1）判为设计如此。代码审查：Astra 对 55cf192、88b40d6、200cb82 增量均 PASS。真实单条批注：3,253 token（见上），站点 `4f5ec1c4-36c0-48cc-91c5-5a47f6eb9f7e` 已复制进主目录。早先主线 5d69145 三次全量 356–379/434 的根因为检查器打开站点列表首页，由 T-166 修复。2026-10-14 00:35 前后（纽约时间）主控在主线 `58f2827`（含 T-162/T-165/T-166 合并）无其他 Chrome 测试时运行 `SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` **465/465**（119 s），`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-58f2827/`。

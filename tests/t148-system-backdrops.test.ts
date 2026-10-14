@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -36,7 +37,7 @@ const server = createServer(async (request, response) => {
     }
     response.statusCode = 404; response.end('missing'); return;
   }
-  response.setHeader('Content-Type', 'text/html'); response.end('<!doctype html><html><body></body></html>');
+  response.setHeader('Content-Type', 'text/html'); response.end(codeCheckDocument);
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
