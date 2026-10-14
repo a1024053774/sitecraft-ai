@@ -12,3 +12,12 @@ const candidates = [...new Set(ids)].map(id => {
   return { id: parsed.data, label: style.label, description: style.description };
 });
 export const serverCodeStyleOptions = [...codeStyleOptions, ...candidates];
+
+export class CodeStyleAdmissionError extends Error {
+  constructor() { super('已选风格当前不能使用，未开始任务。请在准入该风格的评估环境操作，或取消方案后重新选择。'); }
+}
+// One admission decision for model-task claims and checked submissions.
+// No style means no selected direction, as on an initial manual submission.
+export function requireModelTaskAdmission(style: string | undefined) {
+  if (style && !serverCodeStyleOptions.some(option => option.id === style)) throw new CodeStyleAdmissionError();
+}

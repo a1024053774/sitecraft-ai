@@ -23,6 +23,7 @@ registerHooks({ resolve(specifier, context, next) {
 process.env.SITE_STORE = 'fs';
 process.env.SITECRAFT_DATA_ROOT = process.env.T159_ENTRY_DATA_ROOT || path.join(folder, 'data');
 if (process.env.T159_PENDING_CATALOG === '1') await import('./t159-pending-catalog.ts');
+if (process.env.T159_RESTYLE_MODE) await import('./t159-commit-protocol.ts');
 const modelRequests: any[] = [], routes: any[] = [], tasks: Promise<void>[] = [];
 let queuedAfter = 0;
 const provider = createServer(async (req, res) => {
@@ -39,7 +40,8 @@ process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${(provider.address() as any).
 process.env.DEEPSEEK_API_KEY = 'local-fixture'; process.env.DEEPSEEK_MODEL = 'local-fixture';
 const { POST: create } = await import('../../app/api/sites/route.ts');
 const { POST: chat } = await import('../../app/api/sites/[siteId]/chat/route.ts');
-const { GET: draft } = await import('../../app/api/sites/[siteId]/draft/route.ts');
+const { GET: draft, PUT: manual } = await import('../../app/api/sites/[siteId]/draft/route.ts');
+const { POST: history } = await import('../../app/api/sites/[siteId]/history/[action]/route.ts');
 const bridge = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   // Preserve the real saved plan; this fixture ends before its first confirm.
@@ -47,12 +49,15 @@ const bridge = createServer(async (req, res) => {
     routes.push({ url: req.url, body: JSON.parse(raw), status: 503, fixturePlanBoundary: true });
     res.writeHead(503, { 'content-type': 'application/json' }); res.end('{"userMessage":"本地替身在确认前保留已保存大纲"}'); return;
   }
-  const match = req.url?.match(/^\/api\/sites\/([^/]+)\/(chat|draft)$/);
+  const match = req.url?.match(/^\/api\/sites\/([^/]+)\/(chat|draft|history\/(?:restore|undo))$/);
   const request = new Request(requestBase + req.url, { method: req.method, ...(raw ? { headers: { 'content-type': 'application/json' }, body: raw } : {}) });
   const pending: Array<() => Promise<void>> = [];
   const response = req.url === '/api/health' ? Response.json({ testIdentity: { cwd: process.cwd() }, persistence: { driver: 'development-file' }, deepseek: { configured: true } })
     : await callbacks.run(pending, () => req.url === '/api/sites' ? create(request) : match![2] === 'chat'
-      ? chat(request, { params: Promise.resolve({ siteId: match![1] }) }) : draft(request, { params: Promise.resolve({ siteId: match![1] }) }));
+      ? chat(request, { params: Promise.resolve({ siteId: match![1] }) }) : match![2].startsWith('history/')
+        ? history(request, { params: Promise.resolve({ siteId: match![1], action: match![2].split('/')[1] }) })
+        : req.method === 'PUT' ? manual(request, { params: Promise.resolve({ siteId: match![1] }) })
+          : draft(request, { params: Promise.resolve({ siteId: match![1] }) }));
   const payload = await response.json();
   if (process.env.T159_DROP_READ === '1' && req.url?.endsWith('/draft')) {
     delete process.env.T159_DROP_READ;
@@ -61,11 +66,55 @@ const bridge = createServer(async (req, res) => {
   routes.push({ url: req.url, body: raw ? JSON.parse(raw) : null, status: response.status, payload });
   res.writeHead(response.status, { 'content-type': 'application/json' }); res.end(JSON.stringify(payload));
   queuedAfter += pending.length;
-  if (!process.env.T159_ENTRY_CONFIRM_SITE) for (const fn of pending) tasks.push(fn());
+  if (!process.env.T159_ENTRY_CONFIRM_SITE && process.env.T159_RESTYLE_MODE !== 'act') for (const fn of pending) tasks.push(fn());
 });
 await new Promise<void>(resolve => bridge.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${(bridge.address() as any).port}`;
 await mkdir(folder, { recursive: true });
+if (process.env.T159_RESTYLE_MODE) {
+  const post = async (url: string, body: unknown, method = 'POST') => {
+    const response = await fetch(base + url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: response.status, payload: await response.json() };
+  };
+  const get = async (id: string) => (await (await fetch(`${base}/api/sites/${id}/draft`)).json());
+  let evidence: unknown;
+  if (process.env.T159_RESTYLE_MODE === 'prepare') {
+    const { updateCodeSite, commitSiteCode } = await import('../../lib/code-site-store.ts');
+    const id = (await post('/api/sites', { name: '风格任务准入样本' })).payload.id;
+    const code = { header: '', footer: '', css: 'body{color:#111;background:#fff}', pages: [{ id: 'home', title: '首页', html: '<main><h1>风格任务准入样本</h1><p>已有业务与边界。</p></main>' }] };
+    await updateCodeSite(id, () => ({ materials: '风格任务准入样本提供既有业务，地址待补充。', preferences: { style: 'precision', layout: 5, density: 6 },
+      plan: { style: 'precision', summary: '既有精密工程版本', styleReason: '已有版本', pages: [{ id: 'home', title: '首页', outline: '既有业务与边界' }] } }));
+    for (let revision = 0; revision < 2; revision++) {
+      const saved = await commitSiteCode({ siteId: id, baseRevision: revision, code, author: 'user', summary: '已有版本协议夹具', request: '' });
+      if (saved.status !== 'applied') throw new Error('已有版本协议夹具提交失败');
+    }
+    const initial = await get(id), start = await post(`/api/sites/${id}/chat`, { action: 'start', baseRevision: 2 });
+    const a = start.payload.alignment;
+    const selected = await post(`/api/sites/${id}/chat`, { action: 'select', questionId: a.questionId, questionRevision: a.questionRevision, optionId: 'neighborly',
+      preferences: { style: 'neighborly', layout: 5, density: 6 }, baseRevision: 2 });
+    await Promise.all(tasks);
+    evidence = { siteId: id, initial, selected, saved: await get(id), localPlanRequests: modelRequests.length };
+  } else {
+    const id = process.env.T159_RESTYLE_SITE!, before = await get(id), revision = before.codeSite.versions.at(-1).revision;
+    const a = before.alignment;
+    const confirm = process.env.SITECRAFT_EVAL_STYLES ? null : await post(`/api/sites/${id}/chat`, { action: 'confirm', questionId: a.questionId, questionRevision: a.questionRevision, baseRevision: revision });
+    const queuedBefore = queuedAfter, checksBefore = (globalThis as any).__t159CheckCalls;
+    const action = process.env.T159_RESTYLE_ACTION;
+    let result;
+    if (action === 'restore' || action === 'undo') result = await post(`/api/sites/${id}/history/${action}`, { baseRevision: revision, ...(action === 'restore' ? { versionId: before.codeSite.versions[0].id } : {}) });
+    else if (action === 'manual') result = await post(`/api/sites/${id}/draft`, { baseRevision: revision, code: before.codeSite.versions.at(-1).code, summary: '手改提交' }, 'PUT');
+    else if (action === 'replan') {
+      await post(`/api/sites/${id}/chat`, { action: 'cancel', baseRevision: revision });
+      const next = (await post(`/api/sites/${id}/chat`, { action: 'start', baseRevision: revision })).payload.alignment;
+      result = await post(`/api/sites/${id}/chat`, { action: 'select', questionId: next.questionId, questionRevision: next.questionRevision, optionId: 'precision', preferences: { style: 'precision', layout: 5, density: 6 }, baseRevision: revision });
+    } else result = await post(`/api/sites/${id}/chat`, { baseRevision: revision, ...(action === 'translate' ? { action: 'translate' } :
+      { message: action === 'dialog' ? '把已有业务说明改得更清楚，保留事实。' : '换个版式：保留全部事实与当前风格。', ...(action === 'page' ? { pageId: 'home' } : {}) }) });
+    evidence = { before, confirm, result, after: await get(id), queuedBefore, queuedAfter, modelRequests: modelRequests.length, checksBefore, checksAfter: (globalThis as any).__t159CheckCalls };
+  }
+  await writeFile(path.join(folder, 'restyle.json'), JSON.stringify({ evidence, limitation: '已有版本仅经提交入口的协议检查替身建立，不作底线质量证据；后续 after 不执行，无模型或 Chrome 调用。' }, null, 2), 'utf8');
+  await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
+  process.exit(0);
+}
 if (process.env.T159_ENTRY_CONFIRM_SITE) {
   const id = process.env.T159_ENTRY_CONFIRM_SITE;
   const get = async () => (await (await fetch(`${base}/api/sites/${id}/draft`)).json());
