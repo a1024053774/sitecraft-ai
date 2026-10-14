@@ -86,6 +86,7 @@ T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事�
    `tests/t160-narrow-columns.test.ts` 用真实浏览器拦截价格豁免扩散到说明正文、display:contents 可见文字漏测和 CSS 多栏跨列合行；纯价格/正文、可见/隐藏、多栏/单栏均成对验证。
    浏览器测试先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（负责人这台 Mac 的普通 Chrome 无头启动后会被自动更新带着退出）；换机器或版本更新后按实际路径改。
    `scripts/t15*` 的应用地址显式用 `SITECRAFT_BASE`，替身用 `SITECRAFT_FIXTURE_BASE`，预算网关用 `SITECRAFT_BUDGET_BASE`；均校验本地 HTTP origin，不锁端口、不默认回退主工作区。真实生成与预算网关必须显式设置 `SITECRAFT_TOKEN_LIMIT` 为本次获批上限，不沿用历史默认预算。`tests/t153-local-endpoints.test.ts` 拦截固定本地端口和默认应用地址，并验证替身实际监听配置（T-153）。
+   预算网关按完整请求的 ASCII、官方离线验证的单 token 汉字与其他码点估算输入，加框架余量后限制输出，累计预留不超过显式授权；`tests/t165-token-reserve.test.ts` 与 `tests/t165-tokenizer-adversarial.test.ts` 覆盖真实 usage 的复原请求、官方 tokenizer 对抗计数、原预算可容纳修正及批注、出网前拒绝超支和已付超估用量记账后终止，运行时不加载 tokenizer（T-165）。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
 4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；
    新路线评估命令为 `npm run eval:new-route`：把 `review/mixed/` 和 `review/company/` 分别交不同的新盲评实例，跨轮比较单独交 `comparison-review/`，各实例不得读取其他包；`private/` 的映射、来源、用量和跨轮身份由主控保管；技术运行通过不等于独立审美通过。
