@@ -14,7 +14,7 @@ test('同一非工业资料可通过真实评估 CLI 选择邻里日常与品牌
   const run = async (style: string) => {
     const out = path.join(folder, style);
     const args = ['--experimental-strip-types', 'scripts/eval-new-route.ts', '--quick', '--only', `restaurant/${style}`, '--prepare-only', '--previous', before, '--out', out];
-    const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
+    const result = spawnSync(process.execPath, args, { encoding: 'utf8', env: { ...process.env, SITECRAFT_DATA_ROOT: path.join(process.env.SITECRAFT_DATA_ROOT!, path.basename(folder), style) } });
     await writeFile(path.join(folder, `${style}.json`), JSON.stringify({ args, status: result.status, stdout: result.stdout, stderr: result.stderr }, null, 2), 'utf8');
     assert.doesNotMatch(result.stderr, /only必须/, '已登记风格应进入组合构造；本测试在不匹配的旧轮次前停下，不调用模型或浏览器');
     const round = JSON.parse(await readFile(path.join(out, 'private/round.json'), 'utf8'));

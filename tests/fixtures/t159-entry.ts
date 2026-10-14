@@ -22,7 +22,9 @@ registerHooks({ resolve(specifier, context, next) {
   return next(pathToFileURL(existsSync(`${file}.ts`) ? `${file}.ts` : file).href, context);
 } });
 process.env.SITE_STORE = 'fs';
-process.env.SITECRAFT_DATA_ROOT = process.env.T159_ENTRY_DATA_ROOT || path.join(folder, 'data');
+const testDataRoot = process.env.SITECRAFT_DATA_ROOT!;
+process.env.SITECRAFT_DATA_ROOT = process.env.T159_ENTRY_DATA_ROOT || path.join(testDataRoot, path.basename(folder));
+const storage = { testDataRoot, dataRoot: process.env.SITECRAFT_DATA_ROOT, identityFile: process.env.SITECRAFT_TEST_IDENTITY_FILE };
 if (process.env.T159_PENDING_CATALOG === '1') await import('./t159-pending-catalog.ts');
 if (process.env.T159_RESTYLE_MODE) await import('./t159-commit-protocol.ts');
 const modelRequests: any[] = [], routes: any[] = [], tasks: Promise<void>[] = [];
@@ -130,7 +132,7 @@ if (process.env.T159_RESTYLE_MODE) {
     evidence = { before, confirm, result, after: await get(id), queuedBefore, queuedAfter, modelRequests: modelRequests.length,
       checksBefore, checksAfter: (globalThis as any).__t159CheckCalls, closedChecks: (globalThis as any).__t159ClosedChecks };
   }
-  await writeFile(path.join(folder, 'restyle.json'), JSON.stringify({ evidence, limitation: '真实提交/检查器/事实复用与本地 HTTP 核对协议，CDP 观察由替身提供；after 不执行，不证明真实 Chrome、模型事实能力或页面质量。' }, null, 2), 'utf8');
+  await writeFile(path.join(folder, 'restyle.json'), JSON.stringify({ storage, evidence, limitation: '真实提交/检查器/事实复用与本地 HTTP 核对协议，CDP 观察由替身提供；after 不执行，不证明真实 Chrome、模型事实能力或页面质量。' }, null, 2), 'utf8');
   await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
   process.exit(0);
 }
@@ -141,7 +143,7 @@ if (process.env.T159_ENTRY_CONFIRM_SITE) {
   const response = await fetch(`${base}/api/sites/${id}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action: 'confirm', questionId: before.alignment.questionId, questionRevision: before.alignment.questionRevision, baseRevision: 0 }) });
   const payload = await response.json(), after = await get();
-  await writeFile(path.join(folder, 'confirm.json'), JSON.stringify({ status: response.status, payload, before, after, queuedAfter,
+  await writeFile(path.join(folder, 'confirm.json'), JSON.stringify({ storage, status: response.status, payload, before, after, queuedAfter,
     evalFlag: process.env.SITECRAFT_EVAL_STYLES ?? null, modelRequests: modelRequests.length,
     limitation: '使用生产 HTTP handler 与存储；只运行准备阶段的本地替身规划。确认后的 after 队列不执行，不调用模型或 Chrome。' }, null, 2), 'utf8');
   await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
@@ -174,5 +176,5 @@ if (process.env.T159_ENTRY_EXISTING_SITE) {
 await Promise.all(tasks);
 await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
 const round = JSON.parse(await readFile(path.join(folder, 'eval/private/round.json'), 'utf8'));
-await writeFile(path.join(folder, 'entry.json'), JSON.stringify({ args, exit, stdout, stderr, routes, modelRequests, round, savedStyleSite, reopened,
+await writeFile(path.join(folder, 'entry.json'), JSON.stringify({ storage, args, exit, stdout, stderr, routes, modelRequests, round, savedStyleSite, reopened,
   limitation: 'HTTP 使用生产 handler，after 与模型由替身控制；不证明实际 Next after 集成或真实模型质量。' }, null, 2), 'utf8');

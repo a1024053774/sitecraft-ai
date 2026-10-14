@@ -10,7 +10,7 @@ import { localEndpoint } from '../scripts/local-endpoint.ts';
 test('评估进程保存 pending 大纲后，普通进程确认被拒绝且不消耗确认；已准入进程仍可确认', async () => {
   localEndpoint('SITECRAFT_BASE');
   const root = path.resolve('artifacts/t159', `confirm-contract-${crypto.randomUUID()}`); await mkdir(root);
-  const data = path.join(root, 'data');
+  const data = path.join(process.env.SITECRAFT_DATA_ROOT!, path.basename(root));
   async function run(phase: string, admitted: boolean, siteId?: string) {
     const folder = path.join(root, phase);
     const env: NodeJS.ProcessEnv = { ...process.env, T159_PENDING_CATALOG: '1', T159_ENTRY_OUT: folder, T159_ENTRY_DATA_ROOT: data };

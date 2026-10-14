@@ -13,12 +13,13 @@ test('真实 CLI→HTTP→chat：隔离的 pending 目录样本继续由服务�
   localEndpoint('SITECRAFT_BASE');
   const folder = path.resolve('artifacts/t159', `entry-contract-${crypto.randomUUID()}`);
   await mkdir(folder, { recursive: true });
+  const dataRoot = path.join(process.env.SITECRAFT_DATA_ROOT!, path.basename(folder));
   let savedStyleSite = '';
   for (const mode of ['off', 'on', 'reopened']) {
     const out = path.join(folder, mode);
-    const env: NodeJS.ProcessEnv = { ...process.env, T159_ENTRY_OUT: out, T159_PENDING_CATALOG: '1' };
+    const env: NodeJS.ProcessEnv = { ...process.env, T159_ENTRY_OUT: out, T159_PENDING_CATALOG: '1', T159_ENTRY_DATA_ROOT: path.join(dataRoot, mode === 'reopened' ? 'on' : mode) };
     if (mode === 'on') env.SITECRAFT_EVAL_STYLES = 'neighborly'; else delete env.SITECRAFT_EVAL_STYLES;
-    if (mode === 'reopened') { env.T159_ENTRY_DATA_ROOT = path.join(folder, 'on/data'); env.T159_ENTRY_EXISTING_SITE = savedStyleSite; }
+    if (mode === 'reopened') env.T159_ENTRY_EXISTING_SITE = savedStyleSite;
     const run = spawnSync(process.execPath, ['--experimental-strip-types', 'tests/fixtures/t159-entry.ts'], { env, encoding: 'utf8', timeout: 30000 });
     await writeFile(path.join(folder, `${mode}-process.json`), JSON.stringify({ status: run.status, stdout: run.stdout, stderr: run.stderr, error: run.error?.message }, null, 2), 'utf8');
     assert.equal(run.status, 0, run.stderr);
@@ -48,7 +49,7 @@ for (const id of ['not_registered', 'neighborly,not_registered', 'precision', 'n
   const probe = createServer(); await new Promise<void>(resolve => probe.listen(0, '127.0.0.1', resolve));
   const port = (probe.address() as any).port; await new Promise<void>(resolve => probe.close(() => resolve()));
   const child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)], {
-    env: { ...process.env, SITE_STORE: 'fs', SITECRAFT_EVAL_STYLES: id }, stdio: ['ignore', 'pipe', 'pipe'] });
+    env: { ...process.env, SITE_STORE: 'fs', SITECRAFT_EVAL_STYLES: id, SITECRAFT_DATA_ROOT: path.join(process.env.SITECRAFT_DATA_ROOT!, path.basename(folder)) }, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '', ready = false;
   const closed = new Promise<number | null>(resolve => child.once('close', resolve));
   const timer = setTimeout(() => child.kill('SIGTERM'), 15000);

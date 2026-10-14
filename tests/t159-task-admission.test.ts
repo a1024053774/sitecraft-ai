@@ -11,9 +11,10 @@ import { localEndpoint } from '../scripts/local-endpoint.ts';
 for (const action of ['quick', 'dialog', 'retry', 'page', 'translate', 'restore', 'undo', 'manual', 'restore-changed', 'undo-unknown', 'manual-changed', 'manual-source', 'manual-invalid']) test(`pending 大纲的进程准入按本次模型调用判断：${action}`, async () => {
   localEndpoint('SITECRAFT_BASE');
   const root = path.resolve('artifacts/t159', `task-contract-${action}-${crypto.randomUUID()}`); await mkdir(root);
+  const dataRoot = path.join(process.env.SITECRAFT_DATA_ROOT!, path.basename(root));
   async function run(phase: string, admitted: boolean, id?: string, selectedAction = action) {
     const folder = path.join(root, phase);
-    const env: NodeJS.ProcessEnv = { ...process.env, T159_PENDING_CATALOG: '1', T159_ENTRY_OUT: folder, T159_ENTRY_DATA_ROOT: path.join(root, 'data'), T159_RESTYLE_MODE: id ? 'act' : 'prepare', T159_RESTYLE_ACTION: selectedAction };
+    const env: NodeJS.ProcessEnv = { ...process.env, T159_PENDING_CATALOG: '1', T159_ENTRY_OUT: folder, T159_ENTRY_DATA_ROOT: dataRoot, T159_RESTYLE_MODE: id ? 'act' : 'prepare', T159_RESTYLE_ACTION: selectedAction };
     if (id) env.T159_RESTYLE_SITE = id;
     if (admitted) env.SITECRAFT_EVAL_STYLES = 'neighborly'; else delete env.SITECRAFT_EVAL_STYLES;
     const result = spawnSync(process.execPath, ['--experimental-strip-types', 'tests/fixtures/t159-entry.ts'], { env, encoding: 'utf8', timeout: 30000 });

@@ -22,13 +22,21 @@ T-156 定为任何行业的展示型官网。现有精密工程、现场实拍�
 
 - [x] 风格区分盲评：新风格与最接近的现有风格在同一非工业资料上可辨（新实例，随机命名）
 - [x] 「像这家店/机构」成对盲评不差于现有风格；真实预算主控报批
-- [ ] typecheck、test、build 通过（当前修复聚焦 28/28、typecheck 通过；build/全量按主控要求未跑，交整合验收；旧 484/484 与 build 仅对应 672e7d4）
+- [ ] typecheck、test、build 通过（本轮 typecheck、标准入口 T-159 定向 23/23 通过；全量/build 由主控整合验收，本工作树未重跑）
 
 ## Resolution
 
 执行者 Codex，claimed_by 保持；本票 open，交主控关票，不推送。**真实生成、风格区分与同店成对盲评均 PASS**，主控已揭盲并批准 neighborly 转为 ready；缩略图来自本次真实版本，不另发模型请求。**第二个风格不做**：负责人只批准这一轮生成，本次唯一真实授权已经执行。
 
-**当前准入修复（672e7d4 复审 NO_GO 后）。** 主控指出上一版把 pending 大纲存在本身当成提交禁令，导致事实已核对且资料未变的恢复/撤销也在检查前被 422 拦住；旧测试把恢复、撤销和手改的拒绝写成了错误预期。现在以“本次是否实际调用模型”为界：保留 claimRun 的统一任务领取门禁和 confirm 早拒，移除 commitSiteCode 的无条件拒绝。提交入口把当前大纲 style 传给真实检查器，只有进入 auditCodeFacts 才调用同一个 requireModelTaskAdmission；事实复用、确定性检查、版本保存都不旁路，不静默换风格。
+**当前 T-167 测试数据根整合。** 按主控要求执行 `git merge family-kit-assembly`，无冲突快进到 `eb439d0e59ca71502e624e22851919f21e0a3615`。主线原失败日志 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-eb439d0/test.log` 保留：493 项中 17 项 T-159 存储守卫失败，主控已确认主线 typecheck/build 通过。此前夹具把数据根放在 artifacts 下，超出标准入口本轮经 health 核对的目录；本轮先在 eb439d0、测试未改时用相同标准定向入口复现 **6/23 通过、17 失败、exit=1**，不以设置测试身份例外绕过。
+
+只改 T-159 测试与夹具的数据目录和证据字段：confirm、task-admission 在继承的 SITECRAFT_DATA_ROOT 下建独立共享子目录；eval-entry 的 off/on 各用子目录，reopened 继续读 on 的同一子目录；公共 entry 夹具的默认目录也移入继承根，因而 http-diagnostics、ready-style 同步修复。实际 Next 错误配置启动与 prepare-only CLI 也显式传本轮子目录。所有子进程继续由原环境继承 SITECRAFT_TEST_IDENTITY_FILE，不重新签发身份；未改守卫、标准入口或业务断言，AGENTS.md 不加测试实现细节。
+
+最终验证命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t159-*.test.ts`。标准入口自行选择服务端口和临时数据根，并在载入测试前核对 cwd/dataRoot；health 503 时身份仍完整。最终 **23/23、0 skipped、exit=0**，实际执行数 23；`npm run typecheck` 通过。红灯于 **2026-10-14 14:09:11 UTC（纽约 10:09:11 EDT）**结束，最终绿灯于 **14:14:43 UTC（纽约 10:14:43 EDT）**结束。证据在 `artifacts/t159/test-root-integration-20261014T140858Z/`：parent-eb439d0-red.log、targeted-final-green.log、typecheck-final.log；标准入口原始报告为 `artifacts/t167/test-run-1791987259933-21615/report.json`。
+
+最终登记根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-uqUtZw` 与本工作树 cwd 已核对；49 份独立夹具输出的 storage 记录逐一确认数据目录为该根的严格子目录，身份文件均为本轮同一个 `.test-identity.json`，详见 data-roots-final.json。证据输出继续放 artifacts，业务存储留在保留的本轮临时数据根。标准 Next 启动自动增加的 tsconfig 类型路径已还原，不混入提交。未跑全量/build、未启动真实 Chrome、未调用真实模型、未读 .env.local、未写主目录数据、不推送、不自开审查；本轮提交 SHA、命令和标准入口身份由同目录 delivery.json 关联，票保持 open，交主控整合验收。
+
+**已合入主线的准入修复（672e7d4 复审 NO_GO 后）。** 主控指出上一版把 pending 大纲存在本身当成提交禁令，导致事实已核对且资料未变的恢复/撤销也在检查前被 422 拦住；旧测试把恢复、撤销和手改的拒绝写成了错误预期。现在以“本次是否实际调用模型”为界：保留 claimRun 的统一任务领取门禁和 confirm 早拒，移除 commitSiteCode 的无条件拒绝。提交入口把当前大纲 style 传给真实检查器，只有进入 auditCodeFacts 才调用同一个 requireModelTaskAdmission；事实复用、确定性检查、版本保存都不旁路，不静默换风格。
 
 入口核对清单：
 
