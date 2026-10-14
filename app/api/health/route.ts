@@ -20,9 +20,11 @@ export async function GET() {
   }
 
   const ready = ai.configured && (!store.shared || database === "ready");
+  // T-167: this runtime identity path is not a deployment dependency. Keep the
+  // NFT opt-out until an unannotated build passes with the main artifact tree.
   const developmentIdentity = process.env.NODE_ENV === "production"
     ? {}
-    : { testIdentity: { cwd: process.cwd(), dataRoot: path.resolve(process.env.SITECRAFT_DATA_ROOT || '.sitecraft-data') } };
+    : { testIdentity: { cwd: process.cwd(), dataRoot: path.resolve(/* turbopackIgnore: true */ process.env.SITECRAFT_DATA_ROOT || '.sitecraft-data') } };
   return Response.json(
     {
       status: ready ? "ready" : "not_ready",

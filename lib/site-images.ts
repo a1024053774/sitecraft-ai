@@ -1,4 +1,4 @@
-import { storageDirectory } from './storage-directory.ts';
+import { storageGuard } from './storage-directory.ts';
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -54,7 +54,8 @@ export class SiteImageError extends Error {
 }
 
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
-const storageRoot = storageDirectory("uploads");
+const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'uploads');
+const checkStorage = storageGuard();
 
 export function safeSiteId(siteId: string) {
   if (!SITE_ID_PATTERN.test(siteId)) throw new SiteImageError("forbidden", "Invalid site id");
@@ -244,7 +245,8 @@ export function imageDataUrl(bytes: Uint8Array, purpose: "upload" | "analyze" = 
 }
 
 function siteDir(siteId: string) {
-  return path.join(storageRoot(), workspaceId, safeSiteId(siteId));
+  checkStorage();
+  return path.join(storageRoot, workspaceId, safeSiteId(siteId));
 }
 
 function metaPath(siteId: string, imageId: string) {
