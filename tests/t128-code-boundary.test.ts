@@ -29,7 +29,7 @@ const good: SiteCode = { header: '<header>边界机械</header>', footer: '<foot
 let writerCalls = 0;
 let auditedText = '';
 const server = createServer(async (req, res) => {
-  if (req.url === '/') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
+  if (req.url === '/code-check.html') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
   res.setHeader('content-type', 'application/json');
   if (req.url === '/api/health') { res.end('{}'); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;

@@ -11,7 +11,7 @@ import { summarize, type EvalCase } from '../scripts/eval-set-report.ts';
 const image = await readFile('tests/fixtures/company-images/industrial/product-gearbox-reducer.jpg');
 let unexpectedRequests = 0;
 const server = createServer((req, res) => {
-  if (req.url === '/') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); }
+  if (req.url === '/code-check.html') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); }
   else if (req.url?.includes('/images/')) { res.setHeader('content-type', 'image/jpeg'); res.end(image); }
   else { unexpectedRequests++; res.writeHead(500); res.end('No model endpoint'); }
 });

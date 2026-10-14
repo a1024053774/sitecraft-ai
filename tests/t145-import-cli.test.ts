@@ -30,7 +30,7 @@ test('offline CLI saves missing main/h1 failures and continues the batch',{timeo
   t.diagnostic(`Failure evidence and CLI output: ${root}`);
   let unexpectedRequests=0;
   const server=createServer((request,response)=>{
-    if(request.url!=='/')unexpectedRequests++;
+    if(request.url!=='/code-check.html')unexpectedRequests++;
     response.setHeader('content-type','text/html');response.end('<!doctype html><html><body></body></html>');
   });
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));

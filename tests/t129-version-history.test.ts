@@ -42,7 +42,7 @@ function promptData<T>(prompt: string, marker: string): T | null {
 let writerInputs: string[] = [], selectorInputs: Array<{ request: string; currentRevision: number; versions: Array<Record<string, unknown>> }> = [];
 let selection: unknown[] = [], rejectAudit = false, repairOnce = false;
 const server = createServer(async (req, res) => {
-  if (req.url === '/') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
+  if (req.url === '/code-check.html') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), prompt = body.messages[1].content as string;
   let reply: unknown;
