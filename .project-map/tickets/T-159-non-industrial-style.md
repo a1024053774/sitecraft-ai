@@ -26,7 +26,15 @@ T-156 定为任何行业的展示型官网。现有精密工程、现场实拍�
 
 ## Resolution
 
-执行者 Codex，claimed_by 保持；本票 open，不推送、不关票。2026-10-13 纽约时间主控已确认下述准入与预算，第二风格等第一次盲评结果。
+执行者 Codex，claimed_by 保持；本票 open，不推送、不关票。**当前真实生成与配包 PASS，独立盲评仍 INCOMPLETE**；候选保持 pending，不公开缩略图，第二风格等第一次盲评结果。本次唯一真实生成授权已执行，不自行再发请求。
+
+**当前交付（2026-10-14 UTC）。** 主控批准先 abort 未完成的合并，再合并最新 `family-kit-assembly` 的 `6e0ccfe`（已含 T-165 关票与 T-166 检查器修复）；预算目录白名单、测试矩阵均取 t159/t162 并集，合并提交 `d7433e4f9e45fa375e8087a5d5797c3963510ce9`。本轮总限 **360,000**、单次 **130,000**；原已知 117,777 与未知事实调用按旧预留上界 90,332 计，开跑前占额 208,109，加本次最大额为 338,109，不超新总限。以下 260,000 的段落仅保留此前授权与失败证据。
+
+零成本证据在 `artifacts/t159/authorized-20261014T043816Z/`：当前生产模型函数的规划、写页输入预留 22,847/25,987；同资料 T-160 餐厅事实复原请求预留 16,112。沿用上次已知前置用量的离线情景均可留完整 65,536 输出，不宣称未来新回复、事实段与修正输入已经确定。actual /api/health 为本工作树、文件存储、deepseek-flash；实际 Next worker 的 CHROME_PATH 与 SITECRAFT_EVAL_STYLES 由选择性启动记录确认；原 select=202、本地替身收到 neighborly 结构化规划，故意 503 止于输出前、真实请求 0；T-166 静态检查 HTML 源 200、有标记、无脚本。`preflight.json`、`offline-budget.json`、`before-real.json` 保留这些证据；预算非浏览器聚焦 **29/29、0 skipped**（budget-focused.log），typecheck PASS（typecheck.log）。依主控 T-167 独占指令等待结束通知后才运行；本轮没有运行全量 npm test，不把旧 440/440 或主线结果写成本轮全量通过。
+
+真实命令：`SITECRAFT_BASE=http://127.0.0.1:63446 SITECRAFT_TOKEN_LIMIT=130000 CHROME_PATH=<票中固定路径> npm run eval:new-route -- --quick --only restaurant/neighborly --out artifacts/t159/authorized-20261014T043816Z/eval`。新账本在 budget/，密钥仅由网关进程按指定 source 主目录 .env.local，应用只持本地网关占位凭据；实际生成源码为干净的 `d7433e4`。04:48:57 UTC 开始，04:52:04 UTC 存版（纽约同日 00:48:57–00:52:04 EDT），标准 eval exit=0、PASS，case 耗时 197,422ms；站点 `20d7d9ae-8272-4880-81cd-eb2aec872557`、版本 `7be34b12-ec78-4d75-bcd5-c12a4b7e210d`、revision=1，首页与菜单两页完整。五次 HTTP 200 用量依次为规划 **11,207**、写页 **36,739**、事实 **10,169**、一轮修正 **7,992**、事实 **10,021**，本次合计 **76,128 / 130,000**；已知累计 **193,905**，精确历史累计仍未知，含旧未知上界的累计 **284,237 / 360,000**。原未知账本未修改。首轮事实拒收了资料未声明的豆腐煲午晚供应时段，标准一轮修正后最终底线通过，两次检查与拒因均在本次 run/attempts，未重跑生成掩盖。两页 375/768/1440 溢出、重叠、过窄列均 0；悬停门控和 375 点击区有非拒收质量反馈，保留在 checks，不自评审美。运行结束立即向主控回报；`terminal-before-gateway-stop.json` 核对 actual run complete、网关五条请求 complete 且 usage 全齐后，才手动 SIGTERM 网关，随后停本工作树应用，未用收尾编排脚本。
+
+真实缩略图 `eval/private/neighborly-style-preview.webp` 来自本次已存版本首屏；随机风格区分包 `eval/packages/8d3d8854f7/review`、同店成对包 `eval/packages/eea6cc7efe/review` 各 8 图，分别交主控另开的新盲评实例，只读取各自 review。对照复用 T-160 真实餐厅版本 `60cde704-7364-461c-a236-9af8933c5b4c`，配包时再次核对资料文本相同，没有再花对照 token。private 映射、来源、用量与缩略图元数据留在 `eval/private/t159-pairing.json`，不交盲评。标准 mixed/company 包也完整保留；本轮 29 张图（含复制包与缩略图）均逐张打开，非空白、载入态或意外截断；首屏按规定 fold 取景。源码未继续改，构建 PASS（build.log）；主目录 .sitecraft-data 未写，本工作树站点/会话路径在 `eval/report/data-files.json`，由主控收尾复制。交付 SHA 与证据关联于同目录 delivery.json；不自开审查实例、不宣布审美通过、不关票。
 
 **新增判断。** 只读主目录 T-158、T-160、t160-review-* 后，现有非工业盲评由 5/10 提升至 6/10，仍指出餐饮事务区过重、培训限制重复；未找到设计工作室真实生成/盲评，窄列反例不能作审美依据。先验证一个「邻里日常」候选：黑体招牌、柔和色面、店内价目与告示；不是固定行业模板，不增加功能或事实。T-160 餐厅实际「现场实拍」版本已经是暖浅底、黑体、菜单价目，是该资料最接近的现有方向；其 `private/case-1/materials.txt` 与当前 restaurant quick 资料完全一致，直接复用站点 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b` / 版本 `60cde704-7364-461c-a236-9af8933c5b4c`，不另跑对照。
 
@@ -40,7 +48,7 @@ T-156 定为任何行业的展示型官网。现有精密工程、现场实拍�
 
 此前 Astra 对 `918cfa6` 的 P1（最终选择门禁拒绝候选）和 P2（CLI 测试只证明组合构造）原文保留在 `artifacts/t159/acceptance-review.txt`；本次在主控明确合同后修复，评审是另一个新实例。拿到版本后制作真实缩略图、随机风格区分包和同店成对包，private 映射/来源/用量不交盲评。候选仍 pending，独立页面盲评由主控另开实例，执行者不选胜者或宣布审美通过。
 
-**当前真实结果 INCOMPLETE。** 准入审查通过后，在 `5dc7849`（源码干净）运行一次：
+**此前真实结果 INCOMPLETE。** 准入审查通过后，在 `5dc7849`（源码干净）运行一次：
 
 ```sh
 SITECRAFT_BASE=http://127.0.0.1:63453 SITECRAFT_TOKEN_LIMIT=130000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --quick --only restaurant/neighborly --out artifacts/t159/approved-neighborly-20261014T015431Z
@@ -54,7 +62,7 @@ SITECRAFT_BASE=http://127.0.0.1:63453 SITECRAFT_TOKEN_LIMIT=130000 CHROME_PATH=/
 
 最终技术检查：`npm run typecheck`（gate-typecheck-final.log）、`SITE_STORE=fs npm run build`（entry-build-config.log）PASS；`SITE_STORE=fs SITECRAFT_BASE=http://127.0.0.1:63453 SITECRAFT_TOKEN_LIMIT=130000 CHROME_PATH=<上述路径> npm test` **439/439、0 skipped**（gate-full-test.log，02:03–02:07 UTC）。普通进程三档工作台图 `gate-selection-complete-{1440,768,375}.png` 已逐张打开、完整载入，候选隐藏；它们只证明选项准入，不是生成站或审美证据。复现截图命令：`SITECRAFT_BASE=http://127.0.0.1:63453 CHROME_PATH=<上述路径> T159_SELECTION_GATE=artifacts/t159/gate-selection.json T159_CAPTURE_PREFIX=gate-selection-complete node artifacts/t159/capture-selection.mjs`。project-map Problems 0、Stale living docs 0；最新提交与原审查目标由 `artifacts/t159/gate-delivery.json` 关联，审查后代码、测试不再改，只更新本票真实结果。本票保持 open，不推送、不关票。
 
-**最新获批运行 INCOMPLETE（2026-10-14 UTC）。** 主控已认可 `859ae9f` 准入审查，不再另审，并批准单次 130,000、累计含 78,109 不超 260,000 的一次生成。此后未开任何审查实例。
+**此前获批运行 INCOMPLETE（2026-10-14 UTC）。** 主控已认可 `859ae9f` 准入审查，不再另审，并批准单次 130,000、累计含 78,109 不超 260,000 的一次生成。此后未开任何审查实例。
 
 零成本预检全部 PASS，证据 `artifacts/t159/final-20261014T023002Z/preflight.json`：实际 /api/health cwd 为本工作树，文件存储、deepseek-flash 与整站思考配置正确；选择性 Node 启动记录分别观察应用 CLI 与实际 Next worker 的 CHROME_PATH、SITECRAFT_EVAL_STYLES、SITE_STORE 和数据根目录。实际应用 select 返回 202，本地替身收到原 submit_page_plan、neighborly 枚举与短 skill；替身故意 503 止于输出前，真实请求 0。替身关闭后保留同一应用 worker，`before-real.json` 再核对 health 与 PID、ps 无其他 Chrome/测试。没有只看调用者环境或替身 health。
 
