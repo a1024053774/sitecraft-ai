@@ -94,14 +94,35 @@ async function previousRound() {
   }
   return rounds.sort((a, b) => b.round.startedAt.localeCompare(a.round.startedAt))[0];
 }
+const httpRequests: Array<{
+  origin: string; endpoint: string; method: string; startedAt: string; finishedAt?: string; durationMs?: number;
+  phase: 'fetch' | 'body' | 'http' | 'complete'; status: number | null; error?: unknown;
+}> = [];
 async function json<T>(endpoint: string, body?: unknown): Promise<T> {
-  const response = await fetch(base + endpoint, { method: body ? 'POST' : 'GET', cache: 'no-store',
-    headers: { 'content-type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30000) });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`${endpoint} HTTP ${response.status}: ${error.userMessage || '请求失败'}`);
+  const started = Date.now();
+  const record: (typeof httpRequests)[number] = { origin: base, endpoint, method: body ? 'POST' : 'GET',
+    startedAt: new Date(started).toISOString(), phase: 'fetch', status: null };
+  httpRequests.push(record);
+  try {
+    const response = await fetch(base + endpoint, { method: record.method, cache: 'no-store',
+      headers: { 'content-type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30000) });
+    record.status = response.status; record.phase = 'body';
+    const payload = await response.json();
+    record.phase = 'http';
+    if (!response.ok) throw new Error(`${endpoint} HTTP ${response.status}: ${payload.userMessage || '请求失败'}`);
+    record.phase = 'complete';
+    return payload;
+  } catch (error) {
+    // Keep the transport cause without headers, credentials or request bodies.
+    const cause = error instanceof Error ? error.cause as Record<string, unknown> | undefined : undefined;
+    record.error = { name: error instanceof Error ? error.name : 'Error', message: error instanceof Error ? error.message : String(error),
+      ...(cause && typeof cause === 'object' ? { cause: Object.fromEntries(['name', 'message', 'code', 'syscall', 'address', 'port']
+        .filter(key => typeof cause[key] === 'string' || typeof cause[key] === 'number').map(key => [key, cause[key]])) } : {}) };
+    throw error;
+  } finally {
+    record.finishedAt = new Date().toISOString(); record.durationMs = Date.now() - started;
+    await writeFile(path.join(directory, 'private', 'http-requests.json'), JSON.stringify(httpRequests, null, 2), 'utf8');
   }
-  return response.json();
 }
 async function readSite(id: string) { return (await json<{ codeSite: CodeSiteRecord }>(`/api/sites/${id}/draft`)).codeSite; }
 async function waitRun(id: string, folder: string) {

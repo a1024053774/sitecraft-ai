@@ -47,6 +47,10 @@ const bridge = createServer(async (req, res) => {
     : await callbacks.run(pending, () => req.url === '/api/sites' ? create(request) : match![2] === 'chat'
       ? chat(request, { params: Promise.resolve({ siteId: match![1] }) }) : draft(request, { params: Promise.resolve({ siteId: match![1] }) }));
   const payload = await response.json();
+  if (process.env.T159_DROP_READ === '1' && req.url?.endsWith('/draft')) {
+    delete process.env.T159_DROP_READ;
+    routes.push({ url: req.url, injectedDisconnect: true, status: null }); req.socket.destroy(); return;
+  }
   routes.push({ url: req.url, body: raw ? JSON.parse(raw) : null, status: response.status, payload });
   res.writeHead(response.status, { 'content-type': 'application/json' }); res.end(JSON.stringify(payload));
   for (const fn of pending) tasks.push(fn());
