@@ -1,5 +1,6 @@
 import { after } from 'next/server.js';
-import { codePreferencesSchema, codePreferenceStyleSchema, codeStyleOptions } from './code-site-styles.ts';
+import { codePreferencesSchema, codePreferenceStyleSchema } from './code-site-styles.ts';
+import { serverCodeStyleOptions, requireModelTaskAdmission, CodeStyleAdmissionError } from './code-site-eval-styles.ts';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
 import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
@@ -26,8 +27,10 @@ class CodeRunConflictError extends Error {}
 export async function codeWorkspaceState(site: CodeSiteRecord) {
   try {
     const conversation = await getConversation(site.siteId, site.conversationId);
+    const alignment = conversation ? publicAlignmentView(conversation.alignment) : null;
+    if (alignment?.questionKind === 'style') alignment.options = alignment.options.filter(option => serverCodeStyleOptions.some(current => current.id === option.id));
     return { codeSite: site, conversationId: site.conversationId,
-      alignment: conversation ? publicAlignmentView(conversation.alignment) : null, turns: conversation?.turns ?? [] };
+      alignment, turns: conversation?.turns ?? [] };
   } catch (error) {
     if (!(error instanceof AlignmentTextTooLongError)) throw error;
     // The existing conversation remains untouched and unavailable. Materials,
@@ -39,7 +42,7 @@ export async function codeWorkspaceState(site: CodeSiteRecord) {
 function styleQuestion(epoch: number): CurrentQuestion {
   return { questionId: `code-style-${crypto.randomUUID()}`, questionRevision: epoch + 1, kind: 'style',
     prompt: '网站用哪种风格？版式与信息密度一起保存。', allowOther: false,
-    options: codeStyleOptions };
+    options: serverCodeStyleOptions };
 }
 async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
   return updateCodeSite(siteId, site => {
@@ -54,6 +57,7 @@ async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, 
     if (site.run?.status === 'running') throw new CodeRunConflictError('当前任务还在进行，请等待完成。');
     if ((currentCodeVersion(site)?.revision ?? 0) !== baseRevision) throw new CodeRunConflictError('版本已经更新，请刷新后再试。');
     if (edit.selectedTarget && currentCodeVersion(site)?.id !== edit.selectedTarget.versionId) throw new CodeRunConflictError('锚点版本已改变，请重新点选。');
+    requireModelTaskAdmission(kind === 'plan' ? site.preferences.style : site.plan?.style);
     const now = new Date().toISOString();
     return { run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'translate' ? '按当前中文版逐页翻译英文' : kind === 'plan' ? '读资料，规划页面大纲' : kind === 'edit' ? '理解修改要求，查阅版本目录' : '按方案写站点代码',
       ...edit, request, baseRevision, startedAt: now, updatedAt: now, repairRound: 0, issues: [], attempts: [] } };
@@ -256,6 +260,9 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         pendingRequest: { message: '调整风格与疏密，保留有效资料与已有功能入口。', baseRevision: currentCodeVersion(site)?.revision ?? 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
     } else if (input.action === 'select') {
       if (conversation.alignment.currentQuestion?.kind !== 'style') return Response.json({ userMessage: '当前不是风格选择，请使用当前卡片。' }, { status: 409 });
+      // A question saved by an evaluation process cannot keep authorizing a
+      // pending candidate when reopened in an ordinary process.
+      if (!serverCodeStyleOptions.some(option => option.id === input.optionId)) return Response.json({ userMessage: '未知的选项。' }, { status: 400 });
       if (input.preferences && input.preferences.style !== input.optionId) return Response.json({ userMessage: '风格与选项不一致。' }, { status: 400 });
       const selected = await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'select', questionId: input.questionId, questionRevision: input.questionRevision, optionId: input.optionId });
       const style = codePreferenceStyleSchema.parse(selected.record.alignment.styleOptionId);
@@ -264,6 +271,8 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         site = await claimRun(siteId, 'plan', currentCodeVersion(site) ? '调整风格与疏密，保留有效资料与已有功能入口。' : site.materials, currentCodeVersion(site)?.revision ?? 0); schedule(site);
       }
     } else if (input.action === 'confirm') {
+      // A saved plan does not carry the evaluation process's admission.
+      requireModelTaskAdmission(site.plan?.style);
       const confirmed = await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'confirm', questionId: input.questionId, questionRevision: input.questionRevision });
       if (confirmed.result.ok && confirmed.result.shouldCommit) {
         site = await claimRun(siteId, 'generate', currentCodeVersion(site) ? '按确认的风格、版式与信息密度重新生成，保留有效资料与已有功能入口。' : site.materials, currentCodeVersion(site)?.revision ?? 0); schedule(site);
@@ -290,6 +299,6 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
     } else return Response.json({ userMessage: '请提供公司资料或选择当前方案。' }, { status: 400 });
     return Response.json(await codeWorkspaceState((await getCodeSite(siteId))!), { status: site.run?.status === 'running' ? 202 : 200 });
   } catch (error) {
-    return Response.json({ userMessage: error instanceof Error ? error.message : '请求失败，未保存版本。' }, { status: error instanceof CodeRunConflictError ? 409 : error instanceof AlignmentActionError ? error.status : 422 });
+    return Response.json({ userMessage: error instanceof Error ? error.message : '请求失败，未保存版本。' }, { status: error instanceof CodeRunConflictError ? 409 : error instanceof CodeStyleAdmissionError ? 400 : error instanceof AlignmentActionError ? error.status : 422 });
   }
 }

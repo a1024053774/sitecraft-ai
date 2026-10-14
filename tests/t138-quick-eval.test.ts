@@ -43,7 +43,7 @@ test('only CLI selects the requested quick pair without changing its materials',
   spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/eval-new-route.ts', '--quick', '--prepare-only', '--previous', before, '--out', all], { encoding: 'utf8' });
   const unfiltered = JSON.parse(await readFile(path.join(all, 'private/round.json'), 'utf8'));
   for (const c of round.cases) assert.equal(c.materials, unfiltered.cases.find((a: { key: string }) => a.key === c.key).materials);
-  for (const selection of ['', 'industrial/precision,industrial/precision', 'industrial/documentary', 'unknown/precision']) {
+  for (const selection of ['', 'industrial/precision,industrial/precision', 'industrial/unregistered', 'unknown/precision']) {
     const invalid = spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/eval-new-route.ts', '--quick', '--only', selection, '--prepare-only', '--out', path.join(directory, `invalid-${crypto.randomUUID()}`)], { encoding: 'utf8' });
     assert.equal(invalid.status, 1);
     assert.match(invalid.stderr, /only/, 'invalid selection must fail before network work');

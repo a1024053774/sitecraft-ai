@@ -1,3 +1,4 @@
+import { storageGuard } from './storage-directory.ts';
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "./postgres.ts";
@@ -49,7 +50,8 @@ type SiteLeadFile = {
   updatedAt: string;
 };
 
-const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "leads");
+const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'leads');
+const checkStorage = storageGuard();
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const globalStore = globalThis as typeof globalThis & { __sitecraftLeadLocks?: Map<string, Promise<void>> };
@@ -132,6 +134,7 @@ function newLead(input: ReturnType<typeof validateInput>): LeadRecord {
 }
 
 function recordPath(siteId: string) {
+  checkStorage();
   return path.join(storageRoot, workspaceId, `${safeSiteId(siteId)}.json`);
 }
 
@@ -201,6 +204,7 @@ async function createLocalLead(input: CreateLeadInput) {
 }
 
 async function listLocalLeads(siteId?: string) {
+  checkStorage();
   if (siteId) {
     safeSiteId(siteId);
     const file = await readLocalFile(siteId);

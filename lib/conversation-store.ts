@@ -1,3 +1,4 @@
+import { storageGuard } from './storage-directory.ts';
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
@@ -57,7 +58,8 @@ export type AppendConversationTurnArgs = {
   outcome: ConversationTurnOutcome;
 };
 
-const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "conversations");
+const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'conversations');
+const checkStorage = storageGuard();
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const outcomes = new Set<ConversationTurnOutcome>(["applied", "no_change", "conflict", "error"]);
@@ -154,6 +156,7 @@ function buildTurn(args: AppendConversationTurnArgs, createdAt = new Date().toIS
 }
 
 function recordPath(siteId: string, conversationId: string) {
+  checkStorage();
   return path.join(storageRoot, safeSiteId(siteId), `${safeConversationId(conversationId)}.json`);
 }
 
@@ -402,6 +405,7 @@ export function appendConversationTurn(args: AppendConversationTurnArgs) {
 }
 
 async function deleteLocalConversations(siteId: string) {
+  checkStorage();
   safeSiteId(siteId);
   await rm(path.join(storageRoot, siteId), { recursive: true, force: true });
 }

@@ -16,19 +16,19 @@ function uniqueSiteId() {
 }
 
 function siteRecordPath(siteId: string) {
-  return path.join(process.cwd(), ".sitecraft-data", "code-sites", `${siteId}.json`);
+  return path.join(process.env.SITECRAFT_DATA_ROOT!, "code-sites", `${siteId}.json`);
 }
 
 function conversationDir(siteId: string) {
-  return path.join(process.cwd(), ".sitecraft-data", "conversations", siteId);
+  return path.join(process.env.SITECRAFT_DATA_ROOT!, "conversations", siteId);
 }
 
 function leadRecordPath(siteId: string) {
-  return path.join(process.cwd(), ".sitecraft-data", "leads", workspaceId, `${siteId}.json`);
+  return path.join(process.env.SITECRAFT_DATA_ROOT!, "leads", workspaceId, `${siteId}.json`);
 }
 
 function uploadDir(siteId: string) {
-  return path.join(process.cwd(), ".sitecraft-data", "uploads", workspaceId, siteId);
+  return path.join(process.env.SITECRAFT_DATA_ROOT!, "uploads", workspaceId, siteId);
 }
 
 registerHooks({

@@ -10,6 +10,7 @@ import { englishFidelity } from './code-site-english.ts';
 import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications } from './code-site-local-edit.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
+import type { CodeStyleId } from './code-site-styles.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
 function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], legacyImport = false, selectedTarget?: AnnotationTarget) {
@@ -453,7 +454,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: string }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: string; style?: CodeStyleId }) {
   const code = codeSiteSchema.parse(args.code);
   const browser = await codeCheckBrowser();
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
@@ -585,7 +586,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       }
       const segments = [...factSegments.values()];
       const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials ?? args.materials);
-      const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit) : [];
+      const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style) : [];
       const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], citations: segment.citations }))]
         .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
       if (!args.localEdit) checks.factSegments = { format: 2, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? args.materials, audited: pending.length, reused: reused.length, segments: receipts };

@@ -55,7 +55,7 @@ const { applyCommittedResult, disabledAlignment } = await import('../lib/alignme
 const ctx = (siteId: string) => ({ params: Promise.resolve({ siteId }) });
 const request = (url: string, method: string, body?: unknown) => new Request(base + url, { method,
   ...(body ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}) });
-const conversationPath = (id: string, conversationId: string) => path.join('.sitecraft-data/conversations', id, `${conversationId}.json`);
+const conversationPath = (id: string, conversationId: string) => path.join(process.env.SITECRAFT_DATA_ROOT!, 'conversations', id, `${conversationId}.json`);
 async function makeSite() {
   const response = await create(request('/api/sites', 'POST', { name: '青禾纸包装' }));
   assert.equal(response.status, 201); const { id } = await response.json();

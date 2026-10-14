@@ -62,9 +62,9 @@ const templateIds = new Set(["forge", "landwind", "screwfast"]);
 
 test.after(async () => {
   await Promise.all([
-    rm(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteA), { recursive: true, force: true }),
-    rm(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteB), { recursive: true, force: true }),
-    rm(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteD), { recursive: true, force: true }),
+    rm(path.join(process.env.SITECRAFT_DATA_ROOT!, "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteA), { recursive: true, force: true }),
+    rm(path.join(process.env.SITECRAFT_DATA_ROOT!, "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteB), { recursive: true, force: true }),
+    rm(path.join(process.env.SITECRAFT_DATA_ROOT!, "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteD), { recursive: true, force: true }),
   ]);
 });
 
@@ -130,7 +130,7 @@ test("saved images are owned by site/workspace and cannot be read across sites",
   const loaded = await readSiteImage(siteA, saved.imageId);
   assert.ok(loaded);
   assert.equal(loaded?.record.imageId, saved.imageId);
-  const savedMetadata = JSON.parse(await readFile(path.join(process.cwd(), ".sitecraft-data", "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteA, `${saved.imageId}.json`), "utf8")) as Record<string, unknown>;
+  const savedMetadata = JSON.parse(await readFile(path.join(process.env.SITECRAFT_DATA_ROOT!, "uploads", process.env.DEFAULT_WORKSPACE_ID || "demo", siteA, `${saved.imageId}.json`), "utf8")) as Record<string, unknown>;
   assert.equal(savedMetadata.sha256, saved.sha256);
   assert.equal(await readSiteImage(siteB, saved.imageId), null);
   const payload = publicImagePayload(saved);

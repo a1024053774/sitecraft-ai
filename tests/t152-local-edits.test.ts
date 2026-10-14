@@ -31,7 +31,7 @@ const server = createServer(async (req, res) => {
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
 process.env.SITE_STORE = 'fs';
-process.env.SITECRAFT_DATA_ROOT = path.resolve('artifacts/t152/contract-data');
+process.env.SITECRAFT_DATA_ROOT = path.join(process.env.SITECRAFT_DATA_ROOT!, 't152-contract-data');
 process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`;
 process.env.DEEPSEEK_API_KEY = 'local-only'; process.env.DEEPSEEK_MODEL = 'local-only';
 // This isolated server is only the deterministic checker origin, never a workspace.

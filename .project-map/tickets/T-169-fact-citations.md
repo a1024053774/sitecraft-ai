@@ -4,7 +4,7 @@ title: 高风险事实在工作台标出资料出处
 type: build
 status: open
 blocked_by: []
-claimed_by: Codex (t169-build)
+claimed_by: Codex (t169-resume)
 supersedes:
 ---
 
