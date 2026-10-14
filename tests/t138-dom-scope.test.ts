@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -31,7 +32,7 @@ const makeCode = (): SiteCode => ({
     { id: 'products', title: '产品', html: '<main><h1>精密零件</h1><p data-kept="product">精密零件加工。</p><!--产品注释--></main>' }],
 });
 const server = createServer(async (req, res) => {
-  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body>local fixture origin</body></html>'); return; }
+  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end(codeCheckDocument); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), system = body.messages[0].content, user = body.messages[1].content;
   let reply: unknown;

@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -26,7 +27,7 @@ const labels = ['看产品', '邮箱', '电话', '位置', '下载资料', '文�
 const out = path.resolve('artifacts/t140', `icons-${crypto.randomUUID()}`);
 const server = createServer(async (request, response) => {
   response.setHeader('content-type', request.method === 'GET' ? 'text/html' : 'application/json');
-  if (request.method === 'GET') return response.end('<!doctype html><html><body></body></html>');
+  if (request.method === 'GET') return response.end(codeCheckDocument);
   let raw = ''; for await (const chunk of request) raw += chunk;
   const body = JSON.parse(raw); assert.ok(body.messages[0].content.includes('事实校对员'));
   response.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, { issues: [] })) } }] }));

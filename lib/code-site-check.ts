@@ -462,11 +462,13 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
   try {
     const base = process.env.SITECRAFT_BASE || `http://127.0.0.1:${process.env.PORT || '3000'}`;
     // setDocumentContent retains the document MIME type: a JSON health document
-    // renders candidate HTML as plain text. Establish an HTML origin without app scripts.
+    // renders candidate HTML as plain text. Use static HTML without site-list reads or app scripts.
     await browser.send('Network.enable');
     await browser.send('Network.setBlockedURLs', { urls: ['*/_next/*'] });
-    await browser.send('Page.navigate', { url: `${base}/` });
+    await browser.send('Page.navigate', { url: `${base}/code-check.html` });
     await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}&&document.readyState==='complete'?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);
+    const validSource = await browser.evaluate<boolean>(`document.contentType === 'text/html' && performance.getEntriesByType('navigation')[0]?.responseStatus === 200 && !!document.querySelector('meta[name="sitecraft-code-check"][content="v1"]') && !document.querySelector('script')`);
+    if (!validSource) throw new Error('提交检查静态页缺失或无效（/code-check.html），本次未保存版本。');
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
     const backdropIds = Object.keys(systemBackdrops), backdropUrls = Object.values(systemBackdrops).flatMap(entry => Object.values(entry.urls));
