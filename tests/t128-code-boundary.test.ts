@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -29,7 +30,7 @@ const good: SiteCode = { header: '<header>边界机械</header>', footer: '<foot
 let writerCalls = 0;
 let auditedText = '';
 const server = createServer(async (req, res) => {
-  if (req.url === '/code-check.html') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
+  if (req.url === '/code-check.html') { res.setHeader('content-type', 'text/html'); res.end(codeCheckDocument); return; }
   res.setHeader('content-type', 'application/json');
   if (req.url === '/api/health') { res.end('{}'); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;

@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -18,7 +19,7 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 let modelCalls = 0;
 const server = createServer((req,res) => {
-  if (req.url === '/code-check.html') { res.setHeader('content-type','text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
+  if (req.url === '/code-check.html') { res.setHeader('content-type','text/html'); res.end(codeCheckDocument); return; }
   modelCalls++; res.setHeader('content-type','application/json');
   res.end(JSON.stringify({ choices: [{ finish_reason:'stop', message: { content: JSON.stringify({ issues:['资料没有终身保修承诺。'] }) } }] }));
 });

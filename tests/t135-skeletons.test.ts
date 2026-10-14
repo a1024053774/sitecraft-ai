@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -37,7 +38,7 @@ const code = { header: '<header>双路机械<nav><a href="/home">首页</a><a hr
 const outbound: Array<{ system: string; user: string }> = [];
 let nextPlan: unknown = plan;
 const server = createServer(async (req, res) => {
-  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<html><body>fixture origin</body></html>'); return; }
+  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end(codeCheckDocument); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), system = body.messages[0].content, user = body.messages[1].content;
   outbound.push({ system, user });

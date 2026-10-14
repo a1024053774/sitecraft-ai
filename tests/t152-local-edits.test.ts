@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
@@ -18,7 +19,7 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 let audit = '', replayTruncation = false;
 const server = createServer(async (req, res) => {
-  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<html><body>local origin</body></html>'); return; }
+  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end(codeCheckDocument); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const request = JSON.parse(raw); audit = request.messages[1].content;
   // Observed 2026-10-11: 4095 reasoning tokens, zero answer characters, length.

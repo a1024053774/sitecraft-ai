@@ -15,29 +15,32 @@ supersedes:
 ## What to build
 
 1. 检查器改为打开一个不读站点数据、不带应用脚本的最小 HTML 源（例如 `public/` 下的静态空白页），保持现有 origin 校验和后续 `setDocumentContent`/资源拦截不变。
-2. 不删除、不清理主目录 `.sitecraft-data`（用户数据，T-003）。测试写入主数据目录的问题只记录，不在本票改。
+2. Dockerfile runtime 复制完整 `public/`；检查器须先确认 HTTP 200、HTML 类型、固定标记和无脚本，静态页缺失或无效即报错，不继续检查候选。
+3. 不删除、不清理主目录 `.sitecraft-data`（用户数据，T-003）。测试写入主数据目录的问题只记录，不在本票改。
 
 ## Acceptance
 
 - [x] 测试证明检查器不再请求站点列表首页（例如用本地 HTTP 源记录请求路径），并且首页很慢时检查仍在时限内完成；先在父版本上失败
+- [x] Dockerfile runtime 复制完整 public；静态页缺失或无效明确失败，新增测试先在 abca092 上失败
 - [ ] 主线标准全量 `npm test`、typecheck、build 通过
 - [ ] 独立 sol 实例代码审查通过
 
 ## Resolution
 
-状态：**INCOMPLETE**。实现与聚焦验证完成；标准全量仍有一项 T-162 失败，独立审查由主控安排，票保持 open。本次不推送，不调用真实 DeepSeek，不载入 `.env.local`，不清理任何 `.sitecraft-data`。测试写入主数据目录的问题仍留在本票范围外。
+状态：**INCOMPLETE**（全票）。主控转达的新 sol 审查对 `abca092` 给出 NO_GO/P2：runtime 漏复制 public，静态页缺失时应用 404 仍被当作检查源。本次修复与聚焦验证已通过，待主线全量和独立复审；按主控要求不跑全量浏览器测试、不重建 Docker 镜像、不自行启动审查，票保持 open。
 
-本次提交与此 Resolution 同一提交，父提交为 `ab6cd1cc17b3eebc0823fa18912f4591b358645f`；提交主题为 `fix: 提交检查使用静态 HTML 源（T-166）`。下述运行均针对本次工作树代码，只有验收记录在测试后回写。精确 SHA 可用 `git log -1 --format=%H -- .project-map/tickets/T-166-check-origin-page.md` 读取。
+本次提交与此 Resolution 同一提交，父提交 `abca0921e033db600b9c024cff6ed72b49f954f8`；主题 `fix: 校验检查静态源并随镜像复制 public（T-166）`。精确 SHA 用 `git log -1 --format=%H -- .project-map/tickets/T-166-check-origin-page.md` 读取。以下证据针对本次工作树代码，只有票据记录在测试后回写。
 
-- 检查器改为请求 `/code-check.html`，文件位于 `public/`，不读取站点数据、不带应用脚本。origin 校验、`setDocumentContent` 与后续资源拦截不变。5 处既有 HTTP 替身的允许路径同步更新；4 份 living docs 窄改同步当前行为。
-- 浏览器验证使用本工作树随机端口 `SITECRAFT_BASE=http://127.0.0.1:50953`、`SITE_STORE=fs`，`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。dev server 由 `npm run dev -- --hostname 127.0.0.1 --port 50953` 启动；新测试读取显式 BASE，另自建随机端口 HTTP 源，非首页请求转给本工作树普通 dev server。
-- **父版本红灯**（2026-10-14 04:07 UTC）：`node --test --experimental-strip-types tests/t166-check-origin.test.ts`，0/2。正常首页场景实际请求 `/`；持续阻塞场景超过预先设定的 20 秒期限。候选检查器当时未修改。记录：`artifacts/t166/origin-1791950846894-26204/checks.json`、`artifacts/t166/red-parent-ab6cd1c.log`。首次 tee 早于目录创建而未建立日志，日志文件保存原终端输出，未重跑红灯。
-- **同一测试转绿**（04:08 UTC）：相同命令 2/2；首页持续阻塞时约 0.29 秒完成，两个场景都只请求静态源，HTTP 200、`text/html`、无脚本，375/768/1440 检查全部完成。记录：`artifacts/t166/green-focused.log`、`artifacts/t166/origin-1791950891240-26436/checks.json`。
-- **首轮标准全量**（04:09–04:12 UTC）：上述 BASE/Chrome 环境下 `npm test`，435/436，退出 1，0 skipped。唯一失败是 T-145 CLI 替身仍把非 `/` 请求计为意外调用；保留 `artifacts/t166/npm-test.log`，修正其允许路径后继续验证。
-- **最终聚焦**（04:12 UTC）：`node --test --experimental-strip-types tests/t145-import-cli.test.ts tests/t166-check-origin.test.ts`，4/4、退出 0；`artifacts/t166/focused-final.log`。
-- **构建与类型检查**（04:12–04:13 UTC）：`npm run build` 退出 0，日志 `artifacts/t166/build-final.log`；随后 `npm run typecheck` 退出 0，日志 `artifacts/t166/typecheck-after-build.log`。此前并行启动这两项时，build 重建 `.next/types` 导致 typecheck 缺文件；该调度失败保留在 `artifacts/t166/typecheck-final.log`，未改代码或放宽检查。
-- **第二轮标准全量**（04:13–04:15 UTC）：相同 BASE/Chrome 环境下 `npm test`，435/436、退出 1、0 skipped；日志 `artifacts/t166/npm-test-final.log`。启动两轮前均确认没有其他 Chrome 测试进程。T-145 已通过；T-166 两项通过，整轮负载下阻塞首页场景约 0.67 秒，记录 `artifacts/t166/origin-1791951240048-37169/checks.json`。不再重跑整轮掩盖失败。
+- Dockerfile runtime 增加完整 `/app/public` → `./public` 复制，包含检查源、风格缩略图和系统底图。配置测试检查 runtime 阶段；未构建或运行 Docker 镜像，不把配置验证当作镜像实测。
+- 静态页增加 `sitecraft-code-check=v1` meta 标记。原 origin/readyState 校验后、候选清理前，检查 HTTP 200、`text/html`、该标记与无 script；不符即抛「提交检查静态页缺失或无效（/code-check.html），本次未保存版本。」后续 `setDocumentContent` 和资源拦截保留。
+- 17 处既有 HTTP 替身经 `tests/fixtures/code-check-document.ts` 读取真实静态页作为输入，原断言与 JSON 异常场景保留；真实事实回归脚本同样读取该文件，未执行真实模型脚本。反例 HTML、状态和拒绝期望独立写在 T-166 测试中，不从静态页生成期望值。
+- 本次环境：工作树 `/Users/luckye/Documents/Code/sitecraft-ai-t166`，随机端口 `SITECRAFT_BASE=http://127.0.0.1:59223`，`SITE_STORE=fs`；`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。dev server 为 `npm run dev -- --hostname 127.0.0.1 --port 59223`；测试自身的 HTTP 源也用随机端口。
+- **abca092 红灯，2026-10-14 04:25 UTC**：上述 BASE/Chrome 下 `node --test --experimental-strip-types tests/t166-check-origin.test.ts`，2/8、退出 1；`artifacts/t166/review-red-abca092.log`、`artifacts/t166/origin-1791951929480-74728/checks.json`。当时 Dockerfile、检查器与静态页均未改。缺失页使用本工作树普通 Next 服务真实生成、带应用脚本的 404；原检查器继续接受。其他 HTML、有标记的 404、带应用脚本的标记页也被接受；非 HTML 原先已被拒，但要到候选渲染阶段才报旧错误。runtime 复制配置测试同样红灯。
+- **同一命令转绿，04:26 UTC**：8/8、退出 0、0 skipped；`artifacts/t166/review-green.log`、`artifacts/t166/origin-1791951984095-75239/checks.json`。缺失/错误源均明确拒绝，正常页和首页持续阻塞两项仍通过。
+- **补充聚焦，04:27 UTC**：相同 BASE/Chrome 下 `node --test --experimental-strip-types tests/t166-check-origin.test.ts tests/t145-import-cli.test.ts tests/t148-system-backdrops.test.ts tests/t152-restore-facts.test.ts`，25/25、退出 0、0 skipped，日志 `artifacts/t166/review-focused.log`。覆盖离线导入、三档底图加载与对比度、恢复沿用及无效 JSON 源拒绝。
+- **本次 build/typecheck，04:27 UTC**：`npm run build`、随后 `npm run typecheck` 均退出 0，日志 `artifacts/t166/review-build.log`、`artifacts/t166/review-typecheck.log`。没有同时启动 build 与 typecheck。
+- T-148 的 1440/768/375 截图位于 `artifacts/t148/boundary-1b208ee1-23e0-45bd-a9f7-2914a96566d0/site-{width}.png`，三张均已打开：底图和正文已载入，不是空白或载入态；不作审美结论。提交检查的三档结果在本轮 `checks.json`，未用截图代替检查结果。
 
-剩余失败：`tests/t162-mobile-reveal.test.ts:61` 的 375 跨页线程定位用例等待 `annotation-draft` 消失 20 秒后失败。`artifacts/t162/self-contained-1791951236401-36892/timings.json` 中同一 run 在 04:14:07.292Z 为 complete，04:14:07.321Z 又变为 error（「生成进程已中断」）；`lib/code-site-workflow.ts` 的 state 分支按读取时的 running 状态判中断，`runStep` 写回只校验 run ID，未防止完成后的状态被覆盖。这指向完成与状态读取的竞态，不是 `Page.navigate` 超时；本票不扩改 workflow 或 T-162 测试，交主控转 T-162 处理。失败截图 `artifacts/t162/self-contained-1791951236401-36892/mobile-journey-failure-375-4f582d5c-bb27-4776-bf03-7be4e7561673.png` 已打开，显示当前 v2 及仍保留的中断草稿；不作为审美结论。
+此前失败证据继续保留：`artifacts/t166/red-parent-ab6cd1c.log`；abca092 前两轮全量均 435/436，分别为漏适配的 T-145 路径断言与 T-162 完成后状态被覆为中断，日志 `artifacts/t166/npm-test.log`、`artifacts/t166/npm-test-final.log`。T-162 的 `artifacts/t162/self-contained-1791951236401-36892/` 保留时序和已打开的失败截图；本次不扩改 workflow，不以聚焦通过覆盖旧全量失败。
 
-`git diff --check` 通过；中文文件以 UTF-8 回读正常；`project_map.py status --root .` 的 Problems 与 Stale living docs 均为 0。未自行启动独立审查。
+未推送、未调用真实 DeepSeek、未载入 `.env.local`、未清理任何 `.sitecraft-data`。`git diff --check` 通过，中文 UTF-8 回读正常；`project_map.py status --root .` 的 Problems 和 Stale living docs 均为 0。主线全量与独立复审由主控安排。

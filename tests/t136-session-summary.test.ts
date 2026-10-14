@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -26,7 +27,7 @@ registerHooks({ resolve(specifier, context, next) {
 let reject = true, writerCalls = 0;
 const records: unknown[] = [];
 const server = createServer(async (req, res) => {
-  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body>local fixture origin</body></html>'); return; }
+  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end(codeCheckDocument); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), user = body.messages[1].content, system = body.messages[0].content;
   const repairInput = system.includes('修正输出合同') ? JSON.parse(user.slice(0, user.lastIndexOf('\n请以 json'))) : null;

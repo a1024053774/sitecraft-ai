@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
 import {createServer} from 'node:http';
@@ -31,7 +32,7 @@ test('offline CLI saves missing main/h1 failures and continues the batch',{timeo
   let unexpectedRequests=0;
   const server=createServer((request,response)=>{
     if(request.url!=='/code-check.html')unexpectedRequests++;
-    response.setHeader('content-type','text/html');response.end('<!doctype html><html><body></body></html>');
+    response.setHeader('content-type','text/html');response.end(codeCheckDocument);
   });
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
   const address=server.address();assert.ok(address&&typeof address==='object');

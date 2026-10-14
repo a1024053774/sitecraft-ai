@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -18,7 +19,7 @@ registerHooks({ resolve(specifier,context,next) {
 } });
 let calls=0, reject=false, invalidOrigin=false;
 const server=createServer(async(req,res)=>{
-  if(req.method==='GET'){res.setHeader('content-type',invalidOrigin?'application/json':'text/html');res.end(invalidOrigin?'{}':'<html><body>isolated test origin</body></html>');return;}
+  if(req.method==='GET'){res.setHeader('content-type',invalidOrigin?'application/json':'text/html');res.end(invalidOrigin?'{}':codeCheckDocument);return;}
   let raw=''; for await (const chunk of req) raw+=chunk; const body=JSON.parse(raw);
   calls++; res.setHeader('content-type','application/json');
   res.end(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(factAuditReply(body,{issues:reject?['资料已改变，重新核对拒绝']:[]}))}}],usage:{prompt_tokens:100,completion_tokens:5,total_tokens:105}}));

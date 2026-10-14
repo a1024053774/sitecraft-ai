@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer, type ServerResponse } from 'node:http';
 import test from 'node:test';
 import { checkSiteCode } from '../lib/code-site-check.ts';
@@ -8,6 +8,9 @@ import { localEndpoint } from '../scripts/local-endpoint.ts';
 const application = localEndpoint('SITECRAFT_BASE').origin;
 const output = `artifacts/t166/origin-${Date.now()}-${process.pid}`;
 const records: unknown[] = [];
+const candidate = { siteId: 't166-origin', materials: '青禾纸品。纸盒加工。', images: [], legacyImport: true as const,
+  code: { header: '', footer: '', css: 'body{margin:0;background:#fff;color:#111;font:16px/1.8 sans-serif}main{padding:24px}',
+    pages: [{ id: 'home', title: '青禾纸品', html: '<main><h1>青禾纸品</h1><p>纸盒加工。</p></main>' }] } };
 await mkdir(output, { recursive: true });
 test.after(async () => {
   await writeFile(`${output}/checks.json`, JSON.stringify(records, null, 2), 'utf8');
@@ -43,9 +46,7 @@ for (const stalledHome of [false, true]) {
     const address = server.address(); assert.ok(address && typeof address === 'object');
     process.env.SITECRAFT_BASE = `http://127.0.0.1:${address.port}`;
     const started = performance.now();
-    const checking = checkSiteCode({ siteId: 't166-origin', materials: '青禾纸品。纸盒加工。', images: [], legacyImport: true,
-      code: { header: '', footer: '', css: 'body{margin:0;background:#fff;color:#111;font:16px/1.8 sans-serif}main{padding:24px}',
-        pages: [{ id: 'home', title: '青禾纸品', html: '<main><h1>青禾纸品</h1><p>纸盒加工。</p></main>' }] } });
+    const checking = checkSiteCode(candidate);
     let timer: ReturnType<typeof setTimeout> | undefined;
     let result: Awaited<typeof checking> | undefined;
     let failure: string | undefined;
@@ -78,3 +79,50 @@ for (const stalledHome of [false, true]) {
     }
   });
 }
+
+test('Docker 运行阶段复制完整 public 静态目录', async () => {
+  const dockerfile = await readFile('Dockerfile', 'utf8');
+  const runtime = dockerfile.split(/^FROM\s+.*\s+AS\s+runtime\s*$/mi)[1];
+  assert.ok(runtime, '须检查 runtime 阶段，build 阶段有 public 不够');
+  assert.match(runtime, /^COPY\s+--from=build\s+\/app\/public\/?\s+\.\/public\/?\s*$/m);
+});
+
+// Missing files can yield a fully loaded same-origin application 404. A valid
+// marker alone also cannot authorize a failed HTTP response or application scripts.
+const marked = '<!doctype html><html><head><meta name="sitecraft-code-check" content="v1"></head><body></body></html>';
+for (const scenario of [
+  { name: '静态页缺失，返回应用 404', missing: true, status: 404, html: '' },
+  { name: '同源其他 HTML', status: 200, html: '<!doctype html><html><body>其他页面</body></html>' },
+  { name: '有标记但 HTTP 404', status: 404, html: marked },
+  { name: '有标记但包含应用脚本', status: 200, html: marked.replace('</head>', '<script src="/_next/missing.js"></script></head>') },
+  { name: '有标记但不是 HTML 文档', status: 200, html: marked, contentType: 'text/plain' },
+]) test(`检查静态页无效时明确失败：${scenario.name}`, async () => {
+  const requests: string[] = [];
+  let html = scenario.html;
+  if (scenario.missing) {
+    const missing = await fetch(`${application}/t166-missing-static-page.html`);
+    assert.equal(missing.status, 404, '用同目录普通 Next 服务的真实 404 复现缺失文件');
+    html = await missing.text();
+    assert.match(html, /<script\b/i, '须覆盖带应用脚本的 404');
+  }
+  const server = createServer((req, res) => {
+    requests.push(req.url!);
+    res.writeHead(scenario.status, { 'content-type': scenario.contentType || 'text/html' }); res.end(html);
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address(); assert.ok(address && typeof address === 'object');
+  process.env.SITECRAFT_BASE = `http://127.0.0.1:${address.port}`;
+  let result: Awaited<ReturnType<typeof checkSiteCode>> | undefined, rejection: string | undefined;
+  try {
+    await assert.rejects(checkSiteCode(candidate).then(value => { result = value; return value; }), error => {
+      rejection = String(error);
+      return /提交检查静态页缺失或无效/.test(rejection);
+    });
+    assert.deepEqual(requests, ['/code-check.html'], '拒绝后不得继续请求资源或首页');
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    process.env.SITECRAFT_BASE = application;
+    records.push({ scenario: scenario.name, status: scenario.status, requests, rejection, checks: result?.checks });
+  }
+});
