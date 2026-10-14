@@ -56,11 +56,21 @@ T-161 第 1 步。现在点选区块后要回到对话框写意见，选择、�
 
 ## Resolution
 
-2026-10-13 主控在主目录 `ed11848` 的全量中取得 431/433：发送用例 95.10s 报「任务未结束」，历史回看 120s 超时；原日志 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/merge-ed11848/test.log` 与单独 7/7 的 `t162-rerun.log` 保留。**本轮负载等待修复与本地验证 PASS；整票 INCOMPLETE，实际 Next after 集成、独立复试、Astra 复审和真实模型验证由主控决定/安排**。不推送、不关票，不调用真实 DeepSeek，不开审核实例，不读取 BaoCut 参考目录。
+2026-10-13 21:24（纽约时间；UTC 2026-10-14 01:24）负责人已批准真实单条批注，累计上限 15000 token。**本次真实验收 BLOCKED，尚未发送模型请求，范围与真实 Next after 验收项保持未勾选**。已执行 `git merge --ff-only family-kit-assembly`，快进到 `84ad844`，包含 `ef92be9`，无冲突；领取人仍为 Codex (t162-build)。本次文档提交 SHA 见 `artifacts/t162/real-2026-10-14T01-24-08-766Z/receipt.json`，不推送、不关票，不读取 BaoCut 参考目录。
 
-2026-10-13 17:15 前后（纽约时间）Astra 审查增量 4475410..200cb82 PASS（夹具复用不使断言恒真、冻结闸门、事件等待、六项回退均可检出）。主控合并为 `faad031`，在无其他 Chrome 测试时跑标准命令：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` 433/433，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-faad031/`。剩余验收：真实单条批注修改，待负责人批准预算。
+只读原餐厅 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b` 的当前版本 `60cde704-7364-461c-a236-9af8933c5b4c`。拟提交意见为「保留营业时段和停止点菜时间，把这块的说明排得更清楚，方便客人快速查看。」以生产 `codeFactMaterials` 构造资料，仅把这些资料放入最小请求，再调用现有 `scripts/t153-real-budget.ts` 的 `reserveRequest`：资料请求的保守输入预留 13903，网关要求可用输出至少 4096，最低合计 17999；在上限 15000 下输出仅余 1097，抛出 `Remaining authorization cannot reserve this request and a usable output allowance`。真实请求还必须包含局部合同、选中 HTML、相关 CSS 和大纲，因此这个下界已经足以阻止调用，并不代表实际计费会用 17999。未改预留算法、白名单或上限，未删减资料绕过预算。
 
-本轮父版本 `4475410e7cc25e279ea2f02e2b7e61b8bbce0bc5`；最终 SHA、精确命令和完成时间见 `artifacts/t162/load-receipt.json`，分段计时汇总见 `load-benchmark.json`。仅改 T-162 测试 helper、两个测试文件、模型替身和文档，产品代码与提交检查不变。测试内自建随机端口替身与调用生产 chat/history POST 的 HTTP 服务，普通同目录 dev server 提供界面、创建、预览和版本读回；health 即使 503 仍须核对 cwd。本次各 health.json 均 configured=false，没有改变普通服务模型配置。
+证据 `artifacts/t162/real-2026-10-14T01-24-08-766Z/budget-preflight.json`；原执行为 `node --experimental-strip-types --input-type=module -` 的标准输入脚本，副本保存在同目录 `preflight.mjs`。从本工作树复现：
+
+```sh
+node --experimental-strip-types --input-type=module - < artifacts/t162/real-2026-10-14T01-24-08-766Z/preflight.mjs
+```
+
+该预检不访问模型、应用服务或预算服务；预算计数沿用网关的保守算法，不做文件字节比对。按负责人「一次调用可能超 15000 就先停」的指示停止：真实调用 0 次，用量 0；未载入 `.env.local`，未创建新站（无新 siteId）、未启动 dev server/网关，也未生成 usage.json 或截图。首版复制、真实 Chrome 批注、版本范围读回均未执行；本次只更新票，未重跑 typecheck/test/build，旧通过证据不冒充本次真实验收。
+
+2026-10-13 17:15 前后（纽约时间）Astra 审查增量 4475410..200cb82 PASS（夹具复用不使断言恒真、冻结闸门、事件等待、六项回退均可检出）。主控合并为 `faad031`，在无其他 Chrome 测试时跑标准命令：`SITECRAFT_BASE=http://127.0.0.1:3034 CHROME_PATH=… npm test` 433/433，`npm run typecheck`、`SITE_STORE=fs npm run build` 通过；日志 `artifacts/merge-faad031/`。真实单条批注修改已有 15000 token 授权，当前在上述预算预检处阻塞。
+
+此前负载修复父版本 `4475410e7cc25e279ea2f02e2b7e61b8bbce0bc5`；最终 SHA、精确命令和完成时间见 `artifacts/t162/load-receipt.json`，分段计时汇总见 `load-benchmark.json`。该修复仅改 T-162 测试 helper、两个测试文件、模型替身和文档，产品代码与提交检查不变。测试内自建随机端口替身与调用生产 chat/history POST 的 HTTP 服务，普通同目录 dev server 提供界面、创建、预览和版本读回；health 即使 503 仍须核对 cwd。该次各 health.json 均 configured=false，没有改变普通服务模型配置。
 
 根因证据：改前负载组两个 worker 的初版提交共 17 次，累计 144.86s；历史 v2 提交 3 次累计 31.45s，撤销存版 3 次累计 35.96s；Chrome 启动 14 次共 2.82s，状态请求自身远低于 1s。提交的浏览器检查与重复夹具是主要开销。原 settle 固定 180 次、每次间隔 300ms，会在合法后台任务仍运行时用尽次数；UI 每 100ms 跨 CDP 轮询，替身每次局部写作固定等待 1.2s。阶段累计跨 worker，fixture.build 包含 commit.initial，after.task 也包含提交检查，不能把阶段相加当作墙钟时间。
 
@@ -94,4 +104,4 @@ node --experimental-strip-types scripts/t162-model-fixture.ts
 SITE_STORE=fs DEEPSEEK_BASE_URL="$SITECRAFT_FIXTURE_BASE" DEEPSEEK_API_KEY="$SITECRAFT_FIXTURE_AUTH" DEEPSEEK_MODEL=local-only npm run dev -- --hostname 127.0.0.1 --port "$SITECRAFT_PORT"
 ```
 
-随后直接打开 `$SITECRAFT_BASE/workspace?site=<本次 send.json 中的合法夹具 id>`，点选区块 → 写一条意见 → 添加 → 发送，检查新版本及批注线程；不要用未点选整页写作（替身明确拒绝）。此项命令/前置条件交主控决定，本轮未执行。真实 DeepSeek 单条修改仍须主控另行报批；独立试用与审美不标 PASS。
+随后直接打开 `$SITECRAFT_BASE/workspace?site=<本次 send.json 中的合法夹具 id>`，点选区块 → 写一条意见 → 添加 → 发送，检查新版本及批注线程；不要用未点选整页写作（替身明确拒绝）。这是本地替身的实际 Next 集成前置条件，本次未执行。真实 DeepSeek 已获 15000 token 授权，但现有预算预留无法容纳请求，须主控决定后续处理；独立试用与审美不标 PASS。
