@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import test from 'node:test';
 import {codeCheckBrowser} from '../lib/code-site-browser.ts';
-const base=process.env.SITECRAFT_BASE||'http://127.0.0.1:3034';
+const base=process.env.SITECRAFT_BASE!;
+assert.ok(base, '必须显式设置 SITECRAFT_BASE');
 const scan=await readFile('scripts/workspace-contrast-scan.js','utf8');
 // Exercise the actual new-route controls. The same saved question is read on
 // every viewport; no model runs and no legacy look/color panels are substituted.

@@ -52,7 +52,7 @@ test('T-145: trusted import stores one checked first version and repeat leaves i
   const repeated=await commitSiteCode({...args,legacyImport:{...args.legacyImport,name:'覆盖名称'}});
   assert.equal(repeated.status,'existing');assert.equal((await getCodeSite(siteId))!.versions.length,1);
   assert.equal((await getCodeSite(siteId))!.name,'窄口精密加工');
-  assert.equal(existsSync(`.sitecraft-data/sites/${siteId}.json`),false);
+  assert.equal(existsSync(`${process.env.SITECRAFT_DATA_ROOT!}/sites/${siteId}.json`),false);
   assert.equal(modelCalls,0);
 });
 test('T-145: a failed deterministic import has visible failure metadata and no version',async()=>{
@@ -64,7 +64,7 @@ test('T-145: a failed deterministic import has visible failure metadata and no v
   assert.match(result.record.readError,/旧站转换失败：.*横向溢出/);
   assert.deepEqual(result.record.checks!.viewports.map(v=>v.width),[375,768,1440]);
   assert.equal('versions' in result.record,false);
-  const persisted=JSON.parse(await readFile(`.sitecraft-data/code-sites/${siteId}.json`,'utf8'));
+  const persisted=JSON.parse(await readFile(`${process.env.SITECRAFT_DATA_ROOT!}/code-sites/${siteId}.json`,'utf8'));
   assert.equal('currentVersionId' in persisted,false);
   await assert.rejects(()=>getCodeSite(siteId),error=>error instanceof CodeSiteUnavailableError && error.message===result.record.readError);
   assert.equal((await listCodeSites()).find(row=>row.siteId===siteId)!.readError,result.record.readError);

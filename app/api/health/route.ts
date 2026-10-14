@@ -1,6 +1,7 @@
 import { getAIProviderStatus } from "@/lib/ai-provider";
 import { checkDatabaseConnection } from "@/lib/postgres";
 import { codeContentThinkingMode } from "@/lib/code-site-model";
+import path from "node:path";
 
 export const runtime = "nodejs";
 
@@ -21,7 +22,7 @@ export async function GET() {
   const ready = ai.configured && (!store.shared || database === "ready");
   const developmentIdentity = process.env.NODE_ENV === "production"
     ? {}
-    : { testIdentity: { cwd: process.cwd() } };
+    : { testIdentity: { cwd: process.cwd(), dataRoot: path.resolve(process.env.SITECRAFT_DATA_ROOT || '.sitecraft-data') } };
   return Response.json(
     {
       status: ready ? "ready" : "not_ready",

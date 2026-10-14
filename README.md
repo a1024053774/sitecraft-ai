@@ -38,11 +38,13 @@ DEEPSEEK_MODEL=deepseek-flash
 
 ```bash
 npm run typecheck
-npm test
+CHROME_PATH=/path/to/chrome-headless-shell npm test
 npm run build
 ```
 
 `next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
+
+`npm test` 每轮创建独立的临时 `SITECRAFT_DATA_ROOT`，自启本工作树随机端口 dev server，把同一数据根与 `SITECRAFT_BASE` 传给测试进程，并在任何测试模块载入前核对 health 身份。它不沿用已有服务或数据根，不加载 `.env.local`，不配置真实模型；日志和数据根路径保存在 `artifacts/t167/test-run-*/`，临时数据保留供核查。定向检查可用 `npm test -- tests/<用例>.test.ts`。
 
 英文版的本地 HTTP 模型替身全链检查：`CHROME_PATH=/path/to/chrome-headless-shell node --experimental-strip-types scripts/check-english.mjs`。它独占 3161、使用独立的 artifacts 数据目录，运行后保留报告与截图，不调用真实模型。真实英文质量与独立审核的状态见 T-151。
 

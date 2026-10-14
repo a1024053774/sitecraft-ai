@@ -84,10 +84,10 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `app/api/**` | 94b64bf |
+| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `app/api/**`, `scripts/run-tests.ts`, `scripts/test-identity.ts` | 94b64bf |
 | [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/code-site*.ts`, `lib/annotations.ts` | 94b64bf |
-| [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**`, `lib/code-site-store.ts`, `scripts/import-legacy-site-code.ts` | 94b64bf |
+| [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**`, `lib/code-site-store.ts`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts` | 94b64bf |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-127-*.md`, `.project-map/tickets/T-141-*.md`, `.project-map/tickets/T-145-*.md`, `.project-map/tickets/T-151-*.md`, `.project-map/tickets/T-152-*.md` | 9bcf59b |
 | [docs/project/mainline.md](../docs/project/mainline.md) | `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts` | 94b64bf |
-| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/conversation-store.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts` | 94b64bf |
+| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/conversation-store.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts` | 94b64bf |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | 00a083e |

@@ -56,8 +56,8 @@ function annotationInput(siteId: string) {
 }
 
 test.after(async () => {
-  await Promise.all([...createdSites].map((siteId) => rm(`${process.cwd()}/.sitecraft-data/code-sites/${siteId}.json`, { force: true })));
-  await Promise.all([...createdSites].map((siteId) => rm(`${process.cwd()}/.sitecraft-data/annotations/${siteId}.json`, { force: true })));
+  await Promise.all([...createdSites].map((siteId) => rm(`${process.env.SITECRAFT_DATA_ROOT!}/code-sites/${siteId}.json`, { force: true })));
+  await Promise.all([...createdSites].map((siteId) => rm(`${process.env.SITECRAFT_DATA_ROOT!}/annotations/${siteId}.json`, { force: true })));
 });
 
 test("annotation CRUD is independent from draft revision", async () => {
