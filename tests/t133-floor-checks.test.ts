@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -21,7 +22,7 @@ registerHooks({ resolve(specifier, context, next) {
 const excerpt = JSON.parse(await readFile('tests/fixtures/t133/first-round-excerpts.json', 'utf8'));
 let auditReadable = '';
 const server = createServer(async (req, res) => {
-  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<html><body>fixture origin</body></html>'); return; }
+  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end(codeCheckDocument); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw);
   auditReadable = JSON.parse(body.messages[1].content.split('\n')[0]).segments.map((segment: { text: string }) => segment.text).join('\n');

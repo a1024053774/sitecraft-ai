@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import { localEndpoint } from '../scripts/local-endpoint.ts';
 import assert from 'node:assert/strict';
@@ -36,7 +37,7 @@ const dictionary: Record<string, string> = { '边界机械': '边界机械', '�
   '产品型号 LG-A1，尺寸 20 mm，额定流量 30 L/min。': 'Model LG-A1, size 20 mm, rated flow 30 L/min.',
   '认证：待补充': 'Certification: To be provided', '产品目录': 'Product catalogue' };
 const provider = createServer(async (request, response) => {
-  if (request.method === 'GET') { response.setHeader('content-type', 'text/html'); response.end('<!doctype html><html><body></body></html>'); return; }
+  if (request.method === 'GET') { response.setHeader('content-type', 'text/html'); response.end(codeCheckDocument); return; }
   let raw = ''; for await (const chunk of request) raw += chunk;
   const body = JSON.parse(raw); let reply: unknown;
   if (body.messages[0].content.includes('事实校对员')) { factCalls++; reply = { issues: [] }; }

@@ -25,7 +25,8 @@ const fixtures: Array<{ source: string; case: number; materials: string; code: S
 assert.deepEqual(fixtures.map(fixture => fixture.case), [7, 8], 'both original candidates are required');
 const directory = process.argv[2] || path.join('artifacts/t133', `live-policy-${new Date().toISOString().replace(/[:.]/g, '-')}`);
 await mkdir(directory); // Refuse to overwrite an earlier run.
-const server = createServer((_req, res) => { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body>事实检查回归的空白 HTML 来源</body></html>'); });
+const codeCheckDocument = await readFile('public/code-check.html', 'utf8');
+const server = createServer((_req, res) => { res.setHeader('content-type', 'text/html'); res.end(codeCheckDocument); });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
 const previousBase = process.env.SITECRAFT_BASE;

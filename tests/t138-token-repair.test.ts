@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -32,7 +33,7 @@ const code: SiteCode = {
 const bodies: Array<{ messages: Array<{ content: string }> }> = [];
 let repairs = 0, writes = 0, id = '';
 const server = createServer(async (req, res) => {
-  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><html><body></body></html>'); return; }
+  if (req.method === 'GET') { res.setHeader('content-type', 'text/html'); res.end(codeCheckDocument); return; }
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); bodies.push(body);
   const [system, user] = body.messages.map((m: { content: string }) => m.content);

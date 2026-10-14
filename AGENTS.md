@@ -78,6 +78,8 @@ T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事�
 
 ## 验收
 
+提交检查的 Chrome 从 `/code-check.html`（文件在 `public/`）建立同源 HTML 文档，不读取站点列表；须核对 HTTP 200、HTML 类型、固定标记且无脚本，缺失或无效即报错。Docker runtime 复制完整 `public/`，`tests/t166-check-origin.test.ts` 检查复制配置并拦截缺失页被当作有效源；origin 校验和候选资源拦截仍执行（T-166）。
+
 一个功能算完成：
 
 1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；

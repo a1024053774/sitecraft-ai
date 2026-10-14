@@ -1,3 +1,4 @@
+import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -32,7 +33,7 @@ const requested = { ...thin, header: '<header>榆原零件<nav><a href="/home">�
 let explicit = false;
 const calls: Array<{ system: string; user: string }> = [];
 const server = createServer(async (request, response) => {
-  if (request.method === 'GET') { response.setHeader('content-type', 'text/html'); return response.end('<!doctype html><html><body></body></html>'); }
+  if (request.method === 'GET') { response.setHeader('content-type', 'text/html'); return response.end(codeCheckDocument); }
   let raw = ''; for await (const chunk of request) raw += chunk;
   const body = JSON.parse(raw), [system, user] = body.messages.map((message: { content: string }) => message.content);
   calls.push({ system, user });
