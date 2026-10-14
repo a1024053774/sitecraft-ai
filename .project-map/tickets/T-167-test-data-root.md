@@ -28,17 +28,22 @@ supersedes:
 - [x] 启动失败报告 Next 原因与日志路径（父版本入口红灯）
 - [x] 主目录既有 artifacts 结构下构建不 panic（dfb9d5e 红灯、带修复绿灯）
 - [x] 全量 test、typecheck、build 通过
+- [x] .next-test 同时被 Docker 构建上下文与 Git 排除（9b62be0 红灯）
 - [ ] 独立 sol 实例代码审查通过
 
 ## Resolution
 
-执行检查 PASS，整票 INCOMPLETE：待主控安排独立 sol 复审。票保持 open、claimed_by Codex；执行者未自开审查、未推送。本次父提交 19a99bbf9ec7aa5217ab72a505d685bc12515f3e，提交 SHA、命令、时间及产物索引在提交后写入 artifacts/t167/coexist-trace-fix-report.json。所有历史失败和临时数据继续保留。
+本轮聚焦检查 PASS，整票 INCOMPLETE：9b62be0 独立 sol 复审为 NO_GO（P2），遗漏 Docker 构建上下文中的 .next-test 排除项；本轮已补齐，待主控复审。票保持 open、claimed_by Codex；执行者未自开审查、未推送。本轮父提交 9b62be0b8d7232ce0eefede32dc1e06832d0dc74，提交 SHA、命令、时间及产物索引在提交后写入 artifacts/t167/dockerignore-review-fix-report.json。所有历史失败和临时数据继续保留。
+
+本轮仅改 .dockerignore、现有 Docker 配置断言及本票：.gitignore 原本已有 .next-test，确认后与 .dockerignore 一并由断言保护。2026-10-14 运行 npm test -- --test-name-pattern=Docker tests/t166-check-origin.test.ts；9b62be0 上先添加断言，因 .dockerignore 缺少排除项而失败（1 项执行、1 失败，退出 1），日志 artifacts/t167-dockerignore-9b62be0-red.log；补齐后同命令 1/1 通过、退出 0，日志 artifacts/t167-dockerignore-fixed-green.log。按主控要求仅跑此聚焦用例，未跑 build、全量、typecheck 或 Chrome。
+
+NFT 证据缺口：没有与 58f2827 在同目录、同环境下的追踪数量及清单精确对照。已有的旧 .next“4606→604”记录不能替代该对照，不能据此宣称追踪规模已恢复到 58f2827。保留已实测的 panic 红灯和构建成功绿灯；本轮不补跑或补造对照。
 
 当前标准入口每轮新建临时 SITECRAFT_DATA_ROOT，自启同工作树随机端口 dev 服务；health 的 cwd/dataRoot 一致后登记存储许可，再载入测试。测试服务经 SITECRAFT_TEST_DIST_DIR 独用 .next-test，普通服务继续用 .next 及原端口。清除继承的 NODE_TEST_CONTEXT，按 Node 每文件 summary 统计实际执行数，零用例失败。启动或身份核对失败先关闭本轮服务，再报告 Next 原始输出、原因和 dev.log 路径。
 
 五类 store 的目录保持直接 path.join 表达式，storageGuard 只核验许可，不再返回供 FS 使用的未知路径；原始 Node 测试未配置或未核对根仍在读写前拒绝。守卫的运行时 path.resolve、existsSync/readFileSync 参数及 health 身份 path.resolve 标注 turbopackIgnore；注释写明原因及移除条件。[Next 16.3.1 源码](https://github.com/vercel/next.js/blob/v16.3.1/turbopack/crates/turbopack-ecmascript/src/references/mod.rs)中 PathResolve 本身会添加目录追踪（fs 参数忽略支持见 [官方 PR 95144](https://github.com/vercel/next.js/pull/95144)），仅忽略两处 fs 参数不能覆盖它；只保留四处注释而仍由闭包返回 store 路径也会 panic。修复不排除 artifacts，不删除或移动 artifacts/.sitecraft-data，不放松守卫。
 
-本次证据（2026-10-14，UTC）：
+9b62be0 的既有证据（2026-10-14，UTC；并非本轮重跑）：
 
 - dev 共存红灯：19a99bb 上先起本工作树普通 dev，再经真实 npm test 入口运行 conversation-store；Next 报已有同目录 dev，入口仅 fetch failed，用例失败。日志 artifacts/t167-coexist-19a99bb-red.log。绿灯：node --test --experimental-strip-types scripts/t167-runner-regressions.ts，4/4 通过；日志 artifacts/t167-final-entry-regressions.log，普通服务端口、数据根和存活状态均经前后 health 读回核对。
 - 启动报错红灯：保留独立 distDir，只恢复 19a99bb 的 scripts/run-tests.ts，并设置 SITECRAFT_TEST_DIST_DIR=.next-test；以 .next-test 文件制造实际 ENOTDIR。同一个 startup failure 用例因仅收到 fetch failed 而失败，日志 artifacts/t167-startup-cause-parent-red.log；每次结束恢复源码及缓存。修后同用例通过，日志 artifacts/t167-startup-cause-final-green.log。

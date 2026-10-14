@@ -1,5 +1,6 @@
 .next
 **/.next
+.next-test
 node_modules
 **/node_modules
 .git

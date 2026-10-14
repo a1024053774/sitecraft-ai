@@ -85,6 +85,9 @@ test('Docker 运行阶段复制完整 public 静态目录', async () => {
   const runtime = dockerfile.split(/^FROM\s+.*\s+AS\s+runtime\s*$/mi)[1];
   assert.ok(runtime, '须检查 runtime 阶段，build 阶段有 public 不够');
   assert.match(runtime, /^COPY\s+--from=build\s+\/app\/public\/?\s+\.\/public\/?\s*$/m);
+  for (const file of ['.dockerignore', '.gitignore']) {
+    assert.match(await readFile(file, 'utf8'), /^\.next-test\/?\s*$/m, `${file} 必须排除测试构建缓存 .next-test`);
+  }
 });
 
 // Missing files can yield a fully loaded same-origin application 404. A valid
