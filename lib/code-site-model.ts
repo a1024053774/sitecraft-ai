@@ -1,4 +1,4 @@
-import { normalizeFactQuote, type CodeFactSegment, type CodeFactReview } from './code-site-fact-segments.ts';
+import { normalizeFactQuote, normalizeFactClaimText, type CodeFactSegment, type CodeFactReview } from './code-site-fact-segments.ts';
 import { readFile } from 'node:fs/promises';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomInt } from 'node:crypto';
@@ -292,7 +292,7 @@ export async function auditCodeFacts(materials: string, readable: string | CodeF
     const citations = row.citations.filter(citation => {
       const quote = normalizeFactQuote(citation.quote), claim = normalizeFactQuote(citation.claim);
       if (!quote || !source.includes(quote)) { problems.push(`资料出处无依据：${citation.claim}；引文「${citation.quote}」未在本次资料原文中找到。`); return false; }
-      if (!claim || !normalizeFactQuote(segment.text).includes(claim)) { problems.push(`资料出处声明不在本核对段：${citation.claim}`); return false; }
+      if (!claim || !normalizeFactClaimText(segment.text).includes(claim)) { problems.push(`资料出处声明不在本核对段：${citation.claim}`); return false; }
       return true;
     });
     return { text: segment.text, group: segments[i].group, issues: problems, citations };

@@ -11,7 +11,7 @@ import { codeStyles } from '../lib/code-site-styles.ts';
 // its public image must identify the independently reviewed real version.
 test('普通进程的标准 CLI 可选择已盲评通过的邻里日常并进入规划', async () => {
   localEndpoint('SITECRAFT_BASE');
-  const folder = path.resolve('artifacts/t159', `ready-entry-${crypto.randomUUID()}`); await mkdir(folder);
+  const folder = path.resolve('artifacts/t159', `ready-entry-${crypto.randomUUID()}`); await mkdir(folder, { recursive: true });
   const env: NodeJS.ProcessEnv = { ...process.env, T159_ENTRY_OUT: folder };
   delete env.SITECRAFT_EVAL_STYLES; delete env.T159_PENDING_CATALOG;
   const result = spawnSync(process.execPath, ['--experimental-strip-types', 'tests/fixtures/t159-entry.ts'], { env, encoding: 'utf8', timeout: 30000 });

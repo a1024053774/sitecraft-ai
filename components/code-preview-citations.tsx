@@ -33,7 +33,7 @@ export function CodePreviewCitations({ frame, ready, record, versionId, pageId, 
         const identity = JSON.stringify([target.root, target.path, citation.claim, citation.quote]);
         if (seen.has(identity)) return; seen.add(identity);
         const siblings = next.filter(mark => mark.y === Math.max(0, r.y) * scale).length;
-        next.push({ key: identity, number: i + 1, citation, x: Math.max(0, Math.min(frame.current!.offsetWidth * scale - 26, r.right * scale - 24 - siblings * 26)), y: Math.max(0, r.y) * scale });
+        next.push({ key: identity, number: i + 1, citation, x: Math.max(0, Math.min(frame.current!.offsetWidth * scale - 26, r.right * scale + 4 - siblings * 26)), y: Math.max(0, r.y) * scale });
       }));
       setMarks(next);
     };

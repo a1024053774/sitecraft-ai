@@ -79,3 +79,28 @@ test('复用出处重新绑定当前路径与文字快照，不沿用旧位置�
   const current = { ...segment, targets: [{ pageId: 'home', root: 'body' as const, path: [1], text: '客户已服务30家客户。' }, { pageId: 'home', root: 'body' as const, path: [1, 1, 0], text: '已服务30家客户。' }] };
   assert.deepEqual(bindCodeFactCitations(current, [citation])[0].targets, [{ pageId: 'home', root: 'body' as const, path: [1, 1, 0], text: '已服务30家客户。' }]);
 });
+
+test('真实小跑的表格单行声明跨单元格仍属于本段，绑定最小行并保留行界与引文验真', async () => {
+  // 2026-10-14 真实候选的菜单行；期待值来自已提供的菜单资料。
+  const row = '<TR>\n<TD>家常饭</TD>\n<TD>每份</TD>\n<TD>18 元</TD>\n</TR>';
+  const table = `<TABLE>\n<THEAD><TR><TH>品名</TH><TH>规格</TH><TH>价格</TH></TR></THEAD>\n<TBODY>${row}</TBODY>\n</TABLE>`;
+  citations = [{ category: '价格与收费', claim: '家常饭 每份 18 元', quote: '家常饭每份18元。' }];
+  const tableTarget = { pageId: 'menu', root: 'main' as const, path: [1, 0], text: '品名 规格 价格 家常饭 每份 18 元', readable: table };
+  const rowTarget = { pageId: 'menu', root: 'main' as const, path: [1, 0, 2, 0], text: '家常饭 每份 18 元', readable: row };
+  const menu = { text: table, group: table, context: { pageId: 'menu', outline: [], headings: [] }, targets: [tableTarget, rowTarget] };
+  for (const local of [false, true]) {
+    const result = await auditCodeFacts('家常饭每份18元。', [menu], local);
+    assert.deepEqual(result[0].issues, []);
+    assert.deepEqual(result[0].citations, citations);
+    assert.deepEqual(bindCodeFactCitations(menu, result[0].citations!)[0].targets, [{ pageId: 'menu', root: 'main', path: [1, 0, 2, 0], text: '家常饭 每份 18 元' }]);
+  }
+  const text = '<TABLE><TR><TD>已服务</TD></TR><TR><TD>30家客户</TD></TR></TABLE>';
+  citations = [{ category: '客户与合作方', claim: '已服务 30家客户', quote: '已服务30家客户。' }];
+  const result = await auditCodeFacts('已服务30家客户。', [{ ...segment, text }]);
+  assert.match(result[0].issues.join('\n'), /声明不在本核对段/);
+  assert.deepEqual(result[0].citations, []);
+  citations = [{ category: '客户与合作方', claim: '已服务30家客户。', quote: '<TD>已服务30家客户。</TD>' }];
+  const invalidQuote = await auditCodeFacts('已服务30家客户。', [segment]);
+  assert.match(invalidQuote[0].issues.join('\n'), /资料出处无依据/);
+  assert.deepEqual(invalidQuote[0].citations, []);
+});

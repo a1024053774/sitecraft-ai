@@ -24,7 +24,10 @@ registerHooks({ resolve(specifier, context, next) {
   const file = path.join(process.cwd(), specifier.slice(2));
   return next(pathToFileURL(existsSync(`${file}.ts`) ? `${file}.ts` : file).href, context);
 } });
-let mode: 'valid' | 'forged' | 'stitched' = 'valid';
+let mode: 'valid' | 'forged' | 'stitched' | 'table' = 'valid';
+const tableClaim = { ...citationClaims[2], claim: '纸盒 每件 CNY 12。' };
+const tableSite = { ...citationSite, pages: citationSite.pages.map(page => ({ ...page,
+  html: page.html.replace('<p>纸盒每件 CNY 12。</p>', '<table><thead><tr><th>品名</th><th>规格</th><th>价格</th></tr></thead><tbody><tr><td>纸盒</td><td>每件</td><td>CNY 12。</td></tr></tbody></table>') })) };
 const requests: any[] = [];
 const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
@@ -34,11 +37,12 @@ const provider = createServer(async (req, res) => {
   if (body.tools) answer = { summary: '展示普通纸盒与经营资料。', style: 'precision', styleReason: '按已有资料集中展示。', skeletonId: 'custom', skeletonReason: '一页短站集中表达，不扩充服务流程。', pages: [{ id: 'home', title: '首页', outline: ['普通纸盒、客户、认证与收费'] }] };
   else if (system.includes('事实校对员')) {
     const data = JSON.parse(input.split('\n')[0]);
-    answer = { results: data.segments.map((segment: any) => ({ id: segment.id, issues: [], citations: citationClaims.filter(c => segment.text.includes(c.claim)).map(c => ({ ...c,
-      quote: c.category === '客户与合作方' && mode !== 'valid' ? mode === 'forged' ? '长期服务30家客户。' : '已服务30家客户。取得 ISO 9001 认证。' : c.quote })) })) };
+    answer = { results: data.segments.map((segment: any) => ({ id: segment.id, issues: [], citations: [...citationClaims.filter(c => segment.text.includes(c.claim)),
+      ...(mode === 'table' && segment.text.includes('<TR>') && segment.text.includes('<TD>纸盒</TD>') ? [tableClaim] : [])].map(c => ({ ...c,
+      quote: c.category === '客户与合作方' && (mode === 'forged' || mode === 'stitched') ? mode === 'forged' ? '长期服务30家客户。' : '已服务30家客户。取得 ISO 9001 认证。' : c.quote })) })) };
   } else if (system.includes('修正输出合同')) {
     const data = JSON.parse(input.split('\n')[0]); answer = { replacements: data.fragments.map((f: any) => ({ fragmentId: f.id, after: f.before })) };
-  } else answer = citationSite;
+  } else answer = mode === 'table' ? tableSite : citationSite;
   const message = body.tools ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
   res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } }));
 });
@@ -67,9 +71,17 @@ async function generate() {
   return (await getCodeSite(id))!;
 }
 async function wait(browser: Awaited<ReturnType<typeof codeCheckBrowser>>, condition: string) {
-  await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+30000;const observer=new MutationObserver(check);observer.observe(document,{subtree:true,childList:true,attributes:true});const timer=setInterval(check,100);function check(){try{if(${condition}){observer.disconnect();clearInterval(timer);resolve(true)}else if(Date.now()>end){observer.disconnect();clearInterval(timer);reject(new Error('等待界面条件超时'))}}catch{}}check()})`);
+  try {
+    await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+30000;const observer=new MutationObserver(check);observer.observe(document,{subtree:true,childList:true,attributes:true});const timer=setInterval(check,100);function check(){try{if(${condition}){observer.disconnect();clearInterval(timer);resolve(true)}else if(Date.now()>end){observer.disconnect();clearInterval(timer);reject(new Error('等待界面条件超时'))}}catch{}}check()})`);
+  } catch (error) { throw new Error(`界面等待失败：${condition}`, { cause: error }); }
+}
+async function settle(browser: Awaited<ReturnType<typeof codeCheckBrowser>>) {
+  await browser.evaluate(`(async()=>{await document.fonts.ready;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));await Promise.allSettled(document.getAnimations().filter(a=>a.playState==='running'&&Number.isFinite(a.effect?.getComputedTiming().endTime)).map(a=>a.finished));await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))})()`);
 }
 async function click(browser: Awaited<ReturnType<typeof codeCheckBrowser>>, selector: string) {
+  // The 768 drawer exits over 240ms. DOM state alone does not prove that a
+  // pointer can reach the preview; wait for its actual finite animations.
+  await settle(browser);
   const point = await browser.evaluate<any>(`(async()=>{document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const node=document.querySelector(${JSON.stringify(selector)}),r=node.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`);
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point });
   await browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...point });
@@ -102,6 +114,7 @@ test('本地替身经真实生成入口保存至少三条出处，三档工作�
         await click(browser, `[data-testid="fact-citation-marker"][data-claim="${citationClaims[i].claim}"]`);
         await browser.evaluate(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);
         await wait(browser, `document.querySelector('[data-testid="fact-citation-source"] blockquote')?.textContent===${JSON.stringify(citationClaims[i].quote)}`);
+        await settle(browser);
         const geometry = await browser.evaluate<any>(`(()=>{const p=document.querySelector('[data-testid="fact-citation-source"]').getBoundingClientRect();return{left:p.left,right:p.right,top:p.top,bottom:p.bottom,overflow:document.documentElement.scrollWidth>innerWidth}})()`);
         assert.ok(geometry.left >= 0 && geometry.right <= width && geometry.top >= 0 && geometry.bottom <= 1000 && !geometry.overflow, JSON.stringify(geometry));
         if (i === 0) { const shot = await browser.send<any>('Page.captureScreenshot', { format: 'png' }); await writeFile(`${output}/workspace-${width}.png`, Buffer.from(shot.data, 'base64')); }
@@ -134,6 +147,40 @@ test('编造与拼接引文进入两轮修正，耗尽后不保存版本', { tim
       await writeFile(`${output}/${invalid}.json`, JSON.stringify(site, null, 2));
     } finally { mode = 'valid'; }
   }
+});
+
+test('表格中的跨单元格价格出处经真实提交入口存版并准确绑定行', { timeout: 180000 }, async () => {
+  mode = 'table';
+  try {
+    const site = await generate(); assert.equal(site.run?.status, 'complete', site.run?.step);
+    const version = site.versions[0]; assert.equal(version.checks.passed, true);
+    assert.deepEqual(version.checks.viewports.map(v => v.width), [375, 768, 1440]);
+    const price = version.checks.factCitations!.entries.find(c => c.category === '价格与收费')!;
+    assert.equal(price.claim, '纸盒 每件 CNY 12。'); assert.equal(price.quote, '纸盒每件 CNY 12。');
+    assert.deepEqual(price.targets, [{ pageId: 'home', root: 'main', path: [4, 1, 1, 0], text: '纸盒每件CNY 12。' }]);
+    await writeFile(`${output}/table.json`, JSON.stringify(site, null, 2));
+    for (const width of [1440, 768, 375]) {
+      const browser = await codeCheckBrowser();
+      try {
+        await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        await browser.send('Page.navigate', { url: `${base}/workspace?site=${site.siteId}` });
+        await wait(browser, `document.querySelector('[data-testid="fact-citation-status"]')?.textContent.includes('3 条资料出处')`);
+        if (width < 1100) await click(browser, '[role="tab"]:nth-child(2)');
+        await click(browser, `[aria-label="预览宽度"] button:nth-child(${width === 1440 ? 1 : width === 768 ? 2 : 3})`);
+        await wait(browser, `document.querySelector('[data-testid="code-preview"]')?.contentWindow.innerWidth===${width} && document.querySelector('[data-testid="fact-citation-marker"][data-claim="纸盒 每件 CNY 12。"]')`);
+        await settle(browser);
+        const priceGeometry = await browser.evaluate<any>(`(()=>{const frame=document.querySelector('[data-testid="code-preview"]'),doc=frame.contentDocument,range=doc.createRange();range.selectNodeContents(doc.querySelector('tbody td:last-child'));const f=frame.getBoundingClientRect(),p=range.getBoundingClientRect(),m=document.querySelector('[data-testid="fact-citation-marker"][data-claim="纸盒 每件 CNY 12。"]').getBoundingClientRect();return{priceRight:f.x+p.right*f.width/frame.offsetWidth,markerLeft:m.left}})()`);
+        await writeFile(`${output}/table-geometry-${width}.json`, JSON.stringify(priceGeometry, null, 2));
+        assert.ok(priceGeometry.markerLeft >= priceGeometry.priceRight + 2, '资料出处编号不能盖住表格价格：' + JSON.stringify(priceGeometry));
+        await click(browser, '[data-testid="fact-citation-marker"][data-claim="纸盒 每件 CNY 12。"]');
+        await wait(browser, `document.querySelector('[data-testid="fact-citation-source"] blockquote')?.textContent==='纸盒每件 CNY 12。'`);
+        await settle(browser);
+        if (width < 1100) assert.equal(await browser.evaluate(`getComputedStyle(document.querySelector('.builder-chat')).visibility`), 'hidden', '截图须在抽屉实际退出后取得');
+        const shot = await browser.send<any>('Page.captureScreenshot', { format: 'png' });
+        await writeFile(`${output}/table-workspace-${width}.png`, Buffer.from(shot.data, 'base64'));
+      } finally { await browser.close(); }
+    }
+  } finally { mode = 'valid'; }
 });
 
 test('CSS复用保留出处并重绑路径，资料改一字重核；局部改后保留外部出处且新声明准确定位', { timeout: 180000 }, async () => {

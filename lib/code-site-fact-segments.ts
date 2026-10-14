@@ -9,9 +9,15 @@ export type CodeFactReview = {
 };
 
 export function normalizeFactQuote(text: string) { return text.normalize('NFKC').replace(/\s+/g, ' ').trim(); }
+// readCodeFactSegments adds table/cell markers for semantic auditing. They are
+// not claim text; retain TR boundaries so claims cannot join independent rows.
+// Source quotes continue to use normalizeFactQuote without stripping markers.
+export function normalizeFactClaimText(text: string) {
+  return normalizeFactQuote(text.replace(/<\/?(?:TABLE|THEAD|TBODY|TFOOT|TH|TD)>/g, ' '));
+}
 export function bindCodeFactCitations(segment: CodeFactSegment, citations: CodeFactCitation[]) {
   return citations.map(citation => {
-    const matches = (segment.targets ?? []).filter(target => normalizeFactQuote(target.readable ?? target.text).includes(normalizeFactQuote(citation.claim)));
+    const matches = (segment.targets ?? []).filter(target => normalizeFactClaimText(target.readable ?? target.text).includes(normalizeFactQuote(citation.claim)));
     // Keep the smallest matching element in each branch, including repeated
     // claims. Always bind again in this candidate: text reuse is not path reuse.
     const targets = matches.filter(target => !matches.some(child => child.pageId === target.pageId && child.root === target.root && child.path.length > target.path.length && target.path.every((index, i) => child.path[i] === index)))

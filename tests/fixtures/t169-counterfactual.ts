@@ -19,7 +19,7 @@ registerHooks({ load(url, context, next) {
   }
   if (file === 'lib/code-site-model.ts') {
     if (mode === 'quote') source = source.replace('if (!quote || !source.includes(quote))', 'if (false)');
-    if (mode === 'claim') source = source.replace('if (!claim || !normalizeFactQuote(segment.text).includes(claim))', 'if (false)');
+    if (mode === 'claim') source = source.replace('if (!claim || !normalizeFactClaimText(segment.text).includes(claim))', 'if (false)');
   }
   if (file === 'lib/code-site-check.ts') {
     if (mode === 'old') source = source.replace("if (args.legacyImport) checks.factReview = 'legacy-unreviewed';", "if (args.legacyImport) { checks.factReview = 'legacy-unreviewed'; checks.factCitations = { complete: true, entries: [] }; }");
