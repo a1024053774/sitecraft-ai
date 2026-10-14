@@ -270,6 +270,10 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         site = await claimRun(siteId, 'plan', currentCodeVersion(site) ? '调整风格与疏密，保留有效资料与已有功能入口。' : site.materials, currentCodeVersion(site)?.revision ?? 0); schedule(site);
       }
     } else if (input.action === 'confirm') {
+      // A saved plan does not carry the evaluation process's admission.
+      const planStyle = site.plan?.style;
+      if (planStyle && !serverCodeStyleOptions.some(option => option.id === planStyle))
+        return Response.json({ userMessage: '已选风格当前不能使用，未开始生成。请在准入该风格的评估环境确认，或取消方案后重新选择。' }, { status: 400 });
       const confirmed = await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'confirm', questionId: input.questionId, questionRevision: input.questionRevision });
       if (confirmed.result.ok && confirmed.result.shouldCommit) {
         site = await claimRun(siteId, 'generate', currentCodeVersion(site) ? '按确认的风格、版式与信息密度重新生成，保留有效资料与已有功能入口。' : site.materials, currentCodeVersion(site)?.revision ?? 0); schedule(site);

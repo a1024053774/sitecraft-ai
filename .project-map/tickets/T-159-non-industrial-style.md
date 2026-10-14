@@ -22,11 +22,15 @@ T-156 定为任何行业的展示型官网。现有精密工程、现场实拍�
 
 - [x] 风格区分盲评：新风格与最接近的现有风格在同一非工业资料上可辨（新实例，随机命名）
 - [x] 「像这家店/机构」成对盲评不差于现有风格；真实预算主控报批
-- [x] typecheck、test、build 通过（收尾聚焦 14/14、全量 475/475，三档普通选项截图已打开）
+- [x] typecheck、test、build 通过（收尾 14/14 与全量 475/475；P2 修复聚焦 15/15、typecheck/build，本次按主控禁令未重跑全量）
 
 ## Resolution
 
 执行者 Codex，claimed_by 保持；本票 open，交主控关票，不推送。**真实生成、风格区分与同店成对盲评均 PASS**，主控已揭盲并批准 neighborly 转为 ready；缩略图来自本次真实版本，不另发模型请求。**第二个风格不做**：负责人只批准这一轮生成，本次唯一真实授权已经执行。
+
+**确认准入 P2 修复（2026-10-14 UTC）。** 主控转达新 sol 对 `ee4007a` 的 NO_GO：普通进程可以确认评估进程已保存的 pending 大纲，原证据 `artifacts/t159/review-process-gate-faf2444e-5625-4bf6-9568-ea38235d24da/phase-confirm.json`。在同一父版先运行 `SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH= node --test --experimental-strip-types tests/t159-confirm-gate.test.ts`，预期红 **0/1，exit=1**：跨进程的生产 HTTP 普通确认返回 202 而非 400；该次进入 generate/running 且排入 after，证据 `artifacts/t159/confirm-gate-20261014T053610Z/parent-ee4007a-red.log` 及其 confirm-contract 子目录原始 before/after。准备阶段通过原 select 和 workflow 保存本地替身大纲，CLI 在首个确认前止步；跨进程共享该隔离数据。确认阶段只记录 after 队列，不执行生成，不调用模型或 Chrome。
+
+修复仅在 confirm 分支、消耗确认和 claimRun 之前，按已保存大纲的实际 style 复核当前 serverCodeStyleOptions。未准入返回 400 和明确中文提示，偏好、原大纲、问题 ID/修订号与等待确认状态不变；无新 run、无 after；再由已准入进程确认同一大纲仍返回 202、排入一个生成任务（队列未执行）。不静默替换风格，不依赖已持久化的评估选择授权。当前 ready 邻里日常仍为普通用户选项；pending 夹具仅用于后续候选门禁。修复后同目录 focused-green.log **15/15、0 skipped**（新增反例、既有准入/ready/诊断/规划合同），typecheck.log 与 build.log 均 PASS；聚焦命令为 `SITECRAFT_BASE=http://127.0.0.1:63446 CHROME_PATH= node --test --experimental-strip-types tests/t159-confirm-gate.test.ts tests/t159-eval-entry.test.ts tests/t159-ready-style.test.ts tests/t159-http-diagnostics.test.ts tests/t153-style-preferences.test.ts tests/t159-style-eval.test.ts`。本次不跑全量 npm test 或浏览器测试，T-167 独占 Chrome；此前 475/475 仅代表 ee4007a 收尾，不冒充本次全量通过。新增真实调用/token 均 0，未读 .env.local、未自开审查；本次提交 SHA 与原始反例/修复快照关联于同目录 delivery.json，交主控复审。
 
 **正式准入与盲评结论。** 2026-10-14 主控转述两份独立盲评：风格区分 PASS，邻里日常与现场实拍可辨为不同方向，字体相近，区别在色面、区块组织与信息重点，不只换色；「更像禾巷小馆自己建的」成对题，邻里日常略胜，门店气质与文案口吻占优，现场实拍首页直接列菜价、菜单速查有长处。执行者只引用主控结论，不重评审美。原文由主控保管于 `/private/tmp/claude-501/-Users-luckye-Documents-Code-sitecraft-ai/a94ba246-5f01-45e5-b06b-4024882c4ff2/scratchpad/blind-t159-style-9290/` 与 `blind-t159-company-13483/`；题包仍为下述两个随机 review 目录，private 映射不交审核实例。
 

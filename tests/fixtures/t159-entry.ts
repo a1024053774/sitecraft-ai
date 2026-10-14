@@ -24,6 +24,7 @@ process.env.SITE_STORE = 'fs';
 process.env.SITECRAFT_DATA_ROOT = process.env.T159_ENTRY_DATA_ROOT || path.join(folder, 'data');
 if (process.env.T159_PENDING_CATALOG === '1') await import('./t159-pending-catalog.ts');
 const modelRequests: any[] = [], routes: any[] = [], tasks: Promise<void>[] = [];
+let queuedAfter = 0;
 const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); modelRequests.push(body);
@@ -41,6 +42,11 @@ const { POST: chat } = await import('../../app/api/sites/[siteId]/chat/route.ts'
 const { GET: draft } = await import('../../app/api/sites/[siteId]/draft/route.ts');
 const bridge = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
+  // Preserve the real saved plan; this fixture ends before its first confirm.
+  if (process.env.T159_ENTRY_PLAN_ONLY === '1' && raw && JSON.parse(raw).action === 'confirm') {
+    routes.push({ url: req.url, body: JSON.parse(raw), status: 503, fixturePlanBoundary: true });
+    res.writeHead(503, { 'content-type': 'application/json' }); res.end('{"userMessage":"本地替身在确认前保留已保存大纲"}'); return;
+  }
   const match = req.url?.match(/^\/api\/sites\/([^/]+)\/(chat|draft)$/);
   const request = new Request(requestBase + req.url, { method: req.method, ...(raw ? { headers: { 'content-type': 'application/json' }, body: raw } : {}) });
   const pending: Array<() => Promise<void>> = [];
@@ -54,11 +60,25 @@ const bridge = createServer(async (req, res) => {
   }
   routes.push({ url: req.url, body: raw ? JSON.parse(raw) : null, status: response.status, payload });
   res.writeHead(response.status, { 'content-type': 'application/json' }); res.end(JSON.stringify(payload));
-  for (const fn of pending) tasks.push(fn());
+  queuedAfter += pending.length;
+  if (!process.env.T159_ENTRY_CONFIRM_SITE) for (const fn of pending) tasks.push(fn());
 });
 await new Promise<void>(resolve => bridge.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${(bridge.address() as any).port}`;
 await mkdir(folder, { recursive: true });
+if (process.env.T159_ENTRY_CONFIRM_SITE) {
+  const id = process.env.T159_ENTRY_CONFIRM_SITE;
+  const get = async () => (await (await fetch(`${base}/api/sites/${id}/draft`)).json());
+  const before = await get();
+  const response = await fetch(`${base}/api/sites/${id}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'confirm', questionId: before.alignment.questionId, questionRevision: before.alignment.questionRevision, baseRevision: 0 }) });
+  const payload = await response.json(), after = await get();
+  await writeFile(path.join(folder, 'confirm.json'), JSON.stringify({ status: response.status, payload, before, after, queuedAfter,
+    evalFlag: process.env.SITECRAFT_EVAL_STYLES ?? null, modelRequests: modelRequests.length,
+    limitation: '使用生产 HTTP handler 与存储；只运行准备阶段的本地替身规划。确认后的 after 队列不执行，不调用模型或 Chrome。' }, null, 2), 'utf8');
+  await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
+  process.exit(0);
+}
 const args = ['--experimental-strip-types', '--import', './tests/fixtures/t159-browser-guard.ts',
   ...(process.env.T159_PENDING_CATALOG === '1' ? ['--import', './tests/fixtures/t159-pending-catalog.ts'] : []),
   'scripts/eval-new-route.ts', '--quick', '--only', 'restaurant/neighborly', '--out', path.join(folder, 'eval')];
