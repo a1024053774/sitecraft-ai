@@ -31,8 +31,8 @@ test('T-145: the real creation/list handlers use code sites without a template o
   assert.equal(response.status, 201, 'a name creates the sole new-route site; retired templates are unnecessary');
   const created = await response.json();
   assert.equal(created.codeSite.name, '窄口精密加工');
-  assert.equal(existsSync(path.join(root, '.sitecraft-data/sites', `${created.id}.json`)), false, 'creation must not write an obsolete draft');
-  const stored = JSON.parse(await readFile(path.join(root, '.sitecraft-data/code-sites', `${created.id}.json`), 'utf8'));
+  assert.equal(existsSync(path.join(process.env.SITECRAFT_DATA_ROOT!, 'sites', `${created.id}.json`)), false, 'creation must not write an obsolete draft');
+  const stored = JSON.parse(await readFile(path.join(process.env.SITECRAFT_DATA_ROOT!, 'code-sites', `${created.id}.json`), 'utf8'));
   assert.equal(stored.versions.length, 0);
   const listed = await (await GET()).json();
   assert.equal(listed.sites.find((item: { siteId: string }) => item.siteId === created.id)?.siteName, '窄口精密加工');

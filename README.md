@@ -30,7 +30,7 @@ DEEPSEEK_API_KEY=server-only-secret
 DEEPSEEK_MODEL=deepseek-flash
 ```
 
-站点代码、版本和转换失败元数据存于 `.sitecraft-data/code-sites/`。开发机用 `SITE_STORE=fs`；会话、线索与批注仍支持 PostgreSQL，原生 PostgreSQL 站点版本存储不在当前交付范围。验证或离线导入进程可用 `SITECRAFT_DATA_ROOT` 指定数据根目录，默认 `.sitecraft-data`；HTTP 请求不能修改它。
+站点代码、版本和转换失败元数据存于 `.sitecraft-data/code-sites/`。开发机用 `SITE_STORE=fs`；会话、线索与批注仍支持 PostgreSQL，原生 PostgreSQL 站点版本存储不在当前交付范围。普通开发或离线导入可用 `SITECRAFT_DATA_ROOT` 指定数据根目录，默认 `.sitecraft-data`；测试存储须使用显式且经 health 核对的临时数据根或其子目录，否则在读写前拒绝。HTTP 请求不能修改数据根。
 
 显式新建入口为 `/workspace?new=1`，创建 API 只收 `name`。没有站点参数的工作台让用户选站点，不读取或新建共享的默认草稿。旧区块库、模板 API 和 vendor 已移除。
 
@@ -38,11 +38,14 @@ DEEPSEEK_MODEL=deepseek-flash
 
 ```bash
 npm run typecheck
-npm test
+node --test --experimental-strip-types scripts/t167-runner-regressions.ts
+CHROME_PATH=/path/to/chrome-headless-shell npm test
 npm run build
 ```
 
 `next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
+
+`npm test` 每轮创建独立的临时 `SITECRAFT_DATA_ROOT`，自启本工作树随机端口 dev server，把同一数据根与 `SITECRAFT_BASE` 传给测试进程，并在任何测试模块载入前核对 health、登记本轮存储许可。它清除继承的 `NODE_TEST_CONTEXT`，按 Node 每文件统计记录实际执行数，零用例即失败；不沿用已有服务或数据根，不加载 `.env.local`，不配置真实模型。日志、身份、统计和数据根路径保存在 `artifacts/t167/test-run-*/`，临时数据保留供核查。定向检查用 `npm test -- tests/<用例>.test.ts`；原始 `node --test` 没有已核对的数据根时，存储模块在读写前拒绝。上面的入口回归命令独占本工作树 dev server、不开 Chrome，应在全量服务关闭时单独执行。
 
 英文版的本地 HTTP 模型替身全链检查：`CHROME_PATH=/path/to/chrome-headless-shell node --experimental-strip-types scripts/check-english.mjs`。它独占 3161、使用独立的 artifacts 数据目录，运行后保留报告与截图，不调用真实模型。真实英文质量与独立审核的状态见 T-151。
 

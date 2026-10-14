@@ -20,7 +20,7 @@ function uniqueSiteId() {
 
 async function cleanupCreatedConversations() {
   await Promise.all([...createdSiteIds].map((siteId) => (
-    rm(path.join(process.cwd(), ".sitecraft-data", "conversations", siteId), { recursive: true, force: true })
+    rm(path.join(process.env.SITECRAFT_DATA_ROOT!, "conversations", siteId), { recursive: true, force: true })
   )));
   createdSiteIds.clear();
 }

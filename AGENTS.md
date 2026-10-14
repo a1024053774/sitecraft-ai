@@ -52,7 +52,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 `tests/t162-review-regressions.test.ts` 经真实 CDP 检查历史回看不发当前编辑、连续点选后可继续输入、点选存储读写删除拒绝不使工作台崩溃；`scripts/t162-review-counterfactual.ts` 逐项回退对应修复来证明测试可检错。回退脚本须独占该工作树串行运行，每项结束即恢复；全量浏览器测试前确认没有其他 Chrome 测试进程。
 
-T-162 标准测试只要求 SITECRAFT_BASE/CHROME_PATH：helper 自建随机端口模型替身和生产 chat/history POST 的临时 HTTP 服务，控制 after 调度，界面/预览仍读同目录普通 dev server。health 503 也须核对 testIdentity.cwd，提交后由普通服务读回版本；不把入口测试写成实际 Next after 集成通过。临时服务在 test.after 关闭。
+T-162 测试由标准 npm test 入口提供 SITECRAFT_BASE/SITECRAFT_DATA_ROOT，运行者只设 CHROME_PATH；helper 自建随机端口模型替身和生产 chat/history POST 的临时 HTTP 服务，控制 after 调度，界面/预览仍读同目录普通 dev server。health 503 也须核对 testIdentity.cwd/dataRoot，提交后由普通服务读回版本；不把入口测试写成实际 Next after 集成通过。临时服务在 test.after 关闭。
 
 T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事件；UI 等待监听 DOM、载入与动画完成，冻结/刷新用明确替身闸门，不靠固定 sleep。仅复用只读夹具，三档和存储拒绝仍用独立 Chrome 配置；timings.json 记录分段耗时与 load 采样。处理负载超时时须保留改前结果，并与全量同时验证，不扩大用例上限或跳过检查。
 
@@ -87,6 +87,7 @@ T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事�
    中文和英文发布与预览使用同一静态渲染器。正文行长、T-160 的过窄文字列与 T-147 的五项机械检查是版本检查和评估统计中的质量反馈，不拒收或触发修正轮；产品图反馈仅确认原图裁切，主体是否丢失须人工核对。
    `tests/t160-narrow-columns.test.ts` 用真实浏览器拦截价格豁免扩散到说明正文、display:contents 可见文字漏测和 CSS 多栏跨列合行；纯价格/正文、可见/隐藏、多栏/单栏均成对验证。
    浏览器测试先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（负责人这台 Mac 的普通 Chrome 无头启动后会被自动更新带着退出）；换机器或版本更新后按实际路径改。
+   标准检查命令：先单独运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`（真实入口回归、独占本工作树 dev server、不开 Chrome），服务关闭后运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`。全量入口每轮新建临时 SITECRAFT_DATA_ROOT，自启本工作树随机端口 dev server，把同一数据根与 SITECRAFT_BASE 传给测试进程；health 的 testIdentity.cwd/dataRoot 不一致即在模块载入前拒绝，核对完成才登记本轮存储许可。所有 FS 存储共用 storage-directory 策略；原始 node --test 没有显式、已核对的根时，在读写前拒绝，独立存储夹具只使用本轮根的子目录。入口清除继承的 NODE_TEST_CONTEXT，以 Node 每文件 summary 统计实际执行数，排除文件包装及未执行项，零用例即失败。无需提供已有服务，不沿用外部数据根或端口；NODE_ENV=test 不加载 .env.local，服务不配置真实模型。日志、身份、统计与临时目录路径留在 artifacts/t167/test-run-*/，临时数据保留供核查。定向检查使用 `npm test -- tests/<用例>.test.ts`；不通过手写标记或另一个入口绕过未核对拒绝，不删除已有站点（T-167）。
    `scripts/t15*` 的应用地址显式用 `SITECRAFT_BASE`，替身用 `SITECRAFT_FIXTURE_BASE`，预算网关用 `SITECRAFT_BUDGET_BASE`；均校验本地 HTTP origin，不锁端口、不默认回退主工作区。真实生成与预算网关必须显式设置 `SITECRAFT_TOKEN_LIMIT` 为本次获批上限，不沿用历史默认预算。`tests/t153-local-endpoints.test.ts` 拦截固定本地端口和默认应用地址，并验证替身实际监听配置（T-153）。
    预算网关按完整请求的 ASCII、官方离线验证的单 token 汉字与其他码点估算输入，加框架余量后限制输出，累计预留不超过显式授权；`tests/t165-token-reserve.test.ts` 与 `tests/t165-tokenizer-adversarial.test.ts` 覆盖真实 usage 的复原请求、官方 tokenizer 对抗计数、原预算可容纳修正及批注、出网前拒绝超支和已付超估用量记账后终止，运行时不加载 tokenizer（T-165）。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；

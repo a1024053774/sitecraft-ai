@@ -26,7 +26,7 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
 const address=server.address();assert.ok(address&&typeof address==='object');
-process.env.SITE_STORE='fs';process.env.SITECRAFT_DATA_ROOT=path.resolve('artifacts/t152/restore-reuse/data');
+process.env.SITE_STORE='fs';process.env.SITECRAFT_DATA_ROOT=path.join(process.env.SITECRAFT_DATA_ROOT!, 't152-restore-reuse');
 // This ephemeral origin is only a deterministic checker fixture, never a workspace.
 process.env.SITECRAFT_BASE=`http://127.0.0.1:${address.port}`;
 process.env.DEEPSEEK_BASE_URL=process.env.SITECRAFT_BASE;process.env.DEEPSEEK_API_KEY='restore-fixture';process.env.DEEPSEEK_MODEL='restore-fixture';

@@ -1,3 +1,4 @@
+import { storageDirectory } from './storage-directory.ts';
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDatabaseSchema, getDatabasePool, withDatabaseTransaction } from "@/lib/postgres";
@@ -15,7 +16,7 @@ import {
   type UpdateAnnotationInput,
 } from "@/lib/annotations";
 
-const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), ".sitecraft-data"), "annotations");
+const storageRoot = storageDirectory("annotations");
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
 const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
 const globalStore = globalThis as typeof globalThis & { __sitecraftAnnotationLocks?: Map<string, Promise<void>> };
@@ -40,7 +41,7 @@ function safeAnnotationId(annotationId: string) {
 }
 
 function filePath(siteId: string) {
-  return path.join(storageRoot, `${safeSiteId(siteId)}.json`);
+  return path.join(storageRoot(), `${safeSiteId(siteId)}.json`);
 }
 
 type AnnotationFile = { schemaVersion: 1; annotations: AnnotationThread[] };
@@ -65,7 +66,7 @@ async function readLocal(siteId: string) {
 }
 
 async function writeLocal(siteId: string, data: AnnotationFile) {
-  await mkdir(storageRoot, { recursive: true });
+  await mkdir(storageRoot(), { recursive: true });
   const target = filePath(siteId);
   const temp = `${target}.${process.pid}.${crypto.randomUUID()}.tmp`;
   await writeFile(temp, JSON.stringify(data, null, 2), "utf8");
