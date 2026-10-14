@@ -18,8 +18,8 @@ const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); requests.push(body);
   const input = JSON.parse(body.messages[1].content.split('\n')[0].startsWith('{') ? body.messages[1].content.split('\n')[0] : '{}');
-  let results = (input.segments ?? []).map((s: any) => ({ id: s.id, issues: rejectText && s.text.includes(rejectText) ? [`页面原句：${rejectText}；资料未提供该承诺。`] : [] }));
-  if (protocol === 'unknown') results.push({ id: 's999999', issues: [] });
+  let results = (input.segments ?? []).map((s: any) => ({ id: s.id, citations: [], issues: rejectText && s.text.includes(rejectText) ? [`页面原句：${rejectText}；资料未提供该承诺。`] : [] }));
+  if (protocol === 'unknown') results.push({ id: 's999999', issues: [], citations: [] });
   if (protocol === 'missing') results.pop();
   if (protocol === 'duplicate' && results.length) results.push(results[0]);
   res.setHeader('content-type', 'application/json');

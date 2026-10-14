@@ -13,6 +13,7 @@ import { simulatedPackList } from '@/lib/simulated-packs';
 import { CodeVersionHistory } from './code-version-history';
 import { annotationTargetSchema, annotationCaptureSchema, annotationDraftSchema, type AnnotationDraft, type AnnotationTarget, type AnnotationThread } from '@/lib/annotations';
 import { CodePreviewSelection } from './code-preview-selection';
+import { CodePreviewCitations } from './code-preview-citations';
 import { SiteDeleteDialog } from './site-delete-panel';
 import { codeStyles, codeStyleSchema, codePreferencesSchema, codeSliderBand } from '@/lib/code-site-styles';
 
@@ -310,6 +311,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`} style={{ paddingBottom: annotationBottomSpace }}>
       <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={busy || conversationUnavailable || !!previewVersionId} data-testid="pick-block" onClick={() => { setPicking(!picking); setSelectedTarget(null); setComposer(null); }}>{picking ? '退出批注' : '批注'}</button><small>{picking ? '点击位置，就地写批注 · Esc 退出' : selected ? `已选：${selected.label}` : 'C 进入批注 · 只修改选中区块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       {previewVersionId && <p className="code-preview-version">正在回看 v{previewVersion?.revision} 的批注 <button onClick={() => { setPreviewVersionId(null); setComposer(null); setSelectedTarget(null); }}>回到当前版本</button></p>}
+      {activeLanguage === 'zh' && previewVersion && <p className="code-fact-status" data-testid="fact-citation-status">{!previewVersion.checks.factCitations ? '未记录出处' : `${previewVersion.checks.factCitations.entries.length} 条资料出处${previewVersion.checks.factCitations.complete ? '' : ' · 部分内容未记录出处'}`}<small>悬停或点选预览中的编号，查看资料原句。</small></p>}
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
         {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && previewVersion && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && !busy}
           selected={composer?.target ?? selected} pageId={activePage} versionId={previewVersion.id} html={previewVersion.code.pages.find(p => p.id === activePage)!.html}
@@ -329,7 +331,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
               {!composer.thread && <button type="button" className="primary-button" data-testid="annotation-add" disabled={!opinion.trim() || busy || draftStorageError || composer.target.versionId !== version?.id || pendingDraft?.status === 'sending'} onClick={addAnnotation}>{composer.draftId ? '保存批注' : '添加批注'}</button>}</div>
             </>}
           </section>}
-        </CodePreviewSelection>}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
+        </CodePreviewSelection>}{activeLanguage === 'zh' && previewVersion && !picking && !composer && <CodePreviewCitations key={`${previewVersion.id}:${activePage}`} frame={frame} ready={previewReady} record={previewVersion.checks.factCitations} versionId={previewVersion.id} pageId={activePage} scale={scale} header={previewVersion.code.header} languageLinks={!!previewVersion.english} />}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
       </div></div>
     </main>
     <aside className={`builder-chat ${pane !== 'chat' ? 'mobile-hidden' : ''}`} aria-label="对话">
