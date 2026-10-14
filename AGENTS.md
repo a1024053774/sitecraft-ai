@@ -122,12 +122,11 @@ T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事�
 - **Claude（本地桌面会话）**：规划、拆票、验收、整合与推送；可以用 Sonnet 5.5 子 agent 写代码。
 - **Sonnet 5.5 子 agent**：Claude 派的小编码票。
 - **Codex**：额度宽裕，执行都交给它（Herdr 里的 `codex-build`，需要时 Claude 再开 Codex 窗格）；执行和审查必须是不同的 Codex 实例。Kiro 2026-10-01 起不再使用。
-- **Codex GPT-6（Astra）**：代码与逻辑审查。
-- **Codex gpt-6.1-sol**：页面盲评。
+- **Codex 模型**（2026-10-13 负责人决定）：执行、代码与逻辑审查、页面盲评一律用 gpt-6.1-sol，推理 xhigh，不开 fast（`-m gpt-6.1-sol -c 'model_reasoning_effort="xhigh"'`）；不再用 GPT-6 Astra。三种角色各用不同实例。票里沿用的「Astra 审查」指这个审查角色。
 - **Cursor Grok**：杂活，只改派给它的文件。
 - **云端会话**：负责人开的 Claude 云端会话，在 `cloud/*` 分支上做票并推送，Claude 审后合并。
 
-执行的 agent 每张票在本地提交、不推送；Claude 验收、Astra 审核通过后由 Claude 推送。审核者不能审自己参与过的工作。Herdr 工作区里的 Codex、Cursor 由 Claude 直接派活。
+执行的 agent 每张票在本地提交、不推送；Claude 验收、审查实例通过后由 Claude 推送。审核者不能审自己参与过的工作。Herdr 工作区里的 Codex、Cursor 由 Claude 直接派活。
 
 规则：
 
