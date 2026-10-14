@@ -29,7 +29,7 @@ test('the explicit 120000 authorization cannot borrow the historical 300000 budg
   assert.throws(() => reserve(0), /authorization|limit/i);
 });
 
-for (const [ticket, limit] of [['t158', 300000], ['t160', 150000]] as const) test(`the real gateway starts in ${ticket} and stops an over-budget round before any upstream call`, async () => {
+for (const [ticket, limit] of [['t158', 300000], ['t160', 150000], ['t162', 35000]] as const) test(`the real gateway starts in ${ticket} and stops an over-budget round before any upstream call`, async () => {
   assert.ok(process.env.SITECRAFT_BASE);
   const probe = createServer();
   await new Promise<void>(resolve => probe.listen(0, '127.0.0.1', resolve));
