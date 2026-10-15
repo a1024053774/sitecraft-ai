@@ -200,31 +200,37 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
 type ProbeBrowser = { send<T = Record<string, unknown>>(method: string, params?: Record<string, unknown>): Promise<T>; evaluate<T>(expression: string): Promise<T> };
 type ProbeEntry = { path: number[]; styles: Array<[string, string]> };
 type ProbeState = { trigger: number[] | null; state: string; entries: ProbeEntry[] };
+export type DynamicStateProbe = {
+  states: ProbeState[];
+  interactiveElements: number;
+  forceCalls: number;
+  statesChecked: number;
+  durationMs: number;
+};
 
 // One CDP probe for both single- and multi-block edits. The browser owns state
 // truth: no selector stripping, :has parsing, owner inference, or short style
 // fingerprint is used here. The returned collection is keyed only by outside
 // DOM path and complete computed style.
 export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 2000) {
+  const startedAt = performance.now();
   const checkTime = () => { if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。'); };
   checkTime(); await browser.send('DOM.enable'); await browser.send('CSS.enable');
   await browser.send('Page.setDocumentContent', { frameId, html });
   await browser.send('DOM.enable');
-  const probe = await browser.evaluate<{ all: string[]; roots: string[]; outside: string[]; states: string[]; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
+  const probe = await browser.evaluate<{ all: string[]; roots: string[]; outside: string[]; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
     const paths=${JSON.stringify(scope?.paths ?? [])};
     const pathOf=(el)=>{const path=[];for(let child=el;child?.parentElement;child=child.parentElement)path.unshift([...child.parentElement.children].indexOf(child));return path};
     const rootFor=(path)=>{let el=document.querySelector('main');for(const index of path)el=el?.children[index];return el};
     const roots=paths.map(rootFor).filter(Boolean), all=[...document.querySelectorAll('*')];
     const ids=new Map(all.map((el,index)=>[el,String(index)]));
-    const hidden=(el)=>{if(el.matches(':disabled,[inert],[hidden]'))return true;for(let p=el.parentElement;p;p=p.parentElement)if(p.matches('[inert],[hidden]'))return true;const r=el.getBoundingClientRect();return !(r.width>0&&r.height>0&&getComputedStyle(el).visibility!=='hidden'&&Number(getComputedStyle(el).opacity)!==0)};
-    const interactive=all.filter(el=>!hidden(el)).filter(el=>{const node=el;if(node.tabIndex>=0)return true;try{node.focus({preventScroll:true});const ok=document.activeElement===node;node.blur();return ok}catch{return false}}).map(el=>({id:ids.get(el),path:pathOf(el),ancestors:[...(()=>{const a=[];for(let p=el.parentElement;p;p=p.parentElement)a.push(ids.get(p));return a})()]}));
+    const hidden=(el)=>{if(el.matches(':disabled,[inert],[hidden]'))return true;for(let p=el.parentElement;p;p=p.parentElement)if(p.matches('[inert],[hidden]'))return true;const r=el.getBoundingClientRect();return !(r.width>0&&r.height>0&&el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))};
+    const interactive=all.filter(el=>el!==document.documentElement&&el!==document.head&&el!==document.body&&!hidden(el)).filter(el=>{try{el.focus({preventScroll:true});const ok=document.activeElement===el;el.blur();return ok}catch{return false}}).map(el=>({id:ids.get(el),path:pathOf(el),ancestors:[...(()=>{const a=[];for(let p=el.parentElement;p;p=p.parentElement)a.push(ids.get(p));return a})()]}));
     const outside=all.filter(el=>!roots.some(root=>root===el||root.contains(el)||el.contains(root))).map(el=>ids.get(el));
-    const states=new Set();
-    const walk=(rules)=>{for(const rule of rules){if(rule.cssRules)walk([...rule.cssRules]);const text=rule.cssText||'';if(/:focus(?:-visible|-within)?(?![\\w-])|:has\\([^)]*:focus/i.test(text)){states.add('focus');states.add('focus-visible')}if(/:hover(?![\\w-])/.test(text))states.add('hover');if(/:active(?![\\w-])/.test(text))states.add('active')}};
-    for(const sheet of document.styleSheets){try{walk([...sheet.cssRules])}catch{}}
     for(const el of all)el.setAttribute('data-cdp-probe',ids.get(el));
-    return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),outside,states:[...states],interactive};
+    return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),outside,interactive};
   })()`);
+  const stateNames = ['focus', 'focus-visible', 'hover', 'active'] as const;
   const root = await browser.send<{ root: { nodeId: number } }>('DOM.getDocument', { depth: 1, pierce: true });
   const nodeIds = new Map<string, number>();
   const allNodeIds = await browser.send<{ nodeIds: number[] }>('DOM.querySelectorAll', { nodeId: root.root.nodeId, selector: '[data-cdp-probe]' });
@@ -232,31 +238,56 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
   const nodeId = async (id: string) => { checkTime(); const found = nodeIds.get(id); if (!found) throw new Error('局部动态状态检查无法定位 DOM 节点。'); return found; };
   const states: ProbeState[] = [];
   const forced = new Set<number>();
-  const clear = async () => { for (const id of forced) { checkTime(); await browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [] }); } forced.clear(); };
-  const force = async (id: string, state: string) => { const value = await nodeId(id); await browser.send('CSS.forcePseudoState', { nodeId: value, forcedPseudoClasses: [state] }); forced.add(value); };
+  let forceCalls = 0;
+  const clear = async () => {
+    checkTime();
+    // CSS.disable resets every forced pseudo state in one CDP round trip pair;
+    // clearing each ancestor separately made a medium page exceed its budget.
+    await browser.send('CSS.disable');
+    await browser.send('CSS.enable');
+    checkTime(); forced.clear();
+  };
+  const transition = async (active: Set<number>, ids: string[], state: string, path: number[]) => {
+    const desired = new Set(await Promise.all(ids.map(id => nodeId(id))));
+    const release = [...active].filter(id => !desired.has(id));
+    const add = [...desired].filter(id => !active.has(id));
+    try {
+      await Promise.all(release.map(id => browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [] })));
+      await Promise.all(add.map(id => browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [state] })));
+    } catch { throw new Error(`局部动态状态检查无法强制 ${state}（触发路径 ${JSON.stringify(path)}）。`); }
+    checkTime();
+    active.clear(); desired.forEach(id => active.add(id));
+    forced.clear(); desired.forEach(id => forced.add(id));
+    forceCalls += add.length;
+  };
   const capture = async (trigger: number[] | null, state: string) => {
     checkTime(); const entries = await browser.evaluate<ProbeEntry[]>(`(() => { const outside=${JSON.stringify(probe.outside)}; const pathOf=(el)=>{const path=[];for(let child=el;child?.parentElement;child=child.parentElement)path.unshift([...child.parentElement.children].indexOf(child));return path}; return outside.map(id=>{const el=document.querySelector('[data-cdp-probe="'+id+'"]'),s=getComputedStyle(el),names=[...s].sort();return {path:pathOf(el),styles:names.map(name=>[name,s.getPropertyValue(name)])}}); })()`);
     states.push({ trigger, state, entries });
   };
   await clear(); await browser.evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');
-  for (const item of probe.interactive) {
-    for (const state of probe.states) {
-      checkTime(); await clear();
+  for (const state of stateNames) {
+    const active = new Set<number>();
+    for (const item of probe.interactive) {
+      checkTime();
+      await browser.evaluate('document.activeElement?.blur()');
       if (state === 'focus' || state === 'focus-visible') {
         try { await browser.send('DOM.focus', { nodeId: await nodeId(item.id) }); }
-        catch { continue; }
-        if (state === 'focus-visible') await force(item.id, state);
-      } else {
-        await force(item.id, state);
-        for (const ancestor of item.ancestors) await force(ancestor, state);
+        catch { throw new Error(`局部动态状态检查无法聚焦触发路径 ${JSON.stringify(item.path)}。`); }
+        const focused = await browser.evaluate<boolean>(`document.activeElement?.getAttribute('data-cdp-probe') === ${JSON.stringify(item.id)}`);
+        if (!focused) throw new Error(`局部动态状态检查无法聚焦触发路径 ${JSON.stringify(item.path)}。`);
       }
+      // Keep shared ancestors forced while moving between sibling triggers;
+      // each trigger still gets its own state and no prior branch remains active.
+      await transition(active, state === 'focus' || state === 'focus-visible' ? [item.id] : [item.id, ...item.ancestors], state, item.path);
       await browser.evaluate('new Promise(resolve=>requestAnimationFrame(()=>resolve(true)))');
       await capture(item.path, state);
     }
+    await clear();
   }
-  await clear();
+  await browser.evaluate('document.activeElement?.blur()');
   await browser.evaluate(`document.querySelectorAll('[data-cdp-probe]').forEach(el=>el.removeAttribute('data-cdp-probe'))`);
-  return { states };
+  checkTime();
+  return { states, interactiveElements: probe.interactive.length, forceCalls, statesChecked: stateNames.length, durationMs: performance.now() - startedAt };
 }
 
 // Invoked on every rendered page by the submission boundary. Media conditions

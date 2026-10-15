@@ -35,6 +35,18 @@ const target = (path: number[], text: string, label: string, pageId = 'home', ve
   kind: 'dom' as const, pageId, versionId, path, text, label,
 });
 
+async function dynamicFixture(css: string, html: string, materials = '目标。入口。外部。') {
+  const id = `t164-dynamic-${crypto.randomUUID()}`;
+  const source = {
+    header: '<header>头</header>', footer: '<footer>脚</footer>', css,
+    pages: [{ id: 'home', title: '首页', html }, { id: 'products', title: '产品', html: '<main><h1>产品</h1></main>' }],
+  };
+  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '动态状态边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials, code: source, exportIssues: [] } });
+  assert.equal(first.status, 'applied', first.status === 'unavailable' ? first.record.readError : '动态状态夹具必须先存下源版本');
+  if (first.status !== 'applied') throw new Error('动态状态夹具创建失败');
+  return { id, source, version: first.version };
+}
+
 test('同一区块的多条批注按添加顺序合成一组，祖先后代需明确确认同一范围', () => {
   const edits = [
     { draftId: 'a', target: target([0], 'A', 'A'), revision: 1, body: '先保留事实。' },
@@ -167,6 +179,60 @@ test('没有动态焦点 CSS 时，区块内新增链接可以保存', async () 
   candidate.pages[0].html = candidate.pages[0].html.replace('</section>', '<a href="/home">链接</a></section>');
   const result = await commitSiteCode({ siteId: id, baseRevision: 1, code: candidate, selectedTarget: target, author: 'assistant', summary: '无焦点规则', request: '增加链接' });
   assert.equal(result.status, 'applied');
+});
+
+test('动态探针在三档视口固定检查四种状态并记录强制调用证据', async () => {
+  const { id, source, version } = await dynamicFixture('body{color:#111}.outside{color:#111}', '<main><section class="target"><h1>目标</h1><a href="/home">入口</a></section><p class="outside">外部</p></main>');
+  const candidate = structuredClone(source);
+  candidate.pages[0].html = candidate.pages[0].html.replace('目标', '改后');
+  const selected = target([0], '目标入口', '目标', 'home', version.id);
+  const result = await commitSiteCode({ siteId: id, baseRevision: 1, code: candidate, selectedTarget: selected, author: 'assistant', summary: '动态状态证据', request: '改标题' });
+  assert.equal(result.status, 'applied', result.status === 'rejected' ? result.checks.issues.join('\n') : '');
+  if (result.status !== 'applied') return;
+  const homeViewports = result.version.checks.viewports.filter(viewport => viewport.pageId === 'home');
+  assert.deepEqual(homeViewports.map(viewport => viewport.width), [375, 768, 1440]);
+  for (const viewport of homeViewports) {
+    const dynamic = (viewport as any).dynamicState;
+    assert.ok(dynamic, `缺少 ${viewport.width} 动态探针证据`);
+    for (const side of ['source', 'candidate']) {
+      assert.equal(dynamic[side].interactiveElements, 1, `${viewport.width}/${side} 可交互元素数`);
+      assert.equal(dynamic[side].statesChecked, 4, `${viewport.width}/${side} 必须逐一检查四种状态`);
+      assert.ok(dynamic[side].forceCalls >= 4, `${viewport.width}/${side} 必须实际强制四种状态`);
+    }
+    assert.ok(dynamic.durationMs >= 0 && dynamic.durationMs <= 2000, `${viewport.width} 动态探针耗时应在档位预算内`);
+  }
+});
+
+test('只在 375 生效的 main:has(:focus) 范围外规则必须按该视口拒绝', async () => {
+  const { id, source, version } = await dynamicFixture('body{color:#111}.outside{width:20px}@media(max-width:479px){main:has(:focus) .outside{width:99px}}', '<main><section class="target"><h1>目标</h1></section><p class="outside">外部</p></main>', '目标。入口。外部。99px。');
+  const candidate = structuredClone(source);
+  candidate.pages[0].html = candidate.pages[0].html.replace('</section>', '<a href="/home">入口</a></section>');
+  const selected = target([0], '目标', '目标', 'home', version.id);
+  const result = await commitSiteCode({ siteId: id, baseRevision: 1, code: candidate, selectedTarget: selected, author: 'assistant', summary: '375 动态规则', request: '增加入口' });
+  assert.equal(result.status, 'rejected');
+  if (result.status === 'rejected') assert.match(result.checks.issues.join('\n'), /home\/375|375/);
+  assert.equal((await getCodeSite(id))!.versions.length, 1);
+});
+
+test('target:focus-within 的兄弟范围外规则与祖先 hover、active 规则都必须拒绝', async () => {
+  const { id, source, version } = await dynamicFixture('body{color:#111}.outside{width:20px}.target:focus-within + .outside{width:91px}.target:hover + .outside{width:92px}.target:active + .outside{width:93px}', '<main><section class="target"><h1>目标</h1></section><p class="outside">外部</p></main>');
+  const candidate = structuredClone(source);
+  candidate.pages[0].html = candidate.pages[0].html.replace('</section>', '<a href="/home">入口</a></section>');
+  const selected = target([0], '目标', '目标', 'home', version.id);
+  const result = await commitSiteCode({ siteId: id, baseRevision: 1, code: candidate, selectedTarget: selected, author: 'assistant', summary: '祖先交互态', request: '增加入口' });
+  assert.equal(result.status, 'rejected');
+  if (result.status === 'rejected') assert.match(result.checks.issues.join('\n'), /hover|active|focus/);
+});
+
+test('disabled button 不是可交互触发元素，不应让静态范围外规则误拒', async () => {
+  const { id, source, version } = await dynamicFixture('body{color:#111}.outside{color:#111}button{color:#111;background:#fff}main:has(:focus) .outside{color:red}', '<main><section class="target"><h1>目标</h1><button disabled>禁用</button></section><p class="outside">外部</p></main>', '目标。禁用。外部。改后。');
+  const candidate = structuredClone(source);
+  candidate.pages[0].html = candidate.pages[0].html.replace('目标', '改后');
+  const selected = target([0], '目标禁用', '目标', 'home', version.id);
+  const result = await commitSiteCode({ siteId: id, baseRevision: 1, code: candidate, selectedTarget: selected, author: 'assistant', summary: '禁用控件', request: '改标题' });
+  assert.equal(result.status, 'applied', result.status === 'rejected' ? result.checks.issues.join('\n') : '');
+  if (result.status !== 'applied') return;
+  assert.ok(result.version.checks.viewports.every(viewport => (viewport as any).dynamicState?.candidate.interactiveElements === 0));
 });
 
 test('summary 触发 focus-within 改变范围外宽度时拒绝', async () => {

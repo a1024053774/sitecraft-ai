@@ -7,7 +7,7 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
-import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications } from './code-site-local-edit.ts';
+import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, type DynamicStateProbe } from './code-site-local-edit.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
@@ -15,7 +15,7 @@ import type { CodeStyleId } from './code-site-styles.ts';
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
 function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], selectedTargets: AnnotationTarget[] = []) {
   const issues: string[] = [], cleaned: string[] = [];
-  const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
+  const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a button strong em b i small br hr details summary address blockquote time'.split(' '));
   const safeCss = (style: CSSStyleDeclaration) => {
     for (const name of [...style]) {
       const value = style.getPropertyValue(name);
@@ -60,7 +60,7 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
           if (name === 'href' && (/^\/[a-z][a-z0-9-]*(?:#[a-zA-Z0-9_-]+)?$/.test(value) || /^#[a-zA-Z0-9_-]+$/.test(value) || /^(mailto|tel):[^\s<>]+$/.test(value))) continue;
           issues.push(`已去掉资源或空链接 ${name}=${value.slice(0,100)}`); node.removeAttribute(name); continue;
         }
-        if (/^(class|id|alt|title|role|lang|width|height|colspan|rowspan|scope|headers|open|datetime)$/.test(name) || /^aria-[a-z-]+$/.test(name) || /^data-[a-z-]+$/.test(name)) continue;
+        if (/^(class|id|alt|title|role|lang|width|height|colspan|rowspan|scope|headers|open|datetime|disabled)$/.test(name) || /^aria-[a-z-]+$/.test(name) || /^data-[a-z-]+$/.test(name)) continue;
         issues.push(`已去掉属性 ${name}`); node.removeAttribute(name);
       }
       if (node.tagName === 'IMG') {
@@ -488,20 +488,6 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       for (const candidate of [code, clean.code]) {
         const touchedPages = new Set('targets' in edit ? edit.targets.map(target => target.pageId) : [edit.pageId]);
         if (candidate.header !== edit.source.header || candidate.footer !== edit.source.footer || candidate.pages.length !== edit.source.pages.length || edit.source.pages.some((page, i) => candidate.pages[i]?.id !== page.id || candidate.pages[i]?.title !== page.title || (!touchedPages.has(page.id) && candidate.pages[i]?.html !== page.html))) checks.issues.push('修改越界：其他页面、页面标题或公共页头页脚改变');
-        for (const page of edit.source.pages) {
-          const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) } : page.id === edit.pageId ? { paths: [[]] } : undefined;
-          const evidence = [];
-          const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 2000);
-          for (const value of [edit.source, candidate]) {
-            evidence.push(await outsideCssApplications(browser, frameTree.frame.id, renderSiteCode(args.siteId, value, page.id), scope, deadlineAt));
-          }
-          const sourceReachable = new Set(evidence[0].states.flatMap(state => state.entries.map(entry => JSON.stringify(entry))));
-          const reported = new Set<string>();
-          for (const state of evidence[1].states) for (const entry of state.entries) if (!sourceReachable.has(JSON.stringify(entry))) {
-            const issue = `修改越界：${page.id} 状态 ${state.state} 触发路径 ${JSON.stringify(state.trigger)} 改变范围外元素路径 ${JSON.stringify(entry.path)} 的完整计算样式`;
-            if (!reported.has(issue)) { reported.add(issue); checks.issues.push(issue); }
-          }
-        }
       }
     }
     if (args.translationSource) checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)})`));
@@ -517,6 +503,26 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       for (const width of [375, 768, 1440]) {
         const viewportStarted = performance.now();
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        let dynamicState: CodeCheck['viewports'][number]['dynamicState'];
+        if (edit) {
+          const dynamicStarted = performance.now();
+          const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 2000);
+          const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) }
+            : page.id === edit.pageId ? { paths: [[]] } : undefined;
+          const evidence: DynamicStateProbe[] = [];
+          for (const value of [edit.source, code]) {
+            evidence.push(await outsideCssApplications(browser, frameTree.frame.id, renderSiteCode(args.siteId, value, page.id), scope, deadlineAt));
+          }
+          const sourceReachable = new Set(evidence[0].states.flatMap(state => state.entries.map(entry => JSON.stringify(entry))));
+          const reported = new Set<string>();
+          for (const state of evidence[1].states) for (const entry of state.entries) if (!sourceReachable.has(JSON.stringify(entry))) {
+            const issue = `修改越界：${page.id}/${width} 状态 ${state.state} 触发路径 ${JSON.stringify(state.trigger)} 改变范围外元素路径 ${JSON.stringify(entry.path)} 的完整计算样式`;
+            if (!reported.has(issue)) { reported.add(issue); checks.issues.push(issue); }
+          }
+          const metrics = (probe: DynamicStateProbe) => ({ interactiveElements: probe.interactiveElements, forceCalls: probe.forceCalls,
+            statesChecked: probe.statesChecked, durationMs: probe.durationMs });
+          dynamicState = { durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
+        }
         const languageLinks = { zh: `/published/${args.siteId}?page=${page.id}`, en: `/published/${args.siteId}/en?page=${page.id}` };
         let originalGenerated: ReturnType<typeof readGeneratedText> = [];
         if (args.translationSource) {
@@ -560,7 +566,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         }
         const contrast = layout.textContrast.map(t => ({ ...t, threshold: t.role === 'heading' ? t.threshold : 4.5 })).filter(t => t.status !== 'measured' || t.ratio === null || t.ratio < t.threshold);
         const long = layout.bodyLineLength.filter(l => l.tooLong);
-        checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length, qualityFeedback });
+        checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length, qualityFeedback, ...(dynamicState ? { dynamicState } : {}) });
         args.timings?.push({ pageId: page.id, width, durationMs: performance.now() - viewportStarted });
         if (!layout.measurement.textContrastEntries) checks.issues.push(`${page.id}/${width} 无可测量正文`);
         if (layout.horizontalScroll || layout.overflowElements.length) checks.issues.push(`${page.id}/${width} 横向溢出`);

@@ -25,6 +25,11 @@ export type CodeQualityFeedback = Record<Exclude<CodeQualityKind, 'narrowColumns
   narrowColumns?: number;
   details: Array<{ kind: CodeQualityKind; target: string; text: string; detail: string }>;
 };
+export type DynamicStateEvidence = {
+  durationMs: number;
+  source: { interactiveElements: number; forceCalls: number; statesChecked: number; durationMs: number };
+  candidate: { interactiveElements: number; forceCalls: number; statesChecked: number; durationMs: number };
+};
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
   factReview?: 'legacy-unreviewed';
@@ -32,7 +37,9 @@ export type CodeCheck = {
   factReviewFrom?: { versionId: string; revision: number; checkedAt: string };
   viewports: Array<{ pageId: string; width: number; overflow: number; overlaps: number; contrastIssues: number; longLines: number;
     // Absent on versions checked before T-147; absence is not zero findings.
-    qualityFeedback?: CodeQualityFeedback }>;
+    qualityFeedback?: CodeQualityFeedback;
+    // Present on local/page edits after T-164; older versions have no dynamic probe evidence.
+    dynamicState?: DynamicStateEvidence }>;
 };
 export type CodeVersion = {
   id: string; revision: number; author: 'assistant' | 'user' | 'legacy-import'; summary: string; request: string; createdAt: string;
