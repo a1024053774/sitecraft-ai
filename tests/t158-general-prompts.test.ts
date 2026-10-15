@@ -21,7 +21,7 @@ const server = createServer(async (req, res) => {
     ? { summary: '展示已有业务。', style: user.match(/style 必须填 ([a-z]+)/)[1], styleReason: '用户选择。', skeletonId: 'custom', skeletonReason: '业务资料支持短页。', pages: [{ id: 'home', title: '首页', outline: ['按业务介绍'] }] }
     : tool === 'submit_english_translation'
       ? { translations: input.slots.map((slot: any) => ({ id: slot.id, text: slot.text === '首页' ? 'Home' : slot.text === '周日不营业' ? 'Closed on Sundays' : slot.text })) }
-      : input?.segments ? { results: input.segments.map((s: any) => ({ id: s.id, issues: [] })) }
+      : input?.segments ? { results: input.segments.map((s: any) => ({ id: s.id, issues: [], noFacts: true, factCategories: [], citations: [] })) }
         : body.messages[0].content.includes('局部事实校对员') ? { issues: [] } : code;
   const message = tool ? { tool_calls: [{ type: 'function', function: { name: tool, arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
   res.setHeader('content-type', 'application/json');
@@ -66,7 +66,9 @@ test('local audit sends only new copy with the same general claim categories and
   await auditCodeFacts(materials, readable, true);
   const body = requests.at(-1);
   assert.equal(body.thinking.type, 'disabled');
-  assert.ok(body.messages[1].content.includes(`资料：\n${materials}\n网页可见文字与辅助文案：\n${readable}`));
+  const input = JSON.parse(body.messages[1].content.split('\n')[0]);
+  assert.equal(input.materials, materials, '结构化核对仍保留资料原文');
+  assert.deepEqual(input.segments.map((segment: { text: string }) => segment.text), [readable], '只核新段，不扩到整站');
   assert.match(body.messages[0].content, /不要求本段包含公司全名/);
   generalAudit(body.messages[0].content);
 });

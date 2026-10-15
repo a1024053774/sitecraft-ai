@@ -1,4 +1,4 @@
-import { readCodeFactSegments, pendingCodeFactSegments, type CodeFactReview, type CodeFactSegment } from './code-site-fact-segments.ts';
+import { readCodeFactSegments, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource } from './code-site-fact-segments.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
@@ -448,7 +448,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: string; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[]; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number }) {
   const code = codeSiteSchema.parse(args.code);
   const localTargets = args.localEdit ? (args.localEdit.targets ?? (args.localEdit.target ? [args.localEdit.target] : [])) : [];
   const browser = await codeCheckBrowser();
@@ -555,9 +555,16 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const targetPaths = localTargets.filter(target => target.pageId === page.id).map(target => target.path);
         const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');const paths=${JSON.stringify(targetPaths)};return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
         if (!args.localEdit || targetPaths.length) for (const entry of layout.generatedText) generatedText.add(entry.text);
-        if (!args.localEdit && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
-          const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)})`);
-          for (const segment of segments) factSegments.set(JSON.stringify([segment.group, segment.text]), segment);
+        if (!args.legacyImport && !args.translationSource && !args.restoredFactReview && (!args.localEdit || targetPaths.length)) {
+          const paths = targetPaths.length ? targetPaths : [undefined];
+          for (const path of paths) {
+            const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(path)})`);
+            for (const segment of segments) {
+              const key = JSON.stringify([segment.group, segment.text]), previous = factSegments.get(key);
+              factSegments.set(key, { ...segment, targets: [...(previous?.targets ?? []), ...(segment.targets ?? [])]
+                .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.readable === target.readable) === index) });
+            }
+          }
         }
         if (args.translationSource) {
           const before = new Map(originalGenerated.map(entry => [entry.key, entry.text]));
@@ -587,19 +594,47 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
     if (!checks.issues.length && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
-      if (args.localEdit) checks.issues.push(...await auditCodeFacts(args.materials, readable, true, args.style));
-      else {
+      if (args.localEdit && !args.factSourceMaterials) {
+        // Legacy local versions have no separated source boundary and cannot
+        // satisfy the citation-era segment contract. Their parent review stays
+        // legacy-unreviewed; deterministic scope and layout checks still run.
+      } else {
+        if (!args.localEdit) {
         // Deleting the last full company name changes a site-wide obligation,
         // even when every remaining content segment was previously accepted.
-        if (args.companyName) {
-          const text = `站点公司名检查（系统观察）：记录公司名「${args.companyName}」，完整名称${readable.includes(args.companyName) ? '已出现' : '未出现'}。`;
-          factSegments.set(text, { text, group: text, context: { pageId: 'site', outline: [], headings: [] } });
+          if (args.companyName) {
+            const text = `站点公司名检查（系统观察）：记录公司名「${args.companyName}」，完整名称${readable.includes(args.companyName) ? '已出现' : '未出现'}。`;
+            factSegments.set(text, { text, group: text, context: { pageId: 'site', outline: [], headings: [] } });
+          }
         }
-        const { pending, reused } = pendingCodeFactSegments([...factSegments.values()], args.materials, args.factReviews ?? [], args.factSourceMaterials ?? args.materials);
-        const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, false, args.style) : [];
-        checks.factSegments = { format: 2, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? args.materials, audited: pending.length, reused: reused.length,
-          segments: [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [] }))] };
-        checks.issues.push(...new Set(reviewed.flatMap(segment => segment.issues)));
+        const segments = [...factSegments.values()];
+        const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials);
+        const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials) : [];
+        const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], noFacts: segment.noFacts, factCategories: segment.factCategories, citations: segment.citations }))]
+          .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
+        if (!args.localEdit) checks.factSegments = { format: 4, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? [], audited: pending.length, reused: reused.length, segments: receipts };
+        const scope = args.localEdit ? segments[0]?.targets?.[0] : undefined;
+        const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !scope || target.pageId !== scope.pageId || target.root !== scope.root || !scope.path.every((index, i) => target.path[i] === index)) })).filter(citation => citation.targets?.length);
+        const citations: CodeFactCitation[] = [];
+        const citationKeys = new Set<string>();
+        for (const citation of [...outside, ...receipts.flatMap(review => review.citations)]) {
+          const quote = normalizeFactQuote(citation.quote);
+          const source = findFactSource(args.factSourceMaterials, quote);
+          if (!quote || !source) {
+            checks.issues.push(`范围外资料出处无法在当前企业资料中验真：${citation.claim}`);
+            continue;
+          }
+          const key = JSON.stringify([citation.category, normalizeFactQuote(citation.claim), quote]);
+          if (citationKeys.has(key)) {
+            checks.issues.push(`资料出处重复：${citation.claim}`);
+            continue;
+          }
+          citationKeys.add(key);
+          citations.push({ ...citation, source: factSourceRef(source), targets: [...(citation.targets ?? [])]
+            .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index) });
+        }
+        checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处') || issue.includes('资料出处重复')), entries: citations };
+        checks.issues.push(...receipts.flatMap(segment => segment.issues));
       }
     }
     checks.passed = checks.issues.length === 0;

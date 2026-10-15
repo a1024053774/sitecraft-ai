@@ -129,6 +129,13 @@ export function englishFidelity(source: SiteCode, candidate: SiteCode, companyNa
     // by quantities; mixed identifiers retain their complete independent token.
     const letter = '(?!\\p{Script=Han})\\p{L}';
     const marker = new RegExp(`(?:${letter}|\\p{N})+(?:[._/-](?:${letter}|\\p{N})+)*`, 'gu');
+    // Standards and protection grades are often written as an all-caps
+    // abbreviation followed by a separated number (ISO 9001, GB/T 50016).
+    // Keep connected uppercase prefixes as part of the same marker before
+    // quantity parsing can attach the following word as a unit. Han text is a
+    // legal script transition; only Latin/numeric model text can be adjacent.
+    const separatedModel = /(?<![\p{Script=Latin}\p{N}_-])[A-Z]{2,}(?:[/-][A-Z]+)*\s+\d+(?:[._/-][A-Za-z0-9]+)*(?![\p{Script=Latin}\p{N}_-])/gu;
+    text = text.replace(separatedModel, value => mask('marker', value));
     for (const value of text.match(marker) ?? []) {
       const measurement = value.match(/^(?:\d+(?:\.\d+)?|\.\d+)(.+)$/);
       const mappedMeasurement = measurement && measurement[1].split(/[/·*]/).every(part => part in units);

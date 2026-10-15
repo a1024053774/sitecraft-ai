@@ -16,6 +16,7 @@ import { simulatedPackList } from '@/lib/simulated-packs';
 import { CodeVersionHistory } from './code-version-history';
 import { annotationTargetSchema, annotationCaptureSchema, annotationDraftSchema, type AnnotationDraft, type AnnotationTarget, type AnnotationThread } from '@/lib/annotations';
 import { CodePreviewSelection } from './code-preview-selection';
+import { CodePreviewCitations } from './code-preview-citations';
 import { SiteDeleteDialog } from './site-delete-panel';
 import { codeStyles, codeStyleSchema, codePreferencesSchema, codeSliderBand } from '@/lib/code-site-styles';
 
@@ -65,6 +66,7 @@ export type CodeWorkspacePayload = { codeSite: CodeSiteRecord; alignment: Alignm
 export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: CodeWorkspacePayload }) {
   const [state, setState] = useState(initial), [input, setInput] = useState(''), [error, setError] = useState('');
   const [sending, setSending] = useState(false), [panel, setPanel] = useState<'materials' | 'images' | null>(null);
+  const [materialSource, setMaterialSource] = useState<{ type: 'upload'; sourceId: string; name: string; text: string } | undefined>();
   const [width, setWidth] = useState(1440), [page, setPage] = useState('home'), [pane, setPane] = useState('chat');
   const [images, setImages] = useState<Array<{ imageId: string; originalName: string }>>([]);
   const [category, setCategory] = useState('product'), [license, setLicense] = useState('user-provided');
@@ -305,12 +307,14 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     if (!message.trim() || busy || conversationUnavailable || sendLock.current) return;
     sendLock.current = true; setSending(true); setError('');
     try { await request({ message, baseRevision: version?.revision ?? 0,
+      ...(materialSource?.text === message ? { source: materialSource } : {}),
       ...(selected ? { selectedTarget: selected, saveAnnotation } : {}),
-      ...(version && quick && !selected ? { pageId: activePage } : {}) }); setInput(''); setPanel(null); }
+      ...(version && quick && !selected ? { pageId: activePage } : {}) }); setInput(''); setMaterialSource(undefined); setPanel(null); }
+
     catch (error) { setError(error instanceof Error ? error.message : '本次请求失败。'); }
     finally { sendLock.current = false; setSending(false); }
   }
-  async function submit(event: FormEvent) { event.preventDefault(); await sendEdit(input.trim()); }
+  async function submit(event: FormEvent) { event.preventDefault(); await sendEdit(input); }
   async function undo() {
     setSending(true); setError('');
     try {
@@ -325,7 +329,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       const text = /\.xlsx$/i.test(file.name) ? (await readXlsxFile(file)).map(row => row.join('\t')).join('\n')
         : /\.csv$/i.test(file.name) ? Papa.parse<string[]>(await file.text()).data.map(row => row.join('\t')).join('\n') : await file.text();
       if (text.length > 4000) throw new Error('这份资料超过 4000 字，请先保留公司业务、产品参数和已有资料。');
-      setInput(text); setPanel(null); setError('');
+      setInput(text); setMaterialSource({ type: 'upload', sourceId: crypto.randomUUID(), name: file.name || 'upload', text }); setPanel(null); setError('');
     } catch (error) { setError(error instanceof Error ? error.message : '资料读取失败。'); }
     event.target.value = '';
   }
@@ -354,6 +358,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`} style={{ paddingBottom: annotationBottomSpace }}>
       <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={!canAnnotate} data-testid="pick-block" onClick={() => { setPicking(!picking); setSelectedTarget(null); setComposer(null); setAreaCandidates([]); }}>{picking ? '退出批注' : '批注'}</button><small>{picking ? '点击或拖框写批注 · Esc 取消' : selected ? `已选：${selected.label}` : 'C 进入批注 · 只修改选中区块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       {previewVersionId && <p className="code-preview-version">正在回看 v{previewVersion?.revision} 的批注 <button onClick={() => { setPreviewVersionId(null); setComposer(null); setSelectedTarget(null); }}>回到当前版本</button></p>}
+      {activeLanguage === 'zh' && previewVersion && <p className="code-fact-status" data-testid="fact-citation-status">{!previewVersion.checks.factCitations ? '未提供可引用的原句' : `${previewVersion.checks.factCitations.entries.length} 条资料出处${previewVersion.checks.factCitations.complete ? '' : ' · 部分内容未记录出处'}`}<small>悬停或点选预览中的编号，查看资料原句。</small></p>}
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
         {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && previewVersion && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && canAnnotate}
           selected={areaCandidates.length ? null : composer?.target ?? selected} areaChoosing={!!areaCandidates.length} pageId={activePage} versionId={previewVersion.id} html={previewVersion.code.pages.find(p => p.id === activePage)!.html}
@@ -379,7 +384,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
               {!composer.thread && <button type="button" className="primary-button" data-testid="annotation-add" disabled={!opinion.trim() || draftStorageError || composer.target.versionId !== version?.id || drafts.find(d => d.id === composer.draftId)?.status === 'sending'} onClick={addAnnotation}>{composer.draftId ? '保存批注' : '添加批注'}</button>}</div>
             </>}
           </section>}
-        </CodePreviewSelection>}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
+        </CodePreviewSelection>}{activeLanguage === 'zh' && previewVersion && !picking && !composer && <CodePreviewCitations key={`${previewVersion.id}:${activePage}`} frame={frame} stage={stage} ready={previewReady} record={previewVersion.checks.factCitations} versionId={previewVersion.id} pageId={activePage} scale={scale} header={previewVersion.code.header} languageLinks={!!previewVersion.english} />}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
       </div></div>
     </main>
     <aside className={`builder-chat ${pane !== 'chat' ? 'mobile-hidden' : ''}`} aria-label="对话">
@@ -441,9 +446,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
           }}>{thread.status === 'open' ? '标为已处理' : '重新打开'}</button></article>;
         }) : <p>还没有保存的批注。</p>}</details>
         <div className="code-material-tools"><button disabled={busy} onClick={() => setPanel(panel === 'materials' ? null : 'materials')}><FileText size={14} />资料</button><button disabled={busy} onClick={() => { setPanel(panel === 'images' ? null : 'images'); void loadImages().catch(e => setError(e.message)); }}><ImageIcon size={14} />图片</button></div>
-        {panel === 'materials' && <section className="code-upload-panel" aria-label="公司资料"><label>上传文本或表格<input type="file" accept=".txt,.md,.csv,.xlsx" onChange={e => void loadMaterial(e)} /></label><div className="code-pack-list">{simulatedPackList.map(pack => <button key={pack.id} data-pack-id={pack.id} onClick={() => { setInput(pack.body); setPanel(null); }}>{pack.label}</button>)}</div><p>资料载入后可先编辑，再发送。</p></section>}
+        {panel === 'materials' && <section className="code-upload-panel" aria-label="公司资料"><label>上传文本或表格<input type="file" accept=".txt,.md,.csv,.xlsx" onChange={e => void loadMaterial(e)} /></label><div className="code-pack-list">{simulatedPackList.map(pack => <button key={pack.id} data-pack-id={pack.id} onClick={() => { setInput(pack.body); setMaterialSource(undefined); setPanel(null); }}>{pack.label}</button>)}</div><p>资料载入后可先编辑，再发送。</p></section>}
         {panel === 'images' && <section className="code-upload-panel" aria-label="站点图片"><label>用途<select value={category} onChange={e => setCategory(e.target.value)}><option value="product">产品</option><option value="equipment">设备</option><option value="facility">厂房</option><option value="inspection">检测</option></select></label><label>许可<select value={license} onChange={e => setLicense(e.target.value)}>{['user-provided', 'CC0', 'Public Domain', 'CC BY', 'CC BY-SA'].map(l => <option key={l} value={l}>{l === 'user-provided' ? '我有权用于本站' : l}</option>)}</select></label><label>来源地址<input value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} /></label>{license !== 'user-provided' && <label>许可证地址<input value={licenseUrl} onChange={e => setLicenseUrl(e.target.value)} /></label>}<label>作者<input value={author} onChange={e => setAuthor(e.target.value)} /></label><label>署名文字<input value={attribution} onChange={e => setAttribution(e.target.value)} /></label><input aria-label="上传图片" disabled={busy} type="file" accept="image/png,image/jpeg,image/webp" onChange={e => void uploadImage(e)} />{images.map(image => <p key={image.imageId}>{image.originalName} · {image.imageId}</p>)}</section>}
-        <form className="code-chat-form" onSubmit={e => void submit(e)}><label className="sr-only" htmlFor="code-message">公司资料或修改要求</label><textarea id="code-message" data-testid="code-message" value={input} maxLength={4000} onChange={e => setInput(e.target.value)} placeholder={selected ? `想怎样修改「${selected.label}」？` : version ? '例如：首屏换成深色，保留其他内容' : '粘贴公司资料，说明希望访客做什么'} disabled={busy || conversationUnavailable} rows={4} /><button className="primary-button" type="submit" disabled={busy || conversationUnavailable || !input.trim()}><Send size={14} />{version ? '发送修改' : '发送资料'}</button></form>
+        <form className="code-chat-form" onSubmit={e => void submit(e)}><label className="sr-only" htmlFor="code-message">公司资料或修改要求</label><textarea id="code-message" data-testid="code-message" value={input} maxLength={4000} onChange={e => { const value = e.target.value; setInput(value); if (materialSource && materialSource.text !== value) setMaterialSource(undefined); }} placeholder={selected ? `想怎样修改「${selected.label}」？` : version ? '例如：首屏换成深色，保留其他内容' : '粘贴公司资料，说明希望访客做什么'} disabled={busy || conversationUnavailable} rows={4} /><button className="primary-button" type="submit" disabled={busy || conversationUnavailable || !input.trim()}><Send size={14} />{version ? '发送修改' : '发送资料'}</button></form>
       </div>
     </aside>
     {historyOpen && <CodeVersionHistory site={site} busy={!!busy} onUpdate={setState} onClose={() => setHistoryOpen(false)} />}
