@@ -232,7 +232,7 @@ test('disabled button 不是可交互触发元素，不应让静态范围外规�
   const result = await commitSiteCode({ siteId: id, baseRevision: 1, code: candidate, selectedTarget: selected, author: 'assistant', summary: '禁用控件', request: '改标题' });
   assert.equal(result.status, 'applied', result.status === 'rejected' ? result.checks.issues.join('\n') : '');
   if (result.status !== 'applied') return;
-  assert.ok(result.version.checks.viewports.every(viewport => (viewport as any).dynamicState?.candidate.interactiveElements === 0));
+  assert.ok(result.version.checks.viewports.filter(viewport => viewport.pageId === 'home').every(viewport => viewport.dynamicState?.candidate.interactiveElements === 0));
 });
 
 test('summary 触发 focus-within 改变范围外宽度时拒绝', async () => {

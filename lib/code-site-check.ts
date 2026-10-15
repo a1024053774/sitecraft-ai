@@ -504,7 +504,8 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const viewportStarted = performance.now();
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
         let dynamicState: CodeCheck['viewports'][number]['dynamicState'];
-        if (edit) {
+        const pageIsEdited = edit && ('targets' in edit ? edit.targets.some(target => target.pageId === page.id) : edit.pageId === page.id);
+        if (edit && pageIsEdited) {
           const dynamicStarted = performance.now();
           const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 2000);
           const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) }
