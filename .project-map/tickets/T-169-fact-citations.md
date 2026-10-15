@@ -103,3 +103,4 @@ Tracer bullet 继续经生产 chat POST、原提交入口、FS 版本及工作�
 - P1-a 改为逐段必返 `factCategories` 合同：类别非空必须有同类别有效 citation；类别覆盖、编号、claim、quote 均由代码确定性校验。模型把「长期合作客户：甲方公司。」标成无企业事实时，替身仍返回原有 `issues`，资料无该句即拒收；剩余已知风险是模型可能错误返回空类别，代码不再用关键词正则猜语义，已记录为模型语义边界。`p1-4af-exact-red-2.log` 保留 4af 父版本两项精确红态，当前 `p1-contract-final-green.log` 覆盖对应绿态。
 - 当前非浏览器合同 `tests/t169-fact-citations.test.ts` **12/12 PASS**，typecheck **PASS**（`p1-structured-typecheck-final-2.log`）。T-158 翻译用例本轮仅因未设置 CHROME_PATH 被底线检查入口拒绝，未启动 Chrome，日志 `p1-structured-t158.log`；不作为本次 P1 合同失败。
 - 本轮未发真实请求；全量未在本次结构化重做后重跑，独立复审由主控安排。
+- 结构化合同后的浏览器定向最终拆跑：`本地替身`、`空出处`、`表格中的` 三个命令均 **1/1 PASS**（分别为 `final-browser-local.log`、`final-browser-empty.log`、`final-browser-table.log`），每次均先确认无其他 Chrome/node --test/build；P2 1440/768/375 边界与滚动断言、空出处不存版和表格绑定均覆盖。
