@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import test from 'node:test';
 
-test('T-129 saved-version CLI detects disabled navigation and inquiry through real Chrome', async t => {
+test('T-129 saved-version CLI detects disabled navigation and content through real Chrome', async t => {
   assert.ok(process.env.CHROME_PATH, 'set the approved testing CHROME_PATH');
   const root = path.resolve(process.env.T129_CHECK_TEST_OUT || `artifacts/t129/check-regression-${Date.now()}-${process.pid}`);
   await mkdir(root, { recursive: true });
@@ -15,9 +15,9 @@ test('T-129 saved-version CLI detects disabled navigation and inquiry through re
   }));
   const cases = [
     { name: 'unchanged', css: '', pass: true },
-    { name: 'inquiry-ancestor-hidden', css: 'main > div{display:none}', pass: false },
+    { name: 'content-ancestor-hidden', css: 'main > div{display:none}', pass: false },
     { name: 'navigation-ancestor-hidden', css: 'header{display:none}', pass: false },
-    { name: 'inquiry-pointer-events', css: '.sc-inquiry{pointer-events:none}', pass: false },
+    { name: 'content-pointer-events', css: 'header a{pointer-events:none}', pass: false },
     { name: 'contact-link-destination', css: '', pass: false },
   ];
   let scenario = cases[0];
@@ -35,7 +35,7 @@ test('T-129 saved-version CLI detects disabled navigation and inquiry through re
     const product = url.searchParams.get('version') === 'v26' ? '<ul><li>轴套与接头</li></ul>' : '<table><tr><td>轴套</td><td>接头</td></tr></table>';
     const contact = after && scenario.name === 'contact-link-destination' ? 'home' : 'contact';
     response.setHeader('content-type', 'text/html; charset=utf-8');
-    response.end(`<!doctype html><html><head><style>body{margin:0;padding:24px}header,main,footer{padding:20px}main>div{padding-top:1100px}.sc-inquiry{padding:20px}button,input{padding:12px}${after ? scenario.css : ''}</style></head><body><header><a href="?page=home">首页</a><a href="?page=${contact}">联系</a></header><main><h1>加工能力</h1><section><h2>产品与加工</h2>${product}<a href="?page=products">查看产品</a></section><div><form class="sc-inquiry"><label>姓名<input name="name"></label><button type="submit">发送询盘</button></form></div></main><footer>联系邮箱待补充</footer></body></html>`);
+    response.end(`<!doctype html><html><head><style>body{margin:0;padding:24px}header,main,footer{padding:20px}main>div{padding-top:1100px}button,input{padding:12px}${after ? scenario.css : ''}</style></head><body><header><a href="?page=home">首页</a><a href="?page=${contact}">联系</a></header><main><h1>加工能力</h1><section><h2>产品与加工</h2>${product}<a href="?page=products">查看产品</a></section><div>欢迎来电询价 <a href="?page=contact">业务说明</a></div></main><footer>联系邮箱待补充</footer></body></html>`);
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;

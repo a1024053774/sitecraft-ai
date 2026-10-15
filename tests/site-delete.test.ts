@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import path from "node:path";
 import test from "node:test";
@@ -24,7 +24,7 @@ function conversationDir(siteId: string) {
 }
 
 function leadRecordPath(siteId: string) {
-  return path.join(process.env.SITECRAFT_DATA_ROOT!, "leads", workspaceId, `${siteId}.json`);
+  return path.join(process.env.SITECRAFT_DATA_ROOT!, "leads", "demo", `${siteId}.json`);
 }
 
 function uploadDir(siteId: string) {
@@ -40,7 +40,6 @@ registerHooks({
   },
 });
 
-const { createLead } = await import("../lib/lead-store.ts") as typeof import("../lib/lead-store.ts");
 const { createConversation } = await import("../lib/conversation-store.ts") as typeof import("../lib/conversation-store.ts");
 const { getCodeSite, createCodeSite } = await import("../lib/code-site-store.ts");
 const createSite = (siteId:string)=>createCodeSite(siteId,siteId,crypto.randomUUID());
@@ -63,16 +62,12 @@ test("site-delete tests require the development-file driver", () => {
   assert.notEqual(process.env.NODE_ENV, "production");
 });
 
-test("a mismatched confirmation leaves the site, conversation and inquiry in place", async () => {
+test("a mismatched confirmation leaves the site, conversation and unrelated data in place", async () => {
   const siteId = uniqueSiteId();
   await createSite(siteId);
   await createConversation(siteId);
-  await createLead({
-    siteId,
-    name: "Keep Me",
-    email: "keep@p5del.test",
-    message: "P5DEL-KEEP-HX7K must remain",
-  });
+  await mkdir(path.dirname(leadRecordPath(siteId)), { recursive: true });
+  await writeFile(leadRecordPath(siteId), JSON.stringify({ keep: "P5DEL-KEEP-HX7K" }));
   await assert.rejects(
     () => deleteSiteByUserChoice(siteId, `${siteId}-nope`),
     (error: unknown) => {
@@ -87,21 +82,17 @@ test("a mismatched confirmation leaves the site, conversation and inquiry in pla
   assert.equal(Boolean(await getCodeSite(siteId)), true);
 });
 
-test("typing the site id deletes draft, conversation and inquiry without recreating them", async () => {
+test("typing the site id deletes only the selected site data", async () => {
   const siteId = uniqueSiteId();
   await createSite(siteId);
   await createConversation(siteId);
-  await createLead({
-    siteId,
-    name: "Drop Me",
-    email: "drop@p5del.test",
-    message: "P5DEL-DROP-HX7K should vanish",
-  });
+  await mkdir(path.dirname(leadRecordPath(siteId)), { recursive: true });
+  await writeFile(leadRecordPath(siteId), JSON.stringify({ keep: "P5DEL-DROP-HX7K" }));
   const result = await deleteSiteByUserChoice(siteId, siteId);
   assert.equal(result.deleted, true);
   assert.equal(existsSync(siteRecordPath(siteId)), false);
   assert.equal(existsSync(conversationDir(siteId)), false);
-  assert.equal(existsSync(leadRecordPath(siteId)), false);
+  assert.equal(existsSync(leadRecordPath(siteId)), true);
   assert.equal(await getCodeSite(siteId), null);
 });
 

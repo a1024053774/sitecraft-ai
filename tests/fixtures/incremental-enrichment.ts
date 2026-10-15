@@ -9,7 +9,7 @@ export const enrichmentEmail = 'chengchuan-sales@luckye.online';
 export const enrichmentSteps = [
   '模拟资料，仅用于内部 Demo。\n公司名：澄川传动\n业务：生产工业齿轮减速机。\n产品：R 系列斜齿轮减速机、K 系列锥齿轮减速机。\n先做中文首页和产品页（home、products），资料少就保持简短；参数缺口显示待补充。',
   '补充产品资料，请丰富已有首页和产品页，保留公司业务和两个产品，不增加联系、询盘、报价或样品入口。\nR 系列斜齿轮减速机：型号 R47，额定输出扭矩 244 N·m，减速比 3.83–54.00，输入功率 0.12–4 kW；用于输送设备。\nK 系列锥齿轮减速机：型号 K57，额定输出扭矩 400 N·m，减速比 10.43–59.82，输入功率 0.12–5.5 kW；用于包装设备。\n图片是已授权行业配图，只作对应类别的示意，不是本公司实拍，不代表具体型号或新增设备能力；图片旁标注行业配图。',
-  '继续补充公司资料，请保留已有公司业务、两个产品及全部参数和配图。\n沿革：2016 年开始生产工业齿轮减速机；2021 年增加 K 系列锥齿轮减速机。\n供货案例：2024 年为华岭输送设备提供 R47 减速机，用于输送线驱动；数量与运行效果待补充，不添加客户 Logo 或评价。\n联系邮箱：chengchuan-sales@luckye.online。\n明确要求：加独立联系页（contact）和系统询盘表单，保留首页和产品页；不做报价、样品入口、响应时效或其他服务承诺。只做中文。',
+  '继续补充公司资料，请保留已有公司业务、两个产品及全部参数和配图。\n沿革：2016 年开始生产工业齿轮减速机；2021 年增加 K 系列锥齿轮减速机。\n供货案例：2024 年为华岭输送设备提供 R47 减速机，用于输送线驱动；数量与运行效果待补充，不添加客户 Logo 或评价。\n联系邮箱：chengchuan-sales@luckye.online。欢迎来电询价。\n明确要求：加独立联系页（contact）和业务说明，保留首页和产品页；不做报价、样品入口、响应时效或其他服务承诺。只做中文。',
 ] as const;
 export const enrichmentPhotos = ['product-gearbox-reducer.jpg', 'equipment-gearbox-housing-machining.jpg'];
 
@@ -26,7 +26,7 @@ export function enrichmentFixtureCode(step: number, imageIds: string[] = []): Si
     pages: [
       { id: 'home', title: '首页', html: `<main><h1>工业齿轮减速机</h1><p>澄川传动生产工业齿轮减速机。</p>${products}${step > 1 ? photos : ''}${history}</main>` },
       { id: 'products', title: '产品', html: `<main><h1>产品</h1>${products}${step > 1 ? photos : ''}</main>` },
-      ...(step === 3 ? [{ id: 'contact', title: '联系', html: `<main><h1>联系澄川传动</h1><p><a href="mailto:${enrichmentEmail}">${enrichmentEmail}</a></p><div data-system-inquiry=""></div></main>` }] : []),
+      ...(step === 3 ? [{ id: 'contact', title: '联系', html: `<main><h1>联系澄川传动</h1><p>欢迎来电询价。邮箱：<a href="mailto:${enrichmentEmail}">${enrichmentEmail}</a></p><div data-system-inquiry=""></div></main>` }] : []),
     ],
   };
 }

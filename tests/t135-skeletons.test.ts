@@ -26,7 +26,7 @@ const plan = { summary: '先选标准零件或来图加工，再看各自范围�
   skeletonId: choice.id, skeletonReason: choice.reason, pages: [
     { id: 'home', title: '首页', outline: ['两类业务入口、加工与检测、联系'] },
     { id: 'products', title: '产品与加工', outline: ['标准零件、来图加工范围'] },
-    { id: 'contact', title: '联系', outline: ['邮箱、系统询盘表单'] },
+    { id: 'contact', title: '联系', outline: ['邮箱与业务说明'] },
   ] };
 const code = { header: '<header>双路机械<nav><a href="/home">首页</a><a href="/products">产品与加工</a><a href="/contact">联系</a></nav></header>', footer: '<footer>双路机械</footer>',
   css: 'body{margin:0;background:#fff;color:#111;font:16px/1.6 sans-serif}header,main,footer{padding:24px}nav{display:flex;gap:16px;flex-wrap:wrap}a{color:#111}p{max-width:30em}',

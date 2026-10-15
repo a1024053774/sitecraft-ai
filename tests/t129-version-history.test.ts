@@ -31,7 +31,7 @@ const original: SiteCode = {
   pages: [
     { id: 'home', title: '首页', html: '<main><h1>临港机械</h1><p>精密零件加工。</p><section><h2>产品与加工</h2><p>轴套与接头。</p><a href="/products">查看产品</a></section></main>' },
     { id: 'products', title: '产品', html: '<main><h1>轴套与接头</h1><section id="products"><h2>产品目录</h2><ul><li>接头</li><li>轴套</li></ul></section><p data-product-model="">LG-A</p><section id="processing"><h2>加工方式</h2><p>精密零件加工。</p></section></main>' },
-    { id: 'contact', title: '联系', html: '<main><h1>联系临港机械</h1><div data-system-inquiry=""></div></main>' },
+    { id: 'contact', title: '联系', html: '<main><h1>联系临港机械</h1><div data-system-inquiry="">欢迎来电询价</div></main>' },
   ],
 };
 const oldProducts = '<section id="products"><h2>轴套目录</h2><table><thead><tr><th>产品</th><th>加工</th></tr></thead><tbody><tr><td>轴套</td><td>精密零件加工</td></tr></tbody></table></section>';

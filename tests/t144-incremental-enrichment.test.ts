@@ -75,7 +75,16 @@ test('同一会话保留补充事实、正常上传图片、三个版本与恢�
     assert.equal(new Set(snapshots.map(s => s.conversationId)).size, 1);
     assert.deepEqual(snapshots[2].versions.slice(0, 2), snapshots[1].versions);
     const contact = renderSiteCode(id, currentCodeVersion(snapshots[2])!.code, 'contact');
-    assert.match(contact, /<form class="sc-inquiry"/); assert.match(contact, /chengchuan-sales@luckye.online/);
+    assert.doesNotMatch(contact, /<form\b|sc-inquiry|\/api\/public\/[^"']+\/leads/); assert.match(contact, /chengchuan-sales@luckye.online/); assert.match(contact, /欢迎来电询价/);
+    const finalCode = currentCodeVersion(snapshots[2])!.code;
+    const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+    for (const width of [1440, 768, 375]) {
+      await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+      await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(id, finalCode, 'contact') });
+      await browser.evaluate('document.fonts.ready');
+      const shot = await browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
+      await writeFile(path.join(directory, `generated-contact-${width}.png`), Buffer.from(shot.data, 'base64'));
+    }
     const restored = await history(post(`/api/sites/${id}/history/restore`, { versionId: snapshots[0].versions[0].id, baseRevision: 3 }), { params: Promise.resolve({ siteId: id, action: 'restore' }) });
     assert.equal(restored.status, 200); const refreshed = await read();
     assert.equal(refreshed.versions.length, 4); assert.deepEqual(currentCodeVersion(refreshed)!.code, snapshots[0].versions[0].code);

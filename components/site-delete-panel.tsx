@@ -74,7 +74,7 @@ export function SiteDeleteDialog({
           <button className="icon-button" type="button" onClick={onClose} aria-label="关闭删除"><X size={15} /></button>
         </div>
         <p className="modal-copy">
-          只有你确认后才会删。会去掉站点版本、资料、对话、上传图片和该站询盘。系统不会定时清理，也不会替你删别的站。输入站点编号后才能删除。
+          只有你确认后才会删。会去掉站点版本、资料、对话和上传图片。系统不会定时清理，也不会替你删别的站。输入站点编号后才能删除。
         </p>
         {siteId && hasVersion ? <SitePeek siteId={siteId} /> : null}
         <div className="delete-site-actions">
@@ -91,7 +91,7 @@ export function SiteDeleteDialog({
           autoComplete="off"
           spellCheck={false}
         />
-        {error ? <p className="published-inquiry-error" role="alert">{error}</p> : null}
+        {error ? <p className="site-delete-error" role="alert">{error}</p> : null}
         <div className="modal-foot">
           <span>须与 {siteId} 完全一致</span>
           <button

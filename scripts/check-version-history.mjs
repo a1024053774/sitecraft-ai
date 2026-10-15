@@ -88,7 +88,7 @@ async function inspectPage(versionId, page, width, name) {
     const editableProduct=${JSON.stringify(!requestedPage || requestedPage === page)};
     const outsideBody=document.body.cloneNode(true);if(selector&&editableProduct)outsideBody.querySelector(selector)?.remove();
     const scrollPosition={left:scrollX,top:scrollY,behavior:'instant'};
-    const interactions=[...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[data-system-inquiry],.sc-inquiry')]
+    const interactions=[...document.querySelectorAll('a,button,input,textarea,select,[role="button"]')]
       .filter(node=>!editableProduct||(node!==product&&!product?.contains(node)))
       .map(node=>{
         // Probe each control in view, including controls below the fold. These
@@ -215,7 +215,7 @@ try {
       await click('[data-testid=open-version-history]');
       await wait(`document.querySelector('[data-testid=version-history]')?.open`, 'dialog');
       assert.ok(await browser.evaluate(`document.querySelectorAll('[data-version-id]').length > 10`));
-      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=version-preview]').getAttribute('sandbox')`), 'allow-forms');
+      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=version-preview]').getAttribute('sandbox')`), '');
       for (const grouping of ['minute', 'ten-minutes', 'hour', 'day']) {
         await value('select[aria-label="版本分组"]', grouping);
         assert.equal(await browser.evaluate(`document.querySelector('select[aria-label="版本分组"]').value`), grouping);
