@@ -3,7 +3,7 @@ import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, reviewedMaterialSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
+import { currentCodeVersion, reviewedMaterialSnapshot, reviewedFactMaterialSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
 
@@ -194,9 +194,10 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (args.pageId && (!current?.code.pages.some(page => page.id === args.pageId) || restore)) throw new Error('当前页面不存在，请重新选择。');
     const targetMaterials = restore ? reviewedMaterialSnapshot(site, restore) : undefined;
     const restoreSourceMaterials = restore?.checks.factSegments?.sourceMaterials;
-    const restoreHasSeparatedFacts = restore?.checks.factSegments?.format === 2
+    const restoreHasSeparatedFacts = restore?.checks.factSegments?.format === 3
       && typeof restoreSourceMaterials === 'string'
-      && restoreSourceMaterials === codeFactSourceMaterials(site, undefined, restore.id, false);
+      && restoreSourceMaterials === sourceMaterials
+      && reviewedFactMaterialSnapshot(site, restore) === sourceMaterials;
     const restoredFactReview = restore && restoreHasSeparatedFacts && targetMaterials !== undefined && targetMaterials === site.materials
       ? { versionId: restore.id, revision: restore.revision, checkedAt: restore.checks.factReviewFrom?.checkedAt ?? restore.checks.checkedAt } : undefined;
     // Only the current version and attempts of this exact active task supply
@@ -209,7 +210,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: sourceMaterials, style: site.plan?.style,
       ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget,
-        ...(reviewedMaterialSnapshot(site, current) === site.materials ? { citations: current.checks.factCitations } : {}) } } : {}) });
+        ...(current.checks.factCitations ? { citations: current.checks.factCitations } : {}) } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
     if (restoredFactReview && restore?.checks.factSegments) checked.checks.factSegments = { ...restore.checks.factSegments, audited: 0, reused: restore.checks.factSegments.segments.length };
     if (restoredFactReview && restore?.checks.factCitations) checked.checks.factCitations = restore.checks.factCitations;
@@ -226,8 +227,9 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks,
       // A local audit covers its fragment; unchanged portions require a known
       // parent review on the same base materials before we record a reusable basis.
-      ...(!args.selectedTarget || (current && reviewedMaterialSnapshot(site, current) === site.materials)
+      ...(!args.selectedTarget || (current && reviewedMaterialSnapshot(site, current) === site.materials && reviewedFactMaterialSnapshot(site, current) === sourceMaterials)
         ? { materialSnapshot: site.materials } : {}),
+      ...(sourceMaterials !== undefined ? { factMaterialSnapshot: sourceMaterials } : {}),
       ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };
     site.versions.push(version); site.currentVersionId = version.id;
     await write(site); return { status: 'applied' as const, site, version };

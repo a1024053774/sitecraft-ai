@@ -585,21 +585,32 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         }
       }
       const segments = [...factSegments.values()];
-      const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials ?? args.materials);
-      const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials ?? args.materials) : [];
-      const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], citations: segment.citations }))]
+      const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials);
+      const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials) : [];
+      const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], noFacts: segment.noFacts, factCategories: segment.factCategories, citations: segment.citations }))]
         .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
-      if (!args.localEdit) checks.factSegments = { format: 2, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? args.materials, audited: pending.length, reused: reused.length, segments: receipts };
+      if (!args.localEdit) checks.factSegments = { format: 3, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? '', audited: pending.length, reused: reused.length, segments: receipts };
       const scope = args.localEdit ? segments[0]?.targets?.[0] : undefined;
       const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !scope || target.pageId !== scope.pageId || target.root !== scope.root || !scope.path.every((index, i) => target.path[i] === index)) })).filter(citation => citation.targets?.length);
-      const citations = new Map<string, CodeFactCitation>();
+      const citations: CodeFactCitation[] = [];
+      const citationKeys = new Set<string>();
       for (const citation of [...outside, ...receipts.flatMap(review => review.citations)]) {
-        const key = JSON.stringify([citation.category, normalizeFactQuote(citation.claim), normalizeFactQuote(citation.quote)]), previous = citations.get(key);
-        citations.set(key, { ...citation, targets: [...(previous?.targets ?? []), ...(citation.targets ?? [])]
+        const quote = normalizeFactQuote(citation.quote);
+        if (!quote || !normalizeFactQuote(args.factSourceMaterials ?? '').includes(quote)) {
+          checks.issues.push(`范围外资料出处无法在当前企业资料中验真：${citation.claim}`);
+          continue;
+        }
+        const key = JSON.stringify([citation.category, normalizeFactQuote(citation.claim), quote]);
+        if (citationKeys.has(key)) {
+          checks.issues.push(`资料出处重复：${citation.claim}`);
+          continue;
+        }
+        citationKeys.add(key);
+        citations.push({ ...citation, targets: [...(citation.targets ?? [])]
           .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index) });
       }
-      checks.factCitations = { complete: !args.localEdit || !!args.localEdit.citations?.complete, entries: [...citations.values()] };
-      checks.issues.push(...new Set(receipts.flatMap(segment => segment.issues)));
+      checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处') || issue.includes('资料出处重复')), entries: citations };
+      checks.issues.push(...receipts.flatMap(segment => segment.issues));
     }
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };

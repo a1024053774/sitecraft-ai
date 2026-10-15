@@ -6,7 +6,7 @@ export function factAuditReply(body: { messages: Array<{ content: string }> }, r
   if (!user.startsWith('{')) return reply;
   const input = JSON.parse(user.split('\n')[0]);
   if (!Array.isArray(input.segments)) return reply;
-  const results = input.segments.map((segment: { id: string; text: string }) => ({ id: segment.id, issues: [] as string[], factCategories: [] as string[], citations: [] }));
+  const results = input.segments.map((segment: { id: string; text: string }) => ({ id: segment.id, issues: [] as string[], noFacts: true, factCategories: [] as string[], citations: [] }));
   for (const issue of reply.issues) {
     const quote = String(issue).replace(/^页面原句[：:]\s*/, '').split(/[；;]/)[0];
     const index = input.segments.findIndex((segment: { text: string }) => segment.text.includes(quote));

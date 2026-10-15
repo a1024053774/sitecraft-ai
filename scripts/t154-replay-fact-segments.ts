@@ -45,8 +45,8 @@ try {
     const segments = [...found.values()];
     const { pending, reused } = pendingCodeFactSegments(segments, materials, reviews, site.materials);
     const uncertain = segments.filter(segment => rejectedQuotes.some(({ quote }) => segment.text.includes(quote)));
-    reviews.push({ format: 2, sourceMaterials: site.materials, materials, audited: pending.length, reused: reused.length,
-      segments: segments.map(segment => ({ text: segment.text, group: segment.group, issues: uncertain.includes(segment) ? ['历史核对曾拒绝的原句或关联条件；保守重核'] : [] })) });
+    reviews.push({ format: 3, sourceMaterials: site.materials, materials, audited: pending.length, reused: reused.length,
+      segments: segments.map(segment => ({ text: segment.text, group: segment.group, issues: uncertain.includes(segment) ? ['历史核对曾拒绝的原句或关联条件；保守重核'] : [], noFacts: false, factCategories: [], citations: [] })) });
     const payload = JSON.stringify(codeFactAuditInput(materials, pending));
     // Fixed instructions are unchanged in substance; use a conservative 1,800
     // token allowance. Output/thinking is unknowable without the real model.

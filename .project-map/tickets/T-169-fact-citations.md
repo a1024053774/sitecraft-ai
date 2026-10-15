@@ -104,3 +104,12 @@ Tracer bullet 继续经生产 chat POST、原提交入口、FS 版本及工作�
 - 当前非浏览器合同 `tests/t169-fact-citations.test.ts` **12/12 PASS**，typecheck **PASS**（`p1-structured-typecheck-final-2.log`）。T-158 翻译用例本轮仅因未设置 CHROME_PATH 被底线检查入口拒绝，未启动 Chrome，日志 `p1-structured-t158.log`；不作为本次 P1 合同失败。
 - 本轮未发真实请求；全量未在本次结构化重做后重跑，独立复审由主控安排。
 - 结构化合同后的浏览器定向最终拆跑：`本地替身`、`空出处`、`表格中的` 三个命令均 **1/1 PASS**（分别为 `final-browser-local.log`、`final-browser-empty.log`、`final-browser-table.log`），每次均先确认无其他 Chrome/node --test/build；P2 1440/768/375 边界与滚动断言、空出处不存版和表格绑定均覆盖。
+
+### 2026-10-15 第三位审查后的根因修复
+
+- 先在父提交 `fd75cc7` 走真实 `handleCodeChat → commitSiteCode → checkSiteCode` 链跑新增合同，7 项 **7/7 红**（`artifacts/t169/parent-fd75-production-red-final.log`）：首条混合资料、缺 `factMaterials` 回退、空类别、旧 format、资料源变化的局部范围外出处、提示示例缺字段、重复出处均被父实现放过或未定义拒因。
+- 首条输入现在用显式分隔把企业资料与页面要求／请求保存为独立 `factMaterials`；拆不开的后续请求不进入出处源。完整 `materials` 仍传模型，`sourceMaterials` 只用于代码验真；旧记录缺 `factMaterials` 返回未知来源，不回退完整上下文。
+- 核对合同升级为 `factSegments.format=3`。每段必须返回 `noFacts` 二选一、类别与出处；空类别、缺字段、重复类别和重复 citation 都是明确拒因。恢复只复用 format 3 且两份资料快照一致的版本；局部修改始终按当前独立资料源重新验真范围外旧出处，资料任一变化不直接信任历史结论。
+- 同一生产链绿证据：`CHROME_PATH=… npm test -- --test-concurrency=1 tests/t169-production-contract.test.ts` **7/7 PASS**（`artifacts/t169/p1-production-green-final-2.log`）；非浏览器出处协议 `tests/t169-fact-citations.test.ts` **12/12 PASS**（`p1-facts-final-2.log`），`npm run typecheck` **PASS**（`p1-typecheck-final-2.log`）。P2 定向浏览器此前 **3/3 PASS**（`p1-browser-focused-final.log`），未发真实请求。
+- 已知剩余风险：模型可能把含企业事实的句子错误标为 `noFacts=true`；代码不再用关键词猜语义，因此无法确定性识别这种语义漏报。但事实核对模型仍须在 `issues` 中拒收资料没有的「长期合作客户：甲方公司。」反例，`tests/t169-fact-citations.test.ts` 已用本地替身证明该拒因不会被 `noFacts` 结果吞掉。
+- 当前仍 **INCOMPLETE**：本轮未在此工作树重跑全量或 build，独立审查未完成；T-172 的 ISO 英文保真缺口仍不在本票范围内。代码本地提交后再按主控指令合入 `family-kit-assembly`。

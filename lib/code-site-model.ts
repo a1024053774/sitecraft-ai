@@ -253,15 +253,15 @@ export async function translateSiteCode(source: SiteCode, companyName: string, i
   const protectedNames = [companyName, ...[...materials.matchAll(/^[ \t]*(?:英文公司名|公司英文名|英文名)[：:][ \t]*(.+)$/gm)].map(match => match[1].trim())];
   return { code: (await englishText(source, [...translations].map(([id, text]) => ({ id, text })), undefined, protectedNames)).code, model, correctionRounds };
 }
-export function codeFactAuditInput(materials: string, segments: CodeFactSegment[], sourceMaterials = materials) {
+export function codeFactAuditInput(materials: string, segments: CodeFactSegment[], sourceMaterials?: string) {
   const pages = new Map(segments.map(segment => [segment.context.pageId, segment.context.outline]));
   const groups = [...new Set(segments.map(segment => segment.group))];
-  return { materials, sourceMaterials, pageContexts: [...pages].map(([pageId, outline]) => ({ pageId, outline })),
+  return { materials, sourceMaterials: sourceMaterials ?? null, pageContexts: [...pages].map(([pageId, outline]) => ({ pageId, outline })),
     segments: segments.map((segment, i) => ({ id: `s${i + 1}`, text: segment.text, groupId: `g${groups.indexOf(segment.group) + 1}`, pageId: segment.context.pageId, headings: segment.context.headings })) };
 }
 export function auditCodeFacts(materials: string, readable: string, local?: boolean, style?: CodeStyleId, sourceMaterials?: string): Promise<string[]>;
 export function auditCodeFacts(materials: string, readable: CodeFactSegment[], local?: boolean, style?: CodeStyleId, sourceMaterials?: string): Promise<CodeFactReview['segments']>;
-export async function auditCodeFacts(materials: string, readable: string | CodeFactSegment[], local = false, style?: CodeStyleId, sourceMaterials = materials): Promise<string[] | CodeFactReview['segments']> {
+export async function auditCodeFacts(materials: string, readable: string | CodeFactSegment[], local = false, style?: CodeStyleId, sourceMaterials?: string): Promise<string[] | CodeFactReview['segments']> {
   requireModelTaskAdmission(style);
   const segments = typeof readable === 'string' ? [{ text: readable, group: readable, context: { pageId: 'site', outline: [], headings: [] } }] : readable;
   const input = codeFactAuditInput(materials, segments, sourceMaterials);
@@ -279,27 +279,33 @@ export async function auditCodeFacts(materials: string, readable: string | CodeF
 系统表单字段与图片署名不是企业事实。不查审美。
 本次只核对 segments 内的核对段。「站点公司名检查（系统观察）」是系统对完整公司名是否出现的观察，未出现时拒收，不要求其他单段补全公司名。同一 groupId 的所有段属于同一完整容器，必须结合整组的对象、起算条件、否定和范围核对，不能把不同段的条件割裂。每段 text 含事实及其所属标题、表头和条件，必须一起核对；表格标签及 colspan/rowspan/scope/headers 是结构信息，用于理解归属，不当作企业数量；pageContexts 的页面大纲和 headings 的相邻标题只用于理解，不是待核内容或事实来源，不要求单段补齐整站内容。不能因某段通过就推断其他段通过。
 materials 是完整核对上下文，sourceMaterials 才是可作为资料出处 quote 的原始企业资料；页面要求、设计要求和系统说明即使在 materials 中，也不能作为出处。
-每个输入编号恰好返回一次，没有问题也必须返回该编号和空 issues。不得遗漏、重复或增加编号。`) + `\n通过的高风险声明必须同时记录资料出处；仅限客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价这七类。普通介绍、普通标题、导航与占位不标。claim 必须复制本段内的完整声明，保留对象、条件与范围；quote 必须复制 sourceMaterials 中支持它的连续资料原句，不能从 pageContexts、网页、设计指令或另一字段拼出句子。逐条核对其语义是否支持声明，不只比数字；同字段更新以最后声明为准。引文找不到则写入 issues，不给该声明出处。\n返回 {"results":[{"id":"s1","issues":[],"citations":[{"category":"客户与合作方","claim":"网页中的声明原句","quote":"资料原句"}]}]}。每段必须返回 citations 数组，无高风险声明时为空；不返回 DOM 定位信息。`, JSON.stringify(input), local ? 4096 : 65536);
+每个输入编号恰好返回一次，没有问题也必须返回该编号和空 issues。不得遗漏、重复或增加编号。`) + `\n通过的高风险声明必须同时记录资料出处；仅限客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价这七类。普通介绍、普通标题、导航与占位不标。每段必须明确二选一：有企业事实时 noFacts=false 且 factCategories 至少列出每个高风险类别；没有企业事实时 noFacts=true 且 factCategories、citations 均为空。不能省略 noFacts，也不能用空类别代替二选一。claim 必须复制本段内的完整声明，保留对象、条件与范围；quote 必须复制 sourceMaterials 中支持它的连续资料原句，不能从 pageContexts、网页、设计指令或另一字段拼出句子。逐条核对其语义是否支持声明，不只比数字；同字段更新以最后声明为准。引文找不到则写入 issues，不给该声明出处。\n返回 {"results":[{"id":"s1","issues":[],"noFacts":false,"factCategories":["客户与合作方"],"citations":[{"category":"客户与合作方","claim":"网页中的声明原句","quote":"资料原句"}]}]}。每段必须返回 noFacts、factCategories、citations 三个字段；不返回 DOM 定位信息。`, JSON.stringify(input), local ? 4096 : 65536);
   const issues = z.array(z.string().min(1).max(500)).max(40);
   const category = z.enum(['客户与合作方', '资质认证', '业绩与数量', '价格与收费', '时间与交期承诺', '效果', '评价']);
   const citation = z.object({ category, claim: z.string().min(1).max(3000), quote: z.string().min(1).max(3000) }).strict();
-  const parsed = z.object({ results: z.array(z.object({ id: z.string(), issues, factCategories: z.array(category).max(7), citations: z.array(citation).max(100) }).strict()) }).strict().safeParse(result.data);
+  const parsed = z.object({ results: z.array(z.object({ id: z.string(), issues, noFacts: z.boolean(), factCategories: z.array(category).max(7), citations: z.array(citation).max(100) }).strict()) }).strict().safeParse(result.data);
   const ids = parsed.success ? parsed.data.results.map(row => row.id) : [];
   if (!parsed.success || ids.length !== input.segments.length || new Set(ids).size !== ids.length || input.segments.some(segment => !ids.includes(segment.id)))
     throw new Error('核对段回复格式或编号无效（遗漏、重复或越界），本次未保存版本。');
   const byId = new Map(parsed.data.results.map(row => [row.id, row]));
-  const source = normalizeFactQuote(sourceMaterials);
+  const source = normalizeFactQuote(sourceMaterials ?? '');
   const reviewed = input.segments.map((segment, i) => {
-    const row = byId.get(segment.id)!, problems = [...row.issues], factCategories = [...new Set(row.factCategories)];
+    const row = byId.get(segment.id)!, problems = [...row.issues], factCategories = row.factCategories;
+    const categoryKeys = factCategories.map(value => value);
+    if (new Set(categoryKeys).size !== categoryKeys.length) problems.push('本段 factCategories 含重复类别，拒绝保存。');
+    const citationKeys = row.citations.map(value => JSON.stringify([value.category, normalizeFactQuote(value.claim), normalizeFactQuote(value.quote)]));
+    if (new Set(citationKeys).size !== citationKeys.length) problems.push('本段资料出处重复，拒绝保存。');
     const citations = row.citations.filter(citation => {
       const quote = normalizeFactQuote(citation.quote), claim = normalizeFactQuote(citation.claim);
       if (!quote || !source.includes(quote)) { problems.push(`资料出处无依据：${citation.claim}；引文「${citation.quote}」未在本次资料原文中找到。`); return false; }
       if (!claim || !normalizeFactClaimText(segment.text).includes(claim)) { problems.push(`资料出处声明不在本核对段：${citation.claim}`); return false; }
       return true;
     });
-    if (!problems.length && factCategories.length && !factCategories.every(category => citations.some(citation => citation.category === category))) problems.push(`高风险事实缺少有效资料出处：声明类别「${factCategories.join('、')}」没有通过的资料出处。`);
-    if (!problems.length && citations.some(citation => !factCategories.includes(citation.category))) problems.push('资料出处声明类别未被本段核对结果覆盖。');
-    return { text: segment.text, group: segments[i].group, issues: problems, factCategories, citations };
+    if (row.noFacts && (factCategories.length || citations.length)) problems.push('本段标记 noFacts=true 却返回了企业事实类别或出处。');
+    if (!row.noFacts && !factCategories.length) problems.push('本段必须明确声明企业事实类别，不能用空类别代替 noFacts=true。');
+    if (!row.noFacts && factCategories.length && !factCategories.every(value => citations.some(citation => citation.category === value))) problems.push(`高风险事实缺少有效资料出处：声明类别「${factCategories.join('、')}」没有通过的资料出处。`);
+    if (!row.noFacts && citations.some(citation => !factCategories.includes(citation.category))) problems.push('资料出处声明类别未被本段核对结果覆盖。');
+    return { text: segment.text, group: segments[i].group, issues: problems, noFacts: row.noFacts, factCategories, citations };
   });
   return typeof readable === 'string' ? reviewed.flatMap(segment => segment.issues) : reviewed;
 }

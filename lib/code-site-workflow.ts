@@ -3,7 +3,7 @@ import { codePreferencesSchema, codePreferenceStyleSchema } from './code-site-st
 import { serverCodeStyleOptions, requireModelTaskAdmission, CodeStyleAdmissionError } from './code-site-eval-styles.ts';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
-import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
+import { currentCodeVersion, codeFactMaterials, splitCodeSiteInput, type CodeRun, type CodeSiteRecord } from './code-site.ts';
 import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, translateSiteCode, writeLocalEdit, codeModelCalls } from './code-site-model.ts';
 import { annotationTargetSchema, type AnnotationTarget } from './annotations.ts';
 import { localEditContext, applyLocalEdit } from './code-site-local-edit.ts';
@@ -292,7 +292,8 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
         if (conversation.alignment.styleOptionId) await updateConversationAlignment(siteId, site.conversationId, record => ({ ...record, alignment: { ...record.alignment, styleOptionId: null, confirmClaimed: false, lastResult: null } }));
         const company = input.message.match(/^[ \t]*公司名[：:][ \t]*([^\n]+)/m)?.[1]?.trim();
-        site = await updateCodeSite(siteId, () => ({ materials: input.message!, factMaterials: input.message!, ...(company ? { name: company.slice(0, 100) } : {}) }));
+        const separated = splitCodeSiteInput(input.message!, true);
+        site = await updateCodeSite(siteId, () => ({ materials: separated.context, factMaterials: separated.factMaterials, ...(company ? { name: company.slice(0, 100) } : {}) }));
         await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'start',
           pendingRequest: { message: input.message, baseRevision: 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
       }

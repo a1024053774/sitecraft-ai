@@ -4,8 +4,8 @@ export type CodeFactTarget = { pageId: string; root: 'main' | 'body'; path: numb
 export type CodeFactCitation = { category: '客户与合作方' | '资质认证' | '业绩与数量' | '价格与收费' | '时间与交期承诺' | '效果' | '评价'; claim: string; quote: string; targets?: CodeFactTarget[] };
 export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[] };
 export type CodeFactReview = {
-  format: 2; materials: string; sourceMaterials: string; audited: number; reused: number;
-  segments: Array<{ text: string; group: string; issues: string[]; factCategories?: CodeFactCitation['category'][]; citations?: CodeFactCitation[] }>;
+  format: 3; materials: string; sourceMaterials: string; audited: number; reused: number;
+  segments: Array<{ text: string; group: string; issues: string[]; noFacts: boolean; factCategories: CodeFactCitation['category'][]; citations: CodeFactCitation[] }>;
 };
 
 export function normalizeFactQuote(text: string) { return text.normalize('NFKC').replace(/\s+/g, ' ').trim(); }
@@ -143,8 +143,8 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
   return result;
 }
 
-export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: string, reviews: CodeFactReview[], sourceMaterials = materials) {
-  const eligible = reviews.filter(review => review.format === 2 && review.materials === materials && review.sourceMaterials === sourceMaterials);
+export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: string, reviews: CodeFactReview[], sourceMaterials?: string) {
+  const eligible = reviews.filter(review => review.format === 3 && review.materials === materials && review.sourceMaterials === sourceMaterials);
   const groups = new Map<string, CodeFactSegment[]>();
   for (const segment of segments) groups.set(segment.group, [...(groups.get(segment.group) ?? []), segment]);
   const accepted = new Map([...groups].flatMap(([group, members]) => {
@@ -152,11 +152,13 @@ export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: 
       const before = review.segments.filter(segment => segment.group === group);
       // One complete successful review must cover the group. Mixing partial
       // passes across attempts can suppress a condition that another row needs.
-      return before.length === members.length && before.every(segment => !segment.issues.length && Array.isArray(segment.citations))
+      return before.length === members.length && before.every(segment => !segment.issues.length && typeof segment.noFacts === 'boolean' && Array.isArray(segment.factCategories) && Array.isArray(segment.citations))
         && members.every(segment => before.some(previous => previous.text === segment.text));
     });
     return review ? [[group, review] as const] : [];
   }));
-  return { pending: segments.filter(segment => !accepted.has(segment.group)), reused: segments.filter(segment => accepted.has(segment.group)).map(segment => ({ ...segment,
-    citations: accepted.get(segment.group)!.segments.find(previous => previous.group === segment.group && previous.text === segment.text)!.citations! })) };
+  return { pending: segments.filter(segment => !accepted.has(segment.group)), reused: segments.filter(segment => accepted.has(segment.group)).map(segment => {
+    const previous = accepted.get(segment.group)!.segments.find(item => item.group === segment.group && item.text === segment.text)!;
+    return { ...segment, noFacts: previous.noFacts, factCategories: previous.factCategories, citations: previous.citations };
+  }) };
 }

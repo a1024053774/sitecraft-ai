@@ -18,7 +18,7 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw); calls.push(body);
   const input = JSON.parse(body.messages[1].content.split('\n')[0]);
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results: input.segments.map((s: any) => ({ id: s.id, issues: noFactModelIssues.filter(issue => s.text.includes('长期合作客户')), ...(process.env.P1_PARENT ? {} : { factCategories: emptyCitations ? ['客户与合作方'] : citations.map(c => c.category) }), ...(omitCitations ? {} : { citations: emptyCitations ? [] : citations }) })) }) } }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } }));
+  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results: input.segments.map((s: any) => ({ id: s.id, issues: noFactModelIssues.filter(issue => s.text.includes('长期合作客户')), ...(process.env.P1_PARENT ? {} : { noFacts: emptyCitations ? false : citations.length === 0, factCategories: emptyCitations ? ['客户与合作方'] : citations.map(c => c.category) }), ...(omitCitations ? {} : { citations: emptyCitations ? [] : citations }) })) }) } }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
@@ -34,22 +34,22 @@ test.after(async () => {
 test('真实原句经 NFKC 和空白压缩验真，局部与整站使用同一返回合同且不新增调用', async () => {
   citations = [{ category: '客户与合作方', claim: '已服务30家客户。', quote: '已服务30家客户。' }];
   const before = calls.length;
-  const result: any = await auditCodeFacts(materials, [segment]);
+  const result: any = await (auditCodeFacts as any)(materials, [segment], false, undefined, materials);
   assert.deepEqual(result[0].issues, []);
   assert.deepEqual(result[0].citations, citations);
-  const local: any = await (auditCodeFacts as any)(materials, [segment], true);
+  const local: any = await (auditCodeFacts as any)(materials, [segment], true, undefined, materials);
   assert.deepEqual(local[0].citations, citations);
   assert.equal(calls.length, before + 2);
   assert.deepEqual(calls.slice(-2).map(body => body.thinking.type), ['enabled', 'disabled']);
   citations = [{ category: '资质认证', claim: '取得 ISO 9001 认证。', quote: '取得  ISO\n9001 认证。' }];
-  const cert: any = await auditCodeFacts(materials, [{ ...segment, text: '取得 ISO 9001 认证。' }]);
+  const cert: any = await (auditCodeFacts as any)(materials, [{ ...segment, text: '取得 ISO 9001 认证。' }], false, undefined, materials);
   assert.deepEqual(cert[0].issues, []);
 });
 
 test('编造、跨字段拼接、网页字段和近似引文返回拒因，不作为已验真出处', async () => {
   for (const quote of ['已服务过30家客户。', '已服务30家客户。取得 ISO 9001 认证。', '页面 home', '已服务31家客户。', '   ']) {
     citations = [{ category: '客户与合作方', claim: '已服务30家客户。', quote }];
-    const result: any = await auditCodeFacts(materials, [segment]);
+    const result: any = await (auditCodeFacts as any)(materials, [segment], false, undefined, materials);
     assert.match(result[0].issues.join('\n'), /资料出处/);
     assert.deepEqual(result[0].citations, []);
   }
@@ -57,12 +57,12 @@ test('编造、跨字段拼接、网页字段和近似引文返回拒因，不�
 
 test('声明必须来自本段，类别必须是高风险类别，遗漏数组不能冒充已记录', async () => {
   citations = [{ category: '客户与合作方', claim: '纸袋', quote: '已服务30家客户。' }];
-  const result: any = await auditCodeFacts(materials, [segment]);
+  const result: any = await (auditCodeFacts as any)(materials, [segment], false, undefined, materials);
   assert.match(result[0].issues.join('\n'), /声明/);
   citations = [{ category: '普通介绍', claim: '已服务30家客户。', quote: '已服务30家客户。' }];
-  await assert.rejects(auditCodeFacts(materials, [segment]), /核对段/);
+  await assert.rejects((auditCodeFacts as any)(materials, [segment], false, undefined, materials), /核对段/);
   omitCitations = true;
-  try { await assert.rejects(auditCodeFacts(materials, [segment]), /核对段/); }
+  try { await assert.rejects((auditCodeFacts as any)(materials, [segment], false, undefined, materials), /核对段/); }
   finally { omitCitations = false; }
 });
 
@@ -70,7 +70,7 @@ test('高风险事实返回空 citations 必须产生明确拒因，不能作为
   citations = [{ category: '客户与合作方', claim: '已服务30家客户。', quote: '已服务30家客户。' }];
   emptyCitations = true;
   try {
-    const result: any = await auditCodeFacts(materials, [{ ...segment, text: '页面 home\n已服务30家客户。' }]);
+    const result: any = await (auditCodeFacts as any)(materials, [{ ...segment, text: '页面 home\n已服务30家客户。' }], false, undefined, materials);
     assert.match(result[0].issues.join('\n'), /缺少有效资料出处/);
     assert.deepEqual(result[0].citations, []);
   } finally { emptyCitations = false; }
@@ -79,7 +79,7 @@ test('高风险事实返回空 citations 必须产生明确拒因，不能作为
 test('长期合作客户断言返回空 citations 也必须拒绝，不能靠数字关键词绕过', async () => {
   emptyCitations = true;
   try {
-    const result: any = await auditCodeFacts(materials, [{ ...segment, text: '页面 home\n长期合作客户：甲方公司。' }]);
+    const result: any = await (auditCodeFacts as any)(materials, [{ ...segment, text: '页面 home\n长期合作客户：甲方公司。' }], false, undefined, materials);
     assert.match(result[0].issues.join('\n'), /高风险事实缺少有效资料出处/);
   } finally { emptyCitations = false; }
 });
@@ -97,7 +97,7 @@ test('资料出处验真排除页面要求，但事实核对输入仍保留完�
 test('模型把无资料的长期合作客户句标为无企业事实时，issues 仍拒绝', async () => {
   noFactModelIssues = ['页面原句：长期合作客户：甲方公司。；资料未提供该客户关系。'];
   try {
-    const result: any = await auditCodeFacts(materials, [{ ...segment, text: '页面 home\n长期合作客户：甲方公司。' }]);
+    const result: any = await (auditCodeFacts as any)(materials, [{ ...segment, text: '页面 home\n长期合作客户：甲方公司。' }], false, undefined, materials);
     assert.match(result[0].issues.join('\n'), /资料未提供该客户关系/);
   } finally { noFactModelIssues = []; }
 });
@@ -121,12 +121,12 @@ test('同一行的页面要求不进入独立 factMaterials 源', () => {
 
 test('复用同次完整核对的出处；旧记录与变更资料或整组内容必须重核', () => {
   const citation = { category: '客户与合作方', claim: '已服务30家客户。', quote: '已服务30家客户。' };
-  const review: any = { format: 2, materials, sourceMaterials: materials, audited: 1, reused: 0, segments: [{ ...segment, issues: [], citations: [citation] }] };
-  const reused: any = pendingCodeFactSegments([segment], materials, [review]);
+  const review: any = { format: 3, materials, sourceMaterials: materials, audited: 1, reused: 0, segments: [{ ...segment, issues: [], noFacts: false, factCategories: ['客户与合作方'], citations: [citation] }] };
+  const reused: any = pendingCodeFactSegments([segment], materials, [review], materials);
   assert.deepEqual(reused.reused[0].citations, [citation]);
-  assert.equal(pendingCodeFactSegments([segment], materials.replace('３０', '３１'), [review]).reused.length, 0);
-  assert.equal(pendingCodeFactSegments([{ ...segment, group: '变更整组' }], materials, [review]).reused.length, 0);
-  const old = { ...review, segments: [{ ...segment, issues: [] }] };
+  assert.equal(pendingCodeFactSegments([segment], materials.replace('３０', '３１'), [review], materials.replace('３０', '３１')).reused.length, 0);
+  assert.equal(pendingCodeFactSegments([{ ...segment, group: '变更整组' }], materials, [review], materials).reused.length, 0);
+  const old = { ...review, format: 2, segments: [{ ...segment, issues: [], citations: [citation] }] };
   assert.equal(pendingCodeFactSegments([segment], materials, [old]).reused.length, 0);
 });
 
@@ -145,18 +145,18 @@ test('真实小跑的表格单行声明跨单元格仍属于本段，绑定最�
   const rowTarget = { pageId: 'menu', root: 'main' as const, path: [1, 0, 2, 0], text: '家常饭 每份 18 元', readable: row };
   const menu = { text: table, group: table, context: { pageId: 'menu', outline: [], headings: [] }, targets: [tableTarget, rowTarget] };
   for (const local of [false, true]) {
-    const result = await auditCodeFacts('家常饭每份18元。', [menu], local);
+    const result = await auditCodeFacts('家常饭每份18元。', [menu], local, undefined, '家常饭每份18元。');
     assert.deepEqual(result[0].issues, []);
     assert.deepEqual(result[0].citations, citations);
     assert.deepEqual(bindCodeFactCitations(menu, result[0].citations!)[0].targets, [{ pageId: 'menu', root: 'main', path: [1, 0, 2, 0], text: '家常饭 每份 18 元' }]);
   }
   const text = '<TABLE><TR><TD>已服务</TD></TR><TR><TD>30家客户</TD></TR></TABLE>';
   citations = [{ category: '客户与合作方', claim: '已服务 30家客户', quote: '已服务30家客户。' }];
-  const result = await auditCodeFacts('已服务30家客户。', [{ ...segment, text }]);
+  const result = await auditCodeFacts('已服务30家客户。', [{ ...segment, text }], false, undefined, '已服务30家客户。');
   assert.match(result[0].issues.join('\n'), /声明不在本核对段/);
   assert.deepEqual(result[0].citations, []);
   citations = [{ category: '客户与合作方', claim: '已服务30家客户。', quote: '<TD>已服务30家客户。</TD>' }];
-  const invalidQuote = await auditCodeFacts('已服务30家客户。', [segment]);
+  const invalidQuote = await auditCodeFacts('已服务30家客户。', [segment], false, undefined, '已服务30家客户。');
   assert.match(invalidQuote[0].issues.join('\n'), /资料出处无依据/);
   assert.deepEqual(invalidQuote[0].citations, []);
 });

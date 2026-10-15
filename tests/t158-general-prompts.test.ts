@@ -21,7 +21,7 @@ const server = createServer(async (req, res) => {
     ? { summary: '展示已有业务。', style: user.match(/style 必须填 ([a-z]+)/)[1], styleReason: '用户选择。', skeletonId: 'custom', skeletonReason: '业务资料支持短页。', pages: [{ id: 'home', title: '首页', outline: ['按业务介绍'] }] }
     : tool === 'submit_english_translation'
       ? { translations: input.slots.map((slot: any) => ({ id: slot.id, text: slot.text === '首页' ? 'Home' : slot.text === '周日不营业' ? 'Closed on Sundays' : slot.text })) }
-      : input?.segments ? { results: input.segments.map((s: any) => ({ id: s.id, issues: [], factCategories: [], citations: [] })) }
+      : input?.segments ? { results: input.segments.map((s: any) => ({ id: s.id, issues: [], noFacts: true, factCategories: [], citations: [] })) }
         : body.messages[0].content.includes('局部事实校对员') ? { issues: [] } : code;
   const message = tool ? { tool_calls: [{ type: 'function', function: { name: tool, arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
   res.setHeader('content-type', 'application/json');
