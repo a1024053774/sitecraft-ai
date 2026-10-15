@@ -2,6 +2,7 @@ import { codeCheckBrowser } from './code-site-browser.ts';
 import { applyCodeRepair } from './code-site-repair.ts';
 import { renderSiteCode, type SiteCode } from './code-site.ts';
 import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
+import { gunzipSync } from 'node:zlib';
 
 // T-164 adapts BaoCut's frozen annotation-set idea (see
 // resources/baocut-annotation/SOURCE.md) to SiteCraft's DOM-path contract;
@@ -206,6 +207,8 @@ export type DynamicStateProbe = {
   forceCalls: number;
   statesChecked: number;
   durationMs: number;
+  cdpRoundTrips: number;
+  stageMs: { focus: number; force: number; styleRead: number };
 };
 
 // One CDP probe for both single- and multi-block edits. The browser owns state
@@ -214,10 +217,15 @@ export type DynamicStateProbe = {
 // DOM path and complete computed style.
 export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 2000) {
   const startedAt = performance.now();
+  let cdpRoundTrips = 0;
+  const stageMs = { focus: 0, force: 0, styleRead: 0 };
+  const send = async <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}) => { cdpRoundTrips++; return browser.send<T>(method, params); };
+  const evaluate = async <T>(expression: string) => { cdpRoundTrips++; return browser.evaluate<T>(expression); };
   const checkTime = () => { if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。'); };
-  checkTime(); await browser.send('DOM.enable');
-  await browser.send('Page.setDocumentContent', { frameId, html });
-  const probe = await browser.evaluate<{ all: string[]; roots: string[]; outside: Array<{ id: string; path: number[]; names: string[] }>; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
+  checkTime(); await send('DOM.enable');
+  await send('Page.setDocumentContent', { frameId, html });
+  const focusStarted = performance.now();
+  const probe = await evaluate<{ all: string[]; roots: string[]; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
     const paths=${JSON.stringify(scope?.paths ?? [])};
     const pathOf=(el)=>{const path=[];for(let child=el;child?.parentElement;child=child.parentElement)path.unshift([...child.parentElement.children].indexOf(child));return path};
     const rootFor=(path)=>{let el=document.querySelector('main');for(const index of path)el=el?.children[index];return el};
@@ -227,12 +235,14 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const interactive=all.filter(el=>el!==document.documentElement&&el!==document.head&&el!==document.body&&!hidden(el)).filter(el=>{try{el.focus({preventScroll:true});const ok=document.activeElement===el;el.blur();return ok}catch{return false}}).map(el=>({id:ids.get(el),path:pathOf(el),ancestors:[...(()=>{const a=[];for(let p=el.parentElement;p;p=p.parentElement)a.push(ids.get(p));return a})()]}));
     const outside=all.filter(el=>!roots.some(root=>root===el||root.contains(el)||el.contains(root))).map(el=>{const s=getComputedStyle(el);return {id:ids.get(el),path:pathOf(el),names:[...s].sort()}});
     for(const el of all)el.setAttribute('data-cdp-probe',ids.get(el));
-    return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),outside,interactive};
+    window.__sitecraftCdpProbeOutside = outside;
+    return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),interactive};
   })()`);
+  stageMs.focus += performance.now() - focusStarted;
   const stateNames = ['focus', 'focus-visible', 'hover', 'active'] as const;
-  const root = await browser.send<{ root: { nodeId: number } }>('DOM.getDocument', { depth: 1, pierce: true });
+  const root = await send<{ root: { nodeId: number } }>('DOM.getDocument', { depth: 1, pierce: true });
   const nodeIds = new Map<string, number>();
-  const allNodeIds = await browser.send<{ nodeIds: number[] }>('DOM.querySelectorAll', { nodeId: root.root.nodeId, selector: '[data-cdp-probe]' });
+  const allNodeIds = await send<{ nodeIds: number[] }>('DOM.querySelectorAll', { nodeId: root.root.nodeId, selector: '[data-cdp-probe]' });
   probe.all.forEach((id, index) => { if (allNodeIds.nodeIds[index]) nodeIds.set(id, allNodeIds.nodeIds[index]); });
   const nodeId = async (id: string) => { checkTime(); const found = nodeIds.get(id); if (!found) throw new Error('局部动态状态检查无法定位 DOM 节点。'); return found; };
   const states: ProbeState[] = [];
@@ -242,8 +252,10 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     checkTime();
     // CSS.disable resets every forced pseudo state in one CDP round trip pair;
     // clearing each ancestor separately made a medium page exceed its budget.
-    await browser.send('CSS.disable');
-    await browser.send('CSS.enable');
+    const forceStarted = performance.now();
+    await send('CSS.disable');
+    await send('CSS.enable');
+    stageMs.force += performance.now() - forceStarted;
     checkTime(); forced.clear();
   };
   const transition = async (active: Set<number>, ids: string[], state: string, path: number[]) => {
@@ -251,10 +263,12 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const release = [...active].filter(id => !desired.has(id));
     const add = [...desired].filter(id => !active.has(id));
     try {
+      const forceStarted = performance.now();
       await Promise.all([
-        ...release.map(id => browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [] })),
-        ...add.map(id => browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [state] })),
+        ...release.map(id => send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [] })),
+        ...add.map(id => send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [state] })),
       ]);
+      stageMs.force += performance.now() - forceStarted;
     } catch { throw new Error(`局部动态状态检查无法强制 ${state}（触发路径 ${JSON.stringify(path)}）。`); }
     checkTime();
     active.clear(); desired.forEach(id => active.add(id));
@@ -262,17 +276,17 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     forceCalls += add.length;
   };
   const capture = async (trigger: number[] | null, state: string) => {
-    checkTime(); const entries = await browser.evaluate<ProbeEntry[]>(`(() => { const outside=${JSON.stringify(probe.outside)}; const nodes=new Map([...document.querySelectorAll('[data-cdp-probe]')].map(el=>[el.getAttribute('data-cdp-probe'),el])); return outside.map(({id,path,names})=>{const s=getComputedStyle(nodes.get(id));return {path,styles:names.map(name=>[name,s.getPropertyValue(name)])}}); })()`);
+    checkTime(); const styleStarted = performance.now(); const encoded = await evaluate<string>(`(async()=>{const text=JSON.stringify((()=>{const outside=window.__sitecraftCdpProbeOutside||[],nodes=new Map([...document.querySelectorAll('[data-cdp-probe]')].map(el=>[el.getAttribute('data-cdp-probe'),el]));return outside.map(({id,path,names})=>{const s=getComputedStyle(nodes.get(id));return {path,styles:names.map(name=>[name,s[name]])}})})());const compressed=await new Response(new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();const bytes=new Uint8Array(compressed);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary)})()`); const entries = JSON.parse(gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8')) as ProbeEntry[]; stageMs.styleRead += performance.now() - styleStarted;
     states.push({ trigger, state, entries });
   };
-  await clear(); await browser.evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');
+  await clear(); await evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');
   for (const state of stateNames) {
     const active = new Set<number>();
-    if (state === 'hover' || state === 'active') await browser.evaluate('document.activeElement?.blur()');
+    if (state === 'hover' || state === 'active') await evaluate('document.activeElement?.blur()');
     for (const item of probe.interactive) {
       checkTime();
       if (state === 'focus' || state === 'focus-visible') {
-        try { await browser.send('DOM.focus', { nodeId: await nodeId(item.id) }); }
+        try { await send('DOM.focus', { nodeId: await nodeId(item.id) }); }
         catch { throw new Error(`局部动态状态检查无法聚焦触发路径 ${JSON.stringify(item.path)}。`); }
         // Discovery already admitted this element only after focus() made it
         // document.activeElement; a failed DOM.focus call is still rejected.
@@ -284,10 +298,10 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     }
     await clear();
   }
-  await browser.evaluate('document.activeElement?.blur()');
-  await browser.evaluate(`document.querySelectorAll('[data-cdp-probe]').forEach(el=>el.removeAttribute('data-cdp-probe'))`);
+  await evaluate('document.activeElement?.blur()');
+  await evaluate(`document.querySelectorAll('[data-cdp-probe]').forEach(el=>el.removeAttribute('data-cdp-probe')); delete window.__sitecraftCdpProbeOutside`);
   checkTime();
-  return { states, interactiveElements: probe.interactive.length, forceCalls, statesChecked: stateNames.length, durationMs: performance.now() - startedAt };
+  return { states, interactiveElements: probe.interactive.length, forceCalls, statesChecked: stateNames.length, durationMs: performance.now() - startedAt, cdpRoundTrips, stageMs };
 }
 
 // Invoked on every rendered page by the submission boundary. Media conditions

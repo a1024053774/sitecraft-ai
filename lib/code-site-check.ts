@@ -452,6 +452,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
   const code = codeSiteSchema.parse(args.code);
   const localTargets = args.localEdit ? (args.localEdit.targets ?? (args.localEdit.target ? [args.localEdit.target] : [])) : [];
   const browser = await codeCheckBrowser();
+  let dynamicBrowser: Awaited<ReturnType<typeof codeCheckBrowser>> | undefined;
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
   if (args.legacyImport) checks.factReview = 'legacy-unreviewed';
   if (args.restoredFactReview) checks.factReviewFrom = args.restoredFactReview;
@@ -493,6 +494,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     if (args.translationSource) checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)})`));
     for (const contact of new Set(clean.contacts)) if (!args.materials.includes(contact.replace(/^(mailto|tel):/, ''))) checks.issues.push(`联系方式没有资料来源：${contact}`);
     if (checks.issues.length && !args.legacyImport) return { code: clean.code, checks };
+    if (edit) dynamicBrowser = await codeCheckBrowser();
     await browser.send('Network.setBlockedURLs', { urls: [] });
     const scan = (await readFile(path.join(process.cwd(), 'scripts/visitor-layout-scan.js'), 'utf8')).replace(/export default scanVisitorLayout;?/g, '').replace(/export function scanVisitorLayout/g, 'function scanVisitorLayout');
     const used = new Set((clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).match(/img_[a-z0-9]{16,40}/g));
@@ -503,6 +505,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       for (const width of [375, 768, 1440]) {
         const viewportStarted = performance.now();
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        if (dynamicBrowser) await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
         let dynamicState: CodeCheck['viewports'][number]['dynamicState'];
         const pageIsEdited = edit && ('targets' in edit ? edit.targets.some(target => target.pageId === page.id) : true);
         if (edit && pageIsEdited) {
@@ -510,10 +513,11 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 2000);
           const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) }
             : page.id === edit.pageId ? { paths: [[]] } : undefined;
-          const evidence: DynamicStateProbe[] = [];
-          for (const value of [edit.source, code]) {
-            evidence.push(await outsideCssApplications(browser, frameTree.frame.id, renderSiteCode(args.siteId, value, page.id), scope, deadlineAt));
-          }
+          const dynamicFrame = await dynamicBrowser!.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+          const evidence: DynamicStateProbe[] = await Promise.all([
+            outsideCssApplications(browser, frameTree.frame.id, renderSiteCode(args.siteId, edit.source, page.id), scope, deadlineAt),
+            outsideCssApplications(dynamicBrowser!, dynamicFrame.frameTree.frame.id, renderSiteCode(args.siteId, code, page.id), scope, deadlineAt),
+          ]);
           const sourceReachable = new Set(evidence[0].states.flatMap(state => state.entries.map(entry => JSON.stringify(entry))));
           const reported = new Set<string>();
           for (const state of evidence[1].states) for (const entry of state.entries) if (!sourceReachable.has(JSON.stringify(entry))) {
@@ -639,5 +643,5 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     }
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
-  } finally { await browser.close(); }
+  } finally { await dynamicBrowser?.close(); await browser.close(); }
 }
