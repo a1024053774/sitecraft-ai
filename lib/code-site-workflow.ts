@@ -292,7 +292,7 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
         if (conversation.alignment.styleOptionId) await updateConversationAlignment(siteId, site.conversationId, record => ({ ...record, alignment: { ...record.alignment, styleOptionId: null, confirmClaimed: false, lastResult: null } }));
         const company = input.message.match(/^[ \t]*公司名[：:][ \t]*([^\n]+)/m)?.[1]?.trim();
-        site = await updateCodeSite(siteId, () => ({ materials: input.message!, ...(company ? { name: company.slice(0, 100) } : {}) }));
+        site = await updateCodeSite(siteId, () => ({ materials: input.message!, factMaterials: input.message!, ...(company ? { name: company.slice(0, 100) } : {}) }));
         await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'start',
           pendingRequest: { message: input.message, baseRevision: 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
       }

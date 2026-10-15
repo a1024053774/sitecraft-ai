@@ -71,18 +71,22 @@ async function write(site: CodeSiteRecord | UnavailableCodeSite, insert = false)
 export async function createCodeSite(siteId: string, name: string, conversationId: string) {
   return locked(siteId, async () => {
     if (await readStored(siteId)) throw new Error('站点已存在');
-    const site: CodeSiteRecord = { route: 'code', siteId, name, conversationId, materials: '',
+    const site: CodeSiteRecord = { route: 'code', siteId, name, conversationId, materials: '', factMaterials: '',
       preferences: { style: 'auto', layout: 5, density: 6 }, plan: null, versions: [], currentVersionId: null, run: null, runs: [], updatedAt: '' };
     if (!await write(site, true)) throw new Error('站点已存在'); return site;
   });
 }
 // Only workflow metadata is editable here. Site code is written by commitSiteCode alone.
-type Metadata = Pick<CodeSiteRecord, 'materials' | 'preferences' | 'plan' | 'run' | 'name'>;
+type Metadata = Pick<CodeSiteRecord, 'materials' | 'factMaterials' | 'preferences' | 'plan' | 'run' | 'name'>;
 export async function updateCodeSite(id: string, update: (site: Readonly<CodeSiteRecord>) => Partial<Metadata>) {
   return locked(id, async () => {
     const site = await getCodeSite(id); if (!site) throw new Error('找不到这个站点');
     const patch = update(structuredClone(site));
-    for (const key of ['materials', 'preferences', 'plan', 'run', 'name'] as const) if (key in patch) Object.assign(site, { [key]: patch[key] });
+    for (const key of ['materials', 'factMaterials', 'preferences', 'plan', 'run', 'name'] as const) if (key in patch) Object.assign(site, { [key]: patch[key] });
+    // A newly created record has an explicit empty factMaterials slot. The
+    // first material write initializes that slot; older records omit it and
+    // must never infer a source from contextual materials.
+    if ('materials' in patch && !('factMaterials' in patch) && site.factMaterials === '') site.factMaterials = patch.materials;
     if (patch.run) {
       const index = site.runs.findIndex(run => run.id === patch.run!.id);
       if (index < 0) site.runs.push(patch.run); else site.runs[index] = patch.run;
@@ -189,7 +193,11 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (args.selectedTarget && (!current || args.selectedTarget.versionId !== current.id || restore)) throw new Error('锚点版本已改变，请重新点选。');
     if (args.pageId && (!current?.code.pages.some(page => page.id === args.pageId) || restore)) throw new Error('当前页面不存在，请重新选择。');
     const targetMaterials = restore ? reviewedMaterialSnapshot(site, restore) : undefined;
-    const restoredFactReview = restore && targetMaterials !== undefined && targetMaterials === site.materials
+    const restoreSourceMaterials = restore?.checks.factSegments?.sourceMaterials;
+    const restoreHasSeparatedFacts = restore?.checks.factSegments?.format === 2
+      && typeof restoreSourceMaterials === 'string'
+      && restoreSourceMaterials === codeFactSourceMaterials(site, undefined, restore.id, false);
+    const restoredFactReview = restore && restoreHasSeparatedFacts && targetMaterials !== undefined && targetMaterials === site.materials
       ? { versionId: restore.id, revision: restore.revision, checkedAt: restore.checks.factReviewFrom?.checkedAt ?? restore.checks.checkedAt } : undefined;
     // Only the current version and attempts of this exact active task supply
     // receipts. No HTTP-supplied exemption or arbitrary historical candidate.

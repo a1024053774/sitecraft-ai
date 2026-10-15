@@ -92,6 +92,14 @@ Tracer bullet 继续经生产 chat POST、原提交入口、FS 版本及工作�
 
 ### P1/P2 审查修复（2026-10-15）
 
-- P1-1/P1-2 先在 `c6c8bad` 上跑红：`npm test -- tests/t169-fact-citations.test.ts` 为 6/8，新增“空 citations”与“页面要求伪引文”两项失败，日志 `artifacts/t169/p1-parent-red.log`。修复后同合同 **9/9 PASS**（`p1-contract-after-heuristic.log`）：高风险段空出处明确拒收；`materials` 保留完整上下文给模型，`sourceMaterials` 过滤页面要求、设计要求、系统说明后再做代码引文验真。
+- P1-1/P1-2 先在 `c6c8bad` 上跑红：`npm test -- tests/t169-fact-citations.test.ts` 为 6/8，新增“空 citations”与“页面要求伪引文”两项失败，日志 `artifacts/t169/p1-parent-red.log`。修复后结构化合同 **12/12 PASS**（`p1-contract-final-green.log`）：逐段 `factCategories` 覆盖缺出处拒收；`materials` 保留完整上下文给模型，独立 `factMaterials/sourceMaterials` 只作为代码验真来源。
 - P2 定向浏览器：`CHROME_PATH=… npm test -- --test-concurrency=1 --test-name-pattern='本地替身|空出处|表格中的' tests/t169-citations-browser.test.ts` **3/3 PASS**（`p1-p2-browser-focused-final.log`）。覆盖 1440/768/375 出处面板、空出处不存版、表格跨单元格绑定、面板不越过预览区/对话栏边界。弹层改为读取 `.preview-stage` 边界，监听外层滚动，目标离开预览区时关闭，并把对话栏层级置于弹层之上。
 - `npm run typecheck` **PASS**（`p1-p2-typecheck-4.log`）。本轮未重跑全量/build（主工作区由 T-170/主控独占 Chrome 与重任务）；此前全量证据不能代表本次审查修复后的最终全量，票保持 **INCOMPLETE**。本轮未发真实请求。
+
+### 2026-10-15 结构化 P1 重做
+
+- `4af64ed` 父版本精确反事实：`P1_PARENT=1 npm test -- --import ./artifacts/t169/parent-4af-all.mjs --test-name-pattern='长期合作客户|同一行的页面要求|资料出处验真排除' tests/t169-fact-citations.test.ts`，**2 项预期红态**（`p1-4af-exact-red-2.log`）：长期合作客户空出处可漏过；同一行页面要求可作为 quote。
+- 资料边界改为显式 `factMaterials` 与完整 `materials` 两份数据；模型同时接收完整上下文和原始事实资料，验真只读 `sourceMaterials`。旧记录缺 `factMaterials` 时不推断、不复用旧出处，恢复重新核对。页面要求不再靠行首或同一行规则过滤。
+- P1-a 改为逐段必返 `factCategories` 合同：类别非空必须有同类别有效 citation；类别覆盖、编号、claim、quote 均由代码确定性校验。模型把「长期合作客户：甲方公司。」标成无企业事实时，替身仍返回原有 `issues`，资料无该句即拒收；剩余已知风险是模型可能错误返回空类别，代码不再用关键词正则猜语义，已记录为模型语义边界。`p1-4af-exact-red-2.log` 保留 4af 父版本两项精确红态，当前 `p1-contract-final-green.log` 覆盖对应绿态。
+- 当前非浏览器合同 `tests/t169-fact-citations.test.ts` **12/12 PASS**，typecheck **PASS**（`p1-structured-typecheck-final-2.log`）。T-158 翻译用例本轮仅因未设置 CHROME_PATH 被底线检查入口拒绝，未启动 Chrome，日志 `p1-structured-t158.log`；不作为本次 P1 合同失败。
+- 本轮未发真实请求；全量未在本次结构化重做后重跑，独立复审由主控安排。

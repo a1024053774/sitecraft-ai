@@ -11,13 +11,14 @@ const segment = { text: '页面 home\n已服务30家客户。', group: '客户�
 let citations: any[] = [];
 let omitCitations = false;
 let emptyCitations = false;
+let noFactModelIssues: string[] = [];
 const calls: any[] = [];
 const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); calls.push(body);
   const input = JSON.parse(body.messages[1].content.split('\n')[0]);
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results: input.segments.map((s: any) => ({ id: s.id, issues: [], ...(omitCitations ? {} : { citations: emptyCitations ? [] : citations }) })) }) } }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } }));
+  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results: input.segments.map((s: any) => ({ id: s.id, issues: noFactModelIssues.filter(issue => s.text.includes('长期合作客户')), ...(process.env.P1_PARENT ? {} : { factCategories: emptyCitations ? ['客户与合作方'] : citations.map(c => c.category) }), ...(omitCitations ? {} : { citations: emptyCitations ? [] : citations }) })) }) } }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
@@ -75,24 +76,47 @@ test('高风险事实返回空 citations 必须产生明确拒因，不能作为
   } finally { emptyCitations = false; }
 });
 
+test('长期合作客户断言返回空 citations 也必须拒绝，不能靠数字关键词绕过', async () => {
+  emptyCitations = true;
+  try {
+    const result: any = await auditCodeFacts(materials, [{ ...segment, text: '页面 home\n长期合作客户：甲方公司。' }]);
+    assert.match(result[0].issues.join('\n'), /高风险事实缺少有效资料出处/);
+  } finally { emptyCitations = false; }
+});
+
 test('资料出处验真排除页面要求，但事实核对输入仍保留完整上下文', async () => {
   const sourceMaterials = '客户：已服务30家客户。';
-  const contextualMaterials = `${sourceMaterials}\n页面要求：客户满意度99%仅作设计示例。`;
-  citations = [{ category: '客户与合作方', claim: '客户满意度99%', quote: '客户满意度99%' }];
-  const result: any = await (auditCodeFacts as any)(contextualMaterials, [{ ...segment, text: '页面 home\n客户满意度99%' }], false, undefined, sourceMaterials);
+  const contextualMaterials = `${sourceMaterials}。收费：纸盒每件 CNY 12。页面要求：只做一页首页，不加询盘。`;
+  citations = [{ category: '客户与合作方', claim: '只做一页首页', quote: '只做一页首页' }];
+  const result: any = await (auditCodeFacts as any)(contextualMaterials, [{ ...segment, text: '页面 home\n只做一页首页' }], false, undefined, sourceMaterials);
   assert.match(result[0].issues.join('\n'), /资料出处无依据/);
   assert.deepEqual(result[0].citations, []);
-  assert.match(String(calls.at(-1).messages[1].content), /客户满意度99%仅作设计示例/);
+  assert.match(String(calls.at(-1).messages[1].content), /页面要求：只做一页首页/);
+});
+
+test('模型把无资料的长期合作客户句标为无企业事实时，issues 仍拒绝', async () => {
+  noFactModelIssues = ['页面原句：长期合作客户：甲方公司。；资料未提供该客户关系。'];
+  try {
+    const result: any = await auditCodeFacts(materials, [{ ...segment, text: '页面 home\n长期合作客户：甲方公司。' }]);
+    assert.match(result[0].issues.join('\n'), /资料未提供该客户关系/);
+  } finally { noFactModelIssues = []; }
 });
 
 test('原始资料边界过滤页面要求，同时保留完整上下文给模型', () => {
-  const site: any = { materials: '企业事实：已服务30家客户。\n页面要求：客户满意度99%仅作设计示例。', versions: [], currentVersionId: null };
+  const site: any = { materials: '企业事实：已服务30家客户。\n页面要求：客户满意度99%仅作设计示例。', factMaterials: '企业事实：已服务30家客户。', versions: [], currentVersionId: null };
   const context = codeFactMaterials(site, '设计要求：只做首页。');
   const source = codeFactSourceMaterials(site, '设计要求：只做首页。');
   assert.match(context, /页面要求：客户满意度99%仅作设计示例/);
   assert.match(context, /设计要求：只做首页/);
-  assert.match(source, /已服务30家客户/);
-  assert.doesNotMatch(source, /客户满意度99%|设计要求/);
+  assert.match(source ?? '', /已服务30家客户/);
+  assert.doesNotMatch(source ?? '', /客户满意度99%|设计要求/);
+});
+
+test('同一行的页面要求不进入独立 factMaterials 源', () => {
+  const site: any = { materials: '青禾纸品提供普通纸盒。收费：纸盒每件 CNY 12。页面要求：只做一页首页，不加询盘。', factMaterials: '青禾纸品提供普通纸盒。收费：纸盒每件 CNY 12。', versions: [], currentVersionId: null };
+  const source = codeFactSourceMaterials(site);
+  assert.equal(source, site.factMaterials);
+  assert.doesNotMatch(source ?? '', /只做一页首页/);
 });
 
 test('复用同次完整核对的出处；旧记录与变更资料或整组内容必须重核', () => {

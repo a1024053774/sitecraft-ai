@@ -37,9 +37,9 @@ const provider = createServer(async (req, res) => {
   if (body.tools) answer = { summary: '展示普通纸盒与经营资料。', style: 'precision', styleReason: '按已有资料集中展示。', skeletonId: 'custom', skeletonReason: '一页短站集中表达，不扩充服务流程。', pages: [{ id: 'home', title: '首页', outline: ['普通纸盒、客户、认证与收费'] }] };
   else if (system.includes('事实校对员')) {
     const data = JSON.parse(input.split('\n')[0]);
-    answer = { results: data.segments.map((segment: any) => ({ id: segment.id, issues: [], citations: mode === 'empty' ? [] : [...citationClaims.filter(c => segment.text.includes(c.claim)),
+    answer = { results: data.segments.map((segment: any) => { const segmentCitations = mode === 'empty' ? [] : [...citationClaims.filter(c => segment.text.includes(c.claim)),
       ...(mode === 'table' && segment.text.includes('<TR>') && segment.text.includes('<TD>纸盒</TD>') ? [tableClaim] : [])].map(c => ({ ...c,
-      quote: c.category === '客户与合作方' && (mode === 'forged' || mode === 'stitched') ? mode === 'forged' ? '长期服务30家客户。' : '已服务30家客户。取得 ISO 9001 认证。' : c.quote })) })) };
+      quote: c.category === '客户与合作方' && (mode === 'forged' || mode === 'stitched') ? mode === 'forged' ? '长期服务30家客户。' : '已服务30家客户。取得 ISO 9001 认证。' : c.quote })); return { id: segment.id, issues: [], factCategories: mode === 'empty' ? ['客户与合作方'] : [...new Set(segmentCitations.map(c => c.category))], citations: segmentCitations }; }) };
   } else if (system.includes('修正输出合同')) {
     const data = JSON.parse(input.split('\n')[0]); answer = { replacements: data.fragments.map((f: any) => ({ fragmentId: f.id, after: f.before })) };
   } else answer = mode === 'table' ? tableSite : citationSite;

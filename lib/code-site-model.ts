@@ -1,4 +1,4 @@
-import { factSegmentNeedsCitation, normalizeFactQuote, normalizeFactClaimText, type CodeFactSegment, type CodeFactReview } from './code-site-fact-segments.ts';
+import { normalizeFactQuote, normalizeFactClaimText, type CodeFactSegment, type CodeFactReview } from './code-site-fact-segments.ts';
 import { readFile } from 'node:fs/promises';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomInt } from 'node:crypto';
@@ -281,23 +281,25 @@ export async function auditCodeFacts(materials: string, readable: string | CodeF
 materials 是完整核对上下文，sourceMaterials 才是可作为资料出处 quote 的原始企业资料；页面要求、设计要求和系统说明即使在 materials 中，也不能作为出处。
 每个输入编号恰好返回一次，没有问题也必须返回该编号和空 issues。不得遗漏、重复或增加编号。`) + `\n通过的高风险声明必须同时记录资料出处；仅限客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价这七类。普通介绍、普通标题、导航与占位不标。claim 必须复制本段内的完整声明，保留对象、条件与范围；quote 必须复制 sourceMaterials 中支持它的连续资料原句，不能从 pageContexts、网页、设计指令或另一字段拼出句子。逐条核对其语义是否支持声明，不只比数字；同字段更新以最后声明为准。引文找不到则写入 issues，不给该声明出处。\n返回 {"results":[{"id":"s1","issues":[],"citations":[{"category":"客户与合作方","claim":"网页中的声明原句","quote":"资料原句"}]}]}。每段必须返回 citations 数组，无高风险声明时为空；不返回 DOM 定位信息。`, JSON.stringify(input), local ? 4096 : 65536);
   const issues = z.array(z.string().min(1).max(500)).max(40);
-  const citation = z.object({ category: z.enum(['客户与合作方', '资质认证', '业绩与数量', '价格与收费', '时间与交期承诺', '效果', '评价']), claim: z.string().min(1).max(3000), quote: z.string().min(1).max(3000) }).strict();
-  const parsed = z.object({ results: z.array(z.object({ id: z.string(), issues, citations: z.array(citation).max(100) }).strict()) }).strict().safeParse(result.data);
+  const category = z.enum(['客户与合作方', '资质认证', '业绩与数量', '价格与收费', '时间与交期承诺', '效果', '评价']);
+  const citation = z.object({ category, claim: z.string().min(1).max(3000), quote: z.string().min(1).max(3000) }).strict();
+  const parsed = z.object({ results: z.array(z.object({ id: z.string(), issues, factCategories: z.array(category).max(7), citations: z.array(citation).max(100) }).strict()) }).strict().safeParse(result.data);
   const ids = parsed.success ? parsed.data.results.map(row => row.id) : [];
   if (!parsed.success || ids.length !== input.segments.length || new Set(ids).size !== ids.length || input.segments.some(segment => !ids.includes(segment.id)))
     throw new Error('核对段回复格式或编号无效（遗漏、重复或越界），本次未保存版本。');
   const byId = new Map(parsed.data.results.map(row => [row.id, row]));
   const source = normalizeFactQuote(sourceMaterials);
   const reviewed = input.segments.map((segment, i) => {
-    const row = byId.get(segment.id)!, problems = [...row.issues];
+    const row = byId.get(segment.id)!, problems = [...row.issues], factCategories = [...new Set(row.factCategories)];
     const citations = row.citations.filter(citation => {
       const quote = normalizeFactQuote(citation.quote), claim = normalizeFactQuote(citation.claim);
       if (!quote || !source.includes(quote)) { problems.push(`资料出处无依据：${citation.claim}；引文「${citation.quote}」未在本次资料原文中找到。`); return false; }
       if (!claim || !normalizeFactClaimText(segment.text).includes(claim)) { problems.push(`资料出处声明不在本核对段：${citation.claim}`); return false; }
       return true;
     });
-    if (!problems.length && !citations.length && factSegmentNeedsCitation(segment.text)) problems.push('高风险事实缺少有效资料出处：本核对段没有通过的资料出处。');
-    return { text: segment.text, group: segments[i].group, issues: problems, citations };
+    if (!problems.length && factCategories.length && !factCategories.every(category => citations.some(citation => citation.category === category))) problems.push(`高风险事实缺少有效资料出处：声明类别「${factCategories.join('、')}」没有通过的资料出处。`);
+    if (!problems.length && citations.some(citation => !factCategories.includes(citation.category))) problems.push('资料出处声明类别未被本段核对结果覆盖。');
+    return { text: segment.text, group: segments[i].group, issues: problems, factCategories, citations };
   });
   return typeof readable === 'string' ? reviewed.flatMap(segment => segment.issues) : reviewed;
 }
