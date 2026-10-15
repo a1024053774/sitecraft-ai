@@ -121,7 +121,7 @@ T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事�
 
 - 密钥只在 gitignore 的 `.env.local`，不进代码、文档、prompt、SSE、截图或提交。不建软链接，不复制 `env.md`。
 - 模型：DeepSeek `deepseek-flash`（对话与看图同一条）。
-- 开发机用 `SITE_STORE=fs` 即可；Docker（PostgreSQL/Mailpit）在外置硬盘，没插就跳过，不影响页面质量工作。
+- 开发机用 `SITE_STORE=fs` 即可；Docker（PostgreSQL）在外置硬盘，没插就跳过，不影响页面质量工作。
 
 ## 协作
 

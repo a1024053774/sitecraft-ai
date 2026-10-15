@@ -46,7 +46,7 @@ export default function SettingsPage() {
               <div className="settings-icon"><ShieldCheck size={17} /></div>
               <div>
                 <h2>隐私与安全</h2>
-                <p>表单隐私同意、站点限流和审计日志。</p>
+                <p>站点限流和审计日志。</p>
               </div>
               <button className="secondary-button">管理</button>
             </section>
