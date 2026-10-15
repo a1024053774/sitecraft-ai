@@ -4,7 +4,7 @@ title: 导出生成站源码：下载当前版本的静态站点包
 type: build
 status: open
 blocked_by: [T-167, T-159]
-claimed_by:
+claimed_by: codex-build
 supersedes:
 ---
 
@@ -22,7 +22,15 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 先列出失效方式，再按清单写测试，测试先在父版本或 mutant 上失败：导出页与发布页不一致、链接指向 SiteCraft 服务、漏图或多带了未引用的图、`LICENSES.txt` 缺署名、包里混进资料原文或内部数据
-- [ ] XSS 成对测试：用含 `<script>`、`onerror=`、`javascript:` 链接、`<iframe>`、外部 `url()`、SVG 内嵌脚本的恶意候选，分别走提交入口和导出两条路径。恶意版本在提交入口就被拒，不会存成版本；正常版本导出后的包里，找不到任何脚本、事件属性或外部资源。每一种都和一个正常对照成对出现
-- [ ] 真实 Chrome 用 `file://` 打开解压后的包，1440/768/375 截图逐张看过，并和同版本的发布页截图对照
+- [x] 先列出失效方式，再按清单写测试，测试先在父版本或 mutant 上失败：导出页与发布页不一致、链接指向 SiteCraft 服务、漏图或多带了未引用的图、`LICENSES.txt` 缺署名、包里混进资料原文或内部数据
+- [x] XSS 成对测试：用含 `<script>`、`onerror=`、`javascript:` 链接、`<iframe>`、外部 `url()`、SVG 内嵌脚本的恶意候选，分别走提交入口和导出两条路径。恶意版本在提交入口就被拒，不会存成版本；正常版本导出后的包里，找不到任何脚本、事件属性或外部资源。每一种都和一个正常对照成对出现
+- [x] 真实 Chrome 用 `file://` 打开解压后的包，1440/768/375 截图逐张看过，并和同版本的发布页截图对照
 - [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立审查实例通过
+
+## Resolution
+
+- `tests/t171-source-export.test.ts` 先在父版本运行，确认导出路由缺失并保留 `artifacts/t167/test-run-*` 红测；实现后通过真实 `commitSiteCode`（`legacyImport` 夹具，不调用模型）与真实导出路由覆盖相对链接、当前版本只读、英文 `en/`、已引用/未引用图片、底图、图标与 `LICENSES.txt`，并保留六类 XSS 候选及正常对照。
+- 导出实现位于 `lib/code-site-export.ts` 与 `/api/sites/[siteId]/export`，ZIP 使用无压缩存储格式；`renderSiteCode` 通过导出选项改写页面和资源地址，发布/预览默认路径不变。工作台顶栏只在有当前版本时显示「下载网站」。
+- 真实 Chrome 在 `file://` 解压包和同版本发布页分别保存 1440/768/375 截图到 gitignore 的 `artifacts/t171/`，截图已逐张打开检查，导出与发布页面内容和布局一致。
+- 聚焦命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t171-source-export.test.ts`；结果 8 tests / 8 pass。`npm run typecheck`、标准 `npm test`（561 tests / 561 pass）与 `npm run build` 均通过；未调用 DeepSeek。独立审查实例尚未运行，不能代替该验收项。
+- 最终本地提交：`f2bacf287bcf3c123770b22ba36a7101a1f4b3ff`，未推送。
