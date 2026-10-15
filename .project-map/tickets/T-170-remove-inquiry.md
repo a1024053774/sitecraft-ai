@@ -2,7 +2,7 @@
 id: T-170
 title: 去掉询盘功能，只做建站
 type: build
-status: open
+status: closed
 blocked_by: [T-159]
 claimed_by: Codex
 supersedes:
@@ -29,7 +29,7 @@ supersedes:
 - [x] 含旧 `data-system-inquiry` 的已有版本仍能预览与恢复，不报错、不出现表单；回退第 3 条实现后该测试失败
 - [x] 本地替身生成一站，资料含"欢迎来电询价"，页面无表单、无询盘入口；1440/768/375 截图看过
 - [x] 主工作区 `.sitecraft-data/leads/` 文件数改动前后一致
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；独立审查实例通过
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；独立审查实例通过
 
 ## Resolution
 
@@ -46,3 +46,15 @@ supersedes:
   - `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`：无 problems、无 stale living docs。
 - `rg` 结果在 `app/ components/ lib/ skills/` 中只剩 `lib/simulated-packs.ts:114` 的资料原句“交期：批量询盘后确认……”，这是展示资料中的商业条款；生产代码、提示词与 skill 不再包含询盘入口、收件、lead-store、SMTP 或 `data-system-inquiry` 规则。
 - 独立审查实例按用户指令未启动，因此最后一项保持未勾选，票暂不关闭；本地实现、测试、类型检查和构建均已完成。
+
+### 关票（主控）
+
+独立审查（新 sol 实例）：2d3810b NO_GO，5 项 P2 残留（spec 线索 CRUD、.env.example/AGENTS SMTP 说明、提示词表单占位、设置页表单隐私、证据路径）；a2482b5 清理后由另一新实例复审，行为与残留检查均通过，仅余 P2「Resolution 未记录命令时间与对应 SHA、全量报告早于最终提交」，由下面主线验证补齐。
+
+主线验证（合并提交 `bebe6b0`，含 a2482b5），2026-10-15 12:28–12:31 EDT，主目录串行运行，期间暂停 3034：
+- `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`：4/4 通过；
+- `CHROME_PATH=… npm test`：**496/496**；
+- `SITE_STORE=fs npm run build`（先清空 `.next`）：通过；
+- `npm run typecheck`：在 build 之前运行时因旧 `.next/types/validator.ts` 仍引用已删 leads 路由而失败（3 条 TS2307，日志 typecheck.log 保留）；build 重新生成类型后 12:31 EDT 重跑通过（typecheck-after-build.log）。
+- 主目录 `.sitecraft-data/leads` 文件数 0→0，code-sites 279→279；3034 恢复后 200。日志 `artifacts/merge-bebe6b0/`。
+
