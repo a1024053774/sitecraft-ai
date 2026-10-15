@@ -7,6 +7,10 @@ const pagePathSchema = z.string().min(1).max(2000).refine(
   "批注页面必须是站点路径",
 );
 const localizedLocaleSchema = z.enum(["zh", "en"]);
+const elementHintSchema = z.object({
+  path: z.array(z.number().int().nonnegative().max(10000)).max(40),
+  tag: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/), text: z.string().max(1000),
+}).strict();
 
 // DOM paths are element-child indices below the page's single main element.
 // A version and text snapshot prevent an old path from silently moving to new copy.
@@ -15,8 +19,8 @@ export const annotationTargetSchema = z.object({
   versionId: z.string().min(1).max(120),
   path: z.array(z.number().int().nonnegative().max(10000)).min(1).max(40),
   text: z.string().min(1).max(1000), label: z.string().min(1).max(200),
-  element: z.object({ path: z.array(z.number().int().nonnegative().max(10000)).max(40),
-    tag: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/), text: z.string().max(1000) }).strict().optional(),
+  element: elementHintSchema.optional(),
+  elements: z.array(elementHintSchema).min(1).optional(),
 }).strict();
 
 // Drafts stay in the browser; sent threads use the existing server store.

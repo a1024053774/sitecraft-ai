@@ -193,7 +193,8 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
   const result = await modelJson('local-edit', `${contract}\n风格要点：${stylePoints}\n${codeSliderRules(args.preferences)}`,
     JSON.stringify({ request: args.request, materials: args.materials, page: args.plan.pages.find(page => page.id === args.target.pageId),
       scope: context.scope, html: context.html, css: context.css, issues: args.issues,
-      ...(args.target.element ? { pointedElement: args.target.element } : {}) }), 6144);
+      ...(args.target.element ? { pointedElement: args.target.element } : {}),
+      ...(args.target.elements ? { pointedElements: args.target.elements } : {}) }), 6144);
   return { response: result.data, model: result.model };
 }
 export async function repairSiteCode(args: { materials: string; preferences: CodePreferences; current: SiteCode; issues: string[]; cleaned: string[] }) {
