@@ -46,3 +46,11 @@ T-169 执行中发现：T-151 的英文机械保真检查把「取得 ISO 9001 �
 - 红证据（修复前，标准入口）：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t172-iso-fidelity.test.ts`，`GB/T 50016 → GB/R 50016` 实际返回 `applied`，测试失败。
 - 绿证据（修复后，同一入口）：同一命令 22 项测试全部通过，且每项都经 `commitSiteCode` 英文版提交路径核对；覆盖 ISO 改号/换序/增删、GB/T 前缀变化、分隔变体、IP65 与单位混淆、多个型号、公司英文名与型号重叠。
 - 相关回归：`npm test -- tests/t151-fidelity-rules.test.ts tests/t151-paragraph-repair.test.ts tests/t151-short-translation.test.ts tests/t151-english.test.ts tests/t169-citations-browser.test.ts` 共 69 项通过；`npm run typecheck` 通过。未运行全量 test/build，按主控指令留给主线。
+
+## NO_GO follow-up 2
+
+- 主控对 `b96ffc8` 的 P1：`separatedModel` 前后界使用 `\p{L}`，把中文当作拉丁型号粘连，导致 `符合GB/T 50016。`、`取得ISO 9001认证。` 及中文标点相邻型号被拒。
+- 修正：前后界改为 `\p{Script=Latin}` 与数字（保留 `_`、`-` 型号连接保护），Han 与拉丁型号之间视为合法脚本切换。
+- 红证据（修改前，b96ffc8）：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t172-iso-fidelity.test.ts`，25 项中 3 项失败，正是上述中文紧贴/标点样本；其余 22 项通过。
+- 绿证据（修改后，同一入口）：25 项全部通过；同一提交入口仍覆盖原 22 项拒收/通过场景。
+- 回归：上述 T-151/T-169 相关命令 69 项通过，`npm run typecheck` 通过；未运行全量 test/build，按主控指令留给主线。

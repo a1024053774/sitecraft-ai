@@ -24,6 +24,9 @@ function code(text: string, header = '', title = sourceTitle): SiteCode {
 
 const cases: Case[] = [
   { name: 'ISO 9001 certified 通过', before: '取得 ISO 9001 认证。', after: 'ISO 9001 certified.', expected: 'pass' },
+  { name: '中文紧贴 GB/T 前缀仍通过', before: '符合GB/T 50016。', after: 'Complies with GB/T 50016.', expected: 'pass' },
+  { name: '中文紧贴 ISO 型号仍通过', before: '取得ISO 9001认证。', after: 'ISO 9001 certified.', expected: 'pass' },
+  { name: '型号前后紧贴中文标点仍通过', before: '型号GB/T 50016，符合ISO 9001。', after: 'Model GB/T 50016, compliant with ISO 9001.', expected: 'pass' },
   { name: 'ISO 9002 改号拒收', before: '取得 ISO 9001 认证。', after: 'ISO 9002 certified.', expected: 'reject' },
   { name: '9001 改为 9010 拒收', before: '取得 ISO 9001 认证。', after: 'ISO 9010 certified.', expected: 'reject' },
   { name: 'GB/T 改为 GB/R 拒收', before: '符合 GB/T 50016。', after: 'Complies with GB/R 50016.', expected: 'reject' },
