@@ -1,6 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+// 草稿集合与编号列表改编自 BaoCut（JimLiu/baocut@7aa049e8），BaoCut Community License。
+// 仅画板批注；本地持久化与单区块发送使用 SiteCraft 合同，来源见 resources/baocut-annotation/SOURCE.md。
+
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, FileText, History, Image as ImageIcon, LoaderCircle, RotateCcw, Send, Trash2 } from 'lucide-react';
 import Papa from 'papaparse';
@@ -77,13 +80,17 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [saveAnnotation, setSaveAnnotation] = useState(false), [threads, setThreads] = useState<AnnotationThread[]>([]);
   const [threadsOpen, setThreadsOpen] = useState(false), [selectionLoaded, setSelectionLoaded] = useState(false);
   const [drafts, setDrafts] = useState<AnnotationDraft[]>([]), [draftsLoaded, setDraftsLoaded] = useState(false);
+  const draftsRef = useRef<AnnotationDraft[]>([]);
   const [draftStorageError, setDraftStorageError] = useState(false);
   const [composer, setComposer] = useState<{ target: AnnotationTarget; draftId?: string; thread?: AnnotationThread } | null>(null);
   const [composerCollapsed, setComposerCollapsed] = useState(false), [annotationBottomSpace, setAnnotationBottomSpace] = useState(0);
   const annotationInput = useRef<HTMLTextAreaElement>(null);
   const [opinion, setOpinion] = useState(''), [reveal, setReveal] = useState(0), [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
   const draftKey = `sitecraft-annotation-drafts:${siteId}`;
-  const pendingDraft = drafts.find(d => d.status !== 'archived');
+  const pendingDrafts = useMemo(() => drafts.filter(d => d.status !== 'archived'), [drafts]);
+  const numberedDrafts = useMemo(() => pendingDrafts.map((draft, index) => ({ id: draft.id, target: draft.target, number: index + 1 })), [pendingDrafts]);
+  const sendingDraft = pendingDrafts.find(d => d.status === 'sending');
+  const [areaCandidates, setAreaCandidates] = useState<AnnotationTarget[]>([]);
   const stage = useRef<HTMLDivElement>(null), [availableWidth, setAvailableWidth] = useState(1000);
   useEffect(() => {
     if (!stage.current) return;
@@ -94,7 +101,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const site = state.codeSite, version = site.versions.find(v => v.id === site.currentVersionId);
   const previewVersion = site.versions.find(v => v.id === previewVersionId) ?? version;
   const conversationUnavailable = !!state.conversationError;
-  const running = site.run?.status === 'running' && !conversationUnavailable, busy = sending || running || pendingDraft?.status === 'sending';
+  const running = site.run?.status === 'running' && !conversationUnavailable, busy = sending || running || !!sendingDraft;
   const progressText = conversationUnavailable && site.run?.status === 'error'
     ? '上次任务未完成，完整检查问题仍保留。' : site.run?.step;
   const english = version?.english;
@@ -122,28 +129,32 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     } catch { setError('浏览器无法保存点选记录，当前点选仍可使用；刷新后请重新点选。'); }
     if (!valid && selectedTarget) setSelectedTarget(null);
   }, [selectedTarget, version?.id, selectionLoaded, siteId]);
-  useEffect(() => { if (activeLanguage !== 'zh' || busy) setPicking(false); }, [activeLanguage, busy]);
-  const saveDrafts = useCallback((next: AnnotationDraft[]) => {
-    try { localStorage.setItem(draftKey, JSON.stringify(next)); setDrafts(next); return true; }
+  const canAnnotate = !!version && activeLanguage === 'zh' && !conversationUnavailable && !previewVersionId;
+  useEffect(() => { if (!canAnnotate) setPicking(false); }, [canAnnotate]);
+  const saveDrafts = useCallback((update: (current: AnnotationDraft[]) => AnnotationDraft[]) => {
+    const next = update(draftsRef.current);
+    try {
+      if (next.length) localStorage.setItem(draftKey, JSON.stringify(next));
+      else localStorage.removeItem(draftKey);
+      draftsRef.current = next; setDrafts(next); return true;
+    }
     catch { setError('批注草稿未能保存到浏览器，请检查存储空间后再添加或发送。'); return false; }
   }, [draftKey]);
   useEffect(() => {
-    try { const saved = localStorage.getItem(draftKey); if (saved) setDrafts(annotationDraftSchema.array().parse(JSON.parse(saved))); }
+    try { const saved = localStorage.getItem(draftKey); if (saved) { const parsed = annotationDraftSchema.array().parse(JSON.parse(saved)); draftsRef.current = parsed; setDrafts(parsed); } }
     catch { setDraftStorageError(true); setError('批注草稿无法读取，原记录已保留。请先处理浏览器中的草稿记录。'); }
     setDraftsLoaded(true);
   }, [draftKey]);
   useEffect(() => {
     if (!draftsLoaded) return;
-    let changed = false;
-    const next = drafts.map(draft => {
+    if (!drafts.some(draft => draft.status === 'sending' && site.runs.some(run => run.annotationSubmissionId === draft.submissionId && run.status !== 'running'))) return;
+    saveDrafts(current => current.map(draft => {
       if (draft.status !== 'sending' || !draft.submissionId) return draft;
       const run = site.runs.find(run => run.annotationSubmissionId === draft.submissionId);
       if (!run || run.status === 'running') return draft;
-      changed = true;
       return { ...draft, status: run.status === 'complete' ? 'archived' as const : 'draft' as const,
         error: run.status === 'error' ? [run.step, ...run.issues].join('\n') : undefined };
-    });
-    if (changed) saveDrafts(next);
+    }));
   }, [draftsLoaded, drafts, site.runs, saveDrafts]);
   const cancelComposer = useCallback(() => { if (composer?.thread) setComposerCollapsed(true); else setComposer(null); frame.current?.focus(); }, [composer]);
   useEffect(() => { setComposerCollapsed(false); }, [composer]);
@@ -153,34 +164,42 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const annotationKey = useCallback((event: KeyboardEvent) => {
     if (event.isComposing || event.keyCode === 229) return;
     if (event.key === 'Escape') {
-      if (composer) { event.preventDefault(); cancelComposer(); }
+      if (areaCandidates.length) { event.preventDefault(); setAreaCandidates([]); }
+      else if (composer) { event.preventDefault(); cancelComposer(); }
       else if (picking) { event.preventDefault(); setPicking(false); setSelectedTarget(null); frame.current?.focus(); }
       return;
     }
     const input = event.target as HTMLElement | null;
     if (input?.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])') || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.key.toLowerCase() === 'c' && version && activeLanguage === 'zh' && !busy && !conversationUnavailable && !previewVersionId) {
+    if (event.key.toLowerCase() === 'c' && canAnnotate) {
       event.preventDefault(); setPane('preview'); setPicking(value => !value); setSelectedTarget(null);
     }
-  }, [composer, cancelComposer, picking, version, activeLanguage, busy, conversationUnavailable, previewVersionId]);
+  }, [composer, cancelComposer, picking, canAnnotate, areaCandidates.length]);
   useEffect(() => { document.addEventListener('keydown', annotationKey); return () => document.removeEventListener('keydown', annotationKey); }, [annotationKey]);
   const selectBlock = useCallback((target: AnnotationTarget) => {
-    if (pendingDraft && !composer?.draftId) { setError('一次处理一条批注，请先发送或移除待发送批注。'); return; }
+    setAreaCandidates([]);
     setSelectedTarget(target); setComposer({ target, ...(composer?.draftId ? { draftId: composer.draftId } : {}) });
     if (!composer?.draftId) setOpinion('');
-  }, [pendingDraft, composer?.draftId]);
-  const changePage = useCallback((id: string) => { setPage(id); setPreviewHash(''); setSelectedTarget(null); setComposer(null); setPicking(false); }, []);
+  }, [composer?.draftId]);
+  const selectArea = useCallback((targets: AnnotationTarget[]) => {
+    if (targets.length === 1) { selectBlock(targets[0]); return; }
+    setAreaCandidates(targets); setSelectedTarget(null);
+    if (!composer?.draftId) { setComposer(null); setOpinion(''); }
+  }, [selectBlock, composer?.draftId]);
+  const changePage = useCallback((id: string) => { setPage(id); setPreviewHash(''); setSelectedTarget(null); setComposer(null); setPicking(false); setAreaCandidates([]); }, []);
   function revealAnnotation(target: AnnotationTarget, detail: { draftId?: string; thread?: AnnotationThread }, body: string) {
+    setAreaCandidates([]);
     setPreviewVersionId(target.versionId === version?.id ? null : target.versionId);
     setPage(target.pageId); setPreviewHash(''); setLanguage('zh'); setPane('preview'); setPicking(false);
     setSelectedTarget(target); setComposer({ target, ...detail }); setOpinion(body); setReveal(value => value + 1);
   }
   function addAnnotation() {
-    if (!composer || composer.thread || !opinion.trim() || composer.target.versionId !== version?.id || busy || draftStorageError) return;
+    if (!composer || composer.thread || !opinion.trim() || composer.target.versionId !== version?.id || draftStorageError || areaCandidates.length
+      || draftsRef.current.find(d => d.id === composer.draftId)?.status === 'sending') return;
     const draft: AnnotationDraft = { id: composer.draftId ?? crypto.randomUUID(), target: composer.target,
       revision: version.revision, body: opinion.trim(), status: 'draft' };
-    if (!saveDrafts([...drafts.filter(d => d.id !== draft.id), draft])) return;
-    setComposer(null); setPicking(false); frame.current?.focus();
+    if (!saveDrafts(current => current.some(d => d.id === draft.id) ? current.map(d => d.id === draft.id ? draft : d) : [...current, draft])) return;
+    setComposer(null); if (!composer.draftId) setSelectedTarget(null); frame.current?.focus();
   }
   function previewLoaded() {
     const location = frame.current?.contentWindow?.location;
@@ -216,13 +235,13 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     }).catch(error => { if (!cancelled) setError(error.message); });
     return () => { cancelled = true; };
   }, [draftsLoaded]);
-  async function sendAnnotation() {
-    const draft = pendingDraft;
+  async function sendAnnotation(id: string) {
+    const draft = draftsRef.current.find(d => d.id === id);
     if (!draft || draft.status === 'sending' || draft.target.versionId !== version?.id || busy || sendLock.current || conversationUnavailable) return;
     sendLock.current = true; setSending(true); setError('');
     const frozen = { ...draft, status: 'sending' as const,
       submissionId: draft.submissionId && !site.runs.some(run => run.annotationSubmissionId === draft.submissionId) ? draft.submissionId : crypto.randomUUID(), error: undefined };
-    if (!saveDrafts(drafts.map(d => d.id === draft.id ? frozen : d))) { sendLock.current = false; setSending(false); return; }
+    if (!saveDrafts(current => current.map(d => d.id === draft.id ? frozen : d))) { sendLock.current = false; setSending(false); return; }
     setComposer(null); setPicking(false);
     try { await request({ message: frozen.body, baseRevision: frozen.revision, selectedTarget: frozen.target,
       saveAnnotation: true, annotationSubmissionId: frozen.submissionId }); }
@@ -231,19 +250,20 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       // A lost HTTP reply may already own a task. Read its state once before releasing the draft.
       try { const payload = await request({ action: 'state' });
         if (!payload.codeSite.runs.some(run => run.annotationSubmissionId === frozen.submissionId))
-          saveDrafts(drafts.map(d => d.id === draft.id ? { ...frozen, status: 'draft', error: message } : d));
+          saveDrafts(current => current.map(d => d.id === draft.id ? { ...frozen, status: 'draft', error: message } : d));
       } catch { setError(`${message} 无法确认任务状态，意见已保留；刷新后查看。`); }
     } finally { sendLock.current = false; setSending(false); }
   }
-  async function checkAnnotationSubmission() {
-    if (!pendingDraft || pendingDraft.status !== 'sending') return;
+  async function checkAnnotationSubmission(id: string) {
+    const draft = draftsRef.current.find(d => d.id === id);
+    if (!draft || draft.status !== 'sending') return;
     try { const payload = await request({ action: 'state' });
-      if (!payload.codeSite.runs.some(run => run.annotationSubmissionId === pendingDraft.submissionId))
-        saveDrafts(drafts.map(d => d.id === pendingDraft.id ? { ...d, status: 'draft', error: '未找到发送任务，意见已保留。可以重新发送。' } : d));
+      if (!payload.codeSite.runs.some(run => run.annotationSubmissionId === draft.submissionId))
+        saveDrafts(current => current.map(d => d.id === draft.id ? { ...d, status: 'draft', error: '未找到发送任务，意见已保留。可以重新发送。' } : d));
     } catch (error) { setError(error instanceof Error ? error.message : '无法读取发送状态，意见已保留。'); }
   }
   useEffect(() => {
-    if (!running && pendingDraft?.status !== 'sending') return;
+    if (!running && !sendingDraft) return;
     let cancelled = false;
     const timer = setInterval(() => {
       void fetch(`/api/sites/${siteId}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'state' }) })
@@ -251,7 +271,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         .catch(error => { if (!cancelled) setError(error instanceof Error ? error.message : '读取进度失败。'); });
     }, 2000);
     return () => { cancelled = true; clearInterval(timer); };
-  }, [running, pendingDraft?.status, siteId]);
+  }, [running, sendingDraft?.id, siteId]);
   async function perform(body: Record<string, unknown>) {
     setSending(true); setError('');
     try { await request(body); } catch (error) { setError(error instanceof Error ? error.message : '本次请求失败。'); }
@@ -309,26 +329,32 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="topbar-tools"><div className="device-toggle" aria-label="预览宽度">{[1440, 768, 375].map(w => <button key={w} aria-pressed={width === w} className={width === w ? 'active' : ''} onClick={() => setWidth(w)}>{w}</button>)}</div><button className="icon-button" aria-label="撤销" disabled={busy || site.versions.length < 2} onClick={() => void undo()}><RotateCcw size={16} /></button><button className="icon-button" aria-label="删除站点" data-testid="toolbar-delete-site" disabled={busy} onClick={() => setDeleteOpen(true)}><Trash2 size={16} /></button></div>
     </header>
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`} style={{ paddingBottom: annotationBottomSpace }}>
-      <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={busy || conversationUnavailable || !!previewVersionId} data-testid="pick-block" onClick={() => { setPicking(!picking); setSelectedTarget(null); setComposer(null); }}>{picking ? '退出批注' : '批注'}</button><small>{picking ? '点击位置，就地写批注 · Esc 退出' : selected ? `已选：${selected.label}` : 'C 进入批注 · 只修改选中区块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
+      <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={!canAnnotate} data-testid="pick-block" onClick={() => { setPicking(!picking); setSelectedTarget(null); setComposer(null); setAreaCandidates([]); }}>{picking ? '退出批注' : '批注'}</button><small>{picking ? '点击或拖框写批注 · Esc 取消' : selected ? `已选：${selected.label}` : 'C 进入批注 · 只修改选中区块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       {previewVersionId && <p className="code-preview-version">正在回看 v{previewVersion?.revision} 的批注 <button onClick={() => { setPreviewVersionId(null); setComposer(null); setSelectedTarget(null); }}>回到当前版本</button></p>}
       {activeLanguage === 'zh' && previewVersion && <p className="code-fact-status" data-testid="fact-citation-status">{!previewVersion.checks.factCitations ? '未记录出处' : `${previewVersion.checks.factCitations.entries.length} 条资料出处${previewVersion.checks.factCitations.complete ? '' : ' · 部分内容未记录出处'}`}<small>悬停或点选预览中的编号，查看资料原句。</small></p>}
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
-        {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-forms allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && previewVersion && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && !busy}
-          selected={composer?.target ?? selected} pageId={activePage} versionId={previewVersion.id} html={previewVersion.code.pages.find(p => p.id === activePage)!.html}
-          scale={scale} onSelect={selectBlock} onKey={annotationKey} reveal={reveal} bottomSpace={annotationBottomSpace} onBottomSpace={setAnnotationBottomSpace}
-          numbered={pendingDraft?.target.versionId === previewVersion.id ? pendingDraft.target : null}
-          onReveal={() => { if (pendingDraft) revealAnnotation(pendingDraft.target, { draftId: pendingDraft.id }, pendingDraft.body); }}>
-          {composer && <section className="code-annotation-composer" data-testid="annotation-composer" role="dialog" aria-label="批注意见">
+        {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && previewVersion && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && canAnnotate}
+          selected={areaCandidates.length ? null : composer?.target ?? selected} areaChoosing={!!areaCandidates.length} pageId={activePage} versionId={previewVersion.id} html={previewVersion.code.pages.find(p => p.id === activePage)!.html}
+          scale={scale} onSelect={selectBlock} onArea={selectArea} onKey={annotationKey} reveal={reveal} bottomSpace={annotationBottomSpace} onBottomSpace={setAnnotationBottomSpace}
+          numbered={numberedDrafts}
+          onReveal={id => { const draft = draftsRef.current.find(d => d.id === id); if (draft && draft.status !== 'sending') revealAnnotation(draft.target, { draftId: draft.id }, draft.body); }}>
+          {!!areaCandidates.length && <section className="code-annotation-composer" data-testid="annotation-area-candidates" role="dialog" aria-label="收窄圈选范围">
+            <strong>圈中了 {areaCandidates.length} 个区块</strong><p>一次只修改一个区块，请选择这一条意见的范围。</p>
+            {areaCandidates.map(target => <button type="button" className="secondary-button" key={target.path.join('-')} onClick={() => selectBlock(target)}>{target.label}</button>)}
+            <button type="button" onClick={() => setAreaCandidates([])}>取消圈选</button>
+          </section>}
+          {composer && !areaCandidates.length && <section className="code-annotation-composer" data-testid="annotation-composer" role="dialog" aria-label="批注意见">
             {composerCollapsed ? <div className="code-annotation-summary"><span aria-hidden="true">1</span><p title={composer.thread?.comments[0].body ?? opinion}>{composer.thread?.comments[0].body ?? opinion}</p><button type="button" data-testid="annotation-expand" onClick={() => setComposerCollapsed(false)}>展开意见</button></div> : <>
-            <strong>{composer.thread ? '批注线程 · 1' : '批注 · 1'}</strong>
+            <strong>{composer.thread ? '批注线程' : `批注 · ${composer.draftId ? pendingDrafts.findIndex(d => d.id === composer.draftId) + 1 : pendingDrafts.length + 1}`}</strong>
             <p data-testid="annotation-scope">修改范围：{pages.find(p => p.id === composer.target.pageId)?.title} · {composer.target.label}</p>
+            {composer.target.elements && <small data-testid="annotation-elements">圈选内容：{composer.target.elements.map(hint => hint.text || hint.tag).join()} · 只修改上面的区块</small>}
             {composer.target.element && <small>指向：{composer.target.element.tag === 'img' ? '图片' : /^h[1-6]$/.test(composer.target.element.tag) ? '标题' : '内容'} · {composer.target.element.text || '无文字'}</small>}
             {composer.thread ? <div className="code-thread-comments">{composer.thread.comments.map(comment => <p key={comment.id}>{comment.author.name}：{comment.body}</p>)}</div>
               : <><label htmlFor="annotation-message">修改意见</label><textarea ref={annotationInput} autoFocus id="annotation-message" value={opinion} maxLength={4000} rows={4}
                 onChange={event => setOpinion(event.target.value)} onKeyDown={event => { if (!event.nativeEvent.isComposing && event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); addAnnotation(); } }} />
                 <small>Enter 换行 · ⌘/Ctrl+Enter 添加</small></>}
             <div className="code-annotation-actions"><button type="button" autoFocus={!!composer.thread} onClick={cancelComposer}>{composer.thread ? '收起' : '取消'}</button>
-              {!composer.thread && <button type="button" className="primary-button" data-testid="annotation-add" disabled={!opinion.trim() || busy || draftStorageError || composer.target.versionId !== version?.id || pendingDraft?.status === 'sending'} onClick={addAnnotation}>{composer.draftId ? '保存批注' : '添加批注'}</button>}</div>
+              {!composer.thread && <button type="button" className="primary-button" data-testid="annotation-add" disabled={!opinion.trim() || draftStorageError || composer.target.versionId !== version?.id || drafts.find(d => d.id === composer.draftId)?.status === 'sending'} onClick={addAnnotation}>{composer.draftId ? '保存批注' : '添加批注'}</button>}</div>
             </>}
           </section>}
         </CodePreviewSelection>}{activeLanguage === 'zh' && previewVersion && !picking && !composer && <CodePreviewCitations key={`${previewVersion.id}:${activePage}`} frame={frame} stage={stage} ready={previewReady} record={previewVersion.checks.factCitations} versionId={previewVersion.id} pageId={activePage} scale={scale} header={previewVersion.code.header} languageLinks={!!previewVersion.english} />}{!previewReady && <div className="code-preview-loading" role="status">正在载入版本 {version.revision}…</div>}</> : <div className="code-empty"><strong>先读公司资料，再生成网站</strong><p>发来已有的公司或产品资料。选好风格、确认页面大纲后，预览会出现在这里；资料可以之后继续补充。</p></div>}
@@ -354,17 +380,20 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {error && <p className="code-error" role="alert">{error}</p>}
       </div>
       <div className="chat-input-wrap">
-        {pendingDraft && <section className="code-annotation-draft" data-testid="annotation-draft" aria-label="待发送批注">
-          <strong>待发送批注 · 1 条</strong><small>1 · {site.versions.find(v => v.id === pendingDraft.target.versionId)?.code.pages.find(p => p.id === pendingDraft.target.pageId)?.title} · {pendingDraft.target.label}</small>
-          <p>{pendingDraft.body}</p>
-          {pendingDraft.target.versionId !== version?.id && <p role="status">来自 v{pendingDraft.revision}，请重新点选</p>}
-          {pendingDraft.status === 'sending' && <p role="status">正在修改，意见与范围已冻结。</p>}
-          {pendingDraft.status === 'sending' && !site.runs.some(run => run.annotationSubmissionId === pendingDraft.submissionId) && <button type="button" data-testid="annotation-check" onClick={() => void checkAnnotationSubmission()}>核对发送状态</button>}
-          {pendingDraft.error && <p className="code-error" role="alert">{pendingDraft.error}</p>}
-          <div className="code-annotation-actions"><button type="button" data-testid="annotation-reveal" disabled={pendingDraft.status === 'sending'} onClick={() => revealAnnotation(pendingDraft.target, { draftId: pendingDraft.id }, pendingDraft.body)}>回看位置</button>
-            {pendingDraft.target.versionId !== version?.id && <button type="button" data-testid="annotation-reselect" disabled={busy} onClick={() => { setPreviewVersionId(null); setLanguage('zh'); setPane('preview'); setComposer({ target: pendingDraft.target, draftId: pendingDraft.id }); setOpinion(pendingDraft.body); setSelectedTarget(null); setPicking(true); }}>重新点选</button>}
-            <button type="button" disabled={busy || pendingDraft.status === 'sending'} onClick={() => { if (saveDrafts(drafts.filter(d => d.id !== pendingDraft.id))) { setComposer(null); setSelectedTarget(null); } }}>移除</button>
-            <button type="button" className="primary-button" data-testid="annotation-send" disabled={busy || conversationUnavailable || pendingDraft.status === 'sending' || pendingDraft.target.versionId !== version?.id} onClick={() => void sendAnnotation()}>发送这条批注</button></div>
+        {!!pendingDrafts.length && <section aria-label="待发送批注列表">
+          <strong>待发送批注 · {pendingDrafts.length} 条</strong>
+          <div className="code-annotation-list">{pendingDrafts.map((draft, index) => <section key={draft.id} className="code-annotation-draft" data-testid="annotation-draft" data-draft-id={draft.id} aria-label={`批注 ${index + 1}`}>
+            <small>{index + 1} · {site.versions.find(v => v.id === draft.target.versionId)?.code.pages.find(p => p.id === draft.target.pageId)?.title} · {draft.target.label}</small>
+            <p>{draft.body}</p>
+            {draft.target.versionId !== version?.id && <p role="status">来自 v{draft.revision}，请重新点选</p>}
+            {draft.status === 'sending' && <p role="status">正在修改，意见与范围已冻结。</p>}
+            {draft.status === 'sending' && !site.runs.some(run => run.annotationSubmissionId === draft.submissionId) && <button type="button" data-testid="annotation-check" onClick={() => void checkAnnotationSubmission(draft.id)}>核对发送状态</button>}
+            {draft.error && <p className="code-error" role="alert">{draft.error}</p>}
+            <div className="code-annotation-actions"><button type="button" data-testid="annotation-reveal" disabled={draft.status === 'sending'} onClick={() => revealAnnotation(draft.target, { draftId: draft.id }, draft.body)}>回看 / 编辑</button>
+              {draft.target.versionId !== version?.id && <button type="button" data-testid="annotation-reselect" disabled={draft.status === 'sending'} onClick={() => { setPreviewVersionId(null); setLanguage('zh'); setPane('preview'); setComposer({ target: draft.target, draftId: draft.id }); setOpinion(draft.body); setSelectedTarget(null); setAreaCandidates([]); setPicking(true); }}>重新点选</button>}
+              <button type="button" data-testid="annotation-remove" disabled={draft.status === 'sending'} onClick={() => { if (saveDrafts(current => current.filter(d => d.id !== draft.id)) && composer?.draftId === draft.id) { setComposer(null); setSelectedTarget(null); } }}>移除</button>
+              <button type="button" className="primary-button" data-testid="annotation-send" disabled={busy || conversationUnavailable || draft.status === 'sending' || draft.target.versionId !== version?.id || !!previewVersionId} onClick={() => void sendAnnotation(draft.id)}>发送这条批注</button></div>
+          </section>)}</div>
         </section>}
         {version && activeLanguage === 'zh' && <>
           {selected && <div className="code-selected-target" data-testid="selected-target"><strong>已选：{selected.label}</strong><button type="button" onClick={() => setSelectedTarget(null)} disabled={busy}>取消</button><small>{pages.find(p => p.id === activePage)?.title} · 只改这一块</small><label><input type="checkbox" checked={saveAnnotation} onChange={e => setSaveAnnotation(e.target.checked)} disabled={busy} />保存为批注线程</label></div>}
@@ -373,7 +402,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
             ['更克制', '更克制：保留全部事实、文案含义、操作顺序和已有功能入口；减少装饰与过强的色彩和字号对比，收拢视觉层级，仍让重点清楚、正文易读。'],
             ['精简文字', '精简文字：删掉重复和空话，保留事实与操作顺序，包括“先…再…”等衔接；句子保持自然、口语化的商务中文，不压成电报体。保留必要的解释、限制条件和已有功能入口。'],
             ['换个版式', '换个版式：保留全部事实、文案含义、操作顺序、已有功能入口和当前风格；调整图文位置、列数与留白组织，让阅读顺序更清楚，兼顾窄屏。'],
-          ].map(([text, prompt]) => <button key={text} type="button" disabled={busy || conversationUnavailable || !!previewVersionId} onClick={() => { if (selected) { setComposer({ target: selected, ...(pendingDraft ? { draftId: pendingDraft.id } : {}) }); setOpinion(prompt); setPane('preview'); } else void sendEdit(prompt, true); }}>{text}</button>)}</div>
+          ].map(([text, prompt]) => <button key={text} type="button" disabled={busy || conversationUnavailable || !!previewVersionId} onClick={() => { if (selected) { setComposer({ target: selected, ...(composer?.draftId ? { draftId: composer.draftId } : {}) }); setOpinion(prompt); setPane('preview'); } else void sendEdit(prompt, true); }}>{text}</button>)}</div>
           {previewVersionId ? <small className="code-quick-scope" role="status">正在回看历史版本，请回到当前版本并重新点选后再修改。</small>
             : !selected && <small className="code-quick-scope">快捷按钮作用于「{pages.find(p => p.id === activePage)?.title}」</small>}
           {selected && site.run?.status === 'error' && site.run.selectedTarget && <button className="secondary-button" disabled={busy} onClick={() => { setSelectedTarget(null); setInput(site.run!.request); }}>改整页</button>}

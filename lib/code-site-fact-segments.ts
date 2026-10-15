@@ -44,7 +44,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
   const atomic = 'table';
   const blocks = new Set('DIV P H1 H2 H3 H4 H5 H6 LI DT DD TR TH TD FIGCAPTION BR'.split(' '));
   const own = (el: Element) => {
-    if (el.parentElement?.closest('[data-system-inquiry],[data-system-icon]')) return '';
+    if (el.parentElement?.closest('[data-system-icon]')) return '';
     const attrs = ['alt', 'title', 'aria-label', 'data-label', 'colspan', 'rowspan', 'scope', 'headers'].flatMap(name => el.hasAttribute(name) ? [`${name}=${el.getAttribute(name)}`] : []);
     for (const name of ['aria-labelledby', 'aria-describedby']) if (el.hasAttribute(name)) {
       attrs.push(`${name}=${el.getAttribute(name)!.split(/\s+/).map(id => document.getElementById(id)?.textContent ?? `未找到 ${id}`).join('\n')}`);
@@ -57,7 +57,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
   };
   const read = (node: Node, skip?: (el: Element) => boolean): string => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? '';
-    if (!(node instanceof Element) || skip?.(node) || node.parentElement?.closest('[data-system-inquiry],[data-system-icon]')) return '';
+    if (!(node instanceof Element) || skip?.(node) || node.parentElement?.closest('[data-system-icon]')) return '';
     const auxiliary = own(node);
     const content = [...node.childNodes].map(child => read(child, skip)).join('');
     const text = `${auxiliary ? `\n[${auxiliary}]\n` : ''}${content}`;

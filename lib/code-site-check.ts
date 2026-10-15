@@ -13,7 +13,7 @@ import { systemBackdrops } from './code-site-backdrops.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
-function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], legacyImport = false, selectedTarget?: AnnotationTarget) {
+function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], selectedTarget?: AnnotationTarget) {
   const issues: string[] = [], cleaned: string[] = [];
   const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
   const safeCss = (style: CSSStyleDeclaration) => {
@@ -46,11 +46,6 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
     const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
     for (const node of [...doc.querySelectorAll('*')]) {
       if (['HTML', 'HEAD', 'BODY'].includes(node.tagName)) continue;
-      if (legacyImport && node.tagName === 'FORM' && node.hasAttribute('data-sitecraft-inquiry')) {
-        const placeholder = doc.createElement('div');
-        placeholder.className = node.className; placeholder.setAttribute('data-system-inquiry', '');
-        node.replaceWith(placeholder); cleaned.push('旧询盘表单转换为系统部件'); continue;
-      }
       if (!node.isConnected) continue;
       if (!allowed.has(node.tagName.toLowerCase())) { issues.push(`已去掉禁止元素 ${node.tagName.toLowerCase()}`); node.remove(); continue; }
       if (node.hasAttribute('data-system-backdrop')) {
@@ -76,10 +71,6 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
       if (node.hasAttribute('data-system-icon')) {
         if (node.tagName !== 'SPAN' || !iconIds.includes(node.getAttribute('data-system-icon')!)) issues.push('系统图标编号无效');
         else node.replaceChildren();
-      }
-      if (node.hasAttribute('data-system-inquiry')) {
-        if (node.tagName !== 'DIV') issues.push('询盘部件必须使用 div');
-        else { node.setAttribute('data-system-inquiry', ''); node.replaceChildren(); }
       }
     }
     return doc.body.innerHTML;
@@ -473,7 +464,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
     const backdropIds = Object.keys(systemBackdrops), backdropUrls = Object.values(systemBackdrops).flatMap(entry => Object.values(entry.urls));
-    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${JSON.stringify(backdropIds)},${JSON.stringify(backdropUrls)},${!!args.legacyImport},${JSON.stringify(args.localEdit?.target)})`);
+    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${JSON.stringify(backdropIds)},${JSON.stringify(backdropUrls)},${JSON.stringify(args.localEdit?.target)})`);
     checks.issues.push(...clean.issues); checks.cleaned = clean.cleaned;
     let localSelectors: string[] = [];
     if (args.localEdit) {

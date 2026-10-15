@@ -56,7 +56,7 @@ test('the real evaluation CLI preserves owner-domain addresses in every case', a
 
 test('core guidance supplies semantic icons and different header/hero tasks without inventing downloads', async () => {
   const rules = await readFile('skills/site-code-core/SKILL.md', 'utf8');
-  assert.match(rules, /页头[\s\S]{0,80}询盘[\s\S]{0,100}首屏[\s\S]{0,150}不同任务/);
+  assert.match(rules, /页头[\s\S]{0,80}首屏[\s\S]{0,150}不同任务/);
   assert.match(rules, /图标.{0,80}含义/);
   assert.match(rules, /不要每个链接都加图标/);
   for (const id of ['phone', 'map-pin', 'download', 'file-text', 'certificate', 'factory', 'cog', 'inspection', 'package', 'truck', 'clock', 'wrench']) {
@@ -84,12 +84,12 @@ test('the actual writer request loads semantic icon and CTA guidance and preserv
   try {
     const { writeSiteCode } = await import('../lib/code-site-model.ts');
     await writeSiteCode({ materials: '公司名：本地夹具。电话：待补充。', preferences: { style: 'precision', layout: 5, density: 6 },
-      plan: { summary: '公司与产品', style: 'precision', styleReason: '本地夹具', pages: [{ id: 'home', title: '首页', outline: '公司与产品' }] }, images: [], request: '页头已提供询盘入口。' });
+      plan: { summary: '公司与产品', style: 'precision', styleReason: '本地夹具', pages: [{ id: 'home', title: '首页', outline: '公司与产品' }] }, images: [], request: '页头已有产品入口。' });
     await mkdir(root, { recursive: true });
     await writeFile(path.join(root, 'writer-requests.json'), JSON.stringify(requests, null, 2));
     assert.equal(requests.length, 1);
     const [system, user] = requests[0].messages.map(message => message.content);
-    assert.match(system, /页头[\s\S]{0,80}询盘[\s\S]{0,100}首屏[\s\S]{0,150}不同任务/);
+    assert.match(system, /页头[\s\S]{0,80}首屏[\s\S]{0,150}不同任务/);
     assert.ok(system.includes('"inspection"') && system.includes('不要每个链接都加图标'));
     assert.match(user, /资料标明的缺口保留待补充，不自动隐藏/);
     assert.doesNotMatch(user, /缺口可省略/);

@@ -61,7 +61,7 @@ export function readEnrichmentPage(id: string): EnrichmentPage {
     auxiliaryText: (document.body.textContent ?? '') + [...document.body.querySelectorAll('[alt],[title],[aria-label]')]
       .flatMap(n => ['alt', 'title', 'aria-label'].map(a => n.getAttribute(a) ?? '')).join('\n'),
     links: [...document.body.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!),
-    forms: [...document.forms].map(form => ({ system: form.matches('form.sc-inquiry'), inMain: main.contains(form), action: form.getAttribute('action') ?? '' })), products };
+    forms: [...document.forms].map(form => ({ system: false, inMain: main.contains(form), action: form.getAttribute('action') ?? '' })), products };
 }
 
 export function assertEnrichmentStep(step: number, pages: EnrichmentPage[]) {
@@ -75,7 +75,7 @@ export function assertEnrichmentStep(step: number, pages: EnrichmentPage[]) {
     for (const fact of [product.name, ...(step > 1 ? product.added : ['待补充'])]) assert.ok(hasCompleteFact(scope, fact), `第 ${step} 步 ${product.name} 缺少事实：${fact}`);
   }
   for (const page of pages) {
-    assert.doesNotMatch(page.text + page.auxiliaryText, /报价|询价|样品|响应(?:时效|时间|承诺)|(?:request|get|ask)[\s-]*(?:a[\s-]*)?(?:quote|sample)|\brfq\b/i, `第 ${step} 步 ${page.id} 出现未要求的功能或承诺（含公共页头页脚）`);
+    assert.doesNotMatch(page.text + page.auxiliaryText, /索取报价|获取报价|报价(?:入口|表单)|询价(?:入口|表单)|索取样品|样品(?:入口|表单)|响应(?:时效|时间|承诺)|(?:request|get|ask)[\s-]*(?:a[\s-]*)?(?:quote|sample)|\brfq\b/i, `第 ${step} 步 ${page.id} 出现未要求的功能或承诺（含公共页头页脚）`);
     for (const href of page.links) {
       assert.doesNotMatch(href, /(?:^|[\/?#&=_-])(?:quote|quotation|rfq|samples?)(?:$|[\/?#&=_-])/i, `第 ${step} 步 ${page.id} 出现未要求的功能链接`);
       if (/^mailto:/i.test(href)) assert.equal(step === 3 ? href : '', 'mailto:chengchuan-sales@luckye.online', `第 ${step} 步 ${page.id} 邮箱入口未授权`);
@@ -83,14 +83,9 @@ export function assertEnrichmentStep(step: number, pages: EnrichmentPage[]) {
     }
     const emails = (page.text + page.auxiliaryText).match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi) ?? [];
     assert.ok(emails.every(email => step === 3 && email === 'chengchuan-sales@luckye.online'), `第 ${step} 步 ${page.id} 出现未提供邮箱`);
-    if (step < 3) assert.doesNotMatch(page.text + page.auxiliaryText, /联系|询盘|咨询/, `第 ${step} 步 ${page.id} 提前增加联系功能`);
-    if (step < 3 || page.id !== 'contact') assert.equal(page.forms.length, 0, `第 ${step} 步 ${page.id} 出现未授权表单`);
-    else {
-      assert.equal(page.forms.length, 1, '联系页必须有一个系统询盘表单');
-      assert.equal(page.forms[0].system && page.forms[0].inMain, true, '询盘表单必须是联系页正文的系统部件');
-      assert.match(page.forms[0].action, /^\/api\/public\/[^/]+\/leads$/, '系统询盘提交目标不正确');
-      assert.ok(page.text.includes('chengchuan-sales@luckye.online'), '联系页缺少指定邮箱');
-    }
+    if (step < 3) assert.doesNotMatch(page.text + page.auxiliaryText, /联系|咨询/, `第 ${step} 步提前增加联系功能`);
+    assert.equal(page.forms.length, 0, `第 ${step} 步 ${page.id} 出现表单`);
+    if (step === 3 && page.id === 'contact') assert.ok(page.text.includes('chengchuan-sales@luckye.online'), '联系页缺少指定邮箱');
   }
 }
 

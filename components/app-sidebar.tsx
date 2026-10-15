@@ -7,7 +7,6 @@ import {
   FileText,
   LayoutTemplate,
   Menu,
-  MessageSquareText,
   Settings2,
   Sparkles,
   Users,
@@ -18,7 +17,6 @@ import { useState } from "react";
 export type SidebarSection =
   | "sites"
   | "builder"
-  | "leads"
   | "content"
   | "team"
   | "settings";
@@ -26,12 +24,6 @@ export type SidebarSection =
 const workspaceItems = [
   { id: "sites", href: "/", label: "我的站点", icon: LayoutTemplate },
   { id: "builder", href: "/workspace?new=1", label: "AI 建站", icon: Sparkles },
-  {
-    id: "leads",
-    href: "/leads",
-    label: "询盘线索",
-    icon: MessageSquareText,
-  },
   { id: "content", href: "/content", label: "内容与商品", icon: FileText },
 ] as const;
 

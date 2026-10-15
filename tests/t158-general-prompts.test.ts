@@ -84,7 +84,7 @@ test('planning and writing load a material-led identity for each existing style 
       assert.match(system, /中小企业与机构/);
       assert.doesNotMatch(system, /采购工程师|OEM 采购|贸易商|工业企业的产品画册|对车间有信心的工厂/);
       assert.ok(body.messages[1].content.includes(materials));
-      assert.match(system, /不默认增加.*询盘.*预约/);
+      assert.match(system, /不生成表单、提交入口或收件功能/);
       assert.match(system, /保留单位、条件、否定、数量/);
     }
   }

@@ -7,14 +7,12 @@ import {
   FileText,
   Globe2,
   LayoutTemplate,
-  MessageSquareText,
   Plus,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { listCodeSites, type CodeSiteListItem as SiteListItem } from "@/lib/code-site-store";
-import { listLeads, type PublicLead } from "@/lib/lead-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,11 +34,10 @@ function SiteThumb({ site }: { site: SiteListItem }) {
 }
 
 export default async function Dashboard() {
-  const [sites, leads] = await Promise.all([listCodeSites(), listLeads()]);
+  const sites = await listCodeSites();
   const recent = sites.slice(0, 3);
   const activities = [
     ...sites.map((site) => ({ kind: "site" as const, at: site.updatedAt, title: `${site.readError ? "无法打开" : "已更新"} ${site.siteName}`, detail: site.readError || "打开工作台继续修改", icon: "sparkles" as const })),
-    ...leads.map((lead: PublicLead) => ({ kind: "lead" as const, at: lead.receivedAt, title: "收到新的询盘", detail: [lead.company, lead.name].filter(Boolean).join(" · ") || "访客询盘", icon: "message" as const })),
   ].sort((left, right) => right.at.localeCompare(left.at)).slice(0, 3);
 
   return (
@@ -89,14 +86,6 @@ export default async function Dashboard() {
             </div>
             <div className="stat-card">
               <div className="stat-label">
-                <span>收到的询盘</span>
-                <MessageSquareText size={14} />
-              </div>
-              <div className="stat-value">{String(leads.length).padStart(2, "0")}</div>
-              <div className="stat-note">来自当前工作区</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">
                 <span>最近更新</span>
                 <Globe2 size={14} />
               </div>
@@ -113,7 +102,7 @@ export default async function Dashboard() {
           </div>
           <div className="site-grid">
             {recent.length === 0 ? (
-              <p className="leads-empty recent-sites-empty">还没有已保存站点。点击新建站点开始建站，这里不会先放演示站。</p>
+              <p className="empty-state recent-sites-empty">还没有已保存站点。点击新建站点开始建站，这里不会先放演示站。</p>
             ) : recent.map((site) => {
                           return (
                 <Link
@@ -148,17 +137,14 @@ export default async function Dashboard() {
             <div className="panel">
               <div className="section-heading">
                 <h2>最近动态</h2>
-                <Link className="section-link" href={"/leads" as Route}>
-                  活动记录
-                </Link>
               </div>
               {activities.length ? activities.map((activity) => (
                 <div className="activity-row" key={`${activity.kind}-${activity.at}-${activity.title}`}>
-                  <div className="activity-icon">{activity.icon === "message" ? <MessageSquareText size={14} /> : <Sparkles size={14} />}</div>
+                  <div className="activity-icon"><Sparkles size={14} /></div>
                   <div className="activity-text"><strong>{activity.title}</strong><span>{activity.detail}</span></div>
                   <span className="activity-time">{formatUpdatedAt(activity.at)}</span>
                 </div>
-              )) : <p className="leads-empty">暂无动态。创建站点或收到询盘后会显示在这里。</p>}
+              )) : <p className="empty-state">暂无动态。创建站点后会显示在这里。</p>}
             </div>
             <div className="panel">
               <div className="section-heading">
@@ -179,17 +165,6 @@ export default async function Dashboard() {
                 >
                   <FileText size={14} />
                   上传商品表格
-                  <ArrowUpRight size={12} style={{ marginLeft: "auto" }} />
-                </Link>
-                <Link
-                  href={"/leads" as Route}
-                  className="quick-item"
-                  style={{
-                    textAlign: "left",
-                  }}
-                >
-                  <MessageSquareText size={14} />
-                  查看未处理询盘
                   <ArrowUpRight size={12} style={{ marginLeft: "auto" }} />
                 </Link>
               </div>

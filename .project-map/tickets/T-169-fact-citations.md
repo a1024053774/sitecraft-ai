@@ -112,4 +112,5 @@ Tracer bullet 继续经生产 chat POST、原提交入口、FS 版本及工作�
 - 核对合同升级为 `factSegments.format=3`。每段必须返回 `noFacts` 二选一、类别与出处；空类别、缺字段、重复类别和重复 citation 都是明确拒因。恢复只复用 format 3 且两份资料快照一致的版本；局部修改始终按当前独立资料源重新验真范围外旧出处，资料任一变化不直接信任历史结论。
 - 同一生产链绿证据：`CHROME_PATH=… npm test -- --test-concurrency=1 tests/t169-production-contract.test.ts` **7/7 PASS**（`artifacts/t169/p1-production-green-final-2.log`）；非浏览器出处协议 `tests/t169-fact-citations.test.ts` **12/12 PASS**（`p1-facts-final-2.log`），`npm run typecheck` **PASS**（`p1-typecheck-final-2.log`）。P2 定向浏览器此前 **3/3 PASS**（`p1-browser-focused-final.log`），未发真实请求。
 - 已知剩余风险：模型可能把含企业事实的句子错误标为 `noFacts=true`；代码不再用关键词猜语义，因此无法确定性识别这种语义漏报。但事实核对模型仍须在 `issues` 中拒收资料没有的「长期合作客户：甲方公司。」反例，`tests/t169-fact-citations.test.ts` 已用本地替身证明该拒因不会被 `noFacts` 结果吞掉。
-- 当前仍 **INCOMPLETE**：本轮未在此工作树重跑全量或 build，独立审查未完成；T-172 的 ISO 英文保真缺口仍不在本票范围内。代码本地提交后再按主控指令合入 `family-kit-assembly`。
+- 合并 `family-kit-assembly`（T-170，`bd903d9`）时保留 T-169 出处合同、弹层层级与 T-170 的表单／SMTP／线索删除；`rg -i 'inquiry|询盘|lead-store|smtp|表单占位|系统表单' app components lib skills` 只剩 `lib/simulated-packs.ts` 的资料原句。合并后 7 项生产入口 **7/7 PASS**（`merge-production-green.log`），出处协议与 T-170 删除测试 **14/14 PASS**（`merge-facts-t170-green-2.log`），`npm run typecheck` **PASS**（`merge-typecheck-green-3.log`）。
+- 当前仍 **INCOMPLETE**：本轮未在此工作树重跑全量或 build，独立审查未完成；T-172 的 ISO 英文保真缺口仍不在本票范围内。合并提交由主控接收。

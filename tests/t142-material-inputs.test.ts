@@ -38,14 +38,14 @@ test('full and quick evaluation materials do not request inquiry or contact page
   }
 });
 
-test('all skeleton sequences and both styles keep inquiry optional, and the empty workspace asks for existing material', async () => {
+test('all skeleton sequences and both styles keep generated sites display-only, and the empty workspace asks for existing material', async () => {
   const cards = await readFile('skills/site-code-core/SKELETONS.md', 'utf8');
   for (const line of cards.split('\n').filter(line => line.startsWith('序列：'))) {
     assert.doesNotMatch(line, /→ 联系|→ 询盘|→ 合并联系|→ 真实联系方式|→ 带工况提示的询盘/);
   }
   for (const file of ['skills/site-code-core/SKILL.md', 'skills/site-code-precision/SKILL.md', 'skills/site-code-documentary/SKILL.md']) {
     const text = await readFile(file, 'utf8');
-    assert.match(text, /只在用户资料或要求中明确(?:提出|提供)[\s\S]{0,90}才做/);
+    assert.match(text, /不生成表单、提交入口或收件功能/);
     assert.doesNotMatch(text, /无法确定时首页、产品、联系/);
   }
   const workspace = await readFile('components/code-workspace.tsx', 'utf8');
