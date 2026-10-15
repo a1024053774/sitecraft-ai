@@ -90,6 +90,23 @@ test('合同 D 消息按发送顺序保存，要求里的事实指向第 N 条�
   ]);
 });
 
+test('合同 D 并发首条消息在生产 chat 入口保留两个来源和各自序号', async () => {
+  const id = `t169-concurrent-sources-${crypto.randomUUID()}`;
+  const conversation = await getOrCreateConversation(id, `conversation-${id}`);
+  await createCodeSite(id, '并发来源', conversation.conversationId);
+  const [first, second] = await Promise.all([
+    handleCodeChat(id, { message: '首条资料 A：普通纸盒。', baseRevision: 0 }),
+    handleCodeChat(id, { message: '首条资料 B：普通纸袋。', baseRevision: 0 }),
+  ]);
+  assert.equal(first.status, 200, await first.clone().text());
+  assert.equal(second.status, 200, await second.clone().text());
+  const site = (await getCodeSite(id))!;
+  const sources = site.factSources?.filter((source): source is Extract<typeof source, { type: 'message' }> => source.type === 'message')
+    .map(source => [source.messageIndex, source.text] as const).sort((left, right) => left[0] - right[0]);
+  assert.deepEqual(sources?.map(source => source[0]), [1, 2]);
+  assert.deepEqual(new Set(sources?.map(source => source[1])), new Set(['首条资料 A：普通纸盒。', '首条资料 B：普通纸袋。']));
+});
+
 test('P1-1 生产入口遇到旧记录缺 factSources 必须重新核对且不能回退完整上下文', async () => {
   const id = `t169-old-source-${crypto.randomUUID()}`;
   const conversation = await getOrCreateConversation(id, `conversation-${id}`);

@@ -70,12 +70,18 @@ function sourceKey(source: CodeFactSource) {
 }
 async function registerUserSource(siteId: string, input: { message?: string; source?: Extract<CodeFactSource, { type: 'upload' }> }) {
   if (!input.message) return undefined;
-  const site = (await getCodeSite(siteId))!;
-  const source: CodeFactSource = input.source
-    ? input.source.text === input.message ? input.source : (() => { throw new Error('上传资料原文与发送内容不一致。'); })()
-    : { type: 'message', messageIndex: Math.max(0, ...(site.factSources ?? []).filter(item => item.type === 'message').map(item => item.messageIndex)) + 1, text: input.message };
-  const key = sourceKey(source);
-  return (await updateCodeSite(siteId, current => ({ factSources: [...(current.factSources ?? []).filter(item => sourceKey(item) !== key), source] }))).factSources!.find(item => sourceKey(item) === key)!;
+  if (input.source && input.source.text !== input.message) throw new Error('上传资料原文与发送内容不一致。');
+  let allocated!: CodeFactSource;
+  await updateCodeSite(siteId, current => {
+    allocated = input.source ?? {
+      type: 'message',
+      messageIndex: Math.max(0, ...(current.factSources ?? []).filter(item => item.type === 'message').map(item => item.messageIndex)) + 1,
+      text: input.message!,
+    };
+    const key = sourceKey(allocated);
+    return { factSources: [...(current.factSources ?? []).filter(item => sourceKey(item) !== key), allocated] };
+  });
+  return allocated;
 }
 function schedule(site: CodeSiteRecord) {
   const run = site.run!; active.add(run.id);

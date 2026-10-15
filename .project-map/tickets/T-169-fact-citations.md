@@ -123,3 +123,8 @@ Tracer bullet 继续经生产 chat POST、原提交入口、FS 版本及工作�
 - `auditCodeFacts` 只在独立来源记录内做 NFKC/空白压缩后的连续子串匹配，并由代码回填命中的来源类型和消息序号/上传标识；`factSegments.format=4`，恢复、核对段复用和局部范围外出处均比较来源快照并重新绑定。工作台出处面板显示「上传资料 · 文件名」或「你的第 N 条消息」，旧记录状态显示「未提供可引用的原句」。
 - 本轮定向结果：`npm run typecheck` PASS；`npm test -- tests/t169-contract-d.test.ts` 3/3 PASS；`npm test -- tests/t169-fact-citations.test.ts tests/t169-production-contract.test.ts` 19/19 PASS（含生产入口消息序号）；T-154/T-152/T-159 关联回归 44/44 PASS。浏览器 `npm test -- --test-concurrency=1 tests/t169-citations-browser.test.ts` 6/7 PASS，唯一失败为交接中已知 T-172 ISO 英文保真；来源面板和表格几何均通过。上传来源三档定点 `--test-name-pattern='上传资料出处'` 1/1 PASS，截图 `artifacts/t169/browser-1792091962508/upload-workspace-{1440,768,375}.png` 已逐张打开；消息来源与表格截图 `artifacts/t169/browser-1792091384448/` 已逐张打开。
 - 本轮没有真实模型请求，没有推送，没有独立审查。票仍 **INCOMPLETE**，待主控在无 T-172 失败干扰的全量/build 门禁后安排独立审查。
+
+### 2026-10-15 并发来源修复
+
+- 在 `b90df6d` 上先跑 `CHROME_PATH=… npm test -- tests/t169-production-contract.test.ts`，新增并发反例 1 项预期红灯：两条真实 `handleCodeChat` 请求均 200，但只保留一条 `messageIndex=1` 来源（`artifacts/t167/test-run-1792093717522-81733/`）。
+- 将消息来源读取、序号分配、同 key 合并和写回统一放进 `updateCodeSite` 的站点锁回调；不加重试或兼容路径。修复后 `npm test -- tests/t169-contract-d.test.ts tests/t169-production-contract.test.ts` 12/12 PASS，未调用 DeepSeek。
