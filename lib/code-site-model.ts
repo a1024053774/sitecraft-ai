@@ -9,7 +9,7 @@ import { codeSiteSchema, explicitEnglishCompanyName, type CodePreferences, type 
 import type { SiteImageRecord } from './site-images.ts';
 import { codeRepairFragments, applyCodeRepair } from './code-site-repair.ts';
 import { englishText } from './code-site-english.ts';
-import { localEditContext } from './code-site-local-edit.ts';
+import { localEditContext, type LocalEditGroup } from './code-site-local-edit.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 import { codeStyles, readyCodeStyleIds, codeStyleSchema, codePreferencesSchema, codeSliderRules, type CodeStyleId } from './code-site-styles.ts';
@@ -196,6 +196,19 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
       ...(args.target.element ? { pointedElement: args.target.element } : {}),
       ...(args.target.elements ? { pointedElements: args.target.elements } : {}) }), 6144);
   return { response: result.data, model: result.model };
+}
+export async function writeLocalEditBatch(args: { materials: string; preferences: CodePreferences; plan: CodePlan; current: SiteCode;
+  groups: LocalEditGroup[]; issues: string[]; groupIssues?: string[][] }) {
+  const results: Array<{ group: LocalEditGroup; response: unknown; model: string }> = [];
+  for (const group of args.groups) {
+    // Admission is checked for every group immediately before its model call;
+    // a later group must not rely on an earlier task-level check.
+    requireModelTaskAdmission(args.plan.style);
+    const result = await writeLocalEdit({ materials: args.materials, preferences: args.preferences, plan: args.plan,
+      request: group.request, current: args.current, target: group.target, issues: args.groupIssues?.[results.length] ?? args.issues });
+    results.push({ group, response: result.response, model: result.model });
+  }
+  return results;
 }
 export async function repairSiteCode(args: { materials: string; preferences: CodePreferences; current: SiteCode; issues: string[]; cleaned: string[] }) {
   const fragments = await codeRepairFragments(args.current, args.issues, args.cleaned);

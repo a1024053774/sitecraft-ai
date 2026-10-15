@@ -31,6 +31,15 @@ export const annotationDraftSchema = z.object({
 }).strict().refine(draft => draft.status !== 'sending' || !!draft.submissionId, '发送中的草稿必须绑定发送标识');
 export type AnnotationDraft = z.infer<typeof annotationDraftSchema>;
 
+// A browser-frozen set of drafts sent together. The draft id is only a
+// reconciliation key; the server still validates every DOM anchor before any
+// model request or version commit.
+export const annotationBatchItemSchema = z.object({
+  draftId: idSchema, target: annotationTargetSchema, revision: z.number().int().positive(),
+  body: z.string().trim().min(1).max(4000),
+}).strict();
+export type AnnotationBatchItem = z.infer<typeof annotationBatchItemSchema>;
+
 const rectSchema = z.object({
   x: z.number().finite().nonnegative(),
   y: z.number().finite().nonnegative(),

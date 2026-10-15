@@ -81,6 +81,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   const [drafts, setDrafts] = useState<AnnotationDraft[]>([]), [draftsLoaded, setDraftsLoaded] = useState(false);
   const draftsRef = useRef<AnnotationDraft[]>([]);
   const [draftStorageError, setDraftStorageError] = useState(false);
+  const [overlapConfirmation, setOverlapConfirmation] = useState(false);
   const [composer, setComposer] = useState<{ target: AnnotationTarget; draftId?: string; thread?: AnnotationThread } | null>(null);
   const [composerCollapsed, setComposerCollapsed] = useState(false), [annotationBottomSpace, setAnnotationBottomSpace] = useState(0);
   const annotationInput = useRef<HTMLTextAreaElement>(null);
@@ -151,8 +152,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       if (draft.status !== 'sending' || !draft.submissionId) return draft;
       const run = site.runs.find(run => run.annotationSubmissionId === draft.submissionId);
       if (!run || run.status === 'running') return draft;
+      const result = run.annotationResults?.find(item => item.draftIds.includes(draft.id));
       return { ...draft, status: run.status === 'complete' ? 'archived' as const : 'draft' as const,
-        error: run.status === 'error' ? [run.step, ...run.issues].join('\n') : undefined };
+        error: result?.status === 'rejected' ? result.message : run.status === 'error' ? run.step : undefined };
     }));
   }, [draftsLoaded, drafts, site.runs, saveDrafts]);
   const cancelComposer = useCallback(() => { if (composer?.thread) setComposerCollapsed(true); else setComposer(null); frame.current?.focus(); }, [composer]);
@@ -250,6 +252,28 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       try { const payload = await request({ action: 'state' });
         if (!payload.codeSite.runs.some(run => run.annotationSubmissionId === frozen.submissionId))
           saveDrafts(current => current.map(d => d.id === draft.id ? { ...frozen, status: 'draft', error: message } : d));
+      } catch { setError(`${message} 无法确认任务状态，意见已保留；刷新后查看。`); }
+    } finally { sendLock.current = false; setSending(false); }
+  }
+  async function sendAnnotationBatch(confirmOverlap = false) {
+    const selected = draftsRef.current.filter(draft => draft.status === 'draft' && draft.target.versionId === version?.id);
+    if (!selected.length || !version || busy || sendLock.current || conversationUnavailable) return;
+    sendLock.current = true; setSending(true); setError(''); setOverlapConfirmation(false);
+    const submissionId = crypto.randomUUID();
+    const frozen = selected.map(draft => ({ ...draft, status: 'sending' as const, submissionId, error: undefined }));
+    if (!saveDrafts(current => current.map(draft => frozen.some(item => item.id === draft.id) ? frozen.find(item => item.id === draft.id)! : draft))) { sendLock.current = false; setSending(false); return; }
+    setComposer(null); setPicking(false);
+    try {
+      await request({ message: '批量局部修改', baseRevision: version.revision,
+        annotationBatch: frozen.map(({ id, target, revision, body }) => ({ draftId: id, target, revision, body })),
+        annotationOverlapConfirmed: confirmOverlap, saveAnnotation: true, annotationSubmissionId: submissionId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '批注发送失败。';
+      if (/同一个范围|重叠/.test(message)) setOverlapConfirmation(true);
+      try {
+        const payload = await request({ action: 'state' });
+        if (!payload.codeSite.runs.some(run => run.annotationSubmissionId === submissionId))
+          saveDrafts(current => current.map(draft => frozen.some(item => item.id === draft.id) ? { ...draft, status: 'draft' as const, error: message } : draft));
       } catch { setError(`${message} 无法确认任务状态，意见已保留；刷新后查看。`); }
     } finally { sendLock.current = false; setSending(false); }
   }
@@ -380,6 +404,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="chat-input-wrap">
         {!!pendingDrafts.length && <section aria-label="待发送批注列表">
           <strong>待发送批注 · {pendingDrafts.length} 条</strong>
+          {site.run?.overallIssue && <p className="code-error" role="alert" data-testid="annotation-overall-error">{site.run.overallIssue}</p>}
+          {pendingDrafts.filter(draft => draft.status === 'draft' && draft.target.versionId === version?.id).length > 1 && <button type="button" data-testid="annotation-send-batch" disabled={busy || conversationUnavailable || !!previewVersionId} onClick={() => void sendAnnotationBatch(overlapConfirmation)}>发送这些批注为一个版本</button>}
+          {overlapConfirmation && <button type="button" data-testid="annotation-confirm-overlap" disabled={busy || conversationUnavailable || !!previewVersionId} onClick={() => void sendAnnotationBatch(true)}>确认按较大区块合并后发送</button>}
           <div className="code-annotation-list">{pendingDrafts.map((draft, index) => <section key={draft.id} className="code-annotation-draft" data-testid="annotation-draft" data-draft-id={draft.id} aria-label={`批注 ${index + 1}`}>
             <small>{index + 1} · {site.versions.find(v => v.id === draft.target.versionId)?.code.pages.find(p => p.id === draft.target.pageId)?.title} · {draft.target.label}</small>
             <p>{draft.body}</p>

@@ -1,5 +1,5 @@
 import type { CodeFactReview } from './code-site-fact-segments.ts';
-import type { AnnotationTarget } from './annotations.ts';
+import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import { z } from 'zod';
 import { systemIconSvg, systemIconLicense } from './code-site-icons.ts';
@@ -59,6 +59,11 @@ export type CodeRun = {
   step: string; request: string; baseRevision: number; startedAt: string; updatedAt: string;
   selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string;
   annotationSubmissionId?: string;
+  annotationBatch?: AnnotationBatchItem[];
+  annotationOverlapConfirmed?: boolean;
+  annotationIds?: Array<{ draftId: string; annotationId: string }>;
+  annotationResults?: Array<{ draftIds: string[]; status: 'applied' | 'rejected'; message: string }>;
+  overallIssue?: string;
   localResponses?: Array<{ response: unknown; issues: string[] }>;
   repairRound: number; issues: string[]; versionId?: string; referenceVersionIds?: string[];
   attempts: Array<{ code: SiteCode; checks: CodeCheck }>;
