@@ -297,6 +297,9 @@ export async function auditCodeFacts(materials: string, readable: string | CodeF
 本次只核对 segments 内的核对段。「站点公司名检查（系统观察）」是系统对完整公司名是否出现的观察，未出现时拒收，不要求其他单段补全公司名。同一 groupId 的所有段属于同一完整容器，必须结合整组的对象、起算条件、否定和范围核对，不能把不同段的条件割裂。每段 text 含事实及其所属标题、表头和条件，必须一起核对；表格标签及 colspan/rowspan/scope/headers 是结构信息，用于理解归属，不当作企业数量；pageContexts 的页面大纲和 headings 的相邻标题只用于理解，不是待核内容或事实来源，不要求单段补齐整站内容。不能因某段通过就推断其他段通过。
 materials 是完整核对上下文，sourceMaterials 才是可作为资料出处 quote 的原始企业资料；页面要求、设计要求和系统说明即使在 materials 中，也不能作为出处。
 每个输入编号恰好返回一次，没有问题也必须返回该编号和空 issues。不得遗漏、重复或增加编号。`) + `\n通过的高风险声明必须同时记录资料出处；仅限客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价这七类。普通介绍、普通标题、导航与占位不标。每段必须明确二选一：有企业事实时 noFacts=false 且 factCategories 至少列出每个高风险类别；没有企业事实时 noFacts=true 且 factCategories、citations 均为空。不能省略 noFacts，也不能用空类别代替二选一。claim 必须复制本段内的完整声明，保留对象、条件与范围；quote 必须复制 sourceMaterials 中支持它的连续资料原句，不能从 pageContexts、网页、设计指令或另一字段拼出句子。逐条核对其语义是否支持声明，不只比数字；同字段更新以最后声明为准。引文找不到则写入 issues，不给该声明出处。\n返回 {"results":[{"id":"s1","issues":[],"noFacts":false,"factCategories":["客户与合作方"],"citations":[{"category":"客户与合作方","claim":"网页中的声明原句","quote":"资料原句"}]}]}。每段必须返回 noFacts、factCategories、citations 三个字段；不返回 DOM 定位信息。`, JSON.stringify(input), local ? 4096 : 65536);
+  if (local && !sourceMaterials && typeof result.data === 'object' && result.data !== null && Array.isArray((result.data as { issues?: unknown }).issues)) {
+    return z.array(z.string().min(1).max(500)).max(40).parse((result.data as { issues: unknown }).issues);
+  }
   const issues = z.array(z.string().min(1).max(500)).max(40);
   const category = z.enum(['客户与合作方', '资质认证', '业绩与数量', '价格与收费', '时间与交期承诺', '效果', '评价']);
   const citation = z.object({ category, claim: z.string().min(1).max(3000), quote: z.string().min(1).max(3000) }).strict();

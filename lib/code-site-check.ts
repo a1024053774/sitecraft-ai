@@ -599,9 +599,9 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
     if (!checks.issues.length && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
       if (args.localEdit && !args.factSourceMaterials) {
-        // Legacy local versions have no separated source boundary and cannot
-        // satisfy the citation-era segment contract. Their parent review stays
-        // legacy-unreviewed; deterministic scope and layout checks still run.
+        // Legacy local versions retain the old issues-only reply shape; the
+        // model helper accepts it only when no separated source boundary exists.
+        checks.issues.push(...await auditCodeFacts(args.materials, readable, true, args.style));
       } else {
         if (!args.localEdit) {
         // Deleting the last full company name changes a site-wide obligation,
