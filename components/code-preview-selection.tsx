@@ -99,7 +99,10 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
       for (const hit of main?.querySelectorAll('*') ?? []) {
         const ownText = [...hit.childNodes].some(node => node.nodeType === 3 && node.textContent?.trim());
         if (!ownText && hit.tagName !== 'IMG' && !hit.matches(textBlocks)) continue;
-        if (hit.parentElement?.closest(textBlocks)) continue;
+        // Skip nested text blocks, but keep inline elements inside a text
+        // block: two identical links in one paragraph still need distinct
+        // child paths for the element hint.
+        if (hit.matches(textBlocks) && hit.parentElement?.closest(textBlocks)) continue;
         if (!hit.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) continue;
         if (![...hit.getClientRects()].some(r => r.width && r.height && r.right > drawn.x && r.left < drawn.x+drawn.width && r.bottom > drawn.y && r.top < drawn.y+drawn.height)) continue;
         const result = capture(hit); if (!result?.target.element) continue;

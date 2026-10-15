@@ -38,6 +38,21 @@ async function replaceOpinion(s: Session, text: string) {
   assert.equal(await s.browser.evaluate(`document.querySelector('#annotation-message').value`),text);
 }
 let sharedSite: string;
+test('圈选段落中的第二个同名链接保留链接自身路径，不能只给整段提示', {timeout:120000},async()=>{
+  let s: Session|undefined;
+  try{
+    const id=await fixture(),code=structuredClone(inlineSite);
+    code.pages[0].html=code.pages[0].html.replace('<p title="纸袋位置">相同说明</p>','<p title="纸袋位置">相同说明 <a href="/products">相同说明</a> / <a href="/products">相同说明</a></p>');
+    const saved=await commitSiteCode({siteId:id,baseRevision:1,code,author:'user',summary:'嵌套链接圈选合同',request:inlineMaterials});
+    assert.equal(saved.status,'applied',JSON.stringify(saved));
+    s=await session(1440,{siteId:id});await area(s,'article p a:nth-of-type(2)','article p a:nth-of-type(2)');
+    await s.wait(`document.querySelector('[data-testid="annotation-composer"]')`);await add(s,'只调整圈中的链接样式。');
+    const [draft]=await drafts(s);assert.ok(Array.isArray(draft.target.elements),'圈选必须保留多个元素提示');
+    assert.ok(draft.target.elements.some((hint:any)=>hint.tag==='a'&&hint.path.join(',')==='1,1'),'第二个链接必须有自身路径');
+    assert.equal(draft.target.elements.some((hint:any)=>hint.tag==='a'&&hint.path.join(',')==='1,0'),false,'没圈中第一个同名链接');
+    await shot(s,'nested-link');
+  }catch(error){if(s)await shot(s,'failure-nested-link');throw error;}finally{await s?.browser.close();}
+});
 test('自由 HTML 的直接文字与 blockquote 同样进入圈选提示，不依赖标签白名单', {timeout:120000},async()=>{
   let s: Session|undefined;
   try{
