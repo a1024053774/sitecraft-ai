@@ -2,9 +2,9 @@
 id: T-168
 title: 删除主目录中确认由测试建的站点
 type: build
-status: open
+status: closed
 blocked_by: [T-167]
-claimed_by:
+claimed_by: Claude（执行主控）
 supersedes:
 ---
 
@@ -21,6 +21,18 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 清单与判断依据经构思主控核对通过
-- [ ] 备份路径已记录，备份可解包读回
-- [ ] 删除后「其余」中的站点全部还在（逐个核对 id），工作台首页能正常打开
+- [x] 清单与判断依据经构思主控核对通过
+- [x] 备份路径已记录，备份可解包读回
+- [x] 删除后「其余」中的站点全部还在（逐个核对 id），工作台首页能正常打开
+
+## Resolution
+
+**清单**（新 sol 实例 t168，只读）：`artifacts/t168/inventory-20261014T171231Z/`。4,375 个 code-sites 分为确认是测试建的 1,527（站名与资料逐字匹配测试字面量且模型字段全属测试模型名单，或测试源码生成的 siteId 前缀等，规则 T01–T03）与其余 2,848（K01 明确保留 5、上传 33、含用户上传保护 48、演示源 13、真实或未知模型 3，证据不足 K09 2,746）；T-153/T-158/T-160 private 记录的 siteId 系统收集并保留。2026-10-14 构思主控核对 PASS。负责人随后扩大范围：K09 中资料全文与测试夹具逐字一致的组也删，逐站复核后第二批 2,571（边界机械 2,297、青禾纸包装 90、复审列表时间 38、复审列表改名 37、工作台对比度检查 26、窄口精密加工 24、曜石零件 28、临港机械 19、课程说明 12；0 不一致、0 被 K01–K07 剔除），清单 `artifacts/t168/batch2-20261015T081457Z/`。空站各组（未命名站点、青禾纸品、正常邻居、读取不新建、复审列表初名）与外高桥流体接头P3E 保留；`site-style-check-*`（旧样式检查器的 Chrome 缓存目录）与 `quality/`（空的旧 P4 结果目录）未动。
+
+**备份**：任何删除之前打包整个 `.sitecraft-data` 为 `artifacts/t168/backup-20261015T081457Z.tar.gz`（约 49.9MB），`tar -tzf` 13,700 条 = `find .sitecraft-data` 13,700 条。第一批删前重跑 verify_inventory.py PASS、mtime 剔除 0（`artifacts/t168/predelete-20261015T081457Z/`）。
+
+**执行**：自动权限检查拒绝把删除派给 Codex 实例；负责人选择由执行主控在自己的会话中运行、每批手动批准一次。删除脚本 `artifacts/t168/delete-batch.sh`：核对备份存在且 13,700 条、逐条路径合法（在 `.sitecraft-data/` 下、含所属 siteId、无 `..`）且存在、站数一致，逐条 `rm -r`，删后核对数量差、5 个明确保留站与 3034。
+
+- 第一批（2026-10-15 04:37 纽约时间）：删除 2,603 条路径（code-sites 1,527、conversations 1,052、annotations 24），code-sites 4,375→2,848。**脚本在删除完成后、核对第 32 行中断**：变量 `$AFTER` 后紧跟全角括号，shell 未设 UTF-8，bash 把括号字节当作变量名，`set -u` 报未绑定变量退出 1。删除本身已完成，核对由执行主控手动补跑：清单内路径仍存在 0、K01 五站与 kept-sites 2,848 站全部在、3034 两站 200、首页 200（3.38 s）。原文 `artifacts/t168/delete-20261015T083756Z-batch1-paths/result.txt`。随后脚本改为变量加花括号并 `export LC_ALL=en_US.UTF-8`，`bash -n` 通过，构思主控复核 PASS。
+- 第二批（04:39）：删除 5,142 条路径（code-sites、conversations 各 2,571），code-sites 2,848→277，脚本全程 PASS；3034 两站 200、首页 200（0.32 s）。原文 `artifacts/t168/delete-20261015T083904Z-batch2-paths/result.txt`。剩余 277 个站与「kept-sites 减第二批」的预期集合逐 id 完全一致；`.sitecraft-data` 由 160MB 降至 80MB。
+

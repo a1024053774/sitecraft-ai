@@ -8,6 +8,7 @@ import { captureEvalPage } from './eval-site-capture.ts';
 import { simulatedPacks, MATERIALS_CHAT_LIMIT, type SimulatedPackId } from '../lib/simulated-packs.ts';
 import type { CodeSiteRecord } from '../lib/code-site.ts';
 import { localEndpoint } from './local-endpoint.ts';
+import { codeStyleIds } from '../lib/code-site-styles.ts';
 import { buildBlindPackage, compareRounds, summarize, tokenUsage, requireWholeSitePlan, saveCandidateEvidence, type EvalRound, type EvalCase } from './eval-set-report.ts';
 
 const { values } = parseArgs({ options: {
@@ -60,7 +61,7 @@ for (const packId of packIds) {
   const pageRequest = values.quick ? `只生成首页（home）、${content.title}（${content.id}）两个独立页面。其他资料按需安排在这两页，不新增页面。` : requests[packId];
   const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n页面要求：${pageRequest}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
   assert.ok(materials.length <= MATERIALS_CHAT_LIMIT, `${packId}资料不能截断`);
-  const styles = values.quick ? [packId === 'industrial' || packId === 'molding' ? 'precision' : 'documentary'] : ['precision', 'documentary'];
+  const styles = values.only !== undefined ? codeStyleIds : values.quick ? [packId === 'industrial' || packId === 'molding' ? 'precision' : 'documentary'] : ['precision', 'documentary'];
   for (const style of styles) cases.push({ key: `${packId}/${style}`, pack: packId, style, materials,
     outcome: 'not-run', elapsedMs: 0, attempts: [], modelCalls: [], pages: [] });
 }
@@ -78,7 +79,7 @@ async function save() {
   await writeFile(path.join(directory, 'private', 'round.json'), JSON.stringify(round, null, 2), 'utf8');
   await writeFile(path.join(directory, 'private', 'summary.json'), JSON.stringify({ status: round.status, ...summarize(cases),
     groups: [...new Set(cases.map(c => c.pack))].map(pack => ({ pack, ...summarize(cases.filter(c => c.pack === pack)) })),
-    styles: ['precision', 'documentary'].map(style => ({ style, ...summarize(cases.filter(c => c.style === style)) })) }, null, 2), 'utf8');
+    styles: [...new Set(cases.map(c => c.style))].map(style => ({ style, ...summarize(cases.filter(c => c.style === style)) })) }, null, 2), 'utf8');
 }
 await save();
 let previous: { round: EvalRound; directory: string } | undefined;
@@ -93,14 +94,35 @@ async function previousRound() {
   }
   return rounds.sort((a, b) => b.round.startedAt.localeCompare(a.round.startedAt))[0];
 }
+const httpRequests: Array<{
+  origin: string; endpoint: string; method: string; startedAt: string; finishedAt?: string; durationMs?: number;
+  phase: 'fetch' | 'body' | 'http' | 'complete'; status: number | null; error?: unknown;
+}> = [];
 async function json<T>(endpoint: string, body?: unknown): Promise<T> {
-  const response = await fetch(base + endpoint, { method: body ? 'POST' : 'GET', cache: 'no-store',
-    headers: { 'content-type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30000) });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`${endpoint} HTTP ${response.status}: ${error.userMessage || '请求失败'}`);
+  const started = Date.now();
+  const record: (typeof httpRequests)[number] = { origin: base, endpoint, method: body ? 'POST' : 'GET',
+    startedAt: new Date(started).toISOString(), phase: 'fetch', status: null };
+  httpRequests.push(record);
+  try {
+    const response = await fetch(base + endpoint, { method: record.method, cache: 'no-store',
+      headers: { 'content-type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30000) });
+    record.status = response.status; record.phase = 'body';
+    const payload = await response.json();
+    record.phase = 'http';
+    if (!response.ok) throw new Error(`${endpoint} HTTP ${response.status}: ${payload.userMessage || '请求失败'}`);
+    record.phase = 'complete';
+    return payload;
+  } catch (error) {
+    // Keep the transport cause without headers, credentials or request bodies.
+    const cause = error instanceof Error ? error.cause as Record<string, unknown> | undefined : undefined;
+    record.error = { name: error instanceof Error ? error.name : 'Error', message: error instanceof Error ? error.message : String(error),
+      ...(cause && typeof cause === 'object' ? { cause: Object.fromEntries(['name', 'message', 'code', 'syscall', 'address', 'port']
+        .filter(key => typeof cause[key] === 'string' || typeof cause[key] === 'number').map(key => [key, cause[key]])) } : {}) };
+    throw error;
+  } finally {
+    record.finishedAt = new Date().toISOString(); record.durationMs = Date.now() - started;
+    await writeFile(path.join(directory, 'private', 'http-requests.json'), JSON.stringify(httpRequests, null, 2), 'utf8');
   }
-  return response.json();
 }
 async function readSite(id: string) { return (await json<{ codeSite: CodeSiteRecord }>(`/api/sites/${id}/draft`)).codeSite; }
 async function waitRun(id: string, folder: string) {

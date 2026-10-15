@@ -1,3 +1,4 @@
+import { storageGuard } from './storage-directory.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
@@ -7,6 +8,7 @@ import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
 
 const root = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'code-sites');
+const checkStorage = storageGuard();
 const shared = globalThis as typeof globalThis & { __codeSiteLocks?: Map<string, Promise<void>> };
 const locks = shared.__codeSiteLocks ??= new Map();
 async function locked<T>(id: string, task: () => Promise<T>): Promise<T> {
@@ -18,6 +20,7 @@ async function locked<T>(id: string, task: () => Promise<T>): Promise<T> {
   try { return await task(); } finally { release(); if (locks.get(id) === queued) locks.delete(id); }
 }
 async function readStored(id: string): Promise<CodeSiteRecord | UnavailableCodeSite | null> {
+  checkStorage();
   try { return JSON.parse(await readFile(path.join(root, `${safeSiteId(id)}.json`), 'utf8')); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
 }
@@ -32,6 +35,7 @@ export async function getCodeSite(id: string): Promise<CodeSiteRecord | null> {
 }
 export type CodeSiteListItem = { siteId: string; siteName: string; companyName: string; updatedAt: string; hasVersion: boolean; status?: string; readError?: string };
 export async function listCodeSites(): Promise<CodeSiteListItem[]> {
+  checkStorage();
   let names: string[];
   try { names = await readdir(root); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; }
@@ -47,10 +51,12 @@ export async function listCodeSites(): Promise<CodeSiteListItem[]> {
   return items.sort((a,b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }
 export async function deleteCodeSite(id: string) {
+  checkStorage();
   // Wait for any checked commit; removing the single record removes versions, materials and runs.
   return locked(id, () => rm(path.join(root, `${safeSiteId(id)}.json`), { force: true }));
 }
 async function write(site: CodeSiteRecord | UnavailableCodeSite, insert = false) {
+  checkStorage();
   await mkdir(root, { recursive: true });
   const file = path.join(root, `${safeSiteId(site.siteId)}.json`), temp = `${file}.${crypto.randomUUID()}.tmp`;
   if (site.route === 'code' || !site.updatedAt) site.updatedAt = new Date().toISOString();
@@ -191,7 +197,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       && !task.selectedTarget && (task.kind === 'generate' || task.kind === 'edit') ? task.attempts : [];
     const factReviews = !restore && !args.selectedTarget ? [current?.checks.factSegments, ...attempts.map(attempt => attempt.checks.factSegments)]
       .filter((review): review is NonNullable<typeof review> => !!review) : [];
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: site.materials,
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: site.materials, style: site.plan?.style,
       ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };

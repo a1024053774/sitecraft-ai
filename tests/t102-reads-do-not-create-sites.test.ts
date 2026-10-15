@@ -17,11 +17,11 @@ test('missing reads, edits, chat and publication do not create a site or an obso
   assert.equal((await chat.POST(new Request('http://localhost',{method:'POST',body:'{}'}),context)).status,404);
   assert.equal((await published.GET(new Request('http://localhost'),{params:Promise.resolve({siteKey:id})})).status,404);
   await assert.rejects(()=>commitSiteCode({siteId:id,baseRevision:0,author:'user',summary:'恢复',request:'恢复',restoreVersionId:'absent'}),/找不到这个站点/);
-  for(const folder of ['sites','code-sites'])assert.equal(existsSync(path.join('.sitecraft-data',folder,id+'.json')),false);
+  for(const folder of ['sites','code-sites'])assert.equal(existsSync(path.join(process.env.SITECRAFT_DATA_ROOT!,folder,id+'.json')),false);
 });
 test('only explicit POST creates a code site and its state can be reread',async()=>{
   const created=await sites.POST(new Request('http://localhost',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'读取不新建'})}));
   assert.equal(created.status,201);const {id}=await created.json();
   assert.equal((await draft.GET(new Request('http://localhost'),{params:Promise.resolve({siteId:id})})).status,200);
-  assert.equal(existsSync(path.join('.sitecraft-data/sites',id+'.json')),false);
+  assert.equal(existsSync(path.join(process.env.SITECRAFT_DATA_ROOT!,'sites',id+'.json')),false);
 });

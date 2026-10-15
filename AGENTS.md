@@ -54,7 +54,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 `tests/t162-review-regressions.test.ts` 经真实 CDP 检查历史回看不发当前编辑、连续点选后可继续输入、点选存储读写删除拒绝不使工作台崩溃；`scripts/t162-review-counterfactual.ts` 逐项回退对应修复来证明测试可检错。回退脚本须独占该工作树串行运行，每项结束即恢复；全量浏览器测试前确认没有其他 Chrome 测试进程。
 
-T-162 标准测试只要求 SITECRAFT_BASE/CHROME_PATH：helper 自建随机端口模型替身和生产 chat/history POST 的临时 HTTP 服务，控制 after 调度，界面/预览仍读同目录普通 dev server。health 503 也须核对 testIdentity.cwd，提交后由普通服务读回版本；不把入口测试写成实际 Next after 集成通过。临时服务在 test.after 关闭。
+T-162 测试由标准 npm test 入口提供 SITECRAFT_BASE/SITECRAFT_DATA_ROOT，运行者只设 CHROME_PATH；helper 自建随机端口模型替身和生产 chat/history POST 的临时 HTTP 服务，控制 after 调度，界面/预览仍读同目录普通 dev server。health 503 也须核对 testIdentity.cwd/dataRoot，提交后由普通服务读回版本；不把入口测试写成实际 Next after 集成通过。临时服务在 test.after 关闭。
 
 T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事件；UI 等待监听 DOM、载入与动画完成，冻结/刷新用明确替身闸门，不靠固定 sleep。仅复用只读夹具，三档和存储拒绝仍用独立 Chrome 配置；timings.json 记录分段耗时与 load 采样。处理负载超时时须保留改前结果，并与全量同时验证，不扩大用例上限或跳过检查。
 
@@ -66,6 +66,9 @@ T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事�
 - **系统抽象底图**：T-148 的 `bd_` 编号仅用于登记的静态 WebP 背景，不当产品、设备或现场图，不默认每站使用；三档素材离线用 WebGPU 生成，shader 包仅在 devDependencies。提交入口检查用途、编号、实际图片加载与叠底对比度；预览和发布由同一静态渲染器解析并汇总许可。
 - 页面规划：用户给什么资料就做什么网站——用户点名的页面 → 模型按资料能撑起的内容规划；不为凑结构硬套联系页、询盘或报价。资料少就做得少，用户补充后再继续丰富。做不到的页面要明确说明，不静默缩成首页（T-141）。
 - 需求对齐：选项通过结构化请求保存，同一会话继续，刷新可恢复；不靠挂起的 HTTP 请求等用户。用户选的是风格（主风格单选 + 版式/密度两个滑杆 + 默认「帮我选」），不是内部 Skill 名。 风格在 `lib/code-site-styles.ts` 一处登记；缩略图须来自真实生成版本；本票不验证的候选不提供给用户选择，设计说明留在票中。滑杆三档只改变排法，不增删资料内容（T-153）。
+- 服务端 `SITECRAFT_EVAL_STYLES` 可用逗号列出已登记的 pending 候选供该进程经原 chat 选择门禁评估，非 pending 或未知编号启动即报错；模型任务领取与提交中的实际事实模型调用共用准入判定，select/confirm 早拒保留，保存大纲不携带 pending 准入，未设时不展示或授权该候选，auto 始终只用已验证风格；无需模型的恢复/撤销/手改照常经确定性检查与存版；`tests/t159-task-admission.test.ts` 成对拦截模型调用绕过准入和无模型提交被误拦。
+- 邻里日常经 T-159 两份独立盲评通过，已登记 ready 与真实版本 7be34b12 的缩略图来源/许可，普通选项与帮我选均提供；帮我选按资料挑选，不按行业硬映射。
+- T-159 使用标准 eval 流程，评估器退出不等于后台 run 结束，禁止编排脚本关网关，只在实际 run 终态且网关无进行中请求后手动停；本次唯一真实生成授权已执行，后续不得自行重发。
 - 英文版不和中文一起生成：用户对中文站满意后，再问是否生成英文版；英文版沿用同一结构，只翻译文字。翻译固定非思考模式，通过严格函数参数提交，模型只见批内短编号，代码保留 DOM 映射；编号缺失或重复只补未收到的段落，与底线修正共用两轮额度。格式、截断与 HTTP 错误不重试，不宽松解析；原始回复、编号覆盖结果与用量留在任务记录里。真实坏编号夹具由 tests/t151-short-translation.test.ts 检查，防止长编号、整页补译或修正越界。
 - 英文机械保真按对应段落的含数字记号、邮箱和网址多重集合比较；纯字母缩写不算新增事实，单位只做确定的等价换写，不换算单位制。时间比率按年/月/日/时/分五类确定等价并绑定对应数量，不跨类换算。已登记完整单位别名先按最长匹配读取，再识别时间比率；复合单位须完整保留，未知单位按原记号比较；省略整数位小数与中文数字数量同样保护，CSS 生成文字也按渲染位置检查。含数字型号和单位运算符记号先独立抽取，避免被计数归一吞掉。纯计数量词只按显式小表归一，英文后续词须纯字母、无运算符且不属于显式单位词表；英文槽位的记录公司名及资料明确英文名子串原样保留，其余全角标点由代码转换为半角。底线修正只发被拒段的原文、当前译文与拒因，不整页重译，不添加原文没有的数字。公司名只来自站点记录及明确声明的英文名，不猜正文子串。tests/t151-fidelity-rules.test.ts、tests/t151-paragraph-repair.test.ts 与 T-151 提交入口用例保留真实回复的红绿证据，防止缩写、数字换序、数量等价、英名字段误报或整页修正。
 - 删除只由用户明确选择；系统不自动清理对话、版本、上传或站点，不做定时清理或清理开关。
@@ -89,11 +92,12 @@ T-162 的 after 回调按请求隔离，任务等待绑定实际运行完成事�
    中文和英文发布与预览使用同一静态渲染器。正文行长、T-160 的过窄文字列与 T-147 的五项机械检查是版本检查和评估统计中的质量反馈，不拒收或触发修正轮；产品图反馈仅确认原图裁切，主体是否丢失须人工核对。
    `tests/t160-narrow-columns.test.ts` 用真实浏览器拦截价格豁免扩散到说明正文、display:contents 可见文字漏测和 CSS 多栏跨列合行；纯价格/正文、可见/隐藏、多栏/单栏均成对验证。
    浏览器测试先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（负责人这台 Mac 的普通 Chrome 无头启动后会被自动更新带着退出）；换机器或版本更新后按实际路径改。
+   标准检查命令：先单独运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`（真实入口回归、不开 Chrome、与全量串行执行），回归结束后运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`。全量入口每轮新建临时 SITECRAFT_DATA_ROOT，自启本工作树随机端口 dev server，把同一数据根与 SITECRAFT_BASE 传给测试进程；测试服务经 SITECRAFT_TEST_DIST_DIR 使用独立 .next-test，可与同目录普通 dev 的 .next 共存，不停用或复用普通服务、不改其端口。启动失败须报告 Next 原因与 dev.log 路径；health 的 testIdentity.cwd/dataRoot 不一致即在模块载入前拒绝，核对完成才登记本轮存储许可。所有 FS 存储共用 storageGuard 核验，路径在各 store 直接声明以保持可静态分析；守卫与 health 的运行时身份路径退出部署追踪，避免未知路径的目录追踪撞上 artifacts 的目录符号链接；原始 node --test 没有显式、已核对的根时，在读写前拒绝，独立存储夹具只使用本轮根的子目录。入口清除继承的 NODE_TEST_CONTEXT，以 Node 每文件 summary 统计实际执行数，排除文件包装及未执行项，零用例即失败。无需提供已有服务，不沿用外部数据根或端口；NODE_ENV=test 不加载 .env.local，服务不配置真实模型。日志、身份、统计与临时目录路径留在 artifacts/t167/test-run-*/，临时数据保留供核查。定向检查使用 `npm test -- tests/<用例>.test.ts`；不通过手写标记或另一个入口绕过未核对拒绝，不删除已有站点（T-167）。
    `scripts/t15*` 的应用地址显式用 `SITECRAFT_BASE`，替身用 `SITECRAFT_FIXTURE_BASE`，预算网关用 `SITECRAFT_BUDGET_BASE`；均校验本地 HTTP origin，不锁端口、不默认回退主工作区。真实生成与预算网关必须显式设置 `SITECRAFT_TOKEN_LIMIT` 为本次获批上限，不沿用历史默认预算。`tests/t153-local-endpoints.test.ts` 拦截固定本地端口和默认应用地址，并验证替身实际监听配置（T-153）。
    预算网关按完整请求的 ASCII、官方离线验证的单 token 汉字与其他码点估算输入，加框架余量后限制输出，累计预留不超过显式授权；`tests/t165-token-reserve.test.ts` 与 `tests/t165-tokenizer-adversarial.test.ts` 覆盖真实 usage 的复原请求、官方 tokenizer 对抗计数、原预算可容纳修正及批注、出网前拒绝超支和已付超估用量记账后终止，运行时不加载 tokenizer（T-165）。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
 4. 没实测过的外部依赖，在汇报里用一句话说明没测，不写成已完成，也不因此阻塞其他工作；
-   新路线评估命令为 `npm run eval:new-route`：把 `review/mixed/` 和 `review/company/` 分别交不同的新盲评实例，跨轮比较单独交 `comparison-review/`，各实例不得读取其他包；`private/` 的映射、来源、用量和跨轮身份由主控保管；技术运行通过不等于独立审美通过。
+   新路线评估命令为 `npm run eval:new-route`：`--only` 可显式选择已登记风格，默认矩阵不扩张；把 `review/mixed/` 和 `review/company/` 分别交不同的新盲评实例，跨轮比较单独交 `comparison-review/`，各实例不得读取其他包；`private/` 的映射、来源、用量和跨轮身份由主控保管；技术运行通过不等于独立审美通过。
 5. 对应票的验收勾选项都有证据，票已关闭；`project_map.py status` 里没有过时的 living doc。
 6. 证据必须是本次改动之后重新跑出来的：Resolution 写明运行的命令、时间和对应提交，不能引用改动之前留下的产物。遇到失败时不能换一条路径绕过去（换一张内置卡片、跳过调用、用重试掩盖、把失败改成静默成功），要么在根因层修好，要么如实报 INCOMPLETE 并写清卡在哪里。（2026-09-27 起；同类问题已在 T-019 出现两次。）
 

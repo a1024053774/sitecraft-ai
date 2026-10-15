@@ -179,7 +179,7 @@ test('confirmed deletion removes code versions, materials and runs; previews can
   assert.ok(await getCodeSite(id));
   assert.equal((await DELETE(request(`/api/sites/${id}`, 'DELETE', { confirmSiteId: id }), context(id))).status, 200);
   assert.equal(await getCodeSite(id), null);
-  assert.equal(existsSync(path.join(process.cwd(), '.sitecraft-data/code-sites', `${id}.json`)), false);
+  assert.equal(existsSync(path.join(process.env.SITECRAFT_DATA_ROOT!, 'code-sites', `${id}.json`)), false);
   assert.equal((await preview(new Request(`${base}/api/sites/${id}/code-preview`), context(id))).status, 404);
 });
 
@@ -291,7 +291,7 @@ test('review2: site list reads code names without a legacy shadow', async () => 
   assert.equal((await chat(request(`/api/sites/${id}/chat`,'POST',{message:'公司名：复审列表改名\n精密零件加工。',baseRevision:0}),context(id))).status,200);
   const changed=(await (await list()).json()).sites.find((item:{siteId:string})=>item.siteId===id);
   assert.equal(changed.siteName,'复审列表改名');assert.equal(changed.companyName,'复审列表改名');
-  assert.equal(existsSync(path.join(process.cwd(),'.sitecraft-data/sites',`${id}.json`)),false);
+  assert.equal(existsSync(path.join(process.env.SITECRAFT_DATA_ROOT!,'sites',`${id}.json`)),false);
 });
 test('review2: list update time comes from code metadata, not the original seed', async t => {
   const response = await create(request('/api/sites', 'POST', { name: '复审列表时间' }));

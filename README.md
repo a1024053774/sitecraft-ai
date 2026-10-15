@@ -3,7 +3,7 @@
 内部技术 Demo：用标明为模拟的工业、设备、零部件、外贸 B2B 公司资料，生成**看起来像那家公司自己建的**网站，并能在对话里修改、在预览里看到。
 
 - 工作台（`/workspace`）：资料或一句话需求 → 需求对齐 → 确认方案 → 生成 → 对话修改 / 撤销，预览随时可见。
-- 提供精密工程和现场实拍两个风格，默认可选「帮我选」。
+- 提供精密工程、现场实拍、品牌画册、邻里日常四个已验证风格与真实缩略图，默认「帮我选」按资料挑选。待验证候选仅在服务端评估进程准入，任务领取与提交的实际模型核对共用准入判定；无需模型的恢复、撤销和手改照常检查存版。
 - 发布页（`/published/<siteKey>`）与工作台预览渲染同一完整代码版本。用户明确要求的询盘表单由系统提供，留言进入 `/leads` 收件箱。
 - DeepSeek `deepseek-flash` 直接写每页 HTML、公共页头页脚和 CSS，经唯一提交入口检查后存完整版本；工作台支持对话修改、撤销和刷新恢复。整站事实按带条件的核对段核查，资料与整组有序内容一致时沿用已完整通过的组；资料变更仍全核。恢复已核对版本且资料未变时沿用其事实结论，仍重跑确定性底线检查；资料变化或依据不明时重新核对。
 - 中文预览可点选区块后写意见，或点更大胆、更克制、精简文字、换个版式。局部修改只改选中区块，资料保持原文，局部事实校对使用非思考模式；范围外改动（含旧 CSS 因区块 DOM 改动而影响外部）会被拒收；意见与结果可保存为批注线程。未点选的快捷按钮作用于当前页，提交入口保证其他页不变。精简文字保留事实与操作顺序，避免生硬缩句；未开点选时预览链接保留锚点与语言切换。
@@ -30,7 +30,7 @@ DEEPSEEK_API_KEY=server-only-secret
 DEEPSEEK_MODEL=deepseek-flash
 ```
 
-站点代码、版本和转换失败元数据存于 `.sitecraft-data/code-sites/`。开发机用 `SITE_STORE=fs`；会话、线索与批注仍支持 PostgreSQL，原生 PostgreSQL 站点版本存储不在当前交付范围。验证或离线导入进程可用 `SITECRAFT_DATA_ROOT` 指定数据根目录，默认 `.sitecraft-data`；HTTP 请求不能修改它。
+站点代码、版本和转换失败元数据存于 `.sitecraft-data/code-sites/`。开发机用 `SITE_STORE=fs`；会话、线索与批注仍支持 PostgreSQL，原生 PostgreSQL 站点版本存储不在当前交付范围。普通开发或离线导入可用 `SITECRAFT_DATA_ROOT` 指定数据根目录，默认 `.sitecraft-data`；测试存储须使用显式且经 health 核对的临时数据根或其子目录，否则在读写前拒绝。HTTP 请求不能修改数据根。
 
 显式新建入口为 `/workspace?new=1`，创建 API 只收 `name`。没有站点参数的工作台让用户选站点，不读取或新建共享的默认草稿。旧区块库、模板 API 和 vendor 已移除。
 
@@ -38,15 +38,20 @@ DEEPSEEK_MODEL=deepseek-flash
 
 ```bash
 npm run typecheck
-npm test
+node --test --experimental-strip-types scripts/t167-runner-regressions.ts
+CHROME_PATH=/path/to/chrome-headless-shell npm test
 npm run build
 ```
 
 `next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
 
+`npm test` 每轮创建独立的临时 `SITECRAFT_DATA_ROOT`，自启本工作树随机端口 dev server，把同一数据根与 `SITECRAFT_BASE` 传给测试进程，并在任何测试模块载入前核对 health、登记本轮存储许可。测试服务独用 `.next-test` 构建目录，可与同目录使用 `.next` 的普通 dev 服务共存，不改变普通服务的端口。它清除继承的 `NODE_TEST_CONTEXT`，按 Node 每文件统计记录实际执行数，零用例即失败；不沿用已有服务或数据根，不加载 `.env.local`，不配置真实模型。日志、身份、统计和数据根路径保存在 `artifacts/t167/test-run-*/`，启动失败同时报告 Next 原因与日志路径，临时数据保留供核查。定向检查用 `npm test -- tests/<用例>.test.ts`；原始 `node --test` 没有已核对的数据根时，存储模块在读写前拒绝。上面的入口回归命令不开 Chrome，应与全量串行执行，其中普通 dev 共存用例自行启停自己的普通服务。
+
+存储路径在各 store 保持可静态分析，`storageGuard` 只核验许可；测试身份的动态路径显式退出 Turbopack 部署追踪，避免未知目录被扩展追踪后撞上目录符号链接。构建回归使用实际项目的既有目录结构：`node --experimental-strip-types scripts/t167-build-trace-regression.ts --project <项目绝对路径>`；它运行 `SITE_STORE=fs npm run build`，在既有 `artifacts/` 结构下要求构建成功，不删除或移动该目录。
+
 英文版的本地 HTTP 模型替身全链检查：`CHROME_PATH=/path/to/chrome-headless-shell node --experimental-strip-types scripts/check-english.mjs`。它独占 3161、使用独立的 artifacts 数据目录，运行后保留报告与截图，不调用真实模型。真实英文质量与独立审核的状态见 T-151。
 
-新路线评估集（四家模拟公司 × 两种风格，中文整站）在已配置 DeepSeek、`SITE_STORE=fs` 的本机服务上运行：
+新路线评估集（七家模拟公司 × 两种默认风格，中文整站；`--only` 可筛选已登记风格）在已配置 DeepSeek、`SITE_STORE=fs` 的本机服务上运行：
 
 ```bash
 CHROME_PATH=/path/to/chrome-headless-shell SITECRAFT_BASE=http://127.0.0.1:3142 npm run eval:new-route
