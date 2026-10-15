@@ -2,7 +2,7 @@
 id: T-169
 title: 高风险事实在工作台标出资料出处
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex (t169-contract-d)
 supersedes:
@@ -47,7 +47,7 @@ supersedes:
 - [x] 本地替身端到端：生成一站含至少 3 条高风险声明，工作台 1440/768/375 截图逐张看过，出处标记与原句显示正确，发布页无任何标记
 - [x] T-165 关票后，在负责人批准的 `SITECRAFT_TOKEN_LIMIT` 内跑一次真实小资料生成，记录出处条数、验真失败条数与 token 用量
 - [x] 合同 D：上传资料保存原文与来源标识；消息按发送时文本与序号保存；要求内事实可引用；系统提示、风格说明和模型输出不能作出处；旧来源未知显示「未提供可引用的原句」；价格/资质无用户原句拒收；`noFacts:true` 仍保留既有拒因
-- [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；独立审查实例通过
+- [x] `npm run typecheck`、`npm test`、`npm run build` 通过；独立审查实例通过（全量仅余 T-172 已知失败，经构思主控同意）
 
 ## Resolution
 
@@ -128,3 +128,12 @@ Tracer bullet 继续经生产 chat POST、原提交入口、FS 版本及工作�
 
 - 在 `b90df6d` 上先跑 `CHROME_PATH=… npm test -- tests/t169-production-contract.test.ts`，新增并发反例 1 项预期红灯：两条真实 `handleCodeChat` 请求均 200，但只保留一条 `messageIndex=1` 来源（`artifacts/t167/test-run-1792093717522-81733/`）。
 - 将消息来源读取、序号分配、同 key 合并和写回统一放进 `updateCodeSite` 的站点锁回调；不加重试或兼容路径。修复后 `npm test -- tests/t169-contract-d.test.ts tests/t169-production-contract.test.ts` 12/12 PASS，未调用 DeepSeek。
+
+### 关票（主控）
+
+独立审查（均为新 sol 实例）：c6c8bad、4af64ed、fd75cc7、b27d5f6 四轮 NO_GO（详见 artifacts/t169/handoff-20261015.md）；第四轮剩余的「从自由文本切分资料与要求」由负责人以合同 D 取代，换新执行实例接手。合同 D 实现 b90df6d 复审 NO_GO（P1：锁外分配消息序号导致并发覆盖），c0857e1 在锁内读-改-写后复审 PASS（无 P0–P2）。
+
+主线验证（合并提交 `0e302ef`），2026-10-15 16:01–16:04 EDT，主目录串行、期间暂停 3034：`scripts/t167-runner-regressions.ts` 4/4；`CHROME_PATH=… npm test` **527/528**，唯一失败为 `tests/t169-citations-browser.test.ts:249`「中英切换」步骤中的英文保真误拒（「取得 ISO 9001 认证。」，即已知缺口 T-172；构思主控 2026-10-15 明确全量只允许剩这一项）；清空 `.next` 后 `SITE_STORE=fs npm run build` 通过；随后 `npm run typecheck` 通过；code-sites 279→279；3034 恢复后首页与真实站 `1e472b8b` 均 200。日志 `artifacts/merge-0e302ef/`。
+
+真实用量：两次共 66,934 / 80,000（第一次 32,045 未存版，站点 b14c0b3e；第二次 34,889 存版，站点 1e472b8b，3 条出处、0 验真失败），均早于合同 D；合同 D 之后未再真实运行，按构思主控要求以本地替身经生产入口验证。两站已复制进主目录数据。
+
