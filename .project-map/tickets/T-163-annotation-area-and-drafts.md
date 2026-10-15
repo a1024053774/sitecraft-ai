@@ -2,7 +2,7 @@
 id: T-163
 title: 圈选与多条批注草稿管理
 type: build
-status: open
+status: closed
 blocked_by: [T-162]
 claimed_by: Codex (t163-area-drafts)
 supersedes:
@@ -26,7 +26,7 @@ T-161 第 2 步。用户常常一次看出好几处问题，需要先全部记�
 - [x] 失效方式清单（滚动或缩放中拖动、反向拖、极小框、跨区块、IME、发送中新增、换版本）先写好，测试先在父版本上失败
 - [x] 真实 Chrome 真实指针操作，1440/768/375 截图逐张看过
 - [x] 改编自 BaoCut 的文件都有来源标注，SOURCE.md 已建；不调用 DeepSeek；局部修改沿用 T-162 已验证的路径
-- [ ] 新审核实例按任务脚本试用多条草稿；Astra 审查通过；typecheck、test、build 通过
+- [x] 新审核实例按任务脚本试用多条草稿；Astra 审查通过；typecheck、test、build 通过
 
 ## 失效方式与测试合同
 
@@ -79,3 +79,8 @@ T-167 合并后的数据根守卫已验证：标准 runner 每轮自建临时 `S
 本次 `full-1791957324668/` 的 14 张圈选/草稿截图和 `artifacts/t162/t163-full-*/` 的 35 张回归截图均逐张打开；三档新列表、预览编号、375 对话输入、实时拖框、跨区块选择、冻结新增、版本重选及拒收/HTTP 失败均有可见内容。成功站点 `6d290f61-fa17-4358-a594-19d7bde20b36` 的提交入口通过 6 个页面/视口检查，冻结目标携带标题 `[0]` 与正文 `[1]` 两项提示，见 `full-1791957324668/send.json`；越界拒收不新增版本。截图只核对技术状态，不作为自评审美通过。父版本及失败运行截图同样保留并打开。
 
 限定与失误均保留：headless target 切换未产生实际失焦（focus.json 为 focus=true/events=[]），因此 blur 仅用浏览器受控 FocusEvent 核对边界，拖动仍为真实指针，不宣称实测系统窗口失焦；Meta+A 在该 CDP 输入下未选全文，测试改用 Chrome 原生 selectAll 编辑命令并断言实际替换结果。原 `green-1.log`、`focus-diagnosis.log`、`green-2.log` 保留；其中缩放抬起早于 resize 的失败在根因层修复。一次 `blur-red.log` 在 ps 已有其他工作树测试时误启动，试图停止时已自然结束，未操作其他进程，该次不作验收证据。最终全量开跑前已向主控报告并确认无其他 Chrome/node --test。
+
+### 关票（主控）
+
+代码审查（新 sol 实例）：69c5760 NO_GO（P2：草稿键 localStorage 拒绝缺行为测试）；补夹具与坏实现红灯后由另一新实例复审 PASS（无 P0–P2）。独立试用（未参与实现的新 sol 实例，本地模型替身，不调 DeepSeek）：1440/768/375 三档按任务脚本 8 步（区块内圈选、跨区块请收窄、编号与列表对应、编辑/删除重排、定位、发送中新增保留只归档发出的那条、刷新恢复、Esc 与极小框）全部 PASS，24 张截图逐张打开，结论 GO；报告 `artifacts/t163/trial-20261015T135252Z-final/report.md`。2026-10-15 09:20 前后（纽约时间）主控在主线 `20c869e` 运行：`CHROME_PATH=… npm test` **505/505**、`npm run typecheck` 通过、清空 `.next` 后 `SITE_STORE=fs npm run build` 通过、主目录 code-sites 279→279；`scripts/t167-runner-regressions.ts` 首次因主目录 3034 普通 dev 占用同目录（该用例需自起普通 dev）失败 3/4，停 3034 后重跑 4/4 通过，3034 已恢复。日志 `artifacts/merge-20c869e/`。
+
