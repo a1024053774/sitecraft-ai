@@ -4,7 +4,7 @@ title: 高风险事实在工作台标出资料出处
 type: build
 status: open
 blocked_by: []
-claimed_by: Codex (t169-resume)
+claimed_by: Codex (t169-contract-d)
 supersedes:
 ---
 
@@ -17,7 +17,7 @@ supersedes:
 1. **范围只限高风险类别**：客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价。普通介绍、标题、导航不标出处。
 2. **核对返回出处**：整站与局部事实核对在通过一条高风险声明时，同时返回其所依据的资料原句。不新增模型调用，沿用现有核对调用与非思考/思考模式设置。
 3. **出处由代码验真**：引文必须能在本次核对所用资料原文中找到（NFKC 并压缩空白后做子串匹配，不做模糊匹配）。找不到即视为无依据，作为拒因进入现有最多两轮修正；仍不过如实告知用户，不静默放过。
-4. **绑定版本**：出处随该版本的检查结果保存；按 T-154 复用核对段时一并复用出处，资料或整组内容变化则整组重核、旧出处不沿用。没有该字段的旧版本显示"未记录出处"，不当成零条。
+4. **绑定版本**：出处随该版本的检查结果保存；按 T-154 复用核对段时一并复用出处，资料或整组内容变化则整组重核、旧出处不沿用。没有来源原文或该字段的旧版本显示「未提供可引用的原句」，不当成零条。
 5. **只在工作台展示**：预览中标出有出处的声明，悬停或点选显示"资料原句"；定位沿用 T-162 的锚点方式（版本、页面、DOM 路径与文字快照），不往站点代码里写任何属性。发布页、版本历史外的公开路径、英文版都不出现标记。
 6. 同步 `docs/project/spec.md`、`mainline.md` 与 AGENTS.md 中事实核对相关句；新术语"资料出处"写进 `CONTEXT.md`。
 
@@ -46,6 +46,7 @@ supersedes:
 - [x] 确定性测试：真实原句通过；编造原句、跨字段拼接原句被拒并进入修正轮；资料改一个字后旧出处不沿用
 - [x] 本地替身端到端：生成一站含至少 3 条高风险声明，工作台 1440/768/375 截图逐张看过，出处标记与原句显示正确，发布页无任何标记
 - [x] T-165 关票后，在负责人批准的 `SITECRAFT_TOKEN_LIMIT` 内跑一次真实小资料生成，记录出处条数、验真失败条数与 token 用量
+- [x] 合同 D：上传资料保存原文与来源标识；消息按发送时文本与序号保存；要求内事实可引用；系统提示、风格说明和模型输出不能作出处；旧来源未知显示「未提供可引用的原句」；价格/资质无用户原句拒收；`noFacts:true` 仍保留既有拒因
 - [ ] `npm run typecheck`、`npm test`、`npm run build` 通过；独立审查实例通过
 
 ## Resolution
@@ -114,3 +115,11 @@ Tracer bullet 继续经生产 chat POST、原提交入口、FS 版本及工作�
 - 已知剩余风险：模型可能把含企业事实的句子错误标为 `noFacts=true`；代码不再用关键词猜语义，因此无法确定性识别这种语义漏报。但事实核对模型仍须在 `issues` 中拒收资料没有的「长期合作客户：甲方公司。」反例，`tests/t169-fact-citations.test.ts` 已用本地替身证明该拒因不会被 `noFacts` 结果吞掉。
 - 合并 `family-kit-assembly`（T-170，`bd903d9`）时保留 T-169 出处合同、弹层层级与 T-170 的表单／SMTP／线索删除；`rg -i 'inquiry|询盘|lead-store|smtp|表单占位|系统表单' app components lib skills` 只剩 `lib/simulated-packs.ts` 的资料原句。合并后 7 项生产入口 **7/7 PASS**（`merge-production-green.log`），出处协议与 T-170 删除测试 **14/14 PASS**（`merge-facts-t170-green-2.log`），`npm run typecheck` **PASS**（`merge-typecheck-green-3.log`）。
 - 当前仍 **INCOMPLETE**：本轮未在此工作树重跑全量或 build，独立审查未完成；T-172 的 ISO 英文保真缺口仍不在本票范围内。合并提交由主控接收。
+
+### 2026-10-15 合同 D 接手执行
+
+- 先在父版本 `b27d5f6` 运行 `CHROME_PATH=… npm test -- tests/t169-contract-d.test.ts`，3 项合同测试全红，日志留在本轮 `artifacts/t167/test-run-1792090270822-30271/`；失败分别证明上传来源未保存、来源集合为空、上下文伪出处无法排除。
+- 删除 `splitCodeSiteInput`、`factMaterials` 切分路径及只依赖它的旧测试。`CodeSiteRecord.factSources` 保存上传来源 `{type:'upload',sourceId,name,text}` 或消息来源 `{type:'message',messageIndex,text}`；版本用 `factSourceSnapshot` 保存有效来源快照。首条消息和后续对话都经真实 `handleCodeChat` 登记，上传入口把文件名、生成的来源标识和载入原文随请求传入；页面要求中的事实随该条消息原文进入来源集合。旧记录缺来源快照时不从 `materials` 推断。
+- `auditCodeFacts` 只在独立来源记录内做 NFKC/空白压缩后的连续子串匹配，并由代码回填命中的来源类型和消息序号/上传标识；`factSegments.format=4`，恢复、核对段复用和局部范围外出处均比较来源快照并重新绑定。工作台出处面板显示「上传资料 · 文件名」或「你的第 N 条消息」，旧记录状态显示「未提供可引用的原句」。
+- 本轮定向结果：`npm run typecheck` PASS；`npm test -- tests/t169-contract-d.test.ts` 3/3 PASS；`npm test -- tests/t169-fact-citations.test.ts tests/t169-production-contract.test.ts` 19/19 PASS（含生产入口消息序号）；T-154/T-152/T-159 关联回归 44/44 PASS。浏览器 `npm test -- --test-concurrency=1 tests/t169-citations-browser.test.ts` 6/7 PASS，唯一失败为交接中已知 T-172 ISO 英文保真；来源面板和表格几何均通过。上传来源三档定点 `--test-name-pattern='上传资料出处'` 1/1 PASS，截图 `artifacts/t169/browser-1792091962508/upload-workspace-{1440,768,375}.png` 已逐张打开；消息来源与表格截图 `artifacts/t169/browser-1792091384448/` 已逐张打开。
+- 本轮没有真实模型请求，没有推送，没有独立审查。票仍 **INCOMPLETE**，待主控在无 T-172 失败干扰的全量/build 门禁后安排独立审查。

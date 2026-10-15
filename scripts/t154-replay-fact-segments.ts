@@ -43,9 +43,9 @@ try {
     const nameText = `站点公司名检查（系统观察）：记录公司名「${site.name}」，完整名称${[...found.values()].some(segment => segment.text.includes(site.name)) ? '已出现' : '未出现'}。`;
     found.set(nameText, { text: nameText, group: nameText, context: { pageId: 'site', outline: [], headings: [] } });
     const segments = [...found.values()];
-    const { pending, reused } = pendingCodeFactSegments(segments, materials, reviews, site.materials);
+    const { pending, reused } = pendingCodeFactSegments(segments, materials, reviews, site.factSources);
     const uncertain = segments.filter(segment => rejectedQuotes.some(({ quote }) => segment.text.includes(quote)));
-    reviews.push({ format: 3, sourceMaterials: site.materials, materials, audited: pending.length, reused: reused.length,
+    reviews.push({ format: 4, sourceMaterials: site.factSources ?? [], materials, audited: pending.length, reused: reused.length,
       segments: segments.map(segment => ({ text: segment.text, group: segment.group, issues: uncertain.includes(segment) ? ['历史核对曾拒绝的原句或关联条件；保守重核'] : [], noFacts: false, factCategories: [], citations: [] })) });
     const payload = JSON.stringify(codeFactAuditInput(materials, pending));
     // Fixed instructions are unchanged in substance; use a conservative 1,800

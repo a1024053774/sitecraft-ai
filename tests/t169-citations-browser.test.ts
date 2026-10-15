@@ -60,11 +60,11 @@ async function send(id: string, body: any) {
   for (const callback of callbacks.splice(0)) await callback();
   return state;
 }
-async function generate() {
+async function generate(source?: { type: 'upload'; sourceId: string; name: string; text: string }) {
   const created = await create(new Request(`${base}/api/sites`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: '青禾纸品' }) }));
   assert.equal(created.status, 201);
   const id = (await created.json()).id;
-  let state = await send(id, { message: citationMaterials, baseRevision: 0 });
+  let state = await send(id, { message: citationMaterials, baseRevision: 0, ...(source ? { source } : {}) });
   await send(id, { action: 'select', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, optionId: 'precision', preferences: { style: 'precision', layout: 5, density: 6 }, baseRevision: 0 });
   state = await send(id, { action: 'state' });
   await send(id, { action: 'confirm', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, baseRevision: 0 });
@@ -114,6 +114,7 @@ test('本地替身经真实生成入口保存至少三条出处，三档工作�
         await click(browser, `[data-testid="fact-citation-marker"][data-claim="${citationClaims[i].claim}"]`);
         await browser.evaluate(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);
         await wait(browser, `document.querySelector('[data-testid="fact-citation-source"] blockquote')?.textContent===${JSON.stringify(citationClaims[i].quote)}`);
+        await wait(browser, `document.querySelector('[data-testid="fact-citation-source"]')?.textContent.includes('你的第 1 条消息')`);
         await settle(browser);
         const geometry = await browser.evaluate<any>(`(()=>{const p=document.querySelector('[data-testid="fact-citation-source"]').getBoundingClientRect();return{left:p.left,right:p.right,top:p.top,bottom:p.bottom,overflow:document.documentElement.scrollWidth>innerWidth}})()`);
         assert.ok(geometry.left >= 0 && geometry.right <= width && geometry.top >= 0 && geometry.bottom <= 1000 && !geometry.overflow, JSON.stringify(geometry));
@@ -137,6 +138,27 @@ test('本地替身经真实生成入口保存至少三条出处，三档工作�
   }
   const preview = await (await fetch(`${base}/api/sites/${generated.siteId}/code-preview?version=${version.id}`)).text();
   assert.doesNotMatch(preview, /fact-citation|code-fact-marker|资料原句/);
+});
+
+test('上传资料出处在工作台三档显示来源类型文字', { timeout: 180000 }, async () => {
+  const source = { type: 'upload' as const, sourceId: `browser-upload-${crypto.randomUUID()}`, name: '客户资料.txt', text: citationMaterials };
+  const site = await generate(source), version = site.versions[0];
+  assert.ok(version.checks.factCitations?.entries.every(entry => entry.source?.type === 'upload'));
+  for (const width of [1440, 768, 375]) {
+    const browser = await codeCheckBrowser();
+    try {
+      await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+      await browser.send('Page.navigate', { url: `${base}/workspace?site=${site.siteId}` });
+      if (width < 1100) await click(browser, '[role="tab"]:nth-child(2)');
+      await click(browser, `[aria-label="预览宽度"] button:nth-child(${width === 1440 ? 1 : width === 768 ? 2 : 3})`);
+      await wait(browser, `document.querySelectorAll('[data-testid="fact-citation-marker"]').length===3`);
+      await click(browser, '[data-testid="fact-citation-marker"]');
+      await wait(browser, `document.querySelector('[data-testid="fact-citation-source"]')?.textContent.includes('上传资料 · 客户资料.txt')`);
+      await settle(browser);
+      const shot = await browser.send<any>('Page.captureScreenshot', { format: 'png' });
+      await writeFile(`${output}/upload-workspace-${width}.png`, Buffer.from(shot.data, 'base64'));
+    } finally { await browser.close(); }
+  }
 });
 
 test('编造与拼接引文进入两轮修正，耗尽后不保存版本', { timeout: 180000 }, async () => {
@@ -185,6 +207,7 @@ test('表格中的跨单元格价格出处经真实提交入口存版并准确�
         assert.ok(priceGeometry.markerLeft >= priceGeometry.priceRight + 2, '资料出处编号不能盖住表格价格：' + JSON.stringify(priceGeometry));
         await click(browser, '[data-testid="fact-citation-marker"][data-claim="纸盒 每件 CNY 12。"]');
         await wait(browser, `document.querySelector('[data-testid="fact-citation-source"] blockquote')?.textContent==='纸盒每件 CNY 12。'`);
+        await wait(browser, `document.querySelector('[data-testid="fact-citation-source"]')?.textContent.includes('你的第 1 条消息')`);
         await settle(browser);
         if (width < 1100) assert.equal(await browser.evaluate(`getComputedStyle(document.querySelector('.builder-chat')).visibility`), 'hidden', '截图须在抽屉实际退出后取得');
         const shot = await browser.send<any>('Page.captureScreenshot', { format: 'png' });
@@ -212,11 +235,13 @@ test('CSS复用保留出处并重绑路径，资料改一字重核；局部改�
   assert.ok(!JSON.parse(requests.at(-1).messages[1].content.split('\n')[0]).segments.some((s: any) => s.text.includes('取得 ISO')), '局部模型只见新段落');
   const changedId = `t169-source-${crypto.randomUUID()}`;
   await createCodeSite(changedId, '青禾纸品', 'source-test');
-  await updateCodeSite(changedId, () => ({ materials: citationMaterials }));
-  const source = await commitSiteCode({ siteId: changedId, baseRevision: 0, code: citationSite, author: 'user', summary: '资料核对', request: '' });
+  const sourceText = citationMaterials, sourceRecord = { type: 'upload' as const, sourceId: 'browser-source', name: '资料.txt', text: sourceText };
+  await updateCodeSite(changedId, () => ({ materials: sourceText, factSources: [sourceRecord] }));
+  const source = await commitSiteCode({ siteId: changedId, baseRevision: 0, code: citationSite, author: 'user', summary: '资料核对', request: '', source: sourceRecord });
   assert.equal(source.status, 'applied');
-  await updateCodeSite(changedId, () => ({ materials: citationMaterials.replace('已服务30家', '曾服务30家') }));
-  const fourth = await commitSiteCode({ siteId: changedId, baseRevision: 1, code: citationSite, author: 'user', summary: '资料变更', request: '' });
+  const changedSource = { ...sourceRecord, text: citationMaterials.replace('已服务30家', '曾服务30家') };
+  await updateCodeSite(changedId, () => ({ materials: changedSource.text, factSources: [changedSource] }));
+  const fourth = await commitSiteCode({ siteId: changedId, baseRevision: 1, code: citationSite, author: 'user', summary: '资料变更', request: '', source: changedSource });
   assert.equal(fourth.status, 'rejected'); if (fourth.status !== 'rejected') throw new Error('旧出处不应沿用');
   assert.equal(fourth.checks.factSegments?.reused, 0); assert.match(fourth.checks.issues.join('\n'), /资料出处无依据/);
 });
@@ -240,7 +265,7 @@ test('旧版本显示未记录而非零条；中英切换不泄漏标记，恢�
     await browser.send('Page.navigate', { url: `${base}/workspace?site=${oldId}` });
     await wait(browser, `document.querySelector('[data-testid="fact-citation-status"]') && !document.querySelector('.code-preview-loading')`);
     const oldStatus = await browser.evaluate<string>(`document.querySelector('[data-testid="fact-citation-status"]').textContent`);
-    assert.match(oldStatus, /未记录出处/);
+    assert.match(oldStatus, /未提供可引用的原句/);
     assert.doesNotMatch(oldStatus, /0 条/);
     assert.equal(await browser.evaluate(`document.querySelectorAll('[data-testid="fact-citation-marker"]').length`), 0);
   } finally { await browser.close(); }

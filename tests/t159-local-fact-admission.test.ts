@@ -26,7 +26,7 @@ test.after(async () => { await new Promise<void>(resolve => provider.close(() =>
 test('普通进程的 pending 风格局部提交在事实模型调用前拒绝，不保存版本', async () => {
   const id = `t159-local-${crypto.randomUUID()}`;
   await createCodeSite(id, '事实准入样本', 'local-admission');
-  await updateCodeSite(id, () => ({ materials: '事实准入样本提供已有业务。' }));
+  await updateCodeSite(id, () => ({ materials: '事实准入样本提供已有业务。', factSources: [{ type: 'message', messageIndex: 1, text: '事实准入样本提供已有业务。' }] }));
   const code = { header: '', footer: '', css: 'body{margin:0;padding:24px;color:#111;background:#fff;font:18px/1.6 sans-serif}',
     pages: [{ id: 'home', title: '首页', html: '<main><h1>事实准入样本</h1><section><h2>业务</h2><p>已有业务。</p></section></main>' }] };
   const first = await commitSiteCode({ siteId: id, baseRevision: 0, code, author: 'user', summary: '首版', request: '' });

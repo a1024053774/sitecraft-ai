@@ -1,10 +1,16 @@
 import type { SiteCode } from './code-site.ts';
 
 export type CodeFactTarget = { pageId: string; root: 'main' | 'body'; path: number[]; text: string; readable?: string };
-export type CodeFactCitation = { category: '客户与合作方' | '资质认证' | '业绩与数量' | '价格与收费' | '时间与交期承诺' | '效果' | '评价'; claim: string; quote: string; targets?: CodeFactTarget[] };
+export type CodeFactSource =
+  | { type: 'upload'; sourceId: string; name: string; text: string }
+  | { type: 'message'; messageIndex: number; text: string };
+export type CodeFactSourceRef =
+  | { type: 'upload'; sourceId: string; name: string }
+  | { type: 'message'; messageIndex: number };
+export type CodeFactCitation = { category: '客户与合作方' | '资质认证' | '业绩与数量' | '价格与收费' | '时间与交期承诺' | '效果' | '评价'; claim: string; quote: string; source?: CodeFactSourceRef; targets?: CodeFactTarget[] };
 export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[] };
 export type CodeFactReview = {
-  format: 3; materials: string; sourceMaterials: string; audited: number; reused: number;
+  format: 4; materials: string; sourceMaterials: CodeFactSource[]; audited: number; reused: number;
   segments: Array<{ text: string; group: string; issues: string[]; noFacts: boolean; factCategories: CodeFactCitation['category'][]; citations: CodeFactCitation[] }>;
 };
 
@@ -14,6 +20,23 @@ export function normalizeFactQuote(text: string) { return text.normalize('NFKC')
 // Source quotes continue to use normalizeFactQuote without stripping markers.
 export function normalizeFactClaimText(text: string) {
   return normalizeFactQuote(text.replace(/<\/?(?:TABLE|THEAD|TBODY|TFOOT|TH|TD)>/g, ' ').replace(/<\/?TR>/g, '\u0000'));
+}
+export function factSourceRef(source: CodeFactSource): CodeFactSourceRef {
+  return source.type === 'upload'
+    ? { type: 'upload', sourceId: source.sourceId, name: source.name }
+    : { type: 'message', messageIndex: source.messageIndex };
+}
+export function factSourceKey(source: CodeFactSource) {
+  return source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`;
+}
+export function sameFactSources(left: CodeFactSource[] | undefined, right: CodeFactSource[] | undefined) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+export function findFactSource(sources: CodeFactSource[] | undefined, quote: string) {
+  const normalized = normalizeFactQuote(quote);
+  if (!normalized) return undefined;
+  // The latest user-provided source wins when the same sentence was repeated.
+  return [...(sources ?? [])].reverse().find(source => normalizeFactQuote(source.text).includes(normalized));
 }
 export function bindCodeFactCitations(segment: CodeFactSegment, citations: CodeFactCitation[]) {
   return citations.map(citation => {
@@ -143,8 +166,8 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
   return result;
 }
 
-export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: string, reviews: CodeFactReview[], sourceMaterials?: string) {
-  const eligible = reviews.filter(review => review.format === 3 && review.materials === materials && review.sourceMaterials === sourceMaterials);
+export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: string, reviews: CodeFactReview[], sourceMaterials?: CodeFactSource[]) {
+  const eligible = reviews.filter(review => review.format === 4 && review.materials === materials && sameFactSources(review.sourceMaterials, sourceMaterials));
   const groups = new Map<string, CodeFactSegment[]>();
   for (const segment of segments) groups.set(segment.group, [...(groups.get(segment.group) ?? []), segment]);
   const accepted = new Map([...groups].flatMap(([group, members]) => {

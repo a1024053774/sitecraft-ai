@@ -3,7 +3,8 @@ import { codePreferencesSchema, codePreferenceStyleSchema } from './code-site-st
 import { serverCodeStyleOptions, requireModelTaskAdmission, CodeStyleAdmissionError } from './code-site-eval-styles.ts';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
-import { currentCodeVersion, codeFactMaterials, splitCodeSiteInput, type CodeRun, type CodeSiteRecord } from './code-site.ts';
+import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
+import type { CodeFactSource } from './code-site-fact-segments.ts';
 import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, translateSiteCode, writeLocalEdit, codeModelCalls } from './code-site-model.ts';
 import { annotationTargetSchema, type AnnotationTarget } from './annotations.ts';
 import { localEditContext, applyLocalEdit } from './code-site-local-edit.ts';
@@ -15,12 +16,13 @@ import { AlignmentActionError, AlignmentTextTooLongError, applyCommittedResult, 
 
 
 const requestSchema = z.object({
-  action: z.enum(['start', 'select', 'confirm', 'state', 'cancel', 'translate']).optional(), message: z.string().trim().min(1).max(4000).optional(),
+  action: z.enum(['start', 'select', 'confirm', 'state', 'cancel', 'translate']).optional(), message: z.string().min(1).max(4000).refine(value => value.trim().length > 0, '消息不能为空').optional(),
   baseRevision: z.number().int().nonnegative().optional(), questionId: z.string().max(100).optional(),
   questionRevision: z.number().int().nonnegative().optional(), optionId: z.string().max(80).optional(),
   selectedTarget: annotationTargetSchema.optional(), pageId: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(), saveAnnotation: z.boolean().optional(),
   preferences: codePreferencesSchema.optional(),
   annotationSubmissionId: z.string().uuid().optional(),
+  source: z.object({ type: z.literal('upload'), sourceId: z.string().min(1).max(120), name: z.string().min(1).max(200), text: z.string().min(1).max(4000) }).strict().optional(),
 });
 const active = (globalThis as typeof globalThis & { __codeRuns?: Set<string> }).__codeRuns ??= new Set<string>();
 class CodeRunConflictError extends Error {}
@@ -50,7 +52,7 @@ async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
     return { run: { ...site.run, ...patch, ...(codeModelCalls.getStore() ? { modelCalls: codeModelCalls.getStore() } : {}), updatedAt: new Date().toISOString() } };
   });
 }
-async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: { selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationSubmissionId?: string } = {}) {
+async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: { selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationSubmissionId?: string; source?: CodeFactSource } = {}) {
   return updateCodeSite(siteId, site => {
     if (edit.annotationSubmissionId && site.runs.some(run => run.annotationSubmissionId === edit.annotationSubmissionId))
       throw new CodeRunConflictError('这条批注已发送，请查看原任务状态。');
@@ -62,6 +64,18 @@ async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, 
     return { run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'translate' ? '按当前中文版逐页翻译英文' : kind === 'plan' ? '读资料，规划页面大纲' : kind === 'edit' ? '理解修改要求，查阅版本目录' : '按方案写站点代码',
       ...edit, request, baseRevision, startedAt: now, updatedAt: now, repairRound: 0, issues: [], attempts: [] } };
   });
+}
+function sourceKey(source: CodeFactSource) {
+  return source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`;
+}
+async function registerUserSource(siteId: string, input: { message?: string; source?: Extract<CodeFactSource, { type: 'upload' }> }) {
+  if (!input.message) return undefined;
+  const site = (await getCodeSite(siteId))!;
+  const source: CodeFactSource = input.source
+    ? input.source.text === input.message ? input.source : (() => { throw new Error('上传资料原文与发送内容不一致。'); })()
+    : { type: 'message', messageIndex: Math.max(0, ...(site.factSources ?? []).filter(item => item.type === 'message').map(item => item.messageIndex)) + 1, text: input.message };
+  const key = sourceKey(source);
+  return (await updateCodeSite(siteId, current => ({ factSources: [...(current.factSources ?? []).filter(item => sourceKey(item) !== key), source] }))).factSources!.find(item => sourceKey(item) === key)!;
 }
 function schedule(site: CodeSiteRecord) {
   const run = site.run!; active.add(run.id);
@@ -115,7 +129,7 @@ async function executeLocalEdit(site: CodeSiteRecord, run: CodeRun) {
     if (code) {
       await runStep(site.siteId, run.id, { step: '检查修改范围、区块事实与三档布局' });
       const committed = await commitSiteCode({ siteId: site.siteId, baseRevision: run.baseRevision, code, selectedTarget: target,
-        author: 'assistant', summary: `${site.plan!.pages.find(page => page.id === target.pageId)?.title || target.pageId} · ${target.label}：${run.request}`.slice(0, 200), request: run.request, model: result.model });
+        author: 'assistant', summary: `${site.plan!.pages.find(page => page.id === target.pageId)?.title || target.pageId} · ${target.label}：${run.request}`.slice(0, 200), request: run.request, model: result.model, source: run.source });
       if (committed.status === 'conflict') throw new Error('版本已经更新，本次没有覆盖当前站点。');
       const checks = committed.status === 'applied' ? committed.version.checks : committed.checks;
       await runStep(site.siteId, run.id, { issues: checks.issues, attempts: [...(await getCodeSite(site.siteId))!.run!.attempts, { code, checks }] });
@@ -203,7 +217,7 @@ async function execute(siteId: string, runId: string) {
     if (missing.length) throw new Error(`模型未完成这些页面：${missing.map(p => p.title).join('、')}；没有保存版本。`);
     const committed = await commitSiteCode({ siteId, baseRevision: run.baseRevision, code: result.code, pageId: run.pageId,
       author: 'assistant', summary: run.kind === 'edit' ? run.request.slice(0, 100) : `生成${site.plan.pages.map(p => p.title).join('、')}`,
-      request: run.request, model: result.model });
+      request: run.request, model: result.model, source: run.source });
     if (committed.status === 'conflict') throw new Error('版本已经更新，本次没有覆盖当前站点。');
     const check = committed.status === 'applied' ? committed.version.checks : committed.checks;
     await runStep(siteId, runId, { issues: check.issues, attempts: [...(await getCodeSite(siteId))!.run!.attempts, { code: result.code, checks: check }] });
@@ -279,6 +293,8 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
       }
     } else if (input.message) {
       if (currentCodeVersion(site)) {
+        const source = await registerUserSource(siteId, input);
+        site = (await getCodeSite(siteId))!;
         if (input.selectedTarget) {
           if (input.baseRevision === undefined || input.selectedTarget.versionId !== currentCodeVersion(site)!.id) throw new CodeRunConflictError('锚点版本已改变，请重新点选。');
           await localEditContext(currentCodeVersion(site)!.code, input.selectedTarget);
@@ -286,14 +302,15 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         if (input.pageId && !currentCodeVersion(site)!.code.pages.some(page => page.id === input.pageId)) throw new Error('当前页面不存在，请重新选择。');
         site = await claimRun(siteId, 'edit', input.message, currentCodeVersion(site)!.revision,
           { selectedTarget: input.selectedTarget, pageId: input.pageId, saveAnnotation: input.saveAnnotation,
+            source,
             ...(input.annotationSubmissionId ? { annotationSubmissionId: input.annotationSubmissionId } : {}) }); schedule(site);
       } else {
         if (input.selectedTarget) throw new Error('请先生成中文版，再点选区块。');
         if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
         if (conversation.alignment.styleOptionId) await updateConversationAlignment(siteId, site.conversationId, record => ({ ...record, alignment: { ...record.alignment, styleOptionId: null, confirmClaimed: false, lastResult: null } }));
+        const source = await registerUserSource(siteId, input);
         const company = input.message.match(/^[ \t]*公司名[：:][ \t]*([^\n]+)/m)?.[1]?.trim();
-        const separated = splitCodeSiteInput(input.message!, true);
-        site = await updateCodeSite(siteId, () => ({ materials: separated.context, factMaterials: separated.factMaterials, ...(company ? { name: company.slice(0, 100) } : {}) }));
+        site = await updateCodeSite(siteId, current => ({ materials: input.message!, ...(company ? { name: company.slice(0, 100) } : {}), ...(source ? { factSources: [...(current.factSources ?? []).filter(item => sourceKey(item) !== sourceKey(source)), source] } : {}) }));
         await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'start',
           pendingRequest: { message: input.message, baseRevision: 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
       }

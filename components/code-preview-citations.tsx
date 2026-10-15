@@ -44,6 +44,9 @@ export function CodePreviewCitations({ frame, stage, ready, record, versionId, p
     return () => { observer.disconnect(); doc.removeEventListener('scroll', refresh, true); outer?.removeEventListener('scroll', refresh); window.removeEventListener('resize', refresh); window.removeEventListener('scroll', refresh, true); };
   }, [frame, stage, ready, record, versionId, pageId, scale, header, languageLinks]);
   const selected = marks.find(mark => mark.key === active);
+  const sourceLabel = selected?.citation.source
+    ? selected.citation.source.type === 'upload' ? `上传资料 · ${selected.citation.source.name}` : `你的第 ${selected.citation.source.messageIndex} 条消息`
+    : '未提供可引用的原句';
   useLayoutEffect(() => {
     if (!selected || !panel.current || !frame.current) return;
     const f = frame.current.getBoundingClientRect(), area = stage.current?.getBoundingClientRect();
@@ -68,7 +71,7 @@ export function CodePreviewCitations({ frame, stage, ready, record, versionId, p
       onFocus={() => { if (!pinned) setActive(mark.key); }} onClick={() => { setActive(mark.key); setPinned(true); }}>{mark.number}</button>)}
     {selected && <div ref={panel} id="code-fact-source" role="region" aria-label="资料原句" data-testid="fact-citation-source" className="code-fact-source" style={position}>
       <div><strong>资料原句</strong><button aria-label="关闭资料原句" onClick={() => { setActive(null); setPinned(false); }}>关闭</button></div>
-      <small>{selected.citation.category}</small><p>{selected.citation.claim}</p><blockquote>{selected.citation.quote}</blockquote>
+      <small>{selected.citation.category} · {sourceLabel}</small><p>{selected.citation.claim}</p><blockquote>{selected.citation.quote}</blockquote>
     </div>}
   </>;
 }

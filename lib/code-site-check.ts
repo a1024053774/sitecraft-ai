@@ -1,4 +1,4 @@
-import { readCodeFactSegments, pendingCodeFactSegments, bindCodeFactCitations, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation } from './code-site-fact-segments.ts';
+import { readCodeFactSegments, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource } from './code-site-fact-segments.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
@@ -445,7 +445,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: string; style?: CodeStyleId }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId }) {
   const code = codeSiteSchema.parse(args.code);
   const browser = await codeCheckBrowser();
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
@@ -580,14 +580,15 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials) : [];
       const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], noFacts: segment.noFacts, factCategories: segment.factCategories, citations: segment.citations }))]
         .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
-      if (!args.localEdit) checks.factSegments = { format: 3, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? '', audited: pending.length, reused: reused.length, segments: receipts };
+      if (!args.localEdit) checks.factSegments = { format: 4, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? [], audited: pending.length, reused: reused.length, segments: receipts };
       const scope = args.localEdit ? segments[0]?.targets?.[0] : undefined;
       const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !scope || target.pageId !== scope.pageId || target.root !== scope.root || !scope.path.every((index, i) => target.path[i] === index)) })).filter(citation => citation.targets?.length);
       const citations: CodeFactCitation[] = [];
       const citationKeys = new Set<string>();
       for (const citation of [...outside, ...receipts.flatMap(review => review.citations)]) {
         const quote = normalizeFactQuote(citation.quote);
-        if (!quote || !normalizeFactQuote(args.factSourceMaterials ?? '').includes(quote)) {
+        const source = findFactSource(args.factSourceMaterials, quote);
+        if (!quote || !source) {
           checks.issues.push(`范围外资料出处无法在当前企业资料中验真：${citation.claim}`);
           continue;
         }
@@ -597,7 +598,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           continue;
         }
         citationKeys.add(key);
-        citations.push({ ...citation, targets: [...(citation.targets ?? [])]
+        citations.push({ ...citation, source: factSourceRef(source), targets: [...(citation.targets ?? [])]
           .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index) });
       }
       checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处') || issue.includes('资料出处重复')), entries: citations };

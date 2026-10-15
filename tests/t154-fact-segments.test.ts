@@ -44,7 +44,7 @@ const input = () => JSON.parse(requests.at(-1).messages[1].content.split('\n')[0
 async function setup() {
   const siteId = `t154-${crypto.randomUUID()}`;
   await createCodeSite(siteId, '同源纸品', 'test-conversation');
-  await updateCodeSite(siteId, () => ({ materials }));
+  await updateCodeSite(siteId, () => ({ materials, factSources: [{ type: 'message', messageIndex: 1, text: materials }] }));
   return siteId;
 }
 const commit = (siteId: string, baseRevision: number, candidate = code, request = '') => commitSiteCode({ siteId, baseRevision, code: candidate, author: 'user', summary: '核对段测试', request });

@@ -1,4 +1,4 @@
-import type { CodeFactReview, CodeFactCitation } from './code-site-fact-segments.ts';
+import type { CodeFactReview, CodeFactCitation, CodeFactSource } from './code-site-fact-segments.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import { z } from 'zod';
@@ -44,7 +44,7 @@ export type CodeVersion = {
   materialSnapshot?: string;
   // Separate enterprise-source snapshot. Absence means the historical source
   // boundary is unknown and cannot authorize citation reuse.
-  factMaterialSnapshot?: string;
+  factSourceSnapshot?: CodeFactSource[];
   chineseRevision?: number;
   english?: { sourceRevision: number; header: string; footer: string; pages: SiteCode['pages']; checks: CodeCheck };
 };
@@ -62,7 +62,7 @@ export type CodeModelCall = {
 export type CodeRun = {
   id: string; kind: 'plan' | 'generate' | 'edit' | 'translate'; status: 'running' | 'complete' | 'error';
   step: string; request: string; baseRevision: number; startedAt: string; updatedAt: string;
-  selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string;
+  selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string; source?: CodeFactSource;
   annotationSubmissionId?: string;
   localResponses?: Array<{ response: unknown; issues: string[] }>;
   repairRound: number; issues: string[]; versionId?: string; referenceVersionIds?: string[];
@@ -71,7 +71,7 @@ export type CodeRun = {
   repairFailure?: { reason: string; response: unknown };
 };
 export type CodeSiteRecord = {
-  route: 'code'; siteId: string; name: string; conversationId: string; materials: string; factMaterials?: string;
+  route: 'code'; siteId: string; name: string; conversationId: string; materials: string; factSources?: CodeFactSource[];
   preferences: CodePreferences; plan: CodePlan | null; versions: CodeVersion[]; currentVersionId: string | null;
   run: CodeRun | null; runs: CodeRun[]; updatedAt: string;
   legacySource?: { revision: number; updatedAt: string };
@@ -97,9 +97,9 @@ export function reviewedMaterialSnapshot(site: CodeSiteRecord, version: CodeVers
     && run.modelCalls?.some(call => call.purpose === 'facts' && call.httpStatus === 200 && call.response?.finishReason === 'stop'));
   return generation?.request;
 }
-export function reviewedFactMaterialSnapshot(site: CodeSiteRecord, version: CodeVersion): string | undefined {
+export function reviewedFactSourceSnapshot(site: CodeSiteRecord, version: CodeVersion): CodeFactSource[] | undefined {
   if (!version.checks.passed || version.checks.factReview === 'legacy-unreviewed') return undefined;
-  return typeof version.factMaterialSnapshot === 'string' ? version.factMaterialSnapshot : undefined;
+  return Array.isArray(version.factSourceSnapshot) ? version.factSourceSnapshot : undefined;
 }
 export function codeVersionAuthor(author: CodeVersion['author']) {
   return author === 'legacy-import' ? '旧站转换' : author === 'user' ? '你' : '助手';
@@ -137,41 +137,24 @@ export function codeFactMaterials(site: CodeSiteRecord, request?: string, versio
   }
   return `${site.materials}\n\n已采用版本的用户资料和补充（按顺序）：\n${effective.join('\n\n')}\n\n${request ? `本次用户补充与要求：\n${request}` : ''}\n只把用户明确提供或更新的企业信息作为事实；设计要求不是企业事实。字段有明确更新时采用最后一次声明。`;
 }
-const inputSection = /(?:^|[\n。；;])[ \t]*(页面要求|设计要求|系统说明|资料补充|资料更新|企业资料|企业事实|公司资料|用户资料|用户补充)[：:]/g;
-export function splitCodeSiteInput(text: string, initial = false) {
-  const matches: Array<{ label: string; labelStart: number; contentStart: number }> = [];
-  for (const match of text.matchAll(inputSection)) {
-    const label = match[1]!;
-    const labelStart = match.index! + match[0].indexOf(label);
-    matches.push({ label, labelStart, contentStart: match.index! + match[0].length });
+export function codeFactSourceMaterials(site: CodeSiteRecord, requestSource?: CodeFactSource, versionId = site.currentVersionId, _compact = false): CodeFactSource[] | undefined {
+  // Deliberately absent on old records: never infer source text from contextual materials.
+  const target = versionId ? site.versions.find(version => version.id === versionId) : undefined;
+  const snapshot = target?.factSourceSnapshot;
+  const base = Array.isArray(snapshot) ? snapshot : !target ? site.factSources : undefined;
+  if (!base?.length && !requestSource) return undefined;
+  const sources = [...(base ?? [])];
+  if (requestSource) {
+    const key = requestSource.type === 'upload' ? `upload:${requestSource.sourceId}` : `message:${requestSource.messageIndex}`;
+    const index = sources.findIndex(source => (source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`) === key);
+    if (index >= 0) sources[index] = requestSource; else sources.push(requestSource);
   }
-  const facts: string[] = [];
-  if (!matches.length) {
-    if (initial && text.trim()) facts.push(text.trim());
-    return { context: text, factMaterials: facts.join('\n\n') };
-  }
-  const prefix = text.slice(0, matches[0].labelStart).trim();
-  if (initial && prefix) facts.push(prefix);
-  for (const [index, section] of matches.entries()) {
-    const body = text.slice(section.contentStart, matches[index + 1]?.labelStart ?? text.length).trim();
-    if (!/^(页面要求|设计要求|系统说明)$/.test(section.label) && body) facts.push(body);
-  }
-  return { context: text, factMaterials: facts.join('\n\n') };
-}
-export function codeFactSourceMaterials(site: CodeSiteRecord, request?: string, versionId = site.currentVersionId, compact = false) {
-  // Deliberately absent on old records: never infer fact source from context.
-  if (typeof site.factMaterials !== 'string') return undefined;
-  const chains = new Map<string, string[]>(); let chain: string[] = [];
-  for (const version of site.versions) {
-    if (version.restoredFrom) chain = [...(chains.get(version.restoredFrom) ?? [])];
-    else chain = [...chain, version.request];
-    chains.set(version.id, chain);
-  }
-  const effective = versionId ? chains.get(versionId) ?? [] : [];
-  const additions = [...effective, ...(request ? [request] : [])]
-    .map(text => splitCodeSiteInput(text).factMaterials).filter(Boolean);
-  const sources = [site.factMaterials, ...additions].filter(Boolean);
-  return [...new Set(sources)].join('\n\n');
+  const seen = new Set<string>();
+  return sources.filter(source => {
+    const key = `${source.type}:${source.type === 'upload' ? source.sourceId : source.messageIndex}:${source.text}`;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
 }
 export function escapeCodeText(value: string) {
   return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
