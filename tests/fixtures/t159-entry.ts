@@ -94,7 +94,7 @@ if (process.env.T159_RESTYLE_MODE) {
         materials: '风格任务准入样本提供既有业务，地址待补充。', code, source: { revision: 1, updatedAt: new Date().toISOString() }, exportIssues: [] } });
       if (imported.status !== 'applied') throw new Error('未核事实的历史版本夹具导入失败');
     }
-    await updateCodeSite(id, () => ({ materials: '风格任务准入样本提供既有业务，地址待补充。', preferences: { style: 'precision', layout: 5, density: 6 },
+    await updateCodeSite(id, () => ({ materials: '风格任务准入样本提供既有业务，地址待补充。', factSources: [{ type: 'message', messageIndex: 1, text: '风格任务准入样本提供既有业务，地址待补充。' }], preferences: { style: 'precision', layout: 5, density: 6 },
       plan: { style: 'precision', summary: '既有精密工程版本', styleReason: '已有版本', pages: [{ id: 'home', title: '首页', outline: '既有业务与边界' }] } }));
     for (let revision = unknown ? 1 : 0; revision < 2; revision++) {
       const saved = await commitSiteCode({ siteId: id, baseRevision: revision, code, author: 'user', summary: '已有版本协议夹具', request: '手改提交' });

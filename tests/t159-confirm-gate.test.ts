@@ -9,7 +9,7 @@ import { localEndpoint } from '../scripts/local-endpoint.ts';
 // leave its question and chosen style intact so an admitted process can use it.
 test('评估进程保存 pending 大纲后，普通进程确认被拒绝且不消耗确认；已准入进程仍可确认', async () => {
   localEndpoint('SITECRAFT_BASE');
-  const root = path.resolve('artifacts/t159', `confirm-contract-${crypto.randomUUID()}`); await mkdir(root);
+  const root = path.resolve('artifacts/t159', `confirm-contract-${crypto.randomUUID()}`); await mkdir(root, { recursive: true });
   const data = path.join(process.env.SITECRAFT_DATA_ROOT!, path.basename(root));
   async function run(phase: string, admitted: boolean, siteId?: string) {
     const folder = path.join(root, phase);

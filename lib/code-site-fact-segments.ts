@@ -1,14 +1,57 @@
 import type { SiteCode } from './code-site.ts';
 
-export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] } };
+export type CodeFactTarget = { pageId: string; root: 'main' | 'body'; path: number[]; text: string; readable?: string };
+export type CodeFactSource =
+  | { type: 'upload'; sourceId: string; name: string; text: string }
+  | { type: 'message'; messageIndex: number; text: string };
+export type CodeFactSourceRef =
+  | { type: 'upload'; sourceId: string; name: string }
+  | { type: 'message'; messageIndex: number };
+export type CodeFactCitation = { category: '客户与合作方' | '资质认证' | '业绩与数量' | '价格与收费' | '时间与交期承诺' | '效果' | '评价'; claim: string; quote: string; source?: CodeFactSourceRef; targets?: CodeFactTarget[] };
+export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[] };
 export type CodeFactReview = {
-  format: 2; materials: string; sourceMaterials: string; audited: number; reused: number;
-  segments: Array<{ text: string; group: string; issues: string[] }>;
+  format: 4; materials: string; sourceMaterials: CodeFactSource[]; audited: number; reused: number;
+  segments: Array<{ text: string; group: string; issues: string[]; noFacts: boolean; factCategories: CodeFactCitation['category'][]; citations: CodeFactCitation[] }>;
 };
+
+export function normalizeFactQuote(text: string) { return text.normalize('NFKC').replace(/\s+/g, ' ').trim(); }
+// readCodeFactSegments adds table/cell markers for semantic auditing. They are
+// not claim text; retain TR boundaries so claims cannot join independent rows.
+// Source quotes continue to use normalizeFactQuote without stripping markers.
+export function normalizeFactClaimText(text: string) {
+  return normalizeFactQuote(text.replace(/<\/?(?:TABLE|THEAD|TBODY|TFOOT|TH|TD)>/g, ' ').replace(/<\/?TR>/g, '\u0000'));
+}
+export function factSourceRef(source: CodeFactSource): CodeFactSourceRef {
+  return source.type === 'upload'
+    ? { type: 'upload', sourceId: source.sourceId, name: source.name }
+    : { type: 'message', messageIndex: source.messageIndex };
+}
+export function factSourceKey(source: CodeFactSource) {
+  return source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`;
+}
+export function sameFactSources(left: CodeFactSource[] | undefined, right: CodeFactSource[] | undefined) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+export function findFactSource(sources: CodeFactSource[] | undefined, quote: string) {
+  const normalized = normalizeFactQuote(quote);
+  if (!normalized) return undefined;
+  // The latest user-provided source wins when the same sentence was repeated.
+  return [...(sources ?? [])].reverse().find(source => normalizeFactQuote(source.text).includes(normalized));
+}
+export function bindCodeFactCitations(segment: CodeFactSegment, citations: CodeFactCitation[]) {
+  return citations.map(citation => {
+    const matches = (segment.targets ?? []).filter(target => normalizeFactClaimText(target.readable ?? target.text).includes(normalizeFactQuote(citation.claim)));
+    // Keep the smallest matching element in each branch, including repeated
+    // claims. Always bind again in this candidate: text reuse is not path reuse.
+    const targets = matches.filter(target => !matches.some(child => child.pageId === target.pageId && child.root === target.root && child.path.length > target.path.length && target.path.every((index, i) => child.path[i] === index)))
+      .map(({ readable: _readable, ...target }) => target);
+    return { ...citation, targets };
+  });
+}
 
 // Runs in the rendered candidate at each checked width. Segment identity is
 // readable text plus its semantic conditions, never DOM offsets or a digest.
-export function readCodeFactSegments(code: SiteCode, pageId: string): CodeFactSegment[] {
+export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?: number[]): CodeFactSegment[] {
   const page = code.pages.find(page => page.id === pageId)!;
   const fragment = (html: string) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
   const parts = [fragment(code.header), fragment(page.html), fragment(code.footer)];
@@ -45,6 +88,22 @@ export function readCodeFactSegments(code: SiteCode, pageId: string): CodeFactSe
     return blocks.has(node.tagName) ? `\n${text}\n` : text;
   };
   const documentConditions = [own(document.documentElement), own(document.body)].filter(Boolean).join('\n');
+  const targetCache = new Map<Element, CodeFactTarget>();
+  const targets = (roots: Node[]) => roots.flatMap(root => root instanceof Element ? [root, ...root.querySelectorAll('*')] : []).map(el => {
+    const cached = targetCache.get(el); if (cached) return cached;
+    const main = document.querySelector('main'), root = main && main.contains(el) ? main : document.body;
+    const path: number[] = []; let node = el;
+    while (node !== root && node.parentElement) { path.unshift([...node.parentElement.children].indexOf(node)); node = node.parentElement; }
+    const target: CodeFactTarget = { pageId, root: root === main ? 'main' : 'body', path, text: (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 1000), readable: read(el) };
+    targetCache.set(el, target); return target;
+  });
+  if (localPath) {
+    let node: Element | undefined = document.querySelector('main') ?? undefined;
+    for (const index of localPath) node = node?.children[index];
+    if (!node) throw new Error('核对段无法定位选中区块，本次未保存版本。');
+    const text = read(node).trim();
+    return [{ text, group: text, context: { pageId, outline: [], headings: [...node.querySelectorAll(heading)].map(el => read(el).trim()) }, targets: targets([node]) }];
+  }
   for (const [index, part] of parts.entries()) {
     // Body-context parsing preserves leading text. Adjacent text nodes may
     // merge across fragments in the live DOM, so match elements in order and
@@ -87,7 +146,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string): CodeFactSe
       const conditions = prose(group);
       const nearby = (group ? [group, ...group.querySelectorAll(heading)] : elements.filter(el => el.matches(heading)))
         .filter(el => el.matches(heading)).map(el => read(el).trim());
-      const add = (body: string, container = group) => { if (body.trim()) result.push({ text: `${prefix}\n${body}`, group: groupText(container), context: { pageId: index === 1 ? pageId : scope, outline, headings: nearby } }); };
+      const add = (body: string, container = group) => { if (body.trim()) result.push({ text: `${prefix}\n${body}`, group: groupText(container), context: { pageId: index === 1 ? pageId : scope, outline, headings: nearby }, targets: targets(container ? [container] : roots) }); };
       if (conditions) add(conditions);
       for (const structure of elements.filter(el => el.matches(atomic) && owner(el) === group && !el.parentElement?.closest(atomic))) {
         if (structure.querySelector('[rowspan],[colspan]')) {
@@ -107,16 +166,22 @@ export function readCodeFactSegments(code: SiteCode, pageId: string): CodeFactSe
   return result;
 }
 
-export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: string, reviews: CodeFactReview[], sourceMaterials = materials) {
-  const eligible = reviews.filter(review => review.format === 2 && review.materials === materials && review.sourceMaterials === sourceMaterials);
+export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: string, reviews: CodeFactReview[], sourceMaterials?: CodeFactSource[]) {
+  const eligible = reviews.filter(review => review.format === 4 && review.materials === materials && sameFactSources(review.sourceMaterials, sourceMaterials));
   const groups = new Map<string, CodeFactSegment[]>();
   for (const segment of segments) groups.set(segment.group, [...(groups.get(segment.group) ?? []), segment]);
-  const accepted = new Set([...groups].filter(([group, members]) => eligible.some(review => {
-    const before = review.segments.filter(segment => segment.group === group);
-    // One complete successful review must cover the group. Mixing partial
-    // passes across attempts can suppress a condition that another row needs.
-    return before.length === members.length && before.every(segment => !segment.issues.length)
-      && members.every(segment => before.some(previous => previous.text === segment.text));
-  })).map(([group]) => group));
-  return { pending: segments.filter(segment => !accepted.has(segment.group)), reused: segments.filter(segment => accepted.has(segment.group)) };
+  const accepted = new Map([...groups].flatMap(([group, members]) => {
+    const review = eligible.find(review => {
+      const before = review.segments.filter(segment => segment.group === group);
+      // One complete successful review must cover the group. Mixing partial
+      // passes across attempts can suppress a condition that another row needs.
+      return before.length === members.length && before.every(segment => !segment.issues.length && typeof segment.noFacts === 'boolean' && Array.isArray(segment.factCategories) && Array.isArray(segment.citations))
+        && members.every(segment => before.some(previous => previous.text === segment.text));
+    });
+    return review ? [[group, review] as const] : [];
+  }));
+  return { pending: segments.filter(segment => !accepted.has(segment.group)), reused: segments.filter(segment => accepted.has(segment.group)).map(segment => {
+    const previous = accepted.get(segment.group)!.segments.find(item => item.group === segment.group && item.text === segment.text)!;
+    return { ...segment, noFacts: previous.noFacts, factCategories: previous.factCategories, citations: previous.citations };
+  }) };
 }

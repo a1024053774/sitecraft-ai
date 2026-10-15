@@ -1,3 +1,4 @@
+import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -25,7 +26,7 @@ const server = createServer(async (req, res) => {
   // Observed 2026-10-11: 4095 reasoning tokens, zero answer characters, length.
   if (replayTruncation && request.thinking?.type !== 'disabled' && request.max_tokens <= 4096) { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '' } }], usage: { prompt_tokens: 4763, completion_tokens: 4095, total_tokens: 8858, completion_tokens_details: { reasoning_tokens: 4095 } } })); return; }
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{"issues":[]}' } }], usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 } }));
+  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(request, { issues: [] })) } }], usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 } }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
@@ -89,7 +90,7 @@ test('DOM position wins over duplicate IDs; only the new block is fact-audited',
   audit = '';
   const result = await commitSiteCode({ siteId: id, baseRevision: 1, code, selectedTarget: target, author: 'assistant', summary: '首页 · 选中这块', request: '精简文字' });
   assert.equal(result.status, 'applied', result.status === 'rejected' ? result.checks.issues.join('\n') : '');
-  const readable = audit.split('网页可见文字与辅助文案：\n')[1];
+  const readable = JSON.parse(audit.split('\n')[0]).segments.map((segment: { text: string }) => segment.text).join('\n');
   assert.match(readable, /纸袋规格/); assert.doesNotMatch(readable, /产品独有文字|区块外独有文字|页脚保持/);
   assert.equal((await getCodeSite(id))!.versions.length, 2);
 });

@@ -2,11 +2,11 @@
 
 ## Destination
 
-2026-10-07 换路线（[T-127](tickets/T-127-route-model-writes-site.md)）：模型直接写站点代码，harness 管版本、提交入口、底线检查和评估。完成标志：新路线在工作台跑通「资料 → 风格 → 生成 → 对话修改 → 版本恢复」，换公司的独立盲评不再判为同一模板、新旧成对盲评选新版（T-143；混排只作参考），用户补充资料后站点能逐步丰富，旧区块库路线已删除。需求见 [intent.md](../docs/project/intent.md)，主线见 [mainline.md](../docs/project/mainline.md)，术语见 [CONTEXT.md](../CONTEXT.md)。
+2026-10-07 换路线（[T-127](tickets/T-127-route-model-writes-site.md)）：模型直接写站点代码，harness 管版本、提交入口、底线检查和评估。完成标志：新路线在工作台跑通「资料 → 风格 → 生成 → 对话修改 → 版本恢复」，换公司的独立盲评不再判为同一模板、新旧成对盲评选新版（T-143；混排只作参考），用户补充资料后站点能逐步丰富，旧区块库路线已删除。需求见 [intent.md](../docs/project/intent.md)，主线见 [mainline.md](../docs/project/mainline.md)，术语见 [CONTEXT.md](../CONTEXT.md)。 | 3fc2150 |
 
 ## Notes
 
-- 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。
+- 规则以 [AGENTS.md](../AGENTS.md) 为准：优先级、生成路径的硬约束、本阶段不做的事、验收、Git。 | 3fc2150 |
 - 下一步做什么只看 frontier：`python3 ~/.claude/skills/project-map/scripts/project_map.py status --root .`（脚本在 project-map skill 里）。开工前在票的 `claimed_by` 写上自己的名字；一次只做一张 build 票。
 - 分工（[T-049](tickets/T-049-roles-2026-09-29.md)，取代 T-033）：负责人只定方向和需求。Claude 规划、验收、整合推送；Codex（`codex-build` 等）和 Sonnet 5.5 子 agent 执行（Kiro 2026-10-01 起不再使用）；Codex Astra 审代码；Codex gpt-6.1-sol 盲评；Grok 做杂活；云端会话在 `cloud/*` 分支做票。
 - 现状（2026-10-10）：站点代码路线提供生成、对话修改、完整版本与恢复，评估入口为 eval:new-route。T-151 已关闭：中文站满意后可生成英文版（只翻译文字、代码写回 DOM、确定性保真检查、预览切换与 /en 发布、中文改后提示落后），主线 4d8301f。T-153 已关闭：风格卡带真实缩略图，新增「品牌画册」（盲评可区分），版式/信息滑杆分三档且盲评可辨。T-152 已关闭：预览点选区块后写意见或点快捷按钮（更大胆/更克制/精简文字/换个版式），只改选中段并在提交入口核对范围，撤销沿用事实核对。T-148 已关闭：系统底图可在对话中按编号使用；单站成对盲评选无底图原版，故不按风格默认推荐。T-145 已移除旧运行路径和 vendor，主数据 13 站转换与批准的残留清理已完成（2ec5e14）。当前页面质量按 T-143 的换公司与成对比较标准判断；历史见 [plan-history.md](../docs/project/plan-history.md)。
@@ -84,10 +84,10 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `app/api/**`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 94b64bf |
-| [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/code-site*.ts`, `lib/annotations.ts`, `lib/storage-directory.ts` | 94b64bf |
-| [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**`, `lib/code-site-store.ts`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 94b64bf |
+| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `app/api/**`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 3fc2150 |
+| [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/code-site*.ts`, `lib/annotations.ts`, `lib/storage-directory.ts` | 3fc2150 |
+| [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**`, `lib/code-site-store.ts`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 3fc2150 |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-127-*.md`, `.project-map/tickets/T-141-*.md`, `.project-map/tickets/T-145-*.md`, `.project-map/tickets/T-151-*.md`, `.project-map/tickets/T-152-*.md` | 9bcf59b |
-| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `lib/storage-directory.ts` | 94b64bf |
-| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/conversation-store.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 94b64bf |
+| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/code-site*.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `lib/storage-directory.ts` | 3fc2150 |
+| [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/conversation-store.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 3fc2150 |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | 00a083e |

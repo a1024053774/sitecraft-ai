@@ -39,7 +39,7 @@ const materials='同源纸品做纸盒，不承接裸装食品。';
 const code={header:'',footer:'',css:'body{margin:0;background:#fff;color:#111;font:16px/1.6 sans-serif}main{padding:24px}',pages:[{id:'home',title:'首页',html:'<main><h1>同源纸品</h1><p>纸盒，不承接裸装食品。</p></main>'}]};
 async function setup(){
   const id=`t152-restore-${crypto.randomUUID()}`,conversation=await getOrCreateConversation(id);
-  await createCodeSite(id,'同源纸品',conversation.conversationId);await updateCodeSite(id,()=>({materials}));
+  await createCodeSite(id,'同源纸品',conversation.conversationId);await updateCodeSite(id,()=>({materials, factSources:[{type:'message',messageIndex:1,text:materials}]}));
   const start=calls;
   const first=await commitSiteCode({siteId:id,baseRevision:0,code,author:'user',summary:'初稿',request:''});
   assert.equal(first.status,'applied');if(first.status!=='applied')throw new Error('initial fixture failed');

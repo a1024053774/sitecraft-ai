@@ -1,4 +1,4 @@
-import type { CodeFactReview } from './code-site-fact-segments.ts';
+import type { CodeFactReview, CodeFactCitation, CodeFactSource } from './code-site-fact-segments.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import { z } from 'zod';
@@ -29,6 +29,8 @@ export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
   factReview?: 'legacy-unreviewed';
   factSegments?: CodeFactReview;
+  // Absent on historical checks; a fragment cannot establish whole-site coverage.
+  factCitations?: { complete: boolean; entries: CodeFactCitation[] };
   factReviewFrom?: { versionId: string; revision: number; checkedAt: string };
   viewports: Array<{ pageId: string; width: number; overflow: number; overlaps: number; contrastIssues: number; longLines: number;
     // Absent on versions checked before T-147; absence is not zero findings.
@@ -40,6 +42,9 @@ export type CodeVersion = {
   // Raw site materials at the fact review; version requests remain immutable
   // and are restored through codeFactMaterials with the target version.
   materialSnapshot?: string;
+  // Separate enterprise-source snapshot. Absence means the historical source
+  // boundary is unknown and cannot authorize citation reuse.
+  factSourceSnapshot?: CodeFactSource[];
   chineseRevision?: number;
   english?: { sourceRevision: number; header: string; footer: string; pages: SiteCode['pages']; checks: CodeCheck };
 };
@@ -57,7 +62,7 @@ export type CodeModelCall = {
 export type CodeRun = {
   id: string; kind: 'plan' | 'generate' | 'edit' | 'translate'; status: 'running' | 'complete' | 'error';
   step: string; request: string; baseRevision: number; startedAt: string; updatedAt: string;
-  selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string;
+  selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string; source?: CodeFactSource;
   annotationSubmissionId?: string;
   localResponses?: Array<{ response: unknown; issues: string[] }>;
   repairRound: number; issues: string[]; versionId?: string; referenceVersionIds?: string[];
@@ -66,7 +71,7 @@ export type CodeRun = {
   repairFailure?: { reason: string; response: unknown };
 };
 export type CodeSiteRecord = {
-  route: 'code'; siteId: string; name: string; conversationId: string; materials: string;
+  route: 'code'; siteId: string; name: string; conversationId: string; materials: string; factSources?: CodeFactSource[];
   preferences: CodePreferences; plan: CodePlan | null; versions: CodeVersion[]; currentVersionId: string | null;
   run: CodeRun | null; runs: CodeRun[]; updatedAt: string;
   legacySource?: { revision: number; updatedAt: string };
@@ -91,6 +96,10 @@ export function reviewedMaterialSnapshot(site: CodeSiteRecord, version: CodeVers
     && run.baseRevision === 0 && run.versionId === version.id && run.request === version.request
     && run.modelCalls?.some(call => call.purpose === 'facts' && call.httpStatus === 200 && call.response?.finishReason === 'stop'));
   return generation?.request;
+}
+export function reviewedFactSourceSnapshot(site: CodeSiteRecord, version: CodeVersion): CodeFactSource[] | undefined {
+  if (!version.checks.passed || version.checks.factReview === 'legacy-unreviewed') return undefined;
+  return Array.isArray(version.factSourceSnapshot) ? version.factSourceSnapshot : undefined;
 }
 export function codeVersionAuthor(author: CodeVersion['author']) {
   return author === 'legacy-import' ? '旧站转换' : author === 'user' ? '你' : '助手';
@@ -127,6 +136,25 @@ export function codeFactMaterials(site: CodeSiteRecord, request?: string, versio
     return `资料原文与有效版本用户补充（按最后出现顺序）：\n${originals.filter((text, index) => text && !originals.slice(index + 1).includes(text)).join('\n\n')}\n只把用户明确提供的企业信息作为事实；设计要求不是企业事实，字段更新采用最后一次声明。`;
   }
   return `${site.materials}\n\n已采用版本的用户资料和补充（按顺序）：\n${effective.join('\n\n')}\n\n${request ? `本次用户补充与要求：\n${request}` : ''}\n只把用户明确提供或更新的企业信息作为事实；设计要求不是企业事实。字段有明确更新时采用最后一次声明。`;
+}
+export function codeFactSourceMaterials(site: CodeSiteRecord, requestSource?: CodeFactSource, versionId = site.currentVersionId, _compact = false): CodeFactSource[] | undefined {
+  // Deliberately absent on old records: never infer source text from contextual materials.
+  const target = versionId ? site.versions.find(version => version.id === versionId) : undefined;
+  const snapshot = target?.factSourceSnapshot;
+  const base = Array.isArray(snapshot) ? snapshot : !target ? site.factSources : undefined;
+  if (!base?.length && !requestSource) return undefined;
+  const sources = [...(base ?? [])];
+  if (requestSource) {
+    const key = requestSource.type === 'upload' ? `upload:${requestSource.sourceId}` : `message:${requestSource.messageIndex}`;
+    const index = sources.findIndex(source => (source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`) === key);
+    if (index >= 0) sources[index] = requestSource; else sources.push(requestSource);
+  }
+  const seen = new Set<string>();
+  return sources.filter(source => {
+    const key = `${source.type}:${source.type === 'upload' ? source.sourceId : source.messageIndex}:${source.text}`;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
 }
 export function escapeCodeText(value: string) {
   return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));

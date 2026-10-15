@@ -10,7 +10,7 @@ import { localEndpoint } from '../scripts/local-endpoint.ts';
 // deterministic checks; changed/unknown facts require admission before HTTP.
 for (const action of ['quick', 'dialog', 'retry', 'page', 'translate', 'restore', 'undo', 'manual', 'restore-changed', 'undo-unknown', 'manual-changed', 'manual-source', 'manual-invalid']) test(`pending 大纲的进程准入按本次模型调用判断：${action}`, async () => {
   localEndpoint('SITECRAFT_BASE');
-  const root = path.resolve('artifacts/t159', `task-contract-${action}-${crypto.randomUUID()}`); await mkdir(root);
+  const root = path.resolve('artifacts/t159', `task-contract-${action}-${crypto.randomUUID()}`); await mkdir(root, { recursive: true });
   const dataRoot = path.join(process.env.SITECRAFT_DATA_ROOT!, path.basename(root));
   async function run(phase: string, admitted: boolean, id?: string, selectedAction = action) {
     const folder = path.join(root, phase);
