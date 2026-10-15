@@ -130,10 +130,10 @@ export function englishFidelity(source: SiteCode, candidate: SiteCode, companyNa
     const letter = '(?!\\p{Script=Han})\\p{L}';
     const marker = new RegExp(`(?:${letter}|\\p{N})+(?:[._/-](?:${letter}|\\p{N})+)*`, 'gu');
     // Standards and protection grades are often written as an all-caps
-    // abbreviation followed by a separated number (ISO 9001, GB 50016).
-    // Keep the two pieces as one marker before quantity parsing can attach the
-    // following Chinese or English word as a unit.
-    const separatedModel = /(?<![\p{L}\p{N}_-])[A-Z]{2,}\s+\d+(?:[._/-][A-Za-z0-9]+)*(?![\p{L}\p{N}_-])/gu;
+    // abbreviation followed by a separated number (ISO 9001, GB/T 50016).
+    // Keep connected uppercase prefixes as part of the same marker before
+    // quantity parsing can attach the following word as a unit.
+    const separatedModel = /(?<![\p{L}\p{N}_-])[A-Z]{2,}(?:[/-][A-Z]+)*\s+\d+(?:[._/-][A-Za-z0-9]+)*(?![\p{L}\p{N}_-])/gu;
     text = text.replace(separatedModel, value => mask('marker', value));
     for (const value of text.match(marker) ?? []) {
       const measurement = value.match(/^(?:\d+(?:\.\d+)?|\.\d+)(.+)$/);
