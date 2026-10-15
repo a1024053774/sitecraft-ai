@@ -2,7 +2,7 @@
 id: T-172
 title: 英文保真误拒「ISO 9001 certified.」
 type: build
-status: open
+status: closed
 blocked_by: [T-169]
 claimed_by: Codex
 supersedes:
@@ -21,8 +21,8 @@ T-169 执行中发现：T-151 的英文机械保真检查把「取得 ISO 9001 �
 
 - [x] 该样本先在父版本上被拒（红），修后通过（绿）
 - [x] `tests/t151-fidelity-rules.test.ts` 等既有保真用例全部仍通过；不调用 DeepSeek
-- [ ] 全量 test、typecheck、build 通过（主控本轮执行）
-- [ ] 独立 sol 实例代码审查通过
+- [x] 全量 test、typecheck、build 通过（主控本轮执行）
+- [x] 独立 sol 实例代码审查通过
 
 ## Resolution
 
@@ -54,3 +54,14 @@ T-169 执行中发现：T-151 的英文机械保真检查把「取得 ISO 9001 �
 - 红证据（修改前，b96ffc8）：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t172-iso-fidelity.test.ts`，25 项中 3 项失败，正是上述中文紧贴/标点样本；其余 22 项通过。
 - 绿证据（修改后，同一入口）：25 项全部通过；同一提交入口仍覆盖原 22 项拒收/通过场景。
 - 回归：上述 T-151/T-169 相关命令 69 项通过，`npm run typecheck` 通过；未运行全量 test/build，按主控指令留给主线。
+
+### 关票（主控）
+
+独立审查（均为新 sol 实例）：e3435f4 NO_GO（GB/T 连接前缀被拆，GB/T→GB/R 放过；测试仅 2 条且直调函数）；b96ffc8 NO_GO（边界用 \p{L}，紧贴中文的型号被误拒）；f5ff1ba 复审 PASS（无 P0–P2；经 commitSiteCode 英文提交路径 25/25，b96ffc8 上恰 3 个中文紧贴样本失败；T-151 四个定向文件 62/62）。
+
+主线验证（合并提交 `b282a3a`），2026-10-15 18:53–19:00 EDT，主目录串行、期间暂停 3034：
+- `scripts/t167-runner-regressions.ts` 4/4；
+- 第一次 `CHROME_PATH=… npm test`：**552/553**，唯一失败为 `tests/t169-citations-browser.test.ts:91`（「本地替身经真实生成入口保存至少三条出处…」）等待 `main h1` 时 Chrome `Runtime.evaluate` 超时（46.7 s），日志 test.log 保留；T-169 中英切换步骤（原 T-172 失败点）本次已通过；
+- 同一文件单独重跑 7/7（t169-rerun.log）；第二次完整 `npm test`（18:58–19:00，负载 3.6→10.3）**553/553**（test-rerun.log）。判断为全量负载下的偶发等待超时，与 T-172 改动无关；如再出现，另开票按根因处理，不调大超时。
+- 清空 `.next` 后 `SITE_STORE=fs npm run build` 通过；`npm run typecheck` 通过；code-sites 279→279；3034 恢复后 200。日志 `artifacts/merge-b282a3a/`。
+
