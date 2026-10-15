@@ -130,6 +130,24 @@ export function codeFactMaterials(site: CodeSiteRecord, request?: string, versio
   }
   return `${site.materials}\n\n已采用版本的用户资料和补充（按顺序）：\n${effective.join('\n\n')}\n\n${request ? `本次用户补充与要求：\n${request}` : ''}\n只把用户明确提供或更新的企业信息作为事实；设计要求不是企业事实。字段有明确更新时采用最后一次声明。`;
 }
+function factSourceLine(text: string) {
+  return text.split(/\r?\n/).filter(line => !/^\s*(?:页面要求|设计要求|系统说明)[：:]/.test(line)).join('\n').trim();
+}
+export function codeFactSourceMaterials(site: CodeSiteRecord, request?: string, versionId = site.currentVersionId, compact = false) {
+  const chains = new Map<string, string[]>(); let chain: string[] = [];
+  for (const version of site.versions) {
+    if (version.restoredFrom) {
+      const restored = chains.get(version.restoredFrom); if (!restored) throw new Error('找不到恢复版本的资料来源。');
+      chain = restored;
+    } else chain = [...chain, version.request];
+    chains.set(version.id, chain);
+  }
+  const effective = versionId ? chains.get(versionId) : [];
+  if (!effective) throw new Error('找不到当前版本的资料来源。');
+  const originals = [site.materials, ...effective, ...(request ? [request] : [])].map(factSourceLine).filter(Boolean);
+  const values = compact ? originals.filter((text, index) => !originals.slice(index + 1).includes(text)) : originals;
+  return values.join('\n\n');
+}
 export function escapeCodeText(value: string) {
   return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }

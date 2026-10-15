@@ -586,7 +586,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       }
       const segments = [...factSegments.values()];
       const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials ?? args.materials);
-      const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style) : [];
+      const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials ?? args.materials) : [];
       const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], citations: segment.citations }))]
         .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
       if (!args.localEdit) checks.factSegments = { format: 2, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? args.materials, audited: pending.length, reused: reused.length, segments: receipts };

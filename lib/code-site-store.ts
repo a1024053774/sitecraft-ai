@@ -3,7 +3,7 @@ import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, reviewedMaterialSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
+import { currentCodeVersion, reviewedMaterialSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
 
@@ -185,6 +185,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, true);
+    const sourceMaterials = restore ? codeFactSourceMaterials(site, undefined, restore.id) : codeFactSourceMaterials(site, args.request, site.currentVersionId, true);
     if (args.selectedTarget && (!current || args.selectedTarget.versionId !== current.id || restore)) throw new Error('锚点版本已改变，请重新点选。');
     if (args.pageId && (!current?.code.pages.some(page => page.id === args.pageId) || restore)) throw new Error('当前页面不存在，请重新选择。');
     const targetMaterials = restore ? reviewedMaterialSnapshot(site, restore) : undefined;
@@ -197,7 +198,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       && !task.selectedTarget && (task.kind === 'generate' || task.kind === 'edit') ? task.attempts : [];
     const factReviews = !restore && !args.selectedTarget ? [current?.checks.factSegments, ...attempts.map(attempt => attempt.checks.factSegments)]
       .filter((review): review is NonNullable<typeof review> => !!review) : [];
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: site.materials, style: site.plan?.style,
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: sourceMaterials, style: site.plan?.style,
       ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
       ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget,
         ...(reviewedMaterialSnapshot(site, current) === site.materials ? { citations: current.checks.factCitations } : {}) } } : {}) });

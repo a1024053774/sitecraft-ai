@@ -13,7 +13,11 @@ export function normalizeFactQuote(text: string) { return text.normalize('NFKC')
 // not claim text; retain TR boundaries so claims cannot join independent rows.
 // Source quotes continue to use normalizeFactQuote without stripping markers.
 export function normalizeFactClaimText(text: string) {
-  return normalizeFactQuote(text.replace(/<\/?(?:TABLE|THEAD|TBODY|TFOOT|TH|TD)>/g, ' '));
+  return normalizeFactQuote(text.replace(/<\/?(?:TABLE|THEAD|TBODY|TFOOT|TH|TD)>/g, ' ').replace(/<\/?TR>/g, '\u0000'));
+}
+export function factSegmentNeedsCitation(text: string) {
+  const claim = normalizeFactClaimText(text);
+  return /(?:已|曾|服务|客户).{0,12}\d|\d.{0,12}(?:客户|家|个|件|套|台)|(?:取得|获得|通过).{0,20}(?:认证|资质|许可证)|(?:认证|资质|许可证).{0,20}(?:编号|已|通过|取得)|(?:价格|收费|每份|每件|每台|每套).{0,15}(?:\d|元|CNY|人民币|¥)|(?:交期|交付|交货|时间).{0,15}(?:\d|天|日|月|周)|(?:效果|评价|满意度|好评).{0,15}(?:\d|%|提升|下降|改善|客户)/.test(claim);
 }
 export function bindCodeFactCitations(segment: CodeFactSegment, citations: CodeFactCitation[]) {
   return citations.map(citation => {

@@ -89,3 +89,9 @@ Tracer bullet 继续经生产 chat POST、原提交入口、FS 版本及工作�
   - 资料出处 **3 条**；资料引文验真失败 **0 条**；实际 token **34,889 / 48,000**（规划 7,202、写页 17,671、事实核对 10,016），三次 HTTP 200，均未截断。
   - 工作台 1440/768/375 三档逐条点开 3 条出处，面板原句与资料一致，几何均在视口内且无横向溢出；截图逐张打开：`authorized-48k-2026-10-15T11-09-54-215Z/workspace/workspace-{1440,768,375}.png`，报告为 `workspace/report.json`。标准 eval 审包齐备但独立审查仍交主控。
 - 当前票仍 **INCOMPLETE**：只剩 T-172 已知失败，独立审查未执行；未推送。
+
+### P1/P2 审查修复（2026-10-15）
+
+- P1-1/P1-2 先在 `c6c8bad` 上跑红：`npm test -- tests/t169-fact-citations.test.ts` 为 6/8，新增“空 citations”与“页面要求伪引文”两项失败，日志 `artifacts/t169/p1-parent-red.log`。修复后同合同 **9/9 PASS**（`p1-contract-after-heuristic.log`）：高风险段空出处明确拒收；`materials` 保留完整上下文给模型，`sourceMaterials` 过滤页面要求、设计要求、系统说明后再做代码引文验真。
+- P2 定向浏览器：`CHROME_PATH=… npm test -- --test-concurrency=1 --test-name-pattern='本地替身|空出处|表格中的' tests/t169-citations-browser.test.ts` **3/3 PASS**（`p1-p2-browser-focused-final.log`）。覆盖 1440/768/375 出处面板、空出处不存版、表格跨单元格绑定、面板不越过预览区/对话栏边界。弹层改为读取 `.preview-stage` 边界，监听外层滚动，目标离开预览区时关闭，并把对话栏层级置于弹层之上。
+- `npm run typecheck` **PASS**（`p1-p2-typecheck-4.log`）。本轮未重跑全量/build（主工作区由 T-170/主控独占 Chrome 与重任务）；此前全量证据不能代表本次审查修复后的最终全量，票保持 **INCOMPLETE**。本轮未发真实请求。

@@ -24,7 +24,7 @@ registerHooks({ resolve(specifier, context, next) {
   const file = path.join(process.cwd(), specifier.slice(2));
   return next(pathToFileURL(existsSync(`${file}.ts`) ? `${file}.ts` : file).href, context);
 } });
-let mode: 'valid' | 'forged' | 'stitched' | 'table' = 'valid';
+let mode: 'valid' | 'forged' | 'stitched' | 'table' | 'empty' = 'valid';
 const tableClaim = { ...citationClaims[2], claim: '纸盒 每件 CNY 12。' };
 const tableSite = { ...citationSite, pages: citationSite.pages.map(page => ({ ...page,
   html: page.html.replace('<p>纸盒每件 CNY 12。</p>', '<table><thead><tr><th>品名</th><th>规格</th><th>价格</th></tr></thead><tbody><tr><td>纸盒</td><td>每件</td><td>CNY 12。</td></tr></tbody></table>') })) };
@@ -37,7 +37,7 @@ const provider = createServer(async (req, res) => {
   if (body.tools) answer = { summary: '展示普通纸盒与经营资料。', style: 'precision', styleReason: '按已有资料集中展示。', skeletonId: 'custom', skeletonReason: '一页短站集中表达，不扩充服务流程。', pages: [{ id: 'home', title: '首页', outline: ['普通纸盒、客户、认证与收费'] }] };
   else if (system.includes('事实校对员')) {
     const data = JSON.parse(input.split('\n')[0]);
-    answer = { results: data.segments.map((segment: any) => ({ id: segment.id, issues: [], citations: [...citationClaims.filter(c => segment.text.includes(c.claim)),
+    answer = { results: data.segments.map((segment: any) => ({ id: segment.id, issues: [], citations: mode === 'empty' ? [] : [...citationClaims.filter(c => segment.text.includes(c.claim)),
       ...(mode === 'table' && segment.text.includes('<TR>') && segment.text.includes('<TD>纸盒</TD>') ? [tableClaim] : [])].map(c => ({ ...c,
       quote: c.category === '客户与合作方' && (mode === 'forged' || mode === 'stitched') ? mode === 'forged' ? '长期服务30家客户。' : '已服务30家客户。取得 ISO 9001 认证。' : c.quote })) })) };
   } else if (system.includes('修正输出合同')) {
@@ -117,6 +117,8 @@ test('本地替身经真实生成入口保存至少三条出处，三档工作�
         await settle(browser);
         const geometry = await browser.evaluate<any>(`(()=>{const p=document.querySelector('[data-testid="fact-citation-source"]').getBoundingClientRect();return{left:p.left,right:p.right,top:p.top,bottom:p.bottom,overflow:document.documentElement.scrollWidth>innerWidth}})()`);
         assert.ok(geometry.left >= 0 && geometry.right <= width && geometry.top >= 0 && geometry.bottom <= 1000 && !geometry.overflow, JSON.stringify(geometry));
+        const region = await browser.evaluate<any>(`(()=>{const panel=document.querySelector('[data-testid="fact-citation-source"]')?.getBoundingClientRect(),stage=document.querySelector('.code-preview-stage')?.getBoundingClientRect(),chat=document.querySelector('.builder-chat')?.getBoundingClientRect(),style=document.querySelector('.builder-chat')?getComputedStyle(document.querySelector('.builder-chat')):null;return{panel:panel&&{left:panel.left,right:panel.right,top:panel.top,bottom:panel.bottom},stage:stage&&{left:stage.left,right:stage.right,top:stage.top,bottom:stage.bottom},chatVisible:!!style&&style.display!=='none'&&style.visibility!=='hidden',chatLeft:chat?.left}})()`);
+        assert.ok(region.panel.left >= region.stage.left && region.panel.right <= region.stage.right && (!region.chatVisible || width !== 1440 || region.panel.right <= region.chatLeft), JSON.stringify(region));
         if (i === 0) { const shot = await browser.send<any>('Page.captureScreenshot', { format: 'png' }); await writeFile(`${output}/workspace-${width}.png`, Buffer.from(shot.data, 'base64')); }
         await click(browser, '[aria-label="关闭资料原句"]');
       }
@@ -147,6 +149,15 @@ test('编造与拼接引文进入两轮修正，耗尽后不保存版本', { tim
       await writeFile(`${output}/${invalid}.json`, JSON.stringify(site, null, 2));
     } finally { mode = 'valid'; }
   }
+});
+
+test('高风险段返回空出处进入两轮修正，耗尽后不保存版本', { timeout: 180000 }, async () => {
+  mode = 'empty';
+  try {
+    const site = await generate(); assert.equal(site.run?.status, 'error'); assert.equal(site.versions.length, 0);
+    assert.ok((site.run?.attempts.length ?? 0) >= 1);
+    assert.ok(site.run!.attempts.every(a => a.checks.issues.some(i => i.includes('缺少有效资料出处'))));
+  } finally { mode = 'valid'; }
 });
 
 test('表格中的跨单元格价格出处经真实提交入口存版并准确绑定行', { timeout: 180000 }, async () => {

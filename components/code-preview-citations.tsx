@@ -5,11 +5,11 @@ import type { CodeCheck } from '@/lib/code-site';
 import type { CodeFactCitation } from '@/lib/code-site-fact-segments';
 
 type Mark = { key: string; number: number; citation: CodeFactCitation; x: number; y: number };
-export function CodePreviewCitations({ frame, ready, record, versionId, pageId, scale, header, languageLinks }: {
-  frame: RefObject<HTMLIFrameElement | null>; ready: boolean; record: CodeCheck['factCitations']; versionId: string; pageId: string; scale: number; header: string; languageLinks: boolean;
+export function CodePreviewCitations({ frame, stage, ready, record, versionId, pageId, scale, header, languageLinks }: {
+  frame: RefObject<HTMLIFrameElement | null>; stage: RefObject<HTMLElement | null>; ready: boolean; record: CodeCheck['factCitations']; versionId: string; pageId: string; scale: number; header: string; languageLinks: boolean;
 }) {
   const [marks, setMarks] = useState<Mark[]>([]), [active, setActive] = useState<string | null>(null), [pinned, setPinned] = useState(false);
-  const [position, setPosition] = useState({ left: 8, top: 8 });
+  const [position, setPosition] = useState({ left: 8, top: 8, maxHeight: 'calc(100dvh - 16px)' });
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const doc = ready ? frame.current?.contentDocument : null;
@@ -38,18 +38,24 @@ export function CodePreviewCitations({ frame, ready, record, versionId, pageId, 
       setMarks(next);
     };
     const observer = new ResizeObserver(refresh); observer.observe(doc.body);
-    doc.addEventListener('scroll', refresh, true); window.addEventListener('resize', refresh); window.addEventListener('scroll', refresh, true);
+    const outer = stage.current;
+    doc.addEventListener('scroll', refresh, true); outer?.addEventListener('scroll', refresh, { passive: true }); window.addEventListener('resize', refresh); window.addEventListener('scroll', refresh, true);
     refresh();
-    return () => { observer.disconnect(); doc.removeEventListener('scroll', refresh, true); window.removeEventListener('resize', refresh); window.removeEventListener('scroll', refresh, true); };
-  }, [frame, ready, record, versionId, pageId, scale, header, languageLinks]);
+    return () => { observer.disconnect(); doc.removeEventListener('scroll', refresh, true); outer?.removeEventListener('scroll', refresh); window.removeEventListener('resize', refresh); window.removeEventListener('scroll', refresh, true); };
+  }, [frame, stage, ready, record, versionId, pageId, scale, header, languageLinks]);
   const selected = marks.find(mark => mark.key === active);
   useLayoutEffect(() => {
     if (!selected || !panel.current || !frame.current) return;
-    const f = frame.current.getBoundingClientRect(), p = panel.current.getBoundingClientRect();
+    const f = frame.current.getBoundingClientRect(), area = stage.current?.getBoundingClientRect();
+    const maxHeight = area ? `${Math.max(120, area.height - 16)}px` : 'calc(100dvh - 16px)';
+    panel.current.style.maxHeight = maxHeight;
+    const p = panel.current.getBoundingClientRect();
+    if (area && (f.y + selected.y + 28 < area.top || f.y + selected.y > area.bottom)) { setActive(null); setPinned(false); return; }
     const below = f.y + selected.y + 28;
-    setPosition({ left: Math.max(8, Math.min(f.x + selected.x, window.innerWidth - p.width - 8)),
-      top: Math.max(8, Math.min(below, window.innerHeight - p.height - 8)) });
-  }, [selected, frame]);
+    const leftMin = area ? area.left + 8 : 8, leftMax = area ? area.right - p.width - 8 : window.innerWidth - p.width - 8;
+    const topMin = area ? area.top + 8 : 8, topMax = area ? area.bottom - p.height - 8 : window.innerHeight - p.height - 8;
+    setPosition({ left: Math.max(leftMin, Math.min(f.x + selected.x, leftMax)), top: Math.max(topMin, Math.min(below, topMax)), maxHeight });
+  }, [selected, frame, stage]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape') { setActive(null); setPinned(false); } };
     document.addEventListener('keydown', close); frame.current?.contentDocument?.addEventListener('keydown', close);
