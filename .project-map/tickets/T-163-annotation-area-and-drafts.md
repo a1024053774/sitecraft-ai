@@ -58,22 +58,22 @@ T-161 第 2 步。用户常常一次看出好几处问题，需要先全部记�
 
 ## Resolution
 
-2026-10-14，基于父版本 `6e0ccfe9bd560b72573641e59ca4cb06c3f8fe65` 完成圈选、多条浏览器草稿及逐条发送。**T-163 功能测试 PASS；整票 INCOMPLETE：全量 467/475，8 项既有测试路径失败；独立试用与 sol 代码审查待主控安排，票保持 open。** 本次功能提交包含本 Resolution，提交 SHA 与收尾状态记录在 `artifacts/t163/receipt.json`；不推送。
+2026-10-15，基于父版本 `6e0ccfe9bd560b72573641e59ca4cb06c3f8fe65` 完成圈选、多条浏览器草稿及逐条发送，并合并主线 `family-kit-assembly` 的 T-167/T-159 改动（合并提交 `0186317`）。**T-163 功能与技术验收 PASS；整票 INCOMPLETE：独立 sol 试用与代码审查待主控安排，票保持 open。** 本地功能提交为 `4f88723`、嵌套链接补强为 `8973d81`，不推送。
 
 拖框使用屏幕移动阈值，正向/反向归一；Esc、原生 pointercancel、滚轮、blur 与缩放取消未完成框。缩放在抬起时也核对实际视口及 iframe 宽度，防止 resize 回调尚未执行时提交旧坐标。覆盖内容按区块归组，直接文字与 blockquote 同样参与；跨区块先收窄，多个元素逐项核对后传入既有局部写作。坐标不存入目标、不发模型。连续添加保持批注模式，已保存的编号仍可回看；编辑保留顺序，移除仅影响选定条目。发送快照按 ID 与提交标识冻结，完成、拒收及丢失 HTTP 回复均更新当前集合，保留发送期间新增的意见。
 
 BaoCut 只参考票中列出的画板文件；两个改编组件已标来源，`resources/baocut-annotation/SOURCE.md` 保留版本、改编范围、版权和许可全文。不引入状态库、字体或其他 BaoCut 功能。同步了 spec、CONTEXT、单区块局部合同及相关 AGENTS/mainline 说明。本次未调用 DeepSeek、未载入 .env.local、未写主目录 .sitecraft-data，也未自行开审查实例。
 
-本次应用 origin 为 `SITECRAFT_BASE=http://127.0.0.1:63567`，普通同目录 dev server 使用 `SITE_STORE=fs`、`SITECRAFT_DATA_ROOT=/Users/luckye/Documents/Code/sitecraft-ai-t163/artifacts/t163/data`；CHROME_PATH 为任务指定的 `chrome-headless-shell` 154.0.8037.92 完整路径。测试与脚本只读显式 SITECRAFT_BASE，不回退其他工作树。模型替身和生产 POST 的临时 HTTP 服务由既有 T-162 helper 自建随机端口并在 test.after 关闭；UI、预览及持久化读回来自普通服务。此证据不宣称真实 DeepSeek 或实际 Next after 集成通过。
+定向复核在 T-167 runner 下使用临时数据根与随机服务：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t163-area-drafts.test.ts tests/t163-elements-contract.test.ts tests/t163-model-elements.test.ts`；数据根与服务由 runner 输出到 `artifacts/t167/test-run-1792054051525-32707/`，本轮 11/11 通过。模型替身和生产 POST 的临时 HTTP 服务由既有 T-162 helper 自建并在 test.after 关闭；未调用 DeepSeek、未载入 `.env.local`、未写主目录 `.sitecraft-data`。
 
 父版本红态与最终证据（时间均为 UTC）：
 
 - `node --test --test-concurrency=1 --experimental-strip-types tests/t163-elements-contract.test.ts tests/t163-model-elements.test.ts tests/t163-area-drafts.test.ts`：父版本 9/9 预期失败，`parent-final-red.log`（05:15:05）。圈选元素缺失、跨区块未收窄、多草稿被阻止、发送中不能新增、模型提示缺失及失效元素未拒绝均符合新行为红态。先前 `parent-browser-red.log` 原样保留。
 - 同一测试文件用 `--test-name-pattern='自由 HTML'`、`--test-name-pattern='选择第二条'` 和 `--test-name-pattern='三条草稿：1440'` 分别在父版本失败：`parent-free-red.log`（05:16:02）、`parent-send-red.log`（05:22:00）、`parent-continuous-red.log`（05:42:49）。最后一项明确为添加后模式 false 而要求 true。临时回退仅涉及本实例改动的六个文件，在内存保存当前文本，串行测试结束即恢复；没有复制源码作为证据。
-- 当前代码全量：上述 SITECRAFT_BASE、SITE_STORE、SITECRAFT_DATA_ROOT、CHROME_PATH，加 `T163_LABEL=full T162_LABEL=t163-full npm test`。05:58:06 结束，205.6 秒，**467/475，8 失败、0 取消、0 跳过**，退出码 1，`full-test.log`。T-163 十项全部通过，T-162 元素、就地输入、冻结发送、历史回看、连续点选、存储拒绝、手机定位与滚轮边界回归全部通过。最终连续添加修复、局部合同及样式改动均已在这次全量之前落定。
-- `npm run typecheck`：05:54:42 通过，`typecheck-final-delivery.log`；`SITE_STORE=fs SITECRAFT_DATA_ROOT=… npm run build`：05:58:48 通过，`build.log`。UTF-8 严格回读、diff 检查和 project-map status 通过，未改依赖。
+- 合并 T-167 后标准全量：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`。2026-10-15 结束，131.2 秒，**504/504，0 失败、0 取消、0 跳过**，退出码 0，日志 `artifacts/t163/after-t167-full.log`；runner 自建临时数据根和 `.next-test`，T-163 11 项、T-167 守卫及既有 T-162 回归均通过。
+- `SITE_STORE=fs npm run build`：2026-10-15 通过，日志 `artifacts/t163/after-t167-build.log`；`npm run typecheck`：通过，日志 `artifacts/t163/after-t167-typecheck.log`。UTF-8 严格回读、diff 检查和 project-map status 通过，未改依赖。
 
-八项全量失败属于五个未改的文件：site-delete（2）、site-images（1）、t136-session-summary（3）、t145-code-only-entry（1）、t145-legacy-import（1）。它们读取默认 `.sitecraft-data` 或临时 cwd 下的默认目录，运行时则依照显式 SITECRAFT_DATA_ROOT 写入，导致路径存在性断言失败或 ENOENT；存储入口尊重配置，测试读取路径未一致。该范围由 T-167 负责；不修改其文件，不合入主线、不换目录重跑来绕过失败。主控整合相关修复后再验全量。
+T-167 合并后的数据根守卫已验证：标准 runner 每轮自建临时 `SITECRAFT_DATA_ROOT`、独立 `.next-test`，health 身份和测试进程一致，原始 Node 写入与错误根均在写入前拒绝；本轮 504/504 通过证明旧的 8 项默认根路径失败已由主线修复。
 
 本次 `full-1791957324668/` 的 14 张圈选/草稿截图和 `artifacts/t162/t163-full-*/` 的 35 张回归截图均逐张打开；三档新列表、预览编号、375 对话输入、实时拖框、跨区块选择、冻结新增、版本重选及拒收/HTTP 失败均有可见内容。成功站点 `6d290f61-fa17-4358-a594-19d7bde20b36` 的提交入口通过 6 个页面/视口检查，冻结目标携带标题 `[0]` 与正文 `[1]` 两项提示，见 `full-1791957324668/send.json`；越界拒收不新增版本。截图只核对技术状态，不作为自评审美通过。父版本及失败运行截图同样保留并打开。
 
