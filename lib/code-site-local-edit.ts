@@ -215,10 +215,9 @@ export type DynamicStateProbe = {
 export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 2000) {
   const startedAt = performance.now();
   const checkTime = () => { if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。'); };
-  checkTime(); await browser.send('DOM.enable'); await browser.send('CSS.enable');
+  checkTime(); await browser.send('DOM.enable');
   await browser.send('Page.setDocumentContent', { frameId, html });
-  await browser.send('DOM.enable');
-  const probe = await browser.evaluate<{ all: string[]; roots: string[]; outside: string[]; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
+  const probe = await browser.evaluate<{ all: string[]; roots: string[]; outside: Array<{ id: string; path: number[]; names: string[] }>; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
     const paths=${JSON.stringify(scope?.paths ?? [])};
     const pathOf=(el)=>{const path=[];for(let child=el;child?.parentElement;child=child.parentElement)path.unshift([...child.parentElement.children].indexOf(child));return path};
     const rootFor=(path)=>{let el=document.querySelector('main');for(const index of path)el=el?.children[index];return el};
@@ -226,7 +225,7 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const ids=new Map(all.map((el,index)=>[el,String(index)]));
     const hidden=(el)=>{if(el.matches(':disabled,[inert],[hidden]'))return true;for(let p=el.parentElement;p;p=p.parentElement)if(p.matches('[inert],[hidden]'))return true;const r=el.getBoundingClientRect();return !(r.width>0&&r.height>0&&el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))};
     const interactive=all.filter(el=>el!==document.documentElement&&el!==document.head&&el!==document.body&&!hidden(el)).filter(el=>{try{el.focus({preventScroll:true});const ok=document.activeElement===el;el.blur();return ok}catch{return false}}).map(el=>({id:ids.get(el),path:pathOf(el),ancestors:[...(()=>{const a=[];for(let p=el.parentElement;p;p=p.parentElement)a.push(ids.get(p));return a})()]}));
-    const outside=all.filter(el=>!roots.some(root=>root===el||root.contains(el)||el.contains(root))).map(el=>ids.get(el));
+    const outside=all.filter(el=>!roots.some(root=>root===el||root.contains(el)||el.contains(root))).map(el=>{const s=getComputedStyle(el);return {id:ids.get(el),path:pathOf(el),names:[...s].sort()}});
     for(const el of all)el.setAttribute('data-cdp-probe',ids.get(el));
     return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),outside,interactive};
   })()`);
@@ -252,8 +251,10 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const release = [...active].filter(id => !desired.has(id));
     const add = [...desired].filter(id => !active.has(id));
     try {
-      await Promise.all(release.map(id => browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [] })));
-      await Promise.all(add.map(id => browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [state] })));
+      await Promise.all([
+        ...release.map(id => browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [] })),
+        ...add.map(id => browser.send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [state] })),
+      ]);
     } catch { throw new Error(`局部动态状态检查无法强制 ${state}（触发路径 ${JSON.stringify(path)}）。`); }
     checkTime();
     active.clear(); desired.forEach(id => active.add(id));
@@ -261,25 +262,24 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     forceCalls += add.length;
   };
   const capture = async (trigger: number[] | null, state: string) => {
-    checkTime(); const entries = await browser.evaluate<ProbeEntry[]>(`(() => { const outside=${JSON.stringify(probe.outside)}; const pathOf=(el)=>{const path=[];for(let child=el;child?.parentElement;child=child.parentElement)path.unshift([...child.parentElement.children].indexOf(child));return path}; return outside.map(id=>{const el=document.querySelector('[data-cdp-probe="'+id+'"]'),s=getComputedStyle(el),names=[...s].sort();return {path:pathOf(el),styles:names.map(name=>[name,s.getPropertyValue(name)])}}); })()`);
+    checkTime(); const entries = await browser.evaluate<ProbeEntry[]>(`(() => { const outside=${JSON.stringify(probe.outside)}; const nodes=new Map([...document.querySelectorAll('[data-cdp-probe]')].map(el=>[el.getAttribute('data-cdp-probe'),el])); return outside.map(({id,path,names})=>{const s=getComputedStyle(nodes.get(id));return {path,styles:names.map(name=>[name,s.getPropertyValue(name)])}}); })()`);
     states.push({ trigger, state, entries });
   };
   await clear(); await browser.evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');
   for (const state of stateNames) {
     const active = new Set<number>();
+    if (state === 'hover' || state === 'active') await browser.evaluate('document.activeElement?.blur()');
     for (const item of probe.interactive) {
       checkTime();
-      await browser.evaluate('document.activeElement?.blur()');
       if (state === 'focus' || state === 'focus-visible') {
         try { await browser.send('DOM.focus', { nodeId: await nodeId(item.id) }); }
         catch { throw new Error(`局部动态状态检查无法聚焦触发路径 ${JSON.stringify(item.path)}。`); }
-        const focused = await browser.evaluate<boolean>(`document.activeElement?.getAttribute('data-cdp-probe') === ${JSON.stringify(item.id)}`);
-        if (!focused) throw new Error(`局部动态状态检查无法聚焦触发路径 ${JSON.stringify(item.path)}。`);
+        // Discovery already admitted this element only after focus() made it
+        // document.activeElement; a failed DOM.focus call is still rejected.
       }
       // Keep shared ancestors forced while moving between sibling triggers;
       // each trigger still gets its own state and no prior branch remains active.
       await transition(active, state === 'focus' || state === 'focus-visible' ? [item.id] : [item.id, ...item.ancestors], state, item.path);
-      await browser.evaluate('new Promise(resolve=>requestAnimationFrame(()=>resolve(true)))');
       await capture(item.path, state);
     }
     await clear();
