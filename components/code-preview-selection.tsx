@@ -41,7 +41,7 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
       }));
     };
     const capture = (hit: Element | null) => {
-      if (!main || !source || !hit?.closest || !main.contains(hit) || hit.closest('.sc-inquiry,.sc-image-credits,svg,[data-system-icon]')) return null;
+      if (!main || !source || !hit?.closest || !main.contains(hit) || hit.closest('.sc-image-credits,svg,[data-system-icon]')) return null;
       let block = hit.closest('section,article');
       if (!block || !main.contains(block)) { block = hit; while (block.parentElement && block.parentElement !== main) block = block.parentElement; }
       if (!/^(SECTION|ARTICLE|DIV|HEADER|ASIDE|FOOTER)$/.test(block.tagName) || block === main) return null;

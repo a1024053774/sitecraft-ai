@@ -19,7 +19,7 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
     if (!node.children[index]) throw new Error('锚点已经失效，请重新点选。');
     node = node.children[index];
   }
-  if (!/^(SECTION|ARTICLE|DIV|HEADER|ASIDE|FOOTER)$/.test(node.tagName) || node.closest('[data-system-inquiry],[data-system-icon],.sc-image-credits')) throw new Error('请选择正文区块，系统部件不能单独修改。');
+  if (!/^(SECTION|ARTICLE|DIV|HEADER|ASIDE|FOOTER)$/.test(node.tagName) || node.closest('[data-system-icon],.sc-image-credits')) throw new Error('请选择正文区块，系统部件不能单独修改。');
   const text = (node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
   if (text !== target.text) throw new Error('锚点文字已改变，请重新点选。');
   for (const hint of [...(target.element ? [target.element] : []), ...(target.elements ?? [])]) {

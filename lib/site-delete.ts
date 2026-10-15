@@ -1,5 +1,4 @@
 import { deleteConversationsForSite } from "./conversation-store.ts";
-import { deleteLeadsForSite } from "./lead-store.ts";
 import { deleteImagesForSite } from "./site-images.ts";
 import { deleteCodeSite, getCodeSite, CodeSiteUnavailableError } from './code-site-store.ts';
 
@@ -28,7 +27,6 @@ export async function deleteSiteByUserChoice(siteId: string, confirmSiteId: unkn
   await Promise.all([
     deleteConversationsForSite(siteId),
     deleteImagesForSite(siteId),
-    deleteLeadsForSite(siteId),
   ]);
   const leftover = await getCodeSite(siteId);
   if (leftover) throw new Error("站点记录删除后仍能读到，未完成");

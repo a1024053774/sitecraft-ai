@@ -36,7 +36,7 @@ export default async function SitesPage() {
           </div>
           {sites.length === 0 ? (
             <div className="data-table" data-testid="sites-empty">
-              <p className="leads-empty">还没有已保存站点。从模板开始，或打开工作台新建一份草稿。</p>
+              <p className="empty-state">还没有已保存站点。从模板开始，或打开工作台新建一份草稿。</p>
             </div>
           ) : (
             <SitesTable sites={sites} />

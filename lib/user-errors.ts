@@ -98,30 +98,6 @@ const catalog: Record<string, UserErrorDescription> = {
     nextStep: "使用 PNG/JPEG/WebP 的真实图片，并补齐站点归属、来源和许可信息。",
     recovery: "upload_valid_provenance",
   },
-  lead_invalid: {
-    code: "lead_invalid",
-    message: "询盘内容不完整，尚未保存。",
-    nextStep: "检查姓名、邮箱和需求说明后再提交。",
-    recovery: "review_lead_form",
-  },
-  lead_not_found: {
-    code: "lead_not_found",
-    message: "当前站点不存在，询盘没有保存。",
-    nextStep: "返回站点发布页后重新提交，不会创建新的空站点。",
-    recovery: "return_to_site",
-  },
-  lead_full: {
-    code: "lead_full",
-    message: "这个站点的询盘收件箱已满，当前留言没有保存。",
-    nextStep: "先处理已有询盘，之后再提交新的留言。",
-    recovery: "review_inbox",
-  },
-  smtp_error: {
-    code: "smtp_error",
-    message: "询盘已经写入收件箱，但邮件转发暂未成功。",
-    nextStep: "先在收件箱确认留言，再检查本地或外部邮件服务配置。",
-    recovery: "read_inbox_and_check_smtp",
-  },
   delete_unconfirmed: {
     code: "delete_unconfirmed",
     message: "删除没有执行。",
@@ -137,7 +113,7 @@ const catalog: Record<string, UserErrorDescription> = {
   database_error: {
     code: "database_error",
     message: "数据存储暂时不可用，当前操作没有确认成功。",
-    nextStep: "稍后读取草稿或收件箱确认状态，不要根据按钮结果猜测已保存。",
+    nextStep: "稍后读取草稿确认状态，不要根据按钮结果猜测已保存。",
     recovery: "read_back_then_retry",
   },
   network_error: {

@@ -56,7 +56,7 @@
 - [T-127 换路线](tickets/T-127-route-model-writes-site.md)：模型直接写站点代码；核心规范 + 用户选风格；Notion 式版本库、唯一提交入口、四层评估；英文在用户满意后再问；旧区块库路线跑通后删除
 - [T-131 站点列表因旧记录读不出而整体 500](tickets/T-131-site-list-legacy-palette-500.md)：不再逐个修旧迁移；读不出的旧记录在列表里明确标「旧记录无法打开」，其余照常
 - [T-139 待补充与模拟邮箱](tickets/T-139-placeholders-and-sim-domain.md)：「待补充」照常展示、盲评不计入破绽；模拟邮箱用 luckye.online
-- [T-141 用户给什么就做什么](tickets/T-141-build-from-what-user-gives.md)：不默认加询盘、报价、邮箱联系和联系页；资料少就做得少，用户补充后再丰富
+- [T-141 用户给什么就做什么](tickets/T-141-build-from-what-user-gives.md)：不默认加报价、邮箱联系和联系页；资料少就做得少，用户补充后再丰富
 - [T-143 衡量标准](tickets/T-143-quality-metric.md)：以换公司不像同模板、新旧成对选新为准；混排只作参考
 - [T-146 Shaders、good-css、Oil UI 怎么接](tickets/T-146-shaders-goodcss-oilui.md)：shader 只做系统渲染的静态底图；good-css 做成提交入口的机械反馈检查；Oil UI 的方法进规划，验证有效后再做多方向挑选
 - [T-156 通用建站的范围](tickets/T-156-general-purpose-scope.md)：任何行业的中小企业与机构展示型官网；不做电商、预约、会员和个人/活动页；拆为 T-157 非工业样本 → T-158 规范通用化 → T-159 非工业风格

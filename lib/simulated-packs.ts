@@ -20,7 +20,7 @@ export type SimulatedPack = {
   body: string;
 };
 
-const MATERIALS_INSTRUCTION = '【公司资料】以下为内部模拟测试资料。按用户提供的内容规划中文网站；不编造企业事实，资料缺口保留待补充，不默认增加询盘或独立联系页。';
+const MATERIALS_INSTRUCTION = '【公司资料】以下为内部模拟测试资料。按用户提供的内容规划中文网站；不编造企业事实，资料缺口保留待补充，不生成表单、提交入口或收件功能，不默认增加独立联系页。';
 
 export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
   industrial: {
@@ -34,7 +34,7 @@ export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
     heroTitle: "按图加工重载减速机 P3I-NX7Q",
     heroSubtitle: "不提供现场安装；不接零售散单。",
     heroCta: "查看减速机产品",
-    email: "inquiry@xinzhou-drive.luckye.online",
+    email: "sales@xinzhou-drive.luckye.online",
     missingFacts: ["CE 证书编号", "特种设备相关许可编号", "产能数字", "客户名单", "评价", "电话", "地址", "具体交期天数", "回程间隙", "样机安排"],
     extraPagesNote: "首页、产品两个独立页面。",
     body: [
@@ -60,7 +60,7 @@ export const simulatedPacks: Record<SimulatedPackId, SimulatedPack> = {
       "供货案例二：行业 冶金辊道设备；需求：多台驱动使用统一法兰接口；交付：行星减速机按接口图编号供货；边界：电机与制动器由设备方选配，不承诺整线节拍。",
       "供货案例三：行业 水泥设备备件采购；需求：停机前确认替换尺寸；交付：先核对旧机铭牌、轴伸和安装图再安排整机；边界：不能仅凭外形照片保证互换。",
       "认证状态：ISO 9001 认证中；特种设备相关许可 待补充；CE 待补充。",
-      "MOQ：20台。邮箱：inquiry@xinzhou-drive.luckye.online",
+      "MOQ：20台。邮箱：sales@xinzhou-drive.luckye.online",
       "交期：图纸和技术协议确认后按订单排产，具体天数待补充。",
       "交付与包装：轴伸做防锈处理并加护套，整机固定在木箱底座；箱内放装箱单、接口图和跑合记录。润滑油牌号与加注状态在订单中确认，不默认带油发货。",
       "问：只给电机功率能选型吗？答：还需输入转速、目标输出转速、负载变化和每天运行时长，确认后再选型。",

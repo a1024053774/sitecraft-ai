@@ -5,7 +5,7 @@ import { checkSiteCode } from '../lib/code-site-check.ts';
 
 // Merge risks: language controls overwrite backdrop CSS/licensing, or the
 // backdrop scanner replaces source-English fidelity and pseudo-text pairing.
-const siteId = 't151-backdrop-merge', materials = '提供询盘入口。尺寸待补充。';
+const siteId = 't151-backdrop-merge', materials = '提供批量询价说明。尺寸待补充。';
 const source: SiteCode = { header: '<header><a href="/home">首页</a></header>', footer: '',
   css: 'body{margin:0;background:#fff;color:#111;font:16px/1.7 sans-serif}header,main,footer{padding:24px}h1{font-size:28px}.hero{padding:24px;background-color:#222;color:#20262a}',
   pages: [{ id: 'home', title: '首页', html: '<main><h1>精密加工</h1><section class="hero" data-system-backdrop="bd_grid_precision-steel"><p>尺寸待补充。</p></section><div data-system-inquiry=""></div></main>' }] };
@@ -19,7 +19,8 @@ test('merged renderer preserves English controls and all three backdrop assets a
   assert.match(html, /^<!doctype html><html lang="en">/);
   assert.match(html, /language=en/);
   assert.match(html, /aria-current="page">English/);
-  assert.match(html, /Send inquiry/);
+  assert.match(html, /data-system-inquiry/);
+  assert.doesNotMatch(html, /<form\b|sc-inquiry|\/api\/public\/[^"']+\/leads/);
   assert.match(html, /Image sources and licenses/);
   assert.match(html, /User supplied; for this site only/);
   for (const width of [1440, 768, 375]) assert.ok(html.includes(`/system-backdrops/bd_grid_precision-steel--${width}.webp`));

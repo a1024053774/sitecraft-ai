@@ -22,7 +22,7 @@ const server = createServer((req, res) => {
     return;
   }
   res.setHeader('content-type', 'text/html');
-  res.setHeader('Content-Security-Policy', "sandbox allow-forms; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; base-uri 'none'");
+  res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'none'; base-uri 'none'");
   let html = renderSiteCode('t133-capture', fixture.code, 'home', '', fixture.credits).replace('</body>', '<script>globalThis.t133CandidateScriptRan=true</script></body>');
   if (req.url === '/animated-preview') html = html.replace('</head>', '<style>@keyframes intro{from{opacity:0}to{opacity:1}}h1{animation:intro 1800ms both}</style></head>');
   if (req.url === '/media-preview') html = html.replace('</head>', '<style>@media(min-width:1200px){@keyframes mediaIntro{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:translateY(0)}}h1{animation:mediaIntro 1s ease backwards}}</style></head>');

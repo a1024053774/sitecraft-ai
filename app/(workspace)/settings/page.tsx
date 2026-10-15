@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ChevronRight, Globe2, Mail, ShieldCheck, Users } from "lucide-react";
+import { ChevronRight, Globe2, ShieldCheck, Users } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteDeleteSettings } from "@/components/site-delete-panel";
 
@@ -33,14 +33,6 @@ export default function SettingsPage() {
                 <p>Sitecraft Studio · 中国标准时间 · 中文后台</p>
               </div>
               <button className="secondary-button">编辑</button>
-            </section>
-            <section className="settings-section" id="inquiry-inbox">
-              <div className="settings-icon"><Mail size={17} /></div>
-              <div>
-                <h2>询盘收件</h2>
-                <p>访客从发布页右下角表单提交后，原文保存在工作区询盘线索。邮件转发尚未接通，不能把成功提示当成已发信。</p>
-              </div>
-              <Link className="secondary-button" href={"/leads" as Route}>打开收件箱</Link>
             </section>
             <section className="settings-section" id="team">
               <div className="settings-icon"><Users size={17} /></div>

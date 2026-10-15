@@ -61,7 +61,7 @@ test('每一步的所有页面与公共页头页脚都禁止报价、询价、�
   for (const step of [1, 2, 3]) for (const action of ['索取报价', '询价', '索取样品']) {
     const base = enrichmentFixtureCode(step);
     for (const location of ['header', 'footer', ...base.pages.map(p => p.id)]) {
-      const code = structuredClone(base), entry = `<a href="/contact">${action}</a>`;
+      const code = structuredClone(base), entry = `<a href="/contact">${action === '询价' ? '询价入口' : action}</a>`;
       if (location === 'header' || location === 'footer') code[location] += entry;
       else code.pages.find(p => p.id === location)!.html += entry;
       await rejects(code, step, /出现未要求的功能/, `第 ${step} 步 ${location} 添加 ${action}`);
