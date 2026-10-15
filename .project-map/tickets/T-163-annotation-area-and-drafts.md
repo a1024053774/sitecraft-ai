@@ -72,6 +72,7 @@ BaoCut 只参考票中列出的画板文件；两个改编组件已标来源，`
 - 同一测试文件用 `--test-name-pattern='自由 HTML'`、`--test-name-pattern='选择第二条'` 和 `--test-name-pattern='三条草稿：1440'` 分别在父版本失败：`parent-free-red.log`（05:16:02）、`parent-send-red.log`（05:22:00）、`parent-continuous-red.log`（05:42:49）。最后一项明确为添加后模式 false 而要求 true。临时回退仅涉及本实例改动的六个文件，在内存保存当前文本，串行测试结束即恢复；没有复制源码作为证据。
 - 合并 T-167 后标准全量：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`。2026-10-15 结束，131.2 秒，**504/504，0 失败、0 取消、0 跳过**，退出码 0，日志 `artifacts/t163/after-t167-full.log`；runner 自建临时数据根和 `.next-test`，T-163 11 项、T-167 守卫及既有 T-162 回归均通过。
 - `SITE_STORE=fs npm run build`：2026-10-15 通过，日志 `artifacts/t163/after-t167-build.log`；`npm run typecheck`：通过，日志 `artifacts/t163/after-t167-typecheck.log`。UTF-8 严格回读、diff 检查和 project-map status 通过，未改依赖。
+- sol P2 补测：已增加草稿键 `sitecraft-annotation-drafts:<siteId>` 的 `getItem`、`setItem`、`removeItem` SecurityError 夹具；添加、刷新、冻结发送、最后一条移除均核对工作台不崩溃、中文提示和原记录保留。已知坏变异（去掉 `saveDrafts` try/catch）先红，日志 `artifacts/t163/draft-storage-counterfactual-red.log`；当前实现用 T-167 runner 通过，日志 `artifacts/t163/draft-storage-targeted-final.log`，12/12，数据根由 runner 自建。三张最终拒绝截图在 `artifacts/t163/browser-1792062314051/`。
 
 T-167 合并后的数据根守卫已验证：标准 runner 每轮自建临时 `SITECRAFT_DATA_ROOT`、独立 `.next-test`，health 身份和测试进程一致，原始 Node 写入与错误根均在写入前拒绝；本轮 504/504 通过证明旧的 8 项默认根路径失败已由主线修复。
 

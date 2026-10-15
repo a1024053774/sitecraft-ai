@@ -38,6 +38,65 @@ async function replaceOpinion(s: Session, text: string) {
   assert.equal(await s.browser.evaluate(`document.querySelector('#annotation-message').value`),text);
 }
 let sharedSite: string;
+test('草稿键 getItem/setItem/removeItem 被拒时保留原记录并显示提示', { timeout: 180000 }, async () => {
+  const methods = ['getItem', 'setItem', 'removeItem'] as const;
+  for (const method of methods) {
+    const id = await fixture();
+    const seed = await session(1440, { siteId: id });
+    let raw: string;
+    try { await seed.pick(); await add(seed, `草稿原记录 ${method}`); raw = await seed.browser.evaluate<string>(`localStorage.getItem('sitecraft-annotation-drafts:${id}')`); }
+    finally { await seed.browser.close(); }
+    assert.ok(raw.includes(`草稿原记录 ${method}`));
+    let currentRaw = raw;
+    const s = await session(1440, { siteId: id, beforeNavigate: async browser => {
+      await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `(()=>{
+        const key=${JSON.stringify(`sitecraft-annotation-drafts:${id}`)}, seed=${JSON.stringify(raw)};
+        const originals={getItem:Storage.prototype.getItem,setItem:Storage.prototype.setItem,removeItem:Storage.prototype.removeItem};
+        if (!originals.getItem.call(localStorage,key)) originals.setItem.call(localStorage,key,seed); window.__t163DraftStorage={key,seed,originals,denied:[]};
+        const denied=${JSON.stringify(method)}; const original=originals[denied];
+        Storage.prototype[denied]=function(candidate,...args){if(String(candidate)===key){window.__t163DraftStorage.denied.push(denied);throw new DOMException('Draft storage denied: '+denied,'SecurityError')}return original.call(this,candidate,...args)};
+      })()` });
+    } });
+    try {
+      await s.wait(`document.querySelector('[data-testid="annotation-draft"]') || document.querySelector('.code-error')`);
+      const prompt = await s.browser.evaluate<string>(`document.body.innerText`);
+      assert.match(prompt, method === 'getItem' ? /草稿无法读取|浏览器无法读取/ : /草稿|批注草稿/);
+      assert.equal(await s.browser.evaluate<boolean>(`!!document.querySelector('[data-testid="code-workspace"]')`), true);
+      if (method === 'getItem') {
+        await s.browser.send('Page.reload');
+        await s.wait(`document.body?.innerText.includes('草稿无法读取')`);
+      } else {
+        await s.click('[data-testid="annotation-draft"] [data-testid="annotation-reveal"]');
+        await s.wait(`document.querySelector('#annotation-message')`);
+        await s.browser.send('Input.insertText', { text: `追加意见 ${method}` });
+        await s.click('[data-testid="annotation-add"]');
+        await s.wait(`document.body?.innerText.includes('草稿') && document.querySelector('[data-testid="code-workspace"]')`);
+        if (method === 'setItem') {
+          assert.match(await s.browser.evaluate<string>(`document.body.innerText`), /草稿未能保存|批注草稿/);
+          assert.equal(await s.browser.evaluate<string>(`window.__t163DraftStorage.originals.getItem.call(localStorage,window.__t163DraftStorage.key)`), raw, '拒绝写入不得覆盖原记录');
+          await s.browser.send('Page.reload');
+          await s.wait(`document.querySelector('[data-testid="annotation-draft"]')`);
+          await s.click('[data-testid="annotation-draft"] [data-testid="annotation-send"]');
+          await s.wait(`document.body?.innerText.includes('草稿未能保存')`);
+          assert.equal(await s.browser.evaluate<string>(`window.__t163DraftStorage.originals.getItem.call(localStorage,window.__t163DraftStorage.key)`), raw, '发送冻结写入被拒不得覆盖原记录');
+        } else if (method === 'removeItem') {
+          currentRaw = await s.browser.evaluate<string>(`window.__t163DraftStorage.originals.getItem.call(localStorage,window.__t163DraftStorage.key)`);
+          assert.match(currentRaw, /追加意见 removeItem/);
+        }
+        await s.browser.send('Page.reload');
+        await s.wait(`document.querySelector('[data-testid="annotation-draft"]')`);
+        assert.match(await s.browser.evaluate<string>(`document.querySelector('[data-testid="annotation-draft"]').textContent`), new RegExp(`草稿原记录 ${method}`));
+        if (method === 'removeItem') {
+          await s.click('[data-testid="annotation-draft"] [data-testid="annotation-remove"]');
+          await s.wait(`document.body.innerText.includes('草稿未能保存')`);
+          assert.equal(await s.browser.evaluate<string>(`window.__t163DraftStorage.originals.getItem.call(localStorage,window.__t163DraftStorage.key)`), currentRaw, '拒绝删除不得覆盖原记录');
+        }
+      }
+      await s.browser.evaluate(`window.__t163DraftStorage.denied.length>0`);
+      await shot(s, `storage-draft-${method}`);
+    } finally { await s.browser.close(); }
+  }
+});
 test('圈选段落中的第二个同名链接保留链接自身路径，不能只给整段提示', {timeout:120000},async()=>{
   let s: Session|undefined;
   try{

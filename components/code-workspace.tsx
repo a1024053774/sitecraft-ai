@@ -132,7 +132,11 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
   useEffect(() => { if (!canAnnotate) setPicking(false); }, [canAnnotate]);
   const saveDrafts = useCallback((update: (current: AnnotationDraft[]) => AnnotationDraft[]) => {
     const next = update(draftsRef.current);
-    try { localStorage.setItem(draftKey, JSON.stringify(next)); draftsRef.current = next; setDrafts(next); return true; }
+    try {
+      if (next.length) localStorage.setItem(draftKey, JSON.stringify(next));
+      else localStorage.removeItem(draftKey);
+      draftsRef.current = next; setDrafts(next); return true;
+    }
     catch { setError('批注草稿未能保存到浏览器，请检查存储空间后再添加或发送。'); return false; }
   }, [draftKey]);
   useEffect(() => {
