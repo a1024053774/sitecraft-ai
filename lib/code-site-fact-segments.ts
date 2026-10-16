@@ -10,8 +10,15 @@ export type CodeFactSourceRef =
   | { type: 'materials'; messageIndex: number }
   | { type: 'message'; messageIndex: number };
 export type CodeFactCitation = { category: '客户与合作方' | '资质认证' | '业绩与数量' | '价格与收费' | '时间与交期承诺' | '效果' | '评价'; claim: string; quote: string; source?: CodeFactSourceRef; targets?: CodeFactTarget[] };
-export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[] };
-export type CodeFactRepair = { issues: string[]; targets: CodeFactTarget[] };
+export type CodeFactMember = { context?: true } & (
+  | { kind: 'text'; field: string; path: number[]; text: string }
+  | { kind: 'attribute'; field: string; path: number[]; name: string; before: string }
+  | { kind: 'title'; pageId: string; text: string }
+  | { kind: 'css'; field: string; stylePath?: number[]; rulePath: number[]; selector: string; property: string; before: string; priority: string; ruleText: string; pseudo: string }
+  | { kind: 'unsupported'; reason: string });
+export type CodeFactOwner = { pageId: string; path: number[] };
+export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[]; members?: CodeFactMember[]; owners?: CodeFactOwner[] };
+export type CodeFactRepair = { issues: string[]; members: CodeFactMember[] };
 export type CodeFactReview = {
   format: 4; materials: string; sourceMaterials: CodeFactSource[]; audited: number; reused: number;
   segments: Array<{ text: string; group: string; issues: string[]; noFacts: boolean; factCategories: CodeFactCitation['category'][]; citations: CodeFactCitation[]; citationRepair?: CodeFactRepair }>;
@@ -61,6 +68,75 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
   const nodes = [...document.body.children];
   let offset = 0;
   const result: CodeFactSegment[] = [];
+  const positions = new Map<Node, { field: string; path: number[] }>();
+  const locate = (source: Node, live: Node, field: string, path: number[]) => {
+    positions.set(source, { field, path }); positions.set(live, { field, path });
+    if (source instanceof Element && source.hasAttribute('data-system-icon')) return;
+    if (source.childNodes.length !== live.childNodes.length) return;
+    [...source.childNodes].forEach((child, i) => locate(child, live.childNodes[i], field, [...path, i]));
+  };
+  const partRoots = parts.map((part, index) => [...part.childNodes].map((source, child) => {
+    const field = index === 0 ? 'header' : index === 2 ? 'footer' : `pages/${pageId}/html`;
+    const live = source instanceof Element ? nodes[offset++] : source;
+    if (!live || live.nodeName !== source.nodeName) throw new Error('核对段无法定位页面内容，本次未保存版本。');
+    locate(source, live, field, [child]); return live;
+  }));
+  const cssSources: Array<{ field: string; stylePath?: number[]; sheet: CSSStyleSheet }> = [];
+  const cssSource = (field: string, text: string, stylePath?: number[]) => {
+    const sheet = new CSSStyleSheet(); sheet.replaceSync(text); cssSources.push({ field, stylePath, sheet });
+  };
+  cssSource('css', code.css);
+  parts.forEach((part, index) => {
+    const field = index === 0 ? 'header' : index === 2 ? 'footer' : `pages/${pageId}/html`;
+    for (const style of part.querySelectorAll('style')) cssSource(field, style.textContent ?? '', positions.get(style)?.path);
+  });
+  const member = (node: Node, extra: { kind: 'text'; text: string } | { kind: 'attribute'; name: string; before: string }): CodeFactMember => {
+    const position = positions.get(node);
+    return position ? { ...position, ...extra } : { kind: 'unsupported', reason: '核对段节点没有可验证的作者代码路径' };
+  };
+  const cssMembers = (el: Element, pseudo: string, property: string): CodeFactMember[] => {
+    const matches: CodeFactMember[] = [];
+    const selectors = (text: string) => {
+      const parts: string[] = []; let start = 0, depth = 0, quote = '';
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '\\') { i++; continue; }
+        if (quote) { if (char === quote) quote = ''; continue; }
+        if (char === '"' || char === "'") quote = char;
+        else if (char === '(' || char === '[') depth++;
+        else if (char === ')' || char === ']') depth--;
+        else if (char === ',' && !depth) { parts.push(text.slice(start, i).trim()); start = i + 1; }
+      }
+      return [...parts, text.slice(start).trim()];
+    };
+    for (const source of cssSources) {
+      const walk = (rules: CSSRuleList, path: number[], scopeProblem?: string) => [...rules].forEach((rule, i) => {
+        const rulePath = [...path, i];
+        if (rule instanceof CSSMediaRule && !matchMedia(rule.conditionText).matches) return;
+        if (rule instanceof CSSSupportsRule && !CSS.supports(rule.conditionText)) return;
+        if (rule instanceof CSSStyleRule && rule.style.getPropertyValue(property)) {
+          const selector = rule.selectorText;
+          let applies = false, selectorProblem = false;
+          for (const branch of selectors(selector)) {
+            if (pseudo ? !branch.endsWith(pseudo) : branch.includes('::')) continue;
+            if (branch.includes('&')) { selectorProblem = true; continue; }
+            try { applies ||= el.matches(pseudo ? branch.slice(0, -pseudo.length) : branch); }
+            catch { selectorProblem = true; }
+          }
+          if (selectorProblem) matches.push({ kind: 'unsupported', reason: `${el.tagName.toLowerCase()}${pseudo} 的生成文案选择器无法可靠定位` });
+          if (applies) matches.push(scopeProblem ? { kind: 'unsupported', reason: scopeProblem } : { kind: 'css', field: source.field, ...(source.stylePath ? { stylePath: source.stylePath } : {}), rulePath,
+            selector, property, before: rule.style.getPropertyValue(property), priority: rule.style.getPropertyPriority(property), ruleText: rule.cssText, pseudo });
+        }
+        if ('cssRules' in rule) walk((rule as CSSGroupingRule).cssRules, rulePath, scopeProblem ??
+          (rule instanceof CSSMediaRule || rule instanceof CSSSupportsRule || rule.constructor.name === 'CSSLayerBlockRule' ? undefined : `${rule.constructor.name} 的生成文案作用域无法可靠核实`));
+      });
+      walk(source.sheet.cssRules, []);
+    }
+    const unsupported = matches.find(member => member.kind === 'unsupported');
+    if (unsupported) return [unsupported];
+    if (matches.length !== 1) return [{ kind: 'unsupported', reason: `${el.tagName.toLowerCase()}${pseudo} 的 ${property} 生成文案${matches.length ? '匹配多条作者规则，无法唯一定位声明' : '没有可验证的作者声明位置'}` }];
+    return matches;
+  };
   const strings = (value: string) => [...value.matchAll(/"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g)]
     .map(match => (match[1] ?? match[2]).replace(/\\([0-9a-f]{1,6})\s?|\\(.)/gi, (_escape, hex, char) => hex ? String.fromCodePoint(parseInt(hex, 16)) : char)).join('');
   const heading = 'h1,h2,h3,h4,h5,h6';
@@ -69,28 +145,53 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
   const containers = 'main,section,article';
   const atomic = 'table';
   const blocks = new Set('DIV P H1 H2 H3 H4 H5 H6 LI DT DD TR TH TD FIGCAPTION BR'.split(' '));
-  const own = (el: Element) => {
+  const ownCache = new Map<Element, { text: string; members: CodeFactMember[] }>();
+  const own = (el: Element, members?: CodeFactMember[]) => {
+    const cached = ownCache.get(el); if (cached) { members?.push(...cached.members); return cached.text; }
     if (el.parentElement?.closest('[data-system-icon]')) return '';
-    const attrs = ['alt', 'title', 'aria-label', 'data-label', 'colspan', 'rowspan', 'scope', 'headers'].flatMap(name => el.hasAttribute(name) ? [`${name}=${el.getAttribute(name)}`] : []);
+    const positions: CodeFactMember[] = [];
+    const attrs = ['alt', 'title', 'aria-label', 'data-label', 'colspan', 'rowspan', 'scope', 'headers'].flatMap(name => {
+      if (!el.hasAttribute(name)) return [];
+      positions.push(member(el, { kind: 'attribute', name, before: el.getAttribute(name)! }));
+      return [`${name}=${el.getAttribute(name)}`];
+    });
     for (const name of ['aria-labelledby', 'aria-describedby']) if (el.hasAttribute(name)) {
-      attrs.push(`${name}=${el.getAttribute(name)!.split(/\s+/).map(id => document.getElementById(id)?.textContent ?? `未找到 ${id}`).join('\n')}`);
+      attrs.push(`${name}=${el.getAttribute(name)!.split(/\s+/).map(id => {
+        const label = document.getElementById(id);
+        if (!label) { positions.push({ kind: 'unsupported', reason: `${name} 引用的节点 ${id} 不存在` }); return `未找到 ${id}`; }
+        const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+        for (let text = walker.nextNode(); text; text = walker.nextNode()) if (text.textContent?.trim()) positions.push(member(text, { kind: 'text', text: text.textContent }));
+        return label.textContent ?? '';
+      }).join('\n')}`);
     }
-    // Read resolved strings, including attr()/var()/media-dependent values.
-    const css = ['::before', '::after', '::marker'].map(pseudo => strings(getComputedStyle(el, pseudo).content));
+    const css: string[] = [];
+    for (const pseudo of ['::before', '::after', '::marker']) {
+      const text = strings(getComputedStyle(el, pseudo).content);
+      if (text) { css.push(text); positions.push(...cssMembers(el, pseudo, 'content')); }
+    }
     const style = getComputedStyle(el);
-    if (style.display === 'list-item') css.push(strings(style.listStyleType));
-    return [...attrs, ...css.filter(Boolean).map(value => `CSS=${value}`)].join('\n');
+    if (style.display === 'list-item') {
+      const text = strings(style.listStyleType);
+      if (text) { css.push(text); positions.push(...cssMembers(el, '', 'list-style-type')); }
+    }
+    const text = [...attrs, ...css.map(value => `CSS=${value}`)].join('\n');
+    ownCache.set(el, { text, members: positions }); members?.push(...positions); return text;
   };
-  const read = (node: Node, skip?: (el: Element) => boolean): string => {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? '';
+  const read = (node: Node, skip?: (el: Element) => boolean, members?: CodeFactMember[]): string => {
+    if (node instanceof Element && node.tagName === 'STYLE') return '';
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node.textContent?.trim()) members?.push(member(node, { kind: 'text', text: node.textContent }));
+      return node.textContent ?? '';
+    }
     if (!(node instanceof Element) || skip?.(node) || node.parentElement?.closest('[data-system-icon]')) return '';
-    const auxiliary = own(node);
-    const content = [...node.childNodes].map(child => read(child, skip)).join('');
+    const auxiliary = own(node, members);
+    const content = [...node.childNodes].map(child => read(child, skip, members)).join('');
     const text = `${auxiliary ? `\n[${auxiliary}]\n` : ''}${content}`;
     if (['TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD'].includes(node.tagName)) return `\n<${node.tagName}>${text}</${node.tagName}>\n`;
     return blocks.has(node.tagName) ? `\n${text}\n` : text;
   };
-  const documentConditions = [own(document.documentElement), own(document.body)].filter(Boolean).join('\n');
+  const documentMembers: CodeFactMember[] = [];
+  const documentConditions = [own(document.documentElement, documentMembers), own(document.body, documentMembers)].filter(Boolean).join('\n');
   const targetCache = new Map<Element, CodeFactTarget>();
   const targets = (roots: Node[]) => roots.flatMap(root => root instanceof Element ? [root, ...root.querySelectorAll('*')] : []).map(el => {
     const cached = targetCache.get(el); if (cached) return cached;
@@ -104,19 +205,11 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
     let node: Element | undefined = document.querySelector('main') ?? undefined;
     for (const index of localPath) node = node?.children[index];
     if (!node) throw new Error('核对段无法定位选中区块，本次未保存版本。');
-    const text = read(node).trim();
-    return [{ text, group: text, context: { pageId, outline: [], headings: [...node.querySelectorAll(heading)].map(el => read(el).trim()) }, targets: targets([node]) }];
+    const members: CodeFactMember[] = [], text = read(node, undefined, members).trim();
+    return [{ text, group: text, context: { pageId, outline: [], headings: [...node.querySelectorAll(heading)].map(el => read(el).trim()) }, targets: targets([node]), members, owners: [{ pageId, path: localPath }] }];
   }
   for (const [index, part] of parts.entries()) {
-    // Body-context parsing preserves leading text. Adjacent text nodes may
-    // merge across fragments in the live DOM, so match elements in order and
-    // read text nodes from their cleaned source fragment, never count whitespace.
-    const roots = [...part.childNodes].map(node => {
-      if (!(node instanceof Element)) return node;
-      const live = nodes[offset++];
-      if (!live || live.nodeName !== node.nodeName) throw new Error('核对段无法定位页面内容，本次未保存版本。');
-      return live;
-    });
+    const roots = partRoots[index];
     const elements = roots.flatMap(node => node instanceof Element ? [node, ...node.querySelectorAll('*')] : []);
     const scope = index === 0 ? '公共页头' : index === 2 ? '公共页脚' : `页面 ${pageId}：${page.title}`;
     const outline = elements.filter(el => el.matches(heading)).map(el => read(el).trim());
@@ -128,7 +221,12 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
       const parent = el.parentElement?.closest(containers);
       return parent && elements.includes(parent) ? parent : null;
     };
-    const prose = (group: Element | null) => (group ? [group] : roots).map(node => read(node, el => el !== group && (el.matches(containers) || el.matches(atomic)))).join('').trim();
+    const proseMembers = new Map<Element | null, CodeFactMember[]>();
+    const prose = (group: Element | null) => {
+      const members: CodeFactMember[] = [];
+      const text = (group ? [group] : roots).map(node => read(node, el => el !== group && (el.matches(containers) || el.matches(atomic)), members)).join('').trim();
+      proseMembers.set(group, members); return text;
+    };
     const groupText = (node: Element | null) => {
       // Nested sections inside a list/dl or headed section share the outer
       // group's ordered content. Deleting a sibling must change every receipt.
@@ -149,22 +247,30 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
       const conditions = prose(group);
       const nearby = (group ? [group, ...group.querySelectorAll(heading)] : elements.filter(el => el.matches(heading)))
         .filter(el => el.matches(heading)).map(el => read(el).trim());
-      const add = (body: string, container = group) => { if (body.trim()) result.push({ text: `${prefix}\n${body}`, group: groupText(container), context: { pageId: index === 1 ? pageId : scope, outline, headings: nearby }, targets: targets(container ? [container] : roots) }); };
-      if (conditions) add(conditions);
+      const prefixMembers: CodeFactMember[] = [...documentMembers, ...(group ? [null, ...ancestors].flatMap(parent => proseMembers.get(parent) ?? []).map(member => ({ ...member, context: true as const })) : [])];
+      const add = (body: string, members: CodeFactMember[], container = group) => { if (body.trim()) result.push({ text: `${prefix}\n${body}`, group: groupText(container), context: { pageId: index === 1 ? pageId : scope, outline, headings: nearby }, targets: targets(container ? [container] : roots), members: [...prefixMembers, ...members] }); };
+      if (conditions) add(conditions, proseMembers.get(group) ?? []);
       for (const structure of elements.filter(el => el.matches(atomic) && owner(el) === group && !el.parentElement?.closest(atomic))) {
         if (structure.querySelector('[rowspan],[colspan]')) {
-          add([conditions, read(structure).trim()].filter(Boolean).join('\n'), structure); continue;
+          const members = [...(proseMembers.get(group) ?? [])];
+          add([conditions, read(structure, undefined, members).trim()].filter(Boolean).join('\n'), members, structure); continue;
         }
         // A simple table is read by row with all column headings/caption.
         // Spanned tables above stay whole rather than guessing associations.
         const headers = [...structure.querySelectorAll('caption,thead,tr')].filter(el => el.tagName !== 'TR' || (!el.closest('thead') && !el.querySelector('td')));
-        const labels = [read(structure, el => el !== structure && el.tagName === 'TR').trim(), ...new Set(headers.map(el => read(el).trim()))].filter(Boolean).join('\n');
+        const labelMembers: CodeFactMember[] = [];
+        const labels = [read(structure, el => el !== structure && el.tagName === 'TR', labelMembers).trim(), ...new Set(headers.map(el => read(el, undefined, labelMembers).trim()))].filter(Boolean).join('\n');
         const rows = [...structure.querySelectorAll('tr')].filter(el => el.querySelector('td'));
-        if (!rows.length) add([conditions, read(structure).trim()].filter(Boolean).join('\n'), structure);
-        else for (const row of rows) add([conditions, own(structure), labels, read(row).trim()].filter(Boolean).join('\n'), structure);
+        if (!rows.length) {
+          const members = [...(proseMembers.get(group) ?? [])];
+          add([conditions, read(structure, undefined, members).trim()].filter(Boolean).join('\n'), members, structure);
+        } else for (const row of rows) {
+          const members = [...(proseMembers.get(group) ?? []), ...labelMembers];
+          add([conditions, own(structure, members), labels, read(row, undefined, members).trim()].filter(Boolean).join('\n'), members, structure);
+        }
       }
     }
-    if (index === 1) result.push({ text: `${scope}\n页面标题：${page.title}`, group: `${scope}\n页面标题：${page.title}`, context: { pageId, outline, headings: [] } });
+    if (index === 1) result.push({ text: `${scope}\n页面标题：${page.title}`, group: `${scope}\n页面标题：${page.title}`, context: { pageId, outline, headings: [] }, members: [{ kind: 'title', pageId, text: page.title }] });
   }
   return result;
 }

@@ -5,7 +5,9 @@ import type { CodeFactRepair } from './code-site-fact-segments.ts';
 
 type FragmentBody = { field: string; before: string } & (
   { kind: 'text'; path: number[]; offset: number; text: string } |
-  { kind: 'element'; path: number[] } | { kind: 'style' | 'title' }
+  { kind: 'element'; path: number[] } | { kind: 'attribute'; path: number[]; name: string } |
+  { kind: 'css'; stylePath?: number[]; rulePath: number[]; selector: string; property: string; priority: string; ruleText: string; pseudo: string } |
+  { kind: 'style' | 'title' }
 );
 type Fragment = FragmentBody & { id: number };
 type Replacement = { fragmentId: number; after: string };
@@ -28,6 +30,7 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
     ...code.pages.map(p => [`pages/${p.id}/html`, parse(p.html)] as [string, HTMLElement]),
   ]);
   type Interval = { start: number; end: number };
+  const attributeMasks = new Map<Node, Set<string>>(), cssNodes = new Set<Node>();
   const unselected = (text: string, intervals: Interval[]) => {
     const parts: string[] = []; let at = 0;
     for (const interval of intervals) { parts.push(text.slice(at, interval.start)); at = interval.end; }
@@ -35,12 +38,38 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
   };
   const snapshot = (node: Node, skip: Set<Node>, intervals = new Map<Node, Interval[]>()): unknown => skip.has(node) ? null : [node.nodeType, node.nodeName,
     intervals.has(node) ? unselected(node.nodeValue!, intervals.get(node)!) : node.nodeValue,
-    node instanceof Element ? [node.namespaceURI, [...node.attributes].map(a => [a.name, a.value, a.namespaceURI]).sort((a, b) => a[0]!.localeCompare(b[0]!))] : [],
-    [...node.childNodes].map(n => snapshot(n, skip, intervals)).filter(n => n !== null)];
+    node instanceof Element ? [node.namespaceURI, [...node.attributes].filter(a => !attributeMasks.get(node)?.has(a.name)).map(a => [a.name, a.value, a.namespaceURI]).sort((a, b) => a[0]!.localeCompare(b[0]!))] : [],
+    cssNodes.has(node) ? [] : [...node.childNodes].map(n => snapshot(n, skip, intervals)).filter(n => n !== null)];
   const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
   const normalize = (s: string) => s.replace(/\s|[。；，、：“”「」'".!?]/g, '');
   const styleDocument = document.implementation.createHTMLDocument('');
   const styleNode = styleDocument.createElement('style'); styleNode.textContent = code.css; styleDocument.head.appendChild(styleNode);
+  const nodeAt = (field: string, path: number[]) => {
+    let node: Node | undefined = fields.get(field);
+    for (const index of path) node = node?.childNodes[index];
+    return node;
+  };
+  const cssSources = new Map<string, { sheet: CSSStyleSheet; node: HTMLStyleElement; field: string }>();
+  const cssSource = (field: string, stylePath?: number[]) => {
+    const key = JSON.stringify([field, stylePath ?? null]);
+    const existing = cssSources.get(key); if (existing) return existing;
+    const node = field === 'css' ? styleNode : nodeAt(field, stylePath ?? []);
+    if (!(node instanceof HTMLStyleElement)) refuse('CSS 出处的样式节点无法定位');
+    const sheet = new CSSStyleSheet(); sheet.replaceSync(node!.textContent ?? '');
+    const source = { sheet, node: node as HTMLStyleElement, field }; cssSources.set(key, source); return source;
+  };
+  const cssRule = (source: ReturnType<typeof cssSource>, path: number[]) => {
+    let rules = source.sheet.cssRules, rule: CSSRule | undefined;
+    for (const [i, index] of path.entries()) {
+      rule = rules[index];
+      if (i < path.length - 1) {
+        if (!rule || !('cssRules' in rule)) refuse('CSS 出处的规则路径已经失效');
+        rules = (rule as CSSGroupingRule).cssRules;
+      }
+    }
+    if (!(rule instanceof CSSStyleRule)) refuse('CSS 出处不是可修正的样式声明');
+    return rule as CSSStyleRule;
+  };
   // Build the expected complete document from nodes, independently of parsing
   // the serialized candidate. This catches cross-field parser reparenting too.
   const complete = (p: SiteCode['pages'][number], candidate: SiteCode) => {
@@ -61,27 +90,29 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       const layoutIssues = issues.filter(i => /溢出|重叠|对比度|无可测量正文|CSS/.test(i));
       const fragments: Fragment[] = [];
       const add = (f: FragmentBody) => fragments.push({ ...f, id: fragments.length });
-      const factElements = new Set<Element>();
-      let factCss = false;
-      for (const target of factRepairs.flatMap(repair => repair.targets)) {
-        const pageField = `pages/${target.pageId}/html`, page = fields.get(pageField);
-        if (!page) refuse('无法定位出处拒因的页面');
-        let node: Element | undefined;
-        if (target.root === 'main') {
-          node = page!.querySelector('main') ?? undefined;
-          for (const index of target.path) node = node?.children[index];
+      const factMembers = factRepairs.flatMap(repair => repair.members);
+      for (const [index, member] of factMembers.entries()) {
+        if (member.context) continue;
+        if (factMembers.findIndex(other => JSON.stringify(other) === JSON.stringify(member)) !== index) continue;
+        if (member.kind === 'unsupported') refuse(`无法定位出处拒因：${member.reason}`);
+        else if (member.kind === 'title') {
+          if (code.pages.find(page => page.id === member.pageId)?.title !== member.text) refuse('出处拒因的页面标题快照已经失效');
+          add({ field: `pages/${member.pageId}/title`, kind: 'title', before: member.text });
+        } else if (member.kind === 'css') {
+          const rule = cssRule(cssSource(member.field, member.stylePath), member.rulePath);
+          if (rule.selectorText !== member.selector || rule.cssText !== member.ruleText || rule.style.getPropertyValue(member.property) !== member.before) refuse('出处拒因的 CSS 声明快照已经失效');
+          const { kind, ...location } = member;
+          if (!fragments.some(fragment => fragment.kind === 'css' && fragment.field === member.field && JSON.stringify(fragment.stylePath) === JSON.stringify(member.stylePath) && JSON.stringify(fragment.rulePath) === JSON.stringify(member.rulePath) && fragment.property === member.property)) add({ kind, ...location });
         } else {
-          let index = target.path[0];
-          for (const field of ['header', pageField, 'footer']) {
-            const root = fields.get(field)!;
-            if (index < root.children.length) { node = root.children[index]; break; }
-            index -= root.children.length;
+          const node = nodeAt(member.field, member.path);
+          if (member.kind === 'text') {
+            if (!node || node.nodeType !== Node.TEXT_NODE || node.nodeValue !== member.text) refuse('出处拒因的文本节点快照已经失效');
+            add({ field: member.field, kind: 'text', path: member.path, before: member.text, text: member.text, offset: 0 });
+          } else {
+            if (!(node instanceof Element) || node.getAttribute(member.name) !== member.before) refuse('出处拒因的属性快照已经失效');
+            add({ field: member.field, kind: 'attribute', path: member.path, name: member.name, before: member.before });
           }
-          for (const child of target.path.slice(1)) node = node?.children[child];
         }
-        if (!node || (node.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 1000) !== target.text) refuse('出处拒因的 DOM 定位或文字快照已经失效');
-        factElements.add(node!);
-        if (target.readable?.includes('CSS=')) factCss = true;
       }
       const mentionedNumber = (text: string) => {
         const numbers: string[] = text.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
@@ -98,14 +129,12 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
             });
             // Layout has the shared stylesheet plus leaf elements. Repeating
             // every ancestor's subtree would resend whole pages many times.
-            const factAttribute = factElements.has(node) && !node.childElementCount && ['alt', 'title', 'aria-label', 'data-label'].some(name => node.hasAttribute(name));
-            if ((layout && !node.childElementCount) || link || auxiliary || factAttribute) add({ field, kind: 'element', before: node.outerHTML, path });
-            if (factAttribute) return;
+            if ((layout && !node.childElementCount) || link || auxiliary) add({ field, kind: 'element', before: node.outerHTML, path });
           } else if (node.nodeType === Node.TEXT_NODE) {
             const data = node.nodeValue!;
             for (const sentence of data.matchAll(/[^。！？；\n]+[。！？；]?/g)) {
               const text = normalize(sentence[0]), numbers: string[] = sentence[0].normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
-              if ((text.length > 0 && factElements.has(node.parentElement!)) || (text.length >= 4 && issueText.includes(text)) || issues.some(i => i.startsWith('资料没有的数字：') && numbers.includes(i.split('：')[1]))) {
+              if ((text.length >= 4 && issueText.includes(text)) || issues.some(i => i.startsWith('资料没有的数字：') && numbers.includes(i.split('：')[1]))) {
                 add({ field, kind: 'text', before: sentence[0], path, offset: sentence.index!, text: data });
               }
             }
@@ -114,11 +143,11 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
         };
         [...root.childNodes].forEach((child, i) => walk(child, [i]));
       }
-      if (layoutIssues.length || factCss || mentionedNumber(code.css)) add({ field: 'css', kind: 'style', before: styleNode.outerHTML });
+      if (layoutIssues.length || mentionedNumber(code.css)) add({ field: 'css', kind: 'style', before: styleNode.outerHTML });
       for (const p of code.pages) if ((normalize(p.title).length >= 4 && issueText.includes(normalize(p.title))) || mentionedNumber(p.title)) add({ field: `pages/${p.id}/title`, kind: 'title', before: p.title });
       const removed = issues.length > 0 && issues.every(i => input.cleaned!.includes(i) && /^(已去掉(?:禁止元素|资源或空链接|属性) |图片编号未授权：)/.test(i));
-      if (!fragments.length && !removed) refuse('无法定位底线拒因对应的代码节点');
-      return { fragments };
+      if (!fragments.length && !removed) refuse(factRepairs.length ? '无法定位出处拒因：当前核对段没有可独立修正的位置成员' : '无法定位底线拒因对应的代码节点');
+      return { fragments: fragments.filter((fragment, index, all) => all.findIndex(other => JSON.stringify({ ...other, id: 0 }) === JSON.stringify({ ...fragment, id: 0 })) === index).map((fragment, id) => ({ ...fragment, id })) };
     }
 
     // HTML parsers repair missing end tags. Require explicit closure before
@@ -166,10 +195,16 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
     const changes = input.replacements!.map(p => {
       const f = input.fragments!.find(f => f.id === p.fragmentId)!;
       let node: Node | null = null, next: Element | null = null;
-      if (f.kind === 'text' || f.kind === 'element') {
+      let css: { source: ReturnType<typeof cssSource>; rule: CSSStyleRule } | undefined;
+      if (f.kind === 'text' || f.kind === 'element' || f.kind === 'attribute') {
         node = fields.get(f.field)!;
         for (const index of f.path) node = node?.childNodes[index] || null;
-        if (!node || (f.kind === 'text' ? node.nodeType !== Node.TEXT_NODE || node.nodeValue !== f.text || node.nodeValue.slice(f.offset, f.offset + f.before.length) !== f.before : !(node instanceof Element) || node.outerHTML !== f.before)) refuse('节点已经变化');
+        if (!node || (f.kind === 'text' ? node.nodeType !== Node.TEXT_NODE || node.nodeValue !== f.text || node.nodeValue.slice(f.offset, f.offset + f.before.length) !== f.before : !(node instanceof Element) || (f.kind === 'attribute' ? node.getAttribute(f.name) !== f.before : node.outerHTML !== f.before))) refuse('节点已经变化');
+      } else if (f.kind === 'css') {
+        const source = cssSource(f.field, f.stylePath), rule = cssRule(source, f.rulePath);
+        if (rule.selectorText !== f.selector || rule.cssText !== f.ruleText || rule.style.getPropertyValue(f.property) !== f.before || rule.style.getPropertyPriority(f.property) !== f.priority) refuse('CSS 声明已经变化');
+        if (!CSS.supports(f.property, p.after)) refuse('CSS 修正不是有效的单个声明值');
+        css = { source, rule }; node = source.node;
       } else if (f.kind === 'style') { if (f.before !== styleNode.outerHTML) refuse('样式节点已经变化'); node = styleNode; }
       else if (code.pages.find(page => `pages/${page.id}/title` === f.field)?.title !== f.before) refuse('标题已经变化');
       if (f.kind === 'element' || f.kind === 'style') {
@@ -180,14 +215,33 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
         next = replacement.firstChild;
         if (f.kind === 'style') { if (next.tagName !== 'STYLE' || next.attributes.length) refuse('必须保留一个无属性的 style 元素'); closedCss(next.textContent || ''); }
       }
-      return { f, after: p.after, node, next };
+      return { f, after: p.after, node, next, css };
     });
     for (let i = 0; i < changes.length; i++) for (const b of changes.slice(i + 1)) {
       const a = changes[i]; if (a.f.field !== b.f.field) continue;
-      if (a.f.kind === 'text' && b.f.kind === 'text' && a.node === b.node) {
+      if (a.f.kind === 'css' && b.f.kind === 'css') {
+        if (a.css?.rule === b.css?.rule && a.f.property === b.f.property) refuse('CSS 声明范围重叠');
+      } else if (a.f.kind === 'attribute' && b.f.kind === 'attribute') {
+        if (a.node === b.node && a.f.name === b.f.name) refuse('属性范围重叠');
+      } else if (a.f.kind === 'text' && b.f.kind === 'text' && a.node === b.node) {
         if (Math.max(a.f.offset, b.f.offset) < Math.min(a.f.offset + a.f.before.length, b.f.offset + b.f.before.length)) refuse('节点范围重叠');
-      } else if (a.node === b.node || a.node?.contains(b.node) || b.node?.contains(a.node)) refuse('节点范围重叠');
+      } else if (a.f.kind === 'element' || b.f.kind === 'element' || a.f.kind === 'style' || b.f.kind === 'style') {
+        if (a.node === b.node || a.node?.contains(b.node) || b.node?.contains(a.node)) refuse('节点范围重叠');
+      }
     }
+    const cssMasks = new Map<CSSStyleRule, Set<string>>();
+    for (const c of changes) {
+      if (c.f.kind === 'attribute') {
+        const mask = attributeMasks.get(c.node!) ?? new Set<string>(); mask.add(c.f.name); attributeMasks.set(c.node!, mask);
+      } else if (c.f.kind === 'css') {
+        const mask = cssMasks.get(c.css!.rule) ?? new Set<string>(); mask.add(c.f.property); cssMasks.set(c.css!.rule, mask);
+        if (c.f.field !== 'css') cssNodes.add(c.node!);
+      }
+    }
+    const cssSnapshot = (rules: CSSRuleList): unknown => [...rules].map(rule => rule instanceof CSSStyleRule
+      ? [rule.selectorText, [...rule.style].filter(name => !cssMasks.get(rule)?.has(name)).map(name => [name, rule.style.getPropertyValue(name), rule.style.getPropertyPriority(name)]), 'cssRules' in rule ? cssSnapshot(rule.cssRules) : []]
+      : 'cssRules' in rule ? [rule.constructor.name, (rule as CSSConditionRule).conditionText ?? (rule as CSSLayerBlockRule).name, cssSnapshot((rule as CSSGroupingRule).cssRules)] : rule.cssText);
+    const cssOutside = new Map([...cssSources.values()].map(source => [source, cssSnapshot(source.sheet.cssRules)]));
     const textGroups = new Map<Text, Array<{ offset: number; before: string; after: string }>>();
     for (const c of changes) if (c.f.kind === 'text') {
       const node = c.node as Text, group = textGroups.get(node) || [];
@@ -225,8 +279,16 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
     for (const c of changes) {
       if (c.f.kind === 'text') continue;
       if (c.f.kind === 'element') { (c.node as Element).replaceWith(c.next!); skip.add(c.next!); }
+      else if (c.f.kind === 'attribute') { (c.node as Element).setAttribute(c.f.name, c.after); if ((c.node as Element).getAttribute(c.f.name) !== c.after) refuse('属性修正应用结果不一致'); }
+      else if (c.f.kind === 'css') c.css!.rule.style.setProperty(c.f.property, c.after, c.f.priority);
       else if (c.f.kind === 'style') result.css = c.next!.textContent || '';
       else result.pages.find(p => `pages/${p.id}/title` === c.f.field)!.title = c.after;
+    }
+    for (const source of cssSources.values()) {
+      if (!equal(cssOutside.get(source), cssSnapshot(source.sheet.cssRules))) refuse('改变了片段之外的 CSS 规则或声明');
+      const serialized = [...source.sheet.cssRules].map(rule => rule.cssText).join('\n');
+      if (source.field === 'css') result.css = serialized;
+      else source.node.textContent = serialized;
     }
     for (const [field, root] of fields) {
       if (!equal(outside.get(field), snapshot(root, skip, afterIntervals))) refuse('改变了片段之外的 DOM 或未选中的字符区间');

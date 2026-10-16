@@ -595,7 +595,9 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             for (const segment of segments) {
               const key = JSON.stringify([segment.group, segment.text]), previous = factSegments.get(key);
               factSegments.set(key, { ...segment, targets: [...(previous?.targets ?? []), ...(segment.targets ?? [])]
-                .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.readable === target.readable) === index) });
+                .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.readable === target.readable) === index),
+                members: [...(previous?.members ?? []), ...(segment.members ?? [])].filter((member, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(member)) === index),
+                owners: [...(previous?.owners ?? []), ...(segment.owners ?? [])].filter((owner, index, all) => all.findIndex(other => other.pageId === owner.pageId && JSON.stringify(other.path) === JSON.stringify(owner.path)) === index) });
             }
           }
         }
