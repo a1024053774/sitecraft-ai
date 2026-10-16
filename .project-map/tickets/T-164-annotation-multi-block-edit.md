@@ -39,6 +39,22 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 ## Resolution
 
+本轮整体状态 **INCOMPLETE**：两个新 P1 已取得先红后绿的生产入口证据，60 项定向通过；唯一一次全量为 636/639，保留三项失败，不以定向通过代替全量通过。未启动第二轮全量。
+
+本轮 127 张原始截图（定向 13、全量 114）已逐张打开，清单 `artifacts/t164/original-source-lifecycle-screenshot-views.json`；其中两张载入态单列为诊断，排除最终预览验收，不重拍覆盖，不作审美结论。以下保留前轮记录与原始用量，前轮通过不替代本轮全量结果。
+
+全量退出并等待负载回落后，build 前 uptime 1 分钟负载 4.81、df 可用 6.5GiB、ps 无 chrome-headless-shell／node --test／next build；串行执行 `SITE_STORE=fs npm run build`，于 2026-10-16T10:39:04Z 通过（`artifacts/t164/original-source-lifecycle-build.log`）。本轮未调用 DeepSeek、未读取 .env.local、未推送或自行开审查；既有真实用量不重复记费，真实运行仍待主控通知。T-164 保持 open。
+
+本提交全量前已向主控报告，uptime 1 分钟负载 4.27、df 可用 6.7GiB、ps 无其他 chrome-headless-shell／node --test／next build，才运行 `CHROME_PATH=下述路径 npm test`。2026-10-16T10:34:40.609Z 结束：639 项中 636 通过、3 失败、0 取消、0 跳过，耗时 327412.431ms；日志 `artifacts/t164/original-source-lifecycle-full.log`、报告及临时根身份 `artifacts/t167/test-run-1792146551675-66585/report.json`。两项新回归均通过；失败分别为 `t164-dynamic-gate` 的 :scope:has 焦点规则、`t164-review-seven` 的祖先背景规则发生动态检查超时，以及祖先高度规则启动 Chrome 时 WebSocket 地址无效。运行中负载采样曾约 34；地址无效与负载之间的因果尚未确定。不改产品上限、并发、等待时限或测试断言，不重跑掩盖失败。
+
+2026-10-16 修复 `2c86f69` 独立复审的两个 P1（本提交，claimed_by 为 Codex）：首次登记资格与已登记原文读取已分开。首次登记仍严格要求站点 factSources 未定义、所有版本 factSourceSnapshot 未定义、site.materials 非空，显式空数组也按已有来源历史处理；判断在加入本次消息/上传之前，符合资格时在同一站点锁内登记逐字原文与本次来源，直接提交同样处理首次上传，并避开本次已分配的消息序号。已有来源链不补登记。恢复缺快照的旧版本时只读取已登记且 text 与当前 site.materials 逐字相同的 materials 原文，再重新核对；读取不触发登记，也不借用当前上传/消息。目标有明确快照时仍以该快照及本次显式来源为准，不能补回快照外原文。两项修复均无兼容层、免核对或重试路径，旧版本不回写；空资料、缺原句及被替换上传原文仍拒收。
+
+新增两个端到端回归在 `2c86f69` 先红：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --test-name-pattern='旧站修改成功后可撤销|旧站首次上传' tests/t164-original-materials.test.ts` 于 2026-10-16T10:20:26.450Z 两项业务断言失败。旧站升级存 v2 后，生产 history/undo 返回 422（营业时间与每单2元原句均无有效出处，预期 200）；真实 chat 首次上传只登记新上传，原有营业时间引文无依据、任务 error（预期 complete）。红日志 `artifacts/t164/original-source-lifecycle-parent-red.log`，报告/临时根身份 `artifacts/t167/test-run-1792145996888-62007/report.json`；响应、任务、版本和拒因在 `artifacts/t162/self-contained-1792145999608-62025/original-material-undo.json`、`original-material-first-upload.json`。未把模型修正耗尽或脚本非零退出改成通过。
+
+修后相同两项加上“上传源替换存版后”回归，于 2026-10-16T10:21:54.657Z 3/3（`original-source-lifecycle-focused-green.log`、`artifacts/t167/test-run-1792146078476-62589/report.json`）。恢复用例从 legacyImport 经共用提交入口建立 v1、正常修改存 v2，再实际 POST history/undo 保存 v3、POST history/restore 指向 v1 保存 v4，均断言重新调用原句核对、代码恢复、原始 v1 完整不变及资料出处有效。首次上传用例实际 POST chat（上传来源和选中区块），成功存 v2 后再经普通局部 chat 修改收费区块存 v3，验证原文与上传并存、原文不重复登记及旧版不改写。沿用 T-162 随机端口生产 POST 与本地替身、受控 after 调度，不冒充真实 Next after 集成；没有调用 DeepSeek。
+
+扩大定向命令为 `CHROME_PATH=上述路径 npm test -- tests/t164-original-materials.test.ts tests/t169-production-contract.test.ts tests/t164-multi-block-edit.test.ts tests/t169-fact-citations.test.ts tests/t169-contract-d.test.ts tests/t169-citations-browser.test.ts tests/t152-restore-facts.test.ts`，于 2026-10-16T10:25:54.419Z **60/60、零失败/取消/跳过**（`artifacts/t164/original-source-lifecycle-regressions.log`、`artifacts/t167/test-run-1792146260111-63717/report.json`）。包括两个新 P1、此前 A→B 后普通提交拒收、已有明确快照不补原文、空资料/每单3元拒收、既有恢复沿用与资料变化重核、三档出处显示。`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4（`original-source-lifecycle-runner.log`），`npm run typecheck` 通过（`original-source-lifecycle-typecheck.log`）；全量前按主控要求等待负载回落，不在高负载下启动。
+
 本轮来源替换漏洞的离线修复与验证 **PASS**。127 张原始截图（定向 13、全量 114）已逐张打开，清单 `artifacts/t164/source-alias-screenshot-views.json`；T-130 分发包复制图不重复计数，发送冻结与模拟拒收画面只作流程证据，不作审美结论。全量后仅为回归的独立运行补一行证据目录创建，产品代码及断言未改；同一两项复核 2/2（`artifacts/t164/source-alias-evidence-directory-check.log`、`artifacts/t167/test-run-1792145242452-55836/report.json`），没有重跑全量。未调用 DeepSeek、未读取 .env.local、未写主目录数据、未推送、未自行开审查。真实运行及新实例复审仍由主控安排，T-164 整票保持 open。
 
 2026-10-16 独立复审 P1 修复（本提交，父 `8fcd625`，claimed_by 为 Codex）：补登记资格改为“从未登记任何来源”，要求 `factSources` 未定义且所有版本的 `factSourceSnapshot` 均未定义；显式空数组也按已有登记处理，取更严格的一侧。已有上传来源、同源替换关系或任意来源登记链时，不为仍保留在 site.materials 中的旧原文建立别名。首次普通消息会先在来源登记的站点锁内判断旧站资格，再与该条/批次消息一起登记逐字原文及序号；直接提交仍在提交锁内处理。两处共用同一资格判断，不增加标志位、兼容路径或免核对入口。已接受版本的来源快照是有效来源集合，不再从站点登记补回快照外的原始资料。真正无来源旧站仍按决定 A 重核并只给新版本保存出处，旧版本不改写。

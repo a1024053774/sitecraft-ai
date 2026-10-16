@@ -187,9 +187,10 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
     // T-164 / contract D: bootstrap only a legacy site with no source history.
-    // A supplied source is explicit; materials must not become its stale alias.
-    if (!args.source && hasUnregisteredOriginalMaterials(site)) {
-      site.factSources = [{ type: 'materials', messageIndex: 1, text: site.materials }];
+    // Check before merging this submission's source, including a first upload.
+    if (hasUnregisteredOriginalMaterials(site)) {
+      const messageIndex = Math.max(0, ...[args.source ?? []].flat().filter(source => source.type !== 'upload').map(source => source.messageIndex)) + 1;
+      site.factSources = [{ type: 'materials', messageIndex, text: site.materials }];
       await write(site);
     }
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, true);

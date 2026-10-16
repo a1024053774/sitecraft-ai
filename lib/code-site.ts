@@ -159,11 +159,11 @@ export function hasUnregisteredOriginalMaterials(site: CodeSiteRecord): boolean 
     && site.versions.every(version => version.factSourceSnapshot === undefined);
 }
 export function codeFactSourceMaterials(site: CodeSiteRecord, requestSource?: CodeFactSource | CodeFactSource[], versionId = site.currentVersionId, _compact = false): CodeFactSource[] | undefined {
-  // An accepted snapshot owns its source set. Only the first submission of an
-  // unregistered legacy site can read its newly registered original materials.
+  // An explicit snapshot owns its source set. Legacy versions without one can
+  // re-audit the registered original text; reading never registers a source.
   const target = versionId ? site.versions.find(version => version.id === versionId) : undefined;
   const snapshot = target?.factSourceSnapshot;
-  const original = snapshot === undefined && site.versions.every(version => version.factSourceSnapshot === undefined)
+  const original = snapshot === undefined
     ? (site.factSources ?? []).filter(source => source.type === 'materials' && source.text === site.materials) : [];
   const base = Array.isArray(snapshot) ? snapshot : !target ? site.factSources : original;
   if (!base?.length && !requestSource) return undefined;

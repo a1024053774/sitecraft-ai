@@ -72,7 +72,7 @@ async function registerUserSources(siteId: string, input: { message?: string; so
   let allocated: CodeFactSource[] = [];
   await updateCodeSite(siteId, current => {
     // Check legacy eligibility before this message creates the first registry.
-    const original = currentCodeVersion(current) && !input.source && hasUnregisteredOriginalMaterials(current);
+    const original = currentCodeVersion(current) && hasUnregisteredOriginalMaterials(current);
     let messageIndex = Math.max(0, ...(current.factSources ?? []).filter(item => item.type !== 'upload').map(item => item.messageIndex));
     allocated = input.annotationBatch?.length
       ? input.annotationBatch.map(item => ({ type: 'message', messageIndex: ++messageIndex, text: item.body }))

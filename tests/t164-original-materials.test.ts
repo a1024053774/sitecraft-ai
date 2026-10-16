@@ -132,3 +132,49 @@ test('有效快照只有后续消息时，不从站点登记补回原始资料�
   assert.deepEqual(codeFactSourceMaterials(current), [later]);
   assert.deepEqual(snapshot, [later]);
 });
+
+test('旧站修改成功后可撤销及恢复 v1，已登记原始资料重核且历史不回写', { timeout: 120000 }, async () => {
+  const { id, before } = await oldSite(), v1 = structuredClone(before.versions[0]);
+  const upgraded = await commitSiteCode({ siteId: id, baseRevision: 1, code: { ...original, css: original.css + 'h1{letter-spacing:.02em}' }, author: 'user', summary: '旧站首次修改', request: '保留营业时间和收费原文，只调整标题字距。' });
+  assert.equal(upgraded.status, 'applied', upgraded.status === 'rejected' ? upgraded.checks.issues.join('\n') : '');
+  for (const [action, baseRevision] of [['undo', 2], ['restore', 3]] as const) {
+    const auditsBefore = calls.filter(call => !call.local).length;
+    const response = await fetch(`${workflowBase}/api/sites/${id}/history/${action}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ baseRevision, ...(action === 'restore' ? { versionId: v1.id } : {}) }) });
+    const payload = await response.json();
+    await writeFile(`${output}/original-material-${action}.json`, JSON.stringify({ before, upgraded, status: response.status, payload }, null, 2));
+    assert.equal(response.status, 200, payload.userMessage);
+    assert.equal(payload.status, 'applied');
+    const saved = payload.codeSite.versions.at(-1);
+    assert.equal(saved.revision, baseRevision + 1); assert.equal(saved.restoredFrom, v1.id);
+    assert.deepEqual(saved.code, v1.code);
+    assert.deepEqual(payload.codeSite.versions[0], v1, '恢复不回写旧版本、旧检查和旧来源快照');
+    assert.ok(calls.filter(call => !call.local).length > auditsBefore, '缺来源快照的旧版本必须重新核对');
+    assert.ok(saved.checks.factCitations.entries.some((entry: any) => entry.claim === '外带包装费每单2元。' && entry.source.type === 'materials'));
+  }
+});
+
+test('旧站首次上传合入原始资料，上传后普通修改仍可引用旧原文', { timeout: 120000 }, async () => {
+  const { id, before } = await oldSite(), v1 = structuredClone(before.versions[0]);
+  const upload = { type: 'upload', sourceId: 'legacy-first-upload', name: '菜单补充.txt', text: '菜单按当天备料供应。' };
+  const s = await session(1440, { siteId: id });
+  try {
+    const first = await fetch(`${workflowBase}/api/sites/${id}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: upload.text, source: upload, baseRevision: 1, selectedTarget: items(v1)[0].target }) });
+    assert.equal(first.status, 202, await first.clone().text());
+    const uploaded = (await s.settle()).codeSite;
+    await writeFile(`${output}/original-material-first-upload.json`, JSON.stringify({ before, uploaded }, null, 2));
+    assert.equal(uploaded.run.status, 'complete', uploaded.run.step);
+    assert.equal(uploaded.versions.length, 2);
+    assert.deepEqual(uploaded.factSources, [{ type: 'materials', messageIndex: 1, text: materials }, upload], '在本次上传加入之前判断资格，同一锁保存逐字原文与上传');
+    const v2 = uploaded.versions[1];
+    assert.deepEqual(v2.factSourceSnapshot, uploaded.factSources);
+    const next = await fetch(`${workflowBase}/api/sites/${id}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: '收费口径保留原文，把说明分清楚。', baseRevision: 2, selectedTarget: items(v2)[1].target }) });
+    assert.equal(next.status, 202, await next.clone().text());
+    const modified = (await s.settle(uploaded.run.id)).codeSite;
+    await writeFile(`${output}/original-material-after-upload-edit.json`, JSON.stringify(modified, null, 2));
+    assert.equal(modified.run.status, 'complete', modified.run.step);
+    assert.equal(modified.versions.length, 3);
+    assert.equal(modified.factSources.filter((source: any) => source.type === 'materials').length, 1);
+    assert.deepEqual(modified.versions[0], v1);
+    assert.ok(modified.versions[2].checks.factCitations.entries.some((entry: any) => entry.claim === '外带包装费每单2元。' && entry.source.type === 'materials'));
+  } finally { await s.browser.close(); }
+});
