@@ -11,9 +11,10 @@ export type CodeFactSourceRef =
   | { type: 'message'; messageIndex: number };
 export type CodeFactCitation = { category: '客户与合作方' | '资质认证' | '业绩与数量' | '价格与收费' | '时间与交期承诺' | '效果' | '评价'; claim: string; quote: string; source?: CodeFactSourceRef; targets?: CodeFactTarget[] };
 export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[] };
+export type CodeFactRepair = { issues: string[]; targets: CodeFactTarget[] };
 export type CodeFactReview = {
   format: 4; materials: string; sourceMaterials: CodeFactSource[]; audited: number; reused: number;
-  segments: Array<{ text: string; group: string; issues: string[]; noFacts: boolean; factCategories: CodeFactCitation['category'][]; citations: CodeFactCitation[] }>;
+  segments: Array<{ text: string; group: string; issues: string[]; noFacts: boolean; factCategories: CodeFactCitation['category'][]; citations: CodeFactCitation[]; citationRepair?: CodeFactRepair }>;
 };
 
 export function normalizeFactQuote(text: string) { return text.normalize('NFKC').replace(/\s+/g, ' ').trim(); }

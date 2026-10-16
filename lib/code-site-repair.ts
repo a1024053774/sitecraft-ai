@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { codeSiteSchema, type SiteCode } from './code-site.ts';
 import { codeCheckBrowser } from './code-site-browser.ts';
+import type { CodeFactRepair } from './code-site-fact-segments.ts';
 
 type FragmentBody = { field: string; before: string } & (
   { kind: 'text'; path: number[]; offset: number; text: string } |
@@ -18,7 +19,7 @@ export class CodeRepairError extends Error {
 
 // This function runs in an isolated, network-blocked Chrome document. Both
 // selection and replacement use parsed nodes; model text never becomes HTML.
-function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[]; fragments?: Fragment[]; replacements?: Replacement[] }) {
+function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[]; factRepairs?: CodeFactRepair[]; fragments?: Fragment[]; replacements?: Replacement[] }) {
   class BoundaryFailure extends Error {}
   const refuse = (reason: string): never => { throw new BoundaryFailure(`局部修正${reason}，本次未保存版本。`); };
   const parse = (html: string) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
@@ -53,10 +54,35 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
   try {
     for (const p of code.pages) complete(p, code);
     if (!input.fragments) {
-      const issues = input.issues!, issueText = issues.map(normalize).join('\n');
+      // Citation failures carry locations from this candidate's rendered audit.
+      // Do not rediscover them by text length or select matching text elsewhere.
+      const factRepairs = input.factRepairs ?? [];
+      const issues = input.issues!.filter(issue => !factRepairs.some(repair => repair.issues.includes(issue))), issueText = issues.map(normalize).join('\n');
       const layoutIssues = issues.filter(i => /溢出|重叠|对比度|无可测量正文|CSS/.test(i));
       const fragments: Fragment[] = [];
       const add = (f: FragmentBody) => fragments.push({ ...f, id: fragments.length });
+      const factElements = new Set<Element>();
+      let factCss = false;
+      for (const target of factRepairs.flatMap(repair => repair.targets)) {
+        const pageField = `pages/${target.pageId}/html`, page = fields.get(pageField);
+        if (!page) refuse('无法定位出处拒因的页面');
+        let node: Element | undefined;
+        if (target.root === 'main') {
+          node = page!.querySelector('main') ?? undefined;
+          for (const index of target.path) node = node?.children[index];
+        } else {
+          let index = target.path[0];
+          for (const field of ['header', pageField, 'footer']) {
+            const root = fields.get(field)!;
+            if (index < root.children.length) { node = root.children[index]; break; }
+            index -= root.children.length;
+          }
+          for (const child of target.path.slice(1)) node = node?.children[child];
+        }
+        if (!node || (node.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 1000) !== target.text) refuse('出处拒因的 DOM 定位或文字快照已经失效');
+        factElements.add(node!);
+        if (target.readable?.includes('CSS=')) factCss = true;
+      }
       const mentionedNumber = (text: string) => {
         const numbers: string[] = text.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
         return issues.some(i => i.startsWith('资料没有的数字：') && numbers.includes(i.split('：')[1]));
@@ -72,12 +98,14 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
             });
             // Layout has the shared stylesheet plus leaf elements. Repeating
             // every ancestor's subtree would resend whole pages many times.
-            if ((layout && !node.childElementCount) || link || auxiliary) add({ field, kind: 'element', before: node.outerHTML, path });
+            const factAttribute = factElements.has(node) && !node.childElementCount && ['alt', 'title', 'aria-label', 'data-label'].some(name => node.hasAttribute(name));
+            if ((layout && !node.childElementCount) || link || auxiliary || factAttribute) add({ field, kind: 'element', before: node.outerHTML, path });
+            if (factAttribute) return;
           } else if (node.nodeType === Node.TEXT_NODE) {
             const data = node.nodeValue!;
             for (const sentence of data.matchAll(/[^。！？；\n]+[。！？；]?/g)) {
               const text = normalize(sentence[0]), numbers: string[] = sentence[0].normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
-              if ((text.length >= 4 && issueText.includes(text)) || issues.some(i => i.startsWith('资料没有的数字：') && numbers.includes(i.split('：')[1]))) {
+              if ((text.length > 0 && factElements.has(node.parentElement!)) || (text.length >= 4 && issueText.includes(text)) || issues.some(i => i.startsWith('资料没有的数字：') && numbers.includes(i.split('：')[1]))) {
                 add({ field, kind: 'text', before: sentence[0], path, offset: sentence.index!, text: data });
               }
             }
@@ -86,7 +114,7 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
         };
         [...root.childNodes].forEach((child, i) => walk(child, [i]));
       }
-      if (layoutIssues.length || mentionedNumber(code.css)) add({ field: 'css', kind: 'style', before: styleNode.outerHTML });
+      if (layoutIssues.length || factCss || mentionedNumber(code.css)) add({ field: 'css', kind: 'style', before: styleNode.outerHTML });
       for (const p of code.pages) if ((normalize(p.title).length >= 4 && issueText.includes(normalize(p.title))) || mentionedNumber(p.title)) add({ field: `pages/${p.id}/title`, kind: 'title', before: p.title });
       const removed = issues.length > 0 && issues.every(i => input.cleaned!.includes(i) && /^(已去掉(?:禁止元素|资源或空链接|属性) |图片编号未授权：)/.test(i));
       if (!fragments.length && !removed) refuse('无法定位底线拒因对应的代码节点');
@@ -223,8 +251,8 @@ async function inDom(code: SiteCode, input: Parameters<typeof repairDom>[1]) {
     return await browser.evaluate<ReturnType<typeof repairDom>>(`(${repairDom.toString()})(${JSON.stringify(code)},${JSON.stringify(input)})`);
   } finally { await browser.close(); }
 }
-export async function codeRepairFragments(code: SiteCode, issues: string[], cleaned: string[] = []): Promise<Fragment[]> {
-  const result = await inDom(code, { issues, cleaned });
+export async function codeRepairFragments(code: SiteCode, issues: string[], cleaned: string[] = [], factRepairs: CodeFactRepair[] = []): Promise<Fragment[]> {
+  const result = await inDom(code, { issues, cleaned, factRepairs });
   if (result.error) throw new Error(result.error);
   return result.fragments!;
 }
