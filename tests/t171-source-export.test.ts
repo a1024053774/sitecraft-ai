@@ -10,7 +10,6 @@ import test from 'node:test';
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import { createStoredZip } from '../lib/code-site-export.ts';
-import { serveCodePage } from '../lib/code-site-serving.ts';
 import { commitSiteCode, createCodeSite, getCodeSite, updateCodeSite } from '../lib/code-site-store.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
 import { saveSiteImage } from '../lib/site-images.ts';
@@ -36,6 +35,8 @@ registerHooks({ resolve(specifier, context, next) {
 // - traversal/control characters in originalName reach an asset path or LICENSES.txt;
 // - export reads legacy image metadata through a migration write, or body-wide cleanup
 //   deletes authored text that merely contains data-image-id="...".
+// - removing system image attributes changes CSS selector matching, layout and visibility;
+// - a linked common stylesheet is CSP-blocked and duplicate inline CSS hides that failure.
 
 const output = path.resolve('artifacts/t171', `source-export-${crypto.randomUUID()}`);
 await mkdir(output, { recursive: true });
@@ -93,33 +94,46 @@ async function snapshotFiles(root: string, siteId: string) {
 
 async function browserDomSnapshot(browser: Awaited<ReturnType<typeof codeCheckBrowser>>) {
   await browser.evaluate('document.querySelectorAll("details").forEach(node=>node.open=true)');
-  return browser.evaluate<{ text: string; structure: string[] }>(`({
+  return browser.evaluate<{ text: string; structure: string[]; scrollWidth: number; boxes: unknown[] }>(`({
     text: (document.body.innerText || '').replace(/\\s+/g, ' ').trim(),
     structure: [...document.body.querySelectorAll('*')].map(node => node.tagName.toLowerCase() + '[' + node.children.length + ']'),
+    scrollWidth: document.documentElement.scrollWidth,
+    boxes: [...document.body.querySelectorAll('*')].map(node => {const r=node.getBoundingClientRect();return [node.tagName, ...[r.x,r.y,r.width,r.height].map(value=>Math.round(value*1000)/1000),getComputedStyle(node).display]}),
   })`);
 }
 
+async function unpackSitePackage(entries: Map<string, Uint8Array>) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'sitecraft-t171-fidelity-'));
+  for (const [name, bytes] of entries) {
+    const file = path.join(directory, name);
+    await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, bytes);
+  }
+  return directory;
+}
+
 async function comparePublishedPages(site: CodeSiteRecord, version: CodeVersion, entries: Map<string, Uint8Array>) {
+  const directory = await unpackSitePackage(entries);
+  const observations: Array<{ language: string; page: string; width: number; published: Awaited<ReturnType<typeof browserDomSnapshot>>; exported: Awaited<ReturnType<typeof browserDomSnapshot>> }> = [];
   const browser = await codeCheckBrowser();
   try {
-    await browser.send('Page.navigate', { url: `${process.env.SITECRAFT_BASE}/code-check.html` });
-    await waitForHttpPage(browser);
-    const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
     for (const language of ['zh', 'en'] as const) {
       const pages = language === 'zh' ? version.code.pages : version.english?.pages;
       for (const page of pages ?? []) {
         const filename = (language === 'en' ? 'en/' : '') + (page.id === 'home' ? 'index.html' : `${page.id}.html`);
-        const response = await serveCodePage(site, version, page.id, language, true);
-        assert.equal(response.status, 200);
-        const snapshots = [];
-        for (const html of [await response.text(), text(entries.get(filename)!)]) {
-          await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html });
-          snapshots.push(await browserDomSnapshot(browser));
+        for (const width of [1440, 768, 375]) {
+          await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+          const snapshots = [];
+          for (const url of [`${process.env.SITECRAFT_BASE}/published/${site.siteId}${language === 'en' ? '/en' : ''}?page=${page.id}`, pathToFileURL(path.join(directory, filename)).href]) {
+            await browser.send('Page.navigate', { url }); await waitForHttpPage(browser, url);
+            snapshots.push(await browserDomSnapshot(browser));
+          }
+          observations.push({ language, page: page.id, width, published: snapshots[0], exported: snapshots[1] });
         }
-        assert.deepEqual(snapshots[1], snapshots[0], `${language}/${page.id} 导出与发布的可见文字和元素树必须一致`);
       }
     }
   } finally { await browser.close(); }
+  await writeFile(path.join(output, `${site.siteId}-fidelity.json`), JSON.stringify(observations, null, 2), 'utf8');
+  for (const item of observations) assert.deepEqual(item.exported, item.published, `${item.language}/${item.page}/${item.width} file:// 与发布的文字、DOM 和布局尺寸必须一致`);
 }
 
 function text(bytes: Uint8Array) { return new TextDecoder().decode(bytes); }
@@ -178,7 +192,7 @@ test('导出当前版本包含相对链接、准确资源、署名和英文目�
     const html = text(entries.get(file)!);
     assert.doesNotMatch(html, /(?:href|src)=["'](?:\/(?:api|published)|https?:|\/\/)/i, `${file} must work without SiteCraft`);
     assert.match(html, /<link rel="stylesheet" href="(?:\.\.\/)?styles\.css">/, `${file} must use the package CSS`);
-    assert.doesNotMatch(html, /data-image-id=/i, `${file} must not expose image attributes`);
+    if (file.endsWith('index.html')) assert.match(html, new RegExp(`data-image-id="${used.imageId}"`), `${file} 必须保留系统属性的选择器语义`);
     assert.doesNotMatch(html, /<script\b|\bon[a-z]+\s*=|javascript:|<iframe\b|url\(\s*["']?(?:https?:|\/\/)/i, `${file} must be inert and local`);
   }
   assert.match(text(entries.get('index.html')!), /href="products\.html#spec"/);
@@ -232,7 +246,7 @@ test('中英文导出页只携带各自语言实际引用图片的署名', async
   try {
     await createCodeSite(siteId, '曜石接头', 't171-credit');
     await updateCodeSite(siteId, () => ({ materials: '曜石接头。精密连接件。' }));
-    for (const [index, input] of [{ code: zh }, { englishCode: en }, { code: { ...zh, pages: zh.pages.map(page => ({ ...page, html: page.html.replace(zhImage.imageId, enImage.imageId) })) } }].entries()) {
+    for (const [index, input] of [{ code: zh }, { englishCode: en }, { code: { ...zh, css: zh.css + 'main{padding:36px}', pages: zh.pages.map(page => ({ ...page, html: page.html.replace(zhImage.imageId, enImage.imageId) })) } }].entries()) {
       const result = await commitSiteCode({ siteId, baseRevision: index, ...input, author: 'user', summary: '双语图片版本', request: '' });
       assert.equal(result.status, 'applied', result.status === 'rejected' ? result.checks.issues.join('；') : '版本链必须通过');
       if (result.status !== 'applied') return;
@@ -330,6 +344,50 @@ test('ZIP 写入前拒绝重复和非法条目', () => {
 
 test('ZIP 拒绝尾部换行条目', () => {
   assert.throws(() => createStoredZip([{ name: 'file.html\n', data: new TextEncoder().encode('fixture') }]), /ZIP|条目|路径/);
+});
+
+test('file:// 系统图片属性选择器保持中英文各页三档可见文本和布局', async () => {
+  const siteId = `t171-selector-${crypto.randomUUID().slice(0, 8)}`;
+  const image = await saveSiteImage({ siteId, bytes: sourceImage, provenance: { attribution: 'Review attribution' } });
+  // The reviewer's 96×72 image and hidden adjacent paragraph are independent oracles.
+  const code: SiteCode = { header: '<header>Review Company</header>', footer: '<footer>Footer</footer>',
+    css: 'body{margin:0;color:#111;background:#fff;font:16px/1.6 sans-serif}main{padding:24px}img[data-image-id]{width:96px;height:72px;object-fit:contain}img[data-image-id]+p{display:none}',
+    pages: ['home', 'products'].map(id => ({ id, title: 'Review Company', html: `<main><h1>Review Company</h1><img data-image-id="${image.imageId}" alt="connector"><p>Hidden image appendix.</p></main>` })) };
+  const result = await rejectedOrApplied(siteId, code, 'Review Company.'); assert.equal(result.status, 'applied'); if (result.status !== 'applied') return;
+  const english = await commitSiteCode({ siteId, baseRevision: 1, englishCode: code, author: 'user', summary: 'English retained', request: '' });
+  assert.equal(english.status, 'applied'); if (english.status !== 'applied') return;
+  const response = await fetch(`${process.env.SITECRAFT_BASE}/api/sites/${siteId}/export`); assert.equal(response.status, 200);
+  await comparePublishedPages(english.site, english.version, parseStoredZip(new Uint8Array(await response.arrayBuffer())));
+});
+
+test('file:// 公共 CSS 只有文件来源，修改文件后中英文各页三档实际生效', async () => {
+  const siteId = `t171-css-${crypto.randomUUID().slice(0, 8)}`;
+  const code: SiteCode = { header: '<header>Review Company</header>', footer: '<footer>Footer</footer>',
+    css: 'body{margin:0;color:#111;background:#fff;font:16px/1.6 sans-serif}main{padding:24px}h1{color:rgb(17,17,17)}',
+    pages: ['home', 'products'].map(id => ({ id, title: 'Review Company', html: '<main><h1>Review Company</h1><p>Independent review body.</p></main>' })) };
+  const result = await rejectedOrApplied(siteId, code, 'Review Company.'); assert.equal(result.status, 'applied');
+  const english = await commitSiteCode({ siteId, baseRevision: 1, englishCode: code, author: 'user', summary: 'English retained', request: '' });
+  assert.equal(english.status, 'applied');
+  const response = await fetch(`${process.env.SITECRAFT_BASE}/api/sites/${siteId}/export`); assert.equal(response.status, 200);
+  const entries = parseStoredZip(new Uint8Array(await response.arrayBuffer()));
+  const directory = await unpackSitePackage(entries);
+  await writeFile(path.join(directory, 'styles.css'), 'h1{color:rgb(128,0,128)!important}', 'utf8');
+  const browser = await codeCheckBrowser();
+  const observations: Array<{ file: string; width: number; links: number; inlineSheets: number; color: string }> = [];
+  try {
+    for (const file of ['index.html', 'products.html', 'en/index.html', 'en/products.html']) for (const width of [1440, 768, 375]) {
+      await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+      const url = pathToFileURL(path.join(directory, file)).href;
+      await browser.send('Page.navigate', { url }); await waitForHttpPage(browser, url);
+      const observed = await browser.evaluate<{ links: number; inlineSheets: number; color: string }>(`({links:document.querySelectorAll('link[rel="stylesheet"]').length,inlineSheets:document.querySelectorAll('style').length,color:getComputedStyle(document.querySelector('h1')).color})`);
+      observations.push({ file, width, ...observed });
+    }
+  } finally { await browser.close(); }
+  await writeFile(path.join(output, `${siteId}-common-css.json`), JSON.stringify(observations, null, 2), 'utf8');
+  for (const observed of observations) {
+    assert.equal(observed.color, 'rgb(128, 0, 128)', '审查者的文件修改必须真正改变离线页面颜色');
+    assert.equal(observed.links, 1); assert.equal(observed.inlineSheets, 0, '不能用重复内联遮住公共文件被拦截');
+  }
 });
 
 const malicious: Array<[string, (code: SiteCode) => SiteCode]> = [

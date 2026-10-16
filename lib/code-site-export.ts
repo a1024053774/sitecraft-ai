@@ -1,10 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { englishSiteCode, renderSiteCode, type CodeSiteRecord, type CodeVersion, type SiteCode } from './code-site.ts';
+import { englishSiteCode, renderSiteCode, renderSiteCodeCss, type CodeSiteRecord, type CodeVersion, type SiteCode } from './code-site.ts';
 import { readSiteImage, type SiteImageRecord } from './site-images.ts';
 import { systemBackdropLicense } from './code-site-backdrops.ts';
 import { systemIconLicense } from './code-site-icons.ts';
-import { mapSiteCodeCss, siteCodeResources } from './code-site-dom.ts';
+import { siteCodeResources } from './code-site-dom.ts';
 
 type ZipEntry = { name: string; data: Uint8Array };
 
@@ -113,21 +113,29 @@ export async function buildStaticSitePackage(site: CodeSiteRecord, version: Code
     if (!file) throw new Error('站点包引用了未登记的资源。');
     return relative(currentFile, file);
   };
+  const chineseCss = renderSiteCodeCss(version.code, assetUrl('styles.css'));
+  files.push({ name: 'styles.css', data: new TextEncoder().encode(chineseCss) });
   const rendered: ZipEntry[] = [];
-  for (const item of languages) for (const page of item.code.pages) {
-    const currentFile = item.pages.get(page.id)!;
-    const pageHref = (target: string, hash: string) => `${relative(currentFile, item.pages.get(target)!)}${hash}`;
-    const languageLinks = english ? {
-      zh: relative(currentFile, languages[0].pages.get(page.id) ?? languages[0].pages.get('home')!),
-      en: relative(currentFile, languages[1].pages.get(page.id) ?? languages[1].pages.get('home')!),
-    } : undefined;
-    const html = renderSiteCode(site.siteId, item.code, page.id, '', imageCredits(records.filter(record => item.resources.imageIds.includes(record.imageId))), undefined, {
-      language: item.language, languageLinks, pageHref, assetUrl: assetUrl(currentFile), stylesheetHref: relative(currentFile, 'styles.css'), stripInternalAttributes: true,
-    });
-    rendered.push({ name: currentFile, data: new TextEncoder().encode(html) });
+  for (const item of languages) {
+    let stylesheet = 'styles.css';
+    if (item.language === 'en' && renderSiteCodeCss(item.code, assetUrl('styles.css')) !== chineseCss) {
+      stylesheet = 'en/styles.css';
+      files.push({ name: stylesheet, data: new TextEncoder().encode(renderSiteCodeCss(item.code, assetUrl(stylesheet))) });
+    }
+    for (const page of item.code.pages) {
+      const currentFile = item.pages.get(page.id)!;
+      const pageHref = (target: string, hash: string) => `${relative(currentFile, item.pages.get(target)!)}${hash}`;
+      const languageLinks = english ? {
+        zh: relative(currentFile, languages[0].pages.get(page.id) ?? languages[0].pages.get('home')!),
+        en: relative(currentFile, languages[1].pages.get(page.id) ?? languages[1].pages.get('home')!),
+      } : undefined;
+      const html = renderSiteCode(site.siteId, item.code, page.id, '', imageCredits(records.filter(record => item.resources.imageIds.includes(record.imageId))), undefined, {
+        language: item.language, languageLinks, pageHref, assetUrl: assetUrl(currentFile), stylesheetHref: relative(currentFile, stylesheet),
+      });
+      rendered.push({ name: currentFile, data: new TextEncoder().encode(html) });
+    }
   }
   files.push(...rendered);
-  files.push({ name: 'styles.css', data: new TextEncoder().encode(mapSiteCodeCss(version.code.css, assetUrl('styles.css'))) });
   const licenseLines = ['SiteCraft static site package licenses', '', 'Images included in this package:'];
   if (!records.length) licenseLines.push('- None');
   for (const record of records) {

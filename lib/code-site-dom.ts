@@ -60,13 +60,12 @@ export function siteCodeResources(code: SiteCode) {
   return { imageIds: [...imageIds], backdropIds: [...backdropIds], backdropUrls: [...backdropUrls], usesIcons };
 }
 
-// Publishing and exporting transform the same parsed element tree. In particular,
-// attribute cleanup never searches text nodes or the serialized body.
+// Publishing and exporting transform the same parsed element tree. System image
+// attributes remain intact because generated CSS can use them as selectors.
 export function renderCodeFragment(html: string, options: {
   pageHref: (pageId: string, hash: string) => string | undefined;
   imageUrl: (imageId: string) => string;
   assetUrl?: (url: string) => string;
-  stripInternalAttributes?: boolean;
 }) {
   const tree = fragment(html);
   elements(tree, node => {
@@ -78,7 +77,6 @@ export function renderCodeFragment(html: string, options: {
     }
     const image = attribute(node, 'data-image-id');
     if (node.tagName === 'img' && image && /^img_[a-z0-9]{16,40}$/.test(image)) setAttribute(node, 'src', options.imageUrl(image));
-    if (options.stripInternalAttributes) node.attrs = node.attrs.filter(attr => attr.name !== 'data-image-id');
     const icon = attribute(node, 'data-system-icon');
     if (node.tagName === 'span' && icon) {
       node.attrs = node.attrs.filter(attr => attr.name !== 'data-system-icon');
