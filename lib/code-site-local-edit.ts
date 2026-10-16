@@ -257,6 +257,7 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
   let cdpRoundTrips = 0;
   let interactiveElements: number | null = null, forceCalls = 0, completed = false;
   const stageMs = { focus: 0, force: 0, styleRead: 0 };
+  const styleReadParts = { read: 0, serialize: 0, compress: 0, decode: 0 };
   const send = async <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}) => { cdpRoundTrips++; return browser.send<T>(method, params); };
   const evaluate = async <T>(expression: string) => { cdpRoundTrips++; return browser.evaluate<T>(expression); };
   const checkTime = () => { if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。'); };
@@ -274,7 +275,9 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const interactive=${probeStates}?all.filter(el=>el!==document.documentElement&&el!==document.head&&el!==document.body&&!hidden(el)).filter(el=>{try{el.focus({preventScroll:true});const ok=document.activeElement===el;el.blur();return ok}catch{return false}}).map(el=>({id:ids.get(el),path:pathOf(el),ancestors:[...(()=>{const a=[];for(let p=el.parentElement;p;p=p.parentElement)a.push(ids.get(p));return a})()]})):[];
     const outside=all.filter(el=>!roots.some(root=>root===el||root.contains(el))).map(el=>({node:el,path:pathOf(el),ancestor:roots.some(root=>el.contains(root)),baselines:new Map()}));
     for(const el of all)el.setAttribute('data-cdp-probe',ids.get(el));
-    window.__sitecraftCdpProbeOutside = {items:outside,properties:[...getComputedStyle(document.documentElement)].filter(name=>!name.startsWith('--')).sort((a,b)=>a.localeCompare(b))};
+    const style=getComputedStyle(document.documentElement);
+    const properties=[...style].filter(name=>!name.startsWith('--')).sort((a,b)=>a.localeCompare(b));
+    window.__sitecraftCdpProbeOutside = {items:outside,properties};
     return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),interactive};
   })()`);
   stageMs.focus += probeStates ? performance.now() - focusStarted : 0;
@@ -318,7 +321,8 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
   };
   const capture = async (trigger: number[] | null, state: string) => {
     checkTime(); const styleStarted = performance.now();
-    const encoded = await evaluate<string>(`(async()=>{
+    const payload = await evaluate<{ encoded: string; read: number; serialize: number; compress: number }>(`(async()=>{
+      const readStarted=performance.now();
       const entries=[];
       const snapshot=window.__sitecraftCdpProbeOutside;
       for(const item of snapshot.items)for(const pseudo of ['', '::before', '::after', '::marker', '::first-line', '::first-letter']){
@@ -364,11 +368,17 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
           entries.push({path:item.path,pseudo,present:true,styles});
         }
       }
+      const serializeStarted=performance.now(),read=serializeStarted-readStarted;
       const text=JSON.stringify(entries);
+      const compressStarted=performance.now(),serialize=compressStarted-serializeStarted;
       const compressed=await new Response(new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
-      const bytes=new Uint8Array(compressed);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary)
+      const bytes=new Uint8Array(compressed);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return{encoded:btoa(binary),read,serialize,compress:performance.now()-compressStarted}
     })()`);
-    const entries = JSON.parse(gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8')) as ProbeEntry[]; stageMs.styleRead += performance.now() - styleStarted;
+    const decodeStarted = performance.now();
+    const entries = JSON.parse(gunzipSync(Buffer.from(payload.encoded, 'base64')).toString('utf8')) as ProbeEntry[];
+    styleReadParts.read += payload.read; styleReadParts.serialize += payload.serialize; styleReadParts.compress += payload.compress;
+    styleReadParts.decode += performance.now() - decodeStarted;
+    stageMs.styleRead += performance.now() - styleStarted;
     states.push({ trigger, state, entries });
   };
   if (probeStates) await clear();
@@ -398,7 +408,7 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
   return { states, interactiveElements, forceCalls, statesChecked: probeStates ? stateNames.length : 0, durationMs: performance.now() - startedAt, cdpRoundTrips, stageMs };
   } finally {
     recordCheckDiagnostic({ kind: 'dynamic-probe', mode: probeStates ? 'states' : 'static', ...options.diagnostic, startedAt: wallStartedAt, endedAt: Date.now(),
-      durationMs: performance.now() - startedAt, interactiveElements, forceCalls, cdpRoundTrips, stageMs, completed });
+      durationMs: performance.now() - startedAt, interactiveElements, forceCalls, cdpRoundTrips, stageMs, styleReadParts, completed });
   }
 }
 

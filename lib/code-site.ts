@@ -2,8 +2,9 @@ import type { CodeFactReview, CodeFactCitation, CodeFactSource } from './code-si
 import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import { z } from 'zod';
-import { systemIconSvg, systemIconLicense } from './code-site-icons.ts';
+import { systemIconLicense } from './code-site-icons.ts';
 import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
+import { mapSiteCodeCss, renderCodeFragment, siteCodeResources } from './code-site-dom.ts';
 
 export const codeSiteSchema = z.object({
   header: z.string().max(30000), footer: z.string().max(30000), css: z.string().max(100000),
@@ -179,28 +180,45 @@ export function explicitEnglishCompanyName(materials: string): string | null {
 }
 
 // Model links use /<page id>. The system alone resolves them to a versioned preview URL.
+export type SiteCodeRenderOptions = {
+  language?: 'zh' | 'en'; languageLinks?: { zh: string; en: string };
+  pageHref?: (pageId: string, hash: string) => string;
+  assetUrl?: (url: string) => string;
+  stylesheetHref?: string;
+};
+
+// The same model and system CSS is either inlined for serving or written once
+// to the package's stylesheet. Export never keeps an inline duplicate.
+export function renderSiteCodeCss(code: SiteCode, assetUrl?: (url: string) => string) {
+  const resources = siteCodeResources(code);
+  const backdropCss = Object.entries(systemBackdrops).filter(([id]) => resources.backdropIds.includes(id)).map(([id, entry]) => {
+    const selector = `[data-system-backdrop="${id}"]`;
+    const asset = (url: string) => assetUrl?.(url) ?? url;
+    return `${selector}{background-image:url("${asset(entry.urls[1440])}")!important}@media(max-width:1023px){${selector}{background-image:url("${asset(entry.urls[768])}")!important}}@media(max-width:479px){${selector}{background-image:url("${asset(entry.urls[375])}")!important}}`;
+  }).join('\n');
+  const css = assetUrl ? mapSiteCodeCss(code.css, assetUrl) : code.css;
+  return `${css}\n${backdropCss}\n.sc-language-links{display:flex!important;position:static!important;flex-wrap:wrap;justify-content:flex-end;gap:12px;padding:8px 24px;background:#fff;color:#222;font:14px/1.5 sans-serif}.sc-language-links a{display:inline-block!important;position:static!important;color:#222!important;padding:10px;text-decoration:underline}.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere}`;
+}
 export function renderSiteCode(siteId: string, code: SiteCode, pageId: string, versionId = '', imageCredits: string[] = [], basePath?: string,
-  options: { language?: 'zh' | 'en'; languageLinks?: { zh: string; en: string } } = {}) {
+  options: SiteCodeRenderOptions = {}) {
   const page = code.pages.find(p => p.id === pageId);
   if (!page) throw new Error('找不到这个页面');
   const prefix = basePath ?? `/api/sites/${encodeURIComponent(siteId)}/code-preview`;
   const en = options.language === 'en';
-  let usesIcons = false;
-  const links = (html: string) => html.replace(/href="\/([a-z][a-z0-9-]*)(#[^"]*)?"/g, (all, id: string, hash = '') => code.pages.some(p => p.id === id)
-    ? `href="${prefix}?page=${id}${versionId ? `&amp;version=${encodeURIComponent(versionId)}` : ''}${en && !basePath ? '&amp;language=en' : ''}${hash}"` : all)
-    .replace(/<img\b([^>]*?)data-image-id="(img_[a-z0-9]{16,40})"([^>]*)>/g, (_all, before: string, id: string, after: string) => `<img${before}data-image-id="${id}"${after} src="/api/sites/${encodeURIComponent(siteId)}/images/${id}">`)
-    .replace(/<span\b([^>]*?)data-system-icon="([^"]*)"([^>]*)><\/span>/g, (_all, before: string, name: string, after: string) => {
-      usesIcons = true;
-      return `<span${before}${after}>${systemIconSvg(name)}</span>`;
-    })
-  const source = code.css + code.header + code.footer + code.pages.map(p => p.html).join('');
-  const usedBackdrops = Object.entries(systemBackdrops).filter(([id, entry]) => source.includes(`data-system-backdrop="${id}"`) || Object.values(entry.urls).some(url => source.includes(url)));
-  const backdropCss = usedBackdrops.map(([id, entry]) => {
-    const selector = `[data-system-backdrop="${id}"]`;
-    return `${selector}{background-image:url("${entry.urls[1440]}")!important}@media(max-width:1023px){${selector}{background-image:url("${entry.urls[768]}")!important}}@media(max-width:479px){${selector}{background-image:url("${entry.urls[375]}")!important}}`;
-  }).join('\n');
-  const allCredits = [...imageCredits, ...(usedBackdrops.length ? [en ? 'Abstract backdrops generated offline; Shader Effects Inc., shaders 4.0.4, MIT. Not product, equipment, or facility photographs.' : '抽象底图：系统离线生成；Shader Effects Inc.，shaders 4.0.4，MIT。不是产品、设备或现场照片。'] : [])];
+  const resources = siteCodeResources(code);
+  const currentResources = siteCodeResources({ ...code, pages: [page] });
+  const usesIcons = currentResources.usesIcons;
+  const links = (html: string) => renderCodeFragment(html, {
+    pageHref: (id, hash) => code.pages.some(p => p.id === id)
+      ? options.pageHref?.(id, hash) ?? `${prefix}?page=${id}${versionId ? `&version=${encodeURIComponent(versionId)}` : ''}${en && !basePath ? '&language=en' : ''}${hash}` : undefined,
+    imageUrl: id => options.assetUrl?.(`/api/sites/${encodeURIComponent(siteId)}/images/${id}`) ?? `/api/sites/${encodeURIComponent(siteId)}/images/${id}`,
+    assetUrl: options.assetUrl,
+  });
+  const allCredits = [...imageCredits, ...(resources.backdropUrls.length ? [en ? 'Abstract backdrops generated offline; Shader Effects Inc., shaders 4.0.4, MIT. Not product, equipment, or facility photographs.' : '抽象底图：系统离线生成；Shader Effects Inc.，shaders 4.0.4，MIT。不是产品、设备或现场照片。'] : [])];
   const credits = allCredits.length ? `<details class="sc-image-credits"><summary>${en ? 'Image sources and licenses' : '图片来源与许可'}</summary>${[...new Set(allCredits)].map(credit => `<p>${escapeCodeText(en && credit === '用户提供；仅当前站点使用' ? 'User supplied; for this site only' : credit)}</p>`).join('')}</details>` : '';
   const languages = options.languageLinks ? `<nav class="sc-language-links" aria-label="${en ? 'Language' : '语言'}"><a lang="zh-CN" href="${escapeCodeText(options.languageLinks.zh)}"${!en ? ' aria-current="page"' : ''}>中文</a><a lang="en" href="${escapeCodeText(options.languageLinks.en)}"${en ? ' aria-current="page"' : ''}>English</a></nav>` : '';
-  return `<!doctype html><html lang="${en ? 'en' : 'zh-CN'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'none'; base-uri 'none'; script-src 'none'"><title>${escapeCodeText(page.title)}</title><style>${code.css}</style><style>${backdropCss}.sc-language-links{display:flex!important;position:static!important;flex-wrap:wrap;justify-content:flex-end;gap:12px;padding:8px 24px;background:#fff;color:#222;font:14px/1.5 sans-serif}.sc-language-links a{display:inline-block!important;position:static!important;color:#222!important;padding:10px;text-decoration:underline}.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere}</style></head><body>${links(code.header)}${languages}${links(page.html)}${links(code.footer)}${credits}${usesIcons ? systemIconLicense : ''}${usedBackdrops.length ? systemBackdropLicense : ''}</body></html>`;
+  const stylesheet = options.stylesheetHref ? `<link rel="stylesheet" href="${escapeCodeText(options.stylesheetHref)}">` : `<style>${renderSiteCodeCss(code, options.assetUrl)}</style>`;
+  const styleSources = options.stylesheetHref ? "'self' 'unsafe-inline'" : "'unsafe-inline'";
+  const rendered = `<!doctype html><html lang="${en ? 'en' : 'zh-CN'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${styleSources}; img-src 'self'; form-action 'none'; base-uri 'none'; script-src 'none'"><title>${escapeCodeText(page.title)}</title>${stylesheet}</head><body>${links(code.header)}${languages}${links(page.html)}${links(code.footer)}${credits}${usesIcons ? systemIconLicense : ''}${resources.backdropUrls.length ? systemBackdropLicense : ''}</body></html>`;
+  return rendered;
 }

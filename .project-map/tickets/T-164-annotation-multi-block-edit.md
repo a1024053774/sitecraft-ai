@@ -100,13 +100,19 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 新 CSSOM 入口测试在父行为上有效红 0/11（dynamic-gate-parent-red-fixture-fixed.log）：无动态规则仍实际发出 72 次强制，其余动态条件缺模式证据。为独立证明“不漏动态规则”，故意令 CSSOM 分类恒为 false 的 mutant 只通过静态两项、9 项按实际强制次数为 0 失败（dynamic-gate-missed-rules-mutant.log），已恢复。优化后合计 T-164 41/41（dynamic-gate-array-focused.log），含完整探测结果对照和静态 :has(a) 外溢拒绝。T-169 两项受控延迟先红（t169-readiness-red-gated-node.log：导航提前返回、scrollIntoView 空节点），修后该文件 9/9（t169-readiness-green.log）。标准入口回归 4/4（dynamic-gate-runner.log）。首个门禁夹具缺本地替身的设置失败日志 dynamic-gate-parent-red.log、首个载入夹具被生成页 CSP 阻断后终止的 t169-readiness-red.log 均保留，不计为业务红证据。
 
+继续定位：array 版真实测量再次超时，原日志 real-homepage-gate-array-timing.log 及 real-homepage-gate-1792118189291-93329/partial.json 保留。未改产品上限的无上限诊断仅用于测量（style-parts-uncapped-diagnostic.log、real-homepage-gate-1792118565645-97588/）：每侧实际读取约 1.76–2.00 秒，序列化约 6–9ms、压缩约 42–61ms、解码约 21–33ms，瓶颈仍为读取。Typed OM 迭代实验更慢，未采用；压缩也不是主因，不引入新编码分支。
+
+未保留的实验：命名 getter 在小实验有少量收益，但引入固定读取函数与额外一致性分支，最终仍使用原生 getPropertyValue；Typed OM 迭代更慢，也未采用。完整作者匹配关系与范围外实际伪类状态相同才复用快照的试验，在两站 30 次完整检查中实际复用次数全部为 0；单档最大 4.462 秒、三档最大 10.143 秒虽均达标，但没有减少指定真实样本的读取工作量，因此已撤回该路径及其专用计数断言。最终没有匹配关系缓存、CSS 函数白名单或状态／元素／视口裁剪；有任一动态规则始终逐态完整读取。
+
+实验失败证据保留：author-relations-parent-red.log、author-relations-unsafe-mutant.log、author-relations-empty-match-mutant.log、author-relations-scope-red.log、author-relations-final-unsafe-mutant.log（14 项按实际调用或 applied/rejected 断言失败）、author-relations-final-empty-mutant.log（第二个区块内触发元素漏检）均不删除。列表特异性、:scope、嵌套、伪元素以及第二个内部触发元素的 5 个业务坏例留在最终提交入口测试中，防止未来优化重犯；仅与已撤回路径绑定的读取次数断言一并移除。无动态规则的正反例继续对照实际强制四态的完整探针。auto 内容可见性夹具首次未通过源版本检查，日志 author-relations-ua-focused.log（56/57）保留，不算业务红证据；修为未使用的合法声明后实验验证 57/57，最终收窄后 46/46（cssom-final-focused.log）。
+
 第八轮增量：出处清理改用全部 localTargets 的并集，逐个过滤旧定位，保留并集外定位，再由新核对内容重新绑定；不再依赖首个新段落。组装阶段只捕获 CodeRepairError，其他异常原样终止任务，不转成组内修正意见。
 
 新增三项真实 chat 入口回归先在 `3e192f9` 失败（`artifacts/t164/review-eight-parent-red.log`）：保留 18/19 点两处事实被报重复；删除第二处后旧 19 点出处仍存在；一次真实浏览器工厂读取不到 CHROME_PATH 后任务错误完成、局部写作 4 次并存第二版。红产物 `artifacts/t164/review-seven-1792114756066-40622/evidence.json` 保留。修复后同一入口与 T-164/T-169 聚焦 28/28 通过（`review-eight-focused.log`），Chrome 故障时明确 error、仍仅 2 次局部写作、仅原一版、repairRound=0、attempts=[]；绿色产物 `artifacts/t164/review-seven-1792114828662-41799/evidence.json` 保留。保留两处时第一处换了段落包装，断言新定位为 [0,1,0]；删除第二处时断言 19 点原文和 [1,1] 旧定位同时消失。
 
 第八轮验证对应实现 `449f16f`：`npm run typecheck` 通过；标准入口回归 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4 通过（`artifacts/t164/review-eight-runner.log`）；定向 28/28 通过；`SITE_STORE=fs npm run build` 于 2026-10-16T01:56:43.081930+00:00 通过（`artifacts/t164/review-eight-build.log`）。
 
-全量 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 于 2026-10-16T01:53:29.119Z 以 585/588 结束，3 项失败，当前完整验收为 **INCOMPLETE**。原始日志 `artifacts/t164/review-eight-full.log`、报告／数据根路径 `artifacts/t167/test-run-1792115159735-46784` 保留；没有重跑、跳过用例或放宽上限。
+全量 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 于 2026-10-16T01:53:29.119Z 以 585/588 结束，3 项失败，该轮完整验收为 **INCOMPLETE**。原始日志 `artifacts/t164/review-eight-full.log`、报告／数据根路径 `artifacts/t167/test-run-1792115159735-46784` 保留；没有重跑、跳过用例或放宽上限。
 
 - `tests/t162-mobile-reveal.test.ts:92`：1440/768 线程回看用例在局部任务完成断言失败。站点 `cec33f27-481f-489e-bc4a-ebdc16229561` 的任务记录明确为“局部动态状态检查超时，本次未保存版本”，selectedTarget 为单区块、没有 annotationBatch；错误发生在本轮未修改的 5 秒动态检查中。失败截图已打开查看，存于 `artifacts/t162/self-contained-1792115329171-51493/mobile-journey-failure-1440-cec33f27-481f-489e-bc4a-ebdc16229561.png`。该 helper 的现有 timings 记录 load 30.5–38.5，仅作运行上下文，不据此认定根因。
 - `tests/t169-citations-browser.test.ts:91`：生成已完成，发布页等待 `main h1` 时 Runtime.evaluate 30 秒超时。
