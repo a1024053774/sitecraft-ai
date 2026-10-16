@@ -35,11 +35,28 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 - [x] 负责人确认合同与用量上限的记录写进本票
 - [x] 坏例测试：合法两处修改通过；共享 CSS 外溢被拒；重叠目标按确认处理；任一组失败不产生新版本；先在父版本或 mutant 上失败
 - [ ] 真实 chat 入口跑一次多区块修改，用量写进 Resolution；修改结果由独立盲评实例对比原版和修改版
-- [ ] Astra 审查通过；typecheck、test、build 通过
+- [x] Astra 审查通过；typecheck、test、build 通过（独立 sol 与主控 9ecfbfc 全量，见下）
 
 ## Resolution
 
-本轮整体状态 **INCOMPLETE**：两个新 P1 已取得先红后绿的生产入口证据，60 项定向通过；唯一一次全量为 636/639，保留三项失败，不以定向通过代替全量通过。未启动第二轮全量。
+2026-10-16 主控验收补记：新的独立 sol 实例复审 `2007923..9ecfbfc` 为 **PASS**，确认三项 P1 均已堵住且修复互不冲突。主控在 `9ecfbfc` 上于 06:44–06:51 EDT（10:44–10:51Z）串行运行标准全量，**639/639、0 失败、0 取消、0 跳过**，期间负载 15–27；已核对日志 `artifacts/t164/supervisor-full-9ecfbfc.log` 与报告 `artifacts/t167/test-run-1792147475075-79951/report.json`（结束 10:51:30.907Z）。此前本实例全量的三项失败证据保留，不能用补测覆盖。
+
+2026-10-16 余量真实运行结果 **INCOMPLETE**（产品提交 `9ecfbfcabe533a6070b057734c53ae183f5c3c89`）：第一组首个写作调用即截断，生产 chat 返回 202，真实 Next after 执行的任务 `030124e2-3709-443f-bd7a-810ba13b2e54` 终态 error，提示“DeepSeek 回答被截断，本次未保存版本。”没有完整候选（answerChars=0、attempts=0），未进入事实核对或存版。按负责人停止条件立即停止，没有重跑、换意见或发送第二组。新账本显式 `SITECRAFT_TOKEN_LIMIT=62671`，从 0 结算本次唯一请求，累计实付 **9766 token**，余额 **52905**；旧账本 17329 不重复计入本轮。网关在任务终态且零 in-flight 后于约 11:03:04Z 手动 SIGINT 停止，截图结束后于约 11:09:59Z 停止独立应用，闭合日志见 private/。
+
+| 组合 | 执行时间（UTC）与范围 | 调用 / 实付 token | 存版与结果 |
+| --- | --- | --- | --- |
+| 第一组 | 11:01:21.651–11:01:53.071；首页 [2] 营业时段与 [5] 收费口径，沿用上次两条原文，含“外带包装费现在确定为每单2元。” | 1 / 9766 | 未存版；仍为 v1 `60cde704-7364-461c-a236-9af8933c5b4c`；finish_reason=length |
+| 第二组 | 首页 [4] 用餐场景与菜单页 [3] 午市组合；沿用原定原文 | 0 / 0 | NOT_RUN；第一组未存版，未发送，无第二组版本 |
+
+唯一上游调用于 11:01:22.895Z 开始，应用记录耗时 28651ms、HTTP 200，usage 为输入 3621、输出 6145、合计 9766，reasoning_tokens=6145；网关账本记录 outputLimit=6144、inputUpper=9566、reserved=15710，finishReason=length，调用状态 complete、stopped=true。不能把 HTTP 200 当作写作成功；这次是输出截断，未用完 62671 的总额度。完整 usage 在 `artifacts/t164/blind-20261016T105505Z/private/budget/usage.json`，真实请求、任务、版本及停止核查分别在 `first-request.json`、`first-state.json`、`results.json`、`outcome.json`，失败断言日志 `first.log` 原样保留。
+
+底稿及对应会话只读复制到新 `mktemp -d /tmp/sitecraft-t164-remainder.XXXXXX` 所得 `/tmp/sitecraft-t164-remainder.CSh6rZ`，没有复用上次临时根。siteId 仍为 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b`，conversationId 为 `b4f70578-92fa-4ec4-b15d-b6b87fe5a036`；源与复制路径见 `private/copied-files.json`。收尾只读核对主目录站点仍为原 v1、updatedAt 未变，站点与会话文件 mtime 均仍为 2026-10-12；没有写入主目录数据。临时根仅更新来源登记、批注及失败任务；v1 检查与版本未回写。工作台三档均读取 v1，出处状态为“未提供可引用的原句”，没有新事实存版出处，**本次不能证明“原始资料”或“你的第 N 条消息”的真实存版显示**。
+
+复现命令均在本工作树执行，完整脚本保存在本次 private/，只记录此次执行，不授权再次发送：先 `node artifacts/t164/blind-20261016T105505Z/private/start-app.mjs` 启动随机端口 Next dev（NODE_ENV=test、SITE_STORE=fs、新临时数据根），核对 health 的 cwd/dataRoot；随后仅在网关进程执行 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a; SITECRAFT_TOKEN_LIMIT=62671 node artifacts/t164/blind-20261016T105505Z/private/start-gateway.mjs`。应用只有本地网关地址和占位 key，未载入密钥文件；网关使用标准 `scripts/t153-real-budget.ts`、新账本，无 resume，现有 t164 白名单未改。设置规定的 CHROME_PATH 后先运行 `node --experimental-strip-types artifacts/t164/blind-20261016T105505Z/private/run-real.ts prepare`，再唯一一次运行同脚本的 `first`；没有执行 `second`。实际 POST 为生产 `/api/sites/<siteId>/chat` 的 annotationBatch，未替换 after 或模型。跑前已 df/ps 检查：11:01:20Z 可用约 6.3GiB，无其他 chrome-headless-shell／node --test／next build；Chrome 目标读取完成后关闭，再发模型请求，两者串行。网关手停后仅运行 `CHROME_PATH=上述规定路径 node --experimental-strip-types artifacts/t164/blind-20261016T105505Z/private/capture-stopped.ts` 采图，不再发模型请求。
+
+证据目录 `artifacts/t164/blind-20261016T105505Z/`：review/ 只含随机匿名字母的一套 v1 图片（两页三档全图、两处批注及两页范围外近景，共 18 张）、两组原批注与中性阅读说明；没有修改版或第二组图片，**不具备成对盲评条件**。private/ 保存映射、账本、请求/任务/版本、日志及 6 张工作台诊断图。24 张截图已逐张打开，清单 `private/screenshot-views.json`；原版静态页均已载入，工作台切换中间态单列诊断、不作最终界面验收。没有复制同图冒充修改版，没有自做盲评或审美结论。本轮只更新本票证据，不改产品、上限或测试；不以再跑全量覆盖历史失败。T-164 保持 open，真实存版与独立盲评仍未完成。
+
+前轮本实例离线验证曾为 **INCOMPLETE**：两个新 P1 已取得先红后绿的生产入口证据，60 项定向通过；当轮唯一一次全量为 636/639，保留三项失败，不以定向通过代替全量通过。后续独立复审与主控串行全量结果见本节开头，原失败证据不覆盖。
 
 本轮 127 张原始截图（定向 13、全量 114）已逐张打开，清单 `artifacts/t164/original-source-lifecycle-screenshot-views.json`；其中两张载入态单列为诊断，排除最终预览验收，不重拍覆盖，不作审美结论。以下保留前轮记录与原始用量，前轮通过不替代本轮全量结果。
 
