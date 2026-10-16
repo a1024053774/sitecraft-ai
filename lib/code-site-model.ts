@@ -183,7 +183,7 @@ export async function writeSiteCode(args: { materials: string; preferences: Code
   return { code: codeSiteSchema.parse(result.data), model: result.model };
 }
 export async function writeLocalEdit(args: { materials: string; preferences: CodePreferences; plan: CodePlan; request: string;
-  current: SiteCode; target: AnnotationTarget; issues: string[] }) {
+  current: SiteCode; target: AnnotationTarget; issues: string[]; edits?: LocalEditGroup['items'] }) {
   const context = await localEditContext(args.current, args.target);
   const [contract, style] = await Promise.all([
     readFile(path.join(process.cwd(), 'skills/site-code-core/LOCAL-EDIT.md'), 'utf8'),
@@ -193,8 +193,16 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
   const result = await modelJson('local-edit', `${contract}\n风格要点：${stylePoints}\n${codeSliderRules(args.preferences)}`,
     JSON.stringify({ request: args.request, materials: args.materials, page: args.plan.pages.find(page => page.id === args.target.pageId),
       scope: context.scope, html: context.html, css: context.css, issues: args.issues,
-      ...(args.target.element ? { pointedElement: args.target.element } : {}),
-      ...(args.target.elements ? { pointedElements: args.target.elements } : {}) }), 6144);
+      ...(args.edits ? { edits: args.edits.map(item => {
+        const prefix = item.target.path.slice(args.target.path.length);
+        const rebase = (hint: NonNullable<AnnotationTarget['element']>) => ({ ...hint, path: [...prefix, ...hint.path] });
+        return { draftId: item.draftId, request: item.body,
+          ...(item.target.element ? { pointedElement: rebase(item.target.element) } : {}),
+          ...(item.target.elements ? { pointedElements: item.target.elements.map(rebase) } : {}) };
+      }) } : {
+        ...(args.target.element ? { pointedElement: args.target.element } : {}),
+        ...(args.target.elements ? { pointedElements: args.target.elements } : {}),
+      }) }), 6144);
   return { response: result.data, model: result.model };
 }
 export async function writeLocalEditBatch(args: { materials: string; preferences: CodePreferences; plan: CodePlan; current: SiteCode;
@@ -204,8 +212,8 @@ export async function writeLocalEditBatch(args: { materials: string; preferences
     // Admission is checked for every group immediately before its model call;
     // a later group must not rely on an earlier task-level check.
     requireModelTaskAdmission(args.plan.style);
-    const result = await writeLocalEdit({ materials: args.materials, preferences: args.preferences, plan: args.plan,
-      request: group.request, current: args.current, target: group.target, issues: args.groupIssues?.[results.length] ?? args.issues });
+    const result = await writeLocalEdit({ materials: `${args.materials}\n本组批注原文：\n${group.items.map(item => item.body).join('\n\n')}`, preferences: args.preferences, plan: args.plan,
+      request: group.request, current: args.current, target: group.target, edits: group.items, issues: args.groupIssues?.[results.length] ?? args.issues });
     results.push({ group, response: result.response, model: result.model });
   }
   return results;

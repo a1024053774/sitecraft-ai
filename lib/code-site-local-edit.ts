@@ -112,11 +112,11 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
     if (!live) throw new Error('预览区块无法定位，请重新点选。');
     const related = (items: CSSRule[]): string => items.map(rule => {
       if (rule instanceof CSSStyleRule) {
-        try {
-          const selector = rule.selectorText.replace(/::[\w-]+(?:\([^)]*\))?/g, '').replace(/:(hover|active|focus(?:-visible|-within)?|visited)(?![\w-])/gi, '');
-          const nodes = [...document.querySelectorAll(selector)];
-          return nodes.some(el => live!.contains(el) || el.contains(live!)) ? rule.cssText : '';
-        } catch { throw new Error('相关 CSS 无法定位，请改整页。'); }
+        // Dynamic selectors and generated boxes cannot be ruled out by a
+        // baseline match. Keep their parsed rule intact, including :has().
+        if (rule.selectorText.includes(':')) return rule.cssText;
+        const nodes = [...document.querySelectorAll(rule.selectorText)];
+        return nodes.some(el => live!.contains(el) || el.contains(live!)) ? rule.cssText : '';
       }
       if (rule instanceof CSSMediaRule || rule instanceof CSSSupportsRule || rule instanceof CSSContainerRule) {
         const inside = related([...rule.cssRules]);
@@ -199,7 +199,7 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
 }
 
 type ProbeBrowser = { send<T = Record<string, unknown>>(method: string, params?: Record<string, unknown>): Promise<T>; evaluate<T>(expression: string): Promise<T> };
-type ProbeEntry = { path: number[]; styles: Array<[string, string]> };
+type ProbeEntry = { path: number[]; pseudo: string; present: boolean; styles: Array<[string, string]> };
 type ProbeState = { trigger: number[] | null; state: string; entries: ProbeEntry[] };
 export type DynamicStateProbe = {
   states: ProbeState[];
@@ -233,9 +233,9 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const ids=new Map(all.map((el,index)=>[el,String(index)]));
     const hidden=(el)=>{if(el.matches(':disabled,[inert],[hidden]'))return true;for(let p=el.parentElement;p;p=p.parentElement)if(p.matches('[inert],[hidden]'))return true;const r=el.getBoundingClientRect();return !(r.width>0&&r.height>0&&el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))};
     const interactive=all.filter(el=>el!==document.documentElement&&el!==document.head&&el!==document.body&&!hidden(el)).filter(el=>{try{el.focus({preventScroll:true});const ok=document.activeElement===el;el.blur();return ok}catch{return false}}).map(el=>({id:ids.get(el),path:pathOf(el),ancestors:[...(()=>{const a=[];for(let p=el.parentElement;p;p=p.parentElement)a.push(ids.get(p));return a})()]}));
-    const outside=all.filter(el=>!roots.some(root=>root===el||root.contains(el)||el.contains(root))).map(el=>{const s=getComputedStyle(el);return {id:ids.get(el),path:pathOf(el),names:[...s].sort()}});
+    const outside=all.filter(el=>!roots.some(root=>root===el||root.contains(el))).map(el=>({node:el,path:pathOf(el),ancestor:roots.some(root=>el.contains(root)),baselines:new Map()}));
     for(const el of all)el.setAttribute('data-cdp-probe',ids.get(el));
-    window.__sitecraftCdpProbeOutside = outside;
+    window.__sitecraftCdpProbeOutside = {items:outside,properties:[...getComputedStyle(document.documentElement)].filter(name=>!name.startsWith('--'))};
     return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),interactive};
   })()`);
   stageMs.focus += performance.now() - focusStarted;
@@ -276,7 +276,49 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     forceCalls += add.length;
   };
   const capture = async (trigger: number[] | null, state: string) => {
-    checkTime(); const styleStarted = performance.now(); const encoded = await evaluate<string>(`(async()=>{const text=JSON.stringify((()=>{const outside=window.__sitecraftCdpProbeOutside||[],nodes=new Map([...document.querySelectorAll('[data-cdp-probe]')].map(el=>[el.getAttribute('data-cdp-probe'),el]));return outside.map(({id,path,names})=>{const s=getComputedStyle(nodes.get(id)),allNames=[...new Set([...names,...s])].sort();return {path,styles:allNames.map(name=>[name,s[name]])}})})());const compressed=await new Response(new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();const bytes=new Uint8Array(compressed);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary)})()`); const entries = JSON.parse(gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8')) as ProbeEntry[]; stageMs.styleRead += performance.now() - styleStarted;
+    checkTime(); const styleStarted = performance.now();
+    const encoded = await evaluate<string>(`(async()=>{
+      const entries=[];
+      const snapshot=window.__sitecraftCdpProbeOutside;
+      for(const item of snapshot.items)for(const pseudo of ['', '::before', '::after', '::marker', '::first-line', '::first-letter']){
+        const style=getComputedStyle(item.node,pseudo||null),baseline=item.baselines.get(pseudo);
+        const present=!pseudo||(pseudo==='::before'||pseudo==='::after'
+          ?style.content!=='none'&&style.content!=='normal'&&style.display!=='none'
+          :pseudo==='::marker'?getComputedStyle(item.node).display.includes('list-item'):true);
+        // Check generated-box presence in every state; existing boxes retain
+        // their complete style. First-line/letter fragments are always read:
+        // generated text can create them without a DOM text node.
+        if(!present){
+          if(!baseline||baseline.present)entries.push({path:item.path,pseudo,present:false,styles:[]});
+          if(!baseline)item.baselines.set(pseudo,{present:false,values:new Map()});
+          continue;
+        }
+        // CSSOM lists the fixed supported longhands first, then live custom
+        // properties. Cache only the browser's standard names; read the whole
+        // custom-property suffix on every state, including same-count changes.
+        const length=style.length;
+        if(length<snapshot.properties.length)throw new Error('完整计算样式属性集合不完整，本次未保存版本。');
+        const custom=[];for(let i=snapshot.properties.length;i<length;i++)custom.push(style[i]);
+        const names=custom.length?snapshot.properties.concat(custom):snapshot.properties,values=baseline?.values,changed=new Map();
+        // Ancestors retain every computed property, including auto sizes and
+        // percentages. Resolved layout pixels would instead reject normal
+        // content growth inside the allowed block. No property is excluded.
+        const computed=!pseudo&&item.ancestor?item.node.computedStyleMap():null;
+        // Read every current property, including custom properties that exist
+        // only in this state. Only duplicate baseline entries are omitted from
+        // transport; the reachable collection still contains that baseline.
+        for(const name of names){const value=computed?computed.getAll(name).map(value=>value.toString()).join(', '):style.getPropertyValue(name);if(!values||values.get(name)!==value)changed.set(name,value)}
+        if(!baseline||!baseline.present||changed.size||names.length!==values.size){
+          const styles=names.map(name=>[name,changed.has(name)?changed.get(name):values.get(name)]).sort((a,b)=>a[0].localeCompare(b[0]));
+          if(!baseline)item.baselines.set(pseudo,{present:true,values:new Map(styles)});
+          entries.push({path:item.path,pseudo,present:true,styles});
+        }
+      }
+      const text=JSON.stringify(entries);
+      const compressed=await new Response(new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+      const bytes=new Uint8Array(compressed);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary)
+    })()`);
+    const entries = JSON.parse(gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8')) as ProbeEntry[]; stageMs.styleRead += performance.now() - styleStarted;
     states.push({ trigger, state, entries });
   };
   await clear(); await evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');

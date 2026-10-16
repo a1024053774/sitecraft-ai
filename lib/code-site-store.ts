@@ -103,7 +103,7 @@ export async function nameCodeVersion(siteId: string, versionId: string, name: s
 }
 type CodeCommit = {
   siteId: string; baseRevision: number; code?: SiteCode; selectedTarget?: AnnotationTarget; selectedTargets?: AnnotationTarget[]; pageId?: string; restoreVersionId?: string; englishCode?: SiteCode;
-  author: 'assistant' | 'user'; summary: string; request: string; model?: string; source?: CodeFactSource; dynamicStateBudgetMs?: number;
+  author: 'assistant' | 'user'; summary: string; request: string; model?: string; source?: CodeFactSource | CodeFactSource[]; dynamicStateBudgetMs?: number;
 };
 type CodeCommitResult = { status: 'conflict'; site: CodeSiteRecord }
   | { status: 'rejected'; site: CodeSiteRecord; code: SiteCode; checks: CodeCheck }

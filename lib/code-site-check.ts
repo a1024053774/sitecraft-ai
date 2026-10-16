@@ -521,7 +521,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           const sourceReachable = new Set(evidence[0].states.flatMap(state => state.entries.map(entry => JSON.stringify(entry))));
           const reported = new Set<string>();
           for (const state of evidence[1].states) for (const entry of state.entries) if (!sourceReachable.has(JSON.stringify(entry))) {
-            const issue = `修改越界：${page.id}/${width} 状态 ${state.state} 触发路径 ${JSON.stringify(state.trigger)} 改变范围外元素路径 ${JSON.stringify(entry.path)} 的完整计算样式`;
+            const issue = `修改越界：${page.id}/${width} 状态 ${state.state} 触发路径 ${JSON.stringify(state.trigger)} 改变范围外元素路径 ${JSON.stringify(entry.path)}${entry.pseudo} 的完整计算样式`;
             if (!reported.has(issue)) { reported.add(issue); checks.issues.push(issue); }
           }
           if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。');

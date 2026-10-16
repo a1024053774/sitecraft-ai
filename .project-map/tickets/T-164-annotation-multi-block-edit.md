@@ -76,31 +76,16 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 本次性能修复（最终代码 `3014593`）：诊断确认样式读取占主要耗时（拾色 7 元素单探针约 1.9 秒，force 约 40ms，聚焦约 25ms，169 次 CDP 往返）；页面内缓存范围外元数据，批量读取完整计算样式后 gzip 序列化传输，源/候选在独立 CDP target 并行探测，比较仍使用完整 `DOM 路径 × 计算样式` 集合。最终并行实测两站三档均通过 2 秒：禾巷小馆 1.78/1.73/1.70 秒，拾色绘画教室 1.35/1.26/1.24 秒；每档记录 interactiveElements、forceCalls、cdpRoundTrips、focus/force/styleRead/compare 分段及 extras=0。
 
-2026-10-16 本轮修复（实现 `258fb02`，追加正常提交，已合并 `family-kit-assembly`）：
+2026-10-16 第七轮修复（父版本 `7fde85b`，正常追加提交）：
 
-- 动态探针与样式比较合计每档最多 5 秒、375/768/1440 三档最多 15 秒，超时明确拒绝且不存版本。原因：独立复测禾巷小馆 1440 档曾用 2.63 秒，暖运行约 1.60–1.70 秒，原 2 秒预算在抖动下会间歇误拒。固定四状态、逐元素、祖先传播、三个视口和完整样式集合比较保持。
-- 已确认的检查边界：中等页面为不超过 250 个 DOM 元素、40 个可交互元素；不覆盖多个元素同时处于不同状态、跨元素并发 hover/active、浏览器 UA 默认规则及脚本动态改变的状态。源可达集合包含无状态基线与全部触发状态，比较键只有范围外 DOM 路径与完整计算样式，不包含触发元素。
-- P1：成功分支从持久化任务重读 `annotationIds`，按每条 annotationId 写成功回复。真实 chat 测试显式核对两条独立线程、两条 draftId 映射和各自助手回复，避免空集合使循环断言失效。
-- P2：每个候选状态合并缓存与实时完整属性名集合，覆盖只在焦点状态出现的新增 CSS 自定义属性。源无链接、候选新增 `<a>`、`main:focus-within .outside{--leak:123px}` 的提交被拒且仍仅一版。
-- P1/P2 红证据：`b46134c` 上用标准 `npm test -- tests/t164-multi-block-chat.test.ts tests/t164-multi-block-edit.test.ts` 运行，18/20，通过之外的两项分别是缺成功回复和错误保存新增自定义属性；原始日志保留在 `artifacts/t164/p1p2-b46134c-red.log`（原目录 `/tmp/sitecraft-t164-p1p2-red2.KVlodV`）。修复后同一入口通过。
-- 预算测试：显式 1ms 小预算和默认 5 秒预算均覆盖超时不存版本。默认预算用提交入口在探针完成后的完整样式比较阶段推进时钟 6000ms；`6c6304a` 缺少比较结束检查时错误保存第二版，红日志 `artifacts/t164/comparison-budget-red.log`；`258fb02` 在同一截止时间再核对后 21/21 通过，绿日志 `artifacts/t164/comparison-budget-green.log`。
-- 性能根因仍是完整样式读取与序列化；已用页面内一次 Runtime.evaluate 批量读取、压缩传输及源/候选独立 CDP target 并行。未减少状态、元素、视口或属性；各阶段逐次原始数据均保留。
+- 预算保持动态探针与完整比较合计每档 5 秒、三档 15 秒，超时明确拒绝且不存版本。原 2 秒上限因禾巷 1440 曾为 2.63 秒、暖运行 1.60–1.70 秒而在抖动下误拒，负责人已选定 5/15 秒，本轮未调整。
+- 范围外纳入选中区块祖先自身；只排除选中区块及其后代。祖先全部属性采用浏览器 CSS Typed OM 的真实计算值（含 auto／百分比），因此背景、明确高度等规则变化被拒，而区块内自然增高仍可保存。未用尺寸白名单或剥规则。最初直接比较 resolved 像素值曾使两条合法正例失败，证据 `artifacts/t164/review-seven-ancestors-full.log`（21/23）保留；改用完整计算值后两项恢复通过。
+- 伪元素：`::before`、`::after` 每态检查 content/display；`::marker` 每态检查宿主的 list-item 状态。不存在时记录存在性，出现／消失也参与比较，已生成者读取全部属性。`::first-line`、`::first-letter` 始终比较完整样式，避免生成文字没有 DOM 文本却漏检排版片段。选择／高亮、文本片段目标、原生控件、滚动条伪元素需额外状态或不属于无脚本展示站合同，仍列为已知边界；多元素同时处于不同状态、跨元素并发 hover/active、UA 状态矩阵和脚本状态仍不覆盖。
+- 比较键为范围外 DOM 路径、伪元素种类、存在性与全部计算属性，不包含触发元素。每态完整读取；仅省去已在无状态基线集合中的重复条目以减少序列化。固定标准属性名按 CSSOM 枚举顺序缓存，每态重新读取完整自定义属性后缀及真实值，覆盖新增、移除、等数量替换与只改值；不缓存候选属性集合。
+- 每条批注原文在站点锁内按添加顺序登记为独立用户消息来源，分配各自序号。本组写作只追加本组原文，整批提交带全部批注原文与来源，成功版本保存事实来源快照；后续修改可继续引用本次补充。固定的“批量局部修改”不再冒充事实来源。
+- 模型输入 `edits` 按每条 draftId 传递原意见和独立元素提示；祖先／后代确认合组时，将元素路径重绑到最终组范围，不复用第一条提示。相关 CSS 的伪类／伪元素规则由 CSSOM 原样保守纳入，其他规则直接交浏览器匹配，不剥伪类字符串，`:has(:focus)` 不再导致 422。
+- 新增 `tests/t164-review-seven.test.ts` 经真实 POST chat 路由或提交入口覆盖上述问题。11 项在 `7fde85b` 全部失败（`artifacts/t164/review-seven-parent-eleven-red.log`），包含祖先背景／明确高度、五类伪元素、已有自定义属性仅改值、批注事实及后续沿用、每条元素提示、`:has(:focus)` 合法批次。原 7 项及 9 项红记录保留。一次误与 T-171 重叠启动的运行已主动中止，`review-seven-intermediate.log` 不计为验证结果。
+- `npm run typecheck` 通过；本轮中间聚焦 41/41 通过，最终 T-164 聚焦 27/27 通过（`artifacts/t164/review-seven-final-focused.log`），包含原有“合法两处修改”“无动态 CSS 新增链接”正例；未削弱原断言。
+- 新伪元素读取最初在真实两站六档触发 5 秒拒绝，日志 `review-seven-diagnostic.log`、`review-seven-optimized-diagnostic.log` 及临时根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-t164-seven-diagnostic-l60xw8u1` 保留。根因是每态经 CSSOM 索引重复枚举标准属性名；只缓存浏览器固定标准名并逐态重读全部属性值及实时自定义属性后，单次诊断禾巷 2.14–2.29 秒、拾色 1.81–1.85 秒，详见 `review-seven-cached-properties.log`。四状态、触发元素、祖先传播、伪元素及三个视口均保留。
 
-真实首页测量时间 2026-10-16T00:27:15.446Z，命令：`ROOT=/tmp/sitecraft-t164-final-parallel.jur1Jt COMMIT=258fb02 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t164/real-homepage-timing.ts`。主目录数据仅从既有只读复制根读取，没有写主数据；无 DeepSeek。`artifacts/t164/real-homepage-timing.json` 保存每站每档 5 次样本、计数、聚焦/forcePseudoState/样式读取/比较阶段；旧测量保存在 `real-homepage-timing-fbf96a1.json`。下表单位为 ms，计数是每次源/候选各自相同的值。
-
-| 首页 | 视口 | min / 中位 / max | 可交互元素 | 非空 force 次数 | CDP 往返 |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 禾巷小馆 | 375 | 2427.3 / 2444.8 / 2680.6 | 10 | 76 | 215 |
-| 禾巷小馆 | 768 | 2426.6 / 2475.4 / 2506.4 | 10 | 76 | 215 |
-| 禾巷小馆 | 1440 | 2498.6 / 2515.6 / 2533.3 | 10 | 76 | 215 |
-| 拾色绘画教室 | 375 | 1913.0 / 1932.4 / 2058.8 | 7 | 58 | 169 |
-| 拾色绘画教室 | 768 | 1898.5 / 1905.8 / 1924.2 | 7 | 58 | 169 |
-| 拾色绘画教室 | 1440 | 1918.0 / 1927.7 / 1984.8 | 7 | 58 | 169 |
-
-全部 30 次单档测量 ≤5000ms、`extras=0`。三档按样本序号合计的 min/中位/max：
-- 禾巷小馆：7412.0/7457.1/7626.3ms，全部 ≤15000ms。
-- 拾色绘画教室：5736.8/5799.3/5903.5ms，全部 ≤15000ms。
-
-验证（代码 `258fb02`，2026-10-16 UTC）：`npm run typecheck` 通过；定向入口 21/21 通过；`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4 通过（`artifacts/t164/runner-final.log`）；`CHROME_PATH=... npm test` 574/574 通过（`artifacts/t164/full-258fb02.log`、`artifacts/t167/test-run-1792110445646-65790`）；`SITE_STORE=fs npm run build` 通过（Next.js 16.3.1/Turbopack，`artifacts/t164/build-258fb02.log`）。全量前与 build 前均检查 df/ps，串行运行，无其他 chrome-headless-shell、node --test 或 next build。旧实现 `fbf96a1` 的 573/573 与 build 通过记录保留在 `artifacts/t167/test-run-1792109857522-55405`。
-
-真实 DeepSeek、页面独立盲评及独立 sol 审查不计入本轮通过项，仍由主控安排；票保持 open。本地提交不推送。
+最终两站三档每档 5 次分布、全量和 build 待本轮实现冻结后串行执行；上轮 `258fb02` 的计时及 574/574、build 通过仅作旧基线，不能作为本轮已验证结果。真实 DeepSeek、独立盲评和独立 sol 审查仍由主控安排，票保持 open；本地提交不推送。

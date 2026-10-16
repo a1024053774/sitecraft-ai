@@ -53,7 +53,7 @@ async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
     return { run: { ...site.run, ...patch, ...(codeModelCalls.getStore() ? { modelCalls: codeModelCalls.getStore() } : {}), updatedAt: new Date().toISOString() } };
   });
 }
-async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: { selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationSubmissionId?: string; annotationBatch?: AnnotationBatchItem[]; annotationOverlapConfirmed?: boolean; source?: CodeFactSource } = {}) {
+async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: { selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationSubmissionId?: string; annotationBatch?: AnnotationBatchItem[]; annotationOverlapConfirmed?: boolean; source?: CodeRun['source'] } = {}) {
   return updateCodeSite(siteId, site => {
     if (edit.annotationSubmissionId && site.runs.some(run => run.annotationSubmissionId === edit.annotationSubmissionId))
       throw new CodeRunConflictError('这条批注已发送，请查看原任务状态。');
@@ -69,18 +69,17 @@ async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, 
 function sourceKey(source: CodeFactSource) {
   return source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`;
 }
-async function registerUserSource(siteId: string, input: { message?: string; source?: Extract<CodeFactSource, { type: 'upload' }> }) {
+async function registerUserSources(siteId: string, input: { message?: string; source?: Extract<CodeFactSource, { type: 'upload' }>; annotationBatch?: AnnotationBatchItem[] }) {
   if (!input.message) return undefined;
   if (input.source && input.source.text !== input.message) throw new Error('上传资料原文与发送内容不一致。');
-  let allocated!: CodeFactSource;
+  let allocated: CodeFactSource[] = [];
   await updateCodeSite(siteId, current => {
-    allocated = input.source ?? {
-      type: 'message',
-      messageIndex: Math.max(0, ...(current.factSources ?? []).filter(item => item.type === 'message').map(item => item.messageIndex)) + 1,
-      text: input.message!,
-    };
-    const key = sourceKey(allocated);
-    return { factSources: [...(current.factSources ?? []).filter(item => sourceKey(item) !== key), allocated] };
+    let messageIndex = Math.max(0, ...(current.factSources ?? []).filter(item => item.type === 'message').map(item => item.messageIndex));
+    allocated = input.annotationBatch?.length
+      ? input.annotationBatch.map(item => ({ type: 'message', messageIndex: ++messageIndex, text: item.body }))
+      : [input.source ?? { type: 'message', messageIndex: ++messageIndex, text: input.message! }];
+    const keys = new Set(allocated.map(sourceKey));
+    return { factSources: [...(current.factSources ?? []).filter(item => !keys.has(sourceKey(item))), ...allocated] };
   });
   return allocated;
 }
@@ -166,9 +165,8 @@ async function executeLocalEditBatch(site: CodeSiteRecord, run: CodeRun) {
   const source = currentCodeVersion(site)!;
   const items = run.annotationBatch ?? [];
   const groups = mergeAnnotationEdits(items, { overlapConfirmed: run.annotationOverlapConfirmed });
-  // Batch comments are instructions, not material updates. Keep the effective
-  // user material snapshot separate so another group's opinion never enters a
-  // group's factual context.
+  // Each writer gets only its own group's new comments. The atomic commit gets
+  // all original user sources so new facts can be audited and cited together.
   const materials = codeFactMaterials(site, undefined, site.currentVersionId, true);
   if (run.saveAnnotation && !run.annotationIds?.length) {
     const annotationIds: Array<{ draftId: string; annotationId: string }> = [];
@@ -222,7 +220,8 @@ async function executeLocalEditBatch(site: CodeSiteRecord, run: CodeRun) {
       if (code) {
         await runStep(site.siteId, run.id, { step: '检查多区块范围、事实与三档布局' });
         const committed = await commitSiteCode({ siteId: site.siteId, baseRevision: run.baseRevision, code, selectedTargets: groups.map(group => group.target),
-          author: 'assistant', summary: `批量修改 ${groups.map(group => group.target.label).join('、')}`.slice(0, 200), request: run.request, model: results.at(-1)?.model });
+          author: 'assistant', summary: `批量修改 ${groups.map(group => group.target.label).join('、')}`.slice(0, 200), request: run.request,
+          source: run.source, model: results.at(-1)?.model });
         if (committed.status === 'conflict') throw new Error('版本已经更新，本次没有覆盖当前站点。');
         const checks = committed.status === 'applied' ? committed.version.checks : committed.checks;
         await runStep(site.siteId, run.id, { issues: checks.issues, attempts: [...(await getCodeSite(site.siteId))!.run!.attempts, { code, checks }] });
@@ -403,7 +402,7 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
       if (!currentCodeVersion(site) && input.annotationBatch?.length)
         throw new Error('批注批次须先生成中文版，再选择区块后发送。');
       if (currentCodeVersion(site)) {
-        const source = await registerUserSource(siteId, input);
+        const source = await registerUserSources(siteId, input);
         site = (await getCodeSite(siteId))!;
         if (input.selectedTarget) {
           if (input.baseRevision === undefined || input.selectedTarget.versionId !== currentCodeVersion(site)!.id) throw new CodeRunConflictError('锚点版本已改变，请重新点选。');
@@ -415,7 +414,7 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
           for (const item of input.annotationBatch) await localEditContext(currentCodeVersion(site)!.code, item.target);
         }
         if (input.pageId && !currentCodeVersion(site)!.code.pages.some(page => page.id === input.pageId)) throw new Error('当前页面不存在，请重新选择。');
-        site = await claimRun(siteId, 'edit', input.message, currentCodeVersion(site)!.revision,
+        site = await claimRun(siteId, 'edit', input.annotationBatch?.length ? input.annotationBatch.map(item => item.body).join('\n\n') : input.message, currentCodeVersion(site)!.revision,
           { selectedTarget: input.selectedTarget, pageId: input.pageId, saveAnnotation: input.saveAnnotation,
             ...(input.annotationBatch ? { annotationBatch: input.annotationBatch, annotationOverlapConfirmed: input.annotationOverlapConfirmed } : {}),
             ...(source ? { source } : {}),
@@ -424,9 +423,9 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
         if (input.selectedTarget) throw new Error('请先生成中文版，再点选区块。');
         if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
         if (conversation.alignment.styleOptionId) await updateConversationAlignment(siteId, site.conversationId, record => ({ ...record, alignment: { ...record.alignment, styleOptionId: null, confirmClaimed: false, lastResult: null } }));
-        const source = await registerUserSource(siteId, input);
+        await registerUserSources(siteId, input);
         const company = input.message.match(/^[ \t]*公司名[：:][ \t]*([^\n]+)/m)?.[1]?.trim();
-        site = await updateCodeSite(siteId, current => ({ materials: input.message!, ...(company ? { name: company.slice(0, 100) } : {}), ...(source ? { factSources: [...(current.factSources ?? []).filter(item => sourceKey(item) !== sourceKey(source)), source] } : {}) }));
+        site = await updateCodeSite(siteId, () => ({ materials: input.message!, ...(company ? { name: company.slice(0, 100) } : {}) }));
         await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'start',
           pendingRequest: { message: input.message, baseRevision: 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
       }

@@ -69,7 +69,7 @@ export type CodeModelCall = {
 export type CodeRun = {
   id: string; kind: 'plan' | 'generate' | 'edit' | 'translate'; status: 'running' | 'complete' | 'error';
   step: string; request: string; baseRevision: number; startedAt: string; updatedAt: string;
-  selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string; source?: CodeFactSource;
+  selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationId?: string; source?: CodeFactSource | CodeFactSource[];
   annotationSubmissionId?: string;
   annotationBatch?: AnnotationBatchItem[];
   annotationOverlapConfirmed?: boolean;
@@ -149,17 +149,17 @@ export function codeFactMaterials(site: CodeSiteRecord, request?: string, versio
   }
   return `${site.materials}\n\n已采用版本的用户资料和补充（按顺序）：\n${effective.join('\n\n')}\n\n${request ? `本次用户补充与要求：\n${request}` : ''}\n只把用户明确提供或更新的企业信息作为事实；设计要求不是企业事实。字段有明确更新时采用最后一次声明。`;
 }
-export function codeFactSourceMaterials(site: CodeSiteRecord, requestSource?: CodeFactSource, versionId = site.currentVersionId, _compact = false): CodeFactSource[] | undefined {
+export function codeFactSourceMaterials(site: CodeSiteRecord, requestSource?: CodeFactSource | CodeFactSource[], versionId = site.currentVersionId, _compact = false): CodeFactSource[] | undefined {
   // Deliberately absent on old records: never infer source text from contextual materials.
   const target = versionId ? site.versions.find(version => version.id === versionId) : undefined;
   const snapshot = target?.factSourceSnapshot;
   const base = Array.isArray(snapshot) ? snapshot : !target ? site.factSources : undefined;
   if (!base?.length && !requestSource) return undefined;
   const sources = [...(base ?? [])];
-  if (requestSource) {
-    const key = requestSource.type === 'upload' ? `upload:${requestSource.sourceId}` : `message:${requestSource.messageIndex}`;
+  for (const added of requestSource ? [requestSource].flat() : []) {
+    const key = added.type === 'upload' ? `upload:${added.sourceId}` : `message:${added.messageIndex}`;
     const index = sources.findIndex(source => (source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`) === key);
-    if (index >= 0) sources[index] = requestSource; else sources.push(requestSource);
+    if (index >= 0) sources[index] = added; else sources.push(added);
   }
   const seen = new Set<string>();
   return sources.filter(source => {
