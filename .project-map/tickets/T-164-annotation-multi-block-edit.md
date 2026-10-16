@@ -102,4 +102,6 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 - `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t164-multi-block-chat.test.ts tests/t164-multi-block-edit.test.ts`：20/20 通过，包含成功批次两条线程各自收到助手回复、候选新增自定义属性拒绝、显式小预算超时不存版本。
 - `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`：573/573 通过，证据目录 `artifacts/t167/test-run-1792109857522-55405`，随机测试服务端口 62243。
 - `SITE_STORE=fs npm run build`：通过（Next.js 16.3.1/Turbopack）。
-- 本轮最终本地提交为 `04a6109`；未推送。真实 DeepSeek、独立盲评和 Astra/sol 独立审查仍未执行，不能把它们写成已完成。
+- 上述验证对应实现 `fbf96a1`（文档同步至 `04a6109`）；未推送。真实 DeepSeek、独立盲评和 Astra/sol 独立审查仍由主控安排，未计入通过结果。
+
+预算收口：完整计算样式比较也受同一视口截止时间约束。新增经提交入口的时钟反事实在 `6c6304a` 失败（`artifacts/t164/comparison-budget-red.log`）：探针完成后比较阶段推进 6000ms，旧实现仍保存第二版。修复后同一截止时间在比较结束再核对，定向 21/21 通过（`artifacts/t164/comparison-budget-green.log`），超时保持一版；真实 chat 测试另显式断言两条独立线程及两条 draftId 映射，避免空集合使回复断言失效。

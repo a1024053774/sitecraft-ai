@@ -524,6 +524,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             const issue = `修改越界：${page.id}/${width} 状态 ${state.state} 触发路径 ${JSON.stringify(state.trigger)} 改变范围外元素路径 ${JSON.stringify(entry.path)} 的完整计算样式`;
             if (!reported.has(issue)) { reported.add(issue); checks.issues.push(issue); }
           }
+          if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。');
           const metrics = (probe: DynamicStateProbe) => ({ interactiveElements: probe.interactiveElements, forceCalls: probe.forceCalls,
             statesChecked: probe.statesChecked, durationMs: probe.durationMs });
           dynamicState = { durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };

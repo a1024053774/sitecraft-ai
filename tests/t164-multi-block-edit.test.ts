@@ -275,6 +275,26 @@ test('显式动态状态预算超时明确拒绝且不存版本', async () => {
   assert.equal((await getCodeSite(id))!.versions.length, 1);
 });
 
+test('完整样式比较耗尽默认五秒预算时明确拒绝且不存版本', async t => {
+  const { id, source, version } = await dynamicFixture('body{color:#111}', '<main><section><h1>目标</h1><a href="/home">入口</a></section><p>外部</p></main>');
+  const now = Date.now.bind(Date);
+  const stringify = JSON.stringify.bind(JSON);
+  let compareReached = false;
+  // Advance the clock at the computed-style comparison boundary, without
+  // delaying Chrome or changing its complete state/style evidence.
+  const clock = t.mock.method(Date, 'now', () => now() + (compareReached ? 6000 : 0));
+  const serialization = t.mock.method(JSON, 'stringify', (value: unknown, ...args: unknown[]) => {
+    if (value && typeof value === 'object' && 'path' in value && 'styles' in value) compareReached = true;
+    return Reflect.apply(stringify, JSON, [value, ...args]);
+  });
+  try {
+    await assert.rejects(() => commitSiteCode({ siteId: id, baseRevision: 1, code: source,
+      selectedTarget: target([0], '目标入口', '目标', 'home', version.id), author: 'assistant', summary: '比较预算', request: '保留内容' }), /动态状态检查超时/);
+    assert.ok(compareReached, '必须到达完整样式比较后再验证超时');
+    assert.equal((await getCodeSite(id))!.versions.length, 1);
+  } finally { serialization.mock.restore(); clock.mock.restore(); }
+});
+
 test('多区块模型输入按组隔离，不拼成整站请求', async () => {
   const source = {
     header: '<header>不能发给模型</header>', footer: '<footer>不能发给模型</footer>', css: '.a{padding:1px}',
