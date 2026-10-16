@@ -47,7 +47,7 @@ npm run build
 
 `next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
 
-`npm test` 每轮创建独立的临时 `SITECRAFT_DATA_ROOT`，自启本工作树随机端口 dev server，把同一数据根与 `SITECRAFT_BASE` 传给测试进程，并在任何测试模块载入前核对 health、登记本轮存储许可。测试服务独用 `.next-test` 构建目录，可与同目录使用 `.next` 的普通 dev 服务共存，不改变普通服务的端口。它清除继承的 `NODE_TEST_CONTEXT`，按 Node 每文件统计记录实际执行数，零用例即失败；不沿用已有服务或数据根，不加载 `.env.local`，不配置真实模型。日志、身份、统计和数据根路径保存在 `artifacts/t167/test-run-*/`，启动失败同时报告 Next 原因与日志路径，临时数据保留供核查。定向检查用 `npm test -- tests/<用例>.test.ts`；原始 `node --test` 没有已核对的数据根时，存储模块在读写前拒绝。上面的入口回归命令不开 Chrome，应与全量串行执行，其中普通 dev 共存用例自行启停自己的普通服务。
+`npm test` 每轮创建独立的临时 `SITECRAFT_DATA_ROOT`，自启本工作树随机端口 dev server，把同一数据根与 `SITECRAFT_BASE` 传给测试进程，并在任何测试模块载入前核对 health、登记本轮存储许可。测试服务独用 `.next-test` 构建目录，可与同目录使用 `.next` 的普通 dev 服务共存，不改变普通服务的端口。它清除继承的 `NODE_TEST_CONTEXT`，按 Node 每文件统计记录实际执行数，零用例即失败；不沿用已有服务或数据根，不加载 `.env.local`，不配置真实模型。日志、身份、统计和数据根路径保存在 `artifacts/t167/test-run-*/`；其中 `checks/` 记录动态范围检查与 CDP 方法的起止、计数、分段耗时，不记录请求参数或页面正文。启动失败同时报告 Next 原因与日志路径，临时数据保留供核查。定向检查用 `npm test -- tests/<用例>.test.ts`；原始 `node --test` 没有已核对的数据根时，存储模块在读写前拒绝。上面的入口回归命令不开 Chrome，应与全量串行执行，其中普通 dev 共存用例自行启停自己的普通服务。
 
 存储路径在各 store 保持可静态分析，`storageGuard` 只核验许可；测试身份的动态路径显式退出 Turbopack 部署追踪，避免未知目录被扩展追踪后撞上目录符号链接。构建回归使用实际项目的既有目录结构：`node --experimental-strip-types scripts/t167-build-trace-regression.ts --project <项目绝对路径>`；它运行 `SITE_STORE=fs npm run build`，在既有 `artifacts/` 结构下要求构建成功，不删除或移动该目录。
 

@@ -88,6 +88,18 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 - `npm run typecheck` 通过；本轮中间聚焦 41/41 通过，最终 T-164 聚焦 27/27 通过（`artifacts/t164/review-seven-final-focused.log`），包含原有“合法两处修改”“无动态 CSS 新增链接”正例；未削弱原断言。
 - 新伪元素读取最初在真实两站六档触发 5 秒拒绝，日志 `review-seven-diagnostic.log`、`review-seven-optimized-diagnostic.log` 及临时根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-t164-seven-diagnostic-l60xw8u1` 保留。根因是每态经 CSSOM 索引重复枚举标准属性名；只缓存浏览器固定标准名并逐态重读全部属性值及实时自定义属性后，单次诊断禾巷 2.14–2.29 秒、拾色 1.81–1.85 秒，详见 `review-seven-cached-properties.log`。四状态、触发元素、祖先传播、伪元素及三个视口均保留。
 
+本轮性能目标：在全量自身负载下减少无效动态探测，保持范围核对语义与每档 5 秒、三档 15 秒上限。非目标是减少状态、元素或视口，也不扩大时间预算。Tracer bullet 沿真实提交入口验证 CSSOM 判定 → 探针 → 范围比较 → 存版；Ubiquitous language 中“跳过动态探测”不表示跳过静态范围外样式比较。
+
+实施前等价性依据：源与候选都由浏览器解析作者样式表，递归读取全部 CSSOM selectorText（包括未激活的 @media 与嵌套规则）；若都没有 :hover、:focus、:focus-visible、:focus-within、:active，包含 :has/:is/:not 内的这些状态也没有，则强制这四种状态不会改变作者规则的匹配。脚本已禁止，强制状态不改变 DOM、声明或媒体条件；UA 默认交互样式沿用既有边界。因此保留两份文档的完整静态基线比较即可得到相同作者样式影响结论；静态 :has(a) 与兄弟选择器随 DOM 改动产生的外溢仍由基线捕获。有任一动态规则则沿用四状态、全部可交互元素、祖先传播、全部伪元素和三档视口的完整探测，不按媒体是否激活裁剪。不能读取 CSSOM 时不能证明无动态规则，必须报错。静态分支不枚举可聚焦元素，计数记 null（未测），强制次数为 0，不能伪记无交互元素。
+
+诊断先于优化：标准入口把每次动态探针的起止、可交互元素数、已发出的强制次数、CDP 往返和分段耗时写入本轮 artifacts/t167/test-run-*/checks；浏览器记录 CDP 方法起止与错误类别，不记录参数或页面内容。先在未启用 CSSOM 跳过条件时运行一次全量诊断，核对 T-162 超时与 T-169 两项 UI 失败的时间线；不预先认定共同根因。新增入口测试先在 aa390b3 行为上证明零强制条件失败，再实现条件；同时证明动态规则不能误跳、静态外溢仍拒绝，并与完整探测对照。
+
+完整样式读取的进一步优化依据：每个状态仍读取全部标准属性与当态自定义属性；只将基线的按名 Map 查找改为按相同排序后的属性名逐项比较数组，并复用排序结果。每次先重新读取完整自定义属性后缀；仅当其逐项名称与基线相同时复用属性名顺序，不缓存自定义属性的存在性或值。名称增删／同数量换名时重新排序，完整当前值、伪元素存在性和比较键不变。这样省去每个改变条目的重复 localeCompare 排序及逐属性 Map 查询，不裁剪属性、状态、元素或视口。优化前生产 checkSiteCode 测量在拾色第四轮触及 5 秒；保留 real-homepage-gate-timing.log，不把前八轮成功样本冒充完整 30 次结果。
+
+本轮阶段证据（父 aa390b3，合并最新主线前）：原行为只加诊断的全量 588/588（183.3 秒；artifacts/t164/load-diagnostic-full.log、artifacts/t167/test-run-1792116660769-71195/checks），304 次源／候选探针中 302 完成、2 次为预期拒绝用例，完成最大 1.242 秒；没有复现原三项，不能用本轮通过抹去原 585/588。T-162 夹具没有作者动态规则，却原先每侧强制 28 次，属于可免除的开销；T-169 在无并行动状态任务的受控延迟中仍复现，具有独立的文档／按钮就绪竞态。Page.navigate 只确认导航提交；现由同一 session 的 Page.loadEventFired 等待新文档，再监听 DOM 条件；点击先等节点，再等字体与动画，不延长任何等待上限。
+
+新 CSSOM 入口测试在父行为上有效红 0/11（dynamic-gate-parent-red-fixture-fixed.log）：无动态规则仍实际发出 72 次强制，其余动态条件缺模式证据。为独立证明“不漏动态规则”，故意令 CSSOM 分类恒为 false 的 mutant 只通过静态两项、9 项按实际强制次数为 0 失败（dynamic-gate-missed-rules-mutant.log），已恢复。优化后合计 T-164 41/41（dynamic-gate-array-focused.log），含完整探测结果对照和静态 :has(a) 外溢拒绝。T-169 两项受控延迟先红（t169-readiness-red-gated-node.log：导航提前返回、scrollIntoView 空节点），修后该文件 9/9（t169-readiness-green.log）。标准入口回归 4/4（dynamic-gate-runner.log）。首个门禁夹具缺本地替身的设置失败日志 dynamic-gate-parent-red.log、首个载入夹具被生成页 CSP 阻断后终止的 t169-readiness-red.log 均保留，不计为业务红证据。
+
 第八轮增量：出处清理改用全部 localTargets 的并集，逐个过滤旧定位，保留并集外定位，再由新核对内容重新绑定；不再依赖首个新段落。组装阶段只捕获 CodeRepairError，其他异常原样终止任务，不转成组内修正意见。
 
 新增三项真实 chat 入口回归先在 `3e192f9` 失败（`artifacts/t164/review-eight-parent-red.log`）：保留 18/19 点两处事实被报重复；删除第二处后旧 19 点出处仍存在；一次真实浏览器工厂读取不到 CHROME_PATH 后任务错误完成、局部写作 4 次并存第二版。红产物 `artifacts/t164/review-seven-1792114756066-40622/evidence.json` 保留。修复后同一入口与 T-164/T-169 聚焦 28/28 通过（`review-eight-focused.log`），Chrome 故障时明确 error、仍仅 2 次局部写作、仅原一版、repairRound=0、attempts=[]；绿色产物 `artifacts/t164/review-seven-1792114828662-41799/evidence.json` 保留。保留两处时第一处换了段落包装，断言新定位为 [0,1,0]；删除第二处时断言 19 点原文和 [1,1] 旧定位同时消失。

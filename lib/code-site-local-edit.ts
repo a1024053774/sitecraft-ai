@@ -3,6 +3,7 @@ import { applyCodeRepair } from './code-site-repair.ts';
 import { renderSiteCode, type SiteCode } from './code-site.ts';
 import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
 import { gunzipSync } from 'node:zlib';
+import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
 
 // T-164 adapts BaoCut's frozen annotation-set idea (see
 // resources/baocut-annotation/SOURCE.md) to SiteCraft's DOM-path contract;
@@ -201,9 +202,43 @@ export function localEditDom(code: SiteCode, target: AnnotationTarget, scope: st
 type ProbeBrowser = { send<T = Record<string, unknown>>(method: string, params?: Record<string, unknown>): Promise<T>; evaluate<T>(expression: string): Promise<T> };
 type ProbeEntry = { path: number[]; pseudo: string; present: boolean; styles: Array<[string, string]> };
 type ProbeState = { trigger: number[] | null; state: string; entries: ProbeEntry[] };
+
+// Runs inside the browser. Inspect parsed selector tokens, including nested
+// conditional rules even when inactive. Strings and attribute values are not
+// pseudo classes; CSS escapes in pseudo names still denote the same state.
+export function authorStylesHaveDynamicStates() {
+  const dynamic = new Set(['hover', 'focus', 'focus-visible', 'focus-within', 'active']);
+  const hasState = (selector: string) => {
+    let quote = '', brackets = 0;
+    for (let i = 0; i < selector.length; i++) {
+      const char = selector[i];
+      if (char === '\\') { i++; continue; }
+      if (quote) { if (char === quote) quote = ''; continue; }
+      if (char === '"' || char === "'") { quote = char; continue; }
+      if (char === '[') { brackets++; continue; }
+      if (char === ']') { brackets--; continue; }
+      if (brackets || char !== ':') continue;
+      let name = '', j = i + 1;
+      while (j < selector.length) {
+        if (selector[j] === '\\') {
+          const escape = selector.slice(j + 1).match(/^[0-9a-f]{1,6}[\t\n\f\r ]?/i);
+          if (escape) { name += String.fromCodePoint(parseInt(escape[0], 16)); j += escape[0].length + 1; }
+          else { name += selector[j + 1] ?? ''; j += 2; }
+        } else if (/[\w-]/.test(selector[j])) name += selector[j++];
+        else break;
+      }
+      if (dynamic.has(name.toLowerCase())) return true;
+    }
+    return false;
+  };
+  const inspect = (rules: CSSRuleList): boolean => [...rules].some(rule =>
+    ('selectorText' in rule && hasState(String(rule.selectorText))) ||
+    ('cssRules' in rule && inspect((rule as CSSGroupingRule).cssRules)));
+  return [...document.styleSheets].some(sheet => inspect(sheet.cssRules));
+}
 export type DynamicStateProbe = {
   states: ProbeState[];
-  interactiveElements: number;
+  interactiveElements: number | null;
   forceCalls: number;
   statesChecked: number;
   durationMs: number;
@@ -215,14 +250,18 @@ export type DynamicStateProbe = {
 // truth: no selector stripping, :has parsing, owner inference, or short style
 // fingerprint is used here. The returned collection is keyed only by outside
 // DOM path and complete computed style.
-export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 5000) {
+export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 5000, options: { states?: boolean; diagnostic?: Record<string, unknown> } = {}) {
+  const probeStates = options.states ?? true;
   const startedAt = performance.now();
+  const wallStartedAt = Date.now();
   let cdpRoundTrips = 0;
+  let interactiveElements: number | null = null, forceCalls = 0, completed = false;
   const stageMs = { focus: 0, force: 0, styleRead: 0 };
   const send = async <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}) => { cdpRoundTrips++; return browser.send<T>(method, params); };
   const evaluate = async <T>(expression: string) => { cdpRoundTrips++; return browser.evaluate<T>(expression); };
   const checkTime = () => { if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。'); };
-  checkTime(); await send('DOM.enable');
+  try {
+  checkTime(); if (probeStates) await send('DOM.enable');
   await send('Page.setDocumentContent', { frameId, html });
   const focusStarted = performance.now();
   const probe = await evaluate<{ all: string[]; roots: string[]; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
@@ -232,22 +271,24 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const roots=paths.map(rootFor).filter(Boolean), all=[...document.querySelectorAll('*')];
     const ids=new Map(all.map((el,index)=>[el,String(index)]));
     const hidden=(el)=>{if(el.matches(':disabled,[inert],[hidden]'))return true;for(let p=el.parentElement;p;p=p.parentElement)if(p.matches('[inert],[hidden]'))return true;const r=el.getBoundingClientRect();return !(r.width>0&&r.height>0&&el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))};
-    const interactive=all.filter(el=>el!==document.documentElement&&el!==document.head&&el!==document.body&&!hidden(el)).filter(el=>{try{el.focus({preventScroll:true});const ok=document.activeElement===el;el.blur();return ok}catch{return false}}).map(el=>({id:ids.get(el),path:pathOf(el),ancestors:[...(()=>{const a=[];for(let p=el.parentElement;p;p=p.parentElement)a.push(ids.get(p));return a})()]}));
+    const interactive=${probeStates}?all.filter(el=>el!==document.documentElement&&el!==document.head&&el!==document.body&&!hidden(el)).filter(el=>{try{el.focus({preventScroll:true});const ok=document.activeElement===el;el.blur();return ok}catch{return false}}).map(el=>({id:ids.get(el),path:pathOf(el),ancestors:[...(()=>{const a=[];for(let p=el.parentElement;p;p=p.parentElement)a.push(ids.get(p));return a})()]})):[];
     const outside=all.filter(el=>!roots.some(root=>root===el||root.contains(el))).map(el=>({node:el,path:pathOf(el),ancestor:roots.some(root=>el.contains(root)),baselines:new Map()}));
     for(const el of all)el.setAttribute('data-cdp-probe',ids.get(el));
-    window.__sitecraftCdpProbeOutside = {items:outside,properties:[...getComputedStyle(document.documentElement)].filter(name=>!name.startsWith('--'))};
+    window.__sitecraftCdpProbeOutside = {items:outside,properties:[...getComputedStyle(document.documentElement)].filter(name=>!name.startsWith('--')).sort((a,b)=>a.localeCompare(b))};
     return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),interactive};
   })()`);
-  stageMs.focus += performance.now() - focusStarted;
+  stageMs.focus += probeStates ? performance.now() - focusStarted : 0;
+  interactiveElements = probeStates ? probe.interactive.length : null;
   const stateNames = ['focus', 'focus-visible', 'hover', 'active'] as const;
-  const root = await send<{ root: { nodeId: number } }>('DOM.getDocument', { depth: 1, pierce: true });
   const nodeIds = new Map<string, number>();
-  const allNodeIds = await send<{ nodeIds: number[] }>('DOM.querySelectorAll', { nodeId: root.root.nodeId, selector: '[data-cdp-probe]' });
-  probe.all.forEach((id, index) => { if (allNodeIds.nodeIds[index]) nodeIds.set(id, allNodeIds.nodeIds[index]); });
+  if (probeStates) {
+    const root = await send<{ root: { nodeId: number } }>('DOM.getDocument', { depth: 1, pierce: true });
+    const allNodeIds = await send<{ nodeIds: number[] }>('DOM.querySelectorAll', { nodeId: root.root.nodeId, selector: '[data-cdp-probe]' });
+    probe.all.forEach((id, index) => { if (allNodeIds.nodeIds[index]) nodeIds.set(id, allNodeIds.nodeIds[index]); });
+  }
   const nodeId = async (id: string) => { checkTime(); const found = nodeIds.get(id); if (!found) throw new Error('局部动态状态检查无法定位 DOM 节点。'); return found; };
   const states: ProbeState[] = [];
   const forced = new Set<number>();
-  let forceCalls = 0;
   const clear = async () => {
     checkTime();
     // CSS.disable resets every forced pseudo state in one CDP round trip pair;
@@ -264,6 +305,7 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const add = [...desired].filter(id => !active.has(id));
     try {
       const forceStarted = performance.now();
+      forceCalls += add.length;
       await Promise.all([
         ...release.map(id => send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [] })),
         ...add.map(id => send('CSS.forcePseudoState', { nodeId: id, forcedPseudoClasses: [state] })),
@@ -273,7 +315,6 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     checkTime();
     active.clear(); desired.forEach(id => active.add(id));
     forced.clear(); desired.forEach(id => forced.add(id));
-    forceCalls += add.length;
   };
   const capture = async (trigger: number[] | null, state: string) => {
     checkTime(); const styleStarted = performance.now();
@@ -290,7 +331,7 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
         // generated text can create them without a DOM text node.
         if(!present){
           if(!baseline||baseline.present)entries.push({path:item.path,pseudo,present:false,styles:[]});
-          if(!baseline)item.baselines.set(pseudo,{present:false,values:new Map()});
+          if(!baseline)item.baselines.set(pseudo,{present:false,custom:[],names:[],values:[]});
           continue;
         }
         // CSSOM lists the fixed supported longhands first, then live custom
@@ -299,7 +340,12 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
         const length=style.length;
         if(length<snapshot.properties.length)throw new Error('完整计算样式属性集合不完整，本次未保存版本。');
         const custom=[];for(let i=snapshot.properties.length;i<length;i++)custom.push(style[i]);
-        const names=custom.length?snapshot.properties.concat(custom):snapshot.properties,values=baseline?.values,changed=new Map();
+        // Reuse only name ordering, after rereading the live custom suffix.
+        // Same-count name replacement must invalidate this ordering too.
+        const sameNames=baseline?.present&&custom.length===baseline.custom.length&&custom.every((name,i)=>name===baseline.custom[i]);
+        const names=sameNames?baseline.names:custom.length?snapshot.properties.concat(custom).sort((a,b)=>a.localeCompare(b)):snapshot.properties;
+        const values=[];
+        let changed=!baseline?.present||names.length!==baseline.values.length;
         // Ancestors retain every computed property, including auto sizes and
         // percentages. Resolved layout pixels would instead reject normal
         // content growth inside the allowed block. No property is excluded.
@@ -307,10 +353,14 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
         // Read every current property, including custom properties that exist
         // only in this state. Only duplicate baseline entries are omitted from
         // transport; the reachable collection still contains that baseline.
-        for(const name of names){const value=computed?computed.getAll(name).map(value=>value.toString()).join(', '):style.getPropertyValue(name);if(!values||values.get(name)!==value)changed.set(name,value)}
-        if(!baseline||!baseline.present||changed.size||names.length!==values.size){
-          const styles=names.map(name=>[name,changed.has(name)?changed.get(name):values.get(name)]).sort((a,b)=>a[0].localeCompare(b[0]));
-          if(!baseline)item.baselines.set(pseudo,{present:true,values:new Map(styles)});
+        for(let i=0;i<names.length;i++){
+          const name=names[i],value=computed?computed.getAll(name).map(value=>value.toString()).join(', '):style.getPropertyValue(name);
+          values.push(value);
+          if(!changed&&(baseline.names[i]!==name||baseline.values[i]!==value))changed=true;
+        }
+        if(changed){
+          const styles=names.map((name,i)=>[name,values[i]]);
+          if(!baseline)item.baselines.set(pseudo,{present:true,custom,names,values});
           entries.push({path:item.path,pseudo,present:true,styles});
         }
       }
@@ -321,8 +371,9 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const entries = JSON.parse(gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8')) as ProbeEntry[]; stageMs.styleRead += performance.now() - styleStarted;
     states.push({ trigger, state, entries });
   };
-  await clear(); await evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');
-  for (const state of stateNames) {
+  if (probeStates) await clear();
+  await evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');
+  for (const state of probeStates ? stateNames : []) {
     const active = new Set<number>();
     if (state === 'hover' || state === 'active') await evaluate('document.activeElement?.blur()');
     for (const item of probe.interactive) {
@@ -343,7 +394,12 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
   await evaluate('document.activeElement?.blur()');
   await evaluate(`document.querySelectorAll('[data-cdp-probe]').forEach(el=>el.removeAttribute('data-cdp-probe')); delete window.__sitecraftCdpProbeOutside`);
   checkTime();
-  return { states, interactiveElements: probe.interactive.length, forceCalls, statesChecked: stateNames.length, durationMs: performance.now() - startedAt, cdpRoundTrips, stageMs };
+  completed = true;
+  return { states, interactiveElements, forceCalls, statesChecked: probeStates ? stateNames.length : 0, durationMs: performance.now() - startedAt, cdpRoundTrips, stageMs };
+  } finally {
+    recordCheckDiagnostic({ kind: 'dynamic-probe', mode: probeStates ? 'states' : 'static', ...options.diagnostic, startedAt: wallStartedAt, endedAt: Date.now(),
+      durationMs: performance.now() - startedAt, interactiveElements, forceCalls, cdpRoundTrips, stageMs, completed });
+  }
 }
 
 // Invoked on every rendered page by the submission boundary. Media conditions

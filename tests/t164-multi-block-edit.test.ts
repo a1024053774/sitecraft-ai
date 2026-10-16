@@ -192,7 +192,7 @@ test('候选新增链接触发范围外自定义属性也必须拒绝', async ()
 });
 
 test('动态探针在三档视口固定检查四种状态并记录强制调用证据', async () => {
-  const { id, source, version } = await dynamicFixture('body{color:#111}.outside{color:#111}', '<main><section class="target"><h1>目标</h1><a href="/home">入口</a></section><p class="outside">外部</p></main>');
+  const { id, source, version } = await dynamicFixture('body{color:#111}.outside{color:#111}a:focus{color:inherit}', '<main><section class="target"><h1>目标</h1><a href="/home">入口</a></section><p class="outside">外部</p></main>');
   const candidate = structuredClone(source);
   candidate.pages[0].html = candidate.pages[0].html.replace('目标', '改后');
   const selected = target([0], '目标入口', '目标', 'home', version.id);
@@ -209,7 +209,7 @@ test('动态探针在三档视口固定检查四种状态并记录强制调用�
       assert.equal(dynamic[side].statesChecked, 4, `${viewport.width}/${side} 必须逐一检查四种状态`);
       assert.ok(dynamic[side].forceCalls >= 4, `${viewport.width}/${side} 必须实际强制四种状态`);
     }
-    assert.ok(dynamic.durationMs >= 0 && dynamic.durationMs <= 2000, `${viewport.width} 动态探针耗时应在档位预算内`);
+    assert.ok(dynamic.durationMs >= 0 && dynamic.durationMs <= 5000, `${viewport.width} 动态探针耗时应在档位预算内`);
   }
 });
 

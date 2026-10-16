@@ -12,7 +12,9 @@ const dataRoot = await mkdtemp(path.join(tmpdir(), 'sitecraft-test-'));
 const output = path.resolve('artifacts/t167', `test-run-${Date.now()}-${process.pid}`);
 const distDir = '.next-test';
 await mkdir(output, { recursive: true });
+await mkdir(path.join(output, 'checks'));
 const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'test', SITE_STORE: 'fs', SITECRAFT_DATA_ROOT: dataRoot,
+  SITECRAFT_CHECK_DIAGNOSTICS_DIR: path.join(output, 'checks'),
   SITECRAFT_TEST_IDENTITY_FILE: path.join(dataRoot, '.test-identity.json'),
   SITECRAFT_TEST_DIST_DIR: distDir,
   DEEPSEEK_API_KEY: '', AI_API_KEY: '' };

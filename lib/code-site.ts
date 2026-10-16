@@ -26,9 +26,12 @@ export type CodeQualityFeedback = Record<Exclude<CodeQualityKind, 'narrowColumns
   details: Array<{ kind: CodeQualityKind; target: string; text: string; detail: string }>;
 };
 export type DynamicStateEvidence = {
+  mode: 'static' | 'states';
   durationMs: number;
-  source: { interactiveElements: number; forceCalls: number; statesChecked: number; durationMs: number };
-  candidate: { interactiveElements: number; forceCalls: number; statesChecked: number; durationMs: number };
+  classificationMs: number;
+  compareMs: number;
+  source: { interactiveElements: number | null; forceCalls: number; statesChecked: number; durationMs: number; cdpRoundTrips: number; stageMs: { focus: number; force: number; styleRead: number } };
+  candidate: { interactiveElements: number | null; forceCalls: number; statesChecked: number; durationMs: number; cdpRoundTrips: number; stageMs: { focus: number; force: number; styleRead: number } };
 };
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;

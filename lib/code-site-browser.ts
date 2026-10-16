@@ -2,9 +2,12 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
 
 // A commit owns one isolated Chrome profile and process. It never attaches to or kills another browser.
 export async function codeCheckBrowser() {
+  const startedAt = Date.now();
+  const calls: Array<{ method: string; startedAt: number; durationMs: number; status: string; pathname?: string }> = [];
   const binary = process.env.CHROME_PATH;
   if (!binary) throw new Error('底线检查需要 CHROME_PATH；本次未保存版本。');
   const profile = await mkdtemp(path.join(os.tmpdir(), 'sitecraft-code-check-'));
@@ -12,6 +15,7 @@ export async function codeCheckBrowser() {
   let launchError: Error | null = null; child.on('error', error => { launchError = error; });
   let socket: WebSocket | null = null;
   const pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+  const pageLoads = new Set<{ sessionId: string; resolve: () => void; reject: (error: Error) => void }>();
   const close = async () => {
     socket?.close();
     if (child.exitCode === null && child.pid) {
@@ -21,6 +25,7 @@ export async function codeCheckBrowser() {
       await exited; clearTimeout(timer);
     }
     await rm(profile, { recursive: true, force: true });
+    recordCheckDiagnostic({ kind: 'browser', startedAt, endedAt: Date.now(), calls });
   };
   try {
     let address = '';
@@ -37,13 +42,27 @@ export async function codeCheckBrowser() {
     socket.addEventListener('message', event => {
       const data = JSON.parse(String(event.data)); const task = pending.get(data.id);
       if (task) { pending.delete(data.id); data.error ? task.reject(new Error(data.error.message)) : task.resolve(data.result); }
+      if (data.method === 'Page.loadEventFired') for (const load of pageLoads) if (load.sessionId === data.sessionId) load.resolve();
+      if (process.env.SITECRAFT_CHECK_DIAGNOSTICS_DIR && ['Page.frameNavigated', 'Page.loadEventFired', 'Page.domContentEventFired'].includes(data.method)) {
+        calls.push({ method: data.method, startedAt: Date.now(), durationMs: 0, status: 'event',
+          ...(data.params?.frame?.url ? { pathname: new URL(data.params.frame.url).pathname } : {}) });
+      }
     });
-    socket.addEventListener('close', () => { for (const task of pending.values()) task.reject(new Error('Chrome 检查连接关闭')); pending.clear(); });
+    socket.addEventListener('close', () => {
+      const error = new Error('Chrome 检查连接关闭');
+      for (const task of pending.values()) task.reject(error); pending.clear();
+      for (const load of pageLoads) load.reject(error); pageLoads.clear();
+    });
     let sequence = 0;
     const send = <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}, sessionId?: string): Promise<T> => new Promise((resolve, reject) => {
       const id = ++sequence;
-      const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Chrome 检查 ${method} 超时`)); }, 30000);
-      pending.set(id, { resolve: value => { clearTimeout(timer); resolve(value as T); }, reject: error => { clearTimeout(timer); reject(error); } });
+      const startedAt = Date.now();
+      const record = (status: string) => {
+        if (process.env.SITECRAFT_CHECK_DIAGNOSTICS_DIR) calls.push({ method, startedAt, durationMs: Date.now() - startedAt, status,
+          ...(method === 'Page.navigate' ? { pathname: new URL(String(params.url)).pathname } : {}) });
+      };
+      const timer = setTimeout(() => { pending.delete(id); record('timeout'); reject(new Error(`Chrome 检查 ${method} 超时`)); }, 30000);
+      pending.set(id, { resolve: value => { clearTimeout(timer); record('complete'); resolve(value as T); }, reject: error => { clearTimeout(timer); record('error'); reject(error); } });
       socket!.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
     const { targetId } = await send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' });
@@ -54,6 +73,18 @@ export async function codeCheckBrowser() {
       if (value.exceptionDetails) throw new Error(`Chrome 检查失败：${value.exceptionDetails.exception?.description || value.exceptionDetails.text}`);
       return value.result.value;
     };
-    return { send: <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}) => send<T>(method, params, sessionId), evaluate, close };
+    const loadPage = async (method: 'Page.navigate' | 'Page.reload', params: Record<string, unknown> = {}) => {
+      let listener!: { sessionId: string; resolve: () => void; reject: (error: Error) => void };
+      const loaded = new Promise<void>((resolve, reject) => { listener = { sessionId, resolve, reject }; pageLoads.add(listener); });
+      const timer = setTimeout(() => listener.reject(new Error('Chrome 页面载入超时')), 30000);
+      try {
+        // Subscribe before issuing navigation. Its CDP response only confirms
+        // commitment; reading an old/loading document can lose a DOM waiter.
+        const [result] = await Promise.all([send(method, params, sessionId), loaded]);
+        return result;
+      } finally { clearTimeout(timer); pageLoads.delete(listener); }
+    };
+    return { send: <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}) => send<T>(method, params, sessionId),
+      loadPage, evaluate, close };
   } catch (error) { await close(); throw error; }
 }

@@ -7,7 +7,8 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
-import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, type DynamicStateProbe } from './code-site-local-edit.ts';
+import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
+import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
@@ -494,7 +495,6 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     if (args.translationSource) checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)})`));
     for (const contact of new Set(clean.contacts)) if (!args.materials.includes(contact.replace(/^(mailto|tel):/, ''))) checks.issues.push(`联系方式没有资料来源：${contact}`);
     if (checks.issues.length && !args.legacyImport) return { code: clean.code, checks };
-    if (edit) dynamicBrowser = await codeCheckBrowser();
     await browser.send('Network.setBlockedURLs', { urls: [] });
     const scan = (await readFile(path.join(process.cwd(), 'scripts/visitor-layout-scan.js'), 'utf8')).replace(/export default scanVisitorLayout;?/g, '').replace(/export function scanVisitorLayout/g, 'function scanVisitorLayout');
     const used = new Set((clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).match(/img_[a-z0-9]{16,40}/g));
@@ -510,24 +510,52 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const pageIsEdited = edit && ('targets' in edit ? edit.targets.some(target => target.pageId === page.id) : true);
         if (edit && pageIsEdited) {
           const dynamicStarted = performance.now();
+          const wallStartedAt = Date.now();
           const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 5000);
           const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) }
             : page.id === edit.pageId ? { paths: [[]] } : undefined;
-          const dynamicFrame = await dynamicBrowser!.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
-          const evidence: DynamicStateProbe[] = await Promise.all([
-            outsideCssApplications(browser, frameTree.frame.id, renderSiteCode(args.siteId, edit.source, page.id), scope, deadlineAt),
-            outsideCssApplications(dynamicBrowser!, dynamicFrame.frameTree.frame.id, renderSiteCode(args.siteId, code, page.id), scope, deadlineAt),
-          ]);
-          const sourceReachable = new Set(evidence[0].states.flatMap(state => state.entries.map(entry => JSON.stringify(entry))));
-          const reported = new Set<string>();
-          for (const state of evidence[1].states) for (const entry of state.entries) if (!sourceReachable.has(JSON.stringify(entry))) {
-            const issue = `修改越界：${page.id}/${width} 状态 ${state.state} 触发路径 ${JSON.stringify(state.trigger)} 改变范围外元素路径 ${JSON.stringify(entry.path)}${entry.pseudo} 的完整计算样式`;
-            if (!reported.has(issue)) { reported.add(issue); checks.issues.push(issue); }
+          let probeStates = false;
+          const evidence: DynamicStateProbe[] = [];
+          let classificationMs = 0, compareMs = 0, completed = false;
+          try {
+            const documents = [edit.source, code].map(value => renderSiteCode(args.siteId, value, page.id));
+            for (const html of documents) {
+              await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html });
+              if (await browser.evaluate<boolean>(`(${authorStylesHaveDynamicStates.toString()})()`)) { probeStates = true; break; }
+            }
+            classificationMs = performance.now() - dynamicStarted;
+            const probeOptions = (side: string) => ({ states: probeStates, diagnostic: { siteId: args.siteId, pageId: page.id, width, side } });
+            if (probeStates) {
+              if (!dynamicBrowser) dynamicBrowser = await codeCheckBrowser();
+              await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+              const dynamicFrame = await dynamicBrowser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+              evidence.push(...await Promise.all([
+                outsideCssApplications(browser, frameTree.frame.id, documents[0], scope, deadlineAt, probeOptions('source')),
+                outsideCssApplications(dynamicBrowser, dynamicFrame.frameTree.frame.id, documents[1], scope, deadlineAt, probeOptions('candidate')),
+              ]));
+            } else {
+              // Absence of author state rules removes only state probing. Static
+              // DOM-triggered selector changes still cross the same full reader.
+              evidence.push(await outsideCssApplications(browser, frameTree.frame.id, documents[0], scope, deadlineAt, probeOptions('source')));
+              evidence.push(await outsideCssApplications(browser, frameTree.frame.id, documents[1], scope, deadlineAt, probeOptions('candidate')));
+            }
+            const compareStarted = performance.now();
+            const sourceReachable = new Set(evidence[0].states.flatMap(state => state.entries.map(entry => JSON.stringify(entry))));
+            const reported = new Set<string>();
+            for (const state of evidence[1].states) for (const entry of state.entries) if (!sourceReachable.has(JSON.stringify(entry))) {
+              const issue = `修改越界：${page.id}/${width} 状态 ${state.state} 触发路径 ${JSON.stringify(state.trigger)} 改变范围外元素路径 ${JSON.stringify(entry.path)}${entry.pseudo} 的完整计算样式`;
+              if (!reported.has(issue)) { reported.add(issue); checks.issues.push(issue); }
+            }
+            if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。');
+            compareMs = performance.now() - compareStarted;
+            const metrics = (probe: DynamicStateProbe) => ({ interactiveElements: probe.interactiveElements, forceCalls: probe.forceCalls,
+              statesChecked: probe.statesChecked, durationMs: probe.durationMs, cdpRoundTrips: probe.cdpRoundTrips, stageMs: probe.stageMs });
+            dynamicState = { mode: probeStates ? 'states' : 'static', classificationMs, compareMs, durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
+            completed = true;
+          } finally {
+            recordCheckDiagnostic({ kind: 'dynamic-check', siteId: args.siteId, pageId: page.id, width, mode: probeStates ? 'states' : 'static',
+              startedAt: wallStartedAt, endedAt: Date.now(), durationMs: performance.now() - dynamicStarted, classificationMs, compareMs, completed });
           }
-          if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。');
-          const metrics = (probe: DynamicStateProbe) => ({ interactiveElements: probe.interactiveElements, forceCalls: probe.forceCalls,
-            statesChecked: probe.statesChecked, durationMs: probe.durationMs });
-          dynamicState = { durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
         }
         const languageLinks = { zh: `/published/${args.siteId}?page=${page.id}`, en: `/published/${args.siteId}/en?page=${page.id}` };
         let originalGenerated: ReturnType<typeof readGeneratedText> = [];
