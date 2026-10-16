@@ -11,21 +11,40 @@ import type { AnnotationBatchItem, AnnotationTarget } from '../lib/annotations.t
 
 // Failure modes: ancestor paint escapes; generated boxes escape; batch user
 // facts lose provenance; merged comments lose their own pointer; :has(:focus)
-// prevents a legal batch from reaching its model. All assertions cross POST or
-// commitSiteCode. Only model replies and after scheduling are local substitutes.
+// prevents a legal batch from reaching its model; old citations survive later
+// selections; infrastructure failures become extra model calls. Assertions
+// cross POST or commitSiteCode. Models/after use local substitutes; the browser
+// wrapper injects one missing CHROME_PATH read into the real factory.
 const callbacks: Array<() => Promise<void>> = [];
 (globalThis as any).__t164SevenAfter = callbacks;
+const browserUrl = pathToFileURL(path.join(process.cwd(), 'lib/code-site-browser.ts')).href;
+const faultBrowserUrl = 'data:text/javascript,' + encodeURIComponent(`
+  import { codeCheckBrowser as realBrowser } from ${JSON.stringify(browserUrl + '?t164-infrastructure-boundary')};
+  export function codeCheckBrowser() {
+    if (!globalThis.__t164TransientChromeFault) return realBrowser();
+    globalThis.__t164TransientChromeFault = false;
+    const saved = process.env.CHROME_PATH;
+    delete process.env.CHROME_PATH;
+    try { return realBrowser(); }
+    finally { if (saved === undefined) delete process.env.CHROME_PATH; else process.env.CHROME_PATH = saved; }
+  }
+`);
 registerHooks({ resolve(specifier, context, next) {
   if (specifier === 'next/server.js') return { shortCircuit: true, url: 'data:text/javascript,export function after(fn){globalThis.__t164SevenAfter.push(fn)}' };
-  if (!specifier.startsWith('@/')) return next(specifier, context);
-  const file = path.join(process.cwd(), specifier.slice(2));
-  return next(pathToFileURL(existsSync(`${file}.ts`) ? `${file}.ts` : file).href, context);
+  if (specifier.startsWith('@/')) {
+    const file = path.join(process.cwd(), specifier.slice(2));
+    specifier = pathToFileURL(existsSync(`${file}.ts`) ? `${file}.ts` : file).href;
+  }
+  const resolved = next(specifier, context);
+  return resolved.url === browserUrl ? { shortCircuit: true, url: faultBrowserUrl } : resolved;
 } });
 const { createCodeSite, getCodeSite, updateCodeSite, commitSiteCode } = await import('../lib/code-site-store.ts');
 const { getOrCreateConversation } = await import('../lib/conversation-store.ts');
 const { POST } = await import('../app/api/sites/[siteId]/chat/route.ts');
 const requests: Array<{ local: boolean; input: any }> = [];
 const observations: unknown[] = [];
+let transformLocal: ((input: any) => string) | undefined;
+let faultAfterLocalReplies = 0;
 const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw);
@@ -35,7 +54,8 @@ const provider = createServer(async (req, res) => {
   let answer: unknown;
   if (local) {
     const time = input.request.match(/营业时间为(\d+)点/);
-    answer = { html: time ? input.html.replace('</section>', `<p>营业时间为${time[1]}点。</p></section>`) : input.html, css: '' };
+    answer = { html: transformLocal ? transformLocal(input) : time ? input.html.replace('</section>', `<p>营业时间为${time[1]}点。</p></section>`) : input.html, css: '' };
+    if (faultAfterLocalReplies > 0 && --faultAfterLocalReplies === 0) (globalThis as any).__t164TransientChromeFault = true;
   } else {
     assert.ok(Array.isArray(input.segments), '替身只接受实际分段事实核对');
     answer = { results: input.segments.map((segment: { id: string; text: string }) => {
@@ -69,11 +89,11 @@ async function settle(id: string) {
   observations.push({ id, run: site.run, sources: site.factSources, versions: site.versions.map(version => ({ revision: version.revision, checks: version.checks })) });
   return site;
 }
-async function fixture(css = '', html = '<main><section><h1>清禾小馆</h1><p>小馆介绍</p></section><section><h2>门店</h2><p>门店介绍</p></section><p class="outside">外部</p></main>') {
+async function fixture(css = '', html = '<main><section><h1>清禾小馆</h1><p>小馆介绍</p></section><section><h2>门店</h2><p>门店介绍</p></section><p class="outside">外部</p></main>', materials = '公司名：清禾小馆。小馆介绍。门店介绍。外部。入口。') {
   const id = `t164-seven-${crypto.randomUUID()}`;
   const conversation = await getOrCreateConversation(id, `conversation-${id}`);
   await createCodeSite(id, '清禾小馆', conversation.conversationId);
-  const material = await chat(id, { message: '公司名：清禾小馆。小馆介绍。门店介绍。外部。入口。', baseRevision: 0 });
+  const material = await chat(id, { message: materials, baseRevision: 0 });
   assert.equal(material.status, 200, await material.text());
   await updateCodeSite(id, () => ({ plan: { style: 'precision', summary: '小馆', styleReason: '测试', pages: [{ id: 'home', title: '首页', outline: '小馆与门店' }] } }));
   const code: SiteCode = { header: '', footer: '', css: 'body{margin:0;color:#111;background:white;font:16px/1.6 sans-serif}main{height:400px}section{height:120px}' + css, pages: [{ id: 'home', title: '首页', html }] };
@@ -184,4 +204,60 @@ test('真实 chat 批次遇到 main:has(:focus) 仍允许合法无外溢修改�
   const locals = requests.slice(begin).filter(request => request.local);
   assert.equal(locals.length, 1);
   assert.ok(locals[0].input.css.includes('main:has(:focus)'), '相关规则原样交给局部写作');
+});
+
+for (const removeSecond of [false, true]) {
+  test(removeSecond ? '多选区删除第二处事实后清除旧出处与失效定位' : '多选区保留两处事实时全部重绑出处，不报重复', async () => {
+    const { id, target } = await fixture('',
+      '<main><section><h1>清禾小馆</h1><p>营业时间为18点。</p></section><section><h2>门店</h2><p>营业时间为19点。</p></section></main>',
+      '公司名：清禾小馆\n小馆介绍。门店介绍。小馆营业时间为18点。门店营业时间为19点。');
+    const initial = (await getCodeSite(id))!.versions[0].checks.factCitations!;
+    assert.equal(initial.complete, true);
+    assert.deepEqual(initial.entries.map(entry => entry.claim).sort(), ['营业时间为18点。', '营业时间为19点。']);
+    const items = [batchItem({ ...target, text: '清禾小馆营业时间为18点。' }, '保留小馆原文，仅调整段落包装。'),
+      batchItem({ ...target, path: [1], text: '门店营业时间为19点。', label: '门店' }, removeSecond ? '删除本区块营业时间。' : '保留门店原文。')];
+    transformLocal = input => input.request.includes('删除本区块营业时间') ? input.html.replace('<p>营业时间为19点。</p>', '')
+      : input.request.includes('调整段落包装') ? input.html.replace('<p>营业时间为18点。</p>', '<div><p>营业时间为18点。</p></div>') : input.html;
+    try {
+      const response = await chat(id, { message: '批量局部修改', baseRevision: 1, annotationBatch: items, saveAnnotation: true });
+      assert.equal(response.status, 202, await response.text());
+      const site = await settle(id);
+      assert.equal(site.run!.status, 'complete', site.run!.step);
+      assert.equal(site.versions.length, 2);
+      const version = site.versions.at(-1)!;
+      const citations = version.checks.factCitations!;
+      assert.equal(citations.complete, true);
+      const expectedClaims = removeSecond ? ['营业时间为18点。'] : ['营业时间为18点。', '营业时间为19点。'];
+      assert.deepEqual(citations.entries.map(entry => entry.claim).sort(), expectedClaims, '只保留当前内容的出处，不保留第二选区旧记录');
+      assert.deepEqual(citations.entries.find(entry => entry.claim === '营业时间为18点。')?.targets?.map(location => location.path), [[0, 1, 0]], '首处出处须跟随新包装重新定位');
+      if (removeSecond) {
+        assert.doesNotMatch(version.code.pages[0].html, /19点/);
+        assert.ok(!citations.entries.some(entry => entry.targets?.some(location => JSON.stringify(location.path) === '[1,1]')), '删除节点的旧定位必须消失');
+      } else {
+        assert.deepEqual(citations.entries.find(entry => entry.claim === '营业时间为19点。')?.targets?.map(location => location.path), [[1, 1]]);
+      }
+    } finally { transformLocal = undefined; }
+  });
+}
+
+test('两组写作后一次瞬时 CHROME_PATH 故障直接终止，不追加模型调用或存版', async () => {
+  const { id, target } = await fixture();
+  const items = [batchItem(target, '保留小馆内容。'), batchItem({ ...target, path: [1], text: '门店门店介绍', label: '门店' }, '保留门店内容。')];
+  const begin = requests.length;
+  faultAfterLocalReplies = 2;
+  try {
+    const response = await chat(id, { message: '批量局部修改', baseRevision: 1, annotationBatch: items, saveAnnotation: true });
+    assert.equal(response.status, 202, await response.text());
+    const site = await settle(id);
+    assert.equal((globalThis as any).__t164TransientChromeFault, false, '必须实际消耗一次故障');
+    assert.equal(site.run!.status, 'error', '基础设施错误不能伪装成模型修正后完成');
+    assert.match(site.run!.step, /CHROME_PATH/);
+    assert.equal(site.versions.length, 1);
+    assert.equal(requests.slice(begin).filter(request => request.local).length, 2, '每组仅第一次写作，不得因基础设施故障追加调用');
+    assert.equal(site.run!.repairRound, 0);
+    assert.equal(site.run!.attempts.length, 0);
+  } finally {
+    faultAfterLocalReplies = 0;
+    (globalThis as any).__t164TransientChromeFault = false;
+  }
 });

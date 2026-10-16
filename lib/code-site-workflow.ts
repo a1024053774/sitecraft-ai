@@ -216,7 +216,10 @@ async function executeLocalEditBatch(site: CodeSiteRecord, run: CodeRun) {
     } else {
       let code;
       try { code = await applyLocalEdits(source.code, groups, candidates); }
-      catch (error) { groupIssues = groups.map(() => [error instanceof Error ? error.message : '局部修改组装失败，未保存版本。']); }
+      catch (error) {
+        if (!(error instanceof CodeRepairError)) throw error;
+        groupIssues = groups.map(() => [error.message]);
+      }
       if (code) {
         await runStep(site.siteId, run.id, { step: '检查多区块范围、事实与三档布局' });
         const committed = await commitSiteCode({ siteId: site.siteId, baseRevision: run.baseRevision, code, selectedTargets: groups.map(group => group.target),

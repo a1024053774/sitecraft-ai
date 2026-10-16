@@ -618,8 +618,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], noFacts: segment.noFacts, factCategories: segment.factCategories, citations: segment.citations }))]
           .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
         if (!args.localEdit) checks.factSegments = { format: 4, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? [], audited: pending.length, reused: reused.length, segments: receipts };
-        const scope = args.localEdit ? segments[0]?.targets?.[0] : undefined;
-        const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !scope || target.pageId !== scope.pageId || target.root !== scope.root || !scope.path.every((index, i) => target.path[i] === index)) })).filter(citation => citation.targets?.length);
+        const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !localTargets.some(scope => target.pageId === scope.pageId && target.root === 'main' && scope.path.every((index, i) => target.path[i] === index))) })).filter(citation => citation.targets?.length);
         const citations: CodeFactCitation[] = [];
         const citationKeys = new Set<string>();
         for (const citation of [...outside, ...receipts.flatMap(review => review.citations)]) {

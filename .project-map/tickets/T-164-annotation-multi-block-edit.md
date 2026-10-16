@@ -76,7 +76,7 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 本次性能修复（最终代码 `3014593`）：诊断确认样式读取占主要耗时（拾色 7 元素单探针约 1.9 秒，force 约 40ms，聚焦约 25ms，169 次 CDP 往返）；页面内缓存范围外元数据，批量读取完整计算样式后 gzip 序列化传输，源/候选在独立 CDP target 并行探测，比较仍使用完整 `DOM 路径 × 计算样式` 集合。最终并行实测两站三档均通过 2 秒：禾巷小馆 1.78/1.73/1.70 秒，拾色绘画教室 1.35/1.26/1.24 秒；每档记录 interactiveElements、forceCalls、cdpRoundTrips、focus/force/styleRead/compare 分段及 extras=0。
 
-2026-10-16 第七轮修复（父版本 `7fde85b`，正常追加提交）：
+2026-10-16 当前离线实现（第七轮基线父版本 `7fde85b`；第八轮基于 `3e192f9` 窄改，正常追加提交）：
 
 - 预算保持动态探针与完整比较合计每档 5 秒、三档 15 秒，超时明确拒绝且不存版本。原 2 秒上限因禾巷 1440 曾为 2.63 秒、暖运行 1.60–1.70 秒而在抖动下误拒，负责人已选定 5/15 秒，本轮未调整。
 - 范围外纳入选中区块祖先自身；只排除选中区块及其后代。祖先全部属性采用浏览器 CSS Typed OM 的真实计算值（含 auto／百分比），因此背景、明确高度等规则变化被拒，而区块内自然增高仍可保存。未用尺寸白名单或剥规则。最初直接比较 resolved 像素值曾使两条合法正例失败，证据 `artifacts/t164/review-seven-ancestors-full.log`（21/23）保留；改用完整计算值后两项恢复通过。
@@ -87,6 +87,12 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 - 新增 `tests/t164-review-seven.test.ts` 经真实 POST chat 路由或提交入口覆盖上述问题。11 项在 `7fde85b` 全部失败（`artifacts/t164/review-seven-parent-eleven-red.log`），包含祖先背景／明确高度、五类伪元素、已有自定义属性仅改值、批注事实及后续沿用、每条元素提示、`:has(:focus)` 合法批次。原 7 项及 9 项红记录保留。一次误与 T-171 重叠启动的运行已主动中止，`review-seven-intermediate.log` 不计为验证结果。
 - `npm run typecheck` 通过；本轮中间聚焦 41/41 通过，最终 T-164 聚焦 27/27 通过（`artifacts/t164/review-seven-final-focused.log`），包含原有“合法两处修改”“无动态 CSS 新增链接”正例；未削弱原断言。
 - 新伪元素读取最初在真实两站六档触发 5 秒拒绝，日志 `review-seven-diagnostic.log`、`review-seven-optimized-diagnostic.log` 及临时根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-t164-seven-diagnostic-l60xw8u1` 保留。根因是每态经 CSSOM 索引重复枚举标准属性名；只缓存浏览器固定标准名并逐态重读全部属性值及实时自定义属性后，单次诊断禾巷 2.14–2.29 秒、拾色 1.81–1.85 秒，详见 `review-seven-cached-properties.log`。四状态、触发元素、祖先传播、伪元素及三个视口均保留。
+
+第八轮增量：出处清理改用全部 localTargets 的并集，逐个过滤旧定位，保留并集外定位，再由新核对内容重新绑定；不再依赖首个新段落。组装阶段只捕获 CodeRepairError，其他异常原样终止任务，不转成组内修正意见。
+
+新增三项真实 chat 入口回归先在 `3e192f9` 失败（`artifacts/t164/review-eight-parent-red.log`）：保留 18/19 点两处事实被报重复；删除第二处后旧 19 点出处仍存在；一次真实浏览器工厂读取不到 CHROME_PATH 后任务错误完成、局部写作 4 次并存第二版。红产物 `artifacts/t164/review-seven-1792114756066-40622/evidence.json` 保留。修复后同一入口与 T-164/T-169 聚焦 28/28 通过（`review-eight-focused.log`），Chrome 故障时明确 error、仍仅 2 次局部写作、仅原一版、repairRound=0、attempts=[]；绿色产物 `artifacts/t164/review-seven-1792114828662-41799/evidence.json` 保留。保留两处时第一处换了段落包装，断言新定位为 [0,1,0]；删除第二处时断言 19 点原文和 [1,1] 旧定位同时消失。
+
+第八轮 `npm run typecheck` 与标准入口回归 4/4 已通过；最终全量、build 待本轮实现冻结后串行验证。动态探针未改；负责人转述的第八位独立复测单档最大 3.51 秒、三档最大 8.94 秒已确认满足 5/15 秒，下面保留第七轮原始 30 次分布，不冒充本轮重新测量。
 
 冻结实现 `c6f8bc8` 后，2026-10-16T01:13:38.243Z 在只读复制根 `/tmp/sitecraft-t164-seven-real.51KwNb` 完成两个真实首页每档各 5 次测量。命令：`ROOT=/tmp/sitecraft-t164-seven-real.51KwNb COMMIT=c6f8bc8 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t164/real-homepage-timing.ts`。
 
