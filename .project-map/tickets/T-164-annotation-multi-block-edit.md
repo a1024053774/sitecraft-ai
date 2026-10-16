@@ -39,6 +39,23 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 ## Resolution
 
+2026-10-16 一次真实多区块验证结果 **INCOMPLETE**（产品实现 `d312698`，本提交仅给预算网关白名单加入 t164 并记录结果）：第一组终态拒收且未存版，按主控条件立即停止，没有重跑、换意见或发送第二组。授权为两组合计 `SITECRAFT_TOKEN_LIMIT=80000`、共用一个账本；累计实付 17329，剩余 62671 未动用。跑前 df 可用约 10GiB，ps 无其他 chrome-headless-shell／node --test／next build；本轮模型、Chrome 工作串行。
+
+底稿只读复制自主目录 `.sitecraft-data/code-sites/32e0ab93-d3c5-470e-b4cd-16180fd5ba8b.json` 及对应会话文件，到 `mktemp -d` 创建的 `/tmp/sitecraft-t164-real-approved.diEBFA`，没有图片文件需要复制。运行 siteId 仍为 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b`，只在临时根更新任务与批注；主目录及临时根当前均只有 v1 `60cde704-7364-461c-a236-9af8933c5b4c`，没有“修改后版本”。独立 Next 应用使用随机端口、NODE_ENV=test，不加载 .env.local；真实密钥仅按授权命令 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 进入网关进程，应用只连本地网关。账本 `artifacts/t164/blind-20261016T054417Z/private/budget/usage.json` 保留全部 3 次已结算调用；任务 error 且零 in-flight 后才手动停网关，截图结束后停独立应用。
+
+| 组合 | 真实批注范围 | 请求数 / token | 存版与拒因 |
+| --- | --- | --- | --- |
+| 第一组 | 同页共用 `.section`：首页 `[2]` 营业时段＋`[5]` 收费口径；第二条补充“外带包装费现在确定为每单2元。” | 3 / 17329：两次局部写作 9699、4524，一次非思考事实核对 3106 | HTTP 202 后任务 error；未存版。既有营业时间、米饭及含税收费的原句不在可引用出处集合，按整体检查拒绝；无内部修正轮、无手动重跑 |
+| 第二组 | 预定首页 `[4]` 用餐场景＋菜单页 `[3]` 午市组合 | 0 / 0 | NOT_RUN；第一组拒收后按约定停止，未产生第二个网关 round 或任务 |
+
+第一组实际调用于 2026-10-16T05:48:11.053Z 开始、05:48:57.962Z 完成记录，runId `5facc742-ab8a-4364-96b7-79a25c9502ee`。三个上游请求均 HTTP 200、finishReason=stop，未截断、未超额；一次实际生产 chat `annotationBatch` POST，使用真实 Next after。命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t164/blind-20261016T054417Z/private/run-real.ts first`；该阶段有已开始即拒绝再次发送的标记。批注原文、请求、任务、候选检查与拒因分别保留在该目录 private/ 下的 `first-request.json`、`first-state.json`、`first.log`、`outcome.json`；不把脚本非零退出改成通过。
+
+拒收根因：底稿既无 `factSources`，v1 也无 `factSourceSnapshot`；`codeFactSourceMaterials` 以有效版本的来源快照为基线，缺少时只加入本次两条批注。因此完整材料上下文中的原始营业／收费原句不能在本次 sourceMaterials 中验真。新事实“外带包装费每单 2 元。”在未通过的候选检查里确实绑定 `source={type:message,messageIndex:2}` 和首页 `[5,0,1,0,2]`；但 `factCitations.complete=false`、整批未存版，工作台仍显示 v1 与“未提供可引用的原句”。合同 D 的“新事实出处存版及显示”本轮尚未验收通过，不补造旧资料快照或绕过门禁。动态检查不是本次拒因：375／768／1440 为 2359.6／2275.9／2204.7ms，合计 6840.2ms；各侧 I=10、force=76、CDP=215，未放宽上限。
+
+盲评材料：`artifacts/t164/blind-20261016T054417Z/review/` 只有第一组原版与拒收候选的 A/B 三档截图、批注原文及阅读说明（两页全图＋两处批注和范围外区块，共 30 张）；`private/mapping.json` 明确记录 source／rejected-candidate、stored=false、afterVersion=null 与第二组未运行。候选只由生产 `renderSiteCode` 只读绘制，没有经旁路写入版本，不能称为已应用的修改版。另有 3 张三档真实工作台拒绝画面；33 张均已逐张打开，清单 `private/screenshot-views.json`，未自行盲评或判断审美。首个工作台截图脚本误用 .code-error 定位而超时，`capture-refused.log` 原样保留；只改用真实终态 code-progress 补采工作台画面，静态 30 张没有重拍，没有新增模型调用。
+
+本次白名单小改后的标准预算回归 `CHROME_PATH=上述路径 npm test -- tests/t165-token-reserve.test.ts tests/t165-tokenizer-adversarial.test.ts` 23/23（`artifacts/t164/real-approved-budget-regressions.log`），`npm run typecheck` 通过（盲评目录 `private/typecheck.log`）。本次真实拒收后未再跑全量／build，不引用前轮结果冒充本次通过；真实验收与第二组仍未完成，票保持 open。未推送。
+
 第九轮修复（基线 `5a43e9e`，claimed_by 仍为 Codex）：普通批量发送始终显式传 false，只有“确认按较大区块合并后发送”传 true；“待确认”状态只控制确认按钮是否显示。服务端 z.boolean 可选字段与合组前置检查已经拒绝缺省／false，无须增加平行门禁。Tracer bullet 经三档真实 Chrome 点选祖先／后代、添加两条意见、重复普通发送、明确确认、真实 chat 与存版验证；不改变合组、动态检查语义与性能预算。
 
 新增 `tests/t164-overlap-confirmation.test.ts` 先在 `5a43e9e` 运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t164-overlap-confirmation.test.ts`：三档均在第二次普通发送的 actual true / expected false 业务断言失败，服务端缺省／false／再次缺省连续拒绝通过（1/4）。日志 `artifacts/t164/review-nine-overlap-parent-red.log`，报告／数据根 `artifacts/t167/test-run-1792127939994-24152`，原始请求和失败截图在 `artifacts/t162/self-contained-1792127941418-24163`；未通过重跑、跳过或修改期望掩盖。
