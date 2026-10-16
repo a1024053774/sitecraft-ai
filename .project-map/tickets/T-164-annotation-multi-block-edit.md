@@ -35,9 +35,19 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 - [x] 负责人确认合同与用量上限的记录写进本票
 - [x] 坏例测试：合法两处修改通过；共享 CSS 外溢被拒；重叠目标按确认处理；任一组失败不产生新版本；先在父版本或 mutant 上失败
 - [ ] 真实 chat 入口跑一次多区块修改，用量写进 Resolution；修改结果由独立盲评实例对比原版和修改版
-- [x] Astra 审查通过；typecheck、test、build 通过（独立 sol 与主控 9ecfbfc 全量，见下）
+- [ ] 本轮输出上限修复待主控安排独立 sol 复审；typecheck、test、build 已通过，前版审查见下
 
 ## Resolution
+
+2026-10-16 局部写作输出上限离线修复 **PASS**（本提交，父版本 `9ce8fbc48279de1f4d513ed9c3785a7c3a6287d5`，claimed_by 为 Codex）：按负责人决定 A，仅将 `writeLocalEdit` 的输出上限从 6144 改为 12288；单条、多区块、首轮和修正轮均走这一处。局部写作思考模式仍开启，局部事实核对仍固定非思考、4096 token。没有新增环境开关、兼容分支、回退或重试。截断继续立即终止、明确报错、不存版本，并在任务保存 finishReason=length。业务规则同步 AGENTS.md 的“局部修改”、术语表与主线，测试细节和上限说明在 spec.md 及本票。本次不调用 DeepSeek、不读取 .env.local、不运行预算网关出网、不写主目录数据、不推送；独立复审及最后一次真实运行均等主控另行安排，T-164 保持 open。
+
+新增 `tests/t164-local-output-limit.test.ts` 经生产 chat annotationBatch POST、本地模型替身及共用提交入口覆盖两种结果：第一组返回 length 后终态 error、原版本集合不变、只调用一次、不发送后续组，任务保留 length、空回答与 reasoning 用量；另一批两组首轮均返回 main 以触发真实合同修正，第二轮各返回合法区块，最终只存一个版本，实际四次 max_tokens 均须为 12288。预算直接将捕获的完整 HTTP 请求交给 `scripts/t153-real-budget.ts` 的 reserveRequest，首调用以实付 0、独立余额 52905 预留，不填造输入字符估算；输入上界 3350、完整输出 12288、合计 15638，未降低输出且可预留。这个输入是离线生产入口请求，不冒充前次禾巷小馆上游线缆抓包。测试也断言局部事实调用均为 disabled / 4096。沿用 T-162 请求隔离的受控 after 调度，不声称做了真实 Next after 或外部模型验收。
+
+先红后绿：在未改产品的 `9ce8fbc` 上运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t164-local-output-limit.test.ts`，11:17:45.653Z 结束，1 通过、1 业务断言失败，四次实际值 `[6144,6144,6144,6144]` 不等于需求规定的 `[12288,12288,12288,12288]`；截断保护本来已实现，父版本该项即通过，没有伪造红态。红日志 `artifacts/t164/local-output-limit-parent-red.log`，报告及身份 `artifacts/t167/test-run-1792149453050-914/report.json`。修后相同命令于 11:18:18.496Z 得到 2/2（`local-output-limit-focused-green.log`、`artifacts/t167/test-run-1792149485995-1135/report.json`）；原请求、任务、版本和预留在 `artifacts/t162/self-contained-1792149487495-1158/local-output-{requests,truncated,repair}.json`，父版对应目录为 `self-contained-1792149454687-919/`。
+
+扩大定向命令 `CHROME_PATH=上述路径 npm test -- tests/t164-local-output-limit.test.ts tests/t164-multi-block-edit.test.ts tests/t164-multi-block-chat.test.ts tests/t164-original-materials.test.ts tests/t165-token-reserve.test.ts tests/t165-tokenizer-adversarial.test.ts tests/t152-local-model-input.test.ts`，11:19:27.059Z **55/55、0 失败/取消/跳过**（`artifacts/t164/local-output-limit-regressions.log`、`artifacts/t167/test-run-1792149521643-1412/report.json`）。随后串行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4（`local-output-limit-runner.log`）、`npm run typecheck` 通过（`local-output-limit-typecheck.log`），约 11:19:53Z 完成。
+
+全量前已向主控报告；uptime 1 分钟负载 4.43，df 可用 6.2GiB，ps 无其他 chrome-headless-shell／node --test／next build，才串行执行唯一一次 `CHROME_PATH=上述路径 npm test`。11:24:06.024Z 结束，**641/641、0 失败、0 取消、0 跳过**，耗时 233919.710ms，日志 `artifacts/t164/local-output-limit-full.log`、报告与临时根身份 `artifacts/t167/test-run-1792149610618-2807/report.json`。全量后等待负载回落；build 前 uptime 5.76、df 可用 6.0GiB、ps 无其他重任务，单独执行 `SITE_STORE=fs npm run build`，11:27:22.792Z 通过（`artifacts/t164/local-output-limit-build.log`）。未重跑全量。4 张定向与 99 张全量原始截图均已逐张打开，清单 `artifacts/t164/local-output-limit-screenshot-views.json`；T-130 分发复制图不重复计数，发送冻结态、模拟拒收与空站画面只作流程证据，不作审美结论。
 
 2026-10-16 主控验收补记：新的独立 sol 实例复审 `2007923..9ecfbfc` 为 **PASS**，确认三项 P1 均已堵住且修复互不冲突。主控在 `9ecfbfc` 上于 06:44–06:51 EDT（10:44–10:51Z）串行运行标准全量，**639/639、0 失败、0 取消、0 跳过**，期间负载 15–27；已核对日志 `artifacts/t164/supervisor-full-9ecfbfc.log` 与报告 `artifacts/t167/test-run-1792147475075-79951/report.json`（结束 10:51:30.907Z）。此前本实例全量的三项失败证据保留，不能用补测覆盖。
 

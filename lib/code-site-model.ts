@@ -202,7 +202,7 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
       }) } : {
         ...(args.target.element ? { pointedElement: args.target.element } : {}),
         ...(args.target.elements ? { pointedElements: args.target.elements } : {}),
-      }) }), 6144);
+      }) }), 12288);
   return { response: result.data, model: result.model };
 }
 export async function writeLocalEditBatch(args: { materials: string; preferences: CodePreferences; plan: CodePlan; current: SiteCode;
