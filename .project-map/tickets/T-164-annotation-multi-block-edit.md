@@ -35,9 +35,36 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 - [x] 负责人确认合同与用量上限的记录写进本票
 - [x] 坏例测试：合法两处修改通过；共享 CSS 外溢被拒；重叠目标按确认处理；任一组失败不产生新版本；先在父版本或 mutant 上失败
 - [ ] 真实 chat 入口跑一次多区块修改，用量写进 Resolution；修改结果由独立盲评实例对比原版和修改版
-- [ ] 本轮输出上限修复待主控安排独立 sol 复审；typecheck、test、build 已通过，前版审查见下
+- [x] 输出上限修复经独立 sol 复审 PASS；typecheck、test、build 已通过，见下
 
 ## Resolution
+
+2026-10-16 主控转达：`26b6a72` 经新的独立 sol 实例复审 **PASS**，确认局部写作及修正轮统一 12288、截断不存版、首调用预算预留可行。网关按实付结算；后续调用余额不足时可将输出额度降到低于 12288，属于既有正常预算行为，产品请求上限与网关最终分配应分开记录。
+
+2026-10-16 最后一次真实运行（t164-real2）结果 **INCOMPLETE**，产品提交 `26b6a724aa6ee2203287c63d08678c1782d5a721`。第一组在 11:38:31.861–11:39:07.801Z 经生产 chat annotationBatch、真实 Next after 执行，HTTP 202，任务 `0fb3f8cc-9b82-47b7-adc8-2255dc5e204b` 终态 error，拒因“整体检查未通过：资料出处重复：节假日营业安排待补充。”两次局部写作正常结束，随后一次局部事实核对的出处检查拒收；没有截断、超额或新增版本，也没有进入修正轮。按最后一次运行的停止条件，未重跑、未换批注、未发送第二组，也不再申请重跑。
+
+| 组合 | 原定范围 | 本轮请求 / 实付 token | 版本与结果 |
+| --- | --- | --- | --- |
+| 第一组 | 首页 [2] 营业时段、[5] 收费口径，沿用原文及新事实“外带包装费现在确定为每单2元。” | 3 / 16602 | 未存版；仍为 v1 `60cde704-7364-461c-a236-9af8933c5b4c`；出处重复拒收 |
+| 第二组 | 首页 [4] 用餐场景、菜单页 [3] 午市组合，原文未改 | 0 / 0 | NOT_RUN；没有第一组存下的新版本，未发送，无第二组版本 |
+
+新账本仅结算本次调用：显式 `SITECRAFT_TOKEN_LIMIT=52905`，初始实付 0，累计实付 **16602**，余额 **36303**，未续用任何旧账本。每次上游均 HTTP 200、finish_reason=stop；输入、输出与总量均按完整 usage 计费，包含缓存输入。写作答案 token 按 completion − reasoning 计算；两次写作的 reasoning 分别为 **1538、2013，均未接近 12k**，本次没有触及 12288 输出额度。事实请求固定 disabled，但 usage 未上报 reasoning 字段，不补造为 0，也不填造答案 token 分拆。
+
+| 调用开始（UTC） | 阶段 / 思考 | 网关输出额度 | 输入 token | 输出 token | reasoning token | 答案 token | 合计 token |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 11:38:33.015 | 营业时段局部写作 / enabled | 12288 | 3622 | 2663 | 1538 | 1125 | 6285 |
+| 11:38:43.961 | 收费口径局部写作 / enabled | 12288 | 3464 | 2243 | 2013 | 230 | 5707 |
+| 11:39:04.049 | 两区块局部事实核对 / disabled | 4096 | 3855 | 755 | 未上报 | 未分拆 | 4610 |
+
+首调用按真实输入预留 inputUpper=9567、outputLimit=12288、reserved=21855；第二次 9156+12288=21444；事实核对 10243+4096=14339。本轮未发生输出额度下调。完整账本为 `artifacts/t164/blind-20261016T113643Z/private/budget/usage.json`；模型耗时依次 10726、11738、3318ms，原始 usage、调用阶段与推理/答案分拆在 `private/outcome.json`。任务终态且 3 次请求均 complete、零 in-flight 后，约 11:39:44Z 手动 SIGINT 停网关；ledger.stopped=false 表示上游调用没有触发预算停机，不表示进程仍在运行，进程闭合见 `private/gateway.log`。截图结束后约 11:45:31Z 停止独立 Next 应用，闭合见 `private/start-app.log`。
+
+底稿与对应会话只读复制自主目录到新 `mktemp -d /tmp/sitecraft-t164-final.XXXXXX` 创建的 `/tmp/sitecraft-t164-final.Y6komx`，未复用前两次数据根。siteId 为 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b`，conversationId 为 `b4f70578-92fa-4ec4-b15d-b6b87fe5a036`；复制清单 `private/copied-files.json`，基线记录 `private/baseline-site.json`。收尾核对主目录站点仍只有原 v1、currentVersionId/updatedAt 未变，站点与会话 mtime 仍为 2026-10-12；主目录无写入。新临时根仅保存来源登记、批注、失败任务、两份写作回复及一个未存版检查候选，v1 未回写。
+
+运行命令记录（仅供核查，不再授权发送）：`node artifacts/t164/blind-20261016T113643Z/private/start-app.mjs` 启动独立随机端口 Next dev，NODE_ENV=test、SITE_STORE=fs，核对 health.cwd/dataRoot 指向本工作树和新根；应用仅连接网关且使用占位 key。仅网关进程按授权执行 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a; SITECRAFT_TOKEN_LIMIT=52905 node artifacts/t164/blind-20261016T113643Z/private/start-gateway.mjs`，内部使用标准 `scripts/t153-real-budget.ts`、新账本、无 resume，t164 白名单未改。设置 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell` 后，依次运行 `node --experimental-strip-types artifacts/t164/blind-20261016T113643Z/private/run-real.ts prepare` 与唯一一次 `first`；没有执行 second。批注原文与范围已按业务字段逐项核对上次记录一致，模型请求前关闭目标读取的 Chrome。11:37:56Z 跑前 df 可用 4.9GiB、ps 无其他 chrome-headless-shell／node --test／next build，负载约 14.69（`private/preflight.json`）；模型和外部采图 Chrome 串行。真实请求、完整任务/版本与失败日志分别为 `private/first-request.json`、`first-state.json`、`results.json`、`first.log`，均保留，不以脚本失败断言冒充通过。
+
+出处与图包：失败候选的检查记录内，旧事实引文来源为 materials（“原始资料”），新包装费引文来源为 messageIndex=2（“你的第 2 条消息”）；这些是未存版检查记录，不能替代存版验收。真实工作台三档仍为 v1，显示“未提供可引用的原句”与出处重复拒因，故本次 **未完成新事实存版及工作台出处显示验收**。网关手停后，运行 `CHROME_PATH=上述路径 node --experimental-strip-types artifacts/t164/blind-20261016T113643Z/private/capture-rejected.ts`，对保留的原版与 `run.attempts[0].code` 经生产 `renderSiteCode` 只读渲染采图，未把候选写成站点版本、未把它冒充生产修改版预览。
+
+盲评材料目录 `artifacts/t164/blind-20261016T113643Z/`：review/ 仅有第一组随机 A/B 的两页三档全图、批注区块及范围外区块近景共 36 张、两组批注原文及中性阅读说明；第二组无图片。private/ 的 `capture-manifest.json` 保存原版／未存版候选映射、渲染路径与拒因，另存账本、请求/任务/版本、日志及 6 张真实工作台图。42 张均逐张打开确认已载入，清单 `private/screenshot-views.json`；没有自做盲评或下审美结论。图包可比较第一组候选外观，但不代表任何已保存修改版，也没有第二组真实结果。此次只记录最后一次真实运行，不修改检查合同、不新增模型调用，T-164 保持 open。
 
 2026-10-16 局部写作输出上限离线修复 **PASS**（本提交，父版本 `9ce8fbc48279de1f4d513ed9c3785a7c3a6287d5`，claimed_by 为 Codex）：按负责人决定 A，仅将 `writeLocalEdit` 的输出上限从 6144 改为 12288；单条、多区块、首轮和修正轮均走这一处。局部写作思考模式仍开启，局部事实核对仍固定非思考、4096 token。没有新增环境开关、兼容分支、回退或重试。截断继续立即终止、明确报错、不存版本，并在任务保存 finishReason=length。业务规则同步 AGENTS.md 的“局部修改”、术语表与主线，测试细节和上限说明在 spec.md 及本票。本次不调用 DeepSeek、不读取 .env.local、不运行预算网关出网、不写主目录数据、不推送；独立复审及最后一次真实运行均等主控另行安排，T-164 保持 open。
 
