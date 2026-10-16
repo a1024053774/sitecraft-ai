@@ -410,7 +410,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {!!pendingDrafts.length && <section aria-label="待发送批注列表">
           <strong>待发送批注 · {pendingDrafts.length} 条</strong>
           {site.run?.overallIssue && <p className="code-error" role="alert" data-testid="annotation-overall-error">{site.run.overallIssue}</p>}
-          {pendingDrafts.filter(draft => draft.status === 'draft' && draft.target.versionId === version?.id).length > 1 && <button type="button" data-testid="annotation-send-batch" disabled={busy || conversationUnavailable || !!previewVersionId} onClick={() => void sendAnnotationBatch(overlapConfirmation)}>发送这些批注为一个版本</button>}
+          {pendingDrafts.filter(draft => draft.status === 'draft' && draft.target.versionId === version?.id).length > 1 && <button type="button" data-testid="annotation-send-batch" disabled={busy || conversationUnavailable || !!previewVersionId} onClick={() => void sendAnnotationBatch(false)}>发送这些批注为一个版本</button>}
           {overlapConfirmation && <button type="button" data-testid="annotation-confirm-overlap" disabled={busy || conversationUnavailable || !!previewVersionId} onClick={() => void sendAnnotationBatch(true)}>确认按较大区块合并后发送</button>}
           <div className="code-annotation-list">{pendingDrafts.map((draft, index) => <section key={draft.id} className="code-annotation-draft" data-testid="annotation-draft" data-draft-id={draft.id} aria-label={`批注 ${index + 1}`}>
             <small>{index + 1} · {site.versions.find(v => v.id === draft.target.versionId)?.code.pages.find(p => p.id === draft.target.pageId)?.title} · {draft.target.label}</small>

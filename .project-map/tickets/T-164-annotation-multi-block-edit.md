@@ -39,7 +39,20 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 ## Resolution
 
-2026-10-16 本轮离线交付：冻结实现 `77ddcf1`（已正常合并 `family-kit-assembly` 的 `20e64b7`），本轮执行验证 **PASS**。真实 DeepSeek 修改与独立审查仍按主控安排，票保持 open，未推送。
+第九轮修复（基线 `5a43e9e`，claimed_by 仍为 Codex）：普通批量发送始终显式传 false，只有“确认按较大区块合并后发送”传 true；“待确认”状态只控制确认按钮是否显示。服务端 z.boolean 可选字段与合组前置检查已经拒绝缺省／false，无须增加平行门禁。Tracer bullet 经三档真实 Chrome 点选祖先／后代、添加两条意见、重复普通发送、明确确认、真实 chat 与存版验证；不改变合组、动态检查语义与性能预算。
+
+新增 `tests/t164-overlap-confirmation.test.ts` 先在 `5a43e9e` 运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t164-overlap-confirmation.test.ts`：三档均在第二次普通发送的 actual true / expected false 业务断言失败，服务端缺省／false／再次缺省连续拒绝通过（1/4）。日志 `artifacts/t164/review-nine-overlap-parent-red.log`，报告／数据根 `artifacts/t167/test-run-1792127939994-24152`，原始请求和失败截图在 `artifacts/t162/self-contained-1792127941418-24163`；未通过重跑、跳过或修改期望掩盖。
+
+第九轮验证对应本提交（父 `5a43e9e`）：同一标准定向命令于 2026-10-16T05:20:40Z 4/4 通过（`artifacts/t164/review-nine-overlap-green.log`、`artifacts/t167/test-run-1792128009604-24720`）。三档真实点选形成 `[2,0]` 与 `[2,0,1]` 的祖先／后代，两次普通发送均实际 false、HTTP 422、任务及版本不增加、两条草稿保留；确认按钮才实际 true、HTTP 202、一次合组写作并保存一个新版本。服务端另以 `[2]`／`[2,0]` 验证缺省／false／再次缺省始终拒绝，没有把前一次重叠提示视作后续确认。原始请求、任务和六张定向截图在 `artifacts/t162/self-contained-1792128010930-24725`。沿用 T-162 随机端口本地模型替身和生产 chat POST，helper 控制 after 调度，不将其称为实际 Next after 集成。
+
+- `npm run typecheck` 于 2026-10-16T05:20:56Z 通过（`artifacts/t164/review-nine-typecheck.log`）。
+- `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 于 2026-10-16T05:21:21Z 4/4（`artifacts/t164/review-nine-runner.log`）。
+- `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 于 2026-10-16T05:25:23.390Z 633/633、零跳过（`artifacts/t164/review-nine-full.log`、`artifacts/t167/test-run-1792128112102-25585/report.json`）。
+- `SITE_STORE=fs npm run build` 于 2026-10-16T05:26:03Z 通过（`artifacts/t164/review-nine-build.log`）。全量与 build 前均 df/ps 检查无其他重任务，串行执行；本轮未调用 DeepSeek、未推送、未自行开审查。
+
+本轮原始截图 128 张（父版本红 3、定向绿 6、全量 119）已逐张打开，清单 `artifacts/t164/review-nine-screenshot-views.json`；失败及刻意冻结的发送状态只作流程诊断，三档确认后截图均已载入，不作审美判定。本轮离线修复与验证 **PASS**；真实模型与独立审查仍由主控安排，票保持 open。
+
+2026-10-16 CSSOM 轮离线交付：冻结实现 `77ddcf1`（已正常合并 `family-kit-assembly` 的 `20e64b7`），该轮执行验证 **PASS**。真实 DeepSeek 修改与独立审查仍按主控安排，票保持 open，未推送。
 
 - `npm run typecheck` 通过（`artifacts/t164/cssom-frozen-typecheck.log`）；`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4（`cssom-final-runner.log`）。
 - `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 于 2026-10-16T04:36:52.380Z 结束，629/629、零跳过；原 588 项、本轮新增 18 项、主线 T-171 的 23 项均通过。完整报告与每次检查的计数／分段耗时在 `artifacts/t167/test-run-1792125196953-78421`，主日志 `artifacts/t164/cssom-frozen-full.log`。
