@@ -7,7 +7,7 @@ import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecor
 import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, translateSiteCode, writeLocalEdit, writeLocalEditBatch, codeModelCalls } from './code-site-model.ts';
 import { annotationBatchItemSchema, annotationTargetSchema, type AnnotationBatchItem, type AnnotationTarget } from './annotations.ts';
 import { localEditContext, applyLocalEdit, applyLocalEdits, attributeLocalIssues, mergeAnnotationEdits } from './code-site-local-edit.ts';
-import type { CodeFactSource } from './code-site-fact-segments.ts';
+import { factSourceKey, type CodeFactSource } from './code-site-fact-segments.ts';
 import { createAnnotation, replyAnnotation } from './annotation-store.ts';
 import { CodeRepairError } from './code-site-repair.ts';
 import { listSiteImages } from './site-images.ts';
@@ -66,20 +66,17 @@ async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, 
       ...edit, request, baseRevision, startedAt: now, updatedAt: now, repairRound: 0, issues: [], attempts: [] } };
   });
 }
-function sourceKey(source: CodeFactSource) {
-  return source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`;
-}
 async function registerUserSources(siteId: string, input: { message?: string; source?: Extract<CodeFactSource, { type: 'upload' }>; annotationBatch?: AnnotationBatchItem[] }) {
   if (!input.message) return undefined;
   if (input.source && input.source.text !== input.message) throw new Error('上传资料原文与发送内容不一致。');
   let allocated: CodeFactSource[] = [];
   await updateCodeSite(siteId, current => {
-    let messageIndex = Math.max(0, ...(current.factSources ?? []).filter(item => item.type === 'message').map(item => item.messageIndex));
+    let messageIndex = Math.max(0, ...(current.factSources ?? []).filter(item => item.type !== 'upload').map(item => item.messageIndex));
     allocated = input.annotationBatch?.length
       ? input.annotationBatch.map(item => ({ type: 'message', messageIndex: ++messageIndex, text: item.body }))
       : [input.source ?? { type: 'message', messageIndex: ++messageIndex, text: input.message! }];
-    const keys = new Set(allocated.map(sourceKey));
-    return { factSources: [...(current.factSources ?? []).filter(item => !keys.has(sourceKey(item))), ...allocated] };
+    const keys = new Set(allocated.map(factSourceKey));
+    return { factSources: [...(current.factSources ?? []).filter(item => !keys.has(factSourceKey(item))), ...allocated] };
   });
   return allocated;
 }

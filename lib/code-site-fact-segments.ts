@@ -3,9 +3,11 @@ import type { SiteCode } from './code-site.ts';
 export type CodeFactTarget = { pageId: string; root: 'main' | 'body'; path: number[]; text: string; readable?: string };
 export type CodeFactSource =
   | { type: 'upload'; sourceId: string; name: string; text: string }
+  | { type: 'materials'; messageIndex: number; text: string }
   | { type: 'message'; messageIndex: number; text: string };
 export type CodeFactSourceRef =
   | { type: 'upload'; sourceId: string; name: string }
+  | { type: 'materials'; messageIndex: number }
   | { type: 'message'; messageIndex: number };
 export type CodeFactCitation = { category: '客户与合作方' | '资质认证' | '业绩与数量' | '价格与收费' | '时间与交期承诺' | '效果' | '评价'; claim: string; quote: string; source?: CodeFactSourceRef; targets?: CodeFactTarget[] };
 export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[] };
@@ -24,10 +26,10 @@ export function normalizeFactClaimText(text: string) {
 export function factSourceRef(source: CodeFactSource): CodeFactSourceRef {
   return source.type === 'upload'
     ? { type: 'upload', sourceId: source.sourceId, name: source.name }
-    : { type: 'message', messageIndex: source.messageIndex };
+    : { type: source.type, messageIndex: source.messageIndex };
 }
 export function factSourceKey(source: CodeFactSource) {
-  return source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`;
+  return source.type === 'upload' ? `upload:${source.sourceId}` : `${source.type}:${source.messageIndex}`;
 }
 export function sameFactSources(left: CodeFactSource[] | undefined, right: CodeFactSource[] | undefined) {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);

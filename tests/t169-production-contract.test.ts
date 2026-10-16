@@ -107,15 +107,15 @@ test('合同 D 并发首条消息在生产 chat 入口保留两个来源和各�
   assert.deepEqual(new Set(sources?.map(source => source[1])), new Set(['首条资料 A：普通纸盒。', '首条资料 B：普通纸袋。']));
 });
 
-test('P1-1 生产入口遇到旧记录缺 factSources 必须重新核对且不能回退完整上下文', async () => {
+test('P1-1 生产入口从已有 materials 登记原始资料后重核，不免除旧事实核对', async () => {
   const id = `t169-old-source-${crypto.randomUUID()}`;
   const conversation = await getOrCreateConversation(id, `conversation-${id}`);
   await createCodeSite(id, '企业事实', conversation.conversationId);
   await updateCodeSite(id, () => ({ materials: '企业事实：长期合作客户：甲方公司。', factSources: undefined, plan: { style: 'precision', summary: '测试', styleReason: '测试', pages: [{ id: 'home', title: '首页', outline: '客户' }] } }));
   await updateCodeSite(id, () => ({ factSources: undefined } as any));
   const result = await commitSiteCode({ siteId: id, baseRevision: 0, code, author: 'user', summary: '旧记录重核', request: '' });
-  assert.equal(result.status, 'rejected');
-  if (result.status === 'rejected') assert.match(result.checks.issues.join('\n'), /出处|资料/);
+  assert.equal(result.status, 'applied', result.status === 'rejected' ? result.checks.issues.join('\n') : '');
+  if (result.status === 'applied') assert.ok(result.version.checks.factCitations?.entries.some(entry => entry.source?.type === 'materials'));
 });
 
 test('P1-3 生产入口拒绝缺 noFacts 的价格与客户段，不能用空类别通过', async () => {

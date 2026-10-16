@@ -1,4 +1,4 @@
-import type { CodeFactReview, CodeFactCitation, CodeFactSource } from './code-site-fact-segments.ts';
+import { factSourceKey, type CodeFactReview, type CodeFactCitation, type CodeFactSource } from './code-site-fact-segments.ts';
 import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import { z } from 'zod';
@@ -154,15 +154,18 @@ export function codeFactMaterials(site: CodeSiteRecord, request?: string, versio
   return `${site.materials}\n\n已采用版本的用户资料和补充（按顺序）：\n${effective.join('\n\n')}\n\n${request ? `本次用户补充与要求：\n${request}` : ''}\n只把用户明确提供或更新的企业信息作为事实；设计要求不是企业事实。字段有明确更新时采用最后一次声明。`;
 }
 export function codeFactSourceMaterials(site: CodeSiteRecord, requestSource?: CodeFactSource | CodeFactSource[], versionId = site.currentVersionId, _compact = false): CodeFactSource[] | undefined {
-  // Deliberately absent on old records: never infer source text from contextual materials.
+  // The commit entry registers raw site.materials under the site lock. Reading
+  // sources never infers raw text from the larger model context or old code.
   const target = versionId ? site.versions.find(version => version.id === versionId) : undefined;
   const snapshot = target?.factSourceSnapshot;
-  const base = Array.isArray(snapshot) ? snapshot : !target ? site.factSources : undefined;
+  const original = !(Array.isArray(snapshot) && snapshot.some(source => source.text === site.materials))
+    ? (site.factSources ?? []).filter(source => source.type === 'materials' && source.text === site.materials) : [];
+  const base = Array.isArray(snapshot) ? [...original, ...snapshot] : !target ? site.factSources : original;
   if (!base?.length && !requestSource) return undefined;
   const sources = [...(base ?? [])];
   for (const added of requestSource ? [requestSource].flat() : []) {
-    const key = added.type === 'upload' ? `upload:${added.sourceId}` : `message:${added.messageIndex}`;
-    const index = sources.findIndex(source => (source.type === 'upload' ? `upload:${source.sourceId}` : `message:${source.messageIndex}`) === key);
+    const key = factSourceKey(added);
+    const index = sources.findIndex(source => factSourceKey(source) === key);
     if (index >= 0) sources[index] = added; else sources.push(added);
   }
   const seen = new Set<string>();

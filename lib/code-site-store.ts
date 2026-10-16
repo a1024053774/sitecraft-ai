@@ -186,6 +186,17 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (args.restoreVersionId && !restore) throw new Error('找不到要恢复的版本');
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
+    // T-164 / contract D: the stored materials field is original user text.
+    // Register it once when the basis does not contain that raw source, without
+    // rewriting that version or admitting any text from model context/code.
+    const basis = restore ?? current;
+    const knownSources = basis ? basis.factSourceSnapshot : site.factSources;
+    if (!(Array.isArray(knownSources) && knownSources.some(source => source.text === site.materials)) && site.materials.trim()
+      && !site.factSources?.some(source => source.type === 'materials' && source.text === site.materials)) {
+      const messageIndex = Math.max(0, ...(site.factSources ?? []).filter(source => source.type !== 'upload').map(source => source.messageIndex)) + 1;
+      site.factSources = [{ type: 'materials', messageIndex, text: site.materials }, ...(site.factSources ?? [])];
+      await write(site);
+    }
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, true);
     const sourceMaterials = restore ? codeFactSourceMaterials(site, undefined, restore.id) : codeFactSourceMaterials(site, args.source, site.currentVersionId, true);
     const localTargets = args.selectedTargets ?? (args.selectedTarget ? [args.selectedTarget] : []);

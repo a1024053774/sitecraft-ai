@@ -39,7 +39,26 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 ## Resolution
 
-2026-10-16 一次真实多区块验证结果 **INCOMPLETE**（产品实现 `d312698`，本提交仅给预算网关白名单加入 t164 并记录结果）：第一组终态拒收且未存版，按主控条件立即停止，没有重跑、换意见或发送第二组。授权为两组合计 `SITECRAFT_TOKEN_LIMIT=80000`、共用一个账本；累计实付 17329，剩余 62671 未动用。跑前 df 可用约 10GiB，ps 无其他 chrome-headless-shell／node --test／next build；本轮模型、Chrome 工作串行。
+2026-10-16 合同 D 的 A 方案已实现，本轮状态 **INCOMPLETE**（本提交，父版本 `2007923`）：提交入口在站点锁内按需把已有 `site.materials` 逐字登记为“原始资料”，使用所有已登记非上传来源的下一可用序号。已有有效来源包含这份原文时不重复登记；有效快照只有后续消息而缺原始资料时仍补入本次核对。新版只经原句验真后保存出处及来源快照；旧版本、旧检查和旧快照均不回写。原始资料与批注沿用同一序号分配，夹具中首次两条批注为 1、2，首次提交登记原始资料为 3，下一批为 4、5；不重编号既有消息。缺失原句和空资料仍拒收，未加入旧事实免核路径，上传源被替换后的旧出处也不能复活。AGENTS.md 只同步这条业务规则，测试细节在本票与 spec.md。
+
+本轮 Tracer bullet 为旧站 annotationBatch → 本地模型替身 → 原句核对 → 新版出处 → 三档工作台显示。`tests/t164-original-materials.test.ts` 用两页、无来源登记及版本来源快照、有逐字 materials 的旧站夹具复现 `32e0ab93` 的数据形态；初版代码经 legacyImport 提交入口保存，不旁路写代码。批次调用生产 chat POST，沿用 T-162 随机端口服务与本地模型替身、受控 after 调度，不称为真实 Next after 集成。正例断言重做事实核对、只增一个完整版本、原文及旧版不变、不重复登记、出处为“原始资料”；反例在资料另有米饭 3 元的情况下仍拒绝无原句支持的包装费“每单3元”，确保不是只靠新增数字门禁；空资料旧站仍不登记原文且显示缺来源提示。补充只读边界断言已有后续消息的历史快照不阻止原始资料进入本次核对。
+
+父版本红证据：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t164-original-materials.test.ts tests/t169-production-contract.test.ts` 于 2026-10-16T08:33:42.462Z 得到 10 通过、2 个业务断言失败（批次 complete 实为 error；生产提交 applied 实为 rejected，均为旧原句无出处），日志 `artifacts/t164/original-materials-parent-valid-red.log`，报告与临时数据根记录 `artifacts/t167/test-run-1792139601272-84346/report.json`。更早一次空资料夹具在建首版时即失败的日志 `original-materials-parent-red.log` 原样保留，只算夹具设置失败，未计作业务红证据。补充快照边界于 09:16:06.376Z 先用标准入口的 `--test-name-pattern='快照只有后续消息'` 在未修边界实现上失败（实际仅后续消息、缺原始资料），日志 `original-materials-partial-snapshot-red.log`、报告 `artifacts/t167/test-run-1792142164626-19628/report.json`；其余被筛出的用例不计通过。
+
+最终实现验证：`CHROME_PATH=上述路径 npm test -- tests/t164-original-materials.test.ts tests/t169-production-contract.test.ts tests/t164-multi-block-edit.test.ts` 于 2026-10-16T09:18:34.486Z **29/29、零跳过**，日志 `artifacts/t164/original-materials-final-regressions.log`、报告 `artifacts/t167/test-run-1792142271277-20284/report.json`。此前原始资料、生产来源合同、批注合同 D、出处回归合计 26/26（`original-materials-focused.log`）。`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 于 08:40:33Z 4/4（`original-materials-runner.log`）；最终 `npm run typecheck` 于 09:21:00Z 通过（`original-materials-frozen-typecheck.log`），`SITE_STORE=fs npm run build` 于 09:22:49Z 通过（`original-materials-build.log`）。Chrome 三档 1440/768/375 的最终出处弹层均显示“原始资料”和逐字原句，空资料保留“未提供可引用的原句”；截图及请求、版本输出在 `artifacts/t162/self-contained-1792142273176-20299/`。
+
+全量未通过，失败证据完整保留。两次均在报告主控后运行 `CHROME_PATH=上述路径 npm test`，跑前检查 df/ps、无其他工作树重任务，未改变并发、等待时限、动态每档 5 秒/合计 15 秒上限或跳过用例：
+
+| 全量结束时间（UTC） | Node 统计 | 证据与本次发现 |
+| --- | --- | --- |
+| 2026-10-16T08:50:27.646Z | 总 636；619 通过、16 失败、1 取消、0 跳过；入口实际执行 635 | `artifacts/t164/original-materials-full.log`；`artifacts/t167/test-run-1792140096765-88354/report.json`。T-164 两项旧范围测试的事实替身仍返回旧 `{issues:[]}` 协议，已改用现有 factAuditReply 编码；其余包含动态检查 5 秒拒绝、T-162 页面等待、T-163 ECONNRESET、T-169/T-171 页面载入等待及本票正例 120 秒超时。 |
+| 2026-10-16T09:09:08.042Z | 总 636；620 通过、14 失败、2 取消、0 跳过；入口实际执行 634 | 修正上述两项替身后定向 16/16（`original-materials-scope-fixture-green.log`）才重新运行完整矩阵；旧协议两项不再失败。完整记录 `artifacts/t164/original-materials-full-after-fixture.log`、`artifacts/t167/test-run-1792140991150-2746/report.json`，仍有 T-152/T-164 动态 5 秒拒绝、T-159 服务启动 30 秒及 T-162/T-163 界面等待/取消，不能视为通过。 |
+
+第一轮收尾采样 Load 约 29、物理可用内存约 126M、压缩内存约 4.8G，只能说明当时资源紧张，尚不能据此证明所有失败的因果。没有原样重跑来覆盖失败，没有放宽上限、修系统或杀其他用户进程。补充快照边界调整在这两次全量之后完成，当前预期 637 项完整矩阵尚未重新验证；仅上述最终 29 项、typecheck、build 可作为最终实现通过证据，不再启动第三轮全量。全量失败根因及完整矩阵验收仍未完成，票保持 open。
+
+本轮 240 张原始截图均已逐张打开（T-130 分发复制图不重复计数），清单 `artifacts/t164/original-materials-screenshot-views.json`。全量失败画面、发送冻结态仅作诊断，清单列出的载入态排除最终预览验收，不重拍覆盖、不作审美结论。本轮未调用 DeepSeek、未载入 .env.local、未写主目录数据、未推送或自行开审查；前次真实用量证据保留如下，不重复记费。独立复审与余量真实运行均等主控安排。
+
+2026-10-16 一次真实多区块验证结果 **INCOMPLETE**（产品实现 `d312698`，当轮 `2007923` 仅给预算网关白名单加入 t164 并记录结果）：第一组终态拒收且未存版，按主控条件立即停止，没有重跑、换意见或发送第二组。授权为两组合计 `SITECRAFT_TOKEN_LIMIT=80000`、共用一个账本；累计实付 17329，剩余 62671 未动用。跑前 df 可用约 10GiB，ps 无其他 chrome-headless-shell／node --test／next build；本轮模型、Chrome 工作串行。
 
 底稿只读复制自主目录 `.sitecraft-data/code-sites/32e0ab93-d3c5-470e-b4cd-16180fd5ba8b.json` 及对应会话文件，到 `mktemp -d` 创建的 `/tmp/sitecraft-t164-real-approved.diEBFA`，没有图片文件需要复制。运行 siteId 仍为 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b`，只在临时根更新任务与批注；主目录及临时根当前均只有 v1 `60cde704-7364-461c-a236-9af8933c5b4c`，没有“修改后版本”。独立 Next 应用使用随机端口、NODE_ENV=test，不加载 .env.local；真实密钥仅按授权命令 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 进入网关进程，应用只连本地网关。账本 `artifacts/t164/blind-20261016T054417Z/private/budget/usage.json` 保留全部 3 次已结算调用；任务 error 且零 in-flight 后才手动停网关，截图结束后停独立应用。
 
