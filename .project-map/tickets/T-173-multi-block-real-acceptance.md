@@ -40,6 +40,47 @@ T-164 的多区块合同离线实现已合并（2026-10-16，构思主控按 C �
 
 ## Resolution
 
+ec7515d 由主控核对 diff 与测试，按构思主控规则不再独立复审。
+
+### 唯一一次真实运行（2026-10-16，Codex）
+
+**INCOMPLETE**。按负责人本轮批准的新账本 `SITECRAFT_TOKEN_LIMIT=50000` 执行，未沿用旧账本；应用代码提交为 `ec7515d8d4683c30c2ffd31a3afad225f5117690`。主目录只读复制站点 `32e0ab93-d3c5-470e-b4cd-16180fd5ba8b` 与会话 `b4f70578-92fa-4ec4-b15d-b6b87fe5a036` 到新建 `mktemp -d` 根 `/tmp/sitecraft-t173-real.PeKdpL`，未写回主目录。站点与会话的 mtime、updatedAt、当前版本等读回元数据均与复制前相同，记录在本次 private/outcome.json。
+
+本次目录为 `artifacts/t173/blind-20261016T185905Z/`。从主工作区 `artifacts/t164/blind-20261016T113643Z/private/` 复制流程脚本到本次 private/ 后，只更新本次目录、临时根、预算与提交标识；四条批注原文不变，第一组还逐条对照旧 first-request.json，第二组对照旧脚本原文。预算网关副本来自当前 `scripts/t153-real-budget.ts`，仅调整相对 import 与本次 t173 目录许可，预留、实付记账、截断及停止逻辑不变。所有适配文件均留在 private/，未改主工作区文件或应用代码。
+
+18:59:47Z 的 `memory_pressure` 空闲 **47%**；`df -h . /tmp` 可用 **7.5 GiB**；`ps -axo pid,ppid,command` 无其他 Chrome 无头测试、node --test 或 next build，记录为 private/preflight.json 及相应原始输出。准备时一次过宽的旧预算子串校验误中了保留的超时数字 1529050，改为完整数字检查后通过；发生在应用、网关和模型启动前，原误报保留在 private/setup.json，不涉及模型重发。
+
+应用以 `node artifacts/t173/blind-20261016T185905Z/private/start-app.mjs` 启动，health 核对 cwd 为本工作树、dataRoot 为新临时根，应用仅连接本地网关。网关单独在另一个进程运行，密钥只按以下命令进入其进程环境，未写入文件、日志或提交：
+
+```sh
+set -a
+source /Users/luckye/Documents/Code/sitecraft-ai/.env.local
+set +a
+DEEPSEEK_BASE_URL=https://api.deepseek.com DEEPSEEK_MODEL=deepseek-flash SITECRAFT_TOKEN_LIMIT=50000 node artifacts/t173/blind-20261016T185905Z/private/start-gateway.mjs
+```
+
+各阶段均显式设置 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`，按下列顺序各执行一次：`node --experimental-strip-types <本次 private>/run-real.ts prepare`、`run-real.ts first`、`run-real.ts capture-first`、`capture-sources.ts first`、`run-real.ts second`；第二组失败且网关停止后，仅执行 `capture-failure.ts` 留下错误界面。服务与网关的端口均动态分配，无固定端口或回退；生产 chat annotationBatch 通过 HTTP POST 进入真实 Next after，没有模型替身或 after 替身。目标读取、截图与模型阶段串行，未同时运行外部截图 Chrome 和模型请求。
+
+第一组：首页 [2] 营业时段与 [5] 收费口径，19:01:37.835Z 开始、19:02:40.869Z 完成。run `a6c198e4-ec94-471f-a4fd-d1a9cd1fd0b8` 为 complete，保存 **v2 `ef0d03f1-3397-4a23-a4e4-ef375a4a19c4`**；初始合并检查通过，repairRound=0，未进入修正轮。三次上游调用实付 **23,360 token**。新包装费已绑定批注原文消息与首页收费区块，版本记录 9 条出处；工作台 1440／768／375 的弹层均显示「原始资料」和「你的第 2 条消息」及逐字原句，六张图放 private/。
+
+第二组基于第一组 v2，首页 [4] 用餐场景与菜单页 [3] 午市组合，19:06:01.395Z 开始、19:06:41.223Z 终态。run `f8a4535b-f80f-4729-9aef-383ba6fa7331` 完成两段写作，实付 **13,965 token**；随后本地网关在发送事实核对上游请求前，以 `Remaining authorization cannot reserve this request and a usable output allowance` 停止并返回 HTTP 502。任务 error，repairRound=0，未进入内容修正轮，run.attempts 为空；**未保存第二组版本**，当前仍为 v2。没有截断或实际超支：累计实付 **37,325 / 50,000 token**，剩余 12,675 仍不足以同时预留该请求的保守输入与最少 4096 输出额度；未提高额度、重跑、换意见或追加请求。
+
+每次实际上游调用的完整 usage 保存在 private/budget/usage.json 与 private/outcome.json；下表完成数包含推理，写作答案数为上游完成数减其明确报告的推理数，事实核对关闭思考且上游未返回 reasoning_tokens，不臆填该字段。全部五次 finish_reason 为 stop。
+
+| 次序／开始时间（UTC） | 组／用途 | 输入 | 完成 | 推理 | 写作答案 | 实付合计 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 1／19:01:38.946 | 一／营业时段写作 | 3622 | 9328 | 8132 | 1196 | 12950 |
+| 2／19:02:18.292 | 一／收费口径写作 | 3465 | 2414 | 1887 | 527 | 5879 |
+| 3／19:02:35.822 | 一／合并事实核对 | 3864 | 667 | 未返回（思考关闭） | — | 4531 |
+| 4／19:06:01.938 | 二／用餐场景写作 | 3736 | 2175 | 1871 | 304 | 5911 |
+| 5／19:06:13.222 | 二／午市组合写作 | 3611 | 4443 | 3374 | 1069 | 8054 |
+
+第二组另有一次应用到本地网关的 local-facts 请求为 HTTP 502、usage=null；未发往上游，不计入五次实付调用。第五次写作的网关输出上限因共享预留调整为 11268，其余写作为 12288、事实核对为 4096，均未截断。HTTP 502 不被记为事实不支持，也不消耗内容修正轮。
+
+第一组 review/组合甲/ 的 A/B 独立随机命名，含两页改前／改后三档全图、批注近景与范围外近景，共 **36 张**；映射仅在 private/mapping.json 与 results.json，review/ 只有图片、批注原文与中性阅读说明。第二组无已存版本，也无留存候选，不制作或冒充改后图片，review/组合乙/ 只保留原定批注，阅读说明明确暂不评价该组。第一组六张出处弹层及第二组三张失败界面放 private/，全部 **45 张图片逐张打开确认已载入**，清单为 private/screenshot-views.json。本执行实例未作盲评或审美结论；第一组的批注落实及范围外变化仍待主控安排独立盲评。
+
+第二组终态且从网关 /status 确认零 in-flight 后，手动 SIGINT 停网关（closed 日志 19:07:24Z）；只读截图结束后 SIGTERM 停本次应用（closed 日志 19:11:59Z），无遗留本次 Chrome、网关或应用进程。原始日志、请求、两次任务、baseline 与 v2 版本、账本、拒收前状态与最终状态均在 private/。应用生成的独立构建缓存已移到临时缓存目录，未当作证据或提交；临时数据根与 blind 目录原样保留。主目录数据未写，未用 rm、未推送，`tsconfig.json` 自动 include 脏改不提交。本轮只本地提交 Resolution，票保持 open，两组存版与独立盲评验收项不勾选。
+
 ### 本轮离线修复（2026-10-16，Codex）
 
 只执行负责人本轮授权的离线修复。真实运行、独立 sol 复审和盲评由主控另行安排，本票保持 open，真实验收项不勾选；不读取 `.env.local`、不调用 DeepSeek、不写主目录 `.sitecraft-data`、不推送。
