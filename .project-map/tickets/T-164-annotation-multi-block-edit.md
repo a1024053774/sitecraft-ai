@@ -92,7 +92,15 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 新增三项真实 chat 入口回归先在 `3e192f9` 失败（`artifacts/t164/review-eight-parent-red.log`）：保留 18/19 点两处事实被报重复；删除第二处后旧 19 点出处仍存在；一次真实浏览器工厂读取不到 CHROME_PATH 后任务错误完成、局部写作 4 次并存第二版。红产物 `artifacts/t164/review-seven-1792114756066-40622/evidence.json` 保留。修复后同一入口与 T-164/T-169 聚焦 28/28 通过（`review-eight-focused.log`），Chrome 故障时明确 error、仍仅 2 次局部写作、仅原一版、repairRound=0、attempts=[]；绿色产物 `artifacts/t164/review-seven-1792114828662-41799/evidence.json` 保留。保留两处时第一处换了段落包装，断言新定位为 [0,1,0]；删除第二处时断言 19 点原文和 [1,1] 旧定位同时消失。
 
-第八轮 `npm run typecheck` 与标准入口回归 4/4 已通过；最终全量、build 待本轮实现冻结后串行验证。动态探针未改；负责人转述的第八位独立复测单档最大 3.51 秒、三档最大 8.94 秒已确认满足 5/15 秒，下面保留第七轮原始 30 次分布，不冒充本轮重新测量。
+第八轮验证对应实现 `449f16f`：`npm run typecheck` 通过；标准入口回归 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4 通过（`artifacts/t164/review-eight-runner.log`）；定向 28/28 通过；`SITE_STORE=fs npm run build` 于 2026-10-16T01:56:43.081930+00:00 通过（`artifacts/t164/review-eight-build.log`）。
+
+全量 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 于 2026-10-16T01:53:29.119Z 以 585/588 结束，3 项失败，当前完整验收为 **INCOMPLETE**。原始日志 `artifacts/t164/review-eight-full.log`、报告／数据根路径 `artifacts/t167/test-run-1792115159735-46784` 保留；没有重跑、跳过用例或放宽上限。
+
+- `tests/t162-mobile-reveal.test.ts:92`：1440/768 线程回看用例在局部任务完成断言失败。站点 `cec33f27-481f-489e-bc4a-ebdc16229561` 的任务记录明确为“局部动态状态检查超时，本次未保存版本”，selectedTarget 为单区块、没有 annotationBatch；错误发生在本轮未修改的 5 秒动态检查中。失败截图已打开查看，存于 `artifacts/t162/self-contained-1792115329171-51493/mobile-journey-failure-1440-cec33f27-481f-489e-bc4a-ebdc16229561.png`。该 helper 的现有 timings 记录 load 30.5–38.5，仅作运行上下文，不据此认定根因。
+- `tests/t169-citations-browser.test.ts:91`：生成已完成，发布页等待 `main h1` 时 Runtime.evaluate 30 秒超时。
+- `tests/t169-citations-browser.test.ts:143`：上传资料工作台用例读取尚不存在的按钮，scrollIntoView 抛 null 错误。两项 UI 失败未在本轮通过再次运行确认根因或与改动的关系，不能报通过。
+
+全量及 build 前均检查 df/ps，启动时无其他 chrome-headless-shell、node --test 或 next build；全量期间核对只发现本轮标准入口。动态探针未改；负责人转述的第八位独立复测单档最大 3.51 秒、三档最大 8.94 秒已确认满足 5/15 秒，下面保留第七轮原始 30 次分布，不冒充本轮重新测量。
 
 冻结实现 `c6f8bc8` 后，2026-10-16T01:13:38.243Z 在只读复制根 `/tmp/sitecraft-t164-seven-real.51KwNb` 完成两个真实首页每档各 5 次测量。命令：`ROOT=/tmp/sitecraft-t164-seven-real.51KwNb COMMIT=c6f8bc8 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t164/real-homepage-timing.ts`。
 
@@ -112,6 +120,6 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 - 禾巷小馆：min/中位/max = 6525.9/6538.2/6547.4ms，全部 ≤15000ms。
 - 拾色绘画教室：min/中位/max = 5898.5/5914.7/5955.4ms，全部 ≤15000ms。
 
-2026-10-16 最终验证（实现 `c6f8bc8`）：`npm run typecheck` 通过；标准入口回归 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4 通过（`artifacts/t164/review-seven-runner.log`）；最终定向 27/27 通过；`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 585/585 通过（`artifacts/t164/review-seven-full.log`、`artifacts/t167/test-run-1792113281197-11873`）；`SITE_STORE=fs npm run build` 通过（Next.js 16.3.1/Turbopack，`artifacts/t164/review-seven-build.log`）。全量及 build 前均执行 df/ps 检查，重任务串行。两项均在主控新一轮独占窗口通知前结束，收到通知后未再启动浏览器或 build。
+第七轮既有验证（2026-10-16，实现 `c6f8bc8`）：`npm run typecheck` 通过；标准入口回归 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4 通过（`artifacts/t164/review-seven-runner.log`）；最终定向 27/27 通过；`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 585/585 通过（`artifacts/t164/review-seven-full.log`、`artifacts/t167/test-run-1792113281197-11873`）；`SITE_STORE=fs npm run build` 通过（Next.js 16.3.1/Turbopack，`artifacts/t164/review-seven-build.log`）。全量及 build 前均执行 df/ps 检查，重任务串行。两项均在主控新一轮独占窗口通知前结束，收到通知后未再启动浏览器或 build。
 
-本轮执行与离线验证通过；真实 DeepSeek、独立盲评与独立 sol 审查仍由主控安排，票保持 open。未推送。
+第七轮执行与离线验证已通过；第八轮两项修复定向通过，但完整验证因上述 3 项失败保持 INCOMPLETE。真实 DeepSeek、独立盲评与独立 sol 审查仍由主控安排，票保持 open。未推送。
