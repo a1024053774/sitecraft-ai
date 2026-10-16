@@ -208,7 +208,7 @@ type ProbeState = { trigger: number[] | null; state: string; entries: ProbeEntry
 // Runs inside the browser. Inspect parsed selector tokens, including nested
 // conditional rules even when inactive. Strings and attribute values are not
 // pseudo classes; CSS escapes in pseudo names still denote the same state.
-export function authorStylesHaveDynamicStates() {
+export function authorStylesHaveDynamicStates(rules?: Iterable<CSSRule>) {
   const dynamic = new Set(['hover', 'focus', 'focus-visible', 'focus-within', 'active']);
   const hasState = (selector: string) => {
     let quote = '', brackets = 0;
@@ -233,10 +233,10 @@ export function authorStylesHaveDynamicStates() {
     }
     return false;
   };
-  const inspect = (rules: CSSRuleList): boolean => [...rules].some(rule =>
+  const inspect = (rules: Iterable<CSSRule>): boolean => [...rules].some(rule =>
     ('selectorText' in rule && hasState(String(rule.selectorText))) ||
     ('cssRules' in rule && inspect((rule as CSSGroupingRule).cssRules)));
-  return [...document.styleSheets].some(sheet => inspect(sheet.cssRules));
+  return rules ? inspect(rules) : [...document.styleSheets].some(sheet => inspect(sheet.cssRules));
 }
 export type DynamicStateProbe = {
   states: ProbeState[];

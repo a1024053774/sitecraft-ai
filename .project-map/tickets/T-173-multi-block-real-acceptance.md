@@ -183,3 +183,39 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 本轮交付 **INCOMPLETE**：两项越界修复及字符区间回归修复均有相应红绿证据，最终定向、runner、typecheck、build 通过；唯一一次全量是区间修复前的 679/683，最终快照未再次全量验证。原全量失败、定向中的动态探针超时及主控对旧快照的 675/675 均如实保留，未覆盖或跳过。独立 sol 复审、最终快照全量与真实模型运行待主控安排；票保持 open，不勾选真实验收项。未调用 DeepSeek、未读取 `.env.local`、未推送、未写主目录 `.sitecraft-data`，`tsconfig.json` 保持自动脏改、不提交。
 
 最终实现与测试冻结提交 `a41eb289076b3f229d902284a8a2ce2de230c486`，最终 210 项定向及最后的 runner／typecheck／build 与此快照一致；收尾仅补本 Resolution 后合入同一个功能提交，不再改代码或测试。project-map 结构问题与过时 living doc 均为 0，中文 UTF-8 回读正常；收尾无遗留 Chrome 无头测试、node --test 或 next build，记录 `artifacts/t173/scope-post-processes.txt`。
+
+### 公共上下文、交互态声明与 Chrome 就绪修复（2026-10-16，Codex）
+
+主控转达第五次独立 sol 复审：`2048dbc` 仍 **NO_GO**，行段暴露父级／公共表头／document 成员为可写，以及 CSS 声明漏查交互态影响两项 P1。本轮同时处理 DevToolsActivePort 半写入与 T-162 零次提交检查异常，合同不变。构思主控决定还安排第六、第七轮复审；第七轮后剩余越界类问题按严格一侧拒收并记录已知限制，本轮尽量一次封住同类成员归属问题。
+
+主控在 `2048dbc3941d9d10f036f1df1867f1d45e5a6868` 上 13:16–13:24 EDT（17:16–17:24Z）、负载 29–34 的全量结果为 **679/683**，日志 `artifacts/t173-supervisor-full-2048dbc.log`，报告 `artifacts/t167/test-run-1792170992130-51862/report.json`（17:24:17.600Z）。保留四个失败：T-151 Invalid URL、T-162 attempts 为 0，以及两项 T-164 动态探针超时。
+
+T-162 的保留数据 `sitecraft-test-2MFOXU/code-sites/bf094ddf-8274-4356-bb1d-80be2e79cc6f.json` 显示任务 `7e44e51d-4639-4766-982b-899becccbcf9` 已完成一次 local-edit（HTTP 200、14ms），随后 step 为 `TypeError: Invalid URL`，repairRound=0、attempts=[]。不是任务未运行，也没有消耗修正额度；在提交检查启动阶段异常终止，与本轮 DevToolsActivePort 问题同类。保留「初稿加两轮修正」原断言，不改成容忍零次。
+
+已评估 T-164 既有 `outsideCssApplications`：只枚举可见且可聚焦触发元素、沿祖先链强制四态，scope 排除的是整个区块子树。单项 CSS 成员是具体位置／伪元素；直接套用会把成员子树放宽，且不能覆盖没有可聚焦后代的 `p:hover`。要保证完整性需改变触发枚举及权限模型，不能直接复用现成检查来证明本合同。因此采用构思主控允许的严格一侧：复用现有完整伪类分类器，交互声明或静态影响不可核实即写明原因拒收；不另建动态探测、不调整原五秒／十五秒预算。
+
+根因修复：行段的父级 prose、公共表头、表格自身及 document 成员标为只读；document 辅助文案独立核对并拥有自身成员，避免丢失原根级 CSS 修正能力。ARIA 引用文字同样只读。对公共成员的自身归属拒因，再与所有已通过／复用段按位置核对，仍有通过段引用就明确拒收；所有已知引用归属均被拒才可修改明确归属。CSS 声明检查调用 T-164 原分类器识别完整交互伪类（含 :has 内部），无需新探针。Chrome 只采纳完整有效端点：两行、端口 1–65535 正整数、browser 路径前缀及非空无空白后缀；否则继续原轮询，未增加固定等待、连接重试或超时额度。
+
+父版本红测均为标准 npm test、仅设规定 CHROME_PATH：`npm test -- tests/t173-repair-scope.test.ts tests/t173-port-readiness.test.ts` 于 17:39:18Z 得到 **8/30，22 项失败**（`artifacts/t173/shared-2048dbc-red-final.log`，报告 `artifacts/t167/test-run-1792172326091-70143/report.json`）。在补齐“公共成员自身拒收但引用行已通过／所有引用行均拒收”的成对用例后，最终合法 CSS 夹具经 `npm test -- tests/t173-repair-scope.test.ts` 于 17:46:56Z 得到 **9/24，15 个越界坏例失败、9 个合法／保留对照通过**（`shared-2048dbc-corrected-red.log`，报告 `artifacts/t167/test-run-1792172768337-74794/report.json`）。临时恢复本轮四个源文件到 `2048dbc` 后执行，finally 已恢复当前实现，临时备份仅供恢复，不作源码复制证据。8 个端点坏例在真实 Chrome profile 中实际写入未就绪文件，由下一次读取补全；旧版提前连接失败，新版需实际 CDP 求值成功。首次同跑 T-162 四项对照也通过（`shared-2048dbc-red.log`），没有改其断言。
+
+小范围 `shared-first.log` 为 **42/43**：两项 P1、归属并集、8 个端点及 T-162 原断言均通过。额外 CSS 转义夹具被既有反斜杠清理规则提前拦截、未到事实边界，因此不作为声明拒收证据；原结果保留。改用合法大小写 `:HoVeR` 后重新取得上述最终父版本红测；生产清理规则及原断言未放宽。
+
+规定定向于 17:54:10Z 结束，**293/294，INCOMPLETE**；唯一失败为 `tests/t164-dynamic-gate.test.ts:128` 未激活媒体规则用例，原动态检查五秒截止处超时（`checkSiteCode:549`），未完成原定断言。日志 `artifacts/t173/shared-focused.log`、报告 `artifacts/t167/test-run-1792172862536-75708/report.json`、临时根 `sitecraft-test-faBFDV` 保留；不重跑或放宽上限，不断言与改动无关。补充两个 T-151 文件于 17:55:48Z **7/7**（`shared-t151-more.log`，报告 `artifacts/t167/test-run-1792173336966-82865/report.json`）。T-162 单条流程本轮仍以原断言通过“三次提交检查”，没有把零次改成通过。两条精确命令如下。
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-repair-scope.test.ts tests/t173-port-readiness.test.ts tests/t173-fact-members.test.ts tests/t173-fact-boundary.test.ts tests/t173-citation-repair.test.ts tests/t164-multi-block-edit.test.ts tests/t164-multi-block-chat.test.ts tests/t164-original-materials.test.ts tests/t164-review-seven.test.ts tests/t164-overlap-confirmation.test.ts tests/t164-local-output-limit.test.ts tests/t164-dynamic-gate.test.ts tests/t169-fact-citations.test.ts tests/t169-production-contract.test.ts tests/t169-contract-d.test.ts tests/t169-citations-browser.test.ts tests/t154-fact-segments.test.ts tests/t151-english.test.ts tests/t151-fidelity-rules.test.ts tests/t151-paragraph-repair.test.ts tests/t151-translation-protocol.test.ts tests/t151-short-translation.test.ts tests/t160-narrow-columns.test.ts tests/t160-materials.test.ts tests/t162-inline-annotation.test.ts tests/t138-dom-scope.test.ts tests/t138-repair-fragments.test.ts
+```
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t151-backdrop-merge.test.ts tests/t151-generated-fidelity.test.ts
+```
+
+随后串行检查：`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 于 17:56:08Z **4/4**；`npm run typecheck` 于 17:56:10Z 通过；`SITE_STORE=fs npm run build` 于 17:56:38Z 通过。日志 `artifacts/t173/shared-runner.log`、`shared-typecheck.log`、`shared-build.log`。全量前 `memory_pressure` 空闲 **41%**，ps 未发现其他 Chrome 无头测试、node --test 或 next build；保留 `shared-pre-full-memory.txt`、`shared-pre-full-processes.txt`。
+
+实现／测试冻结提交 `c416aa2d6611a90bcb626b37b48b742bc728304d`，上述最终定向及 runner／typecheck／build 与此快照一致。在该提交上仅串行执行一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`，18:08:14.258Z 结束：**707/707，失败／取消／跳过均 0，PASS**。日志 `artifacts/t173/shared-full.log`，报告／身份／服务日志 `artifacts/t167/test-run-1792173616895-84369/`，临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-xhPMLj` 保留。本轮新增上下文／交互态／端点测试及 T-162 原“三次提交检查”断言均通过；该次全量未出现 Invalid URL。没有重跑全量、放宽上限或改变 T-162 断言。此前规定定向的一项动态截止超时仍保留，不能用本轮全量通过改写为已修复。
+
+本次引用截图已逐张打开：`artifacts/t162/self-contained-1792172870610-75830/` 的 T-162 十张、`self-contained-1792172898206-76363/` 的原始资料四张、`self-contained-1792172951284-77289/` 的重叠确认六张、`artifacts/t169/browser-1792173025321/` 的三档出处九张，以及主控 `self-contained-1792171127753-56268/failure-send-1440-bf094ddf-8274-4356-bb1d-80be2e79cc6f.png`，共三十张。载入态或目标离屏图只保留为状态／异常记录，不作为预览已载入的成功证据；本次无审美通过结论。
+
+本轮交付 **INCOMPLETE**：两项 P1 采取上述可核实归属与严格交互策略，Chrome 半写启动有稳定红绿证据，T-162 原断言通过；全量 707/707、补充 T-151 7/7、runner／typecheck／build 通过，但规定定向仍为 293/294，一项 T-164 动态检查超时未归因。所有失败结果保留，不覆盖或重跑掩盖。第六、第七轮独立复审与真实生成继续由主控安排，票保持 open。本轮未读 `.env.local`、未调用 DeepSeek、未推送、未写主目录 `.sitecraft-data`，`tsconfig.json` 的自动脏改未提交。收尾只补本 Resolution，不改冻结实现或测试。
+
+收尾 project-map 结构问题及过时 living doc 均为 0，UTF-8 回读正常，无遗留 Chrome 无头测试、node --test 或 next build（`artifacts/t173/shared-post-processes.txt`）。

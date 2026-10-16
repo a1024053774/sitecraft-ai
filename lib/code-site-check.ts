@@ -1,4 +1,4 @@
-import { readCodeFactSegments, readCodeFactCssEffects, sameCodeFactCssDeclaration, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource, type CodeFactCssMember } from './code-site-fact-segments.ts';
+import { readCodeFactSegments, readCodeFactCssEffects, sameCodeFactCssDeclaration, sameCodeFactMemberLocation, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource, type CodeFactCssMember } from './code-site-fact-segments.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
@@ -646,6 +646,12 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials);
         const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials) : [];
         const repairMembers = reviewed.flatMap(review => review.factRepair?.members ?? []);
+        if (!args.localEdit) {
+          const passed = [...reviewed.filter(review => !review.issues.length), ...reused];
+          const protectedMembers = passed.flatMap(review => segments.find(segment => segment.text === review.text && segment.group === review.group)?.members ?? []);
+          if (repairMembers.some(member => !member.context && protectedMembers.some(protectedMember => sameCodeFactMemberLocation(member, protectedMember))))
+            throw new Error('事实修正公共成员仍被已通过核对段使用，无法确认全部受影响归属，本次未保存版本。');
+        }
         const cssMembers = repairMembers.filter((member): member is CodeFactCssMember => member.kind === 'css' && !member.context);
         // Whole-site fragment repairs can edit shared declarations. Author-code
         // snapshots alone do not constrain their effects on accepted segments.
@@ -658,7 +664,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
             await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
             await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
-            const effects = await browser.evaluate<ReturnType<typeof readCodeFactCssEffects>>(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactCssEffects.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(declarations)});})()`);
+            const effects = await browser.evaluate<ReturnType<typeof readCodeFactCssEffects>>(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactCssEffects.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(declarations)},(${authorStylesHaveDynamicStates.toString()}));})()`);
             for (const effect of effects) {
               const declaration = declarations.find(member => sameCodeFactCssDeclaration(member, effect.declaration))!;
               if (effect.positions.length) observed.add(declaration);

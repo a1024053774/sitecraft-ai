@@ -172,7 +172,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
         const label = document.getElementById(id);
         if (!label) { positions.push({ kind: 'unsupported', reason: `${name} 引用的节点 ${id} 不存在` }); return `未找到 ${id}`; }
         const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
-        for (let text = walker.nextNode(); text; text = walker.nextNode()) positions.push(...textMembers(text));
+        for (let text = walker.nextNode(); text; text = walker.nextNode()) positions.push(...textMembers(text).map(member => ({ ...member, context: true as const })));
         return label.textContent ?? '';
       }).join('\n')}`);
     }
@@ -220,6 +220,9 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
     const members: CodeFactMember[] = [], text = read(node, undefined, members).trim();
     return [{ text, group: text, context: { pageId, outline: [], headings: [...node.querySelectorAll(heading)].map(el => read(el).trim()) }, targets: targets([node]), members, owners: [{ pageId, path: localPath }] }];
   }
+  const readonly = (members: CodeFactMember[]) => members.map(member => ({ ...member, context: true as const }));
+  if (documentConditions) result.push({ text: `页面 ${pageId}\n文档辅助文案：${documentConditions}`, group: `页面 ${pageId}\n文档辅助文案：${documentConditions}`,
+    context: { pageId, outline: [], headings: [] }, members: documentMembers });
   for (const [index, part] of parts.entries()) {
     const roots = partRoots[index];
     const elements = roots.flatMap(node => node instanceof Element ? [node, ...node.querySelectorAll('*')] : []);
@@ -259,12 +262,12 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
       const conditions = prose(group);
       const nearby = (group ? [group, ...group.querySelectorAll(heading)] : elements.filter(el => el.matches(heading)))
         .filter(el => el.matches(heading)).map(el => read(el).trim());
-      const prefixMembers: CodeFactMember[] = [...documentMembers, ...(group ? [null, ...ancestors].flatMap(parent => proseMembers.get(parent) ?? []).map(member => ({ ...member, context: true as const })) : [])];
+      const prefixMembers: CodeFactMember[] = readonly([...documentMembers, ...(group ? [null, ...ancestors].flatMap(parent => proseMembers.get(parent) ?? []) : [])]);
       const add = (body: string, members: CodeFactMember[], container = group) => { if (body.trim()) result.push({ text: `${prefix}\n${body}`, group: groupText(container), context: { pageId: index === 1 ? pageId : scope, outline, headings: nearby }, targets: targets(container ? [container] : roots), members: [...prefixMembers, ...members] }); };
       if (conditions) add(conditions, proseMembers.get(group) ?? []);
       for (const structure of elements.filter(el => el.matches(atomic) && owner(el) === group && !el.parentElement?.closest(atomic))) {
         if (structure.querySelector('[rowspan],[colspan]')) {
-          const members = [...(proseMembers.get(group) ?? [])];
+          const members: CodeFactMember[] = readonly(proseMembers.get(group) ?? []);
           add([conditions, read(structure, undefined, members).trim()].filter(Boolean).join('\n'), members, structure); continue;
         }
         // A simple table is read by row with all column headings/caption.
@@ -274,11 +277,12 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
         const labels = [read(structure, el => el !== structure && el.tagName === 'TR', labelMembers).trim(), ...new Set(headers.map(el => read(el, undefined, labelMembers).trim()))].filter(Boolean).join('\n');
         const rows = [...structure.querySelectorAll('tr')].filter(el => el.querySelector('td'));
         if (!rows.length) {
-          const members = [...(proseMembers.get(group) ?? [])];
+          const members: CodeFactMember[] = readonly(proseMembers.get(group) ?? []);
           add([conditions, read(structure, undefined, members).trim()].filter(Boolean).join('\n'), members, structure);
         } else for (const row of rows) {
-          const members = [...(proseMembers.get(group) ?? []), ...labelMembers];
-          add([conditions, own(structure, members), labels, read(row, undefined, members).trim()].filter(Boolean).join('\n'), members, structure);
+          const common: CodeFactMember[] = [], tableConditions = own(structure, common);
+          const members: CodeFactMember[] = readonly([...(proseMembers.get(group) ?? []), ...labelMembers, ...common]);
+          add([conditions, tableConditions, labels, read(row, undefined, members).trim()].filter(Boolean).join('\n'), members, structure);
         }
       }
     }
@@ -292,10 +296,19 @@ export function sameCodeFactCssDeclaration(a: CodeFactCssMember, b: CodeFactCssM
   return a.field === b.field && a.property === b.property && samePath(a.stylePath, b.stylePath) && samePath(a.rulePath, b.rulePath);
 }
 
+export function sameCodeFactMemberLocation(a: CodeFactMember, b: CodeFactMember): boolean {
+  const path = (left: number[] | undefined, right: number[] | undefined) => left === right || !!left && !!right && left.length === right.length && left.every((value, i) => value === right[i]);
+  if (a.kind === 'text') return b.kind === 'text' && a.field === b.field && path(a.path, b.path) && a.offset === b.offset && a.before.length === b.before.length;
+  if (a.kind === 'attribute') return b.kind === 'attribute' && a.field === b.field && path(a.path, b.path) && a.name === b.name;
+  if (a.kind === 'title') return b.kind === 'title' && a.pageId === b.pageId;
+  if (a.kind === 'css') return b.kind === 'css' && sameCodeFactCssDeclaration(a, b) && a.position.pageId === b.position.pageId && a.position.width === b.position.width && a.position.pseudo === b.position.pseudo && path(a.position.path, b.position.path);
+  return false;
+}
+
 // Runs in each rendered page/viewport, only when a rejected fact needs a CSS
 // declaration repair. Perturb that exact declaration and restore it; selector
 // matching alone cannot establish the cascade, inheritance or media effects.
-export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarations: CodeFactCssMember[]) {
+export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarations: CodeFactCssMember[], hasDynamicStates: (rules: CSSRule[]) => boolean) {
   const parts = [code.header, code.pages.find(page => page.id === pageId)!.html, code.footer];
   const fields = ['header', `pages/${pageId}/html`, 'footer'];
   const stylesheet = (member: CodeFactCssMember) => {
@@ -329,6 +342,7 @@ export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarati
     }
     if (!(rule instanceof CSSStyleRule) || rule.cssText !== member.ruleText || rule.style.getPropertyValue(member.property) !== member.before || rule.style.getPropertyPriority(member.property) !== member.priority)
       throw new Error('CSS 文案修正无法核实来源声明，本次未保存版本。');
+    if (hasDynamicStates([rule])) throw new Error('CSS 文案修正规则含交互伪类，无法静态完整核实已通过段的影响，本次未保存版本。');
     const slots = elements.flatMap(el => (member.property === 'list-style-type' ? getComputedStyle(el).display === 'list-item' ? [''] : [] : ['', '::before', '::after', '::marker']).map(pseudo => {
       const path: number[] = [];
       for (let node = el; node.parentElement; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
