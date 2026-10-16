@@ -1,12 +1,13 @@
 import { renderSiteCode, englishSiteCode, type CodeSiteRecord, type CodeVersion } from './code-site.ts';
 import { listSiteImages } from './site-images.ts';
+import { siteCodeResources } from './code-site-dom.ts';
 
 // Preview and both published languages read the same immutable version and renderer.
 export async function serveCodePage(site: CodeSiteRecord, version: CodeVersion | null | undefined, pageId: string, language: 'zh' | 'en', published = false) {
   if (!version) return new Response('这个页面尚未生成', { status: 404 });
   const code = language === 'en' ? englishSiteCode(site, version) : version.code;
   if (!code || !code.pages.some(page => page.id === pageId)) return new Response('这个页面尚未生成', { status: 404 });
-  const used = new Set((code.header + code.footer + code.pages.map(page => page.html).join('')).match(/img_[a-z0-9]{16,40}/g));
+  const used = new Set(siteCodeResources(code).imageIds);
   const credits = [...new Set((await listSiteImages(site.siteId)).filter(image => used.has(image.imageId) && image.attribution).map(image => image.attribution))];
   const prefix = `/published/${encodeURIComponent(site.siteId)}`;
   const preview = `/api/sites/${encodeURIComponent(site.siteId)}/code-preview?page=${encodeURIComponent(pageId)}&version=${encodeURIComponent(version.id)}`;
