@@ -76,32 +76,31 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 本次性能修复（最终代码 `3014593`）：诊断确认样式读取占主要耗时（拾色 7 元素单探针约 1.9 秒，force 约 40ms，聚焦约 25ms，169 次 CDP 往返）；页面内缓存范围外元数据，批量读取完整计算样式后 gzip 序列化传输，源/候选在独立 CDP target 并行探测，比较仍使用完整 `DOM 路径 × 计算样式` 集合。最终并行实测两站三档均通过 2 秒：禾巷小馆 1.78/1.73/1.70 秒，拾色绘画教室 1.35/1.26/1.24 秒；每档记录 interactiveElements、forceCalls、cdpRoundTrips、focus/force/styleRead/compare 分段及 extras=0。
 
-2026-10-16（本轮收尾，性能上限调整与 P1/P2 修复）：
+2026-10-16 本轮修复（实现 `258fb02`，追加正常提交，已合并 `family-kit-assembly`）：
 
-- 动态状态预算改为每个视口最多 5 秒、375/768/1440 三档合计最多 15 秒；超时仍明确拒绝且不存版本。调整原因是原 2 秒上限在真实首页抖动下会间歇误拒：禾巷小馆 1440 档实测 2.63 秒，暖运行约 1.60–1.70 秒。该上限只扩大允许的测量时间，不删状态、不跳元素、不跳视口；超时回归仍通过显式 `dynamicStateBudgetMs: 1` 注入小预算证明拒绝与不存版本。
-- P1 先在 `b46134c` 运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t164-multi-block-chat.test.ts tests/t164-multi-block-edit.test.ts`，成功批次线程回复断言失败；修复后从持久化 run 重读 `annotationIds`，每条线程收到自己的成功回复。
-- P2 同一父版本反事实运行中，候选新增 `<a>` 且仅新增范围外 CSS 自定义属性的用例在 `b46134c` 被错误保存；修复后候选状态重读完整属性名集合，新增自定义属性被拒绝，版本数保持不变。
-- 性能优化只改变传输与调度：页面内批量读取完整计算样式并压缩传输，源/候选探针并行；状态集合、触发元素、祖先传播、三档视口和完整比较语义不变。
+- 动态探针与样式比较合计每档最多 5 秒、375/768/1440 三档最多 15 秒，超时明确拒绝且不存版本。原因：独立复测禾巷小馆 1440 档曾用 2.63 秒，暖运行约 1.60–1.70 秒，原 2 秒预算在抖动下会间歇误拒。固定四状态、逐元素、祖先传播、三个视口和完整样式集合比较保持。
+- 已确认的检查边界：中等页面为不超过 250 个 DOM 元素、40 个可交互元素；不覆盖多个元素同时处于不同状态、跨元素并发 hover/active、浏览器 UA 默认规则及脚本动态改变的状态。源可达集合包含无状态基线与全部触发状态，比较键只有范围外 DOM 路径与完整计算样式，不包含触发元素。
+- P1：成功分支从持久化任务重读 `annotationIds`，按每条 annotationId 写成功回复。真实 chat 测试显式核对两条独立线程、两条 draftId 映射和各自助手回复，避免空集合使循环断言失效。
+- P2：每个候选状态合并缓存与实时完整属性名集合，覆盖只在焦点状态出现的新增 CSS 自定义属性。源无链接、候选新增 `<a>`、`main:focus-within .outside{--leak:123px}` 的提交被拒且仍仅一版。
+- P1/P2 红证据：`b46134c` 上用标准 `npm test -- tests/t164-multi-block-chat.test.ts tests/t164-multi-block-edit.test.ts` 运行，18/20，通过之外的两项分别是缺成功回复和错误保存新增自定义属性；原始日志保留在 `artifacts/t164/p1p2-b46134c-red.log`（原目录 `/tmp/sitecraft-t164-p1p2-red2.KVlodV`）。修复后同一入口通过。
+- 预算测试：显式 1ms 小预算和默认 5 秒预算均覆盖超时不存版本。默认预算用提交入口在探针完成后的完整样式比较阶段推进时钟 6000ms；`6c6304a` 缺少比较结束检查时错误保存第二版，红日志 `artifacts/t164/comparison-budget-red.log`；`258fb02` 在同一截止时间再核对后 21/21 通过，绿日志 `artifacts/t164/comparison-budget-green.log`。
+- 性能根因仍是完整样式读取与序列化；已用页面内一次 Runtime.evaluate 批量读取、压缩传输及源/候选独立 CDP target 并行。未减少状态、元素、视口或属性；各阶段逐次原始数据均保留。
 
-2026-10-16 00:16 UTC，按 `fbf96a1` 在只读复制根 `/tmp/sitecraft-t164-final-parallel.jur1Jt` 完成真实首页每档 5 次运行（命令：`ROOT=/tmp/sitecraft-t164-final-parallel.jur1Jt COMMIT=fbf96a1 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types /tmp/sitecraft-t164-five-run.ts`）。完整逐次数据与阶段耗时保存在 `artifacts/t164/real-homepage-timing.json`；以下均为毫秒，`min/中位/max`，计数为源/候选相同值：
+真实首页测量时间 2026-10-16T00:27:15.446Z，命令：`ROOT=/tmp/sitecraft-t164-final-parallel.jur1Jt COMMIT=258fb02 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t164/real-homepage-timing.ts`。主目录数据仅从既有只读复制根读取，没有写主数据；无 DeepSeek。`artifacts/t164/real-homepage-timing.json` 保存每站每档 5 次样本、计数、聚焦/forcePseudoState/样式读取/比较阶段；旧测量保存在 `real-homepage-timing-fbf96a1.json`。下表单位为 ms，计数是每次源/候选各自相同的值。
 
-| 首页 | 视口 | 总耗时 | 可交互 | force | CDP 往返 | 聚焦（源/候选） | force 阶段（源/候选） | 样式读取（源/候选） | 比较 |
-| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- |
-| 禾巷小馆 | 375 | 2405.3/2450.3/2560.9 | 10 | 76 | 215 | 17.8/17.9/27.7 · 17.6/18.0/27.7 | 71.4/105.4/113.2 · 150.3/176.7/186.2 | 1999.7/2028.4/2102.2 · 1926.9/1969.1/1985.6 | 168.0/174.7/178.5 |
-| 禾巷小馆 | 768 | 2411.9/2423.4/2462.1 | 10 | 76 | 215 | 17.8/18.0/18.2 · 17.9/18.0/18.1 | 83.9/107.3/151.4 · 125.5/138.4/174.1 | 1985.0/2028.5/2040.9 · 1942.1/1959.5/2036.5 | 168.4/169.8/170.6 |
-| 禾巷小馆 | 1440 | 2443.0/2466.3/2482.3 | 10 | 76 | 215 | 18.0/18.1/18.5 · 17.9/18.0/18.1 | 30.9/109.0/121.5 · 133.5/161.0/228.8 | 2049.3/2056.8/2138.8 · 1891.0/1953.7/2011.2 | 165.9/172.5/182.5 |
-| 拾色绘画教室 | 375 | 1825.9/1855.8/1872.4 | 7 | 58 | 169 | 19.8/20.4/35.0 · 20.0/20.3/34.9 | 95.2/111.1/132.5 · 73.5/77.7/108.7 | 1501.8/1520.0/1548.8 · 1504.2/1577.0/1580.6 | 111.0/111.5/116.0 |
-| 拾色绘画教室 | 768 | 1849.0/1902.4/2013.5 | 7 | 58 | 169 | 20.4/20.7/22.2 · 20.2/20.7/22.4 | 89.9/106.0/132.2 · 84.7/94.5/132.4 | 1504.7/1566.2/1663.1 · 1548.5/1574.7/1665.9 | 112.9/116.2/120.8 |
-| 拾色绘画教室 | 1440 | 1904.5/1968.5/2004.7 | 7 | 58 | 169 | 20.5/20.7/25.9 · 20.5/20.6/24.8 | 90.9/105.0/142.6 · 78.0/107.7/132.7 | 1568.3/1639.1/1664.2 · 1605.6/1659.3/1692.3 | 111.3/112.2/135.3 |
+| 首页 | 视口 | min / 中位 / max | 可交互元素 | 非空 force 次数 | CDP 往返 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 禾巷小馆 | 375 | 2427.3 / 2444.8 / 2680.6 | 10 | 76 | 215 |
+| 禾巷小馆 | 768 | 2426.6 / 2475.4 / 2506.4 | 10 | 76 | 215 |
+| 禾巷小馆 | 1440 | 2498.6 / 2515.6 / 2533.3 | 10 | 76 | 215 |
+| 拾色绘画教室 | 375 | 1913.0 / 1932.4 / 2058.8 | 7 | 58 | 169 |
+| 拾色绘画教室 | 768 | 1898.5 / 1905.8 / 1924.2 | 7 | 58 | 169 |
+| 拾色绘画教室 | 1440 | 1918.0 / 1927.7 / 1984.8 | 7 | 58 | 169 |
 
-六档全部 `passed: true`，单档最大 2560.9ms，三档合计预算分别为 15 秒；探针仍固定四状态、逐元素、祖先传播和完整样式集合比较，`extras=0`。
+全部 30 次单档测量 ≤5000ms、`extras=0`。三档按样本序号合计的 min/中位/max：
+- 禾巷小馆：7412.0/7457.1/7626.3ms，全部 ≤15000ms。
+- 拾色绘画教室：5736.8/5799.3/5903.5ms，全部 ≤15000ms。
 
-2026-10-16 收尾验证：
+验证（代码 `258fb02`，2026-10-16 UTC）：`npm run typecheck` 通过；定向入口 21/21 通过；`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4 通过（`artifacts/t164/runner-final.log`）；`CHROME_PATH=... npm test` 574/574 通过（`artifacts/t164/full-258fb02.log`、`artifacts/t167/test-run-1792110445646-65790`）；`SITE_STORE=fs npm run build` 通过（Next.js 16.3.1/Turbopack，`artifacts/t164/build-258fb02.log`）。全量前与 build 前均检查 df/ps，串行运行，无其他 chrome-headless-shell、node --test 或 next build。旧实现 `fbf96a1` 的 573/573 与 build 通过记录保留在 `artifacts/t167/test-run-1792109857522-55405`。
 
-- `npm run typecheck`：通过。
-- `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t164-multi-block-chat.test.ts tests/t164-multi-block-edit.test.ts`：20/20 通过，包含成功批次两条线程各自收到助手回复、候选新增自定义属性拒绝、显式小预算超时不存版本。
-- `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`：573/573 通过，证据目录 `artifacts/t167/test-run-1792109857522-55405`，随机测试服务端口 62243。
-- `SITE_STORE=fs npm run build`：通过（Next.js 16.3.1/Turbopack）。
-- 上述验证对应实现 `fbf96a1`（文档同步至 `04a6109`）；未推送。真实 DeepSeek、独立盲评和 Astra/sol 独立审查仍由主控安排，未计入通过结果。
-
-预算收口：完整计算样式比较也受同一视口截止时间约束。新增经提交入口的时钟反事实在 `6c6304a` 失败（`artifacts/t164/comparison-budget-red.log`）：探针完成后比较阶段推进 6000ms，旧实现仍保存第二版。修复后同一截止时间在比较结束再核对，定向 21/21 通过（`artifacts/t164/comparison-budget-green.log`），超时保持一版；真实 chat 测试另显式断言两条独立线程及两条 draftId 映射，避免空集合使回复断言失效。
+真实 DeepSeek、页面独立盲评及独立 sol 审查不计入本轮通过项，仍由主控安排；票保持 open。本地提交不推送。
