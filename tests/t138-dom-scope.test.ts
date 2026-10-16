@@ -36,7 +36,14 @@ const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), system = body.messages[0].content, user = body.messages[1].content;
   let reply: unknown;
-  if (system.includes('事实校对员')) reply = { issues: user.includes('终身保修') ? ['页面原句：终身保修。；资料未提供该承诺。'] : [] };
+  if (system.includes('事实校对员')) {
+    const input = JSON.parse(user.split('\n')[0]);
+    reply = { results: input.segments.map((segment: { id: string; text: string }) => {
+      const unsupported = segment.text.includes('终身保修');
+      return { id: segment.id, issues: unsupported ? ['页面原句：终身保修。；资料未提供该承诺。'] : [],
+        noFacts: !unsupported, factCategories: unsupported ? ['时间与交期承诺'] : [], citations: [] };
+    }) };
+  }
   else if (user.includes('先给页面大纲')) reply = { summary: '公司与产品', style: 'precision', styleReason: '加工资料', skeletonId: 'compact-profile', skeletonReason: '先说明加工范围与边界。', pages: [{ id: 'home', title: '首页', outline: ['公司与边界'] }, { id: 'products', title: '产品', outline: ['精密零件'] }] };
   else if (system.includes('修正输出合同')) {
     repairs++;

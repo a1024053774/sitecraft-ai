@@ -10,18 +10,20 @@ export type CodeFactSourceRef =
   | { type: 'materials'; messageIndex: number }
   | { type: 'message'; messageIndex: number };
 export type CodeFactCitation = { category: '客户与合作方' | '资质认证' | '业绩与数量' | '价格与收费' | '时间与交期承诺' | '效果' | '评价'; claim: string; quote: string; source?: CodeFactSourceRef; targets?: CodeFactTarget[] };
+export type CodeFactCssPosition = { pageId: string; width: number; path: number[]; pseudo: string };
 export type CodeFactMember = { context?: true } & (
-  | { kind: 'text'; field: string; path: number[]; text: string }
+  | { kind: 'text'; field: string; path: number[]; text: string; before: string; offset: number }
   | { kind: 'attribute'; field: string; path: number[]; name: string; before: string }
   | { kind: 'title'; pageId: string; text: string }
-  | { kind: 'css'; field: string; stylePath?: number[]; rulePath: number[]; selector: string; property: string; before: string; priority: string; ruleText: string; pseudo: string }
+  | { kind: 'css'; field: string; stylePath?: number[]; rulePath: number[]; selector: string; property: string; before: string; priority: string; ruleText: string; pseudo: string; position: CodeFactCssPosition }
   | { kind: 'unsupported'; reason: string });
 export type CodeFactOwner = { pageId: string; path: number[] };
 export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[]; members?: CodeFactMember[]; owners?: CodeFactOwner[] };
 export type CodeFactRepair = { issues: string[]; members: CodeFactMember[] };
+export type CodeFactCssMember = Extract<CodeFactMember, { kind: 'css' }>;
 export type CodeFactReview = {
   format: 4; materials: string; sourceMaterials: CodeFactSource[]; audited: number; reused: number;
-  segments: Array<{ text: string; group: string; issues: string[]; noFacts: boolean; factCategories: CodeFactCitation['category'][]; citations: CodeFactCitation[]; citationRepair?: CodeFactRepair }>;
+  segments: Array<{ text: string; group: string; issues: string[]; noFacts: boolean; factCategories: CodeFactCitation['category'][]; citations: CodeFactCitation[]; factRepair?: CodeFactRepair }>;
 };
 
 export function normalizeFactQuote(text: string) { return text.normalize('NFKC').replace(/\s+/g, ' ').trim(); }
@@ -90,12 +92,22 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
     const field = index === 0 ? 'header' : index === 2 ? 'footer' : `pages/${pageId}/html`;
     for (const style of part.querySelectorAll('style')) cssSource(field, style.textContent ?? '', positions.get(style)?.path);
   });
-  const member = (node: Node, extra: { kind: 'text'; text: string } | { kind: 'attribute'; name: string; before: string }): CodeFactMember => {
+  const member = (node: Node, extra: { kind: 'text'; text: string; before: string; offset: number } | { kind: 'attribute'; name: string; before: string }): CodeFactMember => {
     const position = positions.get(node);
     return position ? { ...position, ...extra } : { kind: 'unsupported', reason: '核对段节点没有可验证的作者代码路径' };
   };
+  const textMembers = (node: Node) => {
+    const text = node.textContent ?? '';
+    // Establish character intervals while reading the member, independently
+    // of model issues. Repairs can retain intervening and adjacent sentences.
+    return [...text.matchAll(/[^。！？；\n]+[。！？；]?/g)].filter(part => part[0].trim())
+      .map(part => member(node, { kind: 'text', text, before: part[0], offset: part.index! }));
+  };
   const cssMembers = (el: Element, pseudo: string, property: string): CodeFactMember[] => {
     const matches: CodeFactMember[] = [];
+    const path: number[] = [];
+    for (let node = el; node.parentElement; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
+    const position = { pageId, width: innerWidth, path, pseudo };
     const selectors = (text: string) => {
       const parts: string[] = []; let start = 0, depth = 0, quote = '';
       for (let i = 0; i < text.length; i++) {
@@ -125,7 +137,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
           }
           if (selectorProblem) matches.push({ kind: 'unsupported', reason: `${el.tagName.toLowerCase()}${pseudo} 的生成文案选择器无法可靠定位` });
           if (applies) matches.push(scopeProblem ? { kind: 'unsupported', reason: scopeProblem } : { kind: 'css', field: source.field, ...(source.stylePath ? { stylePath: source.stylePath } : {}), rulePath,
-            selector, property, before: rule.style.getPropertyValue(property), priority: rule.style.getPropertyPriority(property), ruleText: rule.cssText, pseudo });
+            selector, property, before: rule.style.getPropertyValue(property), priority: rule.style.getPropertyPriority(property), ruleText: rule.cssText, pseudo, position });
         }
         if ('cssRules' in rule) walk((rule as CSSGroupingRule).cssRules, rulePath, scopeProblem ??
           (rule instanceof CSSMediaRule || rule instanceof CSSSupportsRule || rule.constructor.name === 'CSSLayerBlockRule' ? undefined : `${rule.constructor.name} 的生成文案作用域无法可靠核实`));
@@ -160,7 +172,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
         const label = document.getElementById(id);
         if (!label) { positions.push({ kind: 'unsupported', reason: `${name} 引用的节点 ${id} 不存在` }); return `未找到 ${id}`; }
         const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
-        for (let text = walker.nextNode(); text; text = walker.nextNode()) if (text.textContent?.trim()) positions.push(member(text, { kind: 'text', text: text.textContent }));
+        for (let text = walker.nextNode(); text; text = walker.nextNode()) positions.push(...textMembers(text));
         return label.textContent ?? '';
       }).join('\n')}`);
     }
@@ -180,7 +192,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
   const read = (node: Node, skip?: (el: Element) => boolean, members?: CodeFactMember[]): string => {
     if (node instanceof Element && node.tagName === 'STYLE') return '';
     if (node.nodeType === Node.TEXT_NODE) {
-      if (node.textContent?.trim()) members?.push(member(node, { kind: 'text', text: node.textContent }));
+      members?.push(...textMembers(node));
       return node.textContent ?? '';
     }
     if (!(node instanceof Element) || skip?.(node) || node.parentElement?.closest('[data-system-icon]')) return '';
@@ -273,6 +285,63 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
     if (index === 1) result.push({ text: `${scope}\n页面标题：${page.title}`, group: `${scope}\n页面标题：${page.title}`, context: { pageId, outline, headings: [] }, members: [{ kind: 'title', pageId, text: page.title }] });
   }
   return result;
+}
+
+export function sameCodeFactCssDeclaration(a: CodeFactCssMember, b: CodeFactCssMember) {
+  const samePath = (left: number[] | undefined, right: number[] | undefined) => left === right || !!left && !!right && left.length === right.length && left.every((value, i) => value === right[i]);
+  return a.field === b.field && a.property === b.property && samePath(a.stylePath, b.stylePath) && samePath(a.rulePath, b.rulePath);
+}
+
+// Runs in each rendered page/viewport, only when a rejected fact needs a CSS
+// declaration repair. Perturb that exact declaration and restore it; selector
+// matching alone cannot establish the cascade, inheritance or media effects.
+export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarations: CodeFactCssMember[]) {
+  const parts = [code.header, code.pages.find(page => page.id === pageId)!.html, code.footer];
+  const fields = ['header', `pages/${pageId}/html`, 'footer'];
+  const stylesheet = (member: CodeFactCssMember) => {
+    if (member.field === 'css') return document.head.querySelector('style')?.sheet;
+    let offset = 0;
+    for (const [i, html] of parts.entries()) {
+      const roots = [...new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body.childNodes];
+      if (fields[i] === member.field && member.stylePath?.length) {
+        const [rootIndex, ...rest] = member.stylePath;
+        const root = roots[rootIndex];
+        if (!(root instanceof Element)) return null;
+        let node: Node | undefined = document.body.children[offset + roots.slice(0, rootIndex).filter(node => node instanceof Element).length];
+        if (node?.nodeName !== root.nodeName) return null;
+        for (const index of rest) node = node?.childNodes[index];
+        return node instanceof HTMLStyleElement ? node.sheet : null;
+      }
+      offset += roots.filter(node => node instanceof Element).length;
+    }
+    return null;
+  };
+  const elements = [document.documentElement, ...document.documentElement.querySelectorAll('*')];
+  return declarations.flatMap(member => {
+    // A page-local style element is absent from other pages, not an unknown
+    // source. Shared header/footer styles and code.css are present on each.
+    if (member.field.startsWith('pages/') && member.field !== `pages/${pageId}/html`) return [];
+    const sheet = stylesheet(member);
+    let rules = sheet?.cssRules, rule: CSSRule | undefined;
+    for (const [i, index] of member.rulePath.entries()) {
+      rule = rules?.[index];
+      if (i < member.rulePath.length - 1) rules = rule && 'cssRules' in rule ? (rule as CSSGroupingRule).cssRules : undefined;
+    }
+    if (!(rule instanceof CSSStyleRule) || rule.cssText !== member.ruleText || rule.style.getPropertyValue(member.property) !== member.before || rule.style.getPropertyPriority(member.property) !== member.priority)
+      throw new Error('CSS 文案修正无法核实来源声明，本次未保存版本。');
+    const slots = elements.flatMap(el => (member.property === 'list-style-type' ? getComputedStyle(el).display === 'list-item' ? [''] : [] : ['', '::before', '::after', '::marker']).map(pseudo => {
+      const path: number[] = [];
+      for (let node = el; node.parentElement; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
+      return { el, pseudo, position: { pageId, width: innerWidth, path, pseudo } };
+    }));
+    const read = () => slots.map(slot => getComputedStyle(slot.el, slot.pseudo || null).getPropertyValue(member.property));
+    const before = read();
+    let after: string[];
+    try { rule.style.setProperty(member.property, '"\uE000修正范围"', member.priority); after = read(); }
+    finally { rule.style.setProperty(member.property, member.before, member.priority); }
+    if (read().some((value, i) => value !== before[i])) throw new Error('CSS 文案修正无法稳定核实渲染影响，本次未保存版本。');
+    return [{ declaration: member, positions: slots.filter((_slot, i) => before[i] !== after[i]).map(slot => slot.position) }];
+  });
 }
 
 export function pendingCodeFactSegments(segments: CodeFactSegment[], materials: string, reviews: CodeFactReview[], sourceMaterials?: CodeFactSource[]) {

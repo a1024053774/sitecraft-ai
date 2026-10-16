@@ -347,9 +347,10 @@ materials 是完整核对上下文，sourceMaterials 才是可作为资料出处
     if (!row.noFacts && !factCategories.every(value => citations.some(citation => citation.category === value)))
       citationIssues.push(`高风险事实缺少有效资料出处：页面原句「${segment.text}」；声明类别「${factCategories.join('、')}」没有通过的资料出处。`);
     const owners = local ? segments[i].owners ?? [] : [];
+    const problems = [...row.issues, ...citationIssues];
     return { text: segment.text, group: segments[i].group,
-      issues: [...row.issues, ...citationIssues].flatMap(problem => owners.length ? owners.map(owner => `${owner.pageId}/${JSON.stringify(owner.path)} ${problem}`) : [problem]),
-      ...(citationIssues.length ? { citationRepair: { issues: citationIssues,
+      issues: problems.flatMap(problem => owners.length ? owners.map(owner => `${owner.pageId}/${JSON.stringify(owner.path)} ${problem}`) : [problem]),
+      ...(problems.length ? { factRepair: { issues: problems,
         members: segments[i].members?.length ? segments[i].members! : [{ kind: 'unsupported' as const, reason: '核对段没有可验证的修正位置成员' }] } } : {}),
       noFacts: row.noFacts, factCategories, citations };
   });

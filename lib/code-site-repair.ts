@@ -89,11 +89,21 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       const issues = input.issues!.filter(issue => !factRepairs.some(repair => repair.issues.includes(issue))), issueText = issues.map(normalize).join('\n');
       const layoutIssues = issues.filter(i => /溢出|重叠|对比度|无可测量正文|CSS/.test(i));
       const fragments: Fragment[] = [];
-      const add = (f: FragmentBody) => fragments.push({ ...f, id: fragments.length });
+      const samePath = (a: number[] | undefined, b: number[] | undefined) => a === b || !!a && !!b && a.length === b.length && a.every((value, i) => value === b[i]);
+      const add = (f: FragmentBody) => {
+        const exists = fragments.some(other => {
+          if (other.field !== f.field || other.kind !== f.kind) return false;
+          if (f.kind === 'text') return other.kind === 'text' && samePath(other.path, f.path) && other.offset === f.offset && other.before.length === f.before.length;
+          if (f.kind === 'attribute') return other.kind === 'attribute' && samePath(other.path, f.path) && other.name === f.name;
+          if (f.kind === 'element') return other.kind === 'element' && samePath(other.path, f.path);
+          if (f.kind === 'css') return other.kind === 'css' && samePath(other.stylePath, f.stylePath) && samePath(other.rulePath, f.rulePath) && other.property === f.property;
+          return true;
+        });
+        if (!exists) fragments.push({ ...f, id: fragments.length });
+      };
       const factMembers = factRepairs.flatMap(repair => repair.members);
-      for (const [index, member] of factMembers.entries()) {
+      for (const member of factMembers) {
         if (member.context) continue;
-        if (factMembers.findIndex(other => JSON.stringify(other) === JSON.stringify(member)) !== index) continue;
         if (member.kind === 'unsupported') refuse(`无法定位出处拒因：${member.reason}`);
         else if (member.kind === 'title') {
           if (code.pages.find(page => page.id === member.pageId)?.title !== member.text) refuse('出处拒因的页面标题快照已经失效');
@@ -101,13 +111,13 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
         } else if (member.kind === 'css') {
           const rule = cssRule(cssSource(member.field, member.stylePath), member.rulePath);
           if (rule.selectorText !== member.selector || rule.cssText !== member.ruleText || rule.style.getPropertyValue(member.property) !== member.before) refuse('出处拒因的 CSS 声明快照已经失效');
-          const { kind, ...location } = member;
-          if (!fragments.some(fragment => fragment.kind === 'css' && fragment.field === member.field && JSON.stringify(fragment.stylePath) === JSON.stringify(member.stylePath) && JSON.stringify(fragment.rulePath) === JSON.stringify(member.rulePath) && fragment.property === member.property)) add({ kind, ...location });
+          const { kind, position: _position, ...location } = member;
+          add({ kind, ...location });
         } else {
           const node = nodeAt(member.field, member.path);
           if (member.kind === 'text') {
-            if (!node || node.nodeType !== Node.TEXT_NODE || node.nodeValue !== member.text) refuse('出处拒因的文本节点快照已经失效');
-            add({ field: member.field, kind: 'text', path: member.path, before: member.text, text: member.text, offset: 0 });
+            if (!node || node.nodeType !== Node.TEXT_NODE || node.nodeValue !== member.text || node.nodeValue.slice(member.offset, member.offset + member.before.length) !== member.before) refuse('出处拒因的文本节点或字符区间快照已经失效');
+            add({ field: member.field, kind: 'text', path: member.path, before: member.before, text: member.text, offset: member.offset });
           } else {
             if (!(node instanceof Element) || node.getAttribute(member.name) !== member.before) refuse('出处拒因的属性快照已经失效');
             add({ field: member.field, kind: 'attribute', path: member.path, name: member.name, before: member.before });
@@ -147,7 +157,7 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       for (const p of code.pages) if ((normalize(p.title).length >= 4 && issueText.includes(normalize(p.title))) || mentionedNumber(p.title)) add({ field: `pages/${p.id}/title`, kind: 'title', before: p.title });
       const removed = issues.length > 0 && issues.every(i => input.cleaned!.includes(i) && /^(已去掉(?:禁止元素|资源或空链接|属性) |图片编号未授权：)/.test(i));
       if (!fragments.length && !removed) refuse(factRepairs.length ? '无法定位出处拒因：当前核对段没有可独立修正的位置成员' : '无法定位底线拒因对应的代码节点');
-      return { fragments: fragments.filter((fragment, index, all) => all.findIndex(other => JSON.stringify({ ...other, id: 0 }) === JSON.stringify({ ...fragment, id: 0 })) === index).map((fragment, id) => ({ ...fragment, id })) };
+      return { fragments };
     }
 
     // HTML parsers repair missing end tags. Require explicit closure before

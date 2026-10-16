@@ -140,3 +140,46 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 本次引用的定向截图已逐张打开：`artifacts/t162/self-contained-1792166083906-65483/` 的原始资料四张、`self-contained-1792166084084-65497/` 的重叠确认六张、`artifacts/t169/browser-1792166098152/` 的消息／上传／表格三档九张；加上上述全量失败截图，共二十张。只确认本轮可见行为和异常，不作审美通过结论。
 
 本轮交付状态 **INCOMPLETE**：五项同类问题已按位置成员统一修改，父版本失败与新回归通过证据齐全，但规定定向留有一次动态探针超时、规定全量留有上述两次 Invalid URL；均保留原结果，未用重跑覆盖。独立 sol 复审、真实 DeepSeek 运行与盲评仍由主控另行安排，票保持 open，验收项不勾选。收尾只补本 Resolution 并合入同一个本地功能提交，不改实现或测试；未推送，未读 `.env.local`，未调用 DeepSeek，未写主目录 `.sitecraft-data`，未提交 `tsconfig.json`。 project-map 结构问题与过时 living doc 均为 0，中文 UTF-8 回读正常；收尾无遗留 Chrome 测试、node --test 或 next build，记录 `artifacts/t173/members-post-processes.txt`。
+
+
+### 模型拒因与 CSS 渲染影响范围修复（2026-10-16，Codex）
+
+主控转达第四个独立 sol 对 `68d0b22` 的复审为 **NO_GO**，剩两个 P1：模型返回的事实／出处 issues 未携带成员归属，仍全文匹配并误选同文乙行；单项 CSS 声明虽定点改源码，却能连带改变其他已通过段。合同不变，本轮先补生产 chat 红测，再修共用成员边界；共享声明的实际影响超出被拒段允许成员并集时明确拒收，不拆分规则。
+
+主控已核实在 `68d0b22b9137c2a9c48988c552342e6ab42b6a73` 上于 12:14–12:23 EDT（16:14–16:23Z）执行一次全量，**675/675，失败／取消／跳过均 0，PASS**；日志 `artifacts/t173-supervisor-full-68d0b22.log`，报告 `artifacts/t167/test-run-1792167274169-84145/report.json`，报告结束时间 16:23:14.565Z。此前本执行轮的 Invalid URL 与动态探针超时本次未复现，根因仍未知，原失败证据保留；不能把复跑通过写成已修复这些异常。
+
+
+本轮由模型核对边界把该段全部模型 issues 与代码出处拒因统一记录为 `factRepair`（内部旧字段已替换，不留兼容分支），携带同一份成员；这些拒因全部退出普通全文检索。修正入口按字段、类型、节点／规则路径、属性名与字符区间去重，不依赖 JSON 对象键顺序。CSS 成员另记录页面、视口、DOM 位置与伪元素；整站片段修正前复用提交检查的已渲染候选，在每页三档逐项临时改变指定声明再恢复，读取实际计算值变化的位置以核实层叠、继承和媒体条件。所有影响都须属于被拒段允许 CSS 成员并集，超出或无法稳定核实即明确拒收，不拆分规则、不发修正请求。无法定位的成员仍保留原始明确拒因，不继续探测无法使用的其他片段。原局部写作仍由既有区块／共享 CSS 范围检查约束，原两轮额度未变。
+
+先红证据：实现未改时，在 `68d0b22b9137c2a9c48988c552342e6ab42b6a73` 运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-repair-scope.test.ts`，16:32:43Z 结束：**2/8，六个坏例失败、两个合法修正对照通过**。日志 `artifacts/t173/scope-68d0b22-red-fixture.log`，报告 `artifacts/t167/test-run-1792168353365-1471/report.json`。混合拒因出现甲行重复片段重叠；只有模型拒因时实存了甲乙都被改的版本；共享声明的本页及另一页三种视口反例均被父版本误存。最初正例把 `.first` 挂在 main，开工自查改为甲段后、仍未改实现时重新做上述红测；原 `scope-68d0b22-red.log` 与产物保留。
+
+新回归的期望来自合同，替身对返回的实际修正片段回填改写，并经普通服务读回存版：模型 issues 非空的两个表格用例只改甲行、乙行同文保留且片段不重复；CSS 只影响一段或被拒两段并集时实改声明后只存一版；共享声明影响已通过乙段时拒收，包括另一页分别仅在 375／768／1440 生效的三个反例。八项在最终定向均通过。初次扩展 `scope-first.log` 为 46/47，新八项通过，但旧未知作用域反例被新 CSS 影响拒因先截住；现按成员是否可定位确定检查顺序，保留更直接的原拒因，原断言未改。
+
+
+最终规定定向命令（所有 npm test 只设置下列 CHROME_PATH）：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-repair-scope.test.ts tests/t173-fact-members.test.ts tests/t173-fact-boundary.test.ts tests/t173-citation-repair.test.ts tests/t164-multi-block-edit.test.ts tests/t164-multi-block-chat.test.ts tests/t164-original-materials.test.ts tests/t164-review-seven.test.ts tests/t164-overlap-confirmation.test.ts tests/t164-local-output-limit.test.ts tests/t164-dynamic-gate.test.ts tests/t169-fact-citations.test.ts tests/t169-production-contract.test.ts tests/t169-contract-d.test.ts tests/t169-citations-browser.test.ts tests/t154-fact-segments.test.ts tests/t151-paragraph-repair.test.ts tests/t151-translation-protocol.test.ts tests/t151-short-translation.test.ts tests/t138-repair-fragments.test.ts tests/t138-token-repair.test.ts tests/t160-narrow-columns.test.ts tests/t160-materials.test.ts
+```
+
+2026-10-16T16:44:21.270Z 结束，**192/193，INCOMPLETE**；本轮新八项及其余 T-173 全部通过。唯一失败为 `tests/t164-dynamic-gate.test.ts:179` 的 `:scope:has(a:nth-of-type(2):focus) .outside` 范围检查，在 `outsideCssApplications` 的既有五秒动态探针中超时、未完成原定断言。日志 `artifacts/t173/scope-focused.log`、报告 `artifacts/t167/test-run-1792168755760-11933/report.json`、临时根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-0YPJnO` 原样保留；根因未确认，不断言与改动无关，未单独重跑或放宽上限。
+
+随后串行检查：`node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，16:45:15Z，4/4；`npm run typecheck`，16:45:18Z，通过；`SITE_STORE=fs npm run build`，16:45:40Z，通过。日志 `artifacts/t173/scope-runner.log`、`scope-typecheck-final.log`、`scope-build.log`；未载入 `.env.local`。
+
+全量前 `memory_pressure` 空闲 46%，`ps -axo pid,ppid,command` 未发现其他 Chrome 无头测试、node --test 或 next build；记录 `artifacts/t173/scope-pre-full-memory.txt`、`scope-pre-full-processes.txt`。
+
+在冻结提交 `eee67b81e0598264d531dc2d331f25579f6e56db` 上执行本轮唯一一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`，16:55:31.436Z 结束：**679/683，失败 4、取消／跳过 0，INCOMPLETE**。日志 `artifacts/t173/scope-full.log`、报告 `artifacts/t167/test-run-1792169212349-21281/report.json`、临时根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-wbUpzG` 保留。新增八项均通过；四条失败均在 `tests/t138-dom-scope.test.ts` 的 interleaved／adjacent 正反顺序用例。原始失败状态 `artifacts/t138/dom-scope-48e5d04c-df8d-4b4e-8b28-1cce87d370c9/` 显示一次修正返回空 replacements。统一成员定位后只记录整文本节点，丢失原句字符区间，合法修正无法回填。
+
+现于成员生成时按句记录节点原文快照、起点与句子文本，沿已记录区间写回，不根据模型拒因反查文本。中间定向 `scope-final-focused.log` 为 205/210：区间修复后四个任务已能 complete，但旧替身借 `factAuditReply` 只把拒因发给第一个同文段，却要求修改未被拒的页脚，与本轮合同冲突；另有一次 `::first-line` 动态探针超时，根因未确认（报告 `artifacts/t167/test-run-1792169810859-32279/report.json`）。原断言未改；只把本测试替身改为逐段真实协议，对每个含「终身保修」的段返回拒因及时间承诺类别，不把页脚标为已通过。
+
+同一更新后的 T-138 夹具均走 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t138-dom-scope.test.ts`。临时恢复本轮五个源文件到 `68d0b22`，17:03:29Z 得到 **17/17**（`scope-t138-parent-control.log`，报告 `artifacts/t167/test-run-1792170189109-38258/report.json`）；恢复到中间候选 `eee67b8`，17:03:47Z 得到 **13/17，四个区间坏例失败**（`scope-t138-interval-red.log`，报告 `artifacts/t167/test-run-1792170209452-38790/report.json`）。finally 已恢复当前实现；临时备份仅供安全恢复，不作源码复制证据。当前实现运行同一 CHROME_PATH 的 `npm test -- tests/t138-dom-scope.test.ts tests/t173-repair-scope.test.ts`，17:05:11Z 得到 **25/25**（`scope-interval-green.log`，报告 `artifacts/t167/test-run-1792170273753-40435/report.json`）。正文、页脚、版本数、修正次数和未选字符保留断言均保留；未放宽测试换取通过。
+
+全量之后的区间修复与夹具修正另做最终定向、runner、typecheck 和 build；遵守本轮「串行一次全量」限制，不再发起第二次全量。最终快照不能沿用修复前全量作为通过证据。
+
+最终定向在前述定向清单上增加 `tests/t138-dom-scope.test.ts`（完整命令保存在下列报告的 command 字段，仍只设置同一 CHROME_PATH），17:10:51.026Z 结束：**210/210，失败／取消／跳过 0，PASS**。日志 `artifacts/t173/scope-verified-focused.log`、报告 `artifacts/t167/test-run-1792170374883-42594/report.json`、临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-rpuQqs` 保留。本轮八项、T-138 的十七项及全部指定相关对照均通过。随后串行运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`（17:12:44Z，4/4）、`npm run typecheck`（17:12:50Z，通过）、`SITE_STORE=fs npm run build`（17:13:10Z，通过）；日志 `scope-final-runner.log`、`scope-final-typecheck.log`、`scope-final-build.log`。
+
+本次最终引用的十九张定向截图已逐张打开：`artifacts/t162/self-contained-1792170393484-43108/` 原始资料四张、`self-contained-1792170392845-43109/` 重叠确认六张、`artifacts/t169/browser-1792170444787/` 消息／上传／表格三档九张。仅确认出处及批注状态，不作审美通过结论。
+
+本轮交付 **INCOMPLETE**：两项越界修复及字符区间回归修复均有相应红绿证据，最终定向、runner、typecheck、build 通过；唯一一次全量是区间修复前的 679/683，最终快照未再次全量验证。原全量失败、定向中的动态探针超时及主控对旧快照的 675/675 均如实保留，未覆盖或跳过。独立 sol 复审、最终快照全量与真实模型运行待主控安排；票保持 open，不勾选真实验收项。未调用 DeepSeek、未读取 `.env.local`、未推送、未写主目录 `.sitecraft-data`，`tsconfig.json` 保持自动脏改、不提交。
+
+最终实现与测试冻结提交 `a41eb289076b3f229d902284a8a2ce2de230c486`，最终 210 项定向及最后的 runner／typecheck／build 与此快照一致；收尾仅补本 Resolution 后合入同一个功能提交，不再改代码或测试。project-map 结构问题与过时 living doc 均为 0，中文 UTF-8 回读正常；收尾无遗留 Chrome 无头测试、node --test 或 next build，记录 `artifacts/t173/scope-post-processes.txt`。
