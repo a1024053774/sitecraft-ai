@@ -2,8 +2,9 @@ import type { CodeFactReview, CodeFactCitation, CodeFactSource } from './code-si
 import type { AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import { z } from 'zod';
-import { systemIconSvg, systemIconLicense } from './code-site-icons.ts';
+import { systemIconLicense } from './code-site-icons.ts';
 import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
+import { mapSiteCodeCss, renderCodeFragment, siteCodeResources } from './code-site-dom.ts';
 
 export const codeSiteSchema = z.object({
   header: z.string().max(30000), footer: z.string().max(30000), css: z.string().max(100000),
@@ -177,37 +178,26 @@ export function renderSiteCode(siteId: string, code: SiteCode, pageId: string, v
   if (!page) throw new Error('找不到这个页面');
   const prefix = basePath ?? `/api/sites/${encodeURIComponent(siteId)}/code-preview`;
   const en = options.language === 'en';
-  let usesIcons = false;
-  const links = (html: string) => html.replace(/href="\/([a-z][a-z0-9-]*)(#[^"]*)?"/g, (all, id: string, hash = '') => {
-    if (!code.pages.some(p => p.id === id)) return all;
-    const href = options.pageHref ? escapeCodeText(options.pageHref(id, hash)) : `${prefix}?page=${id}${versionId ? `&amp;version=${encodeURIComponent(versionId)}` : ''}${en && !basePath ? '&amp;language=en' : ''}${hash}`;
-    return `href="${href}"`;
-  })
-    .replace(/<img\b([^>]*?)data-image-id="(img_[a-z0-9]{16,40})"([^>]*)>/g, (_all, before: string, id: string, after: string) => {
-      const clean = (part: string) => options.stripInternalAttributes ? part.replace(/\sdata-image-id="[^"]*"/i, '') : part;
-      const marker = options.stripInternalAttributes ? '' : ` data-image-id="${id}"`;
-      const url = options.assetUrl?.(`/api/sites/${encodeURIComponent(siteId)}/images/${id}`) ?? `/api/sites/${encodeURIComponent(siteId)}/images/${id}`;
-      return `<img${clean(before)}${marker}${clean(after)} src="${escapeCodeText(url)}">`;
-    })
-    .replace(/<span\b([^>]*?)data-system-icon="([^"]*)"([^>]*)><\/span>/g, (_all, before: string, name: string, after: string) => {
-      usesIcons = true;
-      return `<span${before}${after}>${systemIconSvg(name)}</span>`;
-    })
-  const source = code.css + code.header + code.footer + code.pages.map(p => p.html).join('');
-  const usedBackdrops = Object.entries(systemBackdrops).filter(([id, entry]) => source.includes(`data-system-backdrop="${id}"`) || Object.values(entry.urls).some(url => source.includes(url)));
+  const resources = siteCodeResources(code);
+  const currentResources = siteCodeResources({ ...code, pages: [page] });
+  const usesIcons = currentResources.usesIcons;
+  const links = (html: string) => renderCodeFragment(html, {
+    pageHref: (id, hash) => code.pages.some(p => p.id === id)
+      ? options.pageHref?.(id, hash) ?? `${prefix}?page=${id}${versionId ? `&version=${encodeURIComponent(versionId)}` : ''}${en && !basePath ? '&language=en' : ''}${hash}` : undefined,
+    imageUrl: id => options.assetUrl?.(`/api/sites/${encodeURIComponent(siteId)}/images/${id}`) ?? `/api/sites/${encodeURIComponent(siteId)}/images/${id}`,
+    assetUrl: options.assetUrl, stripInternalAttributes: options.stripInternalAttributes,
+  });
+  const usedBackdrops = Object.entries(systemBackdrops).filter(([id]) => resources.backdropIds.includes(id));
   const backdropCss = usedBackdrops.map(([id, entry]) => {
     const selector = `[data-system-backdrop="${id}"]`;
     const asset = (url: string) => options.assetUrl?.(url) ?? url;
     return `${selector}{background-image:url("${asset(entry.urls[1440])}")!important}@media(max-width:1023px){${selector}{background-image:url("${asset(entry.urls[768])}")!important}}@media(max-width:479px){${selector}{background-image:url("${asset(entry.urls[375])}")!important}}`;
   }).join('\n');
-  const css = options.assetUrl ? code.css.replace(/url\(\s*(["']?)(\/system-backdrops\/[^"')\s]+)\1\s*\)/gi, (_all, quote: string, url: string) => `url("${options.assetUrl!(url)}")`) : code.css;
-  const allCredits = [...imageCredits, ...(usedBackdrops.length ? [en ? 'Abstract backdrops generated offline; Shader Effects Inc., shaders 4.0.4, MIT. Not product, equipment, or facility photographs.' : '抽象底图：系统离线生成；Shader Effects Inc.，shaders 4.0.4，MIT。不是产品、设备或现场照片。'] : [])];
+  const css = options.assetUrl ? mapSiteCodeCss(code.css, options.assetUrl) : code.css;
+  const allCredits = [...imageCredits, ...(resources.backdropUrls.length ? [en ? 'Abstract backdrops generated offline; Shader Effects Inc., shaders 4.0.4, MIT. Not product, equipment, or facility photographs.' : '抽象底图：系统离线生成；Shader Effects Inc.，shaders 4.0.4，MIT。不是产品、设备或现场照片。'] : [])];
   const credits = allCredits.length ? `<details class="sc-image-credits"><summary>${en ? 'Image sources and licenses' : '图片来源与许可'}</summary>${[...new Set(allCredits)].map(credit => `<p>${escapeCodeText(en && credit === '用户提供；仅当前站点使用' ? 'User supplied; for this site only' : credit)}</p>`).join('')}</details>` : '';
   const languages = options.languageLinks ? `<nav class="sc-language-links" aria-label="${en ? 'Language' : '语言'}"><a lang="zh-CN" href="${escapeCodeText(options.languageLinks.zh)}"${!en ? ' aria-current="page"' : ''}>中文</a><a lang="en" href="${escapeCodeText(options.languageLinks.en)}"${en ? ' aria-current="page"' : ''}>English</a></nav>` : '';
   const stylesheet = options.stylesheetHref ? `<link rel="stylesheet" href="${escapeCodeText(options.stylesheetHref)}">` : '';
-  const rendered = `<!doctype html><html lang="${en ? 'en' : 'zh-CN'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'none'; base-uri 'none'; script-src 'none'"><title>${escapeCodeText(page.title)}</title>${stylesheet}<style>${css}</style><style>${backdropCss}.sc-language-links{display:flex!important;position:static!important;flex-wrap:wrap;justify-content:flex-end;gap:12px;padding:8px 24px;background:#fff;color:#222;font:14px/1.5 sans-serif}.sc-language-links a{display:inline-block!important;position:static!important;color:#222!important;padding:10px;text-decoration:underline}.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere}</style></head><body>${links(code.header)}${languages}${links(page.html)}${links(code.footer)}${credits}${usesIcons ? systemIconLicense : ''}${usedBackdrops.length ? systemBackdropLicense : ''}</body></html>`;
-  if (!options.stripInternalAttributes) return rendered;
-  const bodyIndex = rendered.indexOf('<body>');
-  if (bodyIndex < 0) return rendered;
-  return `${rendered.slice(0, bodyIndex + '<body>'.length)}${rendered.slice(bodyIndex + '<body>'.length).replace(/\sdata-image-id="[^"]*"/gi, '')}`;
+  const rendered = `<!doctype html><html lang="${en ? 'en' : 'zh-CN'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'none'; base-uri 'none'; script-src 'none'"><title>${escapeCodeText(page.title)}</title>${stylesheet}<style>${css}</style><style>${backdropCss}.sc-language-links{display:flex!important;position:static!important;flex-wrap:wrap;justify-content:flex-end;gap:12px;padding:8px 24px;background:#fff;color:#222;font:14px/1.5 sans-serif}.sc-language-links a{display:inline-block!important;position:static!important;color:#222!important;padding:10px;text-decoration:underline}.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere}</style></head><body>${links(code.header)}${languages}${links(page.html)}${links(code.footer)}${credits}${usesIcons ? systemIconLicense : ''}${resources.backdropUrls.length ? systemBackdropLicense : ''}</body></html>`;
+  return rendered;
 }

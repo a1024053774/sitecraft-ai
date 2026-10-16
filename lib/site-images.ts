@@ -359,7 +359,7 @@ export async function saveSiteImage(args: {
   return record;
 }
 
-export async function readSiteImage(siteId: string, imageId: string): Promise<{ record: SiteImageRecord; bytes: Uint8Array } | null> {
+export async function readSiteImage(siteId: string, imageId: string, options: { readOnly?: boolean } = {}): Promise<{ record: SiteImageRecord; bytes: Uint8Array } | null> {
   const id = safeImageId(imageId);
   const site = safeSiteId(siteId);
   let raw: string;
@@ -401,7 +401,7 @@ export async function readSiteImage(siteId: string, imageId: string): Promise<{ 
   if (record.sha256.toLowerCase() !== sha256(bytes)) {
     throw new SiteImageError("forbidden", "图片 hash 与文件内容不一致，不能进入客户成品");
   }
-  if (needsMigration) await writeAtomic(metaPath(site, id), JSON.stringify(record, null, 2));
+  if (needsMigration && !options.readOnly) await writeAtomic(metaPath(site, id), JSON.stringify(record, null, 2));
   return { record, bytes };
 }
 

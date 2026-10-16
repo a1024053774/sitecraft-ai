@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { englishSiteCode, renderSiteCode, type CodeSiteRecord, type CodeVersion, type SiteCode } from './code-site.ts';
-import { listSiteImages, readSiteImage, type SiteImageRecord } from './site-images.ts';
-import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
+import { readSiteImage, type SiteImageRecord } from './site-images.ts';
+import { systemBackdropLicense } from './code-site-backdrops.ts';
 import { systemIconLicense } from './code-site-icons.ts';
+import { mapSiteCodeCss, siteCodeResources } from './code-site-dom.ts';
 
 type ZipEntry = { name: string; data: Uint8Array };
-type ExportAsset = { url: string; file: string };
 
 function crc32(bytes: Uint8Array) {
   let crc = 0xffffffff;
@@ -31,6 +31,14 @@ function u32(value: number) { const bytes = new Uint8Array(4); new DataView(byte
 // Store entries without compression. This keeps the package writer small, deterministic,
 // and usable in the Node runtime without adding an archive dependency.
 export function createStoredZip(entries: ZipEntry[]) {
+  const names = new Set<string>();
+  for (const { name } of entries) {
+    if (!name || /[^a-zA-Z0-9._/-]/.test(name) || name.startsWith('/') || name.split('/').some(part => !part || part === '.' || part === '..')) {
+      throw new Error(`ZIP 条目路径无效：${JSON.stringify(name)}`);
+    }
+    if (names.has(name)) throw new Error(`ZIP 条目重复：${name}`);
+    names.add(name);
+  }
   const encoder = new TextEncoder();
   const local: Uint8Array[] = [], central: Uint8Array[] = [];
   let offset = 0;
@@ -45,23 +53,25 @@ export function createStoredZip(entries: ZipEntry[]) {
   return concat([localBytes, centralBytes, u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length), u32(centralBytes.byteLength), u32(localBytes.byteLength), u16(0)]);
 }
 
-function assetName(originalName: string, index: number, used: Set<string>) {
-  const basename = path.posix.basename(originalName).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || `image-${index + 1}`;
-  const dot = basename.lastIndexOf('.');
-  const stem = dot > 0 ? basename.slice(0, dot) : basename;
-  const ext = dot > 0 ? basename.slice(dot) : '';
-  let name = `assets/images/${stem}${ext}`;
-  let suffix = 2;
-  while (used.has(name)) name = `assets/images/${stem}-${suffix++}${ext}`;
-  used.add(name); return name;
+function assetName(record: SiteImageRecord) {
+  const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[record.mime];
+  return `assets/images/${record.imageId}.${extension}`;
 }
 function relative(from: string, to: string) {
   const result = path.posix.relative(path.posix.dirname(from), to);
   return result || path.posix.basename(to);
 }
-function fileFor(language: 'zh' | 'en', pageId: string) {
-  const name = pageId === 'home' ? 'index.html' : `${pageId}.html`;
-  return language === 'en' ? `en/${name}` : name;
+function pageFiles(code: SiteCode, language: 'zh' | 'en') {
+  const files = new Map<string, string>(), used = new Set(['index.html']);
+  const prefix = language === 'en' ? 'en/' : '';
+  for (const page of code.pages) {
+    if (!/^[a-z][a-z0-9-]{0,39}$/.test(page.id) || files.has(page.id)) throw new Error('站点包页面编号无效或重复。');
+    if (page.id === 'home') { files.set(page.id, `${prefix}index.html`); continue; }
+    let name = `${page.id}.html`, suffix = 2;
+    while (used.has(name)) name = `${page.id}-${suffix++}.html`;
+    used.add(name); files.set(page.id, prefix + name);
+  }
+  return files;
 }
 function stripLicenseComment(value: string) { return value.replace(/^<!--\s*|\s*-->$/g, '').trim(); }
 
@@ -69,65 +79,59 @@ function imageCredits(images: SiteImageRecord[]) {
   return images.map(image => image.attribution).filter(Boolean);
 }
 
-function collectBackdropUrls(code: SiteCode) {
-  const source = code.css + code.header + code.footer + code.pages.map(page => page.html).join('');
-  return [...new Set(Object.values(systemBackdrops).flatMap(entry => Object.values(entry.urls)).filter(url => source.includes(url) || source.includes(`data-system-backdrop="${Object.entries(systemBackdrops).find(([, candidate]) => Object.values(candidate.urls).includes(url))?.[0]}"`)))];
-}
-
 export async function buildStaticSitePackage(site: CodeSiteRecord, version: CodeVersion) {
-  const languages: Array<{ language: 'zh' | 'en'; code: SiteCode }> = [{ language: 'zh', code: version.code }];
+  const codes: Array<{ language: 'zh' | 'en'; code: SiteCode }> = [{ language: 'zh', code: version.code }];
   const english = englishSiteCode(site, version);
-  if (english) languages.push({ language: 'en', code: english });
-  const source = languages.map(item => item.code).flatMap(code => [code.css, code.header, code.footer, ...code.pages.map(page => page.html)]).join('');
-  const imageIds = [...new Set(source.match(/img_[a-z0-9]{16,40}/g) || [])];
-  const records = (await listSiteImages(site.siteId)).filter(record => imageIds.includes(record.imageId));
-  if (records.length !== imageIds.length) throw new Error('当前版本引用的图片无法完整读取，导出已停止。');
-  const byId = new Map(records.map(record => [record.imageId, record]));
-  const names = new Set<string>(), imageAssets = new Map<string, ExportAsset>();
+  if (english) codes.push({ language: 'en', code: english });
+  const languages = codes.map(item => ({ ...item, resources: siteCodeResources(item.code), pages: pageFiles(item.code, item.language) }));
+  const imageIds = [...new Set(languages.flatMap(item => item.resources.imageIds))];
+  const records: SiteImageRecord[] = [];
+  const assets = new Map<string, string>();
   const files: ZipEntry[] = [];
-  for (const [index, id] of imageIds.entries()) {
-    const record = byId.get(id)!;
-    const loaded = await readSiteImage(site.siteId, id);
+  for (const id of imageIds) {
+    const loaded = await readSiteImage(site.siteId, id, { readOnly: true });
     if (!loaded) throw new Error(`当前版本引用的图片无法读取：${id}`);
-    const file = assetName(record.originalName, index, names);
-    imageAssets.set(id, { url: `/api/sites/${site.siteId}/images/${id}`, file });
+    if (loaded.record.usageScope === 'docs-only') throw new Error('当前版本引用的图片没有站点使用授权。');
+    records.push(loaded.record);
+    const file = assetName(loaded.record);
+    assets.set(`/api/sites/${encodeURIComponent(site.siteId)}/images/${id}`, file);
     files.push({ name: file, data: loaded.bytes });
   }
-  const backdropUrls = [...new Set(languages.flatMap(item => collectBackdropUrls(item.code)))];
-  const backdropAssets = new Map<string, ExportAsset>();
+  records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const backdropUrls = [...new Set(languages.flatMap(item => item.resources.backdropUrls))];
   for (const url of backdropUrls) {
     const basename = path.posix.basename(url);
     const file = `assets/system-backdrops/${basename}`;
     const sourcePath = path.join(process.cwd(), 'public', url.replace(/^\//, ''));
-    backdropAssets.set(url, { url, file });
+    assets.set(url, file);
     files.push({ name: file, data: new Uint8Array(await readFile(sourcePath)) });
   }
-  const usesIcons = /data-system-icon="[^\"]+"/.test(source);
+  const usesIcons = languages.some(item => item.resources.usesIcons);
   const usesBackdrops = backdropUrls.length > 0;
   const assetUrl = (currentFile: string) => (url: string) => {
-    const asset = imageAssets.get((url.match(/(img_[a-z0-9]{16,40})$/i) || [])[1]) ?? backdropAssets.get(url);
-    return asset ? relative(currentFile, asset.file) : url;
+    const file = assets.get(url);
+    if (!file) throw new Error('站点包引用了未登记的资源。');
+    return relative(currentFile, file);
   };
   const rendered: ZipEntry[] = [];
   for (const item of languages) for (const page of item.code.pages) {
-    const currentFile = fileFor(item.language, page.id);
-    const pageHref = (target: string, hash: string) => `${relative(currentFile, fileFor(item.language, target))}${hash}`;
+    const currentFile = item.pages.get(page.id)!;
+    const pageHref = (target: string, hash: string) => `${relative(currentFile, item.pages.get(target)!)}${hash}`;
     const languageLinks = english ? {
-      zh: relative(currentFile, fileFor('zh', page.id)),
-      en: relative(currentFile, fileFor('en', page.id)),
+      zh: relative(currentFile, languages[0].pages.get(page.id) ?? languages[0].pages.get('home')!),
+      en: relative(currentFile, languages[1].pages.get(page.id) ?? languages[1].pages.get('home')!),
     } : undefined;
-    const html = renderSiteCode(site.siteId, item.code, page.id, '', imageCredits(records), undefined, {
+    const html = renderSiteCode(site.siteId, item.code, page.id, '', imageCredits(records.filter(record => item.resources.imageIds.includes(record.imageId))), undefined, {
       language: item.language, languageLinks, pageHref, assetUrl: assetUrl(currentFile), stylesheetHref: relative(currentFile, 'styles.css'), stripInternalAttributes: true,
     });
     rendered.push({ name: currentFile, data: new TextEncoder().encode(html) });
   }
   files.push(...rendered);
-  files.push({ name: 'styles.css', data: new TextEncoder().encode(itemCss(version.code.css, assetUrl('styles.css'))) });
+  files.push({ name: 'styles.css', data: new TextEncoder().encode(mapSiteCodeCss(version.code.css, assetUrl('styles.css'))) });
   const licenseLines = ['SiteCraft static site package licenses', '', 'Images included in this package:'];
   if (!records.length) licenseLines.push('- None');
   for (const record of records) {
-    const asset = imageAssets.get(record.imageId)!;
-    licenseLines.push(`- ${asset.file} · ${record.originalName}`, `  Attribution: ${record.attribution}`, `  License: ${record.license}`);
+    licenseLines.push(`- ${assetName(record)}`, `  Attribution: ${record.attribution}`, `  License: ${record.license}`);
     if (record.source === 'public-material') licenseLines.push(`  Source: ${record.sourceUrl}`);
     if (record.licenseUrl) licenseLines.push(`  License URL: ${record.licenseUrl}`);
   }
@@ -136,8 +140,4 @@ export async function buildStaticSitePackage(site: CodeSiteRecord, version: Code
   files.push({ name: 'LICENSES.txt', data: new TextEncoder().encode(licenseLines.join('\n') + '\n') });
   files.sort((a, b) => a.name.localeCompare(b.name));
   return { bytes: createStoredZip(files), files: files.map(file => file.name), filename: `sitecraft-${site.siteId}.zip` };
-}
-
-function itemCss(css: string, asset: (url: string) => string) {
-  return css.replace(/url\(\s*(["']?)(\/system-backdrops\/[^"')\s]+)\1\s*\)/gi, (_all, _quote: string, url: string) => `url("${asset(url)}")`);
 }
