@@ -228,7 +228,8 @@ async function executeLocalEditBatch(site: CodeSiteRecord, run: CodeRun) {
         await runStep(site.siteId, run.id, { issues: checks.issues, attempts: [...(await getCodeSite(site.siteId))!.run!.attempts, { code, checks }] });
         if (committed.status === 'applied') {
           const summary = `已合并修改 ${groups.length} 个区块，保存为版本 ${committed.version.revision}。`;
-          for (const record of run.annotationIds ?? []) await replyAnnotation(site.siteId, record.annotationId, { body: summary, author: { id: 'assistant', name: '助手' } });
+          const persistedRun = (await getCodeSite(site.siteId))?.run;
+          for (const record of persistedRun?.annotationIds ?? []) await replyAnnotation(site.siteId, record.annotationId, { body: summary, author: { id: 'assistant', name: '助手' } });
           await updateConversationAlignment(site.siteId, site.conversationId, record => ({ ...record, alignment: applyCommittedResult(record.alignment, { status: 'applied', summary, revision: committed.version.revision }) }));
           await appendConversationTurn({ siteId: site.siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: summary, appliedOperationsSummary: committed.version.summary, outcome: 'applied' });
           await runStep(site.siteId, run.id, { status: 'complete', step: summary, versionId: committed.version.id,

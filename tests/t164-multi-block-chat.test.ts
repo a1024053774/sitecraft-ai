@@ -33,6 +33,12 @@ test('真实 chat 路由逐组发送并从同一父版本存成一个版本', { 
     assert.doesNotMatch(JSON.stringify(inputs), /批量局部修改/);
     assert.doesNotMatch(JSON.stringify(inputs), /另一页|整站重写/);
     assert.equal(done.codeSite.versions[1].code.pages[1].html, version.code.pages[1].html, '局部候选不应改动未选页面区块');
+    const savedThreads = JSON.parse(await readFile(`${process.env.SITECRAFT_DATA_ROOT}/annotations/${id}.json`, 'utf8')).annotations;
+    for (const record of done.codeSite.run.annotationIds ?? []) {
+      const thread = savedThreads.find(annotation => annotation.id === record.annotationId);
+      assert.ok(thread, `线程 ${record.annotationId} 应存在`);
+      assert.ok(thread.comments.some(comment => comment.author.id === 'assistant' && /已合并修改/.test(comment.body)), `线程 ${record.draftId} 应收到自己的成功回复`);
+    }
   } finally { await browser.browser.close(); }
 });
 

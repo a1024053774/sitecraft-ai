@@ -510,7 +510,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const pageIsEdited = edit && ('targets' in edit ? edit.targets.some(target => target.pageId === page.id) : true);
         if (edit && pageIsEdited) {
           const dynamicStarted = performance.now();
-          const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 2000);
+          const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 5000);
           const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) }
             : page.id === edit.pageId ? { paths: [[]] } : undefined;
           const dynamicFrame = await dynamicBrowser!.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');

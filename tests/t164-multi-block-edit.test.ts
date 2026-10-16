@@ -181,6 +181,16 @@ test('没有动态焦点 CSS 时，区块内新增链接可以保存', async () 
   assert.equal(result.status, 'applied');
 });
 
+test('候选新增链接触发范围外自定义属性也必须拒绝', async () => {
+  const { id, source, version } = await dynamicFixture('body{color:#111}.outside{color:#111}@media (min-width:1px){main:focus-within .outside{--leak:123px}}', '<main><section class="target"><h1>目标</h1></section><p class="outside">外部</p></main>');
+  const candidate = structuredClone(source);
+  candidate.pages[0].html = candidate.pages[0].html.replace('</section>', '<a href="/home">入口</a></section>');
+  const selected = target([0], '目标', '目标', 'home', version.id);
+  const result = await commitSiteCode({ siteId: id, baseRevision: 1, code: candidate, selectedTarget: selected, author: 'assistant', summary: '自定义属性外溢', request: '增加入口' });
+  assert.equal(result.status, 'rejected');
+  assert.equal((await getCodeSite(id))!.versions.length, 1);
+});
+
 test('动态探针在三档视口固定检查四种状态并记录强制调用证据', async () => {
   const { id, source, version } = await dynamicFixture('body{color:#111}.outside{color:#111}', '<main><section class="target"><h1>目标</h1><a href="/home">入口</a></section><p class="outside">外部</p></main>');
   const candidate = structuredClone(source);
@@ -252,7 +262,7 @@ test('summary 触发 focus-within 改变范围外宽度时拒绝', async () => {
   assert.equal(result.status, 'rejected');
 });
 
-test('动态状态检查超时明确拒绝且不存版本', async () => {
+test('显式动态状态预算超时明确拒绝且不存版本', async () => {
   const id = `t164-focus-timeout-${crypto.randomUUID()}`;
   const source = { header: '<header>头</header>', footer: '<footer>脚</footer>', css: 'body{color:#111}',
     pages: [{ id: 'home', title: '首页', html: '<main><section><h1>目标</h1><a href="/home">按钮</a></section><p class="outside">外部</p></main>' }, { id: 'products', title: '产品', html: '<main><h1>产品</h1></main>' }] };

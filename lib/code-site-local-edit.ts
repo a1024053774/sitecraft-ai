@@ -215,7 +215,7 @@ export type DynamicStateProbe = {
 // truth: no selector stripping, :has parsing, owner inference, or short style
 // fingerprint is used here. The returned collection is keyed only by outside
 // DOM path and complete computed style.
-export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 2000) {
+export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 5000) {
   const startedAt = performance.now();
   let cdpRoundTrips = 0;
   const stageMs = { focus: 0, force: 0, styleRead: 0 };
@@ -276,7 +276,7 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     forceCalls += add.length;
   };
   const capture = async (trigger: number[] | null, state: string) => {
-    checkTime(); const styleStarted = performance.now(); const encoded = await evaluate<string>(`(async()=>{const text=JSON.stringify((()=>{const outside=window.__sitecraftCdpProbeOutside||[],nodes=new Map([...document.querySelectorAll('[data-cdp-probe]')].map(el=>[el.getAttribute('data-cdp-probe'),el]));return outside.map(({id,path,names})=>{const s=getComputedStyle(nodes.get(id));return {path,styles:names.map(name=>[name,s[name]])}})})());const compressed=await new Response(new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();const bytes=new Uint8Array(compressed);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary)})()`); const entries = JSON.parse(gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8')) as ProbeEntry[]; stageMs.styleRead += performance.now() - styleStarted;
+    checkTime(); const styleStarted = performance.now(); const encoded = await evaluate<string>(`(async()=>{const text=JSON.stringify((()=>{const outside=window.__sitecraftCdpProbeOutside||[],nodes=new Map([...document.querySelectorAll('[data-cdp-probe]')].map(el=>[el.getAttribute('data-cdp-probe'),el]));return outside.map(({id,path,names})=>{const s=getComputedStyle(nodes.get(id)),allNames=[...new Set([...names,...s])].sort();return {path,styles:allNames.map(name=>[name,s[name]])}})})());const compressed=await new Response(new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();const bytes=new Uint8Array(compressed);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary)})()`); const entries = JSON.parse(gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8')) as ProbeEntry[]; stageMs.styleRead += performance.now() - styleStarted;
     states.push({ trigger, state, entries });
   };
   await clear(); await evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');
