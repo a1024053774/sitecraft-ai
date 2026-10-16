@@ -648,7 +648,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         if (!args.localEdit) checks.factSegments = { format: 4, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? [], audited: pending.length, reused: reused.length, segments: receipts };
         const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !localTargets.some(scope => target.pageId === scope.pageId && target.root === 'main' && scope.path.every((index, i) => target.path[i] === index))) })).filter(citation => citation.targets?.length);
         const citations: CodeFactCitation[] = [];
-        const citationKeys = new Set<string>();
+        const citationKeys = new Map<string, CodeFactCitation>();
         for (const citation of [...outside, ...receipts.flatMap(review => review.citations)]) {
           const quote = normalizeFactQuote(citation.quote);
           const source = findFactSource(args.factSourceMaterials, quote);
@@ -657,15 +657,18 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             continue;
           }
           const key = JSON.stringify([citation.category, normalizeFactQuote(citation.claim), quote]);
-          if (citationKeys.has(key)) {
-            checks.issues.push(`资料出处重复：${citation.claim}`);
-            continue;
+          // Segment-local duplicates are rejected by the audit. The same
+          // accepted fact can appear in several segments: retain every location.
+          const existing = citationKeys.get(key);
+          const targets = [...(existing?.targets ?? []), ...(citation.targets ?? [])]
+            .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index);
+          if (existing) existing.targets = targets;
+          else {
+            const entry = { ...citation, source: factSourceRef(source), targets };
+            citationKeys.set(key, entry); citations.push(entry);
           }
-          citationKeys.add(key);
-          citations.push({ ...citation, source: factSourceRef(source), targets: [...(citation.targets ?? [])]
-            .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index) });
         }
-        checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处') || issue.includes('资料出处重复')), entries: citations };
+        checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处')), entries: citations };
         checks.issues.push(...receipts.flatMap(segment => segment.issues));
       }
     }

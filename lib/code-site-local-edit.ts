@@ -61,6 +61,8 @@ export function attributeLocalIssues(issues: string[], groups: LocalEditGroup[],
     return candidate.css.includes(scope) && !source.css.includes(scope);
   }) : [];
   for (const issue of issues) {
+    const factOwner = groups.findIndex(group => issue.startsWith(`${group.target.pageId}/${JSON.stringify(group.target.path)} `));
+    if (factOwner >= 0) { groupIssues[factOwner].push(issue); continue; }
     const pageGroups = groups.filter(group => issue.startsWith(`${group.target.pageId}/`) || issue.includes(`：${group.target.pageId} `));
     const dynamicOrCss = /CSS|动态伪类|焦点|交互|范围外元素的 CSS/.test(issue);
     const owner = dynamicOrCss && changedCssGroups.length === 1 ? groups.indexOf(changedCssGroups[0])
