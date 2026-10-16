@@ -219,3 +219,23 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 本轮交付 **INCOMPLETE**：两项 P1 采取上述可核实归属与严格交互策略，Chrome 半写启动有稳定红绿证据，T-162 原断言通过；全量 707/707、补充 T-151 7/7、runner／typecheck／build 通过，但规定定向仍为 293/294，一项 T-164 动态检查超时未归因。所有失败结果保留，不覆盖或重跑掩盖。第六、第七轮独立复审与真实生成继续由主控安排，票保持 open。本轮未读 `.env.local`、未调用 DeepSeek、未推送、未写主目录 `.sitecraft-data`，`tsconfig.json` 的自动脏改未提交。收尾只补本 Resolution，不改冻结实现或测试。
 
 收尾 project-map 结构问题及过时 living doc 均为 0，UTF-8 回读正常，无遗留 Chrome 无头测试、node --test 或 next build（`artifacts/t173/shared-post-processes.txt`）。
+
+### 其他作者规则的交互覆盖与完整 browser ID（2026-10-16，Codex）
+
+主控转达第六轮独立 sol 复审：`fb8978476595b9ffb3fbbe9bd1d060d034a149c5` 仍 **NO_GO**，其余问题确认已堵住，不复用 T-164 动态探针的理由成立。剩余 P1 是其他交互规则能在默认态隐藏待修共享 CSS 声明，交互后使已通过段随之变化。本轮仍按严格一侧修复，不新增动态探测。主控将在本轮后安排第七轮复审，此前约定的上限及严格拒收边界保持。
+
+修复前先改生产入口回归，期望来自“默认态不足以排除交互覆盖、不得越界存版”的合同。最终父版本命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-repair-scope.test.ts tests/t173-port-readiness.test.ts`，2026-10-16T18:22:53.392Z 结束：**33/45，12 项失败**。日志 `artifacts/t173/cascade-fb89784-final-red.log`，报告 `artifacts/t167/test-run-1792174946767-4467/report.json`，临时根 `sitecraft-test-fp877u` 保留。11 个 CSS 坏例均错误完成修正并存下版本，涵盖完整五态的 :not、:is／:where／:has、未激活媒体规则、supports 嵌套及 all 重置；截断 browser ID 则提前连接失败。首轮 `cascade-fb89784-red.log` 为 33/46；额外 HTML style 与 CSS nesting 夹具分别已被既有静态越界及无法定位拒收，只有拒因断言失败，不算漏洞红证据，原日志与产物保留。改用确实触达该漏洞的 supports 夹具后获得上述最终红测，期间未改生产行为。
+
+共用 `readCodeFactCssEffects` 现在在扰动声明前遍历每页全部作者样式表及未激活、嵌套规则，沿用 T-164 完整伪类分类器。其他规则设置同一属性或 all 重置且含交互态时，不能证明伪元素及级联适用性无关就明确拒收；嵌套规则继承交互风险，无法核实作用域的同属性声明也拒收。此严格边界保守保留全部伪元素为可能相关，不新写选择器／级联求解或动态探测；其他属性的交互样式仍可保留。现成四态探针的不适用理由沿用上节并已获复审确认。Chrome 端点按真实 browser ID 的完整 UUID 形态校验（8-4-4-4-12 位十六进制），未完整仍走原轮询和原超时，不新增固定等待或连接重试。
+
+相同命令修后 **45/45**（18:23:45.358Z），日志 `artifacts/t173/cascade-green.log`，报告 `artifacts/t167/test-run-1792175006000-8097/report.json`。生产 chat 与本地模型替身的产物 `artifacts/t173/repair-scope-1792175007665-8162/` 中，`css-mask-not-hover.json` 为 error、零版本、零修正请求；`css-mask-static.json` 为 complete、一个版本、一次实际修改声明的修正请求，DOM 保留。对应父版本产物 `repair-scope-1792174948611-4503/css-mask-not-hover.json` 为 complete、一个版本、一次修正请求。全部端点用例仍连接真实 Chrome 并完成 CDP 求值。AGENTS、CONTEXT、mainline 与 spec 同步规则，测试细节和失败证据留在本票与 spec。
+
+规定定向命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-*.test.ts tests/t164-*.test.ts tests/t169-*.test.ts tests/t154-*.test.ts tests/t151-*.test.ts tests/t160-*.test.ts tests/t162-inline-annotation.test.ts`，18:26:55.079Z 结束 **292/292**，失败／取消／跳过均 0。日志 `artifacts/t173/cascade-focused.log`，报告 `artifacts/t167/test-run-1792175060004-12447/report.json` 含 shell 展开的 27 个文件，临时根 `sitecraft-test-artoDO` 保留。本轮 T-164 动态检查及 T-162 原三次检查断言通过，不据此改写之前保留的超时或 Invalid URL 结果。
+
+串行执行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`：18:27:18Z **4/4**（`cascade-runner.log`）；`npm run typecheck`：18:27:25Z 通过（`cascade-typecheck.log`）；存在性确认工作树没有 `.env.local` 后执行 `SITE_STORE=fs npm run build`：18:27:48Z 通过（`cascade-build.log`）。以上均为 2026-10-16 UTC，与本轮当前实现一致。
+
+实现及测试冻结到本地提交 `5e1b444ec00b3b13c6c6a1bbe60768dd31618ce5`。全量前 `memory_pressure` 空闲 **46%**，`ps -axo pid,ppid,command` 确认无其他 Chrome 无头测试、node --test 或 next build，记录 `artifacts/t173/cascade-pre-full-memory.txt`、`cascade-pre-full-processes.txt`。在该冻结提交上仅串行执行一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`，2026-10-16T18:33:30.480Z 结束：**720/720**，失败／取消／跳过均 0，耗时 264136ms。日志 `artifacts/t173/cascade-full.log`，报告 `artifacts/t167/test-run-1792175344701-19862/report.json`，临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-UThxbb` 保留。没有重跑全量、改单项断言、延长动态探针预算或切换入口。
+
+规定定向相关的 29 张截图均逐张打开：`artifacts/t162/self-contained-1792175066054-12618/` 的 10 张批注状态图、`self-contained-1792175072693-13040/` 的 6 张重叠确认图、`self-contained-1792175071706-12954/` 的 4 张原始资料图，以及 `artifacts/t169/browser-1792175097267/` 的 9 张消息／上传／表格出处图。composer-375 中目标在可视区域外，仅作为意见输入状态记录，不作为定位成功证据；reveal 的移动工作台图仍是缩放的 1440 预览，不作为生成站 375／768 版式证据。出处图可见原文及来源文字。本轮无审美通过结论。
+
+本轮离线修复与规定验证 **PASS**。父版本红日志、无效夹具的原始失败和历史异常均保留；当前模型替身与真实 CDP 的技术通过不替代第七轮独立 sol 复审或真实模型运行。票保持 open，原真实运行及盲评验收项不勾选，交主控安排。未调用 DeepSeek、未读取 `.env.local`、未推送、未写主目录 `.sitecraft-data`；`tsconfig.json` 的自动脏改保持未提交。全量退出后无残留测试 Chrome、node --test 或 next build（`artifacts/t173/cascade-post-processes.txt`）。最终收尾只补本 Resolution 并 amend 同一个功能提交，实现及测试与上述冻结快照一致。

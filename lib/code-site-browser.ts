@@ -34,8 +34,8 @@ export async function codeCheckBrowser() {
       if (child.exitCode !== null) throw new Error('Chrome 在检查开始前退出');
       try {
         const [portText, browserPath] = (await readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).trim().split(/\r?\n/);
-        const port = Number(portText), prefix = '/devtools/browser/';
-        if (/^\d+$/.test(portText) && Number.isInteger(port) && port > 0 && port <= 65535 && browserPath?.startsWith(prefix) && browserPath.length > prefix.length && !/\s/.test(browserPath))
+        const port = Number(portText);
+        if (/^\d+$/.test(portText) && Number.isInteger(port) && port > 0 && port <= 65535 && /^\/devtools\/browser\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(browserPath ?? ''))
           address = `ws://127.0.0.1:${port}${browserPath}`;
       }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }

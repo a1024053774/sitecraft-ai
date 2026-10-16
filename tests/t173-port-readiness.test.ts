@@ -18,6 +18,7 @@ const cases = {
   'port-invalid': (_port: string, browser: string) => `not-a-port\n${browser}`,
   'path-invalid': (port: string, _browser: string) => `${port}\n/not-a-browser/session`,
   'path-prefix-only': (port: string, _browser: string) => `${port}\n/devtools/browser/`,
+  'path-truncated-id': (port: string, _browser: string) => `${port}\n/devtools/browser/abc`,
 };
 for (const [name, incomplete] of Object.entries(cases)) test(`Chrome 端点 ${name} 未就绪时不连接，补全后真实 CDP 可用`, async t => {
   const realRead = fs.readFile.bind(fs), realWrite = fs.writeFile.bind(fs);

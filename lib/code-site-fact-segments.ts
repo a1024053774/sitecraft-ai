@@ -342,7 +342,24 @@ export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarati
     }
     if (!(rule instanceof CSSStyleRule) || rule.cssText !== member.ruleText || rule.style.getPropertyValue(member.property) !== member.before || rule.style.getPropertyPriority(member.property) !== member.priority)
       throw new Error('CSS 文案修正无法核实来源声明，本次未保存版本。');
-    if (hasDynamicStates([rule])) throw new Error('CSS 文案修正规则含交互伪类，无法静态完整核实已通过段的影响，本次未保存版本。');
+    // Another declaration can hide this one in the default state and expose it
+    // during interaction. Inspect every author sheet and inactive/nested rule;
+    // current selector matches cannot prove that a shared declaration is local.
+    // Conservatively retain all pseudo elements when applicability is unproven.
+    const checkOverrides = (rules: CSSRuleList, inheritedInteraction = false) => {
+      for (const other of rules) {
+        const interactive = inheritedInteraction || hasDynamicStates([other]);
+        if ('style' in other) {
+          const style = (other as CSSStyleRule).style;
+          if (style.getPropertyValue(member.property) || style.getPropertyValue('all')) {
+            if (!(other instanceof CSSStyleRule)) throw new Error('CSS 文案修正存在无法核实作用域的同属性作者声明，无法静态完整核实影响，本次未保存版本。');
+            if (interactive) throw new Error(`CSS 文案修正存在作者交互规则设置同一属性 ${member.property}（含 all 重置），无法静态完整核实伪元素及级联影响，本次未保存版本。`);
+          }
+        }
+        if ('cssRules' in other) checkOverrides((other as CSSGroupingRule).cssRules, interactive);
+      }
+    };
+    for (const authorSheet of document.styleSheets) checkOverrides(authorSheet.cssRules);
     const slots = elements.flatMap(el => (member.property === 'list-style-type' ? getComputedStyle(el).display === 'list-item' ? [''] : [] : ['', '::before', '::after', '::marker']).map(pseudo => {
       const path: number[] = [];
       for (let node = el; node.parentElement; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
