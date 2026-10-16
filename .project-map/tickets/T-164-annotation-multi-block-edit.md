@@ -95,3 +95,11 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 | 拾色绘画教室 | 1440 | 1904.5/1968.5/2004.7 | 7 | 58 | 169 | 20.5/20.7/25.9 · 20.5/20.6/24.8 | 90.9/105.0/142.6 · 78.0/107.7/132.7 | 1568.3/1639.1/1664.2 · 1605.6/1659.3/1692.3 | 111.3/112.2/135.3 |
 
 六档全部 `passed: true`，单档最大 2560.9ms，三档合计预算分别为 15 秒；探针仍固定四状态、逐元素、祖先传播和完整样式集合比较，`extras=0`。
+
+2026-10-16 收尾验证：
+
+- `npm run typecheck`：通过。
+- `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t164-multi-block-chat.test.ts tests/t164-multi-block-edit.test.ts`：20/20 通过，包含成功批次两条线程各自收到助手回复、候选新增自定义属性拒绝、显式小预算超时不存版本。
+- `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`：573/573 通过，证据目录 `artifacts/t167/test-run-1792109857522-55405`，随机测试服务端口 62243。
+- `SITE_STORE=fs npm run build`：通过（Next.js 16.3.1/Turbopack）。
+- 本轮最终本地提交为 `04a6109`；未推送。真实 DeepSeek、独立盲评和 Astra/sol 独立审查仍未执行，不能把它们写成已完成。
