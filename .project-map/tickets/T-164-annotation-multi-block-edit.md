@@ -39,6 +39,31 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 ## Resolution
 
+2026-10-16 本轮离线交付：冻结实现 `77ddcf1`（已正常合并 `family-kit-assembly` 的 `20e64b7`），本轮执行验证 **PASS**。真实 DeepSeek 修改与独立审查仍按主控安排，票保持 open，未推送。
+
+- `npm run typecheck` 通过（`artifacts/t164/cssom-frozen-typecheck.log`）；`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4（`cssom-final-runner.log`）。
+- `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 于 2026-10-16T04:36:52.380Z 结束，629/629、零跳过；原 588 项、本轮新增 18 项、主线 T-171 的 23 项均通过。完整报告与每次检查的计数／分段耗时在 `artifacts/t167/test-run-1792125196953-78421`，主日志 `artifacts/t164/cssom-frozen-full.log`。
+- `SITE_STORE=fs npm run build` 于 2026-10-16T04:38:15.939432+00:00 通过（`artifacts/t164/cssom-frozen-build.log`）。全量与 build 前均检查 df/ps，未与其他 chrome-headless-shell、node --test、next build 重任务并跑。
+
+本轮三次全量与 T-169 定向产生的 342 张原始截图已逐张打开查看，清单为 `artifacts/t164/screenshot-views-final.json`，不作审美结论；T-130 分发包内的复制图不重复计数。最终全量的 `artifacts/t162/self-contained-1792125247266-82051/rejected-1440-0cb69242-5417-4eda-b9d8-0528140b6deb.png` 中预览仍显示“正在载入版本2...”，只保留为拒绝流程诊断，排除出最终预览验收；同轮其他已载入的三档画面保留，不重拍覆盖该结果。
+
+完整负载诊断保存在 `artifacts/t164/load-diagnosis.json`：共 200 次动态范围检查，其中 95 次仅完整静态基线、105 次完整四态；完成项最大 1501.0ms，两个未完成项对应预期预算拒绝测试。T-162 四个线程定位任务均 complete，12 档为 static，实际强制 0、每侧探针 CDP 6（I 未枚举，记 null），全档耗时 132.9–535.6ms；原行为每侧 I=3、强制 28、CDP 79 的无谓工作已消除。原 585/588 的日志保留；当时没有逐阶段记录，不能复原其具体 CPU 时间。T-169 两项在无动态并行任务的受控延迟中仍失败，确认有独立的文档／按钮就绪竞态，已分别修复，不把三项一概归因于 CPU。
+
+两个真实首页在 2026-10-16T04:22:19.269Z 完成各视口 5 次（共 30 次）确定性检查，数据 `32e0ab93`／`8bf7cb44` 只读复制到 `/tmp/sitecraft-t164-gate-array-real.khdFKH`。测量覆盖生产 `checkSiteCode` 的 CSSOM 判定、候选浏览器启动、完整探针与比较；所有图片／布局检查也通过。`legacyImport` 仅关闭模型事实调用，不写版本；没有调用 DeepSeek。原始分段与每次计数为 `artifacts/t164/real-homepage-timing.json`，详细 CDP 日志目录 `artifacts/t164/real-homepage-gate-1792124462147-59434`；本次源／候选计数均一致，往返数按各自探针记录，CSSOM 判定耗时另列。
+
+复现命令：`ROOT=/tmp/sitecraft-t164-gate-array-real.khdFKH COMMIT=77ddcf1 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t164/real-homepage-gate-timing.ts`（辅助服务自行使用随机端口并提供 public 中的真实底图）。
+
+| 真实首页 | 视口 | min / 中位 / max（ms） | 每侧可交互元素 / 强制 / CDP 往返 |
+| --- | --- | --- | --- |
+| 禾巷小馆 | 375 | 2412.9 / 2537.2 / 2673.0 | 10 / 76 / 215 |
+| 禾巷小馆 | 768 | 2240.6 / 2327.7 / 2633.0 | 10 / 76 / 215 |
+| 禾巷小馆 | 1440 | 2232.4 / 2336.9 / 2546.4 | 10 / 76 / 215 |
+| 拾色绘画教室 | 375 | 2275.2 / 2334.6 / 2602.7 | 7 / 58 / 169 |
+| 拾色绘画教室 | 768 | 2079.0 / 2205.3 / 2351.2 | 7 / 58 / 169 |
+| 拾色绘画教室 | 1440 | 2131.2 / 2191.1 / 2395.7 | 7 / 58 / 169 |
+
+禾巷小馆三档合计 min / 中位 / max = 7021.6 / 7077.5 / 7852.4ms；拾色绘画教室三档合计 min / 中位 / max = 6485.4 / 6829.0 / 7154.1ms。30 次均低于每档 5000ms、三档 15000ms；有动态规则时每侧每档仍读取基线及四态 × I 的全部快照（41／29），未靠少读状态或样本筛选达标。超时明确拒绝且不存版本的入口回归仍通过。
+
 2026-10-15 17:07 UTC，Codex 在 `t164-multi-block` 完成离线实现并本地提交准备：
 
 - 失效方式清单与最小坏例写入 `tests/t164-multi-block-edit.test.ts`。反事实证据：临时关闭祖先/后代重叠拒绝后，`CHROME_PATH=... npm test -- tests/t164-multi-block-edit.test.ts` 在“重叠需确认”断言失败；恢复后同一命令 4/4 通过。测试使用本地 HTTP 模型替身和真实 Chrome 提交检查，不调用 DeepSeek。
@@ -140,4 +165,4 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 第七轮既有验证（2026-10-16，实现 `c6f8bc8`）：`npm run typecheck` 通过；标准入口回归 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4 通过（`artifacts/t164/review-seven-runner.log`）；最终定向 27/27 通过；`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 585/585 通过（`artifacts/t164/review-seven-full.log`、`artifacts/t167/test-run-1792113281197-11873`）；`SITE_STORE=fs npm run build` 通过（Next.js 16.3.1/Turbopack，`artifacts/t164/review-seven-build.log`）。全量及 build 前均执行 df/ps 检查，重任务串行。两项均在主控新一轮独占窗口通知前结束，收到通知后未再启动浏览器或 build。
 
-第七轮执行与离线验证已通过；第八轮两项修复定向通过，但完整验证因上述 3 项失败保持 INCOMPLETE。真实 DeepSeek、独立盲评与独立 sol 审查仍由主控安排，票保持 open。未推送。
+本轮离线修复与冻结验证已通过（见 Resolution 开头）；此前 585/588 的失败证据保留。真实 DeepSeek、独立盲评与独立 sol 审查仍由主控安排，票保持 open。未推送。
