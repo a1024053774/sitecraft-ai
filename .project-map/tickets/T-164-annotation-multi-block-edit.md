@@ -33,7 +33,7 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 ## Acceptance
 
 - [x] 负责人确认合同与用量上限的记录写进本票
-- [ ] 坏例测试：合法两处修改通过；共享 CSS 外溢被拒；重叠目标按确认处理；任一组失败不产生新版本；先在父版本或 mutant 上失败
+- [x] 坏例测试：合法两处修改通过；共享 CSS 外溢被拒；重叠目标按确认处理；任一组失败不产生新版本；先在父版本或 mutant 上失败
 - [ ] 真实 chat 入口跑一次多区块修改，用量写进 Resolution；修改结果由独立盲评实例对比原版和修改版
 - [ ] Astra 审查通过；typecheck、test、build 通过
 
@@ -88,4 +88,24 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 - `npm run typecheck` 通过；本轮中间聚焦 41/41 通过，最终 T-164 聚焦 27/27 通过（`artifacts/t164/review-seven-final-focused.log`），包含原有“合法两处修改”“无动态 CSS 新增链接”正例；未削弱原断言。
 - 新伪元素读取最初在真实两站六档触发 5 秒拒绝，日志 `review-seven-diagnostic.log`、`review-seven-optimized-diagnostic.log` 及临时根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-t164-seven-diagnostic-l60xw8u1` 保留。根因是每态经 CSSOM 索引重复枚举标准属性名；只缓存浏览器固定标准名并逐态重读全部属性值及实时自定义属性后，单次诊断禾巷 2.14–2.29 秒、拾色 1.81–1.85 秒，详见 `review-seven-cached-properties.log`。四状态、触发元素、祖先传播、伪元素及三个视口均保留。
 
-最终两站三档每档 5 次分布、全量和 build 待本轮实现冻结后串行执行；上轮 `258fb02` 的计时及 574/574、build 通过仅作旧基线，不能作为本轮已验证结果。真实 DeepSeek、独立盲评和独立 sol 审查仍由主控安排，票保持 open；本地提交不推送。
+冻结实现 `c6f8bc8` 后，2026-10-16T01:13:38.243Z 在只读复制根 `/tmp/sitecraft-t164-seven-real.51KwNb` 完成两个真实首页每档各 5 次测量。命令：`ROOT=/tmp/sitecraft-t164-seven-real.51KwNb COMMIT=c6f8bc8 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t164/real-homepage-timing.ts`。
+
+全部原始样本、聚焦／强制／样式读取／比较阶段耗时及计数在 `artifacts/t164/real-homepage-timing.json`，运行日志为 `real-homepage-timing-c6f8bc8.log`；旧 JSON 另存 `real-homepage-timing-258fb02.json`，不覆盖失败证据。下表时间单位 ms，计数为每次源／候选各自相同的值。
+
+| 首页 | 视口 | min / 中位 / max | 可交互 | 非空 force | CDP 往返 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 禾巷小馆 | 375 | 2091.7 / 2111.6 / 2241.6 | 10 | 76 | 215 |
+| 禾巷小馆 | 768 | 2099.4 / 2203.0 / 2215.7 | 10 | 76 | 215 |
+| 禾巷小馆 | 1440 | 2206.1 / 2228.3 / 2236.0 | 10 | 76 | 215 |
+| 拾色绘画教室 | 375 | 1930.9 / 1935.2 / 1954.1 | 7 | 58 | 169 |
+| 拾色绘画教室 | 768 | 1952.0 / 1983.1 / 2001.3 | 7 | 58 | 169 |
+| 拾色绘画教室 | 1440 | 1991.4 / 2001.7 / 2015.3 | 7 | 58 | 169 |
+
+全部 30 次单档 ≤5000ms、`extras=0`。各轮按相同样本序号相加的三档分布：
+
+- 禾巷小馆：min/中位/max = 6525.9/6538.2/6547.4ms，全部 ≤15000ms。
+- 拾色绘画教室：min/中位/max = 5898.5/5914.7/5955.4ms，全部 ≤15000ms。
+
+2026-10-16 最终验证（实现 `c6f8bc8`）：`npm run typecheck` 通过；标准入口回归 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4 通过（`artifacts/t164/review-seven-runner.log`）；最终定向 27/27 通过；`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` 585/585 通过（`artifacts/t164/review-seven-full.log`、`artifacts/t167/test-run-1792113281197-11873`）；`SITE_STORE=fs npm run build` 通过（Next.js 16.3.1/Turbopack，`artifacts/t164/review-seven-build.log`）。全量及 build 前均执行 df/ps 检查，重任务串行。两项均在主控新一轮独占窗口通知前结束，收到通知后未再启动浏览器或 build。
+
+本轮执行与离线验证通过；真实 DeepSeek、独立盲评与独立 sol 审查仍由主控安排，票保持 open。未推送。
