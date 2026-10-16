@@ -239,3 +239,32 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 规定定向相关的 29 张截图均逐张打开：`artifacts/t162/self-contained-1792175066054-12618/` 的 10 张批注状态图、`self-contained-1792175072693-13040/` 的 6 张重叠确认图、`self-contained-1792175071706-12954/` 的 4 张原始资料图，以及 `artifacts/t169/browser-1792175097267/` 的 9 张消息／上传／表格出处图。composer-375 中目标在可视区域外，仅作为意见输入状态记录，不作为定位成功证据；reveal 的移动工作台图仍是缩放的 1440 预览，不作为生成站 375／768 版式证据。出处图可见原文及来源文字。本轮无审美通过结论。
 
 本轮离线修复与规定验证 **PASS**。父版本红日志、无效夹具的原始失败和历史异常均保留；当前模型替身与真实 CDP 的技术通过不替代第七轮独立 sol 复审或真实模型运行。票保持 open，原真实运行及盲评验收项不勾选，交主控安排。未调用 DeepSeek、未读取 `.env.local`、未推送、未写主目录 `.sitecraft-data`；`tsconfig.json` 的自动脏改保持未提交。全量退出后无残留测试 Chrome、node --test 或 next build（`artifacts/t173/cascade-post-processes.txt`）。最终收尾只补本 Resolution 并 amend 同一个功能提交，实现及测试与上述冻结快照一致。
+
+### 最后一轮复审后的严格拒收（2026-10-16，Codex）
+
+主控转达 `3987d8e3f231246b4d3045910d50dd4631fb7c51` 第七轮独立 sol 复审 **NO_GO**：交互规则只改变自定义属性，@container style 查询再用该属性隐藏共享 content 声明，原门禁在默认态误判为仅影响被拒段。第七轮复审为构思主控设定的最后一轮，本条修复未再独立复审，由主控核对 diff 与测试；不再开复审轮，真实运行等主控另行通知。本轮只做严格拒收，不新增动态探测，不判断条件真假。
+
+父版本先跑 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-repair-scope.test.ts`，2026-10-16T18:43:36.074Z **37/39，2 项失败**。日志 `artifacts/t173/conditional-3987d8e-red.log`，报告 `artifacts/t167/test-run-1792176193529-34189/report.json`，临时根 `sitecraft-test-y2QoNJ` 保留。原反例与同条件下 all 重置均错误完成一次修正并保存一个版本，期望来自主控的严格拒收合同；同属性无条件覆盖及容器内仅其他属性的对照均通过。
+
+共用 CSS 影响检查的递归现在保留无法静态核实的条件作用域原因：@container、条件文本涉及自定义属性及其他未支持的条件规则均传递该原因，遇到待修同属性或 all 作者声明就在发送修正前明确拒收；仅其他属性位于这些作用域中不因此拒收。沿用已支持的媒体／supports／layer 规则范围，不增加条件求值、动态探测或替代写作路径。AGENTS、CONTEXT、mainline 与 spec 只同步这一规则。
+
+相同命令修后于 18:44:22.009Z **39/39**（`artifacts/t173/conditional-green.log`，报告 `artifacts/t167/test-run-1792176241016-34929/report.json`）。生产 chat 与本地模型替身的父版本产物 `artifacts/t173/repair-scope-1792176195480-34213/` 中两个坏例均为 complete／一版／一次修正；修后 `repair-scope-1792176243010-34935/` 中 `css-mask-container.json` 与 `css-mask-container-all.json` 均为 error／零版／零修正请求，并明确写出 @container 作用域无法静态核实。`css-mask-static.json`、`css-container-other.json` 均为 complete／一版／一次实际改正声明的修正，DOM 保留。
+
+#### 已知限制
+
+1. 同属性交互规则即使实际无关，也可能按保守边界拒收。
+2. CSS 文案匹配多条来源规则、作用域无法核实或快照失效时明确拒收。
+3. 行段不能改写父级、公共表头、文档或 ARIA 引用成员，公共成员仍被通过段引用时拒收。
+4. 同属性或 all 声明位于 @container／自定义属性条件中时按无法核实拒收。
+
+#### 验证
+
+规定定向命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-*.test.ts tests/t164-*.test.ts tests/t169-*.test.ts tests/t154-*.test.ts tests/t151-*.test.ts tests/t160-*.test.ts tests/t162-inline-annotation.test.ts`，2026-10-16T18:47:10.571Z **295/295**，失败／取消／跳过均 0。日志 `artifacts/t173/conditional-focused.log`，报告 `artifacts/t167/test-run-1792176304123-35618/report.json` 保留展开后的 27 个文件、身份与统计，临时根 `sitecraft-test-eLlUqA` 保留。
+
+随后串行执行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`：18:47:49Z **4/4**（`conditional-runner.log`）；`npm run typecheck`：18:47:59Z 通过（`conditional-typecheck.log`）；仅确认工作树不存在 `.env.local` 后执行 `SITE_STORE=fs npm run build`：18:48:25Z 通过（`conditional-build.log`），均为 2026-10-16 UTC，与本轮当前实现一致。
+
+实现及测试冻结提交 `b292780ce2636f1f305b2262de45b865faf6f6dc`。全量前 `memory_pressure` 空闲 **44%**，`ps -axo pid,ppid,command` 确认无其他 Chrome 无头测试、node --test 或 next build，记录为 `artifacts/t173/conditional-pre-full-memory.txt`、`conditional-pre-full-processes.txt`。在该冻结提交上仅串行执行一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`，2026-10-16T18:53:32.064Z **723/723**，失败／取消／跳过均 0，耗时 250961ms。日志 `artifacts/t173/conditional-full.log`，报告 `artifacts/t167/test-run-1792176559537-41945/report.json`，临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-eoHiP6` 保留，未重跑全量或放宽断言、探针预算。
+
+定向相关的 29 张截图逐张打开：`artifacts/t162/self-contained-1792176308386-35783/` 的 10 张批注图、`self-contained-1792176313759-36046/` 的 4 张原始资料图、`self-contained-1792176315751-36164/` 的 6 张重叠确认图，以及 `artifacts/t169/browser-1792176331775/` 的 9 张出处图。composer-375 的目标在可视区域外，仅作输入状态记录，不作为定位成功证据；移动 reveal 图仍为缩放的 1440 预览，不作生成站 375／768 版式证据；出处图可见原文与来源文字，不作审美通过结论。
+
+本轮严格拒收修复与规定离线验证 **PASS**，两项父版本红证据及所有历史结果均保留。本条按构思主控规则不再独立复审，由主控核对 diff 与测试；真实运行未执行，等待主控另行通知，票保持 open。未调用 DeepSeek、未读取 `.env.local`、未使用 rm 命令、未推送、未写主目录 `.sitecraft-data`，`tsconfig.json` 自动脏改保持未提交。全量结束无残留测试 Chrome、node --test 或 next build（`artifacts/t173/conditional-post-processes.txt`）。收尾只补本 Resolution 并 amend 同一个功能提交，实现及测试与上述冻结提交一致。

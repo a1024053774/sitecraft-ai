@@ -346,17 +346,21 @@ export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarati
     // during interaction. Inspect every author sheet and inactive/nested rule;
     // current selector matches cannot prove that a shared declaration is local.
     // Conservatively retain all pseudo elements when applicability is unproven.
-    const checkOverrides = (rules: CSSRuleList, inheritedInteraction = false) => {
+    const checkOverrides = (rules: CSSRuleList, inheritedInteraction = false, inheritedScope?: string) => {
       for (const other of rules) {
         const interactive = inheritedInteraction || hasDynamicStates([other]);
+        const scope = inheritedScope ?? ('cssRules' in other && !(other instanceof CSSStyleRule || other instanceof CSSMediaRule || other instanceof CSSSupportsRule || other.constructor.name === 'CSSLayerBlockRule')
+          ? other instanceof CSSContainerRule ? '@container' : other.constructor.name
+          : 'conditionText' in other && String(other.conditionText).includes('--') ? '自定义属性条件' : undefined);
         if ('style' in other) {
           const style = (other as CSSStyleRule).style;
           if (style.getPropertyValue(member.property) || style.getPropertyValue('all')) {
+            if (scope) throw new Error(`CSS 文案修正的同属性或 all 作者声明位于 ${scope} 作用域，无法静态核实影响，本次未保存版本。`);
             if (!(other instanceof CSSStyleRule)) throw new Error('CSS 文案修正存在无法核实作用域的同属性作者声明，无法静态完整核实影响，本次未保存版本。');
             if (interactive) throw new Error(`CSS 文案修正存在作者交互规则设置同一属性 ${member.property}（含 all 重置），无法静态完整核实伪元素及级联影响，本次未保存版本。`);
           }
         }
-        if ('cssRules' in other) checkOverrides((other as CSSGroupingRule).cssRules, interactive);
+        if ('cssRules' in other) checkOverrides((other as CSSGroupingRule).cssRules, interactive, scope);
       }
     };
     for (const authorSheet of document.styleSheets) checkOverrides(authorSheet.cssRules);

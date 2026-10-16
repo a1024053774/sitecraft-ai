@@ -21,7 +21,8 @@ const states = ['hover', 'focus', 'focus-visible', 'focus-within', 'active'] as 
 type State = typeof states[number];
 type Scenario = 'mixed' | 'model-only' | 'css-one' | 'css-both' | 'css-shared' | 'css-375' | 'css-768' | 'css-1440'
   | 'attack-title' | 'attack-header' | 'attack-document' | 'owner-passed' | 'owner-rejected' | `css-state-${State}` | `css-has-${State}` | 'css-uppercase-hover'
-  | `css-mask-not-${State}` | 'css-mask-is' | 'css-mask-where' | 'css-mask-has' | 'css-mask-media' | 'css-mask-supports' | 'css-mask-all' | 'css-mask-static';
+  | `css-mask-not-${State}` | 'css-mask-is' | 'css-mask-where' | 'css-mask-has' | 'css-mask-media' | 'css-mask-supports' | 'css-mask-all' | 'css-mask-static'
+  | 'css-mask-container' | 'css-mask-container-all' | 'css-container-other';
 let scenario: Scenario = 'mixed';
 const category = '价格与收费', textClaim = '全国免运费。', cssClaim = '免运费。', fixed = '运费待补充。';
 const materials = '公司名：松禾\n甲店、乙店全国免运费。全国免运费。免运费。\n按门店说明运费。';
@@ -37,7 +38,7 @@ function fixture(): SiteCode {
     : scenario.startsWith('css-has-') ? `.second:has(.fee:${scenario.slice('css-has-'.length)}) .fee`
     : scenario === 'css-uppercase-hover' ? '.second .fee:HoVeR' : '';
   const generated = dynamic ? `.first .fee::before,${dynamic}::before{content:"免运费。"}`
-    : `${scenario === 'css-one' ? '.first ' : ''}.fee::before{content:"免运费。";padding-right:8px}`;
+    : `${scenario === 'css-one' || scenario === 'css-container-other' ? '.first ' : ''}.fee::before{content:"免运费。";padding-right:8px}`;
   const mask = scenario.startsWith('css-mask-not-') ? `.second .fee:not(:${scenario.slice('css-mask-not-'.length)})::before{content:none}`
     : scenario === 'css-mask-is' ? '.second .fee:is(:not(:hover))::before{content:none}'
     : scenario === 'css-mask-where' ? '.second .fee:where(:not(:hover))::before{content:none}'
@@ -45,7 +46,9 @@ function fixture(): SiteCode {
     : scenario === 'css-mask-media' ? '.second .fee::before{content:none}@media (max-width:1px){.second .fee:not(:hover)::before{content:none}}'
     : scenario === 'css-mask-supports' ? '@supports (display:block){.second .fee:not(:hover)::before{content:none}}'
     : scenario === 'css-mask-all' ? '.second .fee:not(:hover)::before{all:unset}'
-    : scenario === 'css-mask-static' ? '.second .fee::before{content:none}' : '';
+    : scenario === 'css-mask-static' ? '.second .fee::before{content:none}'
+    : scenario === 'css-mask-container' || scenario === 'css-mask-container-all' ? `.second{--mask:on}.second:hover{--mask:off}@container style(--mask:on){.second .fee::before{${scenario === 'css-mask-container-all' ? 'all:unset' : 'content:none'}}}`
+    : scenario === 'css-container-other' ? '.second{--mask:on}.second:hover{--mask:off}@container style(--mask:on){.second .fee{color:#333}}' : '';
   // In remote cases one source declaration affects both pages, but the other
   // page matches its branch at only one viewport. A width-only or page-only
   // guard must not pass this input.
@@ -125,7 +128,7 @@ for (const which of ['mixed', 'model-only'] as const) test(`${which}：甲行模
   assert.equal(repair.input.fragments.filter((fragment: any) => fragment.kind === 'text' && fragment.before === textClaim).length, 1, '只发甲行一次，不重复也不包含乙行');
   assert.match(done.versions[0].code.pages[0].html, /<aside>范围外保留<\/aside>/);
 });
-for (const which of ['css-one', 'css-both', 'css-mask-static'] as const) test(`${which}：声明实际影响都属于被拒段并集，修好后存版`, async () => {
+for (const which of ['css-one', 'css-both', 'css-mask-static', 'css-container-other'] as const) test(`${which}：声明实际影响都属于被拒段并集，修好后存版`, async () => {
   const done = await run(which); assert.equal(done.run.status, 'complete', done.run.step); assert.equal(done.versions.length, 1);
   assert.equal(done.run.repairRound, 1); assert.equal(requests.filter(request => request.purpose === 'repair').length, 1);
   assert.match(done.versions[0].code.css, /content:\s*"运费待补充。"/);
@@ -154,6 +157,12 @@ for (const which of [...states.map(state => `css-mask-not-${state}` as const), '
   assert.match(done.run.step, /CSS.*交互.*(?:属性|声明).*静态.*核实/);
   assert.equal(done.versions.length, 0); assert.equal(done.currentVersionId, null);
   assert.equal(requests.filter(request => request.purpose === 'repair').length, 0, '默认态不能证明交互覆盖无关，不得发送可写声明');
+});
+for (const which of ['css-mask-container', 'css-mask-container-all'] as const) test(`${which}：自定义属性间接控制同属性覆盖时在修正前拒收`, async () => {
+  const done = await run(which); assert.equal(done.run.status, 'error', done.run.step);
+  assert.match(done.run.step, /CSS.*(?:同属性|all).*@container.*无法静态核实/);
+  assert.equal(done.versions.length, 0); assert.equal(done.currentVersionId, null);
+  assert.equal(requests.filter(request => request.purpose === 'repair').length, 0, '不尝试判定容器条件真假，也不发送可写声明');
 });
 test('公共成员所属段被拒、引用它的行已通过时仍不得改写', async () => {
   const done = await run('owner-passed'); assert.equal(done.run.status, 'error', done.run.step); assert.equal(done.versions.length, 0);
