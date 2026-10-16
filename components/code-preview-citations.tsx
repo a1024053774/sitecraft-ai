@@ -45,7 +45,8 @@ export function CodePreviewCitations({ frame, stage, ready, record, versionId, p
   }, [frame, stage, ready, record, versionId, pageId, scale, header, languageLinks]);
   const selected = marks.find(mark => mark.key === active);
   const sourceLabel = selected?.citation.source
-    ? selected.citation.source.type === 'upload' ? `上传资料 · ${selected.citation.source.name}` : `你的第 ${selected.citation.source.messageIndex} 条消息`
+    ? selected.citation.source.type === 'upload' ? `上传资料 · ${selected.citation.source.name}`
+      : selected.citation.source.type === 'materials' ? '原始资料' : `你的第 ${selected.citation.source.messageIndex} 条消息`
     : '未提供可引用的原句';
   useLayoutEffect(() => {
     if (!selected || !panel.current || !frame.current) return;

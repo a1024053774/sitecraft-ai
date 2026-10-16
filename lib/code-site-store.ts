@@ -3,7 +3,7 @@ import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
+import { currentCodeVersion, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { sameFactSources, type CodeFactSource } from './code-site-fact-segments.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
@@ -102,8 +102,8 @@ export async function nameCodeVersion(siteId: string, versionId: string, name: s
   });
 }
 type CodeCommit = {
-  siteId: string; baseRevision: number; code?: SiteCode; selectedTarget?: AnnotationTarget; pageId?: string; restoreVersionId?: string; englishCode?: SiteCode;
-  author: 'assistant' | 'user'; summary: string; request: string; model?: string; source?: CodeFactSource;
+  siteId: string; baseRevision: number; code?: SiteCode; selectedTarget?: AnnotationTarget; selectedTargets?: AnnotationTarget[]; pageId?: string; restoreVersionId?: string; englishCode?: SiteCode;
+  author: 'assistant' | 'user'; summary: string; request: string; model?: string; source?: CodeFactSource | CodeFactSource[]; dynamicStateBudgetMs?: number;
 };
 type CodeCommitResult = { status: 'conflict'; site: CodeSiteRecord }
   | { status: 'rejected'; site: CodeSiteRecord; code: SiteCode; checks: CodeCheck }
@@ -186,9 +186,17 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (args.restoreVersionId && !restore) throw new Error('找不到要恢复的版本');
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
+    // T-164 / contract D: bootstrap only a legacy site with no source history.
+    // Check before merging this submission's source, including a first upload.
+    if (hasUnregisteredOriginalMaterials(site)) {
+      const messageIndex = Math.max(0, ...[args.source ?? []].flat().filter(source => source.type !== 'upload').map(source => source.messageIndex)) + 1;
+      site.factSources = [{ type: 'materials', messageIndex, text: site.materials }];
+      await write(site);
+    }
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, true);
     const sourceMaterials = restore ? codeFactSourceMaterials(site, undefined, restore.id) : codeFactSourceMaterials(site, args.source, site.currentVersionId, true);
-    if (args.selectedTarget && (!current || args.selectedTarget.versionId !== current.id || restore)) throw new Error('锚点版本已改变，请重新点选。');
+    const localTargets = args.selectedTargets ?? (args.selectedTarget ? [args.selectedTarget] : []);
+    if (localTargets.length && (!current || localTargets.some(target => target.versionId !== current.id) || restore)) throw new Error('锚点版本已改变，请重新点选。');
     if (args.pageId && (!current?.code.pages.some(page => page.id === args.pageId) || restore)) throw new Error('当前页面不存在，请重新选择。');
     const targetMaterials = restore ? reviewedMaterialSnapshot(site, restore) : undefined;
     const restoreSourceMaterials = restore?.checks.factSegments?.sourceMaterials;
@@ -203,16 +211,17 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const task = site.run;
     const attempts = task?.status === 'running' && task.baseRevision === revision && task.request === args.request
       && !task.selectedTarget && (task.kind === 'generate' || task.kind === 'edit') ? task.attempts : [];
-    const factReviews = !restore && !args.selectedTarget ? [current?.checks.factSegments, ...attempts.map(attempt => attempt.checks.factSegments)]
+    const factReviews = !restore && !localTargets.length ? [current?.checks.factSegments, ...attempts.map(attempt => attempt.checks.factSegments)]
       .filter((review): review is NonNullable<typeof review> => !!review) : [];
     const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: sourceMaterials, style: site.plan?.style,
+      ...(args.dynamicStateBudgetMs !== undefined ? { dynamicStateBudgetMs: args.dynamicStateBudgetMs } : {}),
       ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
-      ...(args.selectedTarget && current ? { localEdit: { source: current.code, target: args.selectedTarget,
+      ...(localTargets.length && current ? { localEdit: { source: current.code, targets: localTargets,
         ...(current.checks.factCitations ? { citations: current.checks.factCitations } : {}) } } : {}) });
     if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
     if (restoredFactReview && restore?.checks.factSegments) checked.checks.factSegments = { ...restore.checks.factSegments, audited: 0, reused: restore.checks.factSegments.segments.length };
     if (restoredFactReview && restore?.checks.factCitations) checked.checks.factCitations = restore.checks.factCitations;
-    if (args.selectedTarget && current?.checks.factReview) checked.checks.factReview = current.checks.factReview;
+    if (localTargets.length && current?.checks.factReview) checked.checks.factReview = current.checks.factReview;
     let english = restore ? restore.english : current?.english;
     if (restore?.english) {
       const source = site.versions.find(version => version.revision === restore.english!.sourceRevision);
@@ -225,7 +234,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks,
       // A local audit covers its fragment; unchanged portions require a known
       // parent review on the same base materials before we record a reusable basis.
-      ...(!args.selectedTarget || (current && reviewedMaterialSnapshot(site, current) === site.materials && sameFactSources(reviewedFactSourceSnapshot(site, current), sourceMaterials))
+      ...(!localTargets.length || (current && reviewedMaterialSnapshot(site, current) === site.materials && sameFactSources(reviewedFactSourceSnapshot(site, current), sourceMaterials))
         ? { materialSnapshot: site.materials } : {}),
       ...(sourceMaterials !== undefined ? { factSourceSnapshot: sourceMaterials } : {}),
       ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };

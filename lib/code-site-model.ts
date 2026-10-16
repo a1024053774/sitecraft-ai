@@ -9,7 +9,7 @@ import { codeSiteSchema, explicitEnglishCompanyName, type CodePreferences, type 
 import type { SiteImageRecord } from './site-images.ts';
 import { codeRepairFragments, applyCodeRepair } from './code-site-repair.ts';
 import { englishText } from './code-site-english.ts';
-import { localEditContext } from './code-site-local-edit.ts';
+import { localEditContext, type LocalEditGroup } from './code-site-local-edit.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 import { codeStyles, readyCodeStyleIds, codeStyleSchema, codePreferencesSchema, codeSliderRules, type CodeStyleId } from './code-site-styles.ts';
@@ -183,7 +183,7 @@ export async function writeSiteCode(args: { materials: string; preferences: Code
   return { code: codeSiteSchema.parse(result.data), model: result.model };
 }
 export async function writeLocalEdit(args: { materials: string; preferences: CodePreferences; plan: CodePlan; request: string;
-  current: SiteCode; target: AnnotationTarget; issues: string[] }) {
+  current: SiteCode; target: AnnotationTarget; issues: string[]; edits?: LocalEditGroup['items'] }) {
   const context = await localEditContext(args.current, args.target);
   const [contract, style] = await Promise.all([
     readFile(path.join(process.cwd(), 'skills/site-code-core/LOCAL-EDIT.md'), 'utf8'),
@@ -193,9 +193,30 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
   const result = await modelJson('local-edit', `${contract}\n风格要点：${stylePoints}\n${codeSliderRules(args.preferences)}`,
     JSON.stringify({ request: args.request, materials: args.materials, page: args.plan.pages.find(page => page.id === args.target.pageId),
       scope: context.scope, html: context.html, css: context.css, issues: args.issues,
-      ...(args.target.element ? { pointedElement: args.target.element } : {}),
-      ...(args.target.elements ? { pointedElements: args.target.elements } : {}) }), 6144);
+      ...(args.edits ? { edits: args.edits.map(item => {
+        const prefix = item.target.path.slice(args.target.path.length);
+        const rebase = (hint: NonNullable<AnnotationTarget['element']>) => ({ ...hint, path: [...prefix, ...hint.path] });
+        return { draftId: item.draftId, request: item.body,
+          ...(item.target.element ? { pointedElement: rebase(item.target.element) } : {}),
+          ...(item.target.elements ? { pointedElements: item.target.elements.map(rebase) } : {}) };
+      }) } : {
+        ...(args.target.element ? { pointedElement: args.target.element } : {}),
+        ...(args.target.elements ? { pointedElements: args.target.elements } : {}),
+      }) }), 12288);
   return { response: result.data, model: result.model };
+}
+export async function writeLocalEditBatch(args: { materials: string; preferences: CodePreferences; plan: CodePlan; current: SiteCode;
+  groups: LocalEditGroup[]; issues: string[]; groupIssues?: string[][] }) {
+  const results: Array<{ group: LocalEditGroup; response: unknown; model: string }> = [];
+  for (const group of args.groups) {
+    // Admission is checked for every group immediately before its model call;
+    // a later group must not rely on an earlier task-level check.
+    requireModelTaskAdmission(args.plan.style);
+    const result = await writeLocalEdit({ materials: `${args.materials}\n本组批注原文：\n${group.items.map(item => item.body).join('\n\n')}`, preferences: args.preferences, plan: args.plan,
+      request: group.request, current: args.current, target: group.target, edits: group.items, issues: args.groupIssues?.[results.length] ?? args.issues });
+    results.push({ group, response: result.response, model: result.model });
+  }
+  return results;
 }
 export async function repairSiteCode(args: { materials: string; preferences: CodePreferences; current: SiteCode; issues: string[]; cleaned: string[] }) {
   const fragments = await codeRepairFragments(args.current, args.issues, args.cleaned);
@@ -284,6 +305,9 @@ export async function auditCodeFacts(materials: string, readable: string | CodeF
 本次只核对 segments 内的核对段。「站点公司名检查（系统观察）」是系统对完整公司名是否出现的观察，未出现时拒收，不要求其他单段补全公司名。同一 groupId 的所有段属于同一完整容器，必须结合整组的对象、起算条件、否定和范围核对，不能把不同段的条件割裂。每段 text 含事实及其所属标题、表头和条件，必须一起核对；表格标签及 colspan/rowspan/scope/headers 是结构信息，用于理解归属，不当作企业数量；pageContexts 的页面大纲和 headings 的相邻标题只用于理解，不是待核内容或事实来源，不要求单段补齐整站内容。不能因某段通过就推断其他段通过。
 materials 是完整核对上下文，sourceMaterials 才是可作为资料出处 quote 的原始企业资料；页面要求、设计要求和系统说明即使在 materials 中，也不能作为出处。
 每个输入编号恰好返回一次，没有问题也必须返回该编号和空 issues。不得遗漏、重复或增加编号。`) + `\n通过的高风险声明必须同时记录资料出处；仅限客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价这七类。普通介绍、普通标题、导航与占位不标。每段必须明确二选一：有企业事实时 noFacts=false 且 factCategories 至少列出每个高风险类别；没有企业事实时 noFacts=true 且 factCategories、citations 均为空。不能省略 noFacts，也不能用空类别代替二选一。claim 必须复制本段内的完整声明，保留对象、条件与范围；quote 必须复制 sourceMaterials 中支持它的连续资料原句，不能从 pageContexts、网页、设计指令或另一字段拼出句子。逐条核对其语义是否支持声明，不只比数字；同字段更新以最后声明为准。引文找不到则写入 issues，不给该声明出处。\n返回 {"results":[{"id":"s1","issues":[],"noFacts":false,"factCategories":["客户与合作方"],"citations":[{"category":"客户与合作方","claim":"网页中的声明原句","quote":"资料原句"}]}]}。每段必须返回 noFacts、factCategories、citations 三个字段；不返回 DOM 定位信息。`, JSON.stringify(input), local ? 4096 : 65536);
+  if (local && !sourceMaterials && typeof result.data === 'object' && result.data !== null && Array.isArray((result.data as { issues?: unknown }).issues)) {
+    return z.array(z.string().min(1).max(500)).max(40).parse((result.data as { issues: unknown }).issues);
+  }
   const issues = z.array(z.string().min(1).max(500)).max(40);
   const category = z.enum(['客户与合作方', '资质认证', '业绩与数量', '价格与收费', '时间与交期承诺', '效果', '评价']);
   const citation = z.object({ category, claim: z.string().min(1).max(3000), quote: z.string().min(1).max(3000) }).strict();

@@ -81,6 +81,7 @@ async function settle(browser: Awaited<ReturnType<typeof codeCheckBrowser>>) {
 async function click(browser: Awaited<ReturnType<typeof codeCheckBrowser>>, selector: string) {
   // The 768 drawer exits over 240ms. DOM state alone does not prove that a
   // pointer can reach the preview; wait for its actual finite animations.
+  await wait(browser, `document.querySelector(${JSON.stringify(selector)})`);
   await settle(browser);
   const point = await browser.evaluate<any>(`(async()=>{document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const node=document.querySelector(${JSON.stringify(selector)}),r=node.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`);
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point });
@@ -88,6 +89,61 @@ async function click(browser: Awaited<ReturnType<typeof codeCheckBrowser>>, sele
   await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, ...point });
 }
 let generated: Awaited<ReturnType<typeof generate>>;
+test('T-169 载入闸门：真实生成的预览须等新文档 load 后才允许读取', { timeout: 60000 }, async () => {
+  const site = await generate();
+  assert.equal(site.run?.status, 'complete');
+  const html = await (await fetch(`${base}/api/sites/${site.siteId}/code-preview?version=${site.versions[0].id}`)).text();
+  let release!: () => void, requested!: () => void;
+  const resource = new Promise<void>(resolve => { requested = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const fixture = createServer(async (req, res) => {
+    if (req.url === '/pending.gif') {
+      requested(); await gate; res.setHeader('content-type', 'image/gif');
+      res.end(Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'));
+    } else { res.setHeader('content-type', 'text/html'); res.end(html.replace('</body>', '<img src="/pending.gif" alt="" width="1" height="1"></body>')); }
+  });
+  await new Promise<void>(resolve => fixture.listen(0, '127.0.0.1', resolve));
+  const address = fixture.address(); assert.ok(address && typeof address === 'object');
+  const browser = await codeCheckBrowser();
+  try {
+    let loaded = false;
+    const navigation = browser.loadPage('Page.navigate', { url: `http://127.0.0.1:${address.port}/` }).then(() => { loaded = true; });
+    await resource;
+    const ready = await browser.evaluate('document.readyState');
+    assert.equal(loaded, false, 'Page.navigate 返回不等于新文档载入完成');
+    assert.notEqual(ready, 'complete');
+    release(); await navigation;
+    assert.equal(await browser.evaluate('document.readyState'), 'complete');
+    assert.ok(await browser.evaluate('!!document.querySelector("main h1")'));
+  } finally { release(); await browser.close(); await new Promise<void>(resolve => fixture.close(() => resolve())); }
+});
+
+test('T-169 点击闸门：真实工作台按钮延迟出现时等待节点，再读取几何位置', async () => {
+  const site = await generate(); assert.equal(site.run?.status, 'complete');
+  const browser = await codeCheckBrowser();
+  try {
+    await browser.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+    await browser.loadPage('Page.navigate', { url: `${base}/workspace?site=${site.siteId}` });
+    await wait(browser, `document.querySelector('[data-testid="fact-citation-status"]')`);
+    await settle(browser);
+    const selector = '[data-t169-delayed-button]';
+    await wait(browser, `document.querySelector('[aria-label="预览宽度"] button')`);
+    await browser.evaluate(`(()=>{const node=document.querySelector('[aria-label="预览宽度"] button');node.setAttribute('data-t169-delayed-button','');node.remove();window.__t169ReleaseButton=()=>{const parent=document.querySelector('[aria-label="预览宽度"]');parent.insertBefore(node,parent.firstChild)}})()`);
+    assert.equal(await browser.evaluate(`document.querySelector(${JSON.stringify(selector)})`), null);
+    let released = false;
+    const gated = { ...browser, async evaluate<T>(expression: string): Promise<T> {
+      const result = browser.evaluate<T>(expression);
+      if (expression.startsWith('new Promise') && !released) {
+        released = true; await browser.evaluate('window.__t169ReleaseButton()');
+      }
+      return result;
+    } };
+    await click(gated, selector);
+    assert.ok(released, '必须先进入节点等待，不能直接读空节点');
+    assert.ok(await browser.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`));
+  } finally { await browser.close(); }
+});
+
 test('本地替身经真实生成入口保存至少三条出处，三档工作台显示原句且发布页与独立预览无标记', { timeout: 180000 }, async () => {
   const health = await (await fetch(`${base}/api/health`)).json(); assert.equal(health.testIdentity.cwd, process.cwd());
   generated = await generate(); assert.equal(generated.run?.status, 'complete', generated.run?.step);
@@ -102,7 +158,7 @@ test('本地替身经真实生成入口保存至少三条出处，三档工作�
     const browser = await codeCheckBrowser();
     try {
       await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-      await browser.send('Page.navigate', { url: `${base}/workspace?site=${generated.siteId}` });
+      await browser.loadPage('Page.navigate', { url: `${base}/workspace?site=${generated.siteId}` });
       await wait(browser, `document.querySelector('[data-testid="fact-citation-status"]')?.textContent.includes('3 条资料出处')`);
       if (width < 1100) await click(browser, '[role="tab"]:nth-child(2)');
       await click(browser, `[aria-label="预览宽度"] button:nth-child(${width === 1440 ? 1 : width === 768 ? 2 : 3})`);
@@ -130,8 +186,8 @@ test('本地替身经真实生成入口保存至少三条出处，三档工作�
         await browser.evaluate(`(()=>{const d=document.querySelector('[data-testid="code-preview"]').contentDocument;d.querySelector('section p').textContent=${JSON.stringify(citationClaims[0].claim)};d.dispatchEvent(new Event('scroll'))})()`);
         await wait(browser, `document.querySelectorAll('[data-testid="fact-citation-marker"]').length===3`);
       }
-      await browser.send('Page.reload'); await wait(browser, `document.querySelector('[data-testid="fact-citation-status"]')?.textContent.includes('3 条资料出处')`);
-      await browser.send('Page.navigate', { url: `${base}/published/${generated.siteId}` });
+      await browser.loadPage('Page.reload'); await wait(browser, `document.querySelector('[data-testid="fact-citation-status"]')?.textContent.includes('3 条资料出处')`);
+      await browser.loadPage('Page.navigate', { url: `${base}/published/${generated.siteId}` });
       await wait(browser, `document.querySelector('main h1')`);
       assert.equal(await browser.evaluate(`document.querySelectorAll('[data-testid="fact-citation-marker"],.code-fact-source').length`), 0);
     } finally { await browser.close(); }
@@ -148,7 +204,7 @@ test('上传资料出处在工作台三档显示来源类型文字', { timeout: 
     const browser = await codeCheckBrowser();
     try {
       await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-      await browser.send('Page.navigate', { url: `${base}/workspace?site=${site.siteId}` });
+      await browser.loadPage('Page.navigate', { url: `${base}/workspace?site=${site.siteId}` });
       if (width < 1100) await click(browser, '[role="tab"]:nth-child(2)');
       await click(browser, `[aria-label="预览宽度"] button:nth-child(${width === 1440 ? 1 : width === 768 ? 2 : 3})`);
       await wait(browser, `document.querySelectorAll('[data-testid="fact-citation-marker"]').length===3`);
@@ -196,7 +252,7 @@ test('表格中的跨单元格价格出处经真实提交入口存版并准确�
       const browser = await codeCheckBrowser();
       try {
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-        await browser.send('Page.navigate', { url: `${base}/workspace?site=${site.siteId}` });
+        await browser.loadPage('Page.navigate', { url: `${base}/workspace?site=${site.siteId}` });
         await wait(browser, `document.querySelector('[data-testid="fact-citation-status"]')?.textContent.includes('3 条资料出处')`);
         if (width < 1100) await click(browser, '[role="tab"]:nth-child(2)');
         await click(browser, `[aria-label="预览宽度"] button:nth-child(${width === 1440 ? 1 : width === 768 ? 2 : 3})`);
@@ -259,10 +315,10 @@ test('旧版本显示未记录而非零条；中英切换不泄漏标记，恢�
   const browser = await codeCheckBrowser();
   try {
     await browser.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-    await browser.send('Page.navigate', { url: `${base}/workspace?site=${id}` });
+    await browser.loadPage('Page.navigate', { url: `${base}/workspace?site=${id}` });
     await wait(browser, `document.querySelectorAll('[data-testid="fact-citation-marker"]').length===3`);
     await click(browser, '[data-testid="fact-citation-marker"]'); await wait(browser, `document.querySelector('[data-testid="fact-citation-source"]')`);
-    await browser.send('Page.navigate', { url: `${base}/workspace?site=${oldId}` });
+    await browser.loadPage('Page.navigate', { url: `${base}/workspace?site=${oldId}` });
     await wait(browser, `document.querySelector('[data-testid="fact-citation-status"]') && !document.querySelector('.code-preview-loading')`);
     const oldStatus = await browser.evaluate<string>(`document.querySelector('[data-testid="fact-citation-status"]').textContent`);
     assert.match(oldStatus, /未提供可引用的原句/);
@@ -278,13 +334,13 @@ test('旧版本显示未记录而非零条；中英切换不泄漏标记，恢�
   try {
     const browser = englishBrowser;
     await browser.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-    await browser.send('Page.navigate', { url: `${base}/workspace?site=${id}` });
+    await browser.loadPage('Page.navigate', { url: `${base}/workspace?site=${id}` });
     await wait(browser, `document.querySelectorAll('[data-testid="fact-citation-marker"]').length===3`);
     await click(browser, '[data-testid="preview-en"]');
     await wait(browser, `document.querySelector('[data-testid="code-preview"]')?.contentDocument?.documentElement.lang==='en'`);
     assert.equal(await browser.evaluate(`document.querySelectorAll('[data-testid="fact-citation-marker"],[data-testid="fact-citation-source"],[data-testid="fact-citation-status"]').length`), 0);
     await click(browser, '[data-testid="preview-zh"]'); await wait(browser, `document.querySelectorAll('[data-testid="fact-citation-marker"]').length===3`);
-    await browser.send('Page.navigate', { url: `${base}/published/${id}/en` }); await wait(browser, `document.documentElement.lang==='en'&&document.querySelector('main h1')`);
+    await browser.loadPage('Page.navigate', { url: `${base}/published/${id}/en` }); await wait(browser, `document.documentElement.lang==='en'&&document.querySelector('main h1')`);
     assert.equal(await browser.evaluate(`document.querySelectorAll('.code-fact-marker,.code-fact-source').length`), 0);
   } finally { await englishBrowser.close(); }
 });

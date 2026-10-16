@@ -16,7 +16,12 @@ export function createT162ModelFixture(directory: string, beforeLocalReply?: () 
     requests.push({ purpose: local ? 'local-edit' : 'facts', input: prompt });
     await writeFile(`${directory}/requests.json`, JSON.stringify(requests, null, 2));
     if (input?.request.includes('服务失败')) { res.writeHead(503); res.end(JSON.stringify({ error: { message: '本地替身明确失败' } })); return; }
-    const answer = local ? { html: input.html, css: input.request.includes('越界') ? '.spacer{padding:60px}' : `.${input.scope} h3{letter-spacing:.06em}` } : { issues: [] };
+    const answer = local ? { html: input.html, css: input.request.includes('范围外规则') ? `.${input.scope}:has(a){color:red}` : input.request.includes('合法空 CSS') ? '' : input.request.includes('越界') ? '.spacer{padding:60px}' : `.${input.scope} h3{letter-spacing:.06em}` } : { issues: [] };
+    if (local && input.request.includes('不能修改')) {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ cannotEdit: '第一组明确拒绝' }) } }], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
+      return;
+    }
     if (local) await beforeLocalReply?.();
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, answer)) } }], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));

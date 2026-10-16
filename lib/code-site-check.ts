@@ -7,15 +7,16 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
-import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications } from './code-site-local-edit.ts';
+import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
+import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
-function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], selectedTarget?: AnnotationTarget) {
+function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], selectedTargets: AnnotationTarget[] = []) {
   const issues: string[] = [], cleaned: string[] = [];
-  const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a strong em b i small br hr details summary address blockquote time'.split(' '));
+  const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a button strong em b i small br hr details summary address blockquote time'.split(' '));
   const safeCss = (style: CSSStyleDeclaration) => {
     for (const name of [...style]) {
       const value = style.getPropertyValue(name);
@@ -60,7 +61,7 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
           if (name === 'href' && (/^\/[a-z][a-z0-9-]*(?:#[a-zA-Z0-9_-]+)?$/.test(value) || /^#[a-zA-Z0-9_-]+$/.test(value) || /^(mailto|tel):[^\s<>]+$/.test(value))) continue;
           issues.push(`已去掉资源或空链接 ${name}=${value.slice(0,100)}`); node.removeAttribute(name); continue;
         }
-        if (/^(class|id|alt|title|role|lang|width|height|colspan|rowspan|scope|headers|open|datetime)$/.test(name) || /^aria-[a-z-]+$/.test(name) || /^data-[a-z-]+$/.test(name)) continue;
+        if (/^(class|id|alt|title|role|lang|width|height|colspan|rowspan|scope|headers|open|datetime|disabled)$/.test(name) || /^aria-[a-z-]+$/.test(name) || /^data-[a-z-]+$/.test(name)) continue;
         issues.push(`已去掉属性 ${name}`); node.removeAttribute(name);
       }
       if (node.tagName === 'IMG') {
@@ -110,13 +111,16 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
   // Shared fragments are identical on every page. Audit them once, while
   // keeping each page's own copy and auxiliary attributes in its own context.
   let text = `公共页头：\n${readableFragment(safe.header)}\n${safe.pages.map(p => `页面标题：${p.title}\n页面正文：\n${readableFragment(p.html)}`).join('\n')}\n公共页脚：\n${readableFragment(safe.footer)}`;
-  if (selectedTarget) {
-    const doc = documents.get(selectedTarget.pageId);
-    let node: Element | undefined = doc?.querySelector('main') ?? undefined;
-    for (const index of selectedTarget.path) node = node?.children[index];
-    if (!node) issues.push('局部修改的区块无法定位');
-    text = node ? readableFragment(node.outerHTML) : '';
-    contacts = node ? [...node.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)) : [];
+  if (selectedTargets.length) {
+    const nodes = selectedTargets.map(target => {
+      const doc = documents.get(target.pageId);
+      let node: Element | undefined = doc?.querySelector('main') ?? undefined;
+      for (const index of target.path) node = node?.children[index];
+      if (!node) issues.push('局部修改的区块无法定位');
+      return node;
+    }).filter((node): node is Element => !!node);
+    text = nodes.map(node => readableFragment(node.outerHTML)).join('\n');
+    contacts = nodes.flatMap(node => [...node.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)));
   }
   return { code: safe, issues: [...new Set(issues)], cleaned, text, contacts };
 }
@@ -445,9 +449,11 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target: AnnotationTarget; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[]; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number }) {
   const code = codeSiteSchema.parse(args.code);
+  const localTargets = args.localEdit ? (args.localEdit.targets ?? (args.localEdit.target ? [args.localEdit.target] : [])) : [];
   const browser = await codeCheckBrowser();
+  let dynamicBrowser: Awaited<ReturnType<typeof codeCheckBrowser>> | undefined;
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
   if (args.legacyImport) checks.factReview = 'legacy-unreviewed';
   if (args.restoredFactReview) checks.factReviewFrom = args.restoredFactReview;
@@ -462,31 +468,28 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const validSource = await browser.evaluate<boolean>(`document.contentType === 'text/html' && performance.getEntriesByType('navigation')[0]?.responseStatus === 200 && !!document.querySelector('meta[name="sitecraft-code-check"][content="v1"]') && !document.querySelector('script')`);
     if (!validSource) throw new Error('提交检查静态页缺失或无效（/code-check.html），本次未保存版本。');
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
+    const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
     const backdropIds = Object.keys(systemBackdrops), backdropUrls = Object.values(systemBackdrops).flatMap(entry => Object.values(entry.urls));
-    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${JSON.stringify(backdropIds)},${JSON.stringify(backdropUrls)},${JSON.stringify(args.localEdit?.target)})`);
+    const clean = await browser.evaluate<ReturnType<typeof cleanCandidate>>(`(${cleanCandidate.toString()})(${JSON.stringify(code)},${JSON.stringify(permitted)},${JSON.stringify(systemIconIds)},${JSON.stringify(backdropIds)},${JSON.stringify(backdropUrls)},${JSON.stringify(localTargets)})`);
     checks.issues.push(...clean.issues); checks.cleaned = clean.cleaned;
     let localSelectors: string[] = [];
-    if (args.localEdit) {
+    if (args.localEdit && localTargets.length) {
       // Check both raw and cleaned candidates: sanitizing an escape must not make
       // it look as though the model respected the requested scope.
       for (const candidate of [code, clean.code]) {
-        const range = await browser.evaluate<ReturnType<typeof localEditDom>>(`(${localEditDom.toString()})(${JSON.stringify(args.localEdit.source)},${JSON.stringify(args.localEdit.target)},${JSON.stringify(localScopeClass(args.localEdit.target))},${JSON.stringify(candidate)})`);
-        checks.issues.push(...range.issues); localSelectors = range.selectors;
+        for (const target of localTargets) {
+          const range = await browser.evaluate<ReturnType<typeof localEditDom>>(`(${localEditDom.toString()})(${JSON.stringify(args.localEdit.source)},${JSON.stringify(target)},${JSON.stringify(localScopeClass(target))},${JSON.stringify(candidate)},${JSON.stringify(localTargets)},${JSON.stringify(localTargets.map(localScopeClass))})`);
+          checks.issues.push(...range.issues); localSelectors.push(...range.selectors);
+        }
       }
     }
-    const edit = args.localEdit ? { source: args.localEdit.source, pageId: args.localEdit.target.pageId, path: args.localEdit.target.path } : args.pageEdit;
+    const edit: { source: SiteCode; targets: AnnotationTarget[] } | { source: SiteCode; pageId: string } | undefined = args.localEdit && localTargets.length
+      ? { source: args.localEdit.source, targets: localTargets } : args.pageEdit ? { source: args.pageEdit.source, pageId: args.pageEdit.pageId } : undefined;
     if (edit) {
       for (const candidate of [code, clean.code]) {
-        if (candidate.header !== edit.source.header || candidate.footer !== edit.source.footer || candidate.pages.length !== edit.source.pages.length || edit.source.pages.some((page, i) => candidate.pages[i]?.id !== page.id || candidate.pages[i]?.title !== page.title || (page.id !== edit.pageId && candidate.pages[i]?.html !== page.html))) checks.issues.push('修改越界：其他页面、页面标题或公共页头页脚改变');
-        for (const page of edit.source.pages) {
-          const scope = page.id === edit.pageId ? { path: 'path' in edit ? edit.path : undefined } : undefined;
-          const evidence = [];
-          for (const value of [edit.source, candidate]) {
-            evidence.push(await browser.evaluate<ReturnType<typeof outsideCssApplications>>(`(${outsideCssApplications.toString()})(${JSON.stringify(renderSiteCode(args.siteId, value, page.id))},${JSON.stringify(value.css)},${JSON.stringify(scope)})`));
-          }
-          if (JSON.stringify(evidence[0]) !== JSON.stringify(evidence[1])) checks.issues.push(`修改越界：${page.id} 范围外元素的 CSS 规则或匹配改变`);
-        }
+        const touchedPages = new Set('targets' in edit ? edit.targets.map(target => target.pageId) : [edit.pageId]);
+        if (candidate.header !== edit.source.header || candidate.footer !== edit.source.footer || candidate.pages.length !== edit.source.pages.length || edit.source.pages.some((page, i) => candidate.pages[i]?.id !== page.id || candidate.pages[i]?.title !== page.title || (!touchedPages.has(page.id) && candidate.pages[i]?.html !== page.html))) checks.issues.push('修改越界：其他页面、页面标题或公共页头页脚改变');
       }
     }
     if (args.translationSource) checks.issues.push(...await browser.evaluate<string[]>(`(${englishFidelity.toString()})(${JSON.stringify(args.translationSource)},${JSON.stringify(clean.code)},${JSON.stringify(args.companyName || '')},${JSON.stringify(args.materials)})`));
@@ -494,14 +497,66 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     if (checks.issues.length && !args.legacyImport) return { code: clean.code, checks };
     await browser.send('Network.setBlockedURLs', { urls: [] });
     const scan = (await readFile(path.join(process.cwd(), 'scripts/visitor-layout-scan.js'), 'utf8')).replace(/export default scanVisitorLayout;?/g, '').replace(/export function scanVisitorLayout/g, 'function scanVisitorLayout');
-    const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
     const used = new Set((clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).match(/img_[a-z0-9]{16,40}/g));
     const credits = [...new Set(args.images.filter(i => used.has(i.imageId) && i.attribution).map(i => i.attribution))];
     const generatedText = new Set<string>();
     const factSegments = new Map<string, CodeFactSegment>();
     for (const page of clean.code.pages) {
       for (const width of [375, 768, 1440]) {
+        const viewportStarted = performance.now();
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        if (dynamicBrowser) await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        let dynamicState: CodeCheck['viewports'][number]['dynamicState'];
+        const pageIsEdited = edit && ('targets' in edit ? edit.targets.some(target => target.pageId === page.id) : true);
+        if (edit && pageIsEdited) {
+          const dynamicStarted = performance.now();
+          const wallStartedAt = Date.now();
+          const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 5000);
+          const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) }
+            : page.id === edit.pageId ? { paths: [[]] } : undefined;
+          let probeStates = false;
+          const evidence: DynamicStateProbe[] = [];
+          let classificationMs = 0, compareMs = 0, completed = false;
+          try {
+            const documents = [edit.source, code].map(value => renderSiteCode(args.siteId, value, page.id));
+            for (const html of documents) {
+              await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html });
+              if (await browser.evaluate<boolean>(`(${authorStylesHaveDynamicStates.toString()})()`)) { probeStates = true; break; }
+            }
+            classificationMs = performance.now() - dynamicStarted;
+            const probeOptions = (side: string) => ({ states: probeStates, diagnostic: { siteId: args.siteId, pageId: page.id, width, side } });
+            if (probeStates) {
+              if (!dynamicBrowser) dynamicBrowser = await codeCheckBrowser();
+              await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+              const dynamicFrame = await dynamicBrowser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+              evidence.push(...await Promise.all([
+                outsideCssApplications(browser, frameTree.frame.id, documents[0], scope, deadlineAt, probeOptions('source')),
+                outsideCssApplications(dynamicBrowser, dynamicFrame.frameTree.frame.id, documents[1], scope, deadlineAt, probeOptions('candidate')),
+              ]));
+            } else {
+              // Absence of author state rules removes only state probing. Static
+              // DOM-triggered selector changes still cross the same full reader.
+              evidence.push(await outsideCssApplications(browser, frameTree.frame.id, documents[0], scope, deadlineAt, probeOptions('source')));
+              evidence.push(await outsideCssApplications(browser, frameTree.frame.id, documents[1], scope, deadlineAt, probeOptions('candidate')));
+            }
+            const compareStarted = performance.now();
+            const sourceReachable = new Set(evidence[0].states.flatMap(state => state.entries.map(entry => JSON.stringify(entry))));
+            const reported = new Set<string>();
+            for (const state of evidence[1].states) for (const entry of state.entries) if (!sourceReachable.has(JSON.stringify(entry))) {
+              const issue = `修改越界：${page.id}/${width} 状态 ${state.state} 触发路径 ${JSON.stringify(state.trigger)} 改变范围外元素路径 ${JSON.stringify(entry.path)}${entry.pseudo} 的完整计算样式`;
+              if (!reported.has(issue)) { reported.add(issue); checks.issues.push(issue); }
+            }
+            if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。');
+            compareMs = performance.now() - compareStarted;
+            const metrics = (probe: DynamicStateProbe) => ({ interactiveElements: probe.interactiveElements, forceCalls: probe.forceCalls,
+              statesChecked: probe.statesChecked, durationMs: probe.durationMs, cdpRoundTrips: probe.cdpRoundTrips, stageMs: probe.stageMs });
+            dynamicState = { mode: probeStates ? 'states' : 'static', classificationMs, compareMs, durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
+            completed = true;
+          } finally {
+            recordCheckDiagnostic({ kind: 'dynamic-check', siteId: args.siteId, pageId: page.id, width, mode: probeStates ? 'states' : 'static',
+              startedAt: wallStartedAt, endedAt: Date.now(), durationMs: performance.now() - dynamicStarted, classificationMs, compareMs, completed });
+          }
+        }
         const languageLinks = { zh: `/published/${args.siteId}?page=${page.id}`, en: `/published/${args.siteId}/en?page=${page.id}` };
         let originalGenerated: ReturnType<typeof readGeneratedText> = [];
         if (args.translationSource) {
@@ -512,7 +567,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           originalGenerated = await browser.evaluate(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readGeneratedText.toString()})()})()`);
         }
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits, undefined, args.translationSource ? { language: 'en', languageLinks } : {}) });
-        if (args.localEdit) checks.issues.push(...await browser.evaluate<string[]>(`(${checkLocalSelectors.toString()})(${JSON.stringify(args.localEdit.target)},${JSON.stringify(page.id)},${JSON.stringify(localSelectors)})`));
+        if (args.localEdit && localTargets.length) checks.issues.push(...await browser.evaluate<string[]>(`(${checkLocalSelectors.toString()})(${JSON.stringify(localTargets)},${JSON.stringify(page.id)},${JSON.stringify(localSelectors)})`));
         const structure = await browser.evaluate<{ contentType: string; hasMainHeading: boolean }>(`({contentType:document.contentType,hasMainHeading:!!document.querySelector('main h1')})`);
         if (structure.contentType !== 'text/html') throw new Error('底线检查未载入候选网页，本次未保存版本。');
         // Missing candidate structure is a rejection, not a browser failure.
@@ -530,14 +585,18 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
         const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
         const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)})`);
-        const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:(${readGeneratedText.toString()})(${JSON.stringify(args.localEdit?.target.path)})};})()`);
-        if (!args.localEdit || args.localEdit.target.pageId === page.id) for (const entry of layout.generatedText) generatedText.add(entry.text);
-        if ((!args.localEdit || args.localEdit.target.pageId === page.id) && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
-          const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(args.localEdit?.target.path)})`);
-          for (const segment of segments) {
-            const key = JSON.stringify([segment.group, segment.text]), previous = factSegments.get(key);
-            factSegments.set(key, { ...segment, targets: [...(previous?.targets ?? []), ...(segment.targets ?? [])]
-              .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.readable === target.readable) === index) });
+        const targetPaths = localTargets.filter(target => target.pageId === page.id).map(target => target.path);
+        const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');const paths=${JSON.stringify(targetPaths)};return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
+        if (!args.localEdit || targetPaths.length) for (const entry of layout.generatedText) generatedText.add(entry.text);
+        if (!args.legacyImport && !args.translationSource && !args.restoredFactReview && (!args.localEdit || targetPaths.length)) {
+          const paths = targetPaths.length ? targetPaths : [undefined];
+          for (const path of paths) {
+            const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(path)})`);
+            for (const segment of segments) {
+              const key = JSON.stringify([segment.group, segment.text]), previous = factSegments.get(key);
+              factSegments.set(key, { ...segment, targets: [...(previous?.targets ?? []), ...(segment.targets ?? [])]
+                .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.readable === target.readable) === index) });
+            }
           }
         }
         if (args.translationSource) {
@@ -548,7 +607,8 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         }
         const contrast = layout.textContrast.map(t => ({ ...t, threshold: t.role === 'heading' ? t.threshold : 4.5 })).filter(t => t.status !== 'measured' || t.ratio === null || t.ratio < t.threshold);
         const long = layout.bodyLineLength.filter(l => l.tooLong);
-        checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length, qualityFeedback });
+        checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length, qualityFeedback, ...(dynamicState ? { dynamicState } : {}) });
+        args.timings?.push({ pageId: page.id, width, durationMs: performance.now() - viewportStarted });
         if (!layout.measurement.textContrastEntries) checks.issues.push(`${page.id}/${width} 无可测量正文`);
         if (layout.horizontalScroll || layout.overflowElements.length) checks.issues.push(`${page.id}/${width} 横向溢出`);
         if (layout.textOverlaps.length) checks.issues.push(`${page.id}/${width} 文字重叠`);
@@ -567,44 +627,49 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.
     if (!checks.issues.length && !args.legacyImport && !args.translationSource && !args.restoredFactReview) {
-      if (!args.localEdit) {
+      if (args.localEdit && !args.factSourceMaterials) {
+        // Legacy local versions retain the old issues-only reply shape; the
+        // model helper accepts it only when no separated source boundary exists.
+        checks.issues.push(...await auditCodeFacts(args.materials, readable, true, args.style));
+      } else {
+        if (!args.localEdit) {
         // Deleting the last full company name changes a site-wide obligation,
         // even when every remaining content segment was previously accepted.
-        if (args.companyName) {
-          const text = `站点公司名检查（系统观察）：记录公司名「${args.companyName}」，完整名称${readable.includes(args.companyName) ? '已出现' : '未出现'}。`;
-          factSegments.set(text, { text, group: text, context: { pageId: 'site', outline: [], headings: [] } });
+          if (args.companyName) {
+            const text = `站点公司名检查（系统观察）：记录公司名「${args.companyName}」，完整名称${readable.includes(args.companyName) ? '已出现' : '未出现'}。`;
+            factSegments.set(text, { text, group: text, context: { pageId: 'site', outline: [], headings: [] } });
+          }
         }
+        const segments = [...factSegments.values()];
+        const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials);
+        const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials) : [];
+        const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], noFacts: segment.noFacts, factCategories: segment.factCategories, citations: segment.citations }))]
+          .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
+        if (!args.localEdit) checks.factSegments = { format: 4, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? [], audited: pending.length, reused: reused.length, segments: receipts };
+        const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !localTargets.some(scope => target.pageId === scope.pageId && target.root === 'main' && scope.path.every((index, i) => target.path[i] === index))) })).filter(citation => citation.targets?.length);
+        const citations: CodeFactCitation[] = [];
+        const citationKeys = new Set<string>();
+        for (const citation of [...outside, ...receipts.flatMap(review => review.citations)]) {
+          const quote = normalizeFactQuote(citation.quote);
+          const source = findFactSource(args.factSourceMaterials, quote);
+          if (!quote || !source) {
+            checks.issues.push(`范围外资料出处无法在当前企业资料中验真：${citation.claim}`);
+            continue;
+          }
+          const key = JSON.stringify([citation.category, normalizeFactQuote(citation.claim), quote]);
+          if (citationKeys.has(key)) {
+            checks.issues.push(`资料出处重复：${citation.claim}`);
+            continue;
+          }
+          citationKeys.add(key);
+          citations.push({ ...citation, source: factSourceRef(source), targets: [...(citation.targets ?? [])]
+            .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index) });
+        }
+        checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处') || issue.includes('资料出处重复')), entries: citations };
+        checks.issues.push(...receipts.flatMap(segment => segment.issues));
       }
-      const segments = [...factSegments.values()];
-      const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials);
-      const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials) : [];
-      const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], noFacts: segment.noFacts, factCategories: segment.factCategories, citations: segment.citations }))]
-        .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
-      if (!args.localEdit) checks.factSegments = { format: 4, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? [], audited: pending.length, reused: reused.length, segments: receipts };
-      const scope = args.localEdit ? segments[0]?.targets?.[0] : undefined;
-      const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !scope || target.pageId !== scope.pageId || target.root !== scope.root || !scope.path.every((index, i) => target.path[i] === index)) })).filter(citation => citation.targets?.length);
-      const citations: CodeFactCitation[] = [];
-      const citationKeys = new Set<string>();
-      for (const citation of [...outside, ...receipts.flatMap(review => review.citations)]) {
-        const quote = normalizeFactQuote(citation.quote);
-        const source = findFactSource(args.factSourceMaterials, quote);
-        if (!quote || !source) {
-          checks.issues.push(`范围外资料出处无法在当前企业资料中验真：${citation.claim}`);
-          continue;
-        }
-        const key = JSON.stringify([citation.category, normalizeFactQuote(citation.claim), quote]);
-        if (citationKeys.has(key)) {
-          checks.issues.push(`资料出处重复：${citation.claim}`);
-          continue;
-        }
-        citationKeys.add(key);
-        citations.push({ ...citation, source: factSourceRef(source), targets: [...(citation.targets ?? [])]
-          .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index) });
-      }
-      checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处') || issue.includes('资料出处重复')), entries: citations };
-      checks.issues.push(...receipts.flatMap(segment => segment.issues));
     }
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
-  } finally { await browser.close(); }
+  } finally { await dynamicBrowser?.close(); await browser.close(); }
 }

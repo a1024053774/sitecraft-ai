@@ -5,6 +5,7 @@
 - 来源：BaoCut，JimLiu/baocut@7aa049e8。仅使用负责人提供的 `artifacts/annotation-planning-20261012/reference/` 离线参考。
 - 参考文件：`packages/design-runtime/src/comments/area-drawing.tsx`、`canvas-controller.tsx`；`packages/ui/src/components/annotations-token.tsx`、`model/design-annotations.ts`、`state/draft-design-annotations-store.ts`。
 - 改编范围：`components/code-preview-selection.tsx` 的移动阈值、矩形拖动与取消生命周期；`components/code-workspace.tsx` 的按顺序编号列表、逐条操作及发送后仅处理冻结条目的集合管理。均融入既有 T-162 UI，不带入原产品样式、名称、标识、依赖或其他编辑器能力。
+- T-164 另借鉴「发送时冻结标注集合、只处理本次集合」的交互语义：SiteCraft 自行按 DOM 路径分组、组装候选并经唯一提交入口核对；没有复制 BaoCut 的实现代码或数据结构。
 - 许可：BaoCut Community License 1.0（2026-10-07），原文如下。负责人已在 T-161 确认本项目内部 Demo 的参考改编范围。将来商用须重写这些改编部分或取得单独书面授权；本记录不授予额外权利。
 - 改编文件头保留来源与许可说明；版权及许可原文保留在本文件。SiteCraft 新增的 DOM 锚点核对、多元素提示、单区块提交检查沿用自身合同。
 

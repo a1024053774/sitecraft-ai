@@ -31,8 +31,9 @@ const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); requests.push(body);
   const input = JSON.parse(body.messages[1].content.split('\n')[0]);
-  const validCitation = { category: '客户与合作方', claim: '长期合作客户：甲方公司。', quote: '长期合作客户：甲方公司。' };
   const results = (input.segments ?? []).map((segment: any) => {
+    const claim = segment.text.includes('乙方公司') ? '长期合作客户：乙方公司。' : '长期合作客户：甲方公司。';
+    const validCitation = { category: '客户与合作方', claim, quote: claim };
     const hasClaim = segment.text.includes('长期合作客户');
     const noFacts = replyMode === 'noFacts' || (!hasClaim && replyMode !== 'emptyCategories' && replyMode !== 'missingNoFacts');
     const citations = noFacts || replyMode === 'emptyCategories' || !hasClaim ? [] : replyMode === 'duplicate' ? [validCitation, validCitation] : [validCitation];
@@ -107,15 +108,15 @@ test('合同 D 并发首条消息在生产 chat 入口保留两个来源和各�
   assert.deepEqual(new Set(sources?.map(source => source[1])), new Set(['首条资料 A：普通纸盒。', '首条资料 B：普通纸袋。']));
 });
 
-test('P1-1 生产入口遇到旧记录缺 factSources 必须重新核对且不能回退完整上下文', async () => {
+test('P1-1 生产入口从已有 materials 登记原始资料后重核，不免除旧事实核对', async () => {
   const id = `t169-old-source-${crypto.randomUUID()}`;
   const conversation = await getOrCreateConversation(id, `conversation-${id}`);
   await createCodeSite(id, '企业事实', conversation.conversationId);
   await updateCodeSite(id, () => ({ materials: '企业事实：长期合作客户：甲方公司。', factSources: undefined, plan: { style: 'precision', summary: '测试', styleReason: '测试', pages: [{ id: 'home', title: '首页', outline: '客户' }] } }));
   await updateCodeSite(id, () => ({ factSources: undefined } as any));
   const result = await commitSiteCode({ siteId: id, baseRevision: 0, code, author: 'user', summary: '旧记录重核', request: '' });
-  assert.equal(result.status, 'rejected');
-  if (result.status === 'rejected') assert.match(result.checks.issues.join('\n'), /出处|资料/);
+  assert.equal(result.status, 'applied', result.status === 'rejected' ? result.checks.issues.join('\n') : '');
+  if (result.status === 'applied') assert.ok(result.version.checks.factCitations?.entries.some(entry => entry.source?.type === 'materials'));
 });
 
 test('P1-3 生产入口拒绝缺 noFacts 的价格与客户段，不能用空类别通过', async () => {
@@ -143,7 +144,7 @@ test('P1-4 生产入口不复用 format 2 的结构化出处', async () => {
   assert.ok(requests.length > before, '旧 format:2 必须重新发起事实核对');
 });
 
-test('P1-5 生产入口资料源变化时局部修改不信任范围外旧出处', async () => {
+test('P1-5 上传源替换存版后，下一次普通提交也不得复活旧出处', async () => {
   const twoBlockCode = { ...code, pages: [{ ...code.pages[0], html: '<main><h1>企业事实</h1><section><h2>客户</h2><p>长期合作客户：甲方公司。</p></section><section><h2>介绍</h2><p>普通介绍。</p></section></main>' }] };
   const source = { type: 'upload' as const, sourceId: 'source-update', name: '资料.txt', text: '企业事实：长期合作客户：甲方公司。' };
   const { id } = await productionSite(source.text, twoBlockCode, source);
@@ -156,6 +157,22 @@ test('P1-5 生产入口资料源变化时局部修改不信任范围外旧出处
   const result = await commitSiteCode({ siteId: id, baseRevision: 1, code: twoBlockCode, selectedTarget: target, author: 'assistant', summary: '局部', request: '', source: changedSource });
   assert.equal(result.status, 'rejected');
   if (result.status === 'rejected') assert.match(result.checks.issues.join('\n'), /范围外资料出处|资料出处/);
+  const changedCode = { ...twoBlockCode, pages: twoBlockCode.pages.map(page => ({ ...page, html: page.html.replace('甲方公司', '乙方公司') })) };
+  const replacement = await commitSiteCode({ siteId: id, baseRevision: 1, code: changedCode, author: 'user', summary: '采用替换后的上传资料', request: '', source: changedSource });
+  assert.equal(replacement.status, 'applied', replacement.status === 'rejected' ? replacement.checks.issues.join('\n') : '');
+  const v2 = (await getCodeSite(id))!;
+  assert.equal(v2.materials, source.text, '复现旧 materials 仍保留 A 的实际形态');
+  assert.deepEqual(v2.versions[1].factSourceSnapshot, [changedSource], 'v2 只能采用同一来源替换后的 B');
+  const before = requests.length;
+  const next = await commitSiteCode({ siteId: id, baseRevision: 2, code: twoBlockCode, author: 'user', summary: '普通修改尝试保留旧引文', request: '只调整介绍排版，保留页面文案。' });
+  const after = (await getCodeSite(id))!;
+  await mkdir('artifacts/t169', { recursive: true });
+  await writeFile(`artifacts/t169/source-replacement-next-${Date.now()}.json`, JSON.stringify({ v1: current, v2, next, after }, null, 2));
+  assert.ok(requests.length > before, '下一次提交必须实际核对旧引文');
+  assert.equal(next.status, 'rejected', '上传 A 被 B 替换存版后，下一次普通修改仍须拒绝旧引文 A');
+  if (next.status === 'rejected') assert.match(next.checks.issues.join('\n'), /资料出处无依据/);
+  assert.equal(after.versions.length, 2, '拒绝旧引文时不保存第三版');
+  assert.ok(!after.factSources?.some(item => item.type === 'materials'), '不得把上传旧原文变成可重新引用的别名');
 });
 
 test('P1-6 生产入口按提示示例构造的 noFacts 合法回复可通过解析', async () => {
