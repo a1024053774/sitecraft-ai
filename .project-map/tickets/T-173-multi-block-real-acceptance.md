@@ -66,3 +66,24 @@ T-164 的多区块合同离线实现已合并（2026-10-16，构思主控按 C �
 唯一失败：`tests/t164-overlap-confirmation.test.ts:15` 的 1440 档，等待表达式读取 `[data-testid="annotation-send-batch"]` 的 `disabled` 时节点为 null，报 `TypeError: Cannot read properties of null (reading 'disabled')`；表达式在该文件第 52 行，第一条未确认请求已返回 422，`overlap-1440-ordinary-1.json` 记录版本仍为 1、runs=0，尚未进入确认后的写作／事实核对。不能据此宣称整条重叠交互通过或已证明失败与本次改动无关。本轮未改该等待逻辑、未重跑全量、未跳过或放宽断言。失败截图 `artifacts/t162/self-contained-1792158331879-59040/overlap-confirmation-failure-1440-96f485c0-e62c-4296-833c-71e294203155.png` 已打开，相关请求、timings 与服务日志保留，交主控安排后续处理。
 
 全量的 T-164 原始资料出处三档及空资料图、T-169 三档消息／上传／表格出处图均已逐张打开确认载入；本轮没有审美或真实模型通过结论。收尾标准入口已关闭测试服务，无遗留 Chrome 测试、`node --test` 或 `next build`；project-map 无结构问题或过时 living doc。**本轮交付 INCOMPLETE**：离线目标回归已通过，完整验证仍有上述一项失败，独立复审、真实两组存版和独立盲评待主控安排。
+
+
+### 独立复审修复（2026-10-16，Codex）
+
+主控确认 `f4008d8` 的全量 652/652、失败／取消／跳过均为 0，13:55:46Z 完成；日志 `artifacts/t173-supervisor-full-f4008d8.log`，报告 `artifacts/t167/test-run-1792158655483-64327/report.json`。该复测不覆盖或删除首轮 651/652 的证据。独立 sol 复审仍为 **NO_GO**：空引文掩盖非法 claim、协议错误仅在批次终止、整站仅代码发现缺出处时无法定位修正。测试通过不替代协议合同核对。主控同时确认重叠确认等待表达式存在节点竞态，与本次事实修改无关。
+
+本轮在共用 `auditCodeFacts` 边界先完成全部段的 claim 归属、类别、段内重复与 noFacts 二选一检查，协议错误直接抛终止错误；混合错误不受引文验真短路影响，整站、单区块和批次共用该行为，不在工作流分别补判断。协议通过后再验真原句，代码生成的缺出处拒因包含核对段原文，供现有整站 DOM 片段修正定位，单区块沿用区块归属和两轮额度。没有新增兼容层、免核对或整站重写路径。`t164-overlap-confirmation` 只补两个按钮均存在的等待条件，断言不变。
+
+新增 `tests/t173-fact-boundary.test.ts` 使用生产 chat POST 的整站 select／confirm、单区块 selectedTarget 和多区块 annotationBatch 入口，替身仅替代模型与 after 调度，普通标准服务读回存储。首次审核故意给出非法 claim + 空引文或有效原句、重复类别，并在后续调用返回合法回复，断言立即终止、不再写作／修正且不存版；缺出处场景固定 `issues=[]`，检查整站及单区块实际修正、一次补正存版与两轮仍缺出处拒收，整站修正请求必须包含可定位原句的 DOM 片段。
+
+先在未修改实现的 `f4008d8ee956b4c04530ebc1beeac25527abc4f7` 运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-fact-boundary.test.ts`：10 项中 7 项按复审反例失败，3 项保留行为的正向对照通过；红日志 `artifacts/t173/review-f4008d8-red.log`，标准报告 `artifacts/t167/test-run-1792159248117-77468/report.json`，请求及终态 `artifacts/t173/fact-boundary-1792159250212-77475/`。其中批次／单区块混合错误和单区块重复类别被后续合法回复存版，整站协议与缺出处场景错误进入修正后无法定位，均与合同预期相反。
+
+首次扩展定向 137/139，`artifacts/t173/review-focused.log`、`artifacts/t167/test-run-1792159329892-78431/report.json` 原样保留。两项旧夹具问题已按用例本意修复：无企业事实用例显式清空上一用例遗留的 citation；重复类别只注入实际客户声明段，避免在无事实段先触发二选一错误。原协议返回 issues 的断言同步为共用边界抛终止错误；无效资料仍拒收，未削弱断言。新增 T-173 十项在该轮全部通过。
+
+本轮最终定向命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t173-fact-boundary.test.ts tests/t173-citation-repair.test.ts tests/t164-multi-block-edit.test.ts tests/t164-multi-block-chat.test.ts tests/t164-original-materials.test.ts tests/t164-review-seven.test.ts tests/t164-overlap-confirmation.test.ts tests/t169-fact-citations.test.ts tests/t169-production-contract.test.ts tests/t169-contract-d.test.ts tests/t169-citations-browser.test.ts tests/t154-fact-segments.test.ts tests/t151-paragraph-repair.test.ts tests/t151-translation-protocol.test.ts tests/t151-short-translation.test.ts`。14:07:25Z 结束，139/139，0 失败／取消／跳过；`artifacts/t173/review-focused-final.log`、`artifacts/t167/test-run-1792159490352-82908/report.json`。新边界测试 10/10、新旧 T-173 合计 21/21。三档重叠确认及待确认图、三档原始资料与空资料图、T-169 三档消息／上传／表格出处图共 19 张均逐张打开确认载入，目录 `artifacts/t162/self-contained-1792159492422-82927/`、`self-contained-1792159492678-82926/`、`artifacts/t169/browser-1792159495636/`；不作审美判断。
+
+随后串行验证（UTC）：14:07:49Z `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 4/4（`review-runner.log`）；14:07:53Z `npm run typecheck` 通过（`review-typecheck.log`）；14:08:22Z `SITE_STORE=fs npm run build` 通过（`review-build.log`），日志均在 `artifacts/t173/`。未加载 `.env.local`，未调用 DeepSeek。开工已有的 `tsconfig.json` 构建目录 glob 脏改保留、不纳入提交；本轮 build 另加的一条 glob 仅还原该新增行。
+
+全量前 `memory_pressure` 空闲 43%，`ps -axo pid,ppid,command` 未发现其他 Chrome 无头测试、`node --test` 或 `next build`，原始记录 `artifacts/t173/review-pre-full-memory.txt`、`review-pre-full-processes.txt`。实现及测试冻结提交 `a1171fe81602baa529fda7cc5afaf15873ca0e18`，上述最终定向／runner／typecheck／build 与该快照一致；收尾只补本 Resolution，不改实现或测试。随后在该提交上仅串行运行一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`，14:15:57Z 结束：**662/662，失败／取消／跳过均为 0，PASS**。日志 `artifacts/t173/review-full.log`，身份／统计／服务日志 `artifacts/t167/test-run-1792159741382-87756/`，临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-F3HSud` 保留。新增十项与修复后的重叠确认三档用例均在本轮全量通过；未重跑全量、未跳过或扩大上限。
+
+本轮离线修复及规定验证 **PASS**，三项 P1 的反例已在父版本留红并转绿，原失败日志未覆盖；真实模型能力、独立 sol 复审与盲评没有本轮通过结论，仍由主控安排，本票保持 open。未调用 DeepSeek、未读取 `.env.local`、未推送；已有 `tsconfig.json` 脏改仍保留。

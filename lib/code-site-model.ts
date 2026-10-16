@@ -316,30 +316,39 @@ materials 是完整核对上下文，sourceMaterials 才是可作为资料出处
   if (!parsed.success || ids.length !== input.segments.length || new Set(ids).size !== ids.length || input.segments.some(segment => !ids.includes(segment.id)))
     throw new Error('核对段回复格式或编号无效（遗漏、重复或越界），本次未保存版本。');
   const byId = new Map(parsed.data.results.map(row => [row.id, row]));
-  const sources = sourceMaterials ?? [];
-  const reviewed = input.segments.map((segment, i) => {
-    const row = byId.get(segment.id)!, problems = [...row.issues], protocolProblems: string[] = [], factCategories = row.factCategories;
+  // Validate the complete protocol before quote validation. A missing quote
+  // cannot hide an invalid claim or turn a protocol error into a repairable
+  // content issue in any of the whole-site, single-block or batch workflows.
+  for (const segment of input.segments) {
+    const row = byId.get(segment.id)!, protocolProblems: string[] = [], factCategories = row.factCategories;
     const categoryKeys = factCategories.map(value => value);
     if (new Set(categoryKeys).size !== categoryKeys.length) protocolProblems.push('本段 factCategories 含重复类别，拒绝保存。');
     const citationKeys = row.citations.map(value => JSON.stringify([value.category, normalizeFactQuote(value.claim), normalizeFactQuote(value.quote)]));
     if (new Set(citationKeys).size !== citationKeys.length) protocolProblems.push('本段资料出处重复，拒绝保存。');
-    const citations = row.citations.flatMap(citation => {
-      const quote = normalizeFactQuote(citation.quote), claim = normalizeFactQuote(citation.claim);
-      const source = findFactSource(sources, quote);
-      if (!quote || !source) { problems.push(`资料出处无依据：${citation.claim}；引文「${citation.quote}」未在本次资料原文中找到。`); return []; }
-      if (!claim || !normalizeFactClaimText(segment.text).includes(claim)) { protocolProblems.push(`资料出处声明不在本核对段：${citation.claim}`); return []; }
-      return [{ ...citation, source: factSourceRef(source) }];
-    });
+    for (const citation of row.citations) {
+      const claim = normalizeFactQuote(citation.claim);
+      if (!claim || !normalizeFactClaimText(segment.text).includes(claim)) protocolProblems.push(`资料出处声明不在本核对段：${citation.claim}`);
+    }
     if (row.noFacts && (factCategories.length || row.citations.length)) protocolProblems.push('本段标记 noFacts=true 却返回了企业事实类别或出处。');
     if (!row.noFacts && !factCategories.length) protocolProblems.push('本段必须明确声明企业事实类别，不能用空类别代替 noFacts=true。');
-    if (!row.noFacts && factCategories.length && !factCategories.every(value => citations.some(citation => citation.category === value))) problems.push(`高风险事实缺少有效资料出处：声明类别「${factCategories.join('、')}」没有通过的资料出处。`);
     if (!row.noFacts && row.citations.some(citation => !factCategories.includes(citation.category))) protocolProblems.push('资料出处声明类别未被本段核对结果覆盖。');
-    // Local segments retain their block's root target. Content failures belong
-    // to that writer's existing correction budget; protocol failures stay global
-    // and terminate a batch, even when content failures occur in the same reply.
+    if (protocolProblems.length) throw new Error(`核对段协议无效：${protocolProblems.join('；')}本次未保存版本。`);
+  }
+  const sources = sourceMaterials ?? [];
+  const reviewed = input.segments.map((segment, i) => {
+    const row = byId.get(segment.id)!, problems = [...row.issues], factCategories = row.factCategories;
+    const citations = row.citations.flatMap(citation => {
+      const quote = normalizeFactQuote(citation.quote), source = findFactSource(sources, quote);
+      if (!quote || !source) { problems.push(`资料出处无依据：${citation.claim}；引文「${citation.quote}」未在本次资料原文中找到。`); return []; }
+      return [{ ...citation, source: factSourceRef(source) }];
+    });
+    if (!row.noFacts && !factCategories.every(value => citations.some(citation => citation.category === value)))
+      problems.push(`高风险事实缺少有效资料出处：页面原句「${segment.text}」；声明类别「${factCategories.join('、')}」没有通过的资料出处。`);
+    // Local content failures retain their block's root target and use that
+    // writer's existing correction budget. Whole-site repairs locate the text.
     const scope = local ? segments[i].targets?.find(target => target.root === 'main') : undefined;
     return { text: segment.text, group: segments[i].group,
-      issues: [...protocolProblems, ...problems.map(problem => scope ? `${scope.pageId}/${JSON.stringify(scope.path)} ${problem}` : problem)],
+      issues: problems.map(problem => scope ? `${scope.pageId}/${JSON.stringify(scope.path)} ${problem}` : problem),
       noFacts: row.noFacts, factCategories, citations };
   });
   return typeof readable === 'string' ? reviewed.flatMap(segment => segment.issues) : reviewed;

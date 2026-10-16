@@ -39,7 +39,7 @@ const provider = createServer(async (req, res) => {
     const citations = noFacts || replyMode === 'emptyCategories' || !hasClaim ? [] : replyMode === 'duplicate' ? [validCitation, validCitation] : [validCitation];
     const row: any = { id: segment.id, issues: replyMode === 'noFacts' && hasClaim ? ['页面原句：长期合作客户：甲方公司。；资料未提供该客户关系。'] : [], factCategories: noFacts || replyMode === 'emptyCategories' || !hasClaim ? [] : ['客户与合作方'], citations };
     if (replyMode !== 'missingNoFacts' && !process.env.P1_PARENT) row.noFacts = noFacts;
-    if (replyMode === 'duplicate') row.factCategories = ['客户与合作方', '客户与合作方'];
+    if (replyMode === 'duplicate' && hasClaim) row.factCategories = ['客户与合作方', '客户与合作方'];
     return row;
   });
   res.setHeader('content-type', 'application/json');
@@ -123,8 +123,7 @@ test('P1-3 生产入口拒绝缺 noFacts 的价格与客户段，不能用空类
   const candidate = { ...code, pages: [{ ...code.pages[0], html: '<main><h1>企业事实</h1><p>长期合作客户：甲方公司。</p><p>价格：每件12元。</p></main>' }] };
   replyMode = 'emptyCategories';
   try {
-    const { result } = await productionSite('企业事实：长期合作客户：甲方公司。价格：每件12元。', candidate);
-    assert.equal(result.status, 'rejected');
+    await assert.rejects(productionSite('企业事实：长期合作客户：甲方公司。价格：每件12元。', candidate), /核对段协议无效/);
   } finally { replyMode = 'valid'; }
 });
 
@@ -197,8 +196,6 @@ test('P2 模型显式 noFacts:true 时仍保留原有事实核对拒因', async 
 test('P2 重复类别或 citation 由生产提交入口明确拒绝', async () => {
   replyMode = 'duplicate';
   try {
-    const { result } = await productionSite('企业事实：长期合作客户：甲方公司。');
-    assert.equal(result.status, 'rejected');
-    if (result.status === 'rejected') assert.match(result.checks.issues.join('\n'), /资料出处重复/);
+    await assert.rejects(productionSite('企业事实：长期合作客户：甲方公司。'), /资料出处重复/);
   } finally { replyMode = 'valid'; }
 });
