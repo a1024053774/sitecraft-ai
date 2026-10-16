@@ -3,7 +3,7 @@ import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
+import { currentCodeVersion, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { sameFactSources, type CodeFactSource } from './code-site-fact-segments.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
@@ -186,15 +186,10 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (args.restoreVersionId && !restore) throw new Error('找不到要恢复的版本');
     const candidate = restore?.code ?? args.code;
     if (!candidate) throw new Error('没有可提交的站点代码');
-    // T-164 / contract D: the stored materials field is original user text.
-    // Register it once when the basis does not contain that raw source, without
-    // rewriting that version or admitting any text from model context/code.
-    const basis = restore ?? current;
-    const knownSources = basis ? basis.factSourceSnapshot : site.factSources;
-    if (!(Array.isArray(knownSources) && knownSources.some(source => source.text === site.materials)) && site.materials.trim()
-      && !site.factSources?.some(source => source.type === 'materials' && source.text === site.materials)) {
-      const messageIndex = Math.max(0, ...(site.factSources ?? []).filter(source => source.type !== 'upload').map(source => source.messageIndex)) + 1;
-      site.factSources = [{ type: 'materials', messageIndex, text: site.materials }, ...(site.factSources ?? [])];
+    // T-164 / contract D: bootstrap only a legacy site with no source history.
+    // A supplied source is explicit; materials must not become its stale alias.
+    if (!args.source && hasUnregisteredOriginalMaterials(site)) {
+      site.factSources = [{ type: 'materials', messageIndex: 1, text: site.materials }];
       await write(site);
     }
     const materials = restore ? codeFactMaterials(site, undefined, restore.id) : codeFactMaterials(site, args.request, site.currentVersionId, true);

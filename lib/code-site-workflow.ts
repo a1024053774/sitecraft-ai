@@ -3,7 +3,7 @@ import { codePreferencesSchema, codePreferenceStyleSchema } from './code-site-st
 import { serverCodeStyleOptions, requireModelTaskAdmission, CodeStyleAdmissionError } from './code-site-eval-styles.ts';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
-import { currentCodeVersion, codeFactMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
+import { currentCodeVersion, codeFactMaterials, hasUnregisteredOriginalMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
 import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, translateSiteCode, writeLocalEdit, writeLocalEditBatch, codeModelCalls } from './code-site-model.ts';
 import { annotationBatchItemSchema, annotationTargetSchema, type AnnotationBatchItem, type AnnotationTarget } from './annotations.ts';
 import { localEditContext, applyLocalEdit, applyLocalEdits, attributeLocalIssues, mergeAnnotationEdits } from './code-site-local-edit.ts';
@@ -71,12 +71,15 @@ async function registerUserSources(siteId: string, input: { message?: string; so
   if (input.source && input.source.text !== input.message) throw new Error('上传资料原文与发送内容不一致。');
   let allocated: CodeFactSource[] = [];
   await updateCodeSite(siteId, current => {
+    // Check legacy eligibility before this message creates the first registry.
+    const original = currentCodeVersion(current) && !input.source && hasUnregisteredOriginalMaterials(current);
     let messageIndex = Math.max(0, ...(current.factSources ?? []).filter(item => item.type !== 'upload').map(item => item.messageIndex));
     allocated = input.annotationBatch?.length
       ? input.annotationBatch.map(item => ({ type: 'message', messageIndex: ++messageIndex, text: item.body }))
       : [input.source ?? { type: 'message', messageIndex: ++messageIndex, text: input.message! }];
     const keys = new Set(allocated.map(factSourceKey));
-    return { factSources: [...(current.factSources ?? []).filter(item => !keys.has(factSourceKey(item))), ...allocated] };
+    const originalSources: CodeFactSource[] = original ? [{ type: 'materials', messageIndex: ++messageIndex, text: current.materials }] : [];
+    return { factSources: [...originalSources, ...(current.factSources ?? []).filter(item => !keys.has(factSourceKey(item))), ...allocated] };
   });
   return allocated;
 }

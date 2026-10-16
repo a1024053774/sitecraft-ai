@@ -153,14 +153,19 @@ export function codeFactMaterials(site: CodeSiteRecord, request?: string, versio
   }
   return `${site.materials}\n\n已采用版本的用户资料和补充（按顺序）：\n${effective.join('\n\n')}\n\n${request ? `本次用户补充与要求：\n${request}` : ''}\n只把用户明确提供或更新的企业信息作为事实；设计要求不是企业事实。字段有明确更新时采用最后一次声明。`;
 }
+export function hasUnregisteredOriginalMaterials(site: CodeSiteRecord): boolean {
+  // Even an empty registry/snapshot proves that source registration has begun.
+  return !!site.materials.trim() && site.factSources === undefined
+    && site.versions.every(version => version.factSourceSnapshot === undefined);
+}
 export function codeFactSourceMaterials(site: CodeSiteRecord, requestSource?: CodeFactSource | CodeFactSource[], versionId = site.currentVersionId, _compact = false): CodeFactSource[] | undefined {
-  // The commit entry registers raw site.materials under the site lock. Reading
-  // sources never infers raw text from the larger model context or old code.
+  // An accepted snapshot owns its source set. Only the first submission of an
+  // unregistered legacy site can read its newly registered original materials.
   const target = versionId ? site.versions.find(version => version.id === versionId) : undefined;
   const snapshot = target?.factSourceSnapshot;
-  const original = !(Array.isArray(snapshot) && snapshot.some(source => source.text === site.materials))
+  const original = snapshot === undefined && site.versions.every(version => version.factSourceSnapshot === undefined)
     ? (site.factSources ?? []).filter(source => source.type === 'materials' && source.text === site.materials) : [];
-  const base = Array.isArray(snapshot) ? [...original, ...snapshot] : !target ? site.factSources : original;
+  const base = Array.isArray(snapshot) ? snapshot : !target ? site.factSources : original;
   if (!base?.length && !requestSource) return undefined;
   const sources = [...(base ?? [])];
   for (const added of requestSource ? [requestSource].flat() : []) {

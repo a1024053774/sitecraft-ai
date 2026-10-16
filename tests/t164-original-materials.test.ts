@@ -122,14 +122,13 @@ test('materials 为空的旧站不登记推测原文，批次仍拒收并显示�
   } finally { await s.browser.close(); }
 });
 
-// This read-only boundary isolates an older partial snapshot: it may contain
-// later notes without the original source. It must add the registered raw
-// source, retain those notes, and leave the historical snapshot untouched.
-test('快照只有后续消息时，已登记原始资料仍进入本次核对，历史快照不变', () => {
+// An effective snapshot owns its sources. A registry entry outside it must not
+// revive a source that the accepted version no longer uses.
+test('有效快照只有后续消息时，不从站点登记补回原始资料，历史快照不变', () => {
   const originalSource = { type: 'materials' as const, messageIndex: 3, text: materials };
   const later = { type: 'message' as const, messageIndex: 1, text: '菜单按当天备料供应。' };
   const snapshot = [later];
   const current: any = { materials, factSources: [originalSource, later], currentVersionId: 'old-partial', versions: [{ id: 'old-partial', factSourceSnapshot: snapshot }] };
-  assert.deepEqual(codeFactSourceMaterials(current), [originalSource, later]);
+  assert.deepEqual(codeFactSourceMaterials(current), [later]);
   assert.deepEqual(snapshot, [later]);
 });

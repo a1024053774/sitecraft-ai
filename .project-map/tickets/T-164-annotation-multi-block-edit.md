@@ -39,6 +39,20 @@ T-161 第 3 步：把同一版本上的多条批注一次交给系统，得到�
 
 ## Resolution
 
+本轮来源替换漏洞的离线修复与验证 **PASS**。127 张原始截图（定向 13、全量 114）已逐张打开，清单 `artifacts/t164/source-alias-screenshot-views.json`；T-130 分发包复制图不重复计数，发送冻结与模拟拒收画面只作流程证据，不作审美结论。全量后仅为回归的独立运行补一行证据目录创建，产品代码及断言未改；同一两项复核 2/2（`artifacts/t164/source-alias-evidence-directory-check.log`、`artifacts/t167/test-run-1792145242452-55836/report.json`），没有重跑全量。未调用 DeepSeek、未读取 .env.local、未写主目录数据、未推送、未自行开审查。真实运行及新实例复审仍由主控安排，T-164 整票保持 open。
+
+2026-10-16 独立复审 P1 修复（本提交，父 `8fcd625`，claimed_by 为 Codex）：补登记资格改为“从未登记任何来源”，要求 `factSources` 未定义且所有版本的 `factSourceSnapshot` 均未定义；显式空数组也按已有登记处理，取更严格的一侧。已有上传来源、同源替换关系或任意来源登记链时，不为仍保留在 site.materials 中的旧原文建立别名。首次普通消息会先在来源登记的站点锁内判断旧站资格，再与该条/批次消息一起登记逐字原文及序号；直接提交仍在提交锁内处理。两处共用同一资格判断，不增加标志位、兼容路径或免核对入口。已接受版本的来源快照是有效来源集合，不再从站点登记补回快照外的原始资料。真正无来源旧站仍按决定 A 重核并只给新版本保存出处，旧版本不改写。
+
+回归沿用提交入口的 P1-5，扩成连续过程：上传 U 的原文 A 保存 v1 → 同一 sourceId 替换为 B、旧 A 的范围外出处先被拒 → B 成功保存 v2（确认快照只有 B、site.materials 仍是 A）→ 普通提交再次引用 A，必须实际进入原句核对并拒收，版本数仍为 2、不得新建 materials 别名。原先只检查替换当次的断言不能证明下一次提交安全，已补齐此缺口；有效快照排除站点登记的读取边界也按本次严格合同修正。`tests/t169-production-contract.test.ts` 纳入标准全量自动执行；具体检查语义写入 spec.md，AGENTS.md 只收紧业务规则。
+
+先红后绿：2026-10-16T09:50:04Z 在 `8fcd625` 运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --test-name-pattern='上传源替换存版后|有效快照只有后续消息' tests/t169-production-contract.test.ts tests/t164-original-materials.test.ts`，两项业务断言均失败：第三次提交实际 applied、预期 rejected；读取有效快照时多出材料别名。红日志 `artifacts/t164/source-alias-parent-red.log`、报告 `artifacts/t167/test-run-1792144200017-43608/report.json` 及连续版本输出保留，未覆盖。修后相同命令于 09:51:24Z 2/2（`source-alias-focused-green.log`、`artifacts/t167/test-run-1792144281609-43979/report.json`）。
+
+扩大定向：`CHROME_PATH=上述路径 npm test -- tests/t164-original-materials.test.ts tests/t169-production-contract.test.ts tests/t164-multi-block-edit.test.ts tests/t169-fact-citations.test.ts tests/t169-contract-d.test.ts tests/t169-citations-browser.test.ts` 于 2026-10-16T09:53:46Z **52/52，零失败、取消、跳过**（`artifacts/t164/source-alias-regressions.log`、`artifacts/t167/test-run-1792144338816-44244/report.json`）。包括真实 chat annotationBatch 的旧站正例、包装费每单3元反例、空资料提示及三档“原始资料”出处。`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 于 09:54:08Z 4/4（`source-alias-runner.log`），`npm run typecheck` 于 09:54:29Z 通过（`source-alias-typecheck.log`）。
+
+本提交全量：预先向主控报告后，uptime 1 分钟负载 3.27、df 可用 7.7GiB、ps 无其他 chrome-headless-shell／node --test／next build，才串行运行本轮唯一一次 `CHROME_PATH=上述路径 npm test`。2026-10-16T09:58:29.747Z **637/637，0 失败、0 取消、0 跳过**，214639.803ms，日志 `artifacts/t164/source-alias-full.log`、报告及临时根身份 `artifacts/t167/test-run-1792144493997-45816/report.json`。期间只见本轮标准入口父子测试进程；没有放宽预算、并发、等待时限或省略状态/元素/视口。全量退出后待负载回落至 3.98、df 可用 7.6GiB、ps 无重任务，再串行执行 `SITE_STORE=fs npm run build`，于 10:00:40Z 通过（`artifacts/t164/source-alias-build.log`）。
+
+主控补测（对应父版本 `8fcd625`，与本提交全量分别记录）：2026-10-16 05:39–05:43 EDT（09:39–09:43Z）串行标准全量 **637/637、0 失败、0 取消、0 跳过**，负载约 4。已核对 `artifacts/t164/supervisor-full-8fcd625.log` 与 `artifacts/t167/test-run-1792143588171-31081/report.json`（结束 09:43:28.044Z）。前两轮失败发生在负载约 29、可用内存约 126M，失败日志仍完整保留，不以补测覆盖，也不把主控对父版本的通过作为本提交证据。下列为 `8fcd625` 当轮记录；其中允许从已有来源链补登记/补回原文的行为已由本次修复取代，来源边界以本段及当前 spec.md 为准。
+
 2026-10-16 合同 D 的 A 方案已实现，本轮状态 **INCOMPLETE**（本提交，父版本 `2007923`）：提交入口在站点锁内按需把已有 `site.materials` 逐字登记为“原始资料”，使用所有已登记非上传来源的下一可用序号。已有有效来源包含这份原文时不重复登记；有效快照只有后续消息而缺原始资料时仍补入本次核对。新版只经原句验真后保存出处及来源快照；旧版本、旧检查和旧快照均不回写。原始资料与批注沿用同一序号分配，夹具中首次两条批注为 1、2，首次提交登记原始资料为 3，下一批为 4、5；不重编号既有消息。缺失原句和空资料仍拒收，未加入旧事实免核路径，上传源被替换后的旧出处也不能复活。AGENTS.md 只同步这条业务规则，测试细节在本票与 spec.md。
 
 本轮 Tracer bullet 为旧站 annotationBatch → 本地模型替身 → 原句核对 → 新版出处 → 三档工作台显示。`tests/t164-original-materials.test.ts` 用两页、无来源登记及版本来源快照、有逐字 materials 的旧站夹具复现 `32e0ab93` 的数据形态；初版代码经 legacyImport 提交入口保存，不旁路写代码。批次调用生产 chat POST，沿用 T-162 随机端口服务与本地模型替身、受控 after 调度，不称为真实 Next after 集成。正例断言重做事实核对、只增一个完整版本、原文及旧版不变、不重复登记、出处为“原始资料”；反例在资料另有米饭 3 元的情况下仍拒绝无原句支持的包装费“每单3元”，确保不是只靠新增数字门禁；空资料旧站仍不登记原文且显示缺来源提示。补充只读边界断言已有后续消息的历史快照不阻止原始资料进入本次核对。
