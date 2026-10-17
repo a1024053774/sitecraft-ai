@@ -19,6 +19,12 @@ T-173 第二组（首页用餐场景 + 菜单页午市组合，跨页多区块�
 - 余额 19,367 属负责人已批的 T-173 第二组 2.5 万额度，修好并经新的 sol 实例复审通过后可沿用：在导入主目录的「（批注验收）」站的 v2 副本上只跑一次第二组，截断、超额或拒收即停；存版后交新实例盲评。
 - 同一时间最多一个重任务。
 
+### 追加决定（2026-10-17）
+
+- 预算网关是验收工具，按不静默降级原则：局部写作和修正轮（submit_local_edit）在发请求前，如果累计授权不能完整预留请求自带的 12,288 输出，就明确拒绝（不出网、网关停止并记录原因），不再自动调小 max_tokens。其他调用（事实核对、翻译、大纲、整站写作等）保持 T-165 现有行为。
+- 负责人已批追加：第二组新账本 SITECRAFT_TOKEN_LIMIT=30000（原余额 19,367 加追加约 1.1 万），仍只跑一次第二组，截断、拒收或预留失败即停。
+- 网关改动交新的 sol 实例快速复审，通过后才运行。
+
 ## What to build
 
 1. 坏例先行：覆盖这次失败形态（回答 1284 字符、finish_reason=stop、不是合法 JSON）。原文未保留，按「合法 stop 但 JSON 不完整」构造本地模型替身；在当前主线上证明原始回答未保存（失败），修好后格式错误如实拒收且原始回答已保存。
@@ -63,3 +69,29 @@ AGENTS 与 spec 同步严格提交、格式错误终止与响应留存规则，�
 实现及测试冻结到本地提交 `d459ae342f539d1553b3553789f96ab15985a149`。05:53:40Z 全量前 `memory_pressure` 空闲 58%，`ps -axo pid,ppid,command` 无其他 Chrome 无头测试、node --test 或 Next build；原始输出为 `artifacts/t174/pre-full-memory.txt`、`pre-full-processes.txt`。在该冻结提交上只串行运行一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`，2026-10-17T05:58:05.441Z 完成：751/751，失败／取消／跳过为零，耗时 226576ms。日志 `artifacts/t174/full.log`，报告 `artifacts/t167/test-run-1792216457382-80038/report.json`；临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-k5XelS` 保留。没有重跑全量、放宽断言、延长预算或更换入口。05:58:40Z 结束进程检查无残留本轮测试 Chrome、node --test、dev server 或 Next build（`post-processes.txt`）。
 
 本轮离线修复及规定本地验证 **PASS**；整票验收仍 **INCOMPLETE**，独立 sol 复审、真实第二组存版、三档真实出处显示及独立盲评由主控安排，不以替身或自查代替。真实 DeepSeek strict schema 兼容性及生成效果本轮未实测。未调用 DeepSeek、未读取 `.env.local`、未使用 rm、未推送、未写主目录 `.sitecraft-data`；`tsconfig.json` 的 Next 自动修改保留未提交。最后只补本 Resolution 并 amend 同一个功能提交，运行实现与测试仍等于上述冻结提交；project-map 检查无问题及过时 living doc，票继续由 Codex 领取等待交接。
+
+### 预算网关拒绝局部降额（2026-10-17，Codex）
+
+本轮基于 `310d1759e9d3d25afaa24a2db7b846366bfaf74a` 新增一个本地提交，不 amend 上一轮。对应提交为其直接子提交「fix: 局部严格函数请求禁止预算降额」，最终 SHA 见 `artifacts/t174/budget-commit.json` 及交付回报；修后验证对应本轮提交的实现与测试，全量开始后只补本 Resolution。追加决定原样写入上方小节，claimed_by 保持 Codex；真实 30000 授权只记录，未启用真实运行账本或调用真实模型。
+
+已读局部写作调用及单区块／多区块修正循环：各轮都经 writeLocalEdit 调用 submit_local_edit，没有另一种修正函数。reserveRequest 只在请求 tools 含该函数时要求累计余额扣除原输入预留后仍能保留完整 body.max_tokens；不足即抛出明确的中文拒因，由原网关 catch 写入 stopReason、stopped=true，拒绝后续请求，且不调用上游。足够时沿用请求原上限 12288；原输入估算、其他用途的 Math.min 降额、最低输出门槛、已付用量记账与停止路径均保留。T153_BUDGET_DIR 只给既有列表新增 t174，不加开关或兼容路径。Deep modules 沿用既有 reserveRequest 与停止边界；Ubiquitous language 继续使用「局部写作」「修正轮」「完整预留」。
+
+#### 红绿证据
+
+在生产实现尚为 `310d175` 时运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t165-token-reserve.test.ts tests/t153-budget.test.ts`，2026-10-17T09:22:38.679Z：21 项中 17 通过、4 失败。日志 `artifacts/t174/budget-310d175-red.log`，报告 `artifacts/t167/test-run-1792228955300-17414/report.json`，临时根 `sitecraft-test-Iy994l` 保留。首轮 12000 余额仍出网、max_tokens 被降到 11393；修正轮被降到 11371；先实付 18000 后，下一局部请求仍被降到 11371 并出网，账本错误继续运行。第四项为 t174 目录仍不被准入。余额充足及事实／翻译对照在父版本通过，这是有意保留的正例，未把它们伪写成缺陷。
+
+三项预留反例沿用原已准入的 artifacts/t160/t165-budget-*/ 目录，避免目录拒绝掩盖出网行为；目录准入由单独的 t174 网关启动用例检查。各新用例在日志写明账本目录，usage.json 与 observations.json 保留实际请求及转发的 max_tokens，不含凭据或请求头。父版本三项错误发出的请求分别保存在目录后缀 `8b8b95db-f732-4324-bc1d-1f60f71f40be`、`a1934caf-a967-4d9e-9d5f-8d40fdcba256`、`ddc30b28-b6d9-4c84-8ffb-ffecfaa3212a`。期望为决定规定的零次出网、12288 原值、账本停止及非局部仍可降额，没有按 reserveRequest 的输出计算答案。
+
+修后相同命令于 09:23:05.179Z 21/21 通过（`artifacts/t174/budget-green.log`，报告 `artifacts/t167/test-run-1792228982937-17546/report.json`，临时根 `sitecraft-test-XQUCEx` 保留）。首轮／修正轮不足时 502、上游零请求、stopReason 有明确原因、stopped=true，后续请求 409；充足时上游恰收 12288；累计已用量仍保留，拒绝下一局部调用；事实核对及 submit_english_translation 余额略紧时仍降额发送，资料里的 submit_local_edit 字样不触发局部门禁。Tracer bullet 经真实预算网关子进程、HTTP 请求、本地上游替身及磁盘账本完成；替身通过既有 t165-upstream.mjs 拦截传输，不能访问真实 DeepSeek。
+
+#### 本轮规定验证
+
+`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t165-*.test.ts tests/t153-*.test.ts tests/t174-local-function.test.ts` 于 09:24:19.438Z 73/73 通过，失败／取消／跳过为零。日志 `artifacts/t174/budget-focused.log`，报告 `artifacts/t167/test-run-1792229023329-17806/report.json` 保存六个展开文件与工作树／数据根身份，临时根 `sitecraft-test-qeD0Hg` 保留。
+
+随后串行运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，09:24:28.675Z 4/4（`budget-runner.log`）；`npm run typecheck`，09:24:36.544Z 通过（`budget-typecheck.log`）；确认工作树不存在 `.env.local` 后只运行一次 `SITE_STORE=fs npm run build`，09:24:54.395Z 通过（`budget-build.log`）。上述时间均为 UTC，日志位于 artifacts/t174/；AGENTS 只在 T-165 条目补一条规则，spec 第 6 节同步当前预算合同，两者保持 UTF-8。
+
+09:25:40Z 全量前运行 memory_pressure，空闲 51%；ps 检查无其他 Chrome 无头测试、node --test 或 Next build，原始输出为 `artifacts/t174/budget-pre-full-memory.txt`、`budget-pre-full-processes.txt`。随后只串行运行一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`，2026-10-17T09:30:04.697Z 完成：759/759，失败／取消／跳过为零，耗时 251941ms。日志 `artifacts/t174/budget-full.log`，报告 `artifacts/t167/test-run-1792229150412-19460/report.json`，临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-ExTPNe` 保留。没有重跑全量、放宽断言、扩大预算或更换入口。09:30:12Z 的 `budget-post-processes.txt` 未见本轮遗留测试／网关／dev server；主工作区普通服务未动。
+
+build 和全量均在负责人补充 T-176 重任务协调规则前启动；规则到达时全量尚在运行，结束后已立即回报释放，此后未启动新重任务。后续全量或 build 必须先报 READY_FOR_HEAVY 和命令，并收到「可以跑」才启动。
+
+本轮预算修复与规定离线验证 **PASS**，整票仍 **INCOMPLETE**：新 sol 实例快速复审、真实第二组运行及盲评由主控安排，未经复审不运行。真实 DeepSeek 本轮未实测；未调用真实模型、未读取 `.env.local`、未使用 rm、未写主目录 `.sitecraft-data`、未推送。`tsconfig.json` 自动脏改原样留在工作树，不进提交；仅显式添加本轮六个文件，新建一个提交，不 amend。票保持 open，claimed_by 仍为 Codex。

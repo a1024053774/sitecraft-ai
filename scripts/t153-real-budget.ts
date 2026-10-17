@@ -23,6 +23,10 @@ export function reserveRequest(body: Record<string, any>, spent: number, approve
     inputEstimate += character.codePointAt(0)! <= 0x7f ? 1 : singleTokenHan.has(character) ? 1.5 : 4;
   }
   const inputUpper = Math.ceil(inputEstimate) + 128;
+  if (Array.isArray(body.tools) && body.tools.some(tool => tool?.type === 'function' && tool.function?.name === 'submit_local_edit')) {
+    assert.ok(approvedTokenLimit - spent - inputUpper >= body.max_tokens,
+      `submit_local_edit 剩余授权无法完整预留请求输出 ${body.max_tokens} token，拒绝降额。`);
+  }
   const outputLimit = Math.min(body.max_tokens, approvedTokenLimit - spent - inputUpper);
   assert.ok(outputLimit >= 4096, 'Remaining authorization cannot reserve this request and a usable output allowance');
   return { inputUpper, outputLimit, reserved: inputUpper + outputLimit };
@@ -34,7 +38,7 @@ async function serve() {
   const approvedTokenLimit = Number(process.env.SITECRAFT_TOKEN_LIMIT);
   assert.ok(Number.isSafeInteger(approvedTokenLimit) && approvedTokenLimit > 0, 'SITECRAFT_TOKEN_LIMIT must be the explicit approved token authorization');
   const folder = process.env.T153_BUDGET_DIR;
-  assert.ok(folder && ['t153', 't158', 't159', 't160', 't162', 't164', 't169'].some(ticket => path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts', ticket) + path.sep)));
+  assert.ok(folder && ['t153', 't158', 't159', 't160', 't162', 't164', 't169', 't174'].some(ticket => path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts', ticket) + path.sep)));
   const provider = providerConfig();
   assert.ok(provider.apiKey); assert.equal(provider.model, 'deepseek-flash');
   assert.equal(new URL(provider.baseURL).origin, 'https://api.deepseek.com');
