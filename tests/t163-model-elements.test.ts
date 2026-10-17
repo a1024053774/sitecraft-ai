@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createServer } from 'node:http';
+import { localEditChoice } from './fixtures/local-edit-choice.ts';
 const calls: any[] = [];
 const provider = createServer(async(req,res)=>{
   let raw='';for await(const chunk of req)raw+=chunk;
   calls.push(JSON.parse(raw));res.setHeader('content-type','application/json');
-  res.end(JSON.stringify({choices:[{finish_reason:'stop',message:{content:'{"html":"<article><h3>纸袋</h3><p>相同说明</p></article>","css":""}'}}]}));
+  res.end(JSON.stringify({choices:[localEditChoice({html:'<article><h3>纸袋</h3><p>相同说明</p></article>',css:''})]}));
 });
 await new Promise<void>(r=>provider.listen(0,'127.0.0.1',r));
 const address=provider.address();assert.ok(address&&typeof address==='object');

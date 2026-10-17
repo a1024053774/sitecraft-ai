@@ -122,22 +122,17 @@ async function executeLocalEdit(site: CodeSiteRecord, run: CodeRun) {
     await runStep(site.siteId, run.id, { step: round ? `修正选中区块（${round}/2）` : `修改「${target.label}」`, repairRound: round });
     const result = await writeLocalEdit({ materials, preferences: site.preferences, plan: site.plan!, request: run.request,
       current: source.code, target, issues });
-    // Preserve the reply before parsing or invoking the fact provider. A later
-    // provider failure must not discard the unsaved candidate that caused it.
+    // Preserve the validated candidate before scope checks or fact review. A
+    // later provider failure must not discard the unsaved candidate.
     await runStep(site.siteId, run.id, { localResponses: [...((await getCodeSite(site.siteId))!.run!.localResponses ?? []), { response: result.response, issues: [] }] });
-    const unavailable = z.object({ cannotEdit: z.string().min(1).max(500) }).strict().safeParse(result.response);
-    if (unavailable.success) throw new Error(`${unavailable.data.cannotEdit}；未保存版本。可取消点选后选择「改整页」。`);
-    const parsed = z.object({ html: z.string().min(1).max(100000), css: z.string().max(30000) }).strict().safeParse(result.response);
+    if ('cannotEdit' in result.response) throw new Error(`${result.response.cannotEdit}；未保存版本。可取消点选后选择「改整页」。`);
     issues = [];
     let code;
-    if (!parsed.success) issues = ['局部修改必须返回一个区块的 html 和 css，不能返回整页或整站。'];
-    else {
-      // Only boundary errors are correction feedback; infrastructure/provider
-      // failures stop the task instead of being retried as model mistakes.
-      if (/<\/?(?:html|body|head|main)\b/i.test(parsed.data.html)) issues = ['局部修改必须返回一个区块，不能返回整页。'];
-      else try { code = await applyLocalEdit(source.code, target, parsed.data.html, parsed.data.css); }
-      catch (error) { if (!(error instanceof CodeRepairError)) throw error; issues = [error.message]; }
-    }
+    // Format errors terminate in writeLocalEdit; only boundary/content errors
+    // enter correction rounds.
+    if (/<\/?(?:html|body|head|main)\b/i.test(result.response.html)) issues = ['局部修改必须返回一个区块，不能返回整页。'];
+    else try { code = await applyLocalEdit(source.code, target, result.response.html, result.response.css); }
+    catch (error) { if (!(error instanceof CodeRepairError)) throw error; issues = [error.message]; }
     if (code) {
       await runStep(site.siteId, run.id, { step: '检查修改范围、区块事实与三档布局' });
       const committed = await commitSiteCode({ siteId: site.siteId, baseRevision: run.baseRevision, code, selectedTarget: target,
@@ -187,19 +182,15 @@ async function executeLocalEditBatch(site: CodeSiteRecord, run: CodeRun) {
     const current = (await getCodeSite(site.siteId))!.run!;
     const responses = [...(current.localResponses ?? []), ...results.map(result => ({ response: result.response, issues: [] as string[] }))];
     await runStep(site.siteId, run.id, { localResponses: responses });
-    const parsed = z.object({ html: z.string().min(1).max(100000), css: z.string().max(30000) }).strict();
     const candidates: Array<{ html: string; css: string }> = [];
     const cannotEdit = new Map<number, string>();
     groupIssues = results.map(result => {
-      const unavailable = z.object({ cannotEdit: z.string().min(1).max(500) }).strict().safeParse(result.response);
-      if (unavailable.success) {
-        cannotEdit.set(results.indexOf(result), unavailable.data.cannotEdit);
-        return [unavailable.data.cannotEdit];
+      if ('cannotEdit' in result.response) {
+        cannotEdit.set(results.indexOf(result), result.response.cannotEdit);
+        return [result.response.cannotEdit];
       }
-      const value = parsed.safeParse(result.response);
-      if (!value.success) return ['局部修改必须返回一个区块的 html 和 css，不能返回整页或整站。'];
-      if (/<\/?(?:html|body|head|main)\b/i.test(value.data.html)) return ['局部修改必须返回一个区块，不能返回整页。'];
-      candidates.push(value.data); return [];
+      if (/<\/?(?:html|body|head|main)\b/i.test(result.response.html)) return ['局部修改必须返回一个区块，不能返回整页。'];
+      candidates.push(result.response); return [];
     });
     if (cannotEdit.size) {
       const next = (await getCodeSite(site.siteId))!.run!.localResponses ?? [];

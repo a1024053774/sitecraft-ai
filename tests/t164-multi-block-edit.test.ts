@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import test from 'node:test';
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { localEditChoice } from './fixtures/local-edit-choice.ts';
 
 // T-164 failure modes (independent expected behavior):
 // - two comments on one block stay one ordered model group;
@@ -20,7 +21,7 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw); calls.push(body);
   res.setHeader('content-type', 'application/json');
   const fact = body.messages?.[0]?.content?.includes('事实校对员');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, fact ? { issues: [] } : { html: '<section><h1>改后</h1></section>', css: '' })) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
+  res.end(JSON.stringify({ choices: [fact ? { finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, { issues: [] })) } } : localEditChoice({ html: '<section><h1>改后</h1></section>', css: '' })], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

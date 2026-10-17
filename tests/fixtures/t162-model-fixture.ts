@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { writeFile } from 'node:fs/promises';
 import { factAuditReply } from './fact-audit-reply.ts';
+import { localEditChoice } from './local-edit-choice.ts';
 
 // The browser tests and the explicit Next-server integration CLI use the same
 // provider contract. It accepts local edits/facts and never writes site data.
@@ -19,11 +20,11 @@ export function createT162ModelFixture(directory: string, beforeLocalReply?: () 
     const answer = local ? { html: input.html, css: input.request.includes('范围外规则') ? `.${input.scope}:has(a){color:red}` : input.request.includes('合法空 CSS') ? '' : input.request.includes('越界') ? '.spacer{padding:60px}' : `.${input.scope} h3{letter-spacing:.06em}` } : { issues: [] };
     if (local && input.request.includes('不能修改')) {
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ cannotEdit: '第一组明确拒绝' }) } }], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
+      res.end(JSON.stringify({ choices: [localEditChoice({ cannotEdit: '第一组明确拒绝' })], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
       return;
     }
     if (local) await beforeLocalReply?.();
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, answer)) } }], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
+    res.end(JSON.stringify({ choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, answer)) } }], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
   });
 }

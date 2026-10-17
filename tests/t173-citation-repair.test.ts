@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import type { SiteCode } from '../lib/code-site.ts';
+import { localEditChoice } from './fixtures/local-edit-choice.ts';
 
 // Oracle: T-173 permits the same original sentence in separate segments;
 // missing/nonliteral quotes get the existing two correction rounds. Protocol
@@ -62,7 +63,7 @@ const provider = createServer(async (req, res) => {
     }) };
   }
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
+  res.end(JSON.stringify({ choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

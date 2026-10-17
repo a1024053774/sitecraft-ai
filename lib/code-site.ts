@@ -66,7 +66,7 @@ export type CodeModelCall = {
   translationInput?: { pageId: string | null; slotCount: number; sourceChars: number; maxTokens: number;
     slotMap?: Array<{ id: string; domId: string }>; correctionRound?: number };
   response?: { finishReason: string | null; answerChars: number | null; reasoningTokens: number | null;
-    // Translation replies only; absent on older runs that did not capture the body.
+    // Strict function replies only; older runs may not have retained the body.
     rawMessage?: { content: unknown; tool_calls: unknown };
     translationCoverage?: { missingIds: string[]; unknownIds: string[]; duplicateIds: string[] } };
 };
