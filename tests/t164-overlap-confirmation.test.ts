@@ -49,7 +49,7 @@ for (const width of [1440, 768, 375]) {
         assert.equal(current.versions.length, before.versions.length, '重复普通发送不能保存版本');
         assert.equal(current.runs.length, before.runs.length, '未确认不得创建任务');
         assert.equal((await localCalls()).length, callsBefore, '未确认不得调用局部模型');
-        await s.wait(`document.querySelector('[data-testid="annotation-confirm-overlap"]') && !document.querySelector('[data-testid="annotation-send-batch"]').disabled`);
+        await s.wait(`document.querySelector('[data-testid="annotation-confirm-overlap"]') && document.querySelector('[data-testid="annotation-send-batch"]') && !document.querySelector('[data-testid="annotation-send-batch"]').disabled`);
         assert.deepEqual((await drafts(s)).map(draft => ({ id: draft.id, body: draft.body, status: draft.status })), pending.map(draft => ({ id: draft.id, body: draft.body, status: 'draft' })), '两条意见须保持待发送');
       }
       await s.wait(`!document.querySelector('.code-preview-loading')`); await s.shot('overlap-still-pending');

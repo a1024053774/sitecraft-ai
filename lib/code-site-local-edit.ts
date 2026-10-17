@@ -61,6 +61,8 @@ export function attributeLocalIssues(issues: string[], groups: LocalEditGroup[],
     return candidate.css.includes(scope) && !source.css.includes(scope);
   }) : [];
   for (const issue of issues) {
+    const factOwner = groups.findIndex(group => issue.startsWith(`${group.target.pageId}/${JSON.stringify(group.target.path)} `));
+    if (factOwner >= 0) { groupIssues[factOwner].push(issue); continue; }
     const pageGroups = groups.filter(group => issue.startsWith(`${group.target.pageId}/`) || issue.includes(`：${group.target.pageId} `));
     const dynamicOrCss = /CSS|动态伪类|焦点|交互|范围外元素的 CSS/.test(issue);
     const owner = dynamicOrCss && changedCssGroups.length === 1 ? groups.indexOf(changedCssGroups[0])
@@ -206,7 +208,7 @@ type ProbeState = { trigger: number[] | null; state: string; entries: ProbeEntry
 // Runs inside the browser. Inspect parsed selector tokens, including nested
 // conditional rules even when inactive. Strings and attribute values are not
 // pseudo classes; CSS escapes in pseudo names still denote the same state.
-export function authorStylesHaveDynamicStates() {
+export function authorStylesHaveDynamicStates(rules?: Iterable<CSSRule>) {
   const dynamic = new Set(['hover', 'focus', 'focus-visible', 'focus-within', 'active']);
   const hasState = (selector: string) => {
     let quote = '', brackets = 0;
@@ -231,10 +233,10 @@ export function authorStylesHaveDynamicStates() {
     }
     return false;
   };
-  const inspect = (rules: CSSRuleList): boolean => [...rules].some(rule =>
+  const inspect = (rules: Iterable<CSSRule>): boolean => [...rules].some(rule =>
     ('selectorText' in rule && hasState(String(rule.selectorText))) ||
     ('cssRules' in rule && inspect((rule as CSSGroupingRule).cssRules)));
-  return [...document.styleSheets].some(sheet => inspect(sheet.cssRules));
+  return rules ? inspect(rules) : [...document.styleSheets].some(sheet => inspect(sheet.cssRules));
 }
 export type DynamicStateProbe = {
   states: ProbeState[];

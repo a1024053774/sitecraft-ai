@@ -60,8 +60,7 @@ test('编造、跨字段拼接、网页字段和近似引文返回拒因，不�
 
 test('声明必须来自本段，类别必须是高风险类别，遗漏数组不能冒充已记录', async () => {
   citations = [{ category: '客户与合作方', claim: '纸袋', quote: '已服务30家客户。' }];
-  const result: any = await (auditCodeFacts as any)(materials, [segment], false, undefined, sources);
-  assert.match(result[0].issues.join('\n'), /声明/);
+  await assert.rejects((auditCodeFacts as any)(materials, [segment], false, undefined, sources), /声明不在本核对段/);
   citations = [{ category: '普通介绍', claim: '已服务30家客户。', quote: '已服务30家客户。' }];
   await assert.rejects((auditCodeFacts as any)(materials, [segment], false, undefined, sources), /核对段/);
   omitCitations = true;
@@ -98,6 +97,7 @@ test('资料出处验真排除页面要求，但事实核对输入仍保留完�
 });
 
 test('模型把无资料的长期合作客户句标为无企业事实时，issues 仍拒绝', async () => {
+  citations = [];
   noFactModelIssues = ['页面原句：长期合作客户：甲方公司。；资料未提供该客户关系。'];
   try {
     const result: any = await (auditCodeFacts as any)(materials, [{ ...segment, text: '页面 home\n长期合作客户：甲方公司。' }], false, undefined, sources);
@@ -149,9 +149,7 @@ test('真实小跑的表格单行声明跨单元格仍属于本段，绑定最�
   }
   const text = '<TABLE><TR><TD>已服务</TD></TR><TR><TD>30家客户</TD></TR></TABLE>';
   citations = [{ category: '客户与合作方', claim: '已服务 30家客户', quote: '已服务30家客户。' }];
-  const result = await auditCodeFacts('已服务30家客户。', [{ ...segment, text }], false, undefined, [{ type: 'message', messageIndex: 1, text: '已服务30家客户。' }]);
-  assert.match(result[0].issues.join('\n'), /声明不在本核对段/);
-  assert.deepEqual(result[0].citations, []);
+  await assert.rejects(auditCodeFacts('已服务30家客户。', [{ ...segment, text }], false, undefined, [{ type: 'message', messageIndex: 1, text: '已服务30家客户。' }]), /声明不在本核对段/);
   citations = [{ category: '客户与合作方', claim: '已服务30家客户。', quote: '<TD>已服务30家客户。</TD>' }];
   const invalidQuote = await auditCodeFacts('已服务30家客户。', [segment], false, undefined, [{ type: 'message', messageIndex: 1, text: '已服务30家客户。' }]);
   assert.match(invalidQuote[0].issues.join('\n'), /资料出处无依据/);

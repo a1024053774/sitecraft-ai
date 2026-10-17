@@ -1,4 +1,4 @@
-import { readCodeFactSegments, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource } from './code-site-fact-segments.ts';
+import { readCodeFactSegments, readCodeFactCssEffects, sameCodeFactCssDeclaration, sameCodeFactMemberLocation, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource, type CodeFactCssMember } from './code-site-fact-segments.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
@@ -595,7 +595,9 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             for (const segment of segments) {
               const key = JSON.stringify([segment.group, segment.text]), previous = factSegments.get(key);
               factSegments.set(key, { ...segment, targets: [...(previous?.targets ?? []), ...(segment.targets ?? [])]
-                .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.readable === target.readable) === index) });
+                .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.readable === target.readable) === index),
+                members: [...(previous?.members ?? []), ...(segment.members ?? [])].filter((member, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(member)) === index),
+                owners: [...(previous?.owners ?? []), ...(segment.owners ?? [])].filter((owner, index, all) => all.findIndex(other => other.pageId === owner.pageId && JSON.stringify(other.path) === JSON.stringify(owner.path)) === index) });
             }
           }
         }
@@ -643,12 +645,42 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const segments = [...factSegments.values()];
         const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials);
         const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials) : [];
+        const repairMembers = reviewed.flatMap(review => review.factRepair?.members ?? []);
+        if (!args.localEdit) {
+          const passed = [...reviewed.filter(review => !review.issues.length), ...reused];
+          const protectedMembers = passed.flatMap(review => segments.find(segment => segment.text === review.text && segment.group === review.group)?.members ?? []);
+          if (repairMembers.some(member => !member.context && protectedMembers.some(protectedMember => sameCodeFactMemberLocation(member, protectedMember))))
+            throw new Error('事实修正公共成员仍被已通过核对段使用，无法确认全部受影响归属，本次未保存版本。');
+        }
+        const cssMembers = repairMembers.filter((member): member is CodeFactCssMember => member.kind === 'css' && !member.context);
+        // Whole-site fragment repairs can edit shared declarations. Author-code
+        // snapshots alone do not constrain their effects on accepted segments.
+        // An unlocatable member already prevents every fragment repair. Keep
+        // that specific refusal instead of probing other, unusable fragments.
+        if (!args.localEdit && cssMembers.length && !repairMembers.some(member => member.kind === 'unsupported' && !member.context)) {
+          const declarations = cssMembers.filter((member, i) => cssMembers.findIndex(other => sameCodeFactCssDeclaration(member, other)) === i);
+          const observed = new Set<CodeFactCssMember>();
+          for (const page of clean.code.pages) for (const width of [375, 768, 1440]) {
+            await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+            await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
+            await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
+            const effects = await browser.evaluate<ReturnType<typeof readCodeFactCssEffects>>(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactCssEffects.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(declarations)},(${authorStylesHaveDynamicStates.toString()}));})()`);
+            for (const effect of effects) {
+              const declaration = declarations.find(member => sameCodeFactCssDeclaration(member, effect.declaration))!;
+              if (effect.positions.length) observed.add(declaration);
+              const allowed = cssMembers.filter(member => sameCodeFactCssDeclaration(member, declaration)).map(member => member.position);
+              const outside = effect.positions.find(position => !allowed.some(member => member.pageId === position.pageId && member.width === position.width && member.pseudo === position.pseudo && member.path.length === position.path.length && member.path.every((value, i) => value === position.path[i])));
+              if (outside) throw new Error(`CSS 声明修正会影响被拒核对段允许成员并集之外：${outside.pageId}/${outside.width} 路径 [${outside.path.join(',')}]${outside.pseudo}，本次未保存版本。`);
+            }
+          }
+          if (observed.size !== declarations.length) throw new Error('CSS 文案修正无法核实实际影响位置，本次未保存版本。');
+        }
         const receipts = [...reviewed, ...reused.map(segment => ({ text: segment.text, group: segment.group, issues: [], noFacts: segment.noFacts, factCategories: segment.factCategories, citations: segment.citations }))]
           .map(review => ({ ...review, citations: bindCodeFactCitations(segments.find(segment => segment.text === review.text && segment.group === review.group)!, review.citations!) }));
         if (!args.localEdit) checks.factSegments = { format: 4, materials: args.materials, sourceMaterials: args.factSourceMaterials ?? [], audited: pending.length, reused: reused.length, segments: receipts };
         const outside = (args.localEdit?.citations?.entries ?? []).map(citation => ({ ...citation, targets: citation.targets?.filter(target => !localTargets.some(scope => target.pageId === scope.pageId && target.root === 'main' && scope.path.every((index, i) => target.path[i] === index))) })).filter(citation => citation.targets?.length);
         const citations: CodeFactCitation[] = [];
-        const citationKeys = new Set<string>();
+        const citationKeys = new Map<string, CodeFactCitation>();
         for (const citation of [...outside, ...receipts.flatMap(review => review.citations)]) {
           const quote = normalizeFactQuote(citation.quote);
           const source = findFactSource(args.factSourceMaterials, quote);
@@ -657,15 +689,18 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             continue;
           }
           const key = JSON.stringify([citation.category, normalizeFactQuote(citation.claim), quote]);
-          if (citationKeys.has(key)) {
-            checks.issues.push(`资料出处重复：${citation.claim}`);
-            continue;
+          // Segment-local duplicates are rejected by the audit. The same
+          // accepted fact can appear in several segments: retain every location.
+          const existing = citationKeys.get(key);
+          const targets = [...(existing?.targets ?? []), ...(citation.targets ?? [])]
+            .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index);
+          if (existing) existing.targets = targets;
+          else {
+            const entry = { ...citation, source: factSourceRef(source), targets };
+            citationKeys.set(key, entry); citations.push(entry);
           }
-          citationKeys.add(key);
-          citations.push({ ...citation, source: factSourceRef(source), targets: [...(citation.targets ?? [])]
-            .filter((target, index, all) => all.findIndex(other => other.pageId === target.pageId && other.root === target.root && JSON.stringify(other.path) === JSON.stringify(target.path) && other.text === target.text) === index) });
         }
-        checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处') || issue.includes('资料出处重复')), entries: citations };
+        checks.factCitations = { complete: (!args.localEdit || !!args.localEdit.citations?.complete) && !checks.issues.some(issue => issue.includes('范围外资料出处')), entries: citations };
         checks.issues.push(...receipts.flatMap(segment => segment.issues));
       }
     }
