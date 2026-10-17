@@ -207,3 +207,27 @@ build 完成后，10:27:08Z 再独立运行 memory_pressure 与 ps，空闲 51%�
 10:32:41Z 的 object-diagnostics/post-processes.txt 确认本轮无残留自动化 Chrome、node --test、Next build、测试 dev server 或探针网关，已回报主控释放重任务窗口，普通主工作区服务未动。project-map status 无问题、无过时 living doc；中文票文件 UTF-8 校验和 git diff --check 通过。此前最终 runner 4／4、typecheck 通过，本轮 build 和全量基于提交 fcfc634，后续没有源码／测试变化。
 
 本轮已授权的离线修复、两次受理探针与规定验证 **PASS**；整票验收仍 **INCOMPLETE**，票保持 open。新 sol 复审及第二组真实业务重跑仍由主控另行安排，未新增业务版本、未创建导入暂存副本或盲评包。最后只显式 add 本票并新建记录提交 `docs: 记录 T-174 探针与冻结验证结果`（SHA 见交付回报及 object-diagnostics/verification.json），不 amend fcfc634；附规定 coauthor。产物全部在 gitignore 的 artifacts/ 下，不提交；tsconfig.json 的 Next 自动改动保留未提交，不推送、不使用 rm、不写主目录 .sitecraft-data。
+
+### 独立 NO_GO 后的正文舍弃修复（2026-10-17，Codex）
+
+主控转达独立审查 `2e46021..6741980` 为 **NO_GO**，仅一项 P1：旧 lib/provider-http-error.ts 的逐字段脱敏漏掉属性名、重复属性中被覆盖的值，以及不完整 JSON 里的转义凭据，原文仍可能还原完整凭据并进入任务与账本。其余 schema、两种结果与 Zod 边界、共用路径、非 2xx 停止、编号头、探针和 778／778 全量证据均已获独立确认。该结论来自主控提供的独立审查，本节取代此前对错误正文脱敏已经完成的判断；此前不含凭据的真实探针证据保留，不重发探针。
+
+本轮基线 `674198034da1f0c78d3a05af23b2f16fcc1a0646`，claimed_by 继续为 Codex。按主控决定删除原逐字段 JSON.parse／JSON.stringify 清理，两个消费者仍共用 readProviderHttpError：先检查原文，再逐层解码整段文本中的 JSON 字符串转义并在每层检查本进程实际持有的凭据，不要求正文为合法 JSON。命中任一形式时整段正文不留存，只保存 bodyRedacted=true、bodyLength（收到原始字符串的 length）；无命中时原文、空白及转义原样保留，不按字段名猜测其他凭据。body 与舍弃标记／长度在类型中互斥。
+
+网关用上游凭据检查，舍弃时响应体为空，仅额外发送 x-sitecraft-redacted-body-length，让应用任务延续原始长度与舍弃标记；不转发原响应头集合。应用仍用自己持有的本地占位 token 独立检查收到的正文；已舍弃的正文不再交给错误原因 JSON 读取。原 HTTP 状态、实际编号头、非 2xx 停止与零重试保持。没有改模型 schema、预算预留、内容修正流程，也没有新增逐字段解析、开关、兼容路径或替代入口。Deep modules 保持一个错误读取边界供网关与模型入口使用；Ubiquitous language 沿用「局部写作」「修正轮」「正文舍弃」。
+
+#### 父版本红信号与相同入口转绿
+
+先只修改测试，在生产实现仍为 6741980 时执行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t174-local-function.test.ts`。2026-10-17T10:45:38.562Z：51 项中 47 通过、4 失败，退出码 1；日志 `artifacts/t174/redaction-6741980-red.log`，报告 `artifacts/t167/test-run-1792233843495-27926/report.json`，临时根 sitecraft-test-YRD91Z 保留。三条缺陷反例均经真实网关子进程、生产 chat、原任务执行和普通 dev 服务读回，任务及账本仍保存可解码出合成凭据的正文。第四项是应用占位 token 的新舍弃合同：旧版仅替换字符串，没有舍弃整段；不把这一项伪称为旧版仍泄漏该占位 token。无凭据正文对照在父版本已通过，其他 46 项原有回归通过；不是启动或身份核对失败。
+
+期望来自主控要求：三种凭据形态均只留下舍弃标记与原始长度，编号与状态如实保留；不含凭据的 400 正文及空白、转义保持原文。断言不导入生产脱敏函数或从实现输出生成答案。应用独立检查对照只含应用的占位 token，网关按自己持有的上游凭据保存原文，应用任务舍弃，证明没有依赖网关替应用猜测凭据；三条上游凭据反例则要求任务与账本都舍弃正文。所有请求使用合成凭据和只能访问本地替身的既有 preload，无真实密钥。
+
+实现修复后执行同一命令，10:53:32.893Z **51／51 通过**，失败／取消／跳过均为零，退出码 0；日志 redaction-green.log，报告 `artifacts/t167/test-run-1792234148555-34110/report.json`，临时根 sitecraft-test-792wFy 保留。三个上游反例在 modelCalls.httpError 与账本中分别只留原始长度 46／63／51，body 字段不存在，status=400 及实际编号保留；应用占位 token 对照在任务中只留长度 35。每项一条请求、一个模型调用、零修正、零候选尝试、没有新版本，网关停止；无凭据对照原样保存。Tracer bullet 的红绿落盘记录分别为 `artifacts/t174/local-function-1792233856120-28370/`、`local-function-1792234157249-34471/`，汇总 `artifacts/t174/redaction-evidence.json` 保留两轮诊断，不覆盖红日志。after 仍由测试调度，不称为真实 Next after 或真实上游验证。
+
+#### 相关检查与重任务交接
+
+`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t165-*.test.ts tests/t153-*.test.ts tests/t151-translation-protocol.test.ts tests/t135-plan-contract.test.ts` 于 10:54:20.796Z **66／66 通过**，失败／取消／跳过均为零，退出码 0。日志 redaction-focused.log，报告 `artifacts/t167/test-run-1792234441939-44854/report.json` 保存七个展开文件与工作树／临时根身份，临时根 sitecraft-test-gTdsk9 保留。此范围核对共用错误边界的网关及严格函数消费者，没有扩展模型 schema 的修改范围。
+
+随后串行运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，10:55:18.397Z **4／4**（redaction-runner.log）；`npm run typecheck`，10:55:38.734Z 通过（redaction-typecheck.log），均退出码 0，时间均为 UTC，日志位于 artifacts/t174/。本轮未生成 UI 截图，未调用真实模型、未读 .env.local、未使用 rm、未写主目录 .sitecraft-data。AGENTS 只写当前规则及拦截此重复失败类别的测试指针；spec 同步正文二选一和仅传原长度的错误留存合同，mainline／CONTEXT 窄改相关说明，保持 UTF-8。
+
+本轮离线定向、runner 与 typecheck **PASS**；整体状态 **INCOMPLETE**。按主控的 T-176／主线合并验证协调，未启动全量或 build，先回报 READY_FOR_HEAVY 与拟执行的全量命令，等待明确放行；不能沿用上一提交的 778／778 代替本次全量，也不把独立 NO_GO 改写为审查通过。票保持 open，后续独立复审与第二组授权仍由主控安排。实现与测试冻结后，新建 `fix: 含凭据的 HTTP 错误正文整段舍弃` 提交，不 amend 6741980；提交 SHA 记录于交付回报及 artifacts/t174/redaction-commit.json。仅 add 本轮显式路径，artifacts/ 与 tsconfig.json 的 Next 自动改动不提交，不推送。

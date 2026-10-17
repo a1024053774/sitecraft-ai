@@ -94,6 +94,7 @@ async function serve() {
         ledger.stopped = true; await save();
         res.setHeader('content-type', response.headers.get('content-type') || 'text/plain; charset=utf-8');
         if (diagnostic.requestIdHeader) res.setHeader(diagnostic.requestIdHeader, diagnostic.requestId!);
+        if (diagnostic.bodyRedacted) res.setHeader('x-sitecraft-redacted-body-length', String(diagnostic.bodyLength));
         res.writeHead(response.status); res.end(diagnostic.body); return;
       }
       const payload = await response.json();

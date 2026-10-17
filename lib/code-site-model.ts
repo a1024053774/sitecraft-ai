@@ -94,7 +94,7 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
     if (!response.ok) {
       call.httpError = await readProviderHttpError(response, apiKey);
       let error;
-      try { error = JSON.parse(call.httpError.body); }
+      try { if (typeof call.httpError.body === 'string') error = JSON.parse(call.httpError.body); }
       catch (error) { if (!(error instanceof SyntaxError)) throw error; }
       const message = typeof error?.error?.message === 'string' ? error.error.message : '';
       // Keep the diagnostic on the failed run; never expose credentials or the request body.

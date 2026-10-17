@@ -33,7 +33,15 @@ const incomplete = '{"html":"' + '未闭合的区块内容'.repeat(200);
 const broken1284 = incomplete.slice(0, 1284);
 assert.equal(broken1284.length, 1284);
 const usage = { prompt_tokens: 3735, completion_tokens: 1898, total_tokens: 5633, completion_tokens_details: { reasoning_tokens: 1311 } };
-type Mode = 'valid' | 'repair' | 'stop-1284' | 'missing' | 'wrong-name' | 'multiple' | 'non-json' | 'fenced' | 'schema' | 'extra' | 'mixed' | 'empty' | 'html-limit' | 'css-limit' | 'reason-limit' | 'stop-function' | 'length' | 'cannot' | 'http-400' | 'http-400-fallback' | 'http-400-no-id' | 'http-text' | 'http-sensitive';
+// 独立合成输入：不能借完整 JSON 解析丢掉属性名、重复属性或截断的字符串。
+const credentialBodies = {
+  'http-key-name': String.raw`{"local\u002dintercept\u002donly":"属性名里的合成凭据"}`,
+  'http-duplicate': String.raw`{"message":"local\u002dintercept\u002donly","message":"后值覆盖前值"}`,
+  'http-truncated': String.raw`{"error":{"message":"local\u002dintercept\u002donly`,
+  'http-app-credential': String.raw`{"message":"仅应用持有 local\u002donly"}`,
+  'http-clean-control': '{\n  "error": {"message": "无凭据的中文错误，路径 a\\/b", "code": "invalid_request_error"}\n}\n',
+} as const;
+type Mode = 'valid' | 'repair' | 'stop-1284' | 'missing' | 'wrong-name' | 'multiple' | 'non-json' | 'fenced' | 'schema' | 'extra' | 'mixed' | 'empty' | 'html-limit' | 'css-limit' | 'reason-limit' | 'stop-function' | 'length' | 'cannot' | 'http-400' | 'http-400-fallback' | 'http-400-no-id' | 'http-text' | 'http-sensitive' | keyof typeof credentialBodies;
 const errorBody = '{\n  "error": {"message": "局部 schema 被拒绝", "code": "invalid_request_error"},\n  "request_id": "正文中的编号不能代替响应头"\n}\n';
 const textError = '<html>上游暂时拒绝局部请求</html>\n';
 let mode: Mode = 'valid', groupCount = 1, writes = 0;
@@ -50,7 +58,7 @@ const provider = createServer(async (req, res) => {
     res.setHeader('content-type', mode === 'http-text' ? 'text/html' : 'application/json');
     res.writeHead(mode === 'http-text' ? 503 : 400);
     // 转义后的凭据在 JSON.parse 后仍是密钥，不能只清理原文的连续子串。
-    res.end(mode === 'http-text' ? textError : mode === 'http-sensitive' ? JSON.stringify({ error: { message: '拒绝 local-intercept-only', authorization: 'Bearer local-intercept-only', api_key: 'local-only' } }).replaceAll('-', '\\u002d') : errorBody);
+    res.end(mode in credentialBodies ? credentialBodies[mode as keyof typeof credentialBodies] : mode === 'http-text' ? textError : mode === 'http-sensitive' ? JSON.stringify({ error: { message: '拒绝 local-intercept-only', authorization: 'Bearer local-intercept-only', api_key: 'local-only' } }).replaceAll('-', '\\u002d') : errorBody);
     return;
   }
   let finishReason = 'stop', message: any;
@@ -113,6 +121,41 @@ async function run(nextMode: Mode, batch: boolean, throughBudget = false) {
   assert.deepEqual(done.versions[0], before.versions[0], '旧版本原样保留');
   return { before, done, ledger };
   } finally { process.env.DEEPSEEK_BASE_URL = providerBase; await gateway?.close(); }
+}
+
+for (const bad of Object.keys(credentialBodies) as Array<keyof typeof credentialBodies>) {
+  test(`T-174 留存边界：${bad} 经网关一直走到任务落盘`, { timeout: 120000 }, async () => {
+    const { before, done, ledger } = await run(bad, false, true);
+    assert.equal(done.run.status, 'error');
+    assert.match(done.run.step, /HTTP 400/);
+    assert.equal(done.currentVersionId, before.currentVersionId);
+    assert.deepEqual(done.versions, before.versions);
+    assert.equal(done.run.repairRound, 0);
+    assert.equal(done.run.attempts.length, 0);
+    assert.equal(requests.length, 1, 'HTTP 错误不重试、不继续事实核对');
+    assert.equal(done.run.modelCalls.length, 1);
+    assert.equal(ledger.calls.length, 1);
+    assert.equal(ledger.stopped, true);
+    const taskError = done.run.modelCalls[0].httpError, gatewayError = ledger.calls[0].httpError;
+    for (const diagnostic of [taskError, gatewayError]) {
+      assert.equal(diagnostic.status, 400);
+      assert.equal(diagnostic.requestIdHeader, 'x-ds-trace-id');
+      assert.equal(diagnostic.requestId, 'fixture-request-174');
+    }
+    const discarded = { status: 400, bodyRedacted: true, bodyLength: credentialBodies[bad].length,
+      requestIdHeader: 'x-ds-trace-id', requestId: 'fixture-request-174' };
+    if (bad === 'http-clean-control') {
+      for (const diagnostic of [taskError, gatewayError]) assert.deepEqual(diagnostic,
+        { status: 400, body: credentialBodies[bad], requestIdHeader: 'x-ds-trace-id', requestId: 'fixture-request-174' }, '无凭据正文及其空白、转义原样保存');
+    } else {
+      assert.deepEqual(taskError, discarded, '任务只保存舍弃标记与原始长度，不能留下原文或转义凭据');
+      if (bad === 'http-app-credential') {
+        assert.equal(gatewayError.body, credentialBodies[bad], '网关按自己持有的凭据检查；应用独立识别自己的占位 token');
+      } else assert.deepEqual(gatewayError, discarded, '账本同样舍弃整段正文，不先解析属性再尝试改写');
+      assert.doesNotMatch(JSON.stringify(taskError), /local-only|local-intercept-only|\\u002d/);
+    }
+    assert.doesNotMatch(JSON.stringify(gatewayError), /local-intercept-only/);
+  });
 }
 function strictRequests() {
   const local = requests.filter(call => call.local);
@@ -213,13 +256,15 @@ for (const batch of [false, true]) {
     assert.ok(recorded.httpError, '网关账本必须保留上游 HTTP 错误诊断');
     assert.ok(call.httpError, '任务必须保留网关转发的 HTTP 错误诊断');
     assert.deepEqual(call.httpError, recorded.httpError, '应用必须收到网关转发的原响应编号和相同的脱敏正文');
-    assert.deepEqual(Object.keys(recorded.httpError).sort(), ['body', 'requestId', 'requestIdHeader', 'status']);
+    assert.deepEqual(Object.keys(recorded.httpError).sort(), bad === 'http-sensitive'
+      ? ['bodyLength', 'bodyRedacted', 'requestId', 'requestIdHeader', 'status'] : ['body', 'requestId', 'requestIdHeader', 'status']);
     assert.equal(recorded.httpError.status, call.httpStatus);
     assert.equal(recorded.httpError.requestId, requestId);
     assert.equal(recorded.httpError.requestIdHeader, requestIdHeader);
     if (bad === 'http-sensitive') {
-      assert.doesNotMatch(recorded.httpError.body, /local-intercept-only|local-only|Bearer|api_key|authorization/);
-      assert.match(recorded.httpError.body, /拒绝/);
+      assert.equal(recorded.httpError.body, undefined);
+      assert.equal(recorded.httpError.bodyRedacted, true);
+      assert.equal(recorded.httpError.bodyLength, JSON.stringify({ error: { message: '拒绝 local-intercept-only', authorization: 'Bearer local-intercept-only', api_key: 'local-only' } }).replaceAll('-', '\\u002d').length);
     } else assert.equal(recorded.httpError.body, bad === 'http-text' ? textError : errorBody);
     assert.doesNotMatch(JSON.stringify(recorded.httpError), /response-header-must-not-be-copied/);
   });
