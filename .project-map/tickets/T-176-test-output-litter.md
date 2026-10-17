@@ -56,3 +56,8 @@ supersedes:
 - 全量命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`。2026-10-17 10:39:33–10:45:01 UTC，733 项全部通过，0 失败、0 跳过，退出 0；入口原报告 `artifacts/t167/test-run-1792233573509-17716/report.json`，数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-4YDDZ7`。完整日志、报告副本、准入记录和结果在 `artifacts/t176/heavy-f657bd8/`。
 - 本轮产物核对：T-130 无新增 `privacy-*` / `api-fixture-*` / `cli-fixture-*`；保留目录集合严格符合最近五轮加窗口外失败证据，当前共 27 个目录（最近 5 轮及窗口外 22 份失败证据），没有为压低数量删除失败轮。人为失败目录 `/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-4YDDZ7/t176-MJnJgo/artifacts/t167/test-run-1792233844192-27943/` 报告 `testCode: 1` / `INCOMPLETE`，经过随后五轮成功运行仍保留，入口输出了保留路径；副本见本轮证据目录的 `injected-failure/`。`summary.json` 记录核对结果，工作树锁已释放。
 - 本轮按主控放行范围仅追加一轮全量，不追加 build；既有 build 通过记录保留在上文。主控确认的独立复审结果与本轮验证均 PASS，全部验收项已勾选。证据、红日志与原始失败目录保留；Next 自动改动的 `tsconfig.json` 不进入提交，未推送。
+
+### 关票（主控）
+
+2026-10-17 主控合并为 `8d625e8`（分支 t176-test-litter，含 0eb81d8、36972e4、91145db、f657bd8、5d84e86）。独立 sol 审查共三轮：第一轮 NO_GO（清理根、并发锁、保留窗口 3 项 P1）；第二轮 NO_GO（崩溃残留锁 1 项 P1）；第三轮对 f657bd8 PASS，其非阻断建议（EPERM、旧时间戳但持有者仍存活）已在 5d84e86 补成定向用例。主线串行验证（06:48–06:56 EDT）：`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 通过；`CHROME_PATH=… npm test` 733/733，失败／取消／跳过为零；删除 1.6GB 的主目录 `.next` 后 `SITE_STORE=fs npm run build` 通过；`npm run typecheck` 通过；code-sites 前后均为 280；3034 重启后导入站工作台与 code-preview 均 200。日志在 `artifacts/merge-8d625e8/`。
+
