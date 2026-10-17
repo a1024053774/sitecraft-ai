@@ -95,3 +95,37 @@ AGENTS 与 spec 同步严格提交、格式错误终止与响应留存规则，�
 build 和全量均在负责人补充 T-176 重任务协调规则前启动；规则到达时全量尚在运行，结束后已立即回报释放，此后未启动新重任务。后续全量或 build 必须先报 READY_FOR_HEAVY 和命令，并收到「可以跑」才启动。
 
 本轮预算修复与规定离线验证 **PASS**，整票仍 **INCOMPLETE**：新 sol 实例快速复审、真实第二组运行及盲评由主控安排，未经复审不运行。真实 DeepSeek 本轮未实测；未调用真实模型、未读取 `.env.local`、未使用 rm、未写主目录 `.sitecraft-data`、未推送。`tsconfig.json` 自动脏改原样留在工作树，不进提交；仅显式添加本轮六个文件，新建一个提交，不 amend。票保持 open，claimed_by 仍为 Codex。
+
+### 真实第二组的复审前置（2026-10-17）
+
+主控转达：预算网关提交 `bbd8a086c8c339a6961678da0b8597a00018e971` 已经独立 sol 快速复审 **PASS**，未发现 P0/P1，也无非阻断建议；确认 submit_local_edit 识别准确、出网前拒绝、余额足够时保留 12288、非局部用途不受影响、父版本红日志有效，AGENTS／spec 与代码一致。本结论来自独立实例，由主控提供，执行者未自审。主控随后明确授权在该提交上使用新 30000 账本，只运行第二组一次。
+
+### 第二组唯一一次真实运行（2026-10-17，Codex）
+
+**INCOMPLETE**。在应用及预算网关提交 `bbd8a086c8c339a6961678da0b8597a00018e971` 上执行主控授权的唯一一次第二组，首个 submit_local_edit 请求被上游 HTTP 400 拒绝，任务如实终止，未进入修正、未保存候选或新版本；没有重发、更换路径或修改代码。run `a39522db-37ea-4e54-b495-8fd621693a47` 于 2026-10-17T09:38:31.099Z 开始，09:38:31.780Z 终态 error，repairRound=0、attempts=0、模型调用共一次。当前仍为 v2 `91191b41-483b-4ed8-adba-4d956fad032f`，版本历史为 v1、v2。
+
+#### 数据与发送前核对
+
+用 `mktemp -d /tmp/sitecraft-t174-real.XXXXXX` 创建 `/tmp/sitecraft-t174-real.TVHhuV`，从主工作区 `.sitecraft-data` 只读复制 `code-sites/3e52f683-e543-4561-999a-45097c55b174.json`、对应 annotations 文件及整个 conversations/站点目录，保持相对结构。来源登记和历史任务均嵌在站点记录内，七条来源完整保留；该站没有图片引用、关联上传目录、旧 sites 文件或 leads 文件，不需要补复制资源。复制后核对站名「禾巷小馆（批注验收）」、指定 currentVersionId、两版历史及上一任务已终态，全部一致；清单在本轮 private/setup.json，基线及 v1/v2 快照在同目录。09:36Z 跑前 memory_pressure 空闲 38%，df 可用 13 GiB，ps 无其他 Chrome 测试、node --test 或 Next build；发送前再次检查空闲仍为 38%，记录 memory-pressure.txt、disk.txt、processes.txt、pre-send-memory.txt、pre-send-processes.txt。没有全量或 build，与 T-176 重任务互斥。
+
+产物目录 `artifacts/t174/blind-20261017T093637Z/`，实际新账本 `artifacts/t174/budget-20261017T093637Z/usage.json`，显式上限 30000，初始 spent/calls/rounds 均为零。流程脚本从 T-173 第二组 private/ 读取后仅适配本轮目录、临时根、导入站 ID／v2 ID、预算及提交标识；网关直接执行当前 scripts/t153-real-budget.ts，未复制或改写预留算法。批注原文从主工作区 `artifacts/t173/blind2-20261017T050426Z/private/second-request.json` 只读取得；prepare 通过真实 DOM 核对首页 [4]、菜单页 [3]、文字快照、标签与元素提示，并逐字比较两条 body，均一致，只更新新站的版本锚点及本次 draft/submission 标识。目标核对 Chrome 已关闭后才发送模型请求。
+
+#### 命令与真实边界
+
+应用启动命令为 `node artifacts/t174/blind-20261017T093637Z/private/start-app.mjs`：普通 Next dev、真实生产 chat POST 与 Next after，NODE_ENV=test 仅用于不加载 .env.local 及显式数据根守卫，没有模型或 after 替身；health 核对 cwd 为本工作树、dataRoot 为本轮临时目录后登记身份。应用只持有本地网关占位 token，不持有真实密钥。网关独立进程按 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入环境（source 的 stdout/stderr 丢弃），再运行 `DEEPSEEK_BASE_URL=https://api.deepseek.com DEEPSEEK_MODEL=deepseek-flash SITECRAFT_TOKEN_LIMIT=30000 node artifacts/t174/blind-20261017T093637Z/private/start-gateway.mjs`；真实密钥只在该进程及其网关子进程环境，未写入文件、日志或提交。
+
+显式设置规定 CHROME_PATH 后，依次执行 `node --experimental-strip-types artifacts/t174/blind-20261017T093637Z/private/run-real.ts prepare` 和同脚本 `second`，后者仅一次。生产 HTTP annotationBatch 收到 202，由真实 Next after 发起上游调用。网关保持请求完整 12288 输出，inputUpper=10492、reserved=22780，低于 30000；本次不是预留失败或降额发送。首个首页用餐场景调用 HTTP 400，应用显示「DeepSeek 请求失败（HTTP 400），本次未保存版本。」并停止，没有发送菜单组写作或事实核对请求。
+
+| 调用开始（UTC） | 用途／思考 | 延迟 | HTTP | 输入 token | 完成 token | 推理 token | 答案 token |
+| --- | --- | ---: | ---: | --- | --- | --- | --- |
+| 09:38:31.294 | local-edit／enabled，submit_local_edit | 482ms | 400 | 未记录 | 未记录 | 未记录 | 未记录 |
+
+本次账本实付记录为 **0 / 30000**，仅一条 complete／HTTP 400 调用；现有任务和账本均未留存该 HTTP 错误的原始正文或 usage，不能确认详细参数拒因，也不能计算推理及答案 token，不能把未知用量补成零或把此错误写成截断／JSON 解析失败。完整账本保留在实际预算目录及 private/budget/usage.json；run/modelCalls、请求、accepted 响应、状态及停止前状态在 private/，汇总 private/outcome.json。没有已生成候选或改后版本，不能进一步评价批注落实或出处显示。
+
+#### 停止、失败证据与交接
+
+任务终态后经网关 /status 确认零 in-flight，手动 `kill -INT 39070` 停网关，gateway.log 于 09:39:53Z 留存 SIGINT closed 结果。其后仅运行规定 CHROME_PATH 下的 `node --experimental-strip-types artifacts/t174/blind-20261017T093637Z/private/capture-failure.ts`；1440／768／375 的三张 private/second-rejected-*.png 均逐张打开，已载入并显示原 v2 与本次 HTTP 400，清单 private/screenshot-views.json。它们只作拒收界面证据，不作生成站版式、审美或新版本出处证据。截图结束后 `kill -TERM 38787` 停应用，app-launch.log 于 09:41:52Z 留存 closed 结果；private/post-processes.txt 未见本轮遗留应用、网关或 Chrome。
+
+review/ 只保留第二组批注原文和中性说明，明确没有可比较的改后版本；不制作 A/B 映射或改后图片，不启动盲评。未满足存版成功前提，**未创建 artifacts/t174/import-3e52f683/**，因此没有三版暂存副本、独立导入验证应用或新版本出处弹层截图。主目录只读复核仍为指定 v2、两版历史、七条来源；本次失败任务、新批注及消息只在临时副本中保留，未写主目录 .sitecraft-data。
+
+本轮执行到约定停止条件即止，30000 账本的本次唯一真实尝试已执行，剩余账面额度不构成自行重发授权。票保持 open，真实第二组存版、出处显示与盲评验收项仍不勾选，交主控决定下一步；本轮只本地提交此 Resolution 与复审记录，不推送、不使用 rm，tsconfig.json 自动改动不提交，临时根及全部失败证据保留。
