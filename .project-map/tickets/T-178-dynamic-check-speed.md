@@ -23,10 +23,12 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 
 构思主控新方向（2026-10-17，取代继续优化单次读取）：单次完整读取约 85ms，但每档每侧约 41 次、两侧约 82 次，故改为减少完整读取次数。先在指定 headless shell 154 上验证 `CSS.trackComputedStyleUpdates`／`CSS.takeComputedStyleUpdates` 的实际可用性、完整属性列表及上限、CSS 域 enable 要求、强制状态到更新可取的时机与漏报风险。准入后跟踪全部计算属性，只重读确实变化节点，其余沿用基线；五类伪元素分别验证，不能覆盖的伪元素继续每态完整读取。API 不可用或元素跟踪覆盖不全即停止报告，不另找替代路径。通过准入才实现并沿用 131 次对照、故意漏读用例，另加故意遗漏变化节点的反例，再测三档各五次空闲分布；全量、负载轮与 build 仍须负责人放行，DeepSeek 和生产上限均不动。负责人另指出本轮窗格的 fast／priority 不是项目设置，稍后由其切回 default，本票不改项目配置。
 
+构思主控批准 A（2026-10-17，取代跟踪方案）：完整读取次数与内容均不变，并行强制状态与读取。每路使用 `Target.createBrowserContext` 独立上下文，先以 Target 信息或 renderer 进程证明隔离。路数按每侧分别计算：2／3／4 路对应源与候选合计 4／6／8 个 renderer，不能按整次合计。三视口每种各五次，同时记录一次提交检查的 Chrome 进程组 RSS 峰值相对串行的增量；负责人进一步明确，峰值增量达到 300 MiB 就停在该档，不再增加路数，带数据报告。等价性沿用 131 次结论／拒因对照、完整属性与故意漏读反例，并证明各路初始快照与串行基线逐项一致、焦点与 hover 不互扰、任一路失败或超时整次拒收。所有页面与上下文在正常、失败、超时均须关闭；五秒／十五秒及超时拒收不变。先完成空闲选择，再回报 READY_FOR_HEAVY 等负责人放行负载全量；负载三档不能稳定低于五秒即停报。DeepSeek 不调用，全量和 build 均须放行。
+
 ## What to build
 
 1. 先按段测出耗时分布（强制状态、样式读取、比较、视口切换），结果写进 Resolution。
-2. 只做不改语义的优化：例如每个「元素×状态」在页面内一次批量读取全部范围外元素与已生成伪元素的完整计算样式，减少 CDP 往返；复用同一视口下的布局。比较对象仍是完整计算样式，不缩减属性集合、不跳元素、不删状态、不减视口。
+2. 按已获批 A 方案，每侧用独立 BrowserContext 并行分配元素×状态，完整读取次数及内容不变；2／3／4 路按每侧计，Chrome RSS 峰值比串行多 300 MiB 即停止该档及更高档。比较对象仍是完整计算样式，不缩减属性集合、不跳元素、不删状态、不减视口。
 3. 目标：禾巷小馆首页空闲时每档 ≤1.5 秒，并记录每档 5 次分布；5 秒/15 秒上限与超时拒收不变。
 
 ## Acceptance
@@ -38,7 +40,55 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 
 ## Resolution
 
-状态：**INCOMPLETE**；最新跟踪方案的事实门禁为 **BLOCKED**。指定 headless shell 154 的两个 API 可调用，但完整登记属性后，仍漏报范围外 flex 兄弟的布局变化。按负责人「覆盖不全即停止」的指示，未采用跟踪优化、未另找替代路径。生产 `code-site-local-edit.ts` 已恢复到 `7cfd723`，与原父版本 `c4a72e5` 相同；五秒／十五秒与超时拒收不变。本票保持 open、claimed_by 为 Codex。以下数据均为 2026-10-17 本工作树实测；artifacts 保留失败与未采纳试验，不删除慢样本。
+状态：**INCOMPLETE**；A 方案在每侧两路触发内存门禁，已停止，不具备 READY_FOR_HEAVY 条件。A 候选代码保存在本隔离分支供复现，默认每侧两路，尚未验收，不应合并；生产合同仍要求完整读取与原五秒／十五秒、超时拒收。此前跟踪方案也未采用。本票保持 open、claimed_by 为 Codex，失败和未采纳证据均保留。
+
+### A 方案：每侧两路在 RSS 门禁停止
+
+执行时间 2026-10-17 UTC，基于 `87e6805`。先实现独立上下文与分片读取，再跑单独空闲测量；没有运行全量、负载轮、build 或 DeepSeek。开跑前 memory_pressure 空闲 60%，ps 未见其他测试 Chrome；停止后空闲 58%。
+
+**结果：串行完整跑五次后，每侧两路第一轮尚未完成 375 档，Chrome 进程组采样 RSS 已到 1351.47 MiB，比串行五轮最高的 1036.95 MiB 多 314.52 MiB。17:05:49.223 UTC 采样器发现越线，即对本轮两只自建 Chrome 发 SIGTERM；检查以连接关闭错误拒绝，未采用部分结果。遵守负责人停止条件，没有继续第二轮、768／1440 档或每侧三／四路，也没有回报 READY_FOR_HEAVY。** 这是最低已观察到的峰值增量；本轮在越线时终止，不能称为完整运行的最终峰值或完整耗时分布。
+
+| 串行参照轮次 | 375 ms | 768 ms | 1440 ms | 整次检查 Chrome RSS 峰值 MiB |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 6015.6 | 5784.7 | 6144.1 | 950.75 |
+| 2 | 7259.1 | 6976.3 | 5965.1 | 935.41 |
+| 3 | 6012.2 | 5868.2 | 5790.6 | 1023.89 |
+| 4 | 5630.3 | 5868.4 | 6240.8 | 1036.95 |
+| 5 | 6114.7 | 5829.6 | 5748.2 | 1026.86 |
+| 每侧两路第一轮 | 未完成 | 未执行 | 未执行 | 1351.47（增量 314.52，停止） |
+
+口径：参照是同一 A 候选代码、同一上下文建立方式下设置内部 `dynamicStateLanes:1`，每侧仍运行原串行完整探针；不是复用之前某轮的低 RSS 数字。源 v2、候选 v3、home `[5]`、375／768／1440×1000、无模型的生产 checkSiteCode 调用均与前述夹具核对相同；每轮重新启动两只 Chrome，同轮三档复用。计时脚本使用现有内部参数 Infinity 测完串行真实总耗时，生产默认五秒未改。串行每侧每轮均 123 次完整读取，即每档 41 次；全部 15 档完整结束。单独 RSS 采样也有开销，本表只报告本轮实测，不用它解释此前 2.6 秒与 5.3 秒的差异。
+
+RSS 按生产 helper 返回的两只浏览器 PID 及 ps 的递归子进程归属求和，包含 browser／renderer／GPU／network，不含 Node、Next 或其他 Chrome。每次 ps 完成后间隔 50ms，串行实际采样间隔中位 87ms（68–331ms），两路中位 95ms（72–234ms）；报告的是采样峰值，原始每次 PID、PPID、RSS 均保留。停止线以串行五轮最高峰作参照，未挑低样本夸大增量。
+
+独立 renderer 已实测：源 BrowserContext 两个不同 ID，renderer PID 为 42243、42329；候选两个不同 ID，renderer PID 为 42312、42347。Target.getTargets 的每页 browserContextId 与创建时一致，同源检查页仍有四个 renderer；SystemInfo.getProcessInfo 与 ps 相互对照。两路停止时源、候选各仅完成 10 次完整读取，未到首档各 41 次，不把部分结果折算成完整速度。
+
+实现边界：
+
+- `codeCheckBrowser` 在浏览器级连接调用 Target.createBrowserContext，每路单独页面，disposeOnDetach=true；原启动空白页关闭。上下文关闭调用 Target.disposeBrowserContext；页面 detached 时拒绝该 session 未完成调用，连接已关时立即拒绝发送，避免留下三十秒待回复。根浏览器关闭先处置其主上下文，再在 finally 终止自建进程。
+- 原完整读取函数共用，不另写属性子集。每侧先完整读取一次规范基线；把这份完整基线值传给其他路作已有的重复条目省略依据，不再读额外基线。四态×交互元素按序号分片，每项只读一次，最后恢复串行顺序并核对状态／路径覆盖；其他路初始快照的完整读取只用于独立测试，不进入生产读取次数。
+- 提交入口保留源、候选并行，各自有独立路；任一路错误使 Promise.all 拒绝，未比较或保存部分探针。统一截止时间仍由每档原五秒产生，三视口不减。所有额外上下文登记后由提交 finally 关闭，即使失败也继续关闭两只根浏览器；资源清理错误同样拒收。
+
+已有证据及边界：
+
+- 新独立上下文契约先在父实现因缺少 createContext 失败（`context-parent-red-20261017.log`），补齐后通过；三路分片契约先因缺少并行探针而失败（`parallel-parent-contract-red-20261017.log`），随后和独立上下文、原完整属性用例一起 **3／3 通过**（`parallel-probe-green-20261017.log`）。小夹具证明三路初始完整快照逐项等于串行基线、三元素×四态＋基线共 13 次读取、全部状态结果逐属性相同，以及故意一路读取失败、截止时间已过均拒绝。焦点／hover 隔离在真实 CDP 上通过，正常关闭后的各路 Target 与 Context 均消失。
+- 第一版分片契约的 finally 错把 CDP 额外返回的 defaultBrowserContextId 也纳入整个响应断言，掩盖了应测的缺少并行能力，并阻止测试自身关闭 Chrome。该次原始失败日志 `parallel-parent-red-20261017.log` 保留；仅终止该轮自建 PID 23350 后修正为核对具体 browserContextIds，清理放进独立 finally，再跑上述真实契约红灯，不把首轮异常当回归证据。
+- 提交入口的正常／一路故障／一路迟到清理用例已经写在 `t178-parallel-failure.test.ts`，但 RSS 门禁触发后未运行，不能声明它通过；也未重跑 A 候选的 131 次结论／拒因对照或故意漏读 mutant。前一节之前的 131 次证据只属于已弃用读取试验，不能冒用为 A 的等价性证据。三路、四路完整夹具分布和 RSS 未测；小夹具三路语义测试不等于三路完整检查验收。
+- 停止后核对峰值采样里的十个自建 Chrome 进程均已退出，见 `parallel-memory-stop-cleanup-20261017.json`；这证明本次强制停止没有遗留进程，不代替尚未执行的全部正常／失败／超时提交清理用例。
+- 最终 `npm run typecheck` 通过，日志 `parallel-memory-stop-typecheck-20261017.log`。早先测试对象 frameId 类型声明不符的失败保留在 `parallel-integration-typecheck-20261017.log`，已修正。AGENTS 规则未变，tsconfig 的 Next 自动变更不提交；不推送、不读 .env.local、不写主目录 .sitecraft-data。project-map 的结构检查无问题，但候选代码仍使 AGENTS、CONTEXT、mainline 三份 living doc 的覆盖检查报 stale；此次只同步 spec 的试验状态，没有把未验收的候选写成已完成规则或新主线，也不宣称文档闭环通过。
+
+命令（输出目录不可复用，保留旧结果；CHROME_PATH 仅设指定路径）：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t178-browser-context.test.ts
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t178-parallel-probe.test.ts
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t178-parallel-probe.test.ts tests/t178-browser-context.test.ts tests/t178-full-style-equivalence.test.ts
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types scripts/t178-parallel-timing.ts 1 artifacts/t178/parallel-serial-rss-20261017
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types scripts/t178-parallel-timing.ts 2 artifacts/t178/parallel-two-rss-20261017 artifacts/t178/parallel-serial-rss-20261017/timings.json
+npm run typecheck
+```
+
+本次代码与当前结果随同一份「A 内存门禁停止」本地检查点提交；提交 SHA／时间回执放 `artifacts/t178/parallel-memory-stop-checkpoint.json`。没有开始负载轮或请求重任务放行；下一步由主控决定内存约束下是否继续 A，不能把当前未完成结果报 PASS。
 
 ### 跟踪 API 事实门禁
 
@@ -52,7 +102,7 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 - **observed / inferred**：该二进制 revision 的 [InspectorCSSAgent 源码](https://github.com/chromium/chromium/blob/334b65d254ccc35df4fca82706d1753227b01039/third_party/blink/renderer/core/inspector/inspector_css_agent.cc#L4865) 接收的是属性名与值的过滤表；`DidUpdateComputedStyle` 比较旧／新 `ComputedStyle` 的属性值，且旧值或新值须命中过滤集合。它不是所有 resolved 布局值变化的通知器；这与实测的 flex 漏报相符，不能保证现有 `getComputedStyle` 比较语义。
 - **unknown / stop**：普通元素门禁已失败，按指示没有继续五类伪元素覆盖实验、任意属性列表极限探测或实现跟踪方案。伪元素覆盖不作已验证声明；没有新增其他路径来补漏。故意遗漏变化节点的最小反例已由上述独立宽度预期检出，脚本输出 BLOCKED、退出码 2；它不等于生产跟踪实现的等价性通过。
 
-证据：`artifacts/t178/track-capability-20261017/result.json`、`track-capability-drained-20261017/result.json` 及对应 `.log`；脚本为 `scripts/t178-track-capability.ts`。最新方向未通过准入，因此未跑该方案的 131 次对照和三档各五次性能验收。
+证据：`artifacts/t178/track-capability-20261017/result.json`、`track-capability-drained-20261017/result.json` 及对应 `.log`；脚本为 `scripts/t178-track-capability.ts`。当时的跟踪方向未通过准入，因此未跑该方案的 131 次对照和三档各五次性能验收；后续获批 A 的结果见上文。
 
 ### 单次完整读取基准
 
@@ -106,7 +156,7 @@ CPU 统计仅取 Chrome 样式捕获窗口；Node 仅取生产检查起始至首
 
 Chrome 闭包行采样热点落在完整属性取值语句（`computed.getAll`／`style.getPropertyValue`）。V8 将原生 getter 的时间归给调用者，不能称全是纯 JS 循环。Trace 捕获窗口的真实 Recalc Style 仅 15.90／17.45ms，Layout 事件均为零；全 profile 的 Recalc Style 36.80／29.81ms、Layout 22.85／10.64ms，远非数秒主因。`Document::UpdateStyleAndLayout` 检查调用约 38.5 万次，含子事件总 409.9／408.6ms，不能当成相同数量的真实 Layout，也不能与子事件再相加。Node 生产窗口 8901.4ms 中 idle 8347.3ms（93.78%），活跃 554.1ms；主要是在等 Chrome，不能把 Node idle 全归 CDP 传输。zlib 两个处理函数分别仅占窗口 0.10%／0.08%。
 
-原始 profile：`artifacts/t178/read-profile-20261017/chrome-{0,1}.cpuprofile`、`chrome-{0,1}.trace.json`（均 dataLossOccurred=false）、`result.json`；Node 为 `read-profile-20261017-node/node.cpuprofile`；汇总 `read-profile-summary-20261017.json`。V8 原始样本含少量负 timeDelta，汇总按 DevTools 的绝对时间配对排序方式处理，原文件未改；首个汇总失败日志也保留。结论是重复完整取值占主导，未证样式重算本身慢，不启动并行方案。
+原始 profile：`artifacts/t178/read-profile-20261017/chrome-{0,1}.cpuprofile`、`chrome-{0,1}.trace.json`（均 dataLossOccurred=false）、`result.json`；Node 为 `read-profile-20261017-node/node.cpuprofile`；汇总 `read-profile-summary-20261017.json`。V8 原始样本含少量负 timeDelta，汇总按 DevTools 的绝对时间配对排序方式处理，原文件未改；首个汇总失败日志也保留。该轮结论是重复完整取值占主导，未证样式重算本身慢；后来获批的 A 并行试验按上文的独立上下文与内存门禁执行。
 
 ### 未采用的读取试验与完整分布
 

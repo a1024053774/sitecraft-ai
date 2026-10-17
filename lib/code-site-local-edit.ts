@@ -241,6 +241,7 @@ export function authorStylesHaveDynamicStates(rules?: Iterable<CSSRule>) {
 export type DynamicStateProbe = {
   states: ProbeState[];
   interactiveElements: number | null;
+  interactivePaths: number[][];
   forceCalls: number;
   statesChecked: number;
   durationMs: number;
@@ -252,7 +253,7 @@ export type DynamicStateProbe = {
 // truth: no selector stripping, :has parsing, owner inference, or short style
 // fingerprint is used here. The returned collection is keyed only by outside
 // DOM path and complete computed style.
-export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 5000, options: { states?: boolean; diagnostic?: Record<string, unknown> } = {}) {
+export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 5000, options: { states?: boolean; diagnostic?: Record<string, unknown>; baseline?: ProbeState; baselineOnly?: boolean; partition?: { index: number; count: number } } = {}) {
   const probeStates = options.states ?? true;
   const startedAt = performance.now();
   const wallStartedAt = Date.now();
@@ -279,6 +280,14 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     for(const el of all)el.setAttribute('data-cdp-probe',ids.get(el));
     const style=getComputedStyle(document.documentElement);
     const properties=[...style].filter(name=>!name.startsWith('--')).sort((a,b)=>a.localeCompare(b));
+    const baseline=new Map();
+    for(const entry of ${JSON.stringify(options.baseline?.entries ?? [])}){
+      const key=JSON.stringify(entry.path),entries=baseline.get(key)||[];entries.push(entry);baseline.set(key,entries);
+    }
+    for(const item of outside)for(const entry of baseline.get(JSON.stringify(item.path))||[]){
+      const names=entry.styles.map(([name])=>name),values=entry.styles.map(([,value])=>value);
+      item.baselines.set(entry.pseudo,{present:entry.present,custom:names.filter(name=>name.startsWith('--')),names,values});
+    }
     window.__sitecraftCdpProbeOutside = {items:outside,properties};
     return {all:all.map(el=>ids.get(el)),roots:roots.map(el=>ids.get(el)),interactive};
   })()`);
@@ -384,11 +393,13 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     states.push({ trigger, state, entries });
   };
   if (probeStates) await clear();
-  await evaluate('document.activeElement?.blur()'); await capture(null, 'baseline');
-  for (const state of probeStates ? stateNames : []) {
+  await evaluate('document.activeElement?.blur()');
+  if (!options.baseline) await capture(null, 'baseline');
+  for (const [stateIndex, state] of (probeStates && !options.baselineOnly ? stateNames : []).entries()) {
     const active = new Set<number>();
     if (state === 'hover' || state === 'active') await evaluate('document.activeElement?.blur()');
-    for (const item of probe.interactive) {
+    for (const [itemIndex, item] of probe.interactive.entries()) {
+      if (options.partition && (stateIndex * probe.interactive.length + itemIndex) % options.partition.count !== options.partition.index) continue;
       checkTime();
       if (state === 'focus' || state === 'focus-visible') {
         try { await send('DOM.focus', { nodeId: await nodeId(item.id) }); }
@@ -407,11 +418,38 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
   await evaluate(`document.querySelectorAll('[data-cdp-probe]').forEach(el=>el.removeAttribute('data-cdp-probe')); delete window.__sitecraftCdpProbeOutside`);
   checkTime();
   completed = true;
-  return { states, interactiveElements, forceCalls, statesChecked: probeStates ? stateNames.length : 0, durationMs: performance.now() - startedAt, cdpRoundTrips, stageMs };
+  return { states, interactiveElements, interactivePaths: probe.interactive.map(item => item.path), forceCalls, statesChecked: probeStates ? stateNames.length : 0, durationMs: performance.now() - startedAt, cdpRoundTrips, stageMs };
   } finally {
     recordCheckDiagnostic({ kind: 'dynamic-probe', mode: probeStates ? 'states' : 'static', ...options.diagnostic, startedAt: wallStartedAt, endedAt: Date.now(),
       durationMs: performance.now() - startedAt, interactiveElements, forceCalls, cdpRoundTrips, stageMs, styleReadParts, completed });
   }
+}
+
+// One baseline read per side, then distribute every original element/state job
+// exactly once. Other lanes receive baseline values without reading them again.
+// Context/page ownership remains with the submission boundary.
+export async function parallelOutsideCssApplications(pages: Array<{ browser: ProbeBrowser; frameId: string }>, html: string,
+  scope: { paths?: number[][] } | undefined, deadlineAt: number, diagnostic?: Record<string, unknown>): Promise<DynamicStateProbe> {
+  const started = performance.now();
+  const baseline = await outsideCssApplications(pages[0].browser, pages[0].frameId, html, scope, deadlineAt, { baselineOnly: true, diagnostic });
+  const results = await Promise.all(pages.map((page, index) => outsideCssApplications(page.browser, page.frameId, html, scope, deadlineAt,
+    { baseline: baseline.states[0], partition: { index, count: pages.length }, diagnostic: { ...diagnostic, lane: index } })));
+  const order = ['focus', 'focus-visible', 'hover', 'active'];
+  const states = results.flatMap(result => result.states).sort((a, b) => order.indexOf(a.state) - order.indexOf(b.state)
+    || baseline.interactivePaths.findIndex(path => JSON.stringify(path) === JSON.stringify(a.trigger))
+      - baseline.interactivePaths.findIndex(path => JSON.stringify(path) === JSON.stringify(b.trigger)));
+  const expected = baseline.interactivePaths.flatMap(path => order.map(state => JSON.stringify([state, path])));
+  const actual = states.map(state => JSON.stringify([state.state, state.trigger]));
+  if (results.some(result => JSON.stringify(result.interactivePaths) !== JSON.stringify(baseline.interactivePaths))
+    || actual.length !== expected.length || new Set(actual).size !== expected.length || expected.some(key => !actual.includes(key)))
+    throw new Error('局部动态状态检查各路状态不完整，本次未保存版本。');
+  if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。');
+  const all = [baseline, ...results];
+  return { states: [...baseline.states, ...states], interactiveElements: baseline.interactiveElements, interactivePaths: baseline.interactivePaths,
+    forceCalls: all.reduce((sum, result) => sum + result.forceCalls, 0), statesChecked: 4,
+    durationMs: performance.now() - started, cdpRoundTrips: all.reduce((sum, result) => sum + result.cdpRoundTrips, 0),
+    stageMs: { focus: all.reduce((sum, result) => sum + result.stageMs.focus, 0), force: all.reduce((sum, result) => sum + result.stageMs.force, 0),
+      styleRead: all.reduce((sum, result) => sum + result.stageMs.styleRead, 0) } };
 }
 
 // Invoked on every rendered page by the submission boundary. Media conditions

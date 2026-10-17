@@ -14,7 +14,7 @@ export async function codeCheckBrowser() {
   const child = spawn(binary, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });
   let launchError: Error | null = null; child.on('error', error => { launchError = error; });
   let socket: WebSocket | null = null;
-  const pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+  const pending = new Map<number, { sessionId?: string; resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   const pageLoads = new Set<{ sessionId: string; resolve: () => void; reject: (error: Error) => void }>();
   const close = async () => {
     socket?.close();
@@ -47,6 +47,11 @@ export async function codeCheckBrowser() {
     socket.addEventListener('message', event => {
       const data = JSON.parse(String(event.data)); const task = pending.get(data.id);
       if (task) { pending.delete(data.id); data.error ? task.reject(new Error(data.error.message)) : task.resolve(data.result); }
+      if (data.method === 'Target.detachedFromTarget') {
+        const error = new Error('Chrome 检查页面连接关闭');
+        for (const [id, request] of pending) if (request.sessionId === data.params.sessionId) { pending.delete(id); request.reject(error); }
+        for (const load of pageLoads) if (load.sessionId === data.params.sessionId) load.reject(error);
+      }
       if (data.method === 'Page.loadEventFired') for (const load of pageLoads) if (load.sessionId === data.sessionId) load.resolve();
       if (process.env.SITECRAFT_CHECK_DIAGNOSTICS_DIR && ['Page.frameNavigated', 'Page.loadEventFired', 'Page.domContentEventFired'].includes(data.method)) {
         calls.push({ method: data.method, startedAt: Date.now(), durationMs: 0, status: 'event',
@@ -60,6 +65,7 @@ export async function codeCheckBrowser() {
     });
     let sequence = 0;
     const send = <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}, sessionId?: string): Promise<T> => new Promise((resolve, reject) => {
+      if (socket?.readyState !== WebSocket.OPEN) { reject(new Error('Chrome 检查连接关闭')); return; }
       const id = ++sequence;
       const startedAt = Date.now();
       const record = (status: string) => {
@@ -67,29 +73,45 @@ export async function codeCheckBrowser() {
           ...(method === 'Page.navigate' ? { pathname: new URL(String(params.url)).pathname } : {}) });
       };
       const timer = setTimeout(() => { pending.delete(id); record('timeout'); reject(new Error(`Chrome 检查 ${method} 超时`)); }, 30000);
-      pending.set(id, { resolve: value => { clearTimeout(timer); record('complete'); resolve(value as T); }, reject: error => { clearTimeout(timer); record('error'); reject(error); } });
+      pending.set(id, { sessionId, resolve: value => { clearTimeout(timer); record('complete'); resolve(value as T); }, reject: error => { clearTimeout(timer); record('error'); reject(error); } });
       socket!.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
-    const { targetId } = await send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' });
-    const { sessionId } = await send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
-    await send('Page.enable', {}, sessionId);
-    const evaluate = async <T>(expression: string): Promise<T> => {
-      const value = await send<{ result: { value: T }; exceptionDetails?: { text: string; exception?: { description: string } } }>('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
-      if (value.exceptionDetails) throw new Error(`Chrome 检查失败：${value.exceptionDetails.exception?.description || value.exceptionDetails.text}`);
-      return value.result.value;
+    const attachPage = async (targetId: string) => {
+      const { sessionId } = await send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
+      await send('Page.enable', {}, sessionId);
+      const evaluate = async <T>(expression: string): Promise<T> => {
+        const value = await send<{ result: { value: T }; exceptionDetails?: { text: string; exception?: { description: string } } }>('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
+        if (value.exceptionDetails) throw new Error(`Chrome 检查失败：${value.exceptionDetails.exception?.description || value.exceptionDetails.text}`);
+        return value.result.value;
+      };
+      const loadPage = async (method: 'Page.navigate' | 'Page.reload', params: Record<string, unknown> = {}) => {
+        let listener!: { sessionId: string; resolve: () => void; reject: (error: Error) => void };
+        const loaded = new Promise<void>((resolve, reject) => { listener = { sessionId, resolve, reject }; pageLoads.add(listener); });
+        const timer = setTimeout(() => listener.reject(new Error('Chrome 页面载入超时')), 30000);
+        try {
+          // Subscribe before issuing navigation. Its CDP response only confirms
+          // commitment; reading an old/loading document can lose a DOM waiter.
+          const [result] = await Promise.all([send(method, params, sessionId), loaded]);
+          return result;
+        } finally { clearTimeout(timer); pageLoads.delete(listener); }
+      };
+      return { send: <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}) => send<T>(method, params, sessionId),
+        loadPage, evaluate };
     };
-    const loadPage = async (method: 'Page.navigate' | 'Page.reload', params: Record<string, unknown> = {}) => {
-      let listener!: { sessionId: string; resolve: () => void; reject: (error: Error) => void };
-      const loaded = new Promise<void>((resolve, reject) => { listener = { sessionId, resolve, reject }; pageLoads.add(listener); });
-      const timer = setTimeout(() => listener.reject(new Error('Chrome 页面载入超时')), 30000);
+    const createContext = async () => {
+      const { browserContextId } = await send<{ browserContextId: string }>('Target.createBrowserContext', { disposeOnDetach: true });
+      let closing: Promise<unknown> | undefined;
+      const closeContext = () => closing ??= send('Target.disposeBrowserContext', { browserContextId });
       try {
-        // Subscribe before issuing navigation. Its CDP response only confirms
-        // commitment; reading an old/loading document can lose a DOM waiter.
-        const [result] = await Promise.all([send(method, params, sessionId), loaded]);
-        return result;
-      } finally { clearTimeout(timer); pageLoads.delete(listener); }
+        const { targetId } = await send<{ targetId: string }>('Target.createTarget', { url: 'about:blank', browserContextId });
+        return { ...await attachPage(targetId), targetId, browserContextId, close: closeContext };
+      } catch (error) { await closeContext(); throw error; }
     };
-    return { send: <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}) => send<T>(method, params, sessionId),
-      loadPage, evaluate, close };
+    const initial = await send<{ targetInfos: Array<{ targetId: string; type: string }> }>('Target.getTargets');
+    const page = await createContext();
+    // The launch page is owned by this isolated process and has no check work.
+    for (const target of initial.targetInfos) if (target.type === 'page') await send('Target.closeTarget', { targetId: target.targetId });
+    return { ...page, createContext, sendBrowser: send, pid: child.pid!,
+      close: async () => { try { await page.close(); } finally { await close(); } } };
   } catch (error) { await close(); throw error; }
 }

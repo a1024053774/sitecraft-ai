@@ -7,7 +7,7 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
-import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
+import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, parallelOutsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
 import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
@@ -449,16 +449,26 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[]; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[]; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number; dynamicStateLanes?: 1 | 2 | 3 | 4 }) {
   const code = codeSiteSchema.parse(args.code);
   const localTargets = args.localEdit ? (args.localEdit.targets ?? (args.localEdit.target ? [args.localEdit.target] : [])) : [];
   const browser = await codeCheckBrowser();
   let dynamicBrowser: Awaited<ReturnType<typeof codeCheckBrowser>> | undefined;
+  const extraContexts: Array<Awaited<ReturnType<typeof browser.createContext>>> = [];
+  const pools: Array<Array<{ browser: Pick<typeof browser, 'send' | 'evaluate'>; frameId: string }>> = [];
+  const lanes = args.dynamicStateLanes ?? 2;
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
   if (args.legacyImport) checks.factReview = 'legacy-unreviewed';
   if (args.restoredFactReview) checks.factReviewFrom = args.restoredFactReview;
   try {
     const base = process.env.SITECRAFT_BASE || `http://127.0.0.1:${process.env.PORT || '3000'}`;
+    const prepareDynamicPage = async (page: Awaited<ReturnType<typeof browser.createContext>>) => {
+      await page.send('Network.enable');
+      await page.loadPage('Page.navigate', { url: `${base}/code-check.html` });
+      if (!await page.evaluate<boolean>(`document.contentType === 'text/html' && performance.getEntriesByType('navigation')[0]?.responseStatus === 200 && !!document.querySelector('meta[name="sitecraft-code-check"][content="v1"]') && !document.querySelector('script')`))
+        throw new Error('提交检查静态页缺失或无效（/code-check.html），本次未保存版本。');
+      await page.send('Network.setBlockedURLs', { urls: ['*'] });
+    };
     // setDocumentContent retains the document MIME type: a JSON health document
     // renders candidate HTML as plain text. Use static HTML without site-list reads or app scripts.
     await browser.send('Network.enable');
@@ -526,13 +536,25 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             classificationMs = performance.now() - dynamicStarted;
             const probeOptions = (side: string) => ({ states: probeStates, diagnostic: { siteId: args.siteId, pageId: page.id, width, side } });
             if (probeStates) {
-              if (!dynamicBrowser) dynamicBrowser = await codeCheckBrowser();
+              if (!dynamicBrowser) { dynamicBrowser = await codeCheckBrowser(); await prepareDynamicPage(dynamicBrowser); }
               await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-              const dynamicFrame = await dynamicBrowser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
-              evidence.push(...await Promise.all([
-                outsideCssApplications(browser, frameTree.frame.id, documents[0], scope, deadlineAt, probeOptions('source')),
-                outsideCssApplications(dynamicBrowser, dynamicFrame.frameTree.frame.id, documents[1], scope, deadlineAt, probeOptions('candidate')),
-              ]));
+              if (!pools.length) {
+                for (const owner of [browser, dynamicBrowser]) {
+                  const frame = await owner.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+                  const pool = [{ browser: owner as Pick<typeof browser, 'send' | 'evaluate'>, frameId: frame.frameTree.frame.id }];
+                  pools.push(pool);
+                  for (let index = 1; index < lanes; index++) {
+                    const context = await owner.createContext(); extraContexts.push(context);
+                    await prepareDynamicPage(context);
+                    const contextFrame = await context.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+                    pool.push({ browser: context, frameId: contextFrame.frameTree.frame.id });
+                  }
+                }
+              }
+              await Promise.all(pools.flatMap(pool => pool.map(page => page.browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false }))));
+              evidence.push(...await Promise.all(pools.map((pool, side) => lanes === 1
+                ? outsideCssApplications(pool[0].browser, pool[0].frameId, documents[side], scope, deadlineAt, probeOptions(side ? 'candidate' : 'source'))
+                : parallelOutsideCssApplications(pool, documents[side], scope, deadlineAt, probeOptions(side ? 'candidate' : 'source').diagnostic))));
             } else {
               // Absence of author state rules removes only state probing. Static
               // DOM-triggered selector changes still cross the same full reader.
@@ -706,5 +728,9 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     }
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
-  } finally { await dynamicBrowser?.close(); await browser.close(); }
+  } finally {
+    const contexts = await Promise.allSettled(extraContexts.map(context => context.close()));
+    await Promise.all([dynamicBrowser?.close(), browser.close()]);
+    if (contexts.some(result => result.status === 'rejected')) throw new Error('局部动态状态检查上下文清理失败，本次未保存版本。');
+  }
 }
