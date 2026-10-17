@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fixture, output, session, state, workflowBase } from './helpers/t162-browser.ts';
 import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { localEditChoice } from './fixtures/local-edit-choice.ts';
 import { reserveRequest } from '../scripts/t153-real-budget.ts';
 
 // Requirements: every local writing/correction request uses 12288; a length
@@ -27,7 +28,7 @@ const provider = createServer(async (req, res) => {
   // returns valid blocks, so the route must send real correction requests.
   const answer = local ? { html: ++localRoundCalls <= 2 ? `<main>${input.html}</main>` : input.html, css: '' }
     : factAuditReply(body, { issues: [] });
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }],
+  res.end(JSON.stringify({ choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }],
     usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));

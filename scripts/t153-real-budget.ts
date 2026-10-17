@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { providerConfig } from '../lib/ai-provider.ts';
+import { readProviderHttpError } from '../lib/provider-http-error.ts';
 import { singleTokenHanCharacters } from './t165-single-token-han.ts';
 
 const singleTokenHan = new Set(singleTokenHanCharacters);
@@ -23,8 +24,13 @@ export function reserveRequest(body: Record<string, any>, spent: number, approve
     inputEstimate += character.codePointAt(0)! <= 0x7f ? 1 : singleTokenHan.has(character) ? 1.5 : 4;
   }
   const inputUpper = Math.ceil(inputEstimate) + 128;
+  const local = Array.isArray(body.tools) && body.tools.some(tool => tool?.type === 'function' && tool.function?.name === 'submit_local_edit');
+  if (local) {
+    assert.ok(approvedTokenLimit - spent - inputUpper >= body.max_tokens,
+      `submit_local_edit 剩余授权无法完整预留请求输出 ${body.max_tokens} token，拒绝降额。`);
+  }
   const outputLimit = Math.min(body.max_tokens, approvedTokenLimit - spent - inputUpper);
-  assert.ok(outputLimit >= 4096, 'Remaining authorization cannot reserve this request and a usable output allowance');
+  assert.ok(local || outputLimit >= 4096, 'Remaining authorization cannot reserve this request and a usable output allowance');
   return { inputUpper, outputLimit, reserved: inputUpper + outputLimit };
 }
 
@@ -34,9 +40,10 @@ async function serve() {
   const approvedTokenLimit = Number(process.env.SITECRAFT_TOKEN_LIMIT);
   assert.ok(Number.isSafeInteger(approvedTokenLimit) && approvedTokenLimit > 0, 'SITECRAFT_TOKEN_LIMIT must be the explicit approved token authorization');
   const folder = process.env.T153_BUDGET_DIR;
-  assert.ok(folder && ['t153', 't158', 't159', 't160', 't162', 't164', 't169'].some(ticket => path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts', ticket) + path.sep)));
+  assert.ok(folder && ['t153', 't158', 't159', 't160', 't162', 't164', 't169', 't174'].some(ticket => path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts', ticket) + path.sep)));
   const provider = providerConfig();
   assert.ok(provider.apiKey); assert.equal(provider.model, 'deepseek-flash');
+  const apiKey = provider.apiKey;
   assert.equal(new URL(provider.baseURL).origin, 'https://api.deepseek.com');
   await mkdir(folder, { recursive: true });
   const file = path.join(folder, 'usage.json');
@@ -79,19 +86,26 @@ async function serve() {
         ...reservation, thinking: body.thinking?.type, purpose: body.tools?.[0]?.function?.name || (body.messages[0].content.includes('事实校对员') ? 'facts' : 'write-or-repair') };
       ledger.calls.push(call); await save();
       console.log(JSON.stringify({ beforeCall: call.index, round: call.round, spent: ledger.spent, ...reservation }));
-      const response = await fetch(`${provider.baseURL}${req.url}`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${provider.apiKey}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(300000) });
+      const response = await fetch(`${provider.baseURL}${req.url}`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(300000) });
       call.httpStatus = response.status;
+      if (!response.ok) {
+        const diagnostic = await readProviderHttpError(response, apiKey);
+        call.httpError = diagnostic; call.state = 'complete'; call.spentAfter = ledger.spent;
+        ledger.stopped = true; await save();
+        res.setHeader('content-type', response.headers.get('content-type') || 'text/plain; charset=utf-8');
+        if (diagnostic.requestIdHeader) res.setHeader(diagnostic.requestIdHeader, diagnostic.requestId!);
+        if (diagnostic.bodyRedacted) res.setHeader('x-sitecraft-redacted-body-length', String(diagnostic.bodyLength));
+        res.writeHead(response.status); res.end(diagnostic.body); return;
+      }
       const payload = await response.json();
       const usage = payload.usage;
-      if (response.ok) {
-        assert.ok(usage && ['prompt_tokens', 'completion_tokens', 'total_tokens'].every(key => Number.isSafeInteger(usage[key]) && usage[key] >= 0), 'Upstream usage is unknown; stop all further calls');
-        ledger.spent += usage.total_tokens; call.usage = usage;
-        assert.ok(usage.prompt_tokens <= reservation.inputUpper, 'Input exceeded the conservative reservation; stop');
-        assert.ok(ledger.spent <= approvedTokenLimit, 'Reported usage exceeded authorization; stop');
-      }
+      assert.ok(usage && ['prompt_tokens', 'completion_tokens', 'total_tokens'].every(key => Number.isSafeInteger(usage[key]) && usage[key] >= 0), 'Upstream usage is unknown; stop all further calls');
+      ledger.spent += usage.total_tokens; call.usage = usage;
+      assert.ok(usage.prompt_tokens <= reservation.inputUpper, 'Input exceeded the conservative reservation; stop');
+      assert.ok(ledger.spent <= approvedTokenLimit, 'Reported usage exceeded authorization; stop');
       call.state = 'complete'; call.spentAfter = ledger.spent; call.finishReason = payload.choices?.[0]?.finish_reason;
-      // 402, other HTTP errors, and truncation stop this gateway with no retries.
-      if (!response.ok || call.finishReason === 'length') ledger.stopped = true;
+      // HTTP 错误已在上方停止；成功响应截断同样终止，不重试。
+      if (call.finishReason === 'length') ledger.stopped = true;
       await save(); res.writeHead(response.status); res.end(JSON.stringify(payload));
     } catch (error) {
       ledger.stopped = true;

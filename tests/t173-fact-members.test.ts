@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import type { SiteCode } from '../lib/code-site.ts';
+import { localEditChoice } from './fixtures/local-edit-choice.ts';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 
 // Independent contract: the repaired field must change, while the other row,
@@ -41,7 +42,7 @@ const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), system = body.messages[0].content;
   let purpose: string, input: any, answer: any;
-  if (body.tools) {
+  if (body.tools?.[0]?.function.name === 'submit_page_plan') {
     purpose = 'plan'; input = body.messages[1].content;
     answer = { summary: '门店说明', style: 'precision', styleReason: '资料排版', skeletonId: 'custom', skeletonReason: '按资料展示门店', pages: [{ id: 'home', title: '首页', outline: ['门店说明'] }] };
   } else if (system.includes('事实校对员')) {
@@ -68,7 +69,7 @@ const provider = createServer(async (req, res) => {
   requests.push({ purpose, input });
   const message = body.tools ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
+  res.end(JSON.stringify({ choices: [purpose === 'local-edit' ? localEditChoice(answer) : { finish_reason: body.tools ? 'tool_calls' : 'stop', message }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

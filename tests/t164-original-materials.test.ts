@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import test from 'node:test';
 import { commitSiteCode, updateCodeSite, output, session, state, workflowBase } from './helpers/t162-browser.ts';
 import { codeFactSourceMaterials } from '../lib/code-site.ts';
+import { localEditChoice } from './fixtures/local-edit-choice.ts';
 
 // Like the real 32e0ab93 record: two pages and raw materials, without a source
 // registry or a version source snapshot. No real data or external model is used.
@@ -31,7 +32,7 @@ const provider = createServer(async (req, res) => {
       return { id: segment.id, issues: [], noFacts: !claim, factCategories: claim ? [category] : [], citations: claim ? [{ category, claim, quote: claim }] : [] };
     }) };
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
+  res.end(JSON.stringify({ choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

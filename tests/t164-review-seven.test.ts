@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import type { SiteCode } from '../lib/code-site.ts';
 import type { AnnotationBatchItem, AnnotationTarget } from '../lib/annotations.ts';
+import { localEditChoice } from './fixtures/local-edit-choice.ts';
 
 // Failure modes: ancestor paint escapes; generated boxes escape; batch user
 // facts lose provenance; merged comments lose their own pointer; :has(:focus)
@@ -68,7 +69,7 @@ const provider = createServer(async (req, res) => {
     }) };
   }
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
+  res.end(JSON.stringify({ choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

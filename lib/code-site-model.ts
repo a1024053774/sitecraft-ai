@@ -5,6 +5,7 @@ import { randomInt } from 'node:crypto';
 import path from 'node:path';
 import { z } from 'zod';
 import { providerConfig } from './ai-provider.ts';
+import { readProviderHttpError } from './provider-http-error.ts';
 import { codeSiteSchema, explicitEnglishCompanyName, type CodePreferences, type SiteCode, type CodePlan, type CodeVersion, type CodeModelCall } from './code-site.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { codeRepairFragments, applyCodeRepair } from './code-site-repair.ts';
@@ -51,7 +52,7 @@ export function codeContentThinkingMode(purpose: 'write' | 'repair' | 'facts'): 
   return parsed.data;
 }
 async function modelJson(purpose: CodeModelCall['purpose'], system: string, user: string, maxTokens: number,
-  functionOutput?: { name: 'submit_page_plan' | 'submit_english_translation'; description: string; parameters: Record<string, unknown>;
+  functionOutput?: { name: 'submit_page_plan' | 'submit_english_translation' | 'submit_local_edit'; description: string; parameters: Record<string, unknown>;
     skeletonOrder?: string[]; translationInput?: CodeModelCall['translationInput'] }) {
   const { baseURL, apiKey, model } = providerConfig();
   if (!apiKey || !model) throw new Error('尚未配置 DeepSeek，无法生成站点。');
@@ -85,13 +86,16 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
           tool_choice: purpose === 'translate' ? { type: 'function', function: { name: functionOutput.name } } : 'auto' }
           : { ...(thinking ? { thinking: { type: thinking } } : {}), response_format: { type: 'json_object' } }),
         messages: [{ role: 'system', content: system }, { role: 'user', content: user + (functionOutput
-          ? `\n最终必须调用 ${functionOutput.name} 一次，通过函数参数提交${purpose === 'translate' ? '本批完整译文' : '完整页面大纲'}。不输出自然语言正文或直接输出 JSON 文本。`
+          ? `\n最终必须调用 ${functionOutput.name} 一次，通过函数参数提交${purpose === 'translate' ? '本批完整译文' : purpose === 'local-edit' ? '局部修改结果或不能修改的原因' : '完整页面大纲'}。不输出自然语言正文或直接输出 JSON 文本。`
           : '\n请以 json 格式输出完整对象，正确转义 HTML/CSS 字符串。') }] }),
       signal: AbortSignal.timeout(300000), cache: 'no-store',
     });
     call.httpStatus = response.status;
     if (!response.ok) {
-      const error = await response.json().catch(() => null);
+      call.httpError = await readProviderHttpError(response, apiKey);
+      let error;
+      try { if (typeof call.httpError.body === 'string') error = JSON.parse(call.httpError.body); }
+      catch (error) { if (!(error instanceof SyntaxError)) throw error; }
       const message = typeof error?.error?.message === 'string' ? error.error.message : '';
       // Keep the diagnostic on the failed run; never expose credentials or the request body.
       const reason = /messages.*json|json.*messages/i.test(message) ? '上游要求消息中明确包含 json 标记' : message.includes('max_tokens') ? 'max_tokens 参数被拒绝' : /context|token.*limit/i.test(message) ? '上下文或 token 预算超出上游限制'
@@ -110,12 +114,13 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
     const validFunction = Array.isArray(tools) && tools.length === 1 && tools[0]?.type === 'function' && tools[0]?.function?.name === functionOutput?.name;
     const raw = functionOutput ? (validFunction ? tools[0].function.arguments : undefined) : message?.content;
     call.response = { finishReason: typeof payload.choices?.[0]?.finish_reason === 'string' ? payload.choices[0].finish_reason : null,
-      answerChars: typeof raw === 'string' ? raw.length : null,
+      answerChars: typeof raw === 'string' ? raw.length : typeof message?.content === 'string' ? message.content.length : null,
       reasoningTokens: Number.isSafeInteger(usage?.completion_tokens_details?.reasoning_tokens) && usage.completion_tokens_details.reasoning_tokens >= 0 ? usage.completion_tokens_details.reasoning_tokens : null,
-      ...(purpose === 'translate' ? { rawMessage: { content: message?.content ?? null, tool_calls: message?.tool_calls ?? null } } : {}) };
+      ...(functionOutput ? { rawMessage: { content: message?.content ?? null, tool_calls: message?.tool_calls ?? null } } : {}) };
     if (payload.choices?.[0]?.finish_reason === 'length') throw new Error('DeepSeek 回答被截断，本次未保存版本。');
     if (functionOutput && (!validFunction || payload.choices?.[0]?.finish_reason !== 'tool_calls')) throw new Error(purpose === 'translate'
-      ? 'DeepSeek 未返回结构化英文译文，本次未保存版本。' : 'DeepSeek 未返回结构化页面大纲，方案未保存。');
+      ? 'DeepSeek 未返回结构化英文译文，本次未保存版本。' : purpose === 'local-edit'
+        ? 'DeepSeek 未返回结构化局部修改，本次未保存版本。' : 'DeepSeek 未返回结构化页面大纲，方案未保存。');
     if (typeof raw !== 'string') throw new Error('DeepSeek 没有返回站点内容。');
     let data: unknown;
     try { data = JSON.parse(functionOutput ? raw : raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')); }
@@ -182,6 +187,15 @@ export async function writeSiteCode(args: { materials: string; preferences: Code
   const result = await modelJson('write', await rules({ ...args.preferences, style: args.plan.style }), `事实红线：无来源的价格、时间、资质、承诺、效果、客户与评价一律不写。常见行业做法也不是这家公司的事实；资料标明的缺口保留待补充，不自动隐藏；不用新承诺填版面。只写资料中已有的业务内容；不生成表单、提交入口或收件功能。报价、询价等商业条款按普通文字展示；不默认增加报价入口、邮箱联系或联系页。已有联系方式按资料展示，不据单项邮箱硬套独立联系页。资料少就做得少，用户补充后再丰富。\n资料（唯一企业事实来源，包含用户明确补充）：\n${args.materials}\n已确认页面大纲（不能作为新增事实来源，冲突时以资料为准）：${JSON.stringify(args.plan)}\n可用图片编号：${JSON.stringify(images)}\n本次要求：${args.request}\n${args.current ? `当前完整站点：${JSON.stringify(args.current)}\n保留没有要求改且有资料依据的内容、页面和图片。` : '写出大纲中所有页面的完整站点。资料薄的页面可以短，不为填版面编流程或承诺。'}\n${referenceContext}\n返回 {"header":"公共页头HTML片段","footer":"公共页脚HTML片段","css":"一份全站CSS","pages":[{"id":"home","title":"首页","html":"main片段"}]}。不要解释。`, 65536);
   return { code: codeSiteSchema.parse(result.data), model: result.model };
 }
+const localEditSchema = z.union([
+  z.object({ html: z.string().min(1).max(100000), css: z.string().max(30000), cannotEdit: z.literal('') }).strict()
+    .transform(({ html, css }) => ({ html, css })),
+  z.object({ html: z.literal(''), css: z.literal(''), cannotEdit: z.string().min(1).max(500) }).strict()
+    .transform(({ cannotEdit }) => ({ cannotEdit })),
+]);
+const localEditParameters = { type: 'object', properties: {
+  html: { type: 'string' }, css: { type: 'string' }, cannotEdit: { type: 'string' },
+}, required: ['html', 'css', 'cannotEdit'], additionalProperties: false };
 export async function writeLocalEdit(args: { materials: string; preferences: CodePreferences; plan: CodePlan; request: string;
   current: SiteCode; target: AnnotationTarget; issues: string[]; edits?: LocalEditGroup['items'] }) {
   const context = await localEditContext(args.current, args.target);
@@ -202,12 +216,15 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
       }) } : {
         ...(args.target.element ? { pointedElement: args.target.element } : {}),
         ...(args.target.elements ? { pointedElements: args.target.elements } : {}),
-      }) }), 12288);
-  return { response: result.data, model: result.model };
+      }) }), 12288, { name: 'submit_local_edit', description: '提交选中区块的完整 HTML 与新增 CSS，或明确不能局部修改的原因。',
+        parameters: localEditParameters });
+  const parsed = localEditSchema.safeParse(result.data);
+  if (!parsed.success) throw new Error('DeepSeek 局部修改参数格式不正确，本次未保存版本。');
+  return { response: parsed.data, model: result.model };
 }
 export async function writeLocalEditBatch(args: { materials: string; preferences: CodePreferences; plan: CodePlan; current: SiteCode;
   groups: LocalEditGroup[]; issues: string[]; groupIssues?: string[][] }) {
-  const results: Array<{ group: LocalEditGroup; response: unknown; model: string }> = [];
+  const results: Array<{ group: LocalEditGroup; response: z.infer<typeof localEditSchema>; model: string }> = [];
   for (const group of args.groups) {
     // Admission is checked for every group immediately before its model call;
     // a later group must not rely on an earlier task-level check.
