@@ -130,7 +130,7 @@ try {
     const args = process.argv.slice(2);
     // A few browser-heavy files can exhaust the unchanged per-viewport budget.
     // Named selections share this scheduler: multiple selected files also compete.
-    const defaultFileConcurrency = 2;
+    const defaultFileConcurrency = 1;
     const files = args.some(arg => arg.endsWith('.test.ts')) ? []
       : (await readdir('tests')).filter(name => name.endsWith('.test.ts')).sort().map(name => `tests/${name}`);
     const summaryFile = path.join(output, 'summaries.ndjson');
