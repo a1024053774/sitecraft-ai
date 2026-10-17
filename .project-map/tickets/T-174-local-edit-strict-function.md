@@ -231,3 +231,17 @@ build 完成后，10:27:08Z 再独立运行 memory_pressure 与 ps，空闲 51%�
 随后串行运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，10:55:18.397Z **4／4**（redaction-runner.log）；`npm run typecheck`，10:55:38.734Z 通过（redaction-typecheck.log），均退出码 0，时间均为 UTC，日志位于 artifacts/t174/。本轮未生成 UI 截图，未调用真实模型、未读 .env.local、未使用 rm、未写主目录 .sitecraft-data。AGENTS 只写当前规则及拦截此重复失败类别的测试指针；spec 同步正文二选一和仅传原长度的错误留存合同，mainline／CONTEXT 窄改相关说明，保持 UTF-8。
 
 本轮离线定向、runner 与 typecheck **PASS**；整体状态 **INCOMPLETE**。按主控的 T-176／主线合并验证协调，未启动全量或 build，先回报 READY_FOR_HEAVY 与拟执行的全量命令，等待明确放行；不能沿用上一提交的 778／778 代替本次全量，也不把独立 NO_GO 改写为审查通过。票保持 open，后续独立复审与第二组授权仍由主控安排。实现与测试冻结后，新建 `fix: 含凭据的 HTTP 错误正文整段舍弃` 提交，不 amend 6741980；提交 SHA 记录于交付回报及 artifacts/t174/redaction-commit.json。仅 add 本轮显式路径，artifacts/ 与 tsconfig.json 的 Next 自动改动不提交，不推送。
+
+### 正文舍弃修复的获准全量（2026-10-17，Codex）
+
+主控确认主线合并验证已结束、T-176 已合并关票，明确放行本工作树一轮全量；新的独立实例只读复审 `cd4e677`，执行者不代替其结论。本轮实现和测试固定为 `cd4e6773a2ed5a5e83ebf5104a1845050f5ec763`，之后只追加本 Resolution，不改复审候选。
+
+2026-10-17T10:59:58Z 先运行 `memory_pressure`，空闲 **67%**；再运行 `ps -axo pid,ppid,command`，未见其他正在运行的自动化 Chrome、node --test、Next build 或预算网关。原始记录为 `artifacts/t174/redaction-pre-full-memory.txt`、redaction-pre-full-processes.txt。资源满足空闲至少 25% 与重任务串行要求后，只执行一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`，标准入口于 11:00:23Z 创建本轮证据目录。
+
+2026-10-17T11:05:20.357Z 全量完成：**783／783 通过**，失败／取消／跳过均为零，退出码 0，耗时 294888.228333ms。日志 `artifacts/t174/redaction-full.log`，报告 `artifacts/t167/test-run-1792234823647-49187/report.json`；cwd 为本工作树，临时根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-HkV71L`，随机 origin 127.0.0.1:49899、独立 .next-test，身份核对一致。日志、调用／任务落盘及临时根保留；没有重跑全量、跳过用例、放宽断言或更换入口，没有回退主工作区服务。此前定向 51／51＋66／66、runner 4／4 与 typecheck 对应的源码随后没有变化，本轮没有重复执行它们或启动 build。
+
+本轮 99 张浏览器截图均逐张打开，清单 `artifacts/t174/redaction-full-screenshot-views.json`；T-130 的 213 张打包输入照片单列排除。T-162 self-contained-1792234873012-52701 中 rejected-1440 与 stale-1440 两张图的预览仍显示载入版本，不作有效完成截图，原图保留，未重拍覆盖；T-145 dark-375／dark-768 实际为浅色工作台，不作该档暗色主题证据。意见框、发送中草稿和缩放预览只作对应操作状态，不冒充生成站三档完成证据，不自评审美。
+
+11:05:44Z 的 `artifacts/t174/redaction-post-full-processes.txt` 未见本轮全量进程、无头 Chrome 或预算网关；标准入口已关闭本轮 dev server 并退出。进程表另有 runner 回归及其定向子进程接续，未操作或终止它们；已回报主控释放本轮重任务窗口。仅新增票的记录提交 `docs: 记录 T-174 正文舍弃修复全量结果`（SHA 见交付回报与 artifacts/t174/redaction-full-commit.json），不 amend cd4e677，附规定 coauthor；不提交 artifacts/ 或 tsconfig.json 的 Next 自动改动，不推送。
+
+本轮获准全量 **PASS**，整票仍 **INCOMPLETE**：独立复审结果由主控汇总，第二组真实运行仍等主控另行下达，未新增真实业务版本、导入暂存副本或盲评包。本轮未调用真实模型、未读取 .env.local、未使用 rm、未写主目录 .sitecraft-data；票保持 open、claimed_by=Codex。
