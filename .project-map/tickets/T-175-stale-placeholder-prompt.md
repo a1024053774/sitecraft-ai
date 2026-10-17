@@ -3,7 +3,7 @@ id: T-175
 title: 补充新事实后提示其他页面同项的「待补充」
 type: build
 status: open
-blocked_by: []
+blocked_by: [T-178]
 claimed_by: Codex
 supersedes:
 ---
@@ -24,8 +24,6 @@ supersedes:
 - [x] 先列失效方式再写测试，测试先在父版本失败：事项名不逐字出现时不提示；本次修改范围内的「待补充」不重复提示；跨页命中；刷新不重复；按钮只加草稿不存版本
 - [x] 用 `3e52f683`（禾巷小馆（批注验收））的 v2 只读副本，以本地替身重放首页包装费批注，工作台出现菜单页提示；1440/768/375 截图逐张看过
 - [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 sol 审查通过
-- [ ] A：串行比较至少三个候选的全量耗时、失败数和逐档动态检查，选择全部通过且耗时最短者
-- [ ] A：同一代码提交连续两轮全量通过，并在最终提交构建；每轮前内存空闲不低于 25% 且核对 ps
 
 ## 失效方式与验收边界
 
@@ -41,7 +39,7 @@ supersedes:
 
 ## Resolution
 
-执行状态：INCOMPLETE。已实测 1/2/4/6；2 在 fb500ec 上两轮均失败，最低值 1 在 499c1cf 上一轮 799/799、后一轮 797/799（两项 T-175 超时），A 未找到满足连续两轮全过的值。默认 1 仅保留为降低文件竞争的待审候选，不宣称验收通过。定向、typecheck、入口回归与构建通过不能替代全量稳定性。独立 sol 审查由主控另派，票保持 open；不重跑、不修改探针或进入 T-178。
+执行状态：INCOMPLETE。按构思主控 2026-10-17 的决定撤回 A 的文件并发上限，T-175 暂停等待 T-178；功能、原始验收及全部实测失败证据保留，claimed_by 仍为 Codex。脚本恢复到 fb500ec 之前的调度，工作树保留，不重跑全量或 build，不进入 T-178。
 
 - 2026-10-17 13:09 UTC，父版本 d7e0aa2 的初次完整红测执行 5 项、5 项按预期失败：提交后提示数组为空；三档工作台提示数为 0。生产 chat 均完成存版，未因替身、导入或环境错误失败。完整日志 `artifacts/t175/parent-red.log`，报告 `parent-report.json`；中断轮另保留在 `parent-interrupted/`，不作为完整红测。
 - 13:16 UTC，最终 6 项用例串行还原 d7e0aa2 的三个产品接入文件后全部按预期失败，含更换事项名的独立输入；还原期间不跑其他测试，结束原样恢复产品改动。日志 `artifacts/t175/parent-final-red.log`，报告 `parent-final-report.json`。
@@ -125,3 +123,18 @@ supersedes:
 `SITE_STORE=fs npm run build` 已在 499c1cf 上退出 0，日志 `artifacts/t175/build-499c1cf.log`；开跑前空闲 61%，ps 及内存记录为 `pre-build-499c1cf-{memory,processes}.txt`，未读取 .env.local。结果记录提交不改代码，最终记录提交上的构建回执单独保存在 `artifacts/t175/build-final.log` 与 `build-final-report.json`（含实际 SHA、时间、命令和退出码）。本票仍为 INCOMPLETE，不关闭上述未满足的验收项。
 
 串行定向、并发 1 两轮生成的 T-175 提示与草稿截图均逐张打开查看；第二轮只有 1440 场景存版成功，768/375 没有新提示截图。所有 375 草稿截图仅作为意见框及部分区块可见的证据，不用于宣称完整区块可见或审美通过。
+
+## 构思主控决定：暂停等 T-178
+
+2026-10-17，构思主控决定先做 T-178，T-175 暂停等它。撤回 `scripts/run-tests.ts` 自 fb500ec 起引入的默认文件并发参数、常量和配套注释，恢复到其父提交 9f5b680 的入口；同步移除 AGENTS.md、README.md、spec.md 的文件并发上限说明。只撤这一部分，T-175 功能、术语、其他文档同步及原始验收保持；A 不再作为当前待办，以上决定与测量表作为历史依据保留。
+
+头部 `blocked_by` 改为 `[T-178]`，`claimed_by: Codex` 不变，票保持 open。当前工作树尚无 T-178 票文件，project-map 的缺失依赖提示如实保留，待主控整合该票后解析；不在本工作树另建 T-178。并发 1/2/4/6 的所有失败日志、report、timings、逐档诊断和截图均留在原 `artifacts/t175/`、对应 `artifacts/t162/` 与失败的 `artifacts/t167/test-run-*/`，供 T-178 使用，不移动、不覆盖或清理。
+
+撤回后只各执行一次定向 T-175、独立 runner 回归与 typecheck；不运行全量、不运行 build。此次用新本地提交记录，不 amend、不用 git revert；`tsconfig.json` 的 Next 自动改动继续留在工作树且不提交。完成限定检查和提交后停止等待，工作树不删除。
+
+本次撤回验证（2026-10-17；对应本节所在的新提交，父提交 00478e5，SHA 见交付回报）：
+
+- `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t175-stale-placeholder.test.ts` 只运行一次，15:05:21 UTC 完成，6 项中 4 通过、2 失败，退出 1；1440、768 场景均在生产 chat 存版前报「局部动态状态检查超时，本次未保存版本。」，375 场景通过。不能宣称撤回后的全部定向验收通过，不重跑掩盖。日志和报告为 `artifacts/t175/withdraw-concurrency-1792249471152/directed.log`、`directed-report.json`；完整检查诊断及失败数据根仍由标准入口保留。
+- 随后单独执行一次 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，4/4 通过、退出 0，日志同目录 `runner-regressions.log`；再执行一次 `npm run typecheck`，退出 0，日志 `typecheck.log`。本轮没有全量或 build。
+- `scripts/run-tests.ts`、AGENTS.md、README.md、spec.md 对 9f5b680 的文本 diff 为空，确认只撤回文件并发部分；T-175 的组件、版本/出处逻辑、测试、夹具、CONTEXT 与 mainline 对功能提交 95317ea 的文本 diff 为空，功能和其他同步保留。本轮 375 的提示/草稿两张截图已逐张打开查看。
+- project-map status：过期 living doc 为 0；唯一结构问题是本工作树缺少 T-178 票文件，已按负责人要求保留 `blocked_by: [T-178]`，不擅自创建该票。T-175 为 INCOMPLETE，暂停等待 T-178；claimed_by 和工作树保留。
