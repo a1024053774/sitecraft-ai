@@ -79,6 +79,6 @@ test('real submission keeps every contrast refusal, advisory lines and run-scope
     records.push({ id, status: run.status, modelCalls: run.modelCalls, attempts: run.attempts.map(a => a.checks) });
   }
   const { mkdir, writeFile } = await import('node:fs/promises');
-  const directory = path.join('artifacts/t130', `api-fixture-${crypto.randomUUID()}`); await mkdir(directory, { recursive: true });
+  const directory = path.join(process.env.SITECRAFT_DATA_ROOT!, 't130', `api-fixture-${crypto.randomUUID()}`); await mkdir(directory, { recursive: true });
   await writeFile(path.join(directory, 'report.json'), JSON.stringify({ kind: 'provider-fixture-only', command: 'CHROME_PATH=<specified Chrome> node --test --experimental-strip-types tests/t130-run-records.test.ts', records }, null, 2));
 });
