@@ -124,6 +124,18 @@ const localRequest = (repair: boolean) => ({
   messages: [{ role: 'system', content: '本次局部修改' }, { role: 'user', content: JSON.stringify({ html: '<section>纸品说明</section>', css: '', issues: repair ? ['保留区块范围外内容。'] : [] }) }],
 });
 const billed = { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 };
+test('T-174 小额度探针：局部函数完整预留并原值发送 64，非局部仍保留 4096 门槛', async context => {
+  const running = await gateway(1000, [{ prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 }]);
+  context.diagnostic(`账本与上游请求：${running.folder}`);
+  try {
+    const body = { ...localRequest(false), max_tokens: 64 };
+    assert.equal((await running.post('/beta/chat/completions', body)).status, 200);
+    assert.equal(running.requests.length, 1);
+    assert.equal(running.requests[0].max_tokens, 64);
+    assert.equal((await running.ledger()).calls[0].outputLimit, 64);
+    assert.throws(() => reserveRequest({ ...body, tools: undefined }, 0, 1000), /Remaining authorization/);
+  } finally { await running.close(); }
+});
 for (const repair of [false, true]) {
   const phase = repair ? '修正轮' : '首轮';
   test(`T-174 ${phase}余额不足：真实网关在出网前拒绝并停止，不降低 12288`, async context => {

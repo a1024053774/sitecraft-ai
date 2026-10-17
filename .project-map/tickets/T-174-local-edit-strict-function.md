@@ -24,6 +24,7 @@ T-173 第二组（首页用餐场景 + 菜单页午市组合，跨页多区块�
 - 预算网关是验收工具，按不静默降级原则：局部写作和修正轮（submit_local_edit）在发请求前，如果累计授权不能完整预留请求自带的 12,288 输出，就明确拒绝（不出网、网关停止并记录原因），不再自动调小 max_tokens。其他调用（事实核对、翻译、大纲、整站写作等）保持 T-165 现有行为。
 - 负责人已批追加：第二组新账本 SITECRAFT_TOKEN_LIMIT=30000（原余额 19,367 加追加约 1.1 万），仍只跑一次第二组，截断、拒收或预留失败即停。
 - 网关改动交新的 sol 实例快速复审，通过后才运行。
+- 构思主控对 HTTP 400 选 A（2026-10-17）：修复局部写作 schema 的根 object 与长重复正则问题，并保存 HTTP 错误正文、状态和实际响应 request id；全部算在负责人已批的 30000 账本内（上次账本实付 0），上次 400 请求未被模型处理，不算用掉运行授权。先完成离线修复；全量／build 先报 READY_FOR_HEAVY 等主控放行。探针另等主控明确「可以探针」后才发，旧／新 schema 各一次、独立 1000 新账本、max_tokens≤256，合计≤2000；新 schema 仍 400 就停。第二组重跑须新 sol 复审通过并由主控另行下达；大纲与翻译只读检查，不在本票改。
 
 ## What to build
 
@@ -129,3 +130,39 @@ build 和全量均在负责人补充 T-176 重任务协调规则前启动；规�
 review/ 只保留第二组批注原文和中性说明，明确没有可比较的改后版本；不制作 A/B 映射或改后图片，不启动盲评。未满足存版成功前提，**未创建 artifacts/t174/import-3e52f683/**，因此没有三版暂存副本、独立导入验证应用或新版本出处弹层截图。主目录只读复核仍为指定 v2、两版历史、七条来源；本次失败任务、新批注及消息只在临时副本中保留，未写主目录 .sitecraft-data。
 
 本轮执行到约定停止条件即止，30000 账本的本次唯一真实尝试已执行，剩余账面额度不构成自行重发授权。票保持 open，真实第二组存版、出处显示与盲评验收项仍不勾选，交主控决定下一步；本轮只本地提交此 Resolution 与复审记录，不推送、不使用 rm，tsconfig.json 自动改动不提交，临时根及全部失败证据保留。
+
+### 根 object 与 HTTP 诊断修复（2026-10-17，Codex）
+
+本轮基线 `2e46021b83722cb27f0e580315e15c8daa691fcd`，沿用 claimed_by=Codex。主控追加决定明确上次 400 未被模型处理、账本实付 0，不占第二组运行授权；该决定取代上一节当时的授权停止判断。新实现候选先完成离线验证，全量／build 等待 READY_FOR_HEAVY 后明确「可以跑」，真实探针另等「可以探针」；第二组不在本轮自行重跑。最终按要求创建新提交，不 amend。
+
+局部 provider 参数改为单一 type:object，html、css、cannotEdit 三个字符串全部 required，additionalProperties=false；修改时 cannotEdit=""，拒绝时 html/css=""。两种结果互斥及原 100000／30000／500 上限只在 Zod 检查，通过后转换为工作流原有结果类型；没有旧字段缺省兼容路径。局部参数不再经过长度转正则的 strictFunctionParameters。大纲与翻译的 schema 构造及转换函数均未改。选择字符串和全部 required 的依据为 [DeepSeek strict 官方规范](https://api-docs.deepseek.com/zh-cn/guides/tool_calls/)（2026-10-17 读取），不新增对 nullable 类型支持的假设；文档与静态检查不能代替后续真实受理探针。
+
+modelCalls 与预算账本 call 均新增 httpError：status、脱敏正文 body、requestId、requestIdHeader。共用 lib/provider-http-error.ts 读取响应，沿用既有 ai-provider.ts 的 x-ds-trace-id／x-request-id 追踪名称，只在响应实际存在时记录头名称和值，无则为 null，不从正文猜编号。网关保留原 HTTP 状态、响应类型与脱敏正文，并只转发选中的编号头，不复制 authorization 或完整头集合；客户端继续严格拒收，不重试、不进入修正轮。正文无敏感数据时原样保留空白；明确认证字段删除，凭据原文及 JSON 转义后解码的凭据字符串都遮蔽。真实头名称及旧 400 具体原因仍待获准后的探针确认。
+
+网关原 4096 最低输出会在出网前挡住主控指定的小额度探针，因此只对 submit_local_edit 采用完整预留请求上限的既有合同，不再额外套该最低值；其他用途的 4096 门槛与降额逻辑不变，没有探针开关或绕过预算。应用首轮／修正轮上限仍为 12288。Deep modules 使用一个有两个真实消费者的 HTTP 错误读取模块，复用原模型入口、账本和停止边界；Ubiquitous language 沿用「局部写作」「修正轮」「完整预留」。
+
+#### 父版本与补充反例
+
+生产仍为 2e46021 时运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t174-local-function.test.ts tests/t165-token-reserve.test.ts`，2026-10-17T09:54:56.382Z：61 项中 14 通过、47 失败。日志 `artifacts/t174/object-2e46021-red.log`，报告 `artifacts/t167/test-run-1792230768246-55195/report.json`，临时根 sitecraft-test-G1I7BL 保留。失败包含新根 object 合同未实现、三字段合法结果不能存版／明确拒绝、HTTP 诊断缺失、非 JSON 错误在网关被改成其他错误，以及小上限被 4096 门槛拒绝；不是环境启动失败。原有预算正例仍通过，未把已有行为伪称为缺陷。
+
+父版本实际序列化的旧 tool 保存为 `artifacts/t174/object-diagnostics/old-tool-2e46021.json`，来源为该轮 single-valid 请求：根无 type，anyOf 位于根部，html pattern={1,100000}、css pattern={0,30000}、cannotEdit pattern={1,500}。它是本次探针使用的旧定义来源，没有人工修补旧 schema。新定义从修后真实请求保存为同目录 new-tool.json。响应和预期来自主控规则与外部替身；用例不导入生产 schema 作为答案。
+
+修后相同两文件命令先于 10:00:50Z 61/61 通过（object-green.log）。随后定向检查及 typecheck 发现异步回调中 provider.apiKey 的类型收窄失效，原 `object-typecheck.log` 保留 TS2345；校验后固定 const apiKey，并删除非 2xx 前置分支之后已不可能命中的旧判断，未增加类型断言或空值降级。相同两文件在 10:08:11Z 再次 61/61 通过（object-final-focused.log）。
+
+最后将已有 http-sensitive 用例强化为 JSON 转义凭据，在修复中的候选上运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t174-local-function.test.ts`，10:11:33.267Z 出现预期的 2 项失败、44 项通过：JSON 解码后凭据会重新进入诊断正文。日志 object-escaped-key-red.log、报告 `artifacts/t167/test-run-1792231848065-85782/report.json`、临时根 sitecraft-test-peeLlF 保留；这是补充的已知坏候选反例，不冒充父版本记录。修正为同时清理 JSON 解码后的字符串后，相同两文件命令于 10:13:28.484Z 最终 61/61，通过／失败／取消／跳过分别为 61／0／0／0（object-final-green.log，报告 `artifacts/t167/test-run-1792231961277-87268/report.json`，临时根 sitecraft-test-1wWZDQ）。
+
+最终用例经生产 chat POST、原任务及统一提交入口，控制 after 调度；HTTP 错误额外经过真实预算网关子进程与本地上游替身，检查任务与账本同时保存相同正文／状态／编号，缺头不猜、非 JSON 正文不丢失、认证信息不泄漏，并核对未存版、零修正及只发一次。不能把它称为真实 Next after 或真实 DeepSeek 受理证据。
+
+#### 相关检查与只读风险检查
+
+`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t174-local-function.test.ts tests/t165-*.test.ts tests/t153-*.test.ts tests/t164-*.test.ts tests/t173-*.test.ts tests/t151-translation-protocol.test.ts tests/t151-short-translation.test.ts tests/t135-plan-contract.test.ts` 于 10:04:45.593Z 260/260 通过，失败／取消／跳过为零；日志 object-focused.log，报告 `artifacts/t167/test-run-1792231309502-72831/report.json`，临时根 sitecraft-test-yepJwj 保留。后续类型与转义脱敏补正已用上述最终 61 项复验；全量须在此最终候选上另行获准后运行。定向的十张批注／出处回归截图均逐张打开，载入正常，清单 object-diagnostics/screenshot-views.json，不自评审美。
+
+只读核对 submit_page_plan：根为 object，summary／styleReason／skeletonReason／outline 的最大长度分别为 400／200／300／120，页面 ID 模式上限 39，没有大于 1000 的重复次数。submit_english_translation 根同为 object，但 text.max(30000) 经原转换生成 `^[\s\S]{1,30000}$`，存在同类长模式结构风险；此为静态风险结论，不能据此断言上游必定拒绝。本票未修改这两条 schema，相关既有回归通过。
+
+#### 等待放行的探针
+
+只准备了 `artifacts/t174/object-diagnostics/probe-1-request.json` 与 probe-2-request.json，未发送；同一最小请求仅替换旧／新 tool 定义，thinking=enabled、tool_choice=auto、max_tokens=64。离线完整预留分别为 899（输入 835＋输出 64）与 717（653＋64），各低于独立 1000 上限，两次合计授权不超过 2000；probe-preparation.json 明确记录 actualRequestSent=false。实际启动时仍须使用全新 artifacts/t174/probe-1-<时间戳>/ 和 probe-2-<时间戳>/，不 --resume，真实密钥只进按主控指示 source 的网关进程。尚未读取 .env.local、未发真实模型请求，400 正文、真实编号头及用量仍待「可以探针」后记录；新 schema 仍 400 则停止，不试第三次。
+
+最终候选再串行运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，10:14:35.472Z 4/4（object-ready-runner.log）；`npm run typecheck`，10:15:20.016Z 通过（object-ready-typecheck.log），时间均为 UTC，日志位于 artifacts/t174/。全量、build 及两次真实探针尚未启动，按主控门禁等待放行，本轮状态 **INCOMPLETE**；之后仍需新 sol 复审才能由主控另行授权第二组。新提交待本轮检查与探针门禁结束后创建，tsconfig.json 保持未提交，不推送。
+
+主控随后明确放行并调整顺序：先新建离线修复提交（不 amend），再在该提交上各执行一次旧／新 schema 探针；新 schema HTTP 400 即停，不执行后续检查。探针通过后才串行 build、全量，每项前检查 memory_pressure（低于 25% 停止）与 ps；T-176 重任务由主控等待本轮结束后再放行。所有执行结果随后另建记录提交，不 amend 离线修复提交。

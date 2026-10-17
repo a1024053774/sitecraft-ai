@@ -5,6 +5,7 @@ import { randomInt } from 'node:crypto';
 import path from 'node:path';
 import { z } from 'zod';
 import { providerConfig } from './ai-provider.ts';
+import { readProviderHttpError } from './provider-http-error.ts';
 import { codeSiteSchema, explicitEnglishCompanyName, type CodePreferences, type SiteCode, type CodePlan, type CodeVersion, type CodeModelCall } from './code-site.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { codeRepairFragments, applyCodeRepair } from './code-site-repair.ts';
@@ -91,7 +92,10 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
     });
     call.httpStatus = response.status;
     if (!response.ok) {
-      const error = await response.json().catch(() => null);
+      call.httpError = await readProviderHttpError(response, apiKey);
+      let error;
+      try { error = JSON.parse(call.httpError.body); }
+      catch (error) { if (!(error instanceof SyntaxError)) throw error; }
       const message = typeof error?.error?.message === 'string' ? error.error.message : '';
       // Keep the diagnostic on the failed run; never expose credentials or the request body.
       const reason = /messages.*json|json.*messages/i.test(message) ? '上游要求消息中明确包含 json 标记' : message.includes('max_tokens') ? 'max_tokens 参数被拒绝' : /context|token.*limit/i.test(message) ? '上下文或 token 预算超出上游限制'
@@ -184,9 +188,14 @@ export async function writeSiteCode(args: { materials: string; preferences: Code
   return { code: codeSiteSchema.parse(result.data), model: result.model };
 }
 const localEditSchema = z.union([
-  z.object({ html: z.string().min(1).max(100000), css: z.string().max(30000) }).strict(),
-  z.object({ cannotEdit: z.string().min(1).max(500) }).strict(),
+  z.object({ html: z.string().min(1).max(100000), css: z.string().max(30000), cannotEdit: z.literal('') }).strict()
+    .transform(({ html, css }) => ({ html, css })),
+  z.object({ html: z.literal(''), css: z.literal(''), cannotEdit: z.string().min(1).max(500) }).strict()
+    .transform(({ cannotEdit }) => ({ cannotEdit })),
 ]);
+const localEditParameters = { type: 'object', properties: {
+  html: { type: 'string' }, css: { type: 'string' }, cannotEdit: { type: 'string' },
+}, required: ['html', 'css', 'cannotEdit'], additionalProperties: false };
 export async function writeLocalEdit(args: { materials: string; preferences: CodePreferences; plan: CodePlan; request: string;
   current: SiteCode; target: AnnotationTarget; issues: string[]; edits?: LocalEditGroup['items'] }) {
   const context = await localEditContext(args.current, args.target);
@@ -208,7 +217,7 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
         ...(args.target.element ? { pointedElement: args.target.element } : {}),
         ...(args.target.elements ? { pointedElements: args.target.elements } : {}),
       }) }), 12288, { name: 'submit_local_edit', description: '提交选中区块的完整 HTML 与新增 CSS，或明确不能局部修改的原因。',
-        parameters: strictFunctionParameters(localEditSchema) });
+        parameters: localEditParameters });
   const parsed = localEditSchema.safeParse(result.data);
   if (!parsed.success) throw new Error('DeepSeek 局部修改参数格式不正确，本次未保存版本。');
   return { response: parsed.data, model: result.model };

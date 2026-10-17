@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import type { SiteCode } from '../lib/code-site.ts';
+import { budgetChild } from './helpers/budget-child.ts';
 
 // 期望来自 T-174：格式错误终止且保留原答；首轮、修正轮均严格调用函数；
 // 合法单区块与跨页批次经生产 chat/提交入口存版。只替换 after 调度和模型。
@@ -32,7 +33,9 @@ const incomplete = '{"html":"' + '未闭合的区块内容'.repeat(200);
 const broken1284 = incomplete.slice(0, 1284);
 assert.equal(broken1284.length, 1284);
 const usage = { prompt_tokens: 3735, completion_tokens: 1898, total_tokens: 5633, completion_tokens_details: { reasoning_tokens: 1311 } };
-type Mode = 'valid' | 'repair' | 'stop-1284' | 'missing' | 'wrong-name' | 'multiple' | 'non-json' | 'fenced' | 'schema' | 'extra' | 'mixed' | 'stop-function' | 'length' | 'cannot';
+type Mode = 'valid' | 'repair' | 'stop-1284' | 'missing' | 'wrong-name' | 'multiple' | 'non-json' | 'fenced' | 'schema' | 'extra' | 'mixed' | 'empty' | 'html-limit' | 'css-limit' | 'reason-limit' | 'stop-function' | 'length' | 'cannot' | 'http-400' | 'http-400-fallback' | 'http-400-no-id' | 'http-text' | 'http-sensitive';
+const errorBody = '{\n  "error": {"message": "局部 schema 被拒绝", "code": "invalid_request_error"},\n  "request_id": "正文中的编号不能代替响应头"\n}\n';
+const textError = '<html>上游暂时拒绝局部请求</html>\n';
 let mode: Mode = 'valid', groupCount = 1, writes = 0;
 const requests: any[] = [], replies: any[] = [];
 const provider = createServer(async (req, res) => {
@@ -40,17 +43,31 @@ const provider = createServer(async (req, res) => {
   const body = JSON.parse(raw), local = body.messages[0].content.includes('本次局部修改');
   const input = JSON.parse(body.messages[1].content.split('\n')[0]);
   requests.push({ local, url: req.url, body });
+  if (local && mode.startsWith('http-')) {
+    writes++;
+    if (mode !== 'http-400-no-id') res.setHeader(mode === 'http-400-fallback' ? 'x-request-id' : 'x-ds-trace-id', 'fixture-request-174');
+    res.setHeader('authorization', 'Bearer response-header-must-not-be-copied');
+    res.setHeader('content-type', mode === 'http-text' ? 'text/html' : 'application/json');
+    res.writeHead(mode === 'http-text' ? 503 : 400);
+    // 转义后的凭据在 JSON.parse 后仍是密钥，不能只清理原文的连续子串。
+    res.end(mode === 'http-text' ? textError : mode === 'http-sensitive' ? JSON.stringify({ error: { message: '拒绝 local-intercept-only', authorization: 'Bearer local-intercept-only', api_key: 'local-only' } }).replaceAll('-', '\\u002d') : errorBody);
+    return;
+  }
   let finishReason = 'stop', message: any;
   if (!local) {
     message = { content: JSON.stringify({ results: input.segments.map((segment: any) => ({ id: segment.id, issues: [], noFacts: true, factCategories: [], citations: [] })) }) };
   } else {
     writes++;
     const html = input.html.replace('纸箱介绍', '纸箱用途').replace('纸袋介绍', '纸袋用途');
-    let answer: unknown = { html: mode === 'repair' && writes <= groupCount ? `<main>${html}</main>` : html, css: '' };
+    let answer: unknown = { html: mode === 'repair' && writes <= groupCount ? `<main>${html}</main>` : html, css: '', cannotEdit: '' };
     if (mode === 'schema') answer = { html }; // 合同要求 css，即使为空也不能遗漏。
-    if (mode === 'extra') answer = { html, css: '', pages: [] };
+    if (mode === 'extra') answer = { html, css: '', cannotEdit: '', pages: [] };
     if (mode === 'mixed') answer = { html, css: '', cannotEdit: '拒绝与候选不得混用' };
-    if (mode === 'cannot') answer = { cannotEdit: '该意见需要修改区块外内容' };
+    if (mode === 'empty') answer = { html: '', css: '', cannotEdit: '' };
+    if (mode === 'html-limit') answer = { html: 'A'.repeat(100001), css: '', cannotEdit: '' };
+    if (mode === 'css-limit') answer = { html, css: 'A'.repeat(30001), cannotEdit: '' };
+    if (mode === 'reason-limit') answer = { html: '', css: '', cannotEdit: 'A'.repeat(501) };
+    if (mode === 'cannot') answer = { html: '', css: '', cannotEdit: '该意见需要修改区块外内容' };
     const args = mode === 'non-json' ? broken1284 : mode === 'fenced' ? '```json\n' + JSON.stringify(answer) + '\n```' : JSON.stringify(answer);
     message = { content: '模型正文也须保留', tool_calls: [{ id: 'local-call', type: 'function', function: { name: mode === 'wrong-name' ? 'other_function' : 'submit_local_edit', arguments: args } }] };
     finishReason = mode === 'stop-function' ? 'stop' : mode === 'length' ? 'length' : 'tool_calls';
@@ -65,10 +82,11 @@ const provider = createServer(async (req, res) => {
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');
 process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`;
+const providerBase = process.env.DEEPSEEK_BASE_URL;
 process.env.DEEPSEEK_API_KEY = 'local-only'; process.env.DEEPSEEK_MODEL = 'local-only';
 test.after(() => new Promise<void>(resolve => provider.close(() => resolve())));
 
-async function run(nextMode: Mode, batch: boolean) {
+async function run(nextMode: Mode, batch: boolean, throughBudget = false) {
   mode = nextMode; writes = 0; groupCount = batch ? 2 : 1; requests.length = 0; replies.length = 0;
   const id = `t174-${crypto.randomUUID()}`;
   const saved = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '青禾纸品',
@@ -81,15 +99,20 @@ async function run(nextMode: Mode, batch: boolean) {
   const selectedTarget = target('home', '纸箱介绍纸箱按用途展示。');
   const input = { message: '标题改为用途，保留其他内容。', baseRevision: 1,
     ...(batch ? { annotationBatch: [selectedTarget, target('products', '纸袋介绍纸袋按用途展示。')].map(target => ({ draftId: crypto.randomUUID(), revision: 1, target, body: '标题改为用途，保留其他内容。' })) } : { selectedTarget }) };
+  const gateway = throughBudget ? await budgetChild(providerBase, path.resolve(output, `${batch ? 'batch' : 'single'}-${mode}-budget`)) : null;
+  process.env.DEEPSEEK_BASE_URL = gateway?.base ?? providerBase;
+  try {
   const response = await chat(new Request(`${process.env.SITECRAFT_BASE}/api/sites/${id}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) }), { params: Promise.resolve({ siteId: id }) });
   assert.equal(response.status, 202, await response.clone().text());
   for (const callback of callbacks.splice(0)) await callback();
   const readback = await fetch(`${process.env.SITECRAFT_BASE}/api/sites/${id}/draft`);
   assert.equal(readback.status, 200);
   const done = (await readback.json()).codeSite;
-  await writeFile(`${output}/${batch ? 'batch' : 'single'}-${mode}.json`, JSON.stringify({ before, done, requests, replies }, null, 2), 'utf8');
+  const ledger = gateway ? await gateway.ledger() : null;
+  await writeFile(`${output}/${batch ? 'batch' : 'single'}-${mode}.json`, JSON.stringify({ before, done, requests, replies, ledger }, null, 2), 'utf8');
   assert.deepEqual(done.versions[0], before.versions[0], '旧版本原样保留');
-  return { before, done };
+  return { before, done, ledger };
+  } finally { process.env.DEEPSEEK_BASE_URL = providerBase; await gateway?.close(); }
 }
 function strictRequests() {
   const local = requests.filter(call => call.local);
@@ -100,11 +123,14 @@ function strictRequests() {
     assert.equal(body.tools[0].type, 'function');
     assert.equal(body.tools[0].function.name, 'submit_local_edit');
     assert.equal(body.tools[0].function.strict, true);
-    // T-174 沿用原合同的互斥两种对象，字段均必填且禁止多余字段。
-    const variants = body.tools[0].function.parameters.anyOf;
-    assert.equal(variants.length, 2);
-    assert.deepEqual(variants.map((variant: any) => [...variant.required].sort()), [['css', 'html'], ['cannotEdit']]);
-    assert.ok(variants.every((variant: any) => variant.type === 'object' && variant.additionalProperties === false));
+    // 根只能是一个对象；互斥和长度全部留给 Zod，不把长上限编码进正则。
+    const schema = body.tools[0].function.parameters;
+    assert.equal(schema.type, 'object');
+    assert.equal(schema.anyOf, undefined);
+    assert.equal(schema.additionalProperties, false);
+    assert.deepEqual([...schema.required].sort(), ['cannotEdit', 'css', 'html']);
+    assert.deepEqual(schema.properties, { html: { type: 'string' }, css: { type: 'string' }, cannotEdit: { type: 'string' } });
+    assert.doesNotMatch(JSON.stringify(schema), /"(?:pattern|minLength|maxLength)"/, '局部 provider schema 不携带长度限制');
     assert.equal(body.thinking.type, 'enabled');
     assert.equal(body.tool_choice, 'auto', '开启思考时沿用现有大纲的 auto 调用机制');
     assert.equal(body.max_tokens, 12288);
@@ -135,6 +161,7 @@ for (const batch of [false, true]) {
     ['stop-1284', /未返回结构化局部修改/], ['missing', /未返回结构化局部修改/], ['wrong-name', /未返回结构化局部修改/],
     ['multiple', /未返回结构化局部修改/], ['non-json', /不是完整 JSON/], ['fenced', /不是完整 JSON/],
     ['schema', /局部修改.*格式/], ['extra', /局部修改.*格式/], ['mixed', /局部修改.*格式/],
+    ['empty', /局部修改.*格式/], ['html-limit', /局部修改.*格式/], ['css-limit', /局部修改.*格式/], ['reason-limit', /局部修改.*格式/],
     ['stop-function', /未返回结构化局部修改/], ['length', /被截断/],
   ];
   for (const [bad, error] of failures) test(`${entry}：${bad} 立即拒收，任务保存原始回答、结束原因与用量`, { timeout: 120000 }, async () => {
@@ -165,5 +192,35 @@ for (const batch of [false, true]) {
     assert.equal(writes, batch ? 2 : 1);
     assert.equal(done.run.repairRound, 0);
     strictRequests();
+  });
+  for (const bad of ['http-400', 'http-400-fallback', 'http-400-no-id', 'http-text', 'http-sensitive'] as const) test(`${entry}：${bad} 经真实预算网关，正文与响应编号同时保留在任务和账本`, { timeout: 120000 }, async () => {
+    const { before, done, ledger } = await run(bad, batch, true);
+    assert.equal(done.run.status, 'error');
+    assert.match(done.run.step, bad === 'http-text' ? /HTTP 503/ : /HTTP 400/);
+    assert.deepEqual(done.versions, before.versions);
+    assert.equal(done.currentVersionId, before.currentVersionId);
+    assert.equal(done.run.repairRound, 0);
+    assert.equal(done.run.attempts.length, 0);
+    assert.equal(requests.length, 1);
+    assert.equal(ledger.calls.length, 1);
+    assert.equal(ledger.stopped, true);
+    assert.equal(done.run.modelCalls.length, 1);
+    const call = done.run.modelCalls[0], recorded = ledger.calls[0];
+    const requestId = bad === 'http-400-no-id' ? null : 'fixture-request-174';
+    const requestIdHeader = bad === 'http-400-no-id' ? null : bad === 'http-400-fallback' ? 'x-request-id' : 'x-ds-trace-id';
+    assert.equal(call.httpStatus, bad === 'http-text' ? 503 : 400);
+    assert.equal(recorded.httpStatus, call.httpStatus);
+    assert.ok(recorded.httpError, '网关账本必须保留上游 HTTP 错误诊断');
+    assert.ok(call.httpError, '任务必须保留网关转发的 HTTP 错误诊断');
+    assert.deepEqual(call.httpError, recorded.httpError, '应用必须收到网关转发的原响应编号和相同的脱敏正文');
+    assert.deepEqual(Object.keys(recorded.httpError).sort(), ['body', 'requestId', 'requestIdHeader', 'status']);
+    assert.equal(recorded.httpError.status, call.httpStatus);
+    assert.equal(recorded.httpError.requestId, requestId);
+    assert.equal(recorded.httpError.requestIdHeader, requestIdHeader);
+    if (bad === 'http-sensitive') {
+      assert.doesNotMatch(recorded.httpError.body, /local-intercept-only|local-only|Bearer|api_key|authorization/);
+      assert.match(recorded.httpError.body, /拒绝/);
+    } else assert.equal(recorded.httpError.body, bad === 'http-text' ? textError : errorBody);
+    assert.doesNotMatch(JSON.stringify(recorded.httpError), /response-header-must-not-be-copied/);
   });
 }
