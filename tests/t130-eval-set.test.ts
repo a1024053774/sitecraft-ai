@@ -67,7 +67,7 @@ test('pairing follows company/style keys, never array order; changed inputs refu
   assert.throws(() => compareRounds(after, round([{ ...a, materials: 'changed' }, b])), /资料或组合已变化/);
 });
 test('CLI refuses an incompatible previous corpus and preserves the reason in its output', async () => {
-  const directory = path.resolve('artifacts/t130', `cli-fixture-${crypto.randomUUID()}`), before = path.join(directory, 'before'), after = path.join(directory, 'after');
+  const directory = path.join(process.env.SITECRAFT_DATA_ROOT!, 't130', `cli-fixture-${crypto.randomUUID()}`), before = path.join(directory, 'before'), after = path.join(directory, 'after');
   await mkdir(path.join(before, 'private'), { recursive: true });
   await writeFile(path.join(before, 'private/round.json'), JSON.stringify(round([item('industrial/precision', 'generated', [[]])])), 'utf8');
   const result = spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/eval-new-route.ts', '--prepare-only', '--previous', before, '--out', after], { encoding: 'utf8' });

@@ -9,7 +9,7 @@ import { buildBlindPackage, type EvalCase, type EvalRound } from '../scripts/eva
 // or variable PNG lengths reveal origin; repeated controls and cross-protocol
 // identities solve mixed without visual judgment. Real photos and the real
 // filesystem are exercised. These are privacy fixtures, not generated-site evidence.
-const root = path.resolve('artifacts/t130', `privacy-${crypto.randomUUID()}`);
+const root = path.join(process.env.SITECRAFT_DATA_ROOT!, 't130', `privacy-${crypto.randomUUID()}`);
 const photos = [
   'industrial/equipment-gear-shaping-machine.jpg', 'industrial/product-gearbox-reducer.jpg',
   'industrial/equipment-gearbox-housing-machining.jpg', 'industrial/equipment-multitasking-cnc.jpg',

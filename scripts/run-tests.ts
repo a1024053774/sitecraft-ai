@@ -2,14 +2,42 @@ import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { createWriteStream } from 'node:fs';
-import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { checkTestIdentity } from './test-identity.ts';
 
 delete process.env.NODE_TEST_CONTEXT;
+// Only completed successful runs expire. Failed, interrupted and malformed
+// reports remain evidence, even when that requires more than five directories.
+const project = await realpath(process.cwd());
+const artifacts = path.join(project, 'artifacts'), runRoot = path.join(artifacts, 't167');
+for (const directory of [artifacts, runRoot]) {
+  await mkdir(directory, { recursive: true });
+  assert.ok((await lstat(directory)).isDirectory(), `测试证据目录不能是符号链接：${directory}`);
+}
+const previous = (await readdir(runRoot, { withFileTypes: true }))
+  .filter(entry => entry.isDirectory() && /^test-run-\d+-\d+$/.test(entry.name))
+  .sort((a, b) => Number(b.name.split('-')[2]) - Number(a.name.split('-')[2]) || b.name.localeCompare(a.name));
+const successful: string[] = [];
+let retained = 0;
+for (const entry of previous) {
+  const directory = path.join(runRoot, entry.name);
+  assert.equal(path.dirname(directory), runRoot, '只能清理本工作树的测试轮目录');
+  assert.equal(await realpath(directory), directory, '不能沿符号链接清理测试证据');
+  let status: unknown;
+  try { status = JSON.parse(await readFile(path.join(directory, 'report.json'), 'utf8'))?.status; }
+  catch (error) {
+    if (!(error instanceof SyntaxError) && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  if (status === 'PASS') successful.push(directory);
+  else { retained++; console.log(`失败或未完成证据保留：${directory}`); }
+}
+// Failures occupy retention slots; reserve one more for the new run.
+for (const directory of successful.slice(Math.max(0, 4 - retained))) await rm(directory, { recursive: true });
+if (retained >= 5) console.log('失败或未完成轮次已占满五轮，仍保留全部失败证据。');
 const dataRoot = await mkdtemp(path.join(tmpdir(), 'sitecraft-test-'));
-const output = path.resolve('artifacts/t167', `test-run-${Date.now()}-${process.pid}`);
+const output = path.join(runRoot, `test-run-${Date.now()}-${process.pid}`);
 const distDir = '.next-test';
 await mkdir(output, { recursive: true });
 await mkdir(path.join(output, 'checks'));
@@ -83,5 +111,6 @@ try {
     command: ['npm', 'test', '--', ...process.argv.slice(2)], base, dataRoot, distDir, identity, testCode,
     executed, status: passed ? 'PASS' : 'INCOMPLETE',
     ...(startupFailed ? { startupError: `测试服务启动或身份核对失败：${startupCause instanceof Error ? startupCause.message : String(startupCause)}\n${serverOutput}\n日志：${path.join(output, 'dev.log')}` } : {}) }, null, 2) + '\n', 'utf8');
+  if (!passed) console.error(`失败证据保留：${output}\n失败数据根保留：${dataRoot}`);
 }
 if (startupFailed) throw new Error(`测试服务启动或身份核对失败：${startupCause instanceof Error ? startupCause.message : String(startupCause)}\n${serverOutput}\n日志：${path.join(output, 'dev.log')}`, { cause: startupCause });
