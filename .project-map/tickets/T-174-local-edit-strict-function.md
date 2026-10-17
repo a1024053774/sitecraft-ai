@@ -245,3 +245,48 @@ build 完成后，10:27:08Z 再独立运行 memory_pressure 与 ps，空闲 51%�
 11:05:44Z 的 `artifacts/t174/redaction-post-full-processes.txt` 未见本轮全量进程、无头 Chrome 或预算网关；标准入口已关闭本轮 dev server 并退出。进程表另有 runner 回归及其定向子进程接续，未操作或终止它们；已回报主控释放本轮重任务窗口。仅新增票的记录提交 `docs: 记录 T-174 正文舍弃修复全量结果`（SHA 见交付回报与 artifacts/t174/redaction-full-commit.json），不 amend cd4e677，附规定 coauthor；不提交 artifacts/ 或 tsconfig.json 的 Next 自动改动，不推送。
 
 本轮获准全量 **PASS**，整票仍 **INCOMPLETE**：独立复审结果由主控汇总，第二组真实运行仍等主控另行下达，未新增真实业务版本、导入暂存副本或盲评包。本轮未调用真实模型、未读取 .env.local、未使用 rm、未写主目录 .sitecraft-data；票保持 open、claimed_by=Codex。
+
+### 正文舍弃修复的独立复审（2026-10-17）
+
+主控转达：提交 `cd4e6773a2ed5a5e83ebf5104a1845050f5ec763` 已由新的 sol 实例独立审查 **PASS**，没有 P0／P1；全量 783／783 的记录提交为 `b2570c8b9122725695e323b506025173f1ae5285`。执行者未参与该独立审查，不以本轮自查代替审查结论。主控据此明确下达在 b2570c8 上使用全新临时根与 29596 token 新账本，只执行一次第二组真实运行。
+
+审查两条非阻断建议原意留存，本票不处理：一是将代理对、多层转义、网关实际返回空正文这三条断言补入长期回归；二是 scripts/t153-real-budget.ts:100 的成功响应解析异常，可能把 2xx 坏 JSON 的正文片段写进 call.error，这是原有问题，建议另开票。没有在本轮添加上述测试或修改成功响应错误留存路径。
+
+### 新临时根的第二组唯一真实运行（2026-10-17，Codex）
+
+**INCOMPLETE**。在 `b2570c8b9122725695e323b506025173f1ae5285` 上执行本轮唯一一次第二组：首个首页局部写作通过严格函数协议，第二个菜单组请求因完整预留不足，在网关出网前被拒绝；没有截断、上游 HTTP 错误或格式拒收，没有重跑、降额、增加授权或更换路径。run `8e095c65-1a4c-484c-80ee-a65af7b42396` 于 2026-10-17T11:17:25.672Z 开始，11:17:44.651Z 终态 error，repairRound=0、attempts=0；未进入内容修正或事实核对，未保存部分版本。当前仍为 v2 `91191b41-483b-4ed8-adba-4d956fad032f`，完整 v1／v2 历史保持。
+
+#### 数据、命令与单次发送
+
+先运行 `mktemp -d /tmp/sitecraft-t174-real2.XXXXXX`，取得全新 `/tmp/sitecraft-t174-real2.SjsdWK`，未复用此前失败的临时根；随后 `node artifacts/t174/prepare-real2.mjs /tmp/sitecraft-t174-real2.SjsdWK` 只读复制主目录的 code-sites/站点文件、annotations/站点文件和 conversations/站点整个目录，保持相对结构。完整站点记录包含来源登记、历史任务及两版快照；只读核对全部记录的资源引用、uploads/站点目录与 uploads/demo/站点目录，均无该站关联图片，旧 sites 文件和 leads 文件也不存在。复制后站名「禾巷小馆（批注验收）」、指定 currentVersionId、两版历史、七条来源及上一任务已终态全部符合；清单与基线在 private/setup.json、baseline-site.json、version-1.json、version-2.json。
+
+产物目录为 `artifacts/t174/blind2-20261017T111355Z/`，新账本为 `artifacts/t174/budget2-20261017T111355Z/usage.json`，显式 SITECRAFT_TOKEN_LIMIT=29596，初始 spent／calls／rounds 均为零，不 --resume。11:14:29Z 跑前 memory_pressure 空闲 59%，df 可用 15 GiB，ps 无其他自动化 Chrome、node --test、build 或预算网关，记录 private/memory-pressure.txt、disk.txt、processes.txt、preflight.json。发送前再次检查内存空闲 44%，无 Chrome 或测试／build 进程，记录 pre-send-memory.txt、pre-send-processes.txt、pre-send-check.json。
+
+应用命令 `node artifacts/t174/blind2-20261017T111355Z/private/start-app.mjs`，使用真实普通 Next dev、生产 chat POST 与 Next after；NODE_ENV=test 只用于不加载 .env.local 及隔离数据根，未替换模型、after 或生产路由。health 核对 cwd 为本工作树、dataRoot 为本轮新临时根后登记身份；随机应用 origin 127.0.0.1:58763，预算网关 origin 127.0.0.1:58764。应用只有本地占位 token，不持有真实密钥。
+
+网关独立进程按 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入环境，source stdout／stderr 丢弃、失败即停止；然后执行 `DEEPSEEK_BASE_URL=https://api.deepseek.com DEEPSEEK_MODEL=deepseek-flash SITECRAFT_TOKEN_LIMIT=29596 NODE_OPTIONS= NODE_TEST_CONTEXT= node artifacts/t174/blind2-20261017T111355Z/private/start-gateway.mjs`。真实密钥仅在该进程及网关子进程环境，未进入应用、文件、日志或提交；账本直接运行当前 scripts/t153-real-budget.ts。流程脚本沿用此前 private/，只适配目录、新临时根、预算值及提交标识，没有改写生产机制。
+
+规定 CHROME_PATH 下运行 `node --experimental-strip-types artifacts/t174/blind2-20261017T111355Z/private/run-real.ts prepare`，从主工作区 T-173 `artifacts/t173/blind2-20261017T050426Z/private/second-request.json` 只读取两条原文，核对首页 [4]、菜单页 [3] 的实际 DOM、文字快照、标题和元素提示逐字一致；仅更新站点／版本锚点及本次 draft／submission 标识。prepare 结束关闭 Chrome 后，只执行一次同脚本的 `second`。生产 annotationBatch POST 返回 202，由真实 Next after 执行；second-request.json、accepted.json、results.json 及任务状态均保留，本次唯一发送由 startedAt 和 wx 请求记录保护。没有启动 capture-second、第二次 second 或其他生成入口。
+
+#### 用量与停止原因
+
+| 调用开始（UTC） | 用途 | HTTP／finish_reason | 输入 | 完成 | 推理 | 答案 | 实付 |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 11:17:25.952 | 首页用餐场景，local-edit／thinking=enabled | 上游 200／tool_calls | 4086 | 4167 | 3210 | 957 | 8253 |
+| 11:17:44.643 | 菜单午市组合，local-edit／thinking=enabled | 本地网关 502／无 | 未出网 | 无上游用量 | 无上游用量 | 无上游用量 | 无新增实付 |
+
+首个请求输出上限原值 12288，inputUpper=10408、reserved=22696；上游用量 8253，其中答案 token 为 4167−3210=957，缓存命中为零。首条严格函数参数及 content、tool_calls、finishReason 与 usage 留在任务 modelCalls；随后准备菜单请求时账本剩余 21343，已不能同时覆盖该请求的输入估算及完整 12288 输出。网关 stopReason 原文为：`submit_local_edit 剩余授权无法完整预留请求输出 12288 token，拒绝降额。` 网关在创建第二条上游 call 之前停止，因此账本只有一条已完成调用；应用 modelCalls 有两条（含本地 502），后一条 usage=null，不能伪写为上游处理或补造零 token 明细。
+
+应用显示「DeepSeek 请求失败（HTTP 502），本次未保存版本。」，详细的任务 httpError.body 如实保存本地预算拒因，requestId 与 requestIdHeader 均为 null；该 502 不是 DeepSeek 上游返回。完整账本保存在实际 budget2 目录及 private/budget/usage.json；任务／版本与调用记录在 private/final-state.json、second-state.json、outcome.json，首条原始函数回复仍可复核。
+
+本轮实付 **8253／29596 token**，账面剩余 **21343**。计入此前两个探针的 404 token，负责人已批 30000 的累计实付为 **8657／30000**，此前 400 账本实付为 0；余额不构成自行重发授权。未申请或使用新的额度，未调整 max_tokens、估算器或最低输出门槛。
+
+#### 失败证据、关闭与交接
+
+确认 run 已终态、网关零 in-flight 后，手动 `kill -INT 66613`，网关子进程 66614 关闭，gateway.log 记录 11:19:27.578Z 结束；pre-stop-status.json 保留停止前账本与任务状态。之后才运行规定 CHROME_PATH 下的 private/capture-failure.ts；首组三档截图定位到历史同文 HTTP 502，原图及日志完整保留，不作本轮当前错误证据。另运行 private/capture-current-failure.ts，按末条当前拒因生成 second-rejected-current-1440／768／375.png；六张图均逐张打开，当前三张已载入并显示 v2 与拒收文字，仅作界面状态，不作新版本、出处弹层或审美证据，清单 private/screenshot-views.json。两次取图均只读界面，未重发模型或隐藏首组截图的问题。
+
+取图结束后，核对进程归属并 `kill -TERM 66505` 停应用，app-launch.log 记录 11:24:49.156Z 关闭；private/post-processes.txt 无本轮遗留启动器、网关、测试或无头 Chrome。最后只读核对主目录站点仍与本轮基线一致（指定 v2、两版、七条来源），临时副本的两个原版本也完整不变，记录 private/final-verification.json。新增会话、批注及失败任务只保留在新临时根，未写主目录 .sitecraft-data。
+
+未满足存版成功条件，**未创建 artifacts/t174/import-3e52f683/**，没有三版暂存副本、独立导入应用验证或新版本出处弹层截图。review/ 仅放逐字批注与中性阅读说明，明确没有可比较的改后版本；没有伪造 A/B、制作盲评包或执行盲评。票继续 open、验收项不勾选，状态 INCOMPLETE；本轮唯一真实运行已执行并在完整预留失败时终止，交主控决定后续，不自行重发。
+
+本轮不改实现和测试，仅把独立复审、两条非阻断建议及本次运行结果追加至票后本地新建提交，提交 SHA 见交付回报与 private/commit.json；只 add 本票显式路径，不 amend、不推送、不使用 rm，artifacts/ 产物与 tsconfig.json 的 Next 自动改动均不提交。
