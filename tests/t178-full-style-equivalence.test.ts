@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { gunzipSync } from 'node:zlib';
 import { mkdir, writeFile } from 'node:fs/promises';
 import test from 'node:test';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
@@ -15,11 +14,11 @@ test('完整样式快照逐态等于浏览器原生逐属性读取，包含实�
   await mkdir(output, { recursive: true });
   const observations: unknown[] = [];
   const baseline = new Map<string, unknown>();
+  const expectedStates: any[][] = [];
   let captures = 0;
   const measured = { ...browser, async evaluate<T>(expression: string): Promise<T> {
     const value = await browser.evaluate<T>(expression);
     if (!value || typeof value !== 'object' || !('encoded' in value)) return value;
-    const entries = JSON.parse(gunzipSync(Buffer.from(String(value.encoded), 'base64')).toString('utf8'));
     const expected = await browser.evaluate<any[]>(`(() => {
       const node=document.querySelector('.outside');
       return ['', '::before', '::after', '::marker', '::first-line', '::first-letter'].map(pseudo=>{
@@ -30,19 +29,14 @@ test('完整样式快照逐态等于浏览器原生逐属性读取，包含实�
         return {pseudo,present,styles:present?[...style].sort((a,b)=>a.localeCompare(b)).map(name=>[name,style.getPropertyValue(name)]):[]};
       });
     })()`);
-    for (const oracle of expected) {
-      const entry = entries.find((item: any) => JSON.stringify(item.path) === '[1,0,1]' && item.pseudo === oracle.pseudo);
-      const actual = entry ? { pseudo: entry.pseudo, present: entry.present, styles: entry.styles } : baseline.get(oracle.pseudo);
-      if (captures === 0) baseline.set(oracle.pseudo, actual);
-      assert.deepEqual(actual, oracle, `第 ${captures} 态 ${oracle.pseudo || '元素'} 的完整属性集合或值不一致`);
-    }
+    expectedStates.push(expected);
     observations.push({ capture: captures++, expected });
     return value;
   } };
   try {
     const { frameTree } = await browser.send<any>('Page.getFrameTree');
     for (const width of [375, 768, 1440]) {
-      captures = 0; baseline.clear();
+      captures = 0; baseline.clear(); expectedStates.length = 0;
       await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
       const probe = await outsideCssApplications(measured, frameTree.frame.id, `<!doctype html><html><head><style>
         body{color:#111;background:white} .outside{display:list-item;float:none;width:40%;margin:3px;--old:甲;transform:translateX(2px)}
@@ -55,6 +49,13 @@ test('完整样式快照逐态等于浏览器原生逐属性读取，包含实�
       assert.equal(probe.interactiveElements, 1);
       assert.equal(probe.statesChecked, 4);
       assert.equal(captures, 5);
+      assert.equal(probe.states.length, expectedStates.length, '每份公开快照都必须接受独立原生核对');
+      for (const [index, state] of probe.states.entries()) for (const oracle of expectedStates[index]) {
+        const entry = state.entries.find(item => JSON.stringify(item.path) === '[1,0,1]' && item.pseudo === oracle.pseudo);
+        const actual = entry ? { pseudo: entry.pseudo, present: entry.present, styles: entry.styles } : baseline.get(oracle.pseudo);
+        if (index === 0) baseline.set(oracle.pseudo, actual);
+        assert.deepEqual(actual, oracle, `第 ${index} 态 ${oracle.pseudo || '元素'} 的完整属性集合或值不一致`);
+      }
     }
   } finally {
     await writeFile(`${output}/observations.json`, JSON.stringify(observations, null, 2) + '\n', 'utf8');
