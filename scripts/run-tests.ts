@@ -128,10 +128,13 @@ try {
     await writeFile(env.SITECRAFT_TEST_IDENTITY_FILE!, JSON.stringify(identity) + '\n', 'utf8');
     console.log(`测试数据根：${dataRoot}\n测试构建目录：${distDir}\n测试服务：${base}`);
     const args = process.argv.slice(2);
+    // A few browser-heavy files can exhaust the unchanged per-viewport budget.
+    // Named selections share this scheduler: multiple selected files also compete.
+    const defaultFileConcurrency = 2;
     const files = args.some(arg => arg.endsWith('.test.ts')) ? []
       : (await readdir('tests')).filter(name => name.endsWith('.test.ts')).sort().map(name => `tests/${name}`);
     const summaryFile = path.join(output, 'summaries.ndjson');
-    tests = spawn(process.execPath, ['--test', '--experimental-strip-types',
+    tests = spawn(process.execPath, ['--test', `--test-concurrency=${defaultFileConcurrency}`, '--experimental-strip-types',
       '--test-reporter=spec', `--test-reporter=${path.resolve('scripts/test-summary-reporter.mjs')}`,
       '--test-reporter-destination=stdout', `--test-reporter-destination=${summaryFile}`, ...args, ...files], {
       env: { ...env, SITECRAFT_BASE: base }, stdio: ['ignore', 'pipe', 'pipe'],
