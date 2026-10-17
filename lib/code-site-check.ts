@@ -7,7 +7,7 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
-import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, parallelOutsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
+import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, prepareOutsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
 import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
@@ -449,26 +449,16 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
 type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
   textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
   bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
-export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[]; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number; dynamicStateLanes?: 1 | 2 | 3 | 4 }) {
+export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[]; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number }) {
   const code = codeSiteSchema.parse(args.code);
   const localTargets = args.localEdit ? (args.localEdit.targets ?? (args.localEdit.target ? [args.localEdit.target] : [])) : [];
   const browser = await codeCheckBrowser();
   let dynamicBrowser: Awaited<ReturnType<typeof codeCheckBrowser>> | undefined;
-  const extraContexts: Array<Awaited<ReturnType<typeof browser.createContext>>> = [];
-  const pools: Array<Array<{ browser: Pick<typeof browser, 'send' | 'evaluate'>; frameId: string }>> = [];
-  const lanes = args.dynamicStateLanes ?? 2;
   const checks: CodeCheck = { passed: false, issues: [], cleaned: [], checkedAt: new Date().toISOString(), viewports: [] };
   if (args.legacyImport) checks.factReview = 'legacy-unreviewed';
   if (args.restoredFactReview) checks.factReviewFrom = args.restoredFactReview;
   try {
     const base = process.env.SITECRAFT_BASE || `http://127.0.0.1:${process.env.PORT || '3000'}`;
-    const prepareDynamicPage = async (page: Awaited<ReturnType<typeof browser.createContext>>) => {
-      await page.send('Network.enable');
-      await page.loadPage('Page.navigate', { url: `${base}/code-check.html` });
-      if (!await page.evaluate<boolean>(`document.contentType === 'text/html' && performance.getEntriesByType('navigation')[0]?.responseStatus === 200 && !!document.querySelector('meta[name="sitecraft-code-check"][content="v1"]') && !document.querySelector('script')`))
-        throw new Error('提交检查静态页缺失或无效（/code-check.html），本次未保存版本。');
-      await page.send('Network.setBlockedURLs', { urls: ['*'] });
-    };
     // setDocumentContent retains the document MIME type: a JSON health document
     // renders candidate HTML as plain text. Use static HTML without site-list reads or app scripts.
     await browser.send('Network.enable');
@@ -512,6 +502,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const generatedText = new Set<string>();
     const factSegments = new Map<string, CodeFactSegment>();
     for (const page of clean.code.pages) {
+      let remainingDynamicMs = 60000;
       for (const width of [375, 768, 1440]) {
         const viewportStarted = performance.now();
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -521,7 +512,16 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         if (edit && pageIsEdited) {
           const dynamicStarted = performance.now();
           const wallStartedAt = Date.now();
-          const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 5000);
+          const preparationDeadlineAt = wallStartedAt + Math.min(remainingDynamicMs, args.dynamicStateBudgetMs ?? Infinity);
+          let budget: NonNullable<CodeCheck['viewports'][number]['dynamicState']>['budget'];
+          const plan = (sourceReads: number, candidateReads: number) => {
+            const fullReads = sourceReads + candidateReads, calculatedMs = 1000 + 150 * fullReads;
+            budget = { sourceReads, candidateReads, fullReads, calculatedMs,
+              allowedMs: Math.min(calculatedMs, remainingDynamicMs, args.dynamicStateBudgetMs ?? Infinity), pageRemainingMs: remainingDynamicMs };
+            recordCheckDiagnostic({ kind: 'dynamic-plan', siteId: args.siteId, pageId: page.id, width, recordedAt: Date.now(), budget });
+            return wallStartedAt + budget.allowedMs;
+          };
+          let deadlineAt = preparationDeadlineAt;
           const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) }
             : page.id === edit.pageId ? { paths: [[]] } : undefined;
           let probeStates = false;
@@ -536,28 +536,19 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             classificationMs = performance.now() - dynamicStarted;
             const probeOptions = (side: string) => ({ states: probeStates, diagnostic: { siteId: args.siteId, pageId: page.id, width, side } });
             if (probeStates) {
-              if (!dynamicBrowser) { dynamicBrowser = await codeCheckBrowser(); await prepareDynamicPage(dynamicBrowser); }
+              if (!dynamicBrowser) dynamicBrowser = await codeCheckBrowser();
               await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-              if (!pools.length) {
-                for (const owner of [browser, dynamicBrowser]) {
-                  const frame = await owner.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
-                  const pool = [{ browser: owner as Pick<typeof browser, 'send' | 'evaluate'>, frameId: frame.frameTree.frame.id }];
-                  pools.push(pool);
-                  for (let index = 1; index < lanes; index++) {
-                    const context = await owner.createContext(); extraContexts.push(context);
-                    await prepareDynamicPage(context);
-                    const contextFrame = await context.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
-                    pool.push({ browser: context, frameId: contextFrame.frameTree.frame.id });
-                  }
-                }
-              }
-              await Promise.all(pools.flatMap(pool => pool.map(page => page.browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false }))));
-              evidence.push(...await Promise.all(pools.map((pool, side) => lanes === 1
-                ? outsideCssApplications(pool[0].browser, pool[0].frameId, documents[side], scope, deadlineAt, probeOptions(side ? 'candidate' : 'source'))
-                : parallelOutsideCssApplications(pool, documents[side], scope, deadlineAt, probeOptions(side ? 'candidate' : 'source').diagnostic))));
+              const dynamicFrame = await dynamicBrowser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+              const prepared = await Promise.all([
+                prepareOutsideCssApplications(browser, frameTree.frame.id, documents[0], scope, preparationDeadlineAt, probeOptions('source')),
+                prepareOutsideCssApplications(dynamicBrowser, dynamicFrame.frameTree.frame.id, documents[1], scope, preparationDeadlineAt, probeOptions('candidate')),
+              ]);
+              deadlineAt = plan(prepared[0].fullReads, prepared[1].fullReads);
+              evidence.push(...await Promise.all(prepared.map(probe => probe.read(deadlineAt))));
             } else {
               // Absence of author state rules removes only state probing. Static
               // DOM-triggered selector changes still cross the same full reader.
+              deadlineAt = plan(1, 1);
               evidence.push(await outsideCssApplications(browser, frameTree.frame.id, documents[0], scope, deadlineAt, probeOptions('source')));
               evidence.push(await outsideCssApplications(browser, frameTree.frame.id, documents[1], scope, deadlineAt, probeOptions('candidate')));
             }
@@ -572,11 +563,13 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             compareMs = performance.now() - compareStarted;
             const metrics = (probe: DynamicStateProbe) => ({ interactiveElements: probe.interactiveElements, forceCalls: probe.forceCalls,
               statesChecked: probe.statesChecked, durationMs: probe.durationMs, cdpRoundTrips: probe.cdpRoundTrips, stageMs: probe.stageMs });
-            dynamicState = { mode: probeStates ? 'states' : 'static', classificationMs, compareMs, durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
+            dynamicState = { mode: probeStates ? 'states' : 'static', budget, classificationMs, compareMs, durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
             completed = true;
           } finally {
+            const endedAt = Date.now();
+            remainingDynamicMs = Math.max(0, remainingDynamicMs - Math.max(0, endedAt - wallStartedAt));
             recordCheckDiagnostic({ kind: 'dynamic-check', siteId: args.siteId, pageId: page.id, width, mode: probeStates ? 'states' : 'static',
-              startedAt: wallStartedAt, endedAt: Date.now(), durationMs: performance.now() - dynamicStarted, classificationMs, compareMs, completed });
+              startedAt: wallStartedAt, endedAt, durationMs: performance.now() - dynamicStarted, classificationMs, compareMs, budget, completed });
           }
         }
         const languageLinks = { zh: `/published/${args.siteId}?page=${page.id}`, en: `/published/${args.siteId}/en?page=${page.id}` };
@@ -728,9 +721,5 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     }
     checks.passed = checks.issues.length === 0;
     return { code: clean.code, checks };
-  } finally {
-    const contexts = await Promise.allSettled(extraContexts.map(context => context.close()));
-    await Promise.all([dynamicBrowser?.close(), browser.close()]);
-    if (contexts.some(result => result.status === 'rejected')) throw new Error('局部动态状态检查上下文清理失败，本次未保存版本。');
-  }
+  } finally { await dynamicBrowser?.close(); await browser.close(); }
 }

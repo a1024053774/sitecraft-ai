@@ -8,18 +8,16 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseFragment, type DefaultTreeAdapterTypes as Dom } from 'parse5';
 
-const [mode, output, deadlineOption, samplesOption] = process.argv.slice(2);
+const [mode, output, samplesOption] = process.argv.slice(2);
 assert.ok(mode === 'idle' || mode === 'load');
 assert.ok(output?.startsWith('artifacts/t178/'));
-assert.ok(deadlineOption === undefined || deadlineOption === '--uncapped');
-const uncapped = deadlineOption === '--uncapped';
 const samples = samplesOption === undefined ? 5 : Number(samplesOption);
 assert.ok(Number.isInteger(samples) && samples > 0 && samples <= 5);
 await mkdir(path.dirname(output), { recursive: true });
 await mkdir(output);
 
 // Observe the production boundary, including its two browsers and comparison.
-// Only this diagnostic caller can remove the deadline; defaults do not change.
+// Use the production per-read budget, including the shared three-viewport cap.
 const timing: { calls: any[]; browsers: any[] } = { calls: [], browsers: [] };
 (globalThis as any).__t178Timing = timing;
 const browserUrl = pathToFileURL(path.resolve('lib/code-site-browser.ts')).href;
@@ -47,7 +45,7 @@ await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
 process.env.SITECRAFT_BASE = 'http://127.0.0.1:' + address.port;
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const observations: any[] = [], limit = mode === 'idle' ? 1500 : 5000;
+const observations: any[] = [];
 try {
   for (let repeat = 0; repeat < samples; repeat++) {
     timing.calls.length = 0; timing.browsers.length = 0;
@@ -59,7 +57,7 @@ try {
     try {
       const result = await checkSiteCode({ siteId: fixture.timingSiteId, code: candidate.code,
         materials: fixture.materials + '\n' + fixture.annotation, images: [], legacyImport: true,
-        localEdit: { source: source.code, target }, dynamicStateBudgetMs: uncapped ? Number.POSITIVE_INFINITY : 5000 });
+        localEdit: { source: source.code, target } });
       row.issues = result.checks.issues;
       const nextPage = timing.calls.findIndex((call, index) => call.width === 375 && timing.calls.slice(0, index).some(previous => previous.width === 1440));
       const homeCalls = nextPage < 0 ? timing.calls : timing.calls.slice(0, nextPage);
@@ -75,14 +73,18 @@ try {
       assert.equal(row.viewports.length, 3);
       assert.equal(timing.browsers.length, 2, '源与候选各一浏览器，三档复用');
       assert.ok(timing.browsers.every(browser => browser.captures === 123), '每侧三档各 41 份完整快照');
-      row.targetMet = row.viewports.every((viewport: any) => viewport.durationMs <= limit);
+      for (const viewport of row.viewports) {
+        assert.equal(viewport.budget.fullReads, 82, '真实夹具每侧 41 次，读取前合计 82 次');
+        assert.equal(viewport.budget.calculatedMs, 13300);
+      }
+      row.targetMet = row.issues.length === 0 && row.viewports.every((viewport: any) => viewport.durationMs <= viewport.budget.allowedMs);
     } catch (error) { row.error = error instanceof Error ? error.message : String(error); }
     row.browsers = structuredClone(timing.browsers);
     row.viewportCalls = structuredClone(timing.calls);
     row.diagnostics = await Promise.all((await readdir(directory)).filter(name => name.endsWith('.json')).map(async name => JSON.parse(await readFile(path.join(directory, name), 'utf8'))));
     console.log(JSON.stringify({ ...row, diagnostics: undefined }));
-    await writeFile(output + '/timings.json', JSON.stringify({ revision, mode, uncapped, limit, samples, reference: fixture.timingOrigin,
+    await writeFile(output + '/timings.json', JSON.stringify({ revision, mode, budget: 'production-per-read', samples, reference: fixture.timingOrigin,
       sourceVersion: source.id, candidateVersion: candidate.id, page: 'home', target: target.path, observations }, null, 2) + '\n', 'utf8');
   }
 } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
-assert.ok(observations.every(row => row.completed && !row.error), '必须测到完整结束；失败记录保留');
+assert.ok(observations.every(row => row.completed && !row.error && row.targetMet), '每轮三档必须在生产预算内通过，失败记录保留');
