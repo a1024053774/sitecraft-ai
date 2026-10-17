@@ -426,7 +426,7 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
   options: { states?: boolean; diagnostic?: Record<string, unknown> } = {}) {
   const startedAt = Date.now();
   const prepared = await prepareOutsideCssApplications(browser, frameId, html, scope, deadlineAt ?? startedAt + 60000, options);
-  return prepared.read(deadlineAt ?? startedAt + Math.min(60000, 1000 + 150 * prepared.fullReads));
+  return prepared.read(deadlineAt ?? startedAt + Math.min(60000, Math.max(5000, 1000 + 150 * prepared.fullReads)));
 }
 
 // Invoked on every rendered page by the submission boundary. Media conditions

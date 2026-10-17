@@ -13,15 +13,20 @@ import { pathToFileURL } from 'node:url';
 const browserUrl = pathToFileURL(path.resolve('lib/code-site-browser.ts')).href;
 const diagnosticUrl = pathToFileURL(path.resolve('lib/code-check-diagnostics.ts')).href;
 const nativeNow = Date.now;
+// Independently worked examples of max(5000, 1000 + 150 * reads).
+const expectedBudgets = new Map([[2, 5000], [10, 5000], [14, 5000], [18, 5000],
+  [26, 5000], [30, 5500], [82, 13300], [402, 61300]]);
 let state: any;
 (globalThis as any).__t178BudgetDiagnostic = (record: any) => {
   if (record.kind === 'dynamic-plan') {
     const index = state.plans.length;
     const remaining = 60000 - state.spent;
     const fullReads = 2 + 4 * (state.sourceElements + state.candidateElements);
+    const calculatedMs = expectedBudgets.get(fullReads);
+    assert.notEqual(calculatedMs, undefined, '每个输入都须有事先按需求算好的期望');
     const budget = { sourceReads: 1 + state.sourceElements * 4, candidateReads: 1 + state.candidateElements * 4,
-      fullReads, calculatedMs: 1000 + 150 * fullReads,
-      allowedMs: Math.min(1000 + 150 * fullReads, remaining), pageRemainingMs: remaining };
+      fullReads, calculatedMs,
+      allowedMs: Math.min(calculatedMs!, remaining), pageRemainingMs: remaining };
     assert.deepEqual(record.budget, budget, '读取前的预算须按两侧真实元素和三档剩余额度计算');
     state.liveBudgets.push(record.budget);
     state.plans.push({ ...structuredClone(record), index });
@@ -44,6 +49,8 @@ let state: any;
         state.advanced.add(plan.index);
         const delta = state.advance === 'boundary' ? plan.budget.allowedMs
           : state.advance === 'over' ? plan.budget.allowedMs + 1
+          : state.advance === 'cap-tight' || state.advance === 'cap-tight-over'
+            ? [30000, 29000, state.advance === 'cap-tight-over' ? 1001 : 1000][plan.index]
           : state.advance === 'cap-over' && plan.index === 2 ? 20001
           : state.advance === 'cap' || state.advance === 'cap-over' ? 20000 : 0;
         state.clock += delta; state.spent += delta;
@@ -103,7 +110,8 @@ async function run(sourceElements: number, candidateElements: number, advance = 
   }
 }
 
-for (const [source, candidate] of [[0, 0], [1, 2], [3, 1]]) test(`预算与读取前固定次数：源 ${source}、候选 ${candidate}`, () => run(source, candidate));
+for (const [source, candidate] of [[0, 0], [1, 2], [3, 1], [3, 3], [3, 4], [10, 10]])
+  test(`五秒下限或按次数预算，读取前固定次数：源 ${source}、候选 ${candidate}`, () => run(source, candidate));
 test('每档刚好在计算预算边界内仍通过，超过一毫秒即拒收', async () => {
   await run(1, 1, 'boundary');
   await assert.rejects(run(1, 1, 'over'), /动态状态检查超时/);
@@ -111,6 +119,10 @@ test('每档刚好在计算预算边界内仍通过，超过一毫秒即拒收',
 test('三档恰好六十秒仍通过，总计超过一毫秒即拒收，单档也不超过剩余总额', async () => {
   await run(50, 50, 'cap');
   await assert.rejects(run(50, 50, 'cap-over'), /动态状态检查超时/);
+});
+test('总额只剩一秒时优先遵守六十秒封顶，不能用五秒下限突破总额', async () => {
+  await run(50, 50, 'cap-tight');
+  await assert.rejects(run(50, 50, 'cap-tight-over'), /动态状态检查超时/);
 });
 for (const fault of ['focus', 'force']) test(`计数后${fault === 'focus' ? '聚焦' : '强制状态'}失败仍拒收，正常对照通过`, async () => {
   await run(1, 1);

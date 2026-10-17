@@ -515,7 +515,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           const preparationDeadlineAt = wallStartedAt + Math.min(remainingDynamicMs, args.dynamicStateBudgetMs ?? Infinity);
           let budget: NonNullable<CodeCheck['viewports'][number]['dynamicState']>['budget'];
           const plan = (sourceReads: number, candidateReads: number) => {
-            const fullReads = sourceReads + candidateReads, calculatedMs = 1000 + 150 * fullReads;
+            const fullReads = sourceReads + candidateReads, calculatedMs = Math.max(5000, 1000 + 150 * fullReads);
             budget = { sourceReads, candidateReads, fullReads, calculatedMs,
               allowedMs: Math.min(calculatedMs, remainingDynamicMs, args.dynamicStateBudgetMs ?? Infinity), pageRemainingMs: remainingDynamicMs };
             recordCheckDiagnostic({ kind: 'dynamic-plan', siteId: args.siteId, pageId: page.id, width, recordedAt: Date.now(), budget });
