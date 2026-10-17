@@ -57,7 +57,7 @@ export type CodeVersion = {
   // boundary is unknown and cannot authorize citation reuse.
   factSourceSnapshot?: CodeFactSource[];
   // Recorded once at commit; workspace reads never rescan or append prompts.
-  stalePlaceholders?: Array<{ pageTitle: string; snippet: string; quote: string; target: AnnotationTarget }>;
+  stalePlaceholders?: Array<{ pageTitle: string; snippet: string; quote: string; target?: AnnotationTarget }>;
   chineseRevision?: number;
   english?: { sourceRevision: number; header: string; footer: string; pages: SiteCode['pages']; checks: CodeCheck };
 };

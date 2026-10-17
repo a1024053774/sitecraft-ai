@@ -1,7 +1,32 @@
 import { parseFragment, type DefaultTreeAdapterTypes as Dom } from 'parse5';
-import type { AnnotationTarget } from './annotations.ts';
+import { annotationTargetSchema, type AnnotationTarget } from './annotations.ts';
 import type { CodeVersion } from './code-site.ts';
-import { factSourceKey, type CodeFactSource } from './code-site-fact-segments.ts';
+import { factSourceKey, normalizeFactQuote, type CodeFactSource } from './code-site-fact-segments.ts';
+
+// Normalization locates the adopted quote; matching later uses only these raw
+// source slices. Grapheme boundaries retain composed and expanded NFKC forms.
+function originalQuotes(text: string, quote: string): string[] {
+  const needle = normalizeFactQuote(quote);
+  if (!needle) return [];
+  let normalized = '';
+  const positions: Array<{ start: number; end: number }> = [];
+  for (const { segment, index } of new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(text)) {
+    for (const char of segment.normalize('NFKC')) {
+      const value = /\s/u.test(char) ? ' ' : char, end = index + segment.length;
+      if (value === ' ' && normalized.endsWith(' ')) { positions.at(-1)!.end = end; continue; }
+      normalized += value;
+      for (let i = 0; i < value.length; i++) positions.push({ start: index, end });
+    }
+  }
+  if (normalized.trim() !== normalizeFactQuote(text)) return [];
+  const originals: string[] = [];
+  for (let at = normalized.indexOf(needle); at >= 0; at = normalized.indexOf(needle, at + 1)) {
+    const raw = text.slice(positions[at].start, positions[at + needle.length - 1].end);
+    // A quote cannot select only part of one expanded compatibility character.
+    if (normalizeFactQuote(raw) === needle) originals.push(raw);
+  }
+  return originals;
+}
 
 // Only adopted quotes from this submission's new message sources authorize a
 // match. Uploads, old citations and the request text alone cannot trigger one.
@@ -12,7 +37,10 @@ export function stalePlaceholderPrompts(version: CodeVersion, parent: CodeVersio
   const added = new Set([source ?? []].flat().filter(item => item.type === 'message' && !previous.has(factSourceKey(item))).map(factSourceKey));
   const quotes = [...new Set((version.checks.factCitations?.entries ?? [])
     .filter(citation => citation.source?.type === 'message' && added.has(factSourceKey({ ...citation.source, text: '' })))
-    .map(citation => citation.quote).filter(quote => quote.trim()))];
+    .flatMap(citation => {
+      const original = version.factSourceSnapshot?.find(item => item.type === 'message' && factSourceKey(item) === factSourceKey({ ...citation.source!, text: '' }));
+      return original ? originalQuotes(original.text, citation.quote) : [];
+    }))];
   if (!quotes.length) return [];
   const hits: NonNullable<CodeVersion['stalePlaceholders']> = [];
   const isElement = (node: Dom.Node): node is Dom.Element => 'tagName' in node;
@@ -31,7 +59,7 @@ export function stalePlaceholderPrompts(version: CodeVersion, parent: CodeVersio
     if (mains.length !== 1) continue;
     const main = mains[0];
     const heading = (node: Dom.Element): string => {
-      for (const child of children(node)) { if (/^h[1-3]$/.test(child.tagName)) return text(child); const nested = heading(child); if (nested) return nested; }
+      for (const child of children(node)) { if (/^h[1-3]$/.test(child.tagName) && snapshot(child)) return snapshot(child); const nested = heading(child); if (nested) return nested; }
       return '';
     };
     const visit = (element: Dom.Element, path: number[], ancestors: Array<{ node: Dom.Element; path: number[] }>) => {
@@ -52,13 +80,13 @@ export function stalePlaceholderPrompts(version: CodeVersion, parent: CodeVersio
           const quote = quotes.find(quote => quote.includes(item));
           if (!quote) continue;
           const targetText = snapshot(block.node);
-          if (!targetText) continue;
           const lineStart = value.lastIndexOf('\n', match.index) + 1, lineEnd = value.indexOf('\n', match.index);
           const start = Math.max(lineStart, match.index - 80), end = Math.min(lineEnd < 0 ? value.length : lineEnd, match.index + 83);
+          const target = annotationTargetSchema.safeParse({ kind: 'dom', pageId: page.id, versionId: version.id, path: block.path, text: targetText,
+            label: (heading(block.node) || targetText).slice(0, 80),
+            element: { path: path.slice(block.path.length), tag: element.tagName, text: snapshot(element) } });
           hits.push({ pageTitle: page.title, snippet: value.slice(start, end).trim(), quote,
-            target: { kind: 'dom', pageId: page.id, versionId: version.id, path: block.path, text: targetText,
-              label: (heading(block.node) || targetText).replace(/\s+/g, ' ').trim().slice(0, 80),
-              element: { path: path.slice(block.path.length), tag: element.tagName, text: snapshot(element) } } });
+            ...(target.success ? { target: target.data } : {}) });
         }
       }
       children(element).forEach((child, index) => visit(child, [...path, index], chain));

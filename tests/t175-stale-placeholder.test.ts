@@ -6,6 +6,7 @@ import { parseFragment, type DefaultTreeAdapterTypes as Dom } from 'parse5';
 import { base, workflowBase, commitSiteCode, updateCodeSite, session, state } from './helpers/t162-browser.ts';
 import { localEditChoice } from './fixtures/local-edit-choice.ts';
 import type { CodeSiteRecord, SiteCode } from '../lib/code-site.ts';
+import { annotationDraftSchema, annotationTargetSchema } from '../lib/annotations.ts';
 
 // 期望来自 T-175：逐字同项、范围外、一次持久化提示、按钮只加草稿。
 // 失效方式先列于票中；此文件先在 d7e0aa2 运行，再实现产品行为。
@@ -120,6 +121,113 @@ test('没有本次新增消息出处原句时不提示；相同消息出处不�
   assert.equal(noCitation.status, 'applied'); if (noCitation.status === 'applied') assert.equal((noCitation.version as any).stalePlaceholders?.length ?? 0, 0);
 });
 
+// P1 反例：事实验真允许等价文字，提示匹配仍必须使用用户原文。
+// 四个方向分别防止误报与漏报；同消息的未采用句子不得扩大匹配范围。
+for (const sample of [
+  { name: '全角原文、半角引文', raw: '型号ＡＢ认证', cited: '型号AB认证' },
+  { name: '半角原文、全角引文', raw: '型号AB认证', cited: '型号ＡＢ认证' },
+  { name: '双空格原文、单空格引文', raw: '外带  包装费', cited: '外带 包装费' },
+  { name: '单空格原文、换行引文', raw: '外带 包装费', cited: '外带\n包装费', other: '外带  包装费' },
+]) test(`已通过出处回到实际消息逐字匹配：${sample.name}`, { timeout: 120000 }, async () => {
+  const candidate = structuredClone(code);
+  candidate.pages[1].html = `<main><section><h1>收费说明</h1><p>${sample.raw}待补充。</p><p>${sample.other ?? sample.cited}待补充。</p><p>夜间服务费待补充。</p></section></main>`;
+  const { id, version, target } = await initial(candidate);
+  const original = `${sample.raw}现在确定为每单2元。`;
+  auditQuote = `${sample.cited}现在确定为每单2元。`; cite = true;
+  const saved = await commitSiteCode({ siteId: id, baseRevision: version.revision, code: candidate, selectedTarget: target,
+    author: 'assistant', summary: '采用新出处', request: `${original}夜间服务费已有。`,
+    source: { type: 'message', messageIndex: 2, text: `${original}夜间服务费已有。` } });
+  assert.equal(saved.status, 'applied', JSON.stringify(saved)); if (saved.status !== 'applied') return;
+  assert.deepEqual(saved.version.stalePlaceholders?.map(hit => [hit.snippet, hit.quote]), [[`${sample.raw}待补充。`, original]],
+    '只命中原文逐字出现的事项，保存用户原句，不采用模型的等价改写或未采用句子');
+});
+
+test('同一文本节点的多个占位各自登记，不吞掉后一个事项', { timeout: 120000 }, async () => {
+  const candidate = structuredClone(code);
+  candidate.pages[1].html = '<main><section><h1>收费说明</h1><p>外带包装费待补充；夜间服务费待补充。</p></section></main>';
+  const { id, version, target } = await initial(candidate);
+  auditQuote = '外带包装费和夜间服务费现在确定为每单2元。'; cite = true;
+  const saved = await commitSiteCode({ siteId: id, baseRevision: version.revision, code: candidate, selectedTarget: target,
+    author: 'assistant', summary: '同节点多事项', request: auditQuote, source: { type: 'message', messageIndex: 2, text: auditQuote } });
+  assert.equal(saved.status, 'applied', JSON.stringify(saved)); if (saved.status !== 'applied') return;
+  assert.deepEqual(saved.version.stalePlaceholders?.filter(hit => hit.target?.pageId === 'menu').map(hit => hit.snippet),
+    ['外带包装费待补充；夜间服务费待补充。', '外带包装费待补充；夜间服务费待补充。']);
+  const oldDraft = { id: 'old-draft', target, revision: 1, body: '原有历史意见', status: 'draft' };
+  const sendingDraft = { id: 'sending-draft', target: { ...target, versionId: saved.version.id }, revision: 2,
+    body: '发送中的意见', status: 'sending', submissionId: crypto.randomUUID() };
+  const view = await session(1440, { siteId: id });
+  try {
+    await view.browser.evaluate(`localStorage.setItem('sitecraft-annotation-drafts:${id}',${JSON.stringify(JSON.stringify([oldDraft, sendingDraft]))})`);
+    await view.browser.send('Page.reload');
+    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===2`);
+    const beforeCalls = calls;
+    await view.click('[data-testid="stale-placeholder-add"]');
+    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===5`);
+    const drafts = await view.browser.evaluate<any[]>(`JSON.parse(localStorage.getItem('sitecraft-annotation-drafts:${id}'))`);
+    assert.deepEqual(drafts.slice(0, 2), [oldDraft, sendingDraft], '一起更新保留原有草稿及发送中草稿的全部字段');
+    await view.browser.send('Page.reload');
+    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===5`);
+    assert.deepEqual((await view.browser.evaluate<any[]>(`JSON.parse(localStorage.getItem('sitecraft-annotation-drafts:${id}'))`)).slice(0, 2), [oldDraft, sendingDraft]);
+    await view.click('[data-draft-id="old-draft"] [data-testid="annotation-reveal"]');
+    await view.wait(`document.querySelector('.code-preview-version')?.textContent.includes('v1')`);
+    assert.equal(await view.browser.evaluate(`document.querySelectorAll('[data-testid="stale-placeholder-prompt"]').length`), 0, '历史回看不显示当前版本同项提示');
+    assert.equal(calls, beforeCalls, '添加、刷新及历史回看不调用模型');
+  } finally { await view.browser.close(); }
+});
+
+for (const width of [1440, 768, 375]) test(`空白标题采用区块正文，新增和原有草稿刷新后均读回 ${width}`, { timeout: 120000 }, async () => {
+  const candidate = structuredClone(code);
+  candidate.pages[1].html = '<main><section><h1> \n\t </h1><p>外带包装费待补充。</p></section></main>';
+  const { id, version, target } = await initial(candidate); cite = true;
+  const saved = await commitSiteCode({ siteId: id, baseRevision: version.revision, code: candidate, selectedTarget: target,
+    author: 'assistant', summary: '空白标题', request: quote, source: { type: 'message', messageIndex: 2, text: quote } });
+  assert.equal(saved.status, 'applied', JSON.stringify(saved)); if (saved.status !== 'applied') return;
+  const view = await session(width, { siteId: id });
+  try {
+    const existing = { id: 'previous-draft', target: { ...target, versionId: saved.version.id }, revision: 2, body: '原有意见', status: 'draft' };
+    await view.browser.evaluate(`localStorage.setItem('sitecraft-annotation-drafts:${id}',${JSON.stringify(JSON.stringify([existing]))})`);
+    await view.browser.send('Page.reload');
+    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===1`);
+    if (width < 1100) await view.click('[role="tab"]:nth-child(1)');
+    await view.click('[data-testid="stale-placeholder-add"]');
+    const drafts = await view.browser.evaluate<any[]>(`JSON.parse(localStorage.getItem('sitecraft-annotation-drafts:${id}'))`);
+    // 先保留实际写入，再断言 schema；父版本不能把损坏记录覆盖成成功。
+    await writeFile(`${output}/blank-heading-drafts-${width}.json`, JSON.stringify(drafts, null, 2), 'utf8');
+    const validTargets = saved.version.stalePlaceholders!.every(hit => annotationTargetSchema.safeParse(hit.target).success);
+    const validDrafts = annotationDraftSchema.array().safeParse(drafts).success;
+    await view.browser.send('Page.reload');
+    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===3 || document.body?.textContent?.includes('批注草稿无法读取')`);
+    assert.equal(await view.browser.evaluate(`document.querySelectorAll('[data-testid="annotation-draft"]').length`), 3, '刷新须读回原有草稿及首页、菜单页两条新草稿');
+    assert.equal(validTargets, true, '生成锚点符合现有 schema');
+    assert.equal(validDrafts, true, '整个草稿集合符合现有 schema');
+    assert.deepEqual(drafts[0], existing);
+    assert.equal(drafts[2].target.label, '外带包装费待补充。', '菜单页的空标题回退到区块正文');
+    if (width < 1100) await view.click('[role="tab"]:nth-child(1)');
+    await view.browser.evaluate(`document.querySelectorAll('[data-testid="annotation-draft"]')[2].scrollIntoView({block:'center'})`);
+    await view.shot(`blank-heading-${width}`);
+  } finally { await view.browser.close(); }
+});
+
+test('原句过长无法形成合法草稿时说明缺口，不保存非法草稿', { timeout: 120000 }, async () => {
+  const candidate = structuredClone(code);
+  candidate.pages[1].html = '<main><section><h1>收费说明</h1><p>外带包装费待补充。</p></section></main>';
+  const { id, version, target } = await initial(candidate);
+  const original = `外带包装费${' '.repeat(3950)}现在确定为每单2元。`;
+  assert.ok(original.length < 4000, '消息仍在现有输入上限以内');
+  auditQuote = '外带包装费 现在确定为每单2元。'; cite = true;
+  const saved = await commitSiteCode({ siteId: id, baseRevision: version.revision, code: candidate, selectedTarget: target,
+    author: 'assistant', summary: '保留长原句', request: original, source: { type: 'message', messageIndex: 2, text: original } });
+  assert.equal(saved.status, 'applied', JSON.stringify(saved)); if (saved.status !== 'applied') return;
+  const view = await session(1440, { siteId: id });
+  try {
+    await view.wait(`document.querySelector('[data-testid="stale-placeholder-prompt"]')`);
+    assert.match(await view.browser.evaluate<string>(`document.querySelector('[data-testid="stale-placeholder-prompt"]').textContent`), /无法加入批注草稿/);
+    assert.equal(await view.browser.evaluate(`document.querySelector('[data-testid="stale-placeholder-add"]').disabled`), true);
+    assert.equal(await view.browser.evaluate(`localStorage.getItem('sitecraft-annotation-drafts:${id}')`), null, '不保存不符合 schema 的草稿');
+    await view.shot('unavailable-draft');
+  } finally { await view.browser.close(); }
+});
+
 function blockTarget(html: string, versionId: string, blockIndex = 5, pageId = 'home') {
   const root = parseFragment(html), main = root.childNodes.find(node => 'tagName' in node && node.tagName === 'main') as Dom.Element;
   const block = main.childNodes.filter(node => 'tagName' in node)[blockIndex] as Dom.Element;
@@ -163,18 +271,32 @@ for (const width of [1440, 768, 375]) test(`禾巷小馆 v2 经生产 chat 重�
     await view.browser.evaluate('document.fonts.ready');
     const shot = await view.browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
     await writeFile(`${output}/prompt-${width}.png`, Buffer.from(shot.data, 'base64'));
+    await view.click('.code-annotation-threads summary');
+    await view.wait(`document.querySelector('[data-testid="thread-reveal"]')`);
+    await view.click('[data-testid="thread-reveal"]');
+    await view.wait(`document.querySelector('.code-preview-version')?.textContent.includes('v2')`);
+    assert.equal(await view.browser.evaluate(`document.querySelectorAll('[data-testid="stale-placeholder-prompt"]').length`), 0, '历史回看不显示当前版本的同项提示');
+    await view.click('.code-preview-version button');
+    await view.wait(`!document.querySelector('.code-preview-loading') && document.querySelector('[data-testid="stale-placeholder-add"]')`);
+    if (width < 1100) await view.click('[role="tab"]:nth-child(1)');
     const beforeCalls = calls, before = await state(id);
-    // 保留用户已有草稿，按钮重复点击也不能重复加同一提示的草稿。
-    await view.browser.evaluate(`localStorage.setItem('sitecraft-annotation-drafts:${id}',JSON.stringify([{id:'existing-draft',target:${JSON.stringify({ ...blockTarget(current.code.pages[0].html, current.id), path: [5] })},revision:3,body:'已有意见保留',status:'draft'}]))`);
+    // 保留已有及发送中草稿的全部字段；添加不改变冻结条目。
+    const existingTarget = { ...blockTarget(current.code.pages[0].html, current.id), path: [5] };
+    const sendingDraft = { id: 'sending-draft', target: existingTarget, revision: 3, body: '发送中意见保留', status: 'sending', submissionId: crypto.randomUUID() };
+    await view.browser.evaluate(`localStorage.setItem('sitecraft-annotation-drafts:${id}',${JSON.stringify(JSON.stringify([
+      { id: 'existing-draft', target: existingTarget, revision: 3, body: '已有意见保留', status: 'draft' }, sendingDraft,
+    ]))})`);
     await view.browser.send('Page.reload');
-    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===1`);
+    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===2`);
     if (width < 1100) await view.click('[role="tab"]:nth-child(1)');
     await view.click('[data-testid="stale-placeholder-add"]');
-    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===2`);
+    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===3`);
     const drafts = await view.browser.evaluate<any[]>(`JSON.parse(localStorage.getItem('sitecraft-annotation-drafts:${id}'))`);
     assert.equal(drafts[0].body, '已有意见保留');
-    assert.equal(drafts[1].status, 'draft'); assert.equal(drafts[1].target.pageId, 'menu');
-    assert.equal(drafts[1].target.versionId, current.id); assert.match(drafts[1].body, /外带包装费现在确定为每单2元。/);
+    assert.deepEqual(drafts[1], sendingDraft, '添加同项草稿不改发送中条目');
+    assert.equal(drafts[2].status, 'draft'); assert.equal(drafts[2].target.pageId, 'menu');
+    assert.equal(drafts[2].target.versionId, current.id); assert.match(drafts[2].body, /外带包装费现在确定为每单2元。/);
+    assert.equal(annotationDraftSchema.array().safeParse(drafts).success, true);
     assert.equal(await view.browser.evaluate(`document.querySelector('[data-testid="stale-placeholder-add"]').disabled`), true);
     const after = await state(id);
     assert.equal(after.codeSite.versions.length, before.codeSite.versions.length, '按钮不新建版本');
@@ -182,7 +304,9 @@ for (const width of [1440, 768, 375]) test(`禾巷小馆 v2 经生产 chat 重�
     assert.deepEqual(after.codeSite.versions.at(-1).code, before.codeSite.versions.at(-1).code, '按钮不改现有版本代码');
     assert.equal(calls, beforeCalls, '按钮不调用模型');
     await view.browser.send('Page.reload');
-    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===2`);
+    await view.wait(`document.querySelectorAll('[data-testid="annotation-draft"]').length===3`);
+    const refreshedDrafts = await view.browser.evaluate<any[]>(`JSON.parse(localStorage.getItem('sitecraft-annotation-drafts:${id}'))`);
+    assert.deepEqual(refreshedDrafts[1], sendingDraft, '刷新保留发送中意见、范围与发送标识');
     assert.equal(await view.browser.evaluate(`document.querySelectorAll('[data-testid="stale-placeholder-prompt"]').length`), 1, '刷新不重复提示');
     assert.equal(await view.browser.evaluate(`document.querySelector('[data-testid="stale-placeholder-add"]').disabled`), true, '刷新不重复加草稿');
     if (width < 1100) await view.click('[role="tab"]:nth-child(1)');

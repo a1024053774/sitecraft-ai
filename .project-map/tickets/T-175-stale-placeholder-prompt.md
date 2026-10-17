@@ -39,7 +39,22 @@ supersedes:
 
 ## Resolution
 
-执行状态：INCOMPLETE。按构思主控 2026-10-17 的决定撤回 A 的文件并发上限，T-175 暂停等待 T-178；功能、原始验收及全部实测失败证据保留，claimed_by 仍为 Codex。脚本恢复到 fb500ec 之前的调度，工作树保留，不重跑全量或 build，不进入 T-178。
+执行状态：INCOMPLETE。T-175 仍暂停等待 T-178，blocked_by 和 claimed_by: Codex 保持不变。本次按负责人限定只修独立审查的两项 P1，并补非阻断建议的直接断言；未重跑全量或 build，不进入 T-178。文件并发上限仍已撤回，既有功能与全部失败证据保留，复审由主控另派新实例。
+
+### 独立审查两项 P1 修复（2026-10-17）
+
+本节证据对应包含本节的本地修复提交，父版本为 `36d755c8d9b865cf072700ad20dc9c586f257ecb`；提交 SHA 随交付回报，并登记于 `artifacts/t175/p1-review-fixes-20261017T173134Z/evidence-index.json`。以下日志均在该目录；完整命令、UTC 起止时间和退出码另保存在同名 `*-command.json`。
+
+- P1 出处匹配：按已通过出处的 messageIndex 从既有 factSourceSnapshot 回读实际消息，用现有 NFKC / 空白规则仅定位引文对应的原始片段，再以原始片段逐字匹配事项名、保存原句。不把模型的等价改写当原文，不扩大到同消息的未采用句子，未新建来源存储。规范化的字符位置按字素绑定回原文，兼容字符的部分展开不能冒充完整原句。
+- P1 草稿恢复：先清理标题再选有效标签，空白标题采用区块正文；服务端锚点和客户端完整草稿分别通过既有 schema 才可使用。无法形成合法锚点时仍保留匹配提示、不给草稿定位；正文等字段超过草稿合同也不写入草稿集合，提示该位置无法加入并请用户重新点选填写。历史回看隐藏当前提示；已有及发送中条目的原始字段保留。
+- 父版本红证据：17:36:30–17:36:52 UTC，`npm test -- --test-name-pattern=空白标题 tests/t175-stale-placeholder.test.ts` 的三档均在刷新读回断言按预期失败（实际 0，要求原有及两条新草稿共 3），见 `parent-blank-heading-red.log`；17:39:13–17:39:52 UTC，三个产品接入文件串行临时恢复到 36d755c，再运行 `npm test -- --test-name-pattern=已通过出处 tests/t175-stale-placeholder.test.ts`，最终四个全半角/空白方向均因错误提示或漏报按预期失败，结束后立即恢复候选，见 `parent-final-quote-red.log`。两条命令都只设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。
+- 早期日志 `parent-red.log`、`parent-final-red.log`、`parent-corrected-red.log`、`candidate-directed.log` 原样保留：最初空白标题夹具缺 h1、刷新等待过早读取空 body、草稿数量及换行页面反例的期望曾不准确，均在夹具或断言层修正，没有改事项切分合同或放宽检查。早期的这些夹具/等待错误不算 P1 红证据；最终引用上面的三档红测与四方向红测。`parent-corrected-red.log` 还直接拦截历史回看仍显示提示；同节点两个占位与发送中条目完整字段在真实 Chrome 中断言。
+- 最终定向：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t175-stale-placeholder.test.ts`，17:40:16–17:43:34 UTC，15 项中 12 通过、3 失败、0 跳过，退出 1；新增九项全部通过。三个失败均是餐馆 1440/768/375 的生产 chat 在存版前报「局部动态状态检查超时，本次未保存版本。」，按负责人限定属于 T-178 已知问题；不计为本次新缺陷，也不记为通过。日志 `final-directed.log`，标准入口报告和诊断在 `artifacts/t167/test-run-1792258818860-72676/`，失败数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-n9LpA6` 保留。没有为这个超时另换数据、改入口或重跑掩盖。
+- 最终工作台三档截图 `artifacts/t162/self-contained-1792258833409-73014/blank-heading-*.png` 与 `unavailable-draft-*.png` 共四张均逐张打开查看：菜单页第三条草稿的有效标签、原句意见及操作完整可见；375 截图是对话面板，不宣称预览整个区块可见。初轮候选四张截图也已逐张查看并保留，初轮截断的第三条草稿不作为完整草稿证据。
+- 其后串行执行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`（17:43:34–17:45:28 UTC，4/4 通过、0 跳过、退出 0）和 `npm run typecheck`（17:45:28–17:46:00 UTC，退出 0），分别见 `runner-regressions.log` 与 `typecheck.log`。本次没有其他原因的未解决失败。
+- 不调用 DeepSeek，不读取 `.env.local`，不写主工作区 `.sitecraft-data`，不推送、不 amend、不用 rm。Next 自动改动的 `tsconfig.json` 保留且不提交。AGENTS、CONTEXT、mainline 与 spec 已同步本次合同；本次 project-map status 的过期文档为 0，唯一问题仍是本工作树缺 T-178 票文件，保留依赖、不擅自新建。整票继续等 T-178 合并后按主控安排跑两轮全量与 build，独立复审未自行宣布通过。
+
+### 已保留的原始验收与并发诊断
 
 - 2026-10-17 13:09 UTC，父版本 d7e0aa2 的初次完整红测执行 5 项、5 项按预期失败：提交后提示数组为空；三档工作台提示数为 0。生产 chat 均完成存版，未因替身、导入或环境错误失败。完整日志 `artifacts/t175/parent-red.log`，报告 `parent-report.json`；中断轮另保留在 `parent-interrupted/`，不作为完整红测。
 - 13:16 UTC，最终 6 项用例串行还原 d7e0aa2 的三个产品接入文件后全部按预期失败，含更换事项名的独立输入；还原期间不跑其他测试，结束原样恢复产品改动。日志 `artifacts/t175/parent-final-red.log`，报告 `parent-final-report.json`。
