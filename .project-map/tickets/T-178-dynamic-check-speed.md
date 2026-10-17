@@ -46,7 +46,7 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 
 ## Resolution
 
-状态：**INCOMPLETE／READY_FOR_HEAVY**。当前按负责人最终决定实现读取次数预算，旧并行候选全部撤掉。定向、等价性、runner 回归、typecheck 和计时入口验证均通过；全量、负载轮、build 和独立审查未执行，等待负责人放行。保持 open、claimed_by=Codex。本次在 `421a148` 之后新建提交，不 amend、不推送。
+状态：**INCOMPLETE**。首轮全量 801 项中 796 通过、5 失败，均涉及低于原五秒的新预算超时。负责人要求先报告并停止：不修代码、不改公式，不启动负载轮和 build，等待构思主控决定。定向、等价性、runner 回归、typecheck 和计时入口的既有通过证据保留；不据此覆盖本轮全量失败。保持 open、claimed_by=Codex。本次在 `421a148` 之后新建提交，不 amend、不推送。
 
 ### 生产改动
 
@@ -55,6 +55,31 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 - 每档计算 `1000 + 150 × (sourceReads + candidateReads)`，实际允许时间取该值与本页三档剩余额度的较小值。分类、发现、候选 Chrome 启动、探针和比较均从该档开始计时；三档只累计动态检查时间，不计两档之间其他底线扫描。现有内部超时注入参数只能收紧预算，Infinity 不能绕过生产预算或六十秒封顶。
 - 计划在第一份完整读取前以 dynamic-plan 诊断记录，成功检查同时存入 dynamicState.budget；记录 sourceReads、candidateReads、fullReads、calculatedMs、allowedMs、pageRemainingMs。无作者动态规则分支沿用不枚举、不强制的原合同，每侧实际只读一次基线，合计两次、计算预算 1300ms。
 - 未保留任何声称提速的批量读取候选。标准属性与实时自定义属性、五类伪元素、全部可聚焦元素及三视口读取内容不变。AGENTS「局部修改」、spec、CONTEXT 和 mainline 的固定上限已直接替换为新规则。
+
+### 首轮全量失败：低读取次数的新预算比旧上限更严
+
+2026-10-17 **17:38:06–17:46:53 UTC**，生产源码提交 `f9babdbc3dcb7f34d8b9faa546189c167b5f52ee`。命令为指定 CHROME_PATH 下的 `npm test`；开始前 memory_pressure 空闲 **55%**，ps 已记录，另一个 T-175 实例只做定向测试。测试入口退出码 **1**，实际执行 **801** 项，**796** 通过、**5** 失败、无跳过。没有重跑来覆盖失败。
+
+- 标准入口报告：`artifacts/t167/test-run-1792258686849-67299/report.json`。
+- 完整用例日志：`artifacts/t178/read-budget-heavy/1-full.log`；标准入口同轮 `tests.log`、`summaries.ndjson` 与 checks/ 全部保留。
+- 逐例汇总及原诊断文件链接：`artifacts/t178/read-budget-heavy/1-full-failure-summary.json`。
+- 本轮前置 memory_pressure、ps 和开始／结束／退出码：`artifacts/t178/read-budget-heavy/1-full-memory.txt`、`1-full-ps.txt`、`1-full-result.json`。
+
+下表读取次数取**完整读取前已记录的源＋候选计划**，不是把未完成的读取记为已完成；实际耗时取失败档 `dynamic-check.durationMs`，不是整个测试用例的墙钟耗时。五项均在 **375 档**失败，预算的 calculatedMs 与 allowedMs 相同，三档剩余额度均为 60000ms，未受总额截断，也不是测试故意注入的低预算。
+
+| 失败用例（原名） | 源＋候选读取计划 | 合计 | 计算／执行预算 ms | 失败档实际耗时 ms |
+| --- | --- | ---: | ---: | ---: |
+| CSSOM 含 section:focus-visible 时三档照常完整探测 | 5＋5 | 10 | 2500 | 2576.64 |
+| disabled button 不是可交互触发元素，不应让静态范围外规则误拒 | 1＋1 | 2 | 1300 | 1322.21 |
+| 祖先规则在焦点态改变明确高度仍须拒绝 | 1＋5 | 6 | 1900 | 1906.46 |
+| 区块外 ::before 的完整计算样式改变必须拒绝 | 1＋5 | 6 | 1900 | 1933.44 |
+| 真实 chat 批次遇到 main:has(:focus) 仍允许合法无外溢修改进入模型并保存 | 1＋1 | 2 | 1300 | 1386.16 |
+
+前四项在完整日志中直接报「局部动态状态检查超时，本次未保存版本。」；最后一项的测试表现为任务状态 error 而非 complete，已核对同一站点任务的 step 也是这条超时拒因，且对应上表 1386.16ms 的诊断。用例位置分别为 `t164-dynamic-gate.test.ts:113`、`t164-multi-block-edit.test.ts:239`、`t164-review-seven.test.ts:122`、`:134`、`:197`；逐例 siteId、诊断文件和字段原值均在汇总 JSON，已与保留的本轮临时站点版本／规则核对。
+
+**5／5 失败均由低于旧 5000ms 的新预算触发超时**：2 项为 1300ms、2 项为 1900ms、1 项为 2500ms；对应超时点也全部低于 5000ms。由此可确认新公式对这些低读取次数场景更严格，不能把它当成只放宽旧上限的改动。本轮未按旧五秒重跑，因此不宣称旧上限一定能让完整用例最终通过。
+
+负责人在首轮结束后要求停止。**负载轮与 build 均未启动**，指定负载输出目录尚未创建；源码和预算公式保持 `f9babdb` 不变。本次只整理既有失败证据及 Resolution，后续工作等待负责人／构思主控决定。
 
 ### 新合同与反例
 
@@ -88,7 +113,7 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 - 中断恢复时已核对 git status、所有故障注入回滚位置及现有证据，没有重跑已通过的 86 项。恢复故障后的最终预算／完整属性正常对照 **8／8 通过**（read-budget-final-targeted.log），runner 回归 **4／4 通过**（read-budget-runner-regressions.log），无 Chrome 遗留。
 - 更新后的标准计时入口 **1／1 通过**（read-budget-timing-entry.log）。禾巷小馆 v2／v3 只读夹具完整结束三档：375 为 10849.10ms，768 为 7306.59ms，1440 为 7276.26ms；每档均在读取前记录源 41＋候选 41＝82 次、计算预算 13300ms，每侧三档实际各 123 次完整读取，无范围外拒因。三档开始时剩余总额分别为 60000／49150／41844ms。原始为 standard-production-budget-1792258496947-63116/timings.json；这是一次计时工具和预算验证，不是五次分布或负载通过证明。
 
-### 重现与待放行
+### 重现与当前停止位置
 
 定向和回归命令（均从本工作树根执行）：
 
@@ -102,7 +127,7 @@ npm run typecheck
 
 测量脚本已改为直接使用生产读取预算，不再传固定五秒或取消截止。后续负载命令为 `CHROME_PATH=同上 node --experimental-strip-types scripts/t178-dynamic-timing.ts load artifacts/t178/<新负载目录>`，默认五轮，每轮真实检查三档，并核对每档 82 次读取、计算预算 13300ms及实际执行数；不覆盖旧证据目录。
 
-负责人放行后才执行：一轮全量；另一轮全量与上述五次负载测量同时运行；build。每次重任务之前先核对 memory_pressure 与 ps，空闲低于 25% 即停止报告。当前不据未执行的重任务宣布 PASS，票保持打开。本次运行时间：父版预期红灯 2026-10-17 17:25 UTC，首次绿灯 17:27 UTC，86 项定向结束 17:30 UTC，故障注入结束 17:31 UTC，最终预算对照结束 17:33 UTC，runner 回归结束 17:34 UTC，计时入口结束 17:35 UTC（以各标准入口 report.json／原始日志为准）。执行对应 421a148 上的本次预算改动，随本次新提交固定；最终本地提交 SHA 与命令时间另存 artifacts/t178/read-budget-checkpoint.json；tsconfig 自动变更不提交，独立 sol 审查由负责人另派。
+负责人已授权顺序执行三项重任务；首轮全量失败后又明确要求暂停后两项。已完成的首轮结果见上文，未执行负载或 build；当前不再回报 READY_FOR_HEAVY，也不重试或更改公式，等待新决定。每项开始前空闲低于 25% 的停止规则继续有效。票保持打开。本次运行时间：父版预期红灯 2026-10-17 17:25 UTC，首次绿灯 17:27 UTC，86 项定向结束 17:30 UTC，故障注入结束 17:31 UTC，最终预算对照结束 17:33 UTC，runner 回归结束 17:34 UTC，计时入口结束 17:35 UTC（以各标准入口 report.json／原始日志为准）。执行对应 421a148 上的本次预算改动，随本次新提交固定；最终本地提交 SHA 与命令时间另存 artifacts/t178/read-budget-checkpoint.json；tsconfig 自动变更不提交，独立 sol 审查由负责人另派。
 
 ### 已弃试验的证据保留
 
