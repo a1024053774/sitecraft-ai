@@ -3,7 +3,7 @@ id: T-175
 title: 补充新事实后提示其他页面同项的「待补充」
 type: build
 status: open
-blocked_by: []
+blocked_by: [T-178]
 claimed_by:
 supersedes:
 ---
