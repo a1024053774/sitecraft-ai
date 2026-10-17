@@ -2,7 +2,7 @@
 id: T-176
 title: 测试不再把临时产物堆进 artifacts 和 /tmp
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex
 supersedes:
@@ -21,12 +21,12 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 连跑两轮全量后 `artifacts/t130/` 无新增 `privacy-*`/`*-fixture-*`；最近 5 轮全部保留，窗口外仅删成功轮；人为制造一次失败，失败轮目录保留并输出路径
-- [ ] typecheck、test、build 通过；独立 sol 审查通过
+- [x] 连跑两轮全量后 `artifacts/t130/` 无新增 `privacy-*`/`*-fixture-*`；最近 5 轮全部保留，窗口外仅删成功轮；人为制造一次失败，失败轮目录保留并输出路径
+- [x] typecheck、test、build 通过；独立 sol 审查通过
 
 ## Resolution
 
-状态：INCOMPLETE。`91145db` 复审仅余残留锁 P1，本提交修复；其余三项已由独立复审确认。当前锁修改后的定向、runner 回归与 typecheck 通过，仍需主控放行后一轮全量及独立复审。分支 `t176-test-litter`，本提交父版本 `91145db`；新提交，不 amend、不推送。
+状态：PASS。主控转述第三轮独立复审 `f657bd8` 通过，无阻断问题；两条非阻断用例已补齐，生产入口未再改动。补充用例定向 10/10、runner 回归 4/4、typecheck 与主控指定的一轮全量（733 项）通过，票关闭。分支 `t176-test-litter`，本提交父版本 `f657bd8`；新提交，不 amend、不推送。
 
 - T-130 三个临时目录仍写入本轮 `SITECRAFT_DATA_ROOT/t130/`，评估代码允许该输出位置；AGENTS 的临时数据根收尾规则保留。两部分经独立审查无问题，未改旧用例判断条件。
 - 清理根从 `import.meta.url` 得到，先核对真实 cwd；错误工作树在创建、清理或登记前即拒绝。`artifacts/t167/.run-tests.lock` 按行记录 pid 与启动时间，覆盖清理、登记和本轮运行；存活 pid 直接拒绝并列出路径与 pid，ESRCH 或不可解析记录可接管。每个竞争者以一次 O_APPEND 完整登记，首个存活声明获锁，并发失败者只关闭自己的描述符，不删除另一轮的新锁；普通退出释放，强制退出留下的锁在下次接管。按时间保留最新五轮（含新一轮，不分成败），仅删除窗口外成功目录；窗口外失败或报告不完整的目录保留并打印路径，不再挤占窗口内成功轮。README、spec 与 AGENTS 的入口验收合同已同步，AGENTS 的 Git 收尾规则未改。
@@ -48,3 +48,11 @@ supersedes:
 - 2026-10-17 10:19 UTC，同一标准定向命令：8/8 通过，退出 0；证据 `artifacts/t176/stale-lock-green/{tests.log,report.json}`，入口目录 `artifacts/t167/test-run-1792232387990-93304/`。`node --test --experimental-strip-types scripts/t167-runner-regressions.ts`：4/4 通过，退出 0；产物为 `artifacts/t167/runner-regression-731d66cf-1fa1-43e9-840f-ba8dd5635ca1/`、`runner-regression-ac1b253d-7c53-4cb1-b36a-b7800b1fe4a1/`、`coexisting-dev-569d1ee5-8dc9-4c60-9992-53bb92f7c17f/`、`runner-regression-2f91bf51-c423-4078-881b-1eab1800f573/`。`npm run typecheck` 通过。AGENTS、README 和 spec 已同步锁协议；Next 自动改动的 `tsconfig.json` 不提交。
 - 并发夹具首次闸门版本曾因嵌套字符串语法错误未能载入；这些失败保留在 `artifacts/t176/stale-lock-final-red-91145db.log` 及入口目录 `artifacts/t167/test-run-1792232304487-92292/`，不作为缺陷红证据。修正夹具后才取得上述最终红绿结果，未绕过或削弱判断条件。
 - 前次两轮全量及 build 仅证明代码提交 `36972e4`，不作为本次锁改动的完整验收依据；第一项验收重新留待本候选全量验证。按主控最新要求只需再跑一轮全量：先回报 READY_FOR_HEAVY，等待「可以跑」，跑前仍核对 memory_pressure 与 ps。本轮未启动全量或 build，独立复审由主控另派。
+
+- 2026-10-17，主控在本轮消息中转述第三轮独立复审 PASS，无阻断问题，并明确放行补齐 EPERM、旧时间戳但 pid 存活两条用例后运行一轮全量。新增用例只改 `tests/t176-test-output.test.ts`；已审查的生产入口仍为 `f657bd8`，没有再改锁协议或运行流程。
+- 两条补充用例分别使用隔离进程探测替身返回 EPERM、以及真实存活 pid 搭配 `2000-01-01` 时间戳；均核对拒绝、锁路径和 pid 输出、没有登记新轮次、原锁未改写。先在 `91145db` 旧入口取得红结果，再分别临时加入“EPERM 当成残留”和“超过一分钟就忽略持有者”两个退化变体，各执行完整定向文件 10 项：均恰好 9 通过 / 1 失败，且只拦截对应新增用例；随后恢复原入口。证据 `artifacts/t176/optional-lock-cases/{parent-91145db.log,mutant-eperm-as-stale.log,mutant-timestamp-expiry.log,red-results.json}`。这些是测试检错反证，不代表已通过复审的实现存在上述缺陷。
+- 2026-10-17 10:37–10:38 UTC，标准定向命令 `CHROME_PATH=<AGENTS 指定路径> npm test -- tests/t176-test-output.test.ts`：10/10 通过，0 跳过，退出 0；证据 `artifacts/t176/optional-lock-cases/green-{tests.log,report.json}`。`node --test --experimental-strip-types scripts/t167-runner-regressions.ts`：4/4 通过，退出 0，日志 `artifacts/t176/optional-lock-cases/runner.log`；`npm run typecheck` 通过。没有修改原有测试的判断条件。
+- 10:38:59 UTC 首次重任务准入：内存空闲 45%，ps 发现两个 Node 测试进程（15997、16006），因此未启动全量；再次查询时二者已退出。10:39:33 UTC 再执行 `memory_pressure` 和 ps，空闲 50%，无其他无头 Chrome、Node 测试或 Next 构建，才启动本轮全量。首次检查记录独立保存在 `artifacts/t176/heavy-f657bd8/full-preflight-blocked.json` 与对应 memory-pressure 日志，未覆盖；本轮全量实际只执行一次。
+- 全量命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`。2026-10-17 10:39:33–10:45:01 UTC，733 项全部通过，0 失败、0 跳过，退出 0；入口原报告 `artifacts/t167/test-run-1792233573509-17716/report.json`，数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-4YDDZ7`。完整日志、报告副本、准入记录和结果在 `artifacts/t176/heavy-f657bd8/`。
+- 本轮产物核对：T-130 无新增 `privacy-*` / `api-fixture-*` / `cli-fixture-*`；保留目录集合严格符合最近五轮加窗口外失败证据，当前共 27 个目录（最近 5 轮及窗口外 22 份失败证据），没有为压低数量删除失败轮。人为失败目录 `/private/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-4YDDZ7/t176-MJnJgo/artifacts/t167/test-run-1792233844192-27943/` 报告 `testCode: 1` / `INCOMPLETE`，经过随后五轮成功运行仍保留，入口输出了保留路径；副本见本轮证据目录的 `injected-failure/`。`summary.json` 记录核对结果，工作树锁已释放。
+- 本轮按主控放行范围仅追加一轮全量，不追加 build；既有 build 通过记录保留在上文。主控确认的独立复审结果与本轮验证均 PASS，全部验收项已勾选。证据、红日志与原始失败目录保留；Next 自动改动的 `tsconfig.json` 不进入提交，未推送。

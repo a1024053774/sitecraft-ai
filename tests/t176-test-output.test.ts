@@ -172,6 +172,45 @@ test('T-176: a live lock owner is rejected with the owner pid and lock path', as
   assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), owner, '不能改写活跃持有者的锁');
 });
 
+test('T-176: EPERM from the owner probe refuses without reclaiming the lock', async t => {
+  const cwd = await fixture(); t.diagnostic(`EPERM 锁探测夹具：${cwd}`);
+  const owner = { pid: process.pid, startedAt: new Date().toISOString() };
+  const file = await writeLock(cwd, JSON.stringify(owner));
+  await writeFile(path.join(cwd, 'eperm-probe.cjs'), `
+    const fs = require('node:fs'), kill = process.kill;
+    process.kill = function(pid, signal) {
+      if (pid === ${owner.pid} && signal === 0) {
+        fs.writeFileSync('eperm-probed', '');
+        throw Object.assign(new Error('T176_EXPECTED_EPERM'), { code: 'EPERM' });
+      }
+      return kill.call(process, pid, signal);
+    };
+  `, 'utf8');
+  const result = await start(cwd, 'pass.test.ts', cwd, 'eperm-probe.cjs').completed;
+  assert.notEqual(result.code, 0, '无法确认持有者时不得当成残留锁接管');
+  assert.ok(existsSync(path.join(cwd, 'eperm-probed')), '必须实际走到权限拒绝的探测边界');
+  assert.match(result.output, /无法核对测试锁持有者.*拒绝启动/);
+  assert.match(result.output, /T176_EXPECTED_EPERM/);
+  assert.ok(result.output.includes(`pid=${owner.pid}`));
+  assert.ok(result.output.includes(await realpath(file)));
+  assert.doesNotMatch(result.output, /证据目录：|接管.*残留锁/);
+  assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), owner);
+});
+
+test('T-176: an old timestamp cannot expire a lock whose pid is still alive', async t => {
+  const cwd = await fixture(); t.diagnostic(`旧时间戳活跃锁夹具：${cwd}`);
+  const owner = { pid: process.pid, startedAt: '2000-01-01T00:00:00.000Z' };
+  assert.doesNotThrow(() => process.kill(owner.pid, 0));
+  const file = await writeLock(cwd, JSON.stringify(owner));
+  const result = await start(cwd).completed;
+  assert.notEqual(result.code, 0, '时间戳再旧也不能接管存活持有者的锁');
+  assert.match(result.output, /已有测试入口.*拒绝启动/);
+  assert.ok(result.output.includes(`pid=${owner.pid}`));
+  assert.ok(result.output.includes(await realpath(file)));
+  assert.doesNotMatch(result.output, /证据目录：|接管.*残留锁/);
+  assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), owner);
+});
+
 test('T-176: two concurrent stale-lock claimants admit exactly one owner', async t => {
   const cwd = await fixture(); t.diagnostic(`并发残留锁接管夹具：${cwd}`);
   const owner = await deadLockOwner();
