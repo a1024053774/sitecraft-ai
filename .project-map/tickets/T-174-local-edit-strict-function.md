@@ -166,3 +166,44 @@ modelCalls 与预算账本 call 均新增 httpError：status、脱敏正文 body
 最终候选再串行运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，10:14:35.472Z 4/4（object-ready-runner.log）；`npm run typecheck`，10:15:20.016Z 通过（object-ready-typecheck.log），时间均为 UTC，日志位于 artifacts/t174/。全量、build 及两次真实探针尚未启动，按主控门禁等待放行，本轮状态 **INCOMPLETE**；之后仍需新 sol 复审才能由主控另行授权第二组。新提交待本轮检查与探针门禁结束后创建，tsconfig.json 保持未提交，不推送。
 
 主控随后明确放行并调整顺序：先新建离线修复提交（不 amend），再在该提交上各执行一次旧／新 schema 探针；新 schema HTTP 400 即停，不执行后续检查。探针通过后才串行 build、全量，每项前检查 memory_pressure（低于 25% 停止）与 ps；T-176 重任务由主控等待本轮结束后再放行。所有执行结果随后另建记录提交，不 amend 离线修复提交。
+
+### 已授权探针与冻结验证（2026-10-17，Codex）
+
+按主控指定顺序，先创建离线修复提交 `fcfc6349004d84c8bf8af72761006d332afab8f3`（`fix: 收窄局部严格参数并保留 HTTP 错误诊断`），不 amend。以下两次探针、build 与全量均以该提交为实现和测试候选；之后只追加本 Resolution，未修改生产实现或测试。主控已明确「可以探针，然后可以跑」，并为本轮保留重任务窗口，无需再次等待 T-176 放行。
+
+#### 两次独立小额度探针
+
+2026-10-17T10:20Z 探针前 memory_pressure 空闲 54%，ps 未见其他自动化 Chrome、node --test 或 build，原始记录为 `artifacts/t174/object-diagnostics/pre-probe-memory.txt`、pre-probe-processes.txt。旧／新 schema 分别使用全新 `artifacts/t174/probe-1-20261017T102027Z/`、`artifacts/t174/probe-2-20261017T102027Z/`，各账本 SITECRAFT_TOKEN_LIMIT=1000、初始 spent／calls／rounds 均为零，不 --resume。请求定义沿用上一节已准备的实际旧／新 tool；两份最小请求只更换 tool，均 max_tokens=64、thinking=enabled、tool_choice=auto，没有应用进程或生产 chat 请求。
+
+网关启动按 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入环境，source 的 stdout／stderr 丢弃，失败即停止；随后分别运行 `DEEPSEEK_BASE_URL=https://api.deepseek.com DEEPSEEK_MODEL=deepseek-flash SITECRAFT_TOKEN_LIMIT=1000 NODE_OPTIONS= NODE_TEST_CONTEXT= node artifacts/t174/object-diagnostics/start-probe.mjs 1` 和末参数为 `2` 的命令。启动器核对 HEAD，并给真实 `scripts/t153-real-budget.ts` 子进程显式传入各自 T153_BUDGET_DIR、SITECRAFT_BASE、SITECRAFT_BUDGET_BASE；随机本地 origin 分别为 127.0.0.1:56075、:56076。真实密钥只在这两个 source 后的网关进程环境，不传给控制器、build 或测试，不写入文件／日志。
+
+控制器依次只执行一次 `node artifacts/t174/object-diagnostics/run-probe.mjs 1`、末参数为 `2` 的命令，直接向各网关 `/beta/chat/completions` 发送保存的请求；sent.json 以 wx 写入防止同目录重复发送。第二次只有第一次 HTTP 400 且网关已关闭才可开始；没有第三次或重试。每份目录保留 request.json、response.txt、outcome.json、usage.json、gateway.log、closed.json，汇总为 object-diagnostics/probe-summary.json。
+
+| 开始—完成（UTC） | 定义 | HTTP／finish_reason | 输入 | 完成 | 推理 | 答案 | 账本实付／上限 |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 10:22:27.705—10:22:28.167 | 2e46021 原 schema | 400／无 | 未返回 | 未返回 | 未返回 | 未返回 | 0／1000 |
+| 10:23:37.416—10:23:38.871 | fcfc634 新 schema | 200／length | 340 | 64 | 64 | 0 | 404／1000 |
+
+第一次实际 HTTP 400 正文如下，无敏感字段，原文保留：
+
+```json
+{"error":{"message":"The top level of the function parameters schema must be an object. (request_id: 3b338f5e-511a-46b1-9c7c-6b97fc9b5104)","type":"invalid_request_error","param":null,"code":"invalid_request_error"}}
+```
+
+实际响应编号头为 `x-ds-trace-id: 03e4491f873a17205f1abb3e0e750c14`，与正文里的 request_id 分开保留，未猜测或相互替代；网关 call.httpError 保存该正文、status=400、实际头名称和值。本次坐实的拒因是 schema 顶层不是 object，未单独探测「只修根而保留长正则」，因此不把长正则风险宣称为已实证的第二个拒因。HTTP 400 未返回 usage，账本实付 0 不是伪造 token 明细。
+
+第二次 HTTP 200 证明新 schema 被受理；64 个 completion token 全为 reasoning，答案 token 为 completion 减 reasoning，得到 0。finish_reason=length 在本次小额度受理探针中由主控明确允许，不代表生成了合法局部结果或业务存版通过；网关按截断停止，未继续调用。两次各一条调用，终态均零 in-flight；分别核对进程归属后手动 `kill -INT 94634`、`kill -INT 95536`，启动器转发给各自网关，closed.json 记录 10:22:45.936Z、10:24:40.412Z 关闭。两份账本合计实付 **404／2000 token**，全部计入负责人已批 30000，扣除本轮后账面剩 **29596**；没有把剩余额度当作第二组自行重发授权。
+
+只读风险结论保持：submit_page_plan 根为 object，各长度模式上限不超过 400，页面 ID 上限 39，无大于 1000 的重复次数；submit_english_translation 根为 object，但 text.max(30000) 仍经原转换得到 `^[\\s\\S]{1,30000}$`，存在同类静态结构风险。本票没有修改这两条 schema，没有为它们调用真实模型，不能用本次局部探针替代它们的受理证据。
+
+#### 探针之后的单次 build 与全量
+
+10:26:29Z build 前 `memory_pressure` 空闲 52%，`ps -axo pid,ppid,command` 无其他自动化 Chrome、node --test、Next build 或预算网关；记录 object-diagnostics/pre-build-memory.txt、pre-build-processes.txt。确认工作树无 .env.local 后，仅执行一次 `SITE_STORE=fs npm run build`，10:26:46.726Z 完成、退出码 0（`artifacts/t174/object-build.log`）。保留 Turbopack 的一条警告：未在本票改动的 lib/code-check-diagnostics.ts 动态文件追踪模式匹配 13268 个文件，可能影响构建性能／打包范围；本轮未以改配置或绕路消除它。
+
+build 完成后，10:27:08Z 再独立运行 memory_pressure 与 ps，空闲 51%、无其他自动化 Chrome／node --test／build／网关，记录 object-diagnostics/pre-full-memory.txt、pre-full-processes.txt。随后只串行执行一次 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`；2026-10-17T10:32:24.417Z 报告 **778／778 通过**，失败／取消／跳过均为零，耗时 307863.640042ms，退出码 0。日志 `artifacts/t174/object-full.log`，报告 `artifacts/t167/test-run-1792232835320-97835/report.json`；标准入口核对本工作树 cwd 与临时根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-oiTJD8`，使用随机 origin 127.0.0.1:57518 与独立 .next-test，未回退主工作区服务。临时数据和原始日志保留，没有重跑全量、放宽断言、增加上限或更换入口。
+
+全量新产出的 99 张浏览器截图均逐张打开，清单 object-diagnostics/full-screenshot-views.json；T-130 打包隐私用例复制的 213 张输入照片单列排除，不冒充浏览器截图。意见框滚动、发送中草稿图只作相应操作状态，缩放预览不作生成站对应宽度证据；T-145 dark-375／dark-768 实际显示浅色工作台，原图保留，不作该档暗色主题证据。其余已载入的出处、拒收与批注画面只作回归记录，不自评审美，也不当作第二组真实新版本截图。
+
+10:32:41Z 的 object-diagnostics/post-processes.txt 确认本轮无残留自动化 Chrome、node --test、Next build、测试 dev server 或探针网关，已回报主控释放重任务窗口，普通主工作区服务未动。project-map status 无问题、无过时 living doc；中文票文件 UTF-8 校验和 git diff --check 通过。此前最终 runner 4／4、typecheck 通过，本轮 build 和全量基于提交 fcfc634，后续没有源码／测试变化。
+
+本轮已授权的离线修复、两次受理探针与规定验证 **PASS**；整票验收仍 **INCOMPLETE**，票保持 open。新 sol 复审及第二组真实业务重跑仍由主控另行安排，未新增业务版本、未创建导入暂存副本或盲评包。最后只显式 add 本票并新建记录提交 `docs: 记录 T-174 探针与冻结验证结果`（SHA 见交付回报及 object-diagnostics/verification.json），不 amend fcfc634；附规定 coauthor。产物全部在 gitignore 的 artifacts/ 下，不提交；tsconfig.json 的 Next 自动改动保留未提交，不推送、不使用 rm、不写主目录 .sitecraft-data。
