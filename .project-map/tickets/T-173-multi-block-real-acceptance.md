@@ -24,6 +24,7 @@ T-164 的多区块合同离线实现已合并（2026-10-16，构思主控按 C �
 - 构思主控按合同 D 原意确认：同一用户原句可以同时支撑不同核对段的事实，跨段重复引用不是「出处重复」；同一段内同类别重复仍按 T-169 处理。不开决定票。
 - 出处类拒因（缺原句、原句不逐字）属于底线检查失败，按硬约束进入最多两轮修正；仍不过如实拒收。协议格式错误照旧直接拒收。
 - 负责人批准真实运行上限 5 万（`SITECRAFT_TOKEN_LIMIT=50000`），两组合计；只跑一次，截断、超额或拒收即停报构思主控。
+- 2026-10-17 负责人选 B 并追加 2.5 万（`SITECRAFT_TOKEN_LIMIT=25000`，新账本），只在 v2 `ef0d03f1-3397-4a23-a4e4-ef375a4a19c4` 上重跑第二组一次，批注原文不变；T-173 总授权 7.5 万，截断、超额或拒收即停，不追加重跑。
 
 ## What to build
 
@@ -41,6 +42,28 @@ T-164 的多区块合同离线实现已合并（2026-10-16，构思主控按 C �
 ## Resolution
 
 ec7515d 由主控核对 diff 与测试，按构思主控规则不再独立复审。
+
+2026-10-17 主控转达新的独立 sol 实例完成第一组盲评：**PASS**，识别 B 为修改版，解盲 B=after=`ef0d03f1` 一致；两条批注全部落实，时间与原有说明未改，三档范围外无变化、无溢出重叠。附带观察菜单页「米饭与收费」仍为「外带包装费待补充」，批注只要求改首页，不算越界。此为主控转达的独立盲评结论，本执行实例未自行盲评。
+
+### 第二组追加授权的单次重跑（2026-10-17，Codex）
+
+**INCOMPLETE**。按负责人选 B 的追加授权，以全新账本 `SITECRAFT_TOKEN_LIMIT=25000` 只重跑第二组一次。执行应用提交 `17527cf5c80905d1c9e7235e3dc5d040eff234d3`（应用代码与主控确认的 ec7515d 相同）；发送前只读核对 `/tmp/sitecraft-t173-real.PeKdpL` 当前版本为 v2 `ef0d03f1-3397-4a23-a4e4-ef375a4a19c4`，历史仅 v1、v2，上一任务已终态；prepare 与真正发送前再次检查该版本及零实付新账本，全部通过。首页 [4] 用餐场景、菜单页 [3] 午市组合的批注原文逐条等于上次 second-request.json，没有换意见或重跑第一组。
+
+新目录 `artifacts/t173/blind2-20261017T050426Z/`，脚本从上次 private/ 复制后仅适配本次目录、25,000 额度、v2 起点及只含第二组的阶段入口；原预算预留、写作思考设置、输出合同与停止逻辑不变，没有沿用旧账本或使用 --resume。05:05:02Z 跑前 `memory_pressure` 空闲 **47%**，`df -h . /tmp` 可用 **6.3 GiB**，`ps -axo pid,ppid,command` 无其他 Chrome 测试、node --test 或 next build，原始输出与 preflight.json 留在 private/。应用与网关使用动态分配端口，health 的 cwd/dataRoot 经核对；应用只连接本地网关、未载入真实密钥。
+
+应用命令为 `node artifacts/t173/blind2-20261017T050426Z/private/start-app.mjs`。网关在独立进程按 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入环境，再执行 `DEEPSEEK_BASE_URL=https://api.deepseek.com DEEPSEEK_MODEL=deepseek-flash SITECRAFT_TOKEN_LIMIT=25000 node artifacts/t173/blind2-20261017T050426Z/private/start-gateway.mjs`；密钥只在该进程环境，未写入文件、日志或提交。显式设置规定 CHROME_PATH 后，依次执行 `node --experimental-strip-types <本次 private>/run-real.ts prepare`、`run-real.ts second`；终态并停网关后仅执行 `capture-failure.ts`。生产 HTTP chat annotationBatch 与真实 Next after 沿用，没有模型或 after 替身；目标读取和模型调用、失败截图串行。
+
+本次 run `57dac3dc-55c9-46a4-ac7e-cf18dc2165e7` 于 **05:08:02.767Z** 开始、**05:08:13.258Z** 终态。首个用餐场景写作请求 HTTP 200、finish_reason=stop，但返回内容未通过 JSON.parse，应用如实报「DeepSeek 回答不是完整 JSON，本次未保存版本。」并终止。repairRound=0、run.attempts 为空，未进入内容修正轮，也没有发送午市组合写作或事实核对请求；没有放宽解析或人工补全输出，没有再发请求。
+
+| 调用开始（UTC） | 用途／思考 | 延迟 | 输入 token | 完成 token | 推理 token | 答案 token | 实付合计 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 05:08:04.272 | local-edit／enabled | 8022ms | 3735 | 1898 | 1311 | 587 | 5633 |
+
+答案 token 为上游完成数减其明确报告的推理数；完整 usage、缓存计数、预留参数均在 private/budget/usage.json 与 outcome.json。输出上限 12288、finish_reason=stop，不能把该 JSON 解析失败写成输出截断；这是本轮格式拒收，不是上轮预算预留拒收。运行时只留存回答字符数 1284 和调用元数据，没有保存原始回答正文，因此无法进一步确认具体 JSON 语法缺陷，不自行推断。**本轮实付 5,633 / 25,000 token**，剩余 19,367 未使用；加上上轮 37,325，T-173 累计实付 **42,958 / 75,000 token**。
+
+没有新版本，当前仍为 v2 `ef0d03f1-3397-4a23-a4e4-ef375a4a19c4`，版本历史仍为两个。因未满足存版成功前提，未生成导入暂存副本、新 siteId 或 manifest，也未启动导入验证应用。没有新版本出处弹层可验，本轮不把上轮 v2 出处图冒充新证据。review/ 只保留本次两条批注原文与中性阅读说明，没有可比较的 A/B 图片或映射；private/ 保留请求、accepted 响应、任务、v1/v2 版本、最终状态、账本、日志及三档失败界面。1440／768／375 的三张截图逐张打开，均已载入，显示仍为 v2 及本次 JSON 拒收；不作盲评或审美结论。
+
+任务 error 且网关 /status 确认零 in-flight 后，手动 SIGINT 停网关（closed 日志 05:08:50Z）；失败截图完成后 SIGTERM 停应用（closed 日志 05:12:06Z）。网关账本 stopped=false 是因该调用已正常结束、格式错误发生在应用解析边界，进程已按本次唯一授权手动停止，不表示继续发送。无遗留本次应用、网关或 Chrome 进程，记录 private/post-processes.txt。未写主目录 .sitecraft-data，未用 rm、未推送；临时根及全部失败证据保留，`tsconfig.json` 自动脏改不提交。本轮只本地提交票的记录，票保持 open，第二组存版、独立盲评及导入暂存验证未完成。
 
 ### 唯一一次真实运行（2026-10-16，Codex）
 
