@@ -26,6 +26,7 @@ T-173 第二组（首页用餐场景 + 菜单页午市组合，跨页多区块�
 - 网关改动交新的 sol 实例快速复审，通过后才运行。
 - 构思主控对 HTTP 400 选 A（2026-10-17）：修复局部写作 schema 的根 object 与长重复正则问题，并保存 HTTP 错误正文、状态和实际响应 request id；全部算在负责人已批的 30000 账本内（上次账本实付 0），上次 400 请求未被模型处理，不算用掉运行授权。先完成离线修复；全量／build 先报 READY_FOR_HEAVY 等主控放行。探针另等主控明确「可以探针」后才发，旧／新 schema 各一次、独立 1000 新账本、max_tokens≤256，合计≤2000；新 schema 仍 400 就停。第二组重跑须新 sol 复审通过并由主控另行下达；大纲与翻译只读检查，不在本票改。
 - 2026-10-17 负责人批准新账本 SITECRAFT_TOKEN_LIMIT=45000，在导入站 v2 的新副本上重跑一次第二组，批注原文不变；截断、拒收或预留失败就停，不再申请；T-174 总授权为 3 万加 4.5 万，实付以账本为准。运行前先直接调用当前 reserveRequest，离线重建并逐步计算写作、事实核对和一轮修正的预留，交主控转构思主控核对；明确确认并再次放行前不发真实请求，本次计算不调用 DeepSeek、不读取 .env.local。
+- 2026-10-17 主控转达构思主控已核对 c9cb13d 的离线核算、算式无误，明确放行该提交上的一次 45000 第二组真实运行；使用新 real3 临时根、新 budget45 账本及 blind3 产物，不复用失败根。截断、拒收、HTTP 错误或预留失败即停，不追加、不重跑；预留失败须报告具体阶段、当时已花与该步完整预留。
 
 ## What to build
 
@@ -37,7 +38,7 @@ T-173 第二组（首页用餐场景 + 菜单页午市组合，跨页多区块�
 ## Acceptance
 
 - [ ] 坏例测试先红后绿；独立 sol 复审通过；typecheck、test、build 通过
-- [ ] 真实 chat 入口在「（批注验收）」站 v2 副本上跑第二组并存版，用量写进 Resolution；工作台三档出处显示正确
+- [x] 真实 chat 入口在「（批注验收）」站 v2 副本上跑第二组并存版，用量写进 Resolution；工作台三档出处显示正确
 - [ ] 独立盲评实例对比第二组原版和修改版的结论写进 Resolution
 
 ## Resolution
@@ -372,3 +373,55 @@ build 完成后，10:27:08Z 再独立运行 memory_pressure 与 ps，空闲 51%�
 提交前 `LANG=en_US.UTF-8 python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .` 返回 Problems=0、Stale living docs=0，claimed_by 仍为 Codex；git diff --check 通过。票文件经 UTF-8 严格解码读回，20 条预算等式的加法及 ≤／> 关系逐条核对通过。
 
 本轮离线重建与核算完成；整票仍 **INCOMPLETE**，等待主控转交核对并再次明确放行。没有调用 DeepSeek、读取 .env.local、创建新真实账本、存业务版本或生成导入副本；不运行全量／build。只显式添加本票并新建本地文档提交，不 amend、不推送，tsconfig.json 的既有 Next 自动修改保留未提交。提交为 ebf6f33 的直接子提交，SHA 见交付回报及 artifacts/t174/budget45-offline-v3/commit.json。
+
+### 45000 放行后的第二组单次真实运行（2026-10-17，Codex）
+
+存版及导入副本验证 **PASS**；本次执行状态 **INCOMPLETE**：最终诊断发现生产提交检查自己的两个 Chrome 在事实核对期间仍存活，未完全满足「模型调用与 Chrome 串行」的字面要求，详见下方时间线。独立盲评由主控另行安排，未进行盲评或自评审美，整票保持 INCOMPLETE。构思主控已核对 `c9cb13dd6fae43a11372435222de8bfeb5401cb9` 的离线算式，主控明确放行；本轮所有真实调用及产物均基于该提交，运行实现与正式测试未改。仅新增一次第二组 annotationBatch，run `2790a4d4-d5b8-4362-acbb-6cf9757b3faf` 于 12:08:35.630Z 开始，12:09:18.137Z 终态 complete，保存 **v3 `55940a23-da60-4120-98f0-75dea986c1e1`**。repairRound=0、候选检查 attempts=1，未进入修正轮；无截断、拒收、HTTP 错误或预留失败，没有追加或重跑。以下时间均为 2026-10-17 UTC。
+
+#### 新副本、资源检查与单次发送
+
+先执行 `mktemp -d /tmp/sitecraft-t174-real3.XXXXXX`，取得 `/tmp/sitecraft-t174-real3.EoRpnZ`，然后执行 `node artifacts/t174/prepare-real3.mjs /tmp/sitecraft-t174-real3.EoRpnZ`。脚本沿用上一轮已读流程，仅替换目录、临时根、授权及提交标识；从主工作区只读复制 code-sites/站点文件、annotations/站点文件和 conversations/站点目录。完整站点 JSON 已含来源登记、任务及版本历史；核对 uploads/站点目录、uploads/demo/站点目录与所有版本图片／资源引用，均无关联图片，旧 sites／leads 文件也不存在。复制后站名「禾巷小馆（批注验收）」、指定 v2 `91191b41-483b-4ed8-adba-4d956fad032f`、两版历史、七条来源均符合，未复用此前失败根。基线和清单位于 private/setup.json、baseline-site.json、version-1.json、version-2.json。
+
+产物目录 `artifacts/t174/blind3-20261017T120655Z/`，新账本 `artifacts/t174/budget45-20261017T120655Z/usage.json`，显式 SITECRAFT_TOKEN_LIMIT=45000，初始 spent／calls／rounds 均为零，不 --resume。12:07:23.493Z 运行 memory_pressure、df 与 ps，空闲内存 **38%**、磁盘可用 **14 GiB**，未见其他自动化 Chrome、node --test、build 或预算网关；原始资源输出及相关进程记录见 private/preflight-memory.txt、preflight-disk.txt、preflight-processes.txt、preflight.json。发送前于 12:08:25.959Z 再查，空闲 **35%**，只有本轮应用与空闲网关，没有 Chrome 或测试／build，见 pre-send-*。
+
+`node artifacts/t174/blind3-20261017T120655Z/private/start-app.mjs` 启动独立普通 Next dev。应用 origin 为 127.0.0.1:50225，网关 origin 为 127.0.0.1:50226，均由随机端口分配，不回退主工作区；NODE_ENV=test 仅隔离数据根并禁止 Next 加载 .env.local。health 的 cwd 与 dataRoot 核对一致后登记本根身份。应用只有 local-budget-gateway 占位 token，不持有真实密钥。
+
+网关独立进程通过 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 加载凭据；source 输出丢弃、失败即停，未另行读取或打印文件内容。随后执行 `DEEPSEEK_BASE_URL=https://api.deepseek.com DEEPSEEK_MODEL=deepseek-flash SITECRAFT_TOKEN_LIMIT=45000 NODE_OPTIONS= NODE_TEST_CONTEXT= node artifacts/t174/blind3-20261017T120655Z/private/start-gateway.mjs`，由当前 scripts/t153-real-budget.ts 接管账本。真实凭据只在网关进程环境，未进入应用、请求记录、日志、截图或提交。
+
+以下命令均使用规定 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`：先运行 `node --experimental-strip-types artifacts/t174/blind3-20261017T120655Z/private/run-real.ts prepare`，只读 T-173 第二组原文，逐字核对首页 [4] 用餐场景、菜单 [3] 午市组合的批注、DOM 路径、文字、标题和元素提示；仅更新本次 draft／submission 标识。关闭 prepare 的 Chrome 后，只执行一次同脚本的 `second`。生产 chat POST 返回 202，实际 Next after 执行，没有替换调度器或模型；startedAt 与 wx 请求文件阻止同组重发。请求、202 回执、任务状态及最终完整记录位于 private/second-request.json、accepted.json、second-state.json、final-state.json、task.json、results.json；命令日志为 prepare.log、second.log。
+
+#### 每次真实用量与预算结算
+
+| 调用开始 | 用途 | 思考 | HTTP／finish_reason | 输入 | 完成 | 推理 | 答案 | 实付 |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 12:08:35.840Z | 首页用餐场景 | enabled | 200／tool_calls | 4085 | 4180 | 3260 | 920 | 8265 |
+| 12:08:53.120Z | 菜单午市组合 | enabled | 200／tool_calls | 3960 | 3047 | 1830 | 1217 | 7007 |
+| 12:09:15.752Z | 两个核对段合并核对一次 | disabled | 200／stop | 4137 | 367 | 未返回字段 | 367 | 4504 |
+
+前两次局部调用实际使用 submit_local_edit，输出上限原值 12288；答案分别按完成减推理计算为 920／1217。第三次 local-facts 固定非思考、上限 4096，usage 没有 reasoning_tokens 字段，原记录保留缺失，不伪填服务端报告的 0；非思考完成内容为答案 367。缓存命中输入依次为 3712、896、0，原始全部 usage 在账本及任务记录中保留。
+
+实际逐步预留为：首页 `0 + (10408 + 12288) = 22696 ≤ 45000`；菜单 `8265 + (10022 + 12288) = 30575 ≤ 45000`；核对 `15272 + (11037 + 4096) = 30405 ≤ 45000`。没有预留拒绝阶段或被拒的上游请求。最终本轮实付 **19776／45000 token**，剩余 **25224**；加上此前 30000 授权内的探针 404 与失败第二组 8253，T-174 累计实付 **28433／75000 token**。这些是账本 token 用量，不是货币账单；未推算金额。
+
+12:09:47.973Z 再核对 run 已 complete、网关零 in-flight，保存 private/pre-stop-status.json 后，手动 `kill -INT 88137` 停网关，子进程 88138 以 SIGINT 结束，gateway.log 留存退出记录。账本 stopped=false 如实保留（没有预算或上游错误），进程已停止；未改写账本伪造错误停止。随后才运行截图命令，模型请求与取图 Chrome 串行，没有重启网关。账本原件位于 budget45 目录，副本为 private/budget/usage.json；调用明细另汇总于 private/outcome.json。
+
+最终只读核对 private/checks 的浏览器诊断与任务模型时间线，发现生产检查 browser／dynamicBrowser 分别在 12:09:05.507Z／12:09:05.700Z 启动，直到 12:09:18.114Z／12:09:18.086Z 才关闭；第三次 local-facts 调用为 12:09:15.748Z～12:09:18.048Z（任务 latencyMs=2300），其整个 2300ms 均与这两个检查 Chrome 的存活区间重叠。`lib/code-site-check.ts:647` 在检查 try 内 await 事实核对，`:709` 的 finally 随后才 close 两个浏览器，这是现有生产流程的行为；外部取图 Chrome 没有与模型重叠。诊断原件及交集记录 private/runtime-concurrency.json 保留，不把「取图串行」扩大写成全部 Chrome 都串行；本轮只获准运行和提交票，未修改该流程或再次请求。private/outcome.json 是完成存版和导入验证时的初步汇总，最终执行状态以 private/final-outcome.json 的 INCOMPLETE 为准，两个记录都保留。
+
+#### 截图与出处
+
+运行同脚本的 `capture-second`，随机分配 A／B，映射仅存 private/mapping.json 与 results.json。review/ 只有 A／B 两份各 18 张截图、逐字《批注原文.txt》和中性《阅读说明.txt》：每份包含首页／菜单页在 1440、768、375 的全页，两处对应批注区块近景，以及两页相同范围外区块近景，共 **36 张**，未混入任务、账本、映射或判断。阅读说明不透露先后或优劣。
+
+`node --experimental-strip-types artifacts/t174/blind3-20261017T120655Z/private/capture-citations.ts` 于 12:12:02.887Z 完成工作台首页／菜单三档共 **6 张**出处弹层截图，文件 workspace-*-citation-*.png，逐字 quote、来源标签、v3 及弹层视口边界核对均通过，结果见 workspace-citations.json。首页新增两条营业时间声明、菜单新增一条价格声明的弹层均显示「原始资料」及材料原句。新版本合计 **12 条资料出处**、来源登记增至 **9 条**；factCitations.complete=false，界面如实显示「部分内容未记录出处」，没有把本次局部依据冒充整站完整。
+
+本次 v3 提交入口检查 passed=true、issues=[]，两页三档溢出、重叠、对比度问题均为 0，范围外 DOM／CSS 与交互态检查通过；收据中的行长、悬停门控及小点击区非阻断反馈原样保留，不据此作审美结论。完整收据在 final-version-3.json。
+
+#### 导入暂存副本与独立应用验证
+
+运行 `node artifacts/t174/blind3-20261017T120655Z/private/prepare-import.mjs`，于 12:12:40.314Z 生成 **artifacts/t174/import-3e52f683/**。按 .sitecraft-data 相对结构存放更新站点、批注、会话三个 JSON；站点包含同一 siteId 的完整 v1／v2／v3、来源登记及各版本快照、全部历史任务与本次 modelCalls。manifest.json 对每个文件列出主目录目标相对路径和 add／replace，本次三项均为 replace。旧 v1／v2 记录按 JSON 结构核对完整保留，未写主目录。此目录没有混入凭据、测试身份或应用缓存。
+
+另执行 `mktemp -d /tmp/sitecraft-t174-import.XXXXXX`，取得 **/tmp/sitecraft-t174-import.0eldXf**；严格按 manifest 从暂存副本加载三个文件，未复用运行根或直接读原运行数据。原应用取图结束后手动 `kill -TERM 88073` 关闭，随后 `node artifacts/t174/blind3-20261017T120655Z/private/start-import-app.mjs` 启动一次独立应用，随机 origin 127.0.0.1:51059，health 核对新 dataRoot 与本工作树一致；仍无真实凭据、未启动网关或新增模型调用。
+
+使用同一 capture-citations.ts 显式传入 `artifacts/t174/blind3-20261017T120655Z/private/import-app/private/config.json import-workspace`，于 12:14:23.182Z 验证工作台和预览已载入 v3、版本共三版，两页三档出处原句及「原始资料」标签正确，共 6 张 import-workspace-*-citation-*.png。再运行 `node --experimental-strip-types artifacts/t174/blind3-20261017T120655Z/private/capture-import-preview.ts`，独立打开两页三档预览，全页已载入、主标题存在且无工作台出处标记，共 6 张 import-preview-*.png。两项均使用规定 CHROME_PATH、退出码 0；配置、日志及读回结果均在 private/。
+
+本轮 **54 张截图（review 36＋private 18）均逐张用 view_image 打开**，已看到实际页面或弹层，不是载入态／空白；清单 private/screenshot-views.json，不做哈希、字节或像素比对，没有自评审美。独立导入验证后手动 `kill -TERM 89865` 停应用。12:15:30.692Z 的 post-processes.txt 未见本轮应用、网关、测试或无头 Chrome；两个应用均正常退出，网关此前已停。运行 `node artifacts/t174/blind3-20261017T120655Z/private/finalize.mjs` 于 12:16:25.396Z 核对原主目录站点仍完整等于基线 v2，两临时根及暂存副本的三个业务记录按 JSON 结构一致，原 v1／v2 未变、本次 modelCalls 仍只有三条、账本仍为 19776，54 张图的清单无遗漏，退出码 0。
+
+提交前再次运行 project_map.py status --root .，Problems=0、Stale living docs=0；git diff --check 与票的 UTF-8 严格解码回读通过，账本汇总和 manifest 目标路径核对通过。存版、截图及导入验证已完成，真实存版及工作台出处验收项据实勾选；严格串行差异交主控，独立盲评项仍未完成，票保持 open、claimed_by=Codex，本次执行及整票均报 INCOMPLETE。未改生产代码或正式测试，未再次跑全量／build，未写主目录 .sitecraft-data、未使用 rm 命令或推送。只显式 add 本票并新建本地提交，不 amend；artifacts/ 下产物及 tsconfig.json 的 Next 自动改动不提交。新提交为 c9cb13d 的直接子提交，SHA 见交付回报与 private/commit.json。
