@@ -5,6 +5,7 @@ import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
 import { currentCodeVersion, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { sameFactSources, type CodeFactSource } from './code-site-fact-segments.ts';
+import { stalePlaceholderPrompts } from './code-site-placeholders.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
 
@@ -238,6 +239,8 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
         ? { materialSnapshot: site.materials } : {}),
       ...(sourceMaterials !== undefined ? { factSourceSnapshot: sourceMaterials } : {}),
       ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };
+    const prompts = !restore ? stalePlaceholderPrompts(version, current, args.source, { targets: localTargets, pageId: args.pageId }) : [];
+    if (prompts.length) version.stalePlaceholders = prompts;
     site.versions.push(version); site.currentVersionId = version.id;
     await write(site); return { status: 'applied' as const, site, version };
   });
