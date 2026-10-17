@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync, watch } from 'node:fs';
-import { copyFile, mkdir, mkdtemp, readFile, readdir, stat, symlink, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, readdir, realpath, stat, symlink, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -43,10 +43,10 @@ async function fixture() {
   `, 'utf8');
   return cwd;
 }
-function start(cwd: string, file = 'pass.test.ts', scriptProject = cwd) {
+function start(cwd: string, file = 'pass.test.ts', scriptProject = cwd, preload?: string) {
   const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: cwd, DEEPSEEK_API_KEY: '', AI_API_KEY: '' };
   delete env.NODE_TEST_CONTEXT;
-  const child = spawn(process.execPath, ['--experimental-strip-types', path.join(scriptProject, 'scripts/run-tests.ts'), file], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [...(preload ? ['--require', path.join(cwd, preload)] : []), '--experimental-strip-types', path.join(scriptProject, 'scripts/run-tests.ts'), file], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const exited = once(child, 'exit');
   let output = '';
   child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
@@ -62,12 +62,14 @@ async function run(cwd: string, file = 'pass.test.ts') {
   const report = JSON.parse(await readFile(path.join(directory, 'report.json'), 'utf8'));
   return { ...result, directory, report };
 }
-async function waitForFile(file: string) {
+async function waitForFile(file: string, signal?: AbortSignal) {
   if (existsSync(file)) return;
   await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => { watcher.close(); reject(new Error(`未收到夹具闸门：${file}`)); }, 10000);
-    const ready = () => { if (existsSync(file)) { clearTimeout(timer); watcher.close(); resolve(); } };
+    const cancel = () => { clearTimeout(timer); watcher.close(); reject(new Error('夹具闸门等待已取消')); };
+    const timer = setTimeout(() => { watcher.close(); signal?.removeEventListener('abort', cancel); reject(new Error(`未收到夹具闸门：${file}`)); }, 10000);
+    const ready = () => { if (existsSync(file)) { clearTimeout(timer); watcher.close(); signal?.removeEventListener('abort', cancel); resolve(); } };
     const watcher = watch(path.dirname(file), ready);
+    signal?.addEventListener('abort', cancel, { once: true });
     ready();
   });
 }
@@ -118,6 +120,122 @@ test('T-176: the real entry keeps the latest five runs plus older failures acros
   assert.equal(JSON.parse(await readFile(path.join(result.directory, 'report.json'), 'utf8')).status, 'INCOMPLETE');
   assert.equal((await readdir(path.join(cwd, 'artifacts/t167'))).filter(name => /^test-run-\d+-\d+$/.test(name) && name !== 'test-run-0-3').length, 8, '最近五轮加三份窗口外失败或中断证据');
   assert.ok(!existsSync(path.join(cwd, 'artifacts/t167/.run-tests.lock')), '正常和失败结束均释放互斥锁');
+});
+
+async function deadLockOwner() {
+  const child = spawn(process.execPath, ['-e', ''], { stdio: 'ignore' });
+  const [code] = await once(child, 'exit'); assert.equal(code, 0);
+  assert.ok(child.pid);
+  assert.throws(() => process.kill(child.pid!, 0), (error: NodeJS.ErrnoException) => error.code === 'ESRCH');
+  return { pid: child.pid, startedAt: new Date().toISOString() };
+}
+async function writeLock(cwd: string, content: string) {
+  const root = path.join(cwd, 'artifacts/t167');
+  await mkdir(root, { recursive: true });
+  const file = path.join(root, '.run-tests.lock');
+  await writeFile(file, content, 'utf8');
+  return file;
+}
+
+test('T-176: a dead lock owner can be replaced and the recovered entry completes', async t => {
+  const cwd = await fixture(); t.diagnostic(`残留 pid 锁夹具：${cwd}`);
+  const owner = await deadLockOwner();
+  const file = await writeLock(cwd, JSON.stringify(owner));
+  const result = await start(cwd).completed;
+  assert.equal(result.code, 0, `pid 已不存在时必须能启动：${result.output}`);
+  assert.match(result.output, /接管.*残留锁/);
+  assert.ok(result.output.includes('.run-tests.lock'));
+  assert.ok(!existsSync(file), '接管后正常结束仍须释放锁');
+});
+
+test('T-176: malformed lock content can be replaced without changing any test condition', async t => {
+  for (const content of ['', '{interrupted', '{"pid":-1,"startedAt":"invalid"}']) {
+    const cwd = await fixture(); t.diagnostic(`不可解析锁夹具：${cwd}`);
+    const file = await writeLock(cwd, content);
+    const result = await start(cwd).completed;
+    assert.equal(result.code, 0, result.output);
+    assert.match(result.output, /接管.*残留锁/);
+    assert.ok(!existsSync(file));
+  }
+});
+
+test('T-176: a live lock owner is rejected with the owner pid and lock path', async t => {
+  const cwd = await fixture(); t.diagnostic(`活跃 pid 锁夹具：${cwd}`);
+  const owner = { pid: process.pid, startedAt: new Date().toISOString() };
+  const file = await writeLock(cwd, JSON.stringify(owner));
+  const result = await start(cwd).completed;
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /已有测试入口.*拒绝启动/);
+  assert.ok(result.output.includes(`pid=${owner.pid}`), '拒绝必须明确列出存活持有者 pid');
+  assert.ok(result.output.includes(await realpath(file)), '拒绝必须明确列出锁路径');
+  assert.doesNotMatch(result.output, /证据目录：|接管.*残留锁/);
+  assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), owner, '不能改写活跃持有者的锁');
+});
+
+test('T-176: two concurrent stale-lock claimants admit exactly one owner', async t => {
+  const cwd = await fixture(); t.diagnostic(`并发残留锁接管夹具：${cwd}`);
+  const owner = await deadLockOwner();
+  const file = await writeLock(cwd, JSON.stringify(owner));
+  await writeFile(path.join(cwd, 'hold-gate'), '', 'utf8');
+  const controller = new AbortController();
+  const entered = waitForFile(path.join(cwd, 'test-started'), controller.signal).then(() => true);
+  // Freeze both callers after the requirement's ESRCH probe, before either
+  // takeover. This observes the liveness boundary, not an implementation lock
+  // primitive or a timing assumption about two child processes.
+  await writeFile(path.join(cwd, 'claim-gate'), '', 'utf8');
+  await writeFile(path.join(cwd, 'claim-gate.cjs'), `
+    const fs = require('node:fs'), { spawnSync } = require('node:child_process');
+    const kill = process.kill; let gated = false;
+    process.kill = function(pid, signal) {
+      try { return kill.call(process, pid, signal); }
+      catch (error) {
+        if (!gated && pid === ${owner.pid} && signal === 0 && error.code === 'ESRCH') {
+          gated = true; fs.writeFileSync('stale-observed-' + process.pid, '');
+          const gate = spawnSync(process.execPath, ['claim-wait.cjs'], { stdio: 'ignore' });
+          if (gate.status !== 0) throw new Error('残留锁探测闸门异常');
+        }
+        throw error;
+      }
+    };
+  `, 'utf8');
+  await writeFile(path.join(cwd, 'claim-wait.cjs'), `
+    const fs = require('node:fs');
+    if (fs.existsSync('claim-gate')) {
+      const watcher = fs.watch('.', () => { if (!fs.existsSync('claim-gate')) watcher.close(); });
+      if (!fs.existsSync('claim-gate')) watcher.close();
+    }
+  `, 'utf8');
+  const attempts = [start(cwd, 'hold.test.ts', cwd, 'claim-gate.cjs'), start(cwd, 'hold.test.ts', cwd, 'claim-gate.cjs')];
+  const completed = attempts.map(attempt => attempt.completed);
+  const admittedWait = Promise.race([entered, Promise.all(completed).then(() => false)]);
+  const observed = Promise.all(attempts.map(attempt => waitForFile(path.join(cwd, `stale-observed-${attempt.child.pid}`), controller.signal)));
+  let results: Array<{ code: unknown; output: string }> = [];
+  try {
+    const bothObserved = await Promise.race([observed.then(() => true), Promise.all(completed).then(() => false)]);
+    assert.equal(bothObserved, true, '并发接管者须检查同一已退出 pid');
+    await unlink(path.join(cwd, 'claim-gate'));
+    const admitted = await admittedWait;
+    assert.equal(admitted, true, '两个接管者不能都被残留锁拒绝');
+    const rejected = await Promise.race(completed);
+    assert.notEqual(rejected.code, 0, '持有者未释放之前另一轮必须拒绝');
+    const winner = attempts.filter(attempt => attempt.child.exitCode === null);
+    assert.equal(winner.length, 1);
+    const records = (await readFile(file, 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+    const holder = records.find(record => record.pid === winner[0].child.pid);
+    assert.ok(holder, '锁必须写入实际持有者 pid');
+    assert.ok(typeof holder.startedAt === 'string' && Number.isFinite(Date.parse(holder.startedAt)), '锁必须写入启动时间');
+    assert.ok(rejected.output.includes(`pid=${winner[0].child.pid}`));
+    assert.ok(rejected.output.includes(await realpath(file)));
+  } finally {
+    controller.abort();
+    if (existsSync(path.join(cwd, 'claim-gate'))) await unlink(path.join(cwd, 'claim-gate'));
+    await unlink(path.join(cwd, 'hold-gate'));
+    results = await Promise.all(completed);
+  }
+  assert.equal(results.filter(result => result.code === 0).length, 1, JSON.stringify(results));
+  assert.equal(results.filter(result => result.code !== 0).length, 1);
+  assert.match(results.find(result => result.code === 0)!.output, /接管.*残留锁/);
+  assert.ok(!existsSync(file));
 });
 
 test('T-176: an artifacts symlink cannot redirect entry cleanup outside its project', async t => {

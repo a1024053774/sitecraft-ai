@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { closeSync, createWriteStream, openSync, unlinkSync } from 'node:fs';
+import { closeSync, constants, createWriteStream, fstatSync, lstatSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from 'node:fs';
 import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -19,12 +19,46 @@ for (const directory of [artifacts, runRoot]) {
   assert.ok((await lstat(directory)).isDirectory(), `测试证据目录不能是符号链接：${directory}`);
 }
 const lockPath = path.join(runRoot, '.run-tests.lock');
-let lock: number;
-try { lock = openSync(lockPath, 'wx'); }
-catch (error) {
-  if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error(`已有测试入口持有工作树锁，拒绝启动：${lockPath}`, { cause: error });
-  throw error;
+type LockOwner = { pid: number; startedAt: string };
+function readLockOwner(): { exists: boolean; owner?: LockOwner } {
+  let content: string;
+  try {
+    assert.ok(lstatSync(lockPath).isFile(), `测试锁必须是普通文件，拒绝启动：${lockPath}`);
+    content = readFileSync(lockPath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { exists: false };
+    throw error;
+  }
+  for (const line of content.split('\n').filter(Boolean)) {
+    let owner: LockOwner;
+    try { owner = JSON.parse(line); }
+    catch (error) { if (error instanceof SyntaxError) continue; throw error; }
+    if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid <= 0
+      || typeof owner.startedAt !== 'string' || !Number.isFinite(Date.parse(owner.startedAt))) continue;
+    try { process.kill(owner.pid, 0); return { exists: true, owner }; }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ESRCH') continue;
+      throw new Error(`无法核对测试锁持有者，拒绝启动：${lockPath}（pid=${owner.pid}）`, { cause: error });
+    }
+  }
+  return { exists: true };
 }
+const busyLock = (owner: LockOwner) => new Error(`已有测试入口持有工作树锁，拒绝启动：${lockPath}（pid=${owner.pid}）`);
+const previousLock = readLockOwner();
+if (previousLock.owner) throw busyLock(previousLock.owner);
+const owner = { pid: process.pid, startedAt: new Date().toISOString() };
+// A single O_APPEND write orders contenders on the same file. The first live
+// record owns it; stale claimants never unlink a newly published live lock.
+const lock = openSync(lockPath, constants.O_CREAT | constants.O_RDWR | constants.O_APPEND | constants.O_NOFOLLOW, 0o600);
+try {
+  writeSync(lock, '\n' + JSON.stringify(owner) + '\n');
+  const winner = readLockOwner().owner;
+  assert.ok(winner, `测试锁在登记期间已变化，拒绝启动：${lockPath}`);
+  if (winner.pid !== owner.pid || winner.startedAt !== owner.startedAt) throw busyLock(winner);
+  const opened = fstatSync(lock), current = statSync(lockPath);
+  assert.ok(opened.dev === current.dev && opened.ino === current.ino, `测试锁在登记期间已替换，拒绝启动：${lockPath}`);
+} catch (error) { closeSync(lock); throw error; }
+if (previousLock.exists) console.log(`接管了残留锁：${lockPath}（pid=${owner.pid}）`);
 const releaseLock = () => { unlinkSync(lockPath); closeSync(lock); };
 process.once('exit', releaseLock);
 let runningServer: ChildProcess | undefined, tests: ChildProcess | undefined, interrupted = false;
