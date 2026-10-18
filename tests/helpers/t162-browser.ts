@@ -144,7 +144,17 @@ export async function session(width: number, options: { siteId?: string; beforeN
       timer=setTimeout(()=>finish(new Error('等待失败：'+${JSON.stringify(expression)})),${timeout});
       window.addEventListener('resize',check);window.addEventListener('error',check);check();
     })`);
-    await (captureFailure ? observation : cancellable(observation));
+    try { await (captureFailure ? observation : cancellable(observation)); }
+    catch (error) {
+      const diagnostics = await browser.evaluate(`({at:new Date().toISOString(),now:performance.now(),
+        events:window.__t162AnimationEvents,
+        animations:document.getAnimations().map(animation=>({name:animation.animationName,playState:animation.playState,
+          currentTime:animation.currentTime,startTime:animation.startTime,pending:animation.pending,
+          target:animation.effect?.target?.outerHTML?.slice(0,500),
+          timing:Object.fromEntries(Object.entries(animation.effect?.getComputedTiming()??{}).map(([key,value])=>[key,typeof value==='number'&&!Number.isFinite(value)?String(value):value]))}))})`);
+      await writeFile(`${output}/wait-failure-${width}-${id}-${Date.now()}.json`, JSON.stringify({ expression, timeout, diagnostics }, null, 2), 'utf8');
+      throw error;
+    }
   });
   const click = async (selector: string) => {
     await wait(`!document.getAnimations().some(a=>(a.playState==='running'||a.playState==='pending')&&Number.isFinite(a.effect?.getComputedTiming().endTime))`);
@@ -194,6 +204,10 @@ export async function session(width: number, options: { siteId?: string; beforeN
     return result;
   };
   try {
+    await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__t162AnimationEvents=[];
+      for(const name of ['animationstart','animationend','animationcancel'])document.addEventListener(name,event=>{
+        window.__t162AnimationEvents.push({type:name,name:event.animationName,elapsedTime:event.elapsedTime,at:new Date().toISOString(),now:performance.now(),target:event.target?.outerHTML?.slice(0,300)});
+      },true);` });
     await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `const workflowFetch=window.fetch;window.fetch=function(input,init){const url=new URL(String(input),location.href);if(url.origin===${JSON.stringify(base)}&&/^\\/api\\/sites\\/[a-z0-9_-]+\\/(chat|history\\/(undo|restore))$/i.test(url.pathname))return workflowFetch.call(this,${JSON.stringify(workflowBase)}+url.pathname,init);return workflowFetch.apply(this,arguments)}` });
     if (options.beforeNavigate) await options.beforeNavigate(browser);
     await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });

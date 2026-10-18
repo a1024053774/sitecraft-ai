@@ -49,6 +49,21 @@ const observeScript = `(()=>{
   document.addEventListener('load',watch,true);new MutationObserver(watch).observe(document,{childList:true,subtree:true});watch();
 })()`;
 
+// Keep the real annotations response behind an explicit gate. Opening details
+// starts an asynchronous read; a loaded preview does not mean threads exist.
+const threadResponseGate = `(()=>{
+  const original=window.fetch, gate=new Promise(resolve=>window.__t179ReleaseThreads=resolve);
+  window.__t179ThreadsReceived=new Promise(resolve=>window.__t179ReceivedThreads=resolve);
+  window.fetch=async function(input,...args){
+    const response=await original.call(this,input,...args);
+    if(new URL(String(input),location.href).pathname.endsWith('/annotations')){
+      window.__t179ThreadsResponseReady=true;window.__t179ReceivedThreads();
+      await gate;
+    }
+    return response;
+  };
+})()`;
+
 type View = Awaited<ReturnType<typeof session>>;
 async function geometry(view: View) {
   return view.browser.evaluate<any>(`(()=>{
@@ -86,6 +101,23 @@ async function shot(view: View, name: string, width: number) {
   const result = await view.browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
   await writeFile(`${output}/${name}-${width}.png`, Buffer.from(result.data, 'base64'));
 }
+async function threadState(view: View, name: string, width: number) {
+  const observed = await view.browser.evaluate<any>(`(()=>{
+    const el=document.querySelector('[data-testid="thread-reveal"]'),details=document.querySelector('.code-annotation-threads'),
+      f=document.querySelector('[data-testid="code-preview"]'),s=document.querySelector('.code-preview-stage');
+    const box=node=>node?.getBoundingClientRect().toJSON(),r=el?.getBoundingClientRect(),point=r?{x:r.x+r.width/2,y:r.y+r.height/2}:null;
+    const hit=point?document.elementFromPoint(point.x,point.y):null;
+    return {at:new Date().toISOString(),button:el?{disabled:el.disabled,rect:box(el)}:null,point,
+      hit:hit?{tag:hit.tagName,testId:hit.getAttribute('data-testid'),text:hit.textContent.slice(0,100)}:null,
+      details:{open:details?.open,rect:box(details),text:details?.textContent},
+      scroll:{host:window.scrollY,stage:s?.scrollTop,iframe:f?.contentWindow?.scrollY},stage:box(s),frame:box(f),
+      composer:box(document.querySelector('[data-testid="annotation-composer"]'))??null,position:box(document.querySelector('.code-annotation-position'))??null,
+      responseReady:window.__t179ThreadsResponseReady};
+  })()`);
+  await writeFile(`${output}/${name}-${width}.json`, JSON.stringify(observed, null, 2), 'utf8');
+  await shot(view, name, width);
+  return observed;
+}
 
 function assertInitial(observed: any, width: number) {
   const p = observed.panel, t = observed.target;
@@ -107,10 +139,20 @@ function assertNativeScroll(result: Awaited<ReturnType<typeof wheel>>) {
 for (const width of [375, 768, 1440]) test(`T-179 首次腾位与用户原生滚动成对验证 ${width}`, { timeout: 120000 }, async () => {
   const id = await historicalSite(), view = await session(width, { siteId: id, beforeNavigate: async browser => {
     await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: observeScript });
+    await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: threadResponseGate });
   } });
   try {
     if (width < 1100) await view.click('[role="tab"]:nth-child(1)');
     await view.click('.code-annotation-threads summary');
+    await view.browser.evaluate('window.__t179ThreadsReceived');
+    const pending = await threadState(view, 'initial-before-threads', width);
+    assert.equal(pending.button, null, '线程响应未放行前按钮尚未载入，不能把预览载入当作线程就绪');
+    assert.equal(pending.composer, null, '初始线程尚未定位时没有批注浮层');
+    const ready = view.wait(`document.querySelector('[data-testid="thread-reveal"]') && !document.querySelector('[data-testid="thread-reveal"]').disabled`);
+    await view.browser.evaluate('window.__t179ReleaseThreads()');
+    await ready;
+    await view.browser.evaluate(`document.querySelector('[data-testid="thread-reveal"]').scrollIntoView({block:'center'})`);
+    await threadState(view, 'initial-ready', width);
     await view.click('[data-testid="thread-reveal"]');
     await view.wait(`document.querySelector('.code-preview-version') && document.querySelector('[data-testid="annotation-composer"]') && !document.querySelector('.code-preview-loading')`);
     await view.browser.evaluate('document.fonts.ready');
@@ -162,5 +204,8 @@ for (const width of [375, 768, 1440]) test(`T-179 首次腾位与用户原生滚
     await writeFile(`${output}/reopened-${width}.json`, JSON.stringify({ expanded, repicked, repickedUp, repickedDown }, null, 2), 'utf8');
     assertNativeScroll(repickedUp); assertNativeScroll(repickedDown);
     await shot(view, 'reselected', width);
+  } catch (error) {
+    await threadState(view, 'failure', width);
+    throw error;
   } finally { await view.browser.close(); }
 });
