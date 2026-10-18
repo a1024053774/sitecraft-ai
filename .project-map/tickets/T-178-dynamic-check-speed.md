@@ -2,7 +2,7 @@
 id: T-178
 title: 加快局部修改动态状态检查（不改检查语义）
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex
 supersedes:
@@ -45,7 +45,7 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 - [x] 负载轮全量与禾巷小馆三档各五次均通过，分布与读取计划已记录
 - [x] 随后连续两轮全量均通过
 - [x] build 通过
-- [ ] 负责人另派新的 fast 实例审查通过
+- [x] 负责人另派新的 fast 实例审查通过
 
 ## Resolution
 
@@ -83,11 +83,11 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 | 后续全量第二轮 | 18:10:20–18:16:05 | 55% | 805／805，3-full-b.log |
 | build | 18:16:05–18:16:22 | 56% | 退出码 0，4-build.log |
 
-三轮全量标准入口报告依次为：
+三轮全量的完整用例日志依次为（原标准入口报告 `artifacts/t167/test-run-1792259838349-97235`、`-1792260260897-11887`、`-1792260621029-23179` 已被 T-176 的「只保留最近 5 轮」清理，链接改指保留在本票目录的完整日志）：
 
-- `artifacts/t167/test-run-1792259838349-97235/report.json`
-- `artifacts/t167/test-run-1792260260897-11887/report.json`
-- `artifacts/t167/test-run-1792260621029-23179/report.json`
+- `artifacts/t178/budget-floor-heavy/1-load-full.log`
+- `artifacts/t178/budget-floor-heavy/2-full-a.log`
+- `artifacts/t178/budget-floor-heavy/3-full-b.log`
 
 三轮均无失败、无跳过；上一轮五个失败用例在这三轮中逐项确认全部通过。控制器原始记录为 `budget-floor-heavy/heavy-result.json`，汇总为 `validation-summary.json`，包含标准报告路径和五项用例核对结果。build 编译、TypeScript 与静态页生成通过；保留一条未修改的诊断写入路径追踪告警（匹配 18084 个 JSON 文件），未扩展本票去改追踪实现。
 
@@ -124,7 +124,7 @@ npm run build
 
 2026-10-17 **17:38:06–17:46:53 UTC**，生产源码提交 `f9babdbc3dcb7f34d8b9faa546189c167b5f52ee`。命令为指定 CHROME_PATH 下的 `npm test`；开始前 memory_pressure 空闲 **55%**，ps 已记录，另一个 T-175 实例只做定向测试。测试入口退出码 **1**，实际执行 **801** 项，**796** 通过、**5** 失败、无跳过。没有重跑来覆盖失败。
 
-- 标准入口报告：`artifacts/t167/test-run-1792258686849-67299/report.json`。
+- 标准入口报告：原 `artifacts/t167/test-run-1792258686849-67299/report.json` 已被 T-176 的保留策略清理，以下完整日志为准。
 - 完整用例日志：`artifacts/t178/read-budget-heavy/1-full.log`；标准入口同轮 `tests.log`、`summaries.ndjson` 与 checks/ 全部保留。
 - 逐例汇总及原诊断文件链接：`artifacts/t178/read-budget-heavy/1-full-failure-summary.json`。
 - 本轮前置 memory_pressure、ps 和开始／结束／退出码：`artifacts/t178/read-budget-heavy/1-full-memory.txt`、`1-full-ps.txt`、`1-full-result.json`。
@@ -196,3 +196,26 @@ npm run typecheck
 ### 已弃试验的证据保留
 
 此前所有 profile、基准、未截断分布、跟踪漏报和并行 RSS 失败文件均原样留在 artifacts/t178。特别保留 `track-capability-drained-20261017/` 的 flex 漏报、`read-profile-20261017/` 与 Node CPU profile、`parallel-two-rss-20261017/` 的 314.52 MiB 增量停止记录。其详细历史 Resolution 位于 `87e6805` 与 `421a148`；这些证据不作为当前预算方案的提速或负载通过证明。
+
+### 独立审查与关票（主控，2026-10-17）
+
+新的 sol fast 审查实例审 `c4a72e5..5e1bbd8`，结论 **PASS**，无 P0/P1：
+- 撤回干净。生产差异只剩 `code-site-check.ts`（三档剩余额度、读取前记录预算）、`code-site-local-edit.ts`（发现与读取分阶段，按新预算探测）、`code-site.ts`（可选的预算证据字段）。`code-site-browser.ts` 与父版完全一致。
+- 预算正确。两侧各算「1 + 可聚焦元素数 × 4」后相加，在首次完整读取前记录，并使用同一份元素列表。每档取 max(5000, 1000 + 150 × 次数)，再与三档剩余额度取小。剩余额度从 60000 开始逐档扣减、最低为 0，超时即拒收，不会出现负预算或无限预算。候选 Chrome 的首次启动计入第一档。
+- 超时、无法聚焦、无法强制状态都明确拒收，不存部分版本。
+- 测试成对。父版红灯、5 秒下限测试在 537da14 上的失败都已复核；删除总额封顶、读到一半追加次数、故意漏读 color 三个变异都能检出；131 对原始记录逐项复算一致。
+- build 告警来自父版已有的 `code-check-diagnostics.ts:8` 动态路径追踪，不是本票引入。
+
+审查本轮的标准报告已复制到 `artifacts/t178/reports/test-run-1792267390804-55703/`。审查唯一的非阻断建议「把要引用的报告存进票号目录」已照做：上文失效链接改为指向本票目录的日志。
+
+后续沿用的做法：执行者在 Resolution 引用的测试报告，同时复制一份到对应票的 `artifacts/<票号>/`，避免被成功轮保留策略清理。
+
+主控合并为 `b7da7c4`。主线串行验证（20:42–20:48 EDT）：
+- `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 通过；
+- `CHROME_PATH=… npm test` 805/805，失败、取消、跳过均为零；
+- `rm -rf .next` 后 `SITE_STORE=fs npm run build` 通过；
+- `npm run typecheck` 通过；
+- 验证前后 code-sites 均为 280。
+
+3034 验证前就未在运行，验证后重新启动，导入站工作台与 code-preview 均 200。日志在 `artifacts/merge-b7da7c4/`。
+
