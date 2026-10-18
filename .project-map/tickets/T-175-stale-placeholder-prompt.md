@@ -2,7 +2,7 @@
 id: T-175
 title: 补充新事实后提示其他页面同项的「待补充」
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex
 supersedes:
@@ -23,7 +23,7 @@ supersedes:
 
 - [x] 先列失效方式再写测试，测试先在父版本失败：事项名不逐字出现时不提示；本次修改范围内的「待补充」不重复提示；跨页命中；刷新不重复；按钮只加草稿不存版本
 - [x] 用 `3e52f683`（禾巷小馆（批注验收））的 v2 只读副本，以本地替身重放首页包装费批注，工作台出现菜单页提示；1440/768/375 截图逐张看过
-- [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 sol 审查通过
+- [x] 不调用 DeepSeek；typecheck、test、build 通过；独立 sol 审查通过
 
 ## 失效方式与验收边界
 
@@ -267,3 +267,30 @@ supersedes:
 - 随后单独执行一次 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，4/4 通过、退出 0，日志同目录 `runner-regressions.log`；再执行一次 `npm run typecheck`，退出 0，日志 `typecheck.log`。本轮没有全量或 build。
 - `scripts/run-tests.ts`、AGENTS.md、README.md、spec.md 对 9f5b680 的文本 diff 为空，确认只撤回文件并发部分；T-175 的组件、版本/出处逻辑、测试、夹具、CONTEXT 与 mainline 对功能提交 95317ea 的文本 diff 为空，功能和其他同步保留。本轮 375 的提示/草稿两张截图已逐张打开查看。
 - project-map status：过期 living doc 为 0；唯一结构问题是本工作树缺少 T-178 票文件，已按负责人要求保留 `blocked_by: [T-178]`，不擅自创建该票。T-175 为 INCOMPLETE，暂停等待 T-178；claimed_by 和工作树保留。
+
+### 关票（主控，2026-10-17）
+
+独立审查共三轮，均为新的 sol 实例：
+- 36d755c：NO_GO，两项 P1（匹配用了模型引文的字形；空白标题生成非法草稿）。
+- 9e95ea5：PASS。
+- e6510df：fast 实例 PASS，审查范围是合并主线、批注浮层修复和测试入口串行阶段。
+
+T-162 留下的缺陷「批注线程浮层挡住历史回看『返回当前版本』按钮（768 档）」，被本票新增的端到端测试暴露，按构思主控决定在本票一并修复（8603913）。父版 e1af12b 上 768 档因遮挡失败，修复后三档通过。
+
+测试入口把最重的 3 个真实浏览器端到端测试文件（t175-stale-placeholder、t174-local-function、t178-read-budget）移到并行阶段之后串行执行，每个文件只跑一次（ce80733）。依据：8603913 第二轮在 8 个 Chrome 并发、负载约 29.7 时，禾巷小馆 375 档实际 13,306.7ms，超出 13,300ms 预算。ce80733 上两轮全量各 823/823，build 通过。
+
+主控合并为 `ac27a96`。主线串行验证（21:50–21:58 EDT）：
+- `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 通过；
+- `CHROME_PATH=… npm test`：并行阶段 115 个文件 746/746，串行阶段 3 个文件 77/77，合计 823/823，失败、取消、跳过均为零；
+- `rm -rf .next` 后 `SITE_STORE=fs npm run build` 通过；
+- `npm run typecheck` 通过；
+- 验证前后 code-sites 均为 280；
+- 3034 重启后，导入站工作台与 code-preview 均 200。
+
+日志在 `artifacts/merge-ac27a96/`。
+
+未完成，移交（不勾选）：
+- 第三轮审查的非阻断建议：`components/code-preview-selection.tsx:180` 的自动腾位，在用户小幅向上滚动预览时，可能再次触发并把阅读位置推回。目前只是读源码推出来的，未实测，建议开小票补「用户手动滚动」的对照断言，再按结果修。
+- 第二轮审查的非阻断建议：「同一节点多占位」用例的两个预期片段相同，宜改为不同出处，以便逐项辨识。
+- 浏览器里已存的旧空标签草稿仍会让整组读取失败。这类记录只可能由从未上线的候选版本写入，不做迁移。
+
