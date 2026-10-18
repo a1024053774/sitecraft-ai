@@ -15,9 +15,9 @@ delete process.env.NODE_TEST_CONTEXT;
 const project = await realpath(fileURLToPath(new URL('../', import.meta.url)));
 assert.equal(await realpath(process.cwd()), project, '测试入口工作树与当前目录不一致，拒绝清理或启动');
 const entryStartedAt = Date.now();
-// T-179: calibrate at 3, then 2. Replace this development default with
-// the fastest value that passes two consecutive full runs before acceptance.
-const defaultBrowserConcurrency = 1;
+// T-179: the approved browser-pool candidate uses two test files at a time.
+// Acceptance still requires two complete full runs on the frozen candidate.
+const defaultBrowserConcurrency = 2;
 type BrowserDependency = { file: string; via: string[]; marker: string };
 // Classify runtime references, without importing or executing test modules.
 // Follow local import/export, literal import()/require(), and the project's @/

@@ -59,22 +59,22 @@ export async function codeCheckBrowser() {
       for (const load of pageLoads) load.reject(error); pageLoads.clear();
     });
     let sequence = 0;
-    const send = <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}, sessionId?: string): Promise<T> => new Promise((resolve, reject) => {
+    const send = <T = Record<string, unknown>>(method: string, params: Record<string, unknown> = {}, sessionId?: string, timeoutMs = 30000): Promise<T> => new Promise((resolve, reject) => {
       const id = ++sequence;
       const startedAt = Date.now();
       const record = (status: string) => {
         if (process.env.SITECRAFT_CHECK_DIAGNOSTICS_DIR) calls.push({ method, startedAt, durationMs: Date.now() - startedAt, status,
           ...(method === 'Page.navigate' ? { pathname: new URL(String(params.url)).pathname } : {}) });
       };
-      const timer = setTimeout(() => { pending.delete(id); record('timeout'); reject(new Error(`Chrome 检查 ${method} 超时`)); }, 30000);
+      const timer = setTimeout(() => { pending.delete(id); record('timeout'); reject(new Error(`Chrome 检查 ${method} 超时`)); }, timeoutMs);
       pending.set(id, { resolve: value => { clearTimeout(timer); record('complete'); resolve(value as T); }, reject: error => { clearTimeout(timer); record('error'); reject(error); } });
       socket!.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
     const { targetId } = await send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' });
     const { sessionId } = await send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
     await send('Page.enable', {}, sessionId);
-    const evaluate = async <T>(expression: string): Promise<T> => {
-      const value = await send<{ result: { value: T }; exceptionDetails?: { text: string; exception?: { description: string } } }>('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
+    const evaluate = async <T>(expression: string, timeoutMs?: number): Promise<T> => {
+      const value = await send<{ result: { value: T }; exceptionDetails?: { text: string; exception?: { description: string } } }>('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId, timeoutMs);
       if (value.exceptionDetails) throw new Error(`Chrome 检查失败：${value.exceptionDetails.exception?.description || value.exceptionDetails.text}`);
       return value.result.value;
     };

@@ -28,13 +28,49 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 
 目标／非目标：只修测试调度的根因边界，不改站点或批注产品代码；沿用「浏览器池／非浏览器池」的 Ubiquitous language，以真实 npm test 入口作为 Tracer bullet 验证分类、调度与统计，不另设平行入口，保持 Deep modules 的小接口。静态依赖规则的行为用合成模块及真实子进程验证；并发选择仍是 measured unknown，必须由本次完整运行决定，不能用上次生命周期区间推算。
 
+## 2026-10-18 主控决定：A′，明确终态与共用生产预算
+
+主控收到根因更正后以 A′ 取代刚派的 A，不加 B；撤回「排除 iterations 为 Infinity 的动画」，不实现该过滤。测试等待改等明确的任务状态或 DOM 终态，等待上限直接引用生产代码中同一预算常量或函数（三档合计封顶 60 秒），只加有本次实测依据的模型替身与存版固定余量，不在测试中另抄产品预算数字。逐个登记被替换的动画／加载图标等待点；旧上限超时、新上限通过、任务真卡住在新上限内明确失败须有成对证据，并先在 `8176884` 上取得红灯。
+
+T-162 首次预览先核对保留 dev.log 的对应路由编译耗时与浏览器 navigation 计时；由证据决定只预热浏览器池实际使用的路由，还是按预算推导等待上限，不自行扩展方案。之后并发 2 连续两轮全量通过，固定候选后在同一提交再完整两轮全量并 build。每项前 memory_pressure 与 ps，空闲低于 25% 不启动；全量自然跑完，任一轮失败后停报。基础设施单独提交，不 amend、不与产品修复混合；这是 T-179 验收前置，完成即收口，不继续扩展其他基础设施。
+
+## 2026-10-18 负责人决定：读取系数改为 300ms，60 秒总封顶不变
+
+构思主控转达负责人决定：每档预算改为 `max(5 秒, 1 秒 + 300 毫秒 × 实际读取次数)`，三档合计仍封顶 60 秒。依据是本次负载下读取约 160ms／次，原 150ms 系数下两项生产检查分别超出 13,300ms 约 34.750／28.267ms：T-175 的 768 用例在 1440 检查档为 13,334.750ms，375 用例在 375 检查档为 13,328.267ms，两者计划均为源 41＋候选 41＝82 次，Chrome 峰值均为 3。原始现场在 [A′ 定向失败诊断](../../artifacts/t179/a-prime-related-diagnosis/diagnosis.json)，不以提高测试等待上限代替生产预算调整。
+
+系数只改共用生产预算定义；测试等待继续直接引用同一生产总预算，固定实测余量不变。边界期望独立按新需求计算：82 次为 25,600ms，小页面仍走 5 秒下限；超出预算拒收；三档单档预算理论合计 76,800ms，因此须覆盖总封顶先到、第三档剩余额度小于单档预算时仍明确拒收。先在当前 150ms 候选上取得新断言红灯，再改生产定义。同步 AGENTS「局部修改」与 spec 当前规则为 300ms，不在规则中并列旧系数。
+
+本次是此基础设施链的最后一步：相关定向、runner、typecheck 后，在同一预算候选提交上以浏览器池并发 2 连续完整跑两轮全量，再 build；以最新派单的两轮为准，不额外加此前的校准后两轮。每项前 memory_pressure 与 ps，低于 25% 停；每轮自然跑完，出现非本次引入的新基础设施问题后停报，不继续扩展 T-179。测试基础设施与预算调整分开新建提交，不 amend；独立 fast 审查由主控另派。
+
 ## Acceptance
 
 - [x] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
+- [ ] A′ 基础设施前置：明确终态、共用生产预算与实测余量、预览原因证据、并发 2 校准及同提交验收通过
 - [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过（先前定向通过；最新全量 T-175 1440/768 失败，当前不能勾选）
 - [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
+
+**A′ 基础设施候选与 300ms 调整：INCOMPLETE（2026-10-18，预算新边界已取得红灯，后续验证待跑）**。A′ 没有实现新增 Infinity 过滤，也不按动画名称判断任务完成。共用生产预算从原实现提取至 `lib/code-site-check-budget.ts`，生产提交入口、直接探针与测试引用同一定义；A′ 提取时数值不变，随后仅在此处执行负责人授权的系数调整。测试终态等待直接使用生产三档总预算加实测固定余量，初始预览沿用同一推导；`evaluate` 可接受此等待的 RPC 传输期限，生产调用默认 30 秒不变，DOM／任务自己的截止时间不延长、不重试。
+
+逐个替换的等待点：
+
+1. `tests/helpers/t162-browser.ts` 的 `session()` 返回前：从所有动画停转改成等待真实 after 任务及渲染的任务状态退出 running。
+2. `tests/t175-stale-placeholder.test.ts` 的提示截图前：改成同一明确任务终态等待。
+3. 同文件草稿回看截图前：改成同一明确任务终态等待。
+4. helper 的 `settle()` 保留实际 after 完成事件，增加从持久化任务 startedAt 起算的期限；等待新运行标识也有同源期限。既有点击／截图稳定检查没有新增 Infinity 排除规则。
+
+固定余量依据：四个保留的 T-175 任务，扣除动态检查后其余耗时为 3712.041、12752.010、5141.964、9363.788ms（包括模型替身、其他确定性检查及存版），最大 12.752 秒向上取至下个 5 秒档，固定取 **15 秒**；与直接导入的生产总预算相加，目前任务／初始预览上限为 **75 秒**。证据：[计算数据](../../artifacts/t179/a-prime-baseline/measurements.json)。生产系数改成 300ms 后，60 秒总封顶不变，因此测试不另写一个新的总预算数字。
+
+首次预览的证据不支持首次编译慢：按三次会话的导航／刷新顺序对齐，同站点第四个请求才是失败的 768 导航，服务端 **38ms**，Next 阶段 **1.6ms**；日志不提供独立编译耗时，不能将 Next 阶段冒充纯编译时间。该路由此前已被请求。CDP 导航提交 **43ms**，DOMContentLoaded 在导航开始后 **20370ms**，load 在 **22879ms**。原 20 秒等待在 DOMContentLoaded 前结束，故按 A′ 使用共用预算推导期限，不加预热。早先提到的 241ms 是先前刷新，初次误对应分析已保留在 `measurements-initial-misattribution.json`，不作为当前结论。证据：[CDP 原始记录副本](../../artifacts/t179/a-prime-baseline/preview-browser.json)、[同站点服务日志](../../artifacts/t179/a-prime-baseline/preview-dev-lines.log)。
+
+成对测试 `tests/t179-task-waits.test.ts` 先在 `8176884` 的旧 helper 上失败两项：旧 20 秒动画等待拒绝任务已终态但仍有无关无限动画的页面；真实 HTTP 任务被模型回复闸门挂起时，旧 settle 没有自己的终态期限。新 helper 下两项通过，覆盖未完成不放行、完成后无限动画仍转也放行；负例只在真实任务被闸门挂住时推进 Node 截止时钟，旧 20 秒时仍待决，到生产总预算＋15 秒且从任务 startedAt 起算时明确失败，随后恢复时钟再放行任务清理，没有固定 sleep 或模拟产品检查成功。时钟推进是期限对照，不冒充真实墙钟等待 75 秒。证据：[父版本红灯](../../artifacts/t179/a-prime-parent-red/report.json)、[绿灯](../../artifacts/t179/a-prime-task-green-fixed/report.json)。首次开发验证因后台 HTTP 提交后 UI 未自动读到 running 状态而失败，并产生未收尾的等待；已改成真实 reload 读回状态、finally 放行并等待未决任务，原结果保留于 [开发失败](../../artifacts/t179/a-prime-task-green/report.json)。
+
+随后 A′ 相关定向自然完成 **10 文件／48 用例，46 通过、2 失败，0 跳过／取消**。UTC **12:02:00.683–12:10:07.069**，总耗时 **486.386 秒**，浏览器文件并发 1，Chrome 主进程峰值 **3**，预检空闲 **37%**、ps 已保存；运行于 `8176884` 加本次 A′ 工作树代码。命令为 `npm test -- tests/t162-inline-annotation.test.ts tests/t162-mobile-reveal.test.ts tests/t162-scroll-edge.test.ts tests/t162-review-regressions.test.ts tests/t175-thread-placement.test.ts tests/t175-stale-placeholder.test.ts tests/t178-read-budget.test.ts tests/t178-full-style-equivalence.test.ts tests/t179-composer-scroll.test.ts tests/t179-task-waits.test.ts`，仍由 run-check 脚本只设置既定 CHROME_PATH 执行。[报告](../../artifacts/t179/a-prime-related/report.json)、[完整日志](../../artifacts/t179/a-prime-related/tests.log)、[耗时与采样](../../artifacts/t179/a-prime-related/metrics.json)。
+
+这两项是 T-175 768、375 用例原有的 `complete` 断言：真实任务终态为 error，step 为「局部动态状态检查超时，本次未保存版本」，已经不再是旧动画等待超时。768 用例在 1440 检查档实际 **13334.750ms**，375 用例在 375 检查档实际 **13328.267ms**；两者源／候选计划均 **41＋41＝82** 次，原预算 **13300ms**，completed=false，期间 Chrome 峰值均为 3。原断言与生产阈值未放宽；T-162 三组及 inline 共 13/13、T-175 遮挡 3/3、T-178 原边界与样式 12/12、T-179 滚动 3/3、新终态反例 2/2 通过。[生产现场副本](../../artifacts/t179/a-prime-related-diagnosis/diagnosis.json)。两项在保存 UI 截图之前抛错，没有失败截图，不能冒充已保存；该项生成的 71 张交互截图及父版红灯 1 张均已逐张打开，只作交互证据，不作审美结论，[截图索引](../../artifacts/t179/a-prime-related-screenshots.json)。
+
+原有失败后曾按规则停止；负责人随后明确授权 300ms 系数调整，现继续该步骤，不延伸其他基础设施。新边界断言先在当前 150ms 生产候选上 **3/3 失败**：82 次实际公布 13300ms、需求期望 25600ms；包括等于预算、超一毫秒拒收及总封顶第三档剩余额度对照。命令为 `npm test -- '--test-name-pattern=源 10|每档刚好|82 次读取' tests/t178-read-budget.test.ts`，[红灯报告](../../artifacts/t179/budget300-parent-red/report.json)。预算绿色对照、正常负载三档总耗时、runner、typecheck、两轮全量及 build 尚待执行；不引用旧提交产物作当前通过证明。基础设施与预算调整分开提交，不 amend。
 
 **测试入口分池：INCOMPLETE（2026-10-18，并发 2 首轮自然完成后因 3 项失败停止）**。入口 CLI 分类候选为 `6466c89`，本票线程时序测试修复为 `be96dda`，最新全量运行于 `0f0987b`。没有修改 components 或生成站代码，产品预算与判断条件不变。CLI 子进程依赖沿参数变量、数组展开／slice、路径构造及 for-of 脚本列表递归追踪；运行时每 250ms 采样非浏览器池进程树，沿工作进程与 CLI 祖先记录 Chrome 所属文件，排除外部 Chrome 与 renderer，重复进程只告警一次；只记录告警，不重分池、不重跑、不改变测试结果。无法静态求值的运行时参数仍由此诊断观察，不声称能静态证明任意动态程序。
 

@@ -4,6 +4,7 @@ import { renderSiteCode, type SiteCode } from './code-site.ts';
 import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
 import { gunzipSync } from 'node:zlib';
 import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
+import { localDynamicPageBudgetMs, localDynamicViewportBudgetMs } from './code-site-check-budget.ts';
 
 // T-164 adapts BaoCut's frozen annotation-set idea (see
 // resources/baocut-annotation/SOURCE.md) to SiteCraft's DOM-path contract;
@@ -425,8 +426,8 @@ export async function prepareOutsideCssApplications(browser: ProbeBrowser, frame
 export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt?: number,
   options: { states?: boolean; diagnostic?: Record<string, unknown> } = {}) {
   const startedAt = Date.now();
-  const prepared = await prepareOutsideCssApplications(browser, frameId, html, scope, deadlineAt ?? startedAt + 60000, options);
-  return prepared.read(deadlineAt ?? startedAt + Math.min(60000, Math.max(5000, 1000 + 150 * prepared.fullReads)));
+  const prepared = await prepareOutsideCssApplications(browser, frameId, html, scope, deadlineAt ?? startedAt + localDynamicPageBudgetMs, options);
+  return prepared.read(deadlineAt ?? startedAt + Math.min(localDynamicPageBudgetMs, localDynamicViewportBudgetMs(prepared.fullReads)));
 }
 
 // Invoked on every rendered page by the submission boundary. Media conditions

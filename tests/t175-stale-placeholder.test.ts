@@ -269,7 +269,7 @@ for (const width of [1440, 768, 375]) test(`禾巷小馆 v2 经生产 chat 重�
       await view.wait(`document.querySelector('[data-testid="code-preview"]').offsetWidth===${width} && !document.querySelector('.code-preview-loading')`);
       await view.click('[role="tab"]:nth-child(1)');
     }
-    await view.wait(`!document.getAnimations().some(a=>a.playState==='running'||a.playState==='pending')`);
+    await view.waitForTask();
     await view.browser.evaluate(`document.querySelector('[data-testid="stale-placeholder-prompt"]').scrollIntoView({block:'center'})`);
     await view.browser.evaluate('document.fonts.ready');
     const shot = await view.browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
@@ -320,7 +320,7 @@ for (const width of [1440, 768, 375]) test(`禾巷小馆 v2 经生产 chat 重�
       await view.wait(`document.querySelector('[data-testid="code-preview"]').offsetWidth===${width}`);
     }
     assert.match(await view.browser.evaluate<string>(`document.querySelector('#annotation-message').value`), /外带包装费现在确定为每单2元。/);
-    await view.wait(`!document.getAnimations().some(a=>a.playState==='running'||a.playState==='pending')`);
+    await view.waitForTask();
     const draftShot = await view.browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
     await writeFile(`${output}/draft-${width}.png`, Buffer.from(draftShot.data, 'base64'));
     assert.equal(calls, beforeCalls, '回看草稿也不调用模型');
