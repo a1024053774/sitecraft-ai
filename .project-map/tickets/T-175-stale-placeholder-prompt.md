@@ -39,7 +39,7 @@ supersedes:
 
 ## Resolution
 
-执行状态：INCOMPLETE。浮层修复 `8603913` 的第一轮全量 823／823，第二轮 822／823，因餐馆动态检查超时停止，未运行 build。构思主控于 2026-10-17 再选 A：在本票把实测最重的浏览器文件移到末尾串行阶段，每文件每轮只执行一次，两阶段合并 Node 每文件统计；产品预算、既有用例与判断条件不变。先补真实入口回归取得父版失败，再修改入口，按 runner、typecheck、T-175 定向、同一提交两轮全量、build 的顺序验证；每项前检查内存和进程，空闲低于 25% 或既有用例／重任务失败即停止。自写新夹具的修正属于正常迭代，失败报告保留。`blocked_by: []`、`claimed_by: Codex` 保持，独立 fast 审查由负责人另派，票保持 open。
+执行状态：BLOCKED（内存门禁，整票验收未完成）。新入口已提交为 `ce80733d837b02679c0fd5f192be8cf304d890bb`，runner 5／5、typecheck、T-175 定向 18／18 均通过；第一轮全量的启动前检查在 2026-10-18 01:27:25 UTC 记录空闲内存 24%，低于负责人规定的 25%，因此没有启动 npm test，第二轮及 build 也未运行。按门禁停止，不等待后重试。固定三文件末尾串行、单轮每文件一次、两阶段原生统计合并已实现；产品预算及既有判断条件未改。两轮 823 项全过的稳定性与 build 仍未验证，不能拿旧入口的一轮成功代替。`blocked_by: []`、`claimed_by: Codex` 保持，独立 fast 审查由负责人另派，票保持 open。
 
 ### 构思主控决定：重浏览器文件移到末尾串行阶段（2026-10-17）
 
@@ -89,6 +89,12 @@ supersedes:
 - 01:24:19–01:25:53，空闲 48%，规定 CHROME_PATH 下执行 `npm test -- tests/t175-thread-placement.test.ts tests/t175-stale-placeholder.test.ts`，实际并行阶段 3 项、串行阶段 15 项，合计 18／18 通过，取消／跳过／todo 均为 0，退出 0。[标准报告](../../artifacts/t175/serial-stage-20261018T012230Z/directed/test-run-1792286659498-89494/report.json)、[完整日志](../../artifacts/t175/serial-stage-20261018T012230Z/directed/command.log)。
 
 每项开始前均保存 memory_pressure 和 ps，日志、回执及标准报告副本均在 [本次入口证据目录](../../artifacts/t175/serial-stage-20261018T012230Z/)。本次只修改入口、增加一个独立 runner 回归和同步规则；本票此前的浮层修复及产品代码不再修改。以下两轮全量和 build 固定在包含本节的同一新提交，SHA 随冻结记录保存；任一重任务失败即停止，不补跑、不重试。
+
+#### 冻结后内存门禁停止
+
+候选冻结为 `ce80733d837b02679c0fd5f192be8cf304d890bb`，未 amend，源码无后续修改。01:27:25.793 UTC，在计划执行规定 CHROME_PATH 下 `npm test` 的第一轮之前运行 `memory_pressure` 与 ps，空闲为 24%，门禁返回 25 并拒绝启动命令。这里的非零是启动前门禁，不是 npm test 的执行结果；没有本轮全量的 Node summary、临时数据根或标准报告，不把未执行写成失败或通过。[门禁回执](../../artifacts/t175/serial-stage-20261018T012230Z/full-1/receipt.json)、[内存原文](../../artifacts/t175/serial-stage-20261018T012230Z/full-1/memory.txt)、[进程快照](../../artifacts/t175/serial-stage-20261018T012230Z/full-1/processes.txt) 均保留。
+
+依负责人「空闲低于 25% 即停」要求，本次没有等待或再次测量后重试，没有启动第二轮、build 或其他测试，也没有调整并发名单、用例、产品预算或系统环境来绕过门禁。现有红绿、旧入口第二轮 13,306.7ms／13,300ms 的反例、同窗 Chrome 重叠和 load 诊断全部保留在本票 artifacts；本次以新的结果提交记录停止点，不推送，tsconfig 自动改动仍不提交。后续仍需在冻结候选上完成新入口的两轮全量与 build，再交负责人安排独立 fast 审查。
 
 ### 构思主控决定：本票修复 T-162 遗留浮层遮挡（2026-10-17）
 
