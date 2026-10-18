@@ -3,51 +3,18 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { closeSync, constants, createWriteStream, fstatSync, lstatSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from 'node:fs';
 import { appendFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
-import { loadavg, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { checkTestIdentity } from './test-identity.ts';
 
-// The normal entry always reads the OS. No argument or environment variable
-// selects a substitute reader; regressions mock the OS APIs in test processes.
-export async function checkStartupLoad() {
-  const thresholds = { loadBelow: 5, memoryFreeAtLeast: 30 };
-  let load1: number | null = null, load5: number | null = null, memoryFreePercent: number | null = null;
-  const errors: string[] = [];
-  try {
-    const loads = loadavg();
-    assert.ok(loads.length >= 2 && loads.slice(0, 2).every(value => Number.isFinite(value) && value >= 0), 'loadavg 读取无效');
-    [load1, load5] = loads;
-  } catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
-  try {
-    const stdout = await new Promise<string>((resolve, reject) => execFile('/usr/bin/memory_pressure', [],
-      { encoding: 'utf8', timeout: 5000, maxBuffer: 1024 * 1024 },
-      (error, output) => error ? reject(error) : resolve(output)));
-    const matches = [...stdout.matchAll(/^System-wide memory free percentage:\s*(\d+(?:\.\d+)?)%[ \t]*$/gm)];
-    assert.equal(matches.length, 1, 'memory_pressure 内存空闲百分比解析失败');
-    memoryFreePercent = Number(matches[0][1]);
-    assert.ok(memoryFreePercent >= 0 && memoryFreePercent <= 100, 'memory_pressure 内存空闲百分比超出有效范围');
-  } catch (error) { memoryFreePercent = null; errors.push(error instanceof Error ? error.message : String(error)); }
-  const observation = { at: new Date().toISOString(), load1, load5, memoryFreePercent, thresholds };
-  const values = `1分钟 load=${load1 ?? '无法读取'}；5分钟 load=${load5 ?? '无法读取'}；内存空闲=${memoryFreePercent === null ? '无法读取' : `${memoryFreePercent}%`}`;
-  const limits = `门槛：1分钟、5分钟 load 均 < ${thresholds.loadBelow}；内存空闲 >= ${thresholds.memoryFreeAtLeast}%`;
-  if (errors.length || load1 === null || load5 === null || memoryFreePercent === null
-    || load1 >= thresholds.loadBelow || load5 >= thresholds.loadBelow || memoryFreePercent < thresholds.memoryFreeAtLeast) {
-    throw new Error(`开跑负载检查拒绝：${values}；${limits}${errors.length ? `；读取失败：${errors.join('；')}` : ''}；不等待、不重试`);
-  }
-  console.log(`开跑负载检查通过：${values}；${limits}`);
-  return observation;
-}
-
-async function runTests() {
 delete process.env.NODE_TEST_CONTEXT;
 // Only completed successful runs expire. Failed, interrupted and malformed
 // reports remain evidence, even when that requires more than five directories.
 const project = await realpath(fileURLToPath(new URL('../', import.meta.url)));
 assert.equal(await realpath(process.cwd()), project, '测试入口工作树与当前目录不一致，拒绝清理或启动');
 const entryStartedAt = Date.now();
-const startupLoad = await checkStartupLoad();
 // T-179: the approved browser-pool candidate uses two test files at a time.
 // Acceptance still requires two complete full runs on the frozen candidate.
 const defaultBrowserConcurrency = 2;
@@ -401,7 +368,7 @@ try {
     if (server.exitCode === null) server.kill('SIGTERM');
     await serverClosed;
     await writeFile(path.join(output, 'report.json'), JSON.stringify({ at: new Date().toISOString(),
-      command: ['npm', 'test', '--', ...process.argv.slice(2)], startupLoad, base, dataRoot, distDir, identity, testCode,
+      command: ['npm', 'test', '--', ...process.argv.slice(2)], base, dataRoot, distDir, identity, testCode,
       executed, failed, phases, classification, browserWarnings, browserMonitorErrors, browserConcurrency, durationMs: Date.now() - entryStartedAt, status: passed ? 'PASS' : 'INCOMPLETE',
       ...(startupFailed ? { startupError: `测试服务启动或身份核对失败：${startupCause instanceof Error ? startupCause.message : String(startupCause)}\n${serverOutput}\n日志：${path.join(output, 'dev.log')}` } : {}) }, null, 2) + '\n', 'utf8');
     if (!passed) console.error(`失败证据保留：${output}\n失败数据根保留：${dataRoot}`);
@@ -411,7 +378,3 @@ try {
   process.off('SIGINT', stop); process.off('SIGTERM', stop);
   releaseLock(); process.off('exit', releaseLock);
 }
-}
-
-// Importing the shared preflight for another check must not run the test suite.
-if (process.argv[1] && await realpath(process.argv[1]) === fileURLToPath(import.meta.url)) await runTests();

@@ -42,20 +42,22 @@ T-162 首次预览先核对保留 dev.log 的对应路由编译耗时与浏览�
 
 本次是此基础设施链的最后一步：相关定向、runner、typecheck 后，在同一预算候选提交上以浏览器池并发 2 连续完整跑两轮全量，再 build；以最新派单的两轮为准，不额外加此前的校准后两轮。每项前 memory_pressure 与 ps，低于 25% 停；每轮自然跑完，出现非本次引入的新基础设施问题后停报，不继续扩展 T-179。测试基础设施与预算调整分开新建提交，不 amend；独立 fast 审查由主控另派。
 
-## 2026-10-18 主控最新决定：A，仅加入口开跑负载检查
+## 2026-10-18 入口负载门禁试行记录（已撤销）
 
-产品代码与预算到此冻结，不继续扩展基础设施。仅在 scripts/run-tests.ts 开跑前检查：os.loadavg() 的 1 分钟和 5 分钟值均严格低于 5；macOS memory_pressure 的 System-wide memory free percentage 不低于 30%。任何越限或读取／解析失败都立即非零拒绝，打印已取得的当前值及门槛，不等待、不重试，不提供跳过环境变量或参数；通过时记录到本轮报告。回归仅在测试子进程的系统 API 边界注入观测，不给正常入口增加可选择的检查替身。
-
-新回归先在当前提交 80c7672 上失败，再验证高负载拒绝、门槛内放行和读取失败拒绝；原有真实入口回归也必须明确处理高负载宿主机。本轮只跑 runner 回归和 typecheck，均先过同一负载检查（回归使用系统 API 注入）；不跑全量、build 或 Chrome 浏览器测试。入口单独新建提交，不 amend；完成后停在 idle，全量验收及独立 fast 审查由主控在机器空闲后安排。
+此前曾实施入口负载门禁及测试观测注入，负责人现已决定完整删除。旧门禁的反例、通过与拒绝现场只作历史记录保留：[首轮证据](../../artifacts/t179/load-gate-evidence/index.json)、[NO_GO 修复证据](../../artifacts/t179/review-evidence/index.json)、[真实入口拒绝日志](../../artifacts/t179/review-t176-direct/command.log)。产品代码与动态检查预算继续冻结。
 
 ## 2026-10-18 独立审查 NO_GO：仅修本票四项问题
 
 主控要求在 T-179 内修正：memory_pressure 改用可信绝对路径 `/usr/bin/memory_pressure`；T-176 嵌套入口注入测试系统观测，避免宿主机负载抢先挡住锁／保留策略断言；补静态分类中的解构重命名与显式 cwd 漏判，并检查默认值和嵌套写法；删除默认并发仍为 1 的过时说明，旧失败链接保留。不扩展其他基础设施。负责人随后明确：runner、T-176、typecheck 都不开 Chrome，属于轻量检查，只记录开跑 load，不受负载门禁限制；T-176 优先走 npm test，入口拒绝时可在测试侧注入系统观测，不给入口加跳过开关。反例先在 42cfc92 失败，再修到通过；不跑全量、build 或 Chrome 测试，新建提交后 idle。
 
+## 2026-10-18 负责人最终决定：删除入口负载门槛，立即验收
+
+负责人直接决定：门槛导致验收一直等不到机器空闲，因此删掉测试入口的开跑负载门槛，不再等待负载下降。完整删除门槛常量、系统读取、拒绝逻辑、报告开跑字段、测试观测 helper 及所有注入、门禁相关回归；保留静态分类的两条漏判修复及同类对照，默认并发说明保持 2。AGENTS、README、spec 删除门槛规则，不保留旧说法。只跑 runner、T-176 和 typecheck，不运行全量、build 或 Chrome 测试；全量与 build 由主控马上接续。新建提交，不 amend、不推送，报告 SHA 后 idle。
+
 ## Acceptance
 
-- [x] 最新 NO_GO 四项修复及成对证据：42cfc92 上红灯，修后 runner 25/25、T-176 11/11、typecheck 通过；全量与独立复审仍由主控安排
-- [x] 入口负载门禁首轮：先在 80c7672 红灯，严格门槛、读取失败拒绝、开跑报告与 runner 回归通过；当时 typecheck 被门禁拒绝，最新轻量检查结果见 Resolution
+- [x] 按负责人最终决定完整删除门禁及替身，保留分类对照，runner 18/18、T-176 10/10 与 typecheck 通过
+- [x] 保留静态分类修复与同类语法对照：42cfc92 上先红后绿，默认并发当前说明为 2，旧失败证据保留
 - [x] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
 - [ ] A′ 基础设施前置：明确终态、共用生产预算与实测余量、预览原因证据、并发 2 校准及同提交验收通过
 - [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过（先前定向通过；最新全量 T-175 1440/768 失败，当前不能勾选）
@@ -63,7 +65,21 @@ T-162 首次预览先核对保留 dev.log 的对应路由编译耗时与浏览�
 
 ## Resolution
 
-**本轮 NO_GO 四项修复与轻量检查：PASS（2026-10-18）；T-179 整体仍 INCOMPLETE，保持 open，未代替主控的全量及独立复审。** 先在 `42cfc92931bb3f14bd47334fea48497bb7227531` 的产品入口上取得反例，再修复。本次没有改产品组件、生成站代码或动态检查预算，没有新增入口跳过开关。
+**删除入口负载门槛：本轮 PASS（2026-10-18）；T-179 整体验收仍由主控接续，票保持 open。** 负责人决定门槛导致验收一直等不到机器空闲，因此完整删除，不再延迟验收。入口已删除门槛常量、load／memory_pressure 读取、拒绝分支及 `report.json.startupLoad`；仅为导出门禁函数引入的入口包装也已撤除。删除 `scripts/test-load-fixture.ts`、runner 中的门禁用例与所有观测注入、T-176 的负载 preload 及专属高负载用例。AGENTS、README、spec 中的门槛规则全部移除。
+
+静态分类的来源属性名、重命名／默认值／嵌套／计算属性、显式 cwd 及同类写法修复与 12 项对照保持原样，默认并发仍为 2，票中相关更正保留。与门禁前 `5830141` 比较，入口差异只剩静态分类修复；T-176 恢复为门禁前的原有 10 项断言。runner 25→18、T-176 11→10 均来自删除门禁专属用例，没有跳过或放宽保留的断言。模型预算和产品组件未改。
+
+本次检查源 HEAD 为 `bddf66a2291f62a5c23144f92276cde87216c01c` 加删除门槛后的提交前工作树；之后仅整理文档和证据。以下三项串行自然结束，退出码均为 0，0 跳过／取消，未设置负载替身或 NODE_OPTIONS。记录 load 的外部证据脚本不作拒绝判断，测试入口自身不再读取或报告开跑负载。[准确命令、UTC 时间、源提交与退出码](../../artifacts/t179/remove-gate-evidence/index.json)。
+
+| 命令 | UTC 时间 | 开跑 load（1／5 分钟，仅证据记录） | 结果 |
+| --- | --- | --- | --- |
+| `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` | 13:04:15.229–13:04:30.122 | 4.70068359375／5.7138671875 | **18/18**；[日志](../../artifacts/t179/remove-gate-runner/command.log) |
+| `npm test -- tests/t176-test-output.test.ts` | 13:04:38.091–13:04:48.407 | 4.2861328125／5.52783203125 | **10/10**，非浏览器池 1 文件、浏览器池 0 文件；[报告副本](../../artifacts/t179/remove-gate-t176/entry-0/report.json) |
+| `npm run typecheck` | 13:04:57.179–13:04:58.465 | 4.40087890625／5.47607421875 | 退出 **0**；[日志](../../artifacts/t179/remove-gate-typecheck/command.log) |
+
+旧门禁证据不删除：[首轮门禁证据](../../artifacts/t179/load-gate-evidence/index.json)、[真实拒绝现场](../../artifacts/t179/review-t176-direct/command.log)、[前次修复成对证据](../../artifacts/t179/review-evidence/index.json)；它们只是历史记录，不再是当前入口规则。本轮未运行全量、build 或 Chrome 浏览器测试；主控将立即接续全量与 build。新建本地提交，不 amend、不推送；`tsconfig.json` 的 Next 自动改动保留且不提交，提交后停在 idle。
+
+**前次 NO_GO 修复记录（bddf66a）：当时范围 PASS（2026-10-18）；其中门禁部分现已按负责人决定删除，下述证据保留。** 先在 `42cfc92931bb3f14bd47334fea48497bb7227531` 的产品入口上取得反例，再修复。当次没有改产品组件、生成站代码或动态检查预算，没有新增入口跳过开关。
 
 1. 内存检查固定调用 `/usr/bin/memory_pressure`。PATH 反例放置可执行的同名伪造程序，返回 0% 并留下执行标记，仅对可信绝对命令注入 30% 观测。旧入口执行伪造程序并被 0% 拒绝；修后不执行伪造程序，取得可信命令的 30% 并放行。[旧 PATH 现场](../../artifacts/t179/review-evidence/review-runner-red-path.json)、[修后现场](../../artifacts/t179/review-evidence/review-runner-green-path.json)。另一次未注入的真实入口从绝对命令读到 39%，见下表。
 2. T-176 与 runner 共用测试侧 `scripts/test-load-fixture.ts`，仅在被测子进程的系统 API 边界注入观测。T-176 每个嵌套入口最后加载自己的健康观测，不改锁、清理或统计条件。新用例先注入宿主机 9／8／20%：旧实现被负载抢先拒绝，原「已有测试入口」断言失败；修后真正走到原锁拒绝并保留持有者。[旧失败报告](../../artifacts/t179/review-t176-red/entry-0/report.json)、[完整错误](../../artifacts/t179/review-t176-red/entry-0/tests.log)、[新旧嵌套日志索引](../../artifacts/t179/review-evidence/index.json)。
