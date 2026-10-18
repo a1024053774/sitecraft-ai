@@ -2,7 +2,7 @@
 id: T-181
 title: 事实核对 noFacts 提示歧义导致整站生成全部拒收
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex
 supersedes:
@@ -23,12 +23,12 @@ T-180（2026-10-18）真实整轮 20 个站 0 成功，全部停在整站生成�
 ## Acceptance
 
 - [x] 回复原文已保存并能查到；三类协议失败的根因结论写进 Resolution
-- [ ] 成对测试先红后绿；typecheck、test、build 通过；独立 fast 审查通过
+- [x] 成对测试先红后绿；typecheck、test、build 通过；独立 fast 审查通过
 - [x] 真实探针至少 1 个站存版成功，用量写进 Resolution（负责人 2026-10-18 授权不限额，探针账本 `SITECRAFT_TOKEN_LIMIT=500000`）
 
 ## Resolution
 
-本次授权执行项 PASS；T-181 保持 open，仅待构思主控派新的 fast 实例完成正式审查。工作树基于 `9ed936419085e3c7ef13a363f1f3a03c0b4b4960`，分支 `t181-nofacts-prompt`；原实现 `9478c1a`、claim 复制修复 `2148748`，最终测试候选 **`b31c9bc275f8cbd49cc3821ed099b70d99d0cd58`**。负责人 2026-10-18 选 A 后，先在精确的 `9478c1a` 上补全量和 build，再用新账本取得真实回复并修复复制歧义。最终候选两轮全量各 845/845、build 通过，修复后两站均成功存版。协议、校验、动态预算、网关脚本和 500000 上限均未放宽；本轮未自行开审查实例。新账本累计 **412921 token** 全部已知，旧账本那次写页调用用量仍未知。
+PASS，已关闭。工作树基于 `9ed936419085e3c7ef13a363f1f3a03c0b4b4960`，分支 `t181-nofacts-prompt`；原实现 `9478c1a`、claim 复制修复 `2148748`，最终测试候选 **`b31c9bc275f8cbd49cc3821ed099b70d99d0cd58`**。负责人 2026-10-18 选 A 后，先在精确的 `9478c1a` 上补全量和 build，再用新账本取得真实回复并修复复制歧义。最终候选两轮全量各 845/845、build 通过，修复后两站均成功存版。协议、校验、动态预算、网关脚本和 500000 上限均未放宽；本轮未自行开审查实例。新账本累计 **412921 token** 全部已知，旧账本那次写页调用用量仍未知。
 
 2026-10-18 16:55 UTC 的父版本离线检查：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t181-fact-replies.test.ts`，6 项全部预期失败，证据 `artifacts/t167/test-run-1792342517001-54548/` 与 `artifacts/t181/parent-red-v3.log`。失败分别指向旧提示、缺失原始回复和失败段映射；更早的测试夹具缺 conversation 初始化，已修正并保留最初失败，不计为缺陷红灯。离线模型替身只证明提示合同、解析和落盘，不能证明真实模型理解。
 
@@ -86,3 +86,13 @@ molding/precision 的规划调用 HTTP 200、finishReason=tool_calls，实际 **
 两站 23 张三档及首页首屏截图全部打开确认非空，清单 `viewed-screenshots.json`；没有自行判定审美通过。标准评估器的两站 outcome 均 generated，但进程 **exit=1、round=INCOMPLETE**：两组合选择产生 4 份真实官网对照，而 `scripts/eval-set-report.ts:210` 的审包规则要求对照数恰等于 2 个 case。`private/blind-coverage.json` 如实保留该数量约束失败，未请求跨轮比较；不是生成或底线检查失败，也不把该审包当作可审。本票不修改评估器或对照数量来绕过。
 
 实际 draft HTTP 再读回两站 currentVersionId、终态和出处，确认网关 in-flight=0、未知用量 0 后，保存 `terminal-fixed-before-stop.json`，才手动 SIGTERM 网关 PID 84642 和 dev PID 84853。`shutdown-fixed.json` 确认 52313/52314 均 ECONNREFUSED。主目录 3034、主目录 `.sitecraft-data`、T-180 现场和旧账本均未修改。所有源码与记录只在本地提交，不推送；留待主控正式审查，执行者停在 idle。
+
+**正式审查与主线验证。** 新 fast 审查实例审 `9ed9364..cadbda8`，结论 GO：定向 115/115、typecheck 通过，严格协议未放宽，原文保存与整段脱敏无泄漏，评估器 exit=1 只来自盲评打包数量约束，不阻塞本票（`artifacts/t181/formal-review-cadbda8/`）。主控以 `--no-ff` 合并为 `61e1107` 后在主目录按标准顺序验证：
+
+| 轮次 | 时间（EDT） | runner | npm test | build / typecheck | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 2026-10-18 14:55–15:12 | 18/18 | 非浏览器 114/114，浏览器 731/732，**exit=1** | 0 / 0 | `artifacts/t181/main-verify-run1/`（运行目录 `test-run-1792349721121-16236`） |
+| 2 | 2026-10-18 15:14–15:31 | 18/18 | 114/114 + 731/731，exit=0 | 0 / 0 | `artifacts/t181/main-verify-run2/` |
+
+第 1 轮失败：`tests/t164-local-output-limit.test.ts` 两个子用例均通过，文件结束后替身第 17 行 `JSON.parse(raw)` 收到空或不完整正文，以 unhandledRejection 报 `SyntaxError: Unexpected end of JSON input`（test.log 第 1059 行）。该轮运行期间构思主控按负责人要求并行清理测试残留（artifacts 各票嵌套测试输出、旧 eval-images、Chrome 配置、/tmp 与 $TMPDIR 下 sitecraft-*、t181/t180 工作树 .next；最近 60 分钟有改动的目录跳过，本轮数据根与 .next-test 未删），不能排除影响。按构思主控决定在同一提交原样重跑第 2 轮，全部通过，未改代码、预算或断言；迟到请求的根因转 T-182。
+
