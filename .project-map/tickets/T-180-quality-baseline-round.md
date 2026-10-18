@@ -3,7 +3,7 @@ id: T-180
 title: 页面质量基线轮：全矩阵真实生成 + 独立盲评，找出下一批质量缺口
 type: build
 status: open
-blocked_by: []
+blocked_by: [T-181]
 claimed_by:
 supersedes:
 ---
