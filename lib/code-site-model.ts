@@ -5,7 +5,7 @@ import { randomInt } from 'node:crypto';
 import path from 'node:path';
 import { z } from 'zod';
 import { providerConfig } from './ai-provider.ts';
-import { readProviderHttpError } from './provider-http-error.ts';
+import { readProviderHttpError, safeProviderResponseBody } from './provider-http-error.ts';
 import { codeSiteSchema, explicitEnglishCompanyName, type CodePreferences, type SiteCode, type CodePlan, type CodeVersion, type CodeModelCall } from './code-site.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { codeRepairFragments, applyCodeRepair } from './code-site-repair.ts';
@@ -53,7 +53,7 @@ export function codeContentThinkingMode(purpose: 'write' | 'repair' | 'facts'): 
 }
 async function modelJson(purpose: CodeModelCall['purpose'], system: string, user: string, maxTokens: number,
   functionOutput?: { name: 'submit_page_plan' | 'submit_english_translation' | 'submit_local_edit'; description: string; parameters: Record<string, unknown>;
-    skeletonOrder?: string[]; translationInput?: CodeModelCall['translationInput'] }) {
+    skeletonOrder?: string[]; translationInput?: CodeModelCall['translationInput'] }, factInput?: CodeModelCall['factInput']) {
   const { baseURL, apiKey, model } = providerConfig();
   if (!apiKey || !model) throw new Error('尚未配置 DeepSeek，无法生成站点。');
   if (purpose === 'translate' && process.env.SITE_CODE_TRANSLATION_TOKEN_LIMIT !== undefined) {
@@ -76,7 +76,8 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
   const call: CodeModelCall & { thinking?: 'enabled' | 'disabled' } = { purpose, model, startedAt: new Date(started).toISOString(), latencyMs: 0, httpStatus: null, usage: null,
     ...(thinking ? { thinking } : {}),
     ...(functionOutput?.skeletonOrder ? { skeletonOrder: functionOutput.skeletonOrder } : {}),
-    ...(functionOutput?.translationInput ? { translationInput: functionOutput.translationInput } : {}) };
+    ...(functionOutput?.translationInput ? { translationInput: functionOutput.translationInput } : {}),
+    ...(factInput ? { factInput } : {}) };
   try {
     const response = await fetch(`${baseURL}${functionOutput ? '/beta' : ''}/chat/completions`, {
       method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
@@ -102,7 +103,13 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
         : /response_format|json/i.test(message) ? 'JSON 输出参数被拒绝' : /rate|quota|balance/i.test(message) ? '上游额度或限流' : '';
       throw new Error(`DeepSeek 请求失败（HTTP ${response.status}${reason ? `，${reason}` : ''}），本次未保存版本。`);
     }
-    const payload = await response.json();
+    let payload;
+    if (purpose === 'facts' || purpose === 'local-facts') {
+      const body = await response.text();
+      call.response = { finishReason: null, answerChars: null, reasoningTokens: null, rawBody: safeProviderResponseBody(body, apiKey) };
+      try { payload = JSON.parse(body); }
+      catch { throw new Error('DeepSeek 事实核对回复不是完整 JSON，本次未保存版本。'); }
+    } else payload = await response.json();
     const usage = payload.usage;
     if (usage && [usage.prompt_tokens, usage.completion_tokens, usage.total_tokens].every(n => Number.isSafeInteger(n) && n >= 0)) {
       const reasoning = usage.completion_tokens_details?.reasoning_tokens;
@@ -113,10 +120,11 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
     const tools = message?.tool_calls;
     const validFunction = Array.isArray(tools) && tools.length === 1 && tools[0]?.type === 'function' && tools[0]?.function?.name === functionOutput?.name;
     const raw = functionOutput ? (validFunction ? tools[0].function.arguments : undefined) : message?.content;
-    call.response = { finishReason: typeof payload.choices?.[0]?.finish_reason === 'string' ? payload.choices[0].finish_reason : null,
+    call.response = { ...call.response, finishReason: typeof payload.choices?.[0]?.finish_reason === 'string' ? safeProviderResponseBody(payload.choices[0].finish_reason, apiKey).body ?? null : null,
       answerChars: typeof raw === 'string' ? raw.length : typeof message?.content === 'string' ? message.content.length : null,
       reasoningTokens: Number.isSafeInteger(usage?.completion_tokens_details?.reasoning_tokens) && usage.completion_tokens_details.reasoning_tokens >= 0 ? usage.completion_tokens_details.reasoning_tokens : null,
       ...(functionOutput ? { rawMessage: { content: message?.content ?? null, tool_calls: message?.tool_calls ?? null } } : {}) };
+    if (call.response.rawBody?.bodyRedacted) throw new Error('DeepSeek 事实核对回复含凭据，已舍弃正文，本次未保存版本。');
     if (payload.choices?.[0]?.finish_reason === 'length') throw new Error('DeepSeek 回答被截断，本次未保存版本。');
     if (functionOutput && (!validFunction || payload.choices?.[0]?.finish_reason !== 'tool_calls')) throw new Error(purpose === 'translate'
       ? 'DeepSeek 未返回结构化英文译文，本次未保存版本。' : purpose === 'local-edit'
@@ -301,7 +309,9 @@ export function codeFactAuditInput(materials: string, segments: CodeFactSegment[
     ? { type: source.type, sourceId: source.sourceId, name: source.name, text: source.text }
     : { type: source.type, messageIndex: source.messageIndex, text: source.text }) ?? null,
     pageContexts: [...pages].map(([pageId, outline]) => ({ pageId, outline })),
-    segments: segments.map((segment, i) => ({ id: `s${i + 1}`, text: segment.text, groupId: `g${groups.indexOf(segment.group) + 1}`, pageId: segment.context.pageId, headings: segment.context.headings })) };
+    segments: segments.map((segment, i) => ({ id: `s${i + 1}`, text: segment.text,
+      claimTexts: normalizeFactClaimText(segment.text).split('\u0000').map(text => text.trim()).filter(Boolean),
+      groupId: `g${groups.indexOf(segment.group) + 1}`, pageId: segment.context.pageId, headings: segment.context.headings })) };
 }
 export function auditCodeFacts(materials: string, readable: string, local?: boolean, style?: CodeStyleId, sourceMaterials?: CodeFactSource[]): Promise<string[]>;
 export function auditCodeFacts(materials: string, readable: CodeFactSegment[], local?: boolean, style?: CodeStyleId, sourceMaterials?: CodeFactSource[]): Promise<CodeFactReview['segments']>;
@@ -323,7 +333,7 @@ export async function auditCodeFacts(materials: string, readable: string | CodeF
 图片署名不是企业事实。不查审美。
 本次只核对 segments 内的核对段。「站点公司名检查（系统观察）」是系统对完整公司名是否出现的观察，未出现时拒收，不要求其他单段补全公司名。同一 groupId 的所有段属于同一完整容器，必须结合整组的对象、起算条件、否定和范围核对，不能把不同段的条件割裂。每段 text 含事实及其所属标题、表头和条件，必须一起核对；表格标签及 colspan/rowspan/scope/headers 是结构信息，用于理解归属，不当作企业数量；pageContexts 的页面大纲和 headings 的相邻标题只用于理解，不是待核内容或事实来源，不要求单段补齐整站内容。不能因某段通过就推断其他段通过。
 materials 是完整核对上下文，sourceMaterials 才是可作为资料出处 quote 的原始企业资料；页面要求、设计要求和系统说明即使在 materials 中，也不能作为出处。
-每个输入编号恰好返回一次，没有问题也必须返回该编号和空 issues。不得遗漏、重复或增加编号。`) + `\n通过的高风险声明必须同时记录资料出处；仅限客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价这七类。普通介绍、普通标题、导航与占位不标。每段必须明确二选一：有企业事实时 noFacts=false 且 factCategories 至少列出每个高风险类别；没有企业事实时 noFacts=true 且 factCategories、citations 均为空。不能省略 noFacts，也不能用空类别代替二选一。claim 必须复制本段内的完整声明，保留对象、条件与范围；quote 必须复制 sourceMaterials 中支持它的连续资料原句，不能从 pageContexts、网页、设计指令或另一字段拼出句子。逐条核对其语义是否支持声明，不只比数字；同字段更新以最后声明为准。引文找不到则写入 issues，不给该声明出处。\n返回 {"results":[{"id":"s1","issues":[],"noFacts":false,"factCategories":["客户与合作方"],"citations":[{"category":"客户与合作方","claim":"网页中的声明原句","quote":"资料原句"}]}]}。每段必须返回 noFacts、factCategories、citations 三个字段；不返回 DOM 定位信息。`, JSON.stringify(input), local ? 4096 : 65536);
+每个输入编号恰好返回一次，没有问题也必须返回该编号和空 issues。不得遗漏、重复或增加编号。`) + `\n通过的高风险声明必须同时记录资料出处；仅限客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价这七类。普通介绍、普通标题、导航与占位不标。每段必须明确二选一：没有七类高风险声明时 noFacts=true 且 factCategories、citations 均为空；规格、地址、流程等普通企业事实不属于这七类，只有这些事实的段落也填 noFacts=true。有七类高风险声明时 noFacts=false 且 factCategories 非空，列出本段涉及的每个高风险类别。noFacts 只表示是否没有这七类声明，不表示没有企业事实；普通企业事实仍须对照资料核对，错误照常写入 issues。不能省略 noFacts，也不能用空类别代替二选一。claim 必须从当前编号 claimTexts 的任一条中逐字复制连续子串，包含声明所需的对象、条件与范围。claimTexts 是 text 按既有归属规则展开的只读复制文本，不是资料出处；不能跨条目或跨编号拼接，必须保留其中的空格、文字和标点，不把分列标签和值连写，不补写冒号、分号或连接词，不拿 quote 的资料原句代替网页声明。不要在结果中返回 claimTexts；quote 必须复制 sourceMaterials 中支持它的连续资料原句，不能从 pageContexts、网页、设计指令或另一字段拼出句子。逐条核对其语义是否支持声明，不只比数字；同字段更新以最后声明为准。引文找不到则写入 issues，不给该声明出处。\n返回 {"results":[{"id":"s1","issues":[],"noFacts":false,"factCategories":["客户与合作方"],"citations":[{"category":"客户与合作方","claim":"网页中的声明原句","quote":"资料原句"}]}]}。每段必须返回 noFacts、factCategories、citations 三个字段；不返回 DOM 定位信息。`, JSON.stringify(input), local ? 4096 : 65536, undefined, { segments: input.segments });
   if (local && !sourceMaterials && typeof result.data === 'object' && result.data !== null && Array.isArray((result.data as { issues?: unknown }).issues)) {
     return z.array(z.string().min(1).max(500)).max(40).parse((result.data as { issues: unknown }).issues);
   }

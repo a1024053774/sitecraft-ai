@@ -88,7 +88,9 @@ test('two local repairs preserve products and re-enter the real checked commit b
   assert.ok(result.run!.attempts[0].checks.issues.some(s => s.includes('终身保修')));
   assert.ok(result.run!.attempts[1].checks.issues.some(s => s.includes('即时免费报价')));
   const firstAudit = bodies.find(b => b.messages[0].content.includes('事实校对员'))!;
-  assert.equal(firstAudit.messages[1].content.match(/终身保修/g)?.length, 2, 'audit the home promise and shared footer once each, without repeating the footer per page');
+  const firstAuditInput = JSON.parse(firstAudit.messages[1].content.split('\n')[0]);
+  // Copy text describes the same segment; count audited occurrences, not JSON copies.
+  assert.equal(firstAuditInput.segments.flatMap((segment: { text: string }) => segment.text.match(/终身保修/g) ?? []).length, 2, 'audit the home promise and shared footer once each, without repeating the footer per page');
   assert.equal(result.versions[0].code.pages[1].html, code.pages[1].html);
   assert.equal(result.versions[0].checks.viewports.length, 6, 'all pages at all three widths must be checked');
   assert.deepEqual(result.plan!.skeleton, { id: 'compact-profile', reason: '加工资料与产品边界先列明。' });
