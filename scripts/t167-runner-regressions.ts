@@ -7,38 +7,19 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { loadFixture } from './test-load-fixture.ts';
 
 // Run separately from the full suite: these cases own the real npm test entry
 // and its dev server. They cannot share the full suite's live Next dev lock.
 const project = fileURLToPath(new URL('../', import.meta.url));
-// Test-only OS boundary fixture. The entry has no skip flag or injected reader.
-// --require executes this fixture as test code; normal npm test never loads it.
-function loadFixture(load: number[], memory: string | { error: string }) {
-  return `{
-    const cp=require('node:child_process'),original=cp.execFile;
-    require('node:os').loadavg=()=>${JSON.stringify(load)};
-    cp.execFile=function(command,args,options,callback){
-      if(command!=='memory_pressure')return original.apply(this,arguments);
-      const result=${JSON.stringify(memory)};
-      setImmediate(()=>typeof result==='string'?callback(null,result,''):callback(new Error(result.error),'',''));
-      return {pid:0};
-    };
-    require('node:module').syncBuiltinESMExports();
-  }`;
-}
 const withinLoad = [1.25, 2.5, 3];
 const withinMemory = 'System-wide memory free percentage: 30%\n';
 
-// The regression suite itself uses the same entry preflight before any case.
-// It is deliberately deterministic on a busy host, through test-only OS mocks.
+// This Chrome-free suite is a light check. Only nested test subjects receive
+// deterministic OS observations; the caller records load without a gate.
 const preflightRoot = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-runner-load-'));
 const preflightFixture = path.join(preflightRoot, 'os-fixture.cjs');
 await writeFile(preflightFixture, loadFixture(withinLoad, withinMemory));
-const preflight = spawn(process.execPath, ['--require', preflightFixture, '--experimental-strip-types', '--input-type=module', '-e',
-  `const {checkStartupLoad}=await import(${JSON.stringify(new URL('./run-tests.ts', import.meta.url).href)});await checkStartupLoad();`],
-  { cwd: project, stdio: 'inherit' });
-const [preflightCode] = await once(preflight, 'exit');
-assert.equal(preflightCode, 0, 'runner 必须先通过同一开跑负载检查（测试 OS 注入）');
 
 for (const scenario of [
   { name: 'one-minute limit', load: [5, 1, 0], memory: 'System-wide memory free percentage: 40%', allowed: false },
@@ -97,6 +78,30 @@ for (const scenario of [
   if (typeof scenario.memory === 'object') assert.match(output, /ENOENT/);
   else if (scenario.name === 'memory output malformed') assert.match(output, /解析/);
   else assert.ok(output.includes(`内存空闲=${scenario.memory.match(/(\d+)%/)![1]}%`), output);
+});
+
+test('T-179: a forged memory_pressure in PATH cannot replace the trusted command', async t => {
+  const cwd = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-path-'));
+  const marker = path.join(cwd, 'forged-executed');
+  await writeFile(path.join(cwd, 'memory_pressure'), `#!${process.execPath}
+    require('node:fs').writeFileSync(${JSON.stringify(marker)},'executed');
+    console.log('System-wide memory free percentage: 0%');
+  `, { mode: 0o755 });
+  await writeFile(path.join(cwd, 'trusted-fixture.cjs'), loadFixture(withinLoad, withinMemory, '/usr/bin/memory_pressure'));
+  const child = spawn(process.execPath, ['--require', path.join(cwd, 'trusted-fixture.cjs'), '--experimental-strip-types', '--input-type=module', '-e',
+    `const {checkStartupLoad}=await import(${JSON.stringify(new URL('./run-tests.ts', import.meta.url).href)});console.log(JSON.stringify(await checkStartupLoad()));`],
+    { cwd: project, env: { ...process.env, PATH: `${cwd}${path.delimiter}${process.env.PATH ?? ''}` }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const closed = once(child, 'close'); let output = '';
+  child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
+  const [code] = await closed;
+  const out = path.join(project, 'artifacts/t179', `trusted-memory-${crypto.randomUUID()}`);
+  await mkdir(out, { recursive: true });
+  await writeFile(path.join(out, 'observation.json'), JSON.stringify({ at: new Date().toISOString(), cwd, code, output,
+    forgedExecuted: existsSync(marker) }, null, 2)+'\n');
+  t.diagnostic(`可信命令与 PATH 反例：${out}`);
+  assert.equal(code, 0, output);
+  assert.equal(existsSync(marker), false, 'PATH 中的伪造命令不能执行');
+  assert.match(output, /"memoryFreePercent":30/, '必须使用可信系统命令的观测');
 });
 
 async function run(args: string[], context: string | undefined) {
@@ -203,7 +208,21 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
   // The oracle comes from the dependency shapes below, including a former
   // serial filename that contains no browser reference. No Chrome is launched.
   const nonBrowser = ['node-cli.test.ts', 'plain.test.ts', 't175-stale-placeholder.test.ts'];
-  const browser = ['cli.test.ts', 'direct.test.ts', 'dynamic.test.ts', 'helper-cli.test.ts', 'indirect.test.ts', 'loop-cli.test.ts'];
+  const additionalBrowser = {
+    'binding-rename.test.ts': 'const {CHROME_PATH:chrome}=process.env;void chrome;',
+    'binding-default.test.ts': "const {CHROME_PATH:chrome=''}=process.env;void chrome;",
+    'binding-shorthand-default.test.ts': "const {CHROME_PATH=''}=process.env;void CHROME_PATH;",
+    'binding-nested.test.ts': 'const {env:{CHROME_PATH:chrome}}=process;void chrome;',
+    'binding-nested-default.test.ts': "const {CHROME_PATH:{length:size}={}}=process.env;void size;",
+    'binding-computed.test.ts': "const {['CHROME_PATH']:chrome}=process.env;void chrome;",
+    'binding-computed-key.test.ts': "const key='CHROME_PATH';const {[key]:chrome}=process.env;void chrome;",
+    'binding-shorthand-property.test.ts': 'const CHROME_PATH=undefined;void {CHROME_PATH};',
+    'cwd-process.test.ts': "import {spawnSync} from 'node:child_process';spawnSync(process.execPath,['--experimental-strip-types','lib/browser-cli.ts'],{cwd:process.cwd()});",
+    'cwd-alias.test.ts': "import {spawnSync} from 'node:child_process';const dir=process.cwd();spawnSync(process.execPath,['--experimental-strip-types','lib/browser-cli.ts'],{cwd:dir});",
+    'cwd-joined.test.ts': "import {spawnSync} from 'node:child_process';import path from 'node:path';spawnSync(process.execPath,['--experimental-strip-types','browser-cli.ts'],{cwd:path.join(process.cwd(),'lib')});",
+    'cwd-shorthand.test.ts': "import {spawnSync} from 'node:child_process';import path from 'node:path';const cwd=path.join(process.cwd(),'lib');spawnSync(process.execPath,['--experimental-strip-types','browser-cli.ts'],{cwd});",
+  };
+  const browser = ['cli.test.ts', 'direct.test.ts', 'dynamic.test.ts', 'helper-cli.test.ts', 'indirect.test.ts', 'loop-cli.test.ts', ...Object.keys(additionalBrowser)].sort();
   for (const scenario of ['pass', 'filtered', 'browser-failure', 'nonbrowser-failure', 'cap-two']) {
     const cwd = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-entry-'));
     for (const directory of ['node_modules/next/dist/bin', 'scripts', 'tests/helpers', 'lib'])
@@ -235,14 +254,14 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
     await writeFile(path.join(cwd, 'lib/browser-cli.ts'), "import {browserRequested} from './browser-entry.ts'; void browserRequested();\n", 'utf8');
     for (const name of [...nonBrowser, ...browser]) {
       const inBrowser = browser.includes(name), plain = name === 'plain.test.ts';
-      const dependency = name === 'cli.test.ts' ? "import {spawnSync} from 'node:child_process'; const command=[process.execPath,'--experimental-strip-types','lib/browser-cli.ts']; spawnSync(command[0],command.slice(1));"
+      const dependency = additionalBrowser[name as keyof typeof additionalBrowser] ?? (name === 'cli.test.ts' ? "import {spawnSync} from 'node:child_process'; const command=[process.execPath,'--experimental-strip-types','lib/browser-cli.ts']; spawnSync(command[0],command.slice(1));"
         : name === 'node-cli.test.ts' ? "import {spawnSync} from 'node:child_process'; spawnSync(process.execPath,['--experimental-strip-types','lib/node-cli.ts']);"
         : name === 'helper-cli.test.ts' ? "import {launch} from './helpers/launch.ts'; launch();"
         : name === 'loop-cli.test.ts' ? "import * as cp from 'node:child_process'; for(const script of ['lib/browser-cli.ts'])cp.spawnSync(process.execPath,['--experimental-strip-types',script]);"
         : name === 'direct.test.ts' ? "void process.env.CHROME_PATH;"
         : name === 'indirect.test.ts' ? "import {browserRequested} from './helpers/bridge.ts'; void browserRequested;"
           : name === 'dynamic.test.ts' ? "await import('./helpers/bridge.ts');"
-            : plain ? "import type {BrowserHint} from '../lib/browser-entry.ts'; /* process.env.CHROME_PATH */ void 'process.env.CHROME_PATH';" : '';
+            : plain ? "import type {BrowserHint} from '../lib/browser-entry.ts'; /* process.env.CHROME_PATH */ void 'process.env.CHROME_PATH';" : '');
       await writeFile(path.join(cwd, 'tests', name), `
         import test from 'node:test';
         import {appendFileSync,existsSync} from 'node:fs';
@@ -274,6 +293,9 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
     await writeFile(path.join(out, 'observation.json'), JSON.stringify({ cwd, args, code, spawns, executed, report }, null, 2) + '\n', 'utf8');
     await copyFile(path.join(directory, 'summaries.ndjson'), path.join(out, 'summaries.ndjson'));
     t.diagnostic(`分池入口 ${scenario} 证据：${out}`);
+    if (scenario === 'pass') for (const name of Object.keys(additionalBrowser)) await t.test(`分类 ${name}`, () => {
+      assert.ok(report.classification.browser.some((item: { file: string }) => path.basename(item.file) === name), `${name} 必须进入浏览器池`);
+    });
     assert.equal(spawns.length, 2, '必须从真实 Node spawn 观察到两个互斥池');
     const files = (call: { args: string[] }) => call.args.filter(arg => arg.endsWith('.test.ts')).map(file => path.basename(file)).sort();
     assert.deepEqual(files(spawns[0]), nonBrowser, '注释、字符串、纯类型和历史文件名不能将非浏览器文件送入浏览器池');
@@ -283,8 +305,8 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
     assert.ok(cap, '浏览器并发上限必须传给真实 Node 进程');
     if (scenario === 'cap-two') assert.equal(cap, '--test-concurrency=2', '实测参数只改变浏览器池');
     assert.deepEqual(executed.map(row => row.file).sort(), [...nonBrowser, ...browser].sort(), '每个文件全程只实际载入一次');
-    assert.equal(report.executed, scenario === 'filtered' ? 6 : 10, '总数合并两个池的原生每文件统计');
-    assert.deepEqual(report.phases.map((phase: { executed: number }) => phase.executed), scenario === 'filtered' ? [0, 6] : [4, 6]);
+    assert.equal(report.executed, scenario === 'filtered' ? browser.length : browser.length + 4, '总数合并两个池的原生每文件统计');
+    assert.deepEqual(report.phases.map((phase: { executed: number }) => phase.executed), scenario === 'filtered' ? [0, browser.length] : [4, browser.length]);
     assert.deepEqual(report.classification.browser.map((item: { file: string }) => path.basename(item.file)).sort(), browser);
     assert.ok(browser.every(name => output.includes(`浏览器池：tests/${name}`)), '每轮须打印浏览器池文件判定');
     if (scenario.endsWith('failure')) {

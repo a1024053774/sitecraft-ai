@@ -21,7 +21,7 @@ export async function checkStartupLoad() {
     [load1, load5] = loads;
   } catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
   try {
-    const stdout = await new Promise<string>((resolve, reject) => execFile('memory_pressure', [],
+    const stdout = await new Promise<string>((resolve, reject) => execFile('/usr/bin/memory_pressure', [],
       { encoding: 'utf8', timeout: 5000, maxBuffer: 1024 * 1024 },
       (error, output) => error ? reject(error) : resolve(output)));
     const matches = [...stdout.matchAll(/^System-wide memory free percentage:\s*(\d+(?:\.\d+)?)%[ \t]*$/gm)];
@@ -108,6 +108,8 @@ function browserDependency(file: string): BrowserDependency | undefined {
         if (ts.isElementAccessExpression(node)) return values(node.expression, seen);
         if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
           const method = node.expression.name.text;
+          if (method === 'cwd' && ts.isIdentifier(node.expression.expression)
+            && node.expression.expression.text === 'process' && node.arguments.length === 0) return [project];
           if (method === 'slice' || method === 'concat') return [...values(node.expression.expression, seen), ...node.arguments.flatMap(arg => values(arg, seen))];
           if (method === 'join' || method === 'resolve') {
             let paths = [''];
@@ -117,6 +119,12 @@ function browserDependency(file: string): BrowserDependency | undefined {
         }
         return [];
       };
+      // Object bindings name the source property before the alias. Defaults
+      // and nested binding patterns do not change that key. Literal/computable
+      // property keys use the same finite value analysis as CLI arguments.
+      const propertyNames = (node: ts.Node | undefined): string[] => !node ? []
+        : ts.isIdentifier(node) || ts.isStringLiteralLike(node) ? [node.text]
+          : ts.isComputedPropertyName(node) ? values(node.expression) : [];
       const reference = (node: ts.Node | undefined) => { if (node && ts.isStringLiteralLike(node)) imports.add(node.text); };
       const visit = (node: ts.Node) => {
         if (ts.isImportDeclaration(node)) {
@@ -133,8 +141,10 @@ function browserDependency(file: string): BrowserDependency | undefined {
           || ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression)
             && namespaces.has(node.expression.expression.text) && processAPIs.has(node.expression.name.text))) {
           const options = node.arguments.find(arg => ts.isObjectLiteralExpression(arg));
-          const cwd = options && ts.isObjectLiteralExpression(options) ? options.properties.find(item => ts.isPropertyAssignment(item) && item.name.getText(source) === 'cwd') : undefined;
-          const directories = cwd && ts.isPropertyAssignment(cwd) ? values(cwd.initializer) : [project];
+          const cwd = options && ts.isObjectLiteralExpression(options) ? options.properties.find(item =>
+            (ts.isPropertyAssignment(item) || ts.isShorthandPropertyAssignment(item)) && propertyNames(item.name).includes('cwd')) : undefined;
+          const directories = cwd ? ts.isPropertyAssignment(cwd) ? values(cwd.initializer)
+            : ts.isShorthandPropertyAssignment(cwd) ? values(cwd.name) : [] : [project];
           for (const argument of node.arguments.filter(arg => !ts.isObjectLiteralExpression(arg))) for (const value of values(argument)) {
             // exec() can carry a literal command; flags and non-script operands
             // do not create dependencies. CLI paths resolve from the child cwd.
@@ -144,10 +154,11 @@ function browserDependency(file: string): BrowserDependency | undefined {
             }
           }
         }
-        const name = ts.isPropertyAccessExpression(node) ? node.name.text
-          : ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text
-            : (ts.isPropertyAssignment(node) || ts.isBindingElement(node)) && node.name && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) ? node.name.text : '';
-        if (name === 'CHROME_PATH') module!.marker = 'CHROME_PATH';
+        const names = ts.isPropertyAccessExpression(node) ? [node.name.text]
+          : ts.isElementAccessExpression(node) ? values(node.argumentExpression)
+            : ts.isBindingElement(node) ? propertyNames(node.propertyName ?? node.name)
+              : ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node) ? propertyNames(node.name) : [];
+        if (names.includes('CHROME_PATH')) module!.marker = 'CHROME_PATH';
         ts.forEachChild(node, visit);
       };
       visit(source);

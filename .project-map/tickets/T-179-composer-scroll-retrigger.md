@@ -48,9 +48,14 @@ T-162 首次预览先核对保留 dev.log 的对应路由编译耗时与浏览�
 
 新回归先在当前提交 80c7672 上失败，再验证高负载拒绝、门槛内放行和读取失败拒绝；原有真实入口回归也必须明确处理高负载宿主机。本轮只跑 runner 回归和 typecheck，均先过同一负载检查（回归使用系统 API 注入）；不跑全量、build 或 Chrome 浏览器测试。入口单独新建提交，不 amend；完成后停在 idle，全量验收及独立 fast 审查由主控在机器空闲后安排。
 
+## 2026-10-18 独立审查 NO_GO：仅修本票四项问题
+
+主控要求在 T-179 内修正：memory_pressure 改用可信绝对路径 `/usr/bin/memory_pressure`；T-176 嵌套入口注入测试系统观测，避免宿主机负载抢先挡住锁／保留策略断言；补静态分类中的解构重命名与显式 cwd 漏判，并检查默认值和嵌套写法；删除默认并发仍为 1 的过时说明，旧失败链接保留。不扩展其他基础设施。负责人随后明确：runner、T-176、typecheck 都不开 Chrome，属于轻量检查，只记录开跑 load，不受负载门禁限制；T-176 优先走 npm test，入口拒绝时可在测试侧注入系统观测，不给入口加跳过开关。反例先在 42cfc92 失败，再修到通过；不跑全量、build 或 Chrome 测试，新建提交后 idle。
+
 ## Acceptance
 
-- [x] 最新入口负载门禁：先在 80c7672 红灯，严格门槛、读取失败拒绝、开跑报告与 runner 回归通过；本轮 typecheck 被真实门禁拒绝，未运行
+- [x] 最新 NO_GO 四项修复及成对证据：42cfc92 上红灯，修后 runner 25/25、T-176 11/11、typecheck 通过；全量与独立复审仍由主控安排
+- [x] 入口负载门禁首轮：先在 80c7672 红灯，严格门槛、读取失败拒绝、开跑报告与 runner 回归通过；当时 typecheck 被门禁拒绝，最新轻量检查结果见 Resolution
 - [x] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
 - [ ] A′ 基础设施前置：明确终态、共用生产预算与实测余量、预览原因证据、并发 2 校准及同提交验收通过
 - [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过（先前定向通过；最新全量 T-175 1440/768 失败，当前不能勾选）
@@ -58,7 +63,37 @@ T-162 首次预览先核对保留 dev.log 的对应路由编译耗时与浏览�
 
 ## Resolution
 
-**最新入口负载门禁：INCOMPLETE（2026-10-18，入口及 runner 完成，typecheck 因真实负载拒绝未启动；全量验收留给主控）**。已将既有 300ms 候选和该轮两项失败独立保存为 `80c7672`；本次入口提交不再改产品或预算。门禁位于工作树身份核对之后、清理／取得锁／创建本轮目录／启动服务之前，直接读取 `os.loadavg()` 与 `memory_pressure`；1 分钟及 5 分钟 load 必须均 **< 5**，内存空闲必须 **>= 30%**。读取异常、命令不可用、输出无法唯一解析或数值无效一律拒绝，输出当前可取得的数值、门槛与原因并非零退出，不等待、不重试。通过值连同采样时间、门槛保存到本轮 `report.json.startupLoad`。入口不读取任何跳过检查的环境变量／参数，导出的共用检查函数也不接受替身参数。
+**本轮 NO_GO 四项修复与轻量检查：PASS（2026-10-18）；T-179 整体仍 INCOMPLETE，保持 open，未代替主控的全量及独立复审。** 先在 `42cfc92931bb3f14bd47334fea48497bb7227531` 的产品入口上取得反例，再修复。本次没有改产品组件、生成站代码或动态检查预算，没有新增入口跳过开关。
+
+1. 内存检查固定调用 `/usr/bin/memory_pressure`。PATH 反例放置可执行的同名伪造程序，返回 0% 并留下执行标记，仅对可信绝对命令注入 30% 观测。旧入口执行伪造程序并被 0% 拒绝；修后不执行伪造程序，取得可信命令的 30% 并放行。[旧 PATH 现场](../../artifacts/t179/review-evidence/review-runner-red-path.json)、[修后现场](../../artifacts/t179/review-evidence/review-runner-green-path.json)。另一次未注入的真实入口从绝对命令读到 39%，见下表。
+2. T-176 与 runner 共用测试侧 `scripts/test-load-fixture.ts`，仅在被测子进程的系统 API 边界注入观测。T-176 每个嵌套入口最后加载自己的健康观测，不改锁、清理或统计条件。新用例先注入宿主机 9／8／20%：旧实现被负载抢先拒绝，原「已有测试入口」断言失败；修后真正走到原锁拒绝并保留持有者。[旧失败报告](../../artifacts/t179/review-t176-red/entry-0/report.json)、[完整错误](../../artifacts/t179/review-t176-red/entry-0/tests.log)、[新旧嵌套日志索引](../../artifacts/t179/review-evidence/index.json)。
+3. 静态分类读取解构的来源属性名，覆盖重命名、默认值、嵌套对象模式、计算属性与对象简写；CLI cwd 支持 `process.cwd()`、同值变量、路径拼接和 cwd 简写属性。12 项语法对照在旧入口有 11 项明确漏分，既有简写默认值 1 项已能分类，保留为对照；修后 12/12。纯 Node CLI、纯类型、注释、普通字符串及旧名单文件名仍排除；五个分池场景继续检查每文件一次、过滤统计合并、任一池失败传播及并发参数，未放宽期望。[旧分类现场](../../artifacts/t179/review-evidence/review-runner-red-classification.json)、[新分类现场](../../artifacts/t179/review-evidence/review-runner-green-classification.json)。本次只证明所列确定语法；运行时计算的键、cwd／argv 和动态选择的模块路径不能由本次证据确认，仍沿用原有非浏览器池 Chrome 归属告警，不在本票继续扩展分析器。
+4. 默认并发的当前说明已改为 **2（自 5830141 起）**，仍待主控完整验收；旧默认 1 失败轮的链接保留。AGENTS、README 与 spec 同步可信命令及轻量检查规则，只写当前规则。
+
+以下均由 `python3 artifacts/t179/light-check.py <标签> <命令>` 保存真实开跑 load、UTC 时间、源 HEAD 与退出码，不做负载拦截。源 HEAD 均为 `42cfc92` 加本次提交前工作树；红灯时生产入口尚未修改，绿灯时为最终修复代码，之后只整理文档与证据。准确 argv（含测试侧 preload）、运行结果及已复制到本票的原入口报告见 [完整索引](../../artifacts/t179/review-evidence/index.json)。
+
+| 标签／命令 | UTC 时间 | 开跑真实 load（1／5 分钟） | 结果 |
+| --- | --- | --- | --- |
+| `review-runner-red`：node --test 定向 PATH 与分类反例 | 12:47:31.206–12:47:33.824 | 5.1015625／6.16552734375 | 预期失败：PATH 与 11 项漏分；Node 统计 14 项，1 通过、13 失败（含父用例） |
+| `review-t176-red`：测试侧 preload 后 npm test 定向 nested entry | 12:47:50.843–12:47:52.948 | 10.17138671875／7.13720703125 | 预期 1/1 失败；嵌套入口被高负载观测提前拒绝 |
+| `review-runner-green`：`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` | 12:48:33.444–12:48:49.039 | 6.619140625／6.619140625 | **25/25**，0 跳过／取消，退出 0 |
+| `review-t176-direct`：`npm test -- tests/t176-test-output.test.ts` | 12:49:02.756–12:49:03.114 | 5.23876953125／6.28662109375 | 真实入口拒绝，内存空闲 39%，用例未执行，退出 1；现场保留 |
+| `review-t176-green`：测试侧 preload 后 `npm test -- tests/t176-test-output.test.ts` | 12:49:10.968–12:49:19.886 | 5.29931640625／6.28173828125 | **11/11**，0 跳过／取消，退出 0；非浏览器池 1 文件、浏览器池 0 文件 |
+| `review-typecheck`：`npm run typecheck` | 12:49:37.880–12:49:40.284 | 4.63623046875／6.02978515625 | 退出 **0**，无注入、无门禁 |
+
+T-176 直接入口拒绝后，按轻量授权使用与 runner 相同的临时 CJS preload（`NODE_OPTIONS=--require=.../review-t176-fixed-load.cjs`）注入系统边界，仅限测试进程。外层仍经过标准入口的临时数据根、health 身份核对、存储许可及报告，没有手工绕过根校验。报告中的 1.25／2.5／30% 是测试观测，不能冒充真实低负载；真实 load 如表。[直接拒绝日志](../../artifacts/t179/review-t176-direct/command.log)、[通过报告副本](../../artifacts/t179/review-t176-green/entry-0/report.json)。
+
+本轮只跑上述轻量检查，**未跑全量、build 或 Chrome 浏览器测试**；独立复审由主控安排。项目图检查为 0 problems／0 stale living docs。按要求新建本地提交，不 amend、不推送；Next 自动改动 `tsconfig.json` 保留且不提交，提交后停在 idle。下方保留前次暂停与旧失败证据，不作为当前未修复的说明。
+
+**修复前暂停现场：BLOCKED（2026-10-18 12:44 UTC；后续已按主控的轻量检查澄清继续）**。工作树开工 HEAD 为 `42cfc92931bb3f14bd47334fea48497bb7227531`，原有脏改仅 `tsconfig.json`，未覆盖。源码已确认三条审查路径：生产门禁仍执行相对命令；T-176 start() 未注入系统观测；分类只读 BindingElement.name 且 values() 不支持 process.cwd()。票中默认 1 的当前说明已改为默认 2、待主控完整验收，原失败证据链接未删。
+
+已准备但**尚未执行**的新反例：PATH 前置伪造 memory_pressure；分类的重命名、默认值、嵌套／计算属性解构、对象简写，以及显式／变量／拼接／简写 cwd；T-176 中高负载观测必须继续执行原锁断言。测试侧观测构造函数已提取到 `scripts/test-load-fixture.ts`，用于后续复用；尚未给 T-176 的默认启动注入健康观测，也未改生产路径或分类行为。runner 的外层前置检查已改读真实宿主机，仅嵌套被测入口保留测试观测注入，符合本轮派单。
+
+准备反例时第一次脚本因批量替换误入夹具字符串而发生语法错误，未进入系统检查；已修正，仅属新测试开发错误，不算父版本行为红灯。[原始开发失败](../../artifacts/t179/review-runner-parent-red/command.log)。修正后只尝试一次真实门禁：`python3 artifacts/t179/run-check.py review-runner-parent-red-fixed node --test --experimental-strip-types '--test-name-pattern=T-179: a forged|T-179: runtime imports' scripts/t167-runner-regressions.ts`，UTC **12:44:55.180–12:44:55.503**，源提交仍为 `42cfc92` 加反例工作树。runner 调用同一个 `checkStartupLoad()`，未加载测试替身；取得 **1 分钟 load=4.40771484375、5 分钟 load=6.939453125、内存空闲=42%**，5 分钟 load 未低于 5，检查与 runner 退出 **1**。没有执行任何反例；Node 输出的文件包装失败不能算成缺陷红灯，也不能用它声称已证明三项修复。
+
+[拒绝日志](../../artifacts/t179/review-runner-parent-red-fixed/command.log)、[命令／时间／提交／退出码](../../artifacts/t179/review-runner-parent-red-fixed/metrics.json)、[memory_pressure 与 ps 记录](../../artifacts/t179/review-runner-parent-red-fixed/preflight.txt) 均保留在本票。之后未等待或重试，未启动 T-176、typecheck、全量、build 或 Chrome 测试。由于本轮明确要求真实门禁及先红后修，生产行为修改与相应测试证据保持待续；未创建一个冒充修复完成的提交，准备中的改动保留未提交，HEAD 仍为 `42cfc92`，停在 idle。
+
+**入口门禁首轮记录：INCOMPLETE（2026-10-18 12:35 UTC；当时 typecheck 被拒绝，最新结果见本轮修复记录）**。已将既有 300ms 候选和该轮两项失败独立保存为 `80c7672`；本次入口提交不再改产品或预算。门禁位于工作树身份核对之后、清理／取得锁／创建本轮目录／启动服务之前，直接读取 `os.loadavg()` 与 `memory_pressure`；1 分钟及 5 分钟 load 必须均 **< 5**，内存空闲必须 **>= 30%**。读取异常、命令不可用、输出无法唯一解析或数值无效一律拒绝，输出当前可取得的数值、门槛与原因并非零退出，不等待、不重试。通过值连同采样时间、门槛保存到本轮 `report.json.startupLoad`。入口不读取任何跳过检查的环境变量／参数，导出的共用检查函数也不接受替身参数。
 
 成对回归通过真实入口及系统 API 边界验证，预期独立来自本次门槛需求。`node --test --experimental-strip-types '--test-name-pattern=T-179 load gate:' scripts/t167-runner-regressions.ts` 在 **80c7672** 原入口上先 **6/6 失败**（UTC **12:33:56–12:33:58**）：1 分钟等于 5、5 分钟等于 5、内存 29%、memory_pressure 不可用及输出异常均被旧入口错误放行，门槛内场景缺少开跑数值报告。[父提交红灯日志](../../artifacts/t179/load-gate-parent-red.log)。修后同一六场景通过，4.99／4.99／30% 放行并保存实际值；拒绝场景还检查没有启动服务、建立运行目录或取得锁。
 
@@ -100,7 +135,7 @@ AGENTS 验收标准命令、spec 和 README 的同处规则已同步；project-m
 
 **测试入口分池：INCOMPLETE（2026-10-18，并发 2 首轮自然完成后因 3 项失败停止）**。入口 CLI 分类候选为 `6466c89`，本票线程时序测试修复为 `be96dda`，最新全量运行于 `0f0987b`。没有修改 components 或生成站代码，产品预算与判断条件不变。CLI 子进程依赖沿参数变量、数组展开／slice、路径构造及 for-of 脚本列表递归追踪；运行时每 250ms 采样非浏览器池进程树，沿工作进程与 CLI 祖先记录 Chrome 所属文件，排除外部 Chrome 与 renderer，重复进程只告警一次；只记录告警，不重分池、不重跑、不改变测试结果。无法静态求值的运行时参数仍由此诊断观察，不声称能静态证明任意动态程序。
 
-入口成对证据：先在 `120927a` 原入口取得 CLI 错分红灯；扩展的 helper／循环脚本与运行时归属回归也先失败，再由新入口通过。完整 runner 6/6；真实 `t145-import-cli` 与 T-176 入口／保留策略 12/12，T-145 打印完整 `测试 → CLI → store → check → browser → CHROME_PATH` 依据；typecheck 退出 0。证据：[原入口红灯](../../artifacts/t179/pool-cli-parent-red/command.log)、[扩展红灯](../../artifacts/t179/pool-cli-expanded-red/command.log)、[完整 runner](../../artifacts/t179/pool-cli-runner-green/command.log)、[CLI 与保留策略](../../artifacts/t179/pool-cli-targeted/report.json)、[类型检查](../../artifacts/t179/pool-cli-typecheck/command.log)。上述均记录命令、UTC 时间、HEAD 与预检，不用最终提交后的证据名义引用。并发 3、2 各首轮均自然完成后失败；两者第二轮、修复后并发 1、固定值后的同提交两轮及 build 未运行。尚未选定默认值，入口默认 1 仍只是开发值。
+入口成对证据：先在 `120927a` 原入口取得 CLI 错分红灯；扩展的 helper／循环脚本与运行时归属回归也先失败，再由新入口通过。完整 runner 6/6；真实 `t145-import-cli` 与 T-176 入口／保留策略 12/12，T-145 打印完整 `测试 → CLI → store → check → browser → CHROME_PATH` 依据；typecheck 退出 0。证据：[原入口红灯](../../artifacts/t179/pool-cli-parent-red/command.log)、[扩展红灯](../../artifacts/t179/pool-cli-expanded-red/command.log)、[完整 runner](../../artifacts/t179/pool-cli-runner-green/command.log)、[CLI 与保留策略](../../artifacts/t179/pool-cli-targeted/report.json)、[类型检查](../../artifacts/t179/pool-cli-typecheck/command.log)。上述均记录命令、UTC 时间、HEAD 与预检，不用最终提交后的证据名义引用。并发 3、2 各首轮均自然完成后失败；两者第二轮、修复后并发 1、固定值后的同提交两轮及 build 未运行。当前入口默认文件并发为 2（自 5830141 起），仍待主控安排同一候选的完整两轮全量验收；上述旧失败证据保留，不作为默认 1 的当前说明。
 
 并发 3 校准完整结果：UTC **11:07:15.875–11:20:21.802**，启动前 memory_pressure 空闲 **39%**，ps 已保存。实际命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py pool-cli-c3-r1 npm test -- --browser-concurrency=3`（由 `calibrate-pools.py pool-cli` 串行编排）。运行时 HEAD 为 `120927a`，加当时入口工作树改动；这些入口与回归代码随后独立提交为 `6466c89`，不冒充提交后最终验收。
 

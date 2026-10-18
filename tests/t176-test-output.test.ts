@@ -5,6 +5,7 @@ import { existsSync, watch } from 'node:fs';
 import { copyFile, mkdir, mkdtemp, readFile, readdir, realpath, stat, symlink, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
+import { loadFixture } from '../scripts/test-load-fixture.ts';
 
 // Failure modes: keep a sixth successful run; erase a failed/interrupted run;
 // traverse an artifacts/run symlink; remove unrelated data; omit failure paths;
@@ -21,6 +22,10 @@ async function fixture() {
   for (const name of ['run-tests.ts', 'test-identity.ts', 'local-endpoint.ts', 'test-summary-reporter.mjs']) {
     await copyFile(path.resolve('scripts', name), path.join(cwd, 'scripts', name));
   }
+  // Only the nested subject gets deterministic OS observations. Load this
+  // after any host/probe preload so busy-host tests still reach the lock and
+  // retention assertions; the standard entry has no skip switch.
+  await writeFile(path.join(cwd, 'entry-load.cjs'), loadFixture([1.25, 2.5, 3], 'System-wide memory free percentage: 30%'));
   await writeFile(path.join(cwd, 'node_modules/next/dist/bin/next'), `
     const http = require('node:http');
     const server = http.createServer((req, res) => {
@@ -47,7 +52,7 @@ async function fixture() {
 function start(cwd: string, file = 'pass.test.ts', scriptProject = cwd, preload?: string) {
   const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: cwd, DEEPSEEK_API_KEY: '', AI_API_KEY: '' };
   delete env.NODE_TEST_CONTEXT;
-  const child = spawn(process.execPath, [...(preload ? ['--require', path.join(cwd, preload)] : []), '--experimental-strip-types', path.join(scriptProject, 'scripts/run-tests.ts'), file], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [...(preload ? ['--require', path.join(cwd, preload)] : []), '--require', path.join(cwd, 'entry-load.cjs'), '--experimental-strip-types', path.join(scriptProject, 'scripts/run-tests.ts'), file], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const exited = once(child, 'exit');
   let output = '';
   child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
@@ -171,6 +176,18 @@ test('T-176: a live lock owner is rejected with the owner pid and lock path', as
   assert.ok(result.output.includes(await realpath(file)), '拒绝必须明确列出锁路径');
   assert.doesNotMatch(result.output, /证据目录：|接管.*残留锁/);
   assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), owner, '不能改写活跃持有者的锁');
+});
+
+test('T-176: nested entry reaches the lock assertion despite a busy host observation', async t => {
+  const cwd = await fixture(); t.diagnostic(`嵌套入口高负载对照：${cwd}`);
+  await writeFile(path.join(cwd, 'busy-host.cjs'), loadFixture([9, 8, 7], 'System-wide memory free percentage: 20%'));
+  const owner = { pid: process.pid, startedAt: new Date().toISOString() };
+  const file = await writeLock(cwd, JSON.stringify(owner));
+  const result = await start(cwd, 'pass.test.ts', cwd, 'busy-host.cjs').completed;
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /已有测试入口.*拒绝启动/, '嵌套入口必须执行锁断言，不能被宿主机负载提前挡住');
+  assert.doesNotMatch(result.output, /开跑负载检查拒绝/);
+  assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), owner);
 });
 
 test('T-176: EPERM from the owner probe refuses without reclaiming the lock', async t => {
