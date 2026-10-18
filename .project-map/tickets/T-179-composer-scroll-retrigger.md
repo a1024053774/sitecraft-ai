@@ -42,14 +42,33 @@ T-162 首次预览先核对保留 dev.log 的对应路由编译耗时与浏览�
 
 本次是此基础设施链的最后一步：相关定向、runner、typecheck 后，在同一预算候选提交上以浏览器池并发 2 连续完整跑两轮全量，再 build；以最新派单的两轮为准，不额外加此前的校准后两轮。每项前 memory_pressure 与 ps，低于 25% 停；每轮自然跑完，出现非本次引入的新基础设施问题后停报，不继续扩展 T-179。测试基础设施与预算调整分开新建提交，不 amend；独立 fast 审查由主控另派。
 
+## 2026-10-18 主控最新决定：A，仅加入口开跑负载检查
+
+产品代码与预算到此冻结，不继续扩展基础设施。仅在 scripts/run-tests.ts 开跑前检查：os.loadavg() 的 1 分钟和 5 分钟值均严格低于 5；macOS memory_pressure 的 System-wide memory free percentage 不低于 30%。任何越限或读取／解析失败都立即非零拒绝，打印已取得的当前值及门槛，不等待、不重试，不提供跳过环境变量或参数；通过时记录到本轮报告。回归仅在测试子进程的系统 API 边界注入观测，不给正常入口增加可选择的检查替身。
+
+新回归先在当前提交 80c7672 上失败，再验证高负载拒绝、门槛内放行和读取失败拒绝；原有真实入口回归也必须明确处理高负载宿主机。本轮只跑 runner 回归和 typecheck，均先过同一负载检查（回归使用系统 API 注入）；不跑全量、build 或 Chrome 浏览器测试。入口单独新建提交，不 amend；完成后停在 idle，全量验收及独立 fast 审查由主控在机器空闲后安排。
+
 ## Acceptance
 
+- [x] 最新入口负载门禁：先在 80c7672 红灯，严格门槛、读取失败拒绝、开跑报告与 runner 回归通过；本轮 typecheck 被真实门禁拒绝，未运行
 - [x] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
 - [ ] A′ 基础设施前置：明确终态、共用生产预算与实测余量、预览原因证据、并发 2 校准及同提交验收通过
 - [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过（先前定向通过；最新全量 T-175 1440/768 失败，当前不能勾选）
 - [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
+
+**最新入口负载门禁：INCOMPLETE（2026-10-18，入口及 runner 完成，typecheck 因真实负载拒绝未启动；全量验收留给主控）**。已将既有 300ms 候选和该轮两项失败独立保存为 `80c7672`；本次入口提交不再改产品或预算。门禁位于工作树身份核对之后、清理／取得锁／创建本轮目录／启动服务之前，直接读取 `os.loadavg()` 与 `memory_pressure`；1 分钟及 5 分钟 load 必须均 **< 5**，内存空闲必须 **>= 30%**。读取异常、命令不可用、输出无法唯一解析或数值无效一律拒绝，输出当前可取得的数值、门槛与原因并非零退出，不等待、不重试。通过值连同采样时间、门槛保存到本轮 `report.json.startupLoad`。入口不读取任何跳过检查的环境变量／参数，导出的共用检查函数也不接受替身参数。
+
+成对回归通过真实入口及系统 API 边界验证，预期独立来自本次门槛需求。`node --test --experimental-strip-types '--test-name-pattern=T-179 load gate:' scripts/t167-runner-regressions.ts` 在 **80c7672** 原入口上先 **6/6 失败**（UTC **12:33:56–12:33:58**）：1 分钟等于 5、5 分钟等于 5、内存 29%、memory_pressure 不可用及输出异常均被旧入口错误放行，门槛内场景缺少开跑数值报告。[父提交红灯日志](../../artifacts/t179/load-gate-parent-red.log)。修后同一六场景通过，4.99／4.99／30% 放行并保存实际值；拒绝场景还检查没有启动服务、建立运行目录或取得锁。
+
+完整命令 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 首次 **12/12** 通过（UTC **12:34:30–12:34:45**）；收尾补足入口文件符号链接的真实路径判断与环境类型注解后，同一命令最终 **12/12** 通过（UTC **12:35:37–12:35:52**，14.874 秒，0 跳过／取消）。两次均为 `80c7672` 加本次入口工作树代码，属于提交前验证；[首轮日志](../../artifacts/t179/load-gate-runner-green.log)、[最终日志](../../artifacts/t179/load-gate-runner-final.log)。没有在读取失败后重试系统门禁。
+
+回归在高负载宿主机的行为是明确的：回归开始先在测试子进程中调用同一个 `checkStartupLoad()`，只在 Node 系统 API 边界注入 1.25／2.5／30% 以通过前置检查；原有真实 `npm test` 子进程通过临时 `--require` 测试代码注入同样数值，使原有上下文、零用例、普通 dev 共存、启动失败、分池与统计断言仍可执行。高负载／低内存／读取失败另用真实入口子进程逐项验证拒绝。替身只由回归生成的临时 CJS 文件执行并同步 Node 内建模块绑定，正常 `npm test` 没有该文件加载步骤，没有新增生产开关、测试环境判定分支或可选 reader。此处的系统模拟只证明门禁判断与入口流程，不冒充宿主机当时处于低负载。[各场景值、时间、命令及已复制到本票的原有入口报告](../../artifacts/t179/load-gate-evidence/index.json)。
+
+随后 UTC **12:35:03.398–12:35:03.639**，typecheck 的前置命令直接导入入口的 `checkStartupLoad()`，通过才 spawn `npm run typecheck`；本次真实结果为 **1 分钟 load=9.0595703125、5 分钟 load=13.3203125、内存空闲=41%**，两项 load 均越限，检查退出 **1**，**typecheck 没有启动**。没有等待或重试，也没有改为注入后运行 typecheck。[拒绝日志](../../artifacts/t179/load-gate-typecheck/command.log)、[准确命令、时间、退出码及未启动记录](../../artifacts/t179/load-gate-typecheck/result.json)、[ps](../../artifacts/t179/load-gate-typecheck/ps.txt)。不能将先前提交的 typecheck 结果算成本次通过。
+
+AGENTS 验收标准命令、spec 和 README 的同处规则已同步；project-map 检查为 0 problems、0 stale living docs。按最新主控决定，**未跑全量、未跑 build、未启动 Chrome 浏览器测试**，没有继续修先前的产品／预算失败；入口单独新建提交后停在 idle。票仍 open，整体不报 PASS；主控另安排机器空闲后的全量与新 fast 独立审查。Next 自动改动 `tsconfig.json` 原样保留且不提交，未推送。
 
 **A′ 基础设施候选与 300ms 调整：INCOMPLETE（2026-10-18，预算边界通过，相关定向自然结束后仍有两项失败）**。A′ 没有实现新增 Infinity 过滤，也不按动画名称判断任务完成。共用生产预算从原实现提取至 `lib/code-site-check-budget.ts`，生产提交入口、直接探针与测试引用同一定义；A′ 提取时数值不变，随后仅在此处执行负责人授权的系数调整。测试终态等待直接使用生产三档总预算加实测固定余量，初始预览沿用同一推导；`evaluate` 可接受此等待的 RPC 传输期限，生产调用默认 30 秒不变，DOM／任务自己的截止时间不延长、不重试。
 

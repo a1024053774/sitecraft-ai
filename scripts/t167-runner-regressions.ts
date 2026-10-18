@@ -11,8 +11,97 @@ import test from 'node:test';
 // Run separately from the full suite: these cases own the real npm test entry
 // and its dev server. They cannot share the full suite's live Next dev lock.
 const project = fileURLToPath(new URL('../', import.meta.url));
+// Test-only OS boundary fixture. The entry has no skip flag or injected reader.
+// --require executes this fixture as test code; normal npm test never loads it.
+function loadFixture(load: number[], memory: string | { error: string }) {
+  return `{
+    const cp=require('node:child_process'),original=cp.execFile;
+    require('node:os').loadavg=()=>${JSON.stringify(load)};
+    cp.execFile=function(command,args,options,callback){
+      if(command!=='memory_pressure')return original.apply(this,arguments);
+      const result=${JSON.stringify(memory)};
+      setImmediate(()=>typeof result==='string'?callback(null,result,''):callback(new Error(result.error),'',''));
+      return {pid:0};
+    };
+    require('node:module').syncBuiltinESMExports();
+  }`;
+}
+const withinLoad = [1.25, 2.5, 3];
+const withinMemory = 'System-wide memory free percentage: 30%\n';
+
+// The regression suite itself uses the same entry preflight before any case.
+// It is deliberately deterministic on a busy host, through test-only OS mocks.
+const preflightRoot = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-runner-load-'));
+const preflightFixture = path.join(preflightRoot, 'os-fixture.cjs');
+await writeFile(preflightFixture, loadFixture(withinLoad, withinMemory));
+const preflight = spawn(process.execPath, ['--require', preflightFixture, '--experimental-strip-types', '--input-type=module', '-e',
+  `const {checkStartupLoad}=await import(${JSON.stringify(new URL('./run-tests.ts', import.meta.url).href)});await checkStartupLoad();`],
+  { cwd: project, stdio: 'inherit' });
+const [preflightCode] = await once(preflight, 'exit');
+assert.equal(preflightCode, 0, 'runner 必须先通过同一开跑负载检查（测试 OS 注入）');
+
+for (const scenario of [
+  { name: 'one-minute limit', load: [5, 1, 0], memory: 'System-wide memory free percentage: 40%', allowed: false },
+  { name: 'five-minute limit', load: [1, 5, 0], memory: 'System-wide memory free percentage: 40%', allowed: false },
+  { name: 'memory below limit', load: withinLoad, memory: 'System-wide memory free percentage: 29%', allowed: false },
+  { name: 'inside limits including memory boundary', load: [4.99, 4.99, 0], memory: withinMemory, allowed: true },
+  { name: 'memory command unavailable', load: withinLoad, memory: { error: 'spawn memory_pressure ENOENT' }, allowed: false },
+  { name: 'memory output malformed', load: withinLoad, memory: 'memory value unavailable', allowed: false },
+]) test(`T-179 load gate: ${scenario.name}`, { timeout: 15000 }, async t => {
+  const cwd = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-load-'));
+  for (const directory of ['node_modules/next/dist/bin', 'scripts', 'tests'])
+    await mkdir(path.join(cwd, directory), { recursive: true });
+  await symlink(path.join(project, 'node_modules/typescript'), path.join(cwd, 'node_modules/typescript'));
+  for (const name of ['run-tests.ts', 'test-identity.ts', 'local-endpoint.ts', 'test-summary-reporter.mjs'])
+    await copyFile(path.join(project, 'scripts', name), path.join(cwd, 'scripts', name));
+  await writeFile(path.join(cwd, 'load-fixture.cjs'), loadFixture(scenario.load, scenario.memory));
+  await writeFile(path.join(cwd, 'node_modules/next/dist/bin/next'), `
+    require('node:fs').writeFileSync('server-started','yes');
+    const server=require('node:http').createServer((req,res)=>{
+      res.setHeader('content-type','application/json');
+      res.end(JSON.stringify({testIdentity:{cwd:process.cwd(),dataRoot:process.env.SITECRAFT_DATA_ROOT}}));
+    });
+    server.listen(0,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:'+server.address().port+'\\nReady in fixture'));
+    process.on('SIGTERM',()=>server.close());
+  `);
+  await writeFile(path.join(cwd, 'tests/plain.test.ts'), "import test from 'node:test';test('gate permits execution',()=>{});\n");
+  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: cwd }; delete env.NODE_TEST_CONTEXT;
+  const child = spawn(process.execPath, ['--require', './load-fixture.cjs', '--experimental-strip-types', 'scripts/run-tests.ts'], {
+    cwd, env, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const closed = once(child, 'close'); let output = '';
+  child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
+  const [code] = await closed;
+  const directory = output.match(/证据目录：([^\n]+)/)?.[1];
+  const report = directory ? JSON.parse(await readFile(path.join(directory, 'report.json'), 'utf8')) : undefined;
+  const out = path.join(project, 'artifacts/t179', `load-gate-${crypto.randomUUID()}`);
+  await mkdir(out, { recursive: true });
+  await writeFile(path.join(out, 'output.log'), output);
+  await writeFile(path.join(out, 'observation.json'), JSON.stringify({ at: new Date().toISOString(), cwd, scenario, code, report }, null, 2)+'\n');
+  t.diagnostic(`负载门禁证据：${out}`);
+  if (scenario.allowed) {
+    assert.equal(code, 0, output);
+    assert.equal(report.executed, 1);
+    assert.equal(report.startupLoad?.load1, 4.99, '通过时必须保存开跑的 1 分钟 load');
+    assert.equal(report.startupLoad?.load5, 4.99);
+    assert.equal(report.startupLoad?.memoryFreePercent, 30, '30% 边界应放行并记录');
+  } else {
+    assert.notEqual(code, 0, '越限或无法读取时必须非零拒绝');
+    assert.equal(existsSync(path.join(cwd, 'server-started')), false, '拒绝时不能启动测试服务');
+    assert.equal(existsSync(path.join(cwd, 'artifacts/t167')), false, '拒绝时不能清理、取得锁或建立本轮目录');
+    assert.match(output, /开跑负载检查拒绝/);
+  }
+  assert.ok(output.includes(`1分钟 load=${scenario.load[0]}`), output);
+  assert.ok(output.includes(`5分钟 load=${scenario.load[1]}`), output);
+  assert.match(output, /1分钟、5分钟 load 均 < 5；内存空闲 >= 30%/);
+  if (typeof scenario.memory === 'object') assert.match(output, /ENOENT/);
+  else if (scenario.name === 'memory output malformed') assert.match(output, /解析/);
+  else assert.ok(output.includes(`内存空闲=${scenario.memory.match(/(\d+)%/)![1]}%`), output);
+});
+
 async function run(args: string[], context: string | undefined) {
-  const env: NodeJS.ProcessEnv = { ...process.env, DEEPSEEK_API_KEY: '', AI_API_KEY: '' };
+  const env: NodeJS.ProcessEnv = { ...process.env, DEEPSEEK_API_KEY: '', AI_API_KEY: '',
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --require=${JSON.stringify(preflightFixture)}`.trim() };
   if (context === undefined) delete env.NODE_TEST_CONTEXT; else env.NODE_TEST_CONTEXT = context;
   const child = spawn('npm', ['test', '--', ...args], { cwd: project, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const completed = once(child, 'exit'); let output = '';
@@ -130,6 +219,7 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
       process.on('SIGTERM',()=>server.close());
     `, 'utf8');
     await writeFile(path.join(cwd, 'capture.cjs'), `
+      ${loadFixture(withinLoad, withinMemory)}
       const fs=require('node:fs'),cp=require('node:child_process'),spawn=cp.spawn;
       cp.spawn=function(command,args,options){
         if(args.includes('--test'))fs.appendFileSync('spawns.ndjson',JSON.stringify({command,args})+'\\n');
@@ -221,6 +311,7 @@ test('T-179: unexpected Chrome is attributed to its non-browser file and only wa
     process.on('SIGTERM',()=>server.close());
   `);
   await writeFile(path.join(cwd, 'process-fixture.cjs'), `
+    ${loadFixture(withinLoad, withinMemory)}
     const fs=require('node:fs'),cp=require('node:child_process'),spawn=cp.spawn,execFile=cp.execFile;
     let phase;
     cp.spawn=function(command,args,options){const child=spawn.call(this,command,args,options);if(args.includes('--test'))phase=child;return child;};
