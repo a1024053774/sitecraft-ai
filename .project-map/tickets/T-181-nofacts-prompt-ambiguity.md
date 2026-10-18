@@ -28,7 +28,7 @@ T-180（2026-10-18）真实整轮 20 个站 0 成功，全部停在整站生成�
 
 ## Resolution
 
-INCOMPLETE，票保持 open，正式审查由构思主控派新的 fast 实例。工作树基于 `9ed936419085e3c7ef13a363f1f3a03c0b4b4960`，分支 `t181-nofacts-prompt`，首次实现为 `9478c1a7f4d3f767641397a0ed8a1f3414c37f31`。负责人 2026-10-18 选 A 后，在精确的 `9478c1a` 上补跑全量及 build，通过；新账本两站探针有 1 站成功，并用保存的原文定位到 claim 复制歧义。当前增加复制文本及提示，严格协议与校验不变；修订候选的完整验证尚在执行。不修改网关脚本、不扩预算，不自行开审查实例。
+本次授权执行项 PASS；T-181 保持 open，仅待构思主控派新的 fast 实例完成正式审查。工作树基于 `9ed936419085e3c7ef13a363f1f3a03c0b4b4960`，分支 `t181-nofacts-prompt`；原实现 `9478c1a`、claim 复制修复 `2148748`，最终测试候选 **`b31c9bc275f8cbd49cc3821ed099b70d99d0cd58`**。负责人 2026-10-18 选 A 后，先在精确的 `9478c1a` 上补全量和 build，再用新账本取得真实回复并修复复制歧义。最终候选两轮全量各 845/845、build 通过，修复后两站均成功存版。协议、校验、动态预算、网关脚本和 500000 上限均未放宽；本轮未自行开审查实例。新账本累计 **412921 token** 全部已知，旧账本那次写页调用用量仍未知。
 
 2026-10-18 16:55 UTC 的父版本离线检查：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t181-fact-replies.test.ts`，6 项全部预期失败，证据 `artifacts/t167/test-run-1792342517001-54548/` 与 `artifacts/t181/parent-red-v3.log`。失败分别指向旧提示、缺失原始回复和失败段映射；更早的测试夹具缺 conversation 初始化，已修正并保留最初失败，不计为缺陷红灯。离线模型替身只证明提示合同、解析和落盘，不能证明真实模型理解。
 
@@ -52,9 +52,9 @@ INCOMPLETE，票保持 open，正式审查由构思主控派新的 fast 实例�
 
 负责人指定的新增全量开跑前已确认无其他 Chrome 测试；现有 9300 普通浏览器服务保持原样。全程每秒采样 load，记录为 `choice-a-20261018/full3-load.ndjson`。该 T-164 用例本轮通过（整个用例 1736.022 ms），同样源 1、候选 5 次，每档预算仍为 5000 ms，375/768/1440 动态检查实际 **460.714 / 114.000 / 102.737 ms**；相邻 load1 **46.6577**，见 `full3-t164-state.json`。因此不能仅由 load 数值断言上轮根因；没有改变动态预算、并发或断言。新增全量前入口回归 18/18 通过，随后 `npm run build` 在 17:41:35 UTC exit=0，源码均为精确的 `9478c1a`，命令、退出码在 `choice-a-20261018/`。
 
-**独立审查。** 独立 `gpt-6.1-sol / xhigh` 实例对冻结提交 `9478c1a` 给出 INCOMPLETE，原文 `artifacts/t181/independent-fast-review.txt`。未发现可证实的候选代码缺陷；独立随机映射、普通地址错误、整站/局部严格拒收和 Unicode 转义凭据检查通过。但替身分类与提示文字断言不能证明真实模型理解已经修复，且真实探针未到事实核对、未存版，不能给完整验收 PASS；该审查发生在第二轮全量结束前，未将第二轮或 build 算作已审通过。默认角色模型不符时取消的早期实例没有被采用结论；没有对同一候选追加复审。
+**正式审查待主控。** 上轮独立 `gpt-6.1-sol / xhigh` 实例对 `9478c1a` 的 INCOMPLETE 报告保留在 `artifacts/t181/independent-fast-review.txt`，不覆盖后续修订。负责人选 A 后明确由主控派新的 fast 实例，执行者本轮没有开新审查或盲评实例，也不宣布审美通过，因此第二项验收仍未勾选。
 
-Tracer bullet 已经由生产 chat 的生成入口、提交检查、任务保存贯通普通 dev 的 draft HTTP 读回；仅替换模型与 after 调度，真实 Next after 由下述真实探针验证。Deep modules：复用 T-174 的整段凭据检查到事实回复，不另建日志存储或旁路提交。Ubiquitous language：noFacts 仅指没有七类高风险声明，普通企业事实仍按资料核对并可返回 issues。
+Tracer bullet 已经由生产 chat 的生成入口、提交检查、任务保存贯通普通 dev 的 draft HTTP 读回；离线仅替换模型与 after 调度，随后真实探针经过实际 Next after 并存版。Deep modules：复用 T-174 的整段凭据检查到事实回复，不另建日志存储或旁路提交。Ubiquitous language：noFacts 仅指没有七类高风险声明，普通企业事实仍按资料核对并可返回 issues。
 
 T-180 只读现场结论：17 次 false/空类别与旧提示歧义一致，因没有回复原文，尚不能逐段证实；两次“格式或编号无效”还可能来自 schema 无效，不能断言具体是遗漏、重复还是越界（round1 case-5，round2 case-3，finishReason 均 stop）。round1 case-14 只留下越段声明“不承接印刷生产、包装成品采购、商标检索与注册、法律审查”，未留下其所属编号与待核段，不能把本次复制歧义直接断言为那次的根因。本次两站共 137 个段落编号均完整且唯一，编号遗漏、重复、越界 **未复现**，留到 T-180 重跑时再看；未为它猜测或放宽校验。
 
@@ -70,4 +70,19 @@ molding/precision 的规划调用 HTTP 200、finishReason=tool_calls，实际 **
 
 修订 `2148748` 在既有输入增加 `claimTexts`：用相同 NFKC、空白和结构标记规则生成可复制文本，按 TR 拆开；保留原 text 的结构理解，不扩大可引用范围。提示只允许从当前编号的一条复制文本逐字取连续子串，不拼接、不补标点、不回传辅助字段。输出 schema、类别、编号、claim 与 quote 的全部原校验不变。新测试先在功能代码等同 `9478c1a` 的父版本运行，9 项中 3 项预期失败、6 项严格拒收对照通过，证据 `claim-copy-parent-red-final.log`；随后相关 36/36 与 typecheck 通过，证据 `claim-copy-related.log`、`typecheck-fixed.log`。首轮改后检查有两项测试期望误保留全角逗号，已按既有 NFKC 合同将独立常量写为半角；最初失败保留在 `claim-copy-green.log`，未放宽断言或改变规范化规则。
 
-`2148748` 首轮完整全量自然跑完，845 项、2 失败，证据 `fixed-full1.log`、`fixed-full1-report.json`。T-164 未超时。两项均为请求表示适配：T-138 原断言数整包 JSON，新增复制文本后是 4 次，但实际待核段仍为首页和共享页脚各 1 次、合计 2，流程正常两轮修正并存版；现改为统计 segments.text，期望仍严格为 2。T-158 的精确输入快照增加新字段，其他期望不变。独占工作树串行反例检查：把去重键故意加 pageId，让共享页脚按页重复发送，T-138 在同一断言以 **3≠2** 失败；去掉 claimTexts，T-158 以缺少该字段失败。两项临时改动逐项立即恢复，原始生产代码没有追加修改，日志和命令说明在 `counterfactual-duplicate-footer.*`、`counterfactual-missing-copy-text.*`。随后 `npm test -- tests/t138-token-repair.test.ts tests/t158-general-prompts.test.ts tests/t181-claim-copy.test.ts tests/t181-fact-replies.test.ts tests/t169-production-contract.test.ts tests/t169-fact-citations.test.ts` 41/41 通过，typecheck 通过（`final-related.log`、`final-typecheck.log`）。最终测试候选的完整全量、build 及实际模型验证继续进行，仍使用同一本 500000 账本，不增加授权。
+`2148748` 首轮完整全量自然跑完，845 项、2 失败，证据 `fixed-full1.log`、`fixed-full1-report.json`。T-164 未超时。两项均为请求表示适配：T-138 原断言数整包 JSON，新增复制文本后是 4 次，但实际待核段仍为首页和共享页脚各 1 次、合计 2，流程正常两轮修正并存版；现改为统计 segments.text，期望仍严格为 2。T-158 的精确输入快照增加新字段，其他期望不变。独占工作树串行反例检查：把去重键故意加 pageId，让共享页脚按页重复发送，T-138 在同一断言以 **3≠2** 失败；去掉 claimTexts，T-158 以缺少该字段失败。两项临时改动逐项立即恢复，原始生产代码没有追加修改，日志和命令说明在 `counterfactual-duplicate-footer.*`、`counterfactual-missing-copy-text.*`。随后 `npm test -- tests/t138-token-repair.test.ts tests/t158-general-prompts.test.ts tests/t181-claim-copy.test.ts tests/t181-fact-replies.test.ts tests/t169-production-contract.test.ts tests/t169-fact-citations.test.ts` 41/41 通过，typecheck 通过（`final-related.log`、`final-typecheck.log`）。
+
+**最终候选验证，均为 `b31c9bc`。** 入口回归再次 18/18 通过（`final-runner-regressions.log`）；开跑前逐轮确认没有其他 Chrome 测试，以默认并发 2 自然跑完两轮 `CHROME_PATH=上述路径 npm test`：18:23:03 UTC **845/845**，18:36:08 UTC **845/845**。两轮的命令、起止时间、退出码、原生汇总、逐秒 load 均在 `choice-a-20261018/final-full{1,2}*`。T-164 关键用例分别 1875.276 / 1180.204 ms，均未超时。随后 `npm run build` 于 18:36:47 UTC exit=0，见 `final-build-command.json`、`final-build.log`、`final-build-exit.json`。未改动态预算、断言通过条件或分池并发，没有跳过失败或隐藏先前红灯。
+
+**修复后真实验证。** 在上述检查后，以相同两组合和默认 5/6 滑杆运行 `npm run eval:new-route -- --only molding/precision,design/editorial --out artifacts/t181/choice-a-20261018/real-probe-fixed`。网关用 `--resume` 恢复选 A 的同一本账本，从 191219 token 接着记账；high 仅是新的账本轮次标识，未改风格、滑杆、资料或预算。应用和评估器均显式设置 SITECRAFT_TOKEN_LIMIT=500000 与固定 CHROME_PATH，应用仅持占位 token，实际命令见 `commands-fixed.sh`。旧账本未触碰，仍是一笔写页用量未知，不合入新账本的已知数。
+
+| 组合 | 站点 / 版本 | 结果 | 本次实际 token |
+| --- | --- | --- | ---: |
+| molding/precision | `a7c7565a-0676-4f32-9d82-99885d271a1f` / `a9cc299a-c35a-4260-ac78-1f47871a806d` | 四页、12 档检查通过，27 条完整出处；一项无依据的“共用产线排产”普通事实按既有局部修正流程修好，79 段后只重核 1 段、沿用 78 段，再存版 | 126931 |
+| design/editorial | `ebf063e1-d8ea-4a0e-9e14-fc018e898199` / `5ed2664f-fa25-4433-b2a1-a3df36c499f1` | 三页、九档检查通过，16 条完整出处，首轮存版 | 94771 |
+
+修复后新增 **221702 token**，与修复前 191219 合计 **412921 / 500000**；14 次上游调用均 HTTP 200、用量全部已知、未知 0，没有连接中断。详见 `completion-fixed.json`、唯一账本 `artifacts/t174/t181-fact-probe-choice-a-20261018/usage.json`。三个事实回复共 111 段次（79+1+31）均保存原文、finish_reason、用量、编号及实际 claimTexts；逐一核对编号无遗漏、重复或越界，false/空类别为 0，claim 均属于当前段且命中当前编号的一条复制文本。所有 43 条出处均命中对应版本来源快照并有定位目标，见 `raw-fact-analysis-fixed.json`。本次编号问题仍 **未复现**，留到 T-180 重跑；原文复现的复制歧义已在输入与提示层修复，严格校验保持。
+
+两站 23 张三档及首页首屏截图全部打开确认非空，清单 `viewed-screenshots.json`；没有自行判定审美通过。标准评估器的两站 outcome 均 generated，但进程 **exit=1、round=INCOMPLETE**：两组合选择产生 4 份真实官网对照，而 `scripts/eval-set-report.ts:210` 的审包规则要求对照数恰等于 2 个 case。`private/blind-coverage.json` 如实保留该数量约束失败，未请求跨轮比较；不是生成或底线检查失败，也不把该审包当作可审。本票不修改评估器或对照数量来绕过。
+
+实际 draft HTTP 再读回两站 currentVersionId、终态和出处，确认网关 in-flight=0、未知用量 0 后，保存 `terminal-fixed-before-stop.json`，才手动 SIGTERM 网关 PID 84642 和 dev PID 84853。`shutdown-fixed.json` 确认 52313/52314 均 ECONNREFUSED。主目录 3034、主目录 `.sitecraft-data`、T-180 现场和旧账本均未修改。所有源码与记录只在本地提交，不推送；留待主控正式审查，执行者停在 idle。
