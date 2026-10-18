@@ -7,7 +7,7 @@ import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
 import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
-import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
+import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, prepareOutsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
 import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
@@ -502,6 +502,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const generatedText = new Set<string>();
     const factSegments = new Map<string, CodeFactSegment>();
     for (const page of clean.code.pages) {
+      let remainingDynamicMs = 60000;
       for (const width of [375, 768, 1440]) {
         const viewportStarted = performance.now();
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -511,7 +512,16 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         if (edit && pageIsEdited) {
           const dynamicStarted = performance.now();
           const wallStartedAt = Date.now();
-          const deadlineAt = Date.now() + (args.dynamicStateBudgetMs ?? 5000);
+          const preparationDeadlineAt = wallStartedAt + Math.min(remainingDynamicMs, args.dynamicStateBudgetMs ?? Infinity);
+          let budget: NonNullable<CodeCheck['viewports'][number]['dynamicState']>['budget'];
+          const plan = (sourceReads: number, candidateReads: number) => {
+            const fullReads = sourceReads + candidateReads, calculatedMs = Math.max(5000, 1000 + 150 * fullReads);
+            budget = { sourceReads, candidateReads, fullReads, calculatedMs,
+              allowedMs: Math.min(calculatedMs, remainingDynamicMs, args.dynamicStateBudgetMs ?? Infinity), pageRemainingMs: remainingDynamicMs };
+            recordCheckDiagnostic({ kind: 'dynamic-plan', siteId: args.siteId, pageId: page.id, width, recordedAt: Date.now(), budget });
+            return wallStartedAt + budget.allowedMs;
+          };
+          let deadlineAt = preparationDeadlineAt;
           const scope = 'targets' in edit ? { paths: edit.targets.filter(target => target.pageId === page.id).map(target => target.path) }
             : page.id === edit.pageId ? { paths: [[]] } : undefined;
           let probeStates = false;
@@ -529,13 +539,16 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
               if (!dynamicBrowser) dynamicBrowser = await codeCheckBrowser();
               await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
               const dynamicFrame = await dynamicBrowser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
-              evidence.push(...await Promise.all([
-                outsideCssApplications(browser, frameTree.frame.id, documents[0], scope, deadlineAt, probeOptions('source')),
-                outsideCssApplications(dynamicBrowser, dynamicFrame.frameTree.frame.id, documents[1], scope, deadlineAt, probeOptions('candidate')),
-              ]));
+              const prepared = await Promise.all([
+                prepareOutsideCssApplications(browser, frameTree.frame.id, documents[0], scope, preparationDeadlineAt, probeOptions('source')),
+                prepareOutsideCssApplications(dynamicBrowser, dynamicFrame.frameTree.frame.id, documents[1], scope, preparationDeadlineAt, probeOptions('candidate')),
+              ]);
+              deadlineAt = plan(prepared[0].fullReads, prepared[1].fullReads);
+              evidence.push(...await Promise.all(prepared.map(probe => probe.read(deadlineAt))));
             } else {
               // Absence of author state rules removes only state probing. Static
               // DOM-triggered selector changes still cross the same full reader.
+              deadlineAt = plan(1, 1);
               evidence.push(await outsideCssApplications(browser, frameTree.frame.id, documents[0], scope, deadlineAt, probeOptions('source')));
               evidence.push(await outsideCssApplications(browser, frameTree.frame.id, documents[1], scope, deadlineAt, probeOptions('candidate')));
             }
@@ -550,11 +563,13 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             compareMs = performance.now() - compareStarted;
             const metrics = (probe: DynamicStateProbe) => ({ interactiveElements: probe.interactiveElements, forceCalls: probe.forceCalls,
               statesChecked: probe.statesChecked, durationMs: probe.durationMs, cdpRoundTrips: probe.cdpRoundTrips, stageMs: probe.stageMs });
-            dynamicState = { mode: probeStates ? 'states' : 'static', classificationMs, compareMs, durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
+            dynamicState = { mode: probeStates ? 'states' : 'static', budget, classificationMs, compareMs, durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
             completed = true;
           } finally {
+            const endedAt = Date.now();
+            remainingDynamicMs = Math.max(0, remainingDynamicMs - Math.max(0, endedAt - wallStartedAt));
             recordCheckDiagnostic({ kind: 'dynamic-check', siteId: args.siteId, pageId: page.id, width, mode: probeStates ? 'states' : 'static',
-              startedAt: wallStartedAt, endedAt: Date.now(), durationMs: performance.now() - dynamicStarted, classificationMs, compareMs, completed });
+              startedAt: wallStartedAt, endedAt, durationMs: performance.now() - dynamicStarted, classificationMs, compareMs, budget, completed });
           }
         }
         const languageLinks = { zh: `/published/${args.siteId}?page=${page.id}`, en: `/published/${args.siteId}/en?page=${page.id}` };

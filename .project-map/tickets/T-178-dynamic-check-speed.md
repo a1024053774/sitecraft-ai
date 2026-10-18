@@ -4,13 +4,13 @@ title: 加快局部修改动态状态检查（不改检查语义）
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Codex
 supersedes:
 ---
 
 ## Why
 
-T-175（2026-10-17）在禾巷小馆 v2 首页（10 个可交互元素）实测：动态状态检查空闲时每档已用 2.6–3.6 秒，占每档 5 秒上限的 50–70%，主要耗时在完整计算样式读取。检查在服务端提交入口的 Chrome 里运行，服务端负载升高时正常批注会被判超时拒收，直接伤到主流程「修改」。构思主控决定先优化速度，上限暂不调。
+T-175 的正常局部修改在动态检查固定截止时间处被拒收，完整样式取值是主要成本。单次读取、变化节点跟踪与每侧并行试验均无可保留的稳定收益，负责人最终决定保留原完整检查，按实际完整读取次数分配时间并限制三档总耗时，使预算与本次检查工作量对应。
 
 ## 构思主控决定（2026-10-17）
 
@@ -19,15 +19,180 @@ T-175 先暂停，这张票提前做，用新的 sol 实例执行。依据是 T-
 - 并发 2、4、6 也都有失败。
 所以光限制测试并发不能稳定通过，要在检查本身提速。验收另加一条有负载的要求，见下方 Acceptance。
 
+构思主控进一步决定（2026-10-17）：先不引入并行方案，先定位实现根因。负责人观察当前 load 约 2.6、内存空闲 61%，无温控或低电量记录，空闲检查仍约 5.3 秒，据此判断慢在实现。先在同一 Chrome、同一禾巷小馆 v2 首页做单次 Runtime.evaluate 的完整属性读取基准，至少五次并拆分读取、JSON 序列化、CDP 传输与 Node 解析；再对现有一次完整检查同时录 Chrome CPU／Tracing 与 Node --cpu-prof，列出热点及占比。基准远低于一秒时采用同语义读取方式，并重跑 131 次对照、完整属性用例与三档五次分布；若剖析证明主要成本为样式重算，停止并报告，再由主控考虑并行。生产五秒上限不改，DeepSeek、全量与 build 均不运行。
+
+构思主控新方向（2026-10-17，取代继续优化单次读取）：单次完整读取约 85ms，但每档每侧约 41 次、两侧约 82 次，故改为减少完整读取次数。先在指定 headless shell 154 上验证 `CSS.trackComputedStyleUpdates`／`CSS.takeComputedStyleUpdates` 的实际可用性、完整属性列表及上限、CSS 域 enable 要求、强制状态到更新可取的时机与漏报风险。准入后跟踪全部计算属性，只重读确实变化节点，其余沿用基线；五类伪元素分别验证，不能覆盖的伪元素继续每态完整读取。API 不可用或元素跟踪覆盖不全即停止报告，不另找替代路径。通过准入才实现并沿用 131 次对照、故意漏读用例，另加故意遗漏变化节点的反例，再测三档各五次空闲分布；全量、负载轮与 build 仍须负责人放行，DeepSeek 和生产上限均不动。负责人另指出本轮窗格的 fast／priority 不是项目设置，稍后由其切回 default，本票不改项目配置。
+
+构思主控批准 A（2026-10-17，取代跟踪方案）：完整读取次数与内容均不变，并行强制状态与读取。每路使用 `Target.createBrowserContext` 独立上下文，先以 Target 信息或 renderer 进程证明隔离。路数按每侧分别计算：2／3／4 路对应源与候选合计 4／6／8 个 renderer，不能按整次合计。三视口每种各五次，同时记录一次提交检查的 Chrome 进程组 RSS 峰值相对串行的增量；负责人进一步明确，峰值增量达到 300 MiB 就停在该档，不再增加路数，带数据报告。等价性沿用 131 次结论／拒因对照、完整属性与故意漏读反例，并证明各路初始快照与串行基线逐项一致、焦点与 hover 不互扰、任一路失败或超时整次拒收。所有页面与上下文在正常、失败、超时均须关闭；五秒／十五秒及超时拒收不变。先完成空闲选择，再回报 READY_FOR_HEAVY 等负责人放行负载全量；负载三档不能稳定低于五秒即停报。DeepSeek 不调用，全量和 build 均须放行。
+
+负责人最终决定（2026-10-17，由构思主控转达，取代 A 及固定上限）：动态检查按完整读取次数给预算。每档上限为 1000ms＋150ms×实际完整读取次数，次数是源、候选两侧各自「一次基线＋可聚焦元素数×四态」之和；须在任何完整读取之前按本次实际元素算好并记录，读取中不追加。三档动态检查总耗时封顶 60000ms，超时、无法聚焦、无法强制状态仍明确拒收。禾巷小馆两侧各 41 次，共 82 次，每档 13300ms。撤掉全部独立 BrowserContext、浏览器级连接、分片并行及无稳定提速的批量读取试验，生产只保留预算改动；测量工具、夹具、完整属性等价用例与失败证据可保留。先在父版本取得新成对测试红灯，再实现并跑定向、runner 回归、typecheck；回报 READY_FOR_HEAVY 后等负责人放行全量、同时一轮全量的负载五次分布及 build。负载三档都须通过，审查由负责人另派新的 sol 实例，不调用 DeepSeek。在 421a148 之后新建提交，不 amend。
+
+构思主控修正（2026-10-17，取代上述无下限公式）：每档上限改为 `max(5000ms, 1000ms + 150ms × 实际完整读取次数)`，三档合计仍封顶 60000ms。负责人的本意是给按钮多的页面更多时间，不收紧小页面；上一公式的 1000ms 基础项由构思主控提出，漏算了固定开销，因此按本意直接修正，不再询问负责人。依据为本轮五个小页面用例在 1300／1900／2500ms 预算处超时的数据，详见 Resolution 原始失败表。先在父版本 537da14 证明小页面下限测试失败、大页面及总额对照成立；定向、runner、typecheck 通过后已直接获准依次执行：全量与五轮计时并发的负载轮、连续两轮全量、build。每项前检查 memory_pressure 与 ps，空闲低于 25% 停止；任何一项失败即停止、保留证据、不重跑掩盖。审查由负责人另派新的 fast 实例；本轮在 537da14 上新建提交，不 amend。
+
 ## What to build
 
-1. 先按段测出耗时分布（强制状态、样式读取、比较、视口切换），结果写进 Resolution。
-2. 只做不改语义的优化：例如每个「元素×状态」在页面内一次批量读取全部范围外元素与已生成伪元素的完整计算样式，减少 CDP 往返；复用同一视口下的布局。比较对象仍是完整计算样式，不缩减属性集合、不跳元素、不删状态、不减视口。
-3. 目标：禾巷小馆首页空闲时每档 ≤1.5 秒，并记录每档 5 次分布；5 秒/15 秒上限与超时拒收不变。
+1. 撤掉全部并行与无稳定收益的读取试验，生产只保留按实际完整读取次数计算预算的改动；完整属性、元素、状态、视口及拒因语义不减。
+2. 任何完整读取前完成两侧元素发现，记录每侧及合计读取次数、计算预算与三档剩余额度；冻结同一份元素列表用于执行，不在读取途中追加。
+3. 每档上限 max(5000ms, 1000ms＋150ms×源候选合计完整读取次数)；每页三档动态检查总耗时封顶 60000ms。无作者动态规则的静态分支仍免强制状态，只计两次完整基线。超时、无法聚焦或无法强制状态照旧拒收。
+4. 定向、runner 回归、typecheck 通过后，按已获授权依次执行负载轮（全量与三档五次计时并发）、连续两轮全量、build；每项前核对内存与 ps，低于 25% 或任一项目失败即停止，不重跑掩盖。
 
 ## Acceptance
 
-- [ ] T-164/T-173 的动态检查坏例（:has(:focus)、兄弟组合器、祖先 hover/active、伪元素、自定义属性、媒体查询）全部仍被拒，正常对照仍通过；优化前后对同一组输入结论逐项一致
-- [ ] 耗时分布与目标对比写进 Resolution；不调用 DeepSeek
-- [ ] 有负载时（同时跑一轮全量），禾巷小馆三档都稳定低于 5 秒，并记录分布
-- [ ] typecheck、test、build 通过；独立 sol 审查通过
+- [x] 全部独立上下文、浏览器级连接、分片并行与无稳定提速试验退出生产；原完整读取器保留
+- [x] 预算成对测试先在父版本失败，覆盖两侧不同元素数、读取前记录且中途不变、每档和六十秒边界、超时与聚焦／强制失败拒收
+- [x] T-164/T-173 坏例与正常对照结论不变，131 次检查结论／拒因逐项一致，完整属性用例及故意漏读反例有效
+- [x] 定向、runner 回归、typecheck 通过
+- [x] 负载轮全量与禾巷小馆三档各五次均通过，分布与读取计划已记录
+- [x] 随后连续两轮全量均通过
+- [x] build 通过
+- [ ] 负责人另派新的 fast 实例审查通过
+
+## Resolution
+
+执行验证：**PASS**。五秒下限修正后的定向 97／97、runner 4／4、typecheck、三轮全量各 805／805、负载 15／15 和 build 均通过；未重跑掩盖失败。此前无下限公式的 801 项全量中五项失败继续原样保留。票保持 open、claimed_by=Codex，待负责人另派新的 fast 实例审查，不声明独立审查通过。本次在 `537da14` 之后新建提交，不 amend、不推送。
+
+### 生产改动
+
+- `code-site-browser.ts` 完整恢复为 `87e6805`／`c4a72e5` 的实现，不保留独立 BrowserContext、浏览器级发送、renderer 路数或为并行添加的生命周期代码。删除并行计时脚本及三份并行专用测试；已弃候选仍在 `421a148` 历史中，所有失败、profile 和 RSS 证据留在 artifacts/t178。
+- `code-site-local-edit.ts` 保留原完整样式读取、基线重复条目省略、四态与祖先传播，只把既有元素发现阶段与读取阶段分开。提交入口先完成源、候选各自的发现，得到实际待执行的完整读取数，再记录计划、执行同一份元素列表；两侧仍沿用原来各一只 Chrome 的并行关系，不增加同侧分片。
+- 每档计算 `max(5000, 1000 + 150 × (sourceReads + candidateReads))`，实际允许时间取该值与本页三档剩余额度的较小值。分类、发现、候选 Chrome 启动、探针和比较均从该档开始计时；三档只累计动态检查时间，不计两档之间其他底线扫描。现有内部超时注入参数只能收紧预算，Infinity 不能绕过生产预算或六十秒封顶。
+- 计划在第一份完整读取前以 dynamic-plan 诊断记录，成功检查同时存入 dynamicState.budget；记录 sourceReads、candidateReads、fullReads、calculatedMs、allowedMs、pageRemainingMs。无作者动态规则分支沿用不枚举、不强制的原合同，每侧实际只读一次基线，合计两次、计算预算 5000ms。
+- 未保留任何声称提速的批量读取候选。标准属性与实时自定义属性、五类伪元素、全部可聚焦元素及三视口读取内容不变。AGENTS「局部修改」、spec、CONTEXT 和 mainline 的固定上限已直接替换为新规则。
+
+### 五秒下限修正与本轮验证
+
+此前五项失败的实际耗时为 1322.21／1386.16／1906.46／1933.44／2576.64ms，分别刚超过 1300／1900／2500ms 新预算，均低于旧五秒；这是基础项漏算固定开销后，小页面反而变严的实测依据。构思主控已确认五秒是单档下限，给交互元素多的页面另增预算，三档总额仍以六十秒为最高优先级。
+
+父版本 `537da14` 上，更新后的 11 项合同测试 **7 项预期失败、4 项对照通过**（`budget-floor-parent-537da14.log`）：小页面仍算出 1300／3100／3700／4900ms，与应有的 5000ms 不符；30 次读取 5500ms、禾巷小馆 82 次 13300ms以及两组六十秒总额对照在父版成立。期望由事先按需求计算的表提供，不从生产输出生成。
+
+生产只修改两处预算表达式：提交入口和直接探针默认预算均先取 max(5000, 1000+150×次数)，再与剩余三档总额取 min。没有恢复任何并行、属性子集或批量读取试验。总额只剩一秒时实际预算仍为一秒，五秒下限不能突破六十秒封顶。
+
+本轮完整定向 **97／97 通过**，没有重跑后台套件；`budget-floor-targeted.log`。已有 131 次检查结论与拒因仍逐项一致，`budget-floor-equivalence.json`。runner 回归 **4／4 通过**（`budget-floor-heavy/0-runner.log`），开跑前内存空闲 56%，ps 已保存；typecheck 通过（`budget-floor-typecheck.log`）。
+
+本轮测试时 HEAD 仍为父版 537da14，实际执行的是本次两行五秒下限修正，已在 `budget-floor-heavy/production.patch` 固定并最终随本提交保存；不把这些运行误记为未修正父版的结果。源码在所有检查期间保持不变。
+
+#### 重任务结果与执行顺序
+
+2026-10-17 UTC，按授权严格串行执行下表各项；仅负载项内的全量与计时并发。每项开始前都运行 memory_pressure 与 ps，完整输出在 `artifacts/t178/budget-floor-heavy/<阶段>-memory.txt`／`<阶段>-ps.txt`。所有命令仅设置指定 CHROME_PATH；没有调用真实 DeepSeek、读取 .env.local、写主工作区数据或推送。
+
+| 阶段 | UTC 时间 | 开始前空闲内存 | 结果／日志 |
+| --- | --- | ---: | --- |
+| runner 回归 | 17:56:09–17:56:19 | 56% | 4／4，0-runner.log |
+| 负载轮全量＋三档五次计时 | 17:57:18–18:04:20 | 56% | 全量 805／805、计时 15／15，1-load-full.log／1-load-timing.log |
+| 后续全量第一轮 | 18:04:20–18:10:20 | 57% | 805／805，2-full-a.log |
+| 后续全量第二轮 | 18:10:20–18:16:05 | 55% | 805／805，3-full-b.log |
+| build | 18:16:05–18:16:22 | 56% | 退出码 0，4-build.log |
+
+三轮全量标准入口报告依次为：
+
+- `artifacts/t167/test-run-1792259838349-97235/report.json`
+- `artifacts/t167/test-run-1792260260897-11887/report.json`
+- `artifacts/t167/test-run-1792260621029-23179/report.json`
+
+三轮均无失败、无跳过；上一轮五个失败用例在这三轮中逐项确认全部通过。控制器原始记录为 `budget-floor-heavy/heavy-result.json`，汇总为 `validation-summary.json`，包含标准报告路径和五项用例核对结果。build 编译、TypeScript 与静态页生成通过；保留一条未修改的诊断写入路径追踪告警（匹配 18084 个 JSON 文件），未扩展本票去改追踪实现。
+
+#### 负载分布：每档五次
+
+完整数据为 `artifacts/t178/read-budget-load/timings.json`，逐条摘取为 `budget-floor-heavy/load-summary.json`。表中每个耗时单元都是一次完整档检查；**各档每次均预先记录源 41＋候选 41＝82 次完整读取，计算及实际执行预算均为 13300ms**。每侧每轮三档实际捕获 123 次，五轮合计 1230 次完整读取；没有减少读取次数或内容。
+
+| 轮次 | 375 实际 ms | 768 实际 ms | 1440 实际 ms | 各档读取计划 | 各档预算 ms |
+| --- | ---: | ---: | ---: | --- | ---: |
+| 1 | 7884.58 | 7225.08 | 8035.32 | 41＋41＝82 | 13300 |
+| 2 | 8756.57 | 8482.05 | 7419.74 | 41＋41＝82 | 13300 |
+| 3 | 8315.46 | 8316.38 | 8447.21 | 41＋41＝82 | 13300 |
+| 4 | 8578.34 | 7990.21 | 7682.96 | 41＋41＝82 | 13300 |
+| 5 | 8393.57 | 7900.20 | 8278.67 | 41＋41＝82 | 13300 |
+
+375／768／1440 的中位数分别为 8393.57／7990.21／8035.32ms，15 项全部在预算内，各轮三档动态耗时之和也均低于 60000ms，无范围外拒因。计时在同轮全量实际执行首个用例后启动；根据每轮原始诊断 endedAt 与标准全量报告时间核对，五轮均完整处于该次全量运行区间内。驱动里的计时进程 endedAt 是两进程汇合后的收尾记录，实际计时结束以 load-summary.json 中原始诊断的最大 endedAt 为准，不用驱动收尾时间冒称计时持续了整轮全量。
+
+命令顺序（CHROME_PATH 均为 AGENTS 指定的 headless shell 154 路径）：
+
+```sh
+node --test --experimental-strip-types scripts/t167-runner-regressions.ts
+# 第一项内部并发，计时等待全量实际执行信号后启动：
+npm test
+node --experimental-strip-types scripts/t178-dynamic-timing.ts load artifacts/t178/read-budget-load
+# 等上述两条均结束且通过后，严格串行：
+npm test
+npm test
+npm run build
+```
+
+本轮执行到 build 全部通过后停止验证，不额外重跑。结果、代码和文档同一次新提交保存，SHA 回执写入 `artifacts/t178/budget-floor-heavy/checkpoint.json`；tsconfig 的 Next 自动改动留在工作树、不提交，独立审查由负责人另派 fast 实例。
+
+### 首轮全量失败：低读取次数的新预算比旧上限更严
+
+2026-10-17 **17:38:06–17:46:53 UTC**，生产源码提交 `f9babdbc3dcb7f34d8b9faa546189c167b5f52ee`。命令为指定 CHROME_PATH 下的 `npm test`；开始前 memory_pressure 空闲 **55%**，ps 已记录，另一个 T-175 实例只做定向测试。测试入口退出码 **1**，实际执行 **801** 项，**796** 通过、**5** 失败、无跳过。没有重跑来覆盖失败。
+
+- 标准入口报告：`artifacts/t167/test-run-1792258686849-67299/report.json`。
+- 完整用例日志：`artifacts/t178/read-budget-heavy/1-full.log`；标准入口同轮 `tests.log`、`summaries.ndjson` 与 checks/ 全部保留。
+- 逐例汇总及原诊断文件链接：`artifacts/t178/read-budget-heavy/1-full-failure-summary.json`。
+- 本轮前置 memory_pressure、ps 和开始／结束／退出码：`artifacts/t178/read-budget-heavy/1-full-memory.txt`、`1-full-ps.txt`、`1-full-result.json`。
+
+下表读取次数取**完整读取前已记录的源＋候选计划**，不是把未完成的读取记为已完成；实际耗时取失败档 `dynamic-check.durationMs`，不是整个测试用例的墙钟耗时。五项均在 **375 档**失败，预算的 calculatedMs 与 allowedMs 相同，三档剩余额度均为 60000ms，未受总额截断，也不是测试故意注入的低预算。
+
+| 失败用例（原名） | 源＋候选读取计划 | 合计 | 计算／执行预算 ms | 失败档实际耗时 ms |
+| --- | --- | ---: | ---: | ---: |
+| CSSOM 含 section:focus-visible 时三档照常完整探测 | 5＋5 | 10 | 2500 | 2576.64 |
+| disabled button 不是可交互触发元素，不应让静态范围外规则误拒 | 1＋1 | 2 | 1300 | 1322.21 |
+| 祖先规则在焦点态改变明确高度仍须拒绝 | 1＋5 | 6 | 1900 | 1906.46 |
+| 区块外 ::before 的完整计算样式改变必须拒绝 | 1＋5 | 6 | 1900 | 1933.44 |
+| 真实 chat 批次遇到 main:has(:focus) 仍允许合法无外溢修改进入模型并保存 | 1＋1 | 2 | 1300 | 1386.16 |
+
+前四项在完整日志中直接报「局部动态状态检查超时，本次未保存版本。」；最后一项的测试表现为任务状态 error 而非 complete，已核对同一站点任务的 step 也是这条超时拒因，且对应上表 1386.16ms 的诊断。用例位置分别为 `t164-dynamic-gate.test.ts:113`、`t164-multi-block-edit.test.ts:239`、`t164-review-seven.test.ts:122`、`:134`、`:197`；逐例 siteId、诊断文件和字段原值均在汇总 JSON，已与保留的本轮临时站点版本／规则核对。
+
+**5／5 失败均由低于旧 5000ms 的新预算触发超时**：2 项为 1300ms、2 项为 1900ms、1 项为 2500ms；对应超时点也全部低于 5000ms。由此可确认新公式对这些低读取次数场景更严格，不能把它当成只放宽旧上限的改动。本轮未按旧五秒重跑，因此不宣称旧上限一定能让完整用例最终通过。
+
+该无下限轮在首轮结束后按负责人要求停止，当时负载与 build 均未启动。原失败数据仍对应 f9babdb，不与本轮五秒下限修正的结果混用。
+
+### 前一无下限合同与反例（历史证据）
+
+2026-10-17 UTC，通过标准 npm test 入口，在父版本 `421a148` 先取得 **7／7 预期红灯**：任何完整读取之前缺少两侧读取次数及预算记录，见 `artifacts/t178/read-budget-parent-valid-red.log`。最初夹具锚点文字错误的失败保留在 `read-budget-parent-421a148-red.log`，修正后才确认真实红灯；不将夹具错误算回归证据。
+
+实现后预算测试首轮 **7／7 通过**（`read-budget-first-green.log`）。预期独立来自负责人公式及手写 DOM：
+
+| 源／候选可聚焦数 | 源／候选完整读取数 | 合计 | 计算上限 ms |
+| --- | --- | ---: | ---: |
+| 0／0 | 1／1 | 2 | 1300 |
+| 1／2 | 5／9 | 14 | 3100 |
+| 3／1 | 13／5 | 18 | 3700 |
+| 1／1 | 5／5 | 10 | 2500 |
+| 50／50 | 201／201 | 402 | 61300，首档被总额限制为 60000 |
+
+新测试从真实生产 checkSiteCode 进入，实际 Chrome 发现与读取上述 DOM。只替换 Node 时钟推进来模拟耗时，不更改生产超时比较条件：每档恰好预算边界通过，超出一毫秒拒收；大计数组按 20000ms／20000ms／20000ms 推进恰好六十秒通过，最后一档 20001ms 则拒收，三档计划上限依次 60000／40000／20000ms。逐次读取核对已公布计划的活引用与初始快照，并核对实际执行次数。DOM.focus 和 CSS.forcePseudoState 的定向故障均成对保留正常对照、明确拒收；不调用真实模型。
+
+三项故意损坏均被检出，恢复源文件后再做正常对照，原始日志保留：
+
+- 去掉剩余总额限制：61300ms 未被压到 60000ms，`read-budget-mutant-cap.log` 拒绝。
+- 记录后把 fullReads 加一：第一份读取前即以「计划不能增加或改变」失败，`read-budget-mutant-growing-count.log`。
+- 原读取器故意漏掉 color：完整属性原生 oracle 在基线即检出集合／值不一致，`read-budget-mutant-full-style.log`。不是用实现输出更新期望。
+
+汇总 `read-budget-mutants.json`；三项退出码均为 1，故障修改均已恢复。
+
+### 前一阶段验证记录（不替代本轮）
+
+- 现有 `t164-dynamic-gate`、`t164-multi-block-edit`、`t164-review-seven`、`t173-repair-scope` 与 `t178-full-style-equivalence` 共 **86／86 通过**，见 `read-budget-equivalence.log`。为了在独立空闲定向条件下对照，测试文件串行执行，生产探针没有增加并行实现。
+- 沿用同一组输入，原始串行父实现与本次 131 次实际检查的 passed、issues、error 逐项相同，仅沿用记录器对随机站点／版本 ID 的归一；未做哈希、字节或像素比较。32／25／28／46 次对照均无差异，报告 `read-budget-equivalence-comparison.json` 指向每组原始目录。覆盖 :has(:focus)、兄弟组合器、祖先 hover／active、伪元素、自定义属性、媒体查询及正常对照。
+- `npm run typecheck` 通过，见 `read-budget-typecheck.log`。初轮新测试回调返回值类型不符的日志为 `read-budget-typecheck-first.log`，已收窄为 void；不是生产类型问题。
+- 中断恢复时已核对 git status、所有故障注入回滚位置及现有证据，没有重跑已通过的 86 项。恢复故障后的最终预算／完整属性正常对照 **8／8 通过**（read-budget-final-targeted.log），runner 回归 **4／4 通过**（read-budget-runner-regressions.log），无 Chrome 遗留。
+- 更新后的标准计时入口 **1／1 通过**（read-budget-timing-entry.log）。禾巷小馆 v2／v3 只读夹具完整结束三档：375 为 10849.10ms，768 为 7306.59ms，1440 为 7276.26ms；每档均在读取前记录源 41＋候选 41＝82 次、计算预算 13300ms，每侧三档实际各 123 次完整读取，无范围外拒因。三档开始时剩余总额分别为 60000／49150／41844ms。原始为 standard-production-budget-1792258496947-63116/timings.json；这是一次计时工具和预算验证，不是五次分布或负载通过证明。
+
+### 前一阶段命令与来源
+
+定向和回归命令（均从本工作树根执行）：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t178-read-budget.test.ts tests/t178-full-style-equivalence.test.ts
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --test-concurrency=1 --import ./scripts/t178-capture-checks.ts tests/t164-dynamic-gate.test.ts tests/t164-multi-block-edit.test.ts tests/t164-review-seven.test.ts tests/t173-repair-scope.test.ts tests/t178-full-style-equivalence.test.ts
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- scripts/t178-timing-entry.test.ts
+node --test --experimental-strip-types scripts/t167-runner-regressions.ts
+npm run typecheck
+```
+
+测量脚本已改为直接使用生产读取预算，不再传固定五秒或取消截止。后续负载命令为 `CHROME_PATH=同上 node --experimental-strip-types scripts/t178-dynamic-timing.ts load artifacts/t178/<新负载目录>`，默认五轮，每轮真实检查三档，并核对每档 82 次读取、计算预算 13300ms及实际执行数；不覆盖旧证据目录。
+
+旧无下限轮在首轮失败后停止；本轮五秒下限修正的最终结果及执行顺序见上文。每项开始前空闲低于 25% 的停止规则继续有效。票保持打开。本次运行时间：父版预期红灯 2026-10-17 17:25 UTC，首次绿灯 17:27 UTC，86 项定向结束 17:30 UTC，故障注入结束 17:31 UTC，最终预算对照结束 17:33 UTC，runner 回归结束 17:34 UTC，计时入口结束 17:35 UTC（以各标准入口 report.json／原始日志为准）。执行对应 421a148 上的本次预算改动，随本次新提交固定；最终本地提交 SHA 与命令时间另存 artifacts/t178/read-budget-checkpoint.json；tsconfig 自动变更不提交，新 fast 审查实例由负责人另派。
+
+### 已弃试验的证据保留
+
+此前所有 profile、基准、未截断分布、跟踪漏报和并行 RSS 失败文件均原样留在 artifacts/t178。特别保留 `track-capability-drained-20261017/` 的 flex 漏报、`read-profile-20261017/` 与 Node CPU profile、`parallel-two-rss-20261017/` 的 314.52 MiB 增量停止记录。其详细历史 Resolution 位于 `87e6805` 与 `421a148`；这些证据不作为当前预算方案的提速或负载通过证明。
