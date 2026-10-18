@@ -3,7 +3,7 @@ id: T-175
 title: 补充新事实后提示其他页面同项的「待补充」
 type: build
 status: open
-blocked_by: [T-178]
+blocked_by: []
 claimed_by: Codex
 supersedes:
 ---
@@ -39,7 +39,13 @@ supersedes:
 
 ## Resolution
 
-执行状态：INCOMPLETE。T-175 仍暂停等待 T-178，blocked_by 和 claimed_by: Codex 保持不变。本次按负责人限定只修独立审查的两项 P1，并补非阻断建议的直接断言；未重跑全量或 build，不进入 T-178。文件并发上限仍已撤回，既有功能与全部失败证据保留，复审由主控另派新实例。
+执行状态：INCOMPLETE。负责人已确认两项 P1 修复经独立复审 PASS，本次恢复验收并合入主线 `e92b87b`（含已关闭的 T-178）；`blocked_by: []`，`claimed_by: Codex`。合并后先执行定向 T-175、runner 回归与 typecheck，全部通过才在同一提交上串行执行两轮全量及 build；每项开始前检查内存和进程，空闲低于 25% 或任一检查失败即停止，保留证据。
+
+### 恢复验收与主线合并（2026-10-18 UTC / 2026-10-17 EDT）
+
+- 从 `9e95ea5` 以 `git merge --no-ff --no-commit e92b87b` 合入 `family-kit-assembly`，新建 merge 提交，不 rebase。唯一文本冲突在本票头部：主线的空 `claimed_by` 与本分支的 `Codex` 冲突，保留 `Codex`；T-178 已关闭，依负责人要求清空阻塞列表。完整保留本票的功能合同、验收与原失败证据。
+- AGENTS.md、CONTEXT.md、mainline.md、spec.md 与 `lib/code-site.ts` 自动合并后逐段核对：主线的 T-176 保留策略、T-178 按完整读取次数计算的预算及 60 秒总额、开 fast 规则保留；本分支同项待补充提示、原句定位和草稿校验规则也保留。不恢复已撤回的文件并发限制，不修改测试条件。
+- 既有 `tsconfig.json` 的 Next 自动改动保留且不提交；不推送、不 amend、不调用 DeepSeek、不读取 `.env.local`、不用 rm，不写主工作区 `.sitecraft-data`。后续结果将在本节记录。
 
 ### 独立审查两项 P1 修复（2026-10-17）
 
@@ -49,7 +55,7 @@ supersedes:
 - P1 草稿恢复：先清理标题再选有效标签，空白标题采用区块正文；服务端锚点和客户端完整草稿分别通过既有 schema 才可使用。无法形成合法锚点时仍保留匹配提示、不给草稿定位；正文等字段超过草稿合同也不写入草稿集合，提示该位置无法加入并请用户重新点选填写。历史回看隐藏当前提示；已有及发送中条目的原始字段保留。
 - 父版本红证据：17:36:30–17:36:52 UTC，`npm test -- --test-name-pattern=空白标题 tests/t175-stale-placeholder.test.ts` 的三档均在刷新读回断言按预期失败（实际 0，要求原有及两条新草稿共 3），见 `parent-blank-heading-red.log`；17:39:13–17:39:52 UTC，三个产品接入文件串行临时恢复到 36d755c，再运行 `npm test -- --test-name-pattern=已通过出处 tests/t175-stale-placeholder.test.ts`，最终四个全半角/空白方向均因错误提示或漏报按预期失败，结束后立即恢复候选，见 `parent-final-quote-red.log`。两条命令都只设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`。
 - 早期日志 `parent-red.log`、`parent-final-red.log`、`parent-corrected-red.log`、`candidate-directed.log` 原样保留：最初空白标题夹具缺 h1、刷新等待过早读取空 body、草稿数量及换行页面反例的期望曾不准确，均在夹具或断言层修正，没有改事项切分合同或放宽检查。早期的这些夹具/等待错误不算 P1 红证据；最终引用上面的三档红测与四方向红测。`parent-corrected-red.log` 还直接拦截历史回看仍显示提示；同节点两个占位与发送中条目完整字段在真实 Chrome 中断言。
-- 最终定向：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t175-stale-placeholder.test.ts`，17:40:16–17:43:34 UTC，15 项中 12 通过、3 失败、0 跳过，退出 1；新增九项全部通过。三个失败均是餐馆 1440/768/375 的生产 chat 在存版前报「局部动态状态检查超时，本次未保存版本。」，按负责人限定属于 T-178 已知问题；不计为本次新缺陷，也不记为通过。日志 `final-directed.log`，标准入口报告和诊断在 `artifacts/t167/test-run-1792258818860-72676/`，失败数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-n9LpA6` 保留。没有为这个超时另换数据、改入口或重跑掩盖。
+- 最终定向：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t175-stale-placeholder.test.ts`，17:40:16–17:43:34 UTC，15 项中 12 通过、3 失败、0 跳过，退出 1；新增九项全部通过。三个失败均是餐馆 1440/768/375 的生产 chat 在存版前报「局部动态状态检查超时，本次未保存版本。」，按负责人限定属于 T-178 已知问题；不计为本次新缺陷，也不记为通过。日志 `final-directed.log`，标准入口报告和诊断在 `artifacts/t175/reports/test-run-1792258818860-72676/`，失败数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-n9LpA6` 保留。没有为这个超时另换数据、改入口或重跑掩盖。
 - 最终工作台三档截图 `artifacts/t162/self-contained-1792258833409-73014/blank-heading-*.png` 与 `unavailable-draft-*.png` 共四张均逐张打开查看：菜单页第三条草稿的有效标签、原句意见及操作完整可见；375 截图是对话面板，不宣称预览整个区块可见。初轮候选四张截图也已逐张查看并保留，初轮截断的第三条草稿不作为完整草稿证据。
 - 其后串行执行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`（17:43:34–17:45:28 UTC，4/4 通过、0 跳过、退出 0）和 `npm run typecheck`（17:45:28–17:46:00 UTC，退出 0），分别见 `runner-regressions.log` 与 `typecheck.log`。本次没有其他原因的未解决失败。
 - 不调用 DeepSeek，不读取 `.env.local`，不写主工作区 `.sitecraft-data`，不推送、不 amend、不用 rm。Next 自动改动的 `tsconfig.json` 保留且不提交。AGENTS、CONTEXT、mainline 与 spec 已同步本次合同；本次 project-map status 的过期文档为 0，唯一问题仍是本工作树缺 T-178 票文件，保留依赖、不擅自新建。整票继续等 T-178 合并后按主控安排跑两轮全量与 build，独立复审未自行宣布通过。
@@ -58,17 +64,17 @@ supersedes:
 
 - 2026-10-17 13:09 UTC，父版本 d7e0aa2 的初次完整红测执行 5 项、5 项按预期失败：提交后提示数组为空；三档工作台提示数为 0。生产 chat 均完成存版，未因替身、导入或环境错误失败。完整日志 `artifacts/t175/parent-red.log`，报告 `parent-report.json`；中断轮另保留在 `parent-interrupted/`，不作为完整红测。
 - 13:16 UTC，最终 6 项用例串行还原 d7e0aa2 的三个产品接入文件后全部按预期失败，含更换事项名的独立输入；还原期间不跑其他测试，结束原样恢复产品改动。日志 `artifacts/t175/parent-final-red.log`，报告 `parent-final-report.json`。
-- 13:17 UTC，同一最终 6 项用例在本候选全部通过，typecheck 通过；日志 `artifacts/t175/targeted-candidate.log`、`typecheck-candidate.log`，标准入口报告 `artifacts/t167/test-run-1792242973606-12932/report.json`。两次红测及候选定向使用同一命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t175-stale-placeholder.test.ts`；类型检查为 `npm run typecheck`。
+- 13:17 UTC，同一最终 6 项用例在本候选全部通过，typecheck 通过；日志 `artifacts/t175/targeted-candidate.log`、`typecheck-candidate.log`，标准入口成功轮报告已被保留策略清理，当前无法回读；既有日志 `artifacts/t175/targeted-candidate.log` 保留，此旧报告不作为本次恢复验收依据。两次红测及候选定向使用同一命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t175-stale-placeholder.test.ts`；类型检查为 `npm run typecheck`。
 - v2 来源与 T-173 原批注在 `tests/fixtures/t175-restaurant.json`，只读取主工作区一次；每个用例只向标准入口新建并核对的临时根复制。生产 chat POST 与唯一提交入口处理修改，临时 HTTP 桥仅控制 after 调度及本地模型响应，不作实际 Next after 或真实模型能力通过的声明。没有调用 DeepSeek，没有读取 `.env.local`。
 - `artifacts/t175/run-1792242974584-12937/prompt-{1440,768,375}.png` 三张提示截图均已逐张打开：菜单页原文与「一起更新」可见。对应的三张 `draft-*.png` 也已逐张打开；375 草稿截图只记录意见框和部分区块，不作为完整区块可见性的证据。端到端另验证了跨页回看意见、旧版不改、已有草稿保留、重复点击/刷新不重复添加、模型请求数和版本数不变。
 - `spec.md`、`CONTEXT.md`、AGENTS、README 与 mainline 已同步；project-map status 无过期 living doc。Next 自动改动的 `tsconfig.json` 留在工作树，不提交。
 - 13:24 UTC，重任务前 `memory_pressure` 空闲 54%，`ps` 无其他 Chrome 测试/Next 测试进程。按负责人指定顺序执行 `SITE_STORE=fs npm run build`，退出 0；日志 `artifacts/t175/build.log`。随后单独运行仓库要求的 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，4/4 通过，日志 `runner-regressions.log`。
 - 全量前再次核对内存空闲 50% 且无其他 Chrome 测试进程，仅设置 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`。13:29:41 UTC 完成：115 文件、799 项，796 通过、3 失败、0 跳过，退出 1。失败均在 `tests/t175-stale-placeholder.test.ts:145`：1440/768/375 的真实 chat 任务报「局部动态状态检查超时，本次未保存版本。」，任务没有存成新版本；不能以此前定向通过代替全量通过。未重跑、未改变条件或绕过检查。
-- 本轮完整日志 `artifacts/t175/full-test.log`；报告及每文件统计另存 `full-test-report.json`、`full-test-summaries.ndjson`；原始报告、检查诊断与 dev 日志在 `artifacts/t167/test-run-1792243472424-18680/`，失败数据根为 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-Umxvng`，均保留。负责人已另行授权：先提交此 INCOMPLETE 快照，再只读排查现有并发机制与本轮 timings；修复后先定向验证，下一轮全量/build 仍须 READY_FOR_HEAVY 后单独放行。
+- 本轮完整日志 `artifacts/t175/full-test.log`；报告及每文件统计另存 `full-test-report.json`、`full-test-summaries.ndjson`；原始报告、检查诊断与 dev 日志在 `artifacts/t175/reports/test-run-1792243472424-18680/`，失败数据根为 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-Umxvng`，均保留。负责人已另行授权：先提交此 INCOMPLETE 快照，再只读排查现有并发机制与本轮 timings；修复后先定向验证，下一轮全量/build 仍须 READY_FOR_HEAVY 后单独放行。
 
 ### 只读并发诊断
 
-数据来自上述原轮，未新开测试。定向逐档指标读取 `artifacts/t175/run-1792242974584-12937/state-{1440,768,375}.json` 中新版本的 `checks.viewports[].dynamicState`；每列表示一次对应工作台视口的独立重放，单位毫秒。全量读取 `artifacts/t167/test-run-1792243472424-18680/checks/27796-*.json`。
+数据来自上述原轮，未新开测试。定向逐档指标读取 `artifacts/t175/run-1792242974584-12937/state-{1440,768,375}.json` 中新版本的 `checks.viewports[].dynamicState`；每列表示一次对应工作台视口的独立重放，单位毫秒。全量读取 `artifacts/t175/reports/test-run-1792243472424-18680/checks/27796-*.json`。
 
 | 动态核对宽度 | 定向：1440 场景 | 定向：768 场景 | 定向：375 场景 | 全量：三个场景 |
 | --- | ---: | ---: | ---: | --- |

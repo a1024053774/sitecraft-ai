@@ -252,7 +252,7 @@ export type DynamicStateProbe = {
 // truth: no selector stripping, :has parsing, owner inference, or short style
 // fingerprint is used here. The returned collection is keyed only by outside
 // DOM path and complete computed style.
-export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt = Date.now() + 5000, options: { states?: boolean; diagnostic?: Record<string, unknown> } = {}) {
+export async function prepareOutsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope: { paths?: number[][] } | undefined, deadlineAt: number, options: { states?: boolean; diagnostic?: Record<string, unknown> } = {}) {
   const probeStates = options.states ?? true;
   const startedAt = performance.now();
   const wallStartedAt = Date.now();
@@ -291,6 +291,10 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
     const allNodeIds = await send<{ nodeIds: number[] }>('DOM.querySelectorAll', { nodeId: root.root.nodeId, selector: '[data-cdp-probe]' });
     probe.all.forEach((id, index) => { if (allNodeIds.nodeIds[index]) nodeIds.set(id, allNodeIds.nodeIds[index]); });
   }
+  return { interactiveElements, fullReads: 1 + (probeStates ? probe.interactive.length * 4 : 0),
+    async read(readDeadlineAt: number): Promise<DynamicStateProbe> {
+    deadlineAt = readDeadlineAt;
+    try {
   const nodeId = async (id: string) => { checkTime(); const found = nodeIds.get(id); if (!found) throw new Error('局部动态状态检查无法定位 DOM 节点。'); return found; };
   const states: ProbeState[] = [];
   const forced = new Set<number>();
@@ -408,10 +412,21 @@ export async function outsideCssApplications(browser: ProbeBrowser, frameId: str
   checkTime();
   completed = true;
   return { states, interactiveElements, forceCalls, statesChecked: probeStates ? stateNames.length : 0, durationMs: performance.now() - startedAt, cdpRoundTrips, stageMs };
-  } finally {
+    } finally { record(); }
+  } };
+  } catch (error) { record(); throw error; }
+  function record() {
     recordCheckDiagnostic({ kind: 'dynamic-probe', mode: probeStates ? 'states' : 'static', ...options.diagnostic, startedAt: wallStartedAt, endedAt: Date.now(),
       durationMs: performance.now() - startedAt, interactiveElements, forceCalls, cdpRoundTrips, stageMs, styleReadParts, completed });
   }
+}
+
+// Direct probes and the submission boundary share the same complete reader.
+export async function outsideCssApplications(browser: ProbeBrowser, frameId: string, html: string, scope?: { paths?: number[][] }, deadlineAt?: number,
+  options: { states?: boolean; diagnostic?: Record<string, unknown> } = {}) {
+  const startedAt = Date.now();
+  const prepared = await prepareOutsideCssApplications(browser, frameId, html, scope, deadlineAt ?? startedAt + 60000, options);
+  return prepared.read(deadlineAt ?? startedAt + Math.min(60000, Math.max(5000, 1000 + 150 * prepared.fullReads)));
 }
 
 // Invoked on every rendered page by the submission boundary. Media conditions

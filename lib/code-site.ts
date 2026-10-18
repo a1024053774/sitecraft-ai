@@ -28,6 +28,8 @@ export type CodeQualityFeedback = Record<Exclude<CodeQualityKind, 'narrowColumns
 };
 export type DynamicStateEvidence = {
   mode: 'static' | 'states';
+  // Absent on older checks; fixed before the first complete style read.
+  budget?: { sourceReads: number; candidateReads: number; fullReads: number; calculatedMs: number; allowedMs: number; pageRemainingMs: number };
   durationMs: number;
   classificationMs: number;
   compareMs: number;
