@@ -15,6 +15,7 @@ await mkdir(output, { recursive: true });
 const restaurant = JSON.parse(await readFile(new URL('./fixtures/t175-restaurant.json', import.meta.url), 'utf8'));
 const quote = '外带包装费现在确定为每单2元。';
 let auditQuote = quote;
+let auditQuotes: string[] | undefined;
 let cite = false, calls = 0;
 const providerErrors: string[] = [];
 const provider = createServer(async (request, response) => {
@@ -28,7 +29,7 @@ const provider = createServer(async (request, response) => {
       const adopted = cite && segment.text.includes('每单 2 元。');
       return { id: segment.id, issues: [], noFacts: !adopted,
         factCategories: adopted ? ['价格与收费'] : [],
-        citations: adopted ? [{ category: '价格与收费', claim: '每单 2 元。', quote: auditQuote }] : [] };
+        citations: adopted ? (auditQuotes ?? [auditQuote]).map(quote => ({ category: '价格与收费', claim: '每单 2 元。', quote })) : [] };
     }) : null;
     response.setHeader('content-type', 'application/json');
     response.end(JSON.stringify({ choices: [local ? localEditChoice({ html: input.html, css: '' })
@@ -53,7 +54,7 @@ const code: SiteCode = {
   ],
 };
 async function initial(candidate = code) {
-  cite = false; auditQuote = quote;
+  cite = false; auditQuote = quote; auditQuotes = undefined;
   const id = await create();
   await updateCodeSite(id, () => ({ materials: quote, factSources: [{ type: 'materials', messageIndex: 1, text: quote }], plan: { summary: '收费说明', style: 'precision', styleReason: '测试', pages: code.pages.map(p => ({ ...p, outline: '收费' })) } }));
   const saved = await commitSiteCode({ siteId: id, baseRevision: 0, code: candidate, author: 'user', summary: '初版', request: '' });
@@ -146,12 +147,14 @@ test('同一文本节点的多个占位各自登记，不吞掉后一个事项',
   const candidate = structuredClone(code);
   candidate.pages[1].html = '<main><section><h1>收费说明</h1><p>外带包装费待补充；夜间服务费待补充。</p></section></main>';
   const { id, version, target } = await initial(candidate);
-  auditQuote = '外带包装费和夜间服务费现在确定为每单2元。'; cite = true;
+  auditQuotes = ['外带包装费现在确定为每单2元。', '夜间服务费现在确定为每单2元。'];
+  auditQuote = auditQuotes.join(''); cite = true;
   const saved = await commitSiteCode({ siteId: id, baseRevision: version.revision, code: candidate, selectedTarget: target,
     author: 'assistant', summary: '同节点多事项', request: auditQuote, source: { type: 'message', messageIndex: 2, text: auditQuote } });
   assert.equal(saved.status, 'applied', JSON.stringify(saved)); if (saved.status !== 'applied') return;
-  assert.deepEqual(saved.version.stalePlaceholders?.filter(hit => hit.target?.pageId === 'menu').map(hit => hit.snippet),
-    ['外带包装费待补充；夜间服务费待补充。', '外带包装费待补充；夜间服务费待补充。']);
+  assert.deepEqual(saved.version.stalePlaceholders?.filter(hit => hit.target?.pageId === 'menu').map(hit => [hit.snippet, hit.quote]),
+    [['外带包装费待补充；夜间服务费待补充。', '外带包装费现在确定为每单2元。'],
+      ['外带包装费待补充；夜间服务费待补充。', '夜间服务费现在确定为每单2元。']], '同节点两个事项各自绑定对应原句，不能重复登记第一个事项');
   const oldDraft = { id: 'old-draft', target, revision: 1, body: '原有历史意见', status: 'draft' };
   const sendingDraft = { id: 'sending-draft', target: { ...target, versionId: saved.version.id }, revision: 2,
     body: '发送中的意见', status: 'sending', submissionId: crypto.randomUUID() };
@@ -266,7 +269,7 @@ for (const width of [1440, 768, 375]) test(`禾巷小馆 v2 经生产 chat 重�
       await view.wait(`document.querySelector('[data-testid="code-preview"]').offsetWidth===${width} && !document.querySelector('.code-preview-loading')`);
       await view.click('[role="tab"]:nth-child(1)');
     }
-    await view.wait(`!document.getAnimations().some(a=>a.playState==='running'||a.playState==='pending')`);
+    await view.waitForTask();
     await view.browser.evaluate(`document.querySelector('[data-testid="stale-placeholder-prompt"]').scrollIntoView({block:'center'})`);
     await view.browser.evaluate('document.fonts.ready');
     const shot = await view.browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
@@ -317,7 +320,7 @@ for (const width of [1440, 768, 375]) test(`禾巷小馆 v2 经生产 chat 重�
       await view.wait(`document.querySelector('[data-testid="code-preview"]').offsetWidth===${width}`);
     }
     assert.match(await view.browser.evaluate<string>(`document.querySelector('#annotation-message').value`), /外带包装费现在确定为每单2元。/);
-    await view.wait(`!document.getAnimations().some(a=>a.playState==='running'||a.playState==='pending')`);
+    await view.waitForTask();
     const draftShot = await view.browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
     await writeFile(`${output}/draft-${width}.png`, Buffer.from(draftShot.data, 'base64'));
     assert.equal(calls, beforeCalls, '回看草稿也不调用模型');

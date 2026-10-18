@@ -10,14 +10,42 @@ type Props = { frame: RefObject<HTMLIFrameElement | null>; ready: boolean; picki
   pageId: string; versionId: string; html: string; scale: number; onSelect: (target: AnnotationTarget) => void;
   onKey: (event: KeyboardEvent) => void; reveal: number; numbered: Array<{ id: string; target: AnnotationTarget; number: number }>; onReveal: (id: string) => void;
   onArea: (targets: AnnotationTarget[]) => void; areaChoosing: boolean;
-  bottomSpace: number; onBottomSpace: (height: number) => void; children?: ReactNode };
-export function CodePreviewSelection({ frame, ready, picking, selected, pageId, versionId, html, scale, onSelect, onArea, areaChoosing, onKey, reveal, numbered, onReveal, bottomSpace, onBottomSpace, children }: Props) {
+  bottomSpace: number; onBottomSpace: (height: number) => void; collapsed: boolean; children?: ReactNode };
+export function CodePreviewSelection({ frame, ready, picking, selected, pageId, versionId, html, scale, onSelect, onArea, areaChoosing, onKey, reveal, numbered, onReveal, bottomSpace, onBottomSpace, collapsed, children }: Props) {
   const [rect, setRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [numberRects, setNumberRects] = useState<Array<{id: string; number: number; x: number; y: number}>>([]);
   const [areaRect, setAreaRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [position, setPosition] = useState({ left: 8, top: 8 });
   const panel = useRef<HTMLDivElement>(null);
   const lastReveal = useRef('');
+  // Scroll events also follow our own reveal. Only native input hands the
+  // reading position to the user; a new selection/open starts another reveal.
+  const userScrolled = useRef(false);
+  useLayoutEffect(() => {
+    if (!collapsed) { userScrolled.current = false; lastReveal.current = ''; }
+  }, [selected, reveal, collapsed, areaChoosing]);
+  useEffect(() => {
+    const doc = ready ? frame.current?.contentDocument : null, stage = frame.current?.closest('.code-preview-stage');
+    if (!doc || !stage) return;
+    const manual = (event: Event) => {
+      if (!event.isTrusted) return;
+      if (event.type === 'keydown') {
+        const key = event as KeyboardEvent, target = event.target as Element | null;
+        if (!['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(key.key)
+          || key.metaKey || key.ctrlKey || key.altKey || target?.closest('input,textarea,select,[contenteditable]')) return;
+      }
+      if (event.type === 'wheel' && !(event as WheelEvent).deltaY) return;
+      if (event.type === 'pointerdown') {
+        const pointer = event as PointerEvent;
+        const edge = event.currentTarget === doc ? doc.documentElement.clientWidth : stage.getBoundingClientRect().left + stage.clientLeft + stage.clientWidth;
+        if (pointer.clientX < edge) return;
+      }
+      userScrolled.current = true;
+    };
+    const events = ['wheel', 'touchmove', 'keydown', 'pointerdown'];
+    for (const surface of [doc, stage]) for (const name of events) surface.addEventListener(name, manual, { capture: true, passive: true });
+    return () => { for (const surface of [doc, stage]) for (const name of events) surface.removeEventListener(name, manual, true); };
+  }, [frame, ready]);
   useEffect(() => {
     const doc = ready ? frame.current?.contentDocument : null;
     if (!doc) { setRect(null); setNumberRects([]); setAreaRect(null); return; }
@@ -124,7 +152,7 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
       event.preventDefault(); event.stopPropagation();
     };
     const revealIdentity = `${versionId}:${pageId}:${reveal}:${bottomSpace}`;
-    if (reveal && selected && lastReveal.current !== revealIdentity) {
+    if (reveal && selected && !userScrolled.current && lastReveal.current !== revealIdentity) {
       const target = locate(selected);
       const snapshot = target?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 1000);
       if (snapshot === selected.text) {
@@ -177,7 +205,7 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
     let below = f.y + (anchor.y + anchor.height) * scale + 8, above = f.y + anchor.y * scale - p.height - 8;
     const visible = f.y + anchor.y * scale < Math.min(f.bottom, window.innerHeight)
       && below - 8 > Math.max(f.top, minimumTop);
-    if (visible && below > maximumTop && above < minimumTop) {
+    if (!userScrolled.current && visible && below > maximumTop && above < minimumTop) {
       // Make room below the visible target instead of clamping onto it or the
       // history bar. Only scroll the preview; generated HTML/CSS stays intact.
       const viewport = iframe.contentWindow!;

@@ -15,6 +15,7 @@ async function fixture() {
   const cwd = await mkdtemp(path.join(process.env.SITECRAFT_DATA_ROOT!, 't176-'));
   await mkdir(path.join(cwd, 'node_modules/next/dist/bin'), { recursive: true });
   await mkdir(path.join(cwd, 'scripts'));
+  await symlink(path.resolve('node_modules/typescript'), path.join(cwd, 'node_modules/typescript'));
   // These four scripts are executable test inputs, not evidence copies. The
   // isolated entry must derive its own project from its real script location.
   for (const name of ['run-tests.ts', 'test-identity.ts', 'local-endpoint.ts', 'test-summary-reporter.mjs']) {

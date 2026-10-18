@@ -9,6 +9,7 @@ import { systemIconIds } from './code-site-icons.ts';
 import { englishFidelity } from './code-site-english.ts';
 import { localEditDom, localScopeClass, checkLocalSelectors, outsideCssApplications, prepareOutsideCssApplications, authorStylesHaveDynamicStates, type DynamicStateProbe } from './code-site-local-edit.ts';
 import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
+import { localDynamicPageBudgetMs, localDynamicViewportBudgetMs } from './code-site-check-budget.ts';
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
@@ -502,7 +503,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const generatedText = new Set<string>();
     const factSegments = new Map<string, CodeFactSegment>();
     for (const page of clean.code.pages) {
-      let remainingDynamicMs = 60000;
+      let remainingDynamicMs = localDynamicPageBudgetMs;
       for (const width of [375, 768, 1440]) {
         const viewportStarted = performance.now();
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -515,7 +516,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           const preparationDeadlineAt = wallStartedAt + Math.min(remainingDynamicMs, args.dynamicStateBudgetMs ?? Infinity);
           let budget: NonNullable<CodeCheck['viewports'][number]['dynamicState']>['budget'];
           const plan = (sourceReads: number, candidateReads: number) => {
-            const fullReads = sourceReads + candidateReads, calculatedMs = Math.max(5000, 1000 + 150 * fullReads);
+            const fullReads = sourceReads + candidateReads, calculatedMs = localDynamicViewportBudgetMs(fullReads);
             budget = { sourceReads, candidateReads, fullReads, calculatedMs,
               allowedMs: Math.min(calculatedMs, remainingDynamicMs, args.dynamicStateBudgetMs ?? Infinity), pageRemainingMs: remainingDynamicMs };
             recordCheckDiagnostic({ kind: 'dynamic-plan', siteId: args.siteId, pageId: page.id, width, recordedAt: Date.now(), budget });

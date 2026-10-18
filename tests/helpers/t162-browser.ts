@@ -11,6 +11,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { localEndpoint } from '../../scripts/local-endpoint.ts';
 import { codeCheckBrowser } from '../../lib/code-site-browser.ts';
+import { localDynamicPageBudgetMs } from '../../lib/code-site-check-budget.ts';
 import { inlineSite, inlineMaterials } from '../fixtures/t162-inline-site.ts';
 import { createT162ModelFixture } from '../fixtures/t162-model-fixture.ts';
 
@@ -29,12 +30,24 @@ export const output = `artifacts/t162/${process.env.T162_LABEL || 'self-containe
 await mkdir(output, { recursive: true });
 const timings: Array<{ phase: string; startedAt: string; durationMs: number; load: number }> = [];
 const transitions: Array<{ at: string; runId: string; status: string; step: string }> = [];
+// T-179 A′: use the production three-viewport ceiling, never a copied limit.
+// Four retained T-175 runs spent 3.712/12.752/5.142/9.364s outside their
+// measured dynamic checks (fixture, other checks and saving). Round the 12.752s
+// maximum up to the next 5s boundary: 15s. Evidence: T-179 Resolution and
+// artifacts/t179/a-prime-baseline/measurements.json. Total today: 60s + 15s.
+const fixtureAndSaveMarginMs = 15_000;
+export const taskWaitTimeoutMs = localDynamicPageBudgetMs + fixtureAndSaveMarginMs;
 let currentSignal: AbortSignal;
 test.beforeEach(context => { currentSignal = context.signal; });
-function cancellable<T>(work: Promise<T>, signal = currentSignal): Promise<T> {
+function cancellable<T>(work: Promise<T>, signal = currentSignal, deadlineAt?: number): Promise<T> {
   return new Promise((resolve, reject) => {
-    const abort = () => reject(signal.reason);
-    work.then(value => { signal.removeEventListener('abort', abort); resolve(value); }, error => { signal.removeEventListener('abort', abort); reject(error); });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cleanup = () => { clearTimeout(timer); signal.removeEventListener('abort', abort); };
+    const abort = () => { cleanup(); reject(signal.reason); };
+    if (deadlineAt !== undefined) timer = setTimeout(() => {
+      cleanup(); reject(new Error(`任务终态等待超时（允许 ${taskWaitTimeoutMs}ms）`));
+    }, Math.max(0, deadlineAt - Date.now()));
+    work.then(value => { cleanup(); resolve(value); }, error => { cleanup(); reject(error); });
     if (signal.aborted) abort();
     else signal.addEventListener('abort', abort, { once: true });
   });
@@ -68,7 +81,7 @@ const { POST: chat } = await import('../../app/api/sites/[siteId]/chat/route.ts'
 const { POST: history } = await import('../../app/api/sites/[siteId]/history/[action]/route.ts');
 const tasks: Promise<void>[] = [], errors: unknown[] = [];
 const runEvents = new EventEmitter();
-const runs = new Map<string, { id: string; finished: Promise<void> }>();
+const runs = new Map<string, { id: string; startedAt: number; completed: boolean; finished: Promise<void> }>();
 // Like T-152, call production POSTs and run their after callbacks. Chat/history
 // own model calls here; the ordinary dev server supplies UI/preview and reads.
 const bridge = createServer(async (req, res) => {
@@ -94,7 +107,9 @@ const bridge = createServer(async (req, res) => {
       assert.ok(run?.id, 'after 任务须有持久化运行标识');
       const finished = measured('after.task', fn);
       tasks.push(finished.catch(error => { errors.push(error); }));
-      runs.set(match[1], { id: run.id, finished }); runEvents.emit(match[1]);
+      const execution = { id: run.id, startedAt: Date.parse(run.startedAt), completed: false, finished };
+      finished.then(() => { execution.completed = true; }, () => { execution.completed = true; });
+      runs.set(match[1], execution); runEvents.emit(match[1]);
     }
   } catch (error) { errors.push(error); res.writeHead(500); res.end(JSON.stringify({ userMessage: String(error) })); }
 });
@@ -143,8 +158,18 @@ export async function session(width: number, options: { siteId?: string; beforeN
       }catch(error){finish(error)}}
       timer=setTimeout(()=>finish(new Error('等待失败：'+${JSON.stringify(expression)})),${timeout});
       window.addEventListener('resize',check);window.addEventListener('error',check);check();
-    })`);
-    await (captureFailure ? observation : cancellable(observation));
+    })`, timeout + fixtureAndSaveMarginMs);
+    try { await (captureFailure ? observation : cancellable(observation)); }
+    catch (error) {
+      const diagnostics = await browser.evaluate(`({at:new Date().toISOString(),now:performance.now(),
+        events:window.__t162AnimationEvents,
+        animations:document.getAnimations().map(animation=>({name:animation.animationName,playState:animation.playState,
+          currentTime:animation.currentTime,startTime:animation.startTime,pending:animation.pending,
+          target:animation.effect?.target?.outerHTML?.slice(0,500),
+          timing:Object.fromEntries(Object.entries(animation.effect?.getComputedTiming()??{}).map(([key,value])=>[key,typeof value==='number'&&!Number.isFinite(value)?String(value):value]))}))})`);
+      await writeFile(`${output}/wait-failure-${width}-${id}-${Date.now()}.json`, JSON.stringify({ expression, timeout, diagnostics }, null, 2), 'utf8');
+      throw error;
+    }
   });
   const click = async (selector: string) => {
     await wait(`!document.getAnimations().some(a=>(a.playState==='running'||a.playState==='pending')&&Number.isFinite(a.effect?.getComputedTiming().endTime))`);
@@ -186,23 +211,43 @@ export async function session(width: number, options: { siteId?: string; beforeN
   };
   const settle = async (previousRunId?: string) => {
     // A completed callback remains in the map, so a late observer cannot miss it.
-    while (!runs.has(id) || runs.get(id)!.id === previousRunId) await once(runEvents, id, { signal: currentSignal });
-    await cancellable(runs.get(id)!.finished);
-    const result = await state(id);
-    assert.notEqual(result.codeSite.run.id, previousRunId);
-    assert.notEqual(result.codeSite.run.status, 'running', 'after 完成后任务须有终态');
-    return result;
+    const registrationDeadline = Date.now() + taskWaitTimeoutMs;
+    while (!runs.has(id) || runs.get(id)!.id === previousRunId)
+      await cancellable(once(runEvents, id, { signal: currentSignal }), currentSignal, registrationDeadline);
+    const execution = runs.get(id)!;
+    const readTerminal = async () => {
+      await execution.finished;
+      const result = await state(id);
+      assert.notEqual(result.codeSite.run.id, previousRunId);
+      assert.notEqual(result.codeSite.run.status, 'running', 'after 完成后任务须有终态');
+      return result;
+    };
+    return cancellable(readTerminal(), currentSignal, execution.completed ? undefined : execution.startedAt + taskWaitTimeoutMs);
+  };
+  const waitForTask = async () => {
+    const snapshot = await state(id), run = snapshot.codeSite.run;
+    const deadline = (run?.status === 'running' ? Date.parse(run.startedAt) : Date.now()) + taskWaitTimeoutMs;
+    if (run?.status === 'running') await settle();
+    // The run-status class belongs to the rendered task state. It can disappear
+    // at a terminal state; unrelated animation activity has no role here.
+    await wait(`document.querySelector('[data-testid="code-workspace"]') && !document.querySelector('[data-testid="code-progress"]')?.closest('.running')`, Math.max(1, deadline - Date.now()));
   };
   try {
+    await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__t162AnimationEvents=[];
+      for(const name of ['animationstart','animationend','animationcancel'])document.addEventListener(name,event=>{
+        window.__t162AnimationEvents.push({type:name,name:event.animationName,elapsedTime:event.elapsedTime,at:new Date().toISOString(),now:performance.now(),target:event.target?.outerHTML?.slice(0,300)});
+      },true);` });
     await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `const workflowFetch=window.fetch;window.fetch=function(input,init){const url=new URL(String(input),location.href);if(url.origin===${JSON.stringify(base)}&&/^\\/api\\/sites\\/[a-z0-9_-]+\\/(chat|history\\/(undo|restore))$/i.test(url.pathname))return workflowFetch.call(this,${JSON.stringify(workflowBase)}+url.pathname,init);return workflowFetch.apply(this,arguments)}` });
     if (options.beforeNavigate) await options.beforeNavigate(browser);
     await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
     await browser.send('Page.navigate', { url: `${base}/workspace?site=${id}` });
-    await wait(`document.querySelector('[data-testid="code-preview"]')?.contentDocument?.querySelector('main h1') || window.__t162ReviewErrors?.length`);
+    // Retained navigation needed 22.879s while the warm route took 38ms.
+    // Use the same production-derived deadline rather than speculative warming.
+    await wait(`document.querySelector('[data-testid="code-preview"]')?.contentDocument?.querySelector('main h1') || window.__t162ReviewErrors?.length`, taskWaitTimeoutMs);
     assert.ok(await browser.evaluate<boolean>(`!!document.querySelector('[data-testid="code-workspace"]')`), '存储被拒时工作台不得崩溃');
     if (width < 1100) await click('[role="tab"]:nth-child(2)');
     if (width !== 1440) { await click(`.device-toggle[aria-label="预览宽度"] button:nth-child(${width === 768 ? 2 : 3})`); await wait(`document.querySelector('[data-testid="code-preview"]').offsetWidth===${width}`); }
-    await wait(`!document.getAnimations().some(a=>a.playState==='running')`);
-    return { id, browser, wait, click, key, pick, shot, settle };
+    await waitForTask();
+    return { id, browser, wait, click, key, pick, shot, settle, waitForTask };
   } catch (error) { try { await shot('session-failure'); } finally { await browser.close(); } throw error; }
 }
