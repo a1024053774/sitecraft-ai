@@ -130,6 +130,8 @@ for (const width of [375, 768, 1440]) test(`T-179 首次腾位与用户原生滚
     await view.browser.evaluate(`window.__t179Phase='expand'`);
     await view.click('[data-testid="annotation-expand"]');
     const expanded = await geometry(view);
+    await writeFile(`${output}/expanded-${width}.json`, JSON.stringify(expanded, null, 2), 'utf8');
+    await shot(view, 'expanded', width);
     assertInitial({ ...expanded, log: expanded.log.filter((entry: any) => entry.phase === 'expand') }, width);
     assertNativeScroll(await wheel(view, 'expanded-up', -32));
     assertNativeScroll(await wheel(view, 'expanded-down', 32));
@@ -137,11 +139,25 @@ for (const width of [375, 768, 1440]) test(`T-179 首次腾位与用户原生滚
     await view.click('.code-preview-version button');
     await view.wait(`!document.querySelector('.code-preview-version') && !document.querySelector('.code-preview-loading')`);
     await view.pick('main > section:nth-of-type(6) h2', '收费口径');
-    assertNativeScroll(await wheel(view, 'draft-up', -32));
+    const draftUp = await wheel(view, 'draft-up', -32);
+    await writeFile(`${output}/draft-up-${width}.json`, JSON.stringify(draftUp, null, 2), 'utf8');
+    assertNativeScroll(draftUp);
+    assert.ok(draftUp.after.target.bottom > draftUp.after.panel.top, '重新点选前须确实存在手动滚动后的目标遮挡，恢复腾位必须有可观察结果');
     await view.browser.evaluate(`window.__t179Phase='repick'`);
-    await view.pick('main > section:nth-of-type(6) h2', '收费口径');
+    // 原位点击同一标题；pick helper 会先 scrollIntoView，可能自己消除遮挡。
+    const point = await view.browser.evaluate<{ x: number; y: number }>(`(()=>{
+      const f=document.querySelector('[data-testid="code-preview"]'),fr=f.getBoundingClientRect(),scale=fr.width/f.offsetWidth;
+      const r=f.contentDocument.querySelector('main > section:nth-of-type(6) h2').getBoundingClientRect();
+      return {x:fr.x+(r.x+r.width/2)*scale,y:fr.y+(r.y+r.height/2)*scale};
+    })()`);
+    assert.equal(await view.browser.evaluate(`document.elementFromPoint(${point.x},${point.y})===document.querySelector('[data-testid="code-preview"]')`), true, '重新点选须真实命中预览目标');
+    await view.browser.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...point });
+    await view.browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, ...point });
+    await view.browser.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
     const repicked = await geometry(view);
-    if (width !== 375) assertInitial({ ...repicked, log: repicked.log.filter((entry: any) => entry.phase === 'repick') }, width);
+    await writeFile(`${output}/repicked-${width}.json`, JSON.stringify(repicked, null, 2), 'utf8');
+    await shot(view, 'repicked', width);
+    assertInitial({ ...repicked, log: repicked.log.filter((entry: any) => entry.phase === 'repick') }, width);
     const repickedUp = await wheel(view, 'repicked-up', -32), repickedDown = await wheel(view, 'repicked-down', 32);
     await writeFile(`${output}/reopened-${width}.json`, JSON.stringify({ expanded, repicked, repickedUp, repickedDown }, null, 2), 'utf8');
     assertNativeScroll(repickedUp); assertNativeScroll(repickedDown);

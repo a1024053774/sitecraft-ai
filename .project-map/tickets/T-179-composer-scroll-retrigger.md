@@ -20,44 +20,36 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 
 ## Acceptance
 
-- [ ] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
-- [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过
+- [x] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
+- [x] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过
 - [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
 
-**INCOMPLETE，2026-10-18（UTC）**。已实测复现并保留父版本红灯；修后主滚动断言通过，但补充的重新展开／点选断言失败，按负责人「任何一项失败都停下报我，不重跑掩盖」停止后续重任务。票不关闭，验收不勾选，独立 fast 审查留给主控另派。
+**INCOMPLETE（整票等待主控独立 fast 审查），2026-10-18 UTC**。实现、三档定向检查、原有回归、runner 与 typecheck 已通过。本 Resolution 所在的新提交以 `d90ffc2` 为父提交；全量和 build 以该新提交为共同候选，最终结果读取 [验收汇总](../../artifacts/t179/final-validation.json)、[全量报告](../../artifacts/t179/full/report.json) 和 [构建日志](../../artifacts/t179/build/command.log)。缺失结果或非零退出码均不能算通过。独立审查仍由主控另派，最后一项验收保持未勾选。
 
-目标是保留首次腾位并交还用户的阅读位置；不改生成站 HTML/CSS、不放宽 T-162/T-175 的既有断言。本票只是工作台的局部交互，不跨存储、领域和 API 层，故无需另建 Tracer bullet；沿用批注线程／批注草稿的 Ubiquitous language，不新增浅包装或平行接口，保持 Deep modules 的边界。
+实测结论：父版本 `4781659` 在 768/1440 复现用户上滚后被程序推回，375 不复现。首次只测量的 [脚本和数据](../../artifacts/t179/measurement-1792289031509-45580/) 与 [报告](../../artifacts/t179/baseline-measurement/report.json) 保留；上滚输入为 -48，内层 scrollTop 分别为 375 `2271→2223`、768 `1927→1879→1919`、1440 `1673→1625→1658`，外层保持 `203/85/0`。浮层 top 分别为 `761→761`、`739.875→749`、`738.015625→749`。下滚 +48 三档均保留原生位移。
 
-实测与红灯都在父提交 `4781659` 的产品代码上运行。修后测试使用本票提交 `wip(t179): 保留滚动复现与未通过的修复候选` 中的代码及测试；测试时 HEAD 仍为 `4781659`，尚未提交。三轮均经标准 npm test 入口，运行者只设置下述 CHROME_PATH，预检执行 memory_pressure 和 ps；每轮的命令、时间、退出码、进程记录及复制后的入口报告在对应目录。
+需求断言先在 `4781659` 的产品代码上失败：[父版本报告](../../artifacts/t179/parent-red/report.json)、[脚本与数据](../../artifacts/t179/measurement-1792289094226-46179/)。场景增加一句意见，确保三档都实际触发首次腾位；375 通过，768/1440 在原生位移断言失败，首次腾位三档均通过。前一候选失败的 [报告](../../artifacts/t179/focused-green/report.json) 及 [继续诊断的报告](../../artifacts/t179/diagnose-reopen/report.json) 都保留，没有覆盖或重跑掩盖。
 
-```sh
-CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py baseline-measurement npm test -- tests/t179-composer-scroll.test.ts
-CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py parent-red npm test -- tests/t179-composer-scroll.test.ts
-CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py focused-green npm test -- tests/t179-composer-scroll.test.ts
-```
+两项恢复失败的原因及处理：
 
-| 运行 | UTC 时间 | 结果与证据 |
+- 375 是产品逻辑：手动滚动后收起再展开，只清除 userScrolled，却保留 lastReveal，面板恢复原高度后被误认为已定位。诊断时目标底部 `772.06`、面板顶部 `742`，且没有 expand 阶段的腾位。现在在重新点选／定位／展开时同时清除上次定位标识；展开后目标底部 `732.124`、面板顶部 `742`，恢复避让。
+- 768 是测试场景：pick helper 在点击前执行 scrollIntoView，使目标顶部 `545.83984375`、面板底部 `537.828125`，本来就可在上方放下，不产生 scrollBy 是合法结果。现在先用真实滚轮制造遮挡，再原位真实点击同一标题，不让 helper 预先消除场景；仍要求实际腾位、完整浮层和目标避让。修后目标底部 `680.264892578125`、面板顶部 `688`，捕获到重新点选后的自动腾位；375 也取消原用例的宽度豁免，三档统一检查。
+
+最终行为只在工作台实现：首次腾位保留；原生滚轮、触摸移动、滚动键或滚动条输入后停止自动腾位；再次点选、定位线程或展开时恢复。生成站 HTML/CSS 不变，不新建版本。T-175 同节点两个占位用不同出处逐项核对 snippet 与 quote，已在原有回归中通过。既有 T-162/T-175 遮挡与可见性断言未放宽。spec 只记录规则，AGENTS 只补一句同规则。
+
+全部浏览器测试走标准 npm test 入口，运行者只设置 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`；`artifacts/t179/run-check.py <标签> <命令>` 在每项开始前运行 memory_pressure 和 ps，低于 25% 不启动，并保留时间、提交和退出码。下表命令均以该脚本运行，标签对应报告目录。
+
+| 标签／命令 | UTC 时间 | 结果与证据 |
 | --- | --- | --- |
-| 只测量，不改产品 | 02:03:51–02:04:13；空闲 69% | 3/3 完成；[报告](../../artifacts/t179/baseline-measurement/report.json)、[测量脚本与数据](../../artifacts/t179/measurement-1792289031509-45580/) |
-| 父版本需求断言 | 02:04:53–02:05:14；空闲 68% | 375 通过，768/1440 在保留原生位移处预期失败；三档首次腾位均通过；[报告](../../artifacts/t179/parent-red/report.json)、[脚本与数据](../../artifacts/t179/measurement-1792289094226-46179/) |
-| 修后定向检查 | 02:06:18–02:06:40；空闲 70% | 1/3 整例通过；首次腾位及上／下滚核心断言三档均通过，补充恢复检查两档失败；[报告](../../artifacts/t179/focused-green/report.json)、[完整失败日志](../../artifacts/t179/focused-green/tests.log)、[脚本与数据](../../artifacts/t179/measurement-1792289178588-47468/) |
+| `reopen-green`：`npm test -- tests/t179-composer-scroll.test.ts` | 02:09:39–02:10:03 | 3/3；[报告](../../artifacts/t179/reopen-green/report.json)、[三档脚本、几何与截图](../../artifacts/t179/measurement-1792289380202-51243/) |
+| `related-regressions`：`npm test -- tests/t162-mobile-reveal.test.ts tests/t162-scroll-edge.test.ts tests/t162-review-regressions.test.ts tests/t175-thread-placement.test.ts tests/t175-stale-placeholder.test.ts` | 02:10:18–02:12:47 | 27/27；[报告](../../artifacts/t179/related-regressions/report.json)、[日志](../../artifacts/t179/related-regressions/tests.log) |
+| `runner`：`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` | 02:12:52–02:13:08 | 5/5；[日志](../../artifacts/t179/runner/command.log) |
+| `typecheck`：`npm run typecheck` | 02:13:15–02:13:20 | 退出 0；[日志](../../artifacts/t179/typecheck/command.log) |
+| `full`：`npm test` | 时间、SHA、统计见报告 | 本提交上的完整并行／串行两阶段；[报告](../../artifacts/t179/full/report.json)、[日志](../../artifacts/t179/full/command.log) |
+| `build`：`npm run build` | 时间、SHA、退出码见日志 | 与 full 同一提交；[日志](../../artifacts/t179/build/command.log) |
 
-首次测量，上滚输入为 -48，scrollTop 与浮层 top 如下（CSS px）；外层预览 scrollTop 始终未变。768、1440 捕获到滚轮之后的程序 scrollBy 调用；下滚 +48 三档均完整保留位移。
+定向及原有回归在新提交前的工作树运行，产品代码和测试与该新提交相同。验收截图均在最终产品改动后生成并逐张打开：T-179 定向 18 张，原有回归 37 张（T-162 的 scroll-edge 9、mobile-reveal 6、review-regressions 10，T-175 的 thread-placement 6、stale-placeholder 6）。[原有回归截图索引](../../artifacts/t179/related-screenshots.json) 保留精确路径。只证明交互和可见性，不自评审美；scroll-edge 的空白预览是目标滚出视野的夹具状态，不作生成站质量证据。此前 43 张测量／失败截图也都已逐张打开，原始结果保留。
 
-| 宽度 | 内层 scrollTop 前 → 后 | 外层 scrollTop | 浮层 top 前 → 后 | 结论 |
-| --- | --- | --- | --- | --- |
-| 375 | 2271 → 2223 | 203 | 761 → 761 | 未推回 |
-| 768 | 1927 → 1919（原生先到 1879） | 85 | 739.875 → 749 | 被程序推回 40 |
-| 1440 | 1673 → 1658（原生先到 1625） | 0 | 738.015625 → 749 | 被程序推回 33 |
-
-成对红灯场景增加了一句真实意见，以确保 1440 也实际发生首次腾位。修后同场景上滚结果为：375 `2271→2223`、768 `1946→1898`、1440 `1695→1647`，均无后续程序 scrollBy；下滚均加回 48，外层位置不变。采用 trusted 原生 wheel、scrollend 和帧间几何稳定等待，不用固定 sleep。
-
-候选修改仅在 CodePreviewSelection 记录原生滚轮、触摸移动、滚动键或滚动条操作，停止后续自动腾位；点选／定位／展开时重置。工作台传入收起状态。T-175「同一节点多占位」改为两个不同原句，并逐项核对 snippet 与 quote；此项已改但尚未运行回归，不能报通过。spec 只补行为规则，AGENTS 只补一句同规则。
-
-本轮失败与未决项：375 在重新展开后的 `首次腾位须避开目标` 断言失败；768 在重新点选后的 `须实际触发预览自动腾位` 断言失败；1440 完成全部定向断言。尚未判定这两个失败各自属于产品缺陷还是新增用例的场景／观察条件问题，不通过删断言或重复运行掩盖。wheel 以外的主动滚动输入尚未单独实测。
-
-共 28 张本票截图均逐张打开：基线 9 张、父版本红灯 9 张、修后 10 张，均有真实内容；仅作交互与可见性检查，未自评审美。原失败报告和临时数据根保留，入口自启服务及 Chrome 均已退出。
-
-**未运行**：T-162 mobile-reveal、scroll-edge、review-regressions，T-175 thread-placement 和 stale-placeholder，runner 回归、typecheck、同提交全量及 build。未读 .env.local、未调用 DeepSeek、未使用 rm 命令、未写主目录 .sitecraft-data、未推送。Next 自动改动 tsconfig.json 留在工作树且不提交。
+未读 .env.local、未调用 DeepSeek、未使用 rm 命令、未写主目录 .sitecraft-data、未推送。Next 自动改动 tsconfig.json 留在工作树且不提交。wheel 以外的主动滚动输入未单独实测；模型替身不证明真实模型行为，本票不需要真实模型或外部依赖验证。

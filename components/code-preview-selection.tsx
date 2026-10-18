@@ -21,7 +21,9 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
   // Scroll events also follow our own reveal. Only native input hands the
   // reading position to the user; a new selection/open starts another reveal.
   const userScrolled = useRef(false);
-  useLayoutEffect(() => { if (!collapsed) userScrolled.current = false; }, [selected, reveal, collapsed, areaChoosing]);
+  useLayoutEffect(() => {
+    if (!collapsed) { userScrolled.current = false; lastReveal.current = ''; }
+  }, [selected, reveal, collapsed, areaChoosing]);
   useEffect(() => {
     const doc = ready ? frame.current?.contentDocument : null, stage = frame.current?.closest('.code-preview-stage');
     if (!doc || !stage) return;
