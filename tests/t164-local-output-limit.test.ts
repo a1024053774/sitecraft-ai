@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fixture, output, session, state, workflowBase } from './helpers/t162-browser.ts';
 import { createT164OutputFixture } from './fixtures/t164-output-model.ts';
@@ -10,12 +10,20 @@ import { reserveRequest } from '../scripts/t153-real-budget.ts';
 // the actual HTTP input and the full cap within the approved 52905 balance.
 const providers: ReturnType<typeof createT164OutputFixture>[] = [];
 async function providerFor(caseName: string, mode: 'truncate' | 'repair', beforeFactReply?: () => Promise<void>) {
-  const model = createT164OutputFixture(output, caseName, mode, beforeFactReply);
+  const directory = `${output}/provider-${providers.length + 1}-${mode}`;
+  await mkdir(directory, { recursive: true });
+  const model = createT164OutputFixture(directory, caseName, mode, beforeFactReply);
   providers.push(model);
   await new Promise<void>(resolve => model.provider.listen(0, '127.0.0.1', resolve));
   const address = model.provider.address(); assert.ok(address && typeof address === 'object');
   process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`;
   return model;
+}
+async function caseFor(caseName: string, mode: 'truncate' | 'repair', beforeFactReply?: () => Promise<void>) {
+  const model = await providerFor(caseName, mode, beforeFactReply);
+  const id = await fixture();
+  model.beginRun();
+  return { id, model };
 }
 // The imported bridge's after hook first waits for every production callback.
 // Keep both case-owned listeners alive until then, even if a case assertion fails.
@@ -37,14 +45,14 @@ async function send(id: string, version: any) {
 }
 
 test('局部写作 length 如实报截断、保留 finishReason 且整批不存版、不重试', { timeout: 120000 }, async t => {
-  const id = await fixture(), before = (await state(id)).codeSite;
+  const { id, model } = await caseFor(t.name, 'truncate'), before = (await state(id)).codeSite;
   const view = await session(1440, { siteId: id });
-  const model = await providerFor(t.name, 'truncate'), { requests } = model;
+  const requests = model.requests.run;
   try {
     const start = requests.length, response = await send(id, before.versions[0]);
     assert.equal(response.status, 202);
     const done = (await view.settle()).codeSite, calls = requests.slice(start);
-    await writeFile(`${output}/local-output-truncated.json`, JSON.stringify({ before, done, requests: calls }, null, 2));
+    await writeFile(`${output}/local-output-truncated.json`, JSON.stringify({ before, done, initializationRequests: model.requests.initialization, requests: calls }, null, 2));
     assert.equal(done.run.status, 'error');
     assert.match(done.run.step, /被截断/);
     assert.match(done.run.step, /未保存版本/);
@@ -58,16 +66,15 @@ test('局部写作 length 如实报截断、保留 finishReason 且整批不存�
     assert.equal(done.run.attempts.length, 0);
     model.assertHealthy();
     assert.ok(model.arrivals.every(arrival => arrival.status === 'responded'));
-    assert.equal(model.arrivals.length, done.run.modelCalls.length, 'after 终态须收齐本用例的实际模型调用');
+    assert.equal(model.arrivals.filter(arrival => arrival.phase === 'run').length, done.run.modelCalls.length, 'after 终态须收齐本用例的实际模型调用');
   } finally { await view.browser.close(); }
 });
 
 test('局部首轮与修正轮实际请求均为 12288，52905 余额可完整预留真实输入与输出', { timeout: 120000 }, async t => {
-  const id = await fixture(), before = (await state(id)).codeSite;
-  const view = await session(1440, { siteId: id });
   const factsArrived = Promise.withResolvers<void>(), releaseFacts = Promise.withResolvers<void>();
-  const model = await providerFor(t.name, 'repair', async () => { factsArrived.resolve(); await releaseFacts.promise; });
-  const { requests } = model;
+  const { id, model } = await caseFor(t.name, 'repair', async () => { factsArrived.resolve(); await releaseFacts.promise; });
+  const before = (await state(id)).codeSite, view = await session(1440, { siteId: id });
+  const requests = model.requests.run;
   try {
     const start = requests.length, response = await send(id, before.versions[0]);
     assert.equal(response.status, 202);
@@ -81,7 +88,7 @@ test('局部首轮与修正轮实际请求均为 12288，52905 余额可完整�
     const done = (await terminal).codeSite, calls = requests.slice(start);
     const local = calls.filter(call => call.local).map(call => call.body);
     const reservation = reserveRequest(local[0], 0, 52905);
-    await writeFile(`${output}/local-output-repair.json`, JSON.stringify({ before, done, requests: calls, reservation }, null, 2));
+    await writeFile(`${output}/local-output-repair.json`, JSON.stringify({ before, done, initializationRequests: model.requests.initialization, requests: calls, reservation }, null, 2));
     assert.equal(done.run.status, 'complete', done.run.step);
     assert.equal(done.versions.length, 2);
     assert.equal(done.run.repairRound, 1);
@@ -99,6 +106,22 @@ test('局部首轮与修正轮实际请求均为 12288，52905 余额可完整�
     assert.ok(facts.every(call => call.body.thinking.type === 'disabled' && call.body.max_tokens === 4096), '局部事实核对保持固定非思考及既有额度');
     model.assertHealthy();
     assert.ok(model.arrivals.every(arrival => arrival.status === 'responded'));
-    assert.equal(model.arrivals.length, done.run.modelCalls.length, 'after 终态须收齐写作、修正与事实核对');
+    assert.equal(model.arrivals.filter(arrival => arrival.phase === 'run').length, done.run.modelCalls.length, 'after 终态须收齐写作、修正与事实核对');
   } finally { releaseFacts.resolve(); await view.browser.close(); }
+});
+
+test('T-182 初始化归属：初始化下一用例不得增加前一用例的请求', { timeout: 120000 }, async t => {
+  const first = await caseFor(`${t.name} A`, 'truncate');
+  const before = first.model.arrivals.length;
+  const second = await caseFor(`${t.name} B`, 'truncate');
+  await writeFile(`${output}/initialization-ownership.json`, JSON.stringify({ before, first: first.model.arrivals, second: second.model.arrivals }, null, 2));
+  assert.equal(first.model.arrivals.length, before, 'B 初始化不得进入 A 的监听器');
+  assert.ok(second.model.arrivals.length > 0, 'B 的初始整站核对须由 B 的替身登记');
+  for (const [owner, model] of [[`${t.name} A`, first.model], [`${t.name} B`, second.model]] as const) {
+    assert.ok(model.requests.initialization.length > 0);
+    assert.deepEqual(model.requests.run, [], '仅初始化的用例不得登记 run 调用');
+    assert.ok(model.requests.initialization.every(call => call.purpose === 'whole-facts' && call.body.max_tokens === 65536));
+    assert.ok(model.arrivals.every(arrival => arrival.caseName === owner && arrival.phase === 'initialization'
+      && arrival.purpose === 'whole-facts' && arrival.status === 'responded'));
+  }
 });

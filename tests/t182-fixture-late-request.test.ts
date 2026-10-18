@@ -14,6 +14,7 @@ async function fixture(caseName: string) {
   const model = createT164OutputFixture(directory, caseName, 'truncate');
   await new Promise<void>(resolve => model.provider.listen(0, '127.0.0.1', resolve));
   const address = model.provider.address(); assert.ok(address && typeof address === 'object');
+  model.beginRun();
   return { ...model, directory, port: address.port };
 }
 function client(port: number, path = '/beta/chat/completions', method = 'POST') {
@@ -42,11 +43,13 @@ for (const [label, raw, path, method] of [
   assert.equal(result.status, 400);
   const diagnostic = JSON.parse(result.text).error;
   assert.ok(diagnostic.includes(`用例=${t.name}`));
+  assert.ok(diagnostic.includes('阶段=run'));
   assert.ok(diagnostic.includes(`请求=#1 ${method} ${path}`));
   assert.ok(diagnostic.includes(`已收字节=${Buffer.byteLength(raw)} complete=true`));
   await assert.rejects(model.close(), error => error instanceof AggregateError && error.message.includes(diagnostic));
   const saved = JSON.parse(await readFile(`${model.directory}/local-output-transport-truncate.json`, 'utf8'));
   assert.equal(saved.arrivals[0].status, 'failed');
+  assert.equal(saved.arrivals[0].phase, 'run', '正文无法解析时也必须登记阶段');
   assert.equal(saved.arrivals[0].error, diagnostic);
 });
 
