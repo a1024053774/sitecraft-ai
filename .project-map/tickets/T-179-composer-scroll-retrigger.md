@@ -18,15 +18,45 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 2. 不复现：把对照断言留作回归，写明结论关票。复现：只在用户主动滚动后停止自动腾位，直到用户再次点选目标或重新打开浮层；不改生成站代码，不放宽 T-162/T-175 已有的遮挡与可见性断言。
 3. 顺带把 T-175 移交的小项改掉：「同一节点多占位」用例的两个预期片段改成两个不同出处。
 
+## 2026-10-18 主控决定：测试入口按类别分池
+
+负责人已授权实施，不选原 A/B 方案。入口沿本地运行时依赖静态识别浏览器 helper／CHROME_PATH 等 Chrome 入口，包含间接引用；每轮打印浏览器池归属，删除 T-175 的手工名单。非浏览器文件保持 Node 默认并发，浏览器文件进入独立限并发池，每文件每轮只运行一次，继续合并原生每文件 summary，零用例或任一池失败均令整轮失败。
+
+验收条件：先在当前入口取得直接／间接识别、非浏览器排除、执行一次、统计合并与失败传播的红灯；浏览器池并发 1、2、3 分别实测总耗时、Chrome 峰值和失败数，以连续两轮全过且最快的值固定默认并发；最终同一提交完整运行两轮全量并 build。所有重任务串行，开始前 memory_pressure 与 ps，空闲低于 25% 不启动；当前全量必须自然跑完，失败后不进入下一项。旧中止轮仅作不完整反例保留。入口另行提交，不混入产品修复，不改产品预算、判断条件或用例，不跳测。同步 AGENTS 标准命令规则和 spec。
+
+目标／非目标：只修测试调度的根因边界，不改站点或批注产品代码；沿用「浏览器池／非浏览器池」的 Ubiquitous language，以真实 npm test 入口作为 Tracer bullet 验证分类、调度与统计，不另设平行入口，保持 Deep modules 的小接口。静态依赖规则的行为用合成模块及真实子进程验证；并发选择仍是 measured unknown，必须由本次完整运行决定，不能用上次生命周期区间推算。
+
 ## Acceptance
 
 - [x] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
-- [x] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过
+- [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过（先前定向通过；最新全量 T-175 768 失败，当前不能勾选）
 - [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
 
-**INCOMPLETE，2026-10-18 UTC**。功能候选提交为 `be8af2cc0cbdc7182a897142cf48c89cafb16b5b`（父提交 `d90ffc2`）。三档定向检查、指定的原有回归、runner 与 typecheck 通过；该候选上的一次全量出现原有用例失败后，Codex 误把「当前项自然跑完后不再进入下一项」理解成中止当前全量，主动发送 SIGTERM；这不符合负责人原意。此轮未自然跑完，不重跑、不启动 build。结果见 [验收汇总](../../artifacts/t179/final-validation.json)、[全量报告](../../artifacts/t179/full/report.json) 和 [日志](../../artifacts/t179/full/tests.log)。本次收尾提交只更新 Resolution，不改代码或测试。独立审查仍由主控另派，最后一项验收保持未勾选。
+**测试入口分池：INCOMPLETE（2026-10-18）**。主控决定已记录并开始实施，入口改动与产品代码分开提交；当前默认并发 1 只是开发起点，尚未选定验收值。本次没有修改 components 或产品预算、判断条件，也没有跳过用例。下述首轮用的是 HEAD `69cea59` 上的新入口工作树代码；入口代码与本次独立提交相同，不冒充提交后的两轮证据。
+
+模块引用版本的回归先在原入口红灯（错误分池），再在新入口 5/5 通过，覆盖直接／静态间接／动态 import、循环引用、类型／字符串／注释排除、旧名单文件名不影响归属、每文件一次、过滤统计、任一池失败与并发参数传入。T-176 保留策略回归 10/10，typecheck 退出 0。证据：[旧入口红灯](../../artifacts/t179/pool-parent-red/command.log)、[模块引用版本绿灯](../../artifacts/t179/pool-runner-green/command.log)、[保留策略报告](../../artifacts/t179/pool-retention/report.json)、[类型检查](../../artifacts/t179/pool-typecheck/command.log)。
+
+**当前已知分类缺口**：通过 spawn/spawnSync 执行本地 CLI、由该脚本再引用 Chrome 的路径尚未纳入，例如 `tests/t145-import-cli.test.ts → scripts/import-legacy-site-code.ts → commitSiteCode`。开发轮静态分为非浏览器 37、浏览器 82；ps 采样实际在非浏览器池捕获到 Chrome 峰值 1，故此分类不合格。已在入口回归加入本地 CLI 边界输入，但该输入在上述绿灯之后加入，尚未运行；当前回归不能报通过。没有通过手工搬文件弥补。发现缺口后只暂停后续比较编排，正在运行的全量始终继续自然运行；全量结束后因原有用例失败，依负责人规则停止，没有继续修入口或重跑。
+
+| 并发／轮次 | 全量结果 | 总耗时（秒） | ps 采样 Chrome 主进程峰值 | 失败数 |
+| --- | --- | --- | --- | --- |
+| 1，第 1 轮（分类未完善的开发候选） | 自然完成 119 文件、826 用例；824 通过、2 失败；0 跳过、0 取消 | 2519.617 | 整轮 3；非浏览器池 1、浏览器池 3 | 2 |
+| 1，第 2 轮 | 未运行 | 未测 | 未测 | 未测 |
+| 2、3 | 未运行 | 未测 | 未测 | 未测 |
+| 固定值后同提交两轮与 build | 未运行；没有合格并发值 | 未测 | 未测 | 未测 |
+
+实际命令：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py pool-c1-r1 npm test -- --browser-concurrency=1`。UTC 06:10:40–06:52:39，启动前 memory_pressure 空闲 52%，ps 已记录；采样器每 200ms 读取本命令进程树中的 Chrome 主进程，不把 renderer/GPU/utility 子进程当浏览器，可能漏过更短瞬时峰值。没有向运行中的测试入口发送终止信号；119 个独立文件 summary 全部取得，非浏览器池 151 + 浏览器池 675 = 826，文件唯一数 119，任一池失败使整体退出 1。比较编排器仅在确认测试入口已退出后关闭。
+
+本轮完整失败清单（原始首行已保存）：
+
+1. `tests/t169-citations-browser.test.ts`：「表格中的跨单元格价格出处经真实提交入口存版并准确绑定行」；`Error: Chrome 页面载入超时`。
+2. `tests/t175-stale-placeholder.test.ts`：「禾巷小馆 v2 经生产 chat 重放：提示与一起更新草稿刷新恢复 768」；`Error: Chrome 检查失败：Error: 等待失败：!document.getAnimations().some(a=>a.playState==='running')`。
+
+这两项属于页面载入／等待错误，不是本轮抛出的动态五秒预算错误；未据此判定根因、放宽等待或改断言。上次已观察到的 8 个失败用例本轮通过，但本轮有新的原有失败，不能据此宣布新入口全量通过。当前应交回主控判断，2/3 比较、最快值选择、同提交两轮和 build 均未完成。证据：[开发轮完整报告](../../artifacts/t179/pool-c1-r1/report.json)、[完整异常日志](../../artifacts/t179/pool-c1-r1/tests.log)、[实际耗时与 ps 采样](../../artifacts/t179/pool-c1-r1/metrics.json)、[候选结果汇总](../../artifacts/t179/pool-attempt-summary.json)。上次反例仍为下文那轮中途被人为终止的 8 项记录，不完整，不能作完整总数基线。
+
+**产品阶段与原不完整反例（2026-10-18 UTC）**。功能候选提交为 `be8af2cc0cbdc7182a897142cf48c89cafb16b5b`（父提交 `d90ffc2`）。三档定向检查、指定的原有回归、runner 与 typecheck 通过；该候选上的一次全量出现原有用例失败后，Codex 误把「当前项自然跑完后不再进入下一项」理解成中止当前全量，主动发送 SIGTERM；这不符合负责人原意。此轮未自然跑完，不重跑、不启动 build。结果见 [验收汇总](../../artifacts/t179/final-validation.json)、[全量报告](../../artifacts/t179/full/report.json) 和 [日志](../../artifacts/t179/full/tests.log)。此前文档收尾提交只更新 Resolution；产品代码自 be8af2c 后未改，测试入口变动由本次独立提交承担。独立审查仍由主控另派，最后一项验收保持未勾选。
 
 实测结论：父版本 `4781659` 在 768/1440 复现用户上滚后被程序推回，375 不复现。首次只测量的 [脚本和数据](../../artifacts/t179/measurement-1792289031509-45580/) 与 [报告](../../artifacts/t179/baseline-measurement/report.json) 保留；上滚输入为 -48，内层 scrollTop 分别为 375 `2271→2223`、768 `1927→1879→1919`、1440 `1673→1625→1658`，外层保持 `203/85/0`。浮层 top 分别为 `761→761`、`739.875→749`、`738.015625→749`。下滚 +48 三档均保留原生位移。
 
@@ -54,7 +84,7 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 
 未读 .env.local、未调用 DeepSeek、未使用 rm 命令、未写主目录 .sitecraft-data、未推送。Next 自动改动 tsconfig.json 留在工作树且不提交。wheel 以外的主动滚动输入未单独实测；模型替身不证明真实模型行为，本票不需要真实模型或外部依赖验证。
 
-**八项失败的只读诊断（2026-10-18，未重跑、未修复）**
+**原中止轮八项失败的只读诊断（2026-10-18，当时未重跑、未修复）**
 
 原始 `test:fail` 错误对象未归档：`scripts/test-summary-reporter.mjs` 只保存文件 summary，spec reporter 在中止后没有输出完整异常详情。因此八项的**原始错误首行均未保留**，不能冒充已取得。下表 E0/E1/E2 是依据唯一失败调用、动态诊断、保留的运行状态及源码还原的首行；第 6 项还由该站点第二次提交的 `run.step` 交叉核对。
 
@@ -83,4 +113,4 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 
 入口提前结束的机制：不是失败后正常跑完，也没有证据表明入口自行崩溃或触发了全量超时。主动 SIGTERM 进入 `scripts/run-tests.ts` 的 stop handler，设置 interrupted=true，并终止测试子进程和 dev server；并行子进程关闭后，准备进入串行阶段时 `assert.ok(!interrupted)` 抛出「测试入口已取消，拒绝启动下一阶段」。正常失败只累计 testCode，原代码不会因此跳过串行阶段。此次人为中止使 116 个并行文件中仅 91 个留下完整 summary，25 个没有完整 summary（可能运行中、尚未运行或输出尚未刷新），3 个串行文件全部未执行。501 仅是完整文件 summary 的统计，不是完整实际执行总数；日志的 8 项也不是完整失败清单，原始异常详情与潜在后续失败均无法从本轮补齐。今后「失败就停」统一按当前项自然结束后不进入下一项执行，不向运行中的全量发 SIGTERM；用户明确要求取消除外。
 
-诊断证据：[逐项数据与关系判断](../../artifacts/t179/failure-audit.json)、[只读指标提取脚本](../../artifacts/t179/failure-audit.py)、[375 首次预览等待失败截图](../../artifacts/t162/self-contained-1792289783018-60122/session-failure-375-1349c66a-6bb7-4641-8354-7c49df8e247d.png)。截图已打开，仅证明失败时工作台状态。当前只更新诊断与 Resolution，未改产品、测试、预算、超时上限或并发设置。
+诊断证据：[逐项数据与关系判断](../../artifacts/t179/failure-audit.json)、[只读指标提取脚本](../../artifacts/t179/failure-audit.py)、[375 首次预览等待失败截图](../../artifacts/t162/self-contained-1792289783018-60122/session-failure-375-1349c66a-6bb7-4641-8354-7c49df8e247d.png)。截图已打开，仅证明失败时工作台状态。该只读诊断阶段只更新诊断与 Resolution，未改产品、测试、预算、超时上限或并发设置。

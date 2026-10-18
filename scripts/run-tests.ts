@@ -6,6 +6,7 @@ import { appendFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, wri
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { checkTestIdentity } from './test-identity.ts';
 
 delete process.env.NODE_TEST_CONTEXT;
@@ -13,12 +14,59 @@ delete process.env.NODE_TEST_CONTEXT;
 // reports remain evidence, even when that requires more than five directories.
 const project = await realpath(fileURLToPath(new URL('../', import.meta.url)));
 assert.equal(await realpath(process.cwd()), project, '测试入口工作树与当前目录不一致，拒绝清理或启动');
-// T-175: the two longest files and the observed six-Chrome dynamic load.
-const serialBrowserFiles = new Set([
-  'tests/t174-local-function.test.ts',
-  'tests/t175-stale-placeholder.test.ts',
-  'tests/t178-read-budget.test.ts',
-].map(file => path.join(project, file)));
+const entryStartedAt = Date.now();
+// T-179: begin the authorized 1/2/3 comparison at 1. Replace the default with
+// the fastest value that passes two consecutive full runs before acceptance.
+const defaultBrowserConcurrency = 1;
+type BrowserDependency = { file: string; via: string[]; marker: string };
+// Classify runtime references, without importing or executing test modules.
+// Follow local import/export, literal import()/require(), and the project's @/
+// alias. Ignore type-only references, comments, strings and external packages.
+// CHROME_PATH access/binding/environment entries mark a Chrome boundary. Thus
+// helper filenames do not need a list. A per-search visited set handles cycles.
+const modules = new Map<string, { marker?: string; imports: string[] }>();
+function browserDependency(file: string): BrowserDependency | undefined {
+  const queue = [{ file, via: [file] }], visited = new Set<string>();
+  for (let at = 0; at < queue.length; at++) {
+    const current = queue[at]; if (visited.has(current.file)) continue; visited.add(current.file);
+    let module = modules.get(current.file);
+    if (!module) {
+      module = { imports: [] }; modules.set(current.file, module);
+      const source = ts.createSourceFile(current.file, readFileSync(current.file, 'utf8'), ts.ScriptTarget.Latest, true);
+      const imports = new Set<string>();
+      const reference = (node: ts.Node | undefined) => { if (node && ts.isStringLiteralLike(node)) imports.add(node.text); };
+      const visit = (node: ts.Node) => {
+        if (ts.isImportDeclaration(node)) {
+          const clause = node.importClause;
+          const onlyTypes = clause?.isTypeOnly || (!clause?.name && clause?.namedBindings && ts.isNamedImports(clause.namedBindings)
+            && clause.namedBindings.elements.length > 0 && clause.namedBindings.elements.every(item => item.isTypeOnly));
+          if (!onlyTypes) reference(node.moduleSpecifier); return;
+        }
+        if (ts.isExportDeclaration(node)) { if (!node.isTypeOnly && !(node.exportClause && ts.isNamedExports(node.exportClause)
+          && node.exportClause.elements.length > 0 && node.exportClause.elements.every(item => item.isTypeOnly))) reference(node.moduleSpecifier); return; }
+        if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword
+          || (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) reference(node.arguments[0]);
+        const name = ts.isPropertyAccessExpression(node) ? node.name.text
+          : ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text
+            : (ts.isPropertyAssignment(node) || ts.isBindingElement(node)) && node.name && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) ? node.name.text : '';
+        if (name === 'CHROME_PATH') module!.marker = 'CHROME_PATH';
+        ts.forEachChild(node, visit);
+      };
+      visit(source);
+      for (const specifier of imports) {
+        if (!specifier.startsWith('.') && !specifier.startsWith('@/')) continue;
+        const resolved = ts.resolveModuleName(specifier, current.file, { moduleResolution: ts.ModuleResolutionKind.Bundler,
+          baseUrl: project, paths: { '@/*': ['./*'] }, allowJs: true, resolveJsonModule: true }, ts.sys).resolvedModule;
+        assert.ok(resolved, `无法静态解析测试运行时引用：${current.file} → ${specifier}`);
+        const dependency = path.resolve(resolved.resolvedFileName);
+        if (dependency.startsWith(project + path.sep) && !dependency.includes(`${path.sep}node_modules${path.sep}`)
+          && !/\.d\.[cm]?ts$/.test(dependency) && /\.[cm]?[jt]sx?$/.test(dependency)) module.imports.push(dependency);
+      }
+    }
+    if (module.marker) return { file, via: current.via, marker: module.marker };
+    for (const dependency of module.imports) queue.push({ file: dependency, via: [...current.via, dependency] });
+  }
+}
 const artifacts = path.join(project, 'artifacts'), runRoot = path.join(artifacts, 't167');
 for (const directory of [artifacts, runRoot]) {
   await mkdir(directory, { recursive: true });
@@ -114,8 +162,9 @@ try {
   server.once('close', () => serverLog.end());
   const serverFailure = serverClosed.then(([code, signal]) => { throw new Error(`测试 dev server 提前退出（code=${code}, signal=${signal}）`); });
   let testCode: number | null = null, identity: unknown, base: string | undefined;
-  let executed: number | null = null, passed = false;
-  const phases: Array<{ name: string; files: string[]; summaryFile: string; testCode: number | null; executed: number; startedAt: string; endedAt: string }> = [];
+  let executed: number | null = null, failed = 0, passed = false, browserConcurrency = defaultBrowserConcurrency;
+  const classification: { browser: BrowserDependency[]; nonBrowser: string[] } = { browser: [], nonBrowser: [] };
+  const phases: Array<{ name: string; files: string[]; summaryFile: string; testCode: number | null; executed: number; failed: number; startedAt: string; endedAt: string }> = [];
   let startupFailed = false, startupCause: unknown;
   try {
     base = await Promise.race([new Promise<string>((resolve, reject) => {
@@ -138,15 +187,26 @@ try {
     const requested = args.filter(arg => arg.endsWith('.test.ts'));
     const files = [...new Set((requested.length ? requested
       : (await readdir('tests')).filter(name => name.endsWith('.test.ts')).sort().map(name => `tests/${name}`)).map(file => path.resolve(file)))];
-    const options = args.filter(arg => !arg.endsWith('.test.ts'));
+    const concurrency = args.filter(arg => arg.startsWith('--browser-concurrency='));
+    assert.ok(concurrency.length <= 1 && (!concurrency.length || /^--browser-concurrency=[123]$/.test(concurrency[0])), '浏览器池实测并发只接受单个 --browser-concurrency=1、2 或 3');
+    if (concurrency.length) browserConcurrency = Number(concurrency[0].split('=')[1]);
+    const options = args.filter(arg => !arg.endsWith('.test.ts') && !arg.startsWith('--browser-concurrency='));
+    assert.ok(!options.some(arg => arg.startsWith('--test-concurrency')), '请用 --browser-concurrency 设置浏览器池；非浏览器池保留默认并发');
+    for (const file of files) {
+      const dependency = browserDependency(file);
+      if (dependency) { classification.browser.push(dependency);
+        console.log(`浏览器池：${path.relative(project, file)}（${dependency.via.map(item => path.relative(project, item)).join(' → ')} → ${dependency.marker}）`); }
+      else classification.nonBrowser.push(file);
+    }
+    console.log(`测试分池：非浏览器 ${classification.nonBrowser.length} 个文件；浏览器 ${classification.browser.length} 个文件，并发 ${browserConcurrency}`);
     const summaryFile = path.join(output, 'summaries.ndjson');
     await writeFile(summaryFile, '', 'utf8');
     testCode = 0; executed = 0;
     const testLog = createWriteStream(path.join(output, 'tests.log'));
     try {
       for (const phase of [
-        { name: 'parallel', files: files.filter(file => !serialBrowserFiles.has(file)) },
-        { name: 'serial', files: files.filter(file => serialBrowserFiles.has(file)) },
+        { name: 'non-browser', files: classification.nonBrowser },
+        { name: 'browser', files: classification.browser.map(item => item.file) },
       ]) {
         if (!phase.files.length) continue;
         assert.ok(!interrupted, '测试入口已取消，拒绝启动下一阶段');
@@ -156,7 +216,7 @@ try {
         tests = spawn(process.execPath, ['--test', '--experimental-strip-types',
           '--test-reporter=spec', `--test-reporter=${path.resolve('scripts/test-summary-reporter.mjs')}`,
           '--test-reporter-destination=stdout', `--test-reporter-destination=${phaseSummaryFile}`, ...options,
-          ...(phase.name === 'serial' ? ['--test-concurrency=1'] : []), ...phase.files], {
+          ...(phase.name === 'browser' ? [`--test-concurrency=${browserConcurrency}`] : []), ...phase.files], {
           env: { ...env, SITECRAFT_BASE: base }, stdio: ['ignore', 'pipe', 'pipe'],
         });
         const completed = once(tests, 'close');
@@ -168,8 +228,9 @@ try {
         const phaseExecuted = summaries.reduce((total: number, summary) => total + summary.counts.tests - summary.counts.skipped - summary.counts.cancelled - summary.counts.todo, 0);
         await appendFile(summaryFile, rawSummaries, 'utf8');
         executed += phaseExecuted;
+        const phaseFailed = summaries.reduce((total: number, summary) => total + summary.counts.failed, 0); failed += phaseFailed;
         if (phaseCode !== 0) testCode = phaseCode ?? 1;
-        phases.push({ ...phase, summaryFile: phaseSummaryFile, testCode: phaseCode, executed: phaseExecuted, startedAt, endedAt: new Date().toISOString() });
+        phases.push({ ...phase, summaryFile: phaseSummaryFile, testCode: phaseCode, executed: phaseExecuted, failed: phaseFailed, startedAt, endedAt: new Date().toISOString() });
       }
     } finally { testLog.end(); await once(testLog, 'finish'); }
     assert.equal(testCode, 0, '测试失败，保留本轮日志与临时数据根');
@@ -183,7 +244,7 @@ try {
     await serverClosed;
     await writeFile(path.join(output, 'report.json'), JSON.stringify({ at: new Date().toISOString(),
       command: ['npm', 'test', '--', ...process.argv.slice(2)], base, dataRoot, distDir, identity, testCode,
-      executed, phases, status: passed ? 'PASS' : 'INCOMPLETE',
+      executed, failed, phases, classification, browserConcurrency, durationMs: Date.now() - entryStartedAt, status: passed ? 'PASS' : 'INCOMPLETE',
       ...(startupFailed ? { startupError: `测试服务启动或身份核对失败：${startupCause instanceof Error ? startupCause.message : String(startupCause)}\n${serverOutput}\n日志：${path.join(output, 'dev.log')}` } : {}) }, null, 2) + '\n', 'utf8');
     if (!passed) console.error(`失败证据保留：${output}\n失败数据根保留：${dataRoot}`);
   }
