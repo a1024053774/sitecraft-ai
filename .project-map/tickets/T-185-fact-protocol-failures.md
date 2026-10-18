@@ -2,7 +2,7 @@
 id: T-185
 title: 事实核对两类协议失败：claim 越段与 issues 返回对象
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-fast-t185
 supersedes:
@@ -29,11 +29,11 @@ T-180 重跑的 20 站里有 2 站在事实核对协议处失败，没有生成�
 
 - [x] 两类失败的根因写进 Resolution，附原文定位
 - [x] 成对测试先红后绿；两组合真实探针结果如实记录（用量、成败）
-- [ ] typecheck、test、build 通过；独立 fast 审查通过
+- [x] typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
 
-INCOMPLETE（独立 fast 审查待主控派发；执行范围内的实现和验证已完成），执行实例 `codex-fast-t185`，分支 `t185-fact-protocol`，父版本 `a6e06d746c634f20c119bedbfb9048d47c2593fa`。类型检查、两轮全量、build 及两个生成探针均通过；评估命令本身因外部对照截图和盲评包不齐 exit=1，详情见下文。执行者未派审查或盲评实例，不宣布审美通过，票保持 open。
+PASS，已关闭，执行实例 `codex-fast-t185`，分支 `t185-fact-protocol`，父版本 `a6e06d746c634f20c119bedbfb9048d47c2593fa`。类型检查、两轮全量、build 及两个生成探针均通过；评估命令本身因外部对照截图和盲评包不齐 exit=1，详情见下文。执行者未派审查或盲评实例，不宣布审美通过。
 
 REALITY GATE: PASS。目标是减少严格事实协议导致的主流程失败；非目标是不放宽 schema、claim 归属或 quote 验真，不改输入构造、不转对象、不重试。真实原文支持最小提示修复，本次获批的两个生成探针也通过严格协议；模型能否在未来所有输出中遵守合同仍无保证，不追加模型调用来追求这一结论。
 
@@ -86,3 +86,6 @@ packaging 本次仍有 24 个表格段，s21/s22、s28/s29、s35/s36 的起订�
 **评估命令 exit=1，轮次为 INCOMPLETE。** 两站生成均成功，`round.errors[0]` 为外部 `restaurant/1`（Blue Frog）对照「页面入场或转场未结束，本次未保存截图」；已收集 3 份真实官网对照，mixed/company 包因独立对照不足不齐备，`private/blind-coverage.json` 明确记录缺项，未请求跨轮比较。未修改截图工具、替换对照、绕过打包或重跑模型。此项外部截图失败不冒充生成失败，也不把整个评估命令报 PASS。
 
 评估器退出后，经普通 dev 的 draft HTTP 再读回两站，确认当前及历史 runs 全部 complete；经网关 `/status` 核对六次调用 complete、进行中 0、未知用量 0，保存 `artifacts/t185/terminal-before-stop.json` 后，才手动停止网关与 dev，两进程均已退出。测试与构建自动新增的 tsconfig 类型目录 include 已还原，不进入功能 diff；还原后 `npm run typecheck` 再次通过（`artifacts/t185/typecheck-delivery.log`）。只做本地提交，不推送；工作树及探针数据保留给主控审查。
+
+**审查与主线验证。** 新 fast 审查实例审 `a6e06d7..8661ee6`，结论无需修复：六条坏 claim 确为跨 claimTexts 拼接（重复表题来自输入构造，但行边界与可复制范围计算无误），餐馆原文证实 issues 返回 object；提示与接收校验共用同一 Zod schema，无宽松解析、对象转换、重试或兼容层；定向 24/24、typecheck 通过。主控 `--no-ff` 合并为 `7a4d2ec`，2026-10-18 17:51–18:03 EDT 在主目录验证：runner 18/18，npm test 114/114 + 739/739，build 与 typecheck exit 0（`artifacts/t185/main-verify/`）。两个探针站已不覆盖复制进主目录数据，3034 可打开。
+
