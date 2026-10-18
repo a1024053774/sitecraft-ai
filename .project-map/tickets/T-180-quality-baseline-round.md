@@ -24,12 +24,12 @@ supersedes:
 ## Acceptance
 
 - [x] 两轮评估的命令、提交、时间、用量、成功/失败站数写进 Resolution；失败站保留失败记录，不重跑掩盖
-- [ ] 三份独立盲评结论原文路径与汇总的前 5 个质量缺口写进 Resolution
-- [ ] 生成站已复制进主目录且 3034 可打开；构思主控据此开出后续票
+- [x] 三份独立盲评结论原文路径与汇总的前 5 个质量缺口写进 Resolution（跨轮比较无可用题，未派实例，原因见「对照」）
+- [ ] 生成站已复制进主目录且 3034 可打开（已完成）；构思主控据此开出后续票（待办）
 
 ## Resolution
 
-**INCOMPLETE。** 两轮真实生成与记录已完成：18 站 generated、2 站 error；两轮评估器均 exit=1，盲评包不完整。本票只改记录，不改代码、不推送；盲评及主目录站点复制由构思主控负责，执行者只打开 private 截图核对非空，不判审美。盲评与后续票尚未交付，票保持 open。
+**INCOMPLETE（仅待构思主控据前 5 缺口开后续票）。** 两轮真实生成 18 站 generated、2 站 error；两轮评估器均 exit=1，盲评包各缺一站生成图与 bluefrog 官网对照，按现有包完成 4 份独立盲评并由主控解盲；18 站已复制进主目录并在 3034 打开。本票不改代码。
 
 **第一次运行（历史）。** 2026-10-18，源码 `447332073fadec72a0551cf985cbc318698d94b5`，默认 full 14 组合与旧版所选 6 组合共 20 站全部事实协议失败、无版本：17 个 noFacts=false 却无七类高风险类别、2 个回复格式或编号异常、1 个出处不属当前段。累计 1,681,673 token；失败及用量证据已移到主目录 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180/` 和 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t174/t180-quality-baseline/`，不覆盖、不作成功对照。T-181 已修提示及 claim 复制歧义并合入主线，未捕获的旧回复不补造。
 
@@ -104,7 +104,7 @@ SITECRAFT_BASE=http://127.0.0.1:52424 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=
 
 机械质量反馈单列，不作审美结论或拒收：第 1/2 轮正文行长分别触发 10/4 站、101/20 次，未门控 hover 为 13/5 站、933/288 次，375 点击区偏小为 13/5 站、311/93 次，过窄文字列为 2/0 站、24/0 次；文字裁剪、锚点遮挡与产品图 cover 裁切均 0。反馈分母为已测的 13/5 站，发生次数跨页及视口累计；完整统计在各轮 private/summary.json。
 
-**包路径与完整性。** 下列目录均已由原评估器生成，盲评尚未派发。两轮唯一官网失败都是 `https://www.bluefrog.com.cn/` 的入场或转场未结束，按原截图合同未保存，不补抓、不修网络；错误保存在各轮 private/round.json。第二轮虽按六个 case 安排六份对照，实际仅成功五份，数量不足如实保留。
+**包路径与完整性。** 下列目录均已由原评估器生成。两轮唯一官网失败都是 `https://www.bluefrog.com.cn/` 的入场或转场未结束，按原截图合同未保存，不补抓、不修网络；错误保存在各轮 private/round.json。第二轮虽按六个 case 安排六份对照，实际仅成功五份，数量不足如实保留。
 
 | 轮次 | mixed 路径 / 实际样本 | company 路径 / 实际题数 | comparison-review |
 | --- | --- | --- | --- |
@@ -116,3 +116,25 @@ SITECRAFT_BASE=http://127.0.0.1:52424 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=
 **收尾与交接。** 16:33:04 EDT 经真实 draft HTTP 读回第一轮 14 站全部 run 终态（`artifacts/t180-r2/terminal-observation-1.json`）。第二轮评估器退出后，16:53:26 再经真实 draft HTTP 读回 20 站全部 run 终态，60 次调用 complete、in-flight=0、未知用量=0（`artifacts/t180-r2/terminal-observation-2.json`）；随后手动 SIGTERM，停止网关 PID 70248 与本工作树 dev PID 70497。**16:53:33 EDT** 两个端口均 ECONNREFUSED，见 `artifacts/t180-r2/shutdown.json`；没有评估器退出即关网关的编排钩子。未停止主目录服务，未写主目录 `.sitecraft-data`，未复制站点、删除数据、使用 rm -rf 或推送。
 
 本次只改本票；typecheck、npm test、build 未运行，不借用 T-181 旧绿灯。真实验收入口是上述两次 full eval，均 exit=1，失败与截图如实保留。project-map 状态检查无结构问题、无过时 living doc；本地提交本票记录后交回构思主控。独立盲评、审美前五缺口、主目录复制及后续票仍未完成，因此票保持 open。
+
+**独立盲评与解盲（主控，2026-10-18）。** 评估器提示要求每包一个新实例，故派 4 个 fast 新实例（gpt-6.1-sol xhigh），同时最多 2 个；每个实例只拿到复制到 `/Users/luckye/Documents/Code/sitecraft-blind/t180-r{1,2}-{mixed,company}/` 的单个包，不接触仓库、票、private 或其他包。四份结果均逐张打开截图、无法判定 0 项；原文存 `artifacts/t180-r2/round1-full/blind-results/` 与 `round2-selected/blind-results/` 的 `mixed-result.json`、`company-result.json`。跨轮比较 paired=0，未派实例。主控用 private/mapping.json 解盲：
+
+| 轮次 | mixed：生成页被识别 | mixed：官网被误判 | company：判同模板 |
+| --- | --- | --- | --- |
+| 1（默认 14 组合） | **13/13（100%）**，门槛 ≤50% 未达 | 0/13 | 0/36（0%），达标 |
+| 2（六组合） | **5/5（100%）**，门槛 ≤50% 未达 | 0/5 | 0/4（0%），达标 |
+
+结论：站与站之间不像同一模板，但 18 个生成首页全部被识别为生成页，「像那家公司自己建的」不成立。
+
+**前 5 个质量缺口**（按盲评理由中出现的站数排序；站点 ID 见上方逐站表，截图为 private 下代表图）：
+
+1. **内容按固定字段同构排列，读起来像说明书（14 站）**：每个条目都套「需要／可以点／边界」「名称—说明」「需求／提供／边界」等同一字段组，服务、菜单、课程都被写成规则文档。代表：restaurant/documentary `02c1a6d0-fc14-4d12-a845-ee436c5489bf`（`artifacts/t180-r2/round1-full/private/case-10/home-1440.png`）、education/neighborly `2609b69e-3fe7-43d3-bb8e-a0f0426d7ee9`（`artifacts/t180-r2/round2-selected/private/case-4/home-1440.png`）。
+2. **细横线加统一字号是唯一的层级手段，整页视觉均一（14 站）**：米白衬线或白底蓝按钮两套系统反复出现，靠横线和留白分节，缺少行业自己的视觉主题。代表：industrial/precision `7741dc9b-535b-4003-bb61-a7a3d57ad7b9`（`artifacts/t180-r2/round1-full/private/case-1/home-1440.png`）、design/editorial `8105526a-83dc-449d-afd6-9cb576f81506`（`artifacts/t180-r2/round2-selected/private/case-5/home-1440.png`）。
+3. **首屏和图文构图失衡（约 9 站）**：首屏左侧标题加按钮、右侧大块空白，或产品大图与右侧短列表重量悬殊，段间留白重复。代表：export/precision `54572abd-f372-41b6-8905-529fabcbbf98`（`artifacts/t180-r2/round1-full/private/case-3/home-fold-1440.png`）、molding/documentary `f1f252f2-0870-4e9d-8025-76a3f1602926`（`artifacts/t180-r2/round1-full/private/case-6/home-1440.png`）。
+4. **「不包含／不保证／不承接」等边界陈述被反复放大（8 站）**：首屏副句、条目和侧栏多次重述范围限制，成为版面主角。代表：design/editorial（同上，`artifacts/t180-r2/round2-selected/private/case-5/home-1440.png`）、restaurant/editorial `21e191ea-1358-4966-a47d-ac6febc2df59`（`artifacts/t180-r2/round2-selected/private/case-1/home-1440.png`）。
+5. **375 下时间、参数和标签碎折行（约 7 站，company 盲评）**：营业时间起止值、「10:00—17:00」、开放日「周四」单独换行，减速机长参数串多次折行，桌面页脚邮箱断行。代表：restaurant/editorial（`artifacts/t180-r2/round2-selected/private/case-1/home-375.png`）、education/documentary `90bc3556-bfb8-4ebf-ac39-f5ecfb752190`（`artifacts/t180-r2/round1-full/private/case-12/home-375.png`）、industrial/documentary `121d8dd0-7fea-4eb6-a12d-1777eeab3f60`（`artifacts/t180-r2/round1-full/private/case-2/home-375.png`）。
+
+站数用关键词归类盲评理由得出，是近似值，原文以 result.json 为准。技术检查（2 站事实协议失败、机械质量反馈、官网对照失败）见上文，不并入审美缺口。
+
+**复制进主目录。** 先备份主目录 code-sites 到 `artifacts/t180/main-data-backup-*`，再把 18 个 generated 站的记录、对话、上传以不覆盖方式复制进主目录 `.sitecraft-data`，站名加「（质量基线 10-18）」；2 个 error 站无版本，未复制，失败记录留在 private。3034 上 18 站 code-preview 与 workspace 均 HTTP 200。
+
