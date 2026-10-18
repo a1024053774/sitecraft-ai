@@ -39,7 +39,56 @@ supersedes:
 
 ## Resolution
 
-执行状态：INCOMPLETE。构思主控于 2026-10-17 选 A：这个缺陷是 T-162 留下的，被 T-175 新加的端到端测试暴露出来，在本票一并修复。基于 `e1af12b` 先补三档成对断言并保留父版失败，再只改工作台批注浮层定位；不改生成站代码、不改变已有测试判断条件。`blocked_by: []`、`claimed_by: Codex` 保持。修复后按指定顺序执行定向、T-162 三项回归、runner、typecheck，在同一提交上串行运行两轮全量与 build；每项前检查内存和进程，空闲低于 25% 或任何非预期失败立即停止。独立 fast 审查由负责人另派，票保持 open。
+执行状态：INCOMPLETE。浮层修复 `8603913` 的第一轮全量 823／823，第二轮 822／823，因餐馆动态检查超时停止，未运行 build。构思主控于 2026-10-17 再选 A：在本票把实测最重的浏览器文件移到末尾串行阶段，每文件每轮只执行一次，两阶段合并 Node 每文件统计；产品预算、既有用例与判断条件不变。先补真实入口回归取得父版失败，再修改入口，按 runner、typecheck、T-175 定向、同一提交两轮全量、build 的顺序验证；每项前检查内存和进程，空闲低于 25% 或既有用例／重任务失败即停止。自写新夹具的修正属于正常迭代，失败报告保留。`blocked_by: []`、`claimed_by: Codex` 保持，独立 fast 审查由负责人另派，票保持 open。
+
+### 构思主控决定：重浏览器文件移到末尾串行阶段（2026-10-17）
+
+在 `8603913` 之上只修改测试入口的文件调度与对应回归、规则文档。固定名单按下面两轮实测选择，文件从并行阶段移出，末尾串行阶段每个文件只执行一次，不能先并行再补跑；不修改测试断言、不跳过用例、不改产品读取预算。两阶段仍共用本轮工作树锁、服务与临时数据根；仍按 Node 原生每文件 summary 合并实际执行数，成功全量总数须保持 823，零实际用例或任一阶段失败均令整轮失败。
+
+#### `8603913` 两轮结果与失败诊断
+
+两轮均执行规定 CHROME_PATH 下的 `npm test`，源码无改动。第一轮 01:04:50–01:10:09 UTC，空闲 51%，318.824 秒，118 文件、823 项全部通过；第二轮 01:10:18–01:16:03 UTC，空闲 44%，344.393 秒，118 文件、823 项中 822 通过／1 失败，取消、跳过与 todo 均为 0。报告分别为 [第一轮](../../artifacts/t175/placement-20261018T005958Z/full-1/test-run-1792285490512-57146/report.json)、[第二轮](../../artifacts/t175/placement-20261018T005958Z/full-2/test-run-1792285819143-71966/report.json)，同目录有完整日志、summary 与 checks 副本。第二轮失败后未 build、未重跑。新增三档浮层成对用例两轮都通过；失败为既有 T-175 餐馆 1440 工作台场景的存版动态检查，不是按钮遮挡。
+
+只读诊断汇总：[failure-diagnosis.json](../../artifacts/t175/placement-20261018T005958Z/failure-diagnosis.json)。失败发生于 01:15:04.455–01:15:17.762 UTC 的 home／375 检查档：源 41 次、候选 41 次、合计 82 次完整读取计划，计算预算与实际准入均为 13300ms，整档已用 13306.744ms。本档入口的 `pageRemainingMs`（对应 remainingDynamicMs）为 60000ms；失败后的 remainingDynamicMs 没有单独记录，768／1440 后档未执行，不能把推算余额写成实际记录。
+
+分类耗时 78.568ms；两侧探针均 completed=true，各有 10 个可聚焦元素、76 次强制调用、215 次 CDP 往返。源探针 8859.198ms（focus 20.225、force 693.008、styleRead 6004.424ms），候选 8663.349ms（focus 35.212、force 679.869、styleRead 6329.032ms）。最后一侧探针在 01:15:14.161 留下完成记录，距整档超时约 3601ms；compareMs=0，没有已完成比较的耗时证据。现有诊断没有单独计时探针返回、浏览器退出等待或主线程调度，不能把这段空档唯一归为分类、强制状态、样式读取或比较，也不能仅凭 compareMs=0 断言比较从未开始。可确认的边界是「两侧探针完成记录之后，整档完成之前超时」，不是两侧样式读取仍未完成。原始 [整档记录](../../artifacts/t175/placement-20261018T005958Z/full-2/test-run-1792285819143-71966/checks/81211-df588a3f-c596-4bf6-acce-5a1ad79833c5.json)、[源探针](../../artifacts/t175/placement-20261018T005958Z/full-2/test-run-1792285819143-71966/checks/81211-725eeaa9-96f5-4f23-8fd6-6cfcbdda3a1f.json)、[候选探针](../../artifacts/t175/placement-20261018T005958Z/full-2/test-run-1792285819143-71966/checks/81211-4ae6fbe9-f021-4b62-826d-d66a89bb9c9d.json) 均保留。
+
+第一轮同一个 1440 工作台场景的对照（每档均源 41＋候选 41 次，计算与准入预算均为 13300ms，三档均完成）：
+
+| 检查宽度 | 实际耗时 ms | 本档入口 remainingDynamicMs／pageRemainingMs |
+| --- | ---: | ---: |
+| 375 | 5465.371 | 60000 |
+| 768 | 5177.255 | 54534 |
+| 1440 | 5566.344 | 49357 |
+
+失败窗口与另外 2 个 Node 测试进程的 15 条 Chrome 生命周期相交：pid 81116 的 `t174-local-function.test.ts` 有 9 条，pid 82815 的 `t178-read-budget.test.ts` 有 6 条；后者六条贯穿整个窗口。窗口内同时存在的其他测试进程峰值为 2、其他 Chrome 峰值为 8，15 是累计相交生命周期数，不是同时存在数。按同轮 browser 诊断区间相交计算，不包含未登记的外部进程及普通 Chrome；不据此声称并发是唯一根因。[原始 timings 副本](../../artifacts/t175/placement-20261018T005958Z/full-2/t175-timings.json) 在窗口内有 5 个一分钟 load average 样本：01:15:05.018 为 26.434、06.875／08.810／10.795 为 25.999、12.874 为 25.038；下一条样本 17.921 为 33.042，已在超时结束后约 159ms。load 不是 CPU 百分比，也不是连续采样；采样时刻按 startedAt＋durationMs 回读，不能把结束时取到的 load 记在操作开始时。
+
+#### 固定名单及挑选依据
+
+数据来自上面两轮各文件的原生 summary；单档耗时来自对应文件 pid 的 dynamic-check 诊断。以下为秒，故障注入的预期拒收不当作文件失败：
+
+| 文件 | 第一轮整文件 | 第二轮整文件 | 单档最长：第一／第二轮 | 选择 |
+| --- | ---: | ---: | ---: | --- |
+| t175-stale-placeholder.test.ts | 140.471 | 142.054 | 5.566／13.307（超时） | 串行：整文件最长，且餐馆九档完整状态读取是本轮失败点 |
+| t174-local-function.test.ts | 130.565 | 141.742 | 0.230／1.412 | 串行：整文件第二长，每轮 196 条 Chrome 生命周期，实际与失败窗口重叠 |
+| t178-read-budget.test.ts | 62.576 | 81.839 | 4.342／10.252 | 串行：含真实负载对照，六个 Chrome 覆盖失败窗口，完整状态检查次重 |
+| t163-area-drafts.test.ts | 118.372 | 123.802 | 0.391／0.494 | 保留并行：耗时较长，但单档为短静态检查，未与本次失败窗口重叠 |
+| t169-citations-browser.test.ts | 122.840 | 116.495 | 0.272／0.293 | 保留并行：同上，末尾串行会等待它完整结束 |
+| t173-fact-boundary.test.ts | 119.859 | 110.451 | 0.546／0.503 | 保留并行：同上 |
+| t173-citation-repair.test.ts | 117.497 | 111.482 | 0.699／2.460 | 保留并行：同上 |
+
+先只移动「整文件耗时前二＋实测六 Chrome 动态负载」三项，不重排全部浏览器测试。固定名单直接写在 `scripts/run-tests.ts`，并行阶段预期 746 项、串行阶段 77 项，合计仍为 823。新入口回归先在 `8603913` 生产入口上失败：观察真实 Node spawn 的文件参数及串行并发参数、每个夹具文件实际载入次数、两阶段合并统计，并注入串行失败确认整轮失败；不以入口自身输出的固定期望值代替这些行为观察。后续结果留在本节。
+
+#### 新入口实现与冻结前检查（2026-10-18 UTC）
+
+入口将选中的文件先去重、再分为并行与末尾串行两组，只从串行组传入 `--test-concurrency=1`；显式定向文件使用同一分组逻辑。两个子进程顺序完成，共用本轮服务、身份许可、数据根与独占锁，各自输出原生 summary，并原样合并为 summaries.ndjson；执行数仍按原公式计算，任一阶段非零结果保留到整轮，不被后面的成功覆盖。AGENTS 的标准命令、spec 与 README 只同步当前规则，名单与实测依据留在本票和入口中；产品预算及所有既有测试判断条件未改。
+
+- 01:22:41–01:22:42，开跑前空闲 46%，在 `8603913` 的旧入口上执行 `node --test --experimental-strip-types --test-name-pattern=^T-175: scripts/t167-runner-regressions.ts`，新增用例按预期失败：只观察到 1 次包含所有夹具文件的真实 Node spawn，要求为并行、串行两阶段。Next 仅替换为隔离项目的 health 服务，入口、Node 执行及统计均为真实路径；捕获器只观察 spawn，不替换执行。[红测日志](../../artifacts/t175/serial-stage-20261018T012230Z/runner-red/command.log)、[实际启动参数与执行记录](../../artifacts/t175/entry-regression-pass-83dd2c04-c0c5-4600-a9ca-2d936bf5bade/observation.json)。
+- 01:23:16–01:23:24，空闲 47%，新入口上运行完整 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`，5／5 通过，退出 0。[日志](../../artifacts/t175/serial-stage-20261018T012230Z/runner/command.log)。新用例的三组独立夹具分别观察到：[正常两阶段合计 5 项](../../artifacts/t175/entry-regression-pass-c50443ed-e063-4e2a-94e1-eef7695ac33c/observation.json)；[只匹配串行且输入有重复文件时合计 3 项](../../artifacts/t175/entry-regression-filtered-e30657cd-1493-4e1b-a70e-999a7900253e/observation.json)，并行 0 项不误拒整个有效轮；[串行故意失败](../../artifacts/t175/entry-regression-serial-failure-c38c10f0-99a6-411e-9cdb-e85e435edaa3/observation.json) 时仍实际执行全部 5 项，整轮非零且 INCOMPLETE。各文件都只载入一次，原始 report 与分阶段 summary 均复制到这些本票目录。预期故障注入不算本轮 runner 失败。
+- 01:23:50–01:23:51，空闲 42%，`npm run typecheck` 通过，退出 0。[回执](../../artifacts/t175/serial-stage-20261018T012230Z/typecheck/receipt.json)。
+- 01:24:19–01:25:53，空闲 48%，规定 CHROME_PATH 下执行 `npm test -- tests/t175-thread-placement.test.ts tests/t175-stale-placeholder.test.ts`，实际并行阶段 3 项、串行阶段 15 项，合计 18／18 通过，取消／跳过／todo 均为 0，退出 0。[标准报告](../../artifacts/t175/serial-stage-20261018T012230Z/directed/test-run-1792286659498-89494/report.json)、[完整日志](../../artifacts/t175/serial-stage-20261018T012230Z/directed/command.log)。
+
+每项开始前均保存 memory_pressure 和 ps，日志、回执及标准报告副本均在 [本次入口证据目录](../../artifacts/t175/serial-stage-20261018T012230Z/)。本次只修改入口、增加一个独立 runner 回归和同步规则；本票此前的浮层修复及产品代码不再修改。以下两轮全量和 build 固定在包含本节的同一新提交，SHA 随冻结记录保存；任一重任务失败即停止，不补跑、不重试。
 
 ### 构思主控决定：本票修复 T-162 遗留浮层遮挡（2026-10-17）
 
