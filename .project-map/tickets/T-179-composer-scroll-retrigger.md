@@ -2,7 +2,7 @@
 id: T-179
 title: 批注浮层腾位后，用户手动滚动不应被再次推回
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex
 supersedes:
@@ -59,9 +59,9 @@ T-162 首次预览先核对保留 dev.log 的对应路由编译耗时与浏览�
 - [x] 按负责人最终决定完整删除门禁及替身，保留分类对照，runner 18/18、T-176 10/10 与 typecheck 通过
 - [x] 保留静态分类修复与同类语法对照：42cfc92 上先红后绿，默认并发当前说明为 2，旧失败证据保留
 - [x] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
-- [ ] A′ 基础设施前置：明确终态、共用生产预算与实测余量、预览原因证据、并发 2 校准及同提交验收通过
-- [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过（先前定向通过；最新全量 T-175 1440/768 失败，当前不能勾选）
-- [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 fast 审查通过
+- [x] A′ 基础设施前置：明确终态、共用生产预算与实测余量、预览原因证据、并发 2 校准及同提交验收通过
+- [x] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过
+- [x] 不调用 DeepSeek；typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
 
@@ -275,3 +275,11 @@ T-179 本轮 **3/3**，包括 768 初始线程点击、首次腾位、真实上�
 入口提前结束的机制：不是失败后正常跑完，也没有证据表明入口自行崩溃或触发了全量超时。主动 SIGTERM 进入 `scripts/run-tests.ts` 的 stop handler，设置 interrupted=true，并终止测试子进程和 dev server；并行子进程关闭后，准备进入串行阶段时 `assert.ok(!interrupted)` 抛出「测试入口已取消，拒绝启动下一阶段」。正常失败只累计 testCode，原代码不会因此跳过串行阶段。此次人为中止使 116 个并行文件中仅 91 个留下完整 summary，25 个没有完整 summary（可能运行中、尚未运行或输出尚未刷新），3 个串行文件全部未执行。501 仅是完整文件 summary 的统计，不是完整实际执行总数；日志的 8 项也不是完整失败清单，原始异常详情与潜在后续失败均无法从本轮补齐。今后「失败就停」统一按当前项自然结束后不进入下一项执行，不向运行中的全量发 SIGTERM；用户明确要求取消除外。
 
 诊断证据：[逐项数据与关系判断](../../artifacts/t179/failure-audit.json)、[只读指标提取脚本](../../artifacts/t179/failure-audit.py)、[375 首次预览等待失败截图](../../artifacts/t162/self-contained-1792289783018-60122/session-failure-375-1349c66a-6bb7-4641-8354-7c49df8e247d.png)。截图已打开，仅证明失败时工作台状态。该只读诊断阶段只更新诊断与 Resolution，未改产品、测试、预算、超时上限或并发设置。
+
+### 关票（主控）
+
+2026-10-18（纽约时间）。工作树 `f1b4ec1`（入口负载门槛已按负责人决定删除）上自然跑完：runner 回归通过；全量两轮均 829/829（非浏览器池 114、浏览器池并发 2 共 715），分别约 12.0 和 12.7 分钟；typecheck、build 通过。两轮期间 1 分钟 load 5.7–15.3，每步开跑与结束的 load 见 [steps.log](../../artifacts/t179/quiet-run/steps.log)，各步输出同目录。T-175 重放两轮均通过。
+
+独立 fast 审查：首审 `42cfc92` NO_GO（memory_pressure 走 PATH、T-176 嵌套入口未注入观测、静态分类两条漏判、票内旧描述），`bddf66a` 修复后同一审查实例复审 PASS；其后 `f1b4ec1` 只删除门槛及其替身，保留分类修复。
+
+合并主线 `128259a` 后主线验证（09:33–09:48 EDT）：runner exit 0；`npm test` exit 0，non-browser 27 个文件 114/114，browser 93 个文件 715/715；build、typecheck exit 0；站点数 280。报告：[main-verify/report.json](../../artifacts/t179/main-verify/report.json)，日志同目录。主线验证截出的 [1440](../../artifacts/t179/measurement-1792331146574-80915/down-1440.png)、[768](../../artifacts/t179/measurement-1792331146574-80915/down-768.png)、[375](../../artifacts/t179/measurement-1792331146574-80915/up-375.png) 滚动截图已逐张打开：批注线程面板未遮挡选中区块，未被推出视口。未调用 DeepSeek，token 0。
