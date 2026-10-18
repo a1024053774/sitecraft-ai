@@ -204,6 +204,16 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     if (!saveDrafts(current => current.some(d => d.id === draft.id) ? current.map(d => d.id === draft.id ? draft : d) : [...current, draft])) return;
     setComposer(null); if (!composer.draftId) setSelectedTarget(null); frame.current?.focus();
   }
+  const placeholderCandidates = version?.stalePlaceholders?.map((prompt, index) => annotationDraftSchema.safeParse({
+    id: `${version.id}-placeholder-${index}`, target: prompt.target, revision: version.revision, status: 'draft',
+    body: `请更新「${prompt.snippet}」，采用你补充的原句：「${prompt.quote}」。保留本区块其他内容。`,
+  })) ?? [];
+  const placeholderDrafts = placeholderCandidates.flatMap(candidate => candidate.success ? [candidate.data] : []);
+  const placeholdersAdded = placeholderDrafts.length > 0 && placeholderDrafts.every(draft => drafts.some(existing => existing.id === draft.id));
+  function addPlaceholderDrafts() {
+    if (!draftsLoaded || draftStorageError || conversationUnavailable || previewVersionId) return;
+    saveDrafts(current => [...current, ...placeholderDrafts.filter(draft => !current.some(existing => existing.id === draft.id))]);
+  }
   function previewLoaded() {
     const location = frame.current?.contentWindow?.location;
     if (location) {
@@ -398,6 +408,12 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {version && !conversationUnavailable && !alignment?.waitingForUser && !alignment?.awaitingConfirmation && <button className="code-restyle" disabled={busy} onClick={() => void perform({ action: 'start', baseRevision: version.revision })}>调整风格与疏密</button>}
         {alignment?.awaitingConfirmation && !busy && site.plan && <section className="alignment-panel" aria-label="确认页面大纲" data-testid="code-plan"><strong>{site.plan.summary}</strong><ol>{site.plan.pages.map(p => <li key={p.id}><strong>{p.title}</strong><p>{p.outline}</p></li>)}</ol><button className="primary-button" onClick={() => void perform({ action: 'confirm', questionId: alignment.questionId, questionRevision: alignment.questionRevision })}>确认并生成</button><button className="code-alignment-cancel" onClick={() => void perform({ action: 'cancel' })}>返回对话</button></section>}
         {site.run && (running || site.run.issues.length > 0 || state.turns.at(-1)?.aiSummary !== progressText) && <div className={`message assistant ${site.run.status}`}><div className="message-bubble" role="status" data-testid="code-progress">{running && <LoaderCircle className="spin" size={14} />} {progressText}{site.run.issues.length > 0 && <details data-testid="code-run-issues"><summary>查看完整检查问题（{site.run.issues.length} 项）</summary><ul>{site.run.issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul></details>}</div></div>}
+        {activeLanguage === 'zh' && !previewVersionId && !!version?.stalePlaceholders?.length && <div className="message assistant" data-testid="stale-placeholder-prompt"><div className="message-bubble">
+          <p>这些地方还写着「待补充」：</p>
+          {version.stalePlaceholders.map((prompt, index) => <p key={index}>{prompt.pageTitle}：{prompt.snippet}{!placeholderCandidates[index].success && <small>此处无法加入批注草稿，请在预览中重新点选并填写意见。</small>}</p>)}
+          <button type="button" className="secondary-button" data-testid="stale-placeholder-add" disabled={conversationUnavailable || !draftsLoaded || draftStorageError || !!previewVersionId || !placeholderDrafts.length || placeholdersAdded} onClick={addPlaceholderDrafts}>{placeholdersAdded ? '已加入批注草稿' : '一起更新'}</button>
+          <small>加入草稿后，可查看意见再发送。</small>
+        </div></div>}
         {version && <p className="code-check-receipt" data-testid="code-check-receipt">版本 {version.revision} · {codeVersionAuthor(version.author)} · {version.summary} · {codeCheckLabel(version.checks)}</p>}
         {version?.checks.passed && !conversationUnavailable && <section className="alignment-panel code-english-panel" aria-label="英文版">
           <p data-testid="english-status">{english ? `英文版基于中文第 ${english.sourceRevision} 版${english.sourceRevision !== chineseCodeRevision(version) ? '，已落后于当前中文版。' : '。'}` : '中文版满意了吗？可以沿用当前页面生成英文版。'}</p>

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { closeSync, constants, createWriteStream, fstatSync, lstatSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from 'node:fs';
-import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { appendFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,12 @@ delete process.env.NODE_TEST_CONTEXT;
 // reports remain evidence, even when that requires more than five directories.
 const project = await realpath(fileURLToPath(new URL('../', import.meta.url)));
 assert.equal(await realpath(process.cwd()), project, '测试入口工作树与当前目录不一致，拒绝清理或启动');
+// T-175: the two longest files and the observed six-Chrome dynamic load.
+const serialBrowserFiles = new Set([
+  'tests/t174-local-function.test.ts',
+  'tests/t175-stale-placeholder.test.ts',
+  'tests/t178-read-budget.test.ts',
+].map(file => path.join(project, file)));
 const artifacts = path.join(project, 'artifacts'), runRoot = path.join(artifacts, 't167');
 for (const directory of [artifacts, runRoot]) {
   await mkdir(directory, { recursive: true });
@@ -109,6 +115,7 @@ try {
   const serverFailure = serverClosed.then(([code, signal]) => { throw new Error(`测试 dev server 提前退出（code=${code}, signal=${signal}）`); });
   let testCode: number | null = null, identity: unknown, base: string | undefined;
   let executed: number | null = null, passed = false;
+  const phases: Array<{ name: string; files: string[]; summaryFile: string; testCode: number | null; executed: number; startedAt: string; endedAt: string }> = [];
   let startupFailed = false, startupCause: unknown;
   try {
     base = await Promise.race([new Promise<string>((resolve, reject) => {
@@ -128,21 +135,43 @@ try {
     await writeFile(env.SITECRAFT_TEST_IDENTITY_FILE!, JSON.stringify(identity) + '\n', 'utf8');
     console.log(`测试数据根：${dataRoot}\n测试构建目录：${distDir}\n测试服务：${base}`);
     const args = process.argv.slice(2);
-    const files = args.some(arg => arg.endsWith('.test.ts')) ? []
-      : (await readdir('tests')).filter(name => name.endsWith('.test.ts')).sort().map(name => `tests/${name}`);
+    const requested = args.filter(arg => arg.endsWith('.test.ts'));
+    const files = [...new Set((requested.length ? requested
+      : (await readdir('tests')).filter(name => name.endsWith('.test.ts')).sort().map(name => `tests/${name}`)).map(file => path.resolve(file)))];
+    const options = args.filter(arg => !arg.endsWith('.test.ts'));
     const summaryFile = path.join(output, 'summaries.ndjson');
-    tests = spawn(process.execPath, ['--test', '--experimental-strip-types',
-      '--test-reporter=spec', `--test-reporter=${path.resolve('scripts/test-summary-reporter.mjs')}`,
-      '--test-reporter-destination=stdout', `--test-reporter-destination=${summaryFile}`, ...args, ...files], {
-      env: { ...env, SITECRAFT_BASE: base }, stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    const completed = once(tests, 'exit');
+    await writeFile(summaryFile, '', 'utf8');
+    testCode = 0; executed = 0;
     const testLog = createWriteStream(path.join(output, 'tests.log'));
-    tests.stdout!.pipe(testLog, { end: false }); tests.stderr!.pipe(testLog, { end: false });
-    tests.stdout!.pipe(process.stdout); tests.stderr!.pipe(process.stderr);
-    [testCode] = await completed; testLog.end(); await once(testLog, 'finish');
-    const summaries = (await readFile(summaryFile, 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
-    executed = summaries.reduce((total: number, summary) => total + summary.counts.tests - summary.counts.skipped - summary.counts.cancelled - summary.counts.todo, 0);
+    try {
+      for (const phase of [
+        { name: 'parallel', files: files.filter(file => !serialBrowserFiles.has(file)) },
+        { name: 'serial', files: files.filter(file => serialBrowserFiles.has(file)) },
+      ]) {
+        if (!phase.files.length) continue;
+        assert.ok(!interrupted, '测试入口已取消，拒绝启动下一阶段');
+        const startedAt = new Date().toISOString();
+        const phaseSummaryFile = path.join(output, `summaries-${phase.name}.ndjson`);
+        console.log(`测试阶段：${phase.name}（${phase.files.length} 个文件）`);
+        tests = spawn(process.execPath, ['--test', '--experimental-strip-types',
+          '--test-reporter=spec', `--test-reporter=${path.resolve('scripts/test-summary-reporter.mjs')}`,
+          '--test-reporter-destination=stdout', `--test-reporter-destination=${phaseSummaryFile}`, ...options,
+          ...(phase.name === 'serial' ? ['--test-concurrency=1'] : []), ...phase.files], {
+          env: { ...env, SITECRAFT_BASE: base }, stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        const completed = once(tests, 'close');
+        tests.stdout!.pipe(testLog, { end: false }); tests.stderr!.pipe(testLog, { end: false });
+        tests.stdout!.pipe(process.stdout); tests.stderr!.pipe(process.stderr);
+        const [phaseCode] = await completed;
+        const rawSummaries = await readFile(phaseSummaryFile, 'utf8');
+        const summaries = rawSummaries.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+        const phaseExecuted = summaries.reduce((total: number, summary) => total + summary.counts.tests - summary.counts.skipped - summary.counts.cancelled - summary.counts.todo, 0);
+        await appendFile(summaryFile, rawSummaries, 'utf8');
+        executed += phaseExecuted;
+        if (phaseCode !== 0) testCode = phaseCode ?? 1;
+        phases.push({ ...phase, summaryFile: phaseSummaryFile, testCode: phaseCode, executed: phaseExecuted, startedAt, endedAt: new Date().toISOString() });
+      }
+    } finally { testLog.end(); await once(testLog, 'finish'); }
     assert.equal(testCode, 0, '测试失败，保留本轮日志与临时数据根');
     assert.ok(typeof executed === 'number' && executed > 0, '零用例：没有实际执行的测试，拒绝报通过');
     passed = true;
@@ -154,7 +183,7 @@ try {
     await serverClosed;
     await writeFile(path.join(output, 'report.json'), JSON.stringify({ at: new Date().toISOString(),
       command: ['npm', 'test', '--', ...process.argv.slice(2)], base, dataRoot, distDir, identity, testCode,
-      executed, status: passed ? 'PASS' : 'INCOMPLETE',
+      executed, phases, status: passed ? 'PASS' : 'INCOMPLETE',
       ...(startupFailed ? { startupError: `测试服务启动或身份核对失败：${startupCause instanceof Error ? startupCause.message : String(startupCause)}\n${serverOutput}\n日志：${path.join(output, 'dev.log')}` } : {}) }, null, 2) + '\n', 'utf8');
     if (!passed) console.error(`失败证据保留：${output}\n失败数据根保留：${dataRoot}`);
   }

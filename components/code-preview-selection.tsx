@@ -166,11 +166,34 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
   useLayoutEffect(() => {
     const anchor = rect ?? areaRect;
     if (!anchor || !frame.current || !panel.current) return;
-    const f = frame.current.getBoundingClientRect(), p = panel.current.getBoundingClientRect();
-    const below = f.y + (anchor.y + anchor.height) * scale + 8, above = f.y + anchor.y * scale - p.height - 8;
-    const preferredTop = below + p.height <= window.innerHeight - 8 ? below : above >= 8 ? above : below;
+    // The phone sheet already reserves its measured height below the preview.
+    if (getComputedStyle(panel.current).getPropertyValue('--code-annotation-reserve').trim() === '1') return;
+    const iframe = frame.current, stage = iframe.closest('.code-preview-stage');
+    const f = iframe.getBoundingClientRect(), p = panel.current.getBoundingClientRect();
+    // The preview's toolbar includes the historical-version return control.
+    // A panel above the target must stay below that toolbar as well as onscreen.
+    const minimumTop = Math.max(8, stage?.getBoundingClientRect().top ?? 8);
+    const maximumTop = Math.max(minimumTop, window.innerHeight - p.height - 8);
+    let below = f.y + (anchor.y + anchor.height) * scale + 8, above = f.y + anchor.y * scale - p.height - 8;
+    const visible = f.y + anchor.y * scale < Math.min(f.bottom, window.innerHeight)
+      && below - 8 > Math.max(f.top, minimumTop);
+    if (visible && below > maximumTop && above < minimumTop) {
+      // Make room below the visible target instead of clamping onto it or the
+      // history bar. Only scroll the preview; generated HTML/CSS stays intact.
+      const viewport = iframe.contentWindow!;
+      const scroll = viewport.scrollY;
+      viewport.scrollBy({ top: (below - maximumTop) / scale, behavior: 'instant' });
+      const shifted = (viewport.scrollY - scroll) * scale;
+      below -= shifted; above -= shifted;
+      if (stage && below > maximumTop) {
+        const before = stage.scrollTop;
+        stage.scrollBy({ top: below - maximumTop, behavior: 'instant' });
+        below -= stage.scrollTop - before; above -= stage.scrollTop - before;
+      }
+    }
+    const preferredTop = below <= maximumTop ? below : above >= minimumTop ? above : maximumTop;
     setPosition({ left: Math.max(8, Math.min(f.x + anchor.x * scale, window.innerWidth - p.width - 8)),
-      top: Math.max(8, Math.min(preferredTop, window.innerHeight - p.height - 8)) });
+      top: Math.max(minimumTop, Math.min(preferredTop, maximumTop)) });
   }, [rect, areaRect, scale, frame, children]);
   const top = Math.max(0, rect?.y ?? 0), bottom = Math.min(1000, (rect?.y ?? 0) + (rect?.height ?? 0));
   return <>
