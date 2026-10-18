@@ -36,16 +36,17 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 
 ## Resolution
 
-**测试入口分池：INCOMPLETE（2026-10-18，CLI 分类修复后的并发 3 首轮未通过）**。入口候选在 `120927a` 上继续开发，仅改入口、入口回归与规则文档，不改 components、产品预算、判断条件或已有用例。CLI 子进程依赖现在沿参数变量、数组展开／slice、路径构造及 for-of 脚本列表递归追踪；运行时每 250ms 采样非浏览器池进程树，沿工作进程与 CLI 祖先记录 Chrome 所属文件，排除外部 Chrome 与 renderer，重复进程只告警一次；只记录告警，不重分池、不重跑、不改变测试结果。无法静态求值的运行时参数仍由此诊断观察，不声称能静态证明任意动态程序。
+**测试入口分池：INCOMPLETE（2026-10-18，并发 2 首轮自然完成后因 3 项失败停止）**。入口 CLI 分类候选为 `6466c89`，本票线程时序测试修复为 `be96dda`，最新全量运行于 `0f0987b`。没有修改 components 或生成站代码，产品预算与判断条件不变。CLI 子进程依赖沿参数变量、数组展开／slice、路径构造及 for-of 脚本列表递归追踪；运行时每 250ms 采样非浏览器池进程树，沿工作进程与 CLI 祖先记录 Chrome 所属文件，排除外部 Chrome 与 renderer，重复进程只告警一次；只记录告警，不重分池、不重跑、不改变测试结果。无法静态求值的运行时参数仍由此诊断观察，不声称能静态证明任意动态程序。
 
-本次成对证据：先在 `120927a` 原入口取得 CLI 错分红灯；扩展的 helper／循环脚本与运行时归属回归也先失败，再由新入口通过。完整 runner 6/6；真实 `t145-import-cli` 与 T-176 入口／保留策略 12/12，T-145 打印完整 `测试 → CLI → store → check → browser → CHROME_PATH` 依据；typecheck 退出 0。证据：[原入口红灯](../../artifacts/t179/pool-cli-parent-red/command.log)、[扩展红灯](../../artifacts/t179/pool-cli-expanded-red/command.log)、[完整 runner](../../artifacts/t179/pool-cli-runner-green/command.log)、[CLI 与保留策略](../../artifacts/t179/pool-cli-targeted/report.json)、[类型检查](../../artifacts/t179/pool-cli-typecheck/command.log)。上述均记录命令、UTC 时间、HEAD 与预检，不用最终提交后的证据名义引用。并发 3 首轮已自然完成并失败，按规则停止；并发 3 第二轮、并发 2/1、选定后的同提交两轮及 build 均未运行，尚未选定默认值，入口默认 1 仍只是开发值。
+入口成对证据：先在 `120927a` 原入口取得 CLI 错分红灯；扩展的 helper／循环脚本与运行时归属回归也先失败，再由新入口通过。完整 runner 6/6；真实 `t145-import-cli` 与 T-176 入口／保留策略 12/12，T-145 打印完整 `测试 → CLI → store → check → browser → CHROME_PATH` 依据；typecheck 退出 0。证据：[原入口红灯](../../artifacts/t179/pool-cli-parent-red/command.log)、[扩展红灯](../../artifacts/t179/pool-cli-expanded-red/command.log)、[完整 runner](../../artifacts/t179/pool-cli-runner-green/command.log)、[CLI 与保留策略](../../artifacts/t179/pool-cli-targeted/report.json)、[类型检查](../../artifacts/t179/pool-cli-typecheck/command.log)。上述均记录命令、UTC 时间、HEAD 与预检，不用最终提交后的证据名义引用。并发 3、2 各首轮均自然完成后失败；两者第二轮、修复后并发 1、固定值后的同提交两轮及 build 未运行。尚未选定默认值，入口默认 1 仍只是开发值。
 
-本次校准完整结果：UTC **11:07:15.875–11:20:21.802**，启动前 memory_pressure 空闲 **39%**，ps 已保存。实际命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py pool-cli-c3-r1 npm test -- --browser-concurrency=3`（由 `calibrate-pools.py pool-cli` 串行编排）。运行时 HEAD 为 `120927a`，加本次入口工作树改动；这些入口与回归代码会与本次独立提交一致，不冒充提交后最终验收。
+并发 3 校准完整结果：UTC **11:07:15.875–11:20:21.802**，启动前 memory_pressure 空闲 **39%**，ps 已保存。实际命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py pool-cli-c3-r1 npm test -- --browser-concurrency=3`（由 `calibrate-pools.py pool-cli` 串行编排）。运行时 HEAD 为 `120927a`，加当时入口工作树改动；这些入口与回归代码随后独立提交为 `6466c89`，不冒充提交后最终验收。
 
 | 候选／并发／轮次 | 文件／实际用例 | 总耗时（秒） | Chrome 主进程峰值 | 失败数 |
 | --- | --- | --- | --- | --- |
 | CLI 分类修复后／3／第 1 轮 | 119 个唯一文件 summary；826 用例，823 通过；0 跳过、0 取消 | 785.921 | 整轮 7；非浏览器 0、浏览器 7 | 3 |
-| 3 第 2 轮、2/1 校准、选定后两轮与 build | 本轮失败后未启动 | 未测 | 未测 | 未测 |
+| 线程时序测试修复后／2／第 1 轮 | 119 个唯一文件 summary；826 用例，823 通过；0 跳过、0 取消 | 1107.968 | 整轮 5；非浏览器 0、浏览器 5 | 3 |
+| 3、2 各第 2 轮、修复后 1 校准、固定值后两轮与 build | 各首轮失败后均未启动后续项 | 未测 | 未测 | 未测 |
 
 非浏览器池 **27 文件／114 用例**，浏览器池 **92 文件／712 用例**，合计仍为 **119／826**，无重复文件、无跳过。比修复前多识别 10 个 CLI 引用文件，逐项依据在日志和 classification 中。实际非浏览器池 Chrome 峰值 0；入口 browserWarnings、browserMonitorErrors 与外部采样器 samplingErrors 均为空。峰值为每 200ms 的进程树采样，可能漏掉更短峰值，不把 renderer/GPU/utility 算作独立浏览器。两池都自然完成，入口因浏览器池失败退出 1，编排器正常停止；**没有中途终止全量**。
 
@@ -67,7 +68,19 @@ T-179 768 是本票测试遗漏线程异步载入的前置等待。旧轮错误�
 
 T-175 两张旧失败截图已逐张打开，并复制至本票目录。1440 截图仍显示后台检查范围、事实与三档布局的进度转圈；CSS `.spin` 每周期 900ms、无限重复。1440 等待实际 20015.805ms，Chrome 采样为 5→峰值6→6；768 等待 20015.727ms，采样为 6→峰值7→6。对应后台任务总耗时分别 33648.421／36109.179ms，两次 20 秒动画等待结束时任务都还没完成。因此等待失败与任务仍运行的无限进度动画相符，不能说已经证明某个有限入场动画跑了 20 秒。旧轮没有保存动画事件、播放时间或结束事件，无法还原动画精确起止；高并发及 load 约30–32 与较长任务时间并存，但仅凭这些数据不能证明负载是唯一原因。没有改 T-175 判断条件、预算或上限。helper 只增加动画 start/end/cancel 事件及失败时当前动画、播放时间和 computed timing 的只读归档，供随后全量如再次失败时核对；不增加等待、不取消动画。[诊断数据与限制](../../artifacts/t179/pool-c3-diagnosis/diagnosis.json)、[原始 timings 副本](../../artifacts/t179/pool-c3-diagnosis/t175-timings.json)。
 
-下一项按主控指令继续并发 2，连续两轮全量；每轮预检，全部自然跑完，该值任何一轮失败后停止，不进入下一轮或 build。若两轮均过，则固定 2、单独提交入口，再在同一提交上完整两轮与 build。测试等待修复及诊断与后续入口默认值改动分开提交，不 amend；独立审查仍由主控安排。
+**并发 2 完整运行与停止结果**：UTC **11:28:44.071–11:47:12.047**，提交 `0f0987bd178e5e751bf6b4a119fa0a3db0542813`，开始前 memory_pressure 空闲 **36%**，ps 已保存。实际命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py pool-two-c2-r1 npm test -- --browser-concurrency=2`，由 `calibrate-two.py pool-two` 编排。119 个唯一文件、826 实际用例，823 通过、3 失败，0 跳过／取消；非浏览器池 27 文件／114 用例，浏览器池 92 文件／712 用例，合计与之前一致。总耗时 **1107.968 秒**，Chrome 主进程峰值 **5**（非浏览器池 0），browserWarnings、browserMonitorErrors、samplingErrors 均为空。全量自然完成，两池均完整收尾，退出 1 后编排器停止；没有向运行中的全量发送终止信号。
+
+完整失败清单及原始首行：
+
+1. `tests/t162-inline-annotation.test.ts`：「真实指针与键盘：768 就地输入、编号、刷新和离屏定位」；`Error: Chrome 检查失败：Error: 等待失败：document.querySelector('[data-testid="code-preview"]')?.contentDocument?.querySelector('main h1') || window.__t162ReviewErrors?.length`。首次预览等待实际 20011.375ms，Chrome 采样 1→峰值3→2；失败诊断无活动动画，尚未进入线程点击或批注腾位。本轮未进一步归因或修复，失败截图在等待结束后显示站点正文，不能据此反推超时瞬间是否已就绪。
+2. `tests/t175-stale-placeholder.test.ts`：「禾巷小馆 v2 经生产 chat 重放：提示与一起更新草稿刷新恢复 1440」；`Error: Chrome 检查失败：Error: 等待失败：!document.getAnimations().some(a=>a.playState==='running')`。
+3. 同文件：「禾巷小馆 v2 经生产 chat 重放：提示与一起更新草稿刷新恢复 768」；错误首行同第 2 项。
+
+T-175 的新现场证明，等待覆盖了任务仍在运行时的无限进度动画，不能当成有限动画负载变慢：两档 `ws-fade-in` 均有 `animationend.elapsedTime=0.22`，超时快照只剩 `sitecraft-spin`，周期 900ms、iterations／endTime 均为 Infinity。1440 实际等待 **20017.363ms**，快照中两个 spinner 的 currentTime 均为 **20215.893ms**，Chrome 为 **4→峰值4→4**；768 实际等待 **20009.741ms**，一个 spinner 的 currentTime 为 **21265.840ms**，Chrome 为 **4→峰值5→4**，均仍是 running。对应后台任务共 **39271.348／32406.777ms**，分别在等待结束约 **15396.985／4229.036ms** 后完成。文件并发降到 2 后仍发生，不能把问题简单归为并发 3；负载对后台任务耗时的影响没有隔离测量，不能断言是唯一因果。保持 T-175 条件、预算与超时不变，没有增加固定 sleep、取消动画或重跑。3 张本轮失败截图已逐张打开并复制保留。
+
+T-179 本轮 **3/3**，包括 768 初始线程点击、首次腾位、真实上／下滚、重新展开与重新点选；T-162 指定三组各 3/3、T-175 遮挡 3/3、T-169 出处 9/9 通过。T-175 stale-placeholder 13/15，T-162 inline-annotation 3/4，整体仍不通过。按主控「并发 2 任何一轮失败后停」的指令，未进入第二轮、未固定 2、未跑固定提交后的两轮或 build，也未回头测 1。测试等待修复独立为 `be96dda`；本轮只补诊断与记录，不混入入口或产品修复，不 amend、不推送。独立审查仍由主控安排。
+
+本轮证据：[完整报告](../../artifacts/t179/pool-two-c2-r1/report.json)、[完整失败日志](../../artifacts/t179/pool-two-c2-r1/tests.log)、[耗时与 Chrome 采样](../../artifacts/t179/pool-two-c2-r1/metrics.json)、[预检](../../artifacts/t179/pool-two-c2-r1/preflight.txt)、[校准停止记录](../../artifacts/t179/pool-two-calibration.json)、[动画事件、播放时间、Chrome 区间、后台任务和截图副本](../../artifacts/t179/pool-two-diagnosis/diagnosis.json)。原中止轮、旧并发 1、并发 3 与本轮失败均原样保留。
 
 **修复前分池候选与完整失败轮**：以下记录属于 `120927a` 的上一版入口，全部保留，不代表新候选验收结果。首轮用的是 HEAD `69cea59` 上的新入口工作树代码，随后单独提交为 `120927a`；默认并发 1 是当时的开发起点。
 
