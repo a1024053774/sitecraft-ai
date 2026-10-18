@@ -68,7 +68,7 @@ export type CodeModelCall = {
   usage: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens?: number } | null;
   httpError?: import('./provider-http-error.ts').ProviderHttpError;
   skeletonOrder?: string[];
-  factInput?: { segments: Array<{ id: string; text: string; groupId: string; pageId: string; headings: string[] }> };
+  factInput?: { segments: Array<{ id: string; text: string; claimTexts?: string[]; groupId: string; pageId: string; headings: string[] }> };
   translationInput?: { pageId: string | null; slotCount: number; sourceChars: number; maxTokens: number;
     slotMap?: Array<{ id: string; domId: string }>; correctionRound?: number };
   response?: { finishReason: string | null; answerChars: number | null; reasoningTokens: number | null;

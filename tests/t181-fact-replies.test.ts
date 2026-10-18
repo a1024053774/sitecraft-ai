@@ -159,7 +159,7 @@ for (const local of [false, true]) test(`T-181 ${local ? '局部' : '整站'}事
     assert.equal(calls.length, 1, '错误不重试');
     const call = calls[0] as any;
     assert.ok(call.factInput, '失败任务也必须保留核对段映射');
-    assert.deepEqual(call.factInput.segments, [{ id: 's1', text, groupId: 'g1', pageId: 'specs', headings: [] }]);
+    assert.deepEqual(call.factInput.segments, [{ id: 's1', text, claimTexts: [text], groupId: 'g1', pageId: 'specs', headings: [] }]);
     assert.equal(call.response.finishReason, nextMode === 'outer-invalid' ? null : finishReason);
     assert.deepEqual(call.usage, nextMode === 'outer-invalid' ? null : { promptTokens: 211, completionTokens: 89, totalTokens: 300, reasoningTokens: 23 });
     if (nextMode.startsWith('credential-')) {

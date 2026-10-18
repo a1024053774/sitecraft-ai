@@ -24,11 +24,11 @@ T-180（2026-10-18）真实整轮 20 个站 0 成功，全部停在整站生成�
 
 - [x] 回复原文已保存并能查到；三类协议失败的根因结论写进 Resolution
 - [ ] 成对测试先红后绿；typecheck、test、build 通过；独立 fast 审查通过
-- [ ] 真实探针至少 1 个站存版成功，用量写进 Resolution（负责人 2026-10-18 授权不限额，探针账本 `SITECRAFT_TOKEN_LIMIT=500000`）
+- [x] 真实探针至少 1 个站存版成功，用量写进 Resolution（负责人 2026-10-18 授权不限额，探针账本 `SITECRAFT_TOKEN_LIMIT=500000`）
 
 ## Resolution
 
-INCOMPLETE，票保持 open。工作树基于 `9ed936419085e3c7ef13a363f1f3a03c0b4b4960`，分支 `t181-nofacts-prompt`，实现提交 `9478c1a7f4d3f767641397a0ed8a1f3414c37f31`；缺依赖通过 `npm ci` 安装，未建软链接。明确七类高风险声明的分类边界并保留可诊断回复；不放宽协议，不修改预算网关，不凭猜测修编号或越段声明。真实探针在写页的上游响应体中断，未到事实核对、未存版本，不能宣布真实修复通过。
+INCOMPLETE，票保持 open，正式审查由构思主控派新的 fast 实例。工作树基于 `9ed936419085e3c7ef13a363f1f3a03c0b4b4960`，分支 `t181-nofacts-prompt`，首次实现为 `9478c1a7f4d3f767641397a0ed8a1f3414c37f31`。负责人 2026-10-18 选 A 后，在精确的 `9478c1a` 上补跑全量及 build，通过；新账本两站探针有 1 站成功，并用保存的原文定位到 claim 复制歧义。当前增加复制文本及提示，严格协议与校验不变；修订候选的完整验证尚在执行。不修改网关脚本、不扩预算，不自行开审查实例。
 
 2026-10-18 16:55 UTC 的父版本离线检查：`CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t181-fact-replies.test.ts`，6 项全部预期失败，证据 `artifacts/t167/test-run-1792342517001-54548/` 与 `artifacts/t181/parent-red-v3.log`。失败分别指向旧提示、缺失原始回复和失败段映射；更早的测试夹具缺 conversation 初始化，已修正并保留最初失败，不计为缺陷红灯。离线模型替身只证明提示合同、解析和落盘，不能证明真实模型理解。
 
@@ -44,17 +44,28 @@ INCOMPLETE，票保持 open。工作树基于 `9ed936419085e3c7ef13a363f1f3a03c0
 | --- | --- | --- | --- |
 | 17:14:21 | 836 / 0 | PASS，exit=0 | `artifacts/t167/test-run-1792342937484-62254/`；`artifacts/t181/full1-report.json`、`full1.log` |
 | 17:25:33 | 836 / 1 | INCOMPLETE，exit=1 | `artifacts/t167/test-run-1792343673016-82517/`；`artifacts/t181/full2-report.json`、`full2.log` |
+| 17:41:04 | 836 / 0 | PASS，exit=0；负责人选 A 补跑 | `artifacts/t167/test-run-1792344607346-2975/`；`artifacts/t181/choice-a-20261018/full3-report.json`、`full3.log` |
 
-第二轮唯一失败在 `tests/t164-multi-block-edit.test.ts:186`“候选新增链接触发范围外自定义属性也必须拒绝”：`lib/code-site-local-edit.ts:266` 的动态状态检查在 clear/read 中超时，由 `lib/code-site-check.ts:548` 抛出，尚未到事实模型调用（663 行）。读回失败夹具 `t164-dynamic-e7416376-68c6-46cd-88e4-c846cd7a4521` 仍只有源版本 1；异常未使候选存版，见 `artifacts/t181/full2-failure-state.json`。失败数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-P49A2L` 原样保留。超时的负载或根本原因未查清，不把它归为已确认的测试缺陷或 T-181 缺陷；未改动 T-164/T-178 实现、扩大预算或放宽断言，未再跑第三轮掩盖失败。按 AGENTS“失败后不进入下一项”，`npm run build` **未运行**，因此第二项验收不能勾选。Next 自动添加的 tsconfig include 已还原，不纳入提交。
+第二轮唯一失败在 `tests/t164-multi-block-edit.test.ts:186`“候选新增链接触发范围外自定义属性也必须拒绝”：`lib/code-site-local-edit.ts:266` 的动态状态检查在 clear/read 中超时，由 `lib/code-site-check.ts:548` 抛出，尚未到事实模型调用（663 行）。读回失败夹具 `t164-dynamic-e7416376-68c6-46cd-88e4-c846cd7a4521` 仍只有源版本 1；异常未使候选存版，见 `artifacts/t181/full2-failure-state.json`。失败数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-P49A2L` 原样保留。当时按失败后停止的规则没有 build；负责人选 A 后才补跑。Next 自动添加的 tsconfig include 不纳入提交。
+
+**第二轮 T-164 现场。** 原诊断四份文件及负载来源索引保存在 `artifacts/t181/choice-a-20261018/previous-full2-t164.json`：375 档源 1 次、候选 5 次完整读取，合计 6 次；计算预算 `max(5000,1000+300×6)=5000 ms`，实际允许 5000 ms，三档总剩余额度 60000 ms。整个动态检查实际 **5829.042 ms**，整条用例 **6413.410 ms**。计划在检查开始后 5516 ms 才记下，已比本档截止时刻晚 516 ms；两侧 forceCalls、样式读取分段时间均为 0，说明在首次完整样式读取之前已超时。该探针自身没有 load 字段；相邻 T-162 `artifacts/t162/self-contained-1792343987711-91121/timings.json` 的 route.chat 在约 17:19:57.430 UTC 采到 load1 **14.0815**，距检查结束约 **+346 ms**，只能作为相邻采样，不能补造成精确的探针负载。
+
+负责人指定的新增全量开跑前已确认无其他 Chrome 测试；现有 9300 普通浏览器服务保持原样。全程每秒采样 load，记录为 `choice-a-20261018/full3-load.ndjson`。该 T-164 用例本轮通过（整个用例 1736.022 ms），同样源 1、候选 5 次，每档预算仍为 5000 ms，375/768/1440 动态检查实际 **460.714 / 114.000 / 102.737 ms**；相邻 load1 **46.6577**，见 `full3-t164-state.json`。因此不能仅由 load 数值断言上轮根因；没有改变动态预算、并发或断言。新增全量前入口回归 18/18 通过，随后 `npm run build` 在 17:41:35 UTC exit=0，源码均为精确的 `9478c1a`，命令、退出码在 `choice-a-20261018/`。
 
 **独立审查。** 独立 `gpt-6.1-sol / xhigh` 实例对冻结提交 `9478c1a` 给出 INCOMPLETE，原文 `artifacts/t181/independent-fast-review.txt`。未发现可证实的候选代码缺陷；独立随机映射、普通地址错误、整站/局部严格拒收和 Unicode 转义凭据检查通过。但替身分类与提示文字断言不能证明真实模型理解已经修复，且真实探针未到事实核对、未存版，不能给完整验收 PASS；该审查发生在第二轮全量结束前，未将第二轮或 build 算作已审通过。默认角色模型不符时取消的早期实例没有被采用结论；没有对同一候选追加复审。
 
 Tracer bullet 已经由生产 chat 的生成入口、提交检查、任务保存贯通普通 dev 的 draft HTTP 读回；仅替换模型与 after 调度，真实 Next after 由下述真实探针验证。Deep modules：复用 T-174 的整段凭据检查到事实回复，不另建日志存储或旁路提交。Ubiquitous language：noFacts 仅指没有七类高风险声明，普通企业事实仍按资料核对并可返回 issues。
 
-T-180 只读现场结论：17 次 false/空类别与旧提示歧义一致，因没有回复原文，尚不能逐段证实；两次“格式或编号无效”还可能来自 schema 无效，不能断言具体是遗漏、重复还是越界（round1 case-5，round2 case-3，finishReason 均 stop）。round1 case-14 只留下越段声明“不承接印刷生产、包装成品采购、商标检索与注册、法律审查”，未留下其所属编号与待核段，无法区分模型改写、跨段归属或代码边界错误。严格编号和 claim 范围校验保持，离线覆盖遗漏、重复、越界与越段拒收；真实探针有原文后再分析，不盲目重跑。
+T-180 只读现场结论：17 次 false/空类别与旧提示歧义一致，因没有回复原文，尚不能逐段证实；两次“格式或编号无效”还可能来自 schema 无效，不能断言具体是遗漏、重复还是越界（round1 case-5，round2 case-3，finishReason 均 stop）。round1 case-14 只留下越段声明“不承接印刷生产、包装成品采购、商标检索与注册、法律审查”，未留下其所属编号与待核段，不能把本次复制歧义直接断言为那次的根因。本次两站共 137 个段落编号均完整且唯一，编号遗漏、重复、越界 **未复现**，留到 T-180 重跑时再看；未为它猜测或放宽校验。
 
 **真实探针。** 同日 16:58:17 UTC，从干净实现提交 `9478c1a` 运行 `SITECRAFT_BASE=http://127.0.0.1:52313 SITECRAFT_TOKEN_LIMIT=500000 CHROME_PATH=上述路径 npm run eval:new-route -- --only molding/precision,design/editorial --out artifacts/t181/real-probe-20261018`（不加 quick）。两份原始资料分别 2498、2395 字，是现有资料最丰富的两家：molding 含四页的生产、质检与业务条件，design 含三项服务与项目记录；后者也覆盖 T-180 曾有越段声明的公司。完整实际命令、应用与网关启动方式在 `artifacts/t181/commands.sh`。应用使用本工作树 `.sitecraft-data`、52313 和固定 CHROME_PATH；仅网关进程 source 主目录 `.env.local`，应用只持本地占位凭据，评估器显式清除密钥变量。网关独占 52314，按现有白名单新建账本 `artifacts/t174/t181-fact-probe/usage.json`，上限 500000；未改网关脚本、未复用 T-180 账本。health 核对了本工作树与数据根。静态源预检有一次标记断言写错，改用实际 meta 标记后通过；最初失败记录在 preflight-first-failure.json，未调用模型。
 
 molding/precision 的规划调用 HTTP 200、finishReason=tool_calls，实际 **12854 token**（输入 10240，输出 2614）。写页调用从 16:58:34.598 UTC 开始，上游 HTTP 200 的响应体读取报 `terminated`；网关记录 state=failed 并停止，应用收到 HTTP 502，run=error，版本数 0。该次无 usage，**总用量未知，不能把 12854 当作全部实际消耗**；不能宣称剩余额度精确可用。评估器 exit=1，molding=blocked（146158ms），design=not-run；事实调用数 0。没有事实原文可供真实诊断，前述三类历史协议失败仍保留其证据边界；未重试、未另开账本、未改成离线路径冒充通过。
 
-评估器结束后又通过普通 draft HTTP 核对实际 run 终态、无进行中请求，保存 `artifacts/t181/terminal-before-gateway-stop.json` 后，才手动 SIGTERM 网关 PID 58034，再停本票 dev。`shutdown.json` 确认 52313/52314 均 ECONNREFUSED。主目录 3034 和 `.sitecraft-data` 未用于本票，也未修改或停止；失败站、账本与私有映射留在本工作树。没有可供审美盲评的成功生成站，不宣称页面质量通过。需要负责人确认上游连接可用后再安排一次获准探针。
+评估器结束后又通过普通 draft HTTP 核对实际 run 终态、无进行中请求，保存 `artifacts/t181/terminal-before-gateway-stop.json` 后，才手动 SIGTERM 网关 PID 58034，再停本票 dev。`shutdown.json` 确认 52313/52314 均 ECONNREFUSED。主目录 3034 和 `.sitecraft-data` 未用于本票，也未修改或停止；失败站、账本与私有映射留在本工作树。这本旧账本保留不动，写页调用用量仍未知。
+
+**选 A 后真实两站探针与根因。** 新账本 `artifacts/t174/t181-fact-probe-choice-a-20261018/usage.json`，500000 上限，未改网关脚本；源码精确 `9478c1a`，仍为 molding/precision、design/editorial 整站和默认滑杆。真实凭据仅在网关进程，应用持本地占位 token。输出 `artifacts/t181/choice-a-20261018/real-probe/`，六次调用均 HTTP 200，实际合计 **191219 token**、未知 0；没有连接中断。两站真实事实回复及输入编号映射均已保存。molding 111 段拒收，版本 0；design 26 段成功存版，站点 `a3f5fec0-d110-4b0c-868f-fbed3895a5ab`、版本 `01617e9d-d2f1-4c96-bfa2-dae153739f6a`，三页九档检查通过，22 条完整出处均有来源及目标。三页 375/768/1440 和首页首屏共 10 张截图均打开确认非空；不自行宣布审美通过。run 终态及网关无进行中请求在 `choice-a-20261018/terminal-before-stop.json` 核对后，才手动停止网关 PID 19187 和 dev。
+
+原文分析 `choice-a-20261018/raw-fact-analysis.json`：两站编号无遗漏、重复或越界，false/空类别也未复现。molding 有 8 段共 9 条非法 claim：例如 s2 中“模具年产”与“约 180 套”分列，模型输出“模具年产约 180 套”，删除了边界空白；s64～s66 又将项目标签改写为带冒号、分号的句子。部分改写恰好在另一段 s80 中出现，仍不能借给当前编号。根因是原提示要求复制完整声明，却只给带结构的 text，让模型重建标签和值或使用资料句。现有连续子串归属校验正确拒收，不能通过去掉空白、标点或跨段查找来放行。
+
+修订在既有输入增加 `claimTexts`：用相同 NFKC、空白和结构标记规则生成可复制文本，按 TR 拆开；保留原 text 的结构理解，不扩大可引用范围。提示只允许从当前编号的一条复制文本逐字取连续子串，不拼接、不补标点、不回传辅助字段。输出 schema、类别、编号、claim 与 quote 的全部原校验不变。新测试先在功能代码等同 `9478c1a` 的父版本运行，9 项中 3 项预期失败、6 项严格拒收对照通过，证据 `claim-copy-parent-red-final.log`；随后相关 36/36 与 typecheck 通过，证据 `claim-copy-related.log`、`typecheck-fixed.log`。首轮改后检查有两项测试期望误保留全角逗号，已按既有 NFKC 合同将独立常量写为半角；最初失败保留在 `claim-copy-green.log`，未放宽断言或改变规范化规则。修订后的完整全量、build 及实际模型验证继续进行，仍使用这一本 500000 账本，不增加授权。
