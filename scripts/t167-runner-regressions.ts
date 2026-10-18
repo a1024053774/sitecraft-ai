@@ -113,8 +113,8 @@ test('T-167: startup failure reports the Next cause and its log instead of bare 
 test('T-179: runtime imports classify browser pools, execute once, merge summaries and propagate failure', { timeout: 120000 }, async t => {
   // The oracle comes from the dependency shapes below, including a former
   // serial filename that contains no browser reference. No Chrome is launched.
-  const nonBrowser = ['plain.test.ts', 't175-stale-placeholder.test.ts'];
-  const browser = ['cli.test.ts', 'direct.test.ts', 'dynamic.test.ts', 'indirect.test.ts'];
+  const nonBrowser = ['node-cli.test.ts', 'plain.test.ts', 't175-stale-placeholder.test.ts'];
+  const browser = ['cli.test.ts', 'direct.test.ts', 'dynamic.test.ts', 'helper-cli.test.ts', 'indirect.test.ts', 'loop-cli.test.ts'];
   for (const scenario of ['pass', 'filtered', 'browser-failure', 'nonbrowser-failure', 'cap-two']) {
     const cwd = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-entry-'));
     for (const directory of ['node_modules/next/dist/bin', 'scripts', 'tests/helpers', 'lib'])
@@ -140,10 +140,15 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
     await writeFile(path.join(cwd, 'lib/browser-entry.ts'), "export type BrowserHint = string; export function browserRequested(){return process.env['CHROME_PATH']}\n", 'utf8');
     await writeFile(path.join(cwd, 'tests/helpers/bridge.ts'), "import './cycle.ts'; export {browserRequested} from '../../lib/browser-entry.ts';\n", 'utf8');
     await writeFile(path.join(cwd, 'tests/helpers/cycle.ts'), "import './bridge.ts';\n", 'utf8');
+    await writeFile(path.join(cwd, 'lib/node-cli.ts'), 'void process.version;\n', 'utf8');
+    await writeFile(path.join(cwd, 'tests/helpers/launch.ts'), "import {execFileSync as run} from 'node:child_process'; import path from 'node:path'; export function launch(){const script=path.join('lib','browser-cli.ts'); run(process.execPath,['--experimental-strip-types',script]);}\n", 'utf8');
     await writeFile(path.join(cwd, 'lib/browser-cli.ts'), "import {browserRequested} from './browser-entry.ts'; void browserRequested();\n", 'utf8');
     for (const name of [...nonBrowser, ...browser]) {
       const inBrowser = browser.includes(name), plain = name === 'plain.test.ts';
       const dependency = name === 'cli.test.ts' ? "import {spawnSync} from 'node:child_process'; const command=[process.execPath,'--experimental-strip-types','lib/browser-cli.ts']; spawnSync(command[0],command.slice(1));"
+        : name === 'node-cli.test.ts' ? "import {spawnSync} from 'node:child_process'; spawnSync(process.execPath,['--experimental-strip-types','lib/node-cli.ts']);"
+        : name === 'helper-cli.test.ts' ? "import {launch} from './helpers/launch.ts'; launch();"
+        : name === 'loop-cli.test.ts' ? "import * as cp from 'node:child_process'; for(const script of ['lib/browser-cli.ts'])cp.spawnSync(process.execPath,['--experimental-strip-types',script]);"
         : name === 'direct.test.ts' ? "void process.env.CHROME_PATH;"
         : name === 'indirect.test.ts' ? "import {browserRequested} from './helpers/bridge.ts'; void browserRequested;"
           : name === 'dynamic.test.ts' ? "await import('./helpers/bridge.ts');"
@@ -188,8 +193,8 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
     assert.ok(cap, '浏览器并发上限必须传给真实 Node 进程');
     if (scenario === 'cap-two') assert.equal(cap, '--test-concurrency=2', '实测参数只改变浏览器池');
     assert.deepEqual(executed.map(row => row.file).sort(), [...nonBrowser, ...browser].sort(), '每个文件全程只实际载入一次');
-    assert.equal(report.executed, scenario === 'filtered' ? 4 : 7, '总数合并两个池的原生每文件统计');
-    assert.deepEqual(report.phases.map((phase: { executed: number }) => phase.executed), scenario === 'filtered' ? [0, 4] : [3, 4]);
+    assert.equal(report.executed, scenario === 'filtered' ? 6 : 10, '总数合并两个池的原生每文件统计');
+    assert.deepEqual(report.phases.map((phase: { executed: number }) => phase.executed), scenario === 'filtered' ? [0, 6] : [4, 6]);
     assert.deepEqual(report.classification.browser.map((item: { file: string }) => path.basename(item.file)).sort(), browser);
     assert.ok(browser.every(name => output.includes(`浏览器池：tests/${name}`)), '每轮须打印浏览器池文件判定');
     if (scenario.endsWith('failure')) {
@@ -197,4 +202,70 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
       assert.notEqual(report.testCode, 0); assert.match(output, /T179_EXPECTED_/);
     } else { assert.equal(code, 0, output); assert.equal(report.status, 'PASS'); }
   }
+});
+
+test('T-179: unexpected Chrome is attributed to its non-browser file and only warns', { timeout: 15000 }, async t => {
+  // The OS boundary is simulated: one worker owns a CLI -> Chrome chain,
+  // another worker and an unrelated Chrome must not receive that warning.
+  const cwd = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-warning-'));
+  for (const directory of ['node_modules/next/dist/bin', 'scripts', 'tests'])
+    await mkdir(path.join(cwd, directory), { recursive: true });
+  await symlink(path.join(project, 'node_modules/typescript'), path.join(cwd, 'node_modules/typescript'));
+  for (const name of ['run-tests.ts', 'test-identity.ts', 'local-endpoint.ts', 'test-summary-reporter.mjs'])
+    await copyFile(path.join(project, 'scripts', name), path.join(cwd, 'scripts', name));
+  await writeFile(path.join(cwd, 'package.json'), JSON.stringify({ scripts: { test: 'node --require ./process-fixture.cjs --experimental-strip-types scripts/run-tests.ts' } }));
+  await writeFile(path.join(cwd, 'node_modules/next/dist/bin/next'), `
+    const http=require('node:http');
+    const server=http.createServer((req,res)=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({testIdentity:{cwd:process.cwd(),dataRoot:process.env.SITECRAFT_DATA_ROOT}}))});
+    server.listen(0,'127.0.0.1',()=>console.log('Local: http://127.0.0.1:'+server.address().port+'\\nReady in fixture'));
+    process.on('SIGTERM',()=>server.close());
+  `);
+  await writeFile(path.join(cwd, 'process-fixture.cjs'), `
+    const fs=require('node:fs'),cp=require('node:child_process'),spawn=cp.spawn,execFile=cp.execFile;
+    let phase;
+    cp.spawn=function(command,args,options){const child=spawn.call(this,command,args,options);if(args.includes('--test'))phase=child;return child;};
+    cp.execFile=function(command,args,options,callback){
+      if(command!=='ps')return execFile.apply(this,arguments);
+      const target=process.cwd()+'/tests/z-owner.test.ts',other=process.cwd()+'/tests/a-other.test.ts',chrome=process.env.CHROME_PATH;
+      const rows=[
+        [phase.pid,process.pid,process.execPath,process.execPath+' --test '+other+' '+target],
+        [700001,phase.pid,process.execPath,process.execPath+' '+target],
+        [700002,700001,process.execPath,process.execPath+' runtime-cli.ts'],
+        [700003,700002,chrome,chrome+' --remote-debugging-port=0'],
+        [700004,700003,chrome,chrome+' --type=renderer'],
+        [700005,phase.pid,process.execPath,process.execPath+' '+other],
+        [700006,1,chrome,chrome+' --remote-debugging-port=0']
+      ];
+      setImmediate(()=>{callback(null,rows.map(row=>row.join(' ')).join('\\n'),'');fs.writeFileSync('sampled','yes');});
+      return {pid:700007};
+    };
+    require('node:module').syncBuiltinESMExports();
+  `);
+  await writeFile(path.join(cwd, 'tests/a-other.test.ts'), "import test from 'node:test'; test('ordinary peer',()=>{});\n");
+  await writeFile(path.join(cwd, 'tests/z-owner.test.ts'), `
+    import test from 'node:test'; import {existsSync,watch} from 'node:fs';
+    test('runtime-only child',()=>new Promise(resolve=>{
+      if(existsSync('sampled'))return resolve();
+      const watcher=watch('.',()=>{if(existsSync('sampled'))finish();});
+      const timer=setTimeout(finish,1500);
+      function finish(){clearTimeout(timer);watcher.close();resolve();}
+    }));
+  `);
+  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: cwd, CHROME_PATH: '/fixture/chrome-headless-shell', DEEPSEEK_API_KEY: '', AI_API_KEY: '' }; delete env.NODE_TEST_CONTEXT;
+  const child = spawn('npm', ['test'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const closed = once(child, 'close'); let output = '';
+  child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
+  const [code] = await closed;
+  const directory = output.match(/证据目录：([^\n]+)/)?.[1]; assert.ok(directory, output);
+  const report = JSON.parse(await readFile(path.join(directory, 'report.json'), 'utf8'));
+  const out = path.join(project, 'artifacts/t179', `runtime-warning-${crypto.randomUUID()}`);
+  await mkdir(out, { recursive: true });
+  await writeFile(path.join(out, 'output.log'), output);
+  await writeFile(path.join(out, 'report.json'), JSON.stringify(report, null, 2) + '\n');
+  t.diagnostic(`运行时告警证据：${out}`);
+  assert.equal(code, 0, '发现漏分类只告警，不能令原本通过的测试失败');
+  assert.equal(report.status, 'PASS'); assert.equal(report.executed, 2);
+  assert.equal(report.classification.browser.length, 0, '运行时告警不能重分池或重跑文件');
+  assert.deepEqual(report.browserWarnings.map((warning: { file: string; chromePid: number }) => [path.basename(warning.file), warning.chromePid]), [['z-owner.test.ts', 700003]], '必须沿 CLI 祖先定位到真正的文件；排除同池其他文件、外部 Chrome 和 renderer；同个进程只告警一次');
+  assert.match(output, /非浏览器池发现 Chrome：tests\/z-owner\.test\.ts/);
 });

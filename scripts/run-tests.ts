@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { closeSync, constants, createWriteStream, fstatSync, lstatSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from 'node:fs';
 import { appendFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
@@ -15,13 +15,15 @@ delete process.env.NODE_TEST_CONTEXT;
 const project = await realpath(fileURLToPath(new URL('../', import.meta.url)));
 assert.equal(await realpath(process.cwd()), project, '测试入口工作树与当前目录不一致，拒绝清理或启动');
 const entryStartedAt = Date.now();
-// T-179: begin the authorized 1/2/3 comparison at 1. Replace the default with
+// T-179: calibrate at 3, then 2. Replace this development default with
 // the fastest value that passes two consecutive full runs before acceptance.
 const defaultBrowserConcurrency = 1;
 type BrowserDependency = { file: string; via: string[]; marker: string };
 // Classify runtime references, without importing or executing test modules.
 // Follow local import/export, literal import()/require(), and the project's @/
-// alias. Ignore type-only references, comments, strings and external packages.
+// alias, plus local scripts passed to child_process launch APIs. Resolve argv
+// variables, spreads, slice(), path construction and for-of script lists.
+// Ignore type-only references, comments, unrelated strings and external packages.
 // CHROME_PATH access/binding/environment entries mark a Chrome boundary. Thus
 // helper filenames do not need a list. A per-search visited set handles cycles.
 const modules = new Map<string, { marker?: string; imports: string[] }>();
@@ -34,6 +36,54 @@ function browserDependency(file: string): BrowserDependency | undefined {
       module = { imports: [] }; modules.set(current.file, module);
       const source = ts.createSourceFile(current.file, readFileSync(current.file, 'utf8'), ts.ScriptTarget.Latest, true);
       const imports = new Set<string>();
+      const bindings = new Map<string, ts.Expression[]>(), launchers = new Set<string>(), namespaces = new Set<string>();
+      const processAPIs = new Set(['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']);
+      const collect = (node: ts.Node) => {
+        if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)
+          && /^(node:)?child_process$/.test(node.moduleSpecifier.text)) {
+          const names = node.importClause?.namedBindings;
+          if (names && ts.isNamedImports(names)) for (const item of names.elements) {
+            if (processAPIs.has((item.propertyName ?? item.name).text)) launchers.add(item.name.text);
+          }
+          if (names && ts.isNamespaceImport(names)) namespaces.add(names.name.text);
+          if (node.importClause?.name) namespaces.add(node.importClause.name.text);
+        }
+        if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+          const values = bindings.get(node.name.text) ?? []; values.push(node.initializer); bindings.set(node.name.text, values);
+        }
+        if (ts.isForOfStatement(node) && ts.isVariableDeclarationList(node.initializer)) {
+          for (const declaration of node.initializer.declarations) if (ts.isIdentifier(declaration.name))
+            bindings.set(declaration.name.text, [...(bindings.get(declaration.name.text) ?? []), node.expression]);
+        }
+        ts.forEachChild(node, collect);
+      };
+      collect(source);
+      // This is a finite, conservative value analysis, not execution of modules.
+      // Runtime-generated argv remains observable through the warning below.
+      const values = (node: ts.Expression | undefined, seen = new Set<string>()): string[] => {
+        if (!node) return [];
+        if (ts.isStringLiteralLike(node)) return [node.text];
+        if (ts.isIdentifier(node)) {
+          if (seen.has(node.text)) return [];
+          return (bindings.get(node.text) ?? []).flatMap(value => values(value, new Set([...seen, node.text])));
+        }
+        if (ts.isArrayLiteralExpression(node)) return node.elements.flatMap(item => values(ts.isSpreadElement(item) ? item.expression : item as ts.Expression, seen));
+        if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node)) return values(node.expression, seen);
+        if (ts.isConditionalExpression(node)) return [...values(node.whenTrue, seen), ...values(node.whenFalse, seen)];
+        if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken)
+          return values(node.left, seen).flatMap(left => values(node.right, seen).map(right => left + right));
+        if (ts.isElementAccessExpression(node)) return values(node.expression, seen);
+        if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+          const method = node.expression.name.text;
+          if (method === 'slice' || method === 'concat') return [...values(node.expression.expression, seen), ...node.arguments.flatMap(arg => values(arg, seen))];
+          if (method === 'join' || method === 'resolve') {
+            let paths = [''];
+            for (const arg of node.arguments) paths = paths.flatMap(prefix => values(arg, seen).map(part => path.join(prefix, part)));
+            return paths.map(item => method === 'resolve' ? path.resolve(item) : item);
+          }
+        }
+        return [];
+      };
       const reference = (node: ts.Node | undefined) => { if (node && ts.isStringLiteralLike(node)) imports.add(node.text); };
       const visit = (node: ts.Node) => {
         if (ts.isImportDeclaration(node)) {
@@ -46,6 +96,21 @@ function browserDependency(file: string): BrowserDependency | undefined {
           && node.exportClause.elements.length > 0 && node.exportClause.elements.every(item => item.isTypeOnly))) reference(node.moduleSpecifier); return; }
         if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword
           || (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) reference(node.arguments[0]);
+        if (ts.isCallExpression(node) && (ts.isIdentifier(node.expression) && launchers.has(node.expression.text)
+          || ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression)
+            && namespaces.has(node.expression.expression.text) && processAPIs.has(node.expression.name.text))) {
+          const options = node.arguments.find(arg => ts.isObjectLiteralExpression(arg));
+          const cwd = options && ts.isObjectLiteralExpression(options) ? options.properties.find(item => ts.isPropertyAssignment(item) && item.name.getText(source) === 'cwd') : undefined;
+          const directories = cwd && ts.isPropertyAssignment(cwd) ? values(cwd.initializer) : [project];
+          for (const argument of node.arguments.filter(arg => !ts.isObjectLiteralExpression(arg))) for (const value of values(argument)) {
+            // exec() can carry a literal command; flags and non-script operands
+            // do not create dependencies. CLI paths resolve from the child cwd.
+            for (const token of value.split(/\s+/)) if (/\.[cm]?[jt]sx?$/.test(token)) for (const directory of directories) {
+              const target = path.resolve(project, directory, token);
+              if (target.startsWith(project + path.sep) && ts.sys.fileExists(target)) module!.imports.push(target);
+            }
+          }
+        }
         const name = ts.isPropertyAccessExpression(node) ? node.name.text
           : ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text
             : (ts.isPropertyAssignment(node) || ts.isBindingElement(node)) && node.name && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) ? node.name.text : '';
@@ -164,6 +229,8 @@ try {
   let testCode: number | null = null, identity: unknown, base: string | undefined;
   let executed: number | null = null, failed = 0, passed = false, browserConcurrency = defaultBrowserConcurrency;
   const classification: { browser: BrowserDependency[]; nonBrowser: string[] } = { browser: [], nonBrowser: [] };
+  const browserWarnings: Array<{ file: string; workerPid: number | null; chromePid: number; observedAt: string }> = [];
+  const browserMonitorErrors: string[] = [];
   const phases: Array<{ name: string; files: string[]; summaryFile: string; testCode: number | null; executed: number; failed: number; startedAt: string; endedAt: string }> = [];
   let startupFailed = false, startupCause: unknown;
   try {
@@ -222,7 +289,54 @@ try {
         const completed = once(tests, 'close');
         tests.stdout!.pipe(testLog, { end: false }); tests.stderr!.pipe(testLog, { end: false });
         tests.stdout!.pipe(process.stdout); tests.stderr!.pipe(process.stderr);
-        const [phaseCode] = await completed;
+        // Observe only descendants of this pool. A worker's single test-file
+        // argv owns its CLI descendants; the parent --test argv owns no file.
+        // Sampling is diagnostic only: it never changes classification/results.
+        const phasePid = tests.pid!, warned = new Set<number>();
+        const owners = new Map<number, { file: string; workerPid: number }>();
+        let scanning: Promise<void> | undefined;
+        const sample = async () => {
+          try {
+            const snapshot = await new Promise<string>((resolve, reject) => execFile('ps', ['-axww', '-o', 'pid=,ppid=,comm=,args='],
+              { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 2000 }, (error, stdout) => error ? reject(error) : resolve(stdout)));
+            const rows = new Map<number, { parent: number; executable: string; args: string }>();
+            for (const line of snapshot.split('\n')) {
+              const match = line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/);
+              if (match) rows.set(Number(match[1]), { parent: Number(match[2]), executable: match[3], args: match[4] });
+            }
+            const descendants = new Set([phasePid]);
+            let previousSize: number;
+            do { previousSize = descendants.size; for (const [pid, row] of rows) if (descendants.has(row.parent)) descendants.add(pid); }
+            while (descendants.size !== previousSize);
+            for (const [pid, row] of rows) if (pid !== phasePid && descendants.has(pid)) {
+              const files = phase.files.filter(file => row.args.includes(file));
+              if (files.length === 1 && row.executable === process.execPath) owners.set(pid, { file: files[0], workerPid: pid });
+            }
+            for (const [pid, row] of rows) {
+              if (!descendants.has(pid) || row.executable !== env.CHROME_PATH || rows.get(row.parent)?.executable === env.CHROME_PATH
+                || /(?:^|\s)--type=/.test(row.args) || warned.has(pid)) continue;
+              let ancestor = row.parent; const visited = new Set<number>();
+              while (ancestor !== phasePid && !owners.has(ancestor) && !visited.has(ancestor)) {
+                visited.add(ancestor); ancestor = rows.get(ancestor)?.parent ?? phasePid;
+              }
+              const owner = owners.get(ancestor);
+              const warning = { file: owner?.file ?? '无法归属（采样时工作进程已退出）', workerPid: owner?.workerPid ?? null,
+                chromePid: pid, observedAt: new Date().toISOString() };
+              browserWarnings.push(warning); warned.add(pid);
+              const message = `非浏览器池发现 Chrome：${owner ? path.relative(project, owner.file) : warning.file}（worker=${warning.workerPid}, Chrome=${pid}）；仅告警，测试继续\n`;
+              process.stderr.write(message); testLog.write(message);
+            }
+          } catch (error) {
+            const message = `非浏览器池 Chrome 采样失败：${error instanceof Error ? error.message : String(error)}`;
+            browserMonitorErrors.push(message); console.error(message);
+          }
+        };
+        const poll = () => { if (!scanning) scanning = sample().finally(() => { scanning = undefined; }); };
+        const monitor = phase.name === 'non-browser' && env.CHROME_PATH ? setInterval(poll, 250) : undefined;
+        if (monitor) poll();
+        let phaseCode: number | null;
+        try { [phaseCode] = await completed; }
+        finally { if (monitor) clearInterval(monitor); await scanning; }
         const rawSummaries = await readFile(phaseSummaryFile, 'utf8');
         const summaries = rawSummaries.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
         const phaseExecuted = summaries.reduce((total: number, summary) => total + summary.counts.tests - summary.counts.skipped - summary.counts.cancelled - summary.counts.todo, 0);
@@ -244,7 +358,7 @@ try {
     await serverClosed;
     await writeFile(path.join(output, 'report.json'), JSON.stringify({ at: new Date().toISOString(),
       command: ['npm', 'test', '--', ...process.argv.slice(2)], base, dataRoot, distDir, identity, testCode,
-      executed, failed, phases, classification, browserConcurrency, durationMs: Date.now() - entryStartedAt, status: passed ? 'PASS' : 'INCOMPLETE',
+      executed, failed, phases, classification, browserWarnings, browserMonitorErrors, browserConcurrency, durationMs: Date.now() - entryStartedAt, status: passed ? 'PASS' : 'INCOMPLETE',
       ...(startupFailed ? { startupError: `测试服务启动或身份核对失败：${startupCause instanceof Error ? startupCause.message : String(startupCause)}\n${serverOutput}\n日志：${path.join(output, 'dev.log')}` } : {}) }, null, 2) + '\n', 'utf8');
     if (!passed) console.error(`失败证据保留：${output}\n失败数据根保留：${dataRoot}`);
   }

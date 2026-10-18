@@ -24,21 +24,46 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 
 验收条件：先在当前入口取得直接／间接识别、非浏览器排除、执行一次、统计合并与失败传播的红灯；浏览器池并发 1、2、3 分别实测总耗时、Chrome 峰值和失败数，以连续两轮全过且最快的值固定默认并发；最终同一提交完整运行两轮全量并 build。所有重任务串行，开始前 memory_pressure 与 ps，空闲低于 25% 不启动；当前全量必须自然跑完，失败后不进入下一项。旧中止轮仅作不完整反例保留。入口另行提交，不混入产品修复，不改产品预算、判断条件或用例，不跳测。同步 AGENTS 标准命令规则和 spec。
 
+负责人后续判定：`120927a` 并发 1 开发轮的 T-169 页面载入与 T-175 768 动画等待失败，归因于入口漏掉 CLI 间接启动 Chrome、使其在非浏览器池默认并发运行。此轮原样保留为修复前证据；修正入口后重新校准属于修复验证。分类继续沿 CLI 子进程、spawn 脚本与 helper 调用链追踪，补充在 `120927a` 上失败的成对回归；非浏览器池运行时发现 Chrome 必须告警并记录所属文件，但不改变通过条件。校准顺序改为先 3 再 2，各须连续两轮全过，再选最快值；只有两者均不合格才回头测 1。任一校准轮失败时自然跑完该轮后停报，不自动进入下一轮。选定并发后另建入口提交，在同一提交上完整跑两轮全量，再 build。
+
 目标／非目标：只修测试调度的根因边界，不改站点或批注产品代码；沿用「浏览器池／非浏览器池」的 Ubiquitous language，以真实 npm test 入口作为 Tracer bullet 验证分类、调度与统计，不另设平行入口，保持 Deep modules 的小接口。静态依赖规则的行为用合成模块及真实子进程验证；并发选择仍是 measured unknown，必须由本次完整运行决定，不能用上次生命周期区间推算。
 
 ## Acceptance
 
 - [x] 手动滚动对照断言三档成对（自动腾位仍生效 / 用户滚动后不被推回），复现时先在父版本失败
-- [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过（先前定向通过；最新全量 T-175 768 失败，当前不能勾选）
+- [ ] T-162 mobile-reveal、scroll-edge、review-regressions 与 T-175 遮挡断言回归通过，截图逐张看过（先前定向通过；最新全量 T-175 1440/768 失败，当前不能勾选）
 - [ ] 不调用 DeepSeek；typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
 
-**测试入口分池：INCOMPLETE（2026-10-18）**。主控决定已记录并开始实施，入口改动与产品代码分开提交；当前默认并发 1 只是开发起点，尚未选定验收值。本次没有修改 components 或产品预算、判断条件，也没有跳过用例。下述首轮用的是 HEAD `69cea59` 上的新入口工作树代码；入口代码与本次独立提交相同，不冒充提交后的两轮证据。
+**测试入口分池：INCOMPLETE（2026-10-18，CLI 分类修复后的并发 3 首轮未通过）**。入口候选在 `120927a` 上继续开发，仅改入口、入口回归与规则文档，不改 components、产品预算、判断条件或已有用例。CLI 子进程依赖现在沿参数变量、数组展开／slice、路径构造及 for-of 脚本列表递归追踪；运行时每 250ms 采样非浏览器池进程树，沿工作进程与 CLI 祖先记录 Chrome 所属文件，排除外部 Chrome 与 renderer，重复进程只告警一次；只记录告警，不重分池、不重跑、不改变测试结果。无法静态求值的运行时参数仍由此诊断观察，不声称能静态证明任意动态程序。
+
+本次成对证据：先在 `120927a` 原入口取得 CLI 错分红灯；扩展的 helper／循环脚本与运行时归属回归也先失败，再由新入口通过。完整 runner 6/6；真实 `t145-import-cli` 与 T-176 入口／保留策略 12/12，T-145 打印完整 `测试 → CLI → store → check → browser → CHROME_PATH` 依据；typecheck 退出 0。证据：[原入口红灯](../../artifacts/t179/pool-cli-parent-red/command.log)、[扩展红灯](../../artifacts/t179/pool-cli-expanded-red/command.log)、[完整 runner](../../artifacts/t179/pool-cli-runner-green/command.log)、[CLI 与保留策略](../../artifacts/t179/pool-cli-targeted/report.json)、[类型检查](../../artifacts/t179/pool-cli-typecheck/command.log)。上述均记录命令、UTC 时间、HEAD 与预检，不用最终提交后的证据名义引用。并发 3 首轮已自然完成并失败，按规则停止；并发 3 第二轮、并发 2/1、选定后的同提交两轮及 build 均未运行，尚未选定默认值，入口默认 1 仍只是开发值。
+
+本次校准完整结果：UTC **11:07:15.875–11:20:21.802**，启动前 memory_pressure 空闲 **39%**，ps 已保存。实际命令为 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell python3 artifacts/t179/run-check.py pool-cli-c3-r1 npm test -- --browser-concurrency=3`（由 `calibrate-pools.py pool-cli` 串行编排）。运行时 HEAD 为 `120927a`，加本次入口工作树改动；这些入口与回归代码会与本次独立提交一致，不冒充提交后最终验收。
+
+| 候选／并发／轮次 | 文件／实际用例 | 总耗时（秒） | Chrome 主进程峰值 | 失败数 |
+| --- | --- | --- | --- | --- |
+| CLI 分类修复后／3／第 1 轮 | 119 个唯一文件 summary；826 用例，823 通过；0 跳过、0 取消 | 785.921 | 整轮 7；非浏览器 0、浏览器 7 | 3 |
+| 3 第 2 轮、2/1 校准、选定后两轮与 build | 本轮失败后未启动 | 未测 | 未测 | 未测 |
+
+非浏览器池 **27 文件／114 用例**，浏览器池 **92 文件／712 用例**，合计仍为 **119／826**，无重复文件、无跳过。比修复前多识别 10 个 CLI 引用文件，逐项依据在日志和 classification 中。实际非浏览器池 Chrome 峰值 0；入口 browserWarnings、browserMonitorErrors 与外部采样器 samplingErrors 均为空。峰值为每 200ms 的进程树采样，可能漏掉更短峰值，不把 renderer/GPU/utility 算作独立浏览器。两池都自然完成，入口因浏览器池失败退出 1，编排器正常停止；**没有中途终止全量**。
+
+本轮完整失败清单及原始错误首行：
+
+1. `tests/t175-stale-placeholder.test.ts`：「禾巷小馆 v2 经生产 chat 重放：提示与一起更新草稿刷新恢复 1440」；`Error: Chrome 检查失败：Error: 等待失败：!document.getAnimations().some(a=>a.playState==='running')`。
+2. 同文件：「禾巷小馆 v2 经生产 chat 重放：提示与一起更新草稿刷新恢复 768」；`Error: Chrome 检查失败：Error: 等待失败：!document.getAnimations().some(a=>a.playState==='running')`。
+3. `tests/t179-composer-scroll.test.ts`：「T-179 首次腾位与用户原生滚动成对验证 768」；`Error: Chrome 检查失败：Error: 不可操作：[data-testid="thread-reveal"]`，位于打开线程的初始点击，尚未进入首次腾位、用户滚动或恢复断言。
+
+三项均不是本轮抛出的动态样式预算错误。没有据此断定新的根因，也没有改等待、放宽断言、修产品或重跑。T-162 三组各 3/3、T-175 遮挡 3/3、T-169 出处 9/9 通过；T-175 stale-placeholder 为 13/15，T-179 为 2/3，不能宣称全量或本票通过。旧中止轮与上一版并发 1 失败轮原样保留作反例。
+
+证据均已复制至本票目录：[完整报告](../../artifacts/t179/pool-cli-c3-r1/report.json)、[完整错误日志](../../artifacts/t179/pool-cli-c3-r1/tests.log)、[耗时／Chrome 采样／提交与命令](../../artifacts/t179/pool-cli-c3-r1/metrics.json)、[预检](../../artifacts/t179/pool-cli-c3-r1/preflight.txt)、[校准停止记录](../../artifacts/t179/pool-cli-calibration.json)、[本轮汇总](../../artifacts/t179/pool-cli-result.json)。新入口未改 components、T-179 产品测试或 T-175 出处用例；独立审查仍由主控另派，尚未执行。
+
+**修复前分池候选与完整失败轮**：以下记录属于 `120927a` 的上一版入口，全部保留，不代表新候选验收结果。首轮用的是 HEAD `69cea59` 上的新入口工作树代码，随后单独提交为 `120927a`；默认并发 1 是当时的开发起点。
 
 模块引用版本的回归先在原入口红灯（错误分池），再在新入口 5/5 通过，覆盖直接／静态间接／动态 import、循环引用、类型／字符串／注释排除、旧名单文件名不影响归属、每文件一次、过滤统计、任一池失败与并发参数传入。T-176 保留策略回归 10/10，typecheck 退出 0。证据：[旧入口红灯](../../artifacts/t179/pool-parent-red/command.log)、[模块引用版本绿灯](../../artifacts/t179/pool-runner-green/command.log)、[保留策略报告](../../artifacts/t179/pool-retention/report.json)、[类型检查](../../artifacts/t179/pool-typecheck/command.log)。
 
-**当前已知分类缺口**：通过 spawn/spawnSync 执行本地 CLI、由该脚本再引用 Chrome 的路径尚未纳入，例如 `tests/t145-import-cli.test.ts → scripts/import-legacy-site-code.ts → commitSiteCode`。开发轮静态分为非浏览器 37、浏览器 82；ps 采样实际在非浏览器池捕获到 Chrome 峰值 1，故此分类不合格。已在入口回归加入本地 CLI 边界输入，但该输入在上述绿灯之后加入，尚未运行；当前回归不能报通过。没有通过手工搬文件弥补。发现缺口后只暂停后续比较编排，正在运行的全量始终继续自然运行；全量结束后因原有用例失败，依负责人规则停止，没有继续修入口或重跑。
+**修复前分类缺口**：通过 spawn/spawnSync 执行本地 CLI、由该脚本再引用 Chrome 的路径当时未纳入，例如 `tests/t145-import-cli.test.ts → scripts/import-legacy-site-code.ts → commitSiteCode`。开发轮静态分为非浏览器 37、浏览器 82；ps 采样实际在非浏览器池捕获到 Chrome 峰值 1，故此分类不合格。当时已加入 CLI 回归输入但未运行，该轮回归不能报通过；本次红绿结果见上文。没有通过手工搬文件弥补。发现缺口后只暂停后续比较编排，正在运行的全量始终继续自然运行；全量结束后因原有用例失败，依负责人规则停止，没有继续修入口或重跑。
 
 | 并发／轮次 | 全量结果 | 总耗时（秒） | ps 采样 Chrome 主进程峰值 | 失败数 |
 | --- | --- | --- | --- | --- |
@@ -54,7 +79,7 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 1. `tests/t169-citations-browser.test.ts`：「表格中的跨单元格价格出处经真实提交入口存版并准确绑定行」；`Error: Chrome 页面载入超时`。
 2. `tests/t175-stale-placeholder.test.ts`：「禾巷小馆 v2 经生产 chat 重放：提示与一起更新草稿刷新恢复 768」；`Error: Chrome 检查失败：Error: 等待失败：!document.getAnimations().some(a=>a.playState==='running')`。
 
-这两项属于页面载入／等待错误，不是本轮抛出的动态五秒预算错误；未据此判定根因、放宽等待或改断言。上次已观察到的 8 个失败用例本轮通过，但本轮有新的原有失败，不能据此宣布新入口全量通过。当前应交回主控判断，2/3 比较、最快值选择、同提交两轮和 build 均未完成。证据：[开发轮完整报告](../../artifacts/t179/pool-c1-r1/report.json)、[完整异常日志](../../artifacts/t179/pool-c1-r1/tests.log)、[实际耗时与 ps 采样](../../artifacts/t179/pool-c1-r1/metrics.json)、[候选结果汇总](../../artifacts/t179/pool-attempt-summary.json)。上次反例仍为下文那轮中途被人为终止的 8 项记录，不完整，不能作完整总数基线。
+这两项属于页面载入／等待错误，不是本轮抛出的动态五秒预算错误；主控后续判定与 CLI 分类漏洞相关，按上述决定修入口，不放宽等待或改断言。上次已观察到的 8 个失败用例本轮通过，但本轮有新的原有失败，不能据此宣布新入口全量通过。该轮交回主控时，2/3 比较、最快值选择、同提交两轮和 build 均未完成。证据：[开发轮完整报告](../../artifacts/t179/pool-c1-r1/report.json)、[完整异常日志](../../artifacts/t179/pool-c1-r1/tests.log)、[实际耗时与 ps 采样](../../artifacts/t179/pool-c1-r1/metrics.json)、[候选结果汇总](../../artifacts/t179/pool-attempt-summary.json)。上次反例仍为下文那轮中途被人为终止的 8 项记录，不完整，不能作完整总数基线。
 
 **产品阶段与原不完整反例（2026-10-18 UTC）**。功能候选提交为 `be8af2cc0cbdc7182a897142cf48c89cafb16b5b`（父提交 `d90ffc2`）。三档定向检查、指定的原有回归、runner 与 typecheck 通过；该候选上的一次全量出现原有用例失败后，Codex 误把「当前项自然跑完后不再进入下一项」理解成中止当前全量，主动发送 SIGTERM；这不符合负责人原意。此轮未自然跑完，不重跑、不启动 build。结果见 [验收汇总](../../artifacts/t179/final-validation.json)、[全量报告](../../artifacts/t179/full/report.json) 和 [日志](../../artifacts/t179/full/tests.log)。此前文档收尾提交只更新 Resolution；产品代码自 be8af2c 后未改，测试入口变动由本次独立提交承担。独立审查仍由主控另派，最后一项验收保持未勾选。
 
