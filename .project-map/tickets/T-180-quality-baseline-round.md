@@ -2,7 +2,7 @@
 id: T-180
 title: 页面质量基线轮：全矩阵真实生成 + 独立盲评，找出下一批质量缺口
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex（T-180 重跑 fast）
 supersedes:
@@ -25,7 +25,7 @@ supersedes:
 
 - [x] 两轮评估的命令、提交、时间、用量、成功/失败站数写进 Resolution；失败站保留失败记录，不重跑掩盖
 - [x] 三份独立盲评结论原文路径与汇总的前 5 个质量缺口写进 Resolution（跨轮比较无可用题，未派实例，原因见「对照」）
-- [ ] 生成站已复制进主目录且 3034 可打开（已完成）；构思主控据此开出后续票（待办）
+- [x] 生成站已复制进主目录且 3034 可打开；构思主控据此开出后续票
 
 ## Resolution
 
@@ -138,3 +138,5 @@ SITECRAFT_BASE=http://127.0.0.1:52424 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=
 
 **复制进主目录。** 先备份主目录 code-sites 到 `artifacts/t180/main-data-backup-*`，再把 18 个 generated 站的记录、对话、上传以不覆盖方式复制进主目录 `.sitecraft-data`，站名加「（质量基线 10-18）」；2 个 error 站无版本，未复制，失败记录留在 private。3034 上 18 站 code-preview 与 workspace 均 HTTP 200。
 
+
+**收尾（构思主控，2026-10-18）。** 依据前 5 缺口开出后续票：T-183（缺口 1、4，写作层）、T-184（缺口 2、3，风格视觉与首屏，blocked_by T-183）、T-185（两类事实协议失败，主流程，与 T-183 实现并行）、T-186（缺口 5，375 折行，blocked_by T-184）。T-182 照原排期。本票 PASS 范围仅限「基线评估与缺口汇总」；mixed 盲评生成页全部被认出、未达门槛，这是后续票要改善的问题，不是本票的失败。
