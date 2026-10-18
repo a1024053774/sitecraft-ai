@@ -372,7 +372,7 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="preview-stage code-preview-stage" ref={stage}><div className="code-preview-canvas" style={{ width: width * scale, height: 1000 * scale }}>
         {version ? <><iframe ref={frame} key={previewUrl} style={{ width, height: 1000, transform: `scale(${scale})` }} src={previewUrl} title={`${pages.find(p => p.id === activePage)?.title || '首页'}预览`} sandbox="allow-same-origin" data-testid="code-preview" onLoad={previewLoaded} />{activeLanguage === 'zh' && previewVersion && <CodePreviewSelection frame={frame} ready={previewReady} picking={picking && canAnnotate}
           selected={areaCandidates.length ? null : composer?.target ?? selected} areaChoosing={!!areaCandidates.length} pageId={activePage} versionId={previewVersion.id} html={previewVersion.code.pages.find(p => p.id === activePage)!.html}
-          scale={scale} onSelect={selectBlock} onArea={selectArea} onKey={annotationKey} reveal={reveal} bottomSpace={annotationBottomSpace} onBottomSpace={setAnnotationBottomSpace}
+          scale={scale} onSelect={selectBlock} onArea={selectArea} onKey={annotationKey} reveal={reveal} bottomSpace={annotationBottomSpace} onBottomSpace={setAnnotationBottomSpace} collapsed={composerCollapsed}
           numbered={numberedDrafts}
           onReveal={id => { const draft = draftsRef.current.find(d => d.id === id); if (draft && draft.status !== 'sending') revealAnnotation(draft.target, { draftId: draft.id }, draft.body); }}>
           {!!areaCandidates.length && <section className="code-annotation-composer" data-testid="annotation-area-candidates" role="dialog" aria-label="收窄圈选范围">
