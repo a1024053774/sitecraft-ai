@@ -59,6 +59,16 @@ T-175 第三轮独立审查（2026-10-18）读源码推断：批注浮层为避�
 
 证据均已复制至本票目录：[完整报告](../../artifacts/t179/pool-cli-c3-r1/report.json)、[完整错误日志](../../artifacts/t179/pool-cli-c3-r1/tests.log)、[耗时／Chrome 采样／提交与命令](../../artifacts/t179/pool-cli-c3-r1/metrics.json)、[预检](../../artifacts/t179/pool-cli-c3-r1/preflight.txt)、[校准停止记录](../../artifacts/t179/pool-cli-calibration.json)、[本轮汇总](../../artifacts/t179/pool-cli-result.json)。新入口未改 components、T-179 产品测试或 T-175 出处用例；独立审查仍由主控另派，尚未执行。
 
+**并发 3 后的定向诊断（2026-10-18，主控授权继续并发 2）**：
+
+T-179 768 是本票测试遗漏线程异步载入的前置等待。旧轮错误在计算点击中心之前抛出，原始按钮状态、命中与失败截图未保存，不能冒充有旧现场。源码中打开线程详情才异步 GET annotations；原测试却将预览载入当作线程就绪，立即点击按钮。先保持原点击方式，仅加观测并用显式闸门挂起真实 annotations 响应，在 `6466c89` 的产品与 helper 上得到相同「不可操作」红灯：按钮不存在，浮层不存在，host／stage／iframe 的滚动均为 0；失败截图已逐张查看，无产品浮层遮挡。修正只在本票测试中等待按钮出现且 enabled，闸门通过响应事件与待决 DOM 等待放行，不加固定 sleep；所有滚动、遮挡、恢复期望不变。三档对照通过，768 就绪后的真实中心 `(418, 726.5)` 命中 BUTTON／`thread-reveal`，滚动仍为 0、浮层仍为空；之后首次腾位、上／下滚、重新展开与原位重新点选均通过。此对照确定性重建该时序缺口，不声称还原旧轮未记录的精确瞬间。没有修改 components 或生成站代码。
+
+红灯命令是 `npm test -- '--test-name-pattern=成对验证 768$' tests/t179-composer-scroll.test.ts`，UTC 11:24:42–11:24:53，预检空闲 36%，1/1 失败：[报告](../../artifacts/t179/initial-thread-red/report.json)、[失败几何](../../artifacts/t179/measurement-1792322684981-41957/failure-768.json)、[失败截图](../../artifacts/t179/measurement-1792322684981-41957/failure-768.png)。绿灯命令是 `npm test -- tests/t179-composer-scroll.test.ts`，UTC 11:25:21–11:25:51，预检空闲 39%，3/3：[报告](../../artifacts/t179/initial-thread-green/report.json)、[三档脚本、几何与截图](../../artifacts/t179/measurement-1792322724140-42303/)。24 张绿灯图、2 张定向红灯图已逐张打开，只证明交互及可见性。随后增加只读动画失败诊断，typecheck 退出 0，[日志](../../artifacts/t179/initial-thread-typecheck/command.log)。所有命令只设既定 CHROME_PATH，时间和 HEAD 在各 command.log。测试等待与诊断单独提交为 `be96dda`，不含入口或产品改动。
+
+T-175 两张旧失败截图已逐张打开，并复制至本票目录。1440 截图仍显示后台检查范围、事实与三档布局的进度转圈；CSS `.spin` 每周期 900ms、无限重复。1440 等待实际 20015.805ms，Chrome 采样为 5→峰值6→6；768 等待 20015.727ms，采样为 6→峰值7→6。对应后台任务总耗时分别 33648.421／36109.179ms，两次 20 秒动画等待结束时任务都还没完成。因此等待失败与任务仍运行的无限进度动画相符，不能说已经证明某个有限入场动画跑了 20 秒。旧轮没有保存动画事件、播放时间或结束事件，无法还原动画精确起止；高并发及 load 约30–32 与较长任务时间并存，但仅凭这些数据不能证明负载是唯一原因。没有改 T-175 判断条件、预算或上限。helper 只增加动画 start/end/cancel 事件及失败时当前动画、播放时间和 computed timing 的只读归档，供随后全量如再次失败时核对；不增加等待、不取消动画。[诊断数据与限制](../../artifacts/t179/pool-c3-diagnosis/diagnosis.json)、[原始 timings 副本](../../artifacts/t179/pool-c3-diagnosis/t175-timings.json)。
+
+下一项按主控指令继续并发 2，连续两轮全量；每轮预检，全部自然跑完，该值任何一轮失败后停止，不进入下一轮或 build。若两轮均过，则固定 2、单独提交入口，再在同一提交上完整两轮与 build。测试等待修复及诊断与后续入口默认值改动分开提交，不 amend；独立审查仍由主控安排。
+
 **修复前分池候选与完整失败轮**：以下记录属于 `120927a` 的上一版入口，全部保留，不代表新候选验收结果。首轮用的是 HEAD `69cea59` 上的新入口工作树代码，随后单独提交为 `120927a`；默认并发 1 是当时的开发起点。
 
 模块引用版本的回归先在原入口红灯（错误分池），再在新入口 5/5 通过，覆盖直接／静态间接／动态 import、循环引用、类型／字符串／注释排除、旧名单文件名不影响归属、每文件一次、过滤统计、任一池失败与并发参数传入。T-176 保留策略回归 10/10，typecheck 退出 0。证据：[旧入口红灯](../../artifacts/t179/pool-parent-red/command.log)、[模块引用版本绿灯](../../artifacts/t179/pool-runner-green/command.log)、[保留策略报告](../../artifacts/t179/pool-retention/report.json)、[类型检查](../../artifacts/t179/pool-typecheck/command.log)。
