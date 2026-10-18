@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage } from 'node:http';
 import { writeFile } from 'node:fs/promises';
 import { factAuditReply } from './fact-audit-reply.ts';
 import { localEditChoice } from './local-edit-choice.ts';
@@ -15,11 +15,13 @@ export function createT164OutputFixture(directory: string, caseName: string, mod
   const requests: Record<Phase, Array<{ purpose: Purpose; local: boolean; body: any }>> = { initialization: [], run: [] };
   const arrivals: Arrival[] = [], failures: Error[] = [];
   const tasks: Promise<void>[] = [];
+  const pendingRequests = new Set<IncomingMessage>();
   let phase: Phase = 'initialization', localRoundCalls = 0;
   const provider = createServer((req, res) => {
     const arrival: Arrival = { requestId: arrivals.length + 1, caseName, phase, method: req.method ?? '', path: req.url ?? '',
       bytes: 0, startedAt: new Date().toISOString(), complete: false, purpose: 'unknown', status: 'receiving' };
     arrivals.push(arrival);
+    pendingRequests.add(req);
     const handle = async () => {
       const chunks: Buffer[] = [];
       for await (const chunk of req) { const bytes = Buffer.from(chunk); chunks.push(bytes); arrival.bytes += bytes.length; }
@@ -56,7 +58,7 @@ export function createT164OutputFixture(directory: string, caseName: string, mod
       arrival.error = `T-164 替身失败：用例=${caseName} 阶段=${arrival.phase} 请求=#${arrival.requestId} ${arrival.method} ${arrival.path} 已收字节=${arrival.bytes} complete=${arrival.complete}：${String(error)}`;
       failures.push(new Error(arrival.error));
       if (!res.destroyed) { res.writeHead(400, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: arrival.error })); }
-    }));
+    }).finally(() => { pendingRequests.delete(req); }));
   });
   return {
     provider, requests, arrivals,
@@ -67,10 +69,17 @@ export function createT164OutputFixture(directory: string, caseName: string, mod
     },
     assertHealthy() { assert.deepEqual(failures.map(error => error.message), [], `替身失败必须归属于 ${caseName}`); },
     async close() {
-      // Stop admission first. close waits for accepted HTTP requests, including
-      // bodies that have not ended yet; tasks also include response preparation.
-      await new Promise<void>((resolve, reject) => provider.close(error => error ? reject(error) : resolve()));
-      await Promise.all(tasks);
+      // Stop admission first. A client can keep an incomplete body open forever;
+      // the fixture deadline must abort it even when Node stops timeout checks.
+      const closed = new Promise<void>((resolve, reject) => provider.close(error => error ? reject(error) : resolve()));
+      const deadline = setTimeout(() => {
+        for (const req of pendingRequests) req.destroy(new Error('替身关闭期限 1000ms 已到，请求未处理完成'));
+        provider.closeAllConnections();
+      }, 1000);
+      try {
+        await closed;
+        await Promise.all(tasks);
+      } finally { clearTimeout(deadline); }
       await writeFile(`${directory}/local-output-transport-${mode}.json`, JSON.stringify({ caseName, arrivals }, null, 2));
       if (failures.length) throw new AggregateError(failures, failures.map(error => error.message).join('\n'));
     },

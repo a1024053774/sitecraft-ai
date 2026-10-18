@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import test from 'node:test';
 import { createT164OutputFixture } from './fixtures/t164-output-model.ts';
 
 // Failure modes: empty/invalid JSON, interrupted transport, wrong HTTP route,
-// and teardown while a body is still arriving. Use real HTTP, without Chrome
+// teardown while a body is still arriving, and a client that never finishes it.
+// Use real HTTP, without Chrome
 // or site storage, to isolate the fixture's request/teardown boundary.
 async function fixture(caseName: string) {
   const directory = `artifacts/t182/transport-${crypto.randomUUID()}`;
@@ -91,4 +92,52 @@ test('T-182 关闭必须等迟到正文及响应到达终态，不能提前成�
   assert.equal(model.arrivals[0].bytes, Buffer.byteLength(raw));
   assert.equal(model.arrivals[0].purpose, 'local-edit');
   model.assertHealthy();
+});
+
+test('T-182 半截正文保持连接：关闭须有界拒绝并先保存归属', { timeout: 5000 }, async t => {
+  const model = await fixture(t.name), raw = '{"归属":"未完成';
+  const received = new Promise<void>(resolve => model.provider.prependOnceListener('request', req => {
+    req.once('data', () => resolve());
+  }));
+  const { req, response } = client(model.port);
+  const disconnected = assert.rejects(response, /socket hang up/);
+  req.setHeader('content-length', '1000'); req.write(raw);
+  await received;
+  const started = performance.now();
+  const settled = model.close().then(() => ({ status: 'resolved' as const }), error => ({ status: 'rejected' as const, error }));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    // Independent of the fixture deadline: the faulty parent must fail here
+    // while its client remains connected, then finally can release that client.
+    const outcome = await Promise.race([settled, new Promise<{ status: 'watchdog' }>(resolve => {
+      timer = setTimeout(() => resolve({ status: 'watchdog' }), 3000);
+    })]);
+    await writeFile(`${model.directory}/close-deadline.json`, JSON.stringify({
+      status: outcome.status, elapsedMs: performance.now() - started, clientDestroyed: req.destroyed,
+      error: outcome.status === 'rejected' ? String(outcome.error) : null, arrivals: model.arrivals,
+    }, null, 2));
+    assert.ok(outcome.status === 'rejected', '保持连接的半截正文必须在外部 3000ms 判定前明确拒绝关闭');
+    assert.ok(outcome.error instanceof AggregateError);
+    const diagnostic = outcome.error.message;
+    assert.ok(diagnostic.includes('关闭期限'));
+    assert.ok(diagnostic.includes(`用例=${t.name} 阶段=run 请求=#1 POST /beta/chat/completions`));
+    assert.ok(diagnostic.includes(`已收字节=${Buffer.byteLength(raw)} complete=false`));
+    // Read immediately after rejection: persistence cannot be deferred until
+    // the caller disconnects or another teardown invocation runs.
+    const saved = JSON.parse(await readFile(`${model.directory}/local-output-transport-truncate.json`, 'utf8'));
+    assert.equal(saved.caseName, t.name);
+    assert.equal(saved.arrivals.length, 1);
+    assert.equal(saved.arrivals[0].error, diagnostic);
+    assert.equal(saved.arrivals[0].status, 'failed');
+    assert.equal(saved.arrivals[0].complete, false);
+    assert.equal(saved.arrivals[0].bytes, Buffer.byteLength(raw));
+    assert.ok(saved.arrivals[0].finishedAt);
+    await disconnected;
+  } finally {
+    clearTimeout(timer);
+    req.destroy();
+    model.provider.closeAllConnections();
+    await settled;
+    await disconnected;
+  }
 });
