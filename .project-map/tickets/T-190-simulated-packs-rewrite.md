@@ -4,7 +4,7 @@ title: 模拟资料按真实企业写法重整并建立新基线
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t190-baseline-run
+claimed_by: codex-t190-baseline-r2
 supersedes:
 ---
 
@@ -385,3 +385,233 @@ comparison 的对象仍是「新资料 + T-188/T-191 等当前代码」对「旧
 **第一次基线运行失败（网络中断），记录原样保留。** 2026-10-19 约 07:00 EDT，第一轮首次规划调用上游时报 `fetch failed`，原因是本机连不上 `api.deepseek.com`；执行主控 07:02 EDT 用 curl 复测，15 秒连接超时，github.com 返回 200。网关随即停止，账本 `artifacts/t174/t190-baseline/usage.json` 为 stopped=true，只有 1 次调用。该次调用预留了 92,718 token，没有上游 usage 或 HTTP 状态，**实际用量和是否计费都未知**；账本 spent=0 不代表没有消耗。其余 19 个组合没有运行，第二轮没有启动，也没有生成任何页面或版本。旧账本和失败记录原样保留，执行记录见上文 `bd2009b` 一节，工作树证据复制到 `artifacts/t190/baseline-r1-blocked/worktree-evidence/`。
 
 **重跑安排（构思主控决定）。** 网络恢复、并由执行主控用 curl 复测通过后，新开账本 `artifacts/t174/t190-baseline-r2`，额度 3,000,000，第一轮和第二轮都从头跑。上一次没有生成出任何页面，所以重跑不是在掩盖失败；如果再次断开，就停下报告，不反复重试。
+
+
+### 新基线第二次实跑（2026-10-19 UTC，codex-t190-baseline-r2）
+
+**本次 BLOCKED；整票仍 INCOMPLETE、open。** 执行者 `codex-t190-baseline-r2`，工作树 `/Users/luckye/Documents/Code/sitecraft-ai-t190b`，分支 `t190-baseline`，实跑提交 `62560f612129bed5e2b2233a1a405fc89d0a096b`，包含已合并的新资料、T-188/T-191/T-192/T-193 与获 GO 的显式跨资料比较开关。第一轮仅执行一次，在设计 precision 的事实调用读取上游响应时中断；网关随即停止，未重跑失败站，未启动第二轮。没有改代码、提示或资料，没有启动审查／盲评实例。本节与认领字段在同一个本地交接提交中，SHA 由本次交接回报；新基线验收不勾选、不关票。
+
+#### 门控与运行隔离
+
+证据全部位于本工作树的新目录 `artifacts/t190/r2/`，控制记录在 `control/`。旧账本 `artifacts/t174/t190-baseline/`、旧输出目录与第一次失败记录均原样保留，没有覆盖、删除或恢复旧账本。
+
+| 命令 | UTC 起止时间（2026-10-19） | 结果与证据 |
+| --- | --- | --- |
+| `npm run typecheck` | 11:25:12.014753–11:25:17.968538 | 退出 0；`control/typecheck.log`、`typecheck-command.json` |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts` | 11:25:17.969256–11:25:20.478893 | 23/23 通过，0 失败、取消或跳过，退出 0；`control/materials-contract.log`、`materials-contract-command.json` |
+
+标准入口报告 `artifacts/t167/test-run-1792409118472-51279/report.json`，测试数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-6BxDRk`。按授权没有运行全量、runner 或 build。
+
+普通 dev 使用随机地址 `http://127.0.0.1:63467`、`SITE_STORE=fs`，数据根精确为 `/Users/luckye/Documents/Code/sitecraft-ai-t190b/artifacts/t190/r2/eval-data`；预算网关地址为 `http://127.0.0.1:63468`。应用仅持 `local-budget-gateway` 占位凭据，模型地址只指向该网关；本工作树没有 `.env`、`.env.local`、`.env.development` 或 `.env.development.local`。真实密钥只在网关子进程中由 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local >/dev/null 2>&1; set +a` 载入，未读取、打印或复制密钥内容，未进入应用、文件、日志、提交或 prompt。网关运行 `node --experimental-strip-types scripts/t153-real-budget.ts`，显式 `SITECRAFT_TOKEN_LIMIT=3000000`、`T153_BUDGET_DIR=artifacts/t174/t190-baseline-r2`；该目录原先不存在，没有使用 `--resume`，两轮原计划共用这一本新账本。
+
+11:25:51.353011 UTC，health HTTP 200，`testIdentity.cwd`／`dataRoot` 精确匹配本工作树与上述根，模型为 configured=true 的 `deepseek-flash`，write／facts／repair 思考模式为 enabled／enabled／disabled，存储为 development-file；初始账本 limit=3000000、spent=0、stopped=false、rounds=[]、calls=[]。见 `control/services.json` 与 `health-initial.json`。第一轮登记网关标签 `default`、estimate=1307632，取自指定 T-180 第一轮上游报告的用量合计；仅用于预算登记，不改变 layout=5、density=6。第二轮没有登记标签或调用。
+
+#### 两轮命令与时间
+
+第一轮实际执行：
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:63467 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round1-full --previous-materials-changed --out artifacts/t190/r2/round1-full
+```
+
+第一轮 11:26:02.253517–12:12:19.609721 UTC（07:26:02–08:12:19 EDT），评估器退出 1，轮次 **BLOCKED**；命令、提交、进程与起止时间保存在 `control/round1-command.json`，日志 `round1-eval.log`，轮次原记录 `artifacts/t190/r2/round1-full/private/round.json`。评估器退出后另行核对实际 draft 和网关，才执行停服，详见下文。
+
+第二轮原授权命令，**未执行**：
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:63467 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --only education/editorial,design/editorial,restaurant/editorial,restaurant/neighborly,education/neighborly,design/neighborly --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round2-selected --previous-materials-changed --out artifacts/t190/r2/round2-selected
+```
+
+第二轮没有起止时间、退出码、轮次目录或模型调用。第一次上游响应中断后即停止，不另建账本或恢复停止账本继续；需要负责人确认网关到上游的响应可完整返回，并另行安排后续执行。本次没有再次探测或修改网络、代理、VPN、DNS 等配置。
+
+#### 逐站 outcome、站点／版本与用量
+
+以下 token 是收到的上游报告；设计 precision 的数值仅含已知两次调用，另一次未知。`—` 表示未创建。第一轮为 **9 generated、2 error、1 rejected、1 blocked、1 not-run**；generated 仅表示技术生成及截图完成，不是审美结论。第二轮六组合均 not-run。
+
+| 轮次 | 组合 | outcome | 站点 ID | 版本 ID | 调用数／未知 | 输入／输出／合计 token |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | industrial/precision | error | `b874a6db-0b78-47d1-9bac-53b755d4cc82` | — | 1／0 | 9661／2714／12375 |
+| 1 | industrial/documentary | generated | `50f563f6-bdba-44fe-934a-43b1ae266a00` | `ab9bf158-a646-4898-b4d8-4e1805610ad0` | 5／0 | 52541／49163／101704 |
+| 1 | export/precision | generated | `3938dc82-0570-46d0-b846-febef50b3dab` | `4e9e1e40-80ab-4931-8cf6-5b86d8edaad4` | 4／0 | 47461／89550／137011 |
+| 1 | export/documentary | generated | `61601e66-9634-4fa1-a173-e5c2c086b782` | `bd53829c-d953-4f2c-953d-7d072108358b` | 3／0 | 34891／57141／92032 |
+| 1 | molding/precision | generated | `aaf4ff61-b68d-4161-a3cb-b4a2473baf7e` | `64c1fbe0-f71e-44bf-87d1-2464d0a81bb7` | 5／0 | 69487／56699／126186 |
+| 1 | molding/documentary | generated | `bd77156a-35ca-40f1-b899-ae014ac55455` | `7671981b-10d4-43dc-a1ef-c696dac38161` | 4／0 | 73105／61274／134379 |
+| 1 | packaging/precision | rejected | `e9439e3b-5ef0-4e39-b53a-1ec1f077352c` | — | 4／0 | 43681／38453／82134 |
+| 1 | packaging/documentary | generated | `02058cac-8139-478a-895e-d91a56393cec` | `3cc0de85-b101-4f1a-b6dd-ca72f398f61d` | 4／0 | 52129／77590／129719 |
+| 1 | restaurant/precision | generated | `cb04f202-3f43-41cf-bb80-4562505b3dca` | `23dbf8db-c2ed-4ad1-8b44-1ab04b2fe383` | 3／0 | 32054／50865／82919 |
+| 1 | restaurant/documentary | error | `25c98617-d0ee-4405-baff-35ab196078d0` | — | 2／0 | 19973／40333／60306 |
+| 1 | education/precision | generated | `641e5b8b-2db4-493a-8179-2ce4f5a78cf4` | `89b93b37-4c92-45f3-b37a-78a18c2b712c` | 4／0 | 42620／43737／86357 |
+| 1 | education/documentary | generated | `a44ba7c8-9e61-4a46-ad4e-dcf951583159` | `adb5d592-5d60-4c2a-8b87-9aaf6c20154f` | 3／0 | 32000／55499／87499 |
+| 1 | design/precision | blocked | `c63838fd-9b02-4e51-b5be-f89a725fa296` | — | 3／1 | 19899／30400／50299 |
+| 1 | design/documentary | not-run | — | — | 0／0 | 0／0／0 |
+| 2 | education/editorial | not-run | — | — | 0／0 | 0／0／0 |
+| 2 | design/editorial | not-run | — | — | 0／0 | 0／0／0 |
+| 2 | restaurant/editorial | not-run | — | — | 0／0 | 0／0／0 |
+| 2 | restaurant/neighborly | not-run | — | — | 0／0 | 0／0／0 |
+| 2 | education/neighborly | not-run | — | — | 0／0 | 0／0／0 |
+| 2 | design/neighborly | not-run | — | — | 0／0 | 0／0／0 |
+
+新账本 `artifacts/t174/t190-baseline-r2/usage.json`：limit=3000000、spent=1182920、stopped=true，共 45 次调用，其中 44 次有完整 usage、1 次未知；已知输入 529502、输出 653418、合计 **1182920 token**，与逐站及评估汇总一致。最后一次为第 45 次、purpose=facts、thinking=enabled、inputSegmentCount=26，12:10:45.988 UTC 开始，读取响应时失败，state=failed、error=`terminated`。网关已经收到上游 HTTP 200，但没有完整响应正文或 usage；应用收到网关 HTTP 502。其保守输入预留 35913、输出上限 65536、合计预留 101449 token，**预留不是实际消耗，实际总用量和该次是否计费未知，不能把账本 spent 当作完整总消耗**。网关不重试，也没有对该调用恢复或另发请求。旧账本未知用量同样没有被清零或并入本账本伪作已知。
+
+逐站摘要与完整原文索引在 `control/baseline-result.json`；每站初始候选、全部修正候选、模型调用与原始事实回复保存在 `round1-full/private/case-N/code-site.json`，停服前实际接口快照在 `control/terminal-draft-<siteId>.json`，不是仅根据最终版本反推失败记录。
+
+#### 全部模型事实拒因与提交检查拒因原文
+
+本轮共 10 次模型事实调用。9 次完整回复分别覆盖 18／42／37／65／72／42／36／27／29 个编号（共 368），每条 `results[].issues` 均为空，finish_reason 均为 stop，**没有已返回的模型事实拒因**；完整原始 HTTP 回复仍保留，没有删改。第 10 次是设计 precision，上游响应中断，没有可解析的模型事实回复或拒因；不能将其记为事实通过。工业 precision 在规划阶段失败，纸包装 precision 和餐馆 documentary 在确定性检查阶段终止，未到达模型事实调用；第二轮也未调用事实模型。下面“资料没有的数字”属于提交入口的确定性拒因，不冒充模型拒因。
+
+本轮 11 站留下 21 次完整提交检查，12 次被拒、9 次通过；12 次拒收共 **46 条原文（保留重复项与次序）**，如下全部列出。次数按原始候选为第 1 次、每次修正递增；后续存版没有覆盖早先拒因。另有设计 precision 的检查在事实 HTTP 错误中异常终止，没有完整检查结果，不能计入 21 次或记为通过。
+
+**industrial/documentary，第 1 次检查（2026-10-19T11:28:03.648Z）**
+
+```text
+home/375 对比度不足或无法测量：行业配图，非本厂实拍。（3.88，需 4.5）
+home/375 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+home/375 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+home/768 对比度不足或无法测量：行业配图，非本厂实拍。（3.88，需 4.5）
+home/768 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+home/768 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+home/1440 对比度不足或无法测量：行业配图，非本厂实拍。（3.88，需 4.5）
+home/1440 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+home/1440 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+products/375 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+products/375 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+products/768 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+products/768 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+products/1440 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+products/1440 对比度不足或无法测量：行业配图，非本厂实拍。（3.38，需 4.5）
+```
+
+**industrial/documentary，第 2 次检查（2026-10-19T11:28:07.680Z）**
+
+```text
+home/375 对比度不足或无法测量：行业配图，非本厂实拍。（1.38，需 4.5）
+home/375 对比度不足或无法测量：行业配图，非本厂实拍。（1.38，需 4.5）
+home/768 对比度不足或无法测量：行业配图，非本厂实拍。（1.38，需 4.5）
+home/768 对比度不足或无法测量：行业配图，非本厂实拍。（1.38，需 4.5）
+home/1440 对比度不足或无法测量：行业配图，非本厂实拍。（1.38，需 4.5）
+home/1440 对比度不足或无法测量：行业配图，非本厂实拍。（1.38，需 4.5）
+```
+
+**export/precision，第 1 次检查（2026-10-19T11:34:19.437Z）**
+
+```text
+products/375 文字重叠
+products/768 文字重叠
+products/1440 文字重叠
+quality/375 文字重叠
+```
+
+**molding/precision，第 1 次检查（2026-10-19T11:42:06.055Z）**
+
+```text
+products/375 横向溢出
+```
+
+**molding/precision，第 2 次检查（2026-10-19T11:42:15.306Z）**
+
+```text
+products/375 横向溢出
+```
+
+**molding/documentary，第 1 次检查（2026-10-19T11:46:36.837Z）**
+
+```text
+products/375 文字重叠
+products/768 文字重叠
+products/1440 文字重叠
+faq/375 文字重叠
+faq/768 文字重叠
+faq/1440 文字重叠
+```
+
+**packaging/precision，第 1 次检查（2026-10-19T11:50:44.794Z）**
+
+```text
+products/375 文字重叠
+products/768 文字重叠
+products/1440 文字重叠
+```
+
+**packaging/precision，第 2 次检查（2026-10-19T11:50:49.402Z）**
+
+```text
+products/375 文字重叠
+products/768 文字重叠
+products/1440 文字重叠
+```
+
+**packaging/precision，第 3 次检查（2026-10-19T11:50:54.313Z）**
+
+```text
+products/375 文字重叠
+products/768 文字重叠
+products/1440 文字重叠
+```
+
+**packaging/documentary，第 1 次检查（2026-10-19T11:53:45.773Z）**
+
+```text
+sampling/375 横向溢出
+```
+
+**restaurant/documentary，第 1 次检查（2026-10-19T12:01:56.067Z）**
+
+```text
+资料没有的数字：0013
+资料没有的数字：3020
+```
+
+**education/precision，第 1 次检查（2026-10-19T12:03:27.782Z）**
+
+```text
+courses/375 横向溢出
+```
+
+其余完整检查的 issues=[]；没有省略其他非空提交检查拒因。失败 run 的 issues 再次保留了对应最终拒因，并不另算新一轮检查。
+
+#### 失败站终止原文、上游中断与停服
+
+**industrial/precision**（plan，run `9e1daba1-d1f9-4835-b54f-64061c3861b8`）：
+
+> 页面大纲格式不正确，方案未保存。
+
+**packaging/precision**（generate，run `8648ff44-09b6-43eb-9bc8-1106a4a4a908`）：
+
+> 两轮修正后仍未通过底线检查，未保存版本。请查看完整问题，补充资料或调整要求后重试。
+
+**restaurant/documentary**（generate，run `d57e59f1-95a5-4c3a-ba38-84c0b8f42d77`）：
+
+> 局部修正无法定位底线拒因对应的代码节点，本次未保存版本。
+
+**design/precision**（generate，run `d5be814a-4816-44cd-9c85-cd9a0f7e5c0b`）：
+
+> DeepSeek 请求失败（HTTP 502），本次未保存版本。
+
+设计 precision 保存的应用 HTTP 错误正文为 `{"error":{"message":"terminated"}}`，requestIdHeader 与 requestId 均为 null；网关原始失败为 `terminated`。这是上游已返回 HTTP 200 后响应读取中断的记录，未将其说成已完成事实核对或零消耗，也没有额外重试探测根因。
+
+第一轮 `round.errors` 另保留以下真实官网对照截图失败原文，没有重拍或改变截图工具：
+
+> 对照 restaurant/1：AssertionError [ERR_ASSERTION]: 页面未载入或为空：https://www.bluefrog.com.cn/
+
+12:13:42.956255 UTC，在评估器退出后逐站 GET 实际 `/api/sites/<siteId>/draft`，13 个已创建站点全部 HTTP 200，25 个 run（13 plan、12 generate）全部为 complete／error；当前版本与逐站表一致。同期 GET 网关 `/status`，确认 stopped=true、in-flight=0。完整接口快照及每个 run 的 ID／step／issues 在 `control/terminal-draft-*.json`，汇总在 `terminal-before-stop.json`。这项确认独立于评估器退出码。
+
+确认后，12:13:50.248054 UTC 手动向网关进程组 PID 54540、dev 进程组 PID 54541 发 SIGINT；12:13:50.504158 UTC 确认应用端口 63467、网关端口 63468 均关闭，见 `control/shutdown.json`。没有遗留 running run、网关在途请求或监听端口。
+
+#### 六个盲评包与 materialsChanged
+
+仅读取第一轮 `private/blind-coverage.json` 并检查六个包目录存在性，没有打开 `review/` 或 `comparison-review/` 中任何内容，未启动审查或盲评实例。
+
+| 路径（相对本工作树） | 存在性与齐全性 |
+| --- | --- |
+| `artifacts/t190/r2/round1-full/review/mixed/` | 存在；不齐全，5 个组合缺生成截图，且少 1 份真实官网对照 |
+| `artifacts/t190/r2/round1-full/review/company/` | 存在；不齐全，存在换公司题缺图 |
+| `artifacts/t190/r2/round1-full/comparison-review/` | 存在；不齐全，paired=9，5 个组合缺成对截图 |
+| `artifacts/t190/r2/round2-selected/review/mixed/` | 不存在，未运行 |
+| `artifacts/t190/r2/round2-selected/review/company/` | 不存在，未运行 |
+| `artifacts/t190/r2/round2-selected/comparison-review/` | 不存在，未运行 |
+
+第一轮覆盖记录 complete=false、review.complete=false、comparison.requested=true、comparison.complete=false；mixed=22、company=16、paired=9 是覆盖文件中的计数，不是生成站数或审美通过数。review.missing 为 32 项，comparison.missing 为 5 项，总计 37 项，完整缺失原文留在覆盖文件及 `control/baseline-result.json`。缺图的五组合为 industrial/precision、packaging/precision、restaurant/documentary、design/precision、design/documentary。第二轮覆盖文件不存在，不借第一轮记录推断其齐全性。
+
+第一轮 `private/round.json` 记录 previousMaterialsChanged=true；其 comparison 数组和 `private/comparison.json` 中 **14/14 项 materialsChanged=true**，每项保存 currentMaterials／previousMaterials 的 length 及两轮 round.json 中实际资料的精确 source 路径，unverifiedFields 均为 `["previous.styleRegistration"]`。未补造旧风格登记版本；visualPairAvailable 为 9 true／5 false，仅代表配图可用性。第二轮没有 comparison 记录。
+
+comparison 的对象仍是“新资料 + T-188/T-191/T-192 等当前代码”与“旧资料 + 旧代码”的整体效果，不能分别归因资料和代码。本次没有审美结论、成对偏好或 company 质量结论；未运行固定口径缺口计数或复制主数据，不将技术 generated 写为质量通过。全部旧证据、新的失败候选和账本均保留。未推送、未 force-push，未写主工作区 `.sitecraft-data` 或 artifacts；Next 自动修改的 `tsconfig.json` 保留并排除提交。
