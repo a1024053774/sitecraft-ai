@@ -36,12 +36,12 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 ## Acceptance
 
 - [x] 根因写进 Resolution，附原文定位
-- [ ] 成对测试先红后绿；真实探针结果如实记录
+- [x] 成对测试先红后绿；真实探针结果如实记录
 - [ ] typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
 
-第一步实现提交为 `85982a968bf65111baf5867f49fbcb9b2f710996`，父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`；证据索引为 `artifacts/t187/step1-result.json`。第二步首次 runner 通过、全量失败；同步测试合同后，定向检查又暴露未闭合声明值可被存版的产品缺陷。负责人已授权严格声明边界修复，新一轮改前红测与改后 50/50 定向检查已完成；后续门控与真实探针结果单独记录。整票仍为 **INCOMPLETE**，独立 fast 审查未运行。执行者 codex-t187；时间均为纽约时间。
+执行阶段 **PASS**：严格声明边界实现候选 `39ec3fa3357b4b394ca63bf74711aca5ff8f786c` 已完成红绿、50/50 定向、18/18 runner、883/883 全量、typecheck、build 和唯一真实探针，保存 v1。整票仍为 **INCOMPLETE**，只剩未授权的独立 fast 审查，票保持打开。第一步实现为 `85982a968bf65111baf5867f49fbcb9b2f710996`（父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`），后续测试合同提交为 `8ca265e2d319ddeea47e74551f1c123150319748`；各轮失败证据均保留。最终执行证据索引为 `artifacts/t187/step2-retry2/result.json`。执行者 codex-t187；时间均为纽约时间。
 
 根因与原文定位：
 
@@ -83,7 +83,7 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 ### 测试合同同步与 style 路径边界
 
-本次只改 `tests/t138-dom-scope.test.ts` 和 `tests/fixtures/t159-commit-protocol.ts`，不改产品代码、不加空数组 fallback、不放宽 80 条上限。T-138 的合法对照按选择器 `p` 与属性 `color` 选择可写声明，只返回 `#111`；对照仍须经原提交入口存版、两页三档通过且正文与其他页面保留。反例分别返回完整 `<style>p{color:#111}</style>`、原未闭合 `<style>p{color:#111</style>`、非法值 `not-a-color`、未闭合值 `rgb(17,17,17`，要求一轮即拒收、零版本并原样保存回复；本次前三项通过，最后一项暴露未闭合值被存版，见下节，不降低其断言。
+`8ca265e` 的合同同步仅改 `tests/t138-dom-scope.test.ts` 和 `tests/fixtures/t159-commit-protocol.ts`，不改产品代码、不加空数组 fallback、不放宽 80 条上限。T-138 的合法对照按选择器 `p` 与属性 `color` 选择可写声明，只返回 `#111`；对照仍须经原提交入口存版、两页三档通过且正文与其他页面保留。反例分别返回完整 `<style>p{color:#111}</style>`、原未闭合 `<style>p{color:#111</style>`、非法值 `not-a-color`、未闭合值 `rgb(17,17,17`，要求一轮即拒收、零版本并原样保存回复；该轮前三项通过，最后一项暴露未闭合值被存版，见下节，不降低其断言。
 
 旧未闭合样式断言是 `/CSS.*未闭合/`，对应原整份 style 写回分支的拒因原文为「局部修正的 CSS 未闭合，本次未保存版本。」；新声明合同对完整／未闭合 style 元素和非法颜色值在 `CSS.supports(property, after)` 处拒绝，实际拒因原文为「局部修正CSS 修正不是有效的单个声明值，本次未保存版本。」。未闭合的 rgb 函数值却没有被该检查拒绝，不能概括成所有未闭合值已受保护。此前全量留下的新拒因与原回复仍在上节两个失败产物中，不把旧预期改写成旧运行事实。
 
@@ -113,3 +113,33 @@ T-159 替身现在按同次 CDP 的 Emulation 宽度补齐 `repairs`：正常扫
 2026-10-18 **21:37:52–21:38:23 EDT**，改前运行 `CHROME_PATH=<AGENTS.md 的完整路径> npm test -- tests/t138-dom-scope.test.ts`，**18/29 通过、11 失败**。其中缺右括号的 rgb、带注释与反斜杠转义的值被旧实现接受存版；其余失败暴露新合同要求的明确边界拒因尚未实现，不能写成 11 个原本都会存版的缺陷。原普通非法值仍拒收，合法 hex/rgb 对照均通过。日志 `artifacts/t187/step2-retry2/boundary-red.log`，原生报告 `artifacts/t167/test-run-1792373872591-24124/report.json`。
 
 **21:38:41–21:39:52 EDT**，改后运行 `CHROME_PATH=<AGENTS.md 的完整路径> npm test -- tests/t138-dom-scope.test.ts tests/t159-task-admission.test.ts tests/t187-repair-fragments.test.ts`，**50/50 通过**，无跳过或取消：T-138 29/29、T-159 13/13、T-187 8/8。新增反例仍检查零版本、仅一轮、明确拒因及完整原回复，不换坏值、不降低已有拒收断言。日志 `artifacts/t187/step2-retry2/targeted.log`，原生报告 `artifacts/t167/test-run-1792373922028-35599/report.json`；各命令完整路径与起止时间在同目录 `*-result.json`。本次源码与这些证据先冻结为本地提交，再按 runner → 全量一轮 → typecheck → build → 唯一真实探针顺序继续；旧轮日志全部保留。
+
+### 第二步最终执行：全部门控与唯一真实探针
+
+以下均在固定候选 `39ec3fa3357b4b394ca63bf74711aca5ff8f786c` 上串行、各一次运行；候选冻结时 `dirty=false`，见 `artifacts/t187/step2-retry2/candidate.json`。没有修改测试统计、并发、预算、断言或生产代码来绕过失败。T-173 的事实成员、CSS 声明修正与范围反例也在本轮全量重新通过。Next 自动生成的类型目录 include 精确撤回，工作树不带配置残留。
+
+| 顺序与实际命令 | 起止时间（2026-10-18 EDT） | 结果与证据（相对 artifacts/t187/step2-retry2/） |
+| --- | --- | --- |
+| `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` | 21:40:40–21:41:03 | **PASS 18/18**，无跳过，exit 0；`runner.log`、`runner-result.json`。 |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` | 21:41:14–21:56:51 | **PASS 883/883**，非浏览器 123、浏览器 760，并发 2，无跳过或取消，exit 0；`full.log`、`full-result.json`，原生统计 `artifacts/t167/test-run-1792374074635-54141/report.json`。 |
+| `npm run typecheck` | 21:57:03–21:57:08 | **PASS**，exit 0；`typecheck.log`、`typecheck-result.json`。 |
+| `npm run build` | 21:57:12–21:57:29 | **PASS**，exit 0；`build.log`、`build-result.json`。有一条 `lib/code-check-diagnostics.ts:8` 动态文件追踪范围过宽的警告，未在本票扩展处理。 |
+| 下述单站真实回放命令 | 21:58:19–22:04:08 | **generated，exit 0**，只执行一次；`probe.log`、`probe-result.json`，完整站点与截图在 `probe-case/`。 |
+
+真实探针原命令：
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:57660 SITECRAFT_BUDGET_BASE=http://127.0.0.1:57661 SITECRAFT_TOKEN_LIMIT=300000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t187/step2-retry2/replay-case.ts /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t183/round1-full/private/case-1 artifacts/t187/step2-retry2/probe-case
+```
+
+普通 dev 与预算网关启动命令分别为 `python3 artifacts/t187/step2-retry2/launch-process.py dev > artifacts/t187/step2-retry2/dev.log 2>&1`、`python3 artifacts/t187/step2-retry2/launch-process.py gateway > artifacts/t187/step2-retry2/gateway.log 2>&1`。应用进程清空继承环境，仅持 `local-budget-gateway` 占位凭据，模型地址只指向本地网关；实际 cwd、`development-file`、模型 `deepseek-flash` 与数据根 `artifacts/t187/step2-retry2/probe-data` 经 health 核对，见 `health.json` 与 `start-state.json`。工作树没有会被 dev 加载的 dotenv 文件。真实密钥只在网关进程以 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入，source 输出丢弃，随后运行原 `scripts/t153-real-budget.ts`；上游地址显式为 `https://api.deepseek.com`，`SITECRAFT_TOKEN_LIMIT=300000`，`T153_BUDGET_DIR=artifacts/t174/t187-repair-probe`。没有修改网关或把密钥交给应用、文件、日志或 prompt。
+
+资料逐字沿用原现场 `materials.txt`，并分别与原 `report.materials`、`code-site.materials` 比较相同；同一份原图和原许可字段经生产上传入口重新登记。偏好完全相同：precision、layout 5、density 6。回放经生产 create／upload／chat select／confirm／draft 与唯一提交入口，不直接调用模型、不直接写站点存储。新站 ID **`1adeea0c-7fde-4de5-bba1-14a3fb0ee588`**，v1 ID **`4745bcc4-4ad6-4e08-83cf-00d4b63391ed`**。
+
+**本次没有触发版面修正，版面发送片段数为 0；最终保存版本。** 两次候选的版面拒因均为 0。首轮有两处事实拒因：把“交期待协议确认后排产”扩大为“具体规格与全部交付条件均待确认”，以及把三个行业供货例项扩大成“各行业均可参见”。应用在同一次生成中做了一次事实修正，真实出站请求携带 **22 个 text 片段**、`layoutIssueCount=0`，没有重发整站；随后重核 2 段、沿用 38 段并通过，保存 v1。出站数量由只在应用进程运行的观察模块记录于 `repair-requests.ndjson`，只记数量、类型、时间与状态，不记请求正文、头或凭据。完整拒因、候选、事实原回复及核对映射均在 `probe-case/code-site.json`。本次真实探针没有覆盖“模型实际执行版面修正”的分支，不能把事实修正的 22 个片段冒充版面修正；版面路径的红绿证据仍来自保存现场的 98→5 成对 Chrome 用例。
+
+唯一新账本 `artifacts/t174/t187-repair-probe/usage.json`：**136,939 / 300,000 token**，输入 **54,446**、输出 **82,493**，剩余 **163,061**；5 次调用全部 HTTP 200、用量已知、正常完成，应用记录与账本合计一致。逐次用量：规划 10,537，写站 49,264，首次事实核对 51,576，事实修正 9,297，事实重核 16,265。没有重置账本、再发一次探针或重跑失败站。
+
+最终两页 × 375／768／1440 的溢出、重叠、对比度拒因均为 0，`checks.passed=true`；正文行长仍保留质量反馈，不当拒因。六张 `home-*`、`products-*` PNG 都在 Chrome 中载入并逐张打开看过，含正文和完整页脚，非空白或加载中截图；这只确认技术与载入证据，不宣布审美通过。
+
+**22:05:22 EDT** 再经实际 draft 接口确认 plan run `cd74e17c-0f0d-4bef-a147-99ef88ef3419`、generate run `db64e9b1-3daa-48c0-a3d5-51b12c489828` 均为 complete，网关 5 次调用全部 complete、在途 0，见 `pre-stop-terminal.json`。随后手动 SIGINT 停网关 pid 69789（工具记录 exit 1）与 dev pid 69857（exit 0），**22:05:56** 确认两个端口均关闭，见 `shutdown.json`；账本 `stopped=false` 保留“未触发预算终止”的原义，不冒充进程仍在运行。数据只保留在本工作树的 artifacts，未复制进主工作区 `.sitecraft-data`；未发布、未推送、未开启审查或盲评实例。独立 fast 审查交主控安排，票不关闭。
