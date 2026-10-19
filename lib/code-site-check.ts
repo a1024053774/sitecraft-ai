@@ -2,6 +2,7 @@ import { readCodeFactSegments, readCodeFactSeparators, readCodeFactCssEffects, s
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
+import { readGeneratedLayout } from './code-site-generated-layout.ts';
 import { stopCodeCheckMotion } from './code-site-check-motion.ts';
 import { codeSiteSchema, renderSiteCode, type SiteCode, type CodeCheck, type CodeQualityFeedback, type CodeQualityKind } from './code-site.ts';
 import { auditCodeFacts } from './code-site-model.ts';
@@ -277,8 +278,10 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
   }
   // The remaining completeness checks deliberately expand hidden disclosure content.
   // Narrow-column feedback above observes only the original visible page.
-  for (const detail of document.querySelectorAll('details')) detail.open = true;
-  for (const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');
+  const expanded = [...document.querySelectorAll('details')].filter(detail => !detail.open);
+  for (const detail of expanded) detail.open = true;
+  const revealed = [...document.querySelectorAll('[aria-hidden="true"]')];
+  for (const node of revealed) node.removeAttribute('aria-hidden');
   stopMotion();
   // A Range exposes text lost behind a clipping ancestor, including hidden clamp lines.
   // Restrict to explicit specification semantics; ordinary summaries have no completeness contract.
@@ -429,6 +432,8 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
       if (blocked) add('coveredAnchors', title, `锚点 #${id} 滚动后标题被 fixed/sticky 页头遮挡；按实际页头留 scroll-margin 或 scroll-padding。`);
     }
   } finally { scrollTo({ left: initialX, top: initialY, behavior: 'instant' }); }
+  for (const detail of expanded) detail.removeAttribute('open');
+  for (const node of revealed) node.setAttribute('aria-hidden', 'true');
   return feedback;
 }
 type LayoutReport = CodeLayoutScan & { bodyLineLength: Array<{ tooLong: boolean; text: string }> };
@@ -585,7 +590,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           // Both documents include the system language links and components.
           await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, args.translationSource, page.id, '', credits, undefined, { language: 'zh', languageLinks }) });
           await browser.evaluate('document.fonts.ready');
-          originalGenerated = await browser.evaluate(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');(${stopCodeCheckMotion.toString()})();return (${readGeneratedText.toString()})()})()`);
+          originalGenerated = await browser.evaluate(`(() => {const read=${readGeneratedText.toString()},stop=${stopCodeCheckMotion.toString()};stop();const texts=read();for(const detail of document.querySelectorAll('details')) detail.open=true;stop();texts.push(...read());for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');stop();return [...texts,...read()];})()`);
         }
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits, undefined, args.translationSource ? { language: 'en', languageLinks } : {}) });
         if (args.localEdit && localTargets.length) checks.issues.push(...await browser.evaluate<string[]>(`(${checkLocalSelectors.toString()})(${JSON.stringify(localTargets)},${JSON.stringify(page.id)},${JSON.stringify(localSelectors)})`));
@@ -606,7 +611,36 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
         const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
         const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)},(${stopCodeCheckMotion.toString()}))`);
-        const layout = await browser.evaluate<LayoutReport & { repairs: CodeLayoutRepair[]; generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');(${stopCodeCheckMotion.toString()})();const paths=${JSON.stringify(targetPaths)};const layout=scanVisitorLayout(document,${JSON.stringify(backdrops.colors)});return {...layout,repairs:(${readCodeLayoutRepairs.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${width},layout,(${codeCssDeclarationNames.toString()})),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
+        // Quality completeness checks restore their disclosure mutations. Read the
+        // visitor default first, retaining aria attributes used by author CSS.
+        await browser.evaluate(`(${stopCodeCheckMotion.toString()})()`);
+        const scanLayout = async () => {
+          const generated = await readGeneratedLayout(browser);
+          return browser.evaluate<LayoutReport & { hasClosedDetails: boolean; hasAriaHidden: boolean; repairs: CodeLayoutRepair[]; generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};const paths=${JSON.stringify(targetPaths)};const layout=scanVisitorLayout(document,${JSON.stringify(backdrops.colors)},${JSON.stringify(generated)});return {...layout,hasClosedDetails:!!document.querySelector('details:not([open])'),hasAriaHidden:!!document.querySelector('[aria-hidden="true"]'),repairs:(${readCodeLayoutRepairs.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${width},layout,(${codeCssDeclarationNames.toString()})),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
+        };
+        const layout = await scanLayout();
+        const mergeLayout = (other: typeof layout) => {
+          const union = <T,>(first: T[], second: T[]): T[] => [...new Map([...first, ...second].map(item => [JSON.stringify(item), item])).values()];
+          layout.horizontalScroll ||= other.horizontalScroll;
+          layout.overflowElements = union(layout.overflowElements, other.overflowElements);
+          layout.textOverlaps = union(layout.textOverlaps, other.textOverlaps);
+          layout.textContrast = union(layout.textContrast, other.textContrast);
+          layout.bodyLineLength = union(layout.bodyLineLength, other.bodyLineLength);
+          layout.repairs = union(layout.repairs, other.repairs);
+          layout.generatedText = union(layout.generatedText, other.generatedText);
+          layout.measurement.textContrastEntries = layout.textContrast.length;
+        };
+        if (layout.hasClosedDetails) {
+          // Preserve default-state evidence before expanding disclosure content.
+          await browser.evaluate(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;(${stopCodeCheckMotion.toString()})();})()`);
+          mergeLayout(await scanLayout());
+        }
+        if (layout.hasAriaHidden) {
+          // T-192 also requires the legacy revealed-state completeness check.
+          // It supplements, rather than replaces, the original aria states above.
+          await browser.evaluate(`(() => {for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');(${stopCodeCheckMotion.toString()})();})()`);
+          mergeLayout(await scanLayout());
+        }
         if (!args.localEdit || targetPaths.length) for (const entry of layout.generatedText) generatedText.add(entry.text);
         if (needsFactSegments) {
           const paths = targetPaths.length ? targetPaths : [undefined];

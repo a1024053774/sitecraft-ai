@@ -113,6 +113,8 @@ T-145 的离线导入 CLI 只处理批准的导出数据，代码仍经过 commi
 
 ## 6. 质量、数据与执行边界
 
+T-196 的视觉底线保留作者 aria 属性，先扫描访客默认状态，再展开原本关闭的 details 扫描并合并拒因；此外保留 T-192 要求的展开后去 aria 揭示态完整性扫描，三种状态合并去重；质量反馈结束后恢复原 open 和 aria 属性，不污染默认态底线文档。T-195 的文字自身最终 visibility 与完整有盒 sr-only 两条排除规则保持不变；微小或零盒中的文字按实际 Range 检查水平越界，仍保留 1px 容差与独立 scrollWidth 检查。CSS 生成文字由同次 Chrome DOMSnapshot 的实际文字行参与重叠、溢出与对比度，读取伪元素自身样式，不能用宿主 visibility 代替。失败位置沿用 T-173 的 pageId、width、documentElement 下元素 path 与 pseudo；当前版面修正无法核实伪元素声明的完整影响范围时明确拒收，不开放宿主或整页改写。不能读取快照或文字行同样拒收；独立调用扫描器而没有生成文字布局时，非空生成内容标为无法测量。
+
 评估入口为 npm run eval:new-route：默认固定七家模拟公司与精密工程、现场实拍两种风格，--only 可显式选择已登记风格；默认矩阵不扩张。快速档每家一种风格，只生成首页和产品页；餐饮、培训、设计分别为首页与菜单、课程、作品页，默认只与同档同资料比较。review/mixed 与 review/company 分别交不同的新盲评实例，跨轮比较在独立 comparison-review；private 的映射、用量、来源和跨轮身份由主控保存，不交评审。mixed 提示中的识别率与误判率仅作参考；company 与跨轮比较的提示保持各自合同。质量按 T-189 的成对比较、company 与固定口径缺口站数判断。T-190 的新资料基线由主控安排。技术通过不能替代独立审美判断；失败轮次、未知用量如实保留。
 
 `--previous-materials-changed` 必须与显式 `--previous` 一起使用，只允许资料变化；profile、组合集合、pack/style、layout/density、页面要求及已记录的风格登记信息仍逐项核对，不同即在请求前拒收。新轮次逐组合保存偏好、页面要求及风格 skill 路径、预览 revision/versionId；旧轮次缺偏好时，只读对应 `private/case-N/code-site.json` 的实际偏好并核对 siteId。旧页面要求从资料最后一行读取，不以模型最终生成的页数代替用户要求；没有记录的条件逐项列入 `unverifiedFields`，不补造一致性。现有风格登记没有独立的 skill 正文版本号，预览版本不是正文版本。`round.json` 与 `private/comparison.json` 逐组合记录实际 `materialsChanged`、两边资料长度及所在轮次 JSON 的字段来源；这些元数据不进入盲评包，comparison 提示不变。T-190 的 comparison 比的是「新资料 + T-188/T-191 改动」对「旧资料 + 旧代码」的整体效果，分不出资料与代码各自的贡献。

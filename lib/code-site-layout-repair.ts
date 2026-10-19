@@ -1,3 +1,4 @@
+import type { CodeFactCssPosition } from './code-site-fact-segments.ts';
 import type { SiteCode } from './code-site.ts';
 import type { FragmentBody } from './code-site-repair.ts';
 
@@ -6,6 +7,7 @@ export type CodeLayoutRepair = {
   elements: Array<{ field: string; path: number[]; before: string }>;
   declarations: Array<Extract<FragmentBody, { kind: 'css' }>>;
   reason?: string;
+  generatedPositions?: CodeFactCssPosition[];
 };
 export type CodeLayoutScan = {
   horizontalScroll: boolean; overflowElements: Array<{ key: string }>;
@@ -42,10 +44,13 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
   if (scan.measurement.textContrastEntries && !scan.horizontalScroll && !scan.overflowElements.length && !scan.textOverlaps.length && !contrast.length) return records;
   const keyFor = (el: Element) => {
     const parts: string[] = [];
-    for (let node: Element | null = el; node && node !== document.body; node = node.parentElement) parts.unshift(`${node.tagName}:${[...node.parentElement!.children].indexOf(node)}`);
+    for (let node: Element | null = el; node && node !== document.body; node = node.parentElement) {
+      if (!node.parentElement) { parts.unshift(node.tagName); break; }
+      parts.unshift(`${node.tagName}:${[...node.parentElement.children].indexOf(node)}`);
+    }
     return parts.join('/');
   };
-  const byKey = new Map([...document.body.querySelectorAll('*')].map(node => [keyFor(node), node]));
+  const byKey = new Map([document.documentElement, document.body, ...document.body.querySelectorAll('*')].map(node => [keyFor(node), node]));
   const locations = new Map<Element, { field: string; path: number[]; source: Element }>();
   const sources = new Map<string, HTMLElement>();
   const page = code.pages.find(page => page.id === pageId)!;
@@ -84,6 +89,18 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
   for (const source of sheets) readSelectors(source.sheet.cssRules);
   const collect = (issue: string, keys: string[], contrast: boolean) => {
     const record: CodeLayoutRepair = { issue, elements: [], declarations: [] }; records.push(record);
+    const generatedKeys = keys.filter(key => /::(?:before|after|marker)$/.test(key));
+    if (generatedKeys.length) {
+      record.generatedPositions = [...new Set(generatedKeys)].flatMap(key => {
+        const pseudo = key.match(/::(?:before|after|marker)$/)![0], host = byKey.get(key.slice(0, -pseudo.length));
+        if (!host) return [];
+        const path: number[] = [];
+        for (let node = host; node.parentElement; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
+        return [{ pageId, width, path, pseudo }];
+      });
+      record.reason = `CSS 生成文字在 ${JSON.stringify(record.generatedPositions)}；当前无法核实伪元素声明修正的完整影响范围，本次拒收，不扩大到宿主或整页修改`;
+      return;
+    }
     const targets = [...new Set(keys)].map(key => byKey.get(key));
     if (!targets.length || targets.some(node => !node || !locations.has(node))) { record.reason = '实际失败元素不属于可核实的站点代码节点'; return; }
     for (const target of targets as Element[]) {

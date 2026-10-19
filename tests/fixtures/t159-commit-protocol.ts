@@ -23,6 +23,7 @@ state.__t159Browser = () => {
   return {
     async send(method: string, params?: { width: number }) {
       if (method === 'Emulation.setDeviceMetricsOverride') width = params!.width;
+      if (method === 'DOMSnapshot.captureSnapshot') return { strings: [], documents: [{ scrollOffsetX: 0, scrollOffsetY: 0, nodes: { parentIndex: [], nodeType: [], nodeName: [], pseudoType: { index: [], value: [] } }, layout: { nodeIndex: [], text: [] }, textBoxes: { layoutIndex: [], bounds: [], start: [], length: [] } }] };
       if (method === 'Page.getFrameTree') return { frameTree: { frame: { id: 'fixture-document' } } };
       if (['Network.enable', 'Network.setBlockedURLs', 'Page.navigate', 'Page.setDocumentContent', 'Emulation.setDeviceMetricsOverride'].includes(method)) return {};
       throw new Error(`未覆盖的 CDP 请求：${method}`);
@@ -41,6 +42,7 @@ state.__t159Browser = () => {
       if (expression.includes('function readCodeFactSegments(')) return args.code.pages.map((p: any) => ({ text: text(p.html), group: p.id, context: { pageId: p.id, outline: [], headings: [] } }));
       if (expression.includes('hasMainHeading:')) return { contentType: 'text/html', hasMainHeading: true };
       if (expression.includes('document.images')) return [];
+      if (expression.startsWith('(function stopCodeCheckMotion(')) return;
       if (expression.includes('document.fonts.ready') || expression.includes('location.origin===') || expression.includes('responseStatus')) return true;
       throw new Error(`未覆盖的 CDP 观察：${expression.slice(0, 100)}`);
     },
