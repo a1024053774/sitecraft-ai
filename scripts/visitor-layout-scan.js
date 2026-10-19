@@ -227,7 +227,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
     if(a.el===b.el&&Math.abs(a.rect.top-b.rect.top)<1&&Math.abs(a.rect.bottom-b.rect.bottom)<1) continue;
     const x=Math.min(a.rect.right,b.rect.right)-Math.max(a.rect.left,b.rect.left);
     const y=Math.min(a.rect.bottom,b.rect.bottom)-Math.max(a.rect.top,b.rect.top);
-    if(x>2&&y>2) textOverlaps.push({block:blockFor(a.el),amount:Math.min(x,y),key:[a.key,b.key].sort().join('::')});
+    if(x>2&&y>2) textOverlaps.push({block:blockFor(a.el),amount:Math.min(x,y),key:[a.key,b.key].sort().join('::'),targets:[keyFor(a.el),keyFor(b.el)]});
   }
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
@@ -417,7 +417,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
     }
     const measured=background.known&&foreground&&!paintReason ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:paintReason||background.reason||'前景色无法解析'};
     const role=el.closest('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!el.closest('p')&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
-    const entry={element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:node.textContent.trim().slice(0,160),slot,block:blockFor(el),role,checkable:role==='body'||role==='heading',large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
+    const entry={key:keyFor(el),element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:node.textContent.trim().slice(0,160),slot,block:blockFor(el),role,checkable:role==='body'||role==='heading',large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
     textContrast.push(entry);
     contrastNodes.push({el,entry});
     const block=bodyBlockFor(el),blockExemption=lineLengthExemption(block);

@@ -1,0 +1,662 @@
+{
+  "provenance": {
+    "ticket": "T-183",
+    "case": "round1-full/private/case-1",
+    "sourceFile": "code-site.json",
+    "paths": [
+      "materials",
+      "run.attempts[0]",
+      "run.attempts[1]",
+      "run.repairFailure.response"
+    ]
+  },
+  "materials": "资料性质：模拟。不可当作真实企业。\n公司名：忻州重载减速机\n行业：工业制造 / 重载减速机\n首屏可用事实：按图加工重载减速机 。\n首屏说明：不提供现场安装；不接零售散单。\n公司简介：我们做重载减速机，订单以设备配套和旧机替换为主。车间按客户确认的接口图组织箱体加工、齿轮加工和装配，采购外协热处理件后复检。不接零售散单，也不承接现场安装。\n沿革：2010 年 从减速机维修和齿轮配件起步；2015 年 开始整机配套供货；2019 年 建立箱体数控镗铣工位；2023 年 将跑合记录纳入整机出厂档案。\n产品：直角减速机、行星减速机；加工方式：按图加工。\n直角减速机规格参数：速比范围 i=25–100；额定输出扭矩 8500 N·m；中心距 200 mm；输入转速 ≤1500 r/min；安装方式 底脚/法兰。\n行星减速机规格参数：速比范围 i=4–100；额定输出扭矩 3200 N·m；机座号 F280；输入转速 ≤3000 r/min；安装方式 法兰；防护等级 IP65。\n直角减速机应用与选型：用于输送设备的转向传动。选型需核对安装方向、中心距、输入轴接口和负载变化；8500 N·m 是额定输出扭矩，不等于允许冲击峰值，冲击工况另核。\n行星减速机应用与选型：用于空间较紧的同轴配套传动。需核对 F280 接口图、输出法兰和制动器连接方式；需要反向运转时注明频次，回程间隙指标待补充。\n应用行业：矿山输送；冶金辊道；港口起重；水泥窑传动。\n加工能力/主设备：滚齿与磨齿；箱体数控镗铣；动平衡与跑合试验；装配与出厂检验。\n设备：数控镗铣床 2 台；滚齿机 3 台；磨齿机 1 台；动平衡机 1 台；跑合试验台 2 台。\n检测设备：三坐标测量机 1 台；齿轮测量仪 1 台；粗糙度仪 1 台。\n加工流程：确认接口图和技术协议；箱体粗加工后复核基准；齿轮外协热处理后精加工；配对装配并调整轴承间隙；跑合后清洁、涂装和包装。\n质检流程：来料核对材质批次和外协热处理记录；加工后检查齿形与箱体孔位；装配后核对接触斑点和轴向间隙；跑合记录温升、振动与漏油；出厂复核铭牌和附件清单。\n供货案例一：行业 矿山输送设备配套；需求：替换直角传动并保留原底脚孔位；交付：按确认接口图供直角减速机并附跑合记录；边界：现场基础改造由买方安排。\n供货案例二：行业 冶金辊道设备；需求：多台驱动使用统一法兰接口；交付：行星减速机按接口图编号供货；边界：电机与制动器由设备方选配，不承诺整线节拍。\n供货案例三：行业 水泥设备备件采购；需求：停机前确认替换尺寸；交付：先核对旧机铭牌、轴伸和安装图再安排整机；边界：不能仅凭外形照片保证互换。\n认证状态：ISO 9001 认证中；特种设备相关许可 待补充；CE 待补充。\nMOQ：20台。邮箱：sales@xinzhou-drive.luckye.online\n交期：图纸和技术协议确认后按订单排产，具体天数待补充。\n交付与包装：轴伸做防锈处理并加护套，整机固定在木箱底座；箱内放装箱单、接口图和跑合记录。润滑油牌号与加注状态在订单中确认，不默认带油发货。\n问：只给电机功率能选型吗？答：还需输入转速、目标输出转速、负载变化和每天运行时长，确认后再选型。\n问：可以替换旧减速机吗？答：需旧机铭牌、安装图和轴伸尺寸，先核对接口，不按照片直接承诺互换。\n问：是否提供现场安装？答：不提供，随货给接口图和装箱清单，安装由买方安排。\n问：能单买一台试用吗？答：目前仅接 20 台起的批量配套订单，样机安排待补充。\n选型资料：产品类型、数量、速比、输入转速、负载、安装方向、接口图和目的地；旧机替换另需铭牌照片，接口图需标明版本。\n电话、地址：待补充。产能数字、CE 证书编号、特种设备相关许可编号：待补充。客户名单、评价：待补充。\n图片使用：授权行业配图非本厂实拍；只用于对应题材，不据照片补设备型号、产能或客户关系。\n\n页面要求：按图加工是加工方式，不是第三个商品，不单列为产品系列。\n授权行业配图product-gearbox-reducer.jpg：工业齿轮箱减速机。只作对应内容配图，不推导公司新事实。不是该公司的实拍。\n授权行业配图equipment-gearbox-housing-machining.jpg：齿轮箱箱体加工。只作对应内容配图，不推导公司新事实。不是该公司的实拍。\n授权行业配图equipment-multitasking-cnc.jpg：多任务数控机床。仅通用CNC设备配图；不是插齿机或箱体加工实况；不新增机床型号、自动换刀、车削、精度、产能或所有权事实。不是该公司的实拍。\n授权行业配图facility-milling-workshop.jpg：铣削加工车间。来源是Xcentric Ripper工厂，不能写成减速机成品厂房归属证明，也不追加机型、加工精度或产能。普通设备标识保留。不是该公司的实拍。\n授权行业配图facility-cnc-production-workshop.jpg：数控加工车间。Industrial generic CNC machining environment only, paired with F01 in the existing dual-image facility gallery; never sole large hero or explicit hero/product image. Do not name foreground objects as reducer housings or specific molds. No company model/precision/capacity facts added.不是该公司的实拍。\n授权行业配图inspection-coordinate-measuring-t112.jpg：三坐标测量机。不是本公司设备或减速机实测证明；来源摄于2011年，不能写成新购设备。不是该公司的实拍。\n授权行业配图equipment-gear-hobbing.jpg：滚齿加工（行业配图）。授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不新增模数、机床品牌或加工精度。不是该公司的实拍。\n授权行业配图equipment-hob-and-workpiece.jpg：滚刀与加工中的齿形（行业配图）。授权行业配图，非本厂实拍，不作为设备所有权、客户关系或新事实的证明。不称为本公司的减速机成品，不从图中推导材质、模数或产能。不是该公司的实拍。\n页面要求：首页、产品两个独立页面。只做中文。没有授权照片时采用无图或标明示意的CSS图。",
+  "preferences": {
+    "style": "precision",
+    "layout": 5,
+    "density": 6
+  },
+  "plan": {
+    "summary": "网站用两个页面承载按图加工的重载减速机业务：首页先交代承接范围与两类减速机，再按加工与质检顺序说明做法，接三个供货案例，末尾集中已有条款与认证状态；产品页分别给直角与行星系列的规格表、选型核对条件与选型资料清单。整体用细线网格与规格表组织，不设表单与报价入口。",
+    "style": "precision",
+    "styleReason": "资料以规格参数、流程顺序与核对条件为主，冷灰底配单一强调色和细线表格更便于逐项核对。",
+    "pages": [
+      {
+        "id": "home",
+        "title": "忻州重载减速机｜按图加工重载减速机",
+        "outline": "首屏通栏写按图加工重载减速机与设备配套、旧机替换为主，旁注不提供现场安装、不接零售散单。；承接范围下接一行窄版业务目录，列直角减速机、行星减速机与应用行业，指向产品页与相关段落。；按资料顺序用有序步骤展开加工流程，从确认接口图与技术协议到跑合后清洁涂装包装。；质检环节与设备、检测设备分两栏细线清单，并列来料、加工、装配、跑合、出厂各段核对项。；三个供货案例按行业并列成短块，各自写明需求、交付内容与买方承担的边界。；页尾集中质量与交易条件，列认证状态、20 台起订、交期、包装发货与油箱确认，邮箱与待补充项同处。"
+      },
+      {
+        "id": "products",
+        "title": "产品｜直角减速机与行星减速机",
+        "outline": "页首一句话说明两个系列都按客户确认的接口图加工供货。；直角减速机先给规格表，紧跟应用与选型核对条件，冲击峰值与额定扭矩分开说明。；行星减速机同法排规格表与应用条件，回程间隙与反向运转频次注明待确认。；两条规格之间插入一段行业配图，说明为通用配图，不作为成品或设备证明。；选型所需资料按一份清单列出，旧机替换另列铭牌与安装图要求。；末尾用问答形式收拢能否只给功率、可否替换旧机、是否现场安装与单台订购四问。"
+      }
+    ],
+    "skeleton": {
+      "id": "capability-led",
+      "reason": "资料重点是按图加工承接范围与两类减速机，还有流程、质检与设备，宜先讲能接什么再进业务；两条产品线只是同一加工方式下的系列，二选一卡片不适用，三系列以上才用分类目录。次选短页名片，但规格、案例与设备内容较多，单栏名片撑不住。"
+    },
+    "skeletonOrder": [
+      "two-businesses",
+      "flagship-focus",
+      "application-paths",
+      "capability-led",
+      "process-journey",
+      "compact-profile",
+      "product-atlas",
+      "workshop-story"
+    ]
+  },
+  "attempts": [
+    {
+      "code": {
+        "header": "<header class=\"site-header\">\n  <div class=\"wrap header-inner\">\n    <a class=\"brand\" href=\"/home\">忻州重载减速机</a>\n    <nav class=\"nav\" aria-label=\"主导航\">\n      <a href=\"/home\">首页</a>\n      <a href=\"/products\">产品</a>\n    </nav>\n  </div>\n</header>",
+        "footer": "<footer class=\"site-footer\">\n  <div class=\"wrap footer-grid\">\n    <div>\n      <p class=\"footer-name\">忻州重载减速机</p>\n      <p class=\"footer-desc\">按图加工重载减速机，订单以设备配套和旧机替换为主。不接零售散单，也不承接现场安装。</p>\n    </div>\n    <div class=\"footer-contact\">\n      <p class=\"label\">联系</p>\n      <p>邮箱：sales@xinzhou-drive.luckye.online</p>\n      <p>电话：待补充</p>\n      <p>地址：待补充</p>\n    </div>\n  </div>\n</footer>",
+        "css": ":root{\n  --ink:#1d2226;\n  --ink-2:#3a444b;\n  --ink-3:#4c565e;\n  --muted:#5a646b;\n  --line:#d6dbdf;\n  --line-2:#b6c0c7;\n  --bg:#f4f6f7;\n  --paper:#ffffff;\n  --accent:#1a4f7a;\n  --accent-dark:#143f63;\n  --max:1120px;\n}\n*,*::before,*::after{box-sizing:border-box}\nhtml{-webkit-text-size-adjust:100%}\nbody{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Source Han Sans SC','Noto Sans SC',sans-serif;font-size:16px;line-height:1.65}\nh1,h2,h3{margin:0;font-weight:600;line-height:1.3}\np{margin:0}\nul,ol{margin:0;padding:0}\na{color:var(--accent);text-decoration:none}\na:hover{text-decoration:underline}\na:focus-visible{outline:2px solid var(--accent);outline-offset:3px}\nimg{display:block;max-width:100%;height:auto}\n.wrap{max-width:var(--max);margin:0 auto;padding:0 24px}\n.site-header{border-bottom:1px solid var(--line);background:var(--paper)}\n.header-inner{display:flex;align-items:center;justify-content:space-between;gap:20px;height:64px}\n.brand{color:var(--ink);font-size:17px;font-weight:600;letter-spacing:.02em;white-space:nowrap}\n.brand:hover{color:var(--accent);text-decoration:none}\n.nav{display:flex;gap:26px;font-size:15px}\n.nav a{color:var(--ink-3)}\n.nav a:hover{color:var(--accent);text-decoration:none}\n.hero{background:var(--bg);border-bottom:1px solid var(--line)}\n.hero-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:56px;padding-top:56px;padding-bottom:56px;align-items:start}\n.hero h1{font-size:clamp(32px,4.2vw,48px);letter-spacing:-.01em;line-height:1.18}\n.lead{margin-top:20px;max-width:33em;font-size:17px;color:var(--ink-2)}\n.constraint{margin-top:18px;padding-left:10px;border-left:2px solid var(--accent);font-size:15px;color:var(--ink-3)}\n.btn{display:inline-block;margin-top:28px;padding:13px 24px;border-radius:2px;background:var(--accent);color:#fff;font-size:15px;font-weight:500}\n.btn:hover{background:var(--accent-dark);text-decoration:none}\n.hero-aside{border-top:2px solid var(--ink);padding-top:16px}\n.label{font-size:13px;letter-spacing:.08em;color:var(--muted)}\n.hero-aside ul{list-style:none;margin-top:10px}\n.hero-aside li{padding:10px 0;border-bottom:1px solid var(--line);font-size:15px;color:var(--ink-2)}\n.section{padding-top:56px;padding-bottom:56px;border-bottom:1px solid var(--line)}\n.section:last-child{border-bottom:0}\nh2{font-size:23px}\n.section-lead{margin-top:12px;max-width:40em;font-size:15px;color:var(--ink-2)}\n.catalog{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 48px;margin-top:28px}\n.catalog-item{border-top:1px solid var(--line-2);padding-top:16px}\n.catalog-item h3{font-size:19px}\n.catalog-item p{margin-top:8px;max-width:30em;font-size:15px;color:var(--ink-2)}\n.text-link{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:15px}\n.text-link [data-system-icon]{font-size:13px}\n.industry{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);font-size:15px;color:var(--ink-2)}\n.industry .label{margin-right:14px}\n.sep{color:var(--line-2);margin:0 10px}\n.split{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:56px;margin-top:28px;align-items:start}\nol.steps{list-style:decimal;padding-left:1.4em}\nol.steps li{padding:12px 0 12px 4px;border-bottom:1px solid var(--line);font-size:15px;color:var(--ink-2)}\nol.steps li:first-child{padding-top:0}\nol.steps li::marker{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}\nfigure{margin:0}\nfigure img{width:100%;border:1px solid var(--line)}\nfigcaption{margin-top:8px;font-size:13px;line-height:1.55;color:var(--muted)}\n.sub{margin-top:32px;font-size:15px;letter-spacing:.04em;color:var(--muted)}\n.sub:first-child{margin-top:0}\ntable.spec{width:100%;border-collapse:collapse;font-size:15px;margin-top:8px}\ntable.spec caption{text-align:left;padding-bottom:8px;font-size:13px;letter-spacing:.04em;color:var(--muted)}\ntable.spec th,table.spec td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}\ntable.spec tbody th{width:44%;font-weight:400;color:var(--muted)}\ntable.spec td{color:var(--ink)}\ntable.spec .num{font-variant-numeric:tabular-nums;white-space:nowrap}\ntable.spec tr.group th{width:auto;padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--line-2);font-size:13px;font-weight:600;letter-spacing:.06em;color:var(--ink-2)}\ntable.spec tr:last-child th,table.spec tr:last-child td{border-bottom:0}\n.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px;margin-top:28px}\n.case{border-top:2px solid var(--accent);padding-top:16px}\n.case h3{font-size:17px}\n.case p{margin-top:10px;font-size:15px;color:var(--ink-2)}\n.case .boundary{margin-top:12px;padding-left:10px;border-left:2px solid var(--line-2);font-size:14px;color:var(--ink-3)}\n.timeline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 32px;list-style:none;margin-top:28px}\n.timeline li{border-top:1px solid var(--line-2);padding-top:12px}\n.timeline .yr{display:block;font-size:20px;font-weight:600;line-height:1.2;color:var(--accent);font-variant-numeric:tabular-nums}\n.timeline .ev{display:block;margin-top:6px;font-size:14px;color:var(--ink-2)}\n.terms{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;margin-top:28px;align-items:start}\n.terms p{margin-top:8px;max-width:32em;font-size:15px;color:var(--ink-2)}\nul.plain{list-style:none;margin-top:10px}\nul.plain li{padding:9px 0;border-bottom:1px solid var(--line);font-size:15px;color:var(--ink-2)}\ndl.meta{margin:10px 0 0}\ndl.meta div{display:grid;grid-template-columns:76px minmax(0,1fr);gap:16px;padding:11px 0;border-bottom:1px solid var(--line)}\ndl.meta dt{font-size:14px;color:var(--muted)}\ndl.meta dd{margin:0;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}\n.page-head{background:var(--bg);border-bottom:1px solid var(--line)}\n.page-head-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:48px;padding-top:48px;padding-bottom:48px;align-items:end}\n.page-title{font-size:clamp(26px,3.4vw,36px);letter-spacing:-.005em}\n.product{padding-top:56px;padding-bottom:56px;border-bottom:1px solid var(--line)}\n.product-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:48px;margin-top:20px;align-items:start}\n.note-block{background:var(--bg);border-left:2px solid var(--accent);padding:20px 22px}\n.note-block h3{font-size:15px;letter-spacing:.04em;color:var(--ink-3)}\n.note-block p{margin-top:8px;font-size:14px;color:var(--ink-2)}\n.faq{margin:20px 0 0}\n.faq div{padding:16px 0;border-bottom:1px solid var(--line)}\n.faq dt{font-size:16px;font-weight:600;color:var(--ink)}\n.faq dd{margin:8px 0 0;font-size:15px;color:var(--ink-2)}\n.site-footer{background:var(--bg);border-top:1px solid var(--line);padding-top:40px;padding-bottom:40px}\n.footer-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:40px}\n.footer-name{font-size:17px;font-weight:600;letter-spacing:.02em}\n.footer-desc{margin-top:8px;max-width:34em;font-size:14px;color:var(--ink-2)}\n.footer-contact p{margin-top:6px;font-size:14px;color:var(--ink-2);word-break:break-word}\n@media (max-width:900px){\n  .cases{grid-template-columns:1fr;gap:28px}\n  .timeline{grid-template-columns:repeat(2,minmax(0,1fr))}\n}\n@media (max-width:768px){\n  .wrap{padding:0 20px}\n  .header-inner{height:60px;gap:14px}\n  .brand{font-size:15px}\n  .nav{gap:18px;font-size:14px}\n  .hero-grid{grid-template-columns:1fr;gap:32px;padding-top:36px;padding-bottom:32px}\n  .lead{font-size:16px}\n  .btn{margin-top:24px}\n  .section{padding-top:32px;padding-bottom:32px}\n  h2{font-size:20px}\n  .catalog{grid-template-columns:1fr;gap:24px;margin-top:24px}\n  .split{grid-template-columns:1fr;gap:32px;margin-top:24px}\n  .terms{grid-template-columns:1fr;gap:32px;margin-top:24px}\n  .page-head-grid{grid-template-columns:1fr;gap:28px;padding-top:32px;padding-bottom:32px;align-items:start}\n  .product{padding-top:32px;padding-bottom:32px}\n  .product-grid{grid-template-columns:1fr;gap:24px;margin-top:16px}\n  .footer-grid{grid-template-columns:1fr;gap:24px}\n  .site-footer{padding-top:28px;padding-bottom:28px}\n  table.spec tbody th{width:42%}\n}\n@media (max-width:420px){\n  .timeline{grid-template-columns:1fr}\n  .brand{font-size:14px;letter-spacing:0}\n  .nav{gap:14px}\n}",
+        "pages": [
+          {
+            "id": "home",
+            "title": "首页",
+            "html": "<main>\n  <section class=\"hero\">\n    <div class=\"wrap hero-grid\">\n      <div>\n        <h1>按图加工重载减速机</h1>\n        <p class=\"lead\">订单以设备配套和旧机替换为主。车间按客户确认的接口图组织箱体加工、齿轮加工和装配，采购的外协热处理件进厂后复检。</p>\n        <p class=\"constraint\">不提供现场安装，不接零售散单。</p>\n        <a class=\"btn\" href=\"/products\">查看产品与规格</a>\n      </div>\n      <aside class=\"hero-aside\">\n        <p class=\"label\">承接方式</p>\n        <ul>\n          <li>设备配套整机供货</li>\n          <li>旧机替换，先核对接口</li>\n          <li>按客户确认的接口图加工</li>\n        </ul>\n      </aside>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>直角减速机与行星减速机</h2>\n      <div class=\"catalog\">\n        <div class=\"catalog-item\">\n          <h3>直角减速机</h3>\n          <p>用于输送设备的转向传动。速比 i=25–100，额定输出扭矩 8500 N·m，中心距 200 mm。</p>\n          <a class=\"text-link\" href=\"/products#right-angle\">查看规格与选型核对<span data-system-icon=\"arrow\"></span></a>\n        </div>\n        <div class=\"catalog-item\">\n          <h3>行星减速机</h3>\n          <p>用于空间较紧的同轴配套传动。速比 i=4–100，额定输出扭矩 3200 N·m，机座号 F280。</p>\n          <a class=\"text-link\" href=\"/products#planetary\">查看规格与选型核对<span data-system-icon=\"arrow\"></span></a>\n        </div>\n      </div>\n      <p class=\"industry\"><span class=\"label\">应用行业</span>矿山输送<span class=\"sep\">/</span>冶金辊道<span class=\"sep\">/</span>港口起重<span class=\"sep\">/</span>水泥窑传动</p>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>加工流程</h2>\n      <div class=\"split\">\n        <ol class=\"steps\">\n          <li>确认接口图和技术协议</li>\n          <li>箱体粗加工后复核基准</li>\n          <li>齿轮外协热处理后精加工</li>\n          <li>配对装配并调整轴承间隙</li>\n          <li>跑合后清洁、涂装和包装</li>\n        </ol>\n        <figure>\n          <img data-image-id=\"img_15b9270255214a91b2af5972\" alt=\"齿轮箱箱体在加工工位上装夹加工\">\n          <figcaption>行业配图：齿轮箱箱体加工，非本厂实拍。</figcaption>\n        </figure>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>质检与设备</h2>\n      <p class=\"section-lead\">加工能力覆盖滚齿与磨齿、箱体数控镗铣、动平衡与跑合试验、装配与出厂检验。</p>\n      <div class=\"split\">\n        <div>\n          <h3 class=\"sub\">质检流程</h3>\n          <ol class=\"steps\">\n            <li>来料核对材质批次和外协热处理记录</li>\n            <li>加工后检查齿形与箱体孔位</li>\n            <li>装配后核对接触斑点和轴向间隙</li>\n            <li>跑合记录温升、振动与漏油</li>\n            <li>出厂复核铭牌和附件清单</li>\n          </ol>\n        </div>\n        <div>\n          <h3 class=\"sub\">设备</h3>\n          <table class=\"spec\">\n            <tbody>\n              <tr class=\"group\"><th colspan=\"2\">主设备</th></tr>\n              <tr><th scope=\"row\">数控镗铣床</th><td class=\"num\">2 台</td></tr>\n              <tr><th scope=\"row\">滚齿机</th><td class=\"num\">3 台</td></tr>\n              <tr><th scope=\"row\">磨齿机</th><td class=\"num\">1 台</td></tr>\n              <tr><th scope=\"row\">动平衡机</th><td class=\"num\">1 台</td></tr>\n              <tr><th scope=\"row\">跑合试验台</th><td class=\"num\">2 台</td></tr>\n              <tr class=\"group\"><th colspan=\"2\">检测设备</th></tr>\n              <tr><th scope=\"row\">三坐标测量机</th><td class=\"num\">1 台</td></tr>\n              <tr><th scope=\"row\">齿轮测量仪</th><td class=\"num\">1 台</td></tr>\n              <tr><th scope=\"row\">粗糙度仪</th><td class=\"num\">1 台</td></tr>\n            </tbody>\n          </table>\n        </div>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>供货案例</h2>\n      <div class=\"cases\">\n        <article class=\"case\">\n          <h3>矿山输送设备配套</h3>\n          <p>替换直角传动并保留原底脚孔位，按确认接口图供直角减速机并附跑合记录。</p>\n          <p class=\"boundary\">现场基础改造由买方安排。</p>\n        </article>\n        <article class=\"case\">\n          <h3>冶金辊道设备</h3>\n          <p>多台驱动使用统一法兰接口，行星减速机按接口图编号供货。</p>\n          <p class=\"boundary\">电机与制动器由设备方选配，不承诺整线节拍。</p>\n        </article>\n        <article class=\"case\">\n          <h3>水泥设备备件采购</h3>\n          <p>停机前确认替换尺寸，先核对旧机铭牌、轴伸和安装图，再安排整机。</p>\n          <p class=\"boundary\">不能仅凭外形照片保证互换。</p>\n        </article>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>沿革</h2>\n      <ul class=\"timeline\">\n        <li><span class=\"yr\">2010</span><span class=\"ev\">从减速机维修和齿轮配件起步</span></li>\n        <li><span class=\"yr\">2015</span><span class=\"ev\">开始整机配套供货</span></li>\n        <li><span class=\"yr\">2019</span><span class=\"ev\">建立箱体数控镗铣工位</span></li>\n        <li><span class=\"yr\">2023</span><span class=\"ev\">将跑合记录纳入整机出厂档案</span></li>\n      </ul>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>质量与交易条件</h2>\n      <div class=\"terms\">\n        <div>\n          <h3 class=\"sub\">认证状态</h3>\n          <ul class=\"plain\">\n            <li>ISO 9001 认证中</li>\n            <li>特种设备相关许可：待补充</li>\n            <li>CE：待补充</li>\n          </ul>\n          <h3 class=\"sub\">交付与包装</h3>\n          <p>轴伸做防锈处理并加护套，整机固定在木箱底座；箱内放装箱单、接口图和跑合记录。润滑油牌号与加注状态在订单中确认，不默认带油发货。</p>\n        </div>\n        <div>\n          <dl class=\"meta\">\n            <div><dt>起订量</dt><dd>20 台</dd></div>\n            <div><dt>交期</dt><dd>图纸和技术协议确认后按订单排产，具体天数待补充</dd></div>\n            <div><dt>供货范围</dt><dd>批量配套订单，不接零售散单</dd></div>\n            <div><dt>安装</dt><dd>不提供现场安装，安装由买方安排</dd></div>\n          </dl>\n        </div>\n      </div>\n    </div>\n  </section>\n</main>"
+          },
+          {
+            "id": "products",
+            "title": "产品｜直角减速机与行星减速机",
+            "html": "<main>\n  <section class=\"page-head\">\n    <div class=\"wrap page-head-grid\">\n      <div>\n        <h1 class=\"page-title\">直角减速机与行星减速机</h1>\n        <p class=\"lead\">加工方式为按图加工：加工与装配按客户确认的接口图组织，接口图需标明版本。</p>\n      </div>\n      <figure>\n        <img data-image-id=\"img_96adc18aa41c42ec847e3e73\" alt=\"工业齿轮箱减速机外观\">\n        <figcaption>行业配图：工业齿轮箱减速机，非本厂实拍，不代表具体型号。</figcaption>\n      </figure>\n    </div>\n  </section>\n\n  <section class=\"product\" id=\"right-angle\">\n    <div class=\"wrap\">\n      <h2>直角减速机</h2>\n      <p class=\"section-lead\">用于输送设备的转向传动。</p>\n      <div class=\"product-grid\">\n        <div>\n          <table class=\"spec\">\n            <caption>规格参数</caption>\n            <tbody>\n              <tr><th scope=\"row\">速比范围</th><td>i=25–100</td></tr>\n              <tr><th scope=\"row\">额定输出扭矩</th><td class=\"num\">8500 N·m</td></tr>\n              <tr><th scope=\"row\">中心距</th><td class=\"num\">200 mm</td></tr>\n              <tr><th scope=\"row\">输入转速</th><td class=\"num\">≤1500 r/min</td></tr>\n              <tr><th scope=\"row\">安装方式</th><td>底脚/法兰</td></tr>\n            </tbody>\n          </table>\n        </div>\n        <div class=\"note-block\">\n          <h3>选型需核对</h3>\n          <p>安装方向、中心距、输入轴接口和负载变化。8500 N·m 是额定输出扭矩，不等于允许冲击峰值，冲击工况另核。</p>\n        </div>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"product\" id=\"planetary\">\n    <div class=\"wrap\">\n      <h2>行星减速机</h2>\n      <p class=\"section-lead\">用于空间较紧的同轴配套传动。</p>\n      <div class=\"product-grid\">\n        <div>\n          <table class=\"spec\">\n            <caption>规格参数</caption>\n            <tbody>\n              <tr><th scope=\"row\">速比范围</th><td>i=4–100</td></tr>\n              <tr><th scope=\"row\">额定输出扭矩</th><td class=\"num\">3200 N·m</td></tr>\n              <tr><th scope=\"row\">机座号</th><td>F280</td></tr>\n              <tr><th scope=\"row\">输入转速</th><td class=\"num\">≤3000 r/min</td></tr>\n              <tr><th scope=\"row\">安装方式</th><td>法兰</td></tr>\n              <tr><th scope=\"row\">防护等级</th><td>IP65</td></tr>\n            </tbody>\n          </table>\n        </div>\n        <div class=\"note-block\">\n          <h3>选型需核对</h3>\n          <p>F280 接口图、输出法兰和制动器连接方式。需要反向运转时注明频次；回程间隙指标待补充。</p>\n        </div>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\" id=\"selection\">\n    <div class=\"wrap\">\n      <h2>选型资料</h2>\n      <p class=\"section-lead\">确认后安排选型与排产。</p>\n      <ul class=\"plain\">\n        <li>产品类型</li>\n        <li>数量</li>\n        <li>速比</li>\n        <li>输入转速</li>\n        <li>负载</li>\n        <li>安装方向</li>\n        <li>接口图（需标明版本）</li>\n        <li>目的地</li>\n      </ul>\n    </div>\n  </section>\n\n  <section class=\"section\" id=\"faq\">\n    <div class=\"wrap\">\n      <h2>常见问题</h2>\n      <dl class=\"faq\">\n        <div>\n          <dt>只给电机功率能选型吗？</dt>\n          <dd>还需输入转速、目标输出转速、负载变化和每天运行时长，确认后再选型。</dd>\n        </div>\n        <div>\n          <dt>可以替换旧减速机吗？</dt>\n          <dd>需旧机铭牌、安装图和轴伸尺寸，先核对接口，不按照片直接承诺互换。</dd>\n        </div>\n        <div>\n          <dt>是否提供现场安装？</dt>\n          <dd>不提供，随货给接口图和装箱清单，安装由买方安排。</dd>\n        </div>\n        <div>\n          <dt>能单买一台试用吗？</dt>\n          <dd>目前仅接 20 台起的批量配套订单，样机安排待补充。</dd>\n        </div>\n      </dl>\n    </div>\n  </section>\n</main>"
+          }
+        ]
+      },
+      "issues": [
+        "home/375 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/375 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/375 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/768 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/768 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/768 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/1440 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/1440 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/1440 对比度不足或无法测量：/（1.85，需 4.5）"
+      ]
+    },
+    {
+      "code": {
+        "header": "<header class=\"site-header\">\n  <div class=\"wrap header-inner\">\n    <a class=\"brand\" href=\"/home\">忻州重载减速机</a>\n    <nav class=\"nav\" aria-label=\"主导航\">\n      <a href=\"/home\">首页</a>\n      <a href=\"/products\">产品</a>\n    </nav>\n  </div>\n</header>",
+        "footer": "<footer class=\"site-footer\">\n  <div class=\"wrap footer-grid\">\n    <div>\n      <p class=\"footer-name\">忻州重载减速机</p>\n      <p class=\"footer-desc\">按图加工重载减速机，订单以设备配套和旧机替换为主。不接零售散单，也不承接现场安装。</p>\n    </div>\n    <div class=\"footer-contact\">\n      <p class=\"label\">联系</p>\n      <p>邮箱：sales@xinzhou-drive.luckye.online</p>\n      <p>电话：待补充</p>\n      <p>地址：待补充</p>\n    </div>\n  </div>\n</footer>",
+        "css": ":root{--ink: #1d2226; --ink-2: #3a444b; --ink-3: #4c565e; --muted: #5a646b; --line: #d6dbdf; --line-2: #b6c0c7; --bg: #f4f6f7; --paper: #ffffff; --accent: #1a4f7a; --accent-dark: #143f63; --max: 1120px;}\n*, ::before, ::after{box-sizing: border-box;}\nhtml{text-size-adjust: 100%;}\nbody{margin: 0px; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Source Han Sans SC\", \"Noto Sans SC\", sans-serif; font-size: 16px; line-height: 1.65;}\nh1, h2, h3{margin: 0px; font-weight: 600; line-height: 1.3;}\np{margin: 0px;}\nul, ol{margin: 0px; padding: 0px;}\na{color: var(--accent); text-decoration: none;}\na:hover{text-decoration: underline;}\na:focus-visible{outline: 2px solid var(--accent); outline-offset: 3px;}\nimg{display: block; max-width: 100%; height: auto;}\n.wrap{max-width: var(--max); margin: 0px auto; padding: 0px 24px;}\n.site-header{border-bottom: 1px solid var(--line); background: var(--paper);}\n.header-inner{display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 64px;}\n.brand{color: var(--ink); font-size: 17px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;}\n.brand:hover{color: var(--accent); text-decoration: none;}\n.nav{display: flex; gap: 26px; font-size: 15px;}\n.nav a{color: var(--ink-3);}\n.nav a:hover{color: var(--accent); text-decoration: none;}\n.hero{background: var(--bg); border-bottom: 1px solid var(--line);}\n.hero-grid{display: grid; grid-template-columns: minmax(0px, 2fr) minmax(0px, 1fr); gap: 56px; padding-top: 56px; padding-bottom: 56px; align-items: start;}\n.hero h1{font-size: clamp(32px, 4.2vw, 48px); letter-spacing: -0.01em; line-height: 1.18;}\n.lead{margin-top: 20px; max-width: 33em; font-size: 17px; color: var(--ink-2);}\n.constraint{margin-top: 18px; padding-left: 10px; border-left: 2px solid var(--accent); font-size: 15px; color: var(--ink-3);}\n.btn{display: inline-block; margin-top: 28px; padding: 13px 24px; border-radius: 2px; background: var(--accent); color: #ffffff; font-size: 15px; font-weight: 500;}\n.btn:hover{background: var(--accent-dark); text-decoration: none;}\n.hero-aside{border-top: 2px solid var(--ink); padding-top: 16px;}\n.label{font-size: 13px; letter-spacing: 0.08em; color: var(--muted);}\n.hero-aside ul{list-style: none; margin-top: 10px;}\n.hero-aside li{padding: 10px 0px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--ink-2);}\n.section{padding-top: 56px; padding-bottom: 56px; border-bottom: 1px solid var(--line);}\n.section:last-child{border-bottom: 0px;}\nh2{font-size: 23px;}\n.section-lead{margin-top: 12px; max-width: 40em; font-size: 15px; color: var(--ink-2);}\n.catalog{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 0px 48px; margin-top: 28px;}\n.catalog-item{border-top: 1px solid var(--line-2); padding-top: 16px;}\n.catalog-item h3{font-size: 19px;}\n.catalog-item p{margin-top: 8px; max-width: 30em; font-size: 15px; color: var(--ink-2);}\n.text-link{display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 15px;}\n.text-link [data-system-icon]{font-size: 13px;}\n.industry{margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink-2);}\n.industry .label{margin-right: 14px;}\n.sep{color: var(--line-2); margin: 0px 10px;}\n.split{display: grid; grid-template-columns: minmax(0px, 1.6fr) minmax(0px, 1fr); gap: 56px; margin-top: 28px; align-items: start;}\nol.steps{list-style: decimal; padding-left: 1.4em;}\nol.steps li{padding: 12px 0px 12px 4px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--ink-2);}\nol.steps li:first-child{padding-top: 0px;}\nol.steps li::marker{color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums;}\nfigure{margin: 0px;}\nfigure img{width: 100%; border: 1px solid var(--line);}\nfigcaption{margin-top: 8px; font-size: 13px; line-height: 1.55; color: var(--muted);}\n.sub{margin-top: 32px; font-size: 15px; letter-spacing: 0.04em; color: var(--muted);}\n.sub:first-child{margin-top: 0px;}\ntable.spec{width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 8px;}\ntable.spec caption{text-align: left; padding-bottom: 8px; font-size: 13px; letter-spacing: 0.04em; color: var(--muted);}\ntable.spec th, table.spec td{padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top;}\ntable.spec tbody th{width: 44%; font-weight: 400; color: var(--muted);}\ntable.spec td{color: var(--ink);}\ntable.spec .num{font-variant-numeric: tabular-nums; white-space: nowrap;}\ntable.spec tr.group th{width: auto; padding: 8px 12px; background: var(--bg); border-bottom: 1px solid var(--line-2); font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: var(--ink-2);}\ntable.spec tr:last-child th, table.spec tr:last-child td{border-bottom: 0px;}\n.cases{display: grid; grid-template-columns: repeat(3, minmax(0px, 1fr)); gap: 40px; margin-top: 28px;}\n.case{border-top: 2px solid var(--accent); padding-top: 16px;}\n.case h3{font-size: 17px;}\n.case p{margin-top: 10px; font-size: 15px; color: var(--ink-2);}\n.case .boundary{margin-top: 12px; padding-left: 10px; border-left: 2px solid var(--line-2); font-size: 14px; color: var(--ink-3);}\n.timeline{display: grid; grid-template-columns: repeat(4, minmax(0px, 1fr)); gap: 24px 32px; list-style: none; margin-top: 28px;}\n.timeline li{border-top: 1px solid var(--line-2); padding-top: 12px;}\n.timeline .yr{display: block; font-size: 20px; font-weight: 600; line-height: 1.2; color: var(--accent); font-variant-numeric: tabular-nums;}\n.timeline .ev{display: block; margin-top: 6px; font-size: 14px; color: var(--ink-2);}\n.terms{display: grid; grid-template-columns: minmax(0px, 1fr) minmax(0px, 1fr); gap: 56px; margin-top: 28px; align-items: start;}\n.terms p{margin-top: 8px; max-width: 32em; font-size: 15px; color: var(--ink-2);}\nul.plain{list-style: none; margin-top: 10px;}\nul.plain li{padding: 9px 0px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--ink-2);}\ndl.meta{margin: 10px 0px 0px;}\ndl.meta div{display: grid; grid-template-columns: 76px minmax(0px, 1fr); gap: 16px; padding: 11px 0px; border-bottom: 1px solid var(--line);}\ndl.meta dt{font-size: 14px; color: var(--muted);}\ndl.meta dd{margin: 0px; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums;}\n.page-head{background: var(--bg); border-bottom: 1px solid var(--line);}\n.page-head-grid{display: grid; grid-template-columns: minmax(0px, 1.7fr) minmax(0px, 1fr); gap: 48px; padding-top: 48px; padding-bottom: 48px; align-items: end;}\n.page-title{font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.005em;}\n.product{padding-top: 56px; padding-bottom: 56px; border-bottom: 1px solid var(--line);}\n.product-grid{display: grid; grid-template-columns: minmax(0px, 1.3fr) minmax(0px, 1fr); gap: 48px; margin-top: 20px; align-items: start;}\n.note-block{background: var(--bg); border-left: 2px solid var(--accent); padding: 20px 22px;}\n.note-block h3{font-size: 15px; letter-spacing: 0.04em; color: var(--ink-3);}\n.note-block p{margin-top: 8px; font-size: 14px; color: var(--ink-2);}\n.faq{margin: 20px 0px 0px;}\n.faq div{padding: 16px 0px; border-bottom: 1px solid var(--line);}\n.faq dt{font-size: 16px; font-weight: 600; color: var(--ink);}\n.faq dd{margin: 8px 0px 0px; font-size: 15px; color: var(--ink-2);}\n.site-footer{background: var(--bg); border-top: 1px solid var(--line); padding-top: 40px; padding-bottom: 40px;}\n.footer-grid{display: grid; grid-template-columns: minmax(0px, 1.6fr) minmax(0px, 1fr); gap: 40px;}\n.footer-name{font-size: 17px; font-weight: 600; letter-spacing: 0.02em;}\n.footer-desc{margin-top: 8px; max-width: 34em; font-size: 14px; color: var(--ink-2);}\n.footer-contact p{margin-top: 6px; font-size: 14px; color: var(--ink-2); word-break: break-word;}\n@media (max-width: 900px){.cases{grid-template-columns: 1fr; gap: 28px;}\n.timeline{grid-template-columns: repeat(2, minmax(0px, 1fr));}}\n@media (max-width: 768px){.wrap{padding: 0px 20px;}\n.header-inner{height: 60px; gap: 14px;}\n.brand{font-size: 15px;}\n.nav{gap: 18px; font-size: 14px;}\n.hero-grid{grid-template-columns: 1fr; gap: 32px; padding-top: 36px; padding-bottom: 32px;}\n.lead{font-size: 16px;}\n.btn{margin-top: 24px;}\n.section{padding-top: 32px; padding-bottom: 32px;}\nh2{font-size: 20px;}\n.catalog{grid-template-columns: 1fr; gap: 24px; margin-top: 24px;}\n.split{grid-template-columns: 1fr; gap: 32px; margin-top: 24px;}\n.terms{grid-template-columns: 1fr; gap: 32px; margin-top: 24px;}\n.page-head-grid{grid-template-columns: 1fr; gap: 28px; padding-top: 32px; padding-bottom: 32px; align-items: start;}\n.product{padding-top: 32px; padding-bottom: 32px;}\n.product-grid{grid-template-columns: 1fr; gap: 24px; margin-top: 16px;}\n.footer-grid{grid-template-columns: 1fr; gap: 24px;}\n.site-footer{padding-top: 28px; padding-bottom: 28px;}\ntable.spec tbody th{width: 42%;}}\n@media (max-width: 420px){.timeline{grid-template-columns: 1fr;}\n.brand{font-size: 14px; letter-spacing: 0px;}\n.nav{gap: 14px;}}",
+        "pages": [
+          {
+            "id": "home",
+            "title": "首页",
+            "html": "<main>\n  <section class=\"hero\">\n    <div class=\"wrap hero-grid\">\n      <div>\n        <h1>按图加工重载减速机</h1>\n        <p class=\"lead\">订单以设备配套和旧机替换为主。车间按客户确认的接口图组织箱体加工、齿轮加工和装配，采购的外协热处理件进厂后复检。</p>\n        <p class=\"constraint\">不提供现场安装，不接零售散单。</p>\n        <a class=\"btn\" href=\"/products\">查看产品与规格</a>\n      </div>\n      <aside class=\"hero-aside\">\n        <p class=\"label\">承接方式</p>\n        <ul>\n          <li>设备配套整机供货</li>\n          <li>旧机替换，先核对接口</li>\n          <li>按客户确认的接口图加工</li>\n        </ul>\n      </aside>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>直角减速机与行星减速机</h2>\n      <div class=\"catalog\">\n        <div class=\"catalog-item\">\n          <h3>直角减速机</h3>\n          <p>用于输送设备的转向传动。速比 i=25–100，额定输出扭矩 8500 N·m，中心距 200 mm。</p>\n          <a class=\"text-link\" href=\"/products#right-angle\">查看规格与选型核对<span data-system-icon=\"arrow\"></span></a>\n        </div>\n        <div class=\"catalog-item\">\n          <h3>行星减速机</h3>\n          <p>用于空间较紧的同轴配套传动。速比 i=4–100，额定输出扭矩 3200 N·m，机座号 F280。</p>\n          <a class=\"text-link\" href=\"/products#planetary\">查看规格与选型核对<span data-system-icon=\"arrow\"></span></a>\n        </div>\n      </div>\n      <p class=\"industry\"><span class=\"label\">应用行业</span>矿山输送<span class=\"sep\">/</span>冶金辊道<span class=\"sep\">/</span>港口起重<span class=\"sep\">/</span>水泥窑传动</p>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>加工流程</h2>\n      <div class=\"split\">\n        <ol class=\"steps\">\n          <li>确认接口图和技术协议</li>\n          <li>箱体粗加工后复核基准</li>\n          <li>齿轮外协热处理后精加工</li>\n          <li>配对装配并调整轴承间隙</li>\n          <li>跑合后清洁、涂装和包装</li>\n        </ol>\n        <figure>\n          <img data-image-id=\"img_15b9270255214a91b2af5972\" alt=\"齿轮箱箱体在加工工位上装夹加工\">\n          <figcaption>行业配图：齿轮箱箱体加工，非本厂实拍。</figcaption>\n        </figure>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>质检与设备</h2>\n      <p class=\"section-lead\">加工能力覆盖滚齿与磨齿、箱体数控镗铣、动平衡与跑合试验、装配与出厂检验。</p>\n      <div class=\"split\">\n        <div>\n          <h3 class=\"sub\">质检流程</h3>\n          <ol class=\"steps\">\n            <li>来料核对材质批次和外协热处理记录</li>\n            <li>加工后检查齿形与箱体孔位</li>\n            <li>装配后核对接触斑点和轴向间隙</li>\n            <li>跑合记录温升、振动与漏油</li>\n            <li>出厂复核铭牌和附件清单</li>\n          </ol>\n        </div>\n        <div>\n          <h3 class=\"sub\">设备</h3>\n          <table class=\"spec\">\n            <tbody>\n              <tr class=\"group\"><th colspan=\"2\">主设备</th></tr>\n              <tr><th scope=\"row\">数控镗铣床</th><td class=\"num\">2 台</td></tr>\n              <tr><th scope=\"row\">滚齿机</th><td class=\"num\">3 台</td></tr>\n              <tr><th scope=\"row\">磨齿机</th><td class=\"num\">1 台</td></tr>\n              <tr><th scope=\"row\">动平衡机</th><td class=\"num\">1 台</td></tr>\n              <tr><th scope=\"row\">跑合试验台</th><td class=\"num\">2 台</td></tr>\n              <tr class=\"group\"><th colspan=\"2\">检测设备</th></tr>\n              <tr><th scope=\"row\">三坐标测量机</th><td class=\"num\">1 台</td></tr>\n              <tr><th scope=\"row\">齿轮测量仪</th><td class=\"num\">1 台</td></tr>\n              <tr><th scope=\"row\">粗糙度仪</th><td class=\"num\">1 台</td></tr>\n            </tbody>\n          </table>\n        </div>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>供货案例</h2>\n      <div class=\"cases\">\n        <article class=\"case\">\n          <h3>矿山输送设备配套</h3>\n          <p>替换直角传动并保留原底脚孔位，按确认接口图供直角减速机并附跑合记录。</p>\n          <p class=\"boundary\">现场基础改造由买方安排。</p>\n        </article>\n        <article class=\"case\">\n          <h3>冶金辊道设备</h3>\n          <p>多台驱动使用统一法兰接口，行星减速机按接口图编号供货。</p>\n          <p class=\"boundary\">电机与制动器由设备方选配，不承诺整线节拍。</p>\n        </article>\n        <article class=\"case\">\n          <h3>水泥设备备件采购</h3>\n          <p>停机前确认替换尺寸，先核对旧机铭牌、轴伸和安装图，再安排整机。</p>\n          <p class=\"boundary\">不能仅凭外形照片保证互换。</p>\n        </article>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>沿革</h2>\n      <ul class=\"timeline\">\n        <li><span class=\"yr\">2010</span><span class=\"ev\">从减速机维修和齿轮配件起步</span></li>\n        <li><span class=\"yr\">2015</span><span class=\"ev\">开始整机配套供货</span></li>\n        <li><span class=\"yr\">2019</span><span class=\"ev\">建立箱体数控镗铣工位</span></li>\n        <li><span class=\"yr\">2023</span><span class=\"ev\">将跑合记录纳入整机出厂档案</span></li>\n      </ul>\n    </div>\n  </section>\n\n  <section class=\"section\">\n    <div class=\"wrap\">\n      <h2>质量与交易条件</h2>\n      <div class=\"terms\">\n        <div>\n          <h3 class=\"sub\">认证状态</h3>\n          <ul class=\"plain\">\n            <li>ISO 9001 认证中</li>\n            <li>特种设备相关许可：待补充</li>\n            <li>CE：待补充</li>\n          </ul>\n          <h3 class=\"sub\">交付与包装</h3>\n          <p>轴伸做防锈处理并加护套，整机固定在木箱底座；箱内放装箱单、接口图和跑合记录。润滑油牌号与加注状态在订单中确认，不默认带油发货。</p>\n        </div>\n        <div>\n          <dl class=\"meta\">\n            <div><dt>起订量</dt><dd>20 台</dd></div>\n            <div><dt>交期</dt><dd>图纸和技术协议确认后按订单排产，具体天数待补充</dd></div>\n            <div><dt>供货范围</dt><dd>批量配套订单，不接零售散单</dd></div>\n            <div><dt>安装</dt><dd>不提供现场安装，安装由买方安排</dd></div>\n          </dl>\n        </div>\n      </div>\n    </div>\n  </section>\n</main>"
+          },
+          {
+            "id": "products",
+            "title": "产品｜直角减速机与行星减速机",
+            "html": "<main>\n  <section class=\"page-head\">\n    <div class=\"wrap page-head-grid\">\n      <div>\n        <h1 class=\"page-title\">直角减速机与行星减速机</h1>\n        <p class=\"lead\">加工方式为按图加工：加工与装配按客户确认的接口图组织，接口图需标明版本。</p>\n      </div>\n      <figure>\n        <img data-image-id=\"img_96adc18aa41c42ec847e3e73\" alt=\"工业齿轮箱减速机外观\">\n        <figcaption>行业配图：工业齿轮箱减速机，非本厂实拍，不代表具体型号。</figcaption>\n      </figure>\n    </div>\n  </section>\n\n  <section class=\"product\" id=\"right-angle\">\n    <div class=\"wrap\">\n      <h2>直角减速机</h2>\n      <p class=\"section-lead\">用于输送设备的转向传动。</p>\n      <div class=\"product-grid\">\n        <div>\n          <table class=\"spec\">\n            <caption>规格参数</caption>\n            <tbody>\n              <tr><th scope=\"row\">速比范围</th><td>i=25–100</td></tr>\n              <tr><th scope=\"row\">额定输出扭矩</th><td class=\"num\">8500 N·m</td></tr>\n              <tr><th scope=\"row\">中心距</th><td class=\"num\">200 mm</td></tr>\n              <tr><th scope=\"row\">输入转速</th><td class=\"num\">≤1500 r/min</td></tr>\n              <tr><th scope=\"row\">安装方式</th><td>底脚/法兰</td></tr>\n            </tbody>\n          </table>\n        </div>\n        <div class=\"note-block\">\n          <h3>选型需核对</h3>\n          <p>安装方向、中心距、输入轴接口和负载变化。8500 N·m 是额定输出扭矩，不等于允许冲击峰值，冲击工况另核。</p>\n        </div>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"product\" id=\"planetary\">\n    <div class=\"wrap\">\n      <h2>行星减速机</h2>\n      <p class=\"section-lead\">用于空间较紧的同轴配套传动。</p>\n      <div class=\"product-grid\">\n        <div>\n          <table class=\"spec\">\n            <caption>规格参数</caption>\n            <tbody>\n              <tr><th scope=\"row\">速比范围</th><td>i=4–100</td></tr>\n              <tr><th scope=\"row\">额定输出扭矩</th><td class=\"num\">3200 N·m</td></tr>\n              <tr><th scope=\"row\">机座号</th><td>F280</td></tr>\n              <tr><th scope=\"row\">输入转速</th><td class=\"num\">≤3000 r/min</td></tr>\n              <tr><th scope=\"row\">安装方式</th><td>法兰</td></tr>\n              <tr><th scope=\"row\">防护等级</th><td>IP65</td></tr>\n            </tbody>\n          </table>\n        </div>\n        <div class=\"note-block\">\n          <h3>选型需核对</h3>\n          <p>F280 接口图、输出法兰和制动器连接方式。需要反向运转时注明频次；回程间隙指标待补充。</p>\n        </div>\n      </div>\n    </div>\n  </section>\n\n  <section class=\"section\" id=\"selection\">\n    <div class=\"wrap\">\n      <h2>选型资料</h2>\n      <p class=\"section-lead\">确认后安排选型与排产。</p>\n      <ul class=\"plain\">\n        <li>产品类型</li>\n        <li>数量</li>\n        <li>速比</li>\n        <li>输入转速</li>\n        <li>负载</li>\n        <li>安装方向</li>\n        <li>接口图（需标明版本）</li>\n        <li>目的地</li>\n      </ul>\n    </div>\n  </section>\n\n  <section class=\"section\" id=\"faq\">\n    <div class=\"wrap\">\n      <h2>常见问题</h2>\n      <dl class=\"faq\">\n        <div>\n          <dt>只给电机功率能选型吗？</dt>\n          <dd>还需输入转速、目标输出转速、负载变化和每天运行时长，确认后再选型。</dd>\n        </div>\n        <div>\n          <dt>可以替换旧减速机吗？</dt>\n          <dd>需旧机铭牌、安装图和轴伸尺寸，先核对接口，不按照片直接承诺互换。</dd>\n        </div>\n        <div>\n          <dt>是否提供现场安装？</dt>\n          <dd>不提供，随货给接口图和装箱清单，安装由买方安排。</dd>\n        </div>\n        <div>\n          <dt>能单买一台试用吗？</dt>\n          <dd>目前仅接 20 台起的批量配套订单，样机安排待补充。</dd>\n        </div>\n      </dl>\n    </div>\n  </section>\n</main>"
+          }
+        ]
+      },
+      "issues": [
+        "home/375 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/375 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/375 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/768 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/768 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/768 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/1440 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/1440 对比度不足或无法测量：/（1.85，需 4.5）",
+        "home/1440 对比度不足或无法测量：/（1.85，需 4.5）"
+      ]
+    }
+  ],
+  "rejectedResponse": {
+    "replacements": [
+      {
+        "fragmentId": 0,
+        "after": "<a class=\"brand\" href=\"/home\">忻州重载减速机</a>"
+      },
+      {
+        "fragmentId": 1,
+        "after": "<a href=\"/home\">首页</a>"
+      },
+      {
+        "fragmentId": 2,
+        "after": "<a href=\"/products\">产品</a>"
+      },
+      {
+        "fragmentId": 3,
+        "after": "<p class=\"footer-name\">忻州重载减速机</p>"
+      },
+      {
+        "fragmentId": 4,
+        "after": "<p class=\"footer-desc\">按图加工重载减速机，订单以设备配套和旧机替换为主。不接零售散单，也不承接现场安装。</p>"
+      },
+      {
+        "fragmentId": 5,
+        "after": "<p class=\"label\">联系</p>"
+      },
+      {
+        "fragmentId": 6,
+        "after": "<p>邮箱：sales@xinzhou-drive.luckye.online</p>"
+      },
+      {
+        "fragmentId": 7,
+        "after": "<p>电话：待补充</p>"
+      },
+      {
+        "fragmentId": 8,
+        "after": "<p>地址：待补充</p>"
+      },
+      {
+        "fragmentId": 9,
+        "after": "<h1>按图加工重载减速机</h1>"
+      },
+      {
+        "fragmentId": 10,
+        "after": "<p class=\"lead\">订单以设备配套和旧机替换为主。车间按客户确认的接口图组织箱体加工、齿轮加工和装配，采购的外协热处理件进厂后复检。</p>"
+      },
+      {
+        "fragmentId": 11,
+        "after": "<p class=\"constraint\">不提供现场安装，不接零售散单。</p>"
+      },
+      {
+        "fragmentId": 12,
+        "after": "<a class=\"btn\" href=\"/products\">查看产品与规格</a>"
+      },
+      {
+        "fragmentId": 13,
+        "after": "<p class=\"label\">承接方式</p>"
+      },
+      {
+        "fragmentId": 14,
+        "after": "<li>设备配套整机供货</li>"
+      },
+      {
+        "fragmentId": 15,
+        "after": "<li>旧机替换，先核对接口</li>"
+      },
+      {
+        "fragmentId": 16,
+        "after": "<li>按客户确认的接口图加工</li>"
+      },
+      {
+        "fragmentId": 17,
+        "after": "<h2>直角减速机与行星减速机</h2>"
+      },
+      {
+        "fragmentId": 18,
+        "after": "<h3>直角减速机</h3>"
+      },
+      {
+        "fragmentId": 19,
+        "after": "<p>用于输送设备的转向传动。速比 i=25–100，额定输出扭矩 8500 N·m，中心距 200 mm。</p>"
+      },
+      {
+        "fragmentId": 20,
+        "after": "<span data-system-icon=\"arrow\"></span>"
+      },
+      {
+        "fragmentId": 21,
+        "after": "<h3>行星减速机</h3>"
+      },
+      {
+        "fragmentId": 22,
+        "after": "<p>用于空间较紧的同轴配套传动。速比 i=4–100，额定输出扭矩 3200 N·m，机座号 F280。</p>"
+      },
+      {
+        "fragmentId": 23,
+        "after": "<span data-system-icon=\"arrow\"></span>"
+      },
+      {
+        "fragmentId": 24,
+        "after": "<span class=\"label\">应用行业</span>"
+      },
+      {
+        "fragmentId": 25,
+        "after": "<span class=\"sep\">/</span>"
+      },
+      {
+        "fragmentId": 26,
+        "after": "<span class=\"sep\">/</span>"
+      },
+      {
+        "fragmentId": 27,
+        "after": "<span class=\"sep\">/</span>"
+      },
+      {
+        "fragmentId": 28,
+        "after": "<h2>加工流程</h2>"
+      },
+      {
+        "fragmentId": 29,
+        "after": "<li>确认接口图和技术协议</li>"
+      },
+      {
+        "fragmentId": 30,
+        "after": "<li>箱体粗加工后复核基准</li>"
+      },
+      {
+        "fragmentId": 31,
+        "after": "<li>齿轮外协热处理后精加工</li>"
+      },
+      {
+        "fragmentId": 32,
+        "after": "<li>配对装配并调整轴承间隙</li>"
+      },
+      {
+        "fragmentId": 33,
+        "after": "<li>跑合后清洁、涂装和包装</li>"
+      },
+      {
+        "fragmentId": 34,
+        "after": "<img data-image-id=\"img_15b9270255214a91b2af5972\" alt=\"齿轮箱箱体在加工工位上装夹加工\">"
+      },
+      {
+        "fragmentId": 35,
+        "after": "<figcaption>行业配图：齿轮箱箱体加工，非本厂实拍。</figcaption>"
+      },
+      {
+        "fragmentId": 36,
+        "after": "<h2>质检与设备</h2>"
+      },
+      {
+        "fragmentId": 37,
+        "after": "<p class=\"section-lead\">加工能力覆盖滚齿与磨齿、箱体数控镗铣、动平衡与跑合试验、装配与出厂检验。</p>"
+      },
+      {
+        "fragmentId": 38,
+        "after": "<h3 class=\"sub\">质检流程</h3>"
+      },
+      {
+        "fragmentId": 39,
+        "after": "<li>来料核对材质批次和外协热处理记录</li>"
+      },
+      {
+        "fragmentId": 40,
+        "after": "<li>加工后检查齿形与箱体孔位</li>"
+      },
+      {
+        "fragmentId": 41,
+        "after": "<li>装配后核对接触斑点和轴向间隙</li>"
+      },
+      {
+        "fragmentId": 42,
+        "after": "<li>跑合记录温升、振动与漏油</li>"
+      },
+      {
+        "fragmentId": 43,
+        "after": "<li>出厂复核铭牌和附件清单</li>"
+      },
+      {
+        "fragmentId": 44,
+        "after": "<h3 class=\"sub\">设备</h3>"
+      },
+      {
+        "fragmentId": 45,
+        "after": "<th colspan=\"2\">主设备</th>"
+      },
+      {
+        "fragmentId": 46,
+        "after": "<th scope=\"row\">数控镗铣床</th>"
+      },
+      {
+        "fragmentId": 47,
+        "after": "<td class=\"num\">2 台</td>"
+      },
+      {
+        "fragmentId": 48,
+        "after": "<th scope=\"row\">滚齿机</th>"
+      },
+      {
+        "fragmentId": 49,
+        "after": "<td class=\"num\">3 台</td>"
+      },
+      {
+        "fragmentId": 50,
+        "after": "<th scope=\"row\">磨齿机</th>"
+      },
+      {
+        "fragmentId": 51,
+        "after": "<td class=\"num\">1 台</td>"
+      },
+      {
+        "fragmentId": 52,
+        "after": "<th scope=\"row\">动平衡机</th>"
+      },
+      {
+        "fragmentId": 53,
+        "after": "<td class=\"num\">1 台</td>"
+      },
+      {
+        "fragmentId": 54,
+        "after": "<th scope=\"row\">跑合试验台</th>"
+      },
+      {
+        "fragmentId": 55,
+        "after": "<td class=\"num\">2 台</td>"
+      },
+      {
+        "fragmentId": 56,
+        "after": "<th colspan=\"2\">检测设备</th>"
+      },
+      {
+        "fragmentId": 57,
+        "after": "<th scope=\"row\">三坐标测量机</th>"
+      },
+      {
+        "fragmentId": 58,
+        "after": "<td class=\"num\">1 台</td>"
+      },
+      {
+        "fragmentId": 59,
+        "after": "<th scope=\"row\">齿轮测量仪</th>"
+      },
+      {
+        "fragmentId": 60,
+        "after": "<td class=\"num\">1 台</td>"
+      },
+      {
+        "fragmentId": 61,
+        "after": "<th scope=\"row\">粗糙度仪</th>"
+      },
+      {
+        "fragmentId": 62,
+        "after": "<td class=\"num\">1 台</td>"
+      },
+      {
+        "fragmentId": 63,
+        "after": "<h2>供货案例</h2>"
+      },
+      {
+        "fragmentId": 64,
+        "after": "<h3>矿山输送设备配套</h3>"
+      },
+      {
+        "fragmentId": 65,
+        "after": "<p>替换直角传动并保留原底脚孔位，按确认接口图供直角减速机并附跑合记录。</p>"
+      },
+      {
+        "fragmentId": 66,
+        "after": "<p class=\"boundary\">现场基础改造由买方安排。</p>"
+      },
+      {
+        "fragmentId": 67,
+        "after": "<h3>冶金辊道设备</h3>"
+      },
+      {
+        "fragmentId": 68,
+        "after": "<p>多台驱动使用统一法兰接口，行星减速机按接口图编号供货。</p>"
+      },
+      {
+        "fragmentId": 69,
+        "after": "<p class=\"boundary\">电机与制动器由设备方选配，不承诺整线节拍。</p>"
+      },
+      {
+        "fragmentId": 70,
+        "after": "<h3>水泥设备备件采购</h3>"
+      },
+      {
+        "fragmentId": 71,
+        "after": "<p>停机前确认替换尺寸，先核对旧机铭牌、轴伸和安装图，再安排整机。</p>"
+      },
+      {
+        "fragmentId": 72,
+        "after": "<p class=\"boundary\">不能仅凭外形照片保证互换。</p>"
+      },
+      {
+        "fragmentId": 73,
+        "after": "<h2>沿革</h2>"
+      },
+      {
+        "fragmentId": 74,
+        "after": "<span class=\"yr\">2010</span>"
+      },
+      {
+        "fragmentId": 75,
+        "after": "<span class=\"ev\">从减速机维修和齿轮配件起步</span>"
+      },
+      {
+        "fragmentId": 76,
+        "after": "<span class=\"yr\">2015</span>"
+      },
+      {
+        "fragmentId": 77,
+        "after": "<span class=\"ev\">开始整机配套供货</span>"
+      },
+      {
+        "fragmentId": 78,
+        "after": "<span class=\"yr\">2019</span>"
+      },
+      {
+        "fragmentId": 79,
+        "after": "<span class=\"ev\">建立箱体数控镗铣工位</span>"
+      },
+      {
+        "fragmentId": 80,
+        "after": "<span class=\"yr\">2023</span>"
+      },
+      {
+        "fragmentId": 81,
+        "after": "<span class=\"ev\">将跑合记录纳入整机出厂档案</span>"
+      },
+      {
+        "fragmentId": 82,
+        "after": "<h2>质量与交易条件</h2>"
+      },
+      {
+        "fragmentId": 83,
+        "after": "<h3 class=\"sub\">认证状态</h3>"
+      },
+      {
+        "fragmentId": 84,
+        "after": "<li>ISO 9001 认证中</li>"
+      },
+      {
+        "fragmentId": 85,
+        "after": "<li>特种设备相关许可：待补充</li>"
+      },
+      {
+        "fragmentId": 86,
+        "after": "<li>CE：待补充</li>"
+      },
+      {
+        "fragmentId": 87,
+        "after": "<h3 class=\"sub\">交付与包装</h3>"
+      },
+      {
+        "fragmentId": 88,
+        "after": "<p>轴伸做防锈处理并加护套，整机固定在木箱底座；箱内放装箱单、接口图和跑合记录。润滑油牌号与加注状态在订单中确认，不默认带油发货。</p>"
+      },
+      {
+        "fragmentId": 89,
+        "after": "<dt>起订量</dt>"
+      },
+      {
+        "fragmentId": 90,
+        "after": "<dd>20 台</dd>"
+      },
+      {
+        "fragmentId": 91,
+        "after": "<dt>交期</dt>"
+      },
+      {
+        "fragmentId": 92,
+        "after": "<dd>图纸和技术协议确认后按订单排产，具体天数待补充</dd>"
+      },
+      {
+        "fragmentId": 93,
+        "after": "<dt>供货范围</dt>"
+      },
+      {
+        "fragmentId": 94,
+        "after": "<dd>批量配套订单，不接零售散单</dd>"
+      },
+      {
+        "fragmentId": 95,
+        "after": "<dt>安装</dt>"
+      },
+      {
+        "fragmentId": 96,
+        "after": "<dd>不提供现场安装，安装由买方安排</dd>"
+      },
+      {
+        "fragmentId": 97,
+        "after": "<style>:root{--ink: #1d2226; --ink-2: #3a444b; --ink-3: #4c565e; --muted: #5a646b; --line: #d6dbdf; --line-2: #b6c0c7; --bg: #f4f6f7; --paper: #ffffff; --accent: #1a4f7a; --accent-dark: #143f63; --max: 1120px;}\n*, ::before, ::after{box-sizing: border-box;}\nhtml{text-size-adjust: 100%;}\nbody{margin: 0px; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Source Han Sans SC\", \"Noto Sans SC\", sans-serif; font-size: 16px; line-height: 1.65;}\nh1, h2, h3{margin: 0px; font-weight: 600; line-height: 1.3;}\np{margin: 0px;}\nul, ol{margin: 0px; padding: 0px;}\na{color: var(--accent); text-decoration: none;}\na:hover{text-decoration: underline;}\na:focus-visible{outline: 2px solid var(--accent); outline-offset: 3px;}\nimg{display: block; max-width: 100%; height: auto;}\n.wrap{max-width: var(--max); margin: 0px auto; padding: 0px 24px;}\n.site-header{border-bottom: 1px solid var(--line); background: var(--paper);}\n.header-inner{display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 64px;}\n.brand{color: var(--ink); font-size: 17px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;}\n.brand:hover{color: var(--accent); text-decoration: none;}\n.nav{display: flex; gap: 26px; font-size: 15px;}\n.nav a{color: var(--ink-3);}\n.nav a:hover{color: var(--accent); text-decoration: none;}\n.hero{background: var(--bg); border-bottom: 1px solid var(--line);}\n.hero-grid{display: grid; grid-template-columns: minmax(0px, 2fr) minmax(0px, 1fr); gap: 56px; padding-top: 56px; padding-bottom: 56px; align-items: start;}\n.hero h1{font-size: clamp(32px, 4.2vw, 48px); letter-spacing: -0.01em; line-height: 1.18;}\n.lead{margin-top: 20px; max-width: 33em; font-size: 17px; color: var(--ink-2);}\n.constraint{margin-top: 18px; padding-left: 10px; border-left: 2px solid var(--accent); font-size: 15px; color: var(--ink-3);}\n.btn{display: inline-block; margin-top: 28px; padding: 13px 24px; border-radius: 2px; background: var(--accent); color: #ffffff; font-size: 15px; font-weight: 500;}\n.btn:hover{background: var(--accent-dark); text-decoration: none;}\n.hero-aside{border-top: 2px solid var(--ink); padding-top: 16px;}\n.label{font-size: 13px; letter-spacing: 0.08em; color: var(--muted);}\n.hero-aside ul{list-style: none; margin-top: 10px;}\n.hero-aside li{padding: 10px 0px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--ink-2);}\n.section{padding-top: 56px; padding-bottom: 56px; border-bottom: 1px solid var(--line);}\n.section:last-child{border-bottom: 0px;}\nh2{font-size: 23px;}\n.section-lead{margin-top: 12px; max-width: 40em; font-size: 15px; color: var(--ink-2);}\n.catalog{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 0px 48px; margin-top: 28px;}\n.catalog-item{border-top: 1px solid var(--line-2); padding-top: 16px;}\n.catalog-item h3{font-size: 19px;}\n.catalog-item p{margin-top: 8px; max-width: 30em; font-size: 15px; color: var(--ink-2);}\n.text-link{display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 15px;}\n.text-link [data-system-icon]{font-size: 13px;}\n.industry{margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink-2);}\n.industry .label{margin-right: 14px;}\n.sep{color: var(--line-2); margin: 0px 10px;}\n.split{display: grid; grid-template-columns: minmax(0px, 1.6fr) minmax(0px, 1fr); gap: 56px; margin-top: 28px; align-items: start;}\nol.steps{list-style: decimal; padding-left: 1.4em;}\nol.steps li{padding: 12px 0px 12px 4px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--ink-2);}\nol.steps li:first-child{padding-top: 0px;}\nol.steps li::marker{color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums;}\nfigure{margin: 0px;}\nfigure img{width: 100%; border: 1px solid var(--line);}\nfigcaption{margin-top: 8px; font-size: 13px; line-height: 1.55; color: var(--muted);}\n.sub{margin-top: 32px; font-size: 15px; letter-spacing: 0.04em; color: var(--muted);}\n.sub:first-child{margin-top: 0px;}\ntable.spec{width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 8px;}\ntable.spec caption{text-align: left; padding-bottom: 8px; font-size: 13px; letter-spacing: 0.04em; color: var(--muted);}\ntable.spec th, table.spec td{padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top;}\ntable.spec tbody th{width: 44%; font-weight: 400; color: var(--muted);}\ntable.spec td{color: var(--ink);}\ntable.spec .num{font-variant-numeric: tabular-nums; white-space: nowrap;}\ntable.spec tr.group th{width: auto; padding: 8px 12px; background: var(--bg); border-bottom: 1px solid var(--line-2); font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: var(--ink-2);}\ntable.spec tr:last-child th, table.spec tr:last-child td{border-bottom: 0px;}\n.cases{display: grid; grid-template-columns: repeat(3, minmax(0px, 1fr)); gap: 40px; margin-top: 28px;}\n.case{border-top: 2px solid var(--accent); padding-top: 16px;}\n.case h3{font-size: 17px;}\n.case p{margin-top: 10px; font-size: 15px; color: var(--ink-2);}\n.case .boundary{margin-top: 12px; padding-left: 10px; border-left: 2px solid var(--line-2); font-size: 14px; color: var(--ink-3);}\n.timeline{display: grid; grid-template-columns: repeat(4, minmax(0px, 1fr)); gap: 24px 32px; list-style: none; margin-top: 28px;}\n.timeline li{border-top: 1px solid var(--line-2); padding-top: 12px;}\n.timeline .yr{display: block; font-size: 20px; font-weight: 600; line-height: 1.2; color: var(--accent); font-variant-numeric: tabular-nums;}\n.timeline .ev{display: block; margin-top: 6px; font-size: 14px; color: var(--ink-2);}\n.terms{display: grid; grid-template-columns: minmax(0px, 1fr) minmax(0px, 1fr); gap: 56px; margin-top: 28px; align-items: start;}\n.terms p{margin-top: 8px; max-width: 32em; font-size: 15px; color: var(--ink-2);}\nul.plain{list-style: none; margin-top: 10px;}\nul.plain li{padding: 9px 0px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--ink-2);}\ndl.meta{margin: 10px 0px 0px;}\ndl.meta div{display: grid; grid-template-columns: 76px minmax(0px, 1fr); gap: 16px; padding: 11px 0px; border-bottom: 1px solid var(--line);}\ndl.meta dt{font-size: 14px; color: var(--muted);}\ndl.meta dd{margin: 0px; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums;}\n.page-head{background: var(--bg); border-bottom: 1px solid var(--line);}\n.page-head-grid{display: grid; grid-template-columns: minmax(0px, 1.7fr) minmax(0px, 1fr); gap: 48px; padding-top: 48px; padding-bottom: 48px; align-items: end;}\n.page-title{font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.005em;}\n.product{padding-top: 56px; padding-bottom: 56px; border-bottom: 1px solid var(--line);}\n.product-grid{display: grid; grid-template-columns: minmax(0px, 1.3fr) minmax(0px, 1fr); gap: 48px; margin-top: 20px; align-items: start;}\n.note-block{background: var(--bg); border-left: 2px solid var(--accent); padding: 20px 22px;}\n.note-block h3{font-size: 15px; letter-spacing: 0.04em; color: var(--ink-3);}\n.note-block p{margin-top: 8px; font-size: 14px; color: var(--ink-2);}\n.faq{margin: 20px 0px 0px;}\n.faq div{padding: 16px 0px; border-bottom: 1px solid var(--line);}\n.faq dt{font-size: 16px; font-weight: 600; color: var(--ink);}\n.faq dd{margin: 8px 0px 0px; font-size: 15px; color: var(--ink-2);}\n.site-footer{background: var(--bg); border-top: 1px solid var(--line); padding-top: 40px; padding-bottom: 40px;}\n.footer-grid{display: grid; grid-template-columns: minmax(0px, 1.6fr) minmax(0px, 1fr); gap: 40px;}\n.footer-name{font-size: 17px; font-weight: 600; letter-spacing: 0.02em;}\n.footer-desc{margin-top: 8px; max-width: 34em; font-size: 14px; color: var(--ink-2);}\n.footer-contact p{margin-top: 6px; font-size: 14px; color: var(--ink-2); word-break: break-word;}\n@media (max-width: 900px){.cases{grid-template-columns: 1fr; gap: 28px;}\n.timeline{grid-template-columns: repeat(2, minmax(0px, 1fr));}}\n@media (max-width: 768px){.wrap{padding: 0px 20px;}\n.header-inner{height: 60px; gap: 14px;}\n.brand{font-size: 15px;}\n.nav{gap: 18px; font-size: 14px;}\n.hero-grid{grid-template-columns: 1fr; gap: 32px; padding-top: 36px; padding-bottom: 32px;}\n.lead{font-size: 16px;}\n.btn{margin-top: 24px;}\n.section{padding-top: 32px; padding-bottom: 32px;}\nh2{font-size: 20px;}\n.catalog{grid-template-columns: 1fr; gap: 24px; margin-top: 24px;}\n.split{grid-template-columns: 1fr; gap: 32px; margin-top: 24px;}\n.terms{grid-template-columns: 1fr; gap: 32px; margin-top: 24px;}\n.page-head-grid{grid-template-columns: 1fr; gap: 28px; padding-top: 32px; padding-bottom: 32px; align-items: start;}\n.product{padding-top: 32px; padding-bottom: 32px;}\n.product-grid{grid-template-columns: 1fr; gap: 24px; margin-top: 16px;}\n.footer-grid{grid-template-columns: 1fr; gap: 24px;}\n.site-footer{padding-top: 28px; padding-bottom: 28px;}\ntable.spec tbody th{width: 42%;}}\n@media (max-width: 420px){.timeline{grid-template-columns: 1fr;}\n.brand{font-size: 14px; letter-spacing: 0px;}\n.nav{gap: 14px;}}</style>"
+      }
+    ]
+  },
+  "images": [
+    {
+      "file": "product-gearbox-reducer.jpg",
+      "imageId": "img_96adc18aa41c42ec847e3e73",
+      "mime": "image/jpeg",
+      "width": 1600,
+      "height": 1175,
+      "byteLength": 289813,
+      "originalName": "product-gearbox-reducer.jpg",
+      "source": "public-material",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Manufactures_of_industrial_gearbox.jpg",
+      "license": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Yuexin indonesia",
+      "attribution": "Manufactures of industrial gearbox.jpg — Yuexin indonesia; https://commons.wikimedia.org/wiki/File:Manufactures_of_industrial_gearbox.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); T-106 derivative resized and JPEG re-encoded; T-112 bytes unchanged.",
+      "usageScope": "current-site-only",
+      "usageCategory": "product",
+      "retrievedAt": "2026-10-04T17:43:51Z",
+      "createdAt": "2026-10-18T22:35:14.323Z"
+    },
+    {
+      "file": "equipment-gearbox-housing-machining.jpg",
+      "imageId": "img_15b9270255214a91b2af5972",
+      "mime": "image/jpeg",
+      "width": 1600,
+      "height": 1200,
+      "byteLength": 297372,
+      "originalName": "equipment-gearbox-housing-machining.jpg",
+      "source": "public-material",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Manufactures_of_gearbox_reducer.jpg",
+      "license": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Yuexin indonesia",
+      "attribution": "Manufactures of gearbox reducer.jpg — Yuexin indonesia; https://commons.wikimedia.org/wiki/File:Manufactures_of_gearbox_reducer.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); T-106 derivative resized and JPEG re-encoded; T-112 bytes unchanged.",
+      "usageScope": "current-site-only",
+      "usageCategory": "equipment",
+      "retrievedAt": "2026-10-04T17:43:51Z",
+      "createdAt": "2026-10-18T22:35:14.338Z"
+    },
+    {
+      "file": "equipment-multitasking-cnc.jpg",
+      "imageId": "img_c1a6d77b5d524ff4ab4b2dae",
+      "mime": "image/jpeg",
+      "width": 1600,
+      "height": 1200,
+      "byteLength": 269168,
+      "originalName": "equipment-multitasking-cnc.jpg",
+      "source": "public-material",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Okuma_MULTUS_U3000_multi-tasking_machine_with_automatic_tool_changer.jpg",
+      "license": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "author": "Whoisjohngalt",
+      "attribution": "Okuma MULTUS U3000 multi-tasking machine with automatic tool changer.jpg — Whoisjohngalt; https://commons.wikimedia.org/wiki/File:Okuma_MULTUS_U3000_multi-tasking_machine_with_automatic_tool_changer.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/); derivative: full-frame downsample and JPEG re-encoding by photo-clarity, 2026-10-06; no content edits.",
+      "usageScope": "current-site-only",
+      "usageCategory": "equipment",
+      "retrievedAt": "2026-10-06T07:39:39.502947+00:00",
+      "createdAt": "2026-10-18T22:35:14.349Z"
+    },
+    {
+      "file": "facility-milling-workshop.jpg",
+      "imageId": "img_e0f99949aa9740c0b3d0cf85",
+      "mime": "image/jpeg",
+      "width": 1280,
+      "height": 853,
+      "byteLength": 220884,
+      "originalName": "facility-milling-workshop.jpg",
+      "source": "public-material",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Milling_machines_in_the_Xcentric_Ripper_Int._factory.jpg",
+      "license": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "author": "Ana 2016",
+      "attribution": "Milling machines in the Xcentric Ripper Int. factory.jpg — Ana 2016; https://commons.wikimedia.org/wiki/File:Milling_machines_in_the_Xcentric_Ripper_Int._factory.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/); official 1280px thumbnail; preserve source modifications, no local image edits.",
+      "usageScope": "current-site-only",
+      "usageCategory": "facility",
+      "retrievedAt": "2026-10-06T06:20:48.443943+00:00",
+      "createdAt": "2026-10-18T22:35:14.362Z"
+    },
+    {
+      "file": "facility-cnc-production-workshop.jpg",
+      "imageId": "img_2571952ca8ed4a038a921912",
+      "mime": "image/jpeg",
+      "width": 1280,
+      "height": 508,
+      "byteLength": 239794,
+      "originalName": "facility-cnc-production-workshop.jpg",
+      "source": "public-material",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:CNC_Machine_Facility.jpg",
+      "license": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "author": "Antoniusaw",
+      "attribution": "CNC Machine Facility.jpg — Antoniusaw; https://commons.wikimedia.org/wiki/File:CNC_Machine_Facility.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/); official 1280px thumbnail; preserve source modifications, no local image edits. Published source panorama has Photoshop CS6 metadata and dimensions 4032x1600 (camera EXIF 4032x3024); exact source editing steps unspecified.",
+      "usageScope": "current-site-only",
+      "usageCategory": "facility",
+      "retrievedAt": "2026-10-06T06:20:54.214477+00:00",
+      "createdAt": "2026-10-18T22:35:14.377Z"
+    },
+    {
+      "file": "inspection-coordinate-measuring-t112.jpg",
+      "imageId": "img_da03a1cf8f06441ab0a6bb0b",
+      "mime": "image/jpeg",
+      "width": 960,
+      "height": 1211,
+      "byteLength": 145658,
+      "originalName": "inspection-coordinate-measuring-t112.jpg",
+      "source": "public-material",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Beyond_CrystaC.jpg",
+      "license": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "author": "Blue tooth7",
+      "attribution": "Beyond CrystaC.jpg — Blue tooth7; https://commons.wikimedia.org/wiki/File:Beyond_CrystaC.jpg; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/); official source thumbnail.",
+      "usageScope": "current-site-only",
+      "usageCategory": "inspection",
+      "retrievedAt": "2026-10-06T06:05:25.895710+00:00",
+      "createdAt": "2026-10-18T22:35:14.411Z"
+    },
+    {
+      "file": "equipment-gear-hobbing.jpg",
+      "imageId": "img_d5d6555bc18e4f5bb1e2c5ff",
+      "mime": "image/jpeg",
+      "width": 1280,
+      "height": 853,
+      "byteLength": 195050,
+      "originalName": "equipment-gear-hobbing.jpg",
+      "source": "public-material",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg",
+      "license": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "author": "Affoltergroup",
+      "attribution": "Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg — Affoltergroup; https://commons.wikimedia.org/wiki/File:Gear-hobbing-spur-gear-on-cnc-cutting-machine.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "usageScope": "current-site-only",
+      "usageCategory": "equipment",
+      "retrievedAt": "2026-10-09T04:46:27.038651+00:00",
+      "createdAt": "2026-10-18T22:35:14.427Z"
+    },
+    {
+      "file": "equipment-hob-and-workpiece.jpg",
+      "imageId": "img_c15cbb4362744c7e91e92675",
+      "mime": "image/jpeg",
+      "width": 1280,
+      "height": 853,
+      "byteLength": 228883,
+      "originalName": "equipment-hob-and-workpiece.jpg",
+      "source": "public-material",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:W%C3%A4lzfr%C3%A4ser_und_gefr%C3%A4ste_Verzahnung.JPG",
+      "license": "CC BY-SA",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "author": "Dirk Gräfe",
+      "attribution": "Wälzfräser und gefräste Verzahnung.JPG — Dirk Gräfe; https://commons.wikimedia.org/wiki/File:W%C3%A4lzfr%C3%A4ser_und_gefr%C3%A4ste_Verzahnung.JPG; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0); full-frame resized/JPEG re-encoded derivative; same source license retained.",
+      "usageScope": "current-site-only",
+      "usageCategory": "equipment",
+      "retrievedAt": "2026-10-09T04:48:06.322495+00:00",
+      "createdAt": "2026-10-18T22:35:14.445Z"
+    }
+  ]
+}

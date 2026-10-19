@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { codeSiteSchema, type SiteCode } from './code-site.ts';
 import { codeCheckBrowser } from './code-site-browser.ts';
 import type { CodeFactRepair } from './code-site-fact-segments.ts';
+import { codeCssDeclarationNames, type CodeLayoutRepair } from './code-site-layout-repair.ts';
 
-type FragmentBody = { field: string; before: string } & (
+export type FragmentBody = { field: string; before: string } & (
   { kind: 'text'; path: number[]; offset: number; text: string } |
   { kind: 'element'; path: number[] } | { kind: 'attribute'; path: number[]; name: string } |
   { kind: 'css'; stylePath?: number[]; rulePath: number[]; selector: string; property: string; priority: string; ruleText: string; pseudo: string } |
@@ -11,9 +12,10 @@ type FragmentBody = { field: string; before: string } & (
 );
 type Fragment = FragmentBody & { id: number };
 type Replacement = { fragmentId: number; after: string };
+const repairFragmentLimit = 80;
 const replacementSchema = z.object({ replacements: z.array(z.object({
   fragmentId: z.number().int().nonnegative(), after: z.string().max(100020),
-}).strict()).max(80) }).strict();
+}).strict()).max(repairFragmentLimit) }).strict();
 export class CodeRepairError extends Error {
   response: unknown;
   constructor(reason: string, response: unknown) { super(reason); this.response = response; }
@@ -21,7 +23,7 @@ export class CodeRepairError extends Error {
 
 // This function runs in an isolated, network-blocked Chrome document. Both
 // selection and replacement use parsed nodes; model text never becomes HTML.
-function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[]; factRepairs?: CodeFactRepair[]; fragments?: Fragment[]; replacements?: Replacement[] }) {
+function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[]; factRepairs?: CodeFactRepair[]; layoutRepairs?: CodeLayoutRepair[]; fragments?: Fragment[]; replacements?: Replacement[] }, declarationNames: typeof codeCssDeclarationNames) {
   class BoundaryFailure extends Error {}
   const refuse = (reason: string): never => { throw new BoundaryFailure(`局部修正${reason}，本次未保存版本。`); };
   const parse = (html: string) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
@@ -86,8 +88,8 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       // Citation failures carry locations from this candidate's rendered audit.
       // Do not rediscover them by text length or select matching text elsewhere.
       const factRepairs = input.factRepairs ?? [];
-      const issues = input.issues!.filter(issue => !factRepairs.some(repair => repair.issues.includes(issue))), issueText = issues.map(normalize).join('\n');
-      const layoutIssues = issues.filter(i => /溢出|重叠|对比度|无可测量正文|CSS/.test(i));
+      const layoutIssues = input.issues!.filter(i => /溢出|重叠|对比度|无可测量正文/.test(i));
+      const issues = input.issues!.filter(issue => !layoutIssues.includes(issue) && !factRepairs.some(repair => repair.issues.includes(issue))), issueText = issues.map(normalize).join('\n');
       const fragments: Fragment[] = [];
       const samePath = (a: number[] | undefined, b: number[] | undefined) => a === b || !!a && !!b && a.length === b.length && a.every((value, i) => value === b[i]);
       const add = (f: FragmentBody) => {
@@ -124,22 +126,38 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
           }
         }
       }
+      for (const issue of layoutIssues) {
+        const repairs = input.layoutRepairs?.filter(repair => repair.issue === issue);
+        if (!repairs?.length) refuse(`版面拒因缺少本次扫描的定位依据：${issue}`);
+        for (const repair of repairs!) {
+          if (repair.reason) refuse(`版面拒因无法定位：${repair.reason}`);
+          for (const element of repair.elements) {
+            const node = nodeAt(element.field, element.path);
+            if (!(node instanceof Element) || node.outerHTML !== element.before) refuse('版面拒因的元素快照已经变化');
+            // Containers remain read-only context. Their actual declarations
+            // can change without opening the entire subtree for replacement.
+            if (!(node as Element).childElementCount) add({ ...element, kind: 'element' });
+          }
+          for (const declaration of repair.declarations) {
+            const rule = cssRule(cssSource(declaration.field, declaration.stylePath), declaration.rulePath);
+            if (rule.selectorText !== declaration.selector || rule.cssText !== declaration.ruleText || rule.style.getPropertyValue(declaration.property) !== declaration.before || rule.style.getPropertyPriority(declaration.property) !== declaration.priority) refuse('版面拒因的 CSS 声明快照已经变化');
+            add(declaration);
+          }
+        }
+      }
       const mentionedNumber = (text: string) => {
         const numbers: string[] = text.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
         return issues.some(i => i.startsWith('资料没有的数字：') && numbers.includes(i.split('：')[1]));
       };
       for (const [field, root] of fields) {
         const pageId = field.split('/')[1];
-        const layout = layoutIssues.some(i => !pageId || i.startsWith(`${pageId}/`) || !/^[a-z][a-z0-9-]*\//.test(i));
         const walk = (node: Node, path: number[]) => {
           if (node instanceof Element) {
             const link = node.tagName === 'A' && issues.some(i => /空链接|链接目标|资源.*href/.test(i) && (!pageId || i.startsWith(pageId) || !/^[a-z][a-z0-9-]*[ /]/.test(i)));
             const auxiliary = ['alt', 'title', 'aria-label', 'data-label', 'data-image-id'].some(name => {
               const text = normalize(node.getAttribute(name) || ''); return text.length >= 4 && issueText.includes(text);
             });
-            // Layout has the shared stylesheet plus leaf elements. Repeating
-            // every ancestor's subtree would resend whole pages many times.
-            if ((layout && !node.childElementCount) || link || auxiliary) add({ field, kind: 'element', before: node.outerHTML, path });
+            if (link || auxiliary) add({ field, kind: 'element', before: node.outerHTML, path });
           } else if (node.nodeType === Node.TEXT_NODE) {
             const data = node.nodeValue!;
             for (const sentence of data.matchAll(/[^。！？；\n]+[。！？；]?/g)) {
@@ -153,7 +171,7 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
         };
         [...root.childNodes].forEach((child, i) => walk(child, [i]));
       }
-      if (layoutIssues.length || mentionedNumber(code.css)) add({ field: 'css', kind: 'style', before: styleNode.outerHTML });
+      if (mentionedNumber(code.css)) add({ field: 'css', kind: 'style', before: styleNode.outerHTML });
       for (const p of code.pages) if ((normalize(p.title).length >= 4 && issueText.includes(normalize(p.title))) || mentionedNumber(p.title)) add({ field: `pages/${p.id}/title`, kind: 'title', before: p.title });
       const removed = issues.length > 0 && issues.every(i => input.cleaned!.includes(i) && /^(已去掉(?:禁止元素|资源或空链接|属性) |图片编号未授权：)/.test(i));
       if (!fragments.length && !removed) refuse(factRepairs.length ? '无法定位出处拒因：当前核对段没有可独立修正的位置成员' : '无法定位底线拒因对应的代码节点');
@@ -249,7 +267,7 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       }
     }
     const cssSnapshot = (rules: CSSRuleList): unknown => [...rules].map(rule => rule instanceof CSSStyleRule
-      ? [rule.selectorText, [...rule.style].filter(name => !cssMasks.get(rule)?.has(name)).map(name => [name, rule.style.getPropertyValue(name), rule.style.getPropertyPriority(name)]), 'cssRules' in rule ? cssSnapshot(rule.cssRules) : []]
+      ? [rule.selectorText, declarationNames(rule.style.cssText).filter(name => !cssMasks.get(rule)?.has(name)).map(name => [name, rule.style.getPropertyValue(name), rule.style.getPropertyPriority(name)]), 'cssRules' in rule ? cssSnapshot(rule.cssRules) : []]
       : 'cssRules' in rule ? [rule.constructor.name, (rule as CSSConditionRule).conditionText ?? (rule as CSSLayerBlockRule).name, cssSnapshot((rule as CSSGroupingRule).cssRules)] : rule.cssText);
     const cssOutside = new Map([...cssSources.values()].map(source => [source, cssSnapshot(source.sheet.cssRules)]));
     const textGroups = new Map<Text, Array<{ offset: number; before: string; after: string }>>();
@@ -320,12 +338,13 @@ async function inDom(code: SiteCode, input: Parameters<typeof repairDom>[1]) {
   const browser = await codeCheckBrowser();
   try {
     await browser.send('Network.enable'); await browser.send('Network.setBlockedURLs', { urls: ['*'] });
-    return await browser.evaluate<ReturnType<typeof repairDom>>(`(${repairDom.toString()})(${JSON.stringify(code)},${JSON.stringify(input)})`);
+    return await browser.evaluate<ReturnType<typeof repairDom>>(`(${repairDom.toString()})(${JSON.stringify(code)},${JSON.stringify(input)},(${codeCssDeclarationNames.toString()}))`);
   } finally { await browser.close(); }
 }
-export async function codeRepairFragments(code: SiteCode, issues: string[], cleaned: string[] = [], factRepairs: CodeFactRepair[] = []): Promise<Fragment[]> {
-  const result = await inDom(code, { issues, cleaned, factRepairs });
+export async function codeRepairFragments(code: SiteCode, issues: string[], cleaned: string[] = [], factRepairs: CodeFactRepair[] = [], layoutRepairs: CodeLayoutRepair[] = []): Promise<Fragment[]> {
+  const result = await inDom(code, { issues, cleaned, factRepairs, layoutRepairs });
   if (result.error) throw new Error(result.error);
+  if (result.fragments!.length > repairFragmentLimit) throw new Error(`局部修正需要 ${result.fragments!.length} 个片段，超过回复上限 ${repairFragmentLimit}，本次未发送模型请求、未保存版本。`);
   return result.fragments!;
 }
 export async function applyCodeRepair(code: SiteCode, fragments: Fragment[], raw: unknown): Promise<SiteCode> {
