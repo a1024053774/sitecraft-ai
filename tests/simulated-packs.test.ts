@@ -101,7 +101,7 @@ test("thick molding pack is a third workspace pack with full facts and only the 
     for (const param of params) assert.match(param, /^\S+ \S/, `${product} param lacks a value: ${param}`);
   }
 
-  assert.match(bodyLine(pack.body, "模具年产量"), /约 180 套/);
+  assert.match(bodyLine(pack.body, "模具年产能"), /约 180 套/);
   assert.match(bodyLine(pack.body, "注塑月产能"), /约 600 万件/);
   assert.ok(listItems(bodyLine(pack.body, "主设备")).length >= 4);
   assert.ok(listItems(bodyLine(pack.body, "检测设备")).length >= 3);

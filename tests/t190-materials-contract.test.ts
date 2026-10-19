@@ -45,6 +45,24 @@ test('产能或产量字段不把设备台数当作产出', () => {
   }
 });
 
+// 模拟资料只给生产能力，没有实际产出记录；能力数字须用产能类标签。
+test('能力数字不改称产量，避免把产能写成业绩数量', () => {
+  for (const pack of simulatedPackList) {
+    for (const line of pack.body.split('\n')) {
+      assert.doesNotMatch(line, /^[^：]*产量[^：]*：/, `${pack.id}: 能力数据须标为产能：${line}`);
+    }
+  }
+});
+
+// 「开放时间」暗示对外开放或接待；值只给工作时间时，标签不能写开放时间。
+test('开放时间标签的值须明确给出开放或营业时段，工作时间不能充当开放时间', () => {
+  for (const pack of simulatedPackList) {
+    for (const line of pack.body.split('\n').filter(line => /^[^：]*开放时间[^：]*：/.test(line))) {
+      assert.match(line.split('：').slice(1).join('：'), /开放时间(?:为|是|：)|营业/, `${pack.id}: 开放时间标签缺少开放时段：${line}`);
+    }
+  }
+});
+
 test('认证与报告分清类别，并逐项保留已有、进行中或待补充状态', () => {
   for (const pack of simulatedPackList) {
     for (const line of pack.body.split('\n').filter(line => /^[^：]*认证[^：]*：/.test(line))) {

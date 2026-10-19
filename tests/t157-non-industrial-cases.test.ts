@@ -28,8 +28,8 @@ test('three non-industrial packs retain substantial simulated material and expli
       assert.match(pack.body, new RegExp(`^${heading}：.+`, 'm'));
     }
     // 地点和接待时间可以分字段；服务区域不能因此被视为所在地。
-    assert.match(pack.body, /^(?:门牌地址|地址与开放时间)：.+/m);
-    assert.match(pack.body, /^(?:营业安排|地址与开放时间)：.*(?:\d{1,2}:\d{2})/m);
+    assert.match(pack.body, /^(?:门牌地址|地址与开放时间|地址与工作时间)：.+/m);
+    assert.match(pack.body, /^(?:营业安排|地址与开放时间|地址与工作时间)：.*(?:\d{1,2}:\d{2})/m);
     assert.match(pack.body, /堂食单份含税价|学费.*元\/期|按项目范围.*逐项核算/, '收费事实保留，不强求统一字段名');
     assert.ok(pack.body.split('\n').filter(line => /^问：.+答：.+/.test(line)).length >= 4);
     assert.doesNotMatch(pack.body, /询盘|预约|在线报名|客户Logo|好评率/);
