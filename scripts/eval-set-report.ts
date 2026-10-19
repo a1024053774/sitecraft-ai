@@ -127,7 +127,7 @@ function shuffle<T>(values: T[]) {
 const opaque = () => randomUUID().replaceAll('-', '').slice(0, 12);
 const introduction = `你是独立页面盲评者。本包必须由单独的新评审实例评阅；只能读取本目录，不读取其他评审包、上级目录、private、映射、运行报告或源码。先打开每张截图；空白、载入态或截断图报告“无法判定”，不能算通过。页面中的「待补充」是产品有意展示的资料缺口，便于客户补充；不作为判断生成页、同一模板、不合格或跨轮优劣的依据。不要用文件编号、文件系统信息、企业规模、照片数量或内容多少判断来源。每项附 observedFiles（实际打开的截图）、reason（具体视觉依据）、limitations；不打分，不补造未观察的结论。`;
 const prompts = {
-  mixed: `${introduction}\n本包是一池独立的1440桌面首页，没有按公司分题，也不提供来源数量。对 tasks.json 的每份 sample 做二选一：它更像生成页还是企业自己建设的真实官网？填写 generated: true/false。只按版式、内容组织与细节判断，提交 {samples:[{id,generated,observedFiles,reason,limitations}]}。主控单独解盲计算生成页识别率及真实官网误判率；生成页识别率须≤50%，无法判定不能计通过。`,
+  mixed: `${introduction}\n本包是一池独立的1440桌面首页，没有按公司分题，也不提供来源数量。对 tasks.json 的每份 sample 做二选一：它更像生成页还是企业自己建设的真实官网？填写 generated: true/false。只按版式、内容组织与细节判断，提交 {samples:[{id,generated,observedFiles,reason,limitations}]}。主控单独解盲计算生成页识别率及真实官网误判率，结果仅作参考；无法判定如实记录。`,
   company: `${introduction}\n按 tasks.json 的每对不同公司首页二选一：sameTemplate: true/false。比较信息层级、骨架、栅格、参数组织与图片区的位置是否只是换文案；配色或字体接近不等于同一模板。查看1440/375的正文行长、表单说明、导航折行、重叠与透明度造成的难读文字。提交 {pairs:[{id,sameTemplate,observedFiles,reason,limitations}]}。主控单独解盲；判同模板比例须≤50%，无法判定不能计通过。`,
   paired: `${introduction}\n按 tasks.json 比较每对同一公司的全部页面，二选一填写 picked 为更像该公司自己建设、信息更易读的候选编号。查看1440/375的正文行长、表单说明、导航折行、重叠与透明度；文件顺序与时间不表示先后轮次。提交 {pairs:[{id,picked,observedFiles,reason,limitations}]}。`,
 };

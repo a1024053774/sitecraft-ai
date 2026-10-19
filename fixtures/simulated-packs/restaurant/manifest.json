@@ -1,6 +1,149 @@
 {
+  "schemaVersion": 1,
   "pack": "restaurant",
-  "images": [],
-  "reason": "未准入授权图片；使用无图排版或 CSS 分隔，不冒充菜品或门店实拍。",
-  "licensePolicy": "T-010：仅准入 CC0、公有领域、CC-BY、CC-BY-SA 且内容对应的图片；本包无图片来源与许可需要署名。"
+  "sourcePolicy": "仅准入有明确许可的题材配图；非本企业实拍或作品。生成站与站点包继续使用现有图片署名流程。",
+  "images": [
+    {
+      "id": "restaurant-ingredient-tofu",
+      "file": "ingredient-tofu.jpg",
+      "category": "product",
+      "caption": "豆腐食材（配图）",
+      "captionEn": "Tofu ingredient",
+      "sourceTitle": "Tofu 2.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tofu_2.jpg",
+      "sourceRevision": 1006009135,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Tofu_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Tiia Monto",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "apiLicense": "CC BY-SA",
+      "usageScope": "current-site-only",
+      "attribution": "Tofu 2.jpg — Tiia Monto; https://commons.wikimedia.org/wiki/File:Tofu_2.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.",
+      "limitations": "食材题材配图，非本店菜品或门店实拍；品种与产地以资料为准。",
+      "downloadedAt": "2026-10-19T07:05:40.855535+00:00",
+      "width": 1600,
+      "height": 1317,
+      "bytes": 359968,
+      "modifications": [
+        "按 EXIF 应用方向，完整画面缩至长边最多 1600px，JPEG quality 88；未裁切、补绘或改变画面内容。"
+      ],
+      "admissionTicket": "T-190",
+      "verification": {
+        "checkedAt": "2026-10-19T07:08:40.722391+00:00",
+        "method": "Commons 文件页、API imageinfo/extmetadata、许可页面；原图 EXIF/IPTC/XMP 权利字段与本地完整配图逐张核对。",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200,
+        "redistributionAllowed": true,
+        "generatorUseAllowed": true,
+        "rightsBasis": "该 CC BY-SA 许可允许复制、改作及商业再分发，含生成器嵌入生成站与站点包；须署名、链接许可、注明改动，图片衍生物保留同一许可。",
+        "subjectMatch": "豆腐块完整可见，适合豆腐食材说明，非时蔬豆腐煲成品。",
+        "rightsFields": {
+          "exif": {
+            "Software": "Adobe Photoshop CS5 Windows"
+          },
+          "iptc": {},
+          "xmpRights": {}
+        },
+        "evidenceDirectory": "artifacts/t190/downloads/01-restaurant",
+        "rightsConclusion": "来源署名与原图 EXIF/IPTC/XMP 权利字段未见冲突；无权利字段不作为公有领域的依据。"
+      }
+    },
+    {
+      "id": "restaurant-ingredient-shiitake",
+      "file": "ingredient-shiitake.jpg",
+      "category": "product",
+      "caption": "香菇食材（配图）",
+      "captionEn": "Shiitake ingredients",
+      "sourceTitle": "Funghi Shiitake.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Funghi_Shiitake.jpg",
+      "sourceRevision": 1263038959,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Funghi_Shiitake.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Albarubescens",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "apiLicense": "CC BY-SA",
+      "usageScope": "current-site-only",
+      "attribution": "Funghi Shiitake.jpg — Albarubescens; https://commons.wikimedia.org/wiki/File:Funghi_Shiitake.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.",
+      "limitations": "香菇食材配图，非本店菜品或采购现场；来源描述的健康说法与本店无关。",
+      "downloadedAt": "2026-10-19T07:05:54.650192+00:00",
+      "width": 1600,
+      "height": 1200,
+      "bytes": 428895,
+      "modifications": [
+        "按 EXIF 应用方向，完整画面缩至长边最多 1600px，JPEG quality 88；未裁切、补绘或改变画面内容。"
+      ],
+      "admissionTicket": "T-190",
+      "verification": {
+        "checkedAt": "2026-10-19T07:08:40.782086+00:00",
+        "method": "Commons 文件页、API imageinfo/extmetadata、许可页面；原图 EXIF/IPTC/XMP 权利字段与本地完整配图逐张核对。",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200,
+        "redistributionAllowed": true,
+        "generatorUseAllowed": true,
+        "rightsBasis": "该 CC BY-SA 许可允许复制、改作及商业再分发，含生成器嵌入生成站与站点包；须署名、链接许可、注明改动，图片衍生物保留同一许可。",
+        "subjectMatch": "香菇菇盖与菌褶可见，对应菜单已有的香菇、菌菇题材。",
+        "rightsFields": {
+          "exif": {},
+          "iptc": {},
+          "xmpRights": {}
+        },
+        "evidenceDirectory": "artifacts/t190/downloads/02-restaurant",
+        "rightsConclusion": "来源署名与原图 EXIF/IPTC/XMP 权利字段未见冲突；无权利字段不作为公有领域的依据。"
+      }
+    },
+    {
+      "id": "restaurant-ingredient-tomatoes",
+      "file": "ingredient-tomatoes.jpg",
+      "category": "product",
+      "caption": "番茄食材（配图）",
+      "captionEn": "Tomato ingredients",
+      "sourceTitle": "Tomatoes.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tomatoes.jpg",
+      "sourceRevision": 1222612420,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f5/Tomatoes.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Wilfredor (Wilfredo R. Rodriguez H.)",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "apiLicense": "CC0",
+      "usageScope": "current-site-only",
+      "attribution": "Tomatoes.jpg — Wilfredor (Wilfredo R. Rodriguez H.); https://commons.wikimedia.org/wiki/File:Tomatoes.jpg; CC0 (https://creativecommons.org/publicdomain/zero/1.0/deed.en); full-frame resized/JPEG re-encoded derivative.",
+      "limitations": "番茄食材配图，非本店菜品或供应商现场，非番茄炖牛腩成品。",
+      "downloadedAt": "2026-10-19T07:07:31.201128+00:00",
+      "width": 1600,
+      "height": 1030,
+      "bytes": 220278,
+      "modifications": [
+        "按 EXIF 应用方向，完整画面缩至长边最多 1600px，JPEG quality 88；未裁切、补绘或改变画面内容。"
+      ],
+      "admissionTicket": "T-190",
+      "verification": {
+        "checkedAt": "2026-10-19T07:08:40.888178+00:00",
+        "method": "Commons 文件页、API imageinfo/extmetadata、许可页面；原图 EXIF/IPTC/XMP 权利字段与本地完整配图逐张核对。",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200,
+        "redistributionAllowed": true,
+        "generatorUseAllowed": true,
+        "rightsBasis": "CC0 允许复制、修改及再分发，含商业用途和生成器嵌入生成站与站点包。",
+        "subjectMatch": "红番茄特写，适合首屏食材题材及番茄原料说明。",
+        "rightsFields": {
+          "exif": {
+            "Software": "Adobe Photoshop Lightroom 4.3 (Windows)",
+            "Copyright": "Creative Commons CC0 1.0 Universal Public Domain",
+            "Artist": "Wilfredo R. Rodriguez H."
+          },
+          "iptc": {
+            "(2, 80)": "b'Wilfredo R. Rodriguez H.'",
+            "(2, 116)": "b'Creative Commons CC0 1.0 Universal Public Domain'"
+          },
+          "xmpRights": {
+            "creator": "Wilfredo R. Rodriguez H.",
+            "rights": "Creative Commons CC0 1.0 Universal Public Domain"
+          }
+        },
+        "evidenceDirectory": "artifacts/t190/downloads/12-restaurant",
+        "rightsConclusion": "来源署名与原图 EXIF/IPTC/XMP 权利字段未见冲突；无权利字段不作为公有领域的依据。"
+      }
+    }
+  ],
+  "licensePolicy": "CC0、公有领域、CC BY、CC BY-SA；current-site-only 是上传用途，不改变原许可的再分发权。"
 }

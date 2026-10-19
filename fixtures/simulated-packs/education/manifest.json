@@ -1,6 +1,103 @@
 {
+  "schemaVersion": 1,
   "pack": "education",
-  "images": [],
-  "reason": "未准入授权图片；使用无图排版或 CSS 线条，不冒充教师、学员作品或教室实拍。",
-  "licensePolicy": "T-010：仅准入 CC0、公有领域、CC-BY、CC-BY-SA 且内容对应的图片；本包无图片来源与许可需要署名。"
+  "sourcePolicy": "仅准入有明确许可的题材配图；非本企业实拍或作品。生成站与站点包继续使用现有图片署名流程。",
+  "images": [
+    {
+      "id": "education-materials-watercolor-palette",
+      "file": "materials-watercolor-palette.jpg",
+      "category": "equipment",
+      "caption": "水彩颜料与画笔（配图）",
+      "captionEn": "Watercolor palette and brush",
+      "sourceTitle": "Set of watercolor paints - Ariel Waldman.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Set_of_watercolor_paints_-_Ariel_Waldman.jpg",
+      "sourceRevision": 1277388224,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1b/Set_of_watercolor_paints_-_Ariel_Waldman.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Ariel Waldman from Muncie",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "apiLicense": "CC BY-SA",
+      "usageScope": "current-site-only",
+      "attribution": "Set of watercolor paints - Ariel Waldman.jpg — Ariel Waldman from Muncie; https://commons.wikimedia.org/wiki/File:Set_of_watercolor_paints_-_Ariel_Waldman.jpg; CC BY-SA 2.0 (https://creativecommons.org/licenses/by-sa/2.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.",
+      "limitations": "绘画材料配图，非本教室或学员作品；照片器材品牌与课程指定用品无关。",
+      "downloadedAt": "2026-10-19T07:06:23.319937+00:00",
+      "width": 1600,
+      "height": 1083,
+      "bytes": 208272,
+      "modifications": [
+        "按 EXIF 应用方向，完整画面缩至长边最多 1600px，JPEG quality 88；未裁切、补绘或改变画面内容。"
+      ],
+      "admissionTicket": "T-190",
+      "verification": {
+        "checkedAt": "2026-10-19T07:08:40.933256+00:00",
+        "method": "Commons 文件页、API imageinfo/extmetadata、许可页面；原图 EXIF/IPTC/XMP 权利字段与本地完整配图逐张核对。",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200,
+        "redistributionAllowed": true,
+        "generatorUseAllowed": true,
+        "rightsBasis": "该 CC BY-SA 许可允许复制、改作及商业再分发，含生成器嵌入生成站与站点包；须署名、链接许可、注明改动，图片衍生物保留同一许可。",
+        "subjectMatch": "水彩颜料盘与画笔完整对应水彩材料入门，适合首屏及材料准备。",
+        "rightsFields": {
+          "exif": {
+            "Software": "Picasa 3.0"
+          },
+          "iptc": {},
+          "xmpRights": {}
+        },
+        "evidenceDirectory": "artifacts/t190/downloads/04-education",
+        "sourceNote": "Commons 文件页记录 Flickr 原作及 2012-12-03 的 CC BY-SA 2.0 审核；本次未冒称 Flickr 在线核验。",
+        "rightsConclusion": "来源署名与原图 EXIF/IPTC/XMP 权利字段未见冲突；无权利字段不作为公有领域的依据。"
+      }
+    },
+    {
+      "id": "education-materials-drawing-pencils",
+      "file": "materials-drawing-pencils.jpg",
+      "category": "equipment",
+      "caption": "石墨、炭笔与油性画笔（配图）",
+      "captionEn": "Graphite charcoal and grease pencils",
+      "sourceTitle": "Speciality artists pencils 051907.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg",
+      "sourceRevision": 1088039178,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/5/56/Speciality_artists_pencils_051907.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Mrs Scarborough",
+      "license": "Public Domain",
+      "licenseUrl": "https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg#Licensing",
+      "apiLicense": "Public Domain",
+      "usageScope": "current-site-only",
+      "attribution": "Speciality artists pencils 051907.jpg — Mrs Scarborough; https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg; Public Domain (https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg#Licensing); source file colour-adjusted by Hohum on 2025-07-08 (Commons file history); full-frame resized/JPEG re-encoded derivative.",
+      "limitations": "画笔材料题材配图，非本教室实拍；图中全部工具并非课程材料清单，厂牌并非课程推荐。",
+      "downloadedAt": "2026-10-19T07:07:05.210399+00:00",
+      "width": 1080,
+      "height": 821,
+      "bytes": 123213,
+      "modifications": [
+        "来源当前文件已含 Hohum 于 2025-07-08 的调色（Commons 文件历史记为 Colour adjust），本次使用该当前文件。",
+        "按 EXIF 应用方向，完整画面缩至长边最多 1600px，JPEG quality 88；未裁切、补绘或改变画面内容。"
+      ],
+      "admissionTicket": "T-190",
+      "verification": {
+        "checkedAt": "2026-10-19T07:08:40.938254+00:00",
+        "method": "Commons 文件页、API imageinfo/extmetadata、许可页面；原图 EXIF/IPTC/XMP 权利字段与本地完整配图逐张核对。",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200,
+        "redistributionAllowed": true,
+        "generatorUseAllowed": true,
+        "rightsBasis": "作者在来源文件页将本作发布到公有领域，并授予任何目的使用；可复制、修改及再分发，含生成器嵌入生成站与站点包。",
+        "subjectMatch": "石墨、炭笔与油性画笔同框，石墨部分对应素描材料；保留完整画面。",
+        "rightsFields": {
+          "exif": {
+            "Software": "GIMP 2.10.38",
+            "Copyright": "    "
+          },
+          "iptc": {},
+          "xmpRights": {
+            "rights": ""
+          }
+        },
+        "evidenceDirectory": "artifacts/t190/downloads/10-education",
+        "rightsConclusion": "来源署名与原图 EXIF/IPTC/XMP 权利字段未见冲突；无权利字段不作为公有领域的依据。"
+      }
+    }
+  ],
+  "licensePolicy": "CC0、公有领域、CC BY、CC BY-SA；current-site-only 是上传用途，不改变原许可的再分发权。"
 }

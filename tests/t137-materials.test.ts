@@ -7,18 +7,19 @@ import { simulatedPackList, buildMaterialsChatMessage } from '../lib/simulated-p
 // details, missing image files, or untraceable licenses can each
 // leave the generator without usable client facts or authorized imagery.
 // T-137's production/procurement and licensed-JPEG contract belongs to the
-// four industrial packs. T-157 separately covers the text-only service packs.
+// four industrial packs. T-157/T-190 cover the service packs.
 for (const pack of simulatedPackList.filter(pack => ['industrial', 'export', 'molding', 'packaging'].includes(pack.id))) {
   test(`${pack.id}: client materials cover history, cases, production, selection and procurement without truncation`, () => {
-    for (const section of ['公司简介', '沿革', '加工流程', '质检流程', '交付与包装', '选型资料']) {
+    for (const section of ['沿革', '加工流程', '质检流程', '交付与包装', '选型资料']) {
       assert.match(pack.body, new RegExp(`^${section}：.+`, 'm'), `${pack.id}缺少${section}`);
     }
     const history = pack.body.split('\n').find(line => line.startsWith('沿革：'))!;
     assert.ok((history.match(/\d{4} 年/g) || []).length >= 3, '至少三个有事件的年份');
-    const cases = pack.body.split('\n').filter(line => /^供货案例[一二三]：/.test(line));
+    const cases = pack.body.split('\n').filter(line => /^(?:配套记录|订单笔记|试制记录|做过的包装)·/.test(line));
     assert.ok(cases.length >= 2 && cases.length <= 3, '两到三个行业描述的供货案例');
     for (const line of cases) {
-      assert.match(line, /需求：.+；交付：.+；边界：.+/, '案例交代需求、交付与边界，不写评价');
+      assert.doesNotMatch(line, /需求：|交付：|边界：/, 'T-190 用叙述交代项目，不套字段模板');
+      assert.match(line, /该(?:订单|项目|案例)|此类替换/, '项目条件有明确归属');
     }
     const products = pack.body.split('\n').filter(line => /^[^：]+规格参数：/.test(line)).map(line => line.split('规格参数：')[0]);
     assert.ok(products.length >= 2);
@@ -26,7 +27,7 @@ for (const pack of simulatedPackList.filter(pack => ['industrial', 'export', 'mo
       assert.match(pack.body, new RegExp(`^${product}应用与选型：.+`, 'm'), `${product}缺少应用与选型`);
     }
     assert.ok(pack.body.split('\n').filter(line => /^问：.+答：.+/.test(line)).length >= 4);
-    assert.match(pack.body, /(?:设备|主设备)：[^\n]*\S+ [1-9]\d* 台/);
+    assert.match(pack.body, /(?:设备|主设备|车间配置|设备与工序)：[^\n]*\S+ [1-9]\d* 台/);
     assert.match(pack.body, /电话、地址：待补充/);
     assert.match(pack.body, /客户名单、评价：待补充/);
     const emails = pack.body.match(/[\w.+-]+@[\w.-]+/g) || [];

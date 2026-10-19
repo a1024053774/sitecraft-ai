@@ -1,0 +1,50 @@
+{
+  "baseline": "38969d9b69cd3f0cd65ad78f4847433b4a8c6102",
+  "description": "父版本真实 Chrome 读取的旧核对回执输入；测试期望为分隔变更后重核，不以此文件作新文本答案。",
+  "code": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#222;background:#fff;font:18px/1.6 sans-serif}main{padding:24px}.pair{display:grid;grid-template-columns:8em 1fr;gap:20px}",
+    "pages": [
+      {
+        "id": "visit",
+        "title": "到店须知",
+        "html": "<main><section><h2>位置</h2><div class=\"pair\"><strong>地址</strong><span>杭州市拱墅区</span></div><table><tbody><tr><th>入口</th><td>待补充</td></tr></tbody></table></section><section><h2>菜单</h2><p>按当日供应。</p></section></main>"
+      }
+    ]
+  },
+  "segments": [
+    {
+      "text": "页面 visit：到店须知\n位置\n\n地址杭州市拱墅区",
+      "group": "页面 visit：到店须知\n位置\n\n地址杭州市拱墅区\n\n<TABLE>\n<TBODY>\n<TR>\n<TH>入口</TH>\n\n<TD>待补充</TD>\n</TR>\n</TBODY>\n</TABLE>",
+      "issues": [],
+      "noFacts": true,
+      "factCategories": [],
+      "citations": []
+    },
+    {
+      "text": "页面 visit：到店须知\n位置\n\n地址杭州市拱墅区\n<TABLE>\n<TBODY></TBODY>\n</TABLE>\n<TR>\n<TH>入口</TH>\n\n<TD>待补充</TD>\n</TR>",
+      "group": "页面 visit：到店须知\n位置\n\n地址杭州市拱墅区\n\n<TABLE>\n<TBODY>\n<TR>\n<TH>入口</TH>\n\n<TD>待补充</TD>\n</TR>\n</TBODY>\n</TABLE>",
+      "issues": [],
+      "noFacts": true,
+      "factCategories": [],
+      "citations": []
+    },
+    {
+      "text": "页面 visit：到店须知\n菜单\n\n按当日供应。",
+      "group": "页面 visit：到店须知\n菜单\n\n按当日供应。",
+      "issues": [],
+      "noFacts": true,
+      "factCategories": [],
+      "citations": []
+    },
+    {
+      "text": "页面 visit：到店须知\n页面标题：到店须知",
+      "group": "页面 visit：到店须知\n页面标题：到店须知",
+      "issues": [],
+      "noFacts": true,
+      "factCategories": [],
+      "citations": []
+    }
+  ]
+}
