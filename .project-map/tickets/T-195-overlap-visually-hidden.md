@@ -4,7 +4,7 @@ title: 重叠扫描把视觉隐藏的文字算作可见，修正两轮仍被拒
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t195
+claimed_by: codex-t195-review-fix
 supersedes:
 ---
 
@@ -79,3 +79,54 @@ npm run typecheck
 - 最终 typecheck 通过，日志：`artifacts/t195/typecheck-original-config.log`。Next 自动修改的 tsconfig 已恢复，不进入提交。
 
 未执行项：合并后主线验证、独立 fast 审查。完成它们后才能勾选最后一项并关闭本票；本地确定性检查通过不代表模型事实核对或页面审美通过。
+
+### 2026-10-19 独立审查修复：仅证明全隐藏，不估算部分可见区域
+
+本节取代上文“非零矩形裁切按露出片段计算”的规则。独立结论为主工作区只读文件 `artifacts/t195/review1.txt`，目标为 `fa7070405584456bc262fb2d8519c20c144f3b24`，结论 NO_GO，两项 P2：独立 `scale` 和祖先变换未被识别，错误地把非零 inset 当成全隐藏；`overflow:clip` 忽略非零 `overflow-clip-margin`，包括 1×1 提前隐藏分支。两者都能让实际可见的重叠及低对比度通过生产检查。
+
+主控在本轮明确更正方向：不继续枚举属性来计算部分可见区域。生产扫描删除 `paintBoundsFor`、裁切矩形求交和按变换后／变换前尺寸推算裁切面积的路径，不保留旧分支。`fullyHidden` 只回答是否有明确的全隐藏依据；否则 `measuredRect` 保留浏览器的完整文字 Range。**误拒优于漏判**，普通裁剪、嵌套裁剪、contain 或变换本身都不是排除理由。
+
+接受的精确排除条件如下；状态沿祖先链检查，visibility 使用文字所属元素的最终计算值，以允许后代显式恢复 visible：
+
+- 元素自身计算后的 visibility 非 visible；自身或任一祖先 display:none、content-visibility:hidden、opacity 恰为 0；未展开 details 中不属于首个 summary 的内容。script、style、template、noscript 内容继续不参与。`aria-hidden=true` 只表达无障碍语义，不再作为视觉隐藏依据。
+- 生效于 absolute／fixed 元素的 `clip:rect(...)`：四个坐标中，某一对相向坐标都能解析为相同单位的数字，且 right≤left 或 bottom≤top。auto 或无法解析的坐标不参与该轴证明，不代入盒子尺寸。
+- `clip-path:inset(...)`：1–4 个值都为百分比或零，按 CSS 四边展开后，任一轴的相向百分比之和≥100%；round 不改变该零面积结论。不据像素 inset 与元素宽高比较来排除。
+- `clip-path:circle(...)` 半径为明确的零，或 ellipse 的任一半径为明确的零；polygon 至少三个可解析点，每轴的非零坐标单位一致，且全部共线或重合。不把混合单位或复杂路径推算成零面积。
+- 1px 标准裁切写法：实际边框盒宽、高均≤1px，双轴 overflow 都为 hidden／clip，裁切确实约束该后代，且盒子为 block、inline-block、flow-root、flex、inline-flex、grid、inline-grid 或 table-caption；body／html 不用此捷径。若任一轴为 clip，还须 overflow-clip-margin 的计算值为 `0px` 或 `padding-box 0px`；其他参考盒、非零值或未知值均保留测量。hidden 不受该属性影响。自身及祖先不能有 transform、独立 scale／rotate／translate、perspective、contain 或非 1 的 zoom；存在这些情况就不用 1px 捷径。绝对／固定定位后代的包含块在裁切祖先之外时同样不能使用。
+
+前述零面积证明和完全隐藏状态不依赖变换尺寸，因此在变换存在时仍可排除；其余不能证明的情况都保留完整 Range。重叠原有的 2px 容差、字体 em 盒、对比度阈值和文档 scrollWidth 检查未改。重叠、对比度、元素溢出与正文行长共同使用该保守规则；T-160 等质量反馈仍用自己的读取逻辑。
+
+Tracer bullet 继续经过生产 renderSiteCode → 真实 Chrome 扫描 → 生产 checkSiteCode（legacyImport:true），不调用事实模型、不保存版本。Deep modules 的边界收敛为全隐藏布尔判断，删除部分裁切状态；Ubiquitous language 使用“确定全隐藏”和“保守保留测量”。
+
+红绿证据与命令（时间均为 UTC）：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --browser-concurrency=1 tests/t195-hidden-overlap.test.ts
+npm run typecheck
+```
+
+- **先红，HEAD fa70704**：生产代码尚未修改时运行新增及更新用例，2026-10-19 14:18:02–14:18:24，退出码 1，10 项中 5 失败、5 通过。日志 `artifacts/t195/review-fix/head-fa70704-red.log`，标准入口报告 `artifacts/t167/test-run-1792419479963-1421/report.json`，扫描与提交结果 `artifacts/t195/replay-1792419482374-1865/`。其中 P2 探针属于既有缺陷复现；小片段由“不重叠”改为“保守检出”的失败属于主控更正后的合同红态，二者不混称。
+- **修后绿**：同一命令，2026-10-19 14:19:53–14:20:15，退出码 0，10／10 通过。日志 `artifacts/t195/review-fix/conservative-first-green.log`，标准入口报告 `artifacts/t167/test-run-1792419591768-24383/report.json`，扫描、提交结果及原图 `artifacts/t195/replay-1792419594064-24795/`。
+- 原 scale:.5 + inset 探针及祖先变体修前在三档均 overlaps=0、contrastIssues=0、passed=true；视觉等价的 transform 对照三档各为 1／1 并拒收。修后这四种写法三档均为 1／1 并拒收。独立 rotate、translate 与对应 transform、自身及祖先的对照也逐项通过，并核对访客可见位置命中 probe。
+- 原 20×20、margin=100px 探针及 1×1 变体，修前三档均被错误接受，修后三档各为 1／1 并拒收。margin=0 的 1×1 标准裁切对照仍为 0／0 并通过；20×20 的 margin=0 虽然实际文字已被浏览器裁掉，但不满足明确排除条件，按新合同保守拒收。这是有意保留的误拒，不冒称这些文字实际可见。
+- C7 原 caption 确为 `position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)` 的标准写法；修后九个页面／视口组合 overlaps、overflow、contrastIssues 均为 0，生产确定性检查通过。取消隐藏的 caption 对照 products 三档各 6 对重叠并拒收。标准 sr-only、零面积裁切仍排除；非零部分裁切、变换后 1px 盒、祖先变换、contain、嵌套裁剪及定位逃逸对照均保留测量。
+- 绿态 C7 的 375／768／1440 三张完整截图已打开核对；红绿两轮各 24 张探针截图通过 `artifacts/t195/review-fix/red-probe-contact-sheet.png`、`green-probe-contact-sheet.png` 逐项查看有效绘制区域，原图保留。未做哈希、字节或像素比对，没有固定等待；按加载事件、字体与图片 decode 完成后读取。
+- typecheck 退出码 0，日志 `artifacts/t195/review-fix/typecheck.log`；保留会话开始前已有的 tsconfig.json 自动变更，不纳入提交。
+
+上一轮清单中的 19 个相关文件于 2026-10-19 14:21:06–14:23:55 串行运行浏览器测试，177／177 通过，退出码 0；日志 `artifacts/t195/review-fix/related-19.log`，标准入口报告 `artifacts/t167/test-run-1792419664448-35932/report.json`。加上 T-195，本轮指定门控为 20 个定向文件、187 项全部通过。可复运行命令：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --browser-concurrency=1 \
+  tests/t089-contrast-line-length.test.ts tests/t160-narrow-columns.test.ts \
+  tests/t187-repair-fragments.test.ts tests/t187-repair-routing.test.ts \
+  tests/t147-code-quality.test.ts tests/t148-system-backdrops.test.ts \
+  tests/t138-repair-fragments.test.ts tests/t133-floor-checks.test.ts \
+  tests/t128-code-boundary.test.ts tests/t145-legacy-import.test.ts \
+  tests/t151-backdrop-merge.test.ts tests/t151-generated-fidelity.test.ts \
+  tests/t166-check-origin.test.ts tests/t170-remove-inquiry.test.ts \
+  tests/t169-production-contract.test.ts tests/t178-read-budget.test.ts \
+  tests/t191-fact-label-boundary.test.ts tests/t191-display-transition.test.ts \
+  tests/t192-check-transitions.test.ts
+```
+
+本轮未运行全量、runner 回归、build、真实评估或真实模型，未启动审查实例。本节只是本地修复证据，独立复审和合并后的主线验收仍未完成，票保持 open，最后一项不勾选。

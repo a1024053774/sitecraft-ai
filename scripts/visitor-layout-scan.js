@@ -157,104 +157,85 @@ const scanHeroTitle = (root) => {
 
 export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const blockFor = el => el.closest('[data-sc-block]')?.getAttribute('data-sc-block') || '页面';
-  // Ranges retain the *unclipped* text box. Share paint bounds across overlap,
-  // contrast and overflow; a small nonzero clip is not an exemption.
-  const paintBounds = new WeakMap();
-  const length = (value, extent) => {
+  // 只排除能够证明全隐藏的写法。其余裁剪保留完整 Range，允许误拒，
+  // 不以矩形求交或变换后的尺寸推断文字已消失；各底线检查共用此判定。
+  const hidden = new WeakMap();
+  const length = value => {
     const match=/^(-?(?:\d*\.)?\d+)(px|%)?$/.exec(value);
-    return match ? Number(match[1])*(match[2]==='%'?extent/100:1) : NaN;
+    return match ? {value:Number(match[1]),unit:match[2]||'px'} : null;
   };
-  const paintBoundsFor = el => {
-    if(paintBounds.has(el)) return paintBounds.get(el);
-    const bounds={left:-Infinity,right:Infinity,top:-Infinity,bottom:Infinity,hidden:false};
-    const cut = r => {
-      bounds.left=Math.max(bounds.left,r.left); bounds.right=Math.min(bounds.right,r.right);
-      bounds.top=Math.max(bounds.top,r.top); bounds.bottom=Math.min(bounds.bottom,r.bottom);
-    };
-    if (!el || el.closest('script,style,template,noscript,[aria-hidden="true"]')) bounds.hidden=true;
-    if(el && getComputedStyle(el).visibility!=='visible') bounds.hidden=true;
-    let transformed=false;
-    for(let p=el;p;p=p.parentElement) if(getComputedStyle(p).transform!=='none') transformed=true;
+  const zeroClipPath = path => {
+    const inset=/^inset\((.*)\)$/.exec(path);
+    if(inset) {
+      const parts=inset[1].split(/\s+round\s+/)[0].trim().split(/\s+/).map(length);
+      // 百分比之和已覆盖整轴才可证明零面积；不读取盒子或推算像素裁切。
+      if(parts.length>=1&&parts.length<=4&&parts.every(p=>p&&(p.unit==='%'||p.value===0))) {
+        const [a,b=a,c=a,d=b]=parts;
+        if(a.value+c.value>=100||b.value+d.value>=100) return true;
+      }
+    }
+    const round=/^(circle|ellipse)\(([^)]*)\)$/.exec(path);
+    if(round) {
+      const radii=round[2].split(/\s+at\s+/)[0].trim().split(/\s+/).map(length);
+      if(radii.some(radius=>radius?.value===0)) return true;
+    }
+    const polygon=/^polygon\((.*)\)$/.exec(path);
+    if(polygon) {
+      const points=polygon[1].replace(/^(?:nonzero|evenodd),\s*/,'').split(',').map(point=>point.trim().split(/\s+/).map(length));
+      // 每轴单位一致的共线点才是尺寸无关的零面积证明，混合单位不猜。
+      if(points.length>=3&&points.every(point=>point.length===2&&point.every(Boolean))&&
+        [0,1].every(axis=>new Set(points.map(point=>point[axis]).filter(p=>p.value!==0).map(p=>p.unit)).size<=1)) {
+        const values=points.map(point=>point.map(p=>p.value)),a=values[0],b=values.find(p=>p[0]!==a[0]||p[1]!==a[1]);
+        if(!b||values.every(c=>(b[0]-a[0])*(c[1]-a[1])===(b[1]-a[1])*(c[0]-a[0]))) return true;
+      }
+    }
+    return false;
+  };
+  const fullyHidden = el => {
+    if(!el||el.closest('script,style,template,noscript')) return true;
+    if(hidden.has(el)) return hidden.get(el);
+    const chain=[];
+    for(let p=el;p;p=p.parentElement) chain.push({node:p,style:getComputedStyle(p)});
+    // 变换、包含和缩放会使 1px 盒子的视觉意义不确定，不能用 sr-only 捷径。
+    const uncertainGeometry=chain.some(({style:s})=>
+      [s.transform,s.scale,s.rotate,s.translate,s.perspective].some(value=>value!=='none')||s.contain!=='none'||Number(s.zoom)!==1);
+    let result=chain[0].style.visibility!=='visible';
     const positioned=[];
-    for (let p=el;p;p=p.parentElement) {
-      const s=getComputedStyle(p);
-      if(s.display==='none'||s.contentVisibility==='hidden'||Number(s.opacity)===0) bounds.hidden=true;
+    for (const {node:p,style:s} of chain) {
+      if(s.display==='none'||s.contentVisibility==='hidden'||Number(s.opacity)===0) result=true;
       if(p.tagName==='DETAILS'&&!p.open) {
         const summary=[...p.children].find(c=>c.tagName==='SUMMARY');
-        if(!summary?.contains(el)) bounds.hidden=true;
+        if(!summary?.contains(el)) result=true;
       }
       if(/^(absolute|fixed)$/.test(s.position)) positioned.push(p);
       if(s.display==='contents') continue;
-      const r=p.getBoundingClientRect();
-      // clip coordinates and percentages use the untransformed border box.
-      // An unresolved inline size stays unmeasured here, never a guessed zero.
-      const width=transformed?parseFloat(s.width)+(s.boxSizing==='border-box'?0:
-        parseFloat(s.paddingLeft)+parseFloat(s.paddingRight)+parseFloat(s.borderLeftWidth)+parseFloat(s.borderRightWidth)):r.width;
-      const height=transformed?parseFloat(s.height)+(s.boxSizing==='border-box'?0:
-        parseFloat(s.paddingTop)+parseFloat(s.paddingBottom)+parseFloat(s.borderTopWidth)+parseFloat(s.borderBottomWidth)):r.height;
       const clip=/^rect\((.*)\)$/.exec(s.clip);
       if(clip && /^(absolute|fixed)$/.test(s.position)) {
-        const parts=clip[1].split(/[,\s]+/);
-        const [top,right,bottom,left]=parts.map((part,i)=>part==='auto'?[0,width,height,0][i]:length(part,i%2?width:height));
-        if(parts.length===4 && [top,right,bottom,left].every(Number.isFinite)) {
-          if(right<=left||bottom<=top) bounds.hidden=true;
-          else if(!transformed) cut({left:r.left+left,right:r.left+right,top:r.top+top,bottom:r.top+bottom});
-        }
+        const parts=clip[1].trim().split(/[,\s]+/).map(length);
+        if(parts.length===4&&[[0,2],[3,1]].some(([start,end])=>
+          parts[start]&&parts[end]&&parts[start].unit===parts[end].unit&&parts[end].value<=parts[start].value)) result=true;
       }
-      const inset=/^inset\((.*)\)$/.exec(s.clipPath);
-      if(inset) {
-        const parts=inset[1].split(/\s+round\s+/)[0].trim().split(/\s+/);
-        const expanded=parts.length===1?[parts[0],parts[0],parts[0],parts[0]]
-          :parts.length===2?[parts[0],parts[1],parts[0],parts[1]]
-          :parts.length===3?[parts[0],parts[1],parts[2],parts[1]]:parts;
-        const [top,right,bottom,left]=expanded.map((part,i)=>length(part,i%2?width:height));
-        if(expanded.length===4 && [top,right,bottom,left].every(Number.isFinite)) {
-          if(left+right>=width||top+bottom>=height) bounds.hidden=true;
-          else if(!transformed) cut({left:r.left+left,right:r.right-right,top:r.top+top,bottom:r.bottom-bottom});
-        }
-      }
-      // Nonrectangular shapes are kept measurable unless their area is provably
-      // zero. Do not exempt arbitrary clip-path declarations or rounded corners.
-      const round=/^(circle|ellipse)\(([^)]*)\)/.exec(s.clipPath);
-      if(round) {
-        const radii=round[2].split(/\s+at\s+/)[0].trim().split(/\s+/);
-        if(radii.some(value=>length(value,1)===0)) bounds.hidden=true;
-      }
-      const polygon=/^polygon\((.*)\)$/.exec(s.clipPath);
-      if(polygon) {
-        const points=polygon[1].replace(/^(?:nonzero|evenodd),\s*/,'').split(',').map(point=>point.trim().split(/\s+/).map((v,i)=>length(v,i?r.height:r.width)));
-        if(points.length>=3 && points.every(point=>point.length===2&&point.every(Number.isFinite))) {
-          const a=points[0], b=points.find(point=>point[0]!==a[0]||point[1]!==a[1]);
-          if(!b || points.every(c=>(b[0]-a[0])*(c[1]-a[1])===(b[1]-a[1])*(c[0]-a[0]))) bounds.hidden=true;
-        }
-      }
-      const clipX=/^(hidden|clip|scroll|auto)$/.test(s.overflowX),clipY=/^(hidden|clip|scroll|auto)$/.test(s.overflowY);
+      if(zeroClipPath(s.clipPath)) result=true;
       // An absolute/fixed descendant can escape an overflow ancestor when its
       // containing block is outside that ancestor. Its text is still painted.
       const overflowApplies=!positioned.some(node=>node!==p&&(!node.offsetParent||!p.contains(node.offsetParent)));
-      if(overflowApplies&&clipX&&clipY&&r.width<=1&&r.height<=1) bounds.hidden=true;
-      // The viewport's real scrollable area is checked separately. It must not
-      // clip the scan at the current scroll position or suppress page overflow.
-      // Transformed nonzero clips stay measurable: axis-aligned bounds cannot
-      // establish their exact exposed polygon. Never shrink them to a false zero.
-      if(overflowApplies&&!transformed&&p!==document.body&&p!==document.documentElement) {
-        // clientWidth/clientHeight round subpixel paint to integers. Padding-box
-        // bounds preserve nonzero fragments (scrollbar strips remain conservative).
-        if(clipX) cut({left:r.left+parseFloat(s.borderLeftWidth),right:r.right-parseFloat(s.borderRightWidth),top:-Infinity,bottom:Infinity});
-        if(clipY) cut({left:-Infinity,right:Infinity,top:r.top+parseFloat(s.borderTopWidth),bottom:r.bottom-parseFloat(s.borderBottomWidth)});
+      const zeroMargin=/^(?:padding-box\s+)?0px$/.test(s.overflowClipMargin);
+      if(!uncertainGeometry&&overflowApplies&&/^(block|inline-block|flow-root|flex|inline-flex|grid|inline-grid|table-caption)$/.test(s.display)&&
+        /^(hidden|clip)$/.test(s.overflowX)&&/^(hidden|clip)$/.test(s.overflowY)&&
+        (s.overflowX!=='clip'&&s.overflowY!=='clip'||zeroMargin)&&p!==document.body&&p!==document.documentElement) {
+        const r=p.getBoundingClientRect();
+        if(r.width<=1&&r.height<=1) result=true;
       }
     }
-    if(bounds.right<=bounds.left||bounds.bottom<=bounds.top) bounds.hidden=true;
-    if(el) paintBounds.set(el,bounds);
-    return bounds;
+    hidden.set(el,result);
+    return result;
   };
-  const paintedRect = (el,rect) => {
-    const b=paintBoundsFor(el);
-    if(b.hidden) return null;
-    const left=Math.max(rect.left,b.left),right=Math.min(rect.right,b.right),top=Math.max(rect.top,b.top),bottom=Math.min(rect.bottom,b.bottom);
+  const measuredRect = (el,rect) => {
+    if(fullyHidden(el)) return null;
+    const {left,right,top,bottom}=rect;
     return right>left&&bottom>top?{left,right,top,bottom,width:right-left,height:bottom-top}:null;
   };
-  const visible = el => !!el&&[...el.getClientRects()].some(rect=>paintedRect(el,rect));
+  const visible = el => !!el&&[...el.getClientRects()].some(rect=>measuredRect(el,rect));
   const keyFor = el => {
     const path=[];
     for(let p=el;p&&p!==document.body;p=p.parentElement) {
@@ -265,7 +246,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const overflowElements=[];
   for(const el of root.querySelectorAll('body *')) {
     if(!visible(el)) continue;
-    const r=paintedRect(el,el.getBoundingClientRect());
+    const r=measuredRect(el,el.getBoundingClientRect());
     if(!r) continue;
     if(r.width<1||r.height<1) continue;
     const amount=Math.max(r.right-innerWidth,-r.left,0);
@@ -275,14 +256,14 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const range=document.createRange(), lines=[];
   while(walker.nextNode()) {
     const n=walker.currentNode, el=n.parentElement;
-    if(!n.textContent.trim()||paintBoundsFor(el).hidden) continue;
+    if(!n.textContent.trim()||fullyHidden(el)) continue;
     range.selectNodeContents(n);
     const key=`${keyFor(el)}:${[...el.childNodes].indexOf(n)}:${n.textContent.trim()}`;
     const fontSize=parseFloat(getComputedStyle(el).fontSize);
     for(const rect of range.getClientRects()) if(rect.width>.5&&rect.height>.5) {
       // Use the same em box for every text fragment, including inline descendants.
       const height=Math.min(rect.height,fontSize),top=rect.top+(rect.height-height)/2;
-      const painted=paintedRect(el,{left:rect.left,right:rect.right,top,bottom:top+height});
+      const painted=measuredRect(el,{left:rect.left,right:rect.right,top,bottom:top+height});
       if(painted) lines.push({el,rect:painted,key});
     }
   }
@@ -469,10 +450,10 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
     const chars=[];
     while(walker.nextNode()){
       const node=walker.currentNode;
-      if(!node.textContent.trim()||paintBoundsFor(node.parentElement).hidden||bodyBlockFor(node.parentElement)!==block||lineLengthExemption(node.parentElement)) continue;
+      if(!node.textContent.trim()||fullyHidden(node.parentElement)||bodyBlockFor(node.parentElement)!==block||lineLengthExemption(node.parentElement)) continue;
       for(let index=0;index<node.textContent.length;index++){
         range.setStart(node,index);range.setEnd(node,index+1);
-        const rect=[...range.getClientRects()].map(rect=>paintedRect(node.parentElement,rect)).find(rect=>rect&&rect.width>.5&&rect.height>.5);
+        const rect=[...range.getClientRects()].map(rect=>measuredRect(node.parentElement,rect)).find(rect=>rect&&rect.width>.5&&rect.height>.5);
         if(rect) chars.push({char:node.textContent[index],top:Math.round(rect.top),left:rect.left,right:rect.right});
       }
     }
@@ -491,12 +472,12 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const reportedExemptions=new Set();
   while(textWalker.nextNode()){
     const node=textWalker.currentNode,el=node.parentElement;
-    if(!node.textContent.trim()||paintBoundsFor(el).hidden) continue;
+    if(!node.textContent.trim()||fullyHidden(el)) continue;
     const style=getComputedStyle(el),slot=slotFor(el),parameter=isParameter(el),exemption=lineLengthExemption(el);
     const size=parseFloat(style.fontSize)||16,weight=parseInt(style.fontWeight,10)||((style.fontWeight==='bold')?700:400);
     const large=size>=24||(size>=18.66&&weight>=700);
     range.selectNodeContents(node);
-    const textRects=[...range.getClientRects()].map(rect=>paintedRect(el,rect)).filter(Boolean);
+    const textRects=[...range.getClientRects()].map(rect=>measuredRect(el,rect)).filter(Boolean);
     if(!textRects.length) continue;
     const background=backgroundFor(el,textRects),foreground=rgba(style.webkitTextFillColor||style.color);
     let paintReason=foreground?.[3]===0?'透明文字填充无法测量':'';

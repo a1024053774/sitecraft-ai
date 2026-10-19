@@ -8,10 +8,9 @@ import { renderSiteCode, type SiteCode } from '../lib/code-site.ts';
 import type { SiteImageRecord } from '../lib/site-images.ts';
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
 
-// Oracle: only painted text can collide. Small nonzero clips remain measurable;
-// the existing >2px overlap tolerance applies to the exposed fragment, not its full Range.
-// Failure modes: hidden captions collide; an ancestor hides descendants; all clipping
-// is exempted; an overflowing 1px box is exempted without clipping; visible collisions escape.
+// 期望来自访客可见性：确定全隐藏的标准写法排除，其余保留完整文字 Range。
+// 非零裁切无法证明整段隐藏时允许误拒，不能据推算的露出面积放过真实碰撞。
+// 失败面：祖先隐藏、独立变换、放大的 clip 边界、1px 提前排除、定位后代逃逸。
 const fixture = JSON.parse(await readFile(new URL('./fixtures/t195-packaging-hidden-caption.json', import.meta.url), 'utf8')) as {
   siteId: string; materials: string; code: SiteCode; images: SiteImageRecord[];
 };
@@ -39,9 +38,10 @@ type Scan = { textOverlaps: Array<{ key: string; targets: string[]; amount: numb
   overflowElements: Array<{ key: string }>; horizontalScroll: boolean;
   textContrast: Array<{ element: string; ratio: number }> };
 const widths = [375, 768, 1440];
+type Probe = { hit: boolean; transform: string; scale: string; rotate: string; translate: string; overflowClipMargin: string };
 async function scan(code: SiteCode, label: string, captures = false) {
   const browser = await codeCheckBrowser();
-  const reports: Array<{ pageId: string; width: number; layout: Scan; captions: unknown }> = [];
+  const reports: Array<{ pageId: string; width: number; layout: Scan; captions: unknown; probe: Probe | null }> = [];
   try {
     await browser.loadPage('Page.navigate', { url: `${process.env.SITECRAFT_BASE}/code-check.html` });
     const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
@@ -50,14 +50,18 @@ async function scan(code: SiteCode, label: string, captures = false) {
       await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id,
         html: renderSiteCode(fixture.siteId, code, page.id, '', fixture.images.map(i => i.attribution)) });
       await browser.evaluate('document.fonts.ready.then(()=>Promise.all([...document.images].map(i=>i.decode())))');
-      const report = await browser.evaluate<{ layout: Scan; captions: unknown }>(`(() => {${scanSource};
+      const report = await browser.evaluate<{ layout: Scan; captions: unknown; probe: Probe | null }>(`(() => {${scanSource};
         const rect = r => ({left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height});
-        return {layout:scanVisitorLayout(document),captions:[...document.querySelectorAll('caption')].map(el=>{
+        const p=document.querySelector('#probe'),s=p&&getComputedStyle(p),r=p&&p.getBoundingClientRect();
+        const probe=p?{hit:document.elementsFromPoint(r.left+5,r.top+5).some(el=>el===p),
+          transform:s.transform,scale:s.scale,rotate:s.rotate,translate:s.translate,
+          overflowClipMargin:getComputedStyle(p.parentElement).overflowClipMargin}:null;
+        return {layout:scanVisitorLayout(document),probe,captions:[...document.querySelectorAll('caption')].map(el=>{
           const s=getComputedStyle(el),r=document.createRange();r.selectNodeContents(el);
           return {text:el.textContent,box:rect(el.getBoundingClientRect()),textRects:[...r.getClientRects()].map(rect),
             clip:s.clip,clipPath:s.clipPath,overflow:s.overflow,opacity:s.opacity,visibility:s.visibility};})};})()`);
       reports.push({ pageId: page.id, width, ...report });
-      if (captures && page.id === 'products') {
+      if (captures && (page.id === 'products' || code.pages.length === 1)) {
         const { data } = await browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
         await writeFile(`${output}/${label}-${width}.png`, Buffer.from(data, 'base64'));
       }
@@ -112,17 +116,15 @@ test('零裁切、1px 裁切和透明隐藏含祖先均排除，低对比度隐�
   }
 });
 
-test('非零小裁切保留露出片段；未裁切的 1px 盒和半透明文字不能按隐藏放过', async () => {
-  for (const [style, overlap] of [
-    ['clip:rect(0px,1px,20px,0px)', false],
-    ['clip-path:inset(0 199px 0 0)', false],
-    ['clip:rect(0px,4px,20px,0px)', true],
-    ['clip-path:inset(0 196px 0 0)', true],
-    ['width:1px;height:1px;overflow:visible', true], ['opacity:.01', true],
-  ] as const) {
+test('非零裁切保守保留完整 Range；未裁切的 1px 盒和半透明文字不能排除', async () => {
+  for (const style of [
+    'clip:rect(0px,1px,20px,0px)', 'clip-path:inset(0 199px 0 0)',
+    'clip:rect(0px,4px,20px,0px)', 'clip-path:inset(0 196px 0 0)',
+    'width:1px;height:1px;overflow:visible', 'opacity:.01',
+  ]) {
     const reports = await scan(make(style), `partial-${crypto.randomUUID()}`);
     for (const { layout, width } of reports) {
-      assert.equal(layout.textOverlaps.length > 0, overlap, `${style}/${width} 仅按露出区域应用既有 2px 容差`);
+      assert.ok(layout.textOverlaps.length > 0, `${style}/${width} 无全隐藏证明时不缩小 Range`);
       assert.ok(layout.textContrast.some(t => t.element === 'probe'), `${style} 非零可见文字仍测对比度`);
     }
   }
@@ -144,12 +146,90 @@ test('共用可见性同时约束元素溢出和对比度，可见的低对比�
   }
 });
 
-test('不足 1px 的非零裁切仍测对比度，不能因 clientWidth 取整变成隐藏', async () => {
+test('不足 1px 的非零裁切仍按完整 Range 测量，不能因取整变成隐藏', async () => {
   const reports = await scan(make('width:.25px;height:20px;overflow:hidden'), 'fractional');
   for (const { layout } of reports) {
-    assert.equal(layout.textOverlaps.length, 0, '不足 2px 的露出片段沿用原容差');
+    assert.ok(layout.textOverlaps.length > 0, '无法证明全隐藏时不按露出片段豁免');
     assert.ok(layout.textContrast.some(t => t.element === 'probe'), '非零宽度不能取整为零');
   }
+});
+
+// 两个探针保留独立审查原输入；通过生产清理和 checkSiteCode 三档验证。
+const reviewProbe = (css: string, html: string): SiteCode => ({ header: '', footer: '',
+  css: 'body{margin:0;color:#111;background:#fff;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}.probe{color:#eee}' + css,
+  pages: [{ id: 'home', title: 'Visibility', html: '<main><h1>Visibility</h1><div class="stage">' + html + '</div></main>' }] });
+const visibleCollision = '<p class="text">VISIBLE COLLISION</p>';
+const probeText = '<p id="probe" class="text probe">VISIBLE COLLISION</p>';
+
+test('审查 P2-1：自身及祖先的独立变换与 transform 等价写法均拒收重叠和低对比度', async () => {
+  const failures: string[] = [];
+  for (const [name, independent, transform] of [
+    ['scale', 'scale:.5', 'transform:scale(.5)'],
+    ['rotate', 'rotate:1deg', 'transform:rotate(1deg)'],
+    ['translate', 'translate:1px', 'transform:translateX(1px)'],
+  ]) for (const ancestor of [false, true]) for (const [syntax, declaration] of [['independent', independent], ['transform', transform]]) {
+    const label = `review-${name}-${ancestor ? 'ancestor' : 'self'}-${syntax}`;
+    const code = reviewProbe('.probe{clip-path:inset(0 120px 0 0)}' +
+      `${ancestor ? '.transformed' : '.probe'}{${declaration};transform-origin:top left}`,
+      visibleCollision + (ancestor ? `<div class="text transformed">${probeText}</div>` : probeText));
+    const reports = await scan(code, label, name === 'scale');
+    const checks = await check(code, label);
+    for (const { width, layout, probe } of reports) {
+      if (!probe?.hit) failures.push(`${label}/${width} 访客可见位置未命中探针`);
+      if (!layout.textOverlaps.length) failures.push(`${label}/${width} 漏掉可见碰撞`);
+      if (!layout.textContrast.some(t => t.element === 'probe' && t.ratio < 4.5)) failures.push(`${label}/${width} 漏掉低对比度`);
+      const viewport = checks.viewports.find(v => v.width === width)!;
+      if (!(viewport.overlaps > 0 && viewport.contrastIssues > 0)) failures.push(`${label}/${width} 生产提交检查未同时拒收两项`);
+    }
+    if (checks.passed) failures.push(`${label} 被生产提交入口放过`);
+  }
+  assert.deepEqual(failures, []);
+});
+
+test('审查 P2-2：clip margin=100px 保留可见文字；仅 1px 标准裁切的零 margin 对照排除', async () => {
+  const failures: string[] = [];
+  for (const size of [20, 1]) for (const margin of [0, 100]) {
+    const label = `review-clip-margin-${size}-${margin}`;
+    const code = reviewProbe(`.clipper{position:relative;width:${size}px;height:${size}px;overflow:clip;overflow-clip-margin:${margin}px}.text{left:50px}`,
+      visibleCollision + `<div class="clipper">${probeText}</div>`);
+    const reports = await scan(code, label, true);
+    const checks = await check(code, label);
+    for (const { width, layout, probe } of reports) {
+      if (probe?.hit !== (margin > 0)) failures.push(`${label}/${width} 浏览器实际裁切与场景预期不符`);
+      const exclude = size === 1 && margin === 0;
+      if ((layout.textOverlaps.length === 0) !== exclude) failures.push(`${label}/${width} 重叠保守规则不符`);
+      if (layout.textContrast.some(t => t.element === 'probe' && t.ratio < 4.5) === exclude) failures.push(`${label}/${width} 对比度保守规则不符`);
+      const viewport = checks.viewports.find(v => v.width === width)!;
+      if ((viewport.overlaps === 0) !== exclude || (viewport.contrastIssues === 0) !== exclude) failures.push(`${label}/${width} 生产拒因不符`);
+    }
+    if (checks.passed !== (size === 1 && margin === 0)) failures.push(`${label} 生产提交结果不符`);
+  }
+  assert.deepEqual(failures, []);
+});
+
+test('标准 sr-only 排除；变换、contain 与嵌套非零裁切不能据小盒子推断全隐藏', async () => {
+  const failures: string[] = [];
+  for (const [name, style, ancestorStyle] of [
+    ['standard-hidden', 'width:1px;height:1px;overflow:hidden', ''],
+    ['standard-clip', 'width:1px;height:1px;overflow:clip;overflow-clip-margin:0', ''],
+    ['scaled-tiny', 'width:1px;height:1px;overflow:hidden;scale:10;transform-origin:top left', ''],
+    ['ancestor-scaled-tiny', 'width:1px;height:1px;overflow:hidden', 'scale:10;transform-origin:top left'],
+    ['contain', 'width:20px;height:20px;contain:paint', ''],
+    ['nested-clips', 'clip-path:inset(0 199px 0 0)', 'clip-path:inset(0 199px 0 0)'],
+    ['zero-clip-transformed', 'clip:rect(0 0 0 0);scale:.5', 'rotate:1deg'],
+    ['zero-inset-transformed', 'clip-path:inset(50%);scale:.5', 'translate:1px'],
+  ]) {
+    const code = make(style + ';color:#eee');
+    code.css += `.outer{position:absolute;left:0;top:0;width:200px;height:20px;${ancestorStyle}}`;
+    code.pages[0].html = code.pages[0].html.replace('<p id="probe"', '<div class="outer"><p id="probe"').replace('</p></div></main>', '</p></div></div></main>');
+    const reports = await scan(code, name);
+    const exclude = name.startsWith('standard-') || name.startsWith('zero-');
+    for (const { width, layout } of reports) {
+      if ((layout.textOverlaps.length === 0) !== exclude) failures.push(`${name}/${width} 重叠可见性不符`);
+      if (layout.textContrast.some(t => t.element === 'probe') === exclude) failures.push(`${name}/${width} 对比度可见性不符`);
+    }
+  }
+  assert.deepEqual(failures, []);
 });
 
 test('变换后的可见文字和逃出非定位 overflow 容器的绝对定位文字仍须检查', async () => {
