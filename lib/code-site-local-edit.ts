@@ -1,4 +1,5 @@
 import { codeCheckBrowser } from './code-site-browser.ts';
+import { stopCodeCheckMotion } from './code-site-check-motion.ts';
 import { applyCodeRepair } from './code-site-repair.ts';
 import { renderSiteCode, type SiteCode } from './code-site.ts';
 import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
@@ -269,6 +270,7 @@ export async function prepareOutsideCssApplications(browser: ProbeBrowser, frame
   await send('Page.setDocumentContent', { frameId, html });
   const focusStarted = performance.now();
   const probe = await evaluate<{ all: string[]; roots: string[]; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
+    (${stopCodeCheckMotion.toString()})();
     const paths=${JSON.stringify(scope?.paths ?? [])};
     const pathOf=(el)=>{const path=[];for(let child=el;child?.parentElement;child=child.parentElement)path.unshift([...child.parentElement.children].indexOf(child));return path};
     const rootFor=(path)=>{let el=document.querySelector('main');for(const index of path)el=el?.children[index];return el};
@@ -330,6 +332,7 @@ export async function prepareOutsideCssApplications(browser: ProbeBrowser, frame
     checkTime(); const styleStarted = performance.now();
     const payload = await evaluate<{ encoded: string; read: number; serialize: number; compress: number }>(`(async()=>{
       const readStarted=performance.now();
+      (${stopCodeCheckMotion.toString()})();
       const entries=[];
       const snapshot=window.__sitecraftCdpProbeOutside;
       for(const item of snapshot.items)for(const pseudo of ['', '::before', '::after', '::marker', '::first-line', '::first-letter']){
