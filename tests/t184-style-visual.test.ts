@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import { planSiteCode, writeSiteCode } from '../lib/code-site-model.ts';
 
 // 提示合同证据，不评判模型产物。失效方式：核心继续优先细线；四种风格
@@ -15,17 +15,14 @@ const directions = {
 let chosen: keyof typeof directions = 'precision';
 const requests: any[] = [];
 const code = { header: '', footer: '', css: '', pages: [{ id: 'home', title: '首页', html: '<main><h1>已有业务</h1></main>' }] };
+const keys = ['DEEPSEEK_BASE_URL', 'DEEPSEEK_API_KEY', 'DEEPSEEK_MODEL'] as const;
+const previous = keys.map(key => process.env[key]);
 
-test.before(t => {
-  const keys = ['DEEPSEEK_BASE_URL', 'DEEPSEEK_API_KEY', 'DEEPSEEK_MODEL'] as const;
-  const previous = keys.map(key => process.env[key]);
+test.before(() => {
   process.env.DEEPSEEK_BASE_URL = 'https://t184.invalid';
   process.env.DEEPSEEK_API_KEY = 't184-fixture';
   process.env.DEEPSEEK_MODEL = 'fixture';
-  t.after(() => keys.forEach((key, i) => {
-    if (previous[i] === undefined) delete process.env[key]; else process.env[key] = previous[i];
-  }));
-  t.mock.method(globalThis, 'fetch', async (url: string, options: RequestInit) => {
+  mock.method(globalThis, 'fetch', async (url: string, options: RequestInit) => {
     assert.ok(url.startsWith('https://t184.invalid/'), '替身拒绝其他地址');
     const body = JSON.parse(options.body as string); requests.push(body);
     const message = body.tools ? { content: null, tool_calls: [{ type: 'function', id: 'plan', function: {
@@ -33,6 +30,13 @@ test.before(t => {
         skeletonId: 'custom', skeletonReason: '资料少，紧凑展示已有业务；不需要现场叙事。', pages: [{ id: 'home', title: '首页', outline: ['已有业务与相关说明'] }] }),
     } }] } : { content: JSON.stringify(code) };
     return Response.json({ choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }] });
+  });
+});
+
+test.after(() => {
+  mock.restoreAll();
+  keys.forEach((key, i) => {
+    if (previous[i] === undefined) delete process.env[key]; else process.env[key] = previous[i];
   });
 });
 
