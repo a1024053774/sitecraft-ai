@@ -3,7 +3,7 @@ import path from 'node:path';
 import { localEndpoint } from './local-endpoint.ts';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import { codeFactMaterials, renderSiteCode, type CodeSiteRecord } from '../lib/code-site.ts';
-import { readCodeFactSegments, pendingCodeFactSegments, type CodeFactReview, type CodeFactSegment } from '../lib/code-site-fact-segments.ts';
+import { readCodeFactSegments, readCodeFactSeparators, pendingCodeFactSegments, type CodeFactReview, type CodeFactSegment, type CodeFactSeparator } from '../lib/code-site-fact-segments.ts';
 import { codeFactAuditInput } from '../lib/code-site-model.ts';
 
 localEndpoint('SITECRAFT_BASE');
@@ -34,11 +34,24 @@ try {
   const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
   for (const [round, attempt] of run.attempts.entries()) {
     const found = new Map<string, CodeFactSegment>();
-    for (const page of attempt.code.pages) for (const width of [375, 768, 1440]) {
-      await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    for (const page of attempt.code.pages) {
+      const separators = new Map<string, CodeFactSeparator>();
       await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(site.siteId, attempt.code, page.id) });
-      const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(attempt.code)},${JSON.stringify(page.id)})`);
-      for (const segment of segments) found.set(JSON.stringify([segment.group, segment.text]), segment);
+      for (const width of [375, 768, 1440]) {
+        await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        const observed = await browser.evaluate<CodeFactSeparator[]>(`(async () => {await document.fonts.ready;await Promise.allSettled([...document.images].map(image=>image.decode()));for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactSeparators.toString()})();})()`);
+        for (const separator of observed) {
+          const key = JSON.stringify(separator.path), previous = separators.get(key);
+          if (previous && previous.tag !== separator.tag) throw new Error('三档事实核对的文字分隔节点不一致，本次重放已停止。');
+          separators.set(key, separator);
+        }
+      }
+      for (const width of [375, 768, 1440]) {
+        await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(site.siteId, attempt.code, page.id) });
+        const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(attempt.code)},${JSON.stringify(page.id)},undefined,${JSON.stringify([...separators.values()])})`);
+        for (const segment of segments) found.set(JSON.stringify([segment.group, segment.text]), segment);
+      }
     }
     const nameText = `站点公司名检查（系统观察）：记录公司名「${site.name}」，完整名称${[...found.values()].some(segment => segment.text.includes(site.name)) ? '已出现' : '未出现'}。`;
     found.set(nameText, { text: nameText, group: nameText, context: { pageId: 'site', outline: [], headings: [] } });

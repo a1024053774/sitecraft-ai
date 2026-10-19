@@ -506,16 +506,18 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       const targetPaths = localTargets.filter(target => target.pageId === page.id).map(target => target.path);
       const needsFactSegments = !args.legacyImport && !args.translationSource && !args.restoredFactReview && (!args.localEdit || targetPaths.length > 0);
       const separators = new Map<string, CodeFactSeparator>();
-      if (needsFactSegments) for (const width of widths) {
-        await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+      if (needsFactSegments) {
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
-        // Settle resources for container-dependent display. Image failures are
-        // still reported by the existing full check below, before any audit.
-        const observed = await browser.evaluate<CodeFactSeparator[]>(`(async () => {await document.fonts.ready;await Promise.allSettled([...document.images].map(image=>image.decode()));for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactSeparators.toString()})();})()`);
-        for (const separator of observed) {
-          const key = JSON.stringify(separator.path), previous = separators.get(key);
-          if (previous && previous.tag !== separator.tag) throw new Error('三档事实核对的文字分隔节点不一致，本次未保存版本。');
-          separators.set(key, separator);
+        for (const width of widths) {
+          await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+          // Settle resources for container-dependent display. Image failures are
+          // still reported by the existing full check below, before any audit.
+          const observed = await browser.evaluate<CodeFactSeparator[]>(`(async () => {await document.fonts.ready;await Promise.allSettled([...document.images].map(image=>image.decode()));for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactSeparators.toString()})();})()`);
+          for (const separator of observed) {
+            const key = JSON.stringify(separator.path), previous = separators.get(key);
+            if (previous && previous.tag !== separator.tag) throw new Error('三档事实核对的文字分隔节点不一致，本次未保存版本。');
+            separators.set(key, separator);
+          }
         }
       }
       let remainingDynamicMs = localDynamicPageBudgetMs;
