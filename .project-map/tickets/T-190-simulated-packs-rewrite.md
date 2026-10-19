@@ -90,3 +90,13 @@ npm run typecheck
 - `docs/project/spec.md` 同步当前资料、图片数量、mixed 口径和基线安排，MAP 登记对应覆盖路径；`project_map.py status --root .` 无问题、无 stale living docs。
 
 未跑全量、runner 回归、build、真实生成、生成站底线/三档截图或新基线；未开审查或盲评实例。主工作区资料与 artifacts 只读，未写主数据、未推送。页面质量效果与新旧成对比较仍未知，由后续合并评估验证。
+
+**BY-SA 图片的使用边界（主控核对，2026-10-19 EDT，回应构思主控要求）。**
+
+本票四张 CC BY-SA 图片：豆腐、香菇（4.0），纸页（3.0），水彩（2.0）。
+
+系统登记的文件是来源图整幅等比缩放、重新编码的版本，没有裁切、补绘或调色。画笔图另有来源方 Hohum 的既有调色，已记录；它是公有领域，不属于 BY-SA。各 `attribution` 写明了 “full-frame resized/JPEG re-encoded derivative. Same source license retained.”，各包 `LICENSES.md` 也写明 BY-SA 衍生图片保留原许可，署名、来源与改动说明随图片提供。这些图不当作新作品，不改许可。
+
+系统不会自动生成裁切或调色后的新图片文件：上传、预览、发布和站点包使用的都是同一份登记文件。生成站的 CSS（例如 `object-fit: cover`）可能在显示层裁掉一部分画面，`lib/code-site-check.ts` 只把 product 图的这种裁切记为质量反馈。即便被显示层裁切，仍按原 BY-SA 许可署名。
+
+站点包由 `lib/code-site-export.ts` 的 `buildStaticSitePackage` 生成，内含原登记文件与 `LICENSES.txt`，每张图写入 Attribution（含作者、来源 URL、具体许可版本与改动说明）、License 和 License URL。
