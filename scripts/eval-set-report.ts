@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, utimes, writeFile } from 'node:fs/promises';
 import { crc32 } from 'node:zlib';
+import { isDeepStrictEqual } from 'node:util';
 import path from 'node:path';
 import type { CodeCheck, CodeModelCall, CodeSiteRecord } from '../lib/code-site.ts';
 import type { SimulatedPackId } from '../lib/simulated-packs.ts';
@@ -16,6 +17,9 @@ export function requireWholeSitePlan(pack: SimulatedPackId, pageCount: number, p
 
 export type EvalCase = {
   key: string; pack: string; style: string; materials: string;
+  preferences?: { style: string; layout: number; density: number };
+  pageRequest?: string;
+  styleRegistration?: { skill: string; previewRevision: number | null; previewVersionId: string | null };
   outcome: 'not-run' | 'generated' | 'rejected' | 'error' | 'blocked';
   siteId?: string; versionId?: string; mixedScreenshot?: string; error?: string; elapsedMs: number;
   attempts: Array<{ round: number; checks: CodeCheck }>; modelCalls: CodeModelCall[];
@@ -23,7 +27,15 @@ export type EvalCase = {
 };
 export type Control = { pack: string; url: string; framing?: 'fold'; screenshots: Record<string, string> };
 export type EvalRound = { schemaVersion: 1; startedAt: string; command: string; commit: string; dirty: boolean; base: string;
-  status: string; cases: EvalCase[]; controls: Control[]; errors: string[]; previous?: string; profile?: 'full' | 'quick' };
+  status: string; cases: EvalCase[]; controls: Control[]; errors: string[]; previous?: string; profile?: 'full' | 'quick';
+  previousMaterialsChanged?: boolean; comparison?: EvalComparison[] };
+type EvalComparison = {
+  key: string; materialsChanged: boolean;
+  currentMaterials: { length: number; source: string | null }; previousMaterials: { length: number; source: string | null };
+  unverifiedFields: string[];
+  previousOutcome: EvalCase['outcome']; currentOutcome: EvalCase['outcome']; elapsedDeltaMs: number; totalTokenDelta: number | null;
+  previousAttempts: EvalCase['attempts']; currentAttempts: EvalCase['attempts']; visualPairAvailable: boolean;
+};
 
 // This private snapshot contains raw candidates, including every refused round,
 // and cleaned saved versions. It does not depend on the worktree's live store.
@@ -105,14 +117,49 @@ export function summarize(cases: EvalCase[]) {
     qualityFeedback: { 'body-line-length': lineFeedback, ...qualityFeedback }, usage: tokenUsage(cases.flatMap(c => c.modelCalls)),
     usageBreakdown: usageBreakdown(cases.flatMap(c => c.modelCalls)) };
 }
-export function compareRounds(current: EvalRound, previous: EvalRound) {
-  if ((current.profile ?? 'full') !== (previous.profile ?? 'full') || current.cases.length !== previous.cases.length || current.cases.some(c => {
-    const before = previous.cases.find(p => p.key === c.key); return !before || before.materials !== c.materials;
-  })) throw new Error('评估资料或组合已变化，不能把两轮当成成对比较。');
-  return current.cases.map(c => {
-    const before = previous.cases.find(p => p.key === c.key)!;
+export function compareRounds(current: EvalRound, previous: EvalRound,
+  sources: { currentSource?: string; previousSource?: string } = {}): EvalComparison[] {
+  const refuse = (field: string) => { throw new Error(`评估资料或组合已变化：${field} 不一致，不能把两轮当成成对比较。`); };
+  if ((current.profile ?? 'full') !== (previous.profile ?? 'full')) refuse('profile');
+  const previousKeys = new Set(previous.cases.map(c => c.key)), currentKeys = new Set(current.cases.map(c => c.key));
+  if (previousKeys.size !== previous.cases.length || currentKeys.size !== current.cases.length ||
+    currentKeys.size !== previousKeys.size || [...currentKeys].some(key => !previousKeys.has(key))) refuse('组合集合');
+  return current.cases.map((c, index) => {
+    const beforeIndex = previous.cases.findIndex(p => p.key === c.key), before = previous.cases[beforeIndex];
+    const unverifiedFields: string[] = [];
+    for (const [side, item] of [['current', c], ['previous', before]] as const) {
+      if (item.key !== `${item.pack}/${item.style}`) refuse(`${c.key} ${side}.pack/style 与 key`);
+      if (item.preferences && item.preferences.style !== item.style) refuse(`${c.key} ${side}.preferences.style`);
+    }
+    const condition = (field: string, now: unknown, old: unknown) => {
+      if (now == null) unverifiedFields.push(`current.${field}`);
+      if (old == null) unverifiedFields.push(`previous.${field}`);
+      if (now != null && old != null && !isDeepStrictEqual(now, old)) refuse(`${c.key} ${field}`);
+    };
+    condition('profile', current.profile, previous.profile);
+    if (c.style !== before.style || c.pack !== before.pack) refuse(`${c.key} pack/style`);
+    condition('layout', c.preferences?.layout, before.preferences?.layout);
+    condition('density', c.preferences?.density, before.preferences?.density);
+    // Historical rounds kept the exact requested page scope as the final line.
+    // Do not compare the generated page count: the model may choose extra pages.
+    const request = (item: EvalCase) => {
+      const lastLine = item.materials.split('\n').at(-1);
+      const recorded = lastLine?.startsWith('页面要求：') ? lastLine : undefined;
+      if (item.pageRequest && recorded && item.pageRequest !== recorded) refuse(`${item.key} pageRequest 与资料末行`);
+      return item.pageRequest ?? recorded;
+    };
+    condition('pageRequest', request(c), request(before));
+    if (c.styleRegistration && before.styleRegistration) {
+      for (const field of ['skill', 'previewRevision', 'previewVersionId'] as const)
+        condition(`styleRegistration.${field}`, c.styleRegistration[field], before.styleRegistration[field]);
+    } else condition('styleRegistration', c.styleRegistration, before.styleRegistration);
+    const materialsChanged = before.materials !== c.materials;
+    if (materialsChanged && current.previousMaterialsChanged !== true) refuse(`${c.key} materials`);
     const a = tokenUsage(c.modelCalls), b = tokenUsage(before.modelCalls);
-    return { key: c.key, previousOutcome: before.outcome, currentOutcome: c.outcome,
+    return { key: c.key, materialsChanged, unverifiedFields,
+      currentMaterials: { length: c.materials.length, source: sources.currentSource ? `${sources.currentSource}#/cases/${index}/materials` : null },
+      previousMaterials: { length: before.materials.length, source: sources.previousSource ? `${sources.previousSource}#/cases/${beforeIndex}/materials` : null },
+      previousOutcome: before.outcome, currentOutcome: c.outcome,
       elapsedDeltaMs: c.elapsedMs - before.elapsedMs,
       totalTokenDelta: a.complete && b.complete ? a.reported.totalTokens - b.reported.totalTokens : null,
       previousAttempts: before.attempts, currentAttempts: c.attempts,

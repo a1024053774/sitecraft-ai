@@ -241,3 +241,40 @@ SITECRAFT_BASE=http://127.0.0.1:60741 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=
 | `artifacts/t190/round2-selected/comparison-review/` | 不存在，未生成 |
 
 两份覆盖文件同样不存在，存在性检查记录在 `artifacts/t190/baseline-control/not-started.json`。没有固定口径缺口计数、新旧审美结论或技术生成通过结论；独立审查及盲评均未启动。未写主工作区 `.sitecraft-data` 或 artifacts，未推送。
+
+### 显式跨资料比较开关与定向门控（2026-10-19 UTC）
+
+**本次开关实现与定向门控 PASS；整票仍 INCOMPLETE、open。** 执行者 `codex-t190-baseline`，分支 `t190-baseline`，基于 `65a96df811c979ecd91ab06c0723fbf449f0fc9d`。评估脚本、测试、规格同步和本节在同一个本地提交中；对应 SHA 可用 `git log -1 --format=%H -- scripts/eval-new-route.ts` 定位。最终门控后没有再改评估脚本或测试。按主控本次安排，提交后停止，独立窄复审由主控另派；未经复审 GO 及后续通知，不执行真实基线。
+
+#### 比较合同与记录
+
+- 新增 `--previous-materials-changed`，必须同时显式指定 `--previous`。未开时，资料不同仍拒收；开启只豁免 `materials` 的差异，不改变默认矩阵、风格选择、滑杆值或生成输入。
+- `compareRounds` 先核对 profile、无重复的组合集合和逐组合的 pack/style 归属，再分别核对实际偏好的 style、layout/density、页面要求，以及已有风格登记的 skill 路径、预览 revision/versionId；任何已知值不同仍拒收，且在访问 health、创建站点或调用模型前停止。组合按 key 对应，不依赖数组顺序；重复、增减或替换组合均拒收。
+- 新轮次保存实际使用的偏好、资料末行的页面要求和当前登记元数据，select 直接使用同一份偏好。旧轮次的滑杆不在 round.json 时，只读 `private/case-N/code-site.json`，先核对 siteId，再使用快照中的实际偏好；只将 ENOENT 视为文件未记录，解析、读取和身份错误照常拒收，不重试或补写旧记录。旧页面要求读取资料最后一行，不拿模型最终生成的页数代替用户页面要求。
+- 现有 T-180 两轮共 20 个私有站点快照均能按 siteId 对应，实际偏好均为 layout=5、density=6，风格与各组合一致；这是只读记录核对，没有启动评估。两轮 round.json 及站点快照均没有风格登记版本。未来比较这些记录时，`previous.styleRegistration` 将列入逐组合 `unverifiedFields`，不猜测旧登记版本。当前登记只提供 skill 路径与预览 revision/versionId，没有独立的 skill 正文版本号；预览版本不证明风格正文版本一致。其他缺失条件同样逐项登记，包括缺 profile 或登记对象中缺少的版本子字段；旧 profile 缺失时保留原有 full 默认档位检查，同时注明未显式记录。
+- 比较通过后在当前私有 `round.json` 的 `comparison` 数组和 `private/comparison.json` 按 key 保存实际 `materialsChanged`、`currentMaterials`／`previousMaterials` 的 length 和 source。来源指向各自轮次 `private/round.json#/cases/N/materials`；数组重排后仍指向实际下标。资料相同的组合写 false，不冒充变化。`round.json` 另存本次显式开关值；核对阶段和最终输出共用同一个比较函数。旧轮次文件不改写。
+- comparison 盲评提示、盲评包生成代码、产品代码、生成提示与公司资料均未修改；新增元数据只进入私有记录，不将资料全文或来源标记放进盲评包。`docs/project/spec.md` 仅同步上述评估合同。
+
+**comparison 比的是『新资料 + T-188/T-191 改动』对『旧资料 + 旧代码』的整体效果，分不出资料与代码各自的贡献。** 本次实现不提供这种归因，也没有审美结论。
+
+#### 先红后绿与最终门控
+
+证据在本工作树 `artifacts/t190/materials-switch/`；每条执行记录均有 UTC 起止时间、完整命令、退出码与父提交。测试统一设置下列 Chrome，标准入口仍自建隔离 dev、数据根和 `.next-test`，health 的 503 只表示没有真实模型，不作为模型已配置的证据：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-previous-materials.test.ts
+
+npm run typecheck
+
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t130-blind-privacy.test.ts tests/t130-eval-set.test.ts tests/t133-eval-evidence.test.ts tests/t133-floor-checks.test.ts tests/t137-eval-images.test.ts tests/t140-review-materials.test.ts tests/t142-material-inputs.test.ts tests/t147-code-quality.test.ts tests/t157-non-industrial-cases.test.ts tests/t160-narrow-columns.test.ts tests/t190-materials-contract.test.ts tests/t190-previous-materials.test.ts
+```
+
+新测试的预期来自主控本次合同，用固定的两组合、偏好和登记版本做对照。纯比较用例逐项在新旧两侧变更条件；同时检查资料相同与不同的情况，防止拒收只是被资料差异掩盖。CLI 用例通过真实评估入口读取旧私有快照，资料变化且其余一致时到达本地 health；health 明确 503，在生成前停止，仍检查 round/comparison 的持久化记录。不开开关和改动旧快照滑杆的对照均在 health 前拒收，没有站点、模型或外部截图请求。这些用例证明比较门禁和记录接线，不证明真实生成、页面质量或模型效果。
+
+- **65a96df 先红**：10:36:36.028–10:36:44.561 UTC，只新增测试，评估脚本仍为父版本；17 项中 3 通过、14 失败，退出 1。正例在原资料门禁被拒，CLI 原文为 `Unknown option '--previous-materials-changed'`；其他失败包含 style、滑杆、登记信息与重复组合未被独立拦截，以及缺少比较元数据。profile 用例原有拒收仍成立，红灯只因缺少逐项字段拒因，不冒称父版本会放过 profile。日志 `contract-red.log`、`contract-red-command.json`，入口报告 `artifacts/t167/test-run-1792406196822-65468/report.json`。
+- 初次新合同转绿及首轮相关门控保存在 `contract-green-attempt1.log`、`related-final.log`。补查部分元数据时，缺 versionId 被当成不一致而没有列为未知，10:40:46.109–10:40:51.464 UTC 为 16 通过、1 失败，退出 1；证据 `partial-metadata-red.log`、`partial-metadata-red-command.json`，入口 `artifacts/t167/test-run-1792406446953-90318/report.json`。修正为逐字段核对并明确列出缺失项，失败记录与临时数据根保留。
+- **最终同组新合同**：10:41:01.142–10:41:05.932 UTC，17/17 通过，0 失败、取消或跳过，退出 0；`contract-green-final.log`、`contract-green-final-command.json`，入口 `artifacts/t167/test-run-1792406461949-93242/report.json`。
+- **最终 typecheck**：10:41:05.947–10:41:09.262 UTC，退出 0；`typecheck-frozen.log`、`typecheck-frozen-command.json`。
+- **最终相关门控**：10:41:09.281–10:41:46.143 UTC，12 个文件 **94/94 通过**（非浏览器 24、浏览器池 70），0 失败、取消或跳过，退出 0；`related-frozen.log`、`related-frozen-command.json`，入口 `artifacts/t167/test-run-1792406469999-94598/report.json`。其中资料合同 23/23，新比较合同 17/17。`rg -l 'compareRounds|eval-set-report' tests --glob '*.ts'` 找到的全部 9 个既有引用文件均已包含；额外覆盖真实 CLI 的图片上传与资料输入两处调用者。完整检索和选中清单在 `related-test-selection.json`，未改既有断言。
+
+本次未运行全量、runner 或 build，未读取密钥或调用真实模型，未执行新基线、开审查／盲评实例或读真实盲评包内容。未写主工作区数据或 artifacts，未推送；`tsconfig.json` 的既有 Next 自动改动保留且不提交。票仍 open，基线验收保持未勾选。

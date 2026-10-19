@@ -8,7 +8,7 @@ import { captureEvalPage } from './eval-site-capture.ts';
 import { simulatedPacks, MATERIALS_CHAT_LIMIT, type SimulatedPackId } from '../lib/simulated-packs.ts';
 import type { CodeSiteRecord } from '../lib/code-site.ts';
 import { localEndpoint } from './local-endpoint.ts';
-import { codeStyleIds } from '../lib/code-site-styles.ts';
+import { codeStyleIds, codeStyles, type CodeStyleId } from '../lib/code-site-styles.ts';
 import { buildBlindPackage, compareRounds, summarize, tokenUsage, requireWholeSitePlan, saveCandidateEvidence, type EvalRound, type EvalCase } from './eval-set-report.ts';
 
 const { values } = parseArgs({ options: {
@@ -16,11 +16,13 @@ const { values } = parseArgs({ options: {
   out: { type: 'string' }, previous: { type: 'string' }, 'prepare-only': { type: 'boolean', default: false }, help: { type: 'boolean' },
   quick: { type: 'boolean', default: false },
   only: { type: 'string' },
+  'previous-materials-changed': { type: 'boolean', default: false },
 } });
 if (values.help) {
-  console.log('设置 SITECRAFT_BASE 后运行 npm run eval:new-route -- [--base <本机HTTP origin>] [--out artifacts/t130/round-...] [--previous <round>] [--quick] [--only restaurant/documentary,education/documentary,design/documentary] [--prepare-only]\n默认生成7家公司×precision/documentary整站；--quick为日常快速档，7组合（每家公司一种风格），只生成首页和产品/菜单/课程/作品页。--only按组合key筛选，不改变资料、档位或比较规则。仅匹配同档、同资料的上一轮，快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
+  console.log('设置 SITECRAFT_BASE 后运行 npm run eval:new-route -- [--base <本机HTTP origin>] [--out artifacts/t130/round-...] [--previous <round>] [--previous-materials-changed] [--quick] [--only restaurant/documentary,education/documentary,design/documentary] [--prepare-only]\n默认生成7家公司×precision/documentary整站；--quick为日常快速档，7组合（每家公司一种风格），只生成首页和产品/菜单/课程/作品页。--only按组合key筛选，不改变资料、档位或比较规则。默认仅匹配同档、同资料的上一轮；--previous-materials-changed须配合--previous，只允许资料变化，其余已记录条件仍须一致，缺失条件列入私有比较记录。快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
   process.exit(0);
 }
+assert.ok(!values['previous-materials-changed'] || values.previous, '--previous-materials-changed 必须显式指定 --previous');
 if (values.base !== undefined) process.env.SITECRAFT_BASE = values.base;
 const base = localEndpoint('SITECRAFT_BASE').origin;
 const root = path.resolve('artifacts/t130');
@@ -60,11 +62,18 @@ for (const packId of packIds) {
   const companyName = pack.companyName.replace(/P3[A-Z]$/, '');
   const content = quickContent[packId] || { id: 'products', title: '产品' };
   const pageRequest = values.quick ? `只生成首页（home）、${content.title}（${content.id}）两个独立页面。其他资料按需安排在这两页，不新增页面。` : requests[packId];
-  const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n页面要求：${pageRequest}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
+  const recordedPageRequest = `页面要求：${pageRequest}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
+  const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n${recordedPageRequest}`;
   assert.ok(materials.length <= MATERIALS_CHAT_LIMIT, `${packId}资料不能截断`);
   const styles = values.only !== undefined ? codeStyleIds : values.quick ? [packId === 'industrial' || packId === 'molding' ? 'precision' : 'documentary'] : ['precision', 'documentary'];
-  for (const style of styles) cases.push({ key: `${packId}/${style}`, pack: packId, style, materials,
-    outcome: 'not-run', elapsedMs: 0, attempts: [], modelCalls: [], pages: [] });
+  for (const style of styles) {
+    const registration = codeStyles[style as CodeStyleId];
+    cases.push({ key: `${packId}/${style}`, pack: packId, style, materials,
+      preferences: { style, layout: 5, density: 6 }, pageRequest: recordedPageRequest,
+      styleRegistration: { skill: registration.skill, previewRevision: registration.preview.status === 'ready' ? registration.preview.revision : null,
+        previewVersionId: registration.preview.status === 'ready' ? registration.preview.versionId : null },
+      outcome: 'not-run', elapsedMs: 0, attempts: [], modelCalls: [], pages: [] });
+  }
 }
 if (values.only !== undefined) {
   const keys = values.only.split(',');
@@ -73,7 +82,8 @@ if (values.only !== undefined) {
 }
 const round: EvalRound = { schemaVersion: 1, profile: values.quick ? 'quick' : 'full', startedAt: new Date().toISOString(), command,
   commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
-  dirty: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(), base, status: 'INCOMPLETE', cases, controls: [], errors: [] };
+  dirty: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(), base, status: 'INCOMPLETE', cases, controls: [], errors: [],
+  previousMaterialsChanged: values['previous-materials-changed'] };
 await writeFile(path.join(directory, 'command.sh'), command + '\n', 'utf8');
 const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 async function save() {
@@ -155,7 +165,20 @@ async function capture(url: string, prefix: string, company?: string, widths = [
 }
 try {
   const found = await previousRound();
-  if (found) { compareRounds(round, found.round); previous = found; round.previous = found.directory; }
+  if (found) {
+    // T-180 recorded sliders in the per-site snapshot, not round.json. Read that
+    // evidence without changing the old round; only a missing file is unknown.
+    for (const [index, c] of found.round.cases.entries()) if (!c.preferences && c.siteId) {
+      const file = path.join(found.directory, 'private', `case-${index + 1}`, 'code-site.json');
+      let snapshot: CodeSiteRecord;
+      try { snapshot = JSON.parse(await readFile(file, 'utf8')); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
+      assert.equal(snapshot.siteId, c.siteId, '旧轮次快照 siteId 不匹配，不能核对滑杆');
+      c.preferences = snapshot.preferences;
+    }
+    round.comparison = compareRounds(round, found.round, { currentSource: path.join(directory, 'private/round.json'), previousSource: path.join(found.directory, 'private/round.json') });
+    previous = found; round.previous = found.directory; await save();
+  }
   if (!values['prepare-only']) {
     const health = await json<{ testIdentity?: { cwd: string }; persistence: { driver: string }; deepseek: { configured: boolean; model: string } }>('/api/health');
     assert.equal(health.testIdentity?.cwd, process.cwd(), '只能使用自己的worktree dev server');
@@ -187,7 +210,7 @@ try {
         }
         let state = await json<{ alignment: { questionId: string; questionRevision: number } }>(`/api/sites/${created.id}/chat`, { message: c.materials, baseRevision: 0 });
         await json(`/api/sites/${created.id}/chat`, { action: 'select', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, optionId: c.style,
-          preferences: { style: c.style, layout: 5, density: 6 }, baseRevision: 0 });
+          preferences: c.preferences, baseRevision: 0 });
         let site = await waitRun(created.id, folder); collect(c, site);
         if (site.run?.status === 'error') throw new Error(site.run.step);
         assert.equal(site.plan?.style, c.style);
@@ -254,7 +277,10 @@ for (let index = 0; index < cases.length; index++) {
   await writeFile(path.join(folder, 'materials.txt'), cases[index].materials, 'utf8');
   await writeFile(path.join(folder, 'report.json'), JSON.stringify({ ...cases[index], usage: tokenUsage(cases[index].modelCalls) }, null, 2), 'utf8');
 }
-if (previous) await writeFile(path.join(directory, 'private', 'comparison.json'), JSON.stringify(compareRounds(round, previous.round), null, 2), 'utf8');
+if (previous) {
+  round.comparison = compareRounds(round, previous.round, { currentSource: path.join(directory, 'private/round.json'), previousSource: path.join(previous.directory, 'private/round.json') });
+  await writeFile(path.join(directory, 'private', 'comparison.json'), JSON.stringify(round.comparison, null, 2), 'utf8');
+}
 const blind = await buildBlindPackage(round, directory, previous);
 await writeFile(path.join(directory, 'private', 'blind-coverage.json'), JSON.stringify(blind, null, 2), 'utf8');
 round.status = cases.some(c => c.outcome === 'blocked') ? 'BLOCKED' : cases.every(c => c.outcome === 'generated') && blind.complete && !round.errors.length ? 'PASS' : 'INCOMPLETE';
