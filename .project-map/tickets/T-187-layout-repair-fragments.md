@@ -41,7 +41,7 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 ## Resolution
 
-**INCOMPLETE**：独立审查 `artifacts/t187/review1-NO_GO.txt` 对 `9fa3258` 给出 P1、P2 两项 NO_GO；codex-t187-fix 已在 `2491964bfcbcc93cfbd03530849fefa08e989cce` 修复并取得下述无浏览器红绿及 **99/99 浏览器定向 PASS**。当前候选 `eb81f3fecdad8458d5eafa12d980eef732c92b4a` 的 runner **18/18**、全量一轮 **894/894** 通过，随后 typecheck 因新增测试辅助 DOM 的类型错误失败（TS2345），按负责人“任何一步失败就停”要求未运行 build，也未修代码、测试或断言；独立复审尚未执行，票保持打开。本次真实探针沿用旧结果，但旧探针未触发版面修正，本次改动没有真实探针覆盖；不开审查实例、不推送。
+**INCOMPLETE（待独立复审）**：独立审查 `artifacts/t187/review1-NO_GO.txt` 对 `9fa3258` 给出 P1、P2 两项 NO_GO；codex-t187-fix 已在 `2491964bfcbcc93cfbd03530849fefa08e989cce` 修复并取得下述无浏览器红绿及 **99/99 浏览器定向 PASS**。新增测试辅助 DOM 的类型错误已按负责人授权在 `66d0f4f19b2319b78e8f46ffb8dd3ce1825d786f` 修正，原有行为断言不变；**typecheck → runner 18/18 → 全量一轮 894/894 → build 四项均在该同一提交通过**。旧 typecheck 失败日志保留；独立复审尚未执行，票保持打开。本次真实探针沿用旧结果，但旧探针未触发版面修正，本次改动没有真实探针覆盖；不开审查实例、不推送。
 
 P1 改为按结构化来源路由：先排除 factRepairs 已覆盖的问题，版面问题只认同次 layoutRepairs，不再检查“溢出／重叠／对比度”关键词。没有结构化定位的 `pageId/375`、`pageId/768`、`pageId/1440` 扫描拒因直接拒收，防止落回正文匹配扩大范围。三个含关键词的效果声明反例都只开放被拒句的位置成员，实际改为“效果待补充。”，保留另一处同文、页头页脚及 CSS；另测无关键词的结构化版面记录和丢失记录时的拒收。
 
@@ -59,18 +59,22 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 
 日志与起止记录为 `artifacts/t187/review-fix-targeted-1792380739/targeted.log`、`result.json`；原生报告与每文件统计为 `artifacts/t167/test-run-1792380740627-45867/report.json`、`summaries-browser.ndjson`。health 503 的 `testIdentity.cwd` 已核对为本工作树，`dataRoot` 为该轮独立临时目录 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-wNfmUQ`；随机端口 62519、独立构建目录 `.next-test`，未复用普通服务或主工作区数据。入口日志与临时数据保留。Next 自动增加的 `.next-test/dev/dev/types/**/*.ts` include 在运行结束后精确撤回，没有配置改动进入结果提交。该次只执行上述定向命令，结果已本地提交为 `eb81f3f`。
 
-负责人随后授权在当前 HEAD 串行执行 runner → 全量一轮 → typecheck → build，任一步失败就停止。2026-10-18 EDT，固定候选 `eb81f3fecdad8458d5eafa12d980eef732c92b4a`（启动前工作树干净）的实际结果如下，未重试或修改断言：
+旧候选 `eb81f3f` 在 2026-10-18 EDT 23:36:20–23:50:29 按 runner → 全量 → typecheck → build 执行：runner 18/18、全量 894/894 通过，typecheck 报 `tests/t187-repair-routing.test.ts(68,40): error TS2345: Argument of type 'Node' is not assignable to parameter of type 'ParentNode'.` 后停止，build 未运行。根因是有限 DOM 的 `innerHTML` getter 将声明为 `Tree.Node` 的 `this.raw` 直接传给 parse5 `serialize`，未收窄为父节点。完整失败日志、执行顺序与退出码继续保留在 `artifacts/t187/review-fix-gates-1792380980/`，原生全量报告保留在 `artifacts/t167/test-run-1792381001724-54078/report.json`；没有以新通过结果覆盖旧失败。
 
-| 实际命令 | 起止时间 | 结果与证据（相对 artifacts/t187/review-fix-gates-1792380980/） |
+负责人随后只授权修正上述测试类型，行为断言不变。`innerHTML` getter 仅增加 `assert.ok('childNodes' in this.raw)`，确认父节点后才传给 `serialize`；未改产品代码或放宽断言。2026-10-18 EDT 23:52:36–23:52:37，先运行 `npm run typecheck`（exit 0），再运行 `node --test --experimental-strip-types tests/t187-repair-routing.test.ts`（8/8，exit 0，无跳过），日志与时间记录在 `artifacts/t187/test-type-fix-1792381956/`。通过后只将这一行测试修正本地提交为 `66d0f4f19b2319b78e8f46ffb8dd3ce1825d786f`。
+
+随后按本次授权在固定候选 `66d0f4f19b2319b78e8f46ffb8dd3ce1825d786f` 上依次重跑 typecheck → runner → 全量一轮 → build。启动前工作树干净，每项开始前核对并记录相同 HEAD，四项全部 exit 0；未重试、修改源码或测试：
+
+| 实际命令 | 起止时间（EDT） | 结果与证据（相对 artifacts/t187/review-fix-gates-1792381985/） |
 | --- | --- | --- |
-| `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` | 23:36:20–23:36:41 | **PASS 18/18**，exit 0，无跳过或取消；`runner.log`。 |
-| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` | 23:36:41–23:50:22 | **PASS 894/894**，非浏览器 131/131、浏览器 763/763，并发 2，无失败、跳过或取消，exit 0；`full.log`。 |
-| `npm run typecheck` | 23:50:22–23:50:29 | **失败，exit 2**；`typecheck.log`。 |
-| `npm run build` | — | **未执行**：前一步失败，编排已停止。 |
+| `npm run typecheck` | 10-18 23:53:05–23:53:06 | **PASS**，exit 0；`typecheck.log`。 |
+| `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` | 10-18 23:53:06–23:53:24 | **PASS 18/18**，exit 0，无跳过或取消；`runner.log`。 |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` | 10-18 23:53:24 → 10-19 00:07:39 | **PASS 894/894**，非浏览器 131/131、浏览器 763/763，并发 2，无失败、跳过或取消，exit 0；`full.log`。 |
+| `npm run build` | 10-19 00:07:39–00:07:55 | **PASS**，exit 0；`build.log`。 |
 
-失败原文为 `tests/t187-repair-routing.test.ts(68,40): error TS2345: Argument of type 'Node' is not assignable to parameter of type 'ParentNode'.`，位置是有限 DOM 的 `innerHTML` getter 将 `this.raw` 直接传给 parse5 `serialize`；该字段声明为 `Tree.Node`，类型未收窄为父节点。这里记录根因，不在本轮修复或绕过类型检查。完整执行顺序、起止时间、退出码和 build 未执行状态保存在同目录 `result.json`，失败日志不覆盖。
+同目录 `result.json` 为四项记录相同源码提交、完整命令、起止时间和退出码。构建仍有一条既有 `lib/code-check-diagnostics.ts:8` 动态文件追踪范围过宽的警告，不在本次测试类型修正中扩展处理。
 
-全量的原生报告为 `artifacts/t167/test-run-1792381001724-54078/report.json`，两池各文件统计分别在同目录 `summaries-non-browser.ndjson`、`summaries-browser.ndjson`。health 503 身份核对为本工作树及独立临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-rBHKjn`；随机端口 64296、独立 `.next-test`，29 个非浏览器文件与 97 个浏览器文件各执行一次，无浏览器归属告警或监控错误。Next 自动追加的 `.next-test/dev/dev/types/**/*.ts` 与 `.next/dev/dev/types/**/*.ts` include 在记录 diff 到 `next-generated-config.diff` 后精确撤回，没有配置改动进入结果提交。只记录本轮结果并本地提交，不开启其他检查。
+本轮全量的原生报告为 `artifacts/t167/test-run-1792382005151-75615/report.json`，两池各文件统计分别在同目录 `summaries-non-browser.ndjson`、`summaries-browser.ndjson`。health 503 身份核对为本工作树及独立临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-bdY86j`；随机端口 58111、独立 `.next-test`，29 个非浏览器文件与 97 个浏览器文件各执行一次，无浏览器归属告警或监控错误。Next 自动追加的 `.next-test/dev/dev/types/**/*.ts` 与 `.next/dev/dev/types/**/*.ts` include 在记录 diff 到 `next-generated-config.diff` 后精确撤回，没有配置改动进入结果提交。结果单独本地提交；源码提交 `66d0f4f` 不再修改。
 
 真实探针按本次授权沿用上一轮 `39ec3fa` 的 `artifacts/t187/step2-retry2/probe-case/` 和账本结果：当时保存 v1，实际版面修正片段数为 **0**，只发生一次事实修正。**上次探针没有触发版面修正，所以这次改动没有真实探针覆盖。** 本轮未重跑真实探针，也不把旧站保存成功写成本次分类／inline 拒收逻辑的真实模型验证。
 
