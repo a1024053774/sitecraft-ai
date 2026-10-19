@@ -4,7 +4,7 @@ title: 事实核对段把标签和值连成一串，模型看不出边界
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t191
+claimed_by: codex-t191-review-fix
 supersedes:
 ---
 
@@ -35,7 +35,7 @@ T-188 的 restaurant/precision 站，页面「位置与通行」写着「地址 
 
 ## Resolution
 
-INCOMPLETE（2026-10-19 最新）：T-190 合并后门控通过，唯一一次真实探针已执行，3 页首次存版通过，实际用量 106010/300000 token；评估命令因第二个外部对照页转场检查失败而 exit 1，不重跑。主线验证与独立 fast 审查仍待执行，票保持 open；详细结果见末节。以下保留各阶段原始证据。
+INCOMPLETE（2026-10-19 最新）：独立审查 NO_GO 的 P2、P3 已修复，本轮 15 文件 177/177 定向测试及 typecheck 通过，代码提交 91365c3；本票仍待主控合并后主线验证及独立复审，保持 open。唯一真实探针已执行，评估整轮的既有 INCOMPLETE 不变，不重跑。以下保留各阶段原始证据，本次审查修复见末节。
 
 ### 只读确认
 
@@ -195,3 +195,34 @@ s24–s29 的表头单独位于各自 claimTexts[1]：`[scope=col] 菜品 [scope
 评估器在 04:29:50 EDT 退出后，又经实际 draft GET 确认 run 为 complete，并经网关 `/status` 确认零 in-flight，记录在 `probe-pre-stop.json`、`probe-manual-stop-guard.json`。随后手动 SIGTERM 本轮网关和 dev 两个独立进程组，于 **04:30:26 EDT** 确认 **52262 与 52263 均已关闭**，见 `probe-stopped.json`。账本的 stopped=false 表示没有触发预算或上游错误停止条件，不代表进程仍在运行；没有为展示“已停”改写原账本。
 
 **当前交付：INCOMPLETE（本次获批步骤已执行完，评估整轮仍为 INCOMPLETE，整票待主线验证及独立审查）。** 当前合并候选未复现地址/服务社区混淆，标签和值在实际 facts 输入中分隔清楚；本轮同时使用 T-190 资料与 T-191 代码，不能凭单次探针将效果单独归因。未推送，未改资料或生成代码；只提交本票记录。`tsconfig.json` 自动改动保留未提交。不再发真实探针，按负责人要求报 SHA 后停下。
+
+### 独立审查 P2、P3 修复（2026-10-19）
+
+**本次修复门控 PASS，整票仍 INCOMPLETE。** 依据只读审查 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t191/review1.txt` 的 NO_GO，修复候选为 **`91365c3b213d9bd04969aeb36fad9fcc6a1a1bb7`**，父提交为 `ec265ff8cd32750e206841d035f6bbbe0fe12150`。下列改后命令在该父提交的工作树完成修复后执行，代码、测试和规格随后原样提交为 91365c3；提交后核对这些文件无未提交差异。本节后续提交只记录证据与 MAP 核验状态，不冒充独立复审通过。
+
+**P2：序列化调用遗漏必填分隔并集。** `scripts/t154-replay-fact-segments.ts` 仍用两参调用 `readCodeFactSegments`，浏览器字符串调用绕过了类型检查。新增 `tests/t191-replay-fact-segments.test.ts` 先在 ec265ff 的原代码上运行，真实 CLI 首个页面即以 `TypeError: Cannot read properties of undefined (reading 'map')` 失败，exit 1；新测试在红灯和绿灯之间未修改。修复只同步该调用者：每页先装载一次候选，在 375/768/1440 等待字体、图片，展开 details、处理 aria-hidden，调用 `readCodeFactSeparators` 并按路径合并，同路径标签冲突明确停止；随后正式逐档读取，显式传入 `undefined` 与该页并集。不为读取器添加空数组默认值。
+
+回归使用本地三候选记录和三页不同 DOM，分别覆盖仅手机、仅平板、仅桌面成块的标签；断言来自夹具中的标签和值、媒体查询及词内行内强调，未复制生产读取器或调用表达式作答案。三个候选的价格依次变为 32、38、41 元/份，每轮均只出现一个对应价格段，保留三档 CSS 生成文字；输入记录不被改写，完整 CLI 输出与报告可回读。Tracer bullet：本地记录 → 实际 CLI → Chrome 三档采集 → 序列化读取 → 重放报告。Deep modules：复用原读取器，不增加平行解析或兼容入口。Ubiquitous language：分隔并集、核对段、claimTexts、资料原句沿用现有含义。
+
+**调用者核对。** 全仓检索 `readCodeFactSegments` / `readCodeFactSeparators`，含 `toString()` 模板字符串；读取器 `readCodeFactSegments` 的实际调用在生产检查入口、历史重放 CLI 和原 T-191 浏览器测试三处，均显式传入四参，采集函数仍按无参合同调用。T-159 夹具仅按函数名识别浏览器表达式，不是遗漏调用。结果保存在 `artifacts/t191/review-fix/call-sites.txt`，未发现其他遗漏。
+
+**P3：减少预采集重复装载。** `lib/code-site-check.ts` 把分隔预采集的 `Page.setDocumentContent` 移到视口循环外，每页只装载一次，循环内仍调整三档视口、等待资源并采集并集；正式三档装载和事实读取保持。既有 T-191 的响应式正反与仅平板用例、出处回绑、整组复用以及相关 T-154/T-173/T-175/T-181/T-185/T-169 均通过。本轮 T-191 单页生产检查的六份浏览器诊断均为 4 次文档装载、6 次视口调整；其中一份保存为 `artifacts/t191/review-fix/precollection-browser.json`，对应一次预采集及三次正式读取，未据此声称具体耗时改善。
+
+| 检查 | 时间（2026-10-19 EDT）与结果 | 本工作树证据 |
+| --- | --- | --- |
+| ec265ff 原代码反例 | 04:50:26–04:50:27，1 项预期失败，exit 1 | `artifacts/t191/review-fix/replay-red.log`、`replay-red-report.json`、`replay-red-summaries.ndjson`；原入口目录 `artifacts/t167/test-run-1792399823458-38948/` |
+| 相同新回归改后 | 04:51:01–04:51:02，1/1 通过，exit 0 | `artifacts/t191/review-fix/replay-green.log`、`replay-green-report.json`；CLI 记录 `artifacts/t191/replay-regression-1792399861805-44785/` |
+| 本票及相关定向门控 | 04:51:17–04:55:11，15 文件 **177/177 通过**，失败/取消/跳过均 0，exit 0 | `artifacts/t191/review-fix/related-green.log`、`related-report.json`、`related-summaries-browser.ndjson`、`related-run.json`；原入口目录 `artifacts/t167/test-run-1792399878230-49154/` |
+| typecheck | 04:55:19–04:55:21，测试自然结束后串行运行，exit 0 | `artifacts/t191/review-fix/typecheck.log`、`typecheck-run.json` |
+
+```sh
+export CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell
+# ec265ff 原代码红灯与修复后绿灯均使用这条命令
+npm test -- tests/t191-replay-fact-segments.test.ts
+npm test -- tests/t191-fact-label-boundary.test.ts tests/t191-replay-fact-segments.test.ts tests/t154-fact-segments.test.ts tests/t173-citation-repair.test.ts tests/t173-fact-boundary.test.ts tests/t173-fact-members.test.ts tests/t173-repair-scope.test.ts tests/t175-stale-placeholder.test.ts tests/t181-claim-copy.test.ts tests/t181-fact-replies.test.ts tests/t185-fact-protocol.test.ts tests/t169-contract-d.test.ts tests/t169-production-contract.test.ts tests/t169-fact-citations.test.ts tests/t169-citations-browser.test.ts
+npm run typecheck
+```
+
+定向文件仍由 `rg -l 'code-site-fact-segments|claimTexts|factSegments|factCitations|出处|核对段|stalePlaceholder' tests/t154* tests/t169* tests/t173* tests/t175* tests/t181* tests/t185*` 选取。标准 npm test 入口为每轮创建独立临时数据根与随机端口，报告核对 cwd 为本工作树；本轮 health 503 仍核对 dataRoot 一致，没有真实模型配置。主工作区 `.sitecraft-data` 未写，主工作区 artifacts 仅只读审查结论；红灯、既有失败和此前探针结果保留。未读 `.env.local`，未调用真实模型、未开审查实例、未推送，未跑全量、runner 回归或 build。
+
+规格已写明预采集一次装载与 CLI 的显式并集调用；AGENTS、CONTEXT、mainline 的事实和复用合同仍准确，MAP Verified 对应 91365c3；`project_map.py status --root .` 返回 Problems 0、Stale living docs 0。`tsconfig.json` 的既有 Next 自动改动保留且不提交。主线验证及独立复审不在本次授权内，剩余验收项不勾选，票不关闭。
