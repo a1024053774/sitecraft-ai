@@ -51,7 +51,7 @@ INCOMPLETE：2026-10-19，codex-t191 按负责人本轮指令先完成本地修�
 - `lib/code-site-model.ts:306` 的 `codeFactAuditInput` 直接保留 text，经 `normalizeFactClaimText`（`lib/code-site-fact-segments.ts:29`）生成 claimTexts：NFKC、空白折叠、去单元格标记、按 TR 边界分条。因此前一步没有的标签边界不会在这里补出。
 - T-181 增加可逐字复制的 claimTexts，防止模型抹掉已有空白、补标点或跨 TR 拼接；T-185 确认跨条 claim 应拒收，仅修正「把上下文补进 claim」及 issues 格式的提示歧义。两票保留的单元格和表格行边界有效，本票补的是渲染产生而固定标签集合未识别的边界，不改变跨行或跨编号的归属规则。
 
-### 最小修复与本地证据
+### 第一轮最小修复与本地证据（1cb2192）
 
 `lib/code-site-fact-segments.ts:203` 在既有标签和表格边界之外读取实际 display，为独立排版盒补换行；普通 inline/contents 不额外插入空白，不添加冒号或其他原文没有的标点。整站、局部及 target.readable 共用 read；原始 DOM 快照、成员文本、offset 和 path 不改。claim 的逐字复制、NFKC/空白匹配、TR 边界及来源验真均未修改。
 
@@ -82,3 +82,37 @@ npm run typecheck
 首次 typecheck 与测试服务启动并行，读到正在生成的 Next routes/validator，exit 2，保留 `artifacts/t191/typecheck.log`。测试自然结束后串行运行相同 typecheck 命令即通过，没有修改配置或跳过类型文件来绕过。`tsconfig.json` 的 Next 自动变化留在工作树，未提交。AGENTS、CONTEXT 与 mainline 对本次边界修复仍准确，规格补充当前行为，MAP Verified 更新为上述代码提交。
 
 **停点与限制**：本轮 1–4 的只读确认、实现、父版本反例及定向门控已完成。未实测真实 DeepSeek 模型；真实探针等负责人通知合入 T-190 补改，再用 restaurant/precision、`SITECRAFT_TOKEN_LIMIT=300000` 和新账本。独立 fast 审查与合并后主线验证尚未执行，两个剩余验收项不勾选，票不关闭。
+
+### 主控补充：三档统一分隔
+
+2026-10-19 负责人指出第一轮按当前视口 computed display 分隔，再按 `[group,text]` 合并，可能将同一 DOM 拆成两个核对段。以下补改取代第一轮的逐档独立分隔判定；第一轮原始证据保留。
+
+**复现。** 新增手机 block／桌面 inline、手机 inline／桌面 block 的正反夹具，另加仅 768 为 block 的夹具，防止只取手机或桌面。生产实现保持 `1cb2192`，新增测试先运行：`artifacts/t191/responsive-parent-red-final.log` 中原有 6 项通过、新增 3 项均在「375 与 768 必须共用段文本和身份」处失败。每个夹具的生产 `checkSiteCode → facts` 输入均实际发送了两个价格段：一段含 `单份价格32 元/份`，另一段含 `单份价格\n32 元/份`；原记录在 `artifacts/t191/label-boundary-1792397416550-22832/*-commit.json`，对照摘录为 `artifacts/t191/responsive-comparison.json`。最初红灯夹具只有 visit 页，未满足生产 schema 的首页要求，失败日志 `responsive-parent-red.log` 保留，但不作为缺陷反例；补齐 home 后才取得上述有效红灯。
+
+**现在由哪一档判定。** 不选定某一档。`lib/code-site-check.ts:504` 的同一 widths 列表用于两阶段：每页先在 375、768、1440 分别渲染完整候选，待字体和图片状态稳定、展开 details 并处理与原核对一致的 aria 状态，再调用 `readCodeFactSeparators`（`lib/code-site-fact-segments.ts:67`）收集该档需要分隔的元素路径及标签；按 body 相对路径取三档并集。任一档有独立排版盒，就在三档读取时一律分隔；inline、contents、none 沿用无新增盒分隔的规则，原固定块级、dt/dd、单元格和 TR 边界仍保留。
+
+**三档不一致怎么处理。** display 不一致按并集处理，不产生三个版本的分隔文本。`readCodeFactSegments` 的第四参数为必填的整页并集；它只按这份判定读文字、group 和 target.readable，不再自行按当前视口 display 改分隔。采集阶段同一路径标签不同、或正式读取时路径不存在／标签不符，明确报「三档事实核对的文字分隔节点不一致」或「三档事实核对的文字分隔位置无法核实」，不调用模型猜测、不用某一档兜底。原有三档事实读取仍保留，以覆盖原先已支持的 CSS 生成文案；本次只统一排版分隔，不改这些文案的事实范围。
+
+**验证边界。** 三个夹具逐档直接核对 text/group、成员和 claimTexts 相同，固定原句 `单份价格 32 元/份` 均准确回绑到同一 p；生产检查入口只发送一个价格段，后续同源同组提交沿用全部核对段且不再调用模型，出处保持一致。改后本票定向 9/9 通过，日志 `artifacts/t191/responsive-focused-green.log`，三个生产输入都由两段收敛为一段。测试期望是三档文本与身份一致及明确的 DOM/资料原句，未以实现输出作答案，未做哈希、字节或像素比较。
+
+Tracer bullet：三档真实 Chrome → 分隔路径并集 → 三档核对段 → 生产 facts 输入 → 出处回绑与核对段复用。Deep modules：采集与读取同归原核对文本模块，三档调度归原提交检查入口；旧的逐档 display 读取删除，不留兼容分支。Ubiquitous language：分隔判定只描述网页文字边界，不替代 claim、quote 或版本锚点。T-159 的 CDP 替身只补新采集函数的空返回以保持原准入场景；响应式语义由上述真实浏览器用例证明。
+
+**当前代码提交：`14638ea3edfb23596d20e668f8296d48c27ac8f6`**（2026-10-19 04:17 EDT），以下证据均在本次补改之后生成；后续记录提交只改本票和 MAP。
+
+| 检查 | 时间（2026-10-19 EDT）与结果 | 本工作树证据 |
+| --- | --- | --- |
+| 第一轮实现反例 | 04:10，原有 6 项通过，新增 3 项预期失败；生产事实输入为两个价格段，exit 1 | `artifacts/t191/responsive-parent-red-final.log`、`responsive-comparison.json` |
+| 本票修复后 | 04:12，9/9，三个夹具各只发送一个价格段，exit 0 | `artifacts/t191/responsive-focused-green.log`、`label-boundary-1792397516118-34688/` |
+| 相关定向门控 | 04:12–04:17，15 文件 **189/189 通过**，exit 0 | `artifacts/t191/responsive-related-green.log`、`responsive-related-report.json`、`responsive-related-summaries-browser.ndjson` |
+| typecheck | 04:17，测试自然结束后串行运行，exit 0 | `artifacts/t191/responsive-typecheck.log` |
+
+```sh
+export CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell
+npm test -- tests/t191-fact-label-boundary.test.ts
+npm test -- tests/t191-fact-label-boundary.test.ts tests/t154-fact-segments.test.ts tests/t173-citation-repair.test.ts tests/t173-fact-boundary.test.ts tests/t173-fact-members.test.ts tests/t173-repair-scope.test.ts tests/t175-stale-placeholder.test.ts tests/t181-claim-copy.test.ts tests/t181-fact-replies.test.ts tests/t185-fact-protocol.test.ts tests/t169-contract-d.test.ts tests/t169-production-contract.test.ts tests/t169-fact-citations.test.ts tests/t169-citations-browser.test.ts tests/t159-task-admission.test.ts
+npm run typecheck
+```
+
+相关文件仍按第一轮的 rg 检索规则选取，另加入直接受影响的 T-159 准入测试。入口核对 cwd 为本工作树、数据根为本轮临时目录，未写主工作区 `.sitecraft-data`；`tsconfig.json` 自动变更仍未提交。规格已改为三档并集判定，AGENTS、CONTEXT 和 mainline 的事实、复用与归属合同未变，已复核并更新 MAP Verified。
+
+**当前停点：INCOMPLETE（本轮补改与本地门控完成，整票仍待真实探针及后续验收）。** 未推送，未合入 T-190，未调用真实模型，未开审查或盲评实例，未跑全量、runner 或 build。继续等待负责人通知，再合入 T-190 补改并用 restaurant/precision、新账本及 `SITECRAFT_TOKEN_LIMIT=300000` 跑真实探针。
