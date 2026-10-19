@@ -200,7 +200,10 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
     const content = [...node.childNodes].map(child => read(child, skip, members)).join('');
     const text = `${auxiliary ? `\n[${auxiliary}]\n` : ''}${content}`;
     if (['TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD'].includes(node.tagName)) return `\n<${node.tagName}>${text}</${node.tagName}>\n`;
-    return blocks.has(node.tagName) ? `\n${text}\n` : text;
+    // CSS can make inline tags separate blocks or flex/grid items. Preserve
+    // those boundaries without splitting ordinary inline emphasis inside words.
+    const display = getComputedStyle(node).display;
+    return blocks.has(node.tagName) || !['inline', 'contents', 'none'].includes(display) ? `\n${text}\n` : text;
   };
   const documentMembers: CodeFactMember[] = [];
   const documentConditions = [own(document.documentElement, documentMembers), own(document.body, documentMembers)].filter(Boolean).join('\n');
