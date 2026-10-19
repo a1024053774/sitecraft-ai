@@ -4,7 +4,7 @@ title: 重叠扫描把视觉隐藏的文字算作可见，修正两轮仍被拒
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t195-review-fix
+claimed_by: codex-t195-review2-fix
 supersedes:
 ---
 
@@ -130,3 +130,55 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 ```
 
 本轮未运行全量、runner 回归、build、真实评估或真实模型，未启动审查实例。本节只是本地修复证据，独立复审和合并后的主线验收仍未完成，票保持 open，最后一项不勾选。
+
+### 2026-10-19 第二次复审修复：仅保留两条排除规则
+
+依据只读复审 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t195/review2.txt`，HEAD `d7433940defc6698347df1399417ae8d4629e485` 存在两项 P2：普通 inline／display:contents 上未生效的 content-visibility:hidden 被当成全隐藏；display:contents 上未生效的 opacity:0 也使后代退出检查。两者均让访客实际可见的重叠及单独低对比度被生产入口接受。原始输入只读提取到 `tests/fixtures/t195-review2-visible.json`，不含扫描答案，不执行原探针脚本，也不写主工作区 artifacts。
+
+**负责人本轮再次收窄的合同取代前面所有排除条件。** 逐项复核后，`fullyHidden` 仅保留：
+
+1. **文字所在元素自身的最终计算 visibility 不是 visible。** 继承所得的 hidden 同样成立；不检查祖先 visibility 来覆盖后代的 visible。inline、display:contents 祖先都遵守继承与单独覆盖规则，测试包含这两种祖先下恢复 visible 的对照。
+2. **自身或祖先是有盒元素，且完整满足标准 sr-only 写法。** 只认 block、inline-block、flow-root、flex、inline-flex、grid、inline-grid、table-caption；普通 inline 与 display:contents 不走该排除。必须实际存在盒片段、每片宽高均不超过 1px、双轴 overflow 计算值均为 hidden／clip，并且有 `clip:rect(0 0 0 0)` 或 `clip-path:inset(50%)`。旧 clip 还要求 absolute／fixed，保证它实际适用；不把普通流里的无效 clip 声明当作证明。其他显示类型或无法完整满足这些条件时保守保留。display:none 祖先本身没有可用盒片段，不凭尺寸为零通过此条件；其文字没有 Range 时自然没有几何可扫描，不增加 display 快捷排除。
+
+其余原条件逐项删除：opacity 恰为 0、content-visibility:hidden、display:none 状态捷径、未展开 details、script／style／template／noscript 标签名捷径；独立的零 clip、任意百分比轴向和为零的 inset、零 circle／ellipse、共线 polygon；仅 1×1 加双轴 overflow 的捷径。相应长度／形状解析、定位逃逸列表、变换与 contain 不确定性列表、overflow-clip-margin 特判一并删除，没有兼容分支。transform、独立 scale／rotate／translate、contain、嵌套裁切等本身均不提供排除依据。
+
+取舍明确：除这两条规则外，即使浏览器实际上没有绘制，也保留完整文字 Range，允许误拒。原来 margin=0 的 1×1 overflow:clip 对照由于缺少 clip／clip-path，现在也拒收；有盒 opacity:0、正常 block 的 content-visibility:hidden、单独零裁剪均同样处理。这些是负责人新合同的预期，不冒称它们实际可见。没有恢复部分裁切求交、坐标推算或变换尺寸换算。字体 em 盒、2px 重叠容差、对比度阈值和独立的文档 scrollWidth 检查保持原样。
+
+Tracer bullet 沿用生产 renderSiteCode → 真实 Chrome 扫描 → 生产 checkSiteCode（legacyImport:true），只验证确定性底线，不调用事实模型、不保存版本。Deep modules 仍是扫描器内部的全隐藏布尔判断；Ubiquitous language 统一为“完整 sr-only 排除”与“保守保留测量”。重叠、对比度、元素溢出和正文行长共用此规则，质量反馈自己的读取路径未改。
+
+#### 红绿证据与 C7
+
+时间均为 UTC，命令均从本工作树执行：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --browser-concurrency=1 tests/t195-hidden-overlap.test.ts
+npm run typecheck
+```
+
+- **HEAD d743394 红态**：生产扫描器未改时，最终测试矩阵于 14:55:44.922–14:56:21.700 执行，13 项中 7 通过、6 失败，退出码 1。日志 `artifacts/t195/review2-fix/head-d743394-final-red.log`，标准入口报告 `artifacts/t167/test-run-1792421743649-23922/report.json`，原始扫描及生产检查结果 `artifacts/t195/replay-1792421745160-24312/`。其中复审 P2 是既有缺陷红态；opacity／其他裁剪不再排除的失败是负责人新合同的红态，二者分开判读。最初一次红态也完整保留在 `head-d743394-red.log`，没有覆盖失败结果。
+- **修后同命令绿态**：14:56:35.329–14:57:19.107，13／13 通过，退出码 0。日志 `artifacts/t195/review2-fix/two-rules-first-green.log`，标准入口报告 `artifacts/t167/test-run-1792421794007-35377/report.json`，扫描及生产检查结果 `artifacts/t195/replay-1792421795570-35787/`。typecheck 退出码 0，日志 `artifacts/t195/review2-fix/typecheck.log`。
+- 三份复审独立输入分别做 hidden／visible 或 opacity 0／1、碰撞／单独低对比度成对变体，共 12 组。三档均命中实际文字位置；碰撞组均有重叠和低对比度，单独组无重叠但仍有低对比度，生产入口全部拒收。另有完整 sr-only、缺失尺寸／overflow／零裁剪、单轴裁切、inline／contents 无效 sr-only、visibility 继承及覆盖的 16 组生产入口对照。
+- 上轮 scale:.5 的自身／祖先与 transform 等价写法，以及 rotate、translate 共 12 组仍三档拒收重叠与低对比度；overflow-clip-margin=100px 的 20×20／1×1 仍拒收。margin=0 同样保守拒收，真实浏览器命中结果单独保留，没有用未命中推导排除。
+- **C7 原夹具符合新规则**：`.visually-hidden` 为 absolute、1×1、overflow:hidden、clip:rect(0 0 0 0)，无需为它增加条件。原候选 home／products／sampling × 375／768／1440 的 overlaps、overflow、contrastIssues 全为 0，生产确定性检查通过。取消 caption 隐藏后 products 三档各 6 对重叠并拒收，其他页面仍为 0；`c7-checks.json`、`visible-caption-checks.json` 保存完整结果。
+- 绿态 C7 三档完整截图均已打开核对。两轮红态及绿态各 33 张探针截图的实际绘制区域通过 `artifacts/t195/review2-fix/*.grid.png` 打开查看，原图保留；红态 C7 截图汇总在 `red-c7-grid.png`。截图仅用于查看绘制，不作哈希、字节或像素比对。测试依靠页面事件、字体就绪和图片 decode，不加固定等待。
+
+#### 本轮相关门控与交付范围
+
+上一轮 Resolution 的 19 个相关文件，加上复审实际使用的两个 T-191 回放文件，取并集共 21 个相关文件；14:57:32.880–15:00:44.776 串行执行，180／180 通过，退出码 0。日志 `artifacts/t195/review2-fix/related-union.log`，标准入口报告 `artifacts/t167/test-run-1792421851506-43287/report.json`。加上本轮 T-195 的 13 项，共 22 个定向文件、193 项通过。相关命令：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --browser-concurrency=1 \
+  tests/t089-contrast-line-length.test.ts tests/t160-narrow-columns.test.ts \
+  tests/t187-repair-fragments.test.ts tests/t187-repair-routing.test.ts \
+  tests/t147-code-quality.test.ts tests/t148-system-backdrops.test.ts \
+  tests/t138-repair-fragments.test.ts tests/t133-floor-checks.test.ts \
+  tests/t128-code-boundary.test.ts tests/t145-legacy-import.test.ts \
+  tests/t151-backdrop-merge.test.ts tests/t151-generated-fidelity.test.ts \
+  tests/t166-check-origin.test.ts tests/t170-remove-inquiry.test.ts \
+  tests/t169-production-contract.test.ts tests/t178-read-budget.test.ts \
+  tests/t191-fact-label-boundary.test.ts tests/t191-display-transition.test.ts \
+  tests/t192-check-transitions.test.ts tests/t191-replay-display-transition.test.ts \
+  tests/t191-replay-fact-segments.test.ts
+```
+
+本地修复及上述门控 PASS。保留会话开始前已有的 tsconfig.json 自动改动，不纳入提交；没有修改生成站代码、主工作区数据或原审查 artifacts。未运行全量、runner 回归、build、真实模型或评估，没有启动审查实例，没有推送。独立复审及合并后主线验证尚未完成，本票仍 open，最后一项不勾选；本地 PASS 不代表整票验收或审美通过。

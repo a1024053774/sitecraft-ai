@@ -157,75 +157,24 @@ const scanHeroTitle = (root) => {
 
 export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const blockFor = el => el.closest('[data-sc-block]')?.getAttribute('data-sc-block') || '页面';
-  // 只排除能够证明全隐藏的写法。其余裁剪保留完整 Range，允许误拒，
-  // 不以矩形求交或变换后的尺寸推断文字已消失；各底线检查共用此判定。
+  // T-195：只认文字自身的计算 visibility 和有盒元素的完整 sr-only 写法。
+  // opacity、content-visibility 及其他裁切不作排除；保留完整 Range，允许误拒。
   const hidden = new WeakMap();
-  const length = value => {
-    const match=/^(-?(?:\d*\.)?\d+)(px|%)?$/.exec(value);
-    return match ? {value:Number(match[1]),unit:match[2]||'px'} : null;
-  };
-  const zeroClipPath = path => {
-    const inset=/^inset\((.*)\)$/.exec(path);
-    if(inset) {
-      const parts=inset[1].split(/\s+round\s+/)[0].trim().split(/\s+/).map(length);
-      // 百分比之和已覆盖整轴才可证明零面积；不读取盒子或推算像素裁切。
-      if(parts.length>=1&&parts.length<=4&&parts.every(p=>p&&(p.unit==='%'||p.value===0))) {
-        const [a,b=a,c=a,d=b]=parts;
-        if(a.value+c.value>=100||b.value+d.value>=100) return true;
-      }
-    }
-    const round=/^(circle|ellipse)\(([^)]*)\)$/.exec(path);
-    if(round) {
-      const radii=round[2].split(/\s+at\s+/)[0].trim().split(/\s+/).map(length);
-      if(radii.some(radius=>radius?.value===0)) return true;
-    }
-    const polygon=/^polygon\((.*)\)$/.exec(path);
-    if(polygon) {
-      const points=polygon[1].replace(/^(?:nonzero|evenodd),\s*/,'').split(',').map(point=>point.trim().split(/\s+/).map(length));
-      // 每轴单位一致的共线点才是尺寸无关的零面积证明，混合单位不猜。
-      if(points.length>=3&&points.every(point=>point.length===2&&point.every(Boolean))&&
-        [0,1].every(axis=>new Set(points.map(point=>point[axis]).filter(p=>p.value!==0).map(p=>p.unit)).size<=1)) {
-        const values=points.map(point=>point.map(p=>p.value)),a=values[0],b=values.find(p=>p[0]!==a[0]||p[1]!==a[1]);
-        if(!b||values.every(c=>(b[0]-a[0])*(c[1]-a[1])===(b[1]-a[1])*(c[0]-a[0]))) return true;
-      }
-    }
-    return false;
-  };
   const fullyHidden = el => {
-    if(!el||el.closest('script,style,template,noscript')) return true;
+    if(!el) return false;
     if(hidden.has(el)) return hidden.get(el);
-    const chain=[];
-    for(let p=el;p;p=p.parentElement) chain.push({node:p,style:getComputedStyle(p)});
-    // 变换、包含和缩放会使 1px 盒子的视觉意义不确定，不能用 sr-only 捷径。
-    const uncertainGeometry=chain.some(({style:s})=>
-      [s.transform,s.scale,s.rotate,s.translate,s.perspective].some(value=>value!=='none')||s.contain!=='none'||Number(s.zoom)!==1);
-    let result=chain[0].style.visibility!=='visible';
-    const positioned=[];
-    for (const {node:p,style:s} of chain) {
-      if(s.display==='none'||s.contentVisibility==='hidden'||Number(s.opacity)===0) result=true;
-      if(p.tagName==='DETAILS'&&!p.open) {
-        const summary=[...p.children].find(c=>c.tagName==='SUMMARY');
-        if(!summary?.contains(el)) result=true;
-      }
-      if(/^(absolute|fixed)$/.test(s.position)) positioned.push(p);
-      if(s.display==='contents') continue;
-      const clip=/^rect\((.*)\)$/.exec(s.clip);
-      if(clip && /^(absolute|fixed)$/.test(s.position)) {
-        const parts=clip[1].trim().split(/[,\s]+/).map(length);
-        if(parts.length===4&&[[0,2],[3,1]].some(([start,end])=>
-          parts[start]&&parts[end]&&parts[start].unit===parts[end].unit&&parts[end].value<=parts[start].value)) result=true;
-      }
-      if(zeroClipPath(s.clipPath)) result=true;
-      // An absolute/fixed descendant can escape an overflow ancestor when its
-      // containing block is outside that ancestor. Its text is still painted.
-      const overflowApplies=!positioned.some(node=>node!==p&&(!node.offsetParent||!p.contains(node.offsetParent)));
-      const zeroMargin=/^(?:padding-box\s+)?0px$/.test(s.overflowClipMargin);
-      if(!uncertainGeometry&&overflowApplies&&/^(block|inline-block|flow-root|flex|inline-flex|grid|inline-grid|table-caption)$/.test(s.display)&&
-        /^(hidden|clip)$/.test(s.overflowX)&&/^(hidden|clip)$/.test(s.overflowY)&&
-        (s.overflowX!=='clip'&&s.overflowY!=='clip'||zeroMargin)&&p!==document.body&&p!==document.documentElement) {
-        const r=p.getBoundingClientRect();
-        if(r.width<=1&&r.height<=1) result=true;
-      }
+    // visibility 可继承，也可被后代覆盖，不能用祖先值代替文字自身的值。
+    let result=getComputedStyle(el).visibility!=='visible';
+    for(let p=el;!result&&p;p=p.parentElement) {
+      const s=getComputedStyle(p);
+      // contents 没有盒子，普通 inline 的尺寸与 overflow 不构成 sr-only 裁切。
+      if(!/^(block|inline-block|flow-root|flex|inline-flex|grid|inline-grid|table-caption)$/.test(s.display)||
+        !/^(hidden|clip)$/.test(s.overflowX)||!/^(hidden|clip)$/.test(s.overflowY)) continue;
+      // 旧 clip 只作用于 absolute/fixed；不靠未生效的声明证明隐藏。
+      const zeroClip=/^(absolute|fixed)$/.test(s.position)&&/^rect\(0px[, ]+0px[, ]+0px[, ]+0px\)$/.test(s.clip);
+      if(!zeroClip&&s.clipPath!=='inset(50%)') continue;
+      const rects=p.getClientRects();
+      if(rects.length&&[...rects].every(r=>r.width<=1&&r.height<=1)) result=true;
     }
     hidden.set(el,result);
     return result;

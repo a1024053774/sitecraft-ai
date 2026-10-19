@@ -1,0 +1,38 @@
+{
+  "inline-content-visibility": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:#fff;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}.probe{color:#eee}.probe{content-visibility:hidden}.wrapper{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><div class=\"text wrapper\"><span class=\"probe\"><span id=\"probe\">VISIBLE COLLISION</span></span></div></div></main>"
+      }
+    ]
+  },
+  "contents-content-visibility": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:#fff;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}.probe{color:#eee}.probe{display:contents;content-visibility:hidden}.wrapper{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><div class=\"text wrapper\"><div class=\"probe\"><span id=\"probe\">VISIBLE COLLISION</span></div></div></div></main>"
+      }
+    ]
+  },
+  "contents-opacity": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:#fff;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}.probe{color:#eee}.probe{display:contents;opacity:0}.wrapper{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><div class=\"text wrapper\"><div class=\"probe\"><span id=\"probe\">VISIBLE COLLISION</span></div></div></div></main>"
+      }
+    ]
+  }
+}

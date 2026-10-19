@@ -8,9 +8,9 @@ import { renderSiteCode, type SiteCode } from '../lib/code-site.ts';
 import type { SiteImageRecord } from '../lib/site-images.ts';
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
 
-// 期望来自访客可见性：确定全隐藏的标准写法排除，其余保留完整文字 Range。
-// 非零裁切无法证明整段隐藏时允许误拒，不能据推算的露出面积放过真实碰撞。
-// 失败面：祖先隐藏、独立变换、放大的 clip 边界、1px 提前排除、定位后代逃逸。
+// 期望来自负责人收窄后的合同：只排除文字自身 visibility 非 visible，
+// 或有盒节点的完整 sr-only 写法；其余保留完整 Range，允许保守误拒。
+// 复审探针的 inline/contents 文字确实绘制；透明或其他裁切只作合同对照。
 const fixture = JSON.parse(await readFile(new URL('./fixtures/t195-packaging-hidden-caption.json', import.meta.url), 'utf8')) as {
   siteId: string; materials: string; code: SiteCode; images: SiteImageRecord[];
 };
@@ -104,10 +104,9 @@ const make = (style: string, ancestor = false): SiteCode => ({ header: '', foote
   pages: [{ id: 'home', title: '可见性', html: `<main><h1>可见性</h1><div class="stage"><p class="text">VISIBLE TEXT COLLISION</p>
     ${ancestor ? '<div class="text probe"><span id="probe">HIDDEN TEXT COLLISION</span></div>' : '<p id="probe" class="text probe">HIDDEN TEXT COLLISION</p>'}</div></main>` }] });
 
-test('零裁切、1px 裁切和透明隐藏含祖先均排除，低对比度隐藏文字也不参与检查', async () => {
-  for (const style of ['clip:rect(0px,0px,0px,0px)', 'clip-path:inset(50%)', 'clip-path:circle(0px)',
-    'clip-path:ellipse(0px 10px)', 'clip-path:polygon(0 0,0 0,0 0)',
-    'width:1px;height:1px;overflow:hidden', 'opacity:0', 'visibility:hidden']) {
+test('完整 sr-only 与文字自身 visibility 隐藏含继承均排除', async () => {
+  for (const style of ['width:1px;height:1px;overflow:hidden;clip:rect(0px,0px,0px,0px)',
+    'width:1px;height:1px;overflow:clip;clip-path:inset(50%)', 'visibility:hidden']) {
     const reports = await scan(make(`${style};color:#eee`, true), `hidden-${style.split(':')[0]}-${crypto.randomUUID()}`);
     for (const { layout, width } of reports) {
       assert.equal(layout.textOverlaps.length, 0, `${style}/${width}`);
@@ -132,8 +131,9 @@ test('非零裁切保守保留完整 Range；未裁切的 1px 盒和半透明文
 
 test('共用可见性同时约束元素溢出和对比度，可见的低对比度溢出仍保留', async () => {
   for (const [style, hidden] of [
-    ['clip:rect(0px,0px,0px,0px)', true], ['clip-path:inset(50%)', true],
-    ['opacity:0', true], ['visibility:hidden', true], ['opacity:.1', false],
+    ['width:1px;height:1px;overflow:hidden;clip:rect(0px,0px,0px,0px)', true],
+    ['width:1px;height:1px;overflow:clip;clip-path:inset(50%)', true],
+    ['opacity:0', false], ['visibility:hidden', true], ['opacity:.1', false],
     ['clip:rect(0px,4px,20px,0px)', false],
   ] as const) {
     const reports = await scan(make(`left:-100px;color:#eee;${style}`), `overflow-${crypto.randomUUID()}`);
@@ -161,6 +161,84 @@ const reviewProbe = (css: string, html: string): SiteCode => ({ header: '', foot
 const visibleCollision = '<p class="text">VISIBLE COLLISION</p>';
 const probeText = '<p id="probe" class="text probe">VISIBLE COLLISION</p>';
 
+const review2Cases = JSON.parse(await readFile(new URL('./fixtures/t195-review2-visible.json', import.meta.url), 'utf8')) as Record<string, SiteCode>;
+
+test('复审两项 P2：inline/contents 的 content-visibility hidden/visible 与 contents opacity 0/1，碰撞及单独低对比度均拒收', async () => {
+  const failures: string[] = [];
+  for (const [name, original] of Object.entries(review2Cases)) for (const control of [false, true]) for (const alone of [false, true]) {
+    const label = `review2-${name}-${control ? 'control' : 'original'}-${alone ? 'alone' : 'collision'}`;
+    const code = { ...original, css: control ? original.css.replace('content-visibility:hidden', 'content-visibility:visible').replace('opacity:0', 'opacity:1') : original.css,
+      pages: original.pages.map(page => ({ ...page, html: alone ? page.html.replace(visibleCollision, '') : page.html })) };
+    const reports = await scan(code, label, !control && !alone);
+    const checks = await check(code, label);
+    for (const { width, layout, probe } of reports) {
+      if (!probe?.hit) failures.push(`${label}/${width} 浏览器实际可见文字未命中`);
+      if ((layout.textOverlaps.length > 0) !== !alone) failures.push(`${label}/${width} 重叠结果不符`);
+      if (!layout.textContrast.some(t => t.element === 'probe' && t.ratio < 4.5)) failures.push(`${label}/${width} 漏掉白底浅灰文字`);
+      const viewport = checks.viewports.find(v => v.width === width)!;
+      if ((viewport.overlaps > 0) !== !alone || viewport.contrastIssues < 1) failures.push(`${label}/${width} 生产提交拒因不符`);
+    }
+    if (checks.passed) failures.push(`${label} 被生产提交入口放过`);
+  }
+  assert.deepEqual(failures, []);
+});
+
+test('两条排除规则：sr-only 必须有盒且条件齐全；visibility 可继承也可由后代恢复', async () => {
+  const failures: string[] = [];
+  const sr = 'width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)';
+  for (const [name, style, tag, display, childStyle, exclude] of [
+    ['sr-block', sr, 'div', 'block', '', true],
+    ['sr-inset-inline-block', 'width:1px;height:1px;overflow:clip;clip-path:inset(50%)', 'span', 'inline-block', '', true],
+    ['sr-contents', sr, 'div', 'contents', '', false],
+    ['sr-inline', sr, 'span', 'inline', '', false],
+    ['sr-contents-inset', 'width:1px;height:1px;overflow:clip;clip-path:inset(50%)', 'div', 'contents', '', false],
+    ['sr-inline-inset', 'width:1px;height:1px;overflow:clip;clip-path:inset(50%)', 'span', 'inline', '', false],
+    ['missing-size', 'overflow:hidden;clip:rect(0 0 0 0)', 'div', 'block', '', false],
+    ['missing-overflow', 'width:1px;height:1px;clip:rect(0 0 0 0)', 'div', 'block', '', false],
+    ['missing-zero-clip', 'width:1px;height:1px;overflow:hidden', 'div', 'block', '', false],
+    ['one-axis', 'width:1px;height:1px;overflow-x:clip;overflow-y:visible;clip:rect(0 0 0 0)', 'div', 'block', '', false],
+    ['visibility-inherited', 'visibility:hidden', 'div', 'block', '', true],
+    ['visibility-self', '', 'div', 'block', 'visibility:hidden', true],
+    ['visibility-contents', 'visibility:hidden', 'div', 'contents', '', true],
+    ['visibility-restored', 'visibility:hidden', 'div', 'block', 'visibility:visible', false],
+    ['visibility-contents-restored', 'visibility:hidden', 'div', 'contents', 'visibility:visible', false],
+    ['visible', '', 'div', 'block', '', false],
+  ] as const) {
+    // 普通 inline/contents 不定位，防止 absolute 将 inline 的 display 块化。
+    const code = reviewProbe(`.wrapper{position:absolute;left:0;top:0}.candidate{${style};display:${display}${display === 'inline' || display === 'contents' ? '' : ';position:absolute'}}#probe{${childStyle}}`,
+      visibleCollision + `<div class="wrapper"><${tag} class="candidate"><span id="probe" class="probe">VISIBLE COLLISION</span></${tag}></div>`);
+    const reports = await scan(code, `rules-${name}`);
+    const checks = await check(code, `rules-${name}`);
+    for (const { width, layout } of reports) {
+      if ((layout.textOverlaps.length === 0) !== exclude) failures.push(`${name}/${width} 重叠排除不符`);
+      if (layout.textContrast.some(t => t.element === 'probe') === exclude) failures.push(`${name}/${width} 对比度排除不符`);
+      const viewport = checks.viewports.find(v => v.width === width)!;
+      if ((viewport.overlaps === 0) !== exclude || (viewport.contrastIssues === 0) !== exclude) failures.push(`${name}/${width} 生产提交拒因不符`);
+    }
+    if (checks.passed !== exclude) failures.push(`${name} 生产提交结果不符`);
+  }
+  assert.deepEqual(failures, []);
+});
+
+test('移除其他全隐藏捷径：有盒 opacity 0/1、content-visibility hidden/visible 和独立零裁剪均保守拒收', async () => {
+  const failures: string[] = [];
+  for (const style of ['opacity:0', 'opacity:1', 'content-visibility:hidden', 'content-visibility:visible',
+    'clip:rect(0 0 0 0)', 'clip-path:inset(50%)', 'clip-path:circle(0px)',
+    'clip-path:ellipse(0px 10px)', 'clip-path:polygon(0 0,0 0,0 0)']) {
+    const code = make(`${style};color:#eee`, true);
+    const label = `conservative-${crypto.randomUUID()}`;
+    const reports = await scan(code, label);
+    const checks = await check(code, label);
+    for (const { width, layout } of reports) {
+      if (!layout.textOverlaps.length || !layout.textContrast.some(t => t.element === 'probe' && t.ratio < 4.5)) failures.push(`${style}/${width} 未按可见处理`);
+      const viewport = checks.viewports.find(v => v.width === width)!;
+      if (!viewport.overlaps || !viewport.contrastIssues) failures.push(`${style}/${width} 生产提交未拒收两项`);
+    }
+    if (checks.passed) failures.push(`${style} 被生产提交入口放过`);
+  }
+  assert.deepEqual(failures, []);
+});
+
 test('审查 P2-1：自身及祖先的独立变换与 transform 等价写法均拒收重叠和低对比度', async () => {
   const failures: string[] = [];
   for (const [name, independent, transform] of [
@@ -186,7 +264,7 @@ test('审查 P2-1：自身及祖先的独立变换与 transform 等价写法均�
   assert.deepEqual(failures, []);
 });
 
-test('审查 P2-2：clip margin=100px 保留可见文字；仅 1px 标准裁切的零 margin 对照排除', async () => {
+test('审查 P2-2：clip margin=0/100px 的 1px/20px 盒均不满足完整 sr-only，保守拒收', async () => {
   const failures: string[] = [];
   for (const size of [20, 1]) for (const margin of [0, 100]) {
     const label = `review-clip-margin-${size}-${margin}`;
@@ -196,22 +274,23 @@ test('审查 P2-2：clip margin=100px 保留可见文字；仅 1px 标准裁切�
     const checks = await check(code, label);
     for (const { width, layout, probe } of reports) {
       if (probe?.hit !== (margin > 0)) failures.push(`${label}/${width} 浏览器实际裁切与场景预期不符`);
-      const exclude = size === 1 && margin === 0;
+      const exclude = false;
       if ((layout.textOverlaps.length === 0) !== exclude) failures.push(`${label}/${width} 重叠保守规则不符`);
       if (layout.textContrast.some(t => t.element === 'probe' && t.ratio < 4.5) === exclude) failures.push(`${label}/${width} 对比度保守规则不符`);
       const viewport = checks.viewports.find(v => v.width === width)!;
       if ((viewport.overlaps === 0) !== exclude || (viewport.contrastIssues === 0) !== exclude) failures.push(`${label}/${width} 生产拒因不符`);
     }
-    if (checks.passed !== (size === 1 && margin === 0)) failures.push(`${label} 生产提交结果不符`);
+    if (checks.passed) failures.push(`${label} 生产提交结果不符`);
   }
   assert.deepEqual(failures, []);
 });
 
-test('标准 sr-only 排除；变换、contain 与嵌套非零裁切不能据小盒子推断全隐藏', async () => {
+test('完整 sr-only 排除；缺少零裁切、小盒子、其他零裁切与变换均保守保留', async () => {
   const failures: string[] = [];
   for (const [name, style, ancestorStyle] of [
-    ['standard-hidden', 'width:1px;height:1px;overflow:hidden', ''],
-    ['standard-clip', 'width:1px;height:1px;overflow:clip;overflow-clip-margin:0', ''],
+    ['standard-hidden', 'width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)', ''],
+    ['standard-clip', 'width:1px;height:1px;overflow:clip;clip-path:inset(50%)', ''],
+    ['only-overflow', 'width:1px;height:1px;overflow:hidden', ''],
     ['scaled-tiny', 'width:1px;height:1px;overflow:hidden;scale:10;transform-origin:top left', ''],
     ['ancestor-scaled-tiny', 'width:1px;height:1px;overflow:hidden', 'scale:10;transform-origin:top left'],
     ['contain', 'width:20px;height:20px;contain:paint', ''],
@@ -223,7 +302,7 @@ test('标准 sr-only 排除；变换、contain 与嵌套非零裁切不能据小
     code.css += `.outer{position:absolute;left:0;top:0;width:200px;height:20px;${ancestorStyle}}`;
     code.pages[0].html = code.pages[0].html.replace('<p id="probe"', '<div class="outer"><p id="probe"').replace('</p></div></main>', '</p></div></div></main>');
     const reports = await scan(code, name);
-    const exclude = name.startsWith('standard-') || name.startsWith('zero-');
+    const exclude = name.startsWith('standard-');
     for (const { width, layout } of reports) {
       if ((layout.textOverlaps.length === 0) !== exclude) failures.push(`${name}/${width} 重叠可见性不符`);
       if (layout.textContrast.some(t => t.element === 'probe') === exclude) failures.push(`${name}/${width} 对比度可见性不符`);
