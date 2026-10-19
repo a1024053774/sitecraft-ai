@@ -2,7 +2,7 @@
 id: T-194
 title: 机械数字检查把相邻文字节点拼在一起，修正器找不到片段整站拒存
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t194
 supersedes:
@@ -33,7 +33,7 @@ T-190 新基线第一轮的 restaurant/documentary 没存下版本，排查见 `
 
 - [x] 复现命令与根因写进 Resolution
 - [x] 成对测试先红后绿，反例仍拒
-- [ ] 合并后主线验证通过；独立 fast 审查通过
+- [x] 合并后主线验证通过；独立 fast 审查通过（见 Resolution 末尾）
 
 ## Resolution
 
@@ -89,3 +89,7 @@ npm run typecheck
 相关文件由 `rg -l '资料没有的数字|englishFidelity|code-site-english|readCodeFactSeparators|readCodeFactSegments|codeRepairFragments|repairSiteCode' tests --glob '*.test.ts'`、所有 t151/t160/t173/t191 文件及直接受影响的 t159 准入夹具合并选出；列表在 `artifacts/t194/related-selection.txt`，检索原结果也保留。结果按文件选择补改后最新的一次组成 accepted-results，没有重复计数。每次启动前实际运行 `memory_pressure | tail -1` 和 `pgrep -f chrome-headless-shell | wc -l`，低于 25% 空闲或超过 12 个 Chrome 就等待；本轮起跑记录均满足约束，一次只有一个定向测试文件。等待只服务于负载条件；新测试与读取器不靠固定等待判断完成。
 
 **停点与限制。** 未调用真实模型，事实 HTTP 替身只隔离确定性边界，不能据此声称真实事实语义核对或审美已通过。按本次指令未开任何审查实例，未跑全量、独立 runner 回归或 build；第三项验收不勾选、票不关闭。未读 `.env.local`，未启动或改动主工作区及 t190b 服务，未写主工作区 `.sitecraft-data` 或 artifacts，未额外计算哈希或做字节／像素证据比对；图片沿用生产提交入口已有的完整性检查。测试入口的服务和数据根均属本工作树，identity 已在各报告核实；本工作树也未创建默认 `.sitecraft-data`。`tsconfig.json` 的 Next 自动变更保留在工作树，不进入提交。AGENTS、CONTEXT、mainline 与 spec 已同步，project-map 无过时 living doc。
+
+### 主控验收与关闭
+
+执行主控，2026-10-19 EDT。独立审查 GO，P0–P3 均无，见 `artifacts/t194/review1.txt`。分支 `t194-number-node-boundary`（`8b5f517`）以 `--no-ff` 合并为 `89dff07`。主线验证在合并后的 `e252623` 上运行（T-190 基线分支合并 `c12f8f8`，T-194 合并 `89dff07`，T-195 合并 `e252623`），2026-10-19 13:51:21–14:10:33 EDT，期间没有其他重活。runner、build、typecheck 均退出 0；全量非浏览器 146/146、浏览器 863/863，无失败、取消或跳过。见 `artifacts/t195/main-verify.out` 与 `artifacts/t195/main-verify/`。 工作树证据复制到 `artifacts/t194/worktree-evidence/` 与 `worktree-t167/`。

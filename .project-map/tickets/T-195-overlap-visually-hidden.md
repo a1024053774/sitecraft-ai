@@ -2,7 +2,7 @@
 id: T-195
 title: 重叠扫描把视觉隐藏的文字算作可见，修正两轮仍被拒
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t195-review2-fix
 supersedes:
@@ -35,7 +35,7 @@ T-190 新基线第一轮的 packaging/precision 两轮修正后仍被底线检�
 
 - [x] 复现结论写进 Resolution
 - [x] 成对测试先红后绿，真实重叠仍拒
-- [ ] 合并后主线验证通过；独立 fast 审查通过
+- 合并后主线验证通过；独立 fast 审查通过——主线验证已通过（见 Resolution 末尾）；审查一项不打勾：复审 3 结论 NO_GO；4 项 P2 经 `git show db87731` 核实都是本票之前就存在的缺口，已转 T-196；本票改动范围内的两条排除规则经三轮复审未挑出问题。审查原文：`artifacts/t195/review1.txt`、`review2.txt`、`review3.txt`。
 
 ## Resolution
 
@@ -182,3 +182,13 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 ```
 
 本地修复及上述门控 PASS。保留会话开始前已有的 tsconfig.json 自动改动，不纳入提交；没有修改生成站代码、主工作区数据或原审查 artifacts。未运行全量、runner 回归、build、真实模型或评估，没有启动审查实例，没有推送。独立复审及合并后主线验证尚未完成，本票仍 open，最后一项不勾选；本地 PASS 不代表整票验收或审美通过。
+
+### 主控验收与关闭
+
+执行主控，2026-10-19 EDT。共三轮独立审查，每轮都是新实例。
+
+- 第 1 轮 NO_GO（`artifacts/t195/review1.txt`）：独立 `scale` 属性与 `overflow-clip-margin` 两处漏判。构思主控随后改定保守方向：只排除能确定整段不可见的文字。
+- 第 2 轮 NO_GO（`review2.txt`）：在 inline 或 `display:contents` 上，`content-visibility:hidden` 不生效；`display:contents` 上的 `opacity:0` 也不会让后代透明。构思主控把可见性排除收窄为两条：元素自身的计算 visibility 不是 visible；以及生成盒子元素上的标准 sr-only 写法。
+- 第 3 轮 NO_GO（`review3.txt`）：两条规则本身没有被挑出问题。4 项 P2——扫描前删除 aria-hidden、强制展开 details、跳过小于 1px 的元素、生成文字不进入扫描——经 `git show db87731` 核实都早于本票，已转 T-196。
+
+分支 `t195-hidden-overlap`（`788f08b`）以 `--no-ff` 合并为 `e252623`。主线验证在合并后的 `e252623` 上运行（T-190 基线分支合并 `c12f8f8`，T-194 合并 `89dff07`，T-195 合并 `e252623`），2026-10-19 13:51:21–14:10:33 EDT，期间没有其他重活。runner、build、typecheck 均退出 0；全量非浏览器 146/146、浏览器 863/863，无失败、取消或跳过。见 `artifacts/t195/main-verify.out` 与 `artifacts/t195/main-verify/`。 工作树证据复制到 `artifacts/t195/worktree-evidence/` 与 `worktree-t167/`。

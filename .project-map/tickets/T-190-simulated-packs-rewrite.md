@@ -2,7 +2,7 @@
 id: T-190
 title: 模拟资料按真实企业写法重整并建立新基线
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t190-baseline-r3
 supersedes:
@@ -839,3 +839,9 @@ comparison 中选 T-180 的 3 对是 education/precision、packaging/documentary
 - design/precision：网络阻断。
 
 逐站诊断见 `artifacts/t190/r2-round1-failure-diagnosis.md`。
+
+### 主控收尾与关闭
+
+执行主控，2026-10-19 EDT。基线分支 `t190-baseline`（`2794135`，含评估器开关、两次中断记录、第二轮与结论）以 `--no-ff` 合并为 `c12f8f8`，与 T-194、T-195 一起经主线验证。主线验证在合并后的 `e252623` 上运行（T-190 基线分支合并 `c12f8f8`，T-194 合并 `89dff07`，T-195 合并 `e252623`），2026-10-19 13:51:21–14:10:33 EDT，期间没有其他重活。runner、build、typecheck 均退出 0；全量非浏览器 146/146、浏览器 863/863，无失败、取消或跳过。见 `artifacts/t195/main-verify.out` 与 `artifacts/t195/main-verify/`。
+
+主数据：先备份到 `artifacts/t190/main-data-backup-20261019141056/`（348 个文件），再用 `cp -n` 复制两轮共 14 个存版站（第一轮 9 站、第二轮 5 站），站名加「（新资料 T-190）」；主数据从 348 站增至 362 站，在 3034 上抽查的 code-preview 均返回 200。基线工作树证据复制到 `artifacts/t190/baseline-worktree-evidence/` 与 `baseline-worktree-t167/`，账本复制到 `artifacts/t174/t190-baseline-r2/` 与 `t190-baseline-r3/`（首次中断的 `t190-baseline` 已在此前复制）。
