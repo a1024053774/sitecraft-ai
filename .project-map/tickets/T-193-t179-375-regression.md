@@ -91,6 +91,8 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 | `npm test -- tests/t162-scroll-edge.test.ts` | 09:59:04–09:59:28 | 3/3；`artifacts/t193/t162-edge.log`、`artifacts/t167/test-run-1792403945389-20700/report.json` |
 | `npm test -- tests/t175-thread-placement.test.ts` | 09:59:28–10:00:04 | 3/3；`artifacts/t193/t175-placement.log`、`artifacts/t167/test-run-1792403969020-23961/report.json` |
 
-**本地门控 PASS**：typecheck 退出 0，四份定向测试合计 14/14，无跳过或取消。精确命令、提交、起止时间及退出码另见 `artifacts/t193/local-gates.json`。T-179 修后 40 张截图已通过 10 张带原文件名的联系表逐图查看，索引 `artifacts/t193/t179-screenshot-index.json`；T-162／T-175 的 21 张通过 6 张联系表逐图查看，索引 `artifacts/t193/related-screenshot-index.json`。三档批注与定位证据均有实际正文和可操作面板；定位前对话态和 scroll-edge 主动把目标滚出视野后的空白只作对应交互的证据，不冒充生成站质量验收。没有审美通过结论。
+**本地门控 PASS**：typecheck 退出 0，四份定向测试合计 14/14，无跳过或取消。typecheck 与 t162-mobile、t162-edge、t175-placement 三份测试的精确命令、提交、起止时间及退出码见 `artifacts/t193/local-gates.json`；T-179 用例的 5/5 运行见上文第 87 行所引 `t179-green.log` 与 `test-run-1792403746471-1986/report.json`。T-179 修后 40 张截图已通过 10 张带原文件名的联系表逐图查看，索引 `artifacts/t193/t179-screenshot-index.json`；T-162／T-175 的 21 张通过 6 张联系表逐图查看，索引 `artifacts/t193/related-screenshot-index.json`。三档批注与定位证据均有实际正文和可操作面板；定位前对话态和 scroll-edge 主动把目标滚出视野后的空白只作对应交互的证据，不冒充生成站质量验收。没有审美通过结论。
 
 本次未读 `.env.local`、未调用真实模型、未开审查实例、未运行全量／runner／build、未推送；未使用 rm 命令，主工作区 artifacts 只读、`.sitecraft-data` 未写。Next 自动修改的 `tsconfig.json` 留在工作树且不提交。project-map 状态检查为 Problems 0、Stale living docs 0。**整票 INCOMPLETE**：独立审查与合并后主线验证由主控执行，最后一项验收仍未勾选，票保持 open；不能把本地门控通过写成整票关闭。
+
+**独立审查（主控记录，2026-10-19 EDT）。** 新实例独立审查 PASS/GO，见主工作区 `artifacts/t193/review1.txt`：P0–P2 均无；P3 一项是本节证据索引没有覆盖 T-179 运行，已在上一段更正。
