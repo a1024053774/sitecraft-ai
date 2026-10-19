@@ -202,9 +202,136 @@ T-184 education/precision 模型 issues 为零。已保存回复中 s16/s17 的�
 
 ### 门控与候选
 
-- 2026-10-19 06:40 UTC，在父版本提示 `dc09cb2` 上新增合同测试后执行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t188-condition-scope.test.ts`：9 项均因缺少要求的提示合同而失败，退出 1；非环境或替身失败。日志：`artifacts/t188/contract-red.log`，入口报告复制在 `artifacts/t188/gates/test-run-1792393258668-21777/`。
-- 同日修改后，以相同 CHROME_PATH 执行 `npm test -- tests/t188-condition-scope.test.ts tests/t184-style-visual.test.ts`：15/15；日志 `artifacts/t188/contract-green.log`，报告 `artifacts/t188/gates/test-run-1792393297081-26923/`。
-- 同日执行 `npm test -- tests/t135-plan-contract.test.ts tests/t153-style-preferences.test.ts tests/t158-general-prompts.test.ts`：16/16；日志 `artifacts/t188/affected-prompts.log`，本轮入口报告同样复制在 `artifacts/t188/gates/`。
-- `npm run typecheck` 通过；日志 `artifacts/t188/typecheck.log`。本次按负责人规则未跑全量、runner 或 build；未开审查或盲评实例。测试只证明实际提示传递，不证明模型生成效果或审美。
+- 2026-10-19 07:01:03 UTC，在父版本提示 `dc09cb2` 上新增合同测试后执行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t188-condition-scope.test.ts`：9 项均因缺少要求的提示合同而失败，退出 1；非环境或替身失败。日志：`artifacts/t188/contract-red.log`，入口报告复制在 `artifacts/t188/gates/test-run-1792393258668-21777/`。
+- 同日 07:01:41 UTC 修改后，以相同 CHROME_PATH 执行 `npm test -- tests/t188-condition-scope.test.ts tests/t184-style-visual.test.ts`：15/15；日志 `artifacts/t188/contract-green.log`，报告 `artifacts/t188/gates/test-run-1792393297081-26923/`。
+- 同日 07:02:02 UTC 执行 `npm test -- tests/t135-plan-contract.test.ts tests/t153-style-preferences.test.ts tests/t158-general-prompts.test.ts`：16/16；日志 `artifacts/t188/affected-prompts.log`，本轮入口报告同样复制在 `artifacts/t188/gates/`。
+- 同日 07:01:55 UTC，`npm run typecheck` 通过；日志 `artifacts/t188/typecheck.log`。本次按负责人规则未跑全量、runner 或 build；未开审查或盲评实例。测试只证明实际提示传递，不证明模型生成效果或审美。
 - Next 自动修改 `tsconfig.json` 保留在工作树、不提交。定向入口所用临时数据根均由标准入口核对，没有写主工作区 `.sitecraft-data`。本票只在当前工作树生成证据。
-- 真实评估待门控后的本地提交完成后执行，六组合各一次，失败站不重跑。统计与候选 SHA 在下一节补齐。合并后全量、独立审查及复制主数据由主控处理，本票暂不关闭。
+- 门控对应本地候选提交 `cf62258953d40a53028a26c74e020b27ba5669d2`（2026-10-19 07:04:21 UTC），之后生成提示与测试没有再改。真实评估只执行下节这一轮；合并后全量、独立审查及复制主数据由主控处理。
+
+### 唯一一次真实评估与结果
+
+候选：`cf62258953d40a53028a26c74e020b27ba5669d2`。开始：2026-10-19 07:05:02 UTC。精确命令：
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:65380 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --only restaurant/editorial,restaurant/precision,molding/precision,design/precision,education/precision,packaging/precision --out artifacts/t188/eval
+```
+
+既有完整评估为 20 组合，与本次 6 组合不符合 `compareRounds` 的同矩阵要求，故没有传 `--previous`；三轮原文仍按本节同一人工口径逐组合比较。普通 dev 使用本工作树随机端口 65380、数据根 `/Users/luckye/Documents/Code/sitecraft-ai-t188/artifacts/t188/eval-data`；health 的 cwd/dataRoot/模型 deepseek-flash 均核对，保存于 `artifacts/t188/health.json`。应用使用 `local-budget-gateway` 占位凭据，模型地址为本地 65381 网关；真实凭据仅网关子进程用 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local; set +a` 载入，source 输出丢弃。显式授权 `SITECRAFT_TOKEN_LIMIT=1000000`，新账本 `T153_BUDGET_DIR=artifacts/t174/t188-condition-eval`；没有重启、重发或重跑任何站点。运行命令、授权与隔离记录见 `artifacts/t188/execution.json`。
+
+六站均经原生产提交入口保存版本 1；其中 molding/precision、restaurant/precision、education/precision、design/precision 首次检查通过；packaging/precision 与 restaurant/editorial 各用一轮正常修正。生成页面共 19 页，提交入口本次 375/768/1440 的结构、资源、事实、溢出、重叠、对比度等底线最终通过，逐站结果在 `artifacts/t188/eval/private/case-*/code-site.json`。63 张生成截图（19 页三档 57 张＋6 张首页首屏）均用 `view_image` 打开查看，载入与内容完整性可见；清单 `artifacts/t188/viewed-screenshots.json`，原图 `artifacts/t188/eval/private/case-*/`。这不代表独立审美通过；没有开任何审查或盲评实例。
+
+本轮统计（列间重叠规则与基线相同）：
+
+| 组合 | 条件挪用（模型） | 导语概括（模型） | 关系地点（模型） | 本类出处（代码） | 整站失败 | 公共成员失败 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| restaurant/editorial | 1 | 0 | 0 | 1 | 0 | 0 |
+| restaurant/precision | 0 | 0 | 0 | 0 | 0 | 0 |
+| molding/precision | 0 | 0 | 0 | 0 | 0 | 0 |
+| design/precision | 0 | 0 | 0 | 0 | 0 | 0 |
+| education/precision | 0 | 0 | 0 | 0 | 0 | 0 |
+| packaging/precision | 10 | 10 | 0 | 0 | 0 | 0 |
+
+合计：模型条件挪用 **11 次**、导语概括 **10 次**、其他关系地点推断 **0 次**；代码本类出处拒因 **1 次**；整站失败 **0/6**、公共成员失败 **0/6**。包装站是同一句分组说明在 s10–s19 十个核对段各被拒一次，按基线逐调用逐段口径保留十次；另报为 1 个原始句子不替代次数。跨产品合并不同加工条件沿用 T-184 packaging 的条件挪用归类；关系地点列统计其余无具体条件迁移的关系与位置推断，不因本轮内容改换分类。
+
+逐组合与三轮比较（数字顺序均为 T-180 → T-183 → T-184 → T-188）：
+
+- restaurant/editorial：条件挪用 0 → 3 → 1 → 1，导语 0 → 2 → 0 → 0，关系地点 0 → 1 → 0 → 0，代码本类出处 0 → 0 → 0 → 1，整站/公共成员失败均 0 → 1 → 0 → 0。相较 T-183 改善，相较 T-184 条件次数持平，相较 T-180 更差；T-183 补改单站的条件次数也是 1，不能说本轮消除了豆腐煲问题。
+- restaurant/precision：条件 0 → 0 → 2 → 0，代码本类出处 0 → 0 → 1 → 0；导语、关系地点、整站及公共成员失败一直为 0。相较 T-184 下降，与另两轮持平。
+- molding/precision：条件一直 0；导语及关系地点均 0 → 0 → 1 → 0，整站及公共成员失败均 0 → 0 → 1 → 0。相较 T-184 改善，与前两轮持平。
+- design/precision：本类条件一直 0；导语及关系地点均 0 → 0 → 1 → 0，整站及公共成员失败均 0 → 0 → 1 → 0。相较 T-184 改善，与前两轮持平；不把 T-183 的新增及时承诺纳入本类。
+- education/precision：三类模型拒因与本类代码出处一直为 0；整站及公共成员失败均 0 → 0 → 1 → 0。本轮未触发 T-184 的公共成员终止，不能说模型导语拒因下降。
+- packaging/precision：条件挪用 1 → 0 → 2 → 10，导语概括 0 → 0 → 2 → 10，关系地点及代码本类出处一直为 0；整站失败 1 → 0 → 0 → 0、公共成员一直 0。本轮次数明显增加；全部引用该说明的段都被拒，使正常修正可以完成，公共成员失败为零不代表生成侧合同已经生效。
+
+六组合总数比较：条件 1 → 3 → 5 → 11，导语 0 → 2 → 4 → 10，关系地点 0 → 1 → 2 → 0，代码本类出处 0 → 0 → 1 → 1，整站失败 1 → 1 → 3 → 0，公共成员失败 0 → 1 → 3 → 0。**减少条件挪用与导语概括次数的验收未达成**，第二个 Acceptance 不勾选。次数、失败站数与独立审美是不同结论，本轮不能写成总体质量已改善。
+
+本轮全部实际拒因原文逐条如下；完整核对段与路径仍在 `artifacts/t188/classified.json`，复现统计命令为 `python3 artifacts/t188/analyze.py`：
+
+- `T-188/09fac07d/r1/c1/s18/i0`（restaurant/editorial；模型 issues；条件挪用）：
+
+  > 「时蔬豆腐煲……供应 午市和晚市」：资料只给出价格、内容、米饭不包含和共用厨房边界，未说明该菜供应时段，不能补写为午市和晚市。
+
+- `T-188/09fac07d/r1/a0/i1`（restaurant/editorial；提交检查出处；条件挪用）：
+
+  > 高风险事实缺少有效资料出处：页面原句「页面 menu：菜单与价格
+  > 时蔬豆腐煲
+  >
+  >
+  > 36 元/份
+  >
+  >
+  >
+  >
+  >
+  > 内容
+  >
+  > 豆腐、菌菇与当日蔬菜
+  >
+  >
+  > 米饭
+  >
+  > 不包含
+  >
+  >
+  > 供应
+  >
+  > 午市和晚市
+  >
+  >
+  > 边界
+  >
+  > 使用共用厨房和调味料」；声明类别「价格与收费、时间与交期承诺」没有通过的资料出处。
+
+- `T-188/9bce5878/r1/c1/s10/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s11/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s12/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s13/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s14/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s15/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s16/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s17/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s18/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+- `T-188/9bce5878/r1/c1/s19/i0`（packaging/precision；模型 issues；条件挪用、导语概括）：
+
+  > 页面原句“纸盒与内托共用的加工、设备与检测条件”把纸盒的胶印、模切、糊盒等与内托的纸浆成型、烘干等统称为两者共用；资料分别列出纸盒与内托的加工流程和设备，未说明这些加工、设备、检测条件可共用，属于扩大适用范围。
+
+另有一项自查风险，未混入模型拒因：restaurant/precision 的 visit 页把服务区域排成 `<strong>地址</strong><span>杭州市拱墅区；门牌地址待补充。</span>`，同区说明写的是「服务社区为杭州市拱墅区」。该排法可能使服务区域被读成门店位置，尽管本次事实核对没有报错，仍交主控核实；截图为 `artifacts/t188/eval/private/case-3/visit-1440.png`，候选源在同目录 `code-site.json`。未通过改底线或临时换口径把风险算作完成。
+
+状态：**INCOMPLETE**。生成侧合同、红绿证据、定向门控及一次真实运行已经交付；效果目标未达成，合并后全量、独立 fast 审查及主数据复制也尚未进行。票保留 open 与 claimed_by，不替主控关闭或启动下一轮。T-173 规则没有修改。将包装站十段共同拒因及餐馆时段复发的数据交回构思主控，后续是否调整策略或规则由其与负责人决定；现有真实生成授权已执行完，不构成再跑授权。
+
+### 评估退出与手动停服
+
+评估器于 `2026-10-19T07:32:23.271263+00:00` 自然退出，退出码 **1**，标准报告为 **INCOMPLETE**：六组合均为 generated，但外部对照 restaurant/1（Blue Frog）「页面入场或转场未结束，本次未保存截图」，混排包少一份独立真实官网对照。未重试外部对照，未重发评估；这项外部截图依赖未完成，不改变本轮六站及拒因统计。原文见 `artifacts/t188/eval.log`、`eval/private/round.json` 与 `eval/private/blind-coverage.json`。独立盲评没有执行，审包也未交评审。
+
+2026-10-19 07:32:46 UTC，从实际 draft 接口逐站保存了 `artifacts/t188/terminal-drafts/`：六站共 **12 个 run 全部 complete**；再查询网关 `/status`，**22 次调用全部 complete、在途 0**。最终实报用量 **605,573 / 1,000,000 token**，已与本轮账本调用用量之和核对；原账本 `artifacts/t174/t188-condition-eval/usage.json` 已复制到 `artifacts/t188/budget/usage.json`，另存 `budget-final.json`、`shutdown-gate.json`。
+
+终态和在途核对之后，手动对本轮网关 PID 52466、dev PID 52493 发送 SIGTERM。2026-10-19 07:32:58 UTC，连接测试与 lsof 均确认 **65380、65381 无监听**，记录 `artifacts/t188/ports-closed.json`；没有自动清理或删除数据。
+
+评估元数据的 dirty=true 来自 Next 自动改动的 `tsconfig.json`，该文件未提交；评估开始时生成侧代码及合同测试均已包含在 cf62258，之后没有再修改。最后只提交本 Resolution 和 living doc 复核标记，不改本轮候选。`project_map.py status --root .` 在最终文档更新后报告 Problems 0、Stale living docs 0。合并、完整门控、独立审查和主数据操作均留给主控；本票效果验收未达成，仍为 INCOMPLETE。
