@@ -67,11 +67,16 @@ const threadResponseGate = `(()=>{
 type View = Awaited<ReturnType<typeof session>>;
 async function geometry(view: View) {
   return view.browser.evaluate<any>(`(()=>{
-    const box=el=>el?.getBoundingClientRect().toJSON(),f=document.querySelector('[data-testid="code-preview"]'),s=document.querySelector('.code-preview-stage');
+    const box=el=>el?.getBoundingClientRect().toJSON(),f=document.querySelector('[data-testid="code-preview"]'),s=document.querySelector('.code-preview-stage'),nav=document.querySelector('.site-page-nav');
     const fr=f.getBoundingClientRect(),sr=s.getBoundingClientRect(),r=f.contentDocument.querySelector('main').children[5].getBoundingClientRect(),scale=fr.width/f.offsetWidth;
     return {scroll:{inner:f.contentWindow.scrollY,outer:s.scrollTop},panel:box(document.querySelector('[data-testid="annotation-composer"]')),
       target:{top:fr.top+r.top*scale,bottom:fr.top+r.bottom*scale},stage:box(s),bar:box(document.querySelector('.code-preview-version')),
       loaded:!document.querySelector('.code-preview-loading')&&f.contentDocument.readyState==='complete',
+      preview:{url:f.src,state:f.contentDocument.readyState,heading:f.contentDocument.querySelector('h1')?.textContent,
+        frame:box(f),offsetWidth:f.offsetWidth,clientWidth:f.clientWidth,transform:f.style.transform,
+        documentWidth:f.contentDocument.documentElement.clientWidth,target:box(f.contentDocument.querySelector('main').children[5])},
+      stageViewport:{clientWidth:s.clientWidth,clientHeight:s.clientHeight,offsetWidth:s.offsetWidth,offsetHeight:s.offsetHeight},
+      navigationViewport:{clientHeight:nav.clientHeight,offsetHeight:nav.offsetHeight},
       point:{x:Math.min(fr.right,sr.right)-20,y:Math.max(fr.top,sr.top)+24},log:window.__t179Log};
   })()`);
 }
@@ -97,11 +102,11 @@ async function wheel(view: View, direction: string, deltaY: number) {
   const after = await geometry(view);
   return { direction, deltaY, before, after, programmatic: after.log.filter((entry: any) => entry.phase === direction && entry.type === 'scrollBy') };
 }
-async function shot(view: View, name: string, width: number) {
+async function shot(view: View, name: string, width: number | string) {
   const result = await view.browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
   await writeFile(`${output}/${name}-${width}.png`, Buffer.from(result.data, 'base64'));
 }
-async function threadState(view: View, name: string, width: number) {
+async function threadState(view: View, name: string, width: number | string) {
   const observed = await view.browser.evaluate<any>(`(()=>{
     const el=document.querySelector('[data-testid="thread-reveal"]'),details=document.querySelector('.code-annotation-threads'),
       f=document.querySelector('[data-testid="code-preview"]'),s=document.querySelector('.code-preview-stage');
@@ -136,32 +141,49 @@ function assertNativeScroll(result: Awaited<ReturnType<typeof wheel>>) {
   assert.ok(p.top >= 0 && p.bottom <= 1000, '手动滚动后浮层仍完整留在视口内');
 }
 
-for (const width of [375, 768, 1440]) test(`T-179 首次腾位与用户原生滚动成对验证 ${width}`, { timeout: 120000 }, async () => {
+// 两种宿主滚动条占宽均跑相同真实旅程；只改变工作台的浏览器几何，
+// 不改生成站 HTML/CSS、目标高度、腾位逻辑或需求断言。
+const scenarios = [
+  ...[375, 768, 1440].map(width => ({ width, scrollbar: undefined as number | undefined })),
+  ...[0, 15].map(scrollbar => ({ width: 375, scrollbar })),
+];
+for (const { width, scrollbar } of scenarios) test(`T-179 首次腾位与用户原生滚动成对验证 ${width}${scrollbar === undefined ? '' : ` 宿主滚动条 ${scrollbar}px`}`, { timeout: 120000 }, async () => {
+  const label = scrollbar === undefined ? width : `${width}-scrollbar-${scrollbar}`;
   const id = await historicalSite(), view = await session(width, { siteId: id, beforeNavigate: async browser => {
     await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: observeScript });
     await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: threadResponseGate });
+    if (scrollbar !== undefined) await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      if(window===window.top)document.addEventListener('DOMContentLoaded',()=>{
+        const style=document.createElement('style');
+        style.textContent='.code-preview-stage::-webkit-scrollbar,.site-page-nav::-webkit-scrollbar{width:${scrollbar}px;height:${scrollbar}px}';
+        document.head.append(style);
+      },{once:true});` });
   } });
   try {
     if (width < 1100) await view.click('[role="tab"]:nth-child(1)');
     await view.click('.code-annotation-threads summary');
     await view.browser.evaluate('window.__t179ThreadsReceived');
-    const pending = await threadState(view, 'initial-before-threads', width);
+    const pending = await threadState(view, 'initial-before-threads', label);
     assert.equal(pending.button, null, '线程响应未放行前按钮尚未载入，不能把预览载入当作线程就绪');
     assert.equal(pending.composer, null, '初始线程尚未定位时没有批注浮层');
     const ready = view.wait(`document.querySelector('[data-testid="thread-reveal"]') && !document.querySelector('[data-testid="thread-reveal"]').disabled`);
     await view.browser.evaluate('window.__t179ReleaseThreads()');
     await ready;
     await view.browser.evaluate(`document.querySelector('[data-testid="thread-reveal"]').scrollIntoView({block:'center'})`);
-    await threadState(view, 'initial-ready', width);
+    await threadState(view, 'initial-ready', label);
     await view.click('[data-testid="thread-reveal"]');
     await view.wait(`document.querySelector('.code-preview-version') && document.querySelector('[data-testid="annotation-composer"]') && !document.querySelector('.code-preview-loading')`);
     await view.browser.evaluate('document.fonts.ready');
     await view.browser.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
     const opened = await geometry(view); assert.equal(opened.loaded, true);
-    await shot(view, 'opened', width);
-    const up = await wheel(view, 'up', -48); await shot(view, 'up', width);
-    const down = await wheel(view, 'down', 48); await shot(view, 'down', width);
-    await writeFile(`${output}/scroll-${width}.json`, JSON.stringify({ at: new Date().toISOString(), width, opened, up, down }, null, 2), 'utf8');
+    if (scrollbar !== undefined) {
+      assert.equal(opened.stageViewport.offsetWidth - opened.stageViewport.clientWidth, scrollbar, '对照须实际改变宿主滚动条占宽');
+      assert.equal(opened.navigationViewport.offsetHeight - opened.navigationViewport.clientHeight, scrollbar, '对照须实际改变导航滚动条占高');
+    }
+    await shot(view, 'opened', label);
+    const up = await wheel(view, 'up', -48); await shot(view, 'up', label);
+    const down = await wheel(view, 'down', 48); await shot(view, 'down', label);
+    await writeFile(`${output}/scroll-${label}.json`, JSON.stringify({ at: new Date().toISOString(), width, scrollbar, opened, up, down }, null, 2), 'utf8');
     console.log(JSON.stringify({ width, opened: opened.scroll, up: { before: up.before.scroll, after: up.after.scroll, programmatic: up.programmatic }, down: { before: down.before.scroll, after: down.after.scroll, programmatic: down.programmatic } }));
     assertInitial(opened, width);
     assertNativeScroll(up); assertNativeScroll(down);
@@ -172,8 +194,8 @@ for (const width of [375, 768, 1440]) test(`T-179 首次腾位与用户原生滚
     await view.browser.evaluate(`window.__t179Phase='expand'`);
     await view.click('[data-testid="annotation-expand"]');
     const expanded = await geometry(view);
-    await writeFile(`${output}/expanded-${width}.json`, JSON.stringify(expanded, null, 2), 'utf8');
-    await shot(view, 'expanded', width);
+    await writeFile(`${output}/expanded-${label}.json`, JSON.stringify(expanded, null, 2), 'utf8');
+    await shot(view, 'expanded', label);
     assertInitial({ ...expanded, log: expanded.log.filter((entry: any) => entry.phase === 'expand') }, width);
     assertNativeScroll(await wheel(view, 'expanded-up', -32));
     assertNativeScroll(await wheel(view, 'expanded-down', 32));
@@ -182,7 +204,7 @@ for (const width of [375, 768, 1440]) test(`T-179 首次腾位与用户原生滚
     await view.wait(`!document.querySelector('.code-preview-version') && !document.querySelector('.code-preview-loading')`);
     await view.pick('main > section:nth-of-type(6) h2', '收费口径');
     const draftUp = await wheel(view, 'draft-up', -32);
-    await writeFile(`${output}/draft-up-${width}.json`, JSON.stringify(draftUp, null, 2), 'utf8');
+    await writeFile(`${output}/draft-up-${label}.json`, JSON.stringify(draftUp, null, 2), 'utf8');
     assertNativeScroll(draftUp);
     assert.ok(draftUp.after.target.bottom > draftUp.after.panel.top, '重新点选前须确实存在手动滚动后的目标遮挡，恢复腾位必须有可观察结果');
     await view.browser.evaluate(`window.__t179Phase='repick'`);
@@ -197,15 +219,15 @@ for (const width of [375, 768, 1440]) test(`T-179 首次腾位与用户原生滚
     await view.browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, ...point });
     await view.browser.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
     const repicked = await geometry(view);
-    await writeFile(`${output}/repicked-${width}.json`, JSON.stringify(repicked, null, 2), 'utf8');
-    await shot(view, 'repicked', width);
+    await writeFile(`${output}/repicked-${label}.json`, JSON.stringify(repicked, null, 2), 'utf8');
+    await shot(view, 'repicked', label);
     assertInitial({ ...repicked, log: repicked.log.filter((entry: any) => entry.phase === 'repick') }, width);
     const repickedUp = await wheel(view, 'repicked-up', -32), repickedDown = await wheel(view, 'repicked-down', 32);
-    await writeFile(`${output}/reopened-${width}.json`, JSON.stringify({ expanded, repicked, repickedUp, repickedDown }, null, 2), 'utf8');
+    await writeFile(`${output}/reopened-${label}.json`, JSON.stringify({ expanded, repicked, repickedUp, repickedDown }, null, 2), 'utf8');
     assertNativeScroll(repickedUp); assertNativeScroll(repickedDown);
-    await shot(view, 'reselected', width);
+    await shot(view, 'reselected', label);
   } catch (error) {
-    await threadState(view, 'failure', width);
+    await threadState(view, 'failure', label);
     throw error;
   } finally { await view.browser.close(); }
 });
