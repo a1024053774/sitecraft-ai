@@ -2,6 +2,7 @@ import { readCodeFactSegments, readCodeFactSeparators, readCodeFactCssEffects, s
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
+import { stopCodeCheckMotion } from './code-site-check-motion.ts';
 import { codeSiteSchema, renderSiteCode, type SiteCode, type CodeCheck, type CodeQualityFeedback, type CodeQualityKind } from './code-site.ts';
 import { auditCodeFacts } from './code-site-model.ts';
 import type { SiteImageRecord } from './site-images.ts';
@@ -184,7 +185,7 @@ async function prepareSystemBackdrops(allowedUrls: string[]) {
   return { colors, issues: [...new Set(issues)] };
 }
 // Browser-only diagnostics. None of these findings enter checks.issues or repair decisions.
-function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[]): CodeQualityFeedback {
+function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[], stopMotion: () => void): CodeQualityFeedback {
   const feedback: CodeQualityFeedback = { truncatedText: 0, ungatedHover: 0, smallTargets: 0, coveredAnchors: 0, croppedProductImages: 0, narrowColumns: 0, details: [] };
   const targetFor = (el: Element): string => {
     if (el === document.documentElement) return 'html';
@@ -297,6 +298,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
   // Narrow-column feedback above observes only the original visible page.
   for (const detail of document.querySelectorAll('details')) detail.open = true;
   for (const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');
+  stopMotion();
   // A Range exposes text lost behind a clipping ancestor, including hidden clamp lines.
   // Restrict to explicit specification semantics; ordinary summaries have no completeness contract.
   const specNodes = [...document.querySelectorAll('td,th,dt,dd,[data-sitecraft-slot],[data-spec],[data-model],[data-sku],[data-parameter]')]
@@ -512,7 +514,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
           // Settle resources for container-dependent display. Image failures are
           // still reported by the existing full check below, before any audit.
-          const observed = await browser.evaluate<CodeFactSeparator[]>(`(async () => {await document.fonts.ready;await Promise.allSettled([...document.images].map(image=>image.decode()));for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactSeparators.toString()})();})()`);
+          const observed = await browser.evaluate<CodeFactSeparator[]>(`(async () => {await document.fonts.ready;await Promise.allSettled([...document.images].map(image=>image.decode()));for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');(${stopCodeCheckMotion.toString()})();return (${readCodeFactSeparators.toString()})();})()`);
           for (const separator of observed) {
             const key = JSON.stringify(separator.path), previous = separators.get(key);
             if (previous && previous.tag !== separator.tag) throw new Error('三档事实核对的文字分隔节点不一致，本次未保存版本。');
@@ -597,7 +599,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           // Both documents include the system language links and components.
           await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, args.translationSource, page.id, '', credits, undefined, { language: 'zh', languageLinks }) });
           await browser.evaluate('document.fonts.ready');
-          originalGenerated = await browser.evaluate(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readGeneratedText.toString()})()})()`);
+          originalGenerated = await browser.evaluate(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');(${stopCodeCheckMotion.toString()})();return (${readGeneratedText.toString()})()})()`);
         }
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits, undefined, args.translationSource ? { language: 'en', languageLinks } : {}) });
         if (args.localEdit && localTargets.length) checks.issues.push(...await browser.evaluate<string[]>(`(${checkLocalSelectors.toString()})(${JSON.stringify(localTargets)},${JSON.stringify(page.id)},${JSON.stringify(localSelectors)})`));
@@ -617,8 +619,8 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         checks.issues.push(...backdrops.issues.map(issue => `${page.id}/${width} ${issue}`));
         const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
         const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
-        const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)})`);
-        const layout = await browser.evaluate<LayoutReport & { repairs: CodeLayoutRepair[]; generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');const paths=${JSON.stringify(targetPaths)};const layout=scanVisitorLayout(document,${JSON.stringify(backdrops.colors)});return {...layout,repairs:(${readCodeLayoutRepairs.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${width},layout,(${codeCssDeclarationNames.toString()})),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
+        const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)},(${stopCodeCheckMotion.toString()}))`);
+        const layout = await browser.evaluate<LayoutReport & { repairs: CodeLayoutRepair[]; generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');(${stopCodeCheckMotion.toString()})();const paths=${JSON.stringify(targetPaths)};const layout=scanVisitorLayout(document,${JSON.stringify(backdrops.colors)});return {...layout,repairs:(${readCodeLayoutRepairs.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${width},layout,(${codeCssDeclarationNames.toString()})),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
         if (!args.localEdit || targetPaths.length) for (const entry of layout.generatedText) generatedText.add(entry.text);
         if (needsFactSegments) {
           const paths = targetPaths.length ? targetPaths : [undefined];
@@ -696,7 +698,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
             await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
             await browser.evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
-            const effects = await browser.evaluate<ReturnType<typeof readCodeFactCssEffects>>(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactCssEffects.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(declarations)},(${authorStylesHaveDynamicStates.toString()}));})()`);
+            const effects = await browser.evaluate<ReturnType<typeof readCodeFactCssEffects>>(`(() => {for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactCssEffects.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(declarations)},(${authorStylesHaveDynamicStates.toString()}),(${stopCodeCheckMotion.toString()}));})()`);
             for (const effect of effects) {
               const declaration = declarations.find(member => sameCodeFactCssDeclaration(member, effect.declaration))!;
               if (effect.positions.length) observed.add(declaration);

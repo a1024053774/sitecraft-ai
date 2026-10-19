@@ -328,7 +328,8 @@ export function sameCodeFactMemberLocation(a: CodeFactMember, b: CodeFactMember)
 // Runs in each rendered page/viewport, only when a rejected fact needs a CSS
 // declaration repair. Perturb that exact declaration and restore it; selector
 // matching alone cannot establish the cascade, inheritance or media effects.
-export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarations: CodeFactCssMember[], hasDynamicStates: (rules: CSSRule[]) => boolean) {
+export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarations: CodeFactCssMember[], hasDynamicStates: (rules: CSSRule[]) => boolean, stopMotion: () => void) {
+  stopMotion();
   const parts = [code.header, code.pages.find(page => page.id === pageId)!.html, code.footer];
   const fields = ['header', `pages/${pageId}/html`, 'footer'];
   const stylesheet = (member: CodeFactCssMember) => {
@@ -389,7 +390,7 @@ export function readCodeFactCssEffects(code: SiteCode, pageId: string, declarati
       for (let node = el; node.parentElement; node = node.parentElement) path.unshift([...node.parentElement.children].indexOf(node));
       return { el, pseudo, position: { pageId, width: innerWidth, path, pseudo } };
     }));
-    const read = () => slots.map(slot => getComputedStyle(slot.el, slot.pseudo || null).getPropertyValue(member.property));
+    const read = () => { stopMotion(); return slots.map(slot => getComputedStyle(slot.el, slot.pseudo || null).getPropertyValue(member.property)); };
     const before = read();
     let after: string[];
     try { rule.style.setProperty(member.property, '"\uE000修正范围"', member.priority); after = read(); }
