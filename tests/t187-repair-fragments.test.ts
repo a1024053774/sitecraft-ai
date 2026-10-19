@@ -51,6 +51,7 @@ const server = createServer(async (req, res) => {
   const input = JSON.parse(body.messages[1].content.split('\n')[0]);
   const answer = { replacements: input.fragments.map((fragment: any) => ({ fragmentId: fragment.id,
     after: fragment.kind === 'css' && fragment.selector === '.sep' && fragment.property === 'color' ? '#47535e'
+      : fragment.kind === 'css' && fragment.selector === 'main' && fragment.property === 'color' ? '#222'
       : fragment.kind === 'text' && fragment.before === '对比度提升效果显著。' ? '效果待补充。' : fragment.before })) };
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
@@ -127,6 +128,52 @@ for (const [name, html, target] of [
   assert.ok(checked.checks.layoutRepairs?.some(record => record.elements.some(element => element.before.startsWith(target))));
   await assert.rejects(repair(checked.code, checked.checks), /style 属性.*(?:只读|无法写回)/);
   assert.equal(requests.length, count, '不发送不可修复的片段');
+});
+
+// Review2 counterexamples: an overridden container inline must not block its
+// writable !important rule; an effective font shorthand on a non-leaf target
+// must not send unrelated margin fragments that cannot fix the line overlap.
+test('被 important 覆盖的容器 inline 不误拒，实际修正可写声明并通过三档检查', async () => {
+  const code = simple('', 'main{color:#bbb!important}');
+  code.pages[0].html = '<main style="color:#222">直接正文<h1 class="keep">正文</h1><p class="keep">正常子元素</p></main>';
+  const checked = await audit(code), count = requests.length;
+  await writeFile(`${output}/overridden-inline-before.json`, JSON.stringify(checked, null, 2), 'utf8');
+  assert.ok(checked.checks.issues.some(issue => issue.includes('对比度')));
+  const fragments = await codeRepairFragments(checked.code, checked.checks.issues, checked.checks.cleaned, [], checked.checks.layoutRepairs);
+  assert.ok(fragments.some(fragment => fragment.kind === 'css' && fragment.selector === 'main' && fragment.property === 'color' && fragment.priority === 'important' && fragment.before === 'rgb(187, 187, 187)'));
+  assert.ok(!fragments.some(fragment => fragment.kind === 'element' && fragment.before.startsWith('<main')), '容器仍只读');
+  const result = await repair(checked.code, checked.checks);
+  assert.equal(requests.length, count + 1);
+  assert.deepEqual(result.code.pages, checked.code.pages, 'inline 原文与全部业务内容不变');
+  assert.equal(result.code.header, checked.code.header); assert.equal(result.code.footer, checked.code.footer);
+  assert.match(result.code.css, /color: rgb\(34, 34, 34\) !important/);
+  const after = await audit(result.code);
+  await writeFile(`${output}/overridden-inline-after.json`, JSON.stringify({ fragments, result, after, request: requests.at(-1) }, null, 2), 'utf8');
+  assert.equal(after.checks.passed, true, JSON.stringify(after.checks.issues));
+  assert.equal(after.checks.viewports.length, 3);
+  assert.ok(after.checks.viewports.every(viewport => !viewport.overflow && !viewport.overlaps && !viewport.contrastIssues));
+});
+
+test('非叶子目标生效的 inline font 简写在模型调用前明确拒收，零请求', async () => {
+  const code = simple('<p class="bad" style="font:16px/2px sans-serif">第一行正文<br>第二行正文</p>', '.bad{margin:0}');
+  const checked = await audit(code), count = requests.length;
+  await writeFile(`${output}/inline-font-before.json`, JSON.stringify(checked, null, 2), 'utf8');
+  assert.ok(checked.checks.issues.some(issue => issue.includes('重叠')), '真实扫描须检测两行正文重叠');
+  try {
+    await assert.rejects(repair(checked.code, checked.checks), /style 属性.*font.*(?:只读|无法写回)/);
+  } finally {
+    await writeFile(`${output}/inline-font-requests.json`, JSON.stringify({ before: count, after: requests.length, sent: requests.slice(count) }, null, 2), 'utf8');
+  }
+  assert.equal(requests.length, count, '不让无法改变行距的 margin 片段出站');
+});
+
+test('浏览器不能区分同值 inline 与覆盖声明时，明确拒收且零请求', async () => {
+  const code = simple('', 'main{color:#bbb!important}');
+  code.pages[0].html = '<main style="color:#bbb">直接正文<h1 class="keep">正文</h1></main>';
+  const checked = await audit(code), count = requests.length;
+  assert.ok(checked.checks.issues.some(issue => issue.includes('对比度')));
+  await assert.rejects(repair(checked.code, checked.checks), /style 属性.*color.*(?:无法|未能).*(?:证明|核实)/);
+  assert.equal(requests.length, count);
 });
 
 test('同样的短分隔符只定位低对比度的那一处，已通过的同文保留', async () => {

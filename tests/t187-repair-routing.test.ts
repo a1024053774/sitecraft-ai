@@ -5,11 +5,12 @@ import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import { parse, serialize, serializeOuter, type DefaultTreeAdapterTypes as Tree } from 'parse5';
 import { codeCssDeclarationNames, readCodeLayoutRepairs, type CodeLayoutScan } from '../lib/code-site-layout-repair.ts';
+import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import type { SiteCode } from '../lib/code-site.ts';
 import type { CodeFactRepair } from '../lib/code-site-fact-segments.ts';
 
-// Isolated evidence while Chrome is reserved for T-184. parse5 supplies only
-// tree parsing/serialization; no CSS cascade or layout is simulated. Extract
+// parse5 supplies only tree parsing/serialization for routing; inline cascade
+// boundaries below use real Chrome. Extract
 // the unchanged production function, as Chrome receives it, without exporting
 // an extra production API. Real scan/commit coverage lives in the browser suite.
 // Failure modes: fact prose routed as layout; same-text neighbours selected;
@@ -110,16 +111,25 @@ test('版面来源只认结构化扫描记录，缺少记录时不退回正文�
   assert.match(repairDom(code, { issues: [issue] }, codeCssDeclarationNames).error, /扫描.*缺少.*定位/);
 });
 
-for (const [name, html, key, refused] of [
+for (const [name, html, key, refused, css] of [
   ['非叶子容器直接正文', '<main style="color:#bbb;background:#fff">直接正文<h1>标题</h1><p style="color:#111">正常子元素</p></main>', 'MAIN:0', true],
   ['叶子目标继承只读祖先', '<main style="color:#bbb"><p>正文</p></main>', 'MAIN:0/P:0', true],
   ['叶子目标自己的 inline 可整元素写回', '<main><p style="color:#bbb">正文</p></main>', 'MAIN:0/P:0', false],
   ['容器无关 inline 不阻止 CSS 修正', '<main style="padding:16px">直接正文<h1>标题</h1></main>', 'MAIN:0', false],
-] as const) test(`inline 声明边界：${name}`, () => {
-  const code: SiteCode = { header: '', footer: '', css: '', pages: [{ id: 'home', title: '说明', html }] };
+  ['级联探测改变 style 选择器匹配时不能认定已覆盖', '<main style="color:currentColor">直接正文<h1>标题</h1></main>', 'MAIN:0', true,
+    'body{color:#bbb}main{color:currentColor}body:has(main[style*="important"]){color:#222}'],
+] as const) test(`inline 声明边界：${name}`, async () => {
+  const code: SiteCode = { header: '', footer: '', css: css ?? '', pages: [{ id: 'home', title: '说明', html }] };
   const scan: CodeLayoutScan = { horizontalScroll: false, overflowElements: [], textOverlaps: [], measurement: { textContrastEntries: 1 },
     textContrast: [{ key, text: '正文', status: 'measured', ratio: 1.9, threshold: 4.5, role: 'body' }] };
-  const repairs = runInNewContext(`(${readCodeLayoutRepairs.toString()})(code,'home',375,scan,(${codeCssDeclarationNames.toString()}))`, { ...dom(html), code, scan });
+  const browser = await codeCheckBrowser();
+  let repairs;
+  try {
+    await browser.send('Network.enable'); await browser.send('Network.setBlockedURLs', { urls: ['*'] });
+    const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
+    await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: `<!doctype html><html><head><style>${code.css}</style></head><body>${html}</body></html>` });
+    repairs = await browser.evaluate<ReturnType<typeof readCodeLayoutRepairs>>(`(${readCodeLayoutRepairs.toString()})(${JSON.stringify(code)},'home',375,${JSON.stringify(scan)},(${codeCssDeclarationNames.toString()}))`);
+  } finally { await browser.close(); }
   assert.equal(repairs.length, 1);
   assert.equal(repairs[0].elements[0].before, key === 'MAIN:0' ? html : html.includes('<p style=') ? '<p style="color:#bbb">正文</p>' : '<p>正文</p>');
   if (refused) assert.match(repairs[0].reason ?? '', /style 属性.*(?:只读|无法写回)/);

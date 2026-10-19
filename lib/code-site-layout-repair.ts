@@ -71,6 +71,17 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
     };
     [...root.childNodes].forEach((node, index) => visit(node, [index]));
   }
+  const selectorFor = (text: string, parent: string) => parent ? (text.includes('&') ? text.replace(/&/g, `:is(${parent})`) : `:is(${parent}) ${text}`) : text;
+  const selectors: string[] = [];
+  const readSelectors = (rules: CSSRuleList, parent = '') => {
+    for (const rule of rules) {
+      if (rule instanceof CSSStyleRule) {
+        const selector = selectorFor(rule.selectorText, parent); selectors.push(selector);
+        readSelectors(rule.cssRules, selector);
+      } else if ('cssRules' in rule) readSelectors((rule as CSSGroupingRule).cssRules, parent);
+    }
+  };
+  for (const source of sheets) readSelectors(source.sheet.cssRules);
   const collect = (issue: string, keys: string[], contrast: boolean) => {
     const record: CodeLayoutRepair = { issue, elements: [], declarations: [] }; records.push(record);
     const targets = [...new Set(keys)].map(key => byKey.get(key));
@@ -85,13 +96,50 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
         const relevant = (property: string) => contrast
           ? ((property === 'color' || property === '-webkit-text-fill-color') && !inherited.has(property)
             || /^background(?:-|$)/.test(property) && !backgroundFound || /^(opacity|filter|mix-blend-mode|background-blend-mode|background-clip|-webkit-background-clip)$/.test(property))
-          : /^(?:(?:min-|max-)?(?:width|height)|display|position|(?:top|right|bottom|left)|inset(?:-|$)|transform(?:-|$)|translate|scale|rotate|flex(?:-|$)|grid(?:-|$)|margin(?:-|$)|padding(?:-|$)|(?:row-|column-)?gap|line-height|font-size|letter-spacing|white-space|overflow(?:-|$)|box-sizing|writing-mode|float|clear|vertical-align)/.test(property);
-        const inlineProperties = declarationNames((node as HTMLElement).style.cssText).filter(relevant);
-        if (inlineProperties.length && (node !== target || target.childElementCount)) {
-          record.reason = `相关 style 属性声明（${inlineProperties.join('、')}）位于只读容器或祖先，当前无法写回`;
-          return;
+          : /^(?:(?:min-|max-)?(?:width|height)|display|position|(?:top|right|bottom|left)|inset(?:-|$)|transform(?:-|$)|translate|scale|rotate|flex(?:-|$)|grid(?:-|$)|margin(?:-|$)|padding(?:-|$)|border-.*-width|(?:row-|column-)?gap|line-height|font(?:-|$)|letter-spacing|white-space|overflow(?:-|$)|box-sizing|writing-mode|float|clear|vertical-align)/.test(property);
+        const expanded = (style: CSSStyleDeclaration, property: string) => {
+          const declaration = document.createElement('span').style;
+          declaration.setProperty(property, style.getPropertyValue(property), style.getPropertyPriority(property));
+          return [...declaration].filter(name => name === 'all' || relevant(name));
+        };
+        const inline = (node as HTMLElement).style;
+        for (const property of declarationNames(inline.cssText)) {
+          const properties = expanded(inline, property);
+          if (!properties.length) continue;
+          if (node !== target || target.childElementCount) {
+            // Ask the existing rendered document, rather than reimplementing
+            // specificity, layers or shorthand precedence. Removal alone cannot
+            // distinguish an overridden declaration from a same-valued winner.
+            const saved = node.getAttribute('style')!;
+            let matches: Element[][];
+            try { matches = selectors.map(selector => [...document.querySelectorAll(selector)]); }
+            catch { record.reason = `相关 style 属性声明（${property}）位于只读容器或祖先，浏览器无法核实级联探测的选择器匹配，当前无法写回`; return; }
+            let stableMatches = true;
+            const animated = document.getAnimations().length > 0;
+            const read = () => {
+              stableMatches &&= selectors.every((selector, index) => {
+                const current = [...document.querySelectorAll(selector)];
+                return current.length === matches[index].length && current.every((element, i) => element === matches[index][i]);
+              });
+              const computed = getComputedStyle(node!); return properties.map(name => computed.getPropertyValue(name));
+            };
+            const before = read(), value = inline.getPropertyValue(property);
+            let removed: string[], promoted: string[];
+            try {
+              inline.removeProperty(property); removed = read();
+              node.setAttribute('style', saved);
+              inline.setProperty(property, value, 'important'); promoted = read();
+            } finally { node.setAttribute('style', saved); }
+            const restored = read();
+            const overridden = stableMatches && !animated && !document.getAnimations().length && before.every((value, index) => value && value === removed[index] && value === restored[index] && value !== promoted[index]);
+            if (!overridden) {
+              record.reason = `相关 style 属性声明（${property}）位于只读容器或祖先，${stableMatches ? '实际计算级联未能证明其已被覆盖' : '级联探测改变了作者选择器匹配，无法核实是否已被覆盖'}，当前无法写回`;
+              return;
+            }
+            continue;
+          }
+          for (const name of properties) levelProperties.add(name);
         }
-        for (const property of inlineProperties) levelProperties.add(property);
         for (const source of sheets) {
           const walk = (rules: CSSRuleList, path: number[] = [], parent = '', uncertain = false) => {
             [...rules].forEach((rule, index) => {
@@ -99,12 +147,12 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
               if (rule instanceof CSSMediaRule && !matchMedia(rule.conditionText).matches || rule instanceof CSSSupportsRule && !CSS.supports(rule.conditionText)) return;
               const conditional = uncertain || rule instanceof CSSContainerRule;
               if (rule instanceof CSSStyleRule) {
-                const selector = parent ? (rule.selectorText.includes('&') ? rule.selectorText.replace(/&/g, `:is(${parent})`) : `:is(${parent}) ${rule.selectorText}`) : rule.selectorText;
+                const selector = selectorFor(rule.selectorText, parent);
                 let matches = false;
                 try { matches = node!.matches(selector); } catch { record.reason = '相关 CSS 选择器无法核实实际匹配'; }
-                if (matches) for (const property of declarationNames(rule.style.cssText)) if (relevant(property)) {
+                if (matches) for (const property of declarationNames(rule.style.cssText)) if (expanded(rule.style, property).length) {
                   if (conditional) { record.reason = '相关 CSS 声明处于无法核实的容器条件中'; continue; }
-                  levelProperties.add(property);
+                  for (const name of expanded(rule.style, property)) levelProperties.add(name);
                   const declaration = { kind: 'css' as const, field: source.field, ...(source.stylePath ? { stylePath: source.stylePath } : {}), rulePath, selector: rule.selectorText,
                     property, before: rule.style.getPropertyValue(property), priority: rule.style.getPropertyPriority(property), ruleText: rule.cssText, pseudo: '' };
                   if (!record.declarations.some(other => JSON.stringify(other) === JSON.stringify(declaration))) record.declarations.push(declaration);

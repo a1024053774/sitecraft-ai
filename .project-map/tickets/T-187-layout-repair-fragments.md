@@ -4,7 +4,7 @@ title: 版面类修正发出的片段数超过回复上限，修正必然失败
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t187-fix
+claimed_by: codex-t187-fix2
 supersedes:
 ---
 
@@ -41,7 +41,34 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 ## Resolution
 
-**INCOMPLETE（待独立复审）**：独立审查 `artifacts/t187/review1-NO_GO.txt` 对 `9fa3258` 给出 P1、P2 两项 NO_GO；codex-t187-fix 已在 `2491964bfcbcc93cfbd03530849fefa08e989cce` 修复并取得下述无浏览器红绿及 **99/99 浏览器定向 PASS**。新增测试辅助 DOM 的类型错误已按负责人授权在 `66d0f4f19b2319b78e8f46ffb8dd3ce1825d786f` 修正，原有行为断言不变；**typecheck → runner 18/18 → 全量一轮 894/894 → build 四项均在该同一提交通过**。旧 typecheck 失败日志保留；独立复审尚未执行，票保持打开。本次真实探针沿用旧结果，但旧探针未触发版面修正，本次改动没有真实探针覆盖；不开审查实例、不推送。
+**INCOMPLETE（整票待主控独立复审；第二轮获准修复与定向门控 PASS）**：主控对源码候选 `66d0f4f` 的 `review2-NO_GO.txt` 指出两项 P2，并明确选择 A，由 **codex-t187-fix2** 在父提交 `5fbe4eb` 上执行。本轮两个指定反例均先在 `66d0f4f` 产品源码上失败，修复后通过；最终 typecheck 与 **111/111 定向测试**全部通过。源码、测试和本 Resolution 随同一提交交付，精确提交号见 `artifacts/t187/fix2-20261019/result.json` 的 `deliveredCommit`。本轮未跑全量、build、真实探针或审查实例，未推送；票保持打开，不将执行通过写成独立审查通过。
+
+第二轮修复只改 `lib/code-site-layout-repair.ts` 的声明相关性与 inline 级联核实。声明先由同次隔离 Chrome 的 CSSOM 展开，再按拒因涉及的长属性筛选，片段仍保留原声明单位，包含 font、background、border 等简写；不新增容器写回或 inline 片段类型。对只读容器／祖先，在原渲染文档中比较声明移除、原值临时提升为 important、原 style 属性恢复后的实际计算值；只有移除后不变、提升后相关长属性均改变、恢复后完全相同，而且浏览器实际作者选择器匹配稳定、无动画，才证明原声明被覆盖并排除它。其余情况在模型调用前明确说明无法证明覆盖及只读边界，不另写静态级联推导、不猜测、不重试或 fallback。原 style 属性在 finally 中恢复。叶子自己的 inline 与无关 inline 对照保持通过。
+
+指定反例①：`main style="color:#222"` 配 `main{color:#bbb!important}`，真实扫描复现低对比度；修复后 `main` 的 color／important 声明进入片段，模型替身只改为 `#222`，写回保留 important、原 inline、全部 DOM 和页头页脚，随后实际三档检查均无溢出、重叠和对比度拒因。反例②：非叶子 `p` 内有 br，`style="font:16px/2px sans-serif"` 配 `.bad{margin:0}`，真实扫描复现行重叠；旧源码新增 **1** 次模型请求，修复后明确以 font／只读容器／无法写回为由拒收，新增请求为 **0**。红绿请求记录分别在 `artifacts/t187/focused-1792383467450-52268/inline-font-requests.json`、`artifacts/t187/focused-1792383742694-73965/inline-font-requests.json`；正例完整片段、请求、修正候选及三档结果在后一目录的 `overridden-inline-after.json`。
+
+另补两项不能猜测的边界：同值 inline 与覆盖声明无法由计算值区分时，明确拒收且零请求；探测临时改变 style 属性，若触发 `[style*="important"]`／`:has()` 并改变继承颜色，也必须拒收。后一反例在初版探测实现上先失败（8/9），再加入浏览器原生选择器匹配稳定性核实后通过。原 `t187-repair-routing` 的四项 inline 断言全部保留，改为真实 Chrome 执行；parse5 只继续承担纯 DOM 路由，不模拟级联。
+
+第二轮命令、时间与证据（2026-10-19 EDT；相对 `artifacts/t187/fix2-20261019/`）：
+
+| 检查 | 时间 | 结果与日志 |
+| --- | --- | --- |
+| `CHROME_PATH=<下方同一路径> npm test -- tests/t187-repair-fragments.test.ts`，临时恢复 `66d0f4f` 的产品文件并核对全部 lib 与该提交无差异，finally 恢复修复候选 | 00:17:41–00:18:04 | **11/14，exit 1**；两项指定缺陷按预期失败，另一个失败仅为同值场景旧拒因不说明级联无法核实，不能算第三个漏放缺陷。`red-final-66d0f4f.log`、`red-final-result.json`。首次两项红态也保留在 `red-66d0f4f.log`。 |
+| `CHROME_PATH=<下方同一路径> npm test -- tests/t187-repair-routing.test.ts`，初版探测未核对选择器稳定性 | 00:20:45–00:20:52 | **8/9，exit 1**；style 选择器改变级联后误判已覆盖。`selector-red.log`、`selector-red-result.json`。 |
+| `npm run typecheck`，最终源码与测试 | 00:21:12–00:21:14 | **PASS，exit 0**；`sealed-typecheck.log`、`sealed-typecheck-result.json`。 |
+| 下方六文件定向命令，最终源码与测试 | 00:21:14–00:23:11 | **PASS 111/111，exit 0，无跳过或取消**；`sealed-targeted.log`、`sealed-targeted-result.json`。T-187 14+9、T-173 成员 7／范围 39、T-138 DOM 29、T-159 准入 13。 |
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t187-repair-fragments.test.ts tests/t187-repair-routing.test.ts tests/t173-fact-members.test.ts tests/t173-repair-scope.test.ts tests/t138-dom-scope.test.ts tests/t159-task-admission.test.ts
+```
+
+最终原生报告及每文件统计为 `artifacts/t167/test-run-1792383674431-68697/report.json`、`summaries-browser.ndjson`；六个文件均由标准入口归入浏览器池，并发 2，每文件本轮一次。health 503 的身份已核对为本工作树及独立临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-cUeoc9`，随机端口 54726，独立 `.next-test`。未读写主工作区数据或干预 T-184。Next 自动追加的一条 `.next-test/dev/dev/types/**/*.ts` include 已保存为本轮 `next-generated-config.diff` 并精确撤回，无配置变更交付。AGENTS、术语表、主线与规格同步当前合同，测试指针写入 AGENTS。
+
+中间失败继续保留：`green.log` 的 **20/21** 来自新增替身误读请求中不发送的 priority 字段，未改色；已修正替身匹配，重要性仍由真实片段与写回结果断言，未放宽行为。`final-targeted.log` 的 **110/110** 是加入选择器稳定性保护前的中间通过结果，不冒充最终候选门控。所有旧失败日志和数据根不覆盖。真实模型与独立审查本轮均未执行；旧真实探针仍未覆盖版面修正。
+
+### 第一轮与原始实现记录
+
+第一轮源码候选 `66d0f4f19b2319b78e8f46ffb8dd3ce1825d786f` 曾完成 typecheck、runner 18/18、全量一轮 894/894 与 build，随后独立复审仍判两项 P2 NO_GO；这些旧通过不代替本轮证据。以下保留第一轮与更早候选的执行、失败及唯一真实探针记录。
 
 P1 改为按结构化来源路由：先排除 factRepairs 已覆盖的问题，版面问题只认同次 layoutRepairs，不再检查“溢出／重叠／对比度”关键词。没有结构化定位的 `pageId/375`、`pageId/768`、`pageId/1440` 扫描拒因直接拒收，防止落回正文匹配扩大范围。三个含关键词的效果声明反例都只开放被拒句的位置成员，实际改为“效果待补充。”，保留另一处同文、页头页脚及 CSS；另测无关键词的结构化版面记录和丢失记录时的拒收。
 
