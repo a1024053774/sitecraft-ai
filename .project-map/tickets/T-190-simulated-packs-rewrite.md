@@ -37,7 +37,7 @@ supersedes:
 ## Acceptance
 
 - [x] 七家资料按上述写法重写，模拟标注与缺口保留；新增图片逐张有来源与许可记录
-- [ ] 新基线两轮的命令、提交、用量、成败站数写进 Resolution；comparison 结果与固定口径缺口计数（对比 T-180）如实记录
+- [x] 新基线两轮的命令、提交、用量、成败站数写进 Resolution；comparison 结果与固定口径缺口计数（对比 T-180）如实记录（见 Resolution「主控：盲评与统计结论」；第一轮缺 design 两站）
 - [x] 合并后主线验证通过（typecheck、test、build）；独立 fast 审查通过（见 Resolution「主控：合并与主线验证」）
 
 ## Resolution
@@ -806,3 +806,36 @@ design/editorial: 两轮题缺图
 `private/round.json` 的 previousMaterialsChanged=true；其 comparison 数组和 `private/comparison.json` 均记录 **6/6 materialsChanged=true**，每项保留两轮实际 materials 的 length 与精确 source。餐馆两组合为 1884→2118，教育为 2177→2356，设计为 2392→2476；两轮 source 分别指向指定 T-180 第二轮和本轮的 `private/round.json#/cases/N/materials`。unverifiedFields 均为 `["previous.styleRegistration"]`，没有补造旧风格登记版本。visualPairAvailable 为 4 true／2 false，缺配图组合与覆盖文件一致；这不是成对偏好结果。
 
 comparison 仍比较“新资料 + T-188/T-191/T-192 等当前代码”与“旧资料 + 旧代码”的整体效果，不能分别归因资料和代码。本轮没有审美结论、company 质量结论、固定口径缺口计数或主数据复制。未推送、未 force-push，未写主工作区 `.sitecraft-data` 或 artifacts；`tsconfig.json` 的 Next 自动改动保留且排除提交。提交仅含本票的认领与本次 Resolution，交接后停下。
+
+### 主控：盲评与统计结论
+
+执行主控，2026-10-19 EDT。盲评共六个包，每包交一个新实例，由主控揭盲。结果、映射与脚本输出在主工作区 `artifacts/t190/blind-results/`。
+
+**归因边界。** 以下所有对比都是「新资料 + T-188/T-191 改动」对「旧资料 + 旧代码（T-180）」的整体效果，分不出资料和代码各自的贡献，不能把结果单独归给资料。
+
+**样本。** 第一轮（`artifacts/t190/r2/round1-full`）14 个组合跑了 12 个，9 站存版：design/precision 因网络中断被阻断，design/documentary 没有运行，所以盲评包缺 design 这两站。第二轮（`artifacts/t190/r3/round2-selected`）6 个组合，5 站存版。design 风格只有第二轮的 neighborly 一站有盲评数据。
+
+| 项 | T-180 | T-190 |
+| --- | --- | --- |
+| comparison 选本轮 | — | 第一轮 7/9，第二轮 3/4，合计 **10/13** |
+| 缺口 1（固定脚本 `scripts/eval-gap-keywords.py`） | 10/18 | **4/14** |
+| 缺口 4（固定脚本） | 9/18 | **1/14** |
+| 缺口 2（打乱评语、去掉身份后交新实例归类） | 15/18 | **3/14** |
+| 缺口 3（同上） | 3/18 | **0/14** |
+| company 判同模板 | — | 0/16、0/4 |
+| mixed 生成页被认出（按 T-143 只作参考） | — | 9/9、5/5 |
+
+comparison 中选 T-180 的 3 对是 education/precision、packaging/documentary、education/editorial。T-180 的缺口 2 这次归类为 15，上次（T-184 时）为 14，是不同归类实例之间的波动。缺口 2/3 的归类包、提示、结果与映射为 `gap23-items.json`、`gap23-prompt.txt`、`gap23-result.json`、`gap23-private.json`，揭盲输出为 `gap23-unblind.txt`。缺口 1/4 的输出为 `gap-keywords.txt`。
+
+**事实拒因。** 两轮模型 issues 共 4 条，全部出现在 design/neighborly 站 `519b44cd`，原文见 `artifacts/t190/blind-results/t190-allissues.jsonl`。其中属于「导语概括 / 条件挪用」的只有 1 句：「三项服务各自写明设计内容、交付文件、周期与不含项」，而资料只为两项服务列出了不含项。其余 3 条分别是：收费对象被改写；删掉「通常」，把常见周期写成了确定承诺；新增资料没有的阅读效果。四条都经正常修正后存版。
+
+**事实抽查。** 另开一个新实例，对照资料逐站只读抽查 14 个存版站的首页和联系页（共 26 页），没有发现「事实核对放过、但与资料不一致」的事实。见 `artifacts/t190/fact-audit.md` 与 `fact-audit.json`。抽查只覆盖这些页面，不构成全站无误或审美通过的结论。
+
+**失败站。**
+- industrial/precision：模型返回的首页大纲有 7 项，超出 schema 上限 6 项（`lib/code-site-model.ts:151`），记作「模型违反大纲上限，严格拒收」。新资料内容变多可能是诱因，但没有对照；T-180、T-183、T-184、T-188 的 66 份记录中这是首次出现。
+- restaurant/documentary：数字检查把相邻文字节点拼在一起，读出资料没有的数字，修正器又定位不到，于是拒存。这是本轮新暴露的旧缺陷，已由 T-194 修复。
+- packaging/precision：重叠扫描把视觉隐藏的 caption 当成可见，两轮修正都无效。这是旧缺陷，由 T-195 处理。
+- design/editorial：claim 没有逐字照抄页面，而是照资料把「、」写成了「和」，触发协议拒收。记作已知老问题：T-181、T-185 之后同类又出现一次，本次不另开票。
+- design/precision：网络阻断。
+
+逐站诊断见 `artifacts/t190/r2-round1-failure-diagnosis.md`。
