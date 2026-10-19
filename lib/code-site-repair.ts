@@ -91,6 +91,7 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       const remainingIssues = input.issues!.filter(issue => !factRepairs.some(repair => repair.issues.includes(issue)));
       const layoutIssues = remainingIssues.filter(issue => input.layoutRepairs?.some(repair => repair.issue === issue));
       const issues = remainingIssues.filter(issue => !layoutIssues.includes(issue)), issueText = issues.map(normalize).join('\n');
+      if (issues.some(issue => issue.startsWith('资料没有的数字：') || /^数字 .* 跨文字节点/.test(issue))) refuse('数字拒因缺少本次检查的位置依据');
       // A viewport-scoped diagnostic without its structured scan record must
       // not fall through to prose matching and open unrelated same-text nodes.
       for (const issue of issues) if (code.pages.some(page => [375, 768, 1440].some(width => issue.startsWith(`${page.id}/${width} `)))) {
@@ -151,10 +152,6 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
           }
         }
       }
-      const mentionedNumber = (text: string) => {
-        const numbers: string[] = text.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
-        return issues.some(i => i.startsWith('资料没有的数字：') && numbers.includes(i.split('：')[1]));
-      };
       for (const [field, root] of fields) {
         const pageId = field.split('/')[1];
         const walk = (node: Node, path: number[]) => {
@@ -167,8 +164,8 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
           } else if (node.nodeType === Node.TEXT_NODE) {
             const data = node.nodeValue!;
             for (const sentence of data.matchAll(/[^。！？；\n]+[。！？；]?/g)) {
-              const text = normalize(sentence[0]), numbers: string[] = sentence[0].normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
-              if ((text.length >= 4 && issueText.includes(text)) || issues.some(i => i.startsWith('资料没有的数字：') && numbers.includes(i.split('：')[1]))) {
+              const text = normalize(sentence[0]);
+              if (text.length >= 4 && issueText.includes(text)) {
                 add({ field, kind: 'text', before: sentence[0], path, offset: sentence.index!, text: data });
               }
             }
@@ -177,8 +174,7 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
         };
         [...root.childNodes].forEach((child, i) => walk(child, [i]));
       }
-      if (mentionedNumber(code.css)) add({ field: 'css', kind: 'style', before: styleNode.outerHTML });
-      for (const p of code.pages) if ((normalize(p.title).length >= 4 && issueText.includes(normalize(p.title))) || mentionedNumber(p.title)) add({ field: `pages/${p.id}/title`, kind: 'title', before: p.title });
+      for (const p of code.pages) if (normalize(p.title).length >= 4 && issueText.includes(normalize(p.title))) add({ field: `pages/${p.id}/title`, kind: 'title', before: p.title });
       const removed = issues.length > 0 && issues.every(i => input.cleaned!.includes(i) && /^(已去掉(?:禁止元素|资源或空链接|属性) |图片编号未授权：)/.test(i));
       if (!fragments.length && !removed) refuse(factRepairs.length ? '无法定位出处拒因：当前核对段没有可独立修正的位置成员' : '无法定位底线拒因对应的代码节点');
       return { fragments };

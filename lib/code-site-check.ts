@@ -15,6 +15,7 @@ import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import { readCodeLayoutRepairs, codeCssDeclarationNames, type CodeLayoutRepair, type CodeLayoutScan } from './code-site-layout-repair.ts';
+import { readCodeReadable } from './code-site-readable.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
 function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], selectedTargets: AnnotationTarget[] = []) {
@@ -95,25 +96,6 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
     }
   }
   let contacts = [...documents.values()].flatMap(doc => [...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)));
-  // Auxiliary copy and handwritten numbers share the same factual boundary.
-  const readableFragment = (html: string) => {
-    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
-    const auxiliary = [...doc.querySelectorAll('[data-label],[alt],[title],[aria-label]')].flatMap(node => ['data-label', 'alt', 'title', 'aria-label'].map(name => node.getAttribute(name) || '')).join(' ');
-    // textContent concatenates independent cells and blocks (NAK80 + 1 becomes
-    // NAK801). Keep inline text continuous, but separate semantic text containers.
-    const boundaries = new Set('BODY HEADER FOOTER MAIN SECTION ARTICLE ASIDE NAV DIV P H1 H2 H3 H4 H5 H6 LI DT DD TR TH TD FIGURE FIGCAPTION BLOCKQUOTE ADDRESS'.split(' '));
-    const read = (node: Node): string => {
-      if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
-      if (!(node instanceof Element)) return '';
-      if (node.tagName === 'BR') return '\n';
-      const text = [...node.childNodes].map(read).join('');
-      return boundaries.has(node.tagName) ? `\n${text}\n` : text;
-    };
-    return `${read(doc.body).replace(/[\u200b\u2060]/g, '')}\n辅助文案：${auxiliary}`;
-  };
-  // Shared fragments are identical on every page. Audit them once, while
-  // keeping each page's own copy and auxiliary attributes in its own context.
-  let text = `公共页头：\n${readableFragment(safe.header)}\n${safe.pages.map(p => `页面标题：${p.title}\n页面正文：\n${readableFragment(p.html)}`).join('\n')}\n公共页脚：\n${readableFragment(safe.footer)}`;
   if (selectedTargets.length) {
     const nodes = selectedTargets.map(target => {
       const doc = documents.get(target.pageId);
@@ -122,10 +104,9 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
       if (!node) issues.push('局部修改的区块无法定位');
       return node;
     }).filter((node): node is Element => !!node);
-    text = nodes.map(node => readableFragment(node.outerHTML)).join('\n');
     contacts = nodes.flatMap(node => [...node.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(href => /^(mailto|tel):/.test(href)));
   }
-  return { code: safe, issues: [...new Set(issues)], cleaned, text, contacts };
+  return { code: safe, issues: [...new Set(issues)], cleaned, contacts };
 }
 // Browser computed values have already resolved variables, shorthand and nesting.
 function readGeneratedText(targetPath?: number[]) {
@@ -502,13 +483,16 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const used = new Set((clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).match(/img_[a-z0-9]{16,40}/g));
     const credits = [...new Set(args.images.filter(i => used.has(i.imageId) && i.attribution).map(i => i.attribution))];
     const generatedText = new Set<string>();
+    const readablePages: string[] = [];
+    const numericEntries: ReturnType<typeof readCodeReadable>['numbers'] = [];
     const factSegments = new Map<string, CodeFactSegment>();
     const widths = [375, 768, 1440];
     for (const page of clean.code.pages) {
       const targetPaths = localTargets.filter(target => target.pageId === page.id).map(target => target.path);
       const needsFactSegments = !args.legacyImport && !args.translationSource && !args.restoredFactReview && (!args.localEdit || targetPaths.length > 0);
+      const needsReadable = !args.localEdit || targetPaths.length > 0;
       const separators = new Map<string, CodeFactSeparator>();
-      if (needsFactSegments) {
+      if (needsReadable) {
         for (const width of widths) {
           await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
           await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
@@ -521,6 +505,8 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             separators.set(key, separator);
           }
         }
+        const reading = await browser.evaluate<ReturnType<typeof readCodeReadable>>(`(${readCodeReadable.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(targetPaths)},${JSON.stringify([...separators.values()])})`);
+        readablePages.push(reading.text); numericEntries.push(...reading.numbers);
       }
       let remainingDynamicMs = localDynamicPageBudgetMs;
       for (const width of widths) {
@@ -652,13 +638,31 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         // Line length remains in viewport quality feedback; it never triggers repair.
       }
     }
-    const readable = `${clean.text}\n${[...generatedText].join('\n')}`;
+    const readable = `${readablePages.join('\n')}\n${[...generatedText].join('\n')}`;
     if (args.translationSource && checks.issues.some(issue => issue.includes(' CSS/') && issue.includes('仍含中文文字'))) checks.issues.push('英文版仍含 CSS 生成的中文文字；请先把中文版这些文字改为 HTML 文字节点。');
     const numbers = (s: string) => s.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
     const allowedNumbers = new Set(numbers(args.materials));
     // English already compares equivalent values in each source paragraph; a raw
     // material-number pass would reject grouping and magnitude spelling changes.
-    if (!args.translationSource) for (const number of new Set(numbers(readable))) if (!allowedNumbers.has(number)) checks.issues.push(`资料没有的数字：${number}`);
+    if (!args.translationSource) {
+      const repairs = new Map<string, NonNullable<CodeCheck['numberRepairs']>[number]>();
+      const reject = (issue: string, members: NonNullable<CodeCheck['numberRepairs']>[number]['members']) => {
+        if (!checks.issues.includes(issue)) checks.issues.push(issue);
+        const previous = repairs.get(issue);
+        repairs.set(issue, { issues: [issue], members: [...(previous?.members ?? []), ...members]
+          .filter((member, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(member)) === index) });
+      };
+      for (const { value, members } of numericEntries) {
+        const crossNode = members.length !== 1;
+        const reason = `数字 ${value} 跨文字节点，无法独立定位修正片段`;
+        const locations = crossNode ? [{ kind: 'unsupported' as const, reason }] : members;
+        if (!allowedNumbers.has(value)) reject(`资料没有的数字：${value}`, locations);
+        if (crossNode) reject(reason, locations);
+      }
+      for (const value of new Set(numbers([...generatedText].join('\n')))) if (!allowedNumbers.has(value))
+        reject(`资料没有的数字：${value}`, [{ kind: 'unsupported', reason: `CSS 生成数字 ${value} 没有可独立修正的文字节点` }]);
+      if (repairs.size) checks.numberRepairs = [...repairs.values()];
+    }
     const marker = args.materials.match(/核验记号[：:]\s*([^。\n\s]+)/)?.[1];
     if (marker && readable.includes(marker)) checks.issues.push('页面包含资料核验记号，请移除');
     // Fact auditing belongs to this same boundary, including restoration and manual submissions.

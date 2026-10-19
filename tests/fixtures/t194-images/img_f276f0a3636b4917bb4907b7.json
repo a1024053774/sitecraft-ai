@@ -1,0 +1,21 @@
+{
+  "imageId": "img_f276f0a3636b4917bb4907b7",
+  "siteId": "25c98617-d0ee-4405-baff-35ab196078d0",
+  "workspaceId": "demo",
+  "mime": "image/jpeg",
+  "byteLength": 359968,
+  "width": 1600,
+  "height": 1317,
+  "originalName": "ingredient-tofu.jpg",
+  "source": "public-material",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tofu_2.jpg",
+  "license": "CC BY-SA",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+  "author": "Tiia Monto",
+  "attribution": "Tofu 2.jpg — Tiia Monto; https://commons.wikimedia.org/wiki/File:Tofu_2.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.",
+  "usageScope": "current-site-only",
+  "usageCategory": "product",
+  "retrievedAt": "2026-10-19T07:05:40.855535+00:00",
+  "sha256": "c07b0170b385bdf9849f130c25cc3f1e735bd6c21726f434d0c491c147e6ef83",
+  "createdAt": "2026-10-19T11:59:29.164Z"
+}
