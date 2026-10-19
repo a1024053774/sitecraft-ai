@@ -64,13 +64,14 @@
       "licenseUrl": "https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg#Licensing",
       "apiLicense": "Public Domain",
       "usageScope": "current-site-only",
-      "attribution": "Speciality artists pencils 051907.jpg — Mrs Scarborough; https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg; Public Domain (https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg#Licensing); full-frame resized/JPEG re-encoded derivative.",
+      "attribution": "Speciality artists pencils 051907.jpg — Mrs Scarborough; https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg; Public Domain (https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg#Licensing); source file colour-adjusted by Hohum on 2025-07-08 (Commons file history); full-frame resized/JPEG re-encoded derivative.",
       "limitations": "画笔材料题材配图，非本教室实拍；图中全部工具并非课程材料清单，厂牌并非课程推荐。",
       "downloadedAt": "2026-10-19T07:07:05.210399+00:00",
       "width": 1080,
       "height": 821,
       "bytes": 123213,
       "modifications": [
+        "来源当前文件已含 Hohum 于 2025-07-08 的调色（Commons 文件历史记为 Colour adjust），本次使用该当前文件。",
         "按 EXIF 应用方向，完整画面缩至长边最多 1600px，JPEG quality 88；未裁切、补绘或改变画面内容。"
       ],
       "admissionTicket": "T-190",

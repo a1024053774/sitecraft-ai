@@ -82,7 +82,7 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 npm run typecheck
 ```
 
-- 父版本合同红灯：07:00:53 UTC 结束，在任何资料、图片或评估提示改动之前，dc09cb2 的实际实现为 7 通过、9 失败；失败对应七家字段模板、豆腐煲时段缺失、mixed 门槛，日志 `contract-red.log`。
+- 父版本合同红灯：07:00:53 UTC 结束，在任何资料、图片或评估提示改动之前，dc09cb2 的实际实现为 7 通过、9 失败；失败对应七家字段模板、菜单逐项米饭口径（该用例先在“香菇鸡腿饭应有自己的米饭口径”失败，未执行到豆腐煲时段断言）、mixed 门槛，日志 `contract-red.log`。豆腐煲时段缺失由独立审查用 `git show dc09cb2:lib/simulated-packs.ts` 在内存中单独反例核对，见 `artifacts/t190/review1.txt`。
 - 图片路径反事实：暂时换回 dc09cb2 的原 `scripts/eval-new-route.ts`，保留新登记输入，执行 `npm test -- tests/t137-eval-images.test.ts`（同一 CHROME_PATH）；07:10:59 UTC 结束。实际餐馆上传为空，预期是登记的三张图，测试失败；`finally` 原样恢复本次代码，日志 `upload-path-red.log`。未以重试或漏传豁免绕过错误。
 - 首次相关检查的两处旧测试写法绑定失败完整保留在 `related-green-attempt1.log`；改为核对项目条件归属与收费事实后通过。新合同的否定检测还覆盖“不包含”“不颁发”等普通写法，未仅枚举少数否定短语。
 - 最终定向检查：07:13:22–07:13:29 UTC，**49/49 PASS**、0 跳过，退出 0，见 `related-final.log`、`final-run/report.json`。最终本地夹具上传记录在 `final-run/upload-observations.json`，所有模型用量记录为空。入口自建本工作树服务和临时数据根；虽按保守依赖归入浏览器池，这些用例只用本地夹具，没有启动 Chrome 截图或大批浏览器测试。
