@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import test from 'node:test';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
-import { bindCodeFactCitations, pendingCodeFactSegments, readCodeFactSegments, type CodeFactReview, type CodeFactSource } from '../lib/code-site-fact-segments.ts';
-import { codeFactAuditInput } from '../lib/code-site-model.ts';
-import { renderSiteCode, type SiteCode } from '../lib/code-site.ts';
+import { checkSiteCode } from '../lib/code-site-check.ts';
+import { bindCodeFactCitations, pendingCodeFactSegments, readCodeFactSegments, readCodeFactSeparators, type CodeFactReview, type CodeFactSource, type CodeFactSeparator } from '../lib/code-site-fact-segments.ts';
+import { codeFactAuditInput, codeModelCalls } from '../lib/code-site-model.ts';
+import { renderSiteCode, type CodeModelCall, type SiteCode } from '../lib/code-site.ts';
 
 // 失败方式：CSS 排列的标签和值粘连；给词内强调凭空插空格；丢失
 // dt/dd、单元格或行边界；复制文本与定位分歧；旧整组回执继续复用。
@@ -21,17 +23,23 @@ const addressSite = site(visitPlace, noticeCss);
 const widths = [375, 768, 1440];
 
 async function read(code: SiteCode, name: string, width: number, localPath?: number[]) {
+  const pageId = code.pages[0].id;
   const browser = await codeCheckBrowser();
   try {
     assert.ok(process.env.SITECRAFT_BASE);
     await browser.loadPage('Page.navigate', { url: `${process.env.SITECRAFT_BASE}/code-check.html` });
     assert.equal(await browser.evaluate(`document.contentType==='text/html' && !!document.querySelector('meta[name="sitecraft-code-check"][content="v1"]')`), true);
-    await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
     const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
-    await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode('t191-fixture', code, 'visit') });
-    const segments = await browser.evaluate<ReturnType<typeof readCodeFactSegments>>(`(${readCodeFactSegments.toString()})(${JSON.stringify(code)},'visit',${JSON.stringify(localPath)})`);
+    await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode('t191-fixture', code, pageId) });
+    const separators = new Map<string, CodeFactSeparator>();
+    for (const sampledWidth of widths) {
+      await browser.send('Emulation.setDeviceMetricsOverride', { width: sampledWidth, height: 1000, deviceScaleFactor: 1, mobile: false });
+      for (const separator of await browser.evaluate<CodeFactSeparator[]>(`(${readCodeFactSeparators.toString()})()`)) separators.set(JSON.stringify(separator.path), separator);
+    }
+    await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    const segments = await browser.evaluate<ReturnType<typeof readCodeFactSegments>>(`(${readCodeFactSegments.toString()})(${JSON.stringify(code)},${JSON.stringify(pageId)},${JSON.stringify(localPath)},${JSON.stringify([...separators.values()])})`);
     const input = codeFactAuditInput('', segments);
-    await writeFile(`${output}/${name}-${width}.json`, JSON.stringify({ code, width, localPath, segments, input }, null, 2), 'utf8');
+    await writeFile(`${output}/${name}-${width}.json`, JSON.stringify({ code, width, localPath, separators: [...separators.values()], segments, input }, null, 2), 'utf8');
     return { segments, input };
   } finally { await browser.close(); }
 }
@@ -101,4 +109,61 @@ test('分隔变更使整组重核：未改文字的表格行也不沿用，无�
   assert.ok(fromLegacy.pending.some(segment => segment.text.includes('<TH>入口</TH>')), '同一 DOM、同一 CSS 的父版本旧回执不能沿用');
   assert.ok(!fromLegacy.reused.some(segment => segment.text.includes('杭州市拱墅区')));
   await writeFile(`${output}/reuse.json`, JSON.stringify({ reviews, pending, reused, fromLegacy }, null, 2), 'utf8');
+});
+
+// 失败方式：媒体查询使同一文字拥有多个段身份，成员随视口拆分；只采
+// 手机或桌面档漏掉另一档的边界；只采两端漏掉 768；复用和出处不能共用定位。
+for (const [name, css] of [
+  ['mobile-block', '.label{display:inline}@media(max-width:500px){.label{display:block}}'],
+  ['desktop-block', '.label{display:block}@media(max-width:500px){.label{display:inline}}'],
+  ['tablet-only-block', '.label{display:inline}@media(min-width:600px) and (max-width:1000px){.label{display:block}}'],
+] as const) test(`媒体查询 ${name}：三档共用段身份、成员、复制文本和出处，后续整组沿用`, async () => {
+  const fixture = site('<h1>边界小馆</h1><section><h2>菜单</h2><p><span class="label">单份价格</span><span>32 元/份</span></p></section>', css);
+  const code = { ...fixture, pages: fixture.pages.map(page => ({ ...page, id: 'home' })) };
+  const views = await Promise.all(widths.map(width => read(code, name, width, [1])));
+  const materials = '边界小馆。单份价格为32元/份。';
+  const sources: CodeFactSource[] = [{ type: 'materials', messageIndex: 1, text: materials }];
+  const calls: CodeModelCall[] = [];
+  const provider = createServer(async (req, res) => {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    const input = JSON.parse(JSON.parse(raw).messages[1].content.split('\n')[0]);
+    // 固定的需求原句，不从读取器输出重建答案；旧粘连段也能核对数值，
+    // 这样红灯来自重复段身份，而非另一个 claim 协议错误。
+    const results = input.segments.map((segment: { id: string; text: string }) => {
+      const priced = segment.text.includes('32 元/份');
+      return { id: segment.id, issues: [], noFacts: !priced, factCategories: priced ? ['价格与收费'] : [],
+        citations: priced ? [{ category: '价格与收费', claim: '32 元/份', quote: '单份价格为32元/份。' }] : [] };
+    });
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
+  });
+  await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
+  const address = provider.address(); assert.ok(address && typeof address === 'object');
+  process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${address.port}`;
+  process.env.DEEPSEEK_API_KEY = 't191-responsive-fixture'; process.env.DEEPSEEK_MODEL = 'fixture';
+  try {
+    const args = { siteId: `t191-${name}`, code, materials, images: [], factSourceMaterials: sources };
+    const first = await codeModelCalls.run(calls, () => checkSiteCode(args));
+    await writeFile(`${output}/${name}-commit.json`, JSON.stringify({ views, first, calls }, null, 2), 'utf8');
+    assert.equal(first.checks.passed, true, first.checks.issues.join('\n'));
+    const identities = views.map(({ segments }) => segments.map(({ text, group }) => ({ text, group })));
+    assert.deepEqual(identities[0], identities[1], '375 与 768 必须共用段文本和身份');
+    assert.deepEqual(identities[0], identities[2], '375 与 1440 必须共用段文本和身份');
+    for (const { segments, input } of views) {
+      assert.match(segments[0].text, /单份价格\s+32 元\/份/);
+      assert.deepEqual(segments[0].members, views[0].segments[0].members, '成员不能按视口拆分');
+      assert.ok(input.segments[0].claimTexts.some(text => text.includes('单份价格 32 元/份')));
+      const [citation] = bindCodeFactCitations(segments[0], [{ category: '价格与收费', claim: '单份价格 32 元/份', quote: '单份价格为32元/份。' }]);
+      assert.deepEqual(citation.targets, [{ pageId: 'home', root: 'main', path: [1, 1], text: '单份价格32 元/份' }]);
+    }
+    assert.equal(calls[0].factInput!.segments.filter(segment => segment.text.includes('32 元/份')).length, 1, '生产检查入口不得发送两个视口身份');
+    assert.equal(first.checks.factSegments!.segments.filter(segment => segment.text.includes('32 元/份')).length, 1);
+    const second = await codeModelCalls.run(calls, () => checkSiteCode({ ...args, factReviews: [first.checks.factSegments!] }));
+    assert.equal(second.checks.passed, true, second.checks.issues.join('\n'));
+    assert.equal(second.checks.factSegments!.audited, 0);
+    assert.equal(second.checks.factSegments!.reused, first.checks.factSegments!.segments.length);
+    assert.equal(calls.length, 1, '同源同组不应再调用模型');
+    assert.deepEqual(second.checks.factCitations, first.checks.factCitations);
+    await writeFile(`${output}/${name}-reuse.json`, JSON.stringify({ first, second, calls }, null, 2), 'utf8');
+  } finally { await new Promise<void>(resolve => provider.close(() => resolve())); }
 });

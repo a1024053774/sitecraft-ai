@@ -18,6 +18,7 @@ export type CodeFactMember = { context?: true } & (
   | { kind: 'css'; field: string; stylePath?: number[]; rulePath: number[]; selector: string; property: string; before: string; priority: string; ruleText: string; pseudo: string; position: CodeFactCssPosition }
   | { kind: 'unsupported'; reason: string });
 export type CodeFactOwner = { pageId: string; path: number[] };
+export type CodeFactSeparator = { path: number[]; tag: string };
 export type CodeFactSegment = { text: string; group: string; context: { pageId: string; outline: string[]; headings: string[] }; targets?: CodeFactTarget[]; members?: CodeFactMember[]; owners?: CodeFactOwner[] };
 export type CodeFactRepair = { issues: string[]; members: CodeFactMember[] };
 export type CodeFactCssMember = Extract<CodeFactMember, { kind: 'css' }>;
@@ -61,9 +62,28 @@ export function bindCodeFactCitations(segment: CodeFactSegment, citations: CodeF
   });
 }
 
-// Runs in the rendered candidate at each checked width. Segment identity is
-// readable text plus its semantic conditions, never DOM offsets or a digest.
-export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?: number[]): CodeFactSegment[] {
+// Collect at all checked widths before reading any segments. Paths are relative
+// to body in the same rendered page; the union is shared by every width.
+export function readCodeFactSeparators(): CodeFactSeparator[] {
+  const result: CodeFactSeparator[] = [];
+  const walk = (parent: Element, path: number[]) => [...parent.children].forEach((node, index) => {
+    const next = [...path, index];
+    if (!['inline', 'contents', 'none'].includes(getComputedStyle(node).display)) result.push({ path: next, tag: node.tagName });
+    walk(node, next);
+  });
+  walk(document.body, []);
+  return result;
+}
+
+// Segment identity is readable text plus semantic conditions. CSS separators
+// must come from the complete viewport union, never this viewport alone.
+export function readCodeFactSegments(code: SiteCode, pageId: string, localPath: number[] | undefined, separatorPaths: CodeFactSeparator[]): CodeFactSegment[] {
+  const separators = new Set(separatorPaths.map(({ path, tag }) => {
+    let node: Element | undefined = document.body;
+    for (const index of path) node = node?.children[index];
+    if (!node || node.tagName !== tag) throw new Error('三档事实核对的文字分隔位置无法核实，本次未保存版本。');
+    return node;
+  }));
   const page = code.pages.find(page => page.id === pageId)!;
   const fragment = (html: string) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
   const parts = [fragment(code.header), fragment(page.html), fragment(code.footer)];
@@ -200,10 +220,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath?:
     const content = [...node.childNodes].map(child => read(child, skip, members)).join('');
     const text = `${auxiliary ? `\n[${auxiliary}]\n` : ''}${content}`;
     if (['TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD'].includes(node.tagName)) return `\n<${node.tagName}>${text}</${node.tagName}>\n`;
-    // CSS can make inline tags separate blocks or flex/grid items. Preserve
-    // those boundaries without splitting ordinary inline emphasis inside words.
-    const display = getComputedStyle(node).display;
-    return blocks.has(node.tagName) || !['inline', 'contents', 'none'].includes(display) ? `\n${text}\n` : text;
+    return blocks.has(node.tagName) || separators.has(node) ? `\n${text}\n` : text;
   };
   const documentMembers: CodeFactMember[] = [];
   const documentConditions = [own(document.documentElement, documentMembers), own(document.body, documentMembers)].filter(Boolean).join('\n');

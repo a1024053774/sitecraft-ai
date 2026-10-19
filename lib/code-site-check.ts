@@ -1,4 +1,4 @@
-import { readCodeFactSegments, readCodeFactCssEffects, sameCodeFactCssDeclaration, sameCodeFactMemberLocation, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource, type CodeFactCssMember } from './code-site-fact-segments.ts';
+import { readCodeFactSegments, readCodeFactSeparators, readCodeFactCssEffects, sameCodeFactCssDeclaration, sameCodeFactMemberLocation, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource, type CodeFactCssMember, type CodeFactSeparator } from './code-site-fact-segments.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
@@ -501,9 +501,25 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const credits = [...new Set(args.images.filter(i => used.has(i.imageId) && i.attribution).map(i => i.attribution))];
     const generatedText = new Set<string>();
     const factSegments = new Map<string, CodeFactSegment>();
+    const widths = [375, 768, 1440];
     for (const page of clean.code.pages) {
+      const targetPaths = localTargets.filter(target => target.pageId === page.id).map(target => target.path);
+      const needsFactSegments = !args.legacyImport && !args.translationSource && !args.restoredFactReview && (!args.localEdit || targetPaths.length > 0);
+      const separators = new Map<string, CodeFactSeparator>();
+      if (needsFactSegments) for (const width of widths) {
+        await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
+        // Settle resources for container-dependent display. Image failures are
+        // still reported by the existing full check below, before any audit.
+        const observed = await browser.evaluate<CodeFactSeparator[]>(`(async () => {await document.fonts.ready;await Promise.allSettled([...document.images].map(image=>image.decode()));for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactSeparators.toString()})();})()`);
+        for (const separator of observed) {
+          const key = JSON.stringify(separator.path), previous = separators.get(key);
+          if (previous && previous.tag !== separator.tag) throw new Error('三档事实核对的文字分隔节点不一致，本次未保存版本。');
+          separators.set(key, separator);
+        }
+      }
       let remainingDynamicMs = localDynamicPageBudgetMs;
-      for (const width of [375, 768, 1440]) {
+      for (const width of widths) {
         const viewportStarted = performance.now();
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
         if (dynamicBrowser) await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -600,13 +616,12 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
         const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
         const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)})`);
-        const targetPaths = localTargets.filter(target => target.pageId === page.id).map(target => target.path);
         const layout = await browser.evaluate<LayoutReport & { repairs: CodeLayoutRepair[]; generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');const paths=${JSON.stringify(targetPaths)};const layout=scanVisitorLayout(document,${JSON.stringify(backdrops.colors)});return {...layout,repairs:(${readCodeLayoutRepairs.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${width},layout,(${codeCssDeclarationNames.toString()})),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
         if (!args.localEdit || targetPaths.length) for (const entry of layout.generatedText) generatedText.add(entry.text);
-        if (!args.legacyImport && !args.translationSource && !args.restoredFactReview && (!args.localEdit || targetPaths.length)) {
+        if (needsFactSegments) {
           const paths = targetPaths.length ? targetPaths : [undefined];
           for (const path of paths) {
-            const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(path)})`);
+            const segments = await browser.evaluate<CodeFactSegment[]>(`(${readCodeFactSegments.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${JSON.stringify(path)},${JSON.stringify([...separators.values()])})`);
             for (const segment of segments) {
               const key = JSON.stringify([segment.group, segment.text]), previous = factSegments.get(key);
               factSegments.set(key, { ...segment, targets: [...(previous?.targets ?? []), ...(segment.targets ?? [])]
