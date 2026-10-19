@@ -38,6 +38,10 @@ function wrappingContract(text: string) {
   assert.match(text, /窄屏[^。\n]*长参数串[^。\n]*上下排列/, '长参数串应换布局');
   assert.match(text, /表格[^。\n]*窄屏[^。\n]*字段行/, '拥挤表格应换布局');
   assert.match(text, /不[^。\n]*横向溢出/, '保护短串仍不能溢出');
+  for (const part of ['caption', 'thead', 'tbody', 'tfoot', 'colgroup', 'col', 'scope', 'figure', 'figcaption'])
+    assert.match(text, new RegExp(`\\b${part}\\b`), `表格重排须覆盖${part}的布局或语义`);
+  assert.match(text, /caption[^。\n]*(?:宽度|占满)/, '表题须有正常可用宽度');
+  assert.match(text, /(?:行头|行标题)[^。\n]*(?:关联|对应)/, '不能丢失行头与数值的对应关系');
 }
 for (const style of styles) test(`${style}：生产规划、写页和局部首段均收到窄屏语义完整合同`, async () => {
   chosen = style; requests.length = 0;
