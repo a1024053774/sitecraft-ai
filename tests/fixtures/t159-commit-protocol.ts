@@ -18,9 +18,11 @@ const revisionFiles = new Set(['lib/code-site-store.ts', 'lib/code-site-check.ts
 state.__t159Browser = () => {
   state.__t159CheckCalls++;
   const args = state.__t159CheckInput;
+  let width = 375;
   const text = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   return {
-    async send(method: string) {
+    async send(method: string, params?: { width: number }) {
+      if (method === 'Emulation.setDeviceMetricsOverride') width = params!.width;
       if (method === 'Page.getFrameTree') return { frameTree: { frame: { id: 'fixture-document' } } };
       if (['Network.enable', 'Network.setBlockedURLs', 'Page.navigate', 'Page.setDocumentContent', 'Emulation.setDeviceMetricsOverride'].includes(method)) return {};
       throw new Error(`未覆盖的 CDP 请求：${method}`);
@@ -29,7 +31,11 @@ state.__t159Browser = () => {
       if (expression.includes('function cleanCandidate(')) return { code: args.code, text: text(args.code.header + args.code.pages.map((p: any) => p.html).join('') + args.code.footer), issues: [], cleaned: [], contacts: [] };
       if (expression.includes('function prepareSystemBackdrops(')) return { colors: [], issues: [] };
       if (expression.includes('function readCodeQuality(')) return { truncatedText: 0, ungatedHover: 0, smallTargets: 0, coveredAnchors: 0, croppedProductImages: 0, narrowColumns: 0, details: [] };
-      if (expression.includes('scanVisitorLayout(document,')) return { horizontalScroll: process.env.T159_RESTYLE_MODE === 'act' && process.env.T159_RESTYLE_ACTION === 'manual-invalid', overflowElements: [], textOverlaps: [], textContrast: [], bodyLineLength: [], generatedText: [], measurement: { textContrastEntries: 1 } };
+      if (expression.includes('scanVisitorLayout(document,')) {
+        const horizontalScroll = process.env.T159_RESTYLE_MODE === 'act' && process.env.T159_RESTYLE_ACTION === 'manual-invalid';
+        return { horizontalScroll, overflowElements: [], textOverlaps: [], textContrast: [], bodyLineLength: [], generatedText: [], measurement: { textContrastEntries: 1 },
+          repairs: horizontalScroll ? [{ issue: `${args.code.pages[0].id}/${width} 横向溢出`, elements: [], declarations: [], reason: '实际失败元素不属于可核实的站点代码节点' }] : [] };
+      }
       if (expression.includes('function readCodeFactSegments(')) return args.code.pages.map((p: any) => ({ text: text(p.html), group: p.id, context: { pageId: p.id, outline: [], headings: [] } }));
       if (expression.includes('hasMainHeading:')) return { contentType: 'text/html', hasMainHeading: true };
       if (expression.includes('document.images')) return [];

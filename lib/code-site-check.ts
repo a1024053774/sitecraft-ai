@@ -13,6 +13,7 @@ import { localDynamicPageBudgetMs, localDynamicViewportBudgetMs } from './code-s
 import type { AnnotationTarget } from './annotations.ts';
 import { systemBackdrops } from './code-site-backdrops.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
+import { readCodeLayoutRepairs, codeCssDeclarationNames, type CodeLayoutRepair, type CodeLayoutScan } from './code-site-layout-repair.ts';
 
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
 function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], selectedTargets: AnnotationTarget[] = []) {
@@ -447,9 +448,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
   } finally { scrollTo({ left: initialX, top: initialY, behavior: 'instant' }); }
   return feedback;
 }
-type LayoutReport = { horizontalScroll: boolean; overflowElements: unknown[]; textOverlaps: unknown[];
-  textContrast: Array<{ text: string; status: string; ratio: number | null; threshold: number; role: string }>;
-  bodyLineLength: Array<{ tooLong: boolean; text: string }>; measurement: { textContrastEntries: number } };
+type LayoutReport = CodeLayoutScan & { bodyLineLength: Array<{ tooLong: boolean; text: string }> };
 export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[]; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number }) {
   const code = codeSiteSchema.parse(args.code);
   const localTargets = args.localEdit ? (args.localEdit.targets ?? (args.localEdit.target ? [args.localEdit.target] : [])) : [];
@@ -602,7 +601,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
         const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)})`);
         const targetPaths = localTargets.filter(target => target.pageId === page.id).map(target => target.path);
-        const layout = await browser.evaluate<LayoutReport & { generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');const paths=${JSON.stringify(targetPaths)};return {...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)}),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
+        const layout = await browser.evaluate<LayoutReport & { repairs: CodeLayoutRepair[]; generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');const paths=${JSON.stringify(targetPaths)};const layout=scanVisitorLayout(document,${JSON.stringify(backdrops.colors)});return {...layout,repairs:(${readCodeLayoutRepairs.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${width},layout,(${codeCssDeclarationNames.toString()})),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
         if (!args.localEdit || targetPaths.length) for (const entry of layout.generatedText) generatedText.add(entry.text);
         if (!args.legacyImport && !args.translationSource && !args.restoredFactReview && (!args.localEdit || targetPaths.length)) {
           const paths = targetPaths.length ? targetPaths : [undefined];
@@ -627,10 +626,10 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         const long = layout.bodyLineLength.filter(l => l.tooLong);
         checks.viewports.push({ pageId: page.id, width, overflow: layout.overflowElements.length + Number(layout.horizontalScroll), overlaps: layout.textOverlaps.length, contrastIssues: contrast.length, longLines: long.length, qualityFeedback, ...(dynamicState ? { dynamicState } : {}) });
         args.timings?.push({ pageId: page.id, width, durationMs: performance.now() - viewportStarted });
-        if (!layout.measurement.textContrastEntries) checks.issues.push(`${page.id}/${width} 无可测量正文`);
-        if (layout.horizontalScroll || layout.overflowElements.length) checks.issues.push(`${page.id}/${width} 横向溢出`);
-        if (layout.textOverlaps.length) checks.issues.push(`${page.id}/${width} 文字重叠`);
-        for (const text of contrast.slice(0, 8)) checks.issues.push(`${page.id}/${width} 对比度不足或无法测量：${text.text}（${text.ratio?.toFixed(2) ?? '未知'}，需 ${text.threshold}）`);
+        if (layout.repairs.length) {
+          (checks.layoutRepairs ??= []).push(...layout.repairs);
+          checks.issues.push(...layout.repairs.map(repair => repair.issue));
+        }
         // Line length remains in viewport quality feedback; it never triggers repair.
       }
     }

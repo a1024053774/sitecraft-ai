@@ -1,6 +1,7 @@
 import { factSourceKey, type CodeFactReview, type CodeFactCitation, type CodeFactSource } from './code-site-fact-segments.ts';
 import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
+import type { CodeLayoutRepair } from './code-site-layout-repair.ts';
 import { z } from 'zod';
 import { systemIconLicense } from './code-site-icons.ts';
 import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
@@ -38,6 +39,8 @@ export type DynamicStateEvidence = {
 };
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
+  // Present only for layout failures measured in this candidate, never inferred from issue text.
+  layoutRepairs?: CodeLayoutRepair[];
   factReview?: 'legacy-unreviewed';
   factSegments?: CodeFactReview;
   // Absent on historical checks; a fragment cannot establish whole-site coverage.

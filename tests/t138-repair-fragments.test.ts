@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { codeRepairFragments, applyCodeRepair } from '../lib/code-site-repair.ts';
 import type { SiteCode } from '../lib/code-site.ts';
+import { checkSiteCode } from '../lib/code-site-check.ts';
 
 // Isolated failures: duplicate text selects the wrong occurrence; split copy
 // loses offsets; altered or overlapping spans apply; unknown/duplicate IDs and
@@ -29,9 +30,12 @@ test('malformed, unknown, duplicate, stale and overlapping patches refuse visibl
   await assert.rejects(applyCodeRepair(code, [...fragments, { ...fragments[0], id: 10 }], { replacements: [{ fragmentId: 0, after: '' }, { fragmentId: 10, after: '' }] }), /范围重叠/);
   await assert.rejects(codeRepairFragments(code, ['没有任何代码可对应的拒因']), /无法定位/);
 });
-test('layout context contains shared CSS and affected markup, without unrelated page copy', async () => {
-  const fragments = await codeRepairFragments(code, ['home/375 横向溢出']);
+test('layout context contains actual declarations and affected markup, without unrelated page copy', async () => {
+  const source = { ...code, css: 'body{color:#111;background:#fff}p{max-width:32em}.wide{width:1600px}', pages: [{ ...code.pages[0], html: '<main><h1>机械公司</h1><div class="wide">实际溢出</div></main>' }, code.pages[1]] };
+  const checked = await checkSiteCode({ siteId: 't138-layout', code: source, materials: '', images: [], legacyImport: true });
+  const fragments = await codeRepairFragments(checked.code, checked.checks.issues, checked.checks.cleaned, [], checked.checks.layoutRepairs);
   assert.ok(fragments.some(f => f.field === 'css'));
+  assert.ok(fragments.every(f => f.kind !== 'style'));
   assert.ok(fragments.some(f => f.field === 'pages/home/html'));
   assert.ok(fragments.every(f => f.field !== 'pages/products/html'));
 });
