@@ -135,3 +135,30 @@ molding新碎列的直接根因在本轮真实版本的CSS：`artifacts/t186/gen
 修后标准定向入口包括table-reflow、narrow-wrapping、t184-style-visual、t188-condition-scope，浏览器并发1，21/21通过，无跳过或取消，见 `artifacts/t186/reflow/green.log`、`artifacts/t167/test-run-1792450759499-57620/`。真实原结构两个caption在375/768/1440均为[11]；扩展结构两个caption均[11]、两个figcaption均[7]，表头表尾可见、行头scope及对应值未变、列宽盒停用，三档横向溢出均false。测量和渲染HTML保存在 `artifacts/t186/reflow/browser-1792450767249-58404/`。`npm run typecheck`退出0，见 `artifacts/t186/reflow/typecheck.log`。这是提示送达和示例可执行的证据，不等于模型遵从或真实截图已通过。未跑全量、runner、build或审核实例。
 
 第二轮唯一授权：molding/documentary，输出 `artifacts/t186/eval-r2`，新账本 `artifacts/t174/t186-narrow-eval-r2`，SITECRAFT_TOKEN_LIMIT=200000。本轮唯一curl连通性检查退出0、HTTP401；端点可达，实际凭据调用以网关记录为准。375截图只记录路径，交主控另派非执行者逐张看。
+
+### 第二轮真实评估与交接
+
+执行候选 `88b0f24508aeffcda2063f5bbd02b0acbd1bae64`，仅跑下列命令一次，未加previous（上一轮六组合与本轮单组合集合不同），未重跑失败站或修改生成版本：
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:60350 SITECRAFT_TOKEN_LIMIT=200000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --only molding/documentary --out artifacts/t186/eval-r2
+```
+
+独立数据根为本工作树 `artifacts/t186/eval-r2-data`，随机应用端口60350、网关60351；health核对cwd/dataRoot，见 `health-r2.json` 与 `services-r2.json`。应用只持占位凭据local-budget-gateway，真实密钥仅在网关子进程source载入且丢弃source输出。新账本 `artifacts/t174/t186-narrow-eval-r2/usage.json` 显式上限200000，初始调用0，唯一default轮登记后开始。实际共101,442 token、3次调用，均complete、HTTP200、正常finish_reason，无修正轮、截断、上游错误或重试。
+
+开始2026-10-19 19:01:47.618 EDT（23:01:47.618Z）；plan终态19:02:07.713 EDT，generate终态19:05:31.979 EDT。case-1 molding/documentary的outcome=generated，站点 `2c1bb9a1-3798-449c-9f26-eebd1b6bfc26`，版本 `f450a0f7-13c0-4dce-a147-ba3ea8332b44`；首次attempt检查passed=true、issues=[]，仅一个版本。这里只记录提交检查结果，不把它当成caption视觉已通过。
+
+评估进程退出1，总状态INCOMPLETE，round.errors=[]；`private/blind-coverage.json` 记录mixed=3、company=0、paired=0，review.complete=false，原文为「mixed 池需要每站一份独立真实官网，共1份；来源不能重复」。包路径 `artifacts/t186/eval-r2/review/mixed/` 与 `review/company/`；单公司没有换公司配对题，不能将本轮company路径称为齐备可盲评。未请求跨轮比较，未启动任何审核或盲评实例。
+
+四页三档共12张整页截图及1张首页首屏均已落盘。**本轮375截图未由执行者打开或判定**，以下交主控另派非执行者逐张查看：
+
+- `artifacts/t186/eval-r2/private/case-1/home-375.png`
+- `artifacts/t186/eval-r2/private/case-1/products-375.png`
+- `artifacts/t186/eval-r2/private/case-1/production-quality-375.png`
+- `artifacts/t186/eval-r2/private/case-1/faq-375.png`
+
+768与1440同目录、同页名前缀；所有路径均核对文件实际存在，只证明产物齐全，不证明碎折行消失。生成响应、检查及原始用量在 `private/case-1/code-site.json`、`report.json` 与新账本中保留；`eval-r2.log` 记录评估器总状态。
+
+评估退出后另经生产draft接口确认2个run均complete，并经网关status确认3个调用complete、在途0，保存 `artifacts/t186/eval-r2-control/draft.json` 与 `gateway-terminal.json`；随后手动向网关71367和dev71373发SIGINT。2026-10-19 19:07:53.564 EDT确认60350、60351均关闭，见 `eval-r2-control/stopped.json`。应用与网关会话均已退出。
+
+交接状态INCOMPLETE：代码和定向门控通过，本轮唯一真实生成完成；真实375效果待非执行者判图，整体审包覆盖未通过，票保持open。没有改T-196占用文件、没有推送、没有写主工作区数据或artifacts。tsconfig.json仅Next自动变化，保留且排除提交。全量、runner、build、独立审查依本次指令未运行；本票不改变T-160反馈为拒收规则。
