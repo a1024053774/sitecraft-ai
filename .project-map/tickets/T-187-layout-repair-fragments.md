@@ -41,7 +41,7 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 ## Resolution
 
-第一步已完成，实现提交为 `85982a968bf65111baf5867f49fbcb9b2f710996`，父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`；第一步证据索引为 `artifacts/t187/step1-result.json`。第二步也固定在该实现提交上，runner 通过、全量失败，已按负责人要求停止，没有继续 typecheck、build 或真实探针。整票仍为 **INCOMPLETE**，独立 fast 审查未运行。执行者 codex-t187；时间均为纽约时间。
+第一步已完成，实现提交为 `85982a968bf65111baf5867f49fbcb9b2f710996`，父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`；第一步证据索引为 `artifacts/t187/step1-result.json`。第二步首次 runner 通过、全量失败；负责人随后授权同步两个测试合同，但定向检查新增的未闭合值反例暴露真实产品缺陷，40/41 通过后再次按要求停止，没有进入新一轮 runner／全量、typecheck、build 或真实探针。整票仍为 **INCOMPLETE**，独立 fast 审查未运行。执行者 codex-t187；时间均为纽约时间。
 
 根因与原文定位：
 
@@ -79,4 +79,29 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 真实探针记录：保存的 `materials.txt` 已只读核对，与原 `report.materials`、`code-site.materials` 逐字相同；原偏好为 precision、layout 5、density 6。单站回放及仅记录片段数量的应用侧观察脚本已准备在 gitignore 的 `artifacts/t187/step2/`，但没有启动。探针站点 ID、版本 ID 均未创建，真实模型调用及付费 token 用量为 **0**；新账本 `artifacts/t174/t187-repair-probe` 未创建，未加载真实密钥，真实网关与 dev 未启动。是否触发版面修正、实际发送几个片段、最后是否存版均为 **未测**，不能写成“未触发”或“通过”。没有重跑失败站，没有开启审查或盲评实例，不推送。
 
-建议下一步只同步上述测试合同：T-138 合法对照返回指定颜色声明值，并保留整份样式或非法值的拒收对照；T-159 补齐 CDP 返回值且保持原溢出与准入反例。T-138 涉及旧用例预期调整，等待负责人确认后再做；本次不改断言、不重跑、不继续后续门控。第二步证据索引为 `artifacts/t187/step2/result.json`。
+该轮证据索引为 `artifacts/t187/step2/result.json`。后续负责人已授权同步这两处测试合同，保留所有拒收与准入反例，再从定向检查开始重跑完整门控；本轮失败日志与数据根不覆盖。
+
+### 测试合同同步与 style 路径边界
+
+本次只改 `tests/t138-dom-scope.test.ts` 和 `tests/fixtures/t159-commit-protocol.ts`，不改产品代码、不加空数组 fallback、不放宽 80 条上限。T-138 的合法对照按选择器 `p` 与属性 `color` 选择可写声明，只返回 `#111`；对照仍须经原提交入口存版、两页三档通过且正文与其他页面保留。反例分别返回完整 `<style>p{color:#111}</style>`、原未闭合 `<style>p{color:#111</style>`、非法值 `not-a-color`、未闭合值 `rgb(17,17,17`，要求一轮即拒收、零版本并原样保存回复；本次前三项通过，最后一项暴露未闭合值被存版，见下节，不降低其断言。
+
+旧未闭合样式断言是 `/CSS.*未闭合/`，对应原整份 style 写回分支的拒因原文为「局部修正的 CSS 未闭合，本次未保存版本。」；新声明合同对完整／未闭合 style 元素和非法颜色值在 `CSS.supports(property, after)` 处拒绝，实际拒因原文为「局部修正CSS 修正不是有效的单个声明值，本次未保存版本。」。未闭合的 rgb 函数值却没有被该检查拒绝，不能概括成所有未闭合值已受保护。此前全量留下的新拒因与原回复仍在上节两个失败产物中，不把旧预期改写成旧运行事实。
+
+**整份 style 片段没有完全移除。** `lib/code-site-repair.ts` 仍声明并接收 `kind=style`，提示也保留该种合同；`mentionedNumber(code.css)` 仍可在非结构化「资料没有的数字：N」拒因命中 CSS 数字时生成整份 style，并执行原完整元素与 CSS 闭合检查。T-187 只移除了版面拒因按页扩选整份 style 的路径，没有声称移除上述数字修正路径。当前变更不扩大到删除该历史路径。
+
+结构化事实修正先用 `factRepairs` 提取对应的位置成员，再把这些成员已覆盖的 issues 从通用文字／数字匹配中排除；因此 T-173 的 CSS 文案成员仍走 `kind=css` 的指定 `content` 声明值，不走 `mentionedNumber` 的整份 style 路径。T-187 改用作者声明名进行范围外 CSS 快照比较，这一共享写回核验也用于事实 CSS 修正；对 `content` 这个实际长属性，声明单位与前后值保护保持不变，选择器、其他声明、DOM、同文其他行与既有影响范围核验仍须保留。对应已有用例为：
+
+- `tests/t173-fact-members.test.ts` 的「根级伪元素按 CSS 声明修正，其他规则与伪元素声明不变」明确断言 `kind=css`／`property=content`、没有 style 片段，并实际改值后比较其余规则与 DOM；同文件的多规则及作用域无法归属反例仍要求模型请求为 0。
+- `tests/t173-repair-scope.test.ts` 的 `css-one`、`css-both`、`css-mask-static`、`css-container-other` 正例仍实际改正 `content` 并存版；共享声明影响已通过段、另一页仅在 375／768／1440 生效、完整交互伪类与容器条件等反例仍在发送修正前拒绝。T-173 的事实成员归属、三档实际影响核验及交互条件规则未被本次测试同步改动。
+
+上述 T-173 用例已在前一轮完整全量通过；新一轮仍由标准全量入口重跑，结果单独记录，不用旧证据替代新门控。
+
+T-159 替身现在按同次 CDP 的 Emulation 宽度补齐 `repairs`：正常扫描返回空数组；`manual-invalid` 的真实溢出分支保留 `horizontalScroll=true`，并返回当前页面／宽度的「横向溢出」诊断及无法定位元素的明确原因，不统一伪造成通过。准入测试本身的全部断言与正反例不改。
+
+### 同步后的定向门控：未闭合声明值被存版
+
+2026-10-18 **21:34:48–21:35:26 EDT**，运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t138-dom-scope.test.ts tests/t159-task-admission.test.ts tests/t187-repair-fragments.test.ts`。结果 **40/41 通过，exit 1**，无跳过或取消。T-138 19/20、T-159 13/13、T-187 8/8；T-159 的 manual-invalid 与全部准入反例通过。日志 `artifacts/t187/step2-retry1/targeted.log`、时间记录 `targeted-result.json`，入口原生统计在 `artifacts/t167/test-run-1792373689512-96451/report.json`；旧失败全量日志不覆盖。
+
+唯一失败为 `a CSS declaration rejects unclosed-css-value and records the unchanged response`：替身返回原文 `rgb(17,17,17`（缺右括号），但 `kind=css` 写回只用 `CSS.supports` 核实值，浏览器按 CSS 解析规则补足结尾后接受，实际 run 为 complete、版本通过并保存。这是产品边界缺陷，不是夹具缺漏。原始回复与结果在 `artifacts/t138/dom-scope-f84d1347-b4b9-4b1f-a9b7-a95f88dcc76f/unclosed-css-value.json`；测试站 ID `99c064d8-1194-4011-9446-4b68fb8545e4`，版本 ID `0a7a5034-ace5-46c2-8c9a-3d24f248b7e0`，均为本地模型替身测试证据。
+
+按负责人“任何一步失败就停”要求，本轮不修产品代码，不换反例、不降低断言、不重跑，也未开始新的 runner／全量、typecheck、build 或真实探针。真实站点和版本仍未创建，真实模型调用及付费 token 为 0，新预算账本未创建。建议在指定 CSS 声明值进入 `CSS.supports` 之前核实引号、括号及转义边界，保留现有语义检查和严格拒收；这需要产品代码修改，交负责人确认后继续。
