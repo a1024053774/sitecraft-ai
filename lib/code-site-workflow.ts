@@ -335,7 +335,7 @@ async function execute(siteId: string, runId: string) {
     await runStep(siteId, runId, { step: `底线检查未过，交回模型修正（${round + 1}/2）`, repairRound: round + 1 });
     result = await repairSiteCode({ materials, preferences: { ...site.preferences, style: site.plan.style },
       current: committed.code, issues: committed.checks.issues, cleaned: committed.checks.cleaned, layoutRepairs: committed.checks.layoutRepairs,
-      factRepairs: committed.checks.factSegments?.segments.flatMap(segment => segment.factRepair ? [segment.factRepair] : []) });
+      factRepairs: [...(committed.checks.numberRepairs ?? []), ...(committed.checks.factSegments?.segments.flatMap(segment => segment.factRepair ? [segment.factRepair] : []) ?? [])] });
   }
 }
 export async function handleCodeChat(siteId: string, raw: unknown) {

@@ -37,6 +37,7 @@ state.__t159Browser = () => {
           repairs: horizontalScroll ? [{ issue: `${args.code.pages[0].id}/${width} 横向溢出`, elements: [], declarations: [], reason: '实际失败元素不属于可核实的站点代码节点' }] : [] };
       }
       if (expression.includes('function readCodeFactSeparators(')) return [];
+      if (expression.includes('function readCodeReadable(')) return { text: text(args.code.header + args.code.pages.map((p: any) => p.html).join('') + args.code.footer), numbers: [] };
       if (expression.includes('function readCodeFactSegments(')) return args.code.pages.map((p: any) => ({ text: text(p.html), group: p.id, context: { pageId: p.id, outline: [], headings: [] } }));
       if (expression.includes('hasMainHeading:')) return { contentType: 'text/html', hasMainHeading: true };
       if (expression.includes('document.images')) return [];

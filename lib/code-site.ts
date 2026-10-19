@@ -1,4 +1,4 @@
-import { factSourceKey, type CodeFactReview, type CodeFactCitation, type CodeFactSource } from './code-site-fact-segments.ts';
+import { factSourceKey, type CodeFactReview, type CodeFactCitation, type CodeFactSource, type CodeFactRepair } from './code-site-fact-segments.ts';
 import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import type { CodeLayoutRepair } from './code-site-layout-repair.ts';
@@ -41,6 +41,7 @@ export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
   // Present only for layout failures measured in this candidate, never inferred from issue text.
   layoutRepairs?: CodeLayoutRepair[];
+  numberRepairs?: CodeFactRepair[];
   factReview?: 'legacy-unreviewed';
   factSegments?: CodeFactReview;
   // Absent on historical checks; a fragment cannot establish whole-site coverage.
