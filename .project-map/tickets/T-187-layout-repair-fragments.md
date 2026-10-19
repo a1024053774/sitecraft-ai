@@ -41,7 +41,7 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 ## Resolution
 
-第一步已完成；整票仍为 **INCOMPLETE**，等待负责人安排第二步与独立 fast 审查。执行者 codex-t187；时间均为纽约时间。对应代码为包含本节的 T-187 本地提交，父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`；最终 SHA 见 `git log -1 --format=%H`，提交后的证据索引保存在 `artifacts/t187/step1-result.json`。
+第一步已完成，实现提交为 `85982a968bf65111baf5867f49fbcb9b2f710996`，父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`；第一步证据索引为 `artifacts/t187/step1-result.json`。第二步也固定在该实现提交上，runner 通过、全量失败，已按负责人要求停止，没有继续 typecheck、build 或真实探针。整票仍为 **INCOMPLETE**，独立 fast 审查未运行。执行者 codex-t187；时间均为纽约时间。
 
 根因与原文定位：
 
@@ -58,4 +58,25 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 - 21:10，第一次修复定向运行 50/51，通过原 T-138 与 T-173 修正范围用例；剩余失败为变量 background 简写被 CSSOM 展开成空值长属性。21:12 的专项断言重现该问题，日志 `green-attempt-1.log`、`red-shorthand.log`。仅回退写回核验的声明枚举时，合法 background 修改被误判越界；反事实在 `red-shorthand-writeback.log`，原实现已在 finally 恢复。同轮也暴露图片尚未登记的夹具准备缺漏，随后按负责人确认补齐生产登记，没有放宽检查。
 - 21:14:57 开始，执行 `CHROME_PATH=<AGENTS.md 中的路径> npm test -- tests/t187-repair-fragments.test.ts tests/t138-repair-fragments.test.ts tests/t138-token-repair.test.ts tests/t173-repair-scope.test.ts`：**53/53 通过**。日志 `artifacts/t187/green-attempt-2.log`；入口证据目录 `artifacts/t167/test-run-1792372498310-25343/`。本轮保存现场只开放 5 个片段：三个失败分隔符、`.sep` 的 color 和 body 的 background。修正后经同一个提交入口存版，两页 × 三档的溢出、重叠及对比度均为 0；确定性导入明确标记 `legacy-unreviewed`，不冒充模型事实核对。80 条可发送并接收，81 条零模型请求；同文高对比度分隔符不获可写权限，溢出、重叠、快照失效及实际 background 简写写回均有对照。
 
-第二步未运行：runner 回归、全量 npm test、typecheck、build，以及 industrial/precision 的唯一真实探针（新账本 `artifacts/t174/t187-repair-probe`、显式 `SITECRAFT_TOKEN_LIMIT=300000`）均等待负责人通知；失败站不重跑。未开启审查或盲评实例，不推送。
+### 第二步：固定候选门控失败后停止
+
+负责人授权的顺序为 runner → 全量一轮 → typecheck → build → industrial/precision 唯一真实探针，任一步失败就停止且不重跑。本轮没有修改生产代码、测试、断言或上限；完整全量自然结束。Next 自动追加的 `.next-test/dev/dev/types/**/*.ts` 与 `.next/dev/dev/types/**/*.ts` include 在退出后精确撤回，不带入配置改动。
+
+| 顺序与实际命令 | 起止时间（2026-10-18 EDT） | 结果与证据 |
+| --- | --- | --- |
+| `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` | 21:17:36–21:17:55 | **PASS 18/18**，exit 0，无跳过；`artifacts/t187/step2/runner.log`、`runner-result.json`。 |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` | 21:18:37–21:31:57 | **失败，856/871 通过、15 失败**，exit 1，无跳过或取消；非浏览器 123/123，浏览器 733/748，并发 2。`artifacts/t187/step2/full.log`、`full-result.json`；原生统计在 `artifacts/t167/test-run-1792372718395-68055/report.json`。 |
+| `npm run typecheck` | — | 未执行：前一步失败。 |
+| `npm run build` | — | 未执行：前一步失败。 |
+| industrial/precision 真实探针 | — | 未执行：前置门控失败。 |
+
+全量身份已核对本工作树 cwd 与独立数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-Tsade0`，原失败数据根与日志保留，没有读写主工作区 `.sitecraft-data`。本轮 T-187 的八项用例全部通过，但不能代替全量通过。
+
+15 项失败归为两处未同步的测试合同：
+
+- `tests/t138-dom-scope.test.ts:151`、`:159` 两项：旧替身仍把完整 `<style>…</style>` 作为第一个 CSS 片段的 `after`，新合同只接收指定声明值，所以两项都报「局部修正 CSS 修正不是有效的单个声明值」。合法旧用例因未存版失败；未闭合旧用例仍拒收且保留回复，但拒因不再是旧预期的「CSS 未闭合」。原文在 `artifacts/t138/dom-scope-19470e11-1506-4355-bb19-42e2577c2f66/valid-style.json` 与 `unclosed-css.json`；对应测试站 ID 分别为 `978a8bd6-68bd-4085-b1b2-4f9bdf119413`、`8acf2ee1-d474-41b9-91e4-ef34bc7e4d72`，均无版本。这些是替身测试站，不是真实探针。
+- `tests/t159-task-admission.test.ts` 的 13 个 action 均在 prepare 阶段失败：`tests/fixtures/t159-commit-protocol.ts:32` 的 CDP 替身只返回旧扫描对象，没有新增 `repairs`；`lib/code-site-check.ts:630` 读取 `layout.repairs.length` 时抛 TypeError。示例进程原文在 `artifacts/t159/task-contract-quick-446ab524-3ca2-4993-b9c2-3e599c4dd160/prepare-process.json`。这是替身协议缺项；不能在产品加空数组 fallback 来掩盖。后续同步替身时还须保留 `manual-invalid` 的实际溢出诊断，不能统一返回无拒因。
+
+真实探针记录：保存的 `materials.txt` 已只读核对，与原 `report.materials`、`code-site.materials` 逐字相同；原偏好为 precision、layout 5、density 6。单站回放及仅记录片段数量的应用侧观察脚本已准备在 gitignore 的 `artifacts/t187/step2/`，但没有启动。探针站点 ID、版本 ID 均未创建，真实模型调用及付费 token 用量为 **0**；新账本 `artifacts/t174/t187-repair-probe` 未创建，未加载真实密钥，真实网关与 dev 未启动。是否触发版面修正、实际发送几个片段、最后是否存版均为 **未测**，不能写成“未触发”或“通过”。没有重跑失败站，没有开启审查或盲评实例，不推送。
+
+建议下一步只同步上述测试合同：T-138 合法对照返回指定颜色声明值，并保留整份样式或非法值的拒收对照；T-159 补齐 CDP 返回值且保持原溢出与准入反例。T-138 涉及旧用例预期调整，等待负责人确认后再做；本次不改断言、不重跑、不继续后续门控。第二步证据索引为 `artifacts/t187/step2/result.json`。
