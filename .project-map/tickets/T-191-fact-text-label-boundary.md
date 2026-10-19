@@ -2,7 +2,7 @@
 id: T-191
 title: 事实核对段把标签和值连成一串，模型看不出边界
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t191-review2-fix
 supersedes:
@@ -31,7 +31,7 @@ T-188 的 restaurant/precision 站，页面「位置与通行」写着「地址 
 
 - [x] 是否缺分隔的结论写进 Resolution，附原文定位
 - [x] 若改代码：成对测试先红后绿，真实探针结果如实记录
-- [ ] 合并后主线验证通过；独立 fast 审查通过
+- [x] 合并后主线验证通过；独立 fast 审查通过（审查共三轮：NO_GO、NO_GO、GO，见 Resolution 末尾）
 
 ## Resolution
 
@@ -270,3 +270,18 @@ Tracer bullet：实际提交检查及 CLI → Chrome 三档 → 真实 facts 请
 | T-173 CSS 声明影响核实：`lib/code-site-check.ts:695`、`:696`、`:697`、`:698`、`:699`；`lib/code-site-fact-segments.ts:369`、`:380`、`:387`、`:392`、`:395`、`:397` | 每页每档先设置视口，再新装载候选，等字体及两帧，展开 details/处理 aria 状态后调用 `readCodeFactCssEffects`。函数先读声明影响，再于同一文档临时改该声明、立即重读、恢复并复核。 | 未见本次跨视口旧样式风险。既有保护包括新装载、同属性或 all 的作者交互/不明条件作用域拒收，以及恢复后不稳定就拒收；未见通用过渡禁用或终态推进。临时改声明或展开内容引发过渡时，立即取样仍有潜在旧值风险；恢复校验不能独自证明三次读值都已到终态。本轮未复现，不在本票修。 |
 
 四处均为“每档设置视口后重新装载”，没有发现 T-191 复审所指的单次装载预采集模式。共用渲染器 `lib/code-site.ts:211`、`:219`、`:239` 保留作者 CSS 并生成样式表，未添加全局禁用过渡规则。上述文档内状态或声明变化风险交主控决定后续范围，本次仅记录，不扩展 T-191 修复。
+
+### 主控验收与关闭
+
+独立审查共三轮，每轮都是新实例。第 1 轮 NO_GO：P2 是重放 CLI 遗漏第四参，P3 是预采集重复装载，见 `artifacts/t191/review1.txt`。第 2 轮 NO_GO：P2 是单次装载后切换视口，display 过渡导致漏掉边界，见 `review2.txt`；主控决定撤回 P3 优化，恢复每档新装载。第 3 轮 GO，见 `review3.txt`。分支 `t191-fact-label-boundary`（`cc9083d`，其中已合入 T-190 的 `1002c28`）以 `--no-ff` 合并为 `79f8a91`，MAP 冲突已解决，`8602b37` 把合并后的 living doc 标为已核对。
+
+**主线验证（执行主控，2026-10-19 EDT）。** 共跑了两轮，按标准检查命令依次运行 runner → `npm test` → `SITE_STORE=fs npm run build` → `npm run typecheck`，期间没有其他重活。
+
+- 第一轮在本地合并 `8602b37` 上（T-188 合并 `80c6ae7`，T-191 连同 T-190 合并 `79f8a91`），05:26:47–05:43:04：runner、build、typecheck 均退出 0；全量非浏览器 146/146，浏览器 **799/804，失败 5 项**，见 `artifacts/t191/main-verify.out` 与 `artifacts/t191/main-verify/`。
+  - 4 项 t159 失败是 T-190 带进来的回归：评估 CLI 新增的图片上传请求没有被 t159 本地替身路由。已在 `c276f1b` 改为由替身调用生产图片上传处理函数，独立复审 GO，见 `artifacts/t190/review4-t159.txt`。
+  - 1 项是 `tests/t179-composer-scroll.test.ts` 的 375 档，属于既有问题：执行主控单独复跑，在当前主线、`80c6ae7`、`b7393fc`、`dc09cb2` 四个提交上都失败，而 `dc09cb2` 在同日 02:26–02:51 的验证中是通过的。日志见 `artifacts/t191/diag-t179-*.log`。为此开了 T-193，查明是产品缺陷（高目标按中心定位，没有约束底边）并修复，独立审查 GO。
+- 第二轮在合并上述两项修复后的 `dcf60e1` 上（t159 修复合并 `92116e5`，T-193 合并 `dcf60e1`），06:08:08–06:25:22：runner、build、typecheck 均退出 0；全量非浏览器 **146/146**，浏览器 **806/806**，无失败、取消或跳过，T-179 也在内。见 `artifacts/t193/main-verify.out` 与 `artifacts/t193/main-verify/`。
+
+第一轮并非全部通过；这里只认第二轮的结果。
+
+**关闭。** 唯一一次真实探针（restaurant/precision）的站 `ea4974bd-bef6-424c-8714-382f83329395` 已复制进主数据，站名加「（T-191）」；复制前的备份与 T-188 共用。工作树证据复制到 `artifacts/t191/worktree-evidence/` 与 `artifacts/t191/worktree-t167/`，账本复制到 `artifacts/t174/t191-label-probe/`。已知局限：探针使用的是 T-190 改写后的资料，不能单独证明 T-188 那次漏拦是由本票的代码修复解决的。同一档文档内的过渡风险已转到 T-192。

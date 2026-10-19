@@ -38,7 +38,7 @@ supersedes:
 
 - [x] 七家资料按上述写法重写，模拟标注与缺口保留；新增图片逐张有来源与许可记录
 - [ ] 新基线两轮的命令、提交、用量、成败站数写进 Resolution；comparison 结果与固定口径缺口计数（对比 T-180）如实记录
-- [ ] 合并后主线验证通过（typecheck、test、build）；独立 fast 审查通过
+- [x] 合并后主线验证通过（typecheck、test、build）；独立 fast 审查通过（见 Resolution「主控：合并与主线验证」）
 
 ## Resolution
 
@@ -170,3 +170,18 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 - **生产上传观察**：`artifacts/t159/ready-entry-5769dc16-681f-4dd0-9db1-97018da8b762/entry.json` 记录餐馆三张图全部返回 201，保留 multipart content-type，body 均为 null；隔离数据根中可读到三份生产图片登记记录。`t137-eval-images` 仍覆盖七家公司两种风格的全部登记图片，包含新增的 3／2／2 张。
 
 本次只验证本地替身与生产 handler 的接线、既有准入和资料合同，不证明实际 Next after 集成、真实模型行为或页面质量。未跑全量、独立 runner 回归或 build，未开审查实例、调用真实模型、读取 `.env.local`、写主工作区数据或 artifacts，也未推送。Next 自动修改的 `tsconfig.json` 保留在工作树且排除提交。`git diff --check`、UTF-8／LF／无 BOM／无替换字符检查通过；`project_map.py status --root .` 无问题、无 stale living docs。
+
+### 主控：合并与主线验证
+
+本票随 T-191 分支合入主线（`79f8a91`）。独立审查记录：第一步 review1 GO；补改 review2 NO_GO，主控更正后 review3 GO；t159 替身修复 review4 GO。
+
+**主线验证（执行主控，2026-10-19 EDT）。** 共跑了两轮，按标准检查命令依次运行 runner → `npm test` → `SITE_STORE=fs npm run build` → `npm run typecheck`，期间没有其他重活。
+
+- 第一轮在本地合并 `8602b37` 上（T-188 合并 `80c6ae7`，T-191 连同 T-190 合并 `79f8a91`），05:26:47–05:43:04：runner、build、typecheck 均退出 0；全量非浏览器 146/146，浏览器 **799/804，失败 5 项**，见 `artifacts/t191/main-verify.out` 与 `artifacts/t191/main-verify/`。
+  - 4 项 t159 失败是 T-190 带进来的回归：评估 CLI 新增的图片上传请求没有被 t159 本地替身路由。已在 `c276f1b` 改为由替身调用生产图片上传处理函数，独立复审 GO，见 `artifacts/t190/review4-t159.txt`。
+  - 1 项是 `tests/t179-composer-scroll.test.ts` 的 375 档，属于既有问题：执行主控单独复跑，在当前主线、`80c6ae7`、`b7393fc`、`dc09cb2` 四个提交上都失败，而 `dc09cb2` 在同日 02:26–02:51 的验证中是通过的。日志见 `artifacts/t191/diag-t179-*.log`。为此开了 T-193，查明是产品缺陷（高目标按中心定位，没有约束底边）并修复，独立审查 GO。
+- 第二轮在合并上述两项修复后的 `dcf60e1` 上（t159 修复合并 `92116e5`，T-193 合并 `dcf60e1`），06:08:08–06:25:22：runner、build、typecheck 均退出 0；全量非浏览器 **146/146**，浏览器 **806/806**，无失败、取消或跳过，T-179 也在内。见 `artifacts/t193/main-verify.out` 与 `artifacts/t193/main-verify/`。
+
+第一轮并非全部通过；这里只认第二轮的结果。
+
+工作树证据复制到 `artifacts/t190/worktree-evidence/`、`worktree-t167/`，t159 修复的证据复制到 `artifacts/t190/worktree-evidence-t159fix/`、`worktree-t167-t159fix/`。票保持 open：第 2 项「新基线」尚未运行。

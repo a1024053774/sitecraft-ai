@@ -2,7 +2,7 @@
 id: T-193
 title: T-179 的 375 首次腾位用例在旧提交上也开始失败
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t193
 supersedes:
@@ -37,7 +37,7 @@ dc09cb2 在同日 02:26–02:51 的主线验证里是通过的，同一份代码
 
 - [x] 根因写进 Resolution，附现场定位
 - [x] 修复后该用例三档通过，且能拦住 T-179 原问题（先红后绿）
-- [ ] 合并后主线验证通过；独立 fast 审查通过
+- [x] 合并后主线验证通过；独立 fast 审查通过（见 Resolution 末尾）
 
 ## Resolution
 
@@ -96,3 +96,7 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 本次未读 `.env.local`、未调用真实模型、未开审查实例、未运行全量／runner／build、未推送；未使用 rm 命令，主工作区 artifacts 只读、`.sitecraft-data` 未写。Next 自动修改的 `tsconfig.json` 留在工作树且不提交。project-map 状态检查为 Problems 0、Stale living docs 0。**整票 INCOMPLETE**：独立审查与合并后主线验证由主控执行，最后一项验收仍未勾选，票保持 open；不能把本地门控通过写成整票关闭。
 
 **独立审查（主控记录，2026-10-19 EDT）。** 新实例独立审查 PASS/GO，见主工作区 `artifacts/t193/review1.txt`：P0–P2 均无；P3 一项是本节证据索引没有覆盖 T-179 运行，已在上一段更正。
+
+### 主控验收与关闭
+
+执行主控，2026-10-19 EDT。分支 `t193-t179-375`（`fb32a6b`）以 `--no-ff` 合并为 `dcf60e1`。合并后主线验证在 `dcf60e1` 上运行，06:08:08–06:25:22：runner、build、typecheck 均退出 0；全量 146/146 + 806/806，无失败、取消或跳过，`tests/t179-composer-scroll.test.ts` 三档全部通过。见 `artifacts/t193/main-verify.out`。工作树证据复制到 `artifacts/t193/worktree-evidence/` 与 `artifacts/t193/worktree-t167/`。系统为何改变滚动条形态仍未查明，本票不追。
