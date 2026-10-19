@@ -28,14 +28,21 @@ export async function readGeneratedLayout(browser: Awaited<ReturnType<typeof cod
     if (nodes.nodeType[node] === 1 && !pseudos.has(node)) children.set(parent, [...(children.get(parent) ?? []), node]);
   });
   const texts = new Map<number, GeneratedLayoutText>();
+  const fragmented = new Set<number>();
   for (let index = 0; index < layout.nodeIndex.length; index++) {
     const text = snapshot.strings[layout.text[index]];
     if (!text?.trim()) continue;
     let pseudoNode = layout.nodeIndex[index];
-    while (pseudoNode >= 0 && !pseudos.has(pseudoNode)) pseudoNode = nodes.parentIndex[pseudoNode];
+    // first-letter / first-line 包装真实 DOM 文字，不因此成为生成内容。
+    // 向上寻找真正生成内容的祖先，特殊分片仅在属于该祖先时拒绝测量。
+    let fragment: string | undefined;
+    while (pseudoNode >= 0 && !['::before', '::after', '::marker'].includes(pseudos.get(pseudoNode) ?? '')) {
+      fragment ??= pseudos.get(pseudoNode);
+      pseudoNode = nodes.parentIndex[pseudoNode];
+    }
     if (pseudoNode < 0) continue;
     const pseudo = pseudos.get(pseudoNode)!;
-    if (!['::before', '::after', '::marker'].includes(pseudo)) throw new Error(`CSS 生成文字 ${pseudo} 无法测量，本次未保存版本。`);
+    if (fragment) fragmented.add(pseudoNode);
     let host = nodes.parentIndex[pseudoNode];
     const path: number[] = [];
     while (snapshot.strings[nodes.nodeName[host]] !== 'HTML') {
@@ -53,5 +60,9 @@ export async function readGeneratedLayout(browser: Awaited<ReturnType<typeof cod
     const previous = texts.get(pseudoNode);
     texts.set(pseudoNode, { path, pseudo, text: (previous?.text ?? '') + text, rects: [...(previous?.rects ?? []), ...rects] });
   }
-  return [...texts.values()];
+  // Chrome 也会把生成首字母放在宿主下，与 before 并列。
+  // 不能证明该分片已按自身样式测量时，不拿剩余字符证明完整覆盖。
+  const firstLetterHosts = new Set([...pseudos].filter(([, pseudo]) => pseudo === '::first-letter').map(([node]) => nodes.parentIndex[node]));
+  return [...texts].map(([node, item]) => fragmented.has(node) || item.pseudo === '::before' && firstLetterHosts.has(nodes.parentIndex[node])
+    ? { ...item, rects: [] } : item);
 }

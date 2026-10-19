@@ -4,7 +4,7 @@ title: 视觉扫描与访客实际看到的不一致：aria/details 预处理、
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t196
+claimed_by: codex-t196b
 supersedes:
 ---
 
@@ -116,3 +116,63 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 基线 `4708f86a764fcbe34686849e760c9a6bdfe27a58`；上述候选结果来自本票提交前的工作树，离线元数据明确记 dirty=true，最终代码与本票合为一个本地提交。最终 SHA 随交付回报。
 
 没有调用真实模型、运行真实评估、开审查实例或推送；没有跑全量、runner 回归、build、公网或实机。离线与受控服务只证明确定性边界，不充当真实模型事实校对或独立审查。tsconfig.json 的 Next 自动添加路径已恢复为开工时配置，不纳入提交。
+
+
+### 2026-10-19 独立审查三项 P2 修复（codex-t196b）
+
+审查输入为主工作区只读 `artifacts/t196/review1.txt`（目标 `7826057`，NO_GO）及 `review1-probes/`。仅复制九份探针的 `code` 到 `tests/fixtures/t196-review1-inputs.json`，不复制扫描答案。新增三组成对用例，仍经生产 `checkSiteCode` 三档检查；`legacyImport:true`，不调用模型、不存版本。期望来自访客的实色叠底、正常 DOM 文字及 T-195 的保守合同，没有哈希、字节或像素比对，也没有固定等待。
+
+1. **宿主外叠底**：宿主背景不等于文字所在位置的背景。除背景实色与全部已知叠底相同、覆盖与否不改变颜色的情形外，只对完整覆盖实际文字行的背景盒叠加；完全不相交的背景层不参与（可能向画布铺底的 html／body 仍保守拒收）；部分覆盖、特殊形状、无法核实的伪元素背景盒或独立叠层明确标为无法测量。深底灰字原探针修后在 375／768／1440 均报告 1.94，反向浅底白字均为 1.00；移回宿主内及外部安全白字对照均通过。
+2. **非空生成内容缺行**：每次扫描把非空 before／after／marker content 与快照位置核对，不把空列表视为完整性证明。缺条目与缺实际文字行均产生带 T-173 位置的拒因，测量原因进入提交检查反馈。content-visibility:hidden 不新增排除；visibility:hidden、完整 sr-only 与可测安全生成文字仍有通过对照。
+3. **真实文字伪元素包装**：快照沿祖先查找真正的 before／after／marker 生成目标，first-letter／first-line 包装的真实 DOM 文字继续使用原 DOM 文字路径，安全页通过。生成内容的特殊分片无法核实时保守拒收，不用其余字符冒充完整测量。
+
+T-195 最终两条排除规则未改：文字自身最终 visibility 非 visible；或有盒元素满足完整标准 sr-only 写法。`fullyHidden`、1px 越界容差、2px 重叠容差、字体 em 盒与对比度阈值均未放宽。Tracer bullet 仍为独立探针 → 生产静态渲染 → Chrome 布局 → 生产提交检查；Deep modules 保持快照模块的小接口，Ubiquitous language 沿用“生成文字位置”。
+
+#### 本轮红绿证据
+
+以下时间均为 UTC；命令从本工作树执行，Chrome 使用负责人指定的 154 headless shell，浏览器任务串行。
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --browser-concurrency=1 tests/t196-visual-coverage.test.ts
+npm run typecheck
+```
+
+- **HEAD 7826057 红态**：23:05:38.956–23:06:05.264，7 项中原四组通过、新三组失败，退出 1。两种宿主外低对比输入三档均漏检；缺快照行输入三档被接受；安全 first-letter 抛出误拒。日志 `artifacts/t196/review1-fix/head-7826057-red.log`；标准入口 `artifacts/t167/test-run-1792451135323-9408/`；原样输出与截图 `artifacts/t196/probes-1792451139659-9958/`。
+- **首次修改结果如实保留**：23:06:27.106–23:06:52.948，6／7 通过，缺行已拒收但反馈未带具体原因，未满足新增断言，退出 1；`first-green.log` 虽沿用工作文件名，其内容是失败，不作为通过证据。补齐反馈后同命令于 23:06:59.483–23:07:27.409 达到 7／7、退出 0，见 `second-green.log` 与 `artifacts/t167/test-run-1792451217538-19633/`。
+- 该轮 51 张三档完整截图在 `artifacts/t196/probes-1792451220041-20058/`，全部通过 `artifacts/t196/review1-fix/green-{375,768,1440}-{0,1,2}.png` 的完整页面与文字区域汇总图打开核对。截图用于核实绘制状态，不替代提交检查或审美判断。
+
+- **生成首字母组合的补充红绿**：首轮 29 文件于 23:07:48.933–23:16:12.419 完成，306／306、退出 0（`related.log`、`related-command.json`、`artifacts/t167/test-run-1792451266497-26587/`）。随后查看 Chrome 原始快照，确认生成首字母位于宿主下，与 before 并列；只检查祖先会遗漏这一个字符。用审查组合输入派生“首字母白字白底、其余黑字”的对照，实际截图已打开（`fragment-before-375.png`），当时候选错误接受，原快照及结果保存在 `fragment-snapshot.json`、`fragment-before-check.json`。新增断言在 23:16:31.502–23:16:55.962 得到 6／7、退出 1（`fragment-red.log`、`artifacts/t167/test-run-1792451789788-61294/`）。修后保留分片所属生成位置，但不把其余字符的文字行当作完整覆盖；扫描明确报告无法测量。无生成内容的安全 first-letter／first-line 仍通过。
+- **追加相关对照发现并修正误拒**：检索 first-letter／first-line 的调用与夹具后，追加 T-164、T-178 两文件。12 文件于 23:17:15.099–23:21:03.707 得到 129／131、退出 1（`final-targeted.log`、`artifacts/t167/test-run-1792451832272-63097/`）；两项均是 T-164 原安全夹具的 before／after 自身白底被保守误拒，没有改动断言。修法是对任意相同实色证明覆盖与否不改变叠底，其余无法核实的情况仍拒收；不为样本颜色或测试名称设置例外。
+
+
+#### 最终相关门控与 14 站重检
+
+- 首轮 29 文件的 306 项通过后，末次仅收紧生成首字母分片并补足相同实色的覆盖证明；最终重跑受影响的 12 文件（含负责人指定的十个文件及 T-164、T-178 伪元素对照），2026-10-19T23:21:27.387Z–2026-10-19T23:25:11.644Z，**131／131 通过**，失败／取消／跳过均为 0，退出 0。日志 `artifacts/t196/review1-fix/final-targeted-green.log`，完整命令及时间 `final-targeted-command.json`，标准入口 `artifacts/t167/test-run-1792452085148-94035/`。最终命令如下；不是全量入口或独立 runner 回归。
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- --browser-concurrency=1 \
+  tests/t196-visual-coverage.test.ts \
+  tests/t195-hidden-overlap.test.ts \
+  tests/t160-narrow-columns.test.ts \
+  tests/t187-repair-fragments.test.ts \
+  tests/t187-repair-routing.test.ts \
+  tests/t191-display-transition.test.ts \
+  tests/t191-fact-label-boundary.test.ts \
+  tests/t192-check-transitions.test.ts \
+  tests/t173-repair-scope.test.ts \
+  tests/t089-contrast-line-length.test.ts \
+  tests/t178-full-style-equivalence.test.ts \
+  tests/t164-review-seven.test.ts
+```
+
+- 最终 `npm run typecheck` 退出 0，日志 `artifacts/t196/review1-fix/typecheck-complete.log`，日志完成时间 2026-10-19T23:22:19.853896+00:00。三项审查回归的原 HEAD 红态及所有中间失败均保留，未改成通过。
+- 最终 T-196 的 54 张三档原图在 `artifacts/t196/probes-1792452282700-9005/`，通过 `review1-fix/final-{375,768,1440}-{0,1,2}.png` 九张完整页面与文字区域汇总图全部打开核对；首字母白字白底变体明确拒收，真实正文安全对照仍通过。
+- 重检前再次只读核对主工作区站名含“（新资料 T-190）”的全部 14 站：固定版本与 `artifacts/t196/manifest.json` 对应，副本除站名去备注外与源记录一致。沿用本工作树 `offline-data/` 及原 `offline.mjs`，调用原 `scripts/check-code-quality-offline.ts`；未写主工作区数据或 artifacts。命令如下：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t196/offline.mjs artifacts/t196/review1-fix/offline-final
+```
+
+- 离线确定性检查于 2026-10-19T23:25:15.329Z–2026-10-19T23:25:40.841Z 完成，进程退出 0：**14／14 通过、129 个页面视口组合、0 条底线拒因、0 个回放错误**。与先前 14 站结果按 siteId／versionId 与拒因逐项核对，无新增误拒；见 `review1-fix/offline-comparison.json`、`offline-final/results.json`、`offline-final/summary.json` 与 `offline.log`。原脚本保存的 6 张三档截图均已逐张打开，不是载入态、空白页或截断截图；非阻断质量反馈保留，不把技术通过写成审美通过。离线元数据为 7826057 加本轮未提交修复，测试后未再改生产代码；不冒称在最终提交 SHA 上重新跑过。
+
+本轮授权内本地修复与门控 **PASS**。`claimed_by` 为 `codex-t196b`，票保持 open，最后一项继续不勾选，等待主控独立复审与合并后主线验收；本轮未开审查实例。未调用真实模型、未读 `.env.local`、未跑全量／runner／build、未推送或 force-push、未使用 rm；没有写主工作区 `.sitecraft-data` 或 artifacts。保留开工时已有的 tsconfig.json 自动改动，不纳入提交。本轮源码、测试、夹具与记录合为本地提交，SHA 随交付回报。

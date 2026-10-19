@@ -222,19 +222,24 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
       if(painted) lines.push({el,rect:painted,key});
     }
   }
-  // 独立调用者若未提供 Chrome 文字布局，非空生成内容不能静默漏测。
-  if(generatedLayout===null) generatedLayout=[...root.querySelectorAll('*')].flatMap(el=>['::before','::after','::marker'].flatMap(pseudo=>{
+  // 每次核对非空 content 与快照的覆盖，空列表不代表已完整测量。
+  generatedLayout=[...(generatedLayout||[])];
+  for(const el of root.querySelectorAll('*')) for(const pseudo of ['::before','::after','::marker']) {
     const content=getComputedStyle(el,pseudo).content;
-    if(!content||/^(none|normal|""|'')$/.test(content)) return [];
+    if(!content||/^(none|normal|""|'')$/.test(content)) continue;
     const path=[];for(let p=el;p.parentElement;p=p.parentElement)path.unshift([...p.parentElement.children].indexOf(p));
-    return [{path,pseudo,text:content,rects:[]}];
-  }));
+    if(!generatedLayout.some(item=>item.pseudo===pseudo&&item.path.length===path.length&&item.path.every((value,index)=>value===path[index])))
+      generatedLayout.push({path,pseudo,text:content,rects:[]});
+  }
   const generated=generatedLayout.map(item=>{
     let el=document.documentElement;
     for(const index of item.path) el=el?.children[index];
     if(!el) throw new Error('CSS 生成文字无法定位当前元素，本次未保存版本。');
     return {...item,el,key:`${keyFor(el)}${item.pseudo}`};
-  }).filter(item=>!fullyHidden(item.el,item.pseudo));
+  }).filter(item=>{
+    const content=getComputedStyle(item.el,item.pseudo).content;
+    return content&&!/^(none|normal|""|'')$/.test(content)&&!fullyHidden(item.el,item.pseudo);
+  });
   for(const item of generated) {
     const fontSize=parseFloat(getComputedStyle(item.el,item.pseudo).fontSize);
     for(const rect of item.rects) {
@@ -368,9 +373,27 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
       const layers=parsedBackground.layers;
       const color=rgba(style.backgroundColor);
       if(!color) return {known:false,reason:'背景颜色无法解析'};
-      let local=[color];
+      let paintsText=true;
+      // 同一实色覆盖与否都不改变叠底；其余情况必须证明实际覆盖。
+      const sameSolidBackdrop=!layers.length&&backgrounds.every(bg=>color.every((value,index)=>value===bg[index]));
+      if(pseudo&&sampleRects?.length&&(color[3]>0||layers.length)&&!sameSolidBackdrop) {
+        // 只在背景盒完整覆盖文字行时叠加；完全不相交的宿主不提供底色。
+        // 部分覆盖、特殊背景形状或伪元素自身无可核实盒子时保守拒收。
+        if(!p||style.backgroundClip!=='border-box'||style.borderRadius!=='0px'
+          ||chain.slice(0,index+1).some(node=>{
+            const s=getComputedStyle(node);
+            return s.transform!=='none'||s.rotate!=='none'||s.scale!=='none'||s.perspective!=='none'||s.clipPath!=='none'||s.clip!=='auto';
+          })) return {known:false,reason:'CSS 生成文字无法核实实际背景覆盖'};
+        const boxes=[...p.getClientRects()];
+        const covers=sampleRects.every(rect=>boxes.some(box=>box.left<=rect.left&&box.right>=rect.right&&box.top<=rect.top&&box.bottom>=rect.bottom));
+        const disjoint=sampleRects.every(rect=>boxes.every(box=>box.right<=rect.left||box.left>=rect.right||box.bottom<=rect.top||box.top>=rect.bottom));
+        // html/body 的背景可能铺到画布，不能以盒子不相交断言它未绘制。
+        if(!covers&&(!disjoint||p===document.body||p===document.documentElement)) return {known:false,reason:'CSS 生成文字无法核实跨背景文字行的实际叠底'};
+        paintsText=covers;
+      }
+      let local=[paintsText?color:[0,0,0,0]];
       for(let layerIndex=layers.length-1;layerIndex>=0;layerIndex-=1){
-        local=local.flatMap(base=>layers[layerIndex].map(layer=>over(layer,base)));
+        if(paintsText) local=local.flatMap(base=>layers[layerIndex].map(layer=>over(layer,base)));
       }
       const opacity=Number.parseFloat(style.opacity);
       if(!Number.isFinite(opacity)) return {known:false,reason:'透明度无法解析'};
@@ -378,7 +401,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
       foregroundOpacity*=Math.max(0,Math.min(1,opacity));
     }
     const rects=sampleRects?.length?sampleRects:[el.getBoundingClientRect()];
-    if(hasBackdrop) for(const node of root.querySelectorAll('*')){
+    if(hasBackdrop||pseudo) for(const node of root.querySelectorAll('*')){
       if(node===el||node.contains(el)||!visible(node)) continue;
       const r=node.getBoundingClientRect();
       if(!rects.some(rect=>Math.min(r.right,rect.right)-Math.max(r.left,rect.left)>.5

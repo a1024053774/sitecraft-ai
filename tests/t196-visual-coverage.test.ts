@@ -10,6 +10,8 @@ import { codeCheckDocument } from './fixtures/code-check-document.ts';
 // 原输入来自复审三；预期来自访客原样绘制：浅灰碰撞、视口左侧裁字。
 // 对照保留 aria/details/小盒/生成内容，只消除碰撞、低对比或越界。
 const inputs: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review3-inputs.json', import.meta.url), 'utf8'));
+// 只复制独立审查的页面输入；低对比期望来自实际深／浅实色叠底。
+const review1: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review1-inputs.json', import.meta.url), 'utf8'));
 let unexpected = 0;
 const server = createServer((req, res) => {
   if (req.url !== '/code-check.html') { unexpected++; res.writeHead(404); res.end(); return; }
@@ -50,6 +52,58 @@ async function run(name: string, code: SiteCode, capture = false, translationSou
   }
   return checked.checks;
 }
+
+test('生成文字在宿主内外均按实际叠底检查：深底灰字和浅底白字拒收，安全颜色通过', async () => {
+  const failures: string[] = [];
+  for (const name of ['pseudo-bg-low-contrast', 'pseudo-bg-host-covered']) {
+    const outside = review1[name];
+    const inside = { ...outside, css: outside.css.replace('left:110px', 'left:0') };
+    const bad = await run(name, outside, true);
+    for (const width of widths) {
+      if (!bad.issues.some(issue => issue.startsWith(`home/${width} `) && /对比度|无法/.test(issue))) failures.push(`${name}/${width} 未拒绝实际低对比叠底`);
+    }
+    const good = await run(`${name}-inside-safe`, inside);
+    assert.equal(good.passed, true, JSON.stringify(good.issues));
+  }
+  const safe = await run('pseudo-bg-safe-control', review1['pseudo-bg-safe-control'], true);
+  assert.equal(safe.passed, true, JSON.stringify(safe.issues));
+  assert.deepEqual(failures, []);
+});
+
+test('非空生成内容缺少快照行明确拒收：content-visibility 不构成第三条排除规则', async () => {
+  const missing = await run('pseudo-cv-hidden-host', review1['pseudo-cv-hidden-host'], true);
+  for (const width of widths) {
+    assert.ok(missing.issues.some(issue => issue.startsWith(`home/${width} `) && /生成文字.*无法测量.*文字行/.test(issue)), JSON.stringify(missing));
+    assert.ok(missing.layoutRepairs?.some(repair => repair.generatedPositions?.some(p => p.width === width && p.pseudo === '::before') && repair.reason), '无法测量仍保存位置并拒绝不安全修正');
+  }
+  for (const name of ['pseudo-cv-visible-control', 'dom-cv-hidden-control']) {
+    const bad = await run(name, review1[name]);
+    assert.equal(bad.passed, false);
+    assert.ok(bad.viewports.every(view => view.contrastIssues > 0));
+  }
+  const hidden = await run('pseudo-visibility', review1['pseudo-visibility']);
+  assert.equal(hidden.passed, true, JSON.stringify(hidden.issues));
+  const srOnly = review1['pseudo-cv-hidden-host'];
+  const safe = await run('pseudo-complete-sr-only', { ...srOnly, css: srOnly.css + '#probe{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}' });
+  assert.equal(safe.passed, true, JSON.stringify(safe.issues));
+});
+
+test('真实 DOM 的 first-letter／first-line 不是生成内容：安全正文通过，组合 before 的碰撞仍拒收', async () => {
+  const code = review1['pseudo-first-letter-safe'];
+  for (const [name, css] of [['pseudo-first-letter-safe', code.css], ['pseudo-first-line-safe', code.css.replace('::first-letter', '::first-line')]]) {
+    const safe = await run(name, { ...code, css }, true);
+    assert.equal(safe.passed, true, JSON.stringify(safe.issues));
+    assert.equal(safe.viewports.length, widths.length);
+  }
+  const bad = await run('pseudo-before-first-letter', review1['pseudo-before-first-letter']);
+  assert.equal(bad.passed, false);
+  assert.ok(bad.viewports.every(view => view.contrastIssues > 0) || bad.issues.some(issue => /生成文字.*无法/.test(issue)), JSON.stringify(bad));
+  // Chrome 可把生成文字的首字母放在宿主的独立 first-letter 分片中。
+  // 只有首字母白字白底、其余文字正常，不能只测其余字符就接受。
+  const split = review1['pseudo-before-first-letter'];
+  const incomplete = await run('pseudo-first-letter-split', { ...split, css: split.css + '#probe{top:40px}#probe::before{color:#111}#probe::first-letter{color:white}' }, true);
+  assert.equal(incomplete.passed, false, '生成首字母不可读，必须测得低对比或明确拒绝不完整测量');
+});
 
 test('aria 属性保留：按属性恢复可见的文字与不依赖属性的对照均拒收；正常排版通过', async () => {
   const failures: string[] = [];
