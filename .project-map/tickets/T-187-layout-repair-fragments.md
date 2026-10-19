@@ -41,7 +41,7 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 ## Resolution
 
-**INCOMPLETE**：独立审查 `artifacts/t187/review1-NO_GO.txt` 对 `9fa3258` 给出 P1、P2 两项 NO_GO；codex-t187-fix 已修复并取得下述无浏览器红绿证据，源码、测试和本 Resolution 随同一个本地修复提交冻结（父提交 `9fa3258`）。新候选的浏览器定向、runner、全量、typecheck、build 和独立复审尚未执行，原候选的通过结果不作为本次修复验收，票保持打开。负责人要求避让 T-184：本轮不启动 npm test、dev、Chrome 或 build，不开审查实例、不推送。
+**INCOMPLETE**：独立审查 `artifacts/t187/review1-NO_GO.txt` 对 `9fa3258` 给出 P1、P2 两项 NO_GO；codex-t187-fix 已在 `2491964bfcbcc93cfbd03530849fefa08e989cce` 修复并取得下述无浏览器红绿及 **99/99 浏览器定向 PASS**。新候选的 runner、全量、typecheck、build 和独立复审尚未执行，原候选的通过结果不作为本次修复验收，票保持打开。负责人本轮仅授权五个文件的浏览器定向；全量、typecheck、build 排在 T-184 门控之后，不开审查实例、不推送。
 
 P1 改为按结构化来源路由：先排除 factRepairs 已覆盖的问题，版面问题只认同次 layoutRepairs，不再检查“溢出／重叠／对比度”关键词。没有结构化定位的 `pageId/375`、`pageId/768`、`pageId/1440` 扫描拒因直接拒收，防止落回正文匹配扩大范围。三个含关键词的效果声明反例都只开放被拒句的位置成员，实际改为“效果待补充。”，保留另一处同文、页头页脚及 CSS；另测无关键词的结构化版面记录和丢失记录时的拒收。
 
@@ -49,7 +49,15 @@ P2 选择**调用模型前明确拒收**，不新增 inline 片段类型或容�
 
 2026-10-19 **11:19 JST**，执行 `node --test --experimental-strip-types tests/t187-repair-routing.test.ts`：暂以 `git show 9fa3258:<path>` 原文替换两份相关产品文件，最终 8 项用例 **2 通过／6 失败，exit 1**，随后在 finally 原样恢复当前文件；相同测试在当前修复后 **8/8 通过，exit 0**，无跳过。原文分别为 `artifacts/t187/review-fix/counterfactual-9fa3258.log` 与 `green-candidate.log`。首次夹具把空 textContent 误建为空文本节点的失败保留在 `red.log`，不计作产品缺陷证据；修正夹具后的首次缺陷红态也保留在 `red-fixed-fixture.log`。测试以项目已有 parse5 提供有限 DOM，执行生产定位／写回函数及扫描定位函数；没有模拟 CSS 层叠或版面，不冒充真实 Chrome、完整事实核对或提交入口通过。
 
-待负责人排队：`tests/t187-repair-fragments.test.ts` 已补实际修正关键词事实成员、保留另一处同文并重跑三档检查，以及非叶子容器／祖先 inline 两项零模型请求断言，均未运行。建议先排 `CHROME_PATH=<AGENTS.md 路径> npm test -- tests/t187-repair-fragments.test.ts tests/t173-fact-members.test.ts tests/t173-repair-scope.test.ts tests/t138-dom-scope.test.ts tests/t159-task-admission.test.ts`，再按项目门控串行安排 runner、全量两轮、typecheck、build 与独立复审；本轮未调用真实模型或重发已执行的唯一真实探针。
+2026-10-18 **23:32:19–23:34:35 EDT**，固定源码候选 `2491964bfcbcc93cfbd03530849fefa08e989cce`（启动前工作树干净）运行：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t187-repair-fragments.test.ts tests/t173-fact-members.test.ts tests/t173-repair-scope.test.ts tests/t138-dom-scope.test.ts tests/t159-task-admission.test.ts
+```
+
+结果 **99/99 通过，exit 0，无跳过或取消**：T-187 11/11、T-173 成员 7/7、范围 39/39、T-138 DOM 29/29、T-159 准入 13/13。五个文件全部由标准入口分类至浏览器池，并发 2，每个文件本轮只运行一次。T-187 的事实关键词用例实际只修被拒成员、保留另一处同文并通过三档确定性检查；直接含正文的非叶子容器与只读祖先 inline 两项均在模型调用前明确拒收、请求数不增加。T-173 的成员写回、范围与条件反例以及 T-138 严格声明边界、T-159 准入反例均保留并重新通过，未改源码、测试或断言。
+
+日志与起止记录为 `artifacts/t187/review-fix-targeted-1792380739/targeted.log`、`result.json`；原生报告与每文件统计为 `artifacts/t167/test-run-1792380740627-45867/report.json`、`summaries-browser.ndjson`。health 503 的 `testIdentity.cwd` 已核对为本工作树，`dataRoot` 为本轮独立临时目录 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-wNfmUQ`；随机端口 62519、独立构建目录 `.next-test`，未复用普通服务或主工作区数据。入口日志与临时数据保留。Next 自动增加的 `.next-test/dev/dev/types/**/*.ts` include 在运行结束后精确撤回，没有配置改动进入结果提交。本轮只执行上述定向命令；runner、全量、typecheck、build、真实模型及独立复审均未运行，也未重发已执行的唯一真实探针；结果本地提交后停止。
 
 以下保留原候选的执行记录及失败证据，时间为纽约时间。严格声明边界实现候选 `39ec3fa3357b4b394ca63bf74711aca5ff8f786c` 曾完成 50/50 定向、18/18 runner、883/883 全量、typecheck、build 和唯一真实探针，保存 v1。第一步实现为 `85982a968bf65111baf5867f49fbcb9b2f710996`（父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`），测试合同提交为 `8ca265e2d319ddeea47e74551f1c123150319748`；执行证据索引为 `artifacts/t187/step2-retry2/result.json`，原执行者 codex-t187。
 
