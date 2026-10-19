@@ -48,19 +48,23 @@ const { POST: create } = await import('../../app/api/sites/route.ts');
 const { POST: chat } = await import('../../app/api/sites/[siteId]/chat/route.ts');
 const { GET: draft, PUT: manual } = await import('../../app/api/sites/[siteId]/draft/route.ts');
 const { POST: history } = await import('../../app/api/sites/[siteId]/history/[action]/route.ts');
+const { POST: upload } = await import('../../app/api/sites/[siteId]/images/route.ts');
 const bridge = createServer(async (req, res) => {
-  let raw = ''; for await (const chunk of req) raw += chunk;
+  const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks), contentType = req.headers['content-type'];
+  const body = raw.length && contentType?.split(';')[0].trim().toLowerCase() === 'application/json' ? JSON.parse(raw.toString('utf8')) : null;
   // Preserve the real saved plan; this fixture ends before its first confirm.
-  if (process.env.T159_ENTRY_PLAN_ONLY === '1' && raw && JSON.parse(raw).action === 'confirm') {
-    routes.push({ url: req.url, body: JSON.parse(raw), status: 503, fixturePlanBoundary: true });
+  if (process.env.T159_ENTRY_PLAN_ONLY === '1' && body?.action === 'confirm') {
+    routes.push({ url: req.url, body, status: 503, fixturePlanBoundary: true });
     res.writeHead(503, { 'content-type': 'application/json' }); res.end('{"userMessage":"本地替身在确认前保留已保存大纲"}'); return;
   }
-  const match = req.url?.match(/^\/api\/sites\/([^/]+)\/(chat|draft|history\/(?:restore|undo))$/);
-  const request = new Request(requestBase + req.url, { method: req.method, ...(raw ? { headers: { 'content-type': 'application/json' }, body: raw } : {}) });
+  const match = req.url?.match(/^\/api\/sites\/([^/]+)\/(chat|draft|images|history\/(?:restore|undo))$/);
+  const request = new Request(requestBase + req.url, { method: req.method, headers: contentType ? { 'content-type': contentType } : {}, ...(raw.length ? { body: raw } : {}) });
   const pending: Array<() => Promise<void>> = [];
   const response = req.url === '/api/health' ? Response.json({ testIdentity: { cwd: process.cwd() }, persistence: { driver: 'development-file' }, deepseek: { configured: true } })
     : await callbacks.run(pending, () => req.url === '/api/sites' ? create(request) : match![2] === 'chat'
-      ? chat(request, { params: Promise.resolve({ siteId: match![1] }) }) : match![2].startsWith('history/')
+      ? chat(request, { params: Promise.resolve({ siteId: match![1] }) }) : match![2] === 'images'
+        ? upload(request, { params: Promise.resolve({ siteId: match![1] }) }) : match![2].startsWith('history/')
         ? history(request, { params: Promise.resolve({ siteId: match![1], action: match![2].split('/')[1] }) })
         : req.method === 'PUT' ? manual(request, { params: Promise.resolve({ siteId: match![1] }) })
           : draft(request, { params: Promise.resolve({ siteId: match![1] }) }));
@@ -69,7 +73,7 @@ const bridge = createServer(async (req, res) => {
     delete process.env.T159_DROP_READ;
     routes.push({ url: req.url, injectedDisconnect: true, status: null }); req.socket.destroy(); return;
   }
-  routes.push({ url: req.url, body: raw ? JSON.parse(raw) : null, status: response.status, payload });
+  routes.push({ url: req.url, body, contentType, byteLength: raw.length, status: response.status, payload });
   res.writeHead(response.status, { 'content-type': 'application/json' }); res.end(JSON.stringify(payload));
   queuedAfter += pending.length;
   if (!process.env.T159_ENTRY_CONFIRM_SITE && process.env.T159_RESTYLE_MODE !== 'act') for (const fn of pending) tasks.push(fn());

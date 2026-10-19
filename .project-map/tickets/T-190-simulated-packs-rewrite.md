@@ -4,7 +4,7 @@ title: 模拟资料按真实企业写法重整并建立新基线
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t190
+claimed_by: codex-t190-t159-fixture
 supersedes:
 ---
 
@@ -145,3 +145,28 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 2. 审计漏掉了设计资料：“地址与开放时间”的值只给工作时间，标签暗示对外开放，与餐馆“地址＋服务社区”属同类歧义。已改为“地址与工作时间”，原时段与“来访接待条件待补充”保留，不补造开放时段。
 
 `artifacts/t190/label-audit.md` 已更正对应两行的判断。`tests/t190-materials-contract.test.ts` 新增两条通用断言：资料中不得出现“产量”类标签；“开放时间”标签的值须明确给出开放或营业时段。这两条在 `4df23f9` 上 2 项失败（`artifacts/t190/review2-fix-red.log`），更正后通过。`tests/simulated-packs.test.ts` 与 `tests/t157-non-industrial-cases.test.ts` 只同步字段名，仍要求实际时段和缺口存在。定向门控 37/37 + 6/6（`review2-fix-green.log`），typecheck 退出 0（`review2-fix-typecheck.log`）。
+
+### T-159 本地替身图片上传回归修复（2026-10-19）
+
+**本次回归修复 PASS；整票仍 INCOMPLETE、open。** 执行者 `codex-t190-t159-fixture`，工作树 `/Users/luckye/Documents/Code/sitecraft-ai-t190fix`，分支 `t190-t159-fixture`，基于 `8602b37`。修复与本节在同一个本地提交中；对应 SHA 可用 `git log -1 --format=%H -- tests/fixtures/t159-entry.ts` 定位。门控后没有再改替身或测试代码，仅补写本节。新基线及合并后主线验收仍由主控安排，不勾选剩余 Acceptance。
+
+原因：T-190 为餐馆、教育、设计分别新增 3／2／2 张图片后，标准评估 CLI 会先上传图片。`tests/fixtures/t159-entry.ts` 只识别 chat、draft、history，且把所有正文当作 JSON。图片请求因此在 confirm-gate 的确认拦截中触发 multipart JSON 解析错误，在另外三个文件中触发空路由匹配的 TypeError，尚未到达原有准入断言。
+
+修复只改该替身：导入生产 `app/api/sites/[siteId]/images/route.ts` 的 POST 处理函数，将 `/api/sites/:id/images` 接到它；HTTP 正文用 Buffer 收集，原样转发字节和 content-type（含 multipart boundary）。仅 application/json 正文参与 JSON 解析及确认拦截；非 JSON 请求记录 `body: null`、原 content-type 和正文长度，不记录二进制正文。图片经生产校验、许可登记及隔离存储，未伪造上传成功；沿用 T-187 经生产路径注册夹具图片的原则。没有修改评估 CLI、产品代码、图片或任何测试断言，也无需同步路由数或上传数期望。
+
+以下命令均在本工作树运行，测试统一使用指定 Chrome；日志均保留 UTC 起止时间、命令、候选关系及退出码：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t159-confirm-gate.test.ts tests/t159-eval-entry.test.ts tests/t159-http-diagnostics.test.ts tests/t159-ready-style.test.ts
+
+npm run typecheck
+
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t159-confirm-gate.test.ts tests/t159-eval-entry.test.ts tests/t159-http-diagnostics.test.ts tests/t159-ready-style.test.ts tests/t159-task-admission.test.ts tests/t137-eval-images.test.ts tests/t190-materials-contract.test.ts
+```
+
+- **先红**：09:50:17–09:50:29 UTC，未改动的 `8602b37` 执行四个文件，9 项中 5 通过、4 项按上述原因失败，退出 1。日志 `artifacts/t190/t159-red.log`；入口报告 `artifacts/t167/test-run-1792403418358-48374/report.json`，失败数据根仍保留。
+- **typecheck**：09:52:09–09:52:18 UTC，退出 0，日志 `artifacts/t190/t159-typecheck.log`。
+- **后绿**：09:52:18–09:52:57 UTC，七个指定文件 **46/46 PASS、0 跳过**，退出 0；其中原四文件 9/9、任务准入 13/13、评估图片 1/1、资料合同 23/23。日志 `artifacts/t190/t159-green.log`；入口报告 `artifacts/t167/test-run-1792403538911-67133/report.json`。入口核对的 cwd 为本工作树，独立临时 dataRoot 为 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-7TYA6u`，health 503 未被误写为真实模型已配置。
+- **生产上传观察**：`artifacts/t159/ready-entry-5769dc16-681f-4dd0-9db1-97018da8b762/entry.json` 记录餐馆三张图全部返回 201，保留 multipart content-type，body 均为 null；隔离数据根中可读到三份生产图片登记记录。`t137-eval-images` 仍覆盖七家公司两种风格的全部登记图片，包含新增的 3／2／2 张。
+
+本次只验证本地替身与生产 handler 的接线、既有准入和资料合同，不证明实际 Next after 集成、真实模型行为或页面质量。未跑全量、独立 runner 回归或 build，未开审查实例、调用真实模型、读取 `.env.local`、写主工作区数据或 artifacts，也未推送。Next 自动修改的 `tsconfig.json` 保留在工作树且排除提交。`git diff --check`、UTF-8／LF／无 BOM／无替换字符检查通过；`project_map.py status --root .` 无问题、无 stale living docs。
