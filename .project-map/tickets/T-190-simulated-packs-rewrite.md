@@ -36,8 +36,57 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 七家资料按上述写法重写，模拟标注与缺口保留；新增图片逐张有来源与许可记录
+- [x] 七家资料按上述写法重写，模拟标注与缺口保留；新增图片逐张有来源与许可记录
 - [ ] 新基线两轮的命令、提交、用量、成败站数写进 Resolution；comparison 结果与固定口径缺口计数（对比 T-180）如实记录
 - [ ] 合并后主线验证通过（typecheck、test、build）；独立 fast 审查通过
 
 ## Resolution
+
+**第一步 PASS，整票 INCOMPLETE，保持 open。** 执行者 `codex-t190`，2026-10-19。功能提交 `fe33e5b25dda09e869d8e1a9b9d28220dfd200f3`，基于 `dc09cb2`；本节在后续本地交接提交中登记实测结果。负责人本次只授权资料、图片、评估提示与定向门控。新基线须等本改动和 T-188 都合并后由主控另行安排，本次没有执行新基线、主数据复制或任何真实模型调用；后两项验收保持未勾选，不关票。
+
+### 改前问题与本次资料
+
+已读 T-189、intent 第 4 节、T-112/T-137 图片登记，以及主工作区只读的 `artifacts/t184/supervisor-analysis/README.md`。七家都带内部字段框架，行业案例或服务反复以「需求／交付／边界」等字段排列；餐馆、培训、设计还把大批页面禁令塞进材料。下表的否定数按正文提示词出现数计：`不(?!锈钢|同)|没有|未取得|仅限|只承接`，排除开头模拟声明、图片许可说明和页面声明；包含问句，属于保守的文本合同检查，不冒称覆盖全部条件的语义判定。原始逐行结果见 `artifacts/t190/before-materials.json`，同口径改前改后结果见 `materials-summary.json`。
+
+| 资料 | 改前字段与条件问题 | 否定提示词 改前→改后 | 正文字数 改前→改后 | 活动图 改前→改后 |
+| --- | --- | --- | --- | --- |
+| 工业 | 三项案例统一字段；现场安装、起订重复；案例的买方责任夹在通用能力中 | 10→2 | 1690→1851 | 8→8 |
+| 外贸 | 三项案例统一字段；辅助气路用途、介质相容性与各自接口条件容易扩为全目录条件；起订与交期需分别确认 | 11→4 | 1625→1856 | 8→8 |
+| 注塑 | 三项案例统一字段；PMMA 2 mm 透光率与整灯效果边界需留在自身条目；模具总交期汇总丢失起算与类别区别 | 6→2 | 2498→2776 | 8→8 |
+| 纸包装 | 三项案例统一字段；四色胶印、直接接触食品与运输测试条件容易在彩盒、瓦楞和内托间挪用 | 18→3 | 1912→1917 | 6→6 |
+| 餐馆 | 菜品与用餐场景套字段；豆腐煲缺供应时段、份量建议空缺，易挪用邻菜；页面禁令过密 | 26→3 | 1887→1859 | 0→3 |
+| 教育 | 课程和学习场景按字段排列；材料、选课前提、开放时间与课表条件分散，重复否定多 | 34→4 | 2180→2153 | 0→2 |
+| 设计 | 服务及项目记录套字段；服务起算点与等待时间集中汇总，作品授权与制作责任容易扩大 | 25→4 | 2395→2295 | 0→2 |
+
+改后各家以业务叙述组织，品牌名称、标识样式与主色齐备，各有三条 `YYYY-MM-DD（模拟动态）` 和栏目线索。价格、规格、设备、流程与既有缺口保留；邮箱仍为 luckye.online。豆腐煲明确午晚市供应、米饭单点、份量人数待补充；其余菜各自写供应时段及米饭口径。纸包装逐项写印刷、起订与交期；课程逐项写前提、材料与下一期缺口；设计服务逐项写起算点和另计时间。案例条件随对应项目叙述，不再另列边界模板。所有工作台封套与评估输入均完整，最终评估输入最长 3513 字，未提高 4000 字上限或截断。
+
+### 图片与评估输入
+
+原四包 30 张图重读既有 manifest/LICENSES 并逐项打开本地联系表，题材仍对应新资料，沿用原用途限制；未把历史来源页核验说成本次联网重核。记录在 `artifacts/t190/existing-images/records.json`，四张联系表均已查看。
+
+新增七图登记在 `fixtures/simulated-packs/{restaurant,education,design}/manifest.json` 和各自 `LICENSES.md`：餐馆为豆腐、香菇、番茄食材，教育为水彩盘与画笔、石墨等画笔材料，设计为空白封面书册、纸页排版样张。新增图逐张核 Commons 文件页、API、具体许可页、原图 EXIF/IPTC/XMP 权利字段，并打开完整本地配图；记录来源 URL、作者、许可、核对时间、处理链、题材及生成站与下载包的再分发依据。CC0、公有领域与 CC BY-SA 允许相应复制、改作及商业再分发；BY-SA 图片衍生物保留原许可与署名。本次“生成器使用”指随生成站嵌入及导出，不推导模型训练许可。照片全部是题材配图，未冒充门店、课堂或客户作品。
+
+新增来源和下载各在本工作树新建的空目录，处理脚本在目录外，读取均用隔离的 `python3 -I`。原图、来源、许可页、权利字段和核对记录在 `artifacts/t190/downloads/`。未准入的番茄图存在作者字段未澄清对应；彩铅图与课程材料不够对应；另一纸张图不足以承担所需题材。许可字段脚本的两次 KeyError、缺 defusedxml 时 XMP 未读的警告及初次结果均保留；最终另直接读取并核对原始 XMP 权利文字，未把空解析结果当无权利声明。书册来源已有封面去字与调亮处理已记入署名。水彩图依据 Commons 所记 Flickr 原作及历史许可审核，本次没有声称重新连通 Flickr。拒收清单见 `rejected-images.json`。
+
+评估器只为图片读取复用每包既有登记根，仍走原 multipart 上传与署名入口。真实 CLI 配本地 HTTP 夹具在生成前明确 503 停止，14 个组合共观察到 74 次上传，按公司为 8/8/8/6/3/2/2 张、每种风格各一遍；原文、图注与用途限制均到达提交消息。该证据只证明输入接线，轮次仍如实 INCOMPLETE。mixed 输出提示去掉识别率门槛并写「仅作参考」，company、comparison 提示未改。`skills/`、生成提示与运行时底线规则均未改。
+
+### 本次门控与反事实
+
+以下命令均在本工作树运行。最终门控针对功能提交 `fe33e5b25dda09e869d8e1a9b9d28220dfd200f3`；唯一额外未提交文件为 Next 自动修改的 tsconfig.json，按负责人要求排除。证据集中在 `artifacts/t190/`。
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts
+
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts tests/simulated-packs.test.ts tests/t137-materials.test.ts tests/t137-eval-images.test.ts tests/t130-eval-set.test.ts tests/t140-review-materials.test.ts tests/t142-material-inputs.test.ts tests/t157-non-industrial-cases.test.ts tests/t160-materials.test.ts
+
+npm run typecheck
+```
+
+- 父版本合同红灯：07:00:53 UTC 结束，在任何资料、图片或评估提示改动之前，dc09cb2 的实际实现为 7 通过、9 失败；失败对应七家字段模板、豆腐煲时段缺失、mixed 门槛，日志 `contract-red.log`。
+- 图片路径反事实：暂时换回 dc09cb2 的原 `scripts/eval-new-route.ts`，保留新登记输入，执行 `npm test -- tests/t137-eval-images.test.ts`（同一 CHROME_PATH）；07:10:59 UTC 结束。实际餐馆上传为空，预期是登记的三张图，测试失败；`finally` 原样恢复本次代码，日志 `upload-path-red.log`。未以重试或漏传豁免绕过错误。
+- 首次相关检查的两处旧测试写法绑定失败完整保留在 `related-green-attempt1.log`；改为核对项目条件归属与收费事实后通过。新合同的否定检测还覆盖“不包含”“不颁发”等普通写法，未仅枚举少数否定短语。
+- 最终定向检查：07:13:22–07:13:29 UTC，**49/49 PASS**、0 跳过，退出 0，见 `related-final.log`、`final-run/report.json`。最终本地夹具上传记录在 `final-run/upload-observations.json`，所有模型用量记录为空。入口自建本工作树服务和临时数据根；虽按保守依赖归入浏览器池，这些用例只用本地夹具，没有启动 Chrome 截图或大批浏览器测试。
+- 最终 typecheck：07:13:14 UTC 结束，退出 0，见 `typecheck-final.log`。UTF-8、LF、无 BOM/替换字符与 `git diff --check` 通过。
+- `docs/project/spec.md` 同步当前资料、图片数量、mixed 口径和基线安排，MAP 登记对应覆盖路径；`project_map.py status --root .` 无问题、无 stale living docs。
+
+未跑全量、runner 回归、build、真实生成、生成站底线/三档截图或新基线；未开审查或盲评实例。主工作区资料与 artifacts 只读，未写主数据、未推送。页面质量效果与新旧成对比较仍未知，由后续合并评估验证。
