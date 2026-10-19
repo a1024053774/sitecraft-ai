@@ -2,7 +2,7 @@
 id: T-184
 title: 风格视觉主题与首屏构图：摆脱细线均一和左字右空
 type: build
-status: open
+status: closed
 blocked_by: [T-183]
 claimed_by: codex-t184
 supersedes:
@@ -30,12 +30,12 @@ T-180 质量基线（2026-10-18，`artifacts/t180-r2/`）发现两类视觉问�
 ## Acceptance
 
 - [x] 根因对应关系写进 Resolution
-- [ ] 跨轮盲评中缺口 2、3 的同类站数下降，mixed 被认出比例如实记录；列出 comparison 选择结果，以及固定口径脚本对三轮重算的缺口 1、4 计数
-- [ ] typecheck 与 T-184 合同测试通过（全量由主控最终合并时执行，本票不跑 runner/build）；独立 fast 审查通过；新站复制进主数据，站名带「（T-184）」
+- 跨轮盲评中缺口 2、3 的同类站数下降，mixed 被认出比例如实记录；列出 comparison 选择结果，以及固定口径脚本对三轮重算的缺口 1、4 计数——**原验收项，数字下降但未能归因**。缺口 2：T-180 14/18 → T-184 6/17（T-183 7/17）；缺口 3：3/18 → 0/17（T-183 0/17）。T-183 没有任何视觉改动，按同一口径也同样下降，所以这两项下降不能归因到 T-184，很可能是评审波动。缺口 1：10/18 → 7/17（T-183 17/17），T-184 没改文案，同样不能归因；缺口 4：9/18 → 12/17（T-183 12/17），上升。mixed 识别率 17/17（100%），真实官网误判 0/18，按 T-143（T-189 记录）只作参考，不算未达成。comparison 选 T-184 9/15。第一轮三个 precision 站失败、无版本。详见 Resolution 末尾「主控验收与关闭」。
+- [x] typecheck 与 T-184 合同测试通过（全量由主控最终合并时执行，本票不跑 runner/build）；独立 fast 审查通过；新站复制进主数据，站名带「（T-184）」（合并后主线验证、独立审查 GO 与复制见 Resolution 末尾）
 
 ## Resolution
 
-状态：**INCOMPLETE**。第一步提示修改与第二步新门控、两轮真实评估已执行；共 17 站存版、3 站失败，六包中一包齐全。服务已按终态规矩手动关闭。独立审查、盲评和主数据复制未执行，票保持 open，不作审美通过判断。基线为 `618cb58`，没有采用未合并的 T-183 提示。
+状态：**主控已关闭（2026-10-19），见末尾「主控验收与关闭」；以下为执行时记录。** 执行时状态为 INCOMPLETE。第一步提示修改与第二步新门控、两轮真实评估已执行；共 17 站存版、3 站失败，六包中一包齐全。服务已按终态规矩手动关闭。独立审查、盲评和主数据复制未执行，票保持 open，不作审美通过判断。基线为 `618cb58`，没有采用未合并的 T-183 提示。
 
 ### 根因与代表站对应
 
@@ -270,3 +270,35 @@ SITECRAFT_BASE=http://127.0.0.1:51785 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=
 **终态与关闭。** 第一轮退出后，01:08:18 经实际 draft 接口核对 14 站的 28 个 run 均终态、网关在途 0，保存 `artifacts/t184/phase2-final/round1-terminal.json` 后才开始第二轮。第二轮 01:32:26 退出；01:32:58 再经实际接口核对全部 20 站的 40 个 run（37 complete / 3 error）与全部 70 次网关调用均终态、在途 0，保存 `pre-stop-terminal.json`。随后 01:33:13 手动向网关 pid 1128、dev pid 97536 的独立进程组发送 SIGINT；网关实际退出码 -2（SIGINT）、dev 退出 0，01:33:43 确认 51785、51786 两端口关闭，见同目录 `shutdown-request.json`、`{gateway,dev}-exit.json`、`shutdown.json`。账本 `stopped=false` 仅表示未触发预算停止，不表示进程仍运行。
 
 两轮都没有重发失败站；没有读审包内容、派审查或盲评、复制主数据或推送。缺口 1/2/3/4 的本轮盲评计数、mixed 识别率与 comparison 偏好均未测；等待主控收回独立结果后按固定口径统一重算，不能用技术运行结果代替。三个失败站和五个不齐全的包如实保留，整票保持 INCOMPLETE / open。本次交付为包含此 Resolution 的本地记录提交（父提交 `6586d9d`，完整 SHA 随执行者汇报）。
+
+### 主控验收与关闭
+
+**主控验收与关闭（执行主控，2026-10-19 EDT）。** 结论按构思主控决定：提示改动交付并合并，盲评缺口变化不能归因到本票。
+
+**盲评。** 六个包分别交给六个新实例，主控按 `private/mapping.json` 揭盲。结果与脚本在主工作区 `artifacts/t184/blind-results/`；包的缺项见上文「六个盲评包」，没有补截图。
+
+| 项 | 第一轮 | 第二轮 | 合计 |
+| --- | --- | --- | --- |
+| mixed 生成页被认出 | 11/11 | 6/6 | 17/17（按 T-143 只作参考） |
+| mixed 真实官网误判 | 0/13 | 0/5 | 0/18 |
+| company 判同模板 | 0/27 | 0/6 | 0/33 |
+| comparison 选 T-184 | 7/10 | 2/5 | 9/15 |
+
+comparison 选 T-180 的 6 对是 restaurant/precision、industrial/documentary、education/documentary、design/editorial、design/neighborly、education/editorial。
+
+**缺口计数。** 缺口 1、4 用 `python3 -I scripts/eval-gap-keywords.py` 对三轮 mixed 结果重算，输出见 `gap-keywords.txt`。缺口 2、3 没有固定脚本，按构思主控认可的口径统计：把三轮 52 条生成页 mixed 评语打乱、去掉轮次与站名，交一个新实例按本票 Why 的定义逐条判断，再由主控揭盲。归类包、提示、结果和映射分别是 `gap23-items.json`、`gap23-prompt.txt`、`gap23-result.json`、`gap23-private.json`，揭盲输出是 `gap23-unblind.txt`。
+
+| 缺口 | T-180 | T-183（参考） | T-184 |
+| --- | --- | --- | --- |
+| 1 | 10/18 | 17/17 | 7/17 |
+| 2 | 14/18 | 7/17 | 6/17 |
+| 3 | 3/18 | 0/17 | 0/17 |
+| 4 | 9/18 | 12/17 | 12/17 |
+
+对照问题：T-183 没有任何视觉改动，缺口 2、3 也同样下降；T-184 没改文案，缺口 1 也下降了。所以这些下降都不能归因到本票，很可能是评审波动。缺口 4 上升。另有两个限制：评语只描述 1440 首页；T-184 少了三个失败的 precision 站。
+
+**失败站归因。** 主控只读已保存的原文，结论见 `artifacts/t184/supervisor-analysis/README.md`。三个 error 都终止在 `lib/code-site-check.ts` 的 T-173 公共成员规则（fb89784，T-180 时已存在）：被拒原句落在多个核对段共用的页级或组级导语里。molding 是「出口订单与内销订单共用这套流程」，design 是「不合并计算」；education 是引文把分号写成句号、没有逐字命中。precision 站里多段共用的导语句，T-180 有 72 句，T-184 只有 39 句，所以这类结构不是本票新增的。导语中的概括性推断与横向挪用条件转到 T-188 处理（T-180／T-183／T-184 的横向挪用拒因分别为 1／6／5 次），T-173 的规则不改。
+
+**审查与合并。** 独立 fast 代码审查 GO，P0–P3 都没有问题，见 `artifacts/t184/review1.txt`。分支 `t184-style-visual`（`e4ab2ae`）以 `--no-ff` 合并为 `5749f43`。主线验证在 `5749f43` 上运行，2026-10-19 02:26:10–02:51:17 EDT，期间没有其他重活：runner exit 0；全量 **123/123 + 781/781**（非浏览器 28 个文件、浏览器 99 个文件，无失败、取消或跳过）；build、typecheck 都是 exit 0。见 `artifacts/t184/main-verify.out` 与 `main-verify/`。
+
+**收尾。** 先把 `.sitecraft-data/code-sites` 备份到 `artifacts/t184/main-data-backup-20261019025144/`（324 个文件），再用 `cp -n` 复制两轮存版的 17 站（code-sites、conversations、uploads/demo），站名都加「（T-184）」。主数据从 324 站变为 341 站；在 3034 上抽查 4 站与参考站，code-preview 都返回 200。工作树的 `artifacts/t184/` 复制到 `artifacts/t184/worktree-evidence/`，`artifacts/t167/` 复制到 `artifacts/t184/worktree-t167/`，账本复制到 `artifacts/t174/t184-style-eval/`；上文的工作树相对路径都可以在这些目录下找到。
