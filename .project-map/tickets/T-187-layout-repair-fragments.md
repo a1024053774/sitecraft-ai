@@ -41,7 +41,7 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 ## Resolution
 
-第一步已完成，实现提交为 `85982a968bf65111baf5867f49fbcb9b2f710996`，父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`；第一步证据索引为 `artifacts/t187/step1-result.json`。第二步首次 runner 通过、全量失败；负责人随后授权同步两个测试合同，但定向检查新增的未闭合值反例暴露真实产品缺陷，40/41 通过后再次按要求停止，没有进入新一轮 runner／全量、typecheck、build 或真实探针。整票仍为 **INCOMPLETE**，独立 fast 审查未运行。执行者 codex-t187；时间均为纽约时间。
+第一步实现提交为 `85982a968bf65111baf5867f49fbcb9b2f710996`，父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`；证据索引为 `artifacts/t187/step1-result.json`。第二步首次 runner 通过、全量失败；同步测试合同后，定向检查又暴露未闭合声明值可被存版的产品缺陷。负责人已授权严格声明边界修复，新一轮改前红测与改后 50/50 定向检查已完成；后续门控与真实探针结果单独记录。整票仍为 **INCOMPLETE**，独立 fast 审查未运行。执行者 codex-t187；时间均为纽约时间。
 
 根因与原文定位：
 
@@ -105,3 +105,11 @@ T-159 替身现在按同次 CDP 的 Emulation 宽度补齐 `repairs`：正常扫
 唯一失败为 `a CSS declaration rejects unclosed-css-value and records the unchanged response`：替身返回原文 `rgb(17,17,17`（缺右括号），但 `kind=css` 写回只用 `CSS.supports` 核实值，浏览器按 CSS 解析规则补足结尾后接受，实际 run 为 complete、版本通过并保存。这是产品边界缺陷，不是夹具缺漏。原始回复与结果在 `artifacts/t138/dom-scope-f84d1347-b4b9-4b1f-a9b7-a95f88dcc76f/unclosed-css-value.json`；测试站 ID `99c064d8-1194-4011-9446-4b68fb8545e4`，版本 ID `0a7a5034-ace5-46c2-8c9a-3d24f248b7e0`，均为本地模型替身测试证据。
 
 按负责人“任何一步失败就停”要求，本轮不修产品代码，不换反例、不降低断言、不重跑，也未开始新的 runner／全量、typecheck、build 或真实探针。真实站点和版本仍未创建，真实模型调用及付费 token 为 0，新预算账本未创建。建议在指定 CSS 声明值进入 `CSS.supports` 之前核实引号、括号及转义边界，保留现有语义检查和严格拒收；这需要产品代码修改，交负责人确认后继续。
+
+### 严格声明边界修复与红绿证据
+
+负责人已确认声明值的严格合同：括号与引号必须闭合，值内禁止分号、花括号、注释起止符及反斜杠转义，不让浏览器补齐后算合法。`repairDom` 的 `kind=css` 在 `CSS.supports` 前执行 `closedDeclarationValue`，区分禁止字符、注释、转义、引号未闭合、括号未闭合／不成对并明确拒收，原文仍由 `CodeRepairError.response` 保留；不修补、不重试。合法 hex 与成对闭合 rgb 均实际修正后通过原提交入口。整份 style 的数字拒因路径及其原检查保持不变。
+
+2026-10-18 **21:37:52–21:38:23 EDT**，改前运行 `CHROME_PATH=<AGENTS.md 的完整路径> npm test -- tests/t138-dom-scope.test.ts`，**18/29 通过、11 失败**。其中缺右括号的 rgb、带注释与反斜杠转义的值被旧实现接受存版；其余失败暴露新合同要求的明确边界拒因尚未实现，不能写成 11 个原本都会存版的缺陷。原普通非法值仍拒收，合法 hex/rgb 对照均通过。日志 `artifacts/t187/step2-retry2/boundary-red.log`，原生报告 `artifacts/t167/test-run-1792373872591-24124/report.json`。
+
+**21:38:41–21:39:52 EDT**，改后运行 `CHROME_PATH=<AGENTS.md 的完整路径> npm test -- tests/t138-dom-scope.test.ts tests/t159-task-admission.test.ts tests/t187-repair-fragments.test.ts`，**50/50 通过**，无跳过或取消：T-138 29/29、T-159 13/13、T-187 8/8。新增反例仍检查零版本、仅一轮、明确拒因及完整原回复，不换坏值、不降低已有拒收断言。日志 `artifacts/t187/step2-retry2/targeted.log`，原生报告 `artifacts/t167/test-run-1792373922028-35599/report.json`；各命令完整路径与起止时间在同目录 `*-result.json`。本次源码与这些证据先冻结为本地提交，再按 runner → 全量一轮 → typecheck → build → 唯一真实探针顺序继续；旧轮日志全部保留。

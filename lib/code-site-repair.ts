@@ -220,6 +220,20 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       const sheet = new CSSStyleSheet(); sheet.replaceSync(css);
       if (css.trim() && !sheet.cssRules.length) refuse('的 CSS 无法解析');
     };
+    const closedDeclarationValue = (value: string) => {
+      if (/[;{}]/.test(value)) refuse('CSS 声明值含分号或花括号');
+      if (value.includes('/*') || value.includes('*/')) refuse('CSS 声明值含注释符');
+      if (value.includes('\\')) refuse('CSS 声明值含反斜杠转义');
+      const stack: string[] = []; let quote = '';
+      for (const char of value) {
+        if (quote) { if (char === quote) quote = ''; continue; }
+        if (char === '"' || char === "'") quote = char;
+        else if (char === '(' || char === '[') stack.push(char);
+        else if ((char === ')' || char === ']') && stack.pop() !== (char === ')' ? '(' : '[')) refuse('CSS 声明值的括号不成对');
+      }
+      if (quote) refuse('CSS 声明值的引号未闭合');
+      if (stack.length) refuse('CSS 声明值的括号未闭合');
+    };
     const changes = input.replacements!.map(p => {
       const f = input.fragments!.find(f => f.id === p.fragmentId)!;
       let node: Node | null = null, next: Element | null = null;
@@ -231,6 +245,7 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       } else if (f.kind === 'css') {
         const source = cssSource(f.field, f.stylePath), rule = cssRule(source, f.rulePath);
         if (rule.selectorText !== f.selector || rule.cssText !== f.ruleText || rule.style.getPropertyValue(f.property) !== f.before || rule.style.getPropertyPriority(f.property) !== f.priority) refuse('CSS 声明已经变化');
+        closedDeclarationValue(p.after);
         if (!CSS.supports(f.property, p.after)) refuse('CSS 修正不是有效的单个声明值');
         css = { source, rule }; node = source.node;
       } else if (f.kind === 'style') { if (f.before !== styleNode.outerHTML) refuse('样式节点已经变化'); node = styleNode; }

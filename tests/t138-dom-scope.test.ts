@@ -148,25 +148,33 @@ test('a single closed element fixes a link and the complete candidate is checked
   assert.ok(site.versions[0].code.pages[0].html.includes('<a id="bad" href="/home">查看产品</a>'));
   assert.ok(site.versions[0].code.pages[0].html.includes('<p data-kept="boundary">不接食品接触零件。</p><!--保留的注释-->'));
 });
-test('a specified color declaration value repairs contrast through the same commit boundary', async () => {
-  kind = 'style'; after = '#111';
-  const { site, source } = await generate('valid-style');
+for (const [label, value] of [['hex', '#111'], ['rgb', 'rgb(17,17,17)']] as const) test(`a specified ${label} declaration value repairs contrast through the same commit boundary`, async () => {
+  kind = 'style'; after = value;
+  const { site, source } = await generate(`valid-style-${label}`);
   assert.equal(site.run!.status, 'complete'); assert.equal(site.versions.length, 1);
   assert.deepEqual(site.run!.attempts.map(a => a.checks.passed), [false, true]);
   assert.equal(site.versions[0].checks.viewports.length, 6);
   assert.deepEqual(site.versions[0].code.pages, source.pages);
 });
-for (const [label, value] of [
-  ['whole-style', '<style>p{color:#111}</style>'],
-  ['unclosed-css', '<style>p{color:#111</style>'],
-  ['invalid-css-value', 'not-a-color'],
-  ['unclosed-css-value', 'rgb(17,17,17'],
+for (const [label, value, reason] of [
+  ['whole-style', '<style>p{color:#111}</style>', 'CSS 声明值含分号或花括号'],
+  ['unclosed-css', '<style>p{color:#111</style>', 'CSS 声明值含分号或花括号'],
+  ['invalid-css-value', 'not-a-color', 'CSS 修正不是有效的单个声明值'],
+  ['unclosed-css-value', 'rgb(17,17,17', 'CSS 声明值的括号未闭合'],
+  ['unclosed-css-quote', '"#111', 'CSS 声明值的引号未闭合'],
+  ['mismatched-css-value', 'rgb(17,17,17))', 'CSS 声明值的括号不成对'],
+  ['semicolon', '#111;background:#000', 'CSS 声明值含分号或花括号'],
+  ['braces', '#111{}', 'CSS 声明值含分号或花括号'],
+  ['comment', '#111/**/', 'CSS 声明值含注释符'],
+  ['comment-end', '#111*/', 'CSS 声明值含注释符'],
+  ['escape', 'r\\67 b(17,17,17)', 'CSS 声明值含反斜杠转义'],
+  ['quoted-semicolon', '";"', 'CSS 声明值含分号或花括号'],
 ] as const) test(`a CSS declaration rejects ${label} and records the unchanged response`, async () => {
   kind = 'style'; after = value;
   const { site } = await generate(label);
   assert.equal(site.run!.status, 'error'); assert.equal(site.versions.length, 0);
   assert.equal(site.run!.attempts.length, 1); assert.equal(repairs, 1);
-  assert.equal(site.run!.step, '局部修正CSS 修正不是有效的单个声明值，本次未保存版本。');
+  assert.equal(site.run!.step, `局部修正${reason}，本次未保存版本。`);
   assert.equal((site.run!.repairFailure?.response as { replacements: Array<{ after: string }> }).replacements[0].after, value);
 });
 for (const order of ['forward', 'reverse'] as const) test(`interleaved text edits ${order} preserve every unselected character through commit`, async () => {
