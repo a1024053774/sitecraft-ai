@@ -4,7 +4,7 @@ title: 模拟资料按真实企业写法重整并建立新基线
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t190-t159-fixture
+claimed_by: codex-t190-baseline-run
 supersedes:
 ---
 
@@ -185,3 +185,195 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 第一轮并非全部通过；这里只认第二轮的结果。
 
 工作树证据复制到 `artifacts/t190/worktree-evidence/`、`worktree-t167/`，t159 修复的证据复制到 `artifacts/t190/worktree-evidence-t159fix/`、`worktree-t167-t159fix/`。票保持 open：第 2 项「新基线」尚未运行。
+
+### 新基线执行前阻塞（2026-10-19 UTC，codex-t190-baseline）
+
+**本次 BLOCKED；整票仍 INCOMPLETE、open。** 工作树 `/Users/luckye/Documents/Code/sitecraft-ai-t190b`，分支 `t190-baseline`，候选提交 `64090c4558488a84639e481f5892027f1a711a19`，已包含本票新资料、T-188、T-191、T-193。本节与 claimed_by 在同一个本地提交中；可用 `git log -1 --format=%H -- .project-map/tickets/T-190-simulated-packs-rewrite.md` 定位。没有改代码、提示或资料，没有勾选新基线验收项。
+
+#### 已完成的门控
+
+下列命令均在本工作树、上述候选上执行，日志及命令、起止时间、退出码记录在 `artifacts/t190/baseline-control/`：
+
+| 命令 | UTC 起止时间 | 结果与证据 |
+| --- | --- | --- |
+| `npm run typecheck` | 10:30:15.740–10:30:24.104 | 退出 0；`typecheck.log`、`typecheck-command.json` |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts` | 10:30:24.105–10:30:28.524 | 23/23 通过，0 失败、取消或跳过，退出 0；`materials-contract.log`、`materials-contract-command.json`；标准入口报告在 `artifacts/t167/test-run-1792405824630-16686/report.json` |
+
+未运行全量、runner 或 build。Next 自动修改的 `tsconfig.json` 留在工作树且不提交。
+
+#### 阻塞根因与可复核证据
+
+`scripts/eval-new-route.ts:157–158` 在访问 health 或创建站点之前调用 `compareRounds`；`scripts/eval-set-report.ts:108–112` 要求同组合的 `materials` 逐字相同，否则抛出原文：
+
+> 评估资料或组合已变化，不能把两轮当成成对比较。
+
+这与本次获授权的「新资料对 T-180 旧资料」比较冲突。只读预检直接执行原评估入口的资料组装段，再调用生产 `compareRounds`，不进入入口的存盘、HTTP、浏览器或模型路径：
+
+```sh
+node --experimental-strip-types artifacts/t190/baseline-control/comparison-preflight.mjs
+```
+
+2026-10-19 10:31:19.295 UTC，第一轮 14/14、第二轮 6/6 组合键均与指定 T-180 轮次对应，资料则 **20/20 不相同**；两轮均得到上述原始错误。新资料长度分别为工业 2917、外贸 2948、注塑 3492、纸包装 2748、餐馆 2118、教育 2356、设计 2476，未触及 4000 字限制。逐组合长度、对应关系及原始错误在 `comparison-preflight.json`，命令输出在 `comparison-preflight.log`。首次辅助预检漏传 `MATERIALS_CHAT_LIMIT`，在比较函数之前报 ReferenceError；失败记录保存在 `preflight-first-attempt.json`，未把它当作产品失败或正式评估轮次。
+
+按负责人「若评估中发现需要改代码，停下报我」的范围限制停止。没有删除 `--previous`、改写旧基线材料、绕过比较门禁或换路径执行生成。需要主控先修正跨资料比较入口的合同，再安排后续执行；本次没有修复授权。
+
+#### 两轮状态、用量与交接包
+
+以下是获授权但**尚未执行**的命令，不是本次评估实测记录。预留的随机应用地址为 `http://127.0.0.1:60741`，本地网关地址为 `http://127.0.0.1:60742`，二者均未启动；数据根预留为本工作树 `artifacts/t190/eval-data`，新账本预留为 `artifacts/t174/t190-baseline/usage.json`，均未创建。两轮共用的授权上限为 3000000 token，本次没有读取 `.env.local` 或初始化网关。
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:60741 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round1-full --out artifacts/t190/round1-full
+
+SITECRAFT_BASE=http://127.0.0.1:60741 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --only education/editorial,design/editorial,restaurant/editorial,restaurant/neighborly,education/neighborly,design/neighborly --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round2-selected --out artifacts/t190/round2-selected
+```
+
+第一轮 14 个组合与第二轮 6 个组合均未运行；没有评估起止时间、逐站 outcome、站点 ID 或版本 ID。模型调用与用量均为 0；没有模型事实拒因、提交检查拒因或失败站终止原文，不能把执行前的比较错误当成这些数据。没有后台 run 或网关在途请求，也没有需要停止的 dev／网关进程；health、run 终态与端口关闭验收未执行，不声称通过。
+
+仅检查以下目录及各轮 `private/blind-coverage.json` 是否存在，没有读取任何盲评包内容：
+
+| 预期路径 | 齐全性 |
+| --- | --- |
+| `artifacts/t190/round1-full/review/mixed/` | 不存在，未生成 |
+| `artifacts/t190/round1-full/review/company/` | 不存在，未生成 |
+| `artifacts/t190/round1-full/comparison-review/` | 不存在，未生成 |
+| `artifacts/t190/round2-selected/review/mixed/` | 不存在，未生成 |
+| `artifacts/t190/round2-selected/review/company/` | 不存在，未生成 |
+| `artifacts/t190/round2-selected/comparison-review/` | 不存在，未生成 |
+
+两份覆盖文件同样不存在，存在性检查记录在 `artifacts/t190/baseline-control/not-started.json`。没有固定口径缺口计数、新旧审美结论或技术生成通过结论；独立审查及盲评均未启动。未写主工作区 `.sitecraft-data` 或 artifacts，未推送。
+
+### 显式跨资料比较开关与定向门控（2026-10-19 UTC）
+
+**本次开关实现与定向门控 PASS；整票仍 INCOMPLETE、open。** 执行者 `codex-t190-baseline`，分支 `t190-baseline`，基于 `65a96df811c979ecd91ab06c0723fbf449f0fc9d`。评估脚本、测试、规格同步和本节在同一个本地提交中；对应 SHA 可用 `git log -1 --format=%H -- scripts/eval-new-route.ts` 定位。最终门控后没有再改评估脚本或测试。按主控本次安排，提交后停止，独立窄复审由主控另派；未经复审 GO 及后续通知，不执行真实基线。
+
+#### 比较合同与记录
+
+- 新增 `--previous-materials-changed`，必须同时显式指定 `--previous`。未开时，资料不同仍拒收；开启只豁免 `materials` 的差异，不改变默认矩阵、风格选择、滑杆值或生成输入。
+- `compareRounds` 先核对 profile、无重复的组合集合和逐组合的 pack/style 归属，再分别核对实际偏好的 style、layout/density、页面要求，以及已有风格登记的 skill 路径、预览 revision/versionId；任何已知值不同仍拒收，且在访问 health、创建站点或调用模型前停止。组合按 key 对应，不依赖数组顺序；重复、增减或替换组合均拒收。
+- 新轮次保存实际使用的偏好、资料末行的页面要求和当前登记元数据，select 直接使用同一份偏好。旧轮次的滑杆不在 round.json 时，只读 `private/case-N/code-site.json`，先核对 siteId，再使用快照中的实际偏好；只将 ENOENT 视为文件未记录，解析、读取和身份错误照常拒收，不重试或补写旧记录。旧页面要求读取资料最后一行，不拿模型最终生成的页数代替用户页面要求。
+- 现有 T-180 两轮共 20 个私有站点快照均能按 siteId 对应，实际偏好均为 layout=5、density=6，风格与各组合一致；这是只读记录核对，没有启动评估。两轮 round.json 及站点快照均没有风格登记版本。未来比较这些记录时，`previous.styleRegistration` 将列入逐组合 `unverifiedFields`，不猜测旧登记版本。当前登记只提供 skill 路径与预览 revision/versionId，没有独立的 skill 正文版本号；预览版本不证明风格正文版本一致。其他缺失条件同样逐项登记，包括缺 profile 或登记对象中缺少的版本子字段；旧 profile 缺失时保留原有 full 默认档位检查，同时注明未显式记录。
+- 比较通过后在当前私有 `round.json` 的 `comparison` 数组和 `private/comparison.json` 按 key 保存实际 `materialsChanged`、`currentMaterials`／`previousMaterials` 的 length 和 source。来源指向各自轮次 `private/round.json#/cases/N/materials`；数组重排后仍指向实际下标。资料相同的组合写 false，不冒充变化。`round.json` 另存本次显式开关值；核对阶段和最终输出共用同一个比较函数。旧轮次文件不改写。
+- comparison 盲评提示、盲评包生成代码、产品代码、生成提示与公司资料均未修改；新增元数据只进入私有记录，不将资料全文或来源标记放进盲评包。`docs/project/spec.md` 仅同步上述评估合同。
+
+**comparison 比的是『新资料 + T-188/T-191 改动』对『旧资料 + 旧代码』的整体效果，分不出资料与代码各自的贡献。** 本次实现不提供这种归因，也没有审美结论。
+
+#### 先红后绿与最终门控
+
+证据在本工作树 `artifacts/t190/materials-switch/`；每条执行记录均有 UTC 起止时间、完整命令、退出码与父提交。测试统一设置下列 Chrome，标准入口仍自建隔离 dev、数据根和 `.next-test`，health 的 503 只表示没有真实模型，不作为模型已配置的证据：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-previous-materials.test.ts
+
+npm run typecheck
+
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t130-blind-privacy.test.ts tests/t130-eval-set.test.ts tests/t133-eval-evidence.test.ts tests/t133-floor-checks.test.ts tests/t137-eval-images.test.ts tests/t140-review-materials.test.ts tests/t142-material-inputs.test.ts tests/t147-code-quality.test.ts tests/t157-non-industrial-cases.test.ts tests/t160-narrow-columns.test.ts tests/t190-materials-contract.test.ts tests/t190-previous-materials.test.ts
+```
+
+新测试的预期来自主控本次合同，用固定的两组合、偏好和登记版本做对照。纯比较用例逐项在新旧两侧变更条件；同时检查资料相同与不同的情况，防止拒收只是被资料差异掩盖。CLI 用例通过真实评估入口读取旧私有快照，资料变化且其余一致时到达本地 health；health 明确 503，在生成前停止，仍检查 round/comparison 的持久化记录。不开开关和改动旧快照滑杆的对照均在 health 前拒收，没有站点、模型或外部截图请求。这些用例证明比较门禁和记录接线，不证明真实生成、页面质量或模型效果。
+
+- **65a96df 先红**：10:36:36.028–10:36:44.561 UTC，只新增测试，评估脚本仍为父版本；17 项中 3 通过、14 失败，退出 1。正例在原资料门禁被拒，CLI 原文为 `Unknown option '--previous-materials-changed'`；其他失败包含 style、滑杆、登记信息与重复组合未被独立拦截，以及缺少比较元数据。profile 用例原有拒收仍成立，红灯只因缺少逐项字段拒因，不冒称父版本会放过 profile。日志 `contract-red.log`、`contract-red-command.json`，入口报告 `artifacts/t167/test-run-1792406196822-65468/report.json`。
+- 初次新合同转绿及首轮相关门控保存在 `contract-green-attempt1.log`、`related-final.log`。补查部分元数据时，缺 versionId 被当成不一致而没有列为未知，10:40:46.109–10:40:51.464 UTC 为 16 通过、1 失败，退出 1；证据 `partial-metadata-red.log`、`partial-metadata-red-command.json`，入口 `artifacts/t167/test-run-1792406446953-90318/report.json`。修正为逐字段核对并明确列出缺失项，失败记录与临时数据根保留。
+- **最终同组新合同**：10:41:01.142–10:41:05.932 UTC，17/17 通过，0 失败、取消或跳过，退出 0；`contract-green-final.log`、`contract-green-final-command.json`，入口 `artifacts/t167/test-run-1792406461949-93242/report.json`。
+- **最终 typecheck**：10:41:05.947–10:41:09.262 UTC，退出 0；`typecheck-frozen.log`、`typecheck-frozen-command.json`。
+- **最终相关门控**：10:41:09.281–10:41:46.143 UTC，12 个文件 **94/94 通过**（非浏览器 24、浏览器池 70），0 失败、取消或跳过，退出 0；`related-frozen.log`、`related-frozen-command.json`，入口 `artifacts/t167/test-run-1792406469999-94598/report.json`。其中资料合同 23/23，新比较合同 17/17。`rg -l 'compareRounds|eval-set-report' tests --glob '*.ts'` 找到的全部 9 个既有引用文件均已包含；额外覆盖真实 CLI 的图片上传与资料输入两处调用者。完整检索和选中清单在 `related-test-selection.json`，未改既有断言。
+
+本次未运行全量、runner 或 build，未读取密钥或调用真实模型，未执行新基线、开审查／盲评实例或读真实盲评包内容。未写主工作区数据或 artifacts，未推送；`tsconfig.json` 的既有 Next 自动改动保留且不提交。票仍 open，基线验收保持未勾选。
+
+### 新基线首次实跑（2026-10-19 UTC，codex-t190-baseline-run）
+
+**本次 BLOCKED；整票仍 INCOMPLETE、open。** 工作树 `/Users/luckye/Documents/Code/sitecraft-ai-t190b`，分支 `t190-baseline`，实跑提交 `556a73f15285c9f8ee0bf8f7cc64aae859701e89`。按负责人本次授权执行；没有修改代码、提示或资料。第一轮只执行一次，首次规划调用上游失败，余下组合未运行；没有重跑失败站、重置账本或启动第二轮。本节与认领字段一同本地提交，交接提交可用 `git log -1 --format=%H -- .project-map/tickets/T-190-simulated-packs-rewrite.md` 定位。
+
+#### 本次门控、隔离与命令
+
+证据目录为本工作树 `artifacts/t190/baseline-run-control/`。两项门控针对上述提交串行运行；各自 `*-command.json` 保存命令、提交、UTC 起止时间和退出码，日志为同名 `.log`：
+
+| 命令 | UTC 起止时间 | 结果 |
+| --- | --- | --- |
+| `npm run typecheck` | 10:57:20.870–10:57:22.866 | 退出 0 |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts` | 10:57:22.867–10:57:25.424 | 23/23 通过，0 失败、取消或跳过，退出 0 |
+
+标准测试入口报告为 `artifacts/t167/test-run-1792407443367-98657/report.json`，测试临时数据根为 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-ZelwRF`。没有运行全量、runner 或 build。
+
+普通 dev 使用随机地址 `http://127.0.0.1:52854`、`SITE_STORE=fs`，数据根显式为 `/Users/luckye/Documents/Code/sitecraft-ai-t190b/artifacts/t190/eval-data`；网关地址为 `http://127.0.0.1:52855`。应用仅持 `local-budget-gateway` 占位凭据，模型地址指向该网关，未加载主工作区环境文件。真实密钥只在网关子进程中通过 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local >/dev/null 2>&1; set +a` 载入；未读取、打印或复制密钥内容。网关运行 `node --experimental-strip-types scripts/t153-real-budget.ts`，显式 `SITECRAFT_TOKEN_LIMIT=3000000`、`T153_BUDGET_DIR=artifacts/t174/t190-baseline`，没有使用 `--resume`。账本是本次新建，原先不存在。
+
+10:57:56.682 UTC，health HTTP 200，`testIdentity.cwd`、`dataRoot` 均精确匹配上述工作树与数据根，模型为已配置的 `deepseek-flash`，写页／事实／修正思考模式分别为 enabled／enabled／disabled，存储为 development-file；网关初始 spent=0、calls=[]、stopped=false、limit=3000000。见 `services.json`、`health-initial.json`。为第一轮登记网关标签 `default`，estimate=1307632，取自指定 T-180 第一轮上游报告的用量合计；标签只用于预算账本，没有改变各站 layout=5、density=6。两轮原计划共用这一本账本，第二轮没有登记或调用。
+
+**第一轮实际执行的命令：**
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:52854 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round1-full --previous-materials-changed --out artifacts/t190/round1-full
+```
+
+10:58:11.788–10:58:53.547 UTC，评估器退出 1，轮次为 **BLOCKED**；见 `round1-command.json`、`round1-eval.log` 和 `artifacts/t190/round1-full/private/round.json`。首次规划在 10:58:14.754 UTC 进入网关，应用记录该调用耗时 10585ms。工业站八张图片均经原入口上传后，规划即失败，未进入确认、写页或提交检查。
+
+**第二轮原授权命令，未执行：**
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:52854 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --only education/editorial,design/editorial,restaurant/editorial,restaurant/neighborly,education/neighborly,design/neighborly --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round2-selected --previous-materials-changed --out artifacts/t190/round2-selected
+```
+
+第二轮没有起止时间、评估器退出码或轮次文件。首次上游失败后网关已 stopped=true，且用量未知；原网关不接受后续调用，新进程也不允许恢复这笔未知用量，因此停止，没有绕过网关或换账本继续。需负责人恢复网关进程到 `api.deepseek.com` 的连通性，再另行安排后续执行；本次没有诊断或修改网络、代理、VPN、DNS 等系统配置。
+
+#### 逐站结果与用量
+
+下表 `—` 表示未创建。第一轮为 0 generated、1 blocked、13 not-run；第二轮六站全部未运行。没有版本 ID，没有成功生成站，不能作为新基线完成。
+
+| 轮次 | 组合 | outcome | 站点 ID | 版本 ID | 模型调用／用量 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | industrial/precision | blocked | `035968dd-2e20-438f-87d5-670de1ac9f15` | — | 1 次规划，用量未知 |
+| 1 | industrial/documentary | not-run | — | — | 未调用 |
+| 1 | export/precision | not-run | — | — | 未调用 |
+| 1 | export/documentary | not-run | — | — | 未调用 |
+| 1 | molding/precision | not-run | — | — | 未调用 |
+| 1 | molding/documentary | not-run | — | — | 未调用 |
+| 1 | packaging/precision | not-run | — | — | 未调用 |
+| 1 | packaging/documentary | not-run | — | — | 未调用 |
+| 1 | restaurant/precision | not-run | — | — | 未调用 |
+| 1 | restaurant/documentary | not-run | — | — | 未调用 |
+| 1 | education/precision | not-run | — | — | 未调用 |
+| 1 | education/documentary | not-run | — | — | 未调用 |
+| 1 | design/precision | not-run | — | — | 未调用 |
+| 1 | design/documentary | not-run | — | — | 未调用 |
+| 2 | education/editorial | not-run | — | — | 未调用 |
+| 2 | design/editorial | not-run | — | — | 未调用 |
+| 2 | restaurant/editorial | not-run | — | — | 未调用 |
+| 2 | restaurant/neighborly | not-run | — | — | 未调用 |
+| 2 | education/neighborly | not-run | — | — | 未调用 |
+| 2 | design/neighborly | not-run | — | — | 未调用 |
+
+新账本 `artifacts/t174/t190-baseline/usage.json`：limit=3000000、spent=0、stopped=true，共 1 次调用，state=failed、purpose=submit_page_plan、error=`fetch failed`，没有上游 usage 或 HTTP 状态。该次保守输入预留 27182、输出上限 65536、合计预留 92718 token；预留不是实际消耗。应用收到的是网关 HTTP 502，调用 usage=null；**账本 spent=0 仅表示未收到可记账用量，不证明实际用量或计费为零**。其余 19 组合均无调用。逐站汇总在 `baseline-result.json`，失败站原始任务及调用记录在 `artifacts/t190/round1-full/private/case-1/code-site.json`，没有以最终存版覆盖失败记录。
+
+#### 全部拒因、终止原文与停服确认
+
+本次没有模型事实拒因、出处拒因或提交检查拒因：首次规划失败，事实调用为 0、generate attempts 为 0，未运行提交检查。此处是未到达相应阶段，不是事实或提交检查通过。
+
+失败站的应用终止原文为：
+
+> DeepSeek 请求失败（HTTP 502），本次未保存版本。
+
+应用保存的 HTTP 错误正文为 `{"error":{"message":"fetch failed"}}`，requestIdHeader 与 requestId 均为 null；网关原始失败原文为 `fetch failed`。第一轮 `round.errors` 还完整保留以下真实官网对照采集失败，没有重拍或改截图工具：
+
+> 对照 restaurant/1：AssertionError [ERR_ASSERTION]: 页面入场或转场未结束，本次未保存截图
+
+10:59:28.792 UTC，在评估器结束后重新 GET 实际 `/api/sites/035968dd-2e20-438f-87d5-670de1ac9f15/draft`，HTTP 200；唯一 run `bc793894-7f2b-4050-9739-db2be5c0818e` 为 plan/error，step 为上述终止原文，issues=[]，currentVersionId=null、versions=[]。同次 GET 网关 `/status`，确认 in-flight=0、stopped=true；见 `terminal-before-stop.json` 与 `terminal-draft-035968dd-2e20-438f-87d5-670de1ac9f15.json`。这不是只根据评估器退出判断后台已完成。
+
+核对后才在 10:59:36.868 UTC 手动对网关 PID 99335 和 dev 进程组 PID 99336 发送 SIGINT，10:59:37.135 UTC 确认 52854／52855 两端口均已关闭；见 `shutdown.json`。没有后台 running run、网关在途请求或遗留监听端口。
+
+#### 六包齐全性与跨资料比较记录
+
+只读取第一轮 `private/blind-coverage.json` 和检查目录存在性；没有读取任何 `review/` 或 `comparison-review/` 的包内容，也没有启动审查或盲评实例。
+
+| 预期路径（相对本工作树） | 存在性与齐全性 |
+| --- | --- |
+| `artifacts/t190/round1-full/review/mixed/` | 目录存在；不齐全，生成站截图为 0 |
+| `artifacts/t190/round1-full/review/company/` | 目录存在；不齐全，company=0 |
+| `artifacts/t190/round1-full/comparison-review/` | 目录存在；不齐全，paired=0，14 项缺图 |
+| `artifacts/t190/round2-selected/review/mixed/` | 不存在，未运行 |
+| `artifacts/t190/round2-selected/review/company/` | 不存在，未运行 |
+| `artifacts/t190/round2-selected/comparison-review/` | 不存在，未运行 |
+
+第一轮覆盖记录 complete=false、review.complete=false、comparison.requested=true、comparison.complete=false；mixed=13 是覆盖记录中的包计数，不是成功生成站数。review.missing 共 57 项，comparison.missing 共 14 项，完整原文保留在上述覆盖文件。第二轮覆盖文件不存在。
+
+第一轮 `private/round.json` 记录本次开关开启；其 comparison 数组与 `private/comparison.json` 中，14/14 组合 `materialsChanged=true`，每项均保存 currentMaterials／previousMaterials 的 length、各自 round.json 的精确 source 路径，`unverifiedFields` 均为 `["previous.styleRegistration"]`。没有伪造旧风格登记版本；14 项 visualPairAvailable 均为 false。第二轮没有 comparison 记录，不能借第一轮推断为已执行比较。摘要见 `baseline-result.json`，原记录保留不改。
+
+comparison 的对象仍是「新资料 + T-188/T-191 等当前代码」对「旧资料 + 旧代码」的整体效果，不能归因各自贡献。本次没有成对审美结果、company 质量结论或固定口径缺口计数；没有新生成站可供统计，未把零存版写成缺口下降。新基线验收保持未勾选，未复制主数据。未推送，未写主工作区 `.sitecraft-data` 或 artifacts；既有 `tsconfig.json` 自动改动保留且排除提交。
