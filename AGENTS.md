@@ -54,6 +54,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 `tests/t162-mobile-reveal.test.ts` 经真实 CDP 操作拦截 375 跨页线程定位后目标被面板遮挡、收起后意见或高亮丢失，并保留 1440/768 对照；`tests/t162-scroll-edge.test.ts` 用三档真实滚轮拦截目标离屏后意见面板截断或无法继续操作。定位留白只在工作台，不改生成站代码。用户主动滚动预览后停止自动腾位，直到再次点选目标、定位线程或重新展开浮层。
 
+`tests/t179-composer-scroll.test.ts` 保留三档真实滚轮、展开和重新点选的成对断言，并以 375 宿主滚动条占宽 0／15px 对照拦截高区块居中后底边仍与意见面板重叠（T-193）；只改变工作台滚动条，不改生成站或放宽目标避让断言。
+
 `tests/t162-review-regressions.test.ts` 经真实 CDP 检查历史回看不发当前编辑、连续点选后可继续输入、点选存储读写删除拒绝不使工作台崩溃；`scripts/t162-review-counterfactual.ts` 逐项回退对应修复来证明测试可检错。回退脚本须独占该工作树串行运行，每项结束即恢复；全量浏览器测试前确认没有其他 Chrome 测试进程。
 
 T-162 测试由标准 npm test 入口提供 SITECRAFT_BASE/SITECRAFT_DATA_ROOT，运行者只设 CHROME_PATH；helper 自建随机端口模型替身和生产 chat/history POST 的临时 HTTP 服务，控制 after 调度，界面/预览仍读同目录普通 dev server。health 503 也须核对 testIdentity.cwd/dataRoot，提交后由普通服务读回版本；不把入口测试写成实际 Next after 集成通过。临时服务在 test.after 关闭。

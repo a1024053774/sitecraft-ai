@@ -163,7 +163,10 @@ export function CodePreviewSelection({ frame, ready, picking, selected, pageId, 
         if (bottomSpace && target && frame.current && stage) {
           const r = target.getBoundingClientRect(), f = frame.current.getBoundingClientRect(), visible = stage.getBoundingClientRect();
           const center = f.top + (r.top + r.height / 2) * scale;
-          stage.scrollBy({ top: center - (visible.top + visible.bottom) / 2 });
+          const visibleTop = visible.top + stage.clientTop, visibleBottom = visibleTop + stage.clientHeight;
+          // 居中放不下的高区块须以底边避让面板；滚动条占宽改变缩放后也不能压住目标。
+          const bottomOverflow = f.top + r.bottom * scale - visibleBottom;
+          stage.scrollBy({ top: Math.max(center - (visibleTop + visibleBottom) / 2, bottomOverflow) });
         }
         lastReveal.current = revealIdentity;
       }
