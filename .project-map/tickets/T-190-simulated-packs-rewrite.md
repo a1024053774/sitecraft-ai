@@ -377,3 +377,11 @@ SITECRAFT_BASE=http://127.0.0.1:52854 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=
 第一轮 `private/round.json` 记录本次开关开启；其 comparison 数组与 `private/comparison.json` 中，14/14 组合 `materialsChanged=true`，每项均保存 currentMaterials／previousMaterials 的 length、各自 round.json 的精确 source 路径，`unverifiedFields` 均为 `["previous.styleRegistration"]`。没有伪造旧风格登记版本；14 项 visualPairAvailable 均为 false。第二轮没有 comparison 记录，不能借第一轮推断为已执行比较。摘要见 `baseline-result.json`，原记录保留不改。
 
 comparison 的对象仍是「新资料 + T-188/T-191 等当前代码」对「旧资料 + 旧代码」的整体效果，不能归因各自贡献。本次没有成对审美结果、company 质量结论或固定口径缺口计数；没有新生成站可供统计，未把零存版写成缺口下降。新基线验收保持未勾选，未复制主数据。未推送，未写主工作区 `.sitecraft-data` 或 artifacts；既有 `tsconfig.json` 自动改动保留且排除提交。
+
+### 主控：开关合并与第一次基线因网络中断失败
+
+评估器开关 `--previous-materials-changed`（`556a73f`）经独立窄复审 GO，见 `artifacts/t190/review5-switch.txt`。合并后主线验证在 `f5c5762` 上运行（T-192 合并 `a809d62`；T-190 基线分支合并 `f5c5762`，含评估器开关 `556a73f` 与网络中断记录 `bd2009b`），时间 2026-10-19 07:03:12–07:19:58 EDT，期间没有其他重活。runner、build、typecheck 均退出 0；全量非浏览器 146/146、浏览器 837/837，无失败、取消或跳过。见 `artifacts/t192/main-verify.out` 与 `artifacts/t192/main-verify/`。
+
+**第一次基线运行失败（网络中断），记录原样保留。** 2026-10-19 约 07:00 EDT，第一轮首次规划调用上游时报 `fetch failed`，原因是本机连不上 `api.deepseek.com`；执行主控 07:02 EDT 用 curl 复测，15 秒连接超时，github.com 返回 200。网关随即停止，账本 `artifacts/t174/t190-baseline/usage.json` 为 stopped=true，只有 1 次调用。该次调用预留了 92,718 token，没有上游 usage 或 HTTP 状态，**实际用量和是否计费都未知**；账本 spent=0 不代表没有消耗。其余 19 个组合没有运行，第二轮没有启动，也没有生成任何页面或版本。旧账本和失败记录原样保留，执行记录见上文 `bd2009b` 一节，工作树证据复制到 `artifacts/t190/baseline-r1-blocked/worktree-evidence/`。
+
+**重跑安排（构思主控决定）。** 网络恢复、并由执行主控用 curl 复测通过后，新开账本 `artifacts/t174/t190-baseline-r2`，额度 3,000,000，第一轮和第二轮都从头跑。上一次没有生成出任何页面，所以重跑不是在掩盖失败；如果再次断开，就停下报告，不反复重试。

@@ -2,7 +2,7 @@
 id: T-192
 title: 检查文档里作者写的过渡让计算样式读到旧值
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t192
 supersedes:
@@ -36,7 +36,7 @@ T-191 Resolution 里「其他三档计算样式路径的只读排查」还列出
 
 - [x] 三处是否复现逐一写进 Resolution，附夹具与命令
 - [x] 复现处的成对测试先红后绿；源与候选的过渡声明变化仍会被检出
-- [ ] 合并后主线验证通过；独立 fast 审查通过
+- [x] 合并后主线验证通过；独立 fast 审查通过（见 Resolution 末尾）
 
 ## Resolution
 
@@ -102,3 +102,7 @@ python3 artifacts/t192/run-focused.py
 上述名称均对应 `tests/<名称>.test.ts`；每个实际 `npm test -- tests/<名称>.test.ts` 命令及起止时间列在 results.json。只涉及 Chrome 启动就绪的 t173-port-readiness、只涉及模拟资料的 t160-materials 不属于本次改动路径，没有按票号扩跑。新增夹具的输入、完整检查结果、事实 HTTP 捕获与探针快照保存在 `artifacts/t192/check-transitions-*/evidence.json`。
 
 已同步 AGENTS 的机械回归指针、CONTEXT 的检查文档术语、mainline 及 spec 当前合同；git diff --check 与 project_map.py status 通过（Problems 0、Stale living docs 0）。本票没有改 UI／预览样式，不作审美通过声明。未读 .env.local、未调用真实模型、未开审查实例、未推送；主工作区 .sitecraft-data 未写、主工作区 artifacts 只读。未跑全量、runner 回归或 build。tsconfig.json 的 Next 自动改动保留在工作树中，不纳入提交。
+
+### 主控验收与关闭
+
+执行主控，2026-10-19 EDT。独立审查 GO，P0–P3 都没有，见 `artifacts/t192/review1.txt`。分支 `t192-check-transitions`（`febe4d9`）以 `--no-ff` 合并为 `a809d62`。合并后主线验证在 `f5c5762` 上运行（T-192 合并 `a809d62`；T-190 基线分支合并 `f5c5762`，含评估器开关 `556a73f` 与网络中断记录 `bd2009b`），时间 2026-10-19 07:03:12–07:19:58 EDT，期间没有其他重活。runner、build、typecheck 均退出 0；全量非浏览器 146/146、浏览器 837/837，无失败、取消或跳过。见 `artifacts/t192/main-verify.out` 与 `artifacts/t192/main-verify/`。 工作树证据复制到 `artifacts/t192/worktree-evidence/` 与 `artifacts/t192/worktree-t167/`。
