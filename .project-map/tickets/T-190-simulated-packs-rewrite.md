@@ -4,7 +4,7 @@ title: 模拟资料按真实企业写法重整并建立新基线
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t190-t159-fixture
+claimed_by: codex-t190-baseline
 supersedes:
 ---
 
@@ -185,3 +185,59 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 第一轮并非全部通过；这里只认第二轮的结果。
 
 工作树证据复制到 `artifacts/t190/worktree-evidence/`、`worktree-t167/`，t159 修复的证据复制到 `artifacts/t190/worktree-evidence-t159fix/`、`worktree-t167-t159fix/`。票保持 open：第 2 项「新基线」尚未运行。
+
+### 新基线执行前阻塞（2026-10-19 UTC，codex-t190-baseline）
+
+**本次 BLOCKED；整票仍 INCOMPLETE、open。** 工作树 `/Users/luckye/Documents/Code/sitecraft-ai-t190b`，分支 `t190-baseline`，候选提交 `64090c4558488a84639e481f5892027f1a711a19`，已包含本票新资料、T-188、T-191、T-193。本节与 claimed_by 在同一个本地提交中；可用 `git log -1 --format=%H -- .project-map/tickets/T-190-simulated-packs-rewrite.md` 定位。没有改代码、提示或资料，没有勾选新基线验收项。
+
+#### 已完成的门控
+
+下列命令均在本工作树、上述候选上执行，日志及命令、起止时间、退出码记录在 `artifacts/t190/baseline-control/`：
+
+| 命令 | UTC 起止时间 | 结果与证据 |
+| --- | --- | --- |
+| `npm run typecheck` | 10:30:15.740–10:30:24.104 | 退出 0；`typecheck.log`、`typecheck-command.json` |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts` | 10:30:24.105–10:30:28.524 | 23/23 通过，0 失败、取消或跳过，退出 0；`materials-contract.log`、`materials-contract-command.json`；标准入口报告在 `artifacts/t167/test-run-1792405824630-16686/report.json` |
+
+未运行全量、runner 或 build。Next 自动修改的 `tsconfig.json` 留在工作树且不提交。
+
+#### 阻塞根因与可复核证据
+
+`scripts/eval-new-route.ts:157–158` 在访问 health 或创建站点之前调用 `compareRounds`；`scripts/eval-set-report.ts:108–112` 要求同组合的 `materials` 逐字相同，否则抛出原文：
+
+> 评估资料或组合已变化，不能把两轮当成成对比较。
+
+这与本次获授权的「新资料对 T-180 旧资料」比较冲突。只读预检直接执行原评估入口的资料组装段，再调用生产 `compareRounds`，不进入入口的存盘、HTTP、浏览器或模型路径：
+
+```sh
+node --experimental-strip-types artifacts/t190/baseline-control/comparison-preflight.mjs
+```
+
+2026-10-19 10:31:19.295 UTC，第一轮 14/14、第二轮 6/6 组合键均与指定 T-180 轮次对应，资料则 **20/20 不相同**；两轮均得到上述原始错误。新资料长度分别为工业 2917、外贸 2948、注塑 3492、纸包装 2748、餐馆 2118、教育 2356、设计 2476，未触及 4000 字限制。逐组合长度、对应关系及原始错误在 `comparison-preflight.json`，命令输出在 `comparison-preflight.log`。首次辅助预检漏传 `MATERIALS_CHAT_LIMIT`，在比较函数之前报 ReferenceError；失败记录保存在 `preflight-first-attempt.json`，未把它当作产品失败或正式评估轮次。
+
+按负责人「若评估中发现需要改代码，停下报我」的范围限制停止。没有删除 `--previous`、改写旧基线材料、绕过比较门禁或换路径执行生成。需要主控先修正跨资料比较入口的合同，再安排后续执行；本次没有修复授权。
+
+#### 两轮状态、用量与交接包
+
+以下是获授权但**尚未执行**的命令，不是本次评估实测记录。预留的随机应用地址为 `http://127.0.0.1:60741`，本地网关地址为 `http://127.0.0.1:60742`，二者均未启动；数据根预留为本工作树 `artifacts/t190/eval-data`，新账本预留为 `artifacts/t174/t190-baseline/usage.json`，均未创建。两轮共用的授权上限为 3000000 token，本次没有读取 `.env.local` 或初始化网关。
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:60741 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round1-full --out artifacts/t190/round1-full
+
+SITECRAFT_BASE=http://127.0.0.1:60741 SITECRAFT_TOKEN_LIMIT=3000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --only education/editorial,design/editorial,restaurant/editorial,restaurant/neighborly,education/neighborly,design/neighborly --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round2-selected --out artifacts/t190/round2-selected
+```
+
+第一轮 14 个组合与第二轮 6 个组合均未运行；没有评估起止时间、逐站 outcome、站点 ID 或版本 ID。模型调用与用量均为 0；没有模型事实拒因、提交检查拒因或失败站终止原文，不能把执行前的比较错误当成这些数据。没有后台 run 或网关在途请求，也没有需要停止的 dev／网关进程；health、run 终态与端口关闭验收未执行，不声称通过。
+
+仅检查以下目录及各轮 `private/blind-coverage.json` 是否存在，没有读取任何盲评包内容：
+
+| 预期路径 | 齐全性 |
+| --- | --- |
+| `artifacts/t190/round1-full/review/mixed/` | 不存在，未生成 |
+| `artifacts/t190/round1-full/review/company/` | 不存在，未生成 |
+| `artifacts/t190/round1-full/comparison-review/` | 不存在，未生成 |
+| `artifacts/t190/round2-selected/review/mixed/` | 不存在，未生成 |
+| `artifacts/t190/round2-selected/review/company/` | 不存在，未生成 |
+| `artifacts/t190/round2-selected/comparison-review/` | 不存在，未生成 |
+
+两份覆盖文件同样不存在，存在性检查记录在 `artifacts/t190/baseline-control/not-started.json`。没有固定口径缺口计数、新旧审美结论或技术生成通过结论；独立审查及盲评均未启动。未写主工作区 `.sitecraft-data` 或 artifacts，未推送。
