@@ -100,3 +100,41 @@ npm run typecheck
 系统不会自动生成裁切或调色后的新图片文件：上传、预览、发布和站点包使用的都是同一份登记文件。生成站的 CSS（例如 `object-fit: cover`）可能在显示层裁掉一部分画面，`lib/code-site-check.ts` 只把 product 图的这种裁切记为质量反馈。即便被显示层裁切，仍按原 BY-SA 许可署名。
 
 站点包由 `lib/code-site-export.ts` 的 `buildStaticSitePackage` 生成，内含原登记文件与 `LICENSES.txt`，每张图写入 Attribution（含作者、来源 URL、具体许可版本与改动说明）、License 和 License URL。
+
+### 标签含义补改（2026-10-19，回应 T-188 P2）
+
+**本次补改 PASS；整票仍 INCOMPLETE、open。** 执行者 `codex-t190`，基于 `330b13399637ccb2bede0718da6ea415425178f3`，本节与补改代码一同本地提交；对应提交可用 `git log -1 --format=%H -- lib/simulated-packs.ts` 定位。本轮门控后未再修改资料或测试代码。未执行后续真实基线和主线验收，不勾选剩余 Acceptance。
+
+先读本票全部 Resolution 与 BY-SA 主控补记，以及主工作区只读 `artifacts/t188/review1.txt`。P2 的原始反例是已保存页面把服务社区标成地址，本次只清除输入资料的歧义，不声称已证明生成器或事实核对能泛化拦截该错误。
+
+逐行审计保存在 `artifacts/t190/label-audit.md`，完整列出基准的 **245 行**（工业 33、外贸 35、注塑 47、纸包装 34、餐馆 32、教育 32、设计 32），包含所有冒号、空格分隔与分号串联子字段，并逐行写明保留/改写及理由。共改写 **9 个原始行**；改前行号与改后落点均在审计中：
+
+| 基准 `330b133` 行号 | 改动与依据 |
+| --- | --- |
+| L265 | 餐馆拆成门牌地址、服务社区、到店时间、通行条件；服务社区仍为杭州市拱墅区，明说门店所在区未提供，未推断门店所在地。 |
+| L58 | 工业 MOQ 只保留 20 台，排产起算条件和未知交期/样机另列。 |
+| L110–111 | 外贸的认证与材料报告分行；原报告的“认证中”原样保留。起订量改为确认口径，交期确认及贸易/付款缺口另列，没有补固定 MOQ 或天数。 |
+| L156、L163–164 | 透光率标签限定 PMMA 2 mm 厚试样；模具年产量与注塑月产能分列，42 台及吨位留在主设备行；设备清单不再标加工能力。 |
+| L205、L212 | 彩盒用途标签说明两类礼盒均已有独立内袋，依据原接单提醒；设备与工序改为生产与检测设备，原机台和检测数量保留。 |
+
+其余保留项包括逐项已有/认证中的状态、原来明确陈述的教育/设计所在地、仅为应用行业而非客户名单的清单、各产品起订/交期/价格的范围，以及“适合”“常见对象”的非唯一性质。没有新增高风险事实；模拟标注、既有待补充缺口和 luckye.online 邮箱不变。生成提示、运行时核对、图片与许可文件未改。
+
+`tests/t190-materials-contract.test.ts` 新增五类源资料合同：地点角色、起订事项归属、产出与设备类别、认证与报告类别、多材料指标的试样条件。通用断言不以现有地名、公司名、金额或改后整句作答案；这不是自然语言语义或真实生成效果的完备检查。grep 后同步 `tests/simulated-packs.test.ts` 的产能/设备字段，`tests/t157-non-industrial-cases.test.ts` 的地点/时间分字段检查，以及 `tests/t160-materials.test.ts` 的起订与交期归属检查。`docs/project/spec.md` 同步标签角色说明；既有教育图许可记录补记不改变规格中的图片数量和用途，MAP 复核到本次父提交。
+
+所有命令均在本工作树执行；测试命令统一设置：
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts
+
+npm run typecheck
+
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts tests/simulated-packs.test.ts tests/t137-materials.test.ts tests/t157-non-industrial-cases.test.ts tests/t160-materials.test.ts tests/t142-material-inputs.test.ts
+```
+
+证据目录 `artifacts/t190/label-followup-20261019/`，命令、CHROME_PATH、UTC 起止时间、退出码和候选关系另存各项 `*-command.json`：
+
+- **先红**：07:50:21–07:50:24 UTC，源资料仍为 `330b133`，仅新增断言；21 项执行，原有 16 通过、新增 5 失败，均为对应语义 AssertionError。日志 `contract-red.log`；入口 `artifacts/t167/test-run-1792396222250-75990/report.json`。
+- **最终合同重验父版本**：07:52:56–07:53:02 UTC，修正起订标签匹配以覆盖“起订量确认”等后缀后，再以 `git show 330b133:lib/simulated-packs.ts` 的原始资料运行同一合同，仍为 16 通过、5 个预期失败；日志 `contract-red-final.log`，入口 `artifacts/t167/test-run-1792396378126-91838/report.json`。候选先保存为 `candidate-before-parent-check.ts`，`finally` 恢复，未并行运行其他测试或丢弃失败证据。
+- **后绿**：07:59:04–07:59:17 UTC，`npm run typecheck` 退出 0，见 `typecheck-final.log`。07:59:17–07:59:28 UTC，六个相关定向文件 **41/41 PASS、0 跳过**，其中 T-190 合同 21/21，见 `related-final.log`；入口 `artifacts/t167/test-run-1792396758786-60391/report.json`。health 虽为无真实模型的 503，`testIdentity.cwd` 和独立临时 dataRoot 已核对；所有用例完成。
+
+本次未跑全量、独立 runner 回归或 build，未调用真实模型、开审查/盲评实例或做生成站截图；未读 `.env.local`、写主工作区数据、改主工作区 artifacts 或推送。保留原有 `tsconfig.json` 自动改动并排除提交。此处 PASS 仅指获授权的资料消歧、审计与定向门控；真实生成是否仍把服务社区写成地址，需要后续由主控另行安排验证。

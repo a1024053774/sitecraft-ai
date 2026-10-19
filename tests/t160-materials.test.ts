@@ -8,7 +8,8 @@ import { simulatedPacks, buildMaterialsChatMessage } from '../lib/simulated-pack
 const examples = [
   ['industrial', '经营安排：', /不提供现场安装；不接零售散单/],
   ['export', '订单笔记·饮料设备：', /该案例接头不用于直接接触食品的流路/],
-  ['export', 'MOQ：', /起订量与交期分别记录/],
+  ['export', '起订量确认：', /按规格组合和订单数量确认.*固定起订数待补充/],
+  ['export', '交期确认：', /具体交期天数待补充.*起订量与交期分别记录/],
   ['molding', '透明光学注塑件应用与选型：', /≥90%.*PMMA 2 mm 厚试样/],
   ['packaging', '折叠彩盒规格参数：', /四色胶印.*已有独立内袋/],
   ['packaging', '瓦楞运输盒规格参数：', /单色\/双色水性印刷/],
