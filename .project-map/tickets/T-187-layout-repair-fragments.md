@@ -2,7 +2,7 @@
 id: T-187
 title: 版面类修正发出的片段数超过回复上限，修正必然失败
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t187-fix2
 supersedes:
@@ -37,11 +37,11 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 - [x] 根因写进 Resolution，附原文定位
 - [x] 成对测试先红后绿；真实探针结果如实记录
-- [ ] typecheck、test、build 通过；独立 fast 审查通过
+- [x] typecheck、test、build 通过；独立 fast 审查通过（主线验证与三轮审查见 Resolution 末尾「主控验收与关闭」）
 
 ## Resolution
 
-**INCOMPLETE（整票待主控独立复审；第二轮获准修复与定向门控 PASS）**：主控对源码候选 `66d0f4f` 的 `review2-NO_GO.txt` 指出两项 P2，并明确选择 A，由 **codex-t187-fix2** 在父提交 `5fbe4eb` 上执行。本轮两个指定反例均先在 `66d0f4f` 产品源码上失败，修复后通过；最终 typecheck 与 **111/111 定向测试**全部通过。源码、测试和本 Resolution 随同一提交交付，精确提交号见 `artifacts/t187/fix2-20261019/result.json` 的 `deliveredCommit`。本轮未跑全量、build、真实探针或审查实例，未推送；票保持打开，不将执行通过写成独立审查通过。
+**PASS（2026-10-19 主控关闭，见末尾「主控验收与关闭」；以下为执行时记录）** 执行时状态为 INCOMPLETE（整票待主控独立复审；第二轮获准修复与定向门控 PASS）：主控对源码候选 `66d0f4f` 的 `review2-NO_GO.txt` 指出两项 P2，并明确选择 A，由 **codex-t187-fix2** 在父提交 `5fbe4eb` 上执行。本轮两个指定反例均先在 `66d0f4f` 产品源码上失败，修复后通过；最终 typecheck 与 **111/111 定向测试**全部通过。源码、测试和本 Resolution 随同一提交交付，精确提交号见 `artifacts/t187/fix2-20261019/result.json` 的 `deliveredCommit`。本轮未跑全量、build、真实探针或审查实例，未推送；票保持打开，不将执行通过写成独立审查通过。
 
 第二轮修复只改 `lib/code-site-layout-repair.ts` 的声明相关性与 inline 级联核实。声明先由同次隔离 Chrome 的 CSSOM 展开，再按拒因涉及的长属性筛选，片段仍保留原声明单位，包含 font、background、border 等简写；不新增容器写回或 inline 片段类型。对只读容器／祖先，在原渲染文档中比较声明移除、原值临时提升为 important、原 style 属性恢复后的实际计算值；只有移除后不变、提升后相关长属性均改变、恢复后完全相同，而且浏览器实际作者选择器匹配稳定、无动画，才证明原声明被覆盖并排除它。其余情况在模型调用前明确说明无法证明覆盖及只读边界，不另写静态级联推导、不猜测、不重试或 fallback。原 style 属性在 finally 中恢复。叶子自己的 inline 与无关 inline 对照保持通过。
 
@@ -207,3 +207,13 @@ SITECRAFT_BASE=http://127.0.0.1:57660 SITECRAFT_BUDGET_BASE=http://127.0.0.1:576
 最终两页 × 375／768／1440 的溢出、重叠、对比度拒因均为 0，`checks.passed=true`；正文行长仍保留质量反馈，不当拒因。六张 `home-*`、`products-*` PNG 都在 Chrome 中载入并逐张打开看过，含正文和完整页脚，非空白或加载中截图；这只确认技术与载入证据，不宣布审美通过。
 
 **22:05:22 EDT** 再经实际 draft 接口确认 plan run `cd74e17c-0f0d-4bef-a147-99ef88ef3419`、generate run `db64e9b1-3daa-48c0-a3d5-51b12c489828` 均为 complete，网关 5 次调用全部 complete、在途 0，见 `pre-stop-terminal.json`。随后手动 SIGINT 停网关 pid 69789（工具记录 exit 1）与 dev pid 69857（exit 0），**22:05:56** 确认两个端口均关闭，见 `shutdown.json`；账本 `stopped=false` 保留“未触发预算终止”的原义，不冒充进程仍在运行。数据只保留在本工作树的 artifacts，未复制进主工作区 `.sitecraft-data`；未发布、未推送、未开启审查或盲评实例。独立 fast 审查交主控安排，票不关闭。
+
+### 主控验收与关闭
+
+**主控验收与关闭（执行主控，2026-10-19 EDT）。** 独立审查共三轮，每轮都是新实例：第 1 轮 NO_GO（P1 事实拒因按关键词误判为版面类；P2 容器 inline 样式），见 `artifacts/t187/review1-NO_GO.txt`；第 2 轮 NO_GO（两项 P2：被覆盖的 inline 误拒、font 简写漏判），见 `review2-NO_GO.txt`。构思主控选 A：用同一次隔离 Chrome 的实际级联判断 inline 是否生效，简写先展开再比对。修复提交 `aeb1dee` 的两个反例都在 `66d0f4f` 上先失败、修复后通过。第 3 轮只审这两处差异的窄复审 GO，见 `review3-GO.txt`。
+
+分支 rebase 到 `7a9734c`（HEAD `5406efc`，无冲突），T-184 真实评估结束、机器空闲后，以 `--no-ff` 合并为 `23fb226`。主线验证在 `23fb226` 上按顺序运行（脚本即标准检查命令：runner → `npm test` → `SITE_STORE=fs npm run build` → `npm run typecheck`），2026-10-19 01:38:22–02:19:37 EDT，期间没有其他重活：runner exit 0；全量 **123/123 + 775/775**（非浏览器 28 个文件、浏览器 98 个文件，无失败、取消或跳过），exit 0；build exit 0；typecheck exit 0；结果见 `artifacts/t187/main-verify.out`，日志见 `artifacts/t187/main-verify/`。验证期间构思主控在其后提交了纯文档提交 `791a3c4`、`b2c6e0b` 并推送，两者不涉及代码或测试。
+
+已知局限照实保留：唯一真实探针没有触发版面修正，版面路径的直接证据只有保存现场的成对 Chrome 用例（98→5 片段、两个 inline 反例）。真实生成中是否再出现超过上限的版面修正，留给后续评估观察。
+
+收尾：先把 `.sitecraft-data/code-sites` 备份到 `artifacts/t187/main-data-backup-20261019022040/`（323 个文件），再用 `cp -n` 复制探针站 `1adeea0c-7fde-4de5-bba1-14a3fb0ee588`（code-sites、conversations、uploads/demo），站名改为「忻州重载减速机（T-187）」。主数据站点数 323 → 324；3034 上该站与参考站的 code-preview 均返回 200。工作树的 `artifacts/t187/` 复制到主工作区 `artifacts/t187/worktree-evidence/`，`artifacts/t167/` 复制到 `artifacts/t187/worktree-t167/`，账本复制到 `artifacts/t174/t187-repair-probe/`。上文引用的工作树相对路径均可在这些目录下找到。
