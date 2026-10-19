@@ -36,9 +36,9 @@ try {
     const found = new Map<string, CodeFactSegment>();
     for (const page of attempt.code.pages) {
       const separators = new Map<string, CodeFactSeparator>();
-      await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(site.siteId, attempt.code, page.id) });
       for (const width of [375, 768, 1440]) {
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+        await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(site.siteId, attempt.code, page.id) });
         const observed = await browser.evaluate<CodeFactSeparator[]>(`(async () => {await document.fonts.ready;await Promise.allSettled([...document.images].map(image=>image.decode()));for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactSeparators.toString()})();})()`);
         for (const separator of observed) {
           const key = JSON.stringify(separator.path), previous = separators.get(key);

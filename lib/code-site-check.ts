@@ -507,9 +507,9 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       const needsFactSegments = !args.legacyImport && !args.translationSource && !args.restoredFactReview && (!args.localEdit || targetPaths.length > 0);
       const separators = new Map<string, CodeFactSeparator>();
       if (needsFactSegments) {
-        await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
         for (const width of widths) {
           await browser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+          await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits) });
           // Settle resources for container-dependent display. Image failures are
           // still reported by the existing full check below, before any audit.
           const observed = await browser.evaluate<CodeFactSeparator[]>(`(async () => {await document.fonts.ready;await Promise.allSettled([...document.images].map(image=>image.decode()));for(const detail of document.querySelectorAll('details')) detail.open=true;for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');return (${readCodeFactSeparators.toString()})();})()`);
