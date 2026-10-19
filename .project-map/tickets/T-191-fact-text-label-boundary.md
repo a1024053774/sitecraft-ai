@@ -4,7 +4,7 @@ title: 事实核对段把标签和值连成一串，模型看不出边界
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t191-review-fix
+claimed_by: codex-t191-review2-fix
 supersedes:
 ---
 
@@ -35,7 +35,7 @@ T-188 的 restaurant/precision 站，页面「位置与通行」写着「地址 
 
 ## Resolution
 
-INCOMPLETE（2026-10-19 最新）：独立审查 NO_GO 的 P2、P3 已修复，本轮 15 文件 177/177 定向测试及 typecheck 通过，代码提交 91365c3；本票仍待主控合并后主线验证及独立复审，保持 open。唯一真实探针已执行，评估整轮的既有 INCOMPLETE 不变，不重跑。以下保留各阶段原始证据，本次审查修复见末节。
+INCOMPLETE（2026-10-19 最新）：复审 NO_GO 的新 P2 已修复，按主控决定撤回 P3 单次装载优化，恢复生产检查与重放 CLI 每档新装载；原 P2 的显式并集第四参修复保留。本次修复门控 PASS：最终 17 文件 181/181 定向测试及 typecheck 通过，代码提交 94bcc4b。本票仍待主控合并后主线验证及独立复审，保持 open。唯一真实探针已执行，评估整轮的既有 INCOMPLETE 不变，不重跑。以下保留各阶段原始证据，末两节为本次修复和主控追加的只读排查。
 
 ### 只读确认
 
@@ -226,3 +226,47 @@ npm run typecheck
 定向文件仍由 `rg -l 'code-site-fact-segments|claimTexts|factSegments|factCitations|出处|核对段|stalePlaceholder' tests/t154* tests/t169* tests/t173* tests/t175* tests/t181* tests/t185*` 选取。标准 npm test 入口为每轮创建独立临时数据根与随机端口，报告核对 cwd 为本工作树；本轮 health 503 仍核对 dataRoot 一致，没有真实模型配置。主工作区 `.sitecraft-data` 未写，主工作区 artifacts 仅只读审查结论；红灯、既有失败和此前探针结果保留。未读 `.env.local`，未调用真实模型、未开审查实例、未推送，未跑全量、runner 回归或 build。
 
 规格已写明预采集一次装载与 CLI 的显式并集调用；AGENTS、CONTEXT、mainline 的事实和复用合同仍准确，MAP Verified 对应 91365c3；`project_map.py status --root .` 返回 Problems 0、Stale living docs 0。`tsconfig.json` 的既有 Next 自动改动保留且不提交。主线验证及独立复审不在本次授权内，剩余验收项不勾选，票不关闭。
+
+### 复审新 P2 修复：撤回单次预采集装载优化（2026-10-19）
+
+**本次修复与指定门控 PASS，整票仍 INCOMPLETE。** 依据只读复审 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t191/review2.txt` 的新 P2，代码与最终测试已本地提交为 **`94bcc4bdfdd4623146c7929545773b765f5400f3`**，父提交为 `41e64d694871f7d2867d80f82a41c0832f1db412`。下列改后命令在该父提交工作树完成修复后执行，相关代码、测试和规格原样提交为 94bcc4b；后续提交只补本票记录及 MAP 核验状态。
+
+**决定与最小改动。** 主控明确正确性优先：P3 仅是性能项，本轮撤回，不再处理其性能优化。`lib/code-site-check.ts:511`、`:512` 恢复 ec265ff 的顺序，每档先设置视口，再新装载完整候选后采集分隔；`scripts/t154-replay-fact-segments.ts:39`、`:40` 同步恢复每档新装载。保留每页每档各一次预采集装载的成本，正式三档另行装载读取；相对上一轮每页一次预装载，预采集恢复为三次。未增加等待过渡、推进终态或修改作者过渡 CSS 的机制。原 P2 修复完整保留：CLI 按页采集三档并集、检查同路径标签冲突，再以 `code、pageId、undefined、separatorPaths` 四参显式调用原读取器；既有 `tests/t191-replay-fact-segments.test.ts` 未修改且通过。
+
+**回归及反事实。** 新增 `tests/t191-display-transition.test.ts` 经实际 `checkSiteCode → Chrome → facts HTTP` 捕获事实输入；新增 `tests/t191-replay-display-transition.test.ts` 启动真实重放 CLI，回读落盘的核对输入。两者均使用 `<p><span class="label">门牌地址</span><span>青禾路七号</span></p>` 与 `.label{display:inline;transition:display 1s allow-discrete}@media(min-width:1100px){.label{display:block}}`，并保留移除 transition 的对照。期望来自“任一档独立盒都进入三档分隔并集”的需求，直接断言 `门牌地址\s+青禾路七号` 及可复制文本中的空白，不靠固定延时。CLI 三候选依次改为青禾路七号、八号、九号，逐一检查对应输入，避免常量报告通过。
+
+在 41e64d6 原实现上，两个无过渡对照通过，两个 display 过渡用例均因实际输入为 `门牌地址青禾路七号` 而失败。最初红灯及首次修复绿灯分别保留于 `artifacts/t191/review2-fix/red.log`、`green.log`。首轮相关定向 181/181 通过后，typecheck 报新测试的历史任务类型允许 claimTexts 缺省（TS2532）；原失败保留为 `typecheck.log`，未改变断言或生产类型，只在测试中补非空类型标注。随后将两处实现临时精确恢复为 HEAD 原文（`git diff --exit-code -- lib/code-site-check.ts scripts/t154-replay-fact-segments.ts` 为 0），用最终测试再得相同红灯，再恢复修复并完成下表最终门控；红灯后最终测试未再修改。
+
+| 检查 | 时间（2026-10-19 EDT）与结果 | 本工作树证据 |
+| --- | --- | --- |
+| 最终测试对 41e64d6 原实现 | 05:14:29–05:14:33，4 项中两个对照通过、两个过渡边界预期失败，exit 1 | `artifacts/t191/review2-fix/red-final.log`、`red-final-run.json`、`red-final-report.json`、`red-final-summaries-browser.ndjson`；原入口 `artifacts/t167/test-run-1792401269857-84757/` |
+| 最终 typecheck | 05:14:51–05:14:53，PASS，exit 0 | `artifacts/t191/review2-fix/typecheck-final.log`、`typecheck-final-run.json` |
+| 最终本票与相关定向门控 | 05:14:53–05:18:10，17 文件 **181/181 通过**，含两个新回归的 4/4；失败、取消、跳过均 0，exit 0 | `artifacts/t191/review2-fix/related-final.log`、`related-final-run.json`、`related-final-report.json`、`related-final-summaries-browser.ndjson`；原入口 `artifacts/t167/test-run-1792401293404-91788/` |
+
+```sh
+export CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell
+# 最终红灯使用此命令；首次修复绿灯也使用相同命令
+npm test -- tests/t191-display-transition.test.ts tests/t191-replay-display-transition.test.ts
+npm run typecheck
+# 最终绿灯覆盖两个新回归和上一轮 15 个文件，去重共 17 文件
+npm test -- tests/t191-fact-label-boundary.test.ts tests/t191-display-transition.test.ts tests/t191-replay-display-transition.test.ts tests/t191-replay-fact-segments.test.ts tests/t154-fact-segments.test.ts tests/t173-citation-repair.test.ts tests/t173-fact-boundary.test.ts tests/t173-fact-members.test.ts tests/t173-repair-scope.test.ts tests/t175-stale-placeholder.test.ts tests/t181-claim-copy.test.ts tests/t181-fact-replies.test.ts tests/t185-fact-protocol.test.ts tests/t169-contract-d.test.ts tests/t169-production-contract.test.ts tests/t169-fact-citations.test.ts tests/t169-citations-browser.test.ts
+```
+
+Tracer bullet：实际提交检查及 CLI → Chrome 三档 → 真实 facts 请求输入或重放报告。Deep modules：沿用原采集器与读取器，只恢复两处装载位置，无平行解析或兼容路径。Ubiquitous language：分隔并集、核对段、claimTexts 及资料原句的含义和归属规则不变。
+
+标准 npm test 入口核对了本工作树 cwd 与每轮独立临时数据根；health 503 也完成身份核对，未配置真实模型。原始 HTTP 捕获在本工作树 `artifacts/t191/display-transition-*/capture.json`，CLI 输入、退出记录和完整报告在 `artifacts/t191/replay-display-transition-*/`；固定通过回复仅用于观察事实输入，不证明真实模型理解或审美质量。所有红灯、首次 typecheck 失败和原有失败证据均保留。
+
+规格同步为每档新装载并登记两个回归。AGENTS、CONTEXT 和 mainline 的事实、复用及范围合同仍准确，MAP Verified 对应 94bcc4b。`git diff --check` 通过，`python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .` 返回 Problems 0、Stale living docs 0。未读 `.env.local`、未调用真实模型、未开审查实例、未推送；主工作区 `.sitecraft-data` 未写，主工作区 artifacts 只读。未跑全量、runner 回归或 build；`tsconfig.json` 的 Next 自动改动保留且不提交。独立复审及合并后主线验证仍由主控安排，验收末项不勾选，票不关闭。
+
+### 主控追加：其他三档计算样式路径的只读排查（2026-10-19）
+
+范围只限主控点名的四处生产路径；以下行号对应本轮候选。通过 `rg -n` 检索装载、视口、读取器及 transition/animation/getAnimations，再用 `nl -ba` 逐段回读。未改这四处扫描或探针代码，未为潜在风险新增实验，不把源码判断写成已复现缺陷或整体安全证明。
+
+| 路径与文件:行 | 三档装载及计算样式读取 | 同文档跨视口过渡风险与既有措施 |
+| --- | --- | --- |
+| 提交检查的布局、溢出、重叠、对比度：`lib/code-site-check.ts:524`、`:526`、`:602`、`:613`、`:621`；扫描实现 `scripts/visitor-layout-scan.js:158`、`:163`、`:179`、`:223`、`:407` | 每档先设置视口，再 `Page.setDocumentContent` 新装载候选，之后等字体、两帧和图片解码，调用 `scanVisitorLayout`。可见性、字号、前景与背景等在本档新文档读取，几何也从本档取得。 | 未见本次“保留旧文档切换视口后直接采样”的路径。重新装载隔离上一档的过渡；字体、两帧和图片等待不等于等待任意过渡。扫描前的 details 展开及 aria-hidden 移除仍发生于同一文档（`:621`），未见随后推进过渡到终态或注入禁用过渡规则；这是文档内状态变化的另一潜在风险，本轮未复现。 |
+| T-164/T-178 动态状态探针：`lib/code-site-check.ts:526`、`:551`、`:558`、`:561`、`:570`；`lib/code-site-local-edit.ts:269`、`:320`、`:336`、`:363`、`:399`、`:406`、`:407`、`:429` | 每档设置源与候选视口；分类时装载文档，实际探针 `prepareOutsideCssApplications` 又为两侧各自新装载。免强制状态的静态分支也经同一准备函数新装载。随后在本档文档中聚焦、强制四态，逐态读取完整 getComputedStyle；选区祖先自身用 computedStyleMap。 | 跨视口读取前有新装载，未见本次同源诱因。但同一档中 `DOM.focus` / `CSS.forcePseudoState` 后直接 capture，未见等待、禁用或推进作者 CSS 过渡；取样可能落在旧值或中间值，是只读发现的潜在风险。`:307` 的 `CSS.disable`/`:308` 的 `CSS.enable` 用于重置强制伪态，代码没有设置作者 transition 为 none，不能据此认定已处理过渡。预算与超时拒收不证明采样已到终态。 |
+| T-160 窄列检查：`lib/code-site-check.ts:602`、`:613`、`:620`；读取实现 `:187`、`:211`、`:224`、`:264`、`:280`、`:293` | 复用提交检查本档新装载的候选，资源等待后调用 `readCodeQuality`。按计算 display/可见性/多栏属性和文字 Range 几何算行数、列宽；窄列部分在 `:298` 展开 details 前完成。没有独立的“仅切视口”循环。 | 未见本次跨视口旧样式风险，既有措施是每档新装载。未见通用的过渡禁用或终态推进；本项结论仅覆盖三档装载方式，不扩成对初始动画或其他文档内样式变化的验证。 |
+| T-173 CSS 声明影响核实：`lib/code-site-check.ts:695`、`:696`、`:697`、`:698`、`:699`；`lib/code-site-fact-segments.ts:369`、`:380`、`:387`、`:392`、`:395`、`:397` | 每页每档先设置视口，再新装载候选，等字体及两帧，展开 details/处理 aria 状态后调用 `readCodeFactCssEffects`。函数先读声明影响，再于同一文档临时改该声明、立即重读、恢复并复核。 | 未见本次跨视口旧样式风险。既有保护包括新装载、同属性或 all 的作者交互/不明条件作用域拒收，以及恢复后不稳定就拒收；未见通用过渡禁用或终态推进。临时改声明或展开内容引发过渡时，立即取样仍有潜在旧值风险；恢复校验不能独自证明三次读值都已到终态。本轮未复现，不在本票修。 |
+
+四处均为“每档设置视口后重新装载”，没有发现 T-191 复审所指的单次装载预采集模式。共用渲染器 `lib/code-site.ts:211`、`:219`、`:239` 保留作者 CSS 并生成样式表，未添加全局禁用过渡规则。上述文档内状态或声明变化风险交主控决定后续范围，本次仅记录，不扩展 T-191 修复。
