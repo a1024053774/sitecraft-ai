@@ -35,9 +35,11 @@ test("industrial and export simulated packs are independent, labeled 模拟, and
     assert.equal(pack.heroTitle.includes(pack.nonce), true);
     assert.equal(pack.companyName.includes(pack.nonce.slice(0, 3)), true);
     assert.ok(pack.missingFacts.length >= 1);
-    // The pack declares itself simulated once, up front; fact lines carry no labels the model could copy onto the page.
+    // T-190 requires individually marked simulated news as well as the opening label.
     assert.match(pack.body.split("\n")[0], /^资料性质：模拟/);
-    assert.equal(pack.body.split("\n").slice(1).some((line) => line.includes("模拟")), false);
+    for (const line of pack.body.split("\n").slice(1).filter(line => line.includes("模拟"))) {
+      assert.match(line, /^\d{4}-\d{2}-\d{2}（模拟动态）：/);
+    }
     assert.match(pack.body, /规格参数|应用行业|加工能力|认证状态|资质状态/);
     assert.ok(pack.email.endsWith(".luckye.online"));
     const message = buildMaterialsChatMessage(pack);

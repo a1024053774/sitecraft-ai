@@ -4,7 +4,7 @@ title: 模拟资料按真实企业写法重整并建立新基线
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: codex-t190
 supersedes:
 ---
 
