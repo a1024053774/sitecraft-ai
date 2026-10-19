@@ -41,7 +41,7 @@ T-183 第 1 轮 industrial/precision（2026-10-18，原文分析见 T-183 Resolu
 
 ## Resolution
 
-**INCOMPLETE**：独立审查 `artifacts/t187/review1-NO_GO.txt` 对 `9fa3258` 给出 P1、P2 两项 NO_GO；codex-t187-fix 已在 `2491964bfcbcc93cfbd03530849fefa08e989cce` 修复并取得下述无浏览器红绿及 **99/99 浏览器定向 PASS**。新候选的 runner、全量、typecheck、build 和独立复审尚未执行，原候选的通过结果不作为本次修复验收，票保持打开。负责人本轮仅授权五个文件的浏览器定向；全量、typecheck、build 排在 T-184 门控之后，不开审查实例、不推送。
+**INCOMPLETE**：独立审查 `artifacts/t187/review1-NO_GO.txt` 对 `9fa3258` 给出 P1、P2 两项 NO_GO；codex-t187-fix 已在 `2491964bfcbcc93cfbd03530849fefa08e989cce` 修复并取得下述无浏览器红绿及 **99/99 浏览器定向 PASS**。当前候选 `eb81f3fecdad8458d5eafa12d980eef732c92b4a` 的 runner **18/18**、全量一轮 **894/894** 通过，随后 typecheck 因新增测试辅助 DOM 的类型错误失败（TS2345），按负责人“任何一步失败就停”要求未运行 build，也未修代码、测试或断言；独立复审尚未执行，票保持打开。本次真实探针沿用旧结果，但旧探针未触发版面修正，本次改动没有真实探针覆盖；不开审查实例、不推送。
 
 P1 改为按结构化来源路由：先排除 factRepairs 已覆盖的问题，版面问题只认同次 layoutRepairs，不再检查“溢出／重叠／对比度”关键词。没有结构化定位的 `pageId/375`、`pageId/768`、`pageId/1440` 扫描拒因直接拒收，防止落回正文匹配扩大范围。三个含关键词的效果声明反例都只开放被拒句的位置成员，实际改为“效果待补充。”，保留另一处同文、页头页脚及 CSS；另测无关键词的结构化版面记录和丢失记录时的拒收。
 
@@ -57,7 +57,22 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 
 结果 **99/99 通过，exit 0，无跳过或取消**：T-187 11/11、T-173 成员 7/7、范围 39/39、T-138 DOM 29/29、T-159 准入 13/13。五个文件全部由标准入口分类至浏览器池，并发 2，每个文件本轮只运行一次。T-187 的事实关键词用例实际只修被拒成员、保留另一处同文并通过三档确定性检查；直接含正文的非叶子容器与只读祖先 inline 两项均在模型调用前明确拒收、请求数不增加。T-173 的成员写回、范围与条件反例以及 T-138 严格声明边界、T-159 准入反例均保留并重新通过，未改源码、测试或断言。
 
-日志与起止记录为 `artifacts/t187/review-fix-targeted-1792380739/targeted.log`、`result.json`；原生报告与每文件统计为 `artifacts/t167/test-run-1792380740627-45867/report.json`、`summaries-browser.ndjson`。health 503 的 `testIdentity.cwd` 已核对为本工作树，`dataRoot` 为本轮独立临时目录 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-wNfmUQ`；随机端口 62519、独立构建目录 `.next-test`，未复用普通服务或主工作区数据。入口日志与临时数据保留。Next 自动增加的 `.next-test/dev/dev/types/**/*.ts` include 在运行结束后精确撤回，没有配置改动进入结果提交。本轮只执行上述定向命令；runner、全量、typecheck、build、真实模型及独立复审均未运行，也未重发已执行的唯一真实探针；结果本地提交后停止。
+日志与起止记录为 `artifacts/t187/review-fix-targeted-1792380739/targeted.log`、`result.json`；原生报告与每文件统计为 `artifacts/t167/test-run-1792380740627-45867/report.json`、`summaries-browser.ndjson`。health 503 的 `testIdentity.cwd` 已核对为本工作树，`dataRoot` 为该轮独立临时目录 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-wNfmUQ`；随机端口 62519、独立构建目录 `.next-test`，未复用普通服务或主工作区数据。入口日志与临时数据保留。Next 自动增加的 `.next-test/dev/dev/types/**/*.ts` include 在运行结束后精确撤回，没有配置改动进入结果提交。该次只执行上述定向命令，结果已本地提交为 `eb81f3f`。
+
+负责人随后授权在当前 HEAD 串行执行 runner → 全量一轮 → typecheck → build，任一步失败就停止。2026-10-18 EDT，固定候选 `eb81f3fecdad8458d5eafa12d980eef732c92b4a`（启动前工作树干净）的实际结果如下，未重试或修改断言：
+
+| 实际命令 | 起止时间 | 结果与证据（相对 artifacts/t187/review-fix-gates-1792380980/） |
+| --- | --- | --- |
+| `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` | 23:36:20–23:36:41 | **PASS 18/18**，exit 0，无跳过或取消；`runner.log`。 |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test` | 23:36:41–23:50:22 | **PASS 894/894**，非浏览器 131/131、浏览器 763/763，并发 2，无失败、跳过或取消，exit 0；`full.log`。 |
+| `npm run typecheck` | 23:50:22–23:50:29 | **失败，exit 2**；`typecheck.log`。 |
+| `npm run build` | — | **未执行**：前一步失败，编排已停止。 |
+
+失败原文为 `tests/t187-repair-routing.test.ts(68,40): error TS2345: Argument of type 'Node' is not assignable to parameter of type 'ParentNode'.`，位置是有限 DOM 的 `innerHTML` getter 将 `this.raw` 直接传给 parse5 `serialize`；该字段声明为 `Tree.Node`，类型未收窄为父节点。这里记录根因，不在本轮修复或绕过类型检查。完整执行顺序、起止时间、退出码和 build 未执行状态保存在同目录 `result.json`，失败日志不覆盖。
+
+全量的原生报告为 `artifacts/t167/test-run-1792381001724-54078/report.json`，两池各文件统计分别在同目录 `summaries-non-browser.ndjson`、`summaries-browser.ndjson`。health 503 身份核对为本工作树及独立临时数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-rBHKjn`；随机端口 64296、独立 `.next-test`，29 个非浏览器文件与 97 个浏览器文件各执行一次，无浏览器归属告警或监控错误。Next 自动追加的 `.next-test/dev/dev/types/**/*.ts` 与 `.next/dev/dev/types/**/*.ts` include 在记录 diff 到 `next-generated-config.diff` 后精确撤回，没有配置改动进入结果提交。只记录本轮结果并本地提交，不开启其他检查。
+
+真实探针按本次授权沿用上一轮 `39ec3fa` 的 `artifacts/t187/step2-retry2/probe-case/` 和账本结果：当时保存 v1，实际版面修正片段数为 **0**，只发生一次事实修正。**上次探针没有触发版面修正，所以这次改动没有真实探针覆盖。** 本轮未重跑真实探针，也不把旧站保存成功写成本次分类／inline 拒收逻辑的真实模型验证。
 
 以下保留原候选的执行记录及失败证据，时间为纽约时间。严格声明边界实现候选 `39ec3fa3357b4b394ca63bf74711aca5ff8f786c` 曾完成 50/50 定向、18/18 runner、883/883 全量、typecheck、build 和唯一真实探针，保存 v1。第一步实现为 `85982a968bf65111baf5867f49fbcb9b2f710996`（父提交 `618cb587246ffadf31d1de8a8d76f3ed93f425f9`），测试合同提交为 `8ca265e2d319ddeea47e74551f1c123150319748`；执行证据索引为 `artifacts/t187/step2-retry2/result.json`，原执行者 codex-t187。
 
