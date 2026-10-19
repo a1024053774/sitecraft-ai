@@ -157,18 +157,34 @@ const scanHeroTitle = (root) => {
 
 export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const blockFor = el => el.closest('[data-sc-block]')?.getAttribute('data-sc-block') || '页面';
-  const visible = el => {
-    if (!el || el.closest('script,style,template,noscript,[aria-hidden="true"]')) return false;
-    for (let p=el;p;p=p.parentElement) {
+  // T-195：只认文字自身的计算 visibility 和有盒元素的完整 sr-only 写法。
+  // opacity、content-visibility 及其他裁切不作排除；保留完整 Range，允许误拒。
+  const hidden = new WeakMap();
+  const fullyHidden = el => {
+    if(!el) return false;
+    if(hidden.has(el)) return hidden.get(el);
+    // visibility 可继承，也可被后代覆盖，不能用祖先值代替文字自身的值。
+    let result=getComputedStyle(el).visibility!=='visible';
+    for(let p=el;!result&&p;p=p.parentElement) {
       const s=getComputedStyle(p);
-      if(s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0) return false;
-      if(p.tagName==='DETAILS'&&!p.open) {
-        const summary=[...p.children].find(c=>c.tagName==='SUMMARY');
-        if(!summary?.contains(el)) return false;
-      }
+      // contents 没有盒子，普通 inline 的尺寸与 overflow 不构成 sr-only 裁切。
+      if(!/^(block|inline-block|flow-root|flex|inline-flex|grid|inline-grid|table-caption)$/.test(s.display)||
+        !/^(hidden|clip)$/.test(s.overflowX)||!/^(hidden|clip)$/.test(s.overflowY)) continue;
+      // 旧 clip 只作用于 absolute/fixed；不靠未生效的声明证明隐藏。
+      const zeroClip=/^(absolute|fixed)$/.test(s.position)&&/^rect\(0px[, ]+0px[, ]+0px[, ]+0px\)$/.test(s.clip);
+      if(!zeroClip&&s.clipPath!=='inset(50%)') continue;
+      const rects=p.getClientRects();
+      if(rects.length&&[...rects].every(r=>r.width<=1&&r.height<=1)) result=true;
     }
-    return el.getClientRects().length>0;
+    hidden.set(el,result);
+    return result;
   };
+  const measuredRect = (el,rect) => {
+    if(fullyHidden(el)) return null;
+    const {left,right,top,bottom}=rect;
+    return right>left&&bottom>top?{left,right,top,bottom,width:right-left,height:bottom-top}:null;
+  };
+  const visible = el => !!el&&[...el.getClientRects()].some(rect=>measuredRect(el,rect));
   const keyFor = el => {
     const path=[];
     for(let p=el;p&&p!==document.body;p=p.parentElement) {
@@ -179,7 +195,8 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const overflowElements=[];
   for(const el of root.querySelectorAll('body *')) {
     if(!visible(el)) continue;
-    const r=el.getBoundingClientRect();
+    const r=measuredRect(el,el.getBoundingClientRect());
+    if(!r) continue;
     if(r.width<1||r.height<1) continue;
     const amount=Math.max(r.right-innerWidth,-r.left,0);
     if(amount>1) overflowElements.push({block:blockFor(el),key:keyFor(el),amount:Math.ceil(amount)});
@@ -188,14 +205,15 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const range=document.createRange(), lines=[];
   while(walker.nextNode()) {
     const n=walker.currentNode, el=n.parentElement;
-    if(!n.textContent.trim()||!visible(el)) continue;
+    if(!n.textContent.trim()||fullyHidden(el)) continue;
     range.selectNodeContents(n);
     const key=`${keyFor(el)}:${[...el.childNodes].indexOf(n)}:${n.textContent.trim()}`;
     const fontSize=parseFloat(getComputedStyle(el).fontSize);
     for(const rect of range.getClientRects()) if(rect.width>.5&&rect.height>.5) {
       // Use the same em box for every text fragment, including inline descendants.
       const height=Math.min(rect.height,fontSize),top=rect.top+(rect.height-height)/2;
-      lines.push({el,rect:{left:rect.left,right:rect.right,top,bottom:top+height},key});
+      const painted=measuredRect(el,{left:rect.left,right:rect.right,top,bottom:top+height});
+      if(painted) lines.push({el,rect:painted,key});
     }
   }
   const heroTitle = root.querySelector('[data-sc-block="hero"] h1');
@@ -381,10 +399,10 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
     const chars=[];
     while(walker.nextNode()){
       const node=walker.currentNode;
-      if(!node.textContent.trim()||!visible(node.parentElement)||bodyBlockFor(node.parentElement)!==block||lineLengthExemption(node.parentElement)) continue;
+      if(!node.textContent.trim()||fullyHidden(node.parentElement)||bodyBlockFor(node.parentElement)!==block||lineLengthExemption(node.parentElement)) continue;
       for(let index=0;index<node.textContent.length;index++){
         range.setStart(node,index);range.setEnd(node,index+1);
-        const rect=[...range.getClientRects()].find(rect=>rect.width>.5&&rect.height>.5);
+        const rect=[...range.getClientRects()].map(rect=>measuredRect(node.parentElement,rect)).find(rect=>rect&&rect.width>.5&&rect.height>.5);
         if(rect) chars.push({char:node.textContent[index],top:Math.round(rect.top),left:rect.left,right:rect.right});
       }
     }
@@ -403,12 +421,13 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const reportedExemptions=new Set();
   while(textWalker.nextNode()){
     const node=textWalker.currentNode,el=node.parentElement;
-    if(!node.textContent.trim()||!visible(el)) continue;
+    if(!node.textContent.trim()||fullyHidden(el)) continue;
     const style=getComputedStyle(el),slot=slotFor(el),parameter=isParameter(el),exemption=lineLengthExemption(el);
     const size=parseFloat(style.fontSize)||16,weight=parseInt(style.fontWeight,10)||((style.fontWeight==='bold')?700:400);
     const large=size>=24||(size>=18.66&&weight>=700);
     range.selectNodeContents(node);
-    const textRects=[...range.getClientRects()];
+    const textRects=[...range.getClientRects()].map(rect=>measuredRect(el,rect)).filter(Boolean);
+    if(!textRects.length) continue;
     const background=backgroundFor(el,textRects),foreground=rgba(style.webkitTextFillColor||style.color);
     let paintReason=foreground?.[3]===0?'透明文字填充无法测量':'';
     for(let ancestor=el;ancestor;ancestor=ancestor.parentElement){
