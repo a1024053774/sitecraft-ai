@@ -3,7 +3,7 @@ id: T-186
 title: 375 下时间、参数与标签碎折行
 type: build
 status: open
-blocked_by: [T-184]
+blocked_by: [T-190]
 claimed_by:
 supersedes:
 ---
@@ -15,6 +15,8 @@ T-180 company 盲评发现约 7 站在 375 宽度下出现碎折行：营业时�
 - restaurant/editorial：`artifacts/t180-r2/round2-selected/private/case-1/home-375.png`
 - education/documentary：`artifacts/t180-r2/round1-full/private/case-12/home-375.png`
 - industrial/documentary：`artifacts/t180-r2/round1-full/private/case-2/home-375.png`
+
+2026-10-19 构思主控改排期：等 T-190 新资料基线出来，按固定口径确认 375 碎折行仍存在再做；不存在则关票并写明。
 
 ## What to build
 
