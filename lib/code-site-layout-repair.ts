@@ -86,6 +86,12 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
           ? ((property === 'color' || property === '-webkit-text-fill-color') && !inherited.has(property)
             || /^background(?:-|$)/.test(property) && !backgroundFound || /^(opacity|filter|mix-blend-mode|background-blend-mode|background-clip|-webkit-background-clip)$/.test(property))
           : /^(?:(?:min-|max-)?(?:width|height)|display|position|(?:top|right|bottom|left)|inset(?:-|$)|transform(?:-|$)|translate|scale|rotate|flex(?:-|$)|grid(?:-|$)|margin(?:-|$)|padding(?:-|$)|(?:row-|column-)?gap|line-height|font-size|letter-spacing|white-space|overflow(?:-|$)|box-sizing|writing-mode|float|clear|vertical-align)/.test(property);
+        const inlineProperties = declarationNames((node as HTMLElement).style.cssText).filter(relevant);
+        if (inlineProperties.length && (node !== target || target.childElementCount)) {
+          record.reason = `相关 style 属性声明（${inlineProperties.join('、')}）位于只读容器或祖先，当前无法写回`;
+          return;
+        }
+        for (const property of inlineProperties) levelProperties.add(property);
         for (const source of sheets) {
           const walk = (rules: CSSRuleList, path: number[] = [], parent = '', uncertain = false) => {
             [...rules].forEach((rule, index) => {

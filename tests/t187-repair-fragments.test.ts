@@ -50,7 +50,8 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw); requests.push(body);
   const input = JSON.parse(body.messages[1].content.split('\n')[0]);
   const answer = { replacements: input.fragments.map((fragment: any) => ({ fragmentId: fragment.id,
-    after: fragment.kind === 'css' && fragment.selector === '.sep' && fragment.property === 'color' ? '#47535e' : fragment.before })) };
+    after: fragment.kind === 'css' && fragment.selector === '.sep' && fragment.property === 'color' ? '#47535e'
+      : fragment.kind === 'text' && fragment.before === '对比度提升效果显著。' ? '效果待补充。' : fragment.before })) };
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
 });
@@ -103,6 +104,31 @@ test('失败站：只开放实际分隔符和相关声明，修好颜色后经�
 const simple = (html: string, css = ''): SiteCode => ({ header: '<header>页头保留</header>', footer: '<footer>页脚保留</footer>',
   css: 'body{margin:0;background:#fff;color:#222;font:16px/1.6 sans-serif}main{padding:24px}.keep{color:#333}' + css,
   pages: [{ id: 'home', title: '首页', html: `<main><h1>正文</h1>${html}<p class="keep">无关内容保留</p></main>` }] });
+test('事实拒因含对比度时按成员只改第一处，另一处同文和范围外代码保留', async () => {
+  const claim = '对比度提升效果显著。', issue = `资料不支持效果声明：${claim}`;
+  const code = simple(`<p>${claim}</p><p>${claim}</p>`), count = requests.length;
+  const result = await repairSiteCode({ materials: fixture.materials, preferences, current: code, issues: [issue], cleaned: [], layoutRepairs: [],
+    factRepairs: [{ issues: [issue], members: [{ kind: 'text', field: 'pages/home/html', path: [0, 1, 0], offset: 0, text: claim, before: claim }] }] });
+  assert.equal(requests.length, count + 1);
+  const sent = JSON.parse(requests.at(-1).messages[1].content.split('\n')[0]);
+  assert.deepEqual(sent.fragments, [{ id: 0, field: 'pages/home/html', kind: 'text', before: claim }]);
+  assert.equal(result.code.pages[0].html, `<main><h1>正文</h1><p>效果待补充。</p><p>${claim}</p><p class="keep">无关内容保留</p></main>`);
+  assert.equal(result.code.header, code.header); assert.equal(result.code.footer, code.footer); assert.equal(result.code.css, code.css);
+  assert.equal((await audit(result.code)).checks.passed, true, '修正后的候选仍经三档确定性检查');
+});
+
+for (const [name, html, target] of [
+  ['非叶子容器直接正文', '<main style="color:#bbb;background:#fff">直接正文<h1 class="keep">正文</h1><p class="keep">正常子元素</p></main>', '<main'],
+  ['叶子目标的只读祖先', '<main style="color:#bbb;background:#fff"><h1 class="keep">正文</h1><p>直接正文</p><p class="keep">正常子元素</p></main>', '<p>直接正文</p>'],
+] as const) test(`相关 inline 声明无法写回时，模型调用前明确拒收：${name}`, async () => {
+  const code = simple(''); code.pages[0].html = html;
+  const checked = await audit(code), count = requests.length;
+  assert.ok(checked.checks.issues.some(issue => issue.includes('对比度')));
+  assert.ok(checked.checks.layoutRepairs?.some(record => record.elements.some(element => element.before.startsWith(target))));
+  await assert.rejects(repair(checked.code, checked.checks), /style 属性.*(?:只读|无法写回)/);
+  assert.equal(requests.length, count, '不发送不可修复的片段');
+});
+
 test('同样的短分隔符只定位低对比度的那一处，已通过的同文保留', async () => {
   const checked = await audit(simple('<span class="bad">/</span><span class="good">/</span>', '.bad{color:#bbb}.good{color:#222}'));
   const fragments = await codeRepairFragments(checked.code, checked.checks.issues, checked.checks.cleaned, [], checked.checks.layoutRepairs);

@@ -88,8 +88,14 @@ function repairDom(code: SiteCode, input: { issues?: string[]; cleaned?: string[
       // Citation failures carry locations from this candidate's rendered audit.
       // Do not rediscover them by text length or select matching text elsewhere.
       const factRepairs = input.factRepairs ?? [];
-      const layoutIssues = input.issues!.filter(i => /溢出|重叠|对比度|无可测量正文/.test(i));
-      const issues = input.issues!.filter(issue => !layoutIssues.includes(issue) && !factRepairs.some(repair => repair.issues.includes(issue))), issueText = issues.map(normalize).join('\n');
+      const remainingIssues = input.issues!.filter(issue => !factRepairs.some(repair => repair.issues.includes(issue)));
+      const layoutIssues = remainingIssues.filter(issue => input.layoutRepairs?.some(repair => repair.issue === issue));
+      const issues = remainingIssues.filter(issue => !layoutIssues.includes(issue)), issueText = issues.map(normalize).join('\n');
+      // A viewport-scoped diagnostic without its structured scan record must
+      // not fall through to prose matching and open unrelated same-text nodes.
+      for (const issue of issues) if (code.pages.some(page => [375, 768, 1440].some(width => issue.startsWith(`${page.id}/${width} `)))) {
+        refuse(`版面扫描拒因缺少本次扫描的定位依据：${issue}`);
+      }
       const fragments: Fragment[] = [];
       const samePath = (a: number[] | undefined, b: number[] | undefined) => a === b || !!a && !!b && a.length === b.length && a.every((value, i) => value === b[i]);
       const add = (f: FragmentBody) => {
