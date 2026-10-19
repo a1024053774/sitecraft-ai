@@ -4,7 +4,7 @@ title: 模拟资料按真实企业写法重整并建立新基线
 type: build
 status: open
 blocked_by: []
-claimed_by: codex-t190-baseline-r2
+claimed_by: codex-t190-baseline-r3
 supersedes:
 ---
 
@@ -615,3 +615,194 @@ courses/375 横向溢出
 第一轮 `private/round.json` 记录 previousMaterialsChanged=true；其 comparison 数组和 `private/comparison.json` 中 **14/14 项 materialsChanged=true**，每项保存 currentMaterials／previousMaterials 的 length 及两轮 round.json 中实际资料的精确 source 路径，unverifiedFields 均为 `["previous.styleRegistration"]`。未补造旧风格登记版本；visualPairAvailable 为 9 true／5 false，仅代表配图可用性。第二轮没有 comparison 记录。
 
 comparison 的对象仍是“新资料 + T-188/T-191/T-192 等当前代码”与“旧资料 + 旧代码”的整体效果，不能分别归因资料和代码。本次没有审美结论、成对偏好或 company 质量结论；未运行固定口径缺口计数或复制主数据，不将技术 generated 写为质量通过。全部旧证据、新的失败候选和账本均保留。未推送、未 force-push，未写主工作区 `.sitecraft-data` 或 artifacts；Next 自动修改的 `tsconfig.json` 保留并排除提交。
+
+
+### 仅执行第二轮基线（2026-10-19 UTC，codex-t190-baseline-r3）
+
+**本轮 INCOMPLETE；整票仍 INCOMPLETE、open。** 执行者 `codex-t190-baseline-r3`，工作树 `/Users/luckye/Documents/Code/sitecraft-ai-t190b`，分支 `t190-baseline`，实跑提交 `e6d35c7c6b4f57c6a879b29c3d672ec1a59250f1`。按负责人本次授权及构思主控选项 A，只执行第二轮一次；没有修改代码、生成提示或资料，没有重跑失败站，没有启动审查或盲评实例。本节与 claimed_by 同在一个本地交接提交，SHA 由本次交接回报，也可用 `git log -1 --format=%H -- .project-map/tickets/T-190-simulated-packs-rewrite.md` 定位。剩余 Acceptance 不勾选、不关票。
+
+**第一轮按现状收。** `artifacts/t190/r2/round1-full` 的 12/14 组合跑过；design/precision 因网络响应中断阻断、design/documentary 未运行。其 9 generated、2 error、1 rejected、1 blocked、1 not-run 及未知用量均沿用上节原始记录，不补跑 design 两站，不把第一轮写成完整通过。旧账本 `artifacts/t174/t190-baseline/`、`artifacts/t174/t190-baseline-r2/`，旧输出 `artifacts/t190/round1-full`、`artifacts/t190/r2/` 与两次中断记录全部原样保留。
+
+#### 门控、隔离与实际命令
+
+所有新证据位于本工作树 `artifacts/t190/r3/`，控制记录为 `control/`。以下门控针对上述提交串行执行；各项 `*-command.json` 保留 args、cwd、提交、UTC 起止时间和退出码：
+
+| 命令 | UTC 起止时间（2026-10-19） | 结果与证据 |
+| --- | --- | --- |
+| `npm run typecheck` | 13:00:59.498506–13:01:00.672920 | 退出 0；`control/typecheck.log`、`typecheck-command.json` |
+| `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test -- tests/t190-materials-contract.test.ts` | 13:01:00.679384–13:01:02.275813 | 23/23 PASS，0 失败、取消或跳过，退出 0；`control/materials-contract.log`、`materials-contract-command.json` |
+
+标准入口报告 `artifacts/t167/test-run-1792414860966-47575/report.json`，测试数据根 `/var/folders/7v/58svbpnj5k91zdnm5zggb38h0000gn/T/sitecraft-test-uNXYMH`。按本次范围未跑全量、runner 或 build。
+
+普通 dev 地址为随机端口 `http://127.0.0.1:53158`，`SITE_STORE=fs`，新数据根精确为 `/Users/luckye/Documents/Code/sitecraft-ai-t190b/artifacts/t190/r3/eval-data`；网关为 `http://127.0.0.1:53159`。应用仅持 `local-budget-gateway` 占位凭据，模型地址指向该网关；本工作树不存在 `.env`、`.env.local`、`.env.development`、`.env.development.local`。真实密钥只在网关子进程中通过 `set -a; source /Users/luckye/Documents/Code/sitecraft-ai/.env.local >/dev/null 2>&1; set +a` 载入，未打印、复制或写入文件、日志、提交或 prompt。网关运行 `node --experimental-strip-types scripts/t153-real-budget.ts`，显式 `SITECRAFT_TOKEN_LIMIT=1000000`、`T153_BUDGET_DIR=artifacts/t174/t190-baseline-r3`；该目录原先不存在，未用 `--resume`。
+
+13:01:35.227074 UTC，health HTTP 200，`testIdentity.cwd`／`dataRoot` 精确匹配本工作树与上述新根，deepseek-flash configured=true，write／facts／repair 思考模式为 enabled／enabled／disabled，存储为 development-file。初始账本 limit=1000000、spent=0、stopped=false、rounds=[]、calls=[]，见 `control/health-initial.json` 与 `services.json`。随后登记唯一标签 default、estimate=462107，取自指定 T-180 第二轮的完整报告用量合计；它仅用于预算登记，不改变生成偏好 layout=5、density=6。登记前的只读辅助汇总误用 `usage.total_tokens` 报 KeyError，未发送 `/round` 或模型请求；核实应用记录字段为 `usage.totalTokens` 后完成登记，原错误记录在 `control/budget-preflight-first-attempt.json`。
+
+实际评估命令：
+
+```sh
+SITECRAFT_BASE=http://127.0.0.1:53158 SITECRAFT_TOKEN_LIMIT=1000000 CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm run eval:new-route -- --only education/editorial,design/editorial,restaurant/editorial,restaurant/neighborly,education/neighborly,design/neighborly --previous /Users/luckye/Documents/Code/sitecraft-ai/artifacts/t180-r2/round2-selected --previous-materials-changed --out artifacts/t190/r3/round2-selected
+```
+
+13:01:55.185763–13:26:31.405034 UTC（09:01:55–09:26:31 EDT），评估器退出 1、轮次 INCOMPLETE。命令及进程记录为 `control/round2-command.json`，日志 `round2-eval.log`，原轮次记录 `round2-selected/private/round.json`。CLI 按自身矩阵次序执行六组合，未改变传入的选择集合；无上游连接失败、响应中断、未知用量或重发。generated 只表示技术生成及截图完成，不是审美结论。
+
+#### 逐站 outcome、站点／版本与用量
+
+下表 token 均为已完整收到的上游报告；`—` 表示未创建版本。第二轮为 **5 generated、1 error，0 rejected／blocked／not-run**。
+
+| 组合 | outcome | 站点 ID | 版本 ID | 调用数／未知 | 输入／输出／合计 token |
+| --- | --- | --- | --- | --- | --- |
+| restaurant/editorial | generated | `961cd7a2-1bdb-49d0-a824-cee927a93747` | `67134c50-9716-47cf-ab8e-3fbc3210d3a5` | 3／0 | 33291／53616／86907 |
+| restaurant/neighborly | generated | `2c11a272-fdb1-461b-a72e-ef5460015313` | `befe9351-8ff6-473c-aa3c-f3bdc654c4e5` | 3／0 | 33149／58261／91410 |
+| education/editorial | generated | `ce92cb36-d374-4244-bc2b-3232fd9841dc` | `1645fb6d-e07d-4e83-be23-a955134cf000` | 4／0 | 46462／65730／112192 |
+| education/neighborly | generated | `aa40ead3-7f76-4fa8-9558-7b51c9988eae` | `2d2f3c2c-cfbc-4929-9791-96a3952e0a61` | 3／0 | 31417／57906／89323 |
+| design/editorial | error | `abf8784a-1bbf-4377-9f94-ac25983c822c` | — | 3／0 | 30432／49501／79933 |
+| design/neighborly | generated | `519b44cd-042e-4c85-a8f7-811893629dba` | `f70253bc-e3d5-4371-8376-ec99eba290cc` | 7／0 | 59563／68829／128392 |
+
+新账本 `artifacts/t174/t190-baseline-r3/usage.json`：limit=1000000、spent=588157、stopped=false，23 次调用全部 HTTP 200、state=complete，全部有完整 usage，输入 **234314**、输出 **353843**、合计 **588157 token**，与逐站汇总一致；停止前 in-flight=0。手动停服不会把账本 stopped 字段改成 true，此处 false 不代表进程仍在运行。历史两本账本中的未知用量仍未知，没有并入本轮冒充完整总消耗。
+
+逐站、调用、检查拒因、覆盖记录及比较摘要在 `control/baseline-result.json`。初始与全部修正候选、完整模型事实原文、finish_reason、用量和输入编号映射保存在 `round2-selected/private/case-N/code-site.json`；停服前实际接口快照保存在 `control/terminal-draft-<siteId>.json`，未以最终版本覆盖失败候选。
+
+#### 全部模型事实拒因原文
+
+共 8 次事实调用，全部完整返回、finish_reason=stop；按实际调用顺序，输入／结果编号数为 **29／43／33／28／28／26／7／1**，合计 195。design/editorial 的 28 条虽然回复完整、issues 均为空，仍因出处声明协议无效终止，不能写为事实核对通过。design/neighborly 两次非空回复共 **4 条模型事实拒因**，以下逐条原样保留；其余 6 次回复的 `results[].issues` 均为空。
+
+**design/neighborly，站内第 3 次模型调用（2026-10-19T13:22:53.504Z）**
+
+编号 `s10`：
+
+```text
+页面写「设计工作按项目范围逐项核算」，资料原句为「收费口径：按项目范围、应用数量和交付内容逐项核算，不提供统一套餐价」，对象由收费改为设计工作，并漏掉应用数量和交付内容两项计费因素。
+```
+
+编号 `s11`：
+
+```text
+页面写「资料与范围确认后 4–6 周完成设计工作」，资料原句为「通常在资料与范围确认后 4–6 周完成设计工作」，删去「通常」把通常周期写成确定周期，扩大了时间承诺。
+```
+
+编号 `s21`：
+
+```text
+页面写「让读者在翻阅时先看清章节起点，再顺着图片说明往下读」，资料只说明整理版心、注释和目录，未提供这一阅读效果，属于新增效果承诺。
+```
+
+**design/neighborly，站内第 5 次模型调用（2026-10-19T13:24:37.275Z）**
+
+编号 `s1`：
+
+```text
+“三项服务各自写明设计内容、交付文件、周期与不含项”与资料不符：资料只对品牌识别设计和包装平面设计列出不含项，出版物编排未提供不含项，不能概括为三项均写明。
+```
+
+#### 全部提交检查拒因原文
+
+本轮留下 **8 次完整提交检查：5 次通过、3 次拒收**；3 次拒收共 **8 条原文**，以下保留原有顺序、换行及重复。design/editorial 的检查在事实协议校验中异常终止，没有完整检查结果，不计入这 8 次，也不写为通过。下列出处缺失项是提交入口生成的拒因，未混入上面的模型拒因数。含换行和缩进的原文以 JSON 字符串保存，`\n` 与空格按原值保留；解码即为完整拒因。
+
+**education/editorial，第 1 次检查（2026-10-19T13:12:09.140Z）**
+
+第 1 条：
+
+```text
+courses/375 横向溢出
+```
+
+**design/neighborly，第 1 次检查（2026-10-19T13:22:50.129Z）**
+
+第 1 条：
+
+```text
+页面写「设计工作按项目范围逐项核算」，资料原句为「收费口径：按项目范围、应用数量和交付内容逐项核算，不提供统一套餐价」，对象由收费改为设计工作，并漏掉应用数量和交付内容两项计费因素。
+```
+
+第 2 条：
+
+```json
+"高风险事实缺少有效资料出处：页面原句「页面 services：服务与文件\n服务与文件\n\n    \n三项服务各自写明设计内容、交付文件、周期与不含项。设计工作按项目范围逐项核算；设计文件完成后按制作方已提供的尺寸和输出规格整理，不承接印刷生产。」；声明类别「价格与收费」没有通过的资料出处。"
+```
+
+第 3 条：
+
+```text
+页面写「资料与范围确认后 4–6 周完成设计工作」，资料原句为「通常在资料与范围确认后 4–6 周完成设计工作」，删去「通常」把通常周期写成确定周期，扩大了时间承诺。
+```
+
+第 4 条：
+
+```json
+"高风险事实缺少有效资料出处：页面原句「页面 services：服务与文件\n品牌识别设计\n\n      \n\n        \n\n          \n从标志、字体和色彩关系开始，整理基础使用说明。常见应用是名片和门店纸质物料。\n\n          \n交付 PDF 使用说明和 SVG 标志文件。\n\n        \n\n        \n\n          \n交付\n\n          \nPDF 使用说明、SVG 标志文件\n\n          \n周期\n\n          \n资料与范围确认后 4–6 周完成设计工作；客户确认等待、印刷打样与制作时间另计\n\n          \n字体\n\n          \n许可逐项核对\n\n          \n不含\n\n          \n商标检索、注册和法律审查」；声明类别「时间与交期承诺」没有通过的资料出处。"
+```
+
+第 5 条：
+
+```text
+页面写「让读者在翻阅时先看清章节起点，再顺着图片说明往下读」，资料只说明整理版心、注释和目录，未提供这一阅读效果，属于新增效果承诺。
+```
+
+第 6 条：
+
+```json
+"高风险事实缺少有效资料出处：页面原句「页面 projects：作品记录\n独立出版项目册\n\n      \n围绕正文、图片说明与章节起点整理版心、注释和目录，让读者在翻阅时先看清章节起点，再顺着图片说明往下读。\n\n      \n客户确认稿件与图片后，交付印刷用 PDF 和可编辑源文件。\n\n      \n该项目的印刷数量、销量、读者评价和图片公开授权待补充。」；声明类别「效果」没有通过的资料出处。"
+```
+
+**design/neighborly，第 2 次检查（2026-10-19T13:24:36.627Z）**
+
+第 1 条：
+
+```text
+“三项服务各自写明设计内容、交付文件、周期与不含项”与资料不符：资料只对品牌识别设计和包装平面设计列出不含项，出版物编排未提供不含项，不能概括为三项均写明。
+```
+
+其余完整检查 issues=[]；没有省略其他非空提交检查拒因。
+
+#### 失败站终止原文、对照失败与停服
+
+**design/editorial**，generate run `60f94e98-1fa2-4d03-93e2-c6f65f333fc7`，currentVersionId=null、versions=[]，终止原文：
+
+```text
+核对段协议无效：资料出处声明不在本核对段：收费按项目范围、应用数量和交付内容逐项核算,不提供统一套餐价。具体项目报价、合同付款节点和额外修改收费待补充,开始前确认范围与文件清单。本次未保存版本。
+```
+
+该站的上游事实调用 HTTP 200、用量完整，模型 `results[].issues` 为空；上文错误是提交入口的协议拒收，未冒充网络故障或模型事实拒因。未重试、未存版本。
+
+轮次另保留以下真实官网对照截图失败原文，未重拍或改变截图工具：
+
+```text
+对照 restaurant/1：AssertionError [ERR_ASSERTION]: 页面入场或转场未结束，本次未保存截图
+```
+
+13:26:42.806871 UTC，在评估器退出后逐站 GET 实际 `/api/sites/<siteId>/draft`，六站全部 HTTP 200，12 个 run（6 plan、6 generate）均为 complete／error；实际当前版本与逐站表一致。同期 GET 网关 `/status`，in-flight=0、23 次调用全部 complete、stopped=false。完整快照与 run ID／step／issues 保存在 `control/terminal-draft-*.json`，汇总 `terminal-before-stop.json`；终态结论独立于评估器退出码。
+
+确认后才于 13:26:54.874313 UTC 手动向网关进程组 PID 51124、dev 进程组 PID 51125 发送 SIGINT；13:26:55.126525 UTC 确认应用 53158、网关 53159 两端口均关闭，见 `control/shutdown.json`。没有遗留 running run、网关在途请求或监听端口。
+
+#### 三个盲评包齐全性与 materialsChanged
+
+仅读取本轮 `private/blind-coverage.json` 并检查下列目录存在性，没有读取 `review/` 或 `comparison-review/` 的包内容，也没有启动审查或盲评实例。
+
+| 路径（相对本工作树） | 存在性与齐全性 |
+| --- | --- |
+| `artifacts/t190/r3/round2-selected/review/mixed/` | 存在；不齐全，design/editorial 缺生成截图，独立真实官网对照数不足 |
+| `artifacts/t190/r3/round2-selected/review/company/` | 存在；不齐全，两道涉及 design/editorial 的换公司题缺图 |
+| `artifacts/t190/r3/round2-selected/comparison-review/` | 存在；不齐全，restaurant/neighborly、design/editorial 缺两轮配图 |
+
+覆盖文件 complete=false、review.complete=false、comparison.requested=true、comparison.complete=false；mixed=10、company=4、paired=4 是覆盖记录中的包计数，不是生成站数或审美通过数。review.missing 共 4 项、comparison.missing 共 2 项，全部原文如下：
+
+**review.missing**
+
+```text
+design/editorial: mixed 缺生成截图 (error)
+mixed 池需要每站一份独立真实官网，共6份；来源不能重复
+restaurant/editorial/design/editorial: 换公司题缺图
+education/editorial/design/editorial: 换公司题缺图
+```
+
+**comparison.missing**
+
+```text
+restaurant/neighborly: 两轮题缺图
+design/editorial: 两轮题缺图
+```
+
+`private/round.json` 的 previousMaterialsChanged=true；其 comparison 数组和 `private/comparison.json` 均记录 **6/6 materialsChanged=true**，每项保留两轮实际 materials 的 length 与精确 source。餐馆两组合为 1884→2118，教育为 2177→2356，设计为 2392→2476；两轮 source 分别指向指定 T-180 第二轮和本轮的 `private/round.json#/cases/N/materials`。unverifiedFields 均为 `["previous.styleRegistration"]`，没有补造旧风格登记版本。visualPairAvailable 为 4 true／2 false，缺配图组合与覆盖文件一致；这不是成对偏好结果。
+
+comparison 仍比较“新资料 + T-188/T-191/T-192 等当前代码”与“旧资料 + 旧代码”的整体效果，不能分别归因资料和代码。本轮没有审美结论、company 质量结论、固定口径缺口计数或主数据复制。未推送、未 force-push，未写主工作区 `.sitecraft-data` 或 artifacts；`tsconfig.json` 的 Next 自动改动保留且排除提交。提交仅含本票的认领与本次 Resolution，交接后停下。
