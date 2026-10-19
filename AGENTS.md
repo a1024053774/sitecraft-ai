@@ -142,7 +142,7 @@ Chrome 仅在 DevToolsActivePort 两行完整、端口有效且 browser 路径�
 - **Claude（本地桌面会话）**：规划、拆票、验收、整合与推送；可以用 Sonnet 5.5 子 agent 写代码。
 - **Sonnet 5.5 子 agent**：Claude 派的小编码票。
 - **Codex**：额度宽裕，执行都交给它（Herdr 里的 `codex-build`，需要时 Claude 再开 Codex 窗格）；执行和审查必须是不同的 Codex 实例。Kiro 2026-10-01 起不再使用。
-- **Codex 模型**（2026-10-13 负责人决定，2026-10-17 改为开 fast）：执行、代码与逻辑审查、页面盲评一律用 gpt-6.1-sol，推理 xhigh，开 fast（`-m gpt-6.1-sol -c 'model_reasoning_effort="xhigh"'` 后在会话里切到 fast）；不再用 GPT-6 Astra。三种角色各用不同实例。票里沿用的「Astra 审查」指这个审查角色。
+- **Codex 模型**（2026-10-13 负责人决定，2026-10-17 改为开 fast，2026-10-19 改为推理 high）：执行、代码与逻辑审查、页面盲评一律用 gpt-6.1-sol，推理 high，开 fast（`-m gpt-6.1-sol -c 'model_reasoning_effort="high"'` 后在会话里切到 fast）；不再用 GPT-6 Astra。三种角色各用不同实例。票里沿用的「Astra 审查」指这个审查角色。
 - **Cursor Grok**：杂活，只改派给它的文件。
 - **云端会话**：负责人开的 Claude 云端会话，在 `cloud/*` 分支上做票并推送，Claude 审后合并。
 
