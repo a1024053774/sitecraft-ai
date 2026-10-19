@@ -65,7 +65,7 @@ function dom(html = '') {
     get classList() { return { contains: (name: string) => (this.getAttribute('class') ?? '').split(/\s+/).includes(name) }; }
     get style() { return { cssText: this.getAttribute('style') ?? '' }; }
     get outerHTML() { return serializeOuter(this.raw); }
-    get innerHTML() { return serialize(this.raw); }
+    get innerHTML() { assert.ok('childNodes' in this.raw); return serialize(this.raw); }
   }
   class StyleNode extends ElementNode {}
   class Parser {
