@@ -2,28 +2,35 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { simulatedPacks, buildMaterialsChatMessage } from '../lib/simulated-packs.ts';
 
-test('author instructions are separate from facts and survive the evaluation page override', () => {
-  // These phrases and factual limits come from T-160/T-158's source review.
-  const examples = [
-    ['industrial', '不是第三个商品', '不提供现场安装'],
-    ['export', '不把批次报告写成产品认证', '材料报告随订单约定提供'],
-    ['packaging', '请把纸盒和内托分开介绍', '我们没有食品直接接触许可'],
-    ['restaurant', '不写成固定季节菜单', '不保证每天相同品种'],
-    ['restaurant', '不叠加自行推导的折扣', '不承接婚宴、包场、上门厨师或团体配餐'],
-    ['education', '不推导免费材料包、赠课或限时优惠', '不按单次课拆售'],
-    ['education', '不把所有课程写为零基础皆可', '水彩课要求能完成基础线稿'],
-    ['design', '不写免费提案、固定低价或不限次修改', '不提供统一套餐价'],
-    ['design', '不把设计文件检查写成印刷效果保证', '不包含印刷和发行'],
-  ] as const;
-  for (const [id, instruction, fact] of examples) {
+// T-190 replaces the former page-prohibition inventory with company material.
+// Keep necessary scope attached to the relevant item, even when the evaluator
+// supplies a different page list. Expectations retain the source business rules.
+const examples = [
+  ['industrial', '经营安排：', /不提供现场安装；不接零售散单/],
+  ['export', '订单笔记·饮料设备：', /该案例接头不用于直接接触食品的流路/],
+  ['export', '起订量确认：', /按规格组合和订单数量确认.*固定起订数待补充/],
+  ['export', '交期确认：', /具体交期天数待补充.*起订量与交期分别记录/],
+  ['molding', '透明光学注塑件应用与选型：', /≥90%.*PMMA 2 mm 厚试样/],
+  ['packaging', '折叠彩盒规格参数：', /四色胶印.*已有独立内袋/],
+  ['packaging', '瓦楞运输盒规格参数：', /单色\/双色水性印刷/],
+  ['restaurant', '番茄炖牛腩：', /这一份菜建议两人分食/],
+  ['restaurant', '时蔬豆腐煲：', /午市和晚市供应.*米饭单点.*人数待补充/],
+  ['education', '水彩材料入门：', /已经能完成基础线稿.*画笔、颜料与调色盒自备/],
+  ['design', '服务·包装平面设计：', /刀线与文案确认后.*3–4 周.*结构工程/],
+] as const;
+
+test('necessary operating and item conditions survive the evaluation page-list override', () => {
+  for (const [id, prefix, condition] of examples) {
     const pack = simulatedPacks[id];
-    const facts = pack.body.split('\n').filter(line => !/^页面(?:要求)?：/.test(line)).join('\n');
-    assert.ok(!facts.includes(instruction), `${id}: author instruction still in facts: ${instruction}`);
-    assert.ok(facts.includes(fact), `${id}: removed a real limitation: ${fact}`);
-    const requirements = pack.body.split('\n').filter(line => /^页面要求：/.test(line)).join('\n');
-    assert.ok(requirements.includes(instruction), `${id}: instruction must remain in page requirements`);
-    // eval-new-route removes the first page declaration, then supplies its own page list.
-    assert.ok(pack.body.replace(/^页面(?:要求)?：.*$/m, '').includes(instruction));
-    assert.ok(buildMaterialsChatMessage(pack).endsWith(pack.body), `${id}: source was truncated`);
+    const line = pack.body.split('\n').find(line => line.startsWith(prefix));
+    assert.ok(line, `${id}: ${prefix}`);
+    assert.match(line, condition);
+    assert.ok(pack.body.replace(/^页面(?:要求)?：.*$/m, '').includes(line));
+    assert.ok(buildMaterialsChatMessage(pack).endsWith(pack.body));
+  }
+  for (const pack of Object.values(simulatedPacks)) {
+    const requirements = pack.body.split('\n').filter(line => /^页面(?:要求)?：/.test(line));
+    assert.ok(requirements.length === 1);
+    assert.ok(requirements[0].length < 100, '页面声明只保留栏目安排，不堆积禁令');
   }
 });

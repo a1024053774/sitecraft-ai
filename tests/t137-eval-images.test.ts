@@ -8,10 +8,10 @@ import test from 'node:test';
 // Exercise the real CLI, including multipart upload, before generation starts.
 // The HTTP fixture refuses chat and supplies no Chrome, so neither DeepSeek nor
 // external control sites are called. This proves upload selection, not generation.
-test('evaluation uploads every admitted image for both styles of all four companies', async () => {
-  const packs = ['industrial', 'export', 'molding', 'packaging'];
-  const manifests = await Promise.all(packs.map(async pack => JSON.parse(await readFile(`tests/fixtures/company-images/${pack}/manifest.json`, 'utf8'))));
-  const out = path.resolve('artifacts/t137', `eval-images-${Date.now()}-${process.pid}`);
+test('evaluation uploads every admitted image for both styles of all seven companies', async () => {
+  const packs = ['industrial', 'export', 'molding', 'packaging', 'restaurant', 'education', 'design'];
+  const manifests = await Promise.all(packs.map(async pack => JSON.parse(await readFile(`${['restaurant', 'education', 'design'].includes(pack) ? 'fixtures/simulated-packs' : 'tests/fixtures/company-images'}/${pack}/manifest.json`, 'utf8'))));
+  const out = path.resolve('artifacts/t190', `eval-images-${Date.now()}-${process.pid}`);
   await mkdir(out, { recursive: true });
   const uploaded: Array<Array<{ file: string; category: string; sourceUrl: string; licenseUrl: string; author: string; attribution: string }>> = [];
   const materials: string[] = [];
@@ -43,8 +43,8 @@ test('evaluation uploads every admitted image for both styles of all four compan
     const code = await new Promise<number | null>((resolve, reject) => { child.on('error', reject); child.on('close', resolve); });
     await writeFile(path.join(out, 'observations.json'), JSON.stringify({ at: new Date().toISOString(), command, code, uploaded, materials, output }, null, 2) + '\n');
     assert.equal(code, 1, 'an intentionally ungenerated evaluation stays INCOMPLETE');
-    assert.equal(uploaded.length, 8, 'four companies × two styles');
-    for (let i = 0; i < 8; i++) {
+    assert.equal(uploaded.length, 14, 'seven companies × two styles');
+    for (let i = 0; i < 14; i++) {
       const manifest = manifests[Math.floor(i / 2)];
       assert.deepEqual(uploaded[i].map(photo => photo.file).sort(), manifest.images.map((photo: { file: string }) => photo.file).sort(), `${packs[Math.floor(i / 2)]} must use the whole admitted manifest`);
       for (const photo of manifest.images) {

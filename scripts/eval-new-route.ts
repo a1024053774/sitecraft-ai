@@ -44,10 +44,11 @@ const quickContent: Partial<Record<SimulatedPackId, { id: string; title: string 
 const packIds = Object.keys(simulatedPacks) as SimulatedPackId[];
 type Photo = { file: string; category: string; apiLicense: string; sourceUrl: string; licenseUrl: string; author: string; attribution: string; downloadedAt: string; caption: string; limitations?: string };
 const photos: Partial<Record<SimulatedPackId, Photo[]>> = {};
+const photoRoots = {} as Record<SimulatedPackId, string>;
 for (const pack of packIds) {
-  const noPhotos = pack in quickContent;
-  const manifest = JSON.parse(await readFile(path.join(noPhotos ? 'fixtures/simulated-packs' : 'tests/fixtures/company-images', pack, 'manifest.json'), 'utf8'));
-  assert.ok(Array.isArray(manifest.images) && (noPhotos || manifest.images.length > 0), `${pack}缺少图片准入登记`);
+  photoRoots[pack] = path.join(pack in quickContent ? 'fixtures/simulated-packs' : 'tests/fixtures/company-images', pack);
+  const manifest = JSON.parse(await readFile(path.join(photoRoots[pack], 'manifest.json'), 'utf8'));
+  assert.ok(Array.isArray(manifest.images) && (pack in quickContent || manifest.images.length > 0), `${pack}缺少图片准入登记`);
   for (const photo of manifest.images as Photo[]) {
     assert.ok(photo.apiLicense && photo.licenseUrl && photo.sourceUrl && photo.author && photo.attribution, `${pack}/${photo.file}缺少许可`);
   }
@@ -170,7 +171,7 @@ try {
         c.siteId = created.id;
         for (const photo of photos[c.pack as SimulatedPackId]!) {
           const form = new FormData();
-          const bytes = await readFile(path.join('tests/fixtures/company-images', c.pack, photo.file));
+          const bytes = await readFile(path.join(photoRoots[c.pack as SimulatedPackId], photo.file));
           await mkdir(path.join(directory, folder, 'uploads'), { recursive: true });
           await writeFile(path.join(directory, folder, 'uploads', photo.file), bytes);
           form.set('file', new Blob([bytes], { type: 'image/jpeg' }), photo.file);

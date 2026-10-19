@@ -7,8 +7,8 @@ import test from 'node:test';
 import { simulatedPackList, buildMaterialsChatMessage } from '../lib/simulated-packs.ts';
 import { requireWholeSitePlan, type EvalRound } from '../scripts/eval-set-report.ts';
 
-// Acceptance inputs: three distinct non-industrial businesses, no licensed
-// photos, no dynamic function request, complete material at the actual CLI.
+// Acceptance inputs: three distinct non-industrial businesses, individually
+// licensed thematic images, no dynamic functions, complete input at the CLI.
 const expected = [
   { id: 'restaurant', industry: /餐饮/, page: 'menu', title: '菜单' },
   { id: 'education', industry: /培训/, page: 'courses', title: '课程' },
@@ -24,17 +24,24 @@ test('three non-industrial packs retain substantial simulated material and expli
     assert.match(pack.body, /^资料性质：模拟/);
     assert.ok(pack.body.length >= 1800, 'material must include more than a short business card');
     assert.ok(pack.missingFacts.length >= 4);
-    for (const heading of ['公司简介', '沿革', '收费口径', '地址与开放时间', '资质状态', '图片使用']) {
+    for (const heading of ['沿革', '资质状态', '图片使用']) {
       assert.match(pack.body, new RegExp(`^${heading}：.+`, 'm'));
     }
+    // 地点和接待时间可以分字段；服务区域不能因此被视为所在地。
+    assert.match(pack.body, /^(?:门牌地址|地址与开放时间|地址与工作时间)：.+/m);
+    assert.match(pack.body, /^(?:营业安排|地址与开放时间|地址与工作时间)：.*(?:\d{1,2}:\d{2})/m);
+    assert.match(pack.body, /堂食单份含税价|学费.*元\/期|按项目范围.*逐项核算/, '收费事实保留，不强求统一字段名');
     assert.ok(pack.body.split('\n').filter(line => /^问：.+答：.+/.test(line)).length >= 4);
     assert.doesNotMatch(pack.body, /询盘|预约|在线报名|客户Logo|好评率/);
     const wrapped = buildMaterialsChatMessage(pack);
     assert.ok(wrapped.endsWith(pack.body));
     assert.doesNotMatch(wrapped, /\[truncated\]/);
     const manifest = JSON.parse(await readFile(`fixtures/simulated-packs/${item.id}/manifest.json`, 'utf8'));
-    assert.deepEqual(manifest.images, []);
-    assert.match(manifest.reason, /无图|未准入/);
+    for (const image of manifest.images) {
+      assert.ok(image.sourceUrl && image.licenseUrl && image.author && image.attribution);
+      assert.match(image.limitations, /配图/);
+    }
+    if (!manifest.images.length) assert.match(manifest.reason, /无图|未准入/);
   }
 });
 

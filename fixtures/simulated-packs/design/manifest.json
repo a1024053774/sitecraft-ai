@@ -1,6 +1,100 @@
 {
+  "schemaVersion": 1,
   "pack": "design",
-  "images": [],
-  "reason": "未准入授权图片；无图展示匿名文字项目记录，不使用客户 Logo 或来源不明作品图。",
-  "licensePolicy": "T-010：仅准入 CC0、公有领域、CC-BY、CC-BY-SA 且内容对应的图片；本包无图片来源与许可需要署名。"
+  "sourcePolicy": "仅准入有明确许可的题材配图；非本企业实拍或作品。生成站与站点包继续使用现有图片署名流程。",
+  "images": [
+    {
+      "id": "design-materials-blank-book",
+      "file": "materials-blank-book.jpg",
+      "category": "product",
+      "caption": "空白封面书册（配图）",
+      "captionEn": "Blank-cover book",
+      "sourceTitle": "Blank book on a table.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Blank_book_on_a_table.jpg",
+      "sourceRevision": 1088168255,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/2/21/Blank_book_on_a_table.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Trey Jones; Till.niermann (brightness edit)",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "apiLicense": "CC0",
+      "usageScope": "current-site-only",
+      "attribution": "Blank book on a table.jpg — Trey Jones; Till.niermann (brightness edit); https://commons.wikimedia.org/wiki/File:Blank_book_on_a_table.jpg; CC0 (https://creativecommons.org/publicdomain/zero/1.0/deed.en); full-frame resized/JPEG re-encoded derivative.",
+      "limitations": "空白书册配图，非工作室作品或客户成品；原作者已将封面处理为空白并调亮。",
+      "downloadedAt": "2026-10-19T07:06:47.758327+00:00",
+      "width": 1200,
+      "height": 1200,
+      "bytes": 254949,
+      "modifications": [
+        "按 EXIF 应用方向，完整画面缩至长边最多 1600px，JPEG quality 88；未裁切、补绘或改变画面内容。"
+      ],
+      "admissionTicket": "T-190",
+      "verification": {
+        "checkedAt": "2026-10-19T07:08:40.949201+00:00",
+        "method": "Commons 文件页、API imageinfo/extmetadata、许可页面；原图 EXIF/IPTC/XMP 权利字段与本地完整配图逐张核对。",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200,
+        "redistributionAllowed": true,
+        "generatorUseAllowed": true,
+        "rightsBasis": "CC0 允许复制、修改及再分发，含商业用途和生成器嵌入生成站与站点包。",
+        "subjectMatch": "白色无字封面书册置于木桌，适合首屏及出版物服务说明。",
+        "rightsFields": {
+          "exif": {
+            "Software": "Adobe Photoshop Elements 15.0 (Macintosh)"
+          },
+          "iptc": {},
+          "xmpRights": {}
+        },
+        "evidenceDirectory": "artifacts/t190/downloads/06-design",
+        "sourceNote": "原作封面已处理为空白；来源历史记录 Till.niermann 2023 年调亮，署名保留该处理者。",
+        "rightsConclusion": "来源署名与原图 EXIF/IPTC/XMP 权利字段未见冲突；无权利字段不作为公有领域的依据。"
+      }
+    },
+    {
+      "id": "design-materials-paper-stack",
+      "file": "materials-paper-stack.jpg",
+      "category": "product",
+      "caption": "纸页与排版样张（配图）",
+      "captionEn": "Paper stack with sample typesetting",
+      "sourceTitle": "Stack of Copy Paper.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stack_of_Copy_Paper.jpg",
+      "sourceRevision": 1133334673,
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e5/Stack_of_Copy_Paper.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Jonathan Joseph Bondhus",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "apiLicense": "CC BY-SA",
+      "usageScope": "current-site-only",
+      "attribution": "Stack of Copy Paper.jpg — Jonathan Joseph Bondhus; https://commons.wikimedia.org/wiki/File:Stack_of_Copy_Paper.jpg; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.",
+      "limitations": "纸页样张配图，非工作室作品或客户稿件，图中占位文字并非业务内容。",
+      "downloadedAt": "2026-10-19T07:07:18.837038+00:00",
+      "width": 1600,
+      "height": 1067,
+      "bytes": 216891,
+      "modifications": [
+        "按 EXIF 应用方向，完整画面缩至长边最多 1600px，JPEG quality 88；未裁切、补绘或改变画面内容。"
+      ],
+      "admissionTicket": "T-190",
+      "verification": {
+        "checkedAt": "2026-10-19T07:08:41.011049+00:00",
+        "method": "Commons 文件页、API imageinfo/extmetadata、许可页面；原图 EXIF/IPTC/XMP 权利字段与本地完整配图逐张核对。",
+        "sourcePageStatus": 200,
+        "licensePageStatus": 200,
+        "redistributionAllowed": true,
+        "generatorUseAllowed": true,
+        "rightsBasis": "该 CC BY-SA 许可允许复制、改作及商业再分发，含生成器嵌入生成站与站点包；须署名、链接许可、注明改动，图片衍生物保留同一许可。",
+        "subjectMatch": "纸页边缘和占位排版文字可见，适合出版物、文件准备栏目。",
+        "rightsFields": {
+          "exif": {
+            "Software": "Aperture",
+            "Artist": "Jonathan Bondhus"
+          },
+          "iptc": {},
+          "xmpRights": {}
+        },
+        "evidenceDirectory": "artifacts/t190/downloads/11-design",
+        "rightsConclusion": "来源署名与原图 EXIF/IPTC/XMP 权利字段未见冲突；无权利字段不作为公有领域的依据。"
+      }
+    }
+  ],
+  "licensePolicy": "CC0、公有领域、CC BY、CC BY-SA；current-site-only 是上传用途，不改变原许可的再分发权。"
 }
