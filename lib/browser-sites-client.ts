@@ -31,7 +31,7 @@ async function withStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStor
 
 function decodeRecord(bundle: SiteBundle) {
   const file = bundle.files.find(item => item.path === `code-sites/${bundle.siteId}.json`);
-  if (!file) throw new Error('站点包缺少站点记录。');
+  if (!file) throw new Error('站点存档缺少站点记录。');
   const bytes = Uint8Array.from(atob(file.data), char => char.charCodeAt(0));
   return JSON.parse(new TextDecoder().decode(bytes)) as { name?: string; updatedAt?: string; currentVersionId?: string | null };
 }

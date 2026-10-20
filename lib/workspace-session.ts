@@ -142,24 +142,24 @@ export async function importBundle(token: string, raw: unknown): Promise<{ statu
   await ensureReady();
   const input = raw as Partial<SiteBundle> | null;
   if (!input || input.format !== 'sitecraft-site-bundle' || input.version !== 1 || typeof input.siteId !== 'string' || !sitePattern.test(input.siteId) || !Array.isArray(input.files))
-    throw new BundleError('站点包格式无效。');
+    throw new BundleError('站点存档格式无效。');
   const siteId = input.siteId, owner = state.sites.get(siteId);
   if (owner && owner.token !== token) throw new BundleError('这个站点正在另一个浏览器里打开，请在那里继续，或稍后再试。', 409);
   let total = 0;
   const files = input.files.map(file => {
-    if (!file || typeof file.path !== 'string' || typeof file.data !== 'string' || !allowedPath(siteId, file.path)) throw new BundleError('站点包里有不属于这个站点的文件。');
+    if (!file || typeof file.path !== 'string' || typeof file.data !== 'string' || !allowedPath(siteId, file.path)) throw new BundleError('站点存档里有不属于这个站点的文件。');
     const bytes = Buffer.from(file.data, 'base64');
     total += bytes.length;
     return { path: file.path, bytes };
   });
-  if (total > bundleLimitBytes()) throw new BundleError(`站点包超过 ${Math.round(bundleLimitBytes() / 2 ** 20)}MB 上限。`, 413);
+  if (total > bundleLimitBytes()) throw new BundleError(`站点存档超过 ${Math.round(bundleLimitBytes() / 2 ** 20)}MB 上限。`, 413);
   const recordFile = files.find(file => file.path === `code-sites/${siteId}.json`);
-  if (!recordFile) throw new BundleError('站点包缺少站点记录。');
+  if (!recordFile) throw new BundleError('站点存档缺少站点记录。');
   let record: { siteId?: unknown; route?: unknown; updatedAt?: unknown };
   try { record = JSON.parse(recordFile.bytes.toString('utf8')); } catch { throw new BundleError('站点记录不是有效的 JSON。'); }
   if (record.siteId !== siteId || (record.route !== 'code' && record.route !== 'unavailable')) throw new BundleError('站点记录与站点编号不一致。');
   for (const file of files) if (file.path.endsWith('.json') && !file.path.startsWith('uploads/')) {
-    try { JSON.parse(file.bytes.toString('utf8')); } catch { throw new BundleError(`站点包文件不是有效的 JSON：${file.path}`); }
+    try { JSON.parse(file.bytes.toString('utf8')); } catch { throw new BundleError(`站点存档文件不是有效的 JSON：${file.path}`); }
   }
   const serverUpdatedAt = owner ? await recordUpdatedAt(siteId) : null;
   if (serverUpdatedAt && serverUpdatedAt >= String(record.updatedAt ?? '')) {

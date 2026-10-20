@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   return withWorkspaceToken(request, async token => {
     // base64 inflates the bundle by a third; refuse oversized bodies before reading them.
     if (Number(request.headers.get('content-length') ?? 0) > bundleLimitBytes() * 1.4 + 65536)
-      return Response.json({ userMessage: `站点包超过 ${Math.round(bundleLimitBytes() / 2 ** 20)}MB 上限。` }, { status: 413 });
+      return Response.json({ userMessage: `站点存档超过 ${Math.round(bundleLimitBytes() / 2 ** 20)}MB 上限。` }, { status: 413 });
     try {
       const result = await importBundle(token!, await request.json().catch(() => null));
       return Response.json(result, { headers: { 'Cache-Control': 'no-store' } });
