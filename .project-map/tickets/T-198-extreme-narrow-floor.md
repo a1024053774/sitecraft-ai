@@ -2,7 +2,7 @@
 id: T-198
 title: 实现极端窄列拒收：平均每行不到 2 个字的文字块进入底线检查
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t198
 supersedes:
@@ -34,7 +34,7 @@ supersedes:
 
 - [x] 成对测试先红后绿；离线重检结果与截图核对写进 Resolution
 - [x] AGENTS.md 与 mainline 规则文字已同步
-- [ ] 合并后主线验证通过；独立审查通过
+- 合并后主线验证通过；独立审查通过——主线验证已通过（见 Resolution 末尾）；审查一项不打勾：review1、review2 均为 NO_GO，review2 的四项按构思主控口径修复后未再复审，由执行主控核对四项后合并。审查原文：`artifacts/t198/review1.txt`、`review2.txt`。
 
 ## Resolution
 
@@ -263,3 +263,13 @@ clip-path、mask、transform、contain、content-visibility、clip-margin 在这
 最终冻结候选于 **13:48:23–13:50:02** 完成上述七文件串行定向门控，**103/103 通过，0 fail/cancel/skip，退出 0**；入口 `test-run-1792504101968-18557` 的原始身份、报告和日志复制到 `review2/runner-green/`。最终 review1 四组 × 三档截图也逐张打开，仍分别可见 0／1／2／12 行。typecheck 退出 0，未以截图代替门控。本轮按统一保守定位链规则交付；上文 absolute-contained-two 的求交表述差异未隐去。
 
 票仍 open，主控负责的合并后主线验证／独立审查未勾选。交付 SHA 和最终门控时间在 `artifacts/t198/review2/verification.json`，不推送。
+
+### 主控验收与关闭
+
+执行主控，2026-10-20 EDT。共两轮独立审查，每轮都是新实例（gpt-6.1-sol high）。
+
+- review1 NO_GO：被祖先 overflow 裁剪、访客看不见的正文仍按全部行数拒收（F1）。按构思主控口径修复：可见行只按行框与裁剪框求交计算；clip-path、mask、transform、contain、多栏、content-visibility 判为「可见行无法确定」，只保留反馈。K1、K2 按 T-160 的决定继续暂缓。
+- review2 NO_GO：定位逃逸、inline 上的 overflow、body 传播、overflow-clip-margin 四项。构思主控决定：inline、contents、html、body 的 overflow 直接跳过；clip-margin 非 0 和定位逃逸判为「无法确定」；不再复审，由执行主控核对四项。
+- 执行主控在 4ed0347 上核对四项，均满足：① review2 的三个误拒输入三档都不拒收；② inline、body、html、contents 跳过后完整竖排仍拒收，T-186 caption 仍拒收（`tests/t198-extreme-narrow-floor.test.ts` 4/4、`tests/t198-overflow-ancestors.test.ts` 14/14，本人重跑）；③ 38 站 345 个视口的新规则命中改前改后均为 molding 的两处 caption，新增 0、减少 0；④「可见行无法确定」占 27/14682（0.18%），原因为多栏 24、定位逃逸 3，低于 5% 的上限。
+- absolute-contained-two 一项，执行者报 INCOMPLETE：原因是主控任务单前后要求矛盾。执行者按定位逃逸保守退出；该例可见只有 2 行，两种处理都不拒收，主控接受。
+- 分支 `t198-extreme-narrow-floor`（`4ed0347`）以 `--no-ff` 合并为 `39c6218`。主线验证在合并后的 `39c6218` 上运行，2026-10-20 09:57:49–10:14:35 EDT，运行前停掉了 3034 服务，期间没有其他浏览器测试进程。typecheck、runner 回归、build 均退出 0；全量 941/941 通过（非浏览器 29 个文件、浏览器 114 个文件，并发 2），无失败、取消或跳过。日志见 `artifacts/main-verify-39c6218/`，标准入口目录 `artifacts/t167/test-run-1792504688122-26572/`。
