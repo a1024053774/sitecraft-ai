@@ -164,3 +164,5 @@ SITECRAFT_BASE=http://127.0.0.1:60350 SITECRAFT_TOKEN_LIMIT=200000 CHROME_PATH=/
 交接状态INCOMPLETE：代码和定向门控通过，本轮唯一真实生成完成；真实375效果待非执行者判图，整体审包覆盖未通过，票保持open。没有改T-196占用文件、没有推送、没有写主工作区数据或artifacts。tsconfig.json仅Next自动变化，保留且排除提交。全量、runner、build、独立审查依本次指令未运行；本票不改变T-160反馈为拒收规则。
 
 **独立审查（主控记录，2026-10-19 EDT）。** 新实例独立审查 GO，见主工作区 `artifacts/t186/review1.txt`：P0–P2 均无；P3 一项为 restaurant/editorial 根因说明的手机字号，已在上文更正。company 盲评（第一轮 6 站包，新实例）4 对判同模板 0，揭盲见主工作区 `artifacts/t186/blind-results/company-unblind.txt`；该包中的 molding/documentary 为出现 caption 竖排回归前的第一轮版本。molding/documentary 修复后单站重跑的截图由非执行者实例逐张判读，回归已消失，见 `artifacts/t186/judgement-r2.md`。
+
+**company 盲评口径（构思主控决定，2026-10-19 EDT）。** company 盲评采用第一轮 6 站包的结果（4 对判同模板 0）。该包中的 molding/documentary 是 caption 竖排回归修复前的版本。没有重评，原因有两个：第二轮只重跑了 molding 一站，评估器生成的 company 包为空；company 判断的是不同公司之间是否像同一模板，而本次修复只改窄屏下 caption 的显示方式，不影响骨架判断，手工拼包不值得。
