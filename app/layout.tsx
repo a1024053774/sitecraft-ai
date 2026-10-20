@@ -15,9 +15,12 @@ export const metadata: Metadata = {
   description: '用自然语言搭建、修改和发布企业独立站。',
 }
 
+// T-202: the storage mode is a runtime setting, so pages read it per request.
+export const dynamic = 'force-dynamic'
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" data-storage={process.env.SITE_STORE === 'browser' ? 'browser' : undefined}>
       <body>{children}</body>
     </html>
   )

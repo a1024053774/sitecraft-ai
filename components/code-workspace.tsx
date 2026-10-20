@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { providerHeaders } from '@/lib/provider-settings-client';
+import { browserStorageMode, pullSite } from '@/lib/browser-sites-client';
 import Link from 'next/link';
 import { ArrowLeft, Check, Download, FileText, History, Image as ImageIcon, LoaderCircle, RotateCcw, Send, Trash2 } from 'lucide-react';
 import Papa from 'papaparse';
@@ -232,6 +233,14 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       const data = await response.json(); if (!response.ok) throw new Error(data.userMessage || '批注读取失败。'); setThreads(data.annotations);
     }).catch(error => setError(error.message));
   }, [threadsOpen, siteId, site.run?.status]);
+  // T-202 browser storage: keep this browser's copy in step with the server's working copy.
+  useEffect(() => {
+    if (!browserStorageMode()) return;
+    let stopped = false;
+    const sync = () => { void pullSite(siteId).catch(error => { if (!stopped) setError(error instanceof Error ? error.message : '站点没有同步回这个浏览器。'); }); };
+    const timer = window.setInterval(sync, 5000);
+    return () => { stopped = true; window.clearInterval(timer); sync(); };
+  }, [siteId]);
   async function request(body: Record<string, unknown>) {
     // State polling never reaches the model, so it does not carry the key (T-202).
     const response = await fetch(`/api/sites/${siteId}/chat`, { method: 'POST', headers: { 'content-type': 'application/json', ...(body.action === 'state' ? {} : providerHeaders()) }, body: JSON.stringify(body) });

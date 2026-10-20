@@ -3,11 +3,14 @@ import { ChevronRight, LayoutTemplate } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SitesTable } from "@/components/sites-table";
 import { listCodeSites } from "@/lib/code-site-store";
+import { LocalSiteList } from "@/components/local-site-list";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export default async function SitesPage() {
+  // T-202: browser storage lists only this browser's sites, client side.
+  if (process.env.SITE_STORE === 'browser') return <LocalSitesPage />;
   const sites = await listCodeSites();
 
   return (
@@ -41,6 +44,21 @@ export default async function SitesPage() {
           ) : (
             <SitesTable sites={sites} />
           )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function LocalSitesPage() {
+  return (
+    <div className="app-shell">
+      <AppSidebar active="sites" />
+      <main className="main">
+        <header className="topbar"><div className="breadcrumbs"><Link href="/">Workspace</Link><ChevronRight size={12} /><strong>全部站点</strong></div></header>
+        <div className="page-content data-page">
+          <div className="data-page-head"><div><div className="eyebrow">Sites / This browser</div><h1>全部站点</h1><p>只列出保存在这个浏览器里的站点。</p></div></div>
+          <LocalSiteList />
         </div>
       </main>
     </div>

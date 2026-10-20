@@ -550,6 +550,11 @@ a { color: inherit; text-decoration: none; }
 .provider-form input:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 .provider-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .provider-status { font-size: 11px; color: var(--muted); }
+.local-site-list { display: grid; gap: 0; }
+.local-site-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; background: white; }
+.local-site-row:hover { background: var(--green-pale); }
+.local-site-row span { font-size: 11px; color: var(--muted); }
+@media (max-width: 640px) { .local-site-row { grid-template-columns: 1fr; gap: 4px; } }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(23, 32, 25, .38); backdrop-filter: blur(5px); }
 .import-modal { width: min(100%, 480px); background: #fbfdfb; border: 1px solid #d5e0d6; border-radius: 14px; box-shadow: 0 25px 80px rgba(23, 32, 25, .25); padding: 22px; }

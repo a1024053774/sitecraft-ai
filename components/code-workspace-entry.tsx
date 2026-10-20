@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CodeWorkspace, type CodeWorkspacePayload } from './code-workspace';
 import { createSiteOnce, workspaceUrlForSite } from '@/lib/workspace-entry';
+import { browserStorageMode, pullSite } from '@/lib/browser-sites-client';
 
 export function CodeWorkspaceEntry() {
   const [entry, setEntry] = useState<{ siteId: string; payload: CodeWorkspacePayload } | null>(null);
@@ -18,6 +19,8 @@ export function CodeWorkspaceEntry() {
         if (!response.ok || !payload.id) throw new Error(payload.userMessage || '新站点没有建成。');
         return payload.id as string;
       });
+      // T-202: a new site is saved into this browser before work starts.
+      if (browserStorageMode()) await pullSite(siteId);
       window.history.replaceState(null, '', workspaceUrlForSite(search, siteId));
       const response = await fetch(`/api/sites/${siteId}/draft`, { cache: 'no-store' });
       const payload = await response.json();

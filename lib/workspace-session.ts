@@ -11,7 +11,9 @@ import { siteHasWork } from './work-queue.ts';
 // it voids the server copy and leaves the browser's data untouched.
 export const browserStorage = process.env.SITE_STORE === 'browser';
 const configuredRoot = process.env.SITECRAFT_DATA_ROOT;
-const dataRoot = path.resolve(/* turbopackIgnore: true */ configuredRoot || path.join(process.cwd(), '.sitecraft-data'));
+// Browser mode requires an explicit root. Never derive one from the working
+// directory: that would also make the build tracer scan the lasting data folder.
+const dataRoot = configuredRoot ? path.resolve(/* turbopackIgnore: true */ configuredRoot) : '';
 const uploadWorkspace = process.env.DEFAULT_WORKSPACE_ID || 'demo';
 const cookieName = 'sitecraft_ws';
 const internalHeader = 'x-sitecraft-internal';
@@ -38,10 +40,10 @@ export class BundleError extends Error {
 function ensureReady() {
   if (!browserStorage) return Promise.resolve();
   return state.ready ??= (async () => {
-    if (!configuredRoot || dataRoot === path.resolve(process.cwd(), '.sitecraft-data'))
+    if (!dataRoot || path.basename(dataRoot) === '.sitecraft-data')
       throw new Error('SITE_STORE=browser 必须把 SITECRAFT_DATA_ROOT 设为单独的临时目录（例如内存盘），不能使用默认数据目录。');
     for (const dir of ['code-sites', 'conversations', 'annotations', 'uploads'])
-      await rm(path.join(dataRoot, dir), { recursive: true, force: true });
+      await rm(/* turbopackIgnore: true */ path.join(/* turbopackIgnore: true */ dataRoot, dir), { recursive: true, force: true });
     state.sweeper ??= setInterval(() => { void sweep(); }, 60_000);
     state.sweeper.unref?.();
   })();
@@ -91,10 +93,10 @@ export function sitesOfToken(token: string | null) {
 // One site's files, at the paths each store uses. Stores keep their own formats;
 // the bundle carries the files byte for byte.
 const siteFiles = {
-  record: (siteId: string) => path.join(dataRoot, 'code-sites', `${siteId}.json`),
-  annotations: (siteId: string) => path.join(dataRoot, 'annotations', `${siteId}.json`),
-  conversations: (siteId: string) => path.join(dataRoot, 'conversations', siteId),
-  uploads: (siteId: string) => path.join(dataRoot, 'uploads', uploadWorkspace, siteId),
+  record: (siteId: string) => path.join(/* turbopackIgnore: true */ dataRoot, 'code-sites', `${siteId}.json`),
+  annotations: (siteId: string) => path.join(/* turbopackIgnore: true */ dataRoot, 'annotations', `${siteId}.json`),
+  conversations: (siteId: string) => path.join(/* turbopackIgnore: true */ dataRoot, 'conversations', siteId),
+  uploads: (siteId: string) => path.join(/* turbopackIgnore: true */ dataRoot, 'uploads', uploadWorkspace, siteId),
 };
 function allowedPath(siteId: string, relative: string) {
   const id = siteId.replace(/[-]/g, '\\-');
@@ -102,30 +104,36 @@ function allowedPath(siteId: string, relative: string) {
     && !relative.split('/').some(part => part === '..' || part === '.');
 }
 async function listFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true }).catch(error => { if (error.code === 'ENOENT') return []; throw error; });
-  return (await Promise.all(entries.map(entry => entry.isDirectory() ? listFiles(path.join(dir, entry.name)) : entry.isFile() ? [path.join(dir, entry.name)] : []))).flat();
+  const entries = await readdir(/* turbopackIgnore: true */ dir, { withFileTypes: true }).catch(error => { if (error.code === 'ENOENT') return []; throw error; });
+  return (await Promise.all(entries.map(entry => entry.isDirectory() ? listFiles(path.join(/* turbopackIgnore: true */ dir, entry.name)) : entry.isFile() ? [path.join(/* turbopackIgnore: true */ dir, entry.name)] : []))).flat();
 }
 async function filesOf(siteId: string) {
   const single = await Promise.all([siteFiles.record(siteId), siteFiles.annotations(siteId)].map(async file => {
-    try { return (await stat(file)).isFile() ? [file] : []; }
+    try { return (await stat(/* turbopackIgnore: true */ file)).isFile() ? [file] : []; }
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; }
   }));
   return [...single.flat(), ...await listFiles(siteFiles.conversations(siteId)), ...await listFiles(siteFiles.uploads(siteId))];
 }
 async function removeSiteFiles(siteId: string) {
   await Promise.all([siteFiles.record(siteId), siteFiles.annotations(siteId), siteFiles.conversations(siteId), siteFiles.uploads(siteId)]
-    .map(target => rm(target, { recursive: true, force: true })));
+    .map(target => rm(/* turbopackIgnore: true */ target, { recursive: true, force: true })));
 }
 async function recordUpdatedAt(siteId: string) {
-  try { return String(JSON.parse(await readFile(siteFiles.record(siteId), 'utf8')).updatedAt ?? ''); }
+  try { return String(JSON.parse(await readFile(/* turbopackIgnore: true */ siteFiles.record(siteId), 'utf8')).updatedAt ?? ''); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
 }
 
+// Change marker for polling: file count, total size and latest modification time.
+// It decides only whether the browser downloads the bundle again.
+export async function bundleStamp(siteId: string) {
+  const stats = await Promise.all((await filesOf(siteId)).map(file => stat(/* turbopackIgnore: true */ file)));
+  return `W/"${stats.length}-${stats.reduce((sum, item) => sum + item.size, 0)}-${Math.max(0, ...stats.map(item => Math.floor(item.mtimeMs)))}"`;
+}
 export type SiteBundle = { format: 'sitecraft-site-bundle'; version: 1; siteId: string; updatedAt: string; files: { path: string; data: string }[] };
 export async function exportBundle(siteId: string): Promise<SiteBundle> {
   const files = await filesOf(siteId);
   return { format: 'sitecraft-site-bundle', version: 1, siteId, updatedAt: (await recordUpdatedAt(siteId)) ?? '',
-    files: await Promise.all(files.map(async file => ({ path: path.relative(dataRoot, file).split(path.sep).join('/'), data: (await readFile(file)).toString('base64') }))) };
+    files: await Promise.all(files.map(async file => ({ path: path.relative(dataRoot, file).split(path.sep).join('/'), data: (await readFile(/* turbopackIgnore: true */ file)).toString('base64') }))) };
 }
 
 // Hydrate a browser bundle into the server copy. A newer server copy of the same
@@ -162,9 +170,9 @@ export async function importBundle(token: string, raw: unknown): Promise<{ statu
   await makeRoom(total, siteId);
   await removeSiteFiles(siteId);
   for (const file of files) {
-    const target = path.join(dataRoot, ...file.path.split('/'));
-    await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, file.bytes);
+    const target = path.join(/* turbopackIgnore: true */ dataRoot, ...file.path.split('/'));
+    await mkdir(/* turbopackIgnore: true */ path.dirname(target), { recursive: true });
+    await writeFile(/* turbopackIgnore: true */ target, file.bytes);
   }
   state.sites.set(siteId, { token, lastActive: Date.now() });
   return { status: 'hydrated', bundle: await exportBundle(siteId) };
@@ -175,7 +183,7 @@ export async function dropServerCopy(siteId: string) {
   await removeSiteFiles(siteId);
 }
 async function siteBytes(siteId: string) {
-  return (await Promise.all((await filesOf(siteId)).map(async file => (await stat(file)).size))).reduce((sum, size) => sum + size, 0);
+  return (await Promise.all((await filesOf(siteId)).map(async file => (await stat(/* turbopackIgnore: true */ file)).size))).reduce((sum, size) => sum + size, 0);
 }
 // Keep the working area under its cap by removing the longest-idle copies that
 // have no task. If that is not enough, the new bundle is refused.

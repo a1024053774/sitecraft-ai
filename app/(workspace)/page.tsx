@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { listCodeSites, type CodeSiteListItem as SiteListItem } from "@/lib/code-site-store";
+import { LocalSiteList } from "@/components/local-site-list";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -34,6 +35,7 @@ function SiteThumb({ site }: { site: SiteListItem }) {
 }
 
 export default async function Dashboard() {
+  if (process.env.SITE_STORE === 'browser') return <LocalDashboard />;
   const sites = await listCodeSites();
   const recent = sites.slice(0, 3);
   const activities = [
@@ -170,6 +172,32 @@ export default async function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// T-202 browser storage: sites live in this browser, so the dashboard lists them client side.
+function LocalDashboard() {
+  return (
+    <div className="app-shell">
+      <AppSidebar active="sites" />
+      <main className="main">
+        <header className="topbar">
+          <div className="breadcrumbs"><span>Workspace</span><ChevronRight size={12} /><strong>我的站点</strong></div>
+          <div className="top-actions"><Link href="/workspace?new=1" className="primary-button"><Plus size={15} />新建站点</Link></div>
+        </header>
+        <div className="page-content">
+          <div className="hero-row">
+            <div>
+              <h1>把公司资料，<br /><span style={{ color: "#2e6b4f" }}>写成它自己的官网。</span></h1>
+              <p>站点、版本和对话只保存在这个浏览器里。开始前先在「工作区设置」填写你的模型接口。</p>
+            </div>
+            <Link href="/workspace?new=1" className="primary-button new-site-button"><WandSparkles size={15} />新建站点 <ArrowUpRight size={14} /></Link>
+          </div>
+          <div className="section-heading"><h2>这个浏览器里的站点</h2></div>
+          <LocalSiteList />
         </div>
       </main>
     </div>
