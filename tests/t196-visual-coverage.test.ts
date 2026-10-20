@@ -15,6 +15,7 @@ const inputs: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fi
 const review1: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review1-inputs.json', import.meta.url), 'utf8'));
 const review2: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review2-inputs.json', import.meta.url), 'utf8'));
 const review3: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review3-overlay-inputs.json', import.meta.url), 'utf8'));
+const review4: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review4-inputs.json', import.meta.url), 'utf8'));
 const scan = (await readFile(new URL('../scripts/visitor-layout-scan.js', import.meta.url), 'utf8')).replace('export function', 'function').replace('export default scanVisitorLayout;', '');
 let unexpected = 0;
 const server = createServer((req, res) => {
@@ -58,13 +59,94 @@ async function run(name: string, code: SiteCode, capture = false, translationSou
   return checked.checks;
 }
 
+async function contrastState(name: string, code: SiteCode, pseudo: string, status: 'measured' | 'unmeasured') {
+  const checks = await run(name, code, true);
+  const observations = JSON.parse(await readFile(`${out}/${name}-visitor.json`, 'utf8'));
+  assert.deepEqual(checks.viewports.map(view => view.width), widths);
+  for (const width of widths) {
+    const state = observations.find((item: { width: number }) => item.width === width);
+    const entries = state.scan.textContrast.filter((item: { key: string; element: string }) => pseudo ? item.key.endsWith(pseudo) : item.element === 'probe');
+    assert.ok(entries.length > 0, `${name}/${width} 必须保留实际文字`);
+    for (const entry of entries) {
+      assert.equal(entry.status, status, `${name}/${width}: ${JSON.stringify(entry)}`);
+      if (status === 'unmeasured') {
+        assert.equal(entry.ratio, null);
+        assert.match(entry.reason, /伪元素叠层无法核对实际底图/);
+      } else assert.equal(typeof entry.ratio, 'number');
+    }
+    if (status === 'unmeasured') assert.ok(checks.issues.some(issue => issue.startsWith(`home/${width} `) && /伪元素叠层无法核对实际底图/.test(issue)), JSON.stringify(checks.issues));
+  }
+  assert.equal(checks.passed, status === 'measured', JSON.stringify(checks.issues));
+}
+
+for (const position of ['inside', 'outside']) {
+  test(`review4 首行背景：${position} 编号拒收，无首行背景测量`, async () => {
+    const name = `marker-${position}-firstline-bg`, code = review4[name];
+    const safe = { ...code, css: code.css.replace('color:white;background:#111', 'color:#111') };
+    await contrastState(`${name}-no-firstline-background-safe`, safe, '::marker', 'measured');
+    await contrastState(name, code, '::marker', 'unmeasured');
+  });
+}
+test('review4 祖先首行背景的反向误拒不再返回错误比值', async () => {
+  // 访客看得清的反向输入也不能继续报告按错误深底得出的 1.053。
+  await contrastState('marker-ancestor-firstline-near-dark', review4['marker-ancestor-firstline-near-dark'], '::marker', 'unmeasured');
+});
+
+for (const name of ['negative-generated-host-white', 'negative-generated-host-transparent-control']) {
+  test(`review4 负层文字：${name} 拒收，仅去掉 z-index 后测量`, async () => {
+    const code = review4[name], safe = { ...code, css: code.css.replace('z-index:-1', 'z-index:auto') };
+    await contrastState(`${name}-auto-safe`, safe, '::before', 'measured');
+    await contrastState(name, code, '::before', 'unmeasured');
+  });
+}
+
+for (const [name, rule] of [
+  ['host-z-index-zero', '#probe{z-index:0}'],
+  ['pseudo-z-index-zero', '#probe::before{z-index:0}'],
+  ['pseudo-z-index-positive', '#probe::before{z-index:1}'],
+]) test(`收口 a：${name} 拒收，auto 测量`, async () => {
+  const source = review4['negative-generated-host-white'];
+  const safe = { ...source, css: source.css.replace('z-index:-1', 'z-index:auto') };
+  await contrastState(`${name}-auto-safe`, safe, '::before', 'measured');
+  await contrastState(name, { ...safe, css: safe.css + rule }, '::before', 'unmeasured');
+});
+
+for (const fragment of ['first-line', 'first-letter']) for (const selector of ['#probe', '.stage']) {
+  test(`收口 b：${selector}::${fragment} 背景拒收，无背景测量`, async () => {
+    const source = review3['marker-first-line-safe'];
+    const name = `fragment-${fragment}-${selector === '#probe' ? 'host' : 'ancestor'}`;
+    const rule = `${selector}::${fragment}{background:white}`;
+    await contrastState(`${name}-no-background-safe`, { ...source, css: source.css + rule.replace('background:white', 'background:transparent') }, '::marker', 'measured');
+    await contrastState(name, { ...source, css: source.css + rule }, '::marker', 'unmeasured');
+  });
+}
+
+test('收口 c：inside 编号的宿主有背景即拒收，无背景或 outside 测量', async () => {
+  const source = review3['marker-first-line-safe'];
+  await contrastState('marker-inside-no-host-background-safe', source, '::marker', 'measured');
+  const painted = { ...source, css: source.css + '#probe{background:white}' };
+  await contrastState('marker-outside-host-background-safe', { ...painted, css: painted.css.replace('list-style-position:inside', 'list-style-position:outside') }, '::marker', 'measured');
+  await contrastState('marker-inside-host-background', painted, '::marker', 'unmeasured');
+});
+
+for (const fragment of ['first-letter', 'first-line']) for (const condition of ['host-z-index', 'background']) {
+  test(`真实文字 ::${fragment} 同样拒收 ${condition}，简单正文测量`, async () => {
+    const source = review1['pseudo-first-letter-safe'];
+    const safe = { ...source, css: source.css.replace('::first-letter', `::${fragment}`) };
+    const name = `dom-${fragment}-${condition}`;
+    await contrastState(`${name}-simple-safe`, safe, '', 'measured');
+    const rule = condition === 'host-z-index' ? '#probe{z-index:0}' : `#probe::${fragment}{background:white}`;
+    await contrastState(name, { ...safe, css: safe.css + rule }, '', 'unmeasured');
+  });
+}
+
 for (const name of ['overlay-fully-opaque-same-as-host-above', 'overlay-semi-transparent-65-same-as-host-above', 'overlay-partial-65-same-as-host-above']) {
   test(`同底色覆盖层仍遮挡生成文字：${name} 三档拒收，无绘制层对照通过`, async () => {
     // 独立复审的访客截图：全白层使文字消失，65% 白层使文字变浅，55% 宽层只遮前半段。
     // 不能只算白层对白底不变；保守合同要求无法核实叠层时拒收，不报告未经证明的比值。
     const code = review3[name];
     const bad = await run(name, code, true);
-    const safe = { ...code, css: code.css.replace(/background:(white|rgba\(255,255,255,\.65\));z-index:2/, 'background:transparent;z-index:2') };
+    const safe = { ...code, css: code.css.replace(/background:(white|rgba\(255,255,255,\.65\));z-index:2/, 'background:transparent;z-index:2').replace('z-index:1', 'z-index:auto') };
     const good = await run(`${name}-no-paint-safe`, safe, true);
     assert.equal(good.passed, true, JSON.stringify(good.issues));
     const observations = JSON.parse(await readFile(`${out}/${name}-visitor.json`, 'utf8'));
@@ -143,7 +225,7 @@ test('空 content 不证明没有绘制层：同宿主与祖先叠层无法核�
     }
   }
   const code = review2['empty-after-background-overlay'];
-  const safe = { ...code, css: code.css.replace('background:white}', 'background:transparent}') };
+  const safe = { ...code, css: code.css.replace('background:white}', 'background:transparent}').replace('z-index:1', 'z-index:auto') };
   assert.equal((await run('empty-after-no-paint-safe', safe, true)).passed, true);
   assert.equal((await run('empty-content-good', review2['empty-content-good'])).passed, true);
   assert.equal((await run('attr-empty-good', review2['attr-empty-good'])).passed, true);

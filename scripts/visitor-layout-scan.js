@@ -350,7 +350,22 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
     }
     return {known:true,layers};
   };
+  const hasBackground = style => style.backgroundImage!=='none'||rgba(style.backgroundColor)?.[3]!==0;
+  // 构思主控 2026-10-20：只测最简单的绘制条件，不推断堆叠顺序。
+  const generatedPaintReason = (el,pseudo) => {
+    const host=getComputedStyle(el),paint=getComputedStyle(el,pseudo);
+    if(host.zIndex!=='auto'||paint.zIndex!=='auto') return '伪元素叠层无法核对实际底图';
+    for(let p=el;p;p=p.parentElement) for(const fragment of ['::first-line','::first-letter']){
+      if(hasBackground(getComputedStyle(p,fragment))) return '伪元素叠层无法核对实际底图';
+    }
+    if(pseudo==='::marker'&&host.listStylePosition!=='outside'&&hasBackground(host)) return '伪元素叠层无法核对实际底图';
+    return '';
+  };
   const backgroundFor = (el,sampleRects=null,pseudo=null) => {
+    if(pseudo){
+      const reason=generatedPaintReason(el,pseudo);
+      if(reason) return {known:false,reason};
+    }
     const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
     const paints=chain.map(p=>getComputedStyle(p));
     if(pseudo) paints.push(getComputedStyle(el,pseudo));
@@ -382,7 +397,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
       if(!parsedBackground.known) return {known:false,reason:parsedBackground.reason};
       const layers=parsedBackground.layers;
       let paintsText=true;
-      // 同一实色覆盖与否都不改变叠底；其余情况必须证明实际覆盖。
+      // 已通过绘制门禁；这里只核实底色覆盖，不能据此证明文字未被遮挡。
       const sameSolidBackdrop=!layers.length&&backgrounds.every(bg=>color.every((value,index)=>value===bg[index]));
       if(pseudo&&sampleRects?.length&&(color[3]>0||layers.length)&&!sameSolidBackdrop) {
         // 只在背景盒完整覆盖文字行时叠加；完全不相交的宿主不提供底色。
@@ -482,6 +497,18 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
   const textWalker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT);
   const measuredBodyBlocks=new Set();
   const reportedExemptions=new Set();
+  // first-line／first-letter 包装真实 DOM 文字时也须满足同一门禁。
+  const textFragmentSelectors=[];
+  const collectTextFragments=(rules,parent='')=>{for(const rule of rules){
+    const text=rule.selectorText;
+    const resolved=text?(parent?(text.includes('&')?text.replace(/&/g,`:is(${parent})`):`:is(${parent}) ${text}`):text):parent;
+    for(const selector of splitTopLevel(text?resolved:'')){
+      const match=/::?(first-line|first-letter)\b/i.exec(selector);
+      if(match) textFragmentSelectors.push({selector:selector.replace(match[0],'').trim(),pseudo:`::${match[1].toLowerCase()}`});
+    }
+    if(rule.cssRules) collectTextFragments(rule.cssRules,resolved);
+  }};
+  for(const sheet of document.styleSheets) collectTextFragments(sheet.cssRules);
   while(textWalker.nextNode()){
     const node=textWalker.currentNode,el=node.parentElement;
     if(!node.textContent.trim()||fullyHidden(el)) continue;
@@ -496,6 +523,10 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
     for(let ancestor=el;ancestor;ancestor=ancestor.parentElement){
       const paint=getComputedStyle(ancestor);
       if(/\btext\b/.test(paint.backgroundClip||paint.webkitBackgroundClip||'')) paintReason='背景裁切文字无法测量';
+      for(const {selector,pseudo} of textFragmentSelectors){
+        try{if(ancestor.matches(selector)) paintReason=paintReason||generatedPaintReason(ancestor,pseudo);}
+        catch{paintReason='伪元素叠层无法核对实际底图';}
+      }
     }
     const measured=background.known&&foreground&&!paintReason ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:paintReason||background.reason||'前景色无法解析'};
     const role=el.closest('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!el.closest('p')&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
@@ -515,13 +546,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
   }
   // DOMSnapshot 可能不暴露 first-line 的实际文字样式，不能用普通伪元素样式代替。
   // 只在生成文字路径使用；真实 DOM 的安全首行／首字母继续走原 Range 路径。
-  const firstLineSelectors=[];
-  const collectFirstLine=rules=>{for(const rule of rules){
-    const selector=rule.selectorText;
-    if(selector&&/::?first-line\b/i.test(selector)) firstLineSelectors.push(...selector.split(',').filter(s=>/::?first-line\b/i.test(s)).map(s=>s.replace(/::?first-line\b/i,'').trim()));
-    if(rule.cssRules) collectFirstLine(rule.cssRules);
-  }};
-  for(const sheet of document.styleSheets) collectFirstLine(sheet.cssRules);
+  const firstLineSelectors=textFragmentSelectors.filter(item=>item.pseudo==='::first-line').map(item=>item.selector);
   const uncertainFirstLine=el=>{
     for(let p=el;p;p=p.parentElement) for(const selector of firstLineSelectors){
       try{if(p.matches(selector)) return true;}catch{return true;}

@@ -320,3 +320,89 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 #### 本轮交付边界
 
 本轮授权内修复与门控 **PASS**。`claimed_by: codex-t196e`，票保持 open，合并后主线验证及独立审查继续不勾选。未跑全量／runner／build、未推送或 force-push、未读 .env／.env.local、未调用真实模型、未开审查实例、未使用 rm；主工作区 artifacts 与 .sitecraft-data 均未写入。保留开工时已有的 tsconfig.json 自动改动，不提交。源码、测试、夹具、当前规则与本节记录合为本地提交，最终 SHA 随交付回报；日志和截图按项目约定留在 gitignore 的本工作树 artifacts。
+
+
+### 2026-10-20 review4 两项 P2 与主控收口规则（codex-t196e）
+
+完整读取主工作区只读 `artifacts/t196/review4.txt` 及 `review4-probes/independent-inputs.json`。本轮输入是 **gpt-6.1-sol 独立交叉复核**对 `e515ac2` 的 NO_GO：P2-1 是 marker 前景不变却误用宿主底色，inside 编号受 first-line 黑底影响仍报告 18.883，祖先白底的反向输入又错误报告约 1.053；P2-2 是负层生成文字被宿主白底遮住，仍当作无遮挡文字接受。本轮没有新开审查实例。
+
+#### 收口决定与实现
+
+**来源：构思主控决定，2026-10-20；本轮用户补充明确其优先级高于此前逐例分析。** 对 ::before、::after、::marker 以及 ::first-letter／::first-line 中的文字，只在同时满足下列必要条件时进入对比度测量：
+
+1. 宿主和该伪元素的 z-index 都为 auto，零、正数和负数都不能放行。
+2. 宿主及祖先均没有带背景的 ::first-line 或 ::first-letter。
+3. 若为 marker，须为 list-style-position:outside，或宿主自身没有背景。
+
+任一不满足就以「伪元素叠层无法核对实际底图」判为无法测量并拒收，ratio=null；不新增同色、透明度或 z-index 豁免，不逐种推断绘制顺序。满足三条仍须通过既有快照完整性、分片样式、其他 before／after 绘制层、独立叠层和实际底色检查。T-195 两条排除规则、1px／2px 容差和对比度阈值均未改。
+
+- `scripts/visitor-layout-scan.js` 的同一门禁同时用于生成文字的背景读取，以及有作者 first-line／first-letter 规则的真实 DOM 文字路径；后者复用 CSSOM 选择器收集，并保留嵌套规则的父选择器上下文。宿主背景的 sameSolidBackdrop／covers 只在门禁通过后核实底色覆盖，不能再让非 auto z-index 的文字进入该推断，背景盒覆盖文字不被当成文字未遮挡的证明。
+- marker 不再整体跳过首行底色条件。收口规则不为 outside 首行背景建立特例：review4 的 inside、outside 首行背景及祖先反向输入全部明确无法测量；不再返回 18.883 或 1.053。去掉首行背景后的安全输入才测量。已有“仅改变 first-line 前景、marker 自身颜色不变”的低对比／安全成对用例仍通过。
+- 白底与透明宿主的负层文字都因非 auto z-index 拒收；安全对照保留其宿主背景与定位，仅把生成文字的 z-index 改为 auto。review3 三个覆盖层反例保留；无绘制层安全对照同时将生成文字改为 auto，以满足新必要条件，不恢复其他绘制层豁免。
+- `lib/code-site-layout-repair.ts` 同样保留真实 DOM 首行／首字母文字的具体无法测量原因，避免摘要只报“未知”而丢掉收口拒因。没有开放新的修正位置、接口或写入路径。spec 第 6 节与 AGENTS.md 的 T-196 段已同步；CONTEXT 与 mainline 各补一句当前拒因说明及规格引用，避免相关 living docs 过期。
+
+Tracer bullet 仍为独立输入 → 生产静态渲染 → Chrome 实际文字／布局 → 生产 checkSiteCode 三档拒因；Deep modules 保持一个测量门禁，不增加顺序分析器；Ubiquitous language 使用“收口条件”“无法测量”和“生成文字位置”。
+
+#### 红绿与最终门控（UTC）
+
+`tests/fixtures/t196-review4-inputs.json` 只复制独立输入，不复制检查答案。新增 17 项用例覆盖 review4 两组与反向输入、a 的宿主／伪元素零值和正值、b 的宿主／祖先首行和首字母背景、c 的 inside 有背景／无背景／outside，以及真实 DOM 首行／首字母文字。全部经生产 checkSiteCode 三档检查，并以原样访客观察核对 status、ratio 与明确拒因；安全条件同时要求 measured 且整站通过。两项实际绘制缺陷的期望来自独立访客截图；新增保守条件的期望来自主控合同，**不把所有新增拒收都冒称实际低对比度**。
+
+```sh
+export CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell
+# 红态及聚焦绿态均执行同一标准入口
+npm test -- --browser-concurrency=1 tests/t196-visual-coverage.test.ts
+# 最终相关门控，浏览器文件串行
+npm test -- --browser-concurrency=1 \
+  tests/t196-visual-coverage.test.ts tests/t195-hidden-overlap.test.ts tests/t160-narrow-columns.test.ts \
+  tests/t187-repair-fragments.test.ts tests/t187-repair-routing.test.ts tests/t191-display-transition.test.ts \
+  tests/t191-fact-label-boundary.test.ts tests/t192-check-transitions.test.ts tests/t173-repair-scope.test.ts \
+  tests/t089-contrast-line-length.test.ts tests/t178-full-style-equivalence.test.ts tests/t164-review-seven.test.ts
+npm run typecheck
+```
+
+证据均在本工作树 `artifacts/t196/review4-fix/`，各 `*-command.json` 保存精确命令、cwd、Chrome、起止时间和退出码，`*.log` 保留原始输出：
+
+- **初始 HEAD 红态**：08:35:34.687842Z–08:36:14.094109Z，21 项中 15 通过、6 失败，退出 1；当时按条件合组，首次断言失败后同组后续输入未执行，因此随后拆成独立用例完整跑红，原日志 `head-e515ac2-red.log` 不覆盖。
+- **完整 HEAD e515ac2 红态**：08:37:05.576566Z–08:37:55.480894Z，32 项中原有 15 通过、新增 **17 全部失败**，退出 1；安全对照通过，失败均是应明确无法测量却仍返回 measured／比值，含反向输入的错误低比值。日志 `head-e515ac2-complete-red.log`，标准入口 `artifacts/t167/test-run-1792485425924-34117/`，观察及截图 `artifacts/t196/probes-1792485427665-34125/`。生产源码此时仍为 e515ac2，未 checkout／reset。
+- **首次修后结果**：08:39:31.926556Z–08:40:22.312665Z，28／32，退出 1；四项真实 DOM 分片已经扫描为 unmeasured、ratio=null，但提交摘要没有带具体原因。`first-green.log` 名称沿用，内容是失败，不计绿态；补齐原因传递，没有削弱断言。
+- **聚焦绿态**：08:40:58.028042Z–08:41:47.909898Z，32／32，退出 0；`second-green.log`，标准入口 `artifacts/t167/test-run-1792485658361-38524/`。
+- **最终相关门控**：08:43:23.176519Z–08:45:48.564502Z，12 文件 **156／156 通过**，失败／取消／跳过均为 0，退出 0，含 T-196 32／32、T-164 14／14、T-195 13／13。日志 `final-targeted.log`，标准入口 `artifacts/t167/test-run-1792485803588-40968/`。该轮包含最终嵌套选择器上下文处理，之后未改生产代码或测试。
+- **最终 typecheck**：08:43:23.176518Z–08:43:24.433099Z，退出 0；`final-typecheck.log`。较早一次通过记录 `typecheck.log` 同样保留。
+
+最终原样截图与观察为 `artifacts/t196/probes-1792485900502-43833/`。本轮新增用例的 102 张三档原图，加 review3 三对及 marker 前景对照 24 张，共 126 张，已通过 `review4-fix/final-contact-{1..11}.png` 的完整页面／文字区域汇总逐张打开；HEAD 的 review4 两组与反向输入及安全对照 27 张已通过 `red-contact-{1..3}.png` 打开。完全遮挡的白区仍有已加载标题，不能把它当作载入态。汇总可由 `python3 artifacts/t196/review4-fix/make-contact-sheets.py <探针目录> <red或final>` 重建；没有固定等待、哈希、字节或像素比对。主要红绿观察另存 `red-green-observations.json`。
+
+#### T-190 的 14 站只读离线对比与已知代价
+
+再次只读核对主工作区 `.sitecraft-data/code-sites/` 中全部 14 个“（新资料 T-190）”站点：currentVersionId 与 manifest 一致，本工作树现有副本仅去掉站名备注，其他字段与源相同；记录为 `source-verification.json`。沿用本工作树副本、manifest 及原离线包装，实际调用生产 `scripts/check-code-quality-offline.ts`，无模型审计、不存版本。
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t196/offline.mjs artifacts/t196/review4-fix/offline-before
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t196/offline.mjs artifacts/t196/review4-fix/offline-after
+```
+
+- 改前完整命令 08:38:29.437014Z–08:38:52.258844Z，退出 0；summary 检查完成于 08:38:43.504Z。
+- 改后完整命令 08:42:21.970363Z–08:42:44.905740Z，退出 0；summary 检查完成于 08:42:36.201Z。
+- 改前改后均 **14／14 通过、129 个页面视口、0 条底线拒因、0 个回放错误**；siteId／versionId、逐站拒因及质量反馈完全一致。**新增拒因站点 0，新增拒收位置无；未达到“超过 3 站即停止”阈值。** 结果和逐站位置字段见 `offline-comparison.json`、`offline-{before,after}/results.json`、对应 summary 与日志。元数据明确为 commit=e515ac2、dirty=true，改后是本轮修复候选，不冒称最终 SHA 重跑。
+
+| 站点 | siteId 前八位 | 页面视口 | 改前拒因 → 改后拒因 |
+| --- | --- | --- | --- |
+| 青禾纸包装 | 02058cac | 9 | 0 → 0 |
+| 禾巷小馆 | 2c11a272 | 9 | 0 → 0 |
+| 外高桥流体接头 | 3938dc82 | 9 | 0 → 0 |
+| 忻州重载减速机 | 50f563f6 | 6 | 0 → 0 |
+| 折页设计工作室 | 519b44cd | 9 | 0 → 0 |
+| 外高桥流体接头 | 61601e66 | 9 | 0 → 0 |
+| 拾色绘画教室 | 641e5b8b | 9 | 0 → 0 |
+| 禾巷小馆 | 961cd7a2 | 9 | 0 → 0 |
+| 拾色绘画教室 | a44ba7c8 | 9 | 0 → 0 |
+| 拾色绘画教室 | aa40ead3 | 9 | 0 → 0 |
+| 宁海精密注塑模具 | aaf4ff61 | 12 | 0 → 0 |
+| 宁海精密注塑模具 | bd77156a | 12 | 0 → 0 |
+| 禾巷小馆 | cb04f202 | 9 | 0 → 0 |
+| 拾色绘画教室 | ce92cb36 | 9 | 0 → 0 |
+
+已知代价：规则会拒绝一些访客实际可见的文字，例如带首行背景的 outside 编号、透明宿主中可见的负层文字、以及同白底 inside 编号；这些输入在回归中按主控合同明确拒收，不另建例外。以上代价在本次 14 站中未产生新拒站，不据此承诺其他站点没有误拒。两轮各六张离线截图已通过 `offline-{before,after}-{ungatedHover,smallTargets}-view.png` 完整页面汇总打开；不以技术通过替代审美或独立复审。
+
+#### 交付边界
+
+本轮授权内修复与门控 **PASS**；claimed_by 仍为 codex-t196e。票保持 open，合并后主线验证与独立审查未勾选。未跑全量／runner／build、未开审查实例、未调用真实模型、未读 .env／.env.local、未推送或 force-push、未使用 rm；主工作区 artifacts 与 .sitecraft-data 均未写入。保留原 tsconfig.json 的 Next 自动改动，不纳入提交。日志与截图留在本工作树 gitignore 的 artifacts；源码、测试、输入夹具与当前规则／本节记录合为本地提交，最终 SHA 随交付回报。

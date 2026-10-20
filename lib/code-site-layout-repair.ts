@@ -191,7 +191,7 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
   if (scan.horizontalScroll || scan.overflowElements.length) collect(`${prefix} 横向溢出`, scan.overflowElements.map(item => item.key), false);
   if (scan.textOverlaps.length) collect(`${prefix} 文字重叠`, scan.textOverlaps.flatMap(item => item.targets), false);
   for (const item of contrast.slice(0, 8)) {
-    const reason = /::(?:before|after|marker)$/.test(item.key) && item.reason ? `；${item.reason}` : '';
+    const reason = item.reason ? `；${item.reason}` : '';
     collect(`${prefix} 对比度不足或无法测量：${item.text}（${item.ratio?.toFixed(2) ?? '未知'}，需 ${item.threshold}）${reason}`, [item.key], true);
   }
   return records;
