@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SiteCraft · 把公司资料写成它自己的官网</title>
+<meta name="description" content="上传资料或描述需求，选一种风格，生成一套多页展示型官网，再在对话和批注里修改。">
+<style>
+  :root {
+    --paper: #f5f2ec;
+    --ink: #1d1b18;
+    --muted: #5f5a52;
+    --line: #d9d3c8;
+    --accent: #b5371c;
+    --serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "Source Han Serif CN", serif;
+    --sans: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.75 var(--sans);
+  }
+  a { color: inherit; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  img { display: block; max-width: 100%; height: auto; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  header .wrap {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 80px;
+  }
+  .mark { font-family: var(--serif); font-size: 20px; font-weight: 700; letter-spacing: .02em; text-decoration: none; }
+  .mark span { color: var(--accent); }
+  .nav-link { font-size: 15px; text-decoration: none; border-bottom: 1px solid var(--ink); padding-bottom: 2px; }
+
+  .hero { padding: 96px 0 120px; }
+  .hero h1 {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: clamp(34px, 7.2vw, 88px);
+    line-height: 1.18;
+    letter-spacing: -.01em;
+    margin: 0;
+    max-width: 11em;
+  }
+  .clause { display: inline-block; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { max-width: 34em; margin: 40px 0 0; font-size: 18px; color: var(--muted); }
+  .cta { margin-top: 48px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; }
+  .button {
+    display: inline-block;
+    background: var(--accent); color: #fff;
+    text-decoration: none; font-size: 16px; font-weight: 600;
+    padding: 14px 28px; border-radius: 2px;
+  }
+  .button:hover { background: #962c15; }
+  .cta small { font-size: 14px; color: var(--muted); }
+
+  .example { padding-bottom: 128px; }
+  .first { margin: 0; }
+  .example .frames { display: grid; grid-template-columns: 1fr 220px; gap: 40px; align-items: end; }
+  .example img { border: 1px solid var(--line); }
+  figcaption { margin-top: 16px; font-size: 14px; color: var(--muted); }
+
+  .section { border-top: 1px solid var(--line); padding: 96px 0; }
+  .section-head { display: grid; grid-template-columns: 280px 1fr; gap: 40px; }
+  .section h2 { font-family: var(--serif); font-size: 28px; line-height: 1.4; margin: 0; font-weight: 700; }
+  .section-head > p { margin: 0; color: var(--muted); max-width: 36em; }
+
+  .steps { list-style: none; margin: 64px 0 0; padding: 0; counter-reset: step; }
+  .steps li {
+    counter-increment: step;
+    display: grid; grid-template-columns: 280px 1fr; gap: 40px;
+    padding: 28px 0; border-top: 1px solid var(--line);
+  }
+  .steps li:last-child { border-bottom: 1px solid var(--line); }
+  .steps h3 { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 700; line-height: 1.5; }
+  .steps h3::before { content: counter(step); color: var(--accent); margin-right: 16px; font-size: 16px; vertical-align: 3px; }
+  .steps p { margin: 0; max-width: 36em; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 64px; }
+  .pair h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+  .pair p { margin: 0; color: var(--muted); }
+
+  .rules { margin: 64px 0 0; padding: 0; list-style: none; max-width: 44em; }
+  .rules li { padding: 14px 0 14px 28px; position: relative; border-top: 1px solid var(--line); }
+  .rules li::before { content: ""; position: absolute; left: 0; top: 27px; width: 12px; height: 1px; background: var(--accent); }
+
+  .gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 72px 40px; margin: 64px 0 0; }
+  .gallery figure { margin: 0; }
+  .gallery img { border: 1px solid var(--line); }
+  .sample-link { display: block; }
+  .sample-link:hover img { border-color: var(--ink); }
+  .sample-link:focus-visible { outline-offset: 6px; }
+  figcaption .open { margin-left: 12px; color: var(--accent); text-underline-offset: 3px; white-space: nowrap; }
+  .gallery figcaption b { color: var(--ink); font-weight: 600; margin-right: 8px; }
+
+  .note { margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--ink); max-width: 44em; }
+  .note h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+  .note p { margin: 0; }
+
+  .closing { border-top: 1px solid var(--line); padding: 120px 0 128px; }
+  .closing h2 { font-family: var(--serif); font-size: clamp(30px, 4.4vw, 52px); line-height: 1.3; margin: 0; font-weight: 700; max-width: 14em; }
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; font-size: 13px; color: var(--muted); }
+  footer p { margin: 0; max-width: 60em; }
+  footer p + p { margin-top: 12px; }
+  footer a { text-underline-offset: 3px; }
+
+  @media (max-width: 900px) {
+    .section-head, .steps li { grid-template-columns: 1fr; gap: 12px; }
+    .example .frames { grid-template-columns: 1fr 160px; gap: 24px; }
+    .gallery { gap: 56px 24px; }
+  }
+  @media (max-width: 600px) {
+    .wrap { padding: 0 16px; }
+    header .wrap { height: 64px; }
+    .hero { padding: 56px 0 72px; }
+    .hero p { margin-top: 28px; font-size: 17px; }
+    .example { padding-bottom: 80px; }
+    .example .frames { grid-template-columns: 1fr; }
+    .example .phone { max-width: 220px; }
+    .section { padding: 64px 0; }
+    .steps, .pair, .rules, .gallery, .note { margin-top: 40px; }
+    .gallery { grid-template-columns: 1fr; gap: 48px; }
+    figcaption .open { display: block; margin: 4px 0 0; }
+    .pair { grid-template-columns: 1fr; gap: 28px; }
+    .closing { padding: 72px 0 80px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="mark" href="#top">SiteCraft<span>.</span></a>
+    <a class="nav-link" href="BUILDER_URL">打开建站工作台</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <h1>把公司资料，<br>写成它<em>自己</em>的官网。</h1>
+      <p>上传公司介绍、价目表或产品说明，也可以直接描述想要的网站。选一种风格，SiteCraft 写出一套多页展示型官网；不满意的地方，在对话里说，或在预览上直接批注。</p>
+      <div class="cta">
+        <a class="button" href="BUILDER_URL">打开建站工作台</a>
+        <small>下方示例均由模拟资料生成，店铺与公司并不存在。</small>
+      </div>
+    </div>
+  </section>
+
+  <section class="example" aria-label="生成示例">
+    <div class="wrap">
+      <figure class="first">
+        <div class="frames">
+          <a class="sample-link" href="samples/molding/index.html" target="_blank" rel="noopener"><img src="images/molding-desktop.jpg" width="1440" height="900" alt="样品「宁海精密」首页电脑端截图：精密注塑模具与注塑件，多腔热流道模具的型腔数、寿命、公差和成型周期"></a>
+          <a class="sample-link" href="samples/molding/index.html" target="_blank" rel="noopener"><img class="phone" src="images/molding-mobile.jpg" width="390" height="844" alt="同一样品在手机宽度下的截图"></a>
+        </div>
+        <figcaption>宁海精密，注塑模具厂，精密工程风格。型腔数、公差这些参数都来自输入的模拟资料；电脑和手机用的是同一套页面。<a class="open" href="samples/molding/index.html" target="_blank" rel="noopener">打开这份样品</a></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>从资料到网站</h2>
+        <p>流程是固定的，内容和版式按每家的资料来定。资料少，网站就做得少；之后补充资料，再接着丰富。</p>
+      </div>
+      <ol class="steps">
+        <li><h3>给资料</h3><p>上传文档，或者用几句话说明公司做什么、想放哪些页面。点名要的页面，资料撑不起来时会直接说明，不拿空壳凑数。</p></li>
+        <li><h3>对齐风格</h3><p>开写之前先确认方向：选一种主风格，再用两个滑杆调版式和疏密，也可以交给「帮我选」按资料挑。滑杆只改变排法，不增删内容。</p></li>
+        <li><h3>生成整站</h3><p>先列页面大纲，再逐页写出 HTML 和样式，检查修正后存成第一个版本，带公共页头页脚。</p></li>
+        <li><h3>对话和批注修改</h3><p>在对话里提要求，或者在预览上点选、圈选某一块写下意见，几条一起发送。改动只落在选中的区块，其余页面保持原样。</p></li>
+        <li><h3>版本撤销与恢复</h3><p>每次修改都存成完整版本。撤销就是回到旧版本，刷新页面也会从当前版本接着来。</p></li>
+      </ol>
+      <div class="pair">
+        <div>
+          <h3>英文版</h3>
+          <p>中文站定稿后，可以再生成一份英文版，沿用同一套结构，只翻译文字；数字、型号、邮箱和网址逐项核对，不会在翻译中走样。</p>
+        </div>
+        <div>
+          <h3>站点打包下载</h3>
+          <p>把当前版本下载成一个静态站点包：每页的 HTML、样式、实际用到的图片，以及一份图片许可说明，可以直接放到自己的服务器上。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-label="样品">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>同一套流程，五种样子</h2>
+        <p>下面几份样品，行业和风格各不相同，都是从已生成的站点里挑出来的。点开截图，可以在新标签页里翻完整网站；它们就是系统导出的站点包，原样放在这里。公司与店铺都是模拟资料，并不存在。</p>
+      </div>
+      <div class="gallery">
+        <figure>
+          <a class="sample-link" href="samples/export/index.html" target="_blank" rel="noopener"><img src="images/export-desktop.jpg" width="1440" height="900" loading="lazy" alt="样品「外高桥流体接头」首页截图：快换接头与卡套接头的通径、压力和材质"></a>
+          <figcaption><b>外高桥流体接头</b>不锈钢接头出口 · 精密工程<a class="open" href="samples/export/index.html" target="_blank" rel="noopener">打开样品</a></figcaption>
+        </figure>
+        <figure>
+          <a class="sample-link" href="samples/restaurant/index.html" target="_blank" rel="noopener"><img src="images/restaurant-desktop.jpg" width="1440" height="900" loading="lazy" alt="样品「禾巷小馆」首页截图：衬线大标题，单人饭菜与价格"></a>
+          <figcaption><b>禾巷小馆</b>社区家常菜馆 · 品牌画册<a class="open" href="samples/restaurant/index.html" target="_blank" rel="noopener">打开样品</a></figcaption>
+        </figure>
+        <figure>
+          <a class="sample-link" href="samples/education/index.html" target="_blank" rel="noopener"><img src="images/education-desktop.jpg" width="1440" height="900" loading="lazy" alt="样品「拾色绘画教室」首页截图：三门小班课程的次数、人数与学费"></a>
+          <figcaption><b>拾色绘画教室</b>成人业余绘画小班 · 现场实拍<a class="open" href="samples/education/index.html" target="_blank" rel="noopener">打开样品</a></figcaption>
+        </figure>
+        <figure>
+          <a class="sample-link" href="samples/design/index.html" target="_blank" rel="noopener"><img src="images/design-desktop.jpg" width="1440" height="900" loading="lazy" alt="样品「折页设计工作室」首页截图：三项服务与沿革年份"></a>
+          <figcaption><b>折页设计工作室</b>平面设计工作室 · 邻里日常<a class="open" href="samples/design/index.html" target="_blank" rel="noopener">打开样品</a></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>存版本之前，先过底线</h2>
+        <p>生成、对话、批注、恢复，所有改动都走同一个入口。没通过的会交回去修，最多两轮；仍然不过，就如实告诉你卡在哪里。</p>
+      </div>
+      <ul class="rules">
+        <li>价格、时间、资质、承诺、效果、客户与评价，必须能在你给的资料里找到原句；找不到就留作「待补充」，不替你编。</li>
+        <li>页面里没有脚本、外部资源、未授权图片和空链接。</li>
+        <li>在手机、平板、电脑三种宽度下检查：不横向溢出、不互相遮挡，正文对比度足够看清。</li>
+      </ul>
+      <div class="note">
+        <h3>用你自己的模型接口</h3>
+        <p>在建站工作台的设置里填上 API 地址、key 和模型名，它们只保存在你的浏览器里；站点、版本、对话和上传的资料同样存在你的浏览器。服务器只在处理这一次请求时用到 key，不保存。目前只保证 DeepSeek 兼容接口可用。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing">
+    <div class="wrap">
+      <h2><span class="clause">准备好资料，</span><span class="clause">从第一版开始。</span></h2>
+      <div class="cta">
+        <a class="button" href="BUILDER_URL">打开建站工作台</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>页面中的样品站点均由模拟资料生成，公司与店铺并不存在。</p>
+    <p>示例中的行业配图来源与许可：宁海精密样品中的注塑模具照片 <a href="https://commons.wikimedia.org/wiki/File:HTS_main_frame_polymer_injection_mold.jpg">HTS main frame polymer injection mold</a>，作者 MobiusDaXter，来自 Wikimedia Commons，按 <a href="https://creativecommons.org/licenses/by-sa/3.0">CC BY-SA 3.0</a> 使用，经缩放和重新编码。其余样品截图中没有第三方图片。各样品站内用到的全部图片，署名与许可见该样品页脚的「图片来源与许可」及其目录下的 LICENSES.txt。</p>
+  </div>
+</footer>
+</body>
+</html>

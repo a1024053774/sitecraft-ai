@@ -1,0 +1,50 @@
+SiteCraft static site package licenses
+
+Images included in this package:
+- assets/images/img_1e13c5b1bb6f40efa3b8e626.jpg
+  Attribution: Piece plastique moulee par injection02.jpg — Jean-Jacques MILAN; https://commons.wikimedia.org/wiki/File:Piece_plastique_moulee_par_injection02.jpg; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/); full-frame resized/JPEG re-encoded derivative; same source license retained.
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:Piece_plastique_moulee_par_injection02.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/3.0/
+- assets/images/img_b0bab478c9774c0c8a5384e5.jpg
+  Attribution: Andreas Ginschel — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:Stippe.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/3.0
+- assets/images/img_7864a8480b844414ae5c3621.jpg
+  Attribution: Globetrotter19 — CC BY-SA 4.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:Fabrik,_Kisgy%C3%A1rstrasse,_2026_Hal%C3%A1sztelek.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/4.0
+- assets/images/img_005e76823c4b42c2b096ab0d.jpg
+  Attribution: Cjp24 — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:Bi_material_molding_machine.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/3.0
+- assets/images/img_c74fec3bec38468db27275ae.jpg
+  Attribution: MobiusDaXter — CC BY-SA 3.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:HTS_main_frame_polymer_injection_mold.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/3.0
+- assets/images/img_35cdb7b3d6e445fa8b5e5d56.jpg
+  Attribution: dierk schaefer — CC BY 2.0; Wikimedia Commons; JPEG re-encoded/resized (modified from source).
+  License: CC BY
+  Source: https://commons.wikimedia.org/wiki/File:Plastic_bottles_before_processing.jpg
+  License URL: https://creativecommons.org/licenses/by/2.0
+
+Lucide icons
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.

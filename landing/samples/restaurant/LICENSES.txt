@@ -1,0 +1,18 @@
+SiteCraft static site package licenses
+
+Images included in this package:
+- assets/images/img_cc2ff238812d46258ad9be34.jpg
+  Attribution: Tomatoes.jpg — Wilfredor (Wilfredo R. Rodriguez H.); https://commons.wikimedia.org/wiki/File:Tomatoes.jpg; CC0 (https://creativecommons.org/publicdomain/zero/1.0/deed.en); full-frame resized/JPEG re-encoded derivative.
+  License: CC0
+  Source: https://commons.wikimedia.org/wiki/File:Tomatoes.jpg
+  License URL: https://creativecommons.org/publicdomain/zero/1.0/deed.en
+- assets/images/img_a87ab3a25f4b4367bba6a2a6.jpg
+  Attribution: Funghi Shiitake.jpg — Albarubescens; https://commons.wikimedia.org/wiki/File:Funghi_Shiitake.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:Funghi_Shiitake.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/4.0
+- assets/images/img_4861de7435104cc984ab7770.jpg
+  Attribution: Tofu 2.jpg — Tiia Monto; https://commons.wikimedia.org/wiki/File:Tofu_2.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:Tofu_2.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/4.0

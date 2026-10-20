@@ -2,7 +2,7 @@
 id: T-201
 title: 简约艺术风产品页与样品展示
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: 执行主控
 supersedes:
@@ -19,7 +19,24 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 负责人看过初版，按反馈调整
-- [ ] 三档截图无溢出、重叠，链接有效
+- [x] 负责人看过第三版，上线后按反馈调整
+- [x] 三档截图无溢出、重叠，链接有效
 
 ## Resolution
+
+**三版过程**：
+- 初版：两个无照片样品。
+- 第二版：按负责人要求补到 5 个样品，覆盖 4 种已登记风格和 5 个行业，优先用 T-190 跨轮盲评的胜出站。品牌画册风格没有胜出站，所以餐馆样品改用同店的品牌画册版，其余 4 站都是胜出站。页脚新增「示例中的行业配图来源与许可」，截图首屏里唯一的第三方照片保留原署名，许可是 CC BY-SA 3.0。
+- 第三版：5 个样品的站点包原样解压到 `landing/samples/<molding|export|restaurant|education|design>/`，截图和「打开样品」链接都在新标签页打开；各样品页脚和目录下保留各自的 LICENSES.txt。
+
+**定稿**：2026-10-20 负责人看过第三版，没有提修改，按「上线后再根据结果调整」定稿。
+
+**页面**：
+- 形式：`landing/index.html` 加内联 CSS，无脚本，无外部资源，`landing/` 合计 4.4M。
+- 主按钮写的是占位地址 `BUILDER_URL`，部署时由 T-204 替换。
+- 文案只写系统真实具备的能力；「用你自己的模型接口」一段对应 T-202 的实际实现。
+
+**证据**（2026-10-20，截图在 `artifacts/landing/`）：
+- 三档全页截图 `landing-{1440,768,375}.png`：scrollWidth 都等于视口宽度，6 张图都加载成功。
+- 链接检查：产品页和样品里共 189 个本地 href/src，都能对上文件。
+- 点开检查：用本地静态 HTTP 服务模拟 nginx，从首屏链接进入宁海精密，依次点 4 个导航，样式和图片都正常，服务日志里 0 个 404。截图是 `sample-molding-home.png` 和 `sample-molding-last-nav.png`。

@@ -1,0 +1,13 @@
+SiteCraft static site package licenses
+
+Images included in this package:
+- assets/images/img_6c9400940e9f4ad7a95b3c0b.jpg
+  Attribution: Speciality artists pencils 051907.jpg — Mrs Scarborough; https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg; Public Domain (https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg#Licensing); source file colour-adjusted by Hohum on 2025-07-08 (Commons file history); full-frame resized/JPEG re-encoded derivative.
+  License: Public Domain
+  Source: https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg
+  License URL: https://commons.wikimedia.org/wiki/File:Speciality_artists_pencils_051907.jpg#Licensing
+- assets/images/img_bb0e6426eb4c428eae328851.jpg
+  Attribution: Set of watercolor paints - Ariel Waldman.jpg — Ariel Waldman from Muncie; https://commons.wikimedia.org/wiki/File:Set_of_watercolor_paints_-_Ariel_Waldman.jpg; CC BY-SA 2.0 (https://creativecommons.org/licenses/by-sa/2.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:Set_of_watercolor_paints_-_Ariel_Waldman.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/2.0

@@ -1,0 +1,30 @@
+SiteCraft static site package licenses
+
+Images included in this package:
+- assets/images/img_485e5131a68444b59c3ba033.jpg
+  Attribution: Stack of Copy Paper.jpg — Jonathan Joseph Bondhus; https://commons.wikimedia.org/wiki/File:Stack_of_Copy_Paper.jpg; CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.
+  License: CC BY-SA
+  Source: https://commons.wikimedia.org/wiki/File:Stack_of_Copy_Paper.jpg
+  License URL: https://creativecommons.org/licenses/by-sa/3.0
+- assets/images/img_dd930f4e2ebb499d9a7d08f9.jpg
+  Attribution: Blank book on a table.jpg — Trey Jones; Till.niermann (brightness edit); https://commons.wikimedia.org/wiki/File:Blank_book_on_a_table.jpg; CC0 (https://creativecommons.org/publicdomain/zero/1.0/deed.en); full-frame resized/JPEG re-encoded derivative.
+  License: CC0
+  Source: https://commons.wikimedia.org/wiki/File:Blank_book_on_a_table.jpg
+  License URL: https://creativecommons.org/publicdomain/zero/1.0/deed.en
+
+Lucide icons
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
