@@ -4,7 +4,7 @@ title: 更新 GitHub README 与入口
 type: build
 status: open
 blocked_by: [T-201]
-claimed_by:
+claimed_by: 执行主控
 supersedes:
 ---
 
