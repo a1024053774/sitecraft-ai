@@ -1,4 +1,5 @@
 import { imageFactsSystemPrompt, imageFactsUserPrompt, parseImageFacts, type ImageFacts } from './image-facts.ts';
+import { providerConfig, providerNotConfiguredMessage } from './provider-context.ts';
 import { imageDataUrl, inspectSiteImage, SiteImageError, type ImageMime } from './site-images.ts';
 
 export type ImageFactsResult =
@@ -17,13 +18,7 @@ export type ImageFactsResult =
     latencyMs: number;
   };
 
-export function providerConfig() {
-  return {
-    baseURL: (process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/$/, ""),
-    apiKey: process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY,
-    model: process.env.DEEPSEEK_MODEL || process.env.AI_MODEL,
-  };
-}
+export { providerConfig };
 
 export function getAIProviderStatus() {
   const config = providerConfig();
@@ -98,7 +93,7 @@ export async function requestImageFacts(args: {
   originalName?: string | null;
 }): Promise<ImageFactsResult> {
   const startedAt = Date.now();
-  const { baseURL, apiKey, model } = providerConfig();
+  const { baseURL, apiKey, model, fetch } = providerConfig();
   let image: { mime: ImageMime; width: number; height: number; byteLength: number };
   try {
     image = inspectSiteImage(args.imageBytes, "analyze");
@@ -107,7 +102,7 @@ export async function requestImageFacts(args: {
     return { ok: false, code: "invalid_image", error: message, model: model ?? null, latencyMs: 0 };
   }
   if (!apiKey || !model) {
-    return { ok: false, code: "not_configured", error: "尚未配置 DeepSeek API，系统不会伪造看图结果。", model: null, latencyMs: 0 };
+    return { ok: false, code: "not_configured", error: `${providerNotConfiguredMessage}系统不会伪造看图结果。`, model: null, latencyMs: 0 };
   }
   const imageUrl = imageDataUrl(args.imageBytes, "analyze");
   let lastError = "模型没有返回有效的图片事实。";

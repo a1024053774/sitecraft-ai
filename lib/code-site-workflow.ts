@@ -12,6 +12,7 @@ import { createAnnotation, replyAnnotation } from './annotation-store.ts';
 import { CodeRepairError } from './code-site-repair.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
+import { currentProviderCredentials, providerConfigured, providerNotConfiguredMessage, runWithProvider } from './provider-context.ts';
 import { AlignmentActionError, AlignmentTextTooLongError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
 
 
@@ -85,7 +86,9 @@ async function registerUserSources(siteId: string, input: { message?: string; so
 }
 function schedule(site: CodeSiteRecord) {
   const run = site.run!; active.add(run.id);
-  after(() => codeModelCalls.run([], async () => {
+  // The task keeps the request's provider credentials in this closure only (T-202).
+  const credentials = currentProviderCredentials();
+  after(() => runWithProvider(credentials, () => codeModelCalls.run([], async () => {
     try { await execute(site.siteId, run.id); }
     catch (error) {
       // An explicitly deleted site has no workspace or records to receive a failed run.
@@ -105,7 +108,7 @@ function schedule(site: CodeSiteRecord) {
       }
       await appendConversationTurn({ siteId: site.siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: message, appliedOperationsSummary: '未保存版本', outcome: 'error' });
     } finally { active.delete(run.id); }
-  }));
+  })));
 }
 async function executeLocalEdit(site: CodeSiteRecord, run: CodeRun) {
   const target = run.selectedTarget!, source = currentCodeVersion(site)!;
@@ -362,6 +365,9 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
     }
     if (site.run?.status === 'running') return Response.json({ userMessage: '当前任务还在进行，请等待完成。' }, { status: 409 });
     if (input.baseRevision !== undefined && input.baseRevision !== (currentCodeVersion(site)?.revision ?? 0)) return Response.json({ userMessage: '版本已经更新，请刷新后再试。' }, { status: 409 });
+    // These requests start a model task. Refuse them before alignment, sources or a run change (T-202).
+    const startsModelTask = input.action === 'translate' || input.action === 'select' || input.action === 'confirm' || (!input.action && !!input.message && !!currentCodeVersion(site));
+    if (startsModelTask && !providerConfigured()) return Response.json({ userMessage: providerNotConfiguredMessage, code: 'provider_not_configured' }, { status: 400 });
     const conversation = (await getConversation(siteId, site.conversationId))!;
     if (input.action === 'translate') {
       if (input.baseRevision === undefined) return Response.json({ userMessage: '请提供当前版本编号。' }, { status: 400 });

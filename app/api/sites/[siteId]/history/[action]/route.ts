@@ -1,3 +1,4 @@
+import { withRequestProvider } from '@/lib/provider-context';
 import { userErrorPayload } from "@/lib/user-errors";
 import { getCodeSite, commitSiteCode } from '@/lib/code-site-store';
 import { currentCodeVersion } from '@/lib/code-site';
@@ -7,6 +8,9 @@ import { z } from 'zod';
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ siteId: string; action: string }> }) {
+  return withRequestProvider(request, () => handle(request, params));
+}
+async function handle(request: Request, params: Promise<{ siteId: string; action: string }>) {
   const { siteId, action } = await params;
   if (action !== "undo" && action !== 'restore') return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 404 });
   const codeSite = await getCodeSite(siteId);

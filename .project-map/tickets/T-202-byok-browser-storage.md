@@ -4,7 +4,7 @@ title: 用户自带模型接口，站点数据存在用户浏览器
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: 执行主控
 supersedes:
 ---
 

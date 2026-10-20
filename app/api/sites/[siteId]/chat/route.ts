@@ -1,8 +1,12 @@
+import { withRequestProvider } from '@/lib/provider-context';
 import { getCodeSite, CodeSiteUnavailableError } from '@/lib/code-site-store';
 import { handleCodeChat } from '@/lib/code-site-workflow';
 import { userErrorPayload } from '@/lib/user-errors';
 export const runtime = 'nodejs';
 export async function POST(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+  return withRequestProvider(request, () => handle(request, params));
+}
+async function handle(request: Request, params: Promise<{ siteId: string }>) {
   const { siteId } = await params;
   try {
     if (!await getCodeSite(siteId)) return Response.json(userErrorPayload({ code: 'site_not_found' }), { status: 404 });

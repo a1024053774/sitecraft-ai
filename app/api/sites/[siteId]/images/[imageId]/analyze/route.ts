@@ -1,3 +1,4 @@
+import { withRequestProvider } from '@/lib/provider-context';
 import { requestImageFacts } from "@/lib/ai-provider";
 import { readSiteImage, SiteImageError } from "@/lib/site-images";
 import { userErrorPayload } from "@/lib/user-errors";
@@ -12,7 +13,10 @@ function statusFor(code: string) {
   return 502;
 }
 
-export async function POST(_request: Request, { params }: { params: Promise<{ siteId: string; imageId: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ siteId: string; imageId: string }> }) {
+  return withRequestProvider(request, () => handle(params));
+}
+async function handle(params: Promise<{ siteId: string; imageId: string }>) {
   const { siteId, imageId } = await params;
   try {
     const loaded = await readSiteImage(siteId, imageId);

@@ -1,3 +1,4 @@
+import { withRequestProvider } from '@/lib/provider-context';
 import { z } from 'zod';
 import { getCodeSite, commitSiteCode, CodeSiteUnavailableError } from '@/lib/code-site-store';
 import { codeSiteSchema } from '@/lib/code-site';
@@ -18,6 +19,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
 }
 const submission = z.object({ baseRevision: z.number().int().nonnegative(), code: codeSiteSchema, summary: z.string().min(1).max(500) }).strict();
 export async function PUT(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+  return withRequestProvider(request, () => handlePut(request, params));
+}
+async function handlePut(request: Request, params: Promise<{ siteId: string }>) {
   const { siteId } = await params;
   try {
     const site = await getCodeSite(siteId);
