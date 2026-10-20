@@ -2,7 +2,7 @@
 id: T-186
 title: 375 下时间、参数与标签碎折行
 type: build
-status: open
+status: closed
 blocked_by: [T-190]
 claimed_by: codex-t186b
 supersedes:
@@ -28,8 +28,8 @@ T-180 company 盲评发现约 7 站在 375 宽度下出现碎折行：营业时�
 ## Acceptance
 
 - [x] 根因写进 Resolution
-- [ ] 代表组合 375 截图不再出现上述碎折行，同时无横向溢出；盲评如实记录
-- [ ] typecheck、test、build 通过；独立 fast 审查通过
+- [x] 代表组合 375 截图不再出现上述碎折行，同时无横向溢出；盲评如实记录
+- [x] typecheck、test、build 通过；独立 fast 审查通过
 
 ## Resolution
 
@@ -166,3 +166,11 @@ SITECRAFT_BASE=http://127.0.0.1:60350 SITECRAFT_TOKEN_LIMIT=200000 CHROME_PATH=/
 **独立审查（主控记录，2026-10-19 EDT）。** 新实例独立审查 GO，见主工作区 `artifacts/t186/review1.txt`：P0–P2 均无；P3 一项为 restaurant/editorial 根因说明的手机字号，已在上文更正。company 盲评（第一轮 6 站包，新实例）4 对判同模板 0，揭盲见主工作区 `artifacts/t186/blind-results/company-unblind.txt`；该包中的 molding/documentary 为出现 caption 竖排回归前的第一轮版本。molding/documentary 修复后单站重跑的截图由非执行者实例逐张判读，回归已消失，见 `artifacts/t186/judgement-r2.md`。
 
 **company 盲评口径（构思主控决定，2026-10-19 EDT）。** company 盲评采用第一轮 6 站包的结果（4 对判同模板 0）。该包中的 molding/documentary 是 caption 竖排回归修复前的版本。没有重评，原因有两个：第二轮只重跑了 molding 一站，评估器生成的 company 包为空；company 判断的是不同公司之间是否像同一模板，而本次修复只改窄屏下 caption 的显示方式，不影响骨架判断，手工拼包不值得。
+
+### 主控验收与关闭
+
+执行主控，2026-10-20 EDT。
+
+- 375 碎折行：第一轮六组合截图由构思主控逐站查看，只有 molding/documentary 出现表题 caption 竖排回归；修复后单站重跑，四页三档截图由非执行者实例逐张判读，结论 PASS（`artifacts/t186/judgement-r2.md`）。提交入口各组合 overflow=0、overlaps=0。
+- 盲评与审查：company 盲评 4 对判为同一模板的有 0 对，口径见上文构思主控的决定；独立审查 GO（`artifacts/t186/review1.txt`）。
+- 分支 `t186-narrow-fragments`（`0e90c58`）以 `--no-ff` 合并为 `fb8c8ff`。主线验证在合并后的 `b6b1335` 上运行（T-186 合并 `fb8c8ff`，T-196 合并 `b6b1335`），2026-10-20 08:02:59–08:17:04 EDT，期间没有其他浏览器测试进程。typecheck、runner 回归、build 均退出 0；全量 904/904 通过（非浏览器 29 个文件、浏览器 111 个文件，并发 2），无失败、取消或跳过。日志见 `artifacts/main-verify-b6b1335/`，标准入口目录 `artifacts/t167/test-run-1792497798180-22101/`。

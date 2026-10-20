@@ -2,7 +2,7 @@
 id: T-196
 title: 视觉扫描与访客实际看到的不一致：aria/details 预处理、微小元素、生成文字
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: codex-t196e
 supersedes:
@@ -31,7 +31,7 @@ T-195 第三次窄复审（`artifacts/t195/review3.txt`）在 375、768、1440 �
 
 - [x] 4 项逐一复现结论写进 Resolution
 - [x] 成对测试先红后绿；T-190 的 14 站离线重检结果如实记录
-- [ ] 合并后主线验证通过；独立审查通过（review5 为 NO_GO；本轮仅修 P2-2，未再复审，由主控核对）
+- 合并后主线验证通过；独立审查通过——主线验证已通过（见 Resolution 末尾）；审查一项不打勾：review5 结论 NO_GO，P2-2 已修、未再复审，由执行主控核对三项后合并；P2-1、P2-3、P2-4、P2-5 是主线原有的通用缺口，已转 T-199。审查原文：`artifacts/t196/review1.txt`–`review5.txt`。
 
 ## Resolution
 
@@ -464,3 +464,13 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 #### 交付边界
 
 本轮授权内修复与门控 **PASS**；只交付 P2-2 与相关保守规则的本地修复、回归和离线证据；review5 独立结论仍为 NO_GO，未再复审，主控后续核对。claimed_by 为 codex-t196e，独立审查验收项不勾选。未跑全量／runner／build、未调用真实模型、未开审查实例、未读 .env／.env.local、未推送或 force-push、未使用 rm；主工作区 artifacts 与 .sitecraft-data 只读。tsconfig.json 的既有 Next 自动改动保留且不纳入提交。日志和截图在本工作树被 gitignore 的 artifacts；源码、测试、输入与本节记录本地提交，最终 SHA 随交付回报。
+
+### 主控验收与关闭
+
+执行主控，2026-10-20 EDT。共五轮独立审查，每轮都是新实例；review3 由 DeepSeek 实例审，其余为 gpt-6.1-sol high。
+
+- review3 NO_GO：同实色覆盖层放宽漏判，已删除该放宽。
+- review4 NO_GO：inside 编号受首行背景影响、负层生成文字被宿主背景盖住。构思主控据此定下收口规则：只在最简单、能证明的情况下测量，其余判为无法测量。
+- review5 NO_GO：收口三条未被挑出问题。按构思主控决定（2026-10-20）只修 P2-2，即独立节点伪元素绘制层；其余四项转 T-199，不再复审。
+- 执行主控核对三项，均满足：① 193cfee 上 35 项中 33 通过、2 失败，失败的正是 review5 覆盖层用例；在 15bda01 上重跑 35/35 通过。② T-190 的 14 站共 129 个页面视口，新增拒因 0。③ P2-2 反例三档均拒收，透明和不相交对照仍测量通过。
+- 分支 `t196-visual-scan-coverage`（`15bda01`）以 `--no-ff` 合并为 `b6b1335`。主线验证在合并后的 `b6b1335` 上运行（T-186 合并 `fb8c8ff`，T-196 合并 `b6b1335`），2026-10-20 08:02:59–08:17:04 EDT，期间没有其他浏览器测试进程。typecheck、runner 回归、build 均退出 0；全量 904/904 通过（非浏览器 29 个文件、浏览器 111 个文件，并发 2），无失败、取消或跳过。日志见 `artifacts/main-verify-b6b1335/`，标准入口目录 `artifacts/t167/test-run-1792497798180-22101/`。
