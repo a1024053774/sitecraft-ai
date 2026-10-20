@@ -1,0 +1,98 @@
+{
+  "safe-before": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:white;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 20px;font:700 24px/30px monospace}.stage{position:relative;width:300px;min-height:120px}#probe{position:relative;margin:0;width:280px;min-height:70px}#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>独立复核</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  },
+  "dom-firstline-low": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:white;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 20px;font:700 24px/30px monospace}.stage{position:relative;width:300px;min-height:120px}#probe{position:relative;margin:0;width:280px;min-height:70px}#probe::first-line{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>独立复核</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\">VISIBLE TEXT</p></div></div></section></main>"
+      }
+    ]
+  },
+  "dom-firstletter-low": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:white;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 20px;font:700 24px/30px monospace}.stage{position:relative;width:300px;min-height:120px}#probe{position:relative;margin:0;width:280px;min-height:70px}#probe::first-letter{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>独立复核</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\">VISIBLE TEXT</p></div></div></section></main>"
+      }
+    ]
+  },
+  "before-filter-opacity": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:white;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 20px;font:700 24px/30px monospace}.stage{position:relative;width:300px;min-height:120px}#probe{position:relative;margin:0;width:280px;min-height:70px}#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace}#probe::before{filter:opacity(.05)}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>独立复核</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  },
+  "ancestor-filter-opacity": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:white;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 20px;font:700 24px/30px monospace}.stage{position:relative;width:300px;min-height:120px}#probe{position:relative;margin:0;width:280px;min-height:70px}#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace}.stage{filter:opacity(.05)}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>独立复核</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  },
+  "before-mask-transparent": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:white;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 20px;font:700 24px/30px monospace}.stage{position:relative;width:300px;min-height:120px}#probe{position:relative;margin:0;width:280px;min-height:70px}#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace}#probe::before{mask-image:linear-gradient(transparent,transparent)}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>独立复核</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  },
+  "before-text-stroke": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:white;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 20px;font:700 24px/30px monospace}.stage{position:relative;width:300px;min-height:120px}#probe{position:relative;margin:0;width:280px;min-height:70px}#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace}#probe::before{-webkit-text-stroke:8px white}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>独立复核</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  },
+  "before-clip-path": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:white;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 20px;font:700 24px/30px monospace}.stage{position:relative;width:300px;min-height:120px}#probe{position:relative;margin:0;width:280px;min-height:70px}#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace}#probe::before{clip-path:inset(50%)}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>独立复核</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  }
+}

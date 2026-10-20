@@ -13,7 +13,8 @@ export type CodeLayoutScan = {
   extremeNarrowColumns?: Array<{ key: string; detail: string }>;
   horizontalScroll: boolean; overflowElements: Array<{ key: string }>;
   textOverlaps: Array<{ targets: string[] }>;
-  textContrast: Array<{ key: string; text: string; status: string; ratio: number | null; threshold: number; role: string; reason?: string }>;
+  textContrast: Array<{ key: string; text: string; status: string; ratio: number | null; threshold: number; role: string; reason?: string;
+    effect?: { key: string; pseudo: string; property: string } }>;
   measurement: { textContrastEntries: number };
 };
 
@@ -88,8 +89,9 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
     }
   };
   for (const source of sheets) readSelectors(source.sheet.cssRules);
-  const collect = (issue: string, keys: string[], contrast: boolean) => {
+  const collect = (issue: string, keys: string[], contrast: boolean, effect?: CodeLayoutScan['textContrast'][number]['effect']) => {
     const record: CodeLayoutRepair = { issue, elements: [], declarations: [] }; records.push(record);
+    if (effect) record.reason = `视觉效果 ${effect.property} 位于 ${effect.key || 'body'}${effect.pseudo}，当前无法核实效果声明修正的完整影响范围，本次拒收`;
     const generatedKeys = keys.filter(key => /::(?:before|after|marker)$/.test(key));
     if (generatedKeys.length) {
       record.generatedPositions = [...new Set(generatedKeys)].flatMap(key => {
@@ -107,6 +109,8 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
     for (const target of targets as Element[]) {
       const location = locations.get(target)!;
       record.elements.push({ field: location.field, path: location.path, before: location.source.outerHTML });
+      // T-199 只保存本次失败位置；效果可能作用于祖先或分片，不开放猜测的声明范围。
+      if (effect) continue;
       const inherited = new Set<string>();
       let backgroundFound = false;
       for (let node: Element | null = target; node; node = node.parentElement) {
@@ -194,7 +198,7 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
   for (const item of scan.extremeNarrowColumns ?? []) collect(`${prefix} ${item.detail}`, [item.key], false);
   for (const item of contrast.slice(0, 8)) {
     const reason = item.reason ? `；${item.reason}` : '';
-    collect(`${prefix} 对比度不足或无法测量：${item.text}（${item.ratio?.toFixed(2) ?? '未知'}，需 ${item.threshold}）${reason}`, [item.key], true);
+    collect(`${prefix} 对比度不足或无法测量：${item.text}（${item.ratio?.toFixed(2) ?? '未知'}，需 ${item.threshold}）${reason}`, [item.key], true, item.effect);
   }
   return records;
 }
