@@ -20,7 +20,7 @@ const samples = path.resolve(values.samples), out = path.resolve(values.out);
 assert.ok(samples.startsWith(process.cwd() + path.sep), 'samples must be copied into this worktree first');
 await mkdir(out, { recursive: false }); // Preserve prior runs instead of overwriting their evidence.
 const manifest: Array<{ siteId: string; group: string; versionId: string }> = JSON.parse(await readFile(values.manifest, 'utf8'));
-const results: Array<{ siteId: string; name: string; group: string; versionId: string; checks?: CodeCheck; error?: string; productImages: number }> = [];
+const results: Array<{ siteId: string; name: string; companyName?: string; group: string; versionId: string; checks?: CodeCheck; error?: string; productImages: number }> = [];
 const cases: EvalCase[] = [];
 const meta = { startedAt: new Date().toISOString(), command: process.argv.join(' '), commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   dirty: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(), samples, modelCalls: 0, factReview: 'offline deterministic replay; no model audit' };
@@ -29,7 +29,7 @@ for (const row of manifest) {
   assert.equal(site.route, 'code');
   const version = site.versions.find(v => v.id === row.versionId); assert.ok(version);
   const images = await listSiteImages(site.siteId);
-  const result = { siteId: site.siteId, name: site.name, group: row.group, versionId: version.id, productImages: images.filter(i => i.usageCategory === 'product').length };
+  const result = { siteId: site.siteId, name: site.name, companyName: site.materials.match(/^[ \t]*公司名[：:][ \t]*([^\n]+)/m)?.[1].trim(), group: row.group, versionId: version.id, productImages: images.filter(i => i.usageCategory === 'product').length };
   try {
     const checked = await checkSiteCode({ siteId: site.siteId, code: version.code, materials: codeFactMaterials(site, undefined, version.id), images, legacyImport: true });
     results.push({ ...result, checks: checked.checks });
@@ -58,7 +58,9 @@ try {
     if (!result) continue;
     const page = result.checks!.viewports.find(v => (v.qualityFeedback?.[kind] || 0) > 0)!.pageId;
     for (const width of [1440, 768, 375]) {
-      const data = await captureEvalPage(browser, `${base}/api/sites/${result.siteId}/code-preview?page=${page}&version=${result.versionId}`, width, result.name);
+      // The editable record label can contain tracking suffixes; use the company
+      // name explicitly supplied in the source materials for the screenshot check.
+      const data = await captureEvalPage(browser, `${base}/api/sites/${result.siteId}/code-preview?page=${page}&version=${result.versionId}`, width, result.companyName);
       const file = `${kind}-${result.siteId}-${page}-${width}.png`;
       await writeFile(path.join(out, file), Buffer.from(data, 'base64'));
       screenshots.push({ kind, siteId: result.siteId, pageId: page, width, file });

@@ -166,9 +166,10 @@ async function prepareSystemBackdrops(allowedUrls: string[]) {
   }
   return { colors, issues: [...new Set(issues)] };
 }
-// Browser-only diagnostics. None of these findings enter checks.issues or repair decisions.
-function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[], stopMotion: () => void): CodeQualityFeedback {
+// Browser-only quality measurements. The extreme narrow-column subset also enters the layout floor.
+function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[], stopMotion: () => void): { qualityFeedback: CodeQualityFeedback; extremeNarrowColumns: Array<{ key: string; detail: string }> } {
   const feedback: CodeQualityFeedback = { truncatedText: 0, ungatedHover: 0, smallTargets: 0, coveredAnchors: 0, croppedProductImages: 0, narrowColumns: 0, details: [] };
+  const extremeNarrowColumns: Array<{ key: string; detail: string }> = [];
   const targetFor = (el: Element): string => {
     if (el === document.documentElement) return 'html';
     if (el === document.body) return 'body';
@@ -275,6 +276,16 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
     const average = count / lines.length, minimum = han ? 6 : 3;
     if (lines.length >= 3 && average < minimum) add('narrowColumns', block,
       `过窄文字列：${count} ${han ? '字' : '词'} / ${lines.length} 行，平均 ${average.toFixed(2)} ${han ? '字' : '词'}/行（少于 ${minimum}）；请给正文留足列宽或在窄屏改为单列。`);
+    // Keep T-160 eligibility and line geometry; exactly two units per line passes.
+    if (lines.length >= 3 && average < 2) {
+      const parts: string[] = [];
+      for (let node: Element | null = block; node && node !== document.body; node = node.parentElement) {
+        if (!node.parentElement) { parts.unshift(node.tagName); break; }
+        parts.unshift(`${node.tagName}:${[...node.parentElement.children].indexOf(node)}`);
+      }
+      extremeNarrowColumns.push({ key: parts.join('/'), detail:
+        `极端窄列：${count} ${han ? '字' : '词'} / ${lines.length} 行，平均 ${average.toFixed(2)} ${han ? '字' : '词'}/行（少于 2）；请给文字留足列宽或在窄屏改为单列。` });
+    }
   }
   // The remaining completeness checks deliberately expand hidden disclosure content.
   // Narrow-column feedback above observes only the original visible page.
@@ -434,7 +445,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
   } finally { scrollTo({ left: initialX, top: initialY, behavior: 'instant' }); }
   for (const detail of expanded) detail.removeAttribute('open');
   for (const node of revealed) node.setAttribute('aria-hidden', 'true');
-  return feedback;
+  return { qualityFeedback: feedback, extremeNarrowColumns };
 }
 type LayoutReport = CodeLayoutScan & { bodyLineLength: Array<{ tooLong: boolean; text: string }> };
 export async function checkSiteCode(args: { siteId: string; code: SiteCode; materials: string; images: SiteImageRecord[]; legacyImport?: true; translationSource?: SiteCode; companyName?: string; localEdit?: { source: SiteCode; target?: AnnotationTarget; targets?: AnnotationTarget[]; citations?: CodeCheck['factCitations'] }; pageEdit?: { source: SiteCode; pageId: string }; restoredFactReview?: CodeCheck['factReviewFrom']; factReviews?: CodeFactReview[]; factSourceMaterials?: CodeFactSource[]; style?: CodeStyleId; timings?: Array<{ pageId: string; width: number; durationMs: number }>; dynamicStateBudgetMs?: number }) {
@@ -610,13 +621,13 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         checks.issues.push(...backdrops.issues.map(issue => `${page.id}/${width} ${issue}`));
         const incomingAnchors = [...(clean.code.header + clean.code.footer + clean.code.pages.map(p => p.html).join('')).matchAll(/href="\/([a-z][a-z0-9-]*)#([a-zA-Z0-9_-]+)"/g)].filter(match => match[1] === page.id).map(match => match[2]);
         const productIds = args.images.filter(image => image.usageScope !== 'docs-only' && image.usageCategory === 'product').map(image => image.imageId);
-        const qualityFeedback = await browser.evaluate<CodeQualityFeedback>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)},(${stopCodeCheckMotion.toString()}))`);
+        const { qualityFeedback, extremeNarrowColumns } = await browser.evaluate<ReturnType<typeof readCodeQuality>>(`(${readCodeQuality.toString()})(${JSON.stringify(page.id)},${width},${JSON.stringify(productIds)},${JSON.stringify(incomingAnchors)},(${stopCodeCheckMotion.toString()}))`);
         // Quality completeness checks restore their disclosure mutations. Read the
         // visitor default first, retaining aria attributes used by author CSS.
         await browser.evaluate(`(${stopCodeCheckMotion.toString()})()`);
         const scanLayout = async () => {
           const generated = await readGeneratedLayout(browser);
-          return browser.evaluate<LayoutReport & { hasClosedDetails: boolean; hasAriaHidden: boolean; repairs: CodeLayoutRepair[]; generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};const paths=${JSON.stringify(targetPaths)};const layout=scanVisitorLayout(document,${JSON.stringify(backdrops.colors)},${JSON.stringify(generated)});return {...layout,hasClosedDetails:!!document.querySelector('details:not([open])'),hasAriaHidden:!!document.querySelector('[aria-hidden="true"]'),repairs:(${readCodeLayoutRepairs.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${width},layout,(${codeCssDeclarationNames.toString()})),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
+          return browser.evaluate<LayoutReport & { hasClosedDetails: boolean; hasAriaHidden: boolean; repairs: CodeLayoutRepair[]; generatedText: ReturnType<typeof readGeneratedText> }>(`(() => {${scan};const paths=${JSON.stringify(targetPaths)};const layout={...scanVisitorLayout(document,${JSON.stringify(backdrops.colors)},${JSON.stringify(generated)}),extremeNarrowColumns:${JSON.stringify(extremeNarrowColumns)}};return {...layout,hasClosedDetails:!!document.querySelector('details:not([open])'),hasAriaHidden:!!document.querySelector('[aria-hidden="true"]'),repairs:(${readCodeLayoutRepairs.toString()})(${JSON.stringify(clean.code)},${JSON.stringify(page.id)},${width},layout,(${codeCssDeclarationNames.toString()})),generatedText:paths.length?paths.flatMap(path=>(${readGeneratedText.toString()})(path)):(${readGeneratedText.toString()})()};})()`);
         };
         const layout = await scanLayout();
         const mergeLayout = (other: typeof layout) => {
