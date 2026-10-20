@@ -72,10 +72,10 @@ async function contrastState(name: string, code: SiteCode, pseudo: string, statu
       assert.equal(entry.status, status, `${name}/${width}: ${JSON.stringify(entry)}`);
       if (status === 'unmeasured') {
         assert.equal(entry.ratio, null);
-        assert.match(entry.reason, /伪元素叠层无法核对实际底图/);
+        assert.match(entry.reason, /伪元素叠层无法核对实际底图|视觉效果 ::first-(?:line|letter) (?:color|background|opacity) .*对比度无法测量/);
       } else assert.equal(typeof entry.ratio, 'number');
     }
-    if (status === 'unmeasured') assert.ok(checks.issues.some(issue => issue.startsWith(`home/${width} `) && /伪元素叠层无法核对实际底图/.test(issue)), JSON.stringify(checks.issues));
+    if (status === 'unmeasured') assert.ok(checks.issues.some(issue => issue.startsWith(`home/${width} `) && /伪元素叠层无法核对实际底图|视觉效果 ::first-(?:line|letter) (?:color|background|opacity) .*对比度无法测量/.test(issue)), JSON.stringify(checks.issues));
   }
   assert.equal(checks.passed, status === 'measured', JSON.stringify(checks.issues));
 }
@@ -136,7 +136,8 @@ for (const [name, rule] of [
 
 for (const fragment of ['first-line', 'first-letter']) for (const selector of ['#probe', '.stage']) {
   test(`收口 b：${selector}::${fragment} 背景拒收，无背景测量`, async () => {
-    const source = review3['marker-first-line-safe'];
+    const original = review3['marker-first-line-safe'];
+    const source = { ...original, css: original.css.replace('#probe::first-line{color:#eee}', '') };
     const name = `fragment-${fragment}-${selector === '#probe' ? 'host' : 'ancestor'}`;
     const rule = `${selector}::${fragment}{background:white}`;
     await contrastState(`${name}-no-background-safe`, { ...source, css: source.css + rule.replace('background:white', 'background:transparent') }, '::marker', 'measured');
@@ -145,7 +146,8 @@ for (const fragment of ['first-line', 'first-letter']) for (const selector of ['
 }
 
 test('收口 c：inside 编号的宿主有背景即拒收，无背景或 outside 测量', async () => {
-  const source = review3['marker-first-line-safe'];
+  const original = review3['marker-first-line-safe'];
+  const source = { ...original, css: original.css.replace('#probe::first-line{color:#eee}', '') };
   await contrastState('marker-inside-no-host-background-safe', source, '::marker', 'measured');
   const painted = { ...source, css: source.css + '#probe{background:white}' };
   await contrastState('marker-outside-host-background-safe', { ...painted, css: painted.css.replace('list-style-position:inside', 'list-style-position:outside') }, '::marker', 'measured');
@@ -185,12 +187,16 @@ for (const name of ['overlay-fully-opaque-same-as-host-above', 'overlay-semi-tra
   });
 }
 
-test('marker 颜色不随 first-line 改变：浅灰编号拒收，深色编号通过', async () => {
-  // 独立复审三档原样绘制确认 marker 不受 first-line 的颜色影响。
+test('marker 不为首行变色设豁免：浅灰编号与首行变色均拒收，无变色的深色编号通过', async () => {
+  // marker 实际不受首行颜色影响，但 T-199 明确不分析效果，祖先分片变色仍拒收。
   const bad = await run('marker-first-line-low', review3['marker-first-line-low'], true);
   assert.ok(bad.viewports.every(view => view.contrastIssues > 0));
   assert.equal(bad.passed, false);
-  const good = await run('marker-first-line-safe', review3['marker-first-line-safe'], true);
+  const original = review3['marker-first-line-safe'];
+  const changed = await run('marker-first-line-color-unmeasurable', original, true);
+  assert.equal(changed.passed, false);
+  for (const width of widths) assert.ok(changed.issues.some(i => i.startsWith(`home/${width} `) && i.includes('::first-line color')));
+  const good = await run('marker-first-line-safe', { ...original, css: original.css.replace('#probe::first-line{color:#eee}', '') }, true);
   assert.equal(good.passed, true, JSON.stringify(good.issues));
   assert.equal(good.viewports.length, widths.length);
 });

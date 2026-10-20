@@ -364,28 +364,40 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
   const generatedPaintReason = (el,pseudo) => {
     const host=getComputedStyle(el),paint=getComputedStyle(el,pseudo);
     if(host.zIndex!=='auto'||paint.zIndex!=='auto') return '伪元素叠层无法核对实际底图';
-    for(let p=el;p;p=p.parentElement) for(const fragment of ['::first-line','::first-letter']){
-      if(hasBackground(getComputedStyle(p,fragment))) return '伪元素叠层无法核对实际底图';
-    }
     if(pseudo==='::marker'&&host.listStylePosition!=='outside'&&hasBackground(host)) return '伪元素叠层无法核对实际底图';
     return '';
   };
   const backgroundFor = (el,sampleRects=null,pseudo=null) => {
+    const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
+    const paints=chain.map(p=>getComputedStyle(p));
+    if(pseudo) paints.push(getComputedStyle(el,pseudo));
+    // T-199：正文与生成文字共用白名单，不按效果强弱或是否有 URL 背景推断。
+    const refuseEffect=(node,fragment,property)=>({known:false,
+      reason:`${pseudo?'CSS 生成文字的':''}视觉效果 ${property} 位于 ${node.id?'#'+node.id+' ':''}${keyFor(node)||'body'}${fragment}，对比度无法测量`,
+      effect:{key:keyFor(node),pseudo:fragment,property}});
+    for(const [index,style] of paints.entries()){
+      const node=chain[index]||el,fragment=index===chain.length?pseudo:'';
+      if(style.filter!=='none') return refuseEffect(node,fragment,'filter');
+      if(style.maskImage!=='none'||style.mask&&style.mask!=='none') return refuseEffect(node,fragment,'mask / mask-image');
+      if(style.clipPath!=='none') return refuseEffect(node,fragment,'clip-path');
+      if(parseFloat(style.webkitTextStrokeWidth)!==0) return refuseEffect(node,fragment,'-webkit-text-stroke');
+      if(fragment) continue;
+      for(const textFragment of ['::first-line','::first-letter']){
+        const paint=getComputedStyle(node,textFragment);
+        const changed=paint.color!==style.color?'color':hasBackground(paint)?'background':paint.opacity!=='1'?'opacity':'';
+        if(changed) return refuseEffect(node,textFragment,`${textFragment} ${changed}`);
+      }
+    }
     if(pseudo){
       const reason=generatedPaintReason(el,pseudo);
       if(reason) return {known:false,reason};
     }
-    const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
-    const paints=chain.map(p=>getComputedStyle(p));
-    if(pseudo) paints.push(getComputedStyle(el,pseudo));
     const hasBackdrop=paints.some(paint=>/url\(/i.test(paint.backgroundImage));
     let backgrounds=[[255,255,255,1]], foregroundOpacity=1;
     for(const [index,style] of paints.entries()){
       const p=chain[index];
       if(style.mixBlendMode&&style.mixBlendMode!=='normal') return {known:false,reason:'混合图层'};
-      if(hasBackdrop&&style.filter&&style.filter!=='none') return {known:false,reason:'滤镜无法核对实际叠底'};
       if(hasBackdrop&&/\binset\b/.test(style.boxShadow)) return {known:false,reason:'内阴影无法核对实际底图'};
-      if(hasBackdrop&&style.maskImage&&style.maskImage!=='none') return {known:false,reason:'遮罩无法核对实际底图'};
       if(hasBackdrop&&style.backgroundBlendMode.split(',').some(mode=>mode.trim()!=='normal')) return {known:false,reason:'背景混合无法核对实际叠底'};
       const color=rgba(style.backgroundColor);
       if(!color) return {known:false,reason:'背景颜色无法解析'};
@@ -542,7 +554,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
         catch{paintReason='伪元素叠层无法核对实际底图';}
       }
     }
-    const measured=background.known&&foreground&&!paintReason ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:paintReason||background.reason||'前景色无法解析'};
+    const measured=background.known&&foreground&&!paintReason ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:background.effect?background.reason:paintReason||background.reason||'前景色无法解析',...(background.effect?{effect:background.effect}:{})};
     const role=el.closest('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!el.closest('p')&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
     const entry={key:keyFor(el),element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:node.textContent.trim().slice(0,160),slot,block:blockFor(el),role,checkable:role==='body'||role==='heading',large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
     textContrast.push(entry);
@@ -573,8 +585,8 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
     const large=size>=24||(size>=18.66&&weight>=700);
     const background=backgroundFor(el,rects,pseudo),foreground=rgba(style.webkitTextFillColor||style.color);
     const textClip=[style,...(()=>{const styles=[];for(let p=el;p;p=p.parentElement)styles.push(getComputedStyle(p));return styles;})()].some(p=>/\btext\b/.test(p.backgroundClip||p.webkitBackgroundClip||''));
-    const reason=!rects.length?'CSS 生成文字无法测量实际文字行':item.pseudo!=='::marker'&&uncertainFirstLine(el)?'CSS 生成文字无法测量 first-line 的实际分片样式':foreground?.[3]===0?'透明文字填充无法测量':textClip?'背景裁切文字无法测量':background.reason;
-    const measured=background.known&&foreground&&!reason?{status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))}:{status:'unmeasured',ratio:null,reason:reason||'CSS 生成文字前景色无法解析'};
+    const reason=background.effect?background.reason:!rects.length?'CSS 生成文字无法测量实际文字行':item.pseudo!=='::marker'&&uncertainFirstLine(el)?'CSS 生成文字无法测量 first-line 的实际分片样式':foreground?.[3]===0?'透明文字填充无法测量':textClip?'背景裁切文字无法测量':background.reason;
+    const measured=background.known&&foreground&&!reason?{status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))}:{status:'unmeasured',ratio:null,reason:reason||'CSS 生成文字前景色无法解析',...(background.effect?{effect:background.effect}:{})};
     const entry={key,element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:text.trim().slice(0,160),slot:slotFor(el),block:blockFor(el),role:el.closest('h1,h2,h3,h4,h5,h6')?'heading':'body',checkable:true,large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
     textContrast.push(entry);contrastNodes.push({el,entry});
   }
