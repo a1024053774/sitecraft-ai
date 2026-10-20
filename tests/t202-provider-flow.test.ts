@@ -66,7 +66,8 @@ async function siteAtStyleQuestion() {
 async function settle() { for (const callback of callbacks.splice(0)) await callback(); }
 async function filesUnder(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-  return (await Promise.all(entries.map(entry => entry.isDirectory() ? filesUnder(path.join(dir, entry.name)) : [path.join(dir, entry.name)]))).flat();
+  // The full run shares this root with other test files: read regular files only (no links).
+  return (await Promise.all(entries.map(entry => entry.isDirectory() ? filesUnder(path.join(dir, entry.name)) : entry.isFile() ? [path.join(dir, entry.name)] : []))).flat();
 }
 
 test('production ignores the operator key: a model request without visitor headers is refused before any state changes', async () => {
@@ -104,7 +105,8 @@ test('visitor headers drive the background task, and the key is not stored or lo
   assert.equal(run.status, 'error');
   assert.ok(JSON.stringify(run).length > 0 && !JSON.stringify(run).includes(visitorKey));
   for (const file of await filesUnder(process.env.SITECRAFT_DATA_ROOT!)) {
-    const text = await readFile(file, 'latin1');
+    // Other test files may remove their own files while this scan runs.
+    const text = await readFile(file, 'latin1').catch(error => { if (error.code === 'ENOENT') return ''; throw error; });
     assert.ok(!text.includes(visitorKey), `key found in ${file}`);
   }
   assert.ok(!logged.some(line => line.includes(visitorKey)), 'key found in server output');

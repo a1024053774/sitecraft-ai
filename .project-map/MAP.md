@@ -87,7 +87,7 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `lib/provider-http-error.ts`, `app/api/**`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 53491a6 |
+| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `lib/provider-http-error.ts`, `app/api/**`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 55145a0 |
 | [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/code-site*.ts`, `lib/annotations.ts`, `lib/storage-directory.ts` | 53491a6 |
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**`, `lib/code-site-store.ts`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 3fc2150 |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-127-*.md`, `.project-map/tickets/T-141-*.md`, `.project-map/tickets/T-145-*.md`, `.project-map/tickets/T-151-*.md`, `.project-map/tickets/T-152-*.md` | 9bcf59b |
