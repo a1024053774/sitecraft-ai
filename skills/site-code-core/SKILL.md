@@ -21,6 +21,46 @@ description: 新路线生成和整站修改的核心规范；局部修改使用�
 
 首屏导航桌面一行，高度不超过 72px。标题尽量两行，主行动窄屏仍可见。每个多列布局写清 768px 以下如何折叠；375、768、1440 不溢出、不重叠；正文对比度至少 4.5:1、大字至少 3:1，正文每行中文尽量不超过 40 字，行长是可读性建议。正文、页脚和浅底标签的文字色留出对比度余量：白色或近白底用 #333 或更深，深底用近白文字，不用降低文字 opacity 制造浅灰；按实际前景与背景核对，不把 4.5:1 当作配色目标。焦点清晰，图片 alt 描述内容。无动效。不要 overflow-x:hidden 掩盖横向溢出。
 
+窄屏按语义断行：时间区间的起止值与连接符保持完整，数量与单位保持完整，短标签、型号、邮箱不拆开；用仅包住这些短串的 span 配 white-space:nowrap 或 inline-block，不把整段或整行都设为不换行，也不用 word-break:break-all、overflow-wrap:anywhere 强拆这些短串。窄屏长参数串按字段上下排列，每个标签与对应值清楚关联，别把多项规格连成一段任意折行。多列表格在窄屏放不下时改为逐项字段行，字段名写在 HTML 中，保留每项的单位、条件与对应关系，不用 CSS content 补字段名或复制一套隐藏正文。短标签留足栏宽；多个日期、时段可按组换行，周几等短词不切碎；页脚、导语与正文遵守相同规则。先给完整短串留足可用宽度：让标签和值上下排、取消过窄定宽与多余内边距，长邮箱独占一行，仍不足时在可读字号内调整字阶，不新增横向溢出，不以裁切、隐藏、缩成难读小字或横向滚动代替重排。不删字、缩写或改变事实来凑宽度；375、768、1440 都检查完整性与溢出。
+
+表格改字段行须整体处理 caption、thead、tbody、tfoot、tr、th、td 的显示与宽度，caption 占满可用宽度；停用 colgroup/col 的列宽约束（仅布局，不隐藏业务文字），保留表题、表头表尾及 th 的 scope 行头关联。若表格在 figure 中，figure 与 figcaption 也检查可用宽度。单标签单值的两列表能正常显示时优先保留原生表格；确需改为块级字段行时，不能只改 tbody/tr/th/td，遗漏的 table-caption 或行组会形成匿名表格盒，导致表题一字一行。多列或跨行跨列表先核对每个值的行列标题；原表在窄屏放不下时，按 HTML 显式字段名重组并保留全部条件、表头和表尾信息，不把一组列标题与失去对应关系的数值各自堆叠，不用 CSS content 代替字段名。保留 th 的 scope 属性和行头与数值的对应，不删表题或隐藏表头来消除碎行。
+
+### 字段行 CSS 示例
+
+以下仅示范每行单标签、单值的两列表如何完整改为块级字段行；类名随站点命名，规则作用于本表及可选的 figure 包装。caption 与所有行组一起占满宽度，colgroup/col 只停用布局盒，不移除 DOM 内容；figure/figcaption 不继承表格的收缩宽度。保留语义元素、th scope、表题与图注原文，桌面仍使用原生表格。不要把此示例直接套到未经重组的多列表格。
+
+```css
+@media (max-width: 767px) {
+  .field-table,
+  .field-table > caption,
+  .field-table > thead,
+  .field-table > tbody,
+  .field-table > tfoot,
+  .field-table > :is(thead, tbody, tfoot) > tr,
+  .field-table > :is(thead, tbody, tfoot) > tr > :is(th, td) {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .field-table > colgroup,
+  .field-table > colgroup > col,
+  .field-table > col {
+    display: none;
+  }
+  .table-figure,
+  .table-figure > figcaption {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-inline: 0;
+  }
+}
+```
+
 技术合同：只输出约定 JSON；站点代码是 header、footer、css 和 pages（每页 id、title、html），HTML 是语义片段，页面片段包括 main，不含 html/head/body/style/script。全站 CSS 只写 css 字段。导航 href 只指向已规划的 /<页面id>，如 /home、/products；锚点必须存在，不许空链接、href="#"、外部链接、外部资源、iframe、脚本或事件处理器。CSS 不许外部 url、@import、@font-face；只有已登记系统底图地址可用于 background-image。禁止生成 SVG 图，图标用 <span data-system-icon="编号"></span>，由系统解析。图标按含义选择，不要每个链接都加图标；文字已说明含义时可以不用。允许编号："arrow"（前往）、"mail"（邮箱）、"phone"（电话）、"map-pin"（位置）、"download"（下载）、"file-text"（文档）、"certificate"（证书）、"factory"（工厂）、"cog"（加工）、"inspection"（检测）、"package"（包装）、"truck"（物流）、"clock"（交期）、"wrench"（维修）。不提供外部链接图标，不由图标暗示资料没有的认证或服务。
 
 缺失信息对客户写成自然说法或「待补充」，不要把「资料未提供」「资料未给」这类整理资料的内部措辞写进页面。
