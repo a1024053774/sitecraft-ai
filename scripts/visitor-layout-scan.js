@@ -367,26 +367,15 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
       if(!color) return {known:false,reason:'背景颜色无法解析'};
       if((hasBackdrop||pseudo)&&p){
         // 其他伪元素即使没有文字也可能绘制背景，不能凭 content 为空跳过。
-        const comparable=style.backgroundImage==='none'&&style.backgroundClip==='border-box'
-          &&style.borderRadius==='0px'&&style.boxShadow==='none'&&style.backdropFilter==='none'
-          &&(style.filter==='none'||!style.filter)&&(style.maskImage==='none'||!style.maskImage)
-          &&style.backgroundBlendMode.split(',').every(mode=>mode.trim()==='normal');
-        const layerBase=comparable?backgrounds.map(bg=>over(color,bg)):null;
         for(const layerPseudo of ['::before','::after']){
           if(p===el&&layerPseudo===pseudo) continue;
           const paint=getComputedStyle(p,layerPseudo);
           if(paint.content==='none'||paint.display==='none'||paint.visibility!=='visible') continue;
-          const layerColor=rgba(paint.backgroundColor),layerOpacity=Number(paint.opacity);
+          const layerColor=rgba(paint.backgroundColor);
           const borderPaint=['Top','Right','Bottom','Left'].some(side=>parseFloat(paint[`border${side}Width`])>0&&rgba(paint[`border${side}Color`])?.[3]>0);
           if(!(paint.backgroundImage!=='none'||layerColor?.[3]>0||paint.boxShadow!=='none'||paint.backdropFilter!=='none'||borderPaint)) continue;
-          // 同一实色完整覆盖与否都不改变叠底；其余无法核实覆盖和绘制顺序时拒收。
-          const sameSolid=!borderPaint&&paint.backgroundImage==='none'&&paint.boxShadow==='none'
-            &&paint.backdropFilter==='none'&&paint.mixBlendMode==='normal'&&paint.filter==='none'
-            &&layerColor&&Number.isFinite(layerOpacity)&&layerBase&&layerBase.every(bg=>{
-              const painted=over(withAlpha(layerColor,layerOpacity),bg);
-              return painted.every((value,index)=>Math.abs(value-bg[index])<1e-9);
-            });
-          if(!sameSolid) return {known:false,reason:'伪元素叠层无法核对实际底图'};
+          // 同底色仍可能从文字上方遮挡前景；无法证明绘制顺序与实际叠底时拒收。
+          return {known:false,reason:'伪元素叠层无法核对实际底图'};
         }
       }
       const parsedBackground=backgroundLayers(style.backgroundImage);

@@ -14,6 +14,7 @@ const inputs: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fi
 // 只复制独立审查的页面输入；低对比期望来自实际深／浅实色叠底。
 const review1: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review1-inputs.json', import.meta.url), 'utf8'));
 const review2: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review2-inputs.json', import.meta.url), 'utf8'));
+const review3: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review3-overlay-inputs.json', import.meta.url), 'utf8'));
 const scan = (await readFile(new URL('../scripts/visitor-layout-scan.js', import.meta.url), 'utf8')).replace('export function', 'function').replace('export default scanVisitorLayout;', '');
 let unexpected = 0;
 const server = createServer((req, res) => {
@@ -56,6 +57,38 @@ async function run(name: string, code: SiteCode, capture = false, translationSou
   }
   return checked.checks;
 }
+
+for (const name of ['overlay-fully-opaque-same-as-host-above', 'overlay-semi-transparent-65-same-as-host-above', 'overlay-partial-65-same-as-host-above']) {
+  test(`同底色覆盖层仍遮挡生成文字：${name} 三档拒收，无绘制层对照通过`, async () => {
+    // 独立复审的访客截图：全白层使文字消失，65% 白层使文字变浅，55% 宽层只遮前半段。
+    // 不能只算白层对白底不变；保守合同要求无法核实叠层时拒收，不报告未经证明的比值。
+    const code = review3[name];
+    const bad = await run(name, code, true);
+    const safe = { ...code, css: code.css.replace(/background:(white|rgba\(255,255,255,\.65\));z-index:2/, 'background:transparent;z-index:2') };
+    const good = await run(`${name}-no-paint-safe`, safe, true);
+    assert.equal(good.passed, true, JSON.stringify(good.issues));
+    const observations = JSON.parse(await readFile(`${out}/${name}-visitor.json`, 'utf8'));
+    for (const width of widths) {
+      assert.ok(bad.issues.some(issue => issue.startsWith(`home/${width} `) && issue.includes('伪元素叠层无法核对实际底图')), JSON.stringify(bad.issues));
+      const generated = observations.find((state: { width: number }) => state.width === width).scan.textContrast.filter((item: { key: string }) => item.key.endsWith('::before'));
+      assert.ok(generated.length > 0, '真实绘制的生成文字不能被删掉');
+      for (const item of generated) {
+        assert.equal(item.status, 'unmeasured');
+        assert.equal(item.ratio, null, '未核实覆盖层不能返回宿主底色的比值');
+      }
+    }
+  });
+}
+
+test('marker 颜色不随 first-line 改变：浅灰编号拒收，深色编号通过', async () => {
+  // 独立复审三档原样绘制确认 marker 不受 first-line 的颜色影响。
+  const bad = await run('marker-first-line-low', review3['marker-first-line-low'], true);
+  assert.ok(bad.viewports.every(view => view.contrastIssues > 0));
+  assert.equal(bad.passed, false);
+  const good = await run('marker-first-line-safe', review3['marker-first-line-safe'], true);
+  assert.equal(good.passed, true, JSON.stringify(good.issues));
+  assert.equal(good.viewports.length, widths.length);
+});
 
 test('原生 normal 列表编号与显式编号均按实际文字检查，安全编号通过', async () => {
   const failures: string[] = [];

@@ -4,7 +4,7 @@ title: 视觉扫描与访客实际看到的不一致：aria/details 预处理、
 type: build
 status: open
 blocked_by: []
-claimed_by: opencode-t196d
+claimed_by: codex-t196e
 supersedes:
 ---
 
@@ -243,3 +243,80 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 #### 交付边界
 
 `tests/fixtures/t196-review2-inputs.json` 只逐份复制 `review2-probes/` 的 `code`，未复制扫描答案；16 份输入已与探针逐份核对相等。未调用真实模型、未读 `.env.local`、未开审查实例、未跑全量／runner／build、未推送或 force-push、未使用 rm；没有写主工作区 `.sitecraft-data` 或 artifacts。`tsconfig.json` 的 Next 自动改动保留且不提交。本轮源码、测试、夹具、spec 与票据合为本地提交；票保持 open，最后一项继续不勾选，等待主控独立复审与合并后主线验收。本轮门控 **PASS**，提交 SHA 随交付回报。
+
+
+### 2026-10-20 第三轮复审 P2／P3 修复（codex-t196e）
+
+输入为主工作区只读 `artifacts/t196/review3.txt`（目标 `8d131f5`，结论 **NO_GO：一项 P2、一项 P3**）及 `review3-probes/current-relaxation-refined.ts`。review3 由 DeepSeek 的独立实例审查，上一轮执行者 opencode 也为 DeepSeek；本轮执行者为 codex-t196e，按负责人指令未开审查实例。目标只修复生成文字叠层漏判及离线摘要完成时间；不增加矩形覆盖或绘制顺序推断，不调用模型，不改变 T-195 两条排除规则、容差或阈值。
+
+#### 修法与独立期望
+
+- **P2**：删除 `scripts/visitor-layout-scan.js` 中其他伪元素层的 `comparable`／`layerBase`／`sameSolid` 放宽。宿主或祖先存在其他 before／after 绘制层，而不能证明它位于生成文字下方且不影响实际叠底时，一律返回「伪元素叠层无法核对实际底图」，不返回比值。仅对其他绘制层收紧，原有宿主实际背景测量路径不变。marker 不受 first-line 影响的处理原样保留。
+- 新夹具 `tests/fixtures/t196-review3-overlay-inputs.json` 只从独立探针复制五份站点代码，不带检查答案。三个覆盖层反例分别为完全不透明白层在上、65% 半透明白层在上、65% 半透明白层覆盖宿主宽度的 55%；三档访客截图分别可见文字消失、整体变浅和局部变浅。每例保留 content:""，仅移除覆盖层背景绘制作为安全对照；拒收期望来自这些访客状态及负责人指定的保守合同。另补 marker 浅灰／深色与相反 first-line 颜色的成对保护用例，红态即通过，不冒称本轮修复了 marker 缺陷。
+- **P3**：只在本工作树把 `artifacts/t196/review2-fix/offline-comparison.json` 的 `after.completedAt` 从 null 改为该目录 `offline-after-final/summary.json` 的原值 `2026-10-20T01:29:02.826Z`。语义核对确认其余字段全部相同，没有改任何测试结果。原摘要与修正副本分别保存到本轮 `review2-offline-comparison-original.json`、`review2-offline-comparison-corrected.json`；主工作区 artifacts 未写入。
+- T-164 两个旧夹具原有白底 before／after 与原生列表编号同宿主，按收紧合同无法证明叠层顺序，初始存版被明确拒收。仅去掉该组夹具的基线背景；焦点态仍改颜色和背景，范围外完整样式改变、拒因定位及不存版本断言全部保留。未为夹具放宽生产规则。
+
+Tracer bullet 仍为独立页面输入 → 生产静态渲染 → Chrome 实际布局 → checkSiteCode 三档检查；Deep modules 不新增接口，直接删除不可靠分支；Ubiquitous language 沿用“生成文字位置”与“无法测量”。同类问题由上述三个红绿用例机械拦截，检查说明已补入 AGENTS.md，当前合同已同步到 spec 第 6 节。
+
+#### 红绿与门控（UTC）
+
+所有浏览器检查在本工作树串行，统一使用下列 Chrome；`review3-fix/*-command.json` 保存完整命令、cwd、开始／完成时间和退出码，`*.log` 保存原始输出。
+
+```sh
+export CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell
+# 在 HEAD 8d131f5、生产代码未改时取得缺陷红态
+npm test -- --browser-concurrency=1 tests/t196-visual-coverage.test.ts
+# 首次相关门控，保留两项夹具失败
+npm test -- --browser-concurrency=1 tests/t196-visual-coverage.test.ts tests/t164-review-seven.test.ts tests/t195-hidden-overlap.test.ts
+# 最终相关门控
+npm test -- --browser-concurrency=1 \
+  tests/t196-visual-coverage.test.ts tests/t195-hidden-overlap.test.ts tests/t160-narrow-columns.test.ts \
+  tests/t187-repair-fragments.test.ts tests/t187-repair-routing.test.ts tests/t191-display-transition.test.ts \
+  tests/t191-fact-label-boundary.test.ts tests/t192-check-transitions.test.ts tests/t173-repair-scope.test.ts \
+  tests/t089-contrast-line-length.test.ts tests/t178-full-style-equivalence.test.ts tests/t164-review-seven.test.ts
+npm run typecheck
+```
+
+- **HEAD 红态**：2026-10-20T08:11:08.955969Z–08:11:40.235968Z，15 项中 12 通过、3 失败，退出 1；三个新覆盖层反例三档均被错误接受，issues 为空，安全对照全部通过。日志 `artifacts/t196/review3-fix/head-8d131f5-red.log`，标准入口 `artifacts/t167/test-run-1792483869349-13238/`，原样截图／观察 `artifacts/t196/probes-1792483871307-13244/`。这是业务漏判红态，不是环境或封装失败。
+- **首次相关门控**：08:13:24.134619Z–08:14:45.259053Z，42 项中 40 通过、上述 T-164 两项初始夹具失败，退出 1；T-196 15／15、T-195 13／13 已通过。日志 `initial-targeted.log`，标准入口 `artifacts/t167/test-run-1792484004452-15094/`；失败证据完整保留。
+- **最终相关门控**：08:15:19.076428Z–08:17:25.721027Z，12 文件 **139／139 通过**，失败／取消／跳过均为 0，退出 0；包含 T-196 15／15、T-164 14／14、T-195 13／13。日志 `final-targeted.log`，标准入口 `artifacts/t167/test-run-1792484119418-17442/`。三个覆盖层反例各三档明确无法测量、ratio=null，保留 content:"" 的无绘制层对照均通过；原有同宿主／祖先叠层用例继续通过。
+- **最终 typecheck**：08:16:12.181171Z–08:16:13.743283Z，退出 0；`final-typecheck.log`。先前一次 08:13:51.634061Z–08:13:53.118599Z 的通过记录同样保留。
+- 最终新增三组成对覆盖层与 marker 的 24 张三档原样截图位于 `artifacts/t196/probes-1792484215854-20049/`，已通过 `review3-fix/final-overlays-marker-{375,768,1440}.png` 的完整页面和文字区域汇总图逐张打开；红态三个覆盖层的 18 张成对原图同样已打开。没有哈希、字节或像素比对，没有固定等待。
+
+#### T-190 的 14 站改前／改后离线对比
+
+只读核对主工作区 `.sitecraft-data/code-sites/` 中站名含“（新资料 T-190）”的全部 14 站，currentVersionId 与 manifest 一致；现有本工作树副本除已去掉站名备注外，与源记录各字段相同，核对记录为 `review3-fix/source-verification.json`。沿用副本 `artifacts/t196/offline-data/`、原 manifest 与离线包装，不写主工作区数据。
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t196/offline.mjs artifacts/t196/review3-fix/offline-before
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t196/offline.mjs artifacts/t196/review3-fix/offline-after
+```
+
+包装只提供本地同源页和副本图片／预览，实际调用 `scripts/check-code-quality-offline.ts --manifest artifacts/t196/manifest.json --samples <本工作树>/artifacts/t196/offline-data/code-sites --out <各自新目录>`，legacyImport 离线确定性检查，无事实模型调用，不存版本。
+
+- 改前完整命令：08:11:48.580482Z–08:12:12.022292Z，退出 0；summary 检查完成时间 08:12:03.333Z。
+- 改后完整命令：08:12:39.780383Z–08:13:03.058451Z，退出 0；summary 检查完成时间 08:12:54.391Z。
+- 两次均 **14／14 通过、129 个页面视口、0 条底线拒因、0 个回放错误**；siteId／versionId 集合、逐站拒因和质量反馈完全一致，**新增拒因站点 0（停止阈值为超过 3）**。元数据如实记 `commit=8d131f5`、dirty=true，改后是未提交修复候选，不冒称最终 SHA 重跑。
+
+| 站点 | siteId 前八位 | 页面视口 | 改前拒因 → 改后拒因 |
+| --- | --- | --- | --- |
+| 青禾纸包装 | 02058cac | 9 | 0 → 0 |
+| 禾巷小馆 | 2c11a272 | 9 | 0 → 0 |
+| 外高桥流体接头 | 3938dc82 | 9 | 0 → 0 |
+| 忻州重载减速机 | 50f563f6 | 6 | 0 → 0 |
+| 折页设计工作室 | 519b44cd | 9 | 0 → 0 |
+| 外高桥流体接头 | 61601e66 | 9 | 0 → 0 |
+| 拾色绘画教室 | 641e5b8b | 9 | 0 → 0 |
+| 禾巷小馆 | 961cd7a2 | 9 | 0 → 0 |
+| 拾色绘画教室 | a44ba7c8 | 9 | 0 → 0 |
+| 拾色绘画教室 | aa40ead3 | 9 | 0 → 0 |
+| 宁海精密注塑模具 | aaf4ff61 | 12 | 0 → 0 |
+| 宁海精密注塑模具 | bd77156a | 12 | 0 → 0 |
+| 禾巷小馆 | cb04f202 | 9 | 0 → 0 |
+| 拾色绘画教室 | ce92cb36 | 9 | 0 → 0 |
+
+两轮 `offline-before/`、`offline-after/` 的 results／summary／screenshots、原始日志和 `offline-comparison.json` 均在本工作树 `artifacts/t196/review3-fix/`；两边各六张三档离线截图均通过 `offline-{before,after}-{ungatedHover,smallTargets}-view.png` 完整页面汇总图打开，非空白、载入态或截断截图。技术通过不表示审美或独立复审通过。
+
+#### 本轮交付边界
+
+本轮授权内修复与门控 **PASS**。`claimed_by: codex-t196e`，票保持 open，合并后主线验证及独立审查继续不勾选。未跑全量／runner／build、未推送或 force-push、未读 .env／.env.local、未调用真实模型、未开审查实例、未使用 rm；主工作区 artifacts 与 .sitecraft-data 均未写入。保留开工时已有的 tsconfig.json 自动改动，不提交。源码、测试、夹具、当前规则与本节记录合为本地提交，最终 SHA 随交付回报；日志和截图按项目约定留在 gitignore 的本工作树 artifacts。
