@@ -2,7 +2,7 @@
 id: T-199
 title: 对比度扫描对滤镜、遮罩、裁切、描边与首行首字母变色一律判为无法测量
 type: build
-status: open
+status: closed
 blocked_by: [T-198]
 claimed_by: codex-t199
 supersedes:
@@ -35,7 +35,7 @@ T-196 已经审到第六轮，每轮用自造的新 CSS 都能找到新缺口，
 
 - [x] 成对测试先红后绿；14 站离线重检新增拒因不超过 3 站
 - [x] spec 与 AGENTS.md 对比度扫描的表述同步
-- [ ] 合并后主线验证通过；独立审查通过
+- 合并后主线验证通过；独立审查通过——主线验证已通过（见 Resolution 末尾）；审查一项不打勾：review1 为 NO_GO，P2-1（mask 误拒）修复后未再复审，由执行主控核对三项后合并；P2-2 记为已知代价，backdrop-filter 记为已知缺口。审查原文：`artifacts/t199/review1.txt`。
 
 ## Resolution
 
@@ -221,3 +221,11 @@ python3 artifacts/t199/review1-fix/compare-offline.py
 - **backdrop-filter：白名单之外的已知缺口，不修。** 来源为 review1 的 A 核对与“已知缺口”一节；它不是 filter 别名，不在本票五类统一规则内。该报告只确认未被本白名单统一拦截，两个标准属性样本的文字仍清晰，不能据此声称已复现不可读漏判。本轮不扩展类别，不添加兼容或豁免路径。
 
 本轮 P2-1 授权范围 **PASS**，spec 与 AGENTS 同步，project-map 无问题或过期文档。旧失败与新红态完整保留，主工作区 artifacts／.sitecraft-data 只读。未跑全量、runner 回归、build、真实模型或评估；未开审查／盲评实例，未读 .env／.env.local，未碰 3034，未使用 rm，未推送或 force-push。自建服务均在结束后关闭。保留 tsconfig.json 的既有 Next 自动改动，不纳入提交；使用显式路径 git add，提交保留指定 Co-Authored-By。最终本地 SHA 随交付回报；独立复审与合并后主线验证继续交主控，本票不关闭。
+
+### 主控验收与关闭
+
+执行主控，2026-10-20 EDT。窄复审一轮，新实例（gpt-6.1-sol high）。
+
+- review1 NO_GO：在 49 个以上输入中，五类写法里凡是实际生效的都没有被测量放行。P2-1 是本次新增的误拒：mask 判断拿整个简写字符串和 none 比较，导致只设 mask-size、mask-mode、mask-position 或 `none, none` 列表的正常文字被拒收。P2-2 是父版已有的保守拒收，即生成文字的首行或首字母只改字重、字号，来自 T-196 的完整分片门禁，记为已知代价。backdrop-filter 不在五类白名单内，记为已知缺口。
+- 按构思主控决定（2026-10-20），P2-1 修完不再复审，由执行主控核对三项，均满足：① 7 个无图遮罩输入（review1 的 5 个加执行者补的 2 个）在 55fb6f1 上三档被拒，2e06ade 上三档通过；② webkit-mask-shorthand、webkit-mask-image-generated、mask-shorthand-ancestor 三个有图遮罩输入仍拒收（`tests/t199-contrast-effects.test.ts` 62/62，本人在 2e06ade 上重跑）；③ T-190 的 14 站 129 个页面视口与 55fb6f1 对比，新增拒因 0。
+- 分支 `t199-contrast-effects-whitelist`（`2e06ade`）以 `--no-ff` 合并为 `7202ec6`。主线验证在合并后的 `7202ec6` 上运行，2026-10-20 11:07:00–11:22:36 EDT，运行前停了 3034 服务，期间没有其他浏览器测试进程。typecheck、runner 回归、build 均退出 0；全量 1003/1003 通过，无失败、取消或跳过。日志见 `artifacts/main-verify-7202ec6/`，标准入口目录 `artifacts/t167/test-run-1792508838070-8741/`。
