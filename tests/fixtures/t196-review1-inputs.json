@@ -1,0 +1,110 @@
+{
+  "pseudo-bg-low-contrast": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}.stage{background:#111}#probe{background:white;width:100px}#probe::before{position:absolute;left:110px;content:\"DARK TEXT\";color:#444}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "pseudo-bg-host-covered": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}.stage{background:white}#probe{background:#111;width:100px}#probe::before{position:absolute;left:110px;content:\"LIGHT TEXT\";color:white}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "pseudo-bg-safe-control": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}.stage{background:#111}#probe{background:#111;width:100px}#probe::before{position:absolute;left:110px;content:\"DARK TEXT\";color:white}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "pseudo-cv-hidden-host": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{content-visibility:hidden}#probe::before{content:\"VISIBLE COLLISION\";color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "pseudo-cv-visible-control": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{content-visibility:visible}#probe::before{content:\"VISIBLE COLLISION\";color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "dom-cv-hidden-control": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{content-visibility:hidden}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" class=\"text\" style=\"color:#eee\">VISIBLE COLLISION</p></div></main>"
+      }
+    ]
+  },
+  "pseudo-first-letter-safe": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::first-letter{font-weight:bold}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\">Content</p></div></main>"
+      }
+    ]
+  },
+  "pseudo-before-first-letter": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{content:\"VISIBLE COLLISION\";color:#eee}#probe::first-letter{font-weight:bold}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "pseudo-visibility": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{content:\"VISIBLE COLLISION\";visibility:hidden;color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "overlay-fully-opaque-same-as-host-above": {
+    "header": "",
+    "footer": "",
+    "css": "\nhtml,body{margin:0;background:white;color:#111;font:16px/20px monospace}\nmain{padding:20px}\nh1{margin:0 0 20px;font-size:24px;line-height:30px}\n.stage{position:relative;width:300px;height:96px;background:white}\n\n#probe{position:relative;margin:0;width:280px;height:60px;background:white}\n#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace;z-index:1}\n#probe::after{content:\"\";position:absolute;inset:0;background:white;z-index:2}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visual probe",
+        "html": "<main><h1>Visual probe</h1><div class=\"stage\"><p id=\"probe\"></p></div></main>"
+      }
+    ]
+  },
+  "overlay-semi-transparent-65-same-as-host-above": {
+    "header": "",
+    "footer": "",
+    "css": "\nhtml,body{margin:0;background:white;color:#111;font:16px/20px monospace}\nmain{padding:20px}\nh1{margin:0 0 20px;font-size:24px;line-height:30px}\n.stage{position:relative;width:300px;height:96px;background:white}\n\n#probe{position:relative;margin:0;width:280px;height:60px;background:white}\n#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace;z-index:1}\n#probe::after{content:\"\";position:absolute;inset:0;background:rgba(255,255,255,.65);z-index:2}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visual probe",
+        "html": "<main><h1>Visual probe</h1><div class=\"stage\"><p id=\"probe\"></p></div></main>"
+      }
+    ]
+  },
+  "overlay-partial-65-same-as-host-above": {
+    "header": "",
+    "footer": "",
+    "css": "\nhtml,body{margin:0;background:white;color:#111;font:16px/20px monospace}\nmain{padding:20px}\nh1{margin:0 0 20px;font-size:24px;line-height:30px}\n.stage{position:relative;width:300px;height:96px;background:white}\n\n#probe{position:relative;margin:0;width:280px;height:60px;background:white}\n#probe::before{content:\"VISIBLE TEXT\";position:absolute;left:0;top:12px;color:#111;font:700 24px/30px monospace;z-index:1}\n#probe::after{content:\"\";position:absolute;left:0;top:0;width:55%;height:100%;background:rgba(255,255,255,.65);z-index:2}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visual probe",
+        "html": "<main><h1>Visual probe</h1><div class=\"stage\"><p id=\"probe\"></p></div></main>"
+      }
+    ]
+  },
+  "marker-first-line-low": {
+    "header": "",
+    "footer": "",
+    "css": "\nhtml,body{margin:0;background:white;color:#111;font:16px/20px monospace}\nmain{padding:20px}\nh1{margin:0 0 20px;font-size:24px;line-height:30px}\n.stage{position:relative;width:300px;height:96px;background:white}\n\n.stage{height:64px}\nol{margin:0;padding-left:24px}\n#probe{width:240px;height:32px;color:#111;list-style-position:inside}\n#probe::marker{color:#eee}#probe::first-line{color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visual probe",
+        "html": "<main><h1>Visual probe</h1><div class=\"stage\"><ol><li id=\"probe\"></li></ol></div></main>"
+      }
+    ]
+  },
+  "marker-first-line-safe": {
+    "header": "",
+    "footer": "",
+    "css": "\nhtml,body{margin:0;background:white;color:#111;font:16px/20px monospace}\nmain{padding:20px}\nh1{margin:0 0 20px;font-size:24px;line-height:30px}\n.stage{position:relative;width:300px;height:96px;background:white}\n\n.stage{height:64px}\nol{margin:0;padding-left:24px}\n#probe{width:240px;height:32px;color:#111;list-style-position:inside}\n#probe::marker{color:#111}#probe::first-line{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visual probe",
+        "html": "<main><h1>Visual probe</h1><div class=\"stage\"><ol><li id=\"probe\"></li></ol></div></main>"
+      }
+    ]
+  }
+}

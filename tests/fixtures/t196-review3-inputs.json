@@ -1,0 +1,146 @@
+{
+  "aria-visibility": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}#probe{visibility:hidden}#probe[aria-hidden=\"true\"]{visibility:visible}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" aria-hidden=\"true\" class=\"text\">VISIBLE COLLISION</p></div></main>"
+      }
+    ]
+  },
+  "aria-display": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}#probe{display:none}#probe[aria-hidden=\"true\"]{display:block}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" aria-hidden=\"true\" class=\"text\">VISIBLE COLLISION</p></div></main>"
+      }
+    ]
+  },
+  "aria-control": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" class=\"text\" aria-hidden=\"true\">VISIBLE COLLISION</p></div></main>"
+      }
+    ]
+  },
+  "details-summary-isolated": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}summary{list-style:none}details[open] summary{display:none}details>p{position:absolute;top:40px;margin:0}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><details><summary id=\"probe\" class=\"text\">VISIBLE COLLISION</summary><p>Details content</p></details></div></main>"
+      }
+    ]
+  },
+  "details-summary-visibility": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}summary{list-style:none}details[open] summary{visibility:hidden}details>p{position:absolute;top:40px;margin:0}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><details><summary id=\"probe\" class=\"text\">VISIBLE COLLISION</summary><p>Details content</p></details></div></main>"
+      }
+    ]
+  },
+  "details-control": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}summary{list-style:none}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><details><summary id=\"probe\" class=\"text\">VISIBLE COLLISION</summary><p>Details content</p></details></div></main>"
+      }
+    ]
+  },
+  "overflow-tiny": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}#probe{width:.25px;height:.25px;left:-30px;color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\">VISIBLE COLLISION</p></div></main>"
+      }
+    ]
+  },
+  "overflow-zero": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}#probe{width:0;height:0;left:-30px;color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\">VISIBLE COLLISION</p></div></main>"
+      }
+    ]
+  },
+  "overflow-normal-negative": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}#probe{width:200px;height:20px;left:-30px;color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\">VISIBLE COLLISION</p></div></main>"
+      }
+    ]
+  },
+  "overflow-tiny-positive": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}#probe{width:.25px;height:.25px;left:300px;color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\">VISIBLE COLLISION</p></div></main>"
+      }
+    ]
+  },
+  "pseudo-visible": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}#probe::before{content:\"VISIBLE COLLISION\";color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "pseudo-visibility-restored": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:80px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{color:#eee}#probe{visibility:hidden}#probe::before{visibility:visible;content:\"VISIBLE COLLISION\";color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p class=\"text\">VISIBLE COLLISION</p><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  }
+}

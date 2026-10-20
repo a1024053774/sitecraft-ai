@@ -132,7 +132,8 @@ test('祖先规则在焦点态改变明确高度仍须拒绝', async () => {
 
 for (const pseudo of ['::before', '::after', '::marker', '::first-line', '::first-letter']) {
   test(`区块外 ${pseudo} 的完整计算样式改变必须拒绝`, async () => {
-    const { id, code, target } = await fixture(`.outside${pseudo}{content:"外部";color:rgb(17,17,17);background:white}main:focus-within .outside${pseudo}{color:rgb(220,20,20);background:black}`,
+    // 基线不添加可能遮挡列表编号的背景层；焦点态仍同时改变颜色和背景。
+    const { id, code, target } = await fixture(`.outside${pseudo}{content:"外部";color:rgb(17,17,17)}main:focus-within .outside${pseudo}{color:rgb(220,20,20);background:black}`,
       '<main><section><h1>清禾小馆</h1><p>小馆介绍</p></section><ul><li class="outside">外部</li></ul></main>');
     const candidate = structuredClone(code);
     candidate.pages[0].html = candidate.pages[0].html.replace('</section>', '<a href="/home">入口</a></section>');

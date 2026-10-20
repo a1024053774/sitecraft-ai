@@ -1,0 +1,194 @@
+{
+  "marker-normal-bad": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}ol{margin:0;padding-left:100px}#probe::marker{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><ol><li id=\"probe\">List</li></ol></div></main>"
+      }
+    ]
+  },
+  "marker-normal-good": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}ol{margin:0;padding-left:100px}#probe::marker{color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><ol><li id=\"probe\">List</li></ol></div></main>"
+      }
+    ]
+  },
+  "marker-explicit-bad": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}ul{margin:0;padding-left:100px}#probe::marker{content:\"BAD TEXT \";color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><ul><li id=\"probe\">List</li></ul></div></main>"
+      }
+    ]
+  },
+  "marker-explicit-good": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}ul{margin:0;padding-left:100px}#probe::marker{content:\"SAFE \";color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><ul><li id=\"probe\">List</li></ul></div></main>"
+      }
+    ]
+  },
+  "marker-counter-bad": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}ol{margin:0;padding-left:100px}#probe::marker{content:counter(list-item) \". \";color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><ol><li id=\"probe\">List</li></ol></div></main>"
+      }
+    ]
+  },
+  "counter-bad": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{counter-reset:chapter 12}#probe::before{content:counter(chapter);color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "counter-good": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe{counter-reset:chapter 12}#probe::before{content:counter(chapter);color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "attr-bad": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{content:attr(data-label);color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\" data-label=\"DARK TEXT\"></p></div></main>"
+      }
+    ]
+  },
+  "attr-good": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{content:attr(data-label);color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\" data-label=\"DARK TEXT\"></p></div></main>"
+      }
+    ]
+  },
+  "attr-empty-good": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{content:attr(data-label);color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\" data-label=\"\"></p></div></main>"
+      }
+    ]
+  },
+  "after-first-letter-bad": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::after{content:\"BAD TEXT\";color:#111}#probe::first-letter{color:white}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "after-first-letter-safe-control": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::after{content:\"BAD TEXT\";color:#111}#probe::first-letter{color:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "empty-after-background-overlay": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{position:relative;z-index:1;content:\"LIGHT TEXT\";color:white}#probe::after{content:\"\";position:absolute;inset:0;background:white}.stage{background:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "empty-after-background-safe-control": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{position:relative;z-index:1;content:\"LIGHT TEXT\";color:#111}#probe::after{content:\"\";position:absolute;inset:0;background:white}.stage{background:#111}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "empty-content-good": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{content:\"\";color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  },
+  "first-line-inherit-bad": {
+    "header": "",
+    "footer": "",
+    "css": "body{margin:0;color:#111;background:white;font:16px/20px monospace}main{padding:20px}h1{margin:0 0 20px;font-size:24px;line-height:30px}.stage{position:relative;height:180px}.text{position:absolute;left:0;top:0;margin:0;white-space:nowrap;width:200px;height:20px}#probe::before{content:\"BAD TEXT\"}#probe::first-line{color:#eee}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "Visibility",
+        "html": "<main><h1>Visibility</h1><div class=\"stage\"><p id=\"probe\" class=\"text\"></p></div></main>"
+      }
+    ]
+  }
+}

@@ -155,16 +155,16 @@ const scanHeroTitle = (root) => {
   return result;
 };
 
-export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
+export function scanVisitorLayout(root = document, systemBackdropColors = {}, generatedLayout = null) {
   const blockFor = el => el.closest('[data-sc-block]')?.getAttribute('data-sc-block') || '页面';
   // T-195：只认文字自身的计算 visibility 和有盒元素的完整 sr-only 写法。
   // opacity、content-visibility 及其他裁切不作排除；保留完整 Range，允许误拒。
   const hidden = new WeakMap();
-  const fullyHidden = el => {
+  const fullyHidden = (el,pseudo=null) => {
     if(!el) return false;
-    if(hidden.has(el)) return hidden.get(el);
+    if(!pseudo&&hidden.has(el)) return hidden.get(el);
     // visibility 可继承，也可被后代覆盖，不能用祖先值代替文字自身的值。
-    let result=getComputedStyle(el).visibility!=='visible';
+    let result=getComputedStyle(el,pseudo).visibility!=='visible';
     for(let p=el;!result&&p;p=p.parentElement) {
       const s=getComputedStyle(p);
       // contents 没有盒子，普通 inline 的尺寸与 overflow 不构成 sr-only 裁切。
@@ -176,11 +176,11 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
       const rects=p.getClientRects();
       if(rects.length&&[...rects].every(r=>r.width<=1&&r.height<=1)) result=true;
     }
-    hidden.set(el,result);
+    if(!pseudo) hidden.set(el,result);
     return result;
   };
-  const measuredRect = (el,rect) => {
-    if(fullyHidden(el)) return null;
+  const measuredRect = (el,rect,pseudo=null) => {
+    if(fullyHidden(el,pseudo)) return null;
     const {left,right,top,bottom}=rect;
     return right>left&&bottom>top?{left,right,top,bottom,width:right-left,height:bottom-top}:null;
   };
@@ -188,6 +188,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const keyFor = el => {
     const path=[];
     for(let p=el;p&&p!==document.body;p=p.parentElement) {
+      if(!p.parentElement) {path.unshift(p.tagName);break;}
       path.unshift(`${p.tagName}:${[...p.parentElement.children].indexOf(p)}`);
     }
     return path.join('/');
@@ -197,7 +198,6 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
     if(!visible(el)) continue;
     const r=measuredRect(el,el.getBoundingClientRect());
     if(!r) continue;
-    if(r.width<1||r.height<1) continue;
     const amount=Math.max(r.right-innerWidth,-r.left,0);
     if(amount>1) overflowElements.push({block:blockFor(el),key:keyFor(el),amount:Math.ceil(amount)});
   }
@@ -209,11 +209,50 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
     range.selectNodeContents(n);
     const key=`${keyFor(el)}:${[...el.childNodes].indexOf(n)}:${n.textContent.trim()}`;
     const fontSize=parseFloat(getComputedStyle(el).fontSize);
-    for(const rect of range.getClientRects()) if(rect.width>.5&&rect.height>.5) {
+    for(const rect of range.getClientRects()) {
+      const textRect=measuredRect(el,rect);
+      if(textRect) {
+        const amount=Math.max(textRect.right-innerWidth,-textRect.left,0);
+        if(amount>1&&!overflowElements.some(item=>item.key===keyFor(el))) overflowElements.push({block:blockFor(el),key:keyFor(el),amount:Math.ceil(amount)});
+      }
+      if(rect.width<=.5||rect.height<=.5) continue;
       // Use the same em box for every text fragment, including inline descendants.
       const height=Math.min(rect.height,fontSize),top=rect.top+(rect.height-height)/2;
       const painted=measuredRect(el,{left:rect.left,right:rect.right,top,bottom:top+height});
       if(painted) lines.push({el,rect:painted,key});
+    }
+  }
+  // 每次核对非空 content 与快照的覆盖，空列表不代表已完整测量。
+  generatedLayout=[...(generatedLayout||[])];
+  for(const el of root.querySelectorAll('*')) for(const pseudo of ['::before','::after','::marker']) {
+    const content=getComputedStyle(el,pseudo).content;
+    // normal 在 marker 上仍会绘制原生编号／圆点，缺快照不能当成空文字。
+    const nativeMarker=pseudo==='::marker'&&/\blist-item\b/.test(getComputedStyle(el).display)
+      &&! /^(none|""|'')$/.test(getComputedStyle(el).listStyleType);
+    if(!content||/^(none|""|'')$/.test(content)||content==='normal'&&!nativeMarker) continue;
+    const path=[];for(let p=el;p.parentElement;p=p.parentElement)path.unshift([...p.parentElement.children].indexOf(p));
+    // 无字绘制盒不能冒充非空 content 的文字覆盖证明。
+    if(!generatedLayout.some(item=>item.text.trim()&&item.pseudo===pseudo&&item.path.length===path.length&&item.path.every((value,index)=>value===path[index])))
+      generatedLayout.push({path,pseudo,text:content,rects:[]});
+  }
+  const layoutPseudos=generatedLayout.map(item=>{
+    let el=document.documentElement;
+    for(const index of item.path) el=el?.children[index];
+    if(!el) throw new Error('CSS 生成文字无法定位当前元素，本次未保存版本。');
+    return {...item,el,key:`${keyFor(el)}${item.pseudo}`};
+  });
+  // 空文字仍保留绘制盒用于叠层核对；只有非空文字进入文字扫描。
+  // Chrome 已给出非空文字时，以实际文字为准，不用 computed content 再删快照行。
+  const generated=layoutPseudos.filter(item=>item.text.trim()&&!fullyHidden(item.el,item.pseudo));
+  for(const item of generated) {
+    const fontSize=parseFloat(getComputedStyle(item.el,item.pseudo).fontSize);
+    for(const rect of item.rects) {
+      const amount=Math.max(rect.right-innerWidth,-rect.left,0);
+      if(rect.width>0&&rect.height>0&&amount>1&&!overflowElements.some(entry=>entry.key===item.key)) overflowElements.push({block:blockFor(item.el),key:item.key,amount:Math.ceil(amount)});
+      if(rect.width<=.5||rect.height<=.5) continue;
+      const height=Math.min(rect.height,fontSize),top=rect.top+(rect.height-height)/2;
+      const painted=measuredRect(item.el,{left:rect.left,right:rect.right,top,bottom:top+height},item.pseudo);
+      if(painted) lines.push({el:item.el,rect:painted,key:item.key,target:item.key});
     }
   }
   const heroTitle = root.querySelector('[data-sc-block="hero"] h1');
@@ -242,10 +281,10 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   for(let i=0;i<lines.length;i++) for(let j=i+1;j<lines.length;j++) {
     const a=lines[i], b=lines[j];
     // Fragments on one line may repeat; distinct lines in the same element can overlap.
-    if(a.el===b.el&&Math.abs(a.rect.top-b.rect.top)<1&&Math.abs(a.rect.bottom-b.rect.bottom)<1) continue;
+    if(a.el===b.el&&a.target===b.target&&Math.abs(a.rect.top-b.rect.top)<1&&Math.abs(a.rect.bottom-b.rect.bottom)<1) continue;
     const x=Math.min(a.rect.right,b.rect.right)-Math.max(a.rect.left,b.rect.left);
     const y=Math.min(a.rect.bottom,b.rect.bottom)-Math.max(a.rect.top,b.rect.top);
-    if(x>2&&y>2) textOverlaps.push({block:blockFor(a.el),amount:Math.min(x,y),key:[a.key,b.key].sort().join('::'),targets:[keyFor(a.el),keyFor(b.el)]});
+    if(x>2&&y>2) textOverlaps.push({block:blockFor(a.el),amount:Math.min(x,y),key:[a.key,b.key].sort().join('::'),targets:[a.target||keyFor(a.el),b.target||keyFor(b.el)]});
   }
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
@@ -314,31 +353,76 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
     }
     return {known:true,layers};
   };
-  const backgroundFor = (el,sampleRects=null) => {
+  const hasBackground = style => style.backgroundImage!=='none'||rgba(style.backgroundColor)?.[3]!==0;
+  const hasPseudoPaint = paint => {
+    if(paint.content==='none'||paint.display==='none'||paint.visibility!=='visible') return false;
+    const borderPaint=['Top','Right','Bottom','Left'].some(side=>parseFloat(paint[`border${side}Width`])>0&&rgba(paint[`border${side}Color`])?.[3]>0);
+    return paint.backgroundImage!=='none'||rgba(paint.backgroundColor)?.[3]>0||paint.boxShadow!=='none'||paint.backdropFilter!=='none'||borderPaint;
+  };
+  const pseudoPaints=layoutPseudos.filter(item=>item.paintRects?.length&&hasPseudoPaint(getComputedStyle(item.el,item.pseudo)));
+  // 构思主控 2026-10-20：只测最简单的绘制条件，不推断堆叠顺序。
+  const generatedPaintReason = (el,pseudo) => {
+    const host=getComputedStyle(el),paint=getComputedStyle(el,pseudo);
+    if(host.zIndex!=='auto'||paint.zIndex!=='auto') return '伪元素叠层无法核对实际底图';
+    for(let p=el;p;p=p.parentElement) for(const fragment of ['::first-line','::first-letter']){
+      if(hasBackground(getComputedStyle(p,fragment))) return '伪元素叠层无法核对实际底图';
+    }
+    if(pseudo==='::marker'&&host.listStylePosition!=='outside'&&hasBackground(host)) return '伪元素叠层无法核对实际底图';
+    return '';
+  };
+  const backgroundFor = (el,sampleRects=null,pseudo=null) => {
+    if(pseudo){
+      const reason=generatedPaintReason(el,pseudo);
+      if(reason) return {known:false,reason};
+    }
     const chain=[];for(let p=el;p;p=p.parentElement)chain.unshift(p);
-    const hasBackdrop=chain.some(p=>/url\(/i.test(getComputedStyle(p).backgroundImage));
+    const paints=chain.map(p=>getComputedStyle(p));
+    if(pseudo) paints.push(getComputedStyle(el,pseudo));
+    const hasBackdrop=paints.some(paint=>/url\(/i.test(paint.backgroundImage));
     let backgrounds=[[255,255,255,1]], foregroundOpacity=1;
-    for(const p of chain){
-      const style=getComputedStyle(p);
+    for(const [index,style] of paints.entries()){
+      const p=chain[index];
       if(style.mixBlendMode&&style.mixBlendMode!=='normal') return {known:false,reason:'混合图层'};
       if(hasBackdrop&&style.filter&&style.filter!=='none') return {known:false,reason:'滤镜无法核对实际叠底'};
       if(hasBackdrop&&/\binset\b/.test(style.boxShadow)) return {known:false,reason:'内阴影无法核对实际底图'};
       if(hasBackdrop&&style.maskImage&&style.maskImage!=='none') return {known:false,reason:'遮罩无法核对实际底图'};
       if(hasBackdrop&&style.backgroundBlendMode.split(',').some(mode=>mode.trim()!=='normal')) return {known:false,reason:'背景混合无法核对实际叠底'};
-      if(hasBackdrop) for(const pseudo of ['::before','::after']){
-        const paint=getComputedStyle(p,pseudo);
-        if(paint.content!=='none'&&paint.display!=='none'&&Number(paint.opacity)!==0
-          && (paint.backgroundImage!=='none'||rgba(paint.backgroundColor)?.[3]>0||paint.boxShadow!=='none'))
+      const color=rgba(style.backgroundColor);
+      if(!color) return {known:false,reason:'背景颜色无法解析'};
+      if((hasBackdrop||pseudo)&&p){
+        // 其他伪元素即使没有文字也可能绘制背景，不能凭 content 为空跳过。
+        for(const layerPseudo of ['::before','::after']){
+          if(p===el&&layerPseudo===pseudo) continue;
+          const paint=getComputedStyle(p,layerPseudo);
+          if(!hasPseudoPaint(paint)) continue;
+          // 同底色仍可能从文字上方遮挡前景；无法证明绘制顺序与实际叠底时拒收。
           return {known:false,reason:'伪元素叠层无法核对实际底图'};
+        }
       }
       const parsedBackground=backgroundLayers(style.backgroundImage);
       if(!parsedBackground.known) return {known:false,reason:parsedBackground.reason};
       const layers=parsedBackground.layers;
-      const color=rgba(style.backgroundColor);
-      if(!color) return {known:false,reason:'背景颜色无法解析'};
-      let local=[color];
+      let paintsText=true;
+      // 已通过绘制门禁；这里只核实底色覆盖，不能据此证明文字未被遮挡。
+      const sameSolidBackdrop=!layers.length&&backgrounds.every(bg=>color.every((value,index)=>value===bg[index]));
+      if(pseudo&&sampleRects?.length&&(color[3]>0||layers.length)&&!sameSolidBackdrop) {
+        // 只在背景盒完整覆盖文字行时叠加；完全不相交的宿主不提供底色。
+        // 部分覆盖、特殊背景形状或伪元素自身无可核实盒子时保守拒收。
+        if(!p||style.backgroundClip!=='border-box'||style.borderRadius!=='0px'
+          ||chain.slice(0,index+1).some(node=>{
+            const s=getComputedStyle(node);
+            return s.transform!=='none'||s.rotate!=='none'||s.scale!=='none'||s.perspective!=='none'||s.clipPath!=='none'||s.clip!=='auto';
+          })) return {known:false,reason:'CSS 生成文字无法核实实际背景覆盖'};
+        const boxes=[...p.getClientRects()];
+        const covers=sampleRects.every(rect=>boxes.some(box=>box.left<=rect.left&&box.right>=rect.right&&box.top<=rect.top&&box.bottom>=rect.bottom));
+        const disjoint=sampleRects.every(rect=>boxes.every(box=>box.right<=rect.left||box.left>=rect.right||box.bottom<=rect.top||box.top>=rect.bottom));
+        // html/body 的背景可能铺到画布，不能以盒子不相交断言它未绘制。
+        if(!covers&&(!disjoint||p===document.body||p===document.documentElement)) return {known:false,reason:'CSS 生成文字无法核实跨背景文字行的实际叠底'};
+        paintsText=covers;
+      }
+      let local=[paintsText?color:[0,0,0,0]];
       for(let layerIndex=layers.length-1;layerIndex>=0;layerIndex-=1){
-        local=local.flatMap(base=>layers[layerIndex].map(layer=>over(layer,base)));
+        if(paintsText) local=local.flatMap(base=>layers[layerIndex].map(layer=>over(layer,base)));
       }
       const opacity=Number.parseFloat(style.opacity);
       if(!Number.isFinite(opacity)) return {known:false,reason:'透明度无法解析'};
@@ -346,7 +430,15 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
       foregroundOpacity*=Math.max(0,Math.min(1,opacity));
     }
     const rects=sampleRects?.length?sampleRects:[el.getBoundingClientRect()];
-    if(hasBackdrop) for(const node of root.querySelectorAll('*')){
+    if(pseudo) for(const layer of pseudoPaints){
+      if(layer.el===el||layer.el.contains(el)) continue; // 同宿主与祖先已按更保守的规则核对。
+      // 独立伪元素可能溢出透明宿主，必须读取同次快照中的实际盒。
+      // 阴影可能伸出盒外，不能以盒不相交证明它不遮挡文字。
+      if(getComputedStyle(layer.el,layer.pseudo).boxShadow!=='none'||layer.paintRects.some(box=>rects.some(rect=>
+        Math.min(box.right,rect.right)>Math.max(box.left,rect.left)&&Math.min(box.bottom,rect.bottom)>Math.max(box.top,rect.top))))
+        return {known:false,reason:'伪元素叠层无法核对实际底图'};
+    }
+    if(hasBackdrop||pseudo) for(const node of root.querySelectorAll('*')){
       if(node===el||node.contains(el)||!visible(node)) continue;
       const r=node.getBoundingClientRect();
       if(!rects.some(rect=>Math.min(r.right,rect.right)-Math.max(r.left,rect.left)>.5
@@ -419,6 +511,18 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
   const textWalker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT);
   const measuredBodyBlocks=new Set();
   const reportedExemptions=new Set();
+  // first-line／first-letter 包装真实 DOM 文字时也须满足同一门禁。
+  const textFragmentSelectors=[];
+  const collectTextFragments=(rules,parent='')=>{for(const rule of rules){
+    const text=rule.selectorText;
+    const resolved=text?(parent?(text.includes('&')?text.replace(/&/g,`:is(${parent})`):`:is(${parent}) ${text}`):text):parent;
+    for(const selector of splitTopLevel(text?resolved:'')){
+      const match=/::?(first-line|first-letter)\b/i.exec(selector);
+      if(match) textFragmentSelectors.push({selector:selector.replace(match[0],'').trim(),pseudo:`::${match[1].toLowerCase()}`});
+    }
+    if(rule.cssRules) collectTextFragments(rule.cssRules,resolved);
+  }};
+  for(const sheet of document.styleSheets) collectTextFragments(sheet.cssRules);
   while(textWalker.nextNode()){
     const node=textWalker.currentNode,el=node.parentElement;
     if(!node.textContent.trim()||fullyHidden(el)) continue;
@@ -433,6 +537,10 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
     for(let ancestor=el;ancestor;ancestor=ancestor.parentElement){
       const paint=getComputedStyle(ancestor);
       if(/\btext\b/.test(paint.backgroundClip||paint.webkitBackgroundClip||'')) paintReason='背景裁切文字无法测量';
+      for(const {selector,pseudo} of textFragmentSelectors){
+        try{if(ancestor.matches(selector)) paintReason=paintReason||generatedPaintReason(ancestor,pseudo);}
+        catch{paintReason='伪元素叠层无法核对实际底图';}
+      }
     }
     const measured=background.known&&foreground&&!paintReason ? {status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))} : {status:'unmeasured',ratio:null,reason:paintReason||background.reason||'前景色无法解析'};
     const role=el.closest('h1,h2,h3,h4,h5,h6')?'heading':parameter?'parameter':(slot.startsWith('navigation.')||el.closest('nav'))?'navigation':(!el.closest('p')&&el.closest('button,input,select,textarea,a,summary,[role=button]'))?'control':'body';
@@ -449,6 +557,26 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}) {
       measuredBodyBlocks.add(block);
       for(const line of measureLines(block)) bodyLineLength.push({element:block.id||block.tagName.toLowerCase(),id:block.id||'',slot:slotFor(block),block:blockFor(block),...line});
     }
+  }
+  // DOMSnapshot 可能不暴露 first-line 的实际文字样式，不能用普通伪元素样式代替。
+  // 只在生成文字路径使用；真实 DOM 的安全首行／首字母继续走原 Range 路径。
+  const firstLineSelectors=textFragmentSelectors.filter(item=>item.pseudo==='::first-line').map(item=>item.selector);
+  const uncertainFirstLine=el=>{
+    for(let p=el;p;p=p.parentElement) for(const selector of firstLineSelectors){
+      try{if(p.matches(selector)) return true;}catch{return true;}
+    }
+    return false;
+  };
+  for(const item of generated) {
+    const {el,pseudo,text,rects,key}=item,style=getComputedStyle(el,pseudo);
+    const size=parseFloat(style.fontSize)||16,weight=parseInt(style.fontWeight,10)||400;
+    const large=size>=24||(size>=18.66&&weight>=700);
+    const background=backgroundFor(el,rects,pseudo),foreground=rgba(style.webkitTextFillColor||style.color);
+    const textClip=[style,...(()=>{const styles=[];for(let p=el;p;p=p.parentElement)styles.push(getComputedStyle(p));return styles;})()].some(p=>/\btext\b/.test(p.backgroundClip||p.webkitBackgroundClip||''));
+    const reason=!rects.length?'CSS 生成文字无法测量实际文字行':item.pseudo!=='::marker'&&uncertainFirstLine(el)?'CSS 生成文字无法测量 first-line 的实际分片样式':foreground?.[3]===0?'透明文字填充无法测量':textClip?'背景裁切文字无法测量':background.reason;
+    const measured=background.known&&foreground&&!reason?{status:'measured',ratio:Math.min(...background.colors.map(bg=>ratioFor(over(withAlpha(foreground,background.foregroundOpacity),bg),bg)))}:{status:'unmeasured',ratio:null,reason:reason||'CSS 生成文字前景色无法解析'};
+    const entry={key,element:el.id||el.tagName.toLowerCase(),tag:el.tagName.toLowerCase(),text:text.trim().slice(0,160),slot:slotFor(el),block:blockFor(el),role:el.closest('h1,h2,h3,h4,h5,h6')?'heading':'body',checkable:true,large,threshold:large?3:4.5,fontSize:size,fontWeight:weight,...measured};
+    textContrast.push(entry);contrastNodes.push({el,entry});
   }
   const slots=[...root.querySelectorAll('[data-sitecraft-slot]')].map(el=>{
     const r=el.getBoundingClientRect();
