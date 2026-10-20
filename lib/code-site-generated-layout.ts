@@ -60,9 +60,17 @@ export async function readGeneratedLayout(browser: Awaited<ReturnType<typeof cod
     const previous = texts.get(pseudoNode);
     texts.set(pseudoNode, { path, pseudo, text: (previous?.text ?? '') + text, rects: [...(previous?.rects ?? []), ...rects] });
   }
-  // Chrome 也会把生成首字母放在宿主下，与 before 并列。
+  // Chrome 也会把生成首字母放在宿主下，与 before／after 并列。
   // 不能证明该分片已按自身样式测量时，不拿剩余字符证明完整覆盖。
   const firstLetterHosts = new Set([...pseudos].filter(([, pseudo]) => pseudo === '::first-letter').map(([node]) => nodes.parentIndex[node]));
-  return [...texts].map(([node, item]) => fragmented.has(node) || item.pseudo === '::before' && firstLetterHosts.has(nodes.parentIndex[node])
-    ? { ...item, rects: [] } : item);
+  return [...texts].map(([node, item]) => {
+    let uncertain = fragmented.has(node);
+    if (item.pseudo === '::before' || item.pseudo === '::after') {
+      // 首字母也可能属于包含 inline 宿主的祖先首行；不能猜它来自哪个生成目标。
+      for (let host = nodes.parentIndex[node]; host >= 0; host = nodes.parentIndex[host]) {
+        if (firstLetterHosts.has(host)) uncertain = true;
+      }
+    }
+    return uncertain ? { ...item, rects: [] } : item;
+  });
 }
