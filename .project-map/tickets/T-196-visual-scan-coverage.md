@@ -31,11 +31,11 @@ T-195 第三次窄复审（`artifacts/t195/review3.txt`）在 375、768、1440 �
 
 - [x] 4 项逐一复现结论写进 Resolution
 - [x] 成对测试先红后绿；T-190 的 14 站离线重检结果如实记录
-- [ ] 合并后主线验证通过；独立审查通过
+- [ ] 合并后主线验证通过；独立审查通过（review5 为 NO_GO；本轮仅修 P2-2，未再复审，由主控核对）
 
 ## Resolution
 
-本地实现、成对回归及 14 站离线对照完成；最终 29 文件 303／303 定向测试通过。票保持 open；合并后主线验证与独立审查未执行，不能据此宣布整票或页面审美通过。
+本地实现、成对回归及 14 站离线对照记录见下。review5 为 NO_GO；按构思主控决定，本轮只修 P2-2，其余四类主线原有通用缺口转 T-199，未再复审。票保持 open，独立审查验收项不勾选；合并后主线验证未执行，不能据此宣布整票或页面审美通过。
 
 ### 四项复现
 
@@ -406,3 +406,61 @@ CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_ar
 #### 交付边界
 
 本轮授权内修复与门控 **PASS**；claimed_by 仍为 codex-t196e。票保持 open，合并后主线验证与独立审查未勾选。未跑全量／runner／build、未开审查实例、未调用真实模型、未读 .env／.env.local、未推送或 force-push、未使用 rm；主工作区 artifacts 与 .sitecraft-data 均未写入。保留原 tsconfig.json 的 Next 自动改动，不纳入提交。日志与截图留在本工作树 gitignore 的 artifacts；源码、测试、输入夹具与当前规则／本节记录合为本地提交，最终 SHA 随交付回报。
+
+
+### 2026-10-20 review5 仅修 P2-2（codex-t196e）
+
+完整读取主工作区只读 `artifacts/t196/review5.txt`。review5 独立复核结论为 **NO_GO**：五类 P2、八个漏判输入。构思主控于 2026-10-20 明确本轮只修 P2-2；P2-1（真实 DOM 首行／首字母前景）、P2-3（滤镜／遮罩）、P2-4（文字描边）、P2-5（clip-path）是主线原有的通用缺口，已转 **T-199**，本轮没有修这些项。review5 为 NO_GO，P2-2 已修，**未再复审**；按主控决定不再开复审，由主控核对。“独立审查通过”验收项不打勾，票保持 open。
+
+#### 修法与成对验收
+
+- 与被测生成文字相交的兄弟或其他非祖先节点上的 before／after 绘制层，一律以「伪元素叠层无法核对实际底图」无法测量拒收，ratio=null。不分析绘制顺序、颜色或透明度；透明背景且无边框、阴影、背景图等绘制的伪元素不算。既有 review3、review4 与三条收口条件原样保留，不加豁免，不改 T-195 排除、既有容差或对比度阈值。
+- `readGeneratedLayout` 沿用同次 Chrome DOMSnapshot，额外保留 before／after 的实际布局盒，包括 content:"" 的无字绘制层。宿主可能透明且与伪元素盒不相交，不能用宿主盒代替；元素路径映射和坐标换算由文字行与绘制盒共用，不插入模拟节点、不新增扫描入口。扫描只把非空文字交给文字检查，无字绘制盒不能冒充非空 content 的文字快照覆盖证明。
+- 扫描器复用同一绘制判断核对宿主／祖先与独立伪元素层；独立实际盒与文字相交即拒收。阴影可能伸出盒外，不能按盒不相交证明无影响，仍保守拒收。这会有误拒代价，本轮 14 站未出现新增拒因，不据此承诺其他站点没有代价。失败位置与修正范围仍沿用原路径，不开放新的自动修正范围。
+- `tests/fixtures/t196-review5-overlay-inputs.json` 仅复制独立 `review5-probes/inputs.json` 中 sibling-pseudo-overlay、sibling-pseudo-no-paint 的 code，不带 expected 或扫描答案。原样访客截图显示白色空 after 使 VISIBLE TEXT 完全消失，透明对照文字清晰；三档均须分别拒收和测量通过。另加非祖先 before 向宿主外溢出的成对覆盖，以及宿主盒相交但实际 after 位于文字下方的不相交对照，避免只按宿主盒或一律拒收。
+
+Tracer bullet：独立输入 → 生产 checkSiteCode 清理／静态渲染 → Chrome 实际布局／访客截图 → 三档最终拒因。Deep modules：同一快照隐藏文字行与绘制盒读取，不建绘制顺序分析器。Ubiquitous language 沿用“生成文字位置”“绘制层”“无法测量”。机械拦截位于同一 T-196 定向文件；AGENTS.md 与 spec 第 6 节补充本次规则，CONTEXT／mainline 各窄补实际绘制盒说明。
+
+#### 红绿日志、门控与命令（UTC）
+
+证据位于本工作树 `artifacts/t196/review5-fix/`，各 `*-command.json` 保留精确 argv、cwd、Chrome、起止时间和退出码；原始 `*.log`、失败和中间成功结果均不覆盖。所有浏览器任务串行。
+
+```sh
+export CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell
+# HEAD 193cfee 红态、聚焦绿态均用同一标准入口
+npm test -- --browser-concurrency=1 tests/t196-visual-coverage.test.ts
+# 最终相关定向门控
+npm test -- --browser-concurrency=1 \
+  tests/t196-visual-coverage.test.ts tests/t195-hidden-overlap.test.ts tests/t160-narrow-columns.test.ts \
+  tests/t187-repair-fragments.test.ts tests/t187-repair-routing.test.ts tests/t191-display-transition.test.ts \
+  tests/t191-fact-label-boundary.test.ts tests/t192-check-transitions.test.ts tests/t173-repair-scope.test.ts \
+  tests/t089-contrast-line-length.test.ts tests/t178-full-style-equivalence.test.ts tests/t164-review-seven.test.ts
+npm run typecheck
+```
+
+- **初始 HEAD 红态**：09:06:54.774377Z–09:07:47.432383Z，35 项中 33 通过、2 失败，退出 1；原 sibling 覆盖层已复现正确缺陷信号。另一个外溢夹具的安全对照误触发横向溢出，此项不算有效红态；缩窄并移回其宿主盒，保留初始日志 `head-193cfee-red.log`。
+- **完整 HEAD 193cfee 红态**：09:08:39.551106Z–09:09:33.079666Z，35 项中 33 通过、2 失败，退出 1。原 sibling 与外溢 cousin 覆盖层各三档均错误放行、measured、ratio=18.883060964594996；两组透明及实际盒不相交对照通过。生产源码未改，失败是漏判而非环境／夹具失败。日志 `head-193cfee-complete-red.log`；标准入口 `artifacts/t167/test-run-1792487319911-61148/`；原样观察 `artifacts/t196/probes-1792487321793-61187/`。
+- **聚焦绿态**：09:10:06.290683Z–09:10:59.221309Z，35／35，退出 0；`focused-green.log`。两个覆盖反例三档均 unmeasured、ratio=null、明确叠层拒因；透明及不相交对照均 measured 且最终通过。观察／截图 `artifacts/t196/probes-1792487408496-62627/`，主要状态另存 `red-green-observations.json`。这两轮各五个输入、15 张三档原图，已通过 `red-{1..5}.png`、`focused-{1..5}.png` 的完整页面缩图与原尺寸文字区域全部打开，覆盖输入标题已载入、文字被盖住，不能当作载入态。汇总可由 `python3 artifacts/t196/review5-fix/make-contact-sheets.py <探针目录> <标签>` 重建。
+- **首轮相关定向门控**：09:12:50.295347Z–09:15:23.860569Z，12 文件 159／159，退出 0；`final-targeted.log`。之后补充“无字绘制盒不能替代文字覆盖证明”的一处判断，故另跑最终候选门控，前轮不冒称最终候选结果。
+- **最终候选门控**：09:16:41.309397Z–09:19:12.236069Z，12 文件 **159／159 通过**，失败／取消／跳过均为 0，退出 0；含 T-196 35／35、T-164 14／14、T-195 13／13。`final-targeted-coverage.log` 与对应 command.json；标准入口 `artifacts/t167/test-run-1792487801713-69197/`；最终三档观察／截图 `artifacts/t196/probes-1792487900471-72149/`，上述五个输入的 15 张三档原图也已通过 `final-{1..5}.png` 的完整页面／文字区域汇总全部打开。此后没有再改生产源码或测试。
+- **最终 typecheck**：09:15:46.665556Z–09:15:48.151713Z，退出 0；`final-typecheck.log`。首次 `typecheck.log` 的通过记录也保留。
+
+#### T-190 的 14 站对比（基线 193cfee）
+
+只读重新核对主工作区 `.sitecraft-data/code-sites/` 中站名含“（新资料 T-190）”的全部 14 站：currentVersionId 与原 manifest 一致，现有工作树副本除去掉站名备注外，各字段与源相同，记录为 `source-verification.json`。站点／版本集合与 review4 表相同；仅使用本工作树 `offline-data` 副本，不写主工作区数据。
+
+```sh
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t196/offline.mjs artifacts/t196/review5-fix/offline-before
+CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell node --experimental-strip-types artifacts/t196/offline.mjs artifacts/t196/review5-fix/offline-after-final
+```
+
+包装只提供本地同源检查页、复制图片和生产静态预览，实际执行 `scripts/check-code-quality-offline.ts --manifest artifacts/t196/manifest.json --samples <本工作树>/artifacts/t196/offline-data/code-sites --out <新目录>`，legacyImport 确定性回放，无模型调用、不存版本。
+
+- 基线完整命令：09:08:00.467305Z–09:08:24.904922Z，退出 0；summary completedAt 原值为 `2026-10-20T09:08:16.349Z`。
+- 最终候选完整命令：09:15:45.505053Z–09:16:08.817159Z，退出 0；summary completedAt 原值为 `2026-10-20T09:16:00.065Z`。补文字覆盖判断前的 `offline-after/` 结果及日志也保留，不覆盖。
+- 两次均 **14／14 通过、129 个页面视口、0 条底线拒因、0 个回放错误**。逐站 issues、视口测量与质量反馈一致。**新增拒因站点：0；新增拒因站名与位置：无。** 未触发“超过 3 站即停止”阈值，没有放宽规则。逐站 siteId、versionId、前后拒因及新增位置在 `offline-comparison.json`；前一版对比保留为 `offline-comparison-initial.json`。元数据明确 commit=193cfee、dirty=true；最终回放是未提交候选，不冒称最终 SHA 重跑。
+- 基线与最终候选各六张离线截图，已通过 `offline-before-{ungatedHover,smallTargets}-view.png` 与 `offline-after-final-{ungatedHover,smallTargets}-view.png` 的完整页面汇总全部打开；中间回放截图也保留。没有哈希、字节或像素比对，没有固定等待。
+
+#### 交付边界
+
+本轮授权内修复与门控 **PASS**；只交付 P2-2 与相关保守规则的本地修复、回归和离线证据；review5 独立结论仍为 NO_GO，未再复审，主控后续核对。claimed_by 为 codex-t196e，独立审查验收项不勾选。未跑全量／runner／build、未调用真实模型、未开审查实例、未读 .env／.env.local、未推送或 force-push、未使用 rm；主工作区 artifacts 与 .sitecraft-data 只读。tsconfig.json 的既有 Next 自动改动保留且不纳入提交。日志和截图在本工作树被 gitignore 的 artifacts；源码、测试、输入与本节记录本地提交，最终 SHA 随交付回报。

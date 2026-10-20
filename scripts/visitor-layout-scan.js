@@ -231,16 +231,19 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
       &&! /^(none|""|'')$/.test(getComputedStyle(el).listStyleType);
     if(!content||/^(none|""|'')$/.test(content)||content==='normal'&&!nativeMarker) continue;
     const path=[];for(let p=el;p.parentElement;p=p.parentElement)path.unshift([...p.parentElement.children].indexOf(p));
-    if(!generatedLayout.some(item=>item.pseudo===pseudo&&item.path.length===path.length&&item.path.every((value,index)=>value===path[index])))
+    // 无字绘制盒不能冒充非空 content 的文字覆盖证明。
+    if(!generatedLayout.some(item=>item.text.trim()&&item.pseudo===pseudo&&item.path.length===path.length&&item.path.every((value,index)=>value===path[index])))
       generatedLayout.push({path,pseudo,text:content,rects:[]});
   }
-  const generated=generatedLayout.map(item=>{
+  const layoutPseudos=generatedLayout.map(item=>{
     let el=document.documentElement;
     for(const index of item.path) el=el?.children[index];
     if(!el) throw new Error('CSS 生成文字无法定位当前元素，本次未保存版本。');
     return {...item,el,key:`${keyFor(el)}${item.pseudo}`};
+  });
+  // 空文字仍保留绘制盒用于叠层核对；只有非空文字进入文字扫描。
   // Chrome 已给出非空文字时，以实际文字为准，不用 computed content 再删快照行。
-  }).filter(item=>item.text.trim()&&!fullyHidden(item.el,item.pseudo));
+  const generated=layoutPseudos.filter(item=>item.text.trim()&&!fullyHidden(item.el,item.pseudo));
   for(const item of generated) {
     const fontSize=parseFloat(getComputedStyle(item.el,item.pseudo).fontSize);
     for(const rect of item.rects) {
@@ -351,6 +354,12 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
     return {known:true,layers};
   };
   const hasBackground = style => style.backgroundImage!=='none'||rgba(style.backgroundColor)?.[3]!==0;
+  const hasPseudoPaint = paint => {
+    if(paint.content==='none'||paint.display==='none'||paint.visibility!=='visible') return false;
+    const borderPaint=['Top','Right','Bottom','Left'].some(side=>parseFloat(paint[`border${side}Width`])>0&&rgba(paint[`border${side}Color`])?.[3]>0);
+    return paint.backgroundImage!=='none'||rgba(paint.backgroundColor)?.[3]>0||paint.boxShadow!=='none'||paint.backdropFilter!=='none'||borderPaint;
+  };
+  const pseudoPaints=layoutPseudos.filter(item=>item.paintRects?.length&&hasPseudoPaint(getComputedStyle(item.el,item.pseudo)));
   // 构思主控 2026-10-20：只测最简单的绘制条件，不推断堆叠顺序。
   const generatedPaintReason = (el,pseudo) => {
     const host=getComputedStyle(el),paint=getComputedStyle(el,pseudo);
@@ -385,10 +394,7 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
         for(const layerPseudo of ['::before','::after']){
           if(p===el&&layerPseudo===pseudo) continue;
           const paint=getComputedStyle(p,layerPseudo);
-          if(paint.content==='none'||paint.display==='none'||paint.visibility!=='visible') continue;
-          const layerColor=rgba(paint.backgroundColor);
-          const borderPaint=['Top','Right','Bottom','Left'].some(side=>parseFloat(paint[`border${side}Width`])>0&&rgba(paint[`border${side}Color`])?.[3]>0);
-          if(!(paint.backgroundImage!=='none'||layerColor?.[3]>0||paint.boxShadow!=='none'||paint.backdropFilter!=='none'||borderPaint)) continue;
+          if(!hasPseudoPaint(paint)) continue;
           // 同底色仍可能从文字上方遮挡前景；无法证明绘制顺序与实际叠底时拒收。
           return {known:false,reason:'伪元素叠层无法核对实际底图'};
         }
@@ -424,6 +430,14 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
       foregroundOpacity*=Math.max(0,Math.min(1,opacity));
     }
     const rects=sampleRects?.length?sampleRects:[el.getBoundingClientRect()];
+    if(pseudo) for(const layer of pseudoPaints){
+      if(layer.el===el||layer.el.contains(el)) continue; // 同宿主与祖先已按更保守的规则核对。
+      // 独立伪元素可能溢出透明宿主，必须读取同次快照中的实际盒。
+      // 阴影可能伸出盒外，不能以盒不相交证明它不遮挡文字。
+      if(getComputedStyle(layer.el,layer.pseudo).boxShadow!=='none'||layer.paintRects.some(box=>rects.some(rect=>
+        Math.min(box.right,rect.right)>Math.max(box.left,rect.left)&&Math.min(box.bottom,rect.bottom)>Math.max(box.top,rect.top))))
+        return {known:false,reason:'伪元素叠层无法核对实际底图'};
+    }
     if(hasBackdrop||pseudo) for(const node of root.querySelectorAll('*')){
       if(node===el||node.contains(el)||!visible(node)) continue;
       const r=node.getBoundingClientRect();

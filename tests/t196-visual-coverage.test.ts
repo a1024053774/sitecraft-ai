@@ -16,6 +16,7 @@ const review1: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./f
 const review2: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review2-inputs.json', import.meta.url), 'utf8'));
 const review3: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review3-overlay-inputs.json', import.meta.url), 'utf8'));
 const review4: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review4-inputs.json', import.meta.url), 'utf8'));
+const review5: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t196-review5-overlay-inputs.json', import.meta.url), 'utf8'));
 const scan = (await readFile(new URL('../scripts/visitor-layout-scan.js', import.meta.url), 'utf8')).replace('export function', 'function').replace('export default scanVisitorLayout;', '');
 let unexpected = 0;
 const server = createServer((req, res) => {
@@ -78,6 +79,28 @@ async function contrastState(name: string, code: SiteCode, pseudo: string, statu
   }
   assert.equal(checks.passed, status === 'measured', JSON.stringify(checks.issues));
 }
+
+test('review5 兄弟节点空 after 覆盖生成文字须拒收，无绘制层仍测量', async () => {
+  // 独立访客截图：白色 after 完全遮住文字；只改为透明后文字恢复。
+  await contrastState('sibling-pseudo-no-paint', review5['sibling-pseudo-no-paint'], '::before', 'measured');
+  await contrastState('sibling-pseudo-overlay', review5['sibling-pseudo-overlay'], '::before', 'unmeasured');
+});
+
+test('review5 非祖先节点的 before 超出宿主盒覆盖文字也须拒收，透明对照通过', async () => {
+  const source = review5['sibling-pseudo-overlay'];
+  // 宿主放在文字右侧，before 向左溢出；再隔一层，不能只扫兄弟宿主盒。
+  const code = { ...source, pages: source.pages.map(page => ({ ...page, html: page.html.replace('<div class="cover"></div>', '<div><div class="cover"></div></div>') })),
+    css: source.css.replace('.cover{position:absolute;left:0;top:0;width:280px;', '.cover{position:absolute;left:250px;top:0;width:20px;').replace('.cover::after{content:"";position:absolute;inset:0;', '.cover::before{content:"";position:absolute;left:-250px;top:0;width:280px;height:80px;') };
+  await contrastState('cousin-pseudo-overflow-no-paint', { ...code, css: code.css.replace('background:white;z-index:2', 'background:transparent;z-index:2') }, '::before', 'measured');
+  await contrastState('cousin-pseudo-overflow-overlay', code, '::before', 'unmeasured');
+});
+
+test('review5 独立 after 绘制层与文字不相交时仍测量', async () => {
+  const source = review5['sibling-pseudo-overlay'];
+  // 宿主盒仍覆盖文字，实际 after 移到下方；按实际伪元素盒核对相交。
+  const code = { ...source, css: source.css.replace('inset:0;background:white', 'left:0;top:90px;width:280px;height:20px;background:white') };
+  await contrastState('sibling-pseudo-disjoint-safe', code, '::before', 'measured');
+});
 
 for (const position of ['inside', 'outside']) {
   test(`review4 首行背景：${position} 编号拒收，无首行背景测量`, async () => {

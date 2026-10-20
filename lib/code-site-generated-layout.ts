@@ -4,13 +4,15 @@ export type GeneratedLayoutText = {
   // 与 T-173 的 CodeFactCssPosition 共用 documentElement 下的元素路径及伪元素名。
   path: number[]; pseudo: string; text: string;
   rects: Array<{ left: number; right: number; top: number; bottom: number; width: number; height: number }>;
+  // 包含无字 before／after 的实际背景盒；不能用宿主盒代替溢出的绘制层。
+  paintRects?: GeneratedLayoutText['rects'];
 };
 type Snapshot = {
   strings: string[];
   documents: Array<{
     scrollOffsetX: number; scrollOffsetY: number;
     nodes: { parentIndex: number[]; nodeType: number[]; nodeName: number[]; pseudoType: { index: number[]; value: number[] } };
-    layout: { nodeIndex: number[]; text: number[] };
+    layout: { nodeIndex: number[]; text: number[]; bounds: number[][] };
     textBoxes: { layoutIndex: number[]; bounds: number[][]; start: number[]; length: number[] };
   }>;
 };
@@ -29,6 +31,26 @@ export async function readGeneratedLayout(browser: Awaited<ReturnType<typeof cod
   });
   const texts = new Map<number, GeneratedLayoutText>();
   const fragmented = new Set<number>();
+  const pathFor = (pseudoNode: number) => {
+    let host = nodes.parentIndex[pseudoNode];
+    const path: number[] = [];
+    while (snapshot.strings[nodes.nodeName[host]] !== 'HTML') {
+      const parent = nodes.parentIndex[host], child = children.get(parent)?.indexOf(host);
+      if (parent < 0 || child === undefined || child < 0) throw new Error('CSS 生成文字无法定位原页面元素路径，本次未保存版本。');
+      path.unshift(child); host = parent;
+    }
+    return path;
+  };
+  const rectFor = ([x, y, width, height]: number[]) => {
+    if (![x, y, width, height].every(Number.isFinite)) throw new Error('CSS 伪元素无法读取完整布局范围，本次未保存版本。');
+    return { left: x - scrollOffsetX, right: x + width - scrollOffsetX, top: y - scrollOffsetY, bottom: y + height - scrollOffsetY, width, height };
+  };
+  for (let index = 0; index < layout.nodeIndex.length; index++) {
+    const node = layout.nodeIndex[index], pseudo = pseudos.get(node);
+    if (pseudo !== '::before' && pseudo !== '::after') continue;
+    const previous = texts.get(node);
+    texts.set(node, { path: pathFor(node), pseudo, text: '', rects: [], paintRects: [...(previous?.paintRects ?? []), rectFor(layout.bounds[index])] });
+  }
   for (let index = 0; index < layout.nodeIndex.length; index++) {
     const text = snapshot.strings[layout.text[index]];
     if (!text?.trim()) continue;
@@ -43,22 +65,14 @@ export async function readGeneratedLayout(browser: Awaited<ReturnType<typeof cod
     if (pseudoNode < 0) continue;
     const pseudo = pseudos.get(pseudoNode)!;
     if (fragment) fragmented.add(pseudoNode);
-    let host = nodes.parentIndex[pseudoNode];
-    const path: number[] = [];
-    while (snapshot.strings[nodes.nodeName[host]] !== 'HTML') {
-      const parent = nodes.parentIndex[host], child = children.get(parent)?.indexOf(host);
-      if (parent < 0 || child === undefined || child < 0) throw new Error('CSS 生成文字无法定位原页面元素路径，本次未保存版本。');
-      path.unshift(child); host = parent;
-    }
+    const path = pathFor(pseudoNode);
     const rects = textBoxes.layoutIndex.flatMap((layoutIndex, box) => {
       if (layoutIndex !== index) return [];
-      const [x, y, width, height] = textBoxes.bounds[box];
-      if (![x, y, width, height].every(Number.isFinite)) throw new Error('CSS 生成文字无法读取完整文字范围，本次未保存版本。');
-      return [{ left: x - scrollOffsetX, right: x + width - scrollOffsetX, top: y - scrollOffsetY, bottom: y + height - scrollOffsetY, width, height }];
+      return [rectFor(textBoxes.bounds[box])];
     });
     if (!rects.length) throw new Error(`CSS 生成文字 ${pseudo} 无法测量实际文字行，本次未保存版本。`);
     const previous = texts.get(pseudoNode);
-    texts.set(pseudoNode, { path, pseudo, text: (previous?.text ?? '') + text, rects: [...(previous?.rects ?? []), ...rects] });
+    texts.set(pseudoNode, { ...previous, path, pseudo, text: (previous?.text ?? '') + text, rects: [...(previous?.rects ?? []), ...rects] });
   }
   // Chrome 也会把生成首字母放在宿主下，与 before／after 并列。
   // 不能证明该分片已按自身样式测量时，不拿剩余字符证明完整覆盖。
