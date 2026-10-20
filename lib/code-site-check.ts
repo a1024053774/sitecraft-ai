@@ -1,4 +1,5 @@
 import { readCodeFactSegments, readCodeFactSeparators, readCodeFactCssEffects, sameCodeFactCssDeclaration, sameCodeFactMemberLocation, pendingCodeFactSegments, bindCodeFactCitations, findFactSource, factSourceRef, normalizeFactQuote, type CodeFactReview, type CodeFactSegment, type CodeFactCitation, type CodeFactSource, type CodeFactCssMember, type CodeFactSeparator } from './code-site-fact-segments.ts';
+import { internalRequestHeaders } from './workspace-session.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { codeCheckBrowser } from './code-site-browser.ts';
@@ -527,6 +528,9 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     // setDocumentContent retains the document MIME type: a JSON health document
     // renders candidate HTML as plain text. Use static HTML without site-list reads or app scripts.
     await browser.send('Network.enable');
+    // Browser storage guards site routes; the checker's own image requests carry the in-process secret.
+    const internal = internalRequestHeaders();
+    if (Object.keys(internal).length) await browser.send('Network.setExtraHTTPHeaders', { headers: internal });
     await browser.send('Network.setBlockedURLs', { urls: ['*/_next/*'] });
     await browser.send('Page.navigate', { url: `${base}/code-check.html` });
     await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}&&document.readyState==='complete'?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);

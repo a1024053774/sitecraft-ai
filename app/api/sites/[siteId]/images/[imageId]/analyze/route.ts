@@ -1,3 +1,4 @@
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { withRequestProvider } from '@/lib/provider-context';
 import { requestImageFacts } from "@/lib/ai-provider";
 import { readSiteImage, SiteImageError } from "@/lib/site-images";
@@ -13,7 +14,7 @@ function statusFor(code: string) {
   return 502;
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ siteId: string; imageId: string }> }) {
+async function postSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string; imageId: string }> }) {
   return withRequestProvider(request, () => handle(params));
 }
 async function handle(params: Promise<{ siteId: string; imageId: string }>) {
@@ -62,4 +63,8 @@ async function handle(params: Promise<{ siteId: string; imageId: string }>) {
     }
     return Response.json({ ok: false, ...userErrorPayload({ code: "provider_error" }) }, { status: 500 });
   }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function POST(request: Request, context: { params: Promise<{ siteId: string; imageId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => postSiteRoute(request, context));
 }

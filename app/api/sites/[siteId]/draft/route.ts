@@ -1,12 +1,14 @@
+import { ServerBusyError } from '@/lib/work-queue';
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { withRequestProvider } from '@/lib/provider-context';
 import { z } from 'zod';
 import { getCodeSite, commitSiteCode, CodeSiteUnavailableError } from '@/lib/code-site-store';
 import { codeSiteSchema } from '@/lib/code-site';
-import { codeWorkspaceState } from '@/lib/code-site-workflow';
+import { codeWorkspaceState, queuedCommit } from '@/lib/code-site-workflow';
 import { userErrorPayload } from '@/lib/user-errors';
 
 export const runtime = 'nodejs';
-export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+async function getSiteRoute(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   try {
     const site = await getCodeSite(siteId);
@@ -18,7 +20,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
   }
 }
 const submission = z.object({ baseRevision: z.number().int().nonnegative(), code: codeSiteSchema, summary: z.string().min(1).max(500) }).strict();
-export async function PUT(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+async function putSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   return withRequestProvider(request, () => handlePut(request, params));
 }
 async function handlePut(request: Request, params: Promise<{ siteId: string }>) {
@@ -29,7 +31,14 @@ async function handlePut(request: Request, params: Promise<{ siteId: string }>) 
     if (site.run?.status === 'running') return Response.json({ userMessage: '当前生成还在进行。' }, { status: 409 });
     const parsed = submission.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return Response.json(userErrorPayload({ code: 'invalid_payload' }), { status: 400 });
-    const result = await commitSiteCode({ siteId, ...parsed.data, author: 'user', request: parsed.data.summary });
+    const result = await queuedCommit(siteId, () => commitSiteCode({ siteId, ...parsed.data, author: 'user', request: parsed.data.summary }));
     return Response.json({ status: result.status, ...(result.status === 'rejected' ? { checks: result.checks, userMessage: `底线检查未通过：${result.checks.issues.join('；')}` } : {}), ...await codeWorkspaceState(result.site) }, { status: result.status === 'rejected' ? 422 : result.status === 'conflict' ? 409 : 200 });
-  } catch (error) { return Response.json({ userMessage: error instanceof Error ? error.message : '提交失败，未保存版本。' }, { status: 422 }); }
+  } catch (error) { return Response.json({ userMessage: error instanceof Error ? error.message : '提交失败，未保存版本。' }, { status: error instanceof ServerBusyError ? 503 : 422 }); }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function GET(request: Request, context: { params: Promise<{ siteId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => getSiteRoute(request, context));
+}
+export async function PUT(request: Request, context: { params: Promise<{ siteId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => putSiteRoute(request, context));
 }

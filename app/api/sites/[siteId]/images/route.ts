@@ -1,3 +1,4 @@
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { imageLicenses, imageUsageCategories, imageUsageScopes, listSiteImages, publicImagePayload, saveSiteImage, SiteImageError, type ImageLicense, type ImageUsageCategory, type ImageUsageScope } from "@/lib/site-images";
 import { getCodeSite } from "@/lib/code-site-store";
 import { userErrorPayload } from "@/lib/user-errors";
@@ -18,7 +19,7 @@ function imageErrorPayload(error: unknown) {
   return userErrorPayload({ code });
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+async function getSiteRoute(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   try {
     if (!await getCodeSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
@@ -32,7 +33,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
   }
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+async function postSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   try {
     if (!await getCodeSite(siteId)) return Response.json(userErrorPayload({ code: "site_not_found" }), { status: 404 });
@@ -85,4 +86,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
   } catch (error) {
     return Response.json(imageErrorPayload(error), { status: statusFor(error) });
   }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function GET(request: Request, context: { params: Promise<{ siteId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => getSiteRoute(request, context));
+}
+export async function POST(request: Request, context: { params: Promise<{ siteId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => postSiteRoute(request, context));
 }

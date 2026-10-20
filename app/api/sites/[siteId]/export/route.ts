@@ -1,10 +1,11 @@
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { getCodeSite, CodeSiteUnavailableError } from '@/lib/code-site-store';
 import { currentCodeVersion } from '@/lib/code-site';
 import { buildStaticSitePackage } from '@/lib/code-site-export';
 
 export const runtime = 'nodejs';
 
-export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+async function getSiteRoute(_request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   try {
     const site = await getCodeSite(siteId);
@@ -25,4 +26,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
     if (error instanceof Error && error.message === 'Invalid site id') return new Response('站点编号无效', { status: 400 });
     throw error;
   }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function GET(request: Request, context: { params: Promise<{ siteId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => getSiteRoute(request, context));
 }

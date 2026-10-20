@@ -13,6 +13,8 @@ import { CodeRepairError } from './code-site-repair.ts';
 import { listSiteImages } from './site-images.ts';
 import { applyConversationAlignmentAction, appendConversationTurn, getConversation, updateConversationAlignment } from './conversation-store.ts';
 import { currentProviderCredentials, providerConfigured, providerNotConfiguredMessage, runWithProvider } from './provider-context.ts';
+import { reserveWork, ServerBusyError, type WorkTicket } from './work-queue.ts';
+import { currentWorkspaceToken } from './workspace-session.ts';
 import { AlignmentActionError, AlignmentTextTooLongError, applyCommittedResult, publicAlignmentView, type CurrentQuestion } from './alignment.ts';
 
 
@@ -28,6 +30,11 @@ const requestSchema = z.object({
 });
 const active = (globalThis as typeof globalThis & { __codeRuns?: Set<string> }).__codeRuns ??= new Set<string>();
 class CodeRunConflictError extends Error {}
+// T-202 queue places: handleCodeChat reserves one per site before any state
+// changes, claimRun moves it to the run, and schedule hands it to the task.
+const queueState = globalThis as typeof globalThis & { __codeRunTickets?: Map<string, WorkTicket>; __codeSiteReservations?: Map<string, WorkTicket> };
+const tickets = queueState.__codeRunTickets ??= new Map<string, WorkTicket>();
+const reservations = queueState.__codeSiteReservations ??= new Map<string, WorkTicket>();
 export async function codeWorkspaceState(site: CodeSiteRecord) {
   try {
     const conversation = await getConversation(site.siteId, site.conversationId);
@@ -55,6 +62,15 @@ async function runStep(siteId: string, runId: string, patch: Partial<CodeRun>) {
   });
 }
 async function claimRun(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: { selectedTarget?: AnnotationTarget; pageId?: string; saveAnnotation?: boolean; annotationSubmissionId?: string; annotationBatch?: AnnotationBatchItem[]; annotationOverlapConfirmed?: boolean; source?: CodeRun['source'] } = {}) {
+  const reserved = reservations.get(siteId); reservations.delete(siteId);
+  const ticket = reserved ?? reserveWork(currentWorkspaceToken(), siteId);
+  try {
+    const site = await claimRunRecord(siteId, kind, request, baseRevision, edit);
+    tickets.set(site.run!.id, ticket);
+    return site;
+  } catch (error) { ticket.release(); throw error; }
+}
+async function claimRunRecord(siteId: string, kind: CodeRun['kind'], request: string, baseRevision: number, edit: Parameters<typeof claimRun>[4] = {}) {
   return updateCodeSite(siteId, site => {
     if (edit.annotationSubmissionId && site.runs.some(run => run.annotationSubmissionId === edit.annotationSubmissionId))
       throw new CodeRunConflictError('这条批注已发送，请查看原任务状态。');
@@ -88,8 +104,16 @@ function schedule(site: CodeSiteRecord) {
   const run = site.run!; active.add(run.id);
   // The task keeps the request's provider credentials in this closure only (T-202).
   const credentials = currentProviderCredentials();
+  const ticket = tickets.get(run.id); tickets.delete(run.id);
   after(() => runWithProvider(credentials, () => codeModelCalls.run([], async () => {
-    try { await execute(site.siteId, run.id); }
+    try {
+      if (ticket) {
+        // Only a waiting task reports its place; a free queue starts at once.
+        if (!ticket.granted()) await runStep(site.siteId, run.id, { step: '服务器正在处理其他任务，已排队，轮到后自动开始。' });
+        await ticket.acquire();
+      }
+      await execute(site.siteId, run.id);
+    }
     catch (error) {
       // An explicitly deleted site has no workspace or records to receive a failed run.
       if (!await getCodeSite(site.siteId)) return;
@@ -107,7 +131,7 @@ function schedule(site: CodeSiteRecord) {
         await replyAnnotation(site.siteId, record.annotationId, { body: failed?.run?.overallIssue ?? result?.message ?? message, author: { id: 'assistant', name: '助手' } });
       }
       await appendConversationTurn({ siteId: site.siteId, conversationId: site.conversationId, userMessage: run.request, aiSummary: message, appliedOperationsSummary: '未保存版本', outcome: 'error' });
-    } finally { active.delete(run.id); }
+    } finally { ticket?.release(); active.delete(run.id); }
   })));
 }
 async function executeLocalEdit(site: CodeSiteRecord, run: CodeRun) {
@@ -341,10 +365,18 @@ async function execute(siteId: string, runId: string) {
       factRepairs: [...(committed.checks.numberRepairs ?? []), ...(committed.checks.factSegments?.segments.flatMap(segment => segment.factRepair ? [segment.factRepair] : []) ?? [])] });
   }
 }
+// Checked commits outside a model task (manual edit, undo, restore) run Chrome
+// checks too, so they wait for the same single place (T-202).
+export async function queuedCommit<T>(siteId: string, commit: () => Promise<T>) {
+  const ticket = reserveWork(currentWorkspaceToken(), siteId);
+  try { await ticket.acquire(); return await commit(); }
+  finally { ticket.release(); }
+}
 export async function handleCodeChat(siteId: string, raw: unknown) {
   const parsed = requestSchema.safeParse(raw);
   if (!parsed.success) return Response.json({ userMessage: '请求内容无效。' }, { status: 400 });
   let site = (await getCodeSite(siteId))!; const input = parsed.data;
+  let reservation: WorkTicket | null = null;
   try {
     if (input.action === 'state') {
       const state = await codeWorkspaceState(site);
@@ -368,6 +400,8 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
     // These requests start a model task. Refuse them before alignment, sources or a run change (T-202).
     const startsModelTask = input.action === 'translate' || input.action === 'select' || input.action === 'confirm' || (!input.action && !!input.message && !!currentCodeVersion(site));
     if (startsModelTask && !providerConfigured()) return Response.json({ userMessage: providerNotConfiguredMessage, code: 'provider_not_configured' }, { status: 400 });
+    reservation = startsModelTask ? reserveWork(currentWorkspaceToken(), siteId) : null;
+    if (reservation) reservations.set(siteId, reservation);
     const conversation = (await getConversation(siteId, site.conversationId))!;
     if (input.action === 'translate') {
       if (input.baseRevision === undefined) return Response.json({ userMessage: '请提供当前版本编号。' }, { status: 400 });
@@ -433,6 +467,9 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
     } else return Response.json({ userMessage: '请提供公司资料或选择当前方案。' }, { status: 400 });
     return Response.json(await codeWorkspaceState((await getCodeSite(siteId))!), { status: site.run?.status === 'running' ? 202 : 200 });
   } catch (error) {
-    return Response.json({ userMessage: error instanceof Error ? error.message : '请求失败，未保存版本。' }, { status: error instanceof CodeRunConflictError ? 409 : error instanceof CodeStyleAdmissionError ? 400 : error instanceof AlignmentActionError ? error.status : 422 });
+    return Response.json({ userMessage: error instanceof Error ? error.message : '请求失败，未保存版本。' }, { status: error instanceof CodeRunConflictError ? 409 : error instanceof ServerBusyError ? 503 : error instanceof CodeStyleAdmissionError ? 400 : error instanceof AlignmentActionError ? error.status : 422 });
+  } finally {
+    // A reservation no run took (refused, or a selection that did not continue) frees its place.
+    if (reservation && reservations.get(siteId) === reservation) { reservations.delete(siteId); reservation.release(); }
   }
 }

@@ -1,9 +1,10 @@
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { replyAnnotationSchema } from "@/lib/annotations";
 import { replyAnnotation } from "@/lib/annotation-store";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request, { params }: { params: Promise<{ siteId: string; annotationId: string }> }) {
+async function postSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string; annotationId: string }> }) {
   const { siteId, annotationId } = await params;
   const parsed = replyAnnotationSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "回复参数无效", issues: parsed.error.issues }, { status: 400 });
@@ -12,4 +13,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "回复保存失败" }, { status: 404 });
   }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function POST(request: Request, context: { params: Promise<{ siteId: string; annotationId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => postSiteRoute(request, context));
 }

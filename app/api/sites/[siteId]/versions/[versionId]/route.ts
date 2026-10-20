@@ -1,10 +1,11 @@
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { z } from 'zod';
 import { nameCodeVersion } from '@/lib/code-site-store';
 import { getCodeSite } from '@/lib/code-site-store';
 import { codeWorkspaceState } from '@/lib/code-site-workflow';
 
 export const runtime = 'nodejs';
-export async function PATCH(request: Request, { params }: { params: Promise<{ siteId: string; versionId: string }> }) {
+async function patchSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string; versionId: string }> }) {
   const { siteId, versionId } = await params;
   if (!await getCodeSite(siteId)) return Response.json({ userMessage: '找不到这个站点。' }, { status: 404 });
   const parsed = z.object({ name: z.string().trim().max(80) }).strict().safeParse(await request.json().catch(() => null));
@@ -12,4 +13,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ si
   const site = await nameCodeVersion(siteId, versionId, parsed.data.name);
   if (!site) return Response.json({ userMessage: '找不到这个版本。' }, { status: 404 });
   return Response.json(await codeWorkspaceState(site));
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function PATCH(request: Request, context: { params: Promise<{ siteId: string; versionId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => patchSiteRoute(request, context));
 }
