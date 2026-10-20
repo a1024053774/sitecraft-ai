@@ -1,0 +1,31 @@
+# T-204: install as /etc/systemd/system/sitecraft-app.service
+[Unit]
+Description=SiteCraft builder (browser storage, visitor-supplied model interface)
+After=network.target
+
+[Service]
+User=sitecraft
+WorkingDirectory=/opt/sitecraft/app
+Environment=NODE_ENV=production
+Environment=SITE_STORE=browser
+# Temporary server copies live on the RAM disk and are emptied at every start.
+Environment=SITECRAFT_DATA_ROOT=/dev/shm/sitecraft-server-copy
+Environment=SITECRAFT_SESSION_CAP_BYTES=134217728
+Environment=SITECRAFT_QUEUE_WAITING=3
+Environment=PORT=3100
+Environment=SITECRAFT_BASE=http://127.0.0.1:3100
+Environment=CHROME_PATH=/opt/sitecraft/chrome/chrome-headless-shell
+Environment=NODE_OPTIONS=--max-old-space-size=384
+ExecStartPre=/usr/bin/mkdir -p /dev/shm/sitecraft-server-copy
+ExecStart=/opt/sitecraft/node/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3100
+Restart=on-failure
+RestartSec=5
+# Keep the owner's other services alive: this unit is the one to give way under memory pressure.
+OOMScoreAdjust=500
+MemoryHigh=700M
+# Logs: the app logs no keys or request bodies; journald keeps them on the machine only.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
