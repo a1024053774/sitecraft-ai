@@ -70,21 +70,43 @@ export async function withRequestProvider(request: Request, handler: () => Promi
 }
 
 // Only public unicast addresses. Covers loopback, private, link-local (incl.
-// cloud metadata 169.254.169.254), CGNAT, multicast, reserved and IPv6 ULA.
-export function isPublicAddress(address: string) {
+// cloud metadata 169.254.169.254), CGNAT, multicast and reserved IPv4; for IPv6,
+// forms that carry an IPv4 (mapped, compatible, 6to4) are judged by that IPv4, and
+// forms whose target cannot be judged (Teredo, NAT64, site-local, ULA) are refused.
+function publicIPv4(address: string) {
+  const [a, b] = address.split('.').map(Number);
+  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 192 && b === 0) || (a === 198 && (b === 18 || b === 19)));
+}
+function ipv6Bytes(address: string) {
+  let text = address.toLowerCase().split('%')[0];
+  const tail = text.match(/(\d+\.\d+\.\d+\.\d+)$/);
+  if (tail) { const [a, b, c, d] = tail[1].split('.').map(Number); text = text.slice(0, -tail[1].length) + `${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`; }
+  const [head, rest] = text.split('::');
+  const left = head ? head.split(':') : [], right = rest !== undefined && rest ? rest.split(':') : [];
+  const groups = rest === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill('0'), ...right];
+  if (groups.length !== 8) return null;
+  return groups.flatMap(group => { const value = parseInt(group, 16); return [value >> 8, value & 255]; });
+}
+const ipv4At = (bytes: number[], at: number) => bytes.slice(at, at + 4).join('.');
+export function isPublicAddress(address: string): boolean {
   const family = isIP(address);
-  if (family === 4) {
-    const [a, b] = address.split('.').map(Number);
-    return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254)
-      || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 192 && b === 0) || (a === 198 && (b === 18 || b === 19)));
-  }
-  if (family === 6) {
-    const lower = address.toLowerCase();
-    const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isPublicAddress(mapped[1]);
-    return !(lower === '::' || lower === '::1' || /^f[cd]/.test(lower) || /^fe[89ab]/.test(lower) || lower.startsWith('ff') || lower.startsWith('64:ff9b:') || lower.startsWith('2001:db8'));
-  }
-  return false;
+  if (family === 4) return publicIPv4(address);
+  if (family !== 6) return false;
+  const b = ipv6Bytes(address);
+  if (!b) return false;
+  const zeros = (from: number, to: number) => b.slice(from, to).every(value => value === 0);
+  if (zeros(0, 10) && b[10] === 0xff && b[11] === 0xff) return publicIPv4(ipv4At(b, 12)); // ::ffff:a.b.c.d
+  if (zeros(0, 12)) return publicIPv4(ipv4At(b, 12)); // ::a.b.c.d, also :: and ::1
+  if (b[0] === 0x20 && b[1] === 0x02) return publicIPv4(ipv4At(b, 2)); // 6to4 2002::/16
+  if (b[0] === 0x20 && b[1] === 0x01 && b[2] === 0 && b[3] === 0) return false; // Teredo 2001::/32
+  if (b[0] === 0x20 && b[1] === 0x01 && b[2] === 0x0d && b[3] === 0xb8) return false; // documentation
+  if (b[0] === 0x00 && b[1] === 0x64 && b[2] === 0xff && b[3] === 0x9b) return false; // NAT64 64:ff9b::/96
+  if (b[0] === 0x01 && zeros(1, 8)) return false; // discard 100::/64
+  if ((b[0] & 0xfe) === 0xfc) return false; // ULA fc00::/7
+  if (b[0] === 0xfe && (b[1] & 0x80) === 0x80) return false; // link-local fe80::/10 and site-local fec0::/10
+  if (b[0] === 0xff) return false; // multicast
+  return true;
 }
 
 // The socket connects to exactly the address this lookup returns, so the
@@ -100,6 +122,8 @@ const publicLookup: LookupFunction = (hostname, options, callback) => {
   });
 };
 
+// Real replies (a whole site as JSON) stay well below this; it only stops abuse.
+const responseLimitBytes = () => Number(process.env.SITECRAFT_PROVIDER_RESPONSE_LIMIT_BYTES ?? 16 * 2 ** 20);
 // fetch subset used by the model clients: POST with a string body, no redirects.
 export const guardedFetch = ((input: string | URL, init: RequestInit = {}) => new Promise<Response>((resolve, reject) => {
   const url = new URL(String(input));
@@ -109,8 +133,17 @@ export const guardedFetch = ((input: string | URL, init: RequestInit = {}) => ne
   const headers = Object.fromEntries(new Headers(init.headers).entries());
   const send = local ? httpRequest : httpsRequest;
   const req = send(url, { method: init.method ?? 'GET', headers, ...(local ? {} : { lookup: publicLookup }), signal: init.signal ?? undefined }, response => {
-    const chunks: Buffer[] = [];
-    response.on('data', chunk => chunks.push(chunk));
+    // A visitor-chosen endpoint must not fill the small server's memory (T-204).
+    const chunks: Buffer[] = []; let received = 0;
+    response.on('data', (chunk: Buffer) => {
+      received += chunk.length;
+      if (received > responseLimitBytes()) {
+        response.destroy(); req.destroy();
+        reject(new ProviderSettingsError(`模型接口的回复超过 ${Math.round(responseLimitBytes() / 2 ** 20)}MB 上限，已中止。`));
+        return;
+      }
+      chunks.push(chunk);
+    });
     response.on('error', reject);
     response.on('end', () => {
       const status = response.statusCode ?? 502;

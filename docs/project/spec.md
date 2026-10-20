@@ -163,6 +163,8 @@ T-198 可见行口径由构思主控于 2026-10-20 决定：这是新增拒收�
 - 访客地址的连接限制：
   - 自定义 DNS lookup，任一解析结果落在回环、私网、链路本地、CGNAT、组播、保留地址或 IPv6 ULA 即拒绝；socket 连的就是校验过的地址。
   - 返回 3xx 报错，不跟随。
+  - 回复超过 `SITECRAFT_PROVIDER_RESPONSE_LIMIT_BYTES`（默认 16MB）时立即中断连接并报错。
+  - IPv6 按 16 字节判定：带 IPv4 的形式（::ffff:a.b.c.d、::a.b.c.d 及其十六进制写法、6to4 2002::/16）按内嵌 IPv4 判断；Teredo、NAT64、文档段、100::/64、ULA、fe80::/10、fec0::/10 和组播一律拒绝。`tests/t204-provider-hardening.test.ts` 在旧实现上为红：读完 64MB 才返回，fec0::1 判为公网。
   - 仅当 `SITECRAFT_ALLOW_LOCAL_PROVIDER=1` 时放行 `http://127.0.0.1` 和 `http://localhost`，只用于本机验收。
 
 **存储模式**
