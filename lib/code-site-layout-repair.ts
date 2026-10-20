@@ -10,6 +10,7 @@ export type CodeLayoutRepair = {
   generatedPositions?: CodeFactCssPosition[];
 };
 export type CodeLayoutScan = {
+  extremeNarrowColumns?: Array<{ key: string; detail: string }>;
   horizontalScroll: boolean; overflowElements: Array<{ key: string }>;
   textOverlaps: Array<{ targets: string[] }>;
   textContrast: Array<{ key: string; text: string; status: string; ratio: number | null; threshold: number; role: string; reason?: string }>;
@@ -41,7 +42,7 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
   const records: CodeLayoutRepair[] = [];
   const contrast = scan.textContrast.map(item => ({ ...item, threshold: item.role === 'heading' ? item.threshold : 4.5 }))
     .filter(item => item.status !== 'measured' || item.ratio === null || item.ratio < item.threshold);
-  if (scan.measurement.textContrastEntries && !scan.horizontalScroll && !scan.overflowElements.length && !scan.textOverlaps.length && !contrast.length) return records;
+  if (scan.measurement.textContrastEntries && !scan.horizontalScroll && !scan.overflowElements.length && !scan.textOverlaps.length && !contrast.length && !scan.extremeNarrowColumns?.length) return records;
   const keyFor = (el: Element) => {
     const parts: string[] = [];
     for (let node: Element | null = el; node && node !== document.body; node = node.parentElement) {
@@ -190,6 +191,7 @@ export function readCodeLayoutRepairs(code: SiteCode, pageId: string, width: num
   if (!scan.measurement.textContrastEntries) collect(`${prefix} 无可测量正文`, [], false);
   if (scan.horizontalScroll || scan.overflowElements.length) collect(`${prefix} 横向溢出`, scan.overflowElements.map(item => item.key), false);
   if (scan.textOverlaps.length) collect(`${prefix} 文字重叠`, scan.textOverlaps.flatMap(item => item.targets), false);
+  for (const item of scan.extremeNarrowColumns ?? []) collect(`${prefix} ${item.detail}`, [item.key], false);
   for (const item of contrast.slice(0, 8)) {
     const reason = item.reason ? `；${item.reason}` : '';
     collect(`${prefix} 对比度不足或无法测量：${item.text}（${item.ratio?.toFixed(2) ?? '未知'}，需 ${item.threshold}）${reason}`, [item.key], true);
