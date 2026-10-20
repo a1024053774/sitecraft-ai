@@ -378,7 +378,9 @@ export function scanVisitorLayout(root = document, systemBackdropColors = {}, ge
     for(const [index,style] of paints.entries()){
       const node=chain[index]||el,fragment=index===chain.length?pseudo:'';
       if(style.filter!=='none') return refuseEffect(node,fragment,'filter');
-      if(style.maskImage!=='none'||style.mask&&style.mask!=='none') return refuseEffect(node,fragment,'mask / mask-image');
+      // 参数不创建遮罩图像；标准属性与前缀别名的每个图层均为 none 才放行。
+      if([style.maskImage,style.getPropertyValue('-webkit-mask-image')].some(image=>splitTopLevel(image).some(layer=>layer!=='none')))
+        return refuseEffect(node,fragment,'mask / mask-image');
       if(style.clipPath!=='none') return refuseEffect(node,fragment,'clip-path');
       if(parseFloat(style.webkitTextStrokeWidth)!==0) return refuseEffect(node,fragment,'-webkit-text-stroke');
       if(fragment) continue;

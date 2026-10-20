@@ -103,3 +103,29 @@ for (const [name, rule] of [
 for (const clip of ['clip-path:inset(50%)', 'clip:rect(0 0 0 0)']) {
   test(`完整 sr-only ${clip} 不拒收`, () => run(`sr-only-${clip.startsWith('clip-path') ? 'path' : 'rect'}`, { ...dom, css: dom.css + `#probe{position:absolute;width:1px;height:1px;min-height:0;overflow:hidden;${clip}}` }, false, undefined, true));
 }
+
+// review1 P2-1：参数不创建遮罩图像；每个计算图层都是 none 才算无图遮罩。
+// 仅复制独立复审原输入，预期来自用户合同及报告的实际访客绘制。
+const masks: Record<string, SiteCode> = JSON.parse(await readFile(new URL('./fixtures/t199-review1-mask-inputs.json', import.meta.url), 'utf8'));
+const noImageMasks: Array<[string, SiteCode]> = ['mask-none-size', 'mask-none-mode', 'mask-none-position', 'mask-none-generated', 'mask-none-list']
+  .map(name => [name, masks[name]]);
+noImageMasks.push(
+  ['mask-none-list-generated', { ...masks['mask-none-generated'], css: masks['mask-none-generated'].css + '#probe::before{mask-image:none,none,none;mask-mode:luminance}' }],
+  ['webkit-mask-none-ancestor', { ...masks['mask-none-size'], css: masks['mask-none-size'].css + '.outer{-webkit-mask-image:none,none;mask-position:10px;mask-size:cover}' }],
+);
+for (const [name, code] of noImageMasks) test(`review1 无图遮罩 ${name} 三档通过`, async () => {
+  await run(name, code, false, undefined, true);
+  const observations = JSON.parse(await readFile(`${out}/${name}-visitor.json`, 'utf8')) as Array<{ width: number; entries: Entry[] }>;
+  for (const observation of observations) {
+    assert.ok(observation.entries.length, `${name}/${observation.width} 必须保留实际文字`);
+    assert.ok(observation.entries.every(e => e.status === 'measured' && e.ratio !== null && e.ratio >= 4.5), '不能以删除文字代替正常测量');
+  }
+});
+for (const name of ['webkit-mask-shorthand', 'webkit-mask-image-generated', 'mask-shorthand-ancestor']) {
+  test(`review1 有图遮罩 ${name} 仍拒收`, () => run(name, masks[name], true, 'mask', true));
+}
+for (const layers of ['none,linear-gradient(black,black)', 'linear-gradient(black,black),none']) {
+  test(`review1 混合图层 ${layers} 仍拒收`, () => run(`mask-mixed-${layers.startsWith('none') ? 'last' : 'first'}`, {
+    ...masks['mask-none-size'], css: masks['mask-none-size'].css + `#probe{mask-image:${layers}}`,
+  }, true, 'mask', true));
+}

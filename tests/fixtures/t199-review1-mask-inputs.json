@@ -1,0 +1,98 @@
+{
+  "mask-none-size": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:#fff;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 24px;font:700 22px/28px monospace}.outer,.middle,.stage{position:relative}.stage{width:300px;min-height:120px}#probe{position:relative;display:block;margin:0;width:280px;min-height:60px}#probe{mask-image:none;mask-size:cover}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>复核已载入</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\">FIRST LINE PROBE</p></div></div></section></main>"
+      }
+    ]
+  },
+  "mask-none-mode": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:#fff;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 24px;font:700 22px/28px monospace}.outer,.middle,.stage{position:relative}.stage{width:300px;min-height:120px}#probe{position:relative;display:block;margin:0;width:280px;min-height:60px}#probe{mask:none;mask-mode:luminance}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>复核已载入</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\">FIRST LINE PROBE</p></div></div></section></main>"
+      }
+    ]
+  },
+  "mask-none-position": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:#fff;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 24px;font:700 22px/28px monospace}.outer,.middle,.stage{position:relative}.stage{width:300px;min-height:120px}#probe{position:relative;display:block;margin:0;width:280px;min-height:60px}#probe{mask:none;mask-position:10px}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>复核已载入</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\">FIRST LINE PROBE</p></div></div></section></main>"
+      }
+    ]
+  },
+  "mask-none-generated": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:#fff;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 24px;font:700 22px/28px monospace}.outer,.middle,.stage{position:relative}.stage{width:300px;min-height:120px}#probe{position:relative;display:block;margin:0;width:280px;min-height:60px}#probe::before{content:\"FIRST LINE PROBE\";display:block;font:16px/24px monospace;color:#111}#probe::before{mask-image:none;mask-size:cover}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>复核已载入</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  },
+  "webkit-mask-shorthand": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:#fff;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 24px;font:700 22px/28px monospace}.outer,.middle,.stage{position:relative}.stage{width:300px;min-height:120px}#probe{position:relative;display:block;margin:0;width:280px;min-height:60px}#probe{-webkit-mask:linear-gradient(transparent,transparent)}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>复核已载入</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\">FIRST LINE PROBE</p></div></div></section></main>"
+      }
+    ]
+  },
+  "webkit-mask-image-generated": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:#fff;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 24px;font:700 22px/28px monospace}.outer,.middle,.stage{position:relative}.stage{width:300px;min-height:120px}#probe{position:relative;display:block;margin:0;width:280px;min-height:60px}#probe::before{content:\"FIRST LINE PROBE\";display:block;font:16px/24px monospace;color:#111}#probe::before{-webkit-mask-image:linear-gradient(transparent,transparent)}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>复核已载入</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  },
+  "mask-shorthand-ancestor": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:#fff;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 24px;font:700 22px/28px monospace}.outer,.middle,.stage{position:relative}.stage{width:300px;min-height:120px}#probe{position:relative;display:block;margin:0;width:280px;min-height:60px}#probe::before{content:\"FIRST LINE PROBE\";display:block;font:16px/24px monospace;color:#111}.outer{mask:linear-gradient(transparent,transparent)}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>复核已载入</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\"></p></div></div></section></main>"
+      }
+    ]
+  },
+  "mask-none-list": {
+    "header": "",
+    "footer": "",
+    "css": "html,body{margin:0;background:#fff;color:#111;font:16px/24px monospace}main{padding:20px}h1{margin:0 0 24px;font:700 22px/28px monospace}.outer,.middle,.stage{position:relative}.stage{width:300px;min-height:120px}#probe{position:relative;display:block;margin:0;width:280px;min-height:60px}#probe{mask-image:none,none}",
+    "pages": [
+      {
+        "id": "home",
+        "title": "独立复核",
+        "html": "<main><h1>复核已载入</h1><section class=\"outer\"><div class=\"middle\"><div class=\"stage\"><p id=\"probe\">FIRST LINE PROBE</p></div></div></section></main>"
+      }
+    ]
+  }
+}

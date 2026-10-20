@@ -23,7 +23,7 @@ T-196 已经审到第六轮，每轮用自造的新 CSS 都能找到新缺口，
 
 1. **白名单收口**：文字自身或任一祖先只要出现下列情况，就统一判为「无法测量」并拒收，不分析实际效果：
    - filter（none 除外）；
-   - mask 或 mask-image；
+   - mask-image（含 -webkit-mask-image）任一计算图层不是 none；全部图层为 none 时不算遮罩，mask 的其他参数不影响判断；
    - clip-path，T-195 认定的标准「仅屏幕阅读器」写法除外；
    - -webkit-text-stroke，宽度为 0 的除外；
    - 改了 color、background 或 opacity 的 ::first-line 或 ::first-letter。
@@ -151,3 +151,73 @@ npm run typecheck
 - `final-targeted.log` 保留一次文件名误写导致的 ENOENT，14:28:10.777–14:28:11.977，退出 1，未执行测试；随后使用实际存在的文件完成上面两组，不冒称该失败为通过。
 
 spec、AGENTS、CONTEXT、mainline 与本票保存后已回读检查中文与差异，`git diff --check` 通过；project-map 为 0 问题、0 过期文档。未跑全量、runner 回归、build、真实模型或评估，未开审查／盲评实例，未推送或 force-push，未使用 rm 命令。所有自建本地服务和测试入口服务均已关闭，未碰 3034。tsconfig.json 的 Next 自动修改保留但不提交。本地提交 SHA 随交付回报；提交包含指定 Co-Authored-By。合并后主线验证与独立审查仍待主控，本票不关闭。
+
+
+### 2026-10-20 review1：仅修 P2-1 无图遮罩误拒
+
+执行：codex-t199；修复基线 `55fb6f1f50df5556712c65819c2acdb33404f4c2`。完整读取主工作区只读 `artifacts/t199/review1.txt` 及其 O／F 原输入。本节为本轮本地修复证据，前面的首次交付记录保留。review1 独立结论仍为 **NO_GO**，本轮只处理负责人指定的 P2-1；未开新审查实例，不把自查 PASS 当作复审通过。票保持 open，最后一项不勾选。下列时间均为 UTC，运行证据前缀 R 为本工作树 `artifacts/t199/review1-fix/`。
+
+#### 修法
+
+原条件把 `mask` 简写的序列化文本与单个 none 比较：尺寸、模式、位置参数会改变该文本，即使没有遮罩图像也拒收；`mask-image:none,none` 同样被误认成有图。仅替换 `scripts/visitor-layout-scan.js` 共用效果检查中的这一条条件：读取计算后的 mask-image 与 -webkit-mask-image，复用现有 `splitTopLevel` 逐层判断；任一层不是 none 就以既有 mask 无法测量原因拒收，所有图层均为 none 时不算遮罩。不再读取 mask 简写，不分析图像颜色、强弱或合成结果；mask-size／mask-mode／mask-position 不参与判断。
+
+正文、生成文字和祖先继续走同一条件。没有改 sr-only、完整分片、z-index、底图、其他视觉效果或修正范围门禁，没有新修正入口。AGENTS 只同步规则；spec 与 What to build 同步实际图层口径和测试说明。Tracer bullet 仍是原输入 → 生产 checkSiteCode → Chrome 三档扫描 → 原样截图及结构化拒因；Deep modules 复用现有分层函数，Ubiquitous language 区分“无图遮罩”和“有图遮罩”。
+
+#### 成对红绿与截图
+
+`tests/fixtures/t199-review1-mask-inputs.json` 只复制独立 O／F 中指定的八个 *-input.json，不含 expect、检查输出或报告结论。原 T-199 测试新增 12 项：五个指定无图输入、生成文字全 none 列表与祖先前缀无图参数两个补充对照、三个指定有图输入，以及非 none 图像处于首层／末层的两种混合列表。期望来自本轮合同和实际访客绘制，不由实现输出生成。无图对照除提交通过外，还要求实际文字条目保留、measured 且比值至少 4.5，防止删除文字后冒称通过。
+
+| 输入 | 55fb6f1 三档 | 修后三档 |
+| --- | --- | --- |
+| mask-none-size | mask 无法测量，误拒 | 通过，正常测量 |
+| mask-none-mode | mask 无法测量，误拒 | 通过，正常测量 |
+| mask-none-position | mask 无法测量，误拒 | 通过，正常测量 |
+| mask-none-generated | mask 无法测量，误拒 | 通过，正常测量 |
+| mask-none-list | mask 无法测量，误拒 | 通过，正常测量 |
+| mask-none-list-generated | mask 无法测量，误拒 | 通过，正常测量 |
+| webkit-mask-none-ancestor | mask 无法测量，误拒 | 通过，正常测量 |
+| webkit-mask-shorthand | mask 无法测量，拒收 | mask 无法测量，仍拒收 |
+| webkit-mask-image-generated | mask 无法测量，拒收 | mask 无法测量，仍拒收 |
+| mask-shorthand-ancestor | mask 无法测量，拒收 | mask 无法测量，仍拒收 |
+| mask-mixed-first／mask-mixed-last | mask 无法测量，拒收 | mask 无法测量，仍拒收 |
+
+```sh
+export CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell
+# 红态在生产扫描仍为 55fb6f1 时运行；修后使用同一命令
+npm test -- --browser-concurrency=1 tests/t199-contrast-effects.test.ts
+npm test -- --browser-concurrency=1 tests/t196-visual-coverage.test.ts tests/t195-hidden-overlap.test.ts tests/t148-system-backdrops.test.ts
+npm run typecheck
+```
+
+- 红态：14:56:49.835–14:57:24.380，退出 1；62 项中 55 通过、7 失败，失败均为上表七个无图误拒，指定五项各三档均复现。`R/parent-red.log` 与 `parent-red-command.json`；检查、观察、原图在本工作树 `artifacts/t199/probes-1792508211697-89166/`。
+- 同组绿态：14:58:26.851–14:59:02.787，退出 0；62/62，失败／取消／跳过均为 0。`R/first-green.log` 与 `first-green-command.json`；检查、观察、原图在 `artifacts/t199/probes-1792508308624-91285/`。
+- 相关回归：14:59:29.741–15:01:08.360，退出 0，3 文件 57/57；`R/related.log` 与 `related-command.json`。两组去重共 **4 文件 119 项通过**，包括原 T-196 分片门禁与 T-195 sr-only 检查。
+- typecheck：14:58:28.000–14:58:29.527，退出 0；`R/typecheck.log` 与 `typecheck-command.json`。通过后未再修改生产代码或测试。
+
+`R/red-green-observations.json` 保存这 12 组的红绿原始结果；标准入口的报告、身份、dev.log 与统计副本在 `R/standard-reports/`。新增场景两轮各 36 张三档原图，均通过 `R/red-contact-{1..3}.png`、`R/green-contact-{1..3}.png` 打开核对：七个无图输入文字完整、清晰；透明有图遮罩使文字消失；黑色混合图层虽可见仍按合同拒收。汇总取原尺寸左侧 375×300 区域，全部探针内容位于该区域，完整原图保留；无固定等待、哈希、字节或像素比较。重建命令：`python3 artifacts/t199/review1-fix/make-contact-sheets.py <probes目录> <red或green>`。
+
+#### T-190 的 14 站：相对 55fb6f1 新增拒因 0
+
+本轮重新只读复制主工作区站名含“（新资料 T-190）”的全部 14 站及图片到 `R/offline-data/`；`R/manifest.json` 固定 siteId／currentVersionId，`R/source-verification.json` 逐字段和值核对源记录与副本。本轮基线在生产代码尚为 55fb6f1 时新跑，不沿用上节 22aa7e3、dirty=true 的旧结果，也不将旧结果改名充当新基线。
+
+`artifacts/t199/review1-offline.mjs` 沿用本地随机端口包装，仅提供检查文档、复制图片与生产静态预览，实际调用未改动的 `scripts/check-code-quality-offline.ts --manifest artifacts/t199/review1-fix/manifest.json --samples <本工作树>/artifacts/t199/review1-fix/offline-data/code-sites --out <新目录>`。没有模型调用、版本写入或主工作区数据写入。
+
+```sh
+# CHROME_PATH 同上，基线／改后与浏览器测试串行
+node --experimental-strip-types artifacts/t199/review1-offline.mjs artifacts/t199/review1-fix/offline-before
+node --experimental-strip-types artifacts/t199/review1-offline.mjs artifacts/t199/review1-fix/offline-after
+python3 artifacts/t199/review1-fix/compare-offline.py
+```
+
+- 55fb6f1 基线：14:57:41.721–14:58:06.784，退出 0；`R/offline-before.log`、`offline-before-command.json`、`offline-before/results.json` 与 summary。
+- 最终候选：15:01:28.885–15:01:58.144，退出 0；`R/offline-after.log`、`offline-after-command.json`、`offline-after/results.json` 与 summary。元数据为 HEAD=55fb6f1、dirty=true，表示本轮未提交修复候选，不冒称提交后重跑。
+- 两边均 **14/14 通过、129 个页面视口、0 条拒因、0 个回放错误**；按每个输入版本的实际页数与 375／768／1440 三档核对覆盖。`R/offline-comparison.json` 保存逐站原拒因、新增拒因和位置；**新增拒因站点 0、新增拒因位置无**，不需要新增位置截图判定。本次要求的新增拒因 0 已满足，没有放宽有图遮罩或 sr-only 例外。
+
+本轮只重跑 T-190 的 14 站；没有重跑 T-184／T-186，也不把上节的旧统计冒称本轮结果。此离线技术结果不证明模型事实核对、审美或独立复审通过。
+
+#### 保留的边界与交付
+
+- **P2-2：已知代价，不修。** 来源是 review1 报告的 F／B 对照及 T-196 的完整分片门禁：生成文字的 ::first-line 只改字重／字号时，选择器匹配仍使实际分片样式无法确认；::first-letter 的相应变化仍可能使快照完整性无法确认。报告在 22aa7e3 与 55fb6f1 上都记录三档保守拒收，不归因本次 mask 误拒。负责人本轮明确保留该边界；本轮没有重跑这四个独立 F／B 输入，未改 `uncertainFirstLine` 或 `readGeneratedLayout`，已运行既有 T-196 回归，不能以截图清晰为由绕过完整性门禁。
+- **backdrop-filter：白名单之外的已知缺口，不修。** 来源为 review1 的 A 核对与“已知缺口”一节；它不是 filter 别名，不在本票五类统一规则内。该报告只确认未被本白名单统一拦截，两个标准属性样本的文字仍清晰，不能据此声称已复现不可读漏判。本轮不扩展类别，不添加兼容或豁免路径。
+
+本轮 P2-1 授权范围 **PASS**，spec 与 AGENTS 同步，project-map 无问题或过期文档。旧失败与新红态完整保留，主工作区 artifacts／.sitecraft-data 只读。未跑全量、runner 回归、build、真实模型或评估；未开审查／盲评实例，未读 .env／.env.local，未碰 3034，未使用 rm，未推送或 force-push。自建服务均在结束后关闭。保留 tsconfig.json 的既有 Next 自动改动，不纳入提交；使用显式路径 git add，提交保留指定 Co-Authored-By。最终本地 SHA 随交付回报；独立复审与合并后主线验证继续交主控，本票不关闭。
