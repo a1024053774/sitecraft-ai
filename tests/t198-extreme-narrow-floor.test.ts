@@ -72,7 +72,7 @@ test('严格小于 2 才拒收；恰好 2 字和 2 词、两行、短标签、�
   assert.equal(checks.issues.length, 6);
 });
 
-test('沿用 T-160 可见性、最近容器、contents 和多栏分片；任一档命中拒收', async () => {
+test('沿用 T-160 可见性、最近容器和 contents；多栏分片仅反馈，确定命中仍拒收', async () => {
   const text = '课程纸笔需要自己准备';
   const { checks } = await audit(make(`
     <div id="contents" class="thin"><span style="display:contents">${text}</span></div>
@@ -83,10 +83,11 @@ test('沿用 T-160 可见性、最近容器、contents 和多栏分片；任一�
     <details><summary>说明</summary><p class="thin">${text}</p></details>`,
     '@media(max-width:400px){.thin{width:1em}#columns{width:3em;column-count:2;column-gap:1em}#ordinary{width:4em}}'), 'visibility');
   const rows = floor(checks);
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 2);
   assert.ok(rows.every(r => r.issue.startsWith('home/375 ')));
-  assert.deepEqual(rows.flatMap(r => r.elements.map(e => /id="([^"]+)"/.exec(e.before)?.[1])).sort(), ['columns', 'contents', 'flex']);
+  assert.deepEqual(rows.flatMap(r => r.elements.map(e => /id="([^"]+)"/.exec(e.before)?.[1])).sort(), ['contents', 'flex']);
   assert.equal(checks.viewports.find(v => v.width === 375)!.qualityFeedback!.narrowColumns, 4);
+  assert.ok(checks.viewports.find(v => v.width === 375)!.qualityFeedback!.details.some(d => d.target === '#columns' && d.detail.includes('可见行无法确定')));
 });
 
 test.after(() => console.log(`T-198 本轮证据：${output}`));

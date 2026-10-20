@@ -134,3 +134,61 @@ NODE_ENV=test SITE_STORE=fs SITECRAFT_TEST_IDENTITY_FILE=$PWD/artifacts/t198/off
 `artifacts/t198/screenshots/c06fc9e3-0d70-45a8-aa11-bd85127ee5b1-products-{375,768,1440}.png` 及六张 caption 局部截图均逐张打开，确认两个命中都是真实竖排，误拒 **0 站**。修复后 molding `2c1bb9a1-3798-449c-9f26-eebd1b6bfc26` 的产品页三档整页截图也逐张打开，未见该竖排；截图脚本 `artifacts/t198/capture.mjs`，复现命令 `node --experimental-strip-types artifacts/t198/capture.mjs`（同一 CHROME_PATH、3198 本树服务），用载入事件、字体和图片 decode 确认就绪。原始截图观测与节点矩形在 `screenshots/capture.json`，判图记录 `screenshot-judgement.json`。离线脚本另外自动采集的 6 张反馈截图也逐张打开，完整载入。
 
 总体被现有底线拒收的是 2 站，不能全部算作新规则：除上述 molding 外，`a31b4b28-e618-4e79-b1d8-c8a6982361f4`（忻州重载减速机）有 home/products 三档原生编号对比度 4.33、要求 4.5，共 30 条原有对比度拒因，极端窄列 0。未为它修改 T-196 或放宽对比度。完整结果见 `offline-result-final/results.json`、`summary.json`，本票未调用事实模型、未新建任何真实版本，不宣称离线重检为模型事实或独立审美通过。
+
+### review1：F1 修复与构思主控可见行口径（2026-10-20）
+
+执行 codex-t198，基于 `7a5223d8e6d364c1400198e6cc690d5ea6bd490a`。独立审查原结论 **NO_GO**，完整报告 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t198/review1.txt` 已读；阻断项仅 F1：祖先 overflow 裁掉的文字仍按完整 12 行计入新增拒收。原报告与 followup-candidate／followup-parent 的结果、截图只读，未改写。**本轮 PASS（修复执行范围）**，不冒充独立复审通过；票仍 open，合并后主线验证与独立审查项仍未勾选。以下时间均为 UTC。
+
+**来源与边界**：构思主控于 **2026-10-20** 补充决定，优先于此前尝试静态核实 inset 裁剪的建议：极端窄列是新增拒收，判不准时不拒收，退回 T-160 质量反馈；误拒会阻断正常站存版。这是本轮规则来源，已写入 spec 第 6 节，AGENTS 验收段只补一句规则，mainline 与 CONTEXT 同步。
+
+**修法**：只改原 `readCodeQuality` 窄列测量层。对可确定的情况，将 Range 矩形与所有 overflow 非 visible 祖先的实际内侧裁剪盒按对应轴求交；没有交集的文字不计行，逐字交集同时决定可见字符，英文同一词跨行或部分可见仍只计一次。普通窄列也使用可见行和字符，正文资格与 6 字／3 词、极端严格小于 2 的阈值不变。display:contents 的零盒不作为裁剪盒；没有修改其 content-visibility:hidden 排除逻辑。对文字块、实际文字父元素及祖先的 clip-path／mask-image／transform（含独立 translate／rotate／scale）非 none、contain 非 none、column-count／column-width 非 auto、content-visibility 非 visible，统一不做极端拒收；保留 T-160 原质量计量，过窄反馈注明「可见行无法确定」。不解析形状、不修缩放多栏坐标，不新增文案关键词分类、修正入口或修正轮；T-187、提交入口与 visitor-layout-scan.js 均未改。
+
+**Tracer bullet** 由独立审查原输入经生产 checkSiteCode 三档检查并保存截图；既有生产生成／片段修正／存版回归继续通过。**Deep modules** 保持局部测量函数及既有提交、修正接口；**Ubiquitous language** 用「可见行无法确定」表示只反馈、不新增拒收的情况。
+
+新增 `tests/t198-clipped-visible-lines.test.ts`：
+
+| 独立截图输入 | 访客实际可见行 | 7a5223d | 修后 |
+| --- | ---: | --- | --- |
+| clip-zero | 0 | 三档均误报 12 字／12 行并拒收 | 三档均无极端窄列，普通窄列 0 |
+| clip-one-line | 1 | 同上 | 同上 |
+| clip-two-lines | 2 | 同上 | 同上 |
+| visible-control | 12 | 三档均拒收 | 三档仍为 12 字／12 行并拒收 |
+
+clip-path、mask、transform、contain、column-count、column-width、content-visibility 七组均包含自身／祖先两种位置，各自与去掉声明的输入成对运行三档：声明存在时无极端拒收且反馈注明「可见行无法确定」，去掉后仍拒收。另以裁掉长首行后可见 8 字／8 行、裁掉碎尾行后留下三行各 8 字验证分子分母都来自可见文字，不能只减少行数却继续计隐藏字符。期望来自独立访客截图、显式行内容和构思主控规则，没有读取生产计数器作为答案。原 caption 夹具与 2 字／词边界不变；原多栏用例依据新决定只将拒因预期改为「仅反馈且标注无法确定」，保留原四条质量反馈计数及 contents／flex 拒收对照，没有删除多栏输入。
+
+**命令与红绿**（同前文 CHROME_PATH）：
+
+```sh
+npm test -- --browser-concurrency=1 tests/t198-clipped-visible-lines.test.ts
+npm run typecheck
+npm test -- --browser-concurrency=1 tests/t198-clipped-visible-lines.test.ts tests/t198-extreme-narrow-floor.test.ts tests/t160-narrow-columns.test.ts tests/t187-repair-fragments.test.ts tests/t187-repair-routing.test.ts tests/t196-visual-coverage.test.ts
+```
+
+- 13:05:30–13:05:44：在 7a5223d 运行时上先红，19 项中 18 项预期失败、12 行对照通过；0／1／2 行均实际误拒，七组自身／祖先均未执行新保守门禁，裁剪字符用例也失败。`artifacts/t198/review1/red.log`，标准入口 `test-run-1792501530477-83258`；此时运行代码尚未改，只有原有 tsconfig 自动改动和新增测试。
+- 13:08:14–13:08:32：首次修后，新 19 项及原 caption／边界／生成流程均通过；旧多栏断言仍预期拒收，按本次新决定同步后才通过。该失败日志 `green-first.log` 保留，不算整组绿灯。
+- 13:09:13：typecheck 退出 0，`typecheck.log`。13:09:15–13:10:37：最终相关回归 **89/89**，0 fail/cancel/skip，退出 0，浏览器文件并发 1；`targeted-tests.log`。标准入口目录 `artifacts/t167/test-run-1792501755329-86951/`，红绿报告副本分别在 `artifacts/t198/review1/runner-red/`、`runner-green/`。本轮未跑全量、runner 回归或 build，未调用真实模型、未开审查或盲评实例。
+
+红灯目录 `review1/contract-1792501532125-83298/` 和最终绿灯目录 `review1/contract-1792501820720-88663/` 的 0／1／2／12 行 × 三档截图已逐张打开：正文隐藏是样本故意裁掉的结果，标题完整载入；显示状态与独立审查截图一致，计数变化来自修复而不是页面内容被改写。JSON 与截图均保留，不覆盖早期失败。
+
+**同 38 站前后重检**：沿用前文已复制的 `offline-data/` 和原 `offline-manifest.json`，不重写主工作区数据或任何旧结果。仍用本树 3198 dev、NODE_ENV=test、同一副本根和经 checkTestIdentity 核对的 cwd/dataRoot；本轮身份记录在 `artifacts/t198/review1/offline-identity.json`，health=503（无真实模型）也已核对身份。基线在修改运行代码之前重新测量，元数据 commit 为 7a5223d，dirty=true 仅因为新增测试及 tsconfig；候选在修改后的同一工作树测量，元数据仍为该父提交加未提交候选，最终交付 SHA 写 `review1/verification.json`，不把它们称作干净归档。
+
+```sh
+NODE_ENV=test SITE_STORE=fs SITECRAFT_TEST_IDENTITY_FILE=$PWD/artifacts/t198/review1/offline-identity.json SITECRAFT_DATA_ROOT=$PWD/artifacts/t198/offline-data npm run dev -- --port 3198
+SITECRAFT_BASE=http://127.0.0.1:3198 SITECRAFT_DATA_ROOT=$PWD/artifacts/t198/offline-data node --experimental-strip-types --input-type=module -e 'import {checkTestIdentity} from "./scripts/test-identity.ts"; import {writeFile} from "node:fs/promises"; await writeFile("artifacts/t198/review1/offline-identity.json",JSON.stringify(await checkTestIdentity(),null,2));'
+NODE_ENV=test SITE_STORE=fs SITECRAFT_TEST_IDENTITY_FILE=$PWD/artifacts/t198/review1/offline-identity.json SITECRAFT_DATA_ROOT=$PWD/artifacts/t198/offline-data SITECRAFT_BASE=http://127.0.0.1:3198 node --experimental-strip-types scripts/check-code-quality-offline.ts --manifest artifacts/t198/offline-manifest.json --samples artifacts/t198/offline-data/code-sites --out artifacts/t198/review1/offline-candidate
+python3 artifacts/t198/review1/compare-offline.py
+```
+
+上述 CLI 基线 out 为 `review1/offline-parent`；复现须另取新 out，避免覆盖。基线 13:06:16–13:07:05、候选 13:12:12–13:13:01 均连截图步骤退出 0；两轮各 **38 站／345 视口／0 重检错误／0 模型调用**，14 个 T-190、17 个 T-184、7 个 T-186 的站点与版本逐项一致。比较脚本逐项比较站点、版本、页／宽度和源码字段、路径、元素快照，未做哈希、字节或像素比对。
+
+| 范围 | 7a5223d 新规则命中 | 修后命中 | 新增／减少 |
+| --- | ---: | ---: | --- |
+| T-190 14 站 | 0 | 0 | 0／0 |
+| T-184 17 站 | 0 | 0 | 0／0 |
+| T-186 7 站 | molding 1 站 2 处 | 同 1 站 2 处 | 0／0 |
+
+所有候选命中均能在基线中找到相同位置，没有增加。原 molding `c06fc9e3-0d70-45a8-aa11-bd85127ee5b1`、版本 `ddefcab0-3bce-4d66-b0d4-64031eb4b420` 的 `products/375`，仍为 `pages/products/html` 路径 `[0,3,1,1,3,1]`「多腔热流道模具规格参数」及 `[0,9,1,1,5,1]`「透明光学注塑件规格参数」，各 11 字／11 行；768、1440 正常。两处未落入不确定条件，没有样本例外。`2c1bb9a1` 修复站仍无新命中；`a31b4b28` 仍只有 30 条原有编号对比度拒因。完整输入清单不变，完整前后结果与摘要在 `review1/offline-{parent,candidate}/`，位置比较见 `review1/offline-comparison.json`。
+
+13:13:55 运行 `CHROME_PATH=<同上> node --experimental-strip-types artifacts/t198/review1/capture.mjs`，保存本轮原 molding、修复 molding 产品页三档整页图及原 caption 六张局部图，共 12 张，已全部逐张打开，确认 375 两处仍是真竖排；`review1/screenshots/capture.json` 保留观测。两轮离线脚本自动保存的反馈截图也全部打开。未把上轮截图当作本次测量通过的替代。
+
+**继续暂缓的既有限制**：review1 同时发现 K1（display:contents 祖先加 content-visibility:hidden，浏览器仍画字而旧资格层跳过）和 K2（缩放多栏仍跨列合行），均继续按 T-160:158–159 的负责人决定暂缓，真实生成再出现时另开票；本轮没有修复其质量计数或宣称解决。review1 的 english-only-control／english-with-han 还确认：原本会拒收的长英文前加 1 个汉字后，会因 T-160 的 `(han || words) < 8` 既有资格条件整体放行；这是长混合正文的资格盲区，不冒充短标签，也不在本轮改变中文至少 8 汉字的合同。本次保守门禁会让这些复杂情况不承担新增拒收，但不消除上述既有测量限制。

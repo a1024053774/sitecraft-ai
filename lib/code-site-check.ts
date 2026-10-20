@@ -201,6 +201,36 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
     return document.body;
   };
   const textRange = document.createRange();
+  type TextBox = { left: number; right: number; top: number; bottom: number };
+  const textGeometry = new Map<Element, { uncertain: boolean; clips: Array<TextBox & { x: boolean; y: boolean }> }>();
+  const geometryFor = (el: Element) => {
+    const cached = textGeometry.get(el); if (cached) return cached;
+    const geometry = { uncertain: false, clips: [] as Array<TextBox & { x: boolean; y: boolean }> };
+    for (let ancestor: Element | null = el; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor);
+      // The 2026-10-20 decision permits rejection only with simple, known boxes.
+      // Keep the original T-160 feedback for these ambiguous geometries.
+      if (style.clipPath !== 'none' || style.maskImage !== 'none'
+        || style.transform !== 'none' || style.translate !== 'none' || style.rotate !== 'none' || style.scale !== 'none'
+        || style.contain !== 'none' || style.columnCount !== 'auto' || style.columnWidth !== 'auto'
+        || style.contentVisibility !== 'visible') geometry.uncertain = true;
+      const x = style.overflowX !== 'visible', y = style.overflowY !== 'visible';
+      if ((x || y) && style.display !== 'contents') {
+        const rect = ancestor.getBoundingClientRect();
+        const left = rect.left + ancestor.clientLeft, top = rect.top + ancestor.clientTop;
+        geometry.clips.push({ left, top, right: left + ancestor.clientWidth, bottom: top + ancestor.clientHeight, x, y });
+      }
+    }
+    textGeometry.set(el, geometry); return geometry;
+  };
+  const intersectText = (rect: TextBox, clips: ReturnType<typeof geometryFor>['clips'], allowZeroWidth = false): TextBox | null => {
+    let { left, right, top, bottom } = rect;
+    for (const clip of clips) {
+      if (clip.x) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
+      if (clip.y) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+    }
+    return bottom > top && (right > left || allowZeroWidth && right === left) ? { left, right, top, bottom } : null;
+  };
   const textVisible = (node: Text | HTMLBRElement) => {
     const el = node.parentElement!;
     if (getComputedStyle(el).visibility !== 'visible') return false;
@@ -211,7 +241,8 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
     }
     // display:contents has no box; only the text Range establishes painted geometry.
     textRange.selectNode(node);
-    return [...textRange.getClientRects()].some(r => r.height > 0 && (r.width > 0 || node instanceof HTMLBRElement));
+    const geometry = geometryFor(el);
+    return [...textRange.getClientRects()].some(r => intersectText(r, geometry.uncertain ? [] : geometry.clips, node instanceof HTMLBRElement));
   };
   // Only a complete monetary value is exempt, regardless of a price/fee marker.
   // Labels, conditions and mixed price/prose paragraphs stay in the prose measurement.
@@ -235,12 +266,7 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
   for (const [block, nodes] of prose) {
     const text = nodes.map(node => node instanceof Text ? node.data : '\n').join('');
     if (priceValue.test(text.trim().normalize('NFKC'))) continue;
-    const han = text.match(/\p{Script=Han}/gu)?.length || 0;
-    const words = text.match(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)?.length || 0;
-    if ((han || words) < 8) continue;
-    // Han establishes prose eligibility; numbers/punctuation still occupy its lines.
-    // Match the existing Chinese line-length character unit to avoid sparse Han in time/price text.
-    const count = han ? Array.from(text.replace(/\s/g, '')).length : words;
+    const uncertain = nodes.some(node => geometryFor(node.parentElement!).uncertain);
     // A multicolumn owner can be this paragraph or an ancestor. Resolve its used
     // column stride before merging line boxes; equal y coordinates do not imply one line.
     let columns: { left: number; stride: number } | undefined;
@@ -257,27 +283,43 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
       break;
     }
     const lines: Array<{ top: number; bottom: number; column: number }> = [];
-    for (const node of nodes.filter((node): node is Text => node instanceof Text)) for (let index = 0; index < node.data.length;) {
-      const char = String.fromCodePoint(node.data.codePointAt(index)!);
-      const end = index + char.length;
-      if (char.trim()) {
-        textRange.setStart(node, index); textRange.setEnd(node, end);
-        for (const rect of textRange.getClientRects()) {
-          if (rect.width <= 0 || rect.height <= 0) continue;
-          // Inline emphasis can change glyph height without creating another line.
-          const column = columns ? Math.floor(((rect.left + rect.right) / 2 - columns.left) / columns.stride) : 0;
-          const line = lines.find(line => line.column === column && Math.min(line.bottom, rect.bottom) - Math.max(line.top, rect.top)
-            > Math.min(line.bottom - line.top, rect.height) / 2);
-          if (!line) lines.push({ top: rect.top, bottom: rect.bottom, column });
+    const painted: string[] = [], visibleOffsets = new Set<number>();
+    let offset = 0;
+    for (const node of nodes) {
+      if (!(node instanceof Text)) { offset++; continue; }
+      const clips = uncertain ? [] : geometryFor(node.parentElement!).clips;
+      for (let index = 0; index < node.data.length;) {
+        const char = String.fromCodePoint(node.data.codePointAt(index)!);
+        const end = index + char.length;
+        let paintedChar = false;
+        if (char.trim()) {
+          textRange.setStart(node, index); textRange.setEnd(node, end);
+          for (const raw of textRange.getClientRects()) {
+            const rect = intersectText(raw, clips); if (!rect) continue;
+            paintedChar = true;
+            // Inline emphasis can change glyph height without creating another line.
+            const column = columns ? Math.floor(((rect.left + rect.right) / 2 - columns.left) / columns.stride) : 0;
+            const line = lines.find(line => line.column === column && Math.min(line.bottom, rect.bottom) - Math.max(line.top, rect.top)
+              > Math.min(line.bottom - line.top, rect.bottom - rect.top) / 2);
+            if (!line) lines.push({ top: rect.top, bottom: rect.bottom, column });
+          }
         }
+        if (paintedChar) { painted.push(char); visibleOffsets.add(offset + index); }
+        index = end;
       }
-      index = end;
+      offset += node.data.length;
     }
+    const han = (uncertain ? text : painted.join('')).match(/\p{Script=Han}/gu)?.length || 0;
+    // A partially visible English word still counts once, even across wrapped lines.
+    const words = [...text.matchAll(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)]
+      .filter(word => uncertain || [...word[0]].some((_char, index) => visibleOffsets.has(word.index + index))).length;
+    if ((han || words) < 8) continue;
+    const count = han ? (uncertain ? Array.from(text.replace(/\s/g, '')).length : painted.length) : words;
     const average = count / lines.length, minimum = han ? 6 : 3;
     if (lines.length >= 3 && average < minimum) add('narrowColumns', block,
-      `过窄文字列：${count} ${han ? '字' : '词'} / ${lines.length} 行，平均 ${average.toFixed(2)} ${han ? '字' : '词'}/行（少于 ${minimum}）；请给正文留足列宽或在窄屏改为单列。`);
+      `过窄文字列：${count} ${han ? '字' : '词'} / ${lines.length} 行，平均 ${average.toFixed(2)} ${han ? '字' : '词'}/行（少于 ${minimum}）；请给正文留足列宽或在窄屏改为单列。${uncertain ? '可见行无法确定，仅作质量反馈，不按极端窄列拒收。' : ''}`);
     // Keep T-160 eligibility and line geometry; exactly two units per line passes.
-    if (lines.length >= 3 && average < 2) {
+    if (!uncertain && lines.length >= 3 && average < 2) {
       const parts: string[] = [];
       for (let node: Element | null = block; node && node !== document.body; node = node.parentElement) {
         if (!node.parentElement) { parts.unshift(node.tagName); break; }
