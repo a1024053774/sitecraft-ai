@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { providerHeaders } from '@/lib/provider-settings-client';
 import { X } from 'lucide-react';
 import { codeCheckLabel, codeVersionAuthor, type CodeSiteRecord } from '@/lib/code-site';
 import { groupCodeVersions, type VersionGrouping } from '@/lib/code-site-history';
@@ -43,7 +44,7 @@ export function CodeVersionHistory({ site, busy, onUpdate, onClose }: {
     setSaving(true); setError(''); setNotice('');
     try {
       const response = await fetch(kind === 'name' ? `/api/sites/${site.siteId}/versions/${selected.id}` : `/api/sites/${site.siteId}/history/restore`, {
-        method: kind === 'name' ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' },
+        method: kind === 'name' ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json', ...(kind === 'restore' ? providerHeaders() : {}) },
         body: JSON.stringify(kind === 'name' ? { name } : { versionId: selected.id, baseRevision: site.versions.find(version => version.id === site.currentVersionId)?.revision ?? 0 }),
       });
       const payload = await response.json();

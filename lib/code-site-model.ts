@@ -4,7 +4,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomInt } from 'node:crypto';
 import path from 'node:path';
 import { z } from 'zod';
-import { providerConfig } from './ai-provider.ts';
+import { providerConfig, providerNotConfiguredMessage } from './provider-context.ts';
 import { readProviderHttpError, safeProviderResponseBody } from './provider-http-error.ts';
 import { codeSiteSchema, explicitEnglishCompanyName, type CodePreferences, type SiteCode, type CodePlan, type CodeVersion, type CodeModelCall } from './code-site.ts';
 import type { SiteImageRecord } from './site-images.ts';
@@ -55,8 +55,8 @@ export function codeContentThinkingMode(purpose: 'write' | 'repair' | 'facts'): 
 async function modelJson(purpose: CodeModelCall['purpose'], system: string, user: string, maxTokens: number,
   functionOutput?: { name: 'submit_page_plan' | 'submit_english_translation' | 'submit_local_edit'; description: string; parameters: Record<string, unknown>;
     skeletonOrder?: string[]; translationInput?: CodeModelCall['translationInput'] }, factInput?: CodeModelCall['factInput']) {
-  const { baseURL, apiKey, model } = providerConfig();
-  if (!apiKey || !model) throw new Error('尚未配置 DeepSeek，无法生成站点。');
+  const { baseURL, apiKey, model, fetch } = providerConfig();
+  if (!apiKey || !model) throw new Error(providerNotConfiguredMessage);
   if (purpose === 'translate' && process.env.SITE_CODE_TRANSLATION_TOKEN_LIMIT !== undefined) {
     const parsed = z.number().int().positive().safeParse(Number(process.env.SITE_CODE_TRANSLATION_TOKEN_LIMIT));
     if (!parsed.success) throw new Error('SITE_CODE_TRANSLATION_TOKEN_LIMIT 必须是正整数。');

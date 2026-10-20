@@ -1,9 +1,10 @@
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { readSiteImage, SiteImageError } from "@/lib/site-images";
 import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ siteId: string; imageId: string }> }) {
+async function getSiteRoute(_request: Request, { params }: { params: Promise<{ siteId: string; imageId: string }> }) {
   const { siteId, imageId } = await params;
   try {
     const loaded = await readSiteImage(siteId, imageId);
@@ -25,4 +26,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sit
     }
     return Response.json(userErrorPayload({ code: "database_error" }), { status: 500 });
   }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function GET(request: Request, context: { params: Promise<{ siteId: string; imageId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => getSiteRoute(request, context));
 }

@@ -1,16 +1,16 @@
+import { browserStorage, dropServerCopy } from '@/lib/workspace-session';
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { SiteDeleteError, deleteSiteByUserChoice } from "@/lib/site-delete";
 import { userErrorPayload } from "@/lib/user-errors";
 
 export const runtime = "nodejs";
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ siteId: string }> },
-) {
+async function deleteSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   const body = await request.json().catch(() => null) as { confirmSiteId?: unknown } | null;
   try {
     const result = await deleteSiteByUserChoice(siteId, body?.confirmSiteId);
+    if (browserStorage) await dropServerCopy(siteId);
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof SiteDeleteError) {
@@ -23,4 +23,8 @@ export async function DELETE(
     }
     return Response.json(userErrorPayload({ code: "database_error" }), { status: 500 });
   }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function DELETE(request: Request, context: { params: Promise<{ siteId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => deleteSiteRoute(request, context));
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Trash2, X } from "lucide-react";
+import { browserStorageMode, deleteLocalSite, listLocalSites } from "@/lib/browser-sites-client";
 import {
   FloatingSitePreview,
   previewHint,
@@ -29,6 +30,8 @@ async function requestDelete(siteId: string, confirmSiteId: string) {
     body: JSON.stringify({ confirmSiteId }),
   });
   const payload = await response.json() as { error?: string; deleted?: boolean };
+  // T-202: in browser storage the lasting copy is local; a server copy may already be gone.
+  if (browserStorageMode() && (response.ok || response.status === 404)) { await deleteLocalSite(siteId); return; }
   if (!response.ok || !payload.deleted) {
     throw new Error(payload.error || "没有删除");
   }
@@ -121,12 +124,19 @@ export function SiteDeleteDialog({
 }
 
 export function SiteDeleteSettings() {
-  const [sites, setSites] = useState<SiteListItem[]>([]);
+  const [sites, setSites] = useState<SiteListItem[] | null>(null);
+  const [local, setLocal] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const { preview, hoverable, keepPreview, releasePreview, rowProps } = useSitePreview(!pendingId);
 
   async function refresh() {
+    // T-202: browser storage lists this browser's sites; there are no published pages to preview.
+    if (browserStorageMode()) {
+      setLocal(true);
+      setSites((await listLocalSites()).map(site => ({ ...site, companyName: "" })));
+      return;
+    }
     const response = await fetch("/api/sites", { cache: "no-store" });
     const payload = await response.json() as { sites?: SiteListItem[] };
     setSites(payload.sites ?? []);
@@ -143,19 +153,21 @@ export function SiteDeleteSettings() {
         <h2>手动删除</h2>
         <p>删除须由你输入站点编号确认。系统不会自动清对话、草稿、上传或已发布站点。每行可回工作台或发布页。{previewHint(hoverable)}</p>
       </div>
-      {sites.length === 0 ? (
+      {sites === null ? (
+        <p className="delete-empty" aria-busy="true">正在读取站点…</p>
+      ) : sites.length === 0 ? (
         <p className="delete-empty" data-testid="site-delete-empty">当前没有已保存站点。点击新建站点开始建站，不会在这里预先列一份假名单。</p>
       ) : (
         <ul className="delete-site-list" data-testid="site-delete-list">
           {sites.map((site) => (
-            <li key={site.siteId} tabIndex={0} {...(site.readError || !site.hasVersion ? {} : rowProps(site))}>
+            <li key={site.siteId} tabIndex={0} {...(local || site.readError || !site.hasVersion ? {} : rowProps(site))}>
               <div data-preview-label="">
                 <strong>{site.siteName}</strong>
                 <small>{site.siteId}{site.companyName ? ` · ${site.companyName}` : ""}</small>
               </div>
               <div className="delete-site-actions" data-preview-actions="">
                 <Link className="section-link" href={workspaceHref(site.siteId)}>工作台</Link>
-                {!site.readError && site.hasVersion && <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>}
+                {!local && !site.readError && site.hasVersion && <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>}
                 <button
                   className="danger-button"
                   type="button"
@@ -174,7 +186,7 @@ export function SiteDeleteSettings() {
       <FloatingSitePreview preview={preview} onKeep={keepPreview} onRelease={releasePreview} />
       <SiteDeleteDialog
         siteId={pendingId ?? ""}
-        hasVersion={sites.find(site => site.siteId === pendingId)?.hasVersion ?? false}
+        hasVersion={sites?.find(site => site.siteId === pendingId)?.hasVersion ?? false}
         open={Boolean(pendingId)}
         onClose={() => setPendingId(null)}
         onDeleted={(siteId) => {

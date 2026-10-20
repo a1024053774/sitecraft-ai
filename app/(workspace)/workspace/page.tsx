@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { CodeWorkspace, type CodeWorkspacePayload } from '@/components/code-workspace';
 import { CodeWorkspaceEntry } from '@/components/code-workspace-entry';
 import { resolveWorkspaceEntry } from '@/lib/workspace-entry';
+import { browserStorageMode, hydrateSite } from '@/lib/browser-sites-client';
 
 export default function WorkspacePage() {
   return <Suspense fallback={<main className="builder-shell code-workspace-loading" aria-busy="true" role="status">正在读取站点…</main>}><WorkspaceEntry /></Suspense>;
@@ -20,6 +21,7 @@ function WorkspaceEntry() {
     async function load() {
       const resolved = resolveWorkspaceEntry(search);
       if (resolved.kind !== 'open') { if (!cancelled) setEntry(resolved.kind); return; }
+      if (browserStorageMode()) await hydrateSite(resolved.siteId);
       const response = await fetch(`/api/sites/${resolved.siteId}/draft`, { cache: 'no-store' });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.userMessage || '站点读取失败。');

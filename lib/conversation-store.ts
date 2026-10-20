@@ -61,7 +61,8 @@ export type AppendConversationTurnArgs = {
 const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'conversations');
 const checkStorage = storageGuard();
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
-const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
+// Browser storage (T-202) keeps its temporary server copy in files, also in production.
+const usePostgres = process.env.SITE_STORE === "postgres" || (process.env.NODE_ENV === "production" && process.env.SITE_STORE !== "browser");
 const outcomes = new Set<ConversationTurnOutcome>(["applied", "no_change", "conflict", "error"]);
 const globalStore = globalThis as typeof globalThis & { __sitecraftConversationLocks?: Map<string, Promise<void>> };
 const locks = globalStore.__sitecraftConversationLocks ?? new Map<string, Promise<void>>();

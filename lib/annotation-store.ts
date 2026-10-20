@@ -19,7 +19,8 @@ import {
 const storageRoot = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'annotations');
 const checkStorage = storageGuard();
 const workspaceId = process.env.DEFAULT_WORKSPACE_ID || "demo";
-const usePostgres = process.env.SITE_STORE === "postgres" || process.env.NODE_ENV === "production";
+// Browser storage (T-202) keeps its temporary server copy in files, also in production.
+const usePostgres = process.env.SITE_STORE === "postgres" || (process.env.NODE_ENV === "production" && process.env.SITE_STORE !== "browser");
 const globalStore = globalThis as typeof globalThis & { __sitecraftAnnotationLocks?: Map<string, Promise<void>> };
 const locks = globalStore.__sitecraftAnnotationLocks ?? new Map<string, Promise<void>>();
 globalStore.__sitecraftAnnotationLocks = locks;

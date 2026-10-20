@@ -1,9 +1,10 @@
+import { withSiteWorkspace } from '@/lib/workspace-session';
 import { createAnnotationSchema } from "@/lib/annotations";
 import { createAnnotation, listAnnotations } from "@/lib/annotation-store";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+async function getSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   try {
     const url = new URL(request.url);
@@ -17,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ site
   }
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
+async function postSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params;
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const parsed = createAnnotationSchema.safeParse({ ...body, siteId });
@@ -27,4 +28,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "批注保存失败" }, { status: 400 });
   }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function GET(request: Request, context: { params: Promise<{ siteId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => getSiteRoute(request, context));
+}
+export async function POST(request: Request, context: { params: Promise<{ siteId: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => postSiteRoute(request, context));
 }

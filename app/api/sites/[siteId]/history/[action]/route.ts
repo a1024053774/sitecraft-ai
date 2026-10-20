@@ -1,12 +1,18 @@
+import { ServerBusyError } from '@/lib/work-queue';
+import { withSiteWorkspace } from '@/lib/workspace-session';
+import { withRequestProvider } from '@/lib/provider-context';
 import { userErrorPayload } from "@/lib/user-errors";
 import { getCodeSite, commitSiteCode } from '@/lib/code-site-store';
 import { currentCodeVersion } from '@/lib/code-site';
-import { codeWorkspaceState } from '@/lib/code-site-workflow';
+import { codeWorkspaceState, queuedCommit } from '@/lib/code-site-workflow';
 import { z } from 'zod';
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request, { params }: { params: Promise<{ siteId: string; action: string }> }) {
+async function postSiteRoute(request: Request, { params }: { params: Promise<{ siteId: string; action: string }> }) {
+  return withRequestProvider(request, () => handle(request, params));
+}
+async function handle(request: Request, params: Promise<{ siteId: string; action: string }>) {
   const { siteId, action } = await params;
   if (action !== "undo" && action !== 'restore') return Response.json(userErrorPayload({ code: "invalid_payload" }), { status: 404 });
   const codeSite = await getCodeSite(siteId);
@@ -20,8 +26,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ sit
     if (action === 'restore' && !target) return Response.json({ userMessage: '找不到要恢复的版本。' }, { status: 404 });
     if (!current || !target) return Response.json({ userMessage: '没有可撤销的版本。' }, { status: 422 });
     try {
-      const result = await commitSiteCode({ siteId, baseRevision: parsed.data.baseRevision, restoreVersionId: target.id, author: 'user', summary: `${action === 'undo' ? '撤销，' : ''}恢复版本 ${target.revision}`, request: action === 'undo' ? '撤销上次修改' : `恢复到第 ${target.revision} 版` });
+      const result = await queuedCommit(siteId, () => commitSiteCode({ siteId, baseRevision: parsed.data.baseRevision, restoreVersionId: target.id, author: 'user', summary: `${action === 'undo' ? '撤销，' : ''}恢复版本 ${target.revision}`, request: action === 'undo' ? '撤销上次修改' : `恢复到第 ${target.revision} 版` }));
       return Response.json({ status: result.status, ...(result.status === 'rejected' ? { checks: result.checks, userMessage: `恢复未通过检查：${result.checks.issues.join('；')}` } : result.status === 'conflict' ? { userMessage: '版本已经更新，请刷新后再恢复。' } : {}), ...await codeWorkspaceState(result.site) }, { status: result.status === 'rejected' ? 422 : result.status === 'conflict' ? 409 : 200 });
-    } catch (error) { return Response.json({ userMessage: error instanceof Error ? error.message : '撤销失败。' }, { status: 422 }); }
+    } catch (error) { return Response.json({ userMessage: error instanceof Error ? error.message : '撤销失败。' }, { status: error instanceof ServerBusyError ? 503 : 422 }); }
   }
+}
+// T-202: in browser storage only the workspace that opened this site may use it.
+export async function POST(request: Request, context: { params: Promise<{ siteId: string; action: string }> }) {
+  return withSiteWorkspace(request, (await context.params).siteId, () => postSiteRoute(request, context));
 }
