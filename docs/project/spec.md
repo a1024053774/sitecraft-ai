@@ -150,3 +150,69 @@ T-198 可见行口径由构思主控于 2026-10-20 决定：这是新增拒收�
 验收按 AGENTS：相关测试、typecheck、全量 test、build、Chrome 1440/768/375 本次截图与提交入口底线结果、独立审核。执行者自查不是盲评，不自动删数据或扩展部署、实机范围。
 
 提交检查的 Chrome 启动仅在 DevToolsActivePort 的两行均有效后连接：端口为 1–65535 的正整数，路径为 `/devtools/browser/` 加完整 UUID（8-4-4-4-12 位十六进制）。不完整或无效就沿用原 80 次、100ms 间隔轮询，耗尽按原超时报错；不以固定等待代替就绪条件。`tests/t173-port-readiness.test.ts` 在真实 Chrome profile 中先写未就绪内容、下一次读取时补全，并验证实际 CDP 可用；八个坏例在 `2048dbc` 均失败，非空但截断的 browser ID 在 `fb89784` 失败后收紧为完整 UUID。
+
+### 浏览器存储与访客模型接口（T-202）
+
+**访客模型接口**
+- 设置页「模型接口」填写 API 地址、key、模型名，只存在 localStorage，可从浏览器清除。
+- 只有可能调用模型的请求带 `X-SiteCraft-Provider-Base`、`X-SiteCraft-Provider-Key`、`X-SiteCraft-Provider-Model` 三个头：chat 的非 state 请求、撤销、恢复、看图；状态轮询不带。
+- 路由把凭据放入本次请求的 AsyncLocalStorage；后台任务在调度时取出，放在闭包里，任务结束随之释放。凭据不进 run、modelCalls、日志或站点包。
+- 生产模式（`NODE_ENV=production`）不读 `DEEPSEEK_API_KEY` 等环境变量。
+- chat 中会启动模型任务的请求（翻译、风格选择、确认、已有版本后的修改），未配置时在对齐、来源登记和任务改动之前返回 400。
+- 请求头不完整、地址不是 https、地址带账号、查询参数或锚点，均返回 400。
+- 访客地址的连接限制：
+  - 自定义 DNS lookup，任一解析结果落在回环、私网、链路本地、CGNAT、组播、保留地址或 IPv6 ULA 即拒绝；socket 连的就是校验过的地址。
+  - 返回 3xx 报错，不跟随。
+  - 仅当 `SITECRAFT_ALLOW_LOCAL_PROVIDER=1` 时放行 `http://127.0.0.1` 和 `http://localhost`，只用于本机验收。
+
+**存储模式**
+- `SITE_STORE=browser` 必须显式设置 `SITECRAFT_DATA_ROOT`，且该目录不能名为 `.sitecraft-data`；进程首次使用时清空其中的 code-sites、conversations、annotations、uploads。
+- 对话与批注在该模式下用文件存储，即使 `NODE_ENV=production` 也不走 Postgres。
+
+**工作区令牌**
+- 首次调用 `/api/sites`（列表或创建）或 hydrate 时，服务器下发 `sitecraft_ws`（UUID v4）：HttpOnly、SameSite=Strict，https 下加 Secure。
+- 内存登记表记录「站点 → 令牌、最后活跃时间」。`/api/sites/[siteId]/**` 全部经 `withSiteWorkspace`：令牌不符或站点未登记返回 404，放行时刷新活跃时间。
+- 提交检查的 Chrome 用 `Network.setExtraHTTPHeaders` 带进程内随机密钥头，代替 cookie。
+- `/api/sites` 列表只返回本令牌名下的站点，新建的站点登记到本令牌。
+
+**站点存档**
+- 格式：`{format:'sitecraft-site-bundle', version:1, siteId, updatedAt, files:[{path, data(base64)}]}`。只允许以下路径：`code-sites/<id>.json`、`annotations/<id>.json`、`conversations/<id>/<会话>.json`、`uploads/<workspace>/<id>/<文件>`。
+- `POST /api/workspace/hydrate` 的检查：路径、解码后总大小（默认 20MB，超出返回 413）、站点记录的 siteId 与 route、各 JSON 能否解析。
+  - 站点由别的令牌持有：返回 409。
+  - 服务器副本的 `updatedAt` 不早于存档：保留服务器副本并返回它（`kept`）。
+  - 该站点有任务在跑：返回 409。
+  - 否则先腾出空间，再按存档逐文件写入。
+- `GET /api/sites/[siteId]/bundle` 返回存档。ETag 由文件数、总大小和最新修改时间组成，同值返回 304。工作台每 5 秒拉一次，卸载时再拉一次。
+
+**清理与容量**
+- `sweep` 每分钟运行：闲置超过 `SITECRAFT_SESSION_IDLE_MS`（默认 30 分钟）且没有排队或运行中任务的副本被删除。
+- 总量超过 `SITECRAFT_SESSION_CAP_BYTES`（默认 128MB）时，按闲置时长从久到短删除；只剩忙碌副本时 hydrate 返回 503。
+- 服务器重启后，存档里仍是 running 的任务，由状态查询按既有规则标为中断。
+
+**队列**
+- 只在浏览器存储下生效：生成与检查并发为 1，等待上限 `SITECRAFT_QUEUE_WAITING`（默认 3），每个令牌同时只占一个位置。
+- chat 在对齐、来源和任务改动之前预留位置；没被任务用上的预留在请求结束时释放。手改、撤销、恢复的提交同样排队。
+- 排满返回 503「服务器忙」。排队中的任务把步骤显示为「服务器正在处理其他任务，已排队，轮到后自动开始」。
+
+**发布与列表**
+- 浏览器存储下 `/published/*` 返回 404，提示下载站点包。
+- 首页、全部站点、手动删除读本地列表，不显示发布页和悬停预览。删除时同时删除服务器副本（已不在也算成功）和本地副本。
+
+**测试与验收**
+- `tests/t202-provider-flow.test.ts` 经真实 chat 路由覆盖：
+  - 生产模式拒用服务器 key；
+  - 后台任务使用访客凭据，且 key 不落盘、不进输出；
+  - 无效请求头；
+  - 公网地址判定；
+  - 内网目标与重定向。
+  - 已用变异核对：生产模式改回读环境变量、任务丢失凭据、lookup 不校验、跟随重定向，四个都会被检出。
+- `tests/t202-browser-storage.test.ts` 覆盖：
+  - 令牌隔离与 cookie 属性；
+  - 存档逐字节往返；
+  - 越界路径、记录不符、超大、他人站点、旧存档不覆盖；
+  - 闲置清理与容量上限；
+  - 队列；
+  - 排满不推进对齐；
+  - 无发布链接。
+  - 已用六个变异核对。
+- 本机验收脚本是 `artifacts/t202/run-acceptance.sh`。它用生产构建和 `scripts/t202-model-fixture.ts` 替身，在 Chrome 里走完整流程：配置 → 新建 → 资料 → 风格 → 确认 → 生成 → 修改 → 撤销 → 刷新 → 重启服务器并换成空数据根 → 从浏览器恢复 → 下载站点包。

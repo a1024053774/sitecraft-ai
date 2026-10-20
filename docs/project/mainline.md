@@ -75,7 +75,7 @@ T-175 在成功修改的新版本中记录「同项待补充提示」：按消�
 
 ## 模型
 
-对话和看预览图都用 `deepseek-flash`（DeepSeek V4.1 Flash，原生多模态）。旧名 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 只出现在历史记录里。评测钉日期和行为，不把这个滚动模型名当成永不变更的版本号。
+对话和看预览图都用 `deepseek-flash`（DeepSeek V4.1 Flash，原生多模态）。公开部署时由访客在设置里填写自己的 DeepSeek 兼容接口，服务器不提供 key；该部署不提供公开发布链接，访客下载站点包自行托管（T-202）。旧名 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 只出现在历史记录里。评测钉日期和行为，不把这个滚动模型名当成永不变更的版本号。
 
 ## 防漂移
 

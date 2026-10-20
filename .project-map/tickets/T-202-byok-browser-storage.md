@@ -33,8 +33,36 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 方案经构思主控确认
-- [ ] 生产构建下主流程走通，服务器无持久化站点数据，日志无 key
+- [x] 方案经构思主控确认
+- [x] 生产构建下主流程走通，服务器无持久化站点数据，日志无 key
 - [ ] typecheck、test、build 通过
 
 ## Resolution
+
+**方案**：2026-10-20 构思主控确认。浏览器 IndexedDB 是唯一长期存储；服务器只放内存盘里的临时副本，闲置 30 分钟清理，总量上限 128MB。取消公开发布链接，改为下载站点包。访客地址限 https 和公网地址，防 DNS 重绑定，不跟随重定向。验收用本机替身，真实生成放到 T-204。369 个旧站不迁移。另有两条补充要求：单队列，并发为 1，hydrate 有大小上限；令牌只用于隔离。完整规格见 spec 第 6 节「浏览器存储与访客模型接口」。
+
+**提交**（分支 `t202-byok-browser-storage`）：
+- 617aca1：key 流转与设置页。
+- 8f4dd51：服务器端临时副本、令牌、队列。
+- 9da2511：浏览器端 IndexedDB。
+- 53491a6：术语「站点存档」。
+- 分支上另有构思主控的 fa2a5d1（T-204 部署事实），合并时一并带入。
+
+**证据**（2026-10-20）：
+- 定向测试：`npm test -- tests/t202-provider-flow.test.ts tests/t202-browser-storage.test.ts` 共 13/13 通过。
+- 变异：10 个变异逐一回退对应修复，均被测试检出，跑完已恢复。
+  - provider：生产模式读环境变量 key、任务丢凭据、lookup 不校验、跟随重定向；
+  - storage：守卫放行任意令牌、存档路径不校验、旧存档覆盖新副本、清理不看任务、对齐后才预留队列、每令牌不限位置。
+- 受影响的既有测试全部通过：image-analyze、vision-failures、t169、t174、t159、t151、sites-list、site-delete、site-preview、conversation-store、t085、t102、published-page-hygiene、t128、t129、t166、t171。其中 site-delete 的源码文本检查误把 `forgetSite(` 当成 `getSite(`，已把函数改名为 `dropServerCopy`。
+- 构建：`SITE_STORE=browser npm run build` 通过。
+  - 过程中 Turbopack 曾 panic（Invalid file type Directory）。原因是工作区模块从 `process.cwd()` 推导默认数据根，又用展开参数拼路径，追踪器因此去扫 `.sitecraft-data`。
+  - 修法：浏览器模式只用显式数据根，并给每个 `path.join` 和 fs 调用加 `turbopackIgnore`。
+  - 修复后，宽匹配警告的条目与基线 ca8969b 完全相同。
+- 本机验收：`zsh artifacts/t202/run-acceptance.sh` 跑出 `artifacts/t202/acceptance-20261020T140305/`，两段都通过。
+  - 走通的流程：配置 → 新建 → 资料 → 风格 → 确认 → 生成 v1 → 修改 v2（首页标题变了）→ 撤销 v3 → 刷新仍是 v3。
+  - 服务器重启并换成空数据根之后：首页从本地列出站点，重新打开从浏览器恢复到 v3，站点包下载 200（zip）。
+  - 不带 cookie 访问同一站点返回 404，发布链接返回 404。
+  - 带 key 的请求只有 chat 的非 state 请求和撤销。
+  - 在服务器副本和 app.log 里搜 key，0 处。
+  - 三档工作台截图都看过，scrollWidth 等于视口宽度；设置页三档截图在 `artifacts/t202/settings-*.png`。
+- 未做：真实模型生成（按约定放到 T-204，用负责人的 key 在 VPS 上做）。全量 test 与 build 由合并后的主线验证执行。
