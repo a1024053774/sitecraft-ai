@@ -170,6 +170,9 @@ async function prepareSystemBackdrops(allowedUrls: string[]) {
 function readCodeQuality(pageId: string, width: number, productIds: string[], incomingAnchors: string[], stopMotion: () => void): { qualityFeedback: CodeQualityFeedback; extremeNarrowColumns: Array<{ key: string; detail: string }> } {
   const feedback: CodeQualityFeedback = { truncatedText: 0, ungatedHover: 0, smallTargets: 0, coveredAnchors: 0, croppedProductImages: 0, narrowColumns: 0, details: [] };
   const extremeNarrowColumns: Array<{ key: string; detail: string }> = [];
+  const visibility = { testedBlocks: 0, uncertainBlocks: 0, reasons: {} as Record<string, number>,
+    eligibleBlocks: 0, uncertainEligibleBlocks: 0, eligibleReasons: {} as Record<string, number> };
+  feedback.narrowColumnVisibility = visibility;
   const targetFor = (el: Element): string => {
     if (el === document.documentElement) return 'html';
     if (el === document.body) return 'body';
@@ -202,25 +205,38 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
   };
   const textRange = document.createRange();
   type TextBox = { left: number; right: number; top: number; bottom: number };
-  const textGeometry = new Map<Element, { uncertain: boolean; clips: Array<TextBox & { x: boolean; y: boolean }> }>();
+  const textGeometry = new Map<Element, { uncertain: boolean; reasons: string[]; clips: Array<TextBox & { x: boolean; y: boolean }> }>();
   const geometryFor = (el: Element) => {
     const cached = textGeometry.get(el); if (cached) return cached;
-    const geometry = { uncertain: false, clips: [] as Array<TextBox & { x: boolean; y: boolean }> };
+    const geometry = { uncertain: false, reasons: [] as string[], clips: [] as Array<TextBox & { x: boolean; y: boolean }> };
+    const reasons = new Set<string>();
+    let positioned = false;
     for (let ancestor: Element | null = el; ancestor; ancestor = ancestor.parentElement) {
       const style = getComputedStyle(ancestor);
+      positioned ||= /^(absolute|fixed|sticky)$/.test(style.position);
       // The 2026-10-20 decision permits rejection only with simple, known boxes.
       // Keep the original T-160 feedback for these ambiguous geometries.
-      if (style.clipPath !== 'none' || style.maskImage !== 'none'
-        || style.transform !== 'none' || style.translate !== 'none' || style.rotate !== 'none' || style.scale !== 'none'
-        || style.contain !== 'none' || style.columnCount !== 'auto' || style.columnWidth !== 'auto'
-        || style.contentVisibility !== 'visible') geometry.uncertain = true;
+      if (style.clipPath !== 'none') reasons.add('clip-path');
+      if (style.maskImage !== 'none') reasons.add('mask');
+      if (style.transform !== 'none' || style.translate !== 'none' || style.rotate !== 'none' || style.scale !== 'none') reasons.add('transform');
+      if (style.contain !== 'none') reasons.add('contain');
+      if (style.columnCount !== 'auto' || style.columnWidth !== 'auto') reasons.add('多栏');
+      if (style.contentVisibility !== 'visible') reasons.add('content-visibility');
       const x = style.overflowX !== 'visible', y = style.overflowY !== 'visible';
-      if ((x || y) && style.display !== 'contents') {
+      // Inline/contents overflow has no clipping box. Root/body overflow belongs
+      // to the viewport, not their local client box (controller, 2026-10-20).
+      if ((x || y) && ancestor !== document.documentElement && ancestor !== document.body
+        && style.display !== 'inline' && style.display !== 'contents') {
+        const margin = style.getPropertyValue('overflow-clip-margin').trim();
+        if (positioned) reasons.add('定位逃逸');
+        if (margin && margin !== '0px') reasons.add('clip-margin');
+        if (positioned || margin && margin !== '0px') continue;
         const rect = ancestor.getBoundingClientRect();
         const left = rect.left + ancestor.clientLeft, top = rect.top + ancestor.clientTop;
         geometry.clips.push({ left, top, right: left + ancestor.clientWidth, bottom: top + ancestor.clientHeight, x, y });
       }
     }
+    geometry.reasons = [...reasons]; geometry.uncertain = reasons.size > 0;
     textGeometry.set(el, geometry); return geometry;
   };
   const intersectText = (rect: TextBox, clips: ReturnType<typeof geometryFor>['clips'], allowZeroWidth = false): TextBox | null => {
@@ -241,8 +257,9 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
     }
     // display:contents has no box; only the text Range establishes painted geometry.
     textRange.selectNode(node);
-    const geometry = geometryFor(el);
-    return [...textRange.getClientRects()].some(r => intersectText(r, geometry.uncertain ? [] : geometry.clips, node instanceof HTMLBRElement));
+    // Group the whole block before applying overflow. One ambiguous text node
+    // makes the block uncertain; an earlier clipped sibling must not disappear.
+    return [...textRange.getClientRects()].some(r => intersectText(r, [], node instanceof HTMLBRElement));
   };
   // Only a complete monetary value is exempt, regardless of a price/fee marker.
   // Labels, conditions and mixed price/prose paragraphs stay in the prose measurement.
@@ -265,8 +282,12 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
   }
   for (const [block, nodes] of prose) {
     const text = nodes.map(node => node instanceof Text ? node.data : '\n').join('');
-    if (priceValue.test(text.trim().normalize('NFKC'))) continue;
-    const uncertain = nodes.some(node => geometryFor(node.parentElement!).uncertain);
+    if (!text.trim() || priceValue.test(text.trim().normalize('NFKC'))) continue;
+    const reasons = [...new Set(nodes.flatMap(node => geometryFor(node.parentElement!).reasons))];
+    const uncertain = reasons.length > 0;
+    visibility.testedBlocks++;
+    if (uncertain) visibility.uncertainBlocks++;
+    for (const reason of reasons) visibility.reasons[reason] = (visibility.reasons[reason] || 0) + 1;
     // A multicolumn owner can be this paragraph or an ancestor. Resolve its used
     // column stride before merging line boxes; equal y coordinates do not imply one line.
     let columns: { left: number; stride: number } | undefined;
@@ -314,10 +335,13 @@ function readCodeQuality(pageId: string, width: number, productIds: string[], in
     const words = [...text.matchAll(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)]
       .filter(word => uncertain || [...word[0]].some((_char, index) => visibleOffsets.has(word.index + index))).length;
     if ((han || words) < 8) continue;
+    visibility.eligibleBlocks++;
+    if (uncertain) visibility.uncertainEligibleBlocks++;
+    for (const reason of reasons) visibility.eligibleReasons[reason] = (visibility.eligibleReasons[reason] || 0) + 1;
     const count = han ? (uncertain ? Array.from(text.replace(/\s/g, '')).length : painted.length) : words;
     const average = count / lines.length, minimum = han ? 6 : 3;
     if (lines.length >= 3 && average < minimum) add('narrowColumns', block,
-      `过窄文字列：${count} ${han ? '字' : '词'} / ${lines.length} 行，平均 ${average.toFixed(2)} ${han ? '字' : '词'}/行（少于 ${minimum}）；请给正文留足列宽或在窄屏改为单列。${uncertain ? '可见行无法确定，仅作质量反馈，不按极端窄列拒收。' : ''}`);
+      `过窄文字列：${count} ${han ? '字' : '词'} / ${lines.length} 行，平均 ${average.toFixed(2)} ${han ? '字' : '词'}/行（少于 ${minimum}）；请给正文留足列宽或在窄屏改为单列。${uncertain ? `可见行无法确定（${reasons.join('、')}），仅作质量反馈，不按极端窄列拒收。` : ''}`);
     // Keep T-160 eligibility and line geometry; exactly two units per line passes.
     if (!uncertain && lines.length >= 3 && average < 2) {
       const parts: string[] = [];

@@ -192,3 +192,74 @@ python3 artifacts/t198/review1/compare-offline.py
 13:13:55 运行 `CHROME_PATH=<同上> node --experimental-strip-types artifacts/t198/review1/capture.mjs`，保存本轮原 molding、修复 molding 产品页三档整页图及原 caption 六张局部图，共 12 张，已全部逐张打开，确认 375 两处仍是真竖排；`review1/screenshots/capture.json` 保留观测。两轮离线脚本自动保存的反馈截图也全部打开。未把上轮截图当作本次测量通过的替代。
 
 **继续暂缓的既有限制**：review1 同时发现 K1（display:contents 祖先加 content-visibility:hidden，浏览器仍画字而旧资格层跳过）和 K2（缩放多栏仍跨列合行），均继续按 T-160:158–159 的负责人决定暂缓，真实生成再出现时另开票；本轮没有修复其质量计数或宣称解决。review1 的 english-only-control／english-with-han 还确认：原本会拒收的长英文前加 1 个汉字后，会因 T-160 的 `(han || words) < 8` 既有资格条件整体放行；这是长混合正文的资格盲区，不冒充短标签，也不在本轮改变中文至少 8 汉字的合同。本次保守门禁会让这些复杂情况不承担新增拒收，但不消除上述既有测量限制。
+
+### review2：overflow 裁剪适用范围与统计（2026-10-20）
+
+执行 codex-t198，基于 `82fad022144660b15b1bf993390d8abff4e0fc3c`。完整读取 `/Users/luckye/Documents/Code/sitecraft-ai/artifacts/t198/review2.txt`（718 行）及原输入、结果；独立复核原结论为 **NO_GO**，四项 P2 分别是定位逃逸、inline overflow、body 向视口传播和 overflow-clip-margin。报告和主工作区探针只读。本轮只改原窄列测量与检查结果中的计量证据，不改提交、T-187 修正入口、轮数或 T-199 范围；不调用真实模型、不另开审查。沿用 evidence-first-testing、project-map 与 document-writing 的证据和文档流程。以下时间均为 UTC。
+
+**INCOMPLETE（口径示例待主控确认）**：修复、红绿、门控和 38 站统计已完成；尚未将 absolute-contained-two 的「统一定位链保守退出」与同条末尾「按求交结果判定」视为已经一致，具体差异见下文。当前候选按第 3 条实现，供主控直接复核，不把未确认项写成 PASS。
+
+**规则来源与修法**：构思主控口径的延伸，**2026-10-20**；以本轮最后补充为准：
+
+- inline、contents、html、body 的 overflow 直接跳过，既不构造局部裁剪框，也不单凭该 overflow 标记无法确定；仍继续向上检查其他属性及有效裁剪框。因此 F2、F3 恢复三档拒收，不再把它们列为保守放行的代价。
+- 其他有盒祖先的 overflow 非 visible 时，只有 overflow-clip-margin 未设置或计算值为 `0px`，且文字父元素到该祖先之间（含自身）没有 absolute／fixed／sticky 定位，才按相应轴与文字矩形求交。定位链或非零 clip-margin 统一退出极端拒收；同一正文块的原因去重，T-160 过窄反馈注明「可见行无法确定（定位逃逸／clip-margin 等）」；原 clip-path、mask、transform、contain、多栏及 content-visibility 规则保留。
+- 先按最近独立正文块归集原本有 Range 文字的节点，再统一判断整个块是否无法确定；裁剪只在逐字测量中使用，避免先丢掉节点后再决定整个块的可见行口径。普通窄列仍为 6 字／3 词，极端严格少于 2，正文资格及豁免不变。
+- `absolute-contained-two` 的两行截图已核对。它自身为 absolute，按上述统一规则也保守退出、不拒收；**没有为它增加定位包含块例外，也不声称该例已经按两行求交测量**。用户同条末尾另写了该例按求交判定，执行时已提出这一冲突，并明确采用第 3 条统一保守规则继续；此差异保留供主控确认。inline-block 两行对照仍实际求交、不产生窄列反馈。
+
+**Tracer bullet** 仍从冻结输入经生产 checkSiteCode 完成三档检查并保留 JSON，原生成／提交／片段修正回归验证同一入口。**Deep modules** 保持原接口；统计附在同次质量反馈，不建立第二套测量。**Ubiquitous language** 继续使用「极端窄列」「可见行无法确定」。AGENTS 验收段仅改一句规则；spec 第 6 节写明适用条件、统计口径及来源，mainline、CONTEXT 窄改同步。
+
+**成对输入与截图期望**：新增 `tests/t198-overflow-ancestors.test.ts` 与 `tests/fixtures/t198-review2-overflow.json`，冻结 review2 的原 SiteCode，测试不读取探针的结果或计数作为答案。原始三档图与本树重新采集的三档图均已逐张打开，保存于 `artifacts/t198/review2/visitor-screenshots/`：
+
+| 输入 | 访客画面与需求 | 82fad02 | 修后 |
+| --- | --- | --- | --- |
+| absolute-two-visible、fixed-two-visible、clip-margin-two-visible | 各 24 字／12 行，正好 2 字，不能拒收 | 每档误算 12 字／12 行并拒收 | 三档不拒收，质量反馈注明原因 |
+| absolute-escape、fixed-escape | 实际完整 12 行；复杂定位按保守门禁 | 漏掉全部文字，无窄列反馈 | 三档不拒收，注明定位逃逸；去掉 overflow 仍三档拒收 |
+| clip-margin | 实际可见 8 行一字一行；扩张区不再推算 | 漏掉全部文字，无窄列反馈 | 三档不拒收，注明 clip-margin；去掉 overflow 仍三档拒收 |
+| inline-overflow、body-propagation | 实际完整 12 行，局部 overflow 不适用 | 三档漏拒 | 三档拒收；移除 overflow 的对照也拒收 |
+| overflow-inline-block-two | 实际仅 2 行，真实有盒裁剪 | 不拒收 | 求交后仍不拒收；完整 12 行对照拒收 |
+| absolute-contained-two | 实际仅 2 行；含 absolute 定位链 | 不拒收 | 统一保守退出，仍不拒收，见上文差异说明 |
+
+另覆盖 sticky 与 overflow 同链的保守反馈、去掉 sticky 后仍拒收、html／contents overflow 跳过，以及按块／原因去重的统计（3 块中 2 块不确定，满足 8 字资格的 2 块中 1 块不确定）。原 caption、中文／英文正好 2 的边界、正常标签／价格、review1 的 0／1／2／12 行及七类不确定条件对照均保留。
+
+**红绿命令与日志**（CHROME_PATH 同本票前文）：
+
+```sh
+npm test -- --browser-concurrency=1 tests/t198-overflow-ancestors.test.ts
+npm run typecheck
+npm test -- --browser-concurrency=1 tests/t198-overflow-ancestors.test.ts tests/t198-clipped-visible-lines.test.ts tests/t198-extreme-narrow-floor.test.ts tests/t160-narrow-columns.test.ts tests/t187-repair-fragments.test.ts tests/t187-repair-routing.test.ts tests/t196-visual-coverage.test.ts
+```
+
+- 13:39:57–13:40:01，改运行代码前在 82fad02 上先红：12 项中 9 项预期失败、3 项通过，`review2/red.log`；三个 A 类输入的三档 JSON 均实际误拒。F2、F3 均漏拒，F1-B、F4-B 缺无法确定说明，sticky 仍按极端拒收。标准入口 `test-run-1792503595936-10150`，不是环境失败。
+- 13:41:45–13:41:50，加入统计合同后在同一未改运行代码的基线上补跑，13 项中 10 项预期失败（统计字段缺失），`red-statistics.log`，入口 `test-run-1792503704189-11998`。
+- 13:46:26–13:46:32，修后新 14 项全部通过，`green.log`，入口 `test-run-1792503985152-16529`。本轮先跑过原相关 89 项回归，全部通过；最终冻结候选的合并定向门控及入口报告见 `review2/targeted-tests.log`、`runner-green/`。typecheck 退出 0，`typecheck.log`。未跑全量、runner 回归或 build。tsconfig.json 的既存 Next 自动改动不提交。
+
+**同 38 站重检**：继续只读本树既有副本和原清单，T-184 17 站、T-190 14 站、T-186 7 站，站点／版本逐项与基线一致；具体清单见本票前表及 `artifacts/t198/offline-manifest.json`。本树 3198 服务仍以 NODE_ENV=test、SITE_STORE=fs 和副本数据根启动，checkTestIdentity 核对 cwd/dataRoot，health 503 仅因未配置真实模型。身份文件为 `review2/offline-identity.json`。
+
+```sh
+NODE_ENV=test SITE_STORE=fs SITECRAFT_TEST_IDENTITY_FILE=$PWD/artifacts/t198/review2/offline-identity.json SITECRAFT_DATA_ROOT=$PWD/artifacts/t198/offline-data npm run dev -- --port 3198
+SITECRAFT_BASE=http://127.0.0.1:3198 SITECRAFT_DATA_ROOT=$PWD/artifacts/t198/offline-data node --experimental-strip-types --input-type=module -e 'import {checkTestIdentity} from "./scripts/test-identity.ts"; import {writeFile} from "node:fs/promises"; await writeFile("artifacts/t198/review2/offline-identity.json",JSON.stringify(await checkTestIdentity(),null,2));'
+NODE_ENV=test SITE_STORE=fs SITECRAFT_TEST_IDENTITY_FILE=$PWD/artifacts/t198/review2/offline-identity.json SITECRAFT_DATA_ROOT=$PWD/artifacts/t198/offline-data SITECRAFT_BASE=http://127.0.0.1:3198 node --experimental-strip-types scripts/check-code-quality-offline.ts --manifest artifacts/t198/offline-manifest.json --samples artifacts/t198/offline-data/code-sites --out artifacts/t198/review2/offline-candidate
+python3 artifacts/t198/review2/compare-offline.py
+python3 artifacts/t198/review2/summarize-visibility.py
+CHROME_PATH=<同前> node --experimental-strip-types artifacts/t198/review2/capture.mjs
+CHROME_PATH=<同前> node --experimental-strip-types artifacts/t198/review2/capture-contract.mjs
+```
+
+基线命令 out 为 `review2/offline-parent`，运行代码修改前 13:40:35–13:41:15 完成测量；候选 13:47:00–13:47:40 完成测量，两轮随后自动截图也退出 0。每轮 **38 站／345 视口／0 重检错误／0 模型调用**；元数据均为父提交加 dirty 工作树，基线 dirty 来自新增测试及 tsconfig；没有将其冒充干净归档。复现须使用新 out，脚本拒绝覆盖已有目录。
+
+新规则位置比较 **新增 0、减少 0**，仍仅 `c06fc9e3-0d70-45a8-aa11-bd85127ee5b1`、版本 `ddefcab0-3bce-4d66-b0d4-64031eb4b420` 的 `products/375` 两处：`pages/products/html` 路径 `[0,3,1,1,3,1]`「多腔热流道模具规格参数」与 `[0,9,1,1,5,1]`「透明光学注塑件规格参数」，均 11 字／11 行。768／1440 横排，无命中；两处均未进入无法确定。重新采集并逐张打开原 molding 三档整页及六张 caption 图、修复 molding 三档整页，共 12 张；375 两处确为竖排，误拒 0 站，修复版 `2c1bb9a1` 仍无命中。两轮 CLI 另存的 12 张自动反馈图也均逐张打开。图与观测在 `review2/screenshots/`、`visitor-screenshots/`；位置对比在 `offline-comparison.json`。
+
+**不确定性统计**（2026-10-20 13:48:04 汇总）：同一次生产反馈的 `narrowColumnVisibility` 按「页／视口中的独立正文块」计数，三档各计一次，不冒充去重 DOM 总数；语义及价格豁免先排除，非空 Range 块在 overflow 求交前计入 testedBlocks，中文／英文既有 8 字／词资格在逐字测量后另列。短正文不是合格正文，原因在同块内去重，同块多原因可分别计入。
+
+| 口径 | 受测文字块 | 可见行无法确定 | 占比 | 原因前列 |
+| --- | ---: | ---: | ---: | --- |
+| 全部非空受测正文块 | 14,682 | 27 | 0.184% | 多栏 24，定位逃逸 3 |
+| 满足既有 8 汉字／8 词资格的块 | 8,280 | 3 | 0.036% | 多栏 3 |
+
+clip-path、mask、transform、contain、content-visibility、clip-margin 在这 38 站本次受测块中均为 0；不以只数产生窄列反馈的块来缩小不确定分母。两种口径都没有超过 5%。完整分站数、原因和占比、stop=false 保存于 **`artifacts/t198/review2/visibility-statistics.json`**，汇总脚本在任一比例超过 5% 时会失败并要求停止，不提交；原版本没有统计字段不当成零。
+
+**保守放行的已知代价**：F1-B 的 absolute-escape／fixed-escape 实际可见 12 行，F4-B 的 clip-margin 实际可见 8 行，按本次统一规则只反馈，不新增拒收；sticky 等同链定位也接受相同代价。不把这几例写成几何已修好，也不靠文案或样本例外放行。F2、F3 依最后修正已恢复拒收。K1、K2 继续按 T-160:158–159 暂缓，混合英文加一个汉字后整体退出资格的盲区仍保留。原 `a31b4b28` 仍有 30 条原生编号对比度拒因，未算成新窄列、未放宽其他底线；离线技术结果不代表事实模型或独立审美通过。
+
+最终冻结候选于 **13:48:23–13:50:02** 完成上述七文件串行定向门控，**103/103 通过，0 fail/cancel/skip，退出 0**；入口 `test-run-1792504101968-18557` 的原始身份、报告和日志复制到 `review2/runner-green/`。最终 review1 四组 × 三档截图也逐张打开，仍分别可见 0／1／2／12 行。typecheck 退出 0，未以截图代替门控。本轮按统一保守定位链规则交付；上文 absolute-contained-two 的求交表述差异未隐去。
+
+票仍 open，主控负责的合并后主线验证／独立审查未勾选。交付 SHA 和最终门控时间在 `artifacts/t198/review2/verification.json`，不推送。

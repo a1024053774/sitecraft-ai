@@ -25,6 +25,9 @@ export type CodeQualityKind = 'truncatedText' | 'ungatedHover' | 'smallTargets' 
 export type CodeQualityFeedback = Record<Exclude<CodeQualityKind, 'narrowColumns'>, number> & {
   // Absent on historical checks before T-160; absence means unmeasured.
   narrowColumns?: number;
+  // Per page/viewport, after prose exemptions; reason counts deduplicate each block.
+  narrowColumnVisibility?: { testedBlocks: number; uncertainBlocks: number; reasons: Record<string, number>;
+    eligibleBlocks: number; uncertainEligibleBlocks: number; eligibleReasons: Record<string, number> };
   details: Array<{ kind: CodeQualityKind; target: string; text: string; detail: string }>;
 };
 export type DynamicStateEvidence = {
