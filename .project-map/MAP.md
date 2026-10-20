@@ -62,6 +62,7 @@
 - [T-156 通用建站的范围](tickets/T-156-general-purpose-scope.md)：任何行业的中小企业与机构展示型官网；不做电商、预约、会员和个人/活动页；拆为 T-157 非工业样本 → T-158 规范通用化 → T-159 非工业风格
 - [T-161 预览批注参照 BaoCut](tickets/T-161-baocut-annotation-plan.md)：就地写批注、圈选与多条草稿、多条一次修改，拆为 T-162 → T-163 → T-164；只取 BaoCut 画板批注部分，可参考改编并标注来源，商用前须重写或授权；T-164 改单区块合同，开工前负责人确认
 - [T-189 质量方向与模拟资料](tickets/T-189-quality-direction-materials.md)：回到 T-143 标准（成对比较 + company + 固定口径缺口计数，混排只作参考）；模拟资料按企业真实写法重整并补品牌、动态与图片（T-190）
+- [T-197 极端窄列拒收](tickets/T-197-extreme-narrow-reject.md)：平均每行不到 2 字的可见文字块改为底线拒收并进修正轮；普通窄列与行长仍只作质量反馈（T-198 实现）
 
 ## Not yet specified
 
