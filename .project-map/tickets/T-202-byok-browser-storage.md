@@ -2,7 +2,7 @@
 id: T-202
 title: 用户自带模型接口，站点数据存在用户浏览器
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: 执行主控
 supersedes:
@@ -35,7 +35,7 @@ supersedes:
 
 - [x] 方案经构思主控确认
 - [x] 生产构建下主流程走通，服务器无持久化站点数据，日志无 key
-- [ ] typecheck、test、build 通过
+- [x] typecheck、test、build 通过
 
 ## Resolution
 
@@ -66,3 +66,13 @@ supersedes:
   - 在服务器副本和 app.log 里搜 key，0 处。
   - 三档工作台截图都看过，scrollWidth 等于视口宽度；设置页三档截图在 `artifacts/t202/settings-*.png`。
 - 未做：真实模型生成（按约定放到 T-204，用负责人的 key 在 VPS 上做）。全量 test 与 build 由合并后的主线验证执行。
+
+### 主控验收与关闭
+
+- 主线合并为 55145a0，验证提交是 bb7073f，证据在 `artifacts/main-verify-bb7073f/`：
+  - `npm run typecheck` 通过；
+  - `node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 18/18；
+  - `CHROME_PATH=… npm test` 1016/1016；
+  - `npm run build` 通过。
+- 55145a0 上首次全量是 1015/1016。失败项是本票的 key 扫描：全量时 t176 在共用数据根里放了目录符号链接，扫描把链接当文件读，报 EISDIR。bb7073f 改为只读普通文件，并跳过被并发删除的文件。失败那轮的证据保留在 `artifacts/main-verify-55145a0/`。
+- 本票没有另开代码审查实例：方案由构思主控确认，测试有变异证据。真实模型生成留给 T-204。
