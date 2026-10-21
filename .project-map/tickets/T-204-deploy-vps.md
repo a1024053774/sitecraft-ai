@@ -2,7 +2,7 @@
 id: T-204
 title: 部署到 1 核 1GB VPS（luckye.online 子域名）
 type: build
-status: open
+status: closed
 blocked_by: [T-201, T-202]
 claimed_by: 执行主控
 supersedes:
@@ -32,8 +32,8 @@ supersedes:
 
 ## Acceptance
 
-- [ ] 两个子域名经 HTTPS 可访问；VPS 上完成一次完整生成
-- [ ] 服务器上没有 key 和站点数据
+- [x] 两个子域名经 HTTPS 可访问；VPS 上完成一次完整生成
+- [x] 服务器上没有 key 和站点数据
 
 ## Resolution
 
@@ -69,4 +69,27 @@ supersedes:
   - 新增的 `/etc/apparmor.d/sitecraft-chrome` 写法同 Ubuntu 自带的 chrome profile：路径 `/opt/sitecraft/chrome-dl/**/chrome-headless-shell`，`flags=(unconfined)`，只有 `userns,`。
   - 不改内核开关，不碰其他 profile。
   - install.sh 在停服和构建之前以 sitecraft 用户开着沙箱真实启动一次 Chrome，起不来即非零退出。未写配置时在 VPS 上运行同一段探测，判为「does not start」。
-- **未完成**：VPS 按 install.sh 更新后，在负责人原站点上从确认大纲处重跑生成，再做局部修改、撤销、刷新恢复和下载站点包，最后扫描服务器上的 key 与站点数据，然后勾验收、关票。
+- **VPS 更新到 8f8206d（04:50 前后 UTC）**：
+  - Chrome 以 sitecraft 用户、开着沙箱启动成功；aa-status 显示 119 个 profile，比原来多了 sitecraft-chrome，enforce 仍为 23；内核开关仍是 1。
+  - xray 在 443，冒烟检查全部通过。
+- **重跑时的操作失误**：在中断后的旧站点上，执行主控照提示发了一句「按已保存的页面大纲生成网站。」，这句话覆盖了没有版本的站点的资料，那次运行作废，由构思主控重启服务中止。这个产品问题记在 T-205。
+- **第二次真实生成（新站 342ed662，2026-10-21 04:57:05–05:00:05 UTC），PASS**：
+  - 资料：模拟纸包装包，1921 字。风格「帮我选」→ 精密工程，大纲三页。
+  - 结果：版本 1 一次通过底线检查，修正 0 轮，16 条资料出处。
+  - 写稿 118.6 秒，49,614 token（输入 11,445，输出 38,169，其中思考 29,727）；事实核对 51.6 秒，26,683 token。
+  - 期间可用内存最低 343MB，交换内存不超过 114MB，xray 一直在，没有 OOM。
+- **刷新恢复，PASS**：重新载入后读回版本 1、三页，预览 h1 为「青禾纸包装」。
+- **站点包，PASS**：在页面内请求 `/export`，返回 200 application/zip，29,164 字节。条目为 index.html、products.html、sampling.html、styles.css、LICENSES.txt，没有资料、对话或密钥文件。
+- **服务器扫描，PASS**（只读，按 `sk-` 加 20 位以上字符搜）：
+  - `/dev/shm` 副本、sitecraft-app journal 和 nginx 四个日志都是 0 命中；nginx 日志也没有记下 x-sitecraft-provider。
+  - `/opt/sitecraft`（不含 node_modules 和 cache）唯一命中是 Chrome 自带的 `locales/nl.pak` 二进制，属于误报。
+  - 站点数据只在 `/dev/shm`，`/tmp` 没有残留检查目录，应用目录只有 `.env.example`。
+- **局部修改与撤销：在 1 核机器上没通过（已知问题）**：
+  - 操作：批注选中首页「接单提醒」块，要求「把这一块的标题「接单提醒」改成「接单范围」，正文保持不变」。共试 3 次，模型 2.3–4.6 秒就返回合规的 submit_local_edit，随后提交入口都报「局部动态状态检查超时，本次未保存版本」，如实拒收。撤销需要两个版本，所以没法测。
+  - 量化：第 3 次临时开了 `SITECRAFT_CHECK_DIAGNOSTICS_DIR`，用后已撤。诊断和每秒采样存在 `artifacts/t204/diag-local-edit-20261021/`。
+    - 只跑到 375 档：可聚焦元素 8 个，每侧 33 次完整读取，合计 66 次，预算 20.8 秒。
+    - 两侧并行各跑 19.8 秒，只完成约 2/3，其中 styleRead 占 18.3–18.5 秒。
+    - 单核上折合约 0.42 秒/次，公式按 0.30 秒算。
+    - 期间 CPU 满载，有 16 个 Chrome 进程，可用内存最低 213MB。
+  - 处理：按 T-206，公网不再运行真实建站，检查时限和规则都不改；局部修改与撤销改到 T-208 本机部署上验收。
+- **关票**：两项验收按上面的证据勾选，局部修改与撤销作为已知问题转给 T-208。VPS 上 sitecraft-app 的停用和演示在 T-207 做。
