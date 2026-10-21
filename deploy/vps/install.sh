@@ -41,9 +41,11 @@ node -v
 
 step "service user and source at $REF"
 id sitecraft >/dev/null 2>&1 || useradd --system --home $ROOT --shell /usr/sbin/nologin sitecraft
-if [ -d $ROOT/app/.git ]; then git -C $ROOT/app fetch -q origin; else git clone -q $REPO $ROOT/app; fi
-git -C $ROOT/app checkout -q --detach "origin/$REF" 2>/dev/null || git -C $ROOT/app checkout -q --detach "$REF"
-git -C $ROOT/app log --oneline -1
+# The checkout is chowned to sitecraft below; root's git refuses it on reruns without this.
+GIT="git -c safe.directory=$ROOT/app -C $ROOT/app"
+if [ -d $ROOT/app/.git ]; then $GIT fetch -q origin; else git clone -q $REPO $ROOT/app; fi
+$GIT checkout -q --detach "origin/$REF" 2>/dev/null || $GIT checkout -q --detach "$REF"
+$GIT log --oneline -1
 [ ! -e $ROOT/app/.env.local ] || { echo "refusing: $ROOT/app/.env.local exists; the server must not hold a model key"; exit 1; }
 
 step "headless Chrome for the commit checks"
