@@ -41,6 +41,7 @@ bash /tmp/sitecraft-deploy/deploy/vps/install.sh family-kit-assembly
   - 数据根为 `/dev/shm/sitecraft-server-copy`（内存盘）：每次启动清空，闲置 30 分钟清理，总量上限 128MB。
   - 生成与检查共用一个队列，并发为 1，最多 3 个等待；每次检查单独启动无头 Chrome，用完即关。
   - `MemoryHigh=700M`，`OOMScoreAdjust=500`：内存紧张时先让它让出资源，不连累负责人的其他服务。
+  - 更新时 `install.sh` 在构建前停掉 `sitecraft-app`，构建完再启动，建站网站约 2 分钟不可用。2026-10-21 带着运行中的服务构建，可用内存降到 86MB，交换内存读写频繁，为了不挤占负责人的代理，选择短暂停服。首次安装没有在运行的服务，不受影响。
 - **nginx**（`/etc/nginx/conf.d/sitecraft.conf`）：
   - 只信任本机 tunnel 传来的 `CF-Connecting-IP`。
   - 建站网站只接受来自本机 tunnel 的连接，外部直连返回 403，避免 key 以明文 HTTP 传输。

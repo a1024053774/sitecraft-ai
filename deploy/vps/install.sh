@@ -62,6 +62,9 @@ $ROOT/chrome/chrome-headless-shell --version
 
 step "install dependencies and build (SITE_STORE=browser; swap carries the build on 1 GB)"
 cd $ROOT/app
+# On an update the running app and the build together push 1 GB into swap and starve the
+# owner's proxy, so the app goes down for the build (~2 min) and "app service" restarts it.
+if systemctl is-active -q sitecraft-app; then systemctl stop sitecraft-app; echo "sitecraft-app stopped for the build"; fi
 npm ci --no-audit --no-fund
 SITE_STORE=browser NODE_OPTIONS=--max-old-space-size=1536 npm run build
 chown -R sitecraft:sitecraft $ROOT/app
