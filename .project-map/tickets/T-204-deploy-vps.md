@@ -55,4 +55,18 @@ supersedes:
     - Ubuntu 24.04 的 SSH 单元是 `ssh.service`，默认的 `sshd.service` 读不到日志，所以显式设 `journalmatch = _SYSTEMD_UNIT=ssh.service + _COMM=sshd`。
     - 已核对生效，封了 5 个暴力破解地址；x-ui、nginx、sitecraft-app 仍 active，xray 仍在 443。
   - SSH 密码登录未关。
-- **未完成**：负责人建好 tunnel 后，在浏览器填负责人的 key，于 `https://sitecraftapp.luckye.online` 完成一次真实生成，并检查服务器上没有 key 和站点数据，再勾验收、关票。
+- **第一次真实生成卡住（2026-10-21 04:24–04:33 UTC）**：负责人在自己的 Chrome 里填好 key，执行主控接手，用「资料 → 模拟纸包装包」走对齐和确认。
+  - 写稿完成：DeepSeek 用时 138.5 秒，共 53,758 token（输出 42,288，其中思考 33,822）。
+  - 之后停在「清理资源，检查事实与三档页面布局」，run 一直是 running，没有版本。期间可用内存最低 489MB，xray 一直在。
+  - 根因一：VPS 设了 `kernel.apparmor_restrict_unprivileged_userns=1`，sitecraft 用户起 chrome-headless-shell 报「No usable sandbox」，以 SIGTRAP 崩溃。
+  - 根因二：`lib/code-site-browser.ts` 用 `exitCode` 判断 Chrome 是否退出，被信号杀死的进程 exitCode 为 null；`close()` 又去等早已发生的 exit 事件，任务永久挂起，并占住并发为 1 的队列。
+  - 处理：负责人决定重启 sitecraft-app 释放队列（服务器副本清空，浏览器存档保留）。代码改为按 exit 事件判断；沙箱选 b1，只给这一个二进制写 AppArmor 配置，放行 userns。
+- **成对测试**：`tests/t204-check-browser-exit.test.ts` 用一个启动即 `kill -TRAP` 自身的假 CHROME_PATH。
+  - 旧代码：`npm test -- tests/t204-check-browser-exit.test.ts` 失败，actual 为 `hung`（20 秒内未返回），证据在 `artifacts/t167/test-run-1792557765760-19680`。测试改用独立 TMPDIR 后在旧代码上复跑，仍为 `hung`，见 `test-run-1792557861226-20890`。
+  - 新代码：约 1 秒报「Chrome 在检查开始前退出」，配置目录清理干净。与 t173-port-readiness、t166-check-origin 一起 18/18 通过，见 `test-run-1792557847083-20648`。
+  - 其他起子进程的地方：运行时只有这一处起 Chrome。`scripts/render-shader-backdrops.mjs` 及若干开发脚本和测试有同样的 exitCode 写法，都是本机离线工具，不在线上路径，这次不改。
+- **AppArmor**：写入前 `/etc/apparmor.d` 有 110 项，已加载 118 个 profile、23 个 enforce，原状记录在 `artifacts/t204/vps-apparmor-before.txt`。
+  - 新增的 `/etc/apparmor.d/sitecraft-chrome` 写法同 Ubuntu 自带的 chrome profile：路径 `/opt/sitecraft/chrome-dl/**/chrome-headless-shell`，`flags=(unconfined)`，只有 `userns,`。
+  - 不改内核开关，不碰其他 profile。
+  - install.sh 在停服和构建之前以 sitecraft 用户开着沙箱真实启动一次 Chrome，起不来即非零退出。未写配置时在 VPS 上运行同一段探测，判为「does not start」。
+- **未完成**：VPS 按 install.sh 更新后，在负责人原站点上从确认大纲处重跑生成，再做局部修改、撤销、刷新恢复和下载站点包，最后扫描服务器上的 key 与站点数据，然后勾验收、关票。

@@ -149,7 +149,7 @@ T-198 可见行口径由构思主控于 2026-10-20 决定：这是新增拒收�
 
 验收按 AGENTS：相关测试、typecheck、全量 test、build、Chrome 1440/768/375 本次截图与提交入口底线结果、独立审核。执行者自查不是盲评，不自动删数据或扩展部署、实机范围。
 
-提交检查的 Chrome 启动仅在 DevToolsActivePort 的两行均有效后连接：端口为 1–65535 的正整数，路径为 `/devtools/browser/` 加完整 UUID（8-4-4-4-12 位十六进制）。不完整或无效就沿用原 80 次、100ms 间隔轮询，耗尽按原超时报错；不以固定等待代替就绪条件。`tests/t173-port-readiness.test.ts` 在真实 Chrome profile 中先写未就绪内容、下一次读取时补全，并验证实际 CDP 可用；八个坏例在 `2048dbc` 均失败，非空但截断的 browser ID 在 `fb89784` 失败后收紧为完整 UUID。
+提交检查的 Chrome 启动仅在 DevToolsActivePort 的两行均有效后连接：端口为 1–65535 的正整数，路径为 `/devtools/browser/` 加完整 UUID（8-4-4-4-12 位十六进制）。不完整或无效就沿用原 80 次、100ms 间隔轮询，耗尽按原超时报错；不以固定等待代替就绪条件。Chrome 在就绪前退出时，包括被信号杀死、exitCode 仍为 null 的情况，按 exit 事件判断，立即报「Chrome 在检查开始前退出」并清理配置目录，不再等待已退出的进程（T-204，`tests/t204-check-browser-exit.test.ts`）。`tests/t173-port-readiness.test.ts` 在真实 Chrome profile 中先写未就绪内容、下一次读取时补全，并验证实际 CDP 可用；八个坏例在 `2048dbc` 均失败，非空但截断的 browser ID 在 `fb89784` 失败后收紧为完整 UUID。
 
 ### 浏览器存储与访客模型接口（T-202）
 

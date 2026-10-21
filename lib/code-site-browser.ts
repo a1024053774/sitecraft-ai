@@ -13,16 +13,18 @@ export async function codeCheckBrowser() {
   const profile = await mkdtemp(path.join(os.tmpdir(), 'sitecraft-code-check-'));
   const child = spawn(binary, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });
   let launchError: Error | null = null; child.on('error', error => { launchError = error; });
+  // A Chrome killed by a signal (e.g. SIGTRAP when no sandbox is usable) keeps exitCode null, so
+  // the exit event is the only reliable sign that the process is gone.
+  let exited = false; const exit = new Promise<void>(resolve => child.once('exit', () => { exited = true; resolve(); }));
   let socket: WebSocket | null = null;
   const pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   const pageLoads = new Set<{ sessionId: string; resolve: () => void; reject: (error: Error) => void }>();
   const close = async () => {
     socket?.close();
-    if (child.exitCode === null && child.pid) {
-      const exited = new Promise<void>(resolve => child.once('exit', () => resolve()));
+    if (!exited && child.pid) {
       child.kill('SIGTERM');
       const timer = setTimeout(() => child.kill('SIGKILL'), 2000);
-      await exited; clearTimeout(timer);
+      await exit; clearTimeout(timer);
     }
     await rm(profile, { recursive: true, force: true });
     recordCheckDiagnostic({ kind: 'browser', startedAt, endedAt: Date.now(), calls });
@@ -31,7 +33,7 @@ export async function codeCheckBrowser() {
     let address = '';
     for (let i = 0; i < 80 && !address; i++) {
       if (launchError) throw launchError;
-      if (child.exitCode !== null) throw new Error('Chrome 在检查开始前退出');
+      if (exited) throw new Error('Chrome 在检查开始前退出');
       try {
         const [portText, browserPath] = (await readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).trim().split(/\r?\n/);
         const port = Number(portText);

@@ -97,7 +97,7 @@ T-162 的 after 回调按请求隔离，任务终态与首次预览等待直接�
 
 ## 验收
 
-Chrome 仅在 DevToolsActivePort 两行完整、端口有效且 browser 路径含完整 UUID 后连接；不完整继续原轮询与超时，不用固定等待代替就绪；`tests/t173-port-readiness.test.ts` 拦截半写状态被提前连接。提交检查的 Chrome 从 `/code-check.html`（文件在 `public/`）建立同源 HTML 文档，不读取站点列表；须核对 HTTP 200、HTML 类型、固定标记且无脚本，缺失或无效即报错。Docker runtime 复制完整 `public/`，`tests/t166-check-origin.test.ts` 检查复制配置并拦截缺失页被当作有效源；origin 校验和候选资源拦截仍执行（T-166）。
+Chrome 仅在 DevToolsActivePort 两行完整、端口有效且 browser 路径含完整 UUID 后连接；不完整继续原轮询与超时，不用固定等待代替就绪；就绪前退出（含被信号杀死）按 exit 事件立即报错，不等待已退出进程（T-204）；`tests/t173-port-readiness.test.ts` 拦截半写状态被提前连接。提交检查的 Chrome 从 `/code-check.html`（文件在 `public/`）建立同源 HTML 文档，不读取站点列表；须核对 HTTP 200、HTML 类型、固定标记且无脚本，缺失或无效即报错。Docker runtime 复制完整 `public/`，`tests/t166-check-origin.test.ts` 检查复制配置并拦截缺失页被当作有效源；origin 校验和候选资源拦截仍执行（T-166）。
 
 一个功能算完成：
 

@@ -28,7 +28,7 @@ bash /tmp/sitecraft-deploy/deploy/vps/install.sh family-kit-assembly
 - 安装 Chrome 依赖和中文字体（底线检查要测量中文排版）。
 - 把 Node 22 LTS 装到 `/opt/sitecraft/node`，安装包按官方 SHASUMS256 校验。
 - 把源码检出到 `/opt/sitecraft/app`。如果那里存在 `.env.local` 就拒绝继续，因为服务器不能持有 key。
-- 安装 chrome-headless-shell。
+- 安装 chrome-headless-shell，写入 `/etc/apparmor.d/sitecraft-chrome`，只给这个二进制放行 user namespace（Ubuntu 24.04 默认限制，否则 Chrome 沙箱起不来）；然后以 `sitecraft` 用户、开着沙箱真实启动一次 Chrome，起不来就在停服和构建前退出。
 - 用 `SITE_STORE=browser` 构建。
 - 把 `landing/` 复制到 `/opt/sitecraft/landing`，并把 `BUILDER_URL` 替换成 `https://sitecraftapp.luckye.online`。
 - 安装 nginx 配置：`nginx -t` 不通过就删除这份配置，不重载。

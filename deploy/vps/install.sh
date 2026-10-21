@@ -59,6 +59,23 @@ if ! [ -x $ROOT/chrome/chrome-headless-shell ]; then
   chmod -R a+rX $ROOT/chrome-dl
 fi
 $ROOT/chrome/chrome-headless-shell --version
+# Ubuntu 24.04 restricts unprivileged user namespaces, so Chrome's sandbox cannot start and the
+# browser dies with SIGTRAP. Allow userns for this binary only, the way Ubuntu's own chrome profile
+# does; the kernel setting and other profiles stay as they are. ** keeps matching a new version folder.
+cat > /etc/apparmor.d/sitecraft-chrome <<'APPARMOR'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile sitecraft-chrome /opt/sitecraft/chrome-dl/**/chrome-headless-shell flags=(unconfined) {
+  userns,
+}
+APPARMOR
+apparmor_parser -r /etc/apparmor.d/sitecraft-chrome
+# Start it for real as the service user, with the sandbox on, before anything is stopped or built.
+PROBE=$(mktemp -d) && chown sitecraft $PROBE
+DOM=$(runuser -u sitecraft -- $ROOT/chrome/chrome-headless-shell --headless --user-data-dir=$PROBE --dump-dom about:blank 2>/dev/null || true)
+rm -rf $PROBE
+case "$DOM" in *'<html'*) echo "chrome starts as sitecraft (sandbox on)" ;; *) echo "chrome-headless-shell does not start as sitecraft"; exit 1 ;; esac
 
 step "install dependencies and build (SITE_STORE=browser; swap carries the build on 1 GB)"
 cd $ROOT/app
