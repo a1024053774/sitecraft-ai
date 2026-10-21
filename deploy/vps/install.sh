@@ -23,7 +23,7 @@ free -m | awk '/^Swap:/ {print "swap total MB:", $2}'
 
 step "system packages: git, headless Chrome libraries, CJK fonts (layout checks measure Chinese text)"
 apt-get update -qq
-apt-get install -y -qq git curl xz-utils ca-certificates fonts-noto-cjk fonts-noto-color-emoji \
+apt-get install -y -qq git curl xz-utils unzip ca-certificates fonts-noto-cjk fonts-noto-color-emoji \
   libnss3 libatk-bridge2.0-0t64 libatk1.0-0t64 libgbm1 libasound2t64 libxkbcommon0 libxcomposite1 \
   libxdamage1 libxrandr2 libpango-1.0-0 libcairo2 libcups2t64 libdrm2 libxfixes3 >/dev/null
 
@@ -48,7 +48,7 @@ git -C $ROOT/app log --oneline -1
 
 step "headless Chrome for the commit checks"
 if ! [ -x $ROOT/chrome/chrome-headless-shell ]; then
-  # An interrupted download leaves an empty version folder that the installer refuses to reuse.
+  # A failed extraction leaves an empty version folder that the installer refuses to reuse.
   rm -rf $ROOT/chrome-dl
   (cd /tmp && npx -y @puppeteer/browsers install chrome-headless-shell@stable --path $ROOT/chrome-dl >/dev/null)
   BIN=$(find $ROOT/chrome-dl -type f -name chrome-headless-shell -perm -u+x | head -1)
