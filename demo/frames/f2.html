@@ -1,0 +1,268 @@
+<!doctype html><html lang="zh-CN" style="touch-action: none;"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'none'; base-uri 'none'; script-src 'none'"><title>禾巷小馆 · 街坊的午饭与晚饭</title><style>*, ::before, ::after{box-sizing: border-box;}
+html{text-size-adjust: 100%;}
+body{margin: 0px; background: rgb(244, 241, 234); color: rgb(41, 39, 33); font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.65; font-variant-numeric: tabular-nums;}
+p{margin: 0px 0px 12px;}
+h1, h2, h3{line-height: 1.25; margin: 0px;}
+h2{font-size: 1.45rem; margin: 0px 0px 20px;}
+h3{font-size: 1.15rem;}
+a{color: rgb(41, 39, 33);}
+a:focus-visible{outline: rgb(166, 60, 37) solid 2px; outline-offset: 3px;}
+[data-system-icon]{display: inline-block; line-height: 1; font-size: 0.95em;}
+.wrap{max-width: 1080px; margin: 0px auto; padding: 0px 24px;}
+.site-header{background: rgb(244, 241, 234); border-bottom: 1px solid rgb(207, 200, 186);}
+.header-inner{display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px;}
+.brand{font-size: 18px; font-weight: 700; letter-spacing: 0.02em; text-decoration: none; white-space: nowrap;}
+.brand:hover{color: rgb(166, 60, 37);}
+.site-nav{display: flex; gap: 24px;}
+.site-nav a{font-size: 15px; text-decoration: none; padding: 4px 0px; border-bottom: 2px solid transparent;}
+.site-nav a:hover{border-bottom-color: rgb(166, 60, 37);}
+.hero{padding: 56px 0px 40px; border-bottom: 1px solid rgb(207, 200, 186);}
+.hero h1, .page-head h1{font-size: clamp(2rem, 5.2vw, 3.4rem); font-weight: 800; letter-spacing: -0.01em; margin: 0px 0px 16px;}
+.page-head{padding: 48px 0px 32px; border-bottom: 1px solid rgb(207, 200, 186);}
+.page-head h1{font-size: clamp(1.9rem, 4.6vw, 2.8rem);}
+.lead{font-size: clamp(1.05rem, 2vw, 1.3rem); margin: 0px 0px 14px;}
+.meta{margin: 0px; font-size: 15px; color: rgb(63, 59, 51); border-left: 3px solid rgb(166, 60, 37); padding-left: 12px;}
+.hero-action{margin: 24px 0px 0px;}
+.primary-link{display: inline-flex; align-items: center; gap: 8px; background: rgb(166, 60, 37); color: rgb(244, 241, 234); text-decoration: none; font-weight: 600; font-size: 15px; padding: 12px 20px;}
+.primary-link:hover{background: rgb(140, 50, 32);}
+.section{padding: 56px 0px; border-bottom: 1px solid rgb(207, 200, 186);}
+.section:last-child{border-bottom: 0px;}
+.section-lead{font-size: 15px; color: rgb(63, 59, 51); margin: 0px 0px 20px; max-width: 44em;}
+.section-note{margin: 24px 0px 0px; padding-top: 16px; border-top: 1px solid rgb(207, 200, 186); font-size: 15px; color: rgb(63, 59, 51);}
+.band{background: rgb(38, 36, 31); color: rgb(242, 239, 232); padding: 48px 0px;}
+.band h2{color: rgb(242, 239, 232);}
+.band p{color: rgb(221, 216, 204); margin: 0px 0px 12px; max-width: 46em;}
+.band .band-note{color: rgb(242, 239, 232); font-weight: 600; border-left: 3px solid rgb(217, 138, 112); padding-left: 14px; margin: 0px;}
+.hours{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 40px;}
+.slot{border-top: 3px solid rgb(166, 60, 37); padding-top: 14px; min-width: 0px;}
+.slot-name{margin: 0px 0px 4px; font-size: 15px; color: rgb(63, 59, 51); letter-spacing: 0.1em;}
+.slot-time{margin: 0px 0px 6px; font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700;}
+.slot-note{margin: 0px; font-size: 15px; color: rgb(63, 59, 51);}
+.index-list{list-style: none; margin: 0px; padding: 0px; border-top: 1px solid rgb(168, 159, 142);}
+.index-list li{border-bottom: 1px solid rgb(207, 200, 186);}
+.index-list a{display: grid; grid-template-columns: minmax(0px, 1.2fr) minmax(0px, 1fr) auto; grid-template-areas: "name note price"; gap: 4px 16px; align-items: baseline; padding: 14px 0px; text-decoration: none;}
+.index-list a:hover .row-name{color: rgb(166, 60, 37);}
+.row-name{grid-area: name; font-weight: 600; min-width: 0px;}
+.row-note{grid-area: note; font-size: 14px; color: rgb(63, 59, 51);}
+.row-price{grid-area: price; color: rgb(166, 60, 37); font-weight: 700; text-align: right; white-space: nowrap;}
+.scenes{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 40px;}
+.scene{border-top: 1px solid rgb(168, 159, 142); padding-top: 16px; min-width: 0px;}
+.scene h3{margin: 0px 0px 14px;}
+.fact-list{display: grid; grid-template-columns: 5.5em minmax(0px, 1fr); gap: 8px 16px; margin: 0px;}
+.fact-list dt{color: rgb(63, 59, 51); font-size: 15px;}
+.fact-list dd{margin: 0px;}
+.split{display: grid; grid-template-columns: 2fr 1fr; gap: 40px; align-items: start;}
+.split > *{min-width: 0px;}
+.aside{border-top: 2px solid rgb(166, 60, 37); padding-top: 12px; font-size: 15px; color: rgb(63, 59, 51);}
+.aside-title{margin: 0px 0px 8px; font-weight: 700; color: rgb(41, 39, 33);}
+.timeline{list-style: none; margin: 0px; padding: 0px; border-top: 1px solid rgb(207, 200, 186);}
+.timeline li{display: flex; gap: 20px; padding: 10px 0px; border-bottom: 1px solid rgb(207, 200, 186);}
+.tl-year{min-width: 5.5em; font-weight: 700; color: rgb(166, 60, 37);}
+.line-list{list-style: square; margin: 0px; padding-left: 1.3em;}
+.line-list li{padding: 10px 0px; border-bottom: 1px solid rgb(207, 200, 186);}
+.line-list li::marker{color: rgb(166, 60, 37);}
+.steps{list-style: decimal; margin: 0px; padding-left: 1.6em;}
+.steps li{padding: 10px 0px; border-bottom: 1px solid rgb(207, 200, 186);}
+.steps li::marker{color: rgb(166, 60, 37); font-weight: 700;}
+.dish{margin: 0px 0px 28px; padding-top: 18px; border-top: 1px solid rgb(168, 159, 142);}
+.dish-head{display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;}
+.dish-head h3{margin: 0px;}
+.dish-price{margin: 0px; font-weight: 700; color: rgb(166, 60, 37); white-space: nowrap;}
+.dish-spec{display: grid; grid-template-columns: 5.5em minmax(0px, 1fr); gap: 6px 16px; margin: 12px 0px 0px; font-size: 15px;}
+.dish-spec dt{color: rgb(63, 59, 51);}
+.dish-spec dd{margin: 0px;}
+.combo{border-top: 3px solid rgb(166, 60, 37); padding-top: 16px;}
+.combo-name{margin: 0px 0px 4px; font-size: 1.15rem; font-weight: 700;}
+.combo-price{margin: 0px 0px 14px; color: rgb(166, 60, 37); font-weight: 700;}
+.site-footer{background: rgb(234, 229, 219); border-top: 1px solid rgb(207, 200, 186); padding: 40px 0px;}
+.footer-inner{display: grid; grid-template-columns: 1fr 1.3fr; gap: 32px;}
+.footer-brand{margin: 0px 0px 8px; font-weight: 700; font-size: 17px;}
+.footer-line{margin: 0px 0px 6px; font-size: 14px; color: rgb(63, 59, 51);}
+.footer-facts{display: grid; grid-template-columns: auto minmax(0px, 1fr); gap: 6px 16px; margin: 0px; font-size: 14px;}
+.footer-facts dt{color: rgb(63, 59, 51);}
+.footer-facts dd{margin: 0px;}
+@media (max-width: 768px){.wrap{padding: 0px 20px;}
+.header-inner{height: 60px;}
+.site-nav{gap: 18px;}
+.hero{padding: 36px 0px 28px;}
+.page-head{padding: 32px 0px 24px;}
+.section{padding: 32px 0px;}
+.band{padding: 32px 0px;}
+.hours{grid-template-columns: 1fr; gap: 24px;}
+.scenes{grid-template-columns: 1fr; gap: 24px;}
+.split{grid-template-columns: 1fr; gap: 24px;}
+.footer-inner{grid-template-columns: 1fr; gap: 20px;}}
+@media (max-width: 600px){.index-list a{grid-template-columns: minmax(0px, 1fr) auto; grid-template-areas: "name price" "note note"; gap: 2px 12px;}}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .hours{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 32px;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot{border-top: 5px solid rgb(166, 60, 37); padding: 18px 20px 20px; background: rgb(252, 250, 245); min-width: 0px;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-name{display: inline-block; margin: 0px 0px 12px; padding: 4px 12px; background: rgb(166, 60, 37); color: rgb(255, 255, 255); font-size: 1rem; font-weight: 700; letter-spacing: 0.16em; border-radius: 2px;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-time{margin: 0px 0px 16px; font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.1; font-weight: 800; letter-spacing: -0.02em;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-note{display: inline-block; margin: 0px; padding: 8px 14px; background: rgb(166, 60, 37); color: rgb(255, 255, 255); font-size: 1rem; font-weight: 700; border-radius: 2px;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-note strong{font-size: 1.25rem; font-weight: 800;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .section-note{margin: 28px 0px 0px; padding-top: 18px; border-top: 1px solid rgb(207, 200, 186); font-size: 1rem; line-height: 1.7; color: rgb(63, 59, 51);}
+@media (max-width: 768px){.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .hours{grid-template-columns: 1fr; gap: 24px;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot{padding: 16px 16px 18px;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-time{font-size: clamp(1.6rem, 8vw, 2.1rem);}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-note{display: block; text-align: center;}}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5 .fee-item{margin: 0px 0px 14px;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5 .fee-item:last-child{margin-bottom: 0px;}
+.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5 .fee-label{display: block; margin: 0px 0px 2px; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: rgb(166, 60, 37);}
+@media (max-width: 768px){.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5 .fee-item{margin-bottom: 12px;}}
+
+.sc-language-links{display:flex!important;position:static!important;flex-wrap:wrap;justify-content:flex-end;gap:12px;padding:8px 24px;background:#fff;color:#222;font:14px/1.5 sans-serif}.sc-language-links a{display:inline-block!important;position:static!important;color:#222!important;padding:10px;text-decoration:underline}.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere}</style></head><body><header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=home&amp;version=91191b41-483b-4ed8-adba-4d956fad032f">禾巷小馆</a>
+    <nav class="site-nav" aria-label="主导航">
+      <a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=home&amp;version=91191b41-483b-4ed8-adba-4d956fad032f">首页</a>
+      <a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f">菜单</a>
+    </nav>
+  </div>
+</header><main>
+  <section class="hero">
+    <div class="wrap">
+      <h1>街坊的午饭与晚饭</h1>
+      <p class="lead">家常热菜配米饭，午市与晚市分开营业。</p>
+      <p class="meta">社区家常菜馆，服务杭州市拱墅区；提供堂食与到店外带。</p>
+      <p class="hero-action"><a class="primary-link" href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f">查看菜单<span><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true" focusable="false" data-system-rendered-icon="arrow"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span></a></p>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <h2>承接范围</h2>
+      <p>禾巷小馆是一家社区家常菜馆，面向附近居民和午休用餐的上班族。厨房按午市与晚市备料，提供单人饭菜组合和适合分食的热菜，不经营酒吧或宴会厅。</p>
+      <p>菜品按当天备料供应，售完的品种会在店内菜单上标注。</p>
+      <p class="band-note">提供堂食和到店外带；不承接婚宴、包场、上门厨师或团体配餐。</p>
+    </div>
+  </section>
+
+  <section class="section sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2">
+    <div class="wrap">
+      <h2>营业时段</h2>
+      <div class="hours">
+        <div class="slot">
+          <p class="slot-name">午市</p>
+          <p class="slot-time">11:00–14:00</p>
+          <p class="slot-note">最后点菜 <strong>13:30</strong></p>
+        </div>
+        <div class="slot">
+          <p class="slot-name">晚市</p>
+          <p class="slot-time">17:00–20:30</p>
+          <p class="slot-note">最后点菜 <strong>20:00</strong></p>
+        </div>
+      </div>
+      <p class="section-note">周二至周日营业，周一休息；14:00–17:00 不营业，午市与晚市分开。节假日营业安排待补充。</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>菜单目录</h2>
+      <p class="section-lead">以下为菜名、价格与已知供应时段，完整内容与各项边界见菜单页。</p>
+      <ul class="index-list">
+        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">香菇鸡腿饭</span><span class="row-note">午市、晚市</span><span class="row-price">32 元/份</span></a></li>
+        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">番茄炖牛腩</span><span class="row-note">午市、晚市</span><span class="row-price">58 元/份</span></a></li>
+        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">时蔬豆腐煲</span><span class="row-note">供应时段待补充</span><span class="row-price">36 元/份</span></a></li>
+        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">葱油拌面</span><span class="row-note">仅午市</span><span class="row-price">22 元/份</span></a></li>
+        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">当日清炒时蔬</span><span class="row-note">午市、晚市</span><span class="row-price">18 元/份</span></a></li>
+        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">午市单人组合</span><span class="row-note">仅午市</span><span class="row-price">38 元/份</span></a></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>两类常来的用餐</h2>
+      <div class="scenes">
+        <div class="scene">
+          <h3>午休单人用餐</h3>
+          <dl class="fact-list">
+            <dt>需求</dt><dd>了解饭菜组合与午市时间</dd>
+            <dt>提供</dt><dd>香菇鸡腿饭，或午市单人组合</dd>
+            <dt>不能保证</dt><dd>没有出餐分钟数承诺，也不保证当日全部菜品有货</dd>
+          </dl>
+        </div>
+        <div class="scene">
+          <h3>家人晚饭分食</h3>
+          <dl class="fact-list">
+            <dt>需求</dt><dd>热菜搭配米饭</dd>
+            <dt>提供</dt><dd>番茄炖牛腩、时蔬豆腐煲，米饭单点</dd>
+            <dt>说明</dt><dd>分食建议不是固定人数套餐，不包含酒水或额外配菜</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5">
+    <div class="wrap">
+      <h2>收费口径</h2>
+      <div class="split">
+        <div>
+          <p class="fee-item"><span class="fee-label">价格口径</span>堂食单份含税价格，不另收服务费。</p>
+          <p class="fee-item"><span class="fee-label">米饭</span>单点米饭 3 元/碗；香菇鸡腿饭与午市单人组合包含米饭，不再另收米饭费用；其他热菜米饭单点。</p>
+          <p class="fee-item"><span class="fee-label">饮用水</span>免费提供。</p>
+          <p class="fee-item"><span class="fee-label">外带包装费</span>每单 2 元。</p>
+        </div>
+        <div class="aside">
+          <p class="aside-title">待补充</p>
+          <p>节假日营业安排待补充。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>经营沿革</h2>
+      <ul class="timeline">
+        <li><span class="tl-year">2018 年</span><span class="tl-text">从午市饭菜开始经营</span></li>
+        <li><span class="tl-year">2020 年</span><span class="tl-text">增加晚市家常热菜</span></li>
+        <li><span class="tl-year">2022 年</span><span class="tl-text">将单人组合与分食热菜分开列单</span></li>
+        <li><span class="tl-year">2024 年</span><span class="tl-text">开始记录每日停售品种与食材替换说明</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>门店与资质</h2>
+      <dl class="fact-list">
+        <dt>服务社区</dt><dd>杭州市拱墅区；门牌地址待补充。</dd>
+        <dt>店内空间</dt><dd>堂食座位 24 个，以两人桌和四人桌为主；不设包间。座位数不代表实时空位，不能承诺随到随坐。儿童座椅数量、停车条件待补充。</dd>
+        <dt>通行</dt><dd>门店入口台阶和无障碍通行条件待补充。</dd>
+        <dt>资质</dt><dd>食品经营许可证编号待补充；从业人员健康证明信息待补充。</dd>
+      </dl>
+    </div>
+  </section>
+</main><footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <p class="footer-brand">禾巷小馆</p>
+      <p class="footer-line">社区家常菜馆，服务杭州市拱墅区；提供堂食与到店外带，不承接婚宴、包场、上门厨师或团体配餐。</p>
+    </div>
+    <dl class="footer-facts">
+      <dt>营业</dt><dd>周二至周日，午市 11:00–14:00、晚市 17:00–20:30；周一休息。</dd>
+      <dt>邮箱</dt><dd>hello@hexiang-kitchen.luckye.online</dd>
+      <dt>电话</dt><dd>待补充</dd>
+      <dt>门牌地址</dt><dd>待补充</dd>
+    </dl>
+  </div>
+</footer><!--
+Lucide icons
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+--></body></html>

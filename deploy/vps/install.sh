@@ -1,114 +1,76 @@
 #!/usr/bin/env bash
-# T-204: install or update SiteCraft on the owner's VPS. Run as root on the VPS:
-#   bash install.sh <git-ref>          e.g. bash install.sh family-kit-assembly
-# Idempotent. Touches only /opt/sitecraft, the sitecraft user, an extra swap file,
-# /etc/nginx/conf.d/sitecraft.conf and the sitecraft-app unit. It never edits the
-# xray/x-ui proxy, and never stores a model key.
+# T-207: install or update the SiteCraft product page and the static workspace demo on the owner's
+# VPS. Run as root on the VPS, from a checkout of the ref to deploy:
+#   git clone -b family-kit-assembly https://github.com/a1024053774/sitecraft-ai.git /tmp/sitecraft-deploy
+#   bash /tmp/sitecraft-deploy/deploy/vps/install.sh
+# Idempotent. Touches only /opt/sitecraft/landing, /opt/sitecraft/demo,
+# /etc/nginx/conf.d/sitecraft.conf and the sitecraft-app unit (stop and disable only). It never edits
+# the xray/x-ui proxy, starts no Node or Chrome, and never stores a model key.
+#
+# The builder that T-204 installed (/opt/sitecraft/app, node, chrome, /etc/apparmor.d/sitecraft-chrome,
+# the swap file) stays on disk but no longer runs; installing it is the T-204 version of this script
+# (git show dadc130:deploy/vps/install.sh).
 set -euo pipefail
-REF=${1:?usage: install.sh <git-ref>}
-REPO=https://github.com/a1024053774/sitecraft-ai.git
 ROOT=/opt/sitecraft
 HERE=$(cd "$(dirname "$0")" && pwd)
+SRC=$(cd "$HERE/../.." && pwd)
 [ "$(id -u)" = 0 ] || { echo "run as root"; exit 1; }
 step() { echo; echo "== $*"; }
 
-step "swap: make sure there are at least 2 GB"
-SWAP_MB=$(free -m | awk '/^Swap:/ {print $2}')
-if [ "$SWAP_MB" -lt 1900 ] && [ ! -f /swapfile-sitecraft ]; then
-  fallocate -l $((2048 - SWAP_MB))M /swapfile-sitecraft && chmod 600 /swapfile-sitecraft
-  mkswap /swapfile-sitecraft && swapon /swapfile-sitecraft
-  grep -q swapfile-sitecraft /etc/fstab || echo '/swapfile-sitecraft none swap sw 0 0' >> /etc/fstab
-fi
-free -m | awk '/^Swap:/ {print "swap total MB:", $2}'
+step "source"
+git -c safe.directory="$SRC" -C "$SRC" log --oneline -1 2>/dev/null || echo "$SRC is not a git checkout (copied tree)"
+[ -f "$SRC/landing/index.html" ] && [ -f "$SRC/demo/index.html" ] || { echo "landing/ or demo/ missing in $SRC"; exit 1; }
 
-step "system packages: git, headless Chrome libraries, CJK fonts (layout checks measure Chinese text)"
-apt-get update -qq
-apt-get install -y -qq git curl xz-utils unzip ca-certificates fonts-noto-cjk fonts-noto-color-emoji \
-  libnss3 libatk-bridge2.0-0t64 libatk1.0-0t64 libgbm1 libasound2t64 libxkbcommon0 libxcomposite1 \
-  libxdamage1 libxrandr2 libpango-1.0-0 libcairo2 libcups2t64 libdrm2 libxfixes3 >/dev/null
-
-step "Node 22 LTS under $ROOT/node (checked against the official SHASUMS256)"
-mkdir -p $ROOT
-if ! [ -x $ROOT/node/bin/node ] || ! $ROOT/node/bin/node -v | grep -q '^v22\.'; then
-  BASE=https://nodejs.org/dist/latest-v22.x
-  NAME=$(curl -fsSL $BASE/SHASUMS256.txt | awk '/linux-x64\.tar\.xz$/ {print $2}')
-  curl -fsSL -o /tmp/$NAME $BASE/$NAME
-  (cd /tmp && curl -fsSL $BASE/SHASUMS256.txt | grep " $NAME\$" | sha256sum -c -)
-  rm -rf $ROOT/node && mkdir -p $ROOT/node && tar -xJf /tmp/$NAME -C $ROOT/node --strip-components=1 && rm /tmp/$NAME
-fi
-export PATH=$ROOT/node/bin:$PATH
-node -v
-
-step "service user and source at $REF"
-id sitecraft >/dev/null 2>&1 || useradd --system --home $ROOT --shell /usr/sbin/nologin sitecraft
-# The checkout is chowned to sitecraft below; root's git refuses it on reruns without this.
-GIT="git -c safe.directory=$ROOT/app -C $ROOT/app"
-if [ -d $ROOT/app/.git ]; then $GIT fetch -q origin; else git clone -q $REPO $ROOT/app; fi
-$GIT checkout -q --detach "origin/$REF" 2>/dev/null || $GIT checkout -q --detach "$REF"
-$GIT log --oneline -1
-[ ! -e $ROOT/app/.env.local ] || { echo "refusing: $ROOT/app/.env.local exists; the server must not hold a model key"; exit 1; }
-
-step "headless Chrome for the commit checks"
-if ! [ -x $ROOT/chrome/chrome-headless-shell ]; then
-  # A failed extraction leaves an empty version folder that the installer refuses to reuse.
-  rm -rf $ROOT/chrome-dl
-  (cd /tmp && npx -y @puppeteer/browsers install chrome-headless-shell@stable --path $ROOT/chrome-dl >/dev/null)
-  BIN=$(find $ROOT/chrome-dl -type f -name chrome-headless-shell -perm -u+x | head -1)
-  [ -n "$BIN" ] || { echo "chrome-headless-shell not found under $ROOT/chrome-dl"; exit 1; }
-  mkdir -p $ROOT/chrome && ln -sf "$BIN" $ROOT/chrome/chrome-headless-shell
-  chmod -R a+rX $ROOT/chrome-dl
-fi
-$ROOT/chrome/chrome-headless-shell --version
-# Ubuntu 24.04 restricts unprivileged user namespaces, so Chrome's sandbox cannot start and the
-# browser dies with SIGTRAP. Allow userns for this binary only, the way Ubuntu's own chrome profile
-# does; the kernel setting and other profiles stay as they are. ** keeps matching a new version folder.
-cat > /etc/apparmor.d/sitecraft-chrome <<'APPARMOR'
-abi <abi/4.0>,
-include <tunables/global>
-
-profile sitecraft-chrome /opt/sitecraft/chrome-dl/**/chrome-headless-shell flags=(unconfined) {
-  userns,
+# Copy into a new folder and swap it in, so nginx never serves a half-copied tree.
+publish() {
+  local from=$1 name=$2
+  rm -rf "$ROOT/$name.new" && cp -R "$from" "$ROOT/$name.new"
+  [ -z "${3:-}" ] || sed -i "s#BUILDER_URL#$3#g" "$ROOT/$name.new/index.html"
+  if grep -rq BUILDER_URL "$ROOT/$name.new"; then echo "BUILDER_URL left in $name"; exit 1; fi
+  rm -rf "$ROOT/$name.old" && { [ -d "$ROOT/$name" ] && mv "$ROOT/$name" "$ROOT/$name.old" || true; } && mv "$ROOT/$name.new" "$ROOT/$name"
+  chmod -R a+rX "$ROOT/$name"
 }
-APPARMOR
-apparmor_parser -r /etc/apparmor.d/sitecraft-chrome
-# Start it for real as the service user, with the sandbox on, before anything is stopped or built.
-PROBE=$(mktemp -d) && chown sitecraft $PROBE
-DOM=$(runuser -u sitecraft -- $ROOT/chrome/chrome-headless-shell --headless --user-data-dir=$PROBE --dump-dom about:blank 2>/dev/null || true)
-rm -rf $PROBE
-case "$DOM" in *'<html'*) echo "chrome starts as sitecraft (sandbox on)" ;; *) echo "chrome-headless-shell does not start as sitecraft"; exit 1 ;; esac
+mkdir -p $ROOT
+step "product page: landing/ with the demo address filled in"
+publish "$SRC/landing" landing https://sitecraftapp.luckye.online
+step "workspace demo: demo/"
+publish "$SRC/demo" demo
 
-step "install dependencies and build (SITE_STORE=browser; swap carries the build on 1 GB)"
-cd $ROOT/app
-# On an update the running app and the build together push 1 GB into swap and starve the
-# owner's proxy, so the app goes down for the build (~2 min) and "app service" restarts it.
-if systemctl is-active -q sitecraft-app; then systemctl stop sitecraft-app; echo "sitecraft-app stopped for the build"; fi
-npm ci --no-audit --no-fund
-SITE_STORE=browser NODE_OPTIONS=--max-old-space-size=1536 npm run build
-chown -R sitecraft:sitecraft $ROOT/app
-
-step "product page: landing/ with the builder address filled in"
-rm -rf $ROOT/landing.new && cp -R $ROOT/app/landing $ROOT/landing.new
-sed -i 's#BUILDER_URL#https://sitecraftapp.luckye.online#g' $ROOT/landing.new/index.html
-if grep -q BUILDER_URL $ROOT/landing.new/index.html; then echo 'BUILDER_URL left in landing'; exit 1; fi
-rm -rf $ROOT/landing.old && { [ -d $ROOT/landing ] && mv $ROOT/landing $ROOT/landing.old || true; } && mv $ROOT/landing.new $ROOT/landing
-chmod -R a+rX $ROOT/landing
+step "builder: stop and disable sitecraft-app, keep it installed"
+if [ -f /etc/systemd/system/sitecraft-app.service ]; then
+  install -m 644 $HERE/sitecraft-app.service /etc/systemd/system/sitecraft-app.service
+  systemctl daemon-reload
+  systemctl disable --now -q sitecraft-app
+fi
+echo "sitecraft-app: $(systemctl is-active sitecraft-app || true), $(systemctl is-enabled sitecraft-app 2>/dev/null || true)"
 
 step "nginx: add sitecraft.conf only, test, reload"
 install -m 644 $HERE/nginx-sitecraft.conf /etc/nginx/conf.d/sitecraft.conf
 # A failing test removes our file again, so the owner's nginx is never left with a broken config.
 nginx -t || { rm -f /etc/nginx/conf.d/sitecraft.conf; echo 'nginx -t failed; sitecraft.conf removed, nothing reloaded'; exit 1; }
+nginx_pid=$(systemctl show --value -p MainPID nginx)
+old_workers=$(pgrep -P "$nginx_pid" -f '^nginx: worker process') || { echo 'nginx has no worker before reload'; exit 1; }
 systemctl reload nginx
-
-step "app service"
-install -m 644 $HERE/sitecraft-app.service /etc/systemd/system/sitecraft-app.service
-systemctl daemon-reload
-systemctl enable -q sitecraft-app
-systemctl restart sitecraft-app
-for i in $(seq 1 60); do curl -fs -o /dev/null http://127.0.0.1:3100/ && break; sleep 2; done
+# systemctl returns when the reload signal is sent. Old workers can still serve the previous
+# proxy configuration until their graceful shutdown finishes; check only after they exit.
+deadline=$((SECONDS + 15))
+for worker in $old_workers; do
+  while kill -0 "$worker" 2>/dev/null; do
+    [ "$SECONDS" -lt "$deadline" ] || { echo "nginx old worker $worker did not exit after reload"; exit 1; }
+    sleep 0.1
+  done
+done
 
 step "smoke checks through nginx (as the tunnel would call it)"
 curl -fs -o /dev/null -w "landing %{http_code}\n" -H 'Host: sitecraft.luckye.online' http://127.0.0.1/
-curl -fs -o /dev/null -w "app %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/
-curl -s -o /dev/null -w "published (expect 404) %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/published/x
-curl -s -o /dev/null -w "unknown host (expect 000, dropped) %{http_code}\n" -H 'Host: other.example' http://127.0.0.1/ || true
+curl -fs -o /dev/null -w "demo %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/
+curl -fs -o /dev/null -w "demo steps %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/steps.json
+curl -fs -o /dev/null -w "demo site package %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/files/hexiang-xiaoguan-site.zip
+api_status=$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/api/health)
+echo "builder api (expect 404) $api_status"
+[ "$api_status" = 404 ] || { echo 'builder API is still reachable'; exit 1; }
+unknown_exit=0
+unknown_status=$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: other.example' http://127.0.0.1/) || unknown_exit=$?
+echo "unknown host (expect 000, empty reply) $unknown_status, curl exit $unknown_exit"
+[ "$unknown_status" = 000 ] && [ "$unknown_exit" = 52 ] || { echo 'unknown host was not dropped by nginx'; exit 1; }
 free -m

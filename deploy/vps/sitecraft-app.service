@@ -20,6 +20,8 @@ ExecStartPre=/usr/bin/mkdir -p /dev/shm/sitecraft-server-copy
 ExecStart=/opt/sitecraft/node/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3100
 Restart=on-failure
 RestartSec=5
+# next exits 143 on SIGTERM; a normal stop is not a failure.
+SuccessExitStatus=143
 # Keep the owner's other services alive: this unit is the one to give way under memory pressure.
 OOMScoreAdjust=500
 MemoryHigh=700M

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SiteCraft AI 工作台演示</title>
+<meta name="description" content="SiteCraft AI 建站工作台的分步演示。预设数据来自一次真实生成，演示不会调用模型。">
+<!-- T-207: plays the frozen workspace states captured by scripts/t207-capture-demo.mjs. Static only:
+     no model, no server code. The highlighted control in each step leads to the next one. -->
+<style>
+  :root { --ink: #1d2a22; --muted: #5b6b61; --line: #d9e0da; --paper: #f6f8f5; --accent: #2f6b4f; --mark: #b4541f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+  body { display: flex; flex-direction: column; }
+  .bar { flex: none; border-bottom: 1px solid var(--line); background: #fff; padding: 10px 16px; display: grid;
+    grid-template-columns: auto 1fr auto; gap: 6px 16px; align-items: center; }
+  .label { font-size: 12px; font-weight: 600; color: var(--mark); border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+  .head { min-width: 0; }
+  .head strong { font-size: 15px; }
+  .head small { color: var(--muted); margin-left: 8px; font-variant-numeric: tabular-nums; }
+  .text { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch; }
+  .nav { display: flex; gap: 8px; }
+  .nav button, .nav a { font: inherit; font-size: 14px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 6px; padding: 5px 12px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .nav .next { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .nav button:disabled { opacity: .4; cursor: default; }
+  .stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+  .stage iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: var(--paper); }
+  .toast { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--ink); color: #fff;
+    font-size: 13px; padding: 6px 12px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+  .toast.show { opacity: .92; }
+  .end { flex: 1; overflow: auto; padding: 32px 16px; }
+  .end article { max-width: 720px; margin: 0 auto; }
+  .end h1 { font-size: 24px; margin: 0 0 8px; }
+  .end h2 { font-size: 17px; margin: 24px 0 6px; }
+  .end pre { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 13px; }
+  .end a { color: var(--accent); }
+  [hidden] { display: none !important; }
+  @media (max-width: 600px) {
+    .bar { grid-template-columns: 1fr auto; padding: 8px 16px; }
+    .label { grid-column: 1 / -1; justify-self: start; }
+    .text { font-size: 13px; }
+    .nav button { padding: 4px 10px; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <span class="label">演示 · 预设数据，不会调用模型</span>
+  <div class="head"><strong id="title">SiteCraft AI 工作台演示</strong><small id="count"></small></div>
+  <nav class="nav" aria-label="演示步骤"><button id="prev" type="button">上一步</button><button id="next" class="next" type="button">下一步</button></nav>
+  <p class="text" id="text">正在读取演示步骤…</p>
+</header>
+<main class="stage" id="stage"><iframe id="frame" title="工作台演示画面"></iframe><div class="toast" id="toast" role="status"></div></main>
+<section class="end" id="end" hidden>
+  <article>
+    <h1>在本地用自己的模型接口运行</h1>
+    <p>上面每一步都是工作台的真实界面，内容来自模拟资料「禾巷小馆」的一次真实生成和两轮真实批注修改。这个演示是静态页面，不调用模型。</p>
+    <h2>获取源码</h2>
+    <p><a href="https://github.com/a1024053774/sitecraft-ai" target="_blank" rel="noopener">github.com/a1024053774/sitecraft-ai</a></p>
+    <h2>本地运行</h2>
+    <p>需要 Node 22 和一个 Chrome（推荐 chrome-headless-shell，提交检查用它在三档宽度下核对页面）。</p>
+<pre>git clone https://github.com/a1024053774/sitecraft-ai.git
+cd sitecraft-ai
+npm ci
+CHROME_PATH=/path/to/chrome-headless-shell npm run dev</pre>
+    <p>打开 <code>http://localhost:3000/settings</code>，在「模型接口」里填写 API 地址、key 和模型名（目前只保证 DeepSeek 兼容接口可用）。key 只保存在你的浏览器里。之后从「新建站点」发来公司资料，就会走一遍上面的流程。更多说明见仓库 README。</p>
+    <p><a href="#1">从头再看一遍</a></p>
+  </article>
+</section>
+<script>
+(() => {
+  const frame = document.getElementById('frame'), stage = document.getElementById('stage'), end = document.getElementById('end');
+  const title = document.getElementById('title'), count = document.getElementById('count'), text = document.getElementById('text');
+  const prev = document.getElementById('prev'), next = document.getElementById('next'), toast = document.getElementById('toast');
+  const download = 'files/hexiang-xiaoguan-site.zip';
+  let steps = [], index = 0, toastTimer = 0;
+  // Captures exist at 1440, 768 and 375. A narrower screen shows the nearest capture scaled down;
+  // a wider one shows it at full width, so text is never scaled up.
+  function capture(width) { return width > 900 ? 1440 : width > 600 ? 768 : 375; }
+  function layout() {
+    const w = stage.clientWidth, h = stage.clientHeight, c = capture(w), scale = Math.min(1, w / c);
+    frame.style.width = (w / scale) + 'px'; frame.style.height = (h / scale) + 'px'; frame.style.transform = scale < 1 ? `scale(${scale})` : '';
+    return c;
+  }
+  function say(message) { toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2200); }
+  function show(i) {
+    index = Math.max(0, Math.min(i, steps.length));
+    if (location.hash !== '#' + (index + 1)) history.replaceState(null, '', '#' + (index + 1));
+    prev.disabled = index === 0; next.disabled = index === steps.length;
+    count.textContent = `${Math.min(index + 1, steps.length + 1)} / ${steps.length + 1}`;
+    if (index === steps.length) {
+      stage.hidden = true; end.hidden = false; title.textContent = '获取源码，本地运行'; text.textContent = '演示结束。下面说明怎样在自己的电脑上用自己的模型接口运行。'; return;
+    }
+    stage.hidden = false; end.hidden = true;
+    const step = steps[index]; title.textContent = step.title; text.textContent = step.text;
+    frame.src = `steps/${step.id}-${layout()}.html`; watch();
+  }
+  function restore(doc) {
+    for (const el of doc.querySelectorAll('[data-demo-scroll]')) { const [top, left] = el.getAttribute('data-demo-scroll').split(',').map(Number); el.scrollTop = top; el.scrollLeft = left; }
+    const y = Number(doc.documentElement.getAttribute('data-demo-window-scroll') || 0); doc.defaultView.scrollTo(0, y);
+  }
+  function guard(doc, root) {
+    // Only the highlighted control and the download link do anything; everything else stays put.
+    doc.addEventListener('click', event => {
+      const target = event.target.closest ? event.target : event.target.parentElement;
+      if (target.closest('a[href$=".zip"]')) return;
+      if (root && target.closest('.demo-hotspot')) { event.preventDefault(); show(index + 1); return; }
+      event.preventDefault(); say('演示：请点高亮的按钮，或用上方的「下一步」。');
+    }, true);
+    doc.addEventListener('submit', event => event.preventDefault(), true);
+  }
+  // Set up a captured page once its DOM is parsed, without waiting for web fonts; restore scroll again on load.
+  function setup() {
+    const doc = frame.contentDocument; if (!doc || doc.readyState === 'loading' || !doc.URL.includes('/steps/') || doc.demoReady || !steps[index]) return;
+    doc.demoReady = true;
+    const style = doc.createElement('style');
+    style.textContent = `.demo-hotspot { outline: 3px solid #b4541f !important; outline-offset: 2px; animation: demo-pulse 1.6s ease-in-out infinite; cursor: pointer; }
+      @keyframes demo-pulse { 50% { outline-color: rgba(180, 84, 31, .35); } }
+      @media (prefers-reduced-motion: reduce) { .demo-hotspot { animation: none; } }
+      dialog[open] { position: fixed; inset: 0; margin: auto; z-index: 50; box-shadow: 0 0 0 100vmax rgba(20, 30, 24, .35); }`;
+    doc.head.appendChild(style);
+    const hotspot = doc.querySelector(steps[index].hotspot); if (hotspot) hotspot.classList.add('demo-hotspot');
+    for (const a of doc.querySelectorAll('[data-testid=download-site]')) { a.setAttribute('href', '../' + download); a.setAttribute('download', 'hexiang-xiaoguan-site.zip'); }
+    guard(doc, true); restore(doc);
+    for (const inner of doc.querySelectorAll('iframe')) {
+      const settle = () => { const d = inner.contentDocument; if (!d) return; guard(d, false); d.defaultView.scrollTo(0, Number(inner.getAttribute('data-demo-frame-scroll') || 0)); };
+      if (inner.contentDocument?.readyState === 'complete') settle(); else inner.addEventListener('load', settle, { once: true });
+    }
+  }
+  let poll = 0;
+  function watch() { clearInterval(poll); poll = setInterval(() => { setup(); if (frame.contentDocument?.demoReady) clearInterval(poll); }, 50); }
+  frame.addEventListener('load', () => { setup(); const doc = frame.contentDocument; if (doc?.demoReady) restore(doc); });
+  prev.addEventListener('click', () => show(index - 1));
+  next.addEventListener('click', () => show(index + 1));
+  addEventListener('hashchange', () => { const i = Number(location.hash.slice(1)) - 1; if (i !== index && i >= 0) show(i); });
+  let last = 0; addEventListener('resize', () => { const c = layout(); if (c !== last && index < steps.length) { last = c; frame.src = `steps/${steps[index].id}-${c}.html`; watch(); } });
+  fetch('steps.json').then(r => r.json()).then(data => { steps = data; last = capture(stage.clientWidth); show(Math.max(0, Number(location.hash.slice(1)) - 1 || 0)); })
+    .catch(() => { text.textContent = '演示步骤读取失败，请刷新重试。'; });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "materials",
+    "title": "发来公司资料",
+    "text": "把已有的公司资料粘贴进来，或在「资料」里选一份模拟公司。资料可以之后继续补充。这里载入的是禾巷小馆的原始资料。",
+    "hotspot": ".code-chat-form button[type=submit]"
+  },
+  {
+    "id": "style",
+    "title": "需求对齐：选风格与两个滑杆",
+    "text": "系统先问风格：主风格单选，或交给「帮我选」；版式和信息密度两个滑杆只改排法，不增删资料内容。缩略图来自真实生成的站点。",
+    "hotspot": "[data-testid=code-style-question] .primary-button"
+  },
+  {
+    "id": "outline",
+    "title": "确认页面大纲",
+    "text": "模型按资料能撑起的内容规划页面。资料只够两页，就只做首页和菜单两页，不为凑结构硬加联系页或报价页。确认后才开始写网站。",
+    "hotspot": "[data-testid=code-plan] .primary-button"
+  },
+  {
+    "id": "progress",
+    "title": "生成进度",
+    "text": "模型逐页写站点代码；写完后，提交入口清理脚本和外部资源，核对事实出处，并在 375/768/1440 三档检查溢出、重叠和对比度。不过关就交回模型修，最多两轮。",
+    "hotspot": "[data-testid=code-progress]"
+  },
+  {
+    "id": "preview-1440",
+    "title": "三档预览：1440",
+    "text": "生成完成，这是第 3 版的首页，宽屏 1440。版式、结构、文案都由模型按资料和所选风格写成。",
+    "hotspot": ".device-toggle[aria-label=预览宽度] button:nth-child(2)"
+  },
+  {
+    "id": "preview-768",
+    "title": "三档预览：768",
+    "text": "切到 768 看平板宽度。三档都由提交入口检查过，不横向溢出、不重叠。",
+    "hotspot": ".device-toggle[aria-label=预览宽度] button:nth-child(3)"
+  },
+  {
+    "id": "preview-375",
+    "title": "三档预览：375",
+    "text": "手机宽度 375。预览右侧的数字是资料出处编号，下一步看它。",
+    "hotspot": "[data-testid=fact-citation-marker]"
+  },
+  {
+    "id": "citations",
+    "title": "资料出处",
+    "text": "价格、时间、承诺这类声明必须有资料原句支持。点编号能看到这句话依据的是哪段原始资料；这些编号只在工作台显示，不写进站点。",
+    "hotspot": "[data-testid=fact-citation-source]"
+  },
+  {
+    "id": "annotate",
+    "title": "点选批注",
+    "text": "在第 2 版上点「批注」，再点一个区块写修改意见。修改只发选中的区块，范围外的内容由提交入口核对，不会被顺手改掉。意见是当时真实发出的原话。",
+    "hotspot": "[data-testid=annotation-add]"
+  },
+  {
+    "id": "area",
+    "title": "圈选批注",
+    "text": "也可以拖框圈选。圈中多个区块时，系统先请你收窄到一个区块：每条意见只改一个区块。",
+    "hotspot": "[data-testid=annotation-area-candidates] button"
+  },
+  {
+    "id": "drafts",
+    "title": "多条批注一起发送",
+    "text": "批注先存在浏览器里，可以回看、编辑或移除。两条批注一起发送时，所有修改从同一个父版本出发，合成一个新版本；任一条失败就不存半成品。",
+    "hotspot": "[data-testid=annotation-send-batch]"
+  },
+  {
+    "id": "result",
+    "title": "修改结果：第 3 版",
+    "text": "两条批注合并保存为第 3 版，底线检查通过。对话里保留每次修改的原话和结果，包括中途失败的那两次。",
+    "hotspot": ".code-quick-edits button"
+  },
+  {
+    "id": "quick",
+    "title": "快捷按钮",
+    "text": "不想自己写意见时，可以用快捷按钮：更大胆、更克制、精简文字、换个版式。没有选区块时作用于当前页，选了区块就只改那一块。",
+    "hotspot": ".code-quick-edits button:nth-child(3)"
+  },
+  {
+    "id": "history",
+    "title": "版本列表、撤销与恢复",
+    "text": "每次修改都是一个完整版本。撤销就是恢复到上一个版本，恢复本身也存成新版本；刷新页面从当前版本恢复。",
+    "hotspot": "[data-testid=version-history] button[class*=version]"
+  },
+  {
+    "id": "threads",
+    "title": "批注线程",
+    "text": "发出的批注保存为线程，记录原话和每次结果，可以定位回对应区块、标为已处理。",
+    "hotspot": "[data-testid=thread-reveal]"
+  },
+  {
+    "id": "english",
+    "title": "英文版",
+    "text": "英文版功能说明，示例站翻译未通过保真检查。中文站满意后才问是否生成英文版：沿用同一结构，只翻译文字，数字、单位、邮箱和网址逐项核对。本示例站的一次真实翻译因价格、年份、营业时间等保真规则误报未通过检查，没有保存英文版；规则修好后再补上。",
+    "hotspot": "[data-testid=generate-english]"
+  },
+  {
+    "id": "download",
+    "title": "下载站点包",
+    "text": "站点包是当前版本的静态网站：每页一份 HTML，加公共 CSS、实际引用的素材和 LICENSES.txt，不含资料、对话或密钥。点高亮的下载按钮，可以拿到这个示例站真实导出的 zip。",
+    "hotspot": "[data-testid=download-site]"
+  },
+  {
+    "id": "settings",
+    "title": "模型接口设置",
+    "text": "真实使用时，在这里填你自己的模型接口：API 地址、key 和模型名只存在你的浏览器里，只随那一次请求发给服务器，不写进记录或日志。演示里不能保存。",
+    "hotspot": "#provider .primary-button"
+  }
+]

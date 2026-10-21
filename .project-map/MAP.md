@@ -13,6 +13,8 @@
 - 查看生成站用 Chrome（[T-011](tickets/T-011-review-browser.md)）。移动端用浏览器的 375 / 768 / 1440 验收。
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 
+- 公开入口说明与静态工作台演示已交付（T-207 两项返工验收通过）：[T-203](tickets/T-203-readme-entry.md)、[T-207](tickets/T-207-interactive-demo.md)；当前运行方式见 [README](../README.md)，验收与失败证据见各票 Resolution。
+
 ## Decisions so far
 
 - [T-001 生成路径怎么组页](tickets/T-001-generation-path.md)：样子 → 同族模块 → 整页；一个预览引擎；草稿只走 `commitOperations`（已被 T-048、T-127 先后取代）
@@ -95,3 +97,4 @@
 | [docs/project/mainline.md](../docs/project/mainline.md) | `lib/code-site*.ts`, `lib/provider-http-error.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `lib/storage-directory.ts` | 699367f |
 | [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/conversation-store.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `lib/provider-http-error.ts`, `lib/simulated-packs.ts`, `fixtures/simulated-packs/**`, `tests/fixtures/company-images/**/manifest.json`, `scripts/eval-new-route.ts`, `scripts/eval-set-report.ts`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 699367f |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | 00a083e |
+| [deploy/vps/README.md](../deploy/vps/README.md) | `deploy/vps/**`, `demo/**`, `scripts/t207-*.mjs` | |

@@ -3,7 +3,7 @@
 把一家公司的资料写成它自己的官网：上传公司介绍、价目表或产品说明，或者直接描述想要的网站，选一种风格，SiteCraft 写出一套多页展示型官网；不满意的地方在对话里说，或在预览上直接批注。
 
 - 产品页：<https://sitecraft.luckye.online>
-- 建站网站：<https://sitecraftapp.luckye.online>
+- 工作台演示：<https://sitecraftapp.luckye.online>，按步骤回放模拟资料「禾巷小馆」的一次真实生成和两轮批注修改。演示是静态页面，使用预设数据，不调用模型。要真正生成网站，请按下文在本地运行，并填写你自己的模型接口。
 
 | 精密工程（注塑模具） | 品牌画册（社区餐馆） |
 | --- | --- |
@@ -22,24 +22,24 @@
 - **下载站点包**：当前版本导出为静态 ZIP（中英文页面、实际用到的图片和 `LICENSES.txt`），可放到自己的服务器上。
 - **底线检查**：生成、对话、批注、恢复都经同一个提交入口。价格、时间、资质、承诺、效果、客户与评价必须能在资料里找到原句，否则写「待补充」；页面没有脚本、外部资源、未授权图片和空链接；375／768／1440 三档不横向溢出、不遮挡、正文对比度达标。不过关就交回模型修，最多两轮，仍不过如实说明，不保存。
 
-## 用你自己的模型接口，数据只在你的浏览器
+## 用你自己的模型接口
 
-建站网站不提供模型 key。打开「工作区设置 → 模型接口」，填写 API 地址、key 和模型名（目前只保证 DeepSeek 兼容接口，例如 `https://api.deepseek.com` 与 `deepseek-flash`）。
+项目不提供模型 key。在本地运行后打开「工作区设置 → 模型接口」，填写 API 地址、key 和模型名（目前只保证 DeepSeek 兼容接口，例如 `https://api.deepseek.com` 与 `deepseek-flash`）。
 
-- 接口设置只保存在你的浏览器（localStorage），只在需要调用模型的请求里经 HTTPS 请求头发给服务器；服务器只在处理那一次请求时使用，不写盘、不记日志。服务器只连接 https 公网地址，不跟随重定向。
-- 站点、版本、对话、批注和上传的资料只长期保存在你的浏览器（IndexedDB）。打开站点时浏览器把它交给服务器的临时工作区，改动完成后取回；临时副本闲置 30 分钟或服务器重启即删除。
-- 因此站点只出现在建站时用的那个浏览器里：换浏览器、隐私模式或清除网站数据后看不到。这个部署不提供公开发布链接，请下载站点包自行托管。
-- 服务器资源很小，生成与检查一次只处理一个任务，繁忙时会提示稍后再试。
+- 接口设置只保存在你的浏览器（localStorage），只在需要调用模型的请求里经请求头发给本机服务；服务只在处理那一次请求时使用，不写盘、不记日志。服务只连接 https 公网地址，不跟随重定向。
+- 开发模式下，站点、版本和对话保存在项目的 `.sitecraft-data/` 目录。
 
 项目方向、决定和待办见 [.project-map/MAP.md](./.project-map/MAP.md)，术语见 [CONTEXT.md](./CONTEXT.md)，协作规则见 [AGENTS.md](./AGENTS.md)。
 
 ## 本地运行
 
+需要 Node 22 和一个 Chrome：提交入口用它在 375／768／1440 三档下检查页面，推荐 [chrome-headless-shell](https://developer.chrome.com/blog/chrome-headless-shell)。
+
 ```bash
 git clone https://github.com/a1024053774/sitecraft-ai.git
 cd sitecraft-ai
 npm ci
-npm run dev
+CHROME_PATH=/path/to/chrome-headless-shell npm run dev
 ```
 
 打开 [http://localhost:3000](http://localhost:3000)，用 Chrome 查看生成站：部分内置浏览器会拦截沙箱 iframe。
@@ -52,7 +52,7 @@ DEEPSEEK_API_KEY=server-only-secret
 DEEPSEEK_MODEL=deepseek-flash
 ```
 
-按公开部署的方式在本机运行（浏览器存储、访客自带接口）：
+浏览器存储模式（T-202）：站点、版本、对话、批注和上传的资料只长期保存在浏览器（IndexedDB），服务器只在临时数据根保留打开中的副本，闲置 30 分钟或重启即删除；不提供发布链接，改为下载站点包。在本机这样运行：
 
 ```bash
 SITE_STORE=browser npm run build
@@ -110,4 +110,4 @@ CHROME_PATH=/path/to/assigned/chrome-headless-shell node scripts/render-shader-b
 
 仅主控已选定的配置可入库；脚本用硬件 WebGPU 定格导出，单张上限 200KB，失败不会换渲染路径，已有证据目录不会覆盖。`--install` 同时更新 `public/system-backdrops/` 静态素材和 `lib/code-site-backdrops.ts` 登记表。浏览器测试需指定 CHROME_PATH 与本工作区的 SITECRAFT_BASE，事实模型使用本地夹具的测试不代表真实模型能力。
 
-公开部署见 [deploy/vps/](deploy/vps/)：单机 nginx + Cloudflare Tunnel，产品页为 `landing/` 静态目录，建站网站以 `SITE_STORE=browser` 运行（T-204）。`deploy/kubernetes/` 是早期的多实例示例，不用于当前部署。
+公开部署见 [deploy/vps/](deploy/vps/)：单机 nginx + Cloudflare Tunnel，产品页为 `landing/`，工作台演示为 `demo/`，两者都是静态目录，服务器上不运行建站服务（T-207）；静态响应设置 `no-transform`，保留示例邮箱原文。演示由 `scripts/t207-build-demo-stages.mjs` 和 `scripts/t207-capture-demo.mjs` 从一次真实生成的记录截取。`deploy/kubernetes/` 是早期的多实例示例，不用于当前部署。

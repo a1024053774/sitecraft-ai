@@ -1,60 +1,57 @@
-# SiteCraft 单机部署（T-204）
+# SiteCraft 单机部署（T-204、T-207）
 
 目标机器：负责人的 VPS `107.173.155.71`（Ubuntu 24.04，1 核，约 1GB 内存）。部署时**不得改动**已有的 xray／x-ui 代理（占用 443）。原来的 `enchanted.luckye.online` 已按负责人要求于 2026-10-20 停用（改由 GitHub Pages 托管），nginx 配置改名为 `conf.d/enchanted.conf.disabled`，`/var/www/enchanted` 保留未删。
+
+T-206 起公网只放静态页面：1 核机器上一次局部修改的检查会超时（T-208），真实建站改到本机运行。
 
 ```
 访客 ──HTTPS──▶ Cloudflare ──Tunnel──▶ cloudflared（VPS） ──▶ nginx :80
                                                       ├─ sitecraft.luckye.online    → /opt/sitecraft/landing（静态产品页）
-                                                      └─ sitecraftapp.luckye.online → 127.0.0.1:3100（建站网站，SITE_STORE=browser）
+                                                      └─ sitecraftapp.luckye.online → /opt/sitecraft/demo（静态工作台演示）
 ```
 
-## 负责人要做的（含凭据，执行主控不经手）
+## Cloudflare Tunnel（负责人已配置，含凭据，执行主控不经手）
 
-1. 在 Cloudflare Zero Trust 建一个 tunnel，在 VPS 上运行它给出的 `cloudflared service install <token>`。cloudflared（2026.10.2，来自官方 apt 源 pkg.cloudflare.com）已经装好，只差这一步。
-2. 给这个 tunnel 加两条 Public Hostname，服务都填 `HTTP` 和 `localhost:80`：
-   - `sitecraft.luckye.online`
-   - `sitecraftapp.luckye.online`
-3. 删除这两个子域名原来的灰云 A 记录，由 tunnel 自动生成的 CNAME 取代。
+- VPS 上的 cloudflared（2026.10.2，来自官方 apt 源 pkg.cloudflare.com）由负责人用 `cloudflared service install <token>` 接入 Cloudflare Zero Trust 的 tunnel。
+- tunnel 有两条 Public Hostname，服务都是 `HTTP` 和 `localhost:80`：`sitecraft.luckye.online`、`sitecraftapp.luckye.online`；两个子域名由 tunnel 生成的 CNAME 指向，不再有灰云 A 记录。
 
 ## 安装或更新（root，在 VPS 上）
 
 ```bash
-git clone https://github.com/a1024053774/sitecraft-ai.git /tmp/sitecraft-deploy   # 只取部署脚本
-bash /tmp/sitecraft-deploy/deploy/vps/install.sh family-kit-assembly
+rm -rf /tmp/sitecraft-deploy
+git clone -q -b family-kit-assembly https://github.com/a1024053774/sitecraft-ai.git /tmp/sitecraft-deploy
+bash /tmp/sitecraft-deploy/deploy/vps/install.sh
 ```
 
-`install.sh` 可以重复运行，按顺序做这些事：
-- 交换内存补到 2GB（另加 `/swapfile-sitecraft`）。
-- 安装 Chrome 依赖和中文字体（底线检查要测量中文排版）。
-- 把 Node 22 LTS 装到 `/opt/sitecraft/node`，安装包按官方 SHASUMS256 校验。
-- 把源码检出到 `/opt/sitecraft/app`。如果那里存在 `.env.local` 就拒绝继续，因为服务器不能持有 key。
-- 安装 chrome-headless-shell，写入 `/etc/apparmor.d/sitecraft-chrome`，只给这个二进制放行 user namespace（Ubuntu 24.04 默认限制，否则 Chrome 沙箱起不来）；然后以 `sitecraft` 用户、开着沙箱真实启动一次 Chrome，起不来就在停服和构建前退出。
-- 用 `SITE_STORE=browser` 构建。
-- 把 `landing/` 复制到 `/opt/sitecraft/landing`，并把 `BUILDER_URL` 替换成 `https://sitecraftapp.luckye.online`。
-- 安装 nginx 配置：`nginx -t` 不通过就删除这份配置，不重载。
-- 启用 `sitecraft-app` 服务，最后经 nginx 做冒烟检查：产品页、建站网站、发布链接（应为 404），以及未登记的主机名被直接断开（nginx 默认站点返回 444）。
+`install.sh` 可以重复运行，只用这份检出，按顺序做这些事：
+- 把 `landing/` 复制到 `/opt/sitecraft/landing`，把 `BUILDER_URL` 替换成 `https://sitecraftapp.luckye.online`；把 `demo/` 复制到 `/opt/sitecraft/demo`。都先复制到新目录再整体换入，上一版留在 `*.old`。
+- 停止并禁用 `sitecraft-app`（只停不删），并更新它的单元文件。
+- 安装 nginx 配置：`nginx -t` 不通过就删除这份配置，不重载；重载后等旧 worker 退出再做冒烟检查，15 秒内未退出则报错。
+- 经 nginx 做冒烟检查：产品页、演示首页、演示步骤表、演示里的站点包、建站接口（应为 404），以及未登记的主机名被直接断开（nginx 默认站点返回 444，curl 状态 000、退出码 52）。接口或未知主机不符合预期时退出失败。
+
+它不启动 Node 或 Chrome，不构建，不改交换内存。
+
+## 已停用的建站服务
+
+T-204 装好的建站服务保留在机器上，但不运行：
+- `/opt/sitecraft/app`（源码与构建）、`/opt/sitecraft/node`、`/opt/sitecraft/chrome*`、`/etc/apparmor.d/sitecraft-chrome`、`/swapfile-sitecraft`。
+- `sitecraft-app.service`：inactive、disabled。
+
+重新启用需要先确认机器能撑住检查（见 T-208），再用 T-204 版本的安装脚本（`git show dadc130:deploy/vps/install.sh`）重新构建并启用；那一版的运行约束（内存盘数据根、单队列、`MemoryHigh=700M`、nginx 限流与只收本机 tunnel 连接）写在同一提交的这份 README 里。
 
 ## 运行约束
 
-- **建站网站**（`sitecraft-app.service`）：
-  - 运行身份是 `sitecraft` 用户，监听 `127.0.0.1:3100`。
-  - 数据根为 `/dev/shm/sitecraft-server-copy`（内存盘）：每次启动清空，闲置 30 分钟清理，总量上限 128MB。
-  - 生成与检查共用一个队列，并发为 1，最多 3 个等待；每次检查单独启动无头 Chrome，用完即关。
-  - `MemoryHigh=700M`，`OOMScoreAdjust=500`：内存紧张时先让它让出资源，不连累负责人的其他服务。
-  - 更新时 `install.sh` 在构建前停掉 `sitecraft-app`，构建完再启动，建站网站约 2 分钟不可用。2026-10-21 带着运行中的服务构建，可用内存降到 86MB，交换内存读写频繁，为了不挤占负责人的代理，选择短暂停服。首次安装没有在运行的服务，不受影响。
 - **nginx**（`/etc/nginx/conf.d/sitecraft.conf`）：
-  - 只信任本机 tunnel 传来的 `CF-Connecting-IP`。
-  - 建站网站只接受来自本机 tunnel 的连接，外部直连返回 403，避免 key 以明文 HTTP 传输。
-  - 按 IP 限流：整个 API 每秒 2 次、突发 40 次，足够覆盖每 2 秒一次的进度轮询；hydrate、撤销／恢复、手改每分钟 10 次、突发 10 次。
-  - `client_max_body_size 29m`，与 hydrate 的 20MB 上限（base64 后约多三分之一）一致。
+  - 两个主机名都只提供静态文件，只信任本机 tunnel 传来的 `CF-Connecting-IP`。
+  - 静态响应带 `Cache-Control: no-transform`，防止 Cloudflare 改写示例邮箱并注入在沙箱预览中无法执行的解码脚本。
   - 访问日志只记 IP、时间、方法、路径（不含查询参数）、状态、字节数和耗时，不记请求头与请求体。
-- **服务器上没有**：模型 key、`.env.local`、长期站点数据。
+- **服务器上没有**：模型 key、`.env.local`、站点数据。演示不调用模型，所有画面和站点包都是静态文件。
 - **SSH 防护**：fail2ban 配置在 `/etc/fail2ban/jail.d/sshd-local.conf`。
   - 规则：10 分钟内失败 5 次封 1 小时，再犯递增，最长 1 周。
   - 白名单：本机、Tailscale 网段 100.64.0.0/10，以及负责人的公网 IP。
   - Ubuntu 24.04 的 SSH 单元是 `ssh.service`，所以显式设了 `journalmatch = _SYSTEMD_UNIT=ssh.service + _COMM=sshd`。
   - SSH 密码登录仍然开着。
 
-## 验收（T-204）
+## 演示从哪里来
 
-用负责人的 key，在浏览器设置里填写，不写进服务器，在 `https://sitecraftapp.luckye.online` 完成一次完整生成。同时观察 `free -m` 和 `journalctl -u sitecraft-app`，确认没有因内存不足退出。之后检查服务器：`grep -r` 搜不到 key，`/dev/shm/sitecraft-server-copy` 之外没有站点数据。
+`demo/` 是工作台真实界面的定格画面：`scripts/t207-build-demo-stages.mjs` 从一次真实生成的站点记录截出各阶段，`scripts/t207-capture-demo.mjs` 用无模型的本地服务打开这些阶段，逐步操作后保存为静态 HTML，并附上该站真实导出的站点包。重新截取的命令写在 T-207 的 Resolution 里。
