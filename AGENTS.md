@@ -33,7 +33,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 以下事项不是当前目标，**不要主动开始、不要排进 Goal 队列、不要因为它们没验证就把任务标成未完成**：
 
-- 临时公网隧道（快速隧道、ngrok 一类）、iPhone/Android 实机测试。移动端用浏览器设备模式（375/768/1440）验收即可。正式部署只按 T-200、T-204：产品页与建站网站部署在负责人的 VPS（107.173.155.71），经负责人自建的 Cloudflare Tunnel 接入 sitecraft.luckye.online 与 sitecraftapp.luckye.online；不得改动 VPS 上已有的代理（xray／x-ui，占 443）和 enchanted 站点。
+- 临时公网隧道（快速隧道、ngrok 一类）、iPhone/Android 实机测试。移动端用浏览器设备模式（375/768/1440）验收即可。正式部署只按 T-200、T-204：产品页与建站网站部署在负责人的 VPS（107.173.155.71），经负责人自建的 Cloudflare Tunnel 接入 sitecraft.luckye.online 与 sitecraftapp.luckye.online；不得改动 VPS 上已有的代理（xray／x-ui，占 443）；原 enchanted 站点已按负责人要求停用。
 - 修本机网络或系统：VPN、DNS、路由表、`/etc/hosts`、代理、Docker Registry。需要 sudo 的操作一律不做。
 - 外部邮箱送达、生产数据库运维、完整 Docker 镜像重建。
 - 真实客户试点、整仓合并 `hlanan886/sitecraft-ai#4`、批量 cherry-pick 或搬运其 dist。

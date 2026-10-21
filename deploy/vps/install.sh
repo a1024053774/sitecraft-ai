@@ -3,7 +3,7 @@
 #   bash install.sh <git-ref>          e.g. bash install.sh family-kit-assembly
 # Idempotent. Touches only /opt/sitecraft, the sitecraft user, an extra swap file,
 # /etc/nginx/conf.d/sitecraft.conf and the sitecraft-app unit. It never edits the
-# xray/x-ui proxy, enchanted.conf or other nginx sites, and never stores a model key.
+# xray/x-ui proxy, and never stores a model key.
 set -euo pipefail
 REF=${1:?usage: install.sh <git-ref>}
 REPO=https://github.com/a1024053774/sitecraft-ai.git
@@ -88,5 +88,5 @@ step "smoke checks through nginx (as the tunnel would call it)"
 curl -fs -o /dev/null -w "landing %{http_code}\n" -H 'Host: sitecraft.luckye.online' http://127.0.0.1/
 curl -fs -o /dev/null -w "app %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/
 curl -s -o /dev/null -w "published (expect 404) %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/published/x
-curl -fs -o /dev/null -w "enchanted still served %{http_code}\n" -H 'Host: enchanted.luckye.online' http://127.0.0.1/ || echo "enchanted check failed: inspect before continuing"
+curl -s -o /dev/null -w "unknown host (expect 000, dropped) %{http_code}\n" -H 'Host: other.example' http://127.0.0.1/ || true
 free -m

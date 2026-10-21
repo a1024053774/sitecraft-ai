@@ -1,6 +1,6 @@
 # SiteCraft 单机部署（T-204）
 
-目标机器：负责人的 VPS `107.173.155.71`（Ubuntu 24.04，1 核，约 1GB 内存）。部署时**不得改动**已有的 xray／x-ui 代理（占用 443）和 `enchanted.luckye.online` 站点。
+目标机器：负责人的 VPS `107.173.155.71`（Ubuntu 24.04，1 核，约 1GB 内存）。部署时**不得改动**已有的 xray／x-ui 代理（占用 443）。原来的 `enchanted.luckye.online` 已按负责人要求于 2026-10-20 停用（改由 GitHub Pages 托管），nginx 配置改名为 `conf.d/enchanted.conf.disabled`，`/var/www/enchanted` 保留未删。
 
 ```
 访客 ──HTTPS──▶ Cloudflare ──Tunnel──▶ cloudflared（VPS） ──▶ nginx :80
@@ -32,7 +32,7 @@ bash /tmp/sitecraft-deploy/deploy/vps/install.sh family-kit-assembly
 - 用 `SITE_STORE=browser` 构建。
 - 把 `landing/` 复制到 `/opt/sitecraft/landing`，并把 `BUILDER_URL` 替换成 `https://sitecraftapp.luckye.online`。
 - 安装 nginx 配置：`nginx -t` 不通过就删除这份配置，不重载。
-- 启用 `sitecraft-app` 服务，最后经 nginx 做冒烟检查：产品页、建站网站、发布链接（应为 404），以及 enchanted 仍然可访问。
+- 启用 `sitecraft-app` 服务，最后经 nginx 做冒烟检查：产品页、建站网站、发布链接（应为 404），以及未登记的主机名被直接断开（nginx 默认站点返回 444）。
 
 ## 运行约束
 
