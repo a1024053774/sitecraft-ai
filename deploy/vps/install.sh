@@ -48,8 +48,11 @@ git -C $ROOT/app log --oneline -1
 
 step "headless Chrome for the commit checks"
 if ! [ -x $ROOT/chrome/chrome-headless-shell ]; then
+  # An interrupted download leaves an empty version folder that the installer refuses to reuse.
+  rm -rf $ROOT/chrome-dl
   (cd /tmp && npx -y @puppeteer/browsers install chrome-headless-shell@stable --path $ROOT/chrome-dl >/dev/null)
   BIN=$(find $ROOT/chrome-dl -type f -name chrome-headless-shell -perm -u+x | head -1)
+  [ -n "$BIN" ] || { echo "chrome-headless-shell not found under $ROOT/chrome-dl"; exit 1; }
   mkdir -p $ROOT/chrome && ln -sf "$BIN" $ROOT/chrome/chrome-headless-shell
   chmod -R a+rX $ROOT/chrome-dl
 fi
