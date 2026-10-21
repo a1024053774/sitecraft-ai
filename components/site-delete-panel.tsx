@@ -151,7 +151,11 @@ export function SiteDeleteSettings() {
       <div className="settings-icon"><Trash2 size={17} /></div>
       <div>
         <h2>手动删除</h2>
-        <p>删除须由你输入站点编号确认。系统不会自动清对话、草稿、上传或已发布站点。每行可回工作台或发布页。{previewHint(hoverable)}</p>
+        {local ? (
+          <p>删除须由你输入站点编号确认，删掉的是这个浏览器里该站的版本、对话和上传，删后无法找回。系统不会自动清理。每行可回工作台。</p>
+        ) : (
+          <p>删除须由你输入站点编号确认。系统不会自动清对话、草稿、上传或已发布站点。每行可回工作台或发布页。{previewHint(hoverable)}</p>
+        )}
       </div>
       {sites === null ? (
         <p className="delete-empty" aria-busy="true">正在读取站点…</p>

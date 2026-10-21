@@ -593,8 +593,9 @@ a { color: inherit; text-decoration: none; }
 }
 @media (max-width: 900px) {
   .app-shell { display: block; }
-  .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 70; display: flex; width: min(84vw, 310px); padding-top: 22px; box-shadow: 18px 0 60px rgba(23,32,25,.18); transform: translateX(-105%); transition: transform .22s ease; }
-  .sidebar.mobile-open { transform: translateX(0); }
+  .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 70; display: flex; width: min(84vw, 310px); padding-top: 22px; transform: translateX(-105%); transition: transform .22s ease, box-shadow .22s ease; }
+  /* The shadow reaches ~78px past the edge, so the closed drawer carries none. */
+  .sidebar.mobile-open { transform: translateX(0); box-shadow: 18px 0 60px rgba(23,32,25,.18); }
   .mobile-nav-trigger { position: fixed; z-index: 58; top: 14px; left: 14px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); box-shadow: 0 4px 14px rgba(23,32,25,.08); }
   .mobile-sidebar-close { position: absolute; top: 17px; right: 15px; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 7px; background: rgba(255,255,255,.72); color: var(--ink-soft); }
   .mobile-sidebar-backdrop { position: fixed; inset: 0; z-index: 69; width: 100%; height: 100%; border: 0; background: rgba(16,24,18,.42); opacity: 0; pointer-events: none; transition: opacity .22s ease; }
