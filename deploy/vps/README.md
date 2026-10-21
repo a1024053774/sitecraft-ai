@@ -10,7 +10,7 @@
 
 ## 负责人要做的（含凭据，执行主控不经手）
 
-1. 在 Cloudflare Zero Trust 建一个 tunnel，在 VPS 上运行它给出的 `cloudflared service install <token>`。
+1. 在 Cloudflare Zero Trust 建一个 tunnel，在 VPS 上运行它给出的 `cloudflared service install <token>`。cloudflared（2026.10.2，来自官方 apt 源 pkg.cloudflare.com）已经装好，只差这一步。
 2. 给这个 tunnel 加两条 Public Hostname，服务都填 `HTTP` 和 `localhost:80`：
    - `sitecraft.luckye.online`
    - `sitecraftapp.luckye.online`
@@ -48,6 +48,11 @@ bash /tmp/sitecraft-deploy/deploy/vps/install.sh family-kit-assembly
   - `client_max_body_size 29m`，与 hydrate 的 20MB 上限（base64 后约多三分之一）一致。
   - 访问日志只记 IP、时间、方法、路径（不含查询参数）、状态、字节数和耗时，不记请求头与请求体。
 - **服务器上没有**：模型 key、`.env.local`、长期站点数据。
+- **SSH 防护**：fail2ban 配置在 `/etc/fail2ban/jail.d/sshd-local.conf`。
+  - 规则：10 分钟内失败 5 次封 1 小时，再犯递增，最长 1 周。
+  - 白名单：本机、Tailscale 网段 100.64.0.0/10，以及负责人的公网 IP。
+  - Ubuntu 24.04 的 SSH 单元是 `ssh.service`，所以显式设了 `journalmatch = _SYSTEMD_UNIT=ssh.service + _COMM=sshd`。
+  - SSH 密码登录仍然开着。
 
 ## 验收（T-204）
 
