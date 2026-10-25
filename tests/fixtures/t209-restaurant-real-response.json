@@ -1,0 +1,223 @@
+{
+  "issues": [
+    "footer/0/1/3/2/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home:title 保真：公司名须使用记录名称或资料明确的英文名",
+    "home/0/3/1/3/0 保真：公司名须使用记录名称或资料明确的英文名",
+    "home/0/3/1/3/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/5/1/5/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/7/1/5/1/0/2/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/7/1/5/3/0/2/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/7/1/5/5/0/2/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/7/1/5/7/0/2/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/7/1/5/9/0/0/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/7/1/5/9/0/2/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/7/1/5/11/0/2/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/9/1/3/1/3/1 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/9/1/3/3/3/1 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/11/1/3/1/3/1 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/11/1/3/1/7/1 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/13/1/3/1/0/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/13/1/3/3/0/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/13/1/3/5/0/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/13/1/3/7/0/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "home/0/15/1/3/5/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/3/1/3/5/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/5/1/5/1/3/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/5/1/7/1/3/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/5/1/9/1/3/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/5/1/11/1/3/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/5/1/13/1/3/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/5/1/13/3/8/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/9/1/3/1/1/0 保真：含数字记号、数值与单位、邮箱或网址不一致",
+    "menu/0/11/1/3/1/0 待补充须译为 To be provided",
+    "menu/0/13/1/1/0 保真：含数字记号、数值与单位、邮箱或网址不一致"
+  ],
+  "pairs": [
+    {
+      "path": "footer/0/1/3/2/0",
+      "zh": "周二至周日，午市 11:00–14:00、晚市 17:00–20:30；周一休息。",
+      "en": "Tuesday to Sunday, lunch 11:00–14:00 and dinner 17:00–20:30; closed on Monday.",
+      "round": 0
+    },
+    {
+      "path": "home:title",
+      "zh": "禾巷小馆 · 街坊的午饭与晚饭",
+      "en": "Hexiang Xiaoguan · Neighborhood Lunch and Dinner",
+      "round": 0
+    },
+    {
+      "path": "home/0/3/1/3/0",
+      "zh": "禾巷小馆是一家社区家常菜馆，面向附近居民和午休用餐的上班族。厨房按午市与晚市备料，提供单人饭菜组合和适合分食的热菜，不经营酒吧或宴会厅。",
+      "en": "Hexiang Xiaoguan is a neighborhood home-style restaurant for nearby residents and office workers on their lunch break. The kitchen prepares ingredients for lunch and dinner service, offering single-portion meal sets and hot dishes suited to sharing. We do not operate a bar or a banquet hall.",
+      "round": 0
+    },
+    {
+      "path": "home/0/5/1/5/0",
+      "zh": "周二至周日营业，周一休息；14:00–17:00 不营业，午市与晚市分开。节假日营业安排待补充。",
+      "en": "Open Tuesday to Sunday, closed Monday; closed 14:00–17:00, with lunch and dinner served separately. Holiday hours: To be provided.",
+      "round": 0
+    },
+    {
+      "path": "home/0/7/1/5/1/0/2/0",
+      "zh": "32 元/份",
+      "en": "CNY 32 per portion",
+      "round": 0
+    },
+    {
+      "path": "home/0/7/1/5/3/0/2/0",
+      "zh": "58 元/份",
+      "en": "CNY 58 per portion",
+      "round": 0
+    },
+    {
+      "path": "home/0/7/1/5/5/0/2/0",
+      "zh": "36 元/份",
+      "en": "CNY 36 per portion",
+      "round": 0
+    },
+    {
+      "path": "home/0/7/1/5/7/0/2/0",
+      "zh": "22 元/份",
+      "en": "CNY 22 per portion",
+      "round": 0
+    },
+    {
+      "path": "home/0/7/1/5/9/0/0/0",
+      "zh": "当日清炒时蔬",
+      "en": "Daily Stir-Fried Seasonal Vegetables",
+      "round": 0
+    },
+    {
+      "path": "home/0/7/1/5/9/0/2/0",
+      "zh": "18 元/份",
+      "en": "CNY 18 per portion",
+      "round": 0
+    },
+    {
+      "path": "home/0/7/1/5/11/0/2/0",
+      "zh": "38 元/份",
+      "en": "CNY 38 per portion",
+      "round": 0
+    },
+    {
+      "path": "home/0/9/1/3/1/3/1",
+      "zh": "午市 11:00–14:00 到店，按店内菜单当天标注的供应点单；一个人吃，点香菇鸡腿饭，或午市单人组合。厨房午市停止点菜时间为 13:30。",
+      "en": "Come in during lunch, 11:00–14:00, and order from the items marked as available on the in-store menu that day. For one person, order the Braised Chicken Leg with Shiitake over Rice or the Lunch Single-Person Set. The kitchen's last lunch order time is 13:30.",
+      "round": 0
+    },
+    {
+      "path": "home/0/9/1/3/3/3/1",
+      "zh": "晚市 17:00–20:30 到店，点番茄炖牛腩、时蔬豆腐煲，米饭单点，几样热菜一起分食。厨房晚市停止点菜时间为 20:00。",
+      "en": "Come in during dinner, 17:00–20:30, and order the Tomato-Braised Beef Brisket and the Seasonal Vegetable and Tofu Clay Pot, with rice ordered separately, sharing several hot dishes together. The kitchen's last dinner order time is 20:00.",
+      "round": 0
+    },
+    {
+      "path": "home/0/11/1/3/1/3/1",
+      "zh": "单点米饭 3 元/碗；香菇鸡腿饭与午市单人组合包含米饭，不再另收米饭费用；其他热菜米饭单点。",
+      "en": "Rice ordered separately is CNY 3 per bowl; the Braised Chicken Leg with Shiitake over Rice and the Lunch Single-Person Set include rice at no extra charge; rice is ordered separately with other hot dishes.",
+      "round": 0
+    },
+    {
+      "path": "home/0/11/1/3/1/7/1",
+      "zh": "每单 2 元。",
+      "en": "CNY 2 per order.",
+      "round": 0
+    },
+    {
+      "path": "home/0/13/1/3/1/0/0",
+      "zh": "2018 年",
+      "en": "2018",
+      "round": 0
+    },
+    {
+      "path": "home/0/13/1/3/3/0/0",
+      "zh": "2020 年",
+      "en": "2020",
+      "round": 0
+    },
+    {
+      "path": "home/0/13/1/3/5/0/0",
+      "zh": "2022 年",
+      "en": "2022",
+      "round": 0
+    },
+    {
+      "path": "home/0/13/1/3/7/0/0",
+      "zh": "2024 年",
+      "en": "2024",
+      "round": 0
+    },
+    {
+      "path": "home/0/15/1/3/5/0",
+      "zh": "堂食座位 24 个，以两人桌和四人桌为主；不设包间。座位数不代表实时空位，不能承诺随到随坐。儿童座椅数量、停车条件待补充。",
+      "en": "24 dine-in seats, mainly two-person and four-person tables; no private rooms. Seat count does not reflect real-time availability, and we cannot promise seating on arrival. Number of child seats and parking conditions: To be provided.",
+      "round": 0
+    },
+    {
+      "path": "menu/0/3/1/3/5/0",
+      "zh": "周二至周日营业，周一休息；14:00–17:00 不营业",
+      "en": "Open Tuesday to Sunday, closed Monday; closed 14:00–17:00",
+      "round": 0
+    },
+    {
+      "path": "menu/0/5/1/5/1/3/0",
+      "zh": "32 元/份",
+      "en": "32 yuan/portion",
+      "round": 0
+    },
+    {
+      "path": "menu/0/5/1/7/1/3/0",
+      "zh": "58 元/份",
+      "en": "58 yuan/portion",
+      "round": 0
+    },
+    {
+      "path": "menu/0/5/1/9/1/3/0",
+      "zh": "36 元/份",
+      "en": "36 yuan/portion",
+      "round": 0
+    },
+    {
+      "path": "menu/0/5/1/11/1/3/0",
+      "zh": "22 元/份",
+      "en": "22 yuan/portion",
+      "round": 0
+    },
+    {
+      "path": "menu/0/5/1/13/1/3/0",
+      "zh": "18 元/份",
+      "en": "18 yuan/portion",
+      "round": 0
+    },
+    {
+      "path": "menu/0/5/1/13/3/8/0",
+      "zh": "不保证每天相同品种",
+      "en": "The variety is not guaranteed to be the same every day.",
+      "round": 0
+    },
+    {
+      "path": "menu/0/9/1/3/1/1/0",
+      "zh": "单点米饭 3 元/碗，饮用水免费提供。",
+      "en": "Rice ordered separately is 3 yuan/bowl; drinking water is provided free of charge.",
+      "round": 0
+    },
+    {
+      "path": "menu/0/11/1/3/1/0",
+      "zh": "已知菜品涉及小麦、大豆和菌菇，完整过敏原清单待补充。",
+      "en": "The dishes listed involve wheat, soy and mushrooms; the full allergen list is to be provided.",
+      "round": 0
+    },
+    {
+      "path": "menu/0/13/1/1/0",
+      "zh": "厨房日常流程",
+      "en": "Daily Kitchen Process",
+      "round": 0
+    },
+    {
+      "path": "footer/0/1/3/2/0",
+      "zh": "周二至周日，午市 11:00–14:00、晚市 17:00–20:30；周一休息。",
+      "en": "Tuesday to Sunday, lunch 11:00-14:00 and dinner 17:00-20:30; closed on Monday.",
+      "round": 1
+    }
+  ]
+}

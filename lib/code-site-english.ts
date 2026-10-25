@@ -17,11 +17,12 @@ export function englishDom(source: SiteCode, translations?: EnglishTranslation[]
     if (!/[\p{Script=Han}]/u.test(text)) return text;
     slots.push({ id, text, pageId, path, ...(current ? { currentText } : {}) });
     if (!supplied) return text;
-    const after = supplied.get(id);
-    if (after === undefined || !after.trim()) throw new Error(`英文译文遗漏：${id}`);
+    const translated = supplied.get(id);
+    if (translated === undefined || !translated.trim()) throw new Error(`英文译文遗漏：${id}`);
     // Company identities come only from metadata. Keep every exact name
     // substring unchanged while normalizing punctuation in surrounding copy.
-    return protectedPattern ? after.split(protectedPattern).map((part, index) => index % 2 ? part : punctuation(part)).join('') : punctuation(after);
+    const normalize = (value: string) => punctuation(value).replace(/\bto be provided\b/gi, 'To be provided');
+    return protectedPattern ? translated.split(protectedPattern).map((part, index) => index % 2 ? part : normalize(part)).join('') : normalize(translated);
   };
   const html = (before: string, field: string, pageId: string | null, currentHtml?: string) => {
     const doc = new DOMParser().parseFromString(`<body>${before}</body>`, 'text/html');
@@ -110,6 +111,12 @@ export function englishFidelity(source: SiteCode, candidate: SiteCode, companyNa
       return (negative && canonical !== '0' ? '-' : '') + canonical;
     };
     text = text.normalize('NFKC').replace(/[\u200b-\u200d\ufeff]/g, '').replace(/[–—−]/g, '-');
+    // Calendar labels have no duration unit in English. A standalone year or an
+    // explicit calendar context is required; a warranty/duration stays in years.
+    text = text.replace(/(^\s*|(?:成立|创立|创办|建立|始于|截至|自|于|在|至|到)\s*)([12]\d{3})\s*年(?=$|[\s，。；、]|\p{Script=Han})/gu, '$1$2 ');
+    // Currency spelling and its position are exact aliases, never exchange rates.
+    text = text.replace(/\b(?:CNY|RMB)\s*([\d,]+(?:\.\d+)?)/g, '$1元');
+    text = text.replace(/每单\s*([\d,]+(?:\.\d+)?)\s*元/g, '$1元/单');
     text = text.replace(/([零〇一二两三四五六七八九十百\d]+)次元/g, (_all, number: string) => `${/\d/.test(number) ? number : chineseNumber(number)}D`);
     const chineseUnits = Object.keys(units).filter(unit => /\p{Script=Han}/u.test(unit)).sort((a, b) => b.length - a.length).join('|');
     // 万/亿 after an Arabic value are magnitudes, not a second integer.
@@ -120,7 +127,24 @@ export function englishFidelity(source: SiteCode, candidate: SiteCode, companyNa
     const mask = (kind: string, value: string) => { found.push(`${kind}:${value}`); return ' '.repeat(value.length); };
     text = text.replace(/(?:https?:\/\/|www\.)[^\s<>"，。；、)\]}]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, value => mask('contact', value));
     text = text.replace(/\+\d[\d ()-]{6,}\d/g, value => /[ ()-]/.test(value) && value.replace(/\D/g, '').length >= 7 ? mask('phone', value.replace(/[^\d+]/g, '')) : value);
+    // A serving noun has unit meaning only as a price denominator. Registering
+    // "order" as a general unit would turn "agreed per order" into a new fact.
+    const servings: Record<string, string> = { 份: 'portion', portion: 'portion', portions: 'portion', serving: 'portion', servings: 'portion',
+      碗: 'bowl', bowl: 'bowl', bowls: 'bowl', 单: 'order', order: 'order', orders: 'order' };
+    text = text.replace(/([±≥≤<>]=?)?\s*([+-]?[\d,]+(?:\.\d+)?)\s*(?:元|CNY\b|RMB\b|yuan\b)(?:\s*(?:\/|\bper\s+)\s*(\p{Script=Han}+|[A-Za-z]+(?:-[A-Za-z]+)*))?/gu,
+      (all, operator: string | undefined, value: string, serving?: string) => {
+        const comparison = operator === '≥' ? '>=' : operator === '≤' ? '<=' : operator ?? '';
+        found.push(`money:${comparison}${decimal(value, 0)}@CNY${serving ? '/' + (servings[serving] ?? serving) : ''}`);
+        return ' '.repeat(all.length);
+      });
+    text = text.replace(/(?<![\d:])(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?(?![\d:])/g, value => mask('clock', value));
     text = text.replace(/\b\d+(?:[-/]\d+){2,}\b/g, value => mask('marker', value));
+    // An article or standalone "one" can express an existing unitless count of
+    // one. Consume that source allowance once; never invent a numeric allowance.
+    let ones = (sourceTokens ?? []).filter(token => token === 'quantity:1@').length;
+    for (const pattern of [/(?<![\p{L}\p{N}_-])one(?![\p{L}\p{N}_-])/giu, /\b(?:a|an)(?=\s+[A-Za-z])/gi]) {
+      text = text.replace(pattern, value => ones > 0 ? (ones--, '1'.padEnd(value.length)) : value);
+    }
     const number = '[+-]?(?:\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?|\\.\\d+)';
     // The grade label moves before the value in English; its value and role stay.
     text = text.replace(new RegExp(`\\b(?:Class|Grade)\\s+(${number})(?![A-Za-z0-9.])`, 'gi'), '$1级');
@@ -207,7 +231,9 @@ export function englishFidelity(source: SiteCode, candidate: SiteCode, companyNa
       if (candidates.length) {
         const at = candidates[0].at;
         boundRates.set(at, [...boundRates.get(at) ?? [], rate.kind]);
-      } else {
+      } else if (rate.head && units[rate.head] !== '') {
+        // Unquantified daily prose is not a numeric rate. An actual compound
+        // such as custom/min still protects both its numerator and period.
         found.push(`rate:${rate.kind}`);
         // An unbound compound still protects its full numerator. It cannot
         // turn an unknown unit into an ordinary word by removing /min, etc.
@@ -227,7 +253,7 @@ export function englishFidelity(source: SiteCode, candidate: SiteCode, companyNa
       const rateKinds = boundRates.get(offset);
       const rateUnit = rateKinds ? `#rate:${rateKinds.sort().join(',')}` : '';
       const tail = text.slice(offset + all.length - (unit?.length ?? 0)).match(/^[^.,;:!?()[\]。；，\n]*/)?.[0].trim() ?? '';
-      const countNoun = /^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(tail) && tail.split(/\s+/).every(word => !unitWords.has(word.toLowerCase()) && word.toLowerCase() !== 'per');
+      const countNoun = /^[A-Za-z]+(?:[ -][A-Za-z]+)*$/.test(tail) && tail.split(/[\s-]+/).every(word => !unitWords.has(word.toLowerCase()) && word.toLowerCase() !== 'per');
       for (const value of values) {
         const prefix = `quantity:${comparison}${value}@`, bareKey = prefix + rateUnit, exact = prefix + canonicalUnit + rateUnit;
         // Only source quantities with no physical/time unit can accept a new

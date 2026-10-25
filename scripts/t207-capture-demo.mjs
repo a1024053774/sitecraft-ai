@@ -2,17 +2,17 @@
 // It drives the running app (SITE_STORE=fs, data root from scripts/t207-build-demo-stages.mjs, no model key)
 // in headless Chrome, step by step, at 1440/768/375, and saves each rendered state as plain HTML
 // without scripts. demo/index.html then plays the steps. Nothing here calls a model.
-// Usage: node scripts/t207-capture-demo.mjs <chrome> <appBase> <stageDataRoot> <outDir>
+// Usage: node scripts/t207-capture-demo.mjs <chrome> <appBase> <stageDataRoot> <outDir> [fromStep]
 import { spawn } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-const [chrome, APP, stageRoot, out] = process.argv.slice(2);
+const [chrome, APP, stageRoot, out, fromStep] = process.argv.slice(2);
 const { ids, v2Drafts } = JSON.parse(readFileSync(join(stageRoot, 'stages.json'), 'utf8'));
 const progressRecord = JSON.parse(readFileSync(join(stageRoot, 'code-sites', `${ids.progress}.json`), 'utf8'));
-for (const dir of ['steps', 'frames', 'r']) { rmSync(join(out, dir), { recursive: true, force: true }); mkdirSync(join(out, dir), { recursive: true }); }
+for (const dir of ['steps', 'frames', 'r']) { if (!fromStep) rmSync(join(out, dir), { recursive: true, force: true }); mkdirSync(join(out, dir), { recursive: true }); }
 
 // The opinions typed in the annotation steps are the owner's real requests from this site's conversation.
 const conversation = JSON.parse(readFileSync(join(stageRoot, 'conversations', ids.site, `${progressRecord.conversationId}.json`), 'utf8'));
@@ -154,9 +154,10 @@ const steps = [
     text: '发出的批注保存为线程，记录原话和每次结果，可以定位回对应区块、标为已处理。',
     run: async () => { await ev(`(() => { const d = document.querySelector('.code-annotation-threads'); d.open = true; d.dispatchEvent(new Event('toggle')); return true; })()`);
       await waitFor(`!!document.querySelector('[data-testid=thread-reveal]')`, 'threads'); await ev(`(document.querySelector('[data-testid=thread-reveal]').scrollIntoView({ block: 'end' }), true)`); } },
-  { id: 'english', title: '英文版', stage: 'site', pane: 'chat', hotspot: '[data-testid=generate-english]',
-    text: '英文版功能说明，示例站翻译未通过保真检查。中文站满意后才问是否生成英文版：沿用同一结构，只翻译文字，数字、单位、邮箱和网址逐项核对。本示例站的一次真实翻译因价格、年份、营业时间等保真规则误报未通过检查，没有保存英文版；规则修好后再补上。',
-    run: async () => { await waitFor(`!!document.querySelector('[data-testid=english-status]')`, 'english'); await ev(chatBottom); } },
+  { id: 'english', title: '英文版', stage: 'site', pane: 'preview', hotspot: '[data-testid=preview-en]',
+    text: '中文站满意后才生成英文版，沿用同一结构，只翻译文字。这里展示禾巷小馆基于中文第 3 版真实翻译并通过检查的英文页，数字、单位、邮箱和网址逐项核对；资料没有英文公司名，因此保留中文店名。',
+    run: async () => { await waitFor(`!!document.querySelector('[data-testid=preview-en]')`, 'english switch'); await click('[data-testid=preview-en]');
+      await waitFor(`${previewReady} && document.querySelector('[data-testid=code-preview]').src.includes('language=en') && document.querySelector('[data-testid=code-preview]').contentDocument?.body.innerText.includes('Lunch')`, 'English preview painted'); } },
   { id: 'download', title: '下载站点包', stage: 'site', pane: 'preview', hotspot: '[data-testid=download-site]',
     text: '站点包是当前版本的静态网站：每页一份 HTML，加公共 CSS、实际引用的素材和 LICENSES.txt，不含资料、对话或密钥。点高亮的下载按钮，可以拿到这个示例站真实导出的 zip。',
     run: async () => { await waitFor(previewReady, 'preview'); } },
@@ -187,12 +188,15 @@ const freeze = `(() => {
   return { html: '<!doctype html>' + clone.outerHTML, frames, css: [...new Set(imports)].join('\\n') + '\\n' + rules.join('\\n') };
 })()`;
 
-const cssFiles = new Map(), frameFiles = new Map(), manifest = [];
+const cssFiles = new Map(), frameFiles = new Map(), manifest = fromStep ? JSON.parse(readFileSync(join(out, 'steps.json'), 'utf8')) : [];
+const firstStep = fromStep ? steps.findIndex(step => step.id === fromStep) : 0;
+if (firstStep < 0) throw new Error('Unknown starting step: ' + fromStep);
+const assetPrefix = fromStep ? `${fromStep}-update-` : '';
 const keep = (map, content, make) => { if (!map.has(content)) map.set(content, make(map.size)); return map.get(content); };
 const publicAsset = url => { const file = url.replace(/^\//, ''); const target = join(out, 'r', file); mkdirSync(join(target, '..'), { recursive: true }); copyFileSync(join('public', file), target); return `../r/${file}`; };
 // Heights are the demo frame below the shell's step bar on 1440x900, 768x1024 and 375x812 screens.
 const widths = [[1440, 796, false], [768, 920, true], [375, 660, true]];
-for (const step of steps) {
+for (const step of steps.slice(firstStep)) {
   for (const [width, height, mobile] of widths) {
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile });
     const siteId = step.stage && ids[step.stage];
@@ -210,24 +214,26 @@ for (const step of steps) {
     await step.run(); await sleep(700);
     const frozen = await ev(freeze);
     if (step.stage === 'progress') await send('Fetch.disable');
-    const css = keep(cssFiles, frozen.css, n => `ws-${n + 1}.css`);
+    const css = keep(cssFiles, frozen.css, n => `${assetPrefix}ws-${n + 1}.css`);
     let html = frozen.html.replace('</head>', `<link rel="stylesheet" href="../r/${css}"></head>`);
     for (const frame of frozen.frames) {
-      const name = keep(frameFiles, frame.html, n => `f${n + 1}.html`);
+      const name = keep(frameFiles, frame.html, n => `${assetPrefix}f${n + 1}.html`);
       html = html.replace(new RegExp(`(<iframe[^>]*data-demo-frame="${frame.index}"[^>]*?)src="[^"]*"`), `$1src="../frames/${name}"`)
         .replace(new RegExp(`(<iframe[^>]*?)src="[^"]*"([^>]*data-demo-frame="${frame.index}")`), `$1src="../frames/${name}"$2`);
     }
     // A preview with an empty sandbox cannot be read from the page; fetch the same address from the app.
     for (const [, src] of html.matchAll(/<iframe[^>]*?src="(\/api\/[^"]+)"/g)) {
       const body = await (await fetch(APP + src.replaceAll('&amp;', '&'))).text();
-      html = html.replace(`src="${src}"`, `src="../frames/${keep(frameFiles, body, n => `f${n + 1}.html`)}"`);
+      html = html.replace(`src="${src}"`, `src="../frames/${keep(frameFiles, body, n => `${assetPrefix}f${n + 1}.html`)}"`);
     }
     html = html.replace(/src="(\/style-previews\/[^"]+)"/g, (_, url) => `src="${publicAsset(url)}"`);
     const file = `${step.id}-${width}.html`;
     writeFileSync(join(out, 'steps', file), html);
     console.log(`ok ${file} ${Math.round(html.length / 1024)}KB frames=${frozen.frames.length}`);
   }
-  manifest.push({ id: step.id, title: step.title, text: step.text, hotspot: step.hotspot });
+  const record = { id: step.id, title: step.title, text: step.text, hotspot: step.hotspot };
+  const existing = manifest.findIndex(item => item.id === step.id);
+  if (existing >= 0) manifest[existing] = record; else manifest.push(record);
 }
 // The workspace fonts are served by Next itself; copy them next to the stylesheets.
 mkdirSync(join(out, 'r', 'fonts'), { recursive: true });
