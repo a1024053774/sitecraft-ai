@@ -383,8 +383,19 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
       if (state.conversationError) return Response.json(state);
       // Refreshes observe the existing job. A stopped process is reported; it never repeats a model call.
       if (site.run?.status === 'running' && !active.has(site.run.id)) {
-        site = await runStep(siteId, site.run.id, { status: 'error', step: '生成进程已中断，本次未完成；请重新提交要求。' });
-        await updateConversationAlignment(siteId, site.conversationId, record => ({ ...record, alignment: applyCommittedResult(record.alignment, { status: 'error', summary: site.run!.step }) }));
+        const firstGeneration = !currentCodeVersion(site) && site.run.kind === 'generate' && !!site.plan;
+        site = await runStep(siteId, site.run.id, { status: 'error', step: firstGeneration
+          ? '生成进程已中断，本次未完成；原资料和大纲已保留，可按已保存的大纲重新生成，也可补充资料后重新规划。'
+          : '任务进程已中断，本次未完成；原资料已保留，可补充要求后继续。' });
+        await updateConversationAlignment(siteId, site.conversationId, record => {
+          const alignment = applyCommittedResult(record.alignment, { status: 'error', summary: site.run!.step });
+          if (!firstGeneration || !record.alignment.confirmClaimed || !alignment.proposedChange) return { ...record, alignment };
+          const epoch = alignment.epoch + 1, questionId = `code-confirm-${crypto.randomUUID()}`;
+          return { ...record, alignment: { ...alignment, enabled: true, state: 'awaiting_confirmation', epoch,
+            proposedChange: { ...alignment.proposedChange, questionId, questionRevision: epoch },
+            currentQuestion: { questionId, questionRevision: epoch, kind: 'confirm_ops', prompt: site.plan!.summary,
+              options: [{ id: 'approve', label: '按已保存的大纲重新生成', description: '保留原资料与页面大纲，重新生成网站' }], allowOther: false } } };
+        });
       }
       return Response.json(await codeWorkspaceState(site));
     }
@@ -456,11 +467,13 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
             ...(input.annotationSubmissionId ? { annotationSubmissionId: input.annotationSubmissionId } : {}) }); schedule(site);
       } else {
         if (input.selectedTarget) throw new Error('请先生成中文版，再点选区块。');
-        if (conversation.alignment.currentQuestion) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
+        const retrying = site.run?.status === 'error' && site.run.kind === 'generate' && conversation.alignment.currentQuestion?.kind === 'confirm_ops';
+        if (conversation.alignment.currentQuestion && !retrying) return Response.json({ userMessage: '请先完成当前风格选择或方案确认。' }, { status: 409 });
+        if (retrying) await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'cancel' });
         if (conversation.alignment.styleOptionId) await updateConversationAlignment(siteId, site.conversationId, record => ({ ...record, alignment: { ...record.alignment, styleOptionId: null, confirmClaimed: false, lastResult: null } }));
         await registerUserSources(siteId, input);
         const company = input.message.match(/^[ \t]*公司名[：:][ \t]*([^\n]+)/m)?.[1]?.trim();
-        site = await updateCodeSite(siteId, () => ({ materials: input.message!, ...(company ? { name: company.slice(0, 100) } : {}) }));
+        site = await updateCodeSite(siteId, current => ({ materials: current.materials ? `${current.materials}\n\n${input.message!}` : input.message!, ...(company ? { name: company.slice(0, 100) } : {}) }));
         await applyConversationAlignmentAction({ siteId, conversationId: site.conversationId, action: 'start',
           pendingRequest: { message: input.message, baseRevision: 0, selectedTarget: null }, startQuestion: styleQuestion(conversation.alignment.epoch) });
       }
