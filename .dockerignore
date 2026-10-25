@@ -1,6 +1,12 @@
 .next
 **/.next
 .next-test
+.next-*
+.claude
+.project-map
+.docker-cli
+*-amd64.tar
+*.log
 node_modules
 **/node_modules
 .git
@@ -11,4 +17,3 @@ artifacts
 .env*
 **/.env*
 npm-debug.log*
-tests

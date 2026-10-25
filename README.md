@@ -33,6 +33,12 @@
 
 ## 本地运行
 
+负责人实际服务运行在 Windows 的 `D:\sitecraft-ai`，通过 `ssh win-lan` 维护，地址为 [http://localhost:3100](http://localhost:3100)（Windows 本机）。使用 Docker Desktop 的 Linux 容器，构建也在 Windows 完成。启动、停止、更新和双卷备份见 [Windows Docker 运行说明](deploy/docker/README.md)。模型接口在浏览器设置中填写；健康检查不要求服务端模型 key。
+
+Compose 只启动 web 与 PostgreSQL：数据库保存对话、对齐状态和批注，文件卷保存站点代码、完整版本、资料、模型任务和上传。数据库不开放宿主端口，web 默认只绑定回环。它复用现有存储实现，与下述浏览器存储模式分别运行。
+
+以下是直接使用 Node 的开发方式：
+
 需要 Node 22 和一个 Chrome：提交入口用它在 375／768／1440 三档下检查页面，推荐 [chrome-headless-shell](https://developer.chrome.com/blog/chrome-headless-shell)。
 
 ```bash

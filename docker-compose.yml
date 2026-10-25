@@ -1,49 +1,45 @@
+name: sitecraft
 services:
   web:
     build: .
-    pull_policy: missing
+    image: sitecraft:local
+    init: true
+    shm_size: 1gb
+    security_opt:
+      - seccomp=./deploy/docker/chrome-seccomp.json
     environment:
       SITE_STORE: postgres
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/site_studio
-      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?DEEPSEEK_API_KEY is required}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
-      DEEPSEEK_MAX_TOKENS: ${DEEPSEEK_MAX_TOKENS:-6000}
-      DEFAULT_WORKSPACE_ID: ${DEFAULT_WORKSPACE_ID:-demo}
-    ports: ["3000:3000"]
+      SITECRAFT_DATA_ROOT: /app/data
+      DATABASE_URL: postgresql://sitecraft:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/sitecraft
+      DEFAULT_WORKSPACE_ID: local
+    ports:
+      - "127.0.0.1:${SITECRAFT_PORT:-3100}:3000"
+    volumes:
+      - sitecraft_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
     restart: unless-stopped
   postgres:
     image: postgres:16-alpine
-    pull_policy: missing
     environment:
-      POSTGRES_DB: site_studio
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports: ["5432:5432"]
-    volumes: ["sitecraft_pg:/var/lib/postgresql/data"]
+      POSTGRES_DB: sitecraft
+      POSTGRES_USER: sitecraft
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - sitecraft_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d site_studio"]
+      test: ["CMD-SHELL", "pg_isready -U sitecraft -d sitecraft"]
       interval: 5s
       timeout: 3s
       retries: 20
-  redis:
-    image: redis:7-alpine
-    pull_policy: missing
-    ports: ["6379:6379"]
-  minio:
-    # Object storage is not consumed by the current app; start it explicitly when needed.
-    profiles: ["object-storage"]
-    image: minio/minio:latest
-    pull_policy: missing
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: miniosecret
-    ports: ["9000:9000", "9001:9001"]
-    volumes: ["sitecraft_minio:/data"]
+    restart: unless-stopped
 volumes:
   sitecraft_pg:
-  sitecraft_minio:
+  sitecraft_data:

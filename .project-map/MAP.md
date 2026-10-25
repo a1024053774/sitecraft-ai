@@ -14,6 +14,7 @@
 - 前端工作叠加这两个 skill：`skills/frontend-less-ai-tone/`、`skills/sitecraft-frontend-less-ai-tone/`。
 
 - 公开入口说明与静态工作台演示已交付（T-207 两项返工验收通过）：[T-203](tickets/T-203-readme-entry.md)、[T-207](tickets/T-207-interactive-demo.md)；当前运行方式见 [README](../README.md)，验收与失败证据见各票 Resolution。
+- 2026-10-25 负责人本轮要求单人继续：T-209 英文保真及仓库演示更新、T-205 首次中断恢复均已交付；真实服务已在 Windows `D:\sitecraft-ai` 部署，构建不在 Mac 执行。T-208 的部署与替身全流程通过，但唯一真实生成被 `::marker` 底线拒收，真实修改／撤销未运行，票保持 INCOMPLETE；不得自动重发。详见 [T-208](tickets/T-208-local-docker.md)。
 
 ## Decisions so far
 

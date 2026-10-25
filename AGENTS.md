@@ -35,7 +35,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - 临时公网隧道（快速隧道、ngrok 一类）、iPhone/Android 实机测试。移动端用浏览器设备模式（375/768/1440）验收即可。正式部署只按 T-200、T-204、T-207：产品页与静态工作台演示部署在负责人的 VPS（107.173.155.71），经负责人自建的 Cloudflare Tunnel 接入 sitecraft.luckye.online 与 sitecraftapp.luckye.online；VPS 上的建站服务只停不删，真实建站在负责人本机运行（T-208）；不得改动 VPS 上已有的代理（xray／x-ui，占 443）；原 enchanted 站点已按负责人要求停用。
 - 修本机网络或系统：VPN、DNS、路由表、`/etc/hosts`、代理、Docker Registry。需要 sudo 的操作一律不做。
-- 外部邮箱送达、生产数据库运维、完整 Docker 镜像重建。
+- 外部邮箱送达、生产数据库运维。完整 Docker 镜像重建已按 T-208 和负责人本轮授权在 Windows 执行；今后不主动重复重建。
 - 真实客户试点、整仓合并 `hlanan886/sitecraft-ai#4`、批量 cherry-pick 或搬运其 dist。
 
 **环境问题只报告一次**：DeepSeek 连不上、Docker 没起、外置硬盘没插等，最多试一次，然后用一句话告诉负责人需要他做什么（例如「在 VPN 客户端给 `api.deepseek.com` 加 DIRECT 规则」），接着做不依赖它的工作。不写探针日志、不为此单独提交文档。
@@ -137,7 +137,7 @@ Chrome 仅在 DevToolsActivePort 两行完整、端口有效且 browser 路径�
 
 - 密钥只在 gitignore 的 `.env.local`，不进代码、文档、prompt、SSE、截图或提交。不建软链接，不复制 `env.md`。
 - 模型：DeepSeek `deepseek-flash`（对话与看图同一条）。
-- 开发机用 `SITE_STORE=fs` 即可；Docker（PostgreSQL）在外置硬盘，没插就跳过，不影响页面质量工作。
+- 开发机用 `SITE_STORE=fs` 即可。负责人真实服务按 T-208 在 Windows `D:\sitecraft-ai`，经 `ssh win-lan` 维护；构建与 Chrome 验收在 Windows 执行，不在 Mac 构建。Compose 使用 PostgreSQL 保存对话／对齐／批注，文件卷保存代码／版本／资料／任务／上传；不把数据库描述成全部数据的存储。启停与备份见 `deploy/docker/README.md`，保留已有四个无关容器、用户数据和失败证据。
 - 浏览器存储（T-202，`SITE_STORE=browser`，T-204 公网建站时使用）：站点、版本、对话、批注与上传的长期副本只在访客浏览器 IndexedDB（站点存档）；服务器只在显式的临时数据根（内存盘，不得是 `.sitecraft-data`）保留打开中的副本，启动即清空，闲置 30 分钟清理、有任务的不清，总量超过上限按闲置先后清理，只剩忙碌副本时拒收。HttpOnly 工作区令牌只做隔离、不做身份，丢失即作废服务器副本；所有站点路由按令牌放行，检查器用进程内密钥头。
 - 访客模型接口（API 地址、key、模型名）只存浏览器 localStorage，只经请求头进入本次请求及其后台任务，不写记录、日志或站点包；生产模式不读服务器环境变量里的 key，未配置时在对齐、来源或任务改动前拒绝。访客地址只连 https 公网地址（IPv6 中带 IPv4 的形式按内嵌地址判断，判不了即拒绝），校验的地址即连接地址，不跟随重定向，回复有大小上限；本机验收的本地替身须显式开关放行。
 - 浏览器存储下生成与检查共用并发为 1 的队列：每令牌同时一个位置、等待有上限，排满在任何状态改动前返回「服务器忙」；不提供公开发布链接，改为下载站点包。开发、测试与评估仍用 `SITE_STORE=fs`，行为不变。
