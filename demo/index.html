@@ -13,19 +13,33 @@
   html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink);
     font: 15px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
   body { display: flex; flex-direction: column; }
-  .bar { flex: none; border-bottom: 1px solid var(--line); background: #fff; padding: 10px 16px; display: grid;
+  .bar { flex: none; position: relative; border-bottom: 1px solid var(--line); background: #fff; padding: 10px 16px; display: grid;
     grid-template-columns: auto 1fr auto; gap: 6px 16px; align-items: center; }
   .label { font-size: 12px; font-weight: 600; color: var(--mark); border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
-  .head { min-width: 0; }
+  .head { min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .head strong { font-size: 15px; }
-  .head small { color: var(--muted); margin-left: 8px; font-variant-numeric: tabular-nums; }
+  .count { font: inherit; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; background: none; border: 1px solid var(--line);
+    border-radius: 6px; padding: 1px 8px; cursor: pointer; white-space: nowrap; }
+  .count:hover, .count[aria-expanded=true] { color: var(--ink); border-color: var(--muted); }
+  .count::after { content: ""; display: inline-block; margin-left: 6px; vertical-align: 2px; border: 4px solid transparent; border-top-color: currentColor; border-bottom-width: 0; }
   .text { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch; }
   .nav { display: flex; gap: 8px; }
-  .nav button, .nav a { font: inherit; font-size: 14px; border: 1px solid var(--line); background: #fff; color: var(--ink);
-    border-radius: 6px; padding: 5px 12px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .nav button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 6px; padding: 5px 12px; cursor: pointer; white-space: nowrap; }
   .nav .next { background: var(--accent); border-color: var(--accent); color: #fff; }
   .nav button:disabled { opacity: .4; cursor: default; }
-  .stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+  .progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; }
+  .progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+  .toc { position: absolute; z-index: 10; top: calc(100% + 1px); left: 16px; width: min(360px, calc(100% - 32px)); max-height: min(70vh, 560px);
+    overflow-y: auto; margin: 0; padding: 6px; list-style: none; background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(20, 30, 24, .16); }
+  .toc button { display: grid; grid-template-columns: 2.2em 1fr; width: 100%; text-align: left; font: inherit; font-size: 14px; color: var(--ink);
+    background: none; border: 0; border-radius: 6px; padding: 6px 8px; cursor: pointer; }
+  .toc button span { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .toc button:hover { background: var(--paper); }
+  .toc button[aria-current=step] { background: #e7efe9; font-weight: 600; }
+  .stage { flex: 1; min-height: 0; position: relative; overflow: hidden auto; overscroll-behavior: contain; }
   .stage iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: var(--paper); }
   .toast { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--ink); color: #fff;
     font-size: 13px; padding: 6px 12px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
@@ -33,7 +47,8 @@
   .end { flex: 1; overflow: auto; padding: 32px 16px; }
   .end article { max-width: 720px; margin: 0 auto; }
   .end h1 { font-size: 24px; margin: 0 0 8px; }
-  .end h2 { font-size: 17px; margin: 24px 0 6px; }
+  .end h2 { font-size: 17px; margin: 28px 0 6px; }
+  .end h3 { font-size: 15px; margin: 20px 0 4px; }
   .end pre { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 13px; }
   .end a { color: var(--accent); }
   [hidden] { display: none !important; }
@@ -43,14 +58,17 @@
     .text { font-size: 13px; }
     .nav button { padding: 4px 10px; }
   }
+  @media (prefers-reduced-motion: reduce) { .progress span, .toast { transition: none; } }
 </style>
 </head>
 <body>
 <header class="bar">
   <span class="label">演示 · 预设数据，不会调用模型</span>
-  <div class="head"><strong id="title">SiteCraft AI 工作台演示</strong><small id="count"></small></div>
-  <nav class="nav" aria-label="演示步骤"><button id="prev" type="button">上一步</button><button id="next" class="next" type="button">下一步</button></nav>
+  <div class="head"><strong id="title">SiteCraft AI 工作台演示</strong><button class="count" id="count" type="button" aria-expanded="false" aria-controls="toc" aria-label="全部步骤"></button></div>
+  <nav class="nav" aria-label="演示步骤"><button id="prev" type="button" aria-keyshortcuts="ArrowLeft">上一步</button><button id="next" class="next" type="button" aria-keyshortcuts="ArrowRight">下一步</button></nav>
   <p class="text" id="text">正在读取演示步骤…</p>
+  <ol class="toc" id="toc" hidden></ol>
+  <div class="progress" aria-hidden="true"><span id="progress"></span></div>
 </header>
 <main class="stage" id="stage"><iframe id="frame" title="工作台演示画面"></iframe><div class="toast" id="toast" role="status"></div></main>
 <section class="end" id="end" hidden>
@@ -59,13 +77,23 @@
     <p>上面每一步都是工作台的真实界面，内容来自模拟资料「禾巷小馆」的一次真实生成和两轮真实批注修改。这个演示是静态页面，不调用模型。</p>
     <h2>获取源码</h2>
     <p><a href="https://github.com/a1024053774/sitecraft-ai" target="_blank" rel="noopener">github.com/a1024053774/sitecraft-ai</a></p>
-    <h2>本地运行</h2>
-    <p>需要 Node 22 和一个 Chrome（推荐 chrome-headless-shell，提交检查用它在三档宽度下核对页面）。</p>
 <pre>git clone https://github.com/a1024053774/sitecraft-ai.git
-cd sitecraft-ai
-npm ci
+cd sitecraft-ai</pre>
+    <h2>本地运行</h2>
+    <p>两种方式任选其一。</p>
+    <h3>Docker Compose</h3>
+    <p>需要 Docker 和 Docker Compose。它同时启动建站服务和 PostgreSQL，镜像里自带提交检查用的 Chrome，不需要另装 Node。在源码目录新建 <code>.env</code>，只写数据库密码（字母和数字）与端口：</p>
+<pre>POSTGRES_PASSWORD=换成一串足够长的随机字母数字
+SITECRAFT_PORT=3100</pre>
+<pre>docker compose up -d --build</pre>
+    <p>启动后打开 <code>http://localhost:3100</code>。站点和版本存在 Docker 卷里，停止或重启都不会丢。</p>
+    <h3>Node 开发模式</h3>
+    <p>需要 Node 22 和一个 Chrome（推荐 chrome-headless-shell，提交检查用它在三档宽度下核对页面）。</p>
+<pre>npm ci
 CHROME_PATH=/path/to/chrome-headless-shell npm run dev</pre>
-    <p>打开 <code>http://localhost:3000/settings</code>，在「模型接口」里填写 API 地址、key 和模型名（目前只保证 DeepSeek 兼容接口可用）。key 只保存在你的浏览器里。之后从「新建站点」发来公司资料，就会走一遍上面的流程。更多说明见仓库 README。</p>
+    <p>启动后打开 <code>http://localhost:3000</code>。</p>
+    <h2>填写模型接口</h2>
+    <p>在工作台的设置里打开「模型接口」，填写 API 地址、key 和模型名（目前只保证 DeepSeek 兼容接口可用）。key 只保存在你的浏览器里。之后从「新建站点」发来公司资料，就会走一遍上面的流程；生成中途断开时，资料会保留，已确认的大纲点一下就能接着生成。更多说明见仓库 README。</p>
     <p><a href="#1">从头再看一遍</a></p>
   </article>
 </section>
@@ -74,26 +102,35 @@ CHROME_PATH=/path/to/chrome-headless-shell npm run dev</pre>
   const frame = document.getElementById('frame'), stage = document.getElementById('stage'), end = document.getElementById('end');
   const title = document.getElementById('title'), count = document.getElementById('count'), text = document.getElementById('text');
   const prev = document.getElementById('prev'), next = document.getElementById('next'), toast = document.getElementById('toast');
+  const toc = document.getElementById('toc'), progress = document.getElementById('progress');
   const download = 'files/hexiang-xiaoguan-site.zip';
-  let steps = [], index = 0, toastTimer = 0;
+  let steps = [], index = 0, toastTimer = 0, zoom = 1;
   // Captures exist at 1440, 768 and 375. A narrower screen shows the nearest capture scaled down;
-  // a wider one shows it at full width, so text is never scaled up.
+  // a wider one shows it at full width, so text is never scaled up. Below about 640px of height the
+  // workspace squeezes its panels shut, so the stage then scrolls a 720px-tall frame instead.
   function capture(width) { return width > 900 ? 1440 : width > 600 ? 768 : 375; }
   function layout() {
-    const w = stage.clientWidth, h = stage.clientHeight, c = capture(w), scale = Math.min(1, w / c);
-    frame.style.width = (w / scale) + 'px'; frame.style.height = (h / scale) + 'px'; frame.style.transform = scale < 1 ? `scale(${scale})` : '';
+    const w = stage.clientWidth, h = stage.clientHeight, c = capture(w);
+    zoom = Math.min(1, w / c);
+    frame.style.width = (w / zoom) + 'px'; frame.style.height = (h / zoom < 640 ? 720 : h / zoom) + 'px'; frame.style.transform = zoom < 1 ? `scale(${zoom})` : '';
     return c;
   }
   function say(message) { toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2200); }
+  function openToc(open) {
+    toc.hidden = !open; count.setAttribute('aria-expanded', String(open));
+    if (open) toc.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
+  }
   function show(i) {
-    index = Math.max(0, Math.min(i, steps.length));
+    index = Math.max(0, Math.min(i, steps.length)); openToc(false);
     if (location.hash !== '#' + (index + 1)) history.replaceState(null, '', '#' + (index + 1));
     prev.disabled = index === 0; next.disabled = index === steps.length;
-    count.textContent = `${Math.min(index + 1, steps.length + 1)} / ${steps.length + 1}`;
+    count.textContent = `${index + 1} / ${steps.length + 1}`;
+    progress.style.width = `${(index + 1) / (steps.length + 1) * 100}%`;
+    toc.querySelectorAll('button').forEach((b, n) => n === index ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
     if (index === steps.length) {
       stage.hidden = true; end.hidden = false; title.textContent = '获取源码，本地运行'; text.textContent = '演示结束。下面说明怎样在自己的电脑上用自己的模型接口运行。'; return;
     }
-    stage.hidden = false; end.hidden = true;
+    stage.hidden = false; end.hidden = true; stage.scrollTop = 0;
     const step = steps[index]; title.textContent = step.title; text.textContent = step.text;
     frame.src = `steps/${step.id}-${layout()}.html`; watch();
   }
@@ -101,15 +138,46 @@ CHROME_PATH=/path/to/chrome-headless-shell npm run dev</pre>
     for (const el of doc.querySelectorAll('[data-demo-scroll]')) { const [top, left] = el.getAttribute('data-demo-scroll').split(',').map(Number); el.scrollTop = top; el.scrollLeft = left; }
     const y = Number(doc.documentElement.getAttribute('data-demo-window-scroll') || 0); doc.defaultView.scrollTo(0, y);
   }
+  // Captures were taken in a tall window; on a shorter screen scroll the highlighted control into view.
+  // A fixed panel (the annotation composer) keeps its captured offset, so lift it instead.
+  function reveal(doc) {
+    const hotspot = doc.querySelector('.demo-hotspot'); if (!hotspot) return;
+    const view = doc.defaultView;
+    const shown = () => { const r = hotspot.getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= view.innerHeight && r.left >= 0 && r.right <= view.innerWidth
+        && r.top * zoom >= stage.scrollTop && r.bottom * zoom <= stage.scrollTop + stage.clientHeight; };
+    // scrollIntoView stops at the frame boundary, so centre the stage on the control separately.
+    const scroll = () => {
+      hotspot.scrollIntoView({ block: 'center', inline: 'nearest' }); window.scrollTo(0, 0);
+      const r = hotspot.getBoundingClientRect();
+      stage.scrollTop = Math.max(0, (r.top + r.height / 2) * zoom - stage.clientHeight / 2);
+    };
+    if (shown()) return;
+    scroll(); if (shown()) return;
+    const r = hotspot.getBoundingClientRect(); if (r.bottom <= view.innerHeight) return;
+    let fixed = hotspot; while (fixed && view.getComputedStyle(fixed).position !== 'fixed') fixed = fixed.parentElement;
+    if (!fixed) return;
+    const shift = Math.min(r.bottom - view.innerHeight + 12, fixed.getBoundingClientRect().top - 8);
+    if (shift > 0) { fixed.style.setProperty('top', `${parseFloat(view.getComputedStyle(fixed).top) - shift}px`, 'important'); scroll(); }
+  }
+  function settle(doc) { restore(doc); reveal(doc); }
+  function key(event) {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === 'Escape' && !toc.hidden) { openToc(false); count.focus(); return; }
+    if (event.target.closest?.('input, textarea, select, [contenteditable=""], [contenteditable=true]')) return;
+    if (event.key === 'ArrowRight' && index < steps.length) { event.preventDefault(); show(index + 1); }
+    if (event.key === 'ArrowLeft' && index > 0) { event.preventDefault(); show(index - 1); }
+  }
   function guard(doc, root) {
     // Only the highlighted control and the download link do anything; everything else stays put.
     doc.addEventListener('click', event => {
       const target = event.target.closest ? event.target : event.target.parentElement;
       if (target.closest('a[href$=".zip"]')) return;
       if (root && target.closest('.demo-hotspot')) { event.preventDefault(); show(index + 1); return; }
-      event.preventDefault(); say('演示：请点高亮的按钮，或用上方的「下一步」。');
+      event.preventDefault(); openToc(false); say('演示：请点高亮的按钮，或用上方的「下一步」、方向键 →。');
     }, true);
     doc.addEventListener('submit', event => event.preventDefault(), true);
+    doc.addEventListener('keydown', key);
   }
   // Set up a captured page once its DOM is parsed, without waiting for web fonts; restore scroll again on load.
   function setup() {
@@ -123,21 +191,38 @@ CHROME_PATH=/path/to/chrome-headless-shell npm run dev</pre>
     doc.head.appendChild(style);
     const hotspot = doc.querySelector(steps[index].hotspot); if (hotspot) hotspot.classList.add('demo-hotspot');
     for (const a of doc.querySelectorAll('[data-testid=download-site]')) { a.setAttribute('href', '../' + download); a.setAttribute('download', 'hexiang-xiaoguan-site.zip'); }
-    guard(doc, true); restore(doc);
+    guard(doc, true); settle(doc);
     for (const inner of doc.querySelectorAll('iframe')) {
-      const settle = () => { const d = inner.contentDocument; if (!d) return; guard(d, false); d.defaultView.scrollTo(0, Number(inner.getAttribute('data-demo-frame-scroll') || 0)); };
-      if (inner.contentDocument?.readyState === 'complete') settle(); else inner.addEventListener('load', settle, { once: true });
+      const ready = () => { const d = inner.contentDocument; if (!d) return; guard(d, false); d.defaultView.scrollTo(0, Number(inner.getAttribute('data-demo-frame-scroll') || 0)); };
+      if (inner.contentDocument?.readyState === 'complete') ready(); else inner.addEventListener('load', ready, { once: true });
     }
   }
   let poll = 0;
   function watch() { clearInterval(poll); poll = setInterval(() => { setup(); if (frame.contentDocument?.demoReady) clearInterval(poll); }, 50); }
-  frame.addEventListener('load', () => { setup(); const doc = frame.contentDocument; if (doc?.demoReady) restore(doc); });
+  frame.addEventListener('load', () => { setup(); const doc = frame.contentDocument; if (doc?.demoReady) settle(doc); });
   prev.addEventListener('click', () => show(index - 1));
   next.addEventListener('click', () => show(index + 1));
+  count.addEventListener('click', () => openToc(toc.hidden));
+  document.addEventListener('keydown', key);
+  document.addEventListener('click', event => { if (!toc.hidden && !event.target.closest('#toc, #count')) openToc(false); });
   addEventListener('hashchange', () => { const i = Number(location.hash.slice(1)) - 1; if (i !== index && i >= 0) show(i); });
-  let last = 0; addEventListener('resize', () => { const c = layout(); if (c !== last && index < steps.length) { last = c; frame.src = `steps/${steps[index].id}-${c}.html`; watch(); } });
-  fetch('steps.json').then(r => r.json()).then(data => { steps = data; last = capture(stage.clientWidth); show(Math.max(0, Number(location.hash.slice(1)) - 1 || 0)); })
-    .catch(() => { text.textContent = '演示步骤读取失败，请刷新重试。'; });
+  // Follow the stage itself, not only the window: embedded or resized panes change its size too.
+  let last = 0;
+  new ResizeObserver(() => {
+    if (!steps.length || index >= steps.length) return;
+    const c = layout();
+    if (c !== last) { last = c; frame.src = `steps/${steps[index].id}-${c}.html`; watch(); }
+    else if (frame.contentDocument?.demoReady) reveal(frame.contentDocument);
+  }).observe(stage);
+  fetch('steps.json').then(r => r.json()).then(data => {
+    steps = data; last = capture(stage.clientWidth);
+    [...steps.map(step => step.title), '获取源码，本地运行'].forEach((name, n) => {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.innerHTML = `<span>${n + 1}</span>`; b.append(name); b.addEventListener('click', () => show(n));
+      li.append(b); toc.append(li);
+    });
+    show(Math.max(0, Number(location.hash.slice(1)) - 1 || 0));
+  }).catch(() => { text.textContent = '演示步骤读取失败，请刷新重试。'; });
 })();
 </script>
 </body>

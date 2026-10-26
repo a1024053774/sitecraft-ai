@@ -80,6 +80,7 @@
   .steps h3 { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 700; line-height: 1.5; }
   .steps h3::before { content: counter(step); color: var(--accent); margin-right: 16px; font-size: 16px; vertical-align: 3px; }
   .steps p { margin: 0; max-width: 36em; }
+  .demo-link { display: table; margin-top: 6px; font-size: 14px; color: var(--accent); text-underline-offset: 3px; }
 
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 64px; }
   .pair h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
@@ -170,20 +171,20 @@
         <p>流程是固定的，内容和版式按每家的资料来定。资料少，网站就做得少；之后补充资料，再接着丰富。</p>
       </div>
       <ol class="steps">
-        <li><h3>给资料</h3><p>上传文档，或者用几句话说明公司做什么、想放哪些页面。点名要的页面，资料撑不起来时会直接说明，不拿空壳凑数。</p></li>
-        <li><h3>对齐风格</h3><p>开写之前先确认方向：选一种主风格，再用两个滑杆调版式和疏密，也可以交给「帮我选」按资料挑。滑杆只改变排法，不增删内容。</p></li>
-        <li><h3>生成整站</h3><p>先列页面大纲，再逐页写出 HTML 和样式，检查修正后存成第一个版本，带公共页头页脚。</p></li>
-        <li><h3>对话和批注修改</h3><p>在对话里提要求，或者在预览上点选、圈选某一块写下意见，几条一起发送。改动只落在选中的区块，其余页面保持原样。</p></li>
-        <li><h3>版本撤销与恢复</h3><p>每次修改都存成完整版本。撤销就是回到旧版本，刷新页面也会从当前版本接着来。</p></li>
+        <li><h3>给资料</h3><p>上传文档，或者用几句话说明公司做什么、想放哪些页面。点名要的页面，资料撑不起来时会直接说明，不拿空壳凑数。<a class="demo-link" href="BUILDER_URL/#1">在演示中看</a></p></li>
+        <li><h3>对齐风格</h3><p>开写之前先确认方向：选一种主风格，再用两个滑杆调版式和疏密，也可以交给「帮我选」按资料挑。滑杆只改变排法，不增删内容。<a class="demo-link" href="BUILDER_URL/#2">在演示中看</a></p></li>
+        <li><h3>生成整站</h3><p>先列页面大纲，再逐页写出 HTML 和样式，检查修正后存成第一个版本，带公共页头页脚。生成中途断开时，资料和已确认的大纲都会保留，点一下确认就接着生成。<a class="demo-link" href="BUILDER_URL/#3">在演示中看</a></p></li>
+        <li><h3>对话和批注修改</h3><p>在对话里提要求，或者在预览上点选、圈选某一块写下意见，几条一起发送。改动只落在选中的区块，其余页面保持原样。<a class="demo-link" href="BUILDER_URL/#9">在演示中看</a></p></li>
+        <li><h3>版本撤销与恢复</h3><p>每次修改都存成完整版本。撤销就是回到旧版本，刷新页面也会从当前版本接着来。<a class="demo-link" href="BUILDER_URL/#14">在演示中看</a></p></li>
       </ol>
       <div class="pair">
         <div>
           <h3>英文版</h3>
-          <p>中文站定稿后，可以再生成一份英文版，沿用同一套结构，只翻译文字；数字、型号、邮箱和网址逐项核对，不会在翻译中走样。</p>
+          <p>中文站定稿后，可以再生成一份英文版，沿用同一套结构，只翻译文字；数字、价格、时间、邮箱和网址逐项核对，不会在翻译中走样。演示里有禾巷小馆真实翻译并通过核对的英文页。<a class="demo-link" href="BUILDER_URL/#16">看英文页</a></p>
         </div>
         <div>
           <h3>站点打包下载</h3>
-          <p>把当前版本下载成一个静态站点包：每页的 HTML、样式、实际用到的图片，以及一份图片许可说明，可以直接放到自己的服务器上。</p>
+          <p>把当前版本下载成一个静态站点包：每页的 HTML、样式、实际用到的图片，以及一份图片许可说明，可以直接放到自己的服务器上。<a class="demo-link" href="BUILDER_URL/#17">下载示例站点包</a></p>
         </div>
       </div>
     </div>
@@ -229,7 +230,7 @@
       </ul>
       <div class="note">
         <h3>在自己电脑上，用你自己的模型接口</h3>
-        <p>线上只有演示。要真正生成网站，从 GitHub 取源码在本地运行，在工作台设置里填上 API 地址、key 和模型名：它们只保存在你的浏览器里，只随那一次请求发给本机服务，不写进记录或日志。站点、版本和对话保存在本机。目前只保证 DeepSeek 兼容接口可用。</p>
+        <p>线上只有演示。要真正生成网站，从 GitHub 取源码在本地运行：用 Docker Compose 一条命令启动建站服务和数据库（镜像自带检查用的 Chrome），或者用 Node 22 直接运行。然后在工作台设置里填上 API 地址、key 和模型名：它们只保存在你的浏览器里，只随那一次请求发给本机服务，不写进记录或日志。站点、版本和对话保存在本机。目前只保证 DeepSeek 兼容接口可用。<a class="demo-link" href="BUILDER_URL/#19">运行步骤</a></p>
       </div>
     </div>
   </section>
