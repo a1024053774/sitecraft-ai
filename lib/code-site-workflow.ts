@@ -91,7 +91,7 @@ async function claimRunRecord(siteId: string, kind: CodeRun['kind'], request: st
     const identity = siteSubject({ ...site, factSources: codeFactSourceMaterials(site, edit.source), subject: currentCodeVersion(site)?.subjectSnapshot ?? site.subject });
     if (!identity.subject) throw new CodeIdentityError(identity.issue!);
     const now = new Date().toISOString();
-    return { ...(!currentCodeVersion(site) ? { subject: identity.subject, ...(site.name === '未命名站点' ? { name: identity.subject.name } : {}) } : {}), run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'translate' ? '按当前中文版逐页翻译英文' : kind === 'plan' ? '读资料，规划页面大纲' : kind === 'edit' ? '理解修改要求，查阅版本目录' : '按方案写站点代码',
+    return { ...(!currentCodeVersion(site) ? { subject: identity.subject, name: identity.subject.name } : {}), run: { id: crypto.randomUUID(), kind, status: 'running', step: kind === 'translate' ? '按当前中文版逐页翻译英文' : kind === 'plan' ? '读资料，规划页面大纲' : kind === 'edit' ? '理解修改要求，查阅版本目录' : '按方案写站点代码',
       ...scope, request, baseRevision, startedAt: now, updatedAt: now, repairRound: checkpoint ? site.run!.repairRound : 0, issues: [],
       attempts: checkpoint && site.run!.checkpoint ? site.run!.attempts : [],
       ...(checkpoint ? { checkpoint, resumedFrom: site.run!.id, stage: 'check' as const } : {}) } };
@@ -113,7 +113,7 @@ async function registerUserSources(siteId: string, input: { message?: string; so
     const factSources = [...originalSources, ...(current.factSources ?? []).filter(item => !keys.has(factSourceKey(item))), ...allocated];
     const identity = siteSubject({ ...current, factSources });
     return { factSources, ...(!currentCodeVersion(current) ? { subject: identity.subject ?? undefined,
-      ...(identity.subject && current.name === '未命名站点' ? { name: identity.subject.name } : {}) } : {}) };
+      ...(identity.subject ? { name: identity.subject.name } : {}) } : {}) };
   });
   return allocated;
 }

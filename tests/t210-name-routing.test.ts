@@ -35,6 +35,21 @@ for (const label of ['公司名', '机构名', '企业名称', '主体名称']) 
   assert.equal(item.site.name, '博思数字创意与视觉设计研习社');
   assert.equal(item.body.alignment.questionKind, 'style');
 });
+test('a declared name ends before same-line introduction and replaces a pre-generation display name', async () => {
+  const id = `t210-${crypto.randomUUID()}`, c = await getOrCreateConversation(id, id);
+  await createCodeSite(id, '临时工作区', c.conversationId);
+  const reply = await handleCodeChat(id, { message: '机构名：闻溪研习社。提供成人数字设计课程。' });
+  assert.equal(reply.status, 200);
+  const site = (await getCodeSite(id))!;
+  assert.equal(site.subject!.name, '闻溪研习社');
+  assert.equal(site.name, '闻溪研习社');
+  assert.equal(site.subject!.declaration!.quote, '机构名：闻溪研习社');
+});
+test('an explicitly empty name still requires clarification', async () => {
+  const item = await setup('主体名称：\n提供成人数字设计课程。');
+  assert.equal(item.body.alignment.questionKind, 'clarify');
+  assert.equal(item.site.run, null);
+});
 test('missing or conflicting identity asks for a name before style or writing', async () => {
   for (const message of ['面向成人的数字设计课程。', '公司名：青禾工作室\n机构名：博思研习社']) {
     const item = await setup(message);

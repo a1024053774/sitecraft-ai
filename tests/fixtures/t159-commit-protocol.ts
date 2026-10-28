@@ -41,6 +41,7 @@ state.__t159Browser = () => {
       if (expression.includes('function readCodeReadable(')) return { text: text(args.code.header + args.code.pages.map((p: any) => p.html).join('') + args.code.footer), numbers: [] };
       if (expression.includes('function readCodeFactSegments(')) return args.code.pages.map((p: any) => ({ text: text(p.html), group: p.id, context: { pageId: p.id, outline: [], headings: [] } }));
       if (expression.includes('hasMainHeading:')) return { contentType: 'text/html', hasMainHeading: true };
+      if (expression.startsWith('document.body.innerText.includes(')) return text(args.code.header + args.code.pages.map((p: any) => p.html).join('') + args.code.footer).includes(JSON.parse(expression.slice('document.body.innerText.includes('.length, -1)));
       if (expression.includes('document.images')) return [];
       if (expression.startsWith('(function stopCodeCheckMotion(')) return;
       if (expression.includes('document.fonts.ready') || expression.includes('location.origin===') || expression.includes('responseStatus')) return true;
