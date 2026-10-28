@@ -35,7 +35,7 @@
 
 ## 本地运行
 
-负责人实际服务运行在 Windows 的 `D:\sitecraft-ai`，通过 `ssh win-lan` 维护，地址为 [http://localhost:3100](http://localhost:3100)（Windows 本机）。使用 Docker Desktop 的 Linux 容器，构建也在 Windows 完成。启动、停止、更新和双卷备份见 [Windows Docker 运行说明](deploy/docker/README.md)。模型接口在浏览器设置中填写；健康检查不要求服务端模型 key。
+负责人实际服务运行在 Windows 的 `D:\sitecraft-ai`，通过 `ssh win-lan` 维护，地址为 [http://localhost:3100](http://localhost:3100)（Windows 本机）。使用 Docker Desktop 的 Linux 容器，构建也在 Windows 完成。启动、停止、更新和双卷备份见 [Windows Docker 运行说明](deploy/docker/README.md)；出门时经 tailnet 内的 Tailscale 私有入口访问，运行条件同见该说明（T-211）。模型接口在浏览器设置中填写；健康检查不要求服务端模型 key。
 
 Compose 只启动 web 与 PostgreSQL：数据库保存对话、对齐状态和批注，文件卷保存站点代码、完整版本、资料、模型任务和上传。数据库不开放宿主端口，web 默认只绑定回环。它复用现有存储实现，与下述浏览器存储模式分别运行。
 

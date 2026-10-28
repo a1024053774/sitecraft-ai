@@ -27,6 +27,15 @@ Docker Desktop 须保持运行。Compose 的 `restart: unless-stopped` 会在 Do
 
 经 SSH 构建时，当前 Windows 登录会话无法使用桌面凭据助手。本次只为该项目创建了无凭据的 `.docker-cli/config.json`，内容为 `{"auths":{"https://index.docker.io/v1/":{}}}`。在同一 PowerShell 会话先设 `$env:DOCKER_CONFIG='D:\sitecraft-ai\.docker-cli'` 和 `$env:DOCKER_HOST='npipe:////./pipe/dockerDesktopLinuxEngine'`，再执行上述命令；没有改动用户全局 Docker 配置。
 
+## Tailscale 私有入口
+
+出门时经 Tailscale 访问：`https://luckye-1.tail5e6162.ts.net`。它由 Windows 的 Tailscale Serve 后台代理到回环 `http://127.0.0.1:3100`，只在 tailnet 内可达，未启用公网 Funnel；原 3100 回环与 Mac 的 `localhost:13100` SSH 映射保留。
+
+- 运行条件：Windows 开机、Docker Desktop 与 SiteCraft 容器运行、Windows Tailscale 已登录；访问设备登录同一 tailnet 并已连接。
+- 配置与撤销（Windows，管理员或已获授权的会话）：`tailscale serve --bg --https=443 http://127.0.0.1:3100`；`tailscale serve status` 查看；`tailscale serve --https=443 off` 撤销。后台配置在重启后保留。
+- 模型接口设置按浏览器来源分别保存在 localStorage：新地址首次打开时须在工作区设置里重新填写 API 地址、key 与模型名。
+- 访问设备若同时开启带 TUN 或 fake-ip 的代理客户端，`*.ts.net` 可能被解析为 `198.18.x.x`、`100.64.0.0/10` 也可能被路由到物理网卡，导致连接超时；须在该代理中让 `*.ts.net` 与 `100.64.0.0/10` 走 Tailscale（DIRECT 且不劫持），或临时关闭代理的 TUN。
+
 ## 数据与 key
 
 - `sitecraft_sitecraft_pg`：PostgreSQL 的对话、对齐状态和批注。
