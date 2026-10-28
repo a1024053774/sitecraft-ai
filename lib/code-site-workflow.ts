@@ -184,6 +184,7 @@ async function executeLocalEdit(site: CodeSiteRecord, run: CodeRun) {
       if (committed.status === 'conflict') throw new Error('版本已经更新，本次没有覆盖当前站点。');
       const checks = committed.status === 'applied' ? committed.version.checks : committed.checks;
       await runStep(site.siteId, run.id, { issues: checks.issues, attempts: [...(await getCodeSite(site.siteId))!.run!.attempts, { code, checks }] });
+      if (checks.identityIssue) throw new CodeIdentityError(checks.identityIssue);
       if (committed.status === 'applied') {
         const summary = `已修改「${target.label}」，保存为版本 ${committed.version.revision}。`;
         if (annotationId) await replyAnnotation(site.siteId, annotationId, { body: summary, author: { id: 'assistant', name: '助手' } });
@@ -263,6 +264,7 @@ async function executeLocalEditBatch(site: CodeSiteRecord, run: CodeRun) {
         if (committed.status === 'conflict') throw new Error('版本已经更新，本次没有覆盖当前站点。');
         const checks = committed.status === 'applied' ? committed.version.checks : committed.checks;
         await runStep(site.siteId, run.id, { issues: checks.issues, attempts: [...(await getCodeSite(site.siteId))!.run!.attempts, { code, checks }] });
+        if (checks.identityIssue) throw new CodeIdentityError(checks.identityIssue);
         if (committed.status === 'applied') {
           const summary = `已合并修改 ${groups.length} 个区块，保存为版本 ${committed.version.revision}。`;
           const persistedRun = (await getCodeSite(site.siteId))?.run;

@@ -12,7 +12,7 @@ registerHooks({ resolve(s, context, next) {
   if (s.startsWith('@/')) return next(pathToFileURL(path.join(process.cwd(), s.slice(2) + '.ts')).href, context);
   return next(s, context);
 } });
-const { createCodeSite, getCodeSite, updateCodeSite } = await import('../lib/code-site-store.ts');
+const { createCodeSite, getCodeSite, updateCodeSite, commitSiteCode } = await import('../lib/code-site-store.ts');
 const { getOrCreateConversation } = await import('../lib/conversation-store.ts');
 const { handleCodeChat } = await import('../lib/code-site-workflow.ts');
 const name = '杉雨设计研习社', materials = `机构名：${name}\n提供成人数字设计课程。`;
@@ -27,6 +27,8 @@ const provider = createServer(async (req, res) => {
   let answer: unknown, purpose: string;
   if (fn === 'submit_page_plan') {
     purpose = 'plan'; answer = { summary: '首页展示现有课程', style: 'precision', styleReason: '课程说明', skeletonId: 'custom', skeletonReason: '单页展示现有课程', pages: [{ id: 'home', title: '首页', outline: ['课程介绍'] }] };
+  } else if (fn === 'submit_local_edit') {
+    purpose = 'local-edit'; answer = { html: '<section><h1>数字设计课程</h1><p>提供成人数字设计课程。</p></section>', css: '', cannotEdit: '' };
   } else if (body.messages[0].content.includes('事实校对员')) {
     purpose = 'facts';
     const input = JSON.parse(body.messages[1].content.split('\n')[0]);
@@ -101,6 +103,28 @@ test('changed plan cannot authorize a stale saved candidate', async () => {
   const response = await post(site.siteId, { action: 'resume', resumeRunId: site.run!.id, baseRevision: 0 });
   assert.equal(response.status, 409); assert.equal(purposes.length, before);
   assert.equal((await getCodeSite(site.siteId))!.versions.length, 0);
+});
+
+for (const batch of [false, true]) test(`missing global identity during ${batch ? 'batch' : 'single-block'} editing stops without a content repair`, async () => {
+  failAudit = false;
+  const id = `t210-${crypto.randomUUID()}`, c = await getOrCreateConversation(id, id);
+  await createCodeSite(id, name, c.conversationId);
+  await post(id, { message: materials });
+  await updateCodeSite(id, () => ({ plan: { style: 'precision', summary: '展示成人数字设计课程', styleReason: '课程说明', pages: [{ id: 'home', title: '首页', outline: '课程介绍' }] } }));
+  const original = { ...candidate, header: '', footer: '', pages: [{ id: 'home', title: '首页', html: `<main><section><h1>${name}</h1><p>提供成人数字设计课程。</p></section></main>` }] };
+  const saved = await commitSiteCode({ siteId: id, baseRevision: 0, code: original, author: 'user', summary: '已确认资料', request: '' });
+  assert.equal(saved.status, 'applied'); if (saved.status !== 'applied') throw Error('initial candidate missing');
+  await post(id, { action: 'cancel' });
+  const target = { kind: 'dom', pageId: 'home', versionId: saved.version.id, path: [0], text: `${name}提供成人数字设计课程。`, label: name };
+  const before = purposes.length;
+  const response = await post(id, { message: '标题使用课程名称，保留其他内容。', baseRevision: 1,
+    ...(batch ? { annotationBatch: [{ draftId: 'identity-check', target, revision: 1, body: '标题使用课程名称，保留其他内容。' }] } : { selectedTarget: target }) });
+  assert.equal(response.status, 202);
+  const after = (await getCodeSite(id))!;
+  assert.equal(after.run!.status, 'error'); assert.match(after.run!.step, /完整主体名称/);
+  assert.deepEqual(purposes.slice(before), ['local-edit'], 'A missing global identity cannot authorize a local content repair');
+  assert.equal(after.versions.length, 1); assert.deepEqual(after.versions[0].code, saved.version.code);
+  await writeFile(`${output}/identity-${batch ? 'batch' : 'single'}.json`, JSON.stringify(after, null, 2));
 });
 
 // Browser clicks use the production chat workflow and controlled after callbacks;
