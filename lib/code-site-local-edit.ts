@@ -268,6 +268,10 @@ export async function prepareOutsideCssApplications(browser: ProbeBrowser, frame
   try {
   checkTime(); if (probeStates) await send('DOM.enable');
   await send('Page.setDocumentContent', { frameId, html });
+  // Count focusable elements and read layout only after both documents have
+  // decoded their images and settled fonts. This time stays inside the budget.
+  await evaluate('(async()=>{await document.fonts.ready;await Promise.all([...document.images].map(image=>image.decode()));})()');
+  checkTime();
   const focusStarted = performance.now();
   const probe = await evaluate<{ all: string[]; roots: string[]; interactive: Array<{ id: string; path: number[]; ancestors: string[] }> }>(`(() => {
     (${stopCodeCheckMotion.toString()})();

@@ -525,17 +525,20 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
   if (args.restoredFactReview) checks.factReviewFrom = args.restoredFactReview;
   try {
     const base = process.env.SITECRAFT_BASE || `http://127.0.0.1:${process.env.PORT || '3000'}`;
-    // setDocumentContent retains the document MIME type: a JSON health document
-    // renders candidate HTML as plain text. Use static HTML without site-list reads or app scripts.
-    await browser.send('Network.enable');
-    // Browser storage guards site routes; the checker's own image requests carry the in-process secret.
     const internal = internalRequestHeaders();
-    if (Object.keys(internal).length) await browser.send('Network.setExtraHTTPHeaders', { headers: internal });
-    await browser.send('Network.setBlockedURLs', { urls: ['*/_next/*'] });
-    await browser.send('Page.navigate', { url: `${base}/code-check.html` });
-    await browser.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}&&document.readyState==='complete'?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);
-    const validSource = await browser.evaluate<boolean>(`document.contentType === 'text/html' && performance.getEntriesByType('navigation')[0]?.responseStatus === 200 && !!document.querySelector('meta[name="sitecraft-code-check"][content="v1"]') && !document.querySelector('script')`);
-    if (!validSource) throw new Error('提交检查静态页缺失或无效（/code-check.html），本次未保存版本。');
+    const initializeBrowser = async (checking: Awaited<ReturnType<typeof codeCheckBrowser>>) => {
+      // setDocumentContent retains the document MIME type: a JSON health document
+      // renders candidate HTML as plain text. Use static HTML without site-list reads or app scripts.
+      await checking.send('Network.enable');
+      // Browser storage guards site routes; the checker's own image requests carry the in-process secret.
+      if (Object.keys(internal).length) await checking.send('Network.setExtraHTTPHeaders', { headers: internal });
+      await checking.send('Network.setBlockedURLs', { urls: ['*/_next/*'] });
+      await checking.send('Page.navigate', { url: `${base}/code-check.html` });
+      await checking.evaluate(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const poll=()=>location.origin===${JSON.stringify(new URL(base).origin)}&&document.readyState==='complete'?resolve(true):Date.now()>end?reject(new Error('检查站点地址不可用')):setTimeout(poll,50);poll()})`);
+      const validSource = await checking.evaluate<boolean>(`document.contentType === 'text/html' && performance.getEntriesByType('navigation')[0]?.responseStatus === 200 && !!document.querySelector('meta[name="sitecraft-code-check"][content="v1"]') && !document.querySelector('script')`);
+      if (!validSource) throw new Error('提交检查静态页缺失或无效（/code-check.html），本次未保存版本。');
+    };
+    await initializeBrowser(browser);
     await browser.send('Network.setBlockedURLs', { urls: ['*'] });
     const { frameTree } = await browser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
     const permitted = args.images.filter(i => i.usageScope !== 'docs-only').map(i => i.imageId);
@@ -629,7 +632,11 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             classificationMs = performance.now() - dynamicStarted;
             const probeOptions = (side: string) => ({ states: probeStates, diagnostic: { siteId: args.siteId, pageId: page.id, width, side } });
             if (probeStates) {
-              if (!dynamicBrowser) dynamicBrowser = await codeCheckBrowser();
+              if (!dynamicBrowser) {
+                dynamicBrowser = await codeCheckBrowser();
+                await initializeBrowser(dynamicBrowser);
+                await dynamicBrowser.send('Network.setBlockedURLs', { urls: [] });
+              }
               await dynamicBrowser.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
               const dynamicFrame = await dynamicBrowser.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree');
               const prepared = await Promise.all([
