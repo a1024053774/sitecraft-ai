@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { mkdir, readFile, readdir, utimes, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rename, rmdir, stat, utimes, writeFile } from 'node:fs/promises';
 import { crc32 } from 'node:zlib';
 import { isDeepStrictEqual } from 'node:util';
 import path from 'node:path';
@@ -224,6 +224,26 @@ async function uniformTimes(root: string, time: Date) {
   await utimes(root, time, time);
 }
 
+// T-210: coarse filesystem clocks can give adjacent samples the same birthtime.
+// A tied rank follows opaque-name order instead of the balanced write schedule.
+// Reserve an empty directory only after its observed creation time advances.
+async function orderedSampleDirectory(destination: string, after: number) {
+  const deadline = performance.now() + 1000;
+  while (true) {
+    const pending = await mkdtemp(path.join(path.dirname(destination), '.pending-'));
+    const time = (await stat(pending)).birthtimeMs;
+    if (Number.isFinite(time) && time > 0 && time > after) {
+      await rename(pending, destination);
+      const actual = (await stat(destination)).birthtimeMs;
+      if (!(actual > after)) throw new Error('匿名样本目录的创建时间未保持顺序，未完成盲评包。');
+      return actual;
+    }
+    await rmdir(pending);
+    if (performance.now() >= deadline) throw new Error('文件系统创建时间未推进，无法保证匿名样本顺序，未完成盲评包。');
+    await new Promise(resolve => setTimeout(resolve, 1));
+  }
+}
+
 export async function buildBlindPackage(round: EvalRound, directory: string, previous?: { round: EvalRound; directory: string }) {
   const mapping: Record<string, unknown> = {}, missing: string[] = [], comparisonMissing: string[] = [];
   const jobs: Record<'mixed' | 'company' | 'paired', Job[]> = { mixed: [], company: [], paired: [] };
@@ -282,9 +302,14 @@ export async function buildBlindPackage(round: EvalRound, directory: string, pre
     for (const job of schedules[kind]) for (const file of job.files) buffers.set(file.source, await readFile(file.source));
     const target = Math.max(0, ...[...buffers.values()].map(data => data.length)) + 12;
     const root = roots[kind]; await mkdir(root, { recursive: true });
-    for (const job of schedules[kind]) for (const file of job.files) {
-      const dest = path.join(root, file.destination); await mkdir(path.dirname(dest), { recursive: true });
-      await writeFile(dest, paddedPng(buffers.get(file.source)!, target));
+    await mkdir(path.join(root, 'samples'), { recursive: true });
+    let previousBirthtime = -Infinity;
+    for (const job of schedules[kind]) {
+      previousBirthtime = await orderedSampleDirectory(path.join(root, 'samples', job.candidate.id), previousBirthtime);
+      for (const file of job.files) {
+        const dest = path.join(root, file.destination); await mkdir(path.dirname(dest), { recursive: true });
+        await writeFile(dest, paddedPng(buffers.get(file.source)!, target));
+      }
     }
     await writeFile(path.join(root, 'tasks.json'), JSON.stringify(tasks[kind], null, 2), 'utf8');
     await writeFile(path.join(root, 'prompt.txt'), prompts[kind], 'utf8');

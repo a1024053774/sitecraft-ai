@@ -61,10 +61,10 @@ test.after(() => writeFile(`${output}/evidence.json`, JSON.stringify(observation
 
 async function fixture(css: string, link = true) {
   const id = `t164-gate-${crypto.randomUUID()}`;
-  const code = { header: '', footer: '', css: 'body{margin:0;color:#111;background:white;font:16px/1.6 sans-serif}main{height:400px}section{height:120px}' + css,
+  const code = { header: '', footer: '<footer>CSSOM 动态门禁</footer>', css: 'body{margin:0;color:#111;background:white;font:16px/1.6 sans-serif}main{height:400px}section{height:120px}' + css,
     pages: [{ id: 'home', title: '首页', html: `<main><section><h1>目标</h1><p>介绍</p>${link ? '<a href="/home">入口</a>' : ''}</section><p class="outside">外部</p></main>` }] };
   const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: 'CSSOM 动态门禁',
-    source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '目标。介绍。入口。外部。', code, exportIssues: [] } });
+    source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '主体名称：CSSOM 动态门禁\n目标。介绍。入口。外部。', code, exportIssues: [] } });
   assert.equal(first.status, 'applied');
   if (first.status !== 'applied') throw new Error('源版本未保存');
   return { id, code: first.version.code, target: { kind: 'dom' as const, pageId: 'home', versionId: first.version.id, path: [0], text: link ? '目标介绍入口' : '目标介绍', label: '目标' } };

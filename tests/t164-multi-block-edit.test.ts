@@ -40,10 +40,10 @@ const target = (path: number[], text: string, label: string, pageId = 'home', ve
 async function dynamicFixture(css: string, html: string, materials = '目标。入口。外部。') {
   const id = `t164-dynamic-${crypto.randomUUID()}`;
   const source = {
-    header: '<header>头</header>', footer: '<footer>脚</footer>', css,
+    header: '<header>头</header>', footer: '<footer>动态状态边界</footer>', css,
     pages: [{ id: 'home', title: '首页', html }, { id: 'products', title: '产品', html: '<main><h1>产品</h1></main>' }],
   };
-  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '动态状态边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials, code: source, exportIssues: [] } });
+  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '动态状态边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '主体名称：动态状态边界\n' + materials, code: source, exportIssues: [] } });
   assert.equal(first.status, 'applied', first.status === 'unavailable' ? first.record.readError : '动态状态夹具必须先存下源版本');
   if (first.status !== 'applied') throw new Error('动态状态夹具创建失败');
   return { id, source, version: first.version };
@@ -81,7 +81,7 @@ test('同一区块的多条批注按添加顺序合成一组，祖先后代需�
 
 test('合法的两处修改在同一父版本上组装，另一页面仍进入允许范围并只产生一个候选', async () => {
   const source = {
-    header: '<header>头</header>', footer: '<footer>脚</footer>',
+    header: '<header>头</header>', footer: '<footer>批注边界</footer>',
     css: 'body{color:#111}.card{padding:12px}',
     pages: [
       { id: 'home', title: '首页', html: '<main><section class="card"><h1>A</h1></section><section class="card"><h2>B</h2></section></main>' },
@@ -94,7 +94,7 @@ test('合法的两处修改在同一父版本上组装，另一页面仍进入�
     { draftId: 'c', target: target([0], 'C', 'C', 'products'), revision: 1, body: '改 C', },
   ]);
   const id = `t164-valid-${crypto.randomUUID()}`;
-  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '批注边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: 'A、B、C。', code: source, exportIssues: [] } });
+  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '批注边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '主体名称：批注边界\nA、B、C。', code: source, exportIssues: [] } });
   assert.equal(first.status, 'applied', first.status === 'unavailable' ? first.record.readError : '');
   if (first.status !== 'applied') return;
   const versionedGroups = groups.map(group => ({ ...group, target: { ...group.target, versionId: first.version.id } }));
@@ -115,14 +115,14 @@ test('合法的两处修改在同一父版本上组装，另一页面仍进入�
 test('共享 CSS 外溢与任一组失败都拒绝整批，当前版本不增加', async () => {
   const id = `t164-${crypto.randomUUID()}`;
   const source = {
-    header: '<header>边界</header>', footer: '<footer>脚</footer>',
+    header: '<header>边界</header>', footer: '<footer>批注边界</footer>',
     css: 'body{margin:0}.card{padding:12px}',
     pages: [
       { id: 'home', title: '首页', html: '<main><section class="card"><h1>A</h1></section><section class="card"><h2>B</h2></section></main>' },
       { id: 'products', title: '产品', html: '<main><section class="card"><h1>C</h1></section></main>' },
     ],
   };
-  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '批注边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: 'A、B、C。', code: source, exportIssues: [] } });
+  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '批注边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '主体名称：批注边界\nA、B、C。', code: source, exportIssues: [] } });
   assert.equal(first.status, 'applied');
   if (first.status !== 'applied') return;
   const edits = [
@@ -150,12 +150,12 @@ test('共享 CSS 外溢与任一组失败都拒绝整批，当前版本不增加
 test('新增可聚焦链接不能通过共享 focus-within CSS 改变区块外样式', async () => {
   const id = `t164-focus-${crypto.randomUUID()}`;
   const source = {
-    header: '<header>头</header>', footer: '<footer>脚</footer>',
+    header: '<header>头</header>', footer: '<footer>焦点边界</footer>',
     css: 'body{color:#111}main:focus-within .outside{color:red}.outside{color:#111}',
     pages: [{ id: 'home', title: '首页', html: '<main><section><h1>目标</h1><p>原文</p></section><p class="outside">区块外</p></main>' },
       { id: 'products', title: '产品', html: '<main><h1>产品</h1></main>' }],
   };
-  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '焦点边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '目标原文。链接。', code: source, exportIssues: [] } });
+  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '焦点边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '主体名称：焦点边界\n目标原文。链接。', code: source, exportIssues: [] } });
   assert.equal(first.status, 'applied');
   if (first.status !== 'applied') return;
   const target = { kind: 'dom' as const, pageId: 'home', versionId: first.version.id, path: [0], text: '目标原文', label: '目标' };
@@ -169,11 +169,11 @@ test('新增可聚焦链接不能通过共享 focus-within CSS 改变区块外�
 test('没有动态焦点 CSS 时，区块内新增链接可以保存', async () => {
   const id = `t164-focus-none-${crypto.randomUUID()}`;
   const source = {
-    header: '<header>头</header>', footer: '<footer>脚</footer>', css: 'body{color:#111}.outside{color:#111}',
+    header: '<header>头</header>', footer: '<footer>无焦点规则</footer>', css: 'body{color:#111}.outside{color:#111}',
     pages: [{ id: 'home', title: '首页', html: '<main><section><h1>目标</h1></section><p class="outside">区块外</p></main>' },
       { id: 'products', title: '产品', html: '<main><h1>产品</h1></main>' }],
   };
-  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '无焦点规则', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '目标。链接。', code: source, exportIssues: [] } });
+  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '无焦点规则', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '主体名称：无焦点规则\n目标。链接。', code: source, exportIssues: [] } });
   assert.equal(first.status, 'applied');
   if (first.status !== 'applied') return;
   const target = { kind: 'dom' as const, pageId: 'home', versionId: first.version.id, path: [0], text: '目标', label: '目标' };
@@ -250,11 +250,11 @@ test('disabled button 不是可交互触发元素，不应让静态范围外规�
 test('summary 触发 focus-within 改变范围外宽度时拒绝', async () => {
   const id = `t164-focus-summary-${crypto.randomUUID()}`;
   const source = {
-    header: '<header>头</header>', footer: '<footer>脚</footer>', css: 'body{color:#111}main:focus-within .outside{width:99px}.outside{width:20px}',
+    header: '<header>头</header>', footer: '<footer>焦点摘要</footer>', css: 'body{color:#111}main:focus-within .outside{width:99px}.outside{width:20px}',
     pages: [{ id: 'home', title: '首页', html: '<main><section><h1>目标</h1></section><p class="outside">区块外</p></main>' },
       { id: 'products', title: '产品', html: '<main><h1>产品</h1></main>' }],
   };
-  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '焦点摘要', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '目标。链接。', code: source, exportIssues: [] } });
+  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '焦点摘要', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '主体名称：焦点摘要\n目标。链接。', code: source, exportIssues: [] } });
   assert.equal(first.status, 'applied');
   if (first.status !== 'applied') return;
   const target = { kind: 'dom' as const, pageId: 'home', versionId: first.version.id, path: [0], text: '目标', label: '目标' };
@@ -266,9 +266,9 @@ test('summary 触发 focus-within 改变范围外宽度时拒绝', async () => {
 
 test('显式动态状态预算超时明确拒绝且不存版本', async () => {
   const id = `t164-focus-timeout-${crypto.randomUUID()}`;
-  const source = { header: '<header>头</header>', footer: '<footer>脚</footer>', css: 'body{color:#111}',
+  const source = { header: '<header>头</header>', footer: '<footer>超时边界</footer>', css: 'body{color:#111}',
     pages: [{ id: 'home', title: '首页', html: '<main><section><h1>目标</h1><a href="/home">按钮</a></section><p class="outside">外部</p></main>' }, { id: 'products', title: '产品', html: '<main><h1>产品</h1></main>' }] };
-  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '超时边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '目标。按钮。外部。', code: source, exportIssues: [] } });
+  const first = await commitSiteCode({ siteId: id, legacyImport: { kind: 'convert', name: '超时边界', source: { revision: 1, updatedAt: new Date().toISOString() }, materials: '主体名称：超时边界\n目标。按钮。外部。', code: source, exportIssues: [] } });
   assert.equal(first.status, 'applied', first.status === 'unavailable' ? first.record.readError : '');
   if (first.status !== 'applied') return;
   const target = { kind: 'dom' as const, pageId: 'home', versionId: first.version.id, path: [0], text: '目标按钮', label: '目标' };
