@@ -570,6 +570,7 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     const credits = [...new Set(args.images.filter(i => used.has(i.imageId) && i.attribution).map(i => i.attribution))];
     const generatedText = new Set<string>();
     const readablePages: string[] = [];
+    let subjectPresent = false;
     const numericEntries: ReturnType<typeof readCodeReadable>['numbers'] = [];
     const factSegments = new Map<string, CodeFactSegment>();
     const widths = [375, 768, 1440];
@@ -674,6 +675,8 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
           originalGenerated = await browser.evaluate(`(() => {const read=${readGeneratedText.toString()},stop=${stopCodeCheckMotion.toString()};stop();const texts=read();for(const detail of document.querySelectorAll('details')) detail.open=true;stop();texts.push(...read());for(const node of document.querySelectorAll('[aria-hidden="true"]')) node.removeAttribute('aria-hidden');stop();return [...texts,...read()];})()`);
         }
         await browser.send('Page.setDocumentContent', { frameId: frameTree.frame.id, html: renderSiteCode(args.siteId, clean.code, page.id, '', credits, undefined, args.translationSource ? { language: 'en', languageLinks } : {}) });
+        if (args.companyName && !args.translationSource && !subjectPresent)
+          subjectPresent = await browser.evaluate<boolean>(`document.body.innerText.includes(${JSON.stringify(args.companyName)})`);
         if (args.localEdit && localTargets.length) checks.issues.push(...await browser.evaluate<string[]>(`(${checkLocalSelectors.toString()})(${JSON.stringify(localTargets)},${JSON.stringify(page.id)},${JSON.stringify(localSelectors)})`));
         const structure = await browser.evaluate<{ contentType: string; hasMainHeading: boolean }>(`({contentType:document.contentType,hasMainHeading:!!document.querySelector('main h1')})`);
         if (structure.contentType !== 'text/html') throw new Error('底线检查未载入候选网页，本次未保存版本。');
@@ -754,6 +757,10 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
       }
     }
     const readable = `${readablePages.join('\n')}\n${[...generatedText].join('\n')}`;
+    if (args.companyName && !args.translationSource && !args.legacyImport && !subjectPresent) {
+      checks.identityIssue = `网页未包含完整主体名称「${args.companyName}」。缺失内容没有可验证的局部修正位置，请调整页面内容后再提交；本次未保存版本。`;
+      checks.issues.push(checks.identityIssue);
+    }
     if (args.translationSource && checks.issues.some(issue => issue.includes(' CSS/') && issue.includes('仍含中文文字'))) checks.issues.push('英文版仍含 CSS 生成的中文文字；请先把中文版这些文字改为 HTML 文字节点。');
     const numbers = (s: string) => s.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
     const allowedNumbers = new Set(numbers(args.materials));
@@ -787,14 +794,6 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
         // model helper accepts it only when no separated source boundary exists.
         checks.issues.push(...await auditCodeFacts(args.materials, readable, true, args.style));
       } else {
-        if (!args.localEdit) {
-        // Deleting the last full company name changes a site-wide obligation,
-        // even when every remaining content segment was previously accepted.
-          if (args.companyName) {
-            const text = `站点公司名检查（系统观察）：记录公司名「${args.companyName}」，完整名称${readable.includes(args.companyName) ? '已出现' : '未出现'}。`;
-            factSegments.set(text, { text, group: text, context: { pageId: 'site', outline: [], headings: [] } });
-          }
-        }
         const segments = [...factSegments.values()];
         const { pending, reused } = args.localEdit ? { pending: segments, reused: [] } : pendingCodeFactSegments(segments, args.materials, args.factReviews ?? [], args.factSourceMaterials);
         const reviewed = pending.length ? await auditCodeFacts(args.materials, pending, !!args.localEdit, args.style, args.factSourceMaterials) : [];

@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -63,7 +64,7 @@ const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw), system = body.messages[0].content;
   let purpose: string, input: any, answer: any;
-  if (body.tools) {
+  if (body.tools?.[0]?.function.name === 'submit_page_plan') {
     purpose = 'plan'; input = body.messages[1].content;
     answer = { summary: '门店运费', style: 'precision', styleReason: '资料排版', skeletonId: 'custom', skeletonReason: '按资料展示',
       pages: fixture().pages.map(page => ({ id: page.id, title: page.title, outline: ['门店运费'] })) };
@@ -96,7 +97,7 @@ const provider = createServer(async (req, res) => {
   } else { purpose = 'write'; input = body.messages[1].content; answer = fixture(); }
   requests.push({ purpose, input });
   const message = body.tools ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
-  res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
+  res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

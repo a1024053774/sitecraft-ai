@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -38,7 +39,7 @@ const provider = createServer(async (req, res) => {
   const body = JSON.parse(raw); requests.push(body);
   const fn = body.tools?.[0]?.function;
   let message: any;
-  if (fn) {
+  if (fn?.name === 'submit_page_plan') {
     message = { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify({
       summary: '展示现有纸品资料', style: 'precision', styleReason: '纸品说明', skeletonId: 'custom', skeletonReason: '依资料组织规格和流程',
       pages: [{ id: 'home', title: '纸品', outline: ['展示规格与流程'] }],
@@ -59,7 +60,7 @@ const provider = createServer(async (req, res) => {
     if (mode === 'wrong-claim') results[0] = { ...results[0], noFacts: false, factCategories: ['价格与收费'], citations: [{ category: '价格与收费', claim: '并非本段的声明', quote: price }] };
     message = { content: mode === 'leak-in-task' ? String.raw`{"message":"t181\u002dcredential` : rawOverride ?? `\n${JSON.stringify({ results })}\n` };
   } else message = { content: JSON.stringify(code()) };
-  const reply = JSON.stringify({ choices: [{ finish_reason: fn ? 'tool_calls' : finishReason, message }], usage });
+  const reply = JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: fn && finishReason === 'stop' ? 'tool_calls' : finishReason, message }], usage }));
   const wire = mode === 'outer-invalid' ? '{"choices":[' : reply;
   replies.push(wire);
   res.setHeader('content-type', 'application/json'); res.end(wire);
@@ -113,7 +114,7 @@ for (const nextMode of ['ordinary', 'high-risk', 'empty', 'leak-in-task']) test(
     assert.deepEqual(call.response.rawBody, { bodyRedacted: true, bodyLength: replies.at(-1)!.length });
     assert.doesNotMatch(JSON.stringify(site), /t181-credential|\\u002d/);
   } else assert.equal(call.response.rawBody.body, replies.at(-1), '成功与协议拒收均先保存原始 HTTP 回复，不重排正文');
-  assert.equal(call.response.finishReason, 'stop');
+  assert.equal(call.response.finishReason, 'tool_calls');
   assert.deepEqual(call.usage, { promptTokens: 211, completionTokens: 89, totalTokens: 300, reasoningTokens: 23 });
   const sent = JSON.parse(requests.at(-1).messages[1].content.split('\n')[0]);
   assert.deepEqual(call.factInput.segments, sent.segments, '站点任务必须保留输入短编号到实际段落和页面的映射');
@@ -159,8 +160,8 @@ for (const local of [false, true]) test(`T-181 ${local ? '局部' : '整站'}事
     assert.equal(calls.length, 1, '错误不重试');
     const call = calls[0] as any;
     assert.ok(call.factInput, '失败任务也必须保留核对段映射');
-    assert.deepEqual(call.factInput.segments, [{ id: 's1', text, claimTexts: [text], groupId: 'g1', pageId: 'specs', headings: [] }]);
-    assert.equal(call.response.finishReason, nextMode === 'outer-invalid' ? null : finishReason);
+    assert.deepEqual(call.factInput.segments, [{ id: 's1', text, claimTexts: [text], claims: [{ id: 's1c1', text }], groupId: 'g1', pageId: 'specs', headings: [] }]);
+    assert.equal(call.response.finishReason, nextMode === 'outer-invalid' ? null : finishReason === 'stop' ? 'tool_calls' : finishReason);
     assert.deepEqual(call.usage, nextMode === 'outer-invalid' ? null : { promptTokens: 211, completionTokens: 89, totalTokens: 300, reasoningTokens: 23 });
     if (nextMode.startsWith('credential-')) {
       assert.deepEqual(call.response.rawBody, { bodyRedacted: true, bodyLength: replies.at(-1)!.length });

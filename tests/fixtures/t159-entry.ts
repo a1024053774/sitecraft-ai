@@ -8,7 +8,7 @@ import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { localEndpoint } from '../../scripts/local-endpoint.ts';
-import { factAuditReply } from './fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fact-audit-reply.ts';
 
 const requestBase = localEndpoint('SITECRAFT_BASE').origin;
 const folder = process.env.T159_ENTRY_OUT!;
@@ -33,13 +33,13 @@ const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); modelRequests.push(body);
   res.setHeader('content-type', 'application/json');
-  if (!body.tools && process.env.T159_RESTYLE_MODE) {
-    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, { issues: [] })) } }] })); return;
+  if (body.tools?.[0]?.function.name === 'submit_fact_review' && process.env.T159_RESTYLE_MODE) {
+    res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, { issues: [] })) } }] }))); return;
   }
   if (!body.tools) { res.writeHead(503); res.end('{"error":{"message":"selection contract stops before writing"}}'); return; }
   const plan = { summary: '呈现菜单及到店信息。', style: 'neighborly', styleReason: '已有菜目与营业时段便于并置。', skeletonId: 'custom', skeletonReason: '先呈现菜目，不采用图片开场；资料没有授权照片。',
     pages: [{ id: 'home', title: '首页', outline: ['菜目与到店信息'] }, { id: 'menu', title: '菜单', outline: ['菜目价格与供应时段'] }] };
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ type: 'function', id: 'fixture', function: { name: 'submit_page_plan', arguments: JSON.stringify(plan) } }] } }] }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ type: 'function', id: 'fixture', function: { name: 'submit_page_plan', arguments: JSON.stringify(plan) } }] } }] })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 process.env.DEEPSEEK_BASE_URL = `http://127.0.0.1:${(provider.address() as any).port}`;
@@ -109,8 +109,8 @@ if (process.env.T159_RESTYLE_MODE) {
     const selected = await post(`/api/sites/${id}/chat`, { action: 'select', questionId: a.questionId, questionRevision: a.questionRevision, optionId: 'neighborly',
       preferences: { style: 'neighborly', layout: 5, density: 6 }, baseRevision: 2 });
     await Promise.all(tasks);
-    evidence = { siteId: id, initial, selected, saved: await get(id), localPlanRequests: modelRequests.filter(body => body.tools).length,
-      bootstrapFactRequests: modelRequests.filter(body => !body.tools).length };
+    evidence = { siteId: id, initial, selected, saved: await get(id), localPlanRequests: modelRequests.filter(body => body.tools?.[0]?.function.name === 'submit_page_plan').length,
+      bootstrapFactRequests: modelRequests.filter(body => body.tools?.[0]?.function.name === 'submit_fact_review').length };
   } else {
     const action = process.env.T159_RESTYLE_ACTION!;
     const { updateCodeSite } = await import('../../lib/code-site-store.ts');

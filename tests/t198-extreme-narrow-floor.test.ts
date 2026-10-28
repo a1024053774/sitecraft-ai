@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createServer } from 'node:http';
@@ -127,7 +128,7 @@ test('真实生成流程共用两轮额度：修好可存版，仍碎排则如�
       }
     } else answer = code;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
+    res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } })));
   });
   await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
   const address = provider.address(); assert.ok(address && typeof address === 'object');

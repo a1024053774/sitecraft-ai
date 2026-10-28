@@ -1,5 +1,5 @@
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -51,10 +51,10 @@ const server = createServer(async (req, res) => {
     reply = { replacements: input.fragments.filter((f: { before: string }) => f.before.includes('99999999')).map((f: { id: number; before: string }) => ({ fragmentId: f.id, after: f.before })) };
   }
   else { writerCalls++; reply = { ...good, pages: [{ ...good.pages[0], html: good.pages[0].html.replace('</main>', '<p>年产量 99999999 台。</p></main>') }] }; }
-  const planCall = !!body.tools;
-  res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+  const planCall = body.tools?.[0]?.function.name === 'submit_page_plan';
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
     ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(factAuditReply(body, reply)) } }] }
-    : { content: JSON.stringify(factAuditReply(body, reply)) } }] }));
+    : { content: JSON.stringify(factAuditReply(body, reply)) } }] })));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

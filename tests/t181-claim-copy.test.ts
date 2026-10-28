@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -33,7 +34,7 @@ const provider = createServer(async (req, res) => {
     claim: mode === 'cross-row' ? '模具年产 约 180 套 月注塑能力 约 600 万件' : mode === 'rewritten' ? examples[i].bad : mode === 'other-id' && i === 0 ? examples[1].claim : examples[i].claim, quote: examples[i].quote }],
     ...(mode === 'echo-helper' ? { claimTexts: ['不得回传'] } : {}) }));
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }], usage: { prompt_tokens: 50, completion_tokens: 40, total_tokens: 90 } }));
+  res.end(JSON.stringify(factAuditPayload(request, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }], usage: { prompt_tokens: 50, completion_tokens: 40, total_tokens: 90 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');
@@ -55,12 +56,12 @@ for (const local of [false, true]) {
     const calls: CodeModelCall[] = [];
     const review = await codeModelCalls.run(calls, () => auditCodeFacts(materials, examples.map(x => ({ text: x.text, group: x.text, context: { pageId: 'capacity', outline: [], headings: [] } })), local, 'precision', [{ type: 'message', messageIndex: 1, text: materials }]));
     assert.equal(review.length, 4); assert.ok(review.every(x => !x.issues.length));
-    assert.deepEqual(review.map(x => x.citations[0].claim), examples.map(x => x.claim));
+    assert.deepEqual(review.map(x => x.citations[0].claim), examples.map(x => x.views.at(-1)));
     const input = JSON.parse(requests[0].messages[1].content.split('\n')[0]);
     assert.deepEqual(input.segments.map((s: any) => s.claimTexts), examples.map(x => x.views), '当前提示缺少按既有归属规则展开的复制文本，仍迫使模型重建标签和值');
     assert.deepEqual(calls[0].factInput?.segments, input.segments, '复制辅助文本和输入编号一并留在原任务');
     const prompt = requests[0].messages[0].content;
-    assert.match(prompt, /claimTexts/); assert.match(prompt, /逐字复制.*连续子串/);
+    assert.match(prompt, /claimTexts/); assert.match(prompt, /claimRef.*当前编号/);
     assert.match(prompt, /不.*拼接/); assert.match(prompt, /不.*标点/);
     await writeFile(`${output}/${local ? 'local' : 'whole'}-copy.json`, JSON.stringify({ input, review, calls }, null, 2), 'utf8');
   });

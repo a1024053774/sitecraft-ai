@@ -1,4 +1,4 @@
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
@@ -24,10 +24,10 @@ const server=createServer(async(req,res)=>{
  const body=JSON.parse(raw);requests.push({url:req.url,...body});
  if(failed){res.writeHead(402);res.end('{}');return}
  const user=body.messages[1].content,system=body.messages[0].content;
- const reply=body.tools?{summary:'加工与边界',style:'precision',styleReason:'加工资料',skeletonId:'compact-profile',skeletonReason:'资料以加工边界为主。',pages:[{id:'home',title:'首页',outline:['加工与联系']}]}
+ const reply=body.tools?.[0]?.function.name==='submit_page_plan'?{summary:'加工与边界',style:'precision',styleReason:'加工资料',skeletonId:'compact-profile',skeletonReason:'资料以加工边界为主。',pages:[{id:'home',title:'首页',outline:['加工与联系']}]}
  :system.includes('事实校对员')?{issues:[]}:system.includes('修正输出合同')?{replacements:JSON.parse(user.slice(0,user.lastIndexOf('\n请以 json'))).fragments.map((f:{id:number})=>({fragmentId:f.id,after:'待补充。'}))}:code;
  const text=JSON.stringify(factAuditReply(body, reply)),thinking=body.thinking?.type!=='disabled';
- res.end(JSON.stringify({choices:[{finish_reason:body.tools?'tool_calls':'stop',message:body.tools?{content:null,tool_calls:[{type:'function',function:{name:'submit_page_plan',arguments:text}}]}:{content:text}}],usage:{prompt_tokens:17,completion_tokens:9,total_tokens:26,completion_tokens_details:{reasoning_tokens:thinking?7:0}}}));
+ res.end(JSON.stringify(factAuditPayload(body, {choices:[{finish_reason:body.tools?'tool_calls':'stop',message:body.tools?{content:null,tool_calls:[{type:'function',function:{name:'submit_page_plan',arguments:text}}]}:{content:text}}],usage:{prompt_tokens:17,completion_tokens:9,total_tokens:26,completion_tokens_details:{reasoning_tokens:thinking?7:0}}})));
 });
 await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
 const address=server.address();assert.ok(address&&typeof address==='object');
@@ -55,7 +55,8 @@ test('defaults preserve thinking for write and facts; only repair is disabled wh
  assert.equal(plan.response_format,undefined);
  assert.equal(content.length,3);
  assert.deepEqual(content.map(body=>body.thinking.type),['enabled','disabled','enabled']);
- for(const body of content){assert.deepEqual(body.response_format,{type:'json_object'});assert.equal(body.max_tokens,65536);assert.equal(body.tools,undefined)}
+ for(const body of content.slice(0,2)){assert.deepEqual(body.response_format,{type:'json_object'});assert.equal(body.max_tokens,65536);assert.equal(body.tools,undefined)}
+ assert.equal(content[2].response_format,undefined);assert.equal(content[2].tools[0].function.name,'submit_fact_review');assert.equal(content[2].tools[0].function.strict,true);assert.equal(content[2].max_tokens,65536);
  assert.deepEqual(calls.map(c=>c.purpose),['facts','plan','write','repair','facts']);
  assert.deepEqual(calls.map(c=>c.usage?.reasoningTokens),[7,7,7,0,7]);
  assert.deepEqual(calls.slice(2).map(c=>(c as CodeModelCall&{thinking?:string}).thinking),['enabled','disabled','enabled']);

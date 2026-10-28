@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -32,9 +33,9 @@ const provider = createServer(async (request, response) => {
         citations: adopted ? (auditQuotes ?? [auditQuote]).map(quote => ({ category: '价格与收费', claim: '每单 2 元。', quote })) : [] };
     }) : null;
     response.setHeader('content-type', 'application/json');
-    response.end(JSON.stringify({ choices: [local ? localEditChoice({ html: input.html, css: '' })
+    response.end(JSON.stringify(factAuditPayload(body, { choices: [local ? localEditChoice({ html: input.html, css: '' })
       : { finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }],
-      usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
+      usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } })));
   } catch (error) { providerErrors.push(String(error)); response.writeHead(500); response.end('本地替身协议错误'); }
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
@@ -47,7 +48,7 @@ async function create() {
   assert.equal(response.status, 201); return (await response.json()).id as string;
 }
 const code: SiteCode = {
-  header: '', footer: '', css: 'body{margin:0;color:#222;background:white;font:16px/1.8 sans-serif}main{padding:24px;max-width:700px}p{max-width:36em}',
+  header: '', footer: '<footer>禾巷小馆</footer>', css: 'body{margin:0;color:#222;background:white;font:16px/1.8 sans-serif}main{padding:24px;max-width:700px}p{max-width:36em}',
   pages: [
     { id: 'home', title: '首页', html: '<main><section><h1>收费口径</h1><p>每单 2 元。</p><p>外带包装费待补充。</p></section><section><h2>外带</h2><p>外带包装费待补充。</p></section></main>' },
     { id: 'menu', title: '菜单页', html: '<main><section><h1>米饭与收费</h1><p>外带包装费待补充。</p><p>外带包装费待补充。</p><p>打包费待补充。</p><p>外带包装费用待补充。</p><p>费用，外带包装费待补充。</p><p>费用\n外带包装费待补充。</p><p><span>外带包装</span>费待补充。</p><p>待补充。</p><p>费待补充。</p><p>外带包装费，待补充。</p><p>其他外带包装费待补充。</p></section></main>' },

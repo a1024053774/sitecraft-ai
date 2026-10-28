@@ -64,7 +64,15 @@ function CodeStyleChoice({ siteId, alignment, initial, busy, onSelect, onCancel 
   </section>;
 }
 
-export type CodeWorkspacePayload = { codeSite: CodeSiteRecord; alignment: AlignmentPublicView | null; turns: ConversationTurn[]; conversationError?: string };
+export type CodeWorkspacePayload = { codeSite: CodeSiteRecord; continuation?: { runId: string } | null; alignment: AlignmentPublicView | null; turns: ConversationTurn[]; conversationError?: string };
+function CodeSubjectChoice({ question, busy, onSubmit }: { question: string; busy: boolean; onSubmit: (name: string) => void }) {
+  const [name, setName] = useState('');
+  return <section className="alignment-panel" aria-label="确认主体名称" data-testid="code-subject-question">
+    <strong>{question}</strong>
+    <label>完整主体名称<input value={name} maxLength={100} disabled={busy} onChange={event => setName(event.target.value)} /></label>
+    <button className="primary-button" disabled={busy || !name.trim()} onClick={() => onSubmit(name.trim())}>保存名称，继续</button>
+  </section>;
+}
 export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: CodeWorkspacePayload }) {
   const [state, setState] = useState(initial), [input, setInput] = useState(''), [error, setError] = useState('');
   const [sending, setSending] = useState(false), [panel, setPanel] = useState<'materials' | 'images' | null>(null);
@@ -414,11 +422,16 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {state.conversationError && <p className="code-error" role="alert" data-testid="code-conversation-error">{state.conversationError}</p>}
         {!state.turns.length && !conversationUnavailable && <div className="message assistant"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
         {state.turns.map((turn, index) => <div key={`${turn.createdAt}-${index}`}><div className="message user"><div className="message-label">你</div><div className="message-bubble">{turn.userMessage}</div></div><div className={`message assistant ${turn.outcome}`}><div className="message-label">AI 助手</div><div className="message-bubble">{turn.aiSummary}</div></div></div>)}
-        {alignment?.waitingForUser && !alignment.awaitingConfirmation && <CodeStyleChoice key={alignment.questionId} siteId={siteId} alignment={alignment} initial={site.preferences} busy={busy}
+        {alignment?.waitingForUser && alignment.questionKind === 'clarify' && <CodeSubjectChoice key={alignment.questionId} question={alignment.question} busy={busy} onSubmit={name => void perform({ message: `主体名称：${name}` })} />}
+        {alignment?.waitingForUser && alignment.questionKind === 'style' && <CodeStyleChoice key={alignment.questionId} siteId={siteId} alignment={alignment} initial={site.preferences} busy={busy}
           onSelect={preferences => void perform({ action: 'select', questionId: alignment.questionId, questionRevision: alignment.questionRevision, optionId: preferences.style, preferences })} onCancel={() => void perform({ action: 'cancel' })} />}
         {version && !conversationUnavailable && !alignment?.waitingForUser && !alignment?.awaitingConfirmation && <button className="code-restyle" disabled={busy} onClick={() => void perform({ action: 'start', baseRevision: version.revision })}>调整风格与疏密</button>}
         {alignment?.awaitingConfirmation && !busy && site.plan && <section className="alignment-panel" aria-label="确认页面大纲" data-testid="code-plan"><strong>{site.plan.summary}</strong><ol>{site.plan.pages.map(p => <li key={p.id}><strong>{p.title}</strong><p>{p.outline}</p></li>)}</ol><button className="primary-button" onClick={() => void perform({ action: 'confirm', questionId: alignment.questionId, questionRevision: alignment.questionRevision })}>{!version && site.run?.kind === 'generate' && site.run.status === 'error' ? '按已保存的大纲重新生成' : '确认并生成'}</button><button className="code-alignment-cancel" onClick={() => void perform({ action: 'cancel' })}>返回对话</button></section>}
         {site.run && (running || site.run.issues.length > 0 || state.turns.at(-1)?.aiSummary !== progressText) && <div className={`message assistant ${site.run.status}`}><div className="message-bubble" role="status" data-testid="code-progress">{running && <LoaderCircle className="spin" size={14} />} {progressText}{site.run.issues.length > 0 && <details data-testid="code-run-issues"><summary>查看完整检查问题（{site.run.issues.length} 项）</summary><ul>{site.run.issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul></details>}</div></div>}
+        {state.continuation && !previewVersionId && !busy && !conversationUnavailable && !alignment?.waitingForUser && !alignment?.awaitingConfirmation && <section className="alignment-panel" aria-label="继续检查">
+          <p>已生成的页面已保留。继续检查会调用模型核对，沿用剩余的内容修正次数；全部通过后保存版本。</p>
+          <button className="primary-button" data-testid="code-resume-check" onClick={() => void perform({ action: 'resume', resumeRunId: state.continuation!.runId, baseRevision: version?.revision ?? 0 })}>继续检查已生成的页面</button>
+        </section>}
         {activeLanguage === 'zh' && !previewVersionId && !!version?.stalePlaceholders?.length && <div className="message assistant" data-testid="stale-placeholder-prompt"><div className="message-bubble">
           <p>这些地方还写着「待补充」：</p>
           {version.stalePlaceholders.map((prompt, index) => <p key={index}>{prompt.pageTitle}：{prompt.snippet}{!placeholderCandidates[index].success && <small>此处无法加入批注草稿，请在预览中重新点选并填写意见。</small>}</p>)}

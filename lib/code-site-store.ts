@@ -8,6 +8,7 @@ import { sameFactSources, type CodeFactSource } from './code-site-fact-segments.
 import { stalePlaceholderPrompts } from './code-site-placeholders.ts';
 import { checkSiteCode } from './code-site-check.ts';
 import { getOrCreateConversation } from './conversation-store.ts';
+import { siteSubject, CodeIdentityError } from './code-site-identity.ts';
 
 const root = path.join(process.env.SITECRAFT_DATA_ROOT || path.join(process.cwd(), '.sitecraft-data'), 'code-sites');
 const checkStorage = storageGuard();
@@ -79,12 +80,12 @@ export async function createCodeSite(siteId: string, name: string, conversationI
   });
 }
 // Only workflow metadata is editable here. Site code is written by commitSiteCode alone.
-type Metadata = Pick<CodeSiteRecord, 'materials' | 'factSources' | 'preferences' | 'plan' | 'run' | 'name'>;
+type Metadata = Pick<CodeSiteRecord, 'materials' | 'factSources' | 'subject' | 'preferences' | 'plan' | 'run' | 'name'>;
 export async function updateCodeSite(id: string, update: (site: Readonly<CodeSiteRecord>) => Partial<Metadata>) {
   return locked(id, async () => {
     const site = await getCodeSite(id); if (!site) throw new Error('找不到这个站点');
     const patch = update(structuredClone(site));
-    for (const key of ['materials', 'factSources', 'preferences', 'plan', 'run', 'name'] as const) if (key in patch) Object.assign(site, { [key]: patch[key] });
+    for (const key of ['materials', 'factSources', 'subject', 'preferences', 'plan', 'run', 'name'] as const) if (key in patch) Object.assign(site, { [key]: patch[key] });
     if (patch.run) {
       const index = site.runs.findIndex(run => run.id === patch.run!.id);
       if (index < 0) site.runs.push(patch.run); else site.runs[index] = patch.run;
@@ -172,15 +173,18 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const images = await listSiteImages(args.siteId);
     if (args.englishCode) {
       if (!current?.checks.passed) throw new Error('请先完成中文版的底线检查。');
-      const checked = await checkSiteCode({ siteId: args.siteId, code: args.englishCode, materials: codeFactMaterials(site), images, translationSource: current.code, companyName: site.name });
+      const identity = siteSubject({ ...site, factSources: codeFactSourceMaterials(site), subject: current.subjectSnapshot ?? site.subject });
+      if (!identity.subject) throw new CodeIdentityError(identity.issue!);
+      const checked = await checkSiteCode({ siteId: args.siteId, code: args.englishCode, materials: codeFactMaterials(site), images, translationSource: current.code, companyName: identity.subject.name });
       if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
       const version: CodeVersion = { id: crypto.randomUUID(), revision: revision + 1, author: args.author, summary: args.summary, request: args.request,
         createdAt: new Date().toISOString(), code: current.code, checks: current.checks, chineseRevision: chineseCodeRevision(current),
         english: { sourceRevision: chineseCodeRevision(current), header: checked.code.header, footer: checked.code.footer, pages: checked.code.pages, checks: checked.checks },
+        subjectSnapshot: identity.subject,
         ...(reviewedMaterialSnapshot(site, current) !== undefined ? { materialSnapshot: reviewedMaterialSnapshot(site, current) } : {}),
         ...(reviewedFactSourceSnapshot(site, current) !== undefined ? { factSourceSnapshot: reviewedFactSourceSnapshot(site, current) } : {}),
         ...(args.model ? { model: args.model } : {}) };
-      site.versions.push(version); site.currentVersionId = version.id;
+      site.versions.push(version); site.currentVersionId = version.id; site.subject = identity.subject;
       await write(site); return { status: 'applied' as const, site, version };
     }
     const restore = args.restoreVersionId ? site.versions.find(v => v.id === args.restoreVersionId) : null;
@@ -214,7 +218,10 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       && !task.selectedTarget && (task.kind === 'generate' || task.kind === 'edit') ? task.attempts : [];
     const factReviews = !restore && !localTargets.length ? [current?.checks.factSegments, ...attempts.map(attempt => attempt.checks.factSegments)]
       .filter((review): review is NonNullable<typeof review> => !!review) : [];
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: site.name, restoredFactReview, factReviews, factSourceMaterials: sourceMaterials, style: site.plan?.style,
+    const identity = siteSubject({ ...site, factSources: sourceMaterials,
+      subject: restore ? restore.subjectSnapshot : current?.subjectSnapshot ?? site.subject });
+    if (!identity.subject) throw new CodeIdentityError(identity.issue!);
+    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: identity.subject.name, restoredFactReview, factReviews, factSourceMaterials: sourceMaterials, style: site.plan?.style,
       ...(args.dynamicStateBudgetMs !== undefined ? { dynamicStateBudgetMs: args.dynamicStateBudgetMs } : {}),
       ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
       ...(localTargets.length && current ? { localEdit: { source: current.code, targets: localTargets,
@@ -227,12 +234,12 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     if (restore?.english) {
       const source = site.versions.find(version => version.revision === restore.english!.sourceRevision);
       if (!source) throw new Error('找不到英文版对应的中文版本。');
-      const checkedEnglish = await checkSiteCode({ siteId: args.siteId, code: englishSiteCode(site, restore)!, materials: codeFactMaterials(site, undefined, source.id), images, translationSource: source.code, companyName: site.name });
+      const checkedEnglish = await checkSiteCode({ siteId: args.siteId, code: englishSiteCode(site, restore)!, materials: codeFactMaterials(site, undefined, source.id), images, translationSource: source.code, companyName: identity.subject.name });
       if (!checkedEnglish.checks.passed) return { status: 'rejected' as const, site, ...checkedEnglish };
       english = { ...restore.english, checks: checkedEnglish.checks };
     }
     const version: CodeVersion = { id: crypto.randomUUID(), revision: revision + 1, author: args.author,
-      summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks,
+      summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks, subjectSnapshot: identity.subject,
       // A local audit covers its fragment; unchanged portions require a known
       // parent review on the same base materials before we record a reusable basis.
       ...(!localTargets.length || (current && reviewedMaterialSnapshot(site, current) === site.materials && sameFactSources(reviewedFactSourceSnapshot(site, current), sourceMaterials))
@@ -241,7 +248,8 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };
     const prompts = !restore ? stalePlaceholderPrompts(version, current, args.source, { targets: localTargets, pageId: args.pageId }) : [];
     if (prompts.length) version.stalePlaceholders = prompts;
-    site.versions.push(version); site.currentVersionId = version.id;
+    site.versions.push(version); site.currentVersionId = version.id; site.subject = identity.subject;
+    if (site.name === '未命名站点') site.name = identity.subject.name;
     await write(site); return { status: 'applied' as const, site, version };
   });
 }

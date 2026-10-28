@@ -1,5 +1,5 @@
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -44,10 +44,10 @@ const server = createServer(async (req, res) => {
   outbound.push({ system, user });
   const content = system.includes('事实校对员') ? { issues: [] } : user.includes('先给页面大纲') ? nextPlan : code;
   res.setHeader('content-type', 'application/json');
-  const planCall = !!body.tools;
-  res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+  const planCall = body.tools?.[0]?.function.name === 'submit_page_plan';
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
     ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(factAuditReply(body, content)) } }] }
-    : { content: JSON.stringify(factAuditReply(body, content)) } }] }));
+    : { content: JSON.stringify(factAuditReply(body, content)) } }] })));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

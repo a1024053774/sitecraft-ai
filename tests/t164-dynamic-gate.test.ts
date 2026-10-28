@@ -6,7 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { createServer } from 'node:http';
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 
 // Failure modes: absence is inferred from raw CSS or active media only; a
 // nested/escaped pseudo is missed; candidate-only rules are missed; skipping
@@ -47,7 +47,7 @@ const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw);
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, { issues: [] })) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(body, { issues: [] })) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

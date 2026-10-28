@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import test from 'node:test';
@@ -19,7 +20,7 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw); calls.push(body);
   const input = JSON.parse(body.messages[1].content.split('\n')[0]);
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results: input.segments.map((s: any) => ({ id: s.id, issues: noFactModelIssues.filter(issue => s.text.includes('长期合作客户')), ...(process.env.P1_PARENT ? {} : { noFacts: emptyCitations ? false : citations.length === 0, factCategories: emptyCitations ? ['客户与合作方'] : citations.map(c => c.category) }), ...(omitCitations ? {} : { citations: emptyCitations ? [] : citations }) })) }) } }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results: input.segments.map((s: any) => ({ id: s.id, issues: noFactModelIssues.filter(issue => s.text.includes('长期合作客户')), ...(process.env.P1_PARENT ? {} : { noFacts: emptyCitations ? false : citations.length === 0, factCategories: emptyCitations ? ['客户与合作方'] : citations.map(c => c.category) }), ...(omitCitations ? {} : { citations: emptyCitations ? [] : citations }) })) }) } }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } })));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
@@ -37,10 +38,10 @@ test('真实原句经 NFKC 和空白压缩验真，局部与整站使用同一�
   const before = calls.length;
   const result: any = await (auditCodeFacts as any)(materials, [segment], false, undefined, sources);
   assert.deepEqual(result[0].issues, []);
-  assert.equal(result[0].citations[0].quote, citations[0].quote);
+  assert.equal(result[0].citations[0].quote, '已服务３０家客户。');
   assert.deepEqual(result[0].citations[0].source, { type: 'message', messageIndex: 1 });
   const local: any = await (auditCodeFacts as any)(materials, [segment], true, undefined, sources);
-  assert.equal(local[0].citations[0].quote, citations[0].quote);
+  assert.equal(local[0].citations[0].quote, '已服务３０家客户。');
   assert.deepEqual(local[0].citations[0].source, { type: 'message', messageIndex: 1 });
   assert.equal(calls.length, before + 2);
   assert.deepEqual(calls.slice(-2).map(body => body.thinking.type), ['enabled', 'disabled']);
@@ -52,9 +53,7 @@ test('真实原句经 NFKC 和空白压缩验真，局部与整站使用同一�
 test('编造、跨字段拼接、网页字段和近似引文返回拒因，不作为已验真出处', async () => {
   for (const quote of ['已服务过30家客户。', '已服务30家客户。取得 ISO 9001 认证。', '页面 home', '已服务31家客户。', '   ']) {
     citations = [{ category: '客户与合作方', claim: '已服务30家客户。', quote }];
-    const result: any = await (auditCodeFacts as any)(materials, [segment], false, undefined, sources);
-    assert.match(result[0].issues.join('\n'), /资料出处/);
-    assert.deepEqual(result[0].citations, []);
+    await assert.rejects((auditCodeFacts as any)(materials, [segment], false, undefined, sources), /资料出处编号无效/);
   }
 });
 
@@ -90,9 +89,7 @@ test('资料出处验真排除页面要求，但事实核对输入仍保留完�
   const sourceMaterials = '客户：已服务30家客户。';
   const contextualMaterials = `${sourceMaterials}。收费：纸盒每件 CNY 12。页面要求：只做一页首页，不加询盘。`;
   citations = [{ category: '客户与合作方', claim: '只做一页首页', quote: '只做一页首页' }];
-  const result: any = await (auditCodeFacts as any)(contextualMaterials, [{ ...segment, text: '页面 home\n只做一页首页' }], false, undefined, [{ type: 'message', messageIndex: 1, text: sourceMaterials }]);
-  assert.match(result[0].issues.join('\n'), /资料出处无依据/);
-  assert.deepEqual(result[0].citations, []);
+  await assert.rejects((auditCodeFacts as any)(contextualMaterials, [{ ...segment, text: '页面 home\n只做一页首页' }], false, undefined, [{ type: 'message', messageIndex: 1, text: sourceMaterials }]), /资料出处编号无效/);
   assert.match(String(calls.at(-1).messages[1].content), /页面要求：只做一页首页/);
 });
 
@@ -151,7 +148,5 @@ test('真实小跑的表格单行声明跨单元格仍属于本段，绑定最�
   citations = [{ category: '客户与合作方', claim: '已服务 30家客户', quote: '已服务30家客户。' }];
   await assert.rejects(auditCodeFacts('已服务30家客户。', [{ ...segment, text }], false, undefined, [{ type: 'message', messageIndex: 1, text: '已服务30家客户。' }]), /声明不在本核对段/);
   citations = [{ category: '客户与合作方', claim: '已服务30家客户。', quote: '<TD>已服务30家客户。</TD>' }];
-  const invalidQuote = await auditCodeFacts('已服务30家客户。', [segment], false, undefined, [{ type: 'message', messageIndex: 1, text: '已服务30家客户。' }]);
-  assert.match(invalidQuote[0].issues.join('\n'), /资料出处无依据/);
-  assert.deepEqual(invalidQuote[0].citations, []);
+  await assert.rejects(auditCodeFacts('已服务30家客户。', [segment], false, undefined, [{ type: 'message', messageIndex: 1, text: '已服务30家客户。' }]), /资料出处编号无效/);
 });

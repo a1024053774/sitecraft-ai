@@ -3,6 +3,7 @@ import type { AnnotationBatchItem, AnnotationTarget } from './annotations.ts';
 import type { CodeStyleId } from './code-site-styles.ts';
 import type { CodeLayoutRepair } from './code-site-layout-repair.ts';
 import { z } from 'zod';
+import type { CodeSubject } from './code-site-identity.ts';
 import { systemIconLicense } from './code-site-icons.ts';
 import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
 import { mapSiteCodeCss, renderCodeFragment, siteCodeResources } from './code-site-dom.ts';
@@ -42,6 +43,7 @@ export type DynamicStateEvidence = {
 };
 export type CodeCheck = {
   passed: boolean; issues: string[]; cleaned: string[]; checkedAt: string;
+  identityIssue?: string;
   // Present only for layout failures measured in this candidate, never inferred from issue text.
   layoutRepairs?: CodeLayoutRepair[];
   numberRepairs?: CodeFactRepair[];
@@ -65,6 +67,7 @@ export type CodeVersion = {
   // Separate enterprise-source snapshot. Absence means the historical source
   // boundary is unknown and cannot authorize citation reuse.
   factSourceSnapshot?: CodeFactSource[];
+  subjectSnapshot?: CodeSubject;
   // Recorded once at commit; workspace reads never rescan or append prompts.
   stalePlaceholders?: Array<{ pageTitle: string; snippet: string; quote: string; target?: AnnotationTarget }>;
   chineseRevision?: number;
@@ -75,7 +78,7 @@ export type CodeModelCall = {
   usage: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens?: number } | null;
   httpError?: import('./provider-http-error.ts').ProviderHttpError;
   skeletonOrder?: string[];
-  factInput?: { segments: Array<{ id: string; text: string; claimTexts?: string[]; groupId: string; pageId: string; headings: string[] }> };
+  factInput?: { segments: Array<{ id: string; text: string; claimTexts?: string[]; claims?: Array<{ id: string; text: string }>; groupId: string; pageId: string; headings: string[] }>; sourceQuotes?: Array<{ id: string; text: string; sourceIndex: number }> };
   translationInput?: { pageId: string | null; slotCount: number; sourceChars: number; maxTokens: number;
     slotMap?: Array<{ id: string; domId: string }>; correctionRound?: number };
   response?: { finishReason: string | null; answerChars: number | null; reasoningTokens: number | null;
@@ -100,9 +103,12 @@ export type CodeRun = {
   attempts: Array<{ code: SiteCode; checks: CodeCheck }>;
   modelCalls?: CodeModelCall[];
   repairFailure?: { reason: string; response: unknown };
+  stage?: 'write' | 'check' | 'repair';
+  resumedFrom?: string;
+  checkpoint?: { code: SiteCode; model?: string; parentVersionId: string | null; plan: CodePlan; preferences: CodePreferences };
 };
 export type CodeSiteRecord = {
-  route: 'code'; siteId: string; name: string; conversationId: string; materials: string; factSources?: CodeFactSource[];
+  route: 'code'; siteId: string; name: string; subject?: CodeSubject; conversationId: string; materials: string; factSources?: CodeFactSource[];
   preferences: CodePreferences; plan: CodePlan | null; versions: CodeVersion[]; currentVersionId: string | null;
   run: CodeRun | null; runs: CodeRun[]; updatedAt: string;
   legacySource?: { revision: number; updatedAt: string };
@@ -137,6 +143,20 @@ export function codeVersionAuthor(author: CodeVersion['author']) {
 }
 export function currentCodeVersion(site: CodeSiteRecord) {
   return site.versions.find(v => v.id === site.currentVersionId) ?? null;
+}
+export function codeRunCheckpoint(site: CodeSiteRecord): CodeRun['checkpoint'] | null {
+  const run = site.run;
+  if (!run || run.status !== 'error' || !['generate', 'edit'].includes(run.kind) || run.selectedTarget || run.annotationBatch?.length
+    || run.repairRound < 0 || run.repairRound > 2 || !site.plan || run.baseRevision !== (currentCodeVersion(site)?.revision ?? 0)) return null;
+  if (run.checkpoint) return run.checkpoint.parentVersionId === site.currentVersionId
+    && JSON.stringify(run.checkpoint.plan) === JSON.stringify(site.plan)
+    && JSON.stringify(run.checkpoint.preferences) === JSON.stringify(site.preferences) ? run.checkpoint : null;
+  // Older tasks already persisted a candidate after a completed check. A user
+  // may explicitly recheck that saved code against today's inputs; it supplies
+  // no exemption or invented receipt for an interrupted check.
+  const attempt = run.attempts.at(-1);
+  return attempt ? { code: attempt.code, parentVersionId: site.currentVersionId, plan: site.plan, preferences: site.preferences,
+    model: run.modelCalls?.find(call => call.purpose === 'write')?.model } : null;
 }
 export function chineseCodeRevision(version: CodeVersion) { return version.chineseRevision ?? version.revision; }
 export function englishSiteCode(site: CodeSiteRecord, version: CodeVersion): SiteCode | null {

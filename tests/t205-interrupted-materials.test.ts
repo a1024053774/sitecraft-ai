@@ -5,7 +5,7 @@ import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 
 // Failure modes: a follow-up replaces materials or sources; crash recovery loses
 // the confirmed outline; a stale confirm repeats work; recovery calls the model
@@ -32,7 +32,7 @@ const provider = createServer(async (req, res) => {
   const body = JSON.parse(raw); modelCalls++;
   const answer = body.messages[0].content.includes('事实校对员') ? factAuditReply(body, { issues: [] }) : code;
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

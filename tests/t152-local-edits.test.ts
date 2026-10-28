@@ -1,4 +1,4 @@
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -24,9 +24,9 @@ const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const request = JSON.parse(raw); audit = request.messages[1].content;
   // Observed 2026-10-11: 4095 reasoning tokens, zero answer characters, length.
-  if (replayTruncation && request.thinking?.type !== 'disabled' && request.max_tokens <= 4096) { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '' } }], usage: { prompt_tokens: 4763, completion_tokens: 4095, total_tokens: 8858, completion_tokens_details: { reasoning_tokens: 4095 } } })); return; }
+  if (replayTruncation && request.thinking?.type !== 'disabled' && request.max_tokens <= 4096) { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(factAuditPayload(request, { choices: [{ finish_reason: 'length', message: { content: '' } }], usage: { prompt_tokens: 4763, completion_tokens: 4095, total_tokens: 8858, completion_tokens_details: { reasoning_tokens: 4095 } } }))); return; }
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(request, { issues: [] })) } }], usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 } }));
+  res.end(JSON.stringify(factAuditPayload(request, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(request, { issues: [] })) } }], usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 } })));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

@@ -7,7 +7,7 @@ import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import type { SiteCode } from '../lib/code-site.ts';
 
 // 失败方式：flex/grid 子项、块或单元格粘出新数字；只读某一档；
@@ -26,7 +26,7 @@ const provider = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   factCalls++;
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(JSON.parse(raw), { issues: [] })) } }] }));
+  res.end(JSON.stringify(factAuditPayload(JSON.parse(raw), { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(JSON.parse(raw), { issues: [] })) } }] })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

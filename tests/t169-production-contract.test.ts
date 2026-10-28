@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -43,7 +44,7 @@ const provider = createServer(async (req, res) => {
     return row;
   });
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');
@@ -163,13 +164,17 @@ test('P1-5 上传源替换存版后，下一次普通提交也不得复活旧出
   assert.equal(v2.materials, source.text, '复现旧 materials 仍保留 A 的实际形态');
   assert.deepEqual(v2.versions[1].factSourceSnapshot, [changedSource], 'v2 只能采用同一来源替换后的 B');
   const before = requests.length;
-  const next = await commitSiteCode({ siteId: id, baseRevision: 2, code: twoBlockCode, author: 'user', summary: '普通修改尝试保留旧引文', request: '只调整介绍排版，保留页面文案。' });
+  let next: { error: string } | undefined;
+  await assert.rejects(async () => {
+    try {
+    await commitSiteCode({ siteId: id, baseRevision: 2, code: twoBlockCode, author: 'user', summary: '普通修改尝试保留旧引文', request: '只调整介绍排版，保留页面文案。' });
+    } catch (error) { next = { error: (error as Error).message }; throw error; }
+  }, /资料出处编号无效/);
   const after = (await getCodeSite(id))!;
   await mkdir('artifacts/t169', { recursive: true });
   await writeFile(`artifacts/t169/source-replacement-next-${Date.now()}.json`, JSON.stringify({ v1: current, v2, next, after }, null, 2));
   assert.ok(requests.length > before, '下一次提交必须实际核对旧引文');
-  assert.equal(next.status, 'rejected', '上传 A 被 B 替换存版后，下一次普通修改仍须拒绝旧引文 A');
-  if (next.status === 'rejected') assert.match(next.checks.issues.join('\n'), /资料出处无依据/);
+  assert.match(next!.error, /资料出处编号无效/, '上传 A 被 B 替换存版后，旧引文不能选择有效出处编号');
   assert.equal(after.versions.length, 2, '拒绝旧引文时不保存第三版');
   assert.ok(!after.factSources?.some(item => item.type === 'materials'), '不得把上传旧原文变成可重新引用的别名');
 });

@@ -11,7 +11,7 @@ import { codeCheckDocument } from './fixtures/code-check-document.ts';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import { createStoredZip } from '../lib/code-site-export.ts';
 import { commitSiteCode, createCodeSite, getCodeSite, updateCodeSite } from '../lib/code-site-store.ts';
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import { saveSiteImage } from '../lib/site-images.ts';
 import type { CodeSiteRecord, CodeVersion, SiteCode } from '../lib/code-site.ts';
 
@@ -236,7 +236,7 @@ test('中英文导出页只携带各自语言实际引用图片的署名', async
   const fixture = createServer(async (request, response) => {
     let raw = ''; for await (const chunk of request) raw += chunk;
     response.setHeader('Content-Type', 'application/json');
-    response.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(JSON.parse(raw), { issues: [] })) } }] }));
+    response.end(JSON.stringify(factAuditPayload(JSON.parse(raw), { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(factAuditReply(JSON.parse(raw), { issues: [] })) } }] })));
   });
   await new Promise<void>(resolve => fixture.listen(0, '127.0.0.1', resolve));
   const original = Object.fromEntries(['DEEPSEEK_BASE_URL', 'DEEPSEEK_API_KEY', 'DEEPSEEK_MODEL'].map(key => [key, process.env[key]]));

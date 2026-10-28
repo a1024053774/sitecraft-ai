@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -23,7 +24,7 @@ const server = createServer(async (req, res) => {
   if (protocol === 'missing') results.pop();
   if (protocol === 'duplicate' && results.length) results.push(results[0]);
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(input.segments ? { results } : { issues: [] }) } }], usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 } }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(input.segments ? { results } : { issues: [] }) } }], usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 } })));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
@@ -135,8 +136,10 @@ test('computed CSS strings and auxiliary attributes participate in the segment w
 
 test('removing the last complete company name creates a fresh site-wide audit obligation', async () => {
   const id = await setup(); applied(await commit(id, 0));
-  applied(await commit(id, 1, changed('同源纸品', '纸品')));
-  assert.ok(input().segments.some((s: any) => s.text.includes('站点公司名检查') && s.text.includes('未出现')));
+  const calls = requests.length, result = await commit(id, 1, changed('同源纸品', '纸品'));
+  assert.equal(result.status, 'rejected');
+  if (result.status === 'rejected') assert.match(result.checks.identityIssue!, /完整主体名称/);
+  assert.equal(requests.length, calls, '完整主体名称由程序检查，不把内部观察交给模型');
 });
 
 test('a restarted or unrelated run cannot lend rejected-candidate receipts', async () => {

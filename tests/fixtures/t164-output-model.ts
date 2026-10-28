@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer, type IncomingMessage } from 'node:http';
 import { writeFile } from 'node:fs/promises';
-import { factAuditReply } from './fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fact-audit-reply.ts';
 import { localEditChoice } from './local-edit-choice.ts';
 
 type Phase = 'initialization' | 'run';
@@ -37,16 +37,16 @@ export function createT164OutputFixture(directory: string, caseName: string, mod
       await writeFile(`${directory}/local-output-requests-${mode}.json`, JSON.stringify(requests, null, 2));
       res.setHeader('content-type', 'application/json');
       if (local && mode === 'truncate') {
-        res.end(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '' } }],
-          usage: { prompt_tokens: 100, completion_tokens: 6145, total_tokens: 6245, completion_tokens_details: { reasoning_tokens: 6145 } } }));
+        res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'length', message: { content: '' } }],
+          usage: { prompt_tokens: 100, completion_tokens: 6145, total_tokens: 6245, completion_tokens_details: { reasoning_tokens: 6145 } } })));
       } else {
         const input = local ? JSON.parse(body.messages[1].content.split('\n')[0]) : null;
         // First round violates the block contract. The correction returns it intact.
         const answer = local ? { html: ++localRoundCalls <= 2 ? `<main>${input.html}</main>` : input.html, css: '' }
           : factAuditReply(body, { issues: [] });
         if (arrival.phase === 'run' && purpose === 'local-facts') await beforeFactReply?.();
-        res.end(JSON.stringify({ choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }],
-          usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } }));
+        res.end(JSON.stringify(factAuditPayload(body, { choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }],
+          usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } })));
       }
       arrival.status = 'responded';
       arrival.finishedAt = new Date().toISOString();

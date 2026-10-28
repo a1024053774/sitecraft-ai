@@ -27,7 +27,7 @@ test('真实 CLI→HTTP→chat：隔离的 pending 目录样本继续由服务�
     const selected = evidence.routes.find((route: any) => route.body?.action === 'select');
     assert.ok(selected, 'CLI 须实际发送选择请求');
     assert.equal(selected.status, mode === 'on' ? 202 : 400);
-    const planCalls = evidence.modelRequests.filter((body: any) => body.tools);
+    const planCalls = evidence.modelRequests.filter((body: any) => body.tools?.[0]?.function.name === 'submit_page_plan');
     assert.equal(planCalls.length, mode === 'on' ? 1 : 0, '仅成功 select 后进入生产规划');
     if (mode === 'on') {
       assert.deepEqual(planCalls[0].tools[0].function.parameters.properties.style.enum, ['neighborly']);

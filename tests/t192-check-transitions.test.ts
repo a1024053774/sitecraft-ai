@@ -5,7 +5,7 @@ import test from 'node:test';
 import { checkSiteCode } from '../lib/code-site-check.ts';
 import { commitSiteCode, getCodeSite } from '../lib/code-site-store.ts';
 import type { SiteCode } from '../lib/code-site.ts';
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import { outsideCssApplications } from '../lib/code-site-local-edit.ts';
 
@@ -29,8 +29,8 @@ const provider = createServer(async (req, res) => {
   }
   records.push({ request: body, answer });
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }],
-    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(answer) } }],
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

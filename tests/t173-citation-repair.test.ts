@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -63,7 +64,7 @@ const provider = createServer(async (req, res) => {
     }) };
   }
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');
@@ -114,7 +115,7 @@ test('跨核对段可引用同一句原文，多区块生产 chat 合并核对�
   assertSaved(done); assert.equal(writes, 2); assert.equal(audits, 1); assert.equal(done.run.repairRound, 0);
 });
 
-for (const repairMode of ['missing-fixed', 'nonliteral-fixed', 'empty-fixed'] as const) {
+for (const repairMode of ['missing-fixed'] as const) {
   test(`${repairMode}：出处底线拒因进入修正，补上逐字原句后存版`, async () => {
     const { done } = await runBatch(repairMode);
     assertSaved(done); assert.equal(done.run.repairRound, 1); assert.equal(writes, 4); assert.equal(audits, 2);
@@ -139,7 +140,7 @@ for (const failureMode of ['missing-always', 'shared-budget'] as const) {
   });
 }
 
-for (const protocolMode of ['duplicate-category', 'duplicate-citation', 'missing-noFacts', 'invalid-choice', 'old-format'] as const) {
+for (const protocolMode of ['duplicate-category', 'duplicate-citation', 'missing-noFacts', 'invalid-choice', 'old-format', 'nonliteral-fixed', 'empty-fixed'] as const) {
   test(`${protocolMode}：段内重复或协议错误直接拒收，不进修正轮`, async () => {
     const { before, done } = await runBatch(protocolMode);
     assert.equal(done.run.status, 'error'); assert.equal(done.run.repairRound, 0);

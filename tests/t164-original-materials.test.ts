@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { writeFile } from 'node:fs/promises';
@@ -32,7 +33,7 @@ const provider = createServer(async (req, res) => {
       return { id: segment.id, issues: [], noFacts: !claim, factCategories: claim ? [category] : [], citations: claim ? [{ category, claim, quote: claim }] : [] };
     }) };
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [local ? localEditChoice(answer) : { finish_reason: 'stop', message: { content: JSON.stringify(answer) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -25,7 +26,7 @@ const server = createServer(async (req, res) => {
         : body.messages[0].content.includes('局部事实校对员') ? { issues: [] } : code;
   const message = tool ? { tool_calls: [{ type: 'function', function: { name: tool, arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ choices: [{ finish_reason: tool ? 'tool_calls' : 'stop', message }] }));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: tool ? 'tool_calls' : 'stop', message }] })));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
@@ -55,7 +56,7 @@ test('whole-site audit sends general claim rules and preserves unsupported claim
   await auditCodeFacts(materials, segments);
   const body = requests.at(-1), input = JSON.parse(body.messages[1].content.split('\n')[0]);
   assert.equal(input.materials, materials);
-  assert.deepEqual(input.segments, claims.map((text, i) => ({ id: `s${i + 1}`, text, claimTexts: [text], groupId: i < 2 ? 'g1' : 'g2', pageId: 'home', headings: ['服务说明'] })));
+  assert.deepEqual(input.segments.map(({ claims: _claims, ...segment }: any) => segment), claims.map((text, i) => ({ id: `s${i + 1}`, text, claimTexts: [text], groupId: i < 2 ? 'g1' : 'g2', pageId: 'home', headings: ['服务说明'] })));
   assert.deepEqual(input.pageContexts, [{ pageId: 'home', outline: ['已有业务与条件'] }]);
   for (const claim of claims) assert.ok(!input.materials.includes(claim));
   generalAudit(body.messages[0].content);

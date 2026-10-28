@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -34,7 +35,7 @@ const provider = createServer(async (req, res) => {
   const body = JSON.parse(raw), system = body.messages[0].content, input = body.messages[1].content;
   requests.push(body);
   let answer: any;
-  if (body.tools) answer = { summary: '展示普通纸盒与经营资料。', style: 'precision', styleReason: '按已有资料集中展示。', skeletonId: 'custom', skeletonReason: '一页短站集中表达，不扩充服务流程。', pages: [{ id: 'home', title: '首页', outline: ['普通纸盒、客户、认证与收费'] }] };
+  if (body.tools?.[0]?.function.name === 'submit_page_plan') answer = { summary: '展示普通纸盒与经营资料。', style: 'precision', styleReason: '按已有资料集中展示。', skeletonId: 'custom', skeletonReason: '一页短站集中表达，不扩充服务流程。', pages: [{ id: 'home', title: '首页', outline: ['普通纸盒、客户、认证与收费'] }] };
   else if (system.includes('事实校对员')) {
     const data = JSON.parse(input.split('\n')[0]);
     answer = { results: data.segments.map((segment: any) => { const segmentCitations = mode === 'empty' ? [] : [...citationClaims.filter(c => segment.text.includes(c.claim)),
@@ -44,7 +45,7 @@ const provider = createServer(async (req, res) => {
     const data = JSON.parse(input.split('\n')[0]); answer = { replacements: data.fragments.map((f: any) => ({ fragmentId: f.id, after: f.before })) };
   } else answer = mode === 'table' ? tableSite : citationSite;
   const message = body.tools ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(answer) } }] } : { content: JSON.stringify(answer) };
-  res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } }));
+  res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');
@@ -217,13 +218,14 @@ test('上传资料出处在工作台三档显示来源类型文字', { timeout: 
   }
 });
 
-test('编造与拼接引文进入两轮修正，耗尽后不保存版本', { timeout: 180000 }, async () => {
+test('编造与拼接引文无法选择资料编号，立即拒收且不保存版本', { timeout: 180000 }, async () => {
   for (const invalid of ['forged', 'stitched'] as const) {
     mode = invalid;
     try {
       const site = await generate(); assert.equal(site.run?.status, 'error'); assert.equal(site.versions.length, 0);
-      assert.equal(site.run?.attempts.length, 3, '初稿加两轮修正');
-      assert.ok(site.run!.attempts.every(a => a.checks.issues.some(i => i.includes('资料出处无依据'))));
+      assert.equal(site.run?.attempts.length, 0, '非法编号在内容修正前立即拒收');
+      assert.equal(site.run?.repairRound, 0);
+      assert.match(site.run!.step, /资料出处编号无效/);
       await writeFile(`${output}/${invalid}.json`, JSON.stringify(site, null, 2));
     } finally { mode = 'valid'; }
   }
@@ -297,9 +299,10 @@ test('CSS复用保留出处并重绑路径，资料改一字重核；局部改�
   assert.equal(source.status, 'applied');
   const changedSource = { ...sourceRecord, text: citationMaterials.replace('已服务30家', '曾服务30家') };
   await updateCodeSite(changedId, () => ({ materials: changedSource.text, factSources: [changedSource] }));
-  const fourth = await commitSiteCode({ siteId: changedId, baseRevision: 1, code: citationSite, author: 'user', summary: '资料变更', request: '', source: changedSource });
-  assert.equal(fourth.status, 'rejected'); if (fourth.status !== 'rejected') throw new Error('旧出处不应沿用');
-  assert.equal(fourth.checks.factSegments?.reused, 0); assert.match(fourth.checks.issues.join('\n'), /资料出处无依据/);
+  const beforeSourceChange = requests.length;
+  await assert.rejects(commitSiteCode({ siteId: changedId, baseRevision: 1, code: citationSite, author: 'user', summary: '资料变更', request: '', source: changedSource }), /资料出处编号无效/);
+  assert.ok(requests.length > beforeSourceChange, '资料变化后必须实际重核，不能复用旧引文');
+  assert.equal((await getCodeSite(changedId))!.versions.length, 1);
 });
 
 test('旧版本显示未记录而非零条；中英切换不泄漏标记，恢复沿用目标版本出处', { timeout: 180000 }, async () => {

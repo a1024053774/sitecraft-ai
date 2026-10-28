@@ -1,4 +1,4 @@
-import { factAuditReply } from './fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import type { SiteCode } from '../../lib/code-site.ts';
@@ -38,7 +38,7 @@ export async function enrichmentProviderFixture() {
     try {
       let raw = ''; for await (const chunk of req) raw += chunk;
       const body = JSON.parse(raw), system: string = body.messages[0].content, user: string = body.messages[1].content;
-      const purpose = body.tools ? 'plan' : system.includes('事实校对员') ? 'facts' : system.includes('版本参考选择') ? 'select' : 'write';
+      const purpose = body.tools?.[0]?.function.name === 'submit_page_plan' ? 'plan' : system.includes('事实校对员') ? 'facts' : system.includes('版本参考选择') ? 'select' : 'write';
       calls.push({ purpose, system, user });
       let data: unknown;
       if (purpose === 'plan') data = { summary: '首页介绍业务，产品页列两类减速机，参数缺口保留待补充。', style: 'precision', styleReason: '以产品目录为主。', skeletonId: 'compact-profile', skeletonReason: '资料只有业务与产品，采用短目录；不选长篇工厂介绍。', pages: [{ id: 'home', title: '首页', outline: ['业务与产品名称'] }, { id: 'products', title: '产品', outline: ['两类产品与参数缺口'] }] };
@@ -54,8 +54,8 @@ export async function enrichmentProviderFixture() {
         data = enrichmentFixtureCode(step, images.map(i => i.imageId));
       }
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 }, choices: [{ finish_reason: purpose === 'plan' ? 'tool_calls' : 'stop', message: purpose === 'plan'
-        ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(factAuditReply(body, data)) } }] } : { content: JSON.stringify(factAuditReply(body, data)) } }] }));
+      res.end(JSON.stringify(factAuditPayload(body, { usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 }, choices: [{ finish_reason: purpose === 'plan' ? 'tool_calls' : 'stop', message: purpose === 'plan'
+        ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: JSON.stringify(factAuditReply(body, data)) } }] } : { content: JSON.stringify(factAuditReply(body, data)) } }] })));
     } catch (error) { failures.push(String(error)); res.writeHead(422); res.end(JSON.stringify({ error: { message: String(error) } })); }
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));

@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -135,7 +136,7 @@ for (const [name, css] of [
         citations: priced ? [{ category: '价格与收费', claim: '32 元/份', quote: '单份价格为32元/份。' }] : [] };
     });
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } }));
+    res.end(JSON.stringify(factAuditPayload(JSON.parse(raw), { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results }) } }], usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } })));
   });
   await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
   const address = provider.address(); assert.ok(address && typeof address === 'object');

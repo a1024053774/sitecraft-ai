@@ -19,7 +19,7 @@ test('普通进程的标准 CLI 可选择已盲评通过的邻里日常并进入
   assert.equal(result.status, 0, result.stderr);
   const evidence = JSON.parse(await readFile(path.join(folder, 'entry.json'), 'utf8'));
   assert.equal(evidence.routes.find((r: any) => r.body?.action === 'select').status, 202);
-  const plans = evidence.modelRequests.filter((b: any) => b.tools);
+  const plans = evidence.modelRequests.filter((b: any) => b.tools?.[0]?.function.name === 'submit_page_plan');
   assert.equal(plans.length, 1); assert.deepEqual(plans[0].tools[0].function.parameters.properties.style.enum, ['neighborly']);
   assert.match(plans[0].messages[0].content, /name: site-code-neighborly/);
 });

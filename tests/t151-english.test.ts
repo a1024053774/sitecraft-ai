@@ -1,5 +1,5 @@
 import { codeCheckDocument } from './fixtures/code-check-document.ts';
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import { localEndpoint } from '../scripts/local-endpoint.ts';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -52,9 +52,9 @@ const provider = createServer(async (request, response) => {
     if (fault === 'numbers' || fault === 'coverage-and-numbers') translations = translations.map((item: { id: string; text: string }) => ({ ...item, text: item.text?.replace('20 mm', '30 mm') }));
     reply = { translations };
   }
-  response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message: body.tools
+  response.setHeader('content-type', 'application/json'); response.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message: body.tools
     ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_english_translation', arguments: JSON.stringify(factAuditReply(body, reply)) } }] }
-    : { content: JSON.stringify(factAuditReply(body, reply)) } }], usage: { prompt_tokens: 300, completion_tokens: 80, total_tokens: 380 } }));
+    : { content: JSON.stringify(factAuditReply(body, reply)) } }], usage: { prompt_tokens: 300, completion_tokens: 80, total_tokens: 380 } })));
 });
 await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
 const address = provider.address(); assert.ok(address && typeof address === 'object');

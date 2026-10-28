@@ -1,3 +1,4 @@
+import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -17,9 +18,9 @@ for (const transition of [false, true]) test(`实际提交检查保留桌面标�
     inputs.push(input);
     res.setHeader('content-type', 'application/json');
     // 地址是普通事实；固定通过回复只用于捕获真实 HTTP 输入，不替边界断言作答。
-    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({
+    res.end(JSON.stringify(factAuditPayload(JSON.parse(raw), { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({
       results: input.segments.map((segment: { id: string }) => ({ id: segment.id, issues: [], noFacts: true, factCategories: [], citations: [] })),
-    }) } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
+    }) } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } })));
   });
   await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
   const address = provider.address(); assert.ok(address && typeof address === 'object');

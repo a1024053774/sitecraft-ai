@@ -1,4 +1,4 @@
-import { factAuditReply } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
@@ -23,12 +23,12 @@ const server = createServer(async (req, res) => {
   if (content.includes('FAIL402')) { res.writeHead(402); res.end('{}'); return; }
   const payload = content.includes('INVALID') ? 'not json' : body.messages[0].content.includes('事实校对员') ? { issues: [] }
     : { summary: '首页介绍服务', style: 'precision', styleReason: '服务资料', skeletonId: 'compact-profile', skeletonReason: '简短服务资料。', pages: [{ id: 'home', title: '首页', outline: ['公司和服务'] }] };
-  const planCall = !!body.tools, text = typeof payload === 'string' ? payload : JSON.stringify(factAuditReply(body, payload));
-  res.end(JSON.stringify({ choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
+  const planCall = body.tools?.[0]?.function.name === 'submit_page_plan', text = typeof payload === 'string' ? payload : JSON.stringify(factAuditReply(body, payload));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: planCall ? 'tool_calls' : 'stop', message: planCall
     ? { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_page_plan', arguments: text } }] }
     : { content: text } }],
     ...(!content.includes('NOUSAGE') ? { usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26,
-      ...(content.includes('REASONING') ? { completion_tokens_details: { reasoning_tokens: 7 } } : {}) } } : {}) }));
+      ...(content.includes('REASONING') ? { completion_tokens_details: { reasoning_tokens: 7 } } : {}) } } : {}) })));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');
