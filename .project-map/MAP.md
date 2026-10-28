@@ -15,6 +15,7 @@
 
 - 公开入口说明与静态工作台演示已交付（T-207 两项返工验收通过）：[T-203](tickets/T-203-readme-entry.md)、[T-207](tickets/T-207-interactive-demo.md)；当前运行方式见 [README](../README.md)，验收与失败证据见各票 Resolution。
 - 2026-10-25 单人交付：T-209 英文保真及仓库演示更新、T-205 首次中断恢复、T-208 Windows 部署均已完成；服务在 `D:\sitecraft-ai`，Mac 不构建。T-208 保留 `::marker` 检查，补齐生成指导后真实三页生成、预览批注、撤销、刷新和下载通过，Windows 全量 1221 项及重建持久化、密钥扫描通过，缓存已清理；原失败证据保留。详见 [T-208](tickets/T-208-local-docker.md)。
+- 2026-10-28 单人交付：[T-210](tickets/T-210-fact-audit-failure-ownership.md) 已关闭。主体名称与错误路由、受限编号引用、显式检查续跑及检查浏览器图片同源已修复；博思四页原候选真实续跑 v1、局部修改 v2、撤销 v3 与刷新通过。Windows 最终全量 1252 项、入口 18 项、typecheck、build 通过并部署，Mac 未构建；负责人另批准的盲评包创建时钟问题一并修复。原失败、资料、图片和版本保留，本次临时环境与缓存已清理。
 
 ## Decisions so far
 
