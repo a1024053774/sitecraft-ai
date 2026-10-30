@@ -29,12 +29,13 @@ Docker Desktop 须保持运行。Compose 的 `restart: unless-stopped` 会在 Do
 
 ## Tailscale 私有入口
 
-出门时经 Tailscale 访问：`https://luckye-1.tail5e6162.ts.net`。它由 Windows 的 Tailscale Serve 后台代理到回环 `http://127.0.0.1:3100`，只在 tailnet 内可达，未启用公网 Funnel；原 3100 回环与 Mac 的 `localhost:13100` SSH 映射保留。
+Mac 桌面的 `打开 SiteCraft.command` 先试局域网（`192.168.3.173:22`），不通再经 Tailscale 地址 `100.108.230.79` 建同一条 SSH 端口映射，两条路都打开 `http://localhost:13100`，浏览器里的模型设置两边通用。两条路径都以 `win-lan` 已登记的主机密钥核验身份；设 `SITECRAFT_ROUTE=tailscale` 可在家里跳过局域网验证 Tailscale 路径。
+
+另有 Windows Tailscale Serve 的后台 HTTPS 入口 `https://luckye-1.tail5e6162.ts.net`，代理到回环 `http://127.0.0.1:3100`，只在 tailnet 内可达，未启用公网 Funnel；供没有 SSH 的设备使用。它是另一个浏览器来源，首次打开须在工作区设置里重新填写模型接口。
 
 - 运行条件：Windows 开机、Docker Desktop 与 SiteCraft 容器运行、Windows Tailscale 已登录；访问设备登录同一 tailnet 并已连接。
-- 配置与撤销（Windows，管理员或已获授权的会话）：`tailscale serve --bg --https=443 http://127.0.0.1:3100`；`tailscale serve status` 查看；`tailscale serve --https=443 off` 撤销。后台配置在重启后保留。
-- 模型接口设置按浏览器来源分别保存在 localStorage：新地址首次打开时须在工作区设置里重新填写 API 地址、key 与模型名。
-- 访问设备若同时开启带 TUN 或 fake-ip 的代理客户端，`*.ts.net` 可能被解析为 `198.18.x.x`、`100.64.0.0/10` 也可能被路由到物理网卡，导致连接超时；须在该代理中让 `*.ts.net` 与 `100.64.0.0/10` 走 Tailscale（DIRECT 且不劫持），或临时关闭代理的 TUN。
+- Serve 配置与撤销（Windows）：`tailscale serve --bg --https=443 http://127.0.0.1:3100`；`tailscale serve status` 查看；`tailscale serve --https=443 off` 撤销。后台配置在重启后保留。
+- 访问设备开着带 TUN 的代理（如 Shadowrocket）时，`tun-excluded-routes` 不能含 `100.64.0.0/10`：macOS 会把它变成经物理网关的路由，压过 Tailscale 自己的路由，导致连接超时。代理的 fake-ip DNS 还可能解析不了 `*.ts.net`，此时用上面的桌面入口（按 IP 连接）即可。
 
 ## 数据与 key
 

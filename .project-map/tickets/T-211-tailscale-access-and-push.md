@@ -2,7 +2,7 @@
 id: T-211
 title: 配置 Windows Tailscale 私有入口并推送 GitHub
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Codex → Claude
 supersedes:
@@ -19,7 +19,7 @@ supersedes:
 ## Acceptance
 
 - [x] Windows Serve 后台 HTTPS 仅在 tailnet 提供服务，原 3100、13100 与数据保留
-- [ ] Mac 经 Tailscale 正常验证证书并访问健康／工作台（BLOCKED：见 Resolution）；[x] Windows 实际 Chrome 打开页面与已有站点
+- [x] Mac 经 Tailscale 访问健康／工作台（2026-10-29 改走 Tailscale IP 的 SSH 映射，见 Resolution）；Windows 实际 Chrome 打开页面与已有站点
 - [x] 桌面提供新入口，说明 Windows／Docker／Tailscale 运行条件与新来源的模型设置
 - [x] 只推送 origin 当前已验收分支，不 force、不推 upstream，不混入用户脏文件，并核对远端 SHA
 - [x] 更新运行说明、保留验收结果，清理本轮临时文件
@@ -32,3 +32,5 @@ supersedes:
 - Windows Chrome（headless，独立临时配置，用后删除）1440 打开 `/workspace?site=fcfe331e…`：博思站 v3、四个页面与 34 条资料出处正常显示，截图 `workspace-1440.png` 已查看。
 - Mac：Tailscale 运行且 `tailscale ping` 通（12–35ms），但 TCP 443 超时。根因在本机代理：`*.ts.net` 被解析为 fake-ip `198.18.3.82`，且路由表有 `100.64/10 → 192.168.3.1 (en0)` 非限定路由压过 Tailscale 的 utun5。按 AGENTS.md 不改本机网络／代理，交负责人在代理中让 `*.ts.net` 与 `100.64.0.0/10` 走 Tailscale 后用桌面入口复验。
 - 桌面新增 `打开 SiteCraft（Tailscale）.command`（健康检查后打开，失败给出排查提示）；`deploy/docker/README.md` 增「Tailscale 私有入口」节。
+
+2026-10-29 复验，**PASS**。负责人从 Shadowrocket 的 `tun-excluded-routes` 删去 `100.64.0.0/10` 后，Mac 路由表的 `100.64/10` 只剩 Tailscale utun5；但 Shadowrocket DNS 对 `*.ts.net` 返回 NXDOMAIN（`dig @100.100.100.100` 正常），HTTPS 域名在 Mac 上仍不可用。不再改代理，桌面入口改为局域网优先、失败后经 Tailscale IP `100.108.230.79` 建同一 SSH 映射（`HostKeyAlias` 沿用 win-lan 主机密钥），两路都开 `localhost:13100`，模型设置共用。`artifacts/t211/launcher-paths.log`：局域网直连 0s 成功；局域网不可达时 5s 转 Tailscale 成功、health 200；两路都不通 15s 报错退出。经 Tailscale 映射打开博思站工作台，v3、四页与 34 条出处正常（`mac-tailscale-workspace.jpg` 已查看）。测试后映射已恢复为局域网。HTTPS Serve 入口保留供其他设备使用。
