@@ -4,7 +4,7 @@ title: 升级 Next.js 与 zod，消除已公开的依赖漏洞
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Claude
 supersedes:
 ---
 
