@@ -1,6 +1,6 @@
 # 来源与改编
 
-SiteCraft 叠加层。通用规则在 `skills/frontend-less-ai-tone/`。运行时只注入 `lib/frontend-tone.ts` 的 `sitecraft-frontend-less-ai-tone@0.3.2`。不要另写一套规则。P4 冻结基线仍是 `@0.2.0`。
+SiteCraft 叠加层。通用规则在 `skills/frontend-less-ai-tone/`。本叠加层的规则已并入运行时核心规范（见文末「运行时」）。不要另写一套规则。
 
 目录里的 `LICENSE.txt` 是文案层上游的 MIT 副本，不是样子层的许可证，也不批准任何模板图片、字体、图标或商标。
 
@@ -34,6 +34,6 @@ SiteCraft 叠加层。通用规则在 `skills/frontend-less-ai-tone/`。运行�
 
 ## 运行时
 
-- 规则子集：`lib/frontend-tone.ts`
-- 注入点：`lib/ai-provider.ts` 的生成 system prompt
-- 用户选项不得出现本 Skill 名称；测试钉在 `tests/frontend-tone.test.ts`
+- 本叠加层不直接进入运行时 prompt；其事实、文案、层级与成品规则已并入 `skills/site-code-core/SKILL.md`。
+- 加载点：`lib/code-site-model.ts` 拼装生成 system prompt 时读取 `skills/site-code-core/SKILL.md`、`skills/site-code-core/SKELETONS.md`、`skills/frontend-less-ai-tone/SKILL.md` 和所选风格的 Skill；局部修改另读 `skills/site-code-core/LOCAL-EDIT.md`。
+- 用户选的是风格，不出现本 Skill 名称。

@@ -120,4 +120,4 @@ CHROME_PATH=/path/to/assigned/chrome-headless-shell node scripts/render-shader-b
 
 仅主控已选定的配置可入库；脚本用硬件 WebGPU 定格导出，单张上限 200KB，失败不会换渲染路径，已有证据目录不会覆盖。`--install` 同时更新 `public/system-backdrops/` 静态素材和 `lib/code-site-backdrops.ts` 登记表。浏览器测试需指定 CHROME_PATH 与本工作区的 SITECRAFT_BASE，事实模型使用本地夹具的测试不代表真实模型能力。
 
-公开部署见 [deploy/vps/](deploy/vps/)：单机 nginx + Cloudflare Tunnel，产品页为 `landing/`，工作台演示为 `demo/`，两者都是静态目录，服务器上不运行建站服务（T-207）；静态响应设置 `no-transform`，保留示例邮箱原文。演示由 `scripts/t207-build-demo-stages.mjs` 和 `scripts/t207-capture-demo.mjs` 从一次真实生成的记录截取。`deploy/kubernetes/` 是早期的多实例示例，不用于当前部署。
+公开部署见 [deploy/vps/](deploy/vps/)：单机 nginx + Cloudflare Tunnel，产品页为 `landing/`，工作台演示为 `demo/`，两者都是静态目录，服务器上不运行建站服务（T-207）；静态响应设置 `no-transform`，保留示例邮箱原文。演示由 `scripts/t207-build-demo-stages.mjs` 和 `scripts/t207-capture-demo.mjs` 从一次真实生成的记录截取。

@@ -4,7 +4,7 @@ title: 运行说明与部署配置对齐当前代码
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Claude
 supersedes:
 ---
 
