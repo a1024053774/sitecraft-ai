@@ -36,7 +36,13 @@ supersedes:
 
 - 升级：`next` 16.3.1 → 16.4.6，`zod` ^4.4.3 → ^4.6.7；锁文件随之更新 sharp 0.35.5、source-map-js 1.2.2、@xmldom/xmldom 0.8.15。`npm audit --omit=dev` 与 `npm audit`：found 0 vulnerabilities，没有剩余项。
 - 升级说明：读了 `node_modules/next/dist/docs/` 中 16.4 的升级说明。唯一的破坏性变更是移除 `experimental.appNewScrollHandler`，本项目未使用，因此无需改代码。peer 依赖全部满足。
-- Windows 服务运行方式：`docker version` 显示 Server 为 linux/amd64，`sitecraft-web-1` 运行在 Linux 容器内，所以「Windows 主机远程代码执行」通告不适用于现行服务。本票未重建、未部署正式服务（T-208：需负责人当次授权）；新版本要等负责人决定后再上线。
+- Windows 服务运行方式：`docker version` 显示 Server 为 linux/amd64，`sitecraft-web-1` 运行在 Linux 容器内，所以「Windows 主机远程代码执行」通告不适用于现行服务。
+- 部署（2026-11-15，负责人当次授权「重建并部署」）：
+  - 部署前 Windows `D:\sitecraft-ai` 的构建相关文件与 aad8e295 完全一致，没有本地改动（原 `DEPLOYED_REVISION.txt` 写的 2a178b8f 已过时）。
+  - 按 `deploy/docker/README.md` 停 web 做一致备份，存在 `D:\sitecraft-backups\2026-11-15-before-09087e9c`（postgres.sql 97KB，data 27 个文件、10.7MB）；旧镜像另打标签 `sitecraft:rollback-aad8e295`。
+  - 用 `git archive 09087e9c` 覆盖源码，删除本次已移除的两个文件；构建相关文件与 09087e9c 逐个核对一致。5 个中文文件名的 docs 在 Windows tar 中解压失败，它们不进构建上下文，保持原样。
+  - `docker compose up -d --build` 退出码 0，日志在 `D:\sitecraft-ai\build-t212-deploy.log`。web 容器 healthy，Chrome CDP 自检通过，运行 Next.js 16.4.6。`/api/health` 200，`/api/ai/status` 404。经 SSH 端口转发打开首页，11 个站点都在；外高桥流体接头P3E 的工作台、预览、图片和 17 条资料出处显示正常，控制台无报错。
+  - 回滚：`docker tag sitecraft:rollback-aad8e295 sitecraft:local` 后执行 `docker compose up -d`（不加 --build）；需要时按 README 用备份恢复数据。
 - Mac：`npm run typecheck` 通过；`node --test --experimental-strip-types scripts/t167-runner-regressions.ts` 18/18 通过；不需要浏览器的定向测试通过。Mac 上的 chrome-headless-shell 缓存已不存在，所以浏览器用例改在 Windows 跑。
 - Windows：源码打包后，在基于 `sitecraft:local` 的临时 Linux 容器里跑标准检查（typegen、typecheck、runner、`npm test`）。
   - 第一轮（21:36 结束）：148/148 与 1103/1104 通过。唯一失败的用例是「T-162 375：收起线程面板保留意见摘要和高亮，展开保持同一目标」：在负载下等待草稿消失时超时（24.7s）。改前结果保留在 Windows `D:\sitecraft-t212\evidence\full-1-t167\test-run-1794709242315-1944` 和 `full-1-dataroot`。
