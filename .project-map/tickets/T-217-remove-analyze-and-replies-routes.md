@@ -51,4 +51,8 @@ supersedes:
   - `docker build --target build` 通过（`✓ Compiled successfully`）。
   - 在基于 `sitecraft:local` 的临时检查容器中，typegen、typecheck、runner 回归都通过；`npm test` 全量 139/139 加 1104/1104，共 1243/1243，于 03:12 结束，t152 局部修改用例全部在内。
 - 审查：Codex gpt-6.1-sol（high，未开 fast，只读）结论 PASS，未发现可复现缺陷。
-- 未部署：正式服务仍运行 09087e9c，是否重建由负责人决定。
+- 部署（2026-11-15，负责人当次授权「重建并部署」）：
+  - 先按 `deploy/docker/README.md` 停 web 做一致备份，存于 `D:\sitecraft-backups\2026-11-15-before-26e889d2`；上一版镜像打标签为 `sitecraft:rollback-09087e9c`。
+  - 只把 09087e9c..26e889d2 之间的改动文件同步到 `D:\sitecraft-ai`，并删除本票移除的文件；代码、测试和配置逐个核对，与 26e889d2 一致。
+  - `docker compose up -d --build` 退出码 0。容器 healthy；`/api/health` 200；analyze、replies 两条路由均返回 404；工作台、预览和批注线程面板打开正常，控制台无报错。
+  - 回滚：`docker tag sitecraft:rollback-09087e9c sitecraft:local` 后执行 `docker compose up -d`。
