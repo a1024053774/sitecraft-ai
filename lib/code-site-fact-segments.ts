@@ -243,7 +243,7 @@ export function readCodeFactSegments(code: SiteCode, pageId: string, localPath: 
   const readonly = (members: CodeFactMember[]) => members.map(member => ({ ...member, context: true as const }));
   if (documentConditions) result.push({ text: `页面 ${pageId}\n文档辅助文案：${documentConditions}`, group: `页面 ${pageId}\n文档辅助文案：${documentConditions}`,
     context: { pageId, outline: [], headings: [] }, members: documentMembers });
-  for (const [index, part] of parts.entries()) {
+  for (const index of parts.keys()) {
     const roots = partRoots[index];
     const elements = roots.flatMap(node => node instanceof Element ? [node, ...node.querySelectorAll('*')] : []);
     const scope = index === 0 ? '公共页头' : index === 2 ? '公共页脚' : `页面 ${pageId}：${page.title}`;

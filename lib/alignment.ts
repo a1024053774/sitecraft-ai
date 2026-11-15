@@ -1,10 +1,7 @@
 import { z } from 'zod';
 
-export const OTHER_OPTION_ID = 'other';
 export const MAX_ALIGNMENT_NOTE_CHARS = 500;
-export const MAX_ALIGNMENT_SUMMARY_CHARS = 400;
 export const MAX_ALIGNMENT_HISTORY = 20;
-export const MAX_ALIGNMENT_ROUNDS = 3;
 
 export type AlignmentModeState =
   | "disabled"
@@ -76,7 +73,6 @@ export type AlignmentSnapshot = {
   proposedChange: ProposedChange | null;
   lastResult: RecordedResult | null;
   confirmClaimed: boolean;
-  roundCount: number;
   epoch: number;
   inflightRunId: string | null;
   styleOptionId: string | null;
@@ -148,7 +144,7 @@ export const alignmentSnapshotSchema = z.object({
   pendingRequest:z.object({message:z.string().min(1).max(4000),baseRevision:z.number().int().nonnegative(),selectedTarget:z.string().max(200).nullable()}).nullable().default(null),
   currentQuestion:questionSchema.nullable().default(null), submittedCard:questionSchema.nullable().optional(), answers:z.array(answerSchema).max(20).default([]),
   proposedChange:z.object({summary:z.string().min(1).max(400),rejected:z.array(z.string().max(200)).max(20),baseRevision:z.number().int().nonnegative(),questionId:z.string(),questionRevision:z.number().int().nonnegative(),model:z.string().max(120).nullable(),latencyMs:z.number()}).nullable().default(null),
-  lastResult:resultSchema.nullable().default(null),confirmClaimed:z.boolean().default(false),roundCount:z.number().int().nonnegative().default(0),epoch:z.number().int().nonnegative().default(0),inflightRunId:z.string().max(80).nullable().default(null),
+  lastResult:resultSchema.nullable().default(null),confirmClaimed:z.boolean().default(false),epoch:z.number().int().nonnegative().default(0),inflightRunId:z.string().max(80).nullable().default(null),
   styleOptionId:z.string().max(80).nullable().default(null),styleLabel:z.string().max(80).nullable().default(null),history:z.array(z.object({at:z.string(),action:z.string().max(40),optionId:z.string().max(80).optional(),summary:z.string().max(400).optional()})).max(20).default([]),
 });
 export class AlignmentTextTooLongError extends Error {
@@ -159,7 +155,7 @@ export class AlignmentActionError extends Error {
   constructor(result:AlignmentActionFailure){super(result.error);this.name='AlignmentActionError';this.status=result.status;this.code=result.code}
 }
 export function disabledAlignment():AlignmentSnapshot {
-  return {enabled:false,state:'disabled',pendingRequest:null,currentQuestion:null,submittedCard:null,answers:[],proposedChange:null,lastResult:null,confirmClaimed:false,roundCount:0,epoch:0,inflightRunId:null,styleOptionId:null,styleLabel:null,history:[]};
+  return {enabled:false,state:'disabled',pendingRequest:null,currentQuestion:null,submittedCard:null,answers:[],proposedChange:null,lastResult:null,confirmClaimed:false,epoch:0,inflightRunId:null,styleOptionId:null,styleLabel:null,history:[]};
 }
 export function normalizeAlignmentSnapshot(raw:unknown):AlignmentSnapshot {
   if(raw==null || (typeof raw==='object' && !Array.isArray(raw) && !Object.keys(raw).length))return disabledAlignment();
@@ -191,7 +187,7 @@ export function applyAlignmentAction(current:AlignmentSnapshot,input:AlignmentAc
   }
   if(input.action==='cancel'){
     if(current.confirmClaimed && !current.lastResult)return failure(current,409,'invalid_state','正在提交已确认的方案。');
-    return success({...current,enabled:false,state:'cancelled',currentQuestion:null,submittedCard:null,proposedChange:null,confirmClaimed:false,inflightRunId:null,pendingRequest:null,lastResult:null,roundCount:0,history:history(current,'cancel')});
+    return success({...current,enabled:false,state:'cancelled',currentQuestion:null,submittedCard:null,proposedChange:null,confirmClaimed:false,inflightRunId:null,pendingRequest:null,lastResult:null,history:history(current,'cancel')});
   }
   if(input.action==='confirm'){
     const p=current.proposedChange,q=current.currentQuestion;

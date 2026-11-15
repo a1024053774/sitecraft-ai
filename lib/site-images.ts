@@ -71,49 +71,6 @@ export function siteImagePublicPath(siteId: string, imageId: string) {
   return `/api/sites/${safeSiteId(siteId)}/images/${safeImageId(imageId)}`;
 }
 
-export function isTemplateStockUrl(url: string) {
-  const value = url.trim();
-  if (!value) return false;
-  const pathOnly = value.split("?")[0] ?? value;
-  if (/^\/api\/sites\/[a-z0-9][a-z0-9_-]{0,79}\/images\/img_[a-z0-9]{16,40}$/i.test(pathOnly)) return false;
-  return (
-    /\/api\/templates\//i.test(value)
-    || /vendor\/open-source-templates/i.test(value)
-    || /\/_astro\//i.test(value)
-    || /(?:^|\.\/)images\/.+\.(?:png|jpe?g|webp|avif|svg|gif)$/i.test(value)
-    || /\/img\/(?:illustrations|logo|icons)\//i.test(value)
-    || /\b(?:hero|feature-1|feature-2|pilot|growth|cube-leg)\.(?:png|jpe?g|webp|avif|svg)\b/i.test(value)
-    || /(?:flowbite\.s3|res\.cloudinary\.com)\./i.test(value)
-  );
-}
-
-export function isOwnedSiteImageUrl(url: string, imageId: string, siteId?: string) {
-  const trimmed = url.trim();
-  if (!trimmed || isTemplateStockUrl(trimmed)) return false;
-  try {
-    const parsed = new URL(trimmed, "http://sitecraft.local");
-    if (parsed.username || parsed.password || parsed.hash) return false;
-    if (parsed.search) return false;
-    const match = parsed.pathname.match(/^\/api\/sites\/([a-z0-9][a-z0-9_-]{0,79})\/images\/(img_[a-z0-9]{16,40})$/i);
-    if (!match) return false;
-    if (match[2] !== imageId) return false;
-    if (siteId && match[1] !== siteId) return false;
-    return parsed.origin === "http://sitecraft.local" || parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-export function canonicalizeOwnedImageUrl(url: string, imageId: string, siteId: string) {
-  if (isTemplateStockUrl(url)) {
-    throw new SiteImageError("forbidden", "模板演示图没有客户授权，不能写入生成站点");
-  }
-  if (!isOwnedSiteImageUrl(url, imageId, siteId)) {
-    throw new SiteImageError("forbidden", "图片必须属于当前站点上传目录，不能引用外站或模板素材");
-  }
-  return siteImagePublicPath(siteId, imageId);
-}
-
 function isJpeg(bytes: Uint8Array) {
   return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
 }

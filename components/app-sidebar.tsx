@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { Route } from "next";
 import {
-  Columns3,
   FileText,
   LayoutTemplate,
   Menu,

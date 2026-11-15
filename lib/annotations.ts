@@ -129,9 +129,6 @@ export const updateAnnotationSchema = z.object({
 }).strict().refine((value) => value.status !== undefined || value.current !== undefined || value.changeSetId !== undefined, "批注更新不能为空");
 
 export type AnnotationTarget = z.infer<typeof annotationTargetSchema>;
-export type AnnotationCapture = z.infer<typeof annotationCaptureSchema>;
-export type AnnotationCurrent = z.infer<typeof annotationCurrentSchema>;
-export type AnnotationComment = z.infer<typeof annotationCommentSchema>;
 export type AnnotationThread = z.infer<typeof annotationThreadSchema>;
 export type CreateAnnotationInput = z.infer<typeof createAnnotationSchema>;
 export type ReplyAnnotationInput = z.infer<typeof replyAnnotationSchema>;

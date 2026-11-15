@@ -20,7 +20,7 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(raw); calls.push(body);
   const input = JSON.parse(body.messages[1].content.split('\n')[0]);
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results: input.segments.map((s: any) => ({ id: s.id, issues: noFactModelIssues.filter(issue => s.text.includes('长期合作客户')), ...(process.env.P1_PARENT ? {} : { noFacts: emptyCitations ? false : citations.length === 0, factCategories: emptyCitations ? ['客户与合作方'] : citations.map(c => c.category) }), ...(omitCitations ? {} : { citations: emptyCitations ? [] : citations }) })) }) } }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } })));
+  res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ results: input.segments.map((s: any) => ({ id: s.id, issues: noFactModelIssues.filter(() => s.text.includes('长期合作客户')), ...(process.env.P1_PARENT ? {} : { noFacts: emptyCitations ? false : citations.length === 0, factCategories: emptyCitations ? ['客户与合作方'] : citations.map(c => c.category) }), ...(omitCitations ? {} : { citations: emptyCitations ? [] : citations }) })) }) } }], usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 } })));
 });
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 const address = server.address(); assert.ok(address && typeof address === 'object');

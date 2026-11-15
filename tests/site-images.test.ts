@@ -3,10 +3,7 @@ import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import {
-  IMAGE_ID_PATTERN,
   inspectSiteImage,
-  isOwnedSiteImageUrl,
-  isTemplateStockUrl,
   listSiteImages,
   publicImagePayload,
   readSiteImage,
@@ -58,7 +55,6 @@ const ownedId = "img_testownedimage0001";
 const siteA = "p3img-a";
 const siteB = "p3img-b";
 const siteD = "p3img-dedupe";
-const templateIds = new Set(["forge", "landwind", "screwfast"]);
 
 test.after(async () => {
   await Promise.all([
@@ -94,18 +90,6 @@ test("magic bytes reject 1×1, HTML, and GIF; JPEG/PNG headers are enough to rea
   const png = inspectSiteImage(pngWithSize(96, 96, 200), "upload");
   assert.equal(png.mime, "image/png");
   assert.equal(png.width, 96);
-});
-
-test("template stock URLs cannot masquerade as customer images", () => {
-  assert.equal(isTemplateStockUrl("./images/hero.png"), true);
-  assert.equal(isTemplateStockUrl("/api/templates/landwind/assets/images/hero.png"), true);
-  assert.equal(isTemplateStockUrl("/_astro/hero-image.DRPoHq2O_hcNvw.avif"), true);
-  assert.equal(isTemplateStockUrl("https://flowbite.s3.amazonaws.com/blocks/marketing-ui/avatars/michael-gouch.png"), true);
-  assert.equal(isTemplateStockUrl("/api/sites/p3img-a/images/img_testownedimage0001"), false);
-  assert.equal(isOwnedSiteImageUrl("/api/sites/p3img-a/images/img_testownedimage0001", ownedId, siteA), true);
-  assert.equal(isOwnedSiteImageUrl("/api/sites/p3img-b/images/img_testownedimage0001", ownedId, siteA), false);
-  assert.equal(IMAGE_ID_PATTERN.test(ownedId), true);
-  assert.equal(isOwnedSiteImageUrl("/api/templates/forge/assets/heroimg.webp", ownedId, siteA), false);
 });
 
 test("saved images are owned by site/workspace and cannot be read across sites", async () => {

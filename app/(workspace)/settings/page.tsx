@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { Route } from "next";
 import { ChevronRight } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteDeleteSettings } from "@/components/site-delete-panel";

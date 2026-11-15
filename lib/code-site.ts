@@ -134,7 +134,7 @@ export function reviewedMaterialSnapshot(site: CodeSiteRecord, version: CodeVers
     && run.modelCalls?.some(call => call.purpose === 'facts' && call.httpStatus === 200 && call.response?.finishReason === 'stop'));
   return generation?.request;
 }
-export function reviewedFactSourceSnapshot(site: CodeSiteRecord, version: CodeVersion): CodeFactSource[] | undefined {
+export function reviewedFactSourceSnapshot(version: CodeVersion): CodeFactSource[] | undefined {
   if (!version.checks.passed || version.checks.factReview === 'legacy-unreviewed') return undefined;
   return Array.isArray(version.factSourceSnapshot) ? version.factSourceSnapshot : undefined;
 }

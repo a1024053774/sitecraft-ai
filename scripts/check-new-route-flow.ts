@@ -139,7 +139,6 @@ try {
     site = await waitRun(id, '对话修改');
     assert.equal(site.versions.length, 2);
     await pause(2000); await captureWorkspace(packId, 'edited');
-    const edited = site.versions[1];
     await browser.send('Page.navigate', { url: `${base}/api/sites/${id}/code-preview?page=home` });
     await wait('!!document.querySelector("h1")', '修改后的首页');
     const background = await browser.evaluate<string>(`(() => {for(let n=document.querySelector('h1');n;n=n.parentElement){const c=getComputedStyle(n).backgroundColor;if(c!=='rgba(0, 0, 0, 0)')return c}return ''})()`);

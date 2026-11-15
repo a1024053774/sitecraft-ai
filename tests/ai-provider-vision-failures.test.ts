@@ -77,7 +77,6 @@ function png(width: number, height: number, byteLength = 9000) {
   bytes.writeUInt32BE(height, 20);
   return new Uint8Array(bytes);
 }
-const screenshot = png(1440, 900);
 const photo = png(800, 600);
 
 const json = (body: unknown, init: { status?: number; trace?: string } = {}) => new Response(JSON.stringify(body), {

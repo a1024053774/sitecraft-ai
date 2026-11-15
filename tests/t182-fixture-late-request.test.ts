@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { once } from 'node:events';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import test from 'node:test';

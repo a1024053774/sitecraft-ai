@@ -4,7 +4,7 @@ title: 删除无调用方的状态接口与死代码
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Claude
 supersedes:
 ---
 

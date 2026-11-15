@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { simulatedPacks } from '../lib/simulated-packs.ts';
-import { buildBlindPackage, compareRounds, summarize, tokenUsage, requireWholeSitePlan, type EvalCase, type EvalRound } from '../scripts/eval-set-report.ts';
+import { compareRounds, summarize, tokenUsage, requireWholeSitePlan, type EvalCase, type EvalRound } from '../scripts/eval-set-report.ts';
 import type { CodeCheck } from '../lib/code-site.ts';
 
 // Failure modes: drop earlier refusals; count unrun sites as passes/zero tokens;

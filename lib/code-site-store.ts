@@ -182,7 +182,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
         english: { sourceRevision: chineseCodeRevision(current), header: checked.code.header, footer: checked.code.footer, pages: checked.code.pages, checks: checked.checks },
         subjectSnapshot: identity.subject,
         ...(reviewedMaterialSnapshot(site, current) !== undefined ? { materialSnapshot: reviewedMaterialSnapshot(site, current) } : {}),
-        ...(reviewedFactSourceSnapshot(site, current) !== undefined ? { factSourceSnapshot: reviewedFactSourceSnapshot(site, current) } : {}),
+        ...(reviewedFactSourceSnapshot(current) !== undefined ? { factSourceSnapshot: reviewedFactSourceSnapshot(current) } : {}),
         ...(args.model ? { model: args.model } : {}) };
       site.versions.push(version); site.currentVersionId = version.id; site.subject = identity.subject;
       await write(site); return { status: 'applied' as const, site, version };
@@ -208,7 +208,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const restoreHasSeparatedFacts = restore?.checks.factSegments?.format === 4
       && Array.isArray(restoreSourceMaterials)
       && sameFactSources(restoreSourceMaterials, sourceMaterials)
-      && sameFactSources(reviewedFactSourceSnapshot(site, restore), sourceMaterials);
+      && sameFactSources(reviewedFactSourceSnapshot(restore), sourceMaterials);
     const restoredFactReview = restore && restoreHasSeparatedFacts && targetMaterials !== undefined && targetMaterials === site.materials
       ? { versionId: restore.id, revision: restore.revision, checkedAt: restore.checks.factReviewFrom?.checkedAt ?? restore.checks.checkedAt } : undefined;
     // Only the current version and attempts of this exact active task supply
@@ -242,7 +242,7 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
       summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks, subjectSnapshot: identity.subject,
       // A local audit covers its fragment; unchanged portions require a known
       // parent review on the same base materials before we record a reusable basis.
-      ...(!localTargets.length || (current && reviewedMaterialSnapshot(site, current) === site.materials && sameFactSources(reviewedFactSourceSnapshot(site, current), sourceMaterials))
+      ...(!localTargets.length || (current && reviewedMaterialSnapshot(site, current) === site.materials && sameFactSources(reviewedFactSourceSnapshot(current), sourceMaterials))
         ? { materialSnapshot: site.materials } : {}),
       ...(sourceMaterials !== undefined ? { factSourceSnapshot: sourceMaterials } : {}),
       ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };

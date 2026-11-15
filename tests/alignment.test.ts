@@ -23,3 +23,11 @@ test('long persisted explanations fail visibly without silently truncating them'
   const snapshot={...disabledAlignment(),lastResult:{status:'error',summary:'拒收原因'.repeat(150)}};
   assert.throws(()=>normalizeAlignmentSnapshot(snapshot),AlignmentTextTooLongError);assert.equal(snapshot.lastResult.summary.length,600);
 });
+// T-214: roundCount was dropped from the snapshot; records saved before keep loading.
+// Fails if the schema turns strict or the field is still carried into new saves.
+test('a stored snapshot that still carries roundCount reads back without it',()=>{
+  const stored={...disabledAlignment(),enabled:true,state:'awaiting_style',currentQuestion:question,styleOptionId:'precision',styleLabel:'精密工程',roundCount:2};
+  const reread=normalizeAlignmentSnapshot(JSON.parse(JSON.stringify(stored)));
+  assert.equal(reread.state,'awaiting_style');assert.equal(reread.styleOptionId,'precision');assert.equal(reread.currentQuestion?.questionId,'style-1');
+  assert.equal('roundCount' in reread,false);
+});

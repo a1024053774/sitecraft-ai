@@ -68,7 +68,6 @@ const { POST: undo } = await import('../app/api/sites/[siteId]/history/[action]/
 const { DELETE } = await import('../app/api/sites/[siteId]/route.ts');
 const { GET: preview } = await import('../app/api/sites/[siteId]/code-preview/route.ts');
 const { getCodeSite } = await import('../lib/code-site-store.ts');
-const { deleteCodeSite } = await import('../lib/code-site-store.ts');
 const { checkSiteCode } = await import('../lib/code-site-check.ts');
 const request = (url: string, method: string, body: unknown) => new Request(base + url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const context = (siteId: string) => ({ params: Promise.resolve({ siteId }) });

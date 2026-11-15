@@ -414,7 +414,6 @@ sourceQuotes 是独立用户原文中的连续片段；materials、pageContexts�
     if (!row.noFacts && row.citations.some(citation => !factCategories.includes(citation.category))) protocolProblems.push('资料出处声明类别未被本段核对结果覆盖。');
     if (protocolProblems.length) throw new Error(`核对段协议无效：${protocolProblems.join('；')}本次未保存版本。`);
   }
-  const sources = sourceMaterials ?? [];
   const reviewed = input.segments.map((segment, i) => {
     const row = byId.get(segment.id)!, citationIssues: string[] = [], factCategories = row.factCategories;
     const citations = row.citations.flatMap(citation => {

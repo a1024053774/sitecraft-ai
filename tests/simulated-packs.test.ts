@@ -18,7 +18,6 @@ const COLLIDING_TOKENS = [
 ] as const;
 
 const providerSource = readFileSync(new URL("../lib/ai-provider.ts", import.meta.url), "utf8");
-const workspaceSource = readFileSync(new URL("../app/(workspace)/workspace/page.tsx", import.meta.url), "utf8");
 
 test("industrial and export simulated packs are independent, labeled 模拟, and use unique nonces", () => {
   assert.equal(simulatedPackList.length, 7);
