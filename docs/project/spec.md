@@ -171,7 +171,7 @@ T-208 的 Windows Docker 服务复用上述混合存储：PostgreSQL 命名卷�
 
 **访客模型接口**
 - 设置页「模型接口」填写 API 地址、key、模型名，只存在 localStorage，可从浏览器清除。
-- 只有可能调用模型的请求带 `X-SiteCraft-Provider-Base`、`X-SiteCraft-Provider-Key`、`X-SiteCraft-Provider-Model` 三个头：chat 的非 state 请求、撤销、恢复、看图；状态轮询不带。
+- 只有可能调用模型的请求带 `X-SiteCraft-Provider-Base`、`X-SiteCraft-Provider-Key`、`X-SiteCraft-Provider-Model` 三个头：chat 的非 state 请求、撤销、恢复；状态轮询不带。
 - 路由把凭据放入本次请求的 AsyncLocalStorage；后台任务在调度时取出，放在闭包里，任务结束随之释放。凭据不进 run、modelCalls、日志或站点包。
 - 生产模式（`NODE_ENV=production`）不读 `DEEPSEEK_API_KEY` 等环境变量。
 - chat 中会启动模型任务的请求（翻译、风格选择、确认、已有版本后的修改），未配置时在对齐、来源登记和任务改动之前返回 400。

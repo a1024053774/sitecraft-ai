@@ -399,7 +399,6 @@ a { color: inherit; text-decoration: none; }
 .builder-shell .materials-modal textarea::placeholder, .builder-shell .delete-confirm-input::placeholder { color: var(--ws-muted); opacity: 1; }
 .builder-shell .materials-count, .builder-shell .delete-note, .builder-shell .delete-empty { color: var(--ws-muted); font-size: 12px; }
 .builder-shell .pack-actions .hint { min-height: 36px; }
-.builder-shell .image-facts { background: var(--ws-raised); color: var(--ws-text); font-size: 12px; }
 .builder-shell .danger-button { min-height: 36px; }
 
 @keyframes ws-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -581,8 +580,6 @@ a { color: inherit; text-decoration: none; }
 .materials-count { margin-top: 6px; color: var(--muted); font-size: 10px; }
 .materials-modal .modal-foot { gap: 12px; align-items: center; }
 .materials-modal .modal-foot span { display: inline-flex; align-items: center; gap: 6px; }
-.image-facts { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #f2f6f1; font-size: 11px; line-height: 1.55; }
-.image-facts strong { display: block; margin-bottom: 4px; }
 .image-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .typing-dots { animation: blink 1.1s infinite; }
 @keyframes blink { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }

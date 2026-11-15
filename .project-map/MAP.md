@@ -69,6 +69,7 @@
 - [T-197 极端窄列拒收](tickets/T-197-extreme-narrow-reject.md)：平均每行不到 2 字的可见文字块改为底线拒收并进修正轮；普通窄列与行长仍只作质量反馈（T-198 实现）
 - [T-200 上线方向](tickets/T-200-launch-direction.md)：停止质量开发准备上线；简约产品页与样品；用户自带模型接口，key 与站点数据只存用户浏览器；部署到 1 核 1GB VPS 的 luckye.online 子域名（T-201～T-204）
 - [T-206 公网演示与本机 Docker](tickets/T-206-demo-and-local-docker.md)：VPS 不再跑真实建站（满载影响负责人其他业务），sitecraftapp 改为预设数据的交互式演示；真实建站用 Docker 多阶段镜像加 compose 编排 PostgreSQL 部署在负责人本机（T-207、T-208）
+- [T-213 两条未接入界面的接口](tickets/T-213-unwired-analyze-and-replies.md)：看图识别与批注回复的对外路由删除，不接入；生成流程内部的助手回复保留（T-217 实现）
 
 ## Not yet specified
 

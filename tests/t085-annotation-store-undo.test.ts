@@ -22,7 +22,6 @@ const {createCodeSite,getCodeSite}=await import('../lib/code-site-store.ts');
 const createSite=(id:string)=>createCodeSite(id,id,crypto.randomUUID());
 const annotationsRoute = await import("../app/api/sites/[siteId]/annotations/route.ts");
 const annotationRoute = await import("../app/api/sites/[siteId]/annotations/[annotationId]/route.ts");
-const repliesRoute = await import("../app/api/sites/[siteId]/annotations/[annotationId]/replies/route.ts");
 
 const createdSites = new Set<string>();
 
@@ -79,7 +78,7 @@ test("annotation contract rejects an unowned primary slot and accepts stale stat
   assert.equal(annotationCurrentSchema.safeParse({ state: "attached", revision: 4 }).success, true);
 });
 
-test("annotation API creates, filters, replies, resolves, and deletes explicitly", async () => {
+test("annotation API creates, filters, resolves, and deletes explicitly", async () => {
   const siteId = newSiteId();
   const input = annotationInput(siteId);
   const createdResponse = await annotationsRoute.POST(new Request("http://sitecraft.test", { method: "POST", body: JSON.stringify(input) }), { params: Promise.resolve({ siteId }) });
@@ -88,8 +87,6 @@ test("annotation API creates, filters, replies, resolves, and deletes explicitly
   const listedResponse = await annotationsRoute.GET(new Request("http://sitecraft.test? pageId=home".replace("? ", "?")), { params: Promise.resolve({ siteId }) });
   assert.equal(listedResponse.status, 200);
   assert.equal((await listedResponse.json() as { annotations: unknown[] }).annotations.length, 1);
-  const replyResponse = await repliesRoute.POST(new Request("http://sitecraft.test", { method: "POST", body: JSON.stringify({ body: "回复", author: { id: "reviewer", name: "审核者" } }) }), { params: Promise.resolve({ siteId, annotationId: created.id }) });
-  assert.equal(replyResponse.status, 201);
   const resolveResponse = await annotationRoute.PATCH(new Request("http://sitecraft.test", { method: "PATCH", body: JSON.stringify({ status: "resolved" }) }), { params: Promise.resolve({ siteId, annotationId: created.id }) });
   assert.equal(resolveResponse.status, 200);
   const deleteResponse = await annotationRoute.DELETE(new Request("http://sitecraft.test", { method: "DELETE" }), { params: Promise.resolve({ siteId, annotationId: created.id }) });

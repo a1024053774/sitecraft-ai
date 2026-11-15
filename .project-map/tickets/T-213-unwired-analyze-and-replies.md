@@ -2,9 +2,9 @@
 id: T-213
 title: 看图识别与批注回复两条未接入界面的接口：删除还是接入
 type: decide
-status: open
+status: closed
 blocked_by: []
-claimed_by:
+claimed_by: Claude
 supersedes:
 ---
 
@@ -25,3 +25,6 @@ AGENTS 规定「不为未来功能预置平行 API」。可选做法：
 
 ## Resolution
 
+2026-11-15 负责人决定：「把 t-213 的两个接口关闭」，采用 **A. 删除**。删掉 `POST .../images/[imageId]/analyze` 和 `POST .../annotations/[annotationId]/replies` 两条路由，以及只为它们服务的代码、样式和测试；实施见 [T-217](T-217-remove-analyze-and-replies-routes.md)。
+
+`replyAnnotation` 仍由生成流程用来写助手回复（`lib/code-site-workflow.ts`），因此保留，只删对外的 replies 路由。

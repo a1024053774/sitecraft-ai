@@ -11,7 +11,6 @@ import {
   SiteImageError,
   validateImageProvenance,
 } from "../lib/site-images.ts";
-import { imageFactsSchema, MISSING_FACT, parseImageFacts } from "../lib/image-facts.ts";
 
 const ONE_BY_ONE_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=",
@@ -65,29 +64,25 @@ test.after(async () => {
 });
 
 test("magic bytes reject 1×1, HTML, and GIF; JPEG/PNG headers are enough to read size", () => {
-  assert.throws(() => inspectSiteImage(ONE_BY_ONE_PNG, "upload"), (error: unknown) => {
+  assert.throws(() => inspectSiteImage(ONE_BY_ONE_PNG), (error: unknown) => {
     assert.equal(error instanceof SiteImageError, true);
     assert.equal(error instanceof SiteImageError && error.code, "too_small");
     assert.equal(error instanceof Error && error.message.includes("1×1"), true);
     return true;
   });
-  assert.throws(() => inspectSiteImage(pngWithSize(1, 1, 400), "analyze"), (error: unknown) => {
-    assert.equal(error instanceof Error && error.message.includes("1×1"), true);
-    return true;
-  });
-  assert.throws(() => inspectSiteImage(Buffer.from("<html><img></html>"), "upload"), (error: unknown) => {
+  assert.throws(() => inspectSiteImage(Buffer.from("<html><img></html>")), (error: unknown) => {
     assert.equal(error instanceof SiteImageError && error.code, "unsupported");
     return true;
   });
-  assert.throws(() => inspectSiteImage(Buffer.from("GIF89a"), "upload"), (error: unknown) => {
+  assert.throws(() => inspectSiteImage(Buffer.from("GIF89a")), (error: unknown) => {
     assert.equal(error instanceof SiteImageError && error.code, "unsupported");
     return true;
   });
-  const jpeg = inspectSiteImage(jpegWithSize(640, 480, 1200), "upload");
+  const jpeg = inspectSiteImage(jpegWithSize(640, 480, 1200));
   assert.equal(jpeg.mime, "image/jpeg");
   assert.equal(jpeg.width, 640);
   assert.equal(jpeg.height, 480);
-  const png = inspectSiteImage(pngWithSize(96, 96, 200), "upload");
+  const png = inspectSiteImage(pngWithSize(96, 96, 200));
   assert.equal(png.mime, "image/png");
   assert.equal(png.width, 96);
 });
@@ -213,29 +208,4 @@ test("same-content uploads reuse the image id and update the latest usage catego
   assert.equal(second.imageId, first.imageId);
   assert.equal(second.usageCategory, "product");
   assert.equal((await listSiteImages(siteD)).length, 1);
-});
-
-test("image facts schema keeps 待补充, drops CSS/HTML/operations, and is not an edit intent", () => {
-  const parsed = imageFactsSchema.safeParse({
-    type: "image_facts",
-    visibleText: ["P3IMG-HX4K"],
-    name: { zh: MISSING_FACT, en: MISSING_FACT },
-    sellingPoints: { zh: [], en: [] },
-    category: MISSING_FACT,
-    alt: { zh: "灰色金属壳体", en: "Gray metal housing" },
-    missingFacts: ["价格", "认证", "产能"],
-    operations: [{ op: "set_html", value: "<img>" }],
-    css: "body{display:none}",
-  });
-  assert.equal(parsed.success, true);
-  if (!parsed.success) throw new Error("expected facts");
-  assert.equal(parsed.data.name.zh, MISSING_FACT);
-  assert.deepEqual(parsed.data.missingFacts, ["价格", "认证", "产能"]);
-  assert.equal("operations" in parsed.data, false);
-  assert.equal("css" in parsed.data, false);
-  assert.equal(parseImageFacts(JSON.stringify({
-    type: "edit",
-    summary: "改草稿",
-    operations: [{ op: "set_text", target: "hero.title", locale: "zh", value: "x" }],
-  })).data, null);
 });

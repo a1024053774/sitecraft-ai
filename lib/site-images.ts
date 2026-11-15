@@ -6,8 +6,6 @@ import { isPng, readPngSize } from "./preview-vision.ts";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const MIN_UPLOAD_EDGE = 32;
-export const MIN_ANALYZE_EDGE = 160;
-export const MIN_ANALYZE_BYTES = 8 * 1024;
 export const IMAGE_ID_PATTERN = /^img_[a-z0-9]{16,40}$/;
 export const SITE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 
@@ -162,7 +160,6 @@ export function readImageSize(bytes: Uint8Array) {
 
 export function inspectSiteImage(
   bytes: Uint8Array,
-  purpose: "upload" | "analyze",
 ): { mime: ImageMime; width: number; height: number; byteLength: number } {
   if (!bytes.length) {
     throw new SiteImageError("empty", "图片为空，拒绝保存。");
@@ -178,27 +175,13 @@ export function inspectSiteImage(
   if (!mime || !size) {
     throw new SiteImageError("unsupported", "只接受能用 magic bytes 识别的 PNG / JPEG / WebP，扩展名不可信。");
   }
-  const minEdge = purpose === "analyze" ? MIN_ANALYZE_EDGE : MIN_UPLOAD_EDGE;
-  if (size.width < minEdge || size.height < minEdge) {
+  if (size.width < MIN_UPLOAD_EDGE || size.height < MIN_UPLOAD_EDGE) {
     throw new SiteImageError(
       "too_small",
-      purpose === "analyze"
-        ? `分析用图为 ${size.width}×${size.height}，小于真实产品图下限 ${MIN_ANALYZE_EDGE}×${MIN_ANALYZE_EDGE}，拒绝 1×1 或合成小图。`
-        : `图片为 ${size.width}×${size.height}，小于上传下限 ${MIN_UPLOAD_EDGE}×${MIN_UPLOAD_EDGE}，拒绝 1×1。`,
-    );
-  }
-  if (purpose === "analyze" && bytes.length < MIN_ANALYZE_BYTES) {
-    throw new SiteImageError(
-      "too_small",
-      `分析用图仅 ${bytes.length} bytes，不像真实产品照片，拒绝合成小图。`,
+      `图片为 ${size.width}×${size.height}，小于上传下限 ${MIN_UPLOAD_EDGE}×${MIN_UPLOAD_EDGE}，拒绝 1×1。`,
     );
   }
   return { mime, width: size.width, height: size.height, byteLength: bytes.length };
-}
-
-export function imageDataUrl(bytes: Uint8Array, purpose: "upload" | "analyze" = "analyze") {
-  const info = inspectSiteImage(bytes, purpose);
-  return `data:${info.mime};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
 function siteDir(siteId: string) {
@@ -273,7 +256,7 @@ export async function saveSiteImage(args: {
     retrievedAt?: string;
   };
 }): Promise<SiteImageRecord> {
-  const info = inspectSiteImage(args.bytes, "upload");
+  const info = inspectSiteImage(args.bytes);
   const createdAt = new Date().toISOString();
   const site = safeSiteId(args.siteId);
   const provenance = args.provenance ?? {};
