@@ -234,3 +234,43 @@ T-208 的 Windows Docker 服务复用上述混合存储：PostgreSQL 命名卷�
   - 无发布链接。
   - 已用六个变异核对。
 - 本机验收脚本是 `artifacts/t202/run-acceptance.sh`。它用生产构建和 `scripts/t202-model-fixture.ts` 替身，在 Chrome 里走完整流程：配置 → 新建 → 资料 → 风格 → 确认 → 生成 → 修改 → 撤销 → 刷新 → 重启服务器并换成空数据根 → 从浏览器恢复 → 下载站点包。
+
+### 回归测试入口
+
+下列测试固定对应规则的回归；第 3、6 节正文中已写明的测试入口不在此重复。
+
+批注与工作台（T-162～T-193）：
+
+- `tests/t175-stale-placeholder.test.ts` 拦截等价引文误报/漏报、空白标题破坏整组草稿刷新，并直接检查同节点多个占位、历史回看与发送中草稿保留。
+- `tests/t162-mobile-reveal.test.ts` 经真实 CDP 操作拦截 375 跨页线程定位后目标被面板遮挡、收起后意见或高亮丢失，并保留 1440/768 对照；`tests/t162-scroll-edge.test.ts` 用三档真实滚轮拦截目标离屏后意见面板截断或无法继续操作。
+- `tests/t179-composer-scroll.test.ts` 保留三档真实滚轮、展开和重新点选的成对断言，并以 375 宿主滚动条占宽 0／15px 对照拦截高区块居中后底边仍与意见面板重叠（T-193）。
+- `tests/t162-review-regressions.test.ts` 经真实 CDP 检查历史回看不发当前编辑、连续点选后可继续输入、点选存储读写删除拒绝不使工作台崩溃；`scripts/t162-review-counterfactual.ts` 逐项回退对应修复来证明测试可检错。
+- T-162 测试的临时 HTTP 服务在 test.after 关闭；其余入口机制见第 3 节 T-162 浏览器测试段。
+- T-162 的三档与存储拒绝场景各用独立 Chrome 配置，`timings.json` 记录分段耗时与 load 采样；回调隔离、等待预算与替身闸门见第 3 节。
+
+事实核对与局部写作：
+
+- T-210 的回归入口为 tests/t210-name-routing.test.ts、tests/t210-fact-references.test.ts、tests/t210-check-resume.test.ts；同时保留 T-173 的范围与 T-185 的原始坏回复反例。
+- tests/t174-local-function.test.ts 拦截属性名、重复属性值与截断正文中的转义凭据泄漏，并核对应用占位 token 与无凭据正文对照。
+
+底线检查与修正范围：
+
+- `tests/t192-check-transitions.test.ts` 经真实提交检查与 Chrome 拦截动态探针、CSS 声明影响核实及展开内容扫描读取作者过渡旧值。
+- `tests/t194-number-node-boundary.test.ts` 用 C10 原候选经生产提交入口拦截机械数字跨排版边界误拼，覆盖三档并集、真实跨文字节点数字拒收及同次位置修正，不从全文反推数字范围。
+- `tests/t187-repair-fragments.test.ts` 用真实 Chrome 拦截被 `!important` 覆盖的 inline 误拒、inline font 简写漏拒，以及无法区分同值级联时误放行。`tests/t187-repair-routing.test.ts` 的 inline 边界同样用真实 Chrome，并拦截探测改变 style 属性选择器匹配后误判声明已覆盖。
+- `tests/t160-narrow-columns.test.ts` 用真实浏览器拦截价格豁免扩散到说明正文、display:contents 可见文字漏测和 CSS 多栏跨列合行；纯价格/正文、可见/隐藏、多栏/单栏均成对验证。
+
+英文版：
+
+- 英文翻译的真实坏编号夹具由 tests/t151-short-translation.test.ts 检查，防止长编号、整页补译或修正越界。
+- tests/t151-fidelity-rules.test.ts、tests/t151-paragraph-repair.test.ts 与 T-151 提交入口用例保留真实回复的红绿证据，防止缩写、数字换序、数量等价、英名字段误报或整页修正。
+
+风格、评估与预算：
+
+- `tests/t159-task-admission.test.ts` 成对拦截模型调用绕过准入和无模型提交被误拦。
+- `tests/t153-local-endpoints.test.ts` 拦截固定本地端口和默认应用地址，并验证替身实际监听配置（T-153）。
+- `tests/t165-token-reserve.test.ts` 与 `tests/t165-tokenizer-adversarial.test.ts` 覆盖真实 usage 的复原请求、官方 tokenizer 对抗计数、原预算可容纳修正及批注、出网前拒绝超支和已付超估用量记账后终止（T-165）。
+
+检查浏览器与运行环境：
+
+- `tests/t166-check-origin.test.ts` 检查 Docker runtime 复制完整 `public/` 的配置，并拦截缺失页被当作有效源（T-166）。

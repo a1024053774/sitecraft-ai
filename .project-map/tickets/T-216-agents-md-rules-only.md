@@ -4,7 +4,7 @@ title: AGENTS.md 只留规则，测试机制移到 spec 或票
 type: build
 status: open
 blocked_by: []
-claimed_by:
+claimed_by: Claude
 supersedes:
 ---
 
