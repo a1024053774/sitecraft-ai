@@ -14,6 +14,7 @@ import type { CodeSiteRecord, CodePreferences } from '@/lib/code-site';
 import { codeCheckLabel, codeVersionAuthor, chineseCodeRevision, codeFactMaterials, explicitEnglishCompanyName } from '@/lib/code-site';
 import type { AlignmentPublicView } from '@/lib/alignment';
 import type { ConversationTurn } from '@/lib/conversation-store';
+import { uncompletedUserMessages } from '@/lib/code-workspace-messages';
 import { simulatedPackList } from '@/lib/simulated-packs';
 import { CodeVersionHistory } from './code-version-history';
 import { annotationTargetSchema, annotationCaptureSchema, annotationDraftSchema, type AnnotationDraft, type AnnotationTarget, type AnnotationThread } from '@/lib/annotations';
@@ -420,8 +421,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       <div className="builder-chat-head"><strong data-testid="code-revision">{version ? `当前版本 · v${version.revision}` : '公司资料与需求'}</strong><small>{english ? '中英文网站' : '中文网站'}</small></div>
       <div className="chat-messages">
         {state.conversationError && <p className="code-error" role="alert" data-testid="code-conversation-error">{state.conversationError}</p>}
-        {!state.turns.length && !conversationUnavailable && <div className="message assistant"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
+        {!state.turns.length && !site.factSources?.length && !conversationUnavailable && <div className="message assistant"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
         {state.turns.map((turn, index) => <div key={`${turn.createdAt}-${index}`}><div className="message user"><div className="message-label">你</div><div className="message-bubble">{turn.userMessage}</div></div><div className={`message assistant ${turn.outcome}`}><div className="message-label">AI 助手</div><div className="message-bubble">{turn.aiSummary}</div></div></div>)}
+        {!conversationUnavailable && uncompletedUserMessages(site.factSources, state.turns).map(source => <div className="message user" key={source.type === 'upload' ? `upload:${source.sourceId}` : `${source.type}:${source.messageIndex}`}><div className="message-label">你</div><div className="message-bubble">{source.text}</div></div>)}
         {alignment?.waitingForUser && alignment.questionKind === 'clarify' && <CodeSubjectChoice key={alignment.questionId} question={alignment.question} busy={busy} onSubmit={name => void perform({ message: `主体名称：${name}` })} />}
         {alignment?.waitingForUser && alignment.questionKind === 'style' && <CodeStyleChoice key={alignment.questionId} siteId={siteId} alignment={alignment} initial={site.preferences} busy={busy}
           onSelect={preferences => void perform({ action: 'select', questionId: alignment.questionId, questionRevision: alignment.questionRevision, optionId: preferences.style, preferences })} onCancel={() => void perform({ action: 'cancel' })} />}
