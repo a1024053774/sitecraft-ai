@@ -3,7 +3,7 @@ import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
+import { currentCodeVersion, codeSiteStep, type CodeSiteStep, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
 import { sameFactSources, type CodeFactSource } from './code-site-fact-segments.ts';
 import { stalePlaceholderPrompts } from './code-site-placeholders.ts';
 import { checkSiteCode } from './code-site-check.ts';
@@ -36,7 +36,9 @@ export async function getCodeSite(id: string): Promise<CodeSiteRecord | null> {
   if (record?.route === 'unavailable') throw new CodeSiteUnavailableError(record);
   return record;
 }
-export type CodeSiteListItem = { siteId: string; siteName: string; companyName: string; updatedAt: string; hasVersion: boolean; status?: string; readError?: string };
+export type CodeSiteListItem = { siteId: string; siteName: string; companyName: string; updatedAt: string; hasVersion: boolean; status?: string; readError?: string;
+  // T-220: where the site stands in the five-step flow, for the site list.
+  progress?: { step: CodeSiteStep; revision: number | null; pageCount: number; checksPassed: boolean; english: boolean; runFailed: boolean } };
 export async function listCodeSites(): Promise<CodeSiteListItem[]> {
   checkStorage();
   let names: string[];
@@ -48,8 +50,11 @@ export async function listCodeSites(): Promise<CodeSiteListItem[]> {
     const record = await readStored(name.slice(0, -5));
     if (!record) continue;
     const hasVersion = record.route === 'code' && !!currentCodeVersion(record);
+    const version = record.route === 'code' ? currentCodeVersion(record) : null;
     items.push({ siteId: record.siteId, siteName: record.name, companyName: record.name, updatedAt: record.updatedAt, hasVersion,
-      ...(record.route === 'unavailable' ? { status: record.status, readError: record.readError } : hasVersion ? {} : {status:'尚未生成'}) });
+      ...(record.route === 'unavailable' ? { status: record.status, readError: record.readError } : { ...(hasVersion ? {} : {status:'尚未生成'}),
+        progress: { step: codeSiteStep(record), revision: version?.revision ?? null, pageCount: version?.code.pages.length ?? record.plan?.pages.length ?? 0,
+          checksPassed: !!version?.checks.passed, english: !!version?.english, runFailed: record.run?.status === 'error' } }) });
   }
   return items.sort((a,b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }

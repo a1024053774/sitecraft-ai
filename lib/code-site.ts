@@ -154,6 +154,18 @@ export function codeVersionAuthor(author: CodeVersion['author']) {
 export function currentCodeVersion(site: CodeSiteRecord) {
   return site.versions.find(v => v.id === site.currentVersionId) ?? null;
 }
+// T-220: the five steps the workspace and the site list show. Derived from the record only.
+export const codeSiteSteps = [
+  { id: 'material', label: '资料' }, { id: 'style', label: '风格' }, { id: 'outline', label: '大纲' },
+  { id: 'generate', label: '生成' }, { id: 'edit', label: '修改' },
+] as const;
+export type CodeSiteStep = typeof codeSiteSteps[number]['id'];
+export function codeSiteStep(site: CodeSiteRecord): CodeSiteStep {
+  if (currentCodeVersion(site)) return 'edit';
+  if (site.run?.kind === 'generate') return 'generate';
+  if (site.plan) return 'outline';
+  return site.materials.trim() ? 'style' : 'material';
+}
 export function codeRunCheckpoint(site: CodeSiteRecord): CodeRun['checkpoint'] | null {
   const run = site.run;
   if (!run || run.status !== 'error' || !['generate', 'edit'].includes(run.kind) || run.selectedTarget || run.annotationBatch?.length

@@ -1,178 +1,120 @@
 import Link from "next/link";
 import type { Route } from "next";
-import {
-  ArrowUpRight,
-  ChevronRight,
-  Clock3,
-  FileText,
-  Globe2,
-  LayoutTemplate,
-  Plus,
-  Sparkles,
-  WandSparkles,
-} from "lucide-react";
-import { AppSidebar } from "@/components/app-sidebar";
+import { ArrowRight } from "lucide-react";
+import { AppTopbar } from "@/components/app-topbar";
 import { listCodeSites, type CodeSiteListItem as SiteListItem } from "@/lib/code-site-store";
+import { codeSiteSteps } from "@/lib/code-site";
+import { codeStyles, readyCodeStyleIds } from "@/lib/code-site-styles";
 import { LocalSiteList } from "@/components/local-site-list";
+import { ProviderStatus } from "@/components/provider-settings";
+import { SiteProgress, formatUpdatedAt, siteProgressText, siteVersionText } from "@/components/site-progress";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function formatUpdatedAt(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+const workspaceHref = (siteId: string) => `/workspace?site=${encodeURIComponent(siteId)}` as Route;
+const stepNotes: Record<(typeof codeSiteSteps)[number]["id"], string> = {
+  material: "粘贴或上传公司资料。网站上的话都从这里来，资料里没有的标成「待补充」。",
+  style: "从真实生成过的站点里挑一种风格，再定版式和信息量的松紧。",
+  outline: "看要做哪几页、每页写什么。你确认了才开始写。",
+  generate: "写页面，核对事实出处，检查电脑、平板、手机三种宽度，保存第 1 版。",
+  edit: "在预览上点一块说怎么改，或直接对整页提要求。每次修改存成一个新版本，可以退回。",
+};
 
 function SiteThumb({ site }: { site: SiteListItem }) {
-  if (site.readError || !site.hasVersion) return <div className="site-thumb site-thumb-unavailable">{site.status}</div>;
-  return <div className="site-thumb"><iframe title={`${site.siteName}缩略预览`} src={`/published/${encodeURIComponent(site.siteId)}`} loading="lazy" sandbox="" style={{width:1440,height:1000,border:0,transform:'scale(.25)',transformOrigin:'top left',pointerEvents:'none'}} /></div>;
+  return <div className="site-thumb"><iframe title={`${site.siteName}缩略预览`} src={`/published/${encodeURIComponent(site.siteId)}`} loading="lazy" sandbox="" tabIndex={-1} /></div>;
+}
+
+function HowItWorks() {
+  return (
+    <section className="home-section" aria-labelledby="home-steps">
+      <h2 id="home-steps">一个站点分五步做完</h2>
+      <ol className="home-steps">
+        {codeSiteSteps.map((step, index) => <li key={step.id}><i>{index + 1}</i><strong>{step.label}</strong><p>{stepNotes[step.id]}</p></li>)}
+      </ol>
+    </section>
+  );
+}
+
+function StyleSamples() {
+  return (
+    <section className="home-section" aria-labelledby="home-styles">
+      <div className="home-section-head"><h2 id="home-styles">四种风格，缩略图来自真实生成过的站点</h2><a href="/style-previews/SOURCE.md" target="_blank" rel="noreferrer">示例来源</a></div>
+      <div className="home-styles">
+        {readyCodeStyleIds.map(id => {
+          const style = codeStyles[id];
+          return <figure key={id}>{style.preview.status === "ready" && <img src={style.preview.src} alt={`${style.label}：真实生成站点首屏示例`} width="576" height="400" loading="lazy" />}<figcaption><strong>{style.label}</strong><span>{style.description}</span></figcaption></figure>;
+        })}
+      </div>
+      <p className="home-note">选风格在第 2 步；也可以让系统按资料帮你选。具体排法随资料变化。</p>
+    </section>
+  );
 }
 
 export default async function Dashboard() {
-  if (process.env.SITE_STORE === 'browser') return <LocalDashboard />;
+  if (process.env.SITE_STORE === "browser") return <LocalDashboard />;
   const sites = await listCodeSites();
-  const recent = sites.slice(0, 3);
-  const activities = [
-    ...sites.map((site) => ({ kind: "site" as const, at: site.updatedAt, title: `${site.readError ? "无法打开" : "已更新"} ${site.siteName}`, detail: site.readError || "打开工作台继续修改", icon: "sparkles" as const })),
-  ].sort((left, right) => right.at.localeCompare(left.at)).slice(0, 3);
+  const latest = sites.find(site => site.hasVersion && !site.readError);
+  const waiting = sites.filter(site => siteProgressText(site).tone !== "plain").length;
 
   return (
-    <div className="app-shell">
-      <AppSidebar active="sites" />
-      <main className="main">
-        <header className="topbar">
-          <div className="breadcrumbs">
-            <span>Workspace</span>
-            <ChevronRight size={12} />
-            <strong>我的站点</strong>
-          </div>
-          <div className="top-actions">
-            <button className="icon-button" aria-label="通知">
-              <Clock3 size={15} />
-            </button>
-            <Link href="/workspace?new=1" className="primary-button">
-              <Plus size={15} />
-              新建站点
-            </Link>
-          </div>
-        </header>
-        <div className="page-content">
-          <div className="hero-row">
-            <div>
-              <h1>
-                把你的能力，
-                <br />
-                <span style={{ color: "#2e6b4f" }}>变成一座网站。</span>
-              </h1>
-              <p>用一段对话开始。选择一个方向，剩下的交给 AI。</p>
-            </div>
-            <Link href="/workspace?new=1" className="primary-button new-site-button">
-              <WandSparkles size={15} />
-              开始一个新项目 <ArrowUpRight size={14} />
-            </Link>
-          </div>
-          <div className="stats">
-            <div className="stat-card">
-              <div className="stat-label">
-                <span>站点总数</span>
-                <LayoutTemplate size={14} />
-              </div>
-              <div className="stat-value">{String(sites.length).padStart(2, "0")}</div>
-              <div className="stat-note">已保存草稿，不是演示名单</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">
-                <span>最近更新</span>
-                <Globe2 size={14} />
-              </div>
-              <div className="stat-value">{String(recent.length).padStart(2, "0")}</div>
-              <div className="stat-note">最近三项站点记录</div>
-            </div>
-          </div>
-          <div className="section-heading">
-            <h2>最近的站点</h2>
-            <Link className="section-link" href={"/sites" as Route} data-testid="view-all-sites">
-              查看全部{" "}
-              <ArrowUpRight size={12} style={{ verticalAlign: "middle" }} />
-            </Link>
-          </div>
-          <div className="site-grid">
-            {recent.length === 0 ? (
-              <p className="empty-state recent-sites-empty">还没有已保存站点。点击新建站点开始建站，这里不会先放演示站。</p>
-            ) : recent.map((site) => {
-                          return (
-                <Link
-                  href={`/workspace?site=${encodeURIComponent(site.siteId)}` as Route}
-                  className="site-card"
-                  key={site.siteId}
-                >
-                  <SiteThumb site={site} />
-                  <div className="site-card-body">
-                    <div className="site-title">
-                      <strong>{site.siteName}</strong>
-                      <span className="site-status">{site.status || "● 已保存"}</span>
-                    </div>
-                    <div className="site-meta">{site.siteId}</div>
-                    {site.readError && <p className="site-read-error" role="status">{site.readError}</p>}
-                    <div className="site-card-footer">
-                      <span>最后编辑 {formatUpdatedAt(site.updatedAt)}</span>
-                      <span className="tiny-action">
-                        {site.readError ? "查看原因" : "打开工作台"}{" "}
-                        <ArrowUpRight
-                          size={11}
-                          style={{ verticalAlign: "middle" }}
-                        />
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-          <div className="activity-panel">
-            <div className="panel">
-              <div className="section-heading">
-                <h2>最近动态</h2>
-              </div>
-              {activities.length ? activities.map((activity) => (
-                <div className="activity-row" key={`${activity.kind}-${activity.at}-${activity.title}`}>
-                  <div className="activity-icon"><Sparkles size={14} /></div>
-                  <div className="activity-text"><strong>{activity.title}</strong><span>{activity.detail}</span></div>
-                  <span className="activity-time">{formatUpdatedAt(activity.at)}</span>
-                </div>
-              )) : <p className="empty-state">暂无动态。创建站点后会显示在这里。</p>}
-            </div>
-            <div className="panel">
-              <div className="section-heading">
-                <h2>快速开始</h2>
-              </div>
-              <div className="quick-list">
-                <Link href="/workspace?new=1" className="quick-item">
-                  <WandSparkles size={14} />
-                  从模板开始一个站点
-                  <ArrowUpRight size={12} style={{ marginLeft: "auto" }} />
-                </Link>
-                <Link
-                  href="/workspace?import=products"
-                  className="quick-item"
-                  style={{
-                    textAlign: "left",
-                  }}
-                >
-                  <FileText size={14} />
-                  上传商品表格
-                  <ArrowUpRight size={12} style={{ marginLeft: "auto" }} />
-                </Link>
-              </div>
-            </div>
-          </div>
+    <div className="app-page">
+      <AppTopbar active="home" />
+      <main className="app-main">
+        <div className="home-head">
+          <h1>站点</h1>
+          <p>{sites.length ? `${sites.length} 个站点${waiting ? `，其中 ${waiting} 个等你处理` : ""}。` : "还没有站点。"}把公司资料发过来，五步做成它自己的官网。</p>
+          <ProviderStatus />
         </div>
+
+        {latest && (
+          <section className="home-latest" aria-label="上次改到这里">
+            <Link href={workspaceHref(latest.siteId)} className="home-latest-thumb" aria-label={`打开 ${latest.siteName}`}><SiteThumb site={latest} /></Link>
+            <div className="home-latest-body">
+              <span className="home-kicker">上次改到这里</span>
+              <h2>{latest.siteName}</h2>
+              <p>{siteVersionText(latest).main} · {siteVersionText(latest).sub}</p>
+              <p className="home-muted">最后修改 {formatUpdatedAt(latest.updatedAt)}</p>
+              <SiteProgress site={latest} />
+              <div className="home-latest-actions">
+                <Link href={workspaceHref(latest.siteId)} className="primary-button">继续修改 <ArrowRight size={15} /></Link>
+                <a className="secondary-button" href={`/api/sites/${encodeURIComponent(latest.siteId)}/export`} download>下载站点包</a>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="home-section" aria-labelledby="home-sites">
+          <div className="home-section-head">
+            <h2 id="home-sites">{sites.length > 6 ? "最近改过的 6 个" : "全部站点"}</h2>
+            <Link href={"/sites" as Route} data-testid="view-all-sites">查看全部 <ArrowRight size={13} /></Link>
+          </div>
+          {sites.length === 0 ? (
+            <div className="home-empty">
+              <p>还没有已保存站点，这里不会先放演示站。手头没有资料也可以开始：第 1 步里能载入一份模拟公司的资料试一遍。</p>
+              <Link href="/workspace?new=1" className="primary-button">新建站点，先发资料 <ArrowRight size={15} /></Link>
+            </div>
+          ) : (
+            <div className="site-table" role="table" aria-label="站点">
+              <div className="site-table-row site-table-head" role="row"><span role="columnheader">站点</span><span role="columnheader">做到哪一步</span><span role="columnheader">当前版本</span><span role="columnheader">最后修改</span><span role="columnheader" /></div>
+              {sites.slice(0, 6).map(site => {
+                const text = siteProgressText(site), version = siteVersionText(site);
+                return (
+                  <Link href={workspaceHref(site.siteId)} className="site-table-row" role="row" key={site.siteId}>
+                    <span role="cell" className="site-table-name"><strong>{site.siteName}</strong>{site.readError && <small className="site-read-error" role="status">{site.readError}</small>}</span>
+                    <span role="cell"><SiteProgress site={site} /></span>
+                    <span role="cell"><strong>{version.main}</strong><small>{version.sub}</small></span>
+                    <span role="cell">{formatUpdatedAt(site.updatedAt)}</span>
+                    <span role="cell" className={`site-table-action${text.tone === "plain" ? "" : " strong"}`}>{text.action} <ArrowRight size={13} /></span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <HowItWorks />
+        <StyleSamples />
       </main>
     </div>
   );
@@ -181,24 +123,20 @@ export default async function Dashboard() {
 // T-202 browser storage: sites live in this browser, so the dashboard lists them client side.
 function LocalDashboard() {
   return (
-    <div className="app-shell">
-      <AppSidebar active="sites" />
-      <main className="main">
-        <header className="topbar">
-          <div className="breadcrumbs"><span>Workspace</span><ChevronRight size={12} /><strong>我的站点</strong></div>
-          <div className="top-actions"><Link href="/workspace?new=1" className="primary-button"><Plus size={15} />新建站点</Link></div>
-        </header>
-        <div className="page-content">
-          <div className="hero-row">
-            <div>
-              <h1>把公司资料，<br /><span style={{ color: "#2e6b4f" }}>写成它自己的官网。</span></h1>
-              <p>站点、版本和对话只保存在这个浏览器里。开始前先在「工作区设置」填写你的模型接口。</p>
-            </div>
-            <Link href="/workspace?new=1" className="primary-button new-site-button"><WandSparkles size={15} />新建站点 <ArrowUpRight size={14} /></Link>
-          </div>
-          <div className="section-heading"><h2>这个浏览器里的站点</h2></div>
-          <LocalSiteList />
+    <div className="app-page">
+      <AppTopbar active="home" />
+      <main className="app-main">
+        <div className="home-head">
+          <h1>站点</h1>
+          <p>站点、版本和对话只保存在这个浏览器里。把公司资料发过来，五步做成它自己的官网。</p>
+          <ProviderStatus />
         </div>
+        <section className="home-section" aria-labelledby="home-sites">
+          <div className="home-section-head"><h2 id="home-sites">这个浏览器里的站点</h2><Link href={"/sites" as Route} data-testid="view-all-sites">查看全部 <ArrowRight size={13} /></Link></div>
+          <LocalSiteList limit={6} />
+        </section>
+        <HowItWorks />
+        <StyleSamples />
       </main>
     </div>
   );

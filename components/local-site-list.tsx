@@ -19,12 +19,12 @@ export function LocalSiteList({ limit }: { limit?: number }) {
   if (!sites) return <p className="empty-state" aria-busy="true">正在读取这个浏览器里的站点…</p>;
   if (!sites.length) return <p className="empty-state" data-testid="local-sites-empty">这个浏览器里还没有站点。站点只保存在建站时使用的浏览器中，换浏览器或清除网站数据后不会出现在这里。</p>;
   return (
-    <div className="data-table local-site-list" data-testid="local-sites">
+    <div className="site-table local-site-list" data-testid="local-sites">
       {(limit ? sites.slice(0, limit) : sites).map(site => (
         <Link key={site.siteId} className="local-site-row" href={`/workspace?site=${encodeURIComponent(site.siteId)}` as Route}>
           <strong>{site.siteName}</strong>
-          <span>{site.hasVersion ? '已生成' : '尚未生成'} · 最后编辑 {formatUpdatedAt(site.updatedAt)}</span>
-          <span className="tiny-action">打开工作台 <ArrowUpRight size={11} style={{ verticalAlign: 'middle' }} /></span>
+          <span>{site.hasVersion ? '已有版本，可以继续修改' : '还没有生成页面'} · 最后修改 {formatUpdatedAt(site.updatedAt)}</span>
+          <span className="site-table-action">{site.hasVersion ? '继续修改' : '继续新建'} <ArrowUpRight size={12} /></span>
         </Link>
       ))}
     </div>

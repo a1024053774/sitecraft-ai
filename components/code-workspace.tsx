@@ -7,11 +7,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { providerHeaders } from '@/lib/provider-settings-client';
 import { browserStorageMode, pullSite } from '@/lib/browser-sites-client';
 import Link from 'next/link';
-import { ArrowLeft, Check, Download, FileText, History, Image as ImageIcon, LoaderCircle, RotateCcw, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Download, Ellipsis, FileText, History, Image as ImageIcon, LoaderCircle, RotateCcw, Send, Trash2 } from 'lucide-react';
 import Papa from 'papaparse';
 import readXlsxFile from 'read-excel-file';
-import type { CodeSiteRecord, CodePreferences } from '@/lib/code-site';
-import { codeCheckLabel, codeVersionAuthor, chineseCodeRevision, codeFactMaterials, explicitEnglishCompanyName } from '@/lib/code-site';
+import type { CodeSiteRecord, CodePreferences, CodeSiteStep } from '@/lib/code-site';
+import { codeSiteSteps, codeCheckLabel, codeVersionAuthor, chineseCodeRevision, codeFactMaterials, explicitEnglishCompanyName } from '@/lib/code-site';
 import type { AlignmentPublicView } from '@/lib/alignment';
 import type { ConversationTurn } from '@/lib/conversation-store';
 import { simulatedPackList } from '@/lib/simulated-packs';
@@ -75,7 +75,7 @@ function CodeSubjectChoice({ question, busy, onSubmit }: { question: string; bus
 }
 export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: CodeWorkspacePayload }) {
   const [state, setState] = useState(initial), [input, setInput] = useState(''), [error, setError] = useState('');
-  const [sending, setSending] = useState(false), [panel, setPanel] = useState<'materials' | 'images' | null>(null);
+  const [sending, setSending] = useState(false), [panel, setPanel] = useState<'materials' | 'images' | null>(initial.codeSite.versions.length || initial.codeSite.materials.trim() || initial.turns.length ? null : 'materials');
   const [materialSource, setMaterialSource] = useState<{ type: 'upload'; sourceId: string; name: string; text: string } | undefined>();
   const [width, setWidth] = useState(1440), [page, setPage] = useState('home'), [pane, setPane] = useState('chat');
   const [images, setImages] = useState<Array<{ imageId: string; originalName: string }>>([]);
@@ -378,12 +378,39 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
     finally { setSending(false); event.target.value = ''; }
   }
   const alignment = state.alignment;
-  return <div className={`builder-shell workspace-theme-light workspace-accent-porcelain code-workspace pane-${pane}${alignment?.waitingForUser || alignment?.awaitingConfirmation ? ' code-aligning' : ''}`} data-testid="code-workspace">
+  // T-220: the step bar follows the saved site state; nothing here changes what is sent or stored.
+  const flowStep: CodeSiteStep | null = running && site.run?.kind === 'generate' ? 'generate' : alignment?.awaitingConfirmation && site.plan ? 'outline'
+    : alignment?.waitingForUser && alignment.questionKind === 'style' ? 'style' : null;
+  const step: CodeSiteStep = flowStep ?? (version ? 'edit' : site.run?.kind === 'generate' ? 'generate' : 'material');
+  const stepIndex = codeSiteSteps.findIndex(item => item.id === step);
+  const planStyle = codeStyleSchema.safeParse(site.plan?.style ?? site.preferences?.style);
+  const stepNotes: Record<CodeSiteStep, string> = {
+    material: site.materials.trim() ? `已收到 ${site.materials.trim().length} 字` : '粘贴或上传公司资料',
+    style: planStyle.success && (site.plan || version) ? codeStyles[planStyle.data].label : '挑一种真实风格',
+    outline: site.plan ? `${site.plan.pages.length} 页` : '逐页确认要写什么',
+    generate: version ? '检查通过后保存' : '写页面并逐项检查',
+    edit: version ? `当前第 ${version.revision} 版` : '点页面上的区块提修改',
+  };
+  const stepHead = ({
+    material: ['先把公司资料发过来', '粘贴公司介绍、产品和联系方式，或上传文本、表格。网站上的每句话都从这里来；资料里没有的内容会写成「待补充」，不会替你编。'],
+    style: ['选一种风格', '每种风格都配了真实生成过的首屏。选一种，再定版式和信息量的松紧；拿不准就选「帮我选」。'],
+    outline: ['确认每一页写什么', '下面是按资料拟的页面大纲。确认后开始写页面；不合适就返回，补充资料或要求后重拟。'],
+    generate: [running ? '正在写第 1 版' : '第 1 版还没有保存', '写完后逐项检查，全部通过才保存成第 1 版。没通过的地方会列在下面。'],
+    edit: ['', ''],
+  } satisfies Record<CodeSiteStep, [string, string]>)[step];
+  const checkingStage = /检查|核对|修正/.test(progressText ?? '');
+  const canvasMode = !!version && (picking || !!composer || areaCandidates.length > 0);
+  return <div className={`builder-shell workspace-theme-${canvasMode ? 'dark code-canvas-mode' : 'light'} workspace-accent-porcelain code-workspace pane-${pane} code-step-${step}${version ? '' : ' code-prebuild'}${alignment?.waitingForUser || alignment?.awaitingConfirmation ? ' code-aligning' : ''}`} data-testid="code-workspace">
     <header className="preview-toolbar workspace-topbar">
-      <div className="preview-toolbar-left"><Link href="/" className="topbar-back" aria-label="返回站点"><ArrowLeft size={17} /></Link><strong className="project-name">{site.name}</strong><span className="save-status">{running ? <LoaderCircle size={12} className="spin" /> : <Check size={12} />}{version ? `版本 ${version.revision}` : '尚未生成'}</span><button className="icon-button" aria-label="版本历史" title="版本历史" onClick={() => setHistoryOpen(true)} data-testid="open-version-history"><History size={17} /></button></div>
-      <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">{['chat', 'preview'].map(p => <button key={p} role="tab" aria-selected={pane === p} className={pane === p ? 'active' : ''} onClick={() => setPane(p)}>{p === 'chat' ? '对话' : '预览'}</button>)}</div>
-      <div className="topbar-tools"><div className="device-toggle" aria-label="预览宽度">{[1440, 768, 375].map(w => <button key={w} aria-pressed={width === w} className={width === w ? 'active' : ''} onClick={() => setWidth(w)}>{w}</button>)}</div>{version && <a className="icon-button" aria-label="下载网站" title="下载网站" data-testid="download-site" href={`/api/sites/${encodeURIComponent(siteId)}/export`} download><Download size={16} /></a>}<button className="icon-button" aria-label="撤销" disabled={busy || site.versions.length < 2} onClick={() => void undo()}><RotateCcw size={16} /></button><button className="icon-button" aria-label="删除站点" data-testid="toolbar-delete-site" disabled={busy} onClick={() => setDeleteOpen(true)}><Trash2 size={16} /></button></div>
+      <div className="preview-toolbar-left"><Link href="/" className="topbar-back" aria-label="返回站点"><ArrowLeft size={16} /><span>站点</span></Link><strong className="project-name">{site.name}</strong><span className="save-status">{running ? <LoaderCircle size={12} className="spin" /> : <Check size={12} />}{version ? `第 ${version.revision} 版` : '尚未生成'}</span><button className="tool-button" aria-label="版本历史" title="版本历史" onClick={() => setHistoryOpen(true)} data-testid="open-version-history"><History size={15} /><span>版本历史</span></button></div>
+      <div className="builder-mobile-tabs" role="tablist" aria-label="建站工作区视图">{['chat', 'preview'].map(p => <button key={p} role="tab" aria-selected={pane === p} className={pane === p ? 'active' : ''} onClick={() => setPane(p)}>{p === 'chat' ? canvasMode ? '修改清单' : '修改单' : '预览'}</button>)}</div>
+      <div className="topbar-tools"><div className="device-toggle" aria-label="预览宽度">{([[1440, '电脑'], [768, '平板'], [375, '手机']] as const).map(([w, label]) => <button key={w} aria-pressed={width === w} className={width === w ? 'active' : ''} title={`按 ${w} 像素宽预览`} onClick={() => setWidth(w)}>{label}</button>)}</div>{version && <a className="tool-button" aria-label="下载网站" title="下载网站" data-testid="download-site" href={`/api/sites/${encodeURIComponent(siteId)}/export`} download><Download size={15} /><span>下载</span></a>}<button className="tool-button" aria-label="撤销" title="回到上一个版本" disabled={busy || site.versions.length < 2} onClick={() => void undo()}><RotateCcw size={15} /><span>撤销</span></button>
+        <details className="code-more"><summary className="tool-button" aria-label="更多操作"><Ellipsis size={15} /><span>更多</span></summary><div className="code-more-menu"><Link href="/settings">模型接口与设置</Link><Link href="/sites">全部站点</Link><button aria-label="删除站点" data-testid="toolbar-delete-site" disabled={busy} onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); setDeleteOpen(true); }}><Trash2 size={14} />删除这个站点</button></div></details></div>
     </header>
+    <nav className="code-steps" aria-label="建站步骤"><ol>{codeSiteSteps.map((item, index) => {
+      const at = index < stepIndex ? 'done' : index === stepIndex ? 'current' : 'todo';
+      return <li key={item.id} className={at} aria-current={at === 'current' ? 'step' : undefined}><span className="code-step-no">{at === 'done' ? <Check size={12} /> : index + 1}</span><strong>{item.label}</strong><small>{stepNotes[item.id]}</small></li>;
+    })}</ol></nav>
     <main className={`preview-shell ${pane !== 'preview' ? 'mobile-hidden' : ''}`} style={{ paddingBottom: annotationBottomSpace }}>
       <div className="site-page-chrome"><div className="code-pick-toolbar">{version && activeLanguage === 'zh' && <><button type="button" className="secondary-button" aria-pressed={picking} disabled={!canAnnotate} data-testid="pick-block" onClick={() => { setPicking(!picking); setSelectedTarget(null); setComposer(null); setAreaCandidates([]); }}>{picking ? '退出批注' : '批注'}</button><small>{picking ? '点击或拖框写批注 · Esc 取消' : selected ? `已选：${selected.label}` : 'C 进入批注 · 只修改选中区块'}</small></>}</div>{english && <div className="device-toggle" aria-label="预览语言">{(['zh', 'en'] as const).map(value => <button key={value} className={activeLanguage === value ? 'active' : ''} aria-pressed={activeLanguage === value} data-testid={`preview-${value}`} onClick={() => setLanguage(value)}>{value === 'zh' ? '中文' : 'English'}</button>)}</div>}<nav className="site-page-nav" aria-label="站点页面">{pages.map(p => <button key={p.id} className={`site-page-tab ${activePage === p.id ? 'active' : ''}`} aria-pressed={activePage === p.id} data-page-id={p.id} onClick={() => changePage(p.id)}><strong>{p.title}</strong><small>独立页</small></button>)}</nav></div>
       {previewVersionId && <p className="code-preview-version">正在回看 v{previewVersion?.revision} 的批注 <button onClick={() => { setPreviewVersionId(null); setComposer(null); setSelectedTarget(null); }}>回到当前版本</button></p>}
@@ -417,16 +444,26 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
       </div></div>
     </main>
     <aside className={`builder-chat ${pane !== 'chat' ? 'mobile-hidden' : ''}`} aria-label="对话">
-      <div className="builder-chat-head"><strong data-testid="code-revision">{version ? `当前版本 · v${version.revision}` : '公司资料与需求'}</strong><small>{english ? '中英文网站' : '中文网站'}</small></div>
+      <div className="builder-chat-head"><span className="code-sheet-title">{canvasMode ? '修改清单' : '修改单'}</span><strong data-testid="code-revision">{version ? `当前版本 · v${version.revision}` : '公司资料与需求'}</strong><small>{english ? '中英文网站' : '中文网站'}</small></div>
       <div className="chat-messages">
+        {!version && <div className="code-step-head"><small>第 {stepIndex + 1} 步，共 {codeSiteSteps.length} 步</small><h1>{stepHead[0]}</h1><p>{stepHead[1]}</p></div>}
+        {canvasMode && <p className="code-canvas-hint">点页面上的区块写意见，加入清单后一次发送。改整页的要求写在最下面的输入框。</p>}
         {state.conversationError && <p className="code-error" role="alert" data-testid="code-conversation-error">{state.conversationError}</p>}
-        {!state.turns.length && !conversationUnavailable && <div className="message assistant"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
-        {state.turns.map((turn, index) => <div key={`${turn.createdAt}-${index}`}><div className="message user"><div className="message-label">你</div><div className="message-bubble">{turn.userMessage}</div></div><div className={`message assistant ${turn.outcome}`}><div className="message-label">AI 助手</div><div className="message-bubble">{turn.aiSummary}</div></div></div>)}
+        {!version && !state.turns.length && !conversationUnavailable && <div className="message assistant code-welcome"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
+        {state.turns.map((turn, index) => <div key={`${turn.createdAt}-${index}`} className="code-turn"><div className="message user"><div className="message-label">你</div><div className="message-bubble">{turn.userMessage}</div></div><div className={`message assistant ${turn.outcome}`}><div className="message-label">AI 助手</div><div className="message-bubble">{turn.aiSummary}</div></div></div>)}
         {alignment?.waitingForUser && alignment.questionKind === 'clarify' && <CodeSubjectChoice key={alignment.questionId} question={alignment.question} busy={busy} onSubmit={name => void perform({ message: `主体名称：${name}` })} />}
         {alignment?.waitingForUser && alignment.questionKind === 'style' && <CodeStyleChoice key={alignment.questionId} siteId={siteId} alignment={alignment} initial={site.preferences} busy={busy}
           onSelect={preferences => void perform({ action: 'select', questionId: alignment.questionId, questionRevision: alignment.questionRevision, optionId: preferences.style, preferences })} onCancel={() => void perform({ action: 'cancel' })} />}
         {version && !conversationUnavailable && !alignment?.waitingForUser && !alignment?.awaitingConfirmation && <button className="code-restyle" disabled={busy} onClick={() => void perform({ action: 'start', baseRevision: version.revision })}>调整风格与疏密</button>}
-        {alignment?.awaitingConfirmation && !busy && site.plan && <section className="alignment-panel" aria-label="确认页面大纲" data-testid="code-plan"><strong>{site.plan.summary}</strong><ol>{site.plan.pages.map(p => <li key={p.id}><strong>{p.title}</strong><p>{p.outline}</p></li>)}</ol><button className="primary-button" onClick={() => void perform({ action: 'confirm', questionId: alignment.questionId, questionRevision: alignment.questionRevision })}>{!version && site.run?.kind === 'generate' && site.run.status === 'error' ? '按已保存的大纲重新生成' : '确认并生成'}</button><button className="code-alignment-cancel" onClick={() => void perform({ action: 'cancel' })}>返回对话</button></section>}
+        {alignment?.awaitingConfirmation && !busy && site.plan && <section className="alignment-panel" aria-label="确认页面大纲" data-testid="code-plan"><strong>{site.plan.summary}</strong><small className="code-plan-count">共 {site.plan.pages.length} 页，逐页写</small><ol>{site.plan.pages.map(p => <li key={p.id}><strong>{p.title}</strong><p>{p.outline}</p></li>)}</ol><button className="primary-button" onClick={() => void perform({ action: 'confirm', questionId: alignment.questionId, questionRevision: alignment.questionRevision })}>{!version && site.run?.kind === 'generate' && site.run.status === 'error' ? '按已保存的大纲重新生成' : '确认并生成'}</button><button className="code-alignment-cancel" onClick={() => void perform({ action: 'cancel' })}>返回对话</button></section>}
+        {!version && step === 'generate' && <ol className="code-stages" aria-label="生成阶段">{([
+          ['写页面', '按确认的大纲逐页写内容和样式'], ['核对事实出处', '价格、时间、资质这类说法要在资料里找到原句'],
+          ['检查三种宽度', '电脑、平板、手机下不横向溢出、不重叠'], ['保存第 1 版', '全部通过后保存，随后进入修改'],
+        ] as const).map(([title, text], index) => {
+          const at = running ? (index === 0 ? (checkingStage ? 'done' : 'current') : index < 3 && checkingStage ? 'current' : 'todo') : index === 0 && state.continuation ? 'done' : 'todo';
+          return <li key={title} className={at}><span className="code-step-no">{at === 'done' ? <Check size={12} /> : at === 'current' ? <LoaderCircle size={12} className="spin" /> : index + 1}</span><strong>{title}</strong><small>{text}</small></li>;
+        })}</ol>}
+        {sending && !running && !version && <p className="code-step-wait" role="status"><LoaderCircle size={14} className="spin" />正在处理，请稍等。</p>}
         {site.run && (running || site.run.issues.length > 0 || state.turns.at(-1)?.aiSummary !== progressText) && <div className={`message assistant ${site.run.status}`}><div className="message-bubble" role="status" data-testid="code-progress">{running && <LoaderCircle className="spin" size={14} />} {progressText}{site.run.issues.length > 0 && <details data-testid="code-run-issues"><summary>查看完整检查问题（{site.run.issues.length} 项）</summary><ul>{site.run.issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul></details>}</div></div>}
         {state.continuation && !previewVersionId && !busy && !conversationUnavailable && !alignment?.waitingForUser && !alignment?.awaitingConfirmation && <section className="alignment-panel" aria-label="继续检查">
           <p>已生成的页面已保留。继续检查会调用模型核对，沿用剩余的内容修正次数；全部通过后保存版本。</p>
