@@ -1,9 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { KeyRound } from 'lucide-react';
-import { readProviderSettings, saveProviderSettings } from '@/lib/provider-settings-client';
+import { readProviderSettings, saveProviderSettings, type ProviderSettings } from '@/lib/provider-settings-client';
+import { providerFormats, providerFormatNames, type ProviderFormat } from '@/lib/provider-format';
 
-const defaults = { baseURL: 'https://api.deepseek.com', apiKey: '', model: 'deepseek-flash' };
+// T-221: each format's usual address. Only DeepSeek has a model name the prompts were tuned on.
+const formatDefaults: Record<ProviderFormat, { baseURL: string; model: string; modelHint: string; keyHint: string }> = {
+  deepseek: { baseURL: 'https://api.deepseek.com', model: 'deepseek-flash', modelHint: '', keyHint: 'sk-…' },
+  openai: { baseURL: 'https://api.openai.com/v1', model: '', modelHint: '填服务商给的模型名', keyHint: 'sk-…' },
+  anthropic: { baseURL: 'https://api.anthropic.com', model: '', modelHint: '填服务商给的模型名', keyHint: 'sk-ant-…' },
+};
+const defaults: ProviderSettings = { format: 'deepseek', baseURL: formatDefaults.deepseek.baseURL, apiKey: '', model: formatDefaults.deepseek.model };
 
 export function ProviderSettingsPanel() {
   const [form, setForm] = useState(defaults);
@@ -13,10 +20,17 @@ export function ProviderSettingsPanel() {
     const current = readProviderSettings();
     if (current) { setForm(current); setSaved(true); }
   }, []);
-  function update(field: keyof typeof defaults, value: string) { setForm(current => ({ ...current, [field]: value })); setMessage(''); }
+  function update(field: 'baseURL' | 'apiKey' | 'model', value: string) { setForm(current => ({ ...current, [field]: value })); setMessage(''); }
+  // Switching format swaps an address or model name the form filled in itself; anything the user typed stays.
+  function changeFormat(format: ProviderFormat) {
+    setForm(current => ({ ...current, format,
+      baseURL: current.baseURL.trim() === formatDefaults[current.format].baseURL || !current.baseURL.trim() ? formatDefaults[format].baseURL : current.baseURL,
+      model: current.model.trim() === formatDefaults[current.format].model ? formatDefaults[format].model : current.model }));
+    setMessage('');
+  }
   function save(event: React.FormEvent) {
     event.preventDefault();
-    const next = { baseURL: form.baseURL.trim(), apiKey: form.apiKey.trim(), model: form.model.trim() };
+    const next = { format: form.format, baseURL: form.baseURL.trim(), apiKey: form.apiKey.trim(), model: form.model.trim() };
     if (!next.baseURL || !next.apiKey || !next.model) { setMessage('API 地址、key 和模型名都要填写。'); return; }
     if (!/^https:\/\//i.test(next.baseURL) && !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/i.test(next.baseURL)) { setMessage('API 地址必须以 https:// 开头。'); return; }
     try { saveProviderSettings(next); setSaved(true); setMessage('已保存在这个浏览器里。'); }
@@ -31,12 +45,13 @@ export function ProviderSettingsPanel() {
       <div className="settings-icon"><KeyRound size={17} /></div>
       <div>
         <h2>模型接口</h2>
-        <p>生成和修改网站时使用你自己的模型接口。API 地址、key 和模型名只保存在这个浏览器里；服务器只在处理那一次请求时使用 key，不保存。目前只保证 DeepSeek 兼容接口可用。</p>
+        <p>生成和修改网站时使用你自己的模型接口。API 地址、key 和模型名只保存在这个浏览器里；服务器只在处理那一次请求时使用 key，不保存。提示词是按 DeepSeek 调的；OpenAI 兼容和 Anthropic 兼容两种格式目前只用本地替身接口测过，还没有在真实接口上验证。</p>
       </div>
       <form className="provider-form" onSubmit={save}>
+        <label>接口格式<select name="format" value={form.format} onChange={event => changeFormat(event.target.value as ProviderFormat)} data-testid="provider-format">{providerFormats.map(format => <option key={format} value={format}>{providerFormatNames[format]}</option>)}</select></label>
         <label>API 地址<input name="baseURL" value={form.baseURL} onChange={event => update('baseURL', event.target.value)} autoComplete="off" spellCheck={false} /></label>
-        <label>API key<input name="apiKey" type="password" value={form.apiKey} onChange={event => update('apiKey', event.target.value)} autoComplete="off" spellCheck={false} placeholder={saved ? '' : 'sk-…'} /></label>
-        <label>模型名<input name="model" value={form.model} onChange={event => update('model', event.target.value)} autoComplete="off" spellCheck={false} /></label>
+        <label>API key<input name="apiKey" type="password" value={form.apiKey} onChange={event => update('apiKey', event.target.value)} autoComplete="off" spellCheck={false} placeholder={saved ? '' : formatDefaults[form.format].keyHint} /></label>
+        <label>模型名<input name="model" value={form.model} onChange={event => update('model', event.target.value)} autoComplete="off" spellCheck={false} placeholder={formatDefaults[form.format].modelHint} /></label>
         <div className="provider-actions">
           <button className="primary-button" type="submit">保存模型接口</button>
           {saved && <button className="secondary-button" type="button" onClick={clear}>从浏览器清除</button>}

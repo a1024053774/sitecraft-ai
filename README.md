@@ -26,7 +26,7 @@
 
 ## 用你自己的模型接口
 
-项目不提供模型 key。在本地运行后打开「工作区设置 → 模型接口」，填写 API 地址、key 和模型名（目前只保证 DeepSeek 兼容接口，例如 `https://api.deepseek.com` 与 `deepseek-flash`）。
+项目不提供模型 key。在本地运行后打开「工作区设置 → 模型接口」，选择接口格式并填写 API 地址、key 和模型名。接口格式有 DeepSeek（例如 `https://api.deepseek.com` 与 `deepseek-flash`）、OpenAI 兼容（例如 `https://api.openai.com/v1`）和 Anthropic 兼容（例如 `https://api.anthropic.com`）。提示词是按 DeepSeek 调的；另外两种格式目前只用本地替身接口测过。
 
 - 接口设置只保存在你的浏览器（localStorage），只在需要调用模型的请求里经请求头发给本机服务；服务只在处理那一次请求时使用，不写盘、不记日志。服务只连接 https 公网地址，不跟随重定向。
 - 开发模式下，站点、版本和对话保存在项目的 `.sitecraft-data/` 目录。
