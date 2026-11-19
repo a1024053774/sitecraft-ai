@@ -929,6 +929,7 @@ a.site-table-row:hover, article.site-table-row:hover { background: #fff; }
 /* 批注画布：几何不变，只换配色，右栏只留修改清单要用的内容。 */
 .code-canvas-mode .code-turn, .code-canvas-mode .code-welcome, .code-canvas-mode .code-restyle, .code-canvas-mode .code-english-panel { display: none; }
 .code-canvas-mode .chat-messages { flex: 0 1 auto; }
+.code-workspace:not(.code-canvas-mode):not(.code-prebuild) .chat-messages { min-height: clamp(140px, 22vh, 220px); }
 .code-canvas-mode.code-workspace .chat-input-wrap { flex: 1 1 auto; display: flex; flex-direction: column; border-top: 0; }
 .code-canvas-mode .chat-input-wrap > * { flex: 0 0 auto; }
 .code-canvas-mode .code-chat-form { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--ws-line); }
