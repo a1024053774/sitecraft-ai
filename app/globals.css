@@ -805,7 +805,7 @@ a.site-table-row:hover, article.site-table-row:hover { background: #fff; }
 .site-progress.tone-wait > span { color: var(--blue); }
 .site-progress.tone-bad > span { color: var(--bad); }
 .site-progress.tone-bad .site-progress-bar i.current { background: var(--bad); }
-.local-site-row { grid-template-columns: minmax(0, 1fr) auto auto; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.local-site-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1.3fr) auto; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .local-site-row strong { font-size: 16px; }
 .local-site-row span { font-size: 13px; color: var(--ink-soft); }
 .home-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; border: 1.5px solid var(--ink); background: var(--white); }
@@ -930,6 +930,12 @@ a.site-table-row:hover, article.site-table-row:hover { background: #fff; }
 .code-canvas-mode .code-turn, .code-canvas-mode .code-welcome, .code-canvas-mode .code-restyle, .code-canvas-mode .code-english-panel { display: none; }
 .code-canvas-mode .chat-messages { flex: 0 1 auto; }
 .code-workspace:not(.code-canvas-mode):not(.code-prebuild) .chat-messages { min-height: clamp(140px, 22vh, 220px); }
+/* 修改单里草稿多时：草稿列表自己收缩滚动，对话区和整页输入框都留在视野里。 */
+.code-workspace:not(.code-canvas-mode):not(.code-prebuild) .chat-input-wrap { display: flex; flex-direction: column; }
+.code-workspace:not(.code-canvas-mode):not(.code-prebuild) .chat-input-wrap > * { flex: 0 0 auto; }
+.code-workspace:not(.code-canvas-mode):not(.code-prebuild) .chat-input-wrap > section[aria-label="待发送批注列表"] { display: flex; flex: 0 1 auto; flex-direction: column; min-height: 96px; }
+.code-workspace:not(.code-canvas-mode):not(.code-prebuild) .chat-input-wrap > section[aria-label="待发送批注列表"] > * { flex: 0 0 auto; }
+.code-workspace:not(.code-canvas-mode):not(.code-prebuild) .chat-input-wrap > section[aria-label="待发送批注列表"] > .code-annotation-list { flex: 0 1 auto; min-height: 0; }
 .code-canvas-mode.code-workspace .chat-input-wrap { flex: 1 1 auto; display: flex; flex-direction: column; border-top: 0; }
 .code-canvas-mode .chat-input-wrap > * { flex: 0 0 auto; }
 .code-canvas-mode .code-chat-form { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--ws-line); }
@@ -943,6 +949,7 @@ a.site-table-row:hover, article.site-table-row:hover { background: #fff; }
 .code-prebuild .chat-messages, .code-workspace.code-prebuild .chat-input-wrap { flex: none; overflow: visible; width: min(100% - 32px, 880px); margin-inline: auto; padding-inline: 0; border: 0; background: transparent; }
 .code-prebuild .chat-messages { padding-top: 40px; gap: 20px; }
 .code-workspace.code-prebuild .chat-input-wrap { padding-bottom: 56px; }
+@media (max-width: 600px) { .code-workspace.code-prebuild.pane-chat .topbar-tools { display: flex; justify-content: flex-end; } }
 .code-step-head small { color: var(--ws-accent); font-size: 13px; font-weight: 700; }
 .code-step-head h1 { margin: 6px 0 10px; font-family: var(--serif); font-size: 34px; line-height: 1.25; overflow-wrap: anywhere; }
 .code-step-head p { max-width: 42em; margin: 0; color: var(--ws-muted); font-size: 15px; line-height: 1.75; }
@@ -963,7 +970,9 @@ a.site-table-row:hover, article.site-table-row:hover { background: #fff; }
 .code-stages { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--ws-line-strong); }
 .code-stages li { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--ws-line); color: var(--ws-muted); }
 .code-stages .code-step-no { grid-row: 1 / 3; align-self: start; }
-.code-stages strong, .code-stages small { grid-column: 2; }
+.code-stages strong, .code-stages small, .code-stages ul { grid-column: 2; }
+.code-stages ul { margin: 6px 0 0; padding: 0; list-style: none; }
+.code-stages ul li { display: block; padding: 3px 0 3px 12px; border: 0; border-left: 2px solid var(--ws-line); font-size: 13px; line-height: 1.6; }
 .code-stages strong { color: var(--ws-text); font-size: 15px; }
 .code-stages small { font-size: 13px; line-height: 1.6; }
 .code-stages li.done .code-step-no { border-color: var(--ws-text); background: var(--ws-text); color: var(--ws-raised); }

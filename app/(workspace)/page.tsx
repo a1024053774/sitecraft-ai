@@ -77,7 +77,7 @@ export default async function Dashboard() {
               <p className="home-muted">最后修改 {formatUpdatedAt(latest.updatedAt)}</p>
               <SiteProgress site={latest} />
               <div className="home-latest-actions">
-                <Link href={workspaceHref(latest.siteId)} className="primary-button">继续修改 <ArrowRight size={15} /></Link>
+                <Link href={workspaceHref(latest.siteId)} className="primary-button">{siteProgressText(latest).action} <ArrowRight size={15} /></Link>
                 <a className="secondary-button" href={`/api/sites/${encodeURIComponent(latest.siteId)}/export`} download>下载站点包</a>
               </div>
             </div>
