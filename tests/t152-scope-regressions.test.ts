@@ -96,6 +96,26 @@ for (const edit of ['other HTML', 'shared CSS'] as const) test(`A2: chat pageId 
   assert.equal(changed.versions.length, 2);
   assert.deepEqual(changed.versions[1].code.pages[1], version.code.pages[1]);
 });
+test('A2: chat pageId edit that returns only the current page keeps the other pages', async () => {
+  const { id, version } = await setup(); replyCode = structuredClone(version.code);
+  replyCode.pages = [{ ...replyCode.pages[0], html: replyCode.pages[0].html.replace('Paper boxes', 'Paper bags') }];
+  const result = await chat(new Request(`${process.env.SITECRAFT_BASE}/api/sites/${id}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: '精简文字，只改当前页', baseRevision: 1, pageId: 'home' }) }), { params: Promise.resolve({ siteId: id }) });
+  assert.equal(result.status, 202); await scheduled.shift()!();
+  const saved = (await getCodeSite(id))!;
+  assert.equal(saved.run!.status, 'complete', JSON.stringify(saved.run));
+  assert.equal(saved.versions.length, 2);
+  assert.deepEqual(saved.versions[1].code.pages.map(page => page.id), ['home', 'products']);
+  assert.match(saved.versions[1].code.pages[0].html, /Paper bags<\/a>/);
+  assert.deepEqual(saved.versions[1].code.pages[1], version.code.pages[1]);
+  // Without the current page there is nothing to keep around it.
+  replyCode = structuredClone(version.code); replyCode.pages = [replyCode.pages[0]];
+  const missing = await chat(new Request(`${process.env.SITECRAFT_BASE}/api/sites/${id}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: '精简文字，只改当前页', baseRevision: 2, pageId: 'products' }) }), { params: Promise.resolve({ siteId: id }) });
+  assert.equal(missing.status, 202); await scheduled.shift()!();
+  const rejected = (await getCodeSite(id))!;
+  assert.equal(rejected.run!.status, 'error');
+  assert.match(rejected.run!.step, /模型未完成这些页面：Products/);
+  assert.equal(rejected.versions.length, 2);
+});
 test('A4: nested and quoted commas stay in a scoped selector, while a top-level escape rejects', async () => {
   const { id, version, target } = await setup();
   const context = await localEditContext(version.code, target);
