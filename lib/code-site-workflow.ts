@@ -3,7 +3,7 @@ import { codePreferencesSchema, codePreferenceStyleSchema } from './code-site-st
 import { serverCodeStyleOptions, requireModelTaskAdmission, CodeStyleAdmissionError } from './code-site-eval-styles.ts';
 import { z } from 'zod';
 import { getCodeSite, updateCodeSite, commitSiteCode } from './code-site-store.ts';
-import { currentCodeVersion, codeRunCheckpoint, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeRun, type CodeSiteRecord, type SiteCode } from './code-site.ts';
+import { currentCodeVersion, codeRunCheckpoint, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeRun, type CodeSiteRecord } from './code-site.ts';
 import { planSiteCode, selectCodeReferences, writeSiteCode, repairSiteCode, translateSiteCode, writeLocalEdit, writeLocalEditBatch, codeModelCalls } from './code-site-model.ts';
 import { annotationBatchItemSchema, annotationTargetSchema, type AnnotationBatchItem, type AnnotationTarget } from './annotations.ts';
 import { localEditContext, applyLocalEdit, applyLocalEdits, attributeLocalIssues, mergeAnnotationEdits } from './code-site-local-edit.ts';
@@ -357,14 +357,9 @@ async function execute(siteId: string, runId: string) {
     for (const version of selected) references.push({ revision: version.revision, name: version.name, code: version.code });
   }
   if (!run.resumedFrom) await runStep(siteId, runId, { stage: 'write' });
-  // A current-page edit may return only that page; the commit still rejects any change elsewhere.
-  const parentCode = run.pageId ? currentCodeVersion(site)!.code : undefined;
-  const keepUnreturnedPages = (code: SiteCode): SiteCode => !parentCode || !code.pages.some(page => page.id === run.pageId) ? code
-    : { ...code, pages: [...parentCode.pages.map(page => code.pages.find(p => p.id === page.id) ?? page), ...code.pages.filter(page => !parentCode.pages.some(p => p.id === page.id))] };
   let result = run.resumedFrom && run.checkpoint ? { code: run.checkpoint.code, model: run.checkpoint.model } : await writeSiteCode({ materials, preferences: site.preferences, plan: site.plan, images, request: run.pageId ? `只修改当前页 ${run.pageId}，其他页面、公共页头页脚及其样式保持。${run.request}` : run.request,
-    references,
+    references, pageId: run.pageId,
     ...(run.kind === 'edit' ? { current: currentCodeVersion(site)!.code } : {}) });
-  result = { ...result, code: keepUnreturnedPages(result.code) };
   for (let round = run.repairRound; round <= 2; round++) {
     await runStep(siteId, runId, { step: '清理资源，检查事实与三档页面布局', repairRound: round, stage: 'check',
       checkpoint: { code: result.code, model: result.model, parentVersionId: site.currentVersionId, plan: site.plan, preferences: site.preferences } });
@@ -392,7 +387,6 @@ async function execute(siteId: string, runId: string) {
     result = await repairSiteCode({ materials, preferences: { ...site.preferences, style: site.plan.style },
       current: committed.code, issues: committed.checks.issues, cleaned: committed.checks.cleaned, layoutRepairs: committed.checks.layoutRepairs,
       factRepairs: [...(committed.checks.numberRepairs ?? []), ...(committed.checks.factSegments?.segments.flatMap(segment => segment.factRepair ? [segment.factRepair] : []) ?? [])] });
-    result = { ...result, code: keepUnreturnedPages(result.code) };
   }
 }
 // Checked commits outside a model task (manual edit, undo, restore) run Chrome
