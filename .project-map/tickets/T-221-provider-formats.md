@@ -49,3 +49,4 @@ supersedes:
 - 提示词、风格规范和思考开关的取舍都是在 DeepSeek 上定的；另外两种格式的生成质量没有评估过。
 - OpenAI 严格函数对 JSON Schema 的要求与 DeepSeek 不完全相同。现有 schema 没有在真实 OpenAI 接口上发过，被拒时会显示上游的 400。
 - `scripts/` 下的真实预算脚本仍只认 `api.deepseek.com`，本票不改。
+- OpenAI 兼容格式走的是 `/chat/completions`。另一轮会话记录过（未经本票验证）：官方接口上的 `gpt-6.2-sol` 只允许经 `/v1/responses` 使用函数工具，且 `submit_fact_review` 的严格 schema（约 5.9 万字符）在那里返回 HTTP 500。若属实，该模型需要另加 Responses 格式并放宽严格模式，这要负责人另行确认；其他支持 chat completions 的 OpenAI 兼容服务不受影响。
