@@ -8,16 +8,26 @@ import { systemIconLicense } from './code-site-icons.ts';
 import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
 import { mapSiteCodeCss, renderCodeFragment, siteCodeResources } from './code-site-dom.ts';
 
-export const codeSiteSchema = z.object({
+const codeSiteFields = z.object({
   header: z.string().max(30000), footer: z.string().max(30000), css: z.string().max(100000),
   pages: z.array(z.object({
     id: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/), title: z.string().min(1).max(80), html: z.string().min(1).max(100000),
   })).min(1).max(12),
-}).superRefine((site, ctx) => {
+});
+export const codeSiteSchema = codeSiteFields.superRefine((site, ctx) => {
   if (new Set(site.pages.map(p => p.id)).size !== site.pages.length) ctx.addIssue({ code: 'custom', message: '页面 ID 重复' });
   if (!site.pages.some(p => p.id === 'home')) ctx.addIssue({ code: 'custom', message: '缺少首页' });
 });
 export type SiteCode = z.infer<typeof codeSiteSchema>;
+// A current-page edit may return only that page: pages it left out come from the parent version (T-218).
+// A candidate with every parent page, without the current page, or otherwise invalid is returned as is.
+export function keepUnreturnedPages(candidate: unknown, parent: SiteCode, pageId: string): unknown {
+  const partial = codeSiteFields.safeParse(candidate);
+  if (!partial.success) return candidate;
+  const ids = partial.data.pages.map(page => page.id);
+  if (new Set(ids).size !== ids.length || !ids.includes(pageId) || parent.pages.every(page => ids.includes(page.id))) return candidate;
+  return { ...partial.data, pages: [...parent.pages.map(page => partial.data.pages.find(p => p.id === page.id) ?? page), ...partial.data.pages.filter(page => !parent.pages.some(p => p.id === page.id))] };
+}
 export type CodePreferences = { style: 'auto' | CodeStyleId; layout: number; density: number };
 export type CodePlan = { summary: string; style: CodeStyleId; styleReason: string;
   // Saved outlines from before T-135 have no skeleton; new model plans require it.
