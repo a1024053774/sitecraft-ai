@@ -4,7 +4,7 @@ title: 模型接口支持 OpenAI 兼容与 Anthropic 兼容格式
 type: build
 status: open
 blocked_by: []
-claimed_by: Devin
+claimed_by:
 supersedes:
 ---
 
@@ -35,14 +35,19 @@ supersedes:
 
 ## Acceptance
 
-- [x] DeepSeek 格式的请求地址、请求头、请求体与改动前相同（`tests/t221-provider-formats.test.ts` 逐字段断言）。
-- [x] OpenAI、Anthropic 两种格式下，规划与事实核对经本地替身通过共用校验；截断、函数名不符、HTTP 404、Anthropic 正文重复属性均拒收，每次请求只记一条调用，不重试，凭据不进记录。
-- [x] 请求头 `X-SiteCraft-Provider-Format` 可缺省（按 DeepSeek），未知值返回 400；`AI_PROVIDER_FORMAT` 供本机环境变量使用。
+- [x] DeepSeek 格式的请求地址、请求头、请求体与改动前相同（`tests/t221-provider-formats.test.ts` 逐字段断言）。（2026-11-20 独立审查有反例，见「独立审查」）
+- [x] OpenAI、Anthropic 两种格式下，规划与事实核对经本地替身通过共用校验；截断、函数名不符、HTTP 404、Anthropic 正文重复属性均拒收，每次请求只记一条调用，不重试，凭据不进记录。（2026-11-20 独立审查有反例，见「独立审查」）
+- [x] 请求头 `X-SiteCraft-Provider-Format` 可缺省（按 DeepSeek），未知值返回 400；`AI_PROVIDER_FORMAT` 供本机环境变量使用。（2026-11-20 独立审查有反例，见「独立审查」）
 - [x] 设置页可选格式，切换时只替换表单自己填的默认地址和模型名；1440 与 375 无横向溢出。
 - [x] Chrome 里用本地替身分别以 Anthropic 格式（环境变量）和 OpenAI 格式（设置页保存后经请求头）从新建走到第 1 版。
 - [x] 真实 OpenAI 接口跑通规划、生成、批注修改、整页修改（`gpt-6.2-sol`，经 OpenAI Responses 格式；chat completions 格式下该模型被上游拒绝，见实跑记录）。
-- [ ] 真实 Anthropic 接口跑通同样的步骤。
-- [x] `npm run typecheck`、`npm run build`、全量 `npm test` 通过（加入 Responses 格式之前的提交）。加入之后重跑：非浏览器 144/144，浏览器 1116/1116。
+- 真实 Anthropic 接口实跑：2026-11-20 负责人决定不再作为本票验收。Anthropic 兼容格式只经本地替身验证，产品页、演示和 README 已如实写明。
+- [x] `npm run typecheck`、`npm run build`、全量 `npm test` 通过（加入 Responses 格式之前的提交）。加入之后重跑：非浏览器 144/144，浏览器 1116/1116。2026-11-20 合并后的主线 c5c09cdd 在负责人 Mac 重跑：入口回归 18/18，非浏览器 144/144，浏览器 1121/1121，`npm run typecheck` 通过（先 `npx next typegen`，见 T-223 第 7 节）；`npm run build` 按规则不在 Mac 运行。
+- [ ] 回复文字被拆成多段、拼起来才含 key 时，调用记录和返回内容里都不留 key（OpenAI Responses、Anthropic）
+- [ ] 非 2xx 回复的编号响应头里出现转义形式的 key 时，记录里不留可还原的 key（`request-id`、`x-request-id`、`x-ds-trace-id`）
+- [ ] OpenAI Responses 回复里被采用的输出项自身未完成（`incomplete`、`in_progress`）时拒收
+- [ ] DeepSeek 格式下，地址以 `//` 结尾、HTTP 200 正文不是 JSON 这两种输入的请求地址和调用记录与 0eefc1f6 相同；或由负责人确认接受这两处差异
+- [ ] 请求只带 `X-SiteCraft-Provider-Format` 且值未知时返回 400
 
 ## Notes
 
@@ -71,6 +76,38 @@ supersedes:
 | 整页修改 | select 2 秒；write 75 秒 24196 token；facts 31 秒 80738 token | 第 3 版保存，底线检查通过 |
 
 - 严格模式没有被拒：`submit_page_plan`、`submit_local_edit`、`submit_fact_review` 都以 `strict:true` 通过，所以没有关。
-- 没跑：撤销、英文版翻译（`submit_english_translation`）、内容修正轮、检查续跑、375 与 768 宽度、设置页填 key 经请求头的路径（本次用本机环境变量）。生成质量没有评估。
-- Anthropic 兼容格式仍没有真实接口结果。
+- 这一轮没跑的撤销、内容修正轮、375 与 768 宽度，在下面 2026-11-20 的主线实跑里补上了。
+
+### 合并后主线实跑（2026-11-20，c5c09cdd，负责人 Mac，本机环境变量配置）
+
+模拟主体「岚坞茶叶专业合作社」（茶叶合作社，1842 字，现有资料包里没有的行业），Chrome 1440 从工作台真实入口操作，三个站点。有记录的 26 次模型调用都是 HTTP 200，各站页面在 1440、768、375 下无横向溢出、无坏图。
+
+| 站点 | 步骤 | 调用 | 结果 |
+| --- | --- | --- | --- |
+| `15ceba41`，`gpt-6.2-sol`，OpenAI Responses | 规划、生成 | plan 23 秒 14,421；write 87 秒 18,323；repair 3 秒 10,414；facts 29 秒 60,053 | 第 1 版，用了一轮修正（T-223 第 1 条） |
+| 同上 | 补 4 张图的整站修改 | select 5 秒 7,470；write 76 秒 24,043；facts 33 秒 67,262 | 第 2 版 |
+| 同上 | 三条批注一次发送 | local-edit 三次共 14,287；local-facts 10 秒 19,726 | 第 3 版，三个区块都按意见改了 |
+| 同上 | 首页快捷修改「更大胆」 | select 4 秒 7,313；write 56 秒 23,003；repair 2 秒 10,894；facts 30 秒 70,638 | 第 4 版，用了一轮修正（T-223 第 4 条） |
+| 同上 | 撤销 | 请求 35.9 秒，调用没有记录（T-223 第 3 条） | 第 5 版，代码与第 3 版相同 |
+| `a2acadb0`，`gpt-6.2-sol`，OpenAI Responses | 先传 4 张图再规划、生成 | plan 27 秒 15,051；write 103 秒 20,120；facts 37 秒 84,541 | 第 1 版，没有修正轮 |
+| 同上 | 一条批注换掉一张图 | local-edit 14 秒 5,632；local-facts 9 秒 16,638 | 第 2 版，其余页面和页头页脚不变；公开样品见 [T-222](T-222-tea-sample-showcase.md) |
+| `b41df306`，`deepseek-flash`，DeepSeek | 规划、生成 | plan 20 秒 15,488；write 170 秒 51,806；facts 131 秒 88,770 | 第 1 版，没有修正轮 |
+| 同上 | 补 4 张图的整站修改 | select 4 秒 7,159；write 68 秒 35,552；facts 45 秒 81,098 | 第 2 版已保存，任务却被标成中断（T-223 第 2 条） |
+
+- 有记录的用量：OpenAI 两站 489,829 token（20 次调用），DeepSeek 一站 279,873 token（6 次调用）。
+- 页面质量：把同资料的 `gpt-6.2-sol` 与 `deepseek-flash` 成对交 Codex gpt-6.1-sol（high，每对一个新实例，只看匿名截图）。无图一对选了 `deepseek-flash`，有图一对选了 `gpt-6.2-sol`。一家公司、每对一位评审，1 比 1，对两个模型的优劣没有结论。
+- 仍没跑：非 DeepSeek 格式下的英文版翻译（`submit_english_translation`）和检查续跑、设置页填 key 经请求头的路径、OpenAI 兼容（chat completions）格式的真实成功调用。Anthropic 兼容格式没有真实接口结果，负责人已决定不再验证。
+- 证据在这台 Mac 上 gitignore 的 `artifacts/t221/real-openai-2026-11-20/` 与 `artifacts/t221/followup-2026-11-20/`（各站的任务记录、截图、盲评包与原始结论）；全量测试日志在 `artifacts/t221/mainline-checks/`。
+
+### 独立审查（2026-11-20）
+
+Codex gpt-6.1-sol（high，只读，独立实例）按 design-integrity-review 审 0eefc1f6..2909c2f7 五个提交，结论 **FAIL**：5 项新发现，另 1 项在本票之前就有。原文在 `artifacts/t221/review/design-integrity.codex-gpt-6.1-sol.txt`。主控用合成凭据和内存里的假回复逐项复现（`artifacts/t221/review/repro.ts`，结果 `repro.txt`），没有改代码：
+
+1. **拆开的 key 进了记录**（P1）：OpenAI Responses 回复把 key 拆在两段 `output_text` 里，正文检查查不到；两段拼起来后，完整的 key 留在调用记录的 `response.rawMessage.content`。规划入口已复现；同一段 key 连续出现时会被正确舍弃。审查方称写页入口会把含 key 的 CSS 返回，Anthropic 同理，这两点主控没有单独复现。
+2. **编号响应头里转义的 key**（P1）：HTTP 400 的 `request-id` 头里放 `\uXXXX` 形式的 key，记录的 `httpError.requestId` 原样保留，解码即得 key。`request-id` 是本票新加的；`x-request-id`、`x-ds-trace-id` 的同样问题在本票之前就有。明文 key 会被替换成 `[REDACTED]`。
+3. **未完成的输出项被接受**（P2）：外层 `status: completed`，里面的 `function_call` 自身是 `incomplete` 或 `in_progress`，仍被当成正常的函数调用。官方接口是否会给出这种组合没有核实。
+4. **DeepSeek 与改动前不一致**（P2）：地址以 `//` 结尾时，原来请求 `…//beta/chat/completions`，现在请求 `…/beta/chat/completions`；HTTP 200 而正文只有 `{` 时，原来的调用记录没有 `response` 字段，现在多了三个空值字段，报错文字也变了。正常地址下两边相同。
+5. **只带格式头时不校验**（P2）：请求只带 `X-SiteCraft-Provider-Format: unknown`、不带地址、key 和模型名，处理函数照常执行并返回 200；四个头都带时返回 400。
+
+对应的五条验收已加在上面，票保持打开。修复涉及模型客户端和凭据处理，要负责人先安排。
 

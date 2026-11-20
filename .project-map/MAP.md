@@ -16,6 +16,7 @@
 - 公开入口说明与静态工作台演示已交付（T-207 两项返工验收通过）：[T-203](tickets/T-203-readme-entry.md)、[T-207](tickets/T-207-interactive-demo.md)；当前运行方式见 [README](../README.md)，验收与失败证据见各票 Resolution。
 - 2026-10-25 单人交付：T-209 英文保真及仓库演示更新、T-205 首次中断恢复、T-208 Windows 部署均已完成；服务在 `D:\sitecraft-ai`，Mac 不构建。T-208 保留 `::marker` 检查，补齐生成指导后真实三页生成、预览批注、撤销、刷新和下载通过，Windows 全量 1221 项及重建持久化、密钥扫描通过，缓存已清理；原失败证据保留。详见 [T-208](tickets/T-208-local-docker.md)。
 - 2026-10-28 单人交付：[T-210](tickets/T-210-fact-audit-failure-ownership.md) 已关闭。主体名称与错误路由、受限编号引用、显式检查续跑及检查浏览器图片同源已修复；博思四页原候选真实续跑 v1、局部修改 v2、撤销 v3 与刷新通过。Windows 最终全量 1252 项、入口 18 项、typecheck、build 通过并部署，Mac 未构建；负责人另批准的盲评包创建时钟问题一并修复。原失败、资料、图片和版本保留，本次临时环境与缓存已清理。
+- 模型接口格式（2026-11-20 负责人确认）：除 DeepSeek 外支持 OpenAI 兼容、OpenAI Responses 与 Anthropic 兼容格式；只换请求和回复的写法，校验、检查、存版规则不变。实现票 [T-221](tickets/T-221-provider-formats.md) 未关闭：独立审查发现 5 项缺陷待修，真实接口验证情况见票。
 
 ## Decisions so far
 
@@ -71,7 +72,6 @@
 - [T-206 公网演示与本机 Docker](tickets/T-206-demo-and-local-docker.md)：VPS 不再跑真实建站（满载影响负责人其他业务），sitecraftapp 改为预设数据的交互式演示；真实建站用 Docker 多阶段镜像加 compose 编排 PostgreSQL 部署在负责人本机（T-207、T-208）
 - [T-213 两条未接入界面的接口](tickets/T-213-unwired-analyze-and-replies.md)：看图识别与批注回复的对外路由删除，不接入；生成流程内部的助手回复保留（T-217 实现）
 - [T-219 工作台与首页改版方向](tickets/T-219-workspace-redesign-direction.md)：以「分步工单」为主体（资料、风格、大纲、生成、修改五步，一步一屏），批注时切换成炭黑画布样式，首页放开重做；只改界面，取代 T-008（T-220 实现）
-- [T-221 模型接口格式](tickets/T-221-provider-formats.md)：负责人确认模型接口除 DeepSeek 外支持 OpenAI 兼容、OpenAI Responses 与 Anthropic 兼容格式；只换请求和回复的写法，校验、检查、存版规则不变；真实接口验证情况见票
 
 ## Not yet specified
 
@@ -95,11 +95,11 @@
 
 | Doc | Covers | Verified |
 | --- | --- | --- |
-| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `lib/provider-http-error.ts`, `app/api/**`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 21aec51 |
-| [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/code-site*.ts`, `lib/annotations.ts`, `lib/storage-directory.ts` | 21aec51 |
+| [AGENTS.md](../AGENTS.md) | `package.json`, `lib/code-site*.ts`, `lib/provider-http-error.ts`, `app/api/**`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | c5c09cd |
+| [CONTEXT.md](../CONTEXT.md) | `lib/alignment.ts`, `lib/code-site*.ts`, `lib/annotations.ts`, `lib/storage-directory.ts` | c5c09cd |
 | [README.md](../README.md) | `package.json`, `docker-compose.yml`, `deploy/**`, `lib/code-site-store.ts`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 21aec51 |
 | [docs/project/intent.md](../docs/project/intent.md) | `.project-map/tickets/T-127-*.md`, `.project-map/tickets/T-141-*.md`, `.project-map/tickets/T-145-*.md`, `.project-map/tickets/T-151-*.md`, `.project-map/tickets/T-152-*.md` | 9bcf59b |
-| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/code-site*.ts`, `lib/provider-http-error.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `lib/storage-directory.ts` | 21aec51 |
+| [docs/project/mainline.md](../docs/project/mainline.md) | `lib/code-site*.ts`, `lib/provider-http-error.ts`, `skills/site-code-*/SKILL.md`, `skills/site-code-core/SKELETONS.md`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `lib/storage-directory.ts` | c5c09cd |
 | [docs/project/spec.md](../docs/project/spec.md) | `lib/alignment.ts`, `lib/conversation-store.ts`, `app/(workspace)/**`, `app/api/**`, `lib/code-site*.ts`, `lib/provider-http-error.ts`, `lib/simulated-packs.ts`, `fixtures/simulated-packs/**`, `tests/fixtures/company-images/**/manifest.json`, `scripts/eval-new-route.ts`, `scripts/eval-set-report.ts`, `skills/site-code-core/LOCAL-EDIT.md`, `scripts/import-legacy-site-code.ts`, `scripts/run-tests.ts`, `scripts/test-identity.ts`, `lib/storage-directory.ts`, `scripts/test-summary-reporter.mjs`, `next.config.ts`, `scripts/t167-runner-regressions.ts`, `scripts/t167-build-trace-regression.ts` | 699367f |
 | [docs/project/error-catalog.md](../docs/project/error-catalog.md) | `lib/user-errors.ts` | 00a083e |
 | [deploy/vps/README.md](../deploy/vps/README.md) | `deploy/vps/**`, `demo/**`, `scripts/t207-*.mjs` | b12286b |
