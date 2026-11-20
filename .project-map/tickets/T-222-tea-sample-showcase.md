@@ -2,7 +2,7 @@
 id: T-222
 title: 岚坞茶叶样品上线：产品页、README 与 VPS
 type: build
-status: open
+status: closed
 blocked_by: []
 claimed_by: Devin
 supersedes:
@@ -22,8 +22,8 @@ supersedes:
 - [x] 样品来自站点 `a2acadb0` 当前版本的真实导出；包里没有人物面部，四张图的署名与许可写在 `LICENSES.txt` 和样品页脚
 - [x] 产品页和样品页在 1440、768、375 无横向溢出，图片全部载入，本地链接全部有效，截图看过
 - [x] README 展示新样品，并写明截图里第三方照片的来源与许可
-- [ ] 推送到 origin 的 `main` 与 `family-kit-assembly`，远端 SHA 核对一致
-- [ ] VPS 按 `install.sh` 部署，冒烟检查通过；公网的产品页、样品页和演示核对过
+- [x] 推送到 origin 的 `main` 与 `family-kit-assembly`，远端 SHA 核对一致
+- [x] VPS 按 `install.sh` 部署，冒烟检查通过；公网的产品页、样品页和演示核对过
 
 ## Resolution
 
@@ -58,3 +58,11 @@ supersedes:
 - `verify-landing.ts`：本地静态服务模拟 nginx。产品页和样品三页共 12 个页面×宽度组合，横向溢出 0，载入失败的图片 0；20 个 HTML 文件里 215 个本地 href／src 全部对得上文件；从产品页点进样品再走完导航，样式和图片正常；服务日志没有 404。
 - 样品区、模型接口说明和页脚在 1440、768、375 的近景截图逐张看过；两张新截图和样品三页在 375 的整页也看过。
 - 仓库里的演示在本地打开，产品页用到的 `#1`、`#2`、`#3`、`#9`、`#14`、`#16`、`#17`、`#19` 都落在对应步骤。
+
+**推送与部署**
+
+- 推送：origin 的 `main` 与 `family-kit-assembly` 都是 103be41f（`git ls-remote` 核对）。之后的提交只改 `.project-map/`，`landing/`、`demo/`、`deploy/` 与 103be41f 相同。
+- 部署（2026-11-20 11:58Z）：`ssh root@107.173.155.71`，在 VPS 上全新浅克隆 `family-kit-assembly`（103be41f）后运行 `deploy/vps/install.sh`，退出码 0。冒烟检查：产品页 200、演示 200、演示步骤表 200、演示站点包 200、建站接口 404、未登记主机名被断开（000，curl 退出码 52）。部署前后 nginx、cloudflared、x-ui 都在运行，sitecraft-app 保持停用，监听端口列表前后相同；临时克隆已删除。日志在 `artifacts/t222/vps-install.log`、`vps-after.log`。
+- 公网核对：产品页（填入演示地址后）、样品 9 个文件、两张新截图、演示首页、步骤表和英文步骤页，共 15 个地址与仓库逐字节相同。在公网上重跑同一份检查：12 个页面×宽度组合横向溢出 0、图片全部载入，从产品页点进样品并走完导航正常；演示的 `#1`、`#2`、`#3`、`#9`、`#14`、`#16`、`#17`、`#19` 落在对应步骤。样品页的邮箱原文没有被改写。
+- 这次部署同时带上了 2026-10-25 以来仓库里已有、但没上线的演示更新（英文页、播放器交互）和产品页文案。
+- 回滚：上一版（2026-10-21 的部署）在 VPS 的 `/opt/sitecraft/landing.old` 和 `demo.old`，把目录名换回即可；nginx 配置这次没有变化。
