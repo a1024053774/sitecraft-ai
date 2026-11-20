@@ -3,12 +3,13 @@ import { lookup as dnsLookup } from 'node:dns';
 import { request as httpsRequest } from 'node:https';
 import { request as httpRequest } from 'node:http';
 import { isIP, type LookupFunction } from 'node:net';
+import { providerFormat, type ProviderFormat } from './provider-format.ts';
 
 // T-202: the visitor's own model interface. The key arrives in a request header,
 // lives in this request's async context (and in the closure of a task the
 // request scheduled), and is never written to a record, a log or a package.
-export type ProviderCredentials = { baseURL: string; apiKey: string; model: string };
-export type ProviderConfig = { baseURL: string; apiKey: string | undefined; model: string | undefined; fetch: typeof fetch };
+export type ProviderCredentials = { baseURL: string; apiKey: string; model: string; format: ProviderFormat };
+export type ProviderConfig = { baseURL: string; apiKey: string | undefined; model: string | undefined; format: ProviderFormat; fetch: typeof fetch };
 
 export class ProviderSettingsError extends Error {
   constructor(message: string) { super(message); this.name = 'ProviderSettingsError'; }
@@ -30,23 +31,31 @@ export function currentProviderCredentials() { return context.getStore() ?? null
 export function providerConfig(): ProviderConfig {
   const visitor = context.getStore();
   if (visitor) return { ...visitor, fetch: guardedFetch };
-  if (!serverCredentialsAllowed()) return { baseURL: '', apiKey: undefined, model: undefined, fetch: guardedFetch };
+  if (!serverCredentialsAllowed()) return { baseURL: '', apiKey: undefined, model: undefined, format: 'deepseek', fetch: guardedFetch };
+  // T-221: AI_PROVIDER_FORMAT picks the wire format for the operator's own key; unset means DeepSeek.
+  const format = providerFormat(process.env.AI_PROVIDER_FORMAT || 'deepseek');
+  if (!format) throw new ProviderSettingsError('AI_PROVIDER_FORMAT 必须是 deepseek、openai、openai-responses 或 anthropic。');
   return {
-    baseURL: (process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, ''),
+    baseURL: (process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || (format === 'deepseek' ? 'https://api.deepseek.com' : '')).replace(/\/$/, ''),
     apiKey: process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY,
     model: process.env.DEEPSEEK_MODEL || process.env.AI_MODEL,
+    format,
     fetch,
   };
 }
-export function providerConfigured() { const { apiKey, model } = providerConfig(); return Boolean(apiKey && model); }
+export function providerConfigured(config = providerConfig()) { return Boolean(config.baseURL && config.apiKey && config.model); }
 
 const headerNames = { baseURL: 'x-sitecraft-provider-base', apiKey: 'x-sitecraft-provider-key', model: 'x-sitecraft-provider-model' } as const;
+const formatHeader = 'x-sitecraft-provider-format';
 
 // Returns null when the request carries no provider headers; throws when they are incomplete or invalid.
 export function providerFromRequest(request: Request): ProviderCredentials | null {
-  const raw = Object.fromEntries(Object.entries(headerNames).map(([field, name]) => [field, request.headers.get(name)?.trim() ?? ''])) as Record<keyof ProviderCredentials, string>;
+  const raw = Object.fromEntries(Object.entries(headerNames).map(([field, name]) => [field, request.headers.get(name)?.trim() ?? ''])) as Record<keyof typeof headerNames, string>;
   if (!raw.baseURL && !raw.apiKey && !raw.model) return null;
   if (!raw.baseURL || !raw.apiKey || !raw.model) throw new ProviderSettingsError('模型接口设置不完整：API 地址、key 和模型名都要填写。');
+  // Settings saved before T-221 send no format; they were DeepSeek.
+  const format = providerFormat(request.headers.get(formatHeader)?.trim() || 'deepseek');
+  if (!format) throw new ProviderSettingsError('接口格式无效，请在「设置」里重新选择。');
   if (raw.apiKey.length > 512 || /[\s\u0000-\u001f\u007f]/.test(raw.apiKey)) throw new ProviderSettingsError('API key 格式无效。');
   if (!/^[A-Za-z0-9._:/@-]{1,120}$/.test(raw.model)) throw new ProviderSettingsError('模型名格式无效。');
   let url: URL;
@@ -54,7 +63,7 @@ export function providerFromRequest(request: Request): ProviderCredentials | nul
   const local = localProviderAllowed() && url.protocol === 'http:' && (url.hostname === '127.0.0.1' || url.hostname === 'localhost');
   if (url.protocol !== 'https:' && !local) throw new ProviderSettingsError('API 地址必须以 https:// 开头。');
   if (url.username || url.password || url.search || url.hash) throw new ProviderSettingsError('API 地址不能包含账号、查询参数或锚点。');
-  return { baseURL: url.toString().replace(/\/$/, ''), apiKey: raw.apiKey, model: raw.model };
+  return { baseURL: url.toString().replace(/\/$/, ''), apiKey: raw.apiKey, model: raw.model, format };
 }
 
 // Wraps a route handler: invalid provider headers become a 400, valid ones are

@@ -1,14 +1,15 @@
-import { providerConfig } from './provider-context.ts';
+import { providerConfig, providerConfigured } from './provider-context.ts';
+import { providerFormatNames } from './provider-format.ts';
 
 export { providerConfig };
 
 export function getAIProviderStatus() {
   const config = providerConfig();
-  const configured = Boolean(config.apiKey && config.model);
+  const configured = providerConfigured(config);
   return {
     configured,
-    mode: configured ? "deepseek" as const : "unconfigured" as const,
-    provider: "DeepSeek" as const,
+    mode: configured ? config.format : "unconfigured" as const,
+    provider: providerFormatNames[config.format],
     model: config.model ?? null,
     baseURL: configured ? config.baseURL : null,
   };

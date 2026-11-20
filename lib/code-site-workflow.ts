@@ -358,7 +358,7 @@ async function execute(siteId: string, runId: string) {
   }
   if (!run.resumedFrom) await runStep(siteId, runId, { stage: 'write' });
   let result = run.resumedFrom && run.checkpoint ? { code: run.checkpoint.code, model: run.checkpoint.model } : await writeSiteCode({ materials, preferences: site.preferences, plan: site.plan, images, request: run.pageId ? `只修改当前页 ${run.pageId}，其他页面、公共页头页脚及其样式保持。${run.request}` : run.request,
-    references,
+    references, pageId: run.pageId,
     ...(run.kind === 'edit' ? { current: currentCodeVersion(site)!.code } : {}) });
   for (let round = run.repairRound; round <= 2; round++) {
     await runStep(siteId, runId, { step: '清理资源，检查事实与三档页面布局', repairRound: round, stage: 'check',

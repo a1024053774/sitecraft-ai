@@ -1,9 +1,11 @@
 // T-202 browser storage, client side: IndexedDB holds the only lasting copy of
 // each site as the server's bundle format. The server copy is hydrated from it
 // when a site is opened and pulled back after changes.
+import { codeSiteProgress, type CodeSiteProgress, type CodeSiteRecord } from './code-site.ts';
+import { normalizeAlignmentSnapshot, publicAlignmentView } from './alignment.ts';
 export type SiteBundle = { format: 'sitecraft-site-bundle'; version: 1; siteId: string; updatedAt: string; files: { path: string; data: string }[] };
-export type LocalSite = { siteId: string; siteName: string; updatedAt: string; hasVersion: boolean; savedAt: string };
-type StoredSite = LocalSite & { bundle: SiteBundle; etag: string | null };
+export type LocalSite = { siteId: string; siteName: string; updatedAt: string; hasVersion: boolean; savedAt: string; progress?: CodeSiteProgress };
+type StoredSite = Omit<LocalSite, 'progress'> & { bundle: SiteBundle; etag: string | null };
 
 export function browserStorageMode() {
   return typeof document !== 'undefined' && document.documentElement.dataset.storage === 'browser';
@@ -36,9 +38,19 @@ function decodeRecord(bundle: SiteBundle) {
   return JSON.parse(new TextDecoder().decode(bytes)) as { name?: string; updatedAt?: string; currentVersionId?: string | null };
 }
 
+// T-220: the browser list derives the same progress as the server list, from the record and conversation saved in the bundle.
+function bundleProgress(bundle: SiteBundle): CodeSiteProgress | undefined {
+  try {
+    const read = (file: SiteBundle['files'][number]) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(file.data), char => char.charCodeAt(0))));
+    const record = read(bundle.files.find(item => item.path === `code-sites/${bundle.siteId}.json`)!) as CodeSiteRecord;
+    if (record.route !== 'code') return undefined;
+    const conversation = bundle.files.find(item => item.path === `conversations/${bundle.siteId}/${record.conversationId}.json`);
+    return codeSiteProgress(record, conversation ? publicAlignmentView(normalizeAlignmentSnapshot(read(conversation).alignment)) : null);
+  } catch { return undefined; }
+}
 export async function listLocalSites(): Promise<LocalSite[]> {
   const all = await withStore<StoredSite[]>('readonly', store => store.getAll() as IDBRequest<StoredSite[]>);
-  return all.map(({ siteId, siteName, updatedAt, hasVersion, savedAt }) => ({ siteId, siteName, updatedAt, hasVersion, savedAt }))
+  return all.map(({ siteId, siteName, updatedAt, hasVersion, savedAt, bundle }) => ({ siteId, siteName, updatedAt, hasVersion, savedAt, progress: bundleProgress(bundle) }))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }
 async function readLocal(siteId: string) {

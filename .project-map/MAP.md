@@ -26,7 +26,7 @@
 - [T-005 配色怎么给用户选](tickets/T-005-color-sets.md)：6 套色彩集 × 4 个样子的色板，另支持自定义品牌色
 - [T-006 行业和样子怎么对应](tickets/T-006-industry-look-recommendation.md)：按行业标推荐和理由，不限制可选范围
 - [T-007 生成站视觉从哪里改起](tickets/T-007-visual-sample-first.md)：先用工程工业做样板，重做现有 overlay，再推开；新素材准入在后
-- [T-008 工作台怎么布局、用什么主题](tickets/T-008-workspace-layout-theme.md)：方向 B；手机逐题底部抽屉；深浅主题和强调色
+- [T-008 工作台怎么布局、用什么主题](tickets/T-008-workspace-layout-theme.md)：方向 B；手机逐题底部抽屉；深浅主题和强调色（已被 T-219 取代）
 - [T-009 中英文怎么生成，缺的内容怎么显示](tickets/T-009-bilingual-and-gaps.md)：`{zh, en}` 一起写（「一起生成」已被 T-127 取代：英文在用户满意后再问）；`To be provided`；缺口规则
 - [T-010 模拟资料包要多厚，照片用什么许可](tickets/T-010-simulated-pack-thickening.md)：加厚并标为模拟；CC0/公有领域/CC-BY/CC-BY-SA，内容必须对得上
 - [T-011 生成站用什么浏览器看](tickets/T-011-review-browser.md)：用 Chrome；预览被拦截时报错并提示
@@ -70,6 +70,8 @@
 - [T-200 上线方向](tickets/T-200-launch-direction.md)：停止质量开发准备上线；简约产品页与样品；用户自带模型接口，key 与站点数据只存用户浏览器；部署到 1 核 1GB VPS 的 luckye.online 子域名（T-201～T-204）
 - [T-206 公网演示与本机 Docker](tickets/T-206-demo-and-local-docker.md)：VPS 不再跑真实建站（满载影响负责人其他业务），sitecraftapp 改为预设数据的交互式演示；真实建站用 Docker 多阶段镜像加 compose 编排 PostgreSQL 部署在负责人本机（T-207、T-208）
 - [T-213 两条未接入界面的接口](tickets/T-213-unwired-analyze-and-replies.md)：看图识别与批注回复的对外路由删除，不接入；生成流程内部的助手回复保留（T-217 实现）
+- [T-219 工作台与首页改版方向](tickets/T-219-workspace-redesign-direction.md)：以「分步工单」为主体（资料、风格、大纲、生成、修改五步，一步一屏），批注时切换成炭黑画布样式，首页放开重做；只改界面，取代 T-008（T-220 实现）
+- [T-221 模型接口格式](tickets/T-221-provider-formats.md)：负责人确认模型接口除 DeepSeek 外支持 OpenAI 兼容、OpenAI Responses 与 Anthropic 兼容格式；只换请求和回复的写法，校验、检查、存版规则不变；真实接口验证情况见票
 
 ## Not yet specified
 

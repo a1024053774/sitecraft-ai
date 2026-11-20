@@ -8,16 +8,26 @@ import { systemIconLicense } from './code-site-icons.ts';
 import { systemBackdrops, systemBackdropLicense } from './code-site-backdrops.ts';
 import { mapSiteCodeCss, renderCodeFragment, siteCodeResources } from './code-site-dom.ts';
 
-export const codeSiteSchema = z.object({
+const codeSiteFields = z.object({
   header: z.string().max(30000), footer: z.string().max(30000), css: z.string().max(100000),
   pages: z.array(z.object({
     id: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/), title: z.string().min(1).max(80), html: z.string().min(1).max(100000),
   })).min(1).max(12),
-}).superRefine((site, ctx) => {
+});
+export const codeSiteSchema = codeSiteFields.superRefine((site, ctx) => {
   if (new Set(site.pages.map(p => p.id)).size !== site.pages.length) ctx.addIssue({ code: 'custom', message: '页面 ID 重复' });
   if (!site.pages.some(p => p.id === 'home')) ctx.addIssue({ code: 'custom', message: '缺少首页' });
 });
 export type SiteCode = z.infer<typeof codeSiteSchema>;
+// A current-page edit may return only that page: pages it left out come from the parent version (T-218).
+// A candidate with every parent page, without the current page, or otherwise invalid is returned as is.
+export function keepUnreturnedPages(candidate: unknown, parent: SiteCode, pageId: string): unknown {
+  const partial = codeSiteFields.safeParse(candidate);
+  if (!partial.success) return candidate;
+  const ids = partial.data.pages.map(page => page.id);
+  if (new Set(ids).size !== ids.length || !ids.includes(pageId) || parent.pages.every(page => ids.includes(page.id))) return candidate;
+  return { ...partial.data, pages: [...parent.pages.map(page => partial.data.pages.find(p => p.id === page.id) ?? page), ...partial.data.pages.filter(page => !parent.pages.some(p => p.id === page.id))] };
+}
 export type CodePreferences = { style: 'auto' | CodeStyleId; layout: number; density: number };
 export type CodePlan = { summary: string; style: CodeStyleId; styleReason: string;
   // Saved outlines from before T-135 have no skeleton; new model plans require it.
@@ -75,6 +85,8 @@ export type CodeVersion = {
 };
 export type CodeModelCall = {
   purpose: 'plan' | 'select' | 'write' | 'repair' | 'facts' | 'translate' | 'local-edit' | 'local-facts'; model: string; startedAt: string; latencyMs: number; httpStatus: number | null;
+  // T-221: recorded for calls that did not use the DeepSeek wire format.
+  format?: 'openai' | 'openai-responses' | 'anthropic';
   usage: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens?: number } | null;
   httpError?: import('./provider-http-error.ts').ProviderHttpError;
   skeletonOrder?: string[];
@@ -143,6 +155,32 @@ export function codeVersionAuthor(author: CodeVersion['author']) {
 }
 export function currentCodeVersion(site: CodeSiteRecord) {
   return site.versions.find(v => v.id === site.currentVersionId) ?? null;
+}
+// T-220: the five steps the workspace and the site lists show, and what the current step is waiting on.
+export const codeSiteSteps = [
+  { id: 'material', label: '资料' }, { id: 'style', label: '风格' }, { id: 'outline', label: '大纲' },
+  { id: 'generate', label: '生成' }, { id: 'edit', label: '修改' },
+] as const;
+export type CodeSiteStep = typeof codeSiteSteps[number]['id'];
+export type CodeSiteFlow = { step: CodeSiteStep; state: 'writing' | 'resume' | 'generate-failed' | 'regenerate' | 'planning' | 'plan-failed' | 'subject' | 'edit-failed' | null };
+// The workspace and both site lists call this with the same saved record and alignment, so they name the same step.
+export function codeSiteFlow(site: CodeSiteRecord, alignment: { waitingForUser: boolean; awaitingConfirmation: boolean; questionKind: string | null } | null): CodeSiteFlow {
+  const run = site.run, running = run?.status === 'running', failed = run?.status === 'error', version = currentCodeVersion(site);
+  if (running && run.kind === 'generate') return { step: 'generate', state: 'writing' };
+  if (running && run.kind === 'plan') return { step: 'outline', state: 'planning' };
+  if (alignment?.awaitingConfirmation && site.plan) return { step: 'outline', state: !version && failed && run.kind === 'generate' ? 'regenerate' : null };
+  if (alignment?.waitingForUser && alignment.questionKind === 'style') return { step: 'style', state: null };
+  if (version) return { step: 'edit', state: failed ? 'edit-failed' : null };
+  if (alignment?.waitingForUser && alignment.questionKind === 'clarify') return { step: 'material', state: 'subject' };
+  if (run?.kind === 'generate') return { step: 'generate', state: codeRunCheckpoint(site) ? 'resume' : 'generate-failed' };
+  if (failed && run.kind === 'plan') return { step: 'outline', state: 'plan-failed' };
+  return { step: 'material', state: null };
+}
+export type CodeSiteProgress = CodeSiteFlow & { revision: number | null; pageCount: number; checksPassed: boolean; english: boolean; hasMaterials: boolean };
+export function codeSiteProgress(site: CodeSiteRecord, alignment: Parameters<typeof codeSiteFlow>[1]): CodeSiteProgress {
+  const version = currentCodeVersion(site);
+  return { ...codeSiteFlow(site, alignment), revision: version?.revision ?? null, pageCount: version?.code.pages.length ?? site.plan?.pages.length ?? 0,
+    checksPassed: !!version?.checks.passed, english: !!version?.english, hasMaterials: !!site.materials.trim() };
 }
 export function codeRunCheckpoint(site: CodeSiteRecord): CodeRun['checkpoint'] | null {
   const run = site.run;

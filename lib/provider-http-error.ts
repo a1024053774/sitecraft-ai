@@ -1,8 +1,9 @@
 export type ProviderResponseBody = { body: string; bodyRedacted?: never; bodyLength?: never } | { body?: never; bodyRedacted: true; bodyLength: number };
+const requestIdHeaders = ['x-ds-trace-id', 'x-request-id', 'request-id'] as const;
 export type ProviderHttpError = {
   status: number;
   requestId: string | null;
-  requestIdHeader: 'x-ds-trace-id' | 'x-request-id' | null;
+  requestIdHeader: typeof requestIdHeaders[number] | null;
 } & ProviderResponseBody;
 
 // HTTP 错误与事实回复共用整段正文的凭据检查。
@@ -27,7 +28,7 @@ export async function readProviderHttpError(response: Response, apiKey: string):
   // 网关正文已舍弃时，只传递原始字符数；应用仍独立检查自己持有的占位 token。
   const redactedLength = response.headers.get('x-sitecraft-redacted-body-length');
   const inheritedLength = redactedLength !== null && /^\d+$/.test(redactedLength) && Number.isSafeInteger(Number(redactedLength)) ? Number(redactedLength) : null;
-  const requestIdHeader = (['x-ds-trace-id', 'x-request-id'] as const).find(name => response.headers.get(name)) ?? null;
+  const requestIdHeader = requestIdHeaders.find(name => response.headers.get(name)) ?? null;
   return { status: response.status,
     ...(inheritedLength !== null ? { bodyRedacted: true as const, bodyLength: inheritedLength } : body), requestIdHeader,
     requestId: requestIdHeader ? redact(response.headers.get(requestIdHeader)!) : null };
