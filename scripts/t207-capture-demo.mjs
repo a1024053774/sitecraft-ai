@@ -4,6 +4,7 @@
 // without scripts. demo/index.html then plays the steps. Nothing here calls a model.
 // Usage: node scripts/t207-capture-demo.mjs <chrome> <appBase> <stageDataRoot> <outDir> [fromStep]
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
@@ -220,7 +221,8 @@ for (const step of steps.slice(firstStep)) {
     await step.run(); await sleep(700);
     const frozen = await ev(freeze);
     if (step.stage === 'progress') await send('Fetch.disable');
-    const css = keep(cssFiles, frozen.css, n => `${assetPrefix}ws-${n + 1}.css`);
+    // The name carries the content: css is cached for 7 days by nginx and at the edge, so a changed sheet needs a new address.
+    const css = keep(cssFiles, frozen.css, () => `${assetPrefix}ws-${createHash('sha256').update(frozen.css).digest('hex').slice(0, 10)}.css`);
     let html = frozen.html.replace('</head>', `<link rel="stylesheet" href="../r/${css}"></head>`);
     for (const frame of frozen.frames) {
       const name = keep(frameFiles, frame.html, n => `${assetPrefix}f${n + 1}.html`);
