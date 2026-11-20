@@ -131,7 +131,8 @@ test('invalid visitor headers are rejected with 400 and nothing changes', async 
 
 test('provider headers: complete values are accepted as given', () => {
   const parsed = providerFromRequest(new Request('http://local', { headers: headers('https://api.deepseek.com/', visitorKey, 'deepseek-flash') }));
-  assert.deepEqual(parsed, { baseURL: 'https://api.deepseek.com', apiKey: visitorKey, model: 'deepseek-flash' });
+  // T-221: requests without a format header are DeepSeek, as before the header existed.
+  assert.deepEqual(parsed, { baseURL: 'https://api.deepseek.com', apiKey: visitorKey, model: 'deepseek-flash', format: 'deepseek' });
   assert.equal(providerFromRequest(new Request('http://local')), null);
 });
 

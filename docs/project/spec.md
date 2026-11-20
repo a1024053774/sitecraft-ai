@@ -177,10 +177,12 @@ T-208 的 Windows Docker 服务复用上述混合存储：PostgreSQL 命名卷�
 ### 浏览器存储与访客模型接口（T-202）
 
 **访客模型接口**
-- 设置页「模型接口」填写 API 地址、key、模型名，只存在 localStorage，可从浏览器清除。
-- 只有可能调用模型的请求带 `X-SiteCraft-Provider-Base`、`X-SiteCraft-Provider-Key`、`X-SiteCraft-Provider-Model` 三个头：chat 的非 state 请求、撤销、恢复；状态轮询不带。
+- 设置页「模型接口」填写接口格式、API 地址、key、模型名，只存在 localStorage，可从浏览器清除。地址的协议、主机或端口变化时清空表单里的 key，须重新填写后保存；同源切换格式或路径时保留 key。
+- 接口格式（T-221）：DeepSeek（默认）、OpenAI 兼容（chat completions）、OpenAI Responses（`/responses`，供在 chat completions 下不能带推理调用函数的模型使用）、Anthropic 兼容。`lib/provider-format.ts` 按格式生成请求并把回复归一成四种结果（唯一匹配的函数调用、被截断、普通回答、其他），之后的校验、检查、修正和存版不分格式。DeepSeek 格式的请求不变。其他格式不发思考开关和温度，输出上限取原数值与 32000 中较小者，任务调用记录写明 `format`、不写 `thinking`；Anthropic 格式的整站写作没有 JSON 模式，按提示词输出后解析，事实核对的重复属性检查对 HTTP 正文原文进行。各格式的地址、请求头和结束原因见 T-221。各格式的真实接口验证情况记在 T-221。
+- 只有可能调用模型的请求带 `X-SiteCraft-Provider-Base`、`X-SiteCraft-Provider-Key`、`X-SiteCraft-Provider-Model` 三个头，以及可缺省的 `X-SiteCraft-Provider-Format`（缺省按 DeepSeek，未知值返回 400）：chat 的非 state 请求、撤销、恢复；状态轮询不带。
 - 路由把凭据放入本次请求的 AsyncLocalStorage；后台任务在调度时取出，放在闭包里，任务结束随之释放。凭据不进 run、modelCalls、日志或站点包。
 - 生产模式（`NODE_ENV=production`）不读 `DEEPSEEK_API_KEY` 等环境变量。
+- 本机通过环境变量配置非 DeepSeek 格式时须显式填写地址。所有模型请求拒绝重定向。成功回复在记录或使用前也检查整段正文是否含凭据。整站写作等文本调用只接收正常结束的回答，Responses 优先使用最终回答并排除过程说明。
 - chat 中会启动模型任务的请求（翻译、风格选择、确认、已有版本后的修改），未配置时在对齐、来源登记和任务改动之前返回 400。
 - 请求头不完整、地址不是 https、地址带账号、查询参数或锚点，均返回 400。
 - 访客地址的连接限制：
