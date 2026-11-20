@@ -10,8 +10,12 @@
 | ![宁海精密样品首页](landing/images/molding-desktop.jpg) | ![禾巷小馆样品首页](landing/images/restaurant-desktop.jpg) |
 | 现场实拍（绘画教室） | 邻里日常（设计工作室） |
 | ![拾色绘画教室样品首页](landing/images/education-desktop.jpg) | ![折页设计工作室样品首页](landing/images/design-desktop.jpg) |
+| 邻里日常（茶叶合作社，首页） | 同一站点的「茶园与合作社」页 |
+| ![岚坞茶叶专业合作社样品首页](landing/images/tea-desktop.jpg) | ![岚坞茶叶专业合作社样品的茶园与合作社页](landing/images/tea-garden-desktop.jpg) |
 
-样品均由模拟资料生成，公司与店铺并不存在；完整样品站在 [landing/samples/](landing/samples/)，各自附图片署名与许可。
+样品均由模拟资料生成，公司、店铺与合作社并不存在；完整样品站在 [landing/samples/](landing/samples/)，各自附图片署名与许可。岚坞茶叶专业合作社用 OpenAI 的 `gpt-6.2-sol`（OpenAI Responses 接口格式）生成，照片是登记了来源与许可的行业配图，不是实拍；生成、换图与用量记录见 [T-222](.project-map/tickets/T-222-tea-sample-showcase.md)。
+
+截图里的第三方照片均来自 Wikimedia Commons，经缩放和重新编码：宁海精密首页的注塑模具照片 [HTS main frame polymer injection mold](https://commons.wikimedia.org/wiki/File:HTS_main_frame_polymer_injection_mold.jpg)（MobiusDaXter，[CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0)），岚坞「茶园与合作社」页的茶园照片 [Songyang tea field](https://commons.wikimedia.org/wiki/File:Songyang_tea_field.jpg)（Lishuilynn，[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0)）。
 
 ## 能做什么
 

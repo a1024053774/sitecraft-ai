@@ -98,6 +98,9 @@
   .sample-link:focus-visible { outline-offset: 6px; }
   figcaption .open { margin-left: 12px; color: var(--accent); text-underline-offset: 3px; white-space: nowrap; }
   .gallery figcaption b { color: var(--ink); font-weight: 600; margin-right: 8px; }
+  .gallery .wide { grid-column: 1 / -1; }
+  .gallery .pages { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .gallery .wide .open { display: block; margin: 4px 0 0; }
 
   .note { margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--ink); max-width: 44em; }
   .note h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
@@ -114,6 +117,7 @@
     .section-head, .steps li { grid-template-columns: 1fr; gap: 12px; }
     .example .frames { grid-template-columns: 1fr 160px; gap: 24px; }
     .gallery { gap: 56px 24px; }
+    .gallery .pages { gap: 24px; }
   }
   @media (max-width: 600px) {
     .wrap { padding: 0 16px; }
@@ -126,6 +130,7 @@
     .section { padding: 64px 0; }
     .steps, .pair, .rules, .gallery, .note { margin-top: 40px; }
     .gallery { grid-template-columns: 1fr; gap: 48px; }
+    .gallery .pages { grid-template-columns: 1fr; gap: 16px; }
     figcaption .open { display: block; margin: 4px 0 0; }
     .pair { grid-template-columns: 1fr; gap: 28px; }
     .closing { padding: 72px 0 80px; }
@@ -147,7 +152,7 @@
       <p>上传公司介绍、价目表或产品说明，也可以直接描述想要的网站。选一种风格，SiteCraft 写出一套多页展示型官网；不满意的地方，在对话里说，或在预览上直接批注。</p>
       <div class="cta">
         <a class="button" href="BUILDER_URL">看工作台演示</a>
-        <small>演示按步骤回放一次真实生成和两轮批注修改，使用预设数据，不会调用模型。下方示例均由模拟资料生成，店铺与公司并不存在。</small>
+        <small>演示按步骤回放一次真实生成和两轮批注修改，使用预设数据，不会调用模型。下方示例均由模拟资料生成，店铺、公司与合作社并不存在。</small>
       </div>
     </div>
   </section>
@@ -193,10 +198,17 @@
   <section class="section" aria-label="样品">
     <div class="wrap">
       <div class="section-head">
-        <h2>同一套流程，五种样子</h2>
-        <p>下面几份样品，行业和风格各不相同，都是从已生成的站点里挑出来的。点开截图，可以在新标签页里翻完整网站；它们就是系统导出的站点包，原样放在这里。公司与店铺都是模拟资料，并不存在。</p>
+        <h2>同一套流程，六种样子</h2>
+        <p>下面几份样品，行业和风格各不相同，都是从已生成的站点里挑出来的。点开截图，可以在新标签页里翻完整网站；它们就是系统导出的站点包，原样放在这里。公司、店铺与合作社都来自模拟资料，并不存在。</p>
       </div>
       <div class="gallery">
+        <figure class="wide">
+          <div class="pages">
+            <a class="sample-link" href="samples/tea/index.html" target="_blank" rel="noopener"><img src="images/tea-desktop.jpg" width="1440" height="900" loading="lazy" alt="样品「岚坞茶叶专业合作社」首页截图：高山绿茶和工夫红茶，散茶批发与茶季参观两个入口"></a>
+            <a class="sample-link" href="samples/tea/garden-cooperative.html" target="_blank" rel="noopener"><img src="images/tea-garden-desktop.jpg" width="1440" height="900" loading="lazy" alt="同一样品「茶园与合作社」页截图：社员户数、茶园面积和产量，旁边是一张茶园行垄配图"></a>
+          </div>
+          <figcaption><b>岚坞茶叶专业合作社</b>茶叶合作社 · 邻里日常。首页和「茶园与合作社」页，用 OpenAI 的模型生成；照片是登记了许可的行业配图，不是本社实拍。<a class="open" href="samples/tea/index.html" target="_blank" rel="noopener">打开样品</a></figcaption>
+        </figure>
         <figure>
           <a class="sample-link" href="samples/export/index.html" target="_blank" rel="noopener"><img src="images/export-desktop.jpg" width="1440" height="900" loading="lazy" alt="样品「外高桥流体接头」首页截图：快换接头与卡套接头的通径、压力和材质"></a>
           <figcaption><b>外高桥流体接头</b>不锈钢接头出口 · 精密工程<a class="open" href="samples/export/index.html" target="_blank" rel="noopener">打开样品</a></figcaption>
@@ -230,7 +242,7 @@
       </ul>
       <div class="note">
         <h3>在自己电脑上，用你自己的模型接口</h3>
-        <p>线上只有演示。要真正生成网站，从 GitHub 取源码在本地运行：用 Docker Compose 一条命令启动建站服务和数据库（镜像自带检查用的 Chrome），或者用 Node 22 直接运行。然后在工作台设置里填上 API 地址、key 和模型名：它们只保存在你的浏览器里，只随那一次请求发给本机服务，不写进记录或日志。站点、版本和对话保存在本机。目前只保证 DeepSeek 兼容接口可用。<a class="demo-link" href="BUILDER_URL/#19">运行步骤</a></p>
+        <p>线上只有演示。要真正生成网站，从 GitHub 取源码在本地运行：用 Docker Compose 一条命令启动建站服务和数据库（镜像自带检查用的 Chrome），或者用 Node 22 直接运行。然后在工作台设置里选接口格式，填上 API 地址、key 和模型名：它们只保存在你的浏览器里，只随那一次请求发给本机服务，不写进记录或日志。站点、版本和对话保存在本机。接口格式可选 DeepSeek、OpenAI 兼容、OpenAI Responses 和 Anthropic 兼容；DeepSeek 和 OpenAI Responses 用真实接口跑通过，另外两种只用本地替身验证过。提示词是按 DeepSeek 调的。<a class="demo-link" href="BUILDER_URL/#19">运行步骤</a></p>
       </div>
     </div>
   </section>
@@ -247,9 +259,9 @@
 
 <footer>
   <div class="wrap">
-    <p>页面中的样品站点均由模拟资料生成，公司与店铺并不存在。</p>
+    <p>页面中的样品站点均由模拟资料生成，公司、店铺与合作社并不存在。</p>
     <p>源代码：<a href="https://github.com/a1024053774/sitecraft-ai" target="_blank" rel="noopener">github.com/a1024053774/sitecraft-ai</a></p>
-    <p>示例中的行业配图来源与许可：宁海精密样品中的注塑模具照片 <a href="https://commons.wikimedia.org/wiki/File:HTS_main_frame_polymer_injection_mold.jpg">HTS main frame polymer injection mold</a>，作者 MobiusDaXter，来自 Wikimedia Commons，按 <a href="https://creativecommons.org/licenses/by-sa/3.0">CC BY-SA 3.0</a> 使用，经缩放和重新编码。其余样品截图中没有第三方图片。各样品站内用到的全部图片，署名与许可见该样品页脚的「图片来源与许可」及其目录下的 LICENSES.txt。</p>
+    <p>示例中的行业配图来源与许可：宁海精密样品中的注塑模具照片 <a href="https://commons.wikimedia.org/wiki/File:HTS_main_frame_polymer_injection_mold.jpg">HTS main frame polymer injection mold</a>，作者 MobiusDaXter，来自 Wikimedia Commons，按 <a href="https://creativecommons.org/licenses/by-sa/3.0">CC BY-SA 3.0</a> 使用，经缩放和重新编码。岚坞样品截图中的茶园照片 <a href="https://commons.wikimedia.org/wiki/File:Songyang_tea_field.jpg">Songyang tea field</a>，作者 Lishuilynn，来自 Wikimedia Commons，按 <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a> 使用，经缩放和重新编码。其余样品截图中没有第三方图片。各样品站内用到的全部图片，署名与许可见该样品页脚的「图片来源与许可」及其目录下的 LICENSES.txt。</p>
   </div>
 </footer>
 </body>
