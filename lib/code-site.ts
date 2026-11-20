@@ -154,6 +154,32 @@ export function codeVersionAuthor(author: CodeVersion['author']) {
 export function currentCodeVersion(site: CodeSiteRecord) {
   return site.versions.find(v => v.id === site.currentVersionId) ?? null;
 }
+// T-220: the five steps the workspace and the site lists show, and what the current step is waiting on.
+export const codeSiteSteps = [
+  { id: 'material', label: '资料' }, { id: 'style', label: '风格' }, { id: 'outline', label: '大纲' },
+  { id: 'generate', label: '生成' }, { id: 'edit', label: '修改' },
+] as const;
+export type CodeSiteStep = typeof codeSiteSteps[number]['id'];
+export type CodeSiteFlow = { step: CodeSiteStep; state: 'writing' | 'resume' | 'generate-failed' | 'regenerate' | 'planning' | 'plan-failed' | 'subject' | 'edit-failed' | null };
+// The workspace and both site lists call this with the same saved record and alignment, so they name the same step.
+export function codeSiteFlow(site: CodeSiteRecord, alignment: { waitingForUser: boolean; awaitingConfirmation: boolean; questionKind: string | null } | null): CodeSiteFlow {
+  const run = site.run, running = run?.status === 'running', failed = run?.status === 'error', version = currentCodeVersion(site);
+  if (running && run.kind === 'generate') return { step: 'generate', state: 'writing' };
+  if (running && run.kind === 'plan') return { step: 'outline', state: 'planning' };
+  if (alignment?.awaitingConfirmation && site.plan) return { step: 'outline', state: !version && failed && run.kind === 'generate' ? 'regenerate' : null };
+  if (alignment?.waitingForUser && alignment.questionKind === 'style') return { step: 'style', state: null };
+  if (version) return { step: 'edit', state: failed ? 'edit-failed' : null };
+  if (alignment?.waitingForUser && alignment.questionKind === 'clarify') return { step: 'material', state: 'subject' };
+  if (run?.kind === 'generate') return { step: 'generate', state: codeRunCheckpoint(site) ? 'resume' : 'generate-failed' };
+  if (failed && run.kind === 'plan') return { step: 'outline', state: 'plan-failed' };
+  return { step: 'material', state: null };
+}
+export type CodeSiteProgress = CodeSiteFlow & { revision: number | null; pageCount: number; checksPassed: boolean; english: boolean; hasMaterials: boolean };
+export function codeSiteProgress(site: CodeSiteRecord, alignment: Parameters<typeof codeSiteFlow>[1]): CodeSiteProgress {
+  const version = currentCodeVersion(site);
+  return { ...codeSiteFlow(site, alignment), revision: version?.revision ?? null, pageCount: version?.code.pages.length ?? site.plan?.pages.length ?? 0,
+    checksPassed: !!version?.checks.passed, english: !!version?.english, hasMaterials: !!site.materials.trim() };
+}
 export function codeRunCheckpoint(site: CodeSiteRecord): CodeRun['checkpoint'] | null {
   const run = site.run;
   if (!run || run.status !== 'error' || !['generate', 'edit'].includes(run.kind) || run.selectedTarget || run.annotationBatch?.length

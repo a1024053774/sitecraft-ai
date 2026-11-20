@@ -46,3 +46,17 @@ export function ProviderSettingsPanel() {
     </section>
   );
 }
+
+// T-220: one line on the home page saying whether this browser has a model interface saved.
+export function ProviderStatus() {
+  const [model, setModel] = useState<string | null | undefined>(undefined);
+  useEffect(() => { setModel(readProviderSettings()?.model ?? null); }, []);
+  if (model === undefined) return null;
+  return (
+    <p className="provider-line" data-testid="provider-status">
+      <KeyRound size={14} />
+      {model ? `模型接口已保存在这个浏览器里（${model}）。` : "这个浏览器里还没有保存模型接口。"}
+      <a href="/settings#provider">{model ? "查看或修改" : "去填写"}</a>
+    </p>
+  );
+}

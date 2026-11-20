@@ -9,17 +9,7 @@ import {
   useSitePreview,
   workspaceHref,
 } from "@/components/site-preview-pop";
-
-function formatUpdatedAt(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+import { SiteProgress, formatUpdatedAt, siteProgressText, siteVersionText } from "@/components/site-progress";
 
 export function SitesTable({ sites }: { sites: SiteListItem[] }) {
   const { preview, hoverable, keepPreview, releasePreview, rowProps } = useSitePreview();
@@ -27,34 +17,35 @@ export function SitesTable({ sites }: { sites: SiteListItem[] }) {
   return (
     <div>
       <p className="sites-preview-hint">{previewHint(hoverable)}</p>
-      <div className="data-table" data-testid="sites-list">
-        <div className="data-row data-row-sites data-row-head">
+      <div className="site-table" data-testid="sites-list">
+        <div className="site-table-row site-table-head">
           <span>站点</span>
-          <span>公司</span>
-          <span>状态</span>
-          <span>更新</span>
+          <span>做到哪一步</span>
+          <span>当前版本</span>
+          <span>最后修改</span>
           <span>打开</span>
         </div>
         {sites.map((site) => {
+          const text = siteProgressText(site), version = siteVersionText(site);
           return (
             <article
-              className="data-row data-row-sites"
+              className="site-table-row"
               key={site.siteId}
               data-testid="site-row"
               data-site-id={site.siteId}
               {...(site.readError || !site.hasVersion ? {} : rowProps(site))}
             >
-              <div data-preview-label="">
+              <div data-preview-label="" className="site-table-name">
                 <strong>{site.siteName}</strong>
                 <small>{site.siteId}</small>
                 {site.readError && <small className="site-read-error" role="status">{site.readError}</small>}
               </div>
-              <span>{site.companyName || "—"}</span>
-              <span>{site.status || "已保存"}</span>
+              <span><SiteProgress site={site} /></span>
+              <span><strong>{version.main}</strong><small>{version.sub}</small></span>
               <span>{formatUpdatedAt(site.updatedAt)}</span>
               <div className="site-row-actions" data-preview-actions="">
-                <Link className="section-link" href={workspaceHref(site.siteId)}>{site.readError ? "查看原因" : "工作台"}</Link>
-                {!site.readError && site.hasVersion && <Link className="section-link" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>}
+                <Link className={`site-table-action${text.tone === "plain" ? "" : " strong"}`} href={workspaceHref(site.siteId)}>{text.action}</Link>
+                {!site.readError && site.hasVersion && <Link className="site-table-action" href={publishedHref(site.siteId)} target="_blank" rel="noreferrer">发布页</Link>}
               </div>
             </article>
           );

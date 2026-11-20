@@ -8,6 +8,6 @@ test("dashboard has no hardcoded demo metrics or retired inbox activity", async 
   assert.doesNotMatch(source, /<div className="stat-value">24<\/div>/);
   assert.doesNotMatch(source, /<div className="stat-value">18<\/div>/);
   assert.doesNotMatch(source, /listLeads|leads\.length|询盘|收件箱/);
-  const sidebar = await readFile(new URL("../components/app-sidebar.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(sidebar, /34%|3 \/ 10|Lydia Yang|lydia@sitecraft/);
+  const topbar = await readFile(new URL("../components/app-topbar.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(topbar, /34%|3 \/ 10|Lydia Yang|lydia@sitecraft/);
 });
