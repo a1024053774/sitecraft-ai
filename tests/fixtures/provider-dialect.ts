@@ -1,12 +1,15 @@
 // T-221: lets a stand-in that answers in the DeepSeek shape be asked in the
 // OpenAI or Anthropic wire format. It only translates the envelope; what the
 // stand-in answers is unchanged. Never a claim about a real provider.
-export type Dialect = 'deepseek' | 'openai' | 'anthropic';
+export type Dialect = 'deepseek' | 'openai' | 'openai-responses' | 'anthropic';
 export function dialectOf(url: string | undefined): Dialect {
-  return url?.endsWith('/messages') ? 'anthropic' : url?.includes('/beta/') ? 'deepseek' : 'openai';
+  return url?.endsWith('/messages') ? 'anthropic' : url?.endsWith('/responses') ? 'openai-responses' : url?.includes('/beta/') ? 'deepseek' : 'openai';
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function toDeepSeekBody(dialect: Dialect, body: any): any {
+  if (dialect === 'openai-responses') return { model: body.model, max_tokens: body.max_output_tokens, messages: [{ role: 'system', content: body.instructions }, ...body.input],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...(body.tools ? { tools: body.tools.map((tool: any) => ({ type: 'function', function: { name: tool.name, description: tool.description, strict: tool.strict, parameters: tool.parameters } })) } : {}) };
   if (dialect !== 'anthropic') return body;
   return { model: body.model, max_tokens: body.max_tokens, messages: [{ role: 'system', content: body.system }, ...body.messages],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,6 +19,11 @@ export function toDeepSeekBody(dialect: Dialect, body: any): any {
 export function fromDeepSeekReply(dialect: Dialect, reply: any): any {
   const choice = reply.choices?.[0], call = choice?.message?.tool_calls?.[0];
   if (dialect === 'deepseek' || !choice) return reply;
+  if (dialect === 'openai-responses') return { id: 'resp_fixture', object: 'response', status: choice.finish_reason === 'length' ? 'incomplete' : 'completed',
+    ...(choice.finish_reason === 'length' ? { incomplete_details: { reason: 'max_output_tokens' } } : {}),
+    output: [{ type: 'reasoning', summary: [] }, call ? { type: 'function_call', call_id: 'call_fixture', name: call.function.name, arguments: call.function.arguments }
+      : { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: choice.message.content ?? '' }] }],
+    ...(reply.usage ? { usage: { input_tokens: reply.usage.prompt_tokens, output_tokens: reply.usage.completion_tokens, total_tokens: reply.usage.total_tokens, output_tokens_details: { reasoning_tokens: 4 } } } : {}) };
   // OpenAI reports "stop" for a function the request forced.
   if (dialect === 'openai') return { ...reply, choices: [{ ...choice, finish_reason: call && choice.finish_reason === 'tool_calls' ? 'stop' : choice.finish_reason }] };
   return { id: 'msg_fixture', type: 'message', role: 'assistant', model: 'fixture',

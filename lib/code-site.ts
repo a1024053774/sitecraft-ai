@@ -86,7 +86,7 @@ export type CodeVersion = {
 export type CodeModelCall = {
   purpose: 'plan' | 'select' | 'write' | 'repair' | 'facts' | 'translate' | 'local-edit' | 'local-facts'; model: string; startedAt: string; latencyMs: number; httpStatus: number | null;
   // T-221: recorded for calls that did not use the DeepSeek wire format.
-  format?: 'openai' | 'anthropic';
+  format?: 'openai' | 'openai-responses' | 'anthropic';
   usage: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens?: number } | null;
   httpError?: import('./provider-http-error.ts').ProviderHttpError;
   skeletonOrder?: string[];

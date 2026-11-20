@@ -8,6 +8,7 @@ import { providerFormats, providerFormatNames, type ProviderFormat } from '@/lib
 const formatDefaults: Record<ProviderFormat, { baseURL: string; model: string; modelHint: string; keyHint: string }> = {
   deepseek: { baseURL: 'https://api.deepseek.com', model: 'deepseek-flash', modelHint: '', keyHint: 'sk-…' },
   openai: { baseURL: 'https://api.openai.com/v1', model: '', modelHint: '填服务商给的模型名', keyHint: 'sk-…' },
+  'openai-responses': { baseURL: 'https://api.openai.com/v1', model: '', modelHint: '填服务商给的模型名', keyHint: 'sk-…' },
   anthropic: { baseURL: 'https://api.anthropic.com', model: '', modelHint: '填服务商给的模型名', keyHint: 'sk-ant-…' },
 };
 const defaults: ProviderSettings = { format: 'deepseek', baseURL: formatDefaults.deepseek.baseURL, apiKey: '', model: formatDefaults.deepseek.model };
@@ -45,7 +46,7 @@ export function ProviderSettingsPanel() {
       <div className="settings-icon"><KeyRound size={17} /></div>
       <div>
         <h2>模型接口</h2>
-        <p>生成和修改网站时使用你自己的模型接口。API 地址、key 和模型名只保存在这个浏览器里；服务器只在处理那一次请求时使用 key，不保存。提示词是按 DeepSeek 调的；OpenAI 兼容和 Anthropic 兼容两种格式目前只用本地替身接口测过，还没有在真实接口上验证。</p>
+        <p>生成和修改网站时使用你自己的模型接口。API 地址、key 和模型名只保存在这个浏览器里；服务器只在处理那一次请求时使用 key，不保存。提示词是按 DeepSeek 调的；其他格式的验证情况见项目票 T-221。OpenAI 的模型若提示不能带推理调用函数，选「OpenAI Responses」。</p>
       </div>
       <form className="provider-form" onSubmit={save}>
         <label>接口格式<select name="format" value={form.format} onChange={event => changeFormat(event.target.value as ProviderFormat)} data-testid="provider-format">{providerFormats.map(format => <option key={format} value={format}>{providerFormatNames[format]}</option>)}</select></label>

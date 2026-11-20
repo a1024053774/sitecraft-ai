@@ -136,7 +136,7 @@ Chrome 仅在 DevToolsActivePort 两行完整、端口有效且 browser 路径�
 
 - 密钥只在 gitignore 的 `.env.local`，不进代码、文档、prompt、SSE、截图或提交。不建软链接，不复制 `env.md`。
 - 模型：DeepSeek `deepseek-flash`。
-- 接口格式（T-221）：模型接口可选 DeepSeek（默认）、OpenAI 兼容、Anthropic 兼容。「生成路径的硬约束」里的 `/beta`、思考开关、温度和输出上限数值是 DeepSeek 格式的规定；另外两种格式只换请求和回复的写法，不发思考开关和温度，输出上限不超过 32000，函数输出、拒收、不重试、凭据不落盘等规则相同。新增或修改模型调用时三种格式都要过 `tests/t221-provider-formats.test.ts`。
+- 接口格式（T-221）：模型接口可选 DeepSeek（默认）、OpenAI 兼容、OpenAI Responses、Anthropic 兼容。「生成路径的硬约束」里的 `/beta`、思考开关、温度和输出上限数值是 DeepSeek 格式的规定；其他格式只换请求和回复的写法，不发思考开关和温度（推理用模型默认值），输出上限不超过 32000，函数输出、拒收、不重试、凭据不落盘等规则相同。新增或修改模型调用时三种格式都要过 `tests/t221-provider-formats.test.ts`。
 - 开发机用 `SITE_STORE=fs` 即可。负责人真实服务按 T-208 在 Windows `D:\sitecraft-ai`，经 `ssh win-lan` 维护；构建与 Chrome 验收在 Windows 执行，不在 Mac 构建。Compose 使用 PostgreSQL 保存对话／对齐／批注，文件卷保存代码／版本／资料／任务／上传；不把数据库描述成全部数据的存储。启停与备份见 `deploy/docker/README.md`，保留已有四个无关容器、用户数据和失败证据。
 - 浏览器存储（T-202，`SITE_STORE=browser`，T-204 公网建站时使用）：站点、版本、对话、批注与上传的长期副本只在访客浏览器 IndexedDB（站点存档）；服务器只在显式的临时数据根（内存盘，不得是 `.sitecraft-data`）保留打开中的副本，启动即清空，闲置 30 分钟清理、有任务的不清，总量超过上限按闲置先后清理，只剩忙碌副本时拒收。HttpOnly 工作区令牌只做隔离、不做身份，丢失即作废服务器副本；所有站点路由按令牌放行，检查器用进程内密钥头。
 - 访客模型接口（API 地址、key、模型名）只存浏览器 localStorage，只经请求头进入本次请求及其后台任务，不写记录、日志或站点包；生产模式不读服务器环境变量里的 key，未配置时在对齐、来源或任务改动前拒绝。访客地址只连 https 公网地址（IPv6 中带 IPv4 的形式按内嵌地址判断，判不了即拒绝），校验的地址即连接地址，不跟随重定向，回复有大小上限；本机验收的本地替身须显式开关放行。

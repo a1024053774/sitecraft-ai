@@ -34,7 +34,7 @@ export function providerConfig(): ProviderConfig {
   if (!serverCredentialsAllowed()) return { baseURL: '', apiKey: undefined, model: undefined, format: 'deepseek', fetch: guardedFetch };
   // T-221: AI_PROVIDER_FORMAT picks the wire format for the operator's own key; unset means DeepSeek.
   const format = providerFormat(process.env.AI_PROVIDER_FORMAT || 'deepseek');
-  if (!format) throw new ProviderSettingsError('AI_PROVIDER_FORMAT 必须是 deepseek、openai 或 anthropic。');
+  if (!format) throw new ProviderSettingsError('AI_PROVIDER_FORMAT 必须是 deepseek、openai、openai-responses 或 anthropic。');
   return {
     baseURL: (process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, ''),
     apiKey: process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY,

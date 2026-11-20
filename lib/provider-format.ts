@@ -1,8 +1,8 @@
 // T-221: the request and reply dialects the model client speaks. Only the wire
 // format differs; validation, checks and versions after the reply are shared.
-export const providerFormats = ['deepseek', 'openai', 'anthropic'] as const;
+export const providerFormats = ['deepseek', 'openai', 'openai-responses', 'anthropic'] as const;
 export type ProviderFormat = typeof providerFormats[number];
-export const providerFormatNames: Record<ProviderFormat, string> = { deepseek: 'DeepSeek', openai: 'OpenAI 兼容', anthropic: 'Anthropic 兼容' };
+export const providerFormatNames: Record<ProviderFormat, string> = { deepseek: 'DeepSeek', openai: 'OpenAI 兼容', 'openai-responses': 'OpenAI Responses', anthropic: 'Anthropic 兼容' };
 export function providerFormat(value: string | null | undefined): ProviderFormat | null {
   return providerFormats.find(format => format === value) ?? null;
 }
@@ -13,6 +13,9 @@ export function providerErrorName(format: ProviderFormat) { return format === 'd
 // Anthropic models commonly reject values above their own limit, so the other
 // formats send at most this many; a truncated answer is still reported, never saved.
 export const otherFormatOutputCap = 32000;
+
+// Whether the Responses format asks the provider to enforce the function schema. The reply is validated by the program either way.
+export const responsesStrict = true;
 
 export type ProviderCall = { model: string; system: string; user: string; maxTokens: number; temperature: number; thinking?: 'enabled' | 'disabled';
   tool?: { name: string; description: string; parameters: Record<string, unknown>; forced: boolean } };
@@ -25,6 +28,14 @@ export function providerRequest(format: ProviderFormat, baseURL: string, apiKey:
     // No thinking switch and no sampling parameters: a forced tool call needs thinking off, and newer models refuse a set temperature.
     body: { model: call.model, max_tokens: Math.min(call.maxTokens, otherFormatOutputCap), system: call.system, messages: [{ role: 'user', content: call.user }],
       ...(tool ? { tools: [{ name: tool.name, description: tool.description, input_schema: tool.parameters }], tool_choice: { type: 'tool', name: tool.name } } : {}) },
+  };
+  // OpenAI's Responses API: models that refuse function tools with reasoning on chat completions accept them here.
+  if (format === 'openai-responses') return {
+    url: `${base}${new URL(base).pathname === '/' ? '/v1' : ''}/responses`, headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+    // No reasoning setting and no temperature: the model's defaults apply. store:false keeps the request out of the provider's response log.
+    body: { model: call.model, instructions: call.system, input: [{ role: 'user', content: call.user }], max_output_tokens: Math.min(call.maxTokens, otherFormatOutputCap), store: false,
+      ...(tool ? { tools: [{ type: 'function', name: tool.name, description: tool.description, strict: responsesStrict, parameters: tool.parameters }], tool_choice: { type: 'function', name: tool.name } }
+        : { text: { format: { type: 'json_object' } } }) },
   };
   const messages = [{ role: 'system', content: call.system }, { role: 'user', content: call.user }];
   const headers = { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` };
@@ -67,6 +78,20 @@ export function providerReply(format: ProviderFormat, payload: any, toolName?: s
       content: text || null, tool: valid, ...(valid ? { toolArguments: JSON.stringify(tools[0].input) } : {}), rawMessage: { content: payload?.content ?? null, tool_calls: tools.length ? tools : null },
       usage: input.every(count) && count(usage?.output_tokens) ? { promptTokens: input[0] + input[1] + input[2], completionTokens: usage.output_tokens, totalTokens: input[0] + input[1] + input[2] + usage.output_tokens } : null,
       reasoningTokens: null };
+  }
+  if (format === 'openai-responses') {
+    const items: Array<{ type?: string; name?: unknown; arguments?: unknown; content?: unknown }> = Array.isArray(payload?.output) ? payload.output : [];
+    const calls = items.filter(item => item?.type === 'function_call');
+    const text = items.filter(item => item?.type === 'message').flatMap(item => Array.isArray(item.content) ? item.content : [])
+      .filter((part: { type?: string; text?: unknown }) => part?.type === 'output_text' && typeof part.text === 'string').map((part: { text: string }) => part.text).join('');
+    const valid = calls.length === 1 && calls[0].name === toolName;
+    const status = typeof payload?.status === 'string' ? payload.status : null, why = payload?.incomplete_details?.reason, usage = payload?.usage, reasoning = usage?.output_tokens_details?.reasoning_tokens;
+    return { finish: status === 'incomplete' && why === 'max_output_tokens' ? 'length' : status !== 'completed' ? 'other' : valid ? 'tool_calls' : 'stop',
+      finishReason: status === 'incomplete' && typeof why === 'string' ? `incomplete:${why}` : status,
+      content: text || null, tool: valid, ...(valid ? { toolArguments: calls[0].arguments } : {}), rawMessage: { content: text || null, tool_calls: calls.length ? calls : null },
+      usage: [usage?.input_tokens, usage?.output_tokens, usage?.total_tokens].every(count) ? { promptTokens: usage.input_tokens, completionTokens: usage.output_tokens, totalTokens: usage.total_tokens,
+        ...(count(reasoning) && reasoning <= usage.output_tokens ? { reasoningTokens: reasoning } : {}) } : null,
+      reasoningTokens: count(reasoning) ? reasoning : null };
   }
   const choice = payload?.choices?.[0], message = choice?.message, tools = message?.tool_calls, usage = payload?.usage;
   const valid = Array.isArray(tools) && tools.length === 1 && tools[0]?.type === 'function' && tools[0]?.function?.name === toolName;

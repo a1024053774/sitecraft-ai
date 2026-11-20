@@ -71,7 +71,7 @@
 - [T-206 公网演示与本机 Docker](tickets/T-206-demo-and-local-docker.md)：VPS 不再跑真实建站（满载影响负责人其他业务），sitecraftapp 改为预设数据的交互式演示；真实建站用 Docker 多阶段镜像加 compose 编排 PostgreSQL 部署在负责人本机（T-207、T-208）
 - [T-213 两条未接入界面的接口](tickets/T-213-unwired-analyze-and-replies.md)：看图识别与批注回复的对外路由删除，不接入；生成流程内部的助手回复保留（T-217 实现）
 - [T-219 工作台与首页改版方向](tickets/T-219-workspace-redesign-direction.md)：以「分步工单」为主体（资料、风格、大纲、生成、修改五步，一步一屏），批注时切换成炭黑画布样式，首页放开重做；只改界面，取代 T-008（T-220 实现）
-- [T-221 模型接口格式](tickets/T-221-provider-formats.md)：负责人确认模型接口除 DeepSeek 外支持 OpenAI 兼容与 Anthropic 兼容格式；只换请求和回复的写法，校验、检查、存版规则不变；两种新格式的真实接口尚未验证
+- [T-221 模型接口格式](tickets/T-221-provider-formats.md)：负责人确认模型接口除 DeepSeek 外支持 OpenAI 兼容、OpenAI Responses 与 Anthropic 兼容格式；只换请求和回复的写法，校验、检查、存版规则不变；真实接口验证情况见票
 
 ## Not yet specified
 

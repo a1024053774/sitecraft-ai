@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
 import { dialectOf, toDeepSeekBody, fromDeepSeekReply } from './fixtures/provider-dialect.ts';
-import { providerRequest, providerReply, otherFormatOutputCap } from '../lib/provider-format.ts';
+import { providerRequest, providerReply, otherFormatOutputCap, responsesStrict } from '../lib/provider-format.ts';
 import { providerFromRequest, ProviderSettingsError } from '../lib/provider-context.ts';
 
 registerHooks({ resolve(specifier, context, next) {
@@ -42,6 +42,24 @@ test('the OpenAI request has no DeepSeek path, thinking switch or temperature', 
   assert.deepEqual(withTool.body.tool_choice, { type: 'function', function: { name: 'submit_page_plan' } });
   assert.equal(providerRequest('openai', 'https://api.openai.com/v1', 'k', { ...call, maxTokens: 12288 }).body.max_completion_tokens, 12288);
   assert.deepEqual(providerRequest('openai', 'https://api.openai.com/v1', 'k', call).body.response_format, { type: 'json_object' });
+});
+
+test('the Responses request uses its own endpoint and shapes, with no reasoning setting or temperature', () => {
+  const withTool = providerRequest('openai-responses', 'https://api.openai.com/v1', 'k', { ...call, tool });
+  assert.equal(withTool.url, 'https://api.openai.com/v1/responses');
+  assert.equal(providerRequest('openai-responses', 'https://api.openai.com', 'k', call).url, 'https://api.openai.com/v1/responses');
+  assert.deepEqual(withTool.headers, { 'content-type': 'application/json', authorization: 'Bearer k' });
+  assert.deepEqual(withTool.body, { model: 'm', instructions: 'S', input: [{ role: 'user', content: 'U' }], max_output_tokens: otherFormatOutputCap, store: false,
+    tools: [{ type: 'function', name: 'submit_page_plan', description: '大纲', strict: responsesStrict, parameters: { type: 'object' } }], tool_choice: { type: 'function', name: 'submit_page_plan' } });
+  assert.deepEqual(providerRequest('openai-responses', 'https://api.openai.com/v1', 'k', call).body.text, { format: { type: 'json_object' } });
+  const done = providerReply('openai-responses', { status: 'completed', output: [{ type: 'reasoning' }, { type: 'function_call', name: 'submit_page_plan', arguments: '{"a":1}' }],
+    usage: { input_tokens: 3, output_tokens: 6, total_tokens: 9, output_tokens_details: { reasoning_tokens: 4 } } }, 'submit_page_plan');
+  assert.equal(done.finish, 'tool_calls'); assert.equal(done.toolArguments, '{"a":1}'); assert.deepEqual(done.usage, { promptTokens: 3, completionTokens: 6, totalTokens: 9, reasoningTokens: 4 });
+  assert.equal(providerReply('openai-responses', { status: 'completed', output: [{ type: 'function_call', name: 'other', arguments: '{}' }] }, 'submit_page_plan').tool, false);
+  assert.equal(providerReply('openai-responses', { status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, output: [] }).finish, 'length');
+  assert.equal(providerReply('openai-responses', { status: 'incomplete', incomplete_details: { reason: 'content_filter' }, output: [] }).finish, 'other');
+  const text = providerReply('openai-responses', { status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: '{"pages":[]}' }] }] });
+  assert.equal(text.finish, 'stop'); assert.equal(text.content, '{"pages":[]}');
 });
 
 test('the Anthropic request uses the messages endpoint, its key header and a forced tool', () => {
@@ -80,6 +98,7 @@ test('the format header is optional, defaults to DeepSeek, and rejects unknown v
   assert.equal(providerFromRequest(request())?.format, 'deepseek');
   assert.equal(providerFromRequest(request('openai'))?.format, 'openai');
   assert.equal(providerFromRequest(request('anthropic'))?.format, 'anthropic');
+  assert.equal(providerFromRequest(request('openai-responses'))?.format, 'openai-responses');
   assert.throws(() => providerFromRequest(request('gemini')), ProviderSettingsError);
 });
 
@@ -108,7 +127,7 @@ const model = await import('../lib/code-site-model.ts');
 test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 const prefs = { style: 'precision' as const, layout: 5, density: 6 };
 
-for (const format of ['openai', 'anthropic'] as const) test(`${format}: plan and fact review pass through the shared checks, failures are refused without a retry`, async () => {
+for (const format of ['openai', 'openai-responses', 'anthropic'] as const) test(`${format}: plan and fact review pass through the shared checks, failures are refused without a retry`, async () => {
   process.env.AI_PROVIDER_FORMAT = format; seen.length = 0;
   const calls: import('../lib/code-site.ts').CodeModelCall[] = [];
   try {
@@ -126,7 +145,7 @@ for (const format of ['openai', 'anthropic'] as const) test(`${format}: plan and
   assert.ok(calls.every(call => call.format === format && !('thinking' in call)), 'the format is recorded and no thinking switch is claimed');
   assert.deepEqual(calls.slice(0, 2).map(call => call.usage?.totalTokens), [26, 26]);
   assert.deepEqual(calls.slice(0, 5).map(call => call.httpStatus), [200, 200, 200, 200, 404]);
-  assert.ok(seen.every(request => request.url === (format === 'anthropic' ? '/v1/messages' : '/v1/chat/completions')));
+  assert.ok(seen.every(request => request.url === (format === 'anthropic' ? '/v1/messages' : format === 'openai-responses' ? '/v1/responses' : '/v1/chat/completions')));
   assert.ok(seen.every(request => !('thinking' in request.body) && !('temperature' in request.body)));
   if (format === 'anthropic') assert.ok(seen.every(request => request.headers['x-api-key'] === 'format-fixture-secret' && !request.headers.authorization && request.headers['anthropic-version'] === '2023-06-01'));
   else assert.ok(seen.every(request => request.headers.authorization === 'Bearer format-fixture-secret'));
