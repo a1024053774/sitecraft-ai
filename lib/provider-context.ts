@@ -36,14 +36,14 @@ export function providerConfig(): ProviderConfig {
   const format = providerFormat(process.env.AI_PROVIDER_FORMAT || 'deepseek');
   if (!format) throw new ProviderSettingsError('AI_PROVIDER_FORMAT 必须是 deepseek、openai、openai-responses 或 anthropic。');
   return {
-    baseURL: (process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, ''),
+    baseURL: (process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || (format === 'deepseek' ? 'https://api.deepseek.com' : '')).replace(/\/$/, ''),
     apiKey: process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY,
     model: process.env.DEEPSEEK_MODEL || process.env.AI_MODEL,
     format,
     fetch,
   };
 }
-export function providerConfigured() { const { apiKey, model } = providerConfig(); return Boolean(apiKey && model); }
+export function providerConfigured(config = providerConfig()) { return Boolean(config.baseURL && config.apiKey && config.model); }
 
 const headerNames = { baseURL: 'x-sitecraft-provider-base', apiKey: 'x-sitecraft-provider-key', model: 'x-sitecraft-provider-model' } as const;
 const formatHeader = 'x-sitecraft-provider-format';

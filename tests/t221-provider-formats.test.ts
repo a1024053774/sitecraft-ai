@@ -9,6 +9,9 @@ import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts
 import { dialectOf, toDeepSeekBody, fromDeepSeekReply } from './fixtures/provider-dialect.ts';
 import { providerRequest, providerReply, otherFormatOutputCap, responsesStrict } from '../lib/provider-format.ts';
 import { providerFromRequest, ProviderSettingsError } from '../lib/provider-context.ts';
+import { getAIProviderStatus } from '../lib/ai-provider.ts';
+import { withProviderAddress, withProviderFormat } from '../lib/provider-settings-client.ts';
+import type { CodeModelCall } from '../lib/code-site.ts';
 
 registerHooks({ resolve(specifier, context, next) {
   if (!specifier.startsWith('@/')) return next(specifier, context);
@@ -106,9 +109,17 @@ test('the format header is optional, defaults to DeepSeek, and rejects unknown v
 const seen: Array<{ url: string | undefined; headers: IncomingHttpHeaders; body: Record<string, unknown> }> = [];
 const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
+  if (req.url === '/landing') {
+    seen.push({ url: req.url, headers: req.headers, body: {} });
+    res.end('{}'); return;
+  }
   const dialect = dialectOf(req.url), wire = JSON.parse(raw), body = toDeepSeekBody(dialect, wire), content = body.messages[1].content;
   seen.push({ url: req.url, headers: req.headers, body: wire });
-  if (content.includes('FAIL404')) { res.writeHead(404); res.end(JSON.stringify({ error: { message: 'model not found' } })); return; }
+  if (content.includes('FAIL404')) {
+    res.writeHead(404, dialect === 'anthropic' ? { 'request-id': 'req-test-404' } : {});
+    res.end(JSON.stringify({ error: { message: 'model not found' } })); return;
+  }
+  if (content.includes('REDIRECT')) { res.writeHead(307, { location: '/landing' }); res.end(); return; }
   const facts = body.messages[0].content.includes('事实校对员'), planCall = body.tools?.[0]?.function.name === 'submit_page_plan';
   const payload = facts ? { issues: [] } : { summary: '首页介绍服务', style: 'precision', styleReason: '服务资料', skeletonId: 'compact-profile', skeletonReason: '简短服务资料。', pages: [{ id: 'home', title: '首页', outline: ['公司和服务'] }] };
   const reply = factAuditPayload(body, { choices: [{ finish_reason: content.includes('TRUNCATED') ? 'length' : planCall ? 'tool_calls' : 'stop', message: planCall
@@ -145,6 +156,10 @@ for (const format of ['openai', 'openai-responses', 'anthropic'] as const) test(
   assert.ok(calls.every(call => call.format === format && !('thinking' in call)), 'the format is recorded and no thinking switch is claimed');
   assert.deepEqual(calls.slice(0, 2).map(call => call.usage?.totalTokens), [26, 26]);
   assert.deepEqual(calls.slice(0, 5).map(call => call.httpStatus), [200, 200, 200, 200, 404]);
+  if (format === 'anthropic') {
+    assert.equal(calls[4].httpError?.requestIdHeader, 'request-id');
+    assert.equal(calls[4].httpError?.requestId, 'req-test-404');
+  }
   assert.ok(seen.every(request => request.url === (format === 'anthropic' ? '/v1/messages' : format === 'openai-responses' ? '/v1/responses' : '/v1/chat/completions')));
   assert.ok(seen.every(request => !('thinking' in request.body) && !('temperature' in request.body)));
   if (format === 'anthropic') assert.ok(seen.every(request => request.headers['x-api-key'] === 'format-fixture-secret' && !request.headers.authorization && request.headers['anthropic-version'] === '2023-06-01'));
@@ -159,4 +174,86 @@ test('without AI_PROVIDER_FORMAT the same stand-in is asked in the DeepSeek form
   assert.equal(seen[0].url, '/beta/chat/completions');
   assert.deepEqual(seen[0].body.thinking, { type: 'enabled' });
   assert.equal((calls[0] as { thinking?: string }).thinking, 'enabled'); assert.equal('format' in calls[0], false);
+});
+
+test('changing the API origin clears the key, changing only its path preserves it', () => {
+  const settings = { baseURL: 'https://api.openai.com/v1', format: 'openai' as const, apiKey: 'fixture', model: 'm' };
+  for (const address of ['https://api.anthropic.com', 'https://api.openai.com:8443', 'http://api.openai.com', '']) {
+    assert.equal(withProviderAddress(settings, address).apiKey, '');
+  }
+  assert.equal(withProviderAddress(settings, 'https://API.OPENAI.COM:443/v1/custom').apiKey, settings.apiKey);
+  assert.deepEqual(withProviderFormat(settings, 'anthropic'), { ...settings, baseURL: 'https://api.anthropic.com', apiKey: '', format: 'anthropic' });
+  assert.deepEqual(withProviderFormat(settings, 'openai-responses'), { ...settings, format: 'openai-responses' });
+  const gateway = { ...settings, baseURL: 'https://gateway.example/v1' };
+  assert.deepEqual(withProviderFormat(gateway, 'anthropic'), { ...gateway, format: 'anthropic' });
+});
+
+test('local non-DeepSeek formats require an explicit address before starting a call', async t => {
+  const originalBase = process.env.DEEPSEEK_BASE_URL!, otherBase = process.env.AI_BASE_URL;
+  delete process.env.DEEPSEEK_BASE_URL; delete process.env.AI_BASE_URL;
+  t.after(() => {
+    process.env.DEEPSEEK_BASE_URL = originalBase;
+    if (otherBase !== undefined) process.env.AI_BASE_URL = otherBase;
+    delete process.env.AI_PROVIDER_FORMAT;
+  });
+  const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('unexpected fetch'); });
+  for (const format of ['openai', 'openai-responses', 'anthropic']) {
+    process.env.AI_PROVIDER_FORMAT = format;
+    assert.equal(getAIProviderStatus().configured, false);
+    await assert.rejects(model.planSiteCode('公司服务', prefs, '规划'), /还没有填写模型接口/);
+  }
+  assert.equal(fetch.mock.callCount(), 0);
+  delete process.env.AI_PROVIDER_FORMAT;
+  assert.equal(getAIProviderStatus().baseURL, 'https://api.deepseek.com');
+});
+
+test('local Anthropic calls stop at the first redirect', async t => {
+  process.env.AI_PROVIDER_FORMAT = 'anthropic';
+  t.after(() => { delete process.env.AI_PROVIDER_FORMAT; });
+  seen.length = 0;
+  await assert.rejects(model.planSiteCode('REDIRECT', prefs, '规划'));
+  assert.deepEqual(seen.map(item => item.url), ['/v1/messages']);
+});
+
+test('writing accepts completed final text and refuses nonterminal or failed responses', async t => {
+  const plan = { style: prefs.style, summary: '介绍服务', styleReason: '服务资料', pages: [{ id: 'home', title: '首页', outline: '服务' }] };
+  const code = { header: '<header>服务</header>', footer: '<footer>服务</footer>', css: 'body{color:#111}', pages: [{ id: 'home', title: '首页', html: '<main>服务</main>' }] };
+  const finalText = JSON.stringify(code);
+  const message = (phase: string, text: string) => ({ type: 'message', phase, content: [{ type: 'output_text', text }] });
+  const output = [message('commentary', '正在整理资料'), message('final_answer', finalText)];
+  let reply: unknown;
+  const fetch = t.mock.method(globalThis, 'fetch', () => Response.json(reply));
+  const write = () => model.writeSiteCode({ materials: '公司服务', preferences: prefs, plan, images: [], request: '生成' });
+  t.after(() => { delete process.env.AI_PROVIDER_FORMAT; });
+  process.env.AI_PROVIDER_FORMAT = 'openai-responses';
+  reply = { status: 'completed', output };
+  assert.deepEqual((await write()).code, code);
+  reply = { status: 'completed', output: [message('commentary', finalText)] };
+  await assert.rejects(write(), /没有返回站点内容/);
+  for (const status of ['failed', 'incomplete', 'in_progress']) {
+    reply = { status, output };
+    await assert.rejects(write(), /未正常结束/);
+  }
+  process.env.AI_PROVIDER_FORMAT = 'anthropic';
+  for (const stop_reason of ['pause_turn', 'refusal']) {
+    reply = { stop_reason, content: [{ type: 'text', text: finalText }] };
+    await assert.rejects(write(), /未正常结束/);
+  }
+  assert.equal(fetch.mock.callCount(), 7);
+});
+
+test('a credential anywhere in a successful planning reply discards the raw message', async t => {
+  process.env.AI_PROVIDER_FORMAT = 'anthropic';
+  t.after(() => { delete process.env.AI_PROVIDER_FORMAT; });
+  const body = JSON.stringify({ stop_reason: 'tool_use', content: [
+    { type: 'text', text: process.env.DEEPSEEK_API_KEY },
+    { type: 'tool_use', name: 'submit_page_plan', input: {} },
+  ] });
+  const fetch = t.mock.method(globalThis, 'fetch', () => new Response(body));
+  const calls: CodeModelCall[] = [];
+  await assert.rejects(model.codeModelCalls.run(calls, () => model.planSiteCode('公司服务', prefs, '规划')), /凭据/);
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.deepEqual(calls[0].response?.rawBody, { bodyRedacted: true, bodyLength: body.length });
+  assert.equal(calls[0].response?.rawMessage, undefined);
+  assert.doesNotMatch(JSON.stringify(calls), /format-fixture-secret/);
 });

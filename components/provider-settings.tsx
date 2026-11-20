@@ -1,16 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { KeyRound } from 'lucide-react';
-import { readProviderSettings, saveProviderSettings, type ProviderSettings } from '@/lib/provider-settings-client';
+import { formatDefaults, readProviderSettings, saveProviderSettings, withProviderAddress, withProviderFormat, type ProviderSettings } from '@/lib/provider-settings-client';
 import { providerFormats, providerFormatNames, type ProviderFormat } from '@/lib/provider-format';
 
-// T-221: each format's usual address. Only DeepSeek has a model name the prompts were tuned on.
-const formatDefaults: Record<ProviderFormat, { baseURL: string; model: string; modelHint: string; keyHint: string }> = {
-  deepseek: { baseURL: 'https://api.deepseek.com', model: 'deepseek-flash', modelHint: '', keyHint: 'sk-…' },
-  openai: { baseURL: 'https://api.openai.com/v1', model: '', modelHint: '填服务商给的模型名', keyHint: 'sk-…' },
-  'openai-responses': { baseURL: 'https://api.openai.com/v1', model: '', modelHint: '填服务商给的模型名', keyHint: 'sk-…' },
-  anthropic: { baseURL: 'https://api.anthropic.com', model: '', modelHint: '填服务商给的模型名', keyHint: 'sk-ant-…' },
-};
 const defaults: ProviderSettings = { format: 'deepseek', baseURL: formatDefaults.deepseek.baseURL, apiKey: '', model: formatDefaults.deepseek.model };
 
 export function ProviderSettingsPanel() {
@@ -21,12 +14,12 @@ export function ProviderSettingsPanel() {
     const current = readProviderSettings();
     if (current) { setForm(current); setSaved(true); }
   }, []);
-  function update(field: 'baseURL' | 'apiKey' | 'model', value: string) { setForm(current => ({ ...current, [field]: value })); setMessage(''); }
-  // Switching format swaps an address or model name the form filled in itself; anything the user typed stays.
+  function update(field: 'baseURL' | 'apiKey' | 'model', value: string) {
+    setForm(current => field === 'baseURL' ? withProviderAddress(current, value) : { ...current, [field]: value });
+    setMessage('');
+  }
   function changeFormat(format: ProviderFormat) {
-    setForm(current => ({ ...current, format,
-      baseURL: current.baseURL.trim() === formatDefaults[current.format].baseURL || !current.baseURL.trim() ? formatDefaults[format].baseURL : current.baseURL,
-      model: current.model.trim() === formatDefaults[current.format].model ? formatDefaults[format].model : current.model }));
+    setForm(current => withProviderFormat(current, format));
     setMessage('');
   }
   function save(event: React.FormEvent) {

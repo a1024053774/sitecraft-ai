@@ -73,7 +73,7 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
   functionOutput?: { name: 'submit_page_plan' | 'submit_english_translation' | 'submit_local_edit' | 'submit_fact_review'; description: string; parameters: Record<string, unknown>;
     skeletonOrder?: string[]; translationInput?: CodeModelCall['translationInput'] }, factInput?: CodeModelCall['factInput']) {
   const { baseURL, apiKey, model, format, fetch } = providerConfig();
-  if (!apiKey || !model) throw new Error(providerNotConfiguredMessage);
+  if (!baseURL || !apiKey || !model) throw new Error(providerNotConfiguredMessage);
   const upstream = providerErrorName(format);
   if (purpose === 'translate' && process.env.SITE_CODE_TRANSLATION_TOKEN_LIMIT !== undefined) {
     const parsed = z.number().int().positive().safeParse(Number(process.env.SITE_CODE_TRANSLATION_TOKEN_LIMIT));
@@ -106,7 +106,7 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
       ...(functionOutput ? { tool: { name: functionOutput.name, description: functionOutput.description, parameters: functionOutput.parameters, forced: purpose === 'translate' } } : {}) });
     const response = await fetch(wire.url, {
       method: 'POST', headers: wire.headers, body: JSON.stringify(wire.body),
-      signal: AbortSignal.timeout(300000), cache: 'no-store',
+      signal: AbortSignal.timeout(300000), cache: 'no-store', redirect: 'error',
     });
     call.httpStatus = response.status;
     if (!response.ok) {
@@ -120,22 +120,28 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
         : /response_format|json/i.test(message) ? 'JSON 输出参数被拒绝' : /reasoning_effort/.test(message) ? '上游不允许这个模型在此接口上带推理调用函数，请换模型或接口格式' : /rate|quota|balance/i.test(message) ? '上游额度或限流' : response.status === 404 ? '上游没有这个地址或模型，请核对 API 地址、接口格式和模型名' : '';
       throw new Error(`${upstream} 请求失败（HTTP ${response.status}${reason ? `，${reason}` : ''}），本次未保存版本。`);
     }
-    let payload, body: string | undefined;
-    if (purpose === 'facts' || purpose === 'local-facts') {
-      body = await response.text();
-      call.response = { finishReason: null, answerChars: null, reasoningTokens: null, rawBody: safeProviderResponseBody(body, apiKey) };
-      try { payload = JSON.parse(body); }
-      catch { throw new Error(`${upstream} 事实核对回复不是完整 JSON，本次未保存版本。`); }
-    } else payload = await response.json();
+    const factReview = purpose === 'facts' || purpose === 'local-facts';
+    const body = await response.text();
+    const safeBody = safeProviderResponseBody(body, apiKey);
+    const credentialError = `${upstream} 回复含凭据，已舍弃正文，本次未保存版本。`;
+    call.response = { finishReason: null, answerChars: null, reasoningTokens: null,
+      ...(factReview || safeBody.bodyRedacted ? { rawBody: safeBody } : {}) };
+    let payload;
+    try { payload = JSON.parse(body); }
+    catch {
+      if (safeBody.bodyRedacted) throw new Error(credentialError);
+      throw new Error(`${upstream} ${factReview ? '事实核对回复' : '回复'}不是完整 JSON，本次未保存版本。`);
+    }
     const reply = providerReply(format, payload, functionOutput?.name);
     if (reply.usage) call.usage = reply.usage;
     const raw = functionOutput ? reply.toolArguments : reply.content;
     call.response = { ...call.response, finishReason: reply.finishReason === null ? null : safeProviderResponseBody(reply.finishReason, apiKey).body ?? null,
       answerChars: typeof raw === 'string' ? raw.length : typeof reply.content === 'string' ? reply.content.length : null,
       reasoningTokens: reply.reasoningTokens,
-      ...(functionOutput && !call.response?.rawBody?.bodyRedacted ? { rawMessage: reply.rawMessage } : {}) };
-    if (call.response.rawBody?.bodyRedacted) throw new Error(`${upstream} 事实核对回复含凭据，已舍弃正文，本次未保存版本。`);
+      ...(functionOutput && !safeBody.bodyRedacted ? { rawMessage: reply.rawMessage } : {}) };
+    if (safeBody.bodyRedacted) throw new Error(credentialError);
     if (reply.finish === 'length') throw new Error(`${upstream} 回答被截断，本次未保存版本。`);
+    if (!functionOutput && reply.finish !== 'stop') throw new Error(`${upstream} 文本回答未正常结束，本次未保存版本。`);
     if (functionOutput && (!reply.tool || reply.finish !== 'tool_calls')) throw new Error(purpose === 'translate'
       ? `${upstream} 未返回结构化英文译文，本次未保存版本。` : purpose === 'local-edit'
         ? `${upstream} 未返回结构化局部修改，本次未保存版本。` : purpose === 'facts' || purpose === 'local-facts' ? `${upstream} 未返回结构化事实核对，本次未保存版本。` : `${upstream} 未返回结构化页面大纲，方案未保存。`);
@@ -144,7 +150,7 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
     try { data = JSON.parse(functionOutput ? raw : raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')); }
     catch { throw new Error(`${upstream} 回答不是完整 JSON，本次未保存版本。`); }
     // Anthropic returns the function arguments already parsed, so a repeated key is only visible in the HTTP body.
-    if (purpose === 'facts' || purpose === 'local-facts') rejectDuplicateFactKeys(format === 'anthropic' ? body! : raw);
+    if (factReview) rejectDuplicateFactKeys(format === 'anthropic' ? body : raw);
     return { data, model, call };
   } finally {
     call.latencyMs = Date.now() - started;
