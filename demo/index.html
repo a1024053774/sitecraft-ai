@@ -74,7 +74,7 @@
 <section class="end" id="end" hidden>
   <article>
     <h1>在本地用自己的模型接口运行</h1>
-    <p>上面每一步都是工作台的真实界面，内容来自模拟资料「禾巷小馆」的一次真实生成和两轮真实批注修改。这个演示是静态页面，不调用模型。</p>
+    <p>上面每一步都是工作台的真实界面，内容来自模拟资料「岚坞茶叶专业合作社」的一次真实生成和两轮真实批注修改。这个演示是静态页面，不调用模型。</p>
     <h2>获取源码</h2>
     <p><a href="https://github.com/a1024053774/sitecraft-ai" target="_blank" rel="noopener">github.com/a1024053774/sitecraft-ai</a></p>
 <pre>git clone https://github.com/a1024053774/sitecraft-ai.git
@@ -103,7 +103,7 @@ CHROME_PATH=/path/to/chrome-headless-shell npm run dev</pre>
   const title = document.getElementById('title'), count = document.getElementById('count'), text = document.getElementById('text');
   const prev = document.getElementById('prev'), next = document.getElementById('next'), toast = document.getElementById('toast');
   const toc = document.getElementById('toc'), progress = document.getElementById('progress');
-  const download = 'files/hexiang-xiaoguan-site.zip';
+  const download = 'files/lanwu-tea-site.zip';
   let steps = [], index = 0, toastTimer = 0, zoom = 1;
   // Captures exist at 1440, 768 and 375. A narrower screen shows the nearest capture scaled down;
   // a wider one shows it at full width, so text is never scaled up. Below about 640px of height the
@@ -190,7 +190,7 @@ CHROME_PATH=/path/to/chrome-headless-shell npm run dev</pre>
       dialog[open] { position: fixed; inset: 0; margin: auto; z-index: 50; box-shadow: 0 0 0 100vmax rgba(20, 30, 24, .35); }`;
     doc.head.appendChild(style);
     const hotspot = doc.querySelector(steps[index].hotspot); if (hotspot) hotspot.classList.add('demo-hotspot');
-    for (const a of doc.querySelectorAll('[data-testid=download-site]')) { a.setAttribute('href', '../' + download); a.setAttribute('download', 'hexiang-xiaoguan-site.zip'); }
+    for (const a of doc.querySelectorAll('[data-testid=download-site]')) { a.setAttribute('href', '../' + download); a.setAttribute('download', 'lanwu-tea-site.zip'); }
     guard(doc, true); settle(doc);
     for (const inner of doc.querySelectorAll('iframe')) {
       const ready = () => { const d = inner.contentDocument; if (!d) return; guard(d, false); d.defaultView.scrollTo(0, Number(inner.getAttribute('data-demo-frame-scroll') || 0)); };

@@ -1,268 +1,110 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'none'; base-uri 'none'; script-src 'none'"><title>禾巷小馆 · 街坊的午饭与晚饭</title><style>*, ::before, ::after{box-sizing: border-box;}
-html{text-size-adjust: 100%;}
-body{margin: 0px; background: rgb(244, 241, 234); color: rgb(41, 39, 33); font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.65; font-variant-numeric: tabular-nums;}
-p{margin: 0px 0px 12px;}
-h1, h2, h3{line-height: 1.25; margin: 0px;}
-h2{font-size: 1.45rem; margin: 0px 0px 20px;}
-h3{font-size: 1.15rem;}
-a{color: rgb(41, 39, 33);}
-a:focus-visible{outline: rgb(166, 60, 37) solid 2px; outline-offset: 3px;}
-[data-system-icon]{display: inline-block; line-height: 1; font-size: 0.95em;}
-.wrap{max-width: 1080px; margin: 0px auto; padding: 0px 24px;}
-.site-header{background: rgb(244, 241, 234); border-bottom: 1px solid rgb(207, 200, 186);}
-.header-inner{display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px;}
-.brand{font-size: 18px; font-weight: 700; letter-spacing: 0.02em; text-decoration: none; white-space: nowrap;}
-.brand:hover{color: rgb(166, 60, 37);}
-.site-nav{display: flex; gap: 24px;}
-.site-nav a{font-size: 15px; text-decoration: none; padding: 4px 0px; border-bottom: 2px solid transparent;}
-.site-nav a:hover{border-bottom-color: rgb(166, 60, 37);}
-.hero{padding: 56px 0px 40px; border-bottom: 1px solid rgb(207, 200, 186);}
-.hero h1, .page-head h1{font-size: clamp(2rem, 5.2vw, 3.4rem); font-weight: 800; letter-spacing: -0.01em; margin: 0px 0px 16px;}
-.page-head{padding: 48px 0px 32px; border-bottom: 1px solid rgb(207, 200, 186);}
-.page-head h1{font-size: clamp(1.9rem, 4.6vw, 2.8rem);}
-.lead{font-size: clamp(1.05rem, 2vw, 1.3rem); margin: 0px 0px 14px;}
-.meta{margin: 0px; font-size: 15px; color: rgb(63, 59, 51); border-left: 3px solid rgb(166, 60, 37); padding-left: 12px;}
-.hero-action{margin: 24px 0px 0px;}
-.primary-link{display: inline-flex; align-items: center; gap: 8px; background: rgb(166, 60, 37); color: rgb(244, 241, 234); text-decoration: none; font-weight: 600; font-size: 15px; padding: 12px 20px;}
-.primary-link:hover{background: rgb(140, 50, 32);}
-.section{padding: 56px 0px; border-bottom: 1px solid rgb(207, 200, 186);}
-.section:last-child{border-bottom: 0px;}
-.section-lead{font-size: 15px; color: rgb(63, 59, 51); margin: 0px 0px 20px; max-width: 44em;}
-.section-note{margin: 24px 0px 0px; padding-top: 16px; border-top: 1px solid rgb(207, 200, 186); font-size: 15px; color: rgb(63, 59, 51);}
-.band{background: rgb(38, 36, 31); color: rgb(242, 239, 232); padding: 48px 0px;}
-.band h2{color: rgb(242, 239, 232);}
-.band p{color: rgb(221, 216, 204); margin: 0px 0px 12px; max-width: 46em;}
-.band .band-note{color: rgb(242, 239, 232); font-weight: 600; border-left: 3px solid rgb(217, 138, 112); padding-left: 14px; margin: 0px;}
-.hours{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 40px;}
-.slot{border-top: 3px solid rgb(166, 60, 37); padding-top: 14px; min-width: 0px;}
-.slot-name{margin: 0px 0px 4px; font-size: 15px; color: rgb(63, 59, 51); letter-spacing: 0.1em;}
-.slot-time{margin: 0px 0px 6px; font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700;}
-.slot-note{margin: 0px; font-size: 15px; color: rgb(63, 59, 51);}
-.index-list{list-style: none; margin: 0px; padding: 0px; border-top: 1px solid rgb(168, 159, 142);}
-.index-list li{border-bottom: 1px solid rgb(207, 200, 186);}
-.index-list a{display: grid; grid-template-columns: minmax(0px, 1.2fr) minmax(0px, 1fr) auto; grid-template-areas: "name note price"; gap: 4px 16px; align-items: baseline; padding: 14px 0px; text-decoration: none;}
-.index-list a:hover .row-name{color: rgb(166, 60, 37);}
-.row-name{grid-area: name; font-weight: 600; min-width: 0px;}
-.row-note{grid-area: note; font-size: 14px; color: rgb(63, 59, 51);}
-.row-price{grid-area: price; color: rgb(166, 60, 37); font-weight: 700; text-align: right; white-space: nowrap;}
-.scenes{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 40px;}
-.scene{border-top: 1px solid rgb(168, 159, 142); padding-top: 16px; min-width: 0px;}
-.scene h3{margin: 0px 0px 14px;}
-.fact-list{display: grid; grid-template-columns: 5.5em minmax(0px, 1fr); gap: 8px 16px; margin: 0px;}
-.fact-list dt{color: rgb(63, 59, 51); font-size: 15px;}
-.fact-list dd{margin: 0px;}
-.split{display: grid; grid-template-columns: 2fr 1fr; gap: 40px; align-items: start;}
-.split > *{min-width: 0px;}
-.aside{border-top: 2px solid rgb(166, 60, 37); padding-top: 12px; font-size: 15px; color: rgb(63, 59, 51);}
-.aside-title{margin: 0px 0px 8px; font-weight: 700; color: rgb(41, 39, 33);}
-.timeline{list-style: none; margin: 0px; padding: 0px; border-top: 1px solid rgb(207, 200, 186);}
-.timeline li{display: flex; gap: 20px; padding: 10px 0px; border-bottom: 1px solid rgb(207, 200, 186);}
-.tl-year{min-width: 5.5em; font-weight: 700; color: rgb(166, 60, 37);}
-.line-list{list-style: square; margin: 0px; padding-left: 1.3em;}
-.line-list li{padding: 10px 0px; border-bottom: 1px solid rgb(207, 200, 186);}
-.line-list li::marker{color: rgb(166, 60, 37);}
-.steps{list-style: decimal; margin: 0px; padding-left: 1.6em;}
-.steps li{padding: 10px 0px; border-bottom: 1px solid rgb(207, 200, 186);}
-.steps li::marker{color: rgb(166, 60, 37); font-weight: 700;}
-.dish{margin: 0px 0px 28px; padding-top: 18px; border-top: 1px solid rgb(168, 159, 142);}
-.dish-head{display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;}
-.dish-head h3{margin: 0px;}
-.dish-price{margin: 0px; font-weight: 700; color: rgb(166, 60, 37); white-space: nowrap;}
-.dish-spec{display: grid; grid-template-columns: 5.5em minmax(0px, 1fr); gap: 6px 16px; margin: 12px 0px 0px; font-size: 15px;}
-.dish-spec dt{color: rgb(63, 59, 51);}
-.dish-spec dd{margin: 0px;}
-.combo{border-top: 3px solid rgb(166, 60, 37); padding-top: 16px;}
-.combo-name{margin: 0px 0px 4px; font-size: 1.15rem; font-weight: 700;}
-.combo-price{margin: 0px 0px 14px; color: rgb(166, 60, 37); font-weight: 700;}
-.site-footer{background: rgb(234, 229, 219); border-top: 1px solid rgb(207, 200, 186); padding: 40px 0px;}
-.footer-inner{display: grid; grid-template-columns: 1fr 1.3fr; gap: 32px;}
-.footer-brand{margin: 0px 0px 8px; font-weight: 700; font-size: 17px;}
-.footer-line{margin: 0px 0px 6px; font-size: 14px; color: rgb(63, 59, 51);}
-.footer-facts{display: grid; grid-template-columns: auto minmax(0px, 1fr); gap: 6px 16px; margin: 0px; font-size: 14px;}
-.footer-facts dt{color: rgb(63, 59, 51);}
-.footer-facts dd{margin: 0px;}
-@media (max-width: 768px){.wrap{padding: 0px 20px;}
-.header-inner{height: 60px;}
-.site-nav{gap: 18px;}
-.hero{padding: 36px 0px 28px;}
-.page-head{padding: 32px 0px 24px;}
-.section{padding: 32px 0px;}
-.band{padding: 32px 0px;}
-.hours{grid-template-columns: 1fr; gap: 24px;}
-.scenes{grid-template-columns: 1fr; gap: 24px;}
-.split{grid-template-columns: 1fr; gap: 24px;}
-.footer-inner{grid-template-columns: 1fr; gap: 20px;}}
-@media (max-width: 600px){.index-list a{grid-template-columns: minmax(0px, 1fr) auto; grid-template-areas: "name price" "note note"; gap: 2px 12px;}}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .hours{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 32px;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot{border-top: 5px solid rgb(166, 60, 37); padding: 18px 20px 20px; background: rgb(252, 250, 245); min-width: 0px;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-name{display: inline-block; margin: 0px 0px 12px; padding: 4px 12px; background: rgb(166, 60, 37); color: rgb(255, 255, 255); font-size: 1rem; font-weight: 700; letter-spacing: 0.16em; border-radius: 2px;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-time{margin: 0px 0px 16px; font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.1; font-weight: 800; letter-spacing: -0.02em;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-note{display: inline-block; margin: 0px; padding: 8px 14px; background: rgb(166, 60, 37); color: rgb(255, 255, 255); font-size: 1rem; font-weight: 700; border-radius: 2px;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-note strong{font-size: 1.25rem; font-weight: 800;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .section-note{margin: 28px 0px 0px; padding-top: 18px; border-top: 1px solid rgb(207, 200, 186); font-size: 1rem; line-height: 1.7; color: rgb(63, 59, 51);}
-@media (max-width: 768px){.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .hours{grid-template-columns: 1fr; gap: 24px;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot{padding: 16px 16px 18px;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-time{font-size: clamp(1.6rem, 8vw, 2.1rem);}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2 .slot-note{display: block; text-align: center;}}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5 .fee-item{margin: 0px 0px 14px;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5 .fee-item:last-child{margin-bottom: 0px;}
-.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5 .fee-label{display: block; margin: 0px 0px 2px; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: rgb(166, 60, 37);}
-@media (max-width: 768px){.sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5 .fee-item{margin-bottom: 12px;}}
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'none'; base-uri 'none'; script-src 'none'"><title>茶园与合作社</title><style>:root{color-scheme: light; --paper: #f8f4e9; --ink: #392b23; --green: #244a36; --leaf: #e6ecde; --oat: #efe7d6; --line: #c9c2b2; --edge: clamp(18px,4vw,44px); --gap: clamp(22px,4vw,52px);}
+*{box-sizing: border-box;}
+body{margin: 0px; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 16px; line-height: 1.68;}
+a{color: var(--green); text-underline-offset: 0.24em;}
+a:hover{text-decoration-thickness: 2px;}
+a:focus-visible{outline: 2px solid var(--green); outline-offset: 4px;}
+h1, h2, h3, p, figure, dl, dd{margin: 0px;}
+h1, h2, h3{color: var(--green); line-height: 1.24;}
+h1{font-size: clamp(2.2rem, 5.2vw, 4rem); font-weight: 800;}
+h2{font-size: clamp(1.55rem, 2.8vw, 2.2rem);}
+h3{font-size: 1.17rem;}
+p{max-width: 40em;}
+p + p{margin-top: 0.6em;}
+.wrap{width: min(calc(100% - var(--edge) - var(--edge)),1120px); margin-inline: auto;}
+.site-head{border-bottom: 1px solid var(--line);}
+.head-inner{min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 8px;}
+.brand{display: inline-flex; flex: 0 0 auto; flex-direction: column; align-items: center; color: var(--green); font-family: "Kaiti SC", KaiTi, STKaiti, serif; font-size: 1.6rem; font-weight: 800; line-height: 1; letter-spacing: 0.12em; text-decoration: none; white-space: nowrap;}
+.summits{display: grid; gap: 0px; width: 42px; margin-bottom: 2px;}
+.summits i{display: block; height: 5px; background: var(--green); clip-path: polygon(0px 91%, 18% 59%, 34% 2%, 51% 54%, 67% 14%, 83% 63%, 100% 94%, 83% 88%, 67% 53%, 51% 86%, 34% 40%, 18% 87%);}
+.site-nav{display: flex; align-items: center; gap: clamp(12px, 3vw, 36px);}
+.site-nav a{padding-block: 7px; white-space: nowrap; text-decoration: none; font-weight: 650;}
+.site-nav a:hover{text-decoration: underline;}
+.page-head{padding-block: clamp(30px, 5.5vw, 68px) clamp(22px, 3vw, 38px);}
+.page-head p{margin-top: 0.75rem;}
+.kicker{margin-bottom: 0.6rem; color: var(--green); font-size: 0.875rem; font-weight: 700; letter-spacing: 0.08em;}
+.page-head .kicker{margin-top: 0px;}
+.block{padding-block: clamp(28px, 4.6vw, 60px);}
+.block-title{margin-bottom: 1.15rem;}
+.split, .pathways{display: grid; grid-template-columns: minmax(0px, 2fr) minmax(0px, 1fr); gap: var(--gap); align-items: start;}
+.pathways{gap: 12px; align-items: stretch;}
+.panel{padding: clamp(18px, 3vw, 34px); border-radius: 0px; background-clip: border-box;}
+.wholesale-panel{background: var(--leaf);}
+.visit-panel, .note-panel{background: var(--oat);}
+.visit-panel p{margin-top: 0.8rem;}
+.tea-index{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 0.25rem 1.35rem; margin: 1rem 0px 1.2rem; padding-left: 1.25rem; font-weight: 700; list-style-position: outside;}
+.tea-index li{position: relative; z-index: auto; white-space: nowrap;}
+.primary{display: inline-block; padding: 0.55em 0.95em; border-radius: 0px; background: var(--green); color: var(--paper); font-weight: 700; text-decoration: none;}
+.primary:hover{text-decoration: underline;}
+.text-link{display: inline-block; margin-top: 1rem; font-weight: 700;}
+.supply{margin-top: 1.4rem;}
+.supply p{max-width: 40em;}
+.news{border-top: 1px solid var(--line);}
+.news article{display: grid; grid-template-columns: 9rem minmax(0px, 1fr); gap: 0.25rem 1.2rem; padding-block: 0.65rem;}
+.news article + article{border-top: 1px solid var(--line);}
+.news time{color: var(--green); font-weight: 700;}
+.keep, time, .email{white-space: nowrap;}
+.keep, time, .price, .facts{font-variant-numeric: tabular-nums;}
+.ledger{border-top: 1px solid var(--line);}
+.ledger article{display: grid; grid-template-columns: minmax(0px, 1fr) minmax(10.5rem, 0.67fr); gap: 0.75rem 1.5rem; padding-block: 1.1rem; border-bottom: 1px solid var(--line);}
+.ledger h3{margin-bottom: 0.4rem;}
+.lede-note{margin-bottom: 1.1rem;}
+.price{width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem;}
+.price th, .price td{text-align: left; padding: 0.2rem 0.35rem;}
+.price th:first-child{padding-left: 0px;}
+.price th:last-child, .price td:last-child{text-align: right; padding-right: 0px;}
+.price thead{border-bottom: 1px solid var(--line);}
+.price td{font-weight: 700; color: var(--green);}
+.price-photo{margin-top: 1rem;}
+.reserve{margin-top: 1rem; padding: 1rem 1.15rem; background: var(--leaf);}
+.reserve h3{margin-bottom: 0.45rem;}
+.tone{background-clip: border-box; border-radius: 0px;}
+.terms{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 1.45rem var(--gap);}
+.terms section{border-top: 1px solid var(--line); padding-top: 0.9rem;}
+.terms h3{margin-bottom: 0.5rem;}
+.terms .wide{grid-column: 1 / -1;}
+.terms-facts > div, .facts > div{display: grid; grid-template-columns: 7.5rem minmax(0px, 1fr); gap: 0.2rem 0.75rem; padding-block: 0.28rem;}
+.terms-facts dt, .facts dt{font-weight: 700; color: var(--green);}
+.terms-facts dd, .facts dd{min-width: 0px;}
+.facts{margin-top: 0.7rem;}
+.body-gap{margin-top: 1.35rem;}
+.key-figures{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 0.75rem 1rem; margin-top: 1.35rem;}
+.key-figures dt{font-weight: 700;}
+.key-figures dd{color: var(--green); font-size: 1.22rem; font-weight: 800;}
+.key-figures small{display: block; color: var(--ink); font-size: 0.875rem; font-weight: 400;}
+.key-figures .full{grid-column: 1 / -1;}
+figure{min-width: 0px;}
+figure img{display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover;}
+figcaption{margin-top: 0.5rem; font-size: 0.875rem; line-height: 1.55;}
+.photo-gap{margin-top: 0.5rem; font-size: 0.875rem;}
+.rule-top{border-top: 1px solid var(--line);}
+.timeline > div{display: grid; grid-template-columns: 6rem minmax(0px, 1fr); gap: 0.4rem; padding-block: 0.38rem;}
+.timeline dt{font-weight: 800; color: var(--green); white-space: nowrap; font-variant-numeric: tabular-nums;}
+.flow{padding-left: 1.45rem; margin: 0.75rem 0px 0px; list-style-position: outside;}
+.flow li{margin: 0.38rem 0px; max-width: 38em;}
+.site-foot{background: var(--oat); border-top: 1px solid var(--line); padding-block: 22px;}
+.foot-inner{display: flex; justify-content: space-between; align-items: baseline; gap: 0.65rem 1.5rem; flex-wrap: wrap;}
+.foot-contact{display: flex; gap: 0.25rem 1.5rem; flex-wrap: wrap;}
+.foot-contact > div{display: flex; gap: 0.5rem;}
+.foot-contact dt{font-weight: 700;}
+.foot-contact dd{margin: 0px;}
+.email{font-size: 0.9375rem;}
+.visit-address{margin-top: 1.35rem; padding-top: 1rem; border-top: 1px solid var(--line);}
+@media (max-width: 767px){.split, .pathways, .terms{grid-template-columns: minmax(0px, 1fr);}
+.site-nav{gap: clamp(9px, 2.6vw, 20px); font-size: 0.875rem;}
+.head-inner{gap: 10px;}
+.page-head h1{line-height: 1.18;}
+.block-title{margin-bottom: 0.9rem;}
+.ledger article{grid-template-columns: minmax(0px, 1fr); gap: 0.5rem;}
+.price{max-width: 22rem;}
+.price-photo{margin-top: 0px; max-width: 26rem;}
+.news article{grid-template-columns: minmax(0px, 1fr);}
+.terms-facts > div, .facts > div{grid-template-columns: minmax(0px, 1fr);}
+.terms-facts > div + div, .facts > div + div{margin-top: 0.3rem;}
+.foot-inner, .foot-contact, .foot-contact > div{display: grid; grid-template-columns: minmax(0px, 1fr);}
+.foot-contact > div{gap: 0px;}
+.foot-contact{gap: 0.5rem;}
+.timeline > div{grid-template-columns: 4.5rem minmax(0px, 1fr);}
+.visit-address{margin-top: 1rem;}}
 
-.sc-language-links{display:flex!important;position:static!important;flex-wrap:wrap;justify-content:flex-end;gap:12px;padding:8px 24px;background:#fff;color:#222;font:14px/1.5 sans-serif}.sc-language-links a{display:inline-block!important;position:static!important;color:#222!important;padding:10px;text-decoration:underline}.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere}</style></head><body><header class="site-header">
-  <div class="wrap header-inner">
-    <a class="brand" href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=home&amp;version=91191b41-483b-4ed8-adba-4d956fad032f">禾巷小馆</a>
-    <nav class="site-nav" aria-label="主导航">
-      <a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=home&amp;version=91191b41-483b-4ed8-adba-4d956fad032f">首页</a>
-      <a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f">菜单</a>
-    </nav>
-  </div>
-</header><main>
-  <section class="hero">
-    <div class="wrap">
-      <h1>街坊的午饭与晚饭</h1>
-      <p class="lead">家常热菜配米饭，午市与晚市分开营业。</p>
-      <p class="meta">社区家常菜馆，服务杭州市拱墅区；提供堂食与到店外带。</p>
-      <p class="hero-action"><a class="primary-link" href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f">查看菜单<span><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true" focusable="false" data-system-rendered-icon="arrow"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span></a></p>
-    </div>
-  </section>
-
-  <section class="band">
-    <div class="wrap">
-      <h2>承接范围</h2>
-      <p>禾巷小馆是一家社区家常菜馆，面向附近居民和午休用餐的上班族。厨房按午市与晚市备料，提供单人饭菜组合和适合分食的热菜，不经营酒吧或宴会厅。</p>
-      <p>菜品按当天备料供应，售完的品种会在店内菜单上标注。</p>
-      <p class="band-note">提供堂食和到店外带；不承接婚宴、包场、上门厨师或团体配餐。</p>
-    </div>
-  </section>
-
-  <section class="section sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-2">
-    <div class="wrap">
-      <h2>营业时段</h2>
-      <div class="hours">
-        <div class="slot">
-          <p class="slot-name">午市</p>
-          <p class="slot-time">11:00–14:00</p>
-          <p class="slot-note">最后点菜 <strong>13:30</strong></p>
-        </div>
-        <div class="slot">
-          <p class="slot-name">晚市</p>
-          <p class="slot-time">17:00–20:30</p>
-          <p class="slot-note">最后点菜 <strong>20:00</strong></p>
-        </div>
-      </div>
-      <p class="section-note">周二至周日营业，周一休息；14:00–17:00 不营业，午市与晚市分开。节假日营业安排待补充。</p>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="wrap">
-      <h2>菜单目录</h2>
-      <p class="section-lead">以下为菜名、价格与已知供应时段，完整内容与各项边界见菜单页。</p>
-      <ul class="index-list">
-        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">香菇鸡腿饭</span><span class="row-note">午市、晚市</span><span class="row-price">32 元/份</span></a></li>
-        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">番茄炖牛腩</span><span class="row-note">午市、晚市</span><span class="row-price">58 元/份</span></a></li>
-        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">时蔬豆腐煲</span><span class="row-note">供应时段待补充</span><span class="row-price">36 元/份</span></a></li>
-        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">葱油拌面</span><span class="row-note">仅午市</span><span class="row-price">22 元/份</span></a></li>
-        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">当日清炒时蔬</span><span class="row-note">午市、晚市</span><span class="row-price">18 元/份</span></a></li>
-        <li><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=menu&amp;version=91191b41-483b-4ed8-adba-4d956fad032f"><span class="row-name">午市单人组合</span><span class="row-note">仅午市</span><span class="row-price">38 元/份</span></a></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="wrap">
-      <h2>两类常来的用餐</h2>
-      <div class="scenes">
-        <div class="scene">
-          <h3>午休单人用餐</h3>
-          <dl class="fact-list">
-            <dt>需求</dt><dd>了解饭菜组合与午市时间</dd>
-            <dt>提供</dt><dd>香菇鸡腿饭，或午市单人组合</dd>
-            <dt>不能保证</dt><dd>没有出餐分钟数承诺，也不保证当日全部菜品有货</dd>
-          </dl>
-        </div>
-        <div class="scene">
-          <h3>家人晚饭分食</h3>
-          <dl class="fact-list">
-            <dt>需求</dt><dd>热菜搭配米饭</dd>
-            <dt>提供</dt><dd>番茄炖牛腩、时蔬豆腐煲，米饭单点</dd>
-            <dt>说明</dt><dd>分食建议不是固定人数套餐，不包含酒水或额外配菜</dd>
-          </dl>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section sc-local-ffc12cfe-26b0-4bc8-9ad0-6d256f2d59e9-home-5">
-    <div class="wrap">
-      <h2>收费口径</h2>
-      <div class="split">
-        <div>
-          <p class="fee-item"><span class="fee-label">价格口径</span>堂食单份含税价格，不另收服务费。</p>
-          <p class="fee-item"><span class="fee-label">米饭</span>单点米饭 3 元/碗；香菇鸡腿饭与午市单人组合包含米饭，不再另收米饭费用；其他热菜米饭单点。</p>
-          <p class="fee-item"><span class="fee-label">饮用水</span>免费提供。</p>
-          <p class="fee-item"><span class="fee-label">外带包装费</span>每单 2 元。</p>
-        </div>
-        <div class="aside">
-          <p class="aside-title">待补充</p>
-          <p>节假日营业安排待补充。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="wrap">
-      <h2>经营沿革</h2>
-      <ul class="timeline">
-        <li><span class="tl-year">2018 年</span><span class="tl-text">从午市饭菜开始经营</span></li>
-        <li><span class="tl-year">2020 年</span><span class="tl-text">增加晚市家常热菜</span></li>
-        <li><span class="tl-year">2022 年</span><span class="tl-text">将单人组合与分食热菜分开列单</span></li>
-        <li><span class="tl-year">2024 年</span><span class="tl-text">开始记录每日停售品种与食材替换说明</span></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="wrap">
-      <h2>门店与资质</h2>
-      <dl class="fact-list">
-        <dt>服务社区</dt><dd>杭州市拱墅区；门牌地址待补充。</dd>
-        <dt>店内空间</dt><dd>堂食座位 24 个，以两人桌和四人桌为主；不设包间。座位数不代表实时空位，不能承诺随到随坐。儿童座椅数量、停车条件待补充。</dd>
-        <dt>通行</dt><dd>门店入口台阶和无障碍通行条件待补充。</dd>
-        <dt>资质</dt><dd>食品经营许可证编号待补充；从业人员健康证明信息待补充。</dd>
-      </dl>
-    </div>
-  </section>
-</main><footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div>
-      <p class="footer-brand">禾巷小馆</p>
-      <p class="footer-line">社区家常菜馆，服务杭州市拱墅区；提供堂食与到店外带，不承接婚宴、包场、上门厨师或团体配餐。</p>
-    </div>
-    <dl class="footer-facts">
-      <dt>营业</dt><dd>周二至周日，午市 11:00–14:00、晚市 17:00–20:30；周一休息。</dd>
-      <dt>邮箱</dt><dd>hello@hexiang-kitchen.luckye.online</dd>
-      <dt>电话</dt><dd>待补充</dd>
-      <dt>门牌地址</dt><dd>待补充</dd>
-    </dl>
-  </div>
-</footer><!--
-Lucide icons
-ISC License
-
-Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
---></body></html>
+.sc-language-links{display:flex!important;position:static!important;flex-wrap:wrap;justify-content:flex-end;gap:12px;padding:8px 24px;background:#fff;color:#222;font:14px/1.5 sans-serif}.sc-language-links a{display:inline-block!important;position:static!important;color:#222!important;padding:10px;text-decoration:underline}.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere}</style></head><body><header class="site-head"><div class="wrap head-inner"><a class="brand" href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=home&amp;version=04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb" aria-label="岚坞茶叶专业合作社首页"><span class="summits" aria-hidden="true"><i></i><i></i><i></i></span><span>岚坞</span></a><nav class="site-nav" aria-label="主导航"><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=home&amp;version=04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb">首页</a><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=tea-wholesale&amp;version=04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb">茶叶与批发</a><a href="/api/sites/d7207000-0000-4000-8000-000000000005/code-preview?page=garden-cooperative&amp;version=04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb">茶园与合作社</a></nav></div></header><main><div class="wrap"><div class="page-head"><h1>茶园与合作社</h1></div><section class="split" aria-labelledby="garden-title"><div><h2 class="block-title" id="garden-title">遂昌山区的茶园</h2><p>合作社位于浙江省丽水市遂昌县山区。社员各自管护茶园，鲜叶统一收进合作社加工厂，按地块和日期分批加工。</p><dl class="key-figures"><div><dt>社员</dt><dd><span class="keep">46 户</span></dd></div><div><dt>茶园</dt><dd><span class="keep">1280 亩</span><small>分布在海拔 <span class="keep">600–900 米</span>的山坡上</small></dd></div><div><dt>加工厂</dt><dd><span class="keep">1 座</span><small>绿茶、红茶生产线各 <span class="keep">1 条</span></small></dd></div><div><dt><span class="keep">2025 年</span>干茶产量</dt><dd>约 <span class="keep">38 吨</span></dd></div></dl></div><div><figure><img data-image-id="img_5a48578f273c44a18fc651b9" alt="山区坡地上成行的茶树" src="../r/images/img_5a48578f273c44a18fc651b9.jpg"><figcaption>茶园行垄配图，拍摄于丽水市松阳县，非本社茶园实拍。</figcaption></figure><p class="photo-gap">本社茶园实拍待补充。</p></div></section><section class="block" aria-labelledby="manage-title"><h2 class="block-title" id="manage-title">茶园管理</h2><dl class="facts"><div><dt>茶树品种</dt><dd>以鸠坑群体种和 <span class="keep">龙井 43</span> 为主，另有少量白叶一号。</dd></div><div><dt>除草</dt><dd>不使用除草剂，人工除草一年两次。</dd></div><div><dt>农药使用记录</dt><dd>按地块保存。</dd></div><div><dt>检测报告</dt><dd>待补充。</dd></div></dl></section><div class="split block rule-top"><section aria-labelledby="timeline-title"><h2 class="block-title" id="timeline-title">合作社沿革</h2><dl class="timeline"><div><dt>2014 年</dt><dd><span class="keep">12 户</span>茶农发起成立合作社。</dd></div><div><dt>2017 年</dt><dd>建成初制加工厂。</dd></div><div><dt>2019 年</dt><dd>增加红茶生产线。</dd></div><div><dt>2021 年</dt><dd>取得绿色食品认证。</dd></div><div><dt>2024 年</dt><dd>开始按地块记录采摘和加工批次。</dd></div></dl></section><section class="panel note-panel" aria-labelledby="credentials-title"><h2 id="credentials-title">资质</h2><p class="body-gap">绿色食品认证证书编号待补充。</p><p>食品生产许可证编号待补充。</p><p>未做有机认证，产品不标“有机茶”。</p></section></div></div><section class="block tone" aria-labelledby="process-title"><div class="wrap split"><div><h2 class="block-title" id="process-title">加工与批次标签</h2><ol class="flow"><li>鲜叶当天采、当天进厂。</li><li>摊青后杀青、揉捻、烘干。香茶为炒干；红茶在揉捻后增加发酵工序。</li><li>拣剔、分级，装铝箔袋后放入 <span class="keep">0–5℃</span> 冷库。</li></ol><p class="body-gap">每批茶的标签贴在袋口，写明地块、采摘日期和加工日期。</p><p>包装袋和价目单都使用同一套“岚坞”字样：手写体上方有三道起伏的山线。</p></div><div><figure><img data-image-id="img_40f3db08c70e401393203641" alt="用锅手工翻炒茶叶" src="../r/images/img_40f3db08c70e401393203641.jpg"><figcaption>炒茶配图，拍摄于杭州，非本社加工厂或生产线。</figcaption></figure><p class="photo-gap">本社加工厂实拍待补充。</p></div></div></section><section class="wrap block sc-local-f6d6dcbb-9fbf-465b-8572-27688393c4b2-garden-cooperative-2" id="visit" aria-labelledby="visit-title"><h2 class="block-title" id="visit-title">茶园参观</h2><div class="split"><div><dl class="facts"><div><dt>接待季节</dt><dd>每年 <span class="keep">3 月下旬至 5 月上旬</span></dd></div><div><dt>接待时段</dt><dd><span class="keep">每周六上午</span> <span class="keep">9:00–11:30</span></dd></div><div><dt>人数</dt><dd>一次最多 <span class="keep">15 人</span></dd></div><div><dt>邮件联系</dt><dd>需提前 <span class="keep">3 天</span>发邮件说明人数。<br><span class="email">hello@lanwu-tea.luckye.online</span></dd></div><div><dt>雨天安排</dt><dd>雨天采摘暂停，参观顺延。</dd></div><div><dt>参观内容</dt><dd>看采摘和加工，品当季茶。</dd></div><div><dt>参观费用</dt><dd>待补充。</dd></div><div><dt>食宿</dt><dd>不提供住宿和餐饮。</dd></div></dl><div class="visit-address"><h3>地址与交通</h3><p>浙江省丽水市遂昌县，乡镇和门牌地址待补充。加工厂在村口，大客车能否进村待补充。</p></div></div><figure><img data-image-id="img_4a6c44209f484edb9a19b27f" alt="修剪成垄的茶树" src="../r/images/img_4a6c44209f484edb9a19b27f.jpg"><figcaption>茶树行垄配图，拍摄于杭州，非本社茶园实拍。</figcaption></figure></div></section></main><footer class="site-foot"><div class="wrap foot-inner"><strong>岚坞茶叶专业合作社</strong><dl class="foot-contact"><div><dt>邮箱</dt><dd class="email">hello@lanwu-tea.luckye.online</dd></div><div><dt>电话</dt><dd>待补充</dd></div></dl></div></footer><details class="sc-image-credits"><summary>图片来源与许可</summary><p>Hangzhou-Teeplantage-04-Straeucher-2012-gje.jpg — Gerd Eichmann; https://commons.wikimedia.org/wiki/File:Hangzhou-Teeplantage-04-Straeucher-2012-gje.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.</p><p>Hangzhou-Teeplantage-36-Teeglas-2012-gje.jpg — Gerd Eichmann; https://commons.wikimedia.org/wiki/File:Hangzhou-Teeplantage-36-Teeglas-2012-gje.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.</p><p>Hangzhou-Teeplantage-24-Trockengefaesss Haende-2012-gje.jpg — Gerd Eichmann; https://commons.wikimedia.org/wiki/File:Hangzhou-Teeplantage-24-Trockengefaesss_Haende-2012-gje.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.</p><p>Songyang tea field.jpg — Lishuilynn; https://commons.wikimedia.org/wiki/File:Songyang_tea_field.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.</p></details></body></html>

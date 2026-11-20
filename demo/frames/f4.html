@@ -1,0 +1,116 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'none'; base-uri 'none'; script-src 'none'"><title>茶园与合作社</title><style>:root{color-scheme: light; --paper: #f8f4e9; --ink: #392b23; --green: #244a36; --leaf: #e6ecde; --oat: #efe7d6; --line: #c9c2b2; --edge: clamp(18px,4vw,44px); --gap: clamp(22px,4vw,52px);}
+*{box-sizing: border-box;}
+body{margin: 0px; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 16px; line-height: 1.68;}
+a{color: var(--green); text-underline-offset: 0.24em;}
+a:hover{text-decoration-thickness: 2px;}
+a:focus-visible{outline: 2px solid var(--green); outline-offset: 4px;}
+h1, h2, h3, p, figure, dl, dd{margin: 0px;}
+h1, h2, h3{color: var(--green); line-height: 1.24;}
+h1{font-size: clamp(2.2rem, 5.2vw, 4rem); font-weight: 800;}
+h2{font-size: clamp(1.55rem, 2.8vw, 2.2rem);}
+h3{font-size: 1.17rem;}
+p{max-width: 40em;}
+p + p{margin-top: 0.6em;}
+.wrap{width: min(calc(100% - var(--edge) - var(--edge)),1120px); margin-inline: auto;}
+.site-head{border-bottom: 1px solid var(--line);}
+.head-inner{min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 8px;}
+.brand{display: inline-flex; flex: 0 0 auto; flex-direction: column; align-items: center; color: var(--green); font-family: "Kaiti SC", KaiTi, STKaiti, serif; font-size: 1.6rem; font-weight: 800; line-height: 1; letter-spacing: 0.12em; text-decoration: none; white-space: nowrap;}
+.summits{display: grid; gap: 0px; width: 42px; margin-bottom: 2px;}
+.summits i{display: block; height: 5px; background: var(--green); clip-path: polygon(0px 91%, 18% 59%, 34% 2%, 51% 54%, 67% 14%, 83% 63%, 100% 94%, 83% 88%, 67% 53%, 51% 86%, 34% 40%, 18% 87%);}
+.site-nav{display: flex; align-items: center; gap: clamp(12px, 3vw, 36px);}
+.site-nav a{padding-block: 7px; white-space: nowrap; text-decoration: none; font-weight: 650;}
+.site-nav a:hover{text-decoration: underline;}
+.page-head{padding-block: clamp(30px, 5.5vw, 68px) clamp(22px, 3vw, 38px);}
+.page-head p{margin-top: 0.75rem;}
+.kicker{margin-bottom: 0.6rem; color: var(--green); font-size: 0.875rem; font-weight: 700; letter-spacing: 0.08em;}
+.page-head .kicker{margin-top: 0px;}
+.block{padding-block: clamp(28px, 4.6vw, 60px);}
+.block-title{margin-bottom: 1.15rem;}
+.split, .pathways{display: grid; grid-template-columns: minmax(0px, 2fr) minmax(0px, 1fr); gap: var(--gap); align-items: start;}
+.pathways{gap: 12px; align-items: stretch;}
+.panel{padding: clamp(18px, 3vw, 34px); border-radius: 0px; background-clip: border-box;}
+.wholesale-panel{background: var(--leaf);}
+.visit-panel, .note-panel{background: var(--oat);}
+.visit-panel p{margin-top: 0.8rem;}
+.tea-index{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 0.25rem 1.35rem; margin: 1rem 0px 1.2rem; padding-left: 1.25rem; font-weight: 700; list-style-position: outside;}
+.tea-index li{position: relative; z-index: auto; white-space: nowrap;}
+.primary{display: inline-block; padding: 0.55em 0.95em; border-radius: 0px; background: var(--green); color: var(--paper); font-weight: 700; text-decoration: none;}
+.primary:hover{text-decoration: underline;}
+.text-link{display: inline-block; margin-top: 1rem; font-weight: 700;}
+.supply{margin-top: 1.4rem;}
+.supply p{max-width: 40em;}
+.news{border-top: 1px solid var(--line);}
+.news article{display: grid; grid-template-columns: 9rem minmax(0px, 1fr); gap: 0.25rem 1.2rem; padding-block: 0.65rem;}
+.news article + article{border-top: 1px solid var(--line);}
+.news time{color: var(--green); font-weight: 700;}
+.keep, time, .email{white-space: nowrap;}
+.keep, time, .price, .facts{font-variant-numeric: tabular-nums;}
+.ledger{border-top: 1px solid var(--line);}
+.ledger article{display: grid; grid-template-columns: minmax(0px, 1fr) minmax(10.5rem, 0.67fr); gap: 0.75rem 1.5rem; padding-block: 1.1rem; border-bottom: 1px solid var(--line);}
+.ledger h3{margin-bottom: 0.4rem;}
+.lede-note{margin-bottom: 1.1rem;}
+.price{width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem;}
+.price th, .price td{text-align: left; padding: 0.2rem 0.35rem;}
+.price th:first-child{padding-left: 0px;}
+.price th:last-child, .price td:last-child{text-align: right; padding-right: 0px;}
+.price thead{border-bottom: 1px solid var(--line);}
+.price td{font-weight: 700; color: var(--green);}
+.price-photo{margin-top: 1rem;}
+.reserve{margin-top: 1rem; padding: 1rem 1.15rem; background: var(--leaf);}
+.reserve h3{margin-bottom: 0.45rem;}
+.tone{background-clip: border-box; border-radius: 0px;}
+.terms{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 1.45rem var(--gap);}
+.terms section{border-top: 1px solid var(--line); padding-top: 0.9rem;}
+.terms h3{margin-bottom: 0.5rem;}
+.terms .wide{grid-column: 1 / -1;}
+.terms-facts > div, .facts > div{display: grid; grid-template-columns: 7.5rem minmax(0px, 1fr); gap: 0.2rem 0.75rem; padding-block: 0.28rem;}
+.terms-facts dt, .facts dt{font-weight: 700; color: var(--green);}
+.terms-facts dd, .facts dd{min-width: 0px;}
+.facts{margin-top: 0.7rem;}
+.body-gap{margin-top: 1.35rem;}
+.key-figures{display: grid; grid-template-columns: repeat(2, minmax(0px, 1fr)); gap: 0.75rem 1rem; margin-top: 1.35rem;}
+.key-figures dt{font-weight: 700;}
+.key-figures dd{color: var(--green); font-size: 1.22rem; font-weight: 800;}
+.key-figures small{display: block; color: var(--ink); font-size: 0.875rem; font-weight: 400;}
+.key-figures .full{grid-column: 1 / -1;}
+figure{min-width: 0px;}
+figure img{display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover;}
+figcaption{margin-top: 0.5rem; font-size: 0.875rem; line-height: 1.55;}
+.photo-gap{margin-top: 0.5rem; font-size: 0.875rem;}
+.rule-top{border-top: 1px solid var(--line);}
+.timeline > div{display: grid; grid-template-columns: 6rem minmax(0px, 1fr); gap: 0.4rem; padding-block: 0.38rem;}
+.timeline dt{font-weight: 800; color: var(--green); white-space: nowrap; font-variant-numeric: tabular-nums;}
+.flow{padding-left: 1.45rem; margin: 0.75rem 0px 0px; list-style-position: outside;}
+.flow li{margin: 0.38rem 0px; max-width: 38em;}
+.site-foot{background: var(--oat); border-top: 1px solid var(--line); padding-block: 22px;}
+.foot-inner{display: flex; justify-content: space-between; align-items: baseline; gap: 0.65rem 1.5rem; flex-wrap: wrap;}
+.foot-contact{display: flex; gap: 0.25rem 1.5rem; flex-wrap: wrap;}
+.foot-contact > div{display: flex; gap: 0.5rem;}
+.foot-contact dt{font-weight: 700;}
+.foot-contact dd{margin: 0px;}
+.email{font-size: 0.9375rem;}
+.visit-address{margin-top: 1.35rem; padding-top: 1rem; border-top: 1px solid var(--line);}
+@media (max-width: 767px){.split, .pathways, .terms{grid-template-columns: minmax(0px, 1fr);}
+.site-nav{gap: clamp(9px, 2.6vw, 20px); font-size: 0.875rem;}
+.head-inner{gap: 10px;}
+.page-head h1{line-height: 1.18;}
+.block-title{margin-bottom: 0.9rem;}
+.ledger article{grid-template-columns: minmax(0px, 1fr); gap: 0.5rem;}
+.price{max-width: 22rem;}
+.price-photo{margin-top: 0px; max-width: 26rem;}
+.news article{grid-template-columns: minmax(0px, 1fr);}
+.terms-facts > div, .facts > div{grid-template-columns: minmax(0px, 1fr);}
+.terms-facts > div + div, .facts > div + div{margin-top: 0.3rem;}
+.foot-inner, .foot-contact, .foot-contact > div{display: grid; grid-template-columns: minmax(0px, 1fr);}
+.foot-contact > div{gap: 0px;}
+.foot-contact{gap: 0.5rem;}
+.timeline > div{grid-template-columns: 4.5rem minmax(0px, 1fr);}
+.visit-address{margin-top: 1rem;}}
+.sc-local-04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb-garden-cooperative-1{background-color: var(--leaf); background-clip: border-box; border-radius: 0px; padding-inline: var(--edge);}
+.sc-local-04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb-garden-cooperative-1 > .wrap{width: min(100%, 1120px);}
+.sc-local-04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb-garden-cooperative-1 .flow{background-color: var(--leaf); background-clip: border-box; border-radius: 0px;}
+.sc-local-04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb-garden-cooperative-0-3-0 .timeline{margin-inline-start: 0.2rem; border-inline-start: 1px solid var(--green); padding-inline-start: 0.9rem;}
+.sc-local-04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb-garden-cooperative-0-3-0 .timeline dt{position: relative; font-weight: 800;}
+.sc-local-04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb-garden-cooperative-0-3-0 .timeline dt::before{content: ""; position: absolute; inset-inline-start: calc(-4px - 0.9rem); inset-block-start: calc(0.84em - 3.5px); inline-size: 7px; block-size: 7px; border-radius: 50%; background-color: var(--green);}
+
+.sc-language-links{display:flex!important;position:static!important;flex-wrap:wrap;justify-content:flex-end;gap:12px;padding:8px 24px;background:#fff;color:#222;font:14px/1.5 sans-serif}.sc-language-links a{display:inline-block!important;position:static!important;color:#222!important;padding:10px;text-decoration:underline}.sc-image-credits{padding:12px 24px;background:#fff;color:#333;font-size:12px}.sc-image-credits p{max-width:40em;overflow-wrap:anywhere}</style></head><body><header class="site-head"><div class="wrap head-inner"><a class="brand" href="/api/sites/d7207000-0000-4000-8000-000000000006/code-preview?page=home&amp;version=09616309-d243-4bd1-bebb-cc17983891fb" aria-label="岚坞茶叶专业合作社首页"><span class="summits" aria-hidden="true"><i></i><i></i><i></i></span><span>岚坞</span></a><nav class="site-nav" aria-label="主导航"><a href="/api/sites/d7207000-0000-4000-8000-000000000006/code-preview?page=home&amp;version=09616309-d243-4bd1-bebb-cc17983891fb">首页</a><a href="/api/sites/d7207000-0000-4000-8000-000000000006/code-preview?page=tea-wholesale&amp;version=09616309-d243-4bd1-bebb-cc17983891fb">茶叶与批发</a><a href="/api/sites/d7207000-0000-4000-8000-000000000006/code-preview?page=garden-cooperative&amp;version=09616309-d243-4bd1-bebb-cc17983891fb">茶园与合作社</a></nav></div></header><main><div class="wrap"><div class="page-head"><h1>茶园与合作社</h1></div><section class="split" aria-labelledby="garden-title"><div><h2 class="block-title" id="garden-title">遂昌山区的茶园</h2><p>合作社位于浙江省丽水市遂昌县山区。社员各自管护茶园，鲜叶统一收进合作社加工厂，按地块和日期分批加工。</p><dl class="key-figures"><div><dt>社员</dt><dd><span class="keep">46 户</span></dd></div><div><dt>茶园</dt><dd><span class="keep">1280 亩</span><small>分布在海拔 <span class="keep">600–900 米</span>的山坡上</small></dd></div><div><dt>加工厂</dt><dd><span class="keep">1 座</span><small>绿茶、红茶生产线各 <span class="keep">1 条</span></small></dd></div><div><dt><span class="keep">2025 年</span>干茶产量</dt><dd>约 <span class="keep">38 吨</span></dd></div></dl></div><div><figure><img data-image-id="img_5a48578f273c44a18fc651b9" alt="山区坡地上成行的茶树" src="../r/images/img_5a48578f273c44a18fc651b9.jpg"><figcaption>茶园行垄配图，拍摄于丽水市松阳县，非本社茶园实拍。</figcaption></figure><p class="photo-gap">本社茶园实拍待补充。</p></div></section><section class="block" aria-labelledby="manage-title"><h2 class="block-title" id="manage-title">茶园管理</h2><dl class="facts"><div><dt>茶树品种</dt><dd>以鸠坑群体种和 <span class="keep">龙井 43</span> 为主，另有少量白叶一号。</dd></div><div><dt>除草</dt><dd>不使用除草剂，人工除草一年两次。</dd></div><div><dt>农药使用记录</dt><dd>按地块保存。</dd></div><div><dt>检测报告</dt><dd>待补充。</dd></div></dl></section><div class="split block rule-top"><section aria-labelledby="timeline-title" class="sc-local-04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb-garden-cooperative-0-3-0"><h2 class="block-title" id="timeline-title">合作社沿革</h2><dl class="timeline"><div><dt>2014 年</dt><dd><span class="keep">12 户</span>茶农发起成立合作社。</dd></div><div><dt>2017 年</dt><dd>建成初制加工厂。</dd></div><div><dt>2019 年</dt><dd>增加红茶生产线。</dd></div><div><dt>2021 年</dt><dd>取得绿色食品认证。</dd></div><div><dt>2024 年</dt><dd>开始按地块记录采摘和加工批次。</dd></div></dl></section><section class="panel note-panel" aria-labelledby="credentials-title"><h2 id="credentials-title">资质</h2><p class="body-gap">绿色食品认证证书编号待补充。</p><p>食品生产许可证编号待补充。</p><p>未做有机认证，产品不标“有机茶”。</p></section></div></div><section class="block tone sc-local-04f36bb0-abd6-4a44-aa0b-01dffbc3bbdb-garden-cooperative-1" aria-labelledby="process-title"><div class="wrap split"><div><h2 class="block-title" id="process-title">加工与批次标签</h2><ol class="flow"><li>鲜叶当天采、当天进厂。</li><li>摊青后杀青、揉捻、烘干。香茶为炒干；红茶在揉捻后增加发酵工序。</li><li>拣剔、分级，装铝箔袋后放入 <span class="keep">0–5℃</span> 冷库。</li></ol><p class="body-gap">每批茶的标签贴在袋口，写明地块、采摘日期和加工日期。</p><p>包装袋和价目单都使用同一套“岚坞”字样：手写体上方有三道起伏的山线。</p></div><div><figure><img data-image-id="img_40f3db08c70e401393203641" alt="用锅手工翻炒茶叶" src="../r/images/img_40f3db08c70e401393203641.jpg"><figcaption>炒茶配图，拍摄于杭州，非本社加工厂或生产线。</figcaption></figure><p class="photo-gap">本社加工厂实拍待补充。</p></div></div></section><section class="wrap block sc-local-f6d6dcbb-9fbf-465b-8572-27688393c4b2-garden-cooperative-2" id="visit" aria-labelledby="visit-title"><h2 class="block-title" id="visit-title">茶园参观</h2><div class="split"><div><dl class="facts"><div><dt>接待季节</dt><dd>每年 <span class="keep">3 月下旬至 5 月上旬</span></dd></div><div><dt>接待时段</dt><dd><span class="keep">每周六上午</span> <span class="keep">9:00–11:30</span></dd></div><div><dt>人数</dt><dd>一次最多 <span class="keep">15 人</span></dd></div><div><dt>邮件联系</dt><dd>需提前 <span class="keep">3 天</span>发邮件说明人数。<br><span class="email">hello@lanwu-tea.luckye.online</span></dd></div><div><dt>雨天安排</dt><dd>雨天采摘暂停，参观顺延。</dd></div><div><dt>参观内容</dt><dd>看采摘和加工，品当季茶。</dd></div><div><dt>参观费用</dt><dd>待补充。</dd></div><div><dt>食宿</dt><dd>不提供住宿和餐饮。</dd></div></dl><div class="visit-address"><h3>地址与交通</h3><p>浙江省丽水市遂昌县，乡镇和门牌地址待补充。加工厂在村口，大客车能否进村待补充。</p></div></div><figure><img data-image-id="img_4a6c44209f484edb9a19b27f" alt="修剪成垄的茶树" src="../r/images/img_4a6c44209f484edb9a19b27f.jpg"><figcaption>茶树行垄配图，拍摄于杭州，非本社茶园实拍。</figcaption></figure></div></section></main><footer class="site-foot"><div class="wrap foot-inner"><strong>岚坞茶叶专业合作社</strong><dl class="foot-contact"><div><dt>邮箱</dt><dd class="email">hello@lanwu-tea.luckye.online</dd></div><div><dt>电话</dt><dd>待补充</dd></div></dl></div></footer><details class="sc-image-credits"><summary>图片来源与许可</summary><p>Hangzhou-Teeplantage-04-Straeucher-2012-gje.jpg — Gerd Eichmann; https://commons.wikimedia.org/wiki/File:Hangzhou-Teeplantage-04-Straeucher-2012-gje.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.</p><p>Hangzhou-Teeplantage-36-Teeglas-2012-gje.jpg — Gerd Eichmann; https://commons.wikimedia.org/wiki/File:Hangzhou-Teeplantage-36-Teeglas-2012-gje.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.</p><p>Hangzhou-Teeplantage-24-Trockengefaesss Haende-2012-gje.jpg — Gerd Eichmann; https://commons.wikimedia.org/wiki/File:Hangzhou-Teeplantage-24-Trockengefaesss_Haende-2012-gje.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.</p><p>Songyang tea field.jpg — Lishuilynn; https://commons.wikimedia.org/wiki/File:Songyang_tea_field.jpg; CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0); full-frame resized/JPEG re-encoded derivative. Same source license retained.</p></details></body></html>

@@ -65,7 +65,7 @@ step "smoke checks through nginx (as the tunnel would call it)"
 curl -fs -o /dev/null -w "landing %{http_code}\n" -H 'Host: sitecraft.luckye.online' http://127.0.0.1/
 curl -fs -o /dev/null -w "demo %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/
 curl -fs -o /dev/null -w "demo steps %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/steps.json
-curl -fs -o /dev/null -w "demo site package %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/files/hexiang-xiaoguan-site.zip
+curl -fs -o /dev/null -w "demo site package %{http_code}\n" -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/files/lanwu-tea-site.zip
 api_status=$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: sitecraftapp.luckye.online' http://127.0.0.1/api/health)
 echo "builder api (expect 404) $api_status"
 [ "$api_status" = 404 ] || { echo 'builder API is still reachable'; exit 1; }

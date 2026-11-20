@@ -42,7 +42,7 @@ supersedes:
 - [x] Chrome 里用本地替身分别以 Anthropic 格式（环境变量）和 OpenAI 格式（设置页保存后经请求头）从新建走到第 1 版。
 - [x] 真实 OpenAI 接口跑通规划、生成、批注修改、整页修改（`gpt-6.2-sol`，经 OpenAI Responses 格式；chat completions 格式下该模型被上游拒绝，见实跑记录）。
 - 真实 Anthropic 接口实跑：2026-11-20 负责人决定不再作为本票验收。Anthropic 兼容格式只经本地替身验证，产品页、演示和 README 已如实写明。
-- [x] `npm run typecheck`、`npm run build`、全量 `npm test` 通过（加入 Responses 格式之前的提交）。加入之后重跑：非浏览器 144/144，浏览器 1116/1116。2026-11-20 合并后的主线 c5c09cdd 在负责人 Mac 重跑：入口回归 18/18，非浏览器 144/144，浏览器 1121/1121，`npm run typecheck` 通过（先 `npx next typegen`，见 T-223 第 7 节）；`npm run build` 按规则不在 Mac 运行。
+- [x] `npm run typecheck`、`npm run build`、全量 `npm test` 通过（加入 Responses 格式之前的提交）。加入之后重跑：非浏览器 144/144，浏览器 1116/1116。2026-11-20 合并后的主线 c5c09cdd 在负责人 Mac 重跑：入口回归 18/18，非浏览器 144/144，浏览器 1121/1121，`npm run typecheck` 通过（先 `npx next typegen`，见 T-223 第 10 节）；`npm run build` 按规则不在 Mac 运行。
 - [ ] 回复文字被拆成多段、拼起来才含 key 时，调用记录和返回内容里都不留 key（OpenAI Responses、Anthropic）
 - [ ] 非 2xx 回复的编号响应头里出现转义形式的 key 时，记录里不留可还原的 key（`request-id`、`x-request-id`、`x-ds-trace-id`）
 - [ ] OpenAI Responses 回复里被采用的输出项自身未完成（`incomplete`、`in_progress`）时拒收
