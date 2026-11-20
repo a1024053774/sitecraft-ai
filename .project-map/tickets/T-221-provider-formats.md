@@ -50,3 +50,10 @@ supersedes:
 - OpenAI 严格函数对 JSON Schema 的要求与 DeepSeek 不完全相同。现有 schema 没有在真实 OpenAI 接口上发过，被拒时会显示上游的 400。
 - `scripts/` 下的真实预算脚本仍只认 `api.deepseek.com`，本票不改。
 - OpenAI 兼容格式走的是 `/chat/completions`。另一轮会话记录过（未经本票验证）：官方接口上的 `gpt-6.2-sol` 只允许经 `/v1/responses` 使用函数工具，且 `submit_fact_review` 的严格 schema（约 5.9 万字符）在那里返回 HTTP 500。若属实，该模型需要另加 Responses 格式并放宽严格模式，这要负责人另行确认；其他支持 chat completions 的 OpenAI 兼容服务不受影响。
+
+## 真实接口实跑记录
+
+- 2026-11-20，OpenAI 官方接口，`gpt-6.2-sol`，OpenAI 兼容格式，本机环境变量配置。新建站点、载入模拟纸包装包（1921 字）、风格选「帮我选」后规划。请求到达 `https://api.openai.com/v1/chat/completions`，上游返回 HTTP 400：`Function tools with reasoning_effort are not supported for gpt-6.2-sol in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'.` 没有用量，没有存大纲。工作台停在第 3 步「页面大纲没有拟出来」。只试了这一次，大纲之后的步骤没跑。
+- 结论：地址和凭据是对的（不再是 404），但这个模型在 chat completions 下不能带推理调用函数。要跑通它有两条路，都需要负责人定：加 Responses 格式（保留推理）；或在 chat completions 下把推理关掉（规划、事实核对、局部修改都不带推理）。
+- 这类 400 现在显示「上游不允许这个模型在此接口上带推理调用函数，请换模型或接口格式」。
+

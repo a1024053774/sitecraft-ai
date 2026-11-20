@@ -117,7 +117,7 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
       const message = typeof error?.error?.message === 'string' ? error.error.message : '';
       // Keep the diagnostic on the failed run; never expose credentials or the request body.
       const reason = /messages.*json|json.*messages/i.test(message) ? '上游要求消息中明确包含 json 标记' : /max_(completion_|output_)?tokens/.test(message) ? 'max_tokens 参数被拒绝' : /context|token.*limit/i.test(message) ? '上下文或 token 预算超出上游限制'
-        : /response_format|json/i.test(message) ? 'JSON 输出参数被拒绝' : /rate|quota|balance/i.test(message) ? '上游额度或限流' : response.status === 404 ? '上游没有这个地址或模型，请核对 API 地址、接口格式和模型名' : '';
+        : /response_format|json/i.test(message) ? 'JSON 输出参数被拒绝' : /reasoning_effort/.test(message) ? '上游不允许这个模型在此接口上带推理调用函数，请换模型或接口格式' : /rate|quota|balance/i.test(message) ? '上游额度或限流' : response.status === 404 ? '上游没有这个地址或模型，请核对 API 地址、接口格式和模型名' : '';
       throw new Error(`${upstream} 请求失败（HTTP ${response.status}${reason ? `，${reason}` : ''}），本次未保存版本。`);
     }
     let payload, body: string | undefined;
