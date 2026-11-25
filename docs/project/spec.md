@@ -69,7 +69,7 @@ T-162 浏览器测试在测试进程内自建随机端口替身；发送/撤销�
 
 首次生成未保存候选时沿用 T-205：保留资料与来源、追加后续资料；已确认大纲恢复原确认卡，用户点击才重新生成。整站生成及未点选区块的整站／单页修改，在写页后、检查前保存候选、阶段、父版本、大纲与偏好；失败后用户可主动点击「继续检查已生成的页面」，经原 chat 的 resume 动作进入同一提交入口，不再次写页或选历史参考。刷新不调用模型，重复／过期任务或父版本、方案、偏好变化拒绝续跑；资料与语义组变化按原规则重核，不借旧凭据或旧结论。续跑保留已消耗的最多两轮内容修正额度，通过前不存正式版本；旧任务仅可继续其已保存的最后候选并重新核对。局部批注及英文翻译不提供此续跑入口。
 
-T-210 使用唯一的严格函数 submit_fact_review，参数根直接以本批核对段 id 为键；每段仍返回 issues、noFacts、factCategories、citations，出处只填 category、claimRef、quoteRef。claimRef 的 enum 仅含当前段允许的连续原文片段，quoteRef 指向独立用户来源的连续原文；程序回读快照生成实际 claim、quote 和来源。完整段、同组条件和资料上下文仍交模型核对，编号有效不代表语义通过。未知／遗漏／重复编号、重复 JSON 属性、跨段引用、非 tool_calls 结束、非 JSON 或 schema 违规立即拒收，不修补、不重试、不进入内容修正；缺少应有出处等内容问题仍沿用原修正额度。任务在解析前保存安全的完整原始响应及输入片段、原文编号映射；命中凭据则整段舍弃，也不另存 rawMessage。
+T-210 使用唯一的严格函数 submit_fact_review，参数根直接以本批核对段 id 为键；每段仍返回 issues、noFacts、factCategories、citations，出处只填 category、claimRef、quoteRef。provider schema 将共用的 category 与 quoteRef 枚举抽到顶层 `$defs`／`$ref` 且不在 `issues` 上生成长度正则（T-230）；claimRef 的 enum 仅含当前段允许的连续原文片段，quoteRef 指向独立用户来源的连续原文；程序回读快照生成实际 claim、quote 和来源。完整段、同组条件和资料上下文仍交模型核对，编号有效不代表语义通过。全部字符串长度、条目上限及严格结构由本地 Zod 校验，未知／遗漏／重复编号、重复 JSON 属性、跨段引用、非 tool_calls 结束、非 JSON 或 schema 违规立即拒收，不修补、不重试、不进入内容修正；缺少应有出处等内容问题仍沿用原修正额度。任务在解析前保存安全的完整原始响应及输入片段、原文编号映射；命中凭据则整段舍弃，也不另存 rawMessage。
 
 T-223 工作台与轮询边界：开发模式下已通过本机环境变量配置模型时，工作台 `ProviderStatus` 优先提示正在使用本机环境变量配置而不误报未保存模型接口；`<= 600px` 视口下的 `.code-workspace .builder-chat` 使用常规静态流式排布，取消固定定位与上方 `box-shadow` 灰带；浏览器存储列表通过 `readBundleProgress` 解析本地站点包并在损坏时显式返回「本地存档损坏」与错误原因，不静默回退已保存进度；`handleCodeChat` 的 `action: 'state'` 在 `updateCodeSite` 站点锁内复核同一运行是否仍为 `running` 且不在 `active` 中后再标记中断并同步对齐状态。
 
