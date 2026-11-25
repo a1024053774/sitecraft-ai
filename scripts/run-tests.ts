@@ -5,7 +5,7 @@ import { closeSync, constants, createWriteStream, fstatSync, lstatSync, openSync
 import { appendFile, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { checkTestIdentity } from './test-identity.ts';
 
@@ -270,10 +270,11 @@ try {
     if (concurrency.length) browserConcurrency = Number(concurrency[0].split('=')[1]);
     const options = args.filter(arg => !arg.endsWith('.test.ts') && !arg.startsWith('--browser-concurrency='));
     assert.ok(!options.some(arg => arg.startsWith('--test-concurrency')), '请用 --browser-concurrency 设置浏览器池；非浏览器池保留默认并发');
+    const rel = (target: string) => path.relative(project, target).replaceAll('\\', '/');
     for (const file of files) {
       const dependency = browserDependency(file);
       if (dependency) { classification.browser.push(dependency);
-        console.log(`浏览器池：${path.relative(project, file)}（${dependency.via.map(item => path.relative(project, item)).join(' → ')} → ${dependency.marker}）`); }
+        console.log(`浏览器池：${rel(file)}（${dependency.via.map(rel).join(' → ')} → ${dependency.marker}）`); }
       else classification.nonBrowser.push(file);
     }
     console.log(`测试分池：非浏览器 ${classification.nonBrowser.length} 个文件；浏览器 ${classification.browser.length} 个文件，并发 ${browserConcurrency}`);
@@ -292,7 +293,7 @@ try {
         const phaseSummaryFile = path.join(output, `summaries-${phase.name}.ndjson`);
         console.log(`测试阶段：${phase.name}（${phase.files.length} 个文件）`);
         tests = spawn(process.execPath, ['--test', '--experimental-strip-types',
-          '--test-reporter=spec', `--test-reporter=${path.resolve('scripts/test-summary-reporter.mjs')}`,
+          '--test-reporter=spec', `--test-reporter=${pathToFileURL(path.resolve('scripts/test-summary-reporter.mjs')).href}`,
           '--test-reporter-destination=stdout', `--test-reporter-destination=${phaseSummaryFile}`, ...options,
           ...(phase.name === 'browser' ? [`--test-concurrency=${browserConcurrency}`] : []), ...phase.files], {
           env: { ...env, SITECRAFT_BASE: base }, stdio: ['ignore', 'pipe', 'pipe'],
@@ -311,9 +312,20 @@ try {
             const snapshot = await new Promise<string>((resolve, reject) => execFile('ps', ['-axww', '-o', 'pid=,ppid=,comm=,args='],
               { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 2000 }, (error, stdout) => error ? reject(error) : resolve(stdout)));
             const rows = new Map<number, { parent: number; executable: string; args: string }>();
+            const executables = [process.execPath, env.CHROME_PATH].filter((v): v is string => Boolean(v))
+              .sort((a, b) => b.length - a.length);
             for (const line of snapshot.split('\n')) {
-              const match = line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/);
-              if (match) rows.set(Number(match[1]), { parent: Number(match[2]), executable: match[3], args: match[4] });
+              const head = line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/);
+              if (!head) continue;
+              const rest = head[3];
+              const known = executables.find(exe => rest === exe || rest.startsWith(`${exe} `));
+              const parsed = known
+                ? { executable: known, args: rest.slice(known.length).trimStart() }
+                : (() => {
+                    const match = rest.match(/^(\S+)\s+(.*)$/);
+                    return match ? { executable: match[1], args: match[2] } : undefined;
+                  })();
+              if (parsed?.args) rows.set(Number(head[1]), { parent: Number(head[2]), ...parsed });
             }
             const descendants = new Set([phasePid]);
             let previousSize: number;
@@ -334,7 +346,7 @@ try {
               const warning = { file: owner?.file ?? '无法归属（采样时工作进程已退出）', workerPid: owner?.workerPid ?? null,
                 chromePid: pid, observedAt: new Date().toISOString() };
               browserWarnings.push(warning); warned.add(pid);
-              const message = `非浏览器池发现 Chrome：${owner ? path.relative(project, owner.file) : warning.file}（worker=${warning.workerPid}, Chrome=${pid}）；仅告警，测试继续\n`;
+              const message = `非浏览器池发现 Chrome：${owner ? path.relative(project, owner.file).replaceAll('\\', '/') : warning.file}（worker=${warning.workerPid}, Chrome=${pid}）；仅告警，测试继续\n`;
               process.stderr.write(message); testLog.write(message);
             }
           } catch (error) {

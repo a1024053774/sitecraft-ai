@@ -11,10 +11,16 @@ import test from 'node:test';
 // Run separately from the full suite: these cases own the real npm test entry
 // and its dev server. They cannot share the full suite's live Next dev lock.
 const project = fileURLToPath(new URL('../', import.meta.url));
+const npmCli = path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
+function spawnNpm(args: string[], options: { cwd: string; env: NodeJS.ProcessEnv; stdio?: ['ignore', 'pipe', 'pipe'] }) {
+  return process.platform === 'win32' && existsSync(npmCli)
+    ? spawn(process.execPath, [npmCli, ...args], { cwd: options.cwd, env: options.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    : spawn('npm', args, { cwd: options.cwd, env: options.env, stdio: ['ignore', 'pipe', 'pipe'] });
+}
 async function run(args: string[], context: string | undefined) {
   const env: NodeJS.ProcessEnv = { ...process.env, DEEPSEEK_API_KEY: '', AI_API_KEY: '' };
   if (context === undefined) delete env.NODE_TEST_CONTEXT; else env.NODE_TEST_CONTEXT = context;
-  const child = spawn('npm', ['test', '--', ...args], { cwd: project, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawnNpm(['test', '--', ...args], { cwd: project, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const completed = once(child, 'exit'); let output = '';
   child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
   const [code] = await completed;
@@ -22,8 +28,8 @@ async function run(args: string[], context: string | undefined) {
   await mkdir(out, { recursive: true });
   await writeFile(path.join(out, 'output.log'), output, 'utf8');
   await writeFile(path.join(out, 'report.json'), JSON.stringify({ at: new Date().toISOString(), args, context, code }, null, 2) + '\n', 'utf8');
-  const match = output.match(/证据目录：([^\n]+)\n/);
-  const report = match ? JSON.parse(await readFile(path.join(match[1], 'report.json'), 'utf8')) : undefined;
+  const match = output.match(/证据目录：([^\r\n]+)\r?\n/);
+  const report = match ? JSON.parse(await readFile(path.join(match[1].trim(), 'report.json'), 'utf8')) : undefined;
   return { output, code, out, report };
 }
 
@@ -133,7 +139,7 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
     const cwd = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-entry-'));
     for (const directory of ['node_modules/next/dist/bin', 'scripts', 'tests/helpers', 'lib'])
       await mkdir(path.join(cwd, directory), { recursive: true });
-    await symlink(path.join(project, 'node_modules/typescript'), path.join(cwd, 'node_modules/typescript'));
+    await symlink(path.join(project, 'node_modules/typescript'), path.join(cwd, 'node_modules/typescript'), process.platform === 'win32' ? 'junction' : 'dir');
     for (const name of ['run-tests.ts', 'test-identity.ts', 'local-endpoint.ts', 'test-summary-reporter.mjs'])
       await copyFile(path.join(project, 'scripts', name), path.join(cwd, 'scripts', name));
     await writeFile(path.join(cwd, 'package.json'), JSON.stringify({ scripts: { test: 'node --require ./capture.cjs --experimental-strip-types scripts/run-tests.ts' } }), 'utf8');
@@ -183,12 +189,12 @@ test('T-179: runtime imports classify browser pools, execute once, merge summari
     if (scenario === 'nonbrowser-failure') await writeFile(path.join(cwd, 'fail-nonbrowser'), '故意让非浏览器池失败', 'utf8');
     const args = scenario === 'filtered' ? ['--test-name-pattern=^browser ', ...[...nonBrowser, ...browser].map(name => `tests/${name}`), 'tests/indirect.test.ts']
       : scenario === 'cap-two' ? ['--browser-concurrency=2'] : [];
-    const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: cwd, DEEPSEEK_API_KEY: '', AI_API_KEY: '' }; delete env.NODE_TEST_CONTEXT;
-    const child = spawn('npm', ['test', '--', ...args], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: cwd, TEMP: cwd, TMP: cwd, DEEPSEEK_API_KEY: '', AI_API_KEY: '' }; delete env.NODE_TEST_CONTEXT;
+    const child = spawnNpm(['test', '--', ...args], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
     const closed = once(child, 'close'); let output = '';
     child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
     const [code] = await closed;
-    const directory = output.match(/证据目录：([^\n]+)/)?.[1]; assert.ok(directory, output);
+    const directory = output.match(/证据目录：([^\r\n]+)/)?.[1]?.trim(); assert.ok(directory, output);
     const report = JSON.parse(await readFile(path.join(directory, 'report.json'), 'utf8'));
     const spawns = (await readFile(path.join(cwd, 'spawns.ndjson'), 'utf8')).trim().split('\n').map(line => JSON.parse(line));
     const executed = (await readFile(path.join(cwd, 'executed.ndjson'), 'utf8')).trim().split('\n').map(line => JSON.parse(line));
@@ -227,7 +233,7 @@ test('T-179: unexpected Chrome is attributed to its non-browser file and only wa
   const cwd = await mkdtemp(path.join(tmpdir(), 'sitecraft-t179-warning-'));
   for (const directory of ['node_modules/next/dist/bin', 'scripts', 'tests'])
     await mkdir(path.join(cwd, directory), { recursive: true });
-  await symlink(path.join(project, 'node_modules/typescript'), path.join(cwd, 'node_modules/typescript'));
+  await symlink(path.join(project, 'node_modules/typescript'), path.join(cwd, 'node_modules/typescript'), process.platform === 'win32' ? 'junction' : 'dir');
   for (const name of ['run-tests.ts', 'test-identity.ts', 'local-endpoint.ts', 'test-summary-reporter.mjs'])
     await copyFile(path.join(project, 'scripts', name), path.join(cwd, 'scripts', name));
   await writeFile(path.join(cwd, 'package.json'), JSON.stringify({ scripts: { test: 'node --require ./process-fixture.cjs --experimental-strip-types scripts/run-tests.ts' } }));
@@ -243,7 +249,7 @@ test('T-179: unexpected Chrome is attributed to its non-browser file and only wa
     cp.spawn=function(command,args,options){const child=spawn.call(this,command,args,options);if(args.includes('--test'))phase=child;return child;};
     cp.execFile=function(command,args,options,callback){
       if(command!=='ps')return execFile.apply(this,arguments);
-      const target=process.cwd()+'/tests/z-owner.test.ts',other=process.cwd()+'/tests/a-other.test.ts',chrome=process.env.CHROME_PATH;
+      const path=require('node:path'),target=path.join(process.cwd(),'tests','z-owner.test.ts'),other=path.join(process.cwd(),'tests','a-other.test.ts'),chrome=process.env.CHROME_PATH;
       const rows=[
         [phase.pid,process.pid,process.execPath,process.execPath+' --test '+other+' '+target],
         [700001,phase.pid,process.execPath,process.execPath+' '+target],
@@ -268,12 +274,12 @@ test('T-179: unexpected Chrome is attributed to its non-browser file and only wa
       function finish(){clearTimeout(timer);watcher.close();resolve();}
     }));
   `);
-  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: cwd, CHROME_PATH: '/fixture/chrome-headless-shell', DEEPSEEK_API_KEY: '', AI_API_KEY: '' }; delete env.NODE_TEST_CONTEXT;
-  const child = spawn('npm', ['test'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const env: NodeJS.ProcessEnv = { ...process.env, TMPDIR: cwd, TEMP: cwd, TMP: cwd, CHROME_PATH: '/fixture/chrome-headless-shell', DEEPSEEK_API_KEY: '', AI_API_KEY: '' }; delete env.NODE_TEST_CONTEXT;
+  const child = spawnNpm(['test'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const closed = once(child, 'close'); let output = '';
   child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
   const [code] = await closed;
-  const directory = output.match(/证据目录：([^\n]+)/)?.[1]; assert.ok(directory, output);
+  const directory = output.match(/证据目录：([^\r\n]+)/)?.[1]?.trim(); assert.ok(directory, output);
   const report = JSON.parse(await readFile(path.join(directory, 'report.json'), 'utf8'));
   const out = path.join(project, 'artifacts/t179', `runtime-warning-${crypto.randomUUID()}`);
   await mkdir(out, { recursive: true });
