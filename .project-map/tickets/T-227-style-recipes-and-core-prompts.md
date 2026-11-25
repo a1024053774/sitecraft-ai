@@ -2,7 +2,7 @@
 id: T-227
 title: 第一阶段（1/2）：核心规范解耦、四风格配方重写、滑杆保真与候选风格登记
 type: build
-status: done
+status: closed
 blocked_by: [T-226]
 claimed_by: Antigravity
 supersedes:
