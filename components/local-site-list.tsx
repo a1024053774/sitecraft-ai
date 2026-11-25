@@ -20,7 +20,7 @@ export function LocalSiteList({ limit }: { limit?: number }) {
         const text = siteProgressText(site), version = siteVersionText(site);
         return (
           <Link key={site.siteId} className="local-site-row" href={`/workspace?site=${encodeURIComponent(site.siteId)}` as Route}>
-            <strong>{site.siteName}</strong>
+            <span><strong>{site.siteName}</strong>{site.readError && <small className="site-read-error" role="status">{site.readError}</small>}</span>
             <SiteProgress site={site} />
             <span>{version.main === '—' ? version.sub : `${version.main} · ${version.sub}`} · 最后修改 {formatUpdatedAt(site.updatedAt)}</span>
             <span className="site-table-action">{text.action} <ArrowUpRight size={12} /></span>

@@ -998,7 +998,8 @@ a.site-table-row:hover, article.site-table-row:hover { background: #fff; }
 }
 @media (max-width: 600px) {
   .code-workspace .tool-button, .code-workspace .topbar-back { width: 40px; height: 40px; }
-  .code-workspace .builder-chat { border-left: 0; border-top: 1px solid var(--ws-line-strong); border-radius: 0; }
+  .code-workspace .builder-chat { position: static; width: auto; height: auto; max-height: none; min-height: 0; border-left: 0; border-top: 1px solid var(--ws-line-strong); border-radius: 0; box-shadow: none; }
+  .code-workspace .builder-chat.mobile-hidden { display: none; }
   .code-steps li { justify-content: center; padding: 6px 4px; }
   .code-steps li:not(.current) strong { display: none; }
   .code-steps li.current { grid-template-columns: auto auto; }

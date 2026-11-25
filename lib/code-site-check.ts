@@ -22,32 +22,123 @@ import { readCodeReadable } from './code-site-readable.ts';
 // Runs in an empty browser document. DOMParser keeps candidate markup inert until cleaning finishes.
 function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], backdropIds: string[], backdropUrls: string[], selectedTargets: AnnotationTarget[] = []) {
   const issues: string[] = [], cleaned: string[] = [];
-  const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a button strong em b i small br hr details summary address blockquote time'.split(' '));
+  const allowed = new Set('header footer main section article aside nav div span p h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure figcaption img a button strong em b i small br wbr hr details summary address blockquote time'.split(' '));
+  const checkStyleValue = (name: string, value: string) => {
+    const urls = [...value.matchAll(/url\(\s*["']?([^"')\s]+)["']?\s*\)/gi)].map(match => match[1]);
+    const hasUrl = /url\s*\(/i.test(value);
+    const registeredBackground = /^(background|background-image)$/.test(name) && urls.length > 0
+      && urls.length === (value.match(/url\s*\(/gi)?.length || 0) && urls.every(url => backdropUrls.includes(url));
+    return (hasUrl && !registeredBackground) || /image-set\s*\(|cross-fade\s*\(|expression\s*\(|\\|[<>]/i.test(value) || /^(behavior|-moz-binding)$/i.test(name);
+  };
   const safeCss = (style: CSSStyleDeclaration) => {
     for (const name of [...style]) {
-      const value = style.getPropertyValue(name);
-      const urls = [...value.matchAll(/url\(\s*["']?([^"')\s]+)["']?\s*\)/gi)].map(match => match[1]);
-      const hasUrl = /url\s*\(/i.test(value);
-      const registeredBackground = /^(background|background-image)$/.test(name) && urls.length > 0
-        && urls.length === (value.match(/url\s*\(/gi)?.length || 0) && urls.every(url => backdropUrls.includes(url));
-      if ((hasUrl && !registeredBackground) || /image-set\s*\(|cross-fade\s*\(|expression\s*\(|\\|[<>]/i.test(value) || /^(behavior|-moz-binding)$/i.test(name)) {
+      if (checkStyleValue(name, style.getPropertyValue(name))) {
         issues.push(`CSS ${name} 含资源、动态内容或不安全语法`); style.removeProperty(name);
+      }
+    }
+    const text = style.cssText;
+    const colon = text.indexOf(':');
+    if (colon > 0) {
+      const declName = text.slice(0, colon).trim().toLowerCase(), declValue = text.slice(colon + 1).replace(/;\s*$/, '').trim();
+      if (checkStyleValue(declName, declValue)) {
+        issues.push(`CSS ${declName} 含资源、动态内容或不安全语法`);
+        for (const name of [...style]) style.removeProperty(name);
+        return '';
       }
     }
     return style.cssText;
   };
+  const stripCssComments = (input: string) => {
+    let out = '', quote = '';
+    for (let i = 0; i < input.length; i++) {
+      const char = input[i];
+      if (quote) { out += char; if (char === '\\' && i + 1 < input.length) { out += input[++i]; } else if (char === quote) quote = ''; continue; }
+      if (char === '"' || char === "'") { quote = char; out += char; continue; }
+      if (char === '/' && input[i + 1] === '*') { const end = input.indexOf('*/', i + 2); if (end < 0) break; i = end + 1; continue; }
+      out += char;
+    }
+    return out;
+  };
+  const splitCssBlock = (input: string) => {
+    const items: Array<{ kind: 'decl'; text: string } | { kind: 'rule'; prelude: string; body: string }> = [];
+    let start = 0, quote = '', paren = 0;
+    for (let i = 0; i < input.length; i++) {
+      const char = input[i];
+      if (quote) { if (char === '\\' && i + 1 < input.length) i++; else if (char === quote) quote = ''; continue; }
+      if (char === '"' || char === "'") { quote = char; continue; }
+      if (char === '(' || char === '[') { paren++; continue; }
+      if ((char === ')' || char === ']') && paren > 0) { paren--; continue; }
+      if (paren > 0) continue;
+      if (char === ';') {
+        const decl = input.slice(start, i).trim(); if (decl) items.push({ kind: 'decl', text: decl });
+        start = i + 1;
+      } else if (char === '{') {
+        const prelude = input.slice(start, i).trim();
+        let depth = 1, j = i + 1, innerQuote = '';
+        for (; j < input.length && depth > 0; j++) {
+          const ch = input[j];
+          if (innerQuote) { if (ch === '\\' && j + 1 < input.length) j++; else if (ch === innerQuote) innerQuote = ''; continue; }
+          if (ch === '"' || ch === "'") { innerQuote = ch; continue; }
+          if (ch === '{') depth++; else if (ch === '}') depth--;
+        }
+        const body = input.slice(i + 1, depth === 0 ? j - 1 : j);
+        items.push({ kind: 'rule', prelude, body });
+        i = j - 1; start = j;
+      }
+    }
+    const tail = input.slice(start).trim();
+    if (tail) items.push({ kind: 'decl', text: tail });
+    return items;
+  };
+  const scratch = new CSSStyleSheet();
+  const cleanDeclaration = (decl: string) => {
+    scratch.replaceSync(`x{${decl}}`);
+    const rule = scratch.cssRules[0];
+    return rule instanceof CSSStyleRule ? safeCss(rule.style) : '';
+  };
+  const cleanDeclarations = (raw: string) => {
+    if (/[<\\]/.test(raw)) issues.push('CSS 含外部资源、反斜杠或 HTML 起始符号');
+    return splitCssBlock(stripCssComments(raw.replace(/[<\\]/g, '')))
+      .filter((item): item is { kind: 'decl'; text: string } => item.kind === 'decl')
+      .map(item => cleanDeclaration(item.text)).filter(Boolean).join(' ');
+  };
   const cleanCss = (css: string) => {
     if (/[<\\]/.test(css) || /@import|@font-face/i.test(css)) issues.push('CSS 含外部资源、反斜杠或 HTML 起始符号');
-    const sheet = new CSSStyleSheet(); sheet.replaceSync(css.replace(/[<\\]/g, ''));
-    const walk = (rules: CSSRuleList): string => [...rules].map(rule => {
-      if (rule instanceof CSSStyleRule) return `${rule.selectorText}{${safeCss(rule.style)}${walk(rule.cssRules)}}`;
-      if (rule instanceof CSSNestedDeclarations) return safeCss(rule.style);
-      if (rule instanceof CSSMediaRule) return `@media ${rule.conditionText}{${walk(rule.cssRules)}}`;
-      if (rule instanceof CSSSupportsRule) return `@supports ${rule.conditionText}{${walk(rule.cssRules)}}`;
-      if (rule instanceof CSSContainerRule) return `@container ${rule.conditionText}{${walk(rule.cssRules)}}`;
-      issues.push('CSS 使用未支持的资源规则'); return '';
-    }).join('\n');
-    return walk(sheet.cssRules);
+    const sanitized = stripCssComments(css.replace(/[<\\]/g, ''));
+    const walkBlock = (raw: string, inStyleRule: boolean): string => {
+      const parts: string[] = [];
+      for (const item of splitCssBlock(raw)) {
+        if (item.kind === 'decl') {
+          if (inStyleRule) {
+            const decl = cleanDeclaration(item.text);
+            if (decl) parts.push(decl);
+          } else {
+            scratch.replaceSync(`${item.text};`);
+            if (scratch.cssRules.length) issues.push('CSS 使用未支持的资源规则');
+          }
+          continue;
+        }
+        if (!item.prelude) continue;
+        scratch.replaceSync(inStyleRule ? `x{${item.prelude}{}}` : `${item.prelude}{}`);
+        const parsedRule = inStyleRule
+          ? (scratch.cssRules[0] instanceof CSSStyleRule ? scratch.cssRules[0].cssRules[0] : undefined)
+          : scratch.cssRules[0];
+        if (!parsedRule) continue;
+        if (parsedRule instanceof CSSStyleRule) {
+          parts.push(`${parsedRule.selectorText}{${walkBlock(item.body, true)}}`);
+        } else if (parsedRule instanceof CSSMediaRule) {
+          parts.push(`@media ${parsedRule.conditionText}{${walkBlock(item.body, inStyleRule)}}`);
+        } else if (parsedRule instanceof CSSSupportsRule) {
+          parts.push(`@supports ${parsedRule.conditionText}{${walkBlock(item.body, inStyleRule)}}`);
+        } else if (parsedRule instanceof CSSContainerRule) {
+          parts.push(`@container ${parsedRule.conditionText}{${walkBlock(item.body, inStyleRule)}}`);
+        } else {
+          issues.push('CSS 使用未支持的资源规则');
+        }
+      }
+      return parts.join(inStyleRule ? ' ' : '\n');
+    };
+    return walkBlock(sanitized, false);
   };
   const cleanHtml = (html: string) => {
     const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
@@ -62,10 +153,15 @@ function cleanCandidate(code: SiteCode, permitted: string[], iconIds: string[], 
       }
       for (const attr of [...node.attributes]) {
         const name = attr.name, value = attr.value;
-        if (name === 'style') { const el = node as HTMLElement; node.setAttribute('style', safeCss(el.style)); continue; }
+        if (name === 'style') { node.setAttribute('style', cleanDeclarations(value)); continue; }
         if (['href', 'src', 'srcset'].includes(name)) {
           if (name === 'href' && (/^\/[a-z][a-z0-9-]*(?:#[a-zA-Z0-9_-]+)?$/.test(value) || /^#[a-zA-Z0-9_-]+$/.test(value) || /^(mailto|tel):[^\s<>]+$/.test(value))) continue;
-          issues.push(`已去掉资源或空链接 ${name}=${value.slice(0,100)}`); node.removeAttribute(name); continue;
+          if (node.tagName === 'IMG' && name === 'src' && /^img_[a-z0-9_]+$/i.test(value.trim()) && !node.hasAttribute('data-image-id')) {
+            issues.push(`图片请写 <img data-image-id="${value.trim()}" alt="…">，不要写 src 属性`);
+          } else {
+            issues.push(`已去掉资源或空链接 ${name}=${value.slice(0,100)}`);
+          }
+          node.removeAttribute(name); continue;
         }
         if (/^(class|id|alt|title|role|lang|width|height|colspan|rowspan|scope|headers|open|datetime|disabled)$/.test(name) || /^aria-[a-z-]+$/.test(name) || /^data-[a-z-]+$/.test(name)) continue;
         issues.push(`已去掉属性 ${name}`); node.removeAttribute(name);
@@ -666,6 +762,10 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
             dynamicState = { mode: probeStates ? 'states' : 'static', budget, classificationMs, compareMs, durationMs: performance.now() - dynamicStarted, source: metrics(evidence[0]), candidate: metrics(evidence[1]) };
             completed = true;
           } finally {
+            if (completed) {
+              await browser.send('Emulation.setScrollbarsHidden', { hidden: false });
+              if (dynamicBrowser) await dynamicBrowser.send('Emulation.setScrollbarsHidden', { hidden: false });
+            }
             const endedAt = Date.now();
             remainingDynamicMs = Math.max(0, remainingDynamicMs - Math.max(0, endedAt - wallStartedAt));
             recordCheckDiagnostic({ kind: 'dynamic-check', siteId: args.siteId, pageId: page.id, width, mode: probeStates ? 'states' : 'static',
@@ -770,7 +870,23 @@ export async function checkSiteCode(args: { siteId: string; code: SiteCode; mate
     }
     if (args.translationSource && checks.issues.some(issue => issue.includes(' CSS/') && issue.includes('仍含中文文字'))) checks.issues.push('英文版仍含 CSS 生成的中文文字；请先把中文版这些文字改为 HTML 文字节点。');
     const numbers = (s: string) => s.normalize('NFKC').match(/\d+(?:\.\d+)?/g) ?? [];
-    const allowedNumbers = new Set(numbers(args.materials));
+    const calendarDateNumbers = (s: string) => {
+      const normalized = s.normalize('NFKC'), extras: string[] = [];
+      const addVariants = (...parts: Array<string | undefined>) => {
+        for (const part of parts) if (part) {
+          const n = Number(part);
+          extras.push(String(n), String(n).padStart(2, '0'));
+        }
+      };
+      for (const m of normalized.matchAll(/(?<!\d)(?:19|20)\d{2}\s*[-/.]\s*(0?[1-9]|1[0-2])(?:\s*[-/.]\s*(0?[1-9]|[12]\d|3[01]))?(?!\s*[-/.]\s*\d)(?!\d)/g)) {
+        addVariants(m[1], m[2]);
+      }
+      for (const m of normalized.matchAll(/(?:(?<!\d)(?:19|20)\d{2}\s*年\s*(0?[1-9]|1[0-2])\s*月(?:\s*(0?[1-9]|[12]\d|3[01])\s*[日号])?|(?<!\d)(0?[1-9]|1[0-2])\s*月\s*(0?[1-9]|[12]\d|3[01])\s*[日号])/g)) {
+        addVariants(m[1], m[2], m[3], m[4]);
+      }
+      return extras;
+    };
+    const allowedNumbers = new Set([...numbers(args.materials), ...calendarDateNumbers(args.materials)]);
     // English already compares equivalent values in each source paragraph; a raw
     // material-number pass would reject grouping and magnitude spelling changes.
     if (!args.translationSource) {

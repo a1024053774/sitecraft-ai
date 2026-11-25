@@ -48,3 +48,8 @@ export function providerHeaders(): Record<string, string> {
   const settings = readProviderSettings();
   return settings ? { 'x-sitecraft-provider-base': settings.baseURL, 'x-sitecraft-provider-key': settings.apiKey, 'x-sitecraft-provider-model': settings.model, 'x-sitecraft-provider-format': settings.format } : {};
 }
+export function providerStatusText(browserModel: string | null, serverModel?: string | null): string {
+  if (browserModel) return `模型接口已保存在这个浏览器里（${browserModel}）。`;
+  if (serverModel) return `当前使用本机环境变量的模型接口（${serverModel}），这个浏览器里未单独保存。`;
+  return '这个浏览器里还没有保存模型接口。';
+}

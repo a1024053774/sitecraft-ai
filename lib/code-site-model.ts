@@ -198,6 +198,9 @@ function strictFunctionParameters(schema: z.ZodType) {
   const { $schema: _schema, ...parameters } = json;
   return parameters;
 }
+export function joinPageOutline(items: string[]) {
+  return items.map(item => item.trim().replace(/[。；;]+$/g, '')).filter(Boolean).join('；');
+}
 export async function planSiteCode(materials: string, preferences: CodePreferences, request: string) {
   const cards = await planningCards();
   const schema = planSchema(cards.order, preferences.style === 'auto' ? readyCodeStyleIds : [preferences.style]);
@@ -208,7 +211,7 @@ export async function planSiteCode(materials: string, preferences: CodePreferenc
     ? '页面骨架编号无效，请重新规划。' : '页面大纲格式不正确，方案未保存。');
   const { skeletonId, skeletonReason, ...plan } = parsed.data;
   if (preferences.style !== 'auto' && plan.style !== preferences.style) throw new Error('模型更改了用户选定的风格，方案未保存。');
-  return { plan: { ...plan, pages: plan.pages.map(page => ({ ...page, outline: page.outline.join('；') })),
+  return { plan: { ...plan, pages: plan.pages.map(page => ({ ...page, outline: joinPageOutline(page.outline) })),
     skeleton: { id: skeletonId, reason: skeletonReason }, skeletonOrder: cards.order } as CodePlan, model: result.model };
 }
 export async function selectCodeReferences(args: { request: string; currentRevision: number; versions: CodeVersion[]; preferences: CodePreferences }) {
@@ -238,8 +241,9 @@ const localEditParameters = { type: 'object', properties: {
   html: { type: 'string' }, css: { type: 'string' }, cannotEdit: { type: 'string' },
 }, required: ['html', 'css', 'cannotEdit'], additionalProperties: false };
 export async function writeLocalEdit(args: { materials: string; preferences: CodePreferences; plan: CodePlan; request: string;
-  current: SiteCode; target: AnnotationTarget; issues: string[]; edits?: LocalEditGroup['items'] }) {
+  current: SiteCode; target: AnnotationTarget; issues: string[]; edits?: LocalEditGroup['items']; images?: SiteImageRecord[] }) {
   const context = await localEditContext(args.current, args.target);
+  const images = args.images?.filter(i => i.usageScope !== 'docs-only').map(i => ({ imageId: i.imageId, name: i.originalName, category: i.usageCategory }));
   const [contract, style] = await Promise.all([
     readFile(path.join(process.cwd(), 'skills/site-code-core/LOCAL-EDIT.md'), 'utf8'),
     readFile(path.join(process.cwd(), 'skills', codeStyles[codeStyleSchema.parse(args.plan.style)].skill), 'utf8'),
@@ -247,6 +251,7 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
   const stylePoints = style.replace(/^---\n[\s\S]*?\n---\n/, '').trim().split('\n\n')[0];
   const result = await modelJson('local-edit', `${contract}\n风格要点：${stylePoints}\n${codeSliderRules(args.preferences)}`,
     JSON.stringify({ request: args.request, materials: args.materials, page: args.plan.pages.find(page => page.id === args.target.pageId),
+      ...(images ? { images } : {}),
       scope: context.scope, html: context.html, css: context.css, issues: args.issues,
       ...(args.edits ? { edits: args.edits.map(item => {
         const prefix = item.target.path.slice(args.target.path.length);
@@ -264,14 +269,14 @@ export async function writeLocalEdit(args: { materials: string; preferences: Cod
   return { response: parsed.data, model: result.model };
 }
 export async function writeLocalEditBatch(args: { materials: string; preferences: CodePreferences; plan: CodePlan; current: SiteCode;
-  groups: LocalEditGroup[]; issues: string[]; groupIssues?: string[][] }) {
+  groups: LocalEditGroup[]; issues: string[]; groupIssues?: string[][]; images?: SiteImageRecord[] }) {
   const results: Array<{ group: LocalEditGroup; response: z.infer<typeof localEditSchema>; model: string }> = [];
   for (const group of args.groups) {
     // Admission is checked for every group immediately before its model call;
     // a later group must not rely on an earlier task-level check.
     requireModelTaskAdmission(args.plan.style);
     const result = await writeLocalEdit({ materials: `${args.materials}\n本组批注原文：\n${group.items.map(item => item.body).join('\n\n')}`, preferences: args.preferences, plan: args.plan,
-      request: group.request, current: args.current, target: group.target, edits: group.items, issues: args.groupIssues?.[results.length] ?? args.issues });
+      request: group.request, current: args.current, target: group.target, edits: group.items, issues: args.groupIssues?.[results.length] ?? args.issues, images: args.images });
     results.push({ group, response: result.response, model: result.model });
   }
   return results;

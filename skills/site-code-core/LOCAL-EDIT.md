@@ -6,7 +6,7 @@
 
 通过 submit_local_edit 函数参数提交 {"html":"一个完整区块元素","css":"新增的区块专属 CSS 规则","cannotEdit":""}，三个字段均必填字符串，不用 null；不返回 main、整页或公共片段。根元素保留 scope 字段给出的专属类名；CSS 只追加以点号加该类名起始的规则，不抄共享选择器，不用兄弟选择器、:has、嵌套 CSS 或跨区块计数器，可用 @media 包裹。已有匹配 CSS 供参考，局部覆盖用 scope 提高优先级。范围外代码由系统保留。
 
-HTML 全部闭合，不加脚本、事件、外部资源或空链接。沿用系统图片编号与图标，不生成 SVG 或假照片。文案写 HTML，不用 CSS content 造字；375/768/1440 不溢出、不重叠，正文对比度至少 4.5:1，无动效。
+HTML 全部闭合，不加脚本、事件、外部资源或空链接；允许用 `<wbr>` 提示长串断点。使用已登记图片（来自输入 `images` 或区块已有编号）时必须写成 `<img data-image-id="img_xxx" alt="真实说明">`，不得写 `src` 或 `srcset` 属性；系统图标写成空元素 `<span data-system-icon="phone" aria-hidden="true"></span>`；系统抽象底图只把 `data-system-backdrop="bd_xxx"` 写在容器上，不替代照片。不生成 SVG 或假照片。文案写 HTML，不用 CSS content 造字；375/768/1440 不溢出、不重叠，正文对比度至少 4.5:1，无动效。
 
 原生列表圆点、编号和 CSS counter 的叠底同样须可测量：列表及其有底色祖先使用 border-radius:0、background-clip:border-box 的直角实色背景，不用裁剪或变换改变形状；宿主与伪元素保持 z-index:auto，标记保持 outside。保留列表语义、顺序、圆点与编号，不靠隐藏或手写数字规避检查。只在选中区块内采用可核实排法，不能改范围外祖先的样式；无法在本区块完成时按原合同说明不能修改。
 

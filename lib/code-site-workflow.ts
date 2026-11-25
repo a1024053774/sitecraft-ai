@@ -165,7 +165,7 @@ async function executeLocalEdit(site: CodeSiteRecord, run: CodeRun) {
   for (let round = 0; round <= 2; round++) {
     await runStep(site.siteId, run.id, { step: round ? `修正选中区块（${round}/2）` : `修改「${target.label}」`, repairRound: round });
     const result = await writeLocalEdit({ materials, preferences: site.preferences, plan: site.plan!, request: run.request,
-      current: source.code, target, issues });
+      current: source.code, target, issues, images: await listSiteImages(site.siteId) });
     // Preserve the validated candidate before scope checks or fact review. A
     // later provider failure must not discard the unsaved candidate.
     await runStep(site.siteId, run.id, { localResponses: [...((await getCodeSite(site.siteId))!.run!.localResponses ?? []), { response: result.response, issues: [] }] });
@@ -223,7 +223,7 @@ async function executeLocalEditBatch(site: CodeSiteRecord, run: CodeRun) {
   for (let round = 0; round <= 2; round++) {
     await runStep(site.siteId, run.id, { step: round ? `修正 ${groups.length} 个选中区块（${round}/2）` : `合并修改 ${groups.length} 个选中区块`, repairRound: round });
     const results = await writeLocalEditBatch({ materials, preferences: site.preferences, plan: site.plan!, current: source.code,
-      groups, issues: groupIssues.flat(), groupIssues });
+      groups, issues: groupIssues.flat(), groupIssues, images: await listSiteImages(site.siteId) });
     const current = (await getCodeSite(site.siteId))!.run!;
     const responses = [...(current.localResponses ?? []), ...results.map(result => ({ response: result.response, issues: [] as string[] }))];
     await runStep(site.siteId, run.id, { localResponses: responses });
@@ -407,20 +407,29 @@ export async function handleCodeChat(siteId: string, raw: unknown) {
       if (state.conversationError) return Response.json(state);
       // Refreshes observe the existing job. A stopped process is reported; it never repeats a model call.
       if (site.run?.status === 'running' && !active.has(site.run.id)) {
-        const firstGeneration = !currentCodeVersion(site) && site.run.kind === 'generate' && !!site.plan;
-        site = await runStep(siteId, site.run.id, { status: 'error', step: site.run.checkpoint
-          ? '检查进程已中断，已生成的页面保留。可点击继续检查；刷新不会自动调用模型。' : firstGeneration
-          ? '生成进程已中断，本次未完成；原资料和大纲已保留，可按已保存的大纲重新生成，也可补充资料后重新规划。'
-          : '任务进程已中断，本次未完成；原资料已保留，可补充要求后继续。' });
-        await updateConversationAlignment(siteId, site.conversationId, record => {
-          const alignment = applyCommittedResult(record.alignment, { status: 'error', summary: site.run!.step });
-          if (site.run!.checkpoint || !firstGeneration || !record.alignment.confirmClaimed || !alignment.proposedChange) return { ...record, alignment };
-          const epoch = alignment.epoch + 1, questionId = `code-confirm-${crypto.randomUUID()}`;
-          return { ...record, alignment: { ...alignment, enabled: true, state: 'awaiting_confirmation', epoch,
-            proposedChange: { ...alignment.proposedChange, questionId, questionRevision: epoch },
-            currentQuestion: { questionId, questionRevision: epoch, kind: 'confirm_ops', prompt: site.plan!.summary,
-              options: [{ id: 'approve', label: '按已保存的大纲重新生成', description: '保留原资料与页面大纲，重新生成网站' }], allowOther: false } } };
+        const staleRunId = site.run.id;
+        let markedInterrupted = false, interruptedFirstGen = false, interruptedStep = '';
+        site = await updateCodeSite(siteId, current => {
+          if (current.run?.id !== staleRunId || current.run.status !== 'running' || active.has(current.run.id)) return {};
+          markedInterrupted = true;
+          interruptedFirstGen = !currentCodeVersion(current) && current.run.kind === 'generate' && !!current.plan;
+          interruptedStep = current.run.checkpoint
+            ? '检查进程已中断，已生成的页面保留。可点击继续检查；刷新不会自动调用模型。' : interruptedFirstGen
+            ? '生成进程已中断，本次未完成；原资料和大纲已保留，可按已保存的大纲重新生成，也可补充资料后重新规划。'
+            : '任务进程已中断，本次未完成；原资料已保留，可补充要求后继续。';
+          return { run: { ...current.run, status: 'error', step: interruptedStep, updatedAt: new Date().toISOString() } };
         });
+        if (markedInterrupted) {
+          await updateConversationAlignment(siteId, site.conversationId, record => {
+            const alignment = applyCommittedResult(record.alignment, { status: 'error', summary: interruptedStep });
+            if (site.run!.checkpoint || !interruptedFirstGen || !record.alignment.confirmClaimed || !alignment.proposedChange) return { ...record, alignment };
+            const epoch = alignment.epoch + 1, questionId = `code-confirm-${crypto.randomUUID()}`;
+            return { ...record, alignment: { ...alignment, enabled: true, state: 'awaiting_confirmation', epoch,
+              proposedChange: { ...alignment.proposedChange, questionId, questionRevision: epoch },
+              currentQuestion: { questionId, questionRevision: epoch, kind: 'confirm_ops', prompt: site.plan!.summary,
+                options: [{ id: 'approve', label: '按已保存的大纲重新生成', description: '保留原资料与页面大纲，重新生成网站' }], allowOther: false } } };
+          });
+        }
       }
       return Response.json(await codeWorkspaceState(site));
     }

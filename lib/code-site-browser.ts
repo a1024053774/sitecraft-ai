@@ -4,8 +4,22 @@ import os from 'node:os';
 import path from 'node:path';
 import { recordCheckDiagnostic } from './code-check-diagnostics.ts';
 
+const fetchRestrictedPorts = new Set([1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720, 1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000, 6566, 6665, 6666, 6667, 6668, 6669, 6679, 6697, 10080]);
+
+class RestrictedPortError extends Error {}
+
 // A commit owns one isolated Chrome profile and process. It never attaches to or kills another browser.
 export async function codeCheckBrowser() {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await launchCodeCheckBrowser();
+    } catch (error) {
+      if (!(error instanceof RestrictedPortError) || attempt >= 6) throw error;
+    }
+  }
+}
+
+async function launchCodeCheckBrowser() {
   const startedAt = Date.now();
   const calls: Array<{ method: string; startedAt: number; durationMs: number; status: string; pathname?: string }> = [];
   const binary = process.env.CHROME_PATH;
@@ -26,7 +40,7 @@ export async function codeCheckBrowser() {
       const timer = setTimeout(() => child.kill('SIGKILL'), 2000);
       await exit; clearTimeout(timer);
     }
-    await rm(profile, { recursive: true, force: true });
+    await rm(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
     recordCheckDiagnostic({ kind: 'browser', startedAt, endedAt: Date.now(), calls });
   };
   try {
@@ -37,10 +51,16 @@ export async function codeCheckBrowser() {
       try {
         const [portText, browserPath] = (await readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).trim().split(/\r?\n/);
         const port = Number(portText);
-        if (/^\d+$/.test(portText) && Number.isInteger(port) && port > 0 && port <= 65535 && /^\/devtools\/browser\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(browserPath ?? ''))
+        if (/^\d+$/.test(portText) && Number.isInteger(port) && port > 0 && port <= 65535 && /^\/devtools\/browser\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(browserPath ?? '')) {
+          if (fetchRestrictedPorts.has(port)) throw new RestrictedPortError('Chrome 底线检查端口受限');
           address = `ws://127.0.0.1:${port}${browserPath}`;
+        }
       }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+      catch (error) {
+        if (error instanceof RestrictedPortError) throw error;
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT' && code !== 'EBUSY') throw error;
+      }
       if (!address) await new Promise(resolve => setTimeout(resolve, 100));
     }
     if (!address) throw new Error('Chrome 底线检查启动超时');

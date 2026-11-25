@@ -3,7 +3,8 @@ import type { AnnotationTarget } from './annotations.ts';
 import { mkdir, readdir, readFile, rename, writeFile, rm, link } from 'node:fs/promises';
 import path from 'node:path';
 import { safeSiteId, listSiteImages } from './site-images.ts';
-import { currentCodeVersion, codeSiteProgress, type CodeSiteProgress, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan } from './code-site.ts';
+import { currentCodeVersion, codeSiteProgress, type CodeSiteProgress, reviewedMaterialSnapshot, reviewedFactSourceSnapshot, chineseCodeRevision, englishSiteCode, codeFactMaterials, codeFactSourceMaterials, hasUnregisteredOriginalMaterials, type CodeSiteRecord, type SiteCode, type CodeVersion, type UnavailableCodeSite, type CodeCheck, type CodePlan, type CodeModelCall, type CodeRun } from './code-site.ts';
+import { codeModelCalls } from './code-site-model.ts';
 import { sameFactSources, type CodeFactSource } from './code-site-fact-segments.ts';
 import { stalePlaceholderPrompts } from './code-site-placeholders.ts';
 import { checkSiteCode } from './code-site-check.ts';
@@ -90,6 +91,7 @@ export async function updateCodeSite(id: string, update: (site: Readonly<CodeSit
   return locked(id, async () => {
     const site = await getCodeSite(id); if (!site) throw new Error('找不到这个站点');
     const patch = update(structuredClone(site));
+    if (!Object.keys(patch).length) return site;
     for (const key of ['materials', 'factSources', 'subject', 'preferences', 'plan', 'run', 'name'] as const) if (key in patch) Object.assign(site, { [key]: patch[key] });
     if (patch.run) {
       const index = site.runs.findIndex(run => run.id === patch.run!.id);
@@ -226,35 +228,78 @@ export async function commitSiteCode(args: CodeCommit | LegacyImportCommit): Pro
     const identity = siteSubject({ ...site, factSources: sourceMaterials,
       subject: restore ? restore.subjectSnapshot : current?.subjectSnapshot ?? site.subject });
     if (!identity.subject) throw new CodeIdentityError(identity.issue!);
-    const checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: identity.subject.name, restoredFactReview, factReviews, factSourceMaterials: sourceMaterials, style: site.plan?.style,
-      ...(args.dynamicStateBudgetMs !== undefined ? { dynamicStateBudgetMs: args.dynamicStateBudgetMs } : {}),
-      ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
-      ...(localTargets.length && current ? { localEdit: { source: current.code, targets: localTargets,
-        ...(current.checks.factCitations ? { citations: current.checks.factCitations } : {}) } } : {}) });
-    if (!checked.checks.passed) return { status: 'rejected' as const, site, ...checked };
-    if (restoredFactReview && restore?.checks.factSegments) checked.checks.factSegments = { ...restore.checks.factSegments, audited: 0, reused: restore.checks.factSegments.segments.length };
-    if (restoredFactReview && restore?.checks.factCitations) checked.checks.factCitations = restore.checks.factCitations;
-    if (localTargets.length && current?.checks.factReview) checked.checks.factReview = current.checks.factReview;
-    let english = restore ? restore.english : current?.english;
-    if (restore?.english) {
-      const source = site.versions.find(version => version.revision === restore.english!.sourceRevision);
-      if (!source) throw new Error('找不到英文版对应的中文版本。');
-      const checkedEnglish = await checkSiteCode({ siteId: args.siteId, code: englishSiteCode(site, restore)!, materials: codeFactMaterials(site, undefined, source.id), images, translationSource: source.code, companyName: identity.subject.name });
-      if (!checkedEnglish.checks.passed) return { status: 'rejected' as const, site, ...checkedEnglish };
-      english = { ...restore.english, checks: checkedEnglish.checks };
-    }
-    const version: CodeVersion = { id: crypto.randomUUID(), revision: revision + 1, author: args.author,
-      summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks, subjectSnapshot: identity.subject,
-      // A local audit covers its fragment; unchanged portions require a known
-      // parent review on the same base materials before we record a reusable basis.
-      ...(!localTargets.length || (current && reviewedMaterialSnapshot(site, current) === site.materials && sameFactSources(reviewedFactSourceSnapshot(current), sourceMaterials))
-        ? { materialSnapshot: site.materials } : {}),
-      ...(sourceMaterials !== undefined ? { factSourceSnapshot: sourceMaterials } : {}),
-      ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };
-    const prompts = !restore ? stalePlaceholderPrompts(version, current, args.source, { targets: localTargets, pageId: args.pageId }) : [];
-    if (prompts.length) version.stalePlaceholders = prompts;
-    site.versions.push(version); site.currentVersionId = version.id; site.subject = identity.subject;
-    if (site.name === '未命名站点') site.name = identity.subject.name;
-    await write(site); return { status: 'applied' as const, site, version };
+    const parentCalls = codeModelCalls.getStore();
+    const recordDirectRestore = !parentCalls && !!restore;
+    const directCalls: CodeModelCall[] = [];
+    const directStartedAt = new Date().toISOString();
+    const appendDirectRun = (status: CodeRun['status'], step: string, extra: Partial<CodeRun> = {}) => {
+      if (!recordDirectRestore || !directCalls.length) return false;
+      site.runs.push({
+        id: crypto.randomUUID(),
+        kind: 'edit',
+        status,
+        step,
+        request: args.request,
+        baseRevision: revision,
+        startedAt: directStartedAt,
+        updatedAt: new Date().toISOString(),
+        repairRound: 0,
+        issues: extra.issues ?? [],
+        attempts: extra.attempts ?? [],
+        modelCalls: directCalls,
+        ...(extra.versionId ? { versionId: extra.versionId } : {}),
+      });
+      return true;
+    };
+    const executeChecks = async (): Promise<CodeCommitResult> => {
+      let checked;
+      let english = restore ? restore.english : current?.english;
+      try {
+        checked = await checkSiteCode({ siteId: args.siteId, code: candidate, materials, images, companyName: identity.subject!.name, restoredFactReview, factReviews, factSourceMaterials: sourceMaterials, style: site.plan?.style,
+          ...(args.dynamicStateBudgetMs !== undefined ? { dynamicStateBudgetMs: args.dynamicStateBudgetMs } : {}),
+          ...(args.pageId && current ? { pageEdit: { source: current.code, pageId: args.pageId } } : {}),
+          ...(localTargets.length && current ? { localEdit: { source: current.code, targets: localTargets,
+            ...(current.checks.factCitations ? { citations: current.checks.factCitations } : {}) } } : {}) });
+        if (!checked.checks.passed) {
+          if (appendDirectRun('error', checked.checks.issues.join('；') || '底线检查未通过', { issues: checked.checks.issues, attempts: [{ code: checked.code, checks: checked.checks }] })) {
+            await write(site);
+          }
+          return { status: 'rejected' as const, site, ...checked };
+        }
+        if (restoredFactReview && restore?.checks.factSegments) checked.checks.factSegments = { ...restore.checks.factSegments, audited: 0, reused: restore.checks.factSegments.segments.length };
+        if (restoredFactReview && restore?.checks.factCitations) checked.checks.factCitations = restore.checks.factCitations;
+        if (localTargets.length && current?.checks.factReview) checked.checks.factReview = current.checks.factReview;
+        if (restore?.english) {
+          const source = site.versions.find(version => version.revision === restore.english!.sourceRevision);
+          if (!source) throw new Error('找不到英文版对应的中文版本。');
+          const checkedEnglish = await checkSiteCode({ siteId: args.siteId, code: englishSiteCode(site, restore)!, materials: codeFactMaterials(site, undefined, source.id), images, translationSource: source.code, companyName: identity.subject!.name });
+          if (!checkedEnglish.checks.passed) {
+            if (appendDirectRun('error', checkedEnglish.checks.issues.join('；') || '底线检查未通过', { issues: checkedEnglish.checks.issues, attempts: [{ code: checked.code, checks: checked.checks }, { code: checkedEnglish.code, checks: checkedEnglish.checks }] })) {
+              await write(site);
+            }
+            return { status: 'rejected' as const, site, ...checkedEnglish };
+          }
+          english = { ...restore.english, checks: checkedEnglish.checks };
+        }
+      } catch (error) {
+        if (appendDirectRun('error', error instanceof Error ? error.message : '事实核对失败')) await write(site);
+        throw error;
+      }
+      const version: CodeVersion = { id: crypto.randomUUID(), revision: revision + 1, author: args.author,
+        summary: args.summary, request: args.request, createdAt: new Date().toISOString(), code: checked.code, checks: checked.checks, subjectSnapshot: identity.subject!,
+        // A local audit covers its fragment; unchanged portions require a known
+        // parent review on the same base materials before we record a reusable basis.
+        ...(!localTargets.length || (current && reviewedMaterialSnapshot(site, current) === site.materials && sameFactSources(reviewedFactSourceSnapshot(current), sourceMaterials))
+          ? { materialSnapshot: site.materials } : {}),
+        ...(sourceMaterials !== undefined ? { factSourceSnapshot: sourceMaterials } : {}),
+        ...(args.model ? { model: args.model } : {}), ...(restore ? { restoredFrom: restore.id, chineseRevision: chineseCodeRevision(restore) } : {}), ...(english ? { english } : {}) };
+      const prompts = !restore ? stalePlaceholderPrompts(version, current, args.source, { targets: localTargets, pageId: args.pageId }) : [];
+      if (prompts.length) version.stalePlaceholders = prompts;
+      site.versions.push(version); site.currentVersionId = version.id; site.subject = identity.subject!;
+      if (site.name === '未命名站点') site.name = identity.subject!.name;
+      appendDirectRun('complete', version.summary, { versionId: version.id, attempts: [{ code: checked.code, checks: checked.checks }] });
+      await write(site); return { status: 'applied' as const, site, version };
+    };
+    return recordDirectRestore ? codeModelCalls.run(directCalls, executeChecks) : executeChecks();
   });
 }

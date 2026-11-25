@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { KeyRound } from 'lucide-react';
-import { formatDefaults, readProviderSettings, saveProviderSettings, withProviderAddress, withProviderFormat, type ProviderSettings } from '@/lib/provider-settings-client';
+import { formatDefaults, providerStatusText, readProviderSettings, saveProviderSettings, withProviderAddress, withProviderFormat, type ProviderSettings } from '@/lib/provider-settings-client';
 import { providerFormats, providerFormatNames, type ProviderFormat } from '@/lib/provider-format';
 
 const defaults: ProviderSettings = { format: 'deepseek', baseURL: formatDefaults.deepseek.baseURL, apiKey: '', model: formatDefaults.deepseek.model };
@@ -57,14 +57,14 @@ export function ProviderSettingsPanel() {
 }
 
 // T-220: one line on the home page saying whether this browser has a model interface saved.
-export function ProviderStatus() {
+export function ProviderStatus({ serverModel = null }: { serverModel?: string | null }) {
   const [model, setModel] = useState<string | null | undefined>(undefined);
   useEffect(() => { setModel(readProviderSettings()?.model ?? null); }, []);
   if (model === undefined) return null;
   return (
     <p className="provider-line" data-testid="provider-status">
       <KeyRound size={14} />
-      {model ? `模型接口已保存在这个浏览器里（${model}）。` : "这个浏览器里还没有保存模型接口。"}
+      {providerStatusText(model, serverModel)}
       <a href="/settings#provider">{model ? "查看或修改" : "去填写"}</a>
     </p>
   );

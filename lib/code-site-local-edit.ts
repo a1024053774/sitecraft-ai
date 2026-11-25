@@ -267,6 +267,7 @@ export async function prepareOutsideCssApplications(browser: ProbeBrowser, frame
   const checkTime = () => { if (Date.now() > deadlineAt) throw new Error('局部动态状态检查超时，本次未保存版本。'); };
   try {
   checkTime(); if (probeStates) await send('DOM.enable');
+  await send('Emulation.setScrollbarsHidden', { hidden: true });
   await send('Page.setDocumentContent', { frameId, html });
   // Count focusable elements and read layout only after both documents have
   // decoded their images and settled fonts. This time stays inside the budget.

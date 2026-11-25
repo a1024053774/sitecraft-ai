@@ -2,9 +2,9 @@
 id: T-223
 title: 修掉 2026-11-20 真实实跑里发现的问题
 type: build
-status: open
+status: closed
 blocked_by: []
-claimed_by:
+claimed_by: Antigravity
 supersedes:
 ---
 
@@ -77,15 +77,60 @@ supersedes:
 
 每条修复都要有一个在当前代码上会失败的回归测试。
 
-- [ ] 资料写 `2026-05-08`、页面写「2026 年 5 月 8 日」时，机械数字检查不拒收；资料里确实没有的数字仍然拒收
-- [ ] 任务在保存版本后结束的同时有状态轮询，任务不会被改成「中断」；站点列表和工作台显示版本已保存
-- [ ] 撤销或恢复需要调用模型核对事实时，这次调用的用途、耗时、HTTP 状态和用量能在站点记录里查到
-- [ ] 按负责人 2026-11-25 决定，将 `<wbr>` 加入 `lib/code-site-check.ts` 允许元素列表（含回归测试：页面含 `<wbr>` 不触发清理拒收与修正轮，其他禁止元素仍照常清理并拒收）
-- [ ] 确认大纲的卡片里，条目之间不出现「。；」
-- [ ] 模型写 `background: var(--x)` 再跟同族属性时，保存后的 CSS 渲染出的背景与模型写的一致，或者明确拒收并交回修正
-- [ ] 局部批注要求新增已登记图片时，模型能写出合规的图片标记，或拒因明确告诉用户怎么写
-- [ ] 修改让页面在某一档从「不滚动」变成「滚动」时，不因滚动条占宽而判越界；真正改到范围外的仍然拒收
-- [ ] 查明岚坞站点两次英文翻译失败的原因，逐条归为规则误报、模型问题或提示问题
-- [ ] 第 10 节的四条观察逐条核实，各自有结论：修复、不修，或另开票
+- [x] 资料写 `2026-05-08`、页面写「2026 年 5 月 8 日」时，机械数字检查不拒收；资料里确实没有的数字仍然拒收
+- [x] 任务在保存版本后结束的同时有状态轮询，任务不会被改成「中断」；站点列表和工作台显示版本已保存
+- [x] 撤销或恢复需要调用模型核对事实时，这次调用的用途、耗时、HTTP 状态和用量能在站点记录里查到
+- [x] 按负责人 2026-11-25 决定，将 `<wbr>` 加入 `lib/code-site-check.ts` 允许元素列表（含回归测试：页面含 `<wbr>` 不触发清理拒收与修正轮，其他禁止元素仍照常清理并拒收）
+- [x] 确认大纲的卡片里，条目之间不出现「。；」
+- [x] 模型写 `background: var(--x)` 再跟同族属性时，保存后的 CSS 渲染出的背景与模型写的一致，或者明确拒收并交回修正
+- [x] 局部批注要求新增已登记图片时，模型能写出合规的图片标记，或拒因明确告诉用户怎么写
+- [x] 修改让页面在某一档从「不滚动」变成「滚动」时，不因滚动条占宽而判越界；真正改到范围外的仍然拒收
+- [x] 查明岚坞站点两次英文翻译失败的原因，逐条归为规则误报、模型问题或提示问题
+- [x] 第 10 节的四条观察逐条核实，各自有结论：修复、不修，或另开票
 
 ## Resolution
+
+完成时间（纽约时间）：2026-11-25 05:11 EST。
+
+### 修复实现（第 1–8 条）
+
+1. **日历日期等价数字**（[lib/code-site-check.ts](../../lib/code-site-check.ts)）：`allowedNumbers` 新增 `calendarDateNumbers()`，对 `YYYY-MM[-DD]` 与 `[YYYY年]M月[D日]` 双向生成 `N` / `0N` 日期等价数值集合；非日期零补号与资料中缺失的数字继续拒收。
+2. **轮询竞态不覆盖已完成任务**（[lib/code-site-workflow.ts](../../lib/code-site-workflow.ts)）：`handleCodeChat` 的 `action: 'state'` 在 `updateCodeSite` 站点锁内复检 `current.run?.id === staleRunId && current.run.status === 'running' && !active.has(current.run.id)`，仅在实际标记中断后同步 `updateConversationAlignment`。
+3. **撤销／恢复直调记录模型调用**（[lib/code-site-store.ts](../../lib/code-site-store.ts)）：`commitSiteCode` 新增 `recordDirectRestore = !parentCalls && !!restore`，仅对撤销／恢复直调用 `codeModelCalls.run(directCalls, executeChecks)` 收集直接调用、用途、耗时、HTTP 状态与用量并写入 `CodeRun`（将 `restore?.english` 检查一并纳入同一 `try/catch`）；`PUT /draft` 等非恢复保存不再生成空运行记录。
+4. **`<wbr>` 决定与清理边界**（[lib/code-site-check.ts](../../lib/code-site-check.ts)）：按负责人 2026-11-25 决定将 `'wbr'` 加入 `allowed` 元素集合，不采纳「被清理掉的元素不算拒收」，其他禁止元素继续清理并拒收。
+5. **大纲条目拼接**（[lib/code-site-model.ts](../../lib/code-site-model.ts)）：导出 `joinPageOutline(items: string[])`，在 `planSiteCode` 拼接前剥除每条末尾 `[。；;]+`，消除「。；」。
+6. **保留带 `var()` 的 CSS 简写加同族长属性**（[lib/code-site-check.ts](../../lib/code-site-check.ts)）：`cleanCandidate` 不再经 `CSSStyleRule`/`style` 整段序列化规则样式表，改为 `stripCssComments` + `splitCssBlock` + 逐声明 `cleanDeclaration`/`cleanDeclarations` 校验；`safeCss` 同时遍历 `[...style]` 与 `style.cssText` 拦截危险值，从而完整保留 `background: var(--x)` 与同族长属性。
+7. **局部批注新增已登记图片**（[skills/site-code-core/LOCAL-EDIT.md](../../skills/site-code-core/LOCAL-EDIT.md)、[lib/code-site-model.ts](../../lib/code-site-model.ts)、[lib/code-site-workflow.ts](../../lib/code-site-workflow.ts)、[lib/code-site-check.ts](../../lib/code-site-check.ts)）：`LOCAL-EDIT.md` 补充 `<img data-image-id="img_xxx" alt="真实说明">`（不写 `src`/`srcset`）、`data-system-icon`、`data-system-backdrop` 与 `<wbr>` 语法；`writeLocalEdit` 与 `writeLocalEditBatch` 接收 `images`（过滤 `usageScope !== 'docs-only'`），由 `executeLocalEdit` / `executeLocalEditBatch` 传入 `await listSiteImages(site.siteId)`；误写 `<img src="img_...">` 且缺 `data-image-id` 时在 `cleanHtml` 给出明确用法拒因。
+8. **局部范围对比隐藏滚动条与 Windows 浏览器稳定性**（[lib/code-site-local-edit.ts](../../lib/code-site-local-edit.ts)、[lib/code-site-check.ts](../../lib/code-site-check.ts)、[lib/code-site-browser.ts](../../lib/code-site-browser.ts)）：`prepareOutsideCssApplications` 在对比期间发送 `Emulation.setScrollbarsHidden` (`{ hidden: true }`)，`checkSiteCode` 的 `if (edit && pageIsEdited)` `finally` 在 `if (completed)` 时复位 `{ hidden: false }`（探针中途失败不额外发 CDP 命令掩盖原错），避免高度增加触发滚动条改变视口宽度引起假越界；另在 `codeCheckBrowser` 增加 `DevToolsActivePort` 轮询 `EBUSY` 容错、临时档案清理重试，以及命中 WHATWG 受限端口时最多重试 6 次。
+
+### 第 9 条调查结论（岚坞站点两次英文翻译失败分类，不修改翻译规则）
+
+基于 [artifacts/t224/runs/state-after-english.json](../../artifacts/t224/runs/state-after-english.json)、[artifacts/t224/english-deepseek/](../../artifacts/t224/english-deepseek/)、[artifacts/t224/english-deepseek.log](../../artifacts/t224/english-deepseek.log) 与 [lib/code-site-english.ts](../../lib/code-site-english.ts) 逐条核对：
+
+- **`gpt-6.2-sol`（OpenAI Responses，11 次 HTTP 200 调用，两轮修正后余 23 条 `englishFidelity` 失败）**：**23/23 均为规则误报**（其中 1 条兼受行内 DOM 拆槽影响）：
+  - 6 条单价分母单位缺失（`680/420/260/180/560/340 元/公斤`，`servings` 仅映射 `份/碗/单`、`units` 未登记 `公斤='kg'`）；
+  - 5 条中文历月被误判为持续时长（`"3 月下旬至 4 月上旬"`、`"3 月下旬"`、`"4 月中旬至 5 月上旬"`、`"4 月下旬"`、`"3 月下旬至 5 月上旬"`，`units['月']='months'` 强制要求 `quantity:N@months`）；
+  - 4 条中文量词/面积单位缺失（`"46 户"`、`"12 户"`、`"15 人"` 中 `counts` 缺 `户`/`人`；`"1280 亩"` 中 `units` 缺 `亩`）；
+  - 1 条量词 `个` 后多字中文单位未识别（`"3 个工作日"`）；
+  - 6 条中文序数、历年或数字固定搭配误拆（`"第一批"`、`"2026 年"`、`"同一/一年/一次"`、`"白叶一号"`、`"一年两次"`、`"同一套/三道"`）；
+  - 1 条规则误报叠加上下文行内 DOM 拆槽（`"一次最多 "` 与相邻 `"15 人"` 分槽）。
+- **`deepseek-flash`（4 次调用 `[1380,200],[1945,200],[4247,200],[4300,200]`，报 `"英文译文格式无效，本次未保存版本。"`）**：归为 **提示问题 + 模型问题**：第 3 批（`garden-cooperative`）相邻槽位 `"分布在海拔 "`（`s9`）+ `"600–900 米"`（`s10`）+ `"的山坡上"`（`s11`，`page:garden-cooperative:29:text`）中，英文语序将地点宾语前移写入 `s9`（`"Located on slopes at an elevation of "`），导致 `s11` 返回空字符串 `""`，触发 `z.string().min(1)` 校验失败（提示缺少碎片化行内槽位不可输出空串的约束，模型也实际输出空串）。
+
+### 第 10 条逐项核实与结论
+
+- **10.1 开发模式接口提示**：**修复**（[lib/provider-settings-client.ts](../../lib/provider-settings-client.ts)、[components/provider-settings.tsx](../../components/provider-settings.tsx)、[app/(workspace)/page.tsx](../../app/(workspace)/page.tsx)）。`NODE_ENV !== 'production' && ai.configured` 时向 `Dashboard` 与 `LocalDashboard` 的 `ProviderStatus` 传入 `serverModel`，由 `providerStatusText` 提示当前使用本机环境变量接口；第 10.1/10.3 回归用例通过。
+- **10.2 375 宽工作台上方模糊灰带**：**修复**（[app/globals.css](../../app/globals.css)）。`@media (max-width: 600px)` 下的 `.code-workspace .builder-chat` 改为常规静态流式布局并取消固定定位与向上 `box-shadow`（`.mobile-hidden { display: none; }`），改前灰带见 `artifacts/t223/red-workbench-375.png`，改后 375/768/1440 截图（`artifacts/t223/workbench-{375,768,1440}.png`）均已人工看图确认无灰带与遮挡，回归用例第 10.2 项通过。
+- **10.3 浏览器存储损坏伪装已保存**：**修复**（[lib/browser-sites-client.ts](../../lib/browser-sites-client.ts)、[components/local-site-list.tsx](../../components/local-site-list.tsx)）。以 `readBundleProgress(bundle)` 替代静默捕获，损坏以及 `record.route` 既非 `code` 也非 `unavailable` 时均显式返回 `{ status: '本地存档损坏', readError }` 并在列表显示错误原因；第 10.1/10.3 回归用例与 `t202-browser-storage`、`t220-site-flow` 均通过。
+- **10.4 删路由后旧 `.next/types/validator.ts` 报错**：**核实不修**。`tsconfig.json` 包含 `.next/types/**/*.ts` 属 Next App Router 标准配置，且 `npm run typecheck` 为只读 `tsc --noEmit`；删除路由后执行 `npx next typegen` 刷新生成类型即可，不在 `package.json` 混入副作用构建步骤，无需另开票。
+
+### 回归、文档与审查证据
+
+- 改前红灯日志：`artifacts/t223/red-tests.log`（`tests/t223-real-run-fixes.test.ts` 0/10 通过、10/10 失败；注：其中第 4 项在改前先触发 `chrome_debug.log` `EBUSY` 清理冲突，而检查 `HEAD` 版 `lib/code-site-check.ts:25` 确认当时确未收录 `wbr`；第 8 项记录的是收窄 768 滚动条场景前的初稿失败）、改前 375 截图 `artifacts/t223/red-workbench-375.png`。
+- 测试监听器适配：[tests/fixtures/t159-entry.ts](../../tests/fixtures/t159-entry.ts) 与 [tests/t223-real-run-fixes.test.ts](../../tests/t223-real-run-fixes.test.ts) 的临时回环服务跳过 WHATWG 受限端口，避免 Windows 顺序端口分配撞上 `6000` 等端口导致 `bad port`；第 8 项同时包含静态 (`probeStates === false`) 与作者 `:hover` 双浏览器动态 (`probeStates === true`) 用例。
+- 最后编辑后验证：
+  - `SITE_STORE=fs npm run build`（`artifacts/t223/build.log`）：exit 0，23 条路由全部构建通过；
+  - `npm run typecheck`（`artifacts/t223/typecheck.log`）：exit 0；
+  - 27 个 Windows 兼容定向套件（`artifacts/t223/green-tests-verified.log`）：非浏览器池 `t220-site-flow` (5/5) + 浏览器池 26 文件 (`t223-real-run-fixes` 10/10、`t128-code-boundary` 41/41、`t133-floor-checks` 8/8、`t148-system-backdrops` 9/9、`t152-local-edits` 9/9、`t152-local-model-input` 3/3、`t159-task-admission` 13/13、`t162-mobile-reveal` 3/3、`t164-dynamic-gate` 16/16、`t164-local-output-limit` 3/3、`t164-multi-block-edit` 16/16、`t169-citations-browser` 9/9、`t175-thread-placement` 3/3、`t178-full-style-equivalence` 1/1、`t186-narrow-wrapping` 4/4、`t187-repair-fragments` 14/14、`t188-condition-scope` 9/9、`t192-check-transitions` 14/14、`t194-number-node-boundary` 13/13、`t199-contrast-effects` 62/62、`t202-browser-storage` 7/7、`t202-provider-flow` 6/6、`t205-interrupted-materials` 3/3、`t210-check-resume` 11/11、`t221-provider-formats` 15/15、`workspace-dark-contrast` 1/1) 共 **27/27 文件、308/308 用例全部通过，0 失败、0 跳过**；另前次 15 套件试跑已确认 2 个既有 POSIX 测试夹具在 Windows 上不适用（`tests/t173-port-readiness.test.ts` 第 28 行硬编码 `/DevToolsActivePort` 正斜杠致使 9 子测试未匹配；`tests/t204-check-browser-exit.test.ts` 第 16 行写 `#!/bin/sh` 报 `spawn ... ENOENT`）。
+- 设计完整性静态扫描：`artifacts/t223/design-integrity.json`（`acceptance_changes: []`，4 处 `exception-boundary` 均为损坏上报、受限端口重连或记账后原样抛出）。
+- 独立复审（`same-model review`，`6c2791e2-242c-41ad-848b-dafdd76a1305`）：首轮 `FAIL` 检出的构建/套件验证缺口与 3 处代码细节已全部修复并复跑通过，次轮复审结论 **`STATUS: PASS`**（见 `artifacts/t223/review.txt`）。
+- 活文档同步：已更新 [CONTEXT.md](../../CONTEXT.md)、[docs/project/mainline.md](../../docs/project/mainline.md) 与 [docs/project/spec.md](../../docs/project/spec.md)；遵照负责人关于 `AGENTS.md` 硬约束不擅自修改的规则，[AGENTS.md](../../AGENTS.md) 与 [README.md](../../README.md) 在 `T-223` 提交后按 [MAP.md](../MAP.md) 同仓模式更新 `Verified` 提交编号。

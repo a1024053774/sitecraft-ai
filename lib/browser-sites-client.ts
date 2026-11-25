@@ -1,11 +1,11 @@
 // T-202 browser storage, client side: IndexedDB holds the only lasting copy of
 // each site as the server's bundle format. The server copy is hydrated from it
 // when a site is opened and pulled back after changes.
-import { codeSiteProgress, type CodeSiteProgress, type CodeSiteRecord } from './code-site.ts';
+import { codeSiteProgress, type CodeSiteProgress, type CodeSiteRecord, type UnavailableCodeSite } from './code-site.ts';
 import { normalizeAlignmentSnapshot, publicAlignmentView } from './alignment.ts';
 export type SiteBundle = { format: 'sitecraft-site-bundle'; version: 1; siteId: string; updatedAt: string; files: { path: string; data: string }[] };
-export type LocalSite = { siteId: string; siteName: string; updatedAt: string; hasVersion: boolean; savedAt: string; progress?: CodeSiteProgress };
-type StoredSite = Omit<LocalSite, 'progress'> & { bundle: SiteBundle; etag: string | null };
+export type LocalSite = { siteId: string; siteName: string; updatedAt: string; hasVersion: boolean; savedAt: string; progress?: CodeSiteProgress; status?: string; readError?: string };
+type StoredSite = Omit<LocalSite, 'progress' | 'status' | 'readError'> & { bundle: SiteBundle; etag: string | null };
 
 export function browserStorageMode() {
   return typeof document !== 'undefined' && document.documentElement.dataset.storage === 'browser';
@@ -39,18 +39,26 @@ function decodeRecord(bundle: SiteBundle) {
 }
 
 // T-220: the browser list derives the same progress as the server list, from the record and conversation saved in the bundle.
-function bundleProgress(bundle: SiteBundle): CodeSiteProgress | undefined {
+export function readBundleProgress(bundle: SiteBundle): { progress?: CodeSiteProgress; status?: string; readError?: string } {
   try {
     const read = (file: SiteBundle['files'][number]) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(file.data), char => char.charCodeAt(0))));
-    const record = read(bundle.files.find(item => item.path === `code-sites/${bundle.siteId}.json`)!) as CodeSiteRecord;
-    if (record.route !== 'code') return undefined;
+    const file = bundle.files.find(item => item.path === `code-sites/${bundle.siteId}.json`);
+    if (!file) return { status: '本地存档损坏', readError: '本地存档缺少站点记录，请核对或删除后重建。' };
+    const record = read(file) as CodeSiteRecord | UnavailableCodeSite;
+    if (record.route !== 'code') {
+      return record.route === 'unavailable'
+        ? { status: record.status, readError: record.readError }
+        : { status: '本地存档损坏', readError: '本地存档类型无效，无法读取当前进度。' };
+    }
     const conversation = bundle.files.find(item => item.path === `conversations/${bundle.siteId}/${record.conversationId}.json`);
-    return codeSiteProgress(record, conversation ? publicAlignmentView(normalizeAlignmentSnapshot(read(conversation).alignment)) : null);
-  } catch { return undefined; }
+    return { progress: codeSiteProgress(record, conversation ? publicAlignmentView(normalizeAlignmentSnapshot(read(conversation).alignment)) : null) };
+  } catch {
+    return { status: '本地存档损坏', readError: '本地存档损坏，无法读取当前进度。' };
+  }
 }
 export async function listLocalSites(): Promise<LocalSite[]> {
   const all = await withStore<StoredSite[]>('readonly', store => store.getAll() as IDBRequest<StoredSite[]>);
-  return all.map(({ siteId, siteName, updatedAt, hasVersion, savedAt, bundle }) => ({ siteId, siteName, updatedAt, hasVersion, savedAt, progress: bundleProgress(bundle) }))
+  return all.map(({ siteId, siteName, updatedAt, hasVersion, savedAt, bundle }) => ({ siteId, siteName, updatedAt, hasVersion, savedAt, ...readBundleProgress(bundle) }))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.siteId.localeCompare(b.siteId));
 }
 async function readLocal(siteId: string) {

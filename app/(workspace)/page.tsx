@@ -7,6 +7,7 @@ import { codeSiteSteps } from "@/lib/code-site";
 import { codeStyles, readyCodeStyleIds } from "@/lib/code-site-styles";
 import { LocalSiteList } from "@/components/local-site-list";
 import { ProviderStatus } from "@/components/provider-settings";
+import { getAIProviderStatus } from "@/lib/ai-provider";
 import { SiteProgress, formatUpdatedAt, siteProgressText, siteVersionText } from "@/components/site-progress";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +53,8 @@ function StyleSamples() {
 }
 
 export default async function Dashboard() {
-  if (process.env.SITE_STORE === "browser") return <LocalDashboard />;
+  const serverModel = process.env.NODE_ENV !== "production" ? (() => { const ai = getAIProviderStatus(); return ai.configured ? ai.model : null; })() : null;
+  if (process.env.SITE_STORE === "browser") return <LocalDashboard serverModel={serverModel} />;
   const sites = await listCodeSites();
   const latest = sites.find(site => site.hasVersion && !site.readError);
   const waiting = sites.filter(site => siteProgressText(site).tone !== "plain").length;
@@ -64,7 +66,7 @@ export default async function Dashboard() {
         <div className="home-head">
           <h1>站点</h1>
           <p>{sites.length ? `${sites.length} 个站点${waiting ? `，其中 ${waiting} 个等你处理` : ""}。` : "还没有站点。"}把公司资料发过来，五步做成它自己的官网。</p>
-          <ProviderStatus />
+          <ProviderStatus serverModel={serverModel} />
         </div>
 
         {latest && (
@@ -121,7 +123,7 @@ export default async function Dashboard() {
 }
 
 // T-202 browser storage: sites live in this browser, so the dashboard lists them client side.
-function LocalDashboard() {
+function LocalDashboard({ serverModel }: { serverModel: string | null }) {
   return (
     <div className="app-page">
       <AppTopbar active="home" />
@@ -129,7 +131,7 @@ function LocalDashboard() {
         <div className="home-head">
           <h1>站点</h1>
           <p>站点、版本和对话只保存在这个浏览器里。把公司资料发过来，五步做成它自己的官网。</p>
-          <ProviderStatus />
+          <ProviderStatus serverModel={serverModel} />
         </div>
         <section className="home-section" aria-labelledby="home-sites">
           <div className="home-section-head"><h2 id="home-sites">这个浏览器里的站点</h2><Link href={"/sites" as Route} data-testid="view-all-sites">查看全部 <ArrowRight size={13} /></Link></div>
