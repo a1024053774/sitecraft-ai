@@ -39,7 +39,7 @@
 
 ## 本地运行
 
-负责人实际服务运行在 Windows 的 `D:\sitecraft-ai`，通过 `ssh win-lan` 维护，地址为 [http://localhost:3100](http://localhost:3100)（Windows 本机）。使用 Docker Desktop 的 Linux 容器，构建也在 Windows 完成。启动、停止、更新和双卷备份见 [Windows Docker 运行说明](deploy/docker/README.md)；出门时经 tailnet 内的 Tailscale 私有入口访问，运行条件同见该说明（T-211）。模型接口在浏览器设置中填写；健康检查不要求服务端模型 key。
+日常开发目录在本机 `D:\_DevelopmentCode\sitecraft-ai`（`SITE_STORE=fs`）；独立运行的正式 Docker 服务在本机 `D:\sitecraft-ai`，地址为 [http://localhost:3100](http://localhost:3100)（开发时不动服务目录的代码、`.env`、数据卷和容器）。使用 Docker Desktop 的 Linux 容器，构建也在 Windows 完成。启动、停止、更新和双卷备份见 [Windows Docker 运行说明](deploy/docker/README.md)；从其他设备或出门时可经 `ssh win-lan` 与 tailnet 内的 Tailscale 私有入口访问，运行条件同见该说明（T-211）。模型接口在浏览器设置中填写；健康检查不要求服务端模型 key。
 
 Compose 只启动 web 与 PostgreSQL：数据库保存对话、对齐状态和批注，文件卷保存站点代码、完整版本、资料、模型任务和上传。数据库不开放宿主端口，web 默认只绑定回环。它复用现有存储实现，与下述浏览器存储模式分别运行。
 
@@ -53,6 +53,8 @@ cd sitecraft-ai
 npm ci
 CHROME_PATH=/path/to/chrome-headless-shell npm run dev
 ```
+
+Windows PowerShell 下写为 `$env:CHROME_PATH='C:\path\to\chrome-headless-shell.exe'; npm run dev`；评估与临时目录同理使用 `$env:CHROME_PATH`、`$env:SITECRAFT_BASE` 与 `$env:TEMP\sitecraft-server-copy`。
 
 打开 [http://localhost:3000](http://localhost:3000)，用 Chrome 查看生成站：部分内置浏览器会拦截沙箱 iframe。
 
@@ -84,7 +86,7 @@ CHROME_PATH=/path/to/chrome-headless-shell npm test
 npm run build
 ```
 
-`next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
+Windows PowerShell 下设 `$env:CHROME_PATH='C:\path\to\chrome-headless-shell.exe'; npm test`。`next-env.d.ts` 由 Next 的 dev、build 或 typegen 生成，不纳入 Git；首次只运行类型检查时，先执行 `npx next typegen`。
 
 `npm test` 每轮创建独立的临时 `SITECRAFT_DATA_ROOT`，自启本工作树随机端口 dev server，把同一数据根与 `SITECRAFT_BASE` 传给测试进程，并在任何测试模块载入前核对 health、登记本轮存储许可。测试服务独用 `.next-test` 构建目录，可与同目录使用 `.next` 的普通 dev 服务共存，不改变普通服务的端口。它清除继承的 `NODE_TEST_CONTEXT`，按 Node 每文件统计记录实际执行数，零用例即失败；入口沿项目内运行时引用及子进程本地脚本静态识别浏览器入口并打印依据，不维护文件名单；非浏览器池保持默认并发，浏览器池固定文件并发为 2，每文件每轮只跑一次，两池合并原生统计，任一池失败即整轮失败。最终候选在主线执行一次完整全量；票内明确要求多轮时按票执行；非浏览器池按进程祖先采样 Chrome 并记录所属测试文件，仅告警，不改分池、统计或通过条件；全量自然跑完后再判断是否停止下一项；不沿用已有服务或数据根，不加载 `.env.local`，不配置真实模型。日志、身份、统计和数据根路径保存在 `artifacts/t167/test-run-*/`；其中 `checks/` 记录动态范围检查与 CDP 方法的起止、计数、分段耗时，不记录请求参数或页面正文。清理根绑定入口脚本所在工作树，cwd 不一致即拒绝；从清理、登记直到本轮结束持有工作树独占锁，锁按行保存 pid 和启动时间；存活持有者仍直接拒绝并报告 pid 与路径，pid 已退出或记录不可解析时可以接管残留锁。并发接管通过同一文件的完整原子追加登记，首个存活声明获得锁，其余明确拒绝，不等待或重试。新一轮开始前按时间保留最近五轮（含新一轮，不分成败），窗口外仅删除成功目录；失败或报告不完整的旧目录继续保留并输出路径，因此目录总数可能超过五个。T-130 临时夹具位于本轮数据根的 `t130/`。启动失败同时报告 Next 原因与日志路径，临时数据保留供核查。定向检查用 `npm test -- tests/<用例>.test.ts`；原始 `node --test` 没有已核对的数据根时，存储模块在读写前拒绝。上面的入口回归命令不开 Chrome，应与全量串行执行，其中普通 dev 共存用例自行启停自己的普通服务。
 

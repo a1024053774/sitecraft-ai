@@ -24,7 +24,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 开工前
 
-- 运行 `python3 /Users/luckye/Documents/SKILLS/project-map-skill/project-map/scripts/project_map.py status --root .`（project-map skill 的脚本；Claude 端也可用 `~/.claude/skills/project-map/scripts/`），再读 `.project-map/MAP.md` 和术语表 `CONTEXT.md`。只从 frontier 领票：开工前在票的 `claimed_by` 写上自己的名字，一次只做一张 build 票，按票里的验收勾选项交付。
+- 运行 `python C:\Users\10240\.gemini\config\skills\project-map\scripts\project_map.py status --root .`（project-map skill 的脚本），再读 `.project-map/MAP.md` 和术语表 `CONTEXT.md`。只从 frontier 领票：开工前在票的 `claimed_by` 写上自己的名字，一次只做一张 build 票，按票里的验收勾选项交付。
 - 需要时再读 `docs/project/` 下的 `mainline.md`（主线与素材规则）、`intent.md`（已确认需求）、`spec.md`（规格）。`plan-history.md`、`review-*.md` 和 `.grilling/` 是历史记录，不是待办。
 - 用户说「主线」「reality-first」或 `/grilling` 时，先用几句话对照 mainline 和 MAP：这次任务是否让站点更好看、更真、更好改；对不上就停下来说。
 - 看 `git status` 和 diff。现有未提交代码是用户的工作，不覆盖、不回滚、不重排。
@@ -105,9 +105,9 @@ Chrome 仅在 DevToolsActivePort 两行完整、端口有效且 browser 路径�
 1. 相关测试 + `npm run typecheck` + `npm test` + `npm run build` 通过；
 2. UI/预览改动在 Chrome 里打开看过（1440 / 768 / 375），截图放 gitignore 的 `artifacts/`，每张都打开看过；载入态、空白或截断的截图不算证据。生成站的底线检查（结构、事实、外部资源、溢出、重叠、对比度、行长）由提交入口和评估集自动跑，验收引用它们本次的结果。发布与预览都读代码版本并用同一静态渲染器。
    中文和英文发布与预览使用同一静态渲染器。T-198 极端窄列沿用 T-160 的测量和豁免：可见正文块至少 3 行，平均每行严格少于 2 个非空白字符（纯英文少于 2 词）时，375／768／1440 任一档命中即拒收；正好 2 不拒收。简单裁剪只对有盒祖先的零 clip-margin 且无 absolute／fixed／sticky 定位链的 overflow 框求交，inline／contents／html／body 的 overflow 直接跳过，其余不确定裁剪仅反馈并注明原因；自身或祖先有 clip-path、mask、transform、contain、多栏或非 visible 的 content-visibility 等无法确定可见区域时，不按极端窄列拒收，T-160 质量反馈注明「可见行无法确定」。拒因按 T-187 的本次 layoutRepairs 定位，只开放失败叶子元素及相关声明，与其他底线共用最多两轮修正，仍不过不存版。普通窄列、正文行长与 T-147 的五项机械检查仍只作质量反馈，阈值不变；产品图反馈仅确认原图裁切，主体是否丢失须人工核对。
-   浏览器测试先设 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell`（负责人这台 Mac 的普通 Chrome 无头启动后会被自动更新带着退出）；换机器或版本更新后按实际路径改。
+   浏览器测试先在 PowerShell 设 `$env:CHROME_PATH='C:\Users\10240\.cache\chrome-for-testing\chrome-headless-shell\win64-154.0.8037.92\chrome-headless-shell-win64\chrome-headless-shell.exe'`；换机器或版本更新后按实际路径改。
    全量只在主控合并后的主线验证跑一次（2026-10-18 负责人决定）：执行实例的门控用 typecheck 加相关定向测试，真实评估前不跑全量；票的验收明确要求多轮全量（如改动测试入口本身）时照票执行。
-   标准检查命令：先单独运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`（真实入口回归、不开 Chrome、与全量串行执行），回归结束后运行 `CHROME_PATH=/Users/luckye/.cache/chrome-for-testing/chrome-headless-shell/mac_arm-154.0.8037.92/chrome-headless-shell-mac-arm64/chrome-headless-shell npm test`。入口的临时数据根、自启服务、身份核对、浏览器分池、工作树锁与轮次清理见 README「检查」与 spec 第 3 节（T-167）；当前全量自然跑完再判断，失败后不进入下一项，不中途终止以省略剩余用例。定向检查使用 `npm test -- tests/<用例>.test.ts`；不通过手写标记或另一个入口绕过未核对拒绝，不删除已有站点（T-167）。
+   标准检查命令：先单独运行 `node --test --experimental-strip-types scripts/t167-runner-regressions.ts`（真实入口回归、不开 Chrome、与全量串行执行），回归结束后运行 `$env:CHROME_PATH='C:\Users\10240\.cache\chrome-for-testing\chrome-headless-shell\win64-154.0.8037.92\chrome-headless-shell-win64\chrome-headless-shell.exe'; npm test`。入口的临时数据根、自启服务、身份核对、浏览器分池、工作树锁与轮次清理见 README「检查」与 spec 第 3 节（T-167）；当前全量自然跑完再判断，失败后不进入下一项，不中途终止以省略剩余用例。定向检查使用 `npm test -- tests/<用例>.test.ts`；不通过手写标记或另一个入口绕过未核对拒绝，不删除已有站点（T-167）。
    `scripts/t15*` 的应用地址显式用 `SITECRAFT_BASE`，替身用 `SITECRAFT_FIXTURE_BASE`，预算网关用 `SITECRAFT_BUDGET_BASE`；均校验本地 HTTP origin，不锁端口、不默认回退主工作区。真实生成与预算网关必须显式设置 `SITECRAFT_TOKEN_LIMIT` 为本次获批上限，不沿用历史默认预算（T-153）。
    预算网关按完整请求的 ASCII、官方离线验证的单 token 汉字与其他码点估算输入，加框架余量后限制输出，累计预留不超过显式授权，含 submit_local_edit 函数的局部写作及修正轮必须完整预留请求自带的 max_tokens（应用为 12288），不足则出网前拒绝、停止并记录原因；经单独授权的小输出局部探针也按请求原值完整预留，不受其他用途的 4096 门槛影响，其他用途沿用 T-165 的降额行为；运行时不加载 tokenizer（T-165）。
 3. 页面质量由独立审核 agent 盲评判定，审核者不能是做这项工作的 agent；负责人不做盲评和审核。做工作的 agent 自查能找问题，不能宣布审美通过；
@@ -130,33 +130,28 @@ Chrome 仅在 DevToolsActivePort 两行完整、端口有效且 browser 路径�
 - 以 fork `a1024053774/sitecraft-ai` 为主线（`origin`）；绝不推 `upstream`，不 force-push。
 - 一个功能一个 commit，文档更新并入同一个 commit。只 add 本功能的显式路径，不 `git add -A` 混入用户工作。
 - 推送后核对远端 SHA；推送失败保留本地 commit 并报告，不绕过认证。
-- 不用的工作树和缓存及时清理（2026-10-10 负责人要求）：票合并、判为不合并或关闭后，主控在收尾时删掉它的工作树（`git worktree remove`，不加 `--force`），并停掉它的 dev server。删除前先看工作树里的 `.sitecraft-data/` 和 `artifacts/`：未关闭的票还要用的证据，先移到主工作区 gitignore 的 `artifacts/<票号>/` 再删。未合并的分支保留，作为记录。缓存（`.next`、工作树里的 `node_modules`、测试临时目录）随工作树一起删掉；主控收尾时也删除对应票在 `/tmp/sitecraft-*`（含系统临时目录中的同名前缀）下自建的临时数据根，仍需使用的失败证据先保留到对应票的 artifacts；主工作区的 `.next` 超过 2GB 就删（dev 与 build 共用，刚构建完通常约 1.2GB）。主工作区的 `.sitecraft-data/` 是用户数据，按 T-003 只由用户决定是否删除。每次开工看一眼 `git worktree list`，发现无主的工作树就按上面的规则清理。
+- 不用的工作树和缓存及时清理（2026-10-10 负责人要求）：票合并、判为不合并或关闭后，主控在收尾时删掉它的工作树（`git worktree remove`，不加 `--force`），并停掉它的 dev server。删除前先看工作树里的 `.sitecraft-data/` 和 `artifacts/`：未关闭的票还要用的证据，先移到主工作区 gitignore 的 `artifacts/<票号>/` 再删。未合并的分支保留，作为记录。缓存（`.next`、工作树里的 `node_modules`、测试临时目录）随工作树一起删掉；主控收尾时也删除对应票在系统临时目录下自建的 `sitecraft-*` 临时数据根（Windows 为 `$env:TEMP\sitecraft-*`，Linux 容器或 macOS 为 `/tmp/sitecraft-*`），仍需使用的失败证据先保留到对应票的 artifacts；主工作区的 `.next` 超过 2GB 就删（dev 与 build 共用，刚构建完通常约 1.2GB）。主工作区的 `.sitecraft-data/` 是用户数据，按 T-003 只由用户决定是否删除。每次开工看一眼 `git worktree list`，发现无主的工作树就按上面的规则清理。
 
 ## 密钥与环境
 
 - 密钥只在 gitignore 的 `.env.local`，不进代码、文档、prompt、SSE、截图或提交。不建软链接，不复制 `env.md`。
 - 模型：DeepSeek `deepseek-flash`。
 - 接口格式（T-221）：模型接口可选 DeepSeek（默认）、OpenAI 兼容、OpenAI Responses、Anthropic 兼容。「生成路径的硬约束」里的 `/beta`、思考开关、温度和输出上限数值是 DeepSeek 格式的规定；其他格式只换请求和回复的写法，不发思考开关和温度（推理用模型默认值），输出上限不超过 32000，函数输出、拒收、不重试、凭据不落盘等规则相同。新增或修改模型调用时三种格式都要过 `tests/t221-provider-formats.test.ts`。
-- 开发机用 `SITE_STORE=fs` 即可。负责人真实服务按 T-208 在 Windows `D:\sitecraft-ai`，经 `ssh win-lan` 维护；构建与 Chrome 验收在 Windows 执行，不在 Mac 构建。Compose 使用 PostgreSQL 保存对话／对齐／批注，文件卷保存代码／版本／资料／任务／上传；不把数据库描述成全部数据的存储。启停与备份见 `deploy/docker/README.md`，保留已有四个无关容器、用户数据和失败证据。
+- 开发目录在本机 `D:\_DevelopmentCode\sitecraft-ai`，日常开发、测试与评估用 `SITE_STORE=fs`，构建与 Chrome 验收均在该目录直接执行；正式本地 Docker 服务按 T-208 独立运行在 `D:\sitecraft-ai`（不是开发工作树，开发时不动其代码、`.env`、数据卷与容器）。Compose 使用 PostgreSQL 保存对话／对齐／批注，文件卷保存代码／版本／资料／任务／上传；不把数据库描述成全部数据的存储。启停与备份见 `deploy/docker/README.md`，保留已有四个无关容器、用户数据和失败证据。
 - 浏览器存储（T-202，`SITE_STORE=browser`，T-204 公网建站时使用）：站点、版本、对话、批注与上传的长期副本只在访客浏览器 IndexedDB（站点存档）；服务器只在显式的临时数据根（内存盘，不得是 `.sitecraft-data`）保留打开中的副本，启动即清空，闲置 30 分钟清理、有任务的不清，总量超过上限按闲置先后清理，只剩忙碌副本时拒收。HttpOnly 工作区令牌只做隔离、不做身份，丢失即作废服务器副本；所有站点路由按令牌放行，检查器用进程内密钥头。
 - 访客模型接口（API 地址、key、模型名）只存浏览器 localStorage，只经请求头进入本次请求及其后台任务，不写记录、日志或站点包；生产模式不读服务器环境变量里的 key，未配置时在对齐、来源或任务改动前拒绝。访客地址只连 https 公网地址（IPv6 中带 IPv4 的形式按内嵌地址判断，判不了即拒绝），校验的地址即连接地址，不跟随重定向，回复有大小上限；本机验收的本地替身须显式开关放行。
 - 浏览器存储下生成与检查共用并发为 1 的队列：每令牌同时一个位置、等待有上限，排满在任何状态改动前返回「服务器忙」；不提供公开发布链接，改为下载站点包。开发、测试与评估仍用 `SITE_STORE=fs`，行为不变。
 
 ## 协作
 
-分工（2026-09-29 负责人决定，见 `.project-map/tickets/T-049-roles-2026-09-29.md`，取代 T-033）：
+分工与独立审查：
 
 - **负责人**：只定方向和需求，不做盲评和审核。
-- **Claude（本地桌面会话）**：规划、拆票、验收、整合与推送；可以用 Sonnet 5.5 子 agent 写代码。
-- **Sonnet 5.5 子 agent**：Claude 派的小编码票。
-- **Codex**：额度宽裕，执行都交给它（Herdr 里的 `codex-build`，需要时 Claude 再开 Codex 窗格）；执行和审查必须是不同的 Codex 实例。Kiro 2026-10-01 起不再使用。
-- **Codex 模型**（2026-10-13 负责人决定，2026-10-19 改为推理 high、不开 fast）：执行、代码与逻辑审查、页面盲评一律用 gpt-6.1-sol，推理 high，不开 fast（`-m gpt-6.1-sol -c 'model_reasoning_effort="high"' -c 'service_tier="default"'`）；不再用 GPT-6 Astra。三种角色各用不同实例。票里沿用的「Astra 审查」指这个审查角色。
-- **Cursor Grok**：杂活，只改派给它的文件。
-- **云端会话**：负责人开的 Claude 云端会话，在 `cloud/*` 分支上做票并推送，Claude 审后合并。
-
-执行的 agent 每张票在本地提交、不推送；Claude 验收、审查实例通过后由 Claude 推送。审核者不能审自己参与过的工作。Herdr 工作区里的 Codex、Cursor 由 Claude 直接派活。
+- **执行与审查分开**：代码审查（`design-integrity-review`）、验收审查（`behavioral-acceptance-review`）和页面盲评各自在干净的只读上下文里，由不同于执行者的模型来做，优先 GPT，没有就用别家模型；用当前工具链能用的方式（能选模型的子 agent、新对话，或 `codex exec`），只传仓库、候选和契约，不传执行过程的说明；没有别的模型可用时用同一模型在干净上下文里审，报告开头写 `same-model review`。
+- **凭据隔离**：审查不要用 `.env.local` 里给应用用的 key 去调模型。审核者不能审自己参与过的工作。
+- 执行的 agent 每张票在本地提交、不直接推送；验收与独立审查通过后，经负责人确认再推送到 `origin`。
 
 规则：
 
 - 多个代理不改同一文件，靠 `claimed_by` 避免撞票。委派时写清输入、可改范围、禁止范围和验收。
-- 用 Goal/连续模式时，队列只能来自 frontier。需要负责人决定方向或需求时停下来等；盲评和审核交给审核 agent，不等负责人。队列做完就停，不自行把「本阶段不做」里的事或新方向加进队列。
+- 用 Goal/连续模式时，队列只能来自 frontier。需要负责人决定方向或需求时停下来等；盲评和审核交给独立审查上下文，不等负责人。队列做完就停，不自行把「本阶段不做」里的事或新方向加进队列。

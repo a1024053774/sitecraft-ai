@@ -1,6 +1,6 @@
 # Windows 本机运行
 
-本目录用于负责人的 Windows Docker Desktop（Linux 容器）。源码部署在 `D:\sitecraft-ai`，Mac 只改代码和查看结果，构建与 Chrome 验收均在 Windows 执行。默认地址为 `http://localhost:3100`，仅绑定回环；远程访问可通过 `ssh -L 3218:127.0.0.1:3100 win-lan` 转发。
+本目录用于负责人的 Windows Docker Desktop（Linux 容器）。运行服务目录在 `D:\sitecraft-ai`，与日常开发目录 `D:\_DevelopmentCode\sitecraft-ai` 分开（开发与构建、Chrome 验收均在 Windows 本机开发目录执行）。默认地址为 `http://localhost:3100`，仅绑定回环；从其他设备远程访问可通过 `ssh -L 3218:127.0.0.1:3100 win-lan` 转发。
 
 ## 启动与停止
 
@@ -29,7 +29,7 @@ Docker Desktop 须保持运行。Compose 的 `restart: unless-stopped` 会在 Do
 
 ## Tailscale 私有入口
 
-Mac 桌面的 `打开 SiteCraft.command` 先试局域网（`192.168.3.173:22`），不通再经 Tailscale 地址 `100.108.230.79` 建同一条 SSH 端口映射，两条路都打开 `http://localhost:13100`，浏览器里的模型设置两边通用。两条路径都以 `win-lan` 已登记的主机密钥核验身份；设 `SITECRAFT_ROUTE=tailscale` 可在家里跳过局域网验证 Tailscale 路径。
+从其他 macOS 设备远程访问时，Mac 桌面的 `打开 SiteCraft.command` 先试局域网（`192.168.3.173:22`），不通再经 Tailscale 地址 `100.108.230.79` 建同一条 SSH 端口映射，两条路都打开 `http://localhost:13100`，浏览器里的模型设置两边通用。两条路径都以 `win-lan` 已登记的主机密钥核验身份；设 `SITECRAFT_ROUTE=tailscale` 可在家里跳过局域网验证 Tailscale 路径。
 
 另有 Windows Tailscale Serve 的后台 HTTPS 入口 `https://luckye-1.tail5e6162.ts.net`，代理到回环 `http://127.0.0.1:3100`，只在 tailnet 内可达，未启用公网 Funnel；供没有 SSH 的设备使用。它是另一个浏览器来源，首次打开须在工作区设置里重新填写模型接口。
 
