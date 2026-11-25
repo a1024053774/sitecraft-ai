@@ -98,7 +98,7 @@ test('privacy: birthtime, mtime, atime and size do not identify source or round'
   const all = [...entries, ...await inventory(compareRoot)];
   assert.equal(new Set(all.map(e => e.modified)).size, 1, 'all file and directory mtime values must be equal');
   assert.equal(new Set(all.map(e => e.accessed)).size, 1, 'all file and directory atime values must be equal');
-  for (const [folder, field, positive] of [['mixed', 'kind', 'generated'], ['company', 'style', 'precision']] as const) {
+  for (const [folder, field, positive] of [['mixed', 'kind', 'generated'], ['company', 'style', 'precision'], ['diversity', 'style', 'precision']] as const) {
     const samplesRoot = path.join(review, folder, 'samples');
     const dirs = entries.filter(e => e.directory && path.dirname(e.file) === samplesRoot);
     const ordered = [...dirs].sort((a, b) => a.birth - b.birth);
@@ -130,15 +130,18 @@ test('privacy: birthtime, mtime, atime and size do not identify source or round'
 });
 test('privacy: separate protocols and one use per real website prevent identity elimination', async () => {
   const out = await packet('protocols'), review = path.join(out, 'review');
-  assert.deepEqual((await readdir(review)).sort(), ['company', 'mixed'], 'each rubric requires its own reviewer directory');
+  assert.deepEqual((await readdir(review)).sort(), ['company', 'diversity', 'mixed'], 'each rubric requires its own reviewer directory');
   const mixed = JSON.parse(await readFile(path.join(review, 'mixed/tasks.json'), 'utf8'));
   const company = JSON.parse(await readFile(path.join(review, 'company/tasks.json'), 'utf8'));
+  const diversity = JSON.parse(await readFile(path.join(review, 'diversity/tasks.json'), 'utf8'));
   const mapping = JSON.parse(await readFile(path.join(out, 'private/mapping.json'), 'utf8'));
   assert.equal(mixed.samples.length, 16); assert.equal(company.pairs.length, 12);
+  assert.equal(diversity.crossStylePairs.length, 16); assert.equal(diversity.clusterSamples.length, 8);
   const real = mixed.samples.filter((c: { id: string }) => mapping[c.id].kind === 'control');
   assert.equal(real.length, 8); assert.equal(new Set(real.map((c: { id: string }) => mapping[c.id].url)).size, 8);
   assert.equal(mixed.samples.filter((c: { id: string }) => mapping[c.id].kind === 'generated').length, 8);
   const mixedIds = new Set(mixed.samples.map((c: { id: string }) => c.id));
+  const companyIds = new Set(company.pairs.flatMap((p: { candidates: Array<{ id: string }> }) => p.candidates.map(c => c.id)));
   for (const pair of company.pairs) {
     assert.equal(pair.candidates.length, 2);
     const identities = pair.candidates.map((c: { id: string }) => mapping[c.id]);
@@ -146,13 +149,19 @@ test('privacy: separate protocols and one use per real website prevent identity 
     assert.equal(identities[0].style, identities[1].style);
     for (const c of pair.candidates) assert.equal(mixedIds.has(c.id), false);
   }
+  for (const pair of diversity.crossStylePairs) {
+    assert.equal(pair.candidates.length, 2);
+    const identities = pair.candidates.map((c: { id: string }) => mapping[c.id]);
+    assert.notEqual(identities[0].style, identities[1].style);
+    for (const c of pair.candidates) assert.ok(!mixedIds.has(c.id) && !companyIds.has(c.id));
+  }
   const paired = JSON.parse(await readFile(path.join(out, 'comparison-review/tasks.json'), 'utf8'));
   assert.equal(paired.pairs.length, 8);
   for (const pair of paired.pairs) {
     const identities = pair.candidates.map((c: { id: string }) => mapping[c.id]);
     assert.equal(identities[0].key, identities[1].key); assert.notEqual(identities[0].round, identities[1].round);
   }
-  for (const folder of ['mixed', 'company']) {
+  for (const folder of ['mixed', 'company', 'diversity']) {
     const prompt = await readFile(path.join(review, folder, 'prompt.txt'), 'utf8');
     assert.match(prompt, /独立|不同|单独/);
     for (const e of await inventory(path.join(review, folder))) if (!e.directory && !e.file.endsWith('.png')) {

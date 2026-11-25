@@ -19,7 +19,7 @@ const { values } = parseArgs({ options: {
   'previous-materials-changed': { type: 'boolean', default: false },
 } });
 if (values.help) {
-  console.log('设置 SITECRAFT_BASE 后运行 npm run eval:new-route -- [--base <本机HTTP origin>] [--out artifacts/t130/round-...] [--previous <round>] [--previous-materials-changed] [--quick] [--only restaurant/documentary,education/documentary,design/documentary] [--prepare-only]\n默认生成7家公司×precision/documentary整站；--quick为日常快速档，7组合（每家公司一种风格），只生成首页和产品/菜单/课程/作品页。--only按组合key筛选，不改变资料、档位或比较规则。默认仅匹配同档、同资料的上一轮；--previous-materials-changed须配合--previous，只允许资料变化，其余已记录条件仍须一致，缺失条件列入私有比较记录。快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed与review/company分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
+  console.log('设置 SITECRAFT_BASE 后运行 npm run eval:new-route -- [--base <本机HTTP origin>] [--out artifacts/t130/round-...] [--previous <round>] [--previous-materials-changed] [--quick] [--only restaurant/documentary,education/documentary,design/documentary] [--prepare-only]\n默认生成7家公司×precision/documentary整站；--quick为日常快速档，7组合（每家公司一种风格），只生成首页和产品/菜单/课程/作品页。--only按组合key筛选，不改变资料、档位或比较规则。默认仅匹配同档、同资料的上一轮；--previous-materials-changed须配合--previous，只允许资料变化，其余已记录条件仍须一致，缺失条件列入私有比较记录。快速档不替代整轮质量决策。--prepare-only只采集真实官网对照和评审提示词，不调用模型，不是生成验收。review/mixed、review/company 与（多种风格时的）review/diversity 分别交不同的新评审实例；comparison-review单独交跨轮比较实例，private/由主控保管。');
   process.exit(0);
 }
 assert.ok(!values['previous-materials-changed'] || values.previous, '--previous-materials-changed 必须显式指定 --previous');
@@ -285,6 +285,7 @@ const blind = await buildBlindPackage(round, directory, previous);
 await writeFile(path.join(directory, 'private', 'blind-coverage.json'), JSON.stringify(blind, null, 2), 'utf8');
 round.status = cases.some(c => c.outcome === 'blocked') ? 'BLOCKED' : cases.every(c => c.outcome === 'generated') && blind.complete && !round.errors.length ? 'PASS' : 'INCOMPLETE';
 await save();
-console.log(`本轮 mixed/company 审包：${blind.review.complete ? '齐备可交评审' : 'INCOMPLETE'}；跨轮比较：${!blind.comparison.requested ? '未请求' : blind.comparison.complete ? '齐备可交比较' : `INCOMPLETE（${blind.comparison.missing.length} 项缺图）`}`);
-console.log(`${round.status}: ${directory}\n不同新评审实例分别收 ${path.join(directory, 'review/mixed')} 与 ${path.join(directory, 'review/company')}；跨轮比较单独收 ${path.join(directory, 'comparison-review')}`);
+const diversityNote = blind.diversity.requested ? `；review/diversity（${blind.diversity.crossStylePairs} 对跨风格，${blind.diversity.clusterSamples} 样本归簇）` : '';
+console.log(`本轮 mixed/company${blind.diversity.requested ? '/diversity' : ''} 审包：${blind.review.complete ? '齐备可交评审' : 'INCOMPLETE'}；跨轮比较：${!blind.comparison.requested ? '未请求' : blind.comparison.complete ? '齐备可交比较' : `INCOMPLETE（${blind.comparison.missing.length} 项缺图）`}`);
+console.log(`${round.status}: ${directory}\n不同新评审实例分别收 ${path.join(directory, 'review/mixed')}、${path.join(directory, 'review/company')}${diversityNote ? ` 与 ${path.join(directory, 'review/diversity')}（${blind.diversity.crossStylePairs} 对跨风格，${blind.diversity.clusterSamples} 样本归簇）` : ''}；跨轮比较单独收 ${path.join(directory, 'comparison-review')}`);
 if (round.status !== 'PASS') process.exitCode = 1;
