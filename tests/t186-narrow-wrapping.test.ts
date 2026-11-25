@@ -57,11 +57,14 @@ for (const style of styles) test(`${style}：生产规划、写页和局部首�
     const core = system.split('name: site-code-core\n')[1]?.split('本规范改编自')[0];
     assert.ok(core); wrappingContract(core);
     const skill = system.split(`name: site-code-${style}\n`)[1];
-    assert.ok(skill); wrappingContract(skill);
+    assert.ok(skill);
+    assert.doesNotMatch(skill, /表格改字段行须整体处理 caption、thead/);
     assert.ok(body.messages[1].content.includes(materials));
   }
   const local = requests[2];
-  wrappingContract(local.messages[0].content.split('风格要点：')[1].split('\n')[0]);
+  const localContract = local.messages[0].content.split('\n风格要点：')[0];
+  wrappingContract(localContract);
+  assert.doesNotMatch(local.messages[0].content.split('\n风格要点：')[1] ?? '', /表格改字段行须整体处理 caption、thead/);
   assert.equal(local.tools[0].function.name, 'submit_local_edit');
   assert.equal(local.max_tokens, 12288);
   assert.equal(JSON.parse(local.messages[1].content.split('\n')[0]).materials, materials);

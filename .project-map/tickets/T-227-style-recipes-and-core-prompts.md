@@ -2,9 +2,9 @@
 id: T-227
 title: 第一阶段（1/2）：核心规范解耦、四风格配方重写、滑杆保真与候选风格登记
 type: build
-status: open
+status: done
 blocked_by: [T-226]
-claimed_by:
+claimed_by: Antigravity
 supersedes:
 ---
 
@@ -29,8 +29,22 @@ supersedes:
 
 ## Acceptance
 
-- [ ] `skills/site-code-core/SKILL.md` 与 `skills/site-code-core/LOCAL-EDIT.md` 已解耦造型同质化限制，同时完整保留事实红线、对比度、`T-208`、`T-198` 及资源/图片/图标/底图合同
-- [ ] `precision`、`documentary`、`editorial`、`neighborly` 四个 `SKILL.md` 已去掉重复防御套话并改写为含子色板、跨平台字体栈、专属页头/首屏配方与反雷同禁令的完整规范
-- [ ] `lib/code-site-styles.ts` 的 `codeSliderRules()` 不再在默认值 `(5, 6)` 覆写风格自身尺度，1–3 与 8–10 档仍按要求差异化排版且不增删事实
-- [ ] `darkroom`、`indexgrid`、`craftposter` 三个 `SKILL.md` 与 `pending` 登记已完成；普通进程不设置 `SITECRAFT_EVAL_STYLES` 时无法选中且 `auto` 不包含它们
-- [ ] 更新并新增的定向单测（含 `t153`、`t158`、`t159`、`t184`、`t221` 相关用例）与 `npm run typecheck` 全部通过（0 真实模型调用）
+- [x] `skills/site-code-core/SKILL.md` 与 `skills/site-code-core/LOCAL-EDIT.md` 已解耦造型同质化限制，同时完整保留事实红线、对比度、`T-208`、`T-198` 及资源/图片/图标/底图合同
+- [x] `precision`、`documentary`、`editorial`、`neighborly` 四个 `SKILL.md` 已去掉重复防御套话并改写为含子色板、跨平台字体栈、专属页头/首屏配方与反雷同禁令的完整规范
+- [x] `lib/code-site-styles.ts` 的 `codeSliderRules()` 不再在默认值 `(5, 6)` 覆写风格自身尺度，1–3 与 8–10 档仍按要求差异化排版且不增删事实
+- [x] `darkroom`、`indexgrid`、`craftposter` 三个 `SKILL.md` 与 `pending` 登记已完成；普通进程不设置 `SITECRAFT_EVAL_STYLES` 时无法选中且 `auto` 不包含它们
+- [x] 更新并新增的定向单测（含 `t153`、`t158`、`t159`、`t184`、`t221` 相关用例）与 `npm run typecheck` 全部通过（0 真实模型调用）
+
+## Resolution
+
+- **Completed at**: 2026-11-25 03:43 EST (UTC-5)
+- **Changes**:
+  - `skills/site-code-core/SKILL.md` 与 `skills/site-code-core/LOCAL-EDIT.md`：解耦 72px 顶栏、单一强调色和单主要入口硬锁，把窄屏语义断行、`field-table` 规则和 `conditionScope` 规则统一沉淀在核心与局部合同中，完整保留事实红线、对比度、三档溢出/重叠、`T-208`、`T-198` 与图片/图标/底图合同。
+  - `skills/site-code-{precision,documentary,editorial,neighborly}/SKILL.md`：移除重复防御套话，改写为互不相同的页头原型、跨平台中英文及等宽字体栈、各 3 套经对比度核算的子色板（变体 A/B/C）、无图与薄资料首屏构图及反雷同禁令，并保持最终 `来源：` 段落。
+  - `skills/site-code-{darkroom,indexgrid,craftposter}/{SKILL.md,SOURCE.md}` & `lib/code-site-styles.ts` & `lib/code-site-model.ts`：新增并登记 3 个 `pending` 候选风格；调整 `codeSliderRules()` 在中档 `(4–7)` 保持风格自身尺度、1–3 与 8–10 差异化；在 `styleSubvariantHint()` 加入不改变事实的确定性企业子色板散列提示（`sum * 131 + charCode * (i + 1)`）。
+  - `tests/fixtures/t159-commit-protocol.ts` & `tests/fixtures/t159-entry.ts`：修复 Windows 下两处既有测试夹具兼容性问题（`path.relative` 反斜杠归一化为 `/`；移除导致 Windows Node v24.19.0 触发 `UV_HANDLE_CLOSING` 的同步 `process.exit(0)` 并在关闭前 `closeAllConnections()`）。
+  - `CONTEXT.md`、`docs/project/mainline.md`、`docs/project/spec.md`：同步术语、候选风格登记与核心/风格解耦合同。
+- **Verification**:
+  - 红态证据：`artifacts/t227/red-tests.log`（实现前 `tests/t227-style-recipes.test.ts` 0/6 通过、6/6 按预期失败）。
+  - 绿态回归：`npm run typecheck`（exit 0）与 13 组定向单测 `tests/t227-style-recipes.test.ts`、`t140`、`t142`、`t153`、`t158`、`t159-{ready-style,style-eval,task-admission}`、`t184`、`t186-{narrow-wrapping,table-reflow}`、`t188`、`t221`（75/75 全部通过，0 真实模型调用，见 `artifacts/t227/green-tests-pass.log` 与 `artifacts/t167/test-run-1795595647631-28760`）。
+  - 设计与审查：`artifacts/t227/design-integrity.json`（`findings: [], acceptance_changes: []`）；独立只读审查 `artifacts/t227/review.txt`（`same-model review`，`STATUS: PASS`，0 缺陷）。

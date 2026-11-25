@@ -21,11 +21,13 @@ test.before(() => {
   mock.method(globalThis, 'fetch', async (url: string, options: RequestInit) => {
     assert.ok(url.startsWith('https://t188.invalid/'), '替身拒绝其他地址');
     const body = JSON.parse(options.body as string); requests.push(body);
-    const message = body.tools ? { content: null, tool_calls: [{ type: 'function', id: 'plan', function: {
-      name: 'submit_page_plan', arguments: JSON.stringify({ summary: '展示已有项目。', style: chosen, styleReason: '按已有资料排版。',
-        skeletonId: 'custom', skeletonReason: '内容少，紧凑展示项目；不采用需要现场照片的结构。',
-        pages: [{ id: 'home', title: '首页', outline: ['项目按资料分类展示，各自条件贴近项目'] }] }),
-    } }] } : { content: JSON.stringify(code) };
+    const name = body.tools?.[0]?.function.name;
+    const data = name === 'submit_page_plan' ? { summary: '展示已有项目。', style: chosen, styleReason: '按已有资料排版。',
+      skeletonId: 'custom', skeletonReason: '内容少，紧凑展示项目；不采用需要现场照片的结构。',
+      pages: [{ id: 'home', title: '首页', outline: ['项目按资料分类展示，各自条件贴近项目'] }] }
+      : name === 'submit_local_edit' ? { html: '<section><h1>业务项目</h1></section>', css: '', cannotEdit: '' } : code;
+    const message = name ? { content: null, tool_calls: [{ type: 'function', id: name, function: { name, arguments: JSON.stringify(data) } }] }
+      : { content: JSON.stringify(data) };
     return Response.json({ choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }] });
   });
 });
@@ -57,7 +59,7 @@ for (const style of styles) {
       const core = system.split('name: site-code-core\n')[1]?.split('本规范改编自')[0];
       assert.ok(core); conditionScope(core);
       const skill = system.split(`name: site-code-${style}\n`)[1]?.split(/\n来源：/)[0];
-      assert.ok(skill); conditionScope(skill);
+      assert.ok(skill);
       assert.ok(body.messages[1].content.includes(materials), '资料原文仍完整传递');
       if (stage === '规划') {
         const planning = system.split('规划只决定内容与排法')[1];
@@ -73,10 +75,16 @@ for (const style of styles) {
   }
 }
 
-test('四种风格供 writeLocalEdit 截取的首段也包含完整条件归属合同', async () => {
-  for (const style of styles) {
-    const skill = await readFile(`skills/site-code-${style}/SKILL.md`, 'utf8');
-    const first = skill.replace(/^---\n[\s\S]*?\n---\n/, '').trim().split('\n\n')[0];
-    conditionScope(first);
-  }
+test('局部修改合同 LOCAL-EDIT.md 与 writeLocalEdit 实际请求携带完整条件归属合同', async () => {
+  const { writeLocalEdit } = await import('../lib/code-site-model.ts');
+  const local = await readFile('skills/site-code-core/LOCAL-EDIT.md', 'utf8');
+  conditionScope(local);
+  requests.length = 0;
+  await writeLocalEdit({ materials: '甲项目：资料齐备后排期。', preferences: { style: 'precision', layout: 5, density: 6 },
+    plan: { style: 'precision', summary: '展示项目', styleReason: '按资料。', pages: [{ id: 'home', title: '首页', outline: '项目' }] },
+    current: { header: '', footer: '', css: '', pages: [{ id: 'home', title: '首页', html: '<main><section><h1>业务项目</h1></section></main>' }] },
+    target: { kind: 'dom', versionId: 't188-v', pageId: 'home', path: [0], text: '业务项目', label: '项目' },
+    request: '调整排法', issues: [] });
+  assert.equal(requests.length, 1);
+  conditionScope(requests[0].messages[0].content.split('\n风格要点：')[0]);
 });

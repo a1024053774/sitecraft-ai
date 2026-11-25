@@ -137,10 +137,9 @@ if (process.env.T159_RESTYLE_MODE) {
       checksBefore, checksAfter: (globalThis as any).__t159CheckCalls, closedChecks: (globalThis as any).__t159ClosedChecks };
   }
   await writeFile(path.join(folder, 'restyle.json'), JSON.stringify({ storage, evidence, limitation: '真实提交/检查器/事实复用与本地 HTTP 核对协议，CDP 观察由替身提供；after 不执行，不证明真实 Chrome、模型事实能力或页面质量。' }, null, 2), 'utf8');
+  bridge.closeAllConnections(); provider.closeAllConnections();
   await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
-  process.exit(0);
-}
-if (process.env.T159_ENTRY_CONFIRM_SITE) {
+} else if (process.env.T159_ENTRY_CONFIRM_SITE) {
   const id = process.env.T159_ENTRY_CONFIRM_SITE;
   const get = async () => (await (await fetch(`${base}/api/sites/${id}/draft`)).json());
   const before = await get();
@@ -150,35 +149,37 @@ if (process.env.T159_ENTRY_CONFIRM_SITE) {
   await writeFile(path.join(folder, 'confirm.json'), JSON.stringify({ storage, status: response.status, payload, before, after, queuedAfter,
     evalFlag: process.env.SITECRAFT_EVAL_STYLES ?? null, modelRequests: modelRequests.length,
     limitation: '使用生产 HTTP handler 与存储；只运行准备阶段的本地替身规划。确认后的 after 队列不执行，不调用模型或 Chrome。' }, null, 2), 'utf8');
+  bridge.closeAllConnections(); provider.closeAllConnections();
   await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
-  process.exit(0);
+} else {
+  const args = ['--experimental-strip-types', '--import', './tests/fixtures/t159-browser-guard.ts',
+    ...(process.env.T159_PENDING_CATALOG === '1' ? ['--import', './tests/fixtures/t159-pending-catalog.ts'] : []),
+    'scripts/eval-new-route.ts', '--quick', '--only', 'restaurant/neighborly', '--out', path.join(folder, 'eval')];
+  const cli = spawn(process.execPath, args, { env: { ...process.env, SITECRAFT_BASE: base }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let stdout = '', stderr = '';
+  cli.stdout.on('data', data => { stdout += data; }); cli.stderr.on('data', data => { stderr += data; });
+  process.once('SIGTERM', () => { cli.kill('SIGTERM'); process.exit(143); });
+  const exit = await new Promise(resolve => cli.once('close', resolve));
+  let savedStyleSite: string | undefined, reopened: any;
+  const post = async (url: string, body: unknown) => {
+    const response = await fetch(base + url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: response.status, payload: await response.json() };
+  };
+  if (process.env.SITECRAFT_EVAL_STYLES) {
+    savedStyleSite = (await post('/api/sites', { name: '绘画机构准入留存' })).payload.id;
+    await post(`/api/sites/${savedStyleSite}/chat`, { message: '成人素描课，地址待补充。', baseRevision: 0 });
+  }
+  if (process.env.T159_ENTRY_EXISTING_SITE) {
+    const id = process.env.T159_ENTRY_EXISTING_SITE;
+    const state = (await post(`/api/sites/${id}/chat`, { action: 'state' })).payload;
+    const response = await post(`/api/sites/${id}/chat`, { action: 'select', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision,
+      optionId: 'neighborly', preferences: { style: 'neighborly', layout: 5, density: 6 }, SITECRAFT_EVAL_STYLES: 'neighborly' });
+    reopened = { visibleOptions: state.alignment.options.map((o: any) => o.id), selectStatus: response.status };
+  }
+  await Promise.all(tasks);
+  bridge.closeAllConnections(); provider.closeAllConnections();
+  await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
+  const round = JSON.parse(await readFile(path.join(folder, 'eval/private/round.json'), 'utf8'));
+  await writeFile(path.join(folder, 'entry.json'), JSON.stringify({ storage, args, exit, stdout, stderr, routes, modelRequests, round, savedStyleSite, reopened,
+    limitation: 'HTTP 使用生产 handler，after 与模型由替身控制；不证明实际 Next after 集成或真实模型质量。' }, null, 2), 'utf8');
 }
-const args = ['--experimental-strip-types', '--import', './tests/fixtures/t159-browser-guard.ts',
-  ...(process.env.T159_PENDING_CATALOG === '1' ? ['--import', './tests/fixtures/t159-pending-catalog.ts'] : []),
-  'scripts/eval-new-route.ts', '--quick', '--only', 'restaurant/neighborly', '--out', path.join(folder, 'eval')];
-const cli = spawn(process.execPath, args, { env: { ...process.env, SITECRAFT_BASE: base }, stdio: ['ignore', 'pipe', 'pipe'] });
-let stdout = '', stderr = '';
-cli.stdout.on('data', data => { stdout += data; }); cli.stderr.on('data', data => { stderr += data; });
-process.once('SIGTERM', () => { cli.kill('SIGTERM'); process.exit(143); });
-const exit = await new Promise(resolve => cli.once('close', resolve));
-let savedStyleSite: string | undefined, reopened: any;
-const post = async (url: string, body: unknown) => {
-  const response = await fetch(base + url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  return { status: response.status, payload: await response.json() };
-};
-if (process.env.SITECRAFT_EVAL_STYLES) {
-  savedStyleSite = (await post('/api/sites', { name: '绘画机构准入留存' })).payload.id;
-  await post(`/api/sites/${savedStyleSite}/chat`, { message: '成人素描课，地址待补充。', baseRevision: 0 });
-}
-if (process.env.T159_ENTRY_EXISTING_SITE) {
-  const id = process.env.T159_ENTRY_EXISTING_SITE;
-  const state = (await post(`/api/sites/${id}/chat`, { action: 'state' })).payload;
-  const response = await post(`/api/sites/${id}/chat`, { action: 'select', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision,
-    optionId: 'neighborly', preferences: { style: 'neighborly', layout: 5, density: 6 }, SITECRAFT_EVAL_STYLES: 'neighborly' });
-  reopened = { visibleOptions: state.alignment.options.map((o: any) => o.id), selectStatus: response.status };
-}
-await Promise.all(tasks);
-await Promise.all([new Promise<void>(resolve => bridge.close(() => resolve())), new Promise<void>(resolve => provider.close(() => resolve()))]);
-const round = JSON.parse(await readFile(path.join(folder, 'eval/private/round.json'), 'utf8'));
-await writeFile(path.join(folder, 'entry.json'), JSON.stringify({ storage, args, exit, stdout, stderr, routes, modelRequests, round, savedStyleSite, reopened,
-  limitation: 'HTTP 使用生产 handler，after 与模型由替身控制；不证明实际 Next after 集成或真实模型质量。' }, null, 2), 'utf8');

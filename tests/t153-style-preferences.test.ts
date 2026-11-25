@@ -53,7 +53,7 @@ test('each slider band gives observable layout/density instructions and preserve
   style = 'precision';
   for (const [value, layout, density] of [
     [1, /共享对齐轴/, /每组只突出一个/], [3, /共享对齐轴/, /每组只突出一个/],
-    [4, /主次栏/, /相关参数集中/], [7, /主次栏/, /相关参数集中/],
+    [4, /保持所选风格自身.*(?:栏比|比例|构图)/, /保持所选风格自身.*(?:留白|间距|节奏)/], [7, /保持所选风格自身.*(?:栏比|比例|构图)/, /保持所选风格自身.*(?:留白|间距|节奏)/],
     [8, /不对称/, /紧凑表格/], [10, /不对称/, /紧凑表格/],
   ] as const) {
     await planSiteCode('型号 G8；不适用腐蚀工况；范围待补充。', { style: 'precision', layout: value, density: value }, '规划');
@@ -78,8 +78,9 @@ test('unknown preferences are rejected before the provider and unregistered auto
 
 test('all offered directions have registered real WebP previews', async () => {
   assert.ok(existsSync('lib/code-site-styles.ts'), 'one style catalog must exist');
-  const { codeStyles, codeStyleOptions } = await import('../lib/code-site-styles.ts');
-  assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial', 'neighborly']);
+  const { codeStyles, codeStyleOptions, readyCodeStyleIds } = await import('../lib/code-site-styles.ts');
+  assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'indexgrid', 'craftposter']);
+  assert.deepEqual(readyCodeStyleIds, ['precision', 'documentary', 'editorial', 'neighborly']);
   assert.deepEqual(codeStyleOptions.map(option => option.id), ['auto', 'precision', 'documentary', 'editorial', 'neighborly'], '盲评通过的邻里日常成为普通用户选项');
   for (const id of ['precision', 'documentary', 'editorial', 'neighborly'] as const) {
     const preview = codeStyles[id].preview;
@@ -88,6 +89,9 @@ test('all offered directions have registered real WebP previews', async () => {
     assert.ok(preview.siteId && preview.versionId && preview.source && preview.license);
     assert.ok(preview.revision > 0);
     assert.ok((await readFile(`public${preview.src}`)).length > 0);
+  }
+  for (const id of ['darkroom', 'indexgrid', 'craftposter'] as const) {
+    assert.deepEqual(codeStyles[id].preview, { status: 'pending' });
   }
 });
 

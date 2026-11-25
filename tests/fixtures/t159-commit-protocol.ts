@@ -56,7 +56,7 @@ registerHooks({ resolve(specifier, context, next) {
 }, load(url, context, next) {
   const loaded = next(url, context);
   if (!url.startsWith('file:')) return loaded;
-  const relative = path.relative(process.cwd(), fileURLToPath(url));
+  const relative = path.relative(process.cwd(), fileURLToPath(url)).replaceAll('\\', '/');
   if (!revisionFiles.has(relative)) return loaded;
   let source = revision ? execFileSync('git', ['show', `${revision}:${relative}`], { encoding: 'utf8' })
     : typeof loaded.source === 'string' ? loaded.source : new TextDecoder().decode(loaded.source as AllowSharedBufferSource);
