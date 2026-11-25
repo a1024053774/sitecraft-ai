@@ -51,11 +51,15 @@ const formatHeader = 'x-sitecraft-provider-format';
 // Returns null when the request carries no provider headers; throws when they are incomplete or invalid.
 export function providerFromRequest(request: Request): ProviderCredentials | null {
   const raw = Object.fromEntries(Object.entries(headerNames).map(([field, name]) => [field, request.headers.get(name)?.trim() ?? ''])) as Record<keyof typeof headerNames, string>;
-  if (!raw.baseURL && !raw.apiKey && !raw.model) return null;
-  if (!raw.baseURL || !raw.apiKey || !raw.model) throw new ProviderSettingsError('模型接口设置不完整：API 地址、key 和模型名都要填写。');
-  // Settings saved before T-221 send no format; they were DeepSeek.
-  const format = providerFormat(request.headers.get(formatHeader)?.trim() || 'deepseek');
+  // Settings saved before T-221 send no format; they were DeepSeek. Validate format even when sent alone.
+  const rawFormat = request.headers.get(formatHeader)?.trim() ?? '';
+  const format = providerFormat(rawFormat || 'deepseek');
   if (!format) throw new ProviderSettingsError('接口格式无效，请在「设置」里重新选择。');
+  if (!raw.baseURL && !raw.apiKey && !raw.model) {
+    if (rawFormat) throw new ProviderSettingsError('模型接口设置不完整：API 地址、key 和模型名都要填写。');
+    return null;
+  }
+  if (!raw.baseURL || !raw.apiKey || !raw.model) throw new ProviderSettingsError('模型接口设置不完整：API 地址、key 和模型名都要填写。');
   if (raw.apiKey.length > 512 || /[\s\u0000-\u001f\u007f]/.test(raw.apiKey)) throw new ProviderSettingsError('API key 格式无效。');
   if (!/^[A-Za-z0-9._:/@-]{1,120}$/.test(raw.model)) throw new ProviderSettingsError('模型名格式无效。');
   let url: URL;

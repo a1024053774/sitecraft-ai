@@ -2,9 +2,9 @@
 id: T-221
 title: 模型接口支持 OpenAI 兼容与 Anthropic 兼容格式
 type: build
-status: open
+status: closed
 blocked_by: []
-claimed_by:
+claimed_by: Antigravity
 supersedes:
 ---
 
@@ -43,11 +43,11 @@ supersedes:
 - [x] 真实 OpenAI 接口跑通规划、生成、批注修改、整页修改（`gpt-6.2-sol`，经 OpenAI Responses 格式；chat completions 格式下该模型被上游拒绝，见实跑记录）。
 - 真实 Anthropic 接口实跑：2026-11-20 负责人决定不再作为本票验收。Anthropic 兼容格式只经本地替身验证，产品页、演示和 README 已如实写明。
 - [x] `npm run typecheck`、`npm run build`、全量 `npm test` 通过（加入 Responses 格式之前的提交）。加入之后重跑：非浏览器 144/144，浏览器 1116/1116。2026-11-20 合并后的主线 c5c09cdd 在负责人 Mac 重跑：入口回归 18/18，非浏览器 144/144，浏览器 1121/1121，`npm run typecheck` 通过（先 `npx next typegen`，见 T-223 第 10 节）；`npm run build` 按规则不在 Mac 运行。
-- [ ] 回复文字被拆成多段、拼起来才含 key 时，调用记录和返回内容里都不留 key（OpenAI Responses、Anthropic）
-- [ ] 非 2xx 回复的编号响应头里出现转义形式的 key 时，记录里不留可还原的 key（`request-id`、`x-request-id`、`x-ds-trace-id`）
-- [ ] OpenAI Responses 回复里被采用的输出项自身未完成（`incomplete`、`in_progress`）时拒收
-- [ ] DeepSeek 格式下，地址以 `//` 结尾、HTTP 200 正文不是 JSON 这两种输入的请求地址和调用记录与 0eefc1f6 相同；或由负责人确认接受这两处差异
-- [ ] 请求只带 `X-SiteCraft-Provider-Format` 且值未知时返回 400
+- [x] 回复文字被拆成多段、拼起来才含 key 时，调用记录和返回内容里都不留 key（OpenAI Responses、Anthropic）
+- [x] 非 2xx 回复的编号响应头里出现转义形式的 key 时，记录里不留可还原的 key（`request-id`、`x-request-id`、`x-ds-trace-id`）
+- [x] OpenAI Responses 回复里被采用的输出项自身未完成（`incomplete`、`in_progress`）时拒收
+- [x] DeepSeek 格式下，地址以 `//` 结尾、HTTP 200 正文不是 JSON 这两种输入的请求地址和调用记录与 0eefc1f6 相同；或由负责人确认接受这两处差异
+- [x] 请求只带 `X-SiteCraft-Provider-Format` 且值未知时返回 400
 
 ## Notes
 
@@ -109,5 +109,24 @@ Codex gpt-6.1-sol（high，只读，独立实例）按 design-integrity-review �
 4. **DeepSeek 与改动前不一致**（P2）：地址以 `//` 结尾时，原来请求 `…//beta/chat/completions`，现在请求 `…/beta/chat/completions`；HTTP 200 而正文只有 `{` 时，原来的调用记录没有 `response` 字段，现在多了三个空值字段，报错文字也变了。正常地址下两边相同。
 5. **只带格式头时不校验**（P2）：请求只带 `X-SiteCraft-Provider-Format: unknown`、不带地址、key 和模型名，处理函数照常执行并返回 200；四个头都带时返回 400。
 
-对应的五条验收已加在上面，票保持打开。修复涉及模型客户端和凭据处理，要负责人先安排。
+对应的五条验收已加在上面，现已逐项修补、验证并关闭。
+
+## Resolution
+
+- **关闭时间**：2026-11-25 05:51 EST
+- **代码修复**（未改 `lib/provider-format.ts` 的 `responsesStrict = true` 与 `AGENTS.md`，未调用真实模型）：
+  - `lib/provider-http-error.ts`：`redact` 通过 `safeProviderResponseBody(literalRedacted, apiKey).bodyRedacted` 检查 `request-id`、`x-request-id`、`x-ds-trace-id` 响应头中含 JSON 转义形式的凭据，命中时整段替换为 `[REDACTED]`。
+  - `lib/provider-context.ts`：`providerFromRequest` 在空凭据提前返回之前解析并校验 `x-sitecraft-provider-format`，请求仅带未知格式头（或仅带有效格式头但缺凭据）时直接抛出 `ProviderSettingsError`（400）。
+  - `lib/provider-format.ts`：`deepseek` 兜底路径直接使用 `${baseURL}`，保留 `providerConfig()` 单次去尾部 `/` 的结果以保持 `//` 结尾地址与 `0eefc1f6` 一致；`providerReply('openai-responses', ...)` 检查被采用的 `function_call` 与 `message` 是否自身均满足 `item.status === undefined || item.status === 'completed'`（`callsFinished && answerCompleted`），含 `incomplete` / `in_progress` 时拒收（`valid=false`、`content=null`、`finish='other'`）。
+  - `lib/code-site-model.ts`：`modelJson` 仅在 `factReview || safeBody.bodyRedacted` 时预先写入 `call.response`，并在 `format === 'deepseek' && !factReview` 遇到干净非 JSON 200 正文时直接抛出原始 `SyntaxError`（保持与 `0eefc1f6` 一致）；在 `providerReply` 之后把拼接块文本（`reply.content`、`toolArguments`、`JSON.stringify(rawMessage)` 与 `anthropic`/`openai-responses` 全部文本块串联）送入 `safeProviderResponseBody` 复查，命中则脱敏 `rawBody`、清空 `rawMessage` / `answerChars` 并抛出含 `凭据` 的错误。
+- **测试与验证结果**（均在最终代码修改后通过，0 失败、0 跳过）：
+  - 回归测试：`tests/t221-provider-formats.test.ts` 新增 5 项测试覆盖剩余 5 条验收（并同步更新 `https://api.deepseek.com/` 断言与 `server.listen(0)` 受限端口跳过处理）。
+  - 先行失败证据（`artifacts/t221/red-t221-remaining5.log`）：20 项中 15 项通过、5 项新增测试按预期失败（退出码 1）。原有 `artifacts/t221/review/repro.ts` 在 Windows Node ESM 下因 `import(path.join(...))` 报 `ERR_UNSUPPORTED_ESM_URL_SCHEME` 退出码 1（日志保留在 `artifacts/t221/repro-after-fix.json`，未改原脚本），5 项复现已由 `tests/t221-provider-formats.test.ts` 原生覆盖。
+  - `SITE_STORE=fs npm run build` 退出码 0（`artifacts/t221/build-t221-closeout.log`）。
+  - `npm run typecheck` 退出码 0（`artifacts/t221/typecheck-t221-closeout.log`）。
+  - `scripts/run-tests.ts` 定向复验（`artifacts/t221/green-t221-closeout.log`，退出码 0）：非浏览器池 `tests/t228-diversity-and-budget.test.ts` 5/5 通过；浏览器池 `tests/t174-local-function.test.ts`、`tests/t202-provider-flow.test.ts`、`tests/t210-fact-references.test.ts`、`tests/t221-provider-formats.test.ts`（20/20）、`tests/t223-real-run-fixes.test.ts`（10/10）共 93/93 通过；合计 6 个文件 98/98 通过、0 失败、0 跳过。全量 `npm test` 按规则留待合入前统一跑（Windows 下既有 POSIX 测试夹具问题见 `T-223` 记录）。
+  - `design_integrity.py --cwd . --base HEAD --format json`（`artifacts/t221/design-integrity-closeout.json`）：`acceptance_changes` 为空，仅 1 处 `exception-boundary`（`lib/code-site-model.ts` 第 147 行 `catch (error)`）。
+  - 活文档同步：已更新 `CONTEXT.md`、`docs/project/mainline.md`、`docs/project/spec.md` 与 `.project-map/MAP.md`。
+- **独立审查**：`same-model review`（只读子 agent `5586906a-ae7f-43b2-a6cf-9d4dd1a7e3a4`，报告存 `artifacts/t221/review-closeout.txt`）判定 **PASS**：5 项剩余审查问题、设计完整性（`lib/code-site-model.ts` 第 147 行仅显式重抛/报错、无吞异常或垫片）、`responsesStrict = true` 与 `AGENTS.md` 未改、先行失败（20 项中 15 过 5 挂）及闭环验证均通过；已知限制为同模型家族复核、本地替身验证及全量 `npm test` 按规则留待合入前运行。
+- **附记（2026-11-25 第二阶段 `openai-responses` 真实运行阻塞现场）**：`T-226` 第二阶段（`molding/precision`，候选站 `cbb8dd7e-5f1e-4622-927d-013bb40980fd`，预算已用 `39,572 / 850,000`）使用 `gpt-6.2-sol` / `openai-responses` 时，`submit_page_plan`（14,377 token）与整站写作（25,195 token，4 页）通过，第 3 步 `submit_fact_review`（81 个核对段、163 条来源引用、1,555 个 `claimRef`、13,203 项重复 `quoteRef` 枚举、81 条 `^[\s\S]{1,500}$` 正则）收到 OpenAI HTTP 400（请求 ID `req_01a77814da0f4eb197f1846422b81352`）：`Invalid schema for 'tools[0].parameters': regex construction fuel exhausted. Compilation limits apply to all strict schemas in the request.`。`lib/provider-format.ts` 的 `responsesStrict = true` 在本票保持未改，现场已完整保留待负责人决策。
 

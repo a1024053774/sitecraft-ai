@@ -185,7 +185,7 @@ T-208 的 Windows Docker 服务复用上述混合存储：PostgreSQL 命名卷�
 - 只有可能调用模型的请求带 `X-SiteCraft-Provider-Base`、`X-SiteCraft-Provider-Key`、`X-SiteCraft-Provider-Model` 三个头，以及可缺省的 `X-SiteCraft-Provider-Format`（缺省按 DeepSeek，未知值返回 400）：chat 的非 state 请求、撤销、恢复；状态轮询不带。
 - 路由把凭据放入本次请求的 AsyncLocalStorage；后台任务在调度时取出，放在闭包里，任务结束随之释放。凭据不进 run、modelCalls、日志或站点包。
 - 生产模式（`NODE_ENV=production`）不读 `DEEPSEEK_API_KEY` 等环境变量。
-- 本机通过环境变量配置非 DeepSeek 格式时须显式填写地址。所有模型请求拒绝重定向。成功回复在记录或使用前也检查整段正文是否含凭据。整站写作等文本调用只接收正常结束的回答，Responses 优先使用最终回答并排除过程说明。
+- 本机通过环境变量配置非 DeepSeek 格式时须显式填写地址，仅传未知 `X-SiteCraft-Provider-Format` 格式头时即返回 400。所有模型请求拒绝重定向。成功回复的拼接块文字在记录或使用前也检查是否含凭据，非 2xx 编号响应头按字面与 JSON 转义形式脱敏；DeepSeek 非事实写作／规划遇到非 JSON 200 正文与 `//` 地址保持 0eefc1f6 原样。整站写作等文本调用只接收正常结束的回答，Responses 要求被采用的调用项与回答项自身也处于完成状态（不接受 `incomplete`／`in_progress`），并优先使用最终回答、排除过程说明。
 - chat 中会启动模型任务的请求（翻译、风格选择、确认、已有版本后的修改），未配置时在对齐、来源登记和任务改动之前返回 400。
 - 请求头不完整、地址不是 https、地址带账号、查询参数或锚点，均返回 400。
 - 访客地址的连接限制：

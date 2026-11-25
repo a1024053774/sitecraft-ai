@@ -138,23 +138,36 @@ async function modelJson(purpose: CodeModelCall['purpose'], system: string, user
     const factReview = purpose === 'facts' || purpose === 'local-facts';
     const body = await response.text();
     const safeBody = safeProviderResponseBody(body, apiKey);
-    const credentialError = `${upstream} 回复含凭据，已舍弃正文，本次未保存版本。`;
-    call.response = { finishReason: null, answerChars: null, reasoningTokens: null,
-      ...(factReview || safeBody.bodyRedacted ? { rawBody: safeBody } : {}) };
+    const credentialError = `${upstream} ${format === 'deepseek' && factReview ? '事实核对' : ''}回复含凭据，已舍弃正文，本次未保存版本。`;
+    if (factReview || safeBody.bodyRedacted) {
+      call.response = { finishReason: null, answerChars: null, reasoningTokens: null, rawBody: safeBody };
+    }
     let payload;
     try { payload = JSON.parse(body); }
-    catch {
+    catch (error) {
       if (safeBody.bodyRedacted) throw new Error(credentialError);
+      if (format === 'deepseek' && !factReview) throw error;
       throw new Error(`${upstream} ${factReview ? '事实核对回复' : '回复'}不是完整 JSON，本次未保存版本。`);
     }
     const reply = providerReply(format, payload, functionOutput?.name);
     if (reply.usage) call.usage = reply.usage;
     const raw = functionOutput ? reply.toolArguments : reply.content;
-    call.response = { ...call.response, finishReason: reply.finishReason === null ? null : safeProviderResponseBody(reply.finishReason, apiKey).body ?? null,
-      answerChars: typeof raw === 'string' ? raw.length : typeof reply.content === 'string' ? reply.content.length : null,
+    const extraText = format === 'anthropic' && Array.isArray(payload?.content)
+      ? payload.content.filter((b: { type?: string; text?: unknown }) => b?.type === 'text' && typeof b.text === 'string').map((b: { text: string }) => b.text).join('')
+      : format === 'openai-responses' && Array.isArray(payload?.output)
+        ? payload.output.filter((i: { type?: string }) => i?.type === 'message')
+            .flatMap((i: { content?: unknown }) => Array.isArray(i.content) ? i.content : [])
+            .filter((p: { type?: string; text?: unknown }) => p?.type === 'output_text' && typeof p.text === 'string').map((p: { text: string }) => p.text).join('')
+        : '';
+    const replyCandidates = [reply.content ?? '', typeof raw === 'string' ? raw : '', JSON.stringify(reply.rawMessage), extraText];
+    const replyRedacted = Boolean(safeBody.bodyRedacted || (apiKey && replyCandidates.some(text => Boolean(text) && safeProviderResponseBody(text, apiKey).bodyRedacted)));
+    call.response = { ...call.response,
+      ...(factReview || replyRedacted ? { rawBody: replyRedacted ? { bodyRedacted: true as const, bodyLength: body.length } : safeBody } : {}),
+      finishReason: reply.finishReason === null ? null : safeProviderResponseBody(reply.finishReason, apiKey).body ?? null,
+      answerChars: replyRedacted ? null : typeof raw === 'string' ? raw.length : typeof reply.content === 'string' ? reply.content.length : null,
       reasoningTokens: reply.reasoningTokens,
-      ...(functionOutput && !safeBody.bodyRedacted ? { rawMessage: reply.rawMessage } : {}) };
-    if (safeBody.bodyRedacted) throw new Error(credentialError);
+      ...(functionOutput && !replyRedacted ? { rawMessage: reply.rawMessage } : {}) };
+    if (replyRedacted) throw new Error(credentialError);
     if (reply.finish === 'length') throw new Error(`${upstream} 回答被截断，本次未保存版本。`);
     if (!functionOutput && reply.finish !== 'stop') throw new Error(`${upstream} 文本回答未正常结束，本次未保存版本。`);
     if (functionOutput && (!reply.tool || reply.finish !== 'tool_calls')) throw new Error(purpose === 'translate'

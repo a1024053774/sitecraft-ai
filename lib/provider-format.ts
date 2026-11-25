@@ -48,7 +48,7 @@ export function providerRequest(format: ProviderFormat, baseURL: string, apiKey:
       messages },
   };
   return {
-    url: `${base}${tool ? '/beta' : ''}/chat/completions`, headers,
+    url: `${baseURL}${tool ? '/beta' : ''}/chat/completions`, headers,
     body: { model: call.model, temperature: call.temperature, max_tokens: call.maxTokens,
       ...(tool ? { thinking: { type: call.thinking },
         tools: [{ type: 'function', function: { name: tool.name, description: tool.description, strict: true, parameters: tool.parameters } }],
@@ -80,16 +80,24 @@ export function providerReply(format: ProviderFormat, payload: any, toolName?: s
       reasoningTokens: null };
   }
   if (format === 'openai-responses') {
-    const items: Array<{ type?: string; name?: unknown; arguments?: unknown; content?: unknown; phase?: unknown }> = Array.isArray(payload?.output) ? payload.output : [];
+    const items: Array<{ type?: string; status?: unknown; name?: unknown; arguments?: unknown; content?: unknown; phase?: unknown }> = Array.isArray(payload?.output) ? payload.output : [];
+    const itemCompleted = (item: { status?: unknown }) => item.status === undefined || item.status === 'completed';
     const calls = items.filter(item => item?.type === 'function_call');
     const messages = items.filter(item => item?.type === 'message');
     const final = messages.filter(message => message.phase === 'final_answer');
     const answer = final.length ? final : messages.filter(message => message.phase == null);
-    const text = answer.flatMap(item => Array.isArray(item.content) ? item.content : [])
-      .filter((part: { type?: string; text?: unknown }) => part?.type === 'output_text' && typeof part.text === 'string').map((part: { text: string }) => part.text).join('');
-    const valid = calls.length === 1 && calls[0].name === toolName;
+    const answerCompleted = answer.every(itemCompleted);
+    const text = answerCompleted
+      ? answer.flatMap(item => Array.isArray(item.content) ? item.content : [])
+          .filter((part: { type?: string; text?: unknown }) => part?.type === 'output_text' && typeof part.text === 'string').map((part: { text: string }) => part.text).join('')
+      : '';
+    const valid = calls.length === 1 && calls[0].name === toolName && itemCompleted(calls[0]);
+    const callsFinished = calls.every(itemCompleted);
     const status = typeof payload?.status === 'string' ? payload.status : null, why = payload?.incomplete_details?.reason, usage = payload?.usage, reasoning = usage?.output_tokens_details?.reasoning_tokens;
-    return { finish: status === 'incomplete' && why === 'max_output_tokens' ? 'length' : status !== 'completed' ? 'other' : calls.length ? 'tool_calls' : 'stop',
+    const finish = status === 'incomplete' && why === 'max_output_tokens' ? 'length'
+      : status !== 'completed' || !callsFinished || !answerCompleted ? 'other'
+      : calls.length ? 'tool_calls' : 'stop';
+    return { finish,
       finishReason: status === 'incomplete' && typeof why === 'string' ? `incomplete:${why}` : status,
       content: text || null, tool: valid, ...(valid ? { toolArguments: calls[0].arguments } : {}), rawMessage: { content: text || null, tool_calls: calls.length ? calls : null },
       usage: [usage?.input_tokens, usage?.output_tokens, usage?.total_tokens].every(count) ? { promptTokens: usage.input_tokens, completionTokens: usage.output_tokens, totalTokens: usage.total_tokens,

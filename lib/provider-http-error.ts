@@ -23,7 +23,10 @@ export function safeProviderResponseBody(body: string, apiKey: string): Provider
 }
 
 export async function readProviderHttpError(response: Response, apiKey: string): Promise<ProviderHttpError> {
-  const redact = (text: string) => apiKey ? text.split(apiKey).join('[REDACTED]') : text;
+  const redact = (text: string) => {
+    const literalRedacted = apiKey ? text.split(apiKey).join('[REDACTED]') : text;
+    return apiKey && safeProviderResponseBody(literalRedacted, apiKey).bodyRedacted ? '[REDACTED]' : literalRedacted;
+  };
   const body = safeProviderResponseBody(await response.text(), apiKey);
   // 网关正文已舍弃时，只传递原始字符数；应用仍独立检查自己持有的占位 token。
   const redactedLength = response.headers.get('x-sitecraft-redacted-body-length');
