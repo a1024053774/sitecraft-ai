@@ -74,6 +74,7 @@
 - [T-213 两条未接入界面的接口](tickets/T-213-unwired-analyze-and-replies.md)：看图识别与批注回复的对外路由删除，不接入；生成流程内部的助手回复保留（T-217 实现）
 - [T-219 工作台与首页改版方向](tickets/T-219-workspace-redesign-direction.md)：以「分步工单」为主体（资料、风格、大纲、生成、修改五步，一步一屏），批注时切换成炭黑画布样式，首页放开重做；只改界面，取代 T-008（T-220 实现）
 - [T-226 生成站去同质化与跨风格盲评](tickets/T-226-style-diversity-direction.md)：剥离风格重复套话并改为具体设计配方，解耦默认滑杆 5/6 对风格尺度的覆盖，新增 pending 高反差候选风格与跨风格／全池归簇盲评；第二阶段批 6 站／85 万 token（预算网关支持 OpenAI Responses），字体待盲评后再定
+- [T-242 风格整页构图、多样化资料包与拒收统计](tickets/T-242-style-compositions-and-diverse-packs-direction.md)：风格配方自带 2–3 种整页构图并在大纲记录选择与理由（先改 darkroom 与 neighborly 作 tracer bullet，去掉堆砌禁令）；保留旧模拟包不动并新增无「栏目线索」的多样化虚构资料包；先零 token 统计确定性不进修正轮拒收比例
 
 ## Not yet specified
 

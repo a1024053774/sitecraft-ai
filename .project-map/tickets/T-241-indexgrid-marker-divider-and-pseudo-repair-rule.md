@@ -2,7 +2,7 @@
 id: T-241
 title: 查清 industrial/indexgrid 伪元素未进修正轮依据并补齐 indexgrid 横向步骤分隔线规范
 type: build
-status: done
+status: closed
 blocked_by: [T-238]
 claimed_by: Antigravity
 supersedes:
