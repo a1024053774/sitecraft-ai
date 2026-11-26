@@ -45,9 +45,13 @@ test.after(() => new Promise<void>(resolve => provider.close(() => resolve())));
 test('T-181 复制文本按 TR 分开，不能把独立行拼成连续声明', async () => {
   mode = 'cross-row'; requests.length = 0;
   const text = '产能<TR><TD>模具年产 约 180 套</TD></TR><TR><TD>月注塑能力 约 600 万件</TD></TR>';
-  await assert.rejects(auditCodeFacts(materials, [{ text, group: text, context: { pageId: 'capacity', outline: [], headings: [] } }], false, 'precision', [{ type: 'message', messageIndex: 1, text: materials }]), /声明不在本核对段/);
-  const input = JSON.parse(requests[0].messages[1].content.split('\n')[0]);
-  assert.deepEqual(input.segments[0].claimTexts, ['产能', '模具年产 约 180 套', '月注塑能力 约 600 万件']);
+  const calls: CodeModelCall[] = [];
+  await assert.rejects(codeModelCalls.run(calls, () => auditCodeFacts(materials, [{ text, group: text, context: { pageId: 'capacity', outline: [], headings: [] } }], false, 'precision', [{ type: 'message', messageIndex: 1, text: materials }])), /声明不在本核对段/);
+  assert.deepEqual(calls[0].factInput?.segments[0].claimTexts, ['产能', '模具年产 约 180 套', '月注塑能力 约 600 万件']);
+  const wire = JSON.parse(requests[0].messages[1].content.split('\n')[0]);
+  assert.equal('claimTexts' in wire.segments[0], false);
+  assert.ok(wire.segments[0].claims.some((c: any) => c.text === '模具年产 约 180 套'));
+  assert.equal(wire.segments[0].claims.some((c: any) => c.text.includes('模具年产') && c.text.includes('月注塑能力')), false);
 });
 
 for (const local of [false, true]) {
@@ -58,10 +62,12 @@ for (const local of [false, true]) {
     assert.equal(review.length, 4); assert.ok(review.every(x => !x.issues.length));
     assert.deepEqual(review.map(x => x.citations[0].claim), examples.map(x => x.views.at(-1)));
     const input = JSON.parse(requests[0].messages[1].content.split('\n')[0]);
-    assert.deepEqual(input.segments.map((s: any) => s.claimTexts), examples.map(x => x.views), '当前提示缺少按既有归属规则展开的复制文本，仍迫使模型重建标签和值');
-    assert.deepEqual(calls[0].factInput?.segments, input.segments, '复制辅助文本和输入编号一并留在原任务');
+    assert.deepEqual(calls[0].factInput?.segments.map((s: any) => s.claimTexts), examples.map(x => x.views), '本地快照仍保留按既有归属规则展开的复制文本');
+    assert.ok(input.segments.every((s: any) => !('claimTexts' in s)), '上游请求省略模型不消费的 claimTexts');
+    assert.deepEqual(calls[0].factInput?.segments.map(({ claimTexts: _claimTexts, ...s }: any) => s), input.segments, '上游分段除省略 claimTexts 外须与本地快照一致');
+    assert.ok(input.segments.every((s: any, idx: number) => s.claims.some((c: any) => c.text.normalize('NFKC').includes(examples[idx].claim.normalize('NFKC')))));
     const prompt = requests[0].messages[0].content;
-    assert.match(prompt, /claimTexts/); assert.match(prompt, /claimRef.*当前编号/);
+    assert.match(prompt, /不返回.*claimTexts/); assert.match(prompt, /claimRef.*当前编号/);
     assert.match(prompt, /不.*拼接/); assert.match(prompt, /不.*标点/);
     await writeFile(`${output}/${local ? 'local' : 'whole'}-copy.json`, JSON.stringify({ input, review, calls }, null, 2), 'utf8');
   });

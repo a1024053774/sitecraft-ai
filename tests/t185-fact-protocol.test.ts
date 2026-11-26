@@ -1,4 +1,4 @@
-import { factAuditPayload } from './fixtures/fact-audit-reply.ts';
+import { factAuditPayload, resolveWireQuoteText } from './fixtures/fact-audit-reply.ts';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -38,9 +38,12 @@ const provider = createServer(async (req, res) => {
         const contained = segment.claims.filter((claim: any) => normalize(citation.claim).includes(normalize(claim.text))).sort((a: any, b: any) => b.text.length - a.text.length)[0];
         if (contained) citation.claim = contained.text;
       }
-      if (!input.sourceQuotes.some((quote: any) => normalize(quote.text).includes(normalize(citation.quote)))) {
-        const contained = input.sourceQuotes.filter((quote: any) => normalize(citation.quote).includes(normalize(quote.text))).sort((a: any, b: any) => b.text.length - a.text.length)[0];
-        if (contained) citation.quote = contained.text;
+      if (!input.sourceQuotes.some((quote: any) => normalize(resolveWireQuoteText(input, quote)).includes(normalize(citation.quote)))) {
+        const contained = input.sourceQuotes
+          .map((quote: any) => ({ quote, resolvedText: resolveWireQuoteText(input, quote) }))
+          .filter(({ resolvedText }: any) => resolvedText && normalize(citation.quote).includes(normalize(resolvedText)))
+          .sort((a: any, b: any) => b.resolvedText.length - a.resolvedText.length)[0];
+        if (contained) citation.quote = contained.resolvedText;
       }
     }
     payload.choices[0].message.content = JSON.stringify(data);
@@ -100,7 +103,9 @@ for (const fixture of fixtures) for (const local of [false, true]) {
     const reviewed = await run(calls);
     assert.equal(requests.length, 1); assert.equal(reviewed.length, fixture.name === 'packaging' ? 59 : 40);
     const request = requests[0], input = JSON.parse(request.messages[1].content.split('\n')[0]), prompt = request.messages[0].content;
-    assert.deepEqual(input.segments.map(({ claims: _claims, ...segment }: any) => segment), fixture.factInput.segments, '不改输入、行边界或可复制范围来接纳旧坏 claim');
+    assert.deepEqual(calls[0].factInput?.segments.map(({ claims: _claims, ...segment }) => segment), fixture.factInput.segments, '本地快照不改输入、行边界或可复制范围来接纳旧坏 claim');
+    assert.ok(input.segments.every((segment: any) => !('claimTexts' in segment)), '上游请求省略 claimTexts');
+    assert.deepEqual(input.segments.map(({ claims: _claims, ...segment }: any) => segment), fixture.factInput.segments.map(({ claimTexts: _claimTexts, ...segment }: any) => segment), '不改输入、行边界或可复制范围来接纳旧坏 claim');
     if (fixture.name === 'packaging') {
       for (const [id, claim] of Object.entries(rowClaims)) {
         const i = input.segments.findIndex((s: any) => s.id === id);

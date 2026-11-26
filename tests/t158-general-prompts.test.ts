@@ -52,11 +52,14 @@ function generalAudit(system: string) {
 }
 
 test('whole-site audit sends general claim rules and preserves unsupported claims, groups and source boundaries', async () => {
+  const { codeFactAuditInput } = await import('../lib/code-site-model.ts');
   const segments: CodeFactSegment[] = claims.map((text, i) => ({ text, group: i < 2 ? 'same-section' : 'other-section', context: { pageId: 'home', headings: ['服务说明'], outline: ['已有业务与条件'] } }));
+  const localInput = codeFactAuditInput(materials, segments);
   await auditCodeFacts(materials, segments);
   const body = requests.at(-1), input = JSON.parse(body.messages[1].content.split('\n')[0]);
   assert.equal(input.materials, materials);
-  assert.deepEqual(input.segments.map(({ claims: _claims, ...segment }: any) => segment), claims.map((text, i) => ({ id: `s${i + 1}`, text, claimTexts: [text], groupId: i < 2 ? 'g1' : 'g2', pageId: 'home', headings: ['服务说明'] })));
+  assert.deepEqual(localInput.segments.map(({ claims: _claims, ...segment }: any) => segment), claims.map((text, i) => ({ id: `s${i + 1}`, text, claimTexts: [text], groupId: i < 2 ? 'g1' : 'g2', pageId: 'home', headings: ['服务说明'] })));
+  assert.deepEqual(input.segments.map(({ claims: _claims, ...segment }: any) => segment), claims.map((text, i) => ({ id: `s${i + 1}`, text, groupId: i < 2 ? 'g1' : 'g2', pageId: 'home', headings: ['服务说明'] })));
   assert.deepEqual(input.pageContexts, [{ pageId: 'home', outline: ['已有业务与条件'] }]);
   for (const claim of claims) assert.ok(!input.materials.includes(claim));
   generalAudit(body.messages[0].content);

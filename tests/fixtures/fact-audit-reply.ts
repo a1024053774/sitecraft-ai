@@ -18,6 +18,16 @@ export function factAuditReply(body: { messages: Array<{ content: string }> }, r
 // Semantic fixtures keep their independently supplied expected claims. This
 // encoder selects wire references from the request without importing runtime
 // code. Protocol-adversarial T-210 cases construct their own raw replies.
+export function resolveWireQuoteText(input: { materials?: string; sourceQuotes?: any[] }, quote: any): string {
+  if (typeof quote?.text === 'string') return quote.text;
+  if (quote?.sameAsMaterials) return String(input.materials ?? '');
+  if (quote?.sameTextAs) {
+    const ref = input.sourceQuotes?.find((q: any) => q.id === quote.sameTextAs);
+    return ref ? resolveWireQuoteText(input, ref) : '';
+  }
+  return '';
+}
+
 export function factAuditPayload(body: any, payload: any): any {
   if (body.tools?.[0]?.function.name !== 'submit_fact_review') return payload;
   const choice = payload.choices?.[0];
@@ -38,8 +48,10 @@ export function factAuditPayload(body: any, payload: any): any {
       if (Array.isArray(row.citations)) row.citations = row.citations.map((citation: any) => {
         const claim = segment?.claims?.filter((c: any) => normalize(citation.claim) && normalize(c.text).includes(normalize(citation.claim)))
           .sort((a: any, b: any) => a.text.length - b.text.length)[0];
-        const quote = input.sourceQuotes?.filter((q: any) => normalize(citation.quote) && normalize(q.text).includes(normalize(citation.quote)))
-          .sort((a: any, b: any) => a.text.length - b.text.length)[0];
+        const quote = input.sourceQuotes
+          ?.map((q: any) => ({ id: q.id, resolvedText: resolveWireQuoteText(input, q) }))
+          .filter((q: any) => normalize(citation.quote) && normalize(q.resolvedText).includes(normalize(citation.quote)))
+          .sort((a: any, b: any) => a.resolvedText.length - b.resolvedText.length)[0];
         return { category: citation.category, claimRef: claim?.id ?? 'invalid-claim', quoteRef: quote?.id ?? 'invalid-quote' };
       });
       return [id, row];

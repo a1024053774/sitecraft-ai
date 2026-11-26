@@ -117,7 +117,9 @@ for (const nextMode of ['ordinary', 'high-risk', 'empty', 'leak-in-task']) test(
   assert.equal(call.response.finishReason, 'tool_calls');
   assert.deepEqual(call.usage, { promptTokens: 211, completionTokens: 89, totalTokens: 300, reasoningTokens: 23 });
   const sent = JSON.parse(requests.at(-1).messages[1].content.split('\n')[0]);
-  assert.deepEqual(call.factInput.segments, sent.segments, '站点任务必须保留输入短编号到实际段落和页面的映射');
+  assert.ok(call.factInput.segments.every((s: any) => Array.isArray(s.claimTexts)), '本地快照保留 claimTexts');
+  assert.ok(sent.segments.every((s: any) => !('claimTexts' in s)), '上游请求省略 claimTexts');
+  assert.deepEqual(call.factInput.segments.map(({ claimTexts: _claimTexts, ...s }: any) => s), sent.segments, '站点任务必须保留输入短编号到实际段落和页面的映射');
   if (nextMode === 'empty' || nextMode === 'leak-in-task') {
     assert.equal(site.run.status, 'error'); assert.match(site.run.step, nextMode === 'empty' ? /空类别/ : /凭据/);
     assert.equal(site.versions.length, 0); assert.equal(site.run.repairRound, 0);

@@ -57,7 +57,7 @@ async function serve() {
   const approvedTokenLimit = Number(process.env.SITECRAFT_TOKEN_LIMIT);
   assert.ok(Number.isSafeInteger(approvedTokenLimit) && approvedTokenLimit > 0, 'SITECRAFT_TOKEN_LIMIT must be the explicit approved token authorization');
   const folder = process.env.T153_BUDGET_DIR;
-  assert.ok(folder && ['t153', 't158', 't159', 't160', 't162', 't164', 't169', 't174', 't226', 't228'].some(ticket => path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts', ticket) + path.sep)));
+  assert.ok(folder && ['t153', 't158', 't159', 't160', 't162', 't164', 't169', 't174', 't226', 't228', 't233', 't234', 't235'].some(ticket => path.resolve(folder).startsWith(path.join(process.cwd(), 'artifacts', ticket) + path.sep)));
   const provider = providerConfig();
   assert.ok(provider.apiKey && provider.model && provider.baseURL);
   const baseUrl = new URL(provider.baseURL);

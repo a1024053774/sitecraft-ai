@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import test from 'node:test';
 import { checkSiteCode } from '../lib/code-site-check.ts';
+import { codeModelCalls } from '../lib/code-site-model.ts';
 import type { CodeModelCall, SiteCode } from '../lib/code-site.ts';
 
 // 失败方式：预采集复用文档，桌面媒体查询触发 display 过渡，读到旧 inline；
@@ -33,7 +34,8 @@ for (const transition of [false, true]) test(`实际提交检查保留桌面标�
         + '@media(min-width:1100px){.label{display:block}}',
       pages: [{ id: 'home', title: '到店须知', html: '<main><h1>青禾小馆</h1><section><h2>到店</h2><p><span class="label">门牌地址</span><span>青禾路七号</span></p></section></main>' }],
     };
-    const result = await checkSiteCode({ siteId: 't191-transition', code, materials: '青禾小馆。门牌地址为青禾路七号。', images: [] });
+    const calls: CodeModelCall[] = [];
+    const result = await codeModelCalls.run(calls, () => checkSiteCode({ siteId: 't191-transition', code, materials: '青禾小馆。门牌地址为青禾路七号。', images: [] }));
     await writeFile(`${output}/capture.json`, JSON.stringify({ code, result, inputs }, null, 2), 'utf8');
     assert.equal(result.checks.passed, true, result.checks.issues.join('\n'));
     if (transition) assert.match(result.code.css, /transition:\s*display 1s allow-discrete/, '必须实际检查保留过渡的候选');
@@ -41,7 +43,10 @@ for (const transition of [false, true]) test(`实际提交检查保留桌面标�
     const matching = inputs[0].segments.filter(segment => segment.text.includes('青禾路七号'));
     assert.equal(matching.length, 1, '三档共用同一个地址核对段');
     assert.match(matching[0].text, /门牌地址\s+青禾路七号/, '桌面独立标签必须进入三档分隔并集');
-    assert.ok(matching[0].claimTexts!.some(text => text.includes('门牌地址 青禾路七号')));
+    assert.equal('claimTexts' in matching[0], false, '上游请求省略 claimTexts');
+    assert.ok(matching[0].claims!.some(c => c.text.includes('门牌地址 青禾路七号')));
+    const snapshotMatch = calls[0].factInput!.segments.find(segment => segment.text.includes('青禾路七号'));
+    assert.ok(snapshotMatch!.claimTexts!.some(text => text.includes('门牌地址 青禾路七号')));
   } finally {
     for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
     await new Promise<void>(resolve => provider.close(() => resolve()));

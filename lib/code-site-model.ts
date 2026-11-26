@@ -386,6 +386,39 @@ export function codeFactAuditInput(materials: string, segments: CodeFactSegment[
         groupId: `g${groups.indexOf(segment.group) + 1}`, pageId: segment.context.pageId, headings: segment.context.headings };
     }) };
 }
+// Strip unused claimTexts and verbatim duplicate source text on the wire without
+// removing model-visible source context or altering local claimRef/Zod contracts (T-233).
+export function codeFactWireInput(input: ReturnType<typeof codeFactAuditInput>) {
+  const trimmedMaterials = input.materials.trim();
+  const literalQuoteByText = new Map<string, string>();
+  const sourceQuotes = input.sourceQuotes.map(quote => {
+    if (quote.text === input.materials || quote.text === trimmedMaterials) {
+      return { id: quote.id, sourceIndex: quote.sourceIndex, sameAsMaterials: true as const };
+    }
+    const existingId = literalQuoteByText.get(quote.text);
+    if (existingId) {
+      return { id: quote.id, sourceIndex: quote.sourceIndex, sameTextAs: existingId };
+    }
+    literalQuoteByText.set(quote.text, quote.id);
+    return quote;
+  });
+  const sourceMaterials = input.sourceMaterials?.map((source, sourceIndex) => {
+    const { text, ...meta } = source;
+    if (text === input.materials || text.trim() === trimmedMaterials) {
+      return { ...meta, sameAsMaterials: true as const };
+    }
+    const fullQuote = input.sourceQuotes.find(q => q.sourceIndex === sourceIndex && q.text === text.trim());
+    if (fullQuote) return { ...meta, fullQuoteId: fullQuote.id };
+    return source;
+  }) ?? null;
+  return {
+    materials: input.materials,
+    sourceMaterials,
+    sourceQuotes,
+    pageContexts: input.pageContexts,
+    segments: input.segments.map(({ claimTexts: _claimTexts, ...segment }) => segment),
+  };
+}
 export function auditCodeFacts(materials: string, readable: string, local?: boolean, style?: CodeStyleId, sourceMaterials?: CodeFactSource[]): Promise<string[]>;
 export function auditCodeFacts(materials: string, readable: CodeFactSegment[], local?: boolean, style?: CodeStyleId, sourceMaterials?: CodeFactSource[]): Promise<CodeFactReview['segments']>;
 export async function auditCodeFacts(materials: string, readable: string | CodeFactSegment[], local = false, style?: CodeStyleId, sourceMaterials?: CodeFactSource[]): Promise<string[] | CodeFactReview['segments']> {
@@ -446,9 +479,9 @@ materials 是完整核对上下文，sourceMaterials 才是可作为资料出处
 每个输入编号恰好返回一次，没有问题也必须返回该编号和空 issues。不得遗漏、重复或增加编号。`) + `\n通过的高风险声明必须同时记录资料出处；仅限客户与合作方、资质认证、业绩与数量、价格与收费、时间与交期承诺、效果、评价这七类。
 每段必须明确二选一：没有七类高风险声明时 noFacts=true 且 factCategories、citations 均为空；规格、地址、流程等普通企业事实只有这些事实的段落也填 true，仍核对其正确性。有七类高风险声明时 noFacts=false 且 factCategories 非空，列出本段全部高风险类别。factCategories 不得重复，相同类别、网页片段与资料原句的出处组合只列一次。不能用空类别代替二选一。没有依据的事实写入 issues，不给该事实通过的出处。
 每个编号恰好返回一次，函数参数根对象直接以当前段 id 为键，不添加 results 等包装字段。每个值必须有 issues、noFacts、factCategories、citations，不返回 id 或额外字段。issues 必须是字符串数组，空为 []，不得返回对象型拒因。
-引用只能填写 category、claimRef、quoteRef。claimRef 只能选当前编号 claims 中的 id；quoteRef 只能选 sourceQuotes 中支持它的 id。引用文字由程序从快照回读，不返回 claim、quote、claimTexts 或 DOM 路径。claims 来自 claimTexts 的连续原文片段，保留既有空白和表格行边界，不跨行、跨编号拼接，不补写标点。编号有效不等于语义通过：须结合本段 text、同组对象、标题、表头、否定和条件，核对所选资料原文能否支持声明，不能拿相同数字代替语义核对。若多个资料片段分别支撑多个声明，逐条列出。
-sourceQuotes 是独立用户原文中的连续片段；materials、pageContexts、系统观察及模型生成文字不能作为出处。找不到支持的片段时写明 issues，不猜引句或改绑其他段。
-通过 submit_fact_review 函数提交完整结果。`, JSON.stringify(input), local ? 4096 : 65536,
+引用只能填写 category、claimRef、quoteRef。claimRef 只能选当前编号 claims 中的 id；quoteRef 只能选 sourceQuotes 中支持它的 id。引用文字由程序从快照回读，不返回 claim、quote、claimTexts 或 DOM 路径。claims 来自按既有空白和表格行边界展开的连续原文片段，不跨行、跨编号拼接，不补写标点。编号有效不等于语义通过：须结合本段 text、同组对象、标题、表头、否定和条件，核对所选资料原文能否支持声明，不能拿相同数字代替语义核对。若多个资料片段分别支撑多个声明，逐条列出。
+sourceQuotes 是独立用户原文中的连续片段；materials、pageContexts、系统观察及模型生成文字不能作为出处。sourceMaterials 或 sourceQuotes 中若标明 sameAsMaterials=true、fullQuoteId 或 sameTextAs，表示其逐字原文与 materials 或所指编号完全相同。找不到支持的片段时写明 issues，不猜引句或改绑其他段。
+通过 submit_fact_review 函数提交完整结果。`, JSON.stringify(codeFactWireInput(input)), local ? 4096 : 65536,
     { name: 'submit_fact_review', description: '提交各段事实核对结果，只引用当前段允许的网页片段和用户原文编号。', parameters: factReviewParameters },
     { segments: input.segments, sourceQuotes: input.sourceQuotes });
   const parsed = schema.safeParse(result.data);

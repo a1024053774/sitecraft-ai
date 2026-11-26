@@ -5,7 +5,7 @@ import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { factAuditReply, factAuditPayload } from './fixtures/fact-audit-reply.ts';
+import { factAuditReply, factAuditPayload, resolveWireQuoteText } from './fixtures/fact-audit-reply.ts';
 import { dialectOf, toDeepSeekBody, fromDeepSeekReply } from './fixtures/provider-dialect.ts';
 import { providerRequest, providerReply, otherFormatOutputCap, responsesStrict } from '../lib/provider-format.ts';
 import { providerFromRequest, ProviderSettingsError } from '../lib/provider-context.ts';
@@ -124,7 +124,7 @@ const server = createServer(async (req, res) => {
   let reply: unknown;
   if (facts && (content.includes('ZOD_EMPTY_ISSUE') || content.includes('ZOD_LONG_ISSUE') || content.includes('WITH_CITATION'))) {
     const input = JSON.parse(content.split('\n')[0]);
-    const matchedQuote = input.sourceQuotes.find((q: { text: string }) => q.text.includes('按整期收费'))?.id ?? 'q1';
+    const matchedQuote = input.sourceQuotes.find((q: any) => resolveWireQuoteText(input, q).includes('按整期收费'))?.id ?? 'q1';
     const rawFacts = Object.fromEntries(input.segments.map((s: { id: string }, i: number) => {
       if (i === 0 && content.includes('ZOD_EMPTY_ISSUE')) return [s.id, { issues: [''], noFacts: true, factCategories: [], citations: [] }];
       if (i === 0 && content.includes('ZOD_LONG_ISSUE')) return [s.id, { issues: ['长'.repeat(501)], noFacts: true, factCategories: [], citations: [] }];
