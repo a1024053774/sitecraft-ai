@@ -22,7 +22,8 @@ export const codeStyles = {
   indexgrid: { label: '瑞士索引', description: '外露细黑网格与等宽编号，像严谨的分类检索表', skill: 'site-code-indexgrid/SKILL.md',
     preview: { status: 'pending' } },
   craftposter: { label: '风物招牌', description: '牌匾框线、宋体大字与自然纸色，像老字号与手作工坊', skill: 'site-code-craftposter/SKILL.md',
-    preview: { status: 'pending' } },
+    preview: { status: 'ready', src: '/style-previews/craftposter.webp', siteId: '8c3225b7-be4b-4840-8510-35bd956177bd', versionId: '3c0a3f25-ae61-40eb-9e17-5e98327ad46d', revision: 1,
+      source: 't235/eval-3sites-r3/eval/private/case-2/home-fold-1440.png', license: '/style-previews/SOURCE.md' } },
 } satisfies Record<string, CodeStyle>;
 export type CodeStyleId = keyof typeof codeStyles;
 export const codeStyleIds = Object.keys(codeStyles) as [CodeStyleId, ...CodeStyleId[]];

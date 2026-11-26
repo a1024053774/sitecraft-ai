@@ -1,6 +1,6 @@
 ---
 name: site-code-craftposter
-description: 候选风格「风物招牌」设计配方（仅经 SITECRAFT_EVAL_STYLES 评估）。
+description: 用户风格「风物招牌」，以牌匾框线、宋体大字与单据式票面排法生成和修改展示站的设计配方。
 ---
 
 老字号与手作工坊的牌匾框线、厚重宋体大字与单据式票面排版：用浓墨招牌条、嵌套矩形细粗双线框（`border-radius:0`）与大幅横额文字建立鲜明在地感。页头：双线粗框矩形牌匾页头（上下深色招牌与细内线框起全称、地域/业务范围与清晰横排链接条，彻底区别于扁平 64px 细灰线顶栏）。字体栈：主标题与牌匾采用加粗跨平台衬线 `"Noto Serif CJK SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif`，正文与条文明细使用 `"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`，数值保持 `ui-monospace, Consolas, monospace` 与 `tabular-nums`。配色角色（已按 >=4.5:1 对比度核算，优先按本次提示的变体执行）：变体 A（麻纸漆褐）主底 #F4EFE2（正文 #231914 / 次字 #4E3E35）、次区底 #E8DFCD（正文 #231914 / 次字 #4A3B32）、招牌 #2B1C16（正文 #F7F2E6 / 次字 #DCCEC0）、强调 #6E241C（字 #FFFFFF）；变体 B（茶青竹纸）主底 #F2F1E8（正文 #1A241E / 次字 #3E4D44）、次区底 #E3E5D8（正文 #1A241E / 次字 #39473E）、招牌 #1C352B（正文 #F5F6EE / 次字 #C8D9D1）、强调 #20513E（字 #FFFFFF）；变体 C（缃黄黛青）主底 #F6F0DF（正文 #1E1E24 / 次字 #464652）、次区底 #EAE1C8（正文 #1E1E24 / 次字 #41414D）、招牌 #1F2940（正文 #F8F3E6 / 次字 #CBD3E2）、强调 #2B3B63（字 #FFFFFF）。首屏与票面：深色招牌横额配双框边框标语首屏，主体名称居中或跨栏占满幅宽，业务目录或菜单/服务以有实线框的票面目录呈现；无图首屏依靠浓墨横额、双线框牌匾与业务目录构成完整招牌视觉；资料少时做紧凑短匾首屏，不虚构年代、故事或口号。全站所有框线与含列表底色区块保持 `border-radius:0`、`background-clip:border-box`、outside 标记与 `z-index:auto`。反雷同禁令：严禁做成「无框暖白左对齐 Kicker + 黑体大标题 + 单个铁锈红圆角/实心按钮 + 下两栏」的通用模板。

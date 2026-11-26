@@ -1,13 +1,14 @@
 # 风格缩略图来源
 
-精密工程、现场实拍取自本项目 2026-10-09 快速评估；品牌画册取自 T-153 真实生成（2026-10-11 UTC，纽约 2026-10-10）；邻里日常取自 T-159 真实生成（2026-10-14 UTC 与纽约同日）。原图均为 1440×1000，等比缩至 576×400，WebP quality 88；未画图、未重排、未润饰页面。前三张复现：`SITECRAFT_BASE=http://127.0.0.1:3170 node scripts/t153-style-previews.mjs <artifacts/t130/round-2026-10-09T10-14-09-315Z> artifacts/t153/approved/real-2026-10-11T03-58/private/default`。
+精密工程、现场实拍取自本项目 2026-10-09 快速评估；品牌画册取自 T-153 真实生成（2026-10-11 UTC，纽约 2026-10-10）；邻里日常取自 T-159 真实生成（2026-10-14 UTC 与纽约同日）；风物招牌取自 T-235 真实生成（2026-11-26 UTC 与纽约同日，gpt-6.2-sol 真实生成 v1）。原图均为 1440×1000，等比缩至 576×400，WebP quality 88；未画图、未重排、未润饰页面。前三张复现：`SITECRAFT_BASE=http://127.0.0.1:3170 node scripts/t153-style-previews.mjs <artifacts/t130/round-2026-10-09T10-14-09-315Z> artifacts/t153/approved/real-2026-10-11T03-58/private/default`。
 
-风格、来源站点 ID、生成版本 ID、修订号与原始截图相对路径统一登记在 `lib/code-site-styles.ts`。四个示例均为 deepseek-flash 真实生成的 v1。截图展示特定资料产生的排法，不承诺每次生成相同布局。工业铭牌不在本票验证范围，未保留运行时选项。
+风格、来源站点 ID、生成版本 ID、修订号与原始截图相对路径统一登记在 `lib/code-site-styles.ts`。前四个示例为 deepseek-flash 真实生成的 v1，风物招牌为 gpt-6.2-sol 真实生成的 v1。截图展示特定资料产生的排法，不承诺每次生成相同布局。工业铭牌不在本票验证范围，暗房陈列与瑞士索引在 T-235 后仍保持 pending，均未保留普通用户运行时选项。
 
 - precision.webp：忻州重载减速机。含两张已登记的行业配图，不是本厂照片。
 - documentary.webp：外高桥流体接头。此首屏没有照片，保留真实生成结果，不补图伪装效果。
 - editorial.webp：同一份外高桥流体接头资料，版式 5、信息密度 6；经两轮事实修正后通过底线。首屏含 NOIRLab 机加工车间行业配图，不是该公司的实拍。
 - neighborly.webp：禾巷小馆模拟资料，版式 5、信息密度 6；站点 `20d7d9ae-8272-4880-81cd-eb2aec872557`、版本 `7be34b12-ec78-4d75-bcd5-c12a4b7e210d`、修订 1。一轮事实修正后通过底线，并由两份独立盲评确认风格可辨、同店成对略胜。原图 `artifacts/t159/authorized-20261014T043816Z/eval/private/case-1/home-fold-1440.png`；直接使用该轮等比缩小的 `eval/private/neighborly-style-preview.webp`，未另行生成或润饰。该原图及缩小件留在当时的执行工作树证据中，工作树清理时没有移入主工作区，2026-11-14 核实 Mac 与 Windows 均已无存（T-215）；站点与版本 `7be34b12` 仍在主工作区 `.sitecraft-data/`，可据此核对来源版本。复现缩小：`node --input-type=module -e 'import sharp from "sharp"; await sharp("artifacts/t159/authorized-20261014T043816Z/eval/private/case-1/home-fold-1440.png").resize(576,400).webp({quality:88}).toFile("public/style-previews/neighborly.webp")'`。画面只有模拟文字与生成的 HTML/CSS，无照片、外部图片、第三方商标或字体文件再分发；沿用下述整体截图 CC BY-SA 4.0 许可，署名 SiteCraft AI 模拟资料评估。
+- craftposter.webp：拾色绘画教室模拟资料，版式 5、信息密度 6；站点 `8c3225b7-be4b-4840-8510-35bd956177bd`、版本 `3c0a3f25-ae61-40eb-9e17-5e98327ad46d`、修订 1。经 T-235 `gpt-6.2-sol` 零修补直接通过底线，并由独立 Claude `company` 盲评确认与同风格另一家公司（禾巷小馆 `3a8b3420`）骨架不同、不是同一模板（`sameTemplate=false`）。原图 `artifacts/t235/eval-3sites-r3/eval/private/case-2/home-fold-1440.png`（1440×1000），站点记录与版本留存于主工作区 `.sitecraft-data/`；复现缩小：`node --input-type=module -e 'import sharp from "sharp"; await sharp("artifacts/t235/eval-3sites-r3/eval/private/case-2/home-fold-1440.png").resize(576,400).webp({quality:88}).toFile("public/style-previews/craftposter.webp")'`。首屏画面仅包含模拟文字、CSS 几何图形标记与生成的 HTML/CSS，无照片、外部图片、第三方商标或字体文件再分发；沿用下述整体截图 CC BY-SA 4.0 许可，署名 SiteCraft AI 模拟资料评估。
 
 截图作为整体按 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 提供，署名 SiteCraft AI 模拟资料评估；其中照片的原作者及处理链如下。站点内部 current-site-only 是生成站引用范围，不能把该字段当作再许可；此缩略图的图片使用依据是以下来源各自的 CC BY-SA 4.0 或 CC BY 4.0 许可。
 

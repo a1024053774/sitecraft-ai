@@ -40,7 +40,7 @@ function HowItWorks() {
 function StyleSamples() {
   return (
     <section className="home-section" aria-labelledby="home-styles">
-      <div className="home-section-head"><h2 id="home-styles">四种风格，缩略图来自真实生成过的站点</h2><a href="/style-previews/SOURCE.md" target="_blank" rel="noreferrer">示例来源</a></div>
+      <div className="home-section-head"><h2 id="home-styles">{readyCodeStyleIds.length} 种风格，缩略图来自真实生成过的站点</h2><a href="/style-previews/SOURCE.md" target="_blank" rel="noreferrer">示例来源</a></div>
       <div className="home-styles">
         {readyCodeStyleIds.map(id => {
           const style = codeStyles[id];

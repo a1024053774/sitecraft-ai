@@ -36,7 +36,7 @@ test('真实 CLI→HTTP→chat：隔离的 pending 目录样本继续由服务�
       savedStyleSite = evidence.savedStyleSite;
       assert.ok(savedStyleSite);
     } else if (mode === 'reopened') {
-      assert.deepEqual(evidence.reopened.visibleOptions, ['auto', 'precision', 'documentary', 'editorial']);
+      assert.deepEqual(evidence.reopened.visibleOptions, ['auto', 'precision', 'documentary', 'editorial', 'craftposter']);
       assert.equal(evidence.reopened.selectStatus, 400, '旧评估会话或客户端字段不能在普通进程保留候选授权');
     }
   }

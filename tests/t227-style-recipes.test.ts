@@ -14,8 +14,8 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 
 const allStyles = ['precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'indexgrid', 'craftposter'] as const;
-const readyStyles = ['precision', 'documentary', 'editorial', 'neighborly'] as const;
-const pendingStyles = ['darkroom', 'indexgrid', 'craftposter'] as const;
+const readyStyles = ['precision', 'documentary', 'editorial', 'neighborly', 'craftposter'] as const;
+const pendingStyles = ['darkroom', 'indexgrid'] as const;
 
 function hexLuminance(hex: string) {
   const m = hex.match(/^#([0-9a-f]{6})$/i);
@@ -179,11 +179,35 @@ test('new pending styles remain hidden from ordinary processes and admitted only
   assert.deepEqual(ordinary.client, ['auto', ...readyStyles]);
   assert.deepEqual(ordinary.server, ['auto', ...readyStyles]);
   assert.equal(ordinary.canDarkroom, false);
-  const evalEnv = probe('darkroom,indexgrid,craftposter');
+  const evalEnv = probe('darkroom,indexgrid');
   assert.deepEqual(evalEnv.readyCodeStyleIds, [...readyStyles]);
   assert.deepEqual(evalEnv.client, ['auto', ...readyStyles]);
   assert.deepEqual(evalEnv.server, ['auto', ...readyStyles, ...pendingStyles]);
   assert.equal(evalEnv.canDarkroom, true);
+});
+
+test('T-235 promoted craftposter WebP preview decodes at 576x400 with SOURCE.md provenance while darkroom and indexgrid stay pending', async () => {
+  const { default: sharp } = await import('sharp');
+  const { codeStyles } = await import('../lib/code-site-styles.ts');
+  const preview = codeStyles.craftposter.preview;
+  assert.equal(preview.status, 'ready');
+  if (preview.status !== 'ready') throw new Error('craftposter must be promoted to ready');
+  assert.equal(preview.siteId, '8c3225b7-be4b-4840-8510-35bd956177bd');
+  assert.equal(preview.versionId, '3c0a3f25-ae61-40eb-9e17-5e98327ad46d');
+  assert.equal(preview.revision, 1);
+  assert.equal(preview.src, '/style-previews/craftposter.webp');
+  assert.equal(preview.source, 't235/eval-3sites-r3/eval/private/case-2/home-fold-1440.png');
+  const license = await readFile(`public${preview.license}`, 'utf8');
+  assert.match(license, /craftposter\.webp/);
+  assert.match(license, /拾色绘画教室/);
+  assert.match(license, /8c3225b7-be4b-4840-8510-35bd956177bd/);
+  assert.match(license, /3c0a3f25-ae61-40eb-9e17-5e98327ad46d/);
+  const meta = await sharp(`public${preview.src}`).metadata();
+  assert.equal(meta.format, 'webp');
+  assert.equal(meta.width, 576);
+  assert.equal(meta.height, 400);
+  assert.deepEqual(codeStyles.darkroom.preview, { status: 'pending' });
+  assert.deepEqual(codeStyles.indexgrid.preview, { status: 'pending' });
 });
 
 test('T-234 recipes require neighborly homepage prices + summary table, core heading balance, and darkroom real-photo opening', async () => {
