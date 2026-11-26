@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util';
 import { codeCheckBrowser } from '../lib/code-site-browser.ts';
 import { captureEvalPage } from './eval-site-capture.ts';
 import { simulatedPacks, MATERIALS_CHAT_LIMIT, type SimulatedPackId } from '../lib/simulated-packs.ts';
+import { diversePacks, diversePackList, type DiversePackId } from '../lib/diverse-packs.ts';
 import type { CodeSiteRecord } from '../lib/code-site.ts';
 import { localEndpoint } from './local-endpoint.ts';
 import { codeStyleIds, codeStyles, type CodeStyleId } from '../lib/code-site-styles.ts';
@@ -34,36 +35,60 @@ const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
 const command = ['CHROME_PATH=' + quote(process.env.CHROME_PATH || ''), 'SITECRAFT_BASE=' + quote(base),
   'node --experimental-strip-types scripts/eval-new-route.ts', ...process.argv.slice(2).map(quote)].join(' ');
 // Old fixture page notes are replaced as explicit user page requests; facts are unchanged.
-const requests: Record<SimulatedPackId, string> = {
+type EvalPackId = SimulatedPackId | DiversePackId;
+const requests: Record<EvalPackId, string> = {
   industrial: '首页、产品两个独立页面。', export: '首页、产品、认证与材料追溯三个独立页面。',
   molding: '首页、产品、生产与质检、常见问题四个独立页面。', packaging: '首页、包装产品、打样与订购三个独立页面。',
   restaurant: '首页、菜单、到店须知三个独立页面。', education: '首页、课程、学习须知三个独立页面。',
   design: '首页、服务、作品记录三个独立页面。',
+  luthiery: diversePacks.luthiery.pageRequest,
+  vetclinic: diversePacks.vetclinic.pageRequest,
+  metrology: diversePacks.metrology.pageRequest,
+  acoustic: diversePacks.acoustic.pageRequest,
 };
-const quickContent: Partial<Record<SimulatedPackId, { id: string; title: string }>> = {
+const quickContent: Partial<Record<EvalPackId, { id: string; title: string }>> = {
   restaurant: { id: 'menu', title: '菜单' }, education: { id: 'courses', title: '课程' }, design: { id: 'work', title: '作品' },
+  luthiery: diversePacks.luthiery.quickContent,
+  vetclinic: diversePacks.vetclinic.quickContent,
+  metrology: diversePacks.metrology.quickContent,
+  acoustic: diversePacks.acoustic.quickContent,
 };
-const packIds = Object.keys(simulatedPacks) as SimulatedPackId[];
+const baselinePackIds = Object.keys(simulatedPacks) as SimulatedPackId[];
+const activePackIds: EvalPackId[] = values.only !== undefined
+  ? [...baselinePackIds, ...diversePackList.map(p => p.id)]
+  : baselinePackIds;
 type Photo = { file: string; category: string; apiLicense: string; sourceUrl: string; licenseUrl: string; author: string; attribution: string; downloadedAt: string; caption: string; limitations?: string };
-const photos: Partial<Record<SimulatedPackId, Photo[]>> = {};
-const photoRoots = {} as Record<SimulatedPackId, string>;
-for (const pack of packIds) {
-  photoRoots[pack] = path.join(pack in quickContent ? 'fixtures/simulated-packs' : 'tests/fixtures/company-images', pack);
+const photos: Partial<Record<EvalPackId, Photo[]>> = {};
+const photoRoots = {} as Record<EvalPackId, string>;
+for (const pack of baselinePackIds) {
+  photoRoots[pack] = path.join(pack in { restaurant: 1, education: 1, design: 1 } ? 'fixtures/simulated-packs' : 'tests/fixtures/company-images', pack);
   const manifest = JSON.parse(await readFile(path.join(photoRoots[pack], 'manifest.json'), 'utf8'));
-  assert.ok(Array.isArray(manifest.images) && (pack in quickContent || manifest.images.length > 0), `${pack}缺少图片准入登记`);
+  assert.ok(Array.isArray(manifest.images) && (pack in { restaurant: 1, education: 1, design: 1 } || manifest.images.length > 0), `${pack}缺少图片准入登记`);
   for (const photo of manifest.images as Photo[]) {
     assert.ok(photo.apiLicense && photo.licenseUrl && photo.sourceUrl && photo.author && photo.attribution, `${pack}/${photo.file}缺少许可`);
   }
   photos[pack] = manifest.images;
 }
+for (const pack of diversePackList) {
+  photos[pack.id] = [];
+}
+function evalCompanyName(packId: EvalPackId): string {
+  return packId in diversePacks
+    ? diversePacks[packId as DiversePackId].companyName
+    : simulatedPacks[packId as SimulatedPackId].companyName.replace(/P3[A-Z]$/, '');
+}
+function evalPackBody(packId: EvalPackId): string {
+  if (packId in diversePacks) return diversePacks[packId as DiversePackId].body;
+  const pack = simulatedPacks[packId as SimulatedPackId];
+  const companyName = evalCompanyName(packId);
+  return pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '');
+}
 let cases: EvalCase[] = [];
-for (const packId of packIds) {
-  const pack = simulatedPacks[packId];
-  const companyName = pack.companyName.replace(/P3[A-Z]$/, '');
+for (const packId of activePackIds) {
   const content = quickContent[packId] || { id: 'products', title: '产品' };
   const pageRequest = values.quick ? `只生成首页（home）、${content.title}（${content.id}）两个独立页面。其他资料按需安排在这两页，不新增页面。` : requests[packId];
   const recordedPageRequest = `页面要求：${pageRequest}只做中文。没有授权照片时采用无图或标明示意的CSS图。`;
-  const materials = pack.body.replaceAll(pack.companyName, companyName).replaceAll(pack.nonce, '').replace(/。核验记号：。/, '。').replace(/^页面(?:要求)?：.*$/m, '') + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n${recordedPageRequest}`;
+  const materials = evalPackBody(packId) + (photos[packId]?.map(p => `\n授权行业配图${p.file}：${p.caption}。${p.limitations || '只作对应内容配图，不推导公司新事实。'}不是该公司的实拍。`).join('') || '') + `\n${recordedPageRequest}`;
   assert.ok(materials.length <= MATERIALS_CHAT_LIMIT, `${packId}资料不能截断`);
   const styles = values.only !== undefined ? codeStyleIds : values.quick ? [packId === 'industrial' || packId === 'molding' ? 'precision' : 'documentary'] : ['precision', 'documentary'];
   for (const style of styles) {
@@ -190,11 +215,11 @@ try {
       const uploads: Array<{ file: string; submitted: Record<string, string>; receipt: unknown }> = [];
       await writeFile(path.join(directory, folder, 'uploads.json'), '[]\n', 'utf8');
       try {
-        const created = await json<{ id: string }>('/api/sites', { name: simulatedPacks[c.pack as SimulatedPackId].companyName.replace(/P3[A-Z]$/, '') });
+        const created = await json<{ id: string }>('/api/sites', { name: evalCompanyName(c.pack as EvalPackId) });
         c.siteId = created.id;
-        for (const photo of photos[c.pack as SimulatedPackId]!) {
+        for (const photo of photos[c.pack as EvalPackId] ?? []) {
           const form = new FormData();
-          const bytes = await readFile(path.join(photoRoots[c.pack as SimulatedPackId], photo.file));
+          const bytes = await readFile(path.join(photoRoots[c.pack as EvalPackId], photo.file));
           await mkdir(path.join(directory, folder, 'uploads'), { recursive: true });
           await writeFile(path.join(directory, folder, 'uploads', photo.file), bytes);
           form.set('file', new Blob([bytes], { type: 'image/jpeg' }), photo.file);
@@ -214,8 +239,8 @@ try {
         let site = await waitRun(created.id, folder); collect(c, site);
         if (site.run?.status === 'error') throw new Error(site.run.step);
         assert.equal(site.plan?.style, c.style);
-        requireWholeSitePlan(c.pack as SimulatedPackId, site.plan!.pages.length, values.quick ? 'quick' : 'full');
-        const quickIds = ['home', quickContent[c.pack as SimulatedPackId]?.id || 'products'].sort();
+        requireWholeSitePlan(c.pack as EvalPackId, site.plan!.pages.length, values.quick ? 'quick' : 'full');
+        const quickIds = ['home', quickContent[c.pack as EvalPackId]?.id || 'products'].sort();
         if (values.quick) assert.deepEqual(site.plan!.pages.map(p => p.id).sort(), quickIds, '快速档只确认资料要求的两个页面');
         state = await json(`/api/sites/${created.id}/chat`, { action: 'state' });
         await json(`/api/sites/${created.id}/chat`, { action: 'confirm', questionId: state.alignment.questionId, questionRevision: state.alignment.questionRevision, baseRevision: 0 });
@@ -227,7 +252,7 @@ try {
         if (values.quick) assert.deepEqual(version.code.pages.map(p => p.id).sort(), quickIds, '快速档候选必须仅有资料要求的两个页面');
         c.versionId = version.id;
         for (const page of version.code.pages) c.pages.push({ id: page.id, screenshots: await capture(
-          `${base}/api/sites/${created.id}/code-preview?page=${page.id}&version=${version.id}`, `${folder}/${page.id}`, simulatedPacks[c.pack as SimulatedPackId].companyName.replace(/P3[A-Z]$/, '')) });
+          `${base}/api/sites/${created.id}/code-preview?page=${page.id}&version=${version.id}`, `${folder}/${page.id}`, evalCompanyName(c.pack as EvalPackId)) });
         c.mixedScreenshot = (await capture(`${base}/api/sites/${created.id}/code-preview?page=home&version=${version.id}`, `${folder}/home-fold`, undefined, [1440], false))['1440'];
         c.outcome = 'generated';
       } catch (error) {
@@ -247,7 +272,7 @@ try {
     }
   }
   // Real controls are private, internal-review artifacts, never runtime assets or repository contents.
-  const sources = {
+  const sources: Record<EvalPackId, string[]> = {
     industrial: ['https://www.guomaoreducer.com/', 'https://www.ngcgears.com/zh/home'],
     export: ['https://www.fitok.com/zh/index.htm', 'https://www.swagelok.com.cn/zh'],
     molding: ['https://www.fzmould.com/', 'https://www.saihao.com/'],
@@ -255,6 +280,10 @@ try {
     restaurant: ['https://www.wagas.com.cn/', 'https://www.bluefrog.com.cn/'],
     education: ['https://www.neworiental.org/', 'https://www.citylit.ac.uk/'],
     design: ['https://www.pentagram.com/', 'https://studiomuti.co.za/'],
+    luthiery: diversePacks.luthiery.controlUrls,
+    vetclinic: diversePacks.vetclinic.controlUrls,
+    metrology: diversePacks.metrology.controlUrls,
+    acoustic: diversePacks.acoustic.controlUrls,
   };
   for (const [pack, urls] of Object.entries(sources).filter(([pack]) => cases.some(c => c.pack === pack))) for (let i = 0; i < (values.quick ? 1 : urls.length); i++) {
     try {

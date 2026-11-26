@@ -7,13 +7,19 @@ import { isDeepStrictEqual, parseArgs } from 'node:util';
 import path from 'node:path';
 import type { CodeCheck, CodeModelCall, CodeSiteRecord } from '../lib/code-site.ts';
 import type { SimulatedPackId } from '../lib/simulated-packs.ts';
+import { diversePacks, type DiversePackId } from '../lib/diverse-packs.ts';
 
-export function requireWholeSitePlan(pack: SimulatedPackId, pageCount: number, profile: 'full' | 'quick' = 'full') {
+export function requireWholeSitePlan(pack: SimulatedPackId | DiversePackId, pageCount: number, profile: 'full' | 'quick' = 'full') {
   if (profile === 'quick') {
     if (pageCount !== 2) throw new Error(`快速档大纲需要资料要求的两个页面，实际 ${pageCount} 页；本次不确认生成。`);
     return;
   }
-  const requested = { industrial: 2, export: 3, molding: 4, packaging: 3, restaurant: 3, education: 3, design: 3 }[pack];
+  const baselineRequested: Record<SimulatedPackId, number> = {
+    industrial: 2, export: 3, molding: 4, packaging: 3, restaurant: 3, education: 3, design: 3,
+  };
+  const requested = pack in diversePacks
+    ? diversePacks[pack as DiversePackId].requestedPageCount
+    : baselineRequested[pack as SimulatedPackId];
   if (pageCount < requested) throw new Error(`大纲缩减了用户点名的页面：${pack} 至少 ${requested} 页，实际 ${pageCount} 页；本次不确认生成。`);
 }
 

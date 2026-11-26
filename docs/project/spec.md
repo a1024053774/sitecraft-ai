@@ -282,6 +282,7 @@ T-208 的 Windows Docker 服务复用上述混合存储：PostgreSQL 命名卷�
 - `tests/t159-task-admission.test.ts` 成对拦截模型调用绕过准入和无模型提交被误拦。
 - `tests/t153-local-endpoints.test.ts` 拦截固定本地端口和默认应用地址，并验证替身实际监听配置（T-153）。
 - `tests/t165-token-reserve.test.ts` 与 `tests/t165-tokenizer-adversarial.test.ts` 覆盖真实 usage 的复原请求、官方 tokenizer 对抗计数、原预算可容纳修正及批注、出网前拒绝超支和已付超估用量记账后终止（T-165）。
+- `lib/diverse-packs.ts` 与 `tests/t244-diverse-packs.test.ts` 在保持 7 套 T-190 基线 `simulatedPacks` 及默认 14 组合评估不变的前提下，提供口述长段（`luthiery`）、零散笔记（`vetclinic`）、旧站复制正文（`metrology`）与单页宣传册文案（`acoustic`）四份无「栏目线索」虚构资料包，经 `scripts/eval-new-route.ts --only` 与 `requireWholeSitePlan` 按需评估（T-244）。
 
 检查浏览器与运行环境：
 
