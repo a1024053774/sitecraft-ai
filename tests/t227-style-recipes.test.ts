@@ -208,6 +208,10 @@ test('T-235 promoted craftposter WebP preview decodes at 576x400 with SOURCE.md 
   assert.equal(meta.height, 400);
   assert.deepEqual(codeStyles.darkroom.preview, { status: 'pending' });
   assert.deepEqual(codeStyles.indexgrid.preview, { status: 'pending' });
+  assert.match(license, /T-238/);
+  const agents = await readFile('AGENTS.md', 'utf8');
+  assert.match(agents, /darkroom[^\n]*T-238[^\n]*sameTemplate=true/);
+  assert.match(agents, /indexgrid[^\n]*T-238[^\n]*::marker/);
 });
 
 test('T-234 recipes require neighborly homepage prices + summary table, core heading balance, and darkroom real-photo opening', async () => {
