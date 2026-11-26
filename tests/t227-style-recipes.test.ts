@@ -185,3 +185,23 @@ test('new pending styles remain hidden from ordinary processes and admitted only
   assert.deepEqual(evalEnv.server, ['auto', ...readyStyles, ...pendingStyles]);
   assert.equal(evalEnv.canDarkroom, true);
 });
+
+test('T-234 recipes require neighborly homepage prices + summary table, core heading balance, and darkroom real-photo opening', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const coreSkill = await readFile(new URL('../skills/site-code-core/SKILL.md', import.meta.url), 'utf8');
+  assert.match(coreSkill, /text-wrap:\s*balance/);
+  assert.match(coreSkill, /孤立成行|单字换行|尾行/);
+
+  const neighborlySkill = await readFile(new URL('../skills/site-code-neighborly/SKILL.md', import.meta.url), 'utf8');
+  assert.match(neighborlySkill, /首页[^\n]*价格[^\n]*(?:时段|条件)/);
+  assert.match(neighborlySkill, /不得(?:延后|推后|只放)到二级页/);
+  assert.match(neighborlySkill, /汇总表/);
+
+  const darkroomSkill = await readFile(new URL('../skills/site-code-darkroom/SKILL.md', import.meta.url), 'utf8');
+  assert.match(darkroomSkill, /有授权实拍图时[^\n]*(?:首页|开场|首屏)[^\n]*实拍/);
+  assert.match(darkroomSkill, /零图|无授权实拍图|无图站点/);
+
+  const mainline = await readFile(new URL('../docs/project/mainline.md', import.meta.url), 'utf8');
+  assert.match(mainline, /T-234/);
+  assert.match(mainline, /text-wrap:\s*balance/);
+});
