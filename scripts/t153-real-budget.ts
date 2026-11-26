@@ -92,7 +92,9 @@ async function serve() {
     running = true;
     let call: Record<string, any> | undefined;
     try {
-      let raw = ''; for await (const chunk of req) raw += chunk;
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const raw = Buffer.concat(chunks).toString('utf8');
       const body = JSON.parse(raw);
       if (req.url === '/round') {
         assert.ok(typeof body.label === 'string' && /^[a-z0-9][a-z0-9/_-]{0,63}$/i.test(body.label));

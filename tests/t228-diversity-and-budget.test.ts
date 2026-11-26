@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { once } from 'node:events';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import path from 'node:path';
 import test from 'node:test';
 import { crc32, deflateSync } from 'node:zlib';
@@ -315,7 +315,9 @@ async function withResponsesGateway(
 ) {
   const upstreamCalls: Array<{ url: string; body: Record<string, any> }> = [];
   const upstream = createServer(async (req, res) => {
-    let raw = ''; for await (const chunk of req) raw += chunk;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const raw = Buffer.concat(chunks).toString('utf8');
     const body = raw ? JSON.parse(raw) : {};
     upstreamCalls.push({ url: req.url || '', body });
     const reply = handler(req.url || '', body, upstreamCalls.length - 1);
@@ -438,5 +440,66 @@ test('reserveRequest and t153-real-budget.ts support openai-responses budget res
     assert.equal(ledger3.calls[0].finishReason, 'incomplete:max_output_tokens');
     assert.equal(ledger3.stopped, true);
     assert.equal((await fetch(`${base}/v1/responses`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(responsesBody) })).status, 409);
+  });
+});
+
+test('t153-real-budget preserves multi-byte UTF-8 Chinese characters split across TCP chunks', async () => {
+  const secret = 'sk-t232-utf8-chunk-secret';
+  const targetText = '模具归谁所有？无麸质替换方案待补充';
+  const filler = '高精度注塑工艺与餐食现做工艺说明。'.repeat(1800);
+  const payload = {
+    model: 'gpt-6.2-sol',
+    instructions: '局部修改',
+    input: [{ role: 'user', content: `${filler}\n${targetText}\n${filler}` }],
+    max_output_tokens: 12288,
+    store: false,
+  };
+  const bodyBuf = Buffer.from(JSON.stringify(payload), 'utf8');
+  assert.ok(bodyBuf.length > 65536, `expected >64KB payload, got ${bodyBuf.length}`);
+  const firstIdx = bodyBuf.indexOf(Buffer.from('模', 'utf8'));
+  const secondIdx = bodyBuf.indexOf(Buffer.from('麸', 'utf8'), firstIdx);
+  assert.ok(firstIdx > 0 && secondIdx > firstIdx);
+  // Split directly inside 3-byte UTF-8 sequences for 模 (firstIdx+1) and 麸 (secondIdx+2).
+  const chunks = [
+    bodyBuf.subarray(0, firstIdx + 1),
+    bodyBuf.subarray(firstIdx + 1, secondIdx + 2),
+    bodyBuf.subarray(secondIdx + 2),
+  ];
+
+  await withResponsesGateway(secret, () => ({
+    payload: {
+      id: 'resp_t232', status: 'completed',
+      output: [{ type: 'message', phase: 'final_answer', content: [{ type: 'output_text', text: '{"ok":true}' }] }],
+      usage: { input_tokens: 200, output_tokens: 20, total_tokens: 220 },
+    },
+  }), async ({ base, upstreamCalls }) => {
+    assert.equal((await fetch(`${base}/round`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label: 't232-utf8', estimate: 100000 }) })).status, 200);
+    const parsedUrl = new URL(`${base}/v1/responses`);
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = httpRequest({
+        hostname: parsedUrl.hostname,
+        port: Number(parsedUrl.port),
+        path: parsedUrl.pathname,
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': String(bodyBuf.length) },
+      }, res => {
+        res.resume();
+        res.on('end', () => resolve(res.statusCode ?? 0));
+      });
+      req.on('error', reject);
+      void (async () => {
+        for (let i = 0; i < chunks.length; i++) {
+          req.write(chunks[i]);
+          if (i + 1 < chunks.length) await new Promise(r => setTimeout(r, 20));
+        }
+        req.end();
+      })().catch(reject);
+    });
+    assert.equal(status, 200);
+    assert.equal(upstreamCalls.length, 1);
+    const forwardedContent = upstreamCalls[0].body.input[0].content as string;
+    assert.equal(forwardedContent.includes('\uFFFD'), false, 'upstream content must not contain U+FFFD replacement characters');
+    assert.equal(forwardedContent.includes(targetText), true, 'upstream content must preserve exact multi-byte Chinese text');
+    assert.deepEqual(upstreamCalls[0].body, payload);
   });
 });
