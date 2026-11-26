@@ -121,10 +121,23 @@ const server = createServer(async (req, res) => {
   }
   if (content.includes('REDIRECT')) { res.writeHead(307, { location: '/landing' }); res.end(); return; }
   const facts = body.messages[0].content.includes('事实校对员'), planCall = body.tools?.[0]?.function.name === 'submit_page_plan';
-  const payload = facts ? { issues: [] } : { summary: '首页介绍服务', style: 'precision', styleReason: '服务资料', skeletonId: 'compact-profile', skeletonReason: '简短服务资料。', pages: [{ id: 'home', title: '首页', outline: ['公司和服务'] }] };
-  const reply = factAuditPayload(body, { choices: [{ finish_reason: content.includes('TRUNCATED') ? 'length' : planCall ? 'tool_calls' : 'stop', message: planCall
-    ? { content: null, tool_calls: [{ type: 'function', function: { name: content.includes('WRONGFN') ? 'other' : 'submit_page_plan', arguments: JSON.stringify(payload) } }] }
-    : { content: JSON.stringify(factAuditReply(body, payload)) } }], usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 } });
+  let reply: unknown;
+  if (facts && (content.includes('ZOD_EMPTY_ISSUE') || content.includes('ZOD_LONG_ISSUE') || content.includes('WITH_CITATION'))) {
+    const input = JSON.parse(content.split('\n')[0]);
+    const matchedQuote = input.sourceQuotes.find((q: { text: string }) => q.text.includes('按整期收费'))?.id ?? 'q1';
+    const rawFacts = Object.fromEntries(input.segments.map((s: { id: string }, i: number) => {
+      if (i === 0 && content.includes('ZOD_EMPTY_ISSUE')) return [s.id, { issues: [''], noFacts: true, factCategories: [], citations: [] }];
+      if (i === 0 && content.includes('ZOD_LONG_ISSUE')) return [s.id, { issues: ['长'.repeat(501)], noFacts: true, factCategories: [], citations: [] }];
+      if (i === 0 && content.includes('WITH_CITATION')) return [s.id, { issues: [], noFacts: false, factCategories: ['价格与收费'], citations: [{ category: '价格与收费', claimRef: `${s.id}c1`, quoteRef: matchedQuote }] }];
+      return [s.id, { issues: [], noFacts: true, factCategories: [], citations: [] }];
+    }));
+    reply = { choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ type: 'function', function: { name: 'submit_fact_review', arguments: JSON.stringify(rawFacts) } }] } }], usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 } };
+  } else {
+    const payload = facts ? { issues: [] } : { summary: '首页介绍服务', style: 'precision', styleReason: '服务资料', skeletonId: 'compact-profile', skeletonReason: '简短服务资料。', pages: [{ id: 'home', title: '首页', outline: ['公司和服务'] }] };
+    reply = factAuditPayload(body, { choices: [{ finish_reason: content.includes('TRUNCATED') ? 'length' : planCall ? 'tool_calls' : 'stop', message: planCall
+      ? { content: null, tool_calls: [{ type: 'function', function: { name: content.includes('WRONGFN') ? 'other' : 'submit_page_plan', arguments: JSON.stringify(payload) } }] }
+      : { content: JSON.stringify(factAuditReply(body, payload)) } }], usage: { prompt_tokens: 17, completion_tokens: 9, total_tokens: 26 } });
+  }
   let text = JSON.stringify(fromDeepSeekReply(dialect, reply));
   // A repeated key inside the parsed tool input is only visible in the HTTP body.
   if (content.includes('DUPLICATE') && dialect === 'anthropic') text = text.replace('"noFacts":true', '"noFacts":true,"noFacts":true');
@@ -446,4 +459,72 @@ test('withRequestProvider rejects request carrying only unknown X-SiteCraft-Prov
   const emptyHeaders = await withRequestProvider(new Request('http://127.0.0.1/'), async () => { ran = true; return new Response('ok'); });
   assert.equal(emptyHeaders.status, 200);
   assert.equal(ran, true);
+});
+
+test('deepseek, openai and anthropic submit_fact_review requests carry $defs/$ref and enforce local Zod bounds', async () => {
+  const categories = ['客户与合作方', '资质认证', '业绩与数量', '价格与收费', '时间与交期承诺', '效果', '评价'];
+  const segs = [
+    { text: '三门课程均为线下小班，按整期收费。', group: 'g1', context: { pageId: 'home', outline: [], headings: [] } },
+    { text: '支持常规咨询与课程说明。', group: 'g2', context: { pageId: 'home', outline: [], headings: [] } },
+  ];
+  const makeSources = (marker: string) => [{
+    type: 'message' as const,
+    messageIndex: 1,
+    text: `${marker}\n机构名：博思研习社\n三门课程均为线下小班，按整期收费。`,
+  }];
+
+  try {
+    for (const format of ['deepseek', 'openai', 'anthropic'] as const) {
+      if (format === 'deepseek') delete process.env.AI_PROVIDER_FORMAT;
+      else process.env.AI_PROVIDER_FORMAT = format;
+      seen.length = 0;
+
+      const calls: CodeModelCall[] = [];
+      const sources = makeSources('WITH_CITATION');
+      const reviewed = await model.codeModelCalls.run(calls, () =>
+        model.auditCodeFacts(sources[0].text, segs, false, 'precision', sources),
+      );
+      assert.equal(seen.length, 1);
+      assert.equal(reviewed[0].citations[0].quote, '三门课程均为线下小班，按整期收费。');
+      assert.match(reviewed[0].citations[0].claim, /按整期收费/);
+
+      const req = seen.at(-1)!;
+      assert.equal(req.url, format === 'anthropic' ? '/v1/messages' : format === 'openai' ? '/v1/chat/completions' : '/beta/chat/completions');
+      const tools = req.body.tools as Array<Record<string, any>>;
+      assert.equal(tools.length, 1);
+      if (format !== 'anthropic') assert.equal(tools[0].function.strict, true);
+      const schema = format === 'anthropic' ? tools[0].input_schema : tools[0].function.parameters;
+      assert.doesNotMatch(JSON.stringify(schema), /"(?:pattern|minLength|maxLength|minItems|maxItems)"/);
+      assert.deepEqual(schema.$defs?.category, { type: 'string', enum: categories });
+      const expectedQuotes = calls[0].factInput!.sourceQuotes!.map(q => q.id);
+      assert.ok(expectedQuotes.length >= 2);
+      assert.deepEqual(schema.$defs?.quoteRef, { type: 'string', enum: expectedQuotes });
+
+      for (const seg of calls[0].factInput!.segments) {
+        const row = schema.properties[seg.id];
+        assert.equal(row.additionalProperties, false);
+        assert.deepEqual(row.properties.issues, { type: 'array', items: { type: 'string' } });
+        assert.deepEqual(row.properties.factCategories, { type: 'array', items: { $ref: '#/$defs/category' } });
+        assert.deepEqual(Object.keys(row.properties.factCategories.items), ['$ref']);
+        const citProps = row.properties.citations.items.properties;
+        assert.deepEqual(citProps.category, { $ref: '#/$defs/category' });
+        assert.deepEqual(citProps.quoteRef, { $ref: '#/$defs/quoteRef' });
+        assert.deepEqual(citProps.claimRef, { type: 'string', enum: seg.claims!.map(c => c.id) });
+      }
+      assert.ok(schema.properties.s1.properties.citations.items.properties.claimRef.enum.every((id: string) => id.startsWith('s1c')));
+      assert.ok(schema.properties.s2.properties.citations.items.properties.claimRef.enum.every((id: string) => id.startsWith('s2c')));
+
+      for (const badMarker of ['ZOD_EMPTY_ISSUE', 'ZOD_LONG_ISSUE']) {
+        const badSources = makeSources(badMarker);
+        const before: number = seen.length;
+        await assert.rejects(
+          model.auditCodeFacts(badSources[0].text, segs, false, 'precision', badSources),
+          /核对段回复格式或编号无效/,
+        );
+        assert.equal(seen.length, before + 1, `${format} ${badMarker} must reject once without retry`);
+      }
+    }
+  } finally {
+    delete process.env.AI_PROVIDER_FORMAT;
+  }
 });
