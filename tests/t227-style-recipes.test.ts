@@ -222,10 +222,31 @@ test('T-234 recipes require neighborly homepage prices + summary table, core hea
   assert.match(neighborlySkill, /汇总表/);
 
   const darkroomSkill = await readFile(new URL('../skills/site-code-darkroom/SKILL.md', import.meta.url), 'utf8');
-  assert.match(darkroomSkill, /有授权实拍图时[^\n]*(?:首页|开场|首屏)[^\n]*实拍/);
-  assert.match(darkroomSkill, /零图|无授权实拍图|无图站点/);
+  assert.match(darkroomSkill, /没有企业自有实拍图时[^\n]*也能独立成立/);
+  assert.match(darkroomSkill, /无图首屏/);
 
   const mainline = await readFile(new URL('../docs/project/mainline.md', import.meta.url), 'utf8');
   assert.match(mainline, /T-234/);
   assert.match(mainline, /text-wrap:\s*balance/);
+});
+
+test('T-237 recipes: darkroom stands without company real photos, indexgrid varies hero/steps/history by content without fixed order, and docker README records DeepSeek probe prerequisite', async () => {
+  const darkroom = await readFile(new URL('../skills/site-code-darkroom/SKILL.md', import.meta.url), 'utf8');
+  assert.match(darkroom, /没有企业自有实拍图时[^\n]*也能独立成立/);
+  assert.match(darkroom, /行业[\/／]?题材配图|授权配图/);
+  assert.match(darkroom, /不冒充[^\n]*实拍/);
+  assert.doesNotMatch(darkroom, /只留给无图站点/);
+
+  const indexgrid = await readFile(new URL('../skills/site-code-indexgrid/SKILL.md', import.meta.url), 'utf8');
+  assert.match(indexgrid, /粗黑/);
+  assert.match(indexgrid, /格线/);
+  assert.match(indexgrid, /索引/);
+  assert.doesNotMatch(indexgrid, /一格放跨格大号黑体标题，邻格放目录索引摘要/);
+  assert.match(indexgrid, /首屏[^\n]*按资料/);
+  assert.match(indexgrid, /步骤[\/／]?流程[^\n]*按/);
+  assert.match(indexgrid, /沿革[^\n]*按/);
+  assert.match(indexgrid, /不规定固定(?:的)?(?:区块)?顺序(?:和位置|与位置)/);
+
+  const dockerReadme = await readFile(new URL('../deploy/docker/README.md', import.meta.url), 'utf8');
+  assert.match(dockerReadme, /下次更新 Windows [^\n]*服务之前[^\n]*DeepSeek[^\n]*submit_fact_review[^\n]*最小探针/);
 });

@@ -47,6 +47,8 @@ Docker Desktop 须保持运行。Compose 的 `restart: unless-stopped` 会在 Do
 
 ## 更新与备份
 
+前置条件：下次更新 Windows 本机服务之前，必须先用真实 DeepSeek 接口跑一次 `submit_fact_review` 最小探针（1–2 个核对段，核实 DeepSeek `/beta` 严格函数接受顶层 `$defs`/`$ref` schema）并确认通过，再执行下述构建与容器替换。
+
 更新源码时保留 Windows 的 `.env`，再执行 `docker compose up -d --build`。构建成功才替换运行容器；不要先删除卷。
 
 一致备份先停止 web，阻止跨文件和数据库的新写入，再导出数据库与文件目录。将下列 `<备份目录>` 替换为新的空目录：
