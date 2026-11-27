@@ -41,7 +41,7 @@ export const diversePacks: Record<DiversePackId, DiversePack> = {
     requestedPageCount: 2,
     pageRequest: '首页、诊疗与收费须知两个独立页面。',
     quickContent: { id: 'care', title: '诊疗与收费' },
-    controlUrls: ['https://www.vcahospitals.com/', 'https://www.banfield.com/'],
+    controlUrls: ['https://bondvet.com/', 'https://www.banfield.com/'],
     body: [
       '资料性质：模拟。不可当作真实机构。',
       '机构名：白桦林宠物内科诊所',

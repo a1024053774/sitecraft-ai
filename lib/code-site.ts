@@ -31,7 +31,10 @@ export function keepUnreturnedPages(candidate: unknown, parent: SiteCode, pageId
 export type CodePreferences = { style: 'auto' | CodeStyleId; layout: number; density: number };
 export type CodePlan = { summary: string; style: CodeStyleId; styleReason: string;
   // Saved outlines from before T-135 have no skeleton; new model plans require it.
-  skeleton?: { id: string; reason: string }; skeletonOrder?: string[]; pages: Array<{ id: string; title: string; outline: string }> };
+  skeleton?: { id: string; reason: string }; skeletonOrder?: string[];
+  // T-240/T-242: recorded when the selected style defines whole-page compositions.
+  composition?: { id: string; reason: string };
+  pages: Array<{ id: string; title: string; outline: string }> };
 export type CodeQualityKind = 'truncatedText' | 'ungatedHover' | 'smallTargets' | 'coveredAnchors' | 'croppedProductImages' | 'narrowColumns';
 export type CodeQualityFeedback = Record<Exclude<CodeQualityKind, 'narrowColumns'>, number> & {
   // Absent on historical checks before T-160; absence means unmeasured.

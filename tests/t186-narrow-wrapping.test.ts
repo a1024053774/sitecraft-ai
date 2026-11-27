@@ -21,6 +21,7 @@ test.before(() => {
     const name = body.tools?.[0].function.name;
     const data = name === 'submit_page_plan' ? { summary: '展示已有项目。', style: chosen, styleReason: '按资料排版。',
       skeletonId: 'custom', skeletonReason: '内容较少，按项目展示；不用需要现场照片的结构。',
+      ...(chosen === 'neighborly' ? { compositionId: 'neighborly-menu-board', compositionReason: '按已有项目紧凑展示。' } : {}),
       pages: [{ id: 'home', title: '首页', outline: ['已有项目与各自说明'] }] }
       : name === 'submit_local_edit' ? { html: JSON.parse(body.messages[1].content.split('\n')[0]).html, css: '', cannotEdit: '' } : code;
     const message = name ? { content: null, tool_calls: [{ type: 'function', id: name, function: { name, arguments: JSON.stringify(data) } }] }

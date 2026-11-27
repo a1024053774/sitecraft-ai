@@ -20,7 +20,10 @@ const wires: any[] = [];
 const server = createServer(async (req, res) => {
   let raw = ''; for await (const chunk of req) raw += chunk;
   const body = JSON.parse(raw); wires.push(body);
-  const plan = { summary: '展示齿轮产品与加工边界。', style, styleReason: '依据现有产品参数。', skeletonId: 'custom', skeletonReason: '产品参数为主。', pages: [{ id: 'home', title: '首页', outline: ['产品参数'] }] };
+  const needsComposition = Boolean(body.tools?.[0]?.function?.parameters?.properties?.compositionId);
+  const plan = { summary: '展示齿轮产品与加工边界。', style, styleReason: '依据现有产品参数。', skeletonId: 'custom', skeletonReason: '产品参数为主。',
+    ...(needsComposition ? { compositionId: style === 'neighborly' ? 'neighborly-menu-board' : 'style-native', compositionReason: '按现有产品参数与服务边界排布。' } : {}),
+    pages: [{ id: 'home', title: '首页', outline: ['产品参数'] }] };
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ type: 'function', id: 'fixture', function: { name: 'submit_page_plan', arguments: JSON.stringify(plan) } }] } }] }));
 });
@@ -34,7 +37,7 @@ test.after(() => new Promise<void>(resolve => server.close(() => resolve())));
 test('the planning contract offers the approved directions and loads the selected short skill', async () => {
   style = 'precision';
   await planSiteCode('齿轮资料', { style: 'auto', layout: 5, density: 6 }, '规划');
-  assert.deepEqual(wires.at(-1).tools[0].function.parameters.properties.style.enum, ['precision', 'documentary', 'editorial', 'neighborly', 'craftposter']);
+  assert.deepEqual(wires.at(-1).tools[0].function.parameters.properties.style.enum, ['precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'craftposter']);
   assert.match(wires.at(-1).messages[1].content, /按资料.*不固定按行业套风格/);
   style = 'neighborly';
   const automatic = await planSiteCode('齿轮产品的参数与使用边界。', { style: 'auto', layout: 5, density: 6 }, '规划');
@@ -80,9 +83,9 @@ test('all offered directions have registered real WebP previews', async () => {
   assert.ok(existsSync('lib/code-site-styles.ts'), 'one style catalog must exist');
   const { codeStyles, codeStyleOptions, readyCodeStyleIds } = await import('../lib/code-site-styles.ts');
   assert.deepEqual(Object.keys(codeStyles), ['precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'indexgrid', 'craftposter']);
-  assert.deepEqual(readyCodeStyleIds, ['precision', 'documentary', 'editorial', 'neighborly', 'craftposter']);
-  assert.deepEqual(codeStyleOptions.map(option => option.id), ['auto', 'precision', 'documentary', 'editorial', 'neighborly', 'craftposter'], '盲评通过的邻里日常与风物招牌成为普通用户选项');
-  for (const id of ['precision', 'documentary', 'editorial', 'neighborly', 'craftposter'] as const) {
+  assert.deepEqual(readyCodeStyleIds, ['precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'craftposter']);
+  assert.deepEqual(codeStyleOptions.map(option => option.id), ['auto', 'precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'craftposter'], '盲评通过的邻里日常、暗房陈列与风物招牌成为普通用户选项');
+  for (const id of ['precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'craftposter'] as const) {
     const preview = codeStyles[id].preview;
     assert.equal(preview.status, 'ready');
     if (preview.status !== 'ready') throw new Error('missing preview');
@@ -90,7 +93,7 @@ test('all offered directions have registered real WebP previews', async () => {
     assert.ok(preview.revision > 0);
     assert.ok((await readFile(`public${preview.src}`)).length > 0);
   }
-  for (const id of ['darkroom', 'indexgrid'] as const) {
+  for (const id of ['indexgrid'] as const) {
     assert.deepEqual(codeStyles[id].preview, { status: 'pending' });
   }
 });

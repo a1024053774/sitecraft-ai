@@ -27,7 +27,9 @@ test.before(() => {
     const body = JSON.parse(options.body as string); requests.push(body);
     const message = body.tools ? { content: null, tool_calls: [{ type: 'function', id: 'plan', function: {
       name: 'submit_page_plan', arguments: JSON.stringify({ summary: '按已有业务规划。', style: chosen, styleReason: '按已有资料排版。',
-        skeletonId: 'custom', skeletonReason: '资料少，紧凑展示已有业务；不需要现场叙事。', pages: [{ id: 'home', title: '首页', outline: ['已有业务与相关说明'] }] }),
+        skeletonId: 'custom', skeletonReason: '资料少，紧凑展示已有业务；不需要现场叙事。',
+        ...(chosen === 'neighborly' ? { compositionId: 'neighborly-menu-board', compositionReason: '按已有业务展示价目与告示。' } : {}),
+        pages: [{ id: 'home', title: '首页', outline: ['已有业务与相关说明'] }] }),
     } }] } : { content: JSON.stringify(code) };
     return Response.json({ choices: [{ finish_reason: body.tools ? 'tool_calls' : 'stop', message }] });
   });

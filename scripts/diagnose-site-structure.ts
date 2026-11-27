@@ -662,6 +662,7 @@ type PrescriptiveSentenceSpec = {
   file: string;
   layer: 'SKELETONS.md' | 'site-code-core/SKILL.md' | 'frontend-less-ai-tone/SKILL.md' | 'lib/code-site-model.ts' | 'lib/simulated-packs.ts';
   needle: string;
+  expectedStatus: 'present' | 'remediated';
   mechanism: string;
 };
 
@@ -670,78 +671,91 @@ const PRESCRIPTIVE_SPECS: PrescriptiveSentenceSpec[] = [
     file: 'skills/site-code-core/SKELETONS.md',
     layer: 'SKELETONS.md',
     needle: '写页时把选择落实到首屏、业务入口和区块顺序，不能只改骨架名称；结构理由只在大纲里，不进入企业页面。尺寸、颜色和字阶由用户风格与滑杆决定。',
+    expectedStatus: 'remediated',
     mechanism: '显式剥夺风格（style）对首屏形态与区块顺序的决定权，把区块顺序绑定给骨架卡，把风格降格为仅管尺寸、颜色和字阶的皮肤。',
   },
   {
     file: 'skills/site-code-core/SKELETONS.md',
     layer: 'SKELETONS.md',
     needle: '首屏挑选入口或关键事实，完整细节放在所属业务处，避免重复。',
+    expectedStatus: 'remediated',
     mechanism: '规定所有骨架首页首屏统一只放简短定位与业务入口，把规格/价格/细节推向内页，导致首页第二块固定退化为 3 栏分类入口条。',
   },
   {
     file: 'skills/site-code-core/SKELETONS.md',
     layer: 'SKELETONS.md',
     needle: '只有两个系列，或资料重点是定制承接、业务路径、服务流程时，这张不适用',
+    expectedStatus: 'remediated',
     mechanism: '叠加 two-businesses（第 39 行禁同路径多系列）与 workshop-story（第 27 行要求真实现场图，而 0/7 模拟包有实拍图）的排除条件后，把绝大多数多页站点挤压进 capability-led 与 application-paths 两张同构卡片。',
   },
   {
     file: 'skills/site-code-core/SKELETONS.md',
     layer: 'SKELETONS.md',
     needle: '首屏：承接任务与范围组成通栏说明，下面紧接一条有来源的业务目录；内容入口通向承接范围；',
+    expectedStatus: 'remediated',
     mechanism: 'capability-led（占 T-226～T-238 站点的 63.6%）直接规定「首屏说明 + 紧接一条业务目录」。',
   },
   {
     file: 'skills/site-code-core/SKELETONS.md',
     layer: 'SKELETONS.md',
     needle: '序列：承接范围 → 能力/方式分组 → 设施与质量的不同尺度内容区 → 已有业务例项 → 交易边界',
+    expectedStatus: 'remediated',
     mechanism: 'capability-led 规定「承接范围 → 业务/能力分组 → 过程/案例记录」中段主干，未给沿革与动态留差异化去向，使其固定沉淀到首页末尾两格。',
   },
   {
     file: 'skills/site-code-core/SKELETONS.md',
     layer: 'SKELETONS.md',
     needle: '首屏：业务定位与场景入口上下展开，可用横向场景带或一主多辅的分区；不以企业能力数字开场。',
+    expectedStatus: 'remediated',
     mechanism: 'application-paths（占 T-226～T-238 站点的 36.4%）与 capability-led 完全同构：同样要求「定位首屏 + 下接横向 3 栏入口带」。',
   },
   {
     file: 'skills/site-code-core/SKELETONS.md',
     layer: 'SKELETONS.md',
     needle: '序列：场景选择 → 各场景的要求与对应业务 → 共有能力 → 有依据的质量信息；规格跟在对应内容后。',
+    expectedStatus: 'remediated',
     mechanism: 'application-paths 同样生成「首屏 → 三栏入口 → 课堂/流程说明 → 末尾沿革与动态」五段式，使换骨架不换宏观节奏。',
   },
   {
     file: 'lib/code-site-model.ts',
     layer: 'lib/code-site-model.ts',
     needle: 'return `${content[0]}\\n\\n${cards}\\n\\n${content.slice(1).join(\'\\n\\n\')}',
+    expectedStatus: 'remediated',
     mechanism: '系统提示词将 SKELETONS.md 放在核心规范之后、具体风格 skill 之前，且每次 write 也全量重新注入全部 8 张骨架卡，强化通用骨架优先于风格个性。',
   },
   {
     file: 'lib/code-site-model.ts',
     layer: 'lib/code-site-model.ts',
     needle: 'outline: z.array(z.string().min(1).max(120)).min(1).max(6).describe(\'按顺序给 1–6 个短句，每句约 10–40 字，只写内容与排版位置',
+    expectedStatus: 'present',
     mechanism: '结合第 220 行「每页最多六句，每句只交代一个内容区与空间关系」，把首页大纲锁进 5–6 个等量分句槽位（首屏、分类带、过程/记录、沿革、动态、页脚）。',
   },
   {
     file: 'lib/code-site-model.ts',
     layer: 'lib/code-site-model.ts',
     needle: '先按适用条件比较至少两张卡，再选一个结构起点，可以调整或另创（custom）',
+    expectedStatus: 'remediated',
     mechanism: '要求先做卡片适用条件匹配并说明次选淘汰理由，模型为通过理由审查倾向套用最稳妥的 capability-led / application-paths 标准序列，118 站中 custom 选用率为 0%。',
   },
   {
     file: 'skills/site-code-core/SKILL.md',
     layer: 'site-code-core/SKILL.md',
     needle: '页头与首屏承接不同任务时，优先安排看产品、看范围或下载资料等已有入口。',
+    expectedStatus: 'present',
     mechanism: '强化首屏固定放置主行动入口按钮 + 紧邻产品/服务范围索引条。',
   },
   {
     file: 'skills/frontend-less-ai-tone/SKILL.md',
     layer: 'frontend-less-ai-tone/SKILL.md',
     needle: 'Hero、能力、流程、CTA 各承担不同证据，不要复制同一组承诺。',
+    expectedStatus: 'remediated',
     mechanism: '在所有风格的公共去 AI 味提示中隐含「Hero → 能力/分类 → 流程」的默认三段式叙事链。',
   },
   {
     file: 'lib/simulated-packs.ts',
     layer: 'lib/simulated-packs.ts',
     needle: '栏目线索：三类包装各自的材料、结构和订购条件；白样与印刷签样的区别；装载记录；样品动态。',
+    expectedStatus: 'present',
     mechanism: '输入资料侧对照（7 套模拟包均在 T-190 按同一模板编写）：开头固定含视觉符号描述（诱发 write 阶段生成左文右图形 Hero）+ 4 条年份沿革 + 末尾 3 条模拟动态 + 显式「栏目线索：…；XX动态」，在内页被限定为产品/课程与须知页后，沿革与动态必然落入首页第 4、5 区块。',
   },
 ];
@@ -752,14 +766,16 @@ async function verifyPrescriptiveSentences() {
     const raw = await readFile(path.resolve(spec.file), 'utf8');
     const lines = raw.split(/\r?\n/);
     const lineIndex = lines.findIndex(line => line.includes(spec.needle));
-    if (lineIndex < 0) {
-      throw new Error(`未能在 ${spec.file} 中定位原句：${spec.needle}`);
+    const status = lineIndex >= 0 ? ('present' as const) : ('remediated' as const);
+    if (status !== spec.expectedStatus) {
+      throw new Error(`诊断原句状态漂移（${spec.file}）：期望 ${spec.expectedStatus}，实际 ${status}（${spec.needle}）`);
     }
     verified.push({
       file: spec.file,
-      line: lineIndex + 1,
+      line: lineIndex >= 0 ? lineIndex + 1 : null,
+      status,
       layer: spec.layer,
-      quote: lines[lineIndex].trim(),
+      quote: lineIndex >= 0 ? lines[lineIndex].trim() : spec.needle,
       mechanism: spec.mechanism,
     });
   }
@@ -822,6 +838,8 @@ type SiteAnalysis = {
   styleStatus: string;
   skeletonId: string | null;
   skeletonOrder: string[] | null;
+  compositionId: string | null;
+  compositionReason: string | null;
   preferences: unknown;
   models: string[];
   createdAt: string;
@@ -838,7 +856,7 @@ type SiteAnalysis = {
   pages: PageAnalysis[];
 };
 
-export async function diagnoseSiteStructures(options?: { dataDir?: string }) {
+export async function diagnoseSiteStructures(options?: { dataDir?: string; siteIds?: string[] }) {
   const dataDir = path.resolve(options?.dataDir ?? '.sitecraft-data/code-sites');
   const files = (await readdir(dataDir)).filter(f => f.endsWith('.json')).sort();
 
@@ -900,6 +918,8 @@ export async function diagnoseSiteStructures(options?: { dataDir?: string }) {
       styleStatus,
       skeletonId: record.plan?.skeleton?.id ?? null,
       skeletonOrder: record.plan?.skeletonOrder ?? null,
+      compositionId: record.plan?.composition?.id ?? null,
+      compositionReason: record.plan?.composition?.reason ?? null,
       preferences: record.preferences ?? null,
       models,
       createdAt: String(v1.createdAt),
@@ -981,11 +1001,76 @@ export async function diagnoseSiteStructures(options?: { dataDir?: string }) {
     })),
   );
 
-  // Skeleton concentration stats
+  // Skeleton & style composition concentration stats
   const skeletonCountsAll: Record<string, number> = {};
   const skeletonCountsRecent: Record<string, number> = {};
-  for (const s of sites) skeletonCountsAll[String(s.skeletonId)] = (skeletonCountsAll[String(s.skeletonId)] ?? 0) + 1;
-  for (const s of recentGptSites) skeletonCountsRecent[String(s.skeletonId)] = (skeletonCountsRecent[String(s.skeletonId)] ?? 0) + 1;
+  const compositionCountsAll: Record<string, number> = {};
+  const compositionCountsRecent: Record<string, number> = {};
+  for (const s of sites) {
+    skeletonCountsAll[String(s.skeletonId)] = (skeletonCountsAll[String(s.skeletonId)] ?? 0) + 1;
+    if (s.compositionId) compositionCountsAll[s.compositionId] = (compositionCountsAll[s.compositionId] ?? 0) + 1;
+  }
+  for (const s of recentGptSites) {
+    skeletonCountsRecent[String(s.skeletonId)] = (skeletonCountsRecent[String(s.skeletonId)] ?? 0) + 1;
+    if (s.compositionId) compositionCountsRecent[s.compositionId] = (compositionCountsRecent[s.compositionId] ?? 0) + 1;
+  }
+
+  let subsetSummary: null | {
+    siteCount: number;
+    stage: ReturnType<typeof attributeStageSimilarity>;
+    skeletonCounts: Record<string, number>;
+    compositionCounts: Record<string, number>;
+    sites: Array<{
+      siteId: string;
+      name: string;
+      style: string;
+      skeletonId: string | null;
+      compositionId: string | null;
+      homePlanTypes: SectionType[];
+      homeHtmlTypes: SectionType[];
+      homeHtmlSignatures: string[];
+    }>;
+  } = null;
+
+  if (options?.siteIds?.length) {
+    const requested = [...new Set(options.siteIds)];
+    const missing = requested.filter(req => !sites.some(s => s.siteId === req || s.siteId.startsWith(req)));
+    if (missing.length > 0) {
+      throw new Error(`未找到指定站点 ID：${missing.join(', ')}`);
+    }
+    const sub = sites.filter(s => requested.some(req => s.siteId === req || s.siteId.startsWith(req)));
+    const skCounts: Record<string, number> = {};
+    const compCounts: Record<string, number> = {};
+    for (const s of sub) {
+      skCounts[String(s.skeletonId)] = (skCounts[String(s.skeletonId)] ?? 0) + 1;
+      compCounts[String(s.compositionId ?? 'none')] = (compCounts[String(s.compositionId ?? 'none')] ?? 0) + 1;
+    }
+    subsetSummary = {
+      siteCount: sub.length,
+      stage: attributeStageSimilarity(
+        sub.map(s => ({
+          id: s.siteId,
+          company: s.companyKey,
+          style: s.style,
+          planTypes: s.homePlanTypes,
+          htmlTypes: s.homeHtmlTypes,
+          htmlSignatures: s.homeHtmlSignatures,
+        })),
+      ),
+      skeletonCounts: skCounts,
+      compositionCounts: compCounts,
+      sites: sub.map(s => ({
+        siteId: s.siteId,
+        name: s.name,
+        style: s.style,
+        skeletonId: s.skeletonId,
+        compositionId: s.compositionId,
+        homePlanTypes: s.homePlanTypes,
+        homeHtmlTypes: s.homeHtmlTypes,
+        homeHtmlSignatures: s.homeHtmlSignatures,
+      })),
+    };
+  }
 
   // Specific pattern rates in T-190+ & Recent GPT cohorts
   const patternStats = (subset: SiteAnalysis[]) => {
@@ -1049,6 +1134,9 @@ export async function diagnoseSiteStructures(options?: { dataDir?: string }) {
     },
     skeletonCountsAll,
     skeletonCountsRecent,
+    compositionCountsAll,
+    compositionCountsRecent,
+    subsetSummary,
     stageAttribution: {
       allRealSites: stageAll,
       postT190Sites: stagePostT190,
@@ -1076,6 +1164,7 @@ export async function diagnoseSiteStructures(options?: { dataDir?: string }) {
         style: s.style,
         styleStatus: s.styleStatus,
         skeletonId: s.skeletonId,
+        compositionId: s.compositionId,
         homePlanTypes: s.homePlanTypes,
         homeHtmlTypes: s.homeHtmlTypes,
         homeHtmlSignatures: s.homeHtmlSignatures,
@@ -1113,9 +1202,29 @@ export function formatDiagnosisMarkdown(report: Awaited<ReturnType<typeof diagno
   const stRecent = report.stageAttribution.recentGptSites;
   const stPost = report.stageAttribution.postT190Sites;
 
+  const subsetSection = report.subsetSummary
+    ? [
+        `## 零、指定子集客观结构验收指标（\`n=${report.subsetSummary.siteCount}\`）`,
+        ``,
+        `- 跨公司 \`plan\` 大纲序列相似度：**\`${(report.subsetSummary.stage.meanPlanTypeSimilarity * 100).toFixed(1)}%\`**`,
+        `- 跨公司 \`HTML\` 区块语义序列相似度：**\`${(report.subsetSummary.stage.meanHtmlTypeSimilarity * 100).toFixed(1)}%\`**`,
+        `- 跨公司 \`HTML\` 复合结构签名相似度：**\`${(report.subsetSummary.stage.meanHtmlSignatureSimilarity * 100).toFixed(1)}%\`**`,
+        `- 骨架卡分布：\`${JSON.stringify(report.subsetSummary.skeletonCounts)}\``,
+        `- 风格整页构图（\`composition\`）分布：\`${JSON.stringify(report.subsetSummary.compositionCounts)}\``,
+        ``,
+        `| 站点 | 风格 | 骨架 | 整页构图 | \`plan\` 首页序列 | \`HTML\` 首页签名序列 |`,
+        `| --- | --- | --- | --- | --- | --- |`,
+        ...report.subsetSummary.sites.map(s =>
+          `| ${s.name} (\`${s.siteId.slice(0, 8)}\`) | \`${s.style}\` | \`${s.skeletonId}\` | \`${s.compositionId ?? '—'}\` | \`${s.homePlanTypes.join(' → ')}\` | \`${s.homeHtmlSignatures.join(' → ')}\` |`,
+        ),
+        ``,
+      ]
+    : [];
+
   const lines: string[] = [
     `# SiteCraft 真实生成站区块与大纲序列结构诊断报告（T-239，零 Token）`,
     ``,
+    ...subsetSection,
     `- 生成命令：\`node --experimental-strip-types scripts/diagnose-site-structure.ts --out-dir artifacts/t239\``,
     `- 扫描目录：\`.sitecraft-data/code-sites/\`（共 \`${report.totalFilesScanned}\` 个 JSON；排除无版本 \`${report.excludedCounts['no-version']}\`、旧站离线导入 \`${report.excludedCounts['legacy-import']}\`、本地替身/手工夹具 \`${report.excludedCounts['fixture-or-manual']}\`；纳入真实模型生成站 **\`${report.realSiteCount}\` 个**）`,
     `- 分期构成：\`pre-t190\` \`${report.cohortCounts['pre-t190']}\` 站、\`t190-deepseek\` \`${report.cohortCounts['t190-deepseek']}\` 站、\`t222-tea\` \`${report.cohortCounts['t222-tea']}\` 站、\`t226-t238-gpt\` \`${report.cohortCounts['t226-t238-gpt']}\` 站（覆盖全部 5 个 \`ready\` 与 2 个 \`pending\` 风格）。`,
@@ -1175,7 +1284,7 @@ export function formatDiagnosisMarkdown(report: Awaited<ReturnType<typeof diagno
     ``,
     ...report.prescriptiveSentences.map(
       (item, idx) =>
-        `${idx + 1}. **\`${item.file}:${item.line}\`（${item.layer}）**\n   - 原句：「${item.quote}」\n   - 作用机制：${item.mechanism}`,
+        `${idx + 1}. **\`${item.file}${item.line ? `:${item.line}` : ''}\`（${item.layer}，状态：\`${item.status}\`）**\n   - 原句：「${item.quote}」\n   - 作用机制：${item.mechanism}`,
     ),
     ``,
     `## 五、修复层级指向（供下一张票执行）`,
@@ -1195,11 +1304,13 @@ async function main() {
     options: {
       'data-dir': { type: 'string' },
       'out-dir': { type: 'string' },
+      'site-ids': { type: 'string' },
     },
   });
   const outDir = path.resolve(values['out-dir'] ?? 'artifacts/t239');
   await mkdir(outDir, { recursive: true });
-  const report = await diagnoseSiteStructures({ dataDir: values['data-dir'] });
+  const siteIds = values['site-ids'] ? values['site-ids'].split(',').map(s => s.trim()).filter(Boolean) : undefined;
+  const report = await diagnoseSiteStructures({ dataDir: values['data-dir'], siteIds });
   const jsonPath = path.join(outDir, 'structure-diagnosis.json');
   const mdPath = path.join(outDir, 'structure-diagnosis.md');
   await writeFile(jsonPath, JSON.stringify(report, null, 2) + '\n', 'utf8');
@@ -1209,6 +1320,9 @@ async function main() {
     cohortCounts: report.cohortCounts,
     skeletonCountsAll: report.skeletonCountsAll,
     skeletonCountsRecent: report.skeletonCountsRecent,
+    compositionCountsAll: report.compositionCountsAll,
+    compositionCountsRecent: report.compositionCountsRecent,
+    subsetSummary: report.subsetSummary,
     stageAttribution: report.stageAttribution,
     patternRates: report.patternRates,
     jsonPath,

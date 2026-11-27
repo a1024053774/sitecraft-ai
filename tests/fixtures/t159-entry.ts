@@ -38,6 +38,7 @@ const provider = createServer(async (req, res) => {
   }
   if (!body.tools) { res.writeHead(503); res.end('{"error":{"message":"selection contract stops before writing"}}'); return; }
   const plan = { summary: '呈现菜单及到店信息。', style: 'neighborly', styleReason: '已有菜目与营业时段便于并置。', skeletonId: 'custom', skeletonReason: '先呈现菜目，不采用图片开场；资料没有授权照片。',
+    compositionId: 'neighborly-menu-board', compositionReason: '当餐菜目与营业时段并置展示。',
     pages: [{ id: 'home', title: '首页', outline: ['菜目与到店信息'] }, { id: 'menu', title: '菜单', outline: ['菜目价格与供应时段'] }] };
   res.end(JSON.stringify(factAuditPayload(body, { choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ type: 'function', id: 'fixture', function: { name: 'submit_page_plan', arguments: JSON.stringify(plan) } }] } }] })));
 });

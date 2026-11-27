@@ -14,8 +14,8 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 
 const allStyles = ['precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'indexgrid', 'craftposter'] as const;
-const readyStyles = ['precision', 'documentary', 'editorial', 'neighborly', 'craftposter'] as const;
-const pendingStyles = ['darkroom', 'indexgrid'] as const;
+const readyStyles = ['precision', 'documentary', 'editorial', 'neighborly', 'darkroom', 'craftposter'] as const;
+const pendingStyles = ['indexgrid'] as const;
 
 function hexLuminance(hex: string) {
   const m = hex.match(/^#([0-9a-f]{6})$/i);
@@ -169,7 +169,7 @@ test('new pending styles remain hidden from ordinary processes and admitted only
   const probe = (evalStyles?: string) => {
     const env = { ...process.env };
     if (evalStyles === undefined) delete env.SITECRAFT_EVAL_STYLES; else env.SITECRAFT_EVAL_STYLES = evalStyles;
-    const script = `import { readyCodeStyleIds, codeStyleOptions } from './lib/code-site-styles.ts'; import { serverCodeStyleOptions, requireModelTaskAdmission } from './lib/code-site-eval-styles.ts'; console.log(JSON.stringify({ readyCodeStyleIds, client: codeStyleOptions.map(o => o.id), server: serverCodeStyleOptions.map(o => o.id), canDarkroom: (() => { try { requireModelTaskAdmission('darkroom'); return true; } catch { return false; } })() }));`;
+    const script = `import { readyCodeStyleIds, codeStyleOptions } from './lib/code-site-styles.ts'; import { serverCodeStyleOptions, requireModelTaskAdmission } from './lib/code-site-eval-styles.ts'; console.log(JSON.stringify({ readyCodeStyleIds, client: codeStyleOptions.map(o => o.id), server: serverCodeStyleOptions.map(o => o.id), canIndexgrid: (() => { try { requireModelTaskAdmission('indexgrid'); return true; } catch { return false; } })() }));`;
     const res = spawnSync(process.execPath, ['--experimental-strip-types', '--input-type=module', '-e', script], { env, encoding: 'utf8' });
     assert.equal(res.status, 0, res.stderr);
     return JSON.parse(res.stdout.trim());
@@ -178,15 +178,15 @@ test('new pending styles remain hidden from ordinary processes and admitted only
   assert.deepEqual(ordinary.readyCodeStyleIds, [...readyStyles]);
   assert.deepEqual(ordinary.client, ['auto', ...readyStyles]);
   assert.deepEqual(ordinary.server, ['auto', ...readyStyles]);
-  assert.equal(ordinary.canDarkroom, false);
-  const evalEnv = probe('darkroom,indexgrid');
+  assert.equal(ordinary.canIndexgrid, false);
+  const evalEnv = probe('indexgrid');
   assert.deepEqual(evalEnv.readyCodeStyleIds, [...readyStyles]);
   assert.deepEqual(evalEnv.client, ['auto', ...readyStyles]);
   assert.deepEqual(evalEnv.server, ['auto', ...readyStyles, ...pendingStyles]);
-  assert.equal(evalEnv.canDarkroom, true);
+  assert.equal(evalEnv.canIndexgrid, true);
 });
 
-test('T-235 promoted craftposter WebP preview decodes at 576x400 with SOURCE.md provenance while darkroom and indexgrid stay pending', async () => {
+test('T-235 & T-240 promoted craftposter and darkroom WebP previews decode at 576x400 with SOURCE.md provenance while indexgrid stays pending', async () => {
   const { default: sharp } = await import('sharp');
   const { codeStyles } = await import('../lib/code-site-styles.ts');
   const preview = codeStyles.craftposter.preview;
@@ -206,11 +206,27 @@ test('T-235 promoted craftposter WebP preview decodes at 576x400 with SOURCE.md 
   assert.equal(meta.format, 'webp');
   assert.equal(meta.width, 576);
   assert.equal(meta.height, 400);
-  assert.deepEqual(codeStyles.darkroom.preview, { status: 'pending' });
+
+  const darkroomPreview = codeStyles.darkroom.preview;
+  assert.equal(darkroomPreview.status, 'ready');
+  if (darkroomPreview.status !== 'ready') throw new Error('darkroom must be promoted to ready');
+  assert.equal(darkroomPreview.siteId, 'd48fdf27-7913-4331-8f98-6854929007ae');
+  assert.equal(darkroomPreview.versionId, 'f61cd84a-66d4-42c8-b05f-1b7e7a6b579f');
+  assert.equal(darkroomPreview.revision, 1);
+  assert.equal(darkroomPreview.src, '/style-previews/darkroom.webp');
+  assert.equal(darkroomPreview.source, 't240/eval-4sites-r2/eval/private/case-3/home-fold-1440.png');
+  assert.match(license, /darkroom\.webp/);
+  assert.match(license, /松风提琴修复工坊/);
+  assert.match(license, /d48fdf27-7913-4331-8f98-6854929007ae/);
+  assert.match(license, /f61cd84a-66d4-42c8-b05f-1b7e7a6b579f/);
+  const darkroomMeta = await sharp(`public${darkroomPreview.src}`).metadata();
+  assert.equal(darkroomMeta.format, 'webp');
+  assert.equal(darkroomMeta.width, 576);
+  assert.equal(darkroomMeta.height, 400);
+
   assert.deepEqual(codeStyles.indexgrid.preview, { status: 'pending' });
-  assert.match(license, /T-238/);
   const agents = await readFile('AGENTS.md', 'utf8');
-  assert.match(agents, /darkroom[^\n]*T-238[^\n]*sameTemplate=true/);
+  assert.match(agents, /darkroom[^\n]*T-240[^\n]*ready/);
   assert.match(agents, /indexgrid[^\n]*T-238[^\n]*::marker/);
 });
 
