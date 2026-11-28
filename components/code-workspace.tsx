@@ -14,6 +14,7 @@ import type { CodeSiteRecord, CodePreferences, CodeSiteStep } from '@/lib/code-s
 import { codeSiteSteps, codeSiteFlow, codeCheckLabel, codeVersionAuthor, chineseCodeRevision, codeFactMaterials, explicitEnglishCompanyName } from '@/lib/code-site';
 import type { AlignmentPublicView } from '@/lib/alignment';
 import type { ConversationTurn } from '@/lib/conversation-store';
+import { uncompletedUserMessages } from '@/lib/code-workspace-messages';
 import { simulatedPackList } from '@/lib/simulated-packs';
 import { CodeVersionHistory } from './code-version-history';
 import { annotationTargetSchema, annotationCaptureSchema, annotationDraftSchema, type AnnotationDraft, type AnnotationTarget, type AnnotationThread } from '@/lib/annotations';
@@ -452,8 +453,9 @@ export function CodeWorkspace({ siteId, initial }: { siteId: string; initial: Co
         {!version && <div className="code-step-head"><small>第 {stepIndex + 1} 步，共 {codeSiteSteps.length} 步</small><h1>{stepHead[0]}</h1><p>{stepHead[1]}</p></div>}
         {canvasMode && <p className="code-canvas-hint">点页面上的区块写意见，加入清单后一次发送。改整页的要求写在最下面的输入框。</p>}
         {state.conversationError && <p className="code-error" role="alert" data-testid="code-conversation-error">{state.conversationError}</p>}
-        {!version && !state.turns.length && !conversationUnavailable && <div className="message assistant code-welcome"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
+        {!version && !state.turns.length && !site.factSources?.length && !conversationUnavailable && <div className="message assistant code-welcome"><div className="message-bubble">发来公司资料，或从「资料」选一份模拟公司。已有图片也可以先上传。</div></div>}
         {state.turns.map((turn, index) => <div key={`${turn.createdAt}-${index}`} className="code-turn"><div className="message user"><div className="message-label">你</div><div className="message-bubble">{turn.userMessage}</div></div><div className={`message assistant ${turn.outcome}`}><div className="message-label">AI 助手</div><div className="message-bubble">{turn.aiSummary}</div></div></div>)}
+        {!conversationUnavailable && uncompletedUserMessages(site.factSources, state.turns).map(source => <div className="message user code-turn" key={source.type === 'upload' ? `upload:${source.sourceId}` : `${source.type}:${source.messageIndex}`}><div className="message-label">你</div><div className="message-bubble">{source.text}</div></div>)}
         {alignment?.waitingForUser && alignment.questionKind === 'clarify' && <CodeSubjectChoice key={alignment.questionId} question={alignment.question} busy={busy} onSubmit={name => void perform({ message: `主体名称：${name}` })} />}
         {alignment?.waitingForUser && alignment.questionKind === 'style' && <CodeStyleChoice key={alignment.questionId} siteId={siteId} alignment={alignment} initial={site.preferences} busy={busy} error={error}
           onSelect={preferences => void perform({ action: 'select', questionId: alignment.questionId, questionRevision: alignment.questionRevision, optionId: preferences.style, preferences })} onCancel={() => void perform({ action: 'cancel' })} />}
